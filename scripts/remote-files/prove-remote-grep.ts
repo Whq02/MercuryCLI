@@ -24,13 +24,13 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS', 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(project)
 
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
-const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
-const { closeRemoteConnections } = await import('../../src/services/remoteFiles/connection.ts')
-const { ripgrepCommand } = await import('../../src/utils/ripgrep.ts')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
+const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
+const { closeRemoteConnections } = await import('../../src/platform/remote-files/connection.ts')
+const { ripgrepCommand } = await import('../../src/platform/shell/ripgrep.ts')
 setSessionTrustAccepted(true)
 enableConfigs()
 setOriginalCwd(project)
@@ -38,7 +38,7 @@ setCwdState(project)
 
 const PORT = 27068
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 480 seconds; the last section header printed above names where it hung: look at the remote transport (scripts/remote-files/remoteKit.ts remoteWorld) and at GrepTool in src/tools/GrepTool/GrepTool.ts')
+  console.log('  [FAIL] the proof did not finish within 480 seconds; the last section header printed above names where it hung: look at the remote transport (scripts/remote-files/remoteKit.ts remoteWorld) and at GrepTool in src/tools/grep/GrepTool.ts')
   process.exit(1)
 }, 480_000)
 watchdog.unref()
@@ -48,7 +48,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 1100)}` : ''}`)
-  if (!ok) console.log('      fix: the ssh:// branch of GrepTool in src/tools/GrepTool/GrepTool.ts (the remote mirror, validateInput and checkPermissions) and the mirror, permission and validation code it calls in src/services/remoteFiles/bridge.ts; a case that compares with the local twin means the remote answer drifted from the local one')
+  if (!ok) console.log('      fix: the ssh:// branch of GrepTool in src/tools/grep/GrepTool.ts (the remote mirror, validateInput and checkPermissions) and the mirror, permission and validation code it calls in src/platform/remote-files/bridge.ts; a case that compares with the local twin means the remote answer drifted from the local one')
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 

@@ -10,16 +10,16 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const railWordsWhere = 'to fix: a wrong cut or ellipsis is fitRailName in src/components/HelmLanesRail.tsx; a wrong name budget is railRowBudgets in the same file; a wrong rail width or tier is railPlanAt in src/utils/helmGeometry.ts'
+  const railWordsWhere = 'to fix: a wrong cut or ellipsis is fitRailName in src/screen/fullscreen-layout/HelmLanesRail.tsx; a wrong name budget is railRowBudgets in the same file; a wrong rail width or tier is railPlanAt in src/screen/fullscreen-layout/helmGeometry.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${railWordsWhere}` : ''}`)
 }
 
 
-const { fitRailName, railRowBudgets } = await import('../../src/components/HelmLanesRail.tsx')
-const { railPlanAt, HELM_HOME_MIN_COLS } = await import('../../src/utils/helmGeometry.ts')
-const { railPanelInnerWidth } = await import('../../src/components/mercury-ui/RailPanel.tsx')
-const { LAYOUT_BREAKPOINTS } = await import('../../src/hooks/useLayoutTier.ts')
-const { displayWidth } = await import('../../src/utils/glyphs.ts')
+const { fitRailName, railRowBudgets } = await import('../../src/screen/fullscreen-layout/HelmLanesRail.tsx')
+const { railPlanAt, HELM_HOME_MIN_COLS } = await import('../../src/screen/fullscreen-layout/helmGeometry.ts')
+const { railPanelInnerWidth } = await import('../../src/screen/widgets/RailPanel.tsx')
+const { LAYOUT_BREAKPOINTS } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { displayWidth } = await import('../../src/screen/theme/glyphs.ts')
 
 const USAGE_ROW = 'usage — after first reply'
 const HEALTH_ROW = '/health — health cert'
@@ -63,7 +63,7 @@ console.log('§4 the law across every budget: whole words, the ellipsis, no dang
     'ctx 12% · 200k',
     'fold win-drives 57fa9c3913 (the proof-portability reds of a Windows build)',
     'reef-survey',
-    'src/services/host/reliability.ts',
+    'src/models/hosting/reliability.ts',
   ]
   let sound = true
   const faults: string[] = []

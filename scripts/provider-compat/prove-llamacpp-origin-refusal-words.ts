@@ -53,9 +53,9 @@ const WIRE = 'api-permission_error: Cross-origin request not allowed (see --cors
 const NAMED_WORDS = `API Error: lab refused the request (${WIRE}) — start this llama.cpp server with --cors-origins http://${NAMED_HOST}, or reach it by a loopback address`
 const FORWARDED_WORDS = `API Error: lab refused the request (${WIRE}) — a forwarder in front of this llama.cpp server sent it another Host: start the server with --cors-origins naming the address its log shows after "host =", or forward the Host unchanged`
 const credentialWords = (name: string, wire: string): string => `API Error: ${name} rejected the credential (${wire}) — /logins compat/${name} replaces this endpoint's key; MERCURY_COMPAT_${name.toUpperCase()}_API_KEY takes precedence when set.`
-const MAP_HINT = 'the recorded 403 is read by mapCompatHttpFailure in src/services/providers/openaicompat/compatChatClient.ts and compatFaultToTypedError in src/services/providers/openaicompat/compatChatCallModel/faults.ts; compare the fixture scripts/provider-compat/fixtures/llamacpp-origin-refusal.json'
-const WORDS_HINT = 'change compatTerminalFaultText in src/services/providers/openaicompat/compatChatCallModel/faults.ts or llamacppOriginRemedy in src/services/providers/openaicompat/compatRefusals.ts so the sentence matches'
-const ROAD_HINT = 'the turn ends in compatTerminalFaultText (src/services/providers/openaicompat/compatChatCallModel/faults.ts), called from compatChatCallModel.ts via routedCallModel (src/services/providers/callModelRouter.ts)'
+const MAP_HINT = 'the recorded 403 is read by mapCompatHttpFailure in src/models/roads/openaicompat/compatChatClient.ts and compatFaultToTypedError in src/models/roads/openaicompat/chat-call-model/faults.ts; compare the fixture scripts/provider-compat/fixtures/llamacpp-origin-refusal.json'
+const WORDS_HINT = 'change compatTerminalFaultText in src/models/roads/openaicompat/chat-call-model/faults.ts or llamacppOriginRemedy in src/models/roads/openaicompat/compatRefusals.ts so the sentence matches'
+const ROAD_HINT = 'the turn ends in compatTerminalFaultText (src/models/roads/openaicompat/chat-call-model/faults.ts), called from compatChatCallModel.ts via routedCallModel (src/models/roads/callModelRouter.ts)'
 
 const seen: Array<{ method: string; path: string; host: string; key: string }> = []
 function refusing(body: string): Promise<{ server: Server; root: string }> {
@@ -100,20 +100,20 @@ const SETTINGS = JSON.stringify({ compatProvider: {
 } }) + '\n'
 writeFileSync(join(HOME, 'settings.json'), SETTINGS)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 resetSettingsCache()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { compatFaultToTypedError, compatTerminalFaultText } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { mapCompatHttpFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-const { readSignInRefusal } = await import('../../src/services/providers/signInRefusal.ts')
-const { writeStoredCompatApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-type Message = import('../../src/types/message.ts').Message
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { compatFaultToTypedError, compatTerminalFaultText } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { mapCompatHttpFailure } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+const { readSignInRefusal } = await import('../../src/models/roads/signInRefusal.ts')
+const { writeStoredCompatApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const permissionContext = getEmptyToolPermissionContext()
 async function refusalOf(model: string): Promise<{ words: string[]; posts: number; keys: string[] }> {
@@ -167,8 +167,8 @@ section('§1 the sentence — the endpoint first, the wire\'s words in parenthes
     check(`an endpoint under a loopback name (${address}) is told a forwarder changed the Host, with no address Mercury cannot know`, at(`${address}/v1/chat/completions`) === FORWARDED_WORDS, at(`${address}/v1/chat/completions`) + ' · ' + WORDS_HINT)
   }
   const otherFault = mapCompatHttpFailure(403, JSON.parse(OTHER_403))
-  check('a 403 of another cause reads as it read: the credential sentence and its remedy', at(`http://${NAMED_HOST}/v1/chat/completions`, 'llamacpp', otherFault) === credentialWords('lab', 'api-permission_error: Forbidden'), at(`http://${NAMED_HOST}/v1/chat/completions`, 'llamacpp', otherFault) + ' · llamacppOriginRefusal in src/services/providers/openaicompat/compatRefusals.ts must match only the cross-origin 403, and ' + WORDS_HINT)
-  check('the same words from an engine of another dialect read as they read', at(`http://${NAMED_HOST}/v1/chat/completions`, 'vllm') === credentialWords('lab', WIRE), at(`http://${NAMED_HOST}/v1/chat/completions`, 'vllm') + ' · llamacppOriginRefusal in src/services/providers/openaicompat/compatRefusals.ts must match only the llamacpp dialect, and ' + WORDS_HINT)
+  check('a 403 of another cause reads as it read: the credential sentence and its remedy', at(`http://${NAMED_HOST}/v1/chat/completions`, 'llamacpp', otherFault) === credentialWords('lab', 'api-permission_error: Forbidden'), at(`http://${NAMED_HOST}/v1/chat/completions`, 'llamacpp', otherFault) + ' · llamacppOriginRefusal in src/models/roads/openaicompat/compatRefusals.ts must match only the cross-origin 403, and ' + WORDS_HINT)
+  check('the same words from an engine of another dialect read as they read', at(`http://${NAMED_HOST}/v1/chat/completions`, 'vllm') === credentialWords('lab', WIRE), at(`http://${NAMED_HOST}/v1/chat/completions`, 'vllm') + ' · llamacppOriginRefusal in src/models/roads/openaicompat/compatRefusals.ts must match only the llamacpp dialect, and ' + WORDS_HINT)
   const unauthorised = mapCompatHttpFailure(401, { error: { message: 'Invalid API Key', type: 'authentication_error', code: 401 } })
   check('llama.cpp\'s own refusal of a key reads as it read', at(`http://${NAMED_HOST}/v1/chat/completions`, 'llamacpp', unauthorised) === credentialWords('lab', 'api-authentication_error: Invalid API Key'), at(`http://${NAMED_HOST}/v1/chat/completions`, 'llamacpp', unauthorised) + ' · ' + WORDS_HINT)
 }
@@ -193,7 +193,7 @@ section('§3 the origin rule is not a refused credential — no note of a refuse
   writeStoredCompatApiKey('fixture-key-stored')
   const single = await refusalOf(`compat/${MODEL}`)
   check('no key command, a key kept by /logins: the address to allow, the request sent once with that key', single.words.length === 1 && single.words[0] === NAMED_WORDS.replace('API Error: lab ', 'API Error: Custom endpoint ') && single.posts === 1 && single.keys.join(',') === 'Bearer fixture-key-stored', `${single.words.join(' | ')} · ${single.posts} ${single.keys.join(',')} · ${ROAD_HINT}`)
-  check('and no note is left that the endpoint refused that key', readSignInRefusal('openai-compat') === undefined, JSON.stringify(readSignInRefusal('openai-compat')) + ' · the origin refusal must not call the sign-in refusal writer in src/services/providers/signInRefusal.ts; see the compat terminal fault path in src/services/providers/openaicompat/compatChatCallModel.ts')
+  check('and no note is left that the endpoint refused that key', readSignInRefusal('openai-compat') === undefined, JSON.stringify(readSignInRefusal('openai-compat')) + ' · the origin refusal must not call the sign-in refusal writer in src/models/roads/signInRefusal.ts; see the compat terminal fault path in src/models/roads/openaicompat/compatChatCallModel.ts')
   writeStoredCompatApiKey(null)
   writeFileSync(join(HOME, 'settings.json'), SETTINGS)
   resetSettingsCache()

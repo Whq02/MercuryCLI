@@ -37,7 +37,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
-const censusHint = ' | fix compactConversation in src/services/compact/compact.ts or the family road it calls for this model'
+const censusHint = ' | fix compactConversation in src/engine/compaction/foldConversation.ts or the family road it calls for this model'
 
 const guard = setTimeout(() => {
   console.log('\nTIMEOUT — fold families census exceeded 180s')
@@ -45,13 +45,13 @@ const guard = setTimeout(() => {
 }, 180_000)
 guard.unref?.()
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { compactConversation } = await import('../../src/services/compact/compact.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+const { compactConversation } = await import('../../src/engine/compaction/foldConversation.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
 
 function makeMessages(): unknown[] {
   return [
@@ -146,7 +146,7 @@ const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFix
 const census = await startFoldFamiliesFixture({ port: CENSUS_PORT })
 const shared = await startCrossfamilyFixture({ port: SHARED_PORT })
 Object.assign(process.env, census.env, shared.env)
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
 await refreshLocalDiscovery({ force: true })
 
 const SESSION_TIERS = new Set(['xhigh', 'x-high', 'high', 'medium', 'max'])

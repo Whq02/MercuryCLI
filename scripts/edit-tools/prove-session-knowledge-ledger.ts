@@ -21,20 +21,20 @@ delete process.env.MERCURY_SESSION_HOME
 const workspace = realpathSync(mkdtempSync(join(tmpdir(), 'session-knowledge-repo-')))
 process.chdir(workspace)
 
-const state = await import('../../src/bootstrap/state.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
 state.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const ledger = await import('../../src/services/changeTransaction/seenLines.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { clearSessionMetadata } = await import('../../src/utils/sessionStorage/logs.ts')
-const { loadInitialMessages } = await import('../../src/cli/headless/resume.ts')
+const ledger = await import('../../src/tools/engines/change-transaction/seenLines.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+const { clearSessionMetadata } = await import('../../src/sessions/transcripts/sessionListings.ts')
+const { loadInitialMessages } = await import('../../src/daemon/runner/resume.ts')
 
 let failures = 0
 let count = 0
@@ -100,12 +100,12 @@ section("§1 the session's own crewmate wrote the file in this process: main edi
   const notePath = join(fixtures, 'crew-note.md')
   const body = 'alpha one\nalpha two\nalpha three\n'
   const crewWrite = await write({ file_path: notePath, content: body }, makeContext('crew-1'))
-  check("the crewmate's Write lands", crewWrite.ok, `FileWriteTool in src/tools/FileWriteTool/FileWriteTool.ts refused a new file written by a crewmate. ${crewWrite.words}`)
+  check("the crewmate's Write lands", crewWrite.ok, `FileWriteTool in src/tools/write/WriteTool.ts refused a new file written by a crewmate. ${crewWrite.words}`)
   const mainEdit = await edit({ file_path: notePath, old_string: 'alpha two', new_string: 'alpha 2' }, makeContext())
-  check("main's Edit of the file its crewmate wrote lands with no Read of its own", mainEdit.ok && !mainEdit.words.includes('not read in this session'), `lines a crewmate wrote must be recorded for the main owner (recordLinesWritten in src/services/changeTransaction/seenLines.ts, called from the write path) so main can edit them without a Read. ${mainEdit.words}`)
+  check("main's Edit of the file its crewmate wrote lands with no Read of its own", mainEdit.ok && !mainEdit.words.includes('not read in this session'), `lines a crewmate wrote must be recorded for the main owner (recordLinesWritten in src/tools/engines/change-transaction/seenLines.ts, called from the write path) so main can edit them without a Read. ${mainEdit.words}`)
   const otherSession = 'alpha 2\nalpha three\n'
   const mainWrite = await write({ file_path: notePath, content: otherSession }, makeContext())
-  check("main's Write over the file lands too: the session knows the bytes its own lanes wrote", mainWrite.ok, `FileWriteTool in src/tools/FileWriteTool/FileWriteTool.ts must accept an overwrite of a file whose current bytes a crewmate wrote in this session. ${mainWrite.words}`)
+  check("main's Write over the file lands too: the session knows the bytes its own lanes wrote", mainWrite.ok, `FileWriteTool in src/tools/write/WriteTool.ts must accept an overwrite of a file whose current bytes a crewmate wrote in this session. ${mainWrite.words}`)
 }
 
 section("§2 a crewmate's Read is its own knowledge; only the lines it authored are the session's")
@@ -115,13 +115,13 @@ section("§2 a crewmate's Read is its own knowledge; only the lines it authored 
   const crew = makeContext('crew-2')
   await readResult({ file_path: reportPath }, crew)
   const crewEdit = await edit({ file_path: reportPath, old_string: 'line 6 of the report', new_string: 'line 6, written by the crewmate' }, crew)
-  check('the crewmate reads the file and edits line 6', crewEdit.ok, `FileEditTool in src/tools/FileEditTool/FileEditTool.ts refused an edit right after the same context Read the file. ${crewEdit.words}`)
+  check('the crewmate reads the file and edits line 6', crewEdit.ok, `FileEditTool in src/tools/edit/EditTool.ts refused an edit right after the same context Read the file. ${crewEdit.words}`)
   const mainSees = ledger.seenLinesOf(processMainOwner(), reportPath)?.ranges ?? []
-  check("main's ledger holds the line the crewmate authored and none it only read", mainSees.some(r => r.start <= 6 && 6 <= r.end) && !mainSees.some(r => r.start <= 2 && 2 <= r.end), `the main owner ledger (seenLinesOf in src/services/changeTransaction/seenLines.ts) must gain the lines a crewmate edits and nothing it only read. ${j(mainSees)}`)
+  check("main's ledger holds the line the crewmate authored and none it only read", mainSees.some(r => r.start <= 6 && 6 <= r.end) && !mainSees.some(r => r.start <= 2 && 2 <= r.end), `the main owner ledger (seenLinesOf in src/tools/engines/change-transaction/seenLines.ts) must gain the lines a crewmate edits and nothing it only read. ${j(mainSees)}`)
   const onAuthored = await edit({ file_path: reportPath, old_string: 'line 6, written by the crewmate', new_string: 'line 6, then by main' }, makeContext())
-  check('main edits the line the crewmate authored without a Read', onAuthored.ok, `a line a crewmate authored must count as seen for main: see recordLinesWritten in src/services/changeTransaction/seenLines.ts and checkSeenLines. ${onAuthored.words}`)
+  check('main edits the line the crewmate authored without a Read', onAuthored.ok, `a line a crewmate authored must count as seen for main: see recordLinesWritten in src/tools/engines/change-transaction/seenLines.ts and checkSeenLines. ${onAuthored.words}`)
   const onRead = await edit({ file_path: reportPath, old_string: 'line 2 of the report', new_string: 'line 2 by main' }, makeContext())
-  check('a line the crewmate only read lands for main by the partly-read law (the carry reads it through in the same call)', onRead.ok, `an edit on a line main has not seen, in a file it partly saw, must land: see checkSeenLines in src/services/changeTransaction/seenLines.ts and src/tools/FileEditTool/edit/readKnowledge.ts. ${onRead.words}`)
+  check('a line the crewmate only read lands for main by the partly-read law (the carry reads it through in the same call)', onRead.ok, `an edit on a line main has not seen, in a file it partly saw, must land: see checkSeenLines in src/tools/engines/change-transaction/seenLines.ts and src/tools/edit/call/readKnowledge.ts. ${onRead.words}`)
 }
 
 section('§3 the restart after a partial Read, on the headless resume road (the field row 2S-03)')
@@ -131,11 +131,11 @@ section('§3 the restart after a partial Read, on the headless resume road (the 
   writeFileSync(partialPath, 'alpha one\nalpha two\nalpha three\nalpha four\n')
   const earlier = makeContext()
   const shown = await readResult({ file_path: partialPath, offset: 1, limit: 2 }, earlier)
-  check('the earlier process read lines 1-2 of 4 (a partial Read)', shown.includes('2\talpha two') && /lines 1-2 of 4/.test(shown), `a Read with offset 1 and limit 2 must show 2 numbered lines and say lines 1-2 of 4 (FileReadTool in src/tools/FileReadTool/FileReadTool.ts). ${shown}`)
+  check('the earlier process read lines 1-2 of 4 (a partial Read)', shown.includes('2\talpha two') && /lines 1-2 of 4/.test(shown), `a Read with offset 1 and limit 2 must show 2 numbered lines and say lines 1-2 of 4 (FileReadTool in src/tools/read/ReadTool.ts). ${shown}`)
   ledger._resetSeenLinesForTesting()
   const bootId = String(state.getSessionId())
   const bootOwner = processMainOwner()
-  check('the restarted process boots under a provisional id, not the session it will resume', bootId !== SID, `the process must boot under a provisional session id (src/bootstrap/state.ts), not the id the test resumes later. ${bootId}`)
+  check('the restarted process boots under a provisional id, not the session it will resume', bootId !== SID, `the process must boot under a provisional session id (src/boot/process-state/processState.ts), not the id the test resumes later. ${bootId}`)
   const lawHome = getProjectDir(workspace)
   mkdirSync(lawHome, { recursive: true })
   const transcriptPath = join(lawHome, `${SID}.jsonl`)
@@ -155,17 +155,17 @@ section('§3 the restart after a partial Read, on the headless resume road (the 
   clearSessionMetadata()
   process.env.MERCURY_SESSION_HOME = lawHome
   const loaded = await loadInitialMessages(() => {}, { continue: undefined, resume: SID, resumeSessionAt: undefined, forkSession: undefined, outputFormat: 'text' })
-  check('the resume road adopts the transcript and its session id', loaded.messages.length === 4 && String(state.getSessionId()) === SID, `loadInitialMessages in src/cli/headless/resume.ts must load all 4 transcript rows and set the session id to the resumed one. ${j({ messages: loaded.messages.length, sessionId: String(state.getSessionId()) })}`)
+  check('the resume road adopts the transcript and its session id', loaded.messages.length === 4 && String(state.getSessionId()) === SID, `loadInitialMessages in src/daemon/runner/resume.ts must load all 4 transcript rows and set the session id to the resumed one. ${j({ messages: loaded.messages.length, sessionId: String(state.getSessionId()) })}`)
   const seen = ledger.seenLinesOf(processMainOwner(), partialPath)
   const underBoot = ledger.seenLinesOf(bootOwner, partialPath)
   console.log(`  fence: the rebuild's owner — under the boot id ${j(underBoot?.ranges ?? null)}, under the resumed session ${j(seen?.ranges ?? null)}`)
-  check("the resumed session's own ledger carries the two lines the partial Read showed", seen !== undefined && seen.ranges.some(r => r.start <= 1 && r.end >= 2), `the resume must rebuild the ledger under the resumed session owner after the session id is set: see the rebuildSeenLinesFromTranscript call in src/services/resume/conversationRecovery.ts. ${j(seen)}`)
+  check("the resumed session's own ledger carries the two lines the partial Read showed", seen !== undefined && seen.ranges.some(r => r.start <= 1 && r.end >= 2), `the resume must rebuild the ledger under the resumed session owner after the session id is set: see the rebuildSeenLinesFromTranscript call in src/sessions/resume/conversationRecovery.ts. ${j(seen)}`)
   const afterRestart = await edit({ file_path: partialPath, old_string: 'alpha two', new_string: 'alpha 2' }, makeContext())
-  check('the Edit on line 2 lands after the restart with no new Read', afterRestart.ok, `the rebuilt ledger must let the Edit pass checkSeenLines in src/services/changeTransaction/seenLines.ts. ${afterRestart.words}`)
+  check('the Edit on line 2 lands after the restart with no new Read', afterRestart.ok, `the rebuilt ledger must let the Edit pass checkSeenLines in src/tools/engines/change-transaction/seenLines.ts. ${afterRestart.words}`)
   const afterEdit = ledger.seenLinesOf(processMainOwner(), partialPath)?.ranges ?? []
-  check('the ledger after the edit still holds the window', afterEdit.some(r => r.start <= 1 && 2 <= r.end), `shiftSeenLinesAfterApply in src/services/changeTransaction/seenLines.ts must keep the seen window after an edit. ${j(afterEdit)}`)
+  check('the ledger after the edit still holds the window', afterEdit.some(r => r.start <= 1 && 2 <= r.end), `shiftSeenLinesAfterApply in src/tools/engines/change-transaction/seenLines.ts must keep the seen window after an edit. ${j(afterEdit)}`)
   const outsideWindow = await edit({ file_path: partialPath, old_string: 'alpha four', new_string: 'alpha 4' }, makeContext())
-  check('a line outside the partial window lands by the partly-read law (the carry reads it through in the same call)', outsideWindow.ok, `an edit outside the partial window must land: see checkSeenLines in src/services/changeTransaction/seenLines.ts and src/tools/FileEditTool/edit/readKnowledge.ts. ${outsideWindow.words}`)
+  check('a line outside the partial window lands by the partly-read law (the carry reads it through in the same call)', outsideWindow.ok, `an edit outside the partial window must land: see checkSeenLines in src/tools/engines/change-transaction/seenLines.ts and src/tools/edit/call/readKnowledge.ts. ${outsideWindow.words}`)
 }
 
 console.log(`\n${count} checks, ${failures} failures`)

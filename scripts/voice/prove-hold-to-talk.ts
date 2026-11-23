@@ -54,20 +54,20 @@ async function until(cond: () => boolean, ms = 5_000): Promise<boolean> {
   return cond()
 }
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.js')
-const wav = await import('../../src/services/voice/wav.js')
-const session = await import('../../src/services/voice/voiceSession.js')
-const pendingInput = await import('../../src/input-core/pending-input.js')
-type HoldModule = typeof import('../../src/services/voice/holdToTalk.js')
+const { resetComputedDefaultMemo } = await import('../../src/models/catalogue/computedDefault.js')
+const wav = await import('../../src/integrations/voice/wav.js')
+const session = await import('../../src/integrations/voice/voiceSession.js')
+const pendingInput = await import('../../src/screen/composer/input-core/pending-input.js')
+type HoldModule = typeof import('../../src/integrations/voice/holdToTalk.js')
 let hold: HoldModule | null = null
 try {
-  hold = await import('../../src/services/voice/holdToTalk.js')
+  hold = await import('../../src/integrations/voice/holdToTalk.js')
 } catch {
   hold = null
 }
-type Key = import('../../src/ink/events/input-event.js').Key
+type Key = import('../../src/screen/renderer/events/input-event.js').Key
 
 const TONE = join(SCRATCH, 'tone.wav')
 writeFileSync(TONE, wav.synthesizeToneWav({ seconds: 1, hz: 440 }))
@@ -106,8 +106,8 @@ const KEY: Key = {
 }
 const key = (over: Partial<Key> = {}): Key => ({ ...KEY, ...over })
 
-const { useComposerHoldToTalk } = await import('../../src/components/PromptInput/useComposerVoice.js')
-const { render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { useComposerHoldToTalk } = await import('../../src/screen/composer/useComposerVoice.js')
+const { render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 
 type Filter = (rawInput: string, key: Key) => string
 async function mountComposerHoldToTalk(opts: {
@@ -450,7 +450,7 @@ if (hold !== null) {
   check('with /voice off every space types at once — no hold, no hold-back', composer.text() === 'off   ' && hold.holdToTalkSnapshot() === null, JSON.stringify(composer.text()))
   session.setVoiceInputEnabled(true)
 } else {
-  check('the hold reader module exists (src/services/voice/holdToTalk.ts)', false, 'absent on this tree')
+  check('the hold reader module exists (src/integrations/voice/holdToTalk.ts)', false, 'absent on this tree')
 }
 
 section('§7 the words say the new law: hold space to speak, release to stop, esc cancels; /voice for a terminal whose key repeat is off')

@@ -16,11 +16,11 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-const { setSessionTrustAccepted } = await import(join(SRC, 'bootstrap/state.ts'))
+const { setSessionTrustAccepted } = await import(join(SRC, 'boot/process-state/processState.ts'))
 setSessionTrustAccepted(true)
-const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/config/globalConfig.ts'))
 enableConfigs()
-const health = await import(join(SRC, 'services/health/healthReport.ts'))
+const health = await import(join(SRC, 'platform/health/healthReport.ts'))
 const evidence = health.skillsRefusedEvidence as ((cwd: string) => Promise<{ status: string; evidence: string; fix?: string }>) | undefined
 check('the refused-skills evidence is exported', typeof evidence === 'function')
 
@@ -52,7 +52,7 @@ console.log('L1 a broken skill is named with its reason')
 console.log('L2 a clean project is ok')
 {
   const cwd = project([['fine', CLEAN]])
-  const skills = await import(join(SRC, 'skills/loadSkillsDir.ts'))
+  const skills = await import(join(SRC, 'integrations/skills/loadSkillsDir.ts'))
   skills.clearSkillCaches()
   const row = await evidence?.(cwd)
   check('the row is ok', row?.status === 'ok', JSON.stringify(row))
@@ -60,9 +60,9 @@ console.log('L2 a clean project is ok')
 
 console.log('L3 the row is in the certificate (the list, read here)')
 {
-  const { HEALTH_SECTIONS } = await import(join(SRC, 'services/health/sections.ts'))
-  const { toolCapabilityFastChecks } = await import(join(SRC, 'services/health/sections/tool-capability-fast.ts'))
-  const { getCwd } = await import(join(SRC, 'utils/cwd.ts'))
+  const { HEALTH_SECTIONS } = await import(join(SRC, 'platform/health/sections.ts'))
+  const { toolCapabilityFastChecks } = await import(join(SRC, 'platform/health/sections/tool-capability-fast.ts'))
+  const { getCwd } = await import(join(SRC, 'platform/files/cwd.ts'))
   const entry = (HEALTH_SECTIONS as Array<{ id: string; title: string; checks: unknown }>).find(listed => listed.id === 'tool-capability-fast')
   const rows = toolCapabilityFastChecks() as Array<{ id: string; label: string; run: () => Promise<unknown> }>
   check('TOOL CAPABILITY lists the skill-files row', entry?.title === 'TOOL CAPABILITY' && entry.checks === toolCapabilityFastChecks && rows[0]?.label === 'Skill files')

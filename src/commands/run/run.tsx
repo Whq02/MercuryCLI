@@ -1,18 +1,18 @@
 import * as React from 'react'
 import { useCallback, useState } from 'react'
-import { useLoad } from '../../hooks/effects.js'
-import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../components/mercuryPalette.js'
-import { CommandCenter, SectionHeader } from '../../components/mercury-ui/components.js'
-import { padTo, truncateToWidth } from '../../utils/glyphs.js'
-import { CursorCell } from '../../components/mercury-ui/LiveGlyphs.js'
-import { CursorRow } from '../../components/mercury-ui/CursorRow.js'
-import { useSessionAccent } from '../../components/mercury-ui/sessionAccent.js'
-import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import { useModalOrTerminalSize } from '../../context/modalContext.js'
-import { Box, Text, useInput } from '../../ink.js'
-import { usePopupListNavigation } from '../../components/CustomSelect/popup-list.js'
-import { useOpenEventGate } from '../../components/mercury-ui/useOpenEventGate.js'
-import { processMainOwner } from '../../utils/run/resolveOwner.js'
+import { useLoad } from '../../screen/effects/effects.js'
+import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../screen/theme/mercuryPalette.js'
+import { CommandCenter, SectionHeader } from '../../screen/widgets/components.js'
+import { padTo, truncateToWidth } from '../../screen/theme/glyphs.js'
+import { CursorCell } from '../../screen/widgets/LiveGlyphs.js'
+import { CursorRow } from '../../screen/widgets/CursorRow.js'
+import { useSessionAccent } from '../../screen/widgets/sessionAccent.js'
+import { useTerminalSize } from '../../screen/fullscreen-layout/useTerminalSize.js'
+import { useModalOrTerminalSize } from '../../screen/overlays/modalContext.js'
+import { Box, Text, useInput } from '../../screen/themedRenderer.js'
+import { usePopupListNavigation } from '../../screen/select/popup-list.js'
+import { useOpenEventGate } from '../../screen/widgets/useOpenEventGate.js'
+import { processMainOwner } from '../../engine/run-owner/resolveOwner.js'
 import {
   flushRun,
   getRunSnapshot,
@@ -21,14 +21,14 @@ import {
   subscribeRuns,
   syncDeliverablesFromTasks,
   syncVerification,
-} from '../../services/run/runCoordinator.js'
+} from '../../engine/run/runCoordinator.js'
 import {
   getBootRecovery,
   subscribeBootRecovery,
-} from '../../substrate/recoveryOrchestrator.js'
-import { missionEnabled } from '../../services/mission/contracts.js'
-import { buildMissionRow, gatherMissionView, type MissionRow } from '../../services/mission/projection.js'
-import { getCwd } from '../../utils/cwd.js'
+} from '../../platform/substrate/recoveryOrchestrator.js'
+import { missionEnabled } from '../../sessions/mission/contracts.js'
+import { buildMissionRow, gatherMissionView, type MissionRow } from '../../sessions/mission/projection.js'
+import { getCwd } from '../../platform/files/cwd.js'
 import { buildBootRecoveryRow, buildRunRows, type RunRow } from './runInspectorModel.js'
 
 

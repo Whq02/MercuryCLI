@@ -22,15 +22,15 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
-const { checkReadPermissionForTool, getResolvedWorkingDirPaths } = await import('../../src/utils/permissions/filesystem.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
+const { checkReadPermissionForTool, getResolvedWorkingDirPaths } = await import('../../src/permissions/rules/filesystem.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
 
 let failures = 0
 let checks = 0
-const staleResolutionHint = 'change getResolvedWorkingDirPaths (its per-burst cache and the clearCache sweep that runs on the next loop turn) and checkReadPermissionForTool in src/utils/permissions/filesystem.ts, so a path is resolved again after the folder becomes a link; the Bash side is bashToolHasPermission in src/tools/BashTool/bashPermissions.ts'
+const staleResolutionHint = 'change getResolvedWorkingDirPaths (its per-burst cache and the clearCache sweep that runs on the next loop turn) and checkReadPermissionForTool in src/permissions/rules/filesystem.ts, so a path is resolved again after the folder becomes a link; the Bash side is bashToolHasPermission in src/tools/shell/bashPermissions.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++

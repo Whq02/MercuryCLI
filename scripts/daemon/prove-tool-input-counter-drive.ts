@@ -165,7 +165,7 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17], [120, 40]] as const) {
   }
   process.env.MERCURY_CONFIG_DIR = home
   process.env.MERCURY_DAEMON_DIR = daemonDir
-  const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+  const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
   let daemon: ChildProcess | undefined
   let capture: ChildProcess | undefined
   let daemonLog = ''
@@ -227,26 +227,26 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17], [120, 40]] as const) {
       const rate = /([\d,.]+)\s*tok\/s/.exec(text)?.[1] ?? null
       check(`${geometry} ${label}: tool input is arriving before completion`, emitted >= 8192 && stillStreaming, `chars=${emitted}`, 'the fixture streams the Write input in 1024-char input_json_delta pieces, so the mark must land while that stream is still running (the sends list in this file sets the mark timing)')
       const rounding = 50
-      check(`${geometry} ${label}: the spinner counts more than the opening prose without overtaking the wire count rounded for display (every row spells the count through the one words function: 17,689 reads 17.7k on the compact row too)`, tokens !== null && tokens > Math.floor(opening.length / 4) && tokens <= Math.floor((emitted + opening.length) / 4) + rounding, `tokens=${tokens}, inputChars=${emitted}`, 'the spinner count comes from the daemon turnChars (src/daemon/sessionSeat/stream.ts, tool_input_delta adds the json length) read by getFocusedLiveResponseChars in src/screens/chat/useChatStatus.tsx; null means the frame shows no count, read early.txt or later.txt in the scratch folder')
+      check(`${geometry} ${label}: the spinner counts more than the opening prose without overtaking the wire count rounded for display (every row spells the count through the one words function: 17,689 reads 17.7k on the compact row too)`, tokens !== null && tokens > Math.floor(opening.length / 4) && tokens <= Math.floor((emitted + opening.length) / 4) + rounding, `tokens=${tokens}, inputChars=${emitted}`, 'the spinner count comes from the daemon turnChars (src/daemon/session-seat/stream.ts, tool_input_delta adds the json length) read by getFocusedLiveResponseChars in src/screen/chat/useChatStatus.tsx; null means the frame shows no count, read early.txt or later.txt in the scratch folder')
       if (cols >= 100) {
         check(`${geometry} ${label}: the token rate grows on the same stream`, rate !== null && Number(rate.replaceAll(',', '')) > 0, `rate=${rate}`, 'the wide spinner row should show a tok/s figure while input streams, read early.txt or later.txt in the scratch folder')
         const recentCounts = wire.filter(row => row.kind === 'input' && row.at <= markAt && row.at >= markAt - vshotBudgetMs(1000)).map(row => Math.floor((row.emitted! + opening.length) / 4))
-        check(`${geometry} ${label}: the wide counter shows a raw count from the last second, rounded for display`, tokens !== null && recentCounts.some(count => Math.abs(tokens - count) <= rounding), `tokens=${tokens}, recentRawTokens=${JSON.stringify(recentCounts)}`, 'the shown count must match a raw count from the last second, so check how the spinner derives it from turnChars in src/screens/chat/useChatStatus.tsx')
+        check(`${geometry} ${label}: the wide counter shows a raw count from the last second, rounded for display`, tokens !== null && recentCounts.some(count => Math.abs(tokens - count) <= rounding), `tokens=${tokens}, recentRawTokens=${JSON.stringify(recentCounts)}`, 'the shown count must match a raw count from the last second, so check how the spinner derives it from turnChars in src/screen/chat/useChatStatus.tsx')
       }
       const sample = samples.filter(sample => sample.at <= markAt).at(-1)
-      check(`${geometry} ${label}: the published count is an exact input prefix without exposing it as prose`, sample !== undefined && sample.turnChars > opening.length && wire.some(row => row.kind === 'input' && row.at <= sample.at && row.emitted === sample.turnChars - opening.length) && sample.text === null && sample.streamBlock === 'tool_use', JSON.stringify(sample), 'the daemon tail file under session-tail must carry turnChars equal to the opening plus an exact prefix of the input, with text null and streamBlock tool_use: see the tool_input_delta branch and the tail publish in src/daemon/sessionSeat/stream.ts')
+      check(`${geometry} ${label}: the published count is an exact input prefix without exposing it as prose`, sample !== undefined && sample.turnChars > opening.length && wire.some(row => row.kind === 'input' && row.at <= sample.at && row.emitted === sample.turnChars - opening.length) && sample.text === null && sample.streamBlock === 'tool_use', JSON.stringify(sample), 'the daemon tail file under session-tail must carry turnChars equal to the opening plus an exact prefix of the input, with text null and streamBlock tool_use: see the tool_input_delta branch and the tail publish in src/daemon/session-seat/stream.ts')
       measured.push({ label, markAt, emitted, tokens, rate, stillStreaming, sample })
       writeFileSync(join(home, `${label}.txt`), `${text}\n`)
     }
     const early = marks.early ? tokensOf(textOf(marks.early)) : null
     const later = marks.later ? tokensOf(textOf(marks.later)) : null
-    check(`${geometry}: the counter grows between the two streaming frames`, early !== null && later !== null && later > early, `${early} -> ${later}`, 'the spinner count did not grow between the early and later frames, so the live turnChars is not reaching the screen (src/screens/chat/useChatStatus.tsx, src/daemon/sessionSeat/stream.ts)')
+    check(`${geometry}: the counter grows between the two streaming frames`, early !== null && later !== null && later > early, `${early} -> ${later}`, 'the spinner count did not grow between the early and later frames, so the live turnChars is not reaching the screen (src/screen/chat/useChatStatus.tsx, src/daemon/session-seat/stream.ts)')
     const approvalAt = payload.sendReceipts?.[4]?.ts ?? 0
     const inputComplete = samples.filter(sample => sample.at <= approvalAt).at(-1)
-    check(`${geometry}: the complete input counts exactly once before execution`, inputComplete?.turnChars === opening.length + input.length, JSON.stringify(inputComplete), 'the last tail sample before the approval prompt must count the opening plus the whole input once, see turnChars in src/daemon/sessionSeat/stream.ts')
+    check(`${geometry}: the complete input counts exactly once before execution`, inputComplete?.turnChars === opening.length + input.length, JSON.stringify(inputComplete), 'the last tail sample before the approval prompt must count the opening plus the whole input once, see turnChars in src/daemon/session-seat/stream.ts')
     check(`${geometry}: the Write executes its complete payload`, existsSync(target) && readFileSync(target, 'utf8') === bodyText, '', 'output.txt in the work folder is missing or differs from the streamed content; the streamed tool input must reach the Write tool unchanged')
     check(`${geometry}: the short final reply paints after the tool result`, Boolean(marks.complete && textOf(marks.complete).includes(done)) && wire.some(row => row.kind === 'tool-result'), '', 'the final frame must show the closing reply and the fixture must have received the tool_result request; read grid.json and wire.jsonl in the scratch folder')
-    check(`${geometry}: result clears the live count`, samples.at(-1)?.turnChars === 0, JSON.stringify(samples.at(-1)), 'the tail must drop turnChars once the tool result lands, see where seat.turnChars is reset in src/daemon/sessionSeat/rows.ts')
+    check(`${geometry}: result clears the live count`, samples.at(-1)?.turnChars === 0, JSON.stringify(samples.at(-1)), 'the tail must drop turnChars once the tool result lands, see where seat.turnChars is reset in src/daemon/session-seat/rows.ts')
     writeFileSync(join(home, 'tail-samples.json'), `${JSON.stringify(samples, null, 2)}\n`)
     writeFileSync(join(home, 'measurements.json'), `${JSON.stringify({ dist, scratch: home, geometry, inputChars: input.length, measured }, null, 2)}\n`)
     if (frames) {

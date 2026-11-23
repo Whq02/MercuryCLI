@@ -8,19 +8,19 @@ import { Client, type CallToolResult } from '@modelcontextprotocol/client'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const root = join(proofHome, 'work')
 mkdirSync(root, { recursive: true })
-const { switchSession, setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+const { switchSession, setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
 setOriginalCwd(root)
 switchSession('00000000-0000-4000-8000-000000000045' as never, root)
-const { createMercuryServer, withMercuryLeaseHolder } = await import('../../src/services/mcp/mercuryServer.ts')
-const { createLinkedTransportPair } = await import('../../src/services/mcp/InProcessTransport.ts')
-const { projectLeaseHolder, takeProjectLeases, releaseProjectLeases, listProjectLeases } = await import('../../src/services/vulcan/engine/leases.ts')
+const { createMercuryServer, withMercuryLeaseHolder } = await import('../../src/integrations/mcp/mercuryServer.ts')
+const { createLinkedTransportPair } = await import('../../src/integrations/mcp/InProcessTransport.ts')
+const { projectLeaseHolder, takeProjectLeases, releaseProjectLeases, listProjectLeases } = await import('../../src/integrations/vulcan/engine/leases.ts')
 
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)} — change the lease_take, lease_release or lease_list handler in src/services/mcp/mercuryServer.ts, or the lease store in src/services/vulcan/engine/leases.ts` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)} — change the lease_take, lease_release or lease_list handler in src/integrations/mcp/mercuryServer.ts, or the lease store in src/integrations/vulcan/engine/leases.ts` : ''}`)
 }
 const server = await createMercuryServer()
 const client = new Client({ name: 'lease-proof', version: '0' })

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
-const { getSpinnerVerbs, isTensorFoldTurn, sampleSpinnerVerb } = await import('../../src/constants/spinnerVerbs.ts')
+const { getSpinnerVerbs, isTensorFoldTurn, sampleSpinnerVerb } = await import('../../src/screen/spinner/spinnerVerbs.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -101,21 +101,21 @@ console.log('prove-desert-verbs-cadence — cadence laws and register for MERCUR
 }
 
 const violations = auditDesertVerbs(desert, others)
-check('every entry in MERCURY_DESERT_VERBS obeys all cadence and register laws', violations.length === 0, `${violations.join(' | ')} — rename or remove the listed verbs in MERCURY_DESERT_VERBS in src/constants/spinnerVerbs.ts`)
-check('original 37 desert verbs stay anchored from Scuttling to Sand-slicked', desert[0] === 'Scuttling' && desert[36] === 'Sand-slicked', `0=${desert[0]} 36=${desert[36]} — keep the first 37 entries of MERCURY_DESERT_VERBS in src/constants/spinnerVerbs.ts in place and in order`)
+check('every entry in MERCURY_DESERT_VERBS obeys all cadence and register laws', violations.length === 0, `${violations.join(' | ')} — rename or remove the listed verbs in MERCURY_DESERT_VERBS in src/screen/spinner/spinnerVerbs.ts`)
+check('original 37 desert verbs stay anchored from Scuttling to Sand-slicked', desert[0] === 'Scuttling' && desert[36] === 'Sand-slicked', `0=${desert[0]} 36=${desert[36]} — keep the first 37 entries of MERCURY_DESERT_VERBS in src/screen/spinner/spinnerVerbs.ts in place and in order`)
 const added = desert.slice(37)
-check('20 or more new desert thinking verbs are landed after Sand-slicked (the 30 of the second batch, then the 20 ops verbs of 2026-10-26)', added.length >= 20, `added=${added.length} — MERCURY_DESERT_VERBS in src/constants/spinnerVerbs.ts needs 20 or more verbs after Sand-slicked`)
+check('20 or more new desert thinking verbs are landed after Sand-slicked (the 30 of the second batch, then the 20 ops verbs of 2026-10-26)', added.length >= 20, `added=${added.length} — MERCURY_DESERT_VERBS in src/screen/spinner/spinnerVerbs.ts needs 20 or more verbs after Sand-slicked`)
 
 console.log('\nMERCURY_DESERT_PHRASES — the approved lines, their hygiene and their place in the pool')
-check('MERCURY_DESERT_PHRASES holds exactly the 24 approved phrases, in order, verbatim', phrases.length === 24 && phrases.every((p, i) => p === APPROVED_PHRASES[i]), `${phrases.join(' | ')} — make MERCURY_DESERT_PHRASES in src/constants/spinnerVerbs.ts match APPROVED_PHRASES in this file`)
-check('no phrase carries trailing punctuation, an exclamation mark or an emoji', phrases.every(p => !/[.!?,;:…]$/.test(p) && !p.includes('!') && !/\p{Extended_Pictographic}/u.test(p)), 'remove the trailing punctuation, exclamation mark or emoji from the phrase in MERCURY_DESERT_PHRASES in src/constants/spinnerVerbs.ts')
+check('MERCURY_DESERT_PHRASES holds exactly the 24 approved phrases, in order, verbatim', phrases.length === 24 && phrases.every((p, i) => p === APPROVED_PHRASES[i]), `${phrases.join(' | ')} — make MERCURY_DESERT_PHRASES in src/screen/spinner/spinnerVerbs.ts match APPROVED_PHRASES in this file`)
+check('no phrase carries trailing punctuation, an exclamation mark or an emoji', phrases.every(p => !/[.!?,;:…]$/.test(p) && !p.includes('!') && !/\p{Extended_Pictographic}/u.test(p)), 'remove the trailing punctuation, exclamation mark or emoji from the phrase in MERCURY_DESERT_PHRASES in src/screen/spinner/spinnerVerbs.ts')
 {
   const norm = (v: string): string => v.toLowerCase().replace(/[\s-]/g, '')
   const everyOther = new Set([...desert, ...others].map(norm))
   const dupes = phrases.filter((p, i) => everyOther.has(norm(p)) || phrases.findIndex(q => norm(q) === norm(p)) !== i)
-  check('no phrase duplicates another entry in any list (hyphen and space insensitive)', dupes.length === 0, `${dupes.join(' | ')} — reword the duplicated phrase in MERCURY_DESERT_PHRASES in src/constants/spinnerVerbs.ts`)
+  check('no phrase duplicates another entry in any list (hyphen and space insensitive)', dupes.length === 0, `${dupes.join(' | ')} — reword the duplicated phrase in MERCURY_DESERT_PHRASES in src/screen/spinner/spinnerVerbs.ts`)
 }
-check('the existing cadence laws still read the verbs alone (the phrase list is its own array)', !desert.some(v => v.includes(' ')) && !desert.some(v => phrases.includes(v)), `desert=${desert.length} — keep multi-word lines in MERCURY_DESERT_PHRASES, not in MERCURY_DESERT_VERBS, in src/constants/spinnerVerbs.ts`)
+check('the existing cadence laws still read the verbs alone (the phrase list is its own array)', !desert.some(v => v.includes(' ')) && !desert.some(v => phrases.includes(v)), `desert=${desert.length} — keep multi-word lines in MERCURY_DESERT_PHRASES, not in MERCURY_DESERT_VERBS, in src/screen/spinner/spinnerVerbs.ts`)
 {
   const phraseSet = new Set(phrases)
   const desertSet = new Set(desert)
@@ -124,30 +124,30 @@ check('the existing cadence laws still read the verbs alone (the phrase list is 
   delete process.env.MERCURY_HIP
   delete process.env.MERCURY_DESERT_VERBS
   const mixed = draw(400)
-  check('the default pool (desert + quicksilver) draws the phrases and nothing outside the three sets', mixed.some(v => phraseSet.has(v)) && mixed.every(v => phraseSet.has(v) || desertSet.has(v) || quicksilver.has(v)), `${mixed.filter(v => !(phraseSet.has(v) || desertSet.has(v) || quicksilver.has(v))).join(' | ')} — check the default pool built in getSpinnerVerbs and sampleSpinnerVerb in src/constants/spinnerVerbs.ts`)
+  check('the default pool (desert + quicksilver) draws the phrases and nothing outside the three sets', mixed.some(v => phraseSet.has(v)) && mixed.every(v => phraseSet.has(v) || desertSet.has(v) || quicksilver.has(v)), `${mixed.filter(v => !(phraseSet.has(v) || desertSet.has(v) || quicksilver.has(v))).join(' | ')} — check the default pool built in getSpinnerVerbs and sampleSpinnerVerb in src/screen/spinner/spinnerVerbs.ts`)
   process.env.MERCURY_HIP = '0'
   const desertOnly = draw(400)
-  check('quicksilver off: every draw is a desert verb or a desert phrase, and the phrases do appear', desertOnly.some(v => phraseSet.has(v)) && desertOnly.every(v => phraseSet.has(v) || desertSet.has(v)), `${desertOnly.filter(v => !(phraseSet.has(v) || desertSet.has(v))).join(' | ')} — check getSpinnerVerbs and sampleSpinnerVerb in src/constants/spinnerVerbs.ts with MERCURY_HIP=0`)
+  check('quicksilver off: every draw is a desert verb or a desert phrase, and the phrases do appear', desertOnly.some(v => phraseSet.has(v)) && desertOnly.every(v => phraseSet.has(v) || desertSet.has(v)), `${desertOnly.filter(v => !(phraseSet.has(v) || desertSet.has(v))).join(' | ')} — check getSpinnerVerbs and sampleSpinnerVerb in src/screen/spinner/spinnerVerbs.ts with MERCURY_HIP=0`)
   process.env.MERCURY_HIP = '1'
-  check('quicksilver only: no phrase and no desert verb is drawn', draw(300).every(v => quicksilver.has(v)), 'with MERCURY_HIP=1 getSpinnerVerbs in src/constants/spinnerVerbs.ts must return only the quicksilver lists')
+  check('quicksilver only: no phrase and no desert verb is drawn', draw(300).every(v => quicksilver.has(v)), 'with MERCURY_HIP=1 getSpinnerVerbs in src/screen/spinner/spinnerVerbs.ts must return only the quicksilver lists')
   delete process.env.MERCURY_HIP
   process.env.MERCURY_DESERT_VERBS = '0'
   const stockSet = new Set(stock)
-  check('MERCURY_DESERT_VERBS=0 drops the phrases with the desert verbs: every draw is stock or quicksilver', draw(300).every(v => stockSet.has(v) || quicksilver.has(v)), 'with MERCURY_DESERT_VERBS=0 getSpinnerVerbs in src/constants/spinnerVerbs.ts must drop both MERCURY_DESERT_VERBS and MERCURY_DESERT_PHRASES')
+  check('MERCURY_DESERT_VERBS=0 drops the phrases with the desert verbs: every draw is stock or quicksilver', draw(300).every(v => stockSet.has(v) || quicksilver.has(v)), 'with MERCURY_DESERT_VERBS=0 getSpinnerVerbs in src/screen/spinner/spinnerVerbs.ts must drop both MERCURY_DESERT_VERBS and MERCURY_DESERT_PHRASES')
   delete process.env.MERCURY_DESERT_VERBS
   check(
     'the six owner-added verbs are present in the pool in house form',
     ['Tensorfolding', 'Open-sourcing', 'Flatlining', 'Microsofting'].every(v => desertSet.has(v)) &&
       quicksilver.has("Chippin' in") &&
       quicksilver.has('Klepping high-grade chrome'),
-    'restore the missing verb in MERCURY_DESERT_VERBS or the quicksilver lists in src/constants/spinnerVerbs.ts',
+    'restore the missing verb in MERCURY_DESERT_VERBS or the quicksilver lists in src/screen/spinner/spinnerVerbs.ts',
   )
   const plainCount = getSpinnerVerbs({ tensorfold: false }).filter(v => v === 'Tensorfolding').length
   const tfCount = getSpinnerVerbs({ tensorfold: true }).filter(v => v === 'Tensorfolding').length
   check(
     'Tensorfolding favours turns whose model is on TensorFold while respecting quicksilver-only and stock modes',
     plainCount === 1 && tfCount > plainCount && isTensorFoldTurn({ model: 'local/qwen3.8-27b' }) && !isTensorFoldTurn({ model: 'claude-opus-5-5' }),
-    `plain=${plainCount} tf=${tfCount} — check isTensorFoldTurn and the tensorfold weighting in getSpinnerVerbs in src/constants/spinnerVerbs.ts`,
+    `plain=${plainCount} tf=${tfCount} — check isTensorFoldTurn and the tensorfold weighting in getSpinnerVerbs in src/screen/spinner/spinnerVerbs.ts`,
   )
 }
 

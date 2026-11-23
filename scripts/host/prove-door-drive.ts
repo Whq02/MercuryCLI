@@ -5,7 +5,7 @@ import { KEY, mountOffscreen, waitFor, type Mounted } from '../lib/settingsPopup
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture, fakeSshRunner, liveCatalogue } from './runpodFixture.mjs'
 import { gridToPng } from '../ui/gridToPng.ts'
-import type { LlmHostQuestion, LlmHostRoad } from '../../src/services/llmHost/index.ts'
+import type { LlmHostQuestion, LlmHostRoad } from '../../src/models/llm-host/index.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const option = (name: string) => { const at = process.argv.indexOf(name); return at < 0 ? undefined : process.argv[at + 1] }
@@ -28,18 +28,18 @@ let checks = 0
 const check = (name: string, truth: unknown) => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
 try {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { hostRunner } = await import('../../src/services/host/ssh.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-  const { writeHostRecord, readHostRecord } = await import('../../src/services/host/store.ts')
-  const { currentHostRecipes } = await import('../../src/services/host/recipesFile.ts')
-  const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { hostRunner } = await import('../../src/models/hosting/ssh.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const { writeHostRecord, readHostRecord } = await import('../../src/models/hosting/store.ts')
+  const { currentHostRecipes } = await import('../../src/models/hosting/recipesFile.ts')
+  const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
   writeStoredRunpodApiKey(rp.key)
   const recipes = currentHostRecipes()
   const runningRecipe = recipes.find(recipe => recipe.id === 'glm53-flash-gguf-b300')!
@@ -112,8 +112,8 @@ try {
   check('selected quality remains visible and alternatives stay reachable', screen2.includes('Balanced · 4-bit') && screen2.includes('Choose quality'))
   check('already running stays first', selected().includes('Already running') && selected().includes('fixture-paid'))
   await capture('120-screen-2')
-  const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-  const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+  const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
   let sessionModel: string | null = null
   let switches = 0
   setFocusedSessionConnector({ ...noSessionConnector(), sessionId: () => 'door-proof', setModel: async model => { switches++; sessionModel = model; return { state: 'applied', setting: model } as never } })
@@ -162,12 +162,12 @@ try {
   await choose('Cancel'); await until('Cancelled')
   check('cancel never adds a create', rp.state.creates === 1)
   await close(); rp.state.customGpus = null
-  const { modelDoorRoad, runModelDoor, hostRunModelRows } = await import('../../src/services/host/door.ts')
+  const { modelDoorRoad, runModelDoor, hostRunModelRows } = await import('../../src/models/hosting/door.ts')
   check('/model run rows omit the already-running model and link unopened recipes', !hostRunModelRows().some(row => row.name === 'GLM-5.3-Flash') && hostRunModelRows().some(row => row.name === 'Qwen3.8-27B' && row.tag === 'run it → /llmhost'))
   open(modelDoorRoad(road, 'Qwen3.8-27B')); await heading('Qwen3.8-27B'); await until('QUALITY')
   check('model-picker deep link opens Screen 2, not where or Screen 1', !mounted!.screen().includes('Which model?') && !mounted!.screen().includes('Where should the model run?'))
   await close()
-  const { RunpodClient } = await import('../../src/services/host/runpod.ts')
+  const { RunpodClient } = await import('../../src/models/hosting/runpod.ts')
   const api = new RunpodClient(rp.key, rp.baseUrl)
   const questions: LlmHostQuestion[] = []
   const fakeRoad: LlmHostRoad = async () => ({ ok: true, words: 'existing road' })
@@ -195,7 +195,7 @@ try {
   check('real /model action opens the matching model page without another rental', rp.state.creates === 1 && !mounted!.screen().includes('Which model?'))
   await close()
   mounted!.unmount(); mounted = undefined
-  const { refreshCompatCatalogues } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
+  const { refreshCompatCatalogues } = await import('../../src/models/roads/openaicompat/compatCatalogue.ts')
   await refreshCompatCatalogues({ force: true, name: 'door-paid', fetchImpl: Object.assign(async () => { throw new Error('fixture server is offline') }, nativeFetch) })
   const retryNode = await modelCall(() => {}, { messages: [] } as never, 'door-paid')
   await mount(120, retryNode); await until('server is not answering')

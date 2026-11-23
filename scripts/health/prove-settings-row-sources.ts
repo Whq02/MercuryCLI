@@ -10,12 +10,12 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — fix the settings check in src/services/health/sections/settings/sources.ts so its sources line lists getEnabledSettingSources'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — fix the settings check in src/platform/health/sections/settings/sources.ts so its sources line lists getEnabledSettingSources'}`)
   if (!cond) failures++
 }
 
 const settingsRow = async (): Promise<{ status: string; evidence: string }> => {
-  const report = await import('../../src/services/health/healthReport.js')
+  const report = await import('../../src/platform/health/healthReport.js')
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'settings')
   return { status: String(row?.status), evidence: String(row?.evidence) }
@@ -31,8 +31,8 @@ const settingsRow = async (): Promise<{ status: string; evidence: string }> => {
   check('the fixed user+project+local sentence is gone', !row.evidence.includes('user + project + local settings parsed'))
 }
 {
-  const { setAllowedSettingSources } = await import('../../src/bootstrap/state.js')
-  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
+  const { setAllowedSettingSources } = await import('../../src/boot/process-state/processState.js')
+  const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
   setAllowedSettingSources([])
   resetSettingsCache()
   const row = await settingsRow()

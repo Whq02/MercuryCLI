@@ -17,11 +17,11 @@ const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const api = await startFixtureApi([])
 process.env.ANTHROPIC_BASE_URL = api.url
 
-const { FileReadTool } = await import(`${SRC}/tools/FileReadTool/FileReadTool.ts`)
-const { checkAnchor } = await import(`${SRC}/services/changeTransaction/snapshotAnchor.ts`)
-const { getEmptyToolPermissionContext } = await import(`${SRC}/Tool.ts`)
-const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/utils/fileStateCache.ts`)
-const { enableConfigs } = await import(`${SRC}/utils/config/globalConfig.ts`)
+const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { checkAnchor } = await import(`${SRC}/tools/engines/change-transaction/snapshotAnchor.ts`)
+const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
+const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/platform/files/fileStateCache.ts`)
+const { enableConfigs } = await import(`${SRC}/platform/config/globalConfig.ts`)
 enableConfigs()
 
 const tally = makeTally('prove-read-cut-mark')

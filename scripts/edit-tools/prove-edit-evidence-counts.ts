@@ -11,8 +11,8 @@ delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 
-const { FileEditTool } = await import(join(SRC, 'tools/FileEditTool/FileEditTool.ts'))
-const { getEmptyToolPermissionContext } = await import(join(SRC, 'Tool.ts'))
+const { FileEditTool } = await import(join(SRC, 'tools/edit/EditTool.ts'))
+const { getEmptyToolPermissionContext } = await import(join(SRC, 'tools/kit/tool.ts'))
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

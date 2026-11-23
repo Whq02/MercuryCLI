@@ -2,7 +2,7 @@
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import type { LookupCandidate } from '../../src/mneme/mnemeLookup.js'
+import type { LookupCandidate } from '../../src/sessions/mneme/mnemeLookup.js'
 import type { StudyCorpus } from '../memory-study/bench-semantic-recall.js'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -13,7 +13,7 @@ process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { fuseRankings, scoreCandidates } = await import('../../src/mneme/mnemeLookup.js')
+const { fuseRankings, scoreCandidates } = await import('../../src/sessions/mneme/mnemeLookup.js')
 const {
   computeModelRows,
   computeWordBaseline,
@@ -27,7 +27,7 @@ const {
 const { openRecorder, recordSimilarities } = await import('../memory-study/record-semantic-similarities.js')
 
 let failures = 0
-const STUDY_FIX_HINT = 'the printed table must equal the computed one: fix the rig in scripts/memory-study/bench-semantic-recall.ts (computeModelRows, computeWordBaseline, evaluateSignalAblation, renderStudyReport) or the product ranking in src/mneme/mnemeLookup.ts (scoreCandidates, fuseRankings); stale similarities are re-recorded with scripts/memory-study/record-semantic-similarities.ts into scripts/memory-study/fixtures/study-corpus.json'
+const STUDY_FIX_HINT = 'the printed table must equal the computed one: fix the rig in scripts/memory-study/bench-semantic-recall.ts (computeModelRows, computeWordBaseline, evaluateSignalAblation, renderStudyReport) or the product ranking in src/sessions/mneme/mnemeLookup.ts (scoreCandidates, fuseRankings); stale similarities are re-recorded with scripts/memory-study/record-semantic-similarities.ts into scripts/memory-study/fixtures/study-corpus.json'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${!cond ? ` — to fix: ${STUDY_FIX_HINT}` : ''}`)
   if (!cond) failures++
@@ -87,7 +87,7 @@ console.log(`\n[T] the table the rig prints is the table the rig computes (fixtu
 
 console.log('\n[M] the fixture\'s similarities are the shipped model\'s own')
 {
-  const { EMBED_MODELS, EMBED_MODELS_VENDOR_PATH, embedDefaultModel } = await import('../../src/mneme/embedModels.js')
+  const { EMBED_MODELS, EMBED_MODELS_VENDOR_PATH, embedDefaultModel } = await import('../../src/sessions/mneme/embedModels.js')
   const recorder = openRecorder(ROOT)
   if (recorder === null) {
     warn('no embed pack on this host — the in-process leg is skipped (bun run scripts/vendor/build-embed.ts builds it)')

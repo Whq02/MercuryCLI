@@ -6,8 +6,8 @@ function check(label: string, cond: boolean, detail = '', fix = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fix ? ` — ${fix}` : ''}`)
 }
 
-const I = 'src/input-core/interruptArity.ts'
-const arity = await import('../../src/input-core/interruptArity.ts')
+const I = 'src/screen/composer/input-core/interruptArity.ts'
+const arity = await import('../../src/screen/composer/input-core/interruptArity.ts')
 
 console.log('§1 — the default: ONE esc interrupts, stateless')
 {

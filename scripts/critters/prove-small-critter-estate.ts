@@ -21,7 +21,7 @@ const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 t.section('§2 — the big critter is gone: no size setting, no hero art reader, one small sprite')
 const schema = JSON.parse(read('scripts/settings/settings-schema.json')) as { properties?: Record<string, { properties?: Record<string, unknown> }> }
 t.check('the generated settings schema carries neither sessionsBar nor critterSize', schema.properties !== undefined && !('sessionsBar' in (schema.properties['view']?.properties ?? {})) && !('critterSize' in schema.properties) && !('critterSize' in (schema.properties['view']?.properties ?? {})))
-const cd = await import('../../src/utils/cockpit/critterData.ts')
+const cd = await import('../../src/screen/cockpit/critterData.ts')
 for (const def of cd.CRITTERS) {
   const record = def as unknown as Record<string, unknown>
   t.check(`${def.name}: the record carries the dock grid and no square or compact-mark field`, Array.isArray(record['squareDock']) && record['square'] === undefined && record['markCompact'] === undefined)
@@ -30,7 +30,7 @@ for (const def of cd.CRITTERS) {
 t.check('critterData exports no accessor for the deleted grids', !('squareArtFor' in cd) && !('markCompactArtFor' in cd) && !('SQUARE_ART_LINES' in cd) && !('FLAT_ART_LINES' in cd))
 
 t.section('§3 — the command table: /critter stands, /view and /companion do not')
-const { builtinCommands, builtInCommandNames } = await import('../../src/commands.ts')
+const { builtinCommands, builtInCommandNames } = await import('../../src/commands/catalogue/commands.ts')
 const names = builtInCommandNames()
 t.check('/view is no built-in command or alias', !names.has('view') && builtinCommands().every(c => !(c.aliases ?? []).includes('view')))
 t.check('/critter is a built-in command', names.has('critter'))

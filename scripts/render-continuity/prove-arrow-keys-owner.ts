@@ -5,16 +5,16 @@ import { Readable } from 'node:stream'
 
 const React = await import('react')
 const h = React.createElement
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { default: instances } = await import('../../src/ink/instances.ts')
-const { Box, Text, useInput } = await import('../../src/ink.ts')
-const { AlternateScreen } = await import('../../src/ink/components/AlternateScreen.tsx')
-const { resolveAlternateScrollIntent } = await import('../../src/ink/termio/alternateScrollPolicy.ts')
-type ParsedInput = import('../../src/ink/input/input-decoder.ts').ParsedInput
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+const { Box, Text, useInput } = await import('../../src/screen/themedRenderer.ts')
+const { AlternateScreen } = await import('../../src/screen/renderer/elements/AlternateScreen.tsx')
+const { resolveAlternateScrollIntent } = await import('../../src/screen/renderer/termio/alternateScrollPolicy.ts')
+type ParsedInput = import('../../src/screen/renderer/input/input-decoder.ts').ParsedInput
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — to fix, change resolveAlternateScrollIntent in src/ink/termio/alternateScrollPolicy.ts (section 1) or registerArrowKeyOwner and arrowKeysOwned in src/ink/ink.tsx (section 2)${detail ? `; got ${detail}` : ''}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — to fix, change resolveAlternateScrollIntent in src/screen/renderer/termio/alternateScrollPolicy.ts (section 1) or registerArrowKeyOwner and arrowKeysOwned in src/screen/renderer/screenInstance.tsx (section 2)${detail ? `; got ${detail}` : ''}` : ''}`)
   if (!ok) failures = 1
 }
 

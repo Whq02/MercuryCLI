@@ -56,13 +56,13 @@ const untouched = (label: string): void =>
   check(`${label}: the keychain tool was never reached`, invocations().length === 0, invocations().join(' | '))
 
 section('§1 — under the seam the store is the file store and the keychain is unreachable')
-keychainWhere = 'fix keychainReachable() and getSecureStorage() in src/utils/secureStorage/index.ts so MERCURY_CREDENTIAL_STORE=file makes the keychain unreachable and the store the plain file store'
-const store = await import('../../src/utils/secureStorage/index.ts')
+keychainWhere = 'fix keychainReachable() and getSecureStorage() in src/platform/secure-storage/index.ts so MERCURY_CREDENTIAL_STORE=file makes the keychain unreachable and the store the plain file store'
+const store = await import('../../src/platform/secure-storage/index.ts')
 check('keychainReachable() is false under MERCURY_CREDENTIAL_STORE=file', store.keychainReachable() === false)
 check('getSecureStorage() is the file store itself', store.getSecureStorage() === store.plainTextStorage)
 
 section('§2 — every in-process credential road under the seam, reads and writes')
-keychainWhere = 'make the road this check names return before it spawns security when keychainReachable() is false: src/utils/secureStorage/keychainPrefetch.ts, src/utils/secureStorage/macOsKeychainStorage.ts, src/utils/auth.ts or src/services/browser/browserSecrets.ts'
+keychainWhere = 'make the road this check names return before it spawns security when keychainReachable() is false: src/platform/secure-storage/keychainPrefetch.ts, src/platform/secure-storage/macOsKeychainStorage.ts, src/models/sign-in/credentials/auth.ts or src/integrations/browser/browserSecrets.ts'
 store.startKeychainPrefetch()
 await store.ensureKeychainPrefetchCompleted()
 untouched('the boot prefetch')
@@ -81,9 +81,9 @@ check('…its delete reports failure, never spawned', store.macOsKeychainStorage
 check('the lock probe answers unlocked without a spawn', store.isMacOsKeychainLocked() === false)
 untouched('the backend held directly + the lock probe')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const auth = await import('../../src/utils/auth.ts')
+const auth = await import('../../src/models/sign-in/credentials/auth.ts')
 check('the managed-key read answers none in a fresh scratch home', auth.getApiKeyFromConfigOrMacOSKeychain() === null)
 const KEY = 'fixture-key-never-touched'
 await auth.saveApiKey(KEY)
@@ -106,7 +106,7 @@ auth.getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
 check('the removed key answers none again', auth.getApiKeyFromConfigOrMacOSKeychain() === null)
 untouched('the legacy managed-key read / save / remove')
 
-const { resolveBrowserSecret } = await import('../../src/services/browser/browserSecrets.ts')
+const { resolveBrowserSecret } = await import('../../src/integrations/browser/browserSecrets.ts')
 writeFileSync(join(HOME, 'browser-secrets.json'), JSON.stringify({ LOGIN: 'fixture-browser-login', OTP: { origin: 'https://login.example', totp: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ' } }), { mode: 0o600 })
 const login = resolveBrowserSecret('LOGIN')
 const otp = resolveBrowserSecret('OTP', { origin: 'https://login.example' })
@@ -141,13 +141,13 @@ if (existsSync(DIST) && nodeBin) {
 }
 
 section('§4 — CONTROL: without the seam the prefetch reaches the shim (darwin); off darwin the rule is false regardless')
-keychainWhere = 'the control child must run src/utils/secureStorage/index.ts startKeychainPrefetch() without the seam; keychainReachable() there must be true on darwin and false elsewhere, and the prefetch in src/utils/secureStorage/keychainPrefetch.ts must call find-generic-password on darwin'
+keychainWhere = 'the control child must run src/platform/secure-storage/index.ts startKeychainPrefetch() without the seam; keychainReachable() there must be true on darwin and false elsewhere, and the prefetch in src/platform/secure-storage/keychainPrefetch.ts must call find-generic-password on darwin'
 const DRIVER = join(SCRATCH, 'control.ts')
 writeFileSync(
   DRIVER,
   [
     ";(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }",
-    `const m = await import(${JSON.stringify(join(ROOT, 'src/utils/secureStorage/index.ts'))})`,
+    `const m = await import(${JSON.stringify(join(ROOT, 'src/platform/secure-storage/index.ts'))})`,
     'm.startKeychainPrefetch()',
     'await m.ensureKeychainPrefetchCompleted()',
     "console.log(JSON.stringify({ reachable: m.keychainReachable(), platform: process.platform }))",
@@ -188,11 +188,11 @@ keychainWhere = 'a file under src spawns security that is not in EXPECTED below,
   const SPAWN = /(?:spawnSync|spawn|execFileSync|execFile|execFileNoThrow)\(\s*['"]security['"]/
   const spawners = files.filter(f => SPAWN.test(readFileSync(join(ROOT, f), 'utf8'))).sort()
   const EXPECTED = [
-    'src/services/browser/browserSecrets.ts',
-    'src/utils/auth.ts',
-    'src/utils/authPortable.ts',
-    'src/utils/secureStorage/keychainPrefetch.ts',
-    'src/utils/secureStorage/macOsKeychainStorage.ts',
+    'src/integrations/browser/browserSecrets.ts',
+    'src/models/sign-in/credentials/auth.ts',
+    'src/models/sign-in/credentials/authPortable.ts',
+    'src/platform/secure-storage/keychainPrefetch.ts',
+    'src/platform/secure-storage/macOsKeychainStorage.ts',
   ]
   check(
     'the keychain tool is spawned from exactly the five known roads',

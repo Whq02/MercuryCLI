@@ -3,11 +3,11 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, statSy
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 
-const { projectLocalPath } = await import('../../src/utils/projectLocal/paths.js')
-const { MERCURY_PROJECT_DIR } = await import('../../src/utils/projectConfig.js')
+const { projectLocalPath } = await import('../../src/platform/project-local/paths.js')
+const { MERCURY_PROJECT_DIR } = await import('../../src/platform/settings/projectConfig.js')
 
 let failures = 0
-const writeHomeFixHint = 'fix: projectLocalPath (project .mercury write home, never reads .claude) in src/utils/projectConfig.ts, or getGlobalMercuryFile (global config file name) in src/utils/env.ts'
+const writeHomeFixHint = 'fix: projectLocalPath (project .mercury write home, never reads .claude) in src/platform/settings/projectConfig.ts, or getGlobalMercuryFile (global config file name) in src/platform/environment/env.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${writeHomeFixHint}` : ''}`)
@@ -70,7 +70,7 @@ section('§G global config monolith is Mercury-named (C2)')
     new TextDecoder()
       .decode(
         Bun.spawnSync(
-          ['bun', '-e', "const {getGlobalMercuryFile}=await import('./src/utils/env.js');console.log(getGlobalMercuryFile())"],
+          ['bun', '-e', "const {getGlobalMercuryFile}=await import('./src/platform/environment/env.js');console.log(getGlobalMercuryFile())"],
           { env: { ...process.env, MERCURY_CONFIG_DIR: home }, cwd: process.cwd() },
         ).stdout,
       )

@@ -8,19 +8,19 @@ import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.XAI_API_KEY
 delete process.env.XAI_MANAGEMENT_API_KEY
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const { storeXaiApiKeyLogin, storeXaiManagementKeyLogin, runXaiDeviceLogin } = await import('../../src/services/providers/xai/xaiLogin.ts')
-const { resolveXaiApiKey, resolveXaiAccount, xaiApiBase } = await import('../../src/services/providers/xai/xaiAccounts.ts')
-const { readStoredXaiApiKey, writeStoredXaiApiKey, readStoredXaiManagementApiKey, writeStoredXaiManagementApiKey, providerSecretsPathForDisplay, credentialEnvNames } = await import('../../src/utils/accounts/providerSecrets.ts')
-const { readSignInLedger } = await import('../../src/utils/accounts/signInLedger.ts')
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS, PROVIDER_CREDENTIAL_VALUE_SHAPES } = await import('../../src/constants/credentialEnvSpellings.ts')
-const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')
-const { providerIdentityLine } = await import('../../src/services/providers/providerIdentityLine.ts')
-const usage = await import('../../src/services/providers/xai/xaiUsageState.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const { storeXaiApiKeyLogin, storeXaiManagementKeyLogin, runXaiDeviceLogin } = await import('../../src/models/roads/xai/xaiLogin.ts')
+const { resolveXaiApiKey, resolveXaiAccount, xaiApiBase } = await import('../../src/models/roads/xai/xaiAccounts.ts')
+const { readStoredXaiApiKey, writeStoredXaiApiKey, readStoredXaiManagementApiKey, writeStoredXaiManagementApiKey, providerSecretsPathForDisplay, credentialEnvNames } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { readSignInLedger } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS, PROVIDER_CREDENTIAL_VALUE_SHAPES } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
+const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/models/roads/accountSlots.ts')
+const { providerIdentityLine } = await import('../../src/models/roads/providerIdentityLine.ts')
+const usage = await import('../../src/models/roads/xai/xaiUsageState.ts')
 const key = 'xai-fixture-key-not-real-12345678'
 const env = { MERCURY_XAI_API_BASE: 'http://127.0.0.1:1/v1' } as NodeJS.ProcessEnv
 let checks = 0
-const failureHint = 'change the xAI sign-in code this check names: src/services/providers/xai/xaiLogin.ts (key and device login receipts), xaiAccounts.ts and xaiOauth.ts (account resolution, tokens), xaiUsageState.ts (usage), src/services/providers/accountSlots.ts (slots), src/utils/accounts/providerSecrets.ts (stored keys), src/components/BootLoginsScreen.tsx (key prompt pane)'
+const failureHint = 'change the xAI sign-in code this check names: src/models/roads/xai/xaiLogin.ts (key and device login receipts), xaiAccounts.ts and xaiOauth.ts (account resolution, tokens), xaiUsageState.ts (usage), src/models/roads/accountSlots.ts (slots), src/models/sign-in/account-ledger/providerSecrets.ts (stored keys), src/screen/boot-face/BootLoginsScreen.tsx (key prompt pane)'
 const check = (name: string, value: unknown): void => { assert.ok(value, `${name} | ${failureHint}`); checks++; console.log(`[PASS] ${name}`) }
 const reply = (status: number, data: unknown = { data: [{ id: 'grok-4.7' }] }): typeof fetch => (async (url, init) => {
   assert.equal(String(url), 'http://127.0.0.1:1/v1/models')
@@ -79,7 +79,7 @@ try {
     const managed = await storeXaiManagementKeyLogin(XAI_FIXTURE_MANAGEMENT_KEY, io)
     check('management key lands beside the API key without leaking or moving the model sign-in order', managed.stored && !managed.receipt.includes(XAI_FIXTURE_MANAGEMENT_KEY) && !managed.receipt.includes(XAI_FIXTURE_API_KEY) && readStoredXaiManagementApiKey() === XAI_FIXTURE_MANAGEMENT_KEY && JSON.stringify(readSignInLedger()) === savedLedger)
     check('management key is registered in both credential scrub lists', ALL_PROVIDER_CREDENTIAL_ENV_VARS.includes('XAI_MANAGEMENT_API_KEY') && credentialEnvNames().includes('XAI_MANAGEMENT_API_KEY'))
-    const { resolveXaiManagementApiKey } = await import('../../src/services/providers/xai/xaiAccounts.ts')
+    const { resolveXaiManagementApiKey } = await import('../../src/models/roads/xai/xaiAccounts.ts')
     check('management environment pin wins independently', resolveXaiManagementApiKey({ XAI_MANAGEMENT_API_KEY: 'env-management-fixture' })?.key === 'env-management-fixture' && resolveXaiApiKey({})?.key === key)
     const ownSlots = deriveFamilySlotGroups().find(group => group.family.id === 'xai')!.slots
     const managementSlot = ownSlots.find(slot => slot.removal.route === 'xai-management-key')!
@@ -88,15 +88,15 @@ try {
     check('management-key removal keeps inference signed in', !readStoredXaiManagementApiKey() && readStoredXaiApiKey() === key)
     const unreachable = await storeXaiManagementKeyLogin(XAI_FIXTURE_MANAGEMENT_KEY, { ...io, fetchImpl: network })
     check('unreachable management check stores unverified without leaking either key', unreachable.stored && unreachable.receipt.includes('UNVERIFIED') && !unreachable.receipt.includes(key) && !unreachable.receipt.includes(XAI_FIXTURE_MANAGEMENT_KEY))
-    const face = await import('../../src/components/BootLoginsScreen.tsx')
+    const face = await import('../../src/screen/boot-face/BootLoginsScreen.tsx')
     const pane = face.keyPromptPaneLines('xai-management', null, 0, false).join(' ')
     check('the optional face key step names the console settings and leaves an explicit skip road', pane.includes('settings page') && pane.includes('usage meter') && pane.includes('API key stays'))
   } finally { fixture.stop(); writeStoredXaiManagementApiKey(null) }
   check('at-rest store contains the key only under its own slot', JSON.parse(readFileSync(providerSecretsPathForDisplay(), 'utf8')).xaiApiKey === key)
-  const auth = await import('../../src/services/providers/xai/xaiOauth.ts')
+  const auth = await import('../../src/models/roads/xai/xaiOauth.ts')
   const { xaiAuthFixture } = await import('../providers/lib/xai-auth-fixture.ts')
-  const { setAuthScope, clearAuthScope } = await import('../../src/utils/envUtils.ts')
-  const { resolveXaiCredential } = await import('../../src/services/providers/xai/xaiAccounts.ts')
+  const { setAuthScope, clearAuthScope } = await import('../../src/platform/environment/envUtils.ts')
+  const { resolveXaiCredential } = await import('../../src/models/roads/xai/xaiAccounts.ts')
   const oauth = xaiAuthFixture()
   let clock = Date.now()
   const waits: number[] = []
@@ -117,7 +117,7 @@ try {
     check('explicit source preference selects the key', resolveXaiAccount()?.kind === 'api-key')
     auth.writePreferredXaiSource('grok-subscription')
     clock += 3600_000
-    const catalogue = await import('../../src/services/providers/xai/xaiCatalogue.ts')
+    const catalogue = await import('../../src/models/roads/xai/xaiCatalogue.ts')
     const listing = catalogue.refreshXaiCatalogue({ ...io, force: true })
     const refreshed = await Promise.all([resolveXaiCredential(io), resolveXaiCredential(io)])
     await listing
@@ -125,7 +125,7 @@ try {
     check('catalogue fetched through refresh is immediately visible under the rotated credential', catalogue.getCachedXaiCatalogue(io.env)?.models[0]?.id === 'grok-4.7')
     const proxyRow = catalogue.getCachedXaiCatalogue(io.env)?.models ?? []
     check('the proxy list decodes its own row shape (name, context_window, reasoning_efforts, the default effort) and drops non-chat backends', proxyRow.length === 1 && proxyRow[0]?.displayName === 'Grok 4.7' && proxyRow[0].contextWindow === 256000 && proxyRow[0].efforts?.join(',') === 'xhigh,high,low' && proxyRow[0].defaultEffort === 'high' && oauth.seen.filter(row => row.path === '/proxy/v1/models').every(row => row.bearer === `Bearer ${oauth.token}` || row.bearer === `Bearer ${oauth.rotated}`))
-    const owner = await import('../../src/services/providers/providerUsage.ts')
+    const owner = await import('../../src/models/roads/providerUsage.ts')
     process.env.MERCURY_XAI_GROK_PROXY_BASE = oauth.env.MERCURY_XAI_GROK_PROXY_BASE
     try {
       await owner.refreshProviderUsage('xai', { ...io, force: true })

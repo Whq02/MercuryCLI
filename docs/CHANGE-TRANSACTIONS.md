@@ -224,7 +224,7 @@ as success.
 
 ## Flags
 
-All rows live in the in-code registry (`src/substrate/flagRegistry.ts`;
+All rows live in the in-code registry (`src/platform/substrate/flagRegistry.ts`;
 rendered on demand to an untracked path):
 
 - `MERCURY_CHANGE_RECEIPTS` (default-on): anchors on reads, the

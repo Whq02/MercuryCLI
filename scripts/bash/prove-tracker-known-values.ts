@@ -12,17 +12,17 @@ process.env.MERCURY_CONFIG_DIR = join(scratch, 'config')
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.chdir(project)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-await import('../../src/Tool.js')
-const { parseForSecurity } = await import('../../src/utils/bash/ast.js')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+await import('../../src/tools/kit/tool.js')
+const { parseForSecurity } = await import('../../src/platform/shell/bash/ast.js')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 
 let failures = 0
 let checks = 0
-const A = '; fix the static value tracking in parseForSecurity, src/utils/bash/ast.ts'
-const B = '; fix the permission ladder in bashToolHasPermission, src/tools/BashTool/bashPermissions.ts'
+const A = '; fix the static value tracking in parseForSecurity, src/platform/shell/bash/ast.ts'
+const B = '; fix the permission ladder in bashToolHasPermission, src/tools/shell/bashPermissions.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
@@ -88,7 +88,7 @@ try {
     check(`refused: ${command}`, got === `too-complex: ${reason}`, String(got).slice(0, 300) + A + '; the refusal reason text must match exactly')
   }
   const many = `for i in ${Array.from({ length: 65 }, (_, n) => n + 1).join(' ')}; do echo $i; done`
-  check('a literal list past the cap (64 items) is walked once with the variable unknown, as before', (await argvOf(many)) === 'too-complex: Bash needs approval for $i because its value is unknown. Use its literal path or value.', 'the for-list cap of 64 items is kept in parseForSecurity, src/utils/bash/ast.ts')
+  check('a literal list past the cap (64 items) is walked once with the variable unknown, as before', (await argvOf(many)) === 'too-complex: Bash needs approval for $i because its value is unknown. Use its literal path or value.', 'the for-list cap of 64 items is kept in parseForSecurity, src/platform/shell/bash/ast.ts')
   const sixtyFour = `for i in ${Array.from({ length: 64 }, (_, n) => n + 1).join(' ')}; do echo $i; done`
   const walked = await argvOf(sixtyFour)
   check('a literal list at the cap is walked item by item', Array.isArray(walked) && walked.length === 64 && same(walked[63], ['echo', '64']), String(walked).slice(0, 100) + A)

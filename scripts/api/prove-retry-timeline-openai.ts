@@ -7,7 +7,7 @@ const standIn = await openStandIn({
   side: () => ({ data: [{ id: 'gpt-5.6-sol', supported_reasoning_levels: ['low', 'medium', 'high'], visibility: 'list', supported_in_api: true }] }),
   env: base => ({ OPENAI_API_KEY: 'fixture-openai-key', MERCURY_OPENAI_API_BASE: `${base}/v1` }),
 })
-const { openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.ts')
+const { openaiCallModel } = await import('../../src/models/roads/openai/openaiCallModel.ts')
 
 const wire: Wire = {
   answer: streamed('200, the answer', frames([

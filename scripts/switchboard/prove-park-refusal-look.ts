@@ -19,13 +19,13 @@ mkdirSync(OUT_DIR, { recursive: true })
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}the NOW words come from concourseNowLabel in src/services/concourse/concourseSnapshot.ts and the compact foot note from compactParkNoteOf in src/components/concourse/compactBoard.ts; the painted board frames are under ${OUT_DIR}`
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}the NOW words come from concourseNowLabel in src/screen/concourse-model/concourseSnapshot.ts and the compact foot note from compactParkNoteOf in src/screen/concourse/compactBoard.ts; the painted board frames are under ${OUT_DIR}`
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { referenceFixtureSnapshot } = await import('../notifications/concourseReferenceSeed.ts')
-const snapshot = await import('../../src/services/concourse/concourseSnapshot.ts')
+const snapshot = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
 
 type Grid = { grid: { c: string }[][] }
 const linesOf = (g: Grid): string[] => g.grid.map(r => r.map(c => c.c || ' ').join(''))
@@ -45,8 +45,8 @@ check("the snapshot's NOW cell for a refused park is 'park refused — <reason>'
 check("the snapshot's NOW cell for a park in flight is 'parking — <who asked>'", parkingLabel === 'parking — operator:close', String(parkingLabel))
 check('a parked row keeps its own cell (the refusal never outranks parked)', snapshot.concourseNowLabel({ ...record, parkedAt: now - 60_000, parkRefused: { reason: 'stale', at: now, by: 'x' } }, { alive: false, needsYou: false }, now) === 'parked · 01m')
 
-const { compactParkNoteOf } = await import('../../src/components/concourse/compactBoard.ts')
-const { CONTROL_NOTE_REFUSED_MS } = await import('../../src/components/concourse/contracts.ts')
+const { compactParkNoteOf } = await import('../../src/screen/concourse/compactBoard.ts')
+const { CONTROL_NOTE_REFUSED_MS } = await import('../../src/screen/concourse/contracts.ts')
 {
   const rows = [
     { sessionId: 's-oauth', title: 'Fix OAuth callback', nowLabel: refusedLabel },

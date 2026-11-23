@@ -24,17 +24,17 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
   process.env[base] = 'http://127.0.0.1:1'
 }
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 
 const React = (await import('react')).default
-const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent } = await import('../../src/ink.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.js')
-const { ModalContext } = await import('../../src/context/modalContext.js')
-const { GLYPH } = await import('../../src/utils/glyphs.js')
-const { truncateToWidth } = await import('../../src/utils/truncate.js')
-const pure = await import('../../src/utils/model/modelPickerGroups.js')
-type ModelChoice = import('../../src/components/MercuryModelPicker.js').ModelChoice
+const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent } = await import('../../src/screen/themedRenderer.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.js')
+const { ModalContext } = await import('../../src/screen/overlays/modalContext.js')
+const { GLYPH } = await import('../../src/screen/theme/glyphs.js')
+const { truncateToWidth } = await import('../../src/platform/text/truncate.js')
+const pure = await import('../../src/models/facts/modelPickerGroups.js')
+type ModelChoice = import('../../src/commands/model/picker/MercuryModelPicker.js').ModelChoice
 
 const arg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)
@@ -43,7 +43,7 @@ const arg = (name: string): string | undefined => {
 const frameDir = arg('--frames')
 if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 
-const PICKER_EDGES_HINT = 'to fix, change the row, heading, filter or floor layout in src/components/MercuryModelPicker.tsx, or the pure column, heading and door words (pickerColumns, headingWords, doorWords) in src/utils/model/modelPickerGroups.ts'
+const PICKER_EDGES_HINT = 'to fix, change the row, heading, filter or floor layout in src/commands/model/picker/MercuryModelPicker.tsx, or the pure column, heading and door words (pickerColumns, headingWords, doorWords) in src/models/facts/modelPickerGroups.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

@@ -17,13 +17,13 @@ if (sceneAt !== -1) {
 }
 
 async function runScene(name: string, args: SceneArgs): Promise<void> {
-  const ledger = await import('../../src/services/changeTransaction/seenLines.ts')
+  const ledger = await import('../../src/tools/engines/change-transaction/seenLines.ts')
   const say = (value: unknown): void => {
     process.stdout.write(`SCENE ${JSON.stringify(value)}\n`)
   }
   if (name === 'generations') return say({ generations: (args.paths ?? []).map(path => ledger.fileGeneration(path)) })
   if (name === 'generation') return say({ generation: ledger.fileGeneration(args.path!) })
-  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+  const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
   const owner = processMainOwner()
   const rows: unknown[] = []
   let ids = 0
@@ -52,7 +52,7 @@ const SPARSE_REAL_BYTES_MOST = 64 * MIB
 
 let failures = 0
 let count = 0
-const seenLinesFailHint = 'fix fileGeneration (streamed digest) or rebuildSeenLinesFromTranscript (credited lines and column cuts) in src/services/changeTransaction/seenLines.ts'
+const seenLinesFailHint = 'fix fileGeneration (streamed digest) or rebuildSeenLinesFromTranscript (credited lines and column cuts) in src/tools/engines/change-transaction/seenLines.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   count++
   if (!cond) failures++

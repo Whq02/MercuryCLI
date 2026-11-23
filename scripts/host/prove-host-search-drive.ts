@@ -15,7 +15,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.BROWSER = '/usr/bin/true'
 delete process.env.HF_TOKEN
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const option = (name: string) => { const at = process.argv.indexOf(name); return at < 0 ? undefined : process.argv[at + 1] }
 const frames = option('--frames')
@@ -34,19 +34,19 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 }, nativeFetch)
 let mounted: Mounted | undefined
 let checks = 0
-const check = (name: string, truth: unknown) => { assert.ok(truth, name + ' (change the popup in src/commands/llmhost/llmhost.tsx or the search rows in src/services/host/hfRecipes.ts so this holds)' + (mounted ? '\n' + mounted.screen() : '')); checks++; console.log('PASS ' + name) }
+const check = (name: string, truth: unknown) => { assert.ok(truth, name + ' (change the popup in src/commands/llmhost/llmhost.tsx or the search rows in src/models/hosting/hfRecipes.ts so this holds)' + (mounted ? '\n' + mounted.screen() : '')); checks++; console.log('PASS ' + name) }
 try {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-  const { currentHostRecipes } = await import('../../src/services/host/recipesFile.ts')
-  const { HF_SEARCH_PLACEHOLDER, HF_OFFLINE_WORDS, HF_GATED_WORDS, HF_NOT_CHAT_WORDS } = await import('../../src/services/host/hfRecipes.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const { currentHostRecipes } = await import('../../src/models/hosting/recipesFile.ts')
+  const { HF_SEARCH_PLACEHOLDER, HF_OFFLINE_WORDS, HF_GATED_WORDS, HF_NOT_CHAT_WORDS } = await import('../../src/models/hosting/hfRecipes.ts')
   writeStoredRunpodApiKey(rp.key)
   const names = [...new Set(currentHostRecipes().map(recipe => recipe.label.split(' · ')[0]!))]
   const h100 = liveCatalogue.gpus.find((row: any) => row.id === 'NVIDIA H100 80GB HBM3')!

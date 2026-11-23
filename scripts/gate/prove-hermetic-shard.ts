@@ -6,8 +6,8 @@ import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
-const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
-const { zaiApiBase } = await import('../../src/services/providers/zai/zaiClient.ts')
+const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
+const { zaiApiBase } = await import('../../src/models/roads/zai/zaiClient.ts')
 const { FIXTURE_API_KEY, seedFirstRun } = await import('../lib/firstRunSeed.ts')
 
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -26,7 +26,7 @@ const HS_FIX_HINTS: Array<[string, string]> = [
   ['the runner exports', 'fix the pin in scripts/gate/ci-shard.sh so it exports ANTHROPIC_BASE_URL as one loopback address, http://127.0.0.1:<port>'],
   ['an inherited gateway', 'fix scripts/gate/ci-shard.sh so it overwrites an inherited ANTHROPIC_BASE_URL with the box'],
   ['every provider-family', 'fix scripts/gate/ci-shard.sh so every provider-family *_BASE row of the flag registry (FLAG_REGISTRY) is exported at the box, and a seam that follows a parent when unset is left unset'],
-  ['the derived seams', 'fix the *_BASE rows in the flag registry (FLAG_REGISTRY) or zaiApiBase in src/services/providers/zai/zaiClient.ts so only MERCURY_ZAI_CODING_API_BASE follows a parent and both Z.AI bases resolve to the box'],
+  ['the derived seams', 'fix the *_BASE rows in the flag registry (FLAG_REGISTRY) or zaiApiBase in src/models/roads/zai/zaiClient.ts so only MERCURY_ZAI_CODING_API_BASE follows a parent and both Z.AI bases resolve to the box'],
   ['the update channel', 'fix scripts/gate/ci-shard.sh so it exports MERCURY_UPDATE_API_BASE_URL at the box'],
   ['MERCURY_', 'fix scripts/gate/ci-shard.sh so it leaves the compat and local base slots exactly as the runner found them'],
   ['the sign-in endpoint', 'fix scripts/gate/ci-shard.sh so it exports MERCURY_ANTHROPIC_OAUTH_BASE at the box'],
@@ -285,10 +285,10 @@ section('§4 — the sign-in refresh road under the pin: a home seeded expired-w
   seedFirstRun(oauthHome, [ROOT, cwd])
   process.env.MERCURY_CONFIG_DIR = oauthHome
   process.env.MERCURY_CREDENTIAL_STORE = 'file'
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
-  const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.ts')
+  const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
+  const { storeOAuthAccountInfo } = await import('../../src/models/sign-in/oauth/client.ts')
   storeOAuthAccountInfo({ accountUuid: '00000000-0000-4000-8000-00000000c0de', emailAddress: 'sam@example.com' })
   auth.saveOAuthTokensIfNeeded({
     accessToken: 'fixture-access-token',

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
-import { voiceCargoTriple, voicePackPlatform } from '../../src/utils/voice/voicePack.ts'
+import { voiceCargoTriple, voicePackPlatform } from '../../src/integrations/voice-pack/voicePack.ts'
 import {
   WHISPER_ADDON_FILE,
   WHISPER_ENGINE_NAME,
@@ -20,8 +20,8 @@ import {
   whisperSourceTreeDigest,
   type WhisperPackCrate,
   type WhisperPackManifest,
-} from '../../src/services/voice/whisperPack.ts'
-import { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget } from '../../src/services/privateChannel/releaseTarget.ts'
+} from '../../src/integrations/voice/whisperPack.ts'
+import { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget } from '../../src/platform/update-channel/releaseTarget.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const NATIVE_DIR = join(ROOT, 'native', 'whisper')

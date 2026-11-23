@@ -6,7 +6,7 @@ const scratch = armScratch('lsp-write-tools')
 const project = writeProject(scratch, 'project', { ...TS_PROBE_FILES, 'folder/value.ts': 'export const value = 1\n', 'user.ts': 'import { value } from "./folder/value"\nexport const seen = value\n' })
 symlinkSync(join(REPO, 'node_modules'), join(project, 'node_modules'), 'dir')
 process.env.MERCURY_LSP_SIDECAR_ENTRY = TS_SIDECAR_ENTRY
-const available = await import('../../src/tools/LSPTool/LSPTool.ts')
+const available = await import('../../src/tools/lsp/lspTools.ts')
 if (!('LspRenameTool' in available)) {
   check('the six writing tools have their own honest schemas', false)
   cleanup(scratch)

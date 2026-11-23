@@ -22,9 +22,9 @@ const notPlain = (text: string): string[] => beyondAscii(text).filter(ch => !PLA
 const hex = (chars: string[]): string => chars.map(ch => `${ch} U+${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}`).join(', ')
 
 const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
-const { keyHintLabel, MAC_MODIFIER_GLYPHS } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-const { stripKeyMapHintOf } = await import('../../src/context/surfaceRoute.ts')
-const { decideWin32ConsoleUtf8, UTF8_CODEPAGE } = await import('../../src/utils/runtime/win32Console.ts')
+const { keyHintLabel, MAC_MODIFIER_GLYPHS } = await import('../../src/screen/widgets/keyHintLabel.ts')
+const { stripKeyMapHintOf } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { decideWin32ConsoleUtf8, UTF8_CODEPAGE } = await import('../../src/platform/node-runtime/win32Console.ts')
 
 
 console.log('§2 the composed ready line, both faces, through the splash core')
@@ -62,9 +62,9 @@ console.log('§3 the key-map row off-mac: words for the modifiers, arrows kept')
   const mac = stripKeyMapHintOf('boot-settings', ['boot-settings', 'concourse', 'repl'])
   const win = keyHintLabel(mac, 'windows')
   const linux = keyHintLabel(mac, 'linux')
-  check(`the Windows key-map row is "${win}"`, win.includes('shift+→') && !MAC_MODIFIER_GLYPHS.some(g => win.includes(g)), `got "${win}" — keyHintLabel in src/components/mercury-ui/keyHintLabel.ts must turn the Mac modifier glyphs into words (shift+) off-mac and keep the arrows`)
-  check('the Linux row folds the same way', linux === win, `linux "${linux}" vs windows "${win}" — keyHintLabel in src/components/mercury-ui/keyHintLabel.ts must give the same row on both non-mac platforms`)
-  check('nothing beyond ASCII, the middle dot and the arrows remains', notPlain(win).length === 0, `${hex(notPlain(win))} — keyHintLabel in src/components/mercury-ui/keyHintLabel.ts (or stripKeyMapHintOf in src/context/surfaceRoute.ts) must not emit glyphs beyond ASCII, the middle dot and the arrows`)
+  check(`the Windows key-map row is "${win}"`, win.includes('shift+→') && !MAC_MODIFIER_GLYPHS.some(g => win.includes(g)), `got "${win}" — keyHintLabel in src/screen/widgets/keyHintLabel.ts must turn the Mac modifier glyphs into words (shift+) off-mac and keep the arrows`)
+  check('the Linux row folds the same way', linux === win, `linux "${linux}" vs windows "${win}" — keyHintLabel in src/screen/widgets/keyHintLabel.ts must give the same row on both non-mac platforms`)
+  check('nothing beyond ASCII, the middle dot and the arrows remains', notPlain(win).length === 0, `${hex(notPlain(win))} — keyHintLabel in src/screen/widgets/keyHintLabel.ts (or stripKeyMapHintOf in src/screen/routes/surfaceRoute.ts) must not emit glyphs beyond ASCII, the middle dot and the arrows`)
 }
 
 console.log('§4 the allowed set is Latin-1 and the Arrows block, and the win32 console reads UTF-8')
@@ -72,7 +72,7 @@ console.log('§4 the allowed set is Latin-1 and the Arrows block, and the win32 
   const inBlocks = [...PLAIN].every(ch => { const cp = ch.codePointAt(0)!; return cp === 0xb7 || (cp >= 0x2190 && cp <= 0x21ff) })
   check('the plain set is the middle dot plus Arrows-block characters', inBlocks, 'PLAIN at the top of this script may only hold U+00B7 and characters in U+2190-U+21FF; the boot hint glyph set is meant to stay that small')
   const decision = decideWin32ConsoleUtf8('win32', true, {})
-  check(`a win32 TTY boot switches the console to code page ${UTF8_CODEPAGE}`, decision.engage && UTF8_CODEPAGE === 65001, `engage=${decision.engage} codepage=${UTF8_CODEPAGE} — decideWin32ConsoleUtf8 and UTF8_CODEPAGE in src/utils/runtime/win32Console.ts must engage code page 65001 for a win32 TTY`)
+  check(`a win32 TTY boot switches the console to code page ${UTF8_CODEPAGE}`, decision.engage && UTF8_CODEPAGE === 65001, `engage=${decision.engage} codepage=${UTF8_CODEPAGE} — decideWin32ConsoleUtf8 and UTF8_CODEPAGE in src/platform/node-runtime/win32Console.ts must engage code page 65001 for a win32 TTY`)
 }
 
 console.log(failures === 0 ? '\nboot-hint-glyphs: GREEN' : `\nboot-hint-glyphs: ${failures} RED`)

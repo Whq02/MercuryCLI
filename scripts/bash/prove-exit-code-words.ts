@@ -12,7 +12,7 @@ process.chdir(ROOT)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const exitWordsHint = 'change interpretCommandResult in src/tools/BashTool/commandSemantics.ts (rebuild dist with bun run build.ts before the section 2 checks)'
+const exitWordsHint = 'change interpretCommandResult in src/tools/shell/commandSemantics.ts (rebuild dist with bun run build.ts before the section 2 checks)'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + exitWordsHint : ''}`)
   if (!cond) failures++
@@ -24,9 +24,9 @@ console.log(' Bash tool — an exit of 1 from a lookup or a comparison is an ans
 console.log('============================================================')
 
 section('§1 the interpretation, per command')
-const { interpretCommandResult } = await import('../../src/tools/BashTool/commandSemantics.ts')
+const { interpretCommandResult } = await import('../../src/tools/shell/commandSemantics.ts')
 const verdict = async (command: string, code: number): Promise<{ isError: boolean; message?: string }> => {
-  await (await import('../../src/utils/permissions/decision/commandAnalysis.ts')).parseForSecurity(command)
+  await (await import('../../src/permissions/rules/decision/commandAnalysis.ts')).parseForSecurity(command)
   return interpretCommandResult(command, code, '', '')
 }
 const answers = async (command: string, code: number, words: string): Promise<boolean> => {

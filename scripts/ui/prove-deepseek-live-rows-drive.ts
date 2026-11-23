@@ -21,7 +21,7 @@ const FIXTURE = join(import.meta.dir, 'deepseek-catalogue-fixture-server.ts')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 400) : ''}${cond ? '' : ' | fix the DeepSeek live list in src/services/providers/deepseek/deepseekAccounts.ts or the pins and the retired alias in src/utils/model/pins/deepseekPins.ts; if a drive did not exit 0, rebuild dist with bun run build.ts and rerun with --out <dir> to read the marked screens'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 400) : ''}${cond ? '' : ' | fix the DeepSeek live list in src/models/roads/deepseek/deepseekAccounts.ts or the pins and the retired alias in src/models/facts/pins/deepseekPins.ts; if a drive did not exit 0, rebuild dist with bun run build.ts and rerun with --out <dir> to read the marked screens'}`)
 }
 
 const driver = resolveCaptureDriver()
@@ -253,7 +253,7 @@ console.log('\n[3] the alias: a saved deepseek-v4-flash setting opens on the Fla
 
 for (const dir of daemonDirs) {
   process.env.MERCURY_DAEMON_DIR = dir
-  const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+  const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
   await daemonControlRpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: 5_000 }).catch(() => undefined)
 }
 if (!OUT) rmSync(scratch, { recursive: true, force: true })

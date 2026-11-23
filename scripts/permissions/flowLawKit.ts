@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
-import type { FlowAsk } from '../../src/utils/permissions/flowLaw.ts'
+import type { FlowAsk } from '../../src/permissions/rules/flowLaw.ts'
 
 type Road = 'cockpit' | 'hosted' | 'hostless' | 'prompt-less'
 export const ROADS: readonly Road[] = ['cockpit', 'hosted', 'hostless', 'prompt-less']
@@ -48,10 +48,10 @@ export async function openKit(label: string): Promise<Kit> {
   mkdirSync(join(project, 'src'), { recursive: true })
   process.env.MERCURY_CONFIG_DIR = join(world, 'home')
   process.chdir(project)
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-  const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
-  const law = await import('../../src/utils/permissions/flowLaw.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+  const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
+  const law = await import('../../src/permissions/rules/flowLaw.ts')
   const bashTool = {
     name: 'Bash',
     inputSchema: z.object({ command: z.string(), cwd: z.string().optional() }),

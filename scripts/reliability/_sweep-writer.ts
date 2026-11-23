@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { resolve } from 'node:path'
-import { defineStore } from '../../src/substrate/fileStore.ts'
+import { defineStore } from '../../src/platform/substrate/fileStore.ts'
 
 const file = process.argv[2]
 const writerId = process.argv[3]

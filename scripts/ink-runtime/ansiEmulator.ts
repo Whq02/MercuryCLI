@@ -1,4 +1,4 @@
-import { stringWidth } from '../../src/ink/stringWidth.js'
+import { stringWidth } from '../../src/screen/renderer/stringWidth.js'
 
 const ESC = '\x1b'
 

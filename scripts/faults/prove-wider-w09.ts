@@ -10,11 +10,11 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
 
 let failures = 0
 const W09_WHERE: Record<string, string> = {
-  'w09-1': 'classCacheReport in src/services/vulcan/classCache.ts, staticGodotCapsule in src/services/vulcan/godotCapsule.ts and src/tools/GodotTool/GodotTool.ts',
-  'w09-2': 'scanVulcanInstances in src/services/vulcan/instances.ts, src/tools/GodotTool/GodotTool.ts and src/services/ide/godotSession.ts',
-  'w09-3': 'src/cli/godotEngineCli.ts, runningGodotProcesses in src/services/vulcan/godotProcessCensus.ts and resolveGodotExecutable in src/services/vulcan/portabilityHealth.ts',
-  'w09-4': 'vulcanInstallStatus in src/services/vulcan/addonInstaller.ts, vulcanCheck in src/services/health/sections/runtime/services.ts and src/services/ide/godotSession.ts',
-  'w09-5': 'src/services/unity/bridgeToken.ts, src/services/blender/bridgeToken.ts, src/services/ide/unityBridgeSession.ts and src/services/ide/blenderBridgeSession.ts',
+  'w09-1': 'classCacheReport in src/integrations/vulcan/classCache.ts, staticGodotCapsule in src/integrations/vulcan/godotCapsule.ts and src/tools/godot/GodotTool.ts',
+  'w09-2': 'scanVulcanInstances in src/integrations/vulcan/instances.ts, src/tools/godot/GodotTool.ts and src/integrations/ide/godotSession.ts',
+  'w09-3': 'src/commands/verbs/godotEngineCli.ts, runningGodotProcesses in src/integrations/vulcan/godotProcessCensus.ts and resolveGodotExecutable in src/integrations/vulcan/portabilityHealth.ts',
+  'w09-4': 'vulcanInstallStatus in src/integrations/vulcan/addonInstaller.ts, vulcanCheck in src/platform/health/sections/runtime/services.ts and src/integrations/ide/godotSession.ts',
+  'w09-5': 'src/integrations/unity/bridgeToken.ts, src/integrations/blender/bridgeToken.ts, src/integrations/ide/unityBridgeSession.ts and src/integrations/ide/blenderBridgeSession.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -73,12 +73,12 @@ function startFakeVulcanServer(
 
 {
   console.log('\n1. w09-1: classCache unreadable dir/stat/script/cache surfaced in report, capsule, and script_validate')
-  const { classCacheReport } = await import(join(SRC, 'services/vulcan/classCache.ts'))
-  const { staticGodotCapsule } = await import(join(SRC, 'services/vulcan/godotCapsule.ts'))
-  const { derivePresence } = await import(join(SRC, 'services/vulcan/editorPresence.ts'))
-  const { GodotTool } = await import(join(SRC, 'tools/GodotTool/GodotTool.ts'))
-  const { resetVulcanClientForTest } = await import(join(SRC, 'services/vulcan/vulcanClient.ts'))
-  const { runWithCwdOverride } = await import(join(SRC, 'utils/cwd.ts'))
+  const { classCacheReport } = await import(join(SRC, 'integrations/vulcan/classCache.ts'))
+  const { staticGodotCapsule } = await import(join(SRC, 'integrations/vulcan/godotCapsule.ts'))
+  const { derivePresence } = await import(join(SRC, 'integrations/vulcan/editorPresence.ts'))
+  const { GodotTool } = await import(join(SRC, 'tools/godot/GodotTool.ts'))
+  const { resetVulcanClientForTest } = await import(join(SRC, 'integrations/vulcan/vulcanClient.ts'))
+  const { runWithCwdOverride } = await import(join(SRC, 'platform/files/cwd.ts'))
 
   const NO_EDITOR = derivePresence(6010, false, { ok: true, processes: [] }, '/fixture')
   const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w09-1-')))
@@ -180,12 +180,12 @@ function startFakeVulcanServer(
 
 {
   console.log('\n2. w09-2: unreadable Vulcan instances dir, instance.json/token, and engine trees dir')
-  const instancesMod = await import(join(SRC, 'services/vulcan/instances.ts'))
-  const vulcanClientMod = await import(join(SRC, 'services/vulcan/vulcanClient.ts'))
-  const { GodotTool } = await import(join(SRC, 'tools/GodotTool/GodotTool.ts'))
-  const { buildGodotIdeSession, discoverGodotLaunchProfiles, _resetGodotSessionForTesting } = await import(join(SRC, 'services/ide/godotSession.ts'))
-  const { makeOwnerKey } = await import(join(SRC, 'utils/run/ownerKey.ts'))
-  const { runWithCwdOverride } = await import(join(SRC, 'utils/cwd.ts'))
+  const instancesMod = await import(join(SRC, 'integrations/vulcan/instances.ts'))
+  const vulcanClientMod = await import(join(SRC, 'integrations/vulcan/vulcanClient.ts'))
+  const { GodotTool } = await import(join(SRC, 'tools/godot/GodotTool.ts'))
+  const { buildGodotIdeSession, discoverGodotLaunchProfiles, _resetGodotSessionForTesting } = await import(join(SRC, 'integrations/ide/godotSession.ts'))
+  const { makeOwnerKey } = await import(join(SRC, 'engine/run-owner/ownerKey.ts'))
+  const { runWithCwdOverride } = await import(join(SRC, 'platform/files/cwd.ts'))
 
   const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w09-2-')))
   const restoreModes: Array<() => void> = []
@@ -277,9 +277,9 @@ function startFakeVulcanServer(
 
 {
   console.log('\n3. w09-3: failed process census surfaced in godotEngineCli jobs/cancel and portabilityHealth')
-  const { godotEngineCli } = await import(join(SRC, 'cli/godotEngineCli.ts'))
-  const { resolveGodotExecutable } = await import(join(SRC, 'services/vulcan/portabilityHealth.ts'))
-  const { runningGodotProcesses } = await import(join(SRC, 'services/vulcan/godotProcessCensus.ts'))
+  const { godotEngineCli } = await import(join(SRC, 'commands/verbs/godotEngineCli.ts'))
+  const { resolveGodotExecutable } = await import(join(SRC, 'integrations/vulcan/portabilityHealth.ts'))
+  const { runningGodotProcesses } = await import(join(SRC, 'integrations/vulcan/godotProcessCensus.ts'))
 
   const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w09-3-')))
   const prevPath = process.env.PATH
@@ -360,11 +360,11 @@ function startFakeVulcanServer(
 
 {
   console.log('\n4. w09-4: unreadable project.godot surfaced in vulcanInstallStatus, runtime/services health, and godotSession')
-  const { vulcanInstallStatus, readEnabledPlugins } = await import(join(SRC, 'services/vulcan/addonInstaller.ts'))
-  const { vulcanCheck } = await import(join(SRC, 'services/health/sections/runtime/services.ts'))
-  const { buildGodotIdeSession, _resetGodotSessionForTesting } = await import(join(SRC, 'services/ide/godotSession.ts'))
-  const { makeOwnerKey } = await import(join(SRC, 'utils/run/ownerKey.ts'))
-  const { runWithCwdOverride } = await import(join(SRC, 'utils/cwd.ts'))
+  const { vulcanInstallStatus, readEnabledPlugins } = await import(join(SRC, 'integrations/vulcan/addonInstaller.ts'))
+  const { vulcanCheck } = await import(join(SRC, 'platform/health/sections/runtime/services.ts'))
+  const { buildGodotIdeSession, _resetGodotSessionForTesting } = await import(join(SRC, 'integrations/ide/godotSession.ts'))
+  const { makeOwnerKey } = await import(join(SRC, 'engine/run-owner/ownerKey.ts'))
+  const { runWithCwdOverride } = await import(join(SRC, 'platform/files/cwd.ts'))
 
   const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w09-4-')))
   const restoreModes: Array<() => void> = []
@@ -432,13 +432,13 @@ function startFakeVulcanServer(
 
 {
   console.log('\n5. w09-5: unreadable Unity and Blender bridge tokens distinguished from absent in sessions and readiness')
-  const unityTokenMod = await import(join(SRC, 'services/unity/bridgeToken.ts'))
-  const blenderTokenMod = await import(join(SRC, 'services/blender/bridgeToken.ts'))
-  const { buildUnityBridgeIdeSession, unityBridgeReadinessRecords } = await import(join(SRC, 'services/ide/unityBridgeSession.ts'))
-  const { buildBlenderBridgeIdeSession, blenderBridgeReadinessRecords } = await import(join(SRC, 'services/ide/blenderBridgeSession.ts'))
-  const { getBlenderBridgeClient, resetBlenderBridgeClientForTest } = await import(join(SRC, 'services/blender/bridgeClient.ts'))
-  const { BLENDER_ADDON_MODULE } = await import(join(SRC, 'services/blender/addonHome.ts'))
-  const { runWithCwdOverride } = await import(join(SRC, 'utils/cwd.ts'))
+  const unityTokenMod = await import(join(SRC, 'integrations/unity/bridgeToken.ts'))
+  const blenderTokenMod = await import(join(SRC, 'integrations/blender/bridgeToken.ts'))
+  const { buildUnityBridgeIdeSession, unityBridgeReadinessRecords } = await import(join(SRC, 'integrations/ide/unityBridgeSession.ts'))
+  const { buildBlenderBridgeIdeSession, blenderBridgeReadinessRecords } = await import(join(SRC, 'integrations/ide/blenderBridgeSession.ts'))
+  const { getBlenderBridgeClient, resetBlenderBridgeClientForTest } = await import(join(SRC, 'integrations/blender/bridgeClient.ts'))
+  const { BLENDER_ADDON_MODULE } = await import(join(SRC, 'integrations/blender/addonHome.ts'))
+  const { runWithCwdOverride } = await import(join(SRC, 'platform/files/cwd.ts'))
 
   const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wider-w09-5-')))
   const restoreModes: Array<() => void> = []

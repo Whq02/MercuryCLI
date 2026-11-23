@@ -13,9 +13,9 @@ import {
   healthTrailEntries,
   type HealthEntry,
   type HealthFixFlow,
-} from '../../src/components/BootHealthScreen.js'
-import { formatAge } from '../../src/utils/healthCertCore.js'
-import type { HealthCertificate } from '../../src/services/health/healthReport.js'
+} from '../../src/screen/boot-face/BootHealthScreen.js'
+import { formatAge } from '../../src/platform/health/healthCertCore.js'
+import type { HealthCertificate } from '../../src/platform/health/healthReport.js'
 import {
   pruneCardLines,
   pruneLegendOf,
@@ -29,10 +29,10 @@ import {
   resumeStatusLine,
   resumeSummaryRows,
   type ResumeEntry,
-} from '../../src/components/BootResumeScreen.js'
-import { projectSessionPickerRows, type SessionScope } from '../../src/components/mercury-ui/screens/sessionPickerModel.js'
-import type { SessionListing } from '../../src/types/logs.js'
-import { buildPruneOffer, type PruneReceipt } from '../../src/services/switchboard/transcriptPruneDoor.js'
+} from '../../src/screen/boot-face/BootResumeScreen.js'
+import { projectSessionPickerRows, type SessionScope } from '../../src/screen/widgets/faces/sessionPickerModel.js'
+import type { SessionListing } from '../../src/sessions/transcripts/transcriptEntries.js'
+import { buildPruneOffer, type PruneReceipt } from '../../src/daemon/switchboard/transcriptPruneDoor.js'
 
 const STILLS_DIR = join(import.meta.dir, 'fixtures', 'face-doors')
 

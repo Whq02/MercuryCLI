@@ -5,7 +5,7 @@ import { KEY, mountOffscreen, waitFor, type Mounted } from '../lib/settingsPopup
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { hfEndpointsFixture } from './hfEndpointsFixture.mjs'
 import { gridToPng } from '../ui/gridToPng.ts'
-import type { LlmHostQuestion, LlmHostRoad } from '../../src/services/llmHost/index.ts'
+import type { LlmHostQuestion, LlmHostRoad } from '../../src/models/llm-host/index.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const at = process.argv.indexOf('--frames')
@@ -49,48 +49,48 @@ let failures = 0
 let checks = 0
 function check(name: string, truth: unknown, detail = '') { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name + (!truth && detail ? '\n' + detail : '')) }
 try {
-  const accounts = await import('../../src/services/providers/huggingface/huggingfaceAccounts.ts')
-  const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
+  const accounts = await import('../../src/models/roads/huggingface/huggingfaceAccounts.ts')
+  const { writeStoredHuggingfaceApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
   const start = await accounts.startHuggingfaceDeviceAuth()
   const wanted = 'openid profile inference-api write-endpoints'
-  check('fresh registration requests exactly identity, inference-api and write-endpoints', requests.find(row => row.path === '/oauth/register')?.scope === wanted, 'registered scope ' + requests.find(row => row.path === '/oauth/register')?.scope + '; change HF_OAUTH_SCOPE or the registration request in src/services/providers/huggingface/huggingfaceAccounts.ts')
-  check('device-code sign-in requests write-endpoints without broadening repository access', requests.find(row => row.path === '/oauth/device')?.scope === wanted, 'device scope ' + requests.find(row => row.path === '/oauth/device')?.scope + '; change startHuggingfaceDeviceAuth in src/services/providers/huggingface/huggingfaceAccounts.ts')
+  check('fresh registration requests exactly identity, inference-api and write-endpoints', requests.find(row => row.path === '/oauth/register')?.scope === wanted, 'registered scope ' + requests.find(row => row.path === '/oauth/register')?.scope + '; change HF_OAUTH_SCOPE or the registration request in src/models/roads/huggingface/huggingfaceAccounts.ts')
+  check('device-code sign-in requests write-endpoints without broadening repository access', requests.find(row => row.path === '/oauth/device')?.scope === wanted, 'device scope ' + requests.find(row => row.path === '/oauth/device')?.scope + '; change startHuggingfaceDeviceAuth in src/models/roads/huggingface/huggingfaceAccounts.ts')
   const result = await accounts.pollHuggingfaceDeviceToken(start)
   assert.equal(result.state, 'authorized')
   if (result.state === 'authorized') accounts.writeHuggingfaceTokens(result.tokens)
-  check('fresh OAuth grant preserves the granted endpoint scope', accounts.huggingfaceStoredTokens()?.scope === wanted, 'stored scope ' + accounts.huggingfaceStoredTokens()?.scope + '; change pollHuggingfaceDeviceToken / writeHuggingfaceTokens in src/services/providers/huggingface/huggingfaceAccounts.ts')
+  check('fresh OAuth grant preserves the granted endpoint scope', accounts.huggingfaceStoredTokens()?.scope === wanted, 'stored scope ' + accounts.huggingfaceStoredTokens()?.scope + '; change pollHuggingfaceDeviceToken / writeHuggingfaceTokens in src/models/roads/huggingface/huggingfaceAccounts.ts')
   await accounts.refreshHuggingfaceTokens()
-  check('refresh without scope retains the granted scope rather than inventing a new one', accounts.huggingfaceStoredTokens()?.scope === wanted, 'stored scope ' + accounts.huggingfaceStoredTokens()?.scope + '; change refreshHuggingfaceTokens in src/services/providers/huggingface/huggingfaceAccounts.ts')
+  check('refresh without scope retains the granted scope rather than inventing a new one', accounts.huggingfaceStoredTokens()?.scope === wanted, 'stored scope ' + accounts.huggingfaceStoredTokens()?.scope + '; change refreshHuggingfaceTokens in src/models/roads/huggingface/huggingfaceAccounts.ts')
   const authPath = accounts.huggingfaceAuthPathForDisplay()
   const old = JSON.parse(readFileSync(authPath, 'utf8'))
   old.registeredClient = { clientId: 'fixture-old-client', hubBase: process.env.MERCURY_HUGGINGFACE_HUB_BASE, issuedAtMs: 1 }
   delete old.tokens.clientId
   writeFileSync(authPath, JSON.stringify(old))
   const renewed = await accounts.startHuggingfaceDeviceAuth()
-  check('re-sign-in replaces a legacy client registration that did not request endpoint management', registrations === 2 && requests.filter(row => row.path === '/oauth/device').at(-1)?.client === 'fixture-client-2', 'registrations ' + registrations + '; change the registeredClient reuse check in src/services/providers/huggingface/huggingfaceAccounts.ts so a registration without the current scope is replaced')
+  check('re-sign-in replaces a legacy client registration that did not request endpoint management', registrations === 2 && requests.filter(row => row.path === '/oauth/device').at(-1)?.client === 'fixture-client-2', 'registrations ' + registrations + '; change the registeredClient reuse check in src/models/roads/huggingface/huggingfaceAccounts.ts so a registration without the current scope is replaced')
   await accounts.refreshHuggingfaceTokens()
-  check('an unfinished re-sign-in keeps the existing grant bound to its original client', requests.at(-1)?.client === 'fixture-old-client', 'last client ' + requests.at(-1)?.client + '; change refreshHuggingfaceTokens in src/services/providers/huggingface/huggingfaceAccounts.ts to use the client stored with the tokens')
+  check('an unfinished re-sign-in keeps the existing grant bound to its original client', requests.at(-1)?.client === 'fixture-old-client', 'last client ' + requests.at(-1)?.client + '; change refreshHuggingfaceTokens in src/models/roads/huggingface/huggingfaceAccounts.ts to use the client stored with the tokens')
   const renewedResult = await accounts.pollHuggingfaceDeviceToken(renewed)
   assert.equal(renewedResult.state, 'authorized')
   if (renewedResult.state === 'authorized') accounts.writeHuggingfaceTokens(renewedResult.tokens)
   await accounts.refreshHuggingfaceTokens()
-  check('a completed re-sign-in refreshes with the new client', requests.at(-1)?.client === 'fixture-client-2', 'last client ' + requests.at(-1)?.client + '; change refreshHuggingfaceTokens / pollHuggingfaceDeviceToken in src/services/providers/huggingface/huggingfaceAccounts.ts so the tokens carry the new clientId')
+  check('a completed re-sign-in refreshes with the new client', requests.at(-1)?.client === 'fixture-client-2', 'last client ' + requests.at(-1)?.client + '; change refreshHuggingfaceTokens / pollHuggingfaceDeviceToken in src/models/roads/huggingface/huggingfaceAccounts.ts so the tokens carry the new clientId')
   await accounts.startHuggingfaceDeviceAuth()
-  check('current scoped registration is reused for subsequent sign-ins', registrations === 2, 'registrations ' + registrations + '; change the registration reuse in src/services/providers/huggingface/huggingfaceAccounts.ts')
+  check('current scoped registration is reused for subsequent sign-ins', registrations === 2, 'registrations ' + registrations + '; change the registration reuse in src/models/roads/huggingface/huggingfaceAccounts.ts')
   accounts.writeHuggingfaceTokens({ accessToken: hf.key, refreshToken: 'fixture-refresh', scope: 'openid profile inference-api' })
   await accounts.refreshHuggingfaceTokens()
-  check('refresh does not silently upgrade an older grant', accounts.huggingfaceStoredTokens()?.scope === 'openid profile inference-api', 'stored scope ' + accounts.huggingfaceStoredTokens()?.scope + '; change refreshHuggingfaceTokens in src/services/providers/huggingface/huggingfaceAccounts.ts so it keeps the stored scope')
+  check('refresh does not silently upgrade an older grant', accounts.huggingfaceStoredTokens()?.scope === 'openid profile inference-api', 'stored scope ' + accounts.huggingfaceStoredTokens()?.scope + '; change refreshHuggingfaceTokens in src/models/roads/huggingface/huggingfaceAccounts.ts so it keeps the stored scope')
 
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { call: logins } = await import('../../src/commands/login/login.tsx')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { call: logins } = await import('../../src/commands/logins/login.tsx')
   let question: LlmHostQuestion | undefined
   let width = 120, height = 40
   const screen = () => mounted!.screen()

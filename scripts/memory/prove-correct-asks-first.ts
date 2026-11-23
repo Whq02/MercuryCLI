@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/mneme/memoryPinIntent.ts src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts src/mneme/mnemeBuffer.ts src/constants/tools/memory.ts docs/MNEME.md docs/MEMORY-FINDINGS.md
+// gate-watch: src/tools/memory/MemoryTools.ts src/sessions/mneme/memoryPinIntent.ts src/sessions/mneme/memoryVerbs.ts src/sessions/mneme/mnemeCorrect.ts src/sessions/mneme/mnemeBuffer.ts src/tools/kit/names/memory.ts docs/MNEME.md docs/MEMORY-FINDINGS.md
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -14,9 +14,9 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 const correctFixHint = (label: string): string => {
-  if (/Correct prompt/.test(label)) return 'fix CORRECT_PROMPT in src/constants/tools/memory.ts'
-  if (/judge is the one asking rule|refus/.test(label)) return 'fix correctAskRefusal or CREWMATE_CORRECT_REFUSAL in src/mneme/memoryPinIntent.ts, and where CorrectTool applies it in src/tools/MemoryTools/MemoryTools.ts'
-  return 'fix CorrectTool or RetainTool in src/tools/MemoryTools/MemoryTools.ts (the gate words live in src/mneme/memoryPinIntent.ts)'
+  if (/Correct prompt/.test(label)) return 'fix CORRECT_PROMPT in src/tools/kit/names/memory.ts'
+  if (/judge is the one asking rule|refus/.test(label)) return 'fix correctAskRefusal or CREWMATE_CORRECT_REFUSAL in src/sessions/mneme/memoryPinIntent.ts, and where CorrectTool applies it in src/tools/memory/MemoryTools.ts'
+  return 'fix CorrectTool or RetainTool in src/tools/memory/MemoryTools.ts (the gate words live in src/sessions/mneme/memoryPinIntent.ts)'
 }
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
@@ -24,15 +24,15 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (title: string): void => console.log(`\n${title}`)
 
-const { RetainTool, CorrectTool, RecallTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
-const { CORRECT_PROMPT } = await import('../../src/constants/tools/memory.ts')
-const pinIntent = (await import('../../src/mneme/memoryPinIntent.ts')) as Record<string, unknown>
+const { RetainTool, CorrectTool, RecallTool } = await import('../../src/tools/memory/MemoryTools.ts')
+const { CORRECT_PROMPT } = await import('../../src/tools/kit/names/memory.ts')
+const pinIntent = (await import('../../src/sessions/mneme/memoryPinIntent.ts')) as Record<string, unknown>
 const correctAskRefusal = (pinIntent.correctAskRefusal ?? (() => 'absent on this base')) as (messages: unknown[], agentId?: string) => string | null
 const CREWMATE_CORRECT_REFUSAL = (pinIntent.CREWMATE_CORRECT_REFUSAL ?? 'absent on this base') as string
-const { _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
-const { pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { _resetMemoryVerbSessionStateForTesting } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { pendingRows } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const dir = mnemeLibraryDir()
 
 let n = 0

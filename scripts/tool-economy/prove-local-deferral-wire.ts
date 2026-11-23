@@ -15,7 +15,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 let failures = 0
 let checks = 0
-const DEFERRAL_FAIL_HINT = 'which tools load in full on the local route is decided by isDeferredToolFor in src/tools/ToolSearchTool/prompt.ts, the wire form by deferralWireFormFor in src/services/providers/deferralWire.ts, the name row by getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts, and the request body by routedCallModel in src/services/providers/callModelRouter.ts'
+const DEFERRAL_FAIL_HINT = 'which tools load in full on the local route is decided by isDeferredToolFor in src/tools/tool-search/prompt.ts, the wire form by deferralWireFormFor in src/models/roads/deferralWire.ts, the name row by getDeferredToolsDeltaAttachment in src/engine/attachments/toolAndServerDeltas.ts, and the request body by routedCallModel in src/models/roads/callModelRouter.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -99,26 +99,26 @@ const ollama = await ollamaFixture()
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
 process.env.MERCURY_MODEL = PERSISTED
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { assembleToolPool } = await import('../../src/tools.ts')
-const { MCPTool } = await import('../../src/tools/MCPTool/MCPTool.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { formatDeferredToolLine, isDeferredTool, isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { getDeferredToolsDeltaAttachment } = await import('../../src/services/attachments/deltas.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
-const { clearToolRosterLatches, admissionRecordText } = await import('../../src/services/providers/toolEconomy.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Tools = import('../../src/Tool.ts').Tools
-type Message = import('../../src/types/message.ts').Message
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
+const { MCPTool } = await import('../../src/tools/mcp/MCPTool.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { formatDeferredToolLine, isDeferredTool, isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/tool-search/prompt.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { getDeferredToolsDeltaAttachment } = await import('../../src/engine/attachments/toolAndServerDeltas.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { deferralWireFormFor } = await import('../../src/models/roads/deferralWire.ts')
+const { clearToolRosterLatches, admissionRecordText } = await import('../../src/models/roads/toolEconomy.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Tools = import('../../src/tools/kit/tool.ts').Tools
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 await refreshLocalDiscovery({ force: true })
 const permissionContext = getEmptyToolPermissionContext()

@@ -21,7 +21,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
-  if (!ok) console.log('    fix: the advisor settings, clock, digest, memory, ask road and live call are in src/services/advisor/index.ts; the /submodels slot is src/services/model/subModelSlots.ts; the note framing is in src/utils/messages/text.ts; the /advise command is src/commands/advise/advise.ts')
+  if (!ok) console.log('    fix: the advisor settings, clock, digest, memory, ask road and live call are in src/models/advisor/index.ts; the /submodels slot is src/models/catalogue/subModelSlots.ts; the note framing is in src/engine/message-shapes/text.ts; the /advise command is src/commands/advise/advise.ts')
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
@@ -106,23 +106,23 @@ await new Promise<void>(r => server.listen(0, '127.0.0.1', r))
 const address = server.address()
 process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}`
 
-const { setIsInteractive } = await import(join(ROOT, 'src/bootstrap/state.ts'))
+const { setIsInteractive } = await import(join(ROOT, 'src/boot/process-state/processState.ts'))
 setIsInteractive(false)
-const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
-const state = await import(join(ROOT, 'src/bootstrap/state.ts'))
-const config = await import(join(ROOT, 'src/utils/config.ts'))
-const advisor = await import(join(ROOT, 'src/services/advisor/index.ts'))
-const slots = await import(join(ROOT, 'src/services/model/subModelSlots.ts'))
-const workload = await import(join(ROOT, 'src/utils/workloadContext.ts'))
-const rows = await import(join(ROOT, 'src/utils/messages/noticeRows.ts'))
-const text = await import(join(ROOT, 'src/utils/messages/text.ts'))
-const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/utils/messages/factories.ts'))
-const { getTranscriptPath } = await import(join(ROOT, 'src/utils/sessionStorage/paths.ts'))
-const storage = await import(join(ROOT, 'src/utils/sessionStorage.ts'))
-const { calculateTokenWarningState, getEffectiveContextWindowSize } = await import(join(ROOT, 'src/services/compact/autoCompact.ts'))
-const { getMaxOutputTokensForModel } = await import(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'))
-const { modelThinkingAlwaysOn } = await import(join(ROOT, 'src/utils/model/capabilities.ts'))
+const state = await import(join(ROOT, 'src/boot/process-state/processState.ts'))
+const config = await import(join(ROOT, 'src/platform/settings/config.ts'))
+const advisor = await import(join(ROOT, 'src/models/advisor/index.ts'))
+const slots = await import(join(ROOT, 'src/models/catalogue/subModelSlots.ts'))
+const workload = await import(join(ROOT, 'src/models/roads/workloadContext.ts'))
+const rows = await import(join(ROOT, 'src/engine/message-shapes/noticeRows.ts'))
+const text = await import(join(ROOT, 'src/engine/message-shapes/text.ts'))
+const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/engine/message-shapes/factories.ts'))
+const { getTranscriptPath } = await import(join(ROOT, 'src/sessions/transcripts/paths.ts'))
+const storage = await import(join(ROOT, 'src/sessions/transcripts/sessionStorage.ts'))
+const { calculateTokenWarningState, getEffectiveContextWindowSize } = await import(join(ROOT, 'src/engine/compaction/autoFold.ts'))
+const { getMaxOutputTokensForModel } = await import(join(ROOT, 'src/models/roads/anthropic/streamCore.ts'))
+const { modelThinkingAlwaysOn } = await import(join(ROOT, 'src/models/facts/capabilities.ts'))
 
 const ADVISOR_MODEL = 'claude-opus-4-8'
 const AGENT = 'agent-fixture-1'
@@ -283,8 +283,8 @@ section("§0c THE EFFECTIVE TEST: the advisor runs for a chat only when the sett
   advisor.setAdvisorEnabled(false)
   check('the command is a session-seat local command that the headless runner may execute, curated under model & effort in /help', await (async () => {
     const command = (await import(join(ROOT, 'src/commands/advise/index.ts'))).default as { type: string; name: string; supportsNonInteractive: boolean; seat?: string; argumentHint?: string }
-    const { commandSeat, builtinCommands } = await import(join(ROOT, 'src/commands.ts'))
-    const { COMMAND_DOMAINS } = await import(join(ROOT, 'src/components/HelpV2/commandDomains.ts'))
+    const { commandSeat, builtinCommands } = await import(join(ROOT, 'src/commands/catalogue/commands.ts'))
+    const { COMMAND_DOMAINS } = await import(join(ROOT, 'src/screen/help/commandDomains.ts'))
     return command.type === 'local' && command.name === 'advise' && command.supportsNonInteractive === true && command.argumentHint === '[on|off]' && commandSeat(command as never) === 'session' && builtinCommands().some((c: { name: string }) => c.name === 'advise') && COMMAND_DOMAINS.some((d: { key: string; names: readonly string[] }) => d.key === 'model' && d.names.includes('advise'))
   })())
   storage.saveAdvisorSwitch(true)
@@ -336,7 +336,7 @@ section('§2 THE MINUTES CLOCK: a note falls due once `minutes` have passed sinc
   check("the note's words are the fixture's answer, clamped to the line cap", note1.text === 'Verify the pin on the base before you cut.', j(note1))
   check("the note's origin: { kind: 'advisor', model, minutes, at } — a MessageOrigin member the guard admits, the stamp on the seam clock", rows.isAdvisorOrigin(origin) && origin.kind === 'advisor' && origin.model === ADVISOR_MODEL && origin.minutes === 5 && origin.seats === undefined && origin.at === new Date(T0 + 5 * MINUTE).toISOString() && !rows.isSaturnOrigin(origin), j(origin))
   check('the guard refuses the other origins and a bare kind', !rows.isAdvisorOrigin({ kind: 'advisor' }) && !rows.isAdvisorOrigin({ kind: 'saturn', fire: 'wake', firedAt: 'x' }) && !rows.isAdvisorOrigin(undefined))
-  const { getAdvisorNoteAttachments } = await import(join(ROOT, 'src/services/attachments/queuedCommands.ts'))
+  const { getAdvisorNoteAttachments } = await import(join(ROOT, 'src/engine/attachments/queuedCommands.ts'))
   advisor.setAdvisorEnabled(true)
   advisor.stashAdvisorNote(String(state.getSessionId()), note1 as never)
   const drained = getAdvisorNoteAttachments({ agentId: undefined }, { querySource: 'sdk' }) as Raw[]
@@ -594,7 +594,7 @@ section('§8 ONCE MORE ON AN EMPTY ANSWER, THEN A QUIET ROW: an empty answer is 
   check('the service mints the quiet row and its words (red on the base: no such factory)', minted)
   const row = minted ? (advisor.createAdvisorQuietMessage(quiet as never) as unknown as Raw) : ({} as Raw)
   check("the quiet row is a system record of its own subtype with the origin and the words, info level, never meta — a row the transcript keeps and the model never sees", row.type === 'system' && row.subtype === 'advisor_quiet' && minted && advisor.isAdvisorQuietMessage(row) && j(row.origin) === j(quiet!.origin) && row.content === 'had nothing to say this round — answered with no text, twice' && row.level === 'info' && row.isMeta === false && typeof row.uuid === 'string' && typeof row.timestamp === 'string', j(row))
-  const { normalizeMessagesForAPI } = await import(join(ROOT, 'src/services/messages/apiView.ts'))
+  const { normalizeMessagesForAPI } = await import(join(ROOT, 'src/engine/messages/apiView.ts'))
   const planned = normalizeMessagesForAPI([...transcript, ...(minted ? [row] : [])] as never)
   check('the API plan leaves the quiet row out: the agent never reads it', minted && planned.length === 2 && !j(planned).includes('had nothing to say'), j(planned.map((m: Raw) => m.type)))
   quiets.length = 0

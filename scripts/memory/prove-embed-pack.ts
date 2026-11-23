@@ -17,7 +17,7 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 400)} — ` : ''}fix the embedding model catalogue and download in src/mneme/embedModels.ts (and its lock file), the native pack loader in src/mneme/embedPack.ts, or the vendor scripts scripts/vendor/build-embed.ts and scripts/vendor/fetch-embed-models.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 400)} — ` : ''}fix the embedding model catalogue and download in src/sessions/mneme/embedModels.ts (and its lock file), the native pack loader in src/sessions/mneme/embedPack.ts, or the vendor scripts scripts/vendor/build-embed.ts and scripts/vendor/fetch-embed-models.ts` : ''}`)
   if (!cond) failures++
 }
 const warn = (line: string): void => console.log(`  [WARN] ${line}`)
@@ -27,10 +27,10 @@ const finish = (note: string): never => {
   process.exit(failures > 0 ? 1 : 0)
 }
 
-const pack = await import('../../src/mneme/embedPack.js')
-const models = await import('../../src/mneme/embedModels.js')
+const pack = await import('../../src/sessions/mneme/embedPack.js')
+const models = await import('../../src/sessions/mneme/embedModels.js')
 
-const PLATFORM = (await import('../../src/utils/voice/voicePack.js')).voicePackPlatform()
+const PLATFORM = (await import('../../src/integrations/voice-pack/voicePack.js')).voicePackPlatform()
 const PACK_DIR = pack.embedPackDirFor(ROOT, PLATFORM)
 const CACHE_DIR = join(ROOT, models.EMBED_MODELS_VENDOR_PATH)
 const BUN = process.execPath

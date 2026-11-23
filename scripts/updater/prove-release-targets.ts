@@ -7,19 +7,19 @@ import { join } from 'node:path'
 process.chdir(join(import.meta.dir, '..', '..'))
 const ROOT = process.cwd()
 const { RELEASE_TARGETS, archiveNameFor, buildPlatformOf, isReleaseTarget, platformKey, readBuildTargetRecord, releaseTargetFor, releaseTargetForUname, ripgrepPackageFor } =
-  await import('../../src/services/privateChannel/releaseTarget.ts')
-const { assetNameFor, platformNote } = await import('../../src/services/privateChannel/channelCore.ts')
-const { nodePackPlatform, readRuntimeRecord } = await import('../../src/services/privateChannel/vendoredRuntime.ts')
-const { imagePackPlatform } = await import('../../src/utils/imageProcessor/imagePackArm.ts')
-const { voiceCargoTriple, voicePackPlatform } = await import('../../src/utils/voice/voicePack.ts')
-const { BRUSH_PACK_PATH, brushBinaryFor, brushPackPlatform } = await import('../../src/utils/shell/brushPack.ts')
+  await import('../../src/platform/update-channel/releaseTarget.ts')
+const { assetNameFor, platformNote } = await import('../../src/platform/update-channel/channelCore.ts')
+const { nodePackPlatform, readRuntimeRecord } = await import('../../src/platform/update-channel/vendoredRuntime.ts')
+const { imagePackPlatform } = await import('../../src/platform/images/imagePackArm.ts')
+const { voiceCargoTriple, voicePackPlatform } = await import('../../src/integrations/voice-pack/voicePack.ts')
+const { BRUSH_PACK_PATH, brushBinaryFor, brushPackPlatform } = await import('../../src/platform/shell/brushPack.ts')
 const { lockedPackage, platformPackagesFor, registryTarballUrl, resolvePlatformPackage } = await import('../vendor/platformPackages.ts')
 
 let failures = 0
 const WHERE: Record<string, string> = {
-  '§1': 'change RELEASE_TARGETS, releaseTargetFor, archiveNameFor, releaseTargetForUname or readBuildTargetRecord in src/services/privateChannel/releaseTarget.ts, or the pack owner that disagrees (nodePackPlatform in src/services/privateChannel/vendoredRuntime.ts, imagePackPlatform in src/utils/imageProcessor/imagePackArm.ts, voicePackPlatform in src/utils/voice/voicePack.ts, brushPackPlatform in src/utils/shell/brushPack.ts)',
-  '§2': 'change assetNameFor or platformNote in src/services/privateChannel/channelCore.ts so the asset it asks for equals archiveNameFor in src/services/privateChannel/releaseTarget.ts',
-  '§5': 'rebuild with bun run build.ts; if it still fails, the manifest record written in build.ts (target, search, runtime and pack records) disagrees with the owners in src/services/privateChannel/releaseTarget.ts',
+  '§1': 'change RELEASE_TARGETS, releaseTargetFor, archiveNameFor, releaseTargetForUname or readBuildTargetRecord in src/platform/update-channel/releaseTarget.ts, or the pack owner that disagrees (nodePackPlatform in src/platform/update-channel/vendoredRuntime.ts, imagePackPlatform in src/platform/images/imagePackArm.ts, voicePackPlatform in src/integrations/voice-pack/voicePack.ts, brushPackPlatform in src/platform/shell/brushPack.ts)',
+  '§2': 'change assetNameFor or platformNote in src/platform/update-channel/channelCore.ts so the asset it asks for equals archiveNameFor in src/platform/update-channel/releaseTarget.ts',
+  '§5': 'rebuild with bun run build.ts; if it still fails, the manifest record written in build.ts (target, search, runtime and pack records) disagrees with the owners in src/platform/update-channel/releaseTarget.ts',
   '§6': 'bun.lock must pin every package platformPackagesFor names in scripts/vendor/platformPackages.ts (run bun install, or fix platformPackagesFor, lockedPackage or registryTarballUrl there)',
   '§7': 'change the package and bridge-gate matrices or the named steps in .github/workflows/private-release.yml to match what this check expects',
   '§9': 'change bundledVendorPacks or checkBundledVendorPacks in scripts/release/payloadContract.mjs, vendor/brush.lock.json, or the Windows shell engine step in .github/workflows/private-release.yml',

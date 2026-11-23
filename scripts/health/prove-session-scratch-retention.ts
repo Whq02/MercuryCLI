@@ -10,19 +10,19 @@ const SELF = import.meta.path
 const DAY = 86_400_000
 
 if (process.argv.includes('--cycle')) {
-  const lifecycle = await import('../../src/substrate/stateLifecycle.ts')
+  const lifecycle = await import('../../src/platform/substrate/stateLifecycle.ts')
   let pass = await lifecycle.runLifecyclePass({ budgetMs: 60_000, maxRemovals: 1000 })
   for (let guard = 0; !pass.cycleComplete && guard < 10; guard++) pass = await lifecycle.runLifecyclePass({ budgetMs: 60_000, maxRemovals: 1000 })
   console.log(JSON.stringify({ complete: pass.cycleComplete, failures: pass.cycleFailures, scratch: pass.receipts.find(receipt => receipt.id === 'session-scratchpads') ?? null }))
   process.exit(0)
 }
 if (process.argv.includes('--health')) {
-  const report = await import('../../src/services/health/healthReport.ts')
+  const report = await import('../../src/platform/health/healthReport.ts')
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(section => section.checks).find(check => check.id === 'session-scratch')
   let fixed: unknown = null
   if (process.argv.includes('--fix')) {
-    const { runHeadlessFix } = await import('../../src/utils/healthFix.ts')
+    const { runHeadlessFix } = await import('../../src/platform/health/healthFix.ts')
     fixed = await runHeadlessFix(cert, { only: 'session-scratch', yes: process.argv.includes('--yes') })
   }
   console.log(JSON.stringify({ row: row ? { status: row.status, label: row.label, evidence: row.evidence, fix: row.fix ?? null, plan: row.remedy?.plan ?? null, remedyClass: row.remedy?.class ?? null } : null, fixed }))
@@ -30,11 +30,11 @@ if (process.argv.includes('--health')) {
 }
 if (process.argv.includes('--resume')) {
   const sessionId = process.argv[process.argv.indexOf('--resume') + 1]!
-  const { switchSession } = await import('../../src/bootstrap/state.ts')
+  const { switchSession } = await import('../../src/boot/process-state/processState.ts')
   switchSession(sessionId as never)
-  const prompts = await import('../../src/constants/prompts.ts')
-  const scratchpad = await import('../../src/utils/scratchpad.ts')
-  const { getScratchpadDir } = await import('../../src/utils/permissions/filesystem.ts')
+  const prompts = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+  const scratchpad = await import('../../src/platform/files/scratchpad.ts')
+  const { getScratchpadDir } = await import('../../src/permissions/rules/filesystem.ts')
   const block = await prompts.computeSimpleEnvInfo('claude-opus-5')
   const dir = getScratchpadDir()
   const record = scratchpad.scratchpadOwnerRecord(dir)
@@ -54,23 +54,23 @@ process.env.MERCURY_DAEMON_DIR = daemon
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_CONCOURSE_WORKER
 
-const scratchpad = await import('../../src/utils/scratchpad.ts')
-const retention = await import('../../src/daemon/scratchpadRetention.ts')
-const { getMercuryTempDir } = await import('../../src/utils/permissions/filesystem.ts')
-const { getMercuryHome } = await import('../../src/utils/envUtils.ts')
-const { getProcessStartTokenAsync } = await import('../../src/utils/ownerWatch.ts')
+const scratchpad = await import('../../src/platform/files/scratchpad.ts')
+const retention = await import('../../src/daemon/control/scratchpadRetention.ts')
+const { getMercuryTempDir } = await import('../../src/permissions/rules/filesystem.ts')
+const { getMercuryHome } = await import('../../src/platform/environment/envUtils.ts')
+const { getProcessStartTokenAsync } = await import('../../src/daemon/control/ownerWatch.ts')
 
 let failures = 0
 let sectionWhere = ''
 const whereBySection: Record<string, string> = {
-  '§1': 'change ensureScratchpadDir, scratchpadOwnerRecord or sweepOwnScratchpad in src/utils/scratchpad.ts, or idleScratchpads in src/daemon/scratchpadRetention.ts',
-  '§2': 'change readScratchpadCensus in src/daemon/scratchpadRetention.ts, or isSessionScratchpad in src/utils/scratchpad.ts',
-  '§3': 'change scratchpadFootprint in src/daemon/scratchpadRetention.ts',
-  '§4': 'change the session-scratch health row in src/services/health/sections/crew/scratch.ts, which reads the census from src/daemon/scratchpadRetention.ts',
-  '§5': 'change the session-scratchpads class of runLifecyclePass in src/substrate/stateLifecycle.ts, which uses src/daemon/scratchpadRetention.ts',
-  '§6': 'change how the session-scratchpads class reads records.retentionDays (src/substrate/stateLifecycle.ts, src/daemon/scratchpadRetention.ts)',
-  '§7': 'change the session-scratch health row and its remedy in src/services/health/sections/crew/scratch.ts, run through runHeadlessFix in src/utils/healthFix.ts',
-  '§8': 'change scratchpadPromptLine in src/utils/scratchpad.ts or computeSimpleEnvInfo in src/constants/prompts.ts',
+  '§1': 'change ensureScratchpadDir, scratchpadOwnerRecord or sweepOwnScratchpad in src/platform/files/scratchpad.ts, or idleScratchpads in src/daemon/control/scratchpadRetention.ts',
+  '§2': 'change readScratchpadCensus in src/daemon/control/scratchpadRetention.ts, or isSessionScratchpad in src/platform/files/scratchpad.ts',
+  '§3': 'change scratchpadFootprint in src/daemon/control/scratchpadRetention.ts',
+  '§4': 'change the session-scratch health row in src/platform/health/sections/crew/scratch.ts, which reads the census from src/daemon/control/scratchpadRetention.ts',
+  '§5': 'change the session-scratchpads class of runLifecyclePass in src/platform/substrate/stateLifecycle.ts, which uses src/daemon/control/scratchpadRetention.ts',
+  '§6': 'change how the session-scratchpads class reads records.retentionDays (src/platform/substrate/stateLifecycle.ts, src/daemon/control/scratchpadRetention.ts)',
+  '§7': 'change the session-scratch health row and its remedy in src/platform/health/sections/crew/scratch.ts, run through runHeadlessFix in src/platform/health/healthFix.ts',
+  '§8': 'change scratchpadPromptLine in src/platform/files/scratchpad.ts or computeSimpleEnvInfo in src/engine/system-prompt/defaultSystemPrompt.ts',
 }
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++

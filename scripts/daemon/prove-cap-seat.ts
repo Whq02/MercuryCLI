@@ -56,16 +56,16 @@ for (const k of [
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
-const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
+const { storeOAuthAccountInfo } = await import('../../src/models/sign-in/oauth/client.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 const fixtureWords = await import('./cap-fixture-words.ts')
 const { SPEND_ASK, HOLD_ASK, ANTHROPIC_REPLY, OPENAI_REPLY, GPT_ID, RESET_IN_SECONDS } = fixtureWords
-const { providerWaitWords } = await import('../../src/services/api/recoveryBudget.ts')
+const { providerWaitWords } = await import('../../src/engine/requests/recoveryBudget.ts')
 
 const reapTargets: Array<{ kill: (signal: NodeJS.Signals) => boolean }> = []
 const reapNow = (): void => {
@@ -355,7 +355,7 @@ try {
   const sw1 = await setModel(sid, GPT_ID)
   check('the switch was APPLIED (never "no live control channel")', sw1.ok === true && sw1.outcome === 'applied', JSON.stringify(sw1))
   console.log(`      switch receipt: ${JSON.stringify(sw1)}`)
-  check('the receipt on a runner with no standing crash row is the plain "<runner> → <model>"', sw1.detail === `${readRec(sid)?.runnerId} → ${GPT_ID}`, JSON.stringify(sw1), 'the receipt of a switch on a healthy runner must read "<runner> → <model>": the receipt wording is built in src/daemon/sessionSeat/model.ts')
+  check('the receipt on a runner with no standing crash row is the plain "<runner> → <model>"', sw1.detail === `${readRec(sid)?.runnerId} → ${GPT_ID}`, JSON.stringify(sw1), 'the receipt of a switch on a healthy runner must read "<runner> → <model>": the receipt wording is built in src/daemon/session-seat/model.ts')
   check('the record and the facts carry the new model', await untilAsync(() => readRec(sid)?.modelKey === GPT_ID && readFacts(sid)?.model?.effective === GPT_ID, 20_000), JSON.stringify({ rec: readRec(sid)?.modelKey, facts: readFacts(sid)?.model }))
   const before3 = mainHits().length
   const again = await say('hello again', sid)
@@ -449,7 +449,7 @@ try {
   const sw3 = await setModel(sid, GPT_ID)
   console.log(`      switch receipt on the respawned runner: ${JSON.stringify(sw3)}`)
   check('C2 the family switch on the respawned runner is APPLIED', sw3.ok === true && sw3.outcome === 'applied', JSON.stringify(sw3))
-  check('C2 the receipt names the exit the record still shows and the landing in place: "the runner had exited at hh:mm (crashed mid-run (exit none · signal SIGKILL)) and is back — <runner> → <model>", the clock the crash row\'s own, no respawned flag', sw3.detail === `the runner had exited at ${clockOf(crash6?.at ?? 0)} (crashed mid-run (exit none · signal SIGKILL)) and is back — ${runnerLive} → ${GPT_ID}` && (sw3 as { respawned?: unknown }).respawned === undefined, JSON.stringify({ sw3, at: crash6?.at }), 'the switch receipt after a crash is built in src/daemon/sessionSeat/model.ts: compare its words and clock with the crash row')
+  check('C2 the receipt names the exit the record still shows and the landing in place: "the runner had exited at hh:mm (crashed mid-run (exit none · signal SIGKILL)) and is back — <runner> → <model>", the clock the crash row\'s own, no respawned flag', sw3.detail === `the runner had exited at ${clockOf(crash6?.at ?? 0)} (crashed mid-run (exit none · signal SIGKILL)) and is back — ${runnerLive} → ${GPT_ID}` && (sw3 as { respawned?: unknown }).respawned === undefined, JSON.stringify({ sw3, at: crash6?.at }), 'the switch receipt after a crash is built in src/daemon/session-seat/model.ts: compare its words and clock with the crash row')
   check('C2 the switch landed in place: the respawned pid stands', readRec(sid)?.pid === pidBack && alive(pidBack), JSON.stringify({ pid: readRec(sid)?.pid, pidBack }))
   check("C2 the record's crash row still stands after the switch (the row says the runner exited and resumed; the receipt did not)", readRec(sid)?.crash?.respawning === true && readRec(sid)?.crash?.at === crash6?.at, JSON.stringify(readRec(sid)?.crash))
   check('C2 the record and the facts carry the GPT row', await untilAsync(() => readRec(sid)?.modelKey === GPT_ID && readRec(sid)?.pendingModelKey === undefined && readFacts(sid)?.model?.effective === GPT_ID, 20_000), JSON.stringify({ rec: readRec(sid)?.modelKey, facts: readFacts(sid)?.model }))
@@ -478,7 +478,7 @@ try {
   const sw4 = await setModel(sid, 'claude-fable-5-1')
   console.log(`      switch receipt on the dead runner: ${JSON.stringify(sw4)}`)
   check('C2b the switch on the dead runner is APPLIED — never "no live control channel"', sw4.ok === true && sw4.outcome === 'applied', JSON.stringify(sw4))
-  check('C2b the receipt names the exit and the restart: "the runner had exited at hh:mm (crashed mid-run (exit none · signal SIGKILL)) — restarting on Fable 5.1", respawned', typeof sw4.detail === 'string' && /^the runner had exited at \d\d:\d\d \(crashed mid-run \(exit none · signal SIGKILL\)\) — restarting on Fable 5\.1$/.test(sw4.detail) && (sw4 as { respawned?: unknown }).respawned === true, JSON.stringify(sw4), 'the switch receipt on a dead runner is built in src/daemon/sessionSeat/model.ts: change its words or the respawned flag there')
+  check('C2b the receipt names the exit and the restart: "the runner had exited at hh:mm (crashed mid-run (exit none · signal SIGKILL)) — restarting on Fable 5.1", respawned', typeof sw4.detail === 'string' && /^the runner had exited at \d\d:\d\d \(crashed mid-run \(exit none · signal SIGKILL\)\) — restarting on Fable 5\.1$/.test(sw4.detail) && (sw4 as { respawned?: unknown }).respawned === true, JSON.stringify(sw4), 'the switch receipt on a dead runner is built in src/daemon/session-seat/model.ts: change its words or the respawned flag there')
   check("C2b the receipt's clock is the crash row's own stamp", typeof sw4.detail === 'string' && recDead?.crash !== undefined && sw4.detail.includes(`had exited at ${clockOf(recDead.crash.at)}`), JSON.stringify({ detail: sw4.detail, at: recDead?.crash?.at }))
   check('C2b the record took the Fable row in the same beat (nothing parked)', readRec(sid)?.modelKey === 'claude-fable-5-1' && readRec(sid)?.pendingModelKey === undefined, JSON.stringify({ model: readRec(sid)?.modelKey, pending: readRec(sid)?.pendingModelKey }))
   check("C2b the ladder's respawn lands the runner on the Fable row (a new live pid)", await untilAsync(() => {

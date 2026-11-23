@@ -8,12 +8,12 @@ import { join } from 'node:path'
 
 let failures = 0
 const GPT_WINDOW_FIX_HINT_BY_SECTION: Record<string, string> = {
-  '1': 'change the catalogue decoder (refreshOpenaiCatalogue) in src/services/providers/openai/openaiCatalogue.ts so both context_window and max_context_window are kept',
-  '2': 'change liveGptContextWindow or liveGptContextCeiling in src/services/providers/openai/openaiCatalogue.ts',
-  '3': 'change resolveContextWindow in src/utils/model/capabilities.ts, which getContextWindowForModel reads',
-  '4': 'change gptDisplayPin in src/utils/model/pins/gptPins.ts or resolveContextWindow in src/utils/model/capabilities.ts for the unfetched fallback',
-  '7': 'change resolveContextWindow in src/utils/model/capabilities.ts, the [served] helpers in src/utils/model/pins/gptPins.ts, or normalizeModelStringForAPI in src/utils/model/modelNames.ts',
-  '9': 'change the GPT group rows in getModelOptions in src/services/model/modelOptions.ts',
+  '1': 'change the catalogue decoder (refreshOpenaiCatalogue) in src/models/roads/openai/openaiCatalogue.ts so both context_window and max_context_window are kept',
+  '2': 'change liveGptContextWindow or liveGptContextCeiling in src/models/roads/openai/openaiCatalogue.ts',
+  '3': 'change resolveContextWindow in src/models/facts/capabilities.ts, which getContextWindowForModel reads',
+  '4': 'change gptDisplayPin in src/models/facts/pins/gptPins.ts or resolveContextWindow in src/models/facts/capabilities.ts for the unfetched fallback',
+  '7': 'change resolveContextWindow in src/models/facts/capabilities.ts, the [served] helpers in src/models/facts/pins/gptPins.ts, or normalizeModelStringForAPI in src/models/facts/modelNames.ts',
+  '9': 'change the GPT group rows in getModelOptions in src/models/catalogue/modelOptions.ts',
 }
 let gptWindowFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -43,7 +43,7 @@ for (const key of [
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-gpt-ctx-'))
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
-const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
+const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.js')
 const {
   liveGptContextWindow,
   liveGptContextCeiling,
@@ -51,7 +51,7 @@ const {
   refreshOpenaiCatalogue,
   __resetOpenaiCatalogueForTest,
 } = catalogue
-const { getContextWindowForModel } = await import('../../src/utils/context.js')
+const { getContextWindowForModel } = await import('../../src/engine/compaction-window/contextFill.js')
 
 const fixtureFetch: typeof fetch = (async () =>
   new Response(
@@ -148,7 +148,7 @@ section('7 · speedster 3.5.5 — the ONE typed ContextResolution (CX rows)')
   process.env.OPENAI_API_KEY = 'prover-key'
   __resetOpenaiCatalogueForTest()
   await refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: fixtureFetch })
-  const { resolveContextWindow } = await import('../../src/utils/model/capabilities.js')
+  const { resolveContextWindow } = await import('../../src/models/facts/capabilities.js')
 
   const sol = resolveContextWindow('gpt-5.6-sol')
   check(
@@ -195,9 +195,9 @@ section('7 · speedster 3.5.5 — the ONE typed ContextResolution (CX rows)')
       g54Served.activation.kind === 'none',
     `got ${JSON.stringify(g54Served)}`,
   )
-  const { normalizeModelStringForAPI } = await import('../../src/services/model/model.js')
+  const { normalizeModelStringForAPI } = await import('../../src/models/catalogue/engineModel.js')
   const { parseGptModelId, hasGptServedWindowSuffix, withGptServedWindowSuffix, stripGptServedWindowSuffix } =
-    await import('../../src/utils/model/pins/gptPins.js')
+    await import('../../src/models/facts/pins/gptPins.js')
   check(
     'the annotation NEVER reaches the wire (normalizeModelStringForAPI strips it)',
     normalizeModelStringForAPI('gpt-5.4[served]') === 'gpt-5.4' &&
@@ -254,8 +254,8 @@ section('7 · speedster 3.5.5 — the ONE typed ContextResolution (CX rows)')
 
 section('9 · the /model GPT group is the FULL lineup; availability = the resolver')
 {
-  const { getModelOptions } = await import('../../src/services/model/modelOptions.js')
-  const { OPENAI_MODEL_GROUP } = await import('../../src/services/model/modelOptions.js')
+  const { getModelOptions } = await import('../../src/models/catalogue/modelOptions.js')
+  const { OPENAI_MODEL_GROUP } = await import('../../src/models/catalogue/modelOptions.js')
   const options = getModelOptions()
   const gptRows = options.filter(o => o.group === OPENAI_MODEL_GROUP)
   const byValue = new Map(gptRows.map(o => [o.value, o]))

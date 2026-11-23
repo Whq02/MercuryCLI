@@ -41,9 +41,9 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { readSessionFacts, sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { readSessionFacts, sessionFactsPath } = await import('../../src/engine/connector/seatProjections.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -269,7 +269,7 @@ for (const run of RUNS) {
     if (f !== null) printFrame(`${run.id} @${label}`, f.split('\n'))
   }
   const chatFrame = markText(c, 'chat')
-  check(`${run.id} the chat is on screen after the door`, chatFrame !== null && chatFrame.includes(COMPOSER), `the session never reached the composer after this door; read the frames printed above, and rebuild dist/mercury.mjs with bun run build.ts if it is stale; the door request is built in src/main/sessionDoors.ts — runner tail: ${c.tail.slice(-240)}`)
+  check(`${run.id} the chat is on screen after the door`, chatFrame !== null && chatFrame.includes(COMPOSER), `the session never reached the composer after this door; read the frames printed above, and rebuild dist/mercury.mjs with bun run build.ts if it is stale; the door request is built in src/boot/main/sessionDoors.ts — runner tail: ${c.tail.slice(-240)}`)
   const stations = [bandModeOf(chatFrame)]
   for (let k = 1; k <= run.presses; k++) stations.push(bandModeOf(markText(c, `st${k}`)))
   const distinct = new Set(stations.filter(s => s !== '(no frame)')).size
@@ -286,18 +286,18 @@ for (const run of RUNS) {
   for (const l of log) console.log(`  [DAEMON] ${l}`)
   const warmRoad = log.some(l => /warm claim acked/i.test(l)) && !log.some(l => /claim refused|claim failed|spawning cold/i.test(l))
   if (run.bornSovereign) {
-    check(`${run.id} the born session RUNS sovereign (the band says so at the chat's first paint)`, stations[0] === 'sovereign', `born=${stations[0]} — the birth posture must be sovereign when the consent rides the door; check that bypassConsent reaches the runner through src/main/sessionDoors.ts and src/daemon/concourseWorkers/admitWarm.ts and admitCold.ts`)
+    check(`${run.id} the born session RUNS sovereign (the band says so at the chat's first paint)`, stations[0] === 'sovereign', `born=${stations[0]} — the birth posture must be sovereign when the consent rides the door; check that bypassConsent reaches the runner through src/boot/main/sessionDoors.ts and src/daemon/concourse-workers/admitWarm.ts and admitCold.ts`)
   } else {
-    check(`${run.id} the born session is not in a bypass posture (${run.consented ? 'consent on, default posture' : 'no consent'})`, stations[0] !== 'sovereign', `born=${stations[0]} — a session born without the skip flag or saved row must not start in sovereign; check where bypassConsent is set in src/main/sessionDoors.ts`)
+    check(`${run.id} the born session is not in a bypass posture (${run.consented ? 'consent on, default posture' : 'no consent'})`, stations[0] !== 'sovereign', `born=${stations[0]} — a session born without the skip flag or saved row must not start in sovereign; check where bypassConsent is set in src/boot/main/sessionDoors.ts`)
   }
   if (run.consented) {
-    check(`${run.id} the shift+tab cycle OFFERS the Sovereign station`, stations.slice(1).includes('sovereign'), `${stations.slice(1).join(' → ')} — shift+tab must reach sovereign once consent is given; see getNextPermissionMode in src/utils/permissions/getNextPermissionMode.ts (it needs isBypassPermissionsModeAvailable on the permission context)`)
-    if (run.presses === 4) check(`${run.id} the last press lands ON Sovereign (the band)`, lastBand === 'sovereign', `${stations.slice(1).join(' → ')} — with 4 presses from default the cycle must end on sovereign; see getNextPermissionMode in src/utils/permissions/getNextPermissionMode.ts`)
-    check(`${run.id} the press HOLDS on the runner — its own facts agree with the band`, trueMode === lastBand, `band=${lastBand} facts=${trueMode} — the runner permissionMode answered by session-facts (readSessionFacts in src/services/engine-connector/seatProjections.ts) must follow each shift+tab the band shows; if facts read (no session) or (no facts), the runner never wrote them within 8 seconds`)
-    check(`${run.id} the consented birth lands on the WARM road (the pool's runner carries the consent — no claim refusal, no cold respawn)`, warmRoad, `the daemon log must show warm claim acked and no claim refused or spawning cold; claim code is in src/daemon/concourseWorkers/admitWarm.ts and src/cli/headless/claimSession.ts — ${log.filter(l => /claim|retired/i.test(l)).join(' | ').slice(0, 300)}`)
+    check(`${run.id} the shift+tab cycle OFFERS the Sovereign station`, stations.slice(1).includes('sovereign'), `${stations.slice(1).join(' → ')} — shift+tab must reach sovereign once consent is given; see getNextPermissionMode in src/permissions/rules/getNextPermissionMode.ts (it needs isBypassPermissionsModeAvailable on the permission context)`)
+    if (run.presses === 4) check(`${run.id} the last press lands ON Sovereign (the band)`, lastBand === 'sovereign', `${stations.slice(1).join(' → ')} — with 4 presses from default the cycle must end on sovereign; see getNextPermissionMode in src/permissions/rules/getNextPermissionMode.ts`)
+    check(`${run.id} the press HOLDS on the runner — its own facts agree with the band`, trueMode === lastBand, `band=${lastBand} facts=${trueMode} — the runner permissionMode answered by session-facts (readSessionFacts in src/engine/connector/seatProjections.ts) must follow each shift+tab the band shows; if facts read (no session) or (no facts), the runner never wrote them within 8 seconds`)
+    check(`${run.id} the consented birth lands on the WARM road (the pool's runner carries the consent — no claim refusal, no cold respawn)`, warmRoad, `the daemon log must show warm claim acked and no claim refused or spawning cold; claim code is in src/daemon/concourse-workers/admitWarm.ts and src/daemon/runner/claimSession.ts — ${log.filter(l => /claim|retired/i.test(l)).join(' | ').slice(0, 300)}`)
   } else {
-    check(`${run.id} without the flag the shift+tab cycle still OFFERS the Sovereign station (on every interactive carousel)`, stations.slice(1).includes('sovereign'), `${stations.slice(1).join(' → ')} — the carousel must offer sovereign without the flag too; see getNextPermissionMode in src/utils/permissions/getNextPermissionMode.ts`)
-    check(`${run.id} without consent the runner still agrees with the band`, trueMode === lastBand, `band=${lastBand} facts=${trueMode} — the runner permissionMode answered by session-facts (readSessionFacts in src/services/engine-connector/seatProjections.ts) must follow each shift+tab the band shows`)
+    check(`${run.id} without the flag the shift+tab cycle still OFFERS the Sovereign station (on every interactive carousel)`, stations.slice(1).includes('sovereign'), `${stations.slice(1).join(' → ')} — the carousel must offer sovereign without the flag too; see getNextPermissionMode in src/permissions/rules/getNextPermissionMode.ts`)
+    check(`${run.id} without consent the runner still agrees with the band`, trueMode === lastBand, `band=${lastBand} facts=${trueMode} — the runner permissionMode answered by session-facts (readSessionFacts in src/engine/connector/seatProjections.ts) must follow each shift+tab the band shows`)
   }
   reapHome(home)
 }
@@ -306,7 +306,7 @@ if (counts.r4 !== undefined) {
   for (const id of ['r1', 'r2', 'r3', 'r5']) {
     const c = counts[id]
     if (c === undefined) continue
-    check(`${id} station count = the control's (${c.distinct} vs ${counts.r4.distinct}) — the flag changes the birth posture, never the carousel`, c.distinct === counts.r4.distinct, 'the flag must change only the birth posture, not the cycle; compare the [STATIONS] lines of this run and r4 above and see getNextPermissionMode in src/utils/permissions/getNextPermissionMode.ts')
+    check(`${id} station count = the control's (${c.distinct} vs ${counts.r4.distinct}) — the flag changes the birth posture, never the carousel`, c.distinct === counts.r4.distinct, 'the flag must change only the birth posture, not the cycle; compare the [STATIONS] lines of this run and r4 above and see getNextPermissionMode in src/permissions/rules/getNextPermissionMode.ts')
   }
 }
 console.log(`\n[SUMMARY] ${Object.entries(counts).map(([id, c]) => `${id}=${c.distinct}`).join(' · ')}`)

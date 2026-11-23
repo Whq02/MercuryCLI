@@ -9,11 +9,11 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ctm-g02-config-'))
 process.env.MERCURY_HOME = mkdtempSync(join(tmpdir(), 'ctm-g02-home-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 const { createModelTransitionMessage, createCompactBoundaryMessage } = await import(
-  '../../src/utils/messages/systemMessages.ts'
+  '../../src/engine/message-shapes/systemMessages.ts'
 )
 const { toSDKMessages } = await import('../../src/utils/messages/mappers.ts')
 

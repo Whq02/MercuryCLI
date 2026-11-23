@@ -42,29 +42,29 @@ const REPLY = 'A quick demo: one HTML file with a canvas and a loop.'
 const TOOL = 'ReadMenu'
 const TOOL_ID = 'toolu_menu_read'
 const NUDGE_WORDS = 'your last turn carried thinking only — say your reply, or call the tool you meant'
-const FIX_CEILING = '; to fix: make getModelMaxOutputTokens in src/utils/model/capabilities.ts return default equal to upperLimit for this model'
-const FIX_MARKER = '; to fix: export REASONING_CUT_MARKER as a non-empty string from src/services/api/errors.ts'
-const FIX_RECOVERY = '; to fix: the thinking-only recovery (reasoningOnlyRecovery in src/run-core/turn/noToolReply.ts) must send one continuation request after the turn cut at max_tokens'
-const FIX_REFUSAL = '; to fix: the refusal text above names the API rule the request broke, so correct the request that queryModelWithStreaming (src/services/providers/anthropic/streamCore.ts) sends'
-const FIX_REQUEST = '; to fix: start from the request body that queryModelWithStreaming (src/services/providers/anthropic/streamCore.ts) builds for each call'
-const FIX_CUTTURN = '; to fix: the cut turn must settle as the signed thinking block alone, as streamed by the fixture and kept by src/run-core/turn/noToolReply.ts'
-const FIX_PREFIX = '; to fix: the continuation request must carry the earlier rows and the cut turn (withReasoningCutMarker in src/run-core/turn/noToolReply.ts adds the marker text) directly before the nudge'
-const FIX_NUDGE = '; to fix: the nudge wording is defined in src/services/api/errors.ts and added by src/run-core/turn/noToolReply.ts'
-const FIX_NOTICE = '; to fix: the warning text is built in src/services/api/errors.ts (thinking ran to the output limit) with outputLimitWords in src/run-core/turn/noToolReply.ts'
-const FIX_WITHHELD = '; to fix: the withheld max_tokens error must be absorbed by the recovery in src/run-core/turn/noToolReply.ts and never surfaced'
+const FIX_CEILING = '; to fix: make getModelMaxOutputTokens in src/models/facts/capabilities.ts return default equal to upperLimit for this model'
+const FIX_MARKER = '; to fix: export REASONING_CUT_MARKER as a non-empty string from src/engine/requests/apiErrorRows.ts'
+const FIX_RECOVERY = '; to fix: the thinking-only recovery (reasoningOnlyRecovery in src/engine/loop/turn/noToolReply.ts) must send one continuation request after the turn cut at max_tokens'
+const FIX_REFUSAL = '; to fix: the refusal text above names the API rule the request broke, so correct the request that queryModelWithStreaming (src/models/roads/anthropic/streamCore.ts) sends'
+const FIX_REQUEST = '; to fix: start from the request body that queryModelWithStreaming (src/models/roads/anthropic/streamCore.ts) builds for each call'
+const FIX_CUTTURN = '; to fix: the cut turn must settle as the signed thinking block alone, as streamed by the fixture and kept by src/engine/loop/turn/noToolReply.ts'
+const FIX_PREFIX = '; to fix: the continuation request must carry the earlier rows and the cut turn (withReasoningCutMarker in src/engine/loop/turn/noToolReply.ts adds the marker text) directly before the nudge'
+const FIX_NUDGE = '; to fix: the nudge wording is defined in src/engine/requests/apiErrorRows.ts and added by src/engine/loop/turn/noToolReply.ts'
+const FIX_NOTICE = '; to fix: the warning text is built in src/engine/requests/apiErrorRows.ts (thinking ran to the output limit) with outputLimitWords in src/engine/loop/turn/noToolReply.ts'
+const FIX_WITHHELD = '; to fix: the withheld max_tokens error must be absorbed by the recovery in src/engine/loop/turn/noToolReply.ts and never surfaced'
 
-const turnMachine = (await import('../../src/run-core/turn-machine.ts')) as Record<string, unknown>
+const turnMachine = (await import('../../src/engine/loop/turn-machine.ts')) as Record<string, unknown>
 const runEventCore = turnMachine.runEventCore as (params: unknown, consumed: string[]) => AsyncGenerator<Record<string, unknown>, Record<string, unknown>>
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const errors = (await import('../../src/services/api/errors.ts')) as Record<string, unknown>
-const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
-const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const errors = (await import('../../src/engine/requests/apiErrorRows.ts')) as Record<string, unknown>
+const { getModelMaxOutputTokens } = await import('../../src/models/facts/capabilities.ts')
+const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
 const MARKER = typeof errors.REASONING_CUT_MARKER === 'string' ? (errors.REASONING_CUT_MARKER as string) : null
 const CEILING = getModelMaxOutputTokens(MODEL)
 const CEILING_WORDS = CEILING.upperLimit % 1000 === 0 ? `${CEILING.upperLimit / 1000}k` : String(CEILING.upperLimit)
@@ -251,7 +251,7 @@ section('A · the real shape: a tool round, then thinking to max_tokens with an 
   })(), j(r.calls[2]?.messages.at(-1)?.message?.content).slice(0, 200) + FIX_NUDGE + ' (the nudge must be an isMeta user message)')
   check('one reasoning_only_recovery transition (attempt 1) and NO max_output_tokens_recovery — the silent from-scratch resume never fires', j(r.transitions.filter(t => t.reason === 'reasoning_only_recovery').map(t => t.attempt)) === j([1]) && !r.transitions.some(t => t.reason === 'max_output_tokens_recovery'), j(r.transitions) + FIX_RECOVERY)
   check(`one visible warning row: "thinking ran to the output limit (${CEILING_WORDS}) — continuing"`, r.notices.filter(n => n.level === 'warning' && n.text.includes(`thinking ran to the output limit (${CEILING_WORDS}) — continuing`)).length === 1, j(r.notices) + FIX_NOTICE)
-  check('the reply landed as text and the run completed', r.terminal.reason === 'completed' && r.answers.at(-1) === REPLY, `${j(r.terminal)} ${j(r.answers)}; to fix: the run must end completed with the fixture reply as the last visible text, so check the continuation path in src/run-core/turn/noToolReply.ts`)
+  check('the reply landed as text and the run completed', r.terminal.reason === 'completed' && r.answers.at(-1) === REPLY, `${j(r.terminal)} ${j(r.answers)}; to fix: the run must end completed with the fixture reply as the last visible text, so check the continuation path in src/engine/loop/turn/noToolReply.ts`)
   check('the withheld max-tokens error never surfaced', r.withheldSurfaced === 0, String(r.withheldSurfaced) + FIX_WITHHELD)
   check('the effort word rode every model call (max, max, max)', j(r.efforts) === j([EFFORT, EFFORT, EFFORT]), j(r.efforts) + '; to fix: the session effort must be reported on every model_call_started event of the turn loop, including the continuation call')
 }

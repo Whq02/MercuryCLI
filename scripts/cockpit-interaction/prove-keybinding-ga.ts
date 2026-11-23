@@ -33,11 +33,11 @@ t.section('§2 + §3 — user layer + project layer through the REAL loader')
     driver,
     `;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(home)}
-const { setSessionTrustAccepted: trustTheProject } = await import('${join(process.cwd(), 'src/bootstrap/state.ts')}')
+const { setSessionTrustAccepted: trustTheProject } = await import('${join(process.cwd(), 'src/boot/process-state/processState.ts')}')
 trustTheProject(true)
 const { loadKeybindingsSyncWithWarnings, isKeybindingCustomizationEnabled, getProjectKeybindingsPath } =
-  await import('${join(process.cwd(), 'src/keybindings/loadUserBindings.ts')}')
-const { resolveKey } = await import('${join(process.cwd(), 'src/keybindings/resolver.ts')}')
+  await import('${join(process.cwd(), 'src/screen/keys/loadUserBindings.ts')}')
+const { resolveKey } = await import('${join(process.cwd(), 'src/screen/keys/resolver.ts')}')
 const r = loadKeybindingsSyncWithWarnings()
 const key = { ctrl: true, meta: false, shift: false, super: false } as never
 const hit = resolveKey('t', key, ['Chat', 'Global'], r.bindings)
@@ -141,7 +141,7 @@ t.section('§5 — a syntactically broken keybindings.json cannot kill the produ
     `;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(home)}
 const { loadKeybindingsSyncWithWarnings } =
-  await import('${join(process.cwd(), 'src/keybindings/loadUserBindings.ts')}')
+  await import('${join(process.cwd(), 'src/screen/keys/loadUserBindings.ts')}')
 const r = loadKeybindingsSyncWithWarnings()
 console.log(JSON.stringify({
   loaded: true,

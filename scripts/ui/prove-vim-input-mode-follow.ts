@@ -20,15 +20,15 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
-const followHint = ' (change the initialMode follow block in useVimInput in src/hooks/useVimInput.ts, which VimTextInput in src/components/VimTextInput.tsx passes initialMode to)'
+const followHint = ' (change the initialMode follow block in useVimInput in src/screen/composer/vim/useVimInput.ts, which VimTextInput in src/screen/composer/text-input/VimTextInput.tsx passes initialMode to)'
 
-const { default: VimTextInput } = await import('../../src/components/VimTextInput.js')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { default: VimTextInput } = await import('../../src/screen/composer/text-input/VimTextInput.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 type VimMode = 'INSERT' | 'NORMAL'
 
 const modes: VimMode[] = []
@@ -74,7 +74,7 @@ await settle()
 const frame = (): string => stripAnsi(instance.lastFrame()).replace(/\s+$/, '')
 
 section('§1 THE OPENING — no initial mode means the field keeps its own (insert) and nothing is announced')
-check('the field paints its text', frame().includes('abc'), frame() + ' (VimTextInput in src/components/VimTextInput.tsx should render the value text)')
+check('the field paints its text', frame().includes('abc'), frame() + ' (VimTextInput in src/screen/composer/text-input/VimTextInput.tsx should render the value text)')
 check('no mode change was announced', modes.length === 0, j(modes) + followHint)
 
 section('§2 THE FOLLOW — a supplied initial mode is applied when it differs, and re-applied whenever it changes')

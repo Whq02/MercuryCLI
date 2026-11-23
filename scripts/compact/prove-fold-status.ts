@@ -17,13 +17,13 @@ const {
   foldStatusExit,
   foldStatusOnEvent,
   isFoldLandingRow,
-} = await import('../../src/services/compact/foldStatus.ts')
-const { withFoldStatus, ERROR_MESSAGE_USER_ABORT } = await import('../../src/services/compact/compact.ts')
+} = await import('../../src/engine/compaction/foldStatus.ts')
+const { withFoldStatus, ERROR_MESSAGE_USER_ABORT } = await import('../../src/engine/compaction/foldConversation.ts')
 
 let failures = 0
-const { APIUserAbortError } = await import('../../src/utils/api/sdkErrors.ts')
+const { APIUserAbortError } = await import('../../src/engine/request-parts/sdkErrors.ts')
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix: src/services/compact/foldStatus.ts (beginFoldStatus, foldStatusOnEvent, foldBarCells, foldRowWords, foldRowVisible, decodeFoldStatus) or withFoldStatus in src/services/compact/compact/status.ts; the last three checks scan src/services/compact and src/commands/compact'}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix: src/engine/compaction/foldStatus.ts (beginFoldStatus, foldStatusOnEvent, foldBarCells, foldRowWords, foldRowVisible, decodeFoldStatus) or withFoldStatus in src/engine/compaction/fold/foldStatusAndRestore.ts; the last three checks scan src/services/compact and src/commands/compact'}`)
   if (!ok) failures++
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
@@ -240,8 +240,8 @@ console.log('\nS7 withFoldStatus owns the stamps')
   const files = [...walk(join(ROOT, 'src/services/compact')), ...walk(join(ROOT, 'src/commands/compact'))]
   const american = files.filter(f => /\bcanceled\b/i.test(readFileSync(f, 'utf8')))
   check("the fold's exit word has one spelling under src/services/compact and src/commands/compact ('cancelled'; no 'canceled')", american.length === 0, american.map(f => f.slice(ROOT.length + 1)).join(', '))
-  const { ERROR_MESSAGE_USER_ABORT } = await import('../../src/services/compact/compact.ts')
-  const { FOLD_EXIT_WORDS } = await import('../../src/services/compact/foldStatus.ts')
+  const { ERROR_MESSAGE_USER_ABORT } = await import('../../src/engine/compaction/foldConversation.ts')
+  const { FOLD_EXIT_WORDS } = await import('../../src/engine/compaction/foldStatus.ts')
   check("the user's esc line carries the fold row's own exit word", ERROR_MESSAGE_USER_ABORT.includes(FOLD_EXIT_WORDS.cancelled))
   const identityReads = files.filter(f => /err\.message === ERROR_MESSAGE_USER_ABORT/.test(readFileSync(f, 'utf8')))
   check('no reader under the two compaction roots classifies the abort by its message text', identityReads.length === 0, identityReads.map(f => f.slice(ROOT.length + 1)).join(', '))

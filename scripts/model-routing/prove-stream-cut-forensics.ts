@@ -9,12 +9,12 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'stream-cut-forensic
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
-const { streamOpenaiResponses } = await import('../../src/services/providers/openai/openaiClient.js')
-const forensicsOwner = await import('../../src/services/providers/openai/streamCutForensics.js')
-type OpenaiFault = import('../../src/services/providers/openai/openaiWire.js').OpenaiFault
+const { streamOpenaiResponses } = await import('../../src/models/roads/openai/openaiClient.js')
+const forensicsOwner = await import('../../src/models/roads/openai/streamCutForensics.js')
+type OpenaiFault = import('../../src/models/roads/openai/openaiWire.js').OpenaiFault
 
 let failures = 0
-const streamCutHint = 'fix streamOpenaiResponses in src/services/providers/openai/openaiClient.ts (fault and forensics on a cut stream) or the owners in src/services/providers/openai/streamCutForensics.ts (phase, size class, headers, cause words, debug line)'
+const streamCutHint = 'fix streamOpenaiResponses in src/models/roads/openai/openaiClient.ts (fault and forensics on a cut stream) or the owners in src/models/roads/openai/streamCutForensics.ts (phase, size class, headers, cause words, debug line)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${streamCutHint}`}`)

@@ -1,5 +1,5 @@
-import type { Command } from '../../commands.js'
-import { shouldInferenceConfigCommandBeImmediate } from '../../utils/immediateCommand.js'
+import type { Command } from '../catalogue/commands.js'
+import { shouldInferenceConfigCommandBeImmediate } from '../catalogue/immediateCommand.js'
 
 const command = {
   type: 'local-jsx',

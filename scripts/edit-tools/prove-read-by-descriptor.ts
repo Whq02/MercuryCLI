@@ -46,14 +46,14 @@ async function runChild(args: ChildArgs): Promise<void> {
       return st
     },
   }))
-  const state = await import('../../src/bootstrap/state.ts')
+  const state = await import('../../src/boot/process-state/processState.ts')
   state.setOriginalCwd(args.project)
   state.setCwdState(args.project)
   state.setProjectRoot(args.project)
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const read = FileReadTool as unknown as { validateInput: Function; call: Function; mapToolResultToToolResultBlockParam: Function }
   const makeContext = (): Record<string, unknown> => ({ readFileState: new Map(), userModified: false, updateFileHistoryState: () => {}, dynamicSkillDirTriggers: new Set<string>(), nestedMemoryAttachmentTriggers: new Set<string>(), abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }), options: { tools: [], engineModel: 'claude-sonnet-5' } })
   const refusal = /not a file or a folder|[Nn]ot a regular file|cannot read binary files/
@@ -71,20 +71,20 @@ async function runChild(args: ChildArgs): Promise<void> {
     if (args.road === 'read') return viaRead(path)
     if (args.road === 'reference') return viaRead(`mercury://file/${path}`)
     if (args.road === 'mention') {
-      const { generateFileAttachment } = await import('../../src/services/attachments/fileAttachments.ts')
+      const { generateFileAttachment } = await import('../../src/engine/attachments/fileAttachments.ts')
       const row = (await generateFileAttachment(path, makeContext() as never, 'at-mention')) as { type?: string } | null
       return row === null ? 'nothing attached' : String(row.type)
     }
     if (args.road === 'inspect') {
-      const { InspectTool } = await import('../../src/tools/InspectTool/InspectTool.ts')
+      const { InspectTool } = await import('../../src/tools/inspect/InspectTool.ts')
       const out = await (InspectTool as unknown as { call: Function }).call({ ref: `mercury://file/${path}` }, makeContext())
       if (out.data.state !== 'ok') throw new Error(String(out.data.result))
       return String(out.data.result)
     }
     const answer =
       args.road === 'query'
-        ? ((await (await import('../../src/cli/headless/projectQuery.ts')).projectQuery({ op: 'resource', ref: `mercury://file/${path}` } as never, getEmptyToolPermissionContext())) as { state?: string; note?: string })
-        : ((await (await import('../../src/services/resources/registry.ts')).resolveResource(`mercury://file/${path}`, { cwd: args.project, owner: (await import('../../src/utils/run/resolveOwner.ts')).processMainOwner() })) as { state?: string; note?: string })
+        ? ((await (await import('../../src/daemon/runner/projectQuery.ts')).projectQuery({ op: 'resource', ref: `mercury://file/${path}` } as never, getEmptyToolPermissionContext())) as { state?: string; note?: string })
+        : ((await (await import('../../src/integrations/resources/registry.ts')).resolveResource(`mercury://file/${path}`, { cwd: args.project, owner: (await import('../../src/engine/run-owner/resolveOwner.ts')).processMainOwner() })) as { state?: string; note?: string })
     if (answer.state !== 'ok') throw new Error(String(answer.note))
     return 'ok'
   }
@@ -261,8 +261,8 @@ function judge(label: string, played: Played, shows?: string): void {
   const skipped = swappedRounds.filter(round => round.outcome === 'ok' && round.words === 'nothing attached').length
   console.log(`  ${label}: ${swappedRounds.length} swap position(s): ${swappedRounds.filter(round => round.outcome === 'refused').length} refused, ${skipped} skipped with nothing attached, ${swappedRounds.filter(round => round.outcome === 'ok').length - skipped} answered`)
   const asItself = (round: Round): boolean => round.outcome === 'ok' && (shows === undefined || round.words.includes(shows))
-  check(`${label}: every swap between a stat of the path and the next open is answered, by a refusal or by the file's own content, and none stands on the pipe`, played.done && !played.cut && swappedRounds.length >= 1 && swappedRounds.every(round => round.outcome === 'refused' || asItself(round)), how(played), 'a reader must open by descriptor and refuse a non-file after fstat, never read the path a second time; see openRegularFileSync in src/utils/regularFile.ts and the reader for this road named in the label (src/tools/FileReadTool/read/call.ts, src/services/resources/adapters/file.ts, src/services/attachments/fileAttachments.ts)')
-  check(`${label}: with no swap the file is read as itself`, played.done && last !== undefined && last.swapped === false && asItself(last), how(played), 'with no swap the read must return the file\'s own content; see the reader for this road named in the label (src/tools/FileReadTool/read/call.ts, src/services/resources/adapters/file.ts, src/services/attachments/fileAttachments.ts)')
+  check(`${label}: every swap between a stat of the path and the next open is answered, by a refusal or by the file's own content, and none stands on the pipe`, played.done && !played.cut && swappedRounds.length >= 1 && swappedRounds.every(round => round.outcome === 'refused' || asItself(round)), how(played), 'a reader must open by descriptor and refuse a non-file after fstat, never read the path a second time; see openRegularFileSync in src/tools/read/regularFile.ts and the reader for this road named in the label (src/tools/read/call/call.ts, src/integrations/resources/adapters/file.ts, src/engine/attachments/fileAttachments.ts)')
+  check(`${label}: with no swap the file is read as itself`, played.done && last !== undefined && last.swapped === false && asItself(last), how(played), 'with no swap the read must return the file\'s own content; see the reader for this road named in the label (src/tools/read/call/call.ts, src/integrations/resources/adapters/file.ts, src/engine/attachments/fileAttachments.ts)')
 }
 
 section('§1 a file that becomes a pipe after the path was looked at: Read, for each kind of file it opens in this process')
@@ -287,11 +287,11 @@ section('§3 a pipe from the start, named for each kind: Read refuses it in the 
   for (const path of pipes) spawnSync('mkfifo', [path])
   const sentence = (path: string): string => `Reading ${path} is not allowed: it is a named pipe, not a file or a folder, and reading it could hang or never end; use a shell command with a timeout or a byte limit instead.`
   const viaRead = await play({ road: 'read', project, world, pipes }, bound(60_000))
-  check('Read: each of the ten is refused in the sentence that names it', viaRead.done && viaRead.rounds.length === pipes.length && viaRead.rounds.every((round, index) => round.outcome === 'refused' && round.words === sentence(pipes[index]!)), how(viaRead), 'Read must refuse a named pipe with notAFileRefusal in src/utils/regularFile.ts, for every file kind it opens (src/tools/FileReadTool/read/call.ts)')
+  check('Read: each of the ten is refused in the sentence that names it', viaRead.done && viaRead.rounds.length === pipes.length && viaRead.rounds.every((round, index) => round.outcome === 'refused' && round.words === sentence(pipes[index]!)), how(viaRead), 'Read must refuse a named pipe with notAFileRefusal in src/tools/read/regularFile.ts, for every file kind it opens (src/tools/read/call/call.ts)')
   const viaMention = await play({ road: 'mention', project, world, pipes }, bound(60_000))
   const slowest = Math.max(0, ...viaMention.rounds.map(round => round.ms))
   console.log(`  the slowest mention of the ten: ${slowest} ms (${viaMention.rounds.find(round => round.ms === slowest)?.path?.split('.').pop() ?? 'none'})`)
-  check('a mention: each of the ten is skipped, nothing attached, none waited on', viaMention.done && viaMention.rounds.length === pipes.length && viaMention.rounds.every(round => round.outcome === 'ok' && round.words === 'nothing attached' && round.ms < bound(5_000)), how(viaMention), 'a mention of a named pipe must be skipped at once with nothing attached; see generateFileAttachment in src/services/attachments/fileAttachments.ts and openRegularFileSync in src/utils/regularFile.ts')
+  check('a mention: each of the ten is skipped, nothing attached, none waited on', viaMention.done && viaMention.rounds.length === pipes.length && viaMention.rounds.every(round => round.outcome === 'ok' && round.words === 'nothing attached' && round.ms < bound(5_000)), how(viaMention), 'a mention of a named pipe must be skipped at once with nothing attached; see generateFileAttachment in src/engine/attachments/fileAttachments.ts and openRegularFileSync in src/tools/read/regularFile.ts')
 }
 
 if (failures === 0 && !KEEP) rmSync(world, { recursive: true, force: true })

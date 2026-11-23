@@ -17,10 +17,10 @@ delete process.env.MERCURY_CONCOURSE_WORKER
 
 let failures = 0
 const wireWheres: Record<string, string> = {
-  '§3': 'fix rewindSession in src/daemon/sessionSeat.ts (the typed refusals and the request it sends)',
-  '§4': 'fix projectRewoundWindows and projectOperatorRewinds in src/services/compact/checkpointRewind.ts',
-  '§5': 'fix the session/rewind params in METHODS in src/runner/wire/methods.ts',
-  '§6': 'fix handleRewindSession in src/cli/headless/controlHandlers.ts (the typed refusal arms and the conversation record)',
+  '§3': 'fix rewindSession in src/daemon/session-seat/sessionSeat.ts (the typed refusals and the request it sends)',
+  '§4': 'fix projectRewoundWindows and projectOperatorRewinds in src/engine/compaction/checkpointRewind.ts',
+  '§5': 'fix the session/rewind params in METHODS in src/daemon/runner-wire/methods.ts',
+  '§6': 'fix handleRewindSession in src/daemon/runner/controlHandlers.ts (the typed refusal arms and the conversation record)',
 }
 let wireWhere = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -36,8 +36,8 @@ const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
 section('§3 — the seat verb: applied · typed refusals · the mixed-version law')
 {
-  const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-  const seat = await import('../../src/daemon/sessionSeat.ts')
+  const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  const seat = await import('../../src/daemon/session-seat/sessionSeat.ts')
   const SESSION = 'rewind-wire-session-0001'
   const SHORT = 'concourse-w1'
   updateConcourseWorkers(workers => {
@@ -56,7 +56,7 @@ section('§3 — the seat verb: applied · typed refusals · the mixed-version l
   }, DAEMON_DIR)
 
   const { standInRunner } = await import('../lib/seatDoor.ts')
-  const { RPC_METHOD_NOT_FOUND, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+  const { RPC_METHOD_NOT_FOUND, RPC_REFUSED } = await import('../../src/daemon/runner-wire/errors.ts')
   type Stand = ReturnType<typeof standInRunner>
   const runnerOf = (answer: 'success' | 'error-older' | 'error-other' | 'never', busy = false): { stand: Stand; roster: ReturnType<Stand['roster']> } => {
     const stand = standInRunner({ autoAnswer: { 'session/facts': {} } })
@@ -156,8 +156,8 @@ section('§3 — the seat verb: applied · typed refusals · the mixed-version l
 
 section('§4 — the projection laws: the operator window is inclusive in every view')
 {
-  const cr = await import('../../src/services/compact/checkpointRewind.ts')
-  const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
+  const cr = await import('../../src/engine/compaction/checkpointRewind.ts')
+  const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
   const u = (text: string) => createUserMessage({ content: text })
   const a = (text: string) => createAssistantMessage({ content: text } as never)
   const turn1 = u('first task')
@@ -195,7 +195,7 @@ section('§4 — the projection laws: the operator window is inclusive in every 
 
 section('§5 — the runner door: session/rewind parses; a foreign mode refuses at the schema')
 {
-  const { METHODS } = await import('../../src/runner/wire/methods.ts')
+  const { METHODS } = await import('../../src/daemon/runner-wire/methods.ts')
   const params = METHODS['session/rewind'].params()
   const ok = params.safeParse({ user_message_id: 'u1', mode: 'both', dry_run: true })
   check('a well-formed session/rewind request parses', ok.success, ok.success ? '' : j(ok.error.issues).slice(0, 200))
@@ -205,14 +205,14 @@ section('§5 — the runner door: session/rewind parses; a foreign mode refuses 
 
 section('§6 — the runner handler: every typed refusal arm, and the conversation record persisted')
 {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const state = await import('../../src/bootstrap/state.ts')
-  const { handleRewindSession } = await import('../../src/cli/headless/controlHandlers.ts')
-  const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-  const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.ts')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { getTranscriptPathForSession } = await import('../../src/utils/sessionStorage/paths.ts')
+  const state = await import('../../src/boot/process-state/processState.ts')
+  const { handleRewindSession } = await import('../../src/daemon/runner/controlHandlers.ts')
+  const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
+  const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { getTranscriptPathForSession } = await import('../../src/sessions/transcripts/paths.ts')
   const u = (text: string) => createUserMessage({ content: text })
   const a = (text: string) => createAssistantMessage({ content: text } as never)
   const noDrift = { get: () => undefined }
@@ -249,7 +249,7 @@ section('§6 — the runner handler: every typed refusal arm, and the conversati
   const last = live[live.length - 1] as { isMeta?: boolean; message?: { content?: unknown } }
   check('the operator record was appended to the live conversation (isMeta, keyed by the turn)', live.length === 5 && last.isMeta === true && String(last.message?.content).includes(`turn="${t2.uuid}"`))
   check('the record persisted to THIS session\'s transcript (identity preserved — same id, same file)', existsSync(transcript) && readFileSync(transcript, 'utf8').includes(`turn=\\"${t2.uuid}\\"`), `path=${transcript} exists=${existsSync(transcript)}`)
-  const { projectRewoundWindows } = await import('../../src/services/compact/checkpointRewind.ts')
+  const { projectRewoundWindows } = await import('../../src/engine/compaction/checkpointRewind.ts')
   const next = projectRewoundWindows(live as never)
   check("the next provider-bound view is the classic truncation (first turn only)", next.length === 2 && (next[0] as { uuid: string }).uuid === t1.uuid)
   delete process.env.MERCURY_CONCOURSE_WORKER

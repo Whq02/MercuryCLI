@@ -6,7 +6,7 @@ import { armEnvironment, check, drive, enterRoot, finish, makeContext, section, 
 
 armEnvironment()
 
-const { AstSearchTool } = await import(join(REPO, 'src/tools/AstSearchTool/AstSearchTool.ts'))
+const { AstSearchTool } = await import(join(REPO, 'src/tools/ast-search/AstSearchTool.ts'))
 
 const root = mkdtempSync(join(tmpdir(), 'ast-reach-'))
 const inside = 'function outer( {\n  needle(1);\n  const x = needle(2)\n}\nneedle(3);\n'

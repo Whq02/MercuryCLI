@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-const failureWhere = 'change resolveContextWindow in src/utils/model/capabilities.ts (pin, live catalogue row or labelled fallback), or for the W5 await and warm-up checks awaitContextWindowSource and warmContextWindowSources in src/services/context/contextWindowWarmup.ts, or the catalogue refresh in src/services/providers/ named by the check'
+const failureWhere = 'change resolveContextWindow in src/models/facts/capabilities.ts (pin, live catalogue row or labelled fallback), or for the W5 await and warm-up checks awaitContextWindowSource and warmContextWindowSources in src/engine/context-window/contextWindowWarmup.ts, or the catalogue refresh in src/models/roads/ named by the check'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + failureWhere : ''}`)
@@ -33,16 +33,16 @@ process.env.MERCURY_HUGGINGFACE_HUB_BASE = 'http://127.0.0.1:9'
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { resolveContextWindow, MODEL_CONTEXT_WINDOW_DEFAULT } = await import('../../src/utils/model/capabilities.ts')
-const epoch = await import('../../src/services/providers/catalogueEpoch.ts')
-const warmup = await import('../../src/services/context/contextWindowWarmup.ts')
-const openrouter = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
-const gemini = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const huggingface = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.ts')
-const openai = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const local = await import('../../src/services/providers/local/localDiscovery.ts')
+const { resolveContextWindow, MODEL_CONTEXT_WINDOW_DEFAULT } = await import('../../src/models/facts/capabilities.ts')
+const epoch = await import('../../src/models/roads/catalogueEpoch.ts')
+const warmup = await import('../../src/engine/context-window/contextWindowWarmup.ts')
+const openrouter = await import('../../src/models/roads/openrouter/openrouterCatalogue.ts')
+const gemini = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const huggingface = await import('../../src/models/roads/huggingface/huggingfaceCatalogue.ts')
+const openai = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const local = await import('../../src/models/roads/local/localDiscovery.ts')
 
 const jsonFetch = (body: unknown): typeof fetch =>
   (async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch

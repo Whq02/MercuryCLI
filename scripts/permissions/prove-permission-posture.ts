@@ -8,8 +8,8 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { recordPermissionPosture } = await import('../../src/utils/config/trust.ts')
-const { getCurrentProjectConfig } = await import('../../src/utils/config/projectConfig.ts')
+const { recordPermissionPosture } = await import('../../src/platform/config/trust.ts')
+const { getCurrentProjectConfig } = await import('../../src/platform/config/projectConfig.ts')
 
 let failures = 0
 let whereToLook = ''
@@ -23,7 +23,7 @@ const posture = () => getCurrentProjectConfig().permissionPosture
 
 section('§1 RECORD SHAPES')
 {
-  whereToLook = 'recordPermissionPosture in src/utils/config/trust.ts composes the record (mode, armedBy, consentDialog); the printed value is the stored posture'
+  whereToLook = 'recordPermissionPosture in src/platform/config/trust.ts composes the record (mode, armedBy, consentDialog); the printed value is the stored posture'
   recordPermissionPosture({ bypassArmed: true, envArmed: true, flagArmed: true, dialogSuppressed: true })
   const p1 = posture()
   check(
@@ -56,7 +56,7 @@ section('§1 RECORD SHAPES')
 
 section('§2 THE NO-OP LAW')
 {
-  whereToLook = 'recordPermissionPosture in src/utils/config/trust.ts must skip the write when the composition is unchanged and re-stamp recordedAtMs when it changes'
+  whereToLook = 'recordPermissionPosture in src/platform/config/trust.ts must skip the write when the composition is unchanged and re-stamp recordedAtMs when it changes'
   recordPermissionPosture({ bypassArmed: true, envArmed: true, flagArmed: true, dialogSuppressed: true })
   const stamped = posture()?.recordedAtMs
   await new Promise(resolve => setTimeout(resolve, 5))
@@ -72,9 +72,9 @@ section('§2 THE NO-OP LAW')
 
 section('§3 WIRING')
 {
-  whereToLook = 'the permission-posture row of crewChecks in src/services/health/sections/crew.ts builds the evidence and fix text; the printed value is what it returned'
-  const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
-  const { saveCurrentProjectConfig } = await import('../../src/utils/config/projectConfig.ts')
+  whereToLook = 'the permission-posture row of crewChecks in src/platform/health/sections/crew.ts builds the evidence and fix text; the printed value is what it returned'
+  const { crewChecks } = await import('../../src/platform/health/sections/crew.ts')
+  const { saveCurrentProjectConfig } = await import('../../src/platform/config/projectConfig.ts')
   const postureRow = crewChecks().find(row => row.id === 'permission-posture')
   recordPermissionPosture({ bypassArmed: true, envArmed: true, flagArmed: true, dialogSuppressed: true })
   const composed = await postureRow?.run()
@@ -98,7 +98,7 @@ section('§3 WIRING')
 
 section("§4 THE ROW'S SCOPE (RELEASE-29-WINDOWS R29W-02): the record is per project, and the row says so")
 {
-  whereToLook = 'the permission-posture row in src/services/health/sections/crew.ts, run through node dist/mercury.mjs health --json (rebuild dist with bun run build.ts if the row is stale)'
+  whereToLook = 'the permission-posture row in src/platform/health/sections/crew.ts, run through node dist/mercury.mjs health --json (rebuild dist with bun run build.ts if the row is stale)'
   const { existsSync, mkdirSync } = await import('node:fs')
   const { spawnSync } = await import('node:child_process')
   const ROOT = join(import.meta.dir, '../..')
@@ -123,7 +123,7 @@ section("§4 THE ROW'S SCOPE (RELEASE-29-WINDOWS R29W-02): the record is per pro
     }
     check('health --json from a folder never opened interactively, with the env arming sovereign, carries the posture row', row !== undefined, `status=${String(r.status)} ${(r.stderr ?? '').slice(0, 300)}`)
     check('the row warns that no record exists FOR THIS PROJECT, naming where the record comes from', row?.status === 'warn' && (row.evidence ?? '').includes('NO posture record exists yet for this project') && (row.evidence ?? '').includes("interactive boot in the project's own folder"), row?.evidence)
-    const { normalizePathForConfigKey } = await import('../../src/utils/path.ts')
+    const { normalizePathForConfigKey } = await import('../../src/platform/files/path.ts')
     check("the remedy names this project's folder and says an interactive Mercury open elsewhere records that folder's (the box had one open)", (row?.fix ?? '').includes(`in this project (${normalizePathForConfigKey(project)}`) && (row?.fix ?? '').includes("another folder records that folder's"), row?.fix)
   }
 }

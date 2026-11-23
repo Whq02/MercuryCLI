@@ -28,14 +28,14 @@ const guard = setTimeout(() => {
 }, 120_000)
 guard.unref?.()
 
-const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
-const { getBundledSkills } = await import('../../src/skills/bundledSkills.ts')
-const { bareUsageLine, requiresArgument, BARE_USAGE_ROW_COLUMNS } = await import('../../src/skills/argumentHint.ts')
-const { processSlashCommand } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
-const { applyCommandSuggestion } = await import('../../src/utils/suggestions/commandSuggestions.ts')
-const { isDebugMode } = await import('../../src/utils/debug.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-type Command = import('../../src/types/command.ts').Command
+const { initBundledSkills } = await import('../../src/integrations/skills/bundled/index.ts')
+const { getBundledSkills } = await import('../../src/integrations/skills/bundledSkills.ts')
+const { bareUsageLine, requiresArgument, BARE_USAGE_ROW_COLUMNS } = await import('../../src/integrations/skills/argumentHint.ts')
+const { processSlashCommand } = await import('../../src/engine/user-input/processSlashCommand.tsx')
+const { applyCommandSuggestion } = await import('../../src/screen/suggestions/commandSuggestions.ts')
+const { isDebugMode } = await import('../../src/platform/logs/debugLog.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+type Command = import('../../src/commands/catalogue/command.ts').Command
 
 const makeContext = (commands: Command[]): unknown => ({
   options: { commands, tools: [], mcpClients: [], mcpResources: {}, engineModel: 'fixture-model', agentDefinitions: { activeAgents: [], allAgents: [] }, debug: false, verbose: false, isNonInteractiveSession: false },

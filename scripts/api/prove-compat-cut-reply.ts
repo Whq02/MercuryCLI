@@ -12,7 +12,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — prove-compat-cut-reply exceeded 120s; it was waiting for the compat road to answer the fixture server\'s cut stream and its reissue, so read the compat road in src/services/providers/openaicompat/compatChatCallModel.ts and the turn in src/run-core/turn/streamModel.ts')
+  console.log('\nTIMEOUT — prove-compat-cut-reply exceeded 120s; it was waiting for the compat road to answer the fixture server\'s cut stream and its reissue, so read the compat road in src/models/roads/openaicompat/compatChatCallModel.ts and the turn in src/engine/loop/turn/streamModel.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
@@ -57,15 +57,15 @@ Object.assign(process.env, {
   MERCURY_COMPAT_LABEL: 'Fixture',
 })
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/query.ts')
-const { productionDeps } = await import('../../src/query/deps.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 
 const MODEL = 'compat/fixture-model'
 type Row = { type?: string; uuid?: string; subtype?: string; isApiErrorMessage?: boolean; error?: { message?: string }; message?: { uuid?: string; content?: unknown } }
@@ -142,5 +142,5 @@ check('the next request carries the whole answer and never the cut one', roles(r
 check('the second turn is answered', second.said.at(-1) === 'reply "the second answer"', second.said.join(' · '))
 
 console.log(`\n${checks} checks, ${failures} failures`)
-console.log(failures === 0 ? 'prove-compat-cut-reply: a reply cut mid-stream is withdrawn when the request is answered again' : `prove-compat-cut-reply: ${failures} FAILURE(S) — the compat road reissues a cut stream in src/services/providers/openaicompat/compatChatCallModel.ts; the turn withdraws a reply at onStreamingFallback (src/run-core/turn/streamModel.ts)`)
+console.log(failures === 0 ? 'prove-compat-cut-reply: a reply cut mid-stream is withdrawn when the request is answered again' : `prove-compat-cut-reply: ${failures} FAILURE(S) — the compat road reissues a cut stream in src/models/roads/openaicompat/compatChatCallModel.ts; the turn withdraws a reply at onStreamingFallback (src/engine/loop/turn/streamModel.ts)`)
 process.exit(failures === 0 ? 0 : 1)

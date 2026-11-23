@@ -24,23 +24,23 @@ async function stub(path: string, fixture: Record<string, unknown>): Promise<voi
 }
 type Selector = { options: Array<{ value: string }>; onChange(value: string): void }
 let selector: Selector | undefined
-await stub('../../src/keybindings/useKeybinding.js', { useKeybinding() {}, useKeybindings() {} })
-await stub('../../src/components/CustomSelect/select.js', {
+await stub('../../src/screen/keys/useKeybinding.js', { useKeybinding() {}, useKeybindings() {} })
+await stub('../../src/screen/select/Select.js', {
   Select(props: Selector) { selector = props; return null },
 })
-const { SkillPermissionRequest } = await import('../../src/components/permissions/SkillPermissionRequest/SkillPermissionRequest.js')
-const { NotebookEditPermissionRequest } = await import('../../src/components/permissions/NotebookEditPermissionRequest/NotebookEditPermissionRequest.js')
-const { SkillTool } = await import('../../src/tools/SkillTool/SkillTool.js')
-const { NotebookEditTool } = await import('../../src/tools/NotebookEditTool/NotebookEditTool.js')
-const { permissionRuleValueToString, permissionRuleValueFromString } = await import('../../src/utils/permissions/permissionRuleParser.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { SkillPermissionRequest } = await import('../../src/permissions/cards/skill/SkillPermissionRequest.js')
+const { NotebookEditPermissionRequest } = await import('../../src/permissions/cards/notebook-edit/NotebookEditPermissionRequest.js')
+const { SkillTool } = await import('../../src/tools/skill/SkillTool.js')
+const { NotebookEditTool } = await import('../../src/tools/notebook-edit/NotebookEditTool.js')
+const { permissionRuleValueToString, permissionRuleValueFromString } = await import('../../src/permissions/rules/permissionRuleParser.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const StdinContext = (await import('../../src/ink/components/StdinContext.js')).default
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const StdinContext = (await import('../../src/screen/renderer/elements/StdinContext.js')).default
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 const settle = async () => {
   for (let i = 0; i < 15; i++) {
     flushPendingSyncWork()

@@ -7,18 +7,18 @@ import { join } from 'node:path'
 const scratch = mkdtempSync(join(tmpdir(), 'engine-query-boot-'))
 Object.assign(process.env, { MERCURY_CONFIG_DIR: join(scratch, 'config'), MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', MERCURY_GODOT_TOOLS: '1', MERCURY_GODOT_WORKERS: '1' })
 delete process.env.MERCURY_GODOT_TOOLS_LITE
-const { EngineJobService } = await import('../../src/services/vulcan/engine/service.js')
-const { runEngineOp } = await import('../../src/services/vulcan/engine/ops.js')
-const { parseEngineTreeSpec } = await import('../../src/services/vulcan/engine/frozenTree.js')
-const { parseEngineMediaRequest } = await import('../../src/services/vulcan/engine/media.js')
-const { liveEngines } = await import('../../src/services/vulcan/engine/spawn.js')
-const { listVulcanInstances } = await import('../../src/services/vulcan/instances.js')
-const { resolveVulcanClientForTest } = { resolveVulcanClientForTest: (await import('../../src/services/vulcan/vulcanClient.js')).resetVulcanClientForTest }
+const { EngineJobService } = await import('../../src/integrations/vulcan/engine/service.js')
+const { runEngineOp } = await import('../../src/integrations/vulcan/engine/ops.js')
+const { parseEngineTreeSpec } = await import('../../src/integrations/vulcan/engine/frozenTree.js')
+const { parseEngineMediaRequest } = await import('../../src/integrations/vulcan/engine/media.js')
+const { liveEngines } = await import('../../src/integrations/vulcan/engine/spawn.js')
+const { listVulcanInstances } = await import('../../src/integrations/vulcan/instances.js')
+const { resolveVulcanClientForTest } = { resolveVulcanClientForTest: (await import('../../src/integrations/vulcan/vulcanClient.js')).resetVulcanClientForTest }
 
 let checks = 0
 const evidence: Array<{ label: string; value: unknown }> = []
 function check(label: string, condition: unknown, value?: unknown): void {
-  assert.ok(condition, `${label}${value === undefined ? '' : ': ' + JSON.stringify(value)}; to fix: change how runEngineOp in src/services/vulcan/engine/ops.ts answers an engine query for a job or worker that is not up yet (the ENGINE_BOOTING, BRIDGE_BOOTING and NO_QUERY_ROAD answers), or the job service in src/services/vulcan/engine/service.ts`)
+  assert.ok(condition, `${label}${value === undefined ? '' : ': ' + JSON.stringify(value)}; to fix: change how runEngineOp in src/integrations/vulcan/engine/ops.ts answers an engine query for a job or worker that is not up yet (the ENGINE_BOOTING, BRIDGE_BOOTING and NO_QUERY_ROAD answers), or the job service in src/integrations/vulcan/engine/service.ts`)
   checks++
   console.log(`PASS ${label}`)
   if (value !== undefined) evidence.push({ label, value })
@@ -108,7 +108,7 @@ async function until<T>(read: () => T, ready: (value: T) => boolean, timeoutMs: 
   return value
 }
 function submitted<T extends object>(job: T | { refused: string }): Exclude<T, { refused: string }> {
-  assert.ok(!('refused' in job), `${JSON.stringify(job)}; the engine job service refused the submit, so see EngineJobService.submit in src/services/vulcan/engine/service.ts for the reason`)
+  assert.ok(!('refused' in job), `${JSON.stringify(job)}; the engine job service refused the submit, so see EngineJobService.submit in src/integrations/vulcan/engine/service.ts for the reason`)
   return job as Exclude<T, { refused: string }>
 }
 const suiteRequest = () => ({ suites: ['scene_checks'], tree: parseEngineTreeSpec('HEAD') as ReturnType<typeof parseEngineTreeSpec> & { ref: string }, native: false, capture: false, priority: 'lane-gate' as const, budgetMs: null, displayShared: false, keepTree: false, label: null })

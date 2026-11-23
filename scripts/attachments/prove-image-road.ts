@@ -12,27 +12,27 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 if (JS_ROAD) process.env.MERCURY_IMAGE_PROCESSOR = 'javascript'
 
-const limitsMod = await import('../../src/constants/apiLimits.ts')
-const resizer = await import('../../src/utils/imageResizer.ts')
-const processor = await import('../../src/utils/imageProcessor/imageProcessor.ts')
-const jsRoad = await import('../../src/utils/imageProcessor/imageProcessorJs.ts')
+const limitsMod = await import('../../src/models/roads/mediaLimits.ts')
+const resizer = await import('../../src/platform/images/imageResizer.ts')
+const processor = await import('../../src/platform/images/imageProcessor.ts')
+const jsRoad = await import('../../src/platform/images/imageProcessorJs.ts')
 const sharp = (await import('sharp')).default
 
 let failures = 0
 const tag = JS_ROAD ? '[js-road] ' : ''
 let where = ''
 const WHERE_BY_SECTION: Array<[string, string]> = [
-  ['§1', 'change the figures in src/constants/apiLimits.ts (ANTHROPIC_IMAGE_LIMITS, OPENAI_IMAGE_LIMITS, GEMINI_IMAGE_LIMITS, GENERIC_IMAGE_LIMITS)'],
-  ['§2', 'look at imageLimitsForModel and anthropicResolutionTier in src/utils/imageResizer.ts'],
-  ['§3', 'look at maybeResizeAndDownsampleImageBuffer, maybeResizeAndDownsampleImageBlock and ImageResizeError in src/utils/imageResizer.ts, and describeImageProcessor in src/utils/imageProcessor/imageProcessor.ts for the /health checks'],
-  ['§4b', 'look at readImageWithTokenBudget in src/tools/FileReadTool/read/image.ts'],
-  ['§4', 'look at decodePng, decodeBmp, downscaleRgba, encodePng, imageDimensionsFromHeader and javascriptImageProcessor in src/utils/imageProcessor/imageProcessorJs.ts'],
-  ['§5', 'look at storeImage, storedImageRefBlock, readStoredImageRef and cleanupOldImageCaches in src/utils/imageStore.ts'],
-  ['§6', 'look at hasImageInClipboard, getImageFromClipboard, nextPasteArtifactPath and tryReadImageFromPath in src/utils/imagePaste.ts, and describeAttachedImage in src/utils/imageResizer.ts'],
-  ['§7', 'look at validateImagesForAPI in src/services/imageValidation.ts'],
-  ['§8', 'look at the chat:imagePaste binding in src/keybindings/defaultBindings.ts'],
-  ['§9', 'look at describeImageProcessor, imageProcessorState and imagePackPlatform in src/utils/imageProcessor/imageProcessor.ts'],
-  ['the JavaScript road', 'read the [js-road] FAIL lines printed above; the road is src/utils/imageProcessor/imageProcessorJs.ts'],
+  ['§1', 'change the figures in src/models/roads/mediaLimits.ts (ANTHROPIC_IMAGE_LIMITS, OPENAI_IMAGE_LIMITS, GEMINI_IMAGE_LIMITS, GENERIC_IMAGE_LIMITS)'],
+  ['§2', 'look at imageLimitsForModel and anthropicResolutionTier in src/platform/images/imageResizer.ts'],
+  ['§3', 'look at maybeResizeAndDownsampleImageBuffer, maybeResizeAndDownsampleImageBlock and ImageResizeError in src/platform/images/imageResizer.ts, and describeImageProcessor in src/platform/images/imageProcessor.ts for the /health checks'],
+  ['§4b', 'look at readImageWithTokenBudget in src/tools/read/call/image.ts'],
+  ['§4', 'look at decodePng, decodeBmp, downscaleRgba, encodePng, imageDimensionsFromHeader and javascriptImageProcessor in src/platform/images/imageProcessorJs.ts'],
+  ['§5', 'look at storeImage, storedImageRefBlock, readStoredImageRef and cleanupOldImageCaches in src/platform/images/imageStore.ts'],
+  ['§6', 'look at hasImageInClipboard, getImageFromClipboard, nextPasteArtifactPath and tryReadImageFromPath in src/screen/composer/imagePaste.ts, and describeAttachedImage in src/platform/images/imageResizer.ts'],
+  ['§7', 'look at validateImagesForAPI in src/engine/requests/imageValidation.ts'],
+  ['§8', 'look at the chat:imagePaste binding in src/screen/keys/defaultBindings.ts'],
+  ['§9', 'look at describeImageProcessor, imageProcessorState and imagePackPlatform in src/platform/images/imageProcessor.ts'],
+  ['the JavaScript road', 'read the [js-road] FAIL lines printed above; the road is src/platform/images/imageProcessorJs.ts'],
 ]
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -254,7 +254,7 @@ section('§4 the JavaScript road\'s codec')
 section('§4b the last-resort read advertises the type of the bytes it returns')
 {
   ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
-  const { readImageWithTokenBudget } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { readImageWithTokenBudget } = await import('../../src/tools/read/ReadTool.ts')
   const grain = await sharp({ create: { width: 800, height: 600, channels: 3, noise: { type: 'gaussian', mean: 128, sigma: 60 } } }).png().toBuffer()
   const grainPath = join(FIX, 'grain.png')
   writeFileSync(grainPath, grain)
@@ -273,8 +273,8 @@ if (JS_ROAD) {
 
 section('§5 one file per paste, the by-reference block, the missing words, the reaper')
 {
-  const store = await import('../../src/utils/imageStore.ts')
-  const { getSessionId } = await import('../../src/bootstrap/state.ts')
+  const store = await import('../../src/platform/images/imageStore.ts')
+  const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
   const entry = (id: number, buffer: Buffer) => ({ id, type: 'image' as const, content: buffer.toString('base64'), mediaType: 'image/png', filename: `image-${id}.png` })
   const one = entry(1, tiny)
   const two = entry(2, rgbOrTiny())
@@ -319,7 +319,7 @@ section('§5 one file per paste, the by-reference block, the missing words, the 
 
 section('§6 the paste road on a fixture clipboard')
 {
-  const paste = await import('../../src/utils/imagePaste.ts')
+  const paste = await import('../../src/screen/composer/imagePaste.ts')
   const fixture = join(FIX, 'clipboard.png')
   writeFileSync(fixture, flat)
   process.env.MERCURY_CLIPBOARD_IMAGE_FILE = join(FIX, 'absent.png')
@@ -345,7 +345,7 @@ section('§6 the paste road on a fixture clipboard')
 
 section('§7 the wire\'s last-chance check names the family\'s limit')
 {
-  const validation = await import('../../src/services/imageValidation.ts')
+  const validation = await import('../../src/engine/requests/imageValidation.ts')
   const big = 'A'.repeat(10 * MiB + 4)
   const messages = [{ type: 'user', message: { role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: big } }] } }]
   let words = ''
@@ -378,7 +378,7 @@ section('§8 the paste chord per platform')
     probe,
     [
       `Object.defineProperty(process, 'platform', { value: process.argv[2] })`,
-      `const { DEFAULT_BINDINGS } = await import(${JSON.stringify(join(ROOT, 'src', 'keybindings', 'defaultBindings.ts'))})`,
+      `const { DEFAULT_BINDINGS } = await import(${JSON.stringify(join(ROOT, 'src', 'screen', 'keys', 'defaultBindings.ts'))})`,
       `const chat = DEFAULT_BINDINGS.find(b => b.context === 'Chat')`,
       `const entry = Object.entries(chat?.bindings ?? {}).find(([, action]) => action === 'chat:imagePaste')`,
       `console.log(entry ? entry[0] : 'none')`,

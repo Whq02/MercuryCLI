@@ -12,24 +12,24 @@ delete process.env.MERCURY_GODOT_TOOLS_LITE
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
-const census = await import(join(ROOT, 'src/services/vulcan/godotProcessCensus.ts'))
-const portability = await import(join(ROOT, 'src/services/vulcan/portabilityHealth.ts'))
-const presence = await import(join(ROOT, 'src/services/vulcan/editorPresence.ts'))
-const classCache = await import(join(ROOT, 'src/services/vulcan/classCache.ts'))
-const installer = await import(join(ROOT, 'src/services/vulcan/addonInstaller.ts'))
-const capsule = await import(join(ROOT, 'src/services/vulcan/godotCapsule.ts'))
+const census = await import(join(ROOT, 'src/integrations/vulcan/godotProcessCensus.ts'))
+const portability = await import(join(ROOT, 'src/integrations/vulcan/portabilityHealth.ts'))
+const presence = await import(join(ROOT, 'src/integrations/vulcan/editorPresence.ts'))
+const classCache = await import(join(ROOT, 'src/integrations/vulcan/classCache.ts'))
+const installer = await import(join(ROOT, 'src/integrations/vulcan/addonInstaller.ts'))
+const capsule = await import(join(ROOT, 'src/integrations/vulcan/godotCapsule.ts'))
 const providers = await import(join(ROOT, 'scripts/vulcan/godotProviders.ts'))
-const optable = await import(join(ROOT, 'src/utils/vulcan/optable.generated.ts'))
+const optable = await import(join(ROOT, 'src/integrations/vulcan-optable/optable.generated.ts'))
 
 let failures = 0
 let sectionWhere = ''
 const sectionOwners: Record<string, string> = {
-  '1': 'src/services/vulcan/godotProcessCensus.ts',
-  '2': 'src/services/vulcan/portabilityHealth.ts',
-  '3': 'src/services/vulcan/editorPresence.ts',
-  '4': 'src/services/vulcan/classCache.ts or src/services/vulcan/godotCapsule.ts',
-  '5': 'src/services/vulcan/addonInstaller.ts or scripts/vulcan/godotProviders.ts',
-  '6': 'src/services/health/sections/runtime.ts, src/services/vulcan/addonInstaller.ts, or src/utils/vulcan/optable.generated.ts',
+  '1': 'src/integrations/vulcan/godotProcessCensus.ts',
+  '2': 'src/integrations/vulcan/portabilityHealth.ts',
+  '3': 'src/integrations/vulcan/editorPresence.ts',
+  '4': 'src/integrations/vulcan/classCache.ts or src/integrations/vulcan/godotCapsule.ts',
+  '5': 'src/integrations/vulcan/addonInstaller.ts or scripts/vulcan/godotProviders.ts',
+  '6': 'src/platform/health/sections/runtime.ts, src/integrations/vulcan/addonInstaller.ts, or src/integrations/vulcan-optable/optable.generated.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -208,10 +208,10 @@ try {
 
   section('6. the words — health row, prompt, plugin guard, optable')
   {
-    const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
-    const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-    const presenceOwner = await import('../../src/services/vulcan/editorPresence.ts')
-    const installOwner = await import('../../src/services/vulcan/addonInstaller.ts')
+    const { runtimeChecks } = await import('../../src/platform/health/sections/runtime.ts')
+    const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
+    const presenceOwner = await import('../../src/integrations/vulcan/editorPresence.ts')
+    const installOwner = await import('../../src/integrations/vulcan/addonInstaller.ts')
     const toolsFlag = process.env.MERCURY_GODOT_TOOLS
     process.env.MERCURY_GODOT_TOOLS = '1'
     const vulcanSays = await runWithCwdOverride(proj, () => runtimeChecks().find(row => row.id === 'vulcan')!.run())

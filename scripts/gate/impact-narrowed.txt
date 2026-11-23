@@ -11,12 +11,12 @@
 # same function as the selector and goes RED otherwise.
 # Validated by scripts/verify/prove-impact-manifest.ts (dead row ⇒ RED).
 src/utils/shell/**
-src/utils/bash/**
+src/platform/shell/bash/**
 src/utils/powershell/**
-src/utils/Shell.ts
-src/utils/ShellCommand.ts
-src/tools/BashTool/**
-src/tools/PowerShellTool/**
-src/tasks/LocalShellTask/**
-src/utils/permissions/**
-src/utils/wards/**
+src/platform/shell/shellExec.ts
+src/platform/shell/shellProcess.ts
+src/tools/shell/**
+src/tools/powershell/**
+src/engine/tasks/local-shell/**
+src/permissions/rules/**
+src/permissions/wards/**

@@ -86,7 +86,7 @@ function heldUnder(pid: number, world: string): Held {
 
 console.log('a session whose starting folder has no .mercury/skills yet holds none of that folder\'s files open: the watch that waits for the skills folder to be born follows only the .mercury/skills chain, never the folder\'s other children — and the same rule for every folder added to the session and for the config home')
 
-failHint = 'run bun run build.ts if dist/mercury.mjs is missing; otherwise change the watcher that waits for the skills folder in src/utils/skills/skillChangeDetector.ts so it follows only the .mercury/skills chain'
+failHint = 'run bun run build.ts if dist/mercury.mjs is missing; otherwise change the watcher that waits for the skills folder in src/integrations/skill-watch/skillChangeDetector.ts so it follows only the .mercury/skills chain'
 console.log(`\n§1 the built product, headless, started in a folder of ${HOMES} scratch homes (three files each), the model held at its first byte`)
 if (process.platform === 'win32') {
   console.log('  (not measured on win32: no lsof and no /proc — §2 carries the rule there)')
@@ -153,7 +153,7 @@ if (process.platform === 'win32') {
   check(`the first request left within ${Math.round(FIRST_REQUEST_BUDGET_MS / 1000)} s (the walk over the homes never stands between the session and its first request)`, firstRequestMs !== null && firstRequestMs <= FIRST_REQUEST_BUDGET_MS, `${firstRequestMs ?? 'none'} ms`)
 }
 
-failHint = 'change the birth watcher armed in initialize (its depth 1 watcher and its ignored rule) in src/utils/skills/skillChangeDetector.ts so only the missing .mercury/skills chains pass'
+failHint = 'change the birth watcher armed in initialize (its depth 1 watcher and its ignored rule) in src/integrations/skill-watch/skillChangeDetector.ts so only the missing .mercury/skills chains pass'
 console.log('\n§2 the rule at the seam: the birth watcher\'s ignore rule admits only the missing .mercury/skills chains')
 {
   const project = mkdtempSync(join(tmpdir(), 'skill-watch-open-files-project-'))
@@ -165,7 +165,7 @@ console.log('\n§2 the rule at the seam: the birth watcher\'s ignore rule admits
   process.env.MERCURY_CONFIG_DIR = home
   delete process.env.MERCURY_HOME
   process.chdir(project)
-  const detector = await import(join(SRC, 'utils/skills/skillChangeDetector.ts'))
+  const detector = await import(join(SRC, 'integrations/skill-watch/skillChangeDetector.ts'))
   type Armed = { paths: string[]; options: { depth?: number; ignored?: unknown } }
   const armed: Armed[] = []
   await detector.resetForTesting({

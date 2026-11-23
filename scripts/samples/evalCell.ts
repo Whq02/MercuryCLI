@@ -1,8 +1,8 @@
 import { makeContext } from '../eval/lib.js'
 
-export async function sampleCellRunner(owner: import('../../src/utils/run/ownerKey.js').OwnerKey, cwd: string) {
-  const { evalKernelManager } = await import('../../src/services/eval/kernelManager.js')
-  const { makeEvalBridgeServer } = await import('../../src/services/eval/evalBridge.js')
+export async function sampleCellRunner(owner: import('../../src/engine/run-owner/ownerKey.js').OwnerKey, cwd: string) {
+  const { evalKernelManager } = await import('../../src/tools/engines/eval-kernels/kernelManager.js')
+  const { makeEvalBridgeServer } = await import('../../src/tools/engines/eval-kernels/evalBridge.js')
   const context = await makeContext()
   const cellAbort = new AbortController()
   const serve = makeEvalBridgeServer({ owner, context, cellAbort, canUseTool: (async (_tool, input) => ({ behavior: 'allow', updatedInput: input })) as never })

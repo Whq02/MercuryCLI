@@ -21,15 +21,15 @@ git('add', '-A')
 git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'fixture baseline')
 process.chdir(WORKDIR)
 
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
 const { acceptUserRequest, getRunSnapshot, noteRunEvent } = await import(
-  '../../src/services/run/runCoordinator.ts'
+  '../../src/engine/run/runCoordinator.ts'
 )
 const { mintDeliveryArtifact, _resetDeliveryLatchForTesting, headlessMintAllowed } = await import(
-  '../../src/guards/runStopAdapter.ts'
+  '../../src/permissions/guards/runStopAdapter.ts'
 )
-const { listReviewArtifactHeads } = await import('../../src/services/artifacts/reviewStore.ts')
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { listReviewArtifactHeads } = await import('../../src/sessions/artifact-reviews/reviewStore.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(true)
 
 let failures = 0
@@ -65,37 +65,37 @@ for (let i = 0; i < 40 && heads.length === 0; i++) {
   heads = listReviewArtifactHeads({ root: WORKDIR })
 }
 check('the walkthrough artifact is minted at completion', heads.length === 1,
-  `${heads.length} review artifact heads after the completion settle; read mintDeliveryArtifact in src/guards/runStopAdapter.ts and why it wrote none or more than one`)
+  `${heads.length} review artifact heads after the completion settle; read mintDeliveryArtifact in src/permissions/guards/runStopAdapter.ts and why it wrote none or more than one`)
 const head = heads[0]
-check('…kind walkthrough', head?.kind === 'walkthrough', `kind is ${String(head?.kind)}; mintDeliveryArtifact in src/guards/runStopAdapter.ts must mint a walkthrough`)
-check('…offered for review (ready-for-review)', head?.status === 'ready-for-review', `status is ${String(head?.status)}; mintDeliveryArtifact in src/guards/runStopAdapter.ts must leave the artifact ready-for-review`)
+check('…kind walkthrough', head?.kind === 'walkthrough', `kind is ${String(head?.kind)}; mintDeliveryArtifact in src/permissions/guards/runStopAdapter.ts must mint a walkthrough`)
+check('…offered for review (ready-for-review)', head?.status === 'ready-for-review', `status is ${String(head?.status)}; mintDeliveryArtifact in src/permissions/guards/runStopAdapter.ts must leave the artifact ready-for-review`)
 check('…carries the tree digest for the staleness law', typeof head?.treeDigest === 'string' && head.treeDigest.length > 0,
-  `treeDigest is ${String(head?.treeDigest)}; the minted walkthrough must carry the tree digest (mintDeliveryArtifact in src/guards/runStopAdapter.ts)`)
+  `treeDigest is ${String(head?.treeDigest)}; the minted walkthrough must carry the tree digest (mintDeliveryArtifact in src/permissions/guards/runStopAdapter.ts)`)
 
 for (let i = 0; i < 20 && !(getRunSnapshot(owner)?.nextAction ?? '').includes('walkthrough'); i++) {
   await sleep(50)
 }
 const next = getRunSnapshot(owner)?.nextAction ?? ''
 check('the next action names the delivered walkthrough + routes', next.includes('walkthrough') && next.includes('/diff'),
-  `nextAction was: ${next}; the action text set in mintDeliveryArtifact (src/guards/runStopAdapter.ts) must name the walkthrough and /diff`)
+  `nextAction was: ${next}; the action text set in mintDeliveryArtifact (src/permissions/guards/runStopAdapter.ts) must name the walkthrough and /diff`)
 
 mintDeliveryArtifact(owner, snap.runId, true)
 await sleep(300)
 check('a second completion settle for the same run mints nothing', listReviewArtifactHeads({ root: WORKDIR }).length === 1,
-  'the same run minted twice; the once-per-run latch in mintDeliveryArtifact (src/guards/runStopAdapter.ts) must refuse the repeat')
+  'the same run minted twice; the once-per-run latch in mintDeliveryArtifact (src/permissions/guards/runStopAdapter.ts) must refuse the repeat')
 
 _resetDeliveryLatchForTesting()
 mintDeliveryArtifact(owner, 'run-nochange', false)
 await sleep(300)
 check('a completion with no changed files mints nothing', listReviewArtifactHeads({ root: WORKDIR }).length === 1,
-  'a run with no changed files minted an artifact; mintDeliveryArtifact in src/guards/runStopAdapter.ts must return when hasChanges is false')
+  'a run with no changed files minted an artifact; mintDeliveryArtifact in src/permissions/guards/runStopAdapter.ts must return when hasChanges is false')
 
 _resetDeliveryLatchForTesting()
 process.env.MERCURY_DELIVERY_ARTIFACT = '0'
 mintDeliveryArtifact(owner, 'run-gated', true)
 await sleep(300)
 check('MERCURY_DELIVERY_ARTIFACT=0 kills the mint', listReviewArtifactHeads({ root: WORKDIR }).length === 1,
-  'a mint happened with MERCURY_DELIVERY_ARTIFACT=0; mintDeliveryArtifact in src/guards/runStopAdapter.ts must honour that flag')
+  'a mint happened with MERCURY_DELIVERY_ARTIFACT=0; mintDeliveryArtifact in src/permissions/guards/runStopAdapter.ts must honour that flag')
 delete process.env.MERCURY_DELIVERY_ARTIFACT
 
 setIsInteractive(false)
@@ -103,18 +103,18 @@ _resetDeliveryLatchForTesting()
 mintDeliveryArtifact(owner, 'run-headless', true)
 await sleep(300)
 check('headless completion (default-on flag) mints nothing', listReviewArtifactHeads({ root: WORKDIR }).length === 1,
-  'a headless run minted without the opt-in; headlessMintAllowed in src/guards/runStopAdapter.ts must refuse an unset flag when not interactive')
+  'a headless run minted without the opt-in; headlessMintAllowed in src/permissions/guards/runStopAdapter.ts must refuse an unset flag when not interactive')
 process.env.MERCURY_DELIVERY_ARTIFACT = '1'
 _resetDeliveryLatchForTesting()
 mintDeliveryArtifact(owner, 'run-headless-optin', true)
 await sleep(400)
 check('explicit truthy opt-in mints on headless runs (review mode)', listReviewArtifactHeads({ root: WORKDIR }).length === 2,
-  'a headless run with MERCURY_DELIVERY_ARTIFACT=1 did not mint; headlessMintAllowed in src/guards/runStopAdapter.ts must accept a truthy flag')
+  'a headless run with MERCURY_DELIVERY_ARTIFACT=1 did not mint; headlessMintAllowed in src/permissions/guards/runStopAdapter.ts must accept a truthy flag')
 delete process.env.MERCURY_DELIVERY_ARTIFACT
 check('the gate function pins all three postures',
   headlessMintAllowed(undefined) === false && headlessMintAllowed('1') === true &&
     (setIsInteractive(true), headlessMintAllowed(undefined) === true),
-  'headlessMintAllowed (src/guards/runStopAdapter.ts) must return false for undefined when headless, true for 1, and true for undefined when interactive')
+  'headlessMintAllowed (src/permissions/guards/runStopAdapter.ts) must return false for undefined when headless, true for 1, and true for undefined when interactive')
 setIsInteractive(false)
 
 rmSync(SCRATCH, { recursive: true, force: true })

@@ -11,7 +11,7 @@ console.log('============================================================')
 console.log(' skill catalogue truncation — stated, never silent')
 console.log('============================================================')
 
-const prompt = await import('../../src/utils/skillListingFormat.ts')
+const prompt = await import('../../src/engine/attachments/skillListingFormat.ts')
 
 type Cmd = { type: string; name: string; description: string; loadedFrom?: string }
 const skill = (name: string, description: string, loadedFrom = 'skills'): Cmd => ({
@@ -37,20 +37,20 @@ const withBudget = <T>(budget: number, run: () => T): T => {
 section('§1 within budget — full listing, no record')
 {
   const { content, truncation } = withBudget(10_000, () => prompt.formatCommandsWithinBudgetDetailed(pair))
-  t('the full descriptions ride', content === `- alpha: ${longDesc}\n- omega: ${longDesc}`, content.slice(0, 80) + ' — within budget formatCommandsWithinBudgetDetailed in src/utils/skillListingFormat.ts must return every full description')
-  t('no truncation record', truncation === null, JSON.stringify(truncation) + ' — formatCommandsWithinBudgetDetailed in src/utils/skillListingFormat.ts must return truncation null when the budget holds the full listing')
-  t('the string view agrees byte-for-byte', withBudget(10_000, () => prompt.formatCommandsWithinBudget(pair)) === content, 'formatCommandsWithinBudget in src/utils/skillListingFormat.ts must return the same content as formatCommandsWithinBudgetDetailed')
+  t('the full descriptions ride', content === `- alpha: ${longDesc}\n- omega: ${longDesc}`, content.slice(0, 80) + ' — within budget formatCommandsWithinBudgetDetailed in src/engine/attachments/skillListingFormat.ts must return every full description')
+  t('no truncation record', truncation === null, JSON.stringify(truncation) + ' — formatCommandsWithinBudgetDetailed in src/engine/attachments/skillListingFormat.ts must return truncation null when the budget holds the full listing')
+  t('the string view agrees byte-for-byte', withBudget(10_000, () => prompt.formatCommandsWithinBudget(pair)) === content, 'formatCommandsWithinBudget in src/engine/attachments/skillListingFormat.ts must return the same content as formatCommandsWithinBudgetDetailed')
 }
 
 section('§2 the allowance boundary, exact')
 {
   const above = withBudget(59, () => prompt.formatCommandsWithinBudgetDetailed(pair))
-  t('one char above the fall: descriptions shortened, still present, NO record', above.truncation === null && above.content.includes('- alpha: '), JSON.stringify(above) + ' — check the budget boundary in formatCommandsWithinBudgetDetailed (src/utils/skillListingFormat.ts): shortened descriptions need no truncation record')
+  t('one char above the fall: descriptions shortened, still present, NO record', above.truncation === null && above.content.includes('- alpha: '), JSON.stringify(above) + ' — check the budget boundary in formatCommandsWithinBudgetDetailed (src/engine/attachments/skillListingFormat.ts): shortened descriptions need no truncation record')
   const below = withBudget(58, () => prompt.formatCommandsWithinBudgetDetailed(pair))
   t(
     'one char below: BOTH entries name-only, the record names the budget and the counts',
     below.truncation !== null && below.truncation.budgetChars === 58 && below.truncation.nameOnly === 2 && below.truncation.withheld === 0 && below.content === '- alpha\n- omega',
-    JSON.stringify(below) + ' — check the name-only fallback and its truncation record in formatCommandsWithinBudgetDetailed (src/utils/skillListingFormat.ts)',
+    JSON.stringify(below) + ' — check the name-only fallback and its truncation record in formatCommandsWithinBudgetDetailed (src/engine/attachments/skillListingFormat.ts)',
   )
 }
 
@@ -60,26 +60,26 @@ section('§3 withholding — counted, bounded; bundled-only overflow exempt')
   t(
     'a 12-char budget keeps one name and withholds the other, both counted',
     tight.truncation !== null && tight.truncation.nameOnly === 1 && tight.truncation.withheld === 1 && tight.content === '- alpha',
-    JSON.stringify(tight) + ' — check the withholding count in formatCommandsWithinBudgetDetailed (src/utils/skillListingFormat.ts)',
+    JSON.stringify(tight) + ' — check the withholding count in formatCommandsWithinBudgetDetailed (src/engine/attachments/skillListingFormat.ts)',
   )
   const none = withBudget(5, () => prompt.formatCommandsWithinBudgetDetailed(pair))
   t(
     'a 5-char budget withholds both (nothing silently absent — the count says so)',
     none.truncation !== null && none.truncation.nameOnly === 0 && none.truncation.withheld === 2 && none.content === '',
-    JSON.stringify(none) + ' — check the withholding count in formatCommandsWithinBudgetDetailed (src/utils/skillListingFormat.ts)',
+    JSON.stringify(none) + ' — check the withholding count in formatCommandsWithinBudgetDetailed (src/engine/attachments/skillListingFormat.ts)',
   )
   const bundledOnly = [skill('debug', longDesc, 'bundled'), skill('review', longDesc, 'bundled')] as never[]
   const bundled = withBudget(12, () => prompt.formatCommandsWithinBudgetDetailed(bundledOnly))
   t(
     'a bundled-only overflow stays the deliberate full listing, no record',
     bundled.truncation === null && bundled.content.includes(`- debug: ${longDesc}`),
-    JSON.stringify(bundled.truncation) + ' — a listing of bundled skills only must stay in full with no record in formatCommandsWithinBudgetDetailed (src/utils/skillListingFormat.ts)',
+    JSON.stringify(bundled.truncation) + ' — a listing of bundled skills only must stay in full with no record in formatCommandsWithinBudgetDetailed (src/engine/attachments/skillListingFormat.ts)',
   )
 }
 
 section('§4 the render arm and the legacy shape')
 {
-  const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
+  const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
   const noted = JSON.stringify(
     normalizeAttachmentForAPI({
       type: 'skill_listing',
@@ -93,7 +93,7 @@ section('§4 the render arm and the legacy shape')
   t(
     'the note names the name-only count, the invocation recovery path and the withheld count',
     noted.includes('2 of the entries above list name-only') && noted.includes('available on invocation') && noted.includes('1 further skill name(s) were withheld'),
-    noted.slice(0, 240) + ' — check skillListing in src/services/messages/attachmentText.ts: the note must name the name-only count, the invocation path and the withheld count',
+    noted.slice(0, 240) + ' — check skillListing in src/engine/messages/attachmentText.ts: the note must name the name-only count, the invocation path and the withheld count',
   )
   const clean = JSON.stringify(
     normalizeAttachmentForAPI({
@@ -105,7 +105,7 @@ section('§4 the render arm and the legacy shape')
       truncation: null,
     } as never),
   )
-  t('a clean listing renders no note', !clean.includes('name-only') && clean.includes('alpha: full words'), 'skillListing in src/services/messages/attachmentText.ts must add no note when truncation is null')
+  t('a clean listing renders no note', !clean.includes('name-only') && clean.includes('alpha: full words'), 'skillListing in src/engine/messages/attachmentText.ts must add no note when truncation is null')
   let legacyThrew = false
   let legacyText = ''
   try {
@@ -115,7 +115,7 @@ section('§4 the render arm and the legacy shape')
   } catch {
     legacyThrew = true
   }
-  t('a persisted legacy listing renders without the note and never throws', !legacyThrew && legacyText.includes('old: a skill') && !legacyText.includes('name-only'), 'skillListing in src/services/messages/attachmentText.ts must render a listing with no truncation field without a note and without throwing')
+  t('a persisted legacy listing renders without the note and never throws', !legacyThrew && legacyText.includes('old: a skill') && !legacyText.includes('name-only'), 'skillListing in src/engine/messages/attachmentText.ts must render a listing with no truncation field without a note and without throwing')
 }
 
 console.log('\n' + '='.repeat(60))

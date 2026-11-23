@@ -7,7 +7,7 @@ const J = (...parts: string[]): string => parts.join('')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}fix getMercuryContractSections and MERCURY_CONSTITUTION in src/prompt/mercuryContract.ts, composeSystemPrompt in src/prompt/composer.ts, or buildBehaviourContract in src/prompt/behaviourContract.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}fix getMercuryContractSections and MERCURY_CONSTITUTION in src/engine/system-prompt/mercuryContract.ts, composeSystemPrompt in src/engine/system-prompt/composer.ts, or buildBehaviourContract in src/engine/system-prompt/behaviourContract.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -20,17 +20,17 @@ console.log('============================================================')
 
 section('§2 ungated — no flag drops the constitution; the contract sections carry no identity or doctrine')
 {
-  const contract = await import('../../src/prompt/mercuryContract.ts')
+  const contract = await import('../../src/engine/system-prompt/mercuryContract.ts')
   const sections = contract.getMercuryContractSections()
   check('the contract sections carry no identity or doctrine section', sections.every(s => s.name !== J('identity', '-floor') && s.name !== J('mercury', '-doctrine') && !/You are/.test(s.text)))
-  check('the constitution is one constant, byte-stable across reads', contract.MERCURY_CONSTITUTION === (await import('../../src/prompt/mercuryContract.ts')).MERCURY_CONSTITUTION && contract.MERCURY_CONSTITUTION.length > 0)
+  check('the constitution is one constant, byte-stable across reads', contract.MERCURY_CONSTITUTION === (await import('../../src/engine/system-prompt/mercuryContract.ts')).MERCURY_CONSTITUTION && contract.MERCURY_CONSTITUTION.length > 0)
 }
 
 section('§3 byte-stability — identical stable inputs ⇒ identical bytes + digest')
 {
-  const { composeSystemPrompt } = await import('../../src/prompt/composer.ts')
-  const { buildBehaviourContract } = await import('../../src/prompt/behaviourContract.ts')
-  const { getMercuryContractSections } = await import('../../src/prompt/mercuryContract.ts')
+  const { composeSystemPrompt } = await import('../../src/engine/system-prompt/composer.ts')
+  const { buildBehaviourContract } = await import('../../src/engine/system-prompt/behaviourContract.ts')
+  const { getMercuryContractSections } = await import('../../src/engine/system-prompt/mercuryContract.ts')
   const parts = () => ({
     staticSections: ['head', 'law'],
     dynamicBoundary: [],

@@ -1,9 +1,9 @@
 import * as React from 'react'
-import { jevReceiptWords, setJevEnabled } from '../../services/jev/jevSetting.js'
-import { JEV_POPUP_HINT, JEV_POPUP_WIDTH, Jev, jevPopupLine } from '../../components/Settings/Jev.js'
-import { useSettingsPopupFrame } from '../../components/Settings/Settings.js'
-import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
-import { openSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
+import { jevReceiptWords, setJevEnabled } from '../../models/jev/jevSetting.js'
+import { JEV_POPUP_HINT, JEV_POPUP_WIDTH, Jev, jevPopupLine } from '../../screen/settings/Jev.js'
+import { useSettingsPopupFrame } from '../../screen/settings/Settings.js'
+import type { LocalCommandResult, LocalJSXCommandContext } from '../catalogue/command.js'
+import { openSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../screen/cockpit/settingsPopup.js'
 
 export function JevPopupBody({ geometry }: { geometry: SettingsPopupGeometry }): React.ReactNode {
   const frame = useSettingsPopupFrame()

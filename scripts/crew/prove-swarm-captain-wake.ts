@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
-import { open } from '../../src/services/crewBoard/store.ts'
-import type { BoardPost, BoardPrincipal } from '../../src/services/crewBoard/contracts.ts'
+import { open } from '../../src/crew/board/store.ts'
+import type { BoardPost, BoardPrincipal } from '../../src/crew/board/contracts.ts'
 
 assert(process.env.MERCURY_CONFIG_DIR, 'run with a scratch MERCURY_CONFIG_DIR')
 const home = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR, 'captain-delivery-'))
@@ -27,18 +27,18 @@ for (const kind of kinds) for (const route of routes) {
   const text = `${sessionId}: ${'The entire finding reaches the captain. '.repeat(80)}END`
   try {
     for (const principal of [main, captain, member, outside]) board.enroll(principal)
-    assert(board.assignCaptain(main, 'engine', 'captain-id').ok, `${sessionId}: assignCaptain failed in src/services/crewBoard/store.ts`)
+    assert(board.assignCaptain(main, 'engine', 'captain-id').ok, `${sessionId}: assignCaptain failed in src/crew/board/store.ts`)
     let parent: string | undefined
     if (kind === 'answer' || kind === 'correction') {
       const seeded = board.post(sender, { clientOpId: 'seed', kind: kind === 'answer' ? 'ask' : 'result', text: 'The earlier post by this author.' })
-      assert(seeded.ok, `${sessionId}: seed post failed in src/services/crewBoard/store.ts: ${JSON.stringify(seeded)}`)
+      assert(seeded.ok, `${sessionId}: seed post failed in src/crew/board/store.ts: ${JSON.stringify(seeded)}`)
       parent = seeded.eventId
     }
     const prior = board.boundary(captain, new Set())
     if (prior) board.presented(captain, prior.eventIds, 'fixture-ready')
     const input: BoardPost = { clientOpId: 'finding', kind, text, to: addresses, ...(kind === 'answer' ? { replyTo: parent } : {}), ...(kind === 'correction' ? { corrects: parent } : {}) }
     const posted = board.post(sender, input)
-    assert(posted.ok, `${sessionId}: board.post failed in src/services/crewBoard/store.ts: ${JSON.stringify(posted)}`)
+    assert(posted.ok, `${sessionId}: board.post failed in src/crew/board/store.ts: ${JSON.stringify(posted)}`)
     const packet = board.boundary(captain, new Set())
     const directed = ['named', 'id', 'label', 'broadcast', 'lead'].includes(route)
     const incoming = route === 'member' && (kind === 'ask' || kind === 'blocker')
@@ -51,7 +51,7 @@ for (const kind of kinds) for (const route of routes) {
     if (packet) {
       assert.equal(JSON.stringify(board.boundary(captain, new Set())), JSON.stringify(packet))
       board.presented(captain, packet.eventIds, 'captain-boundary')
-      assert(!board.boundary(captain, new Set())?.eventIds.includes(posted.eventId), `${sessionId}: presented post reappeared in captain boundary in src/services/crewBoard/store.ts`)
+      assert(!board.boundary(captain, new Set())?.eventIds.includes(posted.eventId), `${sessionId}: presented post reappeared in captain boundary in src/crew/board/store.ts`)
     }
     assert.equal(board.view().peerTurns, 0, 'a live boundary never starts a second execution')
     checks++
@@ -64,16 +64,16 @@ if (!only || only === 'owner-member') {
   const main = seat('main'), captain = seat('captain', 'engine'), member = seat('member', 'engine')
   try {
     for (const principal of [main, captain, member]) board.enroll(principal)
-    assert(board.assignCaptain(main, 'engine', 'captain').ok, 'owner-member: assignCaptain failed in src/services/crewBoard/store.ts')
+    assert(board.assignCaptain(main, 'engine', 'captain').ok, 'owner-member: assignCaptain failed in src/crew/board/store.ts')
     const prior = board.boundary(captain, new Set())
     if (prior) board.presented(captain, prior.eventIds, 'fixture-ready')
     const text = 'Only the selected member and main receive this owner post.'
     const posted = board.postOwner(main, { clientOpId: 'direct-owner', channel: 'whisper', target: 'member', text })
-    assert(posted.ok, `owner-member: postOwner failed in src/services/crewBoard/store.ts: ${JSON.stringify(posted)}`)
+    assert(posted.ok, `owner-member: postOwner failed in src/crew/board/store.ts: ${JSON.stringify(posted)}`)
     assert.deepEqual([...posted.recipients].sort(), ['main', 'member'])
-    assert(!board.boundary(captain, new Set())?.eventIds.includes(posted.eventId), 'owner-member: whisper post leaked to captain boundary in src/services/crewBoard/store.ts')
-    assert(board.boundary(member, new Set())?.text.includes(text), 'owner-member: whisper post missing from member boundary in src/services/crewBoard/store.ts')
-    assert(board.boundary(main, new Set())?.text.includes(text), 'owner-member: whisper post missing from main boundary in src/services/crewBoard/store.ts')
+    assert(!board.boundary(captain, new Set())?.eventIds.includes(posted.eventId), 'owner-member: whisper post leaked to captain boundary in src/crew/board/store.ts')
+    assert(board.boundary(member, new Set())?.text.includes(text), 'owner-member: whisper post missing from member boundary in src/crew/board/store.ts')
+    assert(board.boundary(main, new Set())?.text.includes(text), 'owner-member: whisper post missing from main boundary in src/crew/board/store.ts')
     assert.equal(board.view().peerTurns, 0)
     checks++
     console.log('PASS owner-member')
@@ -88,13 +88,13 @@ if (!only || only === 'standing') {
   let captain = seat('captain', 'engine')
   const post = (author: BoardPrincipal, text: string, to: string[] = []) => {
     const receipt = board.post(author, { clientOpId: `post-${++serial}`, kind: 'result', text, to })
-    assert(receipt.ok, `standing post failed in src/services/crewBoard/store.ts: ${JSON.stringify(receipt)}`)
+    assert(receipt.ok, `standing post failed in src/crew/board/store.ts: ${JSON.stringify(receipt)}`)
     return receipt
   }
   const arm = (agent: string) => board.seats().find(row => row.agent === agent)?.wait
   try {
     for (const principal of [main, captain, member, replacement, outside]) board.enroll(principal)
-    assert(board.assignCaptain(main, 'engine', 'captain').ok, 'standing: assignCaptain failed in src/services/crewBoard/store.ts')
+    assert(board.assignCaptain(main, 'engine', 'captain').ok, 'standing: assignCaptain failed in src/crew/board/store.ts')
     assert.equal(arm('captain')?.standing, true)
     const before = post(member, 'Traffic before the first parking.')
     assert.equal(board.pendingWakes().length, 0)
@@ -121,12 +121,12 @@ if (!only || only === 'standing') {
     try {
       const same = competing.pendingWakes().find(row => row.agent === 'captain')!
       claim = board.claimWake(main, wake)
-      assert(claim, 'standing: claimWake returned null for pending captain wake in src/services/crewBoard/store.ts')
+      assert(claim, 'standing: claimWake returned null for pending captain wake in src/crew/board/store.ts')
       assert.equal(competing.claimWake(main, same), null)
     } finally { competing.close() }
     assert.equal(board.seats().find(row => row.agent === 'captain')?.state, 'parked')
     const packet = board.wakePacket(main, claim)!
-    assert(packet.eventIds.includes(trigger.eventId), 'standing: wakePacket omitted triggering eventId in src/services/crewBoard/store.ts')
+    assert(packet.eventIds.includes(trigger.eventId), 'standing: wakePacket omitted triggering eventId in src/crew/board/store.ts')
     assert.equal(packet.text.split('FIRST-STANDING-WAKE').length, 2)
     captain = { ...captain, author: { ...captain.author, executionId: 'second' } }
     board.enroll(captain)
@@ -144,14 +144,14 @@ if (!only || only === 'standing') {
     const secondTrigger = post(member, 'SECOND-STANDING-WAKE')
     const secondWake = board.pendingWakes().find(row => row.agent === 'captain')!
     assert.equal(secondWake.eventId, secondTrigger.eventId)
-    assert(secondWake.version > wake.version, `standing: secondWake version ${secondWake.version} did not advance past ${wake.version} in src/services/crewBoard/wakeState.ts`)
-    assert(board.assignCaptain(main, 'engine', 'replacement').ok, 'standing: replacement assignCaptain failed in src/services/crewBoard/store.ts')
+    assert(secondWake.version > wake.version, `standing: secondWake version ${secondWake.version} did not advance past ${wake.version} in src/crew/board/wakeState.ts`)
+    assert(board.assignCaptain(main, 'engine', 'replacement').ok, 'standing: replacement assignCaptain failed in src/crew/board/store.ts')
     assert.equal(arm('captain'), undefined)
     assert.equal(board.claimWake(main, secondWake), null)
     assert.equal(arm('replacement')?.standing, true)
     board.complete(replacement, 'completed')
     const next = board.post(outside, { clientOpId: 'new-captain', kind: 'ask', text: 'NEW-CAPTAIN-WAKE', to: ['member'] })
-    assert(next.ok, `standing: new-captain post failed in src/services/crewBoard/store.ts: ${JSON.stringify(next)}`)
+    assert(next.ok, `standing: new-captain post failed in src/crew/board/store.ts: ${JSON.stringify(next)}`)
     assert.deepEqual(board.pendingWakes().map(row => [row.agent, row.eventId]), [['replacement', next.eventId]])
     const saved = board.view().events.find(row => row.eventId === next.eventId)!
     assert.deepEqual(saved.addresses, ['member'])

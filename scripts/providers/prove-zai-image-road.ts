@@ -9,10 +9,10 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 let failures = 0
 let checks = 0
 const SECTION_FIX: Record<string, string> = {
-  '§1': 'change modelReceivesImageBlocks in src/utils/model/capabilities.ts, glmTakesImages in src/utils/model/pins/glmPins.ts or imagesSupportedForCompatModel in src/services/providers/openaicompat/compatChatCallModel.ts',
-  '§2': 'change buildZaiChatRequest in src/services/providers/zai/zaiCodec.ts (how a tool-result image is sent or turned into words)',
-  '§3': 'change providerRefusedImage or classifyImageRefusalFault in src/utils/api/mediaRefusal.ts, or imageRefusalWords in src/services/providers/zai/zaiCodec.ts',
-  '§4': 'change stripImagesRefusedByStamp in src/services/messages/apiPlan.ts or the mediaRefusal stamp built by createAssistantAPIErrorMessage in src/utils/messages/factories.ts',
+  '§1': 'change modelReceivesImageBlocks in src/models/facts/capabilities.ts, glmTakesImages in src/models/facts/pins/glmPins.ts or imagesSupportedForCompatModel in src/models/roads/openaicompat/compatChatCallModel.ts',
+  '§2': 'change buildZaiChatRequest in src/models/roads/zai/zaiCodec.ts (how a tool-result image is sent or turned into words)',
+  '§3': 'change providerRefusedImage or classifyImageRefusalFault in src/engine/request-parts/mediaRefusal.ts, or imageRefusalWords in src/models/roads/zai/zaiCodec.ts',
+  '§4': 'change stripImagesRefusedByStamp in src/engine/messages/apiPlan.ts or the mediaRefusal stamp built by createAssistantAPIErrorMessage in src/engine/message-shapes/factories.ts',
 }
 let sectionKey = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -27,13 +27,13 @@ const section = (t: string): void => {
   console.log(`\n${'─'.repeat(76)}\n${t}`)
 }
 
-const { modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
-const { glmTakesImages } = await import('../../src/utils/model/pins/glmPins.ts')
-const { imagesSupportedForCompatModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { buildZaiChatRequest, imageRefusalWords, requestCarriesImage } = await import('../../src/services/providers/zai/zaiCodec.ts')
-const { classifyImageRefusalFault, providerRefusedImage } = await import('../../src/utils/api/mediaRefusal.ts')
-const { stripImagesRefusedByStamp } = await import('../../src/services/messages/apiPlan.ts')
-const { createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
+const { modelReceivesImageBlocks } = await import('../../src/models/facts/capabilities.ts')
+const { glmTakesImages } = await import('../../src/models/facts/pins/glmPins.ts')
+const { imagesSupportedForCompatModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { buildZaiChatRequest, imageRefusalWords, requestCarriesImage } = await import('../../src/models/roads/zai/zaiCodec.ts')
+const { classifyImageRefusalFault, providerRefusedImage } = await import('../../src/engine/request-parts/mediaRefusal.ts')
+const { stripImagesRefusedByStamp } = await import('../../src/engine/messages/apiPlan.ts')
+const { createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
 
 const ZAI_WORDS = "messages.content.type is invalid, allowed values: ['text']"
 const ZAI_FAULT = { code: '1210', status: 400, message: ZAI_WORDS }

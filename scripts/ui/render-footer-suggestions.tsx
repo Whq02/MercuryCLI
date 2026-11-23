@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs'
 import { basename, join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
 const RUNTIME_CWD = join(import.meta.dir, '..', '..')
 
 let failures = 0

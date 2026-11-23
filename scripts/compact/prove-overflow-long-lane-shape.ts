@@ -12,13 +12,13 @@ const check = (label: string, ok: boolean, detail: unknown = '', changeHint = ''
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && (detail || changeHint) ? ` — ${[detail ? (typeof detail === 'string' ? detail : JSON.stringify(detail)) : '', changeHint].filter(Boolean).join(' | ')}` : ''}`)
 }
-const autoFoldWhere = 'change the automatic fold road in query (src/query.ts) or compactConversation (src/services/compact/compact.ts)'
-const thresholdWhere = 'change getAutoCompactThreshold or getBlockingLimit in src/services/compact/autoCompact.ts, or the autoCompactWindow setting this rig saves, or this rig seed numbers'
+const autoFoldWhere = 'change the automatic fold road in query (src/engine/turnDoor.ts) or compactConversation (src/engine/compaction/foldConversation.ts)'
+const thresholdWhere = 'change getAutoCompactThreshold or getBlockingLimit in src/engine/compaction/autoFold.ts, or the autoCompactWindow setting this rig saves, or this rig seed numbers'
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — long-lane shape prover exceeded 300s; a request to the overflow fixture (scripts/compact/overflowFixture.ts) got no scripted turn, or query (src/query.ts) did not finish')
+  console.log('\nTIMEOUT — long-lane shape prover exceeded 300s; a request to the overflow fixture (scripts/compact/overflowFixture.ts) got no scripted turn, or query (src/engine/turnDoor.ts) did not finish')
   process.exit(1)
 }, 300_000)
 watchdog.unref?.()
@@ -46,20 +46,20 @@ console.log('============================================================')
 console.log(' the long lane\'s shape through the whole road, over the loopback')
 console.log('============================================================')
 
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/query.ts')
-const { productionDeps } = await import('../../src/query/deps.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
-const { contextFill, tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
-const { getBlockingLimit, getAutoCompactThreshold } = await import('../../src/services/compact/autoCompact.ts')
-const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
-const { getSdkBetas } = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
+const { contextFill, tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { getBlockingLimit, getAutoCompactThreshold } = await import('../../src/engine/compaction/autoFold.ts')
+const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
+const { getSdkBetas } = await import('../../src/boot/process-state/processState.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
 const MODEL = 'claude-opus-5-5'
@@ -232,7 +232,7 @@ section('S2 the road — a refused summary keeps the history; the next message m
   check('the accepted fold emits no error or overflow notice', errorTexts(r.yields).length === 0 && !noticeTexts(r.yields).some(t => t.startsWith('context overflowed')))
   const transcript = [...nextRows, ...r.yields.filter(y => y.type === 'user' || y.type === 'assistant' || y.type === 'system' || y.type === 'attachment')]
   const fill = contextFill(transcript as never, MODEL)
-  check('the gauge after the fold anchors on the reply usage (the transcript as the product holds it, attachment rows included)', fill.source === 'usage' && fill.tokens === 9_012, fill, 'change contextFill in src/services/context/tokens.ts so the gauge anchors on the last reply usage')
+  check('the gauge after the fold anchors on the reply usage (the transcript as the product holds it, attachment rows included)', fill.source === 'usage' && fill.tokens === 9_012, fill, 'change contextFill in src/engine/context-window/contextTokenCount.ts so the gauge anchors on the last reply usage')
 }
 
 section('S3 the wire\'s own law stands in the rig — a request over the wire\'s window is refused as the home wire refuses it')

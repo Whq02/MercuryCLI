@@ -11,9 +11,9 @@ import {
   resolveKey,
   resolveKeyWithChordState,
   unboundConsumes,
-} from '../../src/keybindings/resolver.ts'
-import { parseBindings } from '../../src/keybindings/parser.ts'
-import type { Key } from '../../src/ink.js'
+} from '../../src/screen/keys/resolver.ts'
+import { parseBindings } from '../../src/screen/keys/parser.ts'
+import type { Key } from '../../src/screen/themedRenderer.js'
 import { vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 

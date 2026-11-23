@@ -30,10 +30,10 @@ const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 20)
 
 
 const { standInRunner } = await import('../lib/seatDoor.ts')
-const seatModule = await import('../../src/daemon/sessionSeat.ts')
-const asks = await import('../../src/daemon/permissionAsks.ts')
-const dispatch = await import('../../src/daemon/concourseDispatch.ts')
-const { RPC_METHOD_NOT_FOUND, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+const seatModule = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const asks = await import('../../src/daemon/session-seat/permissionAsks.ts')
+const dispatch = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
+const { RPC_METHOD_NOT_FOUND, RPC_REFUSED } = await import('../../src/daemon/runner-wire/errors.ts')
 
 const RUNNER = 'concourse-w1'
 const SESSION = 'session-1'
@@ -42,7 +42,7 @@ writeFileSync(
   JSON.stringify({ version: 1, workers: { [RUNNER]: { schema: 1, runnerId: RUNNER, sessionId: SESSION, workspaceId: '/ws', isolation: 'exclusive', modelKey: 'm', spawnedAt: 1, lastLiveAt: 1, title: 'the seat' } } }),
 )
 
-section('§2 deadlines reach the runner; the refusal kinds are the peer’s', 'rewindSession, controlSessionAgent, withdrawSessionSend and setSessionPermissionMode in src/daemon/sessionSeat/verbs.ts (the session/rewind, queue/withdraw, session/set_mode and agent/stop requests they send, and how they type the runner\'s refusal)')
+section('§2 deadlines reach the runner; the refusal kinds are the peer’s', 'rewindSession, controlSessionAgent, withdrawSessionSend and setSessionPermissionMode in src/daemon/session-seat/verbs.ts (the session/rewind, queue/withdraw, session/set_mode and agent/stop requests they send, and how they type the runner\'s refusal)')
 {
   const stand = standInRunner()
   const roster = stand.roster()
@@ -99,7 +99,7 @@ section('§2 deadlines reach the runner; the refusal kinds are the peer’s', 'r
   check('a seat with no door refuses no-channel at once', none.outcome === 'refused' && none.refusal === 'no-channel', j(none))
 }
 
-section('§3 the asks ride permission/request, typed both ways', 'holdWorkerAsk and answerPermissionAsk in src/daemon/permissionAsks.ts (the table of parked asks and how an answer is typed back to the runner)')
+section('§3 the asks ride permission/request, typed both ways', 'holdWorkerAsk and answerPermissionAsk in src/daemon/session-seat/permissionAsks.ts (the table of parked asks and how an answer is typed back to the runner)')
 {
   const answers: unknown[] = []
   const stand = standInRunner({
@@ -154,7 +154,7 @@ section('§3 the asks ride permission/request, typed both ways', 'holdWorkerAsk 
   stand.close()
 }
 
-section('§4 rows once, verbs landed through session/applied, deliveries as rows', 'src/daemon/sessionSeat/edges.ts (onSeatApplied), src/daemon/sessionSeat/model.ts (setSessionModel), src/daemon/runnerConnection.ts (deliver), src/daemon/concourseDispatch.ts (makeConcourseDispatchHandler, buildConcoursePromptRow) and DaemonSessionConnector.sendWords in src/services/engine-connector/daemonConnector.ts, whichever the failing check\'s label names')
+section('§4 rows once, verbs landed through session/applied, deliveries as rows', 'src/daemon/session-seat/edges.ts (onSeatApplied), src/daemon/session-seat/model.ts (setSessionModel), src/daemon/runner-link/runnerConnection.ts (deliver), src/daemon/concourse-workers/concourseDispatch.ts (makeConcourseDispatchHandler, buildConcoursePromptRow) and DaemonSessionConnector.sendWords in src/engine/connector/daemonConnector.ts, whichever the failing check\'s label names')
 {
   const rows: unknown[] = []
   const applied: unknown[] = []
@@ -197,8 +197,8 @@ section('§4 rows once, verbs landed through session/applied, deliveries as rows
   add.answer({ accepted: true })
   check('an accepted delivery is true', (await delivery) === true)
 
-  const { PendingQueueAck } = await import('../../src/daemon/runnerConnection.ts')
-  const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+  const { PendingQueueAck } = await import('../../src/daemon/runner-link/runnerConnection.ts')
+  const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   updateConcourseWorkers(workers => { workers[RUNNER]!.pid = process.pid }, daemonDir)
   let reached!: (pending: boolean) => void
   const deadline = new Promise<boolean>(resolve => { reached = resolve })
@@ -217,9 +217,9 @@ section('§4 rows once, verbs landed through session/applied, deliveries as rows
     },
   })
   const { mock } = await import('bun:test')
-  const daemon = await import('../../src/services/switchboard/ensureDaemon.ts')
-  mock.module('../../src/services/switchboard/ensureDaemon.ts', () => ({ ...daemon, ensureOwnedDaemon: async () => true }))
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const daemon = await import('../../src/daemon/switchboard/ensureDaemon.ts')
+  mock.module('../../src/daemon/switchboard/ensureDaemon.ts', () => ({ ...daemon, ensureOwnedDaemon: async () => true }))
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
   const submitted: Parameters<typeof handler>[0][] = []
   let releasedLane = false
   let loseReply = false
@@ -274,26 +274,26 @@ section('§4 rows once, verbs landed through session/applied, deliveries as rows
   check('closing the runner after the write settles the dispatch instead of keeping the session pending for good', !final.ok && final.state === 'failed' && final.error === 'instruction delivery failed (stdin unavailable)' && dispatch.readConcourseDispatches(daemonDir)[stoppedId]?.state === 'failed', j(final))
 }
 
-section('§5 the warm claim rides session/claim', 'claimWarmRunner in src/daemon/warmRunner.ts')
+section('§5 the warm claim rides session/claim', 'claimWarmRunner in src/daemon/runner-link/warmRunner.ts')
 {
-  const warm = await import('../../src/daemon/warmRunner.ts')
+  const warm = await import('../../src/daemon/runner-link/warmRunner.ts')
   const stand = standInRunner({ sessionId: null })
   const claimed = warm.claimWarmRunner
   check('the pool exports the claim', typeof claimed === 'function')
   stand.close()
 }
 
-section('§6 the roster: a turn that settles inside the delivery\'s answer leaves the seat idle', 'TaskRoster.reply in src/daemon/roster.ts (when it opens the turn and stamps the delivery relative to the queue/add answer) and the stamps in src/daemon/concourseWorkers/marks.ts')
+section('§6 the roster: a turn that settles inside the delivery\'s answer leaves the seat idle', 'TaskRoster.reply in src/daemon/roster/roster.ts (when it opens the turn and stamps the delivery relative to the queue/add answer) and the stamps in src/daemon/concourse-workers/marks.ts')
 {
   const { PassThrough } = await import('node:stream')
   const { EventEmitter } = await import('node:events')
-  const { createPeer } = await import('../../src/runner/wire/peer.ts')
+  const { createPeer } = await import('../../src/daemon/runner-wire/peer.ts')
   const { mock } = await import('bun:test')
   const child = Object.assign(new EventEmitter(), { pid: process.pid, stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough(), kill: () => true })
-  const childModule = await import('../../src/daemon/headlessRun.ts')
-  mock.module('../../src/daemon/headlessRun.ts', () => ({ ...childModule, spawnRunnerChild: () => ({ child, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }) }))
-  const { TaskRoster } = await import('../../src/daemon/roster.ts')
-  const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+  const childModule = await import('../../src/daemon/runner-link/headlessRun.ts')
+  mock.module('../../src/daemon/runner-link/headlessRun.ts', () => ({ ...childModule, spawnRunnerChild: () => ({ child, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }) }))
+  const { TaskRoster } = await import('../../src/daemon/roster/roster.ts')
+  const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 3 } }))
   const runner = createPeer({ input: child.stdin, output: child.stdout, side: 'runner', log: () => {} })
@@ -311,7 +311,7 @@ section('§6 the roster: a turn that settles inside the delivery\'s answer leave
   })
   const roster = new TaskRoster({ dir: home, breaker: { shouldSuppressFire: () => false, recordResult: () => {}, recordTimeout: () => {} } as never, maxInflight: 3 })
   roster.registerLongLived('concourse-w6', { cwd: home, model: 'm', effort: 'high', role: 'MERCURY_CONCOURSE_WORKER', agentId: 'w6' } as never)
-  const sup = await import('../../src/daemon/concourseWorkers.ts')
+  const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   sup.updateConcourseWorkers(ws => {
     ws['concourse-w6'] = { schema: 1, runnerId: 'concourse-w6', sessionId: 'session-6', workspaceId: home, isolation: 'exclusive', modelKey: 'm', spawnedAt: 1, lastLiveAt: Date.now() }
   }, daemonDir)

@@ -5,12 +5,12 @@ import { join } from 'node:path'
 import { toolResultTurn, toolUseTurn } from './computerToolKit.ts'
 
 delete process.env.NODE_ENV
-const retention = await import('../../src/services/desktop/screenshotRetention.ts')
-const session = await import('../../src/services/desktop/desktopSession.ts')
-const { stripImagesFromMessages } = await import('../../src/services/compact/compact.ts')
-const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-type Message = import('../../src/types/message.ts').Message
+const retention = await import('../../src/integrations/desktop/screenshotRetention.ts')
+const session = await import('../../src/integrations/desktop/desktopSession.ts')
+const { stripImagesFromMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const PNG_B64 = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 73, 72, 68, 82]).toString('base64')
 const owner = processOwnerForLane(null)
@@ -115,7 +115,7 @@ section('§2b a retired screenshot stays retired; the next one waits for the nex
 
 section('§2c the cold-prefix reading: the last completion against the cache clock\'s tier')
 {
-  const state = await import('../../src/bootstrap/state.ts')
+  const state = await import('../../src/boot/process-state/processState.ts')
   const before = state.getLastApiCompletionTimestamp()
   const now = Date.now()
   state.setLastApiCompletionTimestamp(now - 4 * 60_000)
@@ -152,7 +152,7 @@ section('§5 the registry keys by tool-use id across owners')
 
 section('§6 a real session file: the writer records the stub, never the bytes')
 {
-  const writer = await import('../../src/utils/sessionStorage/writer.ts')
+  const writer = await import('../../src/sessions/transcripts/writer.ts')
   const file = join(scratchDir('transcript'), 'session.jsonl')
   writer.setSessionFileForTesting(file)
   const id = 'toolu_file_shot'

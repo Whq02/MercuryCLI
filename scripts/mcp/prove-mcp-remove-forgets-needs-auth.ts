@@ -20,12 +20,12 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(cwd)
-const config = await import('../../src/services/mcp/config.ts')
-const client = await import('../../src/services/mcp/client.ts')
+const config = await import('../../src/integrations/mcp/serverConfigs.ts')
+const client = await import('../../src/integrations/mcp/client.ts')
 
 const cachePath = join(home, 'mcp-needs-auth-cache.json')
 const readCache = (): Record<string, unknown> => (existsSync(cachePath) ? (JSON.parse(readFileSync(cachePath, 'utf8')) as Record<string, unknown>) : {})
@@ -39,9 +39,9 @@ console.log('[1] mcp remove forgets the removed server\'s needs-auth mark and ke
   await config.removeMcpConfig('probe', 'user')
   const after = readCache()
   console.log(`  cache after remove: ${JSON.stringify(after)}`)
-  check('the removed server\'s mark is gone', after.probe === undefined, JSON.stringify(after), 'removeMcpConfig in src/services/mcp/config.ts must call forgetMcpNeedsAuth (src/services/mcp/client/needsAuth.ts) for the removed name')
-  check('a sibling server\'s mark stands', after.other !== undefined, JSON.stringify(after), 'forgetMcpNeedsAuth in src/services/mcp/client/needsAuth.ts must drop only the removed name from mcp-needs-auth-cache.json')
-  check('the server itself is gone from the user scope', !('probe' in (config.getMcpConfigsByScope('user').servers as Record<string, unknown>)), '', 'removeMcpConfig in src/services/mcp/config.ts did not delete the server from the user scope')
+  check('the removed server\'s mark is gone', after.probe === undefined, JSON.stringify(after), 'removeMcpConfig in src/integrations/mcp/serverConfigs.ts must call forgetMcpNeedsAuth (src/integrations/mcp/client/needsAuth.ts) for the removed name')
+  check('a sibling server\'s mark stands', after.other !== undefined, JSON.stringify(after), 'forgetMcpNeedsAuth in src/integrations/mcp/client/needsAuth.ts must drop only the removed name from mcp-needs-auth-cache.json')
+  check('the server itself is gone from the user scope', !('probe' in (config.getMcpConfigsByScope('user').servers as Record<string, unknown>)), '', 'removeMcpConfig in src/integrations/mcp/serverConfigs.ts did not delete the server from the user scope')
 }
 
 console.log('[2] a server re-added under the same name is dialled, not painted needs-auth from the stale mark')
@@ -51,7 +51,7 @@ console.log('[2] a server re-added under the same name is dialled, not painted n
   await client.getMcpToolsCommandsAndResources(report => reports.push(report as never), { probe: { ...server, scope: 'user' } } as never)
   const probe = reports.find(r => r.client.name === 'probe')
   console.log(`  re-added server connection report: ${probe?.client.type ?? 'none'} (a dialled 127.0.0.1:1 answers failed)`)
-  check('the re-added server is dialled', probe !== undefined && probe.client.type !== 'needs-auth', probe?.client.type ?? 'no report', 'a server re-added under a removed name must be connected afresh by getMcpToolsCommandsAndResources in src/services/mcp/client.ts, not reported needs-auth from a stale cache mark in src/services/mcp/client/needsAuth.ts')
+  check('the re-added server is dialled', probe !== undefined && probe.client.type !== 'needs-auth', probe?.client.type ?? 'no report', 'a server re-added under a removed name must be connected afresh by getMcpToolsCommandsAndResources in src/integrations/mcp/client.ts, not reported needs-auth from a stale cache mark in src/integrations/mcp/client/needsAuth.ts')
 }
 
 console.log('[3] a remove that finds no server leaves the cache untouched')
@@ -63,8 +63,8 @@ console.log('[3] a remove that finds no server leaves the cache untouched')
   } catch {
     threw = true
   }
-  check('removing a server that is not configured throws as before', threw, '', 'removeMcpConfig in src/services/mcp/config.ts must throw when the name is not configured in the scope')
-  check('and the cache is untouched', readCache().ghost !== undefined, '', 'removeMcpConfig in src/services/mcp/config.ts must throw before it calls forgetMcpNeedsAuth when the server is not configured')
+  check('removing a server that is not configured throws as before', threw, '', 'removeMcpConfig in src/integrations/mcp/serverConfigs.ts must throw when the name is not configured in the scope')
+  check('and the cache is untouched', readCache().ghost !== undefined, '', 'removeMcpConfig in src/integrations/mcp/serverConfigs.ts must throw before it calls forgetMcpNeedsAuth when the server is not configured')
 }
 
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-const walletFailHint = 'change walletEntries, activeWalletEntry or notLoggedInGateDecision in src/services/wallet/wallet.ts, or describeAgentRuntimeRef in src/services/providers/primaryBackend.ts (§6 checks), whichever the section above names'
+const walletFailHint = 'change walletEntries, activeWalletEntry or notLoggedInGateDecision in src/models/wallet/wallet.ts, or describeAgentRuntimeRef in src/models/roads/primaryBackend.ts (§6 checks), whichever the section above names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const failShown = [detail, walletFailHint].filter(Boolean).join(' | ')
@@ -49,7 +49,7 @@ writeFileSync(
 )
 process.env.OPENAI_API_KEY = 'sk-fixture-key-NEVER-SURFACES'
 
-const { walletEntries, activeWalletEntry } = await import('../../src/services/wallet/wallet.js')
+const { walletEntries, activeWalletEntry } = await import('../../src/models/wallet/wallet.js')
 
 {
   console.log('\n— §1 openai custodians (hermetic scratch scope) —')
@@ -90,7 +90,7 @@ const { walletEntries, activeWalletEntry } = await import('../../src/services/wa
 
 {
   console.log('\n— §6 the runtime ref (stage 8) —')
-  const { describeAgentRuntimeRef } = await import('../../src/services/providers/primaryBackend.js')
+  const { describeAgentRuntimeRef } = await import('../../src/models/roads/primaryBackend.js')
   const ALLOWED = ['contractVersion', 'backend', 'provider', 'route', 'canonicalModel', 'family', 'walletEntryId']
   const gptRef = describeAgentRuntimeRef('gpt-5.6-sol')
   check('the ref field list is PINNED (thin by contract)', Object.keys(gptRef).every(k => ALLOWED.includes(k)), Object.keys(gptRef).join(' '))
@@ -101,7 +101,7 @@ const { walletEntries, activeWalletEntry } = await import('../../src/services/wa
 
 {
   console.log('\n— §7 the not-logged-in gate (item A) —')
-  const { notLoggedInGateDecision } = await import('../../src/services/wallet/wallet.js')
+  const { notLoggedInGateDecision } = await import('../../src/models/wallet/wallet.js')
   const openaiEntry = { id: 'openai:oauth:x', provider: 'openai', kind: 'subscription-oauth', label: 'ChatGPT plus subscription', custodian: 'openai-accounts' } as const
   const anthropicEntry = { id: 'anthropic:oauth:main', provider: 'anthropic', kind: 'subscription-oauth', label: 'Claude account', custodian: 'anthropic-slots' } as const
   check('empty wallet ⇒ the full refusal', notLoggedInGateDecision([], 'anthropic').state === 'not-logged-in')

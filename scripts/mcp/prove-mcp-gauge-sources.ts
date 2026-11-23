@@ -10,7 +10,7 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — change mcpGauge in src/services/cockpit/mcpGauge.ts (its project-file census and the untrustedWorkspaceHeadless check), not the check'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — change mcpGauge in src/screen/cockpit-gauges/mcpGauge.ts (its project-file census and the untrustedWorkspaceHeadless check), not the check'}`)
   if (!cond) failures++
 }
 
@@ -18,11 +18,11 @@ const PROJ = realpathSync(mkdtempSync(join(tmpdir(), 'gauge-src-proj-')))
 mkdirSync(join(PROJ, '.mercury'), { recursive: true })
 writeFileSync(join(PROJ, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { fixsrv: { command: 'node', args: [] } } }))
 
-const { setCwd } = await import('../../src/utils/Shell.js')
-const { setIsInteractive, setSessionTrustAccepted, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.js')
-const { resetTrustDialogAcceptedCacheForTesting } = await import('../../src/utils/config/trust.js')
-const { mcpGauge } = await import('../../src/services/cockpit/mcpGauge.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { setCwd } = await import('../../src/platform/shell/shellExec.js')
+const { setIsInteractive, setSessionTrustAccepted, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.js')
+const { resetTrustDialogAcceptedCacheForTesting } = await import('../../src/platform/config/trust.js')
+const { mcpGauge } = await import('../../src/screen/cockpit-gauges/mcpGauge.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 setCwd(PROJ)
 setOriginalCwd(PROJ)

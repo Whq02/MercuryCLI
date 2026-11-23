@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
-import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/models/facts/builtInModelTable.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
@@ -31,7 +31,7 @@ if (!existsSync(DIST)) {
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}rerun with SWITCH_KEEP=1 to print every sent step and grabbed frame and to keep ${SCRATCH} (daemon.log is the daemon's output); the seat records are read through src/daemon/concourseWorkers.ts`
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}rerun with SWITCH_KEEP=1 to print every sent step and grabbed frame and to keep ${SCRATCH} (daemon.log is the daemon's output); the seat records are read through src/daemon/concourse-workers/concourseWorkers.ts`
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
@@ -72,7 +72,7 @@ const spawnDaemonWithHome = (configHome: string): void => {
   })
 }
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boolean> => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -84,8 +84,8 @@ const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boo
   }
   return false
 }
-const sup = await import('../../src/daemon/concourseWorkers.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 let boardSid = ''
 let boardLog = ''
 try {

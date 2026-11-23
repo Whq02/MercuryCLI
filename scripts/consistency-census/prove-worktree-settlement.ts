@@ -14,9 +14,9 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
 const git = (cwd: string, ...args: string[]): string =>
   execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 
-const wt = await import('../../src/services/worktree.ts')
-const reminder = await import('../../src/services/crew/crewWorktreeReminder.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+const wt = await import('../../src/platform/git/worktree/worktree.ts')
+const reminder = await import('../../src/crew/crewmates/crewWorktreeReminder.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
 
 {
   const z = [
@@ -27,9 +27,9 @@ const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
     '?? .othertool/cache-clock/sessions/y.json',
   ].join('\0') + '\0'
   const c = wt.classifyPorcelainRecords(z)
-  check('§A tracked: modify + rename both sides', c.tracked.length === 3, '', 'fix classifyPorcelainRecords in src/utils/worktree/delta.ts so a rename counts both its sides as tracked')
-  check('§A authored untracked separated: a foreign-named dir is a project file, never Mercury-ephemeral', c.untrackedAuthored.length === 2 && c.untrackedAuthored.includes('notes.md'), '', 'fix classifyPorcelainRecords in src/utils/worktree/delta.ts so only paths under .mercury count as Mercury-ephemeral and other untracked paths stay authored')
-  check('§A Mercury cache-clock debris classes as Mercury-ephemeral', c.mercuryEphemeral.length === 1, '', 'fix classifyPorcelainRecords in src/utils/worktree/delta.ts so .mercury/cache-clock paths class as Mercury-ephemeral')
+  check('§A tracked: modify + rename both sides', c.tracked.length === 3, '', 'fix classifyPorcelainRecords in src/platform/git/worktree/delta.ts so a rename counts both its sides as tracked')
+  check('§A authored untracked separated: a foreign-named dir is a project file, never Mercury-ephemeral', c.untrackedAuthored.length === 2 && c.untrackedAuthored.includes('notes.md'), '', 'fix classifyPorcelainRecords in src/platform/git/worktree/delta.ts so only paths under .mercury count as Mercury-ephemeral and other untracked paths stay authored')
+  check('§A Mercury cache-clock debris classes as Mercury-ephemeral', c.mercuryEphemeral.length === 1, '', 'fix classifyPorcelainRecords in src/platform/git/worktree/delta.ts so .mercury/cache-clock paths class as Mercury-ephemeral')
 }
 
 function mkRepo(): { repo: string } {
@@ -75,9 +75,9 @@ const branchThere = (repo: string, branch: string): boolean => {
   writeFileSync(join(at.lane, '.mercury', 'cache-clock', 'sessions', 's.json'), '{}\n')
   const left = await read(repo, at)
   const taken = await sweep(repo, at.lane)
-  check('§B runtime-only lane SETTLES', left.state === 'clean' && taken === 1, `${left.state} · ${taken} taken`, 'a lane holding only Mercury runtime files must read clean in crewWorktreeLeftoverOf (src/services/crew/crewWorktreeReminder.ts) and be removed by cleanupStaleAgentWorktrees (src/services/worktree.ts)')
-  check('§B worktree absent', !existsSync(at.lane), '', 'cleanupStaleAgentWorktrees in src/services/worktree.ts must remove the settled lane directory')
-  check('§B branch absent', !branchThere(repo, at.branch), '', 'cleanupStaleAgentWorktrees in src/services/worktree.ts must delete the settled lane branch')
+  check('§B runtime-only lane SETTLES', left.state === 'clean' && taken === 1, `${left.state} · ${taken} taken`, 'a lane holding only Mercury runtime files must read clean in crewWorktreeLeftoverOf (src/crew/crewmates/crewWorktreeReminder.ts) and be removed by cleanupStaleAgentWorktrees (src/platform/git/worktree/worktree.ts)')
+  check('§B worktree absent', !existsSync(at.lane), '', 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts must remove the settled lane directory')
+  check('§B branch absent', !branchThere(repo, at.branch), '', 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts must delete the settled lane branch')
 }
 
 {
@@ -85,7 +85,7 @@ const branchThere = (repo: string, branch: string): boolean => {
   const at = mkLane(repo)
   const left = await read(repo, at)
   const taken = await sweep(repo, at.lane)
-  check('§C pristine lane settles', left.state === 'clean' && taken === 1 && !existsSync(at.lane), `${left.state} · ${taken} taken`, 'a lane with no changes must read clean in crewWorktreeLeftoverOf (src/services/crew/crewWorktreeReminder.ts) and be taken once by cleanupStaleAgentWorktrees (src/services/worktree.ts)')
+  check('§C pristine lane settles', left.state === 'clean' && taken === 1 && !existsSync(at.lane), `${left.state} · ${taken} taken`, 'a lane with no changes must read clean in crewWorktreeLeftoverOf (src/crew/crewmates/crewWorktreeReminder.ts) and be taken once by cleanupStaleAgentWorktrees (src/platform/git/worktree/worktree.ts)')
 }
 
 {
@@ -96,8 +96,8 @@ const branchThere = (repo: string, branch: string): boolean => {
   git(at.lane, 'commit', '-q', '-m', 'authored')
   const left = await read(repo, at)
   const taken = await sweep(repo, at.lane)
-  check('§D commit preserves', left.state === 'unreachable' && taken === 0 && existsSync(at.lane), `${left.state} · ${taken} taken`, 'a lane holding a commit must read unreachable in crewWorktreeLeftoverOf (src/services/crew/crewWorktreeReminder.ts) and cleanupStaleAgentWorktrees (src/services/worktree.ts) must leave it')
-  check('§D named', left.detail.includes('1 commit'), left.detail, 'the detail from crewWorktreeLeftoverOf (src/services/crew/crewWorktreeReminder.ts) must name the commit count')
+  check('§D commit preserves', left.state === 'unreachable' && taken === 0 && existsSync(at.lane), `${left.state} · ${taken} taken`, 'a lane holding a commit must read unreachable in crewWorktreeLeftoverOf (src/crew/crewmates/crewWorktreeReminder.ts) and cleanupStaleAgentWorktrees (src/platform/git/worktree/worktree.ts) must leave it')
+  check('§D named', left.detail.includes('1 commit'), left.detail, 'the detail from crewWorktreeLeftoverOf (src/crew/crewmates/crewWorktreeReminder.ts) must name the commit count')
 }
 
 {
@@ -106,7 +106,7 @@ const branchThere = (repo: string, branch: string): boolean => {
   writeFileSync(join(at.lane, 'README.md'), 'edited\n')
   const left = await read(repo, at)
   const taken = await sweep(repo, at.lane)
-  check('§E tracked edit preserves + names the path', left.state === 'uncommitted' && left.detail.includes('README.md') && taken === 0 && existsSync(at.lane), `${left.state} · ${left.detail} · ${taken} taken`, 'a tracked edit must read uncommitted and name its path in crewWorktreeLeftoverOf (src/services/crew/crewWorktreeReminder.ts), and cleanupStaleAgentWorktrees (src/services/worktree.ts) must leave the lane')
+  check('§E tracked edit preserves + names the path', left.state === 'uncommitted' && left.detail.includes('README.md') && taken === 0 && existsSync(at.lane), `${left.state} · ${left.detail} · ${taken} taken`, 'a tracked edit must read uncommitted and name its path in crewWorktreeLeftoverOf (src/crew/crewmates/crewWorktreeReminder.ts), and cleanupStaleAgentWorktrees (src/platform/git/worktree/worktree.ts) must leave the lane')
 }
 
 {
@@ -115,8 +115,8 @@ const branchThere = (repo: string, branch: string): boolean => {
   writeFileSync(join(at.lane, 'idea.txt'), 'x')
   const left = await read(repo, at)
   const taken = await sweep(repo, at.lane)
-  check('§F one-byte authored file preserved AND named', left.state === 'uncommitted' && left.detail.includes('idea.txt') && taken === 0, `${left.state} · ${left.detail} · ${taken} taken`, 'an untracked authored file of any size must read uncommitted and be named by crewWorktreeLeftoverOf (src/services/crew/crewWorktreeReminder.ts), and cleanupStaleAgentWorktrees (src/services/worktree.ts) must leave the lane')
-  check('§F lane + branch still present', existsSync(at.lane) && branchThere(repo, at.branch), '', 'cleanupStaleAgentWorktrees in src/services/worktree.ts must not remove a lane or branch holding authored work')
+  check('§F one-byte authored file preserved AND named', left.state === 'uncommitted' && left.detail.includes('idea.txt') && taken === 0, `${left.state} · ${left.detail} · ${taken} taken`, 'an untracked authored file of any size must read uncommitted and be named by crewWorktreeLeftoverOf (src/crew/crewmates/crewWorktreeReminder.ts), and cleanupStaleAgentWorktrees (src/platform/git/worktree/worktree.ts) must leave the lane')
+  check('§F lane + branch still present', existsSync(at.lane) && branchThere(repo, at.branch), '', 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts must not remove a lane or branch holding authored work')
 }
 
 {
@@ -128,7 +128,7 @@ const branchThere = (repo: string, branch: string): boolean => {
   const left = await read(repo, at)
   const delta = await wt.readWorktreeDelta(at.lane)
   const taken = await sweep(repo, at.lane)
-  check('§G mixed preserves', left.state === 'uncommitted' && taken === 0 && existsSync(at.lane), `${left.state} · ${taken} taken`, 'a lane with authored and runtime files must read uncommitted in crewWorktreeLeftoverOf (src/services/crew/crewWorktreeReminder.ts) and cleanupStaleAgentWorktrees (src/services/worktree.ts) must leave it')
+  check('§G mixed preserves', left.state === 'uncommitted' && taken === 0 && existsSync(at.lane), `${left.state} · ${taken} taken`, 'a lane with authored and runtime files must read uncommitted in crewWorktreeLeftoverOf (src/crew/crewmates/crewWorktreeReminder.ts) and cleanupStaleAgentWorktrees (src/platform/git/worktree/worktree.ts) must leave it')
   check(
     '§G delta separates authored from runtime',
     delta.untrackedAuthored.includes('notes.md') &&
@@ -136,16 +136,16 @@ const branchThere = (repo: string, branch: string): boolean => {
       left.detail.includes('notes.md') &&
       !left.detail.includes('cache-clock'),
     left.detail,
-    'readWorktreeDelta (src/utils/worktree/delta.ts) must split authored from Mercury-ephemeral paths, and the leftover detail from crewWorktreeLeftoverOf (src/services/crew/crewWorktreeReminder.ts) must list only authored paths',
+    'readWorktreeDelta (src/platform/git/worktree/delta.ts) must split authored from Mercury-ephemeral paths, and the leftover detail from crewWorktreeLeftoverOf (src/crew/crewmates/crewWorktreeReminder.ts) must list only authored paths',
   )
 }
 
 {
   const dir = mkdtempSync(join(tmpdir(), 'unison-w2-notgit-'))
   const d = await wt.readWorktreeDelta(dir)
-  check('§H non-repo dir ⇒ uncertainty (never a clean-looking delta)', d.uncertainty !== null, '', 'readWorktreeDelta in src/utils/worktree/delta.ts must set uncertainty for a directory that is not a git repo')
+  check('§H non-repo dir ⇒ uncertainty (never a clean-looking delta)', d.uncertainty !== null, '', 'readWorktreeDelta in src/platform/git/worktree/delta.ts must set uncertainty for a directory that is not a git repo')
   const left = await reminder.crewWorktreeLeftoverOf({ name: 'not-git', path: dir }, Date.now())
-  check('§H a folder git does not own reads unowned, never clean', left.state === 'unowned', left.state, 'crewWorktreeLeftoverOf in src/services/crew/crewWorktreeReminder.ts must read a folder git does not own as unowned')
+  check('§H a folder git does not own reads unowned, never clean', left.state === 'unowned', left.state, 'crewWorktreeLeftoverOf in src/crew/crewmates/crewWorktreeReminder.ts must read a folder git does not own as unowned')
 }
 
 {
@@ -153,7 +153,7 @@ const branchThere = (repo: string, branch: string): boolean => {
   const gone = join(tmpdir(), `unison-w2-gone-${Date.now()}`)
   const left = await reminder.crewWorktreeLeftoverOf({ name: 'gone', path: gone, branch: 'none', gitRoot: repo }, Date.now())
   const taken = await sweep(repo)
-  check('§I missing lane is not a silent success', left.state !== 'clean' && taken === 0, `${left.state} · ${taken} taken`, 'crewWorktreeLeftoverOf in src/services/crew/crewWorktreeReminder.ts must not read a missing lane as clean, and cleanupStaleAgentWorktrees (src/services/worktree.ts) must take none')
+  check('§I missing lane is not a silent success', left.state !== 'clean' && taken === 0, `${left.state} · ${taken} taken`, 'crewWorktreeLeftoverOf in src/crew/crewmates/crewWorktreeReminder.ts must not read a missing lane as clean, and cleanupStaleAgentWorktrees (src/platform/git/worktree/worktree.ts) must take none')
 }
 
 {
@@ -167,7 +167,7 @@ const branchThere = (repo: string, branch: string): boolean => {
     '§J second settle is visible non-success (idempotent-safe)',
     first.state === 'clean' && taken === 1 && second.state !== 'clean' && again === 0,
     `${first.state} · ${taken} taken · ${second.state} · ${again} taken`,
-    'after a lane is settled, crewWorktreeLeftoverOf (src/services/crew/crewWorktreeReminder.ts) must read it as not clean and a second cleanupStaleAgentWorktrees (src/services/worktree.ts) must take none',
+    'after a lane is settled, crewWorktreeLeftoverOf (src/crew/crewmates/crewWorktreeReminder.ts) must read it as not clean and a second cleanupStaleAgentWorktrees (src/platform/git/worktree/worktree.ts) must take none',
   )
 }
 
@@ -180,7 +180,7 @@ if (process.platform === 'win32') {
     const junction = join(mkdtempSync(join(tmpdir(), 'unison-w2-junc-')), 'via')
     symlinkSync(at.lane, junction, 'junction')
     const left = await read(repo, { ...at, lane: junction })
-    check('§N1 junction-reached pristine lane reads clean (a typed state — never silent)', left.state === 'clean', left.state, 'crewWorktreeLeftoverOf in src/services/crew/crewWorktreeReminder.ts must read a pristine lane reached through a junction as clean')
+    check('§N1 junction-reached pristine lane reads clean (a typed state — never silent)', left.state === 'clean', left.state, 'crewWorktreeLeftoverOf in src/crew/crewmates/crewWorktreeReminder.ts must read a pristine lane reached through a junction as clean')
   }
   {
     const { repo } = mkRepo()
@@ -191,12 +191,12 @@ if (process.platform === 'win32') {
       '§N2 open-handle settlement is typed, never a silent success claim',
       (taken === 1 && !existsSync(at.lane)) || (taken === 0 && existsSync(at.lane)),
       `${taken} taken`,
-      'cleanupStaleAgentWorktrees in src/services/worktree.ts must either remove a lane with an open handle or leave it whole, never half remove it',
+      'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts must either remove a lane with an open handle or leave it whole, never half remove it',
     )
     closeSync(fd)
     if (taken !== 1) {
       const again = await sweep(repo, at.lane)
-      check('§N2 settlement completes once the handle releases', again === 1 && !existsSync(at.lane), `${again} taken`, 'cleanupStaleAgentWorktrees in src/services/worktree.ts must remove the lane on the next sweep once the handle is closed')
+      check('§N2 settlement completes once the handle releases', again === 1 && !existsSync(at.lane), `${again} taken`, 'cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts must remove the lane on the next sweep once the handle is closed')
     }
   }
 } else {

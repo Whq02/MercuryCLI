@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startOverflowFixture, type Captured, type ScriptedCall, type Turn } from './overflowFixture.ts'
 import { answerOf, frameLines, isToolResult, lastOutcome } from '../lib/rows.ts'
-import { PROTECT_NEWEST_TOOL_OUTPUT_TOKENS } from '../../src/services/compact/pruneProtections.ts'
+import { PROTECT_NEWEST_TOOL_OUTPUT_TOKENS } from '../../src/engine/compaction/pruneProtections.ts'
 
 const arg = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
@@ -212,7 +212,7 @@ const summary = {
 }
 writeFileSync(join(output, 'summary.json'), JSON.stringify(summary, null, 2) + '\n')
 let failures = 0
-const check = (label: string, passed: boolean): void => { if (!passed) failures++; console.log(`[${passed ? 'PASS' : 'FAIL'}] ${label}${passed ? '' : ` — read ${join(output, 'requests.json')} and ${join(output, 'stderr.txt')}; the pruning under test is projectTimeBasedMicrocompact in src/services/compact/microCompact.ts and its protections in src/services/compact/pruneProtections.ts; rebuild dist/mercury.mjs with bun run build.ts after changing them`}`) }
+const check = (label: string, passed: boolean): void => { if (!passed) failures++; console.log(`[${passed ? 'PASS' : 'FAIL'}] ${label}${passed ? '' : ` — read ${join(output, 'requests.json')} and ${join(output, 'stderr.txt')}; the pruning under test is projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts and its protections in src/engine/compaction/pruneProtections.ts; rebuild dist/mercury.mjs with bun run build.ts after changing them`}`) }
 check('the built product completes the scripted file work', exit === 0 && answerOf(lastOutcome(frames)) === 'The file revisions are complete.')
 check('the replay makes every scripted Read and Edit', nextCall === calls.length + 1)
 check('every edit landed in the scratch files', paths.every((path, index) => readFileSync(path, 'utf8').startsWith(`revision ${Math.ceil((rounds - index) / paths.length)}\n`)))

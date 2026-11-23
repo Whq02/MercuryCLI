@@ -56,19 +56,19 @@ for (const base of [
   process.env[base] = dead
 }
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 
-const { ANTHROPIC_MODEL_GROUP, ANTHROPIC_CONNECT_OPTION_VALUE, getModelOptions, isProviderActionRow } = await import('../../src/services/model/modelOptions.ts')
-type ModelOption = import('../../src/services/model/modelOptions.ts').ModelOption
-type LiveRow = import('../../src/services/providers/anthropic/anthropicCatalogue.ts').AnthropicLiveRow
-const { CANONICAL_MODEL_IDS, mirrorTwinOf } = await import('../../src/utils/model/configs.ts')
-const { parseUserSpecifiedModel, renderModelName } = await import('../../src/services/model/model.ts')
-const { composeSubModelRegistry } = await import('../../src/services/model/subModelSlots.ts')
+const { ANTHROPIC_MODEL_GROUP, ANTHROPIC_CONNECT_OPTION_VALUE, getModelOptions, isProviderActionRow } = await import('../../src/models/catalogue/modelOptions.ts')
+type ModelOption = import('../../src/models/catalogue/modelOptions.ts').ModelOption
+type LiveRow = import('../../src/models/roads/anthropic/anthropicCatalogue.ts').AnthropicLiveRow
+const { CANONICAL_MODEL_IDS, mirrorTwinOf } = await import('../../src/models/facts/builtInModelTable.ts')
+const { parseUserSpecifiedModel, renderModelName } = await import('../../src/models/catalogue/engineModel.ts')
+const { composeSubModelRegistry } = await import('../../src/models/catalogue/subModelSlots.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail?: string): void {
   if (!cond) failures++
-  const failHint = 'to fix, change mergeAnthropicLiveRows or getModelOptions in src/services/model/modelOptions.ts (the live-row merge) so the composed Anthropic rows match this check'
+  const failHint = 'to fix, change mergeAnthropicLiveRows or getModelOptions in src/models/catalogue/modelOptions.ts (the live-row merge) so the composed Anthropic rows match this check'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${failHint}` : ''}`)
 }
 function section(title: string): void {

@@ -17,7 +17,7 @@ const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
 mkdirSync(join(HOME, 'history.jsonl'))
 
 const historyRow = async (): Promise<{ status: string; evidence: string }> => {
-  const report = await import('../../src/services/health/healthReport.js')
+  const report = await import('../../src/platform/health/healthReport.js')
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'history')
   return { status: String(row?.status), evidence: String(row?.evidence) }
@@ -28,12 +28,12 @@ check(
   'history.jsonl-as-a-DIRECTORY warns on a one-shot run (never appends healthy)',
   broken.status === 'warn' && broken.evidence.includes('DIRECTORY'),
   `${broken.status}: ${broken.evidence.slice(0, 120)}`,
-  'change historyCheck in src/services/health/sections/crew/appends.ts so a history.jsonl that is a directory returns status warn with evidence naming DIRECTORY',
+  'change historyCheck in src/platform/health/sections/crew/appends.ts so a history.jsonl that is a directory returns status warn with evidence naming DIRECTORY',
 )
 
 rmSync(join(HOME, 'history.jsonl'), { recursive: true, force: true })
 const clean = await historyRow()
-check('an absent store reads ok (control — nothing has appended yet)', clean.status === 'ok', `${clean.status}: ${clean.evidence.slice(0, 80)}`, 'change historyCheck in src/services/health/sections/crew/appends.ts so an absent history.jsonl with no flush failures returns status ok')
+check('an absent store reads ok (control — nothing has appended yet)', clean.status === 'ok', `${clean.status}: ${clean.evidence.slice(0, 80)}`, 'change historyCheck in src/platform/health/sections/crew/appends.ts so an absent history.jsonl with no flush failures returns status ok')
 
 rmSync(HOME, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-history-row-probes: all green' : `\nprove-history-row-probes: ${failures} FAILURE(S)`)

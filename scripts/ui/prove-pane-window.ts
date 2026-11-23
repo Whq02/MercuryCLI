@@ -4,10 +4,10 @@
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}fix paneWindow, fitGroupedWindow or fitMeasuredWindow in src/components/mercury-ui/paneWindow.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}fix paneWindow, fitGroupedWindow or fitMeasuredWindow in src/screen/widgets/paneWindow.ts` : ''}`)
 }
 
-const { paneWindow } = await import('../../src/components/mercury-ui/paneWindow.js')
+const { paneWindow } = await import('../../src/screen/widgets/paneWindow.js')
 
 console.log('============================================================')
 console.log(' pane window — reachability · visible selection · gating')
@@ -50,7 +50,7 @@ console.log('============================================================')
 }
 
 {
-  const { fitGroupedWindow, paneWindow: pw } = await import('../../src/components/mercury-ui/paneWindow.js')
+  const { fitGroupedWindow, paneWindow: pw } = await import('../../src/screen/widgets/paneWindow.js')
   const groups = ['ready', 'working', 'working', 'working', 'queued', 'queued']
   const fit = (budget: number, sel: number) =>
     fitGroupedWindow(groups.length, budget, span => pw(groups.length, sel, span), i => groups[i]!)
@@ -78,7 +78,7 @@ console.log('============================================================')
 }
 
 {
-  const { fitMeasuredWindow, paneWindow: pw } = await import('../../src/components/mercury-ui/paneWindow.js')
+  const { fitMeasuredWindow, paneWindow: pw } = await import('../../src/screen/widgets/paneWindow.js')
   const n = 10
   const measureFor = (sel: number) => (w: { start: number; end: number; above: number; below: number }): number => {
     let lines = (w.above > 0 ? 1 : 0) + (w.below > 0 ? 1 : 0)

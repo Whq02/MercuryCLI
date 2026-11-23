@@ -31,13 +31,13 @@ console.log('============================================================')
 section('(1) settings-key registry (live SettingsSchema shape)')
 let settingsKeys: string[] = []
 {
-  const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
+  const { SettingsSchema } = await import('../../src/platform/settings/settingsSchema.ts')
   const schema = SettingsSchema() as unknown as { shape?: Record<string, unknown> }
   const shape =
     schema.shape ??
     (schema as unknown as { _def?: { shape?: () => Record<string, unknown> } })._def?.shape?.()
   settingsKeys = shape ? Object.keys(shape).sort() : []
-  check('SettingsSchema shape enumerable', settingsKeys.length > 0, 'SettingsSchema in src/utils/settings/types.ts no longer exposes a readable key shape; keep it a zod object, or change how this script reads it')
+  check('SettingsSchema shape enumerable', settingsKeys.length > 0, 'SettingsSchema in src/platform/settings/settingsSchema.ts no longer exposes a readable key shape; keep it a zod object, or change how this script reads it')
 }
 
 interface Inventory {
@@ -71,7 +71,7 @@ if (record) {
         addedKeys.length ? `UNRECORDED: ${addedKeys.join(', ')}` : '',
       ]
         .filter(Boolean)
-        .join(' · ') + ' · if the change is intended, run bun scripts/ownership/prove-contract-inventory.ts --record and commit scripts/ownership/contract-inventory.json; otherwise restore the key in SettingsSchema (src/utils/settings/types.ts)',
+        .join(' · ') + ' · if the change is intended, run bun scripts/ownership/prove-contract-inventory.ts --record and commit scripts/ownership/contract-inventory.json; otherwise restore the key in SettingsSchema (src/platform/settings/settingsSchema.ts)',
     )
   }
 }

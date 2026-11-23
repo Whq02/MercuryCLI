@@ -51,21 +51,21 @@ console.log('============================================================')
 console.log(' the compaction over a long tool history — the OpenAI Responses wire')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/query.ts')
-const { productionDeps } = await import('../../src/query/deps.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/query.ts')
-const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
-const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { MC_DIGEST_PREFIX, MC_CLEARED_PLACEHOLDER } = await import('../../src/services/compact/microCompactDigest.ts')
-const { autoCompactIfNeeded } = await import('../../src/services/compact/autoCompact.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
+const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { MC_DIGEST_PREFIX, MC_CLEARED_PLACEHOLDER } = await import('../../src/engine/compaction/pruneDigest.ts')
+const { autoCompactIfNeeded } = await import('../../src/engine/compaction/autoFold.ts')
 const { call: compactCommand } = await import('../../src/commands/compact/compact.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
@@ -312,11 +312,11 @@ let historyA: unknown[]
   const r = await drive(ctxA, seed)
   historyA = transcriptAfter(seed, r)
   check('the run completed without throwing', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)}`)
-  check('THE RECORD RULE: no turn record carries a function_call the turn did not mint as a tool_use', unmintedRecordCalls(historyA).length === 0, `unminted=${JSON.stringify(unmintedRecordCalls(historyA))} — a turn record (apexProviderTurn.items) must not keep a function_call the cut turn never minted as a tool_use; the stream-cut settling lives in src/run-core/turn/noToolReply.ts`)
-  check('the cut turn did not stand as the reply: the turn machine asked the model to continue (the notice speaks)', noticeTexts(r.yields).some(t => /ended the stream after partial content/.test(t) && /asked the model to continue/.test(t)), `${JSON.stringify(noticeTexts(r.yields))} — a stream cut after partial content must be continued, not settled as the reply; the notice text is built in src/run-core/turn/noToolReply.ts`)
+  check('THE RECORD RULE: no turn record carries a function_call the turn did not mint as a tool_use', unmintedRecordCalls(historyA).length === 0, `unminted=${JSON.stringify(unmintedRecordCalls(historyA))} — a turn record (apexProviderTurn.items) must not keep a function_call the cut turn never minted as a tool_use; the stream-cut settling lives in src/engine/loop/turn/noToolReply.ts`)
+  check('the cut turn did not stand as the reply: the turn machine asked the model to continue (the notice speaks)', noticeTexts(r.yields).some(t => /ended the stream after partial content/.test(t) && /asked the model to continue/.test(t)), `${JSON.stringify(noticeTexts(r.yields))} — a stream cut after partial content must be continued, not settled as the reply; the notice text is built in src/engine/loop/turn/noToolReply.ts`)
   check('the re-issued call ran: its result rides the history', toolResultIds(historyA).includes('a_read_again'), `${JSON.stringify(toolResultIds(historyA))} — the call re-issued after the cut must run its tool and leave a tool_result in the history`)
   check('the closing answer settled last', lastAssistantText(r.yields).startsWith('all ten notes files are read'), `${lastAssistantText(r.yields)} — the closing answer must be the last non-error assistant row; look for an error row or a continuation that did not finish`)
-  check('twelve Responses requests: nine rounds, the cut, the continuation with its round, the answer', r.wire.length === ROUNDS + 3, `${r.wire.length} requests — expected nine rounds, the cut, the continuation with its round and the answer; a different count means the cut turn was settled or retried differently (src/run-core/turn/noToolReply.ts)`)
+  check('twelve Responses requests: nine rounds, the cut, the continuation with its round, the answer', r.wire.length === ROUNDS + 3, `${r.wire.length} requests — expected nine rounds, the cut, the continuation with its round and the answer; a different count means the cut turn was settled or retried differently (src/engine/loop/turn/noToolReply.ts)`)
 }
 
 section('R1 a history persisted with such a record heals on read — the wire replays no call the content does not carry')
@@ -355,9 +355,9 @@ section('R1 a history persisted with such a record heals on read — the wire re
   const r = await drive(ctxR, persisted)
   check('the run completed', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)} errors=${JSON.stringify(errorTexts(r.yields))}`)
   const items = r.wire[0] !== undefined ? inputOf(r.wire[0].body) : []
-  check('the request carries no function_call for the call the content does not hold', !callIds(items).includes('call_persisted_unminted'), `${JSON.stringify(callIds(items))} — a persisted turn record that disagrees with its content on function calls must be dropped and the turn replayed from its content (recordAgreesWithContent in src/services/providers/openai/openaiCallModel/bridgeMessages.ts)`)
-  check('every function_call the request carries is answered', unansweredCalls(items).length === 0, `${JSON.stringify(unansweredCalls(items))} — every function_call replayed to the Responses wire needs its function_call_output; see src/services/providers/openai/openaiCallModel/bridgeMessages.ts and src/services/providers/openai/responsesBridge.ts (mapMessagesToOpenaiInput)`)
-  check('the turn replays from its content: its text rides as an assistant message item', items.some(i => i.type === 'message' && i.role === 'assistant' && Array.isArray(i.content) && i.content.some(p => String(p.text ?? '') === CUT_TEXT)), `${JSON.stringify(items.filter(i => i.type === 'message'))} — a turn whose record was dropped must replay its text as an assistant message item (mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts)`)
+  check('the request carries no function_call for the call the content does not hold', !callIds(items).includes('call_persisted_unminted'), `${JSON.stringify(callIds(items))} — a persisted turn record that disagrees with its content on function calls must be dropped and the turn replayed from its content (recordAgreesWithContent in src/models/roads/openai/call-model/bridgeMessages.ts)`)
+  check('every function_call the request carries is answered', unansweredCalls(items).length === 0, `${JSON.stringify(unansweredCalls(items))} — every function_call replayed to the Responses wire needs its function_call_output; see src/models/roads/openai/call-model/bridgeMessages.ts and src/models/roads/openai/responsesBridge.ts (mapMessagesToOpenaiInput)`)
+  check('the turn replays from its content: its text rides as an assistant message item', items.some(i => i.type === 'message' && i.role === 'assistant' && Array.isArray(i.content) && i.content.some(p => String(p.text ?? '') === CUT_TEXT)), `${JSON.stringify(items.filter(i => i.type === 'message'))} — a turn whose record was dropped must replay its text as an assistant message item (mapMessagesToOpenaiInput in src/models/roads/openai/responsesBridge.ts)`)
 }
 
 section('P1 the prune rung, then the automatic compaction — the summariser\'s request answers every function call')
@@ -372,8 +372,8 @@ section('P1 the prune rung, then the automatic compaction — the summariser\'s 
   const seed = [...historyA, createUserMessage({ content: SECOND_ASK })]
   const r = await drive(ctxA, seed)
   check('the run completed', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)} errors=${JSON.stringify(errorTexts(r.yields))}`)
-  check('the notice names summary-first recovery with the provider numbers', noticeTexts(r.yields).some(t => t === 'context overflowed (OpenAI: 129,000 tokens > 128,000) — folding the conversation and retrying'), `${JSON.stringify(noticeTexts(r.yields))} — the notice is built by overflowRecoveryNotice in src/services/compact/overflowRecovery.ts`)
-  check('three Responses requests: overflow, summary, post-fold reply', r.wire.length === 3 && r.wire.every(w => w.dialect === 'responses'), `${r.wire.length} ${JSON.stringify(r.wire.map(w => w.dialect))} — expected the overflowed request, the summary request and the post-fold reply, all on the responses dialect; the rung order is decided in decideOverflowRecovery (src/services/compact/overflowRecovery.ts)`)
+  check('the notice names summary-first recovery with the provider numbers', noticeTexts(r.yields).some(t => t === 'context overflowed (OpenAI: 129,000 tokens > 128,000) — folding the conversation and retrying'), `${JSON.stringify(noticeTexts(r.yields))} — the notice is built by overflowRecoveryNotice in src/engine/compaction/overflowRecovery.ts`)
+  check('three Responses requests: overflow, summary, post-fold reply', r.wire.length === 3 && r.wire.every(w => w.dialect === 'responses'), `${r.wire.length} ${JSON.stringify(r.wire.map(w => w.dialect))} — expected the overflowed request, the summary request and the post-fold reply, all on the responses dialect; the rung order is decided in decideOverflowRecovery (src/engine/compaction/overflowRecovery.ts)`)
   const retry = r.wire[0]
   const summariser = r.wire[1]
   const retryItems = retry !== undefined ? inputOf(retry.body) : []
@@ -473,17 +473,17 @@ section('C1 a summariser refused for a malformed history — one attempt, a type
   delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
   const summariserRequests = r.wire.filter(w => isSummariserRequest(w.body))
   check('the run never threw', r.threw === undefined, `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)}`)
-  check('exactly ONE summary request reached the wire — the refusal is not retried as a size problem', summariserRequests.length === 1, `${summariserRequests.length} of ${r.wire.length} requests were summary requests — a pairing refusal must not be retried as a size problem (malformedHistoryRefusalOf in src/services/compact/compact/refusals.ts)`)
-  check('malformed history is not a size fallback: no other request is sent', r.wire.length === 1, `${r.wire.length} requests — after a malformed-history refusal no prune or retry request may follow (src/services/compact/compact/refusals.ts, src/services/compact/autoCompact.ts)`)
+  check('exactly ONE summary request reached the wire — the refusal is not retried as a size problem', summariserRequests.length === 1, `${summariserRequests.length} of ${r.wire.length} requests were summary requests — a pairing refusal must not be retried as a size problem (malformedHistoryRefusalOf in src/engine/compaction/fold/refusals.ts)`)
+  check('malformed history is not a size fallback: no other request is sent', r.wire.length === 1, `${r.wire.length} requests — after a malformed-history refusal no prune or retry request may follow (src/engine/compaction/fold/refusals.ts, src/engine/compaction/autoFold.ts)`)
   const notices = noticeTexts(r.yields)
   const line = notices.find(t => /malformed history/i.test(t))
-  check('a typed line names the class', line !== undefined, `${JSON.stringify(notices)} — the class line comes from compactionPausedForHistoryText in src/services/compact/compact/refusals.ts`)
+  check('a typed line names the class', line !== undefined, `${JSON.stringify(notices)} — the class line comes from compactionPausedForHistoryText in src/engine/compaction/fold/refusals.ts`)
   check("…the provider's own reason", line !== undefined && line.includes('No tool output found for function call call_tlxFSxc72b7dbbq5yBsOGC7a'), line ?? '')
   check('…and the remedies: /compact after the heal, /clear, a larger-window model', line !== undefined && line.includes('/compact') && line.includes('/clear') && line.includes('/model'), line ?? '')
   check('…and the pause it applies is the run\'s, never the session\'s (the failure count starts fresh at every query entry)', line !== undefined && line.includes('paused for the rest of this run') && !/for this session/.test(line), line ?? '')
   const errs = errorTexts(r.yields)
-  check('a typed refusal retains the original malformed history', errs.length === 1 && errs[0]!.includes('paused for the rest of this run'), `${JSON.stringify(errs)} — the typed refusal row must be the only error row and say paused for the rest of this run (src/services/compact/compact/refusals.ts)`)
-  check('no prune is claimed for malformed history', !notices.some(t => /pruned \d+ superseded tool-result bod/.test(t)), `${JSON.stringify(notices)} — a malformed-history refusal must not claim a prune (overflowRecoveryNotice in src/services/compact/overflowRecovery.ts)`)
+  check('a typed refusal retains the original malformed history', errs.length === 1 && errs[0]!.includes('paused for the rest of this run'), `${JSON.stringify(errs)} — the typed refusal row must be the only error row and say paused for the rest of this run (src/engine/compaction/fold/refusals.ts)`)
+  check('no prune is claimed for malformed history', !notices.some(t => /pruned \d+ superseded tool-result bod/.test(t)), `${JSON.stringify(notices)} — a malformed-history refusal must not claim a prune (overflowRecoveryNotice in src/engine/compaction/overflowRecovery.ts)`)
   check('terminal blocking_limit', r.terminal.reason === 'blocking_limit', `${JSON.stringify(r.terminal)} — with compaction paused the run must end at the blocking limit`)
 
   section('C2 a manual /compact after that pause still makes its request, and reports the reason and the remedies without claiming a pause')
@@ -500,8 +500,8 @@ section('C1 a summariser refused for a malformed history — one attempt, a type
     }
     const wire = fixture.captured.slice(before)
     check('the manual compaction made exactly one summary request', wire.length === 1 && isSummariserRequest(wire[0]!.body), `${wire.length} requests — the manual /compact (src/commands/compact/compact.ts) must make exactly one summary request even after the automatic pause`)
-    check('it failed with the class, the provider\'s call id and the remedies', threw !== undefined && /malformed history/i.test(threw) && threw.includes('call_tlxFSxc72b7dbbq5yBsOGC7a') && threw.includes('/compact') && threw.includes('/clear') && threw.includes('/model'), `${threw ?? 'no error'} — the thrown text must come from compactionRefusedForHistoryText (src/services/compact/compact/refusals.ts)`)
-    check('…and claims no pause: a manual retry stays available', threw !== undefined && !/paused/i.test(threw), `${threw ?? 'no error'} — a manual compaction refusal must not say paused (src/services/compact/compact/refusals.ts)`)
+    check('it failed with the class, the provider\'s call id and the remedies', threw !== undefined && /malformed history/i.test(threw) && threw.includes('call_tlxFSxc72b7dbbq5yBsOGC7a') && threw.includes('/compact') && threw.includes('/clear') && threw.includes('/model'), `${threw ?? 'no error'} — the thrown text must come from compactionRefusedForHistoryText (src/engine/compaction/fold/refusals.ts)`)
+    check('…and claims no pause: a manual retry stays available', threw !== undefined && !/paused/i.test(threw), `${threw ?? 'no error'} — a manual compaction refusal must not say paused (src/engine/compaction/fold/refusals.ts)`)
   }
 
   section('C3 a subsequent query on the same history makes one fresh attempt — the pause was the run\'s — and says so in the run\'s own scope')
@@ -515,7 +515,7 @@ section('C1 a summariser refused for a malformed history — one attempt, a type
     const again = await drive(ctxD, seed)
     delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
     const summaries = again.wire.filter(w => isSummariserRequest(w.body))
-    check('the subsequent query made exactly one summary request (one attempt per run, never a loop within it)', again.threw === undefined && summaries.length === 1 && again.wire.length === 1, `threw=${again.threw ?? 'no'} requests=${again.wire.length} — the pause belongs to one run: a new query must make one fresh attempt and no more (src/services/compact/autoCompact.ts)`)
+    check('the subsequent query made exactly one summary request (one attempt per run, never a loop within it)', again.threw === undefined && summaries.length === 1 && again.wire.length === 1, `threw=${again.threw ?? 'no'} requests=${again.wire.length} — the pause belongs to one run: a new query must make one fresh attempt and no more (src/engine/compaction/autoFold.ts)`)
     const lineAgain = noticeTexts(again.yields).find(t => /malformed history/i.test(t))
     check('its line names the run, not the session', lineAgain !== undefined && lineAgain.includes('paused for the rest of this run') && !/for this session/.test(lineAgain), lineAgain ?? JSON.stringify(noticeTexts(again.yields)))
   }
@@ -541,12 +541,12 @@ section('N1 only a pairing complaint is the malformed-history class — a parame
   for (const negative of negatives) {
     fixture.script([negative.body, { text: 'never reached' }])
     const r = await compactOnce(ctxN, historyN, '16000')
-    check(`${negative.name}: one summary request, one failure counted, no pause`, r.threw === undefined && r.wire.length === 1 && r.result.wasCompacted === false && r.result.consecutiveFailures === 1 && r.result.paused === undefined, `only a pairing complaint may pause (PAIRING_COMPLAINTS in src/services/compact/compact/refusals.ts); threw=${r.threw ?? 'no'} requests=${r.wire.length} result=${JSON.stringify({ consecutiveFailures: r.result.consecutiveFailures, paused: r.result.paused, refusal: String(r.result.refusal ?? '').slice(0, 120) })}`)
+    check(`${negative.name}: one summary request, one failure counted, no pause`, r.threw === undefined && r.wire.length === 1 && r.result.wasCompacted === false && r.result.consecutiveFailures === 1 && r.result.paused === undefined, `only a pairing complaint may pause (PAIRING_COMPLAINTS in src/engine/compaction/fold/refusals.ts); threw=${r.threw ?? 'no'} requests=${r.wire.length} result=${JSON.stringify({ consecutiveFailures: r.result.consecutiveFailures, paused: r.result.paused, refusal: String(r.result.refusal ?? '').slice(0, 120) })}`)
     check(`${negative.name}: the reason still rides the refusal, unclassified`, typeof r.result.refusal === 'string' && (r.result.refusal as string).includes(negative.body.error.body.error.message) && !/malformed history/i.test(r.result.refusal as string), String(r.result.refusal ?? ''))
   }
   fixture.script([refusal('No tool output found for function call call_tlxFSxc72b7dbbq5yBsOGC7a.'), { text: 'never reached' }])
   const positive = await compactOnce(ctxN, historyN, '16000')
-  check('the pairing complaint itself: one summary request, the breaker at once, the pause', positive.threw === undefined && positive.wire.length === 1 && positive.result.consecutiveFailures === 3 && positive.result.paused === true, `a pairing complaint must trip the breaker at once (src/services/compact/compact/refusals.ts, src/services/compact/autoCompact.ts); threw=${positive.threw ?? 'no'} requests=${positive.wire.length} result=${JSON.stringify({ consecutiveFailures: positive.result.consecutiveFailures, paused: positive.result.paused })}`)
+  check('the pairing complaint itself: one summary request, the breaker at once, the pause', positive.threw === undefined && positive.wire.length === 1 && positive.result.consecutiveFailures === 3 && positive.result.paused === true, `a pairing complaint must trip the breaker at once (src/engine/compaction/fold/refusals.ts, src/engine/compaction/autoFold.ts); threw=${positive.threw ?? 'no'} requests=${positive.wire.length} result=${JSON.stringify({ consecutiveFailures: positive.result.consecutiveFailures, paused: positive.result.paused })}`)
   check("…its line names the class and the provider's call id", typeof positive.result.refusal === 'string' && /malformed history/i.test(positive.result.refusal as string) && (positive.result.refusal as string).includes('call_tlxFSxc72b7dbbq5yBsOGC7a'), String(positive.result.refusal ?? ''))
 }
 
@@ -565,7 +565,7 @@ section('C4 the cache-sharing path (the Anthropic wire): a pairing refusal is cl
   fixture.script([{ error: { status: 400, body: ANTHROPIC_PAIRING_REFUSAL } }, { error: { status: 400, body: ANTHROPIC_PAIRING_REFUSAL } }, { text: 'never reached' }])
   const r = await compactOnce(ctxF, historyF)
   check('exactly one summary request reached the Anthropic wire (no hand-over to the direct call)', r.threw === undefined && r.wire.length === 1 && r.wire[0]!.dialect === 'anthropic', `threw=${r.threw ?? 'no'} requests=${JSON.stringify(r.wire.map(w => w.dialect))}`)
-  check("…and the fold's road record reads that request as the fork lane's own: one row, fork:refused", r.roads.length === 1 && (r.roads[0] ?? '').startsWith('fork:refused'), `${r.roads.join(' · ') || 'no row'} — summarizeViaCacheSharingFork (src/services/compact/compact.ts) hands a failure of its nested turn to the direct lane, which meets the same refusal: the context makeCtx builds must let that turn start (startTurn) and carry what runForkedAgent reads`)
+  check("…and the fold's road record reads that request as the fork lane's own: one row, fork:refused", r.roads.length === 1 && (r.roads[0] ?? '').startsWith('fork:refused'), `${r.roads.join(' · ') || 'no row'} — summarizeViaCacheSharingFork (src/engine/compaction/foldConversation.ts) hands a failure of its nested turn to the direct lane, which meets the same refusal: the context makeCtx builds must let that turn start (startTurn) and carry what runForkedAgent reads`)
   check('the breaker applied at once and the pause is the run\'s', r.result.consecutiveFailures === 3 && r.result.paused === true && typeof r.result.refusal === 'string' && (r.result.refusal as string).includes('paused for the rest of this run'), JSON.stringify({ consecutiveFailures: r.result.consecutiveFailures, paused: r.result.paused }))
   check("the line names the class and carries the provider's own words, the call id included", typeof r.result.refusal === 'string' && /malformed history/i.test(r.result.refusal as string) && (r.result.refusal as string).includes('call_bad') && (r.result.refusal as string).includes('without `tool_result` blocks'), String(r.result.refusal ?? ''))
 
@@ -574,7 +574,7 @@ section('C4 the cache-sharing path (the Anthropic wire): a pairing refusal is cl
   fixture.script([{ error: { status: 400, body: ANTHROPIC_PARAMETER_REFUSAL } }, { error: { status: 400, body: ANTHROPIC_PARAMETER_REFUSAL } }, { text: 'never reached' }])
   const h = await compactOnce(ctxF, historyF)
   check('two requests: the cache-sharing call, then the direct call it handed over to', h.threw === undefined && h.wire.length === 2 && h.wire.every(w => w.dialect === 'anthropic'), `threw=${h.threw ?? 'no'} requests=${JSON.stringify(h.wire.map(w => w.dialect))}`)
-  check("…and the road record reads the hand-over as the fork lane's own decision on the answer it got: fork:handover (no usable summary), then direct:refused", h.roads.length === 2 && h.roads[0] === 'fork:handover (no usable summary)' && (h.roads[1] ?? '').startsWith('direct:refused'), `${h.roads.join(' · ') || 'no row'} — a fork row that hands over for another reason is a failure of the nested turn itself (src/services/compact/compact.ts, summarizeViaCacheSharingFork): the context makeCtx builds must let that turn start`)
+  check("…and the road record reads the hand-over as the fork lane's own decision on the answer it got: fork:handover (no usable summary), then direct:refused", h.roads.length === 2 && h.roads[0] === 'fork:handover (no usable summary)' && (h.roads[1] ?? '').startsWith('direct:refused'), `${h.roads.join(' · ') || 'no row'} — a fork row that hands over for another reason is a failure of the nested turn itself (src/engine/compaction/foldConversation.ts, summarizeViaCacheSharingFork): the context makeCtx builds must let that turn start`)
   check('one failure counted, no pause, the reason carried', h.result.consecutiveFailures === 1 && h.result.paused === undefined && typeof h.result.refusal === 'string' && (h.result.refusal as string).includes("Unknown parameter: 'parallel_tool_calls'") && !/malformed history/i.test(h.result.refusal as string), JSON.stringify({ consecutiveFailures: h.result.consecutiveFailures, paused: h.result.paused, refusal: String(h.result.refusal ?? '').slice(0, 120) }))
 }
 

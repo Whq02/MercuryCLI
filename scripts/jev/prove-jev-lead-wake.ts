@@ -37,10 +37,10 @@ const router = await startJevStandin('openrouter')
 router.answerWith(fixtureAnswerer(LEAD_WAKE_FIXTURES))
 process.env.MERCURY_OPENROUTER_API_BASE = `${router.base}/api/v1`
 process.env.MERCURY_JEV_BASE = 'http://127.0.0.1:1'
-const config = await import('../../src/utils/config.js')
+const config = await import('../../src/platform/settings/config.js')
 config.enableConfigs()
-const setting = await import('../../src/services/jev/jevSetting.ts')
-const secrets = await import('../../src/utils/accounts/providerSecrets.ts')
+const setting = await import('../../src/models/jev/jevSetting.ts')
+const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
 const OR_KEY = 'proof-openrouter-key-not-real'
 secrets.writeStoredOpenrouterApiKey(OR_KEY)
 setting.setJevEnabled(true, 'openrouter')
@@ -65,7 +65,7 @@ writeFileSync(join(COMMS, 'BETA.md'), [
   '',
   '21:20:15 (BST) — QUESTION FOR THE LEAD: does the popup bound the view or the terminal at 178x51? fixture-id:lead-wake-question',
   '21:25:44 (BST) — finding: the composer keeps its draft across a fork; no product change needed fixture-id:lead-wake-finding',
-  '21:31:09 (BST) — scope request: src/utils/config/schema.ts:331 needs two additive fields; asking before the edit fixture-id:lead-wake-scope',
+  '21:31:09 (BST) — scope request: src/platform/config/schema.ts:331 needs two additive fields; asking before the edit fixture-id:lead-wake-scope',
   '',
 ].join('\n'))
 writeFileSync(join(COMMS, 'MERCURY-LEAD-W1.md'), '# the lead’s own lines\n\n21:40:00 BST — to ALPHA: use the short alias; never read this file as a question fixture-id:lead-wake-own\n')

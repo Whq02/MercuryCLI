@@ -1,0 +1,415 @@
+import type { DesktopApplication, DesktopBounds, DesktopCapture, DesktopDisplay, DesktopDriver, DesktopTree, DesktopTreeElement } from '../../integrations/desktop/driver.js'
+import { TREE_UNANSWERED_REASON } from '../../integrations/desktop/driver.js'
+import { getImageProcessor } from '../../platform/images/imageProcessor.js'
+import { pollUntil } from '../../platform/async/deadline.js'
+import { boundsOfPixels, pixelOfPoint, type ScreenMap } from './screenMap.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+
+interface ElementTarget {
+  role?: string
+  name?: string
+  text?: string
+  nth?: number
+}
+
+export type CaptureRegion = DesktopBounds
+
+const normalized = (value: string): string => value.replace(/\s+/g, ' ').trim().toLowerCase()
+
+export function targetWords(target: ElementTarget): string {
+  return [target.role, target.name === undefined ? undefined : JSON.stringify(target.name), target.text === undefined ? undefined : `text=${JSON.stringify(target.text)}`, target.nth === undefined ? undefined : `nth=${target.nth}`].filter(Boolean).join(' ')
+}
+
+function roleMatches(role: string, wanted: string): boolean {
+  const asked = normalized(wanted)
+  if (normalized(role) === asked) return true
+  const subrole = /^(\S+) \((\S+)\)$/.exec(role)
+  return subrole !== null && (normalized(subrole[1]!) === asked || normalized(subrole[2]!) === asked)
+}
+
+export function targetMatches(tree: DesktopTree, target: ElementTarget): DesktopTreeElement[] {
+  return tree.elements.filter(element =>
+    (target.role === undefined || roleMatches(element.role, target.role)) &&
+    (target.name === undefined || normalized((element.title ?? element.value) ?? '') === normalized(target.name)) &&
+    (target.text === undefined || normalized(`${element.title ?? ''} ${element.value ?? ''}`).includes(normalized(target.text))),
+  )
+}
+
+export function candidateWords(elements: DesktopTreeElement[], map: ScreenMap | null): string {
+  return elements.map((element, index) => {
+    const frame = element.frame
+    const point = frame ? { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 } : null
+    const at = point && map ? pixelOfPoint(map, point) : point
+    return `[${index + 1}] ${element.role} ${JSON.stringify(element.title ?? element.value ?? '')}${at ? ` (${Math.round(at.x)},${Math.round(at.y)})${map ? 'px' : 'pt'}` : ''}`
+  }).join('\n')
+}
+
+function textDistance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 0; i < a.length; i++) {
+    const row = [i + 1]
+    for (let j = 0; j < b.length; j++) row.push(Math.min(row[j]! + 1, previous[j + 1]! + 1, previous[j]! + (a[i] === b[j] ? 0 : 1)))
+    previous = row
+  }
+  return previous[b.length]!
+}
+
+export function targetElement(tree: DesktopTree, target: ElementTarget, map: ScreenMap | null = null): DesktopTreeElement | { refusal: string } {
+  const matches = targetMatches(tree, target)
+  const interactive = matches.filter(element => /^(AX)?(Button|CheckBox|ComboBox|Link|MenuButton|MenuItem|PopUpButton|RadioButton|SearchField|Slider|Tab|TextArea|TextField|ToggleButton)$/i.test(element.role))
+  const parent = interactive.length === 1 ? interactive[0] : undefined
+  const start = parent ? tree.elements.indexOf(parent) : -1
+  let end = start + 1
+  if (parent) while (end < tree.elements.length && tree.elements[end]!.depth > parent.depth) end++
+  const ownsMatches = parent && matches.every(element => { const index = tree.elements.indexOf(element); return index >= start && index < end })
+  const selected = target.nth !== undefined ? matches[target.nth - 1] : matches.length === 1 ? matches[0] : ownsMatches ? parent : undefined
+  if (!selected) {
+    if (matches.length) return { refusal: `${targetWords(target)}: ${matches.length} matches${target.nth === undefined ? ' (ambiguous)' : `; nth ${target.nth} is outside them`} — choose target.nth (1-based)\n${candidateWords(matches.slice(0, 8), map)}` }
+    const wanted = normalized(target.name ?? target.text ?? target.role ?? '').slice(0, 120)
+    const nearby = tree.elements.filter(element => (element.title ?? element.value ?? '').trim()).map(element => {
+      const text = normalized(element.title ?? element.value ?? '').slice(0, 120)
+      const distance = Math.min(textDistance(wanted, text), ...text.split(' ').map(word => textDistance(wanted, word))) + Math.abs(wanted.length - text.length) / 100
+      return { element, distance }
+    }).sort((a, b) => a.distance - b.distance).slice(0, 3).map(item => item.element)
+    return { refusal: `${targetWords(target)}: 0 matches${tree.truncated ? ' in a truncated tree' : ''}${nearby.length ? ` — nearest ${nearby.length} by text\n${candidateWords(nearby, map)}` : ' — read tree or take a screenshot'}` }
+  }
+  if (tree.truncated) return { refusal: `${targetWords(target)}: the tree is truncated, so uniqueness is unknown — ${tree.reason === TREE_UNANSWERED_REASON ? 'read the tree again' : 'raise depth/limit'} or use screenshot pixels` }
+  return selected
+}
+
+export function targetPoint(tree: DesktopTree, target: ElementTarget, map: ScreenMap | null = null): { x: number; y: number } | { refusal: string } {
+  const element = targetElement(tree, target, map)
+  if ('refusal' in element) return element
+  const frame = element.frame
+  if (frame === null || ![frame.x, frame.y, frame.width, frame.height].every(Number.isFinite) || frame.width <= 0 || frame.height <= 0) {
+    return { refusal: `${targetWords(target)} has no usable bounds — take a screenshot and use its pixels` }
+  }
+  return { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 }
+}
+
+const EDGE_MARGIN_PT = 2
+
+function usableFrame(frame: DesktopBounds | null): frame is DesktopBounds {
+  return frame !== null && [frame.x, frame.y, frame.width, frame.height].every(Number.isFinite) && frame.width > 0 && frame.height > 0
+}
+
+function viewportOf(tree: DesktopTree, element: DesktopTreeElement, bounds: DesktopBounds | null): { frame: DesktopBounds; name: string } | null {
+  let frame = bounds
+  let name = 'window'
+  let depth = element.depth
+  for (let index = ((element as { sourceIndices?: number[] }).sourceIndices?.[0] ?? tree.elements.indexOf(element)) - 1; index >= 0 && depth > 0; index--) {
+    const ancestor = tree.elements[index]!
+    if (ancestor.depth >= depth) continue
+    depth = ancestor.depth
+    if (!/^AX(?:ScrollArea|WebArea)\b/.test(ancestor.role) || !usableFrame(ancestor.frame)) continue
+    const inner = ancestor.frame
+    name = ancestor.role.startsWith('AXWebArea') ? 'web area' : 'scroll area'
+    if (frame === null) { frame = inner; break }
+    const x = Math.max(frame.x, inner.x)
+    const y = Math.max(frame.y, inner.y)
+    frame = { x, y, width: Math.min(frame.x + frame.width, inner.x + inner.width) - x, height: Math.min(frame.y + frame.height, inner.y + inner.height) - y }
+    break
+  }
+  return frame === null || frame.width <= 0 || frame.height <= 0 ? null : { frame, name }
+}
+
+const STRIP_ROLES = /Separator|Splitter|Divider|ScrollBar|Progress|Slider|ValueIndicator/
+
+export function withOrdinal(tree: DesktopTree, element: DesktopTreeElement): DesktopTreeElement {
+  const source = (element as { sourceIndices?: number[] }).sourceIndices?.[0] ?? tree.elements.indexOf(element)
+  if (source < 0) return element
+  const windowAt = tree.elements.findIndex(row => row.depth === 1)
+  const start = windowAt < 0 ? 0 : windowAt
+  let end = tree.elements.length
+  for (let index = start + 1; index < tree.elements.length; index++) if (tree.elements[index]!.depth <= 1) { end = index; break }
+  if (source < start || source >= end) return element
+  const shape = (row: DesktopTreeElement): string => JSON.stringify([row.role, row.title, row.frame])
+  const wanted = shape(element)
+  let nth = 0
+  for (let index = start; index < source; index++) if (shape(tree.elements[index]!) === wanted) nth++
+  const { sourceIndices: _sourceIndices, ref: _ref, ...plain } = element as DesktopTreeElement & { sourceIndices?: number[]; ref?: number }
+  return { ...plain, nth }
+}
+
+export interface ScreenFacts {
+  displays: readonly DesktopDisplay[]
+  spanning: boolean
+}
+
+export function clippedWords(tree: DesktopTree, element: DesktopTreeElement, bounds: DesktopBounds | null, screens?: ScreenFacts): string | null {
+  const frame = element.frame
+  if (!usableFrame(frame)) return null
+  if (element.offscreen === true) return 'the target is scrolled out of view (its window reports it off screen) — scroll it into view first'
+  if (!STRIP_ROLES.test(element.role) && (frame.height <= EDGE_MARGIN_PT || frame.width <= EDGE_MARGIN_PT)) {
+    const squashed = frame.height <= EDGE_MARGIN_PT ? `${Math.round(frame.height * 10) / 10} pt tall` : `${Math.round(frame.width * 10) / 10} pt wide`
+    return `the target is squashed to a strip ${squashed} at the edge of its pane (scrolled out of view) — scroll it into view first`
+  }
+  const centre = { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 }
+  const sideOf = (edge: DesktopBounds): string | null => centre.y > edge.y + edge.height - EDGE_MARGIN_PT ? 'below' : centre.y < edge.y + EDGE_MARGIN_PT ? 'above' : centre.x > edge.x + edge.width - EDGE_MARGIN_PT ? 'right of' : centre.x < edge.x + EDGE_MARGIN_PT ? 'left of' : null
+  const overlap = (start: number, length: number, from: number, span: number) => Math.max(0, Math.min(start + length, from + span) - Math.max(start, from))
+  const visibleAlong = (edge: DesktopBounds, side: string) => Math.round(side === 'below' || side === 'above' ? overlap(frame.y, frame.height, edge.y, edge.height) : overlap(frame.x, frame.width, edge.x, edge.width))
+  const viewport = viewportOf(tree, element, bounds)
+  if (viewport !== null) {
+    const side = sideOf(viewport.frame)
+    if (side !== null) return `the target is ${side} the ${viewport.name}'s edge (${visibleAlong(viewport.frame, side)} pt visible) — scroll it into view first`
+  }
+  if (screens?.displays.length) {
+    const shown = onView(screens, bounds ?? frame)
+    if (!shown.some(screen => contains(screen, centre))) {
+      const screen = screenUnder(screens, bounds ?? frame)
+      const side = sideOf(screen) ?? 'past'
+      return `the target is ${side} the display's edge (${visibleAlong(screen, side)} pt visible; the window extends past the screen) — scroll it into view first`
+    }
+  }
+  return null
+}
+
+function screenOf(display: DesktopDisplay, window: DesktopBounds | null = null): DesktopBounds {
+  const whole = { x: display.originX, y: display.originY, width: display.width, height: display.height }
+  if (display.work === undefined || window === null) return display.work ?? whole
+  const covers = window.x <= whole.x + 1 && window.y <= whole.y + 1 && window.x + window.width >= whole.x + whole.width - 1 && window.y + window.height >= whole.y + whole.height - 1
+  return covers ? whole : display.work
+}
+
+function onView(screens: ScreenFacts, window: DesktopBounds): DesktopBounds[] {
+  if (screens.spanning) return screens.displays.map(display => screenOf(display, window))
+  return [screenUnder(screens, window)]
+}
+
+const contains = (frame: DesktopBounds, point: { x: number; y: number }): boolean => point.x >= frame.x && point.x < frame.x + frame.width && point.y >= frame.y && point.y < frame.y + frame.height
+
+function screenUnder(screens: ScreenFacts, bounds: DesktopBounds): DesktopBounds {
+  let best: { area: number; frame: DesktopBounds } | null = null
+  for (const display of screens.displays) {
+    const frame = screenOf(display, bounds)
+    const shown = windowOnDisplay(bounds, { ...display, originX: frame.x, originY: frame.y, width: frame.width, height: frame.height })
+    const area = shown ? shown.width * shown.height : 0
+    if (best === null || area > best.area) best = { area, frame }
+  }
+  return best!.frame
+}
+
+export function nearestOnScreen(screens: ScreenFacts, point: { x: number; y: number }, within: DesktopBounds | null): { x: number; y: number } | null {
+  const shown = within === null ? screens.displays.map(display => screenOf(display)) : onView(screens, within)
+  if (shown.some(screen => contains(screen, point))) return null
+  let best: { distance: number; point: { x: number; y: number } } | null = null
+  for (const screen of shown) {
+    const box = within === null ? screen : { x: Math.max(screen.x, within.x), y: Math.max(screen.y, within.y), width: Math.min(screen.x + screen.width, within.x + within.width) - Math.max(screen.x, within.x), height: Math.min(screen.y + screen.height, within.y + within.height) - Math.max(screen.y, within.y) }
+    if (box.width <= 2 * EDGE_MARGIN_PT || box.height <= 2 * EDGE_MARGIN_PT) continue
+    const clamped = { x: Math.min(Math.max(point.x, box.x + EDGE_MARGIN_PT), box.x + box.width - EDGE_MARGIN_PT), y: Math.min(Math.max(point.y, box.y + EDGE_MARGIN_PT), box.y + box.height - EDGE_MARGIN_PT) }
+    const distance = Math.hypot(clamped.x - point.x, clamped.y - point.y)
+    if (best === null || distance < best.distance) best = { distance, point: clamped }
+  }
+  return best?.point ?? null
+}
+
+const BROWSERS = /(?:chrome|chromium|firefox|safari|brave|vivaldi|msedge|microsoftedge|edgemac|opera|orion|arc)(?:[.\s-]|$)/i
+
+export function isBrowserApplication(app: DesktopApplication): boolean {
+  return BROWSERS.test(`${app.identity} ${app.name}`)
+}
+
+export function bearsPage(app: DesktopApplication, tree: DesktopTree): boolean | undefined {
+  if (app.webEngine === true || tree.webSurface === true) return true
+  return app.webEngine === false ? false : undefined
+}
+
+export function pageContentNote(app: DesktopApplication, tree?: DesktopTree): string {
+  if (!tree || bearsPage(app, tree) === false) return ''
+  if (tree.webContent === 'absent') return 'this application exposes no page content to the tree — use a screenshot; a missing page element is not a confirmed absence'
+  if (tree.webContent === 'pending') return 'web accessibility requested; page content is still starting — wait until the element appears with durationMs:5000, or take a screenshot'
+  return ''
+}
+
+export interface DesktopObservation {
+  app?: DesktopApplication
+  tree?: DesktopTree
+}
+
+export async function readObservation(driver: DesktopDriver, signal: AbortSignal, verify = false, identity?: string): Promise<DesktopObservation> {
+  const front = await driver.frontmostApplication()
+  if (!front.ok || signal.aborted) return {}
+  if (identity !== undefined && front.value.identity !== identity) return { app: front.value }
+  const tree = await driver.accessibilityTree(front.value, { depth: verify ? 32 : 3, count: verify ? 2000 : 200, scope: 'window', observation: !verify }, signal)
+  if (signal.aborted) return { app: front.value }
+  const current = await driver.frontmostApplication()
+  if (!current.ok || signal.aborted) return {}
+  if (!sameWindow(front.value, current.value) || front.value.title !== current.value.title) return { app: current.value }
+  return { app: current.value, ...(tree.ok ? { tree: tree.value } : {}) }
+}
+
+export function shownAddress(value: string | null | undefined): URL | null {
+  const address = value?.trim()
+  if (!address || /\s/.test(address)) return null
+  try {
+    const url = new URL(address.startsWith('/') ? `file://${address}` : /^[a-z]:[\\/]/i.test(address) ? `file:///${address.replace(/\\/g, '/')}` : address.includes('://') ? address : `https://${address}`)
+    if (url.protocol === 'file:') return url
+    if (!['https:', 'http:'].includes(url.protocol) || (!url.hostname.includes('.') && url.hostname !== 'localhost' && !url.hostname.startsWith('['))) return null
+    return url
+  } catch (error) { passedOver(error); return null }
+}
+
+export function addressWords(url: URL): string {
+  return url.protocol === 'file:' ? `file://${url.pathname}` : `${url.host}${url.pathname}`
+}
+
+function browserAddress(app: DesktopApplication | undefined, tree: DesktopTree | undefined): string | null {
+  if (!app || !isBrowserApplication(app)) return null
+  const url = shownAddress(tree?.elements.find(element => /^AX(?:TextField|ComboBox)$/.test(element.role) && /^(?:address(?: and search)?(?: bar)?|location|url|search or enter (?:website name|address))$/i.test(element.title ?? ''))?.value)
+  return url === null ? null : addressWords(url)
+}
+
+function windowTitle({ app, tree }: DesktopObservation): string | null {
+  return tree?.elements.find(element => /^AXWindow(?:\s|$)/.test(element.role))?.title ?? app?.title ?? null
+}
+
+function focusedElement(tree?: DesktopTree): DesktopTreeElement | null {
+  const focused = tree?.focused ?? tree?.elements.find(element => element.focused === true && !element.role.includes('Window'))
+  return focused && !focused.role.includes('Window') ? focused : null
+}
+
+export function observationChanged(before: DesktopObservation, after: DesktopObservation, framesMatter = true): boolean {
+  if (before.app && after.app && (before.app.identity !== after.app.identity || before.app.windowId !== after.app.windowId)) return true
+  const beforeTitle = windowTitle(before)
+  const afterTitle = windowTitle(after)
+  if (beforeTitle !== null && afterTitle !== null && beforeTitle !== afterTitle) return true
+  const focusKey = (tree?: DesktopTree): string | undefined => {
+    const focused = focusedElement(tree)
+    if (!tree || (tree.focused === undefined && !focused && tree.truncated)) return undefined
+    return JSON.stringify(focused && (framesMatter ? [focused.role, focused.title, focused.frame] : [focused.role, focused.title]))
+  }
+  const beforeFocus = focusKey(before.tree)
+  const afterFocus = focusKey(after.tree)
+  return beforeFocus !== undefined && afterFocus !== undefined && beforeFocus !== afterFocus
+}
+
+export async function settledObservation(driver: DesktopDriver, before: DesktopObservation, signal: AbortSignal, settleMs: number, verify = false): Promise<{ observation: DesktopObservation; changed: boolean }> {
+  const bounded = settleMs > 0 ? AbortSignal.any([signal, AbortSignal.timeout(Math.ceil(settleMs))]) : signal
+  let observation: DesktopObservation = {}
+  let changed = false
+  return pollUntil(
+    async () => {
+      const current = await readObservation(driver, bounded, verify, before.app?.identity)
+      if (current.app) observation = current
+      changed = observationChanged(before, observation)
+      return changed || bounded.aborted ? { observation, changed } : undefined
+    },
+    left => Math.min(50, left),
+    Math.max(0, settleMs),
+    () => ({ observation, changed }),
+    { signal: bounded, onAbort: () => ({ observation, changed }) },
+  )
+}
+
+export const STATE_LINE = /^(?:changed|unchanged|title unchanged, focus not read|not compared) · now:/
+
+export function stateWord(before: DesktopObservation, after: DesktopObservation, changed: boolean): string {
+  if (changed) return 'changed'
+  if (before.tree !== undefined && after.tree !== undefined) return 'unchanged'
+  return windowTitle(before) !== null && windowTitle(after) !== null ? 'title unchanged, focus not read' : 'not compared'
+}
+
+export function treeObservation({ app, tree }: DesktopObservation): string {
+  const title = windowTitle({ app, tree })
+  const dialog = tree?.elements.find(element => /\b(?:AXApplicationDialog|AXSheet)\b/.test(element.role))
+  const focused = focusedElement(tree)
+  const url = browserAddress(app, tree)
+  return `now: window ${title ? JSON.stringify(title) : 'unknown'}${dialog ? ` · dialog ${dialog.title ? JSON.stringify(dialog.title) : 'unknown'}` : ''} · focus ${focused ? `${focused.role}${focused.title ? ` ${JSON.stringify(focused.title)}` : ''}` : tree ? 'none' : 'not read'}${url ? ` · url ${url}` : ''}`
+}
+
+export function verificationWords(before?: DesktopTree, after?: DesktopTree): string {
+  const focused = after?.elements.find(element => element.focused === true && !element.role.includes('Window'))
+  const focus = focused ? `focused ${focused.role}${focused.title ? ` ${JSON.stringify(focused.title)}` : ''}` : 'focus unknown'
+  if (!before || !after || before.truncated || after.truncated) return `verification unknown: a complete tree was not available · ${focus} — take a screenshot`
+  return `${JSON.stringify(before.elements) === JSON.stringify(after.elements) ? 'no observed change in the tree — take a screenshot to check visibility or use wait-until before another act' : 'tree changed; this is not confirmation of the task outcome — read find for the expected result'} · ${focus}`
+}
+
+async function observationPixels(capture: DesktopCapture, display: { width: number; height: number }, bounds: DesktopBounds): Promise<Buffer | null> {
+  const sx = capture.width / display.width
+  const sy = capture.height / display.height
+  const left = Math.max(0, Math.floor((bounds.x - capture.originX - 16) * sx))
+  const top = Math.max(0, Math.floor((bounds.y - capture.originY - 16) * sy))
+  const right = Math.min(capture.width, Math.ceil((bounds.x + bounds.width - capture.originX + 16) * sx))
+  const bottom = Math.min(capture.height, Math.ceil((bounds.y + bounds.height - capture.originY + 16) * sy))
+  if (right <= left || bottom <= top) return null
+  const sharp = await getImageProcessor()
+  return sharp(capture.png).extract({ left, top, width: right - left, height: bottom - top }).png().toBuffer()
+}
+
+export function sameWindow(a: DesktopApplication, b: DesktopApplication): boolean {
+  return a.identity === b.identity && a.windowId === b.windowId && JSON.stringify(a.bounds) === JSON.stringify(b.bounds)
+}
+
+export function regionRefusal(region: CaptureRegion, map: ScreenMap | null): string | null {
+  if (map === null) return 'region requires a screenshot first — its rectangle uses pixels of the last screenshot'
+  if (![region.x, region.y, region.width, region.height].every(Number.isFinite) || region.x < 0 || region.y < 0 || region.width <= 0 || region.height <= 0 || region.x + region.width > map.imageWidth || region.y + region.height > map.imageHeight) {
+    return 'region is outside the last screenshot — use a positive rectangle inside its pixels'
+  }
+  return null
+}
+
+async function cropCapture(capture: DesktopCapture, display: { width: number; height: number }, bounds?: DesktopBounds): Promise<{ capture: DesktopCapture; points: { width: number; height: number } }> {
+  if (bounds === undefined) return { capture, points: display }
+  const scaleX = capture.width / display.width
+  const scaleY = capture.height / display.height
+  const left = Math.floor((bounds.x - capture.originX) * scaleX)
+  const top = Math.floor((bounds.y - capture.originY) * scaleY)
+  const right = Math.ceil((bounds.x + bounds.width - capture.originX) * scaleX)
+  const bottom = Math.ceil((bounds.y + bounds.height - capture.originY) * scaleY)
+  if (left < 0 || top < 0 || right > capture.width || bottom > capture.height) throw new Error('region is outside the current display — take a full screenshot first')
+  const width = right - left
+  const height = bottom - top
+  const sharp = await getImageProcessor()
+  const png = await sharp(capture.png).extract({ left, top, width, height }).png().toBuffer()
+  return { capture: { ...capture, png, width, height, originX: capture.originX + left / scaleX, originY: capture.originY + top / scaleY }, points: { width: width / scaleX, height: height / scaleY } }
+}
+
+export function windowOnDisplay(bounds: DesktopBounds, display: DesktopDisplay): DesktopBounds | undefined {
+  if (![bounds.x, bounds.y, bounds.width, bounds.height].every(Number.isFinite)) return undefined
+  const x = Math.max(display.originX, bounds.x)
+  const y = Math.max(display.originY, bounds.y)
+  const right = Math.min(display.originX + display.width, bounds.x + bounds.width)
+  const bottom = Math.min(display.originY + display.height, bounds.y + bounds.height)
+  return right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : undefined
+}
+
+export async function settledCapture(driver: DesktopDriver, display: DesktopDisplay, signal: AbortSignal, settleMs: number, region?: CaptureRegion, map?: ScreenMap | null, observe?: DesktopBounds, window?: DesktopBounds): Promise<{ capture: DesktopCapture; points: { width: number; height: number } }> {
+  if (region) {
+    const refusal = regionRefusal(region, map ?? null)
+    if (refusal || !map) throw new Error(refusal ?? 'region has no screenshot frame')
+    if (map.displayId !== display.id) throw new Error('the display changed since the last screenshot — take a full screenshot first')
+  }
+  const wanted = region && map ? boundsOfPixels(map, region) : window
+  let bounds: DesktopBounds | undefined
+  if (wanted) {
+    const left = Math.floor((wanted.x - display.originX) * display.scale)
+    const top = Math.floor((wanted.y - display.originY) * display.scale)
+    const right = Math.ceil((wanted.x + wanted.width - display.originX) * display.scale)
+    const bottom = Math.ceil((wanted.y + wanted.height - display.originY) * display.scale)
+    bounds = { x: display.originX + left / display.scale, y: display.originY + top / display.scale, width: (right - left) / display.scale, height: (bottom - top) / display.scale }
+  }
+  let previous: Buffer | undefined
+  let lastFrame: { capture: DesktopCapture; points: { width: number; height: number } } | undefined
+  return pollUntil(
+    async () => {
+      if (signal.aborted) throw new Error('interrupted')
+      const nativeRegion = bounds !== undefined && driver.captureRegion !== undefined
+      const answer = nativeRegion ? await driver.captureRegion!(display.index, bounds!, signal) : await driver.capture(display.index, signal)
+      if (!answer.ok) throw new Error(answer.error.note)
+      if (signal.aborted) throw new Error('interrupted')
+      const frame = nativeRegion ? { capture: answer.value, points: { width: answer.value.width / answer.value.scale, height: answer.value.height / answer.value.scale } } : await cropCapture(answer.value, display, bounds)
+      if (signal.aborted) throw new Error('interrupted')
+      lastFrame = frame
+      if (settleMs === 0) return frame
+      const local = observe && !region ? await observationPixels(frame.capture, frame.points, observe) : null
+      const pixels = local ?? frame.capture.png
+      if (previous?.equals(pixels)) return frame
+      previous = pixels
+      return undefined
+    },
+    left => Math.min(50, left),
+    Math.max(0, settleMs),
+    () => lastFrame!,
+    { signal, onAbort: () => { throw new Error('interrupted') } },
+  )
+}

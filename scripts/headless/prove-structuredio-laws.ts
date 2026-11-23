@@ -7,10 +7,10 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'sio-laws-'))
 
-const { StructuredIO } = await import('../../src/cli/structuredIO.ts')
+const { StructuredIO } = await import('../../src/daemon/runner/structuredIO.ts')
 
 let failures = 0
-const FRAMING_OWNER_HINT = 'change StructuredIO in src/cli/structuredIO.ts: its input stream frames and bounds lines (MAX_LINE_BYTES from src/runner/wire/errors.ts), and inputRefusal and emptyInputRow refuse rows'
+const FRAMING_OWNER_HINT = 'change StructuredIO in src/daemon/runner/structuredIO.ts: its input stream frames and bounds lines (MAX_LINE_BYTES from src/daemon/runner-wire/errors.ts), and inputRefusal and emptyInputRow refuse rows'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const failureText = [detail, FRAMING_OWNER_HINT].filter(part => part !== '').join(' — ')
@@ -23,7 +23,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — structuredIO laws exceeded 60s')
-  console.log('a step waited for a row or a refusal that never came: see the last section header above, and the input stream in StructuredIO in src/cli/structuredIO.ts')
+  console.log('a step waited for a row or a refusal that never came: see the last section header above, and the input stream in StructuredIO in src/daemon/runner/structuredIO.ts')
   process.exit(1)
 }, 60_000)
 guard.unref?.()
@@ -168,7 +168,7 @@ section('S3b — a prompt row whose content is only whitespace is empty too: ref
 
 section('S4 — a line longer than the reader\'s bound is refused and the reader resyncs at the next newline')
 {
-  const { MAX_LINE_BYTES } = await import('../../src/runner/wire/errors.ts')
+  const { MAX_LINE_BYTES } = await import('../../src/daemon/runner-wire/errors.ts')
   const h = makeHarness()
   const half = 'x'.repeat(Math.ceil(MAX_LINE_BYTES / 2) + 16)
   h.pushRaw(`{"type":"prompt","content":"${half}`)
@@ -184,7 +184,7 @@ section('S4 — a line longer than the reader\'s bound is refused and the reader
 
 section('S5 — every complete, split and UTF-8 line obeys the byte bound before parsing')
 {
-  const { MAX_LINE_BYTES } = await import('../../src/runner/wire/errors.ts')
+  const { MAX_LINE_BYTES } = await import('../../src/daemon/runner-wire/errors.ts')
   const prefix = '{"type":"prompt","content":"'
   const suffix = '"}'
   const overhead = Buffer.byteLength(prefix + suffix)

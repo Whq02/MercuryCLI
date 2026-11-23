@@ -21,13 +21,13 @@ delete process.env.MERCURY_ANTHROPIC_OAUTH_BASE
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 
 let failures = 0
-let where = 'getSecureStorage in src/utils/secureStorage/index.ts must accept the seed write in the scratch home'
+let where = 'getSecureStorage in src/platform/secure-storage/index.ts must accept the seed write in the scratch home'
 const WHERES: Record<string, string> = {
-  '§1': 'checkAndRefreshOAuthTokenIfNeeded in src/services/auth/oauthLifecycle.ts must hold the fresh pair in memory when the save is refused, and getOAuthRefreshSaveFailure in src/utils/auth.ts must report it',
-  '§2': 'handleOAuth401Error in src/services/auth/oauthLifecycle.ts must answer true from the held pair without presenting the spent refresh token again',
-  '§3': 'checkAndRefreshOAuthTokenIfNeeded in src/services/auth/oauthLifecycle.ts must present the held refresh token and release the pair once the save lands',
-  '§4': 'the readers in src/utils/auth.ts (getClaudeAIOAuthTokens) must drop a held pair when the store changes under it',
-  '§5': 'checkAndRefreshOAuthTokenIfNeeded in src/services/auth/oauthLifecycle.ts must save the refreshed pair and hold nothing when the store is writable',
+  '§1': 'checkAndRefreshOAuthTokenIfNeeded in src/models/sign-in/lifecycle/oauthLifecycle.ts must hold the fresh pair in memory when the save is refused, and getOAuthRefreshSaveFailure in src/models/sign-in/credentials/auth.ts must report it',
+  '§2': 'handleOAuth401Error in src/models/sign-in/lifecycle/oauthLifecycle.ts must answer true from the held pair without presenting the spent refresh token again',
+  '§3': 'checkAndRefreshOAuthTokenIfNeeded in src/models/sign-in/lifecycle/oauthLifecycle.ts must present the held refresh token and release the pair once the save lands',
+  '§4': 'the readers in src/models/sign-in/credentials/auth.ts (getClaudeAIOAuthTokens) must drop a held pair when the store changes under it',
+  '§5': 'checkAndRefreshOAuthTokenIfNeeded in src/models/sign-in/lifecycle/oauthLifecycle.ts must save the refreshed pair and hold nothing when the store is writable',
 }
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
@@ -60,10 +60,10 @@ axios.defaults.adapter = async (config: { url?: string; data?: unknown }) => {
   throw error
 }
 
-const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/config/globalConfig.ts'))
 enableConfigs()
-const auth = { ...(await import(join(SRC, 'utils/auth.ts'))), ...(await import(join(SRC, 'services/auth/oauthLifecycle.ts'))) }
-const { getSecureStorage } = await import(join(SRC, 'utils/secureStorage/index.ts'))
+const auth = { ...(await import(join(SRC, 'models/sign-in/credentials/auth.ts'))), ...(await import(join(SRC, 'models/sign-in/lifecycle/oauthLifecycle.ts'))) }
+const { getSecureStorage } = await import(join(SRC, 'platform/secure-storage/index.ts'))
 
 const CREDENTIALS = join(HOME, '.credentials.json')
 const diskRefreshToken = (): string | undefined =>
@@ -106,7 +106,7 @@ section('§1 A REFUSED SAVE HOLDS THE FRESH PAIR')
   auth.clearOAuthTokenCache()
   issue = { access: 'at_new', refresh: 'rt_new' }
   {
-    const oauth = await import(join(SRC, 'services/oauth/client.ts'))
+    const oauth = await import(join(SRC, 'models/sign-in/oauth/client.ts'))
     try {
       const probed = (await oauth.refreshOAuthToken('rt_probe', {})) as { accessToken?: string }
       console.log(`  probe: the token leg answers ${String(probed.accessToken)} (wire hits so far: ${wire.length})`)

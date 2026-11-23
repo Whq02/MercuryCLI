@@ -1,9 +1,9 @@
 import * as React from 'react'
 import { Suspense, useCallback, useState } from 'react'
 import { writeFileSync, mkdirSync } from 'node:fs'
-import { Box, Text, wrapText } from '../../ink.js'
-import { MemoryCentreView } from '../../components/memory/MemoryCentreView.js'
-import { MemoryFileSelector } from '../../components/memory/MemoryFileSelector.js'
+import { Box, Text, wrapText } from '../../screen/themedRenderer.js'
+import { MemoryCentreView } from '../../screen/memory/MemoryCentreView.js'
+import { MemoryFileSelector } from '../../screen/memory/MemoryFileSelector.js'
 import {
   MEMORY_POPUP_ROWS,
   MEMORY_POPUP_TITLE_VIEW,
@@ -11,28 +11,28 @@ import {
   memoryFooter,
   memoryPopupLine,
   plural,
-} from '../../components/memory/memoryCentreLayout.js'
-import { useSettingsPopupFrame } from '../../components/Settings/Settings.js'
-import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
-import { useLayoutClaim, useLayoutPublish } from '../../hooks/effects.js'
-import { getProjectRoot } from '../../bootstrap/state.js'
-import { getMnemeHome } from '../../mneme/paths.js'
+} from '../../screen/memory/memoryCentreLayout.js'
+import { useSettingsPopupFrame } from '../../screen/settings/Settings.js'
+import { useMercuryTokens } from '../../screen/widgets/useMercuryTokens.js'
+import { useLayoutClaim, useLayoutPublish } from '../../screen/effects/effects.js'
+import { getProjectRoot } from '../../boot/process-state/processState.js'
+import { getMnemeHome } from '../../sessions/mneme/paths.js'
 import {
   clearInstructionFileCaches,
   getInstructionCompositionState,
   getInstructionFiles,
-} from '../../services/instructions/engine.js'
-import { instructionsInMessages, type AttachedInstruction } from '../../services/instructions/attachedText.js'
-import { normalizePathForComparison } from '../../utils/file.js'
-import type { ToolUseContext } from '../../Tool.js'
-import type { LocalJSXCommandOnDone } from '../../types/command.js'
-import { openSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
-import { getErrnoCode } from '../../utils/errors.js'
-import { getMercuryHome } from '../../utils/envUtils.js'
-import { logError } from '../../utils/log.js'
-import { toRelativePath, toTildePath } from '../../utils/path.js'
-import { editFileInEditor } from '../../utils/promptEditor.js'
-import { hostEnv } from '../../utils/hostEnv.js'
+} from '../../sessions/instructions/instructionFiles.js'
+import { instructionsInMessages, type AttachedInstruction } from '../../sessions/instructions/attachedText.js'
+import { normalizePathForComparison } from '../../platform/files/file.js'
+import type { ToolUseContext } from '../../tools/kit/tool.js'
+import type { LocalJSXCommandOnDone } from '../catalogue/command.js'
+import { openSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../screen/cockpit/settingsPopup.js'
+import { getErrnoCode } from '../../platform/errors/errors.js'
+import { getMercuryHome } from '../../platform/environment/envUtils.js'
+import { logError } from '../../platform/logs/errorLog.js'
+import { toRelativePath, toTildePath } from '../../platform/files/path.js'
+import { editFileInEditor } from '../../screen/composer/promptEditor.js'
+import { hostEnv } from '../../platform/environment/hostEnv.js'
 
 export type MemoryRoute = 'centre' | 'files'
 
@@ -191,11 +191,11 @@ export function memoryPopupRequest(initialRoute: MemoryRoute, onDone: LocalJSXCo
 
 async function statsReply(): Promise<string> {
   const { join } = await import('node:path')
-  const { mnemeStatus, readMaintenanceReceipts } = await import('../../mneme/mnemeMaintenance.js')
-  const { memoryVerbsEnabled, memoryVerbsWhyNot } = await import('../../mneme/memoryVerbs.js')
-  const { mnemeLibraryDir } = await import('../../mneme/mnemeGates.js')
-  const { getMemoryBaseDir, mnemeProjectKey, projectRecordsDir } = await import('../../mneme/paths.js')
-  const { mnemeUnreadSentence } = await import('../../mneme/mnemeUnread.js')
+  const { mnemeStatus, readMaintenanceReceipts } = await import('../../sessions/mneme/mnemeMaintenance.js')
+  const { memoryVerbsEnabled, memoryVerbsWhyNot } = await import('../../sessions/mneme/memoryVerbs.js')
+  const { mnemeLibraryDir } = await import('../../sessions/mneme/mnemeGates.js')
+  const { getMemoryBaseDir, mnemeProjectKey, projectRecordsDir } = await import('../../sessions/mneme/paths.js')
+  const { mnemeUnreadSentence } = await import('../../sessions/mneme/mnemeUnread.js')
   const status = mnemeStatus()
   if (!status.enabled) {
     return 'memory is off (memory.enabled is false in settings) — no buffer, no topic pages, no memory verbs.'
@@ -218,7 +218,7 @@ async function statsReply(): Promise<string> {
 }
 
 async function enqueueReply(): Promise<string> {
-  const { runDueMaintenance } = await import('../../mneme/mnemeMaintenance.js')
+  const { runDueMaintenance } = await import('../../sessions/mneme/mnemeMaintenance.js')
   const outcome = await runDueMaintenance('operator', { force: true })
   if (!outcome.ran) return `maintenance did not run: ${outcome.reason}`
   return `maintenance ran (${outcome.reason}) — consolidated: ${outcome.consolidated ? `yes, ${outcome.entries} entr(ies) into ${outcome.docsTouched} doc(s)` : 'nothing to do'} · ${outcome.wallMs}ms`

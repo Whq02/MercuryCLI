@@ -79,7 +79,7 @@ const tee = readFileSync(teePath, 'utf8')
 rmSync(RUN_HOME, { recursive: true, force: true })
 
 t('send receipts recorded', (payload.sendReceipts?.length ?? 0) === 5, `${payload.sendReceipts?.length ?? 0}`, 'the five sends in cfg.sends must each fire in scripts/ui/vshot.py, which records a sendReceipt per send; a send whose awaitText never appeared is not recorded')
-t('the production write tee is live', tee.length > 3, `${tee.length} writes`, 'INK_WRITE_TEE must be honoured by writeDiffToTerminal in src/ink/session/delivery.ts, which appends one line per terminal write')
+t('the production write tee is live', tee.length > 3, `${tee.length} writes`, 'INK_WRITE_TEE must be honoured by writeDiffToTerminal in src/screen/renderer/terminal-session/frameDelivery.ts, which appends one line per terminal write')
 const text = payload.grid.map(r => r.map(c => c.c).join('')).join('\n')
 t('the typed text landed (echo is real, not assumed)', text.includes('hello'), '', 'the five sends never reached the prompt: check the awaitText and tick schedule of cfg.sends in this script and the input path of the frame scenario in scripts/ui/renderScenarios.ts')
 
@@ -88,12 +88,12 @@ const latencies: number[] = []
 for (const s of payload.sendReceipts ?? []) {
   const first = tee.find(w => w.ts >= s.ts)
   if (!first) {
-    t(`key@tick${s.atTick}: a paint followed the key`, false, '', 'no terminal write was teed after the key was sent: INK_WRITE_TEE in src/ink/session/delivery.ts recorded none after this send')
+    t(`key@tick${s.atTick}: a paint followed the key`, false, '', 'no terminal write was teed after the key was sent: INK_WRITE_TEE in src/screen/renderer/terminal-session/frameDelivery.ts recorded none after this send')
     continue
   }
   const d = first.ts - s.ts
   latencies.push(d)
-  t(`key@tick${s.atTick}: input→paint ${d}ms ≤ ${CEILING_MS}ms`, d <= CEILING_MS, '', 'a terminal write landed too long after the key: look at what delays the paint in src/ink/session/delivery.ts writeDiffToTerminal and the render scheduling it follows')
+  t(`key@tick${s.atTick}: input→paint ${d}ms ≤ ${CEILING_MS}ms`, d <= CEILING_MS, '', 'a terminal write landed too long after the key: look at what delays the paint in src/screen/renderer/terminal-session/frameDelivery.ts writeDiffToTerminal and the render scheduling it follows')
 }
 if (latencies.length > 0) {
   const sorted = [...latencies].sort((a, b) => a - b)

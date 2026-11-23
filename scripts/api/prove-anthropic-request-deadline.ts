@@ -1,8 +1,8 @@
 import '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { createServer, type ServerResponse } from 'node:http'
-import { AnthropicClient } from '../../src/services/providers/anthropic/anthropicClient.ts'
-import { APIConnectionTimeoutError, APIUserAbortError } from '../../src/utils/api/sdkErrors.ts'
+import { AnthropicClient } from '../../src/models/roads/anthropic/anthropicClient.ts'
+import { APIConnectionTimeoutError, APIUserAbortError } from '../../src/engine/request-parts/sdkErrors.ts'
 
 const responses = new Set<ServerResponse>()
 const server = createServer((request, response) => {
@@ -37,11 +37,11 @@ try {
     let error: unknown
     try { await client.beta.messages.create(body, { timeout, signal: abort.signal }).withResponse() } catch (caught) { error = caught }
     finally { clearTimeout(guard) }
-    check(`${path} reaches its request deadline without external cancellation`, !proofAborted && error instanceof APIConnectionTimeoutError && error.requestDeadline === true && Date.now() - start < timeout * 5, { proofAborted, elapsed: Date.now() - start, error: error instanceof Error ? error.name : String(error) }, 'the request deadline must reject with an APIConnectionTimeoutError whose requestDeadline is true, within the timeout; change the deadline race in src/services/providers/anthropic/anthropicClient.ts')
-    const { outageCauseOf } = await import('../../src/services/api/reconnectLadder.ts')
-    const { recordTransportFailure } = await import('../../src/utils/api/transportEvidence.ts')
+    check(`${path} reaches its request deadline without external cancellation`, !proofAborted && error instanceof APIConnectionTimeoutError && error.requestDeadline === true && Date.now() - start < timeout * 5, { proofAborted, elapsed: Date.now() - start, error: error instanceof Error ? error.name : String(error) }, 'the request deadline must reject with an APIConnectionTimeoutError whose requestDeadline is true, within the timeout; change the deadline race in src/models/roads/anthropic/anthropicClient.ts')
+    const { outageCauseOf } = await import('../../src/engine/requests/reconnectLadder.ts')
+    const { recordTransportFailure } = await import('../../src/engine/request-parts/transportEvidence.ts')
     recordTransportFailure(Object.assign(new Error('earlier connection timed out'), { code: 'UND_ERR_CONNECT_TIMEOUT' }))
-    check(`${path} cannot borrow a connect timeout from the process ring`, outageCauseOf(error) === null, { outage: outageCauseOf(error) }, 'a request-deadline timeout must not be read as a connect outage from earlier transport failures; change outageCauseOf in src/services/api/reconnectLadder.ts')
+    check(`${path} cannot borrow a connect timeout from the process ring`, outageCauseOf(error) === null, { outage: outageCauseOf(error) }, 'a request-deadline timeout must not be read as a connect outage from earlier transport failures; change outageCauseOf in src/engine/requests/reconnectLadder.ts')
   }
   const client = new AnthropicClient({ baseURL: `${base}/empty-body`, apiKey: 'proof-key-ci-gate-not-a-real-key', maxRetries: 0 })
   const abort = new AbortController()
@@ -55,7 +55,7 @@ try {
   await new Promise<void>(resolve => server.close(() => resolve()))
 }
 {
-  const { AnthropicStream } = await import('../../src/services/providers/anthropic/anthropicStream.ts')
+  const { AnthropicStream } = await import('../../src/models/roads/anthropic/anthropicStream.ts')
   const controller = new AbortController()
   let cancelled = false
   let released = false
@@ -68,7 +68,7 @@ try {
   let timer: ReturnType<typeof setTimeout> | undefined
   const settled = await Promise.race([pending.then(() => true), new Promise<false>(resolve => { timer = setTimeout(() => resolve(false), 500) })])
   clearTimeout(timer)
-  check('a silent stream releases without awaiting a stuck transport cancellation', settled && cancelled && released, { settled, cancelled, released }, 'an aborted stream must release without awaiting the transport cancel; change AnthropicStream.fromSSEResponse in src/services/providers/anthropic/anthropicStream.ts')
+  check('a silent stream releases without awaiting a stuck transport cancellation', settled && cancelled && released, { settled, cancelled, released }, 'an aborted stream must release without awaiting the transport cancel; change AnthropicStream.fromSSEResponse in src/models/roads/anthropic/anthropicStream.ts')
 }
 {
   let attempts = 0
@@ -84,7 +84,7 @@ try {
   let timer: ReturnType<typeof setTimeout> | undefined
   const result = await Promise.race([client.beta.messages.create(body, { timeout }), new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 500) })])
   clearTimeout(timer)
-  check('retry does not wait for cancellation of the refused response body', result?.id === 'served' && attempts === 2, { attempts, result }, 'the retry after a 503 must not wait for the refused body to cancel; change the retry path in src/services/providers/anthropic/anthropicClient.ts')
+  check('retry does not wait for cancellation of the refused response body', result?.id === 'served' && attempts === 2, { attempts, result }, 'the retry after a 503 must not wait for the refused body to cancel; change the retry path in src/models/roads/anthropic/anthropicClient.ts')
 }
 {
   const client = new AnthropicClient({ apiKey: 'proof-key-ci-gate-not-a-real-key', baseURL: 'https://fixture.invalid', maxRetries: 0,
@@ -96,6 +96,6 @@ try {
     new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 500) }),
   ])
   clearTimeout(timer)
-  check('first-byte timeout settles even when fetch ignores its abort signal', error instanceof APIConnectionTimeoutError, { timeout: error instanceof APIConnectionTimeoutError }, 'the timeout must settle the request even when fetch ignores its abort signal; change the deadline race in src/services/providers/anthropic/anthropicClient.ts')
+  check('first-byte timeout settles even when fetch ignores its abort signal', error instanceof APIConnectionTimeoutError, { timeout: error instanceof APIConnectionTimeoutError }, 'the timeout must settle the request even when fetch ignores its abort signal; change the deadline race in src/models/roads/anthropic/anthropicClient.ts')
 }
 assert.equal(failures, 0, 'Anthropic deadlines cover headers and body reads')

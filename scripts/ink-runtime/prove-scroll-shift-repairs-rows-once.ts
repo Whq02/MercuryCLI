@@ -1,24 +1,24 @@
 #!/usr/bin/env bun
-// gate-watch: src/ink/compose-walk.ts src/ink/renderer.ts src/ink/compose-buffer.ts
+// gate-watch: src/screen/renderer/compose-walk.ts src/screen/renderer/renderer.ts src/screen/renderer/compose-buffer.ts
 export {}
 process.env.FORCE_COLOR = '3'
 delete process.env.NO_COLOR
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { appendChildNode, createNode, createTextNode, markDirty, setAttribute } = await import('../../src/ink/dom.js')
-type DOMElement = import('../../src/ink/dom.js').DOMElement
-const { cellAt } = await import('../../src/ink/cell-grid.js')
-type Screen = import('../../src/ink/cell-grid.js').Screen
-const { lastComposeCounts } = await import('../../src/ink/compose-buffer.js')
-const { emptyFrame } = await import('../../src/ink/frame.js')
-const { default: createRenderer } = await import('../../src/ink/renderer.js')
+const { appendChildNode, createNode, createTextNode, markDirty, setAttribute } = await import('../../src/screen/renderer/dom.js')
+type DOMElement = import('../../src/screen/renderer/dom.js').DOMElement
+const { cellAt } = await import('../../src/screen/renderer/cell-grid.js')
+type Screen = import('../../src/screen/renderer/cell-grid.js').Screen
+const { lastComposeCounts } = await import('../../src/screen/renderer/compose-buffer.js')
+const { emptyFrame } = await import('../../src/screen/renderer/frame.js')
+const { default: createRenderer } = await import('../../src/screen/renderer/renderer.js')
 const { applySceneStyle, buildDom, makeContext } = await import('./frameHarness.js')
 type ComposeContext = import('./frameHarness.js').ComposeContext
-type Styles = import('../../src/ink/styles.js').Styles
+type Styles = import('../../src/screen/renderer/styles.js').Styles
 
 let checks = 0
 let failures = 0
-const scrollShiftFixHint = 'fix the scroll-shift repair of rows in src/ink/compose-walk.ts (the scroll and blit reuse), with src/ink/renderer.ts and src/ink/compose-buffer.ts'
+const scrollShiftFixHint = 'fix the scroll-shift repair of rows in src/screen/renderer/compose-walk.ts (the scroll and blit reuse), with src/screen/renderer/renderer.ts and src/screen/renderer/compose-buffer.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++

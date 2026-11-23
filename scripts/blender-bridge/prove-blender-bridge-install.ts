@@ -8,7 +8,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log(`    what to change: make the function behind this label match it, in src/services/blender/bridgeInstaller.ts (applyBlenderBridgeInstall, applyBlenderBridgeUninstall, blenderBridgeInstallStatus, describeBlenderBridgeStatus) or src/services/blender/bridgeClient.ts (getBlenderBridgeClient)`)
+  if (!cond) console.log(`    what to change: make the function behind this label match it, in src/integrations/blender/bridgeInstaller.ts (applyBlenderBridgeInstall, applyBlenderBridgeUninstall, blenderBridgeInstallStatus, describeBlenderBridgeStatus) or src/integrations/blender/bridgeClient.ts (getBlenderBridgeClient)`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -34,11 +34,11 @@ function resetEnv(): void {
 }
 resetEnv()
 
-const installer = await import('../../src/services/blender/bridgeInstaller.js')
-const { BLENDER_BRIDGE_FILES } = await import('../../src/services/blender/bridgeFiles.generated.js')
-const { BLENDER_ADDON_MODULE } = await import('../../src/services/blender/addonHome.js')
-const { getBlenderBridgeClient, resetBlenderBridgeClientForTest } = await import('../../src/services/blender/bridgeClient.js')
-const { BlenderTool } = await import('../../src/tools/BlenderTool/BlenderTool.js')
+const installer = await import('../../src/integrations/blender/bridgeInstaller.js')
+const { BLENDER_BRIDGE_FILES } = await import('../../src/integrations/blender/bridgeFiles.generated.js')
+const { BLENDER_ADDON_MODULE } = await import('../../src/integrations/blender/addonHome.js')
+const { getBlenderBridgeClient, resetBlenderBridgeClientForTest } = await import('../../src/integrations/blender/bridgeClient.js')
+const { BlenderTool } = await import('../../src/tools/blender/BlenderTool.js')
 const { startFakeBlenderBridge } = await import('./fake-bridge.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'blender-bridge-install-'))

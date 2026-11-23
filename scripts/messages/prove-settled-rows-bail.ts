@@ -18,21 +18,21 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_FULLSCREEN = '1'
 delete process.env.MERCURY_HOME
 
-const messagesModule = (await import(join(ROOT, 'src/components/Messages.tsx'))) as {
+const messagesModule = (await import(join(ROOT, 'src/screen/messages/Messages.tsx'))) as {
   composeTranscript?: (input: Record<string, unknown>) => { collapsed: Array<{ type: string; uuid: string }>; lookups: unknown }
   reuseSettledRows?: (previous: readonly unknown[], next: unknown[]) => unknown[]
 }
-const { areMessageRowPropsEqual } = await import(join(ROOT, 'src/components/MessageRow.tsx'))
-const { normalizeMessages } = await import(join(ROOT, 'src/utils/messages/normalize.ts'))
-const { isNotEmptyMessage } = await import(join(ROOT, 'src/utils/messages/text.ts'))
-const { reorderMessagesInUI } = await import(join(ROOT, 'src/services/messages/uiOrder.ts'))
-const { buildMessageLookups } = await import(join(ROOT, 'src/services/messages/lookups.ts'))
-const { applyGrouping } = await import(join(ROOT, 'src/utils/groupToolUses.ts'))
-const { collapseReadSearchGroups } = await import(join(ROOT, 'src/components/messages/collapseReadSearch.ts'))
-const { injectTurnReceipts } = await import(join(ROOT, 'src/utils/cockpit/turnReceipt.ts'))
-const { getMercuryTempDir } = await import(join(ROOT, 'src/utils/permissions/filesystem.ts'))
-const { getTools } = await import(join(ROOT, 'src/tools.ts'))
-const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
+const { areMessageRowPropsEqual } = await import(join(ROOT, 'src/screen/messages/MessageRow.tsx'))
+const { normalizeMessages } = await import(join(ROOT, 'src/engine/message-shapes/normalize.ts'))
+const { isNotEmptyMessage } = await import(join(ROOT, 'src/engine/message-shapes/text.ts'))
+const { reorderMessagesInUI } = await import(join(ROOT, 'src/screen/messages-list/chatRowOrder.ts'))
+const { buildMessageLookups } = await import(join(ROOT, 'src/engine/messages/lookups.ts'))
+const { applyGrouping } = await import(join(ROOT, 'src/screen/messages/groupToolUses.ts'))
+const { collapseReadSearchGroups } = await import(join(ROOT, 'src/screen/messages/collapseReadSearch.ts'))
+const { injectTurnReceipts } = await import(join(ROOT, 'src/screen/cockpit/turnReceipt.ts'))
+const { getMercuryTempDir } = await import(join(ROOT, 'src/permissions/rules/filesystem.ts'))
+const { getTools } = await import(join(ROOT, 'src/tools/kit/toolList.ts'))
+const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/AppStateStore.ts'))
 const baseCompose = (input: Record<string, unknown>): { collapsed: Array<{ type: string; uuid: string }>; lookups: unknown } => {
   const normalized = input.normalized as unknown[]
   const working = reorderMessagesInUI(normalized as never, [] as never) as unknown[]
@@ -43,7 +43,7 @@ const baseCompose = (input: Record<string, unknown>): { collapsed: Array<{ type:
 }
 const composeTranscript = messagesModule.composeTranscript ?? baseCompose
 const reuseSettledRows = messagesModule.reuseSettledRows ?? ((_previous: readonly unknown[], next: unknown[]): unknown[] => next)
-check('the tip exports the composition and the settled-row reuse (absent on the base: the proof reads through the pipeline pieces)', messagesModule.composeTranscript !== undefined && messagesModule.reuseSettledRows !== undefined, 'export composeTranscript and reuseSettledRows from src/components/Messages.tsx (defined in src/components/messagesList/transcript.ts)')
+check('the tip exports the composition and the settled-row reuse (absent on the base: the proof reads through the pipeline pieces)', messagesModule.composeTranscript !== undefined && messagesModule.reuseSettledRows !== undefined, 'export composeTranscript and reuseSettledRows from src/screen/messages/Messages.tsx (defined in src/screen/messages-list/transcript.ts)')
 
 const tools = getTools(getDefaultAppState().toolPermissionContext)
 const T0 = 1_760_000_000_000
@@ -90,21 +90,21 @@ const first = compose(turn)
 const second = compose(later)
 const collapsedFirst = first.collapsed.find(row => row.type === 'collapsed_read_search')
 const collapsedSecond = second.collapsed.find(row => row.type === 'collapsed_read_search')
-check('the two reads fold into one collapsed group on both compositions', collapsedFirst !== undefined && collapsedSecond !== undefined && collapsedFirst.uuid === collapsedSecond.uuid, JSON.stringify(second.collapsed.map(r => [r.type, r.uuid])) + ' - composeTranscript (src/components/messagesList/transcript.ts) must give the read group the same uuid on both compositions')
-check('a fresh composition mints a fresh group object (the cost the reuse removes)', collapsedFirst !== collapsedSecond, 'composeTranscript (src/components/messagesList/transcript.ts) must build a new group object per composition; reuse belongs in reuseSettledRows')
+check('the two reads fold into one collapsed group on both compositions', collapsedFirst !== undefined && collapsedSecond !== undefined && collapsedFirst.uuid === collapsedSecond.uuid, JSON.stringify(second.collapsed.map(r => [r.type, r.uuid])) + ' - composeTranscript (src/screen/messages-list/transcript.ts) must give the read group the same uuid on both compositions')
+check('a fresh composition mints a fresh group object (the cost the reuse removes)', collapsedFirst !== collapsedSecond, 'composeTranscript (src/screen/messages-list/transcript.ts) must build a new group object per composition; reuse belongs in reuseSettledRows')
 const reused = reuseSettledRows(first.collapsed, second.collapsed) as Array<{ type: string; uuid: string }>
 const groupReused = reused.find(row => row.type === 'collapsed_read_search')
-check('RED ON THE BASE: the settled group row comes back as the object the previous composition handed out', groupReused === collapsedFirst, 'reuseSettledRows (src/components/messagesList/transcript.ts) must return the previous collapsed_read_search object when its members are unchanged')
+check('RED ON THE BASE: the settled group row comes back as the object the previous composition handed out', groupReused === collapsedFirst, 'reuseSettledRows (src/screen/messages-list/transcript.ts) must return the previous collapsed_read_search object when its members are unchanged')
 const plain = reused.filter(row => row.type === 'user' || row.type === 'assistant')
-check('the plain rows keep the identity the normaliser already gives them', plain.every(row => first.collapsed.includes(row as never) || row.uuid === 'u-2'), 'reuseSettledRows (src/components/messagesList/transcript.ts) must pass user and assistant rows through as the same objects')
-check('the appended row is the new object, untouched', reused[reused.length - 1]!.uuid === 'u-2' && reused[reused.length - 1] === second.collapsed[second.collapsed.length - 1], 'reuseSettledRows (src/components/messagesList/transcript.ts) must keep a row absent from the previous list as the new object')
-check('a row that was not in the previous composition passes through', reuseSettledRows([], second.collapsed) === second.collapsed, 'reuseSettledRows (src/components/messagesList/transcript.ts) must return next unchanged when previous is empty')
+check('the plain rows keep the identity the normaliser already gives them', plain.every(row => first.collapsed.includes(row as never) || row.uuid === 'u-2'), 'reuseSettledRows (src/screen/messages-list/transcript.ts) must pass user and assistant rows through as the same objects')
+check('the appended row is the new object, untouched', reused[reused.length - 1]!.uuid === 'u-2' && reused[reused.length - 1] === second.collapsed[second.collapsed.length - 1], 'reuseSettledRows (src/screen/messages-list/transcript.ts) must keep a row absent from the previous list as the new object')
+check('a row that was not in the previous composition passes through', reuseSettledRows([], second.collapsed) === second.collapsed, 'reuseSettledRows (src/screen/messages-list/transcript.ts) must return next unchanged when previous is empty')
 
 section('§2 a changed group is never reused')
 const changed: Rec[] = turn.map(row => (row.uuid === 'u-r2' ? resultRow('u-r2', T0 + 2_500, 'r-2', 'export const b = 3', readResult) : row))
 const third = compose(changed)
 const groupChanged = (reuseSettledRows(first.collapsed, third.collapsed) as Array<{ type: string }>).find(row => row.type === 'collapsed_read_search')
-check('a member result that changed identity makes the group a new object', groupChanged !== collapsedFirst && groupChanged === third.collapsed.find(row => row.type === 'collapsed_read_search'), 'reuseSettledRows (src/components/messagesList/transcript.ts) must not reuse a group whose member results changed')
+check('a member result that changed identity makes the group a new object', groupChanged !== collapsedFirst && groupChanged === third.collapsed.find(row => row.type === 'collapsed_read_search'), 'reuseSettledRows (src/screen/messages-list/transcript.ts) must not reuse a group whose member results changed')
 
 section('§3 the row memo bails for a settled derived row and never for a live one')
 const rowProps = (message: unknown, lookups: unknown, over: Record<string, unknown> = {}): Record<string, unknown> => ({
@@ -125,20 +125,20 @@ const rowProps = (message: unknown, lookups: unknown, over: Record<string, unkno
   lookups,
   ...over,
 })
-check('RED ON THE BASE: a settled collapsed group on the chat screen bails on a tick that changed nothing of its own', areMessageRowPropsEqual(rowProps(collapsedFirst, first.lookups) as never, rowProps(collapsedFirst, second.lookups) as never), 'areMessageRowPropsEqual (src/components/MessageRow.tsx) must return true for a settled collapsed group when only the lookups object moved')
+check('RED ON THE BASE: a settled collapsed group on the chat screen bails on a tick that changed nothing of its own', areMessageRowPropsEqual(rowProps(collapsedFirst, first.lookups) as never, rowProps(collapsedFirst, second.lookups) as never), 'areMessageRowPropsEqual (src/screen/messages/MessageRow.tsx) must return true for a settled collapsed group when only the lookups object moved')
 const receiptFirst = first.collapsed.find(row => row.type === 'turn_receipt')
 const receiptReused = reused.find(row => row.type === 'turn_receipt')
-check('the turn receipt is reused and bails the same way', receiptFirst !== undefined && receiptReused === receiptFirst && areMessageRowPropsEqual(rowProps(receiptFirst, first.lookups) as never, rowProps(receiptFirst, second.lookups) as never), 'reuseSettledRows (src/components/messagesList/transcript.ts) must reuse the turn_receipt row and areMessageRowPropsEqual (src/components/MessageRow.tsx) must bail for it')
+check('the turn receipt is reused and bails the same way', receiptFirst !== undefined && receiptReused === receiptFirst && areMessageRowPropsEqual(rowProps(receiptFirst, first.lookups) as never, rowProps(receiptFirst, second.lookups) as never), 'reuseSettledRows (src/screen/messages-list/transcript.ts) must reuse the turn_receipt row and areMessageRowPropsEqual (src/screen/messages/MessageRow.tsx) must bail for it')
 const running = compose(turn.filter(row => row.uuid !== 'u-r2' && !['a-3', 'u-b1', 'a-4'].includes(row.uuid as string)), new Set(['r-2']))
 const runningGroup = running.collapsed.find(row => row.type === 'collapsed_read_search')
-check('a group with a member still running keeps re-rendering', runningGroup !== undefined && !areMessageRowPropsEqual(rowProps(runningGroup, running.lookups, { inProgressToolUseIDs: new Set(['r-2']) }) as never, rowProps(runningGroup, running.lookups, { inProgressToolUseIDs: new Set(['r-2']) }) as never), JSON.stringify(running.collapsed.map(r => [r.type, r.uuid])) + ' - areMessageRowPropsEqual (src/components/MessageRow.tsx) must return false for a group with an in-progress member')
-check('a member leaving the in-flight set re-renders the settled row once', !areMessageRowPropsEqual(rowProps(collapsedFirst, first.lookups, { inProgressToolUseIDs: new Set(['r-2']) }) as never, rowProps(collapsedFirst, first.lookups) as never), 'areMessageRowPropsEqual (src/components/MessageRow.tsx) must compare inProgressToolUseIDs for a collapsed group')
-check('the loading flag flipping re-renders a collapsed group (its active verdict reads it)', !areMessageRowPropsEqual(rowProps(collapsedFirst, first.lookups, { isLoading: true }) as never, rowProps(collapsedFirst, first.lookups) as never), 'areMessageRowPropsEqual (src/components/MessageRow.tsx) must compare isLoading for a collapsed group')
-check('a member result moving re-renders the settled group', !areMessageRowPropsEqual(rowProps(collapsedFirst, first.lookups) as never, rowProps(collapsedFirst, third.lookups) as never), 'areMessageRowPropsEqual (src/components/MessageRow.tsx) must return false when a member tool result in the lookups changed')
+check('a group with a member still running keeps re-rendering', runningGroup !== undefined && !areMessageRowPropsEqual(rowProps(runningGroup, running.lookups, { inProgressToolUseIDs: new Set(['r-2']) }) as never, rowProps(runningGroup, running.lookups, { inProgressToolUseIDs: new Set(['r-2']) }) as never), JSON.stringify(running.collapsed.map(r => [r.type, r.uuid])) + ' - areMessageRowPropsEqual (src/screen/messages/MessageRow.tsx) must return false for a group with an in-progress member')
+check('a member leaving the in-flight set re-renders the settled row once', !areMessageRowPropsEqual(rowProps(collapsedFirst, first.lookups, { inProgressToolUseIDs: new Set(['r-2']) }) as never, rowProps(collapsedFirst, first.lookups) as never), 'areMessageRowPropsEqual (src/screen/messages/MessageRow.tsx) must compare inProgressToolUseIDs for a collapsed group')
+check('the loading flag flipping re-renders a collapsed group (its active verdict reads it)', !areMessageRowPropsEqual(rowProps(collapsedFirst, first.lookups, { isLoading: true }) as never, rowProps(collapsedFirst, first.lookups) as never), 'areMessageRowPropsEqual (src/screen/messages/MessageRow.tsx) must compare isLoading for a collapsed group')
+check('a member result moving re-renders the settled group', !areMessageRowPropsEqual(rowProps(collapsedFirst, first.lookups) as never, rowProps(collapsedFirst, third.lookups) as never), 'areMessageRowPropsEqual (src/screen/messages/MessageRow.tsx) must return false when a member tool result in the lookups changed')
 
 const settledProps = rowProps(collapsedFirst, first.lookups)
 for (const [name, value] of Object.entries({ isUserContinuation: true, canAnimate: false, style: 'condensed', tools: [] })) {
-  check(`a changed ${name} reaches the row renderer`, !areMessageRowPropsEqual(settledProps as never, { ...settledProps, [name]: value } as never), 'areMessageRowPropsEqual (src/components/MessageRow.tsx) must compare the ' + name + ' prop')
+  check(`a changed ${name} reaches the row renderer`, !areMessageRowPropsEqual(settledProps as never, { ...settledProps, [name]: value } as never), 'areMessageRowPropsEqual (src/screen/messages/MessageRow.tsx) must compare the ' + name + ' prop')
 }
 console.log(`\n${'─'.repeat(76)}`)
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

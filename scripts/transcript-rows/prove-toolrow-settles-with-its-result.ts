@@ -30,40 +30,40 @@ delete process.env.MERCURY_HOME
 
 const src = (rel: string): string => join(ROOT, 'src', rel)
 const React = (await import(Bun.resolveSync('react', join(ROOT, 'src')))).default as typeof import('react')
-const { default: Ink } = await import(src('ink/ink.tsx'))
-const { App } = await import(src('components/App.tsx'))
-const { getDefaultAppState } = await import(src('state/AppStateStore.ts'))
-const { AppStateProvider } = await import(src('state/AppState.tsx'))
-const { KeybindingSetup } = await import(src('keybindings/KeybindingProviderSetup.tsx'))
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import(src('context/surfaceRoute.ts'))
-const { enableConfigs, saveCurrentProjectConfig } = await import(src('utils/config.ts'))
-const { default: instances } = await import(src('ink/instances.ts'))
-const slot = await import(src('services/engine-connector/focusedConnector.ts'))
-const { noSessionConnector } = await import(src('services/engine-connector/noSessionConnector.ts'))
-const { IDLE_LIVE } = await import(src('services/engine-connector/seatLive.ts'))
-const { DaemonSessionConnector } = await import(src('services/engine-connector/daemonConnector.ts'))
-const { publishSessionFacts, readSessionFacts } = await import(src('services/engine-connector/seatProjections.ts'))
-const row = await import(src('components/messages/AssistantToolUseMessage.tsx'))
-const { Message: MessageComponent } = await import(src('components/Message.tsx'))
-const { Messages } = await import(src('components/Messages.tsx'))
-const messageRow = (await import(src('components/MessageRow.tsx'))) as { toolStateMoved?: (prev: unknown, next: unknown) => boolean }
+const { default: Ink } = await import(src('screen/renderer/screenInstance.tsx'))
+const { App } = await import(src('boot/App.tsx'))
+const { getDefaultAppState } = await import(src('screen/app-state/AppStateStore.ts'))
+const { AppStateProvider } = await import(src('screen/app-state/AppState.tsx'))
+const { KeybindingSetup } = await import(src('screen/keys/KeybindingProviderSetup.tsx'))
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import(src('screen/routes/surfaceRoute.ts'))
+const { enableConfigs, saveCurrentProjectConfig } = await import(src('platform/settings/config.ts'))
+const { default: instances } = await import(src('screen/renderer/instances.ts'))
+const slot = await import(src('engine/connector/focusedConnector.ts'))
+const { noSessionConnector } = await import(src('engine/connector/noSessionConnector.ts'))
+const { IDLE_LIVE } = await import(src('engine/connector/seatLive.ts'))
+const { DaemonSessionConnector } = await import(src('engine/connector/daemonConnector.ts'))
+const { publishSessionFacts, readSessionFacts } = await import(src('engine/connector/seatProjections.ts'))
+const row = await import(src('screen/messages/AssistantToolUseMessage.tsx'))
+const { Message: MessageComponent } = await import(src('screen/messages/Message.tsx'))
+const { Messages } = await import(src('screen/messages/Messages.tsx'))
+const messageRow = (await import(src('screen/messages/MessageRow.tsx'))) as { toolStateMoved?: (prev: unknown, next: unknown) => boolean }
 const toolStateMoved = messageRow.toolStateMoved ?? ((): boolean => { throw new Error('toolStateMoved is absent on this tree') })
-const { deriveTranscriptRows } = await import(src('components/concourse/workerTranscriptFold.ts'))
-const { getTools } = await import(src('tools.ts'))
-const { EvalTool } = await import(src('tools/EvalTool/EvalTool.ts'))
-const { FileEditTool } = await import(src('tools/FileEditTool/FileEditTool.ts'))
-const { createLiveTurnFold, liveTurnStateOf } = await import(src('services/resume/conversationRecovery.ts'))
-const { readTranscriptChainSince } = await import(src('utils/sessionStorage/transcriptReader.ts'))
-const { buildMessageLookups, buildSubagentLookups } = await import(src('services/messages/lookups.ts'))
-const { normalizeMessages } = await import(src('utils/messages/normalize.ts'))
-const openToolUseIDsOf = await import(src('utils/messages/openToolUses.ts')).then(
+const { deriveTranscriptRows } = await import(src('screen/concourse/workerTranscriptFold.ts'))
+const { getTools } = await import(src('tools/kit/toolList.ts'))
+const { EvalTool } = await import(src('tools/eval/EvalTool.ts'))
+const { FileEditTool } = await import(src('tools/edit/EditTool.ts'))
+const { createLiveTurnFold, liveTurnStateOf } = await import(src('sessions/resume/conversationRecovery.ts'))
+const { readTranscriptChainSince } = await import(src('sessions/transcripts/transcriptReader.ts'))
+const { buildMessageLookups, buildSubagentLookups } = await import(src('engine/messages/lookups.ts'))
+const { normalizeMessages } = await import(src('engine/message-shapes/normalize.ts'))
+const openToolUseIDsOf = await import(src('engine/message-shapes/openToolUses.ts')).then(
   m => (m as { openToolUseIDsOf: (messages: readonly unknown[]) => Set<string> }).openToolUseIDsOf,
   () => (): Set<string> => new Set<string>(['the shared law module is absent on this tree']),
 )
-const { INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import(src('utils/messages/turnCut.ts'))
-const { renderToString } = await import(src('utils/staticRender.tsx'))
-const { WORK_FRAMES } = await import(src('utils/cockpit/liveGlyphs.ts'))
-const { BLACK_CIRCLE } = await import(src('constants/figures.ts'))
+const { INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import(src('engine/message-shapes/turnCut.ts'))
+const { renderToString } = await import(src('screen/renderer/staticRender.tsx'))
+const { WORK_FRAMES } = await import(src('screen/cockpit/liveGlyphs.ts'))
+const { BLACK_CIRCLE } = await import(src('screen/theme/rowGlyphs.ts'))
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 
 enableConfigs()
@@ -71,7 +71,7 @@ saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: 
 const h = React.createElement
 let checks = 0
 let failures = 0
-const toolRowFailHint = 'to fix, a tool row that keeps counting or stays open is decided by liveTurnStateOf in src/services/resume/conversationRecovery.ts, openToolUseIDsOf in src/utils/messages/openToolUses.ts, buildMessageLookups in src/services/messages/lookups.ts, toolStateMoved in src/components/MessageRow.tsx and RunningToolElapsed in src/components/messages/AssistantToolUseMessage.tsx'
+const toolRowFailHint = 'to fix, a tool row that keeps counting or stays open is decided by liveTurnStateOf in src/sessions/resume/conversationRecovery.ts, openToolUseIDsOf in src/engine/message-shapes/openToolUses.ts, buildMessageLookups in src/engine/messages/lookups.ts, toolStateMoved in src/screen/messages/MessageRow.tsx and RunningToolElapsed in src/screen/messages/AssistantToolUseMessage.tsx'
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++

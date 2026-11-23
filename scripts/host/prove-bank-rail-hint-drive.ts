@@ -54,16 +54,16 @@ let checks = 0
 const check = (name: string, truth: unknown, detail = '') => { if (!truth) console.log((detail ? detail + '\n' : '') + (mounted?.screen() ?? '')); assert.ok(truth, name); checks++; console.log('PASS ' + name) }
 try {
   const React = await import('react')
-  const { Box, Text } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { hostRunner } = await import('../../src/services/host/ssh.ts')
-  const { runHostJob } = await import('../../src/services/host/worker.ts')
-  const { railPlanAt } = await import('../../src/utils/helmGeometry.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { hostRunner } = await import('../../src/models/hosting/ssh.ts')
+  const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+  const { railPlanAt } = await import('../../src/screen/fullscreen-layout/helmGeometry.ts')
 
   ssh = fakeSshRunner(f.baseUrl, hostRunner)
   const runner = { ...ssh.runner, run: async (command: string, args: string[], signal: AbortSignal, timeoutMs?: number) => ssh!.runner.run(command, args, signal, timeoutMs) }

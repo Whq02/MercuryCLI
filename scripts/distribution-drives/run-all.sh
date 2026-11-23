@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: Dockerfile .dockerignore build.ts bun.lock bunfig.toml vendor/*.lock.json
-# gate-watch: scripts/vendor/** src/services/privateChannel/releaseTarget.ts
-# gate-watch: src/cli/run.ts src/utils/permissions/rootNotice.ts src/entrypoints/cli.tsx
+# gate-watch: scripts/vendor/** src/platform/update-channel/releaseTarget.ts
+# gate-watch: src/daemon/runner/runHeadless.ts src/permissions/rules/rootNotice.ts src/boot/entrypoints/cli.tsx
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

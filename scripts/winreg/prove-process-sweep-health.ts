@@ -5,8 +5,8 @@ import { once } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { collectWindowsProcesses } from '../../src/daemon/processSweepWindows.js'
-import type { HealthProcessesReport } from '../../src/cli/healthProcesses.js'
+import { collectWindowsProcesses } from '../../src/daemon/process-sweep/processSweepWindows.js'
+import type { HealthProcessesReport } from '../../src/commands/verbs/healthProcesses.js'
 
 if (process.platform !== 'win32') {
   console.log('SKIP: the integrated Windows process sweep requires Windows')
@@ -33,7 +33,7 @@ try {
   const table = await collectWindowsProcesses()
   assert.equal(table.complete, true, table.error)
   const [live, stale] = children.map(child => table.observations.find(row => row.process.pid === child.pid))
-  assert.ok(live && stale, 'collectWindowsProcesses in src/daemon/processSweepWindows.js must observe both attached and detached fixture children')
+  assert.ok(live && stale, 'collectWindowsProcesses in src/daemon/process-sweep/processSweepWindows.js must observe both attached and detached fixture children')
   assert.equal(live.terminalAlive, true)
   assert.equal(stale.terminalAlive, false)
   const old = Date.now() - 86_400_000

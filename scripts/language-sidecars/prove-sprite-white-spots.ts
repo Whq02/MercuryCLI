@@ -11,7 +11,7 @@ function section(t: string): void {
 }
 
 process.env.FORCE_COLOR = '3'
-const { spriteToAnsi } = await import('../../src/services/visual/spriteToAnsi.js')
+const { spriteToAnsi } = await import('../../src/screen/image-display/spriteToAnsi.js')
 const ESC = String.fromCharCode(27)
 
 const W = 64
@@ -44,9 +44,9 @@ for (const line of out.lines) {
     carry = s
   }
 }
-check('zero ▀ cells without an explicit fg', nakedUpper === 0, `naked=${nakedUpper}`, 'change spriteToAnsi in src/services/visual/spriteToAnsi.ts so every upper half-block cell is preceded by an explicit 38;2 foreground and not a bare reset')
-check('top-silhouette cells use ▄ (lower half-block)', out.lines.some(l => l.includes('▄')), '', 'change spriteToAnsi in src/services/visual/spriteToAnsi.ts so a transparent top pixel over a painted bottom pixel draws a lower half-block')
-check('▄ cells carry a fg and a background: the terminal-bg reset (49) over a transparent top, the top pixel (48;2) over a painted one', out.lines.every(l => !l.includes('▄') || /(\[49m|\[48;2;[0-9;]+m)\x1b\[38;2;[0-9;]+m▄/.test(l)), '', 'change spriteToAnsi in src/services/visual/spriteToAnsi.ts so each lower half-block cell is written as a background (49 or 48;2) then a 38;2 foreground then the block')
+check('zero ▀ cells without an explicit fg', nakedUpper === 0, `naked=${nakedUpper}`, 'change spriteToAnsi in src/screen/image-display/spriteToAnsi.ts so every upper half-block cell is preceded by an explicit 38;2 foreground and not a bare reset')
+check('top-silhouette cells use ▄ (lower half-block)', out.lines.some(l => l.includes('▄')), '', 'change spriteToAnsi in src/screen/image-display/spriteToAnsi.ts so a transparent top pixel over a painted bottom pixel draws a lower half-block')
+check('▄ cells carry a fg and a background: the terminal-bg reset (49) over a transparent top, the top pixel (48;2) over a painted one', out.lines.every(l => !l.includes('▄') || /(\[49m|\[48;2;[0-9;]+m)\x1b\[38;2;[0-9;]+m▄/.test(l)), '', 'change spriteToAnsi in src/screen/image-display/spriteToAnsi.ts so each lower half-block cell is written as a background (49 or 48;2) then a 38;2 foreground then the block')
 
 section('B. flood matte — outside drops, fringe drops, interior white renders')
 const joined = out.lines.join('\n')
@@ -58,10 +58,10 @@ while ((m = colorRe.exec(joined)) !== null) {
   const mn = Math.min(r, g, b), mx = Math.max(r, g, b)
   if (mn >= 222 && mx - mn <= 32) paintedNearWhite++
 }
-check('interior white survives (some near-white IS painted — the chest)', paintedNearWhite > 0, `painted=${paintedNearWhite}`, 'change buildOutsideMask or isNearWhite in src/services/visual/spriteToAnsi.ts so near-white pixels enclosed by the figure are painted and not matted out')
-check('but bounded — the matte + fringe did NOT paint', paintedNearWhite <= 24, `painted=${paintedNearWhite}`, 'change buildOutsideMask or isNearWhite in src/services/visual/spriteToAnsi.ts so the white matte and its light fringe connected to the border are dropped')
+check('interior white survives (some near-white IS painted — the chest)', paintedNearWhite > 0, `painted=${paintedNearWhite}`, 'change buildOutsideMask or isNearWhite in src/screen/image-display/spriteToAnsi.ts so near-white pixels enclosed by the figure are painted and not matted out')
+check('but bounded — the matte + fringe did NOT paint', paintedNearWhite <= 24, `painted=${paintedNearWhite}`, 'change buildOutsideMask or isNearWhite in src/screen/image-display/spriteToAnsi.ts so the white matte and its light fringe connected to the border are dropped')
 const firstLine = out.lines[0] ?? ''
-check('first row (pure matte) is all terminal-bg spaces', /^(?:\x1b\[0m )+\x1b\[0m$/.test(firstLine), '', 'change spriteToAnsi in src/services/visual/spriteToAnsi.ts so a row of pure matte is written as terminal-background spaces')
+check('first row (pure matte) is all terminal-bg spaces', /^(?:\x1b\[0m )+\x1b\[0m$/.test(firstLine), '', 'change spriteToAnsi in src/screen/image-display/spriteToAnsi.ts so a row of pure matte is written as terminal-background spaces')
 
 section('C. alpha-matte sprite still clean (regression guard)')
 const px2 = Buffer.alloc(16 * 16 * 4)
@@ -74,7 +74,7 @@ for (let y = 0; y < 16; y++) {
 }
 const alphaPng = await sharp(px2, { raw: { width: 16, height: 16, channels: 4 } }).png().toBuffer()
 const out2 = await spriteToAnsi(alphaPng, 16)
-check('alpha sprite renders body cells', out2.lines.some(l => l.includes('38;2;')), '', 'change spriteToAnsi in src/services/visual/spriteToAnsi.ts so an alpha-matte sprite still paints its opaque cells with a 38;2 foreground')
+check('alpha sprite renders body cells', out2.lines.some(l => l.includes('38;2;')), '', 'change spriteToAnsi in src/screen/image-display/spriteToAnsi.ts so an alpha-matte sprite still paints its opaque cells with a 38;2 foreground')
 check('alpha sprite has no naked-▀ cells either', out2.lines.every(l => {
   const cells = l.split('▀').slice(0, -1)
   let carry = ''
@@ -86,7 +86,7 @@ check('alpha sprite has no naked-▀ cells either', out2.lines.every(l => {
     carry = s
   }
   return true
-}), '', 'change spriteToAnsi in src/services/visual/spriteToAnsi.ts so the alpha-matte sprite writes an explicit 38;2 foreground before every upper half-block')
+}), '', 'change spriteToAnsi in src/screen/image-display/spriteToAnsi.ts so the alpha-matte sprite writes an explicit 38;2 foreground before every upper half-block')
 
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {

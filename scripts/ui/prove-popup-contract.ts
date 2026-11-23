@@ -33,18 +33,18 @@ process.env.FORCE_COLOR = '3'
 process.env.BROWSER = '/usr/bin/true'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const React = await import('react')
-const { Box, Text } = await import('../../src/ink.ts')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { Select } = await import('../../src/components/CustomSelect/select.tsx')
-const { SelectMulti } = await import('../../src/components/CustomSelect/SelectMulti.tsx')
-const { useInteractiveList } = await import('../../src/components/mercury-ui/useInteractiveList.ts')
-const { InteractiveRow } = await import('../../src/components/mercury-ui/InteractiveRow.tsx')
-const { PopupForm } = await import('../../src/components/PopupForm.tsx')
-const { Dialog } = await import('../../src/components/design-system/Dialog.tsx')
-const { ColorPicker } = await import('../../src/components/agents/ColorPicker.tsx')
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { Select } = await import('../../src/screen/select/Select.tsx')
+const { SelectMulti } = await import('../../src/screen/select/SelectMulti.tsx')
+const { useInteractiveList } = await import('../../src/screen/widgets/useInteractiveList.ts')
+const { InteractiveRow } = await import('../../src/screen/widgets/InteractiveRow.tsx')
+const { PopupForm } = await import('../../src/screen/overlays/PopupForm.tsx')
+const { Dialog } = await import('../../src/screen/theme/Dialog.tsx')
+const { ColorPicker } = await import('../../src/screen/agents/ColorPicker.tsx')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const h = React.createElement
 const framesAt = process.argv.indexOf('--frames')
@@ -55,51 +55,51 @@ const options = Array.from({ length: 24 }, (_, i) => ({ label: `choice ${String(
 let failures = 0
 let checks = 0
 const popupFailSurfaces: Array<[RegExp, string]> = [
-  [/^\d+ (single|multi):/, 'src/components/CustomSelect/select.tsx (Select) or SelectMulti.tsx'],
-  [/input row/, 'src/components/CustomSelect/select.tsx (Select input rows)'],
-  [/interactive lists/, 'src/components/mercury-ui/useInteractiveList.ts and InteractiveRow.tsx'],
+  [/^\d+ (single|multi):/, 'src/screen/select/Select.tsx (Select) or SelectMulti.tsx'],
+  [/input row/, 'src/screen/select/Select.tsx (Select input rows)'],
+  [/interactive lists/, 'src/screen/widgets/useInteractiveList.ts and InteractiveRow.tsx'],
   [/ effort:/, 'src/commands/effort/EffortPopup.tsx'],
   [/ mcp (tools|detail):| mcp:/, 'src/commands/mcp/McpPopup.tsx'],
-  [/ model:/, 'src/components/MercuryModelPicker.tsx'],
-  [/ color:/, 'src/components/agents/ColorPicker.tsx'],
-  [/ config:/, 'src/components/Settings/Config.tsx and SettingsPopupSlot.tsx'],
-  [/ jev:/, 'src/components/Settings/Jev.tsx and SettingsPopupSlot.tsx'],
-  [/elicitation/, 'src/components/mcp/ElicitationDialog.tsx'],
-  [/boot logins|boot-logins/, 'src/components/BootLoginsScreen.tsx'],
-  [/ kit/, 'src/components/KitMenuScreen.tsx'],
-  [/saturn/, 'src/components/BootSaturnScreen.tsx'],
+  [/ model:/, 'src/commands/model/picker/MercuryModelPicker.tsx'],
+  [/ color:/, 'src/screen/agents/ColorPicker.tsx'],
+  [/ config:/, 'src/screen/settings/Config.tsx and SettingsPopupSlot.tsx'],
+  [/ jev:/, 'src/screen/settings/Jev.tsx and SettingsPopupSlot.tsx'],
+  [/elicitation/, 'src/screen/mcp/ElicitationDialog.tsx'],
+  [/boot logins|boot-logins/, 'src/screen/boot-face/BootLoginsScreen.tsx'],
+  [/ kit/, 'src/screen/boot-face/KitMenuScreen.tsx'],
+  [/saturn/, 'src/screen/boot-face/BootSaturnScreen.tsx'],
   [/boot legend/, 'composeBootMenu in assets/splash/splash-core.mjs'],
-  [/ (theme|quick-model|export|crash-resume|cost-threshold|sovereign|mcp-approval|mcp-multiselect|help-commands):/, 'the dialog component named in the label (src/components/ThemePicker.tsx, ModelPicker.tsx, ExportDialog.tsx, CrashResumeDialog.tsx, CostThresholdDialog.tsx, SovereignModeDialog.tsx, MCPServerApprovalDialog.tsx, MCPServerMultiselectDialog.tsx, HelpV2/Commands.tsx)'],
-  [/ daemon:/, 'src/components/mercury-ui/parity/DaemonView.tsx'],
-  [/ sessions:/, 'src/components/mercury-ui/screens/SessionManagerView.tsx'],
-  [/ skills:/, 'src/components/skills/SessionSkillsDial.tsx'],
-  [/ samples:/, 'src/components/samples/SamplesListView.tsx'],
-  [/ tasks:/, 'src/components/tasks/BackgroundTasksDialog.tsx'],
-  [/ panes:/, 'src/components/mercury-ui/NavigablePanes.tsx'],
-  [/popup reader/, 'CommandCenter in src/components/mercury-ui/components.tsx'],
-  [/ ground:/, 'src/components/concourse/GroundPicker.tsx'],
-  [/ submodels:/, 'src/components/SubModelPicker.tsx'],
-  [/ localsetup:/, 'src/components/LocalSetupDialog.tsx'],
+  [/ (theme|quick-model|export|crash-resume|cost-threshold|sovereign|mcp-approval|mcp-multiselect|help-commands):/, 'the dialog component named in the label (src/commands/appearance/ThemePicker.tsx, ModelPicker.tsx, ExportDialog.tsx, CrashResumeDialog.tsx, CostThresholdDialog.tsx, SovereignModeDialog.tsx, MCPServerApprovalDialog.tsx, MCPServerMultiselectDialog.tsx, HelpV2/Commands.tsx)'],
+  [/ daemon:/, 'src/screen/widgets/parity/DaemonView.tsx'],
+  [/ sessions:/, 'src/screen/widgets/faces/SessionManagerView.tsx'],
+  [/ skills:/, 'src/screen/skills/SessionSkillsDial.tsx'],
+  [/ samples:/, 'src/screen/samples/SamplesListView.tsx'],
+  [/ tasks:/, 'src/screen/tasks/BackgroundTasksDialog.tsx'],
+  [/ panes:/, 'src/screen/widgets/NavigablePanes.tsx'],
+  [/popup reader/, 'CommandCenter in src/screen/widgets/components.tsx'],
+  [/ ground:/, 'src/screen/concourse/GroundPicker.tsx'],
+  [/ submodels:/, 'src/commands/submodels/SubModelPicker.tsx'],
+  [/ localsetup:/, 'src/commands/localsetup/LocalSetupDialog.tsx'],
   [/ health:/, 'src/commands/health/HealthCertificate.tsx'],
-  [/ log-selector:/, 'src/components/LogSelector.tsx'],
-  [/ palette:/, 'src/components/MercuryCommandPalette.tsx'],
-  [/ hook-(events|matchers|list):/, 'src/components/hooks/SelectEventMode.tsx, SelectMatcherMode.tsx or SelectHookMode.tsx'],
-  [/ permissions:/, 'src/components/permissions/rules/PermissionRuleList.tsx'],
-  [/ usage /, 'src/components/Settings/Usage.tsx'],
-  [/ diff:/, 'src/components/diff/DiffDialog.tsx'],
+  [/ log-selector:/, 'src/screen/session-chooser/SessionBrowser.tsx'],
+  [/ palette:/, 'src/screen/composer/MercuryCommandPalette.tsx'],
+  [/ hook-(events|matchers|list):/, 'src/screen/event-hooks-menu/SelectEventMode.tsx, SelectMatcherMode.tsx or SelectHookMode.tsx'],
+  [/ permissions:/, 'src/permissions/cards/rule-manager/PermissionRuleList.tsx'],
+  [/ usage /, 'src/screen/settings/Usage.tsx'],
+  [/ diff:/, 'src/screen/diff/DiffDialog.tsx'],
   [/ caching:/, 'src/commands/caching/caching.tsx'],
-  [/ capabilities:/, 'src/components/mercury-ui/parity/CapabilityManagerView.tsx'],
-  [/ accounts:/, 'src/components/mercury-ui/parity/AccountView.tsx'],
-  [/ crew:/, 'src/components/mercury-ui/screens/CrewView.tsx'],
-  [/ agent-trash:/, 'src/components/agents/studio/AgentStudio.tsx'],
+  [/ capabilities:/, 'src/screen/widgets/parity/CapabilityManagerView.tsx'],
+  [/ accounts:/, 'src/screen/widgets/parity/AccountView.tsx'],
+  [/ crew:/, 'src/screen/widgets/faces/CrewView.tsx'],
+  [/ agent-trash:/, 'src/screen/agents/studio/AgentStudio.tsx'],
   [/ run-inspector:/, 'src/commands/run/run.tsx'],
-  [/ workbench:/, 'src/components/prompts-panel/PromptsPanel.tsx'],
-  [/login (roster|account card)/, 'src/components/ConsoleOAuthFlow.tsx'],
-  [/file permission/, 'src/components/permissions/FilePermissionDialog/FilePermissionDialog.tsx'],
-  [/ trust:/, 'src/components/MercurySetupFrame.tsx and TrustDialog/TrustDialog.tsx'],
-  [/late selector/, 'src/components/PopupForm.tsx and CustomSelect/select.tsx'],
-  [/memory files/, 'src/components/memory/MemoryFileSelector.tsx'],
-  [/memory/, 'src/components/memory/MemoryCentreView.tsx'],
+  [/ workbench:/, 'src/screen/prompts-panel/PromptsPanel.tsx'],
+  [/login (roster|account card)/, 'src/models/sign-in/flow-cards/SignInFlow.tsx'],
+  [/file permission/, 'src/permissions/cards/file-dialog/FilePermissionDialog.tsx'],
+  [/ trust:/, 'src/boot/first-run/MercurySetupFrame.tsx and TrustDialog/TrustDialog.tsx'],
+  [/late selector/, 'src/screen/overlays/PopupForm.tsx and CustomSelect/select.tsx'],
+  [/memory files/, 'src/screen/memory/MemoryFileSelector.tsx'],
+  [/memory/, 'src/screen/memory/MemoryCentreView.tsx'],
 ]
 const popupFailHint = (label: string) => {
   const surface = popupFailSurfaces.find(([pattern]) => pattern.test(label))?.[1]
@@ -183,10 +183,10 @@ for (const cols of [80, 120]) {
 
 const { EffortPopup, EffortApplyContext } = await import('../../src/commands/effort/EffortPopup.tsx')
 const { McpPopup } = await import('../../src/commands/mcp/McpPopup.tsx')
-const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.tsx')
-const { PopupFrameContext } = await import('../../src/components/PopupGutter.tsx')
-const { ModalContext } = await import('../../src/context/modalContext.tsx')
-const { getFocusedSessionConnector, setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
+const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.tsx')
+const { PopupFrameContext } = await import('../../src/screen/overlays/PopupGutter.tsx')
+const { ModalContext } = await import('../../src/screen/overlays/modalContext.tsx')
+const { getFocusedSessionConnector, setFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
 const originalConnector = getFocusedSessionConnector()
 const clients = Array.from({ length: 25 }, (_, index) => ({ name: 'server-' + String(index).padStart(2, '0'), type: 'connected', toolCount: 25 }))
 setFocusedSessionConnector(new Proxy(originalConnector, { get(target, property) {
@@ -196,7 +196,7 @@ setFocusedSessionConnector(new Proxy(originalConnector, { get(target, property) 
   return typeof value === 'function' ? value.bind(target) : value
 } }))
 const models = Array.from({ length: 25 }, (_, index) => ({ id: 'fixture-model-' + String(index).padStart(2, '0'), name: 'fixture-model-' + String(index).padStart(2, '0'), tag: '', ctx: '64k', group: 'fixture' }))
-const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
+const { setEngineModelOverride } = await import('../../src/boot/process-state/processState.ts')
 for (const cols of [80, 120]) {
   for (const name of ['effort', 'mcp', 'model', 'color']) {
     let done = false
@@ -266,12 +266,12 @@ setEngineModelOverride(undefined)
 setFocusedSessionConnector(originalConnector)
 
 
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-const { openSettingsPopup, closeSettingsPopup, isSettingsPopupOpen } = await import('../../src/utils/cockpit/settingsPopup.ts')
-const { Config, CONFIG_POPUP_HINT } = await import('../../src/components/Settings/Config.tsx')
-const { Jev, JEV_POPUP_HINT } = await import('../../src/components/Settings/Jev.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { ElicitationDialog } = await import('../../src/components/mcp/ElicitationDialog.tsx')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+const { openSettingsPopup, closeSettingsPopup, isSettingsPopupOpen } = await import('../../src/screen/cockpit/settingsPopup.ts')
+const { Config, CONFIG_POPUP_HINT } = await import('../../src/screen/settings/Config.tsx')
+const { Jev, JEV_POPUP_HINT } = await import('../../src/screen/settings/Jev.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { ElicitationDialog } = await import('../../src/screen/mcp/ElicitationDialog.tsx')
 for (const cols of [80, 120]) {
   for (const view of ['config', 'jev'] as const) {
     const request = { view, width: cols - 4, rows: 12, line: 'fixture', hint: view === 'config' ? CONFIG_POPUP_HINT : JEV_POPUP_HINT, body: (geometry: { inner: number; rowBudget: number; compact: boolean }) => view === 'config'
@@ -332,9 +332,9 @@ for (const cols of [80, 120]) {
 }
 
 
-const { BootLoginsScreen } = await import('../../src/components/BootLoginsScreen.tsx')
-const { KitMenuScreen, KIT_LEGEND_PRESET } = await import('../../src/components/KitMenuScreen.tsx')
-const { BootSaturnScreen, saturnLegendOf } = await import('../../src/components/BootSaturnScreen.tsx')
+const { BootLoginsScreen } = await import('../../src/screen/boot-face/BootLoginsScreen.tsx')
+const { KitMenuScreen, KIT_LEGEND_PRESET } = await import('../../src/screen/boot-face/KitMenuScreen.tsx')
+const { BootSaturnScreen, saturnLegendOf } = await import('../../src/screen/boot-face/BootSaturnScreen.tsx')
 const { mixedFacts } = await import('./face-logins-stills.ts')
 const { FIXTURE_FACTS, FIXED_NOW } = await import('./saturn-screen-stills.ts')
 const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
@@ -416,15 +416,15 @@ const fitting = core.composeBootMenu(120, 40, model).lines.map((line: string) =>
 check('A boot legend that fits stays on exactly one row', fitting.filter((line: string) => line === model.legend).length === 1)
 
 
-const { ThemePicker } = await import('../../src/components/ThemePicker.tsx')
-const { ModelPicker } = await import('../../src/components/ModelPicker.tsx')
-const { ExportDialog } = await import('../../src/components/ExportDialog.tsx')
-const { CrashResumeDialog } = await import('../../src/components/CrashResumeDialog.tsx')
-const { CostThresholdDialog } = await import('../../src/components/CostThresholdDialog.tsx')
-const { SovereignModeDialog } = await import('../../src/components/SovereignModeDialog.tsx')
-const { MCPServerApprovalDialog } = await import('../../src/components/MCPServerApprovalDialog.tsx')
-const { MCPServerMultiselectDialog } = await import('../../src/components/MCPServerMultiselectDialog.tsx')
-const { Commands } = await import('../../src/components/HelpV2/Commands.tsx')
+const { ThemePicker } = await import('../../src/commands/appearance/ThemePicker.tsx')
+const { ModelPicker } = await import('../../src/screen/model-picker/ModelPicker.tsx')
+const { ExportDialog } = await import('../../src/commands/export/ExportDialog.tsx')
+const { CrashResumeDialog } = await import('../../src/screen/chat/CrashResumeDialog.tsx')
+const { CostThresholdDialog } = await import('../../src/models/usage/CostThresholdDialog.tsx')
+const { SovereignModeDialog } = await import('../../src/boot/first-run/SovereignModeDialog.tsx')
+const { MCPServerApprovalDialog } = await import('../../src/screen/mcp/MCPServerApprovalDialog.tsx')
+const { MCPServerMultiselectDialog } = await import('../../src/screen/mcp/MCPServerMultiselectDialog.tsx')
+const { Commands } = await import('../../src/screen/help/Commands.tsx')
 const noAction = () => {}
 for (const cols of [80, 120]) {
   const cases: Array<[string, React.ReactNode, string, boolean]> = [
@@ -452,15 +452,15 @@ for (const cols of [80, 120]) {
 
 
 const { mock } = await import('bun:test')
-const daemonModule = await import('../../src/daemon/status.ts')
+const daemonModule = await import('../../src/daemon/control/status.ts')
 const daemonStatus = { daemon: { pid: 1, version: 'fixture', uptimeSec: 10, dir: '/fixture/daemon' }, controlReachable: true, breakerOpen: false, leaseCount: 0, fireOutcomes: null, handshake: null, versionLine: null, workers: Array.from({ length: 30 }, (_, index) => ({ short: 'worker-' + String(index).padStart(2, '0'), state: 'idle', model: 'fixture-model', effort: 'max' })) }
-mock.module('../../src/daemon/status.ts', () => ({ ...daemonModule, getMercuryDaemonStatus: async () => daemonStatus }))
-const sessionModel = await import('../../src/components/mercury-ui/screens/sessionPickerModel.ts')
+mock.module('../../src/daemon/control/status.ts', () => ({ ...daemonModule, getMercuryDaemonStatus: async () => daemonStatus }))
+const sessionModel = await import('../../src/screen/widgets/faces/sessionPickerModel.ts')
 const sessions = options.map((row, index) => ({ sessionId: '00000000-0000-4000-8000-' + String(index).padStart(12, '0'), projectPath: fixtureRoot, cwd: fixtureRoot, modified: new Date().toISOString(), created: new Date().toISOString(), firstPrompt: row.label, customTitle: row.label, messageCount: 2, fullPath: join(fixtureRoot, row.value + '.jsonl') }))
 const sessionFlat = sessions.map((log, index) => ({ project: 'fixture', head: index === 0, row: { project: 'fixture', label: log.customTitle, seen: 'now', log } }))
-mock.module('../../src/components/mercury-ui/screens/sessionPickerModel.ts', () => ({ ...sessionModel, useSessionPickerModel: () => ({ logs: sessions, pendingMore: 0, projectKey: 'fixture', flat: sessionFlat, elsewhereCount: 0, dropSessions() {} }) }))
+mock.module('../../src/screen/widgets/faces/sessionPickerModel.ts', () => ({ ...sessionModel, useSessionPickerModel: () => ({ logs: sessions, pendingMore: 0, projectKey: 'fixture', flat: sessionFlat, elsewhereCount: 0, dropSessions() {} }) }))
 let sampleOpened = ''
-mock.module('../../src/services/samples/open.ts', () => ({ openSampleUrl: async (url: string) => { sampleOpened = url; return { ok: true } } }))
+mock.module('../../src/integrations/samples/open.ts', () => ({ openSampleUrl: async (url: string) => { sampleOpened = url; return { ok: true } } }))
 const workRows = Array.from({ length: 30 }, (_, index) => ({ id: 'shell-' + index, kind: 'shell', name: 'shell-' + String(index).padStart(2, '0'), command: 'printf fixture', status: 'completed', startTime: Date.now() - 1000, endTime: Date.now(), exitCode: 0 }))
 const samples = options.map(row => ({ id: row.value, title: row.label, version: 1, state: 'ready', glyph: '○', url: 'http://127.0.0.1:1/sample/' + row.value, updatedAt: new Date().toISOString() }))
 const roster = { rows: workRows, mission: [], samples, reported: true }
@@ -474,12 +474,12 @@ setFocusedSessionConnector(new Proxy(originalConnector, { get(target, property) 
   const value = Reflect.get(target, property)
   return typeof value === 'function' ? value.bind(target) : value
 } }))
-const { DaemonView } = await import('../../src/components/mercury-ui/parity/DaemonView.tsx')
-const { SessionManagerView } = await import('../../src/components/mercury-ui/screens/SessionManagerView.tsx')
-const { SessionSkillsDial } = await import('../../src/components/skills/SessionSkillsDial.tsx')
-const { SamplesListView } = await import('../../src/components/samples/SamplesListView.tsx')
-const { BackgroundTasksDialog } = await import('../../src/components/tasks/BackgroundTasksDialog.tsx')
-const { NavigablePanes } = await import('../../src/components/mercury-ui/NavigablePanes.tsx')
+const { DaemonView } = await import('../../src/screen/widgets/parity/DaemonView.tsx')
+const { SessionManagerView } = await import('../../src/screen/widgets/faces/SessionManagerView.tsx')
+const { SessionSkillsDial } = await import('../../src/screen/skills/SessionSkillsDial.tsx')
+const { SamplesListView } = await import('../../src/screen/samples/SamplesListView.tsx')
+const { BackgroundTasksDialog } = await import('../../src/screen/tasks/BackgroundTasksDialog.tsx')
+const { NavigablePanes } = await import('../../src/screen/widgets/NavigablePanes.tsx')
 for (const cols of [80, 120]) {
   for (const name of ['daemon', 'sessions', 'skills', 'samples', 'tasks', 'panes']) {
     let closed = false
@@ -545,7 +545,7 @@ for (const cols of [80, 120]) {
 setFocusedSessionConnector(originalConnector)
 
 
-const { CommandCenter } = await import('../../src/components/mercury-ui/components.tsx')
+const { CommandCenter } = await import('../../src/screen/widgets/components.tsx')
 for (const cols of [80, 120]) {
   let closed = false
   const body = h(CommandCenter, { view: 'reader fixture', onClose: () => { closed = true } }, h(Text, {}, Array.from({ length: 80 }, (_, index) => 'reader line ' + String(index).padStart(2, '0')).join('\n')))
@@ -567,15 +567,15 @@ for (const cols of [80, 120]) {
 }
 
 
-const bootFactsModule = await import('../../src/utils/bootCardFacts.ts')
-mock.module('../../src/utils/bootCardFacts.ts', () => ({ ...bootFactsModule, workedInProjects: () => options.map(row => ({ dir: '/fixture/' + row.value, base: 'ground-' + row.label, ageMs: 0 })) }))
-const subModelsModule = await import('../../src/services/model/subModelSlots.ts')
+const bootFactsModule = await import('../../src/screen/boot-face/bootCardFacts.ts')
+mock.module('../../src/screen/boot-face/bootCardFacts.ts', () => ({ ...bootFactsModule, workedInProjects: () => options.map(row => ({ dir: '/fixture/' + row.value, base: 'ground-' + row.label, ageMs: 0 })) }))
+const subModelsModule = await import('../../src/models/catalogue/subModelSlots.ts')
 const registryEntries = options.map(row => ({ kind: 'model', source: 'openai', modelId: 'fixture-' + row.value, displayName: row.label, state: 'selectable', availability: 'ready', description: 'Fixture model' }))
 let subPicked = ''
-mock.module('../../src/services/model/subModelSlots.ts', () => ({ ...subModelsModule, composeSubModelRegistry: () => ({ families: [{ source: 'openai', label: 'OpenAI', credentialed: true, credentialLabel: 'fixture' }], entries: registryEntries }), resolveSubModel: () => ({ origin: 'unset', model: '' }), setSubModel: (_container: string, value: string | null) => { subPicked = value ?? 'unset'; return { ok: true, receipt: 'Fixture selection saved' } } }))
-const { GroundPicker } = await import('../../src/components/concourse/GroundPicker.tsx')
-const { SubModelPicker } = await import('../../src/components/SubModelPicker.tsx')
-const { LocalSetupDialog, LOCAL_SETUP_POPUP_HINT } = await import('../../src/components/LocalSetupDialog.tsx')
+mock.module('../../src/models/catalogue/subModelSlots.ts', () => ({ ...subModelsModule, composeSubModelRegistry: () => ({ families: [{ source: 'openai', label: 'OpenAI', credentialed: true, credentialLabel: 'fixture' }], entries: registryEntries }), resolveSubModel: () => ({ origin: 'unset', model: '' }), setSubModel: (_container: string, value: string | null) => { subPicked = value ?? 'unset'; return { ok: true, receipt: 'Fixture selection saved' } } }))
+const { GroundPicker } = await import('../../src/screen/concourse/GroundPicker.tsx')
+const { SubModelPicker } = await import('../../src/commands/submodels/SubModelPicker.tsx')
+const { LocalSetupDialog, LOCAL_SETUP_POPUP_HINT } = await import('../../src/commands/localsetup/LocalSetupDialog.tsx')
 const { MercuryHealthCertificate } = await import('../../src/commands/health/HealthCertificate.tsx')
 for (const cols of [80, 120]) {
   for (const name of ['ground', 'submodels', 'localsetup', 'health']) {
@@ -631,15 +631,15 @@ for (const cols of [80, 120]) {
 }
 
 
-const { LogSelector } = await import('../../src/components/LogSelector.tsx')
-const { MercuryCommandPalette } = await import('../../src/components/MercuryCommandPalette.tsx')
-const { SelectEventMode } = await import('../../src/components/hooks/SelectEventMode.tsx')
-const { SelectMatcherMode } = await import('../../src/components/hooks/SelectMatcherMode.tsx')
-const { SelectHookMode } = await import('../../src/components/hooks/SelectHookMode.tsx')
-const ruleModule = await import('../../src/utils/permissions/decision/rules.ts')
+const { LogSelector } = await import('../../src/screen/session-chooser/SessionBrowser.tsx')
+const { MercuryCommandPalette } = await import('../../src/screen/composer/MercuryCommandPalette.tsx')
+const { SelectEventMode } = await import('../../src/screen/event-hooks-menu/SelectEventMode.tsx')
+const { SelectMatcherMode } = await import('../../src/screen/event-hooks-menu/SelectMatcherMode.tsx')
+const { SelectHookMode } = await import('../../src/screen/event-hooks-menu/SelectHookMode.tsx')
+const ruleModule = await import('../../src/permissions/rules/decision/rules.ts')
 const rules = options.map(row => ({ ruleBehavior: 'allow', source: 'userSettings', ruleValue: { toolName: 'Read', ruleContent: 'choice-' + row.value } }))
-mock.module('../../src/utils/permissions/decision/rules.ts', () => ({ ...ruleModule, getAllowRules: () => rules, getAskRules: () => [], getDenyRules: () => [] }))
-const { PermissionRuleList } = await import('../../src/components/permissions/rules/PermissionRuleList.tsx')
+mock.module('../../src/permissions/rules/decision/rules.ts', () => ({ ...ruleModule, getAllowRules: () => rules, getAskRules: () => [], getDenyRules: () => [] }))
+const { PermissionRuleList } = await import('../../src/permissions/cards/rule-manager/PermissionRuleList.tsx')
 const logs = sessions.map((log, index) => ({ ...log, value: index, date: new Date().toISOString(), created: new Date(), modified: new Date(), messages: [], isSidechain: false }))
 const hooks = options.map(row => ({ entry: { run: 'printf fixture', name: row.label }, source: { kind: 'extension', name: 'fixture' }, match: row.label, event: 'beforeTool' }))
 for (const cols of [80, 120]) {
@@ -698,7 +698,7 @@ for (const cols of [80, 120]) {
 }
 
 
-const { Usage } = await import('../../src/components/Settings/Usage.tsx')
+const { Usage } = await import('../../src/screen/settings/Usage.tsx')
 for (const cols of [80, 120]) {
   for (const compact of [false, true]) {
     const request = { view: 'usage' as const, width: cols - 4, rows: 18, line: 'Fixture usage', hint: 'esc closes', body: (geometry: { inner: number; rowBudget: number }) => h(Usage, { width: geometry.inner, rowBudget: geometry.rowBudget, compact }) }
@@ -724,13 +724,13 @@ for (const cols of [80, 120]) {
     finally { scene.unmount(); closeSettingsPopup() }
   }
 }
-const diffModule = await import('../../src/hooks/useDiffData.ts')
+const diffModule = await import('../../src/screen/diff/useDiffData.ts')
 const diffFiles = options.map(row => ({ path: 'choice-' + row.value + '.ts', linesAdded: 1, linesRemoved: 1, isBinary: false, isLargeFile: false, isTruncated: false }))
 const diffData = { files: diffFiles, loading: false, stats: { filesChanged: diffFiles.length, insertions: 24, deletions: 24 }, hunks: new Map(diffFiles.map(file => [file.path, [{ oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: ['-before', '+after'] }]])) }
-mock.module('../../src/hooks/useDiffData.ts', () => ({ ...diffModule, useDiffData: () => diffData }))
-const diffSourcesModule = await import('../../src/components/diff/diffSources.ts')
-mock.module('../../src/components/diff/diffSources.ts', () => ({ ...diffSourcesModule, enumerateExtraSources: async () => [] }))
-const { DiffDialog } = await import('../../src/components/diff/DiffDialog.tsx')
+mock.module('../../src/screen/diff/useDiffData.ts', () => ({ ...diffModule, useDiffData: () => diffData }))
+const diffSourcesModule = await import('../../src/screen/diff/diffSources.ts')
+mock.module('../../src/screen/diff/diffSources.ts', () => ({ ...diffSourcesModule, enumerateExtraSources: async () => [] }))
+const { DiffDialog } = await import('../../src/screen/diff/DiffDialog.tsx')
 const cachingCommand = await import('../../src/commands/caching/caching.tsx')
 for (const cols of [80, 120]) {
   for (const name of ['diff', 'caching']) {
@@ -768,18 +768,18 @@ for (const cols of [80, 120]) {
 }
 
 
-const readinessModule = await import('../../src/services/health/readiness.ts')
+const readinessModule = await import('../../src/platform/health/readiness.ts')
 const readinessRows = options.map(row => ({ id: row.value, kind: 'tool', label: 'capability-' + row.value, state: 'ready', detail: 'Fixture capability ' + row.value, source: 'fixture', remedy: '', lastCheckedAt: Date.now() }))
-mock.module('../../src/services/health/readiness.ts', () => ({ ...readinessModule, collectReadiness: () => ({ records: readinessRows }) }))
+mock.module('../../src/platform/health/readiness.ts', () => ({ ...readinessModule, collectReadiness: () => ({ records: readinessRows }) }))
 const osModule = await import('node:os')
 mock.module('node:os', () => ({ ...osModule, homedir: () => process.env.MERCURY_CONFIG_DIR! }))
-const accountsModule = await import('../../src/services/providers/accountSlots.ts')
+const accountsModule = await import('../../src/models/roads/accountSlots.ts')
 const accountGroups = [{ family: { id: 'openai', available: true, credentialed: false }, slots: options.map(row => ({ family: 'openai', id: row.value, name: 'account-' + row.value, kind: 'api-key', kindLabel: 'API key', identity: 'fixture-' + row.value, active: false, signedIn: false, envPinned: false, removal: { route: 'owner', note: 'fixture' } })) }]
-mock.module('../../src/services/providers/accountSlots.ts', () => ({ ...accountsModule, deriveFamilySlotGroups: () => accountGroups }))
-const discoveryModule = await import('../../src/services/providers/providerDiscovery.ts')
-mock.module('../../src/services/providers/providerDiscovery.ts', () => ({ ...discoveryModule, refreshProviderDiscovery: async () => undefined }))
-const { CapabilityManagerView } = await import('../../src/components/mercury-ui/parity/CapabilityManagerView.tsx')
-const { AccountView } = await import('../../src/components/mercury-ui/parity/AccountView.tsx')
+mock.module('../../src/models/roads/accountSlots.ts', () => ({ ...accountsModule, deriveFamilySlotGroups: () => accountGroups }))
+const discoveryModule = await import('../../src/models/roads/providerDiscovery.ts')
+mock.module('../../src/models/roads/providerDiscovery.ts', () => ({ ...discoveryModule, refreshProviderDiscovery: async () => undefined }))
+const { CapabilityManagerView } = await import('../../src/screen/widgets/parity/CapabilityManagerView.tsx')
+const { AccountView } = await import('../../src/screen/widgets/parity/AccountView.tsx')
 for (const cols of [80, 120]) {
   for (const name of ['capabilities', 'accounts']) {
     let closed = false
@@ -821,15 +821,15 @@ setFocusedSessionConnector(new Proxy(originalConnector, { get(target, property) 
   const value = Reflect.get(target, property)
   return typeof value === 'function' ? value.bind(target) : value
 } }))
-const { CrewView } = await import('../../src/components/mercury-ui/screens/CrewView.tsx')
-const agentStore = await import('../../src/services/agents/store.ts')
+const { CrewView } = await import('../../src/screen/widgets/faces/CrewView.tsx')
+const agentStore = await import('../../src/crew/agents/store.ts')
 const trash = options.map(row => ({ id: row.value, agentType: 'trash-' + String(Number(row.value)).padStart(2, '0'), deletedAt: new Date().toISOString(), originalPath: '/fixture/agents/' + row.value + '.md', source: 'project' }))
 let restored = ''
-mock.module('../../src/services/agents/store.ts', () => ({ ...agentStore, listAgentTrash: () => trash, restoreAgentFromTrash: async (id: string) => { restored = id; return { path: '/fixture/restored.md' } } }))
-const { AgentStudio } = await import('../../src/components/agents/studio/AgentStudio.tsx')
-const runModule = await import('../../src/services/run/runCoordinator.ts')
+mock.module('../../src/crew/agents/store.ts', () => ({ ...agentStore, listAgentTrash: () => trash, restoreAgentFromTrash: async (id: string) => { restored = id; return { path: '/fixture/restored.md' } } }))
+const { AgentStudio } = await import('../../src/screen/agents/studio/AgentStudio.tsx')
+const runModule = await import('../../src/engine/run/runCoordinator.ts')
 const runSnapshot = { objective: 'Fixture run', runId: 'fixture', lifecycle: 'completed', phase: 'done', phaseReason: 'fixture', substantive: true, startedAt: 1000, updatedAt: 2000, continuationCount: 0, deliverables: [{ id: 'one', title: 'Fixture item', state: 'done' }], nextAction: 'Fixture next action', blocker: null, recentEffects: [], changedPaths: [], pendingTools: [], totalChangedPaths: 0, unresolvedBadEffects: 0, verification: { state: 'verified', detail: 'Fixture evidence' }, contextEpoch: 1, lastContextTransition: null, ideFeedback: { state: 'clean', detail: 'Fixture diagnostics' }, totalEvents: 0, recentEvents: [] }
-mock.module('../../src/services/run/runCoordinator.ts', () => ({ ...runModule, getRunSnapshot: () => runSnapshot, subscribeRuns: () => () => {} }))
+mock.module('../../src/engine/run/runCoordinator.ts', () => ({ ...runModule, getRunSnapshot: () => runSnapshot, subscribeRuns: () => () => {} }))
 const runCommand = await import('../../src/commands/run/run.tsx')
 for (const cols of [80, 120]) {
   for (const name of ['crew', 'agent-trash', 'run-inspector']) {
@@ -877,7 +877,7 @@ for (const cols of [80, 120]) {
 setFocusedSessionConnector(originalConnector)
 
 
-const { createUserMessage } = await import('../../src/services/messages.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const workbenchRecords = options.map(row => createUserMessage({ content: 'prompt-' + row.value }))
 setFocusedSessionConnector(new Proxy(originalConnector, { get(target, property) {
   if (property === 'records') return () => workbenchRecords
@@ -885,7 +885,7 @@ setFocusedSessionConnector(new Proxy(originalConnector, { get(target, property) 
   const value = Reflect.get(target, property)
   return typeof value === 'function' ? value.bind(target) : value
 } }))
-const { PromptsPanel } = await import('../../src/components/prompts-panel/PromptsPanel.tsx')
+const { PromptsPanel } = await import('../../src/screen/prompts-panel/PromptsPanel.tsx')
 for (const cols of [80, 120]) {
   for (const name of ['workbench']) {
     let closed = false
@@ -925,8 +925,8 @@ for (const cols of [80, 120]) {
 setFocusedSessionConnector(originalConnector)
 
 
-const { ConsoleOAuthFlow } = await import('../../src/components/ConsoleOAuthFlow.tsx')
-const { FilePermissionDialog } = await import('../../src/components/permissions/FilePermissionDialog/FilePermissionDialog.tsx')
+const { ConsoleOAuthFlow } = await import('../../src/models/sign-in/flow-cards/SignInFlow.tsx')
+const { FilePermissionDialog } = await import('../../src/permissions/cards/file-dialog/FilePermissionDialog.tsx')
 for (const cols of [80, 120]) {
   const request = { view: 'logins' as const, width: cols - 4, rows: 18, line: 'Fixture logins', hint: 'esc closes', bodyOwnsEscape: true, body: (geometry: { inner: number; rowBudget: number }) => h(PopupForm, { width: geometry.inner, rows: geometry.rowBudget }, h(ConsoleOAuthFlow, { onDone: closeSettingsPopup, onCancel: closeSettingsPopup, onOpenaiDone: noAction })) }
   openSettingsPopup(request)
@@ -971,13 +971,13 @@ for (const cols of [80, 120]) {
     check(cols + ' file permission: Enter calls only its supplied allow callback', await waitFor(() => allowed, 1800))
   } finally { permission.unmount() }
 }
-const fsModule = await import('../../src/utils/fsOperations.ts')
+const fsModule = await import('../../src/platform/files/fsOperations.ts')
 const fixtureFs = fsModule.getFsImplementation()
-mock.module('../../src/utils/fsOperations.ts', () => ({ ...fsModule, getFsImplementation: () => new Proxy(fixtureFs, { get(target, key) { if (key === 'cwd') return () => '/fixture/project'; const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value } }) }))
-const configModule = await import('../../src/utils/config.ts')
-mock.module('../../src/utils/config.ts', () => ({ ...configModule, getProjectPathForConfig: () => '/fixture/project', checkHasTrustDialogAccepted: () => false }))
-const { TrustDialog } = await import('../../src/components/TrustDialog/TrustDialog.tsx')
-const { MercurySetupFrame } = await import('../../src/components/MercurySetupFrame.tsx')
+mock.module('../../src/platform/files/fsOperations.ts', () => ({ ...fsModule, getFsImplementation: () => new Proxy(fixtureFs, { get(target, key) { if (key === 'cwd') return () => '/fixture/project'; const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value } }) }))
+const configModule = await import('../../src/platform/settings/config.ts')
+mock.module('../../src/platform/settings/config.ts', () => ({ ...configModule, getProjectPathForConfig: () => '/fixture/project', checkHasTrustDialogAccepted: () => false }))
+const { TrustDialog } = await import('../../src/screen/trust-dialog/TrustDialog.tsx')
+const { MercurySetupFrame } = await import('../../src/boot/first-run/MercurySetupFrame.tsx')
 for (const cols of [80, 120]) {
   const scene = await mount(h(MercurySetupFrame, { title: 'Workspace trust', tone: 'trust', firstRunCard: true, steps: [{ key: 'trust', label: 'Workspace trust', state: 'current' }], stepTag: 'trust · 1/1', footer: '↑↓ move · ↵ select · esc exit', children: h(TrustDialog, { onDone() {} }) }), cols, 30)
   try {
@@ -988,7 +988,7 @@ for (const cols of [80, 120]) {
 }
 
 
-const { useInput: useFixtureInput } = await import('../../src/ink.ts')
+const { useInput: useFixtureInput } = await import('../../src/screen/themedRenderer.ts')
 for (const cols of [80, 120]) {
   let focused = ''
   function LateSelector(): React.ReactNode {
@@ -1012,18 +1012,18 @@ for (const cols of [80, 120]) {
 }
 
 
-const instructionsModule = await import('../../src/services/instructions/engine.ts')
+const instructionsModule = await import('../../src/sessions/instructions/instructionFiles.ts')
 const instructionFiles = Promise.resolve(options.map(row => ({ path: '/fixture/instruction-' + row.value + '.md', content: '', family: 'native', type: 'Project' })))
-mock.module('../../src/services/instructions/engine.ts', () => ({ ...instructionsModule, getInstructionFiles: () => instructionFiles }))
-const libraryModule = await import('../../src/mneme/mnemeLibrary.ts')
+mock.module('../../src/sessions/instructions/instructionFiles.ts', () => ({ ...instructionsModule, getInstructionFiles: () => instructionFiles }))
+const libraryModule = await import('../../src/sessions/mneme/mnemeLibrary.ts')
 const topicDocs = options.map((row, index) => ({ id: 'topic-fixture-' + String.fromCharCode(97 + index), slug: 'fixture-' + String.fromCharCode(97 + index), summary: 'topic ' + row.value, tokenCount: 100, created: new Date().toISOString(), updated: new Date().toISOString(), updateLog: [], history: [], sections: [{ heading: 'Facts', entries: Array.from({ length: 20 }, (_, i) => ({ text: 'Fixture fact ' + row.value + '-' + i + ' with enough words to wrap inside the reader.', seq: index * 20 + i + 1, time: new Date().toISOString(), source: 'operator:fixture' })) }] }))
-mock.module('../../src/mneme/mnemeLibrary.ts', () => ({ ...libraryModule, listTopicDocs: () => topicDocs, listArchiveDocs: () => [] }))
-const maintenanceModule = await import('../../src/mneme/mnemeMaintenance.ts')
-mock.module('../../src/mneme/mnemeMaintenance.ts', () => ({ ...maintenanceModule, mnemeStatus: () => ({ enabled: true, entryCount: 480, buffered: 0, pendingConsuming: 0, historyCount: 0, topicCount: 24, due: false, dueReason: '', running: false, degraded: false, lastConsolidatedAt: null }) }))
-const { MemoryCentreView } = await import('../../src/components/memory/MemoryCentreView.tsx')
-const { MemoryFileSelector } = await import('../../src/components/memory/MemoryFileSelector.tsx')
-const { memoryFooter } = await import('../../src/components/memory/memoryCentreLayout.ts')
-const { useSettingsPopupFrame } = await import('../../src/components/Settings/Settings.tsx')
+mock.module('../../src/sessions/mneme/mnemeLibrary.ts', () => ({ ...libraryModule, listTopicDocs: () => topicDocs, listArchiveDocs: () => [] }))
+const maintenanceModule = await import('../../src/sessions/mneme/mnemeMaintenance.ts')
+mock.module('../../src/sessions/mneme/mnemeMaintenance.ts', () => ({ ...maintenanceModule, mnemeStatus: () => ({ enabled: true, entryCount: 480, buffered: 0, pendingConsuming: 0, historyCount: 0, topicCount: 24, due: false, dueReason: '', running: false, degraded: false, lastConsolidatedAt: null }) }))
+const { MemoryCentreView } = await import('../../src/screen/memory/MemoryCentreView.tsx')
+const { MemoryFileSelector } = await import('../../src/screen/memory/MemoryFileSelector.tsx')
+const { memoryFooter } = await import('../../src/screen/memory/memoryCentreLayout.ts')
+const { useSettingsPopupFrame } = await import('../../src/screen/settings/Settings.tsx')
 function MemoryFixture({ width, rows }: { width: number; rows: number }): React.ReactNode {
   const frame = useSettingsPopupFrame()
   return h(MemoryCentreView, { width, rowBudget: rows, initialRow: 'topics', onClose: closeSettingsPopup, onHint: frame.setHint })

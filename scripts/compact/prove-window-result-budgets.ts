@@ -13,19 +13,19 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.BROWSER = '/usr/bin/true'
 for (const key of ['MERCURY_HOME', 'MERCURY_MODEL', 'MERCURY_DISABLE_1M_CONTEXT', 'MERCURY_BARE', 'NODE_ENV']) delete process.env[key]
 const load = (file: string): Promise<any> => import(join(root, file))
-const storage = await load('src/utils/toolResultStorage.ts')
-const limits = await load('src/constants/toolLimits.ts')
-const { enableConfigs } = await load('src/utils/config/globalConfig.ts')
+const storage = await load('src/engine/tool-dispatch/toolResultStorage.ts')
+const limits = await load('src/tools/kit/toolLimits.ts')
+const { enableConfigs } = await load('src/platform/config/globalConfig.ts')
 enableConfigs()
-const { refreshLocalDiscovery } = await load('src/services/providers/local/localDiscovery.ts')
-const { resolveContextWindow, getModelMaxOutputTokens } = await load('src/utils/model/capabilities.ts')
-const { createUserMessage, createAssistantMessage } = await load('src/services/messages.ts')
-const { buildRequestContextPlan } = await load('src/services/run/requestContextPlan.ts')
-const { processMainOwner } = await load('src/utils/run/resolveOwner.ts')
-const { Conversation } = await load('src/rows/turn.ts')
-const { runToolUse } = await load('src/services/tools/toolExecution.ts')
-const { getDefaultAppState } = await load('src/state/AppStateStore.ts')
-const { createFileStateCacheWithSizeLimit } = await load('src/utils/fileStateCache.ts')
+const { refreshLocalDiscovery } = await load('src/models/roads/local/localDiscovery.ts')
+const { resolveContextWindow, getModelMaxOutputTokens } = await load('src/models/facts/capabilities.ts')
+const { createUserMessage, createAssistantMessage } = await load('src/engine/messages/messages.ts')
+const { buildRequestContextPlan } = await load('src/engine/run/requestContextPlan.ts')
+const { processMainOwner } = await load('src/engine/run-owner/resolveOwner.ts')
+const { Conversation } = await load('src/engine/rows/turn.ts')
+const { runToolUse } = await load('src/engine/tool-dispatch/toolExecution.ts')
+const { getDefaultAppState } = await load('src/screen/app-state/AppStateStore.ts')
+const { createFileStateCacheWithSizeLimit } = await load('src/platform/files/fileStateCache.ts')
 const { z } = await import('zod')
 let failed = 0
 let checks = 0
@@ -61,27 +61,27 @@ function wholePointer(result: any, expected: string): boolean {
 }
 try {
   await refreshLocalDiscovery({ force: true, env: { MERCURY_LOCAL_PROBE_TARGETS: `ollama=http://127.0.0.1:${server.port}` } })
-  const { writeLocalWindowSetting } = await load('src/services/providers/local/localWindow.ts')
+  const { writeLocalWindowSetting } = await load('src/models/roads/local/localWindow.ts')
   for (const name of windows.keys()) writeLocalWindowSetting({ id: name }, 'server')
   console.log('\nwindow-scaled floor and raising law')
   const fn = limits.toolResultBudgetsForWindow
   const b8k = typeof fn === 'function' ? fn(8_000) : null
   const b128k = typeof fn === 'function' ? fn(128_000) : null
   const b200k = typeof fn === 'function' ? fn(200_000) : null
-  check('an 8k window gets no less than today (50,000 persist / 200,000 message)', b8k !== null && b8k.resultChars === 50_000 && b8k.messageChars === 200_000, JSON.stringify(b8k), 'change toolResultBudgetsForWindow in src/constants/toolLimits.ts so a small window keeps the base budgets')
-  check('a 128k window gets no less than today (76,800 persist / 200,000 message)', b128k !== null && b128k.resultChars === 76_800 && b128k.messageChars === 200_000, JSON.stringify(b128k), 'change toolResultBudgetsForWindow in src/constants/toolLimits.ts so a 128k window keeps 76,800 and 200,000')
-  check('a 200k window raises both budgets (120,000 persist / 240,000 message)', b200k !== null && b200k.resultChars === 120_000 && b200k.messageChars === 240_000, JSON.stringify(b200k), 'change toolResultBudgetsForWindow in src/constants/toolLimits.ts so a 200k window raises both budgets')
+  check('an 8k window gets no less than today (50,000 persist / 200,000 message)', b8k !== null && b8k.resultChars === 50_000 && b8k.messageChars === 200_000, JSON.stringify(b8k), 'change toolResultBudgetsForWindow in src/tools/kit/toolLimits.ts so a small window keeps the base budgets')
+  check('a 128k window gets no less than today (76,800 persist / 200,000 message)', b128k !== null && b128k.resultChars === 76_800 && b128k.messageChars === 200_000, JSON.stringify(b128k), 'change toolResultBudgetsForWindow in src/tools/kit/toolLimits.ts so a 128k window keeps 76,800 and 200,000')
+  check('a 200k window raises both budgets (120,000 persist / 240,000 message)', b200k !== null && b200k.resultChars === 120_000 && b200k.messageChars === 240_000, JSON.stringify(b200k), 'change toolResultBudgetsForWindow in src/tools/kit/toolLimits.ts so a 200k window raises both budgets')
 
   for (const [model, threshold] of [['local/room-8k', 50_000], ['local/room-32k', 50_000], ['local/room-100k', 60_000], ['local/room-128k', 76_800], ['local/room-200k', 120_000]] as const) {
     const beforeOutput = getModelMaxOutputTokens(model)
     const inlineBlock = block(payload(threshold))
     const inlineResult = await storage.processPreMappedToolResultBlock(inlineBlock, 'Fixture', 150_000, undefined, model)
-    check(`${model} keeps ${threshold} chars inline without lowering below base`, inlineResult === inlineBlock, '', 'a result at the threshold must come back as the same object: check processPreMappedToolResultBlock and resultBudgetsForModel in src/utils/toolResultStorage.ts')
+    check(`${model} keeps ${threshold} chars inline without lowering below base`, inlineResult === inlineBlock, '', 'a result at the threshold must come back as the same object: check processPreMappedToolResultBlock and resultBudgetsForModel in src/engine/tool-dispatch/toolResultStorage.ts')
     const spillText = payload(threshold + 1)
     const spillResult = await storage.processPreMappedToolResultBlock(block(spillText), 'Fixture', 150_000, undefined, model)
-    check(`${model} spills above its ${threshold} threshold`, String(spillResult.content).startsWith(storage.PERSISTED_OUTPUT_TAG), `window ${resolveContextWindow(model).effectiveWindow}; inline ${String(spillResult.content).length}`, 'a result one char over the threshold must spill: check processPreMappedToolResultBlock and resultBudgetsForModel in src/utils/toolResultStorage.ts')
-    check(`${model} pointer reads back the whole result`, wholePointer(spillResult, spillText), '', 'the Full output saved to path in the pointer must hold the whole result: check processPreMappedToolResultBlock in src/utils/toolResultStorage.ts')
-    check(`${model} output-token capability unchanged`, JSON.stringify(getModelMaxOutputTokens(model)) === JSON.stringify(beforeOutput), '', 'a result budget must not change the model output-token capability: check getModelMaxOutputTokens in src/utils/model/capabilities.ts')
+    check(`${model} spills above its ${threshold} threshold`, String(spillResult.content).startsWith(storage.PERSISTED_OUTPUT_TAG), `window ${resolveContextWindow(model).effectiveWindow}; inline ${String(spillResult.content).length}`, 'a result one char over the threshold must spill: check processPreMappedToolResultBlock and resultBudgetsForModel in src/engine/tool-dispatch/toolResultStorage.ts')
+    check(`${model} pointer reads back the whole result`, wholePointer(spillResult, spillText), '', 'the Full output saved to path in the pointer must hold the whole result: check processPreMappedToolResultBlock in src/engine/tool-dispatch/toolResultStorage.ts')
+    check(`${model} output-token capability unchanged`, JSON.stringify(getModelMaxOutputTokens(model)) === JSON.stringify(beforeOutput), '', 'a result budget must not change the model output-token capability: check getModelMaxOutputTokens in src/models/facts/capabilities.ts')
   }
 
   console.log('\nshared request planning and aggregate budget')
@@ -91,25 +91,25 @@ try {
     for (const model of ['local/room-8k', 'local/room-128k'] as const) {
       const state = storage.createContentReplacementState()
       const res = await storage.enforceToolResultBudget(under200k, state, new Set(), model)
-      check(`${model} keeps 160,000 aggregate chars inline (no less than today's 200,000)`, res.messages === under200k && res.replacements.length === 0, '', 'enforceToolResultBudget in src/utils/toolResultStorage.ts replaced results under the aggregate message budget')
+      check(`${model} keeps 160,000 aggregate chars inline (no less than today's 200,000)`, res.messages === under200k && res.replacements.length === 0, '', 'enforceToolResultBudget in src/engine/tool-dispatch/toolResultStorage.ts replaced results under the aggregate message budget')
     }
     const over200k = [createUserMessage({ content: [block(chunk80k), block(chunk80k), block(chunk80k)] })]
     const state200k = storage.createContentReplacementState()
     const res200k = await storage.enforceToolResultBudget(over200k, state200k, new Set(), 'local/room-200k')
-    check('local/room-200k raises message budget to 240,000 and keeps 240,000 chars inline', res200k.messages === over200k && res200k.replacements.length === 0, '', 'enforceToolResultBudget in src/utils/toolResultStorage.ts must use the 200k window message budget from toolResultBudgetsForWindow')
+    check('local/room-200k raises message budget to 240,000 and keeps 240,000 chars inline', res200k.messages === over200k && res200k.replacements.length === 0, '', 'enforceToolResultBudget in src/engine/tool-dispatch/toolResultStorage.ts must use the 200k window message budget from toolResultBudgetsForWindow')
 
     const chunk90k = payload(90_000)
     const over240k = [createUserMessage({ content: [block(chunk90k), block(chunk90k), block(chunk90k)] })]
     const statePrune = storage.createContentReplacementState()
     const recorded: any[] = []
     const preserved = await buildRequestContextPlan({ messages: over240k, owner: processMainOwner(), querySource: 'sdk', contentReplacementState: statePrune, skipToolNames: new Set(), preserveBodies: true, engineModel: 'local/room-200k', persistReplacements: (rows: any[]) => { recorded.push(...rows) } }, 'apply')
-    check('preserveBodies bypasses aggregate replacement so a fold sees the full request', JSON.stringify(preserved.messages) === JSON.stringify(over240k) && statePrune.replacements.size === 0 && statePrune.seenIds.size === 0, '', 'preserveBodies must leave messages and the replacement state untouched: check buildRequestContextPlan in src/services/run/requestContextPlan.ts')
+    check('preserveBodies bypasses aggregate replacement so a fold sees the full request', JSON.stringify(preserved.messages) === JSON.stringify(over240k) && statePrune.replacements.size === 0 && statePrune.seenIds.size === 0, '', 'preserveBodies must leave messages and the replacement state untouched: check buildRequestContextPlan in src/engine/run/requestContextPlan.ts')
     const pruned = await buildRequestContextPlan({ messages: over240k, owner: processMainOwner(), querySource: 'sdk', contentReplacementState: statePrune, skipToolNames: new Set(), preserveBodies: false, engineModel: 'local/room-200k', persistReplacements: (rows: any[]) => { recorded.push(...rows) } }, 'apply')
     const landed = pruned.messages[0].message.content
-    check('when preserveBodies is false, aggregate budget replaces above 240,000 chars', landed.some((b: any) => b.content.startsWith(storage.PERSISTED_OUTPUT_TAG)) && recorded.length === 1, '', 'with preserveBodies false the aggregate budget must replace and record one result: check buildRequestContextPlan in src/services/run/requestContextPlan.ts and enforceToolResultBudget in src/utils/toolResultStorage.ts')
-    for (const b of landed) if (b.content !== chunk90k) check('aggregate pointer keeps full 90,000-char output', wholePointer(b, chunk90k), '', 'the saved file behind an aggregate pointer must hold the whole output: check enforceToolResultBudget in src/utils/toolResultStorage.ts')
+    check('when preserveBodies is false, aggregate budget replaces above 240,000 chars', landed.some((b: any) => b.content.startsWith(storage.PERSISTED_OUTPUT_TAG)) && recorded.length === 1, '', 'with preserveBodies false the aggregate budget must replace and record one result: check buildRequestContextPlan in src/engine/run/requestContextPlan.ts and enforceToolResultBudget in src/engine/tool-dispatch/toolResultStorage.ts')
+    for (const b of landed) if (b.content !== chunk90k) check('aggregate pointer keeps full 90,000-char output', wholePointer(b, chunk90k), '', 'the saved file behind an aggregate pointer must hold the whole output: check enforceToolResultBudget in src/engine/tool-dispatch/toolResultStorage.ts')
     const again = await buildRequestContextPlan({ messages: over240k, owner: processMainOwner(), querySource: 'sdk', contentReplacementState: statePrune, skipToolNames: new Set(), preserveBodies: false, engineModel: 'local/room-8k' }, 'apply')
-    check('decided prefixes survive a smaller-window switch unchanged', JSON.stringify(again.messages) === JSON.stringify(pruned.messages), '', 'a decision already recorded in the replacement state must be reused: check buildRequestContextPlan in src/services/run/requestContextPlan.ts')
+    check('decided prefixes survive a smaller-window switch unchanged', JSON.stringify(again.messages) === JSON.stringify(pruned.messages), '', 'a decision already recorded in the replacement state must be reused: check buildRequestContextPlan in src/engine/run/requestContextPlan.ts')
   }
 
   console.log('\nreal tool transaction')
@@ -122,31 +122,31 @@ try {
   const updates: any[] = []
   for await (const update of runToolUse({ id, name: tool.name, input: {} }, assistant, async (_tool: any, input: any) => ({ behavior: 'allow', updatedInput: input }), ctx)) updates.push(update)
   const result = updates.flatMap(update => update.message?.message?.content ?? []).find(b => b.tool_use_id === id)
-  check('tool execution on 128k window keeps 60,000-char result inline (raised to 76,800)', result !== undefined && result.content === text, String(result?.content).slice(0, 80), 'runToolUse in src/services/tools/toolExecution.ts must keep a result under the 128k window budget inline')
+  check('tool execution on 128k window keeps 60,000-char result inline (raised to 76,800)', result !== undefined && result.content === text, String(result?.content).slice(0, 80), 'runToolUse in src/engine/tool-dispatch/toolExecution.ts must keep a result under the 128k window budget inline')
   const conversation = new Conversation({ ...ctx, tools: [tool], initialMessages: [], contentReplacementState: undefined, readFileState: ctx.readFileState })
-  check('headless Conversation uses the interactive aggregate default', conversation.state.contentReplacementState.budgetChars !== Infinity, '', 'the Conversation constructor in src/rows/turn.ts must give its replacement state a finite aggregate budget')
+  check('headless Conversation uses the interactive aggregate default', conversation.state.contentReplacementState.budgetChars !== Infinity, '', 'the Conversation constructor in src/engine/rows/turn.ts must give its replacement state a finite aggregate budget')
 
   console.log('\nrefusals')
   for (const [model, size] of [['local/room-8k', 50_000], ['local/room-32k', 50_000], ['local/room-128k', 76_800], ['local/room-200k', 120_000], ['local/room-zero', 50_000], ['local/not-listed', 50_000], [undefined, 50_000]] as const) {
     const original = block(payload(size))
     const res = await storage.processPreMappedToolResultBlock(original, 'Fixture', 150_000, undefined, model)
-    check(`${model ?? 'unknown'} result at threshold stays inline byte for byte`, res === original, '', 'processPreMappedToolResultBlock in src/utils/toolResultStorage.ts must return the same block at or under the threshold, including an unknown or zero window')
+    check(`${model ?? 'unknown'} result at threshold stays inline byte for byte`, res === original, '', 'processPreMappedToolResultBlock in src/engine/tool-dispatch/toolResultStorage.ts must return the same block at or under the threshold, including an unknown or zero window')
   }
   const selfBounded = block(payload(90_000))
-  check('self-bounded Read is not recursively persisted', await storage.processPreMappedToolResultBlock(selfBounded, 'Read', Infinity, undefined, 'local/room-8k') === selfBounded, '', 'processPreMappedToolResultBlock in src/utils/toolResultStorage.ts must skip a tool whose limit is Infinity')
+  check('self-bounded Read is not recursively persisted', await storage.processPreMappedToolResultBlock(selfBounded, 'Read', Infinity, undefined, 'local/room-8k') === selfBounded, '', 'processPreMappedToolResultBlock in src/engine/tool-dispatch/toolResultStorage.ts must skip a tool whose limit is Infinity')
   const image = block('unused')
   image.content = [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'fixture' } }]
-  check('images reach the model unchanged', await storage.processPreMappedToolResultBlock(image, 'Fixture', 1, undefined, 'local/room-8k') === image, '', 'processPreMappedToolResultBlock in src/utils/toolResultStorage.ts must leave image content alone')
+  check('images reach the model unchanged', await storage.processPreMappedToolResultBlock(image, 'Fixture', 1, undefined, 'local/room-8k') === image, '', 'processPreMappedToolResultBlock in src/engine/tool-dispatch/toolResultStorage.ts must leave image content alone')
   const assistantText = createAssistantMessage({ content: [{ type: 'text', text: payload(90_000) }] })
   const untouched = await storage.enforceToolResultBudget([assistantText], storage.createContentReplacementState(), new Set(), 'local/room-8k')
-  check('model output is not cut by a tool budget', untouched.messages[0] === assistantText, '', 'enforceToolResultBudget in src/utils/toolResultStorage.ts must leave assistant messages alone')
+  check('model output is not cut by a tool budget', untouched.messages[0] === assistantText, '', 'enforceToolResultBudget in src/engine/tool-dispatch/toolResultStorage.ts must leave assistant messages alone')
   const bounded = await storage.processPreMappedToolResultBlock(block(payload(10_001)), 'Fixture', 10_000, undefined, 'local/room-200k')
-  check('a tool-specific lower threshold still applies with whole storage', wholePointer(bounded, payload(10_001)), '', 'a tool limit below the window budget must still spill with the whole output saved: check processPreMappedToolResultBlock in src/utils/toolResultStorage.ts')
+  check('a tool-specific lower threshold still applies with whole storage', wholePointer(bounded, payload(10_001)), '', 'a tool limit below the window budget must still spill with the whole output saved: check processPreMappedToolResultBlock in src/engine/tool-dispatch/toolResultStorage.ts')
   const same = await storage.processPreMappedToolResultBlock(bounded, 'Fixture', 100, undefined, 'local/room-8k')
-  check('an existing pointer is never persisted again', same === bounded, '', 'processPreMappedToolResultBlock in src/utils/toolResultStorage.ts must not persist a block that already holds a persisted-output pointer')
+  check('an existing pointer is never persisted again', same === bounded, '', 'processPreMappedToolResultBlock in src/engine/tool-dispatch/toolResultStorage.ts must not persist a block that already holds a persisted-output pointer')
   const small = [createUserMessage({ content: [block('short result')] })]
   const pass = await storage.enforceToolResultBudget(small, storage.createContentReplacementState(), new Set(), 'local/room-32k')
-  check('under-budget messages retain their original object and bytes', pass.messages === small, '', 'enforceToolResultBudget in src/utils/toolResultStorage.ts must return the original messages when under budget')
+  check('under-budget messages retain their original object and bytes', pass.messages === small, '', 'enforceToolResultBudget in src/engine/tool-dispatch/toolResultStorage.ts must return the original messages when under budget')
 } finally {
   server.stop(true)
   rmSync(home, { recursive: true, force: true })

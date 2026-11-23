@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 (globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { ocrReadinessCheck } = await import('../../src/services/health/healthReport.ts')
-const { renderPlainCertificate } = await import('../../src/cli/healthPresentation.ts')
-const { ocrInstallHint } = await import('../../src/services/ocr.ts')
+const { ocrReadinessCheck } = await import('../../src/platform/health/healthReport.ts')
+const { renderPlainCertificate } = await import('../../src/commands/verbs/healthPresentation.ts')
+const { ocrInstallHint } = await import('../../src/tools/kit/ocr.ts')
 let recognitions = 0
 for (const fixture of [
   { platform: 'darwin', native: true, tesseract: false, languages: ['en-US'], name: 'macOS Vision' },
@@ -33,15 +33,15 @@ for (const fixture of [
     assert.equal(row.fix, undefined)
   } else {
     assert.match(row.evidence, /^unavailable — /)
-    assert.ok(row.evidence.includes(row.fix), `ocrReadinessCheck(${fixture.platform}) evidence omitted fix hint in src/services/health/healthReport.ts: evidence=${row.evidence} fix=${row.fix}`)
+    assert.ok(row.evidence.includes(row.fix), `ocrReadinessCheck(${fixture.platform}) evidence omitted fix hint in src/platform/health/healthReport.ts: evidence=${row.evidence} fix=${row.fix}`)
     if (!fixture.tesseract) assert.equal(row.fix, ocrInstallHint(fixture.platform))
     else assert.match(row.fix, /no installed recognition languages/)
   }
   const text = renderPlainCertificate({ sections: [{ title: 'INTERFACE', checks: [row] }], verdict: 'certified', durationMs: 0 })
-  assert.ok(text.includes(`OCR — ${row.evidence}`), `renderPlainCertificate(${fixture.platform}) missing OCR row in src/cli/healthPresentation.ts: ${text.slice(0, 200)}`)
+  assert.ok(text.includes(`OCR — ${row.evidence}`), `renderPlainCertificate(${fixture.platform}) missing OCR row in src/commands/verbs/healthPresentation.ts: ${text.slice(0, 200)}`)
 }
 assert.equal(recognitions, 0)
-const { interfaceChecks } = await import('../../src/services/health/sections/interface.ts')
+const { interfaceChecks } = await import('../../src/platform/health/sections/interface.ts')
 const listed = interfaceChecks().filter(entry => entry.id === 'iface-ocr')
 assert.equal(listed.length, 1)
 assert.deepEqual({ label: listed[0]!.label, probe: listed[0]!.probe, depth: listed[0]!.depth, timeoutMs: listed[0]!.timeoutMs }, { label: 'OCR', probe: 'configuration', depth: 'fast', timeoutMs: 11_000 })

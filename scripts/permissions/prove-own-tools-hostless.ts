@@ -11,15 +11,15 @@ writeFileSync(join(project, 'package.json'), '{"name":"fixture","scripts":{"test
 writeFileSync(join(project, 'tests', 'limiter.test.mjs'), "import test from 'node:test'\ntest('x', () => {})\n")
 process.env.MERCURY_CONFIG_DIR = join(world, 'home')
 process.chdir(project)
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
-const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
-const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
-const { JourneyTool } = await import('../../src/tools/JourneyTool/JourneyTool.ts')
-const { StructureTool } = await import('../../src/tools/StructureTool/StructureTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { TestTool } = await import('../../src/tools/test/TestTool.ts')
+const { EvalTool } = await import('../../src/tools/eval/EvalTool.ts')
+const { DebugTool } = await import('../../src/tools/debug/DebugTool.ts')
+const { JourneyTool } = await import('../../src/tools/journey/JourneyTool.ts')
+const { StructureTool } = await import('../../src/tools/structure/StructureTool.ts')
 let failures = 0
-const hostlessHint = 'to fix, look at decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts and the checkPermissions of the named tool under src/tools (TestTool, EvalTool, DebugTool, JourneyTool, StructureTool)'
+const hostlessHint = 'to fix, look at decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts and the checkPermissions of the named tool under src/tools (TestTool, EvalTool, DebugTool, JourneyTool, StructureTool)'
 function check(label: string, ok: boolean, detail = '') {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + detail + ' — ' + hostlessHint}`)
   if (!ok) failures++

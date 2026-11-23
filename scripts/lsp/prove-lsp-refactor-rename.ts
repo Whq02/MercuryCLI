@@ -19,9 +19,9 @@ const M = 'refactors/src/messy.ts'
 const MI = 'refactors/src/missing.ts'
 const all = [G, IDX, LOUD, APP, B, R, M, MI]
 const countOf = (rel: string, word: string): number => ws.text(rel).split(word).length - 1
-const renameOpHint = ' | change opRename in src/tools/LSPTool/mercuryOps/rename.ts (and prepare.ts, preview.ts, apply.ts beside it)'
-const renameSafetyHint = ' | change the refusal rules in src/services/lsp/tsSidecar/sidecar/renameSafety.ts'
-const renameApplyHint = ' | change the read-before-edit refusal in src/tools/LSPTool/mercuryOps/apply.ts'
+const renameOpHint = ' | change opRename in src/tools/lsp/mercury-ops/rename.ts (and prepare.ts, preview.ts, apply.ts beside it)'
+const renameSafetyHint = ' | change the refusal rules in src/integrations/lsp/ts-sidecar/sidecar/renameSafety.ts'
+const renameApplyHint = ' | change the read-before-edit refusal in src/tools/lsp/mercury-ops/apply.ts'
 
 try {
   t.section('R1 the dry run returns every reference as data and writes nothing')
@@ -54,7 +54,7 @@ try {
   t.check('the unresolved use in missing.ts is not touched', byFile(MI).length === 0, JSON.stringify(byFile(MI)) + renameOpHint)
   const plan = ws.planOf(preview)
   t.check('the dry run names its plan token in the text', typeof plan === 'string' && plan.startsWith('lsp-') && preview.result.includes(plan), preview.result.slice(-200) + renameOpHint)
-  t.check('the text preview spells each row as :line:col-line:col before → after', /:\d+:\d+-\d+:\d+\s+makeGreeting → craftGreeting/.test(preview.result), preview.result.slice(0, 300) + ' | change the text preview in src/tools/LSPTool/mercuryOps/preview.ts')
+  t.check('the text preview spells each row as :line:col-line:col before → after', /:\d+:\d+-\d+:\d+\s+makeGreeting → craftGreeting/.test(preview.result), preview.result.slice(0, 300) + ' | change the text preview in src/tools/lsp/mercury-ops/preview.ts')
 
   t.section('R2 a JSX prop rename reaches the attribute')
   const prop = ws.position(B, 'name: string')
@@ -91,9 +91,9 @@ try {
   t.check(
     'read state refreshed for every touched file with the new content',
     [G, IDX, APP, B, R, M].every(rel => ws.readFileState.get(ws.abs(rel))?.content === ws.text(rel)),
-    applied.result.slice(0, 300) + ' | change the read-state refresh after a write in src/tools/LSPTool/mercuryOps/apply.ts',
+    applied.result.slice(0, 300) + ' | change the read-state refresh after a write in src/tools/lsp/mercury-ops/apply.ts',
   )
-  t.check('post-apply diagnostics reported', /post-apply diagnostics/i.test(applied.result), applied.result.slice(-200) + ' | change the post-apply report in src/tools/LSPTool/mercuryOps/afterWrite.ts')
+  t.check('post-apply diagnostics reported', /post-apply diagnostics/i.test(applied.result), applied.result.slice(-200) + ' | change the post-apply report in src/tools/lsp/mercury-ops/afterWrite.ts')
 
   t.section("R5 a colliding rename is refused with the compiler's reason")
   const shout = ws.position(G, 'shoutGreeting')
@@ -105,7 +105,7 @@ try {
     collide.result.slice(0, 300) + renameSafetyHint,
   )
   t.check('the refusal names the file and position', /app\.ts:\d+:\d+/.test(collide.result), collide.result.slice(0, 300) + renameSafetyHint)
-  t.check('nothing written', JSON.stringify(ws.digests(all)) === JSON.stringify(beforeCollide), 'a refused rename must not write; check the refusal runs before apply in src/tools/LSPTool/mercuryOps/rename.ts')
+  t.check('nothing written', JSON.stringify(ws.digests(all)) === JSON.stringify(beforeCollide), 'a refused rename must not write; check the refusal runs before apply in src/tools/lsp/mercury-ops/rename.ts')
 
   t.section('R6 a rename that would capture another reference is refused')
   const shift = ws.position(G, 'shift')
@@ -115,7 +115,7 @@ try {
     capture.effect.outcome === 'failed' && /would change what 'loudness'/.test(capture.result),
     capture.result.slice(0, 300) + renameSafetyHint,
   )
-  t.check('nothing written', JSON.stringify(ws.digests(all)) === JSON.stringify(beforeCollide), 'a refused rename must not write; check the refusal runs before apply in src/tools/LSPTool/mercuryOps/rename.ts')
+  t.check('nothing written', JSON.stringify(ws.digests(all)) === JSON.stringify(beforeCollide), 'a refused rename must not write; check the refusal runs before apply in src/tools/lsp/mercury-ops/rename.ts')
 
   t.section('R7 the service refuses a library symbol with its own reason')
   const upper = ws.position(G, 'toUpperCase')

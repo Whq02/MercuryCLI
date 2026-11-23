@@ -20,9 +20,9 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 
 console.log('the merged command roster: one door per function, aliases resolve to their owners')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const commands = await import('../../src/commands.ts')
+const commands = await import('../../src/commands/catalogue/commands.ts')
 const roster = commands.builtinCommands()
 const byName = (name: string): Record<string, unknown> | undefined =>
   commands.findCommand(name, roster) as Record<string, unknown> | undefined
@@ -45,7 +45,7 @@ check('/init is gone', commands.findCommand('init', roster) === undefined)
 
 console.log('\nthe merged verbs drive the real road')
 
-const slash = await import('../../src/services/processUserInput/processSlashCommand.tsx')
+const slash = await import('../../src/engine/user-input/processSlashCommand.tsx')
 const { unknownCommandLine } = slash as unknown as { unknownCommandLine: (name: string, roster: unknown[]) => string }
 check('a retired name answers as any unknown input', unknownCommandLine('halt', roster).startsWith('Unknown command: /halt'))
 check('…never naming a replacement', !unknownCommandLine('speak', roster).includes('voice'))
@@ -84,8 +84,8 @@ check('/appearance accent (bare) shows the status + names', named !== undefined 
 
 console.log('\non a chat with a turn running, the merged verbs act as the commands they absorbed did')
 
-const focusedSlot = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+const focusedSlot = await import('../../src/engine/connector/focusedConnector.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
 const events: string[] = []
 const rows: string[] = []
 const runningChat: Record<string, unknown> = {

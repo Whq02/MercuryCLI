@@ -13,7 +13,7 @@ process.env.BROWSER = '/usr/bin/true'
 process.env.MERCURY_GODOT_TOOLS = '1'
 process.env.MERCURY_GODOT_WORKERS = '2'
 
-const { vulcanOp } = await import('../../src/utils/vulcan/optable.generated.js')
+const { vulcanOp } = await import('../../src/integrations/vulcan-optable/optable.generated.js')
 let failures = 0
 function check(label: string, condition: unknown, detail: unknown = '', hint = ''): void {
   if (!condition) failures++
@@ -25,25 +25,25 @@ for (const [name, cls] of [
   ['lease_take', 'mutate'], ['lease_release', 'mutate'], ['lease_list', 'read'],
 ]) {
   const op = vulcanOp(name)
-  check(`${name} has its permission class and Mercury-side dispatch`, op?.cls === cls && op.side === 'mercury', '', 'the entry for this op in src/utils/vulcan/optable.generated.ts must carry the class and side mercury the check names')
+  check(`${name} has its permission class and Mercury-side dispatch`, op?.cls === cls && op.side === 'mercury', '', 'the entry for this op in src/integrations/vulcan-optable/optable.generated.ts must carry the class and side mercury the check names')
 }
 
 const FIXTURE = join(import.meta.dir, 'fixtures', 'engine-service')
-const { EngineJobService } = await import('../../src/services/vulcan/engine/service.js')
-const { runEngineOp } = await import('../../src/services/vulcan/engine/ops.js')
-const { parseEngineTreeSpec } = await import('../../src/services/vulcan/engine/frozenTree.js')
-const { runEngineCheck } = await import('../../src/services/vulcan/engine/compileGate.js')
-const { godotEngineCli } = await import('../../src/cli/godotEngineCli.js')
-const { VULCAN_ADDON_FILES } = await import('../../src/services/vulcan/addonFiles.generated.js')
-const { installVulcanWorkerAddon, injectVulcanWorkerScript } = await import('../../src/services/vulcan/addonInstaller.js')
-const { switchSession } = await import('../../src/bootstrap/state.js')
-const { engineUserEnv } = await import('../../src/services/vulcan/engine/userDir.js')
-const { listVulcanInstances, readVulcanInstanceToken, selectVulcanInstance } = await import('../../src/services/vulcan/instances.js')
-const { VulcanClient, resetVulcanClientForTest } = await import('../../src/services/vulcan/vulcanClient.js')
-const { projectLeaseHolder, takeProjectLeases, releaseProjectLeases, listProjectLeases } = await import('../../src/services/vulcan/engine/leases.js')
-const { compareProofAssertions } = await import('../../src/services/vulcan/engine/proofDrift.js')
-const { GodotTool } = await import('../../src/tools/GodotTool/GodotTool.js')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+const { EngineJobService } = await import('../../src/integrations/vulcan/engine/service.js')
+const { runEngineOp } = await import('../../src/integrations/vulcan/engine/ops.js')
+const { parseEngineTreeSpec } = await import('../../src/integrations/vulcan/engine/frozenTree.js')
+const { runEngineCheck } = await import('../../src/integrations/vulcan/engine/compileGate.js')
+const { godotEngineCli } = await import('../../src/commands/verbs/godotEngineCli.js')
+const { VULCAN_ADDON_FILES } = await import('../../src/integrations/vulcan/addonFiles.generated.js')
+const { installVulcanWorkerAddon, injectVulcanWorkerScript } = await import('../../src/integrations/vulcan/addonInstaller.js')
+const { switchSession } = await import('../../src/boot/process-state/processState.js')
+const { engineUserEnv } = await import('../../src/integrations/vulcan/engine/userDir.js')
+const { listVulcanInstances, readVulcanInstanceToken, selectVulcanInstance } = await import('../../src/integrations/vulcan/instances.js')
+const { VulcanClient, resetVulcanClientForTest } = await import('../../src/integrations/vulcan/vulcanClient.js')
+const { projectLeaseHolder, takeProjectLeases, releaseProjectLeases, listProjectLeases } = await import('../../src/integrations/vulcan/engine/leases.js')
+const { compareProofAssertions } = await import('../../src/integrations/vulcan/engine/proofDrift.js')
+const { GodotTool } = await import('../../src/tools/godot/GodotTool.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
 
 const godotReadiness = await (await import('./proofGodot.ts')).resolveProofGodot()
 const godot = godotReadiness.resolved
@@ -85,7 +85,7 @@ async function op(root: string, name: string, args: Record<string, unknown>): Pr
 
 const permissionRead = await GodotTool.checkPermissions!({ op: 'engine_signal_wait' } as never, {} as never, {} as never)
 const permissionCall = await GodotTool.checkPermissions!({ op: 'engine_node_call' } as never, {} as never, {} as never)
-check('signal observation is read-only and method calls ask', permissionRead.behavior === 'allow' && permissionCall.behavior === 'ask', '', 'GodotTool.checkPermissions in src/tools/GodotTool/GodotTool.ts must allow engine_signal_wait and ask for engine_node_call')
+check('signal observation is read-only and method calls ask', permissionRead.behavior === 'allow' && permissionCall.behavior === 'ask', '', 'GodotTool.checkPermissions in src/tools/godot/GodotTool.ts must allow engine_signal_wait and ask for engine_node_call')
 
 const operatorRoot = project('operator-role')
 const operatorId = randomBytes(16).toString('hex')
@@ -119,11 +119,11 @@ mkdirSync(operatorDir, { recursive: true, mode: 0o700 })
 writeFileSync(join(operatorDir, 'token'), operatorToken, { mode: 0o600 })
 writeFileSync(join(operatorDir, 'instance.json'), JSON.stringify(operatorInstance), { mode: 0o600 })
 try {
-  check('operator role is absent from the default selection', !selectVulcanInstance(operatorRoot).ok, '', 'selectVulcanInstance in src/services/vulcan/instances.ts must not select an operator-editor instance by default')
+  check('operator role is absent from the default selection', !selectVulcanInstance(operatorRoot).ok, '', 'selectVulcanInstance in src/integrations/vulcan/instances.ts must not select an operator-editor instance by default')
   const implicit = await runWithCwdOverride(operatorRoot, () => GodotTool.call({ op: 'editor_state' } as never, {} as never, {} as never, {} as never)) as any
-  check('an unnamed editor call makes no operator connection', operatorConnections === 0 && operatorRequests === 0 && /never selected implicitly/.test(implicit.data.result), implicit.data.result, 'GodotTool.call in src/tools/GodotTool/GodotTool.ts must not connect to an operator-role instance unless it is named in args.instance')
+  check('an unnamed editor call makes no operator connection', operatorConnections === 0 && operatorRequests === 0 && /never selected implicitly/.test(implicit.data.result), implicit.data.result, 'GodotTool.call in src/tools/godot/GodotTool.ts must not connect to an operator-role instance unless it is named in args.instance')
   const explicit = await runWithCwdOverride(operatorRoot, () => GodotTool.call({ op: 'editor_state', args: { instance: operatorId } } as never, {} as never, {} as never, {} as never)) as any
-  check('an explicitly named operator role is reached and named in the answer', operatorRequests === 1 && explicit.data.result.includes(operatorId) && explicit.data.result.includes('operator-editor'), explicit.data.result, 'GodotTool.call in src/tools/GodotTool/GodotTool.ts must reach an operator-role instance named in args.instance and name it in the answer')
+  check('an explicitly named operator role is reached and named in the answer', operatorRequests === 1 && explicit.data.result.includes(operatorId) && explicit.data.result.includes('operator-editor'), explicit.data.result, 'GodotTool.call in src/tools/godot/GodotTool.ts must reach an operator-role instance named in args.instance and name it in the answer')
 } finally {
   resetVulcanClientForTest()
   await new Promise<void>(resolve => operatorServer.close(() => resolve()))
@@ -134,7 +134,7 @@ const pendingHolder = projectLeaseHolder('pending')
 const pendingTake = takeProjectLeases(raceRoot, ['tests/runtime_checks.gd'], pendingHolder).then(value => ({ value }), error => ({ error: String(error) }))
 switchSession(randomUUID() as never)
 const switchedTake = await pendingTake
-check('the first pending lease cannot survive a session switch', 'error' in switchedTake && (await listProjectLeases(raceRoot)).length === 0, switchedTake, 'takeProjectLeases in src/services/vulcan/engine/leases.ts must refuse a pending lease when the session switches and leave no lease behind')
+check('the first pending lease cannot survive a session switch', 'error' in switchedTake && (await listProjectLeases(raceRoot)).length === 0, switchedTake, 'takeProjectLeases in src/integrations/vulcan/engine/leases.ts must refuse a pending lease when the session switches and leave no lease behind')
 
 const leasedRoot = project('leases')
 const leaseChild = spawn(process.execPath, ['-e', 'process.stdin.resume()'], { stdio: ['pipe', 'ignore', 'inherit'] })
@@ -144,22 +144,22 @@ const other = projectLeaseHolder('second')
 const holder = { sessionId: 'first-session', agentId: 'first', pid: leaseChild.pid! }
 try {
   const taken = await takeProjectLeases(leasedRoot, ['tests/runtime_checks.gd'], holder)
-  check('a session without a crew takes a project lease', taken.ok, taken, 'takeProjectLeases in src/services/vulcan/engine/leases.ts must grant a lease to a holder with no crew')
+  check('a session without a crew takes a project lease', taken.ok, taken, 'takeProjectLeases in src/integrations/vulcan/engine/leases.ts must grant a lease to a holder with no crew')
   const refused = await takeProjectLeases(leasedRoot, ['tests/runtime_checks.gd'], other)
-  check('another holder is refused with session and agent named', !refused.ok && refused.conflict.holder.sessionId === holder.sessionId && refused.conflict.holder.agentId === holder.agentId, refused, 'takeProjectLeases in src/services/vulcan/engine/leases.ts must refuse a second holder and name the first holder session and agent in the conflict')
+  check('another holder is refused with session and agent named', !refused.ok && refused.conflict.holder.sessionId === holder.sessionId && refused.conflict.holder.agentId === holder.agentId, refused, 'takeProjectLeases in src/integrations/vulcan/engine/leases.ts must refuse a second holder and name the first holder session and agent in the conflict')
   const listed = await op(leasedRoot, 'lease_list', {})
-  check('lease_list exposes the live project holder without a crew', JSON.stringify(listed).includes(holder.sessionId), listed, 'the lease_list op in src/services/vulcan/engine/ops.ts must report the live holder from listProjectLeases')
+  check('lease_list exposes the live project holder without a crew', JSON.stringify(listed).includes(holder.sessionId), listed, 'the lease_list op in src/integrations/vulcan/engine/ops.ts must report the live holder from listProjectLeases')
   const wrongRelease = await releaseProjectLeases(leasedRoot, other)
-  check('another holder cannot release the lease', wrongRelease.released === 0 && (await listProjectLeases(leasedRoot)).length === 1, '', 'releaseProjectLeases in src/services/vulcan/engine/leases.ts must release only the calling holder lease')
+  check('another holder cannot release the lease', wrongRelease.released === 0 && (await listProjectLeases(leasedRoot)).length === 1, '', 'releaseProjectLeases in src/integrations/vulcan/engine/leases.ts must release only the calling holder lease')
   let escaped = false
   symlinkSync(scratch, join(leasedRoot, 'outside-link'), 'dir')
   try { await takeProjectLeases(leasedRoot, ['outside-link/file.gd'], other) } catch { escaped = true }
-  check('a lease cannot escape the project through a symbolic link', escaped, '', 'takeProjectLeases in src/services/vulcan/engine/leases.ts must throw for a path that resolves outside the project through a symbolic link')
+  check('a lease cannot escape the project through a symbolic link', escaped, '', 'takeProjectLeases in src/integrations/vulcan/engine/leases.ts must throw for a path that resolves outside the project through a symbolic link')
   if (godot) {
     const source = join(leasedRoot, 'tests', 'runtime_checks.gd')
     writeFileSync(source, readFileSync(source, 'utf8') + '\n')
     const denied = await runEngineOp('engine_run', { suites: ['runtime_checks'], tree: 'working', wait: false }, leasedRoot, other)
-    check('the engine refuses a run that consumes another holder\'s changed file', /leased by session first-session, agent first/.test(denied), denied, 'the engine_run op in src/services/vulcan/engine/ops.ts must refuse a working-tree run whose changed file is leased by another holder, naming that session and agent')
+    check('the engine refuses a run that consumes another holder\'s changed file', /leased by session first-session, agent first/.test(denied), denied, 'the engine_run op in src/integrations/vulcan/engine/ops.ts must refuse a working-tree run whose changed file is leased by another holder, naming that session and agent')
     writeFileSync(join(scratch, 'outside-file.gd'), 'extends Node\n')
     symlinkSync(join(scratch, 'outside-file.gd'), join(leasedRoot, 'escape.gd'), 'file')
     const escaped = await runEngineOp('engine_run', { suites: ['runtime_checks'], tree: 'working', wait: false }, leasedRoot, other).then(text => ({ text }), error => ({ thrown: String(error) }))
@@ -171,11 +171,11 @@ try {
   await leaseChildDone
   await EngineJobService.for(leasedRoot).shutdown()
 }
-check('the lease is released when its holder process ends', (await listProjectLeases(leasedRoot)).length === 0, '', 'src/services/vulcan/engine/leases.ts must drop a lease when its holder process ends')
+check('the lease is released when its holder process ends', (await listProjectLeases(leasedRoot)).length === 0, '', 'src/integrations/vulcan/engine/leases.ts must drop a lease when its holder process ends')
 const viaTake = await op(leasedRoot, 'lease_take', { paths: ['tests/runtime_checks.gd'] })
-check('lease_take is exposed through the Godot operation dispatcher', viaTake.ok === true, viaTake, 'the lease_take op in src/services/vulcan/engine/ops.ts must call takeProjectLeases and answer ok')
+check('lease_take is exposed through the Godot operation dispatcher', viaTake.ok === true, viaTake, 'the lease_take op in src/integrations/vulcan/engine/ops.ts must call takeProjectLeases and answer ok')
 const viaRelease = await op(leasedRoot, 'lease_release', {})
-check('lease_release drops the calling holder\'s lease', viaRelease.ok === true && viaRelease.released === 1 && viaRelease.paths?.includes('tests/runtime_checks.gd'), viaRelease, 'the lease_release op in src/services/vulcan/engine/ops.ts must release the calling holder lease and list its paths')
+check('lease_release drops the calling holder\'s lease', viaRelease.ok === true && viaRelease.released === 1 && viaRelease.paths?.includes('tests/runtime_checks.gd'), viaRelease, 'the lease_release op in src/integrations/vulcan/engine/ops.ts must release the calling holder lease and list its paths')
 
 const containmentRoot = project('worker-containment')
 const outsideTarget = join(scratch, 'protected-addon')
@@ -185,7 +185,7 @@ mkdirSync(join(containmentRoot, 'addons'), { recursive: true })
 symlinkSync(outsideTarget, join(containmentRoot, 'addons', 'mercury_vulcan'), 'dir')
 let addonRefused = false
 try { await installVulcanWorkerAddon(containmentRoot) } catch { addonRefused = true }
-check('worker addon installation refuses a tracked-style symlink without writing outside', addonRefused && readFileSync(join(outsideTarget, 'plugin.gd'), 'utf8') === 'protected bytes', '', 'installVulcanWorkerAddon in src/services/vulcan/addonInstaller.ts must throw before writing when addons/mercury_vulcan is a symbolic link')
+check('worker addon installation refuses a tracked-style symlink without writing outside', addonRefused && readFileSync(join(outsideTarget, 'plugin.gd'), 'utf8') === 'protected bytes', '', 'installVulcanWorkerAddon in src/integrations/vulcan/addonInstaller.ts must throw before writing when addons/mercury_vulcan is a symbolic link')
 for (const [name, original] of [
   ['trailing', 'extends SceneTree\nfunc _initialize() -> void: # existing header\n\tprint(1)\n'],
   ['inline', 'extends SceneTree\nfunc _initialize(): print(1)\n'],
@@ -195,7 +195,7 @@ for (const [name, original] of [
   writeFileSync(file, original)
   try { injectVulcanWorkerScript(containmentRoot, `res://tests/${name}.gd`) } catch { void 0 }
   const after = readFileSync(file, 'utf8')
-  check('script instrumentation never duplicates an existing initializer', (after.match(/func _initialize\s*\(/g) ?? []).length === 1 && after.includes('print(1)'), name, 'injectVulcanWorkerScript in src/services/vulcan/addonInstaller.ts must not add a second _initialize to a script that already has one, whatever the header shape')
+  check('script instrumentation never duplicates an existing initializer', (after.match(/func _initialize\s*\(/g) ?? []).length === 1 && after.includes('print(1)'), name, 'injectVulcanWorkerScript in src/integrations/vulcan/addonInstaller.ts must not add a second _initialize to a script that already has one, whatever the header shape')
 }
 const estateRoot = project('estate')
 {
@@ -231,21 +231,21 @@ const estateRoot = project('estate')
     const estate = new EngineJobService(estateRoot, { census: async () => [] })
     await estate.submit(request(['no-such-suite']) as any)
     const removed = estate.jobs().staleTreesRemoved
-    check('a tree whose instance descriptor names a live owner is kept', existsSync(owned) && !removed.includes(owned), removed, 'the stale-tree sweep in EngineJobService (src/services/vulcan/engine/service.ts) must keep a tree whose instance descriptor names a live owner')
-    check('a tree whose instance owner is gone is swept at once', !existsSync(orphaned) && removed.includes(orphaned), removed, 'the stale-tree sweep in EngineJobService (src/services/vulcan/engine/service.ts) must remove a tree whose instance owner has exited')
-    check('a tree with no descriptor inside the grace is kept', existsSync(young) && !removed.includes(young), removed, 'the stale-tree sweep in EngineJobService (src/services/vulcan/engine/service.ts) must keep a descriptor-less tree inside the grace period')
-    check('a tree and a check tree with no descriptor older than the grace are swept', !existsSync(old) && !existsSync(oldCheck), removed, 'the stale-tree sweep in EngineJobService (src/services/vulcan/engine/service.ts) must remove descriptor-less trees and check trees older than the grace period')
-    check('an old tree whose run directory was stamped recently is kept', existsSync(stamped) && !removed.includes(stamped), removed, 'the stale-tree sweep in EngineJobService (src/services/vulcan/engine/service.ts) must keep an old tree whose run directory was touched recently')
+    check('a tree whose instance descriptor names a live owner is kept', existsSync(owned) && !removed.includes(owned), removed, 'the stale-tree sweep in EngineJobService (src/integrations/vulcan/engine/service.ts) must keep a tree whose instance descriptor names a live owner')
+    check('a tree whose instance owner is gone is swept at once', !existsSync(orphaned) && removed.includes(orphaned), removed, 'the stale-tree sweep in EngineJobService (src/integrations/vulcan/engine/service.ts) must remove a tree whose instance owner has exited')
+    check('a tree with no descriptor inside the grace is kept', existsSync(young) && !removed.includes(young), removed, 'the stale-tree sweep in EngineJobService (src/integrations/vulcan/engine/service.ts) must keep a descriptor-less tree inside the grace period')
+    check('a tree and a check tree with no descriptor older than the grace are swept', !existsSync(old) && !existsSync(oldCheck), removed, 'the stale-tree sweep in EngineJobService (src/integrations/vulcan/engine/service.ts) must remove descriptor-less trees and check trees older than the grace period')
+    check('an old tree whose run directory was stamped recently is kept', existsSync(stamped) && !removed.includes(stamped), removed, 'the stale-tree sweep in EngineJobService (src/integrations/vulcan/engine/service.ts) must keep an old tree whose run directory was touched recently')
     process.env.MERCURY_GODOT_ORPHAN_GRACE_MS = '0'
     const zeroGrace = new EngineJobService(estateRoot, { census: async () => [] })
     await zeroGrace.submit(request(['no-such-suite']) as any)
-    check('the grace is read from the flag: at zero every unowned tree is swept and the owned one stays', !existsSync(young) && !existsSync(stamped) && existsSync(owned), zeroGrace.jobs().staleTreesRemoved, 'the sweep in src/services/vulcan/engine/service.ts must read MERCURY_GODOT_ORPHAN_GRACE_MS when it runs, not once at load')
+    check('the grace is read from the flag: at zero every unowned tree is swept and the owned one stays', !existsSync(young) && !existsSync(stamped) && existsSync(owned), zeroGrace.jobs().staleTreesRemoved, 'the sweep in src/integrations/vulcan/engine/service.ts must read MERCURY_GODOT_ORPHAN_GRACE_MS when it runs, not once at load')
     const blind = new EngineJobService(estateRoot, { census: async () => { throw new Error('the process table could not be read') } })
     const blindHolder = await blind.displayHolder().then(holder => `went on: ${holder}`, (error: unknown) => `REFUSED: ${error instanceof Error ? error.message : String(error)}`)
-    check('a census that cannot be read holds no native run back: the display reads as not held', blindHolder === 'went on: null', blindHolder, 'EngineJobService.displayHolder in src/services/vulcan/engine/service.ts must answer null, not throw, when the census cannot be read')
+    check('a census that cannot be read holds no native run back: the display reads as not held', blindHolder === 'went on: null', blindHolder, 'EngineJobService.displayHolder in src/integrations/vulcan/engine/service.ts must answer null, not throw, when the census cannot be read')
     const seen = new EngineJobService(estateRoot, { census: async () => [{ pid: 4242, executable: '/elsewhere/Godot', args: '--path /elsewhere --editor', editor: true, headless: false, project: '/elsewhere' }] })
     const seenHolder = await seen.displayHolder()
-    check('control: a windowed Godot of another project that the census did read is still named as the holder', seenHolder !== null && seenHolder.includes('pid 4242'), String(seenHolder), 'EngineJobService.displayHolder in src/services/vulcan/engine/service.ts must name the pid of a windowed Godot of another project that the census read')
+    check('control: a windowed Godot of another project that the census did read is still named as the holder', seenHolder !== null && seenHolder.includes('pid 4242'), String(seenHolder), 'EngineJobService.displayHolder in src/integrations/vulcan/engine/service.ts must name the pid of a windowed Godot of another project that the census read')
   } finally {
     delete process.env.MERCURY_GODOT_ORPHAN_GRACE_MS
     liveOwner.stdin!.end()
@@ -255,12 +255,12 @@ const estateRoot = project('estate')
 }
 
 const tokenCollision = compareProofAssertions('tests/token_checks.gd', 'assert(foo and bar)\n', 'assert(fooandbar)\n')
-check('assertion tokens cannot collapse distinct conditions into an approved equality', tokenCollision.length > 0, tokenCollision, 'compareProofAssertions in src/services/vulcan/engine/proofDrift.ts must compare assertion tokens so that foo and bar differs from fooandbar')
+check('assertion tokens cannot collapse distinct conditions into an approved equality', tokenCollision.length > 0, tokenCollision, 'compareProofAssertions in src/integrations/vulcan/engine/proofDrift.ts must compare assertion tokens so that foo and bar differs from fooandbar')
 
 const baseline = 'extends Node\nconst EXPECTED_CHECKS := 3\nfunc verify(value: int) -> void:\n\tassert(value >= 6)\n\tassert(value <= 10)\n'
-check('an obvious strengthening is not mislabeled as drift', compareProofAssertions('tests/drift_checks.gd', baseline, baseline.replace('>= 6', '>= 7')).length === 0, '', 'compareProofAssertions in src/services/vulcan/engine/proofDrift.ts must not report drift when an assertion bound is raised')
+check('an obvious strengthening is not mislabeled as drift', compareProofAssertions('tests/drift_checks.gd', baseline, baseline.replace('>= 6', '>= 7')).length === 0, '', 'compareProofAssertions in src/integrations/vulcan/engine/proofDrift.ts must not report drift when an assertion bound is raised')
 const multiline = compareProofAssertions('tests/probe.test.ts', 'expect(\n value\n).toBeGreaterThanOrEqual(6)\n', 'expect(\n value\n).toBeGreaterThanOrEqual(1)\n')
-check('a weakened multiline expectation is named', multiline.some(row => row.kind === 'assertion-weakened' && row.line === 1), multiline, 'compareProofAssertions in src/services/vulcan/engine/proofDrift.ts must read a multiline expect call and report the weakened bound on its first line')
+check('a weakened multiline expectation is named', multiline.some(row => row.kind === 'assertion-weakened' && row.line === 1), multiline, 'compareProofAssertions in src/integrations/vulcan/engine/proofDrift.ts must read a multiline expect call and report the weakened bound on its first line')
 
 if (!godot) {
   console.log(`[SKIP] live instance and compile-gate checks: ${godotReadiness.reason}`)
@@ -278,10 +278,10 @@ if (!godot) {
   ]) {
     writeFileSync(driftFile, content)
     const result = await runEngineCheck(driftRoot, { files: ['tests/drift_checks.gd'], shaders: false }, { executable: godot })
-    check(`${label} makes engine_check fail with its row named`, !result.ok && result.drift.some(row => row.kind === kind && row.file === 'tests/drift_checks.gd' && row.line !== null), result.drift, 'runEngineCheck in src/services/vulcan/engine/compileGate.ts must fail with a drift row of this kind naming file and line')
+    check(`${label} makes engine_check fail with its row named`, !result.ok && result.drift.some(row => row.kind === kind && row.file === 'tests/drift_checks.gd' && row.line !== null), result.drift, 'runEngineCheck in src/integrations/vulcan/engine/compileGate.ts must fail with a drift row of this kind naming file and line')
     const lines: string[] = []
     const code = await godotEngineCli(['check', 'tests/drift_checks.gd', '--no-shaders', '--project', driftRoot], { out: line => lines.push(line), err: line => lines.push(line), cliName: 'mercury' })
-    check(`${label} makes mercury godot check exit 1 with JSON drift`, code === 1 && JSON.parse(lines[0]).drift.some((row: any) => row.kind === kind), { code, drift: JSON.parse(lines[0]).drift }, 'godotEngineCli check in src/cli/godotEngineCli.ts must exit 1 and print JSON with the drift rows')
+    check(`${label} makes mercury godot check exit 1 with JSON drift`, code === 1 && JSON.parse(lines[0]).drift.some((row: any) => row.kind === kind), { code, drift: JSON.parse(lines[0]).drift }, 'godotEngineCli check in src/commands/verbs/godotEngineCli.ts must exit 1 and print JSON with the drift rows')
   }
   writeFileSync(driftFile, baseline.replace('>= 6', '>= 1'))
   const overlay = await runEngineCheck(driftRoot, { files: ['tests/drift_checks.gd'], tree: 'working', shaders: false }, { executable: godot })

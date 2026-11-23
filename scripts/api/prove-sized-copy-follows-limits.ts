@@ -17,7 +17,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 600)}; ` : ''}change fitImagesToRequestCap, imageLimitsForModel or requestImageSidePx in src/utils/imageResizer.ts so the copy follows the model family's limits` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 600)}; ` : ''}change fitImagesToRequestCap, imageLimitsForModel or requestImageSidePx in src/platform/images/imageResizer.ts so the copy follows the model family's limits` : ''}`)
 }
 const note = (label: string): void => console.log(`  [NOTE] ${label}`)
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -28,7 +28,7 @@ const watchdog = setTimeout(() => {
 watchdog.unref?.()
 
 const sharp = (await import('sharp')).default
-const { fitImagesToRequestCap, imageLimitsForModel, requestImageSidePx } = await import('../../src/utils/imageResizer.ts')
+const { fitImagesToRequestCap, imageLimitsForModel, requestImageSidePx } = await import('../../src/platform/images/imageResizer.ts')
 
 const DIRECT = 'claude-opus-5-5'
 const RELAYED = 'glm-5'

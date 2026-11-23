@@ -8,9 +8,9 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 const lifecycleFailureHint = (label: string): string => {
-  if (/admit|birth|ENOCONN|re-send/.test(label)) return 'change admitWithDaemonRecheck in src/services/switchboard/bornSession.ts'
-  if (label.startsWith('P3 ')) return 'change NoSessionConnector in src/services/engine-connector/noSessionConnector.ts'
-  return 'change the focused slot functions in src/services/engine-connector/focusedConnector.ts'
+  if (/admit|birth|ENOCONN|re-send/.test(label)) return 'change admitWithDaemonRecheck in src/daemon/switchboard/bornSession.ts'
+  if (label.startsWith('P3 ')) return 'change NoSessionConnector in src/engine/connector/noSessionConnector.ts'
+  return 'change the focused slot functions in src/engine/connector/focusedConnector.ts'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -21,7 +21,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 
 {
-  const { NoSessionConnector, NO_CHAT_OPEN } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const { NoSessionConnector, NO_CHAT_OPEN } = await import('../../src/engine/connector/noSessionConnector.ts')
   const resting = new NoSessionConnector()
   check('P3 the resting slot is daemon-carried and blank', resting.carrier === 'daemon' && resting.records().length === 0)
   check('P3 nothing runs and nothing is pending', resting.turnActive() === false && resting.asks().length === 0 && resting.interrupt() === false)
@@ -46,7 +46,7 @@ function check(label: string, cond: boolean, detail = ''): void {
       resting.workspace() === resting.workspace() &&
       resting.workRoster() === resting.workRoster(),
   )
-  const door = await import('../../src/services/switchboard/bornSession.ts')
+  const door = await import('../../src/daemon/switchboard/bornSession.ts')
   const recheck = (door as { admitWithDaemonRecheck?: typeof door.admitWithDaemonRecheck }).admitWithDaemonRecheck
   check('P3 the birth door exports its daemon re-check', typeof recheck === 'function')
   if (typeof recheck === 'function') {
@@ -85,8 +85,8 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 {
-  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const slot = await import('../../src/engine/connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
   check('P4 the focused slot rests on no session by default', slot.hasFocusedSession() === false && slot.getFocusedSessionConnector() instanceof NoSessionConnector && slot.getFocusedSessionConnector().sessionId() === '')
   let beats = 0
   const off = slot.subscribeFocusedSessionConnector(() => beats++)
@@ -103,7 +103,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 
 {
-  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const slot = await import('../../src/engine/connector/focusedConnector.ts')
   const older = slot.claimHopEpoch()
   const newer = slot.claimHopEpoch()
   check('P6 the fence: an older hop is refused once a newer one was chosen (the last-chosen session owns the commit)', !slot.hopEpochIsCurrent(older) && slot.hopEpochIsCurrent(newer))

@@ -21,26 +21,26 @@ delete process.env.MERCURY_RECOVERY_BUDGET_MINUTES
 delete process.env.MERCURY_RECONNECT_BUDGET_MINUTES
 delete process.env.MERCURY_MAX_RETRIES
 
-const budget = await import('../../src/services/api/recoveryBudget.js')
-const retry = await import('../../src/services/api/withRetry.js')
-const { APIConnectionError, APIConnectionTimeoutError, APIError } = await import('../../src/utils/api/sdkErrors.js')
-const ladder = await import('../../src/services/api/reconnectLadder.js').catch(() => null)
-const transport = await import('../../src/utils/api/transportEvidence.js')
-const apiClient = await import('../../src/services/api/client.js')
+const budget = await import('../../src/engine/requests/recoveryBudget.js')
+const retry = await import('../../src/engine/requests/withRetry.js')
+const { APIConnectionError, APIConnectionTimeoutError, APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
+const ladder = await import('../../src/engine/requests/reconnectLadder.js').catch(() => null)
+const transport = await import('../../src/engine/request-parts/transportEvidence.js')
+const apiClient = await import('../../src/models/roads/anthropic/anthropicClientFactory.js')
 const REPO = resolve(import.meta.dir, '..', '..')
 const undiciErrors = (await import(join(REPO, 'node_modules/undici/lib/core/errors.js'))) as { ConnectTimeoutError: new (message?: string) => Error }
-const { AnthropicClient: Anthropic } = await import('../../src/services/providers/anthropic/anthropicClient.js')
+const { AnthropicClient: Anthropic } = await import('../../src/models/roads/anthropic/anthropicClient.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix: the outage ladder and its wait rows live in src/services/api/reconnectLadder.ts, src/services/api/recoveryBudget.ts (honourRecoveryWait, retryWaitWords) and src/services/api/withRetry.ts; the section header above says which behaviour broke' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix: the outage ladder and its wait rows live in src/engine/requests/reconnectLadder.ts, src/engine/requests/recoveryBudget.ts (honourRecoveryWait, retryWaitWords) and src/engine/requests/withRetry.ts; the section header above says which behaviour broke' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nprove-reconnect-ladder: TIMEOUT after 240 s (an unbounded wait somewhere: the last section header printed above is the one that hung; look at its wait in src/services/api/withRetry.ts or reconnectLadder.ts)')
+  console.log('\nprove-reconnect-ladder: TIMEOUT after 240 s (an unbounded wait somewhere: the last section header printed above is the one that hung; look at its wait in src/engine/requests/withRetry.ts or reconnectLadder.ts)')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -221,7 +221,7 @@ section('S4 — not an outage: a TLS failure, a proxy 407, a sandbox refusal, a 
 
 section('S5 — the ladder\'s own arithmetic at scale 1 with an injected clock, and the knob')
 if (ladder === null) {
-  check('the reconnect ladder module exists', false, 'src/services/api/reconnectLadder.ts is absent')
+  check('the reconnect ladder module exists', false, 'src/engine/requests/reconnectLadder.ts is absent')
 } else {
   delete process.env.MERCURY_RECONNECT_SCALE
   const cause = { code: 'ECONNREFUSED', words: 'connection refused' }
@@ -341,7 +341,7 @@ async function nodeRuntimeShape(mode: 'stall' | 'accepted'): Promise<NodeShape |
   const script = join(dir, 'shape.mjs')
   writeFileSync(script, NODE_SHAPE_SCRIPT)
   const clientPath = join(dir, 'anthropicClient.mjs')
-  const built = await Bun.build({ entrypoints: [join(REPO, 'src/services/providers/anthropic/anthropicClient.ts')], target: 'node', format: 'esm', naming: 'anthropicClient.mjs', outdir: dir })
+  const built = await Bun.build({ entrypoints: [join(REPO, 'src/models/roads/anthropic/anthropicClient.ts')], target: 'node', format: 'esm', naming: 'anthropicClient.mjs', outdir: dir })
   if (!built.success) return { failed: built.logs.join('\n') }
   const run = spawnSync(node, [script, REPO, mode, clientPath], { encoding: 'utf8', timeout: 20_000, env: { ...process.env, NODE_OPTIONS: '' } })
   const line = run.stdout.trim().split('\n').at(-1) ?? ''
@@ -481,16 +481,16 @@ section('S8 — the four provider roads through their real client wrappers: a re
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '1000'
   process.env.MERCURY_RECONNECT_SCALE = '0.01'
   for (const name of ['GOOGLE_API_KEY', 'MERCURY_GEMINI_OAUTH_CLIENT_ID', 'MERCURY_GEMINI_OAUTH_CLIENT_SECRET', 'MERCURY_BUSY_RETRY_SCALE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_MODEL', 'MERCURY_COMPAT_API_KEY', 'MERCURY_RECONNECT_BUDGET_MINUTES']) delete process.env[name]
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const bootstrap = await import('../../src/bootstrap/state.js')
+  const bootstrap = await import('../../src/boot/process-state/processState.js')
   bootstrap.setIsInteractive(false)
-  const { openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.js')
-  const { zaiCallModel } = await import('../../src/services/providers/zai/zaiCallModel.js')
-  const { compatCallModel } = await import('../../src/services/providers/openaicompat/compatCallModel.js')
-  const { geminiCallModel } = await import('../../src/services/providers/gemini/geminiCallModel.js')
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+  const { openaiCallModel } = await import('../../src/models/roads/openai/openaiCallModel.js')
+  const { zaiCallModel } = await import('../../src/models/roads/zai/zaiCallModel.js')
+  const { compatCallModel } = await import('../../src/models/roads/openaicompat/compatCallModel.js')
+  const { geminiCallModel } = await import('../../src/models/roads/gemini/geminiCallModel.js')
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.js')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 
   const sseBody = (chunks: unknown[], done = false): string => chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join('') + (done ? 'data: [DONE]\n\n' : '')
   const usage = { input_tokens: 12, output_tokens: 8, input_tokens_details: { cached_tokens: 0 } }
@@ -661,11 +661,11 @@ section('S8 — the four provider roads through their real client wrappers: a re
 
 section('S9 — the status row: during an outage the row says what the transcript row says, on every road, never "connection error"')
 if (ladder === null) {
-  check('the reconnect ladder module exists', false, 'src/services/api/reconnectLadder.ts is absent')
+  check('the reconnect ladder module exists', false, 'src/engine/requests/reconnectLadder.ts is absent')
 } else {
-  const idle = await import('../../src/services/providers/streamIdleBudget.js')
-  const bar = await import('../../src/components/SwitchboardTagBar.tsx')
-  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.js')
+  const idle = await import('../../src/models/roads/streamIdleBudget.js')
+  const bar = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
+  const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.js')
   delete process.env.MERCURY_RECONNECT_SCALE
   const cause = { code: 'ECONNREFUSED', words: 'connection refused' }
   const l = ladder.openReconnectLadder(0, cause, 10 * 60_000, 1)

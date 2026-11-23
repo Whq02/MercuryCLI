@@ -59,7 +59,7 @@ function check(label: string, cond: boolean, detail?: string): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — change the K3.1 ids, effort dial or request body in the file this label names, among ${K3_EFFORTS_AT}` : ''}`)
 }
-const K3_EFFORTS_AT = 'src/utils/model/pins/kimiPins.ts, src/services/providers/openaicompat/kimiReplay.ts, src/services/providers/openaicompat/compatWire.ts, src/services/providers/moonshot/moonshotAccounts.ts, src/services/providers/moonshot/moonshotCatalogue.ts, src/services/providers/moonshot/moonshotAdapter.ts, src/utils/model/capabilities.ts (effortVocabularyFor, getContextWindowForModel)'
+const K3_EFFORTS_AT = 'src/models/facts/pins/kimiPins.ts, src/models/roads/openaicompat/kimiReplay.ts, src/models/roads/openaicompat/compatWire.ts, src/models/roads/moonshot/moonshotAccounts.ts, src/models/roads/moonshot/moonshotCatalogue.ts, src/models/roads/moonshot/moonshotAdapter.ts, src/models/facts/capabilities.ts (effortVocabularyFor, getContextWindowForModel)'
 function section(title: string): void {
   console.log(`\n${title}`)
 }
@@ -111,20 +111,20 @@ globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
   throw new Error(`unexpected request: ${spelled}`)
 }) as typeof fetch
 
-;(await import('../../src/utils/config.ts')).enableConfigs()
-const pins = await import('../../src/utils/model/pins/kimiPins.ts')
-const replay = await import('../../src/services/providers/openaicompat/kimiReplay.ts')
-const wire = await import('../../src/services/providers/openaicompat/compatWire.ts')
-const accounts = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
-const catalogue = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
-const { moonshotCatalogueEntries } = await import('../../src/services/providers/moonshot/moonshotAdapter.ts')
-const { getContextWindowForModel, effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
-const { resolveStampedEffortTruth } = await import('../../src/utils/effort.ts')
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
-const { moonshotCallModel } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+;(await import('../../src/platform/settings/config.ts')).enableConfigs()
+const pins = await import('../../src/models/facts/pins/kimiPins.ts')
+const replay = await import('../../src/models/roads/openaicompat/kimiReplay.ts')
+const wire = await import('../../src/models/roads/openaicompat/compatWire.ts')
+const accounts = await import('../../src/models/roads/moonshot/moonshotAccounts.ts')
+const catalogue = await import('../../src/models/roads/moonshot/moonshotCatalogue.ts')
+const { moonshotCatalogueEntries } = await import('../../src/models/roads/moonshot/moonshotAdapter.ts')
+const { getContextWindowForModel, effortVocabularyFor } = await import('../../src/models/facts/capabilities.ts')
+const { resolveStampedEffortTruth } = await import('../../src/models/effort/effort.ts')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
+const { moonshotCallModel } = await import('../../src/models/roads/moonshot/moonshotCallModel.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 const vocabularyOf = (id: string): string => {
   const view = effortVocabularyFor(id)

@@ -1,11 +1,11 @@
 import '../lib/hermetic.js'
 import { join } from 'node:path'
 const root = process.argv[2] ?? join(import.meta.dir, '../..')
-const rules = await import(join(root, 'src/utils/permissions/decision/rules.ts'))
-const { getEmptyToolPermissionContext } = await import(join(root, 'src/Tool.ts'))
+const rules = await import(join(root, 'src/permissions/rules/decision/rules.ts'))
+const { getEmptyToolPermissionContext } = await import(join(root, 'src/tools/kit/tool.ts'))
 let failures = 0
 const check = (label: string, condition: boolean) => {
-  const hint = 'fix the rule caching in getAllowRules, getDenyRules or getDenyRuleForTool in src/utils/permissions/decision/rules.ts: a cache must follow in-place edits of the context and hand each caller its own copy'
+  const hint = 'fix the rule caching in getAllowRules, getDenyRules or getDenyRuleForTool in src/permissions/rules/decision/rules.ts: a cache must follow in-place edits of the context and hand each caller its own copy'
   console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition ? '' : ' — ' + hint}`)
   if (!condition) failures++
 }

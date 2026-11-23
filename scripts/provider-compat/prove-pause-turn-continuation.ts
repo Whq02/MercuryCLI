@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/run-core/turn-machine.ts src/query/transitions.ts src/services/providers/anthropic/streamCore.ts scripts/compact/overflowFixture.ts
+// gate-watch: src/engine/loop/turn-machine.ts src/engine/turn-entry/transitions.ts src/models/roads/anthropic/streamCore.ts scripts/compact/overflowFixture.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -42,22 +42,22 @@ const { startOverflowFixture } = await import('../compact/overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const turnMachine = await import('../../src/run-core/turn-machine.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const turnMachine = await import('../../src/engine/loop/turn-machine.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 type AnyMsg = Record<string, unknown> & { type?: string }
 
 section('P1 the decision')
-failHintWhere = 'to fix, change decidePauseTurnContinuation and PAUSE_TURN_CONTINUATION_LIMIT in src/run-core/turn/judgements.ts (re-exported by src/run-core/turn-machine.ts)'
+failHintWhere = 'to fix, change decidePauseTurnContinuation and PAUSE_TURN_CONTINUATION_LIMIT in src/engine/loop/turn/judgements.ts (re-exported by src/engine/loop/turn-machine.ts)'
 {
   const decide = (turnMachine as { decidePauseTurnContinuation?: (input: { continuations: number }) => { kind: string; attempt?: number } }).decidePauseTurnContinuation
   const limit = (turnMachine as { PAUSE_TURN_CONTINUATION_LIMIT?: number }).PAUSE_TURN_CONTINUATION_LIMIT
@@ -73,7 +73,7 @@ failHintWhere = 'to fix, change decidePauseTurnContinuation and PAUSE_TURN_CONTI
 }
 
 section('P2 the Anthropic seam over the loopback')
-failHintWhere = 'to fix, change how a pause_turn stop reason is settled in the stream handling of src/services/providers/anthropic/streamCore.ts (it must not become a refusal or an API error) and how the paused assistant turn is sent back in the request'
+failHintWhere = 'to fix, change how a pause_turn stop reason is settled in the stream handling of src/models/roads/anthropic/streamCore.ts (it must not become a refusal or an API error) and how the paused assistant turn is sent back in the request'
 async function callLane(model: string, messages: unknown[]): Promise<{ rows: AnyMsg[]; body: Record<string, unknown> | null }> {
   const before = fixture.captured.length
   const rows: AnyMsg[] = []
@@ -119,7 +119,7 @@ async function callLane(model: string, messages: unknown[]): Promise<{ rows: Any
 }
 
 section('P3 the turn machine over a scripted model')
-failHintWhere = 'to fix, change pauseTurnContinuation in src/run-core/turn/noToolReply.ts (continuation count, notice lines, max-turns check, replayed messages)'
+failHintWhere = 'to fix, change pauseTurnContinuation in src/engine/loop/turn/noToolReply.ts (continuation count, notice lines, max-turns check, replayed messages)'
 function makeCtx(model: string): Record<string, unknown> {
   let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }
   return {
@@ -237,7 +237,7 @@ const roles = (msgs: unknown[]): string[] => (msgs as AnyMsg[]).map(m => String(
 }
 
 section('refusals — an empty paused reply, a paused error row, the replay bytes, the control')
-failHintWhere = 'to fix, change pausedReplyOf and pauseTurnContinuation in src/run-core/turn/noToolReply.ts (which replies may be sent back)'
+failHintWhere = 'to fix, change pausedReplyOf and pauseTurnContinuation in src/engine/loop/turn/noToolReply.ts (which replies may be sent back)'
 {
   const model = 'claude-opus-4-8'
   const empty = createAssistantMessage({ content: [] as never })

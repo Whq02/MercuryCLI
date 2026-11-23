@@ -24,8 +24,8 @@ const evidence = { host: `${process.platform}-${process.arch}`, archives: archiv
 console.log('Craft foreign-platform installs: the Windows x64 and Linux x64 archives each app lock pins, installed through shared/install.mjs on this host. The binaries are not run here; the Windows field run is the proof that the .exe runs.')
 for (const app of apps) {
   const delivered = join(scratch, app, 'extension')
-  await cp(join(root, 'src/extensions/bundled', app), delivered, { recursive: true })
-  await cp(join(root, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
+  await cp(join(root, 'src/integrations/extensions/bundled', app), delivered, { recursive: true })
+  await cp(join(root, 'src/integrations/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
   const { adapter } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
   const { checkInstall, installPinned, planInstall } = await import(pathToFileURL(join(delivered, 'shared/install.mjs')).href)
   const foreign = { ...adapter, guiBasename: adapter.id }
@@ -47,7 +47,7 @@ for (const app of apps) {
     for (const name of ['LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE']) assert(installation.manifest.licences.some((l: { name: string; path: string }) => l.name === name && !l.path.includes('supplemental-notices')), `${app} ${platform}: ${name} travels inside the archive`)
     assert.equal((await checkInstall(foreign, { dataDir, platform })).state, 'installed')
     const reused = await installPinned(foreign, { dataDir, platform, fetcher, authorize: () => { throw new Error('Reuse must not ask') } })
-    assert(reused.reused, `${app} ${platform}: second installPinned did not reuse existing archive in src/extensions/bundled/shared/install.mjs`)
+    assert(reused.reused, `${app} ${platform}: second installPinned did not reuse existing archive in src/integrations/extensions/bundled/shared/install.mjs`)
     evidence.rows.push({ app, platform, archive: row.archive, bytes: row.bytes, sha256: row.sha256, cli, gui, fileCount: installation.manifest.fileCount, treeDigest: installation.manifest.treeDigest, licences: installation.manifest.licences.map((l: { path: string }) => l.path) })
     console.log(`PASS ${app} ${platform}: ${row.archive} installed from the one pinned archive (${row.bytes} bytes, SHA-256 enforced); ${cli} and ${gui} identified; LICENSE-MIT, LICENSE-APACHE and NOTICE found in the tree; offline check and reuse without a second ask`)
   }

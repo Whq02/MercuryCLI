@@ -1,0 +1,307 @@
+import { pathTailLabel } from './pathLabel.js'
+import * as React from 'react'
+import { useContext, useMemo, useState } from 'react'
+import { useLoad } from '../effects/effects.js'
+import { useDisplayedSessionModel, useFocusedServedModel } from '../model-picker/useDisplayedSessionModel.js'
+import { useSessionSignInGate } from '../focused-session/useSessionSignInGate.js'
+import { getEngineModel } from '../../models/catalogue/engineModel.js'
+import { NOT_SIGNED_IN_WORDS, SIGN_IN_COMMAND } from '../../models/sign-in/accounts/sessionSignIn.js'
+import { Box, Text } from '../themedRenderer.js'
+import { CockpitActiveContext } from '../cockpit/cockpitActiveContext.js'
+import { useCwdState } from '../focused-session/useCwdState.js'
+import { findGitRoot } from '../../platform/git/git.js'
+import { isDeckPaneActive } from './fullscreen.js'
+import {
+  daemonSnapshot,
+  gitSnapshot,
+  substrateSnapshot,
+  traceSnapshot,
+  type GitData,
+  type Snapshot,
+  type TraceData,
+} from '../cockpit-gauges/index.js'
+import { SQUARE_DOCK_ART_LINES, critterDefForKey } from '../cockpit/critterData.js'
+import { useTerminalSize } from './useTerminalSize.js'
+import { useLayoutChrome } from './layoutChromeContext.js'
+import { requestCommandDispatch } from '../cockpit/helmFocus.js'
+import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
+import { BigWordmark, Sigil, Wordmark, wordmarkForm } from '../widgets/assets.js'
+import { AnimatedCritterArt, BreathingDot } from '../widgets/AnimatedCritterArt.js'
+import { MiniCritter } from '../widgets/MiniCritter.js'
+import { deckPaintsDock } from '../deck-pane/DeckPane.js'
+import { cycleSessionCritter, useSessionAccent } from '../widgets/sessionAccent.js'
+import { branchChip } from '../theme/glyphs.js'
+import { InteractiveRow } from '../widgets/InteractiveRow.js'
+import { CREW_VIEW_DOOR } from '../cockpit/crewmateWords.js'
+import { getProjectRoot, getSessionId } from '../../boot/process-state/processState.js'
+import { composeMemoryAtStart, memoryAtStartRowWords, memoryAtStartStatus } from '../../sessions/mneme/entryKnapsack.js'
+import { mnemeEnabled } from '../../sessions/mneme/mnemeGates.js'
+import { mnemeProjectKey } from '../../sessions/mneme/paths.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+
+
+export function PinnedCritterBerth(): React.ReactNode {
+  const tok = useMercuryTokens()
+  const sa = useSessionAccent()
+  const rawDef = critterDefForKey(sa.key)
+  const dockDef = React.useMemo(
+    () => ({ ...rawDef, hue: sa.accent, hueDeep: sa.accentDeep }),
+    [rawDef, sa.accent, sa.accentDeep],
+  )
+  const hoverDockDef = React.useMemo(
+    () => ({ ...dockDef, hue: tok.accentSoft }),
+    [dockDef, tok.accentSoft],
+  )
+  return (
+    <InteractiveRow
+      id="berth:critter"
+      width={Math.max(...dockDef.squareDock.map(row => row.length))}
+      directActivate
+      onActivate={cycleSessionCritter}
+      flexDirection="column"
+      flexShrink={0}
+    >
+      {hover => (
+        <Box flexDirection="column" flexShrink={0} justifyContent="center">
+          {}
+          <Box height={SQUARE_DOCK_ART_LINES} flexDirection="column" justifyContent="flex-end">
+            <AnimatedCritterArt def={hover ? hoverDockDef : dockDef} square />
+          </Box>
+        </Box>
+      )}
+    </InteractiveRow>
+  )
+}
+
+export function MercuryHero(): React.ReactNode {
+  const { isCompact } = useLayoutChrome()
+  return isCompact ? null : <MercuryHeroBody />
+}
+
+function MercuryHeroBody(): React.ReactNode {
+  const { columns, rows } = useTerminalSize()
+  if ((isDeckPaneActive() && deckPaintsDock(columns)) || rows < 10 || columns < 40) return null
+  return (
+    <Box paddingX={1} marginTop={1} flexShrink={0} justifyContent="center">
+      <MiniCritter />
+    </Box>
+  )
+}
+
+export function MercuryBrandRow(): React.ReactNode {
+  const { rows, columns } = useTerminalSize()
+  const banner = wordmarkForm(columns, rows) === 'banner'
+  return (
+    <Box paddingX={1} marginTop={1} flexShrink={0}>
+      {banner ? (
+        <BigWordmark />
+      ) : (
+        <Text>
+          <Sigil size="inline" />
+          <Text> </Text>
+          <Wordmark />
+        </Text>
+      )}
+    </Box>
+  )
+}
+
+export function MercuryHome(): React.ReactNode {
+  const { isCompact } = useLayoutChrome()
+  return isCompact ? null : <MercuryHomeBody />
+}
+
+function useMemoryAtStartRow(): string | null {
+  const [words, setWords] = useState<string | null>(() => (mnemeEnabled() ? null : 'off (memory.enabled is false in settings)'))
+  useLoad(signal => {
+    if (!mnemeEnabled()) return
+    void composeMemoryAtStart({ projectKey: mnemeProjectKey(), sessionId: String(getSessionId()), root: getProjectRoot() }).then(() => {
+      const status = memoryAtStartStatus()
+      if (!signal.aborted && status !== null) setWords(memoryAtStartRowWords(status))
+    })
+  }, [])
+  return words
+}
+
+function MercuryHomeBody(): React.ReactNode {
+  const tok = useMercuryTokens()
+  const model = useDisplayedSessionModel().label
+  const servedModel = useFocusedServedModel()
+  const signInGate = useSessionSignInGate(servedModel ?? getEngineModel())
+  const cwd = useCwdState()
+  const dir = pathTailLabel(cwd)
+  const memoryRow = useMemoryAtStartRow()
+
+  const [git, setGit] = useState<Snapshot<{ data: GitData }> | null>(null)
+  const [trace, setTrace] = useState<Snapshot<{ data: TraceData }> | null>(null)
+  const [projectScopeEmpty, setProjectScopeEmpty] = useState(false)
+  const isProjectCwd = useMemo((): boolean => {
+    try {
+      return findGitRoot(cwd) !== null
+    } catch (error) {
+      passedOver(error)
+      return false
+    }
+  }, [cwd])
+  useLoad(signal => {
+    gitSnapshot().then(s => !signal.aborted && setGit(s))
+    traceSnapshot().then(s => !signal.aborted && setTrace(s))
+    void import('../../sessions/instructions/instructionFiles.js')
+      .then(engine => engine.getInstructionFiles())
+      .then(files => {
+        if (signal.aborted) return
+        setProjectScopeEmpty(
+          !files.some(f => f.type === 'Project' || f.type === 'Local'),
+        )
+      })
+      .catch(passedOver)
+  }, [cwd])
+
+  const substrate = substrateSnapshot()
+  const daemon = daemonSnapshot()
+  const helmHome = useContext(CockpitActiveContext)
+  const deckPresent = isDeckPaneActive() && !helmHome
+
+  const sa = useSessionAccent()
+  const accent = sa.accent
+  const { rows: termRows, columns: termCols } = useTerminalSize()
+  const bigHero = wordmarkForm(termCols, termRows) === 'banner'
+  const critterLabel = sa.name.charAt(0).toUpperCase() + sa.name.slice(1)
+  const rowClick = (key: string, command: string): { id: string; directActivate: true; onActivate: () => void } => ({
+    id: `home:row:${key}`,
+    directActivate: true,
+    onActivate: () => requestCommandDispatch(command),
+  })
+
+  const branch = git?.data.git?.branchName
+  const gitState = git == null ? '…' : git.data.git == null ? 'no git' : git.data.git.isClean ? 'clean' : 'uncommitted'
+
+  const agents = 0
+  const traceCount = trace?.state === 'live' ? trace.data.total : 0
+
+  return (
+    <Box flexDirection="column" paddingX={1}>
+      {}
+
+      {}
+      <Box flexDirection="column" marginTop={1}>
+        {bigHero ? (
+          <BigWordmark />
+        ) : (
+          <Box>
+            <Sigil size="inline" />
+            <Text> </Text>
+            <Wordmark />
+          </Box>
+        )}
+        {}
+        {signInGate.state === 'ok' ? (
+          <InteractiveRow {...rowClick('standing-by', '/palette')}>
+            <BreathingDot />
+            <Text color={tok.success}> ready</Text>
+            <Text color={tok.textMuted}>
+              {' · type a prompt, or '}
+              <Text color={tok.info}>/</Text>
+              {' for commands'}
+            </Text>
+          </InteractiveRow>
+        ) : (
+          <InteractiveRow {...rowClick('standing-by', SIGN_IN_COMMAND)}>
+            <Text color={tok.warning}>○ {signInGate.state === 'not-logged-in' ? NOT_SIGNED_IN_WORDS : `no ${signInGate.missingProvider} account`}</Text>
+            <Text color={tok.textMuted}>
+              {' · '}
+              <Text color={tok.info}>{SIGN_IN_COMMAND}</Text>
+              {' connects, or '}
+              <Text color={tok.info}>/</Text>
+              {' for commands'}
+            </Text>
+          </InteractiveRow>
+        )}
+      </Box>
+
+      {}
+      <Box marginTop={1} flexDirection="column">
+        {!deckPresent ? (
+          <InteractiveRow {...rowClick('model', '/model')}>
+            <Text wrap="truncate-end">
+              <Text color={tok.textMuted}>{'  model   '}</Text>
+              <Text color={tok.textPrimary}>{model}</Text>
+              <Text color={tok.textMuted}>{'   the model this session runs on · /model changes it'}</Text>
+            </Text>
+          </InteractiveRow>
+        ) : null}
+        <InteractiveRow {...rowClick('theme', '/critter')}>
+          <Text>
+            <Text color={tok.textMuted}>{'  critter '}</Text>
+            <Text color={accent}>{critterLabel}</Text>
+          </Text>
+        </InteractiveRow>
+        <Text wrap="truncate-end">
+          <Text color={tok.textMuted}>{'  dir     '}</Text>
+          <Text color={tok.textPrimary}>{dir}</Text>
+          {!deckPresent && branch ? (
+            <Text>
+              <Text color={tok.textMuted}>{'   ' + branchChip('')}</Text>
+              <Text color={tok.textPrimary}>{branch}</Text>
+            </Text>
+          ) : null}
+          {!deckPresent ? <Text color={tok.textMuted}> · {gitState}</Text> : null}
+        </Text>
+        {memoryRow !== null ? (
+          <InteractiveRow {...rowClick('memory', '/memory')}>
+            <Text wrap="truncate-end">
+              <Text color={tok.textMuted}>{'  memory  '}</Text>
+              <Text color={tok.textSecondary}>{memoryRow}</Text>
+            </Text>
+          </InteractiveRow>
+        ) : null}
+        {}
+        {!helmHome && !deckPresent ? (
+          <InteractiveRow {...rowClick('fleet', '/crewmates')}>
+          <Text wrap="truncate-end">
+            <Text color={tok.textMuted}>{'  fleet   '}</Text>
+            {agents > 0 ? (
+              <Text color={tok.success}>{'● '.repeat(Math.min(agents, 3)).trim()} </Text>
+            ) : (
+              <Text color={tok.textMuted}>○ </Text>
+            )}
+            <Text color={tok.textSecondary}>{agents > 0 ? `${agents} crewmates` : 'no fleet'}</Text>
+            <Text color={tok.textMuted}> · trace </Text>
+            <Text color={tok.textSecondary}>{traceCount}</Text>
+            <Text color={tok.textMuted}> · substrate </Text>
+            <Text color={tok.textSecondary}>
+              {substrate.data.active}/{substrate.data.total}
+            </Text>
+            <Text color={tok.textMuted}> · daemon </Text>
+            <Text color={daemon.state === 'live' ? tok.success : tok.textMuted}>
+              {daemon.state === 'live' ? 'on' : 'off'}
+            </Text>
+          </Text>
+          </InteractiveRow>
+        ) : null}
+        {}
+        {projectScopeEmpty && isProjectCwd ? (
+          <InteractiveRow {...rowClick('init-signpost', '/orient')}>
+            <Text wrap="truncate-end">
+              <Text color={tok.textMuted}>{'  no MERCURY.md here · '}</Text>
+              <Text color={tok.info}>/orient</Text>
+              <Text color={tok.textMuted}> studies the repo and writes it</Text>
+            </Text>
+          </InteractiveRow>
+        ) : null}
+      </Box>
+
+      {}
+      {}
+      <Box marginTop={1}>
+        <Text wrap="truncate-end">
+          <Text color={accent}>❯ </Text>
+          <Text color={tok.textPrimary}>↵</Text>
+          <Text color={tok.textSecondary}> sends</Text>
+          {}
+          <Text color={tok.textMuted}>{`  ·  ${CREW_VIEW_DOOR} /saturn /health /trace`}</Text>
+        </Text>
+      </Box>
+    </Box>
+  )
+}

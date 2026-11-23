@@ -4,7 +4,7 @@
 
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
-import { parseSplashRuns, type SplashRun } from '../../src/components/mercury-ui/splashRuns.ts'
+import { parseSplashRuns, type SplashRun } from '../../src/screen/widgets/splashRuns.ts'
 import { createSplashCore, assembleCardRows } from '../../assets/splash/splash-core.mjs'
 
 const t = checker()

@@ -1,0 +1,101 @@
+
+import { dapAdapterProbePending, mercuryDapEnabled, reachableDapAdapterKeys } from '../../integrations/debugger/dapClient.js'
+import { mercuryGodotEnabled } from '../../integrations/lsp/godotLane.js'
+import { mercuryUnityEnabled } from '../../integrations/unity-protocol/unityProject.js'
+import { locateBlender, mercuryBlenderEnabled } from '../../integrations/blender-protocol/blenderProject.js'
+import { mercuryAsepriteEnabled } from '../../integrations/aseprite/asepriteApp.js'
+import { getVulcanHarnessMapLine } from '../../integrations/vulcan/vulcanGates.js'
+import { isSessionMarkedNonInteractive } from '../cockpit/runtimePosture.js'
+import { flagEnabled } from '../../platform/substrate/flagRegistry.js'
+import { canAnswerAsks, getSessionKind } from '../../boot/process-state/processState.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
+
+export function harnessMapEnabled(): boolean {
+  if (!flagEnabled('MERCURY_HARNESS_MAP')) return false
+  if (isSessionMarkedNonInteractive() && !(canAnswerAsks() && getSessionKind() === 'oculus')) return false
+  return true
+}
+
+let memo: string | null | undefined
+
+function dapReachableSafe(): boolean | null {
+  try {
+    return reachableDapAdapterKeys().length > 0
+  } catch (error) {
+    passedOver(error)
+    logForDebugging(`harnessMap: DAP adapter probe failed: ${error}`, { level: 'error' })
+    return null
+  }
+}
+
+export function computeHarnessMapLines(): string[] {
+  const lines: Array<string | null> = [
+    `- Discovery: /help lists commands; /capabilities is the live capability matrix for this build${flagEnabled('MERCURY_HEALTH_CERT') ? '; /health runs the evidence-backed health certificate' : ''}; a surface absent here is in the tool roster or gated off.`,
+    '- The `!` form: a prompt the user starts with `!` runs that command inside this very session, and whatever it prints arrives in the conversation — the road for a command that needs their own hands, such as an interactive login.',
+    mercuryDapEnabled() && dapReachableSafe() === false && !dapAdapterProbePending()
+      ? '- The Debug tool is withheld on this machine: no debug adapter is reachable, so no launch could work. Arm one — Python `pip install debugpy` (or a build carrying the vendored adapter) · native `xcode-select --install` (lldb-dap) or gdb 14+ · JS: unpack js-debug to ~/.js-debug · Go `go install github.com/go-delve/delve/cmd/dlv@latest` — then start a new session or /clear for the tool to join.'
+      : null,
+    mercuryGodotEnabled()
+      ? "- Godot lanes are armed: in a Godot project (project.godot at the root), the editor GDScript LSP and the Debug tool's `godot` DAP adapter are live over the loopback bridge — use them for GDScript symbol and runtime work."
+      : null,
+    getVulcanHarnessMapLine(),
+    mercuryUnityEnabled()
+      ? "- Unity lanes are armed: in a Unity project (Assets/ + ProjectSettings/ at the root), .cs gets the C# LSP lane (PATH server) and the Debug tool's `unity` adapter attaches to the running editor; the `Unity` tool drives that editor over the loopback bridge (play mode, scenes, hierarchy, console, Test Runner) once the bridge package is installed (op:\"unity_bridge_install\"); headless test/build launch profiles are operator-run (the tool prints the exact command). Nothing is installed or launched for you."
+      : null,
+    mercuryBlenderEnabled()
+      ? `- Blender lanes are armed: .blend files get headless render/python launch profiles (operator-run — the tool prints the exact command, arguments in documented order) and the debugpy attach recipe (a one-line listener inside Blender, then Debug attach adapter python); the \`Blender\` tool drives your running Blender over the loopback bridge (scene/objects truth, blend opens, still renders, report tail, python_run — ask-gated) once the add-on is installed (op:"blender_bridge_install") and enabled in Preferences (your act), or runs one headless -b process per call when no bridge answers and Blender is located.${locateBlender().blender === undefined ? ' The tool joins the catalog beside .blend files or wherever Blender is located (PATH, the Blender.app in /Applications or ~/Applications, Program Files); a Blender installed anywhere else is named with MERCURY_BLENDER_BIN=<its binary>.' : ''} Mercury never installs or enables Blender, and starts it only with no window, when the Blender tool is called.`
+      : null,
+    mercuryAsepriteEnabled()
+      ? '- Aseprite lanes are armed: the `Aseprite` tool drives the local Aseprite in batch mode per operation (sprite census via op:"info", PNG/GIF/sprite-sheet exports, new sprites, Lua run-script — exports and creates ask naming their files, run-script always asks; a GUI is never launched). The tool joins the catalog beside sprite files or wherever the app is located; no Aseprite on the box ⇒ ops teach the install roads. Nothing is installed or launched for you.'
+      : null,
+  ]
+  return lines.filter((l): l is string => l !== null)
+}
+
+export function getHarnessMapSection(): string | null {
+  if (memo !== undefined) return memo
+  if (!harnessMapEnabled()) {
+    memo = null
+    return memo
+  }
+  memo = ['# Mercury harness map', ...computeHarnessMapLines()].join('\n')
+  if (announcedLines === null) announcedLines = computeHarnessMapLines()
+  return memo
+}
+
+let announcedLines: string[] | null = null
+
+type AttachmentishMessage = {
+  type: string
+  attachment?: { type: string; added?: string[]; removed?: string[] }
+}
+
+export function getHarnessMapDelta(
+  messages?: readonly AttachmentishMessage[],
+): { added: string[]; removed: string[] } | null {
+  if (!harnessMapEnabled()) return null
+  const live = computeHarnessMapLines()
+  if (announcedLines === null) {
+    announcedLines = live
+    return null
+  }
+  const announced = new Set(announcedLines)
+  for (const msg of messages ?? []) {
+    if (msg.type !== 'attachment') continue
+    const att = msg.attachment
+    if (!att || att.type !== 'harness_map_delta') continue
+    for (const l of att.added ?? []) announced.add(l)
+    for (const l of att.removed ?? []) announced.delete(l)
+  }
+  const now = new Set(live)
+  const added = live.filter(l => !announced.has(l))
+  const removed = [...announced].filter(l => !now.has(l))
+  if (added.length === 0 && removed.length === 0) return null
+  return { added, removed }
+}
+
+export function resetHarnessMapForTest(): void {
+  memo = undefined
+  announcedLines = null
+}

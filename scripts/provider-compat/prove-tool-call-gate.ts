@@ -15,11 +15,11 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const HINT_GATE = 'the verdict comes from gateToolCall in src/services/providers/toolCallGate.ts, and the lane adapter under src/services/providers/ must mint one tool_use per verdict'
-const HINT_EMPTY = 'dropEmptyOptionalArgs in src/services/providers/toolCallGate.ts decides which empty fields are dropped; a tool keeps a meaningful empty through keepEmptyInputs'
-const HINT_QUOTE = 'straightenQuoteArgs in src/services/providers/toolCallGate.ts straightens the fields a tool lists in straightQuoteInputs, on the gpt lane only; every other lane must pass the bytes as typed'
-const HINT_REPLAY = 'replayableItems in src/services/providers/openai/openaiCallModel.ts builds the Responses replay record; a refused call that gets an error result must stay in it'
-const HINT_PURE = 'gateToolCall and its helpers live in src/services/providers/toolCallGate.ts; fix the function this check names'
+const HINT_GATE = 'the verdict comes from gateToolCall in src/models/roads/toolCallGate.ts, and the lane adapter under src/models/roads/ must mint one tool_use per verdict'
+const HINT_EMPTY = 'dropEmptyOptionalArgs in src/models/roads/toolCallGate.ts decides which empty fields are dropped; a tool keeps a meaningful empty through keepEmptyInputs'
+const HINT_QUOTE = 'straightenQuoteArgs in src/models/roads/toolCallGate.ts straightens the fields a tool lists in straightQuoteInputs, on the gpt lane only; every other lane must pass the bytes as typed'
+const HINT_REPLAY = 'replayableItems in src/models/roads/openai/openaiCallModel.ts builds the Responses replay record; a refused call that gets an error result must stay in it'
+const HINT_PURE = 'gateToolCall and its helpers live in src/models/roads/toolCallGate.ts; fix the function this check names'
 const HINT_DECLARED = 'set straightQuoteInputs on the tool object named in the label, in its file under src/tools/'
 
 delete process.env.NODE_ENV
@@ -270,22 +270,22 @@ console.log('============================================================')
 console.log(' transport-boundary tool-call gate — every dialect, fuzzed')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext, findToolByName } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { GlobTool } = await import('../../src/tools/GlobTool/GlobTool.ts')
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { ContextLeftTool } = await import('../../src/tools/ContextLeftTool/ContextLeftTool.ts')
-const { gateToolCall } = await import('../../src/services/providers/toolCallGate.ts')
-const { replayableItems } = await import('../../src/services/providers/openai/openaiCallModel.ts')
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
-type RefusedToolCall = import('../../src/types/message.ts').RefusedToolCall
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext, findToolByName } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
+const { ContextLeftTool } = await import('../../src/tools/context-left/ContextLeftTool.ts')
+const { gateToolCall } = await import('../../src/models/roads/toolCallGate.ts')
+const { replayableItems } = await import('../../src/models/roads/openai/openaiCallModel.ts')
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
+type RefusedToolCall = import('../../src/engine/message-shapes/message.ts').RefusedToolCall
 
 const { z } = await import('zod/v4')
 const PermissiveFixtureTool = {
@@ -559,11 +559,11 @@ for (const { lane, model, dialect } of LANES) {
 }
 
 section('cross-lane facts')
-check('every lane minted the control case — the fixture reached all nine runtimes', mintedAcrossEverything >= LANES.length * 5, `minted ${mintedAcrossEverything}, wanted at least ${LANES.length * 5}; the per-lane sections above show which lane minted nothing, so read that lane adapter under src/services/providers/`)
+check('every lane minted the control case — the fixture reached all nine runtimes', mintedAcrossEverything >= LANES.length * 5, `minted ${mintedAcrossEverything}, wanted at least ${LANES.length * 5}; the per-lane sections above show which lane minted nothing, so read that lane adapter under src/models/roads/`)
 check(
   'no request ever left the loopback (every hit is a fixture path)',
   hits.every(h => h.startsWith('GET ') || h.startsWith('POST ')),
-  hits.slice(0, 10).join(' | ') + ' — a request that is neither GET nor POST reached the fixture server; find the adapter that sent it under src/services/providers/',
+  hits.slice(0, 10).join(' | ') + ' — a request that is neither GET nor POST reached the fixture server; find the adapter that sent it under src/models/roads/',
 )
 
 section('the null-optional law stripped the nulls (accepted input carries no null keys)')
@@ -577,7 +577,7 @@ section('the null-optional law stripped the nulls (accepted input carries no nul
       input.timeout === undefined &&
       input.description === undefined &&
       input.command === 'echo ok',
-    JSON.stringify(input) + ' — the null-optional law is applied by gateToolCall in src/services/providers/toolCallGate.ts: top-level nulls on optional fields must be stripped before the call is minted',
+    JSON.stringify(input) + ' — the null-optional law is applied by gateToolCall in src/models/roads/toolCallGate.ts: top-level nulls on optional fields must be stripped before the call is minted',
   )
 }
 
@@ -630,7 +630,7 @@ for (const model of ['gpt-5.6-sol', 'deepseek-v4-pro']) {
   check(
     `${model}: the refusal for required fields sent empty names both of them`,
     refusedRequired.refusals.length === 1 && reason.includes('`kind` must be one of') && reason.includes('`code` must have a minimum of 1 character'),
-    reason + ' — the refusal for a required field sent empty must name every failing field; the schema reasons are built in src/services/providers/toolCallGate.ts',
+    reason + ' — the refusal for a required field sent empty must name every failing field; the schema reasons are built in src/models/roads/toolCallGate.ts',
   )
 }
 
@@ -690,14 +690,14 @@ section('the straight-quote law: the gpt lane straightens a command, a pattern a
       edit.detail + ' — ' + HINT_QUOTE,
     )
   }
-  check('the Anthropic drive rode the messages wire of the fixture', hits.some(h => h === 'POST /v1/messages'), hits.filter(h => h.includes('messages')).join(' | ') + ' — the claude-opus-4-8 drive must POST /v1/messages on the fixture; check the Anthropic lane under src/services/providers/ and ANTHROPIC_BASE_URL')
+  check('the Anthropic drive rode the messages wire of the fixture', hits.some(h => h === 'POST /v1/messages'), hits.filter(h => h.includes('messages')).join(' | ') + ' — the claude-opus-4-8 drive must POST /v1/messages on the fixture; check the Anthropic lane under src/models/roads/ and ANTHROPIC_BASE_URL')
 }
 
 section('the permissive-tool extra field rides the minted input verbatim (validated, never rewritten)')
 {
   const o = await drive('kimi-k3', CASES.find(c => c.label.startsWith('unknown field on a permissive'))!.script)
   const input = (o.toolUses[0]?.input ?? {}) as Record<string, unknown>
-  check('the raw object the model sent is what the harness holds', input.bogus === 1 && input.text === 'hi', JSON.stringify(input) + ' — gateToolCall in src/services/providers/toolCallGate.ts must pass the raw object of a permissive-schema tool through unchanged')
+  check('the raw object the model sent is what the harness holds', input.bogus === 1 && input.text === 'hi', JSON.stringify(input) + ' — gateToolCall in src/models/roads/toolCallGate.ts must pass the raw object of a permissive-schema tool through unchanged')
 }
 
 section('Responses lane — the stateless-replay record keeps a refused call its error result will answer, and drops one nothing can answer')
@@ -707,7 +707,7 @@ section('Responses lane — the stateless-replay record keeps a refused call its
     calls: [{ id: 'call_replay_bad', name: BASH, args: '{}' }],
   })
   const record = o.assistants.at(-1)?.apexProviderTurn
-  check('the schema-refused call mints its block carrying the refusal', o.refusals.length === 1 && o.toolUses.length === 1 && o.toolUses[0]!.refused && o.stopReason === 'tool_use', JSON.stringify(o.refusals) + ' — ' + HINT_REPLAY + '; the refused block is minted by the Responses adapter under src/services/providers/openai/')
+  check('the schema-refused call mints its block carrying the refusal', o.refusals.length === 1 && o.toolUses.length === 1 && o.toolUses[0]!.refused && o.stopReason === 'tool_use', JSON.stringify(o.refusals) + ' — ' + HINT_REPLAY + '; the refused block is minted by the Responses adapter under src/models/roads/openai/')
   const items0 = (record?.items ?? []) as Array<Record<string, unknown>>
   check(
     'the replay record keeps the reasoning item and the call, so the error output pairs on the next request',
@@ -718,7 +718,7 @@ section('Responses lane — the stateless-replay record keeps a refused call its
     reasoningFirst: true,
     calls: [{ id: 'call_replay_nameless', args: '{"command":"ls"}' }],
   })
-  check('a call with no tool name cannot pair: a note, no block, no replay record', nameless.refusals.length === 1 && nameless.toolUses.length === 0 && nameless.notes.length === 1 && nameless.assistants.at(-1)?.apexProviderTurn === undefined, JSON.stringify(nameless.assistants.at(-1)?.apexProviderTurn)?.slice(0, 200) + ' — a call with no tool name cannot pair with an output, so the Responses adapter under src/services/providers/openai/ must leave it a note and no replay record')
+  check('a call with no tool name cannot pair: a note, no block, no replay record', nameless.refusals.length === 1 && nameless.toolUses.length === 0 && nameless.notes.length === 1 && nameless.assistants.at(-1)?.apexProviderTurn === undefined, JSON.stringify(nameless.assistants.at(-1)?.apexProviderTurn)?.slice(0, 200) + ' — a call with no tool name cannot pair with an output, so the Responses adapter under src/models/roads/openai/ must leave it a note and no replay record')
   const mixed = await drive('gpt-5.6-sol', {
     reasoningFirst: true,
     calls: [
@@ -769,7 +769,7 @@ section('the gate as a pure function (the exact contract the adapters call)')
     const v = g(BASH, '{"command": "ls"')
     return !v.ok && v.refusal.argumentsRaw === '{"command": "ls"' && v.refusal.id === 'call_x'
   })(), HINT_PURE)
-  const { gateToolCalls, toolCallRefusalNote, toolCallRefusalCorrection } = await import('../../src/services/providers/toolCallGate.ts')
+  const { gateToolCalls, toolCallRefusalNote, toolCallRefusalCorrection } = await import('../../src/models/roads/toolCallGate.ts')
   check('a turn judged together: a second call under an id already used is refused duplicate-id, the first runs', (() => {
     const verdicts = gateToolCalls(CATALOG, [
       { id: 'call_same', name: BASH, argumentsRaw: '{"command":"ls"}', malformed: false },
@@ -777,19 +777,19 @@ section('the gate as a pure function (the exact contract the adapters call)')
       { id: 'call_other', name: BASH, argumentsRaw: '{"command":"id"}', malformed: false },
     ])
     return verdicts.length === 3 && verdicts[0]!.ok && !verdicts[1]!.ok && verdicts[1]!.refusal.code === 'duplicate-id' && verdicts[2]!.ok
-  })(), 'gateToolCalls in src/services/providers/toolCallGate.ts must refuse the second use of an id with code duplicate-id and judge the others on their own')
+  })(), 'gateToolCalls in src/models/roads/toolCallGate.ts must refuse the second use of an id with code duplicate-id and judge the others on their own')
   check('a refused first call does not reserve its id (the gate refuses on its own merits first)', (() => {
     const verdicts = gateToolCalls(CATALOG, [
       { id: 'call_re', name: BASH, argumentsRaw: '{}', malformed: false },
       { id: 'call_re', name: BASH, argumentsRaw: '{"command":"ls"}', malformed: false },
     ])
     return !verdicts[0]!.ok && verdicts[0]!.refusal.code === 'schema' && verdicts[1]!.ok
-  })(), 'gateToolCalls in src/services/providers/toolCallGate.ts must reserve an id only for a call it accepts')
+  })(), 'gateToolCalls in src/models/roads/toolCallGate.ts must reserve an id only for a call it accepts')
   check('the duplicate-id note and correction name the reused id', (() => {
     const refusal = { id: 'call_same', name: BASH, argumentsRaw: '{"command":"pwd"}', code: 'duplicate-id' as const, reason: 'the provider reused call id call_same for a second call in the same turn; only the first call carrying that id ran' }
     return toolCallRefusalNote('fixture', refusal).includes('call_same') && toolCallRefusalCorrection([refusal]).includes('duplicate call id for Bash')
-  })(), 'toolCallRefusalNote and toolCallRefusalCorrection in src/services/providers/toolCallGate.ts must name the reused id and the tool')
-  const { dropEmptyOptionalArgs } = await import('../../src/services/providers/toolCallGate.ts')
+  })(), 'toolCallRefusalNote and toolCallRefusalCorrection in src/models/roads/toolCallGate.ts must name the reused id and the tool')
+  const { dropEmptyOptionalArgs } = await import('../../src/models/roads/toolCallGate.ts')
   check('dropEmptyOptionalArgs: a union schema keeps an empty field one option requires', (() => {
     const union = { inputSchema: z.union([z.strictObject({ k: z.literal('x'), t: z.string().optional() }), z.strictObject({ k: z.literal('y'), t: z.string() })]) }
     return JSON.stringify(dropEmptyOptionalArgs({ k: 'x', t: '' }, union)) === JSON.stringify({ k: 'x', t: '' })
@@ -823,11 +823,11 @@ section('the gate as a pure function (the exact contract the adapters call)')
     const edit = dropEmptyOptionalArgs({ file_path: '/tmp/x', old_string: '', new_string: '', expected_anchor: '', hunks: [] }, FileEditTool as never)
     const grep = dropEmptyOptionalArgs({ pattern: '', glob: '' }, GrepTool as never)
     return JSON.stringify(edit) === JSON.stringify({ file_path: '/tmp/x', old_string: '', new_string: '' }) && JSON.stringify(grep) === JSON.stringify({ pattern: '' })
-  })(), HINT_EMPTY + '; the real tools are under src/tools/FileEditTool/ and src/tools/GrepTool/')
-  const gateModule = (await import('../../src/services/providers/toolCallGate.ts')) as unknown as {
+  })(), HINT_EMPTY + '; the real tools are under src/tools/FileEditTool/ and src/tools/grep/')
+  const gateModule = (await import('../../src/models/roads/toolCallGate.ts')) as unknown as {
     straightenQuoteArgs?: (input: Record<string, unknown>, tool: { straightQuoteInputs?: readonly string[] }) => Record<string, unknown>
   }
-  check('straightenQuoteArgs is exported by the gate', typeof gateModule.straightenQuoteArgs === 'function', 'export straightenQuoteArgs from src/services/providers/toolCallGate.ts')
+  check('straightenQuoteArgs is exported by the gate', typeof gateModule.straightenQuoteArgs === 'function', 'export straightenQuoteArgs from src/models/roads/toolCallGate.ts')
   const straighten = (input: Record<string, unknown>, tool: { straightQuoteInputs?: readonly string[] }): Record<string, unknown> =>
     typeof gateModule.straightenQuoteArgs === 'function' ? gateModule.straightenQuoteArgs(input, tool) : input
   const LS = '‘'
@@ -870,22 +870,22 @@ section('the gate as a pure function (the exact contract the adapters call)')
     )
   })(), [BashTool, GrepTool, GlobTool, FileReadTool, FileWriteTool, FileEditTool].map(declared).join(' ') + ' — ' + HINT_DECLARED)
   {
-    const { LSP_TOOLS } = await import('../../src/tools/LSPTool/LSPTool.ts')
-    const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
-    const { NotebookEditTool } = await import('../../src/tools/NotebookEditTool/NotebookEditTool.ts')
-    const { AstSearchTool } = await import('../../src/tools/AstSearchTool/AstSearchTool.ts')
-    const { AstEditTool } = await import('../../src/tools/AstEditTool/AstEditTool.ts')
-    const { StructureTool } = await import('../../src/tools/StructureTool/StructureTool.ts')
-    const { PowerShellTool } = await import('../../src/tools/PowerShellTool/PowerShellTool.tsx')
-    const { GitTool } = await import('../../src/tools/GitTool/GitTool.ts')
-    const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
-    const { LaunchTool } = await import('../../src/tools/LaunchTool/LaunchTool.ts')
-    const { ServiceTool } = await import('../../src/tools/ServiceTool/ServiceTool.ts')
-    const { MonitorTool } = await import('../../src/tools/MonitorTool/MonitorTool.ts')
-    const { AsepriteTool } = await import('../../src/tools/AsepriteTool/AsepriteTool.ts')
-    const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
+    const { LSP_TOOLS } = await import('../../src/tools/lsp/lspTools.ts')
+    const { DebugTool } = await import('../../src/tools/debug/DebugTool.ts')
+    const { NotebookEditTool } = await import('../../src/tools/notebook-edit/NotebookEditTool.ts')
+    const { AstSearchTool } = await import('../../src/tools/ast-search/AstSearchTool.ts')
+    const { AstEditTool } = await import('../../src/tools/ast-edit/AstEditTool.ts')
+    const { StructureTool } = await import('../../src/tools/structure/StructureTool.ts')
+    const { PowerShellTool } = await import('../../src/tools/powershell/PowerShellTool.tsx')
+    const { GitTool } = await import('../../src/tools/git/GitTool.ts')
+    const { TestTool } = await import('../../src/tools/test/TestTool.ts')
+    const { LaunchTool } = await import('../../src/tools/launch/LaunchTool.ts')
+    const { ServiceTool } = await import('../../src/tools/service/ServiceTool.ts')
+    const { MonitorTool } = await import('../../src/tools/monitor/MonitorTool.ts')
+    const { AsepriteTool } = await import('../../src/tools/aseprite/AsepriteTool.ts')
+    const { EvalTool } = await import('../../src/tools/eval/EvalTool.ts')
     const lspQuotes = [['filePath', 'query', 'paths'], ['filePath', 'newName'], ['filePath', 'targetPath'], ['filePath', 'newPath'], ['filePath'], ['filePath'], ['filePath']]
-    check('each language-service tool straightens exactly its own symbol and path fields', LSP_TOOLS.every((tool, i) => declared(tool) === JSON.stringify(lspQuotes[i])), LSP_TOOLS.map(declared).join(' ') + ' — ' + HINT_DECLARED + ' (the LSP tools are in src/tools/LSPTool/LSPTool.ts)')
+    check('each language-service tool straightens exactly its own symbol and path fields', LSP_TOOLS.every((tool, i) => declared(tool) === JSON.stringify(lspQuotes[i])), LSP_TOOLS.map(declared).join(' ') + ' — ' + HINT_DECLARED + ' (the LSP tools are in src/tools/lsp/lspTools.ts)')
     check('the debugger straightens its paths, expressions and symbols: program, file, expression, name, value, text, functions', declared(DebugTool) === JSON.stringify(['program', 'file', 'expression', 'name', 'value', 'text', 'functions']), declared(DebugTool) + ' — ' + HINT_DECLARED)
     check('the notebook editor straightens notebook_path and keeps new_source as typed', declared(NotebookEditTool) === JSON.stringify(['notebook_path']), declared(NotebookEditTool) + ' — ' + HINT_DECLARED)
     check('the structural search and rewrite tools straighten pattern, path and glob; the rewrite text stays as typed', declared(AstSearchTool) === JSON.stringify(['pattern', 'path', 'glob']) && declared(AstEditTool) === JSON.stringify(['pattern', 'path', 'glob']), `${declared(AstSearchTool)} ${declared(AstEditTool)} — ${HINT_DECLARED}`)
@@ -894,7 +894,7 @@ section('the gate as a pure function (the exact contract the adapters call)')
     check('the git tool straightens its path fields: paths, files, path, file, cwd', declared(GitTool) === JSON.stringify(['paths', 'files', 'path', 'file', 'cwd']), declared(GitTool) + ' — ' + HINT_DECLARED)
     check('the test, launch, service and monitor tools straighten their paths and commands', declared(TestTool) === JSON.stringify(['path', 'file']) && declared(LaunchTool) === JSON.stringify(['file']) && declared(ServiceTool) === JSON.stringify(['command', 'cwd']) && declared(MonitorTool) === JSON.stringify(['command']), [TestTool, LaunchTool, ServiceTool, MonitorTool].map(declared).join(' ') + ' — ' + HINT_DECLARED)
     check('the Aseprite tool straightens its sprite, output and data-output paths; the Lua source stays as typed', declared(AsepriteTool) === JSON.stringify(['file', 'output', 'dataOutput']), declared(AsepriteTool) + ' — ' + HINT_DECLARED)
-    check('the Eval tool declares nothing: a cell is content and arrives as typed', declared(EvalTool) === 'null', declared(EvalTool) + ' — the Eval tool must not declare straightQuoteInputs, since a cell arrives as typed (src/tools/EvalTool/)')
+    check('the Eval tool declares nothing: a cell is content and arrives as typed', declared(EvalTool) === 'null', declared(EvalTool) + ' — the Eval tool must not declare straightQuoteInputs, since a cell arrives as typed (src/tools/eval/)')
   }
   check('replayableItems keeps the first function_call of a duplicated id and drops the rest', (() => {
     const pure = replayableItems(

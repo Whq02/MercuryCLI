@@ -23,16 +23,16 @@ delete process.env.MERCURY_HOME
 pinSourceRef()
 
 const { makeTally, sleep } = await import('./crew-world.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const notices = await import('../../src/services/engine-connector/queuedNotices.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-const { recordTranscript, flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
-const { getTranscriptPathForSession } = await import('../../src/utils/sessionStorage/paths.ts')
-const { wrapInSystemReminder } = await import('../../src/utils/messages/text.ts')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+const notices = await import('../../src/engine/connector/queuedNotices.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { recordTranscript, flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { getTranscriptPathForSession } = await import('../../src/sessions/transcripts/paths.ts')
+const { wrapInSystemReminder } = await import('../../src/engine/message-shapes/text.ts')
 
 const tally = makeTally('notices-sharing-a-turn-land')
 const watchdog = setTimeout(() => {
@@ -53,7 +53,7 @@ const TASK = '<task-notification>\n<task-id>t-done</task-id>\n<status>completed<
 const ABSENT = '<monitor task="bk3" name="Watch charlie">\nCHARLIE-LINE\n</monitor>'
 const blocks = (...texts: string[]): Array<{ type: 'text'; text: string }> => texts.map(text => ({ type: 'text', text }))
 const j = (value: unknown): string => JSON.stringify(value)
-const fix = 'change noticeRowLanded in src/services/engine-connector/queuedNotices.ts'
+const fix = 'change noticeRowLanded in src/engine/connector/queuedNotices.ts'
 
 tally.section('§1 the landing test: a notice lands on the row that holds it as one of its text blocks')
 {

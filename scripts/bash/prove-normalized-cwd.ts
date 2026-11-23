@@ -13,7 +13,7 @@ plugin({
 })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 if (process.platform !== 'win32') process.env.SHELL = '/bin/bash'
-const { windowsPathToPosixPath } = await import('../../src/utils/windowsPaths.js')
+const { windowsPathToPosixPath } = await import('../../src/platform/files/windowsPaths.js')
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'normalized-cwd-')))
 const project = join(root, 'project')
 const screenshots = join(project, 'mockups/launcher-rs/screenshots')
@@ -23,15 +23,15 @@ const shellScreenshots = process.platform === 'win32' ? windowsPathToPosixPath(s
 for (const dir of [screenshots, previews]) mkdirSync(dir, { recursive: true })
 writeFileSync(join(previews, 'preview.png'), 'preview fixture\n')
 writeFileSync(join(screenshots, 'comparison.png'), 'comparison fixture\n')
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { setCwd, getShellCwd } = await import('../../src/utils/Shell.js')
-const { setOriginalCwd } = await import('../../src/bootstrap/state.js')
-const { getCwd, runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
-const { normalizeToolInput } = await import('../../src/services/messages/api.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { endEngineSession } = await import('../../src/utils/shell/engineSession.js')
+const { setCwd, getShellCwd } = await import('../../src/platform/shell/shellExec.js')
+const { setOriginalCwd } = await import('../../src/boot/process-state/processState.js')
+const { getCwd, runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
+const { BashTool } = await import('../../src/tools/shell/BashTool.js')
+const { normalizeToolInput } = await import('../../src/engine/messages/apiSystemAndToolSchema.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { endEngineSession } = await import('../../src/platform/shell/engineSession.js')
 const initialCwd = getCwd()
 setCwd(project)
 setOriginalCwd(project)
@@ -81,7 +81,7 @@ try {
   assert.equal(getShellCwd(), project)
   console.log('Bash normalization and real-shell cwd recovery: PASS')
 } catch (error) {
-  const cwdFailHint = 'FAIL: the assertion error below names the step; to fix it, change the command and cwd rewriting in normalizeToolInput (src/services/messages/api.ts), where the shell stays between commands in setCwd, getShellCwd and resolveShellCwd (src/utils/Shell.ts), or the run in BashTool.call (src/tools/BashTool/BashTool.tsx)'
+  const cwdFailHint = 'FAIL: the assertion error below names the step; to fix it, change the command and cwd rewriting in normalizeToolInput (src/engine/messages/apiSystemAndToolSchema.ts), where the shell stays between commands in setCwd, getShellCwd and resolveShellCwd (src/platform/shell/shellExec.ts), or the run in BashTool.call (src/tools/shell/BashTool.tsx)'
   console.error(cwdFailHint)
   throw error
 } finally {

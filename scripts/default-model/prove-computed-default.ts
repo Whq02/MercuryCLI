@@ -61,10 +61,10 @@ for (const base of [
   process.env[base] = dead
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { SIGN_IN_LEDGER_FILE, readSignInLedger, readSignInRecord, recordSignIn, signInLedgerEpoch } = await import(
-  '../../src/utils/accounts/signInLedger.ts'
+  '../../src/models/sign-in/account-ledger/signInLedger.ts'
 )
 const {
   CHOOSE_A_MODEL_ID,
@@ -81,22 +81,22 @@ const {
   mostRecentSignInFamily,
   orderCredentials,
   resetComputedDefaultMemo,
-} = await import('../../src/services/model/computedDefault.ts')
-type ComputedDefaultFacts = import('../../src/services/model/computedDefault.ts').ComputedDefaultFacts
-type LaneRowVerdict = import('../../src/services/model/computedDefault.ts').LaneRowVerdict
+} = await import('../../src/models/catalogue/computedDefault.ts')
+type ComputedDefaultFacts = import('../../src/models/catalogue/computedDefault.ts').ComputedDefaultFacts
+type LaneRowVerdict = import('../../src/models/catalogue/computedDefault.ts').LaneRowVerdict
 const { getDefaultEngineModelSetting, getEngineModel, parseUserSpecifiedModel, renderDefaultModelLabel, renderModelChip, renderModelName } =
-  await import('../../src/services/model/model.ts')
-const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
-const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
-const { getModelOptions, keyLanePins } = await import('../../src/services/model/modelOptions.ts')
-const { declaredRouteOf, providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
-const { storeZaiApiKeyLogin } = await import('../../src/services/providers/zai/zaiLogin.ts')
-const { writeStoredDeepseekApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-const { switchDefaultProvider } = await import('../../src/utils/model/defaultProviderRung.ts')
-const { clearAuthScope, setAuthScope } = await import('../../src/utils/envUtils.ts')
+  await import('../../src/models/catalogue/engineModel.ts')
+const { setEngineModelOverride } = await import('../../src/boot/process-state/processState.ts')
+const { recognizeModelId } = await import('../../src/models/roads/idSpaces.ts')
+const { getModelOptions, keyLanePins } = await import('../../src/models/catalogue/modelOptions.ts')
+const { declaredRouteOf, providerDisplayName } = await import('../../src/models/roads/routeLaw.ts')
+const { storeZaiApiKeyLogin } = await import('../../src/models/roads/zai/zaiLogin.ts')
+const { writeStoredDeepseekApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { switchDefaultProvider } = await import('../../src/models/facts/defaultProviderRung.ts')
+const { clearAuthScope, setAuthScope } = await import('../../src/platform/environment/envUtils.ts')
 
 let failures = 0
-const defaultHint = 'change the sign-in ledger in src/utils/accounts/signInLedger.ts (section 1), or orderCredentials, evaluateComputedDefault and the describe functions in src/services/model/computedDefault.ts (sections 2 and 3), or the live chain they feed through src/services/model/model.ts and src/utils/model/defaultProviderRung.ts (sections 4 and 5)'
+const defaultHint = 'change the sign-in ledger in src/models/sign-in/account-ledger/signInLedger.ts (section 1), or orderCredentials, evaluateComputedDefault and the describe functions in src/models/catalogue/computedDefault.ts (sections 2 and 3), or the live chain they feed through src/models/catalogue/engineModel.ts and src/models/facts/defaultProviderRung.ts (sections 4 and 5)'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${defaultHint}` : ''}`)
@@ -340,8 +340,8 @@ section('§4 the live chain in a scratch home')
 
 section('§4b a stored key the provider refuses is skipped by the default until that family signs in again')
 {
-  const { refreshZaiCatalogue } = await import('../../src/services/providers/zai/zaiCatalogue.ts')
-  const { readSignInRefusal } = await import('../../src/services/providers/signInRefusal.ts')
+  const { refreshZaiCatalogue } = await import('../../src/models/roads/zai/zaiCatalogue.ts')
+  const { readSignInRefusal } = await import('../../src/models/roads/signInRefusal.ts')
   const refusing = (async () =>
     new Response(JSON.stringify({ error: { message: 'invalid api key' } }), { status: 401, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch
   const snapshot = await refreshZaiCatalogue({ force: true, env: { ...process.env }, fetchImpl: refusing })
@@ -372,9 +372,9 @@ section('§4b a stored key the provider refuses is skipped by the default until 
 section('§5 the sign-in owners — every credential-landing site records; the refresh path never does; every consumer reads the one owner')
 {
   {
-    const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
-    const { computedDefault: decide, describeComputedDefault: describe } = await import('../../src/services/model/computedDefault.ts')
-    const { providerDisplayName: nameOf } = await import('../../src/services/providers/routeLaw.ts')
+    const { settingsChecks } = await import('../../src/platform/health/sections/settings.ts')
+    const { computedDefault: decide, describeComputedDefault: describe } = await import('../../src/models/catalogue/computedDefault.ts')
+    const { providerDisplayName: nameOf } = await import('../../src/models/roads/routeLaw.ts')
     const frontier = await settingsChecks().find(row => row.id === 'frontier')?.run()
     check("/health's Default model row projects it", frontier?.evidence.includes(describe(decide(), nameOf)) === true && frontier.link === '/model', frontier?.evidence)
   }

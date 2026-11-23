@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { CROSS_PLATFORM_CODE_EXEC, DANGEROUS_BASH_PATTERNS, PROGRAM_WRAPPERS } from '../../src/utils/permissions/dangerousPatterns.ts'
+import { CROSS_PLATFORM_CODE_EXEC, DANGEROUS_BASH_PATTERNS, PROGRAM_WRAPPERS } from '../../src/permissions/rules/dangerousPatterns.ts'
 
-const WHERE = 'src/utils/permissions/dangerousPatterns.ts'
+const WHERE = 'src/permissions/rules/dangerousPatterns.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

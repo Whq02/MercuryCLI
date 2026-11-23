@@ -1,0 +1,110 @@
+import type { ToolResultBlockParam } from '../../engine/message-shapes/wire.js'
+import React from 'react'
+import { FallbackToolUseErrorMessage } from '../kit/FallbackToolUseErrorMessage.js'
+import { FAINT } from '../../screen/theme/mercuryPalette.js'
+import { WithCardTone } from '../../screen/widgets/toolCardGrammar.js'
+import { Box, Text } from '../../screen/themedRenderer.js'
+import type { Input, Output } from './ComputerTool.js'
+import { targetWords } from './fastRoad.js'
+import { waitConditionWords } from './waitCondition.js'
+
+export function userFacingName(): string {
+  return 'Computer'
+}
+
+const clip = (text: string, cap: number): string => (text.length > cap ? `${text.slice(0, cap)}…` : text)
+
+export function renderToolUseMessage(input: Partial<Input>, _opts: { verbose: boolean }): React.ReactNode {
+  if (!input.action) return null
+  const parts: string[] = [input.action]
+  const modifiers = input.modifiers && input.modifiers.length > 0 ? ` +${input.modifiers.join('+')}` : ''
+  switch (input.action) {
+    case 'screenshot':
+      if (typeof input.display === 'number') parts.push(`display ${input.display}`)
+      break
+    case 'click':
+    case 'doubleClick':
+    case 'rightClick':
+    case 'move':
+      parts.push(`${input.target ? targetWords(input.target) : `(${input.x}, ${input.y})`}${modifiers}${input.count ? ` ×${input.count}` : ''}`)
+      break
+    case 'drag':
+      parts.push(`${input.target ? targetWords(input.target) : `(${input.x}, ${input.y})`} → ${input.toTarget ? targetWords(input.toTarget) : `(${input.toX}, ${input.toY})`}${modifiers}`)
+      break
+    case 'scroll':
+      parts.push(`${input.target ? targetWords(input.target) : `(${input.x}, ${input.y})`} by ${input.dx ?? 0}, ${input.dy ?? 0}${modifiers}`)
+      break
+    case 'type':
+      if (typeof input.text === 'string') parts.push(`"${clip(JSON.stringify(input.text).slice(1, -1), 30)}" (${input.text.length} chars)`)
+      break
+    case 'key':
+      parts.push(input.key ?? '')
+      break
+    case 'hold':
+      parts.push(`${input.key ?? ''} ${input.durationMs ?? 0}ms`)
+      break
+    case 'wait':
+      parts.push(input.until ? `until ${waitConditionWords(input.until)}` : `${input.durationMs ?? 1000}ms`)
+      break
+    case 'focusApp':
+      parts.push(input.focusApp?.name ?? '')
+      break
+    case 'read':
+      if (input.clipboard) parts.push('clipboard')
+      else if (input.ref !== undefined) parts.push(`ref ${input.ref}`)
+      else if (input.target) parts.push(targetWords(input.target))
+      break
+    case 'find':
+      if (input.target) parts.push(targetWords(input.target))
+      break
+    case 'sequence':
+      parts.push(`${input.steps?.length ?? 0} acts`)
+      break
+    case 'file':
+      parts.push(`${input.target ? targetWords(input.target) : input.ref !== undefined ? `ref ${input.ref}` : `(${input.x}, ${input.y})`} ← ${clip((input.path ?? '').split(/[\\/]/).pop() ?? '', 30)}`)
+      break
+    case 'fill':
+      parts.push(`${input.target ? targetWords(input.target) : input.ref !== undefined ? `ref ${input.ref}` : ''} (${input.text?.length ?? 0} chars)`)
+      break
+    default:
+      break
+  }
+  return parts.filter(Boolean).join(' ')
+}
+
+export function renderToolUseErrorMessage(
+  result: ToolResultBlockParam['content'],
+  { verbose }: { verbose: boolean },
+): React.ReactNode {
+  return <FallbackToolUseErrorMessage result={result} verbose={verbose} />
+}
+
+export function renderToolResultMessage(
+  output: Output,
+  _progressMessages: unknown[],
+  { verbose }: { verbose: boolean },
+): React.ReactNode {
+  const lines = (output.result ?? '').split('\n')
+  const shown = verbose ? lines : lines.slice(0, 10)
+  return (
+    <WithCardTone state={output.outcome}>
+      {({ glyph, tone }) => (
+        <Box flexDirection="column">
+          <Text>
+            <Text color={tone}>{glyph} </Text>
+            <Text color={FAINT}>computer {output.action}</Text>
+          </Text>
+          {shown.map((line, i) => (
+            <Text key={i} color={FAINT}>
+              {'  '}
+              {line}
+            </Text>
+          ))}
+          {!verbose && lines.length > shown.length ? (
+            <Text color={FAINT}>{`  … ${lines.length - shown.length} more line(s)`}</Text>
+          ) : null}
+        </Box>
+      )}
+    </WithCardTone>
+  )
+}

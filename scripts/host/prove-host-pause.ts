@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture, fakeSshRunner } from './runpodFixture.mjs'
-import type { HostRecord } from '../../src/services/host/store.ts'
+import type { HostRecord } from '../../src/models/hosting/store.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const f = await llmhostFixture()
@@ -17,20 +17,20 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 }, nativeFetch)
 const failures: string[] = []
 let checks = 0
-const pauseHint = '\nWhat to change: a watchdog trip must pause with the machine up and no terminate, in runHostJob (src/services/host/worker.ts); the two-hour rule lives in sweepHostIdle and hostIdleVerdict (src/services/host/idle.ts).'
+const pauseHint = '\nWhat to change: a watchdog trip must pause with the machine up and no terminate, in runHostJob (src/models/hosting/worker.ts); the two-hour rule lives in sweepHostIdle and hostIdleVerdict (src/models/hosting/idle.ts).'
 const check = (name: string, truth: unknown, detail = ''): void => { if (truth) { checks++; console.log('PASS ' + name) } else { failures.push(name + (detail ? ': ' + detail : '') + pauseHint); console.error('FAIL ' + name + (detail ? ': ' + detail : '') + pauseHint) } }
 const houseWords = /\b(door|road|seat|fold|lane|ladder|owner|law|pin|prover)s?\b/i
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
 try {
-  const { hostRunner, closeHostTunnel, waitHostEngine } = await import('../../src/services/host/ssh.ts')
-  const { runHostJob } = await import('../../src/services/host/worker.ts')
-  const { queueHostSetup } = await import('../../src/services/host/jobs.ts')
-  const { readHostRecord, hostDirectory, patchHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
-  const { vendorClient, saveVendorKey, runpodOnly } = await import('../../src/services/host/vendors/client.ts')
-  const { HOST_IDLE_LIMIT_MS, hostIdleHoursWords, hostIdleSince, hostIdleVerdict, hostEndpointLastTurnAt, sweepHostIdle } = await import('../../src/services/host/idle.ts')
-  const { pinnedWeightManifest } = await import('../../src/services/host/keptWeights.ts')
-  const { writeKeptVolume, readKeptVolume } = await import('../../src/services/host/volumes.ts')
-  const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
+  const { hostRunner, closeHostTunnel, waitHostEngine } = await import('../../src/models/hosting/ssh.ts')
+  const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+  const { queueHostSetup } = await import('../../src/models/hosting/jobs.ts')
+  const { readHostRecord, hostDirectory, patchHostRecord, removeHostRecord } = await import('../../src/models/hosting/store.ts')
+  const { vendorClient, saveVendorKey, runpodOnly } = await import('../../src/models/hosting/vendors/client.ts')
+  const { HOST_IDLE_LIMIT_MS, hostIdleHoursWords, hostIdleSince, hostIdleVerdict, hostEndpointLastTurnAt, sweepHostIdle } = await import('../../src/models/hosting/idle.ts')
+  const { pinnedWeightManifest } = await import('../../src/models/hosting/keptWeights.ts')
+  const { writeKeptVolume, readKeptVolume } = await import('../../src/models/hosting/volumes.ts')
+  const { configuredCompatEndpoints } = await import('../../src/models/roads/openaicompat/compatAccounts.ts')
   const { hostMachineName } = await import('../../src/commands/llmhost/words.ts')
   saveVendorKey('runpod', rp.key)
   const api = vendorClient('runpod', { key: rp.key, apiBaseUrl: rp.baseUrl })

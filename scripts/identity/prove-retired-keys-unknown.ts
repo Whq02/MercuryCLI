@@ -23,16 +23,16 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (title: string): void => console.log(`\n${title}`)
 const j = (value: unknown): string => JSON.stringify(value)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { getSettingsWithErrors, getInitialSettings } = await import('../../src/utils/settings/settings.js')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
-const { validateSettingsFileContent } = await import('../../src/utils/settings/validation.js')
-const { loadAllPermissionRulesFromDisk } = await import('../../src/utils/permissions/permissionsLoader.js')
-const { hooksSnapshot, resetHooksSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.js')
-const { getConfiguredApiKeyHelper } = await import('../../src/utils/auth.js')
-const { getGlobalConfig, readGlobalConfigAgain } = await import('../../src/utils/config/globalConfig.js')
-const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.js')
+const { getSettingsWithErrors, getInitialSettings } = await import('../../src/platform/settings/settings.js')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
+const { validateSettingsFileContent } = await import('../../src/platform/settings/validation.js')
+const { loadAllPermissionRulesFromDisk } = await import('../../src/permissions/rules/permissionsLoader.js')
+const { hooksSnapshot, resetHooksSnapshot } = await import('../../src/integrations/event-hooks/hooksConfigSnapshot.js')
+const { getConfiguredApiKeyHelper } = await import('../../src/models/sign-in/credentials/auth.js')
+const { getGlobalConfig, readGlobalConfigAgain } = await import('../../src/platform/config/globalConfig.js')
+const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.js')
 setSessionTrustAccepted(true)
 
 const RETIRED_SETTINGS_ROOTS: Record<string, unknown> = {
@@ -222,7 +222,7 @@ section('§4 the global config: a retired spelling steers nothing and is carried
   check('the retired spellings are carried as written, like the nonsense key beside them', config.showExpandedTodos === true && config.lastPlanModeUse === 1700000000000 && j(config.clientDataCache) === j({ rows: [] }) && config.supervisorEnabled === true && config.notAConfigKey === true && config.verbose === true && config.autoUpdates === false && config.autoUpdatesProtectedForNative === true && config.cachedChangelog === '## old' && config.migrationVersion === 13, j(config))
   check('a retired key inside a project record is carried as written too', j((config.projects as Record<string, Record<string, unknown>>)[PROJ]?.history) === j(['old']), j(config.projects))
   check('the advisor block is carried whole: nothing drops a key nothing reads', j(config.advisor) === j(written.advisor), j(config.advisor))
-  const slots = await import('../../src/services/model/subModelSlots.js')
+  const slots = await import('../../src/models/catalogue/subModelSlots.js')
   check('the retired sub-model container is carried as written and picks nothing: no container of that name, the Advisor unset, no effort read', j(config.subModels) === j(written.subModels) && !(slots.SUB_MODEL_CONTAINERS as readonly string[]).includes('console') && slots.resolveSubModel('advisor').origin === 'unset' && slots.resolveSubModelEffort('advisor') === undefined, j([config.subModels, slots.SUB_MODEL_CONTAINERS, slots.resolveSubModel('advisor')]))
   check('the file keeps its bytes: no rewrite at read', readFileSync(configPath, 'utf8') === `${JSON.stringify(written, null, 2)}\n`)
 }
@@ -244,7 +244,7 @@ section('§5 a file an earlier version kept in the config home is left as it was
 
 section('§6 a retired extension contribution is an unknown key of the manifest: refused in the words a made-up contribution is refused in, at load and under the validator')
 {
-  const { parseManifestValue } = await import('../../src/extensions/manifest.js')
+  const { parseManifestValue } = await import('../../src/integrations/extensions/manifest.js')
   const RETIRED_CONTRIBUTIONS = ['channels']
   const read = (key: string, strict: boolean): string => {
     const parsed = parseManifestValue({ name: 'retired-probe', version: '1.0.0', description: 'a probe', contributes: { [key]: [{ server: 'app', label: 'notices' }] } }, { strict })

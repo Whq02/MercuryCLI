@@ -5,14 +5,14 @@ underScratchHome(import.meta.path)
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const notice = (await import('../../src/utils/remoteFiles/notice.ts').catch(() => ({}))) as { remoteFilesNotice?: (input: string, messages?: unknown[]) => Array<{ type: string; content?: string }> }
+const notice = (await import('../../src/platform/remote-file-target/notice.ts').catch(() => ({}))) as { remoteFilesNotice?: (input: string, messages?: unknown[]) => Array<{ type: string; content?: string }> }
 
 let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const noticeHint = 'change remoteFilesNotice in src/utils/remoteFiles/notice.ts (which prompts get the ssh:// notice, its words, and saying it once per conversation)'
+  const noticeHint = 'change remoteFilesNotice in src/platform/remote-file-target/notice.ts (which prompts get the ssh:// notice, its words, and saying it once per conversation)'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 500)} | ` : ''}${noticeHint}` : ''}`)
 }
 const WORDS =

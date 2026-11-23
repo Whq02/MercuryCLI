@@ -11,21 +11,21 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { startOverflowFixture } = await import('./overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const compact = await import('../../src/services/compact/compact.ts')
-const prompts = await import('../../src/services/compact/prompt.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const compact = await import('../../src/engine/compaction/foldConversation.ts')
+const prompts = await import('../../src/engine/compaction/summariserPrompt.ts')
 const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 let failures = 0
 let checks = 0
 const check = (name: string, ok: boolean, details: unknown = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${JSON.stringify(details)} — fix: the summary prompts in src/services/compact/prompt.ts (getCompactPrompt, getPartialCompactPrompt, getCompactUserSummaryMessage) and compactConversation in src/services/compact/compact.ts`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${JSON.stringify(details)} — fix: the summary prompts in src/engine/compaction/summariserPrompt.ts (getCompactPrompt, getPartialCompactPrompt, getCompactUserSummaryMessage) and compactConversation in src/engine/compaction/foldConversation.ts`}`)
 }
 const context = (): any => ({ abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], readFileState: new Map(), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } })
 const forbidden = ['wrap your thinking', '<analysis>', 'Produce the analysis']

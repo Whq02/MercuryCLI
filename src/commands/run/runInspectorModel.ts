@@ -2,12 +2,12 @@
 import {
   openDeliverables,
   type RunSnapshot,
-} from '../../services/run/runKernel.js'
+} from '../../engine/run/runKernel.js'
 import {
   bootRecoveryStatusLine,
   type BootRecoveryState,
-} from '../../substrate/recoveryOrchestrator.js'
-import { truncateToWidth } from '../../utils/truncate.js'
+} from '../../platform/substrate/recoveryOrchestrator.js'
+import { truncateToWidth } from '../../platform/text/truncate.js'
 
 export interface RunRow {
   section: string

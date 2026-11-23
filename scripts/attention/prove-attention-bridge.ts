@@ -3,9 +3,9 @@ import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 
-let m: typeof import('../../src/services/workbench/attentionBridge.ts') | null = null
+let m: typeof import('../../src/screen/workbench/attentionBridge.ts') | null = null
 try {
-  m = await import('../../src/services/workbench/attentionBridge.ts')
+  m = await import('../../src/screen/workbench/attentionBridge.ts')
 } catch {
   m = null
 }

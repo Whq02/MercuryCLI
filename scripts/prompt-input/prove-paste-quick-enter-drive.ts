@@ -58,11 +58,11 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 
 const ptyFix = ' — the paste or Enter reached the real dist/mercury.mjs through a PTY: rebuild with bun run build.ts if dist is stale, then read the leg jsonl in the scratch home and the Enter handling of a pasted draft in the composer'
-const inProcessFix = ' — the in-process composer joined or sent the paste differently than expected: check the burst-CR handling in src/ink/input/input-decoder.ts and the pasted draft handling in src/input-core/pending-input.ts'
+const inProcessFix = ' — the in-process composer joined or sent the paste differently than expected: check the burst-CR handling in src/screen/renderer/input/input-decoder.ts and the pasted draft handling in src/screen/composer/input-core/pending-input.ts'
 
 const { scenario, cleanupScenario, SID } = await import('../ui/renderScenarios.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 
 function makeBody(tag: string, multiline = false): string {
   let out = `${tag} head`
@@ -423,23 +423,23 @@ try {
     BROWSER: '/usr/bin/true',
   })
   process.chdir(work)
-  const { __setBurstCrHostForTest } = await import('../../src/ink/input/input-decoder.ts')
+  const { __setBurstCrHostForTest } = await import('../../src/screen/renderer/input/input-decoder.ts')
   const React = await import('react')
-  const { App } = await import('../../src/components/App.js')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-  const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.js')
-  const { Chat } = await import('../../src/screens/Chat.js')
-  const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.js')
-  const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.js')
-  const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.js')
+  const { App } = await import('../../src/boot/App.js')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+  const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.js')
+  const { Chat } = await import('../../src/screen/chat/Chat.js')
+  const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.js')
+  const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.js')
+  const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.js')
   enableConfigs()
   saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true, hasTrustDialogAccepted: true }))
   saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false, hasCompletedOnboarding: true, theme: 'dark' }))
-  const pending = await import('../../src/input-core/pending-input.js')
-  const slot = await import('../../src/services/engine-connector/focusedConnector.js')
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-  const { getCommands } = await import('../../src/commands.js')
-  const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.js')
+  const pending = await import('../../src/screen/composer/input-core/pending-input.js')
+  const slot = await import('../../src/engine/connector/focusedConnector.js')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+  const { getCommands } = await import('../../src/commands/catalogue/commands.js')
+  const { markDaemonHaltStanddown } = await import('../../src/daemon/control/daemonStanddown.js')
   markDaemonHaltStanddown()
   const commands = await getCommands(work)
 

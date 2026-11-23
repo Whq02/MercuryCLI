@@ -2,9 +2,9 @@ import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { SettingsSchema } from '../../src/utils/settings/types.js'
-import { updateSettingsForSource } from '../../src/utils/settings/settings.js'
-import { mediaConfigModule, mediaEnvironment, mediaHealth, mediaRoot, readMediaSettings, saveMediaSettings } from '../../src/services/media/settings.js'
+import { SettingsSchema } from '../../src/platform/settings/settingsSchema.js'
+import { updateSettingsForSource } from '../../src/platform/settings/settings.js'
+import { mediaConfigModule, mediaEnvironment, mediaHealth, mediaRoot, readMediaSettings, saveMediaSettings } from '../../src/integrations/media/settings.js'
 import { installFixture, removeProofHome, root, serverPath } from './fixture.ts'
 
 try {

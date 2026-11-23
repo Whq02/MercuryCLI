@@ -22,7 +22,7 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spell
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 let failures = 0
-const RETENTION_WHERE = 'records.retentionDays 0 is read in src/utils/settings/validationTips.ts (the tip words), src/services/cleanup.ts (the sweep and retentionWindowDays), src/utils/sessionStorage/writer.ts (transcript writing) and src/mneme/lineageSession.ts (the lineage entry); for a failure in the built-run checks, rebuild dist/mercury.mjs with bun run build.ts first'
+const RETENTION_WHERE = 'records.retentionDays 0 is read in src/platform/settings/validationTips.ts (the tip words), src/sessions/transcripts/retentionSweep.ts (the sweep and retentionWindowDays), src/sessions/transcripts/writer.ts (transcript writing) and src/sessions/mneme/lineageSession.ts (the lineage entry); for a failure in the built-run checks, rebuild dist/mercury.mjs with bun run build.ts first'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${RETENTION_WHERE}`}`)
@@ -30,7 +30,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 
 console.log('§1 the records.retentionDays tip says what the product does')
 {
-  const { getValidationTip } = await import('../../src/utils/settings/validationTips.ts')
+  const { getValidationTip } = await import('../../src/platform/settings/validationTips.ts')
   const tip = getValidationTip({ path: 'records.retentionDays', code: 'too_small', expected: '0' })?.suggestion ?? ''
   check('the tip exists for a value under 0', tip.length > 0)
   check('it claims no deletion of transcripts', !/delet/i.test(tip), tip)
@@ -41,10 +41,10 @@ console.log('§1 the records.retentionDays tip says what the product does')
 
 console.log('§3 the sweep at 0 ages a recording and leaves every transcript (the real sweep over a seeded estate)')
 {
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const { getProjectsDir } = await import('../../src/utils/sessionStorage/paths.ts')
-  const { cleanupOldSessionFiles, retentionWindowDays } = await import('../../src/services/cleanup.ts')
+  const { getProjectsDir } = await import('../../src/sessions/transcripts/paths.ts')
+  const { cleanupOldSessionFiles, retentionWindowDays } = await import('../../src/sessions/transcripts/retentionSweep.ts')
   check('the window reads 0 from the scratch settings', retentionWindowDays() === 0, String(retentionWindowDays()))
   const project = join(getProjectsDir(), 'proj-zero')
   mkdirSync(project, { recursive: true })

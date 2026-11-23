@@ -4,12 +4,12 @@ import { join } from 'node:path'
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, ownerOf, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const claim = await import('../../src/services/desktop/desktopClaim.ts')
-const session = await import('../../src/services/desktop/desktopSession.ts')
-const { readFakeActLog } = await import('../../src/services/desktop/fakeDesktopDriver.ts')
-type FakeAct = import('../../src/services/desktop/fakeDesktopDriver.ts').FakeAct
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const claim = await import('../../src/integrations/desktop/desktopClaim.ts')
+const session = await import('../../src/integrations/desktop/desktopSession.ts')
+const { readFakeActLog } = await import('../../src/integrations/desktop/fakeDesktopDriver.ts')
+type FakeAct = import('../../src/integrations/desktop/fakeDesktopDriver.ts').FakeAct
 
 const scratch = scratchDir('interrupt')
 const LOG = join(scratch, 'acts.jsonl')

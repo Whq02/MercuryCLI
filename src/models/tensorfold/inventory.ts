@@ -1,0 +1,234 @@
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import { rememberedTensorFoldWindow } from '../roads/local/tensorfoldHosts.js'
+import { ADAPTER_CHECKPOINTS, adapterCheckpointOf } from './adapter/models.js'
+import type { TensorFoldEngine, TensorFoldModelRow, TensorFoldServed } from './contracts.js'
+import { cachedTensorFoldMachineTruth, engineServedByAdapter, type EngineIo, type TensorFoldEngineFound } from './engine.js'
+import { chosenTensorFoldWindow, reachesAgentFloor, tensorFoldLadder, type TensorFoldMachineTruth } from './fit.js'
+import { cacheDirOfRepo, ggufOnDisk, hfCacheRoot } from './hfCache.js'
+import { servedTensorFold } from './serve.js'
+import { QWEN_27B, QWEN_27B_SECOND_WORDS, QWEN_2B, TENSORFOLD_STARTING_POINTS, startingPointOf, tensorFoldLabel, tensorFoldShortName, tensorFoldStartingOrder, type TensorFoldCheckpoint } from './starting.js'
+import { configFactsOf, rec, type ConfigFacts } from './configFacts.js'
+import { errorMessage, isENOENT } from '../../platform/errors/errors.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+import { hostEnv } from '../../platform/environment/hostEnv.js'
+export { cacheDirOfRepo, hfCacheRoot } from './hfCache.js'
+export { configFactsOf, type ConfigFacts } from './configFacts.js'
+
+export type TensorFoldInventoryRow = TensorFoldModelRow & { label: string; checkpoint: TensorFoldCheckpoint; quantisation?: string }
+
+type HfSnapshot = {
+  repo: string
+  dir: string
+  config: Record<string, unknown>
+  weightsBytes: number
+  incompleteBytes: number
+}
+
+export type TensorFoldInventoryReadError = { path: string; error: string }
+
+export type InventoryIo = EngineIo & {
+  cacheRoot?: string
+  machine?: TensorFoldMachineTruth
+  served?: readonly TensorFoldServed[]
+  lastWindow?: (repo: string) => number | undefined
+  listDir?: (path: string) => string[]
+  readText?: (path: string) => string | undefined
+  sizeOf?: (path: string) => number | undefined
+  onReadError?: (failure: TensorFoldInventoryReadError) => void
+}
+
+export function hfCacheWords(root: string, home: string = homedir()): string {
+  return root.startsWith(home) ? `~${root.slice(home.length)}` : root
+}
+
+function defaultListDir(path: string, onReadError?: (failure: TensorFoldInventoryReadError) => void): string[] {
+  try {
+    return readdirSync(path)
+  } catch (error) {
+    passedOver(error)
+    if (!isENOENT(error)) onReadError?.({ path, error: errorMessage(error) })
+    return []
+  }
+}
+
+function defaultReadText(path: string, onReadError?: (failure: TensorFoldInventoryReadError) => void): string | undefined {
+  try {
+    return readFileSync(path, 'utf8')
+  } catch (error) {
+    passedOver(error)
+    if (!isENOENT(error)) onReadError?.({ path, error: errorMessage(error) })
+    return undefined
+  }
+}
+
+function defaultSizeOf(path: string, onReadError?: (failure: TensorFoldInventoryReadError) => void): number | undefined {
+  try {
+    return statSync(path).size
+  } catch (error) {
+    passedOver(error)
+    if (!isENOENT(error)) onReadError?.({ path, error: errorMessage(error) })
+    return undefined
+  }
+}
+
+function repoOfCacheDir(name: string): string | undefined {
+  if (!name.startsWith('models--')) return undefined
+  const rest = name.slice('models--'.length)
+  const cut = rest.indexOf('--')
+  if (cut <= 0) return undefined
+  return `${rest.slice(0, cut)}/${rest.slice(cut + 2)}`
+}
+
+export function readHfSnapshot(root: string, repo: string, io: Pick<InventoryIo, 'listDir' | 'readText' | 'sizeOf' | 'onReadError'> = {}): HfSnapshot | undefined {
+  const listDir = io.listDir ?? (path => defaultListDir(path, io.onReadError))
+  const readText = io.readText ?? (path => defaultReadText(path, io.onReadError))
+  const sizeOf = io.sizeOf ?? (path => defaultSizeOf(path, io.onReadError))
+  const base = join(root, cacheDirOfRepo(repo))
+  const snapshots = join(base, 'snapshots')
+  const main = readText(join(base, 'refs', 'main'))?.trim()
+  const candidates = main !== undefined && main !== '' ? [main, ...listDir(snapshots).filter(name => name !== main)] : listDir(snapshots)
+  let dir: string | undefined
+  let config: Record<string, unknown> | undefined
+  for (const sha of candidates) {
+    const text = readText(join(snapshots, sha, 'config.json'))
+    if (text === undefined) continue
+    try {
+      const parsed = rec(JSON.parse(text))
+      if (parsed === undefined) continue
+      dir = join(snapshots, sha)
+      config = parsed
+      break
+    } catch (error) {
+      passedOver(error)
+      continue
+    }
+  }
+  const blobs = join(base, 'blobs')
+  let incompleteBytes = 0
+  for (const name of listDir(blobs)) if (name.endsWith('.incomplete')) incompleteBytes += sizeOf(join(blobs, name)) ?? 0
+  if (dir === undefined || config === undefined) return undefined
+  let weightsBytes = 0
+  for (const name of listDir(dir)) if (name.endsWith('.safetensors') || name.endsWith('.gguf')) weightsBytes += sizeOf(join(dir, name)) ?? 0
+  return { repo, dir, config, weightsBytes, incompleteBytes }
+}
+
+function listHfRepos(root: string, io: Pick<InventoryIo, 'listDir' | 'onReadError'> = {}): string[] {
+  const listDir = io.listDir ?? (path => defaultListDir(path, io.onReadError))
+  return listDir(root)
+    .map(repoOfCacheDir)
+    .filter((repo): repo is string => repo !== undefined)
+    .sort()
+}
+
+function checkpointOfSnapshot(snapshot: HfSnapshot, facts: ConfigFacts): TensorFoldCheckpoint {
+  return {
+    repo: snapshot.repo,
+    label: tensorFoldLabel(snapshot.repo),
+    shortName: tensorFoldShortName(snapshot.repo),
+    family: facts.modelType ?? 'unknown',
+    weightsBytes: snapshot.weightsBytes,
+    downloadBytes: snapshot.weightsBytes,
+    kvBytesPerToken: facts.kvBytesPerToken ?? 0,
+    trainedMax: facts.trainedMax ?? 32_768,
+    qualified: false,
+  }
+}
+
+export function rowOfCheckpoint(point: TensorFoldCheckpoint, machine: TensorFoldMachineTruth, disk: { onDisk: boolean; bytesOnDisk: number; drafterOnDisk: boolean }, served?: TensorFoldServed, lastWindow?: number): TensorFoldInventoryRow {
+  const ladder = tensorFoldLadder(point, machine)
+  const window = served?.window ?? (lastWindow !== undefined && ladder.some(rung => rung.window === lastWindow) ? lastWindow : chosenTensorFoldWindow(ladder))
+  const fit = ladder.find(rung => rung.window === window)?.fit ?? ladder[0]!.fit
+  const whole = disk.onDisk && (point.drafter === undefined || disk.drafterOnDisk)
+  const missing = (disk.onDisk ? 0 : point.downloadBytes) + (point.drafter !== undefined && !disk.drafterOnDisk ? point.drafter.downloadBytes : 0)
+  return {
+    repo: point.repo,
+    shortName: point.shortName,
+    label: point.label,
+    family: point.family,
+    state: served !== undefined ? 'serving' : whole ? 'on-disk' : 'not-pulled',
+    fit,
+    window,
+    qualified: point.qualified,
+    ...(point.drafter !== undefined ? { drafter: point.drafter.repo } : {}),
+    ...(point.promptCacheGib !== undefined ? { promptCacheGib: point.promptCacheGib } : {}),
+    ...(served !== undefined ? { port: served.port, startedBy: 'mercury' as const } : {}),
+    bytesOnDisk: disk.bytesOnDisk,
+    ...(whole ? {} : { downloadBytes: missing }),
+    ladder,
+    checkpoint: point,
+  }
+}
+
+function rankTensorFoldRows(rows: readonly TensorFoldInventoryRow[], machine: TensorFoldMachineTruth, order: readonly TensorFoldCheckpoint[] = tensorFoldStartingOrder(machine)): TensorFoldInventoryRow[] {
+  const rank = (row: TensorFoldInventoryRow): number => {
+    const at = order.findIndex(point => point.repo === row.repo)
+    return at < 0 ? order.length : at
+  }
+  const noted = (row: TensorFoldInventoryRow): TensorFoldInventoryRow => (row.repo === QWEN_27B.repo && order[0] !== QWEN_27B && row.state !== 'serving' && row.state !== 'loading' ? { ...row, note: QWEN_27B_SECOND_WORDS } : row)
+  const serving = rows.filter(row => row.state === 'serving' || row.state === 'loading')
+  const rest = rows.filter(row => !serving.includes(row)).sort((a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label)).map(noted)
+  const best = bestTensorFoldFit(rest)
+  return [...serving, ...(best === null ? rest : [best as TensorFoldInventoryRow, ...rest.filter(row => row !== best)])]
+}
+
+function adapterInventory(root: string, machine: TensorFoldMachineTruth, servedOf: (repo: string) => TensorFoldServed | undefined, lastWindowOf: (repo: string) => number | undefined): TensorFoldInventoryRow[] {
+  const rows = ADAPTER_CHECKPOINTS.map(point => {
+    const disk = ggufOnDisk(root, point.gguf)
+    return { ...rowOfCheckpoint(point, machine, { onDisk: disk.complete, bytesOnDisk: disk.bytes, drafterOnDisk: true }, servedOf(point.repo), lastWindowOf(point.repo)), quantisation: point.gguf.quant }
+  })
+  return rankTensorFoldRows(rows, machine, ADAPTER_CHECKPOINTS)
+}
+
+export async function readTensorFoldInventory(engine: TensorFoldEngine | null, io: InventoryIo = {}): Promise<TensorFoldInventoryRow[]> {
+  const env = io.env ?? hostEnv()
+  const home = io.home ?? homedir()
+  const root = io.cacheRoot ?? hfCacheRoot(env, home)
+  const machine = io.machine ?? (await cachedTensorFoldMachineTruth(io))
+  const served = io.served ?? servedTensorFold()
+  const servedOf = (repo: string): TensorFoldServed | undefined => served.find(row => row.repo.toLowerCase() === repo.toLowerCase())
+  const lastWindowOf = io.lastWindow ?? rememberedTensorFoldWindow
+  if (engineServedByAdapter(engine)) return adapterInventory(root, machine, servedOf, lastWindowOf)
+  const known = new Set((engine as TensorFoldEngineFound | null)?.families.map(family => family.id) ?? [])
+  const snapshots = new Map<string, HfSnapshot | undefined>()
+  const snapshotOf = (repo: string): HfSnapshot | undefined => {
+    if (!snapshots.has(repo)) snapshots.set(repo, existsSync(join(root, cacheDirOfRepo(repo))) || io.listDir !== undefined ? readHfSnapshot(root, repo, io) : undefined)
+    return snapshots.get(repo)
+  }
+  const rows: TensorFoldInventoryRow[] = []
+  for (const point of TENSORFOLD_STARTING_POINTS) {
+    const snapshot = snapshotOf(point.repo)
+    const drafter = point.drafter === undefined ? undefined : snapshotOf(point.drafter.repo)
+    rows.push(
+      rowOfCheckpoint(
+        point,
+        machine,
+        { onDisk: snapshot !== undefined && snapshot.weightsBytes > 0, bytesOnDisk: (snapshot?.weightsBytes ?? 0) + (snapshot?.incompleteBytes ?? 0), drafterOnDisk: drafter !== undefined && drafter.weightsBytes > 0 },
+        servedOf(point.repo),
+        lastWindowOf(point.repo),
+      ),
+    )
+  }
+  const pinned = new Set([...TENSORFOLD_STARTING_POINTS.map(point => point.repo.toLowerCase()), ...TENSORFOLD_STARTING_POINTS.flatMap(point => (point.drafter ? [point.drafter.repo.toLowerCase()] : []))])
+  for (const repo of listHfRepos(root, io)) {
+    if (pinned.has(repo.toLowerCase())) continue
+    const snapshot = snapshotOf(repo)
+    if (snapshot === undefined || snapshot.weightsBytes === 0) continue
+    const facts = configFactsOf(snapshot.config)
+    if (facts.modelType === undefined || (known.size > 0 && !known.has(facts.modelType))) continue
+    const point = checkpointOfSnapshot(snapshot, facts)
+    rows.push({ ...rowOfCheckpoint(point, machine, { onDisk: true, bytesOnDisk: snapshot.weightsBytes, drafterOnDisk: true }, servedOf(repo), lastWindowOf(repo)), ...(facts.quantisation !== undefined ? { quantisation: facts.quantisation } : {}) })
+  }
+  return rankTensorFoldRows(rows, machine)
+}
+
+const knownStartingPoint = (repo: string): boolean => startingPointOf(repo) !== undefined || adapterCheckpointOf(repo) !== undefined
+
+export function bestTensorFoldFit(rows: readonly TensorFoldModelRow[]): TensorFoldModelRow | null {
+  for (const row of rows) {
+    if (!knownStartingPoint(row.repo) || !row.qualified) continue
+    if (row.ladder !== undefined ? reachesAgentFloor(row.ladder) : row.fit.verdict === 'fits') return row
+  }
+  return rows.find(row => row.repo === QWEN_2B.repo) ?? rows.find(row => knownStartingPoint(row.repo)) ?? rows[0] ?? null
+}

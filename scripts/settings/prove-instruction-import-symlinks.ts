@@ -20,7 +20,7 @@ delete process.env.MERCURY_HOME
 const previous = process.cwd()
 process.chdir(project)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { processInstructionFile } = await import('../../src/services/instructions/discovery.ts')
+const { processInstructionFile } = await import('../../src/sessions/instructions/discovery.ts')
 const tally = makeTally('prove-instruction-import-symlinks')
 try {
   for (const target of [join(outside, 'private.md'), './file-link.md', './dir-link/private.md', './chain-link/private.md']) {

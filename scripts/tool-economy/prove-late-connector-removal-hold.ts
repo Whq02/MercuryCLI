@@ -13,7 +13,7 @@ delete process.env.ANTHROPIC_BASE_URL
 const j = (v: unknown): string => JSON.stringify(v)
 let failures = 0
 let checks = 0
-const REMOVAL_HOLD_WHERE = 'change getDeferredToolsDelta in src/services/messages/toolSearch.ts (it holds the removal of a connector tool while hasPendingMcpServers is true and writes it once servers settle) and getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts (the attachment road)'
+const REMOVAL_HOLD_WHERE = 'change getDeferredToolsDelta in src/engine/messages/toolSearch.ts (it holds the removal of a connector tool while hasPendingMcpServers is true and writes it once servers settle) and getDeferredToolsDeltaAttachment in src/engine/attachments/toolAndServerDeltas.ts (the attachment road)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -23,10 +23,10 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { getDeferredToolsDeltaAttachment } = await import('../../src/services/attachments/deltas.ts')
-const { getDeferredToolsDelta } = await import('../../src/services/messages/toolSearch.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
+const { getDeferredToolsDeltaAttachment } = await import('../../src/engine/attachments/toolAndServerDeltas.ts')
+const { getDeferredToolsDelta } = await import('../../src/engine/messages/toolSearch.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
 const { z } = await import('zod/v4')
 
 const model = 'claude-fable-5-1'

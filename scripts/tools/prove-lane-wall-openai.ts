@@ -1,23 +1,23 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import type { QueuedCommand } from '../../src/types/textInputTypes.ts'
+import type { QueuedCommand } from '../../src/screen/composer/input-core/textInput.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-const { createTurnDriver } = await import('../../src/cli/headless/turnDriver.ts')
+const { createTurnDriver } = await import('../../src/daemon/runner/turnDriver.ts')
 type TurnDriverPorts = Parameters<typeof createTurnDriver>[0]
-const { REOPEN_GRACE_MS, WALL_RECHECK_MS } = await import('../../src/tools/MonitorTool/watchMailbox.ts')
+const { REOPEN_GRACE_MS, WALL_RECHECK_MS } = await import('../../src/tools/monitor/watchMailbox.ts')
 type WatchWall = { closed: boolean; reopensAtMs?: number }
-const wallModule = (await import('../../src/tools/MonitorTool/laneWall.ts')) as unknown as { sessionLaneWall: (nowMs?: number, reads?: unknown) => WatchWall }
+const wallModule = (await import('../../src/tools/monitor/laneWall.ts')) as unknown as { sessionLaneWall: (nowMs?: number, reads?: unknown) => WatchWall }
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   const laneWallHint = /states no fact|the fact, with|window read is/.test(label)
-    ? 'fix openaiWindowFact and activeOpenaiWindow in src/services/providers/openai/openaiWindowFact.ts'
+    ? 'fix openaiWindowFact and activeOpenaiWindow in src/models/roads/openai/openaiWindowFact.ts'
     : /completion|driver|timer|before the reset|queue is empty/.test(label)
-      ? 'fix how createTurnDriver in src/cli/headless/turnDriver.ts holds a queued completion while the wall is closed and re-checks at the wall reopen time'
-      : 'fix sessionLaneWall in src/tools/MonitorTool/laneWall.ts: a limited OpenAI window closes the wall with its reset as the reopen time'
+      ? 'fix how createTurnDriver in src/daemon/runner/turnDriver.ts holds a queued completion while the wall is closed and re-checks at the wall reopen time'
+      : 'fix sessionLaneWall in src/tools/monitor/laneWall.ts: a limited OpenAI window closes the wall with its reset as the reopen time'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' | ' : ''}${laneWallHint}` : ''}`)
   if (!cond) failures++
 }
@@ -67,7 +67,7 @@ section("§1 the wall's reads — the OpenAI family's window carries its reopen 
 
 section("§1b the fact the seat publishes — the active source's wall while it stands, nothing otherwise")
 {
-  const fact = (await import('../../src/services/providers/openai/openaiWindowFact.ts')) as unknown as {
+  const fact = (await import('../../src/models/roads/openai/openaiWindowFact.ts')) as unknown as {
     openaiWindowFact: (reads: unknown) => { source: string; resetsAtMs: number; observedAtMs: number } | undefined
     activeOpenaiWindow: (reads: unknown) => LimitWindow
   }

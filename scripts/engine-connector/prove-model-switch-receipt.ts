@@ -12,7 +12,7 @@ delete process.env.MERCURY_HOME
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 
 let failures = 0
-const DIALS = 'src/services/engine-connector/daemon/dials.ts'
+const DIALS = 'src/engine/connector/daemon/dials.ts'
 const wheres: Record<string, string> = {
   L1: `DialsPart.setModel in ${DIALS} must return the daemon's refused outcome and its detail as the receipt, and send a setModel control frame carrying the target`,
   L2: `DialsPart.setModel in ${DIALS} must turn a reply with ok not true into a refused receipt carrying reply.error`,
@@ -20,7 +20,7 @@ const wheres: Record<string, string> = {
   L4: `DialsPart.setModel in ${DIALS} must return the daemon's outcome (queued) as the receipt state whatever the screen's own busy view`,
   L5: `DialsPart.setModel in ${DIALS} must map the daemon's applied and noop outcomes to the states applied and no-op`,
   L7: `DialsPart.setModel in ${DIALS} must return no-op before sending any RPC when the effective model already equals the target`,
-  L8: 'NoSessionConnector.setModel in src/services/engine-connector/noSessionConnector.ts must return a refused receipt with a non-empty detail (NO_CHAT_OPEN)',
+  L8: 'NoSessionConnector.setModel in src/engine/connector/noSessionConnector.ts must return a refused receipt with a non-empty detail (NO_CHAT_OPEN)',
   L10: `the applied branch of DialsPart.setModel in ${DIALS} must put reply.detail in note unless it is the plain "<runner> → <model>" words of a switch that did not respawn`,
 }
 let where = wheres.L1!
@@ -33,8 +33,8 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const { DaemonSessionConnector } = await import(join(SRC, 'services/engine-connector/daemonConnector.ts'))
-const { NoSessionConnector } = await import(join(SRC, 'services/engine-connector/noSessionConnector.ts'))
+const { DaemonSessionConnector } = await import(join(SRC, 'engine/connector/daemonConnector.ts'))
+const { NoSessionConnector } = await import(join(SRC, 'engine/connector/noSessionConnector.ts'))
 
 type Reply = Record<string, unknown>
 type Receipt = { state: string; detail?: string }

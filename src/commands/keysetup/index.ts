@@ -1,5 +1,5 @@
-import type { Command } from '../../types/command.js'
-import { env } from '../../utils/env.js'
+import type { Command } from '../catalogue/command.js'
+import { env } from '../../platform/environment/env.js'
 
 const DESCRIPTOR_NATIVE_TERMINALS = new Set(['ghostty', 'kitty', 'iTerm.app', 'WezTerm'])
 

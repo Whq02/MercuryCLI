@@ -13,14 +13,14 @@ const FIX = join(REPO, '.mercury', 'proof-fixtures', 'diffws', 'fx')
 const SID = 'd1ffd1ff-2222-4222-8222-222222222222'
 const CONFIG_HOME = resolveProofHome([FIX])
 
-const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
 const PROJ_DIR = join(CONFIG_HOME, 'projects', basename(getProjectDir(FIX)))
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const diffwsFailHint =
-    'to fix, change the /diff workspace in src/components/diff/diffDialog/views.tsx (list and detail footers, copy receipt) or src/components/diff/diffSources.ts (source titles), then rebuild dist/mercury.mjs'
+    'to fix, change the /diff workspace in src/screen/diff/diff-dialog/views.tsx (list and detail footers, copy receipt) or src/screen/diff/diffSources.ts (source titles), then rebuild dist/mercury.mjs'
   const shown = cond ? detail : [detail, diffwsFailHint].filter(Boolean).join(' | ')
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }

@@ -11,7 +11,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}fix recordLaneBillingRefusal, recordLaneTurnSettled and laneBillingState in src/services/providers/laneBillingState.ts, or how resolveProviderUsability in src/services/providers/providerUsability.ts reads them (the family count check compares it with PROVIDER_ID_SPACES in src/services/providers/idSpaces.ts)` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}fix recordLaneBillingRefusal, recordLaneTurnSettled and laneBillingState in src/models/roads/laneBillingState.ts, or how resolveProviderUsability in src/models/roads/providerUsability.ts reads them (the family count check compares it with PROVIDER_ID_SPACES in src/models/roads/idSpaces.ts)` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -34,8 +34,8 @@ for (const key of [
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-lane-billing-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const billing = await import('../../src/services/providers/laneBillingState.ts')
-const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
+const billing = await import('../../src/models/roads/laneBillingState.ts')
+const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
 
 section('§1 the owner: record · read · clear · isolation')
 {
@@ -85,7 +85,7 @@ section('§2 the live read bundle reads the owner')
 
 section('§3 the feeders record AND clear (structural pins)')
 {
-  const { PROVIDER_ID_SPACES } = await import('../../src/services/providers/idSpaces.ts')
+  const { PROVIDER_ID_SPACES } = await import('../../src/models/roads/idSpaces.ts')
   const billingFamilies = Object.keys(resolveProviderUsability()).filter(family => family !== 'anthropic' && family !== 'huggingface')
   const count = PROVIDER_ID_SPACES.filter(space => space.route !== 'huggingface').length
   check('the route and usability owners agree on billing-family count', billingFamilies.length === count)

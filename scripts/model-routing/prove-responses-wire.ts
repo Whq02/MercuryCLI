@@ -3,14 +3,14 @@ import {
   mapOpenaiHttpFailure,
   ResponsesStreamFold,
   type OpenaiStreamEvent,
-} from '../../src/services/providers/openai/openaiWire.js'
+} from '../../src/models/roads/openai/openaiWire.js'
 import {
   buildOpenaiResponsesRequest,
   decodeOpenaiTurnRecord,
   mapMessagesToOpenaiInput,
   mapToolsToOpenai,
   type BridgeMessage,
-} from '../../src/services/providers/openai/responsesBridge.js'
+} from '../../src/models/roads/openai/responsesBridge.js'
 
 let failures = 0
 let sectionFixHint = ''
@@ -21,10 +21,10 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 function section(t: string): void {
   sectionFixHint = t.startsWith('2 ')
-    ? 'fix mapOpenaiHttpFailure in src/services/providers/openai/openaiWire.ts'
+    ? 'fix mapOpenaiHttpFailure in src/models/roads/openai/openaiWire.ts'
     : t.startsWith('3 ')
-      ? 'fix mapToolsToOpenai, decodeOpenaiTurnRecord, mapMessagesToOpenaiInput or buildOpenaiResponsesRequest in src/services/providers/openai/responsesBridge.ts'
-      : 'fix ResponsesStreamFold in src/services/providers/openai/openaiWire.ts'
+      ? 'fix mapToolsToOpenai, decodeOpenaiTurnRecord, mapMessagesToOpenaiInput or buildOpenaiResponsesRequest in src/models/roads/openai/responsesBridge.ts'
+      : 'fix ResponsesStreamFold in src/models/roads/openai/openaiWire.ts'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

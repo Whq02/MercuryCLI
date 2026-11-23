@@ -20,28 +20,28 @@ function check(label: string, cond: boolean, detail: string, hint: string): void
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { setCwdState, setOriginalCwd } = await import('../../src/bootstrap/state.js')
+const { setCwdState, setOriginalCwd } = await import('../../src/boot/process-state/processState.js')
 const PROJECT = join(SCRATCH, 'proj')
 mkdirSync(PROJECT, { recursive: true })
 setOriginalCwd(PROJECT)
 setCwdState(PROJECT)
 
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
-const { buildConcourseSnapshot } = await import('../../src/services/concourse/concourseSnapshot.ts')
-const { projectIdentity } = await import('../../src/utils/bootCardFacts.ts')
-const { concourseWorkersPath, setConcourseSessionTitle, boardHomedSessionIds } = await import('../../src/daemon/concourseWorkers.ts')
-const { listSessionsAcrossProjectsProgressive, enrichSessionListings } = await import('../../src/utils/sessionStorage.ts')
-const { projectSessionPickerRows } = await import('../../src/components/mercury-ui/screens/sessionPickerModel.ts')
-const { listSessionsImpl } = await import('../../src/utils/listSessionsImpl.ts')
-const { writeMissionCard } = await import('../../src/utils/mission/missionCard.ts')
-const { buildMissionDirective, MISSION_HOLD_HEAD } = await import('../../src/guards/mission.ts')
-const { createSeatReceiptMessage } = await import('../../src/utils/messages/systemMessages.ts')
-const { composeBuildBehindLine } = await import('../../src/tools/MonitorTool/watchReceipts.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
-import type { SessionListing } from '../../src/types/logs.ts'
+const { workerTranscriptPath } = await import('../../src/screen/concourse-model/workerTranscript.ts')
+const { buildConcourseSnapshot } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
+const { projectIdentity } = await import('../../src/screen/boot-face/bootCardFacts.ts')
+const { concourseWorkersPath, setConcourseSessionTitle, boardHomedSessionIds } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { listSessionsAcrossProjectsProgressive, enrichSessionListings } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { projectSessionPickerRows } = await import('../../src/screen/widgets/faces/sessionPickerModel.ts')
+const { listSessionsImpl } = await import('../../src/sessions/transcripts/listSessions.ts')
+const { writeMissionCard } = await import('../../src/sessions/mission-card/missionCard.ts')
+const { buildMissionDirective, MISSION_HOLD_HEAD } = await import('../../src/permissions/guards/mission.ts')
+const { createSeatReceiptMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { composeBuildBehindLine } = await import('../../src/tools/monitor/watchReceipts.ts')
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
+import type { SessionListing } from '../../src/sessions/transcripts/transcriptEntries.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const NOW = Date.now()
@@ -242,7 +242,7 @@ check(
   'renaming the parked session through the Session Manager store succeeds',
   renameRes.outcome === 'applied',
   JSON.stringify(renameRes),
-  'fix setConcourseSessionTitle in src/daemon/concourseWorkers/focus.ts',
+  'fix setConcourseSessionTitle in src/daemon/concourse-workers/focus.ts',
 )
 
 const snap = await buildConcourseSnapshot({ crewDir, draftDir, nowMs: NOW, project: projectIdentity(PROJECT) })
@@ -258,7 +258,7 @@ const picker = projectSessionPickerRows(logs, {
 })
 const pickerById = new Map(picker.flat.map(f => [f.row.log.sessionId, f.row.label] as const))
 
-const NAME_HINT = 'fix sessionLabelFacts in src/utils/sessionStorage/sessionIndex.ts (first prompt before lastPrompt), rowLabel/projectSessionPickerRows in src/components/mercury-ui/screens/sessionPickerModel.ts (use sessionTitleOf with worker titles and customTitle), and parkedBoardRows in src/services/concourse/concourseSnapshot.ts'
+const NAME_HINT = 'fix sessionLabelFacts in src/sessions/transcripts/sessionIndex.ts (first prompt before lastPrompt), rowLabel/projectSessionPickerRows in src/screen/widgets/faces/sessionPickerModel.ts (use sessionTitleOf with worker titles and customTitle), and parkedBoardRows in src/screen/concourse-model/concourseSnapshot.ts'
 
 check(
   'unhosted 3-prompt session has the same first-prompt name in Session Manager and /sessions',
@@ -288,7 +288,7 @@ check(
   NAME_HINT,
 )
 
-const MISSION_HINT = 'a session is named by its /rename title, else its mission\'s goal, else the first prompt typed, and never by a notice: headBriefLabel in src/services/concourse/concourseSnapshot.ts, readLiteMetadata in src/utils/sessionStorage/logs.ts and readCandidate in src/utils/listSessionsImpl.ts must each read the goal through missionGoalBeside in src/utils/mission/missionCard.ts, and sessionLabelFacts in src/utils/sessionStorage/sessionIndex.ts must not take a record\'s content for a name'
+const MISSION_HINT = 'a session is named by its /rename title, else its mission\'s goal, else the first prompt typed, and never by a notice: headBriefLabel in src/screen/concourse-model/concourseSnapshot.ts, readLiteMetadata in src/sessions/transcripts/sessionListings.ts and readCandidate in src/sessions/transcripts/listSessions.ts must each read the goal through missionGoalBeside in src/sessions/mission-card/missionCard.ts, and sessionLabelFacts in src/sessions/transcripts/sessionIndex.ts must not take a record\'s content for a name'
 const bothNames = (sessionId: string): string => `manager=${JSON.stringify(managerById.get(sessionId))} sessions=${JSON.stringify(pickerById.get(sessionId))}`
 
 check(
@@ -336,12 +336,12 @@ const { mock } = await import('bun:test')
 const React = await import('react')
 const h = React.createElement
 const { mountOffscreen, settle, waitFor, KEY } = await import('../lib/settingsPopupHarness.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { ModalContext } = await import('../../src/context/modalContext.js')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.js')
-const { setFocusedSessionConnector, getFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { ModalContext } = await import('../../src/screen/overlays/modalContext.js')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.js')
+const { setFocusedSessionConnector, getFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.js')
 
 const twelveLogs: SessionListing[] = Array.from({ length: 12 }, (_, idx) => {
   const n = String(idx + 1).padStart(2, '0')
@@ -371,8 +371,8 @@ const twelveFlat = projectSessionPickerRows(twelveLogs, {
   nowMs: NOW,
 }).flat
 
-const realPickerModel = await import('../../src/components/mercury-ui/screens/sessionPickerModel.ts')
-mock.module('../../src/components/mercury-ui/screens/sessionPickerModel.ts', () => ({
+const realPickerModel = await import('../../src/screen/widgets/faces/sessionPickerModel.ts')
+mock.module('../../src/screen/widgets/faces/sessionPickerModel.ts', () => ({
   ...realPickerModel,
   useSessionPickerModel: () => ({
     logs: twelveLogs,
@@ -394,8 +394,8 @@ setFocusedSessionConnector(new Proxy(originalConnector, {
   },
 }))
 
-const { SessionManagerView } = await import('../../src/components/mercury-ui/screens/SessionManagerView.tsx')
-const STRIP_HINT = 'fix arrow key handling in LiveSessionManager in src/components/mercury-ui/screens/SessionManagerView.tsx so rightArrow advances and scrolls the strip and leftArrow moves back before closing at index 0'
+const { SessionManagerView } = await import('../../src/screen/widgets/faces/SessionManagerView.tsx')
+const STRIP_HINT = 'fix arrow key handling in LiveSessionManager in src/screen/widgets/faces/SessionManagerView.tsx so rightArrow advances and scrolls the strip and leftArrow moves back before closing at index 0'
 
 for (const band of [{ columns: 120, rows: 30 }, { columns: 80, rows: 24 }]) {
   resetOverlayStackForTests()

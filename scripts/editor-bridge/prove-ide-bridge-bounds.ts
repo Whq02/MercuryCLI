@@ -9,7 +9,7 @@ const configHome = mkdtempSync(join(tmpdir(), 'ide-bridge-bounds-config-'))
 const projDir = mkdtempSync(join(tmpdir(), 'ide-bridge-bounds-proj-'))
 process.env.MERCURY_CONFIG_DIR = configHome
 
-const bridge = await import('../../src/services/acp/ideToolBridge.ts')
+const bridge = await import('../../src/integrations/acp/ideToolBridge.ts')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -54,14 +54,14 @@ try {
     check(
       'forty 2 MiB buffers read through the editor leave no copy of their text behind',
       retained < read / 8,
-      `${Math.round(retained / 1048576)} MiB retained of ${Math.round(read / 1048576)} MiB read — readWholeTextViaIde in src/services/acp/ideToolBridge.ts must not keep the buffer text; virtualGenerations may hold only the digest and generation`,
+      `${Math.round(retained / 1048576)} MiB retained of ${Math.round(read / 1048576)} MiB read — readWholeTextViaIde in src/integrations/acp/ideToolBridge.ts must not keep the buffer text; virtualGenerations may hold only the digest and generation`,
     )
     const gen = bridge.ideFileGeneration(join(projDir, 'f0.txt'))
-    check('a generation is still answered for a file the editor returned', typeof gen === 'string' && gen.length > 0, `${String(gen)} — readWholeTextViaIde must record the buffer through recordIdeBufferGeneration in src/services/acp/ideToolBridge.ts, and ideFileGeneration must answer for it`)
+    check('a generation is still answered for a file the editor returned', typeof gen === 'string' && gen.length > 0, `${String(gen)} — readWholeTextViaIde must record the buffer through recordIdeBufferGeneration in src/integrations/acp/ideToolBridge.ts, and ideFileGeneration must answer for it`)
     const again = bridge.ideFileGeneration(join(projDir, 'f0.txt'))
-    check('the generation is stable while the buffer and the disk are unchanged', gen === again, `${gen} ${again} — ideFileGeneration in src/services/acp/ideToolBridge.ts must return the same string while the buffer and the disk file are unchanged`)
+    check('the generation is stable while the buffer and the disk are unchanged', gen === again, `${gen} ${again} — ideFileGeneration in src/integrations/acp/ideToolBridge.ts must return the same string while the buffer and the disk file are unchanged`)
     bridge.registerIdeToolDoor(null)
-    check('closing the door forgets every generation', bridge.ideFileGeneration(join(projDir, 'f0.txt')) === null, 'registerIdeToolDoor(null) in src/services/acp/ideToolBridge.ts must clear virtualGenerations')
+    check('closing the door forgets every generation', bridge.ideFileGeneration(join(projDir, 'f0.txt')) === null, 'registerIdeToolDoor(null) in src/integrations/acp/ideToolBridge.ts must clear virtualGenerations')
   }
 
   section('§2 control: a buffer past the whole-file ceiling is refused, not kept')
@@ -74,7 +74,7 @@ try {
     } catch (error) {
       refused = error instanceof Error ? error.message : String(error)
     }
-    check('an editor buffer over 10 MiB is refused with its size', /exceeds 10485760 bytes/.test(refused), `${refused} — readWholeTextViaIde in src/services/acp/ideToolBridge.ts must throw 'Editor buffer for <path> exceeds <MAX_IDE_READ_BYTES> bytes.' for a buffer over 10 MiB`)
+    check('an editor buffer over 10 MiB is refused with its size', /exceeds 10485760 bytes/.test(refused), `${refused} — readWholeTextViaIde in src/integrations/acp/ideToolBridge.ts must throw 'Editor buffer for <path> exceeds <MAX_IDE_READ_BYTES> bytes.' for a buffer over 10 MiB`)
     bridge.registerIdeToolDoor(null)
   }
 } finally {

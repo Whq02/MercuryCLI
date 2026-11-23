@@ -13,7 +13,7 @@ export async function llmhostFixture(options: { model?: string } = {}) {
   process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
   process.env.BROWSER = '/usr/bin/true'
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/constants/credentialEnvSpellings.ts`)
+  const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/models/sign-in/credentials/credentialEnvSpellings.ts`)
   for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_COMPAT_BASE_URL', 'MERCURY_COMPAT_MODELS', 'MERCURY_COMPAT_LABEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
   for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_.*_API_KEY$/.test(key)) delete process.env[key]
   const events: any[] = []
@@ -51,12 +51,12 @@ export async function llmhostFixture(options: { model?: string } = {}) {
     return new Response(payload + (state.mode === 'truncated' ? '' : 'data: [DONE]\n\n'), { headers: { 'content-type': 'text/event-stream' } })
   } })
   const baseUrl = `http://127.0.0.1:${server.port}/v1`
-  const { enableConfigs } = await import(`${root}/src/utils/config.ts`)
+  const { enableConfigs } = await import(`${root}/src/platform/settings/config.ts`)
   enableConfigs()
   const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
-  const { routedCallModel } = await import(`${root}/src/services/providers/callModelRouter.ts`)
-  const { createUserMessage } = await import(`${root}/src/services/messages.ts`)
-  const { asSystemPrompt } = await import(`${root}/src/utils/systemPromptType.ts`)
+  const { routedCallModel } = await import(`${root}/src/models/roads/callModelRouter.ts`)
+  const { createUserMessage } = await import(`${root}/src/engine/messages/messages.ts`)
+  const { asSystemPrompt } = await import(`${root}/src/engine/system-prompt/systemPromptType.ts`)
   async function run(id: string, messages: any[] = [createUserMessage({ content: 'hello fixture' })], signal = new AbortController().signal, effort: string | null = 'max'): Promise<any[]> {
     const out: any[] = []
     for await (const event of routedCallModel({ messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: { type: 'enabled', budgetTokens: 1024 }, signal,

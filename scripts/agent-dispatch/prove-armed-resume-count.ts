@@ -9,16 +9,16 @@ let failures = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)} — to fix, change armedAutomaticResumeCount, armBudgetCutResume, armOverloadProbe or cancelAutomaticResume in src/tools/AgentTool/agentToolUtils.ts (the count must include a resume that is starting and drop to zero once it has started)` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)} — to fix, change armedAutomaticResumeCount, armBudgetCutResume, armOverloadProbe or cancelAutomaticResume in src/tools/crewmate/crewmateLifecycle.ts (the count must include a resume that is starting and drop to zero once it has started)` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
 
-const lane = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const utils = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { noteCrewAccountChange } = await import('../../src/services/crew/crewAccountChange.ts')
-const { resetCommandQueue } = await import('../../src/utils/messageQueueManager.ts')
+const lane = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const utils = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { noteCrewAccountChange } = await import('../../src/crew/crewmates/crewAccountChange.ts')
+const { resetCommandQueue } = await import('../../src/daemon/runner/messageQueueManager.ts')
 
 const store = { state: { tasks: {} as Record<string, Record<string, unknown>>, speculation: { status: 'idle' }, agentNameRegistry: new Map() } }
 const set = ((update: (state: typeof store.state) => typeof store.state) => { store.state = update(store.state) }) as never

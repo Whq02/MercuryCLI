@@ -15,20 +15,20 @@ delete process.env.NODE_ENV
 delete process.env.MERCURY_TASKS
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setCwdState(scratch)
-const { getTools } = await import('../../src/tools.ts')
-const { withheldTools } = await import('../../src/services/tools/withheldTools.ts')
+const { getTools } = await import('../../src/tools/kit/toolList.ts')
+const { withheldTools } = await import('../../src/engine/tool-dispatch/withheldTools.ts')
 const withheld = new Set(withheldTools().map(w => w.tool))
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { filterToolsForAgent, resolveAgentTools } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const lspManager = await import('../../src/services/lsp/manager.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
-const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
-type Tool = import('../../src/Tool.ts').Tool
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { filterToolsForAgent, resolveAgentTools } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const lspManager = await import('../../src/integrations/lsp/serverManagerLifecycle.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { clearToolSchemaCache } = await import('../../src/models/roads/toolSchemaCache.ts')
+const { BrowserTool } = await import('../../src/tools/browser/BrowserTool.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = '', hint = ''): void => {
@@ -117,14 +117,14 @@ for (const kind of kinds) {
   if (kind.mountLsp) {
     lspManager.initializeLspServerManager()
     await lspManager.waitForInitialization()
-    check(`${kind.label}: LSP is globally mounted`, lspManager.isLspToolMounted(), '', 'isLspToolMounted in src/services/lsp/manager.ts must read true after initializeLspServerManager and waitForInitialization')
+    check(`${kind.label}: LSP is globally mounted`, lspManager.isLspToolMounted(), '', 'isLspToolMounted in src/integrations/lsp/serverManagerLifecycle.ts must read true after initializeLspServerManager and waitForInitialization')
   }
   let pool: Tool[] = getTools(permissionContext) as Tool[]
   if (kind.agent !== undefined) pool = filterToolsForAgent({ tools: pool, isBuiltIn: kind.agent.isBuiltIn }) as Tool[]
   if (kind.disallowedTools) pool = resolveAgentTools({ source: 'projectSettings', tools: ['*'], disallowedTools: kind.disallowedTools }, pool).resolvedTools as Tool[]
   const offered = new Set(pool.map(tool => tool.name))
-  if (kind.mountLsp) check(`${kind.label}: the actual pool honors its LSP restriction`, LSP_NAMES.every(name => offered.has(name) === !kind.disallowedTools?.includes('LSP')), LSP_NAMES.filter(name => offered.has(name)).join(','), 'filterToolsForAgent and resolveAgentTools in src/tools/AgentTool/agentToolUtils.ts must drop every Lsp tool when the agent disallows LSP')
-  check(`${kind.label}: a pool was built`, pool.length >= 10, String(pool.length), 'getTools in src/tools.ts returned too few tools for this session kind')
+  if (kind.mountLsp) check(`${kind.label}: the actual pool honors its LSP restriction`, LSP_NAMES.every(name => offered.has(name) === !kind.disallowedTools?.includes('LSP')), LSP_NAMES.filter(name => offered.has(name)).join(','), 'filterToolsForAgent and resolveAgentTools in src/tools/crewmate/crewmateLifecycle.ts must drop every Lsp tool when the agent disallows LSP')
+  check(`${kind.label}: a pool was built`, pool.length >= 10, String(pool.length), 'getTools in src/tools/kit/toolList.ts returned too few tools for this session kind')
   const descriptions = new Map<string, string>()
   const pairs: string[] = []
   for (const tool of pool) {
@@ -141,13 +141,13 @@ for (const kind of kinds) {
       const summary = await tool.description(undefined, { tools: pool })
       const empty = await tool.call({ op: 'read' } as never, { options: { tools: pool } } as never, (() => {}) as never, {} as never)
       for (const [surface, text] of [['description', summary], ['empty read', JSON.stringify(empty.data)]]) {
-        check(`${kind.label}: CrewBoard ${surface} (operator text, a call-time hint) names only the available launch road`, canLaunch ? text!.includes('ToolSearch select:Crewmate') : text!.includes('The lead launches seats.') && !/\bCrewmate\b/.test(text!), '', 'launchWords in src/services/crewBoard/implementation.ts must name the Crewmate launch road only when the pool offers Crewmate')
+        check(`${kind.label}: CrewBoard ${surface} (operator text, a call-time hint) names only the available launch road`, canLaunch ? text!.includes('ToolSearch select:Crewmate') : text!.includes('The lead launches seats.') && !/\bCrewmate\b/.test(text!), '', 'launchWords in src/crew/board/implementation.ts must name the Crewmate launch road only when the pool offers Crewmate')
       }
-      check(`${kind.label}: the CrewBoard prompt names no launch road and no launcher, whatever the pool offers`, !description.includes('ToolSearch select:Crewmate') && !description.includes('The lead launches seats.') && !/\bCrewmate\b/.test(description), '', 'the CrewBoard prompt must not mention the launch road; launch wording belongs only in launchWords in src/services/crewBoard/implementation.ts')
-      check(`${kind.label}: the board roster hint names no unavailable launcher`, canLaunch || !/\bCrewmate\b/.test(tool.searchHint ?? ''), '', 'remove Crewmate from the CrewBoard searchHint in src/services/crewBoard/implementation.ts')
+      check(`${kind.label}: the CrewBoard prompt names no launch road and no launcher, whatever the pool offers`, !description.includes('ToolSearch select:Crewmate') && !description.includes('The lead launches seats.') && !/\bCrewmate\b/.test(description), '', 'the CrewBoard prompt must not mention the launch road; launch wording belongs only in launchWords in src/crew/board/implementation.ts')
+      check(`${kind.label}: the board roster hint names no unavailable launcher`, canLaunch || !/\bCrewmate\b/.test(tool.searchHint ?? ''), '', 'remove Crewmate from the CrewBoard searchHint in src/crew/board/implementation.ts')
     }
     const resumedChildContract = 'a crewmate launched with an output schema keeps its StructuredOutput tool for the resumed turn.'
-    if (tool.name === 'ResumeCrewmate') check(`${kind.label}: the resumed-child tool promise is stated exactly`, description.endsWith(resumedChildContract), '', 'the ResumeCrewmate description must end with the resumed-child sentence; see src/tools/ResumeAgentTool/prompt.ts')
+    if (tool.name === 'ResumeCrewmate') check(`${kind.label}: the resumed-child tool promise is stated exactly`, description.endsWith(resumedChildContract), '', 'the ResumeCrewmate description must end with the resumed-child sentence; see src/tools/resume-crewmate/prompt.ts')
     const manual = tool.wireDescription === undefined ? '' : await tool.prompt({ getToolPermissionContext: async () => permissionContext, tools: pool, agents: [], model: 'claude-opus-4-8' })
     if (tool.wireDescription !== undefined) check(`${kind.label}: ${tool.name} keeps its full manual behind the short wire contract`, description === tool.wireDescription(manual) && manual.length > description.length, '', 'wireDescription of this tool must return the short contract while prompt returns the longer manual; see the tool file under src/tools')
     const callerDescription = tool.name === 'ResumeCrewmate' ? description.replace(resumedChildContract, '') : description + '\n' + manual

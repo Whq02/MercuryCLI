@@ -10,10 +10,10 @@ let failures = 0
 let checks = 0
 let sectionHint = ''
 const SECTION_HINTS: Record<string, string> = {
-  L1: 'look at treeTerminated in src/services/dap/client/tree.ts (a root that hosts its debuggee is not terminated by its children) and the process/thread/stopped events that mark it in src/services/dap/client/messages.ts',
-  L2: 'look at treeTerminated in src/services/dap/client/tree.ts: a root that never hosted a debuggee is terminated once every child is',
-  L3: 'look at treeTerminated in src/services/dap/client/tree.ts and waitForStopOutcome in src/services/dap/client/stops.ts: a child exiting must not end a tree whose root hosts the program',
-  L4: 'look at src/tools/DebugTool/DebugTool.ts (launch, status, evaluate, continue and disconnect report the root\'s own state) and treeTerminated in src/services/dap/client/tree.ts',
+  L1: 'look at treeTerminated in src/integrations/debugger/client/tree.ts (a root that hosts its debuggee is not terminated by its children) and the process/thread/stopped events that mark it in src/integrations/debugger/client/messages.ts',
+  L2: 'look at treeTerminated in src/integrations/debugger/client/tree.ts: a root that never hosted a debuggee is terminated once every child is',
+  L3: 'look at treeTerminated in src/integrations/debugger/client/tree.ts and waitForStopOutcome in src/integrations/debugger/client/stops.ts: a child exiting must not end a tree whose root hosts the program',
+  L4: 'look at src/tools/debug/DebugTool.ts (launch, status, evaluate, continue and disconnect report the root\'s own state) and treeTerminated in src/integrations/debugger/client/tree.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
@@ -47,10 +47,10 @@ async function main(): Promise<void> {
   delete process.env.MERCURY_DAP
   clearKnobs()
 
-  const { createDapSession, getDapSession, removeDapSession } = await import(join(SRC, 'services/dap/dapClient.ts'))
-  const { makeOwnerKey } = await import(join(SRC, 'utils/run/ownerKey.ts'))
-  const { ownerFromToolUseContext } = await import(join(SRC, 'utils/run/resolveOwner.ts'))
-  const { DebugTool } = await import(join(SRC, 'tools/DebugTool/DebugTool.ts'))
+  const { createDapSession, getDapSession, removeDapSession } = await import(join(SRC, 'integrations/debugger/dapClient.ts'))
+  const { makeOwnerKey } = await import(join(SRC, 'engine/run-owner/ownerKey.ts'))
+  const { ownerFromToolUseContext } = await import(join(SRC, 'engine/run-owner/resolveOwner.ts'))
+  const { DebugTool } = await import(join(SRC, 'tools/debug/DebugTool.ts'))
   const OWNER = makeOwnerKey({ workspace: '/tmp/w', sessionId: 'dap-root-hosts-proof', lane: 'main' })
   const TOOL_OWNER = ownerFromToolUseContext({})
   const callTool = async (input: Record<string, unknown>): Promise<{ result: string; debuggee?: string }> =>

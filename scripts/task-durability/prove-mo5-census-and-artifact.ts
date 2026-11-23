@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
-const mo5FailHint = 'section 2 exercises isolationCheck in src/services/health/sections/crew/home.ts (its remedy must count a record only when the move landed); section 4 reads .github/workflows/windows-functional.yml (add scripts/task-durability/run-all.sh to it); section 5 reads the built dist/mercury.mjs, so rebuild with bun run build.ts after changing the persisted-through message in src/substrate/durablePublish.ts, the file-in-use words in src/utils/platform/words.ts or HELD_FILE_RETRY_DELAYS_MS in src/utils/platform/files.ts'
+const mo5FailHint = 'section 2 exercises isolationCheck in src/platform/health/sections/crew/home.ts (its remedy must count a record only when the move landed); section 4 reads .github/workflows/windows-functional.yml (add scripts/task-durability/run-all.sh to it); section 5 reads the built dist/mercury.mjs, so rebuild with bun run build.ts after changing the persisted-through message in src/platform/substrate/durablePublish.ts, the file-in-use words in src/platform/host-os/words.ts or HELD_FILE_RETRY_DELAYS_MS in src/platform/host-os/files.ts'
 const ok = (cond: boolean, label: string, detail = ''): void => {
   const shown = cond ? detail : detail ? `${detail}; ${mo5FailHint}` : mo5FailHint
   console.log(`  ${cond ? '✅' : '❌'} ${label}${shown ? ` — ${shown}` : ''}`)
@@ -25,10 +25,10 @@ console.log('── mo5 census ratchet + artifact survival')
   fsH.writeFileSync(joinH(home, 'daemon', 'daemon.log'), 'Restarting dead daemon: /Users/op/.npm-global/lib/node_modules/@anthropic-ai/claude-code/cli.js\n')
   const homeBefore = process.env.MERCURY_CONFIG_DIR
   process.env.MERCURY_CONFIG_DIR = home
-  const envUtils = await import('../../src/utils/envUtils.ts')
+  const envUtils = await import('../../src/platform/environment/envUtils.ts')
   const forget = (): void => (envUtils.getMercuryHome as unknown as { cache: { clear?: () => void } }).cache.clear?.()
   forget()
-  const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
+  const { crewChecks } = await import('../../src/platform/health/sections/crew.ts')
   const isolation = await crewChecks().find(row => row.id === 'isolation')?.run()
   const dest = /move the foreign records to (.+) \(reversible archive/.exec(isolation?.remedy?.plan ?? '')?.[1] ?? ''
   let blocked: { ok: boolean; note?: string } | undefined

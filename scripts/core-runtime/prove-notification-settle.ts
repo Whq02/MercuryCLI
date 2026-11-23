@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import type { QueuedCommand } from '../../src/types/textInputTypes.ts'
-import * as driverModule from '../../src/cli/headless/turnDriver.ts'
-import type { TurnDriverPorts } from '../../src/cli/headless/turnDriver.ts'
+import type { QueuedCommand } from '../../src/screen/composer/input-core/textInput.ts'
+import * as driverModule from '../../src/daemon/runner/turnDriver.ts'
+import type { TurnDriverPorts } from '../../src/daemon/runner/turnDriver.ts'
 
 const { createTurnDriver } = driverModule
 const foldNotificationValues = (driverModule as { foldNotificationValues?: (values: Array<string | Array<{ type: string; text?: string }>>) => Array<{ type: string; text?: string }> }).foldNotificationValues
@@ -10,7 +10,7 @@ let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  const hint = 'fix createTurnDriver (the settle window via ports.settleWindowMs, and the queue order) or foldNotificationValues in src/cli/headless/turnDriver.ts'
+  const hint = 'fix createTurnDriver (the settle window via ports.settleWindowMs, and the queue order) or foldNotificationValues in src/daemon/runner/turnDriver.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + '; ' : ''}${hint}` : ''}`)
   if (!cond) failures++
 }
@@ -18,7 +18,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — notification-settle prover exceeded 60s; a turn or the settle hold in createTurnDriver (src/cli/headless/turnDriver.ts) never finished')
+  console.log('\nTIMEOUT — notification-settle prover exceeded 60s; a turn or the settle hold in createTurnDriver (src/daemon/runner/turnDriver.ts) never finished')
   process.exit(1)
 }, 60_000)
 watchdog.unref?.()

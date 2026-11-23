@@ -70,4 +70,4 @@ export function roadFixture(args: { head: string[]; tail: string[]; silence: boo
   return { fetchImpl, sent: () => sent, cancelled: () => cancelled }
 }
 
-export { streamIdleFaultWords as idleFaultWords } from '../../src/services/providers/streamIdleBudget.js'
+export { streamIdleFaultWords as idleFaultWords } from '../../src/models/roads/streamIdleBudget.js'

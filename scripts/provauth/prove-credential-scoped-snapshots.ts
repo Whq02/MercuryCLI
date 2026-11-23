@@ -11,7 +11,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  const scopedSnapshotHint = 'make the cache of the provider module this section imports (src/services/providers/<provider>/ catalogue or usage state) key its snapshot on credentialFingerprint from src/utils/accounts/credentialIdentity.ts and refetch when the key changes'
+  const scopedSnapshotHint = 'make the cache of the provider module this section imports (src/models/roads/<provider>/ catalogue or usage state) key its snapshot on credentialFingerprint from src/models/sign-in/account-ledger/credentialIdentity.ts and refetch when the key changes'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${scopedSnapshotHint}`}`)
 }
 function section(t: string): void {
@@ -56,7 +56,7 @@ process.env.MERCURY_OPENROUTER_AUTH_BASE = 'https://fixture.invalid/auth'
 process.env.MERCURY_DEEPSEEK_API_BASE = 'https://fixture.invalid/deepseek'
 process.env.MERCURY_MOONSHOT_API_BASE = 'https://fixture.invalid/moonshot/v1'
 
-const { credentialFingerprint } = await import('../../src/utils/accounts/credentialIdentity.ts')
+const { credentialFingerprint } = await import('../../src/models/sign-in/account-ledger/credentialIdentity.ts')
 
 function countingFetch(body: unknown, calls: { n: number; auth: string[] }): typeof fetch {
   return (async (_url: RequestInfo | URL, init?: RequestInit) => {
@@ -78,7 +78,7 @@ section('§0 the fingerprint is one-way, short, and absence-safe')
 
 section('§1 OpenAI catalogue — per key, not per source kind')
 {
-  const openai = await import('../../src/services/providers/openai/openaiCatalogue.ts')
+  const openai = await import('../../src/models/roads/openai/openaiCatalogue.ts')
   openai.__resetOpenaiCatalogueForTest()
   const page = {
     data: [
@@ -105,7 +105,7 @@ section('§1 OpenAI catalogue — per key, not per source kind')
 
 section('§2 Gemini catalogue — per key')
 {
-  const gemini = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
+  const gemini = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
   gemini.__resetGeminiCatalogueForTest()
   const page = { models: [{ name: 'models/gemini-fixture-pro', supportedGenerationMethods: ['generateContent'] }] }
   process.env.GEMINI_API_KEY = 'AIza-GEMINI-KEY-A-00000000'
@@ -126,7 +126,7 @@ section('§2 Gemini catalogue — per key')
 
 section('§3 Hugging Face catalogue — a keyed view is per token')
 {
-  const hf = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.ts')
+  const hf = await import('../../src/models/roads/huggingface/huggingfaceCatalogue.ts')
   hf.__resetHuggingfaceCatalogueForTest()
   const page = { object: 'list', data: [{ id: 'openai/gpt-oss-120b', providers: [{ provider: 'groq', status: 'live', context_length: 131072 }] }] }
   process.env.HF_TOKEN = 'hf_TOKEN_A_000000000000'
@@ -146,7 +146,7 @@ section('§3 Hugging Face catalogue — a keyed view is per token')
 
 section('§4 OpenRouter key usage — the credits belong to the key that polled them')
 {
-  const usage = await import('../../src/services/providers/openrouter/openrouterUsageState.ts')
+  const usage = await import('../../src/models/roads/openrouter/openrouterUsageState.ts')
   usage.__resetOpenrouterUsageStateForTest()
   process.env.OPENROUTER_API_KEY = 'sk-or-v1-KEYA000000000000000000'
   const a = { n: 0, auth: [] as string[] }
@@ -163,7 +163,7 @@ section('§4 OpenRouter key usage — the credits belong to the key that polled 
 
 section('§5 DeepSeek balance — per key')
 {
-  const ds = await import('../../src/services/providers/deepseek/deepseekUsageState.ts')
+  const ds = await import('../../src/models/roads/deepseek/deepseekUsageState.ts')
   ds.__resetDeepseekUsageForTest()
   const body = { is_available: true, balance_infos: [{ currency: 'USD', total_balance: '12.34' }] }
   process.env.DEEPSEEK_API_KEY = 'sk-deepseek-KEY-A-000000'
@@ -180,7 +180,7 @@ section('§5 DeepSeek balance — per key')
 
 section('§6 Moonshot balance — per key')
 {
-  const ms = await import('../../src/services/providers/moonshot/moonshotUsageState.ts')
+  const ms = await import('../../src/models/roads/moonshot/moonshotUsageState.ts')
   ms.__resetMoonshotUsageForTest()
   const body = { code: 0, data: { available_balance: 42, voucher_balance: 2, cash_balance: 40 }, scode: '0x0', status: true }
   process.env.MOONSHOT_API_KEY = 'sk-moonshot-KEY-A-000000'

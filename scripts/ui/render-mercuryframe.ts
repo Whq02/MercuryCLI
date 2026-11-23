@@ -2,7 +2,7 @@
 import { writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 const RUNTIME_CWD = join(import.meta.dir, '..', '..')

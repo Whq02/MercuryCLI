@@ -5,7 +5,7 @@ import { gitClient, gitFixture } from './gitFixture.ts'
 
 let checks = 0
 let failures = 0
-const fixHint = 'fix: resolveConflict in src/services/gitGraph/plan.ts (reached by the resolve op of src/tools/GitTool/GitTool.ts) must write the joined sides in the file declared working-tree-encoding with one byte-order mark'
+const fixHint = 'fix: resolveConflict in src/platform/git-graph/plan.ts (reached by the resolve op of src/tools/git/GitTool.ts) must write the joined sides in the file declared working-tree-encoding with one byte-order mark'
 const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail} | ${fixHint}` : ''}`) }
 const world = gitFixture('git-one-mark-')
 let client: Awaited<ReturnType<typeof gitClient>> | undefined

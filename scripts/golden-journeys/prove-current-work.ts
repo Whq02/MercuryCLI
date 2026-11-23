@@ -5,23 +5,23 @@ process.env.NODE_ENV = 'test'
 import {
   deriveCurrentWork,
   type CurrentWorkInputs,
-} from '../../src/services/workbench/currentWork.ts'
+} from '../../src/screen/workbench/currentWork.ts'
 import {
   emptyRunSnapshot,
   reduceRunEvent,
   type RunEvent,
   type RunSnapshot,
-} from '../../src/services/run/runKernel.ts'
-import { makeOwnerKey } from '../../src/utils/run/ownerKey.ts'
+} from '../../src/engine/run/runKernel.ts'
+import { makeOwnerKey } from '../../src/engine/run-owner/ownerKey.ts'
 import {
   WORKBENCH_SOURCES_SCHEMA,
   type WorkbenchSnapshot,
-} from '../../src/services/workbench/contracts.ts'
+} from '../../src/screen/workbench/contracts.ts'
 import {
   healthOf,
   sourceReady,
   sourceUnavailable,
-} from '../../src/substrate/sourceState.ts'
+} from '../../src/platform/substrate/sourceState.ts'
 
 const readOk = () => healthOf(sourceReady(null))
 
@@ -31,7 +31,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   else {
     failures++
     console.error(
-      `  FAIL ${name}${detail ? ` — ${detail}` : ''} — fix deriveCurrentWork in src/services/workbench/currentWork.ts (the projection of the run, tasks and workbench inputs) so this law holds`,
+      `  FAIL ${name}${detail ? ` — ${detail}` : ''} — fix deriveCurrentWork in src/screen/workbench/currentWork.ts (the projection of the run, tasks and workbench inputs) so this law holds`,
     )
   }
 }

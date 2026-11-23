@@ -17,11 +17,11 @@ if (scenario !== null) {
   process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
   const React = await import('react')
   const { KEY, mountOffscreen, settle, waitFor } = await import('../lib/settingsPopupHarness.ts')
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-  const { Onboarding } = await import('../../src/components/Onboarding.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+  const { Onboarding } = await import('../../src/boot/first-run/Onboarding.js')
   const h = React.createElement
   const element = h(AppStateProvider as never, {} as never, h(KeybindingSetup as never, {} as never, h(Onboarding as never, { onDone: () => {} } as never)))
   const mounted = await mountOffscreen(element, COLS, ROWS)
@@ -58,7 +58,7 @@ if (scenario !== null) {
 
 let failures = 0
 const skipKeyFailHint =
-  'fix: the sign-in station, its footer line (↑↓ move · ↵ choose · s skip · esc back), the s and esc key handling and the Guardrails step are in src/components/Onboarding.tsx; a detail starting with the exit status means the offscreen scenario crashed, so run bun scripts/onboarding/prove-provider-skip-key.tsx --scenario skip-then-esc to see the error'
+  'fix: the sign-in station, its footer line (↑↓ move · ↵ choose · s skip · esc back), the s and esc key handling and the Guardrails step are in src/boot/first-run/Onboarding.tsx; a detail starting with the exit status means the offscreen scenario crashed, so run bun scripts/onboarding/prove-provider-skip-key.tsx --scenario skip-then-esc to see the error'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${skipKeyFailHint}`}`)

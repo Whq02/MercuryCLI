@@ -54,15 +54,15 @@ for (const k of [
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
-const { recordSignIn, noteCredentialChange } = await import('../../src/utils/accounts/signInLedger.ts')
-const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.ts')
-const { getSecureStorage } = await import('../../src/utils/secureStorage/index.ts')
-const owned = await import('../../src/daemon/ownedDaemon.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
+const { recordSignIn, noteCredentialChange } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
+const { storeOAuthAccountInfo } = await import('../../src/models/sign-in/oauth/client.ts')
+const { getSecureStorage } = await import('../../src/platform/secure-storage/index.ts')
+const owned = await import('../../src/daemon/control/ownedDaemon.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 const words = await import('./delegate-fixture-words.ts')
 const { DELEGATE_ASK, DELEGATE_SPEND_ASK, DELEGATE_REPORT, GPT_ID, SPEND_ASK, SUBAGENT_ASK, SUBAGENT_REPLY, DELEGATE_MODEL, RESET_IN_SECONDS } = words
 
@@ -299,7 +299,7 @@ try {
   const replyRows = unescaped(rowsSince(sid, rows2b))
   const requestsA = sinceHits(before2b).filter(h => h.kind === 'anthropic' && (h.ask ?? '').includes(SUBAGENT_ASK))
   const refusalA = sinceHits(before2).find(h => h.kind === 'anthropic' && h.status === 429)
-  check('the dispatch reaches its provider and settles with the delegate reply, not a local window refusal', served && !replyRows.includes('Crewmate dispatch refused') && !replyRows.includes('usage window is reached'), replyRows.slice(-600), 'a local refusal is raised in src/tools/AgentTool/runAgent.ts (delegationDispatchBlocker); a provider window observed once must not block the next dispatch')
+  check('the dispatch reaches its provider and settles with the delegate reply, not a local window refusal', served && !replyRows.includes('Crewmate dispatch refused') && !replyRows.includes('usage window is reached'), replyRows.slice(-600), 'a local refusal is raised in src/tools/crewmate/runCrewmate.ts (delegationDispatchBlocker); a provider window observed once must not block the next dispatch')
   check('exactly one requested Anthropic delegate call is served on the chosen model', requestsA.length === 1 && requestsA[0]!.status === 200 && requestsA[0]!.model === DELEGATE_MODEL, JSON.stringify(requestsA))
   check('the runner still names account A when the provider serves the next dispatch', readFacts(sid)?.identity?.accountEmail === ACCOUNTS.a.email, JSON.stringify(readFacts(sid)?.identity))
   check('the provider refusal was observed first and its reset is still ahead when the next request is served', refusalA !== undefined && requestsA.length === 1 && requestsA[0]!.at > refusalA.at && requestsA[0]!.at < refusalA.at + RESET_IN_SECONDS * 1000 && rowsSince(sid, rows2).includes("This request would exceed your account's rate limit."), JSON.stringify({ refusalA, request: requestsA[0] }))
@@ -309,7 +309,7 @@ try {
   const logBefore = daemonLog().length
   landSignIn(ACCOUNTS.b)
   await pokesSettled()
-  check("the sign-in raised the screen's poke (signIns with refresh)", pokeRequests.slice(pokesBefore).some(r => r.op === 'signIns' && r.refresh === true), JSON.stringify(pokeRequests.slice(pokesBefore)), 'armDaemonSignInPoke in src/daemon/ownedDaemon.ts must send a signIns request with refresh true when a sign-in lands')
+  check("the sign-in raised the screen's poke (signIns with refresh)", pokeRequests.slice(pokesBefore).some(r => r.op === 'signIns' && r.refresh === true), JSON.stringify(pokeRequests.slice(pokesBefore)), 'armDaemonSignInPoke in src/daemon/control/ownedDaemon.ts must send a signIns request with refresh true when a sign-in lands')
   const relayed = daemonLog().slice(logBefore)
   console.log(`      daemon: ${relayed.split('\n').filter(l => l.includes('credential moved')).join(' | ') || '(no relay line in the log)'}`)
 
@@ -321,7 +321,7 @@ try {
   const proceeded = await untilAsync(() => sinceHits(before4).some(h => h.kind === 'anthropic' && h.status === 200 && (h.ask ?? '').includes(SUBAGENT_ASK)), 90_000)
   check('the delegate reached the Anthropic wire on the Opus row and was answered', proceeded && sinceHits(before4).some(h => h.kind === 'anthropic' && h.model === DELEGATE_MODEL), JSON.stringify(sinceHits(before4)))
   check("the transcript carries the delegate's reply, not a refusal", await untilAsync(() => rowsSince(sid, rows4).includes(SUBAGENT_REPLY) && turnEnded(sid), 90_000) && !rowsSince(sid, rows4).includes('usage window is reached'), unescaped(rowsSince(sid, rows4)).match(/the delegate reported:[^"\\]{0,200}/)?.[0] ?? '(no report)')
-  check("the runner's facts name account B", await untilAsync(() => readFacts(sid)?.identity?.accountEmail === ACCOUNTS.b.email, 60_000), JSON.stringify(readFacts(sid)?.identity), 'the signIns verb in src/daemon/run/control.ts must call relayCredentialChange (src/daemon/sessionSeat/door.ts) so the runner reads the new account')
+  check("the runner's facts name account B", await untilAsync(() => readFacts(sid)?.identity?.accountEmail === ACCOUNTS.b.email, 60_000), JSON.stringify(readFacts(sid)?.identity), 'the signIns verb in src/daemon/run/control.ts must call relayCredentialChange (src/daemon/session-seat/door.ts) so the runner reads the new account')
 
   section('§5 B observes its own provider refusal; its next dispatch also reaches the provider')
   const before5 = hits().length
@@ -343,19 +343,19 @@ try {
   const pokesBefore6 = pokeRequests.length
   landSignOut()
   await pokesSettled()
-  check("the sign-out raised the screen's poke", pokeRequests.slice(pokesBefore6).some(r => r.op === 'signIns' && r.refresh === true), JSON.stringify(pokeRequests.slice(pokesBefore6)), 'armDaemonSignInPoke in src/daemon/ownedDaemon.ts must send a signIns request with refresh true when a sign-out lands')
+  check("the sign-out raised the screen's poke", pokeRequests.slice(pokesBefore6).some(r => r.op === 'signIns' && r.refresh === true), JSON.stringify(pokeRequests.slice(pokesBefore6)), 'armDaemonSignInPoke in src/daemon/control/ownedDaemon.ts must send a signIns request with refresh true when a sign-out lands')
   const rows6 = transcriptLines(sid).length
   await say(DELEGATE_ASK, sid)
   check('after the sign-out the dispatch is no longer refused for the window (with no account the delegate fails for want of a sign-in, and the loop guard may end the turn after three identical failures — never a window refusal)', await untilAsync(() => turnEnded(sid), 90_000) && !rowsSince(sid, rows6).includes('usage window is reached'), unescaped(rowsSince(sid, rows6)).match(/(the delegate reported:|Stopped after 3 failed|usage window is reached)[^"\\]{0,200}/)?.[0] ?? '(no report, no stop)')
   const pokesBefore7 = pokeRequests.length
   landSignIn(ACCOUNTS.c)
   await pokesSettled()
-  check("the sign-in raised the screen's poke", pokeRequests.slice(pokesBefore7).some(r => r.op === 'signIns' && r.refresh === true), '', 'armDaemonSignInPoke in src/daemon/ownedDaemon.ts must send a signIns request with refresh true when a sign-in lands')
+  check("the sign-in raised the screen's poke", pokeRequests.slice(pokesBefore7).some(r => r.op === 'signIns' && r.refresh === true), '', 'armDaemonSignInPoke in src/daemon/control/ownedDaemon.ts must send a signIns request with refresh true when a sign-in lands')
   const before7 = hits().length
   const rows7 = transcriptLines(sid).length
   await say(DELEGATE_ASK, sid)
   check('the delegate proceeds on account C and is answered on the wire', await untilAsync(() => sinceHits(before7).some(h => h.kind === 'anthropic' && h.status === 200 && (h.ask ?? '').includes(SUBAGENT_ASK)) && rowsSince(sid, rows7).includes(SUBAGENT_REPLY) && turnEnded(sid), 90_000), JSON.stringify(sinceHits(before7)))
-  check("the runner's facts name account C", await untilAsync(() => readFacts(sid)?.identity?.accountEmail === ACCOUNTS.c.email, 60_000), JSON.stringify(readFacts(sid)?.identity), 'the signIns verb in src/daemon/run/control.ts must call relayCredentialChange (src/daemon/sessionSeat/door.ts) so the runner reads the new account')
+  check("the runner's facts name account C", await untilAsync(() => readFacts(sid)?.identity?.accountEmail === ACCOUNTS.c.email, 60_000), JSON.stringify(readFacts(sid)?.identity), 'the signIns verb in src/daemon/run/control.ts must call relayCredentialChange (src/daemon/session-seat/door.ts) so the runner reads the new account')
 } finally {
   await cleanup()
 }

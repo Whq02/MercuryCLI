@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
-import { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget, releaseTargetFor, type ReleaseTarget } from '../../src/services/privateChannel/releaseTarget.ts'
+import { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget, releaseTargetFor, type ReleaseTarget } from '../../src/platform/update-channel/releaseTarget.ts'
 import { integrityOf, lockedPackage, platformPackagesCacheDir, platformPackagesFor, registryTarballUrl, resolvePlatformPackage, type LockedPackage } from './platformPackages.ts'
 import { extractTarGz } from './tarExtract.ts'
 

@@ -12,12 +12,12 @@ if (process.argv.includes('--child')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   const { pinSourceRef } = await import('../lib/settingsPopupHarness.js')
   pinSourceRef()
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
-  const { retainItems } = await import('../../src/mneme/memoryVerbs.js')
-  const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.js')
-  const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
-  const { memorySignalScope, noteMemoryOffered, noteMemoryOpened, finishMemorySignal } = await import('../../src/mneme/mnemeSignal.js')
+  const { retainItems } = await import('../../src/sessions/mneme/memoryVerbs.js')
+  const { maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.js')
+  const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.js')
+  const { memorySignalScope, noteMemoryOffered, noteMemoryOpened, finishMemorySignal } = await import('../../src/sessions/mneme/mnemeSignal.js')
   retainItems([{ content: 'quartzalpha facts stay exactly as written', topic: 'signal' }], { session: 'fixture' })
   maybeConsolidate({ dir: mnemeLibraryDir(), force: true })
   for (let i = 0; i < 3; i++) {
@@ -28,12 +28,12 @@ if (process.argv.includes('--child')) {
     })())) {}
   }
   const React = await import('react')
-  const { render, Box, Text } = await import('../../src/ink.js')
-  const { App } = await import('../../src/components/App.js')
-  const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-  const { MemoryCentreView, factSignalLine, factRef, pendingRef } = await import('../../src/components/memory/MemoryCentreView.js')
-  const { listTopicDocs } = await import('../../src/mneme/mnemeLibrary.js')
+  const { render, Box, Text } = await import('../../src/screen/themedRenderer.js')
+  const { App } = await import('../../src/boot/App.js')
+  const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+  const { MemoryCentreView, factSignalLine, factRef, pendingRef } = await import('../../src/screen/memory/MemoryCentreView.js')
+  const { listTopicDocs } = await import('../../src/sessions/mneme/mnemeLibrary.js')
   const entry = listTopicDocs()[0]!.sections[0]!.entries[0]!
   if (!arg('--source-ref')) {
     assert.equal(factSignalLine(factRef(entry, 'signal')), expected)
@@ -77,7 +77,7 @@ if (process.argv.includes('--child')) {
       }
       assert.equal(result.status, 0, result.stderr)
       assert(lines.join('\n').includes(expected), `real memory detail must show the counts at ${cols}x${rows}\n${lines.join('\n')}`)
-      assert(lines.join('\n').includes('quartzalpha facts stay exactly as written'), `MemoryCentreView in src/components/memory/MemoryCentreView.tsx must preserve fact text verbatim at ${cols}x${rows}`)
+      assert(lines.join('\n').includes('quartzalpha facts stay exactly as written'), `MemoryCentreView in src/screen/memory/MemoryCentreView.tsx must preserve fact text verbatim at ${cols}x${rows}`)
       assert(lines.every(line => [...line].length <= cols), 'no row overflows the terminal')
       console.log(`PASS memory signal counts ${cols}x${rows}: real terminal, counts and unchanged fact text`)
     }

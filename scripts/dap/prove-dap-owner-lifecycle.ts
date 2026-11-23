@@ -7,8 +7,8 @@ import { join } from 'node:path'
 let failures = 0
 let sectionHint = ''
 const SECTION_HINTS: Record<string, string> = {
-  '1': 'look at the owner-keyed registry in src/services/dap/dapClient.ts (createDapSession, getDapSession, listDapSessions, removeDapSession: a session is keyed by owner and alias) and disposeOwner in src/utils/run/ownerLifecycle.ts',
-  '2': 'look at DebugTool.call in src/tools/DebugTool/DebugTool.ts: a missing session must yield outcome failed, and status with no sessions a no-change effect',
+  '1': 'look at the owner-keyed registry in src/integrations/debugger/dapClient.ts (createDapSession, getDapSession, listDapSessions, removeDapSession: a session is keyed by owner and alias) and disposeOwner in src/engine/run-owner/ownerLifecycle.ts',
+  '2': 'look at DebugTool.call in src/tools/debug/DebugTool.ts: a missing session must yield outcome failed, and status with no sessions a no-change effect',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -27,9 +27,9 @@ async function main(): Promise<void> {
   })
   delete process.env.MERCURY_DAP
 
-  const dap = await import('../../src/services/dap/dapClient.js')
-  const ok = await import('../../src/utils/run/ownerKey.js')
-  const lifecycle = await import('../../src/utils/run/ownerLifecycle.js')
+  const dap = await import('../../src/integrations/debugger/dapClient.js')
+  const ok = await import('../../src/engine/run-owner/ownerKey.js')
+  const lifecycle = await import('../../src/engine/run-owner/ownerLifecycle.js')
 
   const A = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'conv-A', lane: 'main' })
   const B = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'conv-B', lane: 'main' })
@@ -92,7 +92,7 @@ async function main(): Promise<void> {
 
   section('2. failures are TYPED (never prose-as-success)')
   {
-    const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
+    const { DebugTool } = await import('../../src/tools/debug/DebugTool.js')
     const result = (await DebugTool.call(
       { op: 'stack', session: 'nonexistent' } as never,
       {} as never,

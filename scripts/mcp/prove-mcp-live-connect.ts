@@ -125,13 +125,13 @@ check(
   check(
     "OP-4: on-wire clientInfo.name === 'mercury'",
     initParams?.clientInfo?.name === 'mercury',
-    JSON.stringify(initParams?.clientInfo ?? null) + ' (the name sent on the wire is set in buildClient in src/services/mcp/client/protocolClient.ts)',
+    JSON.stringify(initParams?.clientInfo ?? null) + ' (the name sent on the wire is set in buildClient in src/integrations/mcp/client/protocolClient.ts)',
   )
-  check("OP-4: on-wire clientInfo.title === 'Mercury'", initParams?.clientInfo?.title === 'Mercury', 'title sent on the wire: ' + String(initParams?.clientInfo?.title) + ' (set in buildClient in src/services/mcp/client/protocolClient.ts)')
+  check("OP-4: on-wire clientInfo.title === 'Mercury'", initParams?.clientInfo?.title === 'Mercury', 'title sent on the wire: ' + String(initParams?.clientInfo?.title) + ' (set in buildClient in src/integrations/mcp/client/protocolClient.ts)')
   check(
     'OP-4: no borrowed product URL in clientInfo',
     initParams?.clientInfo?.websiteUrl === undefined,
-    String(initParams?.clientInfo?.websiteUrl) + ' (remove websiteUrl from the client info built in buildClient in src/services/mcp/client/protocolClient.ts)',
+    String(initParams?.clientInfo?.websiteUrl) + ' (remove websiteUrl from the client info built in buildClient in src/integrations/mcp/client/protocolClient.ts)',
   )
 }
 

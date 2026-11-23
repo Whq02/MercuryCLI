@@ -14,8 +14,8 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   const where = label.startsWith('B6 ')
-    ? 'fix driverFailureWords in src/tools/BrowserTool/BrowserTool.ts'
-    : 'fix the close, disconnect or launch bound in src/services/browser/browserSession.ts (the words of an op on a gone browser come from src/tools/BrowserTool/BrowserTool.ts)'
+    ? 'fix driverFailureWords in src/tools/browser/BrowserTool.ts'
+    : 'fix the close, disconnect or launch bound in src/integrations/browser/browserSession.ts (the words of an op on a gone browser come from src/tools/browser/BrowserTool.ts)'
   const shown = [detail, where].filter(Boolean).join(' — ')
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && shown ? ` — ${shown}` : ''}`)
 }
@@ -26,9 +26,9 @@ const watchdog = setTimeout(() => {
 }, 120_000)
 watchdog.unref?.()
 
-const session = await import('../../src/services/browser/browserSession.ts')
-const { BrowserTool, driverFailureWords } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
-const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
+const session = await import('../../src/integrations/browser/browserSession.ts')
+const { BrowserTool, driverFailureWords } = await import('../../src/tools/browser/BrowserTool.ts')
+const { processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
 type ToolInput = Parameters<typeof BrowserTool.call>[0]
 type ToolCtx = Parameters<typeof BrowserTool.call>[1]
 
@@ -194,7 +194,7 @@ console.log('B7 the real browser, killed from outside: close returns within the 
 {
   session.setBrowserLaunchDriverForProof(null)
   delete process.env.MERCURY_BROWSER_PATH
-  const { resolveBrowser } = await import('../../src/services/browser/browserResolver.ts')
+  const { resolveBrowser } = await import('../../src/integrations/browser/browserResolver.ts')
   const resolution = resolveBrowser()
   if (resolution.state !== 'ok' || process.platform === 'win32') {
     console.log(

@@ -10,7 +10,7 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { checkParsedPaths: checkPathConstraints } = await import('../bash/floor-proof-helpers.ts')
-type Ctx = import('../../src/utils/permissions/permissions.ts').ToolPermissionContext
+type Ctx = import('../../src/permissions/rules/permissionDoor.ts').ToolPermissionContext
 
 let failures = 0
 let checks = 0

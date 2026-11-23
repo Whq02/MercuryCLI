@@ -19,20 +19,20 @@ delete process.env.MERCURY_EDIT_STALE_RECOVERY
 delete process.env.NODE_ENV
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { _resetSeenLinesForTesting } = await import(`${SRC}/services/changeTransaction/seenLines.ts`)
-const { FileEditTool } = await import(`${SRC}/tools/FileEditTool/FileEditTool.ts`)
-const { FileReadTool } = await import(`${SRC}/tools/FileReadTool/FileReadTool.ts`)
-const { FileWriteTool } = await import(`${SRC}/tools/FileWriteTool/FileWriteTool.ts`)
-const { getEmptyToolPermissionContext } = await import(`${SRC}/Tool.ts`)
-const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/utils/fileStateCache.ts`)
-const structured = (await import(`${SRC}/tools/FileWriteTool/structuredTargets.ts`).catch(() => null)) as null | {
+const { _resetSeenLinesForTesting } = await import(`${SRC}/tools/engines/change-transaction/seenLines.ts`)
+const { FileEditTool } = await import(`${SRC}/tools/edit/EditTool.ts`)
+const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { FileWriteTool } = await import(`${SRC}/tools/write/WriteTool.ts`)
+const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
+const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/platform/files/fileStateCache.ts`)
+const structured = (await import(`${SRC}/tools/write/structuredTargets.ts`).catch(() => null)) as null | {
   parseStructuredWriteTarget: (raw: string) => { kind: string; hostPath: string; reason?: string } | null
   STRUCTURED_EDIT_MODES_NOTE: string
 }
 
 let failures = 0
 let checks = 0
-const structuredTargetHint = 'a zip entry or SQLite row target (path:entry or path:table/row) no longer behaves as the label says; compare it with parseStructuredWriteTarget in src/tools/FileWriteTool/structuredTargets.ts and with the Write, Edit and Read tools in src/tools/FileWriteTool, src/tools/FileEditTool and src/tools/FileReadTool. '
+const structuredTargetHint = 'a zip entry or SQLite row target (path:entry or path:table/row) no longer behaves as the label says; compare it with parseStructuredWriteTarget in src/tools/write/structuredTargets.ts and with the Write, Edit and Read tools in src/tools/write, src/tools/FileEditTool and src/tools/read. '
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++

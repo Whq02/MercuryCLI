@@ -14,16 +14,16 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const JS_ROAD = process.argv.includes('--javascript-road')
 if (JS_ROAD) process.env.MERCURY_IMAGE_PROCESSOR = 'javascript'
 
-const resizer = await import('../../src/utils/imageResizer.ts')
-const { ANTHROPIC_IMAGE_LIMITS } = await import('../../src/constants/apiLimits.ts')
-const { imageDimensionsFromHeader } = await import('../../src/utils/imageProcessor/imageProcessorJs.ts')
+const resizer = await import('../../src/platform/images/imageResizer.ts')
+const { ANTHROPIC_IMAGE_LIMITS } = await import('../../src/models/roads/mediaLimits.ts')
+const { imageDimensionsFromHeader } = await import('../../src/platform/images/imageProcessorJs.ts')
 const sharp = (await import('sharp')).default
 
 let failures = 0
 const tag = JS_ROAD ? '[js-road] ' : ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const failHint = 'the clamp and its note are clampToolResultImageBlocks and createImageMetadataText in src/utils/imageResizer.ts; the MCP image checks exercise transformResultContent in src/services/mcp/client/results.ts'
+  const failHint = 'the clamp and its note are clampToolResultImageBlocks and createImageMetadataText in src/platform/images/imageResizer.ts; the MCP image checks exercise transformResultContent in src/integrations/mcp/client/results.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${tag}${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${failHint}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + tag + t)
@@ -135,7 +135,7 @@ section('§5 the roads that already speak are not double-noted')
 {
   const fixtures = join(proofHome, 'fixtures')
   mkdirSync(fixtures, { recursive: true })
-  const { FileReadTool, readImageWithTokenBudget } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { FileReadTool, readImageWithTokenBudget } = await import('../../src/tools/read/ReadTool.ts')
   const shotPath = join(fixtures, 'shot.png')
   writeFileSync(shotPath, big)
   const read = await readImageWithTokenBudget(shotPath)
@@ -166,7 +166,7 @@ section('§5 the roads that already speak are not double-noted')
 
 section('§6 the MCP converter shrinks before the block is minted and says so in the same words')
 {
-  const { transformResultContent } = await import('../../src/services/mcp/client.ts')
+  const { transformResultContent } = await import('../../src/integrations/mcp/client.ts')
   const mcpImage = (buffer: Buffer): Record<string, unknown> => ({ type: 'image', data: buffer.toString('base64'), mimeType: 'image/png' })
   const mcpText = (text: string): Record<string, unknown> => ({ type: 'text', text })
   const mcpBlob = (buffer: Buffer): Record<string, unknown> => ({ type: 'resource', resource: { uri: 'shot://one', blob: buffer.toString('base64'), mimeType: 'image/png' } })

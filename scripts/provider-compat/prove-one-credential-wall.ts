@@ -22,14 +22,14 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — change the wall words, door or classifier in ${CREDENTIAL_WALL_AT}` : ''}`)
 }
-const CREDENTIAL_WALL_AT = 'src/services/providers/credentialWall.ts (classifyCredentialWall, credentialWallLine, reconnectDoorFor); for a section 2 or 5 row the error presenter getAssistantMessageFromError in src/services/api/errors.ts; for section 3 streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts'
+const CREDENTIAL_WALL_AT = 'src/models/roads/credentialWall.ts (classifyCredentialWall, credentialWallLine, reconnectDoorFor); for a section 2 or 5 row the error presenter getAssistantMessageFromError in src/engine/requests/apiErrorRows.ts; for section 3 streamCompatChat in src/models/roads/openaicompat/compatChatClient.ts'
 
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { classifyCredentialWall, credentialWallLine, reconnectDoorFor } = await import('../../src/services/providers/credentialWall.ts')
-const { providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
-const { __resetKnownDeadRefreshTokensForTest } = await import('../../src/utils/auth.ts')
-const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
+const { classifyCredentialWall, credentialWallLine, reconnectDoorFor } = await import('../../src/models/roads/credentialWall.ts')
+const { providerDisplayName } = await import('../../src/models/roads/routeLaw.ts')
+const { __resetKnownDeadRefreshTokensForTest } = await import('../../src/models/sign-in/credentials/auth.ts')
+const { clearOAuthTokenCache } = await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')
 
 const FAMILIES = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'openai-compat', 'openrouter', 'gemini', 'huggingface', 'local', 'mistral', 'nous', 'zen']
 const OWNER_WIRE = 'OAuth authentication is currently not allowed for this organization'
@@ -89,10 +89,10 @@ console.log('§1 — the table: every family, every cause, both postures — one
 
 console.log("§2 — the owner's wire: the first-party presenter paints the shared line — the family and the door, never the account's address, never a sentence about an organisation")
 {
-  const { APIError } = await import('../../src/utils/api/sdkErrors.js')
-  const { getAssistantMessageFromError, API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errors.ts')
-  const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
-  const { isClaudeAISubscriber } = await import('../../src/utils/auth.ts')
+  const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
+  const { getAssistantMessageFromError, API_ERROR_MESSAGE_PREFIX } = await import('../../src/engine/requests/apiErrorRows.ts')
+  const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
+  const { isClaudeAISubscriber } = await import('../../src/models/sign-in/credentials/auth.ts')
   const credsPath = join(HOME, '.credentials.json')
   const seed = (oauth: Record<string, unknown> | null): void => {
     __resetKnownDeadRefreshTokensForTest()
@@ -140,7 +140,7 @@ console.log("§2 — the owner's wire: the first-party presenter paints the shar
 
 console.log("§3 — the compat door: OpenRouter's real client answers the table's shape")
 {
-  const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
+  const { streamCompatChat } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
   const body = JSON.stringify({ error: { message: 'Key limit exceeded', code: 403 } })
   const fetchImpl = (async () => new Response(body, { status: 403, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch
   let fault: { status?: number; message: string } | undefined
@@ -161,9 +161,9 @@ console.log("§3 — the compat door: OpenRouter's real client answers the table
 
 console.log('§5 — a 400 Anthropic calls a disabled organisation is no longer detected by name: it paints what every family\'s unrecognised 400 paints — the generic row with the provider\'s own sentence inside it, no Mercury sentence of its own')
 {
-  const { APIError } = await import('../../src/utils/api/sdkErrors.js')
-  const { getAssistantMessageFromError, API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errors.ts')
-  const { decodeApiErrorBlobMessage } = await import('../../src/services/api/errorUtils.ts')
+  const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
+  const { getAssistantMessageFromError, API_ERROR_MESSAGE_PREFIX } = await import('../../src/engine/requests/apiErrorRows.ts')
+  const { decodeApiErrorBlobMessage } = await import('../../src/engine/requests/apiErrorDetails.ts')
   const SENTENCE = 'This organization has been disabled.'
   process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-env-key-not-real'
   const row = getAssistantMessageFromError(new APIError(400, { type: 'error', error: { type: 'invalid_request_error', message: SENTENCE } }, undefined, undefined as never), 'claude-opus-5')

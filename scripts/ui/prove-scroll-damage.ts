@@ -65,19 +65,19 @@ console.log('prove-scroll-damage')
   check(
     'scroll-cockpit: ZERO scroll-no-hint full-damage frames (was 64/4s pre-fix)',
     (reasons['scroll-no-hint'] ?? 0) === 0,
-    `${JSON.stringify(reasons)}; scroll-no-hint is marked in src/ink/compose-walk.ts when the scroll box is not stable for a shift (height or layout changed), so scrolling repaints the whole screen; an empty reasons object with a frame count of 0 means the scene never ran, so run bun run scripts/ui/measure-render-traffic.ts with MEASURE_SCENE=scroll-cockpit`,
+    `${JSON.stringify(reasons)}; scroll-no-hint is marked in src/screen/renderer/compose-walk.ts when the scroll box is not stable for a shift (height or layout changed), so scrolling repaints the whole screen; an empty reasons object with a frame count of 0 means the scene never ran, so run bun run scripts/ui/measure-render-traffic.ts with MEASURE_SCENE=scroll-cockpit`,
   )
   check(
     'scroll-cockpit: zero rect-unsafe fallbacks in steady scroll',
     (reasons['scroll-rect-unsafe'] ?? 0) === 0,
-    `${JSON.stringify(reasons)}; scroll-rect-unsafe is marked in src/ink/compose-walk.ts when the safeForFastPath test fails for a rect shift, so a steady scroll falls back to full damage`,
+    `${JSON.stringify(reasons)}; scroll-rect-unsafe is marked in src/screen/renderer/compose-walk.ts when the safeForFastPath test fails for a rect shift, so a steady scroll falls back to full damage`,
   )
 }
 
 {
   const { reasons } = runScene('stream-cockpit')
   const scrollDamage = (reasons['scroll-no-hint'] ?? 0) + (reasons['scroll-rect-unsafe'] ?? 0)
-  check('stream-cockpit: zero scroll-class full-damage frames while sticky-streaming', scrollDamage === 0, `${JSON.stringify(reasons)}; scroll-no-hint and scroll-rect-unsafe are marked in src/ink/compose-walk.ts, so a streaming sticky scroll box is forcing full repaints; the scene is stream-cockpit in scripts/ui/measure-render-traffic.ts`)
+  check('stream-cockpit: zero scroll-class full-damage frames while sticky-streaming', scrollDamage === 0, `${JSON.stringify(reasons)}; scroll-no-hint and scroll-rect-unsafe are marked in src/screen/renderer/compose-walk.ts, so a streaming sticky scroll box is forcing full repaints; the scene is stream-cockpit in scripts/ui/measure-render-traffic.ts`)
 }
 
 console.log(failures === 0 ? '\n✓ prove-scroll-damage: all green' : `\n✗ prove-scroll-damage: ${failures} failure(s)`)

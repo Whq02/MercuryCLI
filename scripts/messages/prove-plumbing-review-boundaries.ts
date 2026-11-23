@@ -3,20 +3,20 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const root = resolve(process.argv[2] ?? fileURLToPath(new URL('../..', import.meta.url)))
-const merge = await import(`${root}/src/services/messages/merge.ts`)
-const view = await import(`${root}/src/services/messages/apiView.ts`)
-const cache = await import(`${root}/src/services/providers/anthropic/cacheAndUsage.ts`)
-const params = await import(`${root}/src/services/providers/anthropic/requestParams.ts`)
-const caps = await import(`${root}/src/utils/model/capabilities.ts`)
-const state = await import(`${root}/src/bootstrap/state.ts`)
-const filters = await import(`${root}/src/services/messages/apiFilters.ts`)
-const streaming = await import(`${root}/src/utils/messages/streaming.ts`)
-const config = await import(`${root}/src/utils/config.ts`)
+const merge = await import(`${root}/src/engine/messages/merge.ts`)
+const view = await import(`${root}/src/engine/messages/apiView.ts`)
+const cache = await import(`${root}/src/models/roads/anthropic/cacheAndUsage.ts`)
+const params = await import(`${root}/src/models/roads/anthropic/requestParams.ts`)
+const caps = await import(`${root}/src/models/facts/capabilities.ts`)
+const state = await import(`${root}/src/boot/process-state/processState.ts`)
+const filters = await import(`${root}/src/engine/messages/apiFilters.ts`)
+const streaming = await import(`${root}/src/screen/messages-list/streamToScreen.ts`)
+const config = await import(`${root}/src/platform/settings/config.ts`)
 config.enableConfigs()
 let failures = 0
 function check(name: string, run: () => void) {
   try { run(); console.log(`PASS ${name}`) }
-  catch (error) { failures++; console.log(`FAIL ${name}: ${String(error)} (fix the function this check names: src/services/messages/merge.ts, apiView.ts or apiFilters.ts, src/services/providers/anthropic/cacheAndUsage.ts or requestParams.ts, src/utils/model/capabilities.ts, or src/utils/messages/streaming.ts)`) }
+  catch (error) { failures++; console.log(`FAIL ${name}: ${String(error)} (fix the function this check names: src/engine/messages/merge.ts, apiView.ts or apiFilters.ts, src/models/roads/anthropic/cacheAndUsage.ts or requestParams.ts, src/models/facts/capabilities.ts, or src/screen/messages-list/streamToScreen.ts)`) }
 }
 const text = (text: string) => ({ type: 'text', text })
 const user = (content: any) => ({ type: 'user', uuid: 'u', message: { role: 'user', content } })

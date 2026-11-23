@@ -7,13 +7,13 @@ const check = (name: string, ok: boolean, detail?: string): void => {
     console.log(`  ok  ${name}`)
   } else {
     failures++
-    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''} — fix isPathInside in src/utils/pathPrefix.ts`)
+    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''} — fix isPathInside in src/tools/read/pathPrefix.ts`)
   }
 }
 
 console.log('§1 TS-2 — isPathInside: one fold, every separator spelling')
 {
-  const { isPathInside } = await import('../../src/utils/pathPrefix.ts')
+  const { isPathInside } = await import('../../src/tools/read/pathPrefix.ts')
   check('a native win32 dir accepts its native child', isPathInside('C:\\u\\m\\plans\\slug.md', 'C:\\u\\m\\plans', 'win32'))
   check('…and the POSIX spelling of the same child (the model writes POSIX at native dirs)', isPathInside('C:/u/m/plans/slug.md', 'C:\\u\\m\\plans', 'win32'))
   check('…mixed spellings inside the path too', isPathInside('C:\\u/m\\plans/slug.md', 'C:/u\\m/plans', 'win32'))

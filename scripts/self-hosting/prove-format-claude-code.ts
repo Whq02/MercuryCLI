@@ -7,7 +7,7 @@ import { checker, contentsOf, count, guideBattery, openWorld, rulesBattery } fro
 
 const world = openWorld('format-claude')
 const { check: reportCheck, section, close } = checker()
-const check = (label: string, ok: boolean, detail = ''): void => reportCheck(label, ok, ok ? detail : `${detail} [the Claude Code format is read by src/services/instructions/adapters/claudeCode.ts and composed by getInstructionFiles in src/services/instructions/engine.ts; change them, not this proof]`.trim())
+const check = (label: string, ok: boolean, detail = ''): void => reportCheck(label, ok, ok ? detail : `${detail} [the Claude Code format is read by src/sessions/instructions/adapters/claudeCode.ts and composed by getInstructionFiles in src/sessions/instructions/instructionFiles.ts; change them, not this proof]`.trim())
 const always = (body: string): string => body
 const scoped = (patterns: string[], body: string): string => `---\npaths:\n${patterns.map(pattern => `  - "${pattern}"`).join('\n')}\n---\n${body}`
 const personalLayer = (path: string, body: string): string => `Contents of ${path} (user's private project instructions, not checked in):\n\n${body}`

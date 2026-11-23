@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 
 ;(globalThis as any).MACRO = { VERSION: 'proof', PACKAGE_URL: 'https://example.invalid' }
-const { mapSearchResult } = await import('../../src/tools/WebSearchTool/searchOutput.js')
-const { searchPayload, SEARCH_PAYLOAD_TOKEN_CEILING } = await import('../../src/services/search/searchPayload.js')
-const { DUCKDUCKGO_TERMS } = await import('../../src/services/search/searchSetting.js')
-const { KEYED_DOOR_REMEDY, MAX_SNIPPET_CHARS, DEFAULT_MAX_RESULTS, failureLine, viaLine } = await import('../../src/services/search/searchContract.js')
-const { roughTokenCountEstimation } = await import('../../src/services/tokenEstimation.js')
+const { mapSearchResult } = await import('../../src/tools/web-search/searchOutput.js')
+const { searchPayload, SEARCH_PAYLOAD_TOKEN_CEILING } = await import('../../src/tools/engines/web-search/searchPayload.js')
+const { DUCKDUCKGO_TERMS } = await import('../../src/tools/engines/web-search/searchSetting.js')
+const { KEYED_DOOR_REMEDY, MAX_SNIPPET_CHARS, DEFAULT_MAX_RESULTS, failureLine, viaLine } = await import('../../src/tools/engines/web-search/searchContract.js')
+const { roughTokenCountEstimation } = await import('../../src/models/facts/tokenEstimation.js')
 
 const sentence = 'The committee reviewed the quarterly figures while the engineers discussed the migration plan for the service and its rollout. '
 const snippet = sentence.repeat(5).slice(0, MAX_SNIPPET_CHARS)
@@ -23,7 +23,7 @@ const failures = [
 ]
 const unverified = 'Unverified web text; cite relevant URLs as markdown links.'
 const via = viaLine('duckduckgo', 'keyless')
-const honestyLinesWhere = ' | fix mapSearchResult in src/tools/WebSearchTool/searchOutput.ts or searchPayload in src/services/search/searchPayload.ts'
+const honestyLinesWhere = ' | fix mapSearchResult in src/tools/web-search/searchOutput.ts or searchPayload in src/tools/engines/web-search/searchPayload.ts'
 
 const block = mapSearchResult({ query: 'migration plan', results: [{ tool_use_id: 'g1', content: hits }], durationSeconds: 1, via: 'duckduckgo', tier: 'keyless', notes: [DUCKDUCKGO_TERMS, ...failures], hint: KEYED_DOOR_REMEDY }, 'proof')
 const payload = String(block.content)
@@ -35,7 +35,7 @@ assert.ok(parsed.notes.includes(DUCKDUCKGO_TERMS), `the first-use terms notice m
 const whole = searchPayload(hits, [via, unverified])
 const kept = JSON.parse(whole) as { hits: { snippet: string }[] }
 const estimate = roughTokenCountEstimation(JSON.stringify({ hits, notes: [via, unverified] }))
-assert.ok(estimate < SEARCH_PAYLOAD_TOKEN_CEILING, `the full ten-hit answer measures ${estimate} tokens by the tree's own estimator, under the ${SEARCH_PAYLOAD_TOKEN_CEILING} ceiling; the fixture hits or SEARCH_PAYLOAD_TOKEN_CEILING in src/services/search/searchPayload.ts changed${honestyLinesWhere}`)
+assert.ok(estimate < SEARCH_PAYLOAD_TOKEN_CEILING, `the full ten-hit answer measures ${estimate} tokens by the tree's own estimator, under the ${SEARCH_PAYLOAD_TOKEN_CEILING} ceiling; the fixture hits or SEARCH_PAYLOAD_TOKEN_CEILING in src/tools/engines/web-search/searchPayload.ts changed${honestyLinesWhere}`)
 assert.equal(kept.hits.length, DEFAULT_MAX_RESULTS, `an answer whose token estimate is under the ceiling reaches the model whole: ${kept.hits.length} of ${DEFAULT_MAX_RESULTS} hits delivered${honestyLinesWhere}`)
 assert.equal(kept.hits.filter(hit => hit.snippet !== '').length, DEFAULT_MAX_RESULTS, `every delivered hit keeps its snippet: ${kept.hits.filter(hit => hit.snippet !== '').length} of ${DEFAULT_MAX_RESULTS} snippets delivered${honestyLinesWhere}`)
 console.log(`PASS search payload honesty lines: the via line, the unverified line and the terms notice survive the budget; ten hits with snippets (${estimate} estimated tokens) reach the model whole`)

@@ -15,12 +15,12 @@ const section = (t: string, fix = ''): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const cr = await import('../../src/services/compact/checkpointRewind.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { CheckpointTool } = await import('../../src/tools/CheckpointTool/CheckpointTool.tsx')
-const { RewindTool } = await import('../../src/tools/RewindTool/RewindTool.tsx')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
-type Message = import('../../src/types/message.ts').Message
+const cr = await import('../../src/engine/compaction/checkpointRewind.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { CheckpointTool } = await import('../../src/tools/checkpoint/CheckpointTool.tsx')
+const { RewindTool } = await import('../../src/tools/rewind/RewindTool.tsx')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const asst = (blocks: unknown[]): Message => createAssistantMessage({ content: blocks as never }) as Message
 const user = (content: unknown): Message => createUserMessage({ content: content as never }) as Message
@@ -43,7 +43,7 @@ function liveCheckpointHistory(): Message[] {
   ]
 }
 
-section('§A the scan — stateless reconstruction, one-active-max', 'fix findActiveCheckpoint in src/services/compact/checkpointRewind.ts')
+section('§A the scan — stateless reconstruction, one-active-max', 'fix findActiveCheckpoint in src/engine/compaction/checkpointRewind.ts')
 {
   const history = liveCheckpointHistory()
   const active = cr.findActiveCheckpoint(history)
@@ -68,7 +68,7 @@ section('§A the scan — stateless reconstruction, one-active-max', 'fix findAc
   check('a FRESH checkpoint after a rewind is active again', cr.findActiveCheckpoint(newAfter)?.id === 'cp_2')
 }
 
-section('§B the tools — typed refusals, context-only contract', 'fix the call of CheckpointTool in src/tools/CheckpointTool/CheckpointTool.tsx or of RewindTool in src/tools/RewindTool/RewindTool.tsx (their refusal and accepted texts)')
+section('§B the tools — typed refusals, context-only contract', 'fix the call of CheckpointTool in src/tools/checkpoint/CheckpointTool.tsx or of RewindTool in src/tools/rewind/RewindTool.tsx (their refusal and accepted texts)')
 {
   const context = (messages: Message[]): never => ({ messages }) as never
   const nested = await CheckpointTool.call({ goal: 'again' } as never, context(liveCheckpointHistory())).then(
@@ -95,7 +95,7 @@ section('§B the tools — typed refusals, context-only contract', 'fix the call
   check('Rewind on a live checkpoint reports the abandoned count + turn-end application', okData?.abandonedMessages === 3 && (okData.message ?? '').includes('end of this turn'), text(okData))
 }
 
-section('§C the record + the projection', 'fix buildRewindRecordIfSettled, createRewindRecordMessage or projectRewoundWindows in src/services/compact/checkpointRewind.ts')
+section('§C the record + the projection', 'fix buildRewindRecordIfSettled, createRewindRecordMessage or projectRewoundWindows in src/engine/compaction/checkpointRewind.ts')
 {
   const history = liveCheckpointHistory()
   const record = cr.buildRewindRecordIfSettled(
@@ -144,10 +144,10 @@ section('§C the record + the projection', 'fix buildRewindRecordIfSettled, crea
 section('§D the machine, called + registry pins (structural)', '')
 {
   const t = await import('../core-runtime/turnScenarios.ts')
-  const { noToolReply } = await import('../../src/run-core/turn/noToolReply.ts')
-  const { runToolCalls } = await import('../../src/run-core/turn/runToolCalls.ts')
-  const { afterTools } = await import('../../src/run-core/turn/afterTools.ts')
-  const queue = await import('../../src/utils/messageQueueManager.ts')
+  const { noToolReply } = await import('../../src/engine/loop/turn/noToolReply.ts')
+  const { runToolCalls } = await import('../../src/engine/loop/turn/runToolCalls.ts')
+  const { afterTools } = await import('../../src/engine/loop/turn/afterTools.ts')
+  const queue = await import('../../src/daemon/runner/messageQueueManager.ts')
   const f = t.fixtures
   const rowsOf = (decision: unknown): unknown[] => (decision as { next?: { messages?: unknown[] } } | undefined)?.next?.messages ?? []
   const isGuardWarning = (row: unknown): boolean => text(row).includes('A checkpoint is still active')
@@ -162,7 +162,7 @@ section('§D the machine, called + registry pins (structural)', '')
   check(
     'the settle guard sits BEFORE the natural-end completed terminal',
     t.reasonOf(guarded.decision) === 'hand_over checkpoint_settle_guard' && isGuardWarning(warning) && rowsOf(guarded.decision).at(-1) === warning && t.reasonOf(ended.decision) === 'end completed',
-    `a reply with no tool call while a checkpoint is live: ${t.reasonOf(guarded.decision)}; with none live: ${t.reasonOf(ended.decision)} — the checkpoint_settle_guard rule of src/run-core/turn/noToolReply.ts decides before the reply is left to stand, and hands over with its warning as the last row of the next turn`,
+    `a reply with no tool call while a checkpoint is live: ${t.reasonOf(guarded.decision)}; with none live: ${t.reasonOf(ended.decision)} — the checkpoint_settle_guard rule of src/engine/loop/turn/noToolReply.ts decides before the reply is left to stand, and hands over with its warning as the last row of the next turn`,
   )
 
   const twice = await t.runScripted({ tools: [{ name: cr.CHECKPOINT_TOOL_NAME }], seed: f.liveCheckpoint(), script: [f.yields(f.says('the store lives in sessionStorage.')), f.yields(f.says('still digging.'))] })
@@ -192,7 +192,7 @@ section('§D the machine, called + registry pins (structural)', '')
   check(
     'the rewind record appends BEFORE the steering drain closes the round',
     t.reasonOf(closed.decision) === 'hand_over next_turn' && recordAt !== -1 && steerAt !== -1 && recordAt < steerAt && keptForTheModel,
-    `after a settled Rewind with a line queued: ${t.reasonOf(closed.decision)}, the record at row ${recordAt}, the operator's line at row ${steerAt} of ${round.length}, the line in the model's view: ${keptForTheModel} — afterTools of src/run-core/turn/afterTools.ts adds the rewind record to the round before it drains the queue, so the line stands after the record and outside the rewound window`,
+    `after a settled Rewind with a line queued: ${t.reasonOf(closed.decision)}, the record at row ${recordAt}, the operator's line at row ${steerAt} of ${round.length}, the line in the model's view: ${keptForTheModel} — afterTools of src/engine/loop/turn/afterTools.ts adds the rewind record to the round before it drains the queue, so the line stands after the record and outside the rewound window`,
   )
   check('MERCURY_CHECKPOINT_REWIND carries its registry row', getFlagSpec('MERCURY_CHECKPOINT_REWIND') !== undefined, 'add the MERCURY_CHECKPOINT_REWIND row to the flag list in FLAG_REGISTRY')
 }

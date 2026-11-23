@@ -21,7 +21,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const { extractToolCallMarkup } = await import('../../src/services/providers/local/toolCallMarkup.ts')
+const { extractToolCallMarkup } = await import('../../src/models/roads/local/toolCallMarkup.ts')
 
 const TOOLS = [
   { name: 'bash', input_schema: { type: 'object', properties: { command: { type: 'string' }, timeout: { type: 'number' } } } },
@@ -178,7 +178,7 @@ section('6c · bare or fenced JSON (qwen2.5-coder 3B on Ollama drops the <tool_c
 
 section('6d · the headless reader: a tool-call-shaped answer in any shape, declared tool or not, names its calls; prose does not')
 {
-  const { toolCallShapedAnswer } = await import('../../src/services/providers/local/toolCallMarkup.ts')
+  const { toolCallShapedAnswer } = await import('../../src/models/roads/local/toolCallMarkup.ts')
   check('a bare JSON call to an undeclared tool is tool-call-shaped', JSON.stringify(toolCallShapedAnswer('{"name":"Write","arguments":{"file_path":"hello.py","content":"x"}}')) === JSON.stringify({ shape: 'json', names: ['Write'] }), JSON.stringify(toolCallShapedAnswer('{"name":"Write","arguments":{"file_path":"hello.py","content":"x"}}')))
   check('the fenced one too, with prose before it', toolCallShapedAnswer('Creating it:\n```json\n{"name":"Write","arguments":{"file_path":"hello.py","content":"x"}}\n```')?.names[0] === 'Write')
   check('a Qwen XML envelope naming an undeclared function is tool-call-shaped', toolCallShapedAnswer('<tool_call>\n<function=Nope>\n<parameter=x>\n1\n</parameter>\n</function>\n</tool_call>')?.shape === 'qwen-xml')
@@ -214,15 +214,15 @@ const fixture = Bun.serve({
   },
 })
 const root = `http://127.0.0.1:${fixture.port}`
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-type LocalModelRecord = import('../../src/services/providers/local/localDiscovery.ts').LocalModelRecord
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
+const { localLaneProfileFor } = await import('../../src/models/roads/local/localCallModel.ts')
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+type LocalModelRecord = import('../../src/models/roads/local/localDiscovery.ts').LocalModelRecord
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 const ollamaRecord: LocalModelRecord = { id: 'qwen3.5:9b', server: 'ollama', baseUrl: `${root}/v1`, toolsDeclared: true, thinkingDeclared: true, family: 'qwen3', parameterSize: '9B' }
 const llamaRecord: LocalModelRecord = { id: 'glm-4.7-flash', server: 'llamacpp', baseUrl: `${root}/v1`, toolsDeclared: true, thinkingDeclared: false, family: 'glm4', parameterSize: '30B' }
 const READ = FileReadTool.name
@@ -344,7 +344,7 @@ const doneRow = (extra: Record<string, unknown> = {}): Record<string, unknown> =
 }
 
 section('7a · the reported shape (qwen2.5-coder 3B on Ollama, tools declared, the call written as bare or fenced JSON in the content): one Write tool_use mints through the gate, exactly like the other shapes')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const WRITE = FileWriteTool.name
 const coderRecord: LocalModelRecord = { id: 'qwen2.5-coder:3b', server: 'ollama', baseUrl: `${root}/v1`, toolsDeclared: true, thinkingDeclared: false, family: 'qwen2', parameterSize: '3.1B' }
 const writeCall = JSON.stringify({ name: WRITE, arguments: { file_path: '/tmp/hello.py', content: 'print("Hello, world!")\n' } })
@@ -393,9 +393,9 @@ const createAsk = { messages: [createUserMessage({ content: 'Create a file hello
 
 section('7b · the extractor reads the gate\'s own view: a deferred tool ADMITTED this session (its definition rides the ToolSearch result row, not the tools term) mints from markup; the same tool unadmitted stays text')
 {
-  const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-  const { WebFetchTool } = await import('../../src/tools/WebFetchTool/WebFetchTool.ts')
-  const { createAssistantMessage } = await import('../../src/services/messages.ts')
+  const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+  const { WebFetchTool } = await import('../../src/tools/web-fetch/WebFetchTool.ts')
+  const { createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
   const FETCH = WebFetchTool.name
   const pool = [ToolSearchTool, FileReadTool, WebFetchTool]
   const markup = `<tool_call>\n<function=${FETCH}>\n<parameter=url>\nhttps://example.com/\n</parameter>\n<parameter=prompt>\nthe title\n</parameter>\n</function>\n</tool_call>`
@@ -417,8 +417,8 @@ section('8 · TensorFold 1.2.7 leaves a malformed GLM call in the content as tex
 {
   script.tensorfold = true
   process.env.MERCURY_LOCAL_PROBE_TARGETS = `tensorfold=${root}`
-  const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-  const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
+  const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+  const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
   await refreshLocalDiscovery({ force: true })
   const fold = localRecordFor('local/glm-5.3-flash')
   check('the stand-in engine is discovered as a TensorFold record', fold?.server === 'tensorfold', JSON.stringify(fold))

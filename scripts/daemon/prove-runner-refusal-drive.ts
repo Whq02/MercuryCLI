@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
-import type { PermissionRequestParams } from '../../src/runner/wire/methods.ts'
+import type { PermissionRequestParams } from '../../src/daemon/runner-wire/methods.ts'
 import { hostRunner, type HostedRunner } from '../lib/runnerHost.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -13,7 +13,7 @@ const MODEL = 'claude-opus-4-8'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: the quiesce refusals (prepare, commit, cancel) are decided in src/daemon/runnerQuiescence.ts and the live-process hold wording in src/daemon/runnerCapabilityCensus.ts; rebuild with bun run build.ts before the drive' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: the quiesce refusals (prepare, commit, cancel) are decided in src/daemon/runner-link/runnerQuiescence.ts and the live-process hold wording in src/daemon/runner-link/runnerCapabilityCensus.ts; rebuild with bun run build.ts before the drive' : ''}`)
 }
 function section(t: string): void {
   console.log(`\n${t}`)

@@ -16,21 +16,21 @@ process.chdir(cwd)
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const sweepHint = 'fix fileHistoryMakeSnapshot and fileHistoryTrackEdit in src/services/changeTransaction/fileHistory.ts (the stat, read and copy counts per turn, and the source facts kept on each backup record)'
+  const sweepHint = 'fix fileHistoryMakeSnapshot and fileHistoryTrackEdit in src/tools/engines/change-transaction/fileHistory.ts (the stat, read and copy counts per turn, and the source facts kept on each backup record)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${sweepHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(true)
 bootstrap.setOriginalCwd(cwd)
-const fh = await import('../../src/services/changeTransaction/fileHistory.ts')
-type FileHistoryState = import('../../src/types/fileHistory.ts').FileHistoryState
-type FileHistoryBackup = import('../../src/types/fileHistory.ts').FileHistoryBackup
+const fh = await import('../../src/tools/engines/change-transaction/fileHistory.ts')
+type FileHistoryState = import('../../src/sessions/transcripts/fileHistory.ts').FileHistoryState
+type FileHistoryBackup = import('../../src/sessions/transcripts/fileHistory.ts').FileHistoryBackup
 type UUID = import('node:crypto').UUID
 
 let state: FileHistoryState = { snapshots: [], trackedFiles: new Set(), snapshotSequence: 0 }

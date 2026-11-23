@@ -28,8 +28,8 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` — ${hint}` : ''}`)
 }
-const state = await import('../../src/bootstrap/state.ts')
-const owner = await import('../../src/utils/subprocessEnv.ts') as {
+const state = await import('../../src/boot/process-state/processState.ts')
+const owner = await import('../../src/platform/processes/subprocessEnv.ts') as {
   TOOL_SHELL_DEFAULTS?: Readonly<Record<string, string>>
   toolShellEnv?: (env: NodeJS.ProcessEnv, overrides?: NodeJS.ProcessEnv, platform?: string) => NodeJS.ProcessEnv
   withLoginExports?: (env: NodeJS.ProcessEnv, carried: NodeJS.ProcessEnv | undefined, scrubbed: readonly string[], platform?: string) => NodeJS.ProcessEnv
@@ -42,11 +42,11 @@ const names = [...new Set([...Object.keys(defaults), ...Object.keys(windows), 'G
 for (const name of names) delete process.env[name]
 state.setIsInteractive(true)
 if (process.platform !== 'win32') process.env.SHELL = '/bin/bash'
-const { exec, setCwd } = await import('../../src/utils/Shell.ts')
-const { endEngineSession, resolveShellEngine } = await import('../../src/utils/shell/engineSession.ts')
-const { quote } = await import('../../src/utils/bash/shellQuote.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { applyConfigEnvironmentVariables } = await import('../../src/utils/managedEnv.ts')
+const { exec, setCwd } = await import('../../src/platform/shell/shellExec.ts')
+const { endEngineSession, resolveShellEngine } = await import('../../src/platform/shell/engineSession.ts')
+const { quote } = await import('../../src/platform/shell/bash/shellQuote.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { applyConfigEnvironmentVariables } = await import('../../src/platform/environment/settingsEnv.ts')
 const probe = join(scratch, 'environment.cjs')
 writeFileSync(probe, `process.stdout.write(JSON.stringify(Object.fromEntries(${JSON.stringify(names)}.filter(k => process.env[k] !== undefined).map(k => [k, process.env[k]]))))`)
 setCwd(scratch)
@@ -59,7 +59,7 @@ async function readChild(): Promise<NodeJS.ProcessEnv> {
 
 try {
   console.log('defaults')
-  hint = 'fix TOOL_SHELL_DEFAULTS and toolShellEnv in src/utils/subprocessEnv.ts'
+  hint = 'fix TOOL_SHELL_DEFAULTS and toolShellEnv in src/platform/processes/subprocessEnv.ts'
   check('one table owns pager, editor and package prompt defaults', defaults.GH_PAGER === 'cat' && defaults.EDITOR === 'true' && defaults.npm_config_yes === 'false')
   for (const platform of ['darwin', 'linux', 'win32']) {
     const input: NodeJS.ProcessEnv = { PATH: 'staged-path', UNRELATED: 'unchanged' }
@@ -71,7 +71,7 @@ try {
   }
   check('an interactive non-tool child gets no tool defaults', owner.subprocessEnv().GH_PAGER === undefined && owner.subprocessEnv().EDITOR === undefined)
 
-  hint = 'the table in src/utils/subprocessEnv.ts (TOOL_SHELL_DEFAULTS, toolShellEnv) must reach the child through exec in src/utils/Shell.ts on this engine; resolveShellEngine in src/utils/shell/engineSession.ts decides the engine'
+  hint = 'the table in src/platform/processes/subprocessEnv.ts (TOOL_SHELL_DEFAULTS, toolShellEnv) must reach the child through exec in src/platform/shell/shellExec.ts on this engine; resolveShellEngine in src/platform/shell/engineSession.ts decides the engine'
   const engines = process.platform === 'win32' ? ['brush'] : (resolveShellEngine('brush').engine === 'brush' ? ['system', 'brush'] : ['system'])
   for (const engine of engines) {
     await endEngineSession()
@@ -83,7 +83,7 @@ try {
   }
 
   console.log('refusals')
-  hint = 'fix toolShellEnv (or withLoginExports) in src/utils/subprocessEnv.ts: a value the user or the settings already set must win over a default, and Windows keys match case-insensitively'
+  hint = 'fix toolShellEnv (or withLoginExports) in src/platform/processes/subprocessEnv.ts: a value the user or the settings already set must win over a default, and Windows keys match case-insensitively'
   for (const platform of ['darwin', 'linux', 'win32']) {
     const table = platform === 'win32' ? { ...defaults, ...windows } : defaults
     for (const value of ['', 'operator value']) {
@@ -155,7 +155,7 @@ try {
     const loginMerged = owner.withLoginExports({ PATH: 'staged-path' }, { SSH_ASKPASS: '/mingw64/bin/git-askpass.exe', DISPLAY: 'needs-to-be-defined', EXTRA: 'kept' }, [], 'win32')
     check('Windows: login exports never re-introduce Git for Windows askpass or placeholder DISPLAY', loginMerged.SSH_ASKPASS === undefined && loginMerged.DISPLAY === undefined && loginMerged.EXTRA === 'kept', JSON.stringify(loginMerged))
   }
-  hint = 'fix subprocessEnv in src/utils/subprocessEnv.ts: on win32 it stamps the askpass and GCM defaults and clears Git for Windows askpass and the placeholder DISPLAY, and POSIX stays unchanged'
+  hint = 'fix subprocessEnv in src/platform/processes/subprocessEnv.ts: on win32 it stamps the askpass and GCM defaults and clears Git for Windows askpass and the placeholder DISPLAY, and POSIX stays unchanged'
   const savedSubEnv = Object.fromEntries(['SSH_ASKPASS', 'GIT_ASKPASS', 'DISPLAY', 'GCM_INTERACTIVE', 'GIT_TERMINAL_PROMPT', 'PAGER', 'GIT_PAGER'].map(key => [key, process.env[key]]))
   try {
     for (const key of Object.keys(savedSubEnv)) delete process.env[key]
@@ -293,7 +293,7 @@ try {
     }
   }
 
-  hint = 'applyConfigEnvironmentVariables in src/utils/managedEnv.ts must apply the user, project and local settings environment layers, and the tool shell (src/utils/subprocessEnv.ts toolShellEnv) must not override them, empty values included'
+  hint = 'applyConfigEnvironmentVariables in src/platform/environment/settingsEnv.ts must apply the user, project and local settings environment layers, and the tool shell (src/platform/processes/subprocessEnv.ts toolShellEnv) must not override them, empty values included'
   state.setOriginalCwd(scratch)
   mkdirSync(join(scratch, '.mercury'), { recursive: true })
   const userLayer = { PAGER: 'user-pager', GIT_EDITOR: 'user-editor', GH_PAGER: 'user-gh-pager', NO_COLOR: 'user-colour', FORCE_COLOR: '0', CI: 'keep-ci', TERM: 'keep-term' }

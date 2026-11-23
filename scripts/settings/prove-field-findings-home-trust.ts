@@ -20,10 +20,10 @@ function runIn(home: string, body: string): Record<string, unknown> {
     delete process.env.NODE_ENV
     delete process.env.CI
     const os = await import('node:os')
-    const g = await import(${JSON.stringify(join(SRC, 'utils/config/globalConfig.ts'))})
-    const trust = await import(${JSON.stringify(join(SRC, 'utils/config/trust.ts'))})
-    const state = await import(${JSON.stringify(join(SRC, 'bootstrap/state.ts'))})
-    const pathmod = await import(${JSON.stringify(join(SRC, 'utils/path.ts'))})
+    const g = await import(${JSON.stringify(join(SRC, 'platform/config/globalConfig.ts'))})
+    const trust = await import(${JSON.stringify(join(SRC, 'platform/config/trust.ts'))})
+    const state = await import(${JSON.stringify(join(SRC, 'boot/process-state/processState.ts'))})
+    const pathmod = await import(${JSON.stringify(join(SRC, 'platform/files/path.ts'))})
     g.enableConfigs()
     ${body}
   `
@@ -55,9 +55,9 @@ console.log('L1 · a home-root grant never lands on disk; the session latch rise
       sessionLatch: state.getSessionTrustAccepted(),
     }))
   `)
-  check('the child succeeded (no spawn error, signal or non-zero exit hides behind its output)', out.childFailed === undefined, JSON.stringify(out), 'the bun child could not load or run the config and trust modules: read its stderr in the dump above and check the imports of src/utils/config/trust.ts')
-  check('no hasTrustDialogAccepted record keyed on the home root', out.childFailed === undefined && (out.homeRecord === null || out.homeRecord === undefined), JSON.stringify(out), 'setPathTrusted in src/utils/config/trust.ts must not save a record for the home folder: it should only call setSessionTrustAccepted(true)')
-  check('the session latch carries the grant instead', out.sessionLatch === true, JSON.stringify(out), 'setPathTrusted in src/utils/config/trust.ts must call setSessionTrustAccepted(true) for the home folder so getSessionTrustAccepted in src/bootstrap/state.ts reads true')
+  check('the child succeeded (no spawn error, signal or non-zero exit hides behind its output)', out.childFailed === undefined, JSON.stringify(out), 'the bun child could not load or run the config and trust modules: read its stderr in the dump above and check the imports of src/platform/config/trust.ts')
+  check('no hasTrustDialogAccepted record keyed on the home root', out.childFailed === undefined && (out.homeRecord === null || out.homeRecord === undefined), JSON.stringify(out), 'setPathTrusted in src/platform/config/trust.ts must not save a record for the home folder: it should only call setSessionTrustAccepted(true)')
+  check('the session latch carries the grant instead', out.sessionLatch === true, JSON.stringify(out), 'setPathTrusted in src/platform/config/trust.ts must call setSessionTrustAccepted(true) for the home folder so getSessionTrustAccepted in src/boot/process-state/processState.ts reads true')
 }
 
 console.log('L2 · a folder UNDER home still persists (descendants unchanged)')
@@ -72,7 +72,7 @@ console.log('L2 · a folder UNDER home still persists (descendants unchanged)')
     console.log(JSON.stringify({ subRecord: cfg.projects?.[key]?.hasTrustDialogAccepted ?? null }))
   `)
   check('the child succeeded', out.childFailed === undefined, JSON.stringify(out), 'the bun child could not load or run the config and trust modules: read its stderr in the dump above')
-  check('the descendant grant is durable', out.subRecord === true, JSON.stringify(out), 'setPathTrusted in src/utils/config/trust.ts must still save hasTrustDialogAccepted for a folder under home')
+  check('the descendant grant is durable', out.subRecord === true, JSON.stringify(out), 'setPathTrusted in src/platform/config/trust.ts must still save hasTrustDialogAccepted for a folder under home')
 }
 
 console.log('L3 · the boot flow reads the latch (the promise: session only, re-asks next boot)')
@@ -83,7 +83,7 @@ console.log('L3 · the boot flow reads the latch (the promise: session only, re-
     console.log(JSON.stringify({ accepted: trust.checkHasTrustDialogAccepted() }))
   `)
   check('the child succeeded', out.childFailed === undefined, JSON.stringify(out), 'the bun child could not load or run the config and trust modules: read its stderr in the dump above')
-  check('checkHasTrustDialogAccepted is satisfied in-process by the latch', out.accepted === true, JSON.stringify(out), 'computeTrustDialogAccepted in src/utils/config/trust.ts must return true when getSessionTrustAccepted is true')
+  check('checkHasTrustDialogAccepted is satisfied in-process by the latch', out.accepted === true, JSON.stringify(out), 'computeTrustDialogAccepted in src/platform/config/trust.ts must return true when getSessionTrustAccepted is true')
 }
 
 console.log('L0 · a child that prints the expected object and then FAILS is refused')

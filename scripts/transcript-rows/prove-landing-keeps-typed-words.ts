@@ -22,13 +22,13 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail && !ok ? ` — ${detail}` : ''}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const rekeyWhere = ' | fix rekeyToSession, edit or flushDrafts in src/input-core/pending-input.ts'
-const claimWhere = ' | the child process that imports src/input-core/pending-input.ts and calls switchSession in src/bootstrap/state.ts did not exit 0, read its stderr here'
+const rekeyWhere = ' | fix rekeyToSession, edit or flushDrafts in src/screen/composer/input-core/pending-input.ts'
+const claimWhere = ' | the child process that imports src/screen/composer/input-core/pending-input.ts and calls switchSession in src/boot/process-state/processState.ts did not exit 0, read its stderr here'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const state = await import('../../src/bootstrap/state.ts')
-const p = await import('../../src/input-core/pending-input.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const p = await import('../../src/screen/composer/input-core/pending-input.ts')
 
 const src = (rel: string): string => join(ROOT, 'src', rel).replace(/\\/g, '\\\\')
 function project(name: string): string {
@@ -41,10 +41,10 @@ function project(name: string): string {
 function runnerClaims(dir: string, born: string): { ended: boolean; words: string } {
   const script = `
     ;(globalThis).MACRO = { VERSION: '1.0.0' }
-    const { enableConfigs } = await import('${src('utils/config.ts')}')
+    const { enableConfigs } = await import('${src('platform/settings/config.ts')}')
     enableConfigs()
-    await import('${src('input-core/pending-input.ts')}')
-    const { switchSession } = await import('${src('bootstrap/state.ts')}')
+    await import('${src('screen/composer/input-core/pending-input.ts')}')
+    const { switchSession } = await import('${src('boot/process-state/processState.ts')}')
     switchSession(${j(born)}, null)
   `
   const run = spawnSync(process.execPath, ['-e', script], { cwd: dir, encoding: 'utf8', timeout: 60_000, env: { ...process.env, MERCURY_CONFIG_DIR: HOME } })
@@ -67,7 +67,7 @@ console.log('§1 letters typed since the last save stay through a landing whose 
   p.edit('fix the bug')
   const claim = runnerClaims(dir, 'born-session')
   check("the runner's part ran to its end (a process with no composer that switches its identity to the born session, as the claim does)", claim.ended, claim.words + claimWhere)
-  check("the runner's claim moves no page of the composer's: the saved page is still under the screen's own id, none under the born session's", page('boot-screen') === 'fix the' && page('born-session') === null, j({ screen: page('boot-screen'), born: page('born-session') }) + ' | the child process must not write the composer pages: check src/input-core/pending-input.ts module load and onSessionSwitch')
+  check("the runner's claim moves no page of the composer's: the saved page is still under the screen's own id, none under the born session's", page('boot-screen') === 'fix the' && page('born-session') === null, j({ screen: page('boot-screen'), born: page('born-session') }) + ' | the child process must not write the composer pages: check src/screen/composer/input-core/pending-input.ts module load and onSessionSwitch')
   await p.rekeyToSession('born-session', { landing: true })
   check('THE DEFECT PIN: after the landing the composer holds every letter typed, the ones typed since the last save among them', p.text() === 'fix the bug', j(p.text()) + rekeyWhere)
   await p.flushDrafts()
@@ -124,7 +124,7 @@ console.log('\n§3 the laws of the draft that stand as they stood')
   state.switchSession('resumed-session' as never, null)
   const until = Date.now() + 5000
   while (p.text() !== 'words of the resumed session' && Date.now() < until) await new Promise(r => setTimeout(r, 10))
-  check('in a process whose composer is seeded, with no seat in the slot, an identity switch still re-keys the composer to the session it switched to', p.text() === 'words of the resumed session', j(p.text()) + ' | the onSessionSwitch listener in src/input-core/pending-input.ts must call rekeyToSession when switchSession in src/bootstrap/state.ts runs')
+  check('in a process whose composer is seeded, with no seat in the slot, an identity switch still re-keys the composer to the session it switched to', p.text() === 'words of the resumed session', j(p.text()) + ' | the onSessionSwitch listener in src/screen/composer/input-core/pending-input.ts must call rekeyToSession when switchSession in src/boot/process-state/processState.ts runs')
 }
 
 console.log('\n§4 a key that falls into the landing re-key itself')
@@ -243,7 +243,7 @@ console.log('\n§7 a flush waits for a save that is still being written')
   p.edit('seed')
   await p.flushDrafts()
   const file = join(drafts, readdirSync(drafts).find(name => name.endsWith('.json') && !before.has(name))!)
-  const lockfile = await import('../../src/utils/lockfile.ts')
+  const lockfile = await import('../../src/platform/storage/lockfile.ts')
   const release = await lockfile.lock(file)
   p.edit('typed and left alone')
   await new Promise(resolve => setTimeout(resolve, 600))
@@ -255,7 +255,7 @@ console.log('\n§7 a flush waits for a save that is still being written')
   const waited = !returned && page('flight-session') === 'seed'
   await release()
   await flushed
-  check('a flush called while a save the timer started is still being written returns when that page is in the file, and not before', waited && page('flight-session') === 'typed and left alone', j({ returnedBeforeTheWrite: !waited, page: page('flight-session') }) + ' | flushDrafts in src/input-core/pending-input.ts (it returns flushDraftSaves) must wait for a save in flight')
+  check('a flush called while a save the timer started is still being written returns when that page is in the file, and not before', waited && page('flight-session') === 'typed and left alone', j({ returnedBeforeTheWrite: !waited, page: page('flight-session') }) + ' | flushDrafts in src/screen/composer/input-core/pending-input.ts (it returns flushDraftSaves) must wait for a save in flight')
 }
 
 

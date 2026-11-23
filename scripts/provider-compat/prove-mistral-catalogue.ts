@@ -4,26 +4,26 @@ import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import { MISTRAL_FIXTURE_MODELS } from '../providers/lib/mistral-fixture.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_MODEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_DISABLE_1M_CONTEXT']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_MISTRAL_API_BASE = 'http://127.0.0.1:1/v1'
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const cat = await import('../../src/services/providers/mistral/mistralCatalogue.ts')
-const { writeStoredMistralApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-const { catalogueTrafficVerdict } = await import('../../src/services/providers/catalogueGate.ts')
-const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
-const { parseUserSpecifiedModel, getCanonicalName } = await import('../../src/services/model/model.ts')
-const { declaredRouteOf, providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
-const { modelFamilyWords, routeOfFamilyWord } = await import('../../src/services/model/modelFamilies.ts')
-const { mistralCatalogueEntries } = await import('../../src/services/providers/mistral/mistralAdapter.ts')
-const { keyLanePins, getModelOptions, MISTRAL_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
-const { resolveContextWindow, effortVocabularyFor, modelSupportsThinking, modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
-const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
-const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
-const { validateModel } = await import('../../src/services/providers/validateModel.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const cat = await import('../../src/models/roads/mistral/mistralCatalogue.ts')
+const { writeStoredMistralApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { catalogueTrafficVerdict } = await import('../../src/models/roads/catalogueGate.ts')
+const { catalogueEpoch } = await import('../../src/models/roads/catalogueEpoch.ts')
+const { parseUserSpecifiedModel, getCanonicalName } = await import('../../src/models/catalogue/engineModel.ts')
+const { declaredRouteOf, providerDisplayName } = await import('../../src/models/roads/routeLaw.ts')
+const { modelFamilyWords, routeOfFamilyWord } = await import('../../src/models/catalogue/modelFamilies.ts')
+const { mistralCatalogueEntries } = await import('../../src/models/roads/mistral/mistralAdapter.ts')
+const { keyLanePins, getModelOptions, MISTRAL_MODEL_GROUP } = await import('../../src/models/catalogue/modelOptions.ts')
+const { resolveContextWindow, effortVocabularyFor, modelSupportsThinking, modelReceivesImageBlocks } = await import('../../src/models/facts/capabilities.ts')
+const { resolveModelPricing } = await import('../../src/models/usage/modelCost.ts')
+const { providerFrontierFact } = await import('../../src/models/catalogue/providerFrontier.ts')
+const { validateModel } = await import('../../src/models/roads/validateModel.ts')
 let count = 0
-const mistralFailureHint = 'Fix the behaviour this check names in src/services/providers/mistral/mistralCatalogue.ts (refreshMistralCatalogue, mistralCatalogueRows, mistralListedModel, newestMistralModel, getCachedMistralCatalogue) or src/services/providers/mistral/mistralAdapter.ts (mistralCatalogueEntries); for routing, price, context or effort checks see the module the imported function comes from at the top of this file.'
+const mistralFailureHint = 'Fix the behaviour this check names in src/models/roads/mistral/mistralCatalogue.ts (refreshMistralCatalogue, mistralCatalogueRows, mistralListedModel, newestMistralModel, getCachedMistralCatalogue) or src/models/roads/mistral/mistralAdapter.ts (mistralCatalogueEntries); for routing, price, context or effort checks see the module the imported function comes from at the top of this file.'
 const check = (name: string, ok: unknown): void => { assert.ok(ok, `${name} | ${mistralFailureHint}`); count++; console.log(`[PASS] ${name}`) }
 let calls = 0
 const page = (data: unknown[], status = 200): typeof fetch => (async (url, init) => {

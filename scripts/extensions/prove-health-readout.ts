@@ -15,21 +15,21 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.chdir(cwd)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const paths = await import('../../src/extensions/paths.ts')
-const records = await import('../../src/extensions/records.ts')
-const sources = await import('../../src/extensions/sources.ts')
-const install = await import('../../src/extensions/install.ts')
-const rosterMod = await import('../../src/extensions/roster.ts')
-const health = await import('../../src/extensions/health.ts')
-const boot = await import('../../src/extensions/boot.ts')
-const activeMod = await import('../../src/extensions/active.ts')
-const cli = await import('../../src/extensions/cli.ts')
-const manifestMod = await import('../../src/extensions/manifest.ts')
+const paths = await import('../../src/integrations/extensions/paths.ts')
+const records = await import('../../src/integrations/extensions/records.ts')
+const sources = await import('../../src/integrations/extensions/sources.ts')
+const install = await import('../../src/integrations/extensions/install.ts')
+const rosterMod = await import('../../src/integrations/extensions/roster.ts')
+const health = await import('../../src/integrations/extensions/health.ts')
+const boot = await import('../../src/integrations/extensions/boot.ts')
+const activeMod = await import('../../src/integrations/extensions/active.ts')
+const cli = await import('../../src/integrations/extensions/cli.ts')
+const manifestMod = await import('../../src/integrations/extensions/manifest.ts')
 
 let failures = 0
-const WHERE_TO_FIX = 'change computeHealth in src/extensions/health.ts or resolveContributions in src/extensions/load/contributions.ts (the probes that write each reason); the /health row and the readiness rows come from extensionsHealthRow and extensionReadinessRows in src/extensions/boot.ts, the CLI row from listRows in src/extensions/cli.ts'
+const WHERE_TO_FIX = 'change computeHealth in src/integrations/extensions/health.ts or resolveContributions in src/integrations/extensions/load/contributions.ts (the probes that write each reason); the /health row and the readiness rows come from extensionsHealthRow and extensionReadinessRows in src/integrations/extensions/boot.ts, the CLI row from listRows in src/integrations/extensions/cli.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'FAIL' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' | where to fix: ' + WHERE_TO_FIX}`.replace('[FAIL]', cond ? '[PASS]' : '[FAIL]'))
@@ -80,7 +80,7 @@ console.log('[1] broken: each probe with its reason')
   manifest.version = '9.9.9'
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
   {
-    const reloadMod = await import('../../src/extensions/reload.ts')
+    const reloadMod = await import('../../src/integrations/extensions/reload.ts')
     await reloadMod.reloadExtensions({ cwd })
     const afterSwap = entryFor(id)
     const state = rosterMod.trustStateOf(afterSwap)

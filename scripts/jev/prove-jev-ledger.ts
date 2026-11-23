@@ -6,15 +6,15 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + '; ' : ''}fix the function this label names: admission, hold ladder, settle and notices in src/services/jev/jevLedger.ts, rates, labels and the status map in src/services/jev/jevContract.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + '; ' : ''}fix the function this label names: admission, hold ladder, settle and notices in src/models/jev/jevLedger.ts, rates, labels and the status map in src/models/jev/jevContract.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const near = (a: number, b: number, eps = 1e-12): boolean => Math.abs(a - b) <= eps
 
-const contract = await import('../../src/services/jev/jevContract.js')
-const ledger = await import('../../src/services/jev/jevLedger.js')
+const contract = await import('../../src/models/jev/jevContract.js')
+const ledger = await import('../../src/models/jev/jevLedger.js')
 const { JEV_MAX_CALL_USD, JEV_USD_PER_INPUT_TOKEN, jevChargeUsd, jevRefusalNamesCredit, jevUsdLabel, jevWaitLabel, jevWireFailureKindForStatus } = contract
 const {
   JEV_COOL_DOWN_BASE_MS,
@@ -31,7 +31,7 @@ const {
   takeJevNotice,
 } = ledger
 
-const { JEV_DEFAULT_SETTINGS } = await import('../../src/services/jev/jevSetting.js')
+const { JEV_DEFAULT_SETTINGS } = await import('../../src/models/jev/jevSetting.js')
 const defaults = { ...JEV_DEFAULT_SETTINGS, enabled: true }
 check('main default pace is 100/min and the per-agent cap is 200', defaults.pacePerMinute === 100 && contract.JEV_SUBAGENT_CALL_BUDGET === 200, `main ${defaults.pacePerMinute}; cap ${contract.JEV_SUBAGENT_CALL_BUDGET}`)
 const mid = (): number => 0.5
@@ -116,7 +116,7 @@ for (const road of ['official', 'openrouter'] as const) {
   check(`${road}: sub-agents share 50 admitted requests per minute`, admittedAgents === 50, `admitted ${admittedAgents}`)
   const pacedAgent = jevAdmission(settings, T0 + 5000, 'agent-c')
   check(`${road}: a new agent cannot evade the shared 51st-request refusal`, !pacedAgent.ok && pacedAgent.kind === 'subagent-pace-hit' && pacedAgent.retryInMs === 55_000 && /50/.test(pacedAgent.words) && /session/.test(pacedAgent.words), JSON.stringify(pacedAgent))
-  check(`${road}: sub-agent pace is a wait, not a final refusal`, !pacedAgent.ok && !(await import('../../src/services/jev/jevStatus.js')).jevStatusIsFinalForSession(pacedAgent.kind))
+  check(`${road}: sub-agent pace is a wait, not a final refusal`, !pacedAgent.ok && !(await import('../../src/models/jev/jevStatus.js')).jevStatusIsFinalForSession(pacedAgent.kind))
   check(`${road}: the 50 sub-agent attempts leave the main pace free`, jevAdmission(settings, T0 + 5000).ok)
   const attemptsBefore = jevLedgerSnapshot(T0 + 5000, road).attempts
   jevAdmission(settings, T0 + 5000, 'agent-c')

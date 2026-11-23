@@ -22,7 +22,7 @@ if (existsSync(lockPath)) {
   }
   for (const script of ['jsonQueryProcess.mjs', 'jsonQueryWorker.mjs']) {
     const copied = join(pack, script)
-    check(`shipped runner matches its source: ${script}`, existsSync(copied) && readFileSync(copied).equals(readFileSync(join(root, 'src/tools/FileReadTool', script))), '', `rebuild so dist/vendor/json-query/${script} is a copy of src/tools/FileReadTool/${script}`)
+    check(`shipped runner matches its source: ${script}`, existsSync(copied) && readFileSync(copied).equals(readFileSync(join(root, 'src/tools/read', script))), '', `rebuild so dist/vendor/json-query/${script} is a copy of src/tools/read/${script}`)
   }
   const notices = readFileSync(join(root, 'THIRD_PARTY_NOTICES.md'), 'utf8')
   for (const component of lock.components) check(`notices retain ${component.name}`, notices.includes(component.name), '', `add ${component.name} to THIRD_PARTY_NOTICES.md`)

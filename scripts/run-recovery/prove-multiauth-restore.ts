@@ -13,18 +13,18 @@ for (const k of ['MERCURY_BARE', 'MERCURY_MODEL', 'NODE_ENV']) {
 const scratch = mkdtempSync(join(tmpdir(), 'june-multiauth-cwd-'))
 process.chdir(scratch)
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { loadConversationForResume } = await import('../../src/services/resume/conversationRecovery.ts')
+const { loadConversationForResume } = await import('../../src/sessions/resume/conversationRecovery.ts')
 const { restoreConversationModelFromMessages } = await import(
-  '../../src/services/resume/sessionRestore.ts'
+  '../../src/sessions/resume/sessionRestore.ts'
 )
-const { buildAwayRecap } = await import('../../src/utils/cockpit/awaySummary.ts')
-const { summarizeToolResult } = await import('../../src/tools/toolResultSummary.ts')
-const { SYNTHETIC_MODEL } = await import('../../src/utils/messages/factories.ts')
-import type { Message } from '../../src/types/message.ts'
+const { buildAwayRecap } = await import('../../src/screen/cockpit/awaySummary.ts')
+const { summarizeToolResult } = await import('../../src/tools/kit/toolResultSummary.ts')
+const { SYNTHETIC_MODEL } = await import('../../src/engine/message-shapes/factories.ts')
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -230,7 +230,7 @@ const f2 = chainRows(SID2, [
 ])
 const F2_LAST_TS = T0 + STEP * (clock - 1)
 
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
 const f1Path = join(scratch, `${SID1}.jsonl`)
 const f2Path = join(scratch, `${SID2}.jsonl`)
 writeFileSync(f1Path, f1.map(r => encodeTranscriptLine(f1Path, r).line).join(''))
@@ -264,10 +264,10 @@ console.log('\n§1 · the census session: the transcript is whole')
   check(
     `every fixture row exactly once (${f1.length} rows — nothing dropped, nothing doubled)`,
     missing.length === 0,
-    `${missing.map(r => `${r['uuid']} ×${got.get(r['uuid'] as string) ?? 0}`).join(', ')}; loadConversationForResume in src/services/resume/conversationRecovery.ts must return each transcript row exactly once`,
+    `${missing.map(r => `${r['uuid']} ×${got.get(r['uuid'] as string) ?? 0}`).join(', ')}; loadConversationForResume in src/sessions/resume/conversationRecovery.ts must return each transcript row exactly once`,
   )
   const extras = loaded1.messages.filter(m => !f1.some(r => r['uuid'] === (m as { uuid?: string }).uuid))
-  check('resume synthesis adds exactly its two contracted rows', extras.length === 2, `${extras.length} extras; loadConversationForResume in src/services/resume/conversationRecovery.ts must add only the continuation row and the no-response sentinel`)
+  check('resume synthesis adds exactly its two contracted rows', extras.length === 2, `${extras.length} extras; loadConversationForResume in src/sessions/resume/conversationRecovery.ts must add only the continuation row and the no-response sentinel`)
   const cont = extras[0] as { type?: string; isMeta?: boolean; message?: { content?: unknown } } | undefined
   const sent = extras[1] as { type?: string; message?: { content?: unknown; model?: string } } | undefined
   const contBlocks = cont?.message?.content
@@ -277,7 +277,7 @@ console.log('\n§1 · the census session: the transcript is whole')
       cont?.isMeta === true &&
       Array.isArray(contBlocks) &&
       (contBlocks[0] as { text?: string })?.text === 'The previous run ended before its turn finished — stopped from outside or crashed; continue from where you left off.',
-    `type=${cont?.type} isMeta=${cont?.isMeta}; fix the interrupted-turn synthesis in loadConversationForResume (src/services/resume/conversationRecovery.ts)`,
+    `type=${cont?.type} isMeta=${cont?.isMeta}; fix the interrupted-turn synthesis in loadConversationForResume (src/sessions/resume/conversationRecovery.ts)`,
   )
   const sentBlocks = sent?.message?.content
   check(
@@ -286,18 +286,18 @@ console.log('\n§1 · the census session: the transcript is whole')
       sent?.message?.model === SYNTHETIC_MODEL &&
       Array.isArray(sentBlocks) &&
       (sentBlocks[0] as { text?: string })?.text === 'No response requested.',
-    `type=${sent?.type} model=${sent?.message?.model}; fix the sentinel synthesis in loadConversationForResume (src/services/resume/conversationRecovery.ts)`,
+    `type=${sent?.type} model=${sent?.message?.model}; fix the sentinel synthesis in loadConversationForResume (src/sessions/resume/conversationRecovery.ts)`,
   )
   check(
     'the tail is an interrupted prompt (the continuation itself)',
     loaded1.turnInterruptionState.kind === 'interrupted_prompt',
-    `kind=${loaded1.turnInterruptionState.kind}; turnInterruptionState comes from loadConversationForResume in src/services/resume/conversationRecovery.ts`,
+    `kind=${loaded1.turnInterruptionState.kind}; turnInterruptionState comes from loadConversationForResume in src/sessions/resume/conversationRecovery.ts`,
   )
-  check('the walk adopts the transcript tip session id', String(loaded1.sessionId) === SID1, `sessionId=${String(loaded1.sessionId)}; loadConversationForResume in src/services/resume/conversationRecovery.ts must adopt the tip row's sessionId`)
+  check('the walk adopts the transcript tip session id', String(loaded1.sessionId) === SID1, `sessionId=${String(loaded1.sessionId)}; loadConversationForResume in src/sessions/resume/conversationRecovery.ts must adopt the tip row's sessionId`)
   check(
     'the compact boundary and its summary row each survive once',
     got.get(U['f1bound']!) === 1 && got.get(U['f1summ']!) === 1,
-    `boundary x${got.get(U['f1bound']!) ?? 0}, summary x${got.get(U['f1summ']!) ?? 0}; loadConversationForResume in src/services/resume/conversationRecovery.ts must keep the compact boundary and its summary once each`,
+    `boundary x${got.get(U['f1bound']!) ?? 0}, summary x${got.get(U['f1summ']!) ?? 0}; loadConversationForResume in src/sessions/resume/conversationRecovery.ts must keep the compact boundary and its summary once each`,
   )
 }
 
@@ -309,22 +309,22 @@ console.log('\n§2 · dialect fields survive verbatim; absent stays absent')
   check(
     'the Responses turn keeps its apexProviderTurn replay record whole',
     JSON.stringify(a2?.apexProviderTurn) === JSON.stringify(APEX_TURN),
-    `got=${JSON.stringify(a2?.apexProviderTurn)}; the load path in src/services/resume/conversationRecovery.ts must pass apexProviderTurn through unchanged`,
+    `got=${JSON.stringify(a2?.apexProviderTurn)}; the load path in src/sessions/resume/conversationRecovery.ts must pass apexProviderTurn through unchanged`,
   )
   check(
     "the provider usage receipt survives (the wire's own reporting location)",
     a2?.apexProviderTurn?.providerUsage?.inputTokensTotal === 1200 &&
       a2?.apexProviderTurn?.providerUsage?.cachedInputTokens === 200,
-    `providerUsage=${JSON.stringify(a2?.apexProviderTurn?.providerUsage)}; the load path in src/services/resume/conversationRecovery.ts must keep providerUsage inside apexProviderTurn`,
+    `providerUsage=${JSON.stringify(a2?.apexProviderTurn?.providerUsage)}; the load path in src/sessions/resume/conversationRecovery.ts must keep providerUsage inside apexProviderTurn`,
   )
   const sortedJson = (v: unknown): string =>
     JSON.stringify(v, v && typeof v === 'object' ? Object.keys(v as object).sort() : undefined)
-  check('the canonical usage envelope survives beside it', sortedJson(a2?.message?.usage) === sortedJson(CANON_USAGE), `usage=${sortedJson(a2?.message?.usage)}; the load path in src/services/resume/conversationRecovery.ts must keep message.usage unchanged`)
+  check('the canonical usage envelope survives beside it', sortedJson(a2?.message?.usage) === sortedJson(CANON_USAGE), `usage=${sortedJson(a2?.message?.usage)}; the load path in src/sessions/resume/conversationRecovery.ts must keep message.usage unchanged`)
   const a5 = rowOf(loaded1.messages, 'f1a5') as { message?: object } | undefined
   check(
     'the carrier turn that reported NO usage restores with usage ABSENT — never a fabricated envelope',
     a5?.message !== undefined && !('usage' in a5.message),
-    `message=${JSON.stringify(a5?.message)?.slice(0, 200)}; the load path in src/services/resume/conversationRecovery.ts must not add a usage field to a row that had none`,
+    `message=${JSON.stringify(a5?.message)?.slice(0, 200)}; the load path in src/sessions/resume/conversationRecovery.ts must not add a usage field to a row that had none`,
   )
 }
 
@@ -333,12 +333,12 @@ console.log('\n§3 · conversation-model retention across families')
   check(
     'the census session retains the LAST served id — the slash-form carrier (the pre-rewrite gate restored the default here)',
     restoreConversationModelFromMessages(loaded1.messages) === 'openrouter/stealth/ox-alpha',
-    `got=${String(restoreConversationModelFromMessages(loaded1.messages))}; restoreConversationModelFromMessages in src/services/resume/sessionRestore.ts must return the last served model id`,
+    `got=${String(restoreConversationModelFromMessages(loaded1.messages))}; restoreConversationModelFromMessages in src/sessions/resume/sessionRestore.ts must return the last served model id`,
   )
   check(
     "today's shape retains gpt-5.6-sol (the resume sentinel's synthetic model is skipped by provenance)",
     restoreConversationModelFromMessages(loaded2.messages) === 'gpt-5.6-sol',
-    `got=${String(restoreConversationModelFromMessages(loaded2.messages))}; restoreConversationModelFromMessages in src/services/resume/sessionRestore.ts must skip the synthetic sentinel model`,
+    `got=${String(restoreConversationModelFromMessages(loaded2.messages))}; restoreConversationModelFromMessages in src/sessions/resume/sessionRestore.ts must skip the synthetic sentinel model`,
   )
 }
 
@@ -346,10 +346,10 @@ console.log('\n§4 · the resume recap is right (census session)')
 {
   const NOW = F1_LAST_TS + 2 * 3600_000
   const recap = buildAwayRecap(loaded1.messages, NOW, null)
-  check('a recap exists', recap !== null, 'buildAwayRecap in src/utils/cockpit/awaySummary.ts returned null for the loaded messages')
+  check('a recap exists', recap !== null, 'buildAwayRecap in src/screen/cockpit/awaySummary.ts returned null for the loaded messages')
   check('turns count the operator turns only (4 — the compact summary and synthetics excluded)', recap?.turns === 4, String(recap?.turns))
   check('the errored round is a counted failure', recap?.toolFailures === 1, String(recap?.toolFailures))
-  check('the prior run did not end on an error', recap?.endedOnError === false, `endedOnError=${recap?.endedOnError}; see buildAwayRecap in src/utils/cockpit/awaySummary.ts`)
+  check('the prior run did not end on an error', recap?.endedOnError === false, `endedOnError=${recap?.endedOnError}; see buildAwayRecap in src/screen/cockpit/awaySummary.ts`)
   check('files touched counts the one real file', recap?.filesTouched === 1, String(recap?.filesTouched))
   check('top tools are honest counts (every tool the transcript names, the parallel TodoWrite round included)', recap?.topTools === 'Bash×3 TodoWrite×2 Grep×1', recap?.topTools)
   check(
@@ -357,7 +357,7 @@ console.log('\n§4 · the resume recap is right (census session)')
     recap?.lastActiveGapMs === NOW - F1_LAST_TS,
     String(recap?.lastActiveGapMs),
   )
-  check('the line carries the failure truth', recap?.line.includes('1 tool call failed') === true, `${recap?.line}; the line text is built in buildAwayRecap (src/utils/cockpit/awaySummary.ts)`)
+  check('the line carries the failure truth', recap?.line.includes('1 tool call failed') === true, `${recap?.line}; the line text is built in buildAwayRecap (src/screen/cockpit/awaySummary.ts)`)
 }
 
 console.log("\n§5 · today's shape: whole, clean tail, recap right")
@@ -369,13 +369,13 @@ console.log("\n§5 · today's shape: whole, clean tail, recap right")
     missing.length === 0,
     missing.map(r => `${r['uuid']} ×${got.get(r['uuid'] as string) ?? 0}`).join(', '),
   )
-  check('a clean tail adds nothing', loaded2.messages.length === f2.length, `${loaded2.messages.length}; loadConversationForResume in src/services/resume/conversationRecovery.ts must not synthesize rows when the transcript ends cleanly`)
-  check('no interruption on a clean tail', loaded2.turnInterruptionState.kind === 'none', `kind=${loaded2.turnInterruptionState.kind}; turnInterruptionState comes from loadConversationForResume in src/services/resume/conversationRecovery.ts`)
+  check('a clean tail adds nothing', loaded2.messages.length === f2.length, `${loaded2.messages.length}; loadConversationForResume in src/sessions/resume/conversationRecovery.ts must not synthesize rows when the transcript ends cleanly`)
+  check('no interruption on a clean tail', loaded2.turnInterruptionState.kind === 'none', `kind=${loaded2.turnInterruptionState.kind}; turnInterruptionState comes from loadConversationForResume in src/sessions/resume/conversationRecovery.ts`)
   const NOW = F2_LAST_TS + 45 * 60_000
   const recap = buildAwayRecap(loaded2.messages, NOW, null)
   check('turns: 2 operator turns (the prior-resume continuation is meta)', recap?.turns === 2, String(recap?.turns))
   check('top tools count the workflow rounds', recap?.topTools === 'Crewmate×2 Bash×1 Grep×1', recap?.topTools)
-  check('no failures, no error end', recap?.toolFailures === 0 && recap?.endedOnError === false, `toolFailures=${recap?.toolFailures} endedOnError=${recap?.endedOnError}; see buildAwayRecap in src/utils/cockpit/awaySummary.ts`)
+  check('no failures, no error end', recap?.toolFailures === 0 && recap?.endedOnError === false, `toolFailures=${recap?.toolFailures} endedOnError=${recap?.endedOnError}; see buildAwayRecap in src/screen/cockpit/awaySummary.ts`)
   check(
     'the last-active clock reads the real tail',
     recap?.lastActiveGapMs === NOW - F2_LAST_TS,
@@ -383,8 +383,8 @@ console.log("\n§5 · today's shape: whole, clean tail, recap right")
   )
   const r4 = structuredOf(loaded2.messages, 'f2r4') as { totalTokens?: number } | undefined
   const r5 = structuredOf(loaded2.messages, 'f2r5') as { totalTokens?: number } | undefined
-  check('the usage-reporting workflow record survives with its real count', r4?.totalTokens === 45_230, `totalTokens=${r4?.totalTokens}; the load path in src/services/resume/conversationRecovery.ts must keep toolUseResult unchanged`)
-  check('the usage-less workflow record survives with its honest zero', r5?.totalTokens === 0, `totalTokens=${r5?.totalTokens}; the load path in src/services/resume/conversationRecovery.ts must keep toolUseResult unchanged`)
+  check('the usage-reporting workflow record survives with its real count', r4?.totalTokens === 45_230, `totalTokens=${r4?.totalTokens}; the load path in src/sessions/resume/conversationRecovery.ts must keep toolUseResult unchanged`)
+  check('the usage-less workflow record survives with its honest zero', r5?.totalTokens === 0, `totalTokens=${r5?.totalTokens}; the load path in src/sessions/resume/conversationRecovery.ts must keep toolUseResult unchanged`)
 }
 
 console.log('\n§6 · tool-result summaries are truthful per dialect')
@@ -393,32 +393,32 @@ console.log('\n§6 · tool-result summaries are truthful per dialect')
     'Anthropic parallel Bash round: both one-liners, verbatim',
     summarizeToolResult('Bash', structuredOf(loaded1.messages, 'f1r1a')) === 'ok' &&
       summarizeToolResult('Bash', structuredOf(loaded1.messages, 'f1r1b')) === 'clean',
-    'summarizeToolResult in src/tools/toolResultSummary.ts must return the Bash stdout one-liner for a stored result'
+    'summarizeToolResult in src/tools/kit/toolResultSummary.ts must return the Bash stdout one-liner for a stored result'
   )
-  check('Responses Grep round: the real count', summarizeToolResult('Grep', structuredOf(loaded1.messages, 'f1r2')) === 'Found 3 files', 'summarizeToolResult in src/tools/toolResultSummary.ts must summarize a stored Grep result as its file count')
-  check('carrier Read round: the real line count', summarizeToolResult('Read', structuredOf(loaded1.messages, 'f1r5')) === 'Read 12 lines', 'summarizeToolResult in src/tools/toolResultSummary.ts must summarize a stored Read result as its line count')
+  check('Responses Grep round: the real count', summarizeToolResult('Grep', structuredOf(loaded1.messages, 'f1r2')) === 'Found 3 files', 'summarizeToolResult in src/tools/kit/toolResultSummary.ts must summarize a stored Grep result as its file count')
+  check('carrier Read round: the real line count', summarizeToolResult('Read', structuredOf(loaded1.messages, 'f1r5')) === 'Read 12 lines', 'summarizeToolResult in src/tools/kit/toolResultSummary.ts must summarize a stored Read result as its line count')
   check(
     'an errored round carries no structured result — the seam declines',
     structuredOf(loaded1.messages, 'f1rx') === undefined &&
       summarizeToolResult('Bash', structuredOf(loaded1.messages, 'f1rx')) === null,
-    'the load path must not invent toolUseResult for an errored round, and summarizeToolResult (src/tools/toolResultSummary.ts) must return null for it'
+    'the load path must not invent toolUseResult for an errored round, and summarizeToolResult (src/tools/kit/toolResultSummary.ts) must return null for it'
   )
   check(
     'a chat-completions round and a Responses round summarize as truthfully as an Anthropic one',
     summarizeToolResult('Read', structuredOf(loaded2.messages, 'f2r2')) === 'Read 7 lines' &&
       summarizeToolResult('Bash', structuredOf(loaded2.messages, 'f2r3a')) === 'hi' &&
       summarizeToolResult('Grep', structuredOf(loaded2.messages, 'f2r3b')) === 'Found 0 lines',
-    'summarizeToolResult in src/tools/toolResultSummary.ts must summarize Read, Bash and Grep results the same way whatever dialect the row came from'
+    'summarizeToolResult in src/tools/kit/toolResultSummary.ts must summarize Read, Bash and Grep results the same way whatever dialect the row came from'
   )
   check(
     'the seam never invents an Agent one-liner (usage stays off the inline seam)',
     summarizeToolResult('Crewmate', AGENT_RECORD_USAGE) === null && summarizeToolResult('Crewmate', AGENT_RECORD_NO_USAGE) === null,
-    'summarizeToolResult in src/tools/toolResultSummary.ts must return null for a Crewmate record'
+    'summarizeToolResult in src/tools/kit/toolResultSummary.ts must return null for a Crewmate record'
   )
   check(
     'total over corrupt shapes: a string result and a wire {} placeholder decline',
     summarizeToolResult('Bash', 'Error: boom') === null && summarizeToolResult('Read', {}) === null,
-    'summarizeToolResult in src/tools/toolResultSummary.ts must return null for a string or an empty-object result'
+    'summarizeToolResult in src/tools/kit/toolResultSummary.ts must return null for a string or an empty-object result'
   )
 }
 

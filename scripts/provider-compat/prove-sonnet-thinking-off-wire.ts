@@ -2,8 +2,8 @@
 import { proofHome } from '../lib/hermetic.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
-import type { Message } from '../../src/types/message.ts'
-import type { JsonOutputFormat } from '../../src/types/wire.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
+import type { JsonOutputFormat } from '../../src/engine/message-shapes/wire.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const name of Object.keys(process.env)) {
@@ -15,7 +15,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_THINKING_DISPLAY = 'updates'
 
-const HINT = 'to fix, change modelThinkingOffIsBetweenTools in src/utils/model/capabilities.ts or the lines after applyThinkingBinding in src/services/providers/anthropic/streamCore/wireParams.ts'
+const HINT = 'to fix, change modelThinkingOffIsBetweenTools in src/models/facts/capabilities.ts or the lines after applyThinkingBinding in src/models/roads/anthropic/stream-core/wireParams.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail?: string): void {
   if (!cond) failures++
@@ -38,17 +38,17 @@ const fixtureFetch: typeof fetch = (input, init) => {
 }
 globalThis.fetch = fixtureFetch
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { switchSession } = await import('../../src/bootstrap/state.ts')
-const { asSessionId } = await import('../../src/types/ids.ts')
+const { switchSession } = await import('../../src/boot/process-state/processState.ts')
+const { asSessionId } = await import('../../src/sessions/transcripts/ids.ts')
 switchSession(asSessionId('22222222-2222-4222-8222-222222222222'))
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const caps = await import('../../src/utils/model/capabilities.ts')
-const { MESSAGE_EFFORT_BETA_HEADER, THINKING_BINDING_CONTROLS_BETA_HEADER, THINKING_DISPLAY_UPDATES_BETA_HEADER } = await import('../../src/constants/betas.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const caps = await import('../../src/models/facts/capabilities.ts')
+const { MESSAGE_EFFORT_BETA_HEADER, THINKING_BINDING_CONTROLS_BETA_HEADER, THINKING_DISPLAY_UPDATES_BETA_HEADER } = await import('../../src/models/roads/betaHeaders.ts')
 
 type Body = { model?: string; thinking?: unknown; output_config?: { effort?: string; format?: unknown }; messages?: Array<{ role: string; content: unknown; output_config?: unknown }> }
 type Sent = { body: Body; betas: string[]; failed: string | null }

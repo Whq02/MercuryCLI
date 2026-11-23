@@ -7,7 +7,7 @@ import { DIST, FRAMES, NODE, makeTally } from '../daemon/dupline-world.ts'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
-import { getProjectDir } from '../../src/utils/sessionStorage/paths.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/paths.ts'
 
 const VSHOT = join(import.meta.dir, 'vshot.py')
 const tally = makeTally('prove-resume-conversation-drive')

@@ -21,26 +21,26 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
 let checks = 0
 const check = (name: string, truth: unknown, detail?: string) => { assert.ok(truth, detail ? name + ' — ' + detail : name); checks++; console.log('PASS ' + name) }
 try {
-  const { RunpodClient } = await import('../../src/services/host/runpod.ts')
-  const { terminateVerified } = await import('../../src/services/host/keptWeights.ts')
-  const { HostTerminationUnconfirmed } = await import('../../src/services/host/retry.ts')
+  const { RunpodClient } = await import('../../src/models/hosting/runpod.ts')
+  const { terminateVerified } = await import('../../src/models/hosting/keptWeights.ts')
+  const { HostTerminationUnconfirmed } = await import('../../src/models/hosting/retry.ts')
   const api = new RunpodClient('fixture-paging-key', 'http://127.0.0.1:' + server.port + '/v2')
   for (const invalid of ['null', 'empty', 'repeat'] as const) {
     mode = invalid
     const before = requests.length
     await assert.rejects(api.pods(), /incomplete/)
-    check(invalid + ' pagination refuses an incomplete paid-pods list', requests.length > before, 'RunpodClient.pods in src/services/host/runpod.ts must throw the "incomplete" error on a null, empty or repeated nextCursor while hasNextPage is true')
+    check(invalid + ' pagination refuses an incomplete paid-pods list', requests.length > before, 'RunpodClient.pods in src/models/hosting/runpod.ts must throw the "incomplete" error on a null, empty or repeated nextCursor while hasNextPage is true')
   }
   mode = 'complete'
   const listed = await api.pods()
-  check('valid pagination returns every pod and encodes the next cursor', listed.map(row => row.id).join() === 'first-pod,second-pod' && requests.some(row => row.endsWith('?cursor=page%20two')), 'RunpodClient.pods in src/services/host/runpod.ts must follow nextCursor across pages and URL-encode it; requests seen: ' + requests.join(' | '))
+  check('valid pagination returns every pod and encodes the next cursor', listed.map(row => row.id).join() === 'first-pod,second-pod' && requests.some(row => row.endsWith('?cursor=page%20two')), 'RunpodClient.pods in src/models/hosting/runpod.ts must follow nextCursor across pages and URL-encode it; requests seen: ' + requests.join(' | '))
   mode = 'null'
   const signal = new AbortController().signal
   let uncertain: unknown
   try { await terminateVerified(api, 'unseen-paid-pod', (_operation, read) => read(signal)) } catch (error) { uncertain = error }
-  check('termination cannot declare a pod absent from an incomplete list', uncertain instanceof HostTerminationUnconfirmed && deletes === 1 && String(uncertain).includes('did not confirm'), 'terminateVerified in src/services/host/keptWeights.ts must throw HostTerminationUnconfirmed (src/services/host/retry.ts) when the pod list is incomplete; got ' + String(uncertain) + ', deletes=' + deletes)
+  check('termination cannot declare a pod absent from an incomplete list', uncertain instanceof HostTerminationUnconfirmed && deletes === 1 && String(uncertain).includes('did not confirm'), 'terminateVerified in src/models/hosting/keptWeights.ts must throw HostTerminationUnconfirmed (src/models/hosting/retry.ts) when the pod list is incomplete; got ' + String(uncertain) + ', deletes=' + deletes)
   mode = 'gone'
   await terminateVerified(api, 'gone-pod', (_operation, read) => read(signal))
-  check('a complete empty list still verifies a terminated pod', deletes === 2, 'terminateVerified in src/services/host/keptWeights.ts must send one DELETE and accept a complete empty pods list as proof; deletes=' + deletes)
+  check('a complete empty list still verifies a terminated pod', deletes === 2, 'terminateVerified in src/models/hosting/keptWeights.ts must send one DELETE and accept a complete empty pods list as proof; deletes=' + deletes)
   console.log('POD LIST COMPLETENESS GREEN — ' + checks + ' checks; only loopback responses, no real pods')
 } finally { server.stop(true); f.close() }

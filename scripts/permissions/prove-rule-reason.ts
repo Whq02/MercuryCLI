@@ -26,7 +26,7 @@ const frameDir = argAt('--frames')
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let failures = 0
-const ruleReasonHint = 'a rule reason from guardrails.reasons must reach every refusal sentence and the consent card, and no reason must leave the sentence unchanged: fix the road the label names, among src/utils/permissions/ruleReason.ts, permissionsLoader.ts and permissions.ts (hasPermissionsToUseTool) in src/utils/permissions, checkReadPermissionForTool and checkWritePermissionForTool in src/utils/permissions/filesystem.ts, src/tools/BashTool/bashPermissions.ts, and src/components/permissions/PermissionRuleExplanation.tsx'
+const ruleReasonHint = 'a rule reason from guardrails.reasons must reach every refusal sentence and the consent card, and no reason must leave the sentence unchanged: fix the road the label names, among src/permissions/rules/ruleReason.ts, permissionsLoader.ts and permissions.ts (hasPermissionsToUseTool) in src/permissions/rules, checkReadPermissionForTool and checkWritePermissionForTool in src/permissions/rules/filesystem.ts, src/tools/shell/bashPermissions.ts, and src/permissions/cards/PermissionRuleExplanation.tsx'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${ruleReasonHint}` : ''}`)
   if (!ok) failures++
@@ -38,45 +38,45 @@ async function stub(path: string, fixture: () => Record<string, unknown>): Promi
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...fixture() }))
 }
-await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined, useKeybindings: () => undefined }))
+await stub('../../src/screen/keys/useKeybinding.js', () => ({ useKeybinding: () => undefined, useKeybindings: () => undefined }))
 const parseRoutes = new Map<string, unknown>()
 {
-  const ast = await import('../../src/utils/bash/ast.js')
+  const ast = await import('../../src/platform/shell/bash/ast.js')
   const parseUnrouted = ast.parseForSecurity
-  mock.module('../../src/utils/bash/ast.js', () => ({
+  mock.module('../../src/platform/shell/bash/ast.js', () => ({
     ...ast,
     parseForSecurity: async (command: string) => parseRoutes.get(command) ?? parseUnrouted(command),
   }))
 }
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { generateSettingsJSONSchema } = await import('../../src/utils/settings/schemaOutput.js')
-const { SettingsSchema } = await import('../../src/utils/settings/types.js')
-const { validateSettingsFileContent } = await import('../../src/utils/settings/validation.js')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
-const { loadAllPermissionRulesFromDisk } = await import('../../src/utils/permissions/permissionsLoader.js')
-const { applyPermissionRulesToPermissionContext, syncPermissionRulesFromDisk, hasPermissionsToUseTool } = await import('../../src/utils/permissions/permissions.js')
-const { applyPermissionUpdate } = await import('../../src/utils/permissions/PermissionUpdate.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { checkReadPermissionForTool, checkWritePermissionForTool } = await import('../../src/utils/permissions/filesystem.js')
-const { bashToolCheckExactMatchPermission, bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
+const { generateSettingsJSONSchema } = await import('../../src/platform/settings/schemaOutput.js')
+const { SettingsSchema } = await import('../../src/platform/settings/settingsSchema.js')
+const { validateSettingsFileContent } = await import('../../src/platform/settings/validation.js')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
+const { loadAllPermissionRulesFromDisk } = await import('../../src/permissions/rules/permissionsLoader.js')
+const { applyPermissionRulesToPermissionContext, syncPermissionRulesFromDisk, hasPermissionsToUseTool } = await import('../../src/permissions/rules/permissionDoor.js')
+const { applyPermissionUpdate } = await import('../../src/permissions/rules/permissionUpdate.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { checkReadPermissionForTool, checkWritePermissionForTool } = await import('../../src/permissions/rules/filesystem.js')
+const { bashToolCheckExactMatchPermission, bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.js')
 const { checkParsedCommand: bashToolCheckPermission } = await import('../bash/floor-proof-helpers.ts')
-const { PermissionRuleExplanation } = await import('../../src/components/permissions/PermissionRuleExplanation.js')
-const { FallbackPermissionRequest } = await import('../../src/components/permissions/FallbackPermissionRequest.js')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { PermissionRuleExplanation } = await import('../../src/permissions/cards/PermissionRuleExplanation.js')
+const { FallbackPermissionRequest } = await import('../../src/permissions/cards/FallbackPermissionRequest.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 const { default: Ajv2020 } = await import('ajv/dist/2020.js')
 const { checkParsedPaths: checkPathConstraints } = await import('../bash/floor-proof-helpers.ts')
-const { AstEditTool } = await import('../../src/tools/AstEditTool/AstEditTool.js')
-const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.js')
-const { buildAgentLaunchPlan } = await import('../../src/services/crew/agentLaunchPlan.js')
-const { planAstRewrite, resolveAstScope } = await import('../../src/services/structure/astPatterns.js')
-const helper = await import('../../src/utils/permissions/ruleReason.js').catch(() => null)
+const { AstEditTool } = await import('../../src/tools/ast-edit/AstEditTool.js')
+const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.js')
+const { buildAgentLaunchPlan } = await import('../../src/crew/crewmates/agentLaunchPlan.js')
+const { planAstRewrite, resolveAstScope } = await import('../../src/tools/engines/structure/astPatterns.js')
+const helper = await import('../../src/permissions/rules/ruleReason.js').catch(() => null)
 
 type Rule = { source: string; ruleBehavior: string; ruleValue: { toolName: string; ruleContent?: string; reason?: string } }
 type Decision = { behavior: string; message?: string; decisionReason?: { type: string; rule?: Rule } }
@@ -236,7 +236,7 @@ section('§4 THE ENGINE ROAD — a whole-tool deny says the words; the tool-spec
 
 section('§5 THE HELPER — one composer, one specificity order')
 {
-  check('the reason helper module exists', helper !== null, 'src/utils/permissions/ruleReason.ts is absent')
+  check('the reason helper module exists', helper !== null, 'src/permissions/rules/ruleReason.ts is absent')
   if (helper) {
     const h = helper as unknown as {
       refusalWithReason: (sentence: string, reason: string | undefined) => string

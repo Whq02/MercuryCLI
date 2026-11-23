@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: scripts/switchboard/**
-# gate-watch: src/components/concourse/**
-# gate-watch: src/services/switchboard/attachedSession.ts
+# gate-watch: src/screen/concourse/**
+# gate-watch: src/daemon/switchboard/attachedSession.ts
 # gate-watch: scripts/lib/*
-# gate-watch: src/services/engine-connector/*
-# gate-watch: src/services/providers/zai/zaiAdapter.ts
+# gate-watch: src/engine/connector/*
+# gate-watch: src/models/roads/zai/zaiAdapter.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

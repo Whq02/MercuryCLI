@@ -13,8 +13,8 @@ const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
   if (!cond) failures++
 }
 
-const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
-const report = await import('../../src/services/health/healthReport.js')
+const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
+const report = await import('../../src/platform/health/healthReport.js')
 const flagsRow = async (): Promise<{ status: string; evidence: string }> => {
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'flags')
@@ -38,19 +38,19 @@ console.log("\n§2 the row counts the operator's variables only")
     'exactly the operator flags are counted — the stamp is outside the count',
     m !== null && !one.evidence.match(/overridden in env:[^·]*MERCURY_ENTRYPOINT/),
     one.evidence.slice(0, 140),
-    'flagsCheck in src/services/health/sections/settings/sources.ts must leave flags with selfStamped true out of the overridden count and the overridden list',
+    'flagsCheck in src/platform/health/sections/settings/sources.ts must leave flags with selfStamped true out of the overridden count and the overridden list',
   )
   check(
     'the stamp is still visible, named as not an override',
     one.evidence.includes('self-stamped (not an override): MERCURY_ENTRYPOINT'),
     one.evidence.slice(0, 160),
-    'flagsCheck in src/services/health/sections/settings/sources.ts must append the self-stamped (not an override) note (stampNote) naming each stamped flag',
+    'flagsCheck in src/platform/health/sections/settings/sources.ts must append the self-stamped (not an override) note (stampNote) naming each stamped flag',
   )
   const counted = m ? Number(m[1]) : -1
   const operatorSet = FLAG_REGISTRY.filter(
     f => (f as { selfStamped?: true }).selfStamped !== true && process.env[f.env] !== undefined,
   ).length
-  check(`the count matches the operator set (${operatorSet})`, counted === operatorSet, `counted=${counted}`, 'flagsCheck in src/services/health/sections/settings/sources.ts must count exactly the FLAG_REGISTRY flags that are set in the environment and not selfStamped')
+  check(`the count matches the operator set (${operatorSet})`, counted === operatorSet, `counted=${counted}`, 'flagsCheck in src/platform/health/sections/settings/sources.ts must count exactly the FLAG_REGISTRY flags that are set in the environment and not selfStamped')
 }
 
 console.log(failures === 0 ? '\nprove-flags-row-selfstamp: all green' : `\nprove-flags-row-selfstamp: ${failures} FAILURE(S)`)

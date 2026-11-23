@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
-import Ink from '../../src/ink/ink.js'
-import type { FrameEvent } from '../../src/ink/frame.js'
+import Ink from '../../src/screen/renderer/screenInstance.js'
+import type { FrameEvent } from '../../src/screen/renderer/frame.js'
 import stripAnsi from 'strip-ansi'
 
 class ConsoleStream extends EventEmitter {

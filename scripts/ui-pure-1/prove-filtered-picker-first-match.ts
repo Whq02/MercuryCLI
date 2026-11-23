@@ -6,14 +6,14 @@ pinSourceRef()
 const home = pinScratchHome('filtered-picker-first-')
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const React = await import('react')
-const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.tsx')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
+const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.tsx')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
 const h = React.createElement
 const rows = [{ id: 'gpt-6-luna', name: 'GPT-6 Luna', tag: '', ctx: '400k', group: 'OpenAI' }]
 let picked = ''
@@ -24,7 +24,7 @@ if (process.argv.includes('--scene')) {
     React.useEffect(() => { setModels(rows) }, [])
     return scene(models)
   }
-  const { render } = await import('../../src/ink.ts')
+  const { render } = await import('../../src/screen/themedRenderer.ts')
   await render(h(Live), { patchConsole: false })
   await new Promise(() => {})
 }
@@ -37,13 +37,13 @@ try {
   const frame = m.screen()
   const match = /↵ switch/.test(frame) && !/↵ fold/.test(frame)
   console.log(`${match ? 'PASS' : 'FAIL'} the asynchronously loaded filter lands on its first model, not the provider heading`)
-  if (!match) { failed = true; console.log(frame); console.log('hint: when the model list arrives while a filter is set, the cursor must move to the first model row; check the lineSnapshot re-landing block (filtering, firstRowIndex) in MercuryModelPicker in src/components/MercuryModelPicker.tsx') }
+  if (!match) { failed = true; console.log(frame); console.log('hint: when the model list arrives while a filter is set, the cursor must move to the first model row; check the lineSnapshot re-landing block (filtering, firstRowIndex) in MercuryModelPicker in src/commands/model/picker/MercuryModelPicker.tsx') }
   const frames = process.argv.indexOf('--frames')
   if (frames >= 0) { const dir = process.argv[frames + 1]!; mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, 'filtered-first-match.txt'), frame) }
   m.push(KEY.enter)
   await waitFor(() => picked !== '', 3000)
   console.log(`${picked === 'gpt-6-luna' ? 'PASS' : 'FAIL'} Enter selects the matching model: ${picked || 'no selection'}`)
-  if (picked !== 'gpt-6-luna') { failed = true; console.log('hint: Enter on the landed row must call onSelect with that model id; check the cursor landing and the Enter handler in MercuryModelPicker in src/components/MercuryModelPicker.tsx') }
+  if (picked !== 'gpt-6-luna') { failed = true; console.log('hint: Enter on the landed row must call onSelect with that model id; check the cursor landing and the Enter handler in MercuryModelPicker in src/commands/model/picker/MercuryModelPicker.tsx') }
 } finally { m.unmount(); resetOverlayStackForTests(); await releaseScratchHome(home) }
 if (failed) process.exit(1)
 console.log('prove-filtered-picker-first-match: GREEN')

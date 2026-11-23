@@ -34,12 +34,12 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 
-const rankedWhere = ' | fix: src/tools/GrepTool/rankedSearch.ts (rankedSearch, MAX_WORDS, SHORTLIST) and the run pass in rankedCall in src/tools/GrepTool/GrepTool.ts (RANKED_CLOCK_MS)'
+const rankedWhere = ' | fix: src/tools/grep/rankedSearch.ts (rankedSearch, MAX_WORDS, SHORTLIST) and the run pass in rankedCall in src/tools/grep/GrepTool.ts (RANKED_CLOCK_MS)'
 type Call = { args: string[]; target: string; cwd?: string; timeoutMs?: number; at: number }
 const calls: Call[] = []
 let onStart: ((started: number) => void) | null = null
-const ripgrep = { ...(await import('../../src/utils/ripgrep.ts')) }
-mock.module('../../src/utils/ripgrep.js', () => ({
+const ripgrep = { ...(await import('../../src/platform/shell/ripgrep.ts')) }
+mock.module('../../src/platform/shell/ripgrep.js', () => ({
   ...ripgrep,
   ripGrepAnswer: async (args: string[], target: string, signal: AbortSignal, options: { cwd?: string; timeoutMs?: number } = {}) => {
     calls.push({ args, target, ...options, at: performance.now() })
@@ -48,9 +48,9 @@ mock.module('../../src/utils/ripgrep.js', () => ({
   },
 }))
 
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
 
 writeRankedFixture(project)
 type Data = { numFiles: number; filenames: string[]; ranked?: string; incomplete?: string }
@@ -92,7 +92,7 @@ console.log('bounded: twelve counting passes and one line pass at most, each ins
   const reading = calls.filter(pass => !counts(pass))
   check('twenty words in the pattern: twelve are counted, in twelve passes, then one line pass', counting.length === 12 && reading.length === 1 && calls.indexOf(reading[0]!) === 12, `${counting.length} counting, ${reading.length} line${rankedWhere}`)
   check('the answer names the twelve words it counted', (said(data).split('\n')[0]!.match(/\(\d[\d,]*(?: files?)?\)/g) ?? []).length === 12, said(data).split('\n')[0] + rankedWhere)
-  check('every pass is given what is left of the same twenty seconds, never more', calls.every(pass => pass.timeoutMs !== undefined && pass.timeoutMs > 0 && pass.timeoutMs <= 20_000) && calls.every((pass, index) => index === 0 || pass.timeoutMs! <= calls[index - 1]!.timeoutMs!), JSON.stringify(calls.map(pass => pass.timeoutMs)) + ' | fix: the run pass in rankedCall in src/tools/GrepTool/GrepTool.ts must pass the time left of RANKED_CLOCK_MS as timeoutMs')
+  check('every pass is given what is left of the same twenty seconds, never more', calls.every(pass => pass.timeoutMs !== undefined && pass.timeoutMs > 0 && pass.timeoutMs <= 20_000) && calls.every((pass, index) => index === 0 || pass.timeoutMs! <= calls[index - 1]!.timeoutMs!), JSON.stringify(calls.map(pass => pass.timeoutMs)) + ' | fix: the run pass in rankedCall in src/tools/grep/GrepTool.ts must pass the time left of RANKED_CLOCK_MS as timeoutMs')
   check('one ripgrep at a time: a pass starts only when the one before it has ended', calls.every((pass, index) => index === 0 || pass.at >= calls[index - 1]!.at), JSON.stringify(calls.map(pass => Math.round(pass.at))) + rankedWhere)
   check('nothing is left in the temp folder', JSON.stringify(listing(TEMP)) === JSON.stringify(before), JSON.stringify(listing(TEMP)) + rankedWhere)
 }
@@ -158,10 +158,10 @@ console.log('the largest tree: fifty thousand small files, answered or cut insid
   const ended = performance.now()
   onStart = null
   await pause(150)
-  check('the call ends in an abort, not in an answer', thrown !== null && (thrown as { name?: string }).name === 'AbortError', String(thrown) + ' | fix: rankedCall in src/tools/GrepTool/GrepTool.ts must rethrow the abort (signal.throwIfAborted) instead of answering')
-  check('it ends within half a second of the abort', aborted > 0 && ended - aborted < 500, `${Math.round(ended - aborted)} ms after the abort, ${Math.round(ended - began)} ms in all | fix: ripGrepAnswer in src/utils/ripgrep.ts must end its ripgrep when the signal aborts`)
-  check('no pass started after the abort', calls.length === 1 || calls.every(pass => pass.at <= aborted), JSON.stringify(calls.map(pass => Math.round(pass.at - began))) + ' | fix: the run pass in rankedCall in src/tools/GrepTool/GrepTool.ts must call signal.throwIfAborted() before starting a pass')
-  check('no ripgrep of this process is alive', process.platform === 'win32' || (liveRipgrep().length === 0 && ripgrep.endLiveRipgrepChildren() === 0), liveRipgrep().join(' ') + ' | fix: endLiveRipgrepChildren and ripGrepAnswer in src/utils/ripgrep.ts must end every child on abort')
+  check('the call ends in an abort, not in an answer', thrown !== null && (thrown as { name?: string }).name === 'AbortError', String(thrown) + ' | fix: rankedCall in src/tools/grep/GrepTool.ts must rethrow the abort (signal.throwIfAborted) instead of answering')
+  check('it ends within half a second of the abort', aborted > 0 && ended - aborted < 500, `${Math.round(ended - aborted)} ms after the abort, ${Math.round(ended - began)} ms in all | fix: ripGrepAnswer in src/platform/shell/ripgrep.ts must end its ripgrep when the signal aborts`)
+  check('no pass started after the abort', calls.length === 1 || calls.every(pass => pass.at <= aborted), JSON.stringify(calls.map(pass => Math.round(pass.at - began))) + ' | fix: the run pass in rankedCall in src/tools/grep/GrepTool.ts must call signal.throwIfAborted() before starting a pass')
+  check('no ripgrep of this process is alive', process.platform === 'win32' || (liveRipgrep().length === 0 && ripgrep.endLiveRipgrepChildren() === 0), liveRipgrep().join(' ') + ' | fix: endLiveRipgrepChildren and ripGrepAnswer in src/platform/shell/ripgrep.ts must end every child on abort')
   check('nothing is left in the temp folder', JSON.stringify(listing(TEMP)) === JSON.stringify(before), JSON.stringify(listing(TEMP)) + rankedWhere)
   const already = new AbortController()
   already.abort()
@@ -172,7 +172,7 @@ console.log('the largest tree: fifty thousand small files, answered or cut insid
   } catch (error) {
     refused = error
   }
-  check('a call whose signal is already aborted starts no ripgrep at all', refused !== null && calls.length === 0, `${calls.length} passes | fix: the run pass in rankedCall in src/tools/GrepTool/GrepTool.ts must call signal.throwIfAborted() before ripGrepAnswer`)
+  check('a call whose signal is already aborted starts no ripgrep at all', refused !== null && calls.length === 0, `${calls.length} passes | fix: the run pass in rankedCall in src/tools/grep/GrepTool.ts must call signal.throwIfAborted() before ripGrepAnswer`)
 }
 
 rmSync(world, { recursive: true, force: true })

@@ -48,7 +48,7 @@ const WORDS: Array<[string, RegExp]> = [
 
 const EXCLUDED_AREAS: Array<[string, string]> = [
   ['docs/releases/', 'published release pages are history'],
-  ['src/constants/changelogArchive.ts', 'past release notes stay as published'],
+  ['src/commands/update-notes/changelogArchive.ts', 'past release notes stay as published'],
   ['scripts/interview/baselines/', 'frozen journey capture records'],
   ['scripts/visual-contract/baselines/', 'frozen capture records of earlier screens'],
   ['scripts/agent-experience/baselines/', 'frozen mechanical baselines of earlier prompts'],
@@ -128,7 +128,7 @@ const missingPins = PINS.filter(([p]) => !files.includes(p)).map(([p]) => p)
 check('every pin exists', missingPins.length === 0, missingPins.join(', ') + ' (these PINS entries in scripts/identity/prove-view-words-gone.ts name a file git does not track: drop or correct the entry)')
 const idlePins = PINS.filter(([p]) => files.includes(p) && !pinned.has(p)).map(([p]) => p)
 check('every pin still names a retired word (a pin that names none is not a pin)', idlePins.length === 0, idlePins.join(', ') + ' (these PINS entries in scripts/identity/prove-view-words-gone.ts no longer hold a retired word: drop the entry)')
-const modules = ['src/components/mercury-ui/SessionTabs.tsx', 'src/utils/cockpit/sessionsBar.ts', 'src/components/HelmCenterHeader.tsx', 'src/commands/view', 'src/commands/view.ts', J('src/components/HelmTele', 'metryRail.tsx'), J('src/state/tele', 'metryBus.ts'), J('src/utils/cockpit/helmTele', 'metryModel.ts'), J('src/commands/', 'realms'), J('src/utils/realm', 'Registry.ts'), J('src/components/mercury-ui/parity/Realms', 'View.tsx'), J('scripts/', 'realms'), J('src/commands/', 'console'), J('src/utils/cockpit/helm', 'Console.ts'), J('src/utils/cockpit/helm', 'ConsoleAsk.ts'), J('src/utils/cockpit/helm', 'ConsoleText.ts'), J('src/services/crew/console', 'Handoff.ts'), J('src/utils/side', 'Question.ts'), J('scripts/helm-', 'console'), J('scripts/helm-', 'console-drives')]
+const modules = ['src/screen/widgets/SessionTabs.tsx', 'src/screen/cockpit/sessionsBar.ts', 'src/components/HelmCenterHeader.tsx', 'src/commands/view', 'src/commands/view.ts', J('src/components/HelmTele', 'metryRail.tsx'), J('src/state/tele', 'metryBus.ts'), J('src/screen/cockpit/helmTele', 'metryModel.ts'), J('src/commands/', 'realms'), J('src/utils/realm', 'Registry.ts'), J('src/screen/widgets/parity/Realms', 'View.tsx'), J('scripts/', 'realms'), J('src/commands/', 'console'), J('src/screen/cockpit/helm', 'Console.ts'), J('src/screen/cockpit/helm', 'ConsoleAsk.ts'), J('src/screen/cockpit/helm', 'ConsoleText.ts'), J('src/crew/crewmates/console', 'Handoff.ts'), J('src/utils/side', 'Question.ts'), J('scripts/helm-', 'console'), J('scripts/helm-', 'console-drives')]
 const standing = modules.filter(p => existsSync(join(ROOT, p)))
 check('the box module, its switch, the title row module, the box command module, the vitals rail\'s old module, model and bus and the realms command, registry, panel and suite and the console command, store, ask, text, hand-off and side-question modules and suites are gone from the tree', standing.length === 0, standing.join(', ') + ' (delete these paths from the tree, or remove the entry from the modules list in scripts/identity/prove-view-words-gone.ts if it is no longer a retired module)')
 

@@ -5,15 +5,15 @@ const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
 let failures = 0
-const budgetHint = 'to fix, change the function this check names in src/components/permissions/consentBodyBudget.ts (CONSENT_CHROME_ROWS, consentBodyBudget, consentContentWidth, paintedRows, cutToRows, boundLines, boundHunks, totalHunkRows, diffPaintWidth, filePaintWidth)'
+const budgetHint = 'to fix, change the function this check names in src/permissions/cards/consentBodyBudget.ts (CONSENT_CHROME_ROWS, consentBodyBudget, consentContentWidth, paintedRows, cutToRows, boundLines, boundHunks, totalHunkRows, diffPaintWidth, filePaintWidth)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail}` : ''} — ${budgetHint}` : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 
-const owner = await import('../../src/components/permissions/consentBodyBudget.ts')
-const { stringWidth } = await import('../../src/ink/stringWidth.ts')
+const owner = await import('../../src/permissions/cards/consentBodyBudget.ts')
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.ts')
 const {
   CONSENT_BODY_MIN_ROWS,
   CONSENT_CHROME_ROWS,
@@ -103,7 +103,7 @@ section('§3 the paint widths — the content box, the diff gutter, the file gut
 
 
 {
-  const budget = await import('../../src/components/permissions/consentBodyBudget.ts')
+  const budget = await import('../../src/permissions/cards/consentBodyBudget.ts')
   check('at 100 columns the diff paints inside the row (the card\'s borders and paddings spent)', budget.consentContentWidth(100) < 100 && budget.consentContentWidth(100) >= 90, `${budget.consentContentWidth(100)}`)
 }
 

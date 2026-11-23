@@ -9,11 +9,11 @@ process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 delete process.env.MERCURY_HOME
 
-const writer = await import(join(SRC, 'utils/sessionStorage/writer.ts'))
+const writer = await import(join(SRC, 'sessions/transcripts/writer.ts'))
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' | to fix, change the drain of the write queue (_drainWriteQueueInner in src/utils/sessionStorage/writer/queue.ts) so one file that cannot be written does not stop the others and keeps its queued entries, flushSessionStorage in src/utils/sessionStorage/writer.ts so it reports every failing file, or transcriptStoreHealth in src/utils/sessionStorage/writer/storeHealth.ts'}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' | to fix, change the drain of the write queue (_drainWriteQueueInner in src/sessions/transcripts/writer/queue.ts) so one file that cannot be written does not stop the others and keeps its queued entries, flushSessionStorage in src/sessions/transcripts/writer.ts so it reports every failing file, or transcriptStoreHealth in src/sessions/transcripts/writer/storeHealth.ts'}`)
   if (!ok) failures = 1
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))

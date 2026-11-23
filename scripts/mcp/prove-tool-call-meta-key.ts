@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/mcp/client.ts
+// gate-watch: src/integrations/mcp/client.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync } from 'node:fs'
@@ -25,10 +25,10 @@ console.log("every MCP tools/call carries the tool-use id under Mercury's own _m
 
 const { Client } = await import('@modelcontextprotocol/client')
 const { InMemoryTransport, Server } = await import('@modelcontextprotocol/server')
-const mcp = await import('../../src/services/mcp/client.ts')
+const mcp = await import('../../src/integrations/mcp/client.ts')
 const KEY = (mcp as { MCP_TOOL_USE_ID_META_KEY?: string }).MCP_TOOL_USE_ID_META_KEY
 
-check("the key is exported and Mercury-prefixed", KEY === 'mercury/toolUseId', String(KEY) + '; restore the constant MCP_TOOL_USE_ID_META_KEY in src/services/mcp/client/limits.ts (re-exported by src/services/mcp/client.ts)')
+check("the key is exported and Mercury-prefixed", KEY === 'mercury/toolUseId', String(KEY) + '; restore the constant MCP_TOOL_USE_ID_META_KEY in src/integrations/mcp/client/limits.ts (re-exported by src/integrations/mcp/client.ts)')
 
 const seen: Array<Record<string, unknown> | undefined> = []
 const server = new Server({ name: 'meta-prover', version: '1.0.0' }, { capabilities: { tools: {} } })
@@ -62,12 +62,12 @@ const withId = await mcp.callMCPToolWithUrlElicitationRetry({
   parentMessage: parentFor('toolu_meta_0001') as never,
 } as never)
 const meta = seen[0]
-check('the server received a _meta block on the call', meta !== undefined && typeof meta === 'object', JSON.stringify(meta) + '; callToolOnce in src/services/mcp/client.ts must send _meta on tools/call whenever the parent message has a tool-use id')
-check("…carrying the tool-use id under 'mercury/toolUseId'", meta?.['mercury/toolUseId'] === 'toolu_meta_0001', JSON.stringify(meta) + '; callToolOnce in src/services/mcp/client.ts must put the tool-use id under MCP_TOOL_USE_ID_META_KEY')
-check('…and the progress token beside it (the same id)', meta?.progressToken === 'toolu_meta_0001', JSON.stringify(meta) + '; callToolOnce in src/services/mcp/client.ts must send progressToken equal to the tool-use id')
-check('the id rides under no other key', meta !== undefined && Object.keys(meta).sort().join(',') === 'mercury/toolUseId,progressToken', JSON.stringify(meta) + '; callToolOnce in src/services/mcp/client.ts must send only these two _meta keys')
+check('the server received a _meta block on the call', meta !== undefined && typeof meta === 'object', JSON.stringify(meta) + '; callToolOnce in src/integrations/mcp/client.ts must send _meta on tools/call whenever the parent message has a tool-use id')
+check("…carrying the tool-use id under 'mercury/toolUseId'", meta?.['mercury/toolUseId'] === 'toolu_meta_0001', JSON.stringify(meta) + '; callToolOnce in src/integrations/mcp/client.ts must put the tool-use id under MCP_TOOL_USE_ID_META_KEY')
+check('…and the progress token beside it (the same id)', meta?.progressToken === 'toolu_meta_0001', JSON.stringify(meta) + '; callToolOnce in src/integrations/mcp/client.ts must send progressToken equal to the tool-use id')
+check('the id rides under no other key', meta !== undefined && Object.keys(meta).sort().join(',') === 'mercury/toolUseId,progressToken', JSON.stringify(meta) + '; callToolOnce in src/integrations/mcp/client.ts must send only these two _meta keys')
 const echoed = Array.isArray(withId.content) ? ((withId.content[0] as { text?: string } | undefined)?.text ?? '') : ''
-check("the server's echo of the wire shows the same key", echoed.includes('"mercury/toolUseId":"toolu_meta_0001"'), echoed + '; the _meta that callToolOnce in src/services/mcp/client.ts sends must reach the server unchanged')
+check("the server's echo of the wire shows the same key", echoed.includes('"mercury/toolUseId":"toolu_meta_0001"'), echoed + '; the _meta that callToolOnce in src/integrations/mcp/client.ts sends must reach the server unchanged')
 
 
 unseat()

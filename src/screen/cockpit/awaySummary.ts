@@ -1,0 +1,181 @@
+import type { CompactMetadata, Message } from '../../engine/message-shapes/message.js'
+import { compactWorkOf } from './turnReceipt.js'
+import { isMercurySubstrateProfileOn } from '../../platform/settings/config.js'
+import { isEnvTruthy } from '../../platform/environment/envUtils.js'
+import { flagEnv } from '../../platform/substrate/flagRegistry.js'
+import { isOperatorTurn } from '../../engine/message-shapes/operatorTurns.js'
+
+
+export function isAwaySummaryEnabled(): boolean {
+  
+  const flag = flagEnv('MERCURY_AWAY_SUMMARY')
+  if (flag === '0' || flag?.toLowerCase() === 'false') return false
+  if (isEnvTruthy(flag)) return true
+  return isMercurySubstrateProfileOn()
+}
+
+export function humanGap(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return ''
+  const min = Math.floor(ms / 60_000)
+  if (min < 1) return 'just now'
+  if (min < 60) return `${min}m ago`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `${hr}h ago`
+  const d = Math.floor(hr / 24)
+  return `${d}d ago`
+}
+
+type Block = { type?: string; id?: string; name?: string; input?: unknown; text?: string }
+
+function isSyntheticResumeAssistant(m: Message): boolean {
+  if (m.type !== 'assistant') return false
+  const content = (m as { message?: { content?: unknown } }).message?.content
+  if (typeof content === 'string') return content === 'No response requested.'
+  if (Array.isArray(content) && content.length === 1) {
+    const b = content[0] as Block
+    return b?.type === 'text' && b.text === 'No response requested.'
+  }
+  return false
+}
+
+function isSyntheticOrMeta(m: Message): boolean {
+  if (isSyntheticResumeAssistant(m)) return true
+  const um = m as { isMeta?: boolean }
+  return um.isMeta === true
+}
+
+function filesOf(input: unknown): string[] {
+  if (!input || typeof input !== 'object') return []
+  const o = input as Record<string, unknown>
+  const out: string[] = []
+  for (const k of ['file_path', 'notebook_path', 'path']) {
+    const v = o[k]
+    if (typeof v === 'string' && v.length > 0) {
+      out.push(v)
+      break
+    }
+  }
+  if (Array.isArray(o.changes)) {
+    for (const change of o.changes as Array<{ file_path?: unknown }>) {
+      if (typeof change?.file_path === 'string' && change.file_path.length > 0) out.push(change.file_path)
+    }
+  }
+  return out
+}
+
+type AwayRecap = {
+  line: string
+  endedOnError: boolean
+  turns: number
+  filesTouched: number
+  topTools: string
+  toolFailures: number
+  lastActiveGapMs?: number
+  gitDelta?: { files: number; added: number; removed: number } | null
+}
+
+export function buildAwayRecap(
+  messages: Message[],
+  nowMs: number,
+  gitDelta?: { files: number; added: number; removed: number } | null,
+): AwayRecap | null {
+  if (!Array.isArray(messages) || messages.length === 0) return null
+
+  const work = collectAwayWork(messages)
+  const { turns, toolFailures } = work
+  const toolCounts = new Map(work.toolCounts)
+  const files = new Set(work.files)
+  let lastTs = 0
+  let lastAssistant: Message | null = null
+  for (const m of messages) {
+    if (isSyntheticOrMeta(m)) continue
+    const ts = Date.parse((m as { timestamp?: string }).timestamp ?? '')
+    if (Number.isFinite(ts) && ts > lastTs) lastTs = ts
+    if (m.type === 'assistant') lastAssistant = m
+  }
+
+  const totalToolUse = [...toolCounts.values()].reduce((a, b) => a + b, 0)
+  if (turns === 0 && totalToolUse === 0) return null
+
+  const parts: string[] = []
+  parts.push(`${turns} turn${turns === 1 ? '' : 's'}`)
+  if (files.size > 0) parts.push(`${files.size} file${files.size === 1 ? '' : 's'} touched`)
+  if (toolFailures > 0) {
+    parts.push(`${toolFailures} tool call${toolFailures === 1 ? '' : 's'} failed`)
+  }
+  const gap = lastTs > 0 ? humanGap(nowMs - lastTs) : ''
+  if (gap) parts.push(`last active ${gap}`)
+
+  if (gitDelta && gitDelta.files > 0) {
+    const d =
+      gitDelta.added > 0 || gitDelta.removed > 0
+        ? ` (+${gitDelta.added}/-${gitDelta.removed})`
+        : ''
+    parts.push(`${gitDelta.files} uncommitted${d}`)
+  }
+
+  const le = lastAssistant as { error?: unknown; isApiErrorMessage?: boolean } | null
+  const endedOnError = !!le && (le.error != null || le.isApiErrorMessage === true)
+  if (endedOnError) {
+    parts.unshift('prior run ended on an error')
+  }
+
+  const top = [...toolCounts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 3)
+    .map(([name, n]) => `${name}×${n}`)
+
+  let line = `Resumed — ${parts.join(', ')}`
+  if (top.length > 0) line += ` · ${top.join(' ')}`
+  return {
+    line,
+    endedOnError,
+    turns,
+    filesTouched: files.size,
+    topTools: top.join(' '),
+    toolFailures,
+    ...(lastTs > 0 ? { lastActiveGapMs: nowMs - lastTs } : {}),
+    gitDelta,
+  }
+}
+
+export function buildAwaySummary(
+  messages: Message[],
+  nowMs: number,
+  gitDelta?: { files: number; added: number; removed: number } | null,
+): string | null {
+  return buildAwayRecap(messages, nowMs, gitDelta)?.line ?? null
+}
+
+export function collectAwayWork(
+  messages: Message[],
+  excludedUuids: ReadonlySet<string> = new Set(),
+): NonNullable<CompactMetadata['work']>['recap'] {
+  const prior = compactWorkOf(messages)?.recap
+  let turns = prior?.turns ?? 0
+  let toolFailures = prior?.toolFailures ?? 0
+  const toolCounts = new Map(prior?.toolCounts ?? [])
+  const files = new Set(prior?.files ?? [])
+  const failedToolUseIds = new Set(prior?.failedToolUseIds ?? [])
+  for (const m of messages) {
+    if (m.type !== 'user' || !Array.isArray(m.message.content)) continue
+    for (const b of m.message.content) {
+      if (b.type !== 'tool_result' || b.is_error !== true) continue
+      if (!excludedUuids.has(m.uuid)) toolFailures++
+      if (typeof b.tool_use_id === 'string' && b.tool_use_id.length > 0) failedToolUseIds.add(b.tool_use_id)
+    }
+  }
+  for (const m of messages) {
+    if (excludedUuids.has(m.uuid)) continue
+    if (isOperatorTurn(m)) turns++
+    if (isSyntheticOrMeta(m) || m.type !== 'assistant' || !Array.isArray(m.message.content)) continue
+    for (const raw of m.message.content) {
+      const b = raw as Block
+      if (b.type !== 'tool_use' || typeof b.name !== 'string' || b.name.length === 0) continue
+      toolCounts.set(b.name, (toolCounts.get(b.name) ?? 0) + 1)
+      if (typeof b.id === 'string' && failedToolUseIds.has(b.id)) continue
+      for (const file of filesOf(b.input)) files.add(file)
+    }
+  }
+  return { turns, toolCounts: [...toolCounts], files: [...files], toolFailures, failedToolUseIds: [...failedToolUseIds] }
+}

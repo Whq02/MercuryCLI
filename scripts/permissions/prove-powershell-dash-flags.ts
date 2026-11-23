@@ -11,7 +11,7 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.on('exit', () => rmSync(home, { recursive: true, force: true }))
 
-const { isAllowlistedCommand } = await import('../../src/tools/PowerShellTool/readOnlyValidation.js')
+const { isAllowlistedCommand } = await import('../../src/tools/powershell/readOnlyValidation.js')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {

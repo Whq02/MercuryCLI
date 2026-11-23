@@ -17,13 +17,13 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-;(await import('../../src/utils/config.ts')).enableConfigs()
+;(await import('../../src/platform/settings/config.ts')).enableConfigs()
 const React = await import('react')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { ModelPicker } = await import('../../src/components/ModelPicker.tsx')
-const { getModelOptions, isCatalogueDoorRow, isProviderActionRow } = await import('../../src/services/model/modelOptions.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { ModelPicker } = await import('../../src/screen/model-picker/ModelPicker.tsx')
+const { getModelOptions, isCatalogueDoorRow, isProviderActionRow } = await import('../../src/models/catalogue/modelOptions.ts')
 
 const wanted = getModelOptions().filter(option => !option.unavailable && !isCatalogueDoorRow(option.value))
 const actions = wanted.filter(option => isProviderActionRow(option.value))

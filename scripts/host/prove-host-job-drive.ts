@@ -14,9 +14,9 @@ const bundle = resolve(option('--bundle') ?? join(import.meta.dir, '../../dist/m
 const frames = option('--frames')
 if (frames) mkdirSync(frames, { recursive: true })
 let checks = 0
-const check = (name: string, truth: unknown) => { assert.ok(truth, name + ' — change the host path it exercises under src/services/host (ssh.ts startHostEngine, jobs.ts, store.ts, notices.ts); rerun with --frames <dir> to keep the screens and daemon.log'); checks++; console.log('PASS ' + name) }
-const { startHostEngine } = await import('../../src/services/host/ssh.ts')
-const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+const check = (name: string, truth: unknown) => { assert.ok(truth, name + ' — change the host path it exercises under src/models/hosting (ssh.ts startHostEngine, jobs.ts, store.ts, notices.ts); rerun with --frames <dir> to keep the screens and daemon.log'); checks++; console.log('PASS ' + name) }
+const { startHostEngine } = await import('../../src/models/hosting/ssh.ts')
+const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
 const llamaRecipe = HOST_RECIPES.find(row => row.engine === 'llamacpp')!
 check('shipped llama.cpp images are digest-pinned', HOST_RECIPES.filter(row => row.engine === 'llamacpp').every(row => /^ghcr\.io\/whq02\/mercury-llamacpp@sha256:[a-f0-9]{64}$/.test(row.image)))
 const imageCommands: string[] = []
@@ -37,7 +37,7 @@ writeFileSync(imageRecipes, JSON.stringify({ version: 1, publishedAt: '2026-10-2
 process.env.MERCURY_HOST_RECIPES_FILE = imageRecipes
 f.state.dialect = 'llamacpp'; f.state.window = 131072; f.state.slots = 4
 const rp = await runpodFixture()
-const { settingsChangeDetector } = await import('../../src/utils/settings/changeDetector.ts')
+const { settingsChangeDetector } = await import('../../src/platform/settings/changeDetector.ts')
 await settingsChangeDetector.initialize()
 let m: Mounted | undefined
 let daemon: ChildProcess | undefined
@@ -54,23 +54,23 @@ const startDaemon = () => {
 }
 process.env.MERCURY_DAEMON_DIR = join(f.home, 'daemon')
 startDaemon()
-const { hostRecords, readHostRecord, patchHostRecord } = await import('../../src/services/host/store.ts')
-const { stopHostSetup, sweepHostJobs } = await import('../../src/services/host/jobs.ts')
-const { reconcileRecord } = await import('../../src/services/projectServices/serviceManager.ts')
-const { deliverHostNotices } = await import('../../src/services/host/notices.ts')
-const { getCommandQueue, resetCommandQueue } = await import('../../src/utils/messageQueueManager.ts')
+const { hostRecords, readHostRecord, patchHostRecord } = await import('../../src/models/hosting/store.ts')
+const { stopHostSetup, sweepHostJobs } = await import('../../src/models/hosting/jobs.ts')
+const { reconcileRecord } = await import('../../src/tools/engines/project-services/serviceManager.ts')
+const { deliverHostNotices } = await import('../../src/models/hosting/notices.ts')
+const { getCommandQueue, resetCommandQueue } = await import('../../src/daemon/runner/messageQueueManager.ts')
 try {
   check('built daemon owns the control plane', await waitFor(() => daemonLog.includes('control socket up'), 20000))
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { RunpodClient } = await import('../../src/services/host/runpod.ts')
-  const { namedCompatModelOptions, refreshCompatCatalogues } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { RunpodClient } = await import('../../src/models/hosting/runpod.ts')
+  const { namedCompatModelOptions, refreshCompatCatalogues } = await import('../../src/models/roads/openaicompat/compatCatalogue.ts')
   const road = createHostRoad({ apiBaseUrl: rp.baseUrl, sessionId: 'rental-session' })
   const open = () => popup.openSettingsPopup(llmHostPopupRequest(road))
   open()
@@ -141,7 +141,7 @@ try {
   assert.deepEqual(ready.steps!.filter(row => !row.step.startsWith('downloading weights on the machine ·') && !row.step.startsWith('tunnel on ')).map(row => row.step), ['waiting for SSH', 'checking engine', 'using prebuilt engine', 'downloading weights on the machine', 'starting engine', 'ready'])
   check('durable step sequence and local log survive runner ownership changes', readFileSync(ready.log!, 'utf8').includes('fixture weights are downloading'))
   const settings = JSON.parse(readFileSync(join(f.home, 'settings.json'), 'utf8'))
-  const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
+  const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
   check('background registration keeps the llama.cpp dialect', settings.compatProvider[ready.provider!].dialect === 'llamacpp')
   await refreshCompatCatalogues({ force: true })
   check('/model can enumerate the registered server and per-slot context window through the settings watcher', await waitFor(() => namedCompatModelOptions().some(row => row.value === 'compat/' + ready.provider + '/' + f.model) && getContextWindowForModel('compat/' + ready.provider + '/' + f.model) === 131072, 10000))
@@ -158,7 +158,7 @@ try {
   assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'the terminated pod window closes before the next rental opens')
   check('terminated pod is verified absent', !readHostRecord(id) && !rp.state.pods.has(id))
   const stalled = { ...ready, id: 'fixture-stalled', name: 'fixture-stalled', jobState: 'running' as const, generation: 'stall-generation', step: 'building llama.cpp', advancedAt: Date.now() - 250, error: undefined }
-  const { writeHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
+  const { writeHostRecord, removeHostRecord } = await import('../../src/models/hosting/store.ts')
   writeHostRecord(stalled)
   await sweepHostJobs({ stallMs: 100, alive: () => true }); deliverHostNotices('rental-session')
   check('stalled progress raises the notice within a scaled window', getCommandQueue().some(row => String(row.value).includes('fixture-stalled · setup stalled at building llama.cpp')))
@@ -219,8 +219,8 @@ try {
   const rented = hostRecords().find(row => row.watchedFrom === watch.id)!; workers.add(rented.id)
   check('the watch-rented pod is recorded like a door rental and its setup runs in its own project service', rented.sessionId === 'rental-session' && rented.sshKey === join(f.home, 'host', 'keys', 'id_ed25519') && rented.workspace === process.cwd() && reconcileRecord(join(f.home, 'host'), 'host-' + rented.id)?.spec.lifecycle === 'project' && !readHostRecord(watch.id) && rp.state.creates === 4)
   deliverHostNotices('rental-session')
-  const { taskNoticeBlock } = await import('../../src/utils/messages/noticeRows.ts')
-  const { isHeldNotice } = await import('../../src/input-core/command-queue.ts')
+  const { taskNoticeBlock } = await import('../../src/engine/message-shapes/noticeRows.ts')
+  const { isHeldNotice } = await import('../../src/screen/composer/input-core/command-queue.ts')
   check('the rented notice reaches the renting session on the settled-task road', getCommandQueue().some(row => isHeldNotice(row) && taskNoticeBlock(String(row.value))?.lines.join('\n') === 'Rented GLM-5.3-Flash · 1× B300 · $8.99/hr in EU-NL-1 · setting up'))
   open(); await screen('Where should the model run?'); await choose(rented.id); await screen('Machine controls'); await choose('Terminate'); await screen('Confirm terminate'); await choose('Confirm terminate'); await screen('Machine terminated')
   rp.state.stockAfterReads = 0

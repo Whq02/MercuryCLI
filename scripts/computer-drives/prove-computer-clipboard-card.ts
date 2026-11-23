@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, drive, endLeg, finish, joined, OPENING, printFrame, requireCaptureDriver, scratch, SIZES, startLeg } from '../computer/computerDriveKit.ts'
-import { ansiToPng } from '../../src/utils/ansiToPng.ts'
+import { ansiToPng } from '../../src/integrations/desktop/ansiToPng.ts'
 
 const driver = requireCaptureDriver('computer-drives')
 for (const size of SIZES) {
@@ -11,9 +11,9 @@ for (const size of SIZES) {
   const rows = result.marks.clipboard ?? []
   const text = joined(rows)
   printFrame(`clipboard ${size.cols}`, rows)
-  check(`${size.cols}: clipboard consent appears in the real terminal`, result.status === 0 && text.includes('Allow Mercury to read the clipboard text?') && text.includes('read clipboard'), `${result.endReason}: ${result.stderr.slice(-300)} — the clipboard read must raise its own consent card: check the clipboard branch of the question and options in src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx and the clipboard ask in src/tools/ComputerTool/ComputerTool.ts`)
-  check(`${size.cols}: an app grant is not presented as clipboard consent`, !text.includes('the first act this session') && !text.includes('for this session') && !text.includes('for 1 hour') && !text.includes('for 24 hours') && !text.includes('drive your mouse') && !text.includes('needs separate consent'), `${text} — the clipboard card must not reuse the app-grant wording: check the clipboard branch in src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx`)
-  check(`${size.cols}: a plain Yes, No and sovereign remain available`, text.includes('1. Yes') && !text.includes('1. Yes,') && text.includes('2. No, and tell Mercury') && text.includes('3. Enable sovereign mode'), `${text} — the card must offer plain Yes, No and sovereign options: check the option list in src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx`)
+  check(`${size.cols}: clipboard consent appears in the real terminal`, result.status === 0 && text.includes('Allow Mercury to read the clipboard text?') && text.includes('read clipboard'), `${result.endReason}: ${result.stderr.slice(-300)} — the clipboard read must raise its own consent card: check the clipboard branch of the question and options in src/permissions/cards/computer/ComputerPermissionRequest.tsx and the clipboard ask in src/tools/computer/ComputerTool.ts`)
+  check(`${size.cols}: an app grant is not presented as clipboard consent`, !text.includes('the first act this session') && !text.includes('for this session') && !text.includes('for 1 hour') && !text.includes('for 24 hours') && !text.includes('drive your mouse') && !text.includes('needs separate consent'), `${text} — the clipboard card must not reuse the app-grant wording: check the clipboard branch in src/permissions/cards/computer/ComputerPermissionRequest.tsx`)
+  check(`${size.cols}: a plain Yes, No and sovereign remain available`, text.includes('1. Yes') && !text.includes('1. Yes,') && text.includes('2. No, and tell Mercury') && text.includes('3. Enable sovereign mode'), `${text} — the card must offer plain Yes, No and sovereign options: check the option list in src/permissions/cards/computer/ComputerPermissionRequest.tsx`)
   if (rows.length) {
     const image = join(scratch, `clipboard-${size.cols}.png`)
     writeFileSync(image, ansiToPng(rows.join('\n')))

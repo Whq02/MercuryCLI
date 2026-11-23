@@ -17,7 +17,7 @@ const sdk = await import('../../sdk/src/index.ts')
 
 let failures = 0
 let checks = 0
-const check = (label: string, ok: boolean, detail = ''): void => { checks++; console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok || !detail ? '' : `: ${detail}`}${ok ? '' : ` - change what speaks the unwritable-store sentence (src/utils/sessionStorage/writer/storeHealth.ts) or the run end that carries it, so the outcome row, its notices, stderr and the exit code match this check`}`); if (!ok) failures++ }
+const check = (label: string, ok: boolean, detail = ''): void => { checks++; console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok || !detail ? '' : `: ${detail}`}${ok ? '' : ` - change what speaks the unwritable-store sentence (src/sessions/transcripts/writer/storeHealth.ts) or the run end that carries it, so the outcome row, its notices, stderr and the exit code match this check`}`); if (!ok) failures++ }
 const node = Bun.which('node') ?? 'node'
 const REPLY = 'REPLY-AFTER-THE-TOOL.'
 const UNWRITABLE = 'the session transcript store is unwritable ('

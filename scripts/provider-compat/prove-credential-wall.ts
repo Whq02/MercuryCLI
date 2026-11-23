@@ -23,7 +23,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
 const {
@@ -33,9 +33,9 @@ const {
   isRevokedSignInText,
   observedCredentialWall,
   reconnectDoorFor,
-} = await import('../../src/services/providers/credentialWall.ts')
-const { __resetKnownDeadRefreshTokensForTest } = await import('../../src/utils/auth.ts')
-const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
+} = await import('../../src/models/roads/credentialWall.ts')
+const { __resetKnownDeadRefreshTokensForTest } = await import('../../src/models/sign-in/credentials/auth.ts')
+const { clearOAuthTokenCache } = await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')
 
 const credsPath = join(HOME, '.credentials.json')
 const seed = (oauth: Record<string, unknown> | null): void => {
@@ -53,7 +53,7 @@ const OPERATOR_BLOB = '401 {"type":"error","error":{"type":"authentication_error
 
 console.log('§1 — the pure classifier: two walls in every wire spelling; the neighbours keep their own presenters')
 {
-  wallHint = 'change classifyCredentialWall, isRevokedSignInText, credentialWallLine or reconnectDoorFor in src/services/providers/credentialWall.ts'
+  wallHint = 'change classifyCredentialWall, isRevokedSignInText, credentialWallLine or reconnectDoorFor in src/models/roads/credentialWall.ts'
   check("401 + \"OAuth access token has been revoked\" (the operator's blob) ⇒ sign-in", classifyCredentialWall(401, OPERATOR_BLOB) === 'sign-in')
   check('403 + "OAuth token has been revoked" (the older spelling) ⇒ sign-in', classifyCredentialWall(403, 'OAuth token has been revoked') === 'sign-in')
   check("403 + \"Key limit exceeded\" (OpenRouter's per-key cap) ⇒ key-limit", classifyCredentialWall(403, 'Key limit exceeded') === 'key-limit')
@@ -90,10 +90,10 @@ console.log('§1 — the pure classifier: two walls in every wire spelling; the 
 
 console.log('§2 — the first-party door: the SDK presenter paints the line, never the envelope')
 {
-  wallHint = 'change getAssistantMessageFromError in src/services/api/errors.ts (it must paint credentialWallLine from src/services/providers/credentialWall.ts, never the raw envelope)'
-  const { APIError } = await import('../../src/utils/api/sdkErrors.js')
-  const { getAssistantMessageFromError, API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errors.ts')
-  const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+  wallHint = 'change getAssistantMessageFromError in src/engine/requests/apiErrorRows.ts (it must paint credentialWallLine from src/models/roads/credentialWall.ts, never the raw envelope)'
+  const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
+  const { getAssistantMessageFromError, API_ERROR_MESSAGE_PREFIX } = await import('../../src/engine/requests/apiErrorRows.ts')
+  const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
   setIsInteractive(true)
   const textOf = (m: { message: { content: unknown } }): string => {
     const content = m.message.content as Array<{ type?: string; text?: string }>
@@ -131,14 +131,14 @@ console.log('§2 — the first-party door: the SDK presenter paints the line, ne
 
 console.log('§3 — the compat door: OpenRouter\'s 403 "Key limit exceeded" through the real client → the line')
 {
-  wallHint = 'change mapCompatHttpFailure in src/services/providers/openaicompat/compatChatClient.ts, or compatTerminalFaultText in src/services/providers/openaicompat/compatChatCallModel.ts, so the 403 reaches classifyCredentialWall in src/services/providers/credentialWall.ts'
-  const { streamCompatChat, mapCompatHttpFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-  const { compatFaultToTypedError, compatTerminalFaultText } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-  const { openrouterLaneProfile } = await import('../../src/services/providers/openrouter/openrouterCallModel.ts')
+  wallHint = 'change mapCompatHttpFailure in src/models/roads/openaicompat/compatChatClient.ts, or compatTerminalFaultText in src/models/roads/openaicompat/compatChatCallModel.ts, so the 403 reaches classifyCredentialWall in src/models/roads/credentialWall.ts'
+  const { streamCompatChat, mapCompatHttpFailure } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+  const { compatFaultToTypedError, compatTerminalFaultText } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+  const { openrouterLaneProfile } = await import('../../src/models/roads/openrouter/openrouterCallModel.ts')
   const body = JSON.stringify({ error: { message: 'Key limit exceeded', code: 403 } })
   const fetchImpl = (async () =>
     new Response(body, { status: 403, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch
-  let fault: import('../../src/services/providers/openaicompat/compatChatClient.ts').CompatFault | undefined
+  let fault: import('../../src/models/roads/openaicompat/compatChatClient.ts').CompatFault | undefined
   for await (const ev of streamCompatChat({
     apiKey: 'fixture',
     url: 'https://openrouter.invalid/api/v1/chat/completions',
@@ -160,9 +160,9 @@ console.log('§3 — the compat door: OpenRouter\'s 403 "Key limit exceeded" thr
 
 console.log("§4 — the row receipt: the live composer's gate speaks the identical line for a walled row")
 {
-  wallHint = 'change liveComposerGateOf in src/components/concourse/ConcourseScreen.tsx, or credentialWallLineForModel / observedCredentialWall in src/services/providers/credentialWall.ts'
-  const { liveComposerGateOf } = await import('../../src/components/concourse/ConcourseScreen.tsx')
-  type Row = import('../../src/components/concourse/contracts.ts').ConcourseRowV1
+  wallHint = 'change liveComposerGateOf in src/screen/concourse/ConcourseScreen.tsx, or credentialWallLineForModel / observedCredentialWall in src/models/roads/credentialWall.ts'
+  const { liveComposerGateOf } = await import('../../src/screen/concourse/ConcourseScreen.tsx')
+  type Row = import('../../src/screen/concourse/contracts.ts').ConcourseRowV1
   const row = (over: Partial<Row> = {}): Row => ({
     sessionId: 's1',
     title: 'the walled chat',
@@ -190,7 +190,7 @@ console.log("§4 — the row receipt: the live composer's gate speaks the identi
   check("no sign-in at all is no wall here (the no-credential line is another owner's)", credentialWallLineForModel('claude-opus-5') === undefined && observedCredentialWall('anthropic') === undefined)
   check('a model id nobody carries derives nothing', credentialWallLineForModel(undefined) === undefined && credentialWallLineForModel('') === undefined)
 
-  const { __resetOpenrouterUsageStateForTest, refreshOpenrouterKeyUsage } = await import('../../src/services/providers/openrouter/openrouterUsageState.ts')
+  const { __resetOpenrouterUsageStateForTest, refreshOpenrouterKeyUsage } = await import('../../src/models/roads/openrouter/openrouterUsageState.ts')
   __resetOpenrouterUsageStateForTest()
   process.env.OPENROUTER_API_KEY = 'sk-or-fixture'
   const capped = (async () =>
@@ -203,7 +203,7 @@ console.log("§4 — the row receipt: the live composer's gate speaks the identi
   check('a reached cap derives the key-limit line for an openrouter-routed model id', credentialWallLineForModel('openrouter/openai/gpt-x') === KEY_LIMIT_LINE, credentialWallLineForModel('openrouter/openai/gpt-x') ?? 'undefined')
   __resetOpenrouterUsageStateForTest()
   check('nothing observed ⇒ no wall for the same id', credentialWallLineForModel('openrouter/openai/gpt-x') === undefined)
-  const { recordLaneBillingRefusal, recordLaneTurnSettled, __resetLaneBillingStateForTest } = await import('../../src/services/providers/laneBillingState.ts')
+  const { recordLaneBillingRefusal, recordLaneTurnSettled, __resetLaneBillingStateForTest } = await import('../../src/models/roads/laneBillingState.ts')
   __resetLaneBillingStateForTest()
   recordLaneBillingRefusal('openrouter', { detail: 'http-403: Key limit exceeded', remedy: KEY_LIMIT_LINE })
   check("the seam's recorded key-limit refusal derives the line until a turn settles", credentialWallLineForModel('openrouter/openai/gpt-x') === KEY_LIMIT_LINE)

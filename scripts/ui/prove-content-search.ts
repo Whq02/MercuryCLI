@@ -3,7 +3,7 @@ import { execSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { DEFAULT_BINDINGS } from '../../src/keybindings/defaultBindings.ts'
+import { DEFAULT_BINDINGS } from '../../src/screen/keys/defaultBindings.ts'
 import { formsMissing, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
 let failures = 0

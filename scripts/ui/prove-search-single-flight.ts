@@ -28,7 +28,7 @@ console.log('\n── §1 live: an aborted grep stream settles, its child dies �
   for (let i = 0; i < 40; i++) {
     writeFileSync(join(hay, `f${i}.txt`), Array.from({ length: 2000 }, (_, k) => `needle line ${k}`).join('\n'))
   }
-  const { ripGrepStream } = await import(join(REPO, 'src/utils/ripgrep.ts'))
+  const { ripGrepStream } = await import(join(REPO, 'src/platform/shell/ripgrep.ts'))
   const controller = new AbortController()
   let sawLines = false
   const stream = ripGrepStream(['-n', '-e', 'needle'], hay, controller.signal, () => {
@@ -39,8 +39,8 @@ console.log('\n── §1 live: an aborted grep stream settles, its child dies �
     () => 'rejected' as const,
   )
   const outcome = await Promise.race([stream, sleep(4000).then(() => 'pending' as const)])
-  check('§1 the stream produced output before the abort', sawLines, 'onLines never fired: ripGrepStream in src/utils/ripgrep.ts emitted no lines for the needle fixture; check its stdout data handler and the rg spawn')
-  check('§1 the aborted stream SETTLES within the bound (resolved or rejected, never pending)', outcome !== 'pending', `${outcome} — ripGrepStream in src/utils/ripgrep.ts must settle its promise on abort (the close handler when abortSignal.aborted)`)
+  check('§1 the stream produced output before the abort', sawLines, 'onLines never fired: ripGrepStream in src/platform/shell/ripgrep.ts emitted no lines for the needle fixture; check its stdout data handler and the rg spawn')
+  check('§1 the aborted stream SETTLES within the bound (resolved or rejected, never pending)', outcome !== 'pending', `${outcome} — ripGrepStream in src/platform/shell/ripgrep.ts must settle its promise on abort (the close handler when abortSignal.aborted)`)
   await sleep(300)
   let rgAlive = ''
   try {
@@ -48,7 +48,7 @@ console.log('\n── §1 live: an aborted grep stream settles, its child dies �
   } catch {
     rgAlive = ''
   }
-  check('§1 the rg child is gone after the abort', rgAlive === '', rgAlive && `pids: ${rgAlive} — the rg child must be killed on abort; check the spawn signal option in ripGrepStream in src/utils/ripgrep.ts`)
+  check('§1 the rg child is gone after the abort', rgAlive === '', rgAlive && `pids: ${rgAlive} — the rg child must be killed on abort; check the spawn signal option in ripGrepStream in src/platform/shell/ripgrep.ts`)
 }
 
 

@@ -19,16 +19,16 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const truth = await import('../../src/services/localServer/localServerTruth.ts')
-const { fitLocalWindowOn } = await import('../../src/services/localServer/localWindowFit.ts')
-const { SETUP_PULL_CANDIDATES } = await import('../../src/services/localSetup/setupChoose.ts')
-type LocalServerIo = import('../../src/services/localServer/localServerTruth.ts').LocalServerIo
+const truth = await import('../../src/models/local-server/localServerTruth.ts')
+const { fitLocalWindowOn } = await import('../../src/models/local-server/localWindowFit.ts')
+const { SETUP_PULL_CANDIDATES } = await import('../../src/models/local-setup/setupChoose.ts')
+type LocalServerIo = import('../../src/models/local-server/localServerTruth.ts').LocalServerIo
 
 const GIB = 1024 ** 3
 const gib = (bytes: number): string => `${(bytes / GIB).toFixed(1)} GiB`
 const noServer: typeof fetch = (async () => new Response('{}', { status: 404 })) as unknown as typeof fetch
 
-function machine(seam: LocalServerIo & { smi?: Record<string, string>; logs?: Record<string, string>; meminfo?: string }): Promise<import('../../src/services/localServer/localServerTruth.ts').LocalServerTruth> {
+function machine(seam: LocalServerIo & { smi?: Record<string, string>; logs?: Record<string, string>; meminfo?: string }): Promise<import('../../src/models/local-server/localServerTruth.ts').LocalServerTruth> {
   const { smi = {}, logs = {}, meminfo = 'MemAvailable: 6291456 kB\n', ...rest } = seam
   return truth.readLocalMachineTruth(
     {

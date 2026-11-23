@@ -13,36 +13,36 @@ process.env.MERCURY_CHANGESET_DIR = csHome
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const where = 'fix the apply path in src/tools/ChangeSetTool/ChangeSetTool.ts or the commit and plan code it calls under src/services/changeTransaction/ (changeSetCommit.ts runTextChangeSetCommit, changeSetPlan.ts, receipts.ts)'
+  const where = 'fix the apply path in src/tools/change-set/ChangeSetTool.ts or the commit and plan code it calls under src/tools/engines/change-transaction/ (changeSetCommit.ts runTextChangeSetCommit, changeSetPlan.ts, receipts.ts)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${[detail, where].filter(Boolean).join(' | ')}` : ''}`)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — apply proof exceeded 120s; a ChangeSet apply or commit never returned, look in src/tools/ChangeSetTool/ChangeSetTool.ts and src/services/changeTransaction/changeSetCommit.ts (runTextChangeSetCommit)')
+  console.log('\nTIMEOUT — apply proof exceeded 120s; a ChangeSet apply or commit never returned, look in src/tools/change-set/ChangeSetTool.ts and src/tools/engines/change-transaction/changeSetCommit.ts (runTextChangeSetCommit)')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
 
-const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { mintFileAnchor } = await import(
-  '../../src/services/changeTransaction/snapshotAnchor.ts'
+  '../../src/tools/engines/change-transaction/snapshotAnchor.ts'
 )
 const { plannedDiskBytes } = await import(
-  '../../src/services/changeTransaction/changeSetPlan.ts'
+  '../../src/tools/engines/change-transaction/changeSetPlan.ts'
 )
-const { sha256Hex } = await import('../../src/utils/hash.ts')
+const { sha256Hex } = await import('../../src/platform/primitives/hash.ts')
 const { runTextChangeSetCommit, commitPlanDigest } = await import(
-  '../../src/services/changeTransaction/changeSetCommit.ts'
+  '../../src/tools/engines/change-transaction/changeSetCommit.ts'
 )
-const { listJournalOperations } = await import('../../src/substrate/operationJournal.ts')
-const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
+const { listJournalOperations } = await import('../../src/platform/substrate/operationJournal.ts')
+const { observeToolTerminal } = await import('../../src/engine/run-owner/effectObserver.ts')
 const { receiptsFor, _resetChangeReceiptsForTesting } = await import(
-  '../../src/services/changeTransaction/receipts.ts'
+  '../../src/tools/engines/change-transaction/receipts.ts'
 )
 const { transactionsFor, _resetTransactionPlaneForTesting } = await import(
-  '../../src/services/primitives/transactionPlane.ts'
+  '../../src/engine/runtime-kernel/transactionPlane.ts'
 )
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 const fixtures = realpathSync(mkdtempSync(join(tmpdir(), 'fulcrum-ap-fix-')))
 function writeFixture(name: string, content: string | Buffer, mode?: number): string {
@@ -272,7 +272,7 @@ console.log('── A5 concurrency: overlapping serializes, disjoint independent
 
 console.log('── A6 the read evidence Edit accepts, through the real Read tool ──')
 {
-  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const parent = { uuid: '00000000-0000-0000-0000-00000000ap06', message: { id: 'msg_fixture' } }
   const rows = Array.from({ length: 30 }, (_, i) => `row ${i + 1}`).join('\n') + '\n'
   const readAnchor = async (ctx: Ctx, input: Record<string, unknown>): Promise<string | undefined> => {
@@ -325,7 +325,7 @@ console.log('── A6 the read evidence Edit accepts, through the real Read too
 
 console.log('── A7 a stale anchor relocates end to end, exactly as Edit does ──')
 {
-  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const parent = { uuid: '00000000-0000-0000-0000-00000000ap07', message: { id: 'msg_fixture' } }
   const readAnchor = async (ctx: Ctx, path: string): Promise<string | undefined> => {
     const r = await (FileReadTool as { call: Function }).call({ file_path: path }, ctx, null, parent)
@@ -354,7 +354,7 @@ console.log('── A7 a stale anchor relocates end to end, exactly as Edit does
 
 console.log('── A8 delete and move members through changes[] ──')
 {
-  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const parent = { uuid: '00000000-0000-0000-0000-00000000ap08', message: { id: 'msg_fixture' } }
   const readAnchor = async (ctx: Ctx, path: string): Promise<string | undefined> => {
     const r = await (FileReadTool as { call: Function }).call({ file_path: path }, ctx, null, parent)
@@ -390,7 +390,7 @@ console.log('── A8 delete and move members through changes[] ──')
 }
 
 {
-  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const empty = writeFixture('empty-notes.txt', '')
   const other = writeFixture('registered.txt', 'before\n')
   const ctx = makeContext()

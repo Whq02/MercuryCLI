@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/shell/liveShellTail.ts src/components/shell/ShellLiveTail.tsx src/utils/messages/normalize.ts src/types/message.ts
+// gate-watch: src/screen/shell-output/liveShellTail.ts src/screen/shell-output/ShellLiveTail.tsx src/engine/message-shapes/normalize.ts src/engine/message-shapes/message.ts
 import { deepStrictEqual, strictEqual } from 'node:assert'
 import stripAnsi from 'strip-ansi'
-import { shellLiveTailBudget, shellLiveTailLines } from '../../src/components/shell/liveShellTail.ts'
-import { normalizeMessages } from '../../src/utils/messages/normalize.ts'
-import { createUserMessage } from '../../src/utils/messages/factories.ts'
+import { shellLiveTailBudget, shellLiveTailLines } from '../../src/screen/shell-output/liveShellTail.ts'
+import { normalizeMessages } from '../../src/engine/message-shapes/normalize.ts'
+import { createUserMessage } from '../../src/engine/message-shapes/factories.ts'
 
 strictEqual(shellLiveTailBudget(120, 40), 6)
 strictEqual(shellLiveTailBudget(80, 24), 3)

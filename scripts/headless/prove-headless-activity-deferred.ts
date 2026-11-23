@@ -21,9 +21,9 @@ const j = (v: unknown): string => JSON.stringify(v)
 
 type Activity = { print?: number; sdk?: number; verbs?: Record<string, number>; lastKind?: string }
 
-const config = await import('../../src/utils/config/globalConfig.ts')
-const { getGlobalMercuryFile } = await import('../../src/utils/env.ts')
-const ledger = await import('../../src/utils/activityLedger.ts')
+const config = await import('../../src/platform/config/globalConfig.ts')
+const { getGlobalMercuryFile } = await import('../../src/platform/environment/env.ts')
+const ledger = await import('../../src/platform/logs/activityLedger.ts')
 config.enableConfigs()
 const FILE = getGlobalMercuryFile()
 const onDisk = (): Record<string, unknown> => {

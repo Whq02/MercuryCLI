@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { SessionFactsV1 } from '../../src/services/engine-connector/seatProjections.ts'
+import type { SessionFactsV1 } from '../../src/engine/connector/seatProjections.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -12,12 +12,12 @@ const plane = join(scratch, 'daemon')
 mkdirSync(plane, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = plane
 
-const { CarrierPart } = await import('../../src/services/engine-connector/daemon/carrier.ts')
-const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
-await import('../../src/utils/ownerWatch.ts')
+const { CarrierPart } = await import('../../src/engine/connector/daemon/carrier.ts')
+const { daemonStatePath } = await import('../../src/daemon/control/controlSocket.ts')
+await import('../../src/daemon/control/ownerWatch.ts')
 
 let failures = 0
-const WHERE = 'the part under test is CarrierPart in src/services/engine-connector/daemon/carrier.ts: change its behaviour there to match the check, or update this check if the law moved'
+const WHERE = 'the part under test is CarrierPart in src/engine/connector/daemon/carrier.ts: change its behaviour there to match the check, or update this check if the law moved'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${WHERE}` : ''}`)

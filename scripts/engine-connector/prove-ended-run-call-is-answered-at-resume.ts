@@ -11,58 +11,58 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ended-run-call-home
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'ended-run-call-daemon-'))
 delete process.env.MERCURY_HOME
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 const React = (await import('react')).default
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
-await import('../../src/utils/ownerWatch.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-const { recordTranscript, flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
-const { getTranscriptPathForSession } = await import('../../src/utils/sessionStorage/paths.ts')
-const { ENDED_RUN_TOOL_RESULT } = await import('../../src/utils/messages/rejectionText.ts')
-const { buildAwayRecap } = await import('../../src/utils/cockpit/awaySummary.ts')
-const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
-const { AssistantToolUseMessage } = await import('../../src/components/messages/AssistantToolUseMessage.js')
-const { ResumeRecapCard } = await import('../../src/components/messages/ResumeRecapCard.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-type Message = import('../../src/types/message.ts').Message
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+const { publishSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
+const { daemonStatePath } = await import('../../src/daemon/control/controlSocket.ts')
+await import('../../src/daemon/control/ownerWatch.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { recordTranscript, flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { getTranscriptPathForSession } = await import('../../src/sessions/transcripts/paths.ts')
+const { ENDED_RUN_TOOL_RESULT } = await import('../../src/engine/message-shapes/rejectionText.ts')
+const { buildAwayRecap } = await import('../../src/screen/cockpit/awaySummary.ts')
+const { renderToAnsiString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { AssistantToolUseMessage } = await import('../../src/screen/messages/AssistantToolUseMessage.js')
+const { ResumeRecapCard } = await import('../../src/screen/messages/ResumeRecapCard.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 let failures = 0
 let checks = 0
-const ENDED = 'endedRunResults in src/services/engine-connector/endedRunCalls.ts decides whether an open call is answered'
-const PAINT = 'the facts handler in src/services/engine-connector/daemonConnector.ts paints only when the rows endedRunResults returns move'
+const ENDED = 'endedRunResults in src/engine/connector/endedRunCalls.ts decides whether an open call is answered'
+const PAINT = 'the facts handler in src/engine/connector/daemonConnector.ts paints only when the rows endedRunResults returns move'
 const hints: Record<string, string> = {
   the: 'the rig did not leave the build call open and unanswered in the connector records; read the tail in the detail and the write() helper of this file',
   A1: ENDED,
   A2: ENDED,
   A3: ENDED,
   A4: ENDED,
-  A5: 'the call frame is drawn by src/components/messages/AssistantToolUseMessage.tsx from the result rows the connector hands it; a live call must draw exactly as an unknown one',
+  A5: 'the call frame is drawn by src/screen/messages/AssistantToolUseMessage.tsx from the result rows the connector hands it; a live call must draw exactly as an unknown one',
   A6: PAINT,
   B1: `${ENDED}; ${PAINT}`,
-  B2: 'the answer row is built by settleToolUsesOfEndedRun in src/services/messages/apiFilters.ts with ENDED_RUN_TOOL_RESULT from src/utils/messages/rejectionText.ts, as an error result',
-  B3: 'the answered rows are spliced in right after their call in src/services/engine-connector/daemon/transcript.ts',
-  B4: 'endedRunResults in src/services/engine-connector/endedRunCalls.ts must reuse the row it painted for a call (the paintedResults cache) rather than build a new one',
-  B5: 'endedRunResults in src/services/engine-connector/endedRunCalls.ts must keep answering a call the ended run left open while a later turn is busy',
-  B6: 'the window must only paint the answer in memory: nothing under src/services/engine-connector may write ENDED_RUN_TOOL_RESULT to the session transcript',
-  B7: 'the Bash call frame in src/components/messages/AssistantToolUseMessage.tsx shows waiting… (BashTool renderToolUseQueuedMessage in src/tools/BashTool/UI.tsx) until a result row for the call exists',
-  B8: 'buildAwayRecap in src/utils/cockpit/awaySummary.ts counts the answered call as a failed tool call and src/components/messages/ResumeRecapCard.tsx words it',
+  B2: 'the answer row is built by settleToolUsesOfEndedRun in src/engine/messages/apiFilters.ts with ENDED_RUN_TOOL_RESULT from src/engine/message-shapes/rejectionText.ts, as an error result',
+  B3: 'the answered rows are spliced in right after their call in src/engine/connector/daemon/transcript.ts',
+  B4: 'endedRunResults in src/engine/connector/endedRunCalls.ts must reuse the row it painted for a call (the paintedResults cache) rather than build a new one',
+  B5: 'endedRunResults in src/engine/connector/endedRunCalls.ts must keep answering a call the ended run left open while a later turn is busy',
+  B6: 'the window must only paint the answer in memory: nothing under src/engine/connector may write ENDED_RUN_TOOL_RESULT to the session transcript',
+  B7: 'the Bash call frame in src/screen/messages/AssistantToolUseMessage.tsx shows waiting… (BashTool renderToolUseQueuedMessage in src/tools/shell/rows.tsx) until a result row for the call exists',
+  B8: 'buildAwayRecap in src/screen/cockpit/awaySummary.ts counts the answered call as a failed tool call and src/screen/messages/ResumeRecapCard.tsx words it',
   B9: PAINT,
   C1: 'the carrier-gone flag must reach endedRunResults (daemonConnector.ts carrierPart.gone())',
   D1: ENDED,
   E1: ENDED,
-  E2: 'endedRunResults returns no rows while the runner reports transcriptStoreFailing and the carrier is not gone (first line of the function in src/services/engine-connector/endedRunCalls.ts)',
-  E3: 'a call whose record cannot be written must draw as a live call: src/components/messages/AssistantToolUseMessage.tsx and the answer rule in src/services/engine-connector/endedRunCalls.ts',
-  E4: 'buildAwayRecap in src/utils/cockpit/awaySummary.ts must not count a call that endedRunResults withheld',
-  E5: 'endedRunResults in src/services/engine-connector/endedRunCalls.ts must keep returning no rows while transcriptStoreFailing is set',
-  E6: 'once the carrier is gone endedRunResults in src/services/engine-connector/endedRunCalls.ts must answer despite transcriptStoreFailing',
-  E7: 'a real result row in the record must replace the painted answer: endedRunResults in src/services/engine-connector/endedRunCalls.ts (settleToolUsesOfEndedRun only settles calls with no result)',
-  E8: 'the Bash call frame in src/components/messages/AssistantToolUseMessage.tsx must stop showing waiting… once the real result row is in the record',
+  E2: 'endedRunResults returns no rows while the runner reports transcriptStoreFailing and the carrier is not gone (first line of the function in src/engine/connector/endedRunCalls.ts)',
+  E3: 'a call whose record cannot be written must draw as a live call: src/screen/messages/AssistantToolUseMessage.tsx and the answer rule in src/engine/connector/endedRunCalls.ts',
+  E4: 'buildAwayRecap in src/screen/cockpit/awaySummary.ts must not count a call that endedRunResults withheld',
+  E5: 'endedRunResults in src/engine/connector/endedRunCalls.ts must keep returning no rows while transcriptStoreFailing is set',
+  E6: 'once the carrier is gone endedRunResults in src/engine/connector/endedRunCalls.ts must answer despite transcriptStoreFailing',
+  E7: 'a real result row in the record must replace the painted answer: endedRunResults in src/engine/connector/endedRunCalls.ts (settleToolUsesOfEndedRun only settles calls with no result)',
+  E8: 'the Bash call frame in src/screen/messages/AssistantToolUseMessage.tsx must stop showing waiting… once the real result row is in the record',
   F1: PAINT,
 }
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -75,7 +75,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the proof exceeded 90s; the last section header printed above says where it stopped (sections C and E drive connector.attach() in carrierGone(), whose carrier part is in src/services/engine-connector/daemonConnector.ts)')
+  console.log('\nTIMEOUT — the proof exceeded 90s; the last section header printed above says where it stopped (sections C and E drive connector.attach() in carrierGone(), whose carrier part is in src/engine/connector/daemonConnector.ts)')
   process.exit(1)
 }, 90_000)
 watchdog.unref?.()

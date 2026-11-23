@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { createServer } from 'node:http'
 import { join, resolve } from 'node:path'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
-import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
+import { keyHintLabel } from '../../src/screen/widgets/keyHintLabel.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { compactGrid, DEFAULT_MASKS, firstDivergence, type StoredGrid } from '../ui/visualBaseline.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
@@ -34,7 +34,7 @@ const KEY = 'proof-key-ci-gate-not-a-real-key'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change: the mini critter sprite in src/components/mercury-ui/MiniCritter.tsx or the layout that places it; rerun with --frames <dir> to write every captured grid as a .txt file and read the failing frame' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change: the mini critter sprite in src/screen/widgets/MiniCritter.tsx or the layout that places it; rerun with --frames <dir> to write every captured grid as a .txt file and read the failing frame' : ''}`)
 }
 
 if (!existsSync(DIST)) {

@@ -32,7 +32,7 @@ try {
   const env = { [VARIABLE]: `${shared}, ${second},${shared},` }
   const none = (text: string, needles: string[]): boolean => needles.every(needle => !text.includes(needle))
   const present = (text: string, needles: string[]): string => needles.filter(needle => text.includes(needle)).join(', ')
-  const namedHint = ' | change the Copilot adapter in src/services/instructions/adapters/copilot.ts (the COPILOT_CUSTOM_INSTRUCTIONS_DIRS folders)'
+  const namedHint = ' | change the Copilot adapter in src/sessions/instructions/adapters/copilot.ts (the COPILOT_CUSTOM_INSTRUCTIONS_DIRS folders)'
 
   section('unset or empty, nothing moves')
   const unset = world.drive(project)

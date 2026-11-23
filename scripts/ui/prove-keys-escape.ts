@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { scenario } from './renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
+import { HELM_HOME_MIN_COLS } from '../../src/screen/fullscreen-layout/helmGeometry.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -45,14 +45,14 @@ for (const cols of [80, 120]) {
   check(
     `@${cols}: the atlas was OPEN when the ESC was sent (no vacuous pass)`,
     /input atlas/.test(atSend),
-    'the atlas never opened — this capture proves nothing about Escape; check that /keys still opens the input atlas (src/components/MercuryInputAtlas.tsx) and the keys-escape scenario in scripts/ui/renderScenarios.ts',
+    'the atlas never opened — this capture proves nothing about Escape; check that /keys still opens the input atlas (src/screen/input-atlas/MercuryInputAtlas.tsx) and the keys-escape scenario in scripts/ui/renderScenarios.ts',
   )
   check(
     `@${cols}: the atlas is GONE after Escape`,
     !/input atlas/.test(final),
-    'the final frame still shows the atlas — Escape is dead in browse mode; check the key.escape branches in the useInput handler of src/components/MercuryInputAtlas.tsx',
+    'the final frame still shows the atlas — Escape is dead in browse mode; check the key.escape branches in the useInput handler of src/screen/input-atlas/MercuryInputAtlas.tsx',
   )
-  check(`@${cols}: the session view is back`, cols >= HELM_HOME_MIN_COLS ? /for commands/.test(final) : /Type a prompt/.test(final) && /crewmates here/.test(final), 'the session view did not return after Escape; the atlas onClose in src/components/MercuryInputAtlas.tsx should hand back to the session screen')
+  check(`@${cols}: the session view is back`, cols >= HELM_HOME_MIN_COLS ? /for commands/.test(final) : /Type a prompt/.test(final) && /crewmates here/.test(final), 'the session view did not return after Escape; the atlas onClose in src/screen/input-atlas/MercuryInputAtlas.tsx should hand back to the session screen')
 }
 
 console.log(failures === 0 ? '\nALL GREEN' : `\n${failures} FAILURE(S)`)

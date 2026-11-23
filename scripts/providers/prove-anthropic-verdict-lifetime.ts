@@ -15,19 +15,19 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const lifetimeWhere = 'verdict lifetime: anthropicLimitVerdict and extractQuotaStatusFromHeaders in src/services/anthropicLimits.ts; refusal words and dispatch gate: anthropicLimitReads, resolveProviderUsability, delegationDispatchBlocker in src/services/providers/providerUsability.ts; cap-return window: observedFamilyWindow in src/services/capFailover.ts'
+  const lifetimeWhere = 'verdict lifetime: anthropicLimitVerdict and extractQuotaStatusFromHeaders in src/models/roads/anthropic/anthropicLimits.ts; refusal words and dispatch gate: anthropicLimitReads, resolveProviderUsability, delegationDispatchBlocker in src/models/roads/providerUsability.ts; cap-return window: observedFamilyWindow in src/models/roads/capFailover.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}fix the owner this label names (${lifetimeWhere})` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const limits = await import('../../src/services/anthropicLimits.ts')
-const mock = await import('../../src/services/mockRateLimits.ts')
-const usability = await import('../../src/services/providers/providerUsability.ts')
-const failover = await import('../../src/services/capFailover.ts')
-const { formatClock } = await import('../../src/services/cockpit/quota.ts')
-type Reads = import('../../src/services/providers/providerUsability.ts').ProviderUsabilityReads
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+const mock = await import('../../src/models/roads/anthropic/mockRateLimits.ts')
+const usability = await import('../../src/models/roads/providerUsability.ts')
+const failover = await import('../../src/models/roads/capFailover.ts')
+const { formatClock } = await import('../../src/screen/cockpit-gauges/quota.ts')
+type Reads = import('../../src/models/roads/providerUsability.ts').ProviderUsabilityReads
 
 const OWNER_A = 'anthropic:oauth:primary:00000000-0000-4000-8000-0000000000aa'
 const ACCOUNT_A = 'ana@example.com'

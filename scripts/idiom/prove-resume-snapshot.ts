@@ -6,10 +6,10 @@ import { join } from 'node:path'
 const HOME = mkdtempSync(join(tmpdir(), 'idiom-resume-snap-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 
-const { loadTranscriptFile, } = await import('../../src/utils/sessionStorage/loading.js')
-const { snapshotPathFor, tryLoadResumeSnapshot } = await import('../../src/utils/sessionStorage/resumeSnapshot.js')
-const { entryToRecord } = await import('../../src/fabric/entryCodec.js')
-const { ordinalOf } = await import('../../src/fabric/ordinal.js')
+const { loadTranscriptFile, } = await import('../../src/sessions/transcripts/loading.js')
+const { snapshotPathFor, tryLoadResumeSnapshot } = await import('../../src/sessions/transcripts/resumeSnapshot.js')
+const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.js')
+const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -57,16 +57,16 @@ const normalize = (r: Awaited<ReturnType<typeof loadTranscriptFile>>): string =>
 section('§A equality — snapshot path ≡ full parse')
 {
   const first = await loadTranscriptFile(FILE)
-  check('the write-behind snapshot exists after the first load', statSync(snapshotPathFor(FILE)).size > 0, 'loadTranscriptFile (src/utils/sessionStorage/loading.ts) should write the snapshot at snapshotPathFor (src/utils/sessionStorage/resumeSnapshot.ts) after a load; see writeResumeSnapshot there')
+  check('the write-behind snapshot exists after the first load', statSync(snapshotPathFor(FILE)).size > 0, 'loadTranscriptFile (src/sessions/transcripts/loading.ts) should write the snapshot at snapshotPathFor (src/sessions/transcripts/resumeSnapshot.ts) after a load; see writeResumeSnapshot there')
   const appended = line(1200, 1199) + line(1201, 1200)
   appendFileSync(FILE, appended)
   const hitLoad = await loadTranscriptFile(FILE)
   process.env.MERCURY_RESUME_SNAPSHOT = '0'
   const fullLoad = await loadTranscriptFile(FILE)
   delete process.env.MERCURY_RESUME_SNAPSHOT
-  check('snapshot-accelerated state deep-equals the full parse', normalize(hitLoad) === normalize(fullLoad), 'the snapshot hit plus tail fold in loadTranscriptFile (src/utils/sessionStorage/loading.ts, tryLoadResumeSnapshot in resumeSnapshot.ts) must produce the same state as a full parse; compare the fields normalize() lists')
-  check('the appended tail is present in both', hitLoad.messages.has(u(1201) as never) && fullLoad.messages.has(u(1201) as never), `hit has ${hitLoad.messages.size} messages, full parse ${fullLoad.messages.size}; the bytes appended after the snapshot cursor must be folded in by loadTranscriptFile (src/utils/sessionStorage/loading.ts)`)
-  check('first-load state is a strict prefix of both', first.messages.size === 1200 && hitLoad.messages.size === 1202, `first ${first.messages.size} (want 1200), hit ${hitLoad.messages.size} (want 1202); check loadTranscriptFile in src/utils/sessionStorage/loading.ts`)
+  check('snapshot-accelerated state deep-equals the full parse', normalize(hitLoad) === normalize(fullLoad), 'the snapshot hit plus tail fold in loadTranscriptFile (src/sessions/transcripts/loading.ts, tryLoadResumeSnapshot in resumeSnapshot.ts) must produce the same state as a full parse; compare the fields normalize() lists')
+  check('the appended tail is present in both', hitLoad.messages.has(u(1201) as never) && fullLoad.messages.has(u(1201) as never), `hit has ${hitLoad.messages.size} messages, full parse ${fullLoad.messages.size}; the bytes appended after the snapshot cursor must be folded in by loadTranscriptFile (src/sessions/transcripts/loading.ts)`)
+  check('first-load state is a strict prefix of both', first.messages.size === 1200 && hitLoad.messages.size === 1202, `first ${first.messages.size} (want 1200), hit ${hitLoad.messages.size} (want 1202); check loadTranscriptFile in src/sessions/transcripts/loading.ts`)
 }
 
 section('§B O(tail) — the hit hands the fold exactly the appended bytes')
@@ -75,7 +75,7 @@ section('§B O(tail) — the hit hands the fold exactly the appended bytes')
   const sizeBefore = statSync(FILE).size
   appendFileSync(FILE, more)
   const hit = await tryLoadResumeSnapshot(FILE)
-  check('snapshot hit', hit !== null, 'tryLoadResumeSnapshot (src/utils/sessionStorage/resumeSnapshot.ts) returned null for an untouched appended file; see its validity tests and SNAPSHOT_MIN_BYTES')
+  check('snapshot hit', hit !== null, 'tryLoadResumeSnapshot (src/sessions/transcripts/resumeSnapshot.ts) returned null for an untouched appended file; see its validity tests and SNAPSHOT_MIN_BYTES')
   if (hit) {
     check(
       `tail bytes == bytes appended past the cursor (${hit.tail.length})`,
@@ -88,9 +88,9 @@ section('§B O(tail) — the hit hands the fold exactly the appended bytes')
 section('§C invalidation — truncation, rewrite, corruption each fall back')
 {
   const preTrunc = await tryLoadResumeSnapshot(FILE)
-  check('pre-truncation hit (sanity)', preTrunc !== null, 'tryLoadResumeSnapshot (src/utils/sessionStorage/resumeSnapshot.ts) returned null before truncation; the snapshot should still be valid after the appended line')
+  check('pre-truncation hit (sanity)', preTrunc !== null, 'tryLoadResumeSnapshot (src/sessions/transcripts/resumeSnapshot.ts) returned null before truncation; the snapshot should still be valid after the appended line')
   truncateSync(FILE, (preTrunc?.byteCursor ?? 1000) - 200)
-  check('truncation below the cursor invalidates the snapshot', (await tryLoadResumeSnapshot(FILE)) === null, 'tryLoadResumeSnapshot (src/utils/sessionStorage/resumeSnapshot.ts) must return null when the file is shorter than the snapshot byteCursor')
+  check('truncation below the cursor invalidates the snapshot', (await tryLoadResumeSnapshot(FILE)) === null, 'tryLoadResumeSnapshot (src/sessions/transcripts/resumeSnapshot.ts) must return null when the file is shorter than the snapshot byteCursor')
   const afterTrunc = await loadTranscriptFile(FILE)
   check('full-parse fallback still loads (no invented state)', afterTrunc.messages.size >= 1150 && afterTrunc.messages.size < 1203, String(afterTrunc.messages.size))
 
@@ -100,21 +100,21 @@ section('§C invalidation — truncation, rewrite, corruption each fall back')
     const idx = snap2.byteCursor - 10
     buf[idx] = buf[idx] === 0x61 ? 0x62 : 0x61
     writeFileSync(FILE, buf)
-    check('covered-prefix rewrite invalidates the snapshot', (await tryLoadResumeSnapshot(FILE)) === null, 'tryLoadResumeSnapshot (src/utils/sessionStorage/resumeSnapshot.ts) must return null when a byte before byteCursor changed; check its digest comparison')
+    check('covered-prefix rewrite invalidates the snapshot', (await tryLoadResumeSnapshot(FILE)) === null, 'tryLoadResumeSnapshot (src/sessions/transcripts/resumeSnapshot.ts) must return null when a byte before byteCursor changed; check its digest comparison')
   } else {
     check('covered-prefix rewrite invalidates the snapshot (no refreshed snapshot to test — counted via truncation leg)', true)
   }
 
   writeFileSync(snapshotPathFor(FILE), '{ corrupted')
-  check('corrupted snapshot falls back to null', (await tryLoadResumeSnapshot(FILE)) === null, 'tryLoadResumeSnapshot (src/utils/sessionStorage/resumeSnapshot.ts) must catch an unparsable snapshot file and return null')
+  check('corrupted snapshot falls back to null', (await tryLoadResumeSnapshot(FILE)) === null, 'tryLoadResumeSnapshot (src/sessions/transcripts/resumeSnapshot.ts) must catch an unparsable snapshot file and return null')
   const afterCorrupt = await loadTranscriptFile(FILE)
   check('loader remains correct under snapshot corruption', afterCorrupt.messages.size >= 1150, String(afterCorrupt.messages.size))
 }
 
 section('§D an older schema — a snapshot written under a previous schema is discarded, parsed whole once, then a new one stands')
 {
-  const { SNAPSHOT_SCHEMA } = await import('../../src/utils/sessionStorage/resumeSnapshot.js')
-  const { _resetTranscriptReaderForTesting } = await import('../../src/utils/sessionStorage/transcriptReader.js')
+  const { SNAPSHOT_SCHEMA } = await import('../../src/sessions/transcripts/resumeSnapshot.js')
+  const { _resetTranscriptReaderForTesting } = await import('../../src/sessions/transcripts/transcriptReader.js')
   const OLD_SCHEMA = 1
   check('the snapshot schema moved past the one older builds wrote', SNAPSHOT_SCHEMA !== OLD_SCHEMA, String(SNAPSHOT_SCHEMA))
   _resetTranscriptReaderForTesting()
@@ -122,10 +122,10 @@ section('§D an older schema — a snapshot written under a previous schema is d
   const written = JSON.parse(readFileSync(snapshotPathFor(FILE), 'utf8')) as { schemaVersion?: number; byteCursor?: number }
   check('a cold load leaves a snapshot under the current schema', written.schemaVersion === SNAPSHOT_SCHEMA, JSON.stringify({ written: written.schemaVersion, current: SNAPSHOT_SCHEMA }))
   writeFileSync(snapshotPathFor(FILE), JSON.stringify({ ...written, schemaVersion: OLD_SCHEMA }))
-  check('a snapshot under the older schema is discarded, its cursor and digest untouched', (await tryLoadResumeSnapshot(FILE)) === null, 'tryLoadResumeSnapshot (src/utils/sessionStorage/resumeSnapshot.ts) must discard a snapshot whose schemaVersion differs from SNAPSHOT_SCHEMA')
+  check('a snapshot under the older schema is discarded, its cursor and digest untouched', (await tryLoadResumeSnapshot(FILE)) === null, 'tryLoadResumeSnapshot (src/sessions/transcripts/resumeSnapshot.ts) must discard a snapshot whose schemaVersion differs from SNAPSHOT_SCHEMA')
   _resetTranscriptReaderForTesting()
   const reparsed = await loadTranscriptFile(FILE)
-  check('the transcript is parsed whole once and reads the same state', normalize(reparsed) === normalize(fresh), 'after the old-schema snapshot is discarded, loadTranscriptFile (src/utils/sessionStorage/loading.ts) must full-parse to the same state')
+  check('the transcript is parsed whole once and reads the same state', normalize(reparsed) === normalize(fresh), 'after the old-schema snapshot is discarded, loadTranscriptFile (src/sessions/transcripts/loading.ts) must full-parse to the same state')
   const renewed = JSON.parse(readFileSync(snapshotPathFor(FILE), 'utf8')) as { schemaVersion?: number }
   check('a new snapshot under the current schema stands after that load', renewed.schemaVersion === SNAPSHOT_SCHEMA && (await tryLoadResumeSnapshot(FILE)) !== null, String(renewed.schemaVersion))
 }

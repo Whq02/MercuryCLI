@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-// gate-watch: src/runner/wire/* src/cli/run.ts src/cli/headless/runnerMethods.ts src/daemon/runnerConnection.ts src/daemon/headlessRun.ts src/services/acp/childSession.ts
+// gate-watch: src/daemon/runner-wire/* src/daemon/runner/runHeadless.ts src/daemon/runner/runnerMethods.ts src/daemon/runner-link/runnerConnection.ts src/daemon/runner-link/headlessRun.ts src/integrations/acp/childSession.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 
-const { METHODS, methodsFrom } = await import('../../src/runner/wire/methods.ts')
-const { RUNNER_NOTIFICATION_METHODS, RUNNER_REQUEST_METHODS } = await import('../../src/cli/headless/runnerMethods.ts')
+const { METHODS, methodsFrom } = await import('../../src/daemon/runner-wire/methods.ts')
+const { RUNNER_NOTIFICATION_METHODS, RUNNER_REQUEST_METHODS } = await import('../../src/daemon/runner/runnerMethods.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -42,14 +42,14 @@ section('§1 every method declares its direction, its kind, a params schema and 
 
 section('§2 the runner side: every method a host sends has an arm, and the binder binds them all')
 {
-  const { runnerArmsOf } = await import('../../src/cli/headless/runnerArms.ts')
+  const { runnerArmsOf } = await import('../../src/daemon/runner/runnerArms.ts')
   const arms = Object.keys(runnerArmsOf(new Proxy({}, { get: () => undefined }) as never))
   const hostRequests = methodsFrom('host', 'request').map(spec => spec.name)
   const hostNotifications = methodsFrom('host', 'notification').map(spec => spec.name)
   const armless = [...hostRequests, ...hostNotifications].filter(name => name !== 'initialize' && name !== '$/cancel_request' && !arms.includes(name))
   check("every host method but initialize and $/cancel_request has an arm in the runner's arms object", armless.length === 0 && arms.length === hostRequests.length + hostNotifications.length - 2, j({ armless, arms: arms.length }))
   const { refusalOf, withLiveRunner } = await import('../lib/builtProduct.ts')
-  const { RPC_NOT_INITIALIZED } = await import('../../src/runner/wire/errors.ts')
+  const { RPC_NOT_INITIALIZED } = await import('../../src/daemon/runner-wire/errors.ts')
   const gate = await withLiveRunner(
     async runner => ({
       early: await Promise.all(RUNNER_REQUEST_METHODS.map(name => refusalOf(runner.request(name as never, {} as never)))),

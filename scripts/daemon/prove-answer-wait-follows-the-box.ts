@@ -12,7 +12,7 @@ process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'd')
 delete process.env.MERCURY_HOME
 mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 
-const cs = await import('../../src/daemon/controlSocket.ts')
+const cs = await import('../../src/daemon/control/controlSocket.ts')
 const { daemonControlRpc, controlSockPath, controlSocketCensus } = cs
 const setBox = (cs as { setBoxReadingForTesting?: (reading: { load1: number; cores: number } | null) => void }).setBoxReadingForTesting ?? ((): void => {})
 const ceilingOf = (cs as { answerCeilingMs?: (timeoutMs: number, box: { load1: number; cores: number }) => number }).answerCeilingMs
@@ -73,11 +73,11 @@ const slowOp = async (): Promise<{ reply: { ok?: boolean; code?: string; error?:
 console.log("the daemon's answer wait follows the daemon: the named budget is the period of a liveness read; a daemon that answers its ping and says it is still answering a request keeps the wait; one that says it has nothing in hand, or answers nothing, ends it; an older daemon whose ping carries no such fact is waited for up to the budget scaled to the box's load per core — never below the budget")
 try {
   section('§0 the ceiling for an older daemon is the budget scaled to the box, never below it')
-  check('the scaling law is exported', typeof ceilingOf === 'function', 'export answerCeilingMs from src/daemon/controlSocket.ts')
+  check('the scaling law is exported', typeof ceilingOf === 'function', 'export answerCeilingMs from src/daemon/control/controlSocket.ts')
   if (ceilingOf !== undefined) {
-    check('a quiet box keeps the budget (load under one per core)', ceilingOf(2000, { load1: 1, cores: 15 }) === 2000 && ceilingOf(2000, { load1: 0, cores: 2 }) === 2000, 'answerCeilingMs in src/daemon/controlSocket.ts must return the budget when load per core is under one')
-    check('a box three times oversubscribed waits three budgets', ceilingOf(2000, { load1: 6, cores: 2 }) === 6000, 'answerCeilingMs in src/daemon/controlSocket.ts must multiply the budget by load per core')
-    check('the ceiling never falls below the budget whatever the reading', ceilingOf(2000, { load1: Number.NaN, cores: 0 }) === 2000 && ceilingOf(2000, { load1: -3, cores: 4 }) === 2000, 'answerCeilingMs in src/daemon/controlSocket.ts must fall back to the budget for a NaN, zero-core or negative reading')
+    check('a quiet box keeps the budget (load under one per core)', ceilingOf(2000, { load1: 1, cores: 15 }) === 2000 && ceilingOf(2000, { load1: 0, cores: 2 }) === 2000, 'answerCeilingMs in src/daemon/control/controlSocket.ts must return the budget when load per core is under one')
+    check('a box three times oversubscribed waits three budgets', ceilingOf(2000, { load1: 6, cores: 2 }) === 6000, 'answerCeilingMs in src/daemon/control/controlSocket.ts must multiply the budget by load per core')
+    check('the ceiling never falls below the budget whatever the reading', ceilingOf(2000, { load1: Number.NaN, cores: 0 }) === 2000 && ceilingOf(2000, { load1: -3, cores: 4 }) === 2000, 'answerCeilingMs in src/daemon/control/controlSocket.ts must fall back to the budget for a NaN, zero-core or negative reading')
   }
 
   section('§1 a quiet box, a daemon still answering the request: the slow answer lands — the wait followed the daemon, not the clock')
@@ -86,9 +86,9 @@ try {
   mode = 'serving'
   {
     const { reply, ms } = await slowOp()
-    check('the slow answer landed (ok, the op echoed)', reply.ok === true && (reply as { slow?: boolean }).slow === true, `${JSON.stringify(reply)} | daemonControlRpc in src/daemon/controlSocket.ts must keep waiting while the daemon's ping says it is still working`)
-    check(`it landed when the daemon answered, past the budget (${ms} ms)`, ms >= SLOW_MS - 50 && ms < SLOW_MS + 1500, `${ms} | the answer wait in daemonControlRpc (src/daemon/controlSocket.ts) ended at the wrong time`)
-    check('the daemon was asked at the period\'s end and said it was still answering a request', pings >= 1 && (census.waitsExtended ?? 0) >= 1, `${pings} pings · extended ${census.waitsExtended} | daemonControlRpc in src/daemon/controlSocket.ts must ping at the period's end and count controlSocketCensus.waitsExtended`)
+    check('the slow answer landed (ok, the op echoed)', reply.ok === true && (reply as { slow?: boolean }).slow === true, `${JSON.stringify(reply)} | daemonControlRpc in src/daemon/control/controlSocket.ts must keep waiting while the daemon's ping says it is still working`)
+    check(`it landed when the daemon answered, past the budget (${ms} ms)`, ms >= SLOW_MS - 50 && ms < SLOW_MS + 1500, `${ms} | the answer wait in daemonControlRpc (src/daemon/control/controlSocket.ts) ended at the wrong time`)
+    check('the daemon was asked at the period\'s end and said it was still answering a request', pings >= 1 && (census.waitsExtended ?? 0) >= 1, `${pings} pings · extended ${census.waitsExtended} | daemonControlRpc in src/daemon/control/controlSocket.ts must ping at the period's end and count controlSocketCensus.waitsExtended`)
   }
 
   section('§2 a daemon that answers its ping but has nothing in hand: the wait ends at the budget (a held reply is refused, the birth drive\'s law)')
@@ -99,7 +99,7 @@ try {
     const { reply, ms } = await slowOp()
     check('the refusal is ETIMEOUT', reply.ok === false && reply.code === 'ETIMEOUT', JSON.stringify(reply))
     check(`the refusal lands at the budget plus one ping (${ms} ms, budget ${BUDGET_MS}), not the stretched ceiling`, ms >= BUDGET_MS - 20 && ms < 2 * BUDGET_MS, String(ms))
-    check('the census counts the wait that ended on an idle daemon', (census.waitsEndedIdle ?? 0) === 1 && (census.waitsExtended ?? 0) === 0, `${JSON.stringify(census)} | daemonControlRpc in src/daemon/controlSocket.ts must count waitsEndedIdle when the ping reports no work`)
+    check('the census counts the wait that ended on an idle daemon', (census.waitsEndedIdle ?? 0) === 1 && (census.waitsExtended ?? 0) === 0, `${JSON.stringify(census)} | daemonControlRpc in src/daemon/control/controlSocket.ts must count waitsEndedIdle when the ping reports no work`)
     check('the refusal names the time actually waited', typeof reply.error === 'string' && /within \d+ms \(ETIMEOUT\)/.test(reply.error), String(reply.error))
   }
 
@@ -111,7 +111,7 @@ try {
     const { reply, ms } = await slowOp()
     check('the refusal is ETIMEOUT', reply.ok === false && reply.code === 'ETIMEOUT', JSON.stringify(reply))
     check(`the wait ended after the period and its unanswered liveness read (${ms} ms)`, ms >= BUDGET_MS - 20 && ms <= 2 * BUDGET_MS + 300, String(ms))
-    check('the census counts the wait that ended on a dead liveness read', (census.waitsEndedDead ?? 0) === 1 && (census.waitsExtended ?? 0) === 0, `${JSON.stringify(census)} | daemonControlRpc in src/daemon/controlSocket.ts must count waitsEndedDead when the ping goes unanswered`)
+    check('the census counts the wait that ended on a dead liveness read', (census.waitsEndedDead ?? 0) === 1 && (census.waitsExtended ?? 0) === 0, `${JSON.stringify(census)} | daemonControlRpc in src/daemon/control/controlSocket.ts must count waitsEndedDead when the ping goes unanswered`)
   }
 
   section('§4 an older daemon (its ping carries no work count): the wait is bounded by the budget scaled to the box')
@@ -127,7 +127,7 @@ try {
   {
     const { reply, ms } = await slowOp()
     check('on a box three times oversubscribed the slow answer lands inside the scaled ceiling', reply.ok === true && ms >= SLOW_MS - 50 && ms < 3 * BUDGET_MS + 1500, `${JSON.stringify(reply)} ${ms} ms`)
-    check('the wait was extended on the daemon\'s pong', (census.waitsExtended ?? 0) >= 1, `${JSON.stringify(census)} | daemonControlRpc in src/daemon/controlSocket.ts must count waitsExtended when an older daemon's ping is answered`)
+    check('the wait was extended on the daemon\'s pong', (census.waitsExtended ?? 0) >= 1, `${JSON.stringify(census)} | daemonControlRpc in src/daemon/control/controlSocket.ts must count waitsExtended when an older daemon's ping is answered`)
   }
 } finally {
   setBox(null)

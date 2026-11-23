@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/changesets/**
-# gate-watch: src/services/changeTransaction/** src/tools/ChangeSetTool/**
-# gate-watch: src/components/permissions/ChangeSetPermissionRequest/**
-# gate-watch: src/substrate/recoveryOrchestrator.ts
-# gate-watch: src/tools/AstEditTool/AstEditTool.ts
+# gate-watch: src/tools/engines/change-transaction/** src/tools/change-set/**
+# gate-watch: src/permissions/cards/change-set/**
+# gate-watch: src/platform/substrate/recoveryOrchestrator.ts
+# gate-watch: src/tools/ast-edit/AstEditTool.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

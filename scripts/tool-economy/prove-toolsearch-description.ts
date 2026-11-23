@@ -8,7 +8,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const whereToChange = 'change getPrompt in src/tools/ToolSearchTool/prompt.ts (the description text), the field descriptions in src/tools/ToolSearchTool/ToolSearchTool.ts, or the form choice in deferralWireFormFor in src/services/providers/deferralWire.ts'
+  const whereToChange = 'change getPrompt in src/tools/tool-search/prompt.ts (the description text), the field descriptions in src/tools/tool-search/ToolSearchTool.ts, or the form choice in deferralWireFormFor in src/models/roads/deferralWire.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${whereToChange}${detail ? ` · ${detail}` : ''}` : ''}`)
 }
 const section = (t: string): void => {
@@ -23,14 +23,14 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'toolsearch-descript
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { getPrompt } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
-const { kimiSupportsDynamicToolLoading } = await import('../../src/utils/model/pins/kimiPins.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { getPrompt } = await import('../../src/tools/tool-search/prompt.ts')
+const { deferralWireFormFor } = await import('../../src/models/roads/deferralWire.ts')
+const { kimiSupportsDynamicToolLoading } = await import('../../src/models/facts/pins/kimiPins.ts')
 
 const HEAD = 'Loads the full definitions of deferred tools so they become callable.\n\n'
 const LOCATION = 'Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one per line: the name, and what the tool is for when it declares one; keyword search also reads each tool\'s full description.'
@@ -100,7 +100,7 @@ section('§4 every form shares the head and the location; the grammar lives in t
 
 section('§5 the unattended run (no host answers asks, the roster names only): the location sentence tells that truth, the rest of the text is the hosted text')
 {
-  const { isUnattendedRun, markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
+  const { isUnattendedRun, markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/screen/cockpit/runtimePosture.ts')
   const HOSTED_LOCATION = 'one per line: the name, and what the tool is for when it declares one; keyword search also reads each tool\'s full description.'
   const UNATTENDED_LOCATION = 'one name per line, optionally followed by a hint; keyword search matches names and descriptions even when only names are listed.'
   check('this proof renders the hosted posture (no session mark, so a screen may print the card)', isUnattendedRun() === false)

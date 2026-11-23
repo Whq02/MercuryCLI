@@ -34,7 +34,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' | to fix: the sign-in pane words are in src/services/providers/providerIdentityLine.ts, the chat receipt is loginSuccessReceipt in src/utils/accounts/loginReceipt.ts shown by src/commands/login/login.tsx; if the drive did not reach the state, rebuild dist/mercury.mjs and read the tail printed with the check'}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' | to fix: the sign-in pane words are in src/models/roads/providerIdentityLine.ts, the chat receipt is loginSuccessReceipt in src/models/sign-in/account-ledger/loginReceipt.ts shown by src/commands/logins/login.tsx; if the drive did not reach the state, rebuild dist/mercury.mjs and read the tail printed with the check'}`)
 }
 const record = (label: string, detail: string): void => {
   console.log(`  [record] ${label}: ${detail}`)

@@ -10,21 +10,21 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { render } = await import('../../src/ink.ts')
-const { Box, Text } = await import('../../src/ink.ts')
-const { Byline } = await import('../../src/components/design-system/Byline.tsx')
-const { RowErrorBoundary } = await import('../../src/components/RowErrorBoundary.tsx')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { render } = await import('../../src/screen/themedRenderer.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { Byline } = await import('../../src/screen/theme/Byline.tsx')
+const { RowErrorBoundary } = await import('../../src/screen/messages/RowErrorBoundary.tsx')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { default: stripAnsi } = await import('strip-ansi')
-const AgentUI = await import('../../src/tools/AgentTool/UI.tsx')
-const EvalUI = await import('../../src/tools/EvalTool/UI.tsx')
-const SkillUI = await import('../../src/tools/SkillTool/UI.tsx')
-const { normalizeMessages } = await import('../../src/services/messages.ts')
+const AgentUI = await import('../../src/tools/crewmate/rows.tsx')
+const EvalUI = await import('../../src/tools/eval/rows.tsx')
+const SkillUI = await import('../../src/tools/skill/rows.tsx')
+const { normalizeMessages } = await import('../../src/engine/messages/messages.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — fix the row that threw: Byline in src/components/design-system/Byline.tsx, RowErrorBoundary in src/components/RowErrorBoundary.tsx, or the tool UI named in the label (src/tools/SkillTool/UI.tsx, src/tools/AgentTool/UI.tsx, src/tools/EvalTool/UI.tsx)'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — fix the row that threw: Byline in src/screen/theme/Byline.tsx, RowErrorBoundary in src/screen/messages/RowErrorBoundary.tsx, or the tool UI named in the label (src/tools/skill/rows.tsx, src/tools/crewmate/rows.tsx, src/tools/eval/rows.tsx)'}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

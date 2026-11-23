@@ -1,0 +1,793 @@
+import { isDeepStrictEqual } from 'node:util'
+import { flagEnv } from '../../../platform/substrate/flagRegistry.js'
+import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
+import { fetchWithProviderDeadline } from '../fetchDeadline.js'
+import { getApiFetch } from '../../../platform/network/proxy.js'
+import { getUserAgent } from '../requestHeaders.js'
+import type { LocalServerKind } from '../openaicompat/compatWire.js'
+import { kvGeometryOf, type KvGeometry } from '../../local-server/localServerMemory.js'
+import { resolveLocalApiKeyFor } from './localApiKey.js'
+import { ggufServerRoots } from '../../local-setup/ggufServers.js'
+import { tensorFoldEngineLabel } from '../../tensorfold/adapter/identity.js'
+import { helperPort, tensorFoldHostRecords, tensorFoldPorts } from './tensorfoldHosts.js'
+import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
+import { hostEnv } from '../../../platform/environment/hostEnv.js'
+import { isOneOf } from '../../../platform/primitives/isOneOf.js'
+
+export type { LocalServerKind }
+
+export const DEFAULT_LOCAL_PROBE_TARGETS: readonly { kind: LocalServerKind; root: string }[] = [
+  { kind: 'ollama', root: 'http://127.0.0.1:11434' },
+  { kind: 'lmstudio', root: 'http://127.0.0.1:1234' },
+  { kind: 'vllm', root: 'http://127.0.0.1:8000' },
+  { kind: 'llamacpp', root: 'http://127.0.0.1:8080' },
+]
+
+export const LOCAL_PROBE_TIMEOUT_MS = 900
+export const LOCAL_LOAD_TIMEOUT_MS = 180_000
+const OLLAMA_SHOW_BOUND = 32
+
+export type LocalContextSource = 'served' | 'modelfile' | 'model-max'
+
+export interface LocalModelRecord {
+  id: string
+  displayName?: string
+  server: LocalServerKind
+  baseUrl: string
+  contextWindow?: { tokens: number; source: LocalContextSource }
+  modelfileContext?: number
+  modelMaxContext?: number
+  toolsDeclared?: boolean
+  thinkingDeclared?: boolean
+  thinkingSwitch?: boolean
+  promptCache?: boolean
+  warmTurns?: boolean
+  thinkingBudget?: boolean
+  thinking?: { values: Array<boolean | string>; default: boolean | string }
+  executionOrigin?: { kind: 'local' } | { kind: 'remote'; remoteModel?: string; remoteHost?: string }
+  visionDeclared?: boolean
+  loaded?: boolean
+  family?: string
+  parameterSize?: string
+  quantization?: string
+  servedReadAtMs?: number
+  servedBytes?: number
+  weightsBytes?: number
+  geometry?: KvGeometry
+  efforts?: readonly string[]
+  servedBy?: string
+  factsUnread?: true
+}
+
+export interface TensorFoldEngineFacts {
+  keyed: boolean
+  backend?: string
+  device?: string
+  inUseBytes?: number
+  streams?: number
+  contextFitted?: boolean
+  draining?: boolean
+  servedBy?: string
+  engineWords?: string
+}
+
+export interface LocalServerRecord {
+  kind: LocalServerKind
+  root: string
+  baseUrl: string
+  label: string
+  version?: string
+  models: LocalModelRecord[]
+  engine?: TensorFoldEngineFacts
+}
+
+export interface LocalDiscoverySnapshot {
+  servers: LocalServerRecord[]
+  probedAtMs: number
+  targetCount: number
+}
+
+export interface LocalDiscoveryIo {
+  env?: NodeJS.ProcessEnv
+  fetchImpl?: typeof fetch
+  now?: () => number
+  timeoutMs?: number
+  loadTimeoutMs?: number
+  signal?: AbortSignal
+}
+
+const KINDS: readonly LocalServerKind[] = ['ollama', 'lmstudio', 'vllm', 'llamacpp', 'tensorfold', 'openai-compatible']
+function isKind(v: string): v is LocalServerKind {
+  return isOneOf(KINDS, v)
+}
+
+export function rememberedTensorFoldTargets(): { kind: 'tensorfold'; root: string }[] {
+  const targets: { kind: 'tensorfold'; root: string }[] = []
+  const add = (root: string): void => {
+    if (!targets.some(target => target.root === root)) targets.push({ kind: 'tensorfold', root })
+  }
+  try {
+    for (const port of tensorFoldPorts()) add(`http://127.0.0.1:${port}`)
+  } catch (error) { passedOver(error) }
+  try {
+    const helper = helperPort()
+    if (helper !== undefined) add(`http://127.0.0.1:${helper}`)
+  } catch (error) { passedOver(error) }
+  try {
+    for (const host of tensorFoldHostRecords()) add(host.baseUrl)
+  } catch (error) { passedOver(error) }
+  return targets
+}
+
+export function localProbeTargets(
+  env: NodeJS.ProcessEnv = hostEnv(),
+): { kind: LocalServerKind; root: string }[] {
+  const pinned = flagEnv('MERCURY_LOCAL_PROBE_TARGETS', env)?.trim()
+  let targets: { kind: LocalServerKind; root: string }[]
+  if (pinned === undefined || pinned === '') {
+    targets = [...DEFAULT_LOCAL_PROBE_TARGETS]
+    for (const root of ggufServerRoots()) if (!targets.some(target => target.root === root)) targets.push({ kind: 'llamacpp', root })
+    for (const target of rememberedTensorFoldTargets()) if (!targets.some(known => known.root === target.root)) targets.push(target)
+  } else if (pinned.toLowerCase() === 'none') {
+    targets = []
+  } else {
+    targets = []
+    for (const entry of pinned.split(',')) {
+      const [kindRaw, ...rest] = entry.split('=')
+      const kind = (kindRaw ?? '').trim().toLowerCase()
+      const root = rest.join('=').trim().replace(/\/+$/, '')
+      if (isKind(kind) && root) targets.push({ kind, root })
+    }
+    for (const target of rememberedTensorFoldTargets()) if (!targets.some(known => known.root === target.root)) targets.push(target)
+  }
+  const override = flagEnv('MERCURY_LOCAL_BASE_URL', env)?.trim()
+  if (override) {
+    const root = override.replace(/\/+$/, '').replace(/\/v1$/, '')
+    if (!targets.some(t => t.root === root)) targets.push({ kind: 'openai-compatible', root })
+  }
+  return targets
+}
+
+
+function probeRoot(url: string): string {
+  try {
+    const parsed = new URL(url)
+    return `${parsed.protocol}//${parsed.host}`
+  } catch {
+    return url
+  }
+}
+
+async function probeJson(
+  url: string,
+  io: LocalDiscoveryIo,
+  init?: { method?: 'GET' | 'POST'; body?: unknown; timeoutMs?: number },
+): Promise<unknown | undefined> {
+  const fetchImpl = io.fetchImpl ?? getApiFetch()
+  const timeoutMs = init?.timeoutMs ?? io.timeoutMs ?? LOCAL_PROBE_TIMEOUT_MS
+  const key = resolveLocalApiKeyFor(probeRoot(url), io.env ?? hostEnv())
+  try {
+    const response = await fetchWithProviderDeadline(fetchImpl, 'local', timeoutMs, url, {
+      method: init?.method ?? 'GET',
+      headers: {
+        accept: 'application/json',
+        'user-agent': getUserAgent(),
+        ...(init?.body !== undefined ? { 'content-type': 'application/json' } : {}),
+        ...(key ? { authorization: `Bearer ${key.key}` } : {}),
+      },
+      ...(init?.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
+      ...(io.signal !== undefined ? { signal: io.signal } : {}),
+    } as RequestInit)
+    if (!response.ok) return undefined
+    return (await response.json()) as unknown
+  } catch (error) {
+    passedOver(error)
+    return undefined
+  }
+}
+
+function rec(v: unknown): Record<string, unknown> | undefined {
+  return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
+}
+function str(v: unknown): string | undefined {
+  return typeof v === 'string' && v.trim() !== '' ? v : undefined
+}
+function num(v: unknown): number | undefined {
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined
+}
+function strList(v: unknown): string[] | undefined {
+  return Array.isArray(v) && v.every(x => typeof x === 'string') ? (v as string[]) : undefined
+}
+function parameterSizeWords(params: number): string {
+  return params >= 1e9 ? `${(params / 1e9).toFixed(1)}B` : `${Math.round(params / 1e6)}M`
+}
+
+
+export interface OllamaServed {
+  tokens: number
+  bytes?: number
+}
+
+function ollamaServedMap(psBody: unknown): Map<string, OllamaServed> {
+  const served = new Map<string, OllamaServed>()
+  for (const loaded of (Array.isArray(rec(psBody)?.models) ? (rec(psBody)!.models as unknown[]) : [])) {
+    const l = rec(loaded)
+    const name = str(l?.model) ?? str(l?.name)
+    const ctx = num(l?.context_length)
+    const bytes = num(l?.size) ?? num(l?.size_vram)
+    if (name && ctx) served.set(name, { tokens: ctx, ...(bytes !== undefined ? { bytes } : {}) })
+  }
+  return served
+}
+
+export async function probeOllama(root: string, io: LocalDiscoveryIo): Promise<LocalServerRecord | undefined> {
+  const answer = await fetchTensorFold(`${root}/api/tags`, io, resolveLocalApiKeyFor(probeRoot(root), io.env ?? hostEnv())?.key)
+  const tags = answer !== undefined && answer.status >= 200 && answer.status < 300 ? rec(answer.body) : undefined
+  if (!tags || !Array.isArray(tags.models)) return undefined
+  const engine = tensorFoldAnswers(answer) ? await probeTensorFold(root, io) : undefined
+  if (engine) return engine
+  const [versionBody, psBody] = await Promise.all([
+    probeJson(`${root}/api/version`, io),
+    probeJson(`${root}/api/ps`, io),
+  ])
+  const version = str(rec(versionBody)?.version)
+  const served = ollamaServedMap(psBody)
+  const listed = (tags.models as unknown[]).map(rec).filter((m): m is Record<string, unknown> => m !== undefined)
+  const baseUrl = `${root}/v1`
+  const models = await Promise.all(
+    listed.slice(0, OLLAMA_SHOW_BOUND).map(async (m): Promise<LocalModelRecord | undefined> => {
+      const id = str(m.model) ?? str(m.name)
+      if (!id) return undefined
+      const details = rec(m.details)
+      const show = rec(await probeJson(`${root}/api/show`, io, { method: 'POST', body: { model: id } }))
+      const capabilities = strList(show?.capabilities) ?? strList(m.capabilities)
+      const thinkingBody = rec(show?.thinking)
+      const thinking = Array.isArray(thinkingBody?.values) && thinkingBody.values.length > 0
+        && thinkingBody.values.every(value => typeof value === 'boolean' || typeof value === 'string' && value.length > 0)
+        && (typeof thinkingBody.default === 'boolean' || typeof thinkingBody.default === 'string')
+        ? { values: [...thinkingBody.values] as Array<boolean | string>, default: thinkingBody.default }
+        : undefined
+      const info = rec(show?.model_info)
+      const arch = str(info?.['general.architecture'])
+      const modelMax = arch ? num(info?.[`${arch}.context_length`]) : undefined
+      const params = str(show?.parameters)
+      const numCtx = params ? num(Number(/(?:^|\n)\s*num_ctx\s+(\d+)/.exec(params)?.[1])) : undefined
+      const servedCtx = served.get(id)
+      const contextWindow: LocalModelRecord['contextWindow'] = servedCtx
+        ? { tokens: servedCtx.tokens, source: 'served' }
+        : numCtx
+          ? { tokens: numCtx, source: 'modelfile' }
+          : undefined
+      const weightsBytes = num(m.size)
+      const geometry = info ? kvGeometryOf(info) : undefined
+      return {
+        id,
+        server: 'ollama',
+        baseUrl,
+        executionOrigin: str(m.remote_model) || str(m.remote_host)
+          ? { kind: 'remote', ...(str(m.remote_model) ? { remoteModel: str(m.remote_model)! } : {}), ...(str(m.remote_host) ? { remoteHost: str(m.remote_host)! } : {}) }
+          : { kind: 'local' },
+        ...(contextWindow !== undefined ? { contextWindow } : {}),
+        ...(numCtx !== undefined ? { modelfileContext: numCtx } : {}),
+        ...(servedCtx?.bytes !== undefined ? { servedBytes: servedCtx.bytes } : {}),
+        ...(modelMax !== undefined ? { modelMaxContext: modelMax } : {}),
+        ...(weightsBytes !== undefined ? { weightsBytes } : {}),
+        ...(geometry !== undefined ? { geometry } : {}),
+        ...(capabilities
+          ? {
+              toolsDeclared: capabilities.includes('tools'),
+              thinkingDeclared: capabilities.includes('thinking'),
+              visionDeclared: capabilities.includes('vision'),
+            }
+          : {}),
+        ...(thinking !== undefined ? { thinking, thinkingDeclared: thinking.values.some(value => value !== false) } : {}),
+        loaded: served.has(id),
+        ...(str(details?.family) ? { family: str(details?.family)! } : {}),
+        ...(str(details?.parameter_size) ? { parameterSize: str(details?.parameter_size)! } : {}),
+        ...(str(details?.quantization_level) ? { quantization: str(details?.quantization_level)! } : {}),
+        ...(show === undefined ? { factsUnread: true as const } : {}),
+      }
+    }),
+  )
+  return {
+    kind: 'ollama',
+    root,
+    baseUrl,
+    label: version ? `Ollama ${version}` : 'Ollama',
+    ...(version ? { version } : {}),
+    models: models.filter((m): m is LocalModelRecord => m !== undefined),
+  }
+}
+
+
+export async function probeLmStudio(root: string, io: LocalDiscoveryIo): Promise<LocalServerRecord | undefined> {
+  const baseUrl = `${root}/v1`
+  const v1 = rec(await probeJson(`${root}/api/v1/models`, io))
+  if (v1 && Array.isArray(v1.models)) {
+    const models: LocalModelRecord[] = []
+    for (const raw of v1.models as unknown[]) {
+      const m = rec(raw)
+      const id = str(m?.key)
+      if (!m || !id) continue
+      if (str(m.type) === 'embedding') continue
+      const instances = Array.isArray(m.loaded_instances) ? (m.loaded_instances as unknown[]).map(rec) : []
+      const servedCtx = instances.map(i => num(rec(i?.config)?.context_length)).find((n): n is number => n !== undefined)
+      const modelMax = num(m.max_context_length)
+      const caps = rec(m.capabilities)
+      const quant = rec(m.quantization)
+      models.push({
+        id,
+        ...(str(m.display_name) ? { displayName: str(m.display_name)! } : {}),
+        server: 'lmstudio',
+        baseUrl,
+        ...(servedCtx
+          ? { contextWindow: { tokens: servedCtx, source: 'served' } }
+          : modelMax
+            ? { contextWindow: { tokens: modelMax, source: 'model-max' } }
+            : {}),
+        ...(modelMax !== undefined ? { modelMaxContext: modelMax } : {}),
+        ...(num(m.size_bytes) !== undefined ? { weightsBytes: num(m.size_bytes)! } : {}),
+        ...(typeof caps?.trained_for_tool_use === 'boolean' ? { toolsDeclared: caps.trained_for_tool_use } : {}),
+        ...(typeof caps?.vision === 'boolean' ? { visionDeclared: caps.vision } : {}),
+        ...(rec(m.reasoning) ?? rec(caps?.reasoning) ? { thinkingDeclared: true } : {}),
+        loaded: instances.length > 0,
+        ...(str(m.architecture) ? { family: str(m.architecture)! } : {}),
+        ...(str(m.params_string) ? { parameterSize: str(m.params_string)! } : {}),
+        ...(str(quant?.name) ? { quantization: str(quant?.name)! } : {}),
+      })
+    }
+    return { kind: 'lmstudio', root, baseUrl, label: 'LM Studio', models }
+  }
+  const v0 = rec(await probeJson(`${root}/api/v0/models`, io))
+  if (tensorFoldModelList(v0)) return probeTensorFold(root, io, { models: v0 })
+  if (v0 && Array.isArray(v0.data)) {
+    const models: LocalModelRecord[] = []
+    for (const raw of v0.data as unknown[]) {
+      const m = rec(raw)
+      const id = str(m?.id)
+      if (!m || !id) continue
+      if (str(m.type) === 'embeddings') continue
+      const modelMax = num(m.max_context_length)
+      models.push({
+        id,
+        server: 'lmstudio',
+        baseUrl,
+        ...(modelMax ? { contextWindow: { tokens: modelMax, source: 'model-max' }, modelMaxContext: modelMax } : {}),
+        ...(str(m.state) ? { loaded: str(m.state) === 'loaded' } : {}),
+        ...(str(m.arch) ? { family: str(m.arch)! } : {}),
+        ...(str(m.quantization) ? { quantization: str(m.quantization)! } : {}),
+      })
+    }
+    return { kind: 'lmstudio', root, baseUrl, label: 'LM Studio', models }
+  }
+  return undefined
+}
+
+
+function openaiModelList(body: unknown): Record<string, unknown>[] | undefined {
+  const o = rec(body)
+  if (!o || !Array.isArray(o.data)) return undefined
+  return (o.data as unknown[]).map(rec).filter((m): m is Record<string, unknown> => m !== undefined)
+}
+
+export const TENSORFOLD_OWNER = 'tensorfold'
+
+export function tensorFoldModelList(body: unknown): Record<string, unknown>[] | undefined {
+  const list = openaiModelList(body)
+  return list !== undefined && list.length > 0 && list.every(m => str(m.owned_by) === TENSORFOLD_OWNER) ? list : undefined
+}
+
+export interface TensorFoldAnswer {
+  status: number
+  server: string | undefined
+  body: unknown
+}
+
+export async function fetchTensorFold(url: string, io: LocalDiscoveryIo, key?: string): Promise<TensorFoldAnswer | undefined> {
+  const fetchImpl = io.fetchImpl ?? getApiFetch()
+  const timeoutMs = io.timeoutMs ?? LOCAL_PROBE_TIMEOUT_MS
+  try {
+    const response = await fetchWithProviderDeadline(fetchImpl, 'local', timeoutMs, url, {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+        'user-agent': getUserAgent(),
+        ...(key ? { authorization: `Bearer ${key}` } : {}),
+      },
+      ...(io.signal !== undefined ? { signal: io.signal } : {}),
+    } as RequestInit)
+    let body: unknown
+    try {
+      body = await response.json()
+    } catch {
+      body = undefined
+    }
+    return { status: response.status, server: response.headers.get('server') ?? undefined, body }
+  } catch (error) {
+    passedOver(error)
+    return undefined
+  }
+}
+
+export function tensorFoldAnswers(answer: TensorFoldAnswer | undefined): boolean {
+  return answer !== undefined && (answer.server === 'TensorFold' || tensorFoldModelList(answer.body) !== undefined)
+}
+
+function tensorFoldModelRecord(m: Record<string, unknown>, baseUrl: string): LocalModelRecord | undefined {
+  const id = str(m.id)
+  if (!id) return undefined
+  const window = num(m.context_length) ?? num(m.max_model_len)
+  const reasoning = rec(m.reasoning)
+  const listed = strList(reasoning?.supported_efforts)
+  const servedBy = str(m.served_by)
+  const capabilities = rec(m.capabilities)
+  const thinkingSwitch = capabilities?.thinking_switch
+  const promptCache = capabilities?.prompt_cache
+  const warmTurns = capabilities?.warm_turns
+  const thinkingBudget = capabilities?.thinking_budget
+  return {
+    id,
+    server: 'tensorfold',
+    baseUrl,
+    ...(window ? { contextWindow: { tokens: window, source: 'served' } } : {}),
+    thinkingDeclared: reasoning !== undefined,
+    ...(typeof thinkingSwitch === 'boolean' ? { thinkingSwitch } : {}),
+    ...(typeof promptCache === 'boolean' ? { promptCache } : {}),
+    ...(typeof warmTurns === 'boolean' ? { warmTurns } : {}),
+    ...(typeof thinkingBudget === 'boolean' ? { thinkingBudget } : {}),
+    ...(reasoning !== undefined ? { efforts: listed !== undefined && listed.length > 0 ? listed : [] } : {}),
+    loaded: true,
+    ...(servedBy !== undefined ? { servedBy } : {}),
+  }
+}
+
+export async function probeTensorFold(root: string, io: LocalDiscoveryIo, prefetched?: { models?: unknown }): Promise<LocalServerRecord | undefined> {
+  const key = resolveLocalApiKeyFor(root, io.env ?? hostEnv())?.key
+  const modelsBody = prefetched?.models !== undefined ? prefetched.models : (await fetchTensorFold(`${root}/v1/models`, io, key))?.body
+  const list = tensorFoldModelList(modelsBody)
+  if (!list) return undefined
+  const baseUrl = `${root}/v1`
+  const health = rec((await fetchTensorFold(`${root}/health`, io, key))?.body)
+  const open = health !== undefined && str(health.model) !== undefined
+  const memory = rec(health?.memory)
+  const version = str(health?.version) ?? tensorFoldHostRecords().find(host => host.baseUrl === root)?.version
+  const models = list.map(m => tensorFoldModelRecord(m, baseUrl)).filter((m): m is LocalModelRecord => m !== undefined)
+  for (const model of models) if (open && num(memory?.active) !== undefined) model.servedBytes = num(memory?.active)!
+  const servedBy = models.find(model => model.servedBy !== undefined)?.servedBy ?? str(health?.served_by)
+  const engineWords = str(rec(health?.engine)?.words)
+  return {
+    kind: 'tensorfold',
+    root,
+    baseUrl,
+    label: tensorFoldEngineLabel(version, servedBy),
+    ...(version ? { version } : {}),
+    models,
+    engine: {
+      keyed: !open,
+      ...(str(health?.backend) !== undefined ? { backend: str(health?.backend)! } : {}),
+      ...(str(health?.device) !== undefined ? { device: str(health?.device)! } : {}),
+      ...(num(memory?.active) !== undefined ? { inUseBytes: num(memory?.active)! } : {}),
+      ...(num(health?.max_batch_size) !== undefined ? { streams: num(health?.max_batch_size)! } : {}),
+      ...(str(health?.status) === 'draining' ? { draining: true } : {}),
+      ...(servedBy !== undefined ? { servedBy } : {}),
+      ...(engineWords !== undefined ? { engineWords } : {}),
+    },
+  }
+}
+
+export async function probeVllm(root: string, io: LocalDiscoveryIo): Promise<LocalServerRecord | undefined> {
+  const body = await probeJson(`${root}/v1/models`, io)
+  if (tensorFoldModelList(body)) return probeTensorFold(root, io, { models: body })
+  const list = openaiModelList(body)
+  if (!list) return undefined
+  const baseUrl = `${root}/v1`
+  const models: LocalModelRecord[] = []
+  for (const m of list) {
+    const id = str(m.id)
+    if (!id) continue
+    const served = num(m.max_model_len)
+    models.push({
+      id,
+      server: 'vllm',
+      baseUrl,
+      ...(served ? { contextWindow: { tokens: served, source: 'served' } } : {}),
+    })
+  }
+  return { kind: 'vllm', root, baseUrl, label: 'vLLM', models }
+}
+
+
+export async function probeLlamaCpp(root: string, io: LocalDiscoveryIo): Promise<LocalServerRecord | undefined> {
+  const [v1Body, propsBody, routerBody] = await Promise.all([
+    probeJson(`${root}/v1/models`, io),
+    probeJson(`${root}/props`, io),
+    probeJson(`${root}/models`, io),
+  ])
+  if (tensorFoldModelList(v1Body)) return probeTensorFold(root, io, { models: v1Body })
+  const list = openaiModelList(v1Body)
+  const props = rec(propsBody)
+  if (!list && !props) return undefined
+  const baseUrl = `${root}/v1`
+  const servedCtx = num(rec(props?.default_generation_settings)?.n_ctx)
+  const vision = typeof rec(props?.modalities)?.vision === 'boolean' ? (rec(props?.modalities)!.vision as boolean) : undefined
+  const build = str(props?.build_info)
+  const stated = (strList(rec(props?.chat_template_caps)?.reasoning_effort_levels) ?? []).map(level => level.trim().toLowerCase()).filter(level => level !== '')
+  const models: LocalModelRecord[] = []
+  const routerRows = (openaiModelList(routerBody) ?? []).filter(m => rec(m.status) !== undefined)
+  if (routerRows.length > 0) {
+    for (const m of routerRows) {
+      const id = str(m.id)
+      if (!id) continue
+      const status = str(rec(m.status)?.value)
+      const loaded = status === 'loaded'
+      models.push({
+        id,
+        server: 'llamacpp',
+        baseUrl,
+        ...(loaded && servedCtx ? { contextWindow: { tokens: servedCtx, source: 'served' } } : {}),
+        ...(status ? { loaded } : {}),
+        ...(vision !== undefined ? { visionDeclared: vision } : {}),
+      })
+    }
+  } else if (list) {
+    for (const m of list) {
+      const id = str(m.id)
+      if (!id) continue
+      const meta = rec(m.meta)
+      const served = servedCtx ?? num(meta?.n_ctx)
+      const trained = num(meta?.n_ctx_train)
+      const weightsBytes = num(meta?.size)
+      const params = num(meta?.n_params)
+      models.push({
+        id,
+        server: 'llamacpp',
+        baseUrl,
+        ...(served
+          ? { contextWindow: { tokens: served, source: 'served' } }
+          : trained
+            ? { contextWindow: { tokens: trained, source: 'model-max' } }
+            : {}),
+        ...(trained !== undefined ? { modelMaxContext: trained } : {}),
+        ...(weightsBytes !== undefined ? { weightsBytes } : {}),
+        ...(params !== undefined ? { parameterSize: parameterSizeWords(params) } : {}),
+        loaded: meta !== undefined,
+        ...(vision !== undefined ? { visionDeclared: vision } : {}),
+        ...(stated.length > 0 ? { efforts: stated } : {}),
+      })
+    }
+  }
+  return {
+    kind: 'llamacpp',
+    root,
+    baseUrl,
+    label: build ? `llama.cpp ${build}` : 'llama.cpp',
+    ...(build ? { version: build } : {}),
+    models,
+  }
+}
+
+
+export async function probeOpenaiCompatible(root: string, io: LocalDiscoveryIo): Promise<LocalServerRecord | undefined> {
+  const v1Body = await probeJson(`${root}/v1/models`, io)
+  if (tensorFoldModelList(v1Body)) return probeTensorFold(root, io, { models: v1Body })
+  const ollama = await probeOllama(root, io)
+  if (ollama) return ollama
+  const lmstudio = await probeLmStudio(root, io)
+  if (lmstudio) return lmstudio
+  const llamacpp = rec(await probeJson(`${root}/props`, io)) ? await probeLlamaCpp(root, io) : undefined
+  if (llamacpp) return llamacpp
+  const list = openaiModelList(v1Body)
+  if (!list) return undefined
+  if (list.some(m => str(m.owned_by) === 'vllm' || num(m.max_model_len) !== undefined)) return probeVllm(root, io)
+  if (list.some(m => str(m.owned_by) === 'llamacpp')) return probeLlamaCpp(root, io)
+  const baseUrl = `${root}/v1`
+  const models: LocalModelRecord[] = []
+  for (const m of list) {
+    const id = str(m.id)
+    if (id) models.push({ id, server: 'openai-compatible', baseUrl })
+  }
+  return { kind: 'openai-compatible', root, baseUrl, label: 'OpenAI-compatible server', models }
+}
+
+async function probeTarget(target: { kind: LocalServerKind; root: string }, io: LocalDiscoveryIo): Promise<LocalServerRecord | undefined> {
+  switch (target.kind) {
+    case 'ollama':
+      return probeOllama(target.root, io)
+    case 'lmstudio':
+      return probeLmStudio(target.root, io)
+    case 'vllm':
+      return probeVllm(target.root, io)
+    case 'llamacpp':
+      return probeLlamaCpp(target.root, io)
+    case 'tensorfold':
+      return probeTensorFold(target.root, io)
+    case 'openai-compatible':
+      return probeOpenaiCompatible(target.root, io)
+  }
+}
+
+export async function discoverLocalServers(io: LocalDiscoveryIo = {}): Promise<LocalDiscoverySnapshot> {
+  const env = io.env ?? hostEnv()
+  const targets = localProbeTargets(env)
+  let targetCount = targets.length
+  const results = await Promise.all(targets.map(async target => {
+    if (target.kind !== 'llamacpp' || target.root !== 'http://127.0.0.1:8080' || flagEnv('MERCURY_LOCAL_PROBE_TARGETS', env)?.trim()) return probeTarget(target, io).catch(passedOverAs(undefined))
+    let answered = false
+    const fetchImpl = io.fetchImpl ?? getApiFetch()
+    const first = await probeLlamaCpp(target.root, { ...io, fetchImpl: (async (...args: Parameters<typeof fetch>) => {
+      const response = await fetchImpl(...args)
+      answered = true
+      return response
+    }) as typeof fetch })
+    if (first || answered || io.signal?.aborted) return first
+    targetCount++
+    return probeLlamaCpp('http://127.0.0.1:9931', io)
+  }).map(probe => probe.catch(passedOverAs(undefined))))
+  const servers = results.filter((s): s is LocalServerRecord => s !== undefined)
+  return { servers, probedAtMs: io.now?.() ?? Date.now(), targetCount }
+}
+
+
+export const LOCAL_DISCOVERY_TTL_MS = 60_000
+
+let cached: LocalDiscoverySnapshot | null = null
+let inFlight: Promise<LocalDiscoverySnapshot> | null = null
+
+export function getCachedLocalDiscovery(): LocalDiscoverySnapshot | null {
+  return cached
+}
+
+export function refreshLocalDiscovery(opts?: LocalDiscoveryIo & { force?: boolean }): Promise<LocalDiscoverySnapshot> {
+  const now = opts?.now ?? Date.now
+  if (!opts?.force && cached && now() - cached.probedAtMs < LOCAL_DISCOVERY_TTL_MS) return Promise.resolve(cached)
+  if (inFlight) return inFlight
+  const { force: _force, ...io } = opts ?? {}
+  inFlight = (async (): Promise<LocalDiscoverySnapshot> => {
+    try {
+      const before = cached
+      const snapshot = await discoverLocalServers(io)
+      cached = snapshot
+      if (before === null || before.targetCount !== snapshot.targetCount || !isDeepStrictEqual(before.servers, snapshot.servers)) {
+        bumpCatalogueEpoch()
+      }
+      return snapshot
+    } finally {
+      inFlight = null
+    }
+  })()
+  return inFlight
+}
+
+export function cachedLocalModels(): LocalModelRecord[] {
+  return cached ? cached.servers.flatMap(s => s.models) : []
+}
+
+export function localModelRecord(wireId: string): LocalModelRecord | undefined {
+  const lower = wireId.trim().toLowerCase()
+  const slash = lower.indexOf('/')
+  if (slash > 0) {
+    const kind = lower.slice(0, slash)
+    if (isOneOf(KINDS, kind)) {
+      const rest = lower.slice(slash + 1)
+      const qualified = cachedLocalModels().find(m => m.server === kind && m.id.toLowerCase() === rest)
+      if (qualified) return qualified
+    }
+  }
+  return cachedLocalModels().find(m => m.id.toLowerCase() === lower)
+}
+
+export interface ServedWindowLoad {
+  numCtx?: number
+  numBatch?: number
+  probeOnly?: boolean
+}
+
+function servedFrom(server: LocalServerRecord | undefined, id: string): OllamaServed | undefined {
+  const model = server?.models.find(m => m.id === id)
+  return model?.contextWindow?.source === 'served' ? { tokens: model.contextWindow.tokens, ...(model.servedBytes !== undefined ? { bytes: model.servedBytes } : {}) } : undefined
+}
+
+export function ollamaLoadBody(id: string, load?: Pick<ServedWindowLoad, 'numCtx' | 'numBatch'>): Record<string, unknown> {
+  const options: Record<string, number> = {
+    ...(load?.numCtx !== undefined ? { num_ctx: load.numCtx } : {}),
+    ...(load?.numBatch !== undefined ? { num_batch: load.numBatch } : {}),
+  }
+  return { model: id, ...(Object.keys(options).length > 0 ? { options } : {}) }
+}
+
+async function loadOllama(root: string, id: string, io: LocalDiscoveryIo, load?: ServedWindowLoad): Promise<OllamaServed | undefined> {
+  const resident = ollamaServedMap(await probeJson(`${root}/api/ps`, io)).get(id)
+  if (resident !== undefined || load?.probeOnly === true) return resident
+  await probeJson(`${root}/api/generate`, io, { method: 'POST', timeoutMs: io.loadTimeoutMs ?? LOCAL_LOAD_TIMEOUT_MS, body: ollamaLoadBody(id, load) })
+  return ollamaServedMap(await probeJson(`${root}/api/ps`, io)).get(id)
+}
+
+async function loadLmStudio(root: string, id: string, io: LocalDiscoveryIo, load?: ServedWindowLoad): Promise<OllamaServed | undefined> {
+  const before = await probeLmStudio(root, io)
+  const served = servedFrom(before, id)
+  if (load?.numCtx === undefined) return served
+  if (served?.tokens === load.numCtx) return served
+  const loadTimeoutMs = io.loadTimeoutMs ?? LOCAL_LOAD_TIMEOUT_MS
+  const v1 = rec(await probeJson(`${root}/api/v1/models`, io))
+  const entry = (Array.isArray(v1?.models) ? (v1!.models as unknown[]).map(rec) : []).find(m => str(m?.key) === id)
+  const instances = Array.isArray(entry?.loaded_instances) ? (entry!.loaded_instances as unknown[]).map(rec) : []
+  for (const instance of instances) {
+    const instanceId = str(instance?.id)
+    if (instanceId) await probeJson(`${root}/api/v1/models/unload`, io, { method: 'POST', body: { instance_id: instanceId } })
+  }
+  await probeJson(`${root}/api/v1/models/load`, io, { method: 'POST', timeoutMs: loadTimeoutMs, body: { model: id, context_length: load.numCtx } })
+  return servedFrom(await probeLmStudio(root, io), id)
+}
+
+export async function readServed(record: LocalModelRecord, io: LocalDiscoveryIo = {}, load?: ServedWindowLoad): Promise<OllamaServed | undefined> {
+  const root = record.baseUrl.replace(/\/v1$/, '')
+  try {
+    switch (record.server) {
+      case 'ollama':
+        return await loadOllama(root, record.id, io, load)
+      case 'lmstudio':
+        return await loadLmStudio(root, record.id, io, load)
+      case 'vllm':
+        return servedFrom(await probeVllm(root, io), record.id)
+      case 'llamacpp':
+        return servedFrom(await probeLlamaCpp(root, io), record.id)
+      case 'tensorfold':
+        return servedFrom(await probeTensorFold(root, io), record.id)
+      case 'openai-compatible':
+        return undefined
+    }
+  } catch (error) {
+    passedOver(error)
+    return undefined
+  }
+}
+
+export async function readServedWindow(record: LocalModelRecord, io: LocalDiscoveryIo = {}, load?: ServedWindowLoad): Promise<number | undefined> {
+  return (await readServed(record, io, load))?.tokens
+}
+
+export function servedWindowIsCurrent(record: LocalModelRecord, now: number = Date.now()): boolean {
+  if (record.contextWindow?.source !== 'served') return false
+  const readAt = Math.max(cached?.probedAtMs ?? 0, record.servedReadAtMs ?? 0)
+  return now - readAt < LOCAL_DISCOVERY_TTL_MS
+}
+
+function noteServedWindow(record: LocalModelRecord, served: OllamaServed, now: number): void {
+  const before = record.contextWindow
+  record.contextWindow = { tokens: served.tokens, source: 'served' }
+  if (served.bytes !== undefined) record.servedBytes = served.bytes
+  else delete record.servedBytes
+  record.loaded = true
+  record.servedReadAtMs = now
+  if (before?.source !== 'served' || before.tokens !== served.tokens) bumpCatalogueEpoch()
+}
+
+export async function ensureServedWindow(record: LocalModelRecord, io: LocalDiscoveryIo = {}, load?: ServedWindowLoad): Promise<LocalModelRecord> {
+  const now = io.now?.() ?? Date.now()
+  const current = servedWindowIsCurrent(record, now)
+  if (current && (load?.numCtx === undefined || record.contextWindow?.tokens === load.numCtx)) return record
+  const served = await readServed(record, io, load)
+  if (served === undefined) {
+    if (record.server === 'ollama' && load?.probeOnly === true) record.loaded = false
+    return record
+  }
+  noteServedWindow(record, served, now)
+  return record
+}
+
+export async function confirmServedWindow(record: LocalModelRecord, io: LocalDiscoveryIo = {}): Promise<number | undefined> {
+  const now = io.now?.() ?? Date.now()
+  const served = await readServed(record, io, { probeOnly: true })
+  if (served !== undefined) noteServedWindow(record, served, now)
+  else if (record.server === 'ollama') record.loaded = false
+  return served?.tokens
+}
+
+export function residentServedWindow(record: LocalModelRecord): number | undefined {
+  return record.loaded === true && record.contextWindow?.source === 'served' ? record.contextWindow.tokens : undefined
+}
+
+export function __resetLocalDiscoveryForTest(): void {
+  cached = null
+  inFlight = null
+}

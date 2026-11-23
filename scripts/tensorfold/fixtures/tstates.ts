@@ -1,16 +1,16 @@
 import { execFile } from 'node:child_process'
 import { join } from 'node:path'
 import { FAKE_BIN, FAKE_SCRIPT, GIB, LIGHTNING_REPO, MAC_16, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_CONFIG, QWEN_2B_PIN, QWEN_2B_REPO, QWEN_9B_REPO, RTX_4090, WIN_16, WIN_LLAMA_BIN, fakeExists, fakeWorld, type CacheSeed } from './world.ts'
-import type { TensorFoldHost } from '../../../src/services/tensorfold/contracts.ts'
-import type { GgufSource } from '../../../src/services/tensorfold/hfCache.ts'
+import type { TensorFoldHost } from '../../../src/models/tensorfold/contracts.ts'
+import type { GgufSource } from '../../../src/models/tensorfold/hfCache.ts'
 
-const engine = await import('../../../src/services/tensorfold/engine.ts')
-const adapterMain = await import('../../../src/services/tensorfold/adapter/main.ts')
-const adapterIdentity = await import('../../../src/services/tensorfold/adapter/identity.ts')
-const adapterModels = await import('../../../src/services/tensorfold/adapter/models.ts')
-const fit = await import('../../../src/services/tensorfold/fit.ts')
-const refusal = await import('../../../src/services/tensorfold/refusal.ts')
-const inventory = await import('../../../src/services/tensorfold/inventory.ts')
+const engine = await import('../../../src/models/tensorfold/engine.ts')
+const adapterMain = await import('../../../src/models/tensorfold/adapter/main.ts')
+const adapterIdentity = await import('../../../src/models/tensorfold/adapter/identity.ts')
+const adapterModels = await import('../../../src/models/tensorfold/adapter/models.ts')
+const fit = await import('../../../src/models/tensorfold/fit.ts')
+const refusal = await import('../../../src/models/tensorfold/refusal.ts')
+const inventory = await import('../../../src/models/tensorfold/inventory.ts')
 const scene = await import('../../../src/commands/tensorfold/scene.ts')
 
 export type Facts = Awaited<ReturnType<typeof scene.readTensorFoldPanelFacts>>

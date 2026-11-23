@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/bash/ast.ts src/tools/BashTool/bashPermissions.ts src/tools/BashTool/readOnlyValidation.ts src/utils/permissions/decision/engine.ts
+// gate-watch: src/platform/shell/bash/ast.ts src/tools/shell/bashPermissions.ts src/tools/shell/readOnlyValidation.ts src/permissions/rules/decision/engine.ts
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -13,14 +13,14 @@ process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
-const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
+const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
 setSessionTrustAccepted(true)
 enableConfigs()
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.js')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
-const { checkReadOnlyConstraints } = await import('../../src/tools/BashTool/readOnlyValidation.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.js')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.js')
+const { checkReadOnlyConstraints } = await import('../../src/tools/shell/readOnlyValidation.js')
 
 const WILDCARD_ASK = 'an unquoted wildcard expands to paths at runtime; quote it as text or spell out the paths, or approve'
 type Rules = { allow?: string[]; deny?: string[]; ask?: string[]; source?: string }
@@ -29,7 +29,7 @@ type Verdict = { behavior: string; message?: string; decisionReason?: Record<str
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail} | ` : ''}to fix: change the wildcard-doubt answer in bashToolHasPermission (src/tools/BashTool/bashPermissions.ts), the read-only screen in checkReadOnlyConstraints (src/tools/BashTool/readOnlyValidation.ts), or decideToolPermissionWithModes (src/utils/permissions/decision/wrapper.ts) for the whole-decision checks, not this proof`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail} | ` : ''}to fix: change the wildcard-doubt answer in bashToolHasPermission (src/tools/shell/bashPermissions.ts), the read-only screen in checkReadOnlyConstraints (src/tools/shell/readOnlyValidation.ts), or decideToolPermissionWithModes (src/permissions/rules/decision/wrapper.ts) for the whole-decision checks, not this proof`}`)
 }
 function section(title: string): void {
   console.log(`\n── ${title}`)

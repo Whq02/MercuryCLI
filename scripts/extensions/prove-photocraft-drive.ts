@@ -24,8 +24,8 @@ assert(process.argv.some(v => ['--install', '--check', '--headless', '--gui'].in
 const dirs = { data: join(scratch, 'data'), home: join(scratch, 'home'), config: join(scratch, 'config'), tmp: join(scratch, 'tmp'), read: join(scratch, 'project'), output: join(scratch, 'outputs'), evidence: join(scratch, 'evidence') }
 for (const path of Object.values(dirs)) mkdirSync(path, { recursive: true, mode: 0o700 })
 const delivered = join(scratch, 'extension')
-cpSync(join(root, 'src/extensions/bundled/photocraft'), delivered, { recursive: true })
-cpSync(option('--shared-dir') ?? join(root, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
+cpSync(join(root, 'src/integrations/extensions/bundled/photocraft'), delivered, { recursive: true })
+cpSync(option('--shared-dir') ?? join(root, 'src/integrations/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
 const { adapter, tokenPath, readPrivateToken, inspectControl } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
 const { installPinned, checkInstall, planInstall } = await import(pathToFileURL(join(delivered, 'shared/install.mjs')).href)
 const { controlSession } = await import(pathToFileURL(join(delivered, 'shared/control.mjs')).href)
@@ -95,7 +95,7 @@ try {
     installation = await installPinned(adapter, { dataDir: dirs.data, authorize: async (plan: any) => { asks++; writeFileSync(join(dirs.evidence, 'install-plan.json'), JSON.stringify(plan, null, 2)); return true } })
     assert.equal(asks, 1); assert.equal(installation.reused, false)
     passed('real clean-cache installation', installation.manifest.archives)
-    const reused = await installPinned(adapter, { dataDir: dirs.data, authorize: () => { throw new Error('Reused installation asked again') } }); assert(reused.reused, 'photocraft second installPinned did not reuse existing installation in src/extensions/bundled/shared/install.mjs')
+    const reused = await installPinned(adapter, { dataDir: dirs.data, authorize: () => { throw new Error('Reused installation asked again') } }); assert(reused.reused, 'photocraft second installPinned did not reuse existing installation in src/integrations/extensions/bundled/shared/install.mjs')
     passed('same-version offline reuse')
   }
   const checked = await checkInstall(adapter, { dataDir: dirs.data }); assert.equal(checked.state, 'installed', JSON.stringify(checked)); installation = checked.installation

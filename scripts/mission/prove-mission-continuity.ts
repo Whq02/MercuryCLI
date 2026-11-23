@@ -6,20 +6,20 @@ import { join } from 'node:path'
 
 let failures = 0
 const watchdog = setTimeout(() => {
-  console.log('FATAL: prover watchdog (120s) — treat as failure; the last section printed above is where it hung, so look at the matching function in src/guards/mission.ts or src/guards/guards.ts')
+  console.log('FATAL: prover watchdog (120s) — treat as failure; the last section printed above is where it hung, so look at the matching function in src/permissions/guards/mission.ts or src/permissions/guards/guards.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
 const failureHints: Array<[string, string]> = [
-  ['§1', 'change setActiveMission in src/guards/mission.ts so arming writes the mission card (src/utils/mission/missionCard.ts)'],
-  ['§2', 'change the mission stop guard (judgeTurnEnd in src/guards/guards.ts, mission state in src/guards/mission.ts) so a refused stop advances the card'],
-  ['§3', 'change the mission stop guard (judgeTurnEnd in src/guards/guards.ts, mission state in src/guards/mission.ts) so the itemised close settles the card'],
-  ['§4', 'change the mission stop guard (judgeTurnEnd in src/guards/guards.ts, mission state in src/guards/mission.ts) so it holds after compaction and restates the goal'],
-  ['§5', 'change rearmMissionFromCard in src/guards/mission.ts'],
-  ['§6', 'change composeMissionView in src/services/mission/projection.ts'],
-  ['§7', 'change clearActiveMission in src/guards/mission.ts so clearing writes the terminal card'],
-  ['§8', 'change the subscriber and version handling in setActiveMission, clearActiveMission and syncMissionFromCard in src/guards/mission.ts'],
-  ['§9', 'change the re-key at admission: withLanding and setFocusedSessionConnector in src/services/engine-connector/focusedConnector.ts, and the mission store in src/guards/mission.ts'],
+  ['§1', 'change setActiveMission in src/permissions/guards/mission.ts so arming writes the mission card (src/sessions/mission-card/missionCard.ts)'],
+  ['§2', 'change the mission stop guard (judgeTurnEnd in src/permissions/guards/guards.ts, mission state in src/permissions/guards/mission.ts) so a refused stop advances the card'],
+  ['§3', 'change the mission stop guard (judgeTurnEnd in src/permissions/guards/guards.ts, mission state in src/permissions/guards/mission.ts) so the itemised close settles the card'],
+  ['§4', 'change the mission stop guard (judgeTurnEnd in src/permissions/guards/guards.ts, mission state in src/permissions/guards/mission.ts) so it holds after compaction and restates the goal'],
+  ['§5', 'change rearmMissionFromCard in src/permissions/guards/mission.ts'],
+  ['§6', 'change composeMissionView in src/sessions/mission/projection.ts'],
+  ['§7', 'change clearActiveMission in src/permissions/guards/mission.ts so clearing writes the terminal card'],
+  ['§8', 'change the subscriber and version handling in setActiveMission, clearActiveMission and syncMissionFromCard in src/permissions/guards/mission.ts'],
+  ['§9', 'change the re-key at admission: withLanding and setFocusedSessionConnector in src/engine/connector/focusedConnector.ts, and the mission store in src/permissions/guards/mission.ts'],
 ]
 let currentSection = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -44,14 +44,14 @@ const {
   subscribeActiveMission,
   syncMissionFromCard,
   MISSION_MET_SENTINEL,
-} = await import('../../src/guards/mission.js')
+} = await import('../../src/permissions/guards/mission.js')
 const { readFileSync } = await import('node:fs')
-const { _setMissionJudgeForTesting } = await import('../../src/services/mission/goalJudge.js')
+const { _setMissionJudgeForTesting } = await import('../../src/sessions/mission/goalJudge.js')
 _setMissionJudgeForTesting(null)
-const { readMissionCard, writeMissionCard } = await import('../../src/utils/mission/missionCard.js')
-const { composeMissionView } = await import('../../src/services/mission/projection.js')
+const { readMissionCard, writeMissionCard } = await import('../../src/sessions/mission-card/missionCard.js')
+const { composeMissionView } = await import('../../src/sessions/mission/projection.js')
 
-const { guardsEngaged, judgeTurnEnd } = await import('../../src/guards/guards.js')
+const { guardsEngaged, judgeTurnEnd } = await import('../../src/permissions/guards/guards.js')
 interface StopHookRecord {
   callback: (m: unknown[]) => Promise<boolean>
   errorMessage: string
@@ -250,9 +250,9 @@ section('§8 the store speaks: a mission\'s birth and death wake their subscribe
 
 section('§9 a mission armed while the chat is landing follows the seat: at admission the record, the card and the Stop hook re-key to the hosted chat')
 {
-  const fc = await import('../../src/services/engine-connector/focusedConnector.js')
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-  const { getSessionId } = await import('../../src/bootstrap/state.js')
+  const fc = await import('../../src/engine/connector/focusedConnector.js')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+  const { getSessionId } = await import('../../src/boot/process-state/processState.js')
   const HOSTED = 'cont-hosted-1'
   class HostedConnector extends NoSessionConnector {
     override sessionId(): string {

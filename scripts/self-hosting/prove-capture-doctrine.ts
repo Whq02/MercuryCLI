@@ -16,13 +16,13 @@ const check = (cond: boolean, msg: string, detail = ''): void => {
   }
 }
 
-const estateHint = 'change projectEstateSection in src/constants/prompts.ts so the assembled estate section states this fact'
-const doctrineHint = 'getSystemPrompt in src/constants/prompts.ts still assembles this sentence; remove it from the prompt source'
+const estateHint = 'change projectEstateSection in src/engine/system-prompt/defaultSystemPrompt.ts so the assembled estate section states this fact'
+const doctrineHint = 'getSystemPrompt in src/engine/system-prompt/defaultSystemPrompt.ts still assembles this sentence; remove it from the prompt source'
 
 const driverSrc = `
-import { enableConfigs } from ${at('src/utils/config/globalConfig.js')}
+import { enableConfigs } from ${at('src/platform/config/globalConfig.js')}
 enableConfigs()
-const { getSystemPrompt } = await import(${at('src/constants/prompts.js')})
+const { getSystemPrompt } = await import(${at('src/engine/system-prompt/defaultSystemPrompt.js')})
 const withTools = process.argv[process.argv.length - 1] === 'with-tools'
 const tools = withTools
   ? [{ name: 'RecordConvention' }, { name: 'Retain' }, { name: 'Bash' }]
@@ -105,9 +105,9 @@ check(!prompt.includes('states a durable project instruction, correction, or con
 
 console.log('assembled prompt — bare roster (the facts hold without tool spellings)')
 const bare = drive('bare')
-check(bare.includes('# The project estate'), 'section present without the tools', 'projectEstateSection in src/constants/prompts.ts must still produce the estate section when the roster has only Bash')
+check(bare.includes('# The project estate'), 'section present without the tools', 'projectEstateSection in src/engine/system-prompt/defaultSystemPrompt.ts must still produce the estate section when the roster has only Bash')
 const bareEstate = bare.slice(bare.indexOf('# The project estate'), bare.indexOf('\n# ', bare.indexOf('# The project estate') + 1))
-check(!bare.includes('RecordConvention') && !bareEstate.includes('Retain'), 'no phantom tool name on a bare roster (the memory section names its own verbs)', 'projectEstateSection in src/constants/prompts.ts names RecordConvention and Retain only when toolNames holds them')
+check(!bare.includes('RecordConvention') && !bareEstate.includes('Retain'), 'no phantom tool name on a bare roster (the memory section names its own verbs)', 'projectEstateSection in src/engine/system-prompt/defaultSystemPrompt.ts names RecordConvention and Retain only when toolNames holds them')
 check(
   bareEstate.includes('belongs to the instruction estate. A rule the user asks you to remember about working with them is pinned memory instead: kept in their words, loaded into every session, never written into the instruction file.'),
   'the two doors stand on a bare roster without a tool spelling',

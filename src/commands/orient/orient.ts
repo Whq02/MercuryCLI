@@ -1,7 +1,7 @@
-import { maybeMarkProjectOnboardingComplete } from '../../projectOnboardingState.js'
-import type { Command } from '../../commands.js'
-import { otherToolsImportLines } from '../../services/instructions/listing.js'
-import type { ContentBlockParam } from '../../types/wire.js'
+import { maybeMarkProjectOnboardingComplete } from '../../boot/projectOnboarding.js'
+import type { Command } from '../catalogue/commands.js'
+import { otherToolsImportLines } from '../../sessions/instructions/listing.js'
+import type { ContentBlockParam } from '../../engine/message-shapes/wire.js'
 
 const ORIENT_PROMPT = `Study this repository and write MERCURY.md — the project instruction file
 Mercury loads into every session here (its gitignored sibling is MERCURY.local.md). Mercury

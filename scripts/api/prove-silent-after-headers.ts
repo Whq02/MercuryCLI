@@ -16,7 +16,7 @@ delete process.env.MERCURY_SILENT_AFTER_HEADERS_MS
 
 let failures = 0
 let checks = 0
-const SILENCE_FAIL_HINT = 'to fix, change the fence window, its fault words or the retry row in src/services/providers/streamIdleBudget.ts (silentAfterHeadersMsForRoute, silentAfterHeadersWindowMs, silentAfterHeadersFaultWords, retryReasonWords, requestWaitLine), or the transport named in the label under src/services/providers (openaicompat/compatChatClient.ts, openai/openaiClient.ts, zai/zaiClient.ts, gemini/geminiClient.ts, openrouter/openrouterResponsesTransport.ts, callModelRouter.ts)'
+const SILENCE_FAIL_HINT = 'to fix, change the fence window, its fault words or the retry row in src/models/roads/streamIdleBudget.ts (silentAfterHeadersMsForRoute, silentAfterHeadersWindowMs, silentAfterHeadersFaultWords, retryReasonWords, requestWaitLine), or the transport named in the label under src/models/roads (openaicompat/compatChatClient.ts, openai/openaiClient.ts, zai/zaiClient.ts, gemini/geminiClient.ts, openrouter/openrouterResponsesTransport.ts, callModelRouter.ts)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -26,7 +26,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the silent-after-headers proof exceeded 180s; a transport or the retry path under src/services/providers (streamIdleBudget.ts, callModelRouter.ts) never settled, so find the last section header printed above and read that transport')
+  console.log('\nTIMEOUT — the silent-after-headers proof exceeded 180s; a transport or the retry path under src/models/roads (streamIdleBudget.ts, callModelRouter.ts) never settled, so find the last section header printed above and read that transport')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -37,15 +37,15 @@ const MODEL_WORDS = 'Fixture Model'
 const DEAD_WORDS = /answered and then sent nothing for \d+ s — not one byte after the headers on a prompt of ~\d+ tokens: a dead connection/
 
 const fixture = await import('./patience-road-fixture.js')
-const idle = await import('../../src/services/providers/streamIdleBudget.js')
+const idle = await import('../../src/models/roads/streamIdleBudget.js')
 const owner = idle as unknown as Record<string, unknown>
 const fenceCode = typeof owner.SILENT_AFTER_HEADERS_CODE === 'string' ? (owner.SILENT_AFTER_HEADERS_CODE as string) : 'silent-after-headers'
-const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.js')
-const { openrouterResponsesTransport } = await import('../../src/services/providers/openrouter/openrouterResponsesTransport.js')
-const { streamOpenaiResponses } = await import('../../src/services/providers/openai/openaiClient.js')
-const { streamZaiChat } = await import('../../src/services/providers/zai/zaiClient.js')
-const { streamGeminiContent } = await import('../../src/services/providers/gemini/geminiClient.js')
-const { createUserMessage } = await import('../../src/services/messages.ts')
+const { streamCompatChat } = await import('../../src/models/roads/openaicompat/compatChatClient.js')
+const { openrouterResponsesTransport } = await import('../../src/models/roads/openrouter/openrouterResponsesTransport.js')
+const { streamOpenaiResponses } = await import('../../src/models/roads/openai/openaiClient.js')
+const { streamZaiChat } = await import('../../src/models/roads/zai/zaiClient.js')
+const { streamGeminiContent } = await import('../../src/models/roads/gemini/geminiClient.js')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 
 type Fault = { kind: string; code: string; message: string; retryable?: boolean }
 type Played = { events: Array<{ type: string; fault?: Fault }>; elapsedMs: number; road: ReturnType<typeof fixture.roadFixture> }
@@ -278,13 +278,13 @@ Object.assign(process.env, {
   MERCURY_RECONNECT_SCALE: '0.01',
 })
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-await (await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')).refreshMoonshotCatalogue({ force: true })
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
-type SystemAPIErrorMessage = import('../../src/types/message.ts').SystemAPIErrorMessage
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+await (await import('../../src/models/roads/moonshot/moonshotCatalogue.ts')).refreshMoonshotCatalogue({ force: true })
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
+type SystemAPIErrorMessage = import('../../src/engine/message-shapes/message.ts').SystemAPIErrorMessage
 
 async function drive(model: string): Promise<{ last: AssistantMessage | undefined; notices: SystemAPIErrorMessage[]; errors: string[]; threw: unknown; wallMs: number }> {
   const assistants: AssistantMessage[] = []

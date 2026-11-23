@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/permissions/getNextPermissionMode.ts src/utils/permissions/PermissionMode.ts src/types/permissions.ts
-// gate-watch: src/utils/permissions/permissionSetup.ts src/tools.ts src/utils/capability/declarations.ts src/substrate/flagRegistry.ts
-// gate-watch: src/components/mercury-ui/compactModeChip.ts src/components/MercuryFrame.tsx src/utils/attachments/modeLifecycles.ts
+// gate-watch: src/permissions/rules/getNextPermissionMode.ts src/permissions/rules/permissionMode.ts src/permissions/rules/permissions.ts
+// gate-watch: src/permissions/rules/permissionSetup.ts src/tools/kit/toolList.ts src/permissions/capability/declarations.ts src/platform/substrate/flagRegistry.ts
+// gate-watch: src/screen/widgets/compactModeChip.ts src/screen/frame-chips/MercuryFrame.tsx src/engine/attachment-shapes/dateAndModeNotices.ts
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -26,13 +26,13 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 
-const permissions = await import('../../src/types/permissions.js')
-const modes = await import('../../src/utils/permissions/PermissionMode.js')
-const cycle = await import('../../src/utils/permissions/getNextPermissionMode.js')
-const chip = await import('../../src/components/mercury-ui/compactModeChip.js')
-const declarations = await import('../../src/utils/capability/declarations.js')
-const registry = await import('../../src/substrate/flagRegistry.js')
-const tools = await import('../../src/tools.js')
+const permissions = await import('../../src/permissions/rules/permissions.js')
+const modes = await import('../../src/permissions/rules/permissionMode.js')
+const cycle = await import('../../src/permissions/rules/getNextPermissionMode.js')
+const chip = await import('../../src/screen/widgets/compactModeChip.js')
+const declarations = await import('../../src/permissions/capability/declarations.js')
+const registry = await import('../../src/platform/substrate/flagRegistry.js')
+const tools = await import('../../src/tools/kit/toolList.js')
 
 console.log('— the mode lists —')
 const every = [...permissions.PERMISSION_MODES, ...permissions.INTERNAL_PERMISSION_MODES, ...permissions.EXTERNAL_PERMISSION_MODES] as readonly string[]
@@ -73,8 +73,8 @@ if (!existsSync(DIST)) {
   } else {
     const { startFixtureApi } = await import('../lib/fixtureApi.ts')
     const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-    const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.js')
-    const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.js')
+    const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.js')
+    const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.js')
     const fixture = await startFixtureApi(Array.from({ length: 20 }, () => ({ kind: 'text' as const, text: 'seven' })))
     const cwd = mkdtempSync(join(tmpdir(), 'mode-cycle-cwd-'))
     const home = join(scratch, 'door-home')

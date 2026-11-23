@@ -10,10 +10,10 @@ delete process.env.MERCURY_TASK_LIST_ID
 const IS_WIN = process.platform === 'win32'
 let failures = 0
 const failureHintFor = (label: string): string => {
-  if (label.startsWith('§5')) return 'fix the change emission or the publish path of defineStore in src/substrate/fileStore.ts (mutate, subscribeChanges, write)'
-  if (label.startsWith('§3')) return 'fix resetTaskList or readTaskEpoch in src/utils/tasks.ts (the epoch must publish durably, ids continue past a reset, a failed reset keeps the old list)'
-  if (label.startsWith('§4')) return 'fix createTask, updateTask or resetTaskList in src/utils/tasks.ts (ids must stay fresh across resets) or the temp cleanup in src/substrate/durablePublish.ts'
-  return 'fix createTask, updateTask or getTask in src/utils/tasks.ts, or the atomic publish in src/substrate/durablePublish.ts (a failed publish must leave the previous whole file and send no notification)'
+  if (label.startsWith('§5')) return 'fix the change emission or the publish path of defineStore in src/platform/substrate/fileStore.ts (mutate, subscribeChanges, write)'
+  if (label.startsWith('§3')) return 'fix resetTaskList or readTaskEpoch in src/engine/task-framework/tasks.ts (the epoch must publish durably, ids continue past a reset, a failed reset keeps the old list)'
+  if (label.startsWith('§4')) return 'fix createTask, updateTask or resetTaskList in src/engine/task-framework/tasks.ts (ids must stay fresh across resets) or the temp cleanup in src/platform/substrate/durablePublish.ts'
+  return 'fix createTask, updateTask or getTask in src/engine/task-framework/tasks.ts, or the atomic publish in src/platform/substrate/durablePublish.ts (a failed publish must leave the previous whole file and send no notification)'
 }
 const ok = (cond: boolean, label: string, detail = ''): void => {
   const hint = cond ? '' : failureHintFor(label)
@@ -22,9 +22,9 @@ const ok = (cond: boolean, label: string, detail = ''): void => {
   if (!cond) failures++
 }
 
-const tasks = await import('../../src/utils/tasks.ts')
+const tasks = await import('../../src/engine/task-framework/tasks.ts')
 const { _resetFaultInjectionCountersForTests, isDurableTempName, DurablePublishError } = await import(
-  '../../src/substrate/durablePublish.ts'
+  '../../src/platform/substrate/durablePublish.ts'
 )
 const inject = (spec: string | null): void => {
   if (spec === null) delete process.env.MERCURY_FAULT_INJECT
@@ -187,7 +187,7 @@ console.log(`── mo3 task journey — live platform: ${process.platform}`)
 }
 
 {
-  const { defineStore } = await import('../../src/substrate/fileStore.ts')
+  const { defineStore } = await import('../../src/platform/substrate/fileStore.ts')
   type Counter = { n: number }
   const counterStore = defineStore<Counter>({
     name: 'moor-counter',

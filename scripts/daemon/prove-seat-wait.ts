@@ -43,7 +43,7 @@ async function untilAsync(cond: () => Promise<boolean> | boolean, ms = 60_000): 
 
 console.log('§1 the refusal names who holds the seats and what frees one (the pure admission)')
 {
-  const sup = await import('../../src/daemon/concourseWorkers.ts')
+  const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const live = [
     { workspaceId: '/scratch/a', title: 'fix the failing tests' },
     { workspaceId: '/scratch/b', title: 'docs pass' },
@@ -52,14 +52,14 @@ console.log('§1 the refusal names who holds the seats and what frees one (the p
   ]
   const refused = sup.evaluateConcourseAdmission(live, { workspaceId: '/scratch/e' }, 4)
   const reason = refused.admit ? '' : refused.reason
-  check('the sentence counts the holders against the seats', reason.includes('4 live sessions hold the 4 seats'), `${reason} (fix seatHoldersWords and evaluateConcourseAdmission in src/daemon/concourseWorkers/admission.ts)`)
-  check('…names up to three of them by title, the long one cut, and counts the rest', reason.includes('“fix the failing tests”, “docs pass”, “a title long enough to be cut a…” and 1 more'), `${reason} (fix seatHoldersWords in src/daemon/concourseWorkers/admission.ts: up to three titles, long ones cut, the rest counted)`)
-  check("…and still spells the machine's reading", reason.includes("this machine's reading: 4 seats"), `${reason} (fix evaluateConcourseAdmission in src/daemon/concourseWorkers/admission.ts to keep the machine reading in the sentence)`)
+  check('the sentence counts the holders against the seats', reason.includes('4 live sessions hold the 4 seats'), `${reason} (fix seatHoldersWords and evaluateConcourseAdmission in src/daemon/concourse-workers/admission.ts)`)
+  check('…names up to three of them by title, the long one cut, and counts the rest', reason.includes('“fix the failing tests”, “docs pass”, “a title long enough to be cut a…” and 1 more'), `${reason} (fix seatHoldersWords in src/daemon/concourse-workers/admission.ts: up to three titles, long ones cut, the rest counted)`)
+  check("…and still spells the machine's reading", reason.includes("this machine's reading: 4 seats"), `${reason} (fix evaluateConcourseAdmission in src/daemon/concourse-workers/admission.ts to keep the machine reading in the sentence)`)
   const moves = refused.admit ? [] : (refused.moves ?? [])
-  check('the moves say what frees a seat: stop or park a live session, or raise the ceiling with /seats N', moves.some(m => m.verb === 'pause-holder' && /stop or park a live session/.test(m.label)) && moves.some(m => /\/seats N/.test(m.label)), `${JSON.stringify(moves)} (fix SEAT_FREEING_MOVES and the moves evaluateConcourseAdmission returns, in src/daemon/concourseWorkers/admission.ts)`)
+  check('the moves say what frees a seat: stop or park a live session, or raise the ceiling with /seats N', moves.some(m => m.verb === 'pause-holder' && /stop or park a live session/.test(m.label)) && moves.some(m => /\/seats N/.test(m.label)), `${JSON.stringify(moves)} (fix SEAT_FREEING_MOVES and the moves evaluateConcourseAdmission returns, in src/daemon/concourse-workers/admission.ts)`)
   const one = sup.evaluateConcourseAdmission([{ workspaceId: '/scratch/a' }], { workspaceId: '/scratch/b' }, 1)
-  check('one holder, one seat: the singular sentence, no title list', !one.admit && one.reason.startsWith('every seat is taken: 1 live session holds the 1 seat (') && !one.reason.includes('“'), `${one.admit ? '' : one.reason} (fix seatHoldersWords in src/daemon/concourseWorkers/admission.ts: singular wording and no title list when no holder has a title)`)
-  check('a sentence without titles names only the count', sup.seatHoldersWords([{ workspaceId: '/x' }, { workspaceId: '/y' }], 2) === '2 live sessions hold the 2 seats', 'fix seatHoldersWords in src/daemon/concourseWorkers/admission.ts: with no titles it must return only the count sentence')
+  check('one holder, one seat: the singular sentence, no title list', !one.admit && one.reason.startsWith('every seat is taken: 1 live session holds the 1 seat (') && !one.reason.includes('“'), `${one.admit ? '' : one.reason} (fix seatHoldersWords in src/daemon/concourse-workers/admission.ts: singular wording and no title list when no holder has a title)`)
+  check('a sentence without titles names only the count', sup.seatHoldersWords([{ workspaceId: '/x' }, { workspaceId: '/y' }], 2) === '2 live sessions hold the 2 seats', 'fix seatHoldersWords in src/daemon/concourse-workers/admission.ts: with no titles it must return only the count sentence')
 }
 
 console.log('§2 the live daemon: a one-seat world refuses the second birth with the words and its moves on the wire, and a birth that asks to wait lands when the seat frees')
@@ -73,8 +73,8 @@ seedFirstRun(home, [work, wsA, wsB])
 }
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const api = await startFixtureApi([{ kind: 'text', text: 'seat wait turn' }])
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/warmRunner.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/runner-link/warmRunner.ts')
 const ADMISSION_ANSWER_MS = Math.max(WARM_BOOT_ALLOWANCE_MS, 60_000)
 
 const logFd = openSync(join(SCRATCH, 'daemon.log'), 'a')
@@ -107,26 +107,26 @@ const admit = (workspaceDir: string, extra: Record<string, unknown> = {}, timeou
 try {
   check('the daemon answers ping on its control socket', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), 'the daemon never answered ping in 60 s; read daemon.log in the scratch dir the proof made, and the startup path of node dist/mercury.mjs daemon run')
   const first = await admit(wsA, { title: 'the first chat' })
-  check('the first birth takes the one seat', first.ok === true && typeof first.sessionId === 'string', `${JSON.stringify(first)} (the sessionAdmit op answered in answerSessionAdmit, src/daemon/controlServer.ts, must admit the first birth with a seat free)`)
+  check('the first birth takes the one seat', first.ok === true && typeof first.sessionId === 'string', `${JSON.stringify(first)} (the sessionAdmit op answered in answerSessionAdmit, src/daemon/control/controlServer.ts, must admit the first birth with a seat free)`)
   const refused = await admit(wsB, { title: 'the second chat' })
-  check('the second birth is refused on the seat', refused.ok === false && refused.refusal === 'runtime-ceiling', `${JSON.stringify(refused)} (answerSessionAdmit in src/daemon/controlServer.ts must refuse with refusal runtime-ceiling when every seat is held)`)
-  check('…the sentence names the holder by title and the seat count', /1 live session holds the 1 seat \(“the first chat”\)/.test(refused.error ?? ''), `${refused.error ?? ''} (the refusal text comes from evaluateConcourseAdmission in src/daemon/concourseWorkers/admission.ts, sent by answerSessionAdmit in src/daemon/controlServer.ts)`)
-  check('…and the moves ride the wire: stop or park a live session, or /seats N', Array.isArray(refused.moves) && refused.moves.some(m => /stop or park a live session/.test(m.label)) && refused.moves.some(m => /\/seats N/.test(m.label)), `${JSON.stringify(refused.moves)} (answerSessionAdmit in src/daemon/controlServer.ts must send the admission moves on the wire)`)
+  check('the second birth is refused on the seat', refused.ok === false && refused.refusal === 'runtime-ceiling', `${JSON.stringify(refused)} (answerSessionAdmit in src/daemon/control/controlServer.ts must refuse with refusal runtime-ceiling when every seat is held)`)
+  check('…the sentence names the holder by title and the seat count', /1 live session holds the 1 seat \(“the first chat”\)/.test(refused.error ?? ''), `${refused.error ?? ''} (the refusal text comes from evaluateConcourseAdmission in src/daemon/concourse-workers/admission.ts, sent by answerSessionAdmit in src/daemon/control/controlServer.ts)`)
+  check('…and the moves ride the wire: stop or park a live session, or /seats N', Array.isArray(refused.moves) && refused.moves.some(m => /stop or park a live session/.test(m.label)) && refused.moves.some(m => /\/seats N/.test(m.label)), `${JSON.stringify(refused.moves)} (answerSessionAdmit in src/daemon/control/controlServer.ts must send the admission moves on the wire)`)
 
   const t0 = Date.now()
   const waiting = admit(wsB, { title: 'the second chat', waitForSeatMs: 30_000 }, 90_000)
   await wait(2_500)
   const runnerId = first.runnerId ?? first.workerId
   const released = (await daemonControlRpc({ op: 'sessionRelease', runnerId } as never)) as { ok: boolean; settled?: boolean }
-  check('the first session is released (its seat frees)', released.ok === true, `${JSON.stringify(released)} (the sessionRelease op in src/daemon/controlServer.ts did not release the first runner)`)
+  check('the first session is released (its seat frees)', released.ok === true, `${JSON.stringify(released)} (the sessionRelease op in src/daemon/control/controlServer.ts did not release the first runner)`)
   const landed = await waiting
   const waitedMs = Date.now() - t0
-  check(`a birth that asked to wait landed when the seat freed (${waitedMs} ms after it asked; no retry pressed)`, landed.ok === true && typeof landed.sessionId === 'string' && waitedMs < 25_000, `${JSON.stringify(landed)} (answerSessionAdmit in src/daemon/controlServer.ts must retry a runtime-ceiling refusal while waitForSeatMs lasts and admit once the seat frees)`)
+  check(`a birth that asked to wait landed when the seat freed (${waitedMs} ms after it asked; no retry pressed)`, landed.ok === true && typeof landed.sessionId === 'string' && waitedMs < 25_000, `${JSON.stringify(landed)} (answerSessionAdmit in src/daemon/control/controlServer.ts must retry a runtime-ceiling refusal while waitForSeatMs lasts and admit once the seat frees)`)
 
   const t1 = Date.now()
   const expired = await admit(wsA, { title: 'the third chat', waitForSeatMs: 3_000 }, 60_000)
   const waited = Date.now() - t1
-  check('a birth whose wait ends with every seat still taken is refused, saying how long it waited and what frees a seat', expired.ok === false && expired.refusal === 'runtime-ceiling' && /no seat freed in 3 s/.test(expired.error ?? '') && waited >= 2_500 && Array.isArray(expired.moves) && expired.moves.some(m => /\/seats N/.test(m.label)), `${waited} ms · ${JSON.stringify(expired)} (answerSessionAdmit in src/daemon/controlServer.ts must end the wait with refusal runtime-ceiling, the words no seat freed in N s, and the moves)`)
+  check('a birth whose wait ends with every seat still taken is refused, saying how long it waited and what frees a seat', expired.ok === false && expired.refusal === 'runtime-ceiling' && /no seat freed in 3 s/.test(expired.error ?? '') && waited >= 2_500 && Array.isArray(expired.moves) && expired.moves.some(m => /\/seats N/.test(m.label)), `${waited} ms · ${JSON.stringify(expired)} (answerSessionAdmit in src/daemon/control/controlServer.ts must end the wait with refusal runtime-ceiling, the words no seat freed in N s, and the moves)`)
   if (landed.ok) await daemonControlRpc({ op: 'sessionRelease', runnerId: landed.runnerId ?? landed.workerId } as never)
 } finally {
   await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never).catch(() => {})

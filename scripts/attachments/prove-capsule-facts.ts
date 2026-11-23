@@ -8,7 +8,7 @@ const rootArg = process.argv.indexOf('--source-root')
 const root = rootArg < 0 ? resolve(import.meta.dir, '../..') : resolve(process.argv[rootArg + 1]!)
 const recordsArg = process.argv.indexOf('--fixtures')
 const records = recordsArg < 0 ? undefined : resolve(process.argv[recordsArg + 1]!)
-const { normalizeAttachmentForAPI } = await import(`${root}/src/services/messages/attachmentText.ts`)
+const { normalizeAttachmentForAPI } = await import(`${root}/src/engine/messages/attachmentText.ts`)
 const blocks = (attachments: any[]) => attachments.flatMap(attachment => normalizeAttachmentForAPI(attachment).flatMap((message: any) => {
   const content = message.message.content
   return typeof content === 'string' ? [{ type: 'text', text: content }] : content
@@ -21,7 +21,7 @@ if (process.argv.includes('--record')) {
   process.exit(0)
 }
 const frozen = JSON.parse(readFileSync(oldPath, 'utf8'))
-const module = await import(`${root}/src/services/attachments/contextCapsule.ts`)
+const module = await import(`${root}/src/engine/attachments/contextCapsule.ts`)
 const fold = module.foldAttachmentsIntoCapsule ?? ((rows: any[]) => rows)
 let failures = 0
 function check(label: string, good: boolean) {
@@ -45,7 +45,7 @@ for (const [kind, original] of Object.entries(capsuleFixtures)) {
       const old = readFileSync(resolve(records, `${kind}.old.txt`), 'utf8')
       for (const oldBlock of frozen[kind]) if (oldBlock.type === 'text') assert(old.includes(oldBlock.text), `${kind}.old.txt fixture missing frozen text block in scripts/attachments/prove-capsule-facts.ts`)
       const sectionText = capsule.sections.flatMap((section: any) => section.content).filter((block: any) => block.type === 'text').map((block: any) => block.text).join('\n\n')
-      for (const oldBlock of frozen[kind]) if (oldBlock.type === 'text') assert(sectionText.includes(body(oldBlock.text)), `contextCapsule(${kind}) dropped frozen fact in src/services/attachments/contextCapsule.ts`)
+      for (const oldBlock of frozen[kind]) if (oldBlock.type === 'text') assert(sectionText.includes(body(oldBlock.text)), `contextCapsule(${kind}) dropped frozen fact in src/engine/attachments/contextCapsule.ts`)
       writeFileSync(resolve(records, `${kind}.new.txt`), sectionText + '\n')
     }
   }

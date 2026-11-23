@@ -1,0 +1,1193 @@
+import { getApiFetch, getProxyFetchOptions } from '../../../platform/network/proxy.js'
+import { logForDebugging } from '../../../platform/logs/debugLog.js'
+import { sendWithCacheField } from '../cacheFieldRetry.js'
+import { wrapFetchWithWireDump } from '../../../engine/requests/dumpPrompts.js'
+import type { ZaiContentPart } from '../zai/zaiClient.js'
+import { getUserAgent } from '../requestHeaders.js'
+import { SseDecoder, type SseDecodeResult } from '../sseDecoder.js'
+import { toolCallSlot, toolCallId, type ToolCallAccumulator } from '../chatToolCallSlots.js'
+import { outageCauseOfFetchFailure, type OutageCause } from '../../../engine/requests/reconnectLadder.js'
+import { providerWaitWords } from '../../../engine/requests/recoveryBudget.js'
+import { compatRetryHeaderMs } from '../../../engine/requests/retryAfter.js'
+import { isTemporaryStreamError } from '../temporaryStreamError.js'
+import {
+  createStreamActivityRelay,
+  createStreamIdleWatchdog,
+  firstByteBudgetMs,
+  firstByteTimeoutLine,
+  REAL_STREAM_TIMERS,
+  SILENT_AFTER_HEADERS_CODE,
+  silentAfterHeadersFaultWords,
+  streamIdleTimeoutMs,
+  StreamIdleTimeoutError,
+  streamIdleFaultWords,
+  streamIdleWarningMsOf,
+  type RequestWaitV1,
+  type StreamIdleWatchdog,
+  type StreamTimers,
+} from '../streamIdleBudget.js'
+import {
+  LOCAL_CAP_CODE,
+  LOCAL_DEAD_SERVER_CODE,
+  LOCAL_LIVENESS_RECHECK_MS,
+  LOCAL_LOADING_POLL_MS,
+  localCapLine,
+  localDeadServerLine,
+  localPromiseExtensionMs,
+  startLocalLivenessLoop,
+  type LocalLivenessLoop,
+  type LocalStreamLaw,
+} from '../localLiveness.js'
+import type { DeferralWireForm } from '../deferralWire.js'
+import { isBedrockThrottle } from '../../../engine/requests/bedrockThrottle.js'
+import { passedOver, passedOverAs } from '../../../platform/errors/passedOver.js'
+import type { TimerHandle } from '../../../platform/async/timers.js'
+
+const TOTAL_TIMEOUT_MS = 50 * 60_000
+
+function unrefTimer(handle: TimerHandle | null): void {
+  if (handle !== null && typeof handle === 'object') handle.unref?.()
+}
+
+
+export interface CompatMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool'
+  content: string | null | ZaiContentPart[]
+  reasoning_content?: string
+  tool_calls?: CompatToolCall[]
+  tool_call_id?: string
+}
+
+interface CompatToolCall {
+  id: string
+  type: 'function'
+  function: { name: string; arguments: string }
+}
+
+export interface CompatTool {
+  type: 'function'
+  function: { name: string; description?: string; parameters: unknown }
+}
+
+interface CompatToolDeclarationMessage {
+  role: 'system'
+  tools: CompatTool[]
+}
+
+export type CompatWireMessage = CompatMessage | CompatToolDeclarationMessage
+
+export interface CompatChatRequest {
+  model: string
+  messages: CompatWireMessage[]
+  tools?: CompatTool[]
+  tool_choice?: 'auto' | 'none' | 'required'
+  extra?: Record<string, unknown>
+}
+
+export interface CompatDeferralFacts {
+  form: DeferralWireForm
+  deferredNames: ReadonlySet<string>
+  conversationKey?: string
+  cacheDomainKey?: string
+  imagesSupported: boolean
+}
+
+
+export type CompatFinishReason =
+  | 'stop'
+  | 'tool_calls'
+  | 'length'
+  | 'content_filter'
+  | 'insufficient_system_resource'
+  | 'network_error'
+  | 'other'
+
+export interface CompatUsage {
+  inputTokens: number
+  outputTokens: number
+  cachedInputTokens?: number
+  cacheWriteInputTokens?: number
+  cacheWrite1hInputTokens?: number
+  reasoningTokens?: number
+  totalTokens?: number
+  statedCostUSD?: number
+}
+
+export interface CompatCompletedToolCall {
+  index: number
+  id: string
+  name: string
+  argumentsRaw: string
+  arguments?: unknown
+  malformed: boolean
+  providerRefusal?: string
+}
+
+export interface CompatRuntimeReading {
+  tokensPerSecond?: number
+  timeToFirstTokenS?: number
+  prefillSeconds?: number
+  decodeSeconds?: number
+  reasoningEffort?: string
+  thinking?: boolean
+  draftAcceptance?: number
+}
+
+export type CompatStreamEvent =
+  | { type: 'served-model'; model: string }
+  | { type: 'reasoning-delta'; text: string }
+  | { type: 'reasoning-withheld'; signature: string }
+  | { type: 'text-delta'; text: string }
+  | { type: 'tool-call-fragment'; index: number; id?: string; name?: string; argumentsFragment: string }
+  | { type: 'usage'; usage: CompatUsage }
+  | { type: 'runtime'; runtime: CompatRuntimeReading }
+  | {
+      type: 'finish'
+      reason: CompatFinishReason
+      rawReason: string
+      toolCalls: CompatCompletedToolCall[]
+    }
+  | { type: 'stream-fault'; fault: CompatFault }
+
+export interface CompatFault {
+  kind:
+    | 'http-error'
+    | 'api-error'
+    | 'provider-termination'
+    | 'truncated-stream'
+    | 'timeout'
+    | 'cancelled'
+    | 'transport-error'
+  code: string
+  message: string
+  wireMessage?: string
+  retryable: boolean
+  silentMs?: number
+  inStream?: true
+  status?: number
+  parameter?: string
+  errorType?: string
+  classification?: 'authentication_failed' | 'billing_error' | 'rate_limit' | 'server_error' | 'invalid_request'
+  retryAfterMs?: number
+  outage?: OutageCause
+}
+
+
+function vendorErrorWord(err: Record<string, unknown> | undefined): string | undefined {
+  if (!err) return undefined
+  const details = Array.isArray(err.details) ? err.details : []
+  for (const d of details) {
+    const rec = typeof d === 'object' && d !== null ? (d as Record<string, unknown>) : undefined
+    if (typeof rec?.reason === 'string' && rec.reason !== '') return rec.reason
+  }
+  if (typeof err.code === 'string' && err.code !== '') return err.code
+  if (typeof err.status === 'string' && err.status !== '') return err.status
+  if (typeof err.type === 'string' && err.type !== '') return err.type
+  return undefined
+}
+
+export function describeTransportFailure(error: unknown, baseURL: string | undefined): string {
+  const parts: string[] = []
+  let node: unknown = error
+  let depth = 0
+  while (node instanceof Error && depth < 6) {
+    const errno = node as NodeJS.ErrnoException & { hostname?: string; address?: string; port?: number }
+    const facts = [
+      errno.code,
+      errno.syscall,
+      errno.hostname ?? errno.address,
+      errno.port !== undefined ? String(errno.port) : undefined,
+    ].filter((v): v is string => typeof v === 'string' && v.length > 0)
+    if (facts.length > 0) parts.push(facts.join(' '))
+    else if (node.message && node.message !== 'fetch failed') parts.push(node.message)
+    const aggregate = (node as { errors?: unknown[] }).errors
+    node = aggregate && aggregate.length > 0 ? aggregate[0] : (node as { cause?: unknown }).cause
+    depth++
+  }
+  const chain = [...new Set(parts)].join(' ← ')
+  const host = (() => {
+    try {
+      return baseURL !== undefined && baseURL !== '' ? new URL(baseURL).host : undefined
+    } catch {
+      return baseURL
+    }
+  })()
+  const base = error instanceof Error ? error.message : String(error)
+  const detail = chain.length > 0 ? chain : base
+  return host !== undefined ? `${detail} (endpoint ${host})` : detail
+}
+
+export function mapCompatHttpFailure(status: number, body: unknown, headers?: { get(name: string): string | null }): CompatFault {
+  const envelope = Array.isArray(body) ? body.find(item => item !== null && typeof item === 'object' && 'error' in item) : body
+  const o = typeof envelope === 'object' && envelope !== null ? (envelope as Record<string, unknown>) : undefined
+  const err = typeof o?.error === 'object' && o.error !== null ? (o.error as Record<string, unknown>) : undefined
+  const vendor = vendorEnvelopeFault(o)
+  const stringError = typeof o?.error === 'string' && o.error.trim() !== '' ? o.error : undefined
+  const message = String(err?.message ?? stringError ?? o?.message ?? vendor?.message ?? `HTTP ${status}`)
+  const throttled = isBedrockThrottle({ ...o, status, headers, message })
+  const word = throttled ? 'ThrottlingException' : vendorErrorWord(err)
+  let retryAfterMs = compatRetryHeaderMs(headers, false)
+  if (status === 429 && retryAfterMs === undefined) {
+    const details = Array.isArray(err?.details) ? err.details : []
+    const retry = details.find(value => value && typeof value === 'object' && (value as Record<string, unknown>)['@type'] === 'type.googleapis.com/google.rpc.RetryInfo') as Record<string, unknown> | undefined
+    const delay = typeof retry?.retryDelay === 'string' && /^\d+(?:\.\d+)?s$/.test(retry.retryDelay) ? Number.parseFloat(retry.retryDelay) : err?.resets_in_seconds ?? o?.resets_in_seconds
+    if (typeof delay === 'number' && Number.isFinite(delay) && delay >= 0) retryAfterMs = delay * 1000
+    retryAfterMs ??= compatRetryHeaderMs(headers)
+  }
+  const billing = status === 402 || [word, err?.type].some(value => typeof value === 'string' && /^(?:insufficient_quota|exceeded_current_quota_error|billing_hard_limit_reached|billing_error|payment_required|insufficient_(?:credits?|balance|funds))$/i.test(value))
+  if (billing) retryAfterMs = undefined
+  const refusalWords = status === 429 && retryAfterMs !== undefined ? `rate limited (provider asks for ${providerWaitWords(retryAfterMs)}): ${message}` : message
+  return {
+    kind: word !== undefined || vendor !== undefined ? 'api-error' : 'http-error',
+    code: word !== undefined ? `api-${word}` : vendor?.code ?? `http-${status}`,
+    message: refusalWords,
+    ...(billing ? { classification: 'billing_error' as const } : throttled ? { classification: 'rate_limit' as const } : {}),
+    ...(typeof err?.param === 'string' ? { parameter: err.param } : {}),
+    ...(typeof err?.type === 'string' ? { errorType: err.type } : {}),
+    retryable: !billing && (throttled || status === 429 || status === 408 || status === 409 || status >= 500 || vendor?.retryable === true),
+    status,
+    ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
+  }
+}
+
+
+export interface CompatLivenessReading {
+  state: 'working' | 'alive' | 'unknown' | 'dead'
+  answered: boolean
+  words: string
+}
+
+export interface CompatStreamOptions {
+  apiKey?: string
+  url: string
+  request: CompatChatRequest
+  signal?: AbortSignal
+  fetchImpl?: typeof fetch
+  wrapFetch?: (fetchImpl: typeof fetch) => typeof fetch
+  idleTimeoutMs?: number
+  silentAfterHeadersMs?: number | null
+  liveness?: { fenceMs: number | null; read(): Promise<CompatLivenessReading> }
+  onStreamActivity?: (atMs: number) => void
+  firstByte?: {
+    cold: boolean
+    promptTokens: number
+    model: string
+    prefillMs?: number
+    attempt?: number
+    onWait?: (wait: RequestWaitV1 | null) => void
+  }
+  extraHeaders?: Record<string, string>
+  onResponseHeaders?: (headers: Headers, status?: number) => void
+  timers?: StreamTimers
+  local?: LocalStreamLaw
+  imagesSupported?: boolean
+  requireDone?: boolean
+  onResponseChunk?(chunk: unknown): void
+  deferral?: CompatDeferralFacts
+}
+
+interface LocalSilenceWatch {
+  noteActivity(): void
+  stop(): void
+}
+
+export function startLocalSilenceWatch(args: {
+  timers: StreamTimers
+  idleMs: number
+  probe(): Promise<boolean>
+  onWarning(silentMs: number, sinceMs: number): void
+  onAlive(silentMs: number, sinceMs: number): void
+  onResume(): void
+  onDead(silentMs: number, unansweredMs: number): void
+}): LocalSilenceWatch {
+  const { timers, idleMs } = args
+  const warnAtMs = streamIdleWarningMsOf(idleMs)
+  let lastActivityAt = timers.now()
+  let warned = false
+  let stopped = false
+  let handle: TimerHandle | null = null
+  let loop: LocalLivenessLoop | null = null
+  function arm(): void {
+    if (stopped || handle !== null) return
+    const nextAt = lastActivityAt + (!warned && warnAtMs < idleMs ? warnAtMs : idleMs)
+    handle = timers.setTimeout(onLocalSilenceDue, Math.max(0, nextAt - timers.now()))
+  }
+  function onLocalSilenceDue(): void {
+    handle = null
+    if (stopped || loop !== null) return
+    const silent = timers.now() - lastActivityAt
+    if (silent < idleMs) {
+      if (!warned && silent >= warnAtMs) {
+        warned = true
+        args.onWarning(silent, lastActivityAt)
+      }
+      arm()
+      return
+    }
+    const sinceMs = lastActivityAt
+    loop = startLocalLivenessLoop({
+      timers,
+      dueMs: 0,
+      probe: args.probe,
+      onAlive: () => {
+        if (stopped) return null
+        if (lastActivityAt !== sinceMs) {
+          loop = null
+          arm()
+          return null
+        }
+        args.onAlive(timers.now() - lastActivityAt, lastActivityAt)
+        return LOCAL_LIVENESS_RECHECK_MS
+      },
+      onDead: (_elapsed, unansweredMs) => {
+        if (stopped) return
+        stopped = true
+        args.onDead(timers.now() - lastActivityAt, unansweredMs)
+      },
+    })
+  }
+  arm()
+  return {
+    noteActivity() {
+      lastActivityAt = timers.now()
+      if (warned || loop !== null) {
+        warned = false
+        loop?.stop()
+        loop = null
+        args.onResume()
+        arm()
+      }
+    },
+    stop() {
+      stopped = true
+      loop?.stop()
+      loop = null
+      if (handle !== null) {
+        timers.clearTimeout(handle)
+        handle = null
+      }
+    },
+  }
+}
+
+
+function finalizeToolCalls(acc: Map<number, ToolCallAccumulator>): CompatCompletedToolCall[] {
+  const out: CompatCompletedToolCall[] = []
+  for (const a of [...acc.values()].sort((x, y) => x.index - y.index)) {
+    let parsed: unknown
+    let malformed = false
+    const raw = a.argumentsRaw.trim() === '' ? '{}' : a.argumentsRaw
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      malformed = true
+    }
+    if (!a.id || !a.name) malformed = true
+    out.push({
+      index: a.index,
+      id: a.id ?? `missing-id-${a.index}`,
+      name: a.name ?? '',
+      argumentsRaw: a.argumentsRaw,
+      ...(malformed ? {} : { arguments: parsed }),
+      malformed,
+    })
+  }
+  return out
+}
+
+export async function* streamCompatChat(options: CompatStreamOptions): AsyncGenerator<CompatStreamEvent> {
+  let mode: 'prefix' | 'thinking' | 'answer' = 'prefix'
+  let pending = ''
+  function* split(text: string, final = false): Generator<CompatStreamEvent> {
+    pending += text
+    if (mode === 'prefix') {
+      const start = pending.trimStart()
+      if (start.startsWith('<think>')) {
+        pending = start.slice('<think>'.length)
+        mode = 'thinking'
+      } else if (!final && '<think>'.startsWith(start)) {
+        return
+      } else {
+        mode = 'answer'
+      }
+    }
+    if (mode === 'thinking') {
+      const end = pending.indexOf('</think>')
+      if (end >= 0) {
+        if (end > 0) yield { type: 'reasoning-delta', text: pending.slice(0, end) }
+        pending = pending.slice(end + '</think>'.length)
+        mode = 'answer'
+      } else {
+        let held = 0
+        if (!final) for (let n = 1; n < '</think>'.length && n <= pending.length; n++) {
+          if ('</think>'.startsWith(pending.slice(-n))) held = n
+        }
+        const ready = pending.slice(0, pending.length - held)
+        pending = held > 0 ? pending.slice(-held) : ''
+        if (ready !== '') yield { type: 'reasoning-delta', text: ready }
+        return
+      }
+    }
+    if (pending !== '') yield { type: 'text-delta', text: pending }
+    pending = ''
+  }
+  for await (const event of streamCompatChatRaw(options)) {
+    if (event.type === 'text-delta') yield* split(event.text)
+    else {
+      if (event.type === 'finish' || event.type === 'stream-fault' || event.type === 'tool-call-fragment') yield* split('', true)
+      yield event
+    }
+  }
+  yield* split('', true)
+}
+
+async function* streamCompatChatRaw(
+  options: CompatStreamOptions,
+): AsyncGenerator<CompatStreamEvent> {
+  const { request } = options
+  const timers = options.timers ?? REAL_STREAM_TIMERS
+  const local = options.local
+  const idleMs = options.idleTimeoutMs ?? streamIdleTimeoutMs()
+  const controller = new AbortController()
+  const onOuterAbort = () => controller.abort()
+  options.signal?.addEventListener('abort', onOuterAbort, { once: true })
+  const requestStartedAt = timers.now()
+  const cut: { dead: { unansweredMs: number } | null; cap: boolean } = { dead: null, cap: false }
+  const totalTimer = timers.setTimeout(() => {
+    cut.cap = true
+    controller.abort()
+  }, local !== undefined ? local.capMs : TOTAL_TIMEOUT_MS)
+  unrefTimer(totalTimer)
+  let idleWatchdog: StreamIdleWatchdog | null = null
+  let silenceWatch: LocalSilenceWatch | null = null
+  const s: CompatStreamState = { livenessTimer: null, firstByteFired: false, firstByteExtended: false, slotWords: null, firstByteTimer: null, headersLanded: false, ingestStartedAt: 0, quietSinceMs: 0, sawBytes: false, livenessCut: null, silencePublished: false }
+  let ingestMs: number | null = null
+
+  const toolAcc = new Map<number, ToolCallAccumulator>()
+  const activeSlotByRawIndex = new Map<number, number>()
+  let finished = false
+  let sawDone = false
+  let servedSeen: string | undefined
+
+  try {
+    let response: Response
+    const { firstByteBudget, wait } = firstByteWaitOf({ options, local, idleMs, timers })
+    const publish = (next: RequestWaitV1 | null): void => options.firstByte?.onWait?.(next)
+    publish(wait)
+    s.ingestStartedAt = timers.now()
+    const stopIngestWatch = watchFirstByte(s, { local, timers, options, cut, controller, firstByteBudget, wait, publish })
+    try {
+      response = await sendCompatRequest(options, request, controller)
+    } catch (error) {
+      s.headersLanded = true
+      if (s.firstByteTimer !== null) timers.clearTimeout(s.firstByteTimer)
+      stopIngestWatch()
+      yield fetchFailureEvent(s, { options, local, cut, wait, timers, requestStartedAt, error })
+      return
+    }
+
+    s.headersLanded = true
+    try {
+      options.onResponseHeaders?.(response.headers, response.status)
+    } catch (error) {
+      passedOver(error)
+    }
+    if (s.firstByteTimer !== null) timers.clearTimeout(s.firstByteTimer)
+    stopIngestWatch()
+    publish(response.ok ? { ...wait, phase: 'tokens' } : null)
+    let tokenWait = response.ok
+
+    if (!response.ok) {
+      let body: unknown
+      try {
+        body = await response.json()
+      } catch {
+        body = undefined
+      }
+      yield { type: 'stream-fault', fault: mapCompatHttpFailure(response.status, body, response.headers) }
+      return
+    }
+    if (!response.body) {
+      yield {
+        type: 'stream-fault',
+        fault: { kind: 'transport-error', code: 'no-body', message: 'response had no body', retryable: true },
+      }
+      return
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new SseDecoder()
+    let rawHead = ''
+    const bodyDecoder = new TextDecoder()
+    let sawEvent = false
+    let watchdog = local === undefined ? createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: options.silentAfterHeadersMs ?? null }) : null
+    idleWatchdog = watchdog
+    if (local !== undefined) {
+      silenceWatch = watchLocalSilence(local, { timers, idleMs, publish, wait, cut, controller })
+    }
+    const relay = createStreamActivityRelay(atMs => options.onStreamActivity?.(atMs))
+    let pendingRead: Promise<ReadableStreamReadResult<Uint8Array>> | null = null
+    s.quietSinceMs = Date.now()
+    let quietExtended = false
+    const fenceMs = local === undefined ? options.liveness?.fenceMs ?? null : null
+    const armLivenessProbe = livenessProbeOf(s, { fenceMs, options, timers, cut, controller, wait, publish })
+    armLivenessProbe()
+
+    readLoop: for (;;) {
+      let chunk: ReadableStreamReadResult<Uint8Array>
+      try {
+        pendingRead ??= reader.read()
+        chunk = await (watchdog !== null ? watchdog.guard(pendingRead) : pendingRead)
+        pendingRead = null
+        if (!chunk.done && chunk.value.byteLength > 0) {
+          watchdog?.noteActivity()
+          s.quietSinceMs = Date.now()
+          quietExtended = false
+          if (!s.sawBytes) {
+            s.sawBytes = true
+            if (s.livenessTimer !== null) {
+              timers.clearTimeout(s.livenessTimer)
+              s.livenessTimer = null
+            }
+            if (s.silencePublished) {
+              s.silencePublished = false
+              publish(null)
+            }
+          }
+        }
+        silenceWatch?.noteActivity()
+      } catch (error) {
+        const isIdle = error instanceof StreamIdleTimeoutError
+        let reading: CompatLivenessReading | null = null
+        if (isIdle && !options.signal?.aborted && !cut.cap && options.liveness !== undefined) {
+          reading = await options.liveness.read().catch((): CompatLivenessReading => ({ state: 'unknown', answered: false, words: '' }))
+          if (reading.state === 'working' && !options.signal?.aborted && !cut.cap) {
+            watchdog?.stop()
+            watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: null })
+            idleWatchdog = watchdog
+            quietExtended = true
+            options.onStreamActivity?.(Date.now())
+            continue readLoop
+          }
+        }
+        pendingRead = null
+        const noBytes = isIdle && error.noBytes
+        const cancelled = options.signal?.aborted === true
+        const slotNote = reading !== null && reading.words !== '' ? ` — ${reading.words}` : ''
+        yield {
+          type: 'stream-fault',
+          fault: cancelled
+            ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled mid-stream', retryable: false }
+            : s.livenessCut !== null
+              ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, silentMs: Date.now() - s.quietSinceMs, message: `${silentAfterHeadersFaultWords(wait.model, Date.now() - s.quietSinceMs, wait.promptTokens)} — ${s.livenessCut}`, retryable: true }
+            : local !== undefined && cut.dead !== null
+              ? { kind: 'timeout', code: LOCAL_DEAD_SERVER_CODE, message: localDeadServerLine(local.serverWords, cut.dead.unansweredMs, 'writing'), retryable: false }
+              : local !== undefined && cut.cap
+                ? { kind: 'timeout', code: LOCAL_CAP_CODE, message: localCapLine(wait.model, timers.now() - requestStartedAt, 'writing'), retryable: false }
+                : noBytes
+                  ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, silentMs: error.silentMs, message: `${silentAfterHeadersFaultWords(wait.model, error.silentMs, wait.promptTokens)}${slotNote}`, retryable: true }
+                  : isIdle
+                    ? { kind: 'timeout', code: 'idle-timeout', silentMs: error.silentMs, message: `${streamIdleFaultWords(quietExtended ? Math.max(idleMs, Date.now() - s.quietSinceMs) : idleMs)}${slotNote}`, retryable: true }
+                    : {
+                      kind: 'transport-error',
+                      code: 'read-failed',
+                      message: error instanceof Error ? error.message : String(error),
+                      retryable: true,
+                    },
+        }
+        void reader.cancel().catch(passedOver)
+        return
+      }
+      if (!sawEvent) rawHead += bodyDecoder.decode(chunk.done ? undefined : chunk.value, { stream: !chunk.done })
+      const results = chunk.done ? decoder.flush() : decoder.push(Buffer.from(chunk.value!))
+      if (results.some(item => item.kind === 'event')) {
+        sawEvent = true
+        rawHead = ''
+      } else relay.noteChunk()
+      let chunkNotedEvent = false
+      let chunkHadEvent = false
+      for (const item of results) {
+        if (item.kind === 'fault') {
+          yield danglingFragmentEvent(item)
+          continue
+        }
+        chunkHadEvent = true
+        const payload = item.event.data
+        if (payload.trim() === '[DONE]') {
+          sawDone = true
+          if (!finished && options.requireDone) {
+            yield { type: 'stream-fault', fault: { kind: 'truncated-stream', code: 'no-finish', message: 'stream ended without finish_reason', retryable: false } }
+            break readLoop
+          }
+          if (!finished) {
+            finished = true
+            yield { type: 'finish', reason: 'stop', rawReason: 'stop', toolCalls: finalizeToolCalls(toolAcc) }
+          }
+          break readLoop
+        }
+        let parsed: unknown
+        try {
+          parsed = JSON.parse(payload)
+        } catch {
+          yield {
+            type: 'stream-fault',
+            fault: {
+              kind: 'truncated-stream',
+              code: 'bad-json-chunk',
+              message: `unparseable SSE chunk: ${payload.slice(0, 160)}`,
+              retryable: false,
+            },
+          }
+          continue
+        }
+        try { options.onResponseChunk?.(parsed) } catch (error) { passedOver(error) }
+        for (const event of decodeChunk(parsed, toolAcc, activeSlotByRawIndex, response.headers)) {
+          if (event.type === 'text-delta' || event.type === 'reasoning-delta' || event.type === 'reasoning-withheld' || event.type === 'finish' || event.type === 'tool-call-fragment') {
+            if (tokenWait) {
+              tokenWait = false
+              ingestMs = timers.now() - s.ingestStartedAt
+              publish(null)
+            }
+            chunkNotedEvent = true
+          }
+          if (event.type === 'served-model') {
+            if (event.model === servedSeen) continue
+            servedSeen = event.model
+          }
+          if (event.type === 'finish') {
+            finished = true
+            if (event.reason === 'content_filter' || event.reason === 'insufficient_system_resource' || event.reason === 'network_error') {
+              yield {
+                type: 'stream-fault',
+                fault: {
+                  kind: 'provider-termination',
+                  code: `finish:${event.rawReason}`,
+                  message: `stream terminated by the provider: ${event.rawReason}`,
+                  retryable: isTemporaryStreamError({ code: event.rawReason }),
+                  inStream: true,
+                },
+              }
+            }
+          }
+          if (event.type === 'stream-fault') {
+            finished = true
+          }
+          if (event.type === 'usage' && local !== undefined && ingestMs !== null) {
+            try {
+              local.noteTurn({ promptTokens: event.usage.inputTokens, cachedTokens: event.usage.cachedInputTokens, ingestMs })
+            } catch {
+              ingestMs = null
+            }
+          }
+          yield event
+        }
+      }
+      if (chunkNotedEvent) relay.noteEvent()
+      else if (chunkHadEvent) relay.noteChunk()
+      if (chunk.done) break
+    }
+
+    if (!finished && !sawEvent && rawHead.trim() !== '') {
+      let head: unknown
+      try {
+        head = JSON.parse(rawHead)
+      } catch {
+        head = undefined
+      }
+      const record = asRecord(head)
+      if (record?.error !== undefined || vendorEnvelopeFault(head) !== undefined) {
+        yield { type: 'stream-fault', fault: mapCompatHttpFailure(response.status, head, response.headers) }
+        return
+      }
+      if (Array.isArray(record?.choices)) {
+        for (const event of decodeChunk(head, toolAcc, activeSlotByRawIndex, response.headers)) {
+          if (event.type === 'finish' || event.type === 'stream-fault') finished = true
+          yield event
+        }
+        if (finished) return
+      } else if (!/^(?:data:|event:|:)/.test(rawHead.trimStart())) {
+        yield { type: 'stream-fault', fault: { kind: 'api-error', code: 'unexpected-response-body', message: `Expected an event stream or chat completion, received ${response.headers.get('content-type') ?? 'an unknown content type'}: ${rawHead.trim().slice(0, 240)}`, retryable: false } }
+        return
+      }
+    }
+    if (options.requireDone && !sawDone) {
+      yield { type: 'stream-fault', fault: { kind: 'truncated-stream', code: 'no-done', message: 'stream ended without [DONE]', retryable: false } }
+    } else if (!finished) {
+      yield {
+        type: 'stream-fault',
+        fault: {
+          kind: 'truncated-stream',
+          code: 'no-finish',
+          message: 'stream ended without finish_reason or [DONE]',
+          retryable: true,
+        },
+      }
+    }
+  } finally {
+    timers.clearTimeout(totalTimer)
+    if (s.livenessTimer !== null) timers.clearTimeout(s.livenessTimer)
+    idleWatchdog?.stop()
+    silenceWatch?.stop()
+    options.signal?.removeEventListener('abort', onOuterAbort)
+    controller.abort()
+  }
+}
+
+type CompatStreamState = {
+  livenessTimer: TimerHandle | null
+  firstByteFired: boolean
+  firstByteExtended: boolean
+  slotWords: string | null
+  firstByteTimer: TimerHandle | null
+  headersLanded: boolean
+  ingestStartedAt: number
+  quietSinceMs: number
+  sawBytes: boolean
+  livenessCut: string | null
+  silencePublished: boolean
+}
+
+type CompatStreamNeeds = {
+  options: CompatStreamOptions
+  local: LocalStreamLaw | undefined
+  timers: StreamTimers
+  idleMs: number
+  cut: { dead: { unansweredMs: number } | null; cap: boolean }
+  controller: AbortController
+  firstByteBudget: number
+  wait: Extract<RequestWaitV1, { kind: 'first-byte' }>
+  publish: (next: RequestWaitV1 | null) => void
+  requestStartedAt: number
+  fenceMs: number | null
+  error: unknown
+}
+
+function firstByteWaitOf(needs: Pick<CompatStreamNeeds, 'options' | 'local' | 'idleMs' | 'timers'>) {
+  const { options, local, idleMs, timers } = needs
+  const firstByteBudget =
+    local !== undefined
+      ? local.promiseMs
+      : firstByteBudgetMs({
+          cold: options.firstByte?.cold === true,
+          promptTokens: options.firstByte?.promptTokens ?? 0,
+          idleMs,
+          prefillMs: options.firstByte?.prefillMs,
+        })
+  const wait: Extract<RequestWaitV1, { kind: 'first-byte' }> = {
+    kind: 'first-byte',
+    cold: options.firstByte?.cold === true,
+    promptTokens: options.firstByte?.promptTokens ?? 0,
+    model: options.firstByte?.model ?? local?.wireModel ?? 'the model',
+    budgetMs: firstByteBudget,
+    sinceMs: timers.now(),
+    attempt: options.firstByte?.attempt ?? 1,
+    ...(options.firstByte?.prefillMs !== undefined ? { prefillMs: options.firstByte.prefillMs } : {}),
+    ...(local !== undefined ? { promise: true } : {}),
+  }
+  return { firstByteBudget, wait }
+}
+
+function watchFirstByte(s: CompatStreamState, needs: Pick<CompatStreamNeeds, 'local' | 'timers' | 'options' | 'cut' | 'controller' | 'firstByteBudget' | 'wait' | 'publish'>): () => void {
+  const { local, timers, options, cut, controller, firstByteBudget, wait, publish } = needs
+  let promiseLoop: LocalLivenessLoop | null = null
+  let loadingHandle: TimerHandle | null = null
+  const stopIngestWatch = (): void => {
+    promiseLoop?.stop()
+    promiseLoop = null
+    if (loadingHandle !== null) {
+      timers.clearTimeout(loadingHandle)
+      loadingHandle = null
+    }
+  }
+  if (local === undefined) {
+    const armFirstByteTimer = (): void => {
+      s.firstByteTimer = timers.setTimeout(() => {
+        if (s.headersLanded || options.signal?.aborted || cut.cap) return
+        const live = options.liveness
+        if (live === undefined) {
+          s.firstByteFired = true
+          controller.abort()
+          return
+        }
+        void live
+          .read()
+          .catch((): CompatLivenessReading => ({ state: 'unknown', answered: false, words: '' }))
+          .then(reading => {
+            if (s.headersLanded || options.signal?.aborted || cut.cap) return
+            if (reading.state === 'working') {
+              s.firstByteExtended = true
+              options.onStreamActivity?.(Date.now())
+              armFirstByteTimer()
+              return
+            }
+            if (reading.words !== '') s.slotWords = reading.words
+            s.firstByteFired = true
+            controller.abort()
+          })
+      }, firstByteBudget)
+      unrefTimer(s.firstByteTimer)
+    }
+    armFirstByteTimer()
+  } else {
+    const law = local
+    let promisedMs = law.promiseMs
+    const startPromiseLoop = (): void => {
+      promiseLoop?.stop()
+      promiseLoop = startLocalLivenessLoop({
+        timers,
+        dueMs: s.ingestStartedAt + promisedMs - timers.now(),
+        probe: () => law.seam.probe(),
+        onAlive: () => {
+          if (s.headersLanded) return null
+          const sinceIngest = timers.now() - s.ingestStartedAt
+          const extension = localPromiseExtensionMs(law.promiseMs)
+          promisedMs = sinceIngest + extension
+          publish({ ...wait, sinceMs: s.ingestStartedAt, budgetMs: promisedMs, checkedMs: sinceIngest })
+          return extension
+        },
+        onDead: (_elapsed, unansweredMs) => {
+          if (s.headersLanded) return
+          cut.dead = { unansweredMs }
+          controller.abort()
+        },
+      })
+    }
+    const watchLoading = async (): Promise<void> => {
+      let isLoaded: boolean | null = law.loadedAtSend === false ? false : await law.seam.loaded()
+      if (s.headersLanded || isLoaded !== false) return
+      stopIngestWatch()
+      const sizeGb = await law.seam.sizeGb()
+      if (s.headersLanded) return
+      publish({ ...wait, phase: 'loading', ...(sizeGb !== undefined ? { sizeGb } : {}) })
+      while (!s.headersLanded && isLoaded === false) {
+        await new Promise<void>(resolve => {
+          loadingHandle = timers.setTimeout(resolve, LOCAL_LOADING_POLL_MS)
+        })
+        loadingHandle = null
+        if (s.headersLanded) return
+        isLoaded = await law.seam.loaded()
+      }
+      if (s.headersLanded) return
+      s.ingestStartedAt = timers.now()
+      promisedMs = law.promiseMs
+      publish({ ...wait, sinceMs: s.ingestStartedAt, budgetMs: promisedMs })
+      startPromiseLoop()
+    }
+    if (law.loadedAtSend !== false) startPromiseLoop()
+    void watchLoading().catch(passedOverAs(undefined))
+  }
+  return stopIngestWatch
+}
+
+function sendCompatRequest(options: CompatStreamOptions, request: CompatChatRequest, controller: AbortController): Promise<Response> {
+  const sent = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), 'compat')
+  const fetchImpl = options.wrapFetch?.(sent) ?? sent
+  const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
+  const { extra, ...core } = request
+  return sendWithCacheField({ body: { ...core, ...(extra ?? {}), stream: true }, url: options.url, field: 'prompt_cache_key' }, body => fetchImpl(options.url, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      accept: 'text/event-stream',
+      ...(options.apiKey ? { authorization: `Bearer ${options.apiKey}` } : {}),
+      'user-agent': getUserAgent(),
+      ...(options.extraHeaders ?? {}),
+    },
+    body: JSON.stringify(body),
+    signal: controller.signal,
+    ...(proxyOptions as Record<string, unknown>),
+  } as RequestInit))
+}
+
+function fetchFailureEvent(s: CompatStreamState, needs: Pick<CompatStreamNeeds, 'options' | 'local' | 'cut' | 'wait' | 'timers' | 'requestStartedAt' | 'error'>): CompatStreamEvent {
+  const { options, local, cut, wait, timers, requestStartedAt, error } = needs
+  const cancelled = options.signal?.aborted === true
+  if (!cancelled && local !== undefined && cut.dead !== null) {
+    return {
+      type: 'stream-fault',
+      fault: { kind: 'timeout', code: LOCAL_DEAD_SERVER_CODE, message: localDeadServerLine(local.serverWords, cut.dead.unansweredMs, 'ingesting'), retryable: false },
+    }
+  }
+  if (!cancelled && local !== undefined && cut.cap) {
+    return {
+      type: 'stream-fault',
+      fault: { kind: 'timeout', code: LOCAL_CAP_CODE, message: localCapLine(wait.model, timers.now() - requestStartedAt, 'ingesting'), retryable: false },
+    }
+  }
+  if (!cancelled && s.firstByteFired) {
+    const waited = firstByteTimeoutLine(s.firstByteExtended ? { ...wait, budgetMs: Math.max(wait.budgetMs, timers.now() - wait.sinceMs) } : wait)
+    return {
+      type: 'stream-fault',
+      fault: { kind: 'timeout', code: 'first-byte-timeout', message: s.slotWords !== null ? `${waited} — ${s.slotWords}` : waited, retryable: true },
+    }
+  }
+  const outage = cancelled ? null : outageCauseOfFetchFailure(error)
+  return {
+    type: 'stream-fault',
+    fault: cancelled
+      ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled before response', retryable: false }
+      : {
+          kind: 'transport-error',
+          code: 'fetch-failed',
+          message: describeTransportFailure(error, options.url),
+          retryable: true,
+          ...(outage !== null ? { outage } : {}),
+        },
+  }
+}
+
+function watchLocalSilence(local: LocalStreamLaw, needs: Pick<CompatStreamNeeds, 'timers' | 'idleMs' | 'publish' | 'wait' | 'cut' | 'controller'>): LocalSilenceWatch {
+  const { timers, idleMs, publish, wait, cut, controller } = needs
+  const law = local
+  return startLocalSilenceWatch({
+    timers,
+    idleMs,
+    probe: () => law.seam.probe(),
+    onWarning: (silentMs, sinceMs) => publish({ kind: 'silence', model: wait.model, silentMs, sinceMs, answered: false, askAtMs: idleMs }),
+    onAlive: (silentMs, sinceMs) => publish({ kind: 'silence', model: wait.model, silentMs, sinceMs, answered: true }),
+    onResume: () => publish(null),
+    onDead: (_silentMs, unansweredMs) => {
+      cut.dead = { unansweredMs }
+      controller.abort()
+    },
+  })
+}
+
+function livenessProbeOf(s: CompatStreamState, needs: Pick<CompatStreamNeeds, 'fenceMs' | 'options' | 'timers' | 'cut' | 'controller' | 'wait' | 'publish'>): () => void {
+  const { fenceMs, options, timers, cut, controller, wait, publish } = needs
+  const armLivenessProbe = (): void => {
+    const live = options.liveness
+    if (fenceMs === null || live === undefined) return
+    s.livenessTimer = timers.setTimeout(() => {
+      s.livenessTimer = null
+      if (s.sawBytes || options.signal?.aborted || cut.cap) return
+      void live
+        .read()
+        .catch((): CompatLivenessReading => ({ state: 'unknown', answered: false, words: '' }))
+        .then(reading => {
+          if (s.sawBytes || options.signal?.aborted || cut.cap) return
+          const silentMs = Date.now() - s.quietSinceMs
+          logForDebugging(`[compat] ${Math.round(silentMs / 1000)} s without a byte after the headers: ${reading.words || 'the liveness read failed'}`)
+          if (reading.state === 'dead') {
+            s.livenessCut = reading.words
+            controller.abort()
+            return
+          }
+          if (reading.state === 'working') options.onStreamActivity?.(Date.now())
+          s.silencePublished = true
+          publish({ kind: 'silence', model: wait.model, silentMs, sinceMs: s.quietSinceMs, answered: reading.answered, ...(reading.answered ? {} : { askAtMs: silentMs + fenceMs }) })
+          armLivenessProbe()
+        })
+    }, fenceMs)
+    unrefTimer(s.livenessTimer)
+  }
+  return armLivenessProbe
+}
+
+function danglingFragmentEvent(item: Extract<SseDecodeResult, { kind: 'fault' }>): CompatStreamEvent {
+  return {
+    type: 'stream-fault',
+    fault: {
+      kind: 'truncated-stream',
+      code: 'sse-dangling-event',
+      message: `dangling SSE fragment: ${item.preview}`,
+      retryable: false,
+    },
+  }
+}
+
+
+function asRecord(v: unknown): Record<string, unknown> | undefined {
+  return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
+}
+
+function vendorEnvelopeFault(body: unknown): CompatFault | undefined {
+  const base = asRecord(asRecord(body)?.base_resp)
+  const code = base?.status_code
+  if (typeof code !== 'number' || !Number.isFinite(code) || code === 0) return undefined
+  const message = typeof base?.status_msg === 'string' && base.status_msg !== '' ? base.status_msg : `vendor status ${code}`
+  const retryable = code === 1000 || code === 1001 || code === 1013 || code === 1024 || code === 1033
+  return { kind: 'api-error', code: `minimax-${code}`, message, retryable }
+}
+
+const KNOWN_FINISH: readonly CompatFinishReason[] = [
+  'stop',
+  'tool_calls',
+  'length',
+  'content_filter',
+  'insufficient_system_resource',
+  'network_error',
+]
+
+export function decodeCompatUsage(usage: Record<string, unknown>, headers?: Headers): CompatUsage | undefined {
+  const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined)
+  const prompt = num(usage.prompt_tokens)
+  const completion = num(usage.completion_tokens)
+  if (prompt === undefined && completion === undefined) return undefined
+  const details = asRecord(usage.prompt_tokens_details)
+  const completionDetails = asRecord(usage.completion_tokens_details)
+  const cached =
+    num(usage.prompt_cache_hit_tokens) ??
+    num(usage.cached_tokens) ??
+    num(details?.cached_tokens)
+  const written = num(details?.cache_write_tokens)
+  const oneHourHeader = headers?.get('msh-usage-cache-write-tokens-1h')
+  const oneHour = oneHourHeader != null && oneHourHeader.trim() !== '' ? Number(oneHourHeader) : undefined
+  const reasoning = num(completionDetails?.reasoning_tokens)
+  const ticks = num(usage.cost_in_usd_ticks)
+  const statedCost = num(usage.cost_usd) ?? num(usage.cost) ?? (ticks !== undefined && Number.isFinite(ticks) && ticks >= 0 ? ticks / 1e10 : undefined)
+  return {
+    inputTokens: prompt ?? 0,
+    outputTokens: completion ?? 0,
+    ...(cached !== undefined ? { cachedInputTokens: cached } : {}),
+    ...(written !== undefined ? { cacheWriteInputTokens: written } : {}),
+    ...(written !== undefined && oneHour !== undefined && Number.isFinite(oneHour) && oneHour >= 0 ? { cacheWrite1hInputTokens: oneHour } : {}),
+    ...(reasoning !== undefined ? { reasoningTokens: reasoning } : {}),
+    ...(num(usage.total_tokens) !== undefined ? { totalTokens: num(usage.total_tokens) } : {}),
+    ...(statedCost !== undefined ? { statedCostUSD: statedCost } : {}),
+  }
+}
+
+export function decodeTensorFoldRuntime(block: unknown, speculative?: unknown): CompatRuntimeReading | undefined {
+  const runtime = asRecord(block)
+  if (runtime === undefined) return undefined
+  const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined)
+  const drafts = asRecord(speculative)
+  const reading: CompatRuntimeReading = {
+    ...(num(runtime.tokens_per_second) !== undefined ? { tokensPerSecond: num(runtime.tokens_per_second)! } : {}),
+    ...(num(runtime.time_to_first_token) !== undefined ? { timeToFirstTokenS: num(runtime.time_to_first_token)! } : {}),
+    ...(num(runtime.prefill_seconds) !== undefined ? { prefillSeconds: num(runtime.prefill_seconds)! } : {}),
+    ...(num(runtime.seconds) !== undefined ? { decodeSeconds: num(runtime.seconds)! } : {}),
+    ...(typeof runtime.reasoning_effort === 'string' && runtime.reasoning_effort !== '' ? { reasoningEffort: runtime.reasoning_effort } : {}),
+    ...(typeof runtime.enable_thinking === 'boolean' ? { thinking: runtime.enable_thinking } : {}),
+    ...(num(drafts?.acceptance_rate) !== undefined && (num(drafts?.drafted) ?? 0) > 0 ? { draftAcceptance: num(drafts?.acceptance_rate)! } : {}),
+  }
+  return Object.keys(reading).length > 0 ? reading : undefined
+}
+
+function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>, activeSlotByRawIndex: Map<number, number>, headers: Headers): CompatStreamEvent[] {
+  const out: CompatStreamEvent[] = []
+  const o = asRecord(parsed)
+  const servedModel = typeof o?.model === 'string' ? o.model.trim() : ''
+  if (servedModel !== '') out.push({ type: 'served-model', model: servedModel })
+  const envelope = vendorEnvelopeFault(o)
+  if (envelope !== undefined) out.push({ type: 'stream-fault', fault: envelope })
+  const errRecord = asRecord(o?.error)
+  if (errRecord !== undefined || typeof o?.error === 'string') {
+    const message =
+      typeof o?.error === 'string'
+        ? o.error
+        : String(errRecord?.message ?? JSON.stringify(errRecord).slice(0, 200))
+    const numericCode = typeof errRecord?.code === 'number' ? errRecord.code : undefined
+    const word = vendorErrorWord(errRecord)
+    out.push({
+      type: 'stream-fault',
+      fault: {
+        kind: 'api-error',
+        code: word !== undefined ? `api-${word}` : numericCode !== undefined ? `http-${numericCode}` : 'mid-stream-error',
+        message,
+        retryable: false,
+        ...(numericCode !== undefined ? { status: numericCode } : {}),
+        ...(typeof errRecord?.type === 'string' ? { errorType: errRecord.type } : {}),
+      },
+    })
+  }
+  const choices = Array.isArray(o?.choices) ? o!.choices : []
+  const choice = asRecord(choices[0])
+  const delta = asRecord(choice?.delta) ?? asRecord(choice?.message)
+
+  const reasoning = delta?.reasoning_content
+  const reasoningAlt = delta?.reasoning
+  if (typeof reasoning === 'string' && reasoning !== '') {
+    out.push({ type: 'reasoning-delta', text: reasoning })
+  } else if (typeof reasoningAlt === 'string' && reasoningAlt !== '') {
+    out.push({ type: 'reasoning-delta', text: reasoningAlt })
+  } else if (typeof delta?.reasoning_text === 'string' && delta.reasoning_text !== '') {
+    out.push({ type: 'reasoning-delta', text: delta.reasoning_text })
+  } else {
+    const details = Array.isArray(delta?.reasoning_details) ? delta.reasoning_details : []
+    for (const item of details) {
+      const rec = asRecord(item)
+      const text =
+        rec?.type === 'reasoning.text' && typeof rec.text === 'string'
+          ? rec.text
+          : rec?.type === 'reasoning.summary' && typeof rec.summary === 'string'
+            ? rec.summary
+            : ''
+      if (text !== '') out.push({ type: 'reasoning-delta', text })
+    }
+  }
+  const content = delta?.content
+  if (typeof content === 'string' && content !== '') {
+    out.push({ type: 'text-delta', text: content })
+  } else if (Array.isArray(content)) {
+    for (const chunk of content) {
+      const part = asRecord(chunk)
+      if (part?.type === 'text' && typeof part.text === 'string' && part.text !== '') {
+        out.push({ type: 'text-delta', text: part.text })
+      } else if (part?.type === 'thinking') {
+        const inner = Array.isArray(part.thinking) ? part.thinking : []
+        for (const piece of inner) {
+          const rec = asRecord(piece)
+          const text = typeof piece === 'string' ? piece : rec?.type === 'text' && typeof rec.text === 'string' ? rec.text : ''
+          if (text !== '') out.push({ type: 'reasoning-delta', text })
+        }
+      }
+    }
+  }
+  const toolCalls = Array.isArray(delta?.tool_calls) ? delta!.tool_calls : []
+  for (const raw of toolCalls) {
+    const tc = asRecord(raw)
+    const fn = asRecord(tc?.function)
+    const fragment = typeof fn?.arguments === 'string' ? fn.arguments : asRecord(fn?.arguments) !== undefined ? JSON.stringify(fn!.arguments) : ''
+    const id = toolCallId(tc?.id)
+    const name = typeof fn?.name === 'string' && fn.name !== '' ? fn.name : undefined
+    const index = toolCallSlot(toolAcc, activeSlotByRawIndex, typeof tc?.index === 'number' && Number.isFinite(tc.index) ? tc.index : undefined, id, name)
+    const existing = toolAcc.get(index) ?? { index, argumentsRaw: '' }
+    if (id && !existing.id) existing.id = id
+    if (name && !existing.name) existing.name = name
+    existing.argumentsRaw += fragment
+    toolAcc.set(index, existing)
+    out.push({
+      type: 'tool-call-fragment',
+      index,
+      ...(existing.id !== undefined ? { id: existing.id } : {}),
+      ...(existing.name !== undefined ? { name: existing.name } : {}),
+      argumentsFragment: fragment,
+    })
+  }
+
+  const usageRecord = asRecord(o?.usage)
+  if (usageRecord) {
+    const usage = decodeCompatUsage(usageRecord, headers)
+    if (usage) out.push({ type: 'usage', usage })
+  }
+  const runtime = decodeTensorFoldRuntime(o?.tensorfold, o?.speculative)
+  if (runtime !== undefined) out.push({ type: 'runtime', runtime })
+
+  const finishRaw = choice?.finish_reason
+  if (finishRaw === 'error') {
+    if (errRecord === undefined && typeof o?.error !== 'string') {
+      out.push({
+        type: 'stream-fault',
+        fault: {
+          kind: 'provider-termination',
+          code: 'finish:error',
+          message: 'stream terminated by the provider: error',
+          retryable: false,
+        },
+      })
+    }
+    return out
+  }
+  if (typeof finishRaw === 'string' && finishRaw !== '') {
+    const known = KNOWN_FINISH.includes(finishRaw as CompatFinishReason)
+    out.push({
+      type: 'finish',
+      reason: known ? (finishRaw as CompatFinishReason) : 'other',
+      rawReason: finishRaw,
+      toolCalls: finalizeToolCalls(toolAcc),
+    })
+  }
+  return out
+}

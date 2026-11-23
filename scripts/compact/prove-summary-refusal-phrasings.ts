@@ -12,21 +12,21 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { startOverflowFixture } = await import('./overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { compactConversation, partialCompactConversation, PROSE_SKIPPED_KEY, ERROR_MESSAGE_NO_SUMMARY } = await import('../../src/services/compact/compact.ts')
-const { getCompactPrompt, getPartialCompactPrompt, SUMMARY_SECTION_TITLES } = await import('../../src/services/compact/prompt.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { compactConversation, partialCompactConversation, PROSE_SKIPPED_KEY, ERROR_MESSAGE_NO_SUMMARY } = await import('../../src/engine/compaction/foldConversation.ts')
+const { getCompactPrompt, getPartialCompactPrompt, SUMMARY_SECTION_TITLES } = await import('../../src/engine/compaction/summariserPrompt.ts')
 const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 let failures = 0
 let checks = 0
 const check = (name: string, ok: boolean, details: unknown = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${JSON.stringify(details)}; fix summaryAnswerFault / validateSummary in src/services/compact/compact/summaryCheck.ts (what counts as a refusal, an empty or an acceptable summary), the retry in compactConversation / partialCompactConversation (src/services/compact/compact.ts, src/services/compact/compact/partial.ts), or SUMMARY_SECTION_TITLES in src/services/compact/prompt.ts for the section-title checks`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${JSON.stringify(details)}; fix summaryAnswerFault / validateSummary in src/engine/compaction/fold/summaryCheck.ts (what counts as a refusal, an empty or an acceptable summary), the retry in compactConversation / partialCompactConversation (src/engine/compaction/foldConversation.ts, src/engine/compaction/fold/partialFold.ts), or SUMMARY_SECTION_TITLES in src/engine/compaction/summariserPrompt.ts for the section-title checks`}`)
 }
 const messages = [createUserMessage({ content: 'Keep the parser fact: quoted commas are supported, and 14 checks passed.' })]
 const original = JSON.stringify(messages)

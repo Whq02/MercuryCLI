@@ -2,9 +2,9 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { GLYPH } from '../../src/utils/glyphs.ts'
-import { BELLY, TERRA } from '../../src/components/mercuryPalette.ts'
-import { resolveMercuryTokens } from '../../src/utils/mercuryTokens.ts'
+import { GLYPH } from '../../src/screen/theme/glyphs.ts'
+import { BELLY, TERRA } from '../../src/screen/theme/mercuryPalette.ts'
+import { resolveMercuryTokens } from '../../src/screen/theme/mercuryTokens.ts'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()

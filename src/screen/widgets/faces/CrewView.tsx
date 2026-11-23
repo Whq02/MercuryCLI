@@ -1,0 +1,381 @@
+import * as React from 'react'
+import { loadSwarm } from '../../../crew/board/seam.js'
+import { boardSeatName, type BoardSeat, type BoardViewSnapshot } from '../../../crew/board/contracts.js'
+import { boardWaitWords } from '../../../crew/board/waits.js'
+import { useMemo, useState, useSyncExternalStore } from 'react'
+import { Box, Text, useInput, wrapText } from '../../themedRenderer.js'
+import { usePopupListPaging } from '../../select/popup-list.js'
+import { useTerminalSize } from '../../fullscreen-layout/useTerminalSize.js'
+import {
+  CREW_EMPTY_DOOR,
+  CREW_EMPTY_LINE,
+  crewAskWaitDetail,
+  crewCostLabel,
+  crewCountLabel,
+  crewElapsedLabel,
+  crewModelLabel,
+  crewOperatorPauseParts,
+  crewPauseChipWords,
+  crewSettled,
+  crewStatusWords,
+  crewWaitLine,
+  crewTokensSummary,
+  crewUnreadLabel,
+  type CrewAgentFacts,
+  crewWaitHolders,
+} from '../../../engine/connector/crewFacts.js'
+import { operatorPauseGate } from '../../../engine/loop/pauseGate.js'
+import type { SessionAskV1 } from '../../../engine/connector/types.js'
+import { WORK_UNREPORTED_LINE, workUnreported } from '../../../engine/connector/workCounts.js'
+import {
+  getFocusedSessionConnector,
+  hasFocusedSession,
+  subscribeThroughFocused,
+} from '../../../engine/connector/focusedConnector.js'
+import { RosterWorkDetail } from '../../tasks/BackgroundTasksDialog.js'
+import {
+  focusedRunnerPresence,
+  useFocusedWorkRoster,
+} from '../../tasks/useFocusedWork.js'
+import { Chip, CommandCenter, SectionHeader, useNowTick } from '../components.js'
+import { GLYPH, padTo, truncateToWidth } from '../../theme/glyphs.js'
+import { InteractiveRow } from '../InteractiveRow.js'
+import { WorkingGlyph } from '../LiveGlyphs.js'
+import { decodeNavKey } from '../navSemantics.js'
+import { fitMeasuredWindow, paneWindow } from '../paneWindow.js'
+import { useMercuryTokens } from '../useMercuryTokens.js'
+import { useOpenEventGate } from '../useOpenEventGate.js'
+import { useStableSelection } from '../useStableSelection.js'
+import { CREW_RESUME_HINT, crewStopArmed, crewStopHint, pressCrewStop, type CrewStopArm } from './crewStopChord.js'
+import { crewPauseDoorKey, crewPauseDoorNote, pressCrewPause } from './crewPauseDoor.js'
+import { useAppStateMaybeOutsideOfProvider, useSetAppStateMaybe, type AppState } from '../../app-state/AppState.js'
+import { enterCrewmateView, setMainChat } from '../../../crew/crewmates/crewmateView.js'
+import { CREW_CLEAR_KEY, CREW_MAIN_CHAT_KEY, CREW_OPEN_IN_VIEW_KEY, crewClearedWords, crewClearRefusedWords } from '../../cockpit/crewmateWords.js'
+import { clearCrewmate } from '../../app-state/crewLedger.js'
+import { useSessionCrew } from '../../tasks/useCrewLedger.js'
+import { crewWorktreeLeftWords } from '../../../crew/crewmates/crewWorktreeReminder.js'
+
+
+type Row = { kind: 'agent'; id: string; facts: CrewAgentFacts }
+
+const subscribeFocusedAsks = subscribeThroughFocused((connector, listener) => connector.subscribeAsks(listener))
+const getFocusedAsks = (): readonly SessionAskV1[] => getFocusedSessionConnector().asks()
+
+type Mode =
+  | { view: 'list' }
+  | { view: 'card'; id: string }
+
+const OPEN_GATE = { paused: false, parked: 0 } as const
+
+const NAME_W = 20
+const MODEL_W = 18
+const STATUS_W = 34
+function crewRowWidths(width: number, status: string): { name: number; status: number } {
+  return { name: width >= 94 && width < 110 ? 12 : NAME_W, status: Math.min(STATUS_W, Math.max(8, status.length)) }
+}
+
+export function CrewView({
+  onClose,
+  popup = false,
+}: {
+  onClose: () => void
+  popup?: boolean
+}): React.ReactNode {
+  const tokens = useMercuryTokens()
+  const { columns, rows: termRows } = useTerminalSize()
+  const now = useNowTick(1000)
+  const roster = useFocusedWorkRoster()
+  const asks = useSyncExternalStore(subscribeFocusedAsks, getFocusedAsks, getFocusedAsks)
+  const setAppState = useSetAppStateMaybe()
+  const mainChatTaskId = useAppStateMaybeOutsideOfProvider((s: AppState) => s.mainChatTaskId)
+  const presence = useMemo(() => focusedRunnerPresence(), [roster])
+  const sessionCrew = useSessionCrew()
+  const agents = useMemo(() => sessionCrew.map(row => row.facts), [sessionCrew])
+  const workById = useMemo(() => new Map(roster.rows.map(r => [r.id, r] as const)), [roster])
+  const billed = hasFocusedSession() && getFocusedSessionConnector().identity().consoleBilling
+  const rows = useMemo<Row[]>(
+    () => agents.map((facts): Row => ({ kind: 'agent', id: `a:${facts.id}`, facts })),
+    [agents],
+  )
+  const crewmates = useMemo(() => rows.map(row => row.facts), [rows])
+  const cursor = useStableSelection(rows, r => r.id)
+  const sel = cursor.index
+  const [mode, setMode] = useState<Mode>(() => ({ view: 'list' }))
+  const [boardTab, setBoardTab] = useState(false)
+  const board = getFocusedSessionConnector().swarmBoard?.() ?? null
+  const showingBoard = boardTab && board?.on === true
+  const pastMount = useOpenEventGate()
+  const listMode = mode.view === 'list' || (mode.view === 'card' && !workById.has(mode.id))
+  const [stopArm, setStopArm] = useState<CrewStopArm | null>(null)
+  const [doorNote, setDoorNote] = useState<{ tone: 'muted' | 'warning'; text: string } | null>(null)
+  const armedTarget = stopArm !== null && crewStopArmed(stopArm, stopArm.id, now) ? (agents.find(a => a.id === stopArm.id) ?? null) : null
+  const gateState = useSyncExternalStore(operatorPauseGate.subscribe, operatorPauseGate.state, operatorPauseGate.state)
+  const carrier = getFocusedSessionConnector().carrier
+  const hostedGate = roster.pauseGate ?? OPEN_GATE
+  const pauseChip = crewPauseChipWords(agents, carrier === 'in-process' ? gateState : hostedGate)
+  const pauseDoor = crewPauseDoorKey(pauseChip !== null)
+  const openRow = (row: Row): void => {
+    if (!popup || setAppState === null) {
+      setMode({ view: 'card', id: row.facts.id })
+      return
+    }
+    enterCrewmateView(row.facts.id, setAppState)
+    onClose()
+  }
+
+  usePopupListPaging(sel, rows.length, () => win.end - win.start, cursor.select, listMode && !showingBoard)
+  useInput((input, key) => {
+    if (board?.on && key.tab) { setBoardTab(value => !value); return }
+    if (showingBoard) return
+    const selected = rows[sel]
+    const target: CrewAgentFacts | null =
+      mode.view === 'card' && !listMode
+        ? (agents.find(a => a.id === mode.id) ?? null)
+        : selected?.kind === 'agent'
+          ? selected.facts
+          : null
+    const plain = !key.ctrl && !key.meta && !key.super
+    if (input === 'x' && plain && target !== null && target.running) {
+      const press = pressCrewStop(stopArm, target.id, Date.now())
+      if (!press.fire) {
+        setStopArm(press.arm)
+        return
+      }
+      setStopArm(null)
+      setDoorNote(null)
+      void getFocusedSessionConnector()
+        .stopAgent(target.id)
+        .then(receipt => {
+          if (receipt.outcome === 'refused') setDoorNote({ tone: 'warning', text: `the stop of ${target.name} was refused: ${receipt.detail ?? 'no reason given'}` })
+        })
+      return
+    }
+    if (input === 'p' && plain) {
+      setStopArm(null)
+      const reach = hasFocusedSession()
+        ? { kind: 'carrier' as const, carrier: getFocusedSessionConnector().carrier, hostedPaused: hostedGate.paused, send: (paused: boolean) => getFocusedSessionConnector().pauseGate(paused) }
+        : { kind: 'blank' as const }
+      void pressCrewPause(reach, operatorPauseGate).then(receipt => setDoorNote(crewPauseDoorNote(receipt)))
+      return
+    }
+    if (input === 'c' && plain && target !== null && setAppState !== null) {
+      setStopArm(null)
+      if (!crewSettled(target)) {
+        setDoorNote({ tone: 'muted', text: crewClearRefusedWords(target) })
+        return
+      }
+      const cleared = clearCrewmate(target.id, setAppState)
+      setDoorNote(cleared ? { tone: 'muted', text: crewClearedWords(target.name) } : { tone: 'warning', text: crewClearRefusedWords(target) })
+      return
+    }
+    if (input === 'r' && plain && target !== null && !target.running) {
+      setDoorNote({ tone: 'muted', text: `resuming ${target.name} from its transcript…` })
+      void getFocusedSessionConnector()
+        .resumeAgent(target.id)
+        .then(receipt => {
+          setDoorNote(
+            receipt.outcome === 'applied'
+              ? { tone: 'muted', text: `${target.name} resumed from its transcript — it runs on under the same id` }
+              : { tone: 'warning', text: `the resume of ${target.name} was refused: ${receipt.detail ?? 'no reason given'}` },
+          )
+        })
+      return
+    }
+    if (!listMode) return
+    const nav = decodeNavKey(input, key, { orientation: 'vertical' })
+    if (nav === 'cancel') {
+      onClose()
+      return
+    }
+    if (nav === 'movePrevious') {
+      cursor.select(sel - 1)
+      return
+    }
+    if (nav === 'moveNext') {
+      cursor.select(sel + 1)
+      return
+    }
+    if (nav === 'activate') {
+      if (!pastMount()) return
+      const row = rows[sel]
+      if (row === undefined) return
+      openRow(row)
+      return
+    }
+    if (input === 'm' && plain && selected?.kind === 'agent' && setAppState !== null) {
+      if (!pastMount()) return
+      setMainChat(selected.facts.id, setAppState)
+      enterCrewmateView(selected.facts.id, setAppState)
+      onClose()
+      return
+    }
+  })
+
+  const doorKeys = (target: CrewAgentFacts | null): string[] =>
+    armedTarget !== null ? [crewStopHint(armedTarget.name)] : [...(target === null ? [] : target.running ? ['x x stop'] : crewSettled(target) ? ['r resume', CREW_CLEAR_KEY] : ['r resume']), pauseDoor]
+
+  if (showingBoard && board !== null) {
+    return <CommandCenter elevated view="crew" onClose={onClose} captureInput={false}>
+      <Text><Text dimColor>Crew</Text>{' · '}<Text bold>Board</Text></Text>
+      <SwarmPanel snapshot={board} onBack={onClose} width={Math.max(1, columns - 6)} height={Math.max(1, termRows - 8)} />
+    </CommandCenter>
+  }
+
+  if (mode.view === 'card' && !listMode) {
+    const work = workById.get(mode.id)!
+    const facts = agents.find(a => a.id === mode.id)
+    const back = (): void => setMode({ view: 'list' })
+    const cardFooter = [...doorKeys(facts ?? null), 'esc back'].join(' · ')
+    return (
+      <CommandCenter elevated view={`crew › ${facts?.name ?? work.name}`} onClose={back} footer={cardFooter} captureInput={false}>
+        <Box marginTop={1} flexDirection="column">
+          <RosterWorkDetail work={work} now={now} onBack={back} />
+          {doorNote !== null ? <Text color={doorNote.tone === 'warning' ? tokens.warning : tokens.textMuted} wrap="truncate-middle">· {doorNote.text}</Text> : null}
+        </Box>
+      </CommandCenter>
+    )
+  }
+
+  const width = popup ? Math.max(0, Math.min(columns, 120)) : Math.max(56, (columns || 80) - 6)
+  const selectedRow = rows[sel]
+  const footer = (armedTarget !== null
+    ? [crewStopHint(armedTarget.name), 'esc close']
+    : [
+        '↑↓ move',
+        'pgup/pgdn page',
+        board?.on ? 'tab Board' : undefined,
+        rows.length > 0 ? (popup ? CREW_OPEN_IN_VIEW_KEY : '↵ open') : undefined,
+        selectedRow?.kind === 'agent' ? (mainChatTaskId === selectedRow.facts.id ? `${CREW_MAIN_CHAT_KEY} (this one)` : CREW_MAIN_CHAT_KEY) : undefined,
+        ...doorKeys(selectedRow?.kind === 'agent' ? selectedRow.facts : null),
+        'esc close',
+      ])
+    .filter(Boolean)
+    .join(' · ')
+  const footerRows = wrapText(footer, Math.max(1, (columns || 80) - 4), 'wrap').split('\n').length
+  const bodyRows = Math.max(1, (termRows || 24) - 5 - (footerRows - 1))
+  const noticeRows = (presence === 'blank' || presence === 'dormant' ? 1 : 0) + (pauseChip !== null ? 1 : 0) + (doorNote !== null ? 1 : 0)
+  const sectionRows = rows.length === 0 || bodyRows - 2 - noticeRows >= 0 ? 1 : 0
+  const rowRoom = bodyRows - 1 - noticeRows - sectionRows
+  const visible = Math.max(4, (termRows || 24) - 9 - (footerRows - 1))
+  const win = fitMeasuredWindow(rows.length, visible, span => paneWindow(rows.length, sel, span), window =>
+    rows.slice(window.start, window.end).reduce((height, row) => height + 1 + (row.facts.state === 'paused' ? wrapText(crewStatusWords(row.facts, now), Math.max(1, width - 4), 'wrap').split('\n').length : 0), 0),
+  )
+
+  return (
+    <CommandCenter elevated view="crew" subtitle={crewCountLabel(crewmates)} onClose={onClose} footer={footer} bodyOwnsPageKeys captureInput={false}><Box marginTop={rowRoom <= 0 ? 0 : 1} flexDirection="column">
+        {presence === 'blank' ? (
+          <Text color={tokens.textMuted}>no chat is focused — a session's crewmates list here</Text>
+        ) : null}
+        {presence === 'dormant' ? (
+          <Text color={tokens.textMuted}>the session has no live runner — ↵ in the chat revives it</Text>
+        ) : null}
+        {pauseChip !== null ? (
+          <Text>
+            <Chip tone="warn">{pauseChip}</Chip>
+          </Text>
+        ) : null}
+        {sectionRows > 0 ? (
+          <SectionHeader marginTop={0} count={rows.length}>
+            Crewmates
+          </SectionHeader>
+        ) : null}
+        {rows.length === 0 ? (
+          <Text color={tokens.textMuted}>
+            {workUnreported(roster) ? `· ${WORK_UNREPORTED_LINE}` : `· ${CREW_EMPTY_LINE} — ${CREW_EMPTY_DOOR}`}
+          </Text>
+        ) : rowRoom <= 0 ? (
+          <Text color={tokens.textMuted} wrap="truncate-end">
+            {`· ${rows.length} crewmate${rows.length === 1 ? '' : 's'} cannot paint at this height — ↵ opens ${selectedRow?.facts.name ?? 'the first'}`}
+          </Text>
+        ) : (
+          <>
+            {win.above > 0 ? <Text color={tokens.textMuted}>  ↑ {win.above} earlier</Text> : null}
+            {rows.slice(win.start, win.end).map((row, wi) => {
+              const gi = win.start + wi
+              const on = gi === sel
+              return (
+                <InteractiveRow key={row.id} id={`crew:row:${row.id}`} selected={on} onSelect={() => cursor.select(gi)} onActivate={() => openRow(row)} selectionBand={false} hoverStyle="chrome-ink">
+                  {() => <AgentRow facts={row.facts} seat={board?.seats?.find(seat => seat.agent === row.facts.id)} on={on} now={now} width={width} billed={billed} asks={asks} />}
+                </InteractiveRow>
+              )
+            })}
+            {win.below > 0 ? <Text color={tokens.textMuted}>  ↓ {win.below} later</Text> : null}
+          </>
+        )}
+        {doorNote !== null ? <Text color={doorNote.tone === 'warning' ? tokens.warning : tokens.textMuted} wrap="truncate-middle">· {doorNote.text}</Text> : null}
+      </Box></CommandCenter>
+  )
+}
+
+function AgentRow({
+  facts,
+  seat,
+  on,
+  now,
+  width,
+  billed,
+  asks,
+}: {
+  facts: CrewAgentFacts
+  seat?: BoardSeat
+  on: boolean
+  now: number
+  width: number
+  billed: boolean
+  asks: readonly SessionAskV1[]
+}): React.ReactNode {
+  const tokens = useMercuryTokens()
+  const failed = facts.state === 'failed'
+  const stopped = facts.state === 'stopped' || facts.state === 'interrupted'
+  const paused = facts.state === 'paused'
+  const pending = facts.status === 'pending'
+  const settled = crewSettled(facts)
+  const tone = facts.running ? tokens.success : failed ? tokens.failure : stopped || paused ? tokens.warning : tokens.textMuted
+  const glyph = failed || stopped ? GLYPH.fail : pending || paused ? GLYPH.pending : facts.running ? GLYPH.busy : GLYPH.done
+  const nameColor = on ? tokens.textPrimary : settled ? tokens.textMuted : tokens.textSecondary
+  const spend = billed ? crewCostLabel(facts) : null
+  const wait = crewWaitLine(facts)
+  const holders = crewWaitHolders(facts)
+  const unread = crewUnreadLabel(facts)
+  const parkedByOperator = crewOperatorPauseParts(facts)
+  const askDetail = crewAskWaitDetail(facts, asks, now)
+  const status = seat?.state === 'parked' && seat.wakeProblem?.kind === 'worktree-missing'
+    ? 'parked · worktree missing'
+    : facts.status === 'completed' && seat?.state === 'parked' && seat.wait ? `parked · waiting on ${boardWaitWords(seat.wait.predicate)}` : crewStatusWords(facts, now)
+  const cells = crewRowWidths(width, status)
+  return (
+    <Box width={width} flexDirection="column">
+      <Text wrap="truncate-end">
+        <Text color={on ? tokens.textPrimary : tokens.textMuted}>{on ? `${GLYPH.cursor} ` : '  '}</Text>
+        {facts.running && !pending && wait === null ? <WorkingGlyph color={tokens.success} active /> : <Text color={wait !== null ? tokens.warning : tone}>{wait !== null ? GLYPH.pending : glyph}</Text>}
+        <Text bold={on} color={nameColor}>
+          {' '}
+          {padTo(truncateToWidth(seat ? boardSeatName(seat) : facts.name, cells.name), cells.name)}
+        </Text>
+        <Text color={settled ? tokens.textMuted : tokens.textSecondary}> {padTo(truncateToWidth(crewModelLabel(facts), MODEL_W), MODEL_W)}</Text>
+        <Text color={tone}> {padTo(truncateToWidth(paused ? 'paused' : status, cells.status), cells.status)}</Text>
+        <Text color={tokens.textPrimary}> {crewTokensSummary(facts)}</Text>
+        <Text color={tokens.textMuted}>
+          {' '}
+          {crewElapsedLabel(facts, now)}
+          {spend !== null ? ` · ${spend}` : ''}
+          {}
+          {stopped || failed ? ` · ${facts.stopReason !== null ? `${facts.stopReason} · ` : ''}${CREW_RESUME_HINT}` : ''}
+          {parkedByOperator !== null ? ` · ${parkedByOperator.detail}` : ''}
+          {settled && facts.worktree !== null ? ` · ${crewWorktreeLeftWords(facts.worktree)}` : ''}
+        </Text>
+        {askDetail !== null ? <Text color={tokens.warning}> · {askDetail}</Text> : null}
+        {unread !== null ? <Text color={tokens.warning}> · {unread}</Text> : null}
+        {holders !== null ? <Text color={tokens.warning}> · {holders}</Text> : null}
+      </Text>
+      {paused ? <Box paddingLeft={4} width={width}><Text color={tone} wrap="wrap">{status}</Text></Box> : null}
+    </Box>
+  )
+}
+
+
+function SwarmPanel(props: { snapshot: BoardViewSnapshot; onBack: () => void; width: number; height: number }): React.ReactNode {
+  const View = loadSwarm().view
+  const tokens = useMercuryTokens()
+  return <View {...props} React={React} Text={Text} Box={Box} tokens={tokens} useInput={useInput} wrapText={wrapText} />
+}

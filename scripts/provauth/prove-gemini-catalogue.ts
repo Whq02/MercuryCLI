@@ -34,7 +34,7 @@ for (const key of [
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-gemini-cat-'))
 process.env.MERCURY_GEMINI_API_BASE = 'https://fixture.invalid/v1beta'
 
-const catalogue = await import('../../src/services/providers/gemini/geminiCatalogue.js')
+const catalogue = await import('../../src/models/roads/gemini/geminiCatalogue.js')
 const {
   __resetGeminiCatalogueForTest,
   geminiDispatchReady,
@@ -42,7 +42,7 @@ const {
   getGeminiModelOptions,
   refreshGeminiCatalogue,
 } = catalogue
-const catalogueFile = 'src/services/providers/gemini/geminiCatalogue.ts'
+const catalogueFile = 'src/models/roads/gemini/geminiCatalogue.ts'
 const availHint = 'fix getGeminiAvailability in ' + catalogueFile
 const rowsHint = 'fix getGeminiModelOptions or geminiRowLabels in ' + catalogueFile
 const refreshHint = 'fix refreshGeminiCatalogue or fetchGeminiLiveModels in ' + catalogueFile

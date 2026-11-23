@@ -40,13 +40,13 @@ process.env.OPENROUTER_API_KEY = 'sk-or-fixture'
 process.env.MERCURY_OPENROUTER_API_BASE = `http://127.0.0.1:${port}/api/v1`
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=http://127.0.0.1:${port}`
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { analyzeContextUsage } = await import('../../src/services/context/analyzeContext.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const openrouter = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
+const { analyzeContextUsage } = await import('../../src/engine/context-window/analyzeContext.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const openrouter = await import('../../src/models/roads/openrouter/openrouterCatalogue.ts')
 
 const CARRIER = 'openrouter/stealth/ox-alpha'
 const agents = { activeAgents: [], allAgents: [] }
@@ -92,12 +92,12 @@ section('§1 the model list arrives while the view is being made')
   asked = 0
   firstAnswerMs = 0
   const made = await view(CARRIER, listArrives)
-  check('the fixture reaches into the making of the view: the list is asked for while the view is being made', made.midway > 0, `${made.midway} — the fixture's held tool prompt never ran, so analyzeContextUsage() in src/services/context/analyzeContext.ts no longer builds tool prompts before it reads the window; the proof no longer exercises the race`)
-  check('the view is made (RED on the parent: the window was read before the list and the fold line after it, the reserve came out negative and the grid threw)', made.thrown === undefined, `${made.thrown} — analyzeContextUsage() in src/services/context/analyzeContext.ts must read the model's window once, after the model list is known, and use that one value for the reserve and the grid`)
-  check('…on the window the list states', made.data?.maxTokens === LISTED, `${made.data?.maxTokens} — maxTokens from analyzeContextUsage() in src/services/context/analyzeContext.ts must be the window the openrouter list states`)
+  check('the fixture reaches into the making of the view: the list is asked for while the view is being made', made.midway > 0, `${made.midway} — the fixture's held tool prompt never ran, so analyzeContextUsage() in src/engine/context-window/analyzeContext.ts no longer builds tool prompts before it reads the window; the proof no longer exercises the race`)
+  check('the view is made (RED on the parent: the window was read before the list and the fold line after it, the reserve came out negative and the grid threw)', made.thrown === undefined, `${made.thrown} — analyzeContextUsage() in src/engine/context-window/analyzeContext.ts must read the model's window once, after the model list is known, and use that one value for the reserve and the grid`)
+  check('…on the window the list states', made.data?.maxTokens === LISTED, `${made.data?.maxTokens} — maxTokens from analyzeContextUsage() in src/engine/context-window/analyzeContext.ts must be the window the openrouter list states`)
   const reserve = reserveOf(made.data)
-  check('…with a reserve that is a share of that window', reserve !== undefined && reserve.tokens > 0 && reserve.tokens < LISTED, `${JSON.stringify(reserve)} — the reserve row in analyzeContextUsage() in src/services/context/analyzeContext.ts must be computed from the same window as maxTokens`)
-  check('…and rows that add up to it', made.data !== undefined && sumOf(made.data) === LISTED, made.data ? `${sumOf(made.data)} vs ${LISTED} — the category rows from analyzeContextUsage() in src/services/context/analyzeContext.ts must sum to the window` : 'no view')
+  check('…with a reserve that is a share of that window', reserve !== undefined && reserve.tokens > 0 && reserve.tokens < LISTED, `${JSON.stringify(reserve)} — the reserve row in analyzeContextUsage() in src/engine/context-window/analyzeContext.ts must be computed from the same window as maxTokens`)
+  check('…and rows that add up to it', made.data !== undefined && sumOf(made.data) === LISTED, made.data ? `${sumOf(made.data)} vs ${LISTED} — the category rows from analyzeContextUsage() in src/engine/context-window/analyzeContext.ts must sum to the window` : 'no view')
 }
 
 section('§2 the list answers later than the view waits for it, and arrives midway')
@@ -106,10 +106,10 @@ section('§2 the list answers later than the view waits for it, and arrives midw
   asked = 0
   firstAnswerMs = 4000
   const made = await view(CARRIER, listArrives)
-  check('the view is made all the same (RED on the parent)', made.thrown === undefined, `${made.thrown} — analyzeContextUsage() in src/services/context/analyzeContext.ts must not throw when the model list arrives late; read the window once`)
+  check('the view is made all the same (RED on the parent)', made.thrown === undefined, `${made.thrown} — analyzeContextUsage() in src/engine/context-window/analyzeContext.ts must not throw when the model list arrives late; read the window once`)
   const reserve = reserveOf(made.data)
-  check('no row of it is negative: the reserve is nothing where the fold line read a larger window than the view did', made.data !== undefined && made.data.categories.every(c => c.tokens >= 0) && reserve !== undefined && reserve.tokens >= 0, `${JSON.stringify(made.data?.categories.map(c => [c.name, c.tokens]))} — a negative row means the reserve and the grid used different windows; check analyzeContextUsage() in src/services/context/analyzeContext.ts`)
-  check('it waited for the list no longer than its bound of three seconds', made.ms >= 2500 && made.ms < 9000, `${made.ms} ms — the view must wait for a slow model list for about its three-second bound and no longer; check the wait for the list in analyzeContextUsage() in src/services/context/analyzeContext.ts`)
+  check('no row of it is negative: the reserve is nothing where the fold line read a larger window than the view did', made.data !== undefined && made.data.categories.every(c => c.tokens >= 0) && reserve !== undefined && reserve.tokens >= 0, `${JSON.stringify(made.data?.categories.map(c => [c.name, c.tokens]))} — a negative row means the reserve and the grid used different windows; check analyzeContextUsage() in src/engine/context-window/analyzeContext.ts`)
+  check('it waited for the list no longer than its bound of three seconds', made.ms >= 2500 && made.ms < 9000, `${made.ms} ms — the view must wait for a slow model list for about its three-second bound and no longer; check the wait for the list in analyzeContextUsage() in src/engine/context-window/analyzeContext.ts`)
 }
 
 section('§3 controls')
@@ -121,12 +121,12 @@ section('§3 controls')
   const before = asked
   const warm = await view(CARRIER)
   const reserve = reserveOf(warm.data)
-  check('a list already read: the same window and a positive reserve, and the view asks for no list (holds on the parent)', warm.thrown === undefined && warm.data?.maxTokens === LISTED && reserve !== undefined && reserve.tokens > 0 && asked === before, `${warm.thrown} ${warm.data?.maxTokens} asked ${asked - before} — with the list already read the view must use its window and not ask again; check analyzeContextUsage() in src/services/context/analyzeContext.ts`)
+  check('a list already read: the same window and a positive reserve, and the view asks for no list (holds on the parent)', warm.thrown === undefined && warm.data?.maxTokens === LISTED && reserve !== undefined && reserve.tokens > 0 && asked === before, `${warm.thrown} ${warm.data?.maxTokens} asked ${asked - before} — with the list already read the view must use its window and not ask again; check analyzeContextUsage() in src/engine/context-window/analyzeContext.ts`)
   const plain = await view('claude-fable-5-1')
-  check('a model whose window no list states is not kept waiting: the view asks for no list and answers at once (holds on the parent)', plain.thrown === undefined && asked === before && plain.ms < 1500 && (reserveOf(plain.data)?.tokens ?? -1) >= 0, `${plain.thrown} ${plain.ms} ms asked ${asked - before} — a model no list names must not make the view wait for or ask for a list; check analyzeContextUsage() in src/services/context/analyzeContext.ts`)
+  check('a model whose window no list states is not kept waiting: the view asks for no list and answers at once (holds on the parent)', plain.thrown === undefined && asked === before && plain.ms < 1500 && (reserveOf(plain.data)?.tokens ?? -1) >= 0, `${plain.thrown} ${plain.ms} ms asked ${asked - before} — a model no list names must not make the view wait for or ask for a list; check analyzeContextUsage() in src/engine/context-window/analyzeContext.ts`)
   const probed = probes
   const local = await view('local/held-fixture:1b')
-  check('a local model is left as it was: the view asks its server nothing, so it decides no window for the session (holds on the parent)', local.thrown === undefined && probes === probed && asked === before, `${local.thrown} probes ${probes - probed} asked ${asked - before} — a local model must not make the view probe its server or ask for a list; check analyzeContextUsage() in src/services/context/analyzeContext.ts`)
+  check('a local model is left as it was: the view asks its server nothing, so it decides no window for the session (holds on the parent)', local.thrown === undefined && probes === probed && asked === before, `${local.thrown} probes ${probes - probed} asked ${asked - before} — a local model must not make the view probe its server or ask for a list; check analyzeContextUsage() in src/engine/context-window/analyzeContext.ts`)
 }
 
 await new Promise<void>(done => server.close(() => done()))

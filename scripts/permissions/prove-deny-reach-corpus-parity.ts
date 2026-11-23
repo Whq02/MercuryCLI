@@ -175,13 +175,13 @@ function isolateHostDisk(roots: readonly string[]): void {
 }
 isolateHostDisk([ROOT, realpathSync(join(import.meta.dir, '..', '..'))])
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { getDenyRules } = await import('../../src/utils/permissions/decision/rules.ts')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
-const { denyRuleReach, startedProgramIsShell } = await import('../../src/tools/BashTool/denyRuleReach.ts')
-const { enableConfigs } = await import('../../src/utils/config.ts')
-const { setOriginalCwd, setCwdState, setProjectRoot, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { getDenyRules } = await import('../../src/permissions/rules/decision/rules.ts')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
+const { denyRuleReach, startedProgramIsShell } = await import('../../src/tools/shell/denyRuleReach.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
+const { setOriginalCwd, setCwdState, setProjectRoot, setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
 setSessionTrustAccepted(true)
 enableConfigs()
 setOriginalCwd(RUN)
@@ -431,11 +431,11 @@ if (RECORD) {
   check(
     `every command reaches what was recorded: the answer of denyRuleReach, the budget it leaves and its port calls in ${SETTINGS.length} settings, the whole decision at ${DOORS.length} doors, byte for byte (${fixture.rows.length} commands)`,
     moved.length === 0,
-    `${read < fixture.rows.length ? `${moved.length} moved among the first ${read} commands, and the run stopped there` : `${moved.length} moved`}. If a decision was meant to change, record again with \`bun ${SELF} --record\` and read the diff of scripts/permissions/fixtures/deny-reach-corpus.json; if it was not, the change to src/tools/BashTool/denyRuleReach.ts or to what it reads altered what a deny rule reaches`,
+    `${read < fixture.rows.length ? `${moved.length} moved among the first ${read} commands, and the run stopped there` : `${moved.length} moved`}. If a decision was meant to change, record again with \`bun ${SELF} --record\` and read the diff of scripts/permissions/fixtures/deny-reach-corpus.json; if it was not, the change to src/tools/shell/denyRuleReach.ts or to what it reads altered what a deny rule reaches`,
   )
   for (const line of moved.slice(0, SHOWN)) console.log(`    ${line}`)
-  check('with no deny rule and no estate the reach answers nothing, for every command read', quiet === read, `${read - quiet} commands were answered; with an empty deny list denyRuleReach in src/tools/BashTool/denyRuleReach.ts must return no denied, hidden or unread answer`)
-  check('no program and an empty program name are no shell', !startedProgramIsShell(undefined) && !startedProgramIsShell('', ['-c', 'sh']), 'startedProgramIsShell in src/tools/BashTool/denyRuleReach.ts must return false for an undefined or empty program name')
+  check('with no deny rule and no estate the reach answers nothing, for every command read', quiet === read, `${read - quiet} commands were answered; with an empty deny list denyRuleReach in src/tools/shell/denyRuleReach.ts must return no denied, hidden or unread answer`)
+  check('no program and an empty program name are no shell', !startedProgramIsShell(undefined) && !startedProgramIsShell('', ['-c', 'sh']), 'startedProgramIsShell in src/tools/shell/denyRuleReach.ts must return false for an undefined or empty program name')
   check('the corpus reaches a denial, a hidden rule, an unread rule and nothing', read < fixture.rows.length || ['denied', 'hidden', 'unread', 'nothing'].every(outcome => (outcomes.get(outcome) ?? 0) > 0), `${[...outcomes.keys()].join(',')}; the recorded corpus in scripts/permissions/fixtures/deny-reach-corpus.json lacks a command for each outcome, so add one and record again with bun ${SELF} --record`)
 }
 

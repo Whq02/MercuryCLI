@@ -10,14 +10,14 @@ import { Client, type CallToolResult } from '@modelcontextprotocol/client'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const root = join(proofHome, 'work')
 mkdirSync(join(root, '.mercury'), { recursive: true, mode: 0o700 })
-const { switchSession, setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+const { switchSession, setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
 setOriginalCwd(root)
 switchSession('00000000-0000-4000-8000-000000000051' as never, root)
-const { procStartToken } = await import('../../src/utils/genericProcessUtils.ts')
-const { getProcessStartTokenAsync } = await import('../../src/utils/ownerWatch.ts')
-const leases = await import('../../src/services/vulcan/engine/leases.ts')
-const { createMercuryServer, withMercuryLeaseHolder } = await import('../../src/services/mcp/mercuryServer.ts')
-const { createLinkedTransportPair } = await import('../../src/services/mcp/InProcessTransport.ts')
+const { procStartToken } = await import('../../src/platform/processes/processLiveness.ts')
+const { getProcessStartTokenAsync } = await import('../../src/daemon/control/ownerWatch.ts')
+const leases = await import('../../src/integrations/vulcan/engine/leases.ts')
+const { createMercuryServer, withMercuryLeaseHolder } = await import('../../src/integrations/mcp/mercuryServer.ts')
+const { createLinkedTransportPair } = await import('../../src/integrations/mcp/InProcessTransport.ts')
 
 const ROWS = 150_000
 const TREE = 'art/pack/'
@@ -28,7 +28,7 @@ const ABANDON_MS = 10_000
 
 let checks = 0
 let failures = 0
-const SCALE_HINT = 'keep takeProjectLeases, describeProjectLeases and releaseProjectLeases in src/services/vulcan/engine/leases.ts within the step bound and the result shape this check names (the lease_list tool is in src/services/mcp/mercuryServer.ts)'
+const SCALE_HINT = 'keep takeProjectLeases, describeProjectLeases and releaseProjectLeases in src/integrations/vulcan/engine/leases.ts within the step bound and the result shape this check names (the lease_list tool is in src/integrations/mcp/mercuryServer.ts)'
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++

@@ -97,7 +97,7 @@ const since = (n: number): Row[] => rows().slice(n)
 const isAdd = (r: Row): boolean => r.argv.startsWith('add -A')
 const EXCLUDE_ADD = 'add -A -- . :(exclude,glob)**/.mercury/**'
 
-const vs = await import('../../src/utils/verification/verificationState.ts')
+const vs = await import('../../src/platform/verification/verificationState.ts')
 vs._resetVerificationStateForTesting()
 
 const repo = join(SCRATCH, 'repo')
@@ -117,17 +117,17 @@ git(repo, 'config', 'filter.hash-witness.required', 'true')
 for (const file of git(repo, 'ls-files', '-z').split('\0').filter(Boolean)) utimesSync(join(repo, file), 1, 1)
 const hashedFiles = (): number => new Set(readFileSync(HASH_LOG, 'utf8').split('\n').filter(Boolean)).size
 const first = await vs.computeWorkingTreeDigestAsync(repo, { fresh: true })
-check('the first digest answers and the content witness counts every seed file', first !== null && hashedFiles() === FILES, `${hashedFiles()}/${FILES} hashed; check computeWorkingTreeDigestAsync in src/utils/verification/verificationState.ts`)
+check('the first digest answers and the content witness counts every seed file', first !== null && hashedFiles() === FILES, `${hashedFiles()}/${FILES} hashed; check computeWorkingTreeDigestAsync in src/platform/verification/verificationState.ts`)
 const storeDirs = existsSync(join(HOME, 'verify')) ? readdirSync(join(HOME, 'verify')) : []
 const store = storeDirs.length === 1 ? join(HOME, 'verify', storeDirs[0]!) : ''
-check("Mercury's index lives under its config home, beside the evidence file", store !== '' && existsSync(join(store, 'index')), `store dirs under the config home verify folder: [${storeDirs.join(',')}]; expected exactly one holding index; see the index location in src/utils/verification/verificationState.ts`)
+check("Mercury's index lives under its config home, beside the evidence file", store !== '' && existsSync(join(store, 'index')), `store dirs under the config home verify folder: [${storeDirs.join(',')}]; expected exactly one holding index; see the index location in src/platform/verification/verificationState.ts`)
 writeFileSync(HASH_LOG, '')
 const second = await vs.computeWorkingTreeDigestAsync(repo, { fresh: true })
-check('a digest on the unchanged tree hashes zero files', hashedFiles() === 0, `${hashedFiles()} files hashed; the persisted Mercury index must be reused on the second computeWorkingTreeDigestAsync in src/utils/verification/verificationState.ts`)
+check('a digest on the unchanged tree hashes zero files', hashedFiles() === 0, `${hashedFiles()} files hashed; the persisted Mercury index must be reused on the second computeWorkingTreeDigestAsync in src/platform/verification/verificationState.ts`)
 git(repo, 'config', '--remove-section', 'filter.hash-witness')
 rmSync(attributes)
-check('…and names the same tree', second === first, `${first} vs ${second}; the digest must not change on an unchanged tree (computeWorkingTreeDigestAsync in src/utils/verification/verificationState.ts)`)
-check("the repository's own index is never touched", statSync(repoIndex).mtimeMs === repoIndexBefore, 'the digest scan must use its own index file (GIT_INDEX_FILE under the config home), never the repository .git/index; see src/utils/verification/verificationState.ts')
+check('…and names the same tree', second === first, `${first} vs ${second}; the digest must not change on an unchanged tree (computeWorkingTreeDigestAsync in src/platform/verification/verificationState.ts)`)
+check("the repository's own index is never touched", statSync(repoIndex).mtimeMs === repoIndexBefore, 'the digest scan must use its own index file (GIT_INDEX_FILE under the config home), never the repository .git/index; see src/platform/verification/verificationState.ts')
 
 section('§2 the repository gains nothing — 20 digests over a changing untracked file')
 {
@@ -140,9 +140,9 @@ section('§2 the repository gains nothing — 20 digests over a changing untrack
     seen.add(await vs.computeWorkingTreeDigestAsync(repo))
   }
   const after = countObjects(repo)
-  check(`the repository's distinct objects are unchanged, wherever a copy sits (${before.count} → ${after.count}; loose ${before.loose} → ${after.loose}, packed ${before.packed} → ${after.packed})`, before.count === after.count, 'the scan wrote objects into the repository; its blobs must go to a Mercury-owned object store in src/utils/verification/verificationState.ts')
+  check(`the repository's distinct objects are unchanged, wherever a copy sits (${before.count} → ${after.count}; loose ${before.loose} → ${after.loose}, packed ${before.packed} → ${after.packed})`, before.count === after.count, 'the scan wrote objects into the repository; its blobs must go to a Mercury-owned object store in src/platform/verification/verificationState.ts')
   check('…while the digest changed every time (20 distinct trees)', seen.size === 20 && !seen.has(null), `${seen.size} distinct digests, null seen: ${seen.has(null)}; each markMutation must make computeWorkingTreeDigestAsync rescan`)
-  check('…and the Mercury-owned store is swept after each tree', !existsSync(join(store, 'objects')) || readdirSync(join(store, 'objects')).length === 0, 'the Mercury-owned object store must be emptied after each scan; see the sweep in src/utils/verification/verificationState.ts')
+  check('…and the Mercury-owned store is swept after each tree', !existsSync(join(store, 'objects')) || readdirSync(join(store, 'objects')).length === 0, 'the Mercury-owned object store must be emptied after each scan; see the sweep in src/platform/verification/verificationState.ts')
 }
 
 section('§3 exclude before the cost — harness churn never moves the digest, never hashes')
@@ -159,7 +159,7 @@ section('§3 exclude before the cost — harness churn never moves the digest, n
   check('an unignored churning file under .mercury never moves the digest', d1 === base, `${base} vs ${d1}`)
   check('…the add ran the exclude road (no reset)', r.some(x => x.argv === EXCLUDE_ADD) && !r.some(x => x.argv.startsWith('reset ')), r.map(x => x.argv).join(' | '))
   const blob = git(repo, 'hash-object', churn).trim()
-  check('…and the file was never hashed into the repository', spawnSync(REAL_GIT, ['-C', repo, 'cat-file', '-e', blob]).status !== 0, 'the .mercury file must be excluded from git add in src/utils/verification/verificationState.ts')
+  check('…and the file was never hashed into the repository', spawnSync(REAL_GIT, ['-C', repo, 'cat-file', '-e', blob]).status !== 0, 'the .mercury file must be excluded from git add in src/platform/verification/verificationState.ts')
   writeFileSync(join(repo, '.gitignore'), '.mercury/\n')
   git(repo, 'add', '-A')
   git(repo, 'commit', '-qm', 'ignore the harness dir')
@@ -181,12 +181,12 @@ section('§3 exclude before the cost — harness churn never moves the digest, n
   writeFileSync(settings, '{"edited":true}\n')
   vs.markMutation(undefined, [settings], repo)
   const d3 = await vs.computeWorkingTreeDigestAsync(repo)
-  check("a tracked harness file's edit never moves the digest", d3 === base3, `${base3} vs ${d3}; the .mercury exclusion in src/utils/verification/verificationState.ts must also cover tracked files`)
+  check("a tracked harness file's edit never moves the digest", d3 === base3, `${base3} vs ${d3}; the .mercury exclusion in src/platform/verification/verificationState.ts must also cover tracked files`)
   const real = join(repo, 'src', 'mod00', 'file000.ts')
   writeFileSync(real, 'export const changed = 1\n')
   vs.markMutation(undefined, [real], repo)
   const d4 = await vs.computeWorkingTreeDigestAsync(repo)
-  check('…while a real edit does', d4 !== null && d4 !== base3, `${base3} vs ${d4}; a real edit after markMutation must change the digest in src/utils/verification/verificationState.ts`)
+  check('…while a real edit does', d4 !== null && d4 !== base3, `${base3} vs ${d4}; a real edit after markMutation must change the digest in src/platform/verification/verificationState.ts`)
 }
 
 section('§4 event-driven, one in flight — readers on timers reuse the last value')
@@ -194,11 +194,11 @@ section('§4 event-driven, one in flight — readers on timers reuse the last va
   vs.markMutation(undefined, undefined, repo)
   let n0 = mark()
   const [a, b] = await Promise.all([vs.computeWorkingTreeDigestAsync(repo), vs.computeWorkingTreeDigestAsync(repo)])
-  check('two concurrent callers produce ONE git run', a === b && since(n0).filter(isAdd).length === 1, `${since(n0).filter(isAdd).length} adds; concurrent computeWorkingTreeDigestAsync calls must share one in-flight scan in src/utils/verification/verificationState.ts`)
+  check('two concurrent callers produce ONE git run', a === b && since(n0).filter(isAdd).length === 1, `${since(n0).filter(isAdd).length} adds; concurrent computeWorkingTreeDigestAsync calls must share one in-flight scan in src/platform/verification/verificationState.ts`)
   n0 = mark()
   await vs.computeWorkingTreeDigestAsync(repo)
   await vs.computeWorkingTreeDigestAsync(repo)
-  check('a reader with no mutation since the last digest spawns nothing', since(n0).length === 0, `${since(n0).map(x => x.argv).join(' | ')}; computeWorkingTreeDigestAsync must reuse the cached digest when no markMutation came since (src/utils/verification/verificationState.ts)`)
+  check('a reader with no mutation since the last digest spawns nothing', since(n0).length === 0, `${since(n0).map(x => x.argv).join(' | ')}; computeWorkingTreeDigestAsync must reuse the cached digest when no markMutation came since (src/platform/verification/verificationState.ts)`)
   const f = join(repo, 'src', 'mod01', 'file001.ts')
   n0 = mark()
   for (let i = 0; i < 10; i++) {
@@ -206,7 +206,7 @@ section('§4 event-driven, one in flight — readers on timers reuse the last va
     vs.markMutation(undefined, [f], repo)
   }
   await vs.computeWorkingTreeDigestAsync(repo)
-  check('ten mutations in a burst then one read: ONE scan', since(n0).filter(isAdd).length === 1, `${since(n0).filter(isAdd).length} adds; a burst of markMutation calls must coalesce into one scan in src/utils/verification/verificationState.ts`)
+  check('ten mutations in a burst then one read: ONE scan', since(n0).filter(isAdd).length === 1, `${since(n0).filter(isAdd).length} adds; a burst of markMutation calls must coalesce into one scan in src/platform/verification/verificationState.ts`)
   n0 = mark()
   for (let i = 0; i < 10; i++) {
     writeFileSync(f, `export const each = ${i}\n`)
@@ -214,12 +214,12 @@ section('§4 event-driven, one in flight — readers on timers reuse the last va
     await vs.computeWorkingTreeDigestAsync(repo)
   }
   const adds = since(n0).filter(isAdd).length
-  check(`ten mutations each followed by a read: at most ten scans (${adds})`, adds >= 1 && adds <= 10, `${adds} scans; see markMutation and computeWorkingTreeDigestAsync in src/utils/verification/verificationState.ts`)
+  check(`ten mutations each followed by a read: at most ten scans (${adds})`, adds >= 1 && adds <= 10, `${adds} scans; see markMutation and computeWorkingTreeDigestAsync in src/platform/verification/verificationState.ts`)
   n0 = mark()
   vs.markTreeSuspectAfterTurn()
   await vs.computeWorkingTreeDigestAsync(repo)
   await vs.computeWorkingTreeDigestAsync(repo)
-  check('a turn end makes the cached digest suspect exactly once', since(n0).filter(isAdd).length === 1, `${since(n0).filter(isAdd).length} adds; markTreeSuspectAfterTurn in src/utils/verification/verificationState.ts must force exactly one rescan`)
+  check('a turn end makes the cached digest suspect exactly once', since(n0).filter(isAdd).length === 1, `${since(n0).filter(isAdd).length} adds; markTreeSuspectAfterTurn in src/platform/verification/verificationState.ts must force exactly one rescan`)
 }
 
 section('§5 bounded to the launch folder — a nested launch never looks above itself')
@@ -229,19 +229,19 @@ section('§5 bounded to the launch folder — a nested launch never looks above 
   const n0 = mark()
   const nd = await vs.computeWorkingTreeDigestAsync(nested, { fresh: true })
   const r = since(n0)
-  check('a nested launch folder has its own digest', nd !== null && nd !== rootDigest, `root ${rootDigest} nested ${nd}; the scan must be bounded to the launch folder in computeWorkingTreeDigestAsync (src/utils/verification/verificationState.ts)`)
+  check('a nested launch folder has its own digest', nd !== null && nd !== rootDigest, `root ${rootDigest} nested ${nd}; the scan must be bounded to the launch folder in computeWorkingTreeDigestAsync (src/platform/verification/verificationState.ts)`)
   check('every add ran from the launch folder with pathspec `.`', r.filter(isAdd).length >= 1 && r.filter(isAdd).every(x => x.cwd === nested && x.argv === EXCLUDE_ADD), r.filter(isAdd).map(x => `${x.cwd} ${x.argv}`).join(' | '))
   check('…and the tree was written for the launch folder alone', r.some(x => x.argv === 'write-tree --missing-ok --prefix=nested/plain/'), r.map(x => x.argv).join(' | '))
   const outside = join(repo, 'src', 'mod02', 'file002.ts')
   writeFileSync(outside, 'export const outside = 1\n')
   vs.markMutation(undefined, [outside], nested)
   const nd2 = await vs.computeWorkingTreeDigestAsync(nested)
-  check('a file outside the launch folder never moves its digest', nd2 === nd, `${nd} vs ${nd2}; the scan must stay under the launch folder in src/utils/verification/verificationState.ts`)
+  check('a file outside the launch folder never moves its digest', nd2 === nd, `${nd} vs ${nd2}; the scan must stay under the launch folder in src/platform/verification/verificationState.ts`)
   const inside = join(nested, 'note0.txt')
   writeFileSync(inside, 'inside edit\n')
   vs.markMutation(undefined, [inside], nested)
   const nd3 = await vs.computeWorkingTreeDigestAsync(nested)
-  check('…while a file inside does', nd3 !== null && nd3 !== nd, `${nd} vs ${nd3}; an edit inside the launch folder must change its digest (src/utils/verification/verificationState.ts)`)
+  check('…while a file inside does', nd3 !== null && nd3 !== nd, `${nd} vs ${nd3}; an edit inside the launch folder must change its digest (src/platform/verification/verificationState.ts)`)
   const nestedHarness = join(nested, '.mercury')
   mkdirSync(nestedHarness, { recursive: true })
   const nestedChurn = join(nestedHarness, 'churn.bin')
@@ -250,9 +250,9 @@ section('§5 bounded to the launch folder — a nested launch never looks above 
   const n1 = mark()
   const nd4 = await vs.computeWorkingTreeDigestAsync(nested)
   check("a churning file under the nested launch folder's own .mercury never moves its digest", nd4 === nd3, `${nd3} vs ${nd4}`)
-  check('…and rode the exclude road there too (no reset)', !since(n1).some(x => x.cwd === nested && x.argv.startsWith('reset ')), since(n1).filter(x => x.cwd === nested).map(x => x.argv).join(' | ') + '; the nested scan must use the exclude pathspec instead of a reset (src/utils/verification/verificationState.ts)')
+  check('…and rode the exclude road there too (no reset)', !since(n1).some(x => x.cwd === nested && x.argv.startsWith('reset ')), since(n1).filter(x => x.cwd === nested).map(x => x.argv).join(' | ') + '; the nested scan must use the exclude pathspec instead of a reset (src/platform/verification/verificationState.ts)')
   const nestedBlob = git(repo, 'hash-object', nestedChurn).trim()
-  check('…and was never hashed into the repository', spawnSync(REAL_GIT, ['-C', repo, 'cat-file', '-e', nestedBlob]).status !== 0, 'the nested .mercury file must be excluded from git add in src/utils/verification/verificationState.ts')
+  check('…and was never hashed into the repository', spawnSync(REAL_GIT, ['-C', repo, 'cat-file', '-e', nestedBlob]).status !== 0, 'the nested .mercury file must be excluded from git add in src/platform/verification/verificationState.ts')
 }
 
 section('§6 a budget that speaks — a timeout and a ceiling read unmeasured, once')
@@ -265,17 +265,17 @@ section('§6 a budget that speaks — a timeout and a ceiling read unmeasured, o
   let notices = 0
   const unsub = vs.subscribeVerification(() => notices++)
   const td = await vs.computeWorkingTreeDigestAsync(slow, { fresh: true })
-  check('a forced timeout answers null (unmeasured, never a stale tree)', td === null, `got ${td}; MERCURY_TREE_SCAN_TIMEOUT_MS must abort the scan in src/utils/verification/verificationState.ts`)
+  check('a forced timeout answers null (unmeasured, never a stale tree)', td === null, `got ${td}; MERCURY_TREE_SCAN_TIMEOUT_MS must abort the scan in src/platform/verification/verificationState.ts`)
   const st = vs.treeScanStatus(slow)
-  check('…the status reads unmeasured — timeout', st.state === 'unmeasured' && st.reason === 'timeout', `${JSON.stringify(st)}; see treeScanStatus in src/utils/verification/verificationState.ts`)
-  check('…the note names the timeout, the count and the step', /^tree unmeasured — the scan timed out after [\d.]+ s over \d+ files \(git add\)$/.test(vs.treeScanNote(slow) ?? ''), `${vs.treeScanNote(slow) ?? 'null'}; see treeScanNote in src/utils/verification/verificationState.ts`)
-  check('…and the summary line carries it for /health', /tree unmeasured/.test(vs.verificationSummary(slow, { skipDigest: true }).detail), `${vs.verificationSummary(slow, { skipDigest: true }).detail}; verificationSummary in src/utils/verification/verificationState.ts must carry the unmeasured note`)
-  check('…ONE notice surfaced', notices === 1, `${notices} notices; the first scan fault must notify subscribeVerification listeners once (src/utils/verification/verificationState.ts)`)
+  check('…the status reads unmeasured — timeout', st.state === 'unmeasured' && st.reason === 'timeout', `${JSON.stringify(st)}; see treeScanStatus in src/platform/verification/verificationState.ts`)
+  check('…the note names the timeout, the count and the step', /^tree unmeasured — the scan timed out after [\d.]+ s over \d+ files \(git add\)$/.test(vs.treeScanNote(slow) ?? ''), `${vs.treeScanNote(slow) ?? 'null'}; see treeScanNote in src/platform/verification/verificationState.ts`)
+  check('…and the summary line carries it for /health', /tree unmeasured/.test(vs.verificationSummary(slow, { skipDigest: true }).detail), `${vs.verificationSummary(slow, { skipDigest: true }).detail}; verificationSummary in src/platform/verification/verificationState.ts must carry the unmeasured note`)
+  check('…ONE notice surfaced', notices === 1, `${notices} notices; the first scan fault must notify subscribeVerification listeners once (src/platform/verification/verificationState.ts)`)
   const n0 = mark()
   const idle = await vs.computeWorkingTreeDigestAsync(slow)
-  check('a reader on a timer reuses the last value inside the budget window (no scan)', idle === null && !since(n0).some(x => x.cwd === slow && isAdd(x)), since(n0).filter(x => x.cwd === slow).map(x => x.argv).join(' | ') + '; a non-fresh read after a fault must reuse the last value inside the budget window (src/utils/verification/verificationState.ts)')
+  check('a reader on a timer reuses the last value inside the budget window (no scan)', idle === null && !since(n0).some(x => x.cwd === slow && isAdd(x)), since(n0).filter(x => x.cwd === slow).map(x => x.argv).join(' | ') + '; a non-fresh read after a fault must reuse the last value inside the budget window (src/platform/verification/verificationState.ts)')
   await vs.computeWorkingTreeDigestAsync(slow, { fresh: true })
-  check('a second fault stays silent (still one notice)', notices === 1, `${notices} notices; a repeated fault must not notify again (src/utils/verification/verificationState.ts)`)
+  check('a second fault stays silent (still one notice)', notices === 1, `${notices} notices; a repeated fault must not notify again (src/platform/verification/verificationState.ts)`)
   unsub()
   delete process.env.MERCURY_TREE_SCAN_TIMEOUT_MS
   delete process.env.GIT_SHIM_SLEEP_MS
@@ -288,10 +288,10 @@ section('§6 a budget that speaks — a timeout and a ceiling read unmeasured, o
   const cd = await vs.computeWorkingTreeDigestAsync(big, { fresh: true })
   check('a tree above the ceiling is never scanned', cd === null && !since(n1).some(x => x.cwd === big && isAdd(x)), since(n1).filter(x => x.cwd === big).map(x => x.argv).join(' | '))
   const cs = vs.treeScanStatus(big)
-  check('…and reads unmeasured with its count', cs.state === 'unmeasured' && cs.reason === 'ceiling' && cs.fileCount >= 101, `${JSON.stringify(cs)}; MERCURY_TREE_SCAN_CEILING handling in treeScanStatus (src/utils/verification/verificationState.ts)`)
-  check('…the summary line names the ceiling', /above the 100-file scan ceiling/.test(vs.verificationSummary(big, { skipDigest: true }).detail), `${vs.verificationSummary(big, { skipDigest: true }).detail}; verificationSummary in src/utils/verification/verificationState.ts must name the ceiling`)
+  check('…and reads unmeasured with its count', cs.state === 'unmeasured' && cs.reason === 'ceiling' && cs.fileCount >= 101, `${JSON.stringify(cs)}; MERCURY_TREE_SCAN_CEILING handling in treeScanStatus (src/platform/verification/verificationState.ts)`)
+  check('…the summary line names the ceiling', /above the 100-file scan ceiling/.test(vs.verificationSummary(big, { skipDigest: true }).detail), `${vs.verificationSummary(big, { skipDigest: true }).detail}; verificationSummary in src/platform/verification/verificationState.ts must name the ceiling`)
   const sd = vs.computeWorkingTreeDigest(big, { fresh: true })
-  check('the sync form refuses the same tree', sd === null && !since(n1).some(x => x.cwd === big && isAdd(x)), `got ${sd}; computeWorkingTreeDigest (sync) in src/utils/verification/verificationState.ts must apply the same ceiling`)
+  check('the sync form refuses the same tree', sd === null && !since(n1).some(x => x.cwd === big && isAdd(x)), `got ${sd}; computeWorkingTreeDigest (sync) in src/platform/verification/verificationState.ts must apply the same ceiling`)
   delete process.env.MERCURY_TREE_SCAN_CEILING
 }
 
@@ -304,7 +304,7 @@ section('§7 the same tree, both forms — and the certificate sha byte-identica
   cpSync(A, B, { recursive: true })
   const sA = vs.computeWorkingTreeDigest(A, { fresh: true })
   const aB = await vs.computeWorkingTreeDigestAsync(B, { fresh: true })
-  check('sync ≡ async over identical trees', sA !== null && sA === aB, `${sA} vs ${aB}; computeWorkingTreeDigest and computeWorkingTreeDigestAsync in src/utils/verification/verificationState.ts must agree`)
+  check('sync ≡ async over identical trees', sA !== null && sA === aB, `${sA} vs ${aB}; computeWorkingTreeDigest and computeWorkingTreeDigestAsync in src/platform/verification/verificationState.ts must agree`)
   const idx = mkdtempSync(join(tmpdir(), 'cert-expect-'))
   const env = { ...process.env, PATH: process.env.PATH?.replace(`${SHIM_DIR}:`, ''), GIT_INDEX_FILE: join(idx, 'index') }
   const run = (args: string[]): string => execFileSync(REAL_GIT, args, { cwd: A, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
@@ -313,11 +313,11 @@ section('§7 the same tree, both forms — and the certificate sha byte-identica
   const expected = run(['write-tree']).trim()
   rmSync(idx, { recursive: true, force: true })
   const before = countObjects(A)
-  const { computeWorkingTreeSha } = await import('../../src/services/health/healthReport.ts')
+  const { computeWorkingTreeSha } = await import('../../src/platform/health/healthReport.ts')
   const got = await computeWorkingTreeSha(A)
   const after = countObjects(A)
-  check('the health certificate names the same tree with its objects redirected', got === expected, `${got} vs ${expected}; computeWorkingTreeSha in src/services/health/healthReport.ts must name the same tree`)
-  check("…and the repository gained nothing from it (the untracked file's blob went beside the temp index)", after.count === before.count, `${before.count} → ${after.count}; computeWorkingTreeSha in src/services/health/healthReport.ts must redirect its objects away from the repository`)
+  check('the health certificate names the same tree with its objects redirected', got === expected, `${got} vs ${expected}; computeWorkingTreeSha in src/platform/health/healthReport.ts must name the same tree`)
+  check("…and the repository gained nothing from it (the untracked file's blob went beside the temp index)", after.count === before.count, `${before.count} → ${after.count}; computeWorkingTreeSha in src/platform/health/healthReport.ts must redirect its objects away from the repository`)
 }
 
 section('§8 no job outlives its repository — a mid-scan removal quiesces, a cancel awaits')
@@ -330,31 +330,31 @@ section('§8 no job outlives its repository — a mid-scan removal quiesces, a c
   const n0 = mark()
   const pending = vs.computeWorkingTreeDigestAsync(gone, { fresh: true })
   await sleep(450)
-  check('a scan is in flight (its add is running)', vs._treeScanChildrenForTesting(gone) === 1, `${vs._treeScanChildrenForTesting(gone)} running jobs; the scan child must be tracked in src/utils/verification/verificationState.ts`)
+  check('a scan is in flight (its add is running)', vs._treeScanChildrenForTesting(gone) === 1, `${vs._treeScanChildrenForTesting(gone)} running jobs; the scan child must be tracked in src/platform/verification/verificationState.ts`)
   rmSync(join(gone, '.git'), { recursive: true, force: true })
   const d = await pending
-  check('the digest answers null once the repository is gone — and it is not a fault', d === null && vs.treeScanStatus(gone).state === 'unknown', `${JSON.stringify(vs.treeScanStatus(gone))}; a scan whose repository vanished must answer null without a fault in src/utils/verification/verificationState.ts`)
-  check('no Mercury git job survives the repository', vs._treeScanChildrenForTesting(gone) === 0, `${vs._treeScanChildrenForTesting(gone)} jobs left; the scan must kill its children when the repository goes (src/utils/verification/verificationState.ts)`)
+  check('the digest answers null once the repository is gone — and it is not a fault', d === null && vs.treeScanStatus(gone).state === 'unknown', `${JSON.stringify(vs.treeScanStatus(gone))}; a scan whose repository vanished must answer null without a fault in src/platform/verification/verificationState.ts`)
+  check('no Mercury git job survives the repository', vs._treeScanChildrenForTesting(gone) === 0, `${vs._treeScanChildrenForTesting(gone)} jobs left; the scan must kill its children when the repository goes (src/platform/verification/verificationState.ts)`)
   check('the running add was killed mid-step and no tree was written', !since(n0).some(x => x.cwd === gone && (isAdd(x) || x.argv.startsWith('write-tree'))), since(n0).filter(x => x.cwd === gone).map(x => x.argv).join(' | '))
-  check('.git is not recreated', !existsSync(join(gone, '.git')), 'a Mercury git command recreated .git in a removed repository; see the scan steps in src/utils/verification/verificationState.ts')
+  check('.git is not recreated', !existsSync(join(gone, '.git')), 'a Mercury git command recreated .git in a removed repository; see the scan steps in src/platform/verification/verificationState.ts')
   const n1 = mark()
   const again = await vs.computeWorkingTreeDigestAsync(gone)
-  check('the next reader re-resolves: not a repository, no job', again === null && !since(n1).some(x => x.cwd === gone && isAdd(x)), `got ${again}; computeWorkingTreeDigestAsync in src/utils/verification/verificationState.ts must re-resolve the repository and start no add`)
+  check('the next reader re-resolves: not a repository, no job', again === null && !since(n1).some(x => x.cwd === gone && isAdd(x)), `got ${again}; computeWorkingTreeDigestAsync in src/platform/verification/verificationState.ts must re-resolve the repository and start no add`)
 
   const stays = join(SCRATCH, 'stays')
   makeRepo(stays, 120)
   const p2 = vs.computeWorkingTreeDigestAsync(stays, { fresh: true })
   await sleep(450)
-  check('a second scan is in flight', vs._treeScanChildrenForTesting(stays) === 1, `${vs._treeScanChildrenForTesting(stays)} running jobs; the scan child must be tracked in src/utils/verification/verificationState.ts`)
+  check('a second scan is in flight', vs._treeScanChildrenForTesting(stays) === 1, `${vs._treeScanChildrenForTesting(stays)} running jobs; the scan child must be tracked in src/platform/verification/verificationState.ts`)
   await vs.invalidateTreeScans(stays)
-  check('invalidateTreeScans cancels and awaits the running job', vs._treeScanChildrenForTesting(stays) === 0 && (await p2) === null, 'invalidateTreeScans in src/utils/verification/verificationState.ts must cancel the running job and await it')
-  check('…drops the record and the cache (no fault, no notice)', vs.treeScanStatus(stays).state === 'unknown', `${JSON.stringify(vs.treeScanStatus(stays))}; invalidateTreeScans in src/utils/verification/verificationState.ts must drop the record and cache`)
+  check('invalidateTreeScans cancels and awaits the running job', vs._treeScanChildrenForTesting(stays) === 0 && (await p2) === null, 'invalidateTreeScans in src/platform/verification/verificationState.ts must cancel the running job and await it')
+  check('…drops the record and the cache (no fault, no notice)', vs.treeScanStatus(stays).state === 'unknown', `${JSON.stringify(vs.treeScanStatus(stays))}; invalidateTreeScans in src/platform/verification/verificationState.ts must drop the record and cache`)
   delete process.env.GIT_SHIM_SLEEP_MS
   delete process.env.GIT_SHIM_SLEEP_FOR
   const n2 = mark()
   const d2 = await vs.computeWorkingTreeDigestAsync(stays, { fresh: true })
-  check('a later demand re-resolves the repository and scans it afresh', d2 !== null && since(n2).some(x => x.cwd === stays && isAdd(x)), `got ${d2}; computeWorkingTreeDigestAsync in src/utils/verification/verificationState.ts must rescan after invalidateTreeScans`)
-  check('…and the repository is intact (invalidation is not deletion)', existsSync(join(stays, '.git')), 'invalidateTreeScans in src/utils/verification/verificationState.ts must not remove the repository')
+  check('a later demand re-resolves the repository and scans it afresh', d2 !== null && since(n2).some(x => x.cwd === stays && isAdd(x)), `got ${d2}; computeWorkingTreeDigestAsync in src/platform/verification/verificationState.ts must rescan after invalidateTreeScans`)
+  check('…and the repository is intact (invalidation is not deletion)', existsSync(join(stays, '.git')), 'invalidateTreeScans in src/platform/verification/verificationState.ts must not remove the repository')
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

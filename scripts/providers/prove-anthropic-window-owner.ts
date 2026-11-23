@@ -4,12 +4,12 @@ import {
   foldUtilizationFromEndpoint,
   getRawUtilization,
   resetLimitsForCredentialSwitch,
-} from '../../src/services/anthropicLimits.ts'
-import { quotaWindows } from '../../src/services/cockpit/quota.ts'
+} from '../../src/models/roads/anthropic/anthropicLimits.ts'
+import { quotaWindows } from '../../src/screen/cockpit-gauges/quota.ts'
 
 let failures = 0
 const windowOwnerFixHint =
-  'fix in src/services/anthropicLimits.ts (foldUtilizationFromEndpoint, getRawUtilization, resetLimitsForCredentialSwitch: the slot stamp on the folded record) or in quotaWindows in src/services/cockpit/quota.ts (what a window reads under the active slot)'
+  'fix in src/models/roads/anthropic/anthropicLimits.ts (foldUtilizationFromEndpoint, getRawUtilization, resetLimitsForCredentialSwitch: the slot stamp on the folded record) or in quotaWindows in src/screen/cockpit-gauges/quota.ts (what a window reads under the active slot)'
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail} | ` : ''}${windowOwnerFixHint}` : ''}`)
   if (!ok) failures = 1

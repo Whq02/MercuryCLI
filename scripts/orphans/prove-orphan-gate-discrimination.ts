@@ -60,7 +60,7 @@ t.section('§2 — a CURED exemption reds the gate until pruned')
     rows: [
       ...baseline.rows,
       {
-        file: 'src/main.tsx',
+        file: 'src/boot/main.tsx',
         class: 'superseded-unreachable',
         reason: 'SEEDED WRONG VARIANT — this file is decisively reachable from the CLI entrypoint.',
       },
@@ -71,7 +71,7 @@ t.section('§2 — a CURED exemption reds the gate until pruned')
   const r = runGate(['--baseline', p])
   t.check('gate exits non-zero on a cured exemption', r.code !== 0, `exit=${r.code}`)
   t.check('the red names the CURED class', r.out.includes('CURED exemption'))
-  t.check('the red names the seeded file', r.out.includes('src/main.tsx'))
+  t.check('the red names the seeded file', r.out.includes('src/boot/main.tsx'))
 }
 
 t.section('§3 — hiding a real orphan reds the gate (fresh-orphan law)')
@@ -104,7 +104,7 @@ t.section('§5 — --regen prunes cured rows and never adds')
     rows: [
       ...baseline.rows,
       {
-        file: 'src/main.tsx',
+        file: 'src/boot/main.tsx',
         class: 'superseded-unreachable',
         reason: 'SEEDED WRONG VARIANT — reachable; --regen must prune exactly this row.',
       },
@@ -115,7 +115,7 @@ t.section('§5 — --regen prunes cured rows and never adds')
   const r = runGate(['--baseline', p, '--regen'])
   t.check('--regen exits 0', r.code === 0, `exit=${r.code}`)
   const after = JSON.parse(readFileSync(p, 'utf8')) as { rows: Array<{ file: string }> }
-  t.check('the cured row was pruned', !after.rows.some(x => x.file === 'src/main.tsx'))
+  t.check('the cured row was pruned', !after.rows.some(x => x.file === 'src/boot/main.tsx'))
   t.check('the real exemptions survived the prune', after.rows.length === baseline.rows.length)
   const r2 = runGate(['--baseline', p])
   t.check('the pruned copy is GREEN again', r2.code === 0, `exit=${r2.code}`)
@@ -127,7 +127,7 @@ t.section('§6 — a type import is no reach for code: a file of types alone is 
   writeFileSync(p, JSON.stringify({ schema: 1, rows: [PARKED] }, null, 2))
   const r = runGate(['--baseline', p], ESTATE_GATE, estate)
   t.check('gate exits non-zero on code that only an import type reaches', r.code !== 0, `exit=${r.code}`)
-  t.check('the red names the file and the road', r.out.includes(`${TYPED.file} (it carries code`) && r.out.includes('type-only import; src/entrypoints/cli.tsx names it'), r.out.trim().split('\n').slice(-4).join(' | '))
+  t.check('the red names the file and the road', r.out.includes(`${TYPED.file} (it carries code`) && r.out.includes('type-only import; src/boot/entrypoints/cli.tsx names it'), r.out.trim().split('\n').slice(-4).join(' | '))
   t.check('the file of types alone is not named', !r.out.includes('src/shapes.ts'))
 }
 

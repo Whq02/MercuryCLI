@@ -5,11 +5,11 @@ import { GIB, LIGHTNING_REPO, MAC_16, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, QWEN_
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const inventory = await import('../../src/services/tensorfold/inventory.ts')
+const inventory = await import('../../src/models/tensorfold/inventory.ts')
 const scene = await import('../../src/commands/tensorfold/scene.ts')
 const picker = await import('../../src/commands/tensorfold/pickerFacts.ts')
-const { tensorFoldPickerRows, TENSORFOLD_MODEL_GROUP } = await import('../../src/components/tensorfold/tensorfoldRows.ts')
-const { tensorFoldWillRun } = await import('../../src/services/tensorfold/serve.ts')
+const { tensorFoldPickerRows, TENSORFOLD_MODEL_GROUP } = await import('../../src/screen/tensorfold/tensorfoldRows.ts')
+const { tensorFoldWillRun } = await import('../../src/models/tensorfold/serve.ts')
 const { ON_DISK, QWEN_4B_REPO, fakeEngine, tStateFacts, tStates } = await import('./fixtures/tstates.ts')
 type Facts = import('./fixtures/tstates.ts').Facts
 
@@ -23,8 +23,8 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
   whereToLook = title.startsWith('the inventory')
-    ? 'compare the expected value in this check with what readTensorFoldInventory (and bestTensorFoldFit, hfCacheRoot) in src/services/tensorfold/inventory.ts returns, and change that function (or the cache seed in scripts/tensorfold/fixtures/world.ts if the seed is wrong)'
-    : 'compare the expected text in this check with the row, heading or card that tensorFoldPickerRows in src/components/tensorfold/tensorfoldRows.ts builds from pickerFactsOf in src/commands/tensorfold/pickerFacts.ts (the serve and pull lines come from tensorFoldWillRun in src/services/tensorfold/serve.ts), and change the builder; the t-state facts are built in scripts/tensorfold/fixtures/tstates.ts'
+    ? 'compare the expected value in this check with what readTensorFoldInventory (and bestTensorFoldFit, hfCacheRoot) in src/models/tensorfold/inventory.ts returns, and change that function (or the cache seed in scripts/tensorfold/fixtures/world.ts if the seed is wrong)'
+    : 'compare the expected text in this check with the row, heading or card that tensorFoldPickerRows in src/screen/tensorfold/tensorfoldRows.ts builds from pickerFactsOf in src/commands/tensorfold/pickerFacts.ts (the serve and pull lines come from tensorFoldWillRun in src/models/tensorfold/serve.ts), and change the builder; the t-state facts are built in scripts/tensorfold/fixtures/tstates.ts'
 }
 
 const ENGINE = await fakeEngine()

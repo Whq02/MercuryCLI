@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands/** src/components/CritterSelect.tsx src/components/FullscreenLayout.tsx src/components/mercury-ui/components.tsx src/components/mercury-ui/InteractiveRow.tsx src/components/mercury-ui/CursorRow.tsx src/components/mercury-ui/useCursorFollow.ts src/components/mercury-ui/NavigablePanes.tsx src/components/CustomSelect/select.tsx src/components/design-system/ListItem.tsx
+// gate-watch: src/commands/accounts/** src/commands/advise/** src/commands/agents/** src/commands/appearance/appearance.tsx src/commands/appearance/index.ts src/commands/audit/** src/commands/bootmenu/** src/commands/browse/** src/commands/browser/** src/commands/caching/** src/commands/capabilities/** src/commands/catalogue/createBuiltinPromptCommand.ts src/commands/catalogue/effectiveCatalogue.ts src/commands/catalogue/enablement.ts src/commands/clear/** src/commands/compact/** src/commands/concourse/** src/commands/config/** src/commands/context/context.tsx src/commands/context/contextHeadless.ts src/commands/context/index.ts src/commands/copy/** src/commands/crew/** src/commands/crewmates/** src/commands/critter/critter.tsx src/commands/critter/index.ts src/commands/daemon/** src/commands/defaultprovider/** src/commands/diff/** src/commands/effort/** src/commands/exit/exit.tsx src/commands/exit/index.ts src/commands/export/export.tsx src/commands/export/index.ts src/commands/export/transcript.ts src/commands/extensions/** src/commands/feedback/feedback.tsx src/commands/feedback/healthSection.ts src/commands/feedback/index.ts src/commands/feedback/issueForms.ts src/commands/feedback/testerDoor.ts src/commands/general/** src/commands/health/** src/commands/help/** src/commands/hooks/** src/commands/host/** src/commands/imagesetup/** src/commands/jev/** src/commands/keybindings/** src/commands/keys/** src/commands/keysetup/index.ts src/commands/keysetup/keysetup.tsx src/commands/kill/** src/commands/llmhost/index.ts src/commands/llmhost/llmhost.tsx src/commands/llmhost/words.ts src/commands/localsetup/index.ts src/commands/localsetup/localsetup.tsx src/commands/localsetup/words.ts src/commands/logins/** src/commands/logout/** src/commands/lsp/** src/commands/mcp/McpPopup.tsx src/commands/mcp/addCommand.ts src/commands/mcp/index.ts src/commands/mcp/mcp.tsx src/commands/mcp/route.ts src/commands/memory/** src/commands/mission/** src/commands/model/index.ts src/commands/model/mercuryModel.tsx src/commands/model/model.tsx src/commands/model/modelPickerLandingGate.tsx src/commands/model/persistModelChoice.ts src/commands/model/picker/ChoicePicker.tsx src/commands/model/picker/DefaultPicker.tsx src/commands/model/picker/SessionPicker.tsx src/commands/model/picker/apply.ts src/commands/model/picker/headings.ts src/commands/model/picker/roads.ts src/commands/model/picker/rows.ts src/commands/model/picker/select.ts src/commands/mouse/** src/commands/orient/** src/commands/palette/** src/commands/permissions/** src/commands/rename/** src/commands/restart/** src/commands/review/** src/commands/rewind/** src/commands/run/** src/commands/runs/** src/commands/samples/** src/commands/saturn/** src/commands/seats/** src/commands/sessions/** src/commands/skills/** src/commands/submodels/index.ts src/commands/submodels/submodels.tsx src/commands/swarm/** src/commands/swarmchat/** src/commands/team/** src/commands/tensorfold/** src/commands/title/** src/commands/trace/index.ts src/commands/trace/trace.tsx src/commands/update-notes/index.ts src/commands/update-notes/update-notes.ts src/commands/usage/** src/commands/verify/** src/commands/vim/** src/commands/voice/** src/commands/whisper/** src/commands/workbench/** src/commands/zen/** src/commands/critter/CritterSelect.tsx src/screen/fullscreen-layout/FullscreenLayout.tsx src/screen/widgets/components.tsx src/screen/widgets/InteractiveRow.tsx src/screen/widgets/CursorRow.tsx src/screen/widgets/useCursorFollow.ts src/screen/widgets/NavigablePanes.tsx src/screen/select/Select.tsx src/screen/theme/ListItem.tsx
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -30,34 +30,34 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
 for (const key of ['MERCURY_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'NODE_ENV']) delete process.env[key]
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
-const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
-const { ScrollKeybindingHandler } = await import('../../src/components/ScrollKeybindingHandler.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
+const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
+const { ScrollKeybindingHandler } = await import('../../src/screen/scroll-keys/ScrollKeybindingHandler.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const { default: instances } = await import('../../src/ink/instances.ts')
-const { getCommands } = await import('../../src/commands.ts')
-const { getEngineModel } = await import('../../src/services/model/model.ts')
-const settingsPopup = await import('../../src/utils/cockpit/settingsPopup.ts')
-const commandPopup = await import('../../src/utils/cockpit/commandPopup.ts')
-const modelPickerPopup = await import('../../src/utils/cockpit/modelPickerPopup.ts')
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
-const { setActiveMission } = await import('../../src/guards/mission.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+const { getCommands } = await import('../../src/commands/catalogue/commands.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
+const settingsPopup = await import('../../src/screen/cockpit/settingsPopup.ts')
+const commandPopup = await import('../../src/screen/cockpit/commandPopup.ts')
+const modelPickerPopup = await import('../../src/screen/cockpit/modelPickerPopup.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
+const { setActiveMission } = await import('../../src/permissions/guards/mission.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+const { workerTranscriptPath } = await import('../../src/screen/concourse-model/workerTranscript.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { mkdirSync: mkdirp } = await import('node:fs')
 const { dirname } = await import('node:path')
@@ -98,7 +98,7 @@ let checks = 0
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${good ? '' : ' — to fix: the view this label names (its command under src/commands/), or the shared frame and cursor code it paints with: src/components/FullscreenLayout.tsx, src/components/mercury-ui/useCursorFollow.ts, src/components/mercury-ui/NavigablePanes.tsx, src/components/CustomSelect/select.tsx (/critter is src/components/CritterSelect.tsx)'}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${good ? '' : ' — to fix: the view this label names (its command under src/commands/), or the shared frame and cursor code it paints with: src/screen/fullscreen-layout/FullscreenLayout.tsx, src/screen/widgets/useCursorFollow.ts, src/screen/widgets/NavigablePanes.tsx, src/screen/select/Select.tsx (/critter is src/commands/critter/CritterSelect.tsx)'}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise<void>(resolve => setTimeout(resolve, ms))
 async function until(predicate: () => boolean, ms = 15000): Promise<boolean> {

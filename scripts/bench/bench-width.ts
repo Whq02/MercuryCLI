@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-import { stringWidth } from '../../src/ink/stringWidth.js'
-import { truncateToWidth } from '../../src/utils/truncate.js'
+import { stringWidth } from '../../src/screen/renderer/stringWidth.js'
+import { truncateToWidth } from '../../src/platform/text/truncate.js'
 
 let failures = 0
 const SLACK = Math.max(1, Number(process.env.MERCURY_BENCH_SLACK) || 1)
@@ -23,7 +23,7 @@ function bench(label: string, fn: () => void, iters: number, floorOpsSec: number
   const ok = opsSec >= floor
   if (!ok) failures++
   console.log(
-    `  [${ok ? 'PASS' : 'FAIL'}] ${label}: ${opsSec.toLocaleString()} ops/sec (floor ${floor.toLocaleString()})${ok ? '' : ' | too slow: speed up stringWidth in src/ink/stringWidth.ts or truncateToWidth in src/utils/truncate.ts (the one this label names), or rerun on an idle machine with MERCURY_BENCH_SLACK=2 if the host is only loaded'}`,
+    `  [${ok ? 'PASS' : 'FAIL'}] ${label}: ${opsSec.toLocaleString()} ops/sec (floor ${floor.toLocaleString()})${ok ? '' : ' | too slow: speed up stringWidth in src/screen/renderer/stringWidth.ts or truncateToWidth in src/platform/text/truncate.ts (the one this label names), or rerun on an idle machine with MERCURY_BENCH_SLACK=2 if the host is only loaded'}`,
   )
 }
 
@@ -52,7 +52,7 @@ bench(
   for (const [s, got, want] of checks) {
     const ok = got === want
     if (!ok) failures++
-    console.log(`  [${ok ? 'PASS' : 'FAIL'}] width("${s}") = ${got} (want ${want})${ok ? '' : ' | fix stringWidth in src/ink/stringWidth.ts so this string measures the wanted number of cells'}`)
+    console.log(`  [${ok ? 'PASS' : 'FAIL'}] width("${s}") = ${got} (want ${want})${ok ? '' : ' | fix stringWidth in src/screen/renderer/stringWidth.ts so this string measures the wanted number of cells'}`)
   }
 }
 

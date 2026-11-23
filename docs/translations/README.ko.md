@@ -374,7 +374,7 @@ docker run --rm mercury --version
 - **Apollo Mode**, 사양 인터뷰: 에이전트의 질문에 답해 프로토타입을 만드는 데 쓸 사양을 완성합니다. [docs/APOLLO-MODE.md](../APOLLO-MODE.md)를 참조합니다.
 - **복구.** 원자적 게시, 저널에 기록되는 작업, 시작 시 조정(reconciliation). [docs/DURABILITY.md](../DURABILITY.md)를 참조합니다.
 
-런타임 플래그는 `src/substrate/flagRegistry.ts`에 정의되며, `MERCURY_*` 설정으로 노출되고 필요할 때 렌더링됩니다. 통합 호환성은 [docs/COMPATIBILITY.md](../COMPATIBILITY.md)에 문서화되어 있습니다. 전체 문서 색인은 [docs/README.md](../README.md)에 있습니다.
+런타임 플래그는 `src/platform/substrate/flagRegistry.ts`에 정의되며, `MERCURY_*` 설정으로 노출되고 필요할 때 렌더링됩니다. 통합 호환성은 [docs/COMPATIBILITY.md](../COMPATIBILITY.md)에 문서화되어 있습니다. 전체 문서 색인은 [docs/README.md](../README.md)에 있습니다.
 
 ## 슬래시 명령
 

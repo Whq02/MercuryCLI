@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/AgentTool/scoutPolicy.ts src/tools/BashTool/BashTool.tsx src/tools/BashTool/readOnlyValidation.ts src/utils/config.ts
+// gate-watch: src/tools/crewmate/scoutPolicy.ts src/tools/shell/BashTool.tsx src/tools/shell/readOnlyValidation.ts src/platform/settings/config.ts
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -17,14 +17,14 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.NODE_ENV
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-await import('../../src/Tool.js')
-const { scoutRefusal } = await import('../../src/tools/AgentTool/scoutPolicy.js')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
+await import('../../src/tools/kit/tool.js')
+const { scoutRefusal } = await import('../../src/tools/crewmate/scoutPolicy.js')
+const { BashTool } = await import('../../src/tools/shell/BashTool.js')
 
 let failures = 0
-const scoutChangeHint = ' — change: scoutRefusal in src/tools/AgentTool/scoutPolicy.ts must return the sentence this check names (or null for a read-only command); its Bash screen is src/tools/BashTool/readOnlyValidation.ts'
+const scoutChangeHint = ' — change: scoutRefusal in src/tools/crewmate/scoutPolicy.ts must return the sentence this check names (or null for a read-only command); its Bash screen is src/tools/shell/readOnlyValidation.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? scoutChangeHint : ''}`)

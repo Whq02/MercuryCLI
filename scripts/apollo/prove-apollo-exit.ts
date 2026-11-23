@@ -8,7 +8,7 @@ const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
 
 let failures = 0
-const FIX_HINT = 'the transition record and its roads: recordModeTransition, holdModeTransition and describeModeRoad in src/utils/permissions/modeTransitions.ts, with the guarded setter setPermissionModeWithGuards in src/utils/permissions/permissionSetup.ts; the one door: checkWritePermissionForTool and apolloWriteRefusal in src/utils/permissions/filesystem.ts; the review words: apolloReviewRefusal in src/tools/ApolloReviewTool/ApolloReviewTool.tsx'
+const FIX_HINT = 'the transition record and its roads: recordModeTransition, holdModeTransition and describeModeRoad in src/permissions/rules/modeTransitions.ts, with the guarded setter setPermissionModeWithGuards in src/permissions/rules/permissionSetup.ts; the one door: checkWritePermissionForTool and apolloWriteRefusal in src/permissions/rules/filesystem.ts; the review words: apolloReviewRefusal in src/tools/apollo-review/ApolloReviewTool.tsx'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail || !cond ? ` — ${detail}${!cond ? `${detail ? ' · ' : ''}to fix: ${FIX_HINT}` : ''}` : ''}`)
@@ -23,7 +23,7 @@ console.log('============================================================')
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const record = (await import('../../src/utils/permissions/modeTransitions.js')) as typeof import('../../src/utils/permissions/modeTransitions.js')
+const record = (await import('../../src/permissions/rules/modeTransitions.js')) as typeof import('../../src/permissions/rules/modeTransitions.js')
 const {
   MODE_TRANSITION_ROADS,
   auditModeChange,
@@ -90,7 +90,7 @@ section('the record: the road vocabulary, the announce/audit mechanics, the boot
 
 section('every road names itself: the setter, the doors, a consent answer, the plan tools, the gates, the relay')
 try {
-  const setup = (await import('../../src/utils/permissions/permissionSetup.js')) as typeof import('../../src/utils/permissions/permissionSetup.js')
+  const setup = (await import('../../src/permissions/rules/permissionSetup.js')) as typeof import('../../src/permissions/rules/permissionSetup.js')
   const apply = (state: { ctx: Ctx }) => (updater: (c: never) => never) => {
     state.ctx = updater(state.ctx as never) as never
   }
@@ -115,7 +115,7 @@ try {
   const untouched = setup.createSovereignDisabledContext(ctx('default') as never) as unknown as Ctx
   check('the bypass kill on a non-bypass posture records nothing', untouched.mode === 'default' && modeTransitions().length === 1)
 
-  const control = (await import('../../src/cli/headless/controlHandlers.js')) as typeof import('../../src/cli/headless/controlHandlers.js')
+  const control = (await import('../../src/daemon/runner/controlHandlers.js')) as typeof import('../../src/daemon/runner/controlHandlers.js')
   clearModeTransitions()
   const door = control.resolvePermissionModeTransition('implement' as never, ctx('apollo') as never)
   check("the control door records 'control-door' by default (apollo → implement)", door.ok && last()?.road === 'control-door' && last()?.from === 'apollo')
@@ -126,7 +126,7 @@ try {
   const same = control.resolvePermissionModeTransition('default' as never, ctx('default') as never)
   check('a same-mode door call records nothing', same.ok && modeTransitions().length === 3)
 
-  const updates = (await import('../../src/utils/permissions/PermissionUpdate.js')) as typeof import('../../src/utils/permissions/PermissionUpdate.js')
+  const updates = (await import('../../src/permissions/rules/permissionUpdate.js')) as typeof import('../../src/permissions/rules/permissionUpdate.js')
   clearModeTransitions()
   const answered = updates.applyPermissionUpdates(ctx('default') as never, [{ type: 'setMode', mode: 'implement', destination: 'session' } as never]) as unknown as Ctx
   check("a consent answer's setMode records 'permission-answer' with its scope", answered.mode === 'implement' && last()?.road === 'permission-answer' && /session scope/.test(last()?.detail ?? ''))
@@ -153,7 +153,7 @@ try {
   check("the screen's mirror names 'screen-mirror'", named.length === 1 && named[0]!.from === held && named[0]!.to === 'implement', JSON.stringify(named))
 }
 try {
-  const relay = (await import('../../src/state/onChangeAppState.js')) as typeof import('../../src/state/onChangeAppState.js')
+  const relay = (await import('../../src/screen/app-state/onChangeAppState.js')) as typeof import('../../src/screen/app-state/onChangeAppState.js')
   const base = { engineModel: null, verbose: false, expandedView: false, settings: {} }
   clearModeTransitions()
   relay.onChangeAppState({ newState: { ...base, toolPermissionContext: ctx('implement') } as never, oldState: { ...base, toolPermissionContext: ctx('apollo') } as never })
@@ -169,9 +169,9 @@ try {
 section('the one door: the ladder admits the spec directory, refuses every other write; no consent tier moves the mode')
 const WORLD = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-apollo-door-')))
 try {
-  const state = (await import('../../src/bootstrap/state.js')) as typeof import('../../src/bootstrap/state.js')
-  const fs = (await import('../../src/utils/permissions/filesystem.js')) as typeof import('../../src/utils/permissions/filesystem.js')
-  const config = (await import('../../src/utils/projectConfig.js')) as typeof import('../../src/utils/projectConfig.js')
+  const state = (await import('../../src/boot/process-state/processState.js')) as typeof import('../../src/boot/process-state/processState.js')
+  const fs = (await import('../../src/permissions/rules/filesystem.js')) as typeof import('../../src/permissions/rules/filesystem.js')
+  const config = (await import('../../src/platform/settings/projectConfig.js')) as typeof import('../../src/platform/settings/projectConfig.js')
   mkdirSync(join(WORLD, 'docs'), { recursive: true })
   state.setOriginalCwd(WORLD)
   const shim = { name: 'Write', getPath: (i: { file_path: string }) => i.file_path } as unknown as Parameters<typeof fs.checkWritePermissionForTool>[0]
@@ -194,7 +194,7 @@ try {
   const implementSpec = decide('implement', specPath)
   check("implement: the build posture still rides the spec consent", implementSpec.behavior === 'allow')
 
-  const updates = (await import('../../src/utils/permissions/PermissionUpdate.js')) as typeof import('../../src/utils/permissions/PermissionUpdate.js')
+  const updates = (await import('../../src/permissions/rules/permissionUpdate.js')) as typeof import('../../src/permissions/rules/permissionUpdate.js')
   clearModeTransitions()
   const heldOut = updates.applyPermissionUpdates(ctx('apollo') as never, [{ type: 'setMode', mode: 'implement', destination: 'session' } as never]) as unknown as Ctx
   check("apollo: a consent answer's setMode is HELD — the mode stays apollo", heldOut.mode === 'apollo' && last()?.held === true && last()?.road === 'permission-answer' && /review card/.test(last()?.detail ?? ''))
@@ -215,7 +215,7 @@ try {
 
 section('the words: ApolloReview names what ended the station; the pack exit row and the pack agree')
 try {
-  const { ApolloReviewTool, apolloReviewRefusal } = (await import('../../src/tools/ApolloReviewTool/ApolloReviewTool.js')) as typeof import('../../src/tools/ApolloReviewTool/ApolloReviewTool.js')
+  const { ApolloReviewTool, apolloReviewRefusal } = (await import('../../src/tools/apollo-review/ApolloReviewTool.js')) as typeof import('../../src/tools/apollo-review/ApolloReviewTool.js')
   const mkContext = (mode: string) => {
     let state = { toolPermissionContext: ctx(mode) }
     return {
@@ -260,7 +260,7 @@ try {
   const second = await ApolloReviewTool.validateInput!(input, mkContext('flow') as never)
   check('the latest exit is the one named', second.result === false && /review card's approval/.test(second.message) && /moved the session to Flow/.test(second.message))
 
-  const lifecycles = (await import('../../src/utils/attachments/modeLifecycles.js')) as typeof import('../../src/utils/attachments/modeLifecycles.js')
+  const lifecycles = (await import('../../src/engine/attachment-shapes/dateAndModeNotices.js')) as typeof import('../../src/engine/attachment-shapes/dateAndModeNotices.js')
   clearModeTransitions()
   recordModeTransition({ from: 'apollo', to: 'implement', road: 'permission-answer', detail: 'setMode at the session scope' })
   const packRow = { type: 'attachment', attachment: { type: 'mode_pack', mode: 'apollo', text: 'the pack' } } as never
@@ -270,14 +270,14 @@ try {
   clearModeTransitions()
   const bareRows = lifecycles.getModePackAttachments([packRow], mkContext('implement') as never) as Array<{ type: string; reason?: string }>
   check('with no recorded exit the row carries no reason (never a made-up one)', bareRows.length === 1 && bareRows[0]?.reason === undefined)
-  const text = (await import('../../src/services/messages/attachmentText.js')) as typeof import('../../src/services/messages/attachmentText.js')
+  const text = (await import('../../src/engine/messages/attachmentText.js')) as typeof import('../../src/engine/messages/attachmentText.js')
   const spoken = text.normalizeAttachmentForAPI({ type: 'mode_pack_exit', mode: 'apollo', reason: 'the review card moved the session to Flow' } as never)
   const spokenText = JSON.stringify(spoken.map(m => m.message.content))
   check('the reminder speaks the reason to the model', /Exited Apollo mode/.test(spokenText) && /What ended it: the review card moved the session to Flow\./.test(spokenText), spokenText.slice(0, 300))
   const silent = JSON.stringify(text.normalizeAttachmentForAPI({ type: 'mode_pack_exit', mode: 'apollo' } as never).map(m => m.message.content))
   check('a row without a reason renders as before', /Exited Apollo mode/.test(silent) && !/What ended it/.test(silent))
 
-  const pack = (await import('../../src/prompt/apolloMode.js')) as typeof import('../../src/prompt/apolloMode.js')
+  const pack = (await import('../../src/engine/system-prompt/apolloMode.js')) as typeof import('../../src/engine/system-prompt/apolloMode.js')
   const packText = pack.getApolloModeSections('apollo')[0] ?? ''
   check('the pack names the admitted writes (the file tools, the spec directory) and the refusal', /Use the file tools \(Write, Edit\) for those files only/.test(packText) && /a write anywhere else is refused by the mode/.test(packText))
   check('the pack still teaches the only-door law', /only door to the build/.test(packText))

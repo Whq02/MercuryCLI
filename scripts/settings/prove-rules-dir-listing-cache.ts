@@ -8,12 +8,12 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'rules-cache-home-')
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}change cachedRulesDirListing and processRulesDir in src/services/instructions/discovery.ts (the per-fs-implementation listing cache, negative answers included)` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}change cachedRulesDirListing and processRulesDir in src/sessions/instructions/discovery.ts (the per-fs-implementation listing cache, negative answers included)` : ''}`)
 }
 
-const { getFsImplementation, setFsImplementation } = await import('../../src/utils/fsOperations.ts')
-const { processRulesDir } = await import('../../src/services/instructions/discovery.ts')
-const { mercuryNativeConvention } = await import('../../src/services/instructions/nativeSource.ts')
+const { getFsImplementation, setFsImplementation } = await import('../../src/platform/files/fsOperations.ts')
+const { processRulesDir } = await import('../../src/sessions/instructions/discovery.ts')
+const { mercuryNativeConvention } = await import('../../src/sessions/instructions/nativeSource.ts')
 
 const real = getFsImplementation()
 const scratch = mkdtempSync(join(tmpdir(), 'rules-cache-dir-'))

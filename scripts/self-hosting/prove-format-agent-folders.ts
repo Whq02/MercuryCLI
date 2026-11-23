@@ -13,8 +13,8 @@ try {
   section('both folder spellings beside the root AGENTS.md: every one loads, the root first, the singular before the plural')
   const all = world.project({ 'AGENTS.md': 'root-needle\n', '.agent/AGENTS.md': 'singular-needle\n', '.agents/AGENTS.md': 'plural-needle\n' })
   const d1 = world.drive(all)
-  check('three files compose in a fixed order', JSON.stringify(d1.paths) === JSON.stringify([join(all, 'AGENTS.md'), join(all, '.agent/AGENTS.md'), join(all, '.agents/AGENTS.md')]), d1.paths.join(', ') + ' (fix the guides list in src/services/instructions/adapters/agentFolders.ts or the file order in getInstructionFiles in src/services/instructions/engine.ts)')
-  check('the root AGENTS.md keeps its own convention and the folder files name theirs', d1.entries.map(e => e.convention).join(',') === 'agents-md,agent-folders,agent-folders', JSON.stringify(d1.entries) + ' (fix the convention id in src/services/instructions/adapters/agentFolders.ts or the adapter that tags each file in src/services/instructions/adapters/index.ts)')
+  check('three files compose in a fixed order', JSON.stringify(d1.paths) === JSON.stringify([join(all, 'AGENTS.md'), join(all, '.agent/AGENTS.md'), join(all, '.agents/AGENTS.md')]), d1.paths.join(', ') + ' (fix the guides list in src/sessions/instructions/adapters/agentFolders.ts or the file order in getInstructionFiles in src/sessions/instructions/instructionFiles.ts)')
+  check('the root AGENTS.md keeps its own convention and the folder files name theirs', d1.entries.map(e => e.convention).join(',') === 'agents-md,agent-folders,agent-folders', JSON.stringify(d1.entries) + ' (fix the convention id in src/sessions/instructions/adapters/agentFolders.ts or the adapter that tags each file in src/sessions/instructions/adapters/index.ts)')
 
   if (process.platform !== 'win32') {
     section('a folder guide that is a link to the root AGENTS.md composes its text once')
@@ -22,7 +22,7 @@ try {
     mkdirSync(join(linked, '.agents'), { recursive: true })
     symlinkSync(join('..', 'AGENTS.md'), join(linked, '.agents/AGENTS.md'))
     const d2 = world.drive(linked)
-    check('one copy composes', count(d2.first, 'linked-needle') === 1, d2.first + ' (fix src/services/instructions/engine.ts so a guide that links to the root AGENTS.md composes once)')
+    check('one copy composes', count(d2.first, 'linked-needle') === 1, d2.first + ' (fix src/sessions/instructions/instructionFiles.ts so a guide that links to the root AGENTS.md composes once)')
   }
 
   rulesBattery({
@@ -59,8 +59,8 @@ try {
     contentsOf(join(p3, '.agents/rules/a-plain.md'), 'plain-rule-needle'),
     `Rule files offered by description (not loaded; Read one when its description fits the work):\n- ${join(p3, '.agents/rules/b-described.md')}: How releases are cut`,
   ].join('\n\n')
-  check('the guide, the plain rule as general guidance, and one pointer for the described rule', d3.first === expected, d3.first + ' (fix the rule reader in src/services/instructions/adapters/agentFolders.ts and src/services/instructions/adapters/shared.ts, or how src/services/instructions/engine.ts composes them)')
-  check('a manual rule is never sent', !d3.first.includes('manual-needle'), 'manual-needle was sent; fix the trigger reader in src/services/instructions/adapters/shared.ts so a manual rule is never composed')
+  check('the guide, the plain rule as general guidance, and one pointer for the described rule', d3.first === expected, d3.first + ' (fix the rule reader in src/sessions/instructions/adapters/agentFolders.ts and src/sessions/instructions/adapters/shared.ts, or how src/sessions/instructions/instructionFiles.ts composes them)')
+  check('a manual rule is never sent', !d3.first.includes('manual-needle'), 'manual-needle was sent; fix the trigger reader in src/sessions/instructions/adapters/shared.ts so a manual rule is never composed')
 } finally {
   world.close()
 }

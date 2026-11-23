@@ -18,11 +18,11 @@ function section(title: string, hint = ''): void {
 const t = await openDialogsPart('chat-dialogs-part')
 const React = await import('react')
 const h = React.createElement
-const { Text } = await import('../../src/ink.ts')
-const { BackgroundTasksDialog } = await import('../../src/components/tasks/BackgroundTasksDialog.tsx')
-const { restoreWorktreeSession } = await import('../../src/services/worktree.ts')
-const { getGlobalConfig } = await import('../../src/utils/config.ts')
-const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
+const { Text } = await import('../../src/screen/themedRenderer.ts')
+const { BackgroundTasksDialog } = await import('../../src/screen/tasks/BackgroundTasksDialog.tsx')
+const { restoreWorktreeSession } = await import('../../src/platform/git/worktree/worktree.ts')
+const { getGlobalConfig } = await import('../../src/platform/settings/config.ts')
+const { createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
 const { useChatDialogs, useChatDialogPaints, useChatDialogsView } = t.module
 const exits: Array<() => void> = []
 mock.module('../../src/commands/exit/exit.tsx', () => ({
@@ -38,7 +38,7 @@ const act = async (run: () => void): Promise<void> => {
 const rows = (count: number): never[] => Array.from({ length: count }, (_, at) => createUserMessage({ content: `row ${at}` })) as never[]
 const local = { jsx: h(Text, null, 'A LOCAL DIALOG'), shouldHidePromptInput: false, isLocalJSXCommand: true, isImmediate: true } as never
 
-section('§1 the view: the cost threshold', 'what to change: the cost-threshold branch of focusedBottomDialog in useChatDialogsView, src/screens/chat/useChatDialogs.tsx (and the cost-threshold dialog it draws)')
+section('§1 the view: the cost threshold', 'what to change: the cost-threshold branch of focusedBottomDialog in useChatDialogsView, src/screen/chat/useChatDialogs.tsx (and the cost-threshold dialog it draws)')
 await t.plant({ messages: rows(1) })
 check('under the threshold nothing is asked', t.costShown.length === 0, JSON.stringify(t.costShown))
 t.setUsage(6, true)
@@ -56,7 +56,7 @@ await t.plant({ chatSurfaceCovered: true })
 check('while another surface covers the chat no bottom dialog is drawn', t.part.value().focusedBottomDialog === null && !t.frame().includes("You've spent"), t.frame())
 await t.plant({ chatSurfaceCovered: false, focusedInputDialog: undefined })
 
-section('§2 the view: the elicitation and the offer to reopen a crashed session', 'what to change: the elicitation and crash-resume branches of focusedBottomDialog in useChatDialogsView, src/screens/chat/useChatDialogs.tsx')
+section('§2 the view: the elicitation and the offer to reopen a crashed session', 'what to change: the elicitation and crash-resume branches of focusedBottomDialog in useChatDialogsView, src/screen/chat/useChatDialogs.tsx')
 const answers: string[] = []
 const elicitation = { serverName: 'proof-server', requestId: 1, params: { message: 'Which branch should the server use?', requestedSchema: { type: 'object', properties: { branch: { type: 'string', title: 'Branch' } }, required: ['branch'] } }, signal: new AbortController().signal, respond: () => {} }
 await t.plant({ focusedInputDialog: 'elicitation', elicitationQueue: [elicitation] as never, respondToElicitation: ((action: string) => void answers.push(action)) as never })
@@ -86,7 +86,7 @@ await waitFor(() => t.staged.length === 1, 3000)
 check('dismissing the offer clears it and hops nowhere', t.staged[0] === null && t.hops.length === 0, `${JSON.stringify(t.staged)} · ${t.hops.length}`)
 await t.plant({ focusedInputDialog: undefined, crashResumeStaged: null })
 
-section('§3 the view: where the dialog of a command is drawn', 'what to change: centredModalUp, centredModal, inlineToolJsx, bottomImmediateJsx and toolJSXRef in useChatDialogsView, src/screens/chat/useChatDialogs.tsx')
+section('§3 the view: where the dialog of a command is drawn', 'what to change: centredModalUp, centredModal, inlineToolJsx, bottomImmediateJsx and toolJSXRef in useChatDialogsView, src/screen/chat/useChatDialogs.tsx')
 const slotOf = (node: unknown): unknown => (node as { props?: { children?: unknown } } | null)?.props?.children
 await t.plant({ toolJSX: local, localJsx: true, fullscreen: true })
 check('in the fullscreen layout a local dialog is the centred modal and nothing is drawn inline', t.part.value().centredModalUp === true && slotOf(t.part.value().centredModal) === (local as { jsx: unknown }).jsx && t.part.value().inlineToolJsx === null && t.part.value().bottomImmediateJsx === null)
@@ -107,7 +107,7 @@ check(
 )
 await t.close()
 
-section('§4 the states: the dialog of a command, the exit and the shells dialog', 'what to change: the setters and handleExit in useChatDialogs, src/screens/chat/useChatDialogs.tsx')
+section('§4 the states: the dialog of a command, the exit and the shells dialog', 'what to change: the setters and handleExit in useChatDialogs, src/screen/chat/useChatDialogs.tsx')
 {
   const states = await mountPart(store => useChatDialogs({ store }))
   check('the part starts with no dialog, not exiting, nothing asked', states.value().toolJSX === null && states.value().isExiting === false && states.value().showExitFlow === false && states.value().exitCommandJsx === null && states.value().showCostThreshold === false && states.value().showBashesDialog === false)
@@ -133,7 +133,7 @@ section('§4 the states: the dialog of a command, the exit and the shells dialog
   states.unmount()
 }
 
-section('§5 the paints: whether the dialog owns the keys, and the detail of the compact summary', 'what to change: compactDetailUp, dialogPaints and dialogOwnsKeys in useChatDialogPaints, src/screens/chat/useChatDialogs.tsx')
+section('§5 the paints: whether the dialog owns the keys, and the detail of the compact summary', 'what to change: compactDetailUp, dialogPaints and dialogOwnsKeys in useChatDialogPaints, src/screen/chat/useChatDialogs.tsx')
 {
   let focus: 'composer' | 'detail' = 'detail'
   const sets: string[] = []

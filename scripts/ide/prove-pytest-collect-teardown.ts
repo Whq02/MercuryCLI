@@ -11,11 +11,11 @@ process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_TESTS
 delete process.env.MERCURY_HOME
 
-const pythonTests = await import('../../src/services/ide/pythonTests.ts')
-const pythonProject = await import('../../src/services/ide/pythonProject.ts')
-const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-type TestRunRecord = import('../../src/services/ide/pythonTests.ts').TestRunRecord
+const pythonTests = await import('../../src/integrations/ide/pythonTests.ts')
+const pythonProject = await import('../../src/integrations/ide/pythonProject.ts')
+const { TestTool } = await import('../../src/tools/test/TestTool.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
+type TestRunRecord = import('../../src/integrations/ide/pythonTests.ts').TestRunRecord
 type ToolAnswer = { data: { outcome: string; result: string; record?: TestRunRecord } }
 
 let failures = 0

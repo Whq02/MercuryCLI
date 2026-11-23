@@ -18,11 +18,11 @@ const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
 }
 
 const { foldModelSpelling, resolveCatalogueSpelling, catalogueSpellingExamples } = await import(
-  '../../src/services/model/modelSpellingFold.ts'
+  '../../src/models/catalogue/modelSpellingFold.ts'
 )
-const { parseUserSpecifiedModel, parseUserSpecifiedModelRaw } = await import('../../src/services/model/model.ts')
-import type { ModelOption } from '../../src/services/model/modelOptions.ts'
-const { GPT_CONNECT_OPTION_VALUE } = await import('../../src/services/model/modelOptions.ts')
+const { parseUserSpecifiedModel, parseUserSpecifiedModelRaw } = await import('../../src/models/catalogue/engineModel.ts')
+import type { ModelOption } from '../../src/models/catalogue/modelOptions.ts'
+const { GPT_CONNECT_OPTION_VALUE } = await import('../../src/models/catalogue/modelOptions.ts')
 
 console.log('§1 the fold over an injected provider-equal catalogue')
 const cat: ModelOption[] = [
@@ -35,52 +35,52 @@ const cat: ModelOption[] = [
   { value: '__router_mode__', label: 'Router', description: 'a mode, not a model', group: 'Modes' },
 ]
 const sonnetTarget = parseUserSpecifiedModelRaw('sonnet')
-check("'sonnet 5' resolves where 'sonnet5' does (label fold)", resolveCatalogueSpelling('sonnet 5', cat) === sonnetTarget, String(resolveCatalogueSpelling('sonnet 5', cat)), 'fix the label and case fold in resolveCatalogueSpelling in src/services/model/modelSpellingFold.ts')
-check("'Sonnet-5' resolves (case + hyphen fold)", resolveCatalogueSpelling('Sonnet-5', cat) === sonnetTarget, '', 'fold case and hyphens in foldModelSpelling in src/services/model/modelSpellingFold.ts')
-check("'SONNET5' resolves (case fold)", resolveCatalogueSpelling('SONNET5', cat) === sonnetTarget, '', 'fold case in foldModelSpelling in src/services/model/modelSpellingFold.ts')
-check("'opus 4.6' meets claude-opus-4-6 (dot ↔ hyphen, via the label)", resolveCatalogueSpelling('opus 4.6', cat) === 'claude-opus-4-6', '', 'make the fold treat dot and hyphen alike in src/services/model/modelSpellingFold.ts')
-check("'opus-4-6' meets claude-opus-4-6 too", resolveCatalogueSpelling('opus-4-6', cat) === 'claude-opus-4-6', '', 'make the fold match the bare id in resolveCatalogueSpelling in src/services/model/modelSpellingFold.ts')
-check("'gpt 5' resolves in the gpt rows the SAME way (provider-equal)", resolveCatalogueSpelling('gpt 5', cat) === 'gpt-5', '', 'resolveCatalogueSpelling in src/services/model/modelSpellingFold.ts must not special-case a provider group')
-check("'GPT5' resolves", resolveCatalogueSpelling('GPT5', cat) === 'gpt-5', '', 'resolveCatalogueSpelling in src/services/model/modelSpellingFold.ts must not special-case a provider group')
-check("'glm 4.7' resolves in the Z.AI rows", resolveCatalogueSpelling('glm 4.7', cat) === 'glm-4.7', '', 'resolveCatalogueSpelling in src/services/model/modelSpellingFold.ts must not special-case a provider group')
-check("the suffixed twin collapsed onto the bare id (no [1m] leak)", resolveCatalogueSpelling('sonnet 5 (1m context)', cat) === sonnetTarget, '', 'collapse the suffixed twin onto the bare id in resolveCatalogueSpelling in src/services/model/modelSpellingFold.ts')
-check("an unknown name answers null", resolveCatalogueSpelling('flurble 9000', cat) === null, '', 'resolveCatalogueSpelling in src/services/model/modelSpellingFold.ts must return null for a name the catalogue lacks')
-check("a connect sentinel never matches", resolveCatalogueSpelling('connect gpt', cat) === null, '', 'skip the connect sentinel row in resolveCatalogueSpelling in src/services/model/modelSpellingFold.ts')
-check("a mode row never matches", resolveCatalogueSpelling('router', cat) === null, '', 'skip mode rows in resolveCatalogueSpelling in src/services/model/modelSpellingFold.ts')
+check("'sonnet 5' resolves where 'sonnet5' does (label fold)", resolveCatalogueSpelling('sonnet 5', cat) === sonnetTarget, String(resolveCatalogueSpelling('sonnet 5', cat)), 'fix the label and case fold in resolveCatalogueSpelling in src/models/catalogue/modelSpellingFold.ts')
+check("'Sonnet-5' resolves (case + hyphen fold)", resolveCatalogueSpelling('Sonnet-5', cat) === sonnetTarget, '', 'fold case and hyphens in foldModelSpelling in src/models/catalogue/modelSpellingFold.ts')
+check("'SONNET5' resolves (case fold)", resolveCatalogueSpelling('SONNET5', cat) === sonnetTarget, '', 'fold case in foldModelSpelling in src/models/catalogue/modelSpellingFold.ts')
+check("'opus 4.6' meets claude-opus-4-6 (dot ↔ hyphen, via the label)", resolveCatalogueSpelling('opus 4.6', cat) === 'claude-opus-4-6', '', 'make the fold treat dot and hyphen alike in src/models/catalogue/modelSpellingFold.ts')
+check("'opus-4-6' meets claude-opus-4-6 too", resolveCatalogueSpelling('opus-4-6', cat) === 'claude-opus-4-6', '', 'make the fold match the bare id in resolveCatalogueSpelling in src/models/catalogue/modelSpellingFold.ts')
+check("'gpt 5' resolves in the gpt rows the SAME way (provider-equal)", resolveCatalogueSpelling('gpt 5', cat) === 'gpt-5', '', 'resolveCatalogueSpelling in src/models/catalogue/modelSpellingFold.ts must not special-case a provider group')
+check("'GPT5' resolves", resolveCatalogueSpelling('GPT5', cat) === 'gpt-5', '', 'resolveCatalogueSpelling in src/models/catalogue/modelSpellingFold.ts must not special-case a provider group')
+check("'glm 4.7' resolves in the Z.AI rows", resolveCatalogueSpelling('glm 4.7', cat) === 'glm-4.7', '', 'resolveCatalogueSpelling in src/models/catalogue/modelSpellingFold.ts must not special-case a provider group')
+check("the suffixed twin collapsed onto the bare id (no [1m] leak)", resolveCatalogueSpelling('sonnet 5 (1m context)', cat) === sonnetTarget, '', 'collapse the suffixed twin onto the bare id in resolveCatalogueSpelling in src/models/catalogue/modelSpellingFold.ts')
+check("an unknown name answers null", resolveCatalogueSpelling('flurble 9000', cat) === null, '', 'resolveCatalogueSpelling in src/models/catalogue/modelSpellingFold.ts must return null for a name the catalogue lacks')
+check("a connect sentinel never matches", resolveCatalogueSpelling('connect gpt', cat) === null, '', 'skip the connect sentinel row in resolveCatalogueSpelling in src/models/catalogue/modelSpellingFold.ts')
+check("a mode row never matches", resolveCatalogueSpelling('router', cat) === null, '', 'skip mode rows in resolveCatalogueSpelling in src/models/catalogue/modelSpellingFold.ts')
 const ambiguous: ModelOption[] = [
   { value: 'vendor-a/thing-1', label: 'Thing 1', description: '' },
   { value: 'vendor-b/thing1', label: 'Thing 1', description: '' },
 ]
-check('an ambiguous fold (two distinct targets, one key) refuses with null', resolveCatalogueSpelling('thing 1', ambiguous) === null, '', 'return null when one key reaches two targets in resolveCatalogueSpelling in src/services/model/modelSpellingFold.ts')
-check('foldModelSpelling never touches brackets (a rider stays distinct)', foldModelSpelling('sonnet[1m]') === 'sonnet[1m]', '', 'leave brackets untouched in foldModelSpelling in src/services/model/modelSpellingFold.ts')
+check('an ambiguous fold (two distinct targets, one key) refuses with null', resolveCatalogueSpelling('thing 1', ambiguous) === null, '', 'return null when one key reaches two targets in resolveCatalogueSpelling in src/models/catalogue/modelSpellingFold.ts')
+check('foldModelSpelling never touches brackets (a rider stays distinct)', foldModelSpelling('sonnet[1m]') === 'sonnet[1m]', '', 'leave brackets untouched in foldModelSpelling in src/models/catalogue/modelSpellingFold.ts')
 const examples = catalogueSpellingExamples(3, cat)
-check('examples derive from the catalogue in its own order, distinct by target', examples.length === 3 && examples[0] === 'Sonnet 5' && examples[1] === 'Opus 4.6' && examples[2] === 'GPT-5', examples.join(' · '), 'catalogueSpellingExamples in src/services/model/modelSpellingFold.ts must list names in catalogue order, one per distinct target')
+check('examples derive from the catalogue in its own order, distinct by target', examples.length === 3 && examples[0] === 'Sonnet 5' && examples[1] === 'Opus 4.6' && examples[2] === 'GPT-5', examples.join(' · '), 'catalogueSpellingExamples in src/models/catalogue/modelSpellingFold.ts must list names in catalogue order, one per distinct target')
 
 console.log('\n§2 the normalizer (live catalogue)')
 const spoken = parseUserSpecifiedModel('sonnet 5')
-check("'sonnet 5' resolves at parseUserSpecifiedModel (never a pass-through)", spoken === parseUserSpecifiedModel('sonnet5') && spoken !== 'sonnet 5', spoken, 'apply the fold inside parseUserSpecifiedModel in src/services/model/model.ts')
-check("'Sonnet-5' resolves identically", parseUserSpecifiedModel('Sonnet-5') === spoken, '', 'apply the fold inside parseUserSpecifiedModel in src/services/model/model.ts')
-check("the [1m] rider survives the fold", parseUserSpecifiedModel('sonnet 5[1m]') === parseUserSpecifiedModel('sonnet5[1m]'), parseUserSpecifiedModel('sonnet 5[1m]'), 'keep the [1m] rider through the fold in parseUserSpecifiedModel in src/services/model/model.ts')
-check("…including with a space before the rider", parseUserSpecifiedModel('Sonnet 5 [1m]') === parseUserSpecifiedModel('sonnet5[1m]'), '', 'accept a space before the rider in parseUserSpecifiedModel in src/services/model/model.ts')
-check('a genuinely unknown name still passes through (the route law refuses downstream)', parseUserSpecifiedModel('flurble-9000') === 'flurble-9000', '', 'pass an unknown name through unchanged in parseUserSpecifiedModel in src/services/model/model.ts')
-check('canonical parity: a first-party id is byte-identical', parseUserSpecifiedModel('claude-sonnet-5') === 'claude-sonnet-5', '', 'the fold must not rewrite a canonical id in parseUserSpecifiedModel in src/services/model/model.ts')
-check('canonical parity: a declared engine id is byte-identical', parseUserSpecifiedModel('gpt-5.2') === 'gpt-5.2', '', 'the fold must not rewrite a canonical id in parseUserSpecifiedModel in src/services/model/model.ts')
-check('canonical parity: a carrier id is byte-identical', parseUserSpecifiedModel('openrouter/anthropic/claude-opus-5') === 'openrouter/anthropic/claude-opus-5', '', 'the fold must not rewrite a canonical id in parseUserSpecifiedModel in src/services/model/model.ts')
-check("the alias switch is untouched ('sonnet5' → its row)", parseUserSpecifiedModel('sonnet5') === parseUserSpecifiedModelRaw('sonnet5'), '', 'leave the alias switch alone in src/services/model/model.ts')
+check("'sonnet 5' resolves at parseUserSpecifiedModel (never a pass-through)", spoken === parseUserSpecifiedModel('sonnet5') && spoken !== 'sonnet 5', spoken, 'apply the fold inside parseUserSpecifiedModel in src/models/catalogue/engineModel.ts')
+check("'Sonnet-5' resolves identically", parseUserSpecifiedModel('Sonnet-5') === spoken, '', 'apply the fold inside parseUserSpecifiedModel in src/models/catalogue/engineModel.ts')
+check("the [1m] rider survives the fold", parseUserSpecifiedModel('sonnet 5[1m]') === parseUserSpecifiedModel('sonnet5[1m]'), parseUserSpecifiedModel('sonnet 5[1m]'), 'keep the [1m] rider through the fold in parseUserSpecifiedModel in src/models/catalogue/engineModel.ts')
+check("…including with a space before the rider", parseUserSpecifiedModel('Sonnet 5 [1m]') === parseUserSpecifiedModel('sonnet5[1m]'), '', 'accept a space before the rider in parseUserSpecifiedModel in src/models/catalogue/engineModel.ts')
+check('a genuinely unknown name still passes through (the route law refuses downstream)', parseUserSpecifiedModel('flurble-9000') === 'flurble-9000', '', 'pass an unknown name through unchanged in parseUserSpecifiedModel in src/models/catalogue/engineModel.ts')
+check('canonical parity: a first-party id is byte-identical', parseUserSpecifiedModel('claude-sonnet-5') === 'claude-sonnet-5', '', 'the fold must not rewrite a canonical id in parseUserSpecifiedModel in src/models/catalogue/engineModel.ts')
+check('canonical parity: a declared engine id is byte-identical', parseUserSpecifiedModel('gpt-5.2') === 'gpt-5.2', '', 'the fold must not rewrite a canonical id in parseUserSpecifiedModel in src/models/catalogue/engineModel.ts')
+check('canonical parity: a carrier id is byte-identical', parseUserSpecifiedModel('openrouter/anthropic/claude-opus-5') === 'openrouter/anthropic/claude-opus-5', '', 'the fold must not rewrite a canonical id in parseUserSpecifiedModel in src/models/catalogue/engineModel.ts')
+check("the alias switch is untouched ('sonnet5' → its row)", parseUserSpecifiedModel('sonnet5') === parseUserSpecifiedModelRaw('sonnet5'), '', 'leave the alias switch alone in src/models/catalogue/engineModel.ts')
 
 
 console.log('\n§3 the launch door')
 const { canonicalWorkerModelId, validateWorkerModelChoice } = await import(
-  '../../src/services/concourse/workerModels.ts'
+  '../../src/screen/concourse-model/workerModels.ts'
 )
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
 const doorId = await canonicalWorkerModelId('sonnet 5')
-check("canonicalWorkerModelId('sonnet 5') lands on the canonical row id", doorId === (await canonicalWorkerModelId('sonnet5')), doorId, 'fold the spelling inside canonicalWorkerModelId in src/services/concourse/workerModels.ts')
-check('…and the route law declares it (never unrecognised at the arms)', declaredRouteOf(doorId) === 'anthropic', String(declaredRouteOf(doorId)), 'canonicalWorkerModelId in src/services/concourse/workerModels.ts must return an id that declaredRouteOf in src/services/providers/routeLaw.ts declares')
-check("'Sonnet-5' lands identically at the door", (await canonicalWorkerModelId('Sonnet-5')) === doorId, '', 'fold case and hyphens inside canonicalWorkerModelId in src/services/concourse/workerModels.ts')
-check('the [1m] context tag strips at the door (a call-time flavour, not an identity)', (await canonicalWorkerModelId(`${doorId}[1m]`)) === doorId, await canonicalWorkerModelId(`${doorId}[1m]`), 'strip the [1m] tag inside canonicalWorkerModelId in src/services/concourse/workerModels.ts')
+check("canonicalWorkerModelId('sonnet 5') lands on the canonical row id", doorId === (await canonicalWorkerModelId('sonnet5')), doorId, 'fold the spelling inside canonicalWorkerModelId in src/screen/concourse-model/workerModels.ts')
+check('…and the route law declares it (never unrecognised at the arms)', declaredRouteOf(doorId) === 'anthropic', String(declaredRouteOf(doorId)), 'canonicalWorkerModelId in src/screen/concourse-model/workerModels.ts must return an id that declaredRouteOf in src/models/roads/routeLaw.ts declares')
+check("'Sonnet-5' lands identically at the door", (await canonicalWorkerModelId('Sonnet-5')) === doorId, '', 'fold case and hyphens inside canonicalWorkerModelId in src/screen/concourse-model/workerModels.ts')
+check('the [1m] context tag strips at the door (a call-time flavour, not an identity)', (await canonicalWorkerModelId(`${doorId}[1m]`)) === doorId, await canonicalWorkerModelId(`${doorId}[1m]`), 'strip the [1m] tag inside canonicalWorkerModelId in src/screen/concourse-model/workerModels.ts')
 const refusal = await validateWorkerModelChoice('flurble-9000', 'session')
-check('a genuinely unknown launch still refuses, typed', refusal.ok === false && refusal.reason === 'not-runnable:unrecognised', '', 'validateWorkerModelChoice in src/services/concourse/workerModels.ts must refuse an unknown id with reason not-runnable:unrecognised')
+check('a genuinely unknown launch still refuses, typed', refusal.ok === false && refusal.reason === 'not-runnable:unrecognised', '', 'validateWorkerModelChoice in src/screen/concourse-model/workerModels.ts must refuse an unknown id with reason not-runnable:unrecognised')
 const liveExamples = catalogueSpellingExamples(3)
 check(
   'the refusal action names DERIVED example spellings exactly when the catalogue offers rows',
@@ -88,7 +88,7 @@ check(
     (refusal.action ?? '').startsWith('pick a listed row from the model picker') &&
     (liveExamples.length === 0 || ((refusal.action ?? '').includes('spellings like') && (refusal.action ?? '').includes(`'${liveExamples[0]}'`))),
   refusal.ok === false ? (refusal.action ?? '(no action)') : '(unexpected ok)',
-  'build the refusal action in validateWorkerModelChoice in src/services/concourse/workerModels.ts from catalogueSpellingExamples',
+  'build the refusal action in validateWorkerModelChoice in src/screen/concourse-model/workerModels.ts from catalogueSpellingExamples',
 )
 
 {
@@ -117,7 +117,7 @@ check(
     'the set_model control folds through the headless resolver (call-shaped)',
     JSON.stringify(switched.spoken) === JSON.stringify({ model: folded, at: 'now' }) && switched.byDefault !== null && switched.byDefault.model === switched.absent?.model && ![folded, FIXTURE_MODEL].includes(switched.byDefault.model),
     '',
-    'resolve the model of session/set_model through parseUserSpecifiedModel in src/runner/wire/sessionVerbs.ts',
+    'resolve the model of session/set_model through parseUserSpecifiedModel in src/daemon/runner-wire/sessionVerbs.ts',
   )
   check(
     'the warm-claim write folds through the headless resolver (call-shaped)',

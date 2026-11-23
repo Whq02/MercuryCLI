@@ -52,11 +52,11 @@ const flagAt = (flag: string): string | null => (process.argv.includes(flag) ? (
 const legArg = flagAt('--leg')
 
 async function runLeg(leg: string, depth: Depth): Promise<LegReport> {
-  const { exec } = await import('../../src/utils/Shell.ts')
-  const engine = await import('../../src/utils/shell/engineSession.ts')
-  const road = await import('../../src/utils/shell/windowsShellRoad.ts')
-  const { getInitialSettings } = await import('../../src/utils/settings/settings.ts')
-  const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
+  const { exec } = await import('../../src/platform/shell/shellExec.ts')
+  const engine = await import('../../src/platform/shell/engineSession.ts')
+  const road = await import('../../src/platform/shell/windowsShellRoad.ts')
+  const { getInitialSettings } = await import('../../src/platform/settings/settings.ts')
+  const { getSimplePrompt } = await import('../../src/tools/shell/prompt.ts')
   road.armWindowsShellRoad()
   const resolution = engine.resolveShellEngine(getInitialSettings().shell?.engine)
   const signal = (): AbortSignal => new AbortController().signal
@@ -85,8 +85,8 @@ async function runLeg(leg: string, depth: Depth): Promise<LegReport> {
     calls.mainSeen = await call(SEEN)
     calls.crewLs = await call('ls', { owner: 'agent-git-programs' })
     calls.crewSeen = await call(SEEN, { owner: 'agent-git-programs' })
-    const { checkReadOnlyConstraints } = await import('../../src/tools/BashTool/readOnlyValidation.ts')
-    const { shellSelfProtectionReason, shellMercurySecretPath } = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+    const { checkReadOnlyConstraints } = await import('../../src/tools/shell/readOnlyValidation.ts')
+    const { shellSelfProtectionReason, shellMercurySecretPath } = await import('../../src/permissions/rules/shellProtectedPaths.ts')
     const table: Record<string, unknown> = {}
     for (const command of [
       'ls -la node_modules',
@@ -150,16 +150,16 @@ for (const name of Object.keys(process.env)) {
 let failures = 0
 let checks = 0
 const SECTION_FIXES: Array<[string, string]> = [
-  ['§1 ', 'change toolPrograms and withGitPrograms in src/utils/shell/windowsShellRoad.ts'],
-  ['§2 ', 'change withGitPrograms and withRoadPrograms in src/utils/shell/windowsShellRoad.ts (the path the shell is given), or resolveShellEngine in src/utils/shell/engineSession.ts (the engine arm)'],
-  ['§3 ', 'change withGitPrograms and withRoadPrograms in src/utils/shell/windowsShellRoad.ts (an ls already on the path must leave the path as it was)'],
-  ['§4 ', 'change withRoadPrograms in src/utils/shell/windowsShellRoad.ts (the roads the rule leaves alone), or resolveShellEngine in src/utils/shell/engineSession.ts (the engine arm)'],
-  ['§4b ', 'change withRoadPrograms in src/utils/shell/windowsShellRoad.ts'],
-  ['§5 ', 'change describeWindowsShellRoad in src/utils/shell/windowsShellRoad.ts or shellEngineArmWords in src/utils/shell/shellEngineArm.ts'],
-  ['§6 ', 'change checkReadOnlyConstraints in src/tools/BashTool/readOnlyValidation.ts, or shellSelfProtectionReason and shellMercurySecretPath in src/utils/permissions/shellProtectedPaths.ts'],
-  ['§7 ', 'change getSimplePrompt in src/tools/BashTool/prompt.ts so the manual does not depend on the rule'],
-  ['§8 ', 'rebuild dist/mercury.mjs, then change describeWindowsShellRoad in src/utils/shell/windowsShellRoad.ts (read by src/services/health/readiness.ts)'],
-  ['§9 ', 'rebuild dist/mercury.mjs, then change withRoadPrograms in src/utils/shell/windowsShellRoad.ts (called from src/utils/Shell.ts)'],
+  ['§1 ', 'change toolPrograms and withGitPrograms in src/platform/shell/windowsShellRoad.ts'],
+  ['§2 ', 'change withGitPrograms and withRoadPrograms in src/platform/shell/windowsShellRoad.ts (the path the shell is given), or resolveShellEngine in src/platform/shell/engineSession.ts (the engine arm)'],
+  ['§3 ', 'change withGitPrograms and withRoadPrograms in src/platform/shell/windowsShellRoad.ts (an ls already on the path must leave the path as it was)'],
+  ['§4 ', 'change withRoadPrograms in src/platform/shell/windowsShellRoad.ts (the roads the rule leaves alone), or resolveShellEngine in src/platform/shell/engineSession.ts (the engine arm)'],
+  ['§4b ', 'change withRoadPrograms in src/platform/shell/windowsShellRoad.ts'],
+  ['§5 ', 'change describeWindowsShellRoad in src/platform/shell/windowsShellRoad.ts or shellEngineArmWords in src/platform/shell/shellEngineArm.ts'],
+  ['§6 ', 'change checkReadOnlyConstraints in src/tools/shell/readOnlyValidation.ts, or shellSelfProtectionReason and shellMercurySecretPath in src/permissions/rules/shellProtectedPaths.ts'],
+  ['§7 ', 'change getSimplePrompt in src/tools/shell/prompt.ts so the manual does not depend on the rule'],
+  ['§8 ', 'rebuild dist/mercury.mjs, then change describeWindowsShellRoad in src/platform/shell/windowsShellRoad.ts (read by src/platform/health/readiness.ts)'],
+  ['§9 ', 'rebuild dist/mercury.mjs, then change withRoadPrograms in src/platform/shell/windowsShellRoad.ts (called from src/platform/shell/shellExec.ts)'],
   ['§10 ', 'remove the reference to withGitPrograms or toolPrograms from the files listed'],
 ]
 let sectionFix = ''
@@ -176,12 +176,12 @@ const section = (title: string): void => {
 
 type Programs = { from: string; dir?: string; key?: string; path?: string }
 const WIN = process.platform === 'win32'
-const road = (await import('../../src/utils/shell/windowsShellRoad.ts')) as unknown as {
+const road = (await import('../../src/platform/shell/windowsShellRoad.ts')) as unknown as {
   toolPrograms?: (env: NodeJS.ProcessEnv, world?: unknown) => Programs
   withGitPrograms?: (env: NodeJS.ProcessEnv, world?: unknown) => NodeJS.ProcessEnv
 }
-const { shellEngineArmWords } = await import('../../src/utils/shell/shellEngineArm.ts')
-const { resolveBrushPackDir } = await import('../../src/utils/shell/brushPack.ts')
+const { shellEngineArmWords } = await import('../../src/platform/shell/shellEngineArm.ts')
+const { resolveBrushPackDir } = await import('../../src/platform/shell/brushPack.ts')
 const programs: (env: NodeJS.ProcessEnv, world?: unknown) => Programs = road.toolPrograms ?? (() => ({ from: 'path' }))
 const withGit: (env: NodeJS.ProcessEnv, world?: unknown) => NodeJS.ProcessEnv = road.withGitPrograms ?? (env => env)
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'engine-git-programs-')))
@@ -595,7 +595,7 @@ try {
         const path = join(dir, name)
         return statSync(path).isDirectory() ? walk(path) : /\.tsx?$/.test(name) ? [path] : []
       })
-    const readers = ['src/utils/permissions', 'src/utils/wards', 'src/tools/BashTool'].flatMap(rel => walk(join(ROOT, rel)))
+    const readers = ['src/permissions/rules', 'src/permissions/wards', 'src/tools/shell'].flatMap(rel => walk(join(ROOT, rel)))
     const naming = readers.filter(path => /withGitPrograms|toolPrograms/.test(readFileSync(path, 'utf8')))
     check(`no file of the permission layer, the wards or the Bash tool names the rule (${readers.length} files read)`, readers.length > 50 && naming.length === 0, naming.join(', '))
   }

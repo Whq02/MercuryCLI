@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
-import type { QueuedCommand } from '../../src/types/textInputTypes.ts'
-import { createTurnDriver, type TurnDriverPorts } from '../../src/cli/headless/turnDriver.ts'
-import { REOPEN_GRACE_MS, WALL_RECHECK_MS, wallRecheckDelayMs, type WatchWall } from '../../src/tools/MonitorTool/watchMailbox.ts'
+import type { QueuedCommand } from '../../src/screen/composer/input-core/textInput.ts'
+import { createTurnDriver, type TurnDriverPorts } from '../../src/daemon/runner/turnDriver.ts'
+import { REOPEN_GRACE_MS, WALL_RECHECK_MS, wallRecheckDelayMs, type WatchWall } from '../../src/tools/monitor/watchMailbox.ts'
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  const wakeHoldHint = 'fix the wall hold and re-check timer in createTurnDriver (src/cli/headless/turnDriver.ts), or the re-check delay wallRecheckDelayMs in src/tools/MonitorTool/watchMailbox.ts'
+  const wakeHoldHint = 'fix the wall hold and re-check timer in createTurnDriver (src/daemon/runner/turnDriver.ts), or the re-check delay wallRecheckDelayMs in src/tools/monitor/watchMailbox.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${wakeHoldHint}`}`)
   if (!cond) failures++
 }
@@ -15,7 +15,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — wake-hold prover exceeded 60s; a rig promise never settled, look at the last section printed above and the clock and wall ports in createTurnDriver (src/cli/headless/turnDriver.ts)')
+  console.log('\nTIMEOUT — wake-hold prover exceeded 60s; a rig promise never settled, look at the last section printed above and the clock and wall ports in createTurnDriver (src/daemon/runner/turnDriver.ts)')
   process.exit(1)
 }, 60_000)
 watchdog.unref?.()

@@ -10,8 +10,8 @@ import { checker, scratchRoot } from '../engine-durability/harness.ts'
 const root = scratchRoot('interview-compact')
 const t = checker()
 
-const store = await import('../../src/services/interview/store.ts')
-const { rebuildInterview } = await import('../../src/services/interview/contracts.ts')
+const store = await import('../../src/tools/engines/interview/store.ts')
+const { rebuildInterview } = await import('../../src/tools/engines/interview/contracts.ts')
 type Ev = Parameters<typeof rebuildInterview>[0][number]
 
 const logPath = join(

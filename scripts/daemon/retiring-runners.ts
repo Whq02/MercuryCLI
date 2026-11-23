@@ -1,8 +1,8 @@
 import { LEAVE_PENDING, standInRunner } from '../lib/seatDoor.ts'
-import { refused } from '../../src/runner/wire/errors.ts'
-import type { RunnerDoor } from '../../src/daemon/runnerConnection.ts'
+import { refused } from '../../src/daemon/runner-wire/errors.ts'
+import type { RunnerDoor } from '../../src/daemon/runner-link/runnerConnection.ts'
 
-type Workers = typeof import('../../src/daemon/concourseWorkers.ts')
+type Workers = typeof import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 type Quiesce = { action: 'prepare' | 'commit' | 'cancel'; token: string }
 
 export function retiringRunners(sup: Workers, dir: string, gonePid: number) {

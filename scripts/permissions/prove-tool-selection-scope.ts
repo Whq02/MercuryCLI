@@ -2,14 +2,14 @@ import React from 'react'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle } from '../lib/settingsPopupHarness.ts'
 
 const home = pinScratchHome('tool-selection-scope')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-await import('../../src/tools/AgentTool/AgentTool.js')
-const { ToolSelector } = await import('../../src/components/agents/ToolSelector.js')
-const { TrustDialog } = await import('../../src/components/TrustDialog/TrustDialog.js')
-const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.js')
-const { resolveAgentTools } = await import('../../src/tools/AgentTool/agentToolUtils.js')
-const { useInput } = await import('../../src/ink.js')
+await import('../../src/tools/crewmate/CrewmateTool.js')
+const { ToolSelector } = await import('../../src/screen/agents/ToolSelector.js')
+const { TrustDialog } = await import('../../src/screen/trust-dialog/TrustDialog.js')
+const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.js')
+const { resolveAgentTools } = await import('../../src/tools/crewmate/crewmateLifecycle.js')
+const { useInput } = await import('../../src/screen/themedRenderer.js')
 function InputHost({ children }: { children: React.ReactNode }): React.ReactNode {
   useInput(() => {})
   return children
@@ -17,7 +17,7 @@ function InputHost({ children }: { children: React.ReactNode }): React.ReactNode
 const tools = [{ name: 'Read' }, { name: 'Write' }] as never
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${detail}${detail ? ' — ' : ''}ToolSelector in src/components/agents/ToolSelector.tsx, TrustDialog in src/components/TrustDialog/TrustDialog.tsx and resolveAgentTools in src/tools/AgentTool/agentToolUtils.ts are what this check exercises`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${detail}${detail ? ' — ' : ''}ToolSelector in src/screen/agents/ToolSelector.tsx, TrustDialog in src/screen/trust-dialog/TrustDialog.tsx and resolveAgentTools in src/tools/crewmate/crewmateLifecycle.ts are what this check exercises`}`)
   if (!ok) failures++
 }
 try {

@@ -67,25 +67,25 @@ section('§1 a settings pin: the Default model row names the model a fresh sessi
   const pinned = await healthRows(home('pinned', { engine: { model: 'claude-sonnet-5-5' } }))
   const frontier = row(pinned.rows, 'frontier')
   const pins = row(pinned.rows, 'model')
-  check('health --json answered with the two model rows', frontier !== undefined && pins !== undefined, `${pinned.status} ${pinned.stderr.slice(0, 200)} — run node dist/mercury.mjs health --json by hand; the rows with ids frontier and model come from src/services/health/sections/settings/model.ts, and dist must be built first (bun run build.ts)`)
-  check('the Model pins row reads the pin as the session model', /^session model claude-sonnet-5-5 = settings pin$/.test(pins?.evidence ?? ''), `${JSON.stringify(pins)} — change the model row (id model) in src/services/health/sections/settings/model.ts so a settings pin that matches the session reads session model X = settings pin`)
-  check('the Default model row starts on the SAME model (the pin), not the unpinned computed default', /^fresh-session default Sonnet 5\.5 · the settings pin engine\.model — without the pin: /.test(frontier?.evidence ?? ''), `${JSON.stringify(frontier)} — change the frontier row in src/services/health/sections/settings/model.ts so a pinned session reads fresh-session default <pinned model> · the settings pin engine.model — without the pin: ...`)
-  check('…and still names what the default would be without the pin', /without the pin: \S/.test(frontier?.evidence ?? '') && !/without the pin: fresh-session default/.test(frontier?.evidence ?? ''), `${JSON.stringify(frontier)} — change the frontier row in src/services/health/sections/settings/model.ts so the text after without the pin: names the computed default once, without repeating the prefix`)
-  check('the row keeps its first-party gating detail', typeof (frontier as { detail?: string } | undefined)?.detail === 'string' && /first-party gating: /.test(String((frontier as { detail?: string }).detail)), `${JSON.stringify(frontier)} — change the frontier row in src/services/health/sections/settings/model.ts so a pinned row still carries the first-party gating detail`)
+  check('health --json answered with the two model rows', frontier !== undefined && pins !== undefined, `${pinned.status} ${pinned.stderr.slice(0, 200)} — run node dist/mercury.mjs health --json by hand; the rows with ids frontier and model come from src/platform/health/sections/settings/model.ts, and dist must be built first (bun run build.ts)`)
+  check('the Model pins row reads the pin as the session model', /^session model claude-sonnet-5-5 = settings pin$/.test(pins?.evidence ?? ''), `${JSON.stringify(pins)} — change the model row (id model) in src/platform/health/sections/settings/model.ts so a settings pin that matches the session reads session model X = settings pin`)
+  check('the Default model row starts on the SAME model (the pin), not the unpinned computed default', /^fresh-session default Sonnet 5\.5 · the settings pin engine\.model — without the pin: /.test(frontier?.evidence ?? ''), `${JSON.stringify(frontier)} — change the frontier row in src/platform/health/sections/settings/model.ts so a pinned session reads fresh-session default <pinned model> · the settings pin engine.model — without the pin: ...`)
+  check('…and still names what the default would be without the pin', /without the pin: \S/.test(frontier?.evidence ?? '') && !/without the pin: fresh-session default/.test(frontier?.evidence ?? ''), `${JSON.stringify(frontier)} — change the frontier row in src/platform/health/sections/settings/model.ts so the text after without the pin: names the computed default once, without repeating the prefix`)
+  check('the row keeps its first-party gating detail', typeof (frontier as { detail?: string } | undefined)?.detail === 'string' && /first-party gating: /.test(String((frontier as { detail?: string }).detail)), `${JSON.stringify(frontier)} — change the frontier row in src/platform/health/sections/settings/model.ts so a pinned row still carries the first-party gating detail`)
 }
 
 section('§2 an alias pin resolves and says so')
 {
   const alias = await healthRows(home('alias', { engine: { model: 'sonnet' } }))
   const frontier = row(alias.rows, 'frontier')
-  check('an alias pin is shown resolved, with the spelling the file holds', /^fresh-session default \S.* · the settings pin engine\.model 'sonnet' \(resolved\) — without the pin: /.test(frontier?.evidence ?? ''), `${JSON.stringify(frontier)} — change the pinSource and resolved wording of the frontier row in src/services/health/sections/settings/model.ts so an alias pin shows the spelling the file holds followed by (resolved)`)
+  check('an alias pin is shown resolved, with the spelling the file holds', /^fresh-session default \S.* · the settings pin engine\.model 'sonnet' \(resolved\) — without the pin: /.test(frontier?.evidence ?? ''), `${JSON.stringify(frontier)} — change the pinSource and resolved wording of the frontier row in src/platform/health/sections/settings/model.ts so an alias pin shows the spelling the file holds followed by (resolved)`)
 }
 
 section('§3 MERCURY_MODEL outranks the file and the row says which pin spoke')
 {
   const env = await healthRows(home('env', { engine: { model: 'claude-sonnet-5-5' } }, { MERCURY_MODEL: 'claude-opus-4-8' }))
   const frontier = row(env.rows, 'frontier')
-  check('the environment pin is named as the source', /^fresh-session default \S.* · MERCURY_MODEL — without the pin: /.test(frontier?.evidence ?? ''), `${JSON.stringify(frontier)} — change pinSource in the frontier row of src/services/health/sections/settings/model.ts so MERCURY_MODEL outranks the settings file and is named as the source`)
+  check('the environment pin is named as the source', /^fresh-session default \S.* · MERCURY_MODEL — without the pin: /.test(frontier?.evidence ?? ''), `${JSON.stringify(frontier)} — change pinSource in the frontier row of src/platform/health/sections/settings/model.ts so MERCURY_MODEL outranks the settings file and is named as the source`)
 }
 
 section('§4 no pin: the row reads as before')
@@ -93,8 +93,8 @@ section('§4 no pin: the row reads as before')
   const plain = await healthRows(home('plain', undefined))
   const frontier = row(plain.rows, 'frontier')
   const pins = row(plain.rows, 'model')
-  check('Model pins says no settings pin', /· no settings pin$/.test(pins?.evidence ?? ''), `${JSON.stringify(pins)} — change the model row (id model) in src/services/health/sections/settings/model.ts so an unpinned session ends with · no settings pin`)
-  check('the Default model row is the computed default alone, with no pin words', /^fresh-session default \S/.test(frontier?.evidence ?? '') && !/the settings pin|without the pin|MERCURY_MODEL/.test(frontier?.evidence ?? ''), `${JSON.stringify(frontier)} — change the frontier row in src/services/health/sections/settings/model.ts so an unpinned session shows the computed default alone, with no pin words`)
+  check('Model pins says no settings pin', /· no settings pin$/.test(pins?.evidence ?? ''), `${JSON.stringify(pins)} — change the model row (id model) in src/platform/health/sections/settings/model.ts so an unpinned session ends with · no settings pin`)
+  check('the Default model row is the computed default alone, with no pin words', /^fresh-session default \S/.test(frontier?.evidence ?? '') && !/the settings pin|without the pin|MERCURY_MODEL/.test(frontier?.evidence ?? ''), `${JSON.stringify(frontier)} — change the frontier row in src/platform/health/sections/settings/model.ts so an unpinned session shows the computed default alone, with no pin words`)
 }
 
 rmSync(world, { recursive: true, force: true })

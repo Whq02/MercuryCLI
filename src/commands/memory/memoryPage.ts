@@ -1,10 +1,10 @@
-import { getSessionId } from '../../bootstrap/state.js'
-import { mnemeEnabled, mnemeLibraryDir } from '../../mneme/mnemeGates.js'
-import { MESH_PAGE_NAME, MESH_PAGE_TITLE, memoryMesh, meshSummary, renderMemoryMeshPage } from '../../mneme/mnemeMeshPage.js'
-import type { LedgerEntry } from '../../mneme/types.js'
-import { keepSample } from '../../services/samples/bridge.js'
-import { SAMPLE_HTML_CAP_BYTES, samplesEnabled, type SampleItem } from '../../utils/samples/contracts.js'
-import { openSampleUrl } from '../../services/samples/open.js'
+import { getSessionId } from '../../boot/process-state/processState.js'
+import { mnemeEnabled, mnemeLibraryDir } from '../../sessions/mneme/mnemeGates.js'
+import { MESH_PAGE_NAME, MESH_PAGE_TITLE, memoryMesh, meshSummary, renderMemoryMeshPage } from '../../sessions/mneme/mnemeMeshPage.js'
+import type { LedgerEntry } from '../../sessions/mneme/types.js'
+import { keepSample } from '../../integrations/samples/bridge.js'
+import { SAMPLE_HTML_CAP_BYTES, samplesEnabled, type SampleItem } from '../../integrations/sample-contracts/contracts.js'
+import { openSampleUrl } from '../../integrations/samples/open.js'
 
 export const MEMORY_PAGE_OFF_SENTENCE =
   "/memory page draws the library through Samples, which are off — MERCURY_SAMPLES=1 turns them on (the Boot Menu's Samples row saves it for new sessions)"

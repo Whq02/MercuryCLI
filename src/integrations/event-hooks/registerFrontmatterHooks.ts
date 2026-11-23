@@ -1,0 +1,18 @@
+import type { HooksSettings } from '../../platform/settings/settingsSchema.js'
+import type { SetAppState } from '../../daemon/runner/messageQueueManager.js'
+import { addSessionHooks, type HookScope } from './sessionHooks.js'
+
+export function registerAgentHooks(setAppState: SetAppState, scope: HookScope, hooks: HooksSettings | undefined, agentType: string): number {
+  if (hooks === undefined) return 0
+  return addSessionHooks(setAppState, scope, hooks, { kind: 'agent', type: agentType })
+}
+
+export function registerSkillHooks(
+  setAppState: SetAppState,
+  scope: HookScope,
+  hooks: HooksSettings | undefined,
+  skill: { name: string; root: string },
+): number {
+  if (hooks === undefined) return 0
+  return addSessionHooks(setAppState, scope, hooks, { kind: 'skill', name: skill.name, root: skill.root })
+}

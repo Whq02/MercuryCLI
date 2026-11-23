@@ -51,7 +51,7 @@ for (const base of [
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — hint: change sessionAccountFamily or sessionAccountWords in src/services/accounts/sessionAccount.ts (checks C1 to C5), or evaluateComputedDefault and computedDefault in src/services/model/computedDefault.ts (check C7)' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — hint: change sessionAccountFamily or sessionAccountWords in src/models/sign-in/accounts/sessionAccount.ts (checks C1 to C5), or evaluateComputedDefault and computedDefault in src/models/catalogue/computedDefault.ts (check C7)' : ''}`)
 }
 function section(t: string): void {
   console.log(`\n── ${t} ${'─'.repeat(Math.max(2, 68 - t.length))}`)
@@ -61,8 +61,8 @@ console.log('============================================================')
 console.log(' the account chip — snapshot-first, healed on the catalogue')
 console.log('============================================================')
 
-const { sessionAccountFamily, sessionAccountWords } = await import('../../src/services/accounts/sessionAccount.ts')
-type Reads = import('../../src/services/accounts/sessionAccount.ts').SessionAccountReads
+const { sessionAccountFamily, sessionAccountWords } = await import('../../src/models/sign-in/accounts/sessionAccount.ts')
+type Reads = import('../../src/models/sign-in/accounts/sessionAccount.ts').SessionAccountReads
 
 const PLACEHOLDER = 'claude-fable-5-1'
 const presences = [
@@ -126,8 +126,8 @@ section('C5 the words are the ONE identity composer\'s')
 
 section('C7 the model chip beside it: the decision\'s own row word, healed when the catalogue lands')
 {
-  const computed = await import('../../src/services/model/computedDefault.ts')
-  const catalogue = await import('../../src/services/providers/catalogueEpoch.ts')
+  const computed = await import('../../src/models/catalogue/computedDefault.ts')
+  const catalogue = await import('../../src/models/roads/catalogueEpoch.ts')
   const keyless = { setting: 'claude-fable-5-1', why: 'no provider is signed in yet — /logins signs one in, and its newest usable row becomes the default' }
   const gated = (why: string) => ({ usable: false as const, why })
   const nothing = computed.evaluateComputedDefault({ credentials: [], registryOrder: ['anthropic', 'openai'], laneRow: () => gated('unreached'), keyless })

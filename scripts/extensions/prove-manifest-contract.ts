@@ -12,13 +12,13 @@ process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 process.chdir(scratch)
 
-const manifestMod = await import('../../src/extensions/manifest.ts')
-const catalogueMod = await import('../../src/extensions/catalogue.ts')
-const contributions = await import('../../src/extensions/load/contributions.ts')
-const validate = await import('../../src/extensions/validate.ts')
+const manifestMod = await import('../../src/integrations/extensions/manifest.ts')
+const catalogueMod = await import('../../src/integrations/extensions/catalogue.ts')
+const contributions = await import('../../src/integrations/extensions/load/contributions.ts')
+const validate = await import('../../src/integrations/extensions/validate.ts')
 
 let failures = 0
-const contractHint = 'change the function this check exercises: manifest rules in src/extensions/manifest.ts (parseManifestValue, readManifest, resolveInsideRoot, contributionsHash), catalogue rules in src/extensions/catalogue.ts (parseCatalogueValue, readSourceRoot), report rules in src/extensions/validate.ts (validateExtensionFolder, validateSourceFolder, validatePath), resolution in src/extensions/load/contributions.ts (resolveContributions)'
+const contractHint = 'change the function this check exercises: manifest rules in src/integrations/extensions/manifest.ts (parseManifestValue, readManifest, resolveInsideRoot, contributionsHash), catalogue rules in src/integrations/extensions/catalogue.ts (parseCatalogueValue, readSourceRoot), report rules in src/integrations/extensions/validate.ts (validateExtensionFolder, validateSourceFolder, validatePath), resolution in src/integrations/extensions/load/contributions.ts (resolveContributions)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const said = [detail, contractHint].filter(Boolean).join(' | ')

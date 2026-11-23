@@ -3,16 +3,16 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-await import('../../src/Tool.js')
-const { pinnedCommandAnalysis, PARSE_ABORTED, parseForSecurity, ParsedCommand } = await import('../../src/utils/permissions/decision/commandAnalysis.js')
+await import('../../src/tools/kit/tool.js')
+const { pinnedCommandAnalysis, PARSE_ABORTED, parseForSecurity, ParsedCommand } = await import('../../src/permissions/rules/decision/commandAnalysis.js')
 const { parseCommandRaw } = pinnedCommandAnalysis
 const fixture = JSON.parse(readFileSync(join(import.meta.dir, 'parser-corpus-parity.json'), 'utf8')) as { entries: { command: string }[] }
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  const failureHint = 'to fix, change parseForSecurity or checkSemantics in src/utils/bash/ast.ts (parse checks), parseCommandRaw in src/utils/bash/parser.ts or ParsedCommand in src/utils/bash/ParsedCommand.ts (tree and span checks), or the ask and deny order in bashToolHasPermission in src/tools/BashTool/bashPermissions.ts (decision checks)'
+  const failureHint = 'to fix, change parseForSecurity or checkSemantics in src/platform/shell/bash/ast.ts (parse checks), parseCommandRaw in src/platform/shell/bash/parser.ts or ParsedCommand in src/platform/shell/bash/parsedCommand.ts (tree and span checks), or the ask and deny order in bashToolHasPermission in src/tools/shell/bashPermissions.ts (decision checks)'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail}; ` : ''}${failureHint}`}`)
 }
 let trees = 0
@@ -46,8 +46,8 @@ check('concurrent identical parses share the same detached tree', (await one) ==
 const unicode = await ParsedCommand.parse('echo é😀 | cat > résultat.txt')
 check('multibyte pipe spans slice on the measured string coordinates', JSON.stringify(unicode?.getPipeSegments()) === JSON.stringify(['echo é😀', 'cat > résultat.txt']), JSON.stringify(unicode?.getPipeSegments()))
 check('multibyte redirection removal preserves the preceding source', unicode?.withoutOutputRedirections() === 'echo é😀 | cat', unicode?.withoutOutputRedirections())
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 async function decision(command: string, allow: string[] = [], deny: string[] = [], ask: string[] = []) {
   return bashToolHasPermission({ command }, {
     ...getEmptyToolPermissionContext(), mode: 'default',

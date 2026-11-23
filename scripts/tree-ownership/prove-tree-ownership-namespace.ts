@@ -3,8 +3,8 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { flagEnv, flagPair, flagSpellings } from '../../src/substrate/flagRegistry.ts'
-import { projectLocalPath } from '../../src/utils/projectLocal/paths.js'
+import { flagEnv, flagPair, flagSpellings } from '../../src/platform/substrate/flagRegistry.ts'
+import { projectLocalPath } from '../../src/platform/project-local/paths.js'
 
 
 let failures = 0
@@ -26,16 +26,16 @@ section('(1) canonical-write (projectLocalPath)')
   try {
     const fresh = join(scratch, 'fresh')
     mkdirSync(fresh, { recursive: true })
-    check('fresh store resolves .mercury', projectLocalPath(fresh, 'party') === join(fresh, '.mercury', 'party'), 'projectLocalPath in src/utils/projectLocal/paths.ts must return <root>/.mercury/<name> for a fresh root')
-    check('resolving creates nothing', !existsSync(join(fresh, '.mercury')), 'projectLocalPath in src/utils/projectLocal/paths.ts must only compute the path, never create a directory')
+    check('fresh store resolves .mercury', projectLocalPath(fresh, 'party') === join(fresh, '.mercury', 'party'), 'projectLocalPath in src/platform/project-local/paths.ts must return <root>/.mercury/<name> for a fresh root')
+    check('resolving creates nothing', !existsSync(join(fresh, '.mercury')), 'projectLocalPath in src/platform/project-local/paths.ts must only compute the path, never create a directory')
     const compat = join(scratch, 'compat')
     mkdirSync(join(compat, '.claude', 'party'), { recursive: true })
-    check('an external .claude store is never a home: canonical returned', projectLocalPath(compat, 'party') === join(compat, '.mercury', 'party'), 'projectLocalPath in src/utils/projectLocal/paths.ts must ignore an existing .claude store and return the .mercury path')
-    check('…and nothing is copied out of it', !existsSync(join(compat, '.mercury', 'party')), 'projectLocalPath in src/utils/projectLocal/paths.ts must not copy or migrate a .claude store into .mercury')
+    check('an external .claude store is never a home: canonical returned', projectLocalPath(compat, 'party') === join(compat, '.mercury', 'party'), 'projectLocalPath in src/platform/project-local/paths.ts must ignore an existing .claude store and return the .mercury path')
+    check('…and nothing is copied out of it', !existsSync(join(compat, '.mercury', 'party')), 'projectLocalPath in src/platform/project-local/paths.ts must not copy or migrate a .claude store into .mercury')
     const both = join(scratch, 'both')
     mkdirSync(join(both, '.mercury', 'party'), { recursive: true })
     mkdirSync(join(both, '.claude', 'party'), { recursive: true })
-    check('canonical store answers when both exist', projectLocalPath(both, 'party') === join(both, '.mercury', 'party'), 'projectLocalPath in src/utils/projectLocal/paths.ts must answer with the .mercury store when both exist')
+    check('canonical store answers when both exist', projectLocalPath(both, 'party') === join(both, '.mercury', 'party'), 'projectLocalPath in src/platform/project-local/paths.ts must answer with the .mercury store when both exist')
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }

@@ -4,19 +4,19 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ProcessSweepObservation, ProcessSweepRecords, ProcessSweepTable } from '../../src/utils/processSweep.ts'
+import type { ProcessSweepObservation, ProcessSweepRecords, ProcessSweepTable } from '../../src/daemon/process-sweep/processSweep.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { composeProcessSweepFacts, classifyMercuryProcess, readProcessSweepCensus, processSweepCounts, PROCESS_SWEEP_WORDS, bundleArgOf, sameBundlePath, bundleDirOf } = await import('../../src/utils/processSweep.ts')
-const { readMercuryProcesses, ownBundlePath } = await import('../../src/daemon/processSweepRun.ts')
+const { composeProcessSweepFacts, classifyMercuryProcess, readProcessSweepCensus, processSweepCounts, PROCESS_SWEEP_WORDS, bundleArgOf, sameBundlePath, bundleDirOf } = await import('../../src/daemon/process-sweep/processSweep.ts')
+const { readMercuryProcesses, ownBundlePath } = await import('../../src/daemon/process-sweep/processSweepRun.ts')
 
 let checks = 0
 const check = (label: string, run: () => void | Promise<void>): Promise<void> => new Promise<void>(resolve => resolve(run())).then(() => {
   checks++
   console.log(`[PASS] ${label}`)
 }, (error: unknown) => {
-  console.log(`[FAIL] ${label} — change composeProcessSweepFacts or classifyMercuryProcess in src/utils/processSweep.ts, or readMercuryProcesses and ownBundlePath in src/daemon/processSweepRun.ts, so this reading holds`)
+  console.log(`[FAIL] ${label} — change composeProcessSweepFacts or classifyMercuryProcess in src/daemon/process-sweep/processSweep.ts, or readMercuryProcesses and ownBundlePath in src/daemon/process-sweep/processSweepRun.ts, so this reading holds`)
   throw error
 })
 

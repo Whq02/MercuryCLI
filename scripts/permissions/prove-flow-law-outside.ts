@@ -5,11 +5,11 @@ import { join, normalize, resolve } from 'node:path'
 import { ROADS, allowedByFlow, asksWith, check, finish, j, openKit, refusedWith, section, sentence } from './flowLawKit.ts'
 
 const kit = await openKit('flow-law-outside')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { getProjectTempDir, getScratchpadDir } = await import('../../src/utils/permissions/filesystem.ts')
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { getProjectTempDir, getScratchpadDir } = await import('../../src/permissions/rules/filesystem.ts')
+const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 
 const HOME = homedir()
 const ledger = join(getProjectTempDir(), String(getSessionId()), 'created-paths.txt')

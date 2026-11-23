@@ -5,9 +5,9 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'stateword-home-'))
 
-const { onSeatRow, onSeatSpawned } = await import('../../src/daemon/sessionSeat.ts')
-const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { onSeatRow, onSeatSpawned } = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { readSessionTail } = await import('../../src/engine/connector/seatProjections.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -35,7 +35,7 @@ updateConcourseWorkers(workers => {
 }, dir)
 const roster = { door: () => undefined, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
 
-const { compactionClearedRow, compactionRow } = await import('../../src/rows/project.ts')
+const { compactionClearedRow, compactionRow } = await import('../../src/engine/rows/project.ts')
 const scope = { session_id: sid, turn: 1 }
 const row = (o: Record<string, unknown>): Record<string, unknown> => ({ seq: 1, timestamp: 't', ...o })
 const foldRow = (fold: unknown): Record<string, unknown> => row(compactionRow(scope, fold as never))
@@ -44,8 +44,8 @@ const USAGE = { input_tokens: 1, cached_input_tokens: 0, cache_write_input_token
 const outcome = (): Record<string, unknown> => row({ type: 'outcome', session_id: sid, turn: 1, schema: 1, turn_id: 't-cw', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
 const tail = () => readSessionTail(sid, dir)
 const word = () => (tail() as { stateWord?: string } | null)?.stateWord
-const ROWS_AT = 'onSeatRow in src/daemon/sessionSeat/rows.ts (the compaction and outcome cases)'
-const STATUS_AT = 'withFoldStatus in src/services/compact/compact/status.ts'
+const ROWS_AT = 'onSeatRow in src/daemon/session-seat/rows.ts (the compaction and outcome cases)'
+const STATUS_AT = 'withFoldStatus in src/engine/compaction/fold/foldStatusAndRestore.ts'
 
 console.log('compact state word — the fold speaks its own word on the glass road')
 
@@ -66,7 +66,7 @@ check('the outcome row retires the word with the turn', word() === undefined, JS
 console.log('\nC4 a respawn clears it (a child dead mid-fold)')
 onSeatRow(SHORT, foldRow(null), roster as never, dir)
 onSeatSpawned(SHORT, roster as never, dir)
-check('the respawn retires the word', word() === undefined, JSON.stringify(tail()) + ' — change onSeatSpawned in src/daemon/sessionSeat/lifecycle.ts to clear seat.stateWord')
+check('the respawn retires the word', word() === undefined, JSON.stringify(tail()) + ' — change onSeatSpawned in src/daemon/session-seat/lifecycle.ts to clear seat.stateWord')
 
 console.log('\nC5 a mention-shaped line never sets it')
 onSeatRow(SHORT, row({ type: 'text', session_id: sid, turn: 1, message_id: 'msg_c5', block: 0, text: 'the row spelling is {"type":"compaction","state":"started"} verbatim' }), roster as never, dir)
@@ -75,8 +75,8 @@ onSeatRow(SHORT, outcome(), roster as never, dir)
 
 console.log('\nC6 the wiring — service stamp to glass word (structural)')
 {
-  const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
-  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const { LivePart } = await import('../../src/engine/connector/daemon/live.ts')
+  const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
   const fold = { runs: true }
   const lifted = new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => fold.runs, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {} } as never)
   lifted.recomputeLive()
@@ -89,12 +89,12 @@ console.log('\nC6 the wiring — service stamp to glass word (structural)')
   fold.runs = true
   lifted.recomputeLive()
   lifted.takeTail({ schema: 1, sessionId: 'proof', atMs: 2, text: null } as never)
-  check("the connector lifts the word into phase 'compacting'", before === 'thinking' && during === 'compacting' && ended === 'thinking' && lifted.live().phase === 'thinking', JSON.stringify({ before, during, ended, after: lifted.live().phase }) + ' — LivePart in src/services/engine-connector/daemon/live.ts (takeTail, recomputeLive) must show phase compacting only while the tail word is set and foldStillRuns() is true')
+  check("the connector lifts the word into phase 'compacting'", before === 'thinking' && during === 'compacting' && ended === 'thinking' && lifted.live().phase === 'thinking', JSON.stringify({ before, during, ended, after: lifted.live().phase }) + ' — LivePart in src/engine/connector/daemon/live.ts (takeTail, recomputeLive) must show phase compacting only while the tail word is set and foldStillRuns() is true')
 }
 
 console.log('\nC7 the status covers the WHOLE fold — the entries stamp first, the one finally stamps the exit')
 {
-  const { withFoldStatus } = await import('../../src/services/compact/compact.ts')
+  const { withFoldStatus } = await import('../../src/engine/compaction/foldConversation.ts')
   const compactingOf = (stamp: unknown): { stage?: unknown; exit?: unknown; trigger?: unknown } | null =>
     stamp !== null && typeof stamp === 'object' && 'compacting' in (stamp as object) ? ((stamp as { compacting: { stage?: unknown; exit?: unknown; trigger?: unknown } }).compacting ?? null) : null
   const stamps: unknown[] = []
@@ -107,7 +107,7 @@ console.log('\nC7 the status covers the WHOLE fold — the entries stamp first, 
   check("the stamp lands BEFORE the work runs (the session-memory wait and the prompt build sit inside it)", seenAtWork.length === 1 && compactingOf(seenAtWork[0])?.stage === null, STATUS_AT + ' must call setSDKStatus with a compacting record before it runs the work; saw ' + JSON.stringify(seenAtWork))
   check("the work's answer rides through", out === 'folded', STATUS_AT + ' must return the work function result unchanged; got ' + JSON.stringify(out))
   check('the one finally stamps the landed exit (one stamp in, one exit out)', stamps.length === 2 && compactingOf(stamps[1])?.exit === 'landed', STATUS_AT + ' must stamp exactly one landed exit after the work; stamps ' + JSON.stringify(stamps))
-  const { APIUserAbortError } = await import('../../src/utils/api/sdkErrors.ts')
+  const { APIUserAbortError } = await import('../../src/engine/request-parts/sdkErrors.ts')
   const thrown: unknown[] = []
   let caught: unknown = null
   try {
@@ -170,7 +170,7 @@ console.log('\nC8 the fold\'s record rides the word — the seat relays the stag
   check('the ended row clears both', word() === undefined && (tail() as { fold?: unknown } | null)?.fold === undefined, JSON.stringify(tail()) + ' — a cleared compaction row must clear the word and the record in ' + ROWS_AT)
   onSeatRow(SHORT, foldRow(record), roster as never, dir)
   onSeatSpawned(SHORT, roster as never, dir)
-  check('a respawn retires the record with the word', word() === undefined && (tail() as { fold?: unknown } | null)?.fold === undefined, JSON.stringify(tail()) + ' — onSeatSpawned in src/daemon/sessionSeat/lifecycle.ts must clear the record as well as the word')
+  check('a respawn retires the record with the word', word() === undefined && (tail() as { fold?: unknown } | null)?.fold === undefined, JSON.stringify(tail()) + ' — onSeatSpawned in src/daemon/session-seat/lifecycle.ts must clear the record as well as the word')
 }
 
 console.log("\nC8 the fold's end asks the runner for the session's facts, so the context fill the screen reads is the folded one")

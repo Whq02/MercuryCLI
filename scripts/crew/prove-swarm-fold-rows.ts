@@ -10,14 +10,14 @@ const scratch = mkdtempSync(join(home, 'fold-rows-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_TURN_RECEIPT = '1'
 
-const { composeTranscript } = await import('../../src/components/Messages.tsx')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.ts')
-const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
-const { foldedWorkOf } = await import('../../src/services/compact/compact.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
-const { open } = await import('../../src/services/crewBoard/store.ts')
+const { composeTranscript } = await import('../../src/screen/messages/Messages.tsx')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.ts')
+const { foldedWorkOf } = await import('../../src/engine/compaction/foldConversation.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+const reader = await import('../../src/sessions/transcripts/transcriptReader.ts')
+const { open } = await import('../../src/crew/board/store.ts')
 
 let checks = 0
 let failures = 0
@@ -50,7 +50,7 @@ const screen = (rows: Row[], mode: 'prompt' | 'transcript'): string[] =>
 const workOf = (boundary: Row): Work => boundary.compactMetadata!.work as Work
 const fold = (boundary: Row, rows: Row[], keptRows: Row[], summaryUuid: string): Work => { boundary.compactMetadata!.work = foldedWorkOf(rows as never, keptRows as never, summaryUuid as never); return workOf(boundary) }
 
-section('a wave on the screen: lifecycle rows and posts across two turns, the second turn kept by the fold', "the screen rows come from composeTranscript in src/components/messagesList/transcript.ts and the fold's carried work from foldedWorkOf in src/services/compact/compact/result.ts; change whichever paints or carries the rows this check names")
+section('a wave on the screen: lifecycle rows and posts across two turns, the second turn kept by the fold', "the screen rows come from composeTranscript in src/screen/messages-list/transcript.ts and the fold's carried work from foldedWorkOf in src/engine/compaction/fold/foldResult.ts; change whichever paints or carries the rows this check names")
 const launched = chat('launched', 'main', 'Swarm launched', { lifecycle: { kind: 'launched' } })
 const p1 = prompt('p1', 'launch the crew')
 const joined = chat('joined', 'goal-106', 'joined · team fold-106', { lifecycle: { kind: 'joined' }, team: 'fold-106', turnId: p1.uuid })
@@ -85,7 +85,7 @@ for (const mode of ['prompt', 'transcript'] as const) {
   check('an automatic fold (its summary transcript-only) paints no folded row either, in the transcript view that shows the summary', !painted.some(name => folded.includes(name)) && j(painted.filter(name => ['p2', 'mid', 'a2', 'later'].includes(name))) === j(['p2', 'mid', 'a2', 'later']), j(painted))
 }
 
-section('a boundary in the old shape: a transcript written before this fix carries work.idle and receipt board rows', "the screen rows come from composeTranscript in src/components/messagesList/transcript.ts and the fold's carried work from foldedWorkOf in src/services/compact/compact/result.ts; change whichever paints or carries the rows this check names; an old-shape boundary must paint no row it carries")
+section('a boundary in the old shape: a transcript written before this fix carries work.idle and receipt board rows', "the screen rows come from composeTranscript in src/screen/messages-list/transcript.ts and the fold's carried work from foldedWorkOf in src/engine/compaction/fold/foldResult.ts; change whichever paints or carries the rows this check names; an old-shape boundary must paint no row it carries")
 {
   const old = boundaryOf('B-old')
   const oldSummary = liveSummary('S-old')
@@ -103,7 +103,7 @@ section('a boundary in the old shape: a transcript written before this fix carri
   }
 }
 
-section('a second fold carries nothing from the first', "the screen rows come from composeTranscript in src/components/messagesList/transcript.ts and the fold's carried work from foldedWorkOf in src/services/compact/compact/result.ts; change whichever paints or carries the rows this check names")
+section('a second fold carries nothing from the first', "the screen rows come from composeTranscript in src/screen/messages-list/transcript.ts and the fold's carried work from foldedWorkOf in src/engine/compaction/fold/foldResult.ts; change whichever paints or carries the rows this check names")
 {
   const p3 = prompt('p3', 'and the next step')
   const a3 = reply('a3', 'Done.')
@@ -119,7 +119,7 @@ section('a second fold carries nothing from the first', "the screen rows come fr
   check('a second fold of an old-shape transcript paints none of the rows the first fold had carried', j(screen([oldShape, secondSummary, p3, a3], 'transcript')) === j(['B2-old', 'S2', 'p3', 'a3']), j(screen([oldShape, secondSummary, p3, a3], 'transcript')))
 }
 
-section('a cold resume reads the folded transcript from disk and paints the same rows', "the cold read is readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts and the painting is composeTranscript in src/components/messagesList/transcript.ts; change the one whose output this check names")
+section('a cold resume reads the folded transcript from disk and paints the same rows', "the cold read is readTranscriptChainSince in src/sessions/transcripts/transcriptReader.ts and the painting is composeTranscript in src/screen/messages-list/transcript.ts; change the one whose output this check names")
 {
   const path = join(scratch, `${randomUUID()}.jsonl`)
   let parent: string | null = null
@@ -137,7 +137,7 @@ section('a cold resume reads the folded transcript from disk and paints the same
   }
 }
 
-section('the model side is unchanged: after a fold the boundary carries the waits line and a new post, never a presented post', "change boundary in src/services/crewBoard/store/reading.ts (the packet the model reads) or presented in src/services/crewBoard/store.ts")
+section('the model side is unchanged: after a fold the boundary carries the waits line and a new post, never a presented post', "change boundary in src/crew/board/store/reading.ts (the packet the model reads) or presented in src/crew/board/store.ts")
 {
   let clock = 0
   const board = open(join(scratch, 'board.sqlite'), 'fold-rows', () => (clock += 1000))

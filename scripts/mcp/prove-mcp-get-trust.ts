@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/cli/handlers/mcp.tsx src/services/mcp/config.ts src/utils/config/trust.ts
+// gate-watch: src/commands/verbs/mcp.tsx src/integrations/mcp/serverConfigs.ts src/platform/config/trust.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawnSync } from 'node:child_process'
@@ -84,12 +84,12 @@ try {
     const untrusted = project('untrusted')
     const got = mcp(home([]), untrusted.dir, 'get', 'adder')
     console.log(`  rc=${got.rc} · ${JSON.stringify(got.out.trim().split('\n').slice(0, 3))}`)
-    check('exit 0', got.rc === 0, `${got.rc} — the mcp get handler in src/cli/handlers/mcp.tsx must exit 0 for an untrusted project server; output: ${got.out.slice(0, 300)}`)
-    check('the singular sentence names the server and the remedy', got.out.includes(SENTENCE), `${got.out.slice(0, 400)} — mcp get in src/cli/handlers/mcp.tsx must print the untrusted-folder sentence built in src/services/mcp/config.ts (line starting mcp: this folder is not trusted)`)
-    check('no Status line — the server was not probed', !got.out.includes('Status:'), `${got.out.slice(0, 400)} — mcp get in src/cli/handlers/mcp.tsx must return before probing a project server from an untrusted folder`)
-    check('the server command never ran (sentinel absent)', !existsSync(untrusted.sentinel), 'mcp get in src/cli/handlers/mcp.tsx must not spawn a project-scope server while the folder is untrusted')
+    check('exit 0', got.rc === 0, `${got.rc} — the mcp get handler in src/commands/verbs/mcp.tsx must exit 0 for an untrusted project server; output: ${got.out.slice(0, 300)}`)
+    check('the singular sentence names the server and the remedy', got.out.includes(SENTENCE), `${got.out.slice(0, 400)} — mcp get in src/commands/verbs/mcp.tsx must print the untrusted-folder sentence built in src/integrations/mcp/serverConfigs.ts (line starting mcp: this folder is not trusted)`)
+    check('no Status line — the server was not probed', !got.out.includes('Status:'), `${got.out.slice(0, 400)} — mcp get in src/commands/verbs/mcp.tsx must return before probing a project server from an untrusted folder`)
+    check('the server command never ran (sentinel absent)', !existsSync(untrusted.sentinel), 'mcp get in src/commands/verbs/mcp.tsx must not spawn a project-scope server while the folder is untrusted')
     const listed = mcp(home([]), untrusted.dir, 'list')
-    check('mcp list in the same folder says the counted reason and starts nothing either', listed.out.includes('its 1 project MCP server was not loaded') && !existsSync(untrusted.sentinel), `${listed.out.slice(0, 400)} — mcp list in src/cli/handlers/mcp.tsx must print the counted untrusted-folder sentence from src/services/mcp/config.ts and start nothing`)
+    check('mcp list in the same folder says the counted reason and starts nothing either', listed.out.includes('its 1 project MCP server was not loaded') && !existsSync(untrusted.sentinel), `${listed.out.slice(0, 400)} — mcp list in src/commands/verbs/mcp.tsx must print the counted untrusted-folder sentence from src/integrations/mcp/serverConfigs.ts and start nothing`)
   }
 
   console.log('\n§2 the same folder, trusted and the server approved: `mcp get adder` probes it and prints Status')
@@ -98,11 +98,11 @@ try {
     writeFileSync(join(trusted.dir, '.mercury', 'settings.local.json'), JSON.stringify({ kit: { projectOn: ['adder'] } }))
     const got = mcp(home([trusted.dir]), trusted.dir, 'get', 'adder')
     console.log(`  rc=${got.rc} · ${JSON.stringify(got.out.trim().split('\n').slice(0, 4))}`)
-    check('exit 0', got.rc === 0, `${got.rc} — mcp get in src/cli/handlers/mcp.tsx must exit 0 for a trusted, approved project server; output: ${got.out.slice(0, 300)}`)
-    check('Status is printed', /^\s+Status: /m.test(got.out), `${got.out.slice(0, 400)} — mcp get in src/cli/handlers/mcp.tsx must probe an approved server in a trusted folder and print a Status line`)
-    check('Scope reads project', got.out.includes('Scope: project'), `${got.out.slice(0, 400)} — mcp get in src/cli/handlers/mcp.tsx must print Scope: project for a server from .mercury/mcp.json`)
-    check('no trust sentence', !got.out.includes('this folder is not trusted'), `${got.out.slice(0, 400)} — the trust check (src/utils/config/trust.ts, used by src/services/mcp/config.ts) must read this folder as trusted when its project entry has hasTrustDialogAccepted`)
-    check('the probe started the server (sentinel present — the sentinel is live)', existsSync(trusted.sentinel), 'mcp get in src/cli/handlers/mcp.tsx must spawn the approved server (kit.projectOn in .mercury/settings.local.json) when probing')
+    check('exit 0', got.rc === 0, `${got.rc} — mcp get in src/commands/verbs/mcp.tsx must exit 0 for a trusted, approved project server; output: ${got.out.slice(0, 300)}`)
+    check('Status is printed', /^\s+Status: /m.test(got.out), `${got.out.slice(0, 400)} — mcp get in src/commands/verbs/mcp.tsx must probe an approved server in a trusted folder and print a Status line`)
+    check('Scope reads project', got.out.includes('Scope: project'), `${got.out.slice(0, 400)} — mcp get in src/commands/verbs/mcp.tsx must print Scope: project for a server from .mercury/mcp.json`)
+    check('no trust sentence', !got.out.includes('this folder is not trusted'), `${got.out.slice(0, 400)} — the trust check (src/platform/config/trust.ts, used by src/integrations/mcp/serverConfigs.ts) must read this folder as trusted when its project entry has hasTrustDialogAccepted`)
+    check('the probe started the server (sentinel present — the sentinel is live)', existsSync(trusted.sentinel), 'mcp get in src/commands/verbs/mcp.tsx must spawn the approved server (kit.projectOn in .mercury/settings.local.json) when probing')
   }
 
   console.log('\n§3 a user-scope server in an untrusted folder is unchanged')
@@ -110,9 +110,9 @@ try {
     const untrusted = project('untrusted-user')
     const got = mcp(home([]), untrusted.dir, 'get', 'userly')
     console.log(`  rc=${got.rc} · ${JSON.stringify(got.out.trim().split('\n').slice(0, 3))}`)
-    check('exit 0', got.rc === 0, `${got.rc} — mcp get in src/cli/handlers/mcp.tsx must exit 0 for a user-scope server; output: ${got.out.slice(0, 300)}`)
-    check('Status is printed for the user-scope server', /^\s+Status: /m.test(got.out) && got.out.includes('Scope: user'), `${got.out.slice(0, 400)} — workspace trust in src/services/mcp/config.ts must gate only project-scope servers, not user-scope ones`)
-    check('no trust sentence for a server outside the checkout', !got.out.includes('this folder is not trusted'), `${got.out.slice(0, 400)} — mcp get in src/cli/handlers/mcp.tsx must print the trust sentence only for a project-scope server`)
+    check('exit 0', got.rc === 0, `${got.rc} — mcp get in src/commands/verbs/mcp.tsx must exit 0 for a user-scope server; output: ${got.out.slice(0, 300)}`)
+    check('Status is printed for the user-scope server', /^\s+Status: /m.test(got.out) && got.out.includes('Scope: user'), `${got.out.slice(0, 400)} — workspace trust in src/integrations/mcp/serverConfigs.ts must gate only project-scope servers, not user-scope ones`)
+    check('no trust sentence for a server outside the checkout', !got.out.includes('this folder is not trusted'), `${got.out.slice(0, 400)} — mcp get in src/commands/verbs/mcp.tsx must print the trust sentence only for a project-scope server`)
     check('the project server still never ran', !existsSync(untrusted.sentinel), 'a user-scope mcp get must not start the untrusted folder project server')
   }
 } finally {

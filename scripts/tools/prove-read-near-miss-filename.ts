@@ -10,16 +10,16 @@ process.env.MERCURY_BARE = '1'
 delete process.env.NODE_ENV
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { FileReadTool } = await import(`${SRC}/tools/FileReadTool/FileReadTool.ts`)
-const { summarizeToolResult } = await import(`${SRC}/tools/toolResultSummary.ts`)
-const { getEmptyToolPermissionContext } = await import(`${SRC}/Tool.ts`)
-const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/utils/fileStateCache.ts`)
+const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { summarizeToolResult } = await import(`${SRC}/tools/kit/toolResultSummary.ts`)
+const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
+const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/platform/files/fileStateCache.ts`)
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    where to look: src/tools/FileReadTool/read/target.ts, resolveCanonicalNearMissPath (which sibling name a request resolves to, and the refusal when two match) and the not-found message with Did you mean; the card text for 1d and 2d comes from summarizeToolResult in src/tools/toolResultSummary.ts')
+  if (!cond) console.log('    where to look: src/tools/read/call/target.ts, resolveCanonicalNearMissPath (which sibling name a request resolves to, and the refusal when two match) and the not-found message with Did you mean; the card text for 1d and 2d comes from summarizeToolResult in src/tools/kit/toolResultSummary.ts')
 }
 
 function makeContext() {

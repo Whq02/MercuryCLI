@@ -17,14 +17,14 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
-const scopeHint = ' | fix runPostCompactCleanup in src/services/compact/postCompactCleanup.ts (only a main-thread fold with no agentId may clear the memos and section cache)'
+const scopeHint = ' | fix runPostCompactCleanup in src/engine/compaction/postFoldCleanup.ts (only a main-thread fold with no agentId may clear the memos and section cache)'
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { getGitStatus, getSystemContext, getUserContext } = await import('../../src/context.ts')
-const { getSystemPromptSectionCache, setSystemPromptSectionCacheEntry } = await import('../../src/bootstrap/state.ts')
-const { runPostCompactCleanup } = await import('../../src/services/compact/postCompactCleanup.ts')
+const { getGitStatus, getSystemContext, getUserContext } = await import('../../src/engine/requestContext.ts')
+const { getSystemPromptSectionCache, setSystemPromptSectionCacheEntry } = await import('../../src/boot/process-state/processState.ts')
+const { runPostCompactCleanup } = await import('../../src/engine/compaction/postFoldCleanup.ts')
 
 const held = (): string =>
   [getGitStatus.cache.has(undefined) ? 'git' : '', getSystemContext.cache.has(undefined) ? 'system' : '', getUserContext.cache.has(undefined) ? 'user' : ''].filter(Boolean).join('+') || 'none'
@@ -40,7 +40,7 @@ const prime = async (): Promise<void> => {
 section("§1 a crewmate's fold tagged with its parent's query source touches only the crewmate's state")
 {
   await prime()
-  check('the main conversation memoises the git status, the system context, the user context and a prompt section', held() === 'git+system+user' && sectionHeld(), `${held()} · section ${sectionHeld()}` + ' | the priming helpers prime() in this file or the memo caches in src/context.ts did not hold')
+  check('the main conversation memoises the git status, the system context, the user context and a prompt section', held() === 'git+system+user' && sectionHeld(), `${held()} · section ${sectionHeld()}` + ' | the priming helpers prime() in this file or the memo caches in src/engine/requestContext.ts did not hold')
   runPostCompactCleanup({ querySource: 'main_thread', agentId: 'aprobe01' })
   check("a crewmate launched by the main thread (its query source is main_thread) folds without clearing the main conversation's memos", held() === 'git+system+user', held() + scopeHint)
   check("…and without clearing the main conversation's system-prompt section cache", sectionHeld(), 'section cache was cleared' + scopeHint)
@@ -53,21 +53,21 @@ section("§1 a crewmate's fold tagged with its parent's query source touches onl
 section('§2 the main conversation\'s own fold still clears what a fold invalidates')
 {
   runPostCompactCleanup({ querySource: 'main_thread' })
-  check('the main fold (no agent id) clears the three memos', held() === 'none', held() + ' | fix runPostCompactCleanup in src/services/compact/postCompactCleanup.ts (a main-thread fold must clear getGitStatus, getSystemContext and getUserContext)')
-  check('…and the section cache', !sectionHeld(), 'section cache still held | fix runPostCompactCleanup in src/services/compact/postCompactCleanup.ts (clearSystemPromptSections on a main-thread fold)')
+  check('the main fold (no agent id) clears the three memos', held() === 'none', held() + ' | fix runPostCompactCleanup in src/engine/compaction/postFoldCleanup.ts (a main-thread fold must clear getGitStatus, getSystemContext and getUserContext)')
+  check('…and the section cache', !sectionHeld(), 'section cache still held | fix runPostCompactCleanup in src/engine/compaction/postFoldCleanup.ts (clearSystemPromptSections on a main-thread fold)')
   await prime()
   runPostCompactCleanup()
-  check('/compact and /clear (no scope at all) clear them the same way', held() === 'none' && !sectionHeld(), `${held()} · section ${sectionHeld()}` + ' | fix runPostCompactCleanup in src/services/compact/postCompactCleanup.ts (a call with no scope is a main-thread fold)')
+  check('/compact and /clear (no scope at all) clear them the same way', held() === 'none' && !sectionHeld(), `${held()} · section ${sectionHeld()}` + ' | fix runPostCompactCleanup in src/engine/compaction/postFoldCleanup.ts (a call with no scope is a main-thread fold)')
   await prime()
   runPostCompactCleanup('sdk')
-  check('the headless main fold (a bare sdk source) clears them too', held() === 'none' && !sectionHeld(), `${held()} · section ${sectionHeld()}` + ' | fix isMainThreadCompaction in src/services/compact/postCompactCleanup.ts (a bare sdk source is a main-thread fold)')
+  check('the headless main fold (a bare sdk source) clears them too', held() === 'none' && !sectionHeld(), `${held()} · section ${sectionHeld()}` + ' | fix isMainThreadCompaction in src/engine/compaction/postFoldCleanup.ts (a bare sdk source is a main-thread fold)')
 }
 
 section('§3 a launched crewmate carries its own query source and never restamps the session metadata')
 {
-  const { getQuerySourceForAgent } = await import('../../src/utils/promptCategory.ts')
-  check('a built-in crewmate is an agent source', getQuerySourceForAgent('mercury-crew', true).startsWith('agent:'), getQuerySourceForAgent('mercury-crew', true) + ' | fix getQuerySourceForAgent in src/utils/promptCategory.ts')
-  check('a custom crewmate is an agent source', getQuerySourceForAgent('reviewer', false).startsWith('agent:'), getQuerySourceForAgent('reviewer', false) + ' | fix getQuerySourceForAgent in src/utils/promptCategory.ts')
+  const { getQuerySourceForAgent } = await import('../../src/tools/crewmate/promptCategory.ts')
+  check('a built-in crewmate is an agent source', getQuerySourceForAgent('mercury-crew', true).startsWith('agent:'), getQuerySourceForAgent('mercury-crew', true) + ' | fix getQuerySourceForAgent in src/tools/crewmate/promptCategory.ts')
+  check('a custom crewmate is an agent source', getQuerySourceForAgent('reviewer', false).startsWith('agent:'), getQuerySourceForAgent('reviewer', false) + ' | fix getQuerySourceForAgent in src/tools/crewmate/promptCategory.ts')
 }
 
 rmSync(HOME, { recursive: true, force: true })

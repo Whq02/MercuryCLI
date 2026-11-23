@@ -13,7 +13,7 @@ async function capPolicyThatThrowsRefuses(): Promise<void> {
   const before = process.env.MERCURY_AGENT_CAP
   process.env.MERCURY_AGENT_CAP = '*:max-risk=low'
   try {
-    const m = await import(join(SRC, 'utils/permissions/capabilityGate.ts'))
+    const m = await import(join(SRC, 'permissions/rules/capabilityGate.ts'))
     const tool = new Proxy({ name: 'FixtureTool', aliases: [] } as Record<string, unknown>, {
       get(target, key) {
         if (key === 'name' || key === 'aliases') return target[key as string]
@@ -29,11 +29,11 @@ async function capPolicyThatThrowsRefuses(): Promise<void> {
     }
     const unread = judged(tool)
     const evaluated = judged({ name: 'FixtureTool', aliases: [] })
-    check('cap-policy-throw-refuses: with a cap set, a check of it that throws refuses the tool', unread === true, `got ${String(unread)} — isToolKilled in src/utils/permissions/capabilityGate.ts must return true (refuse) when evaluating the cap throws and MERCURY_AGENT_CAP is set`)
-    check('cap-policy-throw-refuses: a cap that was evaluated and says no still refuses', evaluated === true, `got ${String(evaluated)} — isToolKilled in src/utils/permissions/capabilityGate.ts must return true for a tool the cap '*:max-risk=low' evaluates as refused`)
+    check('cap-policy-throw-refuses: with a cap set, a check of it that throws refuses the tool', unread === true, `got ${String(unread)} — isToolKilled in src/permissions/rules/capabilityGate.ts must return true (refuse) when evaluating the cap throws and MERCURY_AGENT_CAP is set`)
+    check('cap-policy-throw-refuses: a cap that was evaluated and says no still refuses', evaluated === true, `got ${String(evaluated)} — isToolKilled in src/permissions/rules/capabilityGate.ts must return true for a tool the cap '*:max-risk=low' evaluates as refused`)
     delete process.env.MERCURY_AGENT_CAP
     const uncapped = judged(tool)
-    check('cap-policy-throw-refuses: with no cap set the same tool is not refused', uncapped === false, `got ${String(uncapped)} — isToolKilled in src/utils/permissions/capabilityGate.ts must return false when MERCURY_AGENT_CAP is unset`)
+    check('cap-policy-throw-refuses: with no cap set the same tool is not refused', uncapped === false, `got ${String(uncapped)} — isToolKilled in src/permissions/rules/capabilityGate.ts must return false when MERCURY_AGENT_CAP is unset`)
   } finally {
     if (before === undefined) delete process.env.MERCURY_AGENT_CAP
     else process.env.MERCURY_AGENT_CAP = before
@@ -41,7 +41,7 @@ async function capPolicyThatThrowsRefuses(): Promise<void> {
 }
 
 async function flowCheckThatThrowsGoesOn(): Promise<void> {
-  const m = await import(join(SRC, 'utils/permissions/flowPolicy.ts'))
+  const m = await import(join(SRC, 'permissions/rules/flowPolicy.ts'))
   const tool = {
     name: 'FixtureWrite',
     isReadOnly: () => false,
@@ -51,11 +51,11 @@ async function flowCheckThatThrowsGoesOn(): Promise<void> {
   }
   const engineDecision = { behavior: 'ask', message: 'fixture engine ask' }
   const verdict = await m.decideUnderFlow(tool, { file_path: '/elsewhere/x' }, engineDecision, { mode: 'flow' })
-  check('flow-throw-goes-on: a flow check that throws lets the call go on unasked', verdict.stage === 'flowAllow' && verdict.decision.behavior === 'allow', `got ${verdict.stage}/${verdict.decision.behavior} — decideUnderFlow in src/utils/permissions/flowPolicy.ts must catch a throwing flow check and return stage flowAllow with an allow decision`)
+  check('flow-throw-goes-on: a flow check that throws lets the call go on unasked', verdict.stage === 'flowAllow' && verdict.decision.behavior === 'allow', `got ${verdict.stage}/${verdict.decision.behavior} — decideUnderFlow in src/permissions/rules/flowPolicy.ts must catch a throwing flow check and return stage flowAllow with an allow decision`)
 }
 
 async function wardPatternThatFailsIsSkipped(): Promise<void> {
-  const m = await import(join(SRC, 'utils/wards/wards.ts'))
+  const m = await import(join(SRC, 'permissions/wards/wards.ts'))
   const rule = { name: 'fixture-ward', scope: 'bash', teach: 'fixture', patterns: ['rm -rf (', 'fixture-danger'] }
   const judged = (command: string): unknown => {
     try {
@@ -66,8 +66,8 @@ async function wardPatternThatFailsIsSkipped(): Promise<void> {
   }
   const skipped = judged('rm -rf (')
   const other = judged('fixture-danger now')
-  check('ward-pattern-skipped: a ward pattern that does not compile is skipped and the call goes on', (skipped as { allow?: unknown })?.allow === true, `${JSON.stringify(skipped)} — evaluateWards in src/utils/wards/wards.ts must skip a ward pattern that does not compile and return allow: true`)
-  check('ward-pattern-skipped: the other pattern of the same ward still judges', (other as { allow?: unknown })?.allow === false, `${JSON.stringify(other)} — evaluateWards in src/utils/wards/wards.ts must still judge the ward's other patterns after skipping one that fails to compile`)
+  check('ward-pattern-skipped: a ward pattern that does not compile is skipped and the call goes on', (skipped as { allow?: unknown })?.allow === true, `${JSON.stringify(skipped)} — evaluateWards in src/permissions/wards/wards.ts must skip a ward pattern that does not compile and return allow: true`)
+  check('ward-pattern-skipped: the other pattern of the same ward still judges', (other as { allow?: unknown })?.allow === false, `${JSON.stringify(other)} — evaluateWards in src/permissions/wards/wards.ts must still judge the ward's other patterns after skipping one that fails to compile`)
 }
 
 const rows: Array<() => Promise<void>> = [capPolicyThatThrowsRefuses, flowCheckThatThrowsGoesOn, wardPatternThatFailsIsSkipped]

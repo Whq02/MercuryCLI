@@ -4,13 +4,13 @@ import { ownerOnlyFile } from '../lib/ownerOnly.ts'
 import { createHash } from 'node:crypto'
 import { join, resolve } from 'node:path'
 import { homedir } from 'node:os'
-import { VastClient, VAST_KEY_NOTICE, VAST_STORAGE_NOTICE, VAST_GPU_NAMES } from '../../src/services/host/vendors/vast.ts'
-import { LambdaClient, LAMBDA_KEY_NOTICE, LAMBDA_STORAGE_NOTICE, LAMBDA_USER_DATA, lambdaGpu } from '../../src/services/host/vendors/lambda.ts'
-import { HostCreateError, HostVendorHttpError, VendorApi, keyMaterial } from '../../src/services/host/vendors/http.ts'
+import { VastClient, VAST_KEY_NOTICE, VAST_STORAGE_NOTICE, VAST_GPU_NAMES } from '../../src/models/hosting/vendors/vast.ts'
+import { LambdaClient, LAMBDA_KEY_NOTICE, LAMBDA_STORAGE_NOTICE, LAMBDA_USER_DATA, lambdaGpu } from '../../src/models/hosting/vendors/lambda.ts'
+import { HostCreateError, HostVendorHttpError, VendorApi, keyMaterial } from '../../src/models/hosting/vendors/http.ts'
 import { z } from 'zod/v4'
-import { runpodVendor, type HostVendor } from '../../src/services/host/vendors/vendor.ts'
-import { RunpodClient } from '../../src/services/host/runpod.ts'
-import { HOST_RECIPES, recipeFits } from '../../src/services/host/recipes.ts'
+import { runpodVendor, type HostVendor } from '../../src/models/hosting/vendors/vendor.ts'
+import { RunpodClient } from '../../src/models/hosting/runpod.ts'
+import { HOST_RECIPES, recipeFits } from '../../src/models/hosting/recipes.ts'
 import { vastFixture } from './vastFixture.mjs'
 import { lambdaFixture } from './lambdaFixture.mjs'
 import { runpodFixture } from './runpodFixture.mjs'
@@ -44,11 +44,11 @@ const expectFailure = async (work: () => Promise<unknown>, pattern: RegExp): Pro
   throw new Error('Expected failure: ' + pattern)
 }
 try {
-  const { HOST_VENDORS, vendorKey } = await import('../../src/services/host/vendors/client.ts')
+  const { HOST_VENDORS, vendorKey } = await import('../../src/models/hosting/vendors/client.ts')
   check('the rental registry includes all seven adapters', HOST_VENDORS.join(',') === 'runpod,vast,lambda,huggingface,hyperstack,verda,digitalocean')
-  const secrets = await import('../../src/utils/accounts/providerSecrets.ts')
+  const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
   const { hfEndpointsFixture } = await import('./hfEndpointsFixture.mjs')
-  const { HuggingfaceClient } = await import('../../src/services/host/vendors/huggingface.ts')
+  const { HuggingfaceClient } = await import('../../src/models/hosting/vendors/huggingface.ts')
   const hf = await hfEndpointsFixture()
   try {
     const managed: HostVendor = new HuggingfaceClient(hf.key, hf.baseUrl)
@@ -313,7 +313,7 @@ try {
   globalThis.fetch = originalFetch
   resetRecipes()
   rmSync(recipeFile, { force: true })
-  const stored = await import('../../src/utils/accounts/providerSecrets.ts')
+  const stored = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
   stored.writeStoredVastApiKey(null)
   stored.writeStoredLambdaApiKey(null)
   stored.writeStoredHuggingfaceApiKey(null)

@@ -23,16 +23,16 @@ process.argv.push(`--log-file=${DEBUG_FILE}`)
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${!cond ? ' | to fix: sections A-D read streamOllamaChat in src/services/providers/local/ollamaChatTransport.ts (thinking rows are reasoning deltas, content rows are text deltas, reasoningOnly on the finish event, the debug dump line); section E reads compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts with localLaneProfileFor in src/services/providers/local/localCallModel.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${!cond ? ' | to fix: sections A-D read streamOllamaChat in src/models/roads/local/ollamaChatTransport.ts (thinking rows are reasoning deltas, content rows are text deltas, reasoningOnly on the finish event, the debug dump line); section E reads compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts with localLaneProfileFor in src/models/roads/local/localCallModel.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const transport = (await import('../../src/services/providers/local/ollamaChatTransport.js')) as Record<string, unknown> & typeof import('../../src/services/providers/local/ollamaChatTransport.js')
+const transport = (await import('../../src/models/roads/local/ollamaChatTransport.js')) as Record<string, unknown> & typeof import('../../src/models/roads/local/ollamaChatTransport.js')
 const { streamOllamaChat } = transport
-const { flushDebugLogs } = await import('../../src/utils/debug.js')
+const { flushDebugLogs } = await import('../../src/platform/logs/debugLog.js')
 
 type Fault = { kind: string; code: string; message: string; retryable: boolean }
 type Event = { type: string; text?: string; reason?: string; rawReason?: string; toolCalls?: Array<{ name: string; arguments?: unknown }>; reasoningOnly?: boolean; fault?: Fault; usage?: Record<string, unknown> }
@@ -183,14 +183,14 @@ section('E · the runtime road: the real Ollama profile over a fixture server �
   await new Promise<void>(resolvePort => server.listen(0, '127.0.0.1', () => resolvePort()))
   const port = (server.address() as { port: number }).port
   const root = `http://127.0.0.1:${port}`
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const discovery = await import('../../src/services/providers/local/localDiscovery.js')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
-  const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.js')
-  const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.js')
-  const windows = await import('../../src/services/providers/local/localWindow.js')
+  const discovery = await import('../../src/models/roads/local/localDiscovery.js')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+  const { localLaneProfileFor } = await import('../../src/models/roads/local/localCallModel.js')
+  const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.js')
+  const windows = await import('../../src/models/roads/local/localWindow.js')
   discovery.__resetLocalDiscoveryForTest()
   await discovery.refreshLocalDiscovery({ force: true, env: { MERCURY_LOCAL_PROBE_TARGETS: `ollama=${root}` } as NodeJS.ProcessEnv, timeoutMs: 2_000 })
   const record = discovery.localModelRecord(MODEL)

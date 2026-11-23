@@ -20,16 +20,16 @@ Object.assign(process.env, {
   FORCE_COLOR: '3',
 })
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { Box, Text, MotionParkContext, measureElement } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { anyModalOverlayActive } = await import('../../src/context/overlayStack.ts')
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { Box, Text, MotionParkContext, measureElement } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { anyModalOverlayActive } = await import('../../src/screen/overlays/overlayStack.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const h = React.createElement
 const frameArg = process.argv.indexOf('--frames')
@@ -72,7 +72,7 @@ for (const [columns, rows] of [[178, 51], [80, 21]] as const) {
     let mounts = 0
     let unmounts = 0
     let backgroundParked = false
-    const ref = React.createRef<import('../../src/ink.ts').DOMElement>()
+    const ref = React.createRef<import('../../src/screen/themedRenderer.ts').DOMElement>()
     function Command({ paints }: { paints: boolean }): React.ReactNode {
       React.useEffect(() => { mounts++; return () => { unmounts++ } }, [])
       return paints ? h(Text, null, 'visible command surface') : null
@@ -98,15 +98,15 @@ for (const [columns, rows] of [[178, 51], [80, 21]] as const) {
     try {
       const silent = await render(false)
       console.log(`${tag}: silent element measured ${ref.current ? measureElement(ref.current).height : 'absent'} rows`)
-      check(`${tag}: a silent command draws no modal separator`, !silent.includes('▔'), `the modal separator must paint only while modalActive is true: see modalUp in src/components/FullscreenLayout.tsx; frame: ${silent}`)
-      check(`${tag}: a silent command leaves the composer live and the transcript visible`, silent.includes('composer live') && silent.includes('transcript stays mounted'), `a modal element with modalActive false must leave the bottom and scrollable panes alone: see modalUp and the park context in src/components/FullscreenLayout.tsx; frame: ${silent}`)
-      check(`${tag}: a silent command registers no modal keyboard claim`, !anyModalOverlayActive(), 'a silent modal must not register a claim: see the useClaim calls in src/components/FullscreenLayout.tsx and anyModalOverlayActive in src/context/overlayStack.ts')
+      check(`${tag}: a silent command draws no modal separator`, !silent.includes('▔'), `the modal separator must paint only while modalActive is true: see modalUp in src/screen/fullscreen-layout/FullscreenLayout.tsx; frame: ${silent}`)
+      check(`${tag}: a silent command leaves the composer live and the transcript visible`, silent.includes('composer live') && silent.includes('transcript stays mounted'), `a modal element with modalActive false must leave the bottom and scrollable panes alone: see modalUp and the park context in src/screen/fullscreen-layout/FullscreenLayout.tsx; frame: ${silent}`)
+      check(`${tag}: a silent command registers no modal keyboard claim`, !anyModalOverlayActive(), 'a silent modal must not register a claim: see the useClaim calls in src/screen/fullscreen-layout/FullscreenLayout.tsx and anyModalOverlayActive in src/screen/overlays/overlayStack.ts')
       const visible = await render(true)
-      check(`${tag}: a painted command claims the pane and parks the background`, visible.includes('visible command surface') && visible.includes('▔') && backgroundParked, `a modalActive modal must paint the separator and park the bottom pane through MotionParkContext (src/components/FullscreenLayout.tsx); parked=${backgroundParked}; frame: ${visible}`)
-      check(`${tag}: a layered surface registers its modal keyboard claim`, recess === '0' || anyModalOverlayActive(), 'a layered (recess 1) modal that is active must register its claim: see the useClaim calls in src/components/FullscreenLayout.tsx and anyModalOverlayActive in src/context/overlayStack.ts')
+      check(`${tag}: a painted command claims the pane and parks the background`, visible.includes('visible command surface') && visible.includes('▔') && backgroundParked, `a modalActive modal must paint the separator and park the bottom pane through MotionParkContext (src/screen/fullscreen-layout/FullscreenLayout.tsx); parked=${backgroundParked}; frame: ${visible}`)
+      check(`${tag}: a layered surface registers its modal keyboard claim`, recess === '0' || anyModalOverlayActive(), 'a layered (recess 1) modal that is active must register its claim: see the useClaim calls in src/screen/fullscreen-layout/FullscreenLayout.tsx and anyModalOverlayActive in src/screen/overlays/overlayStack.ts')
       const silentAgain = await render(false)
-      check(`${tag}: clearing the surface releases its claim`, !silentAgain.includes('▔') && silentAgain.includes('composer live'), `when modalActive goes false the separator and the park must clear: see modalUp in src/components/FullscreenLayout.tsx; frame: ${silentAgain}`)
-      check(`${tag}: claiming and releasing never remounts the running command`, mounts === 1 && unmounts === 0, `${mounts} mounts, ${unmounts} unmounts; the modal child must stay in one tree position whether modalActive is true or false: see the modal slot in src/components/FullscreenLayout.tsx`)
+      check(`${tag}: clearing the surface releases its claim`, !silentAgain.includes('▔') && silentAgain.includes('composer live'), `when modalActive goes false the separator and the park must clear: see modalUp in src/screen/fullscreen-layout/FullscreenLayout.tsx; frame: ${silentAgain}`)
+      check(`${tag}: claiming and releasing never remounts the running command`, mounts === 1 && unmounts === 0, `${mounts} mounts, ${unmounts} unmounts; the modal child must stay in one tree position whether modalActive is true or false: see the modal slot in src/screen/fullscreen-layout/FullscreenLayout.tsx`)
       if (frames) {
         writeFileSync(join(frames, `${tag}-silent.txt`), silent)
         writeFileSync(join(frames, `${tag}-visible.txt`), visible)

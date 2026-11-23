@@ -22,27 +22,27 @@ process.env.ANTHROPIC_API_KEY = 'fixture-key'
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_EFFORT_LEVEL
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 const loaderCwd = join(scratch, 'loader-cwd')
 mkdirSync(loaderCwd, { recursive: true })
 bootstrap.setOriginalCwd(loaderCwd)
 bootstrap.setProjectRoot(loaderCwd)
-const { loadConversationForResume, getResumePrompt } = await import('../../src/services/resume/conversationRecovery.ts')
-const { loadTranscriptFile } = await import('../../src/utils/sessionStorage.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { applyTranscriptEntry, emptyFoldState } = await import('../../src/utils/sessionStorage/fold.ts')
+const { loadConversationForResume, getResumePrompt } = await import('../../src/sessions/resume/conversationRecovery.ts')
+const { loadTranscriptFile } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+const { applyTranscriptEntry, emptyFoldState } = await import('../../src/sessions/transcripts/fold.ts')
 const sdk = await import('../../sdk/src/index.ts')
 const acp = await import('@agentclientprotocol/sdk')
-import type { Message } from '../../src/types/message.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  const turnEndHint = 'where to look: recordTurnEnd in src/utils/sessionStorage/writer.ts (the line written), the turn-end rule in src/utils/sessionStorage/fold.ts (what behind it lets it stand), runEndedLastTurn in src/services/resume/conversationRecovery.ts (how the loader reads it)'
+  const turnEndHint = 'where to look: recordTurnEnd in src/sessions/transcripts/writer.ts (the line written), the turn-end rule in src/sessions/transcripts/fold.ts (what behind it lets it stand), runEndedLastTurn in src/sessions/resume/conversationRecovery.ts (how the loader reads it)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${turnEndHint}${detail ? ` | ${detail.slice(0, 900)}` : ''}` : ''}`)
 }
 function section(title: string): void {

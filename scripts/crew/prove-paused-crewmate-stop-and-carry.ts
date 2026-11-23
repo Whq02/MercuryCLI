@@ -3,7 +3,7 @@ import { proofHome } from '../lib/hermetic.ts'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mock } from 'bun:test'
-import type { Message } from '../../src/types/message.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -11,36 +11,36 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const root = join(proofHome, 'work')
 mkdirSync(root, { recursive: true })
 writeFileSync(join(root, 'launcher.ts'), 'export {}\n')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(root)
 bootstrap.setProjectRoot(root)
 bootstrap.setCwdState(root)
 bootstrap.switchSession('00000000-0000-4000-8000-000000000462' as never, root)
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { getCommandQueue, resetCommandQueue } = await import('../../src/input-core/command-queue.ts')
-const { registerAsyncAgent, AGENT_STOPPED_WHILE_PAUSED } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { createAssistantAPIErrorMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-const { stampProviderWait } = await import('../../src/services/api/recoveryBudget.ts')
-const { projectLeaseHolder, takeProjectLeases, listProjectLeases } = await import('../../src/services/vulcan/engine/leases.ts')
-const { readAgentPauseRecord, agentPauseRecordPath, carryPausedCrewmatesOnResume, writeAgentPauseRecord } = await import('../../src/tasks/LocalAgentTask/pauseCarry.ts')
-const { TaskStopTool } = await import('../../src/tools/TaskStopTool/TaskStopTool.ts')
-const { stopAgentByOperator } = await import('../../src/services/agents/operatorStop.ts')
-const { writeAgentMetadata } = await import('../../src/utils/sessionStorage/paths.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { getCommandQueue, resetCommandQueue } = await import('../../src/screen/composer/input-core/command-queue.ts')
+const { registerAsyncAgent, AGENT_STOPPED_WHILE_PAUSED } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { createAssistantAPIErrorMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { stampProviderWait } = await import('../../src/engine/requests/recoveryBudget.ts')
+const { projectLeaseHolder, takeProjectLeases, listProjectLeases } = await import('../../src/integrations/vulcan/engine/leases.ts')
+const { readAgentPauseRecord, agentPauseRecordPath, carryPausedCrewmatesOnResume, writeAgentPauseRecord } = await import('../../src/engine/tasks/local-agent/pauseCarry.ts')
+const { TaskStopTool } = await import('../../src/tools/task-stop/TaskStopTool.ts')
+const { stopAgentByOperator } = await import('../../src/crew/agents/operatorStop.ts')
+const { writeAgentMetadata } = await import('../../src/sessions/transcripts/paths.ts')
 type AppState = ReturnType<typeof getDefaultAppState>
 
 const resumes: Array<{ agentId: string; prompt: string; automatic?: boolean }> = []
-const resumeModule = await import('../../src/tools/AgentTool/resumeAgent.ts')
-mock.module('../../src/tools/AgentTool/resumeAgent.ts', () => ({
+const resumeModule = await import('../../src/tools/crewmate/resumeCrewmate.ts')
+mock.module('../../src/tools/crewmate/resumeCrewmate.ts', () => ({
   ...resumeModule,
   resumeAgentBackground: async (args: { agentId: string; prompt: string; automatic?: boolean }) => {
     resumes.push(args)
     return {}
   },
 }))
-const { runAsyncAgentLifecycle, automaticResumePending, windowPauseResumeDelayMs } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+const { runAsyncAgentLifecycle, automaticResumePending, windowPauseResumeDelayMs } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 
 let checks = 0
 let failures = 0
@@ -56,9 +56,9 @@ const makeStore = () => {
 const notes = (): string[] => getCommandQueue().filter(command => command.mode === 'task-notification').map(command => String(command.value))
 const pick = (text: string, tag: string): string | undefined => text.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1]?.trim()
 const MINUTE = 60_000
-const life = 'runAsyncAgentLifecycle in src/tools/AgentTool/agentToolUtils.ts'
-const carryAt = 'src/tasks/LocalAgentTask/pauseCarry.ts'
-const stopAt = 'stopPausedAgent in src/tasks/stopTask.ts'
+const life = 'runAsyncAgentLifecycle in src/tools/crewmate/crewmateLifecycle.ts'
+const carryAt = 'src/engine/tasks/local-agent/pauseCarry.ts'
+const stopAt = 'stopPausedAgent in src/engine/tasks/stopTask.ts'
 const MODEL = 'glm-5.3-flash'
 
 function windowRefusal(resetAtMs: number): Message {
@@ -77,7 +77,7 @@ const resetAt = Date.now() + 30 * MINUTE
   resetCommandQueue()
   const task = registerAsyncAgent({ agentId: taskId, description: 'GLM core/server gap fixes', prompt: 'work', setAppState: store.set })
   const lease = await takeProjectLeases(root, ['launcher.ts'], projectLeaseHolder(taskId))
-  check('the crewmate holds a lease while it works', lease.ok, `${JSON.stringify(lease)} — takeProjectLeases in src/services/vulcan/engine/leases.ts refused the lease this proof needs before the crewmate pauses`)
+  check('the crewmate holds a lease while it works', lease.ok, `${JSON.stringify(lease)} — takeProjectLeases in src/integrations/vulcan/engine/leases.ts refused the lease this proof needs before the crewmate pauses`)
   async function* stream() {
     yield createAssistantMessage({ content: 'Working on the launcher.' })
     yield windowRefusal(resetAt)
@@ -100,8 +100,8 @@ console.log('── §B TaskStop on the paused row stops it: the armed retry is 
   const before = (await listProjectLeases(root)).length
   const output = await TaskStopTool.call({ task_id: taskId }, { getAppState: store.get, setAppState: store.set } as never)
   const data = (output as { data: { message: string; task_id: string; task_type: string } }).data
-  check('the answer is a stop, not "nothing was stopped"', data.message.startsWith(`Stopped task ${taskId} (GLM core/server gap fixes) while it was paused:`) && !data.message.includes('nothing was stopped'), `${data.message} — TaskStopTool (src/tools/TaskStopTool/TaskStopTool.ts) must stop a paused row through ${stopAt} and answer with stoppedWhilePausedWords`)
-  check('the answer names the cancelled retry, the released lease and the way back', data.message.includes(`the retry it had armed for ${new Date(resetAt).toISOString().slice(0, 16)}`) && data.message.includes('1 lease released') && data.message.includes('resume it from the crew view (r on its row) or by ResumeCrewmate to its id'), `${data.message} — stoppedWhilePausedWords in src/tasks/stopTask.ts must name the cancelled retry, the released leases and the way back`)
+  check('the answer is a stop, not "nothing was stopped"', data.message.startsWith(`Stopped task ${taskId} (GLM core/server gap fixes) while it was paused:`) && !data.message.includes('nothing was stopped'), `${data.message} — TaskStopTool (src/tools/task-stop/TaskStopTool.ts) must stop a paused row through ${stopAt} and answer with stoppedWhilePausedWords`)
+  check('the answer names the cancelled retry, the released lease and the way back', data.message.includes(`the retry it had armed for ${new Date(resetAt).toISOString().slice(0, 16)}`) && data.message.includes('1 lease released') && data.message.includes('resume it from the crew view (r on its row) or by ResumeCrewmate to its id'), `${data.message} — stoppedWhilePausedWords in src/engine/tasks/stopTask.ts must name the cancelled retry, the released leases and the way back`)
   check('the retry is no longer armed', !automaticResumePending(taskId), `${stopAt} must call cancelAutomaticResume (agentToolUtils.ts) for the paused crewmate`)
   const row = store.get().tasks[taskId] as { status?: string; paused?: unknown; stopReason?: string } | undefined
   check('the task row reads stopped with the door\'s words and no pause', row?.status === 'killed' && row.paused === undefined && row.stopReason === AGENT_STOPPED_WHILE_PAUSED, `${JSON.stringify(row)} — stopPausedAgentTask (called by ${stopAt}) must set the row killed with AGENT_STOPPED_WHILE_PAUSED as stopReason and clear its pause`)
@@ -110,7 +110,7 @@ console.log('── §B TaskStop on the paused row stops it: the armed retry is 
   check('the pause record is cleared', !existsSync(agentPauseRecordPath(taskId)) && (await readAgentPauseRecord(taskId)) === null, `${stopAt} must clear the pause record (clearAgentPauseRecord in ${carryAt})`)
   check('the retry never fired', resumes.length === 0, `${JSON.stringify(resumes)} — ${stopAt} must cancel the armed automatic resume so it never fires`)
   const again = await TaskStopTool.call({ task_id: taskId }, { getAppState: store.get, setAppState: store.set } as never)
-  check('a second stop answers that it had already been stopped', (again as { data: { message: string } }).data.message.includes('had already been stopped'), `${JSON.stringify(again)} — TaskStopTool (src/tools/TaskStopTool/TaskStopTool.ts) must answer 'had already been stopped' for a row stopped while paused`)
+  check('a second stop answers that it had already been stopped', (again as { data: { message: string } }).data.message.includes('had already been stopped'), `${JSON.stringify(again)} — TaskStopTool (src/tools/task-stop/TaskStopTool.ts) must answer 'had already been stopped' for a row stopped while paused`)
 }
 
 console.log('── §C the operator\'s stop door (the crew view) stops a paused row the same way ──')
@@ -125,8 +125,8 @@ console.log('── §C the operator\'s stop door (the crew view) stops a paused
   await runAsyncAgentLifecycle({ taskId: id, abortController: task.abortController!, makeStream: stream, metadata: { prompt: 'work', resolvedAgentModel: MODEL, isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true }, description: 'surface pass', toolUseContext: { ...(context as object), getAppState: store2.get, setAppState: store2.set, setAppStateForTasks: store2.set } as never, rootSetAppState: store2.set, agentIdForCleanup: id, enableSummarization: false, getWorktreeResult: async () => ({}) })
   check('the second crewmate paused with its retry armed', automaticResumePending(id) && (store2.get().tasks[id] as { paused?: unknown } | undefined)?.paused !== undefined, `${life} must pause the second crewmate and arm its retry the same way as the first`)
   const receipt = await stopAgentByOperator(id, { getAppState: store2.get, setAppState: store2.set }, { settleMs: 200, sleep: async () => undefined })
-  check('the operator\'s stop applies to a paused row', receipt.outcome === 'applied' && receipt.kind === 'agent' && receipt.status === 'killed', `${JSON.stringify(receipt)} — stopAgentByOperator in src/services/agents/operatorStop.ts must stop a paused row through ${stopAt} and return an applied agent receipt`)
-  check('its retry is cancelled', !automaticResumePending(id), `stopAgentByOperator (src/services/agents/operatorStop.ts) must cancel the armed retry through ${stopAt}`)
+  check('the operator\'s stop applies to a paused row', receipt.outcome === 'applied' && receipt.kind === 'agent' && receipt.status === 'killed', `${JSON.stringify(receipt)} — stopAgentByOperator in src/crew/agents/operatorStop.ts must stop a paused row through ${stopAt} and return an applied agent receipt`)
+  check('its retry is cancelled', !automaticResumePending(id), `stopAgentByOperator (src/crew/agents/operatorStop.ts) must cancel the armed retry through ${stopAt}`)
 }
 
 console.log('── §D a re-claimed session re-arms the pause from its record: the retry fires after the claim as it would have before ──')
@@ -140,7 +140,7 @@ console.log('── §D a re-claimed session re-arms the pause from its record: 
   check('the claim finds the record and re-arms the retry', carried.length === 1 && carried[0] === id && automaticResumePending(id), `${JSON.stringify(carried)} — carryPausedCrewmatesOnResume in ${carryAt} must find the record and re-arm the retry, returning the agent id`)
   const row = store3.get().tasks[id] as { status?: string; paused?: { resumesAtMs?: number }; description?: string; agentType?: string; notified?: boolean } | undefined
   check('the parent\'s task row reads paused with the stated reset, from the launch\'s own facts', row?.status === 'failed' && row.paused?.resumesAtMs === soon && row.description === 'bank sweep' && row.agentType === 'mercury-crew' && row.notified === true, `${JSON.stringify(row)} — carryPausedCrewmatesOnResume in ${carryAt} must rebuild a failed, paused, notified row from the record and the launch metadata`)
-  check('the delay honours the stated reset with the floor', windowPauseResumeDelayMs(soon, Date.now()) > 1_000 && windowPauseResumeDelayMs(Date.now() - 5_000, Date.now()) === 1_000, 'windowPauseResumeDelayMs in src/tools/AgentTool/agentToolUtils.ts must wait until the stated reset and never less than its floor (1000 ms)')
+  check('the delay honours the stated reset with the floor', windowPauseResumeDelayMs(soon, Date.now()) > 1_000 && windowPauseResumeDelayMs(Date.now() - 5_000, Date.now()) === 1_000, 'windowPauseResumeDelayMs in src/tools/crewmate/crewmateLifecycle.ts must wait until the stated reset and never less than its floor (1000 ms)')
   await new Promise(resolve => setTimeout(resolve, 3_000))
   check('the retry fired after the claim, as the automatic resume, with the window note', resumes.length === 1 && resumes[0]!.agentId === id && resumes[0]!.automatic === true && resumes[0]!.prompt.includes('The usage window reset'), `${JSON.stringify(resumes)} — the retry re-armed by ${carryAt} must fire once as an automatic resume carrying the usage-window note`)
   check('the fired retry cleared its record', (await readAgentPauseRecord(id)) === null, `the retry fired from ${carryAt} must clear the pause record (clearAgentPauseRecord)`)

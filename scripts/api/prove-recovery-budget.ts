@@ -10,14 +10,14 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_RECOVERY_BUDGET_MINUTES
 delete process.env.NODE_ENV
 
-const budget = await import('../../src/services/api/recoveryBudget.js')
-const retry = await import('../../src/services/api/withRetry.js')
-const retryAfter = await import('../../src/services/api/retryAfter.js')
+const budget = await import('../../src/engine/requests/recoveryBudget.js')
+const retry = await import('../../src/engine/requests/withRetry.js')
+const retryAfter = await import('../../src/engine/requests/retryAfter.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix: notice classes, the budget arithmetic and the wait words are in src/services/api/recoveryBudget.ts (recoveryNoticeFacts, honourRecoveryWait, retryWaitWords, recoveryBudgetSpentLine); Retry-After reading is src/services/api/retryAfter.ts and getRetryDelay in src/services/api/withRetry.ts; the section header above says which' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix: notice classes, the budget arithmetic and the wait words are in src/engine/requests/recoveryBudget.ts (recoveryNoticeFacts, honourRecoveryWait, retryWaitWords, recoveryBudgetSpentLine); Retry-After reading is src/engine/requests/retryAfter.ts and getRetryDelay in src/engine/requests/withRetry.ts; the section header above says which' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

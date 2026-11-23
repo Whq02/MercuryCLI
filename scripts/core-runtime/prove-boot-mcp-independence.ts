@@ -23,10 +23,10 @@ const COMPOSER_SIGIL = '❯'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const fix = label.startsWith('the popup reads') ? 'the facts refresh in src/daemon/sessionSeat/facts.ts while the runner reports a pending MCP connection'
-    : label.includes('MERCURY_MCP_TIMEOUT_MS') ? 'the timeout reader in src/services/mcp/client/limits.ts'
-    : label.includes('spawn') || label.includes('strict') || label.includes('phantom') || label.includes('connected') ? 'which side connects MCP servers: src/main/mcpConfigs.ts and src/main/runLaunch.ts (--only-mcp and the one session runner that owns the connections), and src/main/interactiveLaunch.ts for the screen, which must spawn none'
-    : 'the launch path in src/main/runLaunch.ts and src/main/interactiveLaunch.ts, after a fresh bun run build.ts since this proof runs dist/mercury.mjs'
+  const fix = label.startsWith('the popup reads') ? 'the facts refresh in src/daemon/session-seat/facts.ts while the runner reports a pending MCP connection'
+    : label.includes('MERCURY_MCP_TIMEOUT_MS') ? 'the timeout reader in src/integrations/mcp/client/limits.ts'
+    : label.includes('spawn') || label.includes('strict') || label.includes('phantom') || label.includes('connected') ? 'which side connects MCP servers: src/boot/main/mcpConfigs.ts and src/boot/main/runLaunch.ts (--only-mcp and the one session runner that owns the connections), and src/boot/main/interactiveLaunch.ts for the screen, which must spawn none'
+    : 'the launch path in src/boot/main/runLaunch.ts and src/boot/main/interactiveLaunch.ts, after a fresh bun run build.ts since this proof runs dist/mercury.mjs'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` (fix ${fix})`}`)
 }
 function checkOwnerCount(label: string, expected: number, actual: number): void {

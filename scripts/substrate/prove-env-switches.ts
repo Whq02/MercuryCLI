@@ -16,16 +16,16 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const off = (name: string): void => { process.env[name] = '0' }
 const unset = (name: string): void => { delete process.env[name] }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { flagEnabled } = await import('../../src/substrate/flagRegistry.ts')
-const { getPrivacyLevel } = await import('../../src/utils/privacyLevel.ts')
-const { getPromptCachingEnabled } = await import('../../src/services/providers/anthropic/requestParams.ts')
-const { getDefaultHaikuModel, getDefaultSonnetModel, getDefaultOpusModel } = await import('../../src/services/model/model.ts')
-const { isAutoCompactEnabled } = await import('../../src/services/compact/autoCompact.ts')
+const { flagEnabled } = await import('../../src/platform/substrate/flagRegistry.ts')
+const { getPrivacyLevel } = await import('../../src/models/roads/privacyLevel.ts')
+const { getPromptCachingEnabled } = await import('../../src/models/roads/anthropic/requestParams.ts')
+const { getDefaultHaikuModel, getDefaultSonnetModel, getDefaultOpusModel } = await import('../../src/models/catalogue/engineModel.ts')
+const { isAutoCompactEnabled } = await import('../../src/engine/compaction/autoFold.ts')
 const feedback = (await import('../../src/commands/feedback/index.ts')).default as { isEnabled?: () => boolean }
 const health = (await import('../../src/commands/health/index.ts')).default as { isEnabled?: () => boolean }
-const login = ((await import('../../src/commands/login/index.ts')).default as () => { isEnabled?: () => boolean })()
+const login = ((await import('../../src/commands/logins/index.ts')).default as () => { isEnabled?: () => boolean })()
 const logout = (await import('../../src/commands/logout/index.ts')).default as { isEnabled?: () => boolean }
 
 const SWITCHES = ['MERCURY_ERROR_REPORTING', 'MERCURY_BUG_COMMAND', 'MERCURY_FEEDBACK_COMMAND', 'MERCURY_HEALTH_COMMAND', 'MERCURY_LOGIN_COMMAND', 'MERCURY_LOGOUT_COMMAND', 'MERCURY_PROMPT_CACHING', 'MERCURY_PROMPT_CACHING_SONNET', 'MERCURY_PROMPT_CACHING_OPUS', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_BUILTIN_RIPGREP', 'MERCURY_MCP_LARGE_OUTPUT_FILES']

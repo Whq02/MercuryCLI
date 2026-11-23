@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/MercuryHome.tsx src/components/SwitchboardTagBar.tsx src/components/BootSplashScreen.tsx
-// gate-watch: src/services/accounts/sessionSignIn.ts src/hooks/useSessionSignInGate.ts src/services/wallet/wallet.ts assets/splash/splash-core.mjs
+// gate-watch: src/screen/fullscreen-layout/MercuryHome.tsx src/screen/chat/SwitchboardTagBar.tsx src/screen/boot-face/BootSplashScreen.tsx
+// gate-watch: src/models/sign-in/accounts/sessionSignIn.ts src/screen/focused-session/useSessionSignInGate.ts src/models/wallet/wallet.ts assets/splash/splash-core.mjs
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { firstOutputTs, firstPtyVisibility, grabScreens, requireDist, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'
@@ -17,7 +17,7 @@ const SIGNED_OUT_ANSWER = 'choose a model · /model'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const failHint = cond ? '' : ' | to fix: the sign-in state words are in src/services/accounts/sessionSignIn.ts, and the screens that show them are the gate-watch files at the top of this proof (src/components/MercuryHome.tsx, SwitchboardTagBar.tsx, BootSplashScreen.tsx)'
+  const failHint = cond ? '' : ' | to fix: the sign-in state words are in src/models/sign-in/accounts/sessionSignIn.ts, and the screens that show them are the gate-watch files at the top of this proof (src/screen/fullscreen-layout/MercuryHome.tsx, SwitchboardTagBar.tsx, BootSplashScreen.tsx)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 700) : ''}${failHint}`)
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)

@@ -18,19 +18,19 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
-  if (!ok) console.log('    where to look: the named tool validateInput (src/tools/<Tool>/<Tool>.ts) must return result false with NUL_PATH_MESSAGE from src/utils/path.ts for a path holding a NUL byte instead of throwing; its backfillObservableInput and backfillCloneForYield in src/run-core/model-lane.ts must not throw on it; BashTool checkPermissions (src/tools/BashTool/BashTool.tsx) must deny a cd with a NUL operand')
+  if (!ok) console.log('    where to look: the named tool validateInput (src/tools/<Tool>/<Tool>.ts) must return result false with NUL_PATH_MESSAGE from src/platform/files/path.ts for a path holding a NUL byte instead of throwing; its backfillObservableInput and backfillCloneForYield in src/engine/loop/model-lane.ts must not throw on it; BashTool checkPermissions (src/tools/shell/BashTool.tsx) must deny a cd with a NUL operand')
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { GlobTool } = await import('../../src/tools/GlobTool/GlobTool.ts')
-const { backfillCloneForYield } = await import('../../src/run-core/model-lane.ts')
-const { NUL_PATH_MESSAGE } = await import('../../src/utils/path.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
+const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
+const { backfillCloneForYield } = await import('../../src/engine/loop/model-lane.ts')
+const { NUL_PATH_MESSAGE } = await import('../../src/platform/files/path.ts')
 
 writeFileSync(join(PROJ, 'xy.txt'), 'a plain line\n')
 const nulPath = join(PROJ, `x${String.fromCharCode(0)}y.txt`)
@@ -100,7 +100,7 @@ console.log('[3] an ordinary path still passes the guard')
 
 console.log('[4] a cd whose operand holds a NUL byte is answered by the Bash tool\'s own check, never thrown')
 {
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
   const nul = String.fromCharCode(0)
   const checked = BashTool as never as { checkPermissions(input: unknown, context: unknown): Promise<{ behavior?: string; message?: string }> }
   for (const command of [`cat xy.txt; cd x${nul}y`, `cd x${nul}y && cat xy.txt`, `pushd x${nul}y; cat xy.txt`]) {

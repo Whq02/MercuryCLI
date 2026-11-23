@@ -11,14 +11,14 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.NODE_ENV = 'test'
 for (const key of ['MERCURY_HOME', 'MERCURY_VOICE_BACKEND', 'MERCURY_VOICE_FIXTURE_WAV', 'MERCURY_VOICE_DEBUG_WAV_DIR', 'MERCURY_VOICE_PACK_DIR', 'MERCURY_WHISPER_PACK_DIR', 'MERCURY_WHISPER_MODEL', 'MERCURY_VOICE_BOUND_MS']) delete process.env[key]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs, getGlobalConfig } = await import('../../src/utils/config.js')
+const { enableConfigs, getGlobalConfig } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const wav = await import('../../src/services/voice/wav.js')
-const capture = await import('../../src/services/voice/capture.js')
-const transcribe = await import('../../src/services/voice/transcribe.js')
-const pack = await import('../../src/services/voice/whisperPack.js')
-const session = await import('../../src/services/voice/voiceSession.js')
-const pending = await import('../../src/input-core/pending-input.js')
+const wav = await import('../../src/integrations/voice/wav.js')
+const capture = await import('../../src/integrations/voice/capture.js')
+const transcribe = await import('../../src/integrations/voice/transcribe.js')
+const pack = await import('../../src/integrations/voice/whisperPack.js')
+const session = await import('../../src/integrations/voice/voiceSession.js')
+const pending = await import('../../src/screen/composer/input-core/pending-input.js')
 const { call } = await import('../../src/commands/voice/voice.js')
 const fx = localFixture(join(scratch, 'pack'), 'the quick brown fox', 100)
 Object.assign(process.env, fx.env)
@@ -43,32 +43,32 @@ try {
   const encoded = wav.encodeWav(pcm)
   assert.equal(encoded.length, 32_044)
   const read = wav.readWav(encoded)
-  assert.ok(read.ok && wav.isVoiceWavShape(read.header) && read.header.dataBytes === 32_000, 'readWav in src/services/voice/wav.js must parse encoded 32000-byte voice WAV header')
+  assert.ok(read.ok && wav.isVoiceWavShape(read.header) && read.header.dataBytes === 32_000, 'readWav in src/integrations/voice/wav.js must parse encoded 32000-byte voice WAV header')
   encoded.writeUInt32LE(0xffffffff, 40)
   const clamped = wav.readWav(encoded)
-  assert.ok(clamped.ok && clamped.header.dataBytes === 32_000, 'readWav in src/services/voice/wav.js must clamp 0xffffffff data length to actual buffer payload (32000)')
+  assert.ok(clamped.ok && clamped.header.dataBytes === 32_000, 'readWav in src/integrations/voice/wav.js must clamp 0xffffffff data length to actual buffer payload (32000)')
   assert.equal(wav.readWav(Buffer.alloc(100, 7)).ok, false)
-  assert.ok(wav.pcmIsSilent(new Int16Array(1600)) && !wav.pcmIsSilent(pcm), 'pcmIsSilent in src/services/voice/wav.js must distinguish zero PCM from non-silent tone')
+  assert.ok(wav.pcmIsSilent(new Int16Array(1600)) && !wav.pcmIsSilent(pcm), 'pcmIsSilent in src/integrations/voice/wav.js must distinguish zero PCM from non-silent tone')
   assert.equal(wav.pcmDurationMs(pcm), 1000)
   process.env.MERCURY_VOICE_BACKEND = 'fixture'
   let backend = capture.resolveCaptureBackend(noTools())
-  assert.ok(backend.state === 'none' && backend.note.includes('MERCURY_VOICE_FIXTURE_WAV'), `resolveCaptureBackend(fixture) in src/services/voice/capture.js must name MERCURY_VOICE_FIXTURE_WAV when unset (got ${JSON.stringify(backend)})`)
+  assert.ok(backend.state === 'none' && backend.note.includes('MERCURY_VOICE_FIXTURE_WAV'), `resolveCaptureBackend(fixture) in src/integrations/voice/capture.js must name MERCURY_VOICE_FIXTURE_WAV when unset (got ${JSON.stringify(backend)})`)
   process.env.MERCURY_VOICE_FIXTURE_WAV = tone
   backend = capture.resolveCaptureBackend(noTools())
-  assert.ok(backend.state === 'ok' && backend.kind === 'fixture' && backend.pinned, `resolveCaptureBackend(fixture) in src/services/voice/capture.js must return ok pinned fixture (got ${JSON.stringify(backend)})`)
+  assert.ok(backend.state === 'ok' && backend.kind === 'fixture' && backend.pinned, `resolveCaptureBackend(fixture) in src/integrations/voice/capture.js must return ok pinned fixture (got ${JSON.stringify(backend)})`)
   process.env.MERCURY_VOICE_BACKEND = 'bogus'
   backend = capture.resolveCaptureBackend(noTools())
-  assert.ok(backend.state === 'none' && backend.note.includes('vendored') && backend.note.includes('ffmpeg'), `resolveCaptureBackend(bogus) in src/services/voice/capture.js must name valid backends vendored and ffmpeg (got ${JSON.stringify(backend)})`)
+  assert.ok(backend.state === 'none' && backend.note.includes('vendored') && backend.note.includes('ffmpeg'), `resolveCaptureBackend(bogus) in src/integrations/voice/capture.js must name valid backends vendored and ffmpeg (got ${JSON.stringify(backend)})`)
   process.env.MERCURY_VOICE_BACKEND = 'sox'
   backend = capture.resolveCaptureBackend(noTools())
-  assert.ok(backend.state === 'none' && backend.note.includes('not on PATH'), `resolveCaptureBackend(sox) in src/services/voice/capture.js must note "not on PATH" when missing (got ${JSON.stringify(backend)})`)
+  assert.ok(backend.state === 'none' && backend.note.includes('not on PATH'), `resolveCaptureBackend(sox) in src/integrations/voice/capture.js must note "not on PATH" when missing (got ${JSON.stringify(backend)})`)
   delete process.env.MERCURY_VOICE_BACKEND
   process.env.MERCURY_VOICE_PACK_DIR = empty
   backend = capture.resolveCaptureBackend(noTools())
-  assert.ok(backend.state === 'none' && backend.tried.join(',') === 'vendored,sox,arecord,ffmpeg', `resolveCaptureBackend in src/services/voice/capture.js must try vendored,sox,arecord,ffmpeg in order (got ${JSON.stringify(backend)})`)
-  assert.ok(capture.noBackendReceipt(null, 'win32').includes('winget install ffmpeg'), 'noBackendReceipt(win32) in src/services/voice/capture.js must suggest winget install ffmpeg')
-  assert.ok(capture.noBackendReceipt(null, 'darwin').includes('brew install ffmpeg'), 'noBackendReceipt(darwin) in src/services/voice/capture.js must suggest brew install ffmpeg')
-  assert.ok(capture.noBackendReceipt(null, 'linux').includes('apt install ffmpeg'), 'noBackendReceipt(linux) in src/services/voice/capture.js must suggest apt install ffmpeg')
+  assert.ok(backend.state === 'none' && backend.tried.join(',') === 'vendored,sox,arecord,ffmpeg', `resolveCaptureBackend in src/integrations/voice/capture.js must try vendored,sox,arecord,ffmpeg in order (got ${JSON.stringify(backend)})`)
+  assert.ok(capture.noBackendReceipt(null, 'win32').includes('winget install ffmpeg'), 'noBackendReceipt(win32) in src/integrations/voice/capture.js must suggest winget install ffmpeg')
+  assert.ok(capture.noBackendReceipt(null, 'darwin').includes('brew install ffmpeg'), 'noBackendReceipt(darwin) in src/integrations/voice/capture.js must suggest brew install ffmpeg')
+  assert.ok(capture.noBackendReceipt(null, 'linux').includes('apt install ffmpeg'), 'noBackendReceipt(linux) in src/integrations/voice/capture.js must suggest apt install ffmpeg')
   delete process.env.MERCURY_VOICE_PACK_DIR
   process.env.MERCURY_VOICE_BACKEND = 'fixture'
   assert.equal(capture.CAPTURE_BOUND_MS, 300_000)
@@ -84,7 +84,7 @@ try {
   const take = await capture.startCapture({ env: noTools() })
   const result = await take.stop()
   assert.equal(await take.stop(), result)
-  assert.ok(result.durationMs === 1000 && !result.silent && !result.autoStopped, `startCapture/stop in src/services/voice/capture.js expected 1000ms non-silent manual stop (got ${JSON.stringify(result)})`)
+  assert.ok(result.durationMs === 1000 && !result.silent && !result.autoStopped, `startCapture/stop in src/integrations/voice/capture.js expected 1000ms non-silent manual stop (got ${JSON.stringify(result)})`)
   assert.equal(result.streamErrors.transient, 0)
   let bounded = 0
   const auto = await capture.startCapture({ env: noTools(), boundMs: 60, onAutoStop: () => bounded++ })
@@ -108,7 +108,7 @@ try {
   process.env.MERCURY_VOICE_PACK_DIR = empty
   const noBackend = await session.toggleVoiceCapture({ env: noTools() })
   assert.equal(noBackend.kind, 'refused')
-  assert.ok(noBackend.text.startsWith(capture.NO_BACKEND_RECEIPT), `toggleVoiceCapture without backend in src/services/voice/voiceSession.js must start with NO_BACKEND_RECEIPT (got ${noBackend.text})`)
+  assert.ok(noBackend.text.startsWith(capture.NO_BACKEND_RECEIPT), `toggleVoiceCapture without backend in src/integrations/voice/voiceSession.js must start with NO_BACKEND_RECEIPT (got ${noBackend.text})`)
   assert.equal(session.voiceSnapshot().phase, 'idle')
   assert.equal(fx.calls(), 0)
   delete process.env.MERCURY_VOICE_PACK_DIR
@@ -128,10 +128,10 @@ try {
   assert.equal(session.describeVoiceReadiness().ready, true)
   assert.match(session.describeVoiceReadiness().detail, /audio never leaves the box.*nothing is written to disk/)
   process.env.MERCURY_VOICE_DEBUG_WAV_DIR = dump
-  assert.ok(session.describeVoiceReadiness().detail.includes(`a debug copy of every take is written to ${dump}`), 'describeVoiceReadiness in src/services/voice/voiceSession.js must disclose MERCURY_VOICE_DEBUG_WAV_DIR destination')
-  assert.ok(!session.describeVoiceReadiness().detail.includes('nothing is written to disk'), 'describeVoiceReadiness in src/services/voice/voiceSession.js must drop "nothing is written to disk" when debug dump is active')
+  assert.ok(session.describeVoiceReadiness().detail.includes(`a debug copy of every take is written to ${dump}`), 'describeVoiceReadiness in src/integrations/voice/voiceSession.js must disclose MERCURY_VOICE_DEBUG_WAV_DIR destination')
+  assert.ok(!session.describeVoiceReadiness().detail.includes('nothing is written to disk'), 'describeVoiceReadiness in src/integrations/voice/voiceSession.js must drop "nothing is written to disk" when debug dump is active')
   delete process.env.MERCURY_VOICE_DEBUG_WAV_DIR
-  const { interfaceChecks } = await import('../../src/services/health/sections/interface.ts')
+  const { interfaceChecks } = await import('../../src/platform/health/sections/interface.ts')
   const voiceSays = await interfaceChecks().find(row => row.id === 'iface-voice')?.run()
   const readinessNow = session.describeVoiceReadiness()
   assert.deepEqual(voiceSays, { status: readinessNow.ready ? 'ok' : 'info', evidence: readinessNow.line, detail: readinessNow.detail })
@@ -148,7 +148,7 @@ try {
   await session.toggleVoiceCapture()
   await until(() => session.voiceSnapshot().phase === 'idle')
   assert.match(session.voiceSnapshot().receipt?.text ?? '', /only silence reached/)
-  assert.ok(session.voiceSnapshot().receipt?.text.includes(capture.microphonePermissionHint()), 'silence receipt in src/services/voice/voiceSession.js must include microphonePermissionHint')
+  assert.ok(session.voiceSnapshot().receipt?.text.includes(capture.microphonePermissionHint()), 'silence receipt in src/integrations/voice/voiceSession.js must include microphonePermissionHint')
   assert.equal(fx.calls(), 1)
   process.env.MERCURY_VOICE_FIXTURE_WAV = tone
   process.env.MERCURY_VOICE_BOUND_MS = '120'
@@ -157,7 +157,7 @@ try {
   await session.toggleVoiceCapture()
   await until(() => session.voiceSnapshot().phase === 'idle')
   unsubscribe()
-  assert.ok(notices.includes('capture stopped at the 0.1-second bound — transcribing'), `subscribeVoice in src/services/voice/voiceSession.js must emit bound auto-stop notice (got ${JSON.stringify(notices)})`)
+  assert.ok(notices.includes('capture stopped at the 0.1-second bound — transcribing'), `subscribeVoice in src/integrations/voice/voiceSession.js must emit bound auto-stop notice (got ${JSON.stringify(notices)})`)
   assert.equal(pending.text(), 'the quick brown fox')
   assert.equal(fx.calls(), 2)
   delete process.env.MERCURY_VOICE_BOUND_MS

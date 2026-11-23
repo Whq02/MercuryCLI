@@ -15,12 +15,12 @@ let failures = 0
 const check = (name: string, ok: unknown) => { console.log((ok ? 'PASS ' : 'FAIL ') + name); if (!ok) failures++ }
 try {
   const React = await import('react')
-  const { Box, Text } = await import('../../src/ink.ts')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { CommandPopupSlot, commandPopupGeometry } = await import('../../src/components/CommandPopupSlot.tsx')
-  const claims = await import('../../src/utils/cockpit/commandPopup.ts')
+  const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { CommandPopupSlot, commandPopupGeometry } = await import('../../src/screen/overlays/CommandPopupSlot.tsx')
+  const claims = await import('../../src/screen/cockpit/commandPopup.ts')
   const { call } = await import('../../src/commands/mcp/mcp.tsx')
-  const { getFocusedSessionConnector, setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const { getFocusedSessionConnector, setFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
   const previous = getFocusedSessionConnector()
   let reason: string | undefined
   const tools = Array.from({ length: 12 }, (_, index) => ({ name: 'fixture_tool_' + String(index).padStart(2, '0'), registeredAs: 'mcp__fixture__tool_' + index, description: Array.from({ length: 18 }, (_, row) => 'Description line ' + row + ': inspect the chosen file without modifying it.').join('\n'), loading: 'deferred' as const, inputSchema: { type: 'object', properties: Object.fromEntries(Array.from({ length: 20 }, (_, field) => ['field' + field, { type: 'string', description: 'Parameter ' + field }])) } }))

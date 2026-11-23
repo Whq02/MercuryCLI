@@ -1,5 +1,5 @@
-import type { Command } from '../../commands.js'
-import { chatOnlyBoot } from '../../context/surfaceRoute.js'
+import type { Command } from '../catalogue/commands.js'
+import { chatOnlyBoot } from '../../screen/routes/surfaceRoute.js'
 
 const command = {
   name: 'concourse',

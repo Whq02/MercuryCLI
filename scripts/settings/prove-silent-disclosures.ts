@@ -11,13 +11,13 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-let whereToLook = 'src/context/notifications.tsx (enqueueNotification)'
+let whereToLook = 'src/screen/notifications/notifications.tsx (enqueueNotification)'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ' — ' + detail : ''} — change ${whereToLook}` : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => {
-  whereToLook = t.startsWith('§2') ? 'checkAndDisableSovereignIfNeeded in src/utils/permissions/bypassPermissionsKillswitch.ts (the mode reset and its notification)' : 'src/context/notifications.tsx (enqueueNotification)'
+  whereToLook = t.startsWith('§2') ? 'checkAndDisableSovereignIfNeeded in src/permissions/rules/bypassPermissionsKillswitch.ts (the mode reset and its notification)' : 'src/screen/notifications/notifications.tsx (enqueueNotification)'
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
@@ -39,7 +39,7 @@ const makeStore = (extra: Partial<Store> = {}): {
   }
 }
 
-const { enqueueNotification } = await import('../../src/context/notifications.js')
+const { enqueueNotification } = await import('../../src/screen/notifications/notifications.js')
 
 section('§1 the door — enqueue displays, dedupes, immediate pre-empts')
 {
@@ -105,11 +105,11 @@ section('§1b a standing entry (timeoutMs: Infinity) — no expiry, yields the r
 section('§2 the killswitch drive — the mode flip says why')
 {
   writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ guardrails: { disableSovereignMode: true } }))
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
+  const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
   resetSettingsCache()
-  const killswitch = await import('../../src/utils/permissions/bypassPermissionsKillswitch.ts')
+  const killswitch = await import('../../src/permissions/rules/bypassPermissionsKillswitch.ts')
 
   const live = makeStore({
     toolPermissionContext: { mode: 'sovereign', isBypassPermissionsModeAvailable: true },

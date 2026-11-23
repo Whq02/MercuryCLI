@@ -41,10 +41,10 @@ export function section(title: string): void {
   console.log(`\n${title}`)
 }
 
-export const sessions = await import(join(ROOT, 'src/services/browser/browserSession.ts'))
-export const { BrowserTool } = await import(join(ROOT, 'src/tools/BrowserTool/BrowserTool.ts'))
-const { resolveBrowser } = await import(join(ROOT, 'src/services/browser/browserResolver.ts'))
-const { processOwnerForLane } = await import(join(ROOT, 'src/utils/run/resolveOwner.ts'))
+export const sessions = await import(join(ROOT, 'src/integrations/browser/browserSession.ts'))
+export const { BrowserTool } = await import(join(ROOT, 'src/tools/browser/BrowserTool.ts'))
+const { resolveBrowser } = await import(join(ROOT, 'src/integrations/browser/browserResolver.ts'))
+const { processOwnerForLane } = await import(join(ROOT, 'src/engine/run-owner/resolveOwner.ts'))
 
 type ToolInput = Record<string, unknown> & { op: string }
 type ToolContext = { agentId?: string; abortController?: AbortController; getAppState?: () => unknown }
@@ -77,8 +77,8 @@ export async function permission(input: ToolInput, ctx: ToolContext = lead): Pro
   return (await BrowserTool.checkPermissions(input as never, ctx as never)) as { behavior: string; message?: string; suggestions?: unknown }
 }
 
-const { decideToolPermission } = await import(join(ROOT, 'src/utils/permissions/decision/engine.ts'))
-const { getEmptyToolPermissionContext } = await import(join(ROOT, 'src/Tool.ts'))
+const { decideToolPermission } = await import(join(ROOT, 'src/permissions/rules/decision/engine.ts'))
+const { getEmptyToolPermissionContext } = await import(join(ROOT, 'src/tools/kit/tool.ts'))
 
 export async function decide(input: ToolInput, rules: { mode?: string; allow?: string[]; deny?: string[] }, ctx: ToolContext = lead): Promise<{ behavior: string; message?: string; decidedBy: string }> {
   const toolPermissionContext = {

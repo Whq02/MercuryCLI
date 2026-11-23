@@ -18,7 +18,7 @@ if (!existsSync(DIST)) {
 
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail} — ` : ''}change checkForUpdate, performUpdate, performRollback or performInstall in src/services/privateChannel/updateService.ts so the mercury update or install command behaves as this label says`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail} — ` : ''}change checkForUpdate, performUpdate, performRollback or performInstall in src/platform/update-channel/updateService.ts so the mercury update or install command behaves as this label says`}`)
   if (!cond) failures++
 }
 
@@ -246,7 +246,7 @@ for (const c of refusalCases) {
 
 console.log('── §3b signatures refuse before staging; unsigned needs its explicit exception ──')
 {
-  const { verifyPayloadDir } = await import('../../src/services/privateChannel/artifactVerify.js')
+  const { verifyPayloadDir } = await import('../../src/platform/update-channel/artifactVerify.js')
   for (const verdict of ['unsigned', 'unrecognized-key', 'malformed', 'tampered'] as const) {
     const payload = verdict === 'tampered' ? { tampered: true } : verdict === 'unsigned' ? {} : { signing: verdict }
     const f = makeFixtures(`signature-${verdict}`, [{ version: V_OLD }, { version: V_NEW, payload }])
@@ -256,7 +256,7 @@ console.log('── §3b signatures refuse before staging; unsigned needs its ex
       const manifest = JSON.parse(readFileSync(join(stagedPayload, 'manifest.json'), 'utf8'))
       const key = { keyId: manifest.signing.keyId, publicKeySpkiB64: manifest.signing.publicKeySpkiB64, label: 'ephemeral fixture' }
       const trusted = verifyPayloadDir(stagedPayload, { depth: 'deep', roster: [key] }).verdict
-      const { signatureRefusal } = await import('../../src/services/privateChannel/updateService.js')
+      const { signatureRefusal } = await import('../../src/platform/update-channel/updateService.js')
       check('the unknown-key fixture is valid under its ephemeral roster, not a corrupt signature', trusted.state === 'signed')
       check('a signed payload passes the actual update/install policy without any exception', signatureRefusal(trusted, false) === null && signatureRefusal(trusted, true) === null)
     }

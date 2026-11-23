@@ -25,11 +25,11 @@ process.env.MERCURY_GODOT_EXECUTABLE = join(emptyPacks, 'godot')
 process.env.MERCURY_COMPUTER_USE = '1'
 process.env.MERCURY_DESKTOP_PACK_DIR = join(emptyPacks, 'desktop')
 
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { withheldTools, withheldToolsLine } = await import('../../src/services/tools/withheldTools.ts')
-const { collectReadiness } = await import('../../src/services/health/readiness.ts')
-const dap = await import('../../src/services/dap/dapClient.ts')
-const godot = await import('../../src/services/vulcan/portabilityHealth.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { withheldTools, withheldToolsLine } = await import('../../src/engine/tool-dispatch/withheldTools.ts')
+const { collectReadiness } = await import('../../src/platform/health/readiness.ts')
+const dap = await import('../../src/integrations/debugger/dapClient.ts')
+const godot = await import('../../src/integrations/vulcan/portabilityHealth.ts')
 dap._resetLldbDapForTesting()
 dap._resetGdbProbeForTesting()
 godot._resetGodotExecutablePresenceForTesting()
@@ -37,7 +37,7 @@ godot._resetGodotExecutablePresenceForTesting()
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' | change withheldTools or withheldToolsLine in src/services/tools/withheldTools.ts, the catalog in getAllBaseTools (src/tools.ts), collectReadiness in src/services/health/readiness.ts, or the row in src/services/health/sections/tool-capability-fast.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' | change withheldTools or withheldToolsLine in src/engine/tool-dispatch/withheldTools.ts, the catalog in getAllBaseTools (src/tools/kit/toolList.ts), collectReadiness in src/platform/health/readiness.ts, or the row in src/platform/health/sections/tool-capability-fast.ts' : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
@@ -88,12 +88,12 @@ check('MERCURY_DAP=0 is off, not withheld: the census does not name the Debug to
 delete process.env.MERCURY_DAP
 
 section('§5 the wiring: the catalog seats the two tools through their owners')
-const { toolCapabilityFastChecks } = await import('../../src/services/health/sections/tool-capability-fast.ts')
+const { toolCapabilityFastChecks } = await import('../../src/platform/health/sections/tool-capability-fast.ts')
 const withheldRow = toolCapabilityFastChecks().find(row => row.id === 'tools-withheld')
 check("/health's TOOL CAPABILITY section carries the Tools withheld row", withheldRow?.label === 'Tools withheld')
 {
   const withheldSays = await withheldRow?.run()
-  const withheldOwner = await import('../../src/services/tools/withheldTools.ts')
+  const withheldOwner = await import('../../src/engine/tool-dispatch/withheldTools.ts')
   const settledList = withheldOwner.withheldTools()
   check("/health's row waits for the toolchain probes before it reads the census", withheldSays?.evidence === withheldOwner.withheldToolsLine(settledList) && (settledList.length === 0 ? withheldSays.status === 'ok' : withheldSays.status === 'info' && withheldSays.detail === settledList.map(w => `${w.tool} — needs ${w.dependency}: ${w.why}`).join('\n')), withheldSays?.evidence)
   const slowGdb = join(emptyBin, 'gdb')

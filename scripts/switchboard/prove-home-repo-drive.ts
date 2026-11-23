@@ -201,7 +201,7 @@ console.log('D1 — a defaulted launch colliding in the (plain) home gets NO git
   const e = estate('d1', { homeIsRepo: false, bulkFiles: 0 })
   const tee = join(SCRATCH, 'd1-refused-at-home.tee')
   process.env.MERCURY_DAEMON_DIR = join(e.cfg, 'daemon')
-  const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+  const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
   const shown = capture(e, 'd1-refused-at-home', e.home, [
     { atTick: 150, awaitText: READY_NEEDLE, awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' },
     { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' },
@@ -223,16 +223,16 @@ console.log('D1 — a defaulted launch colliding in the (plain) home gets NO git
     : null
   const c = await shown
   delete process.env.MERCURY_DAEMON_DIR
-  check('D1 the launch was asked of the daemon while the board was on screen, and the daemon did not start it', boardUp && asked !== null && asked.ok !== true && asked.sessionId === undefined, JSON.stringify(asked).slice(0, 300), 'a defaulted launch in the plain home folder must be refused: check the sessionDispatch handling in src/daemon/controlServer.ts and src/daemon/concourseDispatch.ts; if boardUp is false the board never showed, so rerun with MERCURY_HOMEREPO_CAPTURE_DIR set to read the frames')
+  check('D1 the launch was asked of the daemon while the board was on screen, and the daemon did not start it', boardUp && asked !== null && asked.ok !== true && asked.sessionId === undefined, JSON.stringify(asked).slice(0, 300), 'a defaulted launch in the plain home folder must be refused: check the sessionDispatch handling in src/daemon/control/controlServer.ts and src/daemon/concourse-workers/concourseDispatch.ts; if boardUp is false the board never showed, so rerun with MERCURY_HOMEREPO_CAPTURE_DIR set to read the frames')
   const receipt = c.marks.receipt ?? ''
   const settled = c.marks.settled ?? ''
   printFrame('d1 (the board after the refused launch)', settled || c.text)
-  check('D1 the receipt reached the rail ("no git offer for …")', receipt.includes(RECEIPT), c.tail.slice(-300), 'mintGitRefusedReceipt in src/daemon/permissionAsks.ts (called from src/daemon/concourseDispatch.ts) must write the no git offer for receipt that the board shows')
-  check('D1 no "Start a git repository" card was offered', !receipt.includes(OFFER_TITLE) && !settled.includes(OFFER_TITLE), '', 'no git-init offer may be raised for the home folder: the refusal for it is in src/utils/projectBoundary.ts and the offer is minted in src/daemon/permissionAsks.ts')
-  check('D1 the home has NO .git afterwards', !existsSync(join(e.home, '.git')), '', 'nothing may run git init in the home folder: see the refusal in src/utils/projectBoundary.ts and the offer path in src/daemon/permissionAsks.ts')
+  check('D1 the receipt reached the rail ("no git offer for …")', receipt.includes(RECEIPT), c.tail.slice(-300), 'mintGitRefusedReceipt in src/daemon/session-seat/permissionAsks.ts (called from src/daemon/concourse-workers/concourseDispatch.ts) must write the no git offer for receipt that the board shows')
+  check('D1 no "Start a git repository" card was offered', !receipt.includes(OFFER_TITLE) && !settled.includes(OFFER_TITLE), '', 'no git-init offer may be raised for the home folder: the refusal for it is in src/platform/files/projectBoundary.ts and the offer is minted in src/daemon/session-seat/permissionAsks.ts')
+  check('D1 the home has NO .git afterwards', !existsSync(join(e.home, '.git')), '', 'nothing may run git init in the home folder: see the refusal in src/platform/files/projectBoundary.ts and the offer path in src/daemon/session-seat/permissionAsks.ts')
   const sidecar = join(e.cfg, 'daemon', 'git-init-asks.json')
   const sidecarRows = existsSync(sidecar) ? (JSON.parse(readFileSync(sidecar, 'utf8')) as Record<string, string>) : {}
-  check('D1 no git-init ask row was minted for the home', !Object.values(sidecarRows).includes(e.home), JSON.stringify(sidecarRows), 'no git-init ask may be minted for the home folder: see src/daemon/permissionAsks.ts and the refusal in src/utils/projectBoundary.ts')
+  check('D1 no git-init ask row was minted for the home', !Object.values(sidecarRows).includes(e.home), JSON.stringify(sidecarRows), 'no git-init ask may be minted for the home folder: see src/daemon/session-seat/permissionAsks.ts and the refusal in src/platform/files/projectBoundary.ts')
   let receiptRow: { ref: string; question: string } | undefined
   let askRow = false
   try {
@@ -243,8 +243,8 @@ console.log('D1 — a defaulted launch colliding in the (plain) home gets NO git
     }
   } catch {
   }
-  check('D1 the obligation store holds the refusal receipt and no git-init ask', receiptRow !== undefined && !askRow, '', 'mintGitRefusedReceipt in src/daemon/permissionAsks.ts must write a git-refused: obligation naming the home folder, and no permission:git-init: ask may exist')
-  check('D1 the receipt names the reason and says kept without git', receiptRow?.question.includes('this is your home folder') === true && receiptRow?.question.includes('kept without git') === true, receiptRow?.question, 'the reason words come from src/utils/projectBoundary.ts and mintGitRefusedReceipt in src/daemon/permissionAsks.ts adds kept without git')
+  check('D1 the obligation store holds the refusal receipt and no git-init ask', receiptRow !== undefined && !askRow, '', 'mintGitRefusedReceipt in src/daemon/session-seat/permissionAsks.ts must write a git-refused: obligation naming the home folder, and no permission:git-init: ask may exist')
+  check('D1 the receipt names the reason and says kept without git', receiptRow?.question.includes('this is your home folder') === true && receiptRow?.question.includes('kept without git') === true, receiptRow?.question, 'the reason words come from src/platform/files/projectBoundary.ts and mintGitRefusedReceipt in src/daemon/session-seat/permissionAsks.ts adds kept without git')
   let rows: Array<{ heldReason?: string; reason?: string; sessionId?: string; state?: string }> = []
   try {
     const ledger = JSON.parse(readFileSync(join(e.cfg, 'daemon', 'concourse-dispatches.json'), 'utf8')) as { dispatches?: Record<string, { heldReason?: string; reason?: string; sessionId?: string; state?: string }> } & Record<string, unknown>
@@ -253,8 +253,8 @@ console.log('D1 — a defaulted launch colliding in the (plain) home gets NO git
   } catch {
   }
   const summary = rows.map(r => `${r.state}/${r.heldReason ?? '-'}/${r.sessionId !== undefined ? 'started' : 'no-session'}: ${(r.reason ?? '').slice(0, 90)}`).join(' | ')
-  check('D1 no launch was ever held on the git offer (no-repository / unborn-head)', rows.length > 0 && rows.every(r => r.heldReason !== 'no-repository' && r.heldReason !== 'unborn-head'), summary, 'a launch in a refused home folder must not be held for a git offer: see src/daemon/concourseDispatch.ts and src/daemon/concourseWorkers/admission.ts')
-  check('D1 the launch waits as a plain collision whose reason says kept without git', rows.some(r => r.sessionId === undefined && (r.reason ?? '').includes('kept without git')), summary, 'src/daemon/concourseWorkers/admission.ts must queue the launch with a reason that says kept without git and starts no session')
+  check('D1 no launch was ever held on the git offer (no-repository / unborn-head)', rows.length > 0 && rows.every(r => r.heldReason !== 'no-repository' && r.heldReason !== 'unborn-head'), summary, 'a launch in a refused home folder must not be held for a git offer: see src/daemon/concourse-workers/concourseDispatch.ts and src/daemon/concourse-workers/admission.ts')
+  check('D1 the launch waits as a plain collision whose reason says kept without git', rows.some(r => r.sessionId === undefined && (r.reason ?? '').includes('kept without git')), summary, 'src/daemon/concourse-workers/admission.ts must queue the launch with a reason that says kept without git and starts no session')
   reap(e)
 }
 

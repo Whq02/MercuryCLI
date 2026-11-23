@@ -15,16 +15,16 @@ delete process.env.CI
 delete process.env.NODE_ENV
 Object.assign(process.env, { MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', BROWSER: '/usr/bin/true', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1' })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs, saveGlobalConfig } = await import(join(src, 'utils/config/globalConfig.ts'))
+const { enableConfigs, saveGlobalConfig } = await import(join(src, 'platform/config/globalConfig.ts'))
 enableConfigs()
 saveGlobalConfig((config: Record<string, unknown>) => ({ ...config, oauthAccount: { accountUuid: 'fixture-account', emailAddress: 'fixture@example.invalid', organizationUuid: 'fixture-organization' } }))
-const auth = { ...(await import(join(src, 'utils/auth.ts'))), ...(await import(join(src, 'services/auth/oauthLifecycle.ts'))) }
-const { APIError } = await import(join(src, 'utils/api/sdkErrors.ts'))
-const { getAssistantMessageFromError } = await import(join(src, 'services/api/errors.ts'))
-const { isRetryableError, withRetry, CannotRetryError } = await import(join(src, 'services/api/withRetry.ts'))
+const auth = { ...(await import(join(src, 'models/sign-in/credentials/auth.ts'))), ...(await import(join(src, 'models/sign-in/lifecycle/oauthLifecycle.ts'))) }
+const { APIError } = await import(join(src, 'engine/request-parts/sdkErrors.ts'))
+const { getAssistantMessageFromError } = await import(join(src, 'engine/requests/apiErrorRows.ts'))
+const { isRetryableError, withRetry, CannotRetryError } = await import(join(src, 'engine/requests/withRetry.ts'))
 let failures = 0
 let checks = 0
-const check = (name: string, ok: boolean) => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ' — fix the retry policy in isRetryableError and withRetry (src/services/api/withRetry.ts), or the notice and wait fields in getAssistantMessageFromError (src/services/api/errors.ts), whichever this label names'}`) }
+const check = (name: string, ok: boolean) => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ' — fix the retry policy in isRetryableError and withRetry (src/engine/requests/withRetry.ts), or the notice and wait fields in getAssistantMessageFromError (src/engine/requests/apiErrorRows.ts), whichever this label names'}`) }
 const refusal = (status: number, message = 'credential rejected', headers: Record<string, string> = {}) => new APIError(status, { error: { message } }, message, new Headers(headers))
 const seed = (accessToken: string) => {
   writeFileSync(join(home, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken, refreshToken: 'fixture-refresh', expiresAt: Date.now() + 3_600_000, scopes: ['user:inference'], subscriptionType: 'max', rateLimitTier: null } }))

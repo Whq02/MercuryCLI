@@ -36,13 +36,13 @@ for (const rel of tree) {
 check(`the seal reads the three trees (${tree.length} files)`, tree.length > 1000, 'git ls-files read too few files under src, scripts and docs; run this from the repository checkout')
 for (const spelling of RETIRED_SPELLINGS) {
   const where = hits.get(spelling) ?? []
-  check(`${spelling}: on no file name and in no file`, where.length === 0, where.slice(0, 6).join(' · ') + (where.length > 6 ? ` … (${where.length})` : '') + ' — remove the retired spelling from these files and from any file name, and use the ask clock owner src/utils/permissions/askClock.ts instead')
+  check(`${spelling}: on no file name and in no file`, where.length === 0, where.slice(0, 6).join(' · ') + (where.length > 6 ? ` … (${where.length})` : '') + ' — remove the retired spelling from these files and from any file name, and use the ask clock owner src/permissions/rules/askClock.ts instead')
 }
 
 console.log('§2 the one owner stands')
 {
-  const { CREWMATE_ASK_LIMIT_MINUTES, FLOW_ASK_LIMIT_MINUTES, SOVEREIGN_ASK_LIMIT_MINUTES } = await import('../../src/utils/permissions/askClock.ts')
-  check('the owner spells the three clocks', FLOW_ASK_LIMIT_MINUTES === 10 && SOVEREIGN_ASK_LIMIT_MINUTES === 3 && CREWMATE_ASK_LIMIT_MINUTES === 10, 'restore the three clock constants (flow 10, sovereign 3, crewmate 10 minutes) in src/utils/permissions/askClock.ts')
+  const { CREWMATE_ASK_LIMIT_MINUTES, FLOW_ASK_LIMIT_MINUTES, SOVEREIGN_ASK_LIMIT_MINUTES } = await import('../../src/permissions/rules/askClock.ts')
+  check('the owner spells the three clocks', FLOW_ASK_LIMIT_MINUTES === 10 && SOVEREIGN_ASK_LIMIT_MINUTES === 3 && CREWMATE_ASK_LIMIT_MINUTES === 10, 'restore the three clock constants (flow 10, sovereign 3, crewmate 10 minutes) in src/permissions/rules/askClock.ts')
 }
 
 console.log(`\nask clock words gone: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)

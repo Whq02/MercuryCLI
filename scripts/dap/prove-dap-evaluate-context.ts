@@ -14,7 +14,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — evaluate-context proof exceeded 90s; a DebugTool.call or a reply of scripts/dap/mock-dap-adapter.mjs never came back, start in src/tools/DebugTool/DebugTool.ts')
+  console.log('\nTIMEOUT — evaluate-context proof exceeded 90s; a DebugTool.call or a reply of scripts/dap/mock-dap-adapter.mjs never came back, start in src/tools/debug/DebugTool.ts')
   process.exit(1)
 }, 90_000)
 guard.unref?.()
@@ -29,10 +29,10 @@ async function main(): Promise<void> {
   delete process.env.MOCK_DAP_REFUSE_BREAKPOINTS
   delete process.env.MOCK_DAP_BREAKPOINT_DELAY_MS
 
-  const { getDapSession, _dapSessionCountForTesting } = await import(join(SRC, 'services/dap/dapClient.ts'))
-  const { DebugTool } = await import(join(SRC, 'tools/DebugTool/DebugTool.ts'))
-  const { getDebugToolDescription } = await import(join(SRC, 'tools/DebugTool/prompt.ts'))
-  const { processMainOwner } = await import(join(SRC, 'utils/run/resolveOwner.ts'))
+  const { getDapSession, _dapSessionCountForTesting } = await import(join(SRC, 'integrations/debugger/dapClient.ts'))
+  const { DebugTool } = await import(join(SRC, 'tools/debug/DebugTool.ts'))
+  const { getDebugToolDescription } = await import(join(SRC, 'tools/debug/prompt.ts'))
+  const { processMainOwner } = await import(join(SRC, 'engine/run-owner/resolveOwner.ts'))
   const owner = processMainOwner()
   const call = async (input: Record<string, unknown>): Promise<Call> =>
     (await DebugTool.call(input as never, { owner } as never)) as Call
@@ -51,10 +51,10 @@ async function main(): Promise<void> {
   {
     const schema = DebugTool.inputSchema as { safeParse: (v: unknown) => { success: boolean } }
     for (const context of ['repl', 'watch', 'hover', 'clipboard', 'variables']) {
-      check(`context "${context}" is accepted`, schema.safeParse({ op: 'evaluate', expression: 'x', context }).success === true, 'add this word to the context enum in src/tools/DebugTool/debug/schema.ts')
+      check(`context "${context}" is accepted`, schema.safeParse({ op: 'evaluate', expression: 'x', context }).success === true, 'add this word to the context enum in src/tools/debug/ops/schema.ts')
     }
-    check('an unknown context is refused', schema.safeParse({ op: 'evaluate', expression: 'x', context: 'nope' }).success === false, 'the context enum in src/tools/DebugTool/debug/schema.ts must list only the five words')
-    check('context is optional', schema.safeParse({ op: 'evaluate', expression: 'x' }).success === true, 'make context optional in src/tools/DebugTool/debug/schema.ts')
+    check('an unknown context is refused', schema.safeParse({ op: 'evaluate', expression: 'x', context: 'nope' }).success === false, 'the context enum in src/tools/debug/ops/schema.ts must list only the five words')
+    check('context is optional', schema.safeParse({ op: 'evaluate', expression: 'x' }).success === true, 'make context optional in src/tools/debug/ops/schema.ts')
   }
 
   section('E1 stopped, no frameId: the top frame of the stopped thread, a reference back')
@@ -62,36 +62,36 @@ async function main(): Promise<void> {
     const launch = await call({ op: 'launch', adapter: 'mock', program: FILE, file: FILE, lines: [3] })
     check('launch stops on the breakpoint', /stopped — reason breakpoint/.test(launch.data.result), launch.data.result.split('\n')[0])
     const obj = await call({ op: 'evaluate', expression: 'obj' })
-    check('evaluate without frameId succeeds while stopped', obj.data.outcome === 'succeeded' && obj.data.debuggee === 'stopped', `${obj.data.outcome}: ${obj.data.result} — the evaluate case of src/tools/DebugTool/DebugTool.ts must fall back to the stopped thread's top frame when no frameId is given`)
-    check('the result carries the value and type', /obj = \{'a': 1, 'b': \[1, 2\]\} \(dict\)/.test(obj.data.result), obj.data.result + ' — evaluateOp in src/tools/DebugTool/debug/inspect.ts builds this line from the adapter reply')
-    check('the result carries variablesReference 200 with its named count', /\[variablesReference 200, 2 named\]/.test(obj.data.result), obj.data.result + ' — evaluateOp in src/tools/DebugTool/debug/inspect.ts appends the variablesReference and counts')
-    check('the effect details carry the reference, counts, type and the frame used', obj.effect.details?.variablesReference === 200 && obj.effect.details?.namedVariables === 2 && obj.effect.details?.type === 'dict' && obj.effect.details?.frameId === 1000 && obj.effect.details?.context === 'repl', JSON.stringify(obj.effect.details) + ' — evaluateOp in src/tools/DebugTool/debug/inspect.ts sets these effect details')
+    check('evaluate without frameId succeeds while stopped', obj.data.outcome === 'succeeded' && obj.data.debuggee === 'stopped', `${obj.data.outcome}: ${obj.data.result} — the evaluate case of src/tools/debug/DebugTool.ts must fall back to the stopped thread's top frame when no frameId is given`)
+    check('the result carries the value and type', /obj = \{'a': 1, 'b': \[1, 2\]\} \(dict\)/.test(obj.data.result), obj.data.result + ' — evaluateOp in src/tools/debug/ops/inspect.ts builds this line from the adapter reply')
+    check('the result carries variablesReference 200 with its named count', /\[variablesReference 200, 2 named\]/.test(obj.data.result), obj.data.result + ' — evaluateOp in src/tools/debug/ops/inspect.ts appends the variablesReference and counts')
+    check('the effect details carry the reference, counts, type and the frame used', obj.effect.details?.variablesReference === 200 && obj.effect.details?.namedVariables === 2 && obj.effect.details?.type === 'dict' && obj.effect.details?.frameId === 1000 && obj.effect.details?.context === 'repl', JSON.stringify(obj.effect.details) + ' — evaluateOp in src/tools/debug/ops/inspect.ts sets these effect details')
     const seen = await lastEvaluate()
-    check('the adapter received the TOP frame of the stopped thread (frameId 1000) in context repl', seen.frameId === 1000 && seen.context === 'repl', JSON.stringify(seen) + ' — the evaluate case of src/tools/DebugTool/DebugTool.ts picks the frame and evaluateOp in src/tools/DebugTool/debug/inspect.ts sends frameId and context')
+    check('the adapter received the TOP frame of the stopped thread (frameId 1000) in context repl', seen.frameId === 1000 && seen.context === 'repl', JSON.stringify(seen) + ' — the evaluate case of src/tools/debug/DebugTool.ts picks the frame and evaluateOp in src/tools/debug/ops/inspect.ts sends frameId and context')
 
     section('E2 variables on that reference lists the nested values')
     const vars = await call({ op: 'variables', variablesReference: 200 })
-    check('a and b are listed', /a = 1 \(int\)/.test(vars.data.result) && /b = \[1, 2\] \(list\) \[ref 201\]/.test(vars.data.result), vars.data.result + ' — variablesOp in src/tools/DebugTool/debug/inspect.ts lists the children')
+    check('a and b are listed', /a = 1 \(int\)/.test(vars.data.result) && /b = \[1, 2\] \(list\) \[ref 201\]/.test(vars.data.result), vars.data.result + ' — variablesOp in src/tools/debug/ops/inspect.ts lists the children')
     const inner = await call({ op: 'variables', variablesReference: 201 })
-    check('the nested list expands by its reference', /0 = 1/.test(inner.data.result) && /1 = 2/.test(inner.data.result), inner.data.result + ' — variablesOp in src/tools/DebugTool/debug/inspect.ts must expand a nested reference')
+    check('the nested list expands by its reference', /0 = 1/.test(inner.data.result) && /1 = 2/.test(inner.data.result), inner.data.result + ' — variablesOp in src/tools/debug/ops/inspect.ts must expand a nested reference')
 
     section('E3 context rides to the adapter; an explicit frameId wins')
     const watch = await call({ op: 'evaluate', expression: 'x+1', context: 'watch' })
-    check('evaluate in context watch answers', watch.data.outcome === 'succeeded' && /x\+1 = 42 \(int\)/.test(watch.data.result), watch.data.result + ' — evaluateOp in src/tools/DebugTool/debug/inspect.ts')
+    check('evaluate in context watch answers', watch.data.outcome === 'succeeded' && /x\+1 = 42 \(int\)/.test(watch.data.result), watch.data.result + ' — evaluateOp in src/tools/debug/ops/inspect.ts')
     const seenWatch = await lastEvaluate()
-    check('the adapter saw context watch', seenWatch.context === 'watch', JSON.stringify(seenWatch) + ' — evaluateOp in src/tools/DebugTool/debug/inspect.ts must send input.context to the adapter')
-    check('a scalar result carries no variablesReference', !/variablesReference/.test(watch.data.result) && watch.effect.details?.variablesReference === undefined, watch.data.result + ' — evaluateOp in src/tools/DebugTool/debug/inspect.ts must add variablesReference only when the reply carries one above 0')
+    check('the adapter saw context watch', seenWatch.context === 'watch', JSON.stringify(seenWatch) + ' — evaluateOp in src/tools/debug/ops/inspect.ts must send input.context to the adapter')
+    check('a scalar result carries no variablesReference', !/variablesReference/.test(watch.data.result) && watch.effect.details?.variablesReference === undefined, watch.data.result + ' — evaluateOp in src/tools/debug/ops/inspect.ts must add variablesReference only when the reply carries one above 0')
     const explicit = await call({ op: 'evaluate', expression: 'x+1', frameId: 1001, context: 'hover' })
-    check('an explicit frameId is sent as given', explicit.data.outcome === 'succeeded' && (await lastEvaluate()).frameId === 1001, explicit.data.result + ' — the evaluate case of src/tools/DebugTool/DebugTool.ts must pass an explicit frameId through unchanged')
-    check('…in the context given', (await lastEvaluate()).context === 'hover', 'evaluateOp in src/tools/DebugTool/debug/inspect.ts must send the context given')
+    check('an explicit frameId is sent as given', explicit.data.outcome === 'succeeded' && (await lastEvaluate()).frameId === 1001, explicit.data.result + ' — the evaluate case of src/tools/debug/DebugTool.ts must pass an explicit frameId through unchanged')
+    check('…in the context given', (await lastEvaluate()).context === 'hover', 'evaluateOp in src/tools/debug/ops/inspect.ts must send the context given')
     const plain = await call({ op: 'evaluate', expression: 'x+1', frameId: 1000 })
-    check('no context ⇒ repl (the default), the pre-.42 shape unchanged', (await lastEvaluate()).context === 'repl' && /x\+1 = 42/.test(plain.data.result), plain.data.result + ' — the evaluate case of src/tools/DebugTool/DebugTool.ts defaults context to repl')
+    check('no context ⇒ repl (the default), the pre-.42 shape unchanged', (await lastEvaluate()).context === 'repl' && /x\+1 = 42/.test(plain.data.result), plain.data.result + ' — the evaluate case of src/tools/debug/DebugTool.ts defaults context to repl')
 
     section('E4 terminated, no frameId: the refusal names the state, nothing hits the wire')
     const cont = await call({ op: 'continue' })
-    check('continue runs the debuggee to its end', cont.data.result.startsWith('continue: debuggee exited (code 0)'), cont.data.result.split('\n')[0] + ' — the continue case of src/tools/DebugTool/DebugTool.ts and scripts/dap/mock-dap-adapter.mjs')
+    check('continue runs the debuggee to its end', cont.data.result.startsWith('continue: debuggee exited (code 0)'), cont.data.result.split('\n')[0] + ' — the continue case of src/tools/debug/DebugTool.ts and scripts/dap/mock-dap-adapter.mjs')
     const dead = await call({ op: 'evaluate', expression: 'obj' })
-    check('the refusal is typed and names terminated', dead.data.outcome === 'failed' && /evaluate needs a stopped frame: the debuggee is terminated and no frameId was given/.test(dead.data.result), `${dead.data.outcome}: ${dead.data.result} — the refusal text lives in the evaluate case of src/tools/DebugTool/DebugTool.ts`)
+    check('the refusal is typed and names terminated', dead.data.outcome === 'failed' && /evaluate needs a stopped frame: the debuggee is terminated and no frameId was given/.test(dead.data.result), `${dead.data.outcome}: ${dead.data.result} — the refusal text lives in the evaluate case of src/tools/debug/DebugTool.ts`)
     await call({ op: 'disconnect' })
   }
 
@@ -100,11 +100,11 @@ async function main(): Promise<void> {
     const launch = await call({ op: 'launch', adapter: 'mock', program: FILE, session: 'free' })
     check('a launch without breakpoints runs', /running — op:"output"/.test(launch.data.result), launch.data.result.split('\n')[0])
     const running = await call({ op: 'evaluate', expression: 'obj', session: 'free' })
-    check('the refusal names running, pause and frameId', running.data.outcome === 'failed' && running.data.debuggee === 'running' && /the debuggee is running and no frameId was given/.test(running.data.result) && /op:"pause" first, or give frameId from op:"stack"/.test(running.data.result), `${running.data.outcome}: ${running.data.result} — the refusal text and its debuggee field live in the evaluate case of src/tools/DebugTool/DebugTool.ts`)
+    check('the refusal names running, pause and frameId', running.data.outcome === 'failed' && running.data.debuggee === 'running' && /the debuggee is running and no frameId was given/.test(running.data.result) && /op:"pause" first, or give frameId from op:"stack"/.test(running.data.result), `${running.data.outcome}: ${running.data.result} — the refusal text and its debuggee field live in the evaluate case of src/tools/debug/DebugTool.ts`)
     const before = await lastEvaluate('free')
-    check('nothing reached the adapter for the refused call', before.expression === undefined, JSON.stringify(before) + ' — the evaluate case of src/tools/DebugTool/DebugTool.ts must return before it calls evaluateOp')
+    check('nothing reached the adapter for the refused call', before.expression === undefined, JSON.stringify(before) + ' — the evaluate case of src/tools/debug/DebugTool.ts must return before it calls evaluateOp')
     const withFrame = await call({ op: 'evaluate', expression: 'x+1', frameId: 1000, session: 'free' })
-    check('an explicit frameId while running still evaluates', withFrame.data.outcome === 'succeeded' && /x\+1 = 42/.test(withFrame.data.result) && withFrame.data.debuggee === 'running', `${withFrame.data.outcome}: ${withFrame.data.result} — the evaluate case of src/tools/DebugTool/DebugTool.ts must send a given frameId even while running`)
+    check('an explicit frameId while running still evaluates', withFrame.data.outcome === 'succeeded' && /x\+1 = 42/.test(withFrame.data.result) && withFrame.data.debuggee === 'running', `${withFrame.data.outcome}: ${withFrame.data.result} — the evaluate case of src/tools/debug/DebugTool.ts must send a given frameId even while running`)
     await call({ op: 'disconnect', session: 'free' })
   }
 
@@ -113,13 +113,13 @@ async function main(): Promise<void> {
     const text = getDebugToolDescription(false)
     const fields = (DebugTool.inputSchema as { shape: Record<string, { description?: string }> }).shape
     const field = (name: string): string => fields[name]?.description ?? ''
-    check('…the default frame lives in the frameId field, and the manual does not repeat it', /evaluate defaults to the top frame of the thread that stopped last/.test(field('frameId')) && !/top frame of the thread that stopped last/.test(text), 'say it once, in the frameId description in src/tools/DebugTool/debug/schema.ts, and not in src/tools/DebugTool/prompt.ts')
-    check('…the five contexts live in the context field', /default "repl"; "watch" for a side-effect-free read, "hover" for a symbol under the cursor, "clipboard" for a copyable value, "variables" for a variables-view value/.test(field('context')) && !text.includes('"clipboard"'), 'say it once, in the context description in src/tools/DebugTool/debug/schema.ts, and not in src/tools/DebugTool/prompt.ts')
-    check('…the manual says what evaluate returns: an expandable result carries a variablesReference', /an expandable result carries \[variablesReference N\], which variables expands/.test(text), 'getDebugToolDescription in src/tools/DebugTool/prompt.ts must carry the evaluate sentence')
-    check('…the refusal for a running debuggee is not pre-empted in the text', !/pause first/.test(text) && !/pause first/.test(field('frameId')), 'drop the pause-first wording from src/tools/DebugTool/prompt.ts and the frameId description in src/tools/DebugTool/debug/schema.ts; the refusal in DebugTool.ts says it')
+    check('…the default frame lives in the frameId field, and the manual does not repeat it', /evaluate defaults to the top frame of the thread that stopped last/.test(field('frameId')) && !/top frame of the thread that stopped last/.test(text), 'say it once, in the frameId description in src/tools/debug/ops/schema.ts, and not in src/tools/debug/prompt.ts')
+    check('…the five contexts live in the context field', /default "repl"; "watch" for a side-effect-free read, "hover" for a symbol under the cursor, "clipboard" for a copyable value, "variables" for a variables-view value/.test(field('context')) && !text.includes('"clipboard"'), 'say it once, in the context description in src/tools/debug/ops/schema.ts, and not in src/tools/debug/prompt.ts')
+    check('…the manual says what evaluate returns: an expandable result carries a variablesReference', /an expandable result carries \[variablesReference N\], which variables expands/.test(text), 'getDebugToolDescription in src/tools/debug/prompt.ts must carry the evaluate sentence')
+    check('…the refusal for a running debuggee is not pre-empted in the text', !/pause first/.test(text) && !/pause first/.test(field('frameId')), 'drop the pause-first wording from src/tools/debug/prompt.ts and the frameId description in src/tools/debug/ops/schema.ts; the refusal in DebugTool.ts says it')
   }
 
-  check('no sessions leak', _dapSessionCountForTesting() === 0, String(_dapSessionCountForTesting()) + ' — a session opened above was not ended by op:disconnect; see src/services/dap/dapClient.ts')
+  check('no sessions leak', _dapSessionCountForTesting() === 0, String(_dapSessionCountForTesting()) + ' — a session opened above was not ended by op:disconnect; see src/integrations/debugger/dapClient.ts')
 
   console.log('\n' + '='.repeat(60))
   if (failures > 0) {

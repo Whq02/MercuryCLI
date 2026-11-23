@@ -19,9 +19,9 @@ console.log('============================================================')
 console.log(' blender headless launch profiles (MERCURY_BLENDER) — proof')
 console.log('============================================================')
 
-const { discoverLaunchProfiles } = await import('../../src/services/ide/launchProfiles.js')
+const { discoverLaunchProfiles } = await import('../../src/integrations/ide/launchProfiles.js')
 const { operatorRunRefusal, unityHeadlessRefusal } = await import(
-  '../../src/tools/LaunchTool/LaunchTool.js'
+  '../../src/tools/launch/LaunchTool.js'
 )
 
 const savedEnv = { ...process.env }
@@ -58,7 +58,7 @@ section('§1 · opt-in polarity')
     'off: zero blender profiles beside .blend files',
     off.profiles.every(p => p.source !== 'blender'),
     '',
-    'blender rows must only be built when mercuryBlenderEnabled() is true: see the blender block of discoverLaunchProfiles in src/services/ide/launchProfiles.ts',
+    'blender rows must only be built when mercuryBlenderEnabled() is true: see the blender block of discoverLaunchProfiles in src/integrations/ide/launchProfiles.ts',
   )
 }
 
@@ -73,14 +73,14 @@ section('§2 · render shapes (THE ORDER LAW by index)')
     '2 files ⇒ 2 render-frame + 2 render-anim + 1 hermetic + 1 debug recipe = 6 rows',
     blender.length === 6,
     `${blender.length}`,
-    'the blender block of discoverLaunchProfiles in src/services/ide/launchProfiles.ts pushes the render-frame, render-animation, hermetic and debug rows per .blend file: fix what it pushes',
+    'the blender block of discoverLaunchProfiles in src/integrations/ide/launchProfiles.ts pushes the render-frame, render-animation, hermetic and debug rows per .blend file: fix what it pushes',
   )
   const renders = blender.filter(p => (p.blenderHeadless?.args ?? []).includes('-b'))
   check(
     'four render rows carry -b <file> first',
     renders.length === 4 && renders.every(p => p.blenderHeadless?.args[0] === '-b'),
     '',
-    'the mkB render calls in the blender block of discoverLaunchProfiles (src/services/ide/launchProfiles.ts) must start their args with -b and the file',
+    'the mkB render calls in the blender block of discoverLaunchProfiles (src/integrations/ide/launchProfiles.ts) must start their args with -b and the file',
   )
   for (const p of renders) {
     const args = p.blenderHeadless?.args ?? []
@@ -91,7 +91,7 @@ section('§2 · render shapes (THE ORDER LAW by index)')
       `ORDER LAW: output before ${frame !== -1 ? '-f' : '-a'} (${p.label})`,
       o !== -1 && (frame === -1 || o < frame) && (anim === -1 || o < anim),
       '',
-      'put -o before -f and -a in the render args built by mkB in src/services/ide/launchProfiles.ts',
+      'put -o before -f and -a in the render args built by mkB in src/integrations/ide/launchProfiles.ts',
     )
     check(
       `note teaches the order law + runs-are-yours (${p.label})`,
@@ -99,14 +99,14 @@ section('§2 · render shapes (THE ORDER LAW by index)')
         (p.blenderHeadless?.note ?? '').includes('these profiles are printed, never run for you') &&
         !(p.blenderHeadless?.note ?? '').includes('never launches Blender'),
       '',
-      'the render rows note is ORDER_NOTE in the blender block of discoverLaunchProfiles (src/services/ide/launchProfiles.ts): it must say IN ORDER and these profiles are printed, never run for you',
+      'the render rows note is ORDER_NOTE in the blender block of discoverLaunchProfiles (src/integrations/ide/launchProfiles.ts): it must say IN ORDER and these profiles are printed, never run for you',
     )
   }
   check(
     'the located binary spells the commandLine',
     blender.every(p => p.blenderHeadless?.commandLine.startsWith(shimBin)),
     '',
-    'commandLine is spelled by spell() from the binary buildBlenderContextProfile located (MERCURY_BLENDER_BIN pin): see src/services/ide/launchProfiles.ts',
+    'commandLine is spelled by spell() from the binary buildBlenderContextProfile located (MERCURY_BLENDER_BIN pin): see src/integrations/ide/launchProfiles.ts',
   )
 }
 
@@ -120,7 +120,7 @@ section('§3 · the hermetic python row')
     'every row carries the pinned shim and its version: no Blender this machine holds answered (§3)',
     answeredByTheShim(d),
     d.profiles.find(p => p.source === 'blender')?.provenance ?? '',
-    'the pin MERCURY_BLENDER_BIN must win over any installed Blender: see buildBlenderContextProfile in src/utils/blender/blenderProject.ts and the blender block of src/services/ide/launchProfiles.ts',
+    'the pin MERCURY_BLENDER_BIN must win over any installed Blender: see buildBlenderContextProfile in src/integrations/blender-protocol/blenderProject.ts and the blender block of src/integrations/ide/launchProfiles.ts',
   )
   const hermetic = d.profiles.find(
     p => p.source === 'blender' && (p.blenderHeadless?.args ?? []).includes('--factory-startup'),
@@ -133,13 +133,13 @@ section('§3 · the hermetic python row')
       args[args.indexOf('--python') + 1] === '<your-script.py>' &&
       args[args.indexOf('--python-exit-code') + 1] === '1',
     '',
-    'the hermetic mkB call in the blender block of discoverLaunchProfiles (src/services/ide/launchProfiles.ts) spells these args',
+    'the hermetic mkB call in the blender block of discoverLaunchProfiles (src/integrations/ide/launchProfiles.ts) spells these args',
   )
   check(
     'note teaches the exit-code semantics (zero disables)',
     (hermetic?.blenderHeadless?.note ?? '').includes('zero disables'),
     '',
-    'the hermetic note in the blender block of discoverLaunchProfiles (src/services/ide/launchProfiles.ts) must say zero disables',
+    'the hermetic note in the blender block of discoverLaunchProfiles (src/integrations/ide/launchProfiles.ts) must say zero disables',
   )
 }
 
@@ -153,7 +153,7 @@ section('§4 · the shared operator-run refusal')
     'every row carries the pinned shim and its version: no Blender this machine holds answered (§4)',
     answeredByTheShim(d),
     d.profiles.find(p => p.source === 'blender')?.provenance ?? '',
-    'the pin MERCURY_BLENDER_BIN must win over any installed Blender: see buildBlenderContextProfile in src/utils/blender/blenderProject.ts and the blender block of src/services/ide/launchProfiles.ts',
+    'the pin MERCURY_BLENDER_BIN must win over any installed Blender: see buildBlenderContextProfile in src/integrations/blender-protocol/blenderProject.ts and the blender block of src/integrations/ide/launchProfiles.ts',
   )
   const row = d.profiles.find(p => p.source === 'blender')
   const refusal = row ? operatorRunRefusal(row) : null
@@ -164,19 +164,19 @@ section('§4 · the shared operator-run refusal')
       refusal.result.includes('blender headless profiles are operator-run') &&
       refusal.result.includes(row?.blenderHeadless?.commandLine ?? '∅'),
     '',
-    'operatorRunRefusal in src/tools/LaunchTool/LaunchTool.ts must return outcome no-change and a result naming blender headless profiles are operator-run plus the command line',
+    'operatorRunRefusal in src/tools/launch/LaunchTool.ts must return outcome no-change and a result naming blender headless profiles are operator-run plus the command line',
   )
   check(
     'no license sentence on blender rows (Blender needs none)',
     refusal !== null && !refusal.result.toLowerCase().includes('licens'),
     '',
-    'operatorRunRefusal in src/tools/LaunchTool/LaunchTool.ts adds a license sentence only for unity rows, not blender rows',
+    'operatorRunRefusal in src/tools/launch/LaunchTool.ts adds a license sentence only for unity rows, not blender rows',
   )
   check(
     'the unity compat spelling is the same door',
     unityHeadlessRefusal === operatorRunRefusal,
     '',
-    'src/tools/LaunchTool/LaunchTool.ts must export unityHeadlessRefusal as the same function as operatorRunRefusal',
+    'src/tools/launch/LaunchTool.ts must export unityHeadlessRefusal as the same function as operatorRunRefusal',
   )
 }
 
@@ -196,17 +196,17 @@ section('§5 · the profile cap honesty')
     'every row carries the pinned shim and its version: no Blender this machine holds answered (§5)',
     answeredByTheShim(d),
     blender[0]?.provenance ?? '',
-    'the pin MERCURY_BLENDER_BIN must win over any installed Blender: see buildBlenderContextProfile in src/utils/blender/blenderProject.ts and the blender block of src/services/ide/launchProfiles.ts',
+    'the pin MERCURY_BLENDER_BIN must win over any installed Blender: see buildBlenderContextProfile in src/integrations/blender-protocol/blenderProject.ts and the blender block of src/integrations/ide/launchProfiles.ts',
   )
   check('capped: 10 files × 2 + hermetic + debug recipe = 22 rows', blender.length === 22,
     `${blender.length}`,
-    'BLEND_PROFILE_FILE_CAP in the blender block of discoverLaunchProfiles (src/services/ide/launchProfiles.ts) caps the .blend files profiled',
+    'BLEND_PROFILE_FILE_CAP in the blender block of discoverLaunchProfiles (src/integrations/ide/launchProfiles.ts) caps the .blend files profiled',
   )
   check(
     'the overflow is a counted source note, not silence',
     d.sourceErrors.some(e => e.source === 'blender' && e.error.includes('3 more .blend')),
     '',
-    'the blender block of discoverLaunchProfiles (src/services/ide/launchProfiles.ts) must push a sourceErrors note counting the files beyond BLEND_PROFILE_FILE_CAP',
+    'the blender block of discoverLaunchProfiles (src/integrations/ide/launchProfiles.ts) must push a sourceErrors note counting the files beyond BLEND_PROFILE_FILE_CAP',
   )
 }
 

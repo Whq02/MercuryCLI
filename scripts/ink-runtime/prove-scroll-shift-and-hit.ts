@@ -1,26 +1,26 @@
 #!/usr/bin/env bun
-// gate-watch: src/ink/compose-walk.ts src/ink/geometry/hit.ts src/ink/node-cache.ts src/ink/renderer.ts
+// gate-watch: src/screen/renderer/compose-walk.ts src/screen/renderer/geometry/hitTest.ts src/screen/renderer/node-cache.ts src/screen/renderer/renderer.ts
 export {}
 process.env.FORCE_COLOR = '3'
 delete process.env.NO_COLOR
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { appendChildNode, createNode, createTextNode, insertBeforeNode, markDirty, removeChildNode, setAttribute, setTextNodeValue } = await import('../../src/ink/dom.js')
-type DOMElement = import('../../src/ink/dom.js').DOMElement
-type TextNode = import('../../src/ink/dom.js').TextNode
-const { cellAt } = await import('../../src/ink/cell-grid.js')
-type Screen = import('../../src/ink/cell-grid.js').Screen
-const { emptyFrame } = await import('../../src/ink/frame.js')
-type Frame = import('../../src/ink/frame.js').Frame
-const { dispatchClick, hitTest } = await import('../../src/ink/geometry/hit.js')
-const { nodeCache } = await import('../../src/ink/node-cache.js')
-const { default: createRenderer } = await import('../../src/ink/renderer.js')
+const { appendChildNode, createNode, createTextNode, insertBeforeNode, markDirty, removeChildNode, setAttribute, setTextNodeValue } = await import('../../src/screen/renderer/dom.js')
+type DOMElement = import('../../src/screen/renderer/dom.js').DOMElement
+type TextNode = import('../../src/screen/renderer/dom.js').TextNode
+const { cellAt } = await import('../../src/screen/renderer/cell-grid.js')
+type Screen = import('../../src/screen/renderer/cell-grid.js').Screen
+const { emptyFrame } = await import('../../src/screen/renderer/frame.js')
+type Frame = import('../../src/screen/renderer/frame.js').Frame
+const { dispatchClick, hitTest } = await import('../../src/screen/renderer/geometry/hitTest.js')
+const { nodeCache } = await import('../../src/screen/renderer/node-cache.js')
+const { default: createRenderer } = await import('../../src/screen/renderer/renderer.js')
 const { applySceneStyle, buildDom, makeContext } = await import('./frameHarness.js')
 type ComposeContext = import('./frameHarness.js').ComposeContext
-type Styles = import('../../src/ink/styles.js').Styles
+type Styles = import('../../src/screen/renderer/styles.js').Styles
 
 const scrollFixHint =
-  'a reused scroll paint or a hit test differs from the expected result; fix the scroll shift and cached-rect reuse in src/ink/compose-walk.ts and src/ink/renderer.ts, the cache eviction in src/ink/node-cache.ts, or hitTest and dispatchClick in src/ink/geometry/hit.ts'
+  'a reused scroll paint or a hit test differs from the expected result; fix the scroll shift and cached-rect reuse in src/screen/renderer/compose-walk.ts and src/screen/renderer/renderer.ts, the cache eviction in src/screen/renderer/node-cache.ts, or hitTest and dispatchClick in src/screen/renderer/geometry/hitTest.ts'
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {

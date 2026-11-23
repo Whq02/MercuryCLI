@@ -23,11 +23,11 @@ process.chdir(project)
 
 const src = resolve(process.env.PROVE_SRC ?? join(import.meta.dir, '../../src'))
 const fixture = join(import.meta.dir, 'fixtures/fake-lsp-server.mjs')
-const { enableConfigs } = await import(join(src, 'utils/config.ts'))
+const { enableConfigs } = await import(join(src, 'platform/settings/config.ts'))
 enableConfigs()
-const singleton = await import(join(src, 'services/lsp/manager.ts'))
+const singleton = await import(join(src, 'integrations/lsp/serverManagerLifecycle.ts'))
 const command = await import(join(src, 'commands/lsp/lsp.ts'))
-const { runWithCwdOverride } = await import(join(src, 'utils/cwd.ts'))
+const { runWithCwdOverride } = await import(join(src, 'platform/files/cwd.ts'))
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
@@ -39,7 +39,7 @@ const alive = (pid: number): boolean => {
 const pids = (file: string): number[] => existsSync(file) ? readFileSync(file, 'utf8').trim().split(/\s+/).filter(Boolean).map(Number) : []
 const managers = new Set<{ shutdown(): Promise<unknown> }>()
 const pidFiles: string[] = []
-const guard = setTimeout(() => { console.error('prove-lsp-restart-reaps: timeout after 30s waiting for the fixture LSP server to start, stop or restart; check restart in src/commands/lsp/lsp.ts and reinitializeLspServerManager in src/services/lsp/manager.ts'); process.exit(1) }, 30_000)
+const guard = setTimeout(() => { console.error('prove-lsp-restart-reaps: timeout after 30s waiting for the fixture LSP server to start, stop or restart; check restart in src/commands/lsp/lsp.ts and reinitializeLspServerManager in src/integrations/lsp/serverManagerLifecycle.ts'); process.exit(1) }, 30_000)
 guard.unref()
 
 try {
@@ -65,28 +65,28 @@ try {
       writeFileSync(file, 'fixture\n')
       await old.openFile(file, 'fixture\n')
       const oldPid = pids(pidFile)[0]!
-      check(`${mode}: one fixture child is alive before restart`, pids(pidFile).length === 1 && alive(oldPid), `pids ${JSON.stringify(pids(pidFile))} — the fixture server should start once on openFile; see initializeLspServerManager in src/services/lsp/manager.ts`)
+      check(`${mode}: one fixture child is alive before restart`, pids(pidFile).length === 1 && alive(oldPid), `pids ${JSON.stringify(pids(pidFile))} — the fixture server should start once on openFile; see initializeLspServerManager in src/integrations/lsp/serverManagerLifecycle.ts`)
       const started = Date.now()
       const result = await command.call('restart', {} as never)
       const elapsed = Date.now() - started
       const text = result.type === 'text' ? result.value : JSON.stringify(result)
       console.log(`  result (${elapsed} ms): ${text}`)
-      check(`${mode}: restart returns only after the old child is gone`, !alive(oldPid), `pid ${oldPid} survived the success result — the restart must wait for the old child to exit before it returns; fix the restart verb in src/commands/lsp/lsp.ts and reinitializeLspServerManager in src/services/lsp/manager.ts`)
-      check(`${mode}: bounded restart settles`, elapsed < 6_000, `${elapsed} ms — a restart must settle within the shutdown deadline; fix reinitializeLspServerManager in src/services/lsp/manager.ts`)
+      check(`${mode}: restart returns only after the old child is gone`, !alive(oldPid), `pid ${oldPid} survived the success result — the restart must wait for the old child to exit before it returns; fix the restart verb in src/commands/lsp/lsp.ts and reinitializeLspServerManager in src/integrations/lsp/serverManagerLifecycle.ts`)
+      check(`${mode}: bounded restart settles`, elapsed < 6_000, `${elapsed} ms — a restart must settle within the shutdown deadline; fix reinitializeLspServerManager in src/integrations/lsp/serverManagerLifecycle.ts`)
       if (mode === 'ignore-shutdown') {
-        check('the ignored shutdown reaches its configured deadline', elapsed >= 280, `${elapsed} ms — the restart must wait out the configured shutdownTimeout (300 ms) before it kills; fix reinitializeLspServerManager in src/services/lsp/manager.ts`)
+        check('the ignored shutdown reaches its configured deadline', elapsed >= 280, `${elapsed} ms — the restart must wait out the configured shutdownTimeout (300 ms) before it kills; fix reinitializeLspServerManager in src/integrations/lsp/serverManagerLifecycle.ts`)
         check('the result reports the forced stop and elapsed seconds', /killed after \d+(?:\.\d+)? s/.test(text), text + ' — the restart text must say the child was killed and after how long; fix stopWords in src/commands/lsp/lsp.ts')
       } else {
         check('the result reports the observed exit', /exited cleanly|killed after \d+(?:\.\d+)? s/.test(text), text + ' — the restart text must report how the old child stopped; fix stopWords in src/commands/lsp/lsp.ts')
       }
       const fresh = singleton.getLspServerManager()!
       managers.add(fresh)
-      check(`${mode}: a new manager replaced the old one`, fresh !== old, 'restart must replace the manager with a new one; fix reinitializeLspServerManager in src/services/lsp/manager.ts')
+      check(`${mode}: a new manager replaced the old one`, fresh !== old, 'restart must replace the manager with a new one; fix reinitializeLspServerManager in src/integrations/lsp/serverManagerLifecycle.ts')
       await fresh.openFile(file, 'fixture\n')
       const answer = await fresh.sendRequest(file, 'fake/cancelCount', {})
       const spawned = pids(pidFile)
-      check(`${mode}: the next request answers from the replacement`, answer?.cancels === 0, JSON.stringify(answer) + ' — the replacement manager must answer the next request; fix reinitializeLspServerManager in src/services/lsp/manager.ts')
-      check(`${mode}: exactly one replacement child is alive`, spawned.length === 2 && spawned[0] !== spawned[1] && !alive(oldPid) && alive(spawned[1]!), JSON.stringify(spawned) + ' — a restart must leave exactly two spawned pids, the old one dead and the new one alive; fix reinitializeLspServerManager in src/services/lsp/manager.ts')
+      check(`${mode}: the next request answers from the replacement`, answer?.cancels === 0, JSON.stringify(answer) + ' — the replacement manager must answer the next request; fix reinitializeLspServerManager in src/integrations/lsp/serverManagerLifecycle.ts')
+      check(`${mode}: exactly one replacement child is alive`, spawned.length === 2 && spawned[0] !== spawned[1] && !alive(oldPid) && alive(spawned[1]!), JSON.stringify(spawned) + ' — a restart must leave exactly two spawned pids, the old one dead and the new one alive; fix reinitializeLspServerManager in src/integrations/lsp/serverManagerLifecycle.ts')
       if (mode === 'ignore-shutdown') {
         const named = await command.call('restart env:fixture', {} as never)
         const namedText = named.type === 'text' ? named.value : JSON.stringify(named)
@@ -98,7 +98,7 @@ try {
       }
       await singleton.shutdownLspServerManager()
       await old.shutdown()
-      check(`${mode}: cleanup reaped every fixture generation`, pids(pidFile).every(pid => !alive(pid)), JSON.stringify(pids(pidFile)) + ' — shutdownLspServerManager in src/services/lsp/manager.ts must reap every generation')
+      check(`${mode}: cleanup reaped every fixture generation`, pids(pidFile).every(pid => !alive(pid)), JSON.stringify(pids(pidFile)) + ' — shutdownLspServerManager in src/integrations/lsp/serverManagerLifecycle.ts must reap every generation')
     }
 
     const pidFile = join(scratch, 'overlap.pids')
@@ -115,11 +115,11 @@ try {
     await old.openFile(file, 'fixture\n')
     const first = singleton.reinitializeLspServerManager()
     const second = singleton.reinitializeLspServerManager()
-    check('concurrent reinitializations share one stop', first === second, 'two concurrent reinitializeLspServerManager calls must return the same promise; fix it in src/services/lsp/manager.ts')
+    check('concurrent reinitializations share one stop', first === second, 'two concurrent reinitializeLspServerManager calls must return the same promise; fix it in src/integrations/lsp/serverManagerLifecycle.ts')
     await singleton.shutdownLspServerManager()
     await Promise.all([first, second])
-    check('shutdown during restart waits for the old process', pids(pidFile).length === 1 && pids(pidFile).every(pid => !alive(pid)), JSON.stringify(pids(pidFile)) + ' — shutdownLspServerManager must wait for the old process during a restart; fix it in src/services/lsp/manager.ts')
-    check('shutdown cancels replacement initialization', singleton.getLspServerManager() === undefined && singleton.getInitializationStatus().status === 'not-started', 'shutdownLspServerManager must cancel the replacement initialization; fix it in src/services/lsp/manager.ts')
+    check('shutdown during restart waits for the old process', pids(pidFile).length === 1 && pids(pidFile).every(pid => !alive(pid)), JSON.stringify(pids(pidFile)) + ' — shutdownLspServerManager must wait for the old process during a restart; fix it in src/integrations/lsp/serverManagerLifecycle.ts')
+    check('shutdown cancels replacement initialization', singleton.getLspServerManager() === undefined && singleton.getInitializationStatus().status === 'not-started', 'shutdownLspServerManager must cancel the replacement initialization; fix it in src/integrations/lsp/serverManagerLifecycle.ts')
   })
 } catch (error) {
   check('no unexpected exception', false, error instanceof Error ? error.stack ?? error.message : String(error))

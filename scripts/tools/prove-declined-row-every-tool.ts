@@ -7,7 +7,7 @@ const home = pinScratchHome('declined-row-every-tool')
 
 let checks = 0
 let failures = 0
-const WHERE_TO_LOOK = 'to fix: the row is drawn by FallbackToolUseErrorMessage in src/components/FallbackToolUseErrorMessage.tsx (a tool may draw its own through renderToolUseErrorMessage); what counts as a refusal and its first sentence come from isDenialResultText and denialLineOf in src/utils/messages/rejectionText.ts'
+const WHERE_TO_LOOK = 'to fix: the row is drawn by FallbackToolUseErrorMessage in src/tools/kit/FallbackToolUseErrorMessage.tsx (a tool may draw its own through renderToolUseErrorMessage); what counts as a refusal and its first sentence come from isDenialResultText and denialLineOf in src/engine/message-shapes/rejectionText.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
@@ -17,15 +17,15 @@ function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { Box } = await import('../../src/ink.ts')
-const { CANCEL_MESSAGE, DENIAL_WORKAROUND_GUIDANCE, REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX, SUBAGENT_REJECT_MESSAGE, isDenialResultText } = await import('../../src/utils/messages/rejectionText.ts')
-const { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/utils/messages/turnCut.ts')
-const { UserToolErrorMessage } = await import('../../src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx')
-const { getAllBaseTools } = await import('../../src/tools.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { Box } = await import('../../src/screen/themedRenderer.ts')
+const { CANCEL_MESSAGE, DENIAL_WORKAROUND_GUIDANCE, REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX, SUBAGENT_REJECT_MESSAGE, isDenialResultText } = await import('../../src/engine/message-shapes/rejectionText.ts')
+const { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/engine/message-shapes/turnCut.ts')
+const { UserToolErrorMessage } = await import('../../src/screen/messages/user-tool-result/UserToolErrorMessage.tsx')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
 
 const h = React.createElement
 const tools = getAllBaseTools() as unknown as Array<{ name: string }>

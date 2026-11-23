@@ -1,0 +1,482 @@
+import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import { freemem, totalmem } from 'node:os'
+import { flagEnv } from '../../platform/substrate/flagRegistry.js'
+import { availableCores } from '../../platform/processes/availableCores.js'
+import { getGlobalConfig, saveGlobalConfig, isConfigReadingAllowed } from '../../platform/settings/config.js'
+import { execFileNoThrow } from '../../platform/processes/execFileNoThrow.js'
+import { errorMessage } from '../../platform/errors/errors.js'
+import { logError } from '../../platform/logs/errorLog.js'
+import { subprocessEnv } from '../../platform/processes/subprocessEnv.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+import { nextMicrotask, startTimeout, stopTimeout } from '../../platform/async/timers.js'
+import { availableMemoryReader, processListCommand, type AvailableMemoryReader } from '../../platform/host-os/processes.js'
+
+export type SeatKind = 'agent' | 'runner'
+export const SEAT_COST_BYTES: Readonly<Record<SeatKind, number>> = {
+  agent: 32 * 2 ** 20,
+  runner: 384 * 2 ** 20,
+}
+export const SEAT_COST_KIND: SeatKind = 'runner'
+export const SEATS_PER_CORE = 2
+export const SEAT_FLOOR = 2
+
+const MB = 2 ** 20
+const GB = 2 ** 30
+
+
+export type MemoryRead = AvailableMemoryReader
+
+export interface MemorySample {
+  availableBytes: number
+  totalBytes: number
+  read: MemoryRead
+}
+
+export function availableFromVmStat(text: string): number | null {
+  const page = Number(/page size of (\d+) bytes/.exec(text)?.[1])
+  if (!Number.isFinite(page) || page <= 0) return null
+  const pages = (name: string): number | null => {
+    const m = new RegExp(`^${name}:\\s+(\\d+)\\.?\\s*$`, 'm').exec(text)
+    return m ? Number(m[1]) : null
+  }
+  const free = pages('Pages free')
+  const inactive = pages('Pages inactive')
+  if (free === null || inactive === null) return null
+  const speculative = pages('Pages speculative') ?? 0
+  const purgeable = pages('Pages purgeable') ?? 0
+  return (free + inactive + speculative + purgeable) * page
+}
+
+export function availableFromMeminfo(text: string): number | null {
+  const m = /^MemAvailable:\s+(\d+)\s*kB\s*$/m.exec(text)
+  return m ? Number(m[1]) * 1024 : null
+}
+
+export function availableFromCounter(bytes: number): number | null {
+  return Number.isFinite(bytes) && bytes >= 0 ? bytes : null
+}
+
+export function runtimeMemorySample(): MemorySample {
+  return { availableBytes: freemem(), totalBytes: totalmem(), read: 'free' }
+}
+
+let memorySampleMemo: { sample: MemorySample; sampledAt: number } | null = null
+let pendingMemorySample: Promise<MemorySample> | null = null
+
+function rememberMemorySample(sample: MemorySample): MemorySample {
+  memorySampleMemo = { sample, sampledAt: Date.now() }
+  return sample
+}
+
+export function sampleAvailableMemory(): MemorySample {
+  const totalBytes = totalmem()
+  const fallback = runtimeMemorySample()
+  try {
+    const reader = availableMemoryReader()
+    if (reader === 'vm_stat') {
+      const text = execFileSync('vm_stat', [], { encoding: 'utf8', timeout: 2000, env: { ...subprocessEnv() }, windowsHide: true })
+      const available = availableFromVmStat(text)
+      return rememberMemorySample(available === null ? fallback : { availableBytes: available, totalBytes, read: 'vm_stat' })
+    }
+    if (reader === 'meminfo') {
+      const available = availableFromMeminfo(readFileSync('/proc/meminfo', 'utf8'))
+      return rememberMemorySample(available === null ? fallback : { availableBytes: available, totalBytes, read: 'meminfo' })
+    }
+    if (reader === 'counter') {
+      const available = availableFromCounter(freemem())
+      return rememberMemorySample(available === null ? fallback : { availableBytes: available, totalBytes, read: 'counter' })
+    }
+  } catch (error) {
+    passedOver(error)
+  }
+  return rememberMemorySample(fallback)
+}
+
+
+export function machineSeatReading(
+  cores: number = availableCores(),
+  availableBytes: number = sampleAvailableMemory().availableBytes,
+  kind: SeatKind = SEAT_COST_KIND,
+): number {
+  const byCores = Math.floor(cores) * SEATS_PER_CORE
+  const byMemory = Math.floor(availableBytes / SEAT_COST_BYTES[kind])
+  return Math.max(SEAT_FLOOR, Math.min(byCores, byMemory))
+}
+
+export interface SeatReadingSample {
+  cores: number
+  availableBytes: number
+  read: MemoryRead
+  sampledAt: number
+}
+
+const SAMPLE_TTL_MS = 5_000
+
+let held: { seats: number; sample: SeatReadingSample | null } | null = null
+let lastSampledAt = 0
+let fixture: { seats: number; sample: SeatReadingSample | null } | null = null
+let sampler: (() => { cores: number; availableBytes: number; read: MemoryRead }) | null = null
+
+let pendingSample: Promise<void> | null = null
+
+async function takeMemorySample(): Promise<MemorySample> {
+  const totalBytes = totalmem()
+  const fallback = runtimeMemorySample()
+  try {
+    const reader = availableMemoryReader()
+    if (reader === 'vm_stat') {
+      const result = await execFileNoThrow('vm_stat', [], { timeout: 2000, useCwd: false })
+      const available = result.code === 0 ? availableFromVmStat(result.stdout) : null
+      return available === null ? fallback : { availableBytes: available, totalBytes, read: 'vm_stat' }
+    }
+    if (reader === 'meminfo') {
+      const controller = new AbortController()
+      const deadline = startTimeout(() => controller.abort(), 2000)
+      try {
+        const available = availableFromMeminfo(await readFile('/proc/meminfo', { encoding: 'utf8', signal: controller.signal }))
+        return available === null ? fallback : { availableBytes: available, totalBytes, read: 'meminfo' }
+      } finally {
+        stopTimeout(deadline)
+      }
+    }
+    if (reader === 'counter') {
+      const available = availableFromCounter(freemem())
+      return available === null ? fallback : { availableBytes: available, totalBytes, read: 'counter' }
+    }
+  } catch (error) { passedOver(error) }
+  return fallback
+}
+
+export function refreshMemorySample(): Promise<MemorySample> {
+  pendingMemorySample ??= takeMemorySample()
+    .then(rememberMemorySample)
+    .finally(() => {
+      pendingMemorySample = null
+    })
+  return pendingMemorySample
+}
+
+export function lastMemorySample(now: number = Date.now()): { sample: MemorySample; sampledAt: number } | null {
+  if (memorySampleMemo === null || now - memorySampleMemo.sampledAt >= SAMPLE_TTL_MS) void refreshMemorySample().catch(passedOver)
+  return memorySampleMemo
+}
+
+function refreshHeldReadingAsync(): Promise<void> {
+  pendingSample ??= (async () => {
+    await nextMicrotask()
+    const memory = sampler === null ? await refreshMemorySample() : sampler()
+    const sample: SeatReadingSample = { cores: 'cores' in memory ? memory.cores : availableCores(), availableBytes: memory.availableBytes, read: memory.read, sampledAt: Date.now() }
+    lastSampledAt = sample.sampledAt
+    const seats = machineSeatReading(sample.cores, sample.availableBytes)
+    if (held === null || seats >= held.seats) held = { seats, sample }
+  })().finally(() => { pendingSample = null })
+  return pendingSample
+}
+
+export async function seatCeilingFactsAsync(): Promise<SeatCeilingFacts> {
+  if (fixture === null && stampedSeats() === null && (held === null || Date.now() - lastSampledAt >= SAMPLE_TTL_MS)) {
+    await refreshHeldReadingAsync()
+  }
+  return seatCeilingFacts()
+}
+
+let heldReadingServedFromBackground = false
+
+export function serveHeldReadingFromBackground(): () => void {
+  heldReadingServedFromBackground = true
+  return () => { heldReadingServedFromBackground = false }
+}
+
+function freshSample(): SeatReadingSample {
+  if (sampler !== null) return { ...sampler(), sampledAt: Date.now() }
+  const memory = sampleAvailableMemory()
+  return { cores: availableCores(), availableBytes: memory.availableBytes, read: memory.read, sampledAt: Date.now() }
+}
+
+export function heldMachineSeatReading(): number {
+  return heldMachineSeatFacts().seats
+}
+
+export function heldMachineSeatFacts(): { seats: number; sample: SeatReadingSample | null } {
+  if (fixture !== null) return fixture
+  const now = Date.now()
+  if (held === null || now - lastSampledAt >= SAMPLE_TTL_MS) {
+    if (heldReadingServedFromBackground && held !== null) {
+      const standing = held
+      void refreshHeldReadingAsync().catch(passedOver)
+      return standing
+    }
+    const sample = freshSample()
+    lastSampledAt = now
+    const seats = machineSeatReading(sample.cores, sample.availableBytes)
+    if (held === null || seats >= held.seats) held = { seats, sample }
+  }
+  return held
+}
+
+export function _setHeldMachineSeatReadingForTesting(reading: number | null, sample?: SeatReadingSample): void {
+  fixture = reading === null ? null : { seats: reading, sample: sample ?? null }
+  if (reading === null) {
+    held = null
+    lastSampledAt = 0
+  }
+}
+
+export function _setMemorySamplerForTesting(next: (() => { cores: number; availableBytes: number; read: MemoryRead }) | null): void {
+  sampler = next
+  held = null
+  lastSampledAt = 0
+}
+
+export function stampedSeats(): number | null {
+  const n = Number.parseInt(flagEnv('MERCURY_SEATS') ?? '', 10)
+  return Number.isFinite(n) && n >= 1 ? n : null
+}
+
+export function seatReadingInputsWords(sample: SeatReadingSample): string {
+  const gb = sample.availableBytes / GB
+  const available = gb >= 10 ? gb.toFixed(0) : gb.toFixed(1)
+  return `${sample.cores} core${sample.cores === 1 ? '' : 's'}, ${available} GB available, ${Math.round(SEAT_COST_BYTES[SEAT_COST_KIND] / MB)} MB a seat`
+}
+
+export function describeSeatReading(ceiling: number): string {
+  const decision = isConfigReadingAllowed() ? getGlobalConfig().switchboardCapacity : undefined
+  const operator = operatorSeatsOf(decision)
+  if (operator !== null && operator === ceiling) {
+    return `the ceiling you set: ${ceiling} seat${ceiling === 1 ? '' : 's'}`
+  }
+  const stored = decision?.allowed === true ? decision.recommendedSeats : undefined
+  if (
+    typeof stored === 'number' &&
+    Number.isFinite(stored) &&
+    Math.max(1, Math.floor(stored)) === ceiling
+  ) {
+    const askedAt = decision?.askedAt
+    const when =
+      typeof askedAt === 'number' && Number.isFinite(askedAt) && askedAt > 0
+        ? ` from ${new Date(askedAt).toISOString().slice(0, 10)}`
+        : ''
+    return `the consented capacity reading${when}: ${ceiling} seat${ceiling === 1 ? '' : 's'} (stored at the first-boot ask)`
+  }
+  return machineReadingSentence(ceiling)
+}
+
+export interface CapacityProbe {
+  cores: number
+  totalMemBytes: number
+  availableMemBytes: number
+  otherAgentClis: number
+}
+
+const AGENT_CLI_NAMES = new Set(['claude', 'mercury', 'codex', 'gemini'])
+const OTHER_AGENT_CLIS_HOLDING_A_SEAT = 2
+const PROCESS_LISTER_NOT_FOUND = 'Command failed with ENOENT:'
+const SCRIPT_HOSTS = new Set(['node', 'bun', 'deno'])
+
+function basenameOf(token: string): string {
+  const clean = token.replace(/"/g, '')
+  const cut = clean.lastIndexOf('/')
+  return (cut >= 0 ? clean.slice(cut + 1) : clean).toLowerCase()
+}
+
+export function looksLikeAgentCli(command: string): boolean {
+  const tokens = command.trim().split(/\s+/)
+  if (tokens.length === 0 || tokens[0] === undefined) return false
+  const exe = basenameOf(tokens[0])
+  if (AGENT_CLI_NAMES.has(exe)) return true
+  if (!SCRIPT_HOSTS.has(exe)) return false
+  return tokens
+    .slice(1)
+    .filter(t => !t.startsWith('-'))
+    .some(t => {
+      const base = basenameOf(t)
+      const stem = base.replace(/\.(mjs|cjs|js|ts)$/, '')
+      return AGENT_CLI_NAMES.has(stem)
+    })
+}
+
+async function countOtherAgentClis(): Promise<number> {
+  try {
+    const cmd = processListCommand()
+    const r = await execFileNoThrow(cmd.file, cmd.args, { useCwd: false, timeout: cmd.timeoutMs })
+    if (r.code !== 0 && r.error?.startsWith(PROCESS_LISTER_NOT_FOUND) === true) return 0
+    if (r.code !== 0) return otherAgentClisUnread(r.error ?? (r.stderr.split('\n')[0] || `exit ${r.code}`))
+    let n = 0
+    for (const line of r.stdout.split('\n')) {
+      const m = line.match(/^\s*(\d+)\s+(.+)$/)
+      if (!m) continue
+      const pid = Number(m[1])
+      if (pid === process.pid || pid === process.ppid) continue
+      if (looksLikeAgentCli(m[2]!)) n++
+    }
+    return n
+  } catch (error) {
+    return otherAgentClisUnread(errorMessage(error))
+  }
+}
+
+function otherAgentClisUnread(reason: string): number {
+  logError(new Error(`other agent CLIs could not be counted (${reason}), so none is counted`))
+  return 0
+}
+
+export async function probeCapacity(): Promise<CapacityProbe> {
+  const memory = await refreshMemorySample()
+  return {
+    cores: availableCores(),
+    totalMemBytes: memory.totalBytes,
+    availableMemBytes: memory.availableBytes,
+    otherAgentClis: await countOtherAgentClis(),
+  }
+}
+
+export function recommendSeats(probe: CapacityProbe): number {
+  const reading = machineSeatReading(probe.cores, probe.availableMemBytes)
+  return Math.max(SEAT_FLOOR, probe.otherAgentClis >= OTHER_AGENT_CLIS_HOLDING_A_SEAT ? reading - 1 : reading)
+}
+
+export function capacityDecisionReceipt(allowed: boolean, recommendedSeats: number): string {
+  return allowed
+    ? `capacity check done — this machine fits ${recommendedSeats} seats`
+    : `no probe — the machine's own reading decides — right now ${recommendedSeats} seats`
+}
+
+export function needsCapacityAsk(): boolean {
+  return getGlobalConfig().switchboardCapacity?.askedAt === undefined
+}
+
+export async function recordCapacityDecision(
+  allowed: boolean,
+): Promise<{ allowed: boolean; recommendedSeats: number }> {
+  if (!allowed) {
+    saveGlobalConfig(c => {
+      const { recommendedSeats: _dropped, ...rest } = c.switchboardCapacity ?? {}
+      return { ...c, switchboardCapacity: { ...rest, askedAt: Date.now(), allowed: false } }
+    })
+    return { allowed: false, recommendedSeats: heldMachineSeatReading() }
+  }
+  const recommendedSeats = recommendSeats(await probeCapacity())
+  saveGlobalConfig(c => ({
+    ...c,
+    switchboardCapacity: { ...c.switchboardCapacity, askedAt: Date.now(), allowed: true, recommendedSeats },
+  }))
+  return { allowed: true, recommendedSeats }
+}
+
+export function resolveSeatCeiling(): number {
+  return seatCeilingFacts().seats
+}
+
+export type SeatCeilingSource = 'operator' | 'consented' | 'machine'
+
+export interface SeatCeilingFacts {
+  seats: number
+  source: SeatCeilingSource
+  sentence: string
+  lever: string
+  reading: number
+  readingSentence: string
+  sample: SeatReadingSample | null
+  consented: number | null
+}
+
+type CapacityDecision = NonNullable<ReturnType<typeof getGlobalConfig>['switchboardCapacity']>
+
+function operatorSeatsOf(decision: CapacityDecision | undefined): number | null {
+  const n = decision?.operatorSeats
+  return typeof n === 'number' && Number.isFinite(n) && n >= 1 ? Math.floor(n) : null
+}
+
+export function operatorSeatsStored(): number | null {
+  return operatorSeatsOf(isConfigReadingAllowed() ? getGlobalConfig().switchboardCapacity : undefined)
+}
+
+export function seatCeilingFacts(): SeatCeilingFacts {
+  const decision = isConfigReadingAllowed() ? getGlobalConfig().switchboardCapacity : undefined
+  const operator = operatorSeatsOf(decision)
+  const stored = decision?.allowed === true ? decision.recommendedSeats : undefined
+  const consented = typeof stored === 'number' && Number.isFinite(stored) ? Math.max(1, Math.floor(stored)) : null
+  const reading = stampedSeats() ?? heldMachineSeatReading()
+  const seats = operator ?? consented ?? reading
+  return {
+    seats,
+    source: operator !== null ? 'operator' : consented !== null ? 'consented' : 'machine',
+    sentence: describeSeatReading(seats),
+    lever: seatCeilingLever(),
+    reading,
+    readingSentence: machineReadingSentence(reading),
+    sample: stampedSeats() !== null ? null : heldMachineSeatFacts().sample,
+    consented,
+  }
+}
+
+export function machineReadingSentence(reading: number = stampedSeats() ?? heldMachineSeatReading()): string {
+  const head = `this machine's reading: ${reading} seat${reading === 1 ? '' : 's'}`
+  if (stampedSeats() !== null) return `${head} (the daemon's reading, stamped on this session at its spawn)`
+  const sample = heldMachineSeatFacts().sample
+  return sample !== null ? `${head} (${seatReadingInputsWords(sample)})` : head
+}
+
+export const SEAT_DOORS = "/seats N in a chat, the Seats row of the Boot Menu, or the Seats row of /config (one setting; /seats auto returns to the machine's reading)"
+
+export function seatCeilingLever(): string {
+  return `set the ceiling with ${SEAT_DOORS} — it applies to the next admission at once`
+}
+
+export function seatSourceWords(source: SeatCeilingSource): string {
+  return source === 'operator' ? 'set by you' : source === 'consented' ? 'the first-boot probe' : "this machine's reading"
+}
+
+export function seatCeilingValueWords(facts: SeatCeilingFacts = seatCeilingFacts()): string {
+  return `${facts.seats} · ${seatSourceWords(facts.source)}`
+}
+
+export function seatCostWarning(facts: SeatCeilingFacts = seatCeilingFacts()): string | null {
+  if (facts.seats <= facts.reading) return null
+  return `above ${facts.readingSentence} — each seat is a model call and, in the concourse, a runner process of about ${Math.round(SEAT_COST_BYTES.runner / MB)} MB; past the reading the machine may swap`
+}
+
+export function seatCeilingDetailLines(facts: SeatCeilingFacts = seatCeilingFacts()): string[] {
+  const stamped = stampedSeats() !== null
+  const sample = facts.sample
+  const gb = sample === null ? null : sample.availableBytes / GB
+  const lines = [
+    `reading: ${facts.reading} seat${facts.reading === 1 ? '' : 's'} (${stamped ? "the daemon's, at spawn" : 'this machine'})`,
+    ...(sample !== null && gb !== null ? [`${sample.cores} core${sample.cores === 1 ? '' : 's'} · ${gb >= 10 ? gb.toFixed(0) : gb.toFixed(1)} GB available`] : []),
+    `${Math.round(SEAT_COST_BYTES.runner / MB)} MB a seat (a session runner)`,
+    ...(facts.consented !== null ? [`first-boot probe: ${facts.consented} seat${facts.consented === 1 ? '' : 's'}`] : []),
+  ]
+  if (seatCostWarning(facts) !== null) lines.push('above the reading — the machine may swap')
+  lines.push('doors: /seats N · Boot Menu · /config', '/seats auto returns to the reading')
+  return lines
+}
+
+export function setOperatorSeats(seats: number | null, save: typeof saveGlobalConfig = saveGlobalConfig): SeatCeilingFacts {
+  const next = seats === null ? null : Math.max(1, Math.floor(seats))
+  save(c => {
+    const block = { ...(c.switchboardCapacity ?? {}) }
+    if (next === null) delete block.operatorSeats
+    else block.operatorSeats = next
+    return { ...c, switchboardCapacity: block }
+  })
+  return seatCeilingFacts()
+}
+
+export const SEATS_MENU_ROW = {
+  env: 'seats',
+  label: 'Seats',
+  group: 'miscellaneous',
+  kind: 'string',
+  options: [],
+  defaultLabel: 'auto',
+  applicationClass: 'live',
+  summary: 'how many model calls may be in flight at once across your sessions and crewmates — the machine reads it; you can set it',
+  detail: {
+    controls:
+      "Sessions and crewmates share this one number: how many model calls may be in flight at once. A seat is held only while a call is in flight. → raises it by one, ← lowers it, ⌫ returns to the machine's reading. Applies to the next admission at once.",
+    on: ['every seat runs a model call; past the machine\'s reading each seat may cost a runner process of memory the machine does not have'],
+    off: ["the machine's own reading decides — it rises as memory frees and never falls under the seats already sitting"],
+  },
+} as const

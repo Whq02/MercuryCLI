@@ -26,7 +26,7 @@ process.on('exit', () => {
 })
 
 let failures = 0
-const treeEndsFixHint = 'change src/utils/processGroup.ts (parseMsysProcessTable, msysTreeRows, msysTableReaderOf, runsInAnMsysRuntime, win32TaskkillCommand, win32TaskkillSweepCommand, endProcessTree), src/utils/shell/parentGuard.ts (statusAnMsysShellLeaves), or for the live legs the tree kill in src/utils/ShellCommand.ts (wrapSpawn) and src/tasks/LocalShellTask/killShellTasks.ts (killTask)'
+const treeEndsFixHint = 'change src/platform/processes/processGroup.ts (parseMsysProcessTable, msysTreeRows, msysTableReaderOf, runsInAnMsysRuntime, win32TaskkillCommand, win32TaskkillSweepCommand, endProcessTree), src/platform/shell/parentGuard.ts (statusAnMsysShellLeaves), or for the live legs the tree kill in src/platform/shell/shellProcess.ts (wrapSpawn) and src/engine/tasks/local-shell/killShellTasks.ts (killTask)'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' | ' : '') + treeEndsFixHint : ''}`)
   if (!cond) failures++
@@ -48,7 +48,7 @@ console.log('============================================================')
 console.log(' A Windows shell tree ends whole — proof')
 console.log('============================================================')
 
-const group = await import(join(ROOT, 'src/utils/processGroup.ts'))
+const group = await import(join(ROOT, 'src/platform/processes/processGroup.ts'))
 
 type Row = { pid: number; ppid: number; pgid: number; winpid: number }
 const winpids = (rows: Row[]): string => sorted(rows.map(row => row.winpid))
@@ -147,7 +147,7 @@ section('§1 the MSYS table reader and the tree walk (pure)')
     }
     rmSync(stand, { recursive: true, force: true })
 
-    const guard = await import(join(ROOT, 'src/utils/shell/parentGuard.ts'))
+    const guard = await import(join(ROOT, 'src/platform/shell/parentGuard.ts'))
     const leaves = guard.statusAnMsysShellLeaves as ((status: number, underMsys: boolean, platform: string) => number) | undefined
     check('the guard owns the reading of the status the MSYS runtime gives a bash a signal ended', typeof leaves === 'function')
     if (typeof leaves === 'function') {
@@ -212,7 +212,7 @@ const freshTags = (count: number): number[] => {
 type Location = { path: string } | { absent: true }
 const gitBash: string | null = await (async () => {
   if (process.platform !== 'win32') return null
-  const { locateGitBash } = (await import(join(ROOT, 'src/utils/windowsPaths.ts'))) as { locateGitBash: () => Location }
+  const { locateGitBash } = (await import(join(ROOT, 'src/platform/files/windowsPaths.ts'))) as { locateGitBash: () => Location }
   const location = locateGitBash()
   return 'path' in location ? location.path : null
 })()
@@ -225,14 +225,14 @@ if (process.platform !== 'win32') {
   console.log('  [SKIP] no Git Bash on this host: the Bash tool has no shell tree to end here')
 } else {
   process.env.SHELL = gitBash
-  const { exec, setCwd } = await import(join(ROOT, 'src/utils/Shell.ts'))
-  const { setOriginalCwd } = await import(join(ROOT, 'src/bootstrap/state.ts'))
-  const { generateTaskId } = await import(join(ROOT, 'src/Task.ts'))
-  const { TaskOutput } = await import(join(ROOT, 'src/utils/task/TaskOutput.ts'))
-  const { wrapSpawn } = await import(join(ROOT, 'src/utils/ShellCommand.ts'))
-  const { killTask } = await import(join(ROOT, 'src/tasks/LocalShellTask/killShellTasks.ts'))
-  const { spawnShellTask } = await import(join(ROOT, 'src/tasks/LocalShellTask/LocalShellTask.tsx'))
-  const { runCleanupFunctions } = await import(join(ROOT, 'src/utils/cleanupRegistry.ts'))
+  const { exec, setCwd } = await import(join(ROOT, 'src/platform/shell/shellExec.ts'))
+  const { setOriginalCwd } = await import(join(ROOT, 'src/boot/process-state/processState.ts'))
+  const { generateTaskId } = await import(join(ROOT, 'src/engine/tasks/taskBase.ts'))
+  const { TaskOutput } = await import(join(ROOT, 'src/engine/task-framework/taskOutput.ts'))
+  const { wrapSpawn } = await import(join(ROOT, 'src/platform/shell/shellProcess.ts'))
+  const { killTask } = await import(join(ROOT, 'src/engine/tasks/local-shell/killShellTasks.ts'))
+  const { spawnShellTask } = await import(join(ROOT, 'src/engine/tasks/local-shell/shellTask.tsx'))
+  const { runCleanupFunctions } = await import(join(ROOT, 'src/platform/processes/cleanupRegistry.ts'))
 
   const PROJECT = realpathSync(mkdtempSync(join(tmpdir(), 'win32-tree-ends-')))
   mkdirSync(join(PROJECT, 'sub'), { recursive: true })
@@ -257,7 +257,7 @@ if (process.platform !== 'win32') {
     }
   }
   const watchdog = setTimeout(() => {
-    console.log('  [FAIL] the proof ran past its own budget (420s); the last section printed above is the one that hung, look at the tree kill in src/utils/processGroup.ts (endProcessTree) and src/utils/ShellCommand.ts (wrapSpawn)')
+    console.log('  [FAIL] the proof ran past its own budget (420s); the last section printed above is the one that hung, look at the tree kill in src/platform/processes/processGroup.ts (endProcessTree) and src/platform/shell/shellProcess.ts (wrapSpawn)')
     reapAll(everySeen)
     process.exit(1)
   }, 420_000)
@@ -387,7 +387,7 @@ if (process.platform !== 'win32') {
     console.log(`  [SKIP] no ${realBash} on this host`)
   } else {
     const [a, b] = freshTags(2)
-    const { withOwnPrograms } = (await import(join(ROOT, 'src/utils/shell/windowsShellRoad.ts'))) as { withOwnPrograms: (env: NodeJS.ProcessEnv, shellPath: string) => NodeJS.ProcessEnv }
+    const { withOwnPrograms } = (await import(join(ROOT, 'src/platform/shell/windowsShellRoad.ts'))) as { withOwnPrograms: (env: NodeJS.ProcessEnv, shellPath: string) => NodeJS.ProcessEnv }
     const child = spawn(realBash, ['-c', `eval "bash -c 'sleep ${a} & sleep ${b}'"`], { stdio: ['pipe', 'ignore', 'ignore'], windowsHide: true, detached: false, env: withOwnPrograms(process.env, realBash) })
     child.stdin?.end()
     const handle = wrapSpawn(child, new AbortController().signal, 900_000, new TaskOutput(generateTaskId('local_bash'), null))
@@ -413,7 +413,7 @@ if (process.platform !== 'win32') {
     const pinned = join(pin, 'bash.exe')
     const reader = group.msysTableReaderOf(pinned) as { file: string; args: string[] } | undefined
     check('§6b the stand-in holds no ps.exe, and its reader is the bash itself', !existsSync(join(pin, 'ps.exe')) && reader?.file === pinned, JSON.stringify(reader))
-    const { withProgramsFirst } = (await import(join(ROOT, 'src/utils/shell/windowsShellRoad.ts'))) as { withProgramsFirst: (env: NodeJS.ProcessEnv, dir: string) => NodeJS.ProcessEnv }
+    const { withProgramsFirst } = (await import(join(ROOT, 'src/platform/shell/windowsShellRoad.ts'))) as { withProgramsFirst: (env: NodeJS.ProcessEnv, dir: string) => NodeJS.ProcessEnv }
     const [a, b] = freshTags(2)
     const child = spawn(pinned, ['-c', `sleep ${a} & sleep ${b}`], { stdio: ['pipe', 'ignore', 'ignore'], windowsHide: true, detached: false, env: withProgramsFirst(process.env, pin) })
     child.stdin?.end()

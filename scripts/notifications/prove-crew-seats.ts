@@ -14,13 +14,13 @@ delete process.env.NODE_ENV
 
 const t = checker()
 
-const globalConfig = await import('../../src/utils/config/globalConfig.js')
+const globalConfig = await import('../../src/platform/config/globalConfig.js')
 globalConfig.enableConfigs()
-const cap = await import('../../src/utils/switchboard/capacityCheck.js')
-const words = await import('../../src/services/capacity/seatWords.js')
-const crew = await import('../../src/services/engine-connector/crewFacts.js')
-const budget = await import('../../src/services/api/recoveryBudget.js')
-const { saveGlobalConfig } = await import('../../src/utils/config.js')
+const cap = await import('../../src/daemon/switchboard-capacity/capacityCheck.js')
+const words = await import('../../src/crew/capacity/seatWords.js')
+const crew = await import('../../src/engine/connector/crewFacts.js')
+const budget = await import('../../src/engine/requests/recoveryBudget.js')
+const { saveGlobalConfig } = await import('../../src/platform/settings/config.js')
 
 t.section('S1 — the seat reading is stable under its own seats; the facts name the source')
 {
@@ -52,7 +52,7 @@ t.section('S2 — the seat sentence')
   t.check('the splitter reads the published sentence back into the same parts', split.gate === parts.gate && split.holders === parts.holders, JSON.stringify(split))
   const bare = words.splitWaitSentence('waiting for a seat — 0 of 2 held')
   t.check('a sentence with no holders splits to the gate and no holders', bare.gate === 'waiting for a seat — 0 of 2 held' && bare.holders === '', JSON.stringify(bare))
-  const crewFacts = await import('../../src/services/engine-connector/crewFacts.ts')
+  const crewFacts = await import('../../src/engine/connector/crewFacts.ts')
   const held = crewFacts.crewWaitHolders({ running: true, wait: 'waiting for a seat — 3 of 3 held (agent-a, agent-b, the chat)' } as never)
   t.check('the row\'s tail spells "held by …" (a verb, never a bare list)', held === 'held by agent-a, agent-b, the chat', String(held))
   const foreign = words.splitWaitSentence('waiting for the provider')
@@ -133,7 +133,7 @@ t.section('S4 — the retry budget: one budget across attempts, words that speak
 
 t.section("S7 — the request phase's retry word names the provider's answer, never a bare fault")
 {
-  const wait = await import('../../src/tasks/LocalAgentTask/agentWait.js')
+  const wait = await import('../../src/engine/tasks/local-agent/agentWait.js')
   const at = 1_000
   const fold = (extra: Record<string, unknown>): ReturnType<typeof wait.foldAgentWaitEvent> => wait.foldAgentWaitEvent(null, { type: 'system', subtype: 'api_error', retryInMs: 40_000, retryAttempt: 3, maxRetries: 10, ...extra }, at)
   const busy = fold({ errorDetail: { status: 429 } })
@@ -150,7 +150,7 @@ t.section('S6 — the live facts: the held reading, the inherited stamp')
 {
   cap._setHeldMachineSeatReadingForTesting(4)
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: false } }))
-  const compose = await import('../../src/services/capacity/composeCeilings.js')
+  const compose = await import('../../src/crew/capacity/composeCeilings.js')
   const live = compose.liveCeilingFacts(null)
   t.check('the live facts read the held machine reading with its source', live.seats === 4 && live.seatSource === 'machine', JSON.stringify(live))
   process.env.MERCURY_SEATS = '7'

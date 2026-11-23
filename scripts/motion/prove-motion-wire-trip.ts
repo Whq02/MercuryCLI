@@ -1,14 +1,14 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { join } from 'node:path'
-import * as governor from '../../src/utils/cockpit/motionGovernor.js'
-import { _resetFrameTraceForTesting, readFrameWire, recordFrameTrace } from '../../src/ink/root/frame-trace.js'
-import { writeDiffToTerminal, type DeliverySyscalls } from '../../src/ink/session/delivery.js'
+import * as governor from '../../src/screen/cockpit/motionGovernor.js'
+import { _resetFrameTraceForTesting, readFrameWire, recordFrameTrace } from '../../src/screen/renderer/root/frame-trace.js'
+import { writeDiffToTerminal, type DeliverySyscalls } from '../../src/screen/renderer/terminal-session/frameDelivery.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}change noteFrameWire, noteFrameCost, governorLevel or governorTrip in src/utils/cockpit/motionGovernor.ts (for the W8 checks also writeDiffToTerminal in src/ink/session/delivery.ts) so this check holds` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}change noteFrameWire, noteFrameCost, governorLevel or governorTrip in src/screen/cockpit/motionGovernor.ts (for the W8 checks also writeDiffToTerminal in src/screen/renderer/terminal-session/frameDelivery.ts) so this check holds` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

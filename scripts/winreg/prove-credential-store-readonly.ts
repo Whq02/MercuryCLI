@@ -8,12 +8,12 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { plainTextStorage } = await import('../../src/utils/secureStorage/plainTextStorage.ts')
+const { plainTextStorage } = await import('../../src/platform/secure-storage/plainTextStorage.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : `${detail ? '; ' : ' — '}to fix: change plainTextStorage.update and plainTextStorage.read in src/utils/secureStorage/plainTextStorage.ts so a save over a read-only .credentials.json replaces it and the new credential reads back`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : `${detail ? '; ' : ' — '}to fix: change plainTextStorage.update and plainTextStorage.read in src/platform/secure-storage/plainTextStorage.ts so a save over a read-only .credentials.json replaces it and the new credential reads back`}`)
 }
 
 console.log('============================================================')

@@ -7,7 +7,7 @@ const t = checker()
 t.section('CS-23 — cross-surface resolution (live once the projection exists)')
 let mod: Record<string, unknown> | null = null
 try {
-  mod = (await import('../../src/services/crew/projection.ts')) as Record<string, unknown>
+  mod = (await import('../../src/crew/crewmates/projection.ts')) as Record<string, unknown>
 } catch {
   mod = null
 }

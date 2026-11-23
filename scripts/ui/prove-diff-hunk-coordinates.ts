@@ -9,26 +9,26 @@ import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import { applyPatch, formatPatch, structuredPatch } from 'diff'
 import stripAnsi from 'strip-ansi'
-import type { StructuredPatchHunk } from '../../src/utils/diff.js'
+import type { StructuredPatchHunk } from '../../src/platform/text/diff.js'
 
 process.env.FORCE_COLOR = '3'
 process.env.MERCURY_FULLSCREEN = '1'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const settingsModule = await import('../../src/hooks/useSettings.js')
-mock.module('../../src/hooks/useSettings.js', () => ({
+const settingsModule = await import('../../src/screen/settings/useSettings.js')
+mock.module('../../src/screen/settings/useSettings.js', () => ({
   ...settingsModule,
   useSettings: () => ({ view: { syntaxOff: false } }),
   useSettingsMaybe: () => undefined,
 }))
-const { render, Box, flushPendingSyncWork } = await import('../../src/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { StructuredDiff } = await import('../../src/components/StructuredDiff.js')
-const { ColorDiff } = await import('../../src/native-ts/color-diff/index.js')
-const { hunkPatchText } = await import('../../src/components/diff/DiffDialog.js')
-const { fetchGitDiffHunksFor } = await import('../../src/utils/gitDiff.js')
+const { render, Box, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { StructuredDiff } = await import('../../src/screen/structured-diff/StructuredDiff.js')
+const { ColorDiff } = await import('../../src/platform/native/color-diff/index.js')
+const { hunkPatchText } = await import('../../src/screen/diff/DiffDialog.js')
+const { fetchGitDiffHunksFor } = await import('../../src/screen/diff/gitDiff.js')
 let failures = 0
 let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -72,13 +72,13 @@ const fixtures: [string, StructuredPatchHunk, number[]][] = [
 const numbers = (lines: string[]): number[] => lines.map(line => Number(/^\s*(\d+)/.exec(line)?.[1]))
 for (const [name, patch, expected] of fixtures) {
   const native = new ColorDiff(patch, undefined, 'x.txt').render('dark', 60, false)!.map(stripAnsi)
-  check(`${name}: native numbers match coordinates`, JSON.stringify(numbers(native)) === JSON.stringify(expected), `native rows gave ${JSON.stringify(numbers(native))}, expected ${JSON.stringify(expected)} · fix the line numbering from oldStart and newStart in ColorDiff.render in src/native-ts/color-diff/index.ts`)
+  check(`${name}: native numbers match coordinates`, JSON.stringify(numbers(native)) === JSON.stringify(expected), `native rows gave ${JSON.stringify(numbers(native))}, expected ${JSON.stringify(expected)} · fix the line numbering from oldStart and newStart in ColorDiff.render in src/platform/native/color-diff/index.ts`)
   for (const plain of [false, true]) {
     const frame = await paint(patch, plain)
-    check(`${name}: ${plain ? 'fallback' : 'highlighted'} painted numbers match native`, JSON.stringify(numbers(frame.lines)) === JSON.stringify(expected), `${JSON.stringify(frame.lines)} · the painted numbers must equal the native ones, ${JSON.stringify(expected)}: fix the number gutter in src/components/StructuredDiff.tsx and src/components/StructuredDiff/`)
+    check(`${name}: ${plain ? 'fallback' : 'highlighted'} painted numbers match native`, JSON.stringify(numbers(frame.lines)) === JSON.stringify(expected), `${JSON.stringify(frame.lines)} · the painted numbers must equal the native ones, ${JSON.stringify(expected)}: fix the number gutter in src/screen/structured-diff/StructuredDiff.tsx and src/components/StructuredDiff/`)
     if (!plain) {
       const gutter = native[0]!.indexOf(patch.lines[0]!.slice(1))
-      check(`${name}: selection gutter stops before the first content cell`, frame.gutter === gutter, `${frame.gutter} vs ${gutter} · the no-select gutter must end where the first content cell starts: fix the gutter width marked noSelect in src/components/StructuredDiff.tsx`)
+      check(`${name}: selection gutter stops before the first content cell`, frame.gutter === gutter, `${frame.gutter} vs ${gutter} · the no-select gutter must end where the first content cell starts: fix the gutter width marked noSelect in src/screen/structured-diff/StructuredDiff.tsx`)
     }
   }
 }
@@ -99,11 +99,11 @@ try {
     const fromGit = (await fetchGitDiffHunksFor({ args: ['--unified=0'], cwd: repo })).get('x.txt')![0]!
     const patch = structuredPatch('x.txt', 'x.txt', before!, after!, undefined, undefined, { context: 0 })
     const expectedHeader = formatPatch(patch).split('\n').find(line => line.startsWith('@@'))
-    check(`${name}: git and jsdiff use the same structured coordinates`, JSON.stringify(fromGit) === JSON.stringify(patch.hunks[0]), `${JSON.stringify({ fromGit, jsdiff: patch.hunks[0] })} · make the hunk that fetchGitDiffHunksFor returns in src/utils/gitDiff.ts carry the same oldStart, oldLines, newStart and newLines as jsdiff`)
+    check(`${name}: git and jsdiff use the same structured coordinates`, JSON.stringify(fromGit) === JSON.stringify(patch.hunks[0]), `${JSON.stringify({ fromGit, jsdiff: patch.hunks[0] })} · make the hunk that fetchGitDiffHunksFor returns in src/screen/diff/gitDiff.ts carry the same oldStart, oldLines, newStart and newLines as jsdiff`)
     for (const [source, hunk] of [['git', fromGit], ['jsdiff', patch.hunks[0]!]] as const) {
       const copied = hunkPatchText('x.txt', hunk)
-      check(`${name}: ${source} copied header follows unified syntax`, copied.split('\n')[2] === expectedHeader, `${String(copied.split('\n')[2])} · expected ${String(expectedHeader)}: fix the @@ header that hunkPatchText writes in src/components/diff/DiffDialog.tsx`)
-      check(`${name}: ${source} copied hunk applies to its original`, applyPatch(before!, copied) === after, `the copied patch did not apply to the original text: fix hunkPatchText in src/components/diff/DiffDialog.tsx (header, line prefixes, trailing newline)`)
+      check(`${name}: ${source} copied header follows unified syntax`, copied.split('\n')[2] === expectedHeader, `${String(copied.split('\n')[2])} · expected ${String(expectedHeader)}: fix the @@ header that hunkPatchText writes in src/screen/diff/DiffDialog.tsx`)
+      check(`${name}: ${source} copied hunk applies to its original`, applyPatch(before!, copied) === after, `the copied patch did not apply to the original text: fix hunkPatchText in src/screen/diff/DiffDialog.tsx (header, line prefixes, trailing newline)`)
     }
   }
 } finally {

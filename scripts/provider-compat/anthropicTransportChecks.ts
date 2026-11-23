@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { startFixtureApi, countTokensFixtureFigure } from '../lib/fixtureApi.ts'
-import { AnthropicClient } from '../../src/services/providers/anthropic/anthropicClient.ts'
-import { AnthropicStream } from '../../src/services/providers/anthropic/anthropicStream.ts'
-import { APIError, APIUserAbortError } from '../../src/utils/api/sdkErrors.ts'
+import { AnthropicClient } from '../../src/models/roads/anthropic/anthropicClient.ts'
+import { AnthropicStream } from '../../src/models/roads/anthropic/anthropicStream.ts'
+import { APIError, APIUserAbortError } from '../../src/engine/request-parts/sdkErrors.ts'
 
 const body = { model: 'claude-opus-4-8', messages: [{ role: 'user' as const, content: 'fixture transport' }], max_tokens: 64 }
 const fixture = await startFixtureApi([

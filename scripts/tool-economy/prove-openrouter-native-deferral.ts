@@ -150,25 +150,25 @@ process.env.MERCURY_OPENROUTER_AUTH_BASE = `${base}/auth`
 process.env.OPENROUTER_API_KEY = 'fixture-openrouter-key'
 process.env.MERCURY_MODEL = MODEL
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.js')
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.js')
 updateSettingsForSource('userSettings', { routing: { openrouter: {} } })
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const wire = await import('../../src/services/providers/deferralWire.ts')
-const { planToolPayload, clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const deltas = await import('../../src/services/attachments/deltas.ts')
+const wire = await import('../../src/models/roads/deferralWire.ts')
+const { planToolPayload, clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/tool-search/prompt.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const deltas = await import('../../src/engine/attachments/toolAndServerDeltas.ts')
 const { getDeferredToolsDeltaAttachment } = deltas
 const SERVER_SEARCH_ANNOUNCEMENT_HEAD: string = (deltas as { SERVER_SEARCH_ANNOUNCEMENT_HEAD?: string }).SERVER_SEARCH_ANNOUNCEMENT_HEAD ?? 'The following tools are available in this session but their definitions are not loaded yet.'
-type Tool = import('../../src/Tool.ts').Tool
-type Message = import('../../src/types/message.ts').Message
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 
 const serverSide = (form: string): boolean => {
   const fn = (wire as unknown as { deferralSearchIsServerSide?: (f: string) => boolean }).deferralSearchIsServerSide

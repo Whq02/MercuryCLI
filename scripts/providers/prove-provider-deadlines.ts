@@ -19,7 +19,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — provider-deadline prover exceeded 120s; a request in the sections above never settled, check src/services/providers/fetchDeadline.ts and the section printed last')
+  console.log('\nTIMEOUT — provider-deadline prover exceeded 120s; a request in the sections above never settled, check src/models/roads/fetchDeadline.ts and the section printed last')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
@@ -42,31 +42,31 @@ console.log('============================================================')
 console.log(' provider deadlines — every call bounded, honest words')
 console.log('============================================================')
 
-const deadline = await import(join(REPO, 'src/services/providers/fetchDeadline.ts'))
+const deadline = await import(join(REPO, 'src/models/roads/fetchDeadline.ts'))
 
 section('§1 the two sentences: timed out ≠ cancelled')
 {
-  t('§1 the breach line names provider + seconds', deadline.deadlineBreachLine('openrouter', 15_000) === 'timed out after 15s — openrouter did not answer', `got ${JSON.stringify(deadline.deadlineBreachLine('openrouter', 15_000))}; fix deadlineBreachLine in src/services/providers/fetchDeadline.ts`)
-  t('§1 fractional seconds keep one decimal', deadline.deadlineBreachLine('openai', 1_500) === 'timed out after 1.5s — openai did not answer', `got ${JSON.stringify(deadline.deadlineBreachLine('openai', 1_500))}; fix the seconds formatting in deadlineBreachLine in src/services/providers/fetchDeadline.ts`)
+  t('§1 the breach line names provider + seconds', deadline.deadlineBreachLine('openrouter', 15_000) === 'timed out after 15s — openrouter did not answer', `got ${JSON.stringify(deadline.deadlineBreachLine('openrouter', 15_000))}; fix deadlineBreachLine in src/models/roads/fetchDeadline.ts`)
+  t('§1 fractional seconds keep one decimal', deadline.deadlineBreachLine('openai', 1_500) === 'timed out after 1.5s — openai did not answer', `got ${JSON.stringify(deadline.deadlineBreachLine('openai', 1_500))}; fix the seconds formatting in deadlineBreachLine in src/models/roads/fetchDeadline.ts`)
   const timeoutErr = Object.assign(new Error('operation timed out'), { name: 'TimeoutError' })
   const abortErr = Object.assign(new Error('aborted'), { name: 'AbortError' })
-  t('§1 the classifier reads TimeoutError and AbortError', deadline.isDeadlineBreach(timeoutErr) && deadline.isDeadlineBreach(abortErr), 'isDeadlineBreach in src/services/providers/fetchDeadline.ts must return true for errors named TimeoutError and AbortError')
-  t('§1 an ordinary failure is not a breach', !deadline.isDeadlineBreach(new Error('ECONNREFUSED')), 'isDeadlineBreach in src/services/providers/fetchDeadline.ts must return false for an error that is not named TimeoutError or AbortError')
-  t('§1 the two sentences share no words that could blur them', !deadline.deadlineBreachLine('x', 1000).includes('closed') && !'/logins closed — no credential changed'.includes('timed out'), 'the breach line from deadlineBreachLine in src/services/providers/fetchDeadline.ts must not contain the word closed')
-  const oauth = await import(join(REPO, 'src/services/oauth/client.ts'))
+  t('§1 the classifier reads TimeoutError and AbortError', deadline.isDeadlineBreach(timeoutErr) && deadline.isDeadlineBreach(abortErr), 'isDeadlineBreach in src/models/roads/fetchDeadline.ts must return true for errors named TimeoutError and AbortError')
+  t('§1 an ordinary failure is not a breach', !deadline.isDeadlineBreach(new Error('ECONNREFUSED')), 'isDeadlineBreach in src/models/roads/fetchDeadline.ts must return false for an error that is not named TimeoutError or AbortError')
+  t('§1 the two sentences share no words that could blur them', !deadline.deadlineBreachLine('x', 1000).includes('closed') && !'/logins closed — no credential changed'.includes('timed out'), 'the breach line from deadlineBreachLine in src/models/roads/fetchDeadline.ts must not contain the word closed')
+  const oauth = await import(join(REPO, 'src/models/sign-in/oauth/client.ts'))
   const { AxiosError } = await import('axios')
   const timeout = new AxiosError('timeout of 15000ms exceeded', 'ECONNABORTED')
   const mapped = oauth.honestDeadlineBreach(timeout, 15_000)
-  t('§1 an axios timeout on the Anthropic OAuth legs reads the honest line', mapped instanceof Error && mapped.message === 'timed out after 15s — anthropic did not answer', `${String((mapped as Error)?.message)}; fix honestDeadlineBreach in src/services/oauth/refresh.ts`)
+  t('§1 an axios timeout on the Anthropic OAuth legs reads the honest line', mapped instanceof Error && mapped.message === 'timed out after 15s — anthropic did not answer', `${String((mapped as Error)?.message)}; fix honestDeadlineBreach in src/models/sign-in/oauth/refresh.ts`)
   const refused = new AxiosError('Request failed with status code 400', 'ERR_BAD_REQUEST')
-  t('§1 every other axios failure passes through untouched', oauth.honestDeadlineBreach(refused, 15_000) === refused, 'honestDeadlineBreach in src/services/oauth/refresh.ts must return an AxiosError that is not a timeout as the same object')
+  t('§1 every other axios failure passes through untouched', oauth.honestDeadlineBreach(refused, 15_000) === refused, 'honestDeadlineBreach in src/models/sign-in/oauth/refresh.ts must return an AxiosError that is not a timeout as the same object')
   const plain = new Error('ECONNREFUSED')
-  t('§1 a non-axios failure passes through untouched', oauth.honestDeadlineBreach(plain, 15_000) === plain, 'honestDeadlineBreach in src/services/oauth/refresh.ts must return a non-axios error as the same object')
+  t('§1 a non-axios failure passes through untouched', oauth.honestDeadlineBreach(plain, 15_000) === plain, 'honestDeadlineBreach in src/models/sign-in/oauth/refresh.ts must return a non-axios error as the same object')
 }
 
 section('§2 the door ends a black-holed request within the bound')
 {
-  const { getApiFetch } = await import(join(REPO, 'src/utils/proxy.ts'))
+  const { getApiFetch } = await import(join(REPO, 'src/platform/network/proxy.ts'))
   const { server, port } = await listenBlackHole()
   const started = Date.now()
   let line = ''
@@ -77,13 +77,13 @@ section('§2 the door ends a black-holed request within the bound')
   }
   const wall = Date.now() - started
   server.close()
-  t('§2 the request ended within the bound', wall < 6_000, `${wall}ms; fetchWithProviderDeadline in src/services/providers/fetchDeadline.ts must abort at the bound it is given`)
-  t('§2 the honest line, not the runtime spelling', line === 'timed out after 1.5s — openrouter did not answer', `${line}; fetchWithProviderDeadline in src/services/providers/fetchDeadline.ts must throw the deadlineBreachLine text`)
+  t('§2 the request ended within the bound', wall < 6_000, `${wall}ms; fetchWithProviderDeadline in src/models/roads/fetchDeadline.ts must abort at the bound it is given`)
+  t('§2 the honest line, not the runtime spelling', line === 'timed out after 1.5s — openrouter did not answer', `${line}; fetchWithProviderDeadline in src/models/roads/fetchDeadline.ts must throw the deadlineBreachLine text`)
 }
 
 section('§2b caller cancel stays a cancel; a breach beside a quiet caller signal stays a timeout')
 {
-  const { getApiFetch } = await import(join(REPO, 'src/utils/proxy.ts'))
+  const { getApiFetch } = await import(join(REPO, 'src/platform/network/proxy.ts'))
   {
     const { server, port } = await listenBlackHole()
     const caller = new AbortController()
@@ -102,8 +102,8 @@ section('§2b caller cancel stays a cancel; a breach beside a quiet caller signa
     clearTimeout(cancelTimer)
     server.close()
     const line = failure instanceof Error ? failure.message : String(failure)
-    t('§2b the caller abort ends the request promptly', wall < 2_000, `${wall}ms; fetchWithProviderDeadline in src/services/providers/fetchDeadline.ts must pass the caller signal through to the request`)
-    t('§2b the cancel is NOT reported as a timeout', !line.includes('timed out after'), `${line}; fetchWithProviderDeadline in src/services/providers/fetchDeadline.ts must rethrow a caller abort unchanged`)
+    t('§2b the caller abort ends the request promptly', wall < 2_000, `${wall}ms; fetchWithProviderDeadline in src/models/roads/fetchDeadline.ts must pass the caller signal through to the request`)
+    t('§2b the cancel is NOT reported as a timeout', !line.includes('timed out after'), `${line}; fetchWithProviderDeadline in src/models/roads/fetchDeadline.ts must rethrow a caller abort unchanged`)
   }
   {
     const { server, port } = await listenBlackHole()
@@ -118,14 +118,14 @@ section('§2b caller cancel stays a cancel; a breach beside a quiet caller signa
       line = error instanceof Error ? error.message : String(error)
     }
     server.close()
-    t('§2b a quiet caller signal still breaches honestly', line === 'timed out after 1.5s — probe did not answer', `${line}; fetchWithProviderDeadline in src/services/providers/fetchDeadline.ts must still apply its own bound when the caller signal never fires`)
+    t('§2b a quiet caller signal still breaches honestly', line === 'timed out after 1.5s — probe did not answer', `${line}; fetchWithProviderDeadline in src/models/roads/fetchDeadline.ts must still apply its own bound when the caller signal never fires`)
   }
 }
 
 section('§3 the openrouter catalogue against the black hole (15s bound)')
 {
   const { server, port } = await listenBlackHole()
-  const { fetchOpenrouterLiveModels } = await import(join(REPO, 'src/services/providers/openrouter/openrouterCatalogue.ts'))
+  const { fetchOpenrouterLiveModels } = await import(join(REPO, 'src/models/roads/openrouter/openrouterCatalogue.ts'))
   const started = Date.now()
   const outcome = await Promise.race([
     fetchOpenrouterLiveModels({ baseUrl: `http://127.0.0.1:${port}/api/v1`, headers: {} }).then(
@@ -139,14 +139,14 @@ section('§3 the openrouter catalogue against the black hole (15s bound)')
   ])
   const wall = Date.now() - started
   server.close()
-  t('§3 the catalogue request SETTLES (base hangs forever)', outcome !== 'pending', `still pending after ${wall}ms; fetchOpenrouterLiveModels in src/services/providers/openrouter/openrouterCatalogue.ts must fetch through fetchWithProviderDeadline`)
-  t('§3 the failure carries the honest line', typeof outcome === 'string' && outcome.includes('timed out after 15s — openrouter did not answer'), `${String(outcome)}; fetchOpenrouterLiveModels in src/services/providers/openrouter/openrouterCatalogue.ts must surface the deadlineBreachLine text with a 15s bound`)
+  t('§3 the catalogue request SETTLES (base hangs forever)', outcome !== 'pending', `still pending after ${wall}ms; fetchOpenrouterLiveModels in src/models/roads/openrouter/openrouterCatalogue.ts must fetch through fetchWithProviderDeadline`)
+  t('§3 the failure carries the honest line', typeof outcome === 'string' && outcome.includes('timed out after 15s — openrouter did not answer'), `${String(outcome)}; fetchOpenrouterLiveModels in src/models/roads/openrouter/openrouterCatalogue.ts must surface the deadlineBreachLine text with a 15s bound`)
 }
 
 section('§3b the OpenAI catalogue against the black hole (15s bound)')
 {
   const { server, port } = await listenBlackHole()
-  const { fetchOpenaiLiveModels } = await import(join(REPO, 'src/services/providers/openai/openaiClient.ts'))
+  const { fetchOpenaiLiveModels } = await import(join(REPO, 'src/models/roads/openai/openaiClient.ts'))
   const started = Date.now()
   const outcome = await Promise.race([
     fetchOpenaiLiveModels({ baseUrl: `http://127.0.0.1:${port}/v1`, headers: {} }).then(
@@ -160,14 +160,14 @@ section('§3b the OpenAI catalogue against the black hole (15s bound)')
   ])
   const wall = Date.now() - started
   server.close()
-  t('§3b the OpenAI catalogue request SETTLES (base hangs forever)', outcome !== 'pending', `still pending after ${wall}ms; fetchOpenaiLiveModels in src/services/providers/openai/openaiClient.ts must fetch through fetchWithProviderDeadline`)
-  t('§3b the failure carries the honest line', typeof outcome === 'string' && outcome.includes('timed out after 15s — openai did not answer'), `${String(outcome)}; fetchOpenaiLiveModels in src/services/providers/openai/openaiClient.ts must surface the deadlineBreachLine text with a 15s bound`)
+  t('§3b the OpenAI catalogue request SETTLES (base hangs forever)', outcome !== 'pending', `still pending after ${wall}ms; fetchOpenaiLiveModels in src/models/roads/openai/openaiClient.ts must fetch through fetchWithProviderDeadline`)
+  t('§3b the failure carries the honest line', typeof outcome === 'string' && outcome.includes('timed out after 15s — openai did not answer'), `${String(outcome)}; fetchOpenaiLiveModels in src/models/roads/openai/openaiClient.ts must surface the deadlineBreachLine text with a 15s bound`)
 }
 
 section('§3c the OpenRouter /key probe against the black hole (10s bound)')
 {
   const { server, port } = await listenBlackHole()
-  const usage = await import(join(REPO, 'src/services/providers/openrouter/openrouterUsageState.ts'))
+  const usage = await import(join(REPO, 'src/models/roads/openrouter/openrouterUsageState.ts'))
   usage.__resetOpenrouterUsageStateForTest()
   process.env.OPENROUTER_API_KEY = 'sk-or-fixture-probe'
   process.env.MERCURY_OPENROUTER_API_BASE = `http://127.0.0.1:${port}/api/v1`
@@ -185,9 +185,9 @@ section('§3c the OpenRouter /key probe against the black hole (10s bound)')
   delete process.env.OPENROUTER_API_KEY
   delete process.env.MERCURY_OPENROUTER_API_BASE
   usage.__resetOpenrouterUsageStateForTest()
-  t('§3c the key probe SETTLES (base hung the /usage mount forever)', outcome === 'settled', `still pending after ${wall}ms; refreshOpenrouterKeyUsage in src/services/providers/openrouter/openrouterUsageState.ts must fetch through fetchWithProviderDeadline`)
-  t('§3c the honest line lands in the stale-but-labelled channel', typeof observed.lastError === 'string' && observed.lastError.includes('timed out after 10s — openrouter did not answer'), `${String(observed.lastError)}; refreshOpenrouterKeyUsage in src/services/providers/openrouter/openrouterUsageState.ts must store the deadlineBreachLine text (10s bound) in lastError`)
-  t('§3c nothing was fabricated for the key', observed.usage === null, 'refreshOpenrouterKeyUsage in src/services/providers/openrouter/openrouterUsageState.ts must leave usage null when the probe times out')
+  t('§3c the key probe SETTLES (base hung the /usage mount forever)', outcome === 'settled', `still pending after ${wall}ms; refreshOpenrouterKeyUsage in src/models/roads/openrouter/openrouterUsageState.ts must fetch through fetchWithProviderDeadline`)
+  t('§3c the honest line lands in the stale-but-labelled channel', typeof observed.lastError === 'string' && observed.lastError.includes('timed out after 10s — openrouter did not answer'), `${String(observed.lastError)}; refreshOpenrouterKeyUsage in src/models/roads/openrouter/openrouterUsageState.ts must store the deadlineBreachLine text (10s bound) in lastError`)
+  t('§3c nothing was fabricated for the key', observed.usage === null, 'refreshOpenrouterKeyUsage in src/models/roads/openrouter/openrouterUsageState.ts must leave usage null when the probe times out')
 }
 
 

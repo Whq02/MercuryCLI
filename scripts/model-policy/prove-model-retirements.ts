@@ -1,5 +1,5 @@
-// gate-watch: src/utils/model/deprecation.ts
-import { getModelDeprecationWarning } from '../../src/utils/model/deprecation.ts'
+// gate-watch: src/models/facts/deprecation.ts
+import { getModelDeprecationWarning } from '../../src/models/facts/deprecation.ts'
 
 let failures = 0
 let checks = 0
@@ -20,12 +20,12 @@ for (const [id, name, date] of [
   ['claude-3-7-sonnet-20250219', 'Claude 3.7 Sonnet', 'February 19, 2026'],
 ] as const) {
   const warning = getModelDeprecationWarning(id)
-  check(`${id} says ${name} ${tense(date)} on ${date}`, warning !== null && warning.includes(`${name} ${tense(date)} on ${date}`), String(warning) + ' — fix the entry for this id in DEPRECATION_TABLE in src/utils/model/deprecation.ts (name, date) or the wording in getModelDeprecationWarning')
+  check(`${id} says ${name} ${tense(date)} on ${date}`, warning !== null && warning.includes(`${name} ${tense(date)} on ${date}`), String(warning) + ' — fix the entry for this id in DEPRECATION_TABLE in src/models/facts/deprecation.ts (name, date) or the wording in getModelDeprecationWarning')
 }
 for (const id of ['claude-sonnet-4-6', 'claude-sonnet-5-5', 'claude-opus-5-5', 'claude-fable-5-1', 'claude-haiku-5-5', 'gpt-6-astra']) {
-  check(`${id} carries no retirement notice`, getModelDeprecationWarning(id) === null, String(getModelDeprecationWarning(id)) + ' — a live model id must not match any entry match string in DEPRECATION_TABLE in src/utils/model/deprecation.ts')
+  check(`${id} carries no retirement notice`, getModelDeprecationWarning(id) === null, String(getModelDeprecationWarning(id)) + ' — a live model id must not match any entry match string in DEPRECATION_TABLE in src/models/facts/deprecation.ts')
 }
-check('an empty id carries no notice', getModelDeprecationWarning('') === null && getModelDeprecationWarning(undefined) === null, 'getModelDeprecationWarning in src/utils/model/deprecation.ts must return null for an empty or missing id')
+check('an empty id carries no notice', getModelDeprecationWarning('') === null && getModelDeprecationWarning(undefined) === null, 'getModelDeprecationWarning in src/models/facts/deprecation.ts must return null for an empty or missing id')
 
 console.log(`\n${checks} checks, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

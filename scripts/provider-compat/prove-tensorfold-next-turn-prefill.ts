@@ -30,7 +30,7 @@ delete process.env.MERCURY_LOCAL_NEXT_TURN_PREFILL
 delete process.env.MERCURY_AUTOCOMPACT_PCT_OVERRIDE
 
 let failures = 0
-const PREFILL_FAIL_HINT = 'to fix, change the read-ahead in src/services/providers/local/tensorfoldPrefill.ts (nextTurnPrefillApplies decides where it runs, nextTurnStages cuts the pieces, the cut and slow-cut guards cancel it); the engine stand-in is scripts/provider-compat/tensorfoldPromptFixture.ts'
+const PREFILL_FAIL_HINT = 'to fix, change the read-ahead in src/models/roads/local/tensorfoldPrefill.ts (nextTurnPrefillApplies decides where it runs, nextTurnStages cuts the pieces, the cut and slow-cut guards cancel it); the engine stand-in is scripts/provider-compat/tensorfoldPromptFixture.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${PREFILL_FAIL_HINT}` : ''}`)
@@ -47,22 +47,22 @@ async function untilAsync(pred: () => boolean, ms: number, step = 25): Promise<b
   return pred()
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
-const { runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.ts')
-const usageLedger = await import('../../src/services/providers/local/tensorfoldUsage.ts')
-const { stopTensorFold } = await import('../../src/services/tensorfold/serve.ts')
-type Prefill = typeof import('../../src/services/providers/local/tensorfoldPrefill.ts')
-const prefill = (await import('../../src/services/providers/local/tensorfoldPrefill.ts').catch(() => undefined)) as Prefill | undefined
-type LocalModelRecord = import('../../src/services/providers/local/localDiscovery.ts').LocalModelRecord
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { setEngineModelOverride } = await import('../../src/boot/process-state/processState.ts')
+const { runCleanupFunctions } = await import('../../src/platform/processes/cleanupRegistry.ts')
+const usageLedger = await import('../../src/models/roads/local/tensorfoldUsage.ts')
+const { stopTensorFold } = await import('../../src/models/tensorfold/serve.ts')
+type Prefill = typeof import('../../src/models/roads/local/tensorfoldPrefill.ts')
+const prefill = (await import('../../src/models/roads/local/tensorfoldPrefill.ts').catch(() => undefined)) as Prefill | undefined
+type LocalModelRecord = import('../../src/models/roads/local/localDiscovery.ts').LocalModelRecord
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 
 const READ = FileReadTool.name
 const SETTLE_MS = 15

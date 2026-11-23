@@ -36,7 +36,7 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — fold stall wire-budget prover exceeded 420s; a compactConversation run (src/services/compact/compact.ts) did not settle, so read the compact: lines in the debug log under the config dir for the lane that stopped')
+  console.log('\nTIMEOUT — fold stall wire-budget prover exceeded 420s; a compactConversation run (src/engine/compaction/foldConversation.ts) did not settle, so read the compact: lines in the debug log under the config dir for the lane that stopped')
   process.exit(1)
 }, 420_000)
 guard.unref?.()
@@ -94,18 +94,18 @@ const { startOverflowFixture } = await import('./overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const compactModule = await import('../../src/services/compact/compact.ts')
-const { query: startTurn } = await import('../../src/query.ts')
+const compactModule = await import('../../src/engine/compaction/foldConversation.ts')
+const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
 const { compactConversation, shouldRideCacheSharingFork } = compactModule
 const foldStallMsFor: ((model: string, floorMs?: number) => number) | undefined = (compactModule as { foldStallMsFor?: (model: string, floorMs?: number) => number }).foldStallMsFor
-const { streamIdleTimeoutMsForRoute, STREAM_IDLE_DEFAULT_MS } = await import('../../src/services/providers/streamIdleBudget.ts')
-const { PATIENCE_NORMAL } = await import('../../src/services/providers/patience.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+const { streamIdleTimeoutMsForRoute, STREAM_IDLE_DEFAULT_MS } = await import('../../src/models/roads/streamIdleBudget.ts')
+const { PATIENCE_NORMAL } = await import('../../src/models/roads/patience.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
 
 const HOME_MODEL = 'claude-opus-5-5'
 const OPENAI_MODEL = 'gpt-5.6-sol'
@@ -182,18 +182,18 @@ console.log(' the fold\'s stall after the first event is the wire\'s own idle bu
 console.log('============================================================')
 
 section('§1 the law, pure — the stall after the first event is the wire\'s idle budget for the model\'s route, never under the flat floor')
-check('the law exists (foldStallMsFor)', typeof foldStallMsFor === 'function', 'export foldStallMsFor from src/services/compact/compact.ts (defined in src/services/compact/compact/foldBound.ts)')
+check('the law exists (foldStallMsFor)', typeof foldStallMsFor === 'function', 'export foldStallMsFor from src/engine/compaction/foldConversation.ts (defined in src/engine/compaction/fold/foldBound.ts)')
 if (typeof foldStallMsFor === 'function') {
   const anthropicIdle = streamIdleTimeoutMsForRoute('anthropic')
-  check(`a home-wire model waits the Anthropic idle budget (${anthropicIdle} ms = the patience's 6 minutes)`, foldStallMsFor(HOME_MODEL) === anthropicIdle && anthropicIdle === PATIENCE_NORMAL.streamIdleMs && anthropicIdle === 360_000, `${String(foldStallMsFor(HOME_MODEL))}; foldStallMsFor in src/services/compact/compact/foldBound.ts must return streamIdleTimeoutMsForRoute for the model route (src/services/providers/streamIdleBudget.ts)`)
+  check(`a home-wire model waits the Anthropic idle budget (${anthropicIdle} ms = the patience's 6 minutes)`, foldStallMsFor(HOME_MODEL) === anthropicIdle && anthropicIdle === PATIENCE_NORMAL.streamIdleMs && anthropicIdle === 360_000, `${String(foldStallMsFor(HOME_MODEL))}; foldStallMsFor in src/engine/compaction/fold/foldBound.ts must return streamIdleTimeoutMsForRoute for the model route (src/models/roads/streamIdleBudget.ts)`)
   const openaiIdle = streamIdleTimeoutMsForRoute('openai')
-  check(`an OpenAI model waits the quiet idle budget (${openaiIdle} ms = the patience's 15 minutes)`, foldStallMsFor(OPENAI_MODEL) === openaiIdle && openaiIdle === PATIENCE_NORMAL.quietStreamIdleMs, `${String(foldStallMsFor(OPENAI_MODEL))}; foldStallMsFor in src/services/compact/compact/foldBound.ts must return the route idle budget for an OpenAI model`)
-  check(`a model with no route keeps the flat floor (${FLAT_STALL_MS} ms = the default idle budget)`, foldStallMsFor('no-such-model-anywhere') === FLAT_STALL_MS && STREAM_IDLE_DEFAULT_MS === FLAT_STALL_MS, `${String(foldStallMsFor('no-such-model-anywhere'))}; foldStallMsFor in src/services/compact/compact/foldBound.ts must fall back to its flat floor when the model has no route`)
-  check('a floor above the wire\'s budget stands', foldStallMsFor(HOME_MODEL, 1_000_000) === 1_000_000, `got ${foldStallMsFor(HOME_MODEL, 1_000_000)}; foldStallMsFor in src/services/compact/compact/foldBound.ts must return a floorMs that is above the route budget`)
+  check(`an OpenAI model waits the quiet idle budget (${openaiIdle} ms = the patience's 15 minutes)`, foldStallMsFor(OPENAI_MODEL) === openaiIdle && openaiIdle === PATIENCE_NORMAL.quietStreamIdleMs, `${String(foldStallMsFor(OPENAI_MODEL))}; foldStallMsFor in src/engine/compaction/fold/foldBound.ts must return the route idle budget for an OpenAI model`)
+  check(`a model with no route keeps the flat floor (${FLAT_STALL_MS} ms = the default idle budget)`, foldStallMsFor('no-such-model-anywhere') === FLAT_STALL_MS && STREAM_IDLE_DEFAULT_MS === FLAT_STALL_MS, `${String(foldStallMsFor('no-such-model-anywhere'))}; foldStallMsFor in src/engine/compaction/fold/foldBound.ts must fall back to its flat floor when the model has no route`)
+  check('a floor above the wire\'s budget stands', foldStallMsFor(HOME_MODEL, 1_000_000) === 1_000_000, `got ${foldStallMsFor(HOME_MODEL, 1_000_000)}; foldStallMsFor in src/engine/compaction/fold/foldBound.ts must return a floorMs that is above the route budget`)
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '200000'
-  check('the wire\'s pinned idle budget is the fold\'s stall too (200 s pinned → 200,000 ms)', foldStallMsFor(HOME_MODEL) === 200_000, `${String(foldStallMsFor(HOME_MODEL))}; foldStallMsFor in src/services/compact/compact/foldBound.ts must follow MERCURY_STREAM_IDLE_TIMEOUT_MS through streamIdleTimeoutMsForRoute`)
+  check('the wire\'s pinned idle budget is the fold\'s stall too (200 s pinned → 200,000 ms)', foldStallMsFor(HOME_MODEL) === 200_000, `${String(foldStallMsFor(HOME_MODEL))}; foldStallMsFor in src/engine/compaction/fold/foldBound.ts must follow MERCURY_STREAM_IDLE_TIMEOUT_MS through streamIdleTimeoutMsForRoute`)
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '30000'
-  check('a pinned budget under the floor never lowers the stall below the floor (30 s pinned → 120,000 ms)', foldStallMsFor(HOME_MODEL) === FLAT_STALL_MS, `${String(foldStallMsFor(HOME_MODEL))}; foldStallMsFor in src/services/compact/compact/foldBound.ts must take the larger of the route budget and the flat floor`)
+  check('a pinned budget under the floor never lowers the stall below the floor (30 s pinned → 120,000 ms)', foldStallMsFor(HOME_MODEL) === FLAT_STALL_MS, `${String(foldStallMsFor(HOME_MODEL))}; foldStallMsFor in src/engine/compaction/fold/foldBound.ts must take the larger of the route budget and the flat floor`)
   delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
 }
 
@@ -203,19 +203,19 @@ section('§2 the armed bound names the wire\'s number — both lanes over the lo
   debugLinesSince()
   const fork = await runFold(HOME_MODEL)
   const forkLines = debugLinesSince()
-  check('the home model rides the fork lane', shouldRideCacheSharingFork(HOME_MODEL, { type: 'disabled' }) === true, 'shouldRideCacheSharingFork in src/services/compact/compact.ts must say true for the home model')
-  check(`the fold landed over the loopback (${fork.ms} ms)`, fork.result !== undefined && fork.error === undefined && summaryOf(fork).includes(SUMMARY_TEXT), `${(fork.error?.message ?? '').slice(0, 300)}; compactConversation (src/services/compact/compact.ts) did not return the fixture summary from the fork lane, so read its compact: lines in the debug log`)
-  check('the fork lane\'s bound was armed with the Anthropic idle budget as its stall (stall 360000 ms after the first event)', forkLines.some(l => /fork lane bound armed — first-byte allowance \d+ ms for ≈\d+ tokens, stall 360000 ms after the first event/.test(l)), `${j(forkLines)}; the armed line is logged in src/services/compact/compact/foldBound.ts and its stall comes from foldStallMsFor`)
-  check('the first-byte allowance is never shorter than the route idle budget', forkLines.some(l => /fork lane bound armed — first-byte allowance 360000 ms for ≈\d+ tokens/.test(l)), `${j(forkLines)}; the first-byte allowance armed in src/services/compact/compact/foldBound.ts must not be below the route idle budget`)
-  check('the fork lane itself landed the summary — no hand-over to the direct call', !forkLines.some(l => /handing over to the direct call/.test(l)) && !forkLines.some(l => /direct lane bound armed/.test(l)), `${j(forkLines)}; the fork lane in src/services/compact/compact/summarise.ts handed over to the direct call, so look for the line before the hand-over to see why it failed or was cut`)
+  check('the home model rides the fork lane', shouldRideCacheSharingFork(HOME_MODEL, { type: 'disabled' }) === true, 'shouldRideCacheSharingFork in src/engine/compaction/foldConversation.ts must say true for the home model')
+  check(`the fold landed over the loopback (${fork.ms} ms)`, fork.result !== undefined && fork.error === undefined && summaryOf(fork).includes(SUMMARY_TEXT), `${(fork.error?.message ?? '').slice(0, 300)}; compactConversation (src/engine/compaction/foldConversation.ts) did not return the fixture summary from the fork lane, so read its compact: lines in the debug log`)
+  check('the fork lane\'s bound was armed with the Anthropic idle budget as its stall (stall 360000 ms after the first event)', forkLines.some(l => /fork lane bound armed — first-byte allowance \d+ ms for ≈\d+ tokens, stall 360000 ms after the first event/.test(l)), `${j(forkLines)}; the armed line is logged in src/engine/compaction/fold/foldBound.ts and its stall comes from foldStallMsFor`)
+  check('the first-byte allowance is never shorter than the route idle budget', forkLines.some(l => /fork lane bound armed — first-byte allowance 360000 ms for ≈\d+ tokens/.test(l)), `${j(forkLines)}; the first-byte allowance armed in src/engine/compaction/fold/foldBound.ts must not be below the route idle budget`)
+  check('the fork lane itself landed the summary — no hand-over to the direct call', !forkLines.some(l => /handing over to the direct call/.test(l)) && !forkLines.some(l => /direct lane bound armed/.test(l)), `${j(forkLines)}; the fork lane in src/engine/compaction/fold/summarise.ts handed over to the direct call, so look for the line before the hand-over to see why it failed or was cut`)
 
   fixture.script([{ text: SUMMARY_TEXT }])
   debugLinesSince()
   const direct = await runFold(OPENAI_MODEL)
   const directLines = debugLinesSince()
-  check('the OpenAI model rides the direct lane', shouldRideCacheSharingFork(OPENAI_MODEL, { type: 'disabled' }) === false, 'shouldRideCacheSharingFork in src/services/compact/compact.ts must say false for the OpenAI model')
-  check(`the fold landed over the loopback (${direct.ms} ms)`, direct.result !== undefined && direct.error === undefined && summaryOf(direct).includes(SUMMARY_TEXT), `${(direct.error?.message ?? '').slice(0, 300)}; compactConversation (src/services/compact/compact.ts) did not return the fixture summary from the direct lane, so read its compact: lines in the debug log`)
-  check('the direct lane\'s bound was armed with the quiet idle budget as its stall (stall 900000 ms after the first event)', directLines.some(l => /direct lane bound armed — first-byte allowance \d+ ms for ≈\d+ tokens, stall 900000 ms after the first event/.test(l)), `${j(directLines)}; the armed line is logged in src/services/compact/compact/foldBound.ts and its stall comes from foldStallMsFor`)
+  check('the OpenAI model rides the direct lane', shouldRideCacheSharingFork(OPENAI_MODEL, { type: 'disabled' }) === false, 'shouldRideCacheSharingFork in src/engine/compaction/foldConversation.ts must say false for the OpenAI model')
+  check(`the fold landed over the loopback (${direct.ms} ms)`, direct.result !== undefined && direct.error === undefined && summaryOf(direct).includes(SUMMARY_TEXT), `${(direct.error?.message ?? '').slice(0, 300)}; compactConversation (src/engine/compaction/foldConversation.ts) did not return the fixture summary from the direct lane, so read its compact: lines in the debug log`)
+  check('the direct lane\'s bound was armed with the quiet idle budget as its stall (stall 900000 ms after the first event)', directLines.some(l => /direct lane bound armed — first-byte allowance \d+ ms for ≈\d+ tokens, stall 900000 ms after the first event/.test(l)), `${j(directLines)}; the armed line is logged in src/engine/compaction/fold/foldBound.ts and its stall comes from foldStallMsFor`)
 }
 
 section(`§3 the long lane's death, driven — the summariser sends its first event, then nothing for ${SILENCE_MS / 1000} s (past the flat 120 s, well inside the wire's 6 minutes), then the summary: the fold LANDS on the fork lane`)
@@ -227,16 +227,16 @@ section(`§3 the long lane's death, driven — the summariser sends its first ev
   const lines = debugLinesSince()
   process.env.ANTHROPIC_BASE_URL = savedBase
   const first = seen[0]
-  check(`the fold landed after ${run.ms} ms with the whole summary`, run.result !== undefined && run.error === undefined && summaryOf(run).includes(SUMMARY_TEXT), `${(run.error?.message ?? '').slice(0, 300)}; the fork lane in src/services/compact/compact/summarise.ts gave up before the silent server answered, so check the stall it was armed with in src/services/compact/compact/foldBound.ts`)
-  check(`one request reached the wire, completed by the server after its ${SILENCE_MS} ms silence (never a hand-over to the direct lane)`, seen.length === 1 && first !== undefined && first.finished, `${j(seen.map(s => ({ n: s.n, finished: s.finished, silentMs: (s.summaryAt ?? 0) - (s.firstEventAt ?? 0) })))}; a second request or an unfinished one means the fork lane in src/services/compact/compact/summarise.ts was cut during the silence`)
-  check(`the fold outlived the flat stall: ${run.ms} ms ≥ ${SILENCE_MS} ms`, run.ms >= SILENCE_MS, `${String(run.ms)}; the fold returned before the server finished its silence, so it did not wait for the fork lane summary (src/services/compact/compact/summarise.ts)`)
-  check('no fold bound was hit and no lane was cut', !lines.some(l => /hit its fold bound|lane cut for/.test(l)), `${j(lines)}; the stall armed in src/services/compact/compact/foldBound.ts (foldStallMsFor) is shorter than the ${SILENCE_MS} ms silence`)
-  check('the fork lane recorded its summary, not a hand-over', lines.some(l => /fork lane bound armed/.test(l)) && !lines.some(l => /handing over to the direct call/.test(l)), `${j(lines)}; the fork lane in src/services/compact/compact/summarise.ts handed over to the direct call, so read the line before the hand-over`)
+  check(`the fold landed after ${run.ms} ms with the whole summary`, run.result !== undefined && run.error === undefined && summaryOf(run).includes(SUMMARY_TEXT), `${(run.error?.message ?? '').slice(0, 300)}; the fork lane in src/engine/compaction/fold/summarise.ts gave up before the silent server answered, so check the stall it was armed with in src/engine/compaction/fold/foldBound.ts`)
+  check(`one request reached the wire, completed by the server after its ${SILENCE_MS} ms silence (never a hand-over to the direct lane)`, seen.length === 1 && first !== undefined && first.finished, `${j(seen.map(s => ({ n: s.n, finished: s.finished, silentMs: (s.summaryAt ?? 0) - (s.firstEventAt ?? 0) })))}; a second request or an unfinished one means the fork lane in src/engine/compaction/fold/summarise.ts was cut during the silence`)
+  check(`the fold outlived the flat stall: ${run.ms} ms ≥ ${SILENCE_MS} ms`, run.ms >= SILENCE_MS, `${String(run.ms)}; the fold returned before the server finished its silence, so it did not wait for the fork lane summary (src/engine/compaction/fold/summarise.ts)`)
+  check('no fold bound was hit and no lane was cut', !lines.some(l => /hit its fold bound|lane cut for/.test(l)), `${j(lines)}; the stall armed in src/engine/compaction/fold/foldBound.ts (foldStallMsFor) is shorter than the ${SILENCE_MS} ms silence`)
+  check('the fork lane recorded its summary, not a hand-over', lines.some(l => /fork lane bound armed/.test(l)) && !lines.some(l => /handing over to the direct call/.test(l)), `${j(lines)}; the fork lane in src/engine/compaction/fold/summarise.ts handed over to the direct call, so read the line before the hand-over`)
 }
 
 section('§4 the first-byte allowance on a cold prefix is never shorter than the transport\'s own first-byte budget (the fold waits at least as long as the session\'s turn would)')
 {
-  const { firstByteBudgetMs, coldPrefixOf } = await import('../../src/services/providers/streamIdleBudget.ts')
+  const { firstByteBudgetMs, coldPrefixOf } = await import('../../src/models/roads/streamIdleBudget.ts')
   const allowanceOf = (lines: string[]): { allowance: number; tokens: number; prefix: string } | null => {
     const line = lines.find(l => /fork lane bound armed — first-byte allowance \d+ ms for ≈\d+ tokens/.test(l))
     const m = line === undefined ? null : /first-byte allowance (\d+) ms for ≈(\d+) tokens.*\((cold|warm) prefix\)/.exec(line)
@@ -246,18 +246,18 @@ section('§4 the first-byte allowance on a cold prefix is never shorter than the
   debugLinesSince()
   const warmRun = await runFold(HOME_MODEL)
   const warm = allowanceOf(debugLinesSince())
-  check(`warm prefix (the last reply is ${HOME_MODEL}'s): the fold landed`, warmRun.result !== undefined && warmRun.error === undefined, `${(warmRun.error?.message ?? '').slice(0, 300)}; compactConversation (src/services/compact/compact.ts) failed on the warm history`)
-  check('warm prefix: the armed line names it warm and the allowance is the route idle budget (360000 ms)', warm !== null && warm.prefix === 'warm' && warm.allowance === 360_000, `${j(warm)}; the first-byte allowance armed in src/services/compact/compact/foldBound.ts must be the route idle budget on a warm prefix and the line must end with (warm prefix)`)
+  check(`warm prefix (the last reply is ${HOME_MODEL}'s): the fold landed`, warmRun.result !== undefined && warmRun.error === undefined, `${(warmRun.error?.message ?? '').slice(0, 300)}; compactConversation (src/engine/compaction/foldConversation.ts) failed on the warm history`)
+  check('warm prefix: the armed line names it warm and the allowance is the route idle budget (360000 ms)', warm !== null && warm.prefix === 'warm' && warm.allowance === 360_000, `${j(warm)}; the first-byte allowance armed in src/engine/compaction/fold/foldBound.ts must be the route idle budget on a warm prefix and the line must end with (warm prefix)`)
   const longAsk = createUserMessage({ content: 'carry every detail of this long exploration into the summary: ' + 'the parser accepts quoted commas, the CLI verifies the output, '.repeat(400) })
   const coldHistory = [longAsk, assistantRow('claude-opus-4-1', 'Worked through the modules under the previous model.', 150_000), createUserMessage({ content: 'now write the changelog entry' })]
-  check('the cold history reads cold to the transport\'s own prefix reader (the last reply came from another model)', coldPrefixOf(coldHistory, HOME_MODEL) === true, 'coldPrefixOf in src/services/providers/streamIdleBudget.ts must read a history whose last reply is from another model as cold')
+  check('the cold history reads cold to the transport\'s own prefix reader (the last reply came from another model)', coldPrefixOf(coldHistory, HOME_MODEL) === true, 'coldPrefixOf in src/models/roads/streamIdleBudget.ts must read a history whose last reply is from another model as cold')
   fixture.script([{ text: SUMMARY_TEXT }])
   debugLinesSince()
   const coldRun = await runFold(HOME_MODEL, coldHistory)
   const cold = allowanceOf(debugLinesSince())
-  check('cold prefix: the fold landed', coldRun.result !== undefined && coldRun.error === undefined, `${(coldRun.error?.message ?? '').slice(0, 300)}; compactConversation (src/services/compact/compact.ts) failed on the cold history`)
+  check('cold prefix: the fold landed', coldRun.result !== undefined && coldRun.error === undefined, `${(coldRun.error?.message ?? '').slice(0, 300)}; compactConversation (src/engine/compaction/foldConversation.ts) failed on the cold history`)
   const transport = cold === null ? Number.NaN : firstByteBudgetMs({ cold: true, promptTokens: cold.tokens, idleMs: 360_000 })
-  check(`cold prefix: the armed line names it cold and the allowance (${cold?.allowance} ms for ≈${cold?.tokens} tokens) is at least the transport's own cold first-byte budget (${transport} ms) — longer than the route idle budget alone`, cold !== null && cold.prefix === 'cold' && cold.allowance >= transport && transport > 360_000, `${j({ cold, transport })}; the allowance armed in src/services/compact/compact/foldBound.ts must be at least firstByteBudgetMs (src/services/providers/streamIdleBudget.ts) for a cold prefix, and the line must end with (cold prefix)`)
+  check(`cold prefix: the armed line names it cold and the allowance (${cold?.allowance} ms for ≈${cold?.tokens} tokens) is at least the transport's own cold first-byte budget (${transport} ms) — longer than the route idle budget alone`, cold !== null && cold.prefix === 'cold' && cold.allowance >= transport && transport > 360_000, `${j({ cold, transport })}; the allowance armed in src/engine/compaction/fold/foldBound.ts must be at least firstByteBudgetMs (src/models/roads/streamIdleBudget.ts) for a cold prefix, and the line must end with (cold prefix)`)
 }
 
 fixture.close()

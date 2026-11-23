@@ -24,12 +24,12 @@ console.log('§1 the engine mechanism')
   writeFileSync(join(dir, 'three.txt'), 'hit\nhit\nhit\n')
   writeFileSync(join(dir, 'one.txt'), 'hit\n')
   const single = (spawnSync(rg, ['-c', 'hit', join(dir, 'three.txt')], { encoding: 'utf8' }).stdout ?? '').trim()
-  check('one FILE ⇒ the bare count (no path)', single === '3', JSON.stringify(single) + (single === '3' ? '' : ' | fix: the count mode in src/tools/GrepTool/GrepTool.ts (the bare-number branch of the count loop) reads this bare count; check the ripgrep binary in node_modules/@vscode'))
+  check('one FILE ⇒ the bare count (no path)', single === '3', JSON.stringify(single) + (single === '3' ? '' : ' | fix: the count mode in src/tools/grep/GrepTool.ts (the bare-number branch of the count loop) reads this bare count; check the ripgrep binary in node_modules/@vscode'))
   const wholeDir = (spawnSync(rg, ['-c', 'hit', dir], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).stdout ?? '').trim().split('\n').sort()
   check(
     'a DIRECTORY ⇒ path:count lines',
     wholeDir.length === 2 && wholeDir.every(l => /:\d+$/.test(l)),
-    wholeDir.join(',') + (wholeDir.length === 2 && wholeDir.every(l => /:\d+$/.test(l)) ? '' : ' | fix: the count mode in src/tools/GrepTool/GrepTool.ts (the path:count branch of the count loop) reads this output; check the ripgrep binary in node_modules/@vscode'),
+    wholeDir.join(',') + (wholeDir.length === 2 && wholeDir.every(l => /:\d+$/.test(l)) ? '' : ' | fix: the count mode in src/tools/grep/GrepTool.ts (the path:count branch of the count loop) reads this output; check the ripgrep binary in node_modules/@vscode'),
   )
   rmSync(dir, { recursive: true, force: true })
 }

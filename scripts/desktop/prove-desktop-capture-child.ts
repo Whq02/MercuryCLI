@@ -18,13 +18,13 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail.slice(0, 500) : '') + ' — fix the capture road of the native driver in src/services/desktop/nativeDriver.ts (child capture, its 2.5 s deadline, retry, busy and display refusals, abort)' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail.slice(0, 500) : '') + ' — fix the capture road of the native driver in src/integrations/desktop/nativeDriver.ts (child capture, its 2.5 s deadline, retry, busy and display refusals, abort)' : ''}`)
   if (!cond) failures++
 }
 
-const pack = await import('../../src/services/desktop/pack.js')
-const native = await import('../../src/services/desktop/nativeDriver.js')
-const { voicePackPlatform } = await import('../../src/utils/voice/voicePack.js')
+const pack = await import('../../src/integrations/desktop/pack.js')
+const native = await import('../../src/integrations/desktop/nativeDriver.js')
+const { voicePackPlatform } = await import('../../src/integrations/voice-pack/voicePack.js')
 const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')
 
 const EVENTS = join(SCRATCH, 'captures.jsonl')

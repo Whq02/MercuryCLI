@@ -33,7 +33,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}${ok ? '' : ` — to fix, read resolveContextWindow and getContextWindowForModel in src/utils/model/capabilities.ts (the window per model id), getAutoCompactThreshold in src/services/compact/autoCompact.ts (the fold point), focusedOptionSupports1m in src/services/model/modelOptions.ts (which rows offer the 1M switch) and the picker in src/commands/model/mercuryModel.tsx`}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}${ok ? '' : ` — to fix, read resolveContextWindow and getContextWindowForModel in src/models/facts/capabilities.ts (the window per model id), getAutoCompactThreshold in src/engine/compaction/autoFold.ts (the fold point), focusedOptionSupports1m in src/models/catalogue/modelOptions.ts (which rows offer the 1M switch) and the picker in src/commands/model/mercuryModel.tsx`}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
@@ -42,15 +42,15 @@ const arg = (key: string): string | undefined => (process.argv.includes(key) ? p
 const frameDir = arg('--frames')
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(c => ({ ...c, prStatusFooterEnabled: false }))
-const caps = await import('../../src/utils/model/capabilities.ts')
-const { focusedOptionSupports1m } = await import('../../src/services/model/modelOptions.ts')
-const { getAutoCompactThreshold } = await import('../../src/services/compact/autoCompact.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
+const caps = await import('../../src/models/facts/capabilities.ts')
+const { focusedOptionSupports1m } = await import('../../src/models/catalogue/modelOptions.ts')
+const { getAutoCompactThreshold } = await import('../../src/engine/compaction/autoFold.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
 recordSignIn('anthropic', 'api-key')
 
 const HEADER = 'context-1m-2025-08-07'
@@ -107,19 +107,19 @@ section('§2 what a session on one of these rows does with it: the fold point an
 
 const React = await import('react')
 const h = React.createElement
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const settingsStore = await import('../../src/utils/cockpit/settingsPopup.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const settingsStore = await import('../../src/screen/cockpit/settingsPopup.ts')
 const modelCommand = await import('../../src/commands/model/mercuryModel.tsx')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import('../../src/services/engine-connector/focusedConnector.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import('../../src/engine/connector/focusedConnector.ts')
 
 const TITLE = 'Mercury · model'
 const CTRL_W = '\x17'

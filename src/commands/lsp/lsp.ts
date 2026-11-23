@@ -1,6 +1,6 @@
-import { getInitializationStatus, getLspServerManager, reinitializeLspServerManager, waitForInitialization } from '../../services/lsp/manager.js'
-import type { LSPStopResult } from '../../services/lsp/LSPClient.js'
-import type { LocalCommandCall } from '../../types/command.js'
+import { getInitializationStatus, getLspServerManager, reinitializeLspServerManager, waitForInitialization } from '../../integrations/lsp/serverManagerLifecycle.js'
+import type { LSPStopResult } from '../../integrations/lsp/LSPClient.js'
+import type { LocalCommandCall } from '../catalogue/command.js'
 
 const USAGE = 'Usage: `/lsp status` lists the language servers of this workspace · `/lsp restart [<server>]` restarts one of them, or all of them.'
 
@@ -21,7 +21,7 @@ export const call: LocalCommandCall = async args => {
   if (verb === '' || rest.length > 0 || (verb !== 'status' && verb !== 'restart') || (verb === 'status' && target !== '')) {
     return { type: 'text', value: verb === '' ? USAGE : `\`/lsp ${args.trim()}\` is not a verb here. ${USAGE}` }
   }
-  const { NO_LSP_SERVERS_CONFIGURED, serverStatusLines } = await import('../../tools/LSPTool/mercuryOps.js')
+  const { NO_LSP_SERVERS_CONFIGURED, serverStatusLines } = await import('../../tools/lsp/mercuryOps.js')
   const manager = getLspServerManager()
   if (verb === 'status') {
     if (manager === undefined) return { type: 'text', value: notRunning() }

@@ -6,8 +6,8 @@ import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
 import stringWidth from 'string-width'
-import type { SeatStatusV1, SessionLiveV1 } from '../../src/services/engine-connector/seatLive.ts'
-import type { RequestWaitV1 } from '../../src/services/providers/streamIdleBudget.ts'
+import type { SeatStatusV1, SessionLiveV1 } from '../../src/engine/connector/seatLive.ts'
+import type { RequestWaitV1 } from '../../src/models/roads/streamIdleBudget.ts'
 
 const argument = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)
@@ -36,18 +36,18 @@ const ELLIPSIS = '…'
 
 async function main(): Promise<void> {
   const src = (relative: string): string => join(ROOT, 'src', relative)
-  const { enableConfigs } = await import(src('utils/config.ts'))
+  const { enableConfigs } = await import(src('platform/settings/config.ts'))
   enableConfigs()
-  const bar = await import(src('components/SwitchboardTagBar.tsx'))
-  const { keyHintLabel } = await import(src('components/mercury-ui/keyHintLabel.ts'))
-  const { IDLE_LIVE } = await import(src('services/engine-connector/seatLive.ts'))
-  const { noSessionConnector } = await import(src('services/engine-connector/noSessionConnector.ts'))
-  const slot = await import(src('services/engine-connector/focusedConnector.ts'))
-  const ink = await import(src('ink.ts'))
-  const { default: StdinContext } = await import(src('ink/components/StdinContext.ts'))
-  const { AppStoreContext } = await import(src('state/AppState.tsx'))
-  const { createStore } = await import(src('state/store.ts'))
-  const { getDefaultAppState } = await import(src('state/AppStateStore.ts'))
+  const bar = await import(src('screen/chat/SwitchboardTagBar.tsx'))
+  const { keyHintLabel } = await import(src('screen/widgets/keyHintLabel.ts'))
+  const { IDLE_LIVE } = await import(src('engine/connector/seatLive.ts'))
+  const { noSessionConnector } = await import(src('engine/connector/noSessionConnector.ts'))
+  const slot = await import(src('engine/connector/focusedConnector.ts'))
+  const ink = await import(src('screen/themedRenderer.ts'))
+  const { default: StdinContext } = await import(src('screen/renderer/elements/StdinContext.ts'))
+  const { AppStoreContext } = await import(src('screen/app-state/AppState.tsx'))
+  const { createStore } = await import(src('platform/primitives/store.ts'))
+  const { getDefaultAppState } = await import(src('screen/app-state/AppStateStore.ts'))
   const React = (await import(Bun.resolveSync('react', join(ROOT, 'src')))).default
 
   const t0 = 1_700_000_000_000
@@ -75,20 +75,20 @@ async function main(): Promise<void> {
   section('S1 the words of every notice, pure: the ingest sentence is whole, and the fit rule keeps its tail clause')
   {
     const line = bar.statusLine(thinking, notices[0]![2])
-    check('the cold ingest wait spells the prompt, the model and the budget, whole', line === SENTENCE, line, 'statusLine in src/components/SwitchboardTagBar.tsx must spell the prompt size, the model and the first-byte budget for a cold wait')
+    check('the cold ingest wait spells the prompt, the model and the budget, whole', line === SENTENCE, line, 'statusLine in src/screen/chat/SwitchboardTagBar.tsx must spell the prompt size, the model and the first-byte budget for a cold wait')
     for (const [name, live, s] of notices) {
       const words = bar.statusLine(live, s)
-      check(`${name}: the row has words`, words !== '', words, 'statusLine in src/components/SwitchboardTagBar.tsx must return words for this notice state')
+      check(`${name}: the row has words`, words !== '', words, 'statusLine in src/screen/chat/SwitchboardTagBar.tsx must return words for this notice state')
     }
     const fixed = 1 + stringWidth(PROJECT) + 3 + 2 + stringWidth(bar.escBackHint(thinking, resting))
-    check('at 150 columns the fit rule leaves the sentence untouched', bar.fitStatusLine(SENTENCE, 150, fixed) === SENTENCE, bar.fitStatusLine(SENTENCE, 150, fixed), 'fitStatusLine and statusLineBudget in src/components/SwitchboardTagBar.tsx must leave a line that fits untouched')
+    check('at 150 columns the fit rule leaves the sentence untouched', bar.fitStatusLine(SENTENCE, 150, fixed) === SENTENCE, bar.fitStatusLine(SENTENCE, 150, fixed), 'fitStatusLine and statusLineBudget in src/screen/chat/SwitchboardTagBar.tsx must leave a line that fits untouched')
     const narrow = bar.fitStatusLine(SENTENCE, 60, fixed)
-    check("at 60 columns the fit rule cuts with an ellipsis and keeps the budget clause's tail", narrow !== SENTENCE && narrow.includes(ELLIPSIS) && narrow.endsWith('1m 18s') && stringWidth(narrow) <= bar.statusLineBudget(60, fixed), narrow, 'fitStatusLine in src/components/SwitchboardTagBar.tsx must cut with an ellipsis, keep the tail clause and stay within statusLineBudget')
+    check("at 60 columns the fit rule cuts with an ellipsis and keeps the budget clause's tail", narrow !== SENTENCE && narrow.includes(ELLIPSIS) && narrow.endsWith('1m 18s') && stringWidth(narrow) <= bar.statusLineBudget(60, fixed), narrow, 'fitStatusLine in src/screen/chat/SwitchboardTagBar.tsx must cut with an ellipsis, keep the tail clause and stay within statusLineBudget')
     const fixedOn = (platform: string): number => 1 + stringWidth(PROJECT) + 3 + 2 + stringWidth(keyHintLabel('esc interrupts · ⇧← back', platform))
     const offMacFixed = fixedOn('linux')
     const warm = bar.statusLine(thinking, notices[2]![2])
     const floor = bar.fitStatusLine(warm, 60, offMacFixed)
-    check('off-mac the way back spells shift+ and the 60-column fixed cells are five wider: the warm wait hits the budget floor and the ellipsis still leads its tail', offMacFixed === fixedOn('macos') + 5 && floor.startsWith(ELLIPSIS) && floor.endsWith('after 2m') && stringWidth(floor) === bar.statusLineBudget(60, offMacFixed), `${floor} (budget ${bar.statusLineBudget(60, offMacFixed)})`, 'fitStatusLine and statusLineBudget in src/components/SwitchboardTagBar.tsx must put the ellipsis ahead of the tail clause at the budget floor, and keyHintLabel must spell shift+ off macOS')
+    check('off-mac the way back spells shift+ and the 60-column fixed cells are five wider: the warm wait hits the budget floor and the ellipsis still leads its tail', offMacFixed === fixedOn('macos') + 5 && floor.startsWith(ELLIPSIS) && floor.endsWith('after 2m') && stringWidth(floor) === bar.statusLineBudget(60, offMacFixed), `${floor} (budget ${bar.statusLineBudget(60, offMacFixed)})`, 'fitStatusLine and statusLineBudget in src/screen/chat/SwitchboardTagBar.tsx must put the ellipsis ahead of the tail clause at the budget floor, and keyHintLabel must spell shift+ off macOS')
   }
 
   const settle = async (): Promise<void> => {
@@ -173,7 +173,7 @@ async function main(): Promise<void> {
     const out = new Map<string, Painted>()
     const rested = mounted.frame()
     HEAD = /^ ready · (fixture-model(?: · \S+)?)(?:\s{2,}|$)/.exec(rested)?.[1] ?? HEAD
-    check(`${columns}: the row rests before the turn (the drive's own starting frame)`, rested.trimStart().startsWith('ready') && !rested.includes(PROJECT), quote(rested), 'FocusedSessionStatusRow in src/components/SwitchboardTagBar.tsx must paint the resting row (ready, no project label) before a turn starts')
+    check(`${columns}: the row rests before the turn (the drive's own starting frame)`, rested.trimStart().startsWith('ready') && !rested.includes(PROJECT), quote(rested), 'FocusedSessionStatusRow in src/screen/chat/SwitchboardTagBar.tsx must paint the resting row (ready, no project label) before a turn starts')
     for (const [label, live, s] of scenes) {
       seat.setLive(live)
       seat.setStatus(s)
@@ -205,7 +205,7 @@ async function main(): Promise<void> {
     const fitted = plan.rest
     const whole = stringWidth(painted.words) <= bar.statusLineBudget(columns, fixed)
     const room = fixed + stringWidth(fitted) <= columns
-    const fitHint = 'statusRowPlan, fitStatusLine and FocusedSessionStatusRow in src/components/SwitchboardTagBar.tsx must fit the words, the model, the folder and the way back into the columns without a bare cut'
+    const fitHint = 'statusRowPlan, fitStatusLine and FocusedSessionStatusRow in src/screen/chat/SwitchboardTagBar.tsx must fit the words, the model, the folder and the way back into the columns without a bare cut'
     const detail = `${quote(painted.row)} fitted=${JSON.stringify(fitted)} right=${JSON.stringify(plan.right)}`
     if (fitted === '') check(`${label} @${columns}: no room for the words under the floor — they leave; the model leads and the way back stands`, painted.row.startsWith(` ${HEAD.slice(0, 3)}`) && !painted.row.includes(` · ${painted.words.slice(0, 6)}`) && rightEdge(painted, columns), detail, fitHint)
     else if (whole) check(`${label} @${columns}: the words paint whole after the model and effort, the way back at the right edge`, painted.row.startsWith(` ${HEAD} · ${painted.words}`) && !painted.row.includes(ELLIPSIS) && rightEdge(painted, columns), detail, fitHint)
@@ -218,9 +218,9 @@ async function main(): Promise<void> {
   const wide = await paint(150, 34, 'status-row', notices)
   {
     const cold = wide.get('cold ingest')!
-    check('the row reads the model and effort, the separator, the whole sentence, then the folder and branch', cold.row.startsWith(` ${HEAD} · ${SENTENCE}`) && cold.row.includes(' mercury ⌥ main  '), quote(cold.row), 'FocusedSessionStatusRow and statusRowPlan in src/components/SwitchboardTagBar.tsx must paint the whole sentence then the folder and branch at 150 columns')
-    check('no bare cut: the words are never followed by blank columns before the way back', !cutBare(cold), quote(cold.row), 'statusRowPlan in src/components/SwitchboardTagBar.tsx must not leave the words cut with blank columns before the way back')
-    check("the way back carries the esc clause and stands at the right edge", cold.hint === keyHintLabel('esc interrupts · ⇧← back') && rightEdge(cold, 150), quote(cold.row), 'escBackHint and the right-edge placement in src/components/SwitchboardTagBar.tsx must carry the esc clause at the last column')
+    check('the row reads the model and effort, the separator, the whole sentence, then the folder and branch', cold.row.startsWith(` ${HEAD} · ${SENTENCE}`) && cold.row.includes(' mercury ⌥ main  '), quote(cold.row), 'FocusedSessionStatusRow and statusRowPlan in src/screen/chat/SwitchboardTagBar.tsx must paint the whole sentence then the folder and branch at 150 columns')
+    check('no bare cut: the words are never followed by blank columns before the way back', !cutBare(cold), quote(cold.row), 'statusRowPlan in src/screen/chat/SwitchboardTagBar.tsx must not leave the words cut with blank columns before the way back')
+    check("the way back carries the esc clause and stands at the right edge", cold.hint === keyHintLabel('esc interrupts · ⇧← back') && rightEdge(cold, 150), quote(cold.row), 'escBackHint and the right-edge placement in src/screen/chat/SwitchboardTagBar.tsx must carry the esc clause at the last column')
     for (const [label] of notices) lawful(label, wide.get(label)!, 150)
   }
 
@@ -229,7 +229,7 @@ async function main(): Promise<void> {
   {
     const cold = tight.get('cold ingest')!
     const fitted = planOf(cold, 60).rest
-    check('at 60 the words leave under the floor: the model and effort stand, the folder and branch gone, the way back at the right edge', fitted === '' && cold.row.startsWith(` ${HEAD}`) && !cold.row.includes('ingesting') && !cold.row.includes('mercury') && rightEdge(cold, 60), `${quote(cold.row)} fitted=${JSON.stringify(fitted)}`, 'statusRowPlan in src/components/SwitchboardTagBar.tsx must drop the words, the folder and the branch at 60 columns and keep the model and the way back')
+    check('at 60 the words leave under the floor: the model and effort stand, the folder and branch gone, the way back at the right edge', fitted === '' && cold.row.startsWith(` ${HEAD}`) && !cold.row.includes('ingesting') && !cold.row.includes('mercury') && rightEdge(cold, 60), `${quote(cold.row)} fitted=${JSON.stringify(fitted)}`, 'statusRowPlan in src/screen/chat/SwitchboardTagBar.tsx must drop the words, the folder and the branch at 60 columns and keep the model and the way back')
     for (const [label] of notices) lawful(label, tight.get(label)!, 60)
   }
 
@@ -237,10 +237,10 @@ async function main(): Promise<void> {
   {
     const cold = notices.slice(0, 1)
     const roomy = (await paint(178, 51, 'status-row', cold)).get('cold ingest')!
-    check('178: the sentence whole after the model and effort, the folder and branch, the way back at the right edge', roomy.row.startsWith(` ${HEAD} · ${SENTENCE}`) && roomy.row.includes(' mercury ⌥ main  ') && rightEdge(roomy, 178), quote(roomy.row), 'FocusedSessionStatusRow and statusRowPlan in src/components/SwitchboardTagBar.tsx must paint the whole sentence, the folder and branch, and the way back at 178 columns')
+    check('178: the sentence whole after the model and effort, the folder and branch, the way back at the right edge', roomy.row.startsWith(` ${HEAD} · ${SENTENCE}`) && roomy.row.includes(' mercury ⌥ main  ') && rightEdge(roomy, 178), quote(roomy.row), 'FocusedSessionStatusRow and statusRowPlan in src/screen/chat/SwitchboardTagBar.tsx must paint the whole sentence, the folder and branch, and the way back at 178 columns')
     const small = (await paint(80, 21, 'status-row', cold)).get('cold ingest')!
     const fitted = planOf(small, 80).rest
-    check("80: whole parts drop cleanly (no mid-word cut, the limit kept), the way back at the right edge", small.row.startsWith(` ${HEAD} · ${fitted}`) && fitted === 'gives up after 1m 18s' && !fitted.includes(ELLIPSIS) && rightEdge(small, 80), `${quote(small.row)} fitted=${JSON.stringify(fitted)}`, 'fitStatusLine and statusRowPlan in src/components/SwitchboardTagBar.tsx must drop whole parts and keep the limit clause at 80 columns')
+    check("80: whole parts drop cleanly (no mid-word cut, the limit kept), the way back at the right edge", small.row.startsWith(` ${HEAD} · ${fitted}`) && fitted === 'gives up after 1m 18s' && !fitted.includes(ELLIPSIS) && rightEdge(small, 80), `${quote(small.row)} fitted=${JSON.stringify(fitted)}`, 'fitStatusLine and statusRowPlan in src/screen/chat/SwitchboardTagBar.tsx must drop whole parts and keep the limit clause at 80 columns')
   }
 }
 

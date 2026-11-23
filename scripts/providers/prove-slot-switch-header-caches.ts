@@ -2,14 +2,14 @@
 import { join } from 'node:path'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { switchActiveSlot } = await import(join(SRC, 'services/providers/slotSwitch.ts'))
+const { switchActiveSlot } = await import(join(SRC, 'models/roads/slotSwitch.ts'))
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
   if (!ok) {
     failures = 1
-    console.log('      fix: switchActiveSlot in src/services/providers/slotSwitch.ts must call writes.writeAnthropicPreference and then writes.clearAuthHeaderCaches once on a landed switch, and call neither on a refused arm')
+    console.log('      fix: switchActiveSlot in src/models/roads/slotSwitch.ts must call writes.writeAnthropicPreference and then writes.clearAuthHeaderCaches once on a landed switch, and call neither on a refused arm')
   }
 }
 

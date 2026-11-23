@@ -27,17 +27,17 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n  ' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 
-const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { DIALECT_CONVERSATION, TWO_MODEL_COMPACTION, VIRTUAL_ROW, STRUCTURED_OUTPUT_ASK, canonicalJson, eq } = await import('./dialectFixture.ts')
-const { ANTHROPIC_CLIENT_CONTRACT_VERSION } = await import('../../src/constants/oauth.ts')
-import type { AssistantMessage } from '../../src/types/message.ts'
+const { ANTHROPIC_CLIENT_CONTRACT_VERSION } = await import('../../src/models/sign-in/oauth/oauth.ts')
+import type { AssistantMessage } from '../../src/engine/message-shapes/message.ts'
 
 const SENTINEL = new Error('request-captured')
 type Captured = { body: Record<string, unknown> }
@@ -49,7 +49,7 @@ const captureFetch: typeof fetch = async (_input, init) => {
   throw SENTINEL
 }
 
-async function captureBody(messages: import('../../src/types/message.ts').Message[], extra: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+async function captureBody(messages: import('../../src/engine/message-shapes/message.ts').Message[], extra: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
   captured = null
   const controller = new AbortController()
   abortCapture = () => controller.abort()
@@ -81,7 +81,7 @@ async function captureBody(messages: import('../../src/types/message.ts').Messag
   return captured.body
 }
 
-const anthropicWireHint = 'fix how queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts builds the request body or folds the stream'
+const anthropicWireHint = 'fix how queryModelWithStreaming in src/models/roads/anthropic/streamCore.ts builds the request body or folds the stream'
 
 function pinnedBody(body: Record<string, unknown>): Record<string, unknown> {
   const clone = JSON.parse(JSON.stringify(body)) as Record<string, unknown>
@@ -119,7 +119,7 @@ section('the fixture conversation request — byte-pinned (canonical JSON)')
   check(
     `the billing header names the client-contract version the constant carries (${ANTHROPIC_CLIENT_CONTRACT_VERSION})`,
     canonicalJson(body).includes(`cc_version=${ANTHROPIC_CLIENT_CONTRACT_VERSION}.`),
-    'the billing header must carry ANTHROPIC_CLIENT_CONTRACT_VERSION from src/constants/oauth.ts; ' + anthropicWireHint,
+    'the billing header must carry ANTHROPIC_CLIENT_CONTRACT_VERSION from src/models/sign-in/oauth/oauth.ts; ' + anthropicWireHint,
   )
   const GOLDEN_BODY = `{"diagnostics":{"previous_message_id":"msg_o1"},"max_tokens":128000,"messages":[{"content":[{"text":"Count the words in my notes file.","type":"text"}],"role":"user"},{"content":[{"text":"I will read the file first.","type":"text"}],"role":"assistant"},{"content":[{"text":"here is the screenshot of the file too","type":"text"},{"source":{"data":"aWF0dG9rZW4=","media_type":"image/png","type":"base64"},"type":"image"}],"role":"user"},{"content":[{"text":"Reading and counting now.","type":"text"},{"id":"toolu_A","input":{"file_path":"/proj/notes.txt"},"name":"Read","type":"tool_use"},{"id":"toolu_B","input":{"command":"wc -w /proj/notes.txt"},"name":"Bash","type":"tool_use"}],"role":"assistant"},{"content":[{"content":[{"text":"the quick brown fox jumps over the lazy dog","type":"text"}],"tool_use_id":"toolu_A","type":"tool_result"},{"content":[{"text":"9 words","type":"text"}],"is_error":false,"tool_use_id":"toolu_B","type":"tool_result"}],"role":"user"},{"content":[{"text":"The file holds nine words.","type":"text"}],"role":"assistant"},{"content":[{"cache_control":{"type":"ephemeral"},"text":"Summarise what you found in one sentence.","type":"text"}],"role":"user"}],"metadata":"<id>","model":"claude-sonnet-5","output_config":{"effort":"high"},"stream":true,"system":[{"text":"x-anthropic-billing-header: cc_version=<cc>.<fp>;cc_entrypoint=unknown;","type":"text"},{"cache_control":{"type":"ephemeral"},"text":"You are the dialect fixture.","type":"text"}],"tools":[]}`
   check('the composed body is byte-identical to the golden (two system blocks: the billing header, then the caller prompt — no identity prefix between them; the cache diagnostics field names the previous response)', wire === GOLDEN_BODY, `${anthropicWireHint}, or update GOLDEN_BODY here if the wire change is intended; first divergence near ${firstDivergence(wire, GOLDEN_BODY)}`)

@@ -9,12 +9,12 @@ process.env.MERCURY_CONFIG_DIR = _mkdtemp(_join(_tmpdir(), 'mosaic-proj-home-'))
 
 let failures = 0
 const WHERE_TO_LOOK: Record<string, string> = {
-  '(1)': 'composeWorkbenchSnapshot and deriveLaneRows in src/services/workbench/selectors.ts',
-  '(2)': 'deriveNextAction and composeWorkbenchSnapshot in src/services/workbench/selectors.ts',
-  '(3)': 'composeWorkbenchSnapshot in src/services/workbench/selectors.ts (thread order and version)',
-  '(4)': 'resolveWorkbenchSnapshot, subscribeWorkbench and getWorkbenchSnapshot in src/services/workbench/projection.ts',
-  '(5)': 'the mercury://workbench adapter in src/services/resources/adapters/workbench.ts and resolveResource in src/services/resources/registry.ts',
-  '(6)': 'gatherWorkbenchInputs and subscribeWorkbench in src/services/workbench/projection.ts, and regroundGitWatch in src/utils/git/gitFilesystem.ts',
+  '(1)': 'composeWorkbenchSnapshot and deriveLaneRows in src/screen/workbench/selectors.ts',
+  '(2)': 'deriveNextAction and composeWorkbenchSnapshot in src/screen/workbench/selectors.ts',
+  '(3)': 'composeWorkbenchSnapshot in src/screen/workbench/selectors.ts (thread order and version)',
+  '(4)': 'resolveWorkbenchSnapshot, subscribeWorkbench and getWorkbenchSnapshot in src/screen/workbench/projection.ts',
+  '(5)': 'the mercury://workbench adapter in src/integrations/resources/adapters/workbench.ts and resolveResource in src/integrations/resources/registry.ts',
+  '(6)': 'gatherWorkbenchInputs and subscribeWorkbench in src/screen/workbench/projection.ts, and regroundGitWatch in src/platform/git/gitFilesystem.ts',
 }
 let whereToLook = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -32,9 +32,9 @@ import {
   composeWorkbenchSnapshot,
   deriveNextAction,
   type WorkbenchSourceInputs,
-} from '../../src/services/workbench/selectors.js'
-import { healthOf, sourceReady } from '../../src/substrate/sourceState.js'
-import { WORKBENCH_SOURCES_SCHEMA } from '../../src/services/workbench/contracts.js'
+} from '../../src/screen/workbench/selectors.js'
+import { healthOf, sourceReady } from '../../src/platform/substrate/sourceState.js'
+import { WORKBENCH_SOURCES_SCHEMA } from '../../src/screen/workbench/contracts.js'
 
 function baseInputs(): WorkbenchSourceInputs {
   const now = 1_700_000_000_000
@@ -215,7 +215,7 @@ section('(4) engine laws — flag gate + stable reference')
   const prev = process.env.MERCURY_WORKBENCH
   process.env.MERCURY_WORKBENCH = '0'
   const { resolveWorkbenchSnapshot, subscribeWorkbench, getWorkbenchSnapshot, _resetWorkbenchForTesting } =
-    await import('../../src/services/workbench/projection.js')
+    await import('../../src/screen/workbench/projection.js')
   _resetWorkbenchForTesting()
   const offSnap = await resolveWorkbenchSnapshot()
   check('flag off ⇒ one-shot resolve answers null', offSnap === null)
@@ -237,7 +237,7 @@ section('(4) engine laws — flag gate + stable reference')
   const b = getWorkbenchSnapshot()
   check('getter returns a stable reference between refreshes', a === b)
 
-  const { createReviewArtifact } = await import('../../src/services/artifacts/reviewStore.js')
+  const { createReviewArtifact } = await import('../../src/sessions/artifact-reviews/reviewStore.js')
   createReviewArtifact({
     kind: 'plan', title: 'here', producer: { sessionId: 's' },
     workspace: { roots: [process.cwd()] }, body: { kind: 'plan', markdown: 'x\n' },
@@ -261,8 +261,8 @@ section('(4) engine laws — flag gate + stable reference')
 
 section('(5) the mercury://workbench adapter through the REAL registry')
 {
-  const { resolveResource } = await import('../../src/services/resources/registry.js')
-  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.js')
+  const { resolveResource } = await import('../../src/integrations/resources/registry.js')
+  const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.js')
   const ctx = { owner: processMainOwner(), cwd: process.cwd() }
 
   const current = await resolveResource('mercury://workbench/current', ctx)
@@ -286,7 +286,7 @@ section('(5) the mercury://workbench adapter through the REAL registry')
   check('flag off ⇒ adapter answers unavailable naming the flag', off.state === 'unavailable' && off.note.includes('MERCURY_WORKBENCH=0'))
   delete process.env.MERCURY_WORKBENCH
 
-  const { resourceAdapterKinds } = await import('../../src/services/resources/registry.js')
+  const { resourceAdapterKinds } = await import('../../src/integrations/resources/registry.js')
   check(
     'workbench kind is in the runtime census',
     (await resourceAdapterKinds()).some(k => k.kind === 'workbench'),
@@ -307,8 +307,8 @@ section('(6) the gather path spawns nothing synchronously; one gather per change
   const esm = await import('node:child_process')
   const wrapperVisible = (esm.execFileSync as unknown) === cp.execFileSync
   const { resolveWorkbenchSnapshot, subscribeWorkbench, getWorkbenchSnapshot, _resetWorkbenchForTesting } =
-    await import('../../src/services/workbench/projection.js')
-  const gitMod = await import('../../src/utils/git.js')
+    await import('../../src/screen/workbench/projection.js')
+  const gitMod = await import('../../src/platform/git/git.js')
   _resetWorkbenchForTesting()
   syncSpawns = 0
   const one = await resolveWorkbenchSnapshot()
@@ -322,8 +322,8 @@ section('(6) the gather path spawns nothing synchronously; one gather per change
   const { execFileSync: realExecFileSync } = await import('node:child_process')
   const { mkdtempSync, writeFileSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
-  const { setCwdState, getCwdState } = await import('../../src/bootstrap/state.js')
-  const { regroundGitWatch } = await import('../../src/utils/git/gitFilesystem.js')
+  const { setCwdState, getCwdState } = await import('../../src/boot/process-state/processState.js')
+  const { regroundGitWatch } = await import('../../src/platform/git/gitFilesystem.js')
   const scratch = mkdtempSync(_join(tmpdir(), 'workbench-signal-'))
   const g = (...a: string[]): void => {
     realExecFileSync('git', ['-c', 'user.email=p@p', '-c', 'user.name=proof', ...a], { cwd: scratch, stdio: 'ignore' })

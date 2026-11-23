@@ -2,12 +2,12 @@
 import { join } from 'node:path'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { FocusManager } = await import(join(SRC, 'ink/focus.ts'))
+const { FocusManager } = await import(join(SRC, 'screen/renderer/focus.ts'))
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}Fix FocusManager (focus, disable, handleNodeRemoved and the bounded focus history) in src/ink/focus.ts` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}Fix FocusManager (focus, disable, handleNodeRemoved and the bounded focus history) in src/screen/renderer/focus.ts` : ''}`)
 }
 type Node = { nodeName: string; parentNode?: Node; childNodes: Node[]; attributes: Record<string, unknown> }
 const root: Node = { nodeName: 'ink-root', childNodes: [], attributes: {} }

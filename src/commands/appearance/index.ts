@@ -1,5 +1,5 @@
-import type { Command } from '../../commands.js'
-import { currentStoredThemeSetting } from '../../components/design-system/ThemeProvider.js'
+import type { Command } from '../catalogue/commands.js'
+import { currentStoredThemeSetting } from '../../screen/theme/ThemeProvider.js'
 
 const appearance = {
   type: 'local-jsx',

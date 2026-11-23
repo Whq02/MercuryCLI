@@ -14,18 +14,18 @@ process.env.NODE_ENV = 'test'
 mkdirSync(join(PROJ, '.mercury'), { recursive: true })
 process.chdir(PROJ)
 
-const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.ts')
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/boot/process-state/processState.ts')
 trustTheProofFolder(true)
 const { permissionRuleValueFromString, permissionRuleValueToString } = await import(
-  '../../src/utils/permissions/permissionRuleParser.ts'
+  '../../src/permissions/rules/permissionRuleParser.ts'
 )
-const { suggestionForExactCommand } = await import('../../src/utils/permissions/shellRuleMatching.ts')
-const { persistPermissionUpdate } = await import('../../src/utils/permissions/PermissionUpdate.ts')
-const { loadAllPermissionRulesFromDisk } = await import('../../src/utils/permissions/permissionsLoader.ts')
-const { applyPermissionRulesToPermissionContext } = await import('../../src/utils/permissions/permissions.ts')
-const { getRuleByContentsForToolName } = await import('../../src/utils/permissions/decision/rules.ts')
-const { COMPUTER_TOOL_NAME } = await import('../../src/services/desktop/toolName.ts')
-type Ctx = import('../../src/utils/permissions/permissions.ts').ToolPermissionContext
+const { suggestionForExactCommand } = await import('../../src/permissions/rules/shellRuleMatching.ts')
+const { persistPermissionUpdate } = await import('../../src/permissions/rules/permissionUpdate.ts')
+const { loadAllPermissionRulesFromDisk } = await import('../../src/permissions/rules/permissionsLoader.ts')
+const { applyPermissionRulesToPermissionContext } = await import('../../src/permissions/rules/permissionDoor.ts')
+const { getRuleByContentsForToolName } = await import('../../src/permissions/rules/decision/rules.ts')
+const { COMPUTER_TOOL_NAME } = await import('../../src/integrations/desktop/toolName.ts')
+type Ctx = import('../../src/permissions/rules/permissionDoor.ts').ToolPermissionContext
 type RuleUpdate = {
   type: string
   behavior?: string
@@ -53,21 +53,21 @@ for (const identity of ['com.apple.Safari', 'chrome.exe', 'firefox']) {
     `${COMPUTER_TOOL_NAME}(app:${identity}) parses to the tool and the app content`,
     parsed.toolName === COMPUTER_TOOL_NAME && parsed.ruleContent === `app:${identity}`,
     JSON.stringify(parsed),
-    'permissionRuleValueFromString in src/utils/permissions/permissionRuleParser.ts must split the tool name from the app content',
+    'permissionRuleValueFromString in src/permissions/rules/permissionRuleParser.ts must split the tool name from the app content',
   )
-  check('and serialises back to the same spelling', permissionRuleValueToString(parsed) === `${COMPUTER_TOOL_NAME}(app:${identity})`, '', 'permissionRuleValueToString in src/utils/permissions/permissionRuleParser.ts must give back the same spelling')
+  check('and serialises back to the same spelling', permissionRuleValueToString(parsed) === `${COMPUTER_TOOL_NAME}(app:${identity})`, '', 'permissionRuleValueToString in src/permissions/rules/permissionRuleParser.ts must give back the same spelling')
 }
 
 section("§2 THE CARD'S SUGGESTION")
 const suggestions = suggestionForExactCommand(COMPUTER_TOOL_NAME, SAFARI) as unknown as RuleUpdate[]
 const update = suggestions[0]
-check('exactly one addRules update', suggestions.length === 1 && update?.type === 'addRules', JSON.stringify(suggestions), 'suggestionForExactCommand in src/utils/permissions/shellRuleMatching.ts must return exactly one addRules update')
-check("allow, to the project's local settings", update?.behavior === 'allow' && update?.destination === 'localSettings', '', 'suggestionForExactCommand in src/utils/permissions/shellRuleMatching.ts must suggest an allow rule saved to localSettings')
+check('exactly one addRules update', suggestions.length === 1 && update?.type === 'addRules', JSON.stringify(suggestions), 'suggestionForExactCommand in src/permissions/rules/shellRuleMatching.ts must return exactly one addRules update')
+check("allow, to the project's local settings", update?.behavior === 'allow' && update?.destination === 'localSettings', '', 'suggestionForExactCommand in src/permissions/rules/shellRuleMatching.ts must suggest an allow rule saved to localSettings')
 check(
   'the rule names the tool and the identity',
   update?.rules?.[0]?.toolName === COMPUTER_TOOL_NAME && update?.rules?.[0]?.ruleContent === SAFARI,
   JSON.stringify(update?.rules),
-  'suggestionForExactCommand in src/utils/permissions/shellRuleMatching.ts must carry the tool name and the identity in its rule',
+  'suggestionForExactCommand in src/permissions/rules/shellRuleMatching.ts must carry the tool name and the identity in its rule',
 )
 
 section('§3 THE PERSISTED RULE THROUGH THE DECISION CHAIN')
@@ -85,27 +85,27 @@ check(
   `settings.local.json allow carries ${COMPUTER_TOOL_NAME}(${SAFARI})`,
   (written.guardrails?.allow ?? []).includes(`${COMPUTER_TOOL_NAME}(${SAFARI})`),
   JSON.stringify(written.guardrails),
-  'persistPermissionUpdate in src/utils/permissions/PermissionUpdate.ts must write the allow rule to guardrails.allow of .mercury/settings.local.json',
+  'persistPermissionUpdate in src/permissions/rules/permissionUpdate.ts must write the allow rule to guardrails.allow of .mercury/settings.local.json',
 )
 check(
   `and deny carries ${COMPUTER_TOOL_NAME}(${VAULT})`,
   (written.guardrails?.deny ?? []).includes(`${COMPUTER_TOOL_NAME}(${VAULT})`),
   JSON.stringify(written.guardrails),
-  'persistPermissionUpdate in src/utils/permissions/PermissionUpdate.ts must write the deny rule to guardrails.deny of .mercury/settings.local.json',
+  'persistPermissionUpdate in src/permissions/rules/permissionUpdate.ts must write the deny rule to guardrails.deny of .mercury/settings.local.json',
 )
 const ctx = applyPermissionRulesToPermissionContext(emptyCtx(), loadAllPermissionRulesFromDisk())
 const allow = getRuleByContentsForToolName(ctx, COMPUTER_TOOL_NAME, 'allow')
 const deny = getRuleByContentsForToolName(ctx, COMPUTER_TOOL_NAME, 'deny')
-check('the loaded allow rules answer the Safari identity', allow.has(SAFARI), JSON.stringify([...allow.keys()]), 'loadAllPermissionRulesFromDisk in src/utils/permissions/permissionsLoader.ts and getRuleByContentsForToolName in src/utils/permissions/decision/rules.ts must return the saved allow rule')
-check('the loaded deny rules answer the vault identity', deny.has(VAULT), JSON.stringify([...deny.keys()]), 'loadAllPermissionRulesFromDisk in src/utils/permissions/permissionsLoader.ts and getRuleByContentsForToolName in src/utils/permissions/decision/rules.ts must return the saved deny rule')
-check('a deny rule never answers as allow', !allow.has(VAULT), '', 'getRuleByContentsForToolName in src/utils/permissions/decision/rules.ts must read only rules of the behavior asked for')
-check('another identity is not matched', !allow.has('app:com.apple.Finder'), '', 'getRuleByContentsForToolName in src/utils/permissions/decision/rules.ts must match an identity exactly')
-check('the Browser family is untouched by a Computer rule', !getRuleByContentsForToolName(ctx, 'Browser', 'allow').has(SAFARI), '', 'getRuleByContentsForToolName in src/utils/permissions/decision/rules.ts must keep rules per tool name')
+check('the loaded allow rules answer the Safari identity', allow.has(SAFARI), JSON.stringify([...allow.keys()]), 'loadAllPermissionRulesFromDisk in src/permissions/rules/permissionsLoader.ts and getRuleByContentsForToolName in src/permissions/rules/decision/rules.ts must return the saved allow rule')
+check('the loaded deny rules answer the vault identity', deny.has(VAULT), JSON.stringify([...deny.keys()]), 'loadAllPermissionRulesFromDisk in src/permissions/rules/permissionsLoader.ts and getRuleByContentsForToolName in src/permissions/rules/decision/rules.ts must return the saved deny rule')
+check('a deny rule never answers as allow', !allow.has(VAULT), '', 'getRuleByContentsForToolName in src/permissions/rules/decision/rules.ts must read only rules of the behavior asked for')
+check('another identity is not matched', !allow.has('app:com.apple.Finder'), '', 'getRuleByContentsForToolName in src/permissions/rules/decision/rules.ts must match an identity exactly')
+check('the Browser family is untouched by a Computer rule', !getRuleByContentsForToolName(ctx, 'Browser', 'allow').has(SAFARI), '', 'getRuleByContentsForToolName in src/permissions/rules/decision/rules.ts must keep rules per tool name')
 
 section('§4 IDENTITIES NEVER NORMALISE ACROSS PLATFORMS')
-check('a bundle identifier rule does not match a bare name', !allow.has('app:Safari') && !allow.has('app:safari'), '', 'identities must stay verbatim: do not fold a bundle identifier to a bare name in src/utils/permissions/decision/rules.ts or permissionRuleParser.ts')
-check('nor an executable spelling', !allow.has('app:safari.exe'), '', 'identities must stay verbatim: do not fold a bundle identifier to an executable name in src/utils/permissions/decision/rules.ts or permissionRuleParser.ts')
-check('the padded spelling still names the identity', permissionRuleValueFromString(`  ${COMPUTER_TOOL_NAME}(${SAFARI})  `).ruleContent === SAFARI, '', 'permissionRuleValueFromString in src/utils/permissions/permissionRuleParser.ts must trim the padding around the rule string')
+check('a bundle identifier rule does not match a bare name', !allow.has('app:Safari') && !allow.has('app:safari'), '', 'identities must stay verbatim: do not fold a bundle identifier to a bare name in src/permissions/rules/decision/rules.ts or permissionRuleParser.ts')
+check('nor an executable spelling', !allow.has('app:safari.exe'), '', 'identities must stay verbatim: do not fold a bundle identifier to an executable name in src/permissions/rules/decision/rules.ts or permissionRuleParser.ts')
+check('the padded spelling still names the identity', permissionRuleValueFromString(`  ${COMPUTER_TOOL_NAME}(${SAFARI})  `).ruleContent === SAFARI, '', 'permissionRuleValueFromString in src/permissions/rules/permissionRuleParser.ts must trim the padding around the rule string')
 
 process.chdir(launchDir)
 rmSync(HOME, { recursive: true, force: true })

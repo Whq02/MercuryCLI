@@ -9,7 +9,7 @@ const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = HOME
 
-const HOME_HINT = 'change buildConcourseSnapshot in src/services/concourse/concourseSnapshot.ts so a session of the board folder (its .mercury spelling, alias and subfolders included) is a board row and never an elsewhere door; the grounding comes from applyHarnessGround in src/services/switchboard/harnessGround.ts and workerTranscriptPath in src/services/concourse/workerTranscript.ts'
+const HOME_HINT = 'change buildConcourseSnapshot in src/screen/concourse-model/concourseSnapshot.ts so a session of the board folder (its .mercury spelling, alias and subfolders included) is a board row and never an elsewhere door; the grounding comes from applyHarnessGround in src/daemon/switchboard/harnessGround.ts and workerTranscriptPath in src/screen/concourse-model/workerTranscript.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -18,14 +18,14 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
-const { buildConcourseSnapshot, writeConcourseSeedOverride } = await import('../../src/services/concourse/concourseSnapshot.ts')
-const { applyHarnessGround } = await import('../../src/services/switchboard/harnessGround.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
+const { workerTranscriptPath } = await import('../../src/screen/concourse-model/workerTranscript.ts')
+const { buildConcourseSnapshot, writeConcourseSeedOverride } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
+const { applyHarnessGround } = await import('../../src/daemon/switchboard/harnessGround.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const NOW = Date.now()
@@ -165,7 +165,7 @@ console.log('§4 — THE NEVER-AGAIN INVARIANT: no board classes one folder\'s r
   mkdirSync(SUB, { recursive: true })
   mkdirSync(CARVED, { recursive: true })
   mkdirSync(SAME_NAME, { recursive: true })
-  const { catalogFirstChat, _resetProjectCatalogForTesting } = await import('../../src/utils/bootCardFacts.ts')
+  const { catalogFirstChat, _resetProjectCatalogForTesting } = await import('../../src/screen/boot-face/bootCardFacts.ts')
   catalogFirstChat(CARVED, sid('a7'))
   _resetProjectCatalogForTesting()
   seedWorkers([

@@ -3,7 +3,7 @@ import { removeScratch } from '../lib/removeScratch.ts'
 import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import type { MediaCatalogue } from '../../src/services/media/catalogue.js'
+import type { MediaCatalogue } from '../../src/integrations/media/catalogue.js'
 
 for (const key of ['MEDIA_ROOT', 'MEDIA_CATALOG', 'MEDIA_IMAGE_MODEL', 'MEDIA_VIDEO_MODEL', 'MEDIA_OUTPUT_DIR']) delete process.env[key]
 export { proofHome }
@@ -120,7 +120,7 @@ function writeStandInEngine(runtime: string, options: { sizedImages?: boolean; p
 export function installLiveFixture(options: { sizedImages?: boolean; platform?: string; patch?: (source: string) => string } = {}): void {
   installFixture()
   const setup = readFileSync(join(dirname(serverPath), 'setup.js'), 'utf8')
-  cpSync(new URL('../../src/extensions/bundled/mercury-media/server/', import.meta.url), dirname(serverPath), { recursive: true })
+  cpSync(new URL('../../src/integrations/extensions/bundled/mercury-media/server', import.meta.url), dirname(serverPath), { recursive: true })
   writeFileSync(join(dirname(serverPath), 'setup.js'), setup)
   writeFileSync(join(root, 'catalog.json'), JSON.stringify({ files: catalogue.files, models: catalogue.models.map(model => ({ ...model, recipe: 'fixture-recipe', residentBytes: 1, peakBytes: 1 })) }))
   const runtime = join(root, 'runtime')

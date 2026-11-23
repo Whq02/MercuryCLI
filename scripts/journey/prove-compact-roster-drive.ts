@@ -397,18 +397,18 @@ if (cap !== null) {
 
   console.log('\n— H1 the summariser asks for the agents in flight —')
   const promptText = summary?.lastUserText ?? ''
-  check('ten numbered sections, the tenth Agents in flight, with its laws', promptText.includes('these ten numbered sections') && /10\. Agents in flight/.test(promptText) && /never re-spawned/.test(promptText), 'what to change: the compact summary prompt in src/services/compact/prompt.ts must ask for ten numbered sections, the tenth Agents in flight, with its never re-spawned law')
+  check('ten numbered sections, the tenth Agents in flight, with its laws', promptText.includes('these ten numbered sections') && /10\. Agents in flight/.test(promptText) && /never re-spawned/.test(promptText), 'what to change: the compact summary prompt in src/engine/compaction/summariserPrompt.ts must ask for ten numbered sections, the tenth Agents in flight, with its never re-spawned law')
 
   console.log('\n— H2 the post-fold request carries ONE roster —')
   const postText = post !== undefined ? userTextsOf(itemsOf(post.body)).join('\n') : ''
   const reminders = postText.split('<system-reminder>').filter(t => t.includes('Agents in flight at the context turnover'))
-  check('ONE roster attachment rides the request', reminders.length === 1, `${reminders.length} roster reminder(s) | what to change: the post-fold request must carry exactly one Agents in flight at the context turnover attachment (text in src/services/messages/attachmentText.ts)`)
+  check('ONE roster attachment rides the request', reminders.length === 1, `${reminders.length} roster reminder(s) | what to change: the post-fold request must carry exactly one Agents in flight at the context turnover attachment (text in src/engine/messages/attachmentText.ts)`)
   const roster = reminders[0] ?? ''
   for (const line of roster.split('\n').filter(l => l.startsWith('- '))) console.log(`  roster: ${line.slice(0, 220)}`)
-  check(`…naming the long sub-agent ${LONG_DESCRIPTION}`, new RegExp(`local_agent "${LONG_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting)`).test(roster), 'the roster lacks this sub-agent | what to change: the roster attachment (src/services/messages/attachmentText.ts) must list every running local_agent by description and id')
-  check(`…and the sub-agent ${PLAIN_DESCRIPTION} with its SendMessage address`, new RegExp(`local_agent "${PLAIN_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting)`).test(roster) && /reach it: SendMessage to "a[0-9a-z]+"/.test(roster), 'the roster lacks this sub-agent or its reach it line | what to change: the roster attachment (src/services/messages/attachmentText.ts) must list each local_agent with its SendMessage address')
-  check('…with the never-re-spawn law', roster.includes('A running agent is never re-spawned'), 'what to change: the roster attachment text in src/services/messages/attachmentText.ts must carry the never-re-spawned law')
-  check('the old per-task announcer is gone', !postText.includes('is still running. Do NOT spawn a duplicate'), 'the old per-task announcer line is still in the post-fold request | what to change: remove that announcer from the post-fold attachments; the roster in src/services/messages/attachmentText.ts replaces it')
+  check(`…naming the long sub-agent ${LONG_DESCRIPTION}`, new RegExp(`local_agent "${LONG_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting)`).test(roster), 'the roster lacks this sub-agent | what to change: the roster attachment (src/engine/messages/attachmentText.ts) must list every running local_agent by description and id')
+  check(`…and the sub-agent ${PLAIN_DESCRIPTION} with its SendMessage address`, new RegExp(`local_agent "${PLAIN_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting)`).test(roster) && /reach it: SendMessage to "a[0-9a-z]+"/.test(roster), 'the roster lacks this sub-agent or its reach it line | what to change: the roster attachment (src/engine/messages/attachmentText.ts) must list each local_agent with its SendMessage address')
+  check('…with the never-re-spawn law', roster.includes('A running agent is never re-spawned'), 'what to change: the roster attachment text in src/engine/messages/attachmentText.ts must carry the never-re-spawned law')
+  check('the old per-task announcer is gone', !postText.includes('is still running. Do NOT spawn a duplicate'), 'the old per-task announcer line is still in the post-fold request | what to change: remove that announcer from the post-fold attachments; the roster in src/engine/messages/attachmentText.ts replaces it')
 
   console.log('\n— H3 the crew is untouched by the fold —')
   const summaryAnsweredAt = summary?.answeredAtMs ?? Number.POSITIVE_INFINITY

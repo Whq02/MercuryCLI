@@ -25,50 +25,50 @@ const fixtures = await Promise.all(dialects.map(dialect => startEngineRules(dial
 writeFileSync(resolve(process.env.MERCURY_CONFIG_DIR, 'settings.json'), JSON.stringify({ compatProvider: Object.fromEntries(fixtures.map(fixture => [fixture.dialect, { baseUrl: fixture.baseUrl, dialect: fixture.dialect, models: [fixture.model] }])) }))
 let failures = 0
 let checks = 0
-const engineShapesHint = 'fix the behaviour this check names in src/services/providers/openaicompat/ (compatWire.ts buildHostedExtras for effort and output ceiling, compatChatClient.ts streamCompatChat and mapCompatHttpFailure for streams and refusals, compatChatCallModel/faults.ts compatTerminalFaultText for the cause-and-remedy text, compatProbe.ts inspectCompatServer for capabilities), src/services/providers/zai/zaiCodec.ts (mapToolsToZai, mapMessagesToZai) or src/services/providers/callModelRouter.ts (routedCallModel); if the engine fixture itself looks wrong, see scripts/provider-compat/fixtures/engineRules.mjs'
+const engineShapesHint = 'fix the behaviour this check names in src/models/roads/openaicompat/ (compatWire.ts buildHostedExtras for effort and output ceiling, compatChatClient.ts streamCompatChat and mapCompatHttpFailure for streams and refusals, compatChatCallModel/faults.ts compatTerminalFaultText for the cause-and-remedy text, compatProbe.ts inspectCompatServer for capabilities), src/models/roads/zai/zaiCodec.ts (mapToolsToZai, mapMessagesToZai) or src/models/roads/callModelRouter.ts (routedCallModel); if the engine fixture itself looks wrong, see scripts/provider-compat/fixtures/engineRules.mjs'
 function check(label: string, ok: boolean, detail: unknown = '') {
   checks++
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)} · ${engineShapesHint}`}`)
 }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { mapToolsToZai, mapMessagesToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
-const { streamCompatChat, mapCompatHttpFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-const { compatTerminalFaultText, compatFaultToTypedError } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { buildHostedExtras, LOCAL_SERVER_EFFORTS } = await import('../../src/services/providers/openaicompat/compatWire.ts')
-const { inspectCompatServer } = await import('../../src/services/providers/openaicompat/compatProbe.ts')
-const { rememberCompatCatalogue } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
-const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { mapToolsToZai, mapMessagesToZai } = await import('../../src/models/roads/zai/zaiCodec.ts')
+const { streamCompatChat, mapCompatHttpFailure } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+const { compatTerminalFaultText, compatFaultToTypedError } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { buildHostedExtras, LOCAL_SERVER_EFFORTS } = await import('../../src/models/roads/openaicompat/compatWire.ts')
+const { inspectCompatServer } = await import('../../src/models/roads/openaicompat/compatProbe.ts')
+const { rememberCompatCatalogue } = await import('../../src/models/roads/openaicompat/compatCatalogue.ts')
+const { configuredCompatEndpoints } = await import('../../src/models/roads/openaicompat/compatAccounts.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
 const options = { agents: [], getToolPermissionContext: async () => getEmptyToolPermissionContext() }
 const roster = new Map(getAllBaseTools().map(tool => [tool.name, tool]))
 const gatedTools = [
-  (await import('../../src/tools/ComputerTool/ComputerTool.ts')).ComputerTool,
-  (await import('../../src/tools/VideoTool/VideoTool.tsx')).VideoTool,
-  (await import('../../src/tools/DebugTool/DebugTool.ts')).DebugTool,
-  (await import('../../src/tools/GodotTool/GodotTool.ts')).GodotTool,
-  (await import('../../src/tools/UnityTool/UnityTool.ts')).UnityTool,
-  (await import('../../src/tools/BlenderTool/BlenderTool.ts')).BlenderTool,
-  (await import('../../src/tools/AsepriteTool/AsepriteTool.ts')).AsepriteTool,
-  (await import('../../src/tools/JevEvalTool/JevEvalTool.ts')).JevEvalTool,
-  (await import('../../src/tools/AskAdvisorTool/AskAdvisorTool.ts')).AskAdvisorTool,
-  (await import('../../src/tools/JournalTool/JournalTool.ts')).JournalTool,
-  (await import('../../src/tools/PowerShellTool/PowerShellTool.tsx')).PowerShellTool,
-  (await import('../../src/tools/SyntheticOutputTool/SyntheticOutputTool.ts')).SyntheticOutputTool,
-  (await import('../../src/tools/TaskCreateTool/TaskCreateTool.ts')).TaskCreateTool,
-  (await import('../../src/tools/TaskGetTool/TaskGetTool.ts')).TaskGetTool,
-  (await import('../../src/tools/TaskListTool/TaskListTool.ts')).TaskListTool,
-  (await import('../../src/tools/TaskUpdateTool/TaskUpdateTool.ts')).TaskUpdateTool,
-  (await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')).ToolSearchTool,
-  (await import('../../src/tools/testing/TestingPermissionTool.tsx')).TestingPermissionTool,
+  (await import('../../src/tools/computer/ComputerTool.ts')).ComputerTool,
+  (await import('../../src/tools/video/VideoTool.tsx')).VideoTool,
+  (await import('../../src/tools/debug/DebugTool.ts')).DebugTool,
+  (await import('../../src/tools/godot/GodotTool.ts')).GodotTool,
+  (await import('../../src/tools/unity/UnityTool.ts')).UnityTool,
+  (await import('../../src/tools/blender/BlenderTool.ts')).BlenderTool,
+  (await import('../../src/tools/aseprite/AsepriteTool.ts')).AsepriteTool,
+  (await import('../../src/tools/jev-eval/JevEvalTool.ts')).JevEvalTool,
+  (await import('../../src/tools/ask-advisor/AskAdvisorTool.ts')).AskAdvisorTool,
+  (await import('../../src/tools/journal/JournalTool.ts')).JournalTool,
+  (await import('../../src/tools/powershell/PowerShellTool.tsx')).PowerShellTool,
+  (await import('../../src/tools/structured-output/SyntheticOutputTool.ts')).SyntheticOutputTool,
+  (await import('../../src/tools/task-create/TaskCreateTool.ts')).TaskCreateTool,
+  (await import('../../src/tools/task-get/TaskGetTool.ts')).TaskGetTool,
+  (await import('../../src/tools/task-list/TaskListTool.ts')).TaskListTool,
+  (await import('../../src/tools/task-update/TaskUpdateTool.ts')).TaskUpdateTool,
+  (await import('../../src/tools/tool-search/ToolSearchTool.ts')).ToolSearchTool,
+  (await import('../../src/tools/testing-permission/TestingPermissionTool.tsx')).TestingPermissionTool,
 ]
 for (const tool of gatedTools) roster.set(tool.name, tool)
 const tools = [...roster.values()].sort((a, b) => a.name.localeCompare(b.name))

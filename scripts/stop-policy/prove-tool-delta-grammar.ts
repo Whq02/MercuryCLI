@@ -20,9 +20,9 @@ function section(t: string): void {
 }
 
 async function main(): Promise<void> {
-  const wire = await import('../../src/services/providers/openai/openaiWire.js')
-  const callModel = await import('../../src/services/providers/openai/openaiCallModel.js')
-  type WireEvent = import('../../src/services/providers/openai/openaiWire.js').OpenaiStreamEvent
+  const wire = await import('../../src/models/roads/openai/openaiWire.js')
+  const callModel = await import('../../src/models/roads/openai/openaiCallModel.js')
+  type WireEvent = import('../../src/models/roads/openai/openaiWire.js').OpenaiStreamEvent
 
   section('C01/C02/C07 — the fold forwards identified argument deltas promptly, byte-exactly')
   {
@@ -52,18 +52,18 @@ async function main(): Promise<void> {
     check(
       'C01: added → delta ×n → done emits tool-args-start / tool-args-delta / tool-args-done with stable identity',
       start?.itemId === 'fc_1' && start?.callId === 'call_1' && start?.name === 'EchoTool' && doneEvt !== undefined,
-      `start=${JSON.stringify(start)} done=${doneEvt !== undefined}; change ResponsesStreamFold.fold in src/services/providers/openai/openaiWire.ts so function_call added/delta/done emit tool-args-start/delta/done with the same itemId, callId and name`,
+      `start=${JSON.stringify(start)} done=${doneEvt !== undefined}; change ResponsesStreamFold.fold in src/models/roads/openai/openaiWire.ts so function_call added/delta/done emit tool-args-start/delta/done with the same itemId, callId and name`,
     )
     check(
       'C07: every delta forwards on the SAME fold() call that ingested it (zero buffering)',
       sameCallForwarding && forwarded.join('') === exact,
-      `forwarded=${JSON.stringify(forwarded.join(''))}; change ResponsesStreamFold.fold in src/services/providers/openai/openaiWire.ts to return one tool-args-delta per function_call_arguments.delta event, unbuffered`,
+      `forwarded=${JSON.stringify(forwarded.join(''))}; change ResponsesStreamFold.fold in src/models/roads/openai/openaiWire.ts to return one tool-args-delta per function_call_arguments.delta event, unbuffered`,
     )
     check(
       'C02: escaped JSON + multibyte text reconstruct byte-exactly through hostile chunk boundaries',
       doneEvt?.argsRaw === exact &&
         JSON.parse(doneEvt?.argsRaw ?? '{}').text === 'café "π" ✓',
-      `argsRaw=${JSON.stringify(doneEvt?.argsRaw)}; change ResponsesStreamFold.fold in src/services/providers/openai/openaiWire.ts so tool-args-done argsRaw is the exact concatenation of the delta strings`,
+      `argsRaw=${JSON.stringify(doneEvt?.argsRaw)}; change ResponsesStreamFold.fold in src/models/roads/openai/openaiWire.ts so tool-args-done argsRaw is the exact concatenation of the delta strings`,
     )
   }
 
@@ -87,7 +87,7 @@ async function main(): Promise<void> {
     check(
       'C07: 500-delta probe — every event forwarded, p95 fold latency ≤ 100ms',
       forwardedCount === 500 && p95 <= 100,
-      `forwarded=${forwardedCount}/500 p95=${p95.toFixed(3)}ms; check the function_call_arguments.delta path of ResponsesStreamFold.fold in src/services/providers/openai/openaiWire.ts for dropped events or per-delta work`,
+      `forwarded=${forwardedCount}/500 p95=${p95.toFixed(3)}ms; check the function_call_arguments.delta path of ResponsesStreamFold.fold in src/models/roads/openai/openaiWire.ts for dropped events or per-delta work`,
     )
   }
 
@@ -122,7 +122,7 @@ async function main(): Promise<void> {
   ): Promise<{
     streamEvents: Array<Record<string, unknown>>
     mintedContent: Array<Record<string, unknown>>
-    mintedMessages: import('../../src/types/message.ts').AssistantMessage[]
+    mintedMessages: import('../../src/engine/message-shapes/message.ts').AssistantMessage[]
     outcome: { kind: string }
   }> => {
     const ac = new AbortController()
@@ -156,7 +156,7 @@ async function main(): Promise<void> {
     })
     const streamEvents: Array<Record<string, unknown>> = []
     const mintedContent: Array<Record<string, unknown>> = []
-    const mintedMessages: import('../../src/types/message.ts').AssistantMessage[] = []
+    const mintedMessages: import('../../src/engine/message-shapes/message.ts').AssistantMessage[] = []
     let outcome: { kind: string } = { kind: 'unknown' }
     while (true) {
       const r = await gen.next()
@@ -168,7 +168,7 @@ async function main(): Promise<void> {
       if (v.type === 'stream_event') {
         streamEvents.push(v.event as Record<string, unknown>)
       } else if (v.type === 'assistant') {
-        mintedMessages.push(v as unknown as import('../../src/types/message.ts').AssistantMessage)
+        mintedMessages.push(v as unknown as import('../../src/engine/message-shapes/message.ts').AssistantMessage)
         const msg = v.message as { content: Array<Record<string, unknown>> }
         for (const block of msg.content) mintedContent.push(block)
       }
@@ -227,7 +227,7 @@ async function main(): Promise<void> {
         (starts[0]!.content_block as { id: string; name: string }).name === 'EchoTool' &&
         argBytes(streamEvents) === raw &&
         stopIdx > startIdx,
-      `starts=${starts.length} bytes=${JSON.stringify(argBytes(streamEvents))}; change the tool-args-start/delta/done cases in src/services/providers/openai/openaiCallModel/attempt.ts to emit one tool_use content_block_start, the input_json_delta bytes, then content_block_stop`,
+      `starts=${starts.length} bytes=${JSON.stringify(argBytes(streamEvents))}; change the tool-args-start/delta/done cases in src/models/roads/openai/call-model/attempt.ts to emit one tool_use content_block_start, the input_json_delta bytes, then content_block_stop`,
     )
     check(
       'C04: settlement mints exactly ONE tool_use and replays NOTHING (painted bytes == argument bytes, none after stop)',
@@ -235,7 +235,7 @@ async function main(): Promise<void> {
         JSON.stringify(toolMints[0]!.input) === JSON.stringify({ text: 'four' }) &&
         !deltasAfterStop &&
         outcome.kind === 'done',
-      `mints=${toolMints.length} afterStop=${deltasAfterStop} outcome=${outcome.kind}; change the finish settlement in src/services/providers/openai/openaiCallModel/attempt.ts so it mints one tool_use and does not repeat bytes already painted`,
+      `mints=${toolMints.length} afterStop=${deltasAfterStop} outcome=${outcome.kind}; change the finish settlement in src/models/roads/openai/call-model/attempt.ts so it mints one tool_use and does not repeat bytes already painted`,
     )
     const stopReasonEvt = streamEvents.find(e => e.type === 'message_delta') as
       | { delta: { stop_reason: string } }
@@ -244,7 +244,7 @@ async function main(): Promise<void> {
       'C01: the settled turn carries stop_reason tool_use through the canonical message_delta/message_stop tail',
       stopReasonEvt?.delta.stop_reason === 'tool_use' &&
         streamEvents.at(-1)?.type === 'message_stop',
-      `stop_reason=${stopReasonEvt?.delta.stop_reason} last=${String(streamEvents.at(-1)?.type)}; change the finish settlement in src/services/providers/openai/openaiCallModel/attempt.ts to end with message_delta stop_reason tool_use then message_stop`,
+      `stop_reason=${stopReasonEvt?.delta.stop_reason} last=${String(streamEvents.at(-1)?.type)}; change the finish settlement in src/models/roads/openai/call-model/attempt.ts to end with message_delta stop_reason tool_use then message_stop`,
     )
   }
 
@@ -274,7 +274,7 @@ async function main(): Promise<void> {
         argBytes(streamEvents) === raw &&
         streamEvents.findIndex(e => e === deltas[0]) > startIdx &&
         mintedContent.filter(b => b.type === 'tool_use').length === 1,
-      `deltas=${deltas.length}; change the tool-args-done case in src/services/providers/openai/openaiCallModel/attempt.ts to paint argsRaw once at close when no delta arrived`,
+      `deltas=${deltas.length}; change the tool-args-done case in src/models/roads/openai/call-model/attempt.ts to paint argsRaw once at close when no delta arrived`,
     )
   }
 
@@ -298,7 +298,7 @@ async function main(): Promise<void> {
     check(
       'C05: malformed settles as one call carrying its raw refusal and receives one error result without executing',
       toolMints.length === 1 && outcome.kind === 'done' && await assertRefusedCallResult(mintedMessages, { id: 'call_bad', name: 'EchoTool', raw: bad }),
-      `mints=${toolMints.length}; change the malformed-argument settlement in src/services/providers/openai/openaiCallModel/attempt.ts to mint one tool_use carrying the raw text and one error result`,
+      `mints=${toolMints.length}; change the malformed-argument settlement in src/models/roads/openai/call-model/attempt.ts to mint one tool_use carrying the raw text and one error result`,
     )
   }
 
@@ -318,7 +318,7 @@ async function main(): Promise<void> {
       outcome.kind === 'cancelled' &&
         mintedContent.filter(b => b.type === 'tool_use').length === 0 &&
         !streamEvents.some(e => e.type === 'message_stop'),
-      `outcome=${outcome.kind}; change the abort handling in streamOneOpenaiAttempt (src/services/providers/openai/openaiCallModel/attempt.ts) to return cancelled with no tool_use mint and no message_stop`,
+      `outcome=${outcome.kind}; change the abort handling in streamOneOpenaiAttempt (src/models/roads/openai/call-model/attempt.ts) to return cancelled with no tool_use mint and no message_stop`,
     )
   }
 
@@ -349,7 +349,7 @@ async function main(): Promise<void> {
       'C09: block stream order thinking → text → tool_use matches arrival; minted transcript order agrees',
       JSON.stringify(startKinds) === JSON.stringify(['thinking', 'text', 'tool_use']) &&
         JSON.stringify(mintKinds) === JSON.stringify(['thinking', 'text', 'tool_use']),
-      `stream=${startKinds.join(',')} minted=${mintKinds.join(',')}; change block ordering in src/services/providers/openai/openaiCallModel/attempt.ts so thinking, text and tool_use keep arrival order`,
+      `stream=${startKinds.join(',')} minted=${mintKinds.join(',')}; change block ordering in src/models/roads/openai/call-model/attempt.ts so thinking, text and tool_use keep arrival order`,
     )
   }
 

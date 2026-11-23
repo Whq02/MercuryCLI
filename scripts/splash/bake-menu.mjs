@@ -8,7 +8,7 @@ const ROW = {
   assets: 'assets/splash/splash-core.mjs',
   generator: 'bun scripts/splash/bake-menu.mjs',
   check: 'bun scripts/splash/bake-menu.mjs --check',
-  sources: 'src/substrate/startupMenu.ts src/utils/model/configs.ts src/utils/model/aliases.ts src/services/model/model.ts src/utils/model/pins/xaiPins.ts src/utils/model/pins/metaPins.ts src/utils/model/pins/mistralPins.ts src/utils/model/pins/minimaxPins.ts src/utils/model/pins/coherePins.ts src/utils/model/pins/groqPins.ts src/utils/model/pins/cerebrasPins.ts src/utils/model/pins/fireworksPins.ts src/utils/model/pins/qwenPins.ts src/utils/model/pins/deepseekPins.ts src/utils/model/pins/kimiPins.ts src/services/providers/zai/zaiAdapter.ts',
+  sources: 'src/platform/substrate/startupMenu.ts src/models/facts/builtInModelTable.ts src/models/facts/aliases.ts src/models/catalogue/engineModel.ts src/models/facts/pins/xaiPins.ts src/models/facts/pins/metaPins.ts src/models/facts/pins/mistralPins.ts src/models/facts/pins/minimaxPins.ts src/models/facts/pins/coherePins.ts src/models/facts/pins/groqPins.ts src/models/facts/pins/cerebrasPins.ts src/models/facts/pins/fireworksPins.ts src/models/facts/pins/qwenPins.ts src/models/facts/pins/deepseekPins.ts src/models/facts/pins/kimiPins.ts src/models/roads/zai/zaiAdapter.ts',
   build: true,
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
@@ -28,26 +28,26 @@ for (const spelling of ['MERCURY_HOME', 'MERCURY_CONFIG_DIR']) {
   process.env[spelling] = scratchHome
 }
 
-const { STARTUP_MENU, menuRowChoices } = await import('../../src/substrate/startupMenu.ts')
-const { ALL_MODEL_CONFIGS } = await import('../../src/utils/model/configs.ts')
-const { MODEL_ALIASES } = await import('../../src/utils/model/aliases.ts')
+const { STARTUP_MENU, menuRowChoices } = await import('../../src/platform/substrate/startupMenu.ts')
+const { ALL_MODEL_CONFIGS } = await import('../../src/models/facts/builtInModelTable.ts')
+const { MODEL_ALIASES } = await import('../../src/models/facts/aliases.ts')
 const { getMarketingNameForModel, parseUserSpecifiedModel } =
-  await import('../../src/services/model/model.ts')
-const { XAI_DISPLAY_PINS } = await import('../../src/utils/model/pins/xaiPins.ts')
+  await import('../../src/models/catalogue/engineModel.ts')
+const { XAI_DISPLAY_PINS } = await import('../../src/models/facts/pins/xaiPins.ts')
 const { DEEPSEEK_DISPLAY_PINS, DEEPSEEK_RETIRED_ALIASES, deepseekDisplayName } =
-  await import('../../src/utils/model/pins/deepseekPins.ts')
-const { KIMI_DISPLAY_PINS, KIMI_PLAN_PINS } = await import('../../src/utils/model/pins/kimiPins.ts')
-const { GLM_STATIC_CATALOGUE } = await import('../../src/services/providers/zai/zaiAdapter.ts')
+  await import('../../src/models/facts/pins/deepseekPins.ts')
+const { KIMI_DISPLAY_PINS, KIMI_PLAN_PINS } = await import('../../src/models/facts/pins/kimiPins.ts')
+const { GLM_STATIC_CATALOGUE } = await import('../../src/models/roads/zai/zaiAdapter.ts')
 const GLM_DISPLAY_PINS = GLM_STATIC_CATALOGUE.map(entry => ({ id: entry.id, displayName: entry.displayLabel }))
 
-const { META_DISPLAY_PINS } = await import('../../src/utils/model/pins/metaPins.ts')
-const { MISTRAL_DISPLAY_PINS } = await import('../../src/utils/model/pins/mistralPins.ts')
-const { MINIMAX_DISPLAY_PINS } = await import('../../src/utils/model/pins/minimaxPins.ts')
-const { COHERE_DISPLAY_PINS } = await import('../../src/utils/model/pins/coherePins.ts')
-const { GROQ_DISPLAY_PINS, groqQualifiedId } = await import('../../src/utils/model/pins/groqPins.ts')
-const { CEREBRAS_DISPLAY_PINS, cerebrasQualifiedId } = await import('../../src/utils/model/pins/cerebrasPins.ts')
-const { FIREWORKS_DISPLAY_PINS, fireworksQualifiedId } = await import('../../src/utils/model/pins/fireworksPins.ts')
-const { QWEN_DISPLAY_PINS } = await import('../../src/utils/model/pins/qwenPins.ts')
+const { META_DISPLAY_PINS } = await import('../../src/models/facts/pins/metaPins.ts')
+const { MISTRAL_DISPLAY_PINS } = await import('../../src/models/facts/pins/mistralPins.ts')
+const { MINIMAX_DISPLAY_PINS } = await import('../../src/models/facts/pins/minimaxPins.ts')
+const { COHERE_DISPLAY_PINS } = await import('../../src/models/facts/pins/coherePins.ts')
+const { GROQ_DISPLAY_PINS, groqQualifiedId } = await import('../../src/models/facts/pins/groqPins.ts')
+const { CEREBRAS_DISPLAY_PINS, cerebrasQualifiedId } = await import('../../src/models/facts/pins/cerebrasPins.ts')
+const { FIREWORKS_DISPLAY_PINS, fireworksQualifiedId } = await import('../../src/models/facts/pins/fireworksPins.ts')
+const { QWEN_DISPLAY_PINS } = await import('../../src/models/facts/pins/qwenPins.ts')
 const SPLASH = join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs')
 
 const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

@@ -7,13 +7,13 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'model-landing-home-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
-const seat = await import('../../src/daemon/sessionSeat.ts')
-const { updateConcourseWorkers, readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
+const seat = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { updateConcourseWorkers, readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { readSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
+const { sessionFactsToWire } = await import('../../src/engine/connector/seatWire.ts')
 
 let failures = 0
-const landingHint = 'change setSessionModel in src/daemon/sessionSeat/model.ts or onSeatApplied in src/daemon/sessionSeat/edges.ts so the facts published at a model switch (read back by readSessionFacts in src/services/engine-connector/seatProjections.ts) name the switched model'
+const landingHint = 'change setSessionModel in src/daemon/session-seat/model.ts or onSeatApplied in src/daemon/session-seat/edges.ts so the facts published at a model switch (read back by readSessionFacts in src/engine/connector/seatProjections.ts) name the switched model'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ` — ${landingHint}` : ''}`)
   if (!ok) failures++
@@ -55,7 +55,7 @@ updateConcourseWorkers(workers => {
   } as never
 }, dir)
 const { standInRunner } = await import('../lib/seatDoor.ts')
-const { RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+const { RPC_REFUSED } = await import('../../src/daemon/runner-wire/errors.ts')
 let turnActive = false
 const stand = standInRunner({
   hooks: {

@@ -1,25 +1,25 @@
 import * as React from 'react'
-import { Box, Text, wrapText } from '../../ink.js'
-import { useModalOrTerminalSize } from '../../context/modalContext.js'
-import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import { PopupForm } from '../../components/PopupForm.js'
-import { Select } from '../../components/CustomSelect/index.js'
-import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
-import { providerDisplayName } from '../../services/providers/routeLaw.js'
-import { presenceIdentityWords, providerFamilyPresences } from '../../services/providers/providerUsage.js'
+import { Box, Text, wrapText } from '../../screen/themedRenderer.js'
+import { useModalOrTerminalSize } from '../../screen/overlays/modalContext.js'
+import { useTerminalSize } from '../../screen/fullscreen-layout/useTerminalSize.js'
+import { PopupForm } from '../../screen/overlays/PopupForm.js'
+import { Select } from '../../screen/select/index.js'
+import { useMercuryTokens } from '../../screen/widgets/useMercuryTokens.js'
+import { providerDisplayName } from '../../models/roads/routeLaw.js'
+import { presenceIdentityWords, providerFamilyPresences } from '../../models/roads/providerUsage.js'
 import {
   knownDefaultProviderFamilies,
   switchDefaultProvider,
-} from '../../utils/model/defaultProviderRung.js'
+} from '../../models/facts/defaultProviderRung.js'
 import {
   computedDefault,
   describeComputedDefault,
   type ComputedDefault,
-} from '../../services/model/computedDefault.js'
+} from '../../models/catalogue/computedDefault.js'
 import type {
   LocalJSXCommandCall,
   LocalJSXCommandOnDone,
-} from '../../types/command.js'
+} from '../catalogue/command.js'
 
 
 export function parseDefaultProviderWord(token: string | undefined): string | undefined {

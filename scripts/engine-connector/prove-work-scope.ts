@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { closeSync, existsSync, fstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/models/facts/builtInModelTable.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
@@ -77,12 +77,12 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const where = label.startsWith('P1') || label.startsWith('P6')
-    ? 'projectWorkRoster in src/services/engine-connector/workRoster.ts and focusedWorkRows in src/components/tasks/useFocusedWork.ts'
+    ? 'projectWorkRoster in src/engine/connector/workRoster.ts and focusedWorkRows in src/screen/tasks/useFocusedWork.ts'
     : label.startsWith('P2')
-      ? 'publishSessionFacts and readSessionFacts in src/services/engine-connector/seatProjections.ts'
+      ? 'publishSessionFacts and readSessionFacts in src/engine/connector/seatProjections.ts'
       : label.startsWith('P3') || label.startsWith('P4')
-        ? 'workRoster in src/services/engine-connector/daemonConnector.ts and the focus hop in src/services/engine-connector/focusedConnector.ts'
-        : `rebuild with \`bun run build.ts\` if dist is stale, then read the daemon log ${daemonLog}; the roster the runner publishes is projectWorkRoster in src/services/engine-connector/workRoster.ts and the seat reads it in src/services/engine-connector/daemonConnector.ts`
+        ? 'workRoster in src/engine/connector/daemonConnector.ts and the focus hop in src/engine/connector/focusedConnector.ts'
+        : `rebuild with \`bun run build.ts\` if dist is stale, then read the daemon log ${daemonLog}; the roster the runner publishes is projectWorkRoster in src/engine/connector/workRoster.ts and the seat reads it in src/engine/connector/daemonConnector.ts`
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail}${detail ? ' · ' : ''}${where}` : ''}`)
 }
 function section(t: string): void {
@@ -103,7 +103,7 @@ const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): P
 
 section('P1 the projector: the runner\'s task store → wire rows')
 {
-  const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.ts')
+  const { projectWorkRoster } = await import('../../src/engine/connector/workRoster.ts')
   const t0 = 1_000_000_000_000
   const store = {
     ag1: {
@@ -152,7 +152,7 @@ section('P1 the projector: the runner\'s task store → wire rows')
   } as never
   const rows = projectWorkRoster(store)
   check('P1 every kind projects, the main-session row excluded', rows.length === 2 && !rows.some(r => r.id === 'main1'), JSON.stringify(rows.map(r => r.id)))
-  const { focusedWorkRows } = await import('../../src/components/tasks/useFocusedWork.ts')
+  const { focusedWorkRows } = await import('../../src/screen/tasks/useFocusedWork.ts')
   const hosted = {
     rows: [
       { id: 'ag1', kind: 'agent', name: 'a stale copy of the local row', status: 'completed', startTime: t0 + 1, agentId: 'ag1' },
@@ -171,7 +171,7 @@ section('P1 the projector: the runner\'s task store → wire rows')
 }
 
 section('P2 the wire: `work` rides the facts; an old answer still validates')
-const proj = await import('../../src/services/engine-connector/seatProjections.ts')
+const proj = await import('../../src/engine/connector/seatProjections.ts')
 const SID_A = '00000000-0000-4000-8000-00000000000a'
 const SID_B = '00000000-0000-4000-8000-00000000000b'
 const SID_C = '00000000-0000-4000-8000-00000000000c'
@@ -206,8 +206,8 @@ const workRow = {
 
 section('P3/P4 the connector: content-keyed rows · retire clears · the hop law')
 {
-  const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
-  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const seat = await import('../../src/engine/connector/daemonConnector.ts')
+  const slot = await import('../../src/engine/connector/focusedConnector.ts')
   const recordOf = (sid: string, title: string) => ({
     sessionId: sid,
     runnerId: 'concourse-w0',
@@ -273,7 +273,7 @@ section('P3/P4 the connector: content-keyed rows · retire clears · the hop law
   offA()
   offComposed()
 
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
   const blank = new NoSessionConnector()
   check('P3 the resting slot (no chat open) answers the stable honest empty', blank.workRoster().rows.length === 0 && blank.workRoster() === blank.workRoster())
   check('P3 the resting slot\'s empty is reported (no session runs nothing — not an unreported runner)', blank.workRoster().reported !== false)
@@ -344,8 +344,8 @@ if (daemon.pid !== undefined) guardPids.add(daemon.pid)
 const workerPids: number[] = []
 try {
   p5Stage('import daemon RPC and handshake')
-  const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-  const { clientVersionFacts } = await import('../../src/daemon/handshake.ts')
+  const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+  const { clientVersionFacts } = await import('../../src/daemon/control/handshake.ts')
   p5Stage('read client version facts')
   const client = clientVersionFacts()
   p5Stage('wait for daemon hello.ready')
@@ -388,7 +388,7 @@ try {
   }
 
   p5Stage('read A worker pid')
-  const sup = await import('../../src/daemon/concourseWorkers.ts')
+  const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const pidOf = (sid: string): number | undefined =>
     Object.values(sup.readSessionWorkers(daemonDir)).find(r => r.sessionId === sid && r.endedAt === undefined)?.pid
   await untilAsync(() => pidOf(A.sessionId) !== undefined, 30_000)
@@ -401,8 +401,8 @@ try {
   }
 
   p5Stage('attach and focus A connector')
-  const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
-  const paths = await import('../../src/utils/sessionStorage/paths.ts')
+  const seat = await import('../../src/engine/connector/daemonConnector.ts')
+  const paths = await import('../../src/sessions/transcripts/paths.ts')
   const recordFor = (sid: string, runnerId: string, title: string) => ({
     sessionId: sid,
     runnerId,
@@ -535,7 +535,7 @@ try {
 } finally {
   p5Stage('shutdown daemon and workers')
   try {
-    await (await import('../../src/daemon/controlSocket.ts')).daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
+    await (await import('../../src/daemon/control/controlSocket.ts')).daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
   } catch {
   }
   p5Stage('reap exact child pids')

@@ -70,9 +70,9 @@ function fixtureMessages(): AnyMessage[] {
 }
 
 async function main(): Promise<void> {
-  const ok = await import('../../src/utils/run/ownerKey.js')
-  const planMod = await import('../../src/services/run/requestContextPlan.js')
-  const cal = await import('../../src/services/run/contextCalibration.js')
+  const ok = await import('../../src/engine/run-owner/ownerKey.js')
+  const planMod = await import('../../src/engine/run/requestContextPlan.js')
+  const cal = await import('../../src/engine/run/contextCalibration.js')
 
   const owner = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'single-serialization', lane: 'main' })
   const skip = new Set<string>()
@@ -96,22 +96,22 @@ async function main(): Promise<void> {
   const plan = await build(true)
   {
     const expected = oracleDigest(plan.messages as never)
-    check('plan.digest equals the oracle digest byte-for-byte', plan.digest === expected, `plan=${plan.digest} oracle=${expected}; digestAndCharsOfMessages in src/services/run/requestContextPlan.ts must hash type, NUL, serialized content, SOH per message exactly as oracleDigest does here`)
-    check('digest is 64 hex chars (not vacuous)', /^[0-9a-f]{64}$/.test(plan.digest), `digest=${String(plan.digest)}; buildRequestContextPlan in src/services/run/requestContextPlan.ts must return the sha256 hex from digestAndCharsOfMessages`)
+    check('plan.digest equals the oracle digest byte-for-byte', plan.digest === expected, `plan=${plan.digest} oracle=${expected}; digestAndCharsOfMessages in src/engine/run/requestContextPlan.ts must hash type, NUL, serialized content, SOH per message exactly as oracleDigest does here`)
+    check('digest is 64 hex chars (not vacuous)', /^[0-9a-f]{64}$/.test(plan.digest), `digest=${String(plan.digest)}; buildRequestContextPlan in src/engine/run/requestContextPlan.ts must return the sha256 hex from digestAndCharsOfMessages`)
   }
 
   section('P2 · estimate arithmetic parity with the previous loop')
   {
     const est = plan.tokenEstimate
-    check('tokenEstimate present when a calibration key rides the input', est !== null, 'buildRequestContextPlan in src/services/run/requestContextPlan.ts must fill tokenEstimate whenever input.calibrationKey is set')
+    check('tokenEstimate present when a calibration key rides the input', est !== null, 'buildRequestContextPlan in src/engine/run/requestContextPlan.ts must fill tokenEstimate whenever input.calibrationKey is set')
     if (est) {
       const expected = cal.estimateTokensFromChars(oracleChars(plan.messages as never), cal.calibrationFor(KEY))
       check(
         'estimatedTokens equals the previous arithmetic exactly (raw length for strings, serialized length otherwise)',
         est.estimatedTokens === expected,
-        `plan=${est.estimatedTokens} oracle=${expected}; the chars that digestAndCharsOfMessages in src/services/run/requestContextPlan.ts passes to estimateTokensFromChars must equal the string length or serialized length of each message content`,
+        `plan=${est.estimatedTokens} oracle=${expected}; the chars that digestAndCharsOfMessages in src/engine/run/requestContextPlan.ts passes to estimateTokensFromChars must equal the string length or serialized length of each message content`,
       )
-      check('the estimate is non-zero over a non-empty view', est.estimatedTokens > 0, `estimatedTokens=${est.estimatedTokens}; digestAndCharsOfMessages in src/services/run/requestContextPlan.ts must count the characters of every message content`)
+      check('the estimate is non-zero over a non-empty view', est.estimatedTokens > 0, `estimatedTokens=${est.estimatedTokens}; digestAndCharsOfMessages in src/engine/run/requestContextPlan.ts must count the characters of every message content`)
     }
   }
 
@@ -134,7 +134,7 @@ async function main(): Promise<void> {
       const withoutKey = count
       const detail = `withKey=${withKey} withoutKey=${withoutKey} (pre-fuse shape: +${plan.messages.length - Math.ceil(plan.messages.length / 8)}-ish for the estimate walk)`
       console.log(`  · stringify calls: ${detail}`)
-      check('a calibrated build stringifies EXACTLY as often as an uncalibrated one', withKey === withoutKey, `${detail}; the token estimate in buildRequestContextPlan (src/services/run/requestContextPlan.ts) must reuse the serialization digestAndCharsOfMessages already made, with no extra JSON.stringify`)
+      check('a calibrated build stringifies EXACTLY as often as an uncalibrated one', withKey === withoutKey, `${detail}; the token estimate in buildRequestContextPlan (src/engine/run/requestContextPlan.ts) must reuse the serialization digestAndCharsOfMessages already made, with no extra JSON.stringify`)
       check('the instrument observed real work (not vacuous)', withKey > 0, `${detail}; the JSON.stringify counter wrapped around buildRequestContextPlan saw no calls, so check that digestAndCharsOfMessages still serializes through JSON.stringify`)
     } finally {
       ;(JSON as { stringify: typeof JSON.stringify }).stringify = real

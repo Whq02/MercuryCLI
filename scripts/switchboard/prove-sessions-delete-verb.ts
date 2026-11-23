@@ -26,9 +26,9 @@ const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${t
 const ROOT = resolve(import.meta.dir, '..', '..')
 const source = (relative: string): string => readFileSync(join(ROOT, relative), 'utf8')
 
-const { getProjectDir, getProjectsDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const door = await import('../../src/services/switchboard/transcriptPruneDoor.ts')
-const verb = await import('../../src/cli/sessionsVerb.ts').catch(() => null)
+const { getProjectDir, getProjectsDir } = await import('../../src/sessions/transcripts/paths.ts')
+const door = await import('../../src/daemon/switchboard/transcriptPruneDoor.ts')
+const verb = await import('../../src/commands/verbs/sessionsVerb.ts').catch(() => null)
 
 const STORE = getProjectDir(PROJ)
 const OTHER_STORE = join(getProjectsDir(), '-other-project')
@@ -90,10 +90,10 @@ const text = (r: Run): string => [...r.out, ...r.err].join('\n')
 
 section('§0 the verb exists and rides the one delete door')
 {
-  check('the verb module exists (src/cli/sessionsVerb.ts)', verb !== null, 'src/cli/sessionsVerb.ts did not import; restore it and its export sessionsDeleteCli (every later check then fails with rc -1)')
+  check('the verb module exists (src/commands/verbs/sessionsVerb.ts)', verb !== null, 'src/commands/verbs/sessionsVerb.ts did not import; restore it and its export sessionsDeleteCli (every later check then fails with rc -1)')
   const { builtHelp } = await import('../lib/builtProduct.ts')
-  check('main.tsx registers `sessions delete <id>` with --yes', builtHelp('sessions').includes('delete [options] <id>') && builtHelp('sessions', 'delete').includes('Usage: mercury sessions delete [options] <id>') && builtHelp('sessions', 'delete').includes('--yes'), 'register the sessions delete <id> subcommand with a --yes option in src/main/subcommands.ts (it calls sessionsDeleteCli)')
-  check('the door offers a named session without an age window (buildSessionDeleteOffer)', typeof door.buildSessionDeleteOffer === 'function', 'export buildSessionDeleteOffer from src/services/switchboard/transcriptPruneDoor.ts')
+  check('main.tsx registers `sessions delete <id>` with --yes', builtHelp('sessions').includes('delete [options] <id>') && builtHelp('sessions', 'delete').includes('Usage: mercury sessions delete [options] <id>') && builtHelp('sessions', 'delete').includes('--yes'), 'register the sessions delete <id> subcommand with a --yes option in src/boot/main/subcommands.ts (it calls sessionsDeleteCli)')
+  check('the door offers a named session without an age window (buildSessionDeleteOffer)', typeof door.buildSessionDeleteOffer === 'function', 'export buildSessionDeleteOffer from src/daemon/switchboard/transcriptPruneDoor.ts')
   for (const file of ['assets/completions/mercury.bash', 'assets/completions/_mercury', 'assets/completions/mercury.fish']) {
     check(`${file} completes the sessions verb`, /\bsessions\b/.test(source(file)), `${file}: add the sessions verb to this completion file`)
   }
@@ -103,48 +103,48 @@ section('§1 refusals: a live session, a parked session, an unknown id, a non-id
 {
   const before = listing(STORE)
   const live = await run(ids.live, { yes: true })
-  check('a session the daemon hosts now is refused with the reason', live.rc === 1 && /is live/.test(text(live)) && /the daemon/.test(text(live)), `sessionsDeleteCli in src/cli/sessionsVerb.ts must refuse a session the daemon hosts (exit 1, message with is live and the daemon); got: ${text(live)}`)
+  check('a session the daemon hosts now is refused with the reason', live.rc === 1 && /is live/.test(text(live)) && /the daemon/.test(text(live)), `sessionsDeleteCli in src/commands/verbs/sessionsVerb.ts must refuse a session the daemon hosts (exit 1, message with is live and the daemon); got: ${text(live)}`)
   check('…and its transcript stays', existsSync(livePath))
   const parked = await run(ids.parked, { yes: true })
-  check('a parked session (hosted, not ended) is refused too', parked.rc === 1 && /is live/.test(text(parked)) && existsSync(parkedPath), `liveSessionIds in src/cli/sessionsVerb.ts must count a parked worker (no endedAt) as live; got: ${text(parked)}`)
+  check('a parked session (hosted, not ended) is refused too', parked.rc === 1 && /is live/.test(text(parked)) && existsSync(parkedPath), `liveSessionIds in src/commands/verbs/sessionsVerb.ts must count a parked worker (no endedAt) as live; got: ${text(parked)}`)
   const unknown = await run(ids.absent, { yes: true })
-  check('an unknown id is refused with the roster hint', unknown.rc === 1 && /No saved session 99999999-9999-4999-8999-999999999999/.test(text(unknown)) && /roster/.test(text(unknown)) && /\/sessions/.test(text(unknown)), `the no-saved-session refusal in sessionsDeleteCli (src/cli/sessionsVerb.ts) must exit 1 and name the id and the /sessions roster; got: ${text(unknown)}`)
+  check('an unknown id is refused with the roster hint', unknown.rc === 1 && /No saved session 99999999-9999-4999-8999-999999999999/.test(text(unknown)) && /roster/.test(text(unknown)) && /\/sessions/.test(text(unknown)), `the no-saved-session refusal in sessionsDeleteCli (src/commands/verbs/sessionsVerb.ts) must exit 1 and name the id and the /sessions roster; got: ${text(unknown)}`)
   for (const given of ['', 'latest', '../x.jsonl', `${STORE}/${ids.named}.jsonl`, '11111111-1111-4111-8111-11111111111', "'; rm -rf /", 'C:\\Users\\x\\.mercury\\projects\\p\\11111111-1111-4111-8111-111111111111.jsonl']) {
     const refused = await run(given, { yes: true })
-    check(`not a session id, refused with exit 2: ${JSON.stringify(given)}`, refused.rc === 2 && /needs a session id \(a UUID\)/.test(text(refused)), `sessionsDeleteCli in src/cli/sessionsVerb.ts must refuse this input with exit 2 and the needs-a-session-id message; got rc ${refused.rc}: ${text(refused)}`)
+    check(`not a session id, refused with exit 2: ${JSON.stringify(given)}`, refused.rc === 2 && /needs a session id \(a UUID\)/.test(text(refused)), `sessionsDeleteCli in src/commands/verbs/sessionsVerb.ts must refuse this input with exit 2 and the needs-a-session-id message; got rc ${refused.rc}: ${text(refused)}`)
   }
   const noTerminal = await run(ids.named)
-  check('without a terminal and without --yes: refused, nothing asked, nothing deleted', noTerminal.rc === 2 && /pass --yes/.test(text(noTerminal)) && noTerminal.asked.length === 0 && existsSync(namedPath), `sessionsDeleteCli in src/cli/sessionsVerb.ts must exit 2 with pass --yes when not interactive, without asking or deleting; got: ${text(noTerminal)}`)
+  check('without a terminal and without --yes: refused, nothing asked, nothing deleted', noTerminal.rc === 2 && /pass --yes/.test(text(noTerminal)) && noTerminal.asked.length === 0 && existsSync(namedPath), `sessionsDeleteCli in src/commands/verbs/sessionsVerb.ts must exit 2 with pass --yes when not interactive, without asking or deleting; got: ${text(noTerminal)}`)
   const declined = await run(ids.named, {}, true, false)
-  check('on a terminal, answering No deletes nothing and says so', declined.rc === 0 && declined.asked.length === 1 && /Nothing deleted/.test(text(declined)) && existsSync(namedPath), `sessionsDeleteCli in src/cli/sessionsVerb.ts must ask once and on No print Nothing deleted, exit 0 and keep the file; got: ${text(declined)}`)
-  check('the question names the records kept beside the transcript', /receipts, resume snapshot/.test(declined.asked[0] ?? ''), `the question passed to io.ask in sessionsDeleteCli (src/cli/sessionsVerb.ts) must name receipts, resume snapshot; got: ${declined.asked[0]}`)
-  check('the store is untouched after every refusal', JSON.stringify(listing(STORE)) === JSON.stringify(before), 'a refusal path in sessionsDeleteCli (src/cli/sessionsVerb.ts) removed a file; return before operatorPruneTranscripts runs')
+  check('on a terminal, answering No deletes nothing and says so', declined.rc === 0 && declined.asked.length === 1 && /Nothing deleted/.test(text(declined)) && existsSync(namedPath), `sessionsDeleteCli in src/commands/verbs/sessionsVerb.ts must ask once and on No print Nothing deleted, exit 0 and keep the file; got: ${text(declined)}`)
+  check('the question names the records kept beside the transcript', /receipts, resume snapshot/.test(declined.asked[0] ?? ''), `the question passed to io.ask in sessionsDeleteCli (src/commands/verbs/sessionsVerb.ts) must name receipts, resume snapshot; got: ${declined.asked[0]}`)
+  check('the store is untouched after every refusal', JSON.stringify(listing(STORE)) === JSON.stringify(before), 'a refusal path in sessionsDeleteCli (src/commands/verbs/sessionsVerb.ts) removed a file; return before operatorPruneTranscripts runs')
 }
 
 section('§2 the delete: the transcript and its two sidecars go, nothing else; the verb says what went')
 {
   const before = listing(STORE)
   const yes = await run(ids.named, {}, true, true)
-  check('answering Yes deletes the session and exits 0', yes.rc === 0 && yes.asked.length === 1, `sessionsDeleteCli in src/cli/sessionsVerb.ts must ask once and return 0 on Yes; got rc ${yes.rc}: ${text(yes)}`)
-  check('the transcript is gone', !existsSync(namedPath), 'operatorPruneTranscripts in src/services/switchboard/transcriptPruneDoor.ts did not remove the transcript')
-  check('the receipts sidecar is gone', !existsSync(join(STORE, `${ids.named}.receipts.jsonl`)), 'operatorPruneTranscripts in src/services/switchboard/transcriptPruneDoor.ts must also remove the .receipts.jsonl sidecar')
-  check('the resume snapshot is gone', !existsSync(`${namedPath}.resume-snapshot.json`), 'operatorPruneTranscripts in src/services/switchboard/transcriptPruneDoor.ts must also remove the .resume-snapshot.json sidecar')
-  check('the recording (.cast) stays — recordings are the sweep\'s business', existsSync(join(STORE, `${ids.named}.cast`)), 'the delete door in src/services/switchboard/transcriptPruneDoor.ts removed the .cast recording; only the transcript and its two sidecars may go')
-  check('the session\'s own folder stays (no directory is ever removed by the door)', existsSync(join(STORE, ids.named, 'subagents', 'agent-1.jsonl')), 'the delete door in src/services/switchboard/transcriptPruneDoor.ts removed the session folder; it must never remove a directory')
-  check('the sibling session and its sidecars stay', existsSync(siblingPath) && existsSync(join(STORE, `${ids.sibling}.receipts.jsonl`)), 'the delete door in src/services/switchboard/transcriptPruneDoor.ts removed another session files; it may touch only the named id')
+  check('answering Yes deletes the session and exits 0', yes.rc === 0 && yes.asked.length === 1, `sessionsDeleteCli in src/commands/verbs/sessionsVerb.ts must ask once and return 0 on Yes; got rc ${yes.rc}: ${text(yes)}`)
+  check('the transcript is gone', !existsSync(namedPath), 'operatorPruneTranscripts in src/daemon/switchboard/transcriptPruneDoor.ts did not remove the transcript')
+  check('the receipts sidecar is gone', !existsSync(join(STORE, `${ids.named}.receipts.jsonl`)), 'operatorPruneTranscripts in src/daemon/switchboard/transcriptPruneDoor.ts must also remove the .receipts.jsonl sidecar')
+  check('the resume snapshot is gone', !existsSync(`${namedPath}.resume-snapshot.json`), 'operatorPruneTranscripts in src/daemon/switchboard/transcriptPruneDoor.ts must also remove the .resume-snapshot.json sidecar')
+  check('the recording (.cast) stays — recordings are the sweep\'s business', existsSync(join(STORE, `${ids.named}.cast`)), 'the delete door in src/daemon/switchboard/transcriptPruneDoor.ts removed the .cast recording; only the transcript and its two sidecars may go')
+  check('the session\'s own folder stays (no directory is ever removed by the door)', existsSync(join(STORE, ids.named, 'subagents', 'agent-1.jsonl')), 'the delete door in src/daemon/switchboard/transcriptPruneDoor.ts removed the session folder; it must never remove a directory')
+  check('the sibling session and its sidecars stay', existsSync(siblingPath) && existsSync(join(STORE, `${ids.sibling}.receipts.jsonl`)), 'the delete door in src/daemon/switchboard/transcriptPruneDoor.ts removed another session files; it may touch only the named id')
   const removed = before.filter(entry => !listing(STORE).includes(entry))
-  check('exactly three entries left the store', JSON.stringify(removed) === JSON.stringify([`${ids.named}.jsonl`, `${ids.named}.jsonl.resume-snapshot.json`, `${ids.named}.receipts.jsonl`]), `the delete door in src/services/switchboard/transcriptPruneDoor.ts must remove exactly the transcript, its receipts and its resume snapshot; removed: ${JSON.stringify(removed)}`)
-  check('the receipt names the transcript, the receipts and the snapshot with the bytes freed', /Deleted session 11111111-1111-4111-8111-111111111111: the transcript and its receipts and its resume snapshot — \d+ KB freed\./.test(text(yes)), `fix the final io.out line of sessionsDeleteCli in src/cli/sessionsVerb.ts; got: ${text(yes)}`)
-  check('the line before the question names the file, its size and its date', /Session 11111111-1111-4111-8111-111111111111 — .*11111111-1111-4111-8111-111111111111\.jsonl \(\d+ KB, modified 20\d\d-/.test(text(yes)), `fix the io.out line printed before the question in sessionsDeleteCli (src/cli/sessionsVerb.ts); got: ${text(yes)}`)
+  check('exactly three entries left the store', JSON.stringify(removed) === JSON.stringify([`${ids.named}.jsonl`, `${ids.named}.jsonl.resume-snapshot.json`, `${ids.named}.receipts.jsonl`]), `the delete door in src/daemon/switchboard/transcriptPruneDoor.ts must remove exactly the transcript, its receipts and its resume snapshot; removed: ${JSON.stringify(removed)}`)
+  check('the receipt names the transcript, the receipts and the snapshot with the bytes freed', /Deleted session 11111111-1111-4111-8111-111111111111: the transcript and its receipts and its resume snapshot — \d+ KB freed\./.test(text(yes)), `fix the final io.out line of sessionsDeleteCli in src/commands/verbs/sessionsVerb.ts; got: ${text(yes)}`)
+  check('the line before the question names the file, its size and its date', /Session 11111111-1111-4111-8111-111111111111 — .*11111111-1111-4111-8111-111111111111\.jsonl \(\d+ KB, modified 20\d\d-/.test(text(yes)), `fix the io.out line printed before the question in sessionsDeleteCli (src/commands/verbs/sessionsVerb.ts); got: ${text(yes)}`)
   const again = await run(ids.named, { yes: true })
-  check('deleting it again is the unknown-id refusal', again.rc === 1 && /No saved session/.test(text(again)), `after the delete, savedSessionNamed in src/cli/sessionsVerb.ts must no longer find the id; got: ${text(again)}`)
+  check('deleting it again is the unknown-id refusal', again.rc === 1 && /No saved session/.test(text(again)), `after the delete, savedSessionNamed in src/commands/verbs/sessionsVerb.ts must no longer find the id; got: ${text(again)}`)
 }
 
 section('§3 --yes for scripts, and a session saved under another project store')
 {
   const scripted = await run(ids.elsewhere, { yes: true })
-  check('--yes deletes without a question, naming the other project store', scripted.rc === 0 && scripted.asked.length === 0 && /another project's sessions/.test(text(scripted)) && !existsSync(elsewherePath), `sessionsDeleteCli in src/cli/sessionsVerb.ts must delete without asking under --yes and say it is in another project's sessions; got: ${text(scripted)}`)
-  check('the other store keeps everything else', existsSync(join(OTHER_STORE, `${ids.elsewhere}.cast`)) && existsSync(join(OTHER_STORE, ids.elsewhere, 'subagents', 'agent-1.jsonl')), 'the delete door in src/services/switchboard/transcriptPruneDoor.ts removed more than the transcript and its two sidecars in the other store')
+  check('--yes deletes without a question, naming the other project store', scripted.rc === 0 && scripted.asked.length === 0 && /another project's sessions/.test(text(scripted)) && !existsSync(elsewherePath), `sessionsDeleteCli in src/commands/verbs/sessionsVerb.ts must delete without asking under --yes and say it is in another project's sessions; got: ${text(scripted)}`)
+  check('the other store keeps everything else', existsSync(join(OTHER_STORE, `${ids.elsewhere}.cast`)) && existsSync(join(OTHER_STORE, ids.elsewhere, 'subagents', 'agent-1.jsonl')), 'the delete door in src/daemon/switchboard/transcriptPruneDoor.ts removed more than the transcript and its two sidecars in the other store')
 }
 
 section('§4 the prune is untouched: the age window still rules the card\'s offer, a live session is never offered, the door\'s sweep law holds')
@@ -155,12 +155,12 @@ section('§4 the prune is untouched: the age window still rules the card\'s offe
     { sessionId: ids.parked, fullPath: parkedPath, fileSize: 100, modified: new Date() },
   ]
   const offer = door.buildPruneOffer(rows, { scopeLabel: 'this project', windowDays: 30, liveSessionIds: new Set([ids.live]) })
-  check('the card\'s offer still takes only the aged, not-live rows', offer.candidates.map(c => c.sessionId).join(',') === ids.sibling && offer.windowDays === 30, `buildPruneOffer in src/services/switchboard/transcriptPruneDoor.ts must keep only rows older than the window and not live; got: ${JSON.stringify(offer.candidates.map(c => c.sessionId))}`)
+  check('the card\'s offer still takes only the aged, not-live rows', offer.candidates.map(c => c.sessionId).join(',') === ids.sibling && offer.windowDays === 30, `buildPruneOffer in src/daemon/switchboard/transcriptPruneDoor.ts must keep only rows older than the window and not live; got: ${JSON.stringify(offer.candidates.map(c => c.sessionId))}`)
   const namedOffer = typeof door.buildSessionDeleteOffer === 'function' ? door.buildSessionDeleteOffer : () => undefined
   const named = namedOffer(rows[1]!, { scopeLabel: 'session', liveSessionIds: new Set([ids.live]) })
-  check('the named offer refuses a live session (null), whatever its age', named === null, 'buildSessionDeleteOffer in src/services/switchboard/transcriptPruneDoor.ts must return null for an id in liveSessionIds')
+  check('the named offer refuses a live session (null), whatever its age', named === null, 'buildSessionDeleteOffer in src/daemon/switchboard/transcriptPruneDoor.ts must return null for an id in liveSessionIds')
   const young = namedOffer(rows[2]!, { scopeLabel: 'session', liveSessionIds: new Set() })
-  check('the named offer takes a session of any age once it is not live', young != null && young.candidates.length === 1 && young.candidates[0]!.sessionId === ids.parked, 'buildSessionDeleteOffer in src/services/switchboard/transcriptPruneDoor.ts must offer one candidate for a non-live session of any age')
+  check('the named offer takes a session of any age once it is not live', young != null && young.candidates.length === 1 && young.candidates[0]!.sessionId === ids.parked, 'buildSessionDeleteOffer in src/daemon/switchboard/transcriptPruneDoor.ts must offer one candidate for a non-live session of any age')
 }
 
 for (const dir of [HOME, PROJ]) removeScratch(dir)

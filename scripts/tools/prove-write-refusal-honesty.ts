@@ -17,14 +17,14 @@ delete process.env.CI
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' | change the path checker made by createPathChecker in src/tools/BashTool/pathValidation.ts (its ask message for a create inside or outside the starting folder)' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' | change the path checker made by createPathChecker in src/tools/shell/pathValidation.ts (its ask message for a create inside or outside the starting folder)' : ''}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createPathChecker } = await import('../../src/tools/BashTool/pathValidation.ts')
-const { getOriginalCwd } = await import('../../src/bootstrap/state.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createPathChecker } = await import('../../src/tools/shell/pathValidation.ts')
+const { getOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
 
 const context = { ...getDefaultAppState().toolPermissionContext, mode: 'default' as const }
 const cwd = getOriginalCwd()

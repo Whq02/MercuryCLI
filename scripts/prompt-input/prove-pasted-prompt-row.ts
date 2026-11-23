@@ -23,7 +23,7 @@ function check(label: string, ok: boolean, detail = ''): void {
 const quoted = '<local-command-caveat>The rows below are commands'
 const { scenario, cleanupScenario, SID } = await import('../ui/renderScenarios.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 const root = join(import.meta.dir, '..', '..')
 const body = `pasted visible head\n${'ordinary prompt text '.repeat(50)}\nThe header quoted "${quoted}".\npasted visible tail`
 const reply = 'Seen pasted prompt.'
@@ -78,7 +78,7 @@ try {
     check(`${band.cols}: the real paste-chip send and fixture response complete`, result.code === 0, `rc ${result.code} ${result.stderr.slice(-250)}; run scripts/ui/vshot.py with ${config} to see where the paste send stopped, after rebuilding dist/mercury.mjs`)
     const marks = Object.fromEntries((capture?.marks ?? []).map(mark => [mark.label, rowsOf(mark.grid)]))
     for (const [name, rows] of Object.entries(marks)) if (frameDir !== undefined) writeFileSync(join(frameDir, `drive-${band.cols}x${band.rows}-${name}.txt`), rows.join('\n') + '\n')
-    check(`${band.cols}: the composer really made a paste chip`, (marks.chip ?? []).some(row => row.includes('│❯') && row.includes('[Pasted text #1')), 'a bracketed paste of this size must collapse to the chip that formatPastedTextRef in src/history.ts writes, shown in the composer row')
+    check(`${band.cols}: the composer really made a paste chip`, (marks.chip ?? []).some(row => row.includes('│❯') && row.includes('[Pasted text #1')), 'a bracketed paste of this size must collapse to the chip that formatPastedTextRef in src/sessions/promptHistory.ts writes, shown in the composer row')
     const sent = marks.sent ?? []
     const sentRow = band.cols >= 100 ? sent.some(row => row.includes('[sam]') && row.includes('pasted visible head')) : sent.some(row => row.includes('pasted visible tail'))
     check(`${band.cols}: the operator's row stands as soon as the paste is sent, before the reply`, sentRow, `${sent.filter(row => row.includes('pasted') || row.includes('[sam]')).join(' | ')}; the sent paste must show in the transcript as soon as it is submitted, before the model replies`)

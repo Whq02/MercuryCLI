@@ -19,13 +19,13 @@ if (!given) {
   process.env.MERCURY_BARE = '1'
   mkdirSync(join(given, 'tmp'), { recursive: true })
   const src = process.env.PROVE_SRC ?? resolve(import.meta.dir, '../../src')
-  const { setCwdState, setOriginalCwd } = await import(`${src}/bootstrap/state.ts`)
+  const { setCwdState, setOriginalCwd } = await import(`${src}/boot/process-state/processState.ts`)
   setCwdState(given); setOriginalCwd(given)
-  const { FileReadTool } = await import(`${src}/tools/FileReadTool/FileReadTool.ts`)
-  const { getEmptyToolPermissionContext } = await import(`${src}/Tool.ts`)
-  const { createFileStateCacheWithSizeLimit } = await import(`${src}/utils/fileStateCache.ts`)
+  const { FileReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
+  const { getEmptyToolPermissionContext } = await import(`${src}/tools/kit/tool.ts`)
+  const { createFileStateCacheWithSizeLimit } = await import(`${src}/platform/files/fileStateCache.ts`)
   let passed = 0, failed = 0
-  const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` Change the Read JSON query path, which starts in readQuery in src/tools/FileReadTool/readQuery.ts and runs readJson in src/tools/FileReadTool/readJson.ts and runJsonQuery in src/tools/FileReadTool/jsonQueryRuntime.ts, until this check holds. ${detail.slice(0, 1200)}`}`) }
+  const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` Change the Read JSON query path, which starts in readQuery in src/tools/read/readQuery.ts and runs readJson in src/tools/read/readJson.ts and runJsonQuery in src/tools/read/jsonQueryRuntime.ts, until this check holds. ${detail.slice(0, 1200)}`}`) }
   const context = (rules = getEmptyToolPermissionContext()) => ({ readFileState: createFileStateCacheWithSizeLimit(100), fileReadingLimits: undefined as { maxTokens: number; maxSizeBytes: number } | undefined, messages: [], abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: rules }), userModified: false, updateFileHistoryState: () => {}, dynamicSkillDirTriggers: new Set<string>(), nestedMemoryAttachmentTriggers: new Set<string>() })
   const file = (name: string, text: string) => { const path = join(given, name); writeFileSync(path, text); return path }
   const invoke = async (file_path: string, extra: Record<string, unknown> = {}, ctx = context()) => {
@@ -56,7 +56,7 @@ if (!given) {
     check('M04 a followed stream page begins at the next value', read.body.includes('{"n":5,"r":0,"big":null}') && read.body.includes('state: complete'), read.body)
   }
   check('M09 query output has neither anchor nor source coverage', !projected.body.includes('(anchor:') && !projected.ctx.readFileState.has(rows))
-  const { FileEditTool } = await import(`${src}/tools/FileEditTool/FileEditTool.ts`)
+  const { FileEditTool } = await import(`${src}/tools/edit/EditTool.ts`)
   const digestOf = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex')
   const edited = file('edited.json', '{"a":1}\n')
   const consumed = await ask(edited, '.a')
@@ -117,7 +117,7 @@ if (!given) {
   check('M03 an image keeps its original road', !mediaQuery.body.includes('target: JSON query') && mediaQuery.error === mediaRaw.error, mediaQuery.body)
   const resource = await ask(`mercury://file/${scalar}`, '.n')
   check('M10 a file resource keeps its public identity', resource.body.includes(`source: mercury://file/${scalar}`) && resource.body.includes('\n7\n'), resource.body)
-  const { storeArtifact } = await import(`${src}/utils/artifacts/store.ts`)
+  const { storeArtifact } = await import(`${src}/sessions/artifacts/store.ts`)
   const artifact = await storeArtifact({ scope: 'query-proof', name: 'values.json', content: '[10,20,30]' })
   const artifactSource = `mercury://artifact/query-proof/${artifact.id}`
   const artifactPage = await ask(artifactSource, '.', 'limit=1&compact=1')
@@ -209,7 +209,7 @@ if (!given) {
   const aborted = await ask(scalar, 'until(false; .)', '', {}, abortContext)
   clearTimeout(timer)
   check('M11 a computation with no output is cancellable', aborted.error && aborted.body.includes('proof cancellation') && performance.now() - started < 5000, aborted.body)
-  const { getMercuryTempDir } = await import(`${src}/utils/permissions/filesystem.ts`)
+  const { getMercuryTempDir } = await import(`${src}/permissions/rules/filesystem.ts`)
   const queryTemp = join(getMercuryTempDir(), 'json-queries')
   check('M11 error and cancellation leave no owned query temp files', existsSync(queryTemp) && readdirSync(queryTemp).length === 0, existsSync(queryTemp) ? readdirSync(queryTemp).join(' ') : `${queryTemp} was never made`)
   check('queries leave every source byte unchanged', readFileSync(rows, 'utf8').startsWith('\ufeff{"n":1') && readFileSync(scalar, 'utf8') === '{"n":7}')

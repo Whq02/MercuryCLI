@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const LIST = 'src/services/health/sections.ts'
-const FOLDER = 'src/services/health/sections'
-const REPORT = 'src/services/health/healthReport.ts'
+const LIST = 'src/platform/health/sections.ts'
+const FOLDER = 'src/platform/health/sections'
+const REPORT = 'src/platform/health/healthReport.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail: string[] = []): void {
@@ -15,9 +15,9 @@ function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 
-const { runHealthReport, healthContext, SHELL_READS } = await import('../../src/services/health/healthReport.ts')
-const { HEALTH_SECTIONS } = await import('../../src/services/health/sections.ts')
-const { ENGINE_UNAVAILABLE_CODES } = await import('../../src/services/health/sections/auth.ts')
+const { runHealthReport, healthContext, SHELL_READS } = await import('../../src/platform/health/healthReport.ts')
+const { HEALTH_SECTIONS } = await import('../../src/platform/health/sections.ts')
+const { ENGINE_UNAVAILABLE_CODES } = await import('../../src/platform/health/sections/auth.ts')
 
 type Row = Awaited<ReturnType<(typeof HEALTH_SECTIONS)[number]['checks']>>[number]
 const shownAt = (row: Row, depth: 'fast' | 'deep'): boolean => depth === 'deep' || (row.depth ?? 'fast') === 'fast'

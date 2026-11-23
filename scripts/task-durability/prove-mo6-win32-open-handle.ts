@@ -8,7 +8,7 @@ import {
   DurablePublishError,
   isDurableTempName,
   type DurablePublishReport,
-} from '../../src/substrate/durablePublish.ts'
+} from '../../src/platform/substrate/durablePublish.ts'
 
 if (process.platform !== 'win32') {
   console.log('── mo6 win32 open-handle lifecycle — SKIP (POSIX host: an open handle never blocks rename here).')
@@ -21,7 +21,7 @@ let failures = 0
 const ok = (cond: boolean, label: string, detail = ''): void => {
   console.log(`  ${cond ? '✅' : '❌'} ${label}${detail ? ` — ${detail}` : ''}`)
   if (!cond) {
-    console.log('     fix: this section exercises the rename retry loop and typed DurablePublishError of durableAtomicPublish in src/substrate/durablePublish.ts (retry delays come from HELD_FILE_RETRY_DELAYS_MS, imported there); change that file so the labelled behaviour holds again')
+    console.log('     fix: this section exercises the rename retry loop and typed DurablePublishError of durableAtomicPublish in src/platform/substrate/durablePublish.ts (retry delays come from HELD_FILE_RETRY_DELAYS_MS, imported there); change that file so the labelled behaviour holds again')
     failures++
   }
 }

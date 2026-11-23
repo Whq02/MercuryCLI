@@ -11,10 +11,10 @@ delete process.env.GOOGLE_API_KEY
 let ids = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-3.7-flash']
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch() { return Response.json({ models: ids.map(id => ({ name: `models/${id}`, supportedGenerationMethods: ['generateContent'] })) }) } })
 process.env.MERCURY_GEMINI_API_BASE = `http://127.0.0.1:${server.port}/v1beta`
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { refreshGeminiCatalogue, __resetGeminiCatalogueForTest } = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
+const { refreshGeminiCatalogue, __resetGeminiCatalogueForTest } = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
 let failures = 0
 try {
   for (const [list, expected] of [[ids, 'gemini-3.8-flash'], [['gemini-2.5-flash', 'gemini-3.7-flash'], 'gemini-3.7-flash'], [['gemini-2.5-flash'], 'gemini-2.5-flash']] as Array<[string[], string]>) {
@@ -23,7 +23,7 @@ try {
     await refreshGeminiCatalogue('api-key', { force: true })
     const result = await resolveEngineDispatch('gemini')
     const ok = result?.model === expected
-    console.log(`${ok ? 'PASS' : 'FAIL'} gemini picks the newest account-listed generation: ${result?.model}; expected ${expected}${ok ? '' : ' | change how resolveEngineDispatch (src/services/crew/engineDispatch.ts) picks the gemini model from the account list that refreshGeminiCatalogue (src/services/providers/gemini/geminiCatalogue.ts) stored'}`)
+    console.log(`${ok ? 'PASS' : 'FAIL'} gemini picks the newest account-listed generation: ${result?.model}; expected ${expected}${ok ? '' : ' | change how resolveEngineDispatch (src/crew/crewmates/engineDispatch.ts) picks the gemini model from the account list that refreshGeminiCatalogue (src/models/roads/gemini/geminiCatalogue.ts) stored'}`)
     if (!ok) failures++
   }
 } finally { server.stop(true); rmSync(home, { recursive: true, force: true }) }

@@ -3,15 +3,15 @@ import { strict as assert } from 'node:assert'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { canonicalReviewerReceipt, restrictReviewerTools, reviewerRefusal } from '../../src/tools/AgentTool/reviewerPolicy.ts'
-import type { Tool, ToolUseContext } from '../../src/Tool.ts'
+import { canonicalReviewerReceipt, restrictReviewerTools, reviewerRefusal } from '../../src/tools/crewmate/reviewerPolicy.ts'
+import type { Tool, ToolUseContext } from '../../src/tools/kit/tool.ts'
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'review-write-')))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const frozen = join(scratch, 'frozen')
 mkdirSync(frozen)
 const report = join(scratch, 'report.md')
@@ -24,7 +24,7 @@ const tools = restrictReviewerTools([FileEditTool, BashTool] as Tool[], canonica
 const edit = tools.find(tool => tool.name === 'Edit')!
 const shell = tools.find(tool => tool.name === 'Bash')!
 let checks = 0
-const check = (label: string, ok: unknown): void => { assert(ok, label + ' — to fix: the reviewer gate is canonicalReviewerReceipt, reviewerRefusal and restrictReviewerTools in src/tools/AgentTool/reviewerPolicy.ts; change the rule this label names there, not this test'); checks++; console.log(`PASS ${label}`) }
+const check = (label: string, ok: unknown): void => { assert(ok, label + ' — to fix: the reviewer gate is canonicalReviewerReceipt, reviewerRefusal and restrictReviewerTools in src/tools/crewmate/reviewerPolicy.ts; change the rule this label names there, not this test'); checks++; console.log(`PASS ${label}`) }
 const context = (): ToolUseContext => ({
   readFileState: new Map([[report, { content: readFileSync(report, 'utf8'), timestamp: Date.now() + 60000 }]]),
   userModified: false,
@@ -71,9 +71,9 @@ try {
     { file_path: report, section: '## Review', append: '```md\nunterminated example' },
     { file_path: report, section: '## Review', new_string: '## Review\n## Section boundary\n```md\nunterminated' },
   ]) {
-    await assert.rejects(() => edit.call(input, context()), /review|Review/, 'the restricted Edit tool accepted a write outside the Review section of the declared receipt; fix reviewerRefusal in src/tools/AgentTool/reviewerPolicy.ts for input ' + JSON.stringify(input))
-    assert.equal(readFileSync(report, 'utf8'), before, 'the receipt changed after a refused edit; the refusal in src/tools/AgentTool/reviewerPolicy.ts must run before the write for input ' + JSON.stringify(input))
-    assert.equal(readFileSync(other, 'utf8'), 'protected\n', 'a file outside the receipt changed; reviewerRefusal in src/tools/AgentTool/reviewerPolicy.ts must refuse every path but the declared receipt')
+    await assert.rejects(() => edit.call(input, context()), /review|Review/, 'the restricted Edit tool accepted a write outside the Review section of the declared receipt; fix reviewerRefusal in src/tools/crewmate/reviewerPolicy.ts for input ' + JSON.stringify(input))
+    assert.equal(readFileSync(report, 'utf8'), before, 'the receipt changed after a refused edit; the refusal in src/tools/crewmate/reviewerPolicy.ts must run before the write for input ' + JSON.stringify(input))
+    assert.equal(readFileSync(other, 'utf8'), 'protected\n', 'a file outside the receipt changed; reviewerRefusal in src/tools/crewmate/reviewerPolicy.ts must refuse every path but the declared receipt')
   }
   check('all alternate write targets and section escapes are refused before mutation', true)
   const alias = join(scratch, 'alias.md')
@@ -85,7 +85,7 @@ try {
   }
   check('shell writes, git mutations and arbitrary programs cannot bypass the report boundary', readFileSync(other, 'utf8') === 'protected\n')
   check('read-only commands remain subject to their normal permission checks', await reviewerRefusal(BashTool as Tool, { command: 'pwd' }, canonical, frozen) === null)
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
   let appState = getDefaultAppState()
   const shellContext = {
     ...context(),
@@ -105,7 +105,7 @@ try {
   if (process.platform === 'darwin' || process.platform === 'linux') {
     let available = true
     if (process.platform === 'linux') {
-      const { whichSync } = await import('../../src/utils/which.ts')
+      const { whichSync } = await import('../../src/platform/processes/which.ts')
       available = whichSync('bwrap') !== null
     }
     if (available) {

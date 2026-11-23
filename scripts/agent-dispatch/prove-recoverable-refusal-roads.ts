@@ -84,15 +84,15 @@ Object.assign(process.env, {
   MERCURY_COMPAT_LABEL: 'the fixture endpoint',
 })
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const budget = await import('../../src/services/api/recoveryBudget.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const budget = await import('../../src/engine/requests/recoveryBudget.ts')
 
 type Row = Record<string, unknown>
 type Drive = { yielded: Row[]; thrown: string | null; elapsedMs: number }
@@ -153,39 +153,39 @@ const ROADS: Array<{ road: string; model: string; label: string }> = [
   { road: 'openai-compat', model: 'compat/fixture-model', label: 'the OpenAI-compatible road' },
 ]
 
-check('the retry budget is 20 minutes: a three-hour ask is the window, a one-second ask a burst', budget.providerWaitIsWindow(10_800_000) && !budget.providerWaitIsWindow(1_000), 'providerWaitIsWindow in src/services/api/recoveryBudget.ts must be true for a 10800000 ms ask and false for 1000 ms against the recovery budget (recoveryBudgetMs)')
+check('the retry budget is 20 minutes: a three-hour ask is the window, a one-second ask a burst', budget.providerWaitIsWindow(10_800_000) && !budget.providerWaitIsWindow(1_000), 'providerWaitIsWindow in src/engine/requests/recoveryBudget.ts must be true for a 10800000 ms ask and false for 1000 ms against the recovery budget (recoveryBudgetMs)')
 
 for (const { road, model, label } of ROADS) {
   section(`${label} — (a) a burst 429 with a short Retry-After is waited out and the reply lands`)
   mode = 'burst'
   const burst = await drive(model)
-  check(`${road}: two requests — the refusal, then the reply`, requestsOf(road, 'burst') === 2, `requests=${requestsOf(road, 'burst')} thrown=${burst.thrown} | the burst 429 must be retried once: look at the busy retry ladder in src/services/providers/busyRetry.ts and this road call model under src/services/providers/`)
-  check(`${road}: the reply landed after the wait`, streamedText(burst).includes('the reply after busy') && apiErrorText(burst) === null, `${streamedText(burst).slice(0, 60)} | ${apiErrorText(burst)} | after the wait the retried request must stream the reply: look at the retry loop of this road call model under src/services/providers/`)
-  check(`${road}: the wait the provider names is said at once — one retry notice of 1000 ms, attempt 1 of 10`, notices(burst).length === 1 && notices(burst)[0]?.retryInMs === 1000 && notices(burst)[0]?.retryAttempt === 1 && notices(burst)[0]?.maxRetries === 10, JSON.stringify(notices(burst).map(n => [n.retryInMs, n.retryAttempt, n.maxRetries])) + ' | expected one api_error notice [1000, 1, 10]: the notice is built from the busy retry step in src/services/providers/busyRetry.ts (nextBusyRetry)')
+  check(`${road}: two requests — the refusal, then the reply`, requestsOf(road, 'burst') === 2, `requests=${requestsOf(road, 'burst')} thrown=${burst.thrown} | the burst 429 must be retried once: look at the busy retry ladder in src/models/roads/busyRetry.ts and this road call model under src/models/roads/`)
+  check(`${road}: the reply landed after the wait`, streamedText(burst).includes('the reply after busy') && apiErrorText(burst) === null, `${streamedText(burst).slice(0, 60)} | ${apiErrorText(burst)} | after the wait the retried request must stream the reply: look at the retry loop of this road call model under src/models/roads/`)
+  check(`${road}: the wait the provider names is said at once — one retry notice of 1000 ms, attempt 1 of 10`, notices(burst).length === 1 && notices(burst)[0]?.retryInMs === 1000 && notices(burst)[0]?.retryAttempt === 1 && notices(burst)[0]?.maxRetries === 10, JSON.stringify(notices(burst).map(n => [n.retryInMs, n.retryAttempt, n.maxRetries])) + ' | expected one api_error notice [1000, 1, 10]: the notice is built from the busy retry step in src/models/roads/busyRetry.ts (nextBusyRetry)')
   const stamp = burst.yielded.find(e => e.type === 'assistant' && (e as { busyRecovery?: unknown }).busyRecovery !== undefined) as { busyRecovery?: { retries?: number; status?: number; detail?: string } } | undefined
-  check(`${road}: the settled reply carries no recovery stamp — the wait was said when it began`, stamp === undefined, JSON.stringify(stamp?.busyRecovery) + ' | a reply that landed after a said wait must not carry busyRecovery: look at where this road stamps busyRecovery (busyRecoveryDetail in src/services/providers/busyRetry.ts)')
-  check(`${road}: the ask was slept (a second or more between the refusal and the reply)`, burst.elapsedMs >= 1_000, `${burst.elapsedMs}ms | the road must sleep the Retry-After of 1 second before the retry: look at nextBusyRetry in src/services/providers/busyRetry.ts`)
+  check(`${road}: the settled reply carries no recovery stamp — the wait was said when it began`, stamp === undefined, JSON.stringify(stamp?.busyRecovery) + ' | a reply that landed after a said wait must not carry busyRecovery: look at where this road stamps busyRecovery (busyRecoveryDetail in src/models/roads/busyRetry.ts)')
+  check(`${road}: the ask was slept (a second or more between the refusal and the reply)`, burst.elapsedMs >= 1_000, `${burst.elapsedMs}ms | the road must sleep the Retry-After of 1 second before the retry: look at nextBusyRetry in src/models/roads/busyRetry.ts`)
 
   section(`${label} — (b) a 429 asking for three hours is the provider's window: one request, the row names the wait`)
   mode = 'window'
   const window = await drive(model)
   const text = apiErrorText(window)
-  check(`${road}: ONE request, no retry, no notice`, requestsOf(road, 'window') === 1 && notices(window).length === 0, `requests=${requestsOf(road, 'window')} notices=${notices(window).length} | a Retry-After of three hours is the provider window and must not be retried: look at providerWaitIsWindow in src/services/api/recoveryBudget.ts and where this road uses it`)
-  check(`${road}: the turn ended on the error row, at once`, text !== null && window.thrown === null && window.elapsedMs < 5_000, `${text} | ${window.thrown} | ${window.elapsedMs}ms | a window 429 must end the turn at once on an api error row without throwing: look at where this road turns the refusal into the row under src/services/providers/`)
-  check(`${road}: the row names the provider's wait (the one wait formatter's 3 h 0 min on the Anthropic and compat roads; the OpenAI road's 10800 s)`, text !== null && (/3 h 0 min/.test(text) || /10800 s/.test(text)), `${text ?? '(none)'} | the row must state the wait the provider asked for: look at providerWaitWords in src/services/api/recoveryBudget.ts and the road that builds the row`)
+  check(`${road}: ONE request, no retry, no notice`, requestsOf(road, 'window') === 1 && notices(window).length === 0, `requests=${requestsOf(road, 'window')} notices=${notices(window).length} | a Retry-After of three hours is the provider window and must not be retried: look at providerWaitIsWindow in src/engine/requests/recoveryBudget.ts and where this road uses it`)
+  check(`${road}: the turn ended on the error row, at once`, text !== null && window.thrown === null && window.elapsedMs < 5_000, `${text} | ${window.thrown} | ${window.elapsedMs}ms | a window 429 must end the turn at once on an api error row without throwing: look at where this road turns the refusal into the row under src/models/roads/`)
+  check(`${road}: the row names the provider's wait (the one wait formatter's 3 h 0 min on the Anthropic and compat roads; the OpenAI road's 10800 s)`, text !== null && (/3 h 0 min/.test(text) || /10800 s/.test(text)), `${text ?? '(none)'} | the row must state the wait the provider asked for: look at providerWaitWords in src/engine/requests/recoveryBudget.ts and the road that builds the row`)
   const row = window.yielded.find(e => e.type === 'assistant' && (e as { isApiErrorMessage?: boolean }).isApiErrorMessage === true) as { error?: string } | undefined
-  check(`${road}: the row is typed as the provider's refusal`, row?.error === 'rate_limit', JSON.stringify(row?.error) + ' | the window refusal row must carry error rate_limit: look at where this road types its 429 row under src/services/providers/')
+  check(`${road}: the row is typed as the provider's refusal`, row?.error === 'rate_limit', JSON.stringify(row?.error) + ' | the window refusal row must carry error rate_limit: look at where this road types its 429 row under src/models/roads/')
 
   section(`${label} — (c) a 429 that names one second and never ends is retried ten times with MERCURY_MAX_RETRIES unset, each wait said, then the row`)
   mode = 'endless'
   const endless = await drive(model)
   const said = notices(endless)
   const lastText = apiErrorText(endless)
-  check(`${road}: eleven requests — the refusal and ten retries`, requestsOf(road, 'endless') === 11, `requests=${requestsOf(road, 'endless')} thrown=${endless.thrown} | with MERCURY_MAX_RETRIES unset the road must retry ten times then stop: look at the retry limit in src/services/api/withRetry.ts and the busy ladder in src/services/providers/busyRetry.ts`)
-  check(`${road}: ten retry notices, attempts 1 to 10 of 10, each the second the provider names`, said.length === 10 && said.every((n, i) => n.retryInMs === 1000 && n.retryAttempt === i + 1 && n.maxRetries === 10), JSON.stringify(said.map(n => [n.retryInMs, n.retryAttempt, n.maxRetries])) + ' | expected ten notices [1000, i, 10] with i from 1 to 10: look at nextBusyRetry in src/services/providers/busyRetry.ts')
-  check(`${road}: every named second was waited (ten seconds or more) and then the turn ended on the provider's refusal, with no "stayed busy" head`, endless.elapsedMs >= 10_000 && endless.thrown === null && lastText !== null && !/stayed busy/.test(lastText), `${endless.elapsedMs}ms | ${lastText} | ${endless.thrown} | each named second must be slept, and the final row must be the provider refusal text, not a stayed busy head: look at busyRecoveryDetail in src/services/providers/busyRetry.ts and where this road ends the ladder`)
+  check(`${road}: eleven requests — the refusal and ten retries`, requestsOf(road, 'endless') === 11, `requests=${requestsOf(road, 'endless')} thrown=${endless.thrown} | with MERCURY_MAX_RETRIES unset the road must retry ten times then stop: look at the retry limit in src/engine/requests/withRetry.ts and the busy ladder in src/models/roads/busyRetry.ts`)
+  check(`${road}: ten retry notices, attempts 1 to 10 of 10, each the second the provider names`, said.length === 10 && said.every((n, i) => n.retryInMs === 1000 && n.retryAttempt === i + 1 && n.maxRetries === 10), JSON.stringify(said.map(n => [n.retryInMs, n.retryAttempt, n.maxRetries])) + ' | expected ten notices [1000, i, 10] with i from 1 to 10: look at nextBusyRetry in src/models/roads/busyRetry.ts')
+  check(`${road}: every named second was waited (ten seconds or more) and then the turn ended on the provider's refusal, with no "stayed busy" head`, endless.elapsedMs >= 10_000 && endless.thrown === null && lastText !== null && !/stayed busy/.test(lastText), `${endless.elapsedMs}ms | ${lastText} | ${endless.thrown} | each named second must be slept, and the final row must be the provider refusal text, not a stayed busy head: look at busyRecoveryDetail in src/models/roads/busyRetry.ts and where this road ends the ladder`)
   const endlessRow = endless.yielded.find(e => e.type === 'assistant' && (e as { isApiErrorMessage?: boolean }).isApiErrorMessage === true) as { error?: string } | undefined
-  check(`${road}: that row is typed as the provider's refusal`, endlessRow?.error === 'rate_limit', JSON.stringify(endlessRow?.error) + ' | the final refusal row must carry error rate_limit: look at where this road types its 429 row under src/services/providers/')
+  check(`${road}: that row is typed as the provider's refusal`, endlessRow?.error === 'rate_limit', JSON.stringify(endlessRow?.error) + ' | the final refusal row must carry error rate_limit: look at where this road types its 429 row under src/models/roads/')
 }
 
 server.close()

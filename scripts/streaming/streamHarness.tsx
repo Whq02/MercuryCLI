@@ -4,14 +4,14 @@ import { appendFileSync, writeFileSync } from 'node:fs'
 import { buildFixture } from './fixtures.ts'
 
 export async function runStreamScene(sceneName: string, outPath: string): Promise<void> {
-  const { render, Box, Text, useInput } = await import('../../src/ink.js')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { enableConfigs } = await import('../../src/utils/config.js')
-  const { handleMessageFromStream } = await import('../../src/utils/messages/streaming.js')
-  type StreamingToolUse = import('../../src/utils/messages/streaming.js').StreamingToolUse
-  const { createStreamingTailStore } = await import('../../src/utils/messages/streamingTailStore.js')
-  const { LiveStreamingTail } = await import('../../src/components/LiveStreamingTail.js')
-  const { Markdown, StreamingMarkdown } = await import('../../src/components/Markdown.js')
+  const { render, Box, Text, useInput } = await import('../../src/screen/themedRenderer.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
+  const { handleMessageFromStream } = await import('../../src/screen/messages-list/streamToScreen.js')
+  type StreamingToolUse = import('../../src/screen/messages-list/streamToScreen.js').StreamingToolUse
+  const { createStreamingTailStore } = await import('../../src/engine/message-shapes/streamingTailStore.js')
+  const { LiveStreamingTail } = await import('../../src/screen/messages/LiveStreamingTail.js')
+  const { Markdown, StreamingMarkdown } = await import('../../src/screen/messages/Markdown.js')
   const legacy = process.env.FLUX_HARNESS_LEGACY === '1'
 
   enableConfigs()

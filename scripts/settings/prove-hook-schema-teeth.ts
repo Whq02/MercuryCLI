@@ -8,12 +8,12 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { parseSettingsFile } = await import('../../src/utils/settings/settings.ts')
-const { readHooksMap } = await import('../../src/schemas/hooks.ts')
-const { HOOK_EVENTS, hookEventTable } = await import('../../src/utils/hooks/contract.ts')
+const { parseSettingsFile } = await import('../../src/platform/settings/settings.ts')
+const { readHooksMap } = await import('../../src/integrations/event-hook-schemas/hooks.ts')
+const { HOOK_EVENTS, hookEventTable } = await import('../../src/integrations/event-hooks/contract.ts')
 
 let failures = 0
-const HOOK_TEETH_WHERE = 'fix the entry faults in src/schemas/hooks.ts (the hook entry schema and readHooksMap) or the match grammar in src/utils/hooks/matcherGrammar.ts and src/utils/hooks/matching.ts'
+const HOOK_TEETH_WHERE = 'fix the entry faults in src/integrations/event-hook-schemas/hooks.ts (the hook entry schema and readHooksMap) or the match grammar in src/integrations/event-hooks/matcherGrammar.ts and src/integrations/event-hooks/matching.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : (detail ? ' | ' : ' — ') + HOOK_TEETH_WHERE}`)
   if (!cond) failures++
@@ -121,8 +121,8 @@ section('§4 readHooksMap (the frontmatter road) names each fault and keeps the 
 
 section('§5 THE DOCUMENTED GRAMMAR — the schema accepts every match the runtime matcher accepts')
 {
-  const { matchesPattern } = await import('../../src/utils/hooks/matching.ts')
-  const { matcherCompiles, matcherShape } = await import('../../src/utils/hooks/matcherGrammar.ts')
+  const { matchesPattern } = await import('../../src/integrations/event-hooks/matching.ts')
+  const { matcherCompiles, matcherShape } = await import('../../src/integrations/event-hooks/matcherGrammar.ts')
   const star = parseHooks({ 'tool.before': [{ match: '*', run: 'echo every tool' }] })
   check('"*" (docs/HOOKS.md: matches everything) parses with zero errors and survives as written', star.errors.length === 0 && star.entries[0]?.match === '*', errorWords(star.errors))
   const empty = parseHooks({ 'tool.before': [{ match: '', run: 'echo every tool' }] })

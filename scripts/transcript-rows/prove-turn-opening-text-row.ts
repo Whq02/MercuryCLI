@@ -4,28 +4,28 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import type { Message, RenderableMessage } from '../../src/types/message.ts'
+import type { Message, RenderableMessage } from '../../src/engine/message-shapes/message.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'turn-opening-text-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_TMPDIR = home
 delete process.env.MERCURY_TURN_RECEIPT
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { renderToString } = await import('../../src/utils/staticRender.tsx')
-const { Message: MessageView } = await import('../../src/components/Message.tsx')
-const { composeTranscript } = await import('../../src/components/Messages.tsx')
-const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
-const { isNotEmptyMessage } = await import('../../src/utils/messages/text.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { buildMessageLookups } = await import('../../src/services/messages/lookups.ts')
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
-const { buildConversationChain, findLatestMessage } = await import('../../src/utils/sessionStorage/chain.ts')
-const { deserializeLiveMessages } = await import('../../src/services/resume/conversationRecovery.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { Message: MessageView } = await import('../../src/screen/messages/Message.tsx')
+const { composeTranscript } = await import('../../src/screen/messages/Messages.tsx')
+const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.ts')
+const { isNotEmptyMessage } = await import('../../src/engine/message-shapes/text.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { buildMessageLookups } = await import('../../src/engine/messages/lookups.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+const { loadTranscriptFile } = await import('../../src/sessions/transcripts/loading.ts')
+const { buildConversationChain, findLatestMessage } = await import('../../src/sessions/transcripts/chain.ts')
+const { deserializeLiveMessages } = await import('../../src/sessions/resume/conversationRecovery.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 
 const OPENING = 'Before I touch anything: the manifest names the package orchard, so the greeting runs against that name. I will read it, run the greeting three times, and report what came back.'
 const CLOSING = 'All three greetings answered; the manifest still names orchard.'
@@ -50,7 +50,7 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? `: ${detail}` : ''}`)
-  if (!ok) console.log(`  hint: the row split and grouping of an assistant turn is composeTranscript in src/components/messagesList/transcript.ts (tool folding in src/components/messages/collapseReadSearch.ts); a read-back failure points at deserializeLiveMessages in src/services/resume/conversationRecovery.ts and the chain builder in src/utils/sessionStorage/chain.ts`)
+  if (!ok) console.log(`  hint: the row split and grouping of an assistant turn is composeTranscript in src/screen/messages-list/transcript.ts (tool folding in src/screen/messages/collapseReadSearch.ts); a read-back failure points at deserializeLiveMessages in src/sessions/resume/conversationRecovery.ts and the chain builder in src/sessions/transcripts/chain.ts`)
 }
 const textOf = (row: RenderableMessage): string | null => {
   if (row.type !== 'assistant') return null

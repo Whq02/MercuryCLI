@@ -26,10 +26,10 @@ let failures = 0
 let checks = 0
 let sectionHint = ''
 const HINTS: Record<string, string> = {
-  '§1': 'what to change: settleWireEdits in src/utils/messages/wireEdits.ts (which thinking blocks an already-applied edit strips)',
-  '§2': 'what to change: fitImagesToRequestCap in src/utils/imageResizer.ts (the first-edited row, the once-fitted bytes) or settleWireEdits in src/utils/messages/wireEdits.ts',
-  '§3': 'what to change: fitImagesToRequestCap in src/utils/imageResizer.ts and the request composition behind routedCallModel in src/services/providers/callModelRouter.ts (the sent images and thinking blocks), with the limits in src/constants/apiLimits.ts',
-  '§4': 'what to change: retireOlderScreenshots in src/services/desktop/screenshotRetention.ts (when a retirement counts as a new edit)',
+  '§1': 'what to change: settleWireEdits in src/engine/message-shapes/wireEdits.ts (which thinking blocks an already-applied edit strips)',
+  '§2': 'what to change: fitImagesToRequestCap in src/platform/images/imageResizer.ts (the first-edited row, the once-fitted bytes) or settleWireEdits in src/engine/message-shapes/wireEdits.ts',
+  '§3': 'what to change: fitImagesToRequestCap in src/platform/images/imageResizer.ts and the request composition behind routedCallModel in src/models/roads/callModelRouter.ts (the sent images and thinking blocks), with the limits in src/models/roads/mediaLimits.ts',
+  '§4': 'what to change: retireOlderScreenshots in src/integrations/desktop/screenshotRetention.ts (when a retirement counts as a new edit)',
 }
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
@@ -39,7 +39,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => (sectionHint = t.slice(0, 2), console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76)))
 const j = (v: unknown): string => JSON.stringify(v)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the fitted-images prover exceeded 240s; it was waiting on a request to the overflow fixture (scripts/compact/overflowFixture.ts) answered through routedCallModel in src/services/providers/callModelRouter.ts, in the last section printed above')
+  console.log('\nTIMEOUT — the fitted-images prover exceeded 240s; it was waiting on a request to the overflow fixture (scripts/compact/overflowFixture.ts) answered through routedCallModel in src/models/roads/callModelRouter.ts, in the last section printed above')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()
@@ -48,17 +48,17 @@ const { startOverflowFixture } = await import('../compact/overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const limitsMod = await import('../../src/constants/apiLimits.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const wireEdits = await import('../../src/utils/messages/wireEdits.ts').catch(() => null)
-const resizer = await import('../../src/utils/imageResizer.ts')
+const limitsMod = await import('../../src/models/roads/mediaLimits.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const wireEdits = await import('../../src/engine/message-shapes/wireEdits.ts').catch(() => null)
+const resizer = await import('../../src/platform/images/imageResizer.ts')
 const fitImagesToRequestCap = resizer.fitImagesToRequestCap
 const resetWireEditsForTesting = wireEdits?.resetWireEditsForTesting ?? ((): void => {})
 const resetFittedImagesForTesting = (resizer as { resetFittedImagesForTesting?: () => void }).resetFittedImagesForTesting ?? ((): void => {})
@@ -167,7 +167,7 @@ function history(images: Buffer[], thinkingAfter: number): AnyMsg[] {
 }
 
 section('§1 pure: an edit already on the wire strips only the blocks that stood after it when it was first applied')
-check('the wire-edit memory exists (src/utils/messages/wireEdits.ts)', wireEdits !== null)
+check('the wire-edit memory exists (src/engine/message-shapes/wireEdits.ts)', wireEdits !== null)
 if (wireEdits !== null) {
   const { settleWireEdits } = wireEdits
   resetWireEditsForTesting()
@@ -256,9 +256,9 @@ section('§3 the wire: twenty-one images, then five turns — the bound holds an
 section('§4 the screenshot retirement follows the same law: a retired screenshot is a new edit once')
 {
   resetWireEditsForTesting()
-  const retention = await import('../../src/services/desktop/screenshotRetention.ts')
-  const desktop = await import('../../src/services/desktop/desktopSession.ts')
-  const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
+  const retention = await import('../../src/integrations/desktop/screenshotRetention.ts')
+  const desktop = await import('../../src/integrations/desktop/desktopSession.ts')
+  const { processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
   const lane = processOwnerForLane(null)
   const owner = 'owner-screens'
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 73, 72, 68, 82]).toString('base64')

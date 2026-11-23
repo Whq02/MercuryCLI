@@ -137,13 +137,13 @@ if (mode === 'loose') {
 `
 
 console.log('============================================================')
-console.log(' The deadline door: withDeadline and pollUntil in src/utils/deadline.ts')
+console.log(' The deadline door: withDeadline and pollUntil in src/platform/async/deadline.ts')
 console.log('============================================================')
 
 const scratch = mkdtempSync(join(tmpdir(), 'deadline-door-'))
 try {
-  const built = await Bun.build({ entrypoints: [resolve(import.meta.dir, '../../src/utils/deadline.ts')], target: 'node', format: 'esm', outdir: join(scratch, 'built') })
-  check('deadline.ts and the modules it imports build for Node', built.success && built.outputs.length === 1, built.logs.map(String).join(' | ') + ' — fix the import or syntax error the build log names, in src/utils/deadline.ts or a module it imports')
+  const built = await Bun.build({ entrypoints: [resolve(import.meta.dir, '../../src/platform/async/deadline.ts')], target: 'node', format: 'esm', outdir: join(scratch, 'built') })
+  check('deadline.ts and the modules it imports build for Node', built.success && built.outputs.length === 1, built.logs.map(String).join(' | ') + ' — fix the import or syntax error the build log names, in src/platform/async/deadline.ts or a module it imports')
   const door = built.outputs[0]?.path ?? ''
   const driver = join(scratch, 'driver.mjs')
   writeFileSync(driver, DRIVER)
@@ -156,24 +156,24 @@ try {
   try {
     out = JSON.parse(line) as Record<string, Row>
   } catch {
-    check('the waits ran under Node and printed their readings', false, `status ${ran.status ?? ran.signal}: ${(ran.stderr ?? '').trim().slice(-400)} — the driver under Node threw before printing its JSON; read the stderr above and fix withDeadline, pollUntil or armInactivityDeadline in src/utils/deadline.ts`)
+    check('the waits ran under Node and printed their readings', false, `status ${ran.status ?? ran.signal}: ${(ran.stderr ?? '').trim().slice(-400)} — the driver under Node threw before printing its JSON; read the stderr above and fix withDeadline, pollUntil or armInactivityDeadline in src/platform/async/deadline.ts`)
   }
   const row = (name: string): Row => out[name] ?? ({ got: {}, ms: -1, after: -1, during: -1, looks: -1 } as Row)
   const doorFixes: Record<string, string> = {
-    workWins: 'withDeadline in src/utils/deadline.ts must resolve with the work value and clear its own timer when the work settles first',
-    workFails: 'withDeadline in src/utils/deadline.ts must reject with the work failure and clear its timer',
-    limitValue: 'withDeadline in src/utils/deadline.ts must settle with the caller fallback at the limit and clear its timer',
-    limitError: 'withDeadline in src/utils/deadline.ts must reject with the error its fallback throws at the limit and clear its timer',
-    lateWork: 'withDeadline in src/utils/deadline.ts must swallow a rejection of the work that arrives after the limit and leave no timer',
-    abortRejects: 'withDeadline in src/utils/deadline.ts must reject with an AbortError carrying the signal reason on abort and clear its timer',
-    abortValue: 'withDeadline in src/utils/deadline.ts must settle with the onAbort value on abort and clear its timer',
-    abortedBefore: 'withDeadline in src/utils/deadline.ts must reject with an AbortError at once for a signal already aborted',
-    noLimit: 'withDeadline in src/utils/deadline.ts must arm no timer for an Infinity limit and still honour an abort',
-    within: 'the within method of armInactivityDeadline in src/utils/deadline.ts must pass a work that settles in time and reject with DeadlineExceededError after the silence',
-    pollFound: 'pollUntil in src/utils/deadline.ts must end on the look that returns a value, after one period per pause, and clear its timer',
-    pollLimit: 'pollUntil in src/utils/deadline.ts must make its last look at the first pause that reaches the limit, then settle with the fallback',
-    pollCut: 'pollUntil in src/utils/deadline.ts must let a period function cut the last pause to the time left, so the last look lands at the limit',
-    pollAbort: 'pollUntil in src/utils/deadline.ts must reject with an AbortError at once on abort and clear its timer',
+    workWins: 'withDeadline in src/platform/async/deadline.ts must resolve with the work value and clear its own timer when the work settles first',
+    workFails: 'withDeadline in src/platform/async/deadline.ts must reject with the work failure and clear its timer',
+    limitValue: 'withDeadline in src/platform/async/deadline.ts must settle with the caller fallback at the limit and clear its timer',
+    limitError: 'withDeadline in src/platform/async/deadline.ts must reject with the error its fallback throws at the limit and clear its timer',
+    lateWork: 'withDeadline in src/platform/async/deadline.ts must swallow a rejection of the work that arrives after the limit and leave no timer',
+    abortRejects: 'withDeadline in src/platform/async/deadline.ts must reject with an AbortError carrying the signal reason on abort and clear its timer',
+    abortValue: 'withDeadline in src/platform/async/deadline.ts must settle with the onAbort value on abort and clear its timer',
+    abortedBefore: 'withDeadline in src/platform/async/deadline.ts must reject with an AbortError at once for a signal already aborted',
+    noLimit: 'withDeadline in src/platform/async/deadline.ts must arm no timer for an Infinity limit and still honour an abort',
+    within: 'the within method of armInactivityDeadline in src/platform/async/deadline.ts must pass a work that settles in time and reject with DeadlineExceededError after the silence',
+    pollFound: 'pollUntil in src/platform/async/deadline.ts must end on the look that returns a value, after one period per pause, and clear its timer',
+    pollLimit: 'pollUntil in src/platform/async/deadline.ts must make its last look at the first pause that reaches the limit, then settle with the fallback',
+    pollCut: 'pollUntil in src/platform/async/deadline.ts must let a period function cut the last pause to the time left, so the last look lands at the limit',
+    pollAbort: 'pollUntil in src/platform/async/deadline.ts must reject with an AbortError at once on abort and clear its timer',
   }
   const said = (name: string): string => `${JSON.stringify(out[name] ?? null)} — ${doorFixes[name] ?? ''}`
 
@@ -207,9 +207,9 @@ try {
   const t0 = performance.now()
   const loose = spawnSync(node, [driver, door, 'loose'], { encoding: 'utf8', timeout: 20_000 })
   const looseMs = Math.round(performance.now() - t0)
-  check('a process whose only pending waits are unref (a 60 s deadline and a 30 s poll) exits by itself', loose.error === undefined && loose.status === 0 && looseMs < 15_000, `status ${loose.status ?? loose.signal} after ${looseMs} ms ${(loose.stderr ?? '').trim().slice(-300)} — the unref option of withDeadline and pollUntil in src/utils/deadline.ts must unref the timers it arms`)
+  check('a process whose only pending waits are unref (a 60 s deadline and a 30 s poll) exits by itself', loose.error === undefined && loose.status === 0 && looseMs < 15_000, `status ${loose.status ?? loose.signal} after ${looseMs} ms ${(loose.stderr ?? '').trim().slice(-300)} — the unref option of withDeadline and pollUntil in src/platform/async/deadline.ts must unref the timers it arms`)
   const held = spawnSync(node, [driver, door, 'held'], { encoding: 'utf8', timeout: 3_000 })
-  check('the same deadline without unref holds the process (the control: it is still running when stopped at 3 s)', (held.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT', `status ${held.status ?? held.signal} ${String(held.error ?? '')} — without unref, withDeadline in src/utils/deadline.ts must leave its timer referenced so the process stays alive`)
+  check('the same deadline without unref holds the process (the control: it is still running when stopped at 3 s)', (held.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT', `status ${held.status ?? held.signal} ${String(held.error ?? '')} — without unref, withDeadline in src/platform/async/deadline.ts must leave its timer referenced so the process stays alive`)
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

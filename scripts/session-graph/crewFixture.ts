@@ -1,5 +1,5 @@
 
-import type { ActivityInput } from '../../src/services/crew/activity.ts'
+import type { ActivityInput } from '../../src/crew/crewmates/activity.ts'
 
 interface CrewFixtureCounts {
   agents: number
@@ -42,8 +42,8 @@ export async function buildCrewFixture(args: {
     activityEvents: args.counts?.activityEvents ?? 50_000,
   }
   const rand = mulberry32(args.seed)
-  const identity = await import('../../src/services/crew/identity.ts')
-  const conversations = await import('../../src/services/crew/conversations.ts')
+  const identity = await import('../../src/crew/crewmates/identity.ts')
+  const conversations = await import('../../src/crew/crewmates/conversations.ts')
 
   const agentIds: string[] = []
   for (let i = 0; i < counts.agents; i++) {

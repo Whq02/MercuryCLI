@@ -19,13 +19,13 @@ if (!given) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   process.env.MERCURY_BARE = '1'
   const src = process.env.PROVE_SRC ?? resolve(dirname(script), '../../src')
-  const { FileReadTool } = await import(`${src}/tools/FileReadTool/FileReadTool.ts`)
-  const { setCwdState, setOriginalCwd } = await import(`${src}/bootstrap/state.ts`)
-  const { getEmptyToolPermissionContext } = await import(`${src}/Tool.ts`)
-  const { createFileStateCacheWithSizeLimit } = await import(`${src}/utils/fileStateCache.ts`)
+  const { FileReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
+  const { setCwdState, setOriginalCwd } = await import(`${src}/boot/process-state/processState.ts`)
+  const { getEmptyToolPermissionContext } = await import(`${src}/tools/kit/tool.ts`)
+  const { createFileStateCacheWithSizeLimit } = await import(`${src}/platform/files/fileStateCache.ts`)
   setCwdState(given); setOriginalCwd(given)
   let passed = 0, failed = 0
-  const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` Change how a #read? selector is dispatched so the target owner keeps its answer, in parseReadQueryTarget in src/tools/FileReadTool/readQueryTarget.ts and classifyReadTarget in src/tools/FileReadTool/readTarget.ts. ${detail.slice(0, 500)}`}`) }
+  const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` Change how a #read? selector is dispatched so the target owner keeps its answer, in parseReadQueryTarget in src/tools/read/readQueryTarget.ts and classifyReadTarget in src/tools/read/readTarget.ts. ${detail.slice(0, 500)}`}`) }
   const source = join(given, 'denied.json')
   writeFileSync(source, '{"private":91}')
   let rules = { ...getEmptyToolPermissionContext(), alwaysDenyRules: { session: [`Read(/${source})`] } }

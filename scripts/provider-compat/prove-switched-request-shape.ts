@@ -83,14 +83,14 @@ console.log('============================================================')
 console.log(' switched-request shape — the conversion, diffed against native')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import('../../src/services/messages.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
-type Message = import('../../src/types/message.ts').Message
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import('../../src/engine/messages/messages.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const BASH = BashTool.name
 
@@ -230,7 +230,7 @@ function degenerates(body: Body): string[] {
 }
 
 section('§A both requests capture and settle')
-failHint = 'routedCallModel in src/services/providers/callModelRouter.ts must dispatch a history with a /model switch and settle on end_turn; read threw= above'
+failHint = 'routedCallModel in src/models/roads/callModelRouter.ts must dispatch a history with a /model switch and settle on end_turn; read threw= above'
 const switched = await drive(switchedHistory())
 const native = await drive(nativeHistory())
 check('the SWITCHED request dispatched and the turn settled', switched.threw === undefined && switched.settled && Object.keys(switched.body).length > 0, `threw=${String(switched.threw)}`)
@@ -238,7 +238,7 @@ check('the NATIVE request dispatched and the turn settled', native.threw === und
 
 section('§B top-level key parity')
 {
-  failHint = 'the request built after a /model switch must have the same top-level fields as a native one; find where routedCallModel (src/services/providers/callModelRouter.ts) builds it and remove the difference'
+  failHint = 'the request built after a /model switch must have the same top-level fields as a native one; find where routedCallModel (src/models/roads/callModelRouter.ts) builds it and remove the difference'
   const sKeys = Object.keys(switched.body).sort().join(',')
   const nKeys = Object.keys(native.body).sort().join(',')
   check('top-level key sets are IDENTICAL (no switched-only field)', sKeys === nKeys, `switched={${sKeys}} native={${nKeys}}`)

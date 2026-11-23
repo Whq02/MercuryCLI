@@ -7,11 +7,11 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'axiom-txn-'))
 
-const P = await import('../../src/services/primitives/index.ts')
-const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
-const receipts = await import('../../src/services/changeTransaction/receipts.ts')
-const { resolveResource } = await import('../../src/services/resources/registry.ts')
-const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
+const P = await import('../../src/engine/runtime-kernel/index.ts')
+const { observeToolTerminal } = await import('../../src/engine/run-owner/effectObserver.ts')
+const receipts = await import('../../src/tools/engines/change-transaction/receipts.ts')
+const { resolveResource } = await import('../../src/integrations/resources/registry.ts')
+const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.ts')
 
 let pass = 0
 let fail = 0
@@ -22,7 +22,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   } else {
     fail++
     console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
-    console.log('       fix: transaction states and refusals live in beginTransaction and transitionTransaction in src/services/primitives/transactionPlane.ts (TransactionTransitionError in transaction.ts beside it); a tool result becomes a receipt and transaction through observeToolTerminal in src/utils/run/effectObserver.ts; owner disposal is disposeOwner in src/utils/run/ownerLifecycle.ts')
+    console.log('       fix: transaction states and refusals live in beginTransaction and transitionTransaction in src/engine/runtime-kernel/transactionPlane.ts (TransactionTransitionError in transaction.ts beside it); a tool result becomes a receipt and transaction through observeToolTerminal in src/engine/run-owner/effectObserver.ts; owner disposal is disposeOwner in src/engine/run-owner/ownerLifecycle.ts')
   }
 }
 

@@ -12,12 +12,12 @@ process.env.MERCURY_BARE = '1'
 const ROOT = path.resolve(import.meta.dir, '..', '..')
 const JS_DEBUG = path.join(ROOT, 'dist', 'vendor', 'js-debug', 'src', 'dapDebugServer.js')
 
-const plans = await import('../../src/services/ide/testDebugPlans.ts')
-const runners = await import('../../src/services/ide/projectRunners.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+const plans = await import('../../src/integrations/ide/testDebugPlans.ts')
+const runners = await import('../../src/integrations/ide/projectRunners.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
 
 let failures = 0
-const RUNNER_DEBUG_FAIL_HINT = 'where to look: buildNodeRunnerDebugShim, buildGoTestDebugPlan and buildCargoTestDebugPlan in src/services/ide/testDebugPlans.ts; buildNodeTestDebugShim and runRunnerProfile in src/services/ide/projectRunners.ts; the debug op in src/tools/TestTool/TestTool.ts'
+const RUNNER_DEBUG_FAIL_HINT = 'where to look: buildNodeRunnerDebugShim, buildGoTestDebugPlan and buildCargoTestDebugPlan in src/integrations/ide/testDebugPlans.ts; buildNodeTestDebugShim and runRunnerProfile in src/integrations/ide/projectRunners.ts; the debug op in src/tools/test/TestTool.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' | ' : ''}${RUNNER_DEBUG_FAIL_HINT}` : ''}`)
@@ -26,7 +26,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — runner debug proof exceeded 240s; a live leg (E, F, H or I) is waiting on a debugger stop: look at the last section printed above and at src/services/dap/dapClient.ts')
+  console.log('\nTIMEOUT — runner debug proof exceeded 240s; a live leg (E, F, H or I) is waiting on a debugger stop: look at the last section printed above and at src/integrations/debugger/dapClient.ts')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -127,7 +127,7 @@ section('C. a bare name is placed by the latest run\'s case rows (the reporter c
   const nodeProfile = runners.discoverRunnerProfiles(nodeRoot).profiles.find(p => p.runner === 'node-test')!
   const nodeRun = await runners.runRunnerProfile(nodeProfile, { from: nodeRoot })
   check('C3 node-test writes the failed case at its own package root', nodeRun.state === 'ok' && nodeRun.record.cases.some(c => c.id === 'invoice' && c.file === 'test/invoice.test.mjs'), JSON.stringify(nodeRun))
-  const { findPythonProjectRoot } = await import('../../src/services/ide/pythonProject.ts')
+  const { findPythonProjectRoot } = await import('../../src/integrations/ide/pythonProject.ts')
   check('C4 the Python and runner roots really differ', findPythonProjectRoot(nodeRoot).root === parent && runners.findRunnerRoot(nodeRoot) === nodeRoot)
   for (const from of [nodeRoot, path.join(nodeRoot, 'test')]) {
     const nodeShim = runWithCwdOverride(from, () => runners.buildNodeTestDebugShim('invoice', { from }))
@@ -138,7 +138,7 @@ section('C. a bare name is placed by the latest run\'s case rows (the reporter c
 
 section('D. the Test tool: vitest and jest debug ride js-debug; an absent runner is an honest unavailable with its remedy')
 {
-  const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
+  const { TestTool } = await import('../../src/tools/test/TestTool.ts')
   const root = nodeProject('vitest', false)
   const out = (await runWithCwdOverride(root, () => TestTool.call({ op: 'debug', node: 'src/calc.test.mjs::calc adds two numbers' } as never, ctx))) as { data: { result: string; outcome: string } }
   check('D2 vitest declared but not installed: "debug unavailable" with the install remedy, never a sentence about the debugger not being there', out.data.outcome === 'failed' && out.data.result.startsWith('debug unavailable: vitest is declared but node_modules/.bin/vitest is missing') && out.data.result.includes('remedy: install the project dependencies'), out.data.result)
@@ -167,10 +167,10 @@ async function liveNodeRunner(tag: string, runner: 'vitest' | 'jest', entry: str
   symlinkSync(modules, path.join(root, 'node_modules'))
   mkdirSync(path.join(root, 'src'))
   writeFileSync(path.join(root, 'src', testFile), source)
-  const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
-  const dap = await import('../../src/services/dap/dapClient.ts')
-  const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
-  const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
+  const { TestTool } = await import('../../src/tools/test/TestTool.ts')
+  const dap = await import('../../src/integrations/debugger/dapClient.ts')
+  const { ownerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
+  const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.ts')
   await runWithCwdOverride(root, () => TestTool.call({ op: 'run', framework: runner } as never, ctx))
   const plain = spawnSync('node', [path.join(root, 'node_modules', runner, entry), ...(runner === 'vitest' ? ['run', `src/${testFile}`] : ['--runInBand', `src/${testFile}`])], { windowsHide: true, cwd: root, encoding: 'utf8' })
   check(`${tag}0 the debug fixture runs outside the debugger`, plain.status === 1 && /adds two numbers/.test(plain.stdout + plain.stderr), JSON.stringify({ code: plain.status, output: plain.stdout + plain.stderr }))
@@ -278,7 +278,7 @@ section('G. the go plan: dlv builds the package\'s test binary, one test by anch
   try {
     const noDlv = plans.buildGoTestDebugPlan('TestAdd', { from: root })
     check('G8 go present, dlv absent: unavailable with the delve install line', 'state' in noDlv && noDlv.reason.includes("'dlv' not on PATH") && noDlv.remedy === plans.DLV_INSTALL_REMEDY, JSON.stringify(noDlv))
-    const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
+    const { TestTool } = await import('../../src/tools/test/TestTool.ts')
     const out = (await runWithCwdOverride(root, () => TestTool.call({ op: 'debug', node: 'TestAdd' } as never, ctx))) as { data: { result: string; outcome: string } }
     const firstLine = out.data.result.split('\n')[0] ?? ''
     check('G9 the Test tool names the missing Go debugger with the delve install line in one line, runs the test without a stop, and follows with the run\'s own words', firstLine === `no Go debugger (dlv) on this machine — ${plans.DLV_INSTALL_REMEDY}; the test ran without a stop` && /go test -json -run TestAdd/.test(out.data.result), out.data.result)
@@ -304,10 +304,10 @@ section('H. the live go leg — a real go and dlv on PATH')
     console.log(`  [SKIP — LOUD] ${!have('go') ? 'go' : 'dlv'} is not on PATH — the plan and the unavailable answers above are the evidence; install the Go toolchain and delve (${plans.DLV_INSTALL_REMEDY}) to run this leg`)
   } else {
     const root = goModule()
-    const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
-    const dap = await import('../../src/services/dap/dapClient.ts')
-    const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
-    const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
+    const { TestTool } = await import('../../src/tools/test/TestTool.ts')
+    const dap = await import('../../src/integrations/debugger/dapClient.ts')
+    const { ownerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
+    const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.ts')
     const out = (await runWithCwdOverride(root, () => TestTool.call({ op: 'debug', node: 'TestAdd' } as never, ctx))) as { data: { result: string; outcome: string } }
     check('H1 the tool reports a stop at a breakpoint under dlv', out.data.outcome === 'succeeded' && /reason breakpoint/.test(out.data.result), out.data.result.split('\n').slice(0, 3).join(' | '))
     const owner = ownerFromToolUseContext(ctx)
@@ -368,7 +368,7 @@ section('I. the cargo plan — the test binary cargo built, the one that lists t
     )
     const savedTarget = process.env.CARGO_TARGET_DIR
     process.env.CARGO_TARGET_DIR = path.join(root, 'target')
-    const dap = await import('../../src/services/dap/dapClient.ts')
+    const dap = await import('../../src/integrations/debugger/dapClient.ts')
     const plan = await plans.buildCargoTestDebugPlan('tests::is_two', { from: root })
     const native = dap.resolveLldbDap() !== null ? 'lldb' : dap.probeGdbDap().viable ? 'gdb' : null
     if (native === null) {
@@ -384,9 +384,9 @@ section('I. the cargo plan — the test binary cargo built, the one that lists t
       }
       const unknown = await plans.buildCargoTestDebugPlan('tests::nowhere', { from: root })
       check('I5 a test cargo does not list refuses naming the binaries', 'state' in unknown && unknown.reason.includes("no test named 'tests::nowhere'") && unknown.reason.includes('calc'), JSON.stringify(unknown))
-      const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
-      const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
-      const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
+      const { TestTool } = await import('../../src/tools/test/TestTool.ts')
+      const { ownerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
+      const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.ts')
       const hint = native === 'lldb' ? dap.darwinDebuggerAuthorisationHint() : null
       const out = (await runWithCwdOverride(root, () => TestTool.call({ op: 'debug', node: 'tests::is_two' } as never, ctx))) as { data: { result: string; outcome: string } }
       const stoppedOnTest = out.data.outcome === 'succeeded' && /reason breakpoint/.test(out.data.result)

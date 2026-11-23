@@ -24,7 +24,7 @@ CREATE TABLE restricted(id INTEGER PRIMARY KEY, item INTEGER REFERENCES items(id
 CREATE TABLE cascading(id INTEGER PRIMARY KEY, item INTEGER REFERENCES items(id) ON DELETE CASCADE); INSERT INTO cascading VALUES(1,3);`)
 seed.close()
 const kit = await readViewKit(home)
-const deleteHint = ' | change the row-delete path (previewSqliteDeletion, prepareSqliteDeletion, callStructuredWriteTarget) in src/tools/FileWriteTool/structuredTargets.ts, or the row read and identity in src/tools/FileReadTool/readRichFormats.ts'
+const deleteHint = ' | change the row-delete path (previewSqliteDeletion, prepareSqliteDeletion, callStructuredWriteTarget) in src/tools/write/structuredTargets.ts, or the row read and identity in src/tools/read/readRichFormats.ts'
 const check = (name: string, ok: boolean, detail = ''): void => kit.check(name, ok, ok ? detail : detail + deleteHint)
 let client = await readViewMcp(home)
 const read = (path: string) => client.call('Read', { file_path: path })
@@ -114,7 +114,7 @@ try {
   const denied = await del(`${file}:items/4`)
   check('delete suffix cannot evade a Write deny', /den|PermissionRefused/i.test(denied) && !denied.includes('items') && count('SELECT count(*) AS n FROM items WHERE id=4').n === 1, denied)
 } finally { await client.close() }
-const { FileWriteTool } = await import(`${kit.src}/tools/FileWriteTool/FileWriteTool.ts`)
+const { FileWriteTool } = await import(`${kit.src}/tools/write/WriteTool.ts`)
 const readBack = await kit.read(`${file}:items/4`)
 const remembered = kit.context.readFileState.get(`${file}:items/4`)?.sqliteRowIdentity
 check('row identity is retained without being printed', typeof remembered === 'string' && /^[a-f0-9]{64}$/.test(remembered) && !readBack.includes(remembered), readBack)

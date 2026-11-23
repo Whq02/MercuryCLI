@@ -7,14 +7,14 @@ import { fileURLToPath } from 'node:url'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.js')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.js')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_HOME', 'MERCURY_MODEL', 'MERCURY_COMPAT_BASE_URL', 'MERCURY_COMPAT_MODELS', 'MERCURY_COMPAT_LABEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
 for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_.*_API_KEY$/.test(key)) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-const root = fileURLToPath(new URL('../../', import.meta.url))
-assert.ok(existsSync(join(root, 'src/services/host/boxes.ts')), 'own computers are first-class recorded targets')
-const { discoverBox, readBox, listBoxes } = await import('../../src/services/host/boxes.js')
-const { boxInspectionScript, windowsBoxInspectionScript } = await import('../../src/services/host/ssh.js')
+const root = fileURLToPath(new URL('../..', import.meta.url))
+assert.ok(existsSync(join(root, 'src/models/hosting/boxes.ts')), 'own computers are first-class recorded targets')
+const { discoverBox, readBox, listBoxes } = await import('../../src/models/hosting/boxes.js')
+const { boxInspectionScript, windowsBoxInspectionScript } = await import('../../src/models/hosting/ssh.js')
 const facts = 'OS darwin\nARCH arm64\nHOME /fixture/home\nUID 501\nMEMORY 51539607552\nDISPLAYS {"SPDisplaysDataType":[{"sppci_model":"Apple test GPU"}]}\nENGINE ollama|/fixture/bin/ollama|0.34.4|11434\nENGINE llamacpp|/fixture/bin/llama-server|test-build|30000\nBANK /fixture/bank\n'
 const commands: { command: string; args: string[] }[] = []
 const runner = {
@@ -49,8 +49,8 @@ assert.match(windowsBoxInspectionScript, /Win32_ComputerSystem/)
 await assert.rejects(() => discoverBox({ name: '../escape', kind: 'this-computer' }, runner, signal))
 await assert.rejects(() => discoverBox({ name: 'bad', kind: 'ssh', target: { host: '-bad' } }, runner, signal))
 console.log('MERCURY HOST GREEN · discovery, persistence, memory, engines and banks; fixtures only')
-assert.ok(existsSync(join(root, 'src/services/host/boxRecipes.ts')), 'own computers have memory-based recipes')
-const { BOX_RECIPES, fitsBox, boxFitWords, boxWeightsWords } = await import('../../src/services/host/boxRecipes.js')
+assert.ok(existsSync(join(root, 'src/models/hosting/boxRecipes.ts')), 'own computers have memory-based recipes')
+const { BOX_RECIPES, fitsBox, boxFitWords, boxWeightsWords } = await import('../../src/models/hosting/boxRecipes.js')
 const large = BOX_RECIPES.find(row => row.id === 'glm53-flash-gguf')!
 assert.equal(fitsBox(large, local), false)
 assert.equal(boxFitWords(large, local), 'needs 200 GB; this box has 48')
@@ -69,8 +69,8 @@ console.log('MERCURY HOST GREEN · a llama.cpp recipe on a discrete-GPU box is f
 console.log('MERCURY HOST GREEN · honest memory fits and download confirmation words')
 const { mkdirSync, writeFileSync } = await import('node:fs')
 const { createHash } = await import('node:crypto')
-const { hostRunner } = await import('../../src/services/host/ssh.js')
-const { verifyBoxBank } = await import('../../src/services/host/boxBank.js')
+const { hostRunner } = await import('../../src/models/hosting/ssh.js')
+const { verifyBoxBank } = await import('../../src/models/hosting/boxBank.js')
 const bank = join(process.env.MERCURY_CONFIG_DIR, 'bank with spaces')
 mkdirSync(bank, { recursive: true })
 const contents = 'fixture model bytes'
@@ -83,7 +83,7 @@ await assert.rejects(() => verifyBoxBank(local, tiny, bank, hostRunner, signal),
 writeFileSync(join(bank, 'SHA256SUMS'), '0'.repeat(64) + '  ../escape\n')
 await assert.rejects(() => verifyBoxBank(local, tiny, bank, hostRunner, signal), /Unsafe path/)
 console.log('MERCURY HOST GREEN · bank verifies bytes, completeness and safe paths')
-const { boxFacts } = await import('../../src/services/host/boxes.js')
+const { boxFacts } = await import('../../src/models/hosting/boxes.js')
 if (process.platform === 'win32') {
   console.log('not read on Windows: POSIX boxInspectionScript engine loop uses /bin/sh')
 } else {
@@ -100,13 +100,13 @@ if (process.platform === 'win32') {
 }
 assert.match(windowsBoxInspectionScript, /\$ErrorActionPreference = 'Continue'; \$lines = @\(& \$cmd\.Source --version 2>&1/)
 console.log('MERCURY HOST GREEN · an engine is recorded with its version line, not its first log line')
-assert.ok(existsSync(join(root, 'src/services/host/boxService.ts')), 'engines have persistent owned services')
+assert.ok(existsSync(join(root, 'src/models/hosting/boxService.ts')), 'engines have persistent owned services')
 if (process.platform === 'win32') {
   console.log('not read on Windows: boxFixture shims use POSIX launchctl and /bin/sh')
   process.exit(0)
 }
-const { boxServiceDocument, boxServiceFiles, boxServiceRunning, controlBoxService } = await import('../../src/services/host/boxService.js')
-const { startBoxEngine } = await import('../../src/services/host/boxEngine.js')
+const { boxServiceDocument, boxServiceFiles, boxServiceRunning, controlBoxService } = await import('../../src/models/hosting/boxService.js')
+const { startBoxEngine } = await import('../../src/models/hosting/boxEngine.js')
 const { boxFixture } = await import('./boxFixture.mjs')
 const fixture = boxFixture(process.env.MERCURY_CONFIG_DIR)
 const { createServer } = await import('node:net')
@@ -120,17 +120,17 @@ try {
   assert.equal(started.state, 'running')
   assert.equal(started.contextPerSlot, 131072)
   assert.deepEqual(phases, ['verifying the bank at ' + fixture.bank, 'installing the llamacpp service', 'waiting for the engine to load Fixture/Box (up to 1 min) · mercury host logs service-fixture shows the engine output'], 'every long phase of an engine start says what it is doing, in order, before it waits')
-  assert.ok(existsSync(join(root, 'src/services/host/boxRegistration.ts')), 'own box service registers for every session')
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  assert.ok(existsSync(join(root, 'src/models/hosting/boxRegistration.ts')), 'own box service registers for every session')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const { registerBoxServer } = await import('../../src/services/host/boxRegistration.js')
+  const { registerBoxServer } = await import('../../src/models/hosting/boxRegistration.js')
   const model = 'compat/box-' + machine.name + '/' + recipe.model
   const register = async () => { assert.equal(await registerBoxServer(machine, fixture.runner, signal), model) }
   const bundleAt = process.argv.indexOf('--bundle')
   if (bundleAt >= 0) { const { proveBoxDaemon } = await import('./boxDaemonProof.ts'); await proveBoxDaemon(process.argv[bundleAt + 1]!, process.env.MERCURY_CONFIG_DIR!, model, register) }
   else await register()
-  const { namedCompatModelOptions } = await import('../../src/services/providers/openaicompat/compatCatalogue.js')
-  const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.js')
+  const { namedCompatModelOptions } = await import('../../src/models/roads/openaicompat/compatCatalogue.js')
+  const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.js')
   assert.ok(namedCompatModelOptions().some(row => row.value === model), `box service registration did not expose ${model} in namedCompatModelOptions; check boxRegistration.ts`)
   assert.equal(getContextWindowForModel(model), 131072)
   const settings = JSON.parse(readFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), 'utf8'))
@@ -148,10 +148,10 @@ try {
   assert.match(windows, /LogonTrigger/)
   assert.match(windows, /<ExecutionTimeLimit>PT0S<\/ExecutionTimeLimit>/)
   assert.match(windows, /InteractiveToken/)
-  const { boxServiceCommand } = await import('../../src/services/host/boxService.js')
+  const { boxServiceCommand } = await import('../../src/models/hosting/boxService.js')
   assert.match(boxServiceCommand({ ...machine, os: 'windows', home: 'C:\\Fixture\\Home' }, 'start'), /Register-ScheduledTask.*WindowsIdentity/)
   assert.match(boxServiceCommand({ ...machine, os: 'linux' }, 'start'), /systemctl --user enable/)
-  const { runBoxScript } = await import('../../src/services/host/boxExecution.js')
+  const { runBoxScript } = await import('../../src/models/hosting/boxExecution.js')
   let windowsCall: { command: string; args: string[] } | undefined
   await runBoxScript({ os: 'windows', target: { host: 'fixture.invalid' } }, 'Get-ScheduledTask', { ...runner, async run(command, args) { windowsCall = { command, args }; return '' } }, signal)
   assert.equal(windowsCall?.command, 'ssh')
@@ -165,7 +165,7 @@ try {
   const winBox = { ...machine, name: 'win-fixture', os: 'windows' as const, home: 'C:\\Fixture\\Home', arch: 'amd64', unifiedMemory: false, memoryGb: 64, gpus: [], engines: [] }
   const winScripts: string[] = []
   const winRunner = { ...runner, async run(_command: string, args: string[]) { const script = Buffer.from(args.at(-1)!, 'base64').toString('utf16le'); winScripts.push(script); if (script.includes('releases/download/v0.40.6')) throw new Error('install captured'); if (script.includes('Test-Path') || script.includes('WriteAllBytes') || script.includes('ScheduledTask')) return ''; throw new Error('not answering') } }
-  const { boxEngineScript } = await import('../../src/services/host/boxEngine.js')
+  const { boxEngineScript } = await import('../../src/models/hosting/boxEngine.js')
   const nemotron = BOX_RECIPES.find(row => row.id === 'nemotron35-bolt')!
   await assert.rejects(() => startBoxEngine(winBox, nemotron, { destination: 'C:\\Models', bank: false, confirmed: true, runner: winRunner }), /install captured/)
   assert.ok(winScripts.some(script => script.includes('RawContentStream') && script.includes('-UseBasicParsing')), 'Windows reads engine answers as raw UTF-8 without the Internet Explorer parser')
@@ -175,7 +175,7 @@ try {
   const winLine = new RegExp(/-match '([^']+)'/.exec(winInstall)![1]!)
   assert.ok(winLine.test('0'.repeat(64) + '  ./ollama-windows-amd64.zip') && !winLine.test('0'.repeat(64) + '  ./ollama-windows-amd64-rocm.zip'), 'the Windows checksum line is the archive the release lists')
   assert.match(boxEngineScript(winBox, nemotron, 'C:\\ollama\\ollama.exe', 'C:\\Models', 30000), /-RedirectStandardError '[^']+' *\n\$null=\$p\.Handle\n/)
-  const { installBoxService } = await import('../../src/services/host/boxService.js')
+  const { installBoxService } = await import('../../src/models/hosting/boxService.js')
   winScripts.length = 0
   await installBoxService(winBox, 'Write-Output engine', winRunner, signal)
   const written = (script: string) => Buffer.from(/FromBase64String\('([^']+)'\)/.exec(script)![1]!, 'base64')
@@ -206,26 +206,26 @@ try {
     const path = process.argv[serviceAt + 1]!; mkdirSync(path, { recursive: true })
     for (const [os, extension, home] of [['darwin', 'plist', '/fixture/home'], ['linux', 'service', '/fixture/home'], ['windows', 'xml', 'C:\\Fixture\\Home']] as const) writeFileSync(join(path, 'model-host.' + extension), boxServiceDocument({ ...machine, os, home }))
   }
-  const { writeBox } = await import('../../src/services/host/boxes.js')
+  const { writeBox } = await import('../../src/models/hosting/boxes.js')
   const { hostCommand } = await import('../../src/commands/host/index.js')
   writeBox(machine)
   const lines: string[] = []
   assert.equal(await hostCommand(['status', machine.name], { runner: fixture.runner, print: text => lines.push(text) }), 0)
   assert.ok(lines.some(line => line.includes('0/2 slots busy') && line.includes('tokens/s')), `host status output missing '0/2 slots busy' and 'tokens/s' (lines=${lines.join(' | ').slice(0, 180)}); check commands/host/index.ts`)
-  const { boxServiceLifetimeWords } = await import('../../src/services/host/boxService.js')
+  const { boxServiceLifetimeWords } = await import('../../src/models/hosting/boxService.js')
   const { HOST_HELP } = await import('../../src/commands/host/index.js')
   assert.match(boxServiceLifetimeWords({ ...machine, os: 'linux' }), /runs while you are logged in on service-fixture.*loginctl enable-linger/)
   assert.doesNotMatch(boxServiceLifetimeWords(machine), /linger/)
   assert.match(HOST_HELP, /runs while you are logged in on that computer.*loginctl enable-linger keeps it running without a login/)
   console.log('MERCURY HOST GREEN · the service lifetime is told as it is: while logged in, back at login, lingering on Linux')
-  const { compatCallModel } = await import('../../src/services/providers/openaicompat/compatCallModel.js')
-  const { createUserMessage } = await import('../../src/services/messages.js')
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+  const { compatCallModel } = await import('../../src/models/roads/openaicompat/compatCallModel.js')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.js')
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.js')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
   let reply = ''
   for await (const event of compatCallModel({ messages: [createUserMessage({ content: 'fixture turn' })], tools: [], systemPrompt: asSystemPrompt(['fixture']), thinkingConfig: { type: 'enabled', budgetTokens: 1024 }, signal, options: { model, effortValue: 'max', querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [] } })) if (event.type === 'assistant') reply += JSON.stringify(event.message.content)
   assert.match(reply, /BOX-FIXTURE-READY/)
-  const { readBoxService } = await import('../../src/services/host/boxService.js')
+  const { readBoxService } = await import('../../src/models/hosting/boxService.js')
   assert.equal(readBoxService(machine.name)!.rateKind, 'whole-turn')
   const boxTps = readBoxService(machine.name)!.tokensPerSecond
   assert.ok(boxTps! > 0, `box service tokensPerSecond=${boxTps}, expected >0 after fixture turn; check boxService.ts`)
@@ -238,7 +238,7 @@ try {
   } else assert.equal(await hostCommand(['stop', machine.name], { runner: fixture.runner, print: text => lines.push(text) }), 0)
   assert.equal(await boxServiceRunning(machine, fixture.runner, signal), false)
   assert.equal(namedCompatModelOptions().find(row => row.value === model)?.unavailable, 'box service-fixture · engine stopped — /llmhost starts it')
-  const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.js')
+  const { validateWorkerModelChoice } = await import('../../src/screen/concourse-model/workerModels.js')
   const refused = await validateWorkerModelChoice(model, 'session')
   assert.equal(refused.ok, false)
   if (!refused.ok) { assert.equal(refused.reason, 'unreachable:box'); assert.match(refused.detail!, /engine stopped/); assert.ok(!JSON.stringify(refused).includes('needs a key'), `stopped box refusal misleadingly said 'needs a key' (${JSON.stringify(refused).slice(0, 160)}); check workerModels.ts`) }
@@ -260,7 +260,7 @@ try {
   const remoteModel = await registerBoxServer(remoteMachine, fixture.runner, signal, tunnelHome)
   assert.equal(remoteModel, 'compat/box-remote-fixture/Fixture/Box')
   assert.match(readFileSync(boxServiceFiles(tunnelHome).script, 'utf8'), /ExitOnForwardFailure/)
-  const { stopBoxTunnel } = await import('../../src/services/host/boxRegistration.js')
+  const { stopBoxTunnel } = await import('../../src/models/hosting/boxRegistration.js')
   await stopBoxTunnel(remoteMachine, fixture.runner, signal, true, tunnelHome)
   await controlBoxService(remoteMachine, 'uninstall', fixture.runner, signal)
   assert.ok(fixture.commands.some((command: any) => command.command === 'ssh'), `remote SSH box lifecycle recorded 0 ssh commands (total=${fixture.commands.length}); check boxService/boxRegistration`)

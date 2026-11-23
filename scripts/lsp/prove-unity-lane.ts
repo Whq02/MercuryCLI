@@ -27,11 +27,11 @@ const {
   unityCsharpImplementationInfo,
   _resetUnityCsharpProbeForTesting,
   MERCURY_CSHARP_SERVER_NAME,
-} = await import('../../src/services/lsp/unityLane.js')
+} = await import('../../src/integrations/lsp/unityLane.js')
 const { getMercuryLspServerSources, builtinImplementationInfo } = await import(
-  '../../src/services/lsp/builtinServers.js'
+  '../../src/integrations/lsp/builtinServers.js'
 )
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
 
 const savedEnv = { ...process.env }
 function restore(): void {
@@ -75,9 +75,9 @@ section('§1 · opt-in polarity (default OFF, byte-identical)')
       () => !(MERCURY_CSHARP_SERVER_NAME in getMercuryLspServerSources().builtin),
     ),
     '',
-    'builtinUnityCsharpServer in src/services/lsp/unityLane.ts must return {} unless mercuryUnityEnabled() (MERCURY_UNITY) is on; check getMercuryLspServerSources in src/services/lsp/builtinServers.ts',
+    'builtinUnityCsharpServer in src/integrations/lsp/unityLane.ts must return {} unless mercuryUnityEnabled() (MERCURY_UNITY) is on; check getMercuryLspServerSources in src/integrations/lsp/builtinServers.ts',
   )
-  check('unset: no readiness row at all', runWithCwdOverride(proj, () => unityLaneReadinessRecords().length === 0), '', 'unityLaneReadinessRecords in src/services/lsp/unityLane.ts must return [] unless MERCURY_UNITY is on')
+  check('unset: no readiness row at all', runWithCwdOverride(proj, () => unityLaneReadinessRecords().length === 0), '', 'unityLaneReadinessRecords in src/integrations/lsp/unityLane.ts must return [] unless MERCURY_UNITY is on')
   process.env.MERCURY_UNITY = '1'
   check(
     'armed but outside a Unity project: still no source',
@@ -86,7 +86,7 @@ section('§1 · opt-in polarity (default OFF, byte-identical)')
       () => !(MERCURY_CSHARP_SERVER_NAME in getMercuryLspServerSources().builtin),
     ),
     '',
-    'builtinUnityCsharpServer in src/services/lsp/unityLane.ts must return {} when findUnityProjectRoot (src/utils/unity/unityProject.ts) finds no Assets/ + ProjectSettings/ from the working directory',
+    'builtinUnityCsharpServer in src/integrations/lsp/unityLane.ts must return {} when findUnityProjectRoot (src/integrations/unity-protocol/unityProject.ts) finds no Assets/ + ProjectSettings/ from the working directory',
   )
 }
 
@@ -100,7 +100,7 @@ section('§2 · probe resolution order (PATH shims; remedies honest)')
     'both present ⇒ csharp-ls wins, no args',
     probe.available && probe.server === 'csharp-ls' && (probe.args ?? []).length === 0,
     '',
-    'probeUnityCsharpServer in src/services/lsp/unityLane.ts must prefer csharp-ls on PATH and give it no args',
+    'probeUnityCsharpServer in src/integrations/lsp/unityLane.ts must prefer csharp-ls on PATH and give it no args',
   )
   _resetUnityCsharpProbeForTesting()
   process.env.PATH = binOmni
@@ -109,7 +109,7 @@ section('§2 · probe resolution order (PATH shims; remedies honest)')
     "OmniSharp alone ⇒ omnisharp with the load-bearing -lsp flag",
     probe.available && probe.server === 'omnisharp' && (probe.args ?? []).join(' ') === '-lsp',
     '',
-    'probeUnityCsharpServer in src/services/lsp/unityLane.ts must fall back to OmniSharp with args [-lsp] when csharp-ls is absent',
+    'probeUnityCsharpServer in src/integrations/lsp/unityLane.ts must fall back to OmniSharp with args [-lsp] when csharp-ls is absent',
   )
   _resetUnityCsharpProbeForTesting()
   process.env.PATH = binDotnet
@@ -118,7 +118,7 @@ section('§2 · probe resolution order (PATH shims; remedies honest)')
     'absent with dotnet ⇒ the tool-install remedy',
     !probe.available && (probe.reason ?? '').includes('dotnet tool install --global csharp-ls'),
     '',
-    'probeUnityCsharpServer in src/services/lsp/unityLane.ts must set an unavailable reason naming dotnet tool install --global csharp-ls when dotnet is on PATH',
+    'probeUnityCsharpServer in src/integrations/lsp/unityLane.ts must set an unavailable reason naming dotnet tool install --global csharp-ls when dotnet is on PATH',
   )
   _resetUnityCsharpProbeForTesting()
   process.env.PATH = binEmpty
@@ -127,7 +127,7 @@ section('§2 · probe resolution order (PATH shims; remedies honest)')
     'absent without dotnet ⇒ the SDK-first remedy',
     !probe.available && (probe.reason ?? '').includes('.NET SDK first'),
     '',
-    'probeUnityCsharpServer in src/services/lsp/unityLane.ts must set an unavailable reason saying to install the .NET SDK first when dotnet is also absent',
+    'probeUnityCsharpServer in src/integrations/lsp/unityLane.ts must set an unavailable reason saying to install the .NET SDK first when dotnet is also absent',
   )
 }
 
@@ -138,20 +138,20 @@ section('§3 · config shape + claim order')
   process.env.PATH = binBoth
   const sources = runWithCwdOverride(proj, () => getMercuryLspServerSources().builtin)
   const config = sources[MERCURY_CSHARP_SERVER_NAME]
-  check('armed + project + server ⇒ the source exists', config !== undefined, '', 'builtinUnityCsharpServer in src/services/lsp/unityLane.ts returned no mercury-csharp entry; check its MERCURY_UNITY, project-root and probe gates, and the spread in getMercuryLspServerSources (src/services/lsp/builtinServers.ts)')
+  check('armed + project + server ⇒ the source exists', config !== undefined, '', 'builtinUnityCsharpServer in src/integrations/lsp/unityLane.ts returned no mercury-csharp entry; check its MERCURY_UNITY, project-root and probe gates, and the spread in getMercuryLspServerSources (src/integrations/lsp/builtinServers.ts)')
   check(
     'claim: .cs → csharp only',
     config !== undefined &&
       Object.keys(config.extensionToLanguage).join(',') === '.cs' &&
       config.extensionToLanguage['.cs'] === 'csharp',
     '',
-    'CS_EXTENSION_TO_LANGUAGE in src/services/lsp/unityLane.ts must map only .cs to csharp',
+    'CS_EXTENSION_TO_LANGUAGE in src/integrations/lsp/unityLane.ts must map only .cs to csharp',
   )
   check(
     'workspaceFolder = the Unity project root; source mercury-builtin; stdio',
     config?.workspaceFolder === proj && config?.source === 'mercury-builtin' && config?.transport === 'stdio',
     '',
-    'the config built by builtinUnityCsharpServer in src/services/lsp/unityLane.ts must carry workspaceFolder = the Unity root, source mercury-builtin and transport stdio',
+    'the config built by builtinUnityCsharpServer in src/integrations/lsp/unityLane.ts must carry workspaceFolder = the Unity root, source mercury-builtin and transport stdio',
   )
   const names = Object.keys(sources)
   check(
@@ -160,7 +160,7 @@ section('§3 · config shape + claim order')
       (names.indexOf(MERCURY_CSHARP_SERVER_NAME) < names.indexOf('mercury-pyright') ||
         !names.includes('mercury-pyright')),
     names.join(' → '),
-    'mercury-csharp must be listed before mercury-pyright in getMercuryLspServerSources (src/services/lsp/builtinServers.ts)',
+    'mercury-csharp must be listed before mercury-pyright in getMercuryLspServerSources (src/integrations/lsp/builtinServers.ts)',
   )
 }
 
@@ -174,7 +174,7 @@ section('§4 · readiness honesty (armed states)')
     'armed, no project ⇒ ONE configured row teaching where it activates',
     rows.length === 1 && rows[0]?.state === 'configured' && rows[0].detail.includes('activates in a Unity project'),
     '',
-    'unityLaneReadinessRecords in src/services/lsp/unityLane.ts must return one configured row whose detail says it activates in a Unity project when no project root is found',
+    'unityLaneReadinessRecords in src/integrations/lsp/unityLane.ts must return one configured row whose detail says it activates in a Unity project when no project root is found',
   )
   _resetUnityCsharpProbeForTesting()
   process.env.PATH = binEmpty
@@ -183,7 +183,7 @@ section('§4 · readiness honesty (armed states)')
     'armed, project, no server ⇒ unavailable with the remedy',
     rows.length === 1 && rows[0]?.state === 'unavailable' && (rows[0].remedy ?? '').includes('.NET SDK'),
     '',
-    'unityLaneReadinessRecords in src/services/lsp/unityLane.ts must return one unavailable row with the probe reason (naming the .NET SDK) as its remedy when no server is on PATH',
+    'unityLaneReadinessRecords in src/integrations/lsp/unityLane.ts must return one unavailable row with the probe reason (naming the .NET SDK) as its remedy when no server is on PATH',
   )
   _resetUnityCsharpProbeForTesting()
   process.env.PATH = binBoth
@@ -195,7 +195,7 @@ section('§4 · readiness honesty (armed states)')
       rows[0].detail.includes('csharp-ls') &&
       rows[0].detail.includes(proj),
     '',
-    'unityLaneReadinessRecords in src/services/lsp/unityLane.ts must return one configured row whose detail names the server binary and the project root',
+    'unityLaneReadinessRecords in src/integrations/lsp/unityLane.ts must return one configured row whose detail names the server binary and the project root',
   )
 }
 
@@ -204,16 +204,16 @@ section('§5 · implementation provenance')
   restore()
   process.env.MERCURY_UNITY = '1'
   process.env.PATH = binBoth
-  check('probe available ⇒ PATH provenance', unityCsharpImplementationInfo()?.source === 'path', '', 'unityCsharpImplementationInfo in src/services/lsp/unityLane.ts must return source path when the probe finds a server')
+  check('probe available ⇒ PATH provenance', unityCsharpImplementationInfo()?.source === 'path', '', 'unityCsharpImplementationInfo in src/integrations/lsp/unityLane.ts must return source path when the probe finds a server')
   check(
     "builtinImplementationInfo('mercury-csharp') rides the same hook",
     builtinImplementationInfo(MERCURY_CSHARP_SERVER_NAME)?.source === 'path',
     '',
-    'builtinImplementationInfo in src/services/lsp/builtinServers.ts must route mercury-csharp to unityCsharpImplementationInfo',
+    'builtinImplementationInfo in src/integrations/lsp/builtinServers.ts must route mercury-csharp to unityCsharpImplementationInfo',
   )
   _resetUnityCsharpProbeForTesting()
   process.env.PATH = binEmpty
-  check('probe absent ⇒ null provenance', unityCsharpImplementationInfo() === null, '', 'unityCsharpImplementationInfo in src/services/lsp/unityLane.ts must return null when the probe finds no server')
+  check('probe absent ⇒ null provenance', unityCsharpImplementationInfo() === null, '', 'unityCsharpImplementationInfo in src/integrations/lsp/unityLane.ts must return null when the probe finds no server')
 }
 
 restore()

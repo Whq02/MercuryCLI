@@ -2,7 +2,7 @@
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { ASH_RAISED } from '../../src/components/mercuryPalette.ts'
+import { ASH_RAISED } from '../../src/screen/theme/mercuryPalette.ts'
 import { CONFIG_HOME, cleanupScenario, scenario } from '../ui/renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
@@ -10,7 +10,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    fix the vitals rail rows (onSelect, onActivate) in src/components/HelmVitalsRail.tsx and the pointer handling in src/components/fullscreenLayout/frame.tsx; if the detail says anchors unavailable or the PTY capture did not run, the cockpit-short scenario in scripts/ui/renderScenarios.ts did not paint the ctx, HEALTH and USAGE rail rows')
+  if (!cond) console.log('    fix the vitals rail rows (onSelect, onActivate) in src/screen/fullscreen-layout/HelmVitalsRail.tsx and the pointer handling in src/screen/fullscreen-layout/frame.tsx; if the detail says anchors unavailable or the PTY capture did not run, the cockpit-short scenario in scripts/ui/renderScenarios.ts did not paint the ctx, HEALTH and USAGE rail rows')
 }
 
 type Cell = { c: string; bg?: string }

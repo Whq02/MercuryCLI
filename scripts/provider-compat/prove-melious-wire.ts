@@ -5,10 +5,10 @@ import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import { z } from 'zod/v4'
 import fixture from '../providers/fixtures/melious-documented-2026-10-24.json'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const name of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'ANTHROPIC_BASE_URL']) delete process.env[name]
 process.env.MELIOUS_API_KEY = 'proof-key-melious-wire-not-a-real-key'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -63,18 +63,18 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
 } })
 process.env.MERCURY_MELIOUS_API_BASE = `http://127.0.0.1:${server.port}/v1`
 let count = 0
-const meliousFixHint = 'fix the Melious road for this check: the wire body (buildMeliousExtras) and the stream decoder (streamMeliousChat) in src/services/providers/melious/meliousCallModel.ts, the route in src/services/providers/routeLaw.ts, readiness in src/services/providers/primaryBackend.ts, billing state in src/services/providers/laneBillingState.ts, crewmate dispatch in src/services/crew/engineDispatch.ts'
+const meliousFixHint = 'fix the Melious road for this check: the wire body (buildMeliousExtras) and the stream decoder (streamMeliousChat) in src/models/roads/melious/meliousCallModel.ts, the route in src/models/roads/routeLaw.ts, readiness in src/models/roads/primaryBackend.ts, billing state in src/models/roads/laneBillingState.ts, crewmate dispatch in src/crew/crewmates/engineDispatch.ts'
 const check = (name: string, value: unknown): void => { assert.ok(value, `${name} — ${meliousFixHint}`); count++; console.log(`[PASS] ${name}`) }
 try {
-  const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
-  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-  const { classifyModelRoute, canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
-  const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
-  const { buildMeliousExtras, streamMeliousChat } = await import('../../src/services/providers/melious/meliousCallModel.ts')
-  const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-  const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+  const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+  const { classifyModelRoute, canonicalWireModelId } = await import('../../src/models/roads/routeLaw.ts')
+  const { resolvePrimaryAgentBackend } = await import('../../src/models/roads/primaryBackend.ts')
+  const { buildMeliousExtras, streamMeliousChat } = await import('../../src/models/roads/melious/meliousCallModel.ts')
+  const { laneBillingState } = await import('../../src/models/roads/laneBillingState.ts')
+  const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
   const tool = { name: 'get_weather', description: async () => 'Current weather for a city', prompt: async () => 'Current weather for a city', inputSchema: z.object({ city: z.string() }), userFacingName: () => 'get_weather', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
   function params(model = 'melious/glm-5.3', messages: Message[] = [createUserMessage({ content: 'Weather in Hamburg?' })]): CompatCallModelParams {
     return { messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: { type: 'enabled', budgetTokens: 4096 }, signal: new AbortController().signal,

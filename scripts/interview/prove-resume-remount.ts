@@ -11,9 +11,9 @@ process.env.MERCURY_CONFIG_DIR = join(scratch, 'config')
 
 const { checker } = await import('../engine-durability/harness.ts')
 const { commitAnswer, draftAnswer, navigateTo, presentToolCall, setNote, submitInterview } =
-  await import('../../src/services/interview/controller.ts')
+  await import('../../src/tools/engines/interview/controller.ts')
 const { flushInterviewLog, interviewSnapshot, _resetInterviewForProofs } = await import(
-  '../../src/services/interview/store.ts'
+  '../../src/tools/engines/interview/store.ts'
 )
 
 const t = checker()
@@ -23,9 +23,9 @@ const baseSection = t.section.bind(t)
 t.check = (label, cond, detail) => baseCheck(label, cond, cond ? detail : detail ? `${detail} — ${failHint}` : failHint)
 t.section = title => {
   if (title.startsWith('§1') || title.startsWith('§3') || title.startsWith('§4') || title.startsWith('§5')) {
-    failHint = 'fix presentToolCall in src/services/interview/controller.ts (the join and adopt branch, which calls adoptDurableSessionSync in src/services/interview/store.ts)'
+    failHint = 'fix presentToolCall in src/tools/engines/interview/controller.ts (the join and adopt branch, which calls adoptDurableSessionSync in src/tools/engines/interview/store.ts)'
   } else if (title.startsWith('§2')) {
-    failHint = 'fix adoptDurableSessionSync in src/services/interview/store.ts (the durable session replay) or presentToolCall in src/services/interview/controller.ts'
+    failHint = 'fix adoptDurableSessionSync in src/tools/engines/interview/store.ts (the durable session replay) or presentToolCall in src/tools/engines/interview/controller.ts'
   }
   baseSection(title)
 }

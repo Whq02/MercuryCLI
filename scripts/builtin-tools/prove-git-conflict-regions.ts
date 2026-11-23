@@ -8,8 +8,8 @@ function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
   const hint = label.startsWith('published Git prompt')
-    ? 'the Git tool prompt and input schema in src/tools/GitTool/GitTool.ts must match scripts/tool-economy/fixtures/definition-corpus.json and fit the 4404 character budget'
-    : 'op:"conflicts" and op:"resolve" of the Git tool (src/tools/GitTool/GitTool.ts, which uses src/services/gitGraph/conflictRegions.ts) produce this result; compare the output shown with the label'
+    ? 'the Git tool prompt and input schema in src/tools/git/GitTool.ts must match scripts/tool-economy/fixtures/definition-corpus.json and fit the 4404 character budget'
+    : 'op:"conflicts" and op:"resolve" of the Git tool (src/tools/git/GitTool.ts, which uses src/platform/git-graph/conflictRegions.ts) produce this result; compare the output shown with the label'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}to fix: ${hint}` : ''}`)
 }
 const world = gitFixture('git-regions-')

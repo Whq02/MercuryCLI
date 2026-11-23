@@ -28,21 +28,21 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  const failHint = ' — a rail painted partly: the left rail is src/components/HelmLanesRail.tsx, the right rail is src/components/HelmVitalsRail.tsx with its rows from src/services/cockpit/helmVitalsModel.ts; shed or hide a section whole when the pane is too short; rerun with --frames <dir> to read the frames'
+  const failHint = ' — a rail painted partly: the left rail is src/screen/fullscreen-layout/HelmLanesRail.tsx, the right rail is src/screen/fullscreen-layout/HelmVitalsRail.tsx with its rows from src/screen/cockpit-gauges/helmVitalsModel.ts; shed or hide a section whole when the pane is too short; rerun with --frames <dir> to read the frames'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : failHint}`)
 }
 
 const React = await import('react')
 const h = React.createElement
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
@@ -62,7 +62,7 @@ function Harness({ columns, cardRows }: { columns: number; cardRows: number }): 
 const wrap = (node: React.ReactNode): React.ReactNode => h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(KeybindingSetup, null, node))
 
 
-const { getHelmRows } = await import('../../src/utils/cockpit/helmFocus.ts')
+const { getHelmRows } = await import('../../src/screen/cockpit/helmFocus.ts')
 function tornRailBoxes(lines: string[], columns: number, paneRows: number): string[] {
   const paneLeft = (lines[0] ?? '').indexOf('╭')
   const paneRight = (lines[0] ?? '').indexOf('╮', paneLeft + 1)

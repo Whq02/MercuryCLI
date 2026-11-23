@@ -10,7 +10,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-svc-ownership
 delete process.env.MERCURY_SERVICES
 
 let failures = 0
-const serviceStopWhere = 'fix decideServiceStrike, stopService (strike only a pid whose start token matches) or startService (records pid and startToken) in src/services/projectServices/serviceManager.ts'
+const serviceStopWhere = 'fix decideServiceStrike, stopService (strike only a pid whose start token matches) or startService (records pid and startToken) in src/tools/engines/project-services/serviceManager.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${serviceStopWhere}` : ''}`)
@@ -19,7 +19,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const manager = await import('../../src/services/projectServices/serviceManager.ts')
+const manager = await import('../../src/tools/engines/project-services/serviceManager.ts')
 const { readRecord, servicesDir, startService, stopService } = manager as unknown as {
   readRecord: (cwd: string, name: string) => Record<string, unknown> | null
   servicesDir: (cwd: string) => string

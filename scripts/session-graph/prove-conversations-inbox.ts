@@ -8,10 +8,10 @@ import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
-const conv = await import('../../src/services/crew/conversations.ts')
-const inbox = await import('../../src/services/crew/inbox.ts')
-type ConversationV1 = import('../../src/services/crew/conversations.ts').ConversationV1
-type InboxRowV1 = import('../../src/services/crew/inbox.ts').InboxRowV1
+const conv = await import('../../src/crew/crewmates/conversations.ts')
+const inbox = await import('../../src/crew/crewmates/inbox.ts')
+type ConversationV1 = import('../../src/crew/crewmates/conversations.ts').ConversationV1
+type InboxRowV1 = import('../../src/crew/crewmates/inbox.ts').InboxRowV1
 
 const dir = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'crew-conv-')))
 const OP = 'op-test-operator'

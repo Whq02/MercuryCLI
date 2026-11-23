@@ -10,14 +10,14 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_HOME
 
 let failures = 0
-const tier1wFixHint = ' | fix: a command that reads stdin and the shell timeout are exec in src/utils/Shell.ts; exit-code verdicts for where, fc, comp, diff, cmp and findstr are interpretCommandResult in src/tools/PowerShellTool/commandSemantics.ts; the UTF-8 prelude and its order are UTF8_OUTPUT_PRELUDE and createPowerShellProvider in src/utils/shell/powershellProvider.ts'
+const tier1wFixHint = ' | fix: a command that reads stdin and the shell timeout are exec in src/platform/shell/shellExec.ts; exit-code verdicts for where, fc, comp, diff, cmp and findstr are interpretCommandResult in src/tools/powershell/commandSemantics.ts; the UTF-8 prelude and its order are UTF8_OUTPUT_PRELUDE and createPowerShellProvider in src/platform/shell/powershellProvider.ts'
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : tier1wFixHint}`)
   if (!ok) failures = 1
 }
 
 {
-  const { exec } = await import('../../src/utils/Shell.ts')
+  const { exec } = await import('../../src/platform/shell/shellExec.ts')
   const started = Date.now()
   const handle = await exec('cat', new AbortController().signal, 'bash', { timeout: 6_000 })
   const result = await handle.result
@@ -32,7 +32,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 {
-  const { interpretCommandResult } = await import('../../src/tools/PowerShellTool/commandSemantics.ts')
+  const { interpretCommandResult } = await import('../../src/tools/powershell/commandSemantics.ts')
   const verdict = (cmd: string, code: number) => interpretCommandResult(cmd, code, '', '')
   t('where.exe exit 1 is a not-found answer, not an error', verdict('where.exe git', 1).isError === false && /not found/.test(verdict('where.exe git', 1).message ?? ''))
   t('where exit 0 is plain success', verdict('where git', 0).isError === false)
@@ -47,7 +47,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 {
-  const { createPowerShellProvider, UTF8_OUTPUT_PRELUDE } = await import('../../src/utils/shell/powershellProvider.ts')
+  const { createPowerShellProvider, UTF8_OUTPUT_PRELUDE } = await import('../../src/platform/shell/powershellProvider.ts')
   const provider = createPowerShellProvider('pwsh')
   const assembled = await provider.buildExecCommand('Get-ChildItem', { id: 'e005' })
   const command = assembled.commandString

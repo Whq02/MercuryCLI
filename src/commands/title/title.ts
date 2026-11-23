@@ -1,6 +1,6 @@
-import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js'
-import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
-import { extractConversationText, generateSessionTitle } from '../../services/concourse/sessionTitle.js'
+import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../catalogue/command.js'
+import { getFocusedSessionConnector, hasFocusedSession } from '../../engine/connector/focusedConnector.js'
+import { extractConversationText, generateSessionTitle } from '../../screen/concourse-model/sessionTitle.js'
 
 export async function call(
   onDone: LocalJSXCommandOnDone,
@@ -25,7 +25,7 @@ export async function call(
     title = generated
   }
   try {
-    const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
+    const { daemonControlRpc } = await import('../../daemon/control/controlSocket.js')
     const reply = await daemonControlRpc(
       { op: 'sessionControl', action: 'set-title', sessionId, by: 'operator', title, titleSource: 'operator' },
       { timeoutMs: 10_000 },

@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto'
 import { DIST, NODE, SCRATCH_ROOT, makeTally, sleep } from './dupline-world.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { copyDistChunks } from '../lib/copyDistChunks.ts'
-import { SESSIONLESS_EXIT_GRACE_MS, SESSIONLESS_EXIT_BEAT_MS } from '../../src/daemon/sessionlessExit.ts'
+import { SESSIONLESS_EXIT_GRACE_MS, SESSIONLESS_EXIT_BEAT_MS } from '../../src/daemon/control/sessionlessExit.ts'
 
 if (process.platform === 'win32') {
   console.log('__SUITE_SKIPPED old-build-runner-retirement: simultaneous daemon handover uses POSIX sockets; Windows waits for live sessions to close')
@@ -100,17 +100,17 @@ const oldScript = buildIdentity('before', oldTree)
 const newScript = buildIdentity('after', newTree)
 install(oldScript)
 process.chdir(work)
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { focusDaemonSession } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const { releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { runnerStatusWords } = await import('../../src/components/SwitchboardTagBar.tsx')
-const { decideHandover } = await import('../../src/daemon/handover.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/control/protocol.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+const { focusDaemonSession } = await import('../../src/engine/connector/daemonConnector.ts')
+const { releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+const { runnerStatusWords } = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
+const { decideHandover } = await import('../../src/daemon/control/handover.ts')
 const hello = () => daemonControlRpc({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: '1.0.0', clientBuildTree: null }, { timeoutMs: 1500 })
 const admit = () => daemonControlRpc({ op: 'sessionAdmit', proto: MERCURY_DAEMON_PROTO, workspaceDir: work, isolation: 'shared', model, bypassConsent: true, by: 'operator', birthKey: randomUUID(), bornBlank: true }, { timeoutMs: 60_000 })
 

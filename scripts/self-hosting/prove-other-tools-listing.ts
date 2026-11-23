@@ -5,9 +5,9 @@ import { checker, openWorld, slashed } from './instructionWorld.ts'
 const world = openWorld('other-tools-listing')
 const { check, section, close } = checker()
 const same = (got: string[], want: string[]): boolean => JSON.stringify(got) === JSON.stringify(want)
-const rowsWhere = ' | change toolPrefixOf and loadedStateOf in src/services/instructions/listing.ts'
-const listedWhere = ' | change getInstructionListing and listingRowWords in src/services/instructions/listing.ts'
-const healthWhere = ' | change sharedSourcesNote in src/services/instructions/listing.ts'
+const rowsWhere = ' | change toolPrefixOf and loadedStateOf in src/sessions/instructions/listing.ts'
+const listedWhere = ' | change getInstructionListing and listingRowWords in src/sessions/instructions/listing.ts'
+const healthWhere = ' | change sharedSourcesNote in src/sessions/instructions/listing.ts'
 
 try {
   section('a project with no MERCURY.md: every file is named with its tool and with when it loads')
@@ -41,7 +41,7 @@ try {
   check('before any file is touched a scoped rule reads "loads with", and each rule that is not sent says why', same(d1.listedBefore, ['Cursor · ./.cursor/rules/b-scoped.mdc · loads with src/**/*.ts', ...dormant]), JSON.stringify(d1.listedBefore) + listedWhere)
   check('once a matching file was touched it reads "loaded with"', same(d1.listed, ['Cursor · ./.cursor/rules/b-scoped.mdc · loaded with src/**/*.ts', ...dormant]), JSON.stringify(d1.listed) + listedWhere)
   check('the footer of the list says what the auto profile reads and that a row says when its file loads', d1.words.footer === "profile auto: MERCURY.md, or other tools' files when there is none · a row says when its file loads", d1.words.footer + ' | change profileStatusLine in src/commands/memory/memory.tsx')
-  check('the row of the memory centre says the same of the profile', d1.words.centre === "MERCURY.md, or other tools' files when there is none · editor and the memory switch", d1.words.centre + ' | change filesRow in src/components/memory/memoryCentreLayout.ts')
+  check('the row of the memory centre says the same of the profile', d1.words.centre === "MERCURY.md, or other tools' files when there is none · editor and the memory switch", d1.words.centre + ' | change filesRow in src/screen/memory/memoryCentreLayout.ts')
 
   check('the health note counts the sources by tool', d1.words.health === '4 source(s) from other tools (AGENTS.md 1 · Gemini 1 · Cursor 2): no MERCURY.md in or above the working directory', d1.words.health + healthWhere)
   const p1b = world.project({ 'AGENTS.md': 'agents-needle\n@docs/x.md\n', 'docs/x.md': 'imported-needle\n' })

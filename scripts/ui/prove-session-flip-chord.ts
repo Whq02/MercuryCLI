@@ -7,10 +7,10 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 console.log('§1 the registry carries no flip action and no default chord for it')
-const { ACTION_GRAPH } = await import('../../src/keybindings/actionGraph.js')
+const { ACTION_GRAPH } = await import('../../src/screen/keys/actionGraph.js')
 const graph = ACTION_GRAPH as Record<string, { contexts: string[] }>
 check('no chat:flipSession* action stands in the graph', !Object.keys(graph).some(name => name.startsWith('chat:flipSession')), Object.keys(graph).filter(name => name.startsWith('chat:flipSession')).join(', '))
-const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.js')
+const { DEFAULT_BINDINGS } = await import('../../src/screen/keys/defaultBindings.js')
 const blocks = DEFAULT_BINDINGS as { context: string; bindings: Record<string, string> }[]
 const chat = Object.assign({}, ...blocks.filter(b => b.context === 'Chat').map(b => b.bindings)) as Record<string, string>
 check('the Chat defaults bind neither meta+left nor meta+right', chat['meta+left'] === undefined && chat['meta+right'] === undefined, `${chat['meta+left'] ?? ''} ${chat['meta+right'] ?? ''}`)

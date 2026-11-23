@@ -1,21 +1,21 @@
-import { getPlatform } from '../../src/utils/platform.js'
-import { getFsImplementation, setFsImplementation } from '../../src/utils/fsOperations.js'
+import { getPlatform } from '../../src/platform/environment/platform.js'
+import { getFsImplementation, setFsImplementation } from '../../src/platform/files/fsOperations.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.js')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.js')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.js')
-const { GlobTool } = await import('../../src/tools/GlobTool/GlobTool.js')
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.js')
-const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.js')
-const { TransactionTool } = await import('../../src/tools/TransactionTool/TransactionTool.js')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.js')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.js')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.js')
+const { GlobTool } = await import('../../src/tools/glob/GlobTool.js')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.js')
+const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.js')
+const { TransactionTool } = await import('../../src/tools/transaction/TransactionTool.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
 const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs')
 const { tmpdir } = await import('node:os')
 const { join } = await import('node:path')
-const { checkReadPermissionForTool, checkWritePermissionForTool } = await import('../../src/utils/permissions/filesystem.js')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
-const { powershellToolHasPermission } = await import('../../src/tools/PowerShellTool/powershellPermissions.js')
+const { checkReadPermissionForTool, checkWritePermissionForTool } = await import('../../src/permissions/rules/filesystem.js')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.js')
+const { powershellToolHasPermission } = await import('../../src/tools/powershell/powershellPermissions.js')
 const fs = getFsImplementation()
 let touches = 0
 setFsImplementation(new Proxy(fs, { get(target, key) {
@@ -25,7 +25,7 @@ setFsImplementation(new Proxy(fs, { get(target, key) {
 } }))
 const context = { getAppState: () => ({ toolPermissionContext: { mode: 'default', alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {} } }), options: {}, abortController: new AbortController() } as never
 let failed = 0
-function check(name: string, ok: boolean) { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ' — the share and device-path risk check is uncPathRisk in src/utils/permissions/uncPath.ts and windowsPathNeedsPermission in src/utils/permissions/windowsPath.ts; the tools reach it through their checkPermissions, src/utils/permissions/filesystem.ts, bashPermissions.ts and powershellPermissions.ts'}`); if (!ok) failed++ }
+function check(name: string, ok: boolean) { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ' — the share and device-path risk check is uncPathRisk in src/permissions/rules/uncPath.ts and windowsPathNeedsPermission in src/permissions/rules/windowsPath.ts; the tools reach it through their checkPermissions, src/permissions/rules/filesystem.ts, bashPermissions.ts and powershellPermissions.ts'}`); if (!ok) failed++ }
 const remote = String.raw`/\127.0.0.1/share/file.txt`
 getPlatform.cache.set(undefined, 'windows')
 const roads = [
@@ -55,8 +55,8 @@ check('Transaction root asks before probing', tx.behavior === 'ask' && tx.messag
 const project = mkdtempSync(join(tmpdir(), 'unc-record-'))
 try {
   writeFileSync(join(project, 'pyproject.toml'), '[project]\nname = "unc-proof"\n')
-  const { openTransaction } = await import('../../src/services/ide/ideTransaction.js')
-  const { projectHomeStore } = await import('../../src/utils/projectHomeStores.js')
+  const { openTransaction } = await import('../../src/integrations/ide/ideTransaction.js')
+  const { projectHomeStore } = await import('../../src/platform/storage/projectHomeStores.js')
   const record = await openTransaction({ from: project, owner: 'unc-proof' as never, intent: 'record path check' })
   const dir = projectHomeStore(record.projectRoot, 'ide-transactions')
   record.projectRoot = remote
@@ -87,7 +87,7 @@ if (!process.argv.includes('--file-roads')) {
   const psCommand = `Get-Content '${remote}'`
   const ps = await powershellToolHasPermission({ command: psCommand }, context)
   check('PowerShell uses the shared warning', ps.behavior === 'ask' && ps.message.includes('SMB/WebDAV'))
-  const { uncPathRisk } = await import('../../src/utils/permissions/uncPath.js')
+  const { uncPathRisk } = await import('../../src/permissions/rules/uncPath.js')
   const forms = [
     ['backslash', String.raw`\\localhost\share`],
     ['slash', '//localhost/share'],
@@ -122,7 +122,7 @@ if (!process.argv.includes('--file-roads')) {
   check('a path input keeps the host-alone floor off the command road', uncPathRisk('//localhost').risky)
   const flagged = await bashToolHasPermission({ command: 'taskkill //PID 1234 //F' }, shellContext)
   check('Bash on Windows does not raise the share floor for a Git Bash flag spelling', !flagged.message.includes('SMB/WebDAV'))
-  for (const input of ['C:\\project\\file.txt', '/usr/local/file', './file', 'https://localhost/page', String.raw`\\?\C:\project\file`, String.raw`\\.\C:\project\file`, String.raw`"C:\\Users\\someone\\x"`, String.raw`cp "C:\\Users\\someone\\x" D:\\y`]) check(`local or web ${input}`, !uncPathRisk(input).risky)
+  for (const input of ['C:\\project\\file.txt', '/usr/local/file', '../files/file', 'https://localhost/page', String.raw`\\?\C:\project\file`, String.raw`\\.\C:\project\file`, String.raw`"C:\\Users\\someone\\x"`, String.raw`cp "C:\\Users\\someone\\x" D:\\y`]) check(`local or web ${input}`, !uncPathRisk(input).risky)
   for (const command of [String.raw`cp "C:\\Users\\someone\\x" "D:\\y"`, String.raw`type C:\\Users\\someone\\notes.txt`]) check(`an escaped drive path is no share on the command road: ${command}`, !uncPathRisk(command, { command: true }).risky)
   check('an escaped share root still asks', uncPathRisk(String.raw`type \\\\server\\share\\x.txt`, { command: true }).risky)
   for (const input of ['file://C:/src/project/notes.txt', 'file:///C:/src/project/notes.txt', String.raw`file://C:\src\project\notes.txt`, String.raw`file://C:\\src\\project\\notes.txt`, 'file://C|/src/project/notes.txt', 'file:///C|/src/project/notes.txt', 'file://C%3A/src/project/notes.txt', 'file://C%7C/src/project/notes.txt']) check(`local drive file URL is no remote host: ${input}`, !uncPathRisk(input).risky)
@@ -135,7 +135,7 @@ if (!process.argv.includes('--file-roads')) {
   check('PowerShell default mode does not blame a remote host for file://C:/', psLocalFile.behavior !== 'allow' && !psLocalFile.message.includes('SMB/WebDAV'))
   const bashSecretFile = await bashToolHasPermission({ command: 'curl file://C:/Users/operator/.mercury/.credentials.json' }, shellContext)
   check('Bash still refuses a credentials store file://C:/ read', bashSecretFile.behavior === 'deny' && !bashSecretFile.message.includes('SMB/WebDAV'))
-  const { windowsPathNeedsPermission } = await import('../../src/utils/permissions/windowsPath.js')
+  const { windowsPathNeedsPermission } = await import('../../src/permissions/rules/windowsPath.js')
   const inherited = [
     ['host then separator', String.raw`\\server\share`],
     ['host at the end', String.raw`\\server`],

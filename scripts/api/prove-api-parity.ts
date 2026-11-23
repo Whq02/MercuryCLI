@@ -6,7 +6,7 @@ delete process.env.MERCURY_MAX_OUTPUT_TOKENS
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import * as C from '../../src/services/providers/anthropic/index.ts'
+import * as C from '../../src/models/roads/anthropic/index.ts'
 import { recordOrVerify, snap, clone } from '../lib/goldenReplay.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -148,5 +148,5 @@ const failures = recordOrVerify({
   existsSync: existsSync as never,
 })
 
-console.log(failures === 0 ? '✅ API PARITY GREEN' : `❌ ${failures} API PARITY FAILURE(S): a "parity broke" line means an export re-exported by src/services/providers/anthropic/index.ts (see the files in that folder) now returns something else than scripts/api/goldens.json holds, so restore its old output or, if the change is intended, re-run this file with --record; an export "neither covered nor skip-listed" needs an add(...) case or a SKIPPED entry in this file`)
+console.log(failures === 0 ? '✅ API PARITY GREEN' : `❌ ${failures} API PARITY FAILURE(S): a "parity broke" line means an export re-exported by src/models/roads/anthropic/index.ts (see the files in that folder) now returns something else than scripts/api/goldens.json holds, so restore its old output or, if the change is intended, re-run this file with --record; an export "neither covered nor skip-listed" needs an add(...) case or a SKIPPED entry in this file`)
 process.exit(failures === 0 ? 0 : 1)

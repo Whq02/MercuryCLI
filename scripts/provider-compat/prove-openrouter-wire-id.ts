@@ -6,19 +6,19 @@ import {
   __resetOpenrouterCatalogueForTest,
   getOpenrouterModelOptions,
   refreshOpenrouterCatalogue,
-} from '../../src/services/providers/openrouter/openrouterCatalogue.ts'
-import { openrouterWireModelId } from '../../src/services/providers/openrouter/openrouterCallModel.ts'
-import { compatDispatchModelId } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
-import { focusedOptionSupports1m } from '../../src/services/model/modelOptions.ts'
-import { validateModel } from '../../src/services/providers/validateModel.ts'
+} from '../../src/models/roads/openrouter/openrouterCatalogue.ts'
+import { openrouterWireModelId } from '../../src/models/roads/openrouter/openrouterCallModel.ts'
+import { compatDispatchModelId } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
+import { focusedOptionSupports1m } from '../../src/models/catalogue/modelOptions.ts'
+import { validateModel } from '../../src/models/roads/validateModel.ts'
 
 let failures = 0
-const WIRE_ID_HINT = 'change openrouterWireModelId in src/services/providers/openrouter/openrouterCallModel.ts (the slug the request carries)'
+const WIRE_ID_HINT = 'change openrouterWireModelId in src/models/roads/openrouter/openrouterCallModel.ts (the slug the request carries)'
 const WIRE_ID_HINTS: Record<string, string> = {
-  the: 'change refreshOpenrouterCatalogue in src/services/providers/openrouter/openrouterCatalogue.ts, or the fixture catalogue in this file',
-  W6: 'change getOpenrouterModelOptions in src/services/providers/openrouter/openrouterCatalogue.ts (the picker rows) or focusedOptionSupports1m in src/services/model/modelOptions.ts',
-  W7: 'change validateModel in src/services/providers/validateModel.ts (its answer for an openrouter id)',
-  W8: 'change compatDispatchModelId in src/services/providers/openaicompat/compatChatCallModel.ts',
+  the: 'change refreshOpenrouterCatalogue in src/models/roads/openrouter/openrouterCatalogue.ts, or the fixture catalogue in this file',
+  W6: 'change getOpenrouterModelOptions in src/models/roads/openrouter/openrouterCatalogue.ts (the picker rows) or focusedOptionSupports1m in src/models/catalogue/modelOptions.ts',
+  W7: 'change validateModel in src/models/roads/validateModel.ts (its answer for an openrouter id)',
+  W8: 'change compatDispatchModelId in src/models/roads/openaicompat/compatChatCallModel.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++

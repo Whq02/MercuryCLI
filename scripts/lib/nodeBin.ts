@@ -93,8 +93,8 @@ export async function requireLiveDaemon(child: ChildProcess, opts: LiveDaemonOpt
     spawnError = error
   })
   if (pid === undefined) leaveWithoutDaemon(child, `${opts.what}: the daemon did not spawn (no pid)`, opts.log)
-  const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-  const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
+  const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+  const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/control/protocol.ts')
   const deadline = Date.now() + timeoutMs
   for (;;) {
     if (spawnError !== null) leaveWithoutDaemon(child, `${opts.what}: the daemon (pid ${pid}) failed to start: ${(spawnError as Error).message}`, opts.log)

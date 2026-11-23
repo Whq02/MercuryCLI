@@ -38,13 +38,13 @@ const BEARER_TOKEN = 'fixture-env-bearer-token-00000001'
 writeFileSync(join(HOME, '.mercury.json'), JSON.stringify({ hasCompletedOnboarding: true, numStartups: 3, theme: 'dark', customApiKeyResponses: { approved: [FIXTURE_KEY.slice(-20)], rejected: [] } }))
 writeFileSync(join(HOME, 'settings.json'), '{}')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const where = 'change src/services/providers/anthropic/anthropicCatalogue.ts (the traffic gate is src/services/providers/catalogueGate.ts, the picker rows src/services/model/modelOptions.ts getModelOptions)'
+  const where = 'change src/models/roads/anthropic/anthropicCatalogue.ts (the traffic gate is src/models/roads/catalogueGate.ts, the picker rows src/models/catalogue/modelOptions.ts getModelOptions)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${where}` : ''}`)
 }
 function section(t: string): void {
@@ -54,11 +54,11 @@ function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 }
 
-const catalogue = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts').catch(() => null)
-const { catalogueTrafficVerdict, connectToBrowseReason } = await import('../../src/services/providers/catalogueGate.ts')
-const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
-const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
-const { OAUTH_BETA_HEADER } = await import('../../src/constants/oauth.ts')
+const catalogue = await import('../../src/models/roads/anthropic/anthropicCatalogue.ts').catch(() => null)
+const { catalogueTrafficVerdict, connectToBrowseReason } = await import('../../src/models/roads/catalogueGate.ts')
+const { catalogueEpoch } = await import('../../src/models/roads/catalogueEpoch.ts')
+const { clearOAuthTokenCache } = await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')
+const { OAUTH_BETA_HEADER } = await import('../../src/models/sign-in/oauth/oauth.ts')
 
 type Call = { url: string; headers: Record<string, string> }
 const KEY_LIST = ['claude-opus-5-5', 'claude-sonnet-5', 'claude-opus-5-7']
@@ -122,7 +122,7 @@ const settle = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 3
 
 section('1 · no credential: no door, the gate refuses, nothing is read')
 if (!catalogue) {
-  check('the catalogue module exists', false, 'src/services/providers/anthropic/anthropicCatalogue.ts is absent')
+  check('the catalogue module exists', false, 'src/models/roads/anthropic/anthropicCatalogue.ts is absent')
 } else {
   check('no signed-in door', catalogue.anthropicDoors().length === 0, JSON.stringify(catalogue.anthropicDoors().map(d => d.door)))
   const verdict = catalogueTrafficVerdict('anthropic')
@@ -268,7 +268,7 @@ section('5 · the dead base: the door reads error, no row of the static picker m
 if (catalogue) {
   catalogue.__resetAnthropicCatalogueForTest()
   process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
-  const { getModelOptions, ANTHROPIC_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
+  const { getModelOptions, ANTHROPIC_MODEL_GROUP } = await import('../../src/models/catalogue/modelOptions.ts')
   const anthropicRows = (): string[] =>
     getModelOptions({ anthropicCredentialed: () => true })
       .filter(o => o.group === undefined || o.group === ANTHROPIC_MODEL_GROUP)

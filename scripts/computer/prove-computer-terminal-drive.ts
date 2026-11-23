@@ -9,19 +9,19 @@ if (windowHome) {
   process.env.MERCURY_CONFIG_DIR = windowHome
   const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
   seedFirstRun(windowHome, [ROOT])
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
   globalThis.fetch = (async () => { throw new Error('this terminal proof has no network') }) as typeof fetch
   const React = await import('react')
-  const { default: Ink } = await import('../../src/ink/ink.tsx')
-  const { default: instances } = await import('../../src/ink/instances.ts')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
+  const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+  const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-  const { openSettingsPopup } = await import('../../src/utils/cockpit/settingsPopup.ts')
-  const { runHostedModel } = await import('../../src/services/host/index.ts')
+  const { openSettingsPopup } = await import('../../src/screen/cockpit/settingsPopup.ts')
+  const { runHostedModel } = await import('../../src/models/hosting/index.ts')
   const ink = new Ink({ stdout: process.stdout, stdin: process.stdin, stderr: process.stderr, exitOnCtrlC: false, patchConsole: false })
   instances.set(process.stdout, ink)
   ink.setAltScreenActive(true, true)
@@ -87,13 +87,13 @@ try {
   windowId = launched[0]
   if (!windowId || !/^\d+$/.test(windowId)) throw new Error('Terminal did not name the created window')
   delete process.env.MERCURY_DESKTOP_DRIVER
-  const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
+  const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
   resetDesktopDriverForTest()
   const resolved = resolveDesktopDriver()
   if (resolved.state !== 'ok') throw new Error(resolved.note)
   const driver = resolved.driver
-  const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-  const { imageDimensionsFromHeader } = await import('../../src/utils/imageProcessor/imageProcessorJs.ts')
+  const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+  const { imageDimensionsFromHeader } = await import('../../src/platform/images/imageProcessorJs.ts')
   const context = toolContext()
   let serial = 0
   const owned = async () => {
@@ -161,7 +161,7 @@ try {
     let imageBytes = 0
     let refusal = ''
     for (let n = 0; n < 32; n++) {
-      const { operatorIsTyping } = await import('../../src/tools/ComputerTool/operatorPause.ts')
+      const { operatorIsTyping } = await import('../../src/tools/computer/operatorPause.ts')
       const quietDeadline = Date.now() + 30_000
       while (await operatorIsTyping(driver)) {
         await owned()

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { createLayoutNode } from '../../src/ink/layout/engine.js'
+import { createLayoutNode } from '../../src/screen/renderer/layout/engine.js'
 import { allScenes, runScene, type SceneRects } from './layoutScenes.js'
 
 const GOLDEN = join(import.meta.dir, 'goldens', 'layout-corpus.json')
@@ -39,7 +39,7 @@ for (const scene of scenes) {
   check(
     `determinism: ${scene.name}`,
     JSON.stringify(run1) === JSON.stringify(run2),
-    `${firstDivergence(run1, run2)}; the same scene gave two different layouts, so make createLayoutNode in src/ink/layout/engine.ts depend only on its inputs`,
+    `${firstDivergence(run1, run2)}; the same scene gave two different layouts, so make createLayoutNode in src/screen/renderer/layout/engine.ts depend only on its inputs`,
   )
   results[scene.name] = run1
 }
@@ -48,7 +48,7 @@ for (const scene of scenes) {
   const rc = results['relayout-content-change']
   check('relayout purity: content restored ⇒ rects restored',
     rc !== undefined && JSON.stringify(rc[0]) === JSON.stringify(rc[3]),
-    rc ? `${firstDivergence([rc[0]!], [rc[3]!])}; pass 3 must equal pass 0 after the content is restored, so fix the relayout in src/ink/layout/engine.ts` : 'scene relayout-content-change is missing from allScenes in scripts/ink-runtime/layoutScenes.ts')
+    rc ? `${firstDivergence([rc[0]!], [rc[3]!])}; pass 3 must equal pass 0 after the content is restored, so fix the relayout in src/screen/renderer/layout/engine.ts` : 'scene relayout-content-change is missing from allScenes in scripts/ink-runtime/layoutScenes.ts')
 }
 
 console.log(`  ${scenes.length} scenes exercised`)
@@ -73,10 +73,10 @@ if (record) {
       const d = firstDivergence(golden[name]!, results[name]!)
       if (d) {
         mismatches++
-        if (mismatches <= 5) console.log(`  [FAIL] ${name}: ${d}; fix createLayoutNode in src/ink/layout/engine.ts, or run with --record if the new layout is intended`)
+        if (mismatches <= 5) console.log(`  [FAIL] ${name}: ${d}; fix createLayoutNode in src/screen/renderer/layout/engine.ts, or run with --record if the new layout is intended`)
       }
     }
-    check(`all scene rectangles match the golden`, mismatches === 0, `${mismatches} scenes diverged from goldens/layout-corpus.json; fix createLayoutNode in src/ink/layout/engine.ts, or run with --record if the new layout is intended`)
+    check(`all scene rectangles match the golden`, mismatches === 0, `${mismatches} scenes diverged from goldens/layout-corpus.json; fix createLayoutNode in src/screen/renderer/layout/engine.ts, or run with --record if the new layout is intended`)
   }
 }
 

@@ -4,8 +4,8 @@ import { readFile, unlink } from 'node:fs/promises'
 import axios from 'axios'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { WebFetchTool } = await import('../../src/tools/WebFetchTool/WebFetchTool.js')
-const { clearWebFetchCache } = await import('../../src/tools/WebFetchTool/utils.js')
+const { WebFetchTool } = await import('../../src/tools/web-fetch/WebFetchTool.js')
+const { clearWebFetchCache } = await import('../../src/tools/web-fetch/fetchContent.js')
 const seen: { url: string; ua: string | null }[] = []
 const pdf = Buffer.from('%PDF-1.4\n\u0000\u0001encoded stream bytes\n%%EOF')
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
@@ -28,7 +28,7 @@ axios.get = ((url: string, options: { headers?: object }) => {
   return get(`http://127.0.0.1:${server.port}/`, { ...options, proxy: false, headers: { ...options.headers, 'x-fixture-url': url } })
 }) as typeof axios.get
 let failures = 0
-const check = (name: string, ok: boolean, text = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${text}${text ? '; ' : ''}the fetch path is WebFetchTool.call in src/tools/WebFetchTool/WebFetchTool.ts (cross-host redirect, robots), with robots rules in robots.ts, paywall text in pageAccess.ts and the 402/403/429 refusals in fetchTransport.ts, all in src/tools/WebFetchTool/`}`) }
+const check = (name: string, ok: boolean, text = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${text}${text ? '; ' : ''}the fetch path is WebFetchTool.call in src/tools/web-fetch/WebFetchTool.ts (cross-host redirect, robots), with robots rules in robots.ts, paywall text in pageAccess.ts and the 402/403/429 refusals in fetchTransport.ts, all in src/tools/web-fetch/`}`) }
 const call = async (path: string, host = 'fixture.example') => {
   try {
     const result = await WebFetchTool.call({ url: `https://${host}${path}` }, { abortController: new AbortController(), options: { isNonInteractiveSession: true } } as never)
@@ -59,7 +59,7 @@ try {
   const count = seen.length
   const repeat = await call('/rate', 'rate.example')
   check('HTTP 429 honors the server wait and refuses a repeat without network', rate.includes('120s') && repeat.includes('cooling down') && seen.length === count)
-  const { robotsAllows } = await import('../../src/tools/WebFetchTool/robots.js')
+  const { robotsAllows } = await import('../../src/tools/web-fetch/robots.js')
   for (const [rules, path, allowed] of [
     ['User-agent: *\nDisallow: /', '/a', false],
     ['User-agent: *\nDisallow: /\nUser-agent: Mercury\nAllow: /', '/a', true],
@@ -71,7 +71,7 @@ try {
     ['User-agent: *\nDisallow: /a%2Fb', '/a/b', true],
     ['User-agent: *\nDisallow: /日本', '/%E6%97%A5%E6%9C%AC', false],
   ] as const) check(`robots matching ${path} -> ${allowed}`, robotsAllows(rules, `https://fixture.example${path}`) === allowed)
-  const { pageAccessNotice } = await import('../../src/tools/WebFetchTool/pageAccess.js')
+  const { pageAccessNotice } = await import('../../src/tools/web-fetch/pageAccess.js')
   check('structured article paywalls are recognized', !!pageAccessNotice('<script type="application/ld+json">{"@type":"NewsArticle","isAccessibleForFree":false}</script>'))
   check('a product price is not mistaken for a paywall', !pageAccessNotice('<script type="application/ld+json">{"@type":"Product","isAccessibleForFree":false}</script>'))
 } finally {

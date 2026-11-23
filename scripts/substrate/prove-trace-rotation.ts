@@ -7,11 +7,11 @@ import {
   TRACE_MAX_BYTES,
   TRACE_KEEP_BYTES,
   maybeTrimTrace,
-} from '../../src/utils/observability/invocationTrace.js'
-import { aggregateByTool } from '../../src/utils/cockpit/traceSnapshot.js'
+} from '../../src/platform/observability/invocationTrace.js'
+import { aggregateByTool } from '../../src/screen/cockpit/traceSnapshot.js'
 
 let failures = 0
-let fixIn = 'src/utils/observability/invocationTrace.ts, maybeTrimTrace (and TRACE_MAX_BYTES / TRACE_KEEP_BYTES)'
+let fixIn = 'src/platform/observability/invocationTrace.ts, maybeTrimTrace (and TRACE_MAX_BYTES / TRACE_KEEP_BYTES)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = [detail, cond ? '' : `change ${fixIn}`].filter(Boolean).join(' · ')
@@ -69,7 +69,7 @@ check('trimming an under-cap file is a no-op', statSync(path).size === sizeBefor
 
 console.log('\n' + '─'.repeat(76) + '\n aggregateByTool — /trace per-tool rollup')
 {
-  fixIn = 'src/utils/cockpit/traceSnapshot.ts, aggregateByTool'
+  fixIn = 'src/screen/cockpit/traceSnapshot.ts, aggregateByTool'
   const recs = [
     { ts: 't', tool: 'Bash', surface: 'builtin', risk: 'high', ok: true, durationMs: 100 },
     { ts: 't', tool: 'Bash', surface: 'builtin', risk: 'high', ok: true, durationMs: 300 },

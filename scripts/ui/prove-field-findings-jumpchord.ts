@@ -18,13 +18,13 @@ const check = (name: string, ok: boolean, detail?: string): void => {
 
 console.log('§1 ctr-4 — the advertised chord fires')
 {
-  const { parseKeystroke } = await import('../../src/keybindings/parser.ts')
-  const { matchesKeystroke } = await import('../../src/keybindings/match.ts')
+  const { parseKeystroke } = await import('../../src/screen/keys/parser.ts')
+  const { matchesKeystroke } = await import('../../src/screen/keys/match.ts')
   const key = { ctrl: false, meta: true, shift: false, super: false, downArrow: true } as unknown as Parameters<typeof matchesKeystroke>[1]
-  check('the wire fact: alt+down arrives as meta+↓ and the matcher folds alt/meta into one', matchesKeystroke('', key, parseKeystroke('alt+down')), 'alt and meta must match as one modifier; fix matchesKeystroke in src/keybindings/match.ts')
-  const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
+  check('the wire fact: alt+down arrives as meta+↓ and the matcher folds alt/meta into one', matchesKeystroke('', key, parseKeystroke('alt+down')), 'alt and meta must match as one modifier; fix matchesKeystroke in src/screen/keys/match.ts')
+  const { DEFAULT_BINDINGS } = await import('../../src/screen/keys/defaultBindings.ts')
   const scroll = DEFAULT_BINDINGS.find(block => block.context === 'Scroll')?.bindings ?? {}
-  check("the Scroll context binds alt+down to scroll:bottom (beside the ctrl+end the pill's drill already proved live)", scroll['alt+down'] === 'scroll:bottom' && scroll['ctrl+end'] === 'scroll:bottom', `Scroll bindings=${JSON.stringify(scroll)}; bind alt+down and ctrl+end to scroll:bottom in the Scroll block of DEFAULT_BINDINGS in src/keybindings/defaultBindings.ts`)
+  check("the Scroll context binds alt+down to scroll:bottom (beside the ctrl+end the pill's drill already proved live)", scroll['alt+down'] === 'scroll:bottom' && scroll['ctrl+end'] === 'scroll:bottom', `Scroll bindings=${JSON.stringify(scroll)}; bind alt+down and ctrl+end to scroll:bottom in the Scroll block of DEFAULT_BINDINGS in src/screen/keys/defaultBindings.ts`)
 }
 console.log('§2 the transcript viewer — PgUp paints the pill, PgDn clears it, alt+↓ jumps')
 {

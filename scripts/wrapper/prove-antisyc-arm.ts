@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
 import { join } from 'node:path'
-import { getAntiSycophancyAlwaysOnSection } from '../../src/utils/antiSycophancy.js'
-import { lintWeakeners } from '../../src/prompt/behaviourContract.js'
+import { getAntiSycophancyAlwaysOnSection } from '../../src/engine/system-prompt/antiSycophancy.js'
+import { lintWeakeners } from '../../src/engine/system-prompt/behaviourContract.js'
 
 const MACRO_KEY = 'MACRO' as const
 function setStamp(on: boolean): void {
@@ -11,7 +11,7 @@ function setStamp(on: boolean): void {
 }
 
 let fail = 0
-const ANTISYC_FAIL_HINT = 'to fix: getAntiSycophancyAlwaysOnSection in src/utils/antiSycophancy.ts (it must return [] unless the version stamp is set and MERCURY_ANTISYC_ALWAYS_ON is exactly 1, re-read on every call, and otherwise return one honesty-discipline clause with the wording checked here); the weakener lint is lintWeakeners in src/prompt/behaviourContract.ts'
+const ANTISYC_FAIL_HINT = 'to fix: getAntiSycophancyAlwaysOnSection in src/engine/system-prompt/antiSycophancy.ts (it must return [] unless the version stamp is set and MERCURY_ANTISYC_ALWAYS_ON is exactly 1, re-read on every call, and otherwise return one honesty-discipline clause with the wording checked here); the weakener lint is lintWeakeners in src/engine/system-prompt/behaviourContract.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) fail++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + ANTISYC_FAIL_HINT : ''}`)

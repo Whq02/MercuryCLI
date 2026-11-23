@@ -2,24 +2,24 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { SessionLiveV1 } from '../../src/services/engine-connector/seatLive.ts'
-import type { SessionProgressEntryV1, SessionTailV1 } from '../../src/services/engine-connector/seatProjections.ts'
-import type { WorkRowV1 } from '../../src/services/engine-connector/types.ts'
+import type { SessionLiveV1 } from '../../src/engine/connector/seatLive.ts'
+import type { SessionProgressEntryV1, SessionTailV1 } from '../../src/engine/connector/seatProjections.ts'
+import type { WorkRowV1 } from '../../src/engine/connector/types.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const plane = mkdtempSync(join(tmpdir(), 'connector-live-part-'))
 process.env.MERCURY_DAEMON_DIR = plane
 
-const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
-const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
-const { publishSessionProgress } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { getEphemeralProgressFrame, clearEphemeralProgress } = await import('../../src/state/ephemeralProgressStore.ts')
-const { workCounts } = await import('../../src/services/engine-connector/workCounts.ts')
-const { streamIdleWarningMsOf } = await import('../../src/services/providers/streamIdleBudget.ts')
+const { LivePart } = await import('../../src/engine/connector/daemon/live.ts')
+const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
+const { publishSessionProgress } = await import('../../src/engine/connector/seatProjections.ts')
+const { getEphemeralProgressFrame, clearEphemeralProgress } = await import('../../src/screen/app-state/ephemeralProgressStore.ts')
+const { workCounts } = await import('../../src/engine/connector/workCounts.ts')
+const { streamIdleWarningMsOf } = await import('../../src/models/roads/streamIdleBudget.ts')
 
 let failures = 0
-const WHERE = 'the part under test is LivePart in src/services/engine-connector/daemon/live.ts: change its behaviour there to match the check, or update this check if the law moved'
+const WHERE = 'the part under test is LivePart in src/engine/connector/daemon/live.ts: change its behaviour there to match the check, or update this check if the law moved'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${WHERE}` : ''}`)

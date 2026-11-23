@@ -107,7 +107,7 @@ const debugReceipts = (file: string): string[] => {
 
 section('§0 the receipt law (pure) — a switch is the row that last answered coming from another model; a resume on the same model is no switch')
 {
-  const { modelSwitchReceipt, lastServedRow } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
+  const { modelSwitchReceipt, lastServedRow } = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
   const signature = 'sig'
   const think = (text: string) => ({ type: 'thinking' as const, thinking: text, signature })
   const text = (t: string) => ({ type: 'text' as const, text: t, citations: [] })
@@ -116,15 +116,15 @@ section('§0 the receipt law (pure) — a switch is the row that last answered c
   const synthetic = (id: string) => ({ ...reply('<synthetic>', id), isApiErrorMessage: true })
   const history = [user('u1'), reply(FABLE, 'f1'), user('u2'), reply(FABLE, 'f2'), user('u3')] as never[]
   const atSwitch = modelSwitchReceipt('main', history, OPUS)
-  check('the first request after the switch earns the receipt, naming the writer and the model the request carries', atSwitch !== null && atSwitch.text === `Preserved thinking: 2 thinking blocks written by ${FABLE_WORD} stay out of the requests to ${OPUS_WORD} (the conversation switched models); the model re-plans without them.`, `fix the receipt text or switch detection in modelSwitchReceipt in src/services/providers/anthropic/thinkingBinding.ts; got ${j(atSwitch)}`)
-  check('the key names the owner, the row that last answered and the model', atSwitch !== null && atSwitch.key === `main|f2|${OPUS}`, `the key is built in modelSwitchReceipt in src/services/providers/anthropic/thinkingBinding.ts; got ${j(atSwitch?.key)}`)
+  check('the first request after the switch earns the receipt, naming the writer and the model the request carries', atSwitch !== null && atSwitch.text === `Preserved thinking: 2 thinking blocks written by ${FABLE_WORD} stay out of the requests to ${OPUS_WORD} (the conversation switched models); the model re-plans without them.`, `fix the receipt text or switch detection in modelSwitchReceipt in src/models/roads/anthropic/thinkingBinding.ts; got ${j(atSwitch)}`)
+  check('the key names the owner, the row that last answered and the model', atSwitch !== null && atSwitch.key === `main|f2|${OPUS}`, `the key is built in modelSwitchReceipt in src/models/roads/anthropic/thinkingBinding.ts; got ${j(atSwitch?.key)}`)
   const answered = [...history, reply(OPUS, 'o1'), user('u4')] as never[]
   check('once the new model has answered, the next request to it paints nothing (the resume, the daemon respawn, the next turn)', modelSwitchReceipt('main', answered, OPUS) === null)
   const back = modelSwitchReceipt('main', answered, FABLE)
-  check('a switch back is a real switch: the receipt names the other writer and the returning model, one block in the singular', back !== null && back.text === `Preserved thinking: 1 thinking block written by ${OPUS_WORD} stays out of the requests to ${FABLE_WORD} (the conversation switched models); the model re-plans without it.` && back.key === `main|o1|${FABLE}`, `a switch back must name the other writer, see modelSwitchReceipt in src/services/providers/anthropic/thinkingBinding.ts; got ${j(back)}`)
+  check('a switch back is a real switch: the receipt names the other writer and the returning model, one block in the singular', back !== null && back.text === `Preserved thinking: 1 thinking block written by ${OPUS_WORD} stays out of the requests to ${FABLE_WORD} (the conversation switched models); the model re-plans without it.` && back.key === `main|o1|${FABLE}`, `a switch back must name the other writer, see modelSwitchReceipt in src/models/roads/anthropic/thinkingBinding.ts; got ${j(back)}`)
   const errored = [...history, synthetic('e1'), user('u4')] as never[]
   const afterError = modelSwitchReceipt('main', errored, OPUS)
-  check('a synthetic row (an API error stand-in) is not an answer: the switch still stands and its key is unchanged', afterError !== null && afterError.key === `main|f2|${OPUS}`, `synthetic error rows must be skipped, see lastServedRow in src/services/providers/anthropic/thinkingBinding.ts; got ${j(afterError)}`)
+  check('a synthetic row (an API error stand-in) is not an answer: the switch still stands and its key is unchanged', afterError !== null && afterError.key === `main|f2|${OPUS}`, `synthetic error rows must be skipped, see lastServedRow in src/models/roads/anthropic/thinkingBinding.ts; got ${j(afterError)}`)
   check('no answer yet ⇒ no switch, whatever the model', modelSwitchReceipt('main', [user('u1')] as never[], OPUS) === null && lastServedRow([user('u1'), synthetic('e1')] as never[]) === null)
   check('the same model under another spelling is no switch', modelSwitchReceipt('main', history, `${FABLE}[1m]`) === null)
 }
@@ -282,7 +282,7 @@ if (!existsSync(DIST)) {
     const debug7 = join(arena.home, 'resume-same.debug.log')
     const r7 = await run(arena, ['run', 'still on fable after a resume', '--model', FABLE, '--allowed-tools', 'Read', '--resume', SID, '--log-file', debug7])
     check('§2 the resumed turn on Fable exits 0 and is answered', r7.exit === 0 && r7.stdout.includes('SN-F5'), `exit=${r7.exit} ${r7.stderr.slice(0, 200)}`)
-    check('§2 RED ON THE BASE: the resumed process paints NO receipt — the switch was announced once, when it happened', debugReceipts(debug7).length === 0, `a resume on the model that last answered must not paint a receipt, see modelSwitchReceipt in src/services/providers/anthropic/thinkingBinding.ts; got ${j(debugReceipts(debug7))}`)
+    check('§2 RED ON THE BASE: the resumed process paints NO receipt — the switch was announced once, when it happened', debugReceipts(debug7).length === 0, `a resume on the model that last answered must not paint a receipt, see modelSwitchReceipt in src/models/roads/anthropic/thinkingBinding.ts; got ${j(debugReceipts(debug7))}`)
     const after7 = receiptsOf(readRecords(arena.home, SID))
     check('§2 RED ON THE BASE: the session file still holds exactly the two receipts', after7.length === 2, `${after7.length}: ${after7.map(describe).join(' | ')}`)
     const debug8 = join(arena.home, 'resume-switch.debug.log')

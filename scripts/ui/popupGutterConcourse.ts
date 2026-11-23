@@ -13,19 +13,19 @@ export async function concoursePopupFrames({ sizes, wrap, mount, check, judge, s
   save: (name: string, lines: string[]) => void
 }): Promise<void> {
   const { createElement: h } = await import('react')
-  const { ConcourseScreen, _resetConcourseCapsuleForTesting, armSignInPickerReturn } = await import('../../src/components/concourse/ConcourseScreen.tsx')
+  const { ConcourseScreen, _resetConcourseCapsuleForTesting, armSignInPickerReturn } = await import('../../src/screen/concourse/ConcourseScreen.tsx')
   const { referenceFixtureSnapshot } = await import('../notifications/concourseReferenceSeed.ts')
-  const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-  const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-  const { saveGlobalConfig } = await import('../../src/utils/config.ts')
-  const { getCwd } = await import('../../src/utils/cwd.ts')
-  const workers = await import('../../src/daemon/concourseWorkers.ts')
-  mock.module('../../src/daemon/concourseWorkers.ts', () => ({ ...workers, effectiveSeatCeiling: () => 1 }))
-  const capacity = await import('../../src/utils/switchboard/capacityCheck.ts')
+  const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+  const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+  const { saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
+  const { getCwd } = await import('../../src/platform/files/cwd.ts')
+  const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  mock.module('../../src/daemon/concourse-workers/concourseWorkers.ts', () => ({ ...workers, effectiveSeatCeiling: () => 1 }))
+  const capacity = await import('../../src/daemon/switchboard-capacity/capacityCheck.ts')
   let ask = false
-  mock.module('../../src/utils/switchboard/capacityCheck.ts', () => ({ ...capacity, needsCapacityAsk: () => ask, effectiveSeatCeiling: () => 1 }))
+  mock.module('../../src/daemon/switchboard-capacity/capacityCheck.ts', () => ({ ...capacity, needsCapacityAsk: () => ask, effectiveSeatCeiling: () => 1 }))
   const callbacks = new Proxy({}, { get: () => async () => undefined })
-  type Snapshot = import('../../src/components/concourse/contracts.ts').ConcourseSnapshotV1
+  type Snapshot = import('../../src/screen/concourse/contracts.ts').ConcourseSnapshotV1
   const surfaces = [
     { name: 'concourse-default', title: 'Mercury · model', door: 'default' },
     { name: 'concourse-model', title: 'Mercury · model', door: 'model' },

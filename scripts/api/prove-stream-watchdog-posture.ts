@@ -122,12 +122,12 @@ console.log('============================================================')
 console.log(' stream watchdog posture — per-cause recovery, stated causes')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 
 const text = (v: unknown): string => JSON.stringify(v) ?? ''
 
@@ -185,36 +185,36 @@ section('A · pre-first-event silence → ONE streaming reissue heals the turn')
 {
   resetFixture(['silent', 'full'])
   const o = await drive()
-  check('the turn settled end_turn after the reissue', o.threw === undefined && o.last?.message.stop_reason === 'end_turn', `threw=${String(o.threw)} notices=${o.notices.join('|').slice(0, 300)} — fix the pre-first-event reissue in src/services/providers/anthropic/streamCore/reissueRows.ts so one silent stream is reissued once and the turn ends end_turn`)
-  check('exactly TWO streaming requests, NO non-streaming request', seen.filter(s => s.streaming).length === 2 && seen.every(s => s.streaming), `${text(seen)} — after one pre-first-event silence the caller must reissue the stream once and not fall back to a non-streaming request (src/services/providers/anthropic/streamCore/reissueRows.ts)`)
-  check('the reissue notice states the cause and the action', o.notices.some(n => n.includes('no stream events within') && n.includes('reissuing the stream')), `${o.notices.join('|').slice(0, 300)} — the reissue notice text is built in src/services/providers/anthropic/streamCore/reissueRows.ts and must state the cause (no stream events within) and the action (reissuing the stream)`)
-  check('the wait was ~one budget, not two (the reissue is prompt)', o.wallMs > 1_100 && o.wallMs < 4_000, `${o.wallMs.toFixed(0)}ms — the reissue should follow one idle budget (MERCURY_STREAM_IDLE_TIMEOUT_MS=1200) without a second wait; look at the watchdog in src/services/providers/streamIdleBudget.ts`)
+  check('the turn settled end_turn after the reissue', o.threw === undefined && o.last?.message.stop_reason === 'end_turn', `threw=${String(o.threw)} notices=${o.notices.join('|').slice(0, 300)} — fix the pre-first-event reissue in src/models/roads/anthropic/stream-core/reissueRows.ts so one silent stream is reissued once and the turn ends end_turn`)
+  check('exactly TWO streaming requests, NO non-streaming request', seen.filter(s => s.streaming).length === 2 && seen.every(s => s.streaming), `${text(seen)} — after one pre-first-event silence the caller must reissue the stream once and not fall back to a non-streaming request (src/models/roads/anthropic/stream-core/reissueRows.ts)`)
+  check('the reissue notice states the cause and the action', o.notices.some(n => n.includes('no stream events within') && n.includes('reissuing the stream')), `${o.notices.join('|').slice(0, 300)} — the reissue notice text is built in src/models/roads/anthropic/stream-core/reissueRows.ts and must state the cause (no stream events within) and the action (reissuing the stream)`)
+  check('the wait was ~one budget, not two (the reissue is prompt)', o.wallMs > 1_100 && o.wallMs < 4_000, `${o.wallMs.toFixed(0)}ms — the reissue should follow one idle budget (MERCURY_STREAM_IDLE_TIMEOUT_MS=1200) without a second wait; look at the watchdog in src/models/roads/streamIdleBudget.ts`)
 }
 
 section('B · silence persists across the reissue → non-streaming last resort')
 {
   resetFixture(['silent', 'silent'])
   const o = await drive()
-  check('the turn settled via the non-streaming fallback', o.threw === undefined && o.last?.message.stop_reason === 'end_turn' && text(o.last?.message.content).includes('recovered without streaming'), `threw=${String(o.threw)} — when silence persists across the reissue, the one-shot fallback in src/services/providers/anthropic/streamCore/reissueRows.ts must serve a non-streamed answer`)
-  check('two streaming attempts, then exactly one non-streaming request', seen.filter(s => s.streaming).length === 2 && seen.filter(s => !s.streaming).length === 1, `${text(seen)} — expected two streaming attempts then one non-streaming request; see src/services/providers/anthropic/streamCore/reissueRows.ts`)
-  check('the last-resort notice names the persisted pre-event cause AND the wait ceiling', o.notices.some(n => n.includes('no first event, TWICE') && n.includes('waiting up to') && n.includes('esc abandons it')), `${o.notices.join('|').slice(0, 400)} — the notice text is built in oneShotNoticeRow in src/services/providers/anthropic/streamCore/reissueRows.ts`)
+  check('the turn settled via the non-streaming fallback', o.threw === undefined && o.last?.message.stop_reason === 'end_turn' && text(o.last?.message.content).includes('recovered without streaming'), `threw=${String(o.threw)} — when silence persists across the reissue, the one-shot fallback in src/models/roads/anthropic/stream-core/reissueRows.ts must serve a non-streamed answer`)
+  check('two streaming attempts, then exactly one non-streaming request', seen.filter(s => s.streaming).length === 2 && seen.filter(s => !s.streaming).length === 1, `${text(seen)} — expected two streaming attempts then one non-streaming request; see src/models/roads/anthropic/stream-core/reissueRows.ts`)
+  check('the last-resort notice names the persisted pre-event cause AND the wait ceiling', o.notices.some(n => n.includes('no first event, TWICE') && n.includes('waiting up to') && n.includes('esc abandons it')), `${o.notices.join('|').slice(0, 400)} — the notice text is built in oneShotNoticeRow in src/models/roads/anthropic/stream-core/reissueRows.ts`)
 }
 
 section('C · mid-stream silence → NO reissue; non-streaming names the cause')
 {
   resetFixture(['mid-stream'])
   const o = await drive()
-  check('the turn settled via the non-streaming fallback', o.threw === undefined && o.last?.message.stop_reason === 'end_turn', `threw=${String(o.threw)} — mid-stream silence must still end in one non-streamed answer; see oneShotNoticeRow in src/services/providers/anthropic/streamCore/reissueRows.ts`)
-  check('ONE streaming attempt only (mid-stream silence never reissues a stream)', seen.filter(s => s.streaming).length === 1 && seen.filter(s => !s.streaming).length === 1, `${text(seen)} — mid-stream silence must not reissue the stream: one streaming request, then one non-streaming request (src/services/providers/anthropic/streamCore/reissueRows.ts)`)
-  check('the notice names mid-stream silence, the event count, the likely cause, and the wait ceiling', o.notices.some(n => n.includes('mid-stream silence') && n.includes('event(s) arrived') && n.includes('connection likely dropped') && n.includes('waiting up to')), `${o.notices.join('|').slice(0, 400)} — the mid-stream notice text is built in oneShotNoticeRow in src/services/providers/anthropic/streamCore/reissueRows.ts`)
+  check('the turn settled via the non-streaming fallback', o.threw === undefined && o.last?.message.stop_reason === 'end_turn', `threw=${String(o.threw)} — mid-stream silence must still end in one non-streamed answer; see oneShotNoticeRow in src/models/roads/anthropic/stream-core/reissueRows.ts`)
+  check('ONE streaming attempt only (mid-stream silence never reissues a stream)', seen.filter(s => s.streaming).length === 1 && seen.filter(s => !s.streaming).length === 1, `${text(seen)} — mid-stream silence must not reissue the stream: one streaming request, then one non-streaming request (src/models/roads/anthropic/stream-core/reissueRows.ts)`)
+  check('the notice names mid-stream silence, the event count, the likely cause, and the wait ceiling', o.notices.some(n => n.includes('mid-stream silence') && n.includes('event(s) arrived') && n.includes('connection likely dropped') && n.includes('waiting up to')), `${o.notices.join('|').slice(0, 400)} — the mid-stream notice text is built in oneShotNoticeRow in src/models/roads/anthropic/stream-core/reissueRows.ts`)
 }
 
 section('D · silence after a streamed tool_use → NO fallback (the double-run veto)')
 {
   resetFixture(['tool-then-silence'])
   const o = await drive()
-  check('no non-streaming request was made and no stream was reissued', seen.filter(s => s.streaming).length === 1 && seen.filter(s => !s.streaming).length === 0, `${text(seen)} — after a streamed tool_use no fallback or reissue may run (it could run the tool twice); see the veto in src/services/providers/anthropic/streamCore/reissueRows.ts and its callers`)
-  check('the failure surfaced typed (thrown or an API-error notice), never silence', o.threw !== undefined || o.notices.length > 0, `notices=${o.notices.length} — a stream that goes silent after a tool_use must end as a thrown error or an API-error notice, not a silent return; see src/services/providers/anthropic/streamCore/reissueRows.ts`)
+  check('no non-streaming request was made and no stream was reissued', seen.filter(s => s.streaming).length === 1 && seen.filter(s => !s.streaming).length === 0, `${text(seen)} — after a streamed tool_use no fallback or reissue may run (it could run the tool twice); see the veto in src/models/roads/anthropic/stream-core/reissueRows.ts and its callers`)
+  check('the failure surfaced typed (thrown or an API-error notice), never silence', o.threw !== undefined || o.notices.length > 0, `notices=${o.notices.length} — a stream that goes silent after a tool_use must end as a thrown error or an API-error notice, not a silent return; see src/models/roads/anthropic/stream-core/reissueRows.ts`)
 }
 
 server.close()

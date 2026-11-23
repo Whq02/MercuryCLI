@@ -8,12 +8,12 @@ process.env.MERCURY_CONFIG_DIR = HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { addToHistory, flushHistoryNow, getHistoryFlushHealth } = await import(
-  '../../src/history.ts'
+  '../../src/sessions/promptHistory.ts'
 )
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' | to fix, change the history flush in src/history.ts (flushHistoryNow, getHistoryFlushHealth, and the lock call there with its 10 second stale limit) so a held lock keeps every pending entry, a stale lock is broken, and entries land in order'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' | to fix, change the history flush in src/sessions/promptHistory.ts (flushHistoryNow, getHistoryFlushHealth, and the lock call there with its 10 second stale limit) so a held lock keeps every pending entry, a stale lock is broken, and entries land in order'}`)
   if (!cond) failures++
 }
 const section = (t: string): void =>

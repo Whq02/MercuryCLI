@@ -45,7 +45,7 @@ function runHealth(args: string[]): Cert {
   })
   if (result.error) throw result.error
   const cert = JSON.parse(result.stdout) as Cert
-  check('health exit agrees with its certificate verdict', result.signal === null && result.status === (cert.verdict === 'fault' ? 3 : 0), `exit=${result.status}, verdict=${cert.verdict}, ${result.stderr} — run node dist/mercury.mjs health --json outside the repo and read the failing row; the exit code comes from the health command in the bundle (src/services/health)`)
+  check('health exit agrees with its certificate verdict', result.signal === null && result.status === (cert.verdict === 'fault' ? 3 : 0), `exit=${result.status}, verdict=${cert.verdict}, ${result.stderr} — run node dist/mercury.mjs health --json outside the repo and read the failing row; the exit code comes from the health command in the bundle (src/platform/health)`)
   return cert
 }
 
@@ -68,7 +68,7 @@ try {
   ]) {
     const row = findCheck(fast, id)
     check(`fast: ${id} present + non-fault`, row !== undefined && row.status !== 'fail' && row.status !== 'unknown',
-      (row ? `${row.status}: ${row.evidence.slice(0, 100)}` : 'row missing') + ` — fix the ${id} row in src/services/health/sections/coding-loop-fast.ts (a missing row means it is not registered there)`)
+      (row ? `${row.status}: ${row.evidence.slice(0, 100)}` : 'row missing') + ` — fix the ${id} row in src/platform/health/sections/coding-loop-fast.ts (a missing row means it is not registered there)`)
   }
 
   console.log('\n── deep circuit (the functional probes INSIDE the bundle) ──')
@@ -83,7 +83,7 @@ try {
     const row = findCheck(deep, e.id)
     check(`deep: ${e.id} → ${e.allow.join('|')}`,
       row !== undefined && e.allow.includes(row.status),
-      (row ? `${row.status}: ${row.evidence.slice(0, 140)}` : 'row missing') + ` — fix the ${e.id} probe in src/services/health/sections/vanguard.ts (a missing row means it is not registered there)`)
+      (row ? `${row.status}: ${row.evidence.slice(0, 140)}` : 'row missing') + ` — fix the ${e.id} probe in src/platform/health/sections/vanguard.ts (a missing row means it is not registered there)`)
   }
 } finally {
   rmSync(outsideCwd, { recursive: true, force: true })

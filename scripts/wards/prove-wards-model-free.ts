@@ -6,7 +6,7 @@
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ` — ${detail}` : '') : ` — ${detail ? `${detail}; ` : ''}to fix: the ward verdict must stay a pure local computation in evaluateWards and the rule lists in src/utils/wards/wards.ts, and registerWardsGuard in src/guards/wardsGuard.ts must judge without a network call or a function inside a rule`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ` — ${detail}` : '') : ` — ${detail ? `${detail}; ` : ''}to fix: the ward verdict must stay a pure local computation in evaluateWards and the rule lists in src/permissions/wards/wards.ts, and registerWardsGuard in src/permissions/guards/wardsGuard.ts must judge without a network call or a function inside a rule`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -23,11 +23,11 @@ async function main(): Promise<void> {
   section('§4 no-dial behavioural pin — verdicts under a throwing fetch stub')
   {
     delete process.env.MERCURY_WARDS
-    const { BUILTIN_WARDS, evaluateWards } = await import('../../src/utils/wards/wards.js')
+    const { BUILTIN_WARDS, evaluateWards } = await import('../../src/permissions/wards/wards.js')
     const { registerWardsGuard, resetWardsEngagedSessionsForTest } = await import(
-      '../../src/guards/wardsGuard.js'
+      '../../src/permissions/guards/wardsGuard.js'
     )
-    const { judgeToolCall } = await import('../../src/guards/guards.js')
+    const { judgeToolCall } = await import('../../src/permissions/guards/guards.js')
 
     const realFetch = globalThis.fetch
     let dialed = 0
@@ -79,7 +79,7 @@ async function main(): Promise<void> {
 
   section('§5 rules are data — JSON round-trip intact (no function smuggling)')
   {
-    const { BUILTIN_WARDS, AUTONOMOUS_WARDS, REFUSAL_WARDS } = await import('../../src/utils/wards/wards.js')
+    const { BUILTIN_WARDS, AUTONOMOUS_WARDS, REFUSAL_WARDS } = await import('../../src/permissions/wards/wards.js')
     for (const [name, rules] of [
       ['BUILTIN_WARDS', BUILTIN_WARDS],
       ['AUTONOMOUS_WARDS', AUTONOMOUS_WARDS],

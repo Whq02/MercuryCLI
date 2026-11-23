@@ -56,7 +56,7 @@ try {
     } finally { writeFileSync(join(c.home, 'settings.json'), JSON.stringify(c.settings)) }
   })
   await check('Python cold and warm resume preserve the model', () => pythonProof('python-compat-resume.py', c))
-  assert(c.requests.every(request => request.fault === undefined), `compat resume fixture recorded faulted request(s) in src/services/providers/openaicompat/`)
+  assert(c.requests.every(request => request.fault === undefined), `compat resume fixture recorded faulted request(s) in src/models/roads/openaicompat/`)
 } finally { await c.close(); clearTimeout(guard) }
 assert.deepEqual(failures, [])
 console.log('PASS headless and both SDK resume roads retain provider, replay and reasoning')

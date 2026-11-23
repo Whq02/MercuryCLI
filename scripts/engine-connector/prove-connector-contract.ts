@@ -8,7 +8,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'connector-contract-
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const where = 'the doors and the focused slot are NoSessionConnector in src/services/engine-connector/noSessionConnector.ts, DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts and src/services/engine-connector/focusedConnector.ts: add or change the door there, or update DOORS in this file if the connector contract moved'
+  const where = 'the doors and the focused slot are NoSessionConnector in src/engine/connector/noSessionConnector.ts, DaemonSessionConnector in src/engine/connector/daemonConnector.ts and src/engine/connector/focusedConnector.ts: add or change the door there, or update DOORS in this file if the connector contract moved'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${where}`}`)
 }
 
@@ -62,10 +62,10 @@ const DOORS = [
 
 
 {
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
   const { getFocusedSessionConnector, hasFocusedSession, releaseFocusedSessionConnector, setFocusedSessionConnector } = await import(
-    '../../src/services/engine-connector/focusedConnector.ts'
+    '../../src/engine/connector/focusedConnector.ts'
   )
   const resting = new NoSessionConnector()
   const seat = new DaemonSessionConnector({
@@ -82,7 +82,7 @@ const DOORS = [
   }
   check("both carriers read 'daemon' — one kind of session", resting.carrier === 'daemon' && seat.carrier === 'daemon')
   const restingTools = await resting.mcpTools('runpod')
-  const { NO_CHAT_OPEN } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const { NO_CHAT_OPEN } = await import('../../src/engine/connector/noSessionConnector.ts')
   check('the resting MCP tools door says why it lists nothing (unavailable, the one no-chat sentence)', restingTools.state === 'unavailable' && restingTools.detail === NO_CHAT_OPEN)
   const boot = getFocusedSessionConnector()
   check('the focused slot rests on no session (no chat behind the boot menu)', !hasFocusedSession() && boot instanceof NoSessionConnector && boot.sessionId() === '')

@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { Message, SystemCompactBoundaryMessage } from '../../src/types/message.ts'
+import type { Message, SystemCompactBoundaryMessage } from '../../src/engine/message-shapes/message.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const resumed = process.argv[2] === '--resume'
@@ -13,29 +13,29 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
 process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { switchSession } = await import('../../src/bootstrap/state.ts')
+const { switchSession } = await import('../../src/boot/process-state/processState.ts')
 const sessionId = resumed ? process.argv[4]! : randomUUID()
 switchSession(sessionId as never)
-const { getTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
-const { getProject, recordTranscript } = await import('../../src/utils/sessionStorage/writer.ts')
-const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')
+const { getTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+const { getProject, recordTranscript } = await import('../../src/sessions/transcripts/writer.ts')
+const { decodeTranscriptBuffer } = await import('../../src/sessions/fabric/transcriptDecode.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { compactConversation, partialCompactConversation, buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
-const { buildFoldLedger, renderFoldLedger, withKeptLedgerRows } = await import('../../src/services/compact/foldLedger.ts')
-const { foldReceipt } = await import('../../src/services/compact/foldReceipt.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
+const { compactConversation, partialCompactConversation, buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { buildFoldLedger, renderFoldLedger, withKeptLedgerRows } = await import('../../src/engine/compaction/foldLedger.ts')
+const { foldReceipt } = await import('../../src/engine/compaction/foldReceipt.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
 const owner = makeOwnerKey({ workspace: process.cwd(), sessionId, lane: 'main' })
 const context = () => ({
   owner, abortController: new AbortController(), readFileState: createFileStateCacheWithSizeLimit(20), loadedNestedMemoryPaths: new Set(),
   getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, mcp: { tools: [], clients: [], commands: [], resources: {} } }),
   options: { tools: [], mcpClients: [], commands: [], agentDefinitions: { activeAgents: [] }, engineModel: 'claude-opus-4-8', thinkingConfig: { type: 'disabled' }, isNonInteractiveSession: true },
 }) as never
-const { historyLines } = await import('../../src/utils/sessionStorage/historyParts.ts')
+const { historyLines } = await import('../../src/sessions/transcripts/historyParts.ts')
 const boundaries = (): SystemCompactBoundaryMessage[] => {
   const out: SystemCompactBoundaryMessage[] = []
   for (const line of historyLines(getTranscriptPath())) {

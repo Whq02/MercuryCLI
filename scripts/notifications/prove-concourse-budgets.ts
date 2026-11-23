@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -75,26 +75,26 @@ const report: Record<string, unknown> = {
 
 console.log('§1 target resolver — the bounded-summary read (§13: p95 ≤ 10ms, max ≤ 25ms)')
 {
-  const { resolveInitialSurface } = await import('../../src/context/surfaceRoute.ts')
+  const { resolveInitialSurface } = await import('../../src/screen/routes/surfaceRoute.ts')
   const samples = await measure(200, 20, () => resolveInitialSurface())
   const d = dist(samples)
   report['targetResolverMs'] = d
-  gateLatency(`p95 ${d.p95.toFixed(2)}ms ≤ 10ms`, d.p95 <= 10, `${JSON.stringify(d)} — make resolveInitialSurface in src/context/surfaceRoute.ts read less per call`)
-  gateLatency(`max ${d.max.toFixed(2)}ms ≤ 25ms`, d.max <= 25, `${JSON.stringify(d)} — make resolveInitialSurface in src/context/surfaceRoute.ts read less per call`)
+  gateLatency(`p95 ${d.p95.toFixed(2)}ms ≤ 10ms`, d.p95 <= 10, `${JSON.stringify(d)} — make resolveInitialSurface in src/screen/routes/surfaceRoute.ts read less per call`)
+  gateLatency(`max ${d.max.toFixed(2)}ms ≤ 25ms`, d.max <= 25, `${JSON.stringify(d)} — make resolveInitialSurface in src/screen/routes/surfaceRoute.ts read less per call`)
 }
 
 console.log('§2 warm switch — buildConcourseSnapshot over five workers (< 100ms p95)')
 {
-  const { buildConcourseSnapshot } = await import('../../src/services/concourse/concourseSnapshot.ts')
+  const { buildConcourseSnapshot } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
   const samples = await measure(120, 10, () => buildConcourseSnapshot({ recordsDir, crewDir, draftDir }))
   const d = dist(samples)
   report['warmSwitchSnapshotMs'] = d
-  gateLatency(`p95 ${d.p95.toFixed(2)}ms < 100ms`, d.p95 < 100, `${JSON.stringify(d)} — make buildConcourseSnapshot in src/services/concourse/concourseSnapshot.ts cheaper over five workers`)
+  gateLatency(`p95 ${d.p95.toFixed(2)}ms < 100ms`, d.p95 < 100, `${JSON.stringify(d)} — make buildConcourseSnapshot in src/screen/concourse-model/concourseSnapshot.ts cheaper over five workers`)
 }
 
 console.log('§3 dispatch receipts — reservation→working through the owner path (< 50ms p95)')
 {
-  const { makeConcourseDispatchHandler } = await import('../../src/daemon/concourseDispatch.ts')
+  const { makeConcourseDispatchHandler } = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
   const dispatchDir = join(scratch, 'dispatch-daemon')
   mkdirSync(dispatchDir, { recursive: true })
   writeFileSync(
@@ -110,18 +110,18 @@ console.log('§3 dispatch receipts — reservation→working through the owner p
   const samples = await measure(100, 10, () => handler({ clientMessageId: `bench-${n++}`, prompt: 'bench', workspaceDir: scratch }))
   const d = dist(samples)
   report['dispatchOwnerPathMs'] = d
-  gateLatency(`p95 ${d.p95.toFixed(2)}ms < 50ms`, d.p95 < 50, `${JSON.stringify(d)} — make the handler from makeConcourseDispatchHandler in src/daemon/concourseDispatch.ts cheaper on the reservation-to-working path`)
+  gateLatency(`p95 ${d.p95.toFixed(2)}ms < 50ms`, d.p95 < 50, `${JSON.stringify(d)} — make the handler from makeConcourseDispatchHandler in src/daemon/concourse-workers/concourseDispatch.ts cheaper on the reservation-to-working path`)
 }
 
 console.log('§4 attach fold — snapshot+suffix over a 200-record transcript tail (< 100ms p95)')
 {
-  const { openWorkerTranscript, readAfterCursor } = await import('../../src/services/concourse/workerTranscript.ts')
-  check('the byte-cursor fold exports exist (openWorkerTranscript, readAfterCursor)', typeof openWorkerTranscript === 'function' && typeof readAfterCursor === 'function', 'restore the exports openWorkerTranscript and readAfterCursor in src/services/concourse/workerTranscript.ts')
+  const { openWorkerTranscript, readAfterCursor } = await import('../../src/screen/concourse-model/workerTranscript.ts')
+  check('the byte-cursor fold exports exist (openWorkerTranscript, readAfterCursor)', typeof openWorkerTranscript === 'function' && typeof readAfterCursor === 'function', 'restore the exports openWorkerTranscript and readAfterCursor in src/screen/concourse-model/workerTranscript.ts')
   const transcript = join(scratch, 'attach-fold.jsonl')
   const record = (i: number): string => JSON.stringify({ type: 'assistant', i, text: `record ${i}` }) + '\n'
   writeFileSync(transcript, Array.from({ length: 200 }, (_, i) => record(i)).join(''))
   const first = openWorkerTranscript(transcript)
-  check('the first-paint fold answers all 200 records at a clean cursor', first.records.length === 200 && first.malformed === 0 && first.cursor.carry === '' && !first.rewound, JSON.stringify({ n: first.records.length, malformed: first.malformed, offset: first.cursor.offset }) + ' — openWorkerTranscript in src/services/concourse/workerTranscript.ts must return all 200 records, none malformed, with an empty carry and no rewind')
+  check('the first-paint fold answers all 200 records at a clean cursor', first.records.length === 200 && first.malformed === 0 && first.cursor.carry === '' && !first.rewound, JSON.stringify({ n: first.records.length, malformed: first.malformed, offset: first.cursor.offset }) + ' — openWorkerTranscript in src/screen/concourse-model/workerTranscript.ts must return all 200 records, none malformed, with an empty carry and no rewind')
   let appended = 200
   const samples = await measure(150, 10, () => {
     const snapshot = openWorkerTranscript(transcript)
@@ -131,27 +131,27 @@ console.log('§4 attach fold — snapshot+suffix over a 200-record transcript ta
   })
   const d = dist(samples)
   report['attachFold200Ms'] = d
-  gateLatency(`p95 ${d.p95.toFixed(2)}ms < 100ms`, d.p95 < 100, `${JSON.stringify(d)} — make openWorkerTranscript and readAfterCursor in src/services/concourse/workerTranscript.ts cheaper over a 200-record tail`)
+  gateLatency(`p95 ${d.p95.toFixed(2)}ms < 100ms`, d.p95 < 100, `${JSON.stringify(d)} — make openWorkerTranscript and readAfterCursor in src/screen/concourse-model/workerTranscript.ts cheaper over a 200-record tail`)
 }
 
 console.log('§5 context size — the five-worker snapshot stays snapshot-scale (< 32 KiB)')
 {
-  const { buildConcourseSnapshot } = await import('../../src/services/concourse/concourseSnapshot.ts')
+  const { buildConcourseSnapshot } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
   const snap = await buildConcourseSnapshot({ recordsDir, crewDir, draftDir })
   const bytes = JSON.stringify(snap).length
   report['snapshotBytes'] = bytes
-  check(`snapshot ${bytes}B < 32768B`, bytes < 32_768, `${bytes} — shrink what buildConcourseSnapshot in src/services/concourse/concourseSnapshot.ts returns for five workers`)
+  check(`snapshot ${bytes}B < 32768B`, bytes < 32_768, `${bytes} — shrink what buildConcourseSnapshot in src/screen/concourse-model/concourseSnapshot.ts returns for five workers`)
 }
 
 console.log('§6 idle work — the snapshot path allocates no timers/listeners')
 {
   const before = process.getActiveResourcesInfo?.() ?? []
-  const { buildConcourseSnapshot } = await import('../../src/services/concourse/concourseSnapshot.ts')
+  const { buildConcourseSnapshot } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
   for (let i = 0; i < 10; i++) await buildConcourseSnapshot({ recordsDir, crewDir, draftDir })
   const after = process.getActiveResourcesInfo?.() ?? []
   const grewTimers = after.filter(r => r === 'Timeout').length > before.filter(r => r === 'Timeout').length + 1
   report['idleResourceDelta'] = { before: before.length, after: after.length }
-  check('ten builds grow no timer population', !grewTimers, JSON.stringify({ before: before.length, after: after.length }) + ' — buildConcourseSnapshot in src/services/concourse/concourseSnapshot.ts must not start timers or listeners')
+  check('ten builds grow no timer population', !grewTimers, JSON.stringify({ before: before.length, after: after.length }) + ' — buildConcourseSnapshot in src/screen/concourse-model/concourseSnapshot.ts must not start timers or listeners')
 }
 
 console.log('§7 the artifact')

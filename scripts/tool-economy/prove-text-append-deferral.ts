@@ -94,25 +94,25 @@ const KIMI = 'kimi-k3'
 const GLM = 'glm-5.3'
 process.env.MERCURY_MODEL = KIMI
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { assembleToolPool } = await import('../../src/tools.ts')
-const { MCPTool } = await import('../../src/tools/MCPTool/MCPTool.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { getDeferredToolsDeltaAttachment } = await import('../../src/services/attachments/deltas.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { deferralWireFormFor, DEFERRAL_WIRE_CAPABILITY } = await import('../../src/services/providers/deferralWire.ts')
-const { clearToolRosterLatches, admissionRecordText, planToolPayload } = await import('../../src/services/providers/toolEconomy.ts')
-await (await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')).refreshMoonshotCatalogue({ force: true })
-type Tool = import('../../src/Tool.ts').Tool
-type Tools = import('../../src/Tool.ts').Tools
-type Message = import('../../src/types/message.ts').Message
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
+const { MCPTool } = await import('../../src/tools/mcp/MCPTool.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/tool-search/prompt.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { getDeferredToolsDeltaAttachment } = await import('../../src/engine/attachments/toolAndServerDeltas.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { deferralWireFormFor, DEFERRAL_WIRE_CAPABILITY } = await import('../../src/models/roads/deferralWire.ts')
+const { clearToolRosterLatches, admissionRecordText, planToolPayload } = await import('../../src/models/roads/toolEconomy.ts')
+await (await import('../../src/models/roads/moonshot/moonshotCatalogue.ts')).refreshMoonshotCatalogue({ force: true })
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Tools = import('../../src/tools/kit/tool.ts').Tools
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const permissionContext = getEmptyToolPermissionContext()
 const mcpTools: Tool[] = buildFixtureMcpTools<Tool>(MCPTool)
@@ -146,9 +146,9 @@ const toolsJson = (body: Body): string => JSON.stringify(body.tools ?? [])
 const messagesText = (body: Body): string => JSON.stringify(body.messages ?? [])
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
 const fmt = (n: number): string => n.toLocaleString('en-US')
-const hintForm = 'the form comes from DEFERRAL_WIRE_CAPABILITY and deferralWireFormFor in src/services/providers/deferralWire.ts'
-const hintPlan = 'what rides the wire is planned by planToolPayload and admissionRecordText in src/services/providers/toolEconomy.ts'
-const hintSend = 'the request is built behind routedCallModel in src/services/providers/callModelRouter.ts; read the error shown'
+const hintForm = 'the form comes from DEFERRAL_WIRE_CAPABILITY and deferralWireFormFor in src/models/roads/deferralWire.ts'
+const hintPlan = 'what rides the wire is planned by planToolPayload and admissionRecordText in src/models/roads/toolEconomy.ts'
+const hintSend = 'the request is built behind routedCallModel in src/models/roads/callModelRouter.ts; read the error shown'
 
 async function drive(model: string, messages: Message[]): Promise<{ body: Body | undefined; chats: number; error: string | undefined }> {
   const before = hits.length
@@ -200,15 +200,15 @@ const admitted = [builtinPick, 'mcp__filesys__read_file']
 
 section('§0 the seam — the Moonshot row is text-append; kimi-k3 defers; the words spell the append form')
 {
-  check(`the real pool assembled: ${pool.length} tools, ${coreNames.length} never-deferred, ${deferredNames.length} deferrable (${mcpTools.length} fixture MCP)`, pool.length > 40 && deferredNames.length > 20 && coreNames.length >= 7, `pool=${pool.length} deferrable=${deferredNames.length} core=${coreNames.length} | the pool is assembleToolPool in src/tools.ts and the deferral marks isDeferredToolFor in src/tools/ToolSearchTool/prompt.ts`)
-  check("the table's moonshot row is 'text-append'", DEFERRAL_WIRE_CAPABILITY.moonshot === 'text-append', `${String(DEFERRAL_WIRE_CAPABILITY.moonshot)} | change the moonshot row of DEFERRAL_WIRE_CAPABILITY in src/services/providers/deferralWire.ts`)
+  check(`the real pool assembled: ${pool.length} tools, ${coreNames.length} never-deferred, ${deferredNames.length} deferrable (${mcpTools.length} fixture MCP)`, pool.length > 40 && deferredNames.length > 20 && coreNames.length >= 7, `pool=${pool.length} deferrable=${deferredNames.length} core=${coreNames.length} | the pool is assembleToolPool in src/tools/kit/toolList.ts and the deferral marks isDeferredToolFor in src/tools/tool-search/prompt.ts`)
+  check("the table's moonshot row is 'text-append'", DEFERRAL_WIRE_CAPABILITY.moonshot === 'text-append', `${String(DEFERRAL_WIRE_CAPABILITY.moonshot)} | change the moonshot row of DEFERRAL_WIRE_CAPABILITY in src/models/roads/deferralWire.ts`)
   const verdict = deferralWireFormFor(KIMI)
   check(`${KIMI} reads the text-append form from the route table`, verdict.form === 'text-append' && verdict.why === 'route-table', `${verdict.form}/${verdict.why} | ${hintForm}`)
   const older = deferralWireFormFor('kimi-k2.6')
   check('kimi-k2.6 (no dynamic tool loading, the docs) keeps the text form', older.form === 'text' && older.why === 'model-without-dynamic-tools', `${older.form}/${older.why} | ${hintForm}`)
   const words = await ToolSearchTool.prompt({ model: KIMI } as never)
-  check("the ToolSearch tool's words for kimi-k3 spell the append form (definitions appended to the conversation right after the result)", /appended to the conversation/.test(words) && !/from that request on their complete definitions are in your tool list/.test(words), `${words.slice(0, 300)} | the words are getPrompt in src/tools/ToolSearchTool/prompt.ts (text-append branch)`)
-  check('the name row rides once for a fresh Kimi transcript (the base announces nothing on this route)', nameRow !== undefined && nameRow.type === 'deferred_tools_delta' && nameRow.addedNames.join(',') === [...deferredNames].sort().join(','), 'the name row is built by getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts')
+  check("the ToolSearch tool's words for kimi-k3 spell the append form (definitions appended to the conversation right after the result)", /appended to the conversation/.test(words) && !/from that request on their complete definitions are in your tool list/.test(words), `${words.slice(0, 300)} | the words are getPrompt in src/tools/tool-search/prompt.ts (text-append branch)`)
+  check('the name row rides once for a fresh Kimi transcript (the base announces nothing on this route)', nameRow !== undefined && nameRow.type === 'deferred_tools_delta' && nameRow.addedNames.join(',') === [...deferredNames].sort().join(','), 'the name row is built by getDeferredToolsDeltaAttachment in src/engine/attachments/toolAndServerDeltas.ts')
 }
 
 section('§1 the FRESH request on the Moonshot road — the core in full, the rest by name, every name present')
@@ -252,13 +252,13 @@ const transcript: Message[] = [...opening, ...admissionRound('toolu_ts_1', admit
   check("the fresh request's rows are an unchanged prefix of this request's rows (the cached prefix holds)", freshRows.length > 0 && same(rows.slice(0, freshRows.length), freshRows), `rows before the admission changed; ${hintPlan}`)
   const recordIndex = rows.findIndex(r => r.role === 'tool' && r.tool_call_id === 'toolu_ts_1')
   check('the admission record rides as text naming the admitted tools, right before the declaration', recordIndex >= 0 && declaration !== undefined && recordIndex < declaration.index && String(rows[recordIndex]!.content).includes(admissionRecordText(admitted, 'text-append').split('\n')[0]!) && admitted.every(n => String(rows[recordIndex]!.content).includes(`- ${n}`)), `record row ${recordIndex}; ${hintPlan}`)
-  check("…and its words say the declarations follow, not 'in your tool list'", recordIndex >= 0 && /follow/.test(String(rows[recordIndex]!.content)) && !/tool list/.test(String(rows[recordIndex]!.content)), `${recordIndex >= 0 ? String(rows[recordIndex]!.content).slice(0, 300) : 'no record row'} | change admissionRecordText in src/services/providers/toolEconomy.ts`)
+  check("…and its words say the declarations follow, not 'in your tool list'", recordIndex >= 0 && /follow/.test(String(rows[recordIndex]!.content)) && !/tool list/.test(String(rows[recordIndex]!.content)), `${recordIndex >= 0 ? String(rows[recordIndex]!.content).slice(0, 300) : 'no record row'} | change admissionRecordText in src/models/roads/toolEconomy.ts`)
   const text = next.body ? messagesText(next.body) : ''
   check('no tool_reference block reaches a wire that cannot expand one', !text.includes('tool_reference'), `a tool_reference block was sent; ${hintPlan}`)
   check('every other deferred tool still has no schema anywhere on the wire', deferredNames.filter(n => !admitted.includes(n)).every(n => !freshNames.includes(n) && !(declaration?.names ?? []).includes(n)), `an unadmitted deferred tool has a schema on the wire; ${hintPlan}`)
   const plan = await planToolPayload({ model: KIMI, tools: pool, messages: transcript, getToolPermissionContext: async () => permissionContext, agents: [], hasPendingMcpServers: false, source: 'proof' })
-  check('the plan owner names the form and keeps the admitted tools OUT of the roster', plan.wireForm === 'text-append' && plan.enabled && admitted.every(n => !plan.roster.some(t => t.name === n)) && [...plan.admittedNames].sort().join(',') === [...admitted].sort().join(','), `wireForm=${plan.wireForm} enabled=${plan.enabled} admitted=${[...plan.admittedNames].join(',')} | change planToolPayload in src/services/providers/toolEconomy.ts`)
-  check('the gate still knows an unadmitted deferred tool from an admitted one', plan.isDeferredUnadmitted(secondPick) === true && plan.isDeferredUnadmitted(builtinPick) === false, 'change isDeferredUnadmitted in the plan from planToolPayload in src/services/providers/toolEconomy.ts')
+  check('the plan owner names the form and keeps the admitted tools OUT of the roster', plan.wireForm === 'text-append' && plan.enabled && admitted.every(n => !plan.roster.some(t => t.name === n)) && [...plan.admittedNames].sort().join(',') === [...admitted].sort().join(','), `wireForm=${plan.wireForm} enabled=${plan.enabled} admitted=${[...plan.admittedNames].join(',')} | change planToolPayload in src/models/roads/toolEconomy.ts`)
+  check('the gate still knows an unadmitted deferred tool from an admitted one', plan.isDeferredUnadmitted(secondPick) === true && plan.isDeferredUnadmitted(builtinPick) === false, 'change isDeferredUnadmitted in the plan from planToolPayload in src/models/roads/toolEconomy.ts')
 }
 
 section('§3 LATER TURNS — the declaration keeps its place and bytes; a second admission appends a second row; a re-admission adds nothing')
@@ -340,7 +340,7 @@ section('§5 THE Z.AI ROAD — the table row decides: text-append rides a TEXT d
     const nextNames = next.body ? wireTools(next.body).map(t => t.name) : []
     check('the request after the admission carries the fresh term followed by exactly the admitted schemas', nextNames.join(',') === [...coreNames, ...admitted].join(','), `${nextNames.join(',')} | ${hintPlan}`)
     const record = nextRows.find(r => r.role === 'tool' && r.tool_call_id === 'toolu_ts_glm')
-    check("the admission record rides as text and says the schemas are in the tool list from this request on", record !== undefined && String(record.content).includes(admissionRecordText(admitted).split('\n')[0]!) && /tool list/.test(String(record.content)) && admitted.every(n => String(record.content).includes(`- ${n}`)), `${record ? String(record.content).slice(0, 300) : 'no record row'} | change admissionRecordText in src/services/providers/toolEconomy.ts`)
+    check("the admission record rides as text and says the schemas are in the tool list from this request on", record !== undefined && String(record.content).includes(admissionRecordText(admitted).split('\n')[0]!) && /tool list/.test(String(record.content)) && admitted.every(n => String(record.content).includes(`- ${n}`)), `${record ? String(record.content).slice(0, 300) : 'no record row'} | change admissionRecordText in src/models/roads/toolEconomy.ts`)
     check('no declaration row rides (the schema travels in the tools term, never in a system row)', next.body !== undefined && declarationRows(next.body).length === 0 && !nextRows.some(r => r.role === 'system' && typeof r.content === 'string' && String(r.content).includes('"type":"function"')), `${hintPlan}; the schema must travel in the tools term only`)
     check("the fresh request's rows are an unchanged prefix of the admitted request's rows", fresh.body !== undefined && same(nextRows.slice(0, rowsOf(fresh.body).length), rowsOf(fresh.body)), `earlier rows changed; ${hintPlan}`)
     check('every other deferred tool still has no schema on the wire', deferredNames.filter(n => !admitted.includes(n)).every(n => !nextNames.includes(n)), `an unadmitted deferred tool has a schema on the wire; ${hintPlan}`)

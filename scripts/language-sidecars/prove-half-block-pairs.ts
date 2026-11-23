@@ -1,16 +1,16 @@
 process.env.FORCE_COLOR = '3'
 const sharp = (await import('sharp')).default
 const chalk = (await import('chalk')).default
-const { spriteToAnsi } = await import('../../src/services/visual/spriteToAnsi.js')
-const { imageToCells } = await import('../../src/services/visual/imageDisplay.js')
-const { rgbToXterm256 } = await import('../../src/ink/cell-grid.js')
-const { _resetGroundForTest, markOriginalGroundQuerySent, noteOriginalGroundReply, terminalGround } = await import('../../src/utils/cockpit/oasisBg.js')
+const { spriteToAnsi } = await import('../../src/screen/image-display/spriteToAnsi.js')
+const { imageToCells } = await import('../../src/screen/image-display/imageDisplay.js')
+const { rgbToXterm256 } = await import('../../src/screen/renderer/cell-grid.js')
+const { _resetGroundForTest, markOriginalGroundQuerySent, noteOriginalGroundReply, terminalGround } = await import('../../src/screen/cockpit/oasisBg.js')
 
 const ESC = String.fromCharCode(27)
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' · fix the half-block cell in spriteToAnsi in src/services/visual/spriteToAnsi.ts or imageToCells in src/services/visual/imageDisplay.ts (a 256-colour check reads rgbToXterm256 in src/ink/cell-grid.ts, a ground check reads terminalGround in src/utils/cockpit/oasisBg.ts)'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' · fix the half-block cell in spriteToAnsi in src/screen/image-display/spriteToAnsi.ts or imageToCells in src/screen/image-display/imageDisplay.ts (a 256-colour check reads rgbToXterm256 in src/screen/renderer/cell-grid.ts, a ground check reads terminalGround in src/screen/cockpit/oasisBg.ts)'}`)
 }
 const show = (s: string): string => JSON.stringify(s.replace(/\x1b/g, 'ESC'))
 

@@ -12,7 +12,7 @@ type FacadeExport = {
 }
 
 function scanFacade(root = ROOT): { exports: FacadeExport[]; extraStatements: string[] } {
-  const facadePath = join(root, 'src', 'ink.ts')
+  const facadePath = join(root, 'src', 'screen', 'themedRenderer.ts')
   const source = ts.createSourceFile(
     'ink.ts',
     readFileSync(facadePath, 'utf8'),
@@ -81,14 +81,14 @@ if (import.meta.main) {
     console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
   }
 
-  console.log('bedrock facade inventory — src/ink.ts')
+  console.log('bedrock facade inventory — src/screen/themedRenderer.ts')
   const { exports: scanned, extraStatements } = scanFacade()
 
   check(
     'facade law: no logic beyond re-exports + the theme wrap',
     extraStatements.length === 0,
     extraStatements.length > 0
-      ? `${extraStatements.join(', ')} — move logic out of src/ink.ts and re-export it`
+      ? `${extraStatements.join(', ')} — move logic out of src/screen/themedRenderer.ts and re-export it`
       : '',
   )
   check('facade exports scanned', scanned.length > 0)

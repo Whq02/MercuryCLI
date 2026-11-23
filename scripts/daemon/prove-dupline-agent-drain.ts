@@ -8,9 +8,9 @@ const { check, section, finish, failed } = makeTally('prove-dupline-agent-drain'
 section('S the drain scope reads the agent id before the query source (the tool boundary, called)')
 {
   const t = await import('../core-runtime/turnScenarios.ts')
-  const { runToolCalls } = await import('../../src/run-core/turn/runToolCalls.ts')
-  const { afterTools } = await import('../../src/run-core/turn/afterTools.ts')
-  const queue = await import('../../src/utils/messageQueueManager.ts')
+  const { runToolCalls } = await import('../../src/engine/loop/turn/runToolCalls.ts')
+  const { afterTools } = await import('../../src/engine/loop/turn/afterTools.ts')
+  const queue = await import('../../src/daemon/runner/messageQueueManager.ts')
   const SENT = '30000000-0000-4000-8000-000000000001'
   const boundary = async (who: { agentId?: string; querySource: string }): Promise<{ drained: unknown[]; consumed: string[]; left: unknown[] }> => {
     const planted = await t.plantReply({
@@ -33,7 +33,7 @@ section('S the drain scope reads the agent id before the query source (the tool 
   check(
     "a query that runs under an agent id is never the main thread's drain, whatever its source label",
     leftAlone(agentLabelledSdk) && leftAlone(agentLabelledMain) && j(mainThread.drained) === j([SENT]) && j(mainThread.consumed) === j([SENT]) && mainThread.left.length === 0,
-    `the operator's line queued at a tool boundary — under an agent id labelled sdk: ${j(agentLabelledSdk)}; under an agent id labelled main_thread: ${j(agentLabelledMain)}; the main thread itself: ${j(mainThread)} — selectDrainableCommands of src/run-core/attachment-drain.ts gives the main thread's queue only to a scope with no agent id, and the drain of src/run-core/turn/afterTools.ts hands it the agent id of the run's context`,
+    `the operator's line queued at a tool boundary — under an agent id labelled sdk: ${j(agentLabelledSdk)}; under an agent id labelled main_thread: ${j(agentLabelledMain)}; the main thread itself: ${j(mainThread)} — selectDrainableCommands of src/engine/loop/attachment-drain.ts gives the main thread's queue only to a scope with no agent id, and the drain of src/engine/loop/turn/afterTools.ts hands it the agent id of the run's context`,
   )
 }
 

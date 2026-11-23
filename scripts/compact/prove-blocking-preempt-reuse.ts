@@ -26,10 +26,10 @@ for (const key of [
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-preempt-reuse-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const compact = await import('../../src/services/compact/autoCompact.ts')
-const tokens = await import('../../src/services/context/tokens.ts')
+const compact = await import('../../src/engine/compaction/autoFold.ts')
+const tokens = await import('../../src/engine/context-window/contextTokenCount.ts')
 
 const MODEL = 'claude-sonnet-5'
 
@@ -65,11 +65,11 @@ section('R1 · the surfaced count IS the canonical count (level parity incl. blo
       surfaced = raw
     })
     const direct = tokens.tokenCountWithEstimation(messages as never)
-    check(`${label}: surfaced === tokenCountWithEstimation (${direct})`, surfaced === direct, `surfaced=${surfaced} direct=${direct} — shouldAutoCompact in src/services/compact/autoCompact.ts must pass onMeasured the same count tokenCountWithEstimation gives (plus snipTokensFreed)`)
+    check(`${label}: surfaced === tokenCountWithEstimation (${direct})`, surfaced === direct, `surfaced=${surfaced} direct=${direct} — shouldAutoCompact in src/engine/compaction/autoFold.ts must pass onMeasured the same count tokenCountWithEstimation gives (plus snipTokensFreed)`)
     if (surfaced !== null) {
       const fromSurfaced = compact.calculateTokenWarningState(surfaced, MODEL).level
       const fromRecount = compact.calculateTokenWarningState(direct, MODEL).level
-      check(`${label}: decision level identical from surfaced vs recount (${fromSurfaced})`, fromSurfaced === fromRecount, `${fromSurfaced} vs ${fromRecount} — the count shouldAutoCompact in src/services/compact/autoCompact.ts hands to onMeasured must be the raw count, so calculateTokenWarningState reads the same level from it as from a recount`)
+      check(`${label}: decision level identical from surfaced vs recount (${fromSurfaced})`, fromSurfaced === fromRecount, `${fromSurfaced} vs ${fromRecount} — the count shouldAutoCompact in src/engine/compaction/autoFold.ts hands to onMeasured must be the raw count, so calculateTokenWarningState reads the same level from it as from a recount`)
     }
   }
 }
@@ -83,20 +83,20 @@ section('R2 · the early returns surface nothing')
   await compact.shouldAutoCompact(transcriptAt(1000) as never, MODEL, 'session_memory', 0, () => {
     called++
   })
-  check('forked sources (compact / session_memory) never call onMeasured', called === 0, `called=${called} — shouldAutoCompact in src/services/compact/autoCompact.ts must return before onMeasured for the compact and session_memory sources`)
+  check('forked sources (compact / session_memory) never call onMeasured', called === 0, `called=${called} — shouldAutoCompact in src/engine/compaction/autoFold.ts must return before onMeasured for the compact and session_memory sources`)
   process.env.MERCURY_AUTO_COMPACT = '0'
   await compact.shouldAutoCompact(transcriptAt(1000) as never, MODEL, undefined, 0, () => {
     called++
   })
   delete process.env.MERCURY_AUTO_COMPACT
-  check('auto-compact off never calls onMeasured', called === 0, `called=${called} — shouldAutoCompact in src/services/compact/autoCompact.ts must return before onMeasured when isAutoCompactEnabled is false (MERCURY_AUTO_COMPACT=0)`)
+  check('auto-compact off never calls onMeasured', called === 0, `called=${called} — shouldAutoCompact in src/engine/compaction/autoFold.ts must return before onMeasured when isAutoCompactEnabled is false (MERCURY_AUTO_COMPACT=0)`)
 }
 
 section('R3 · the wiring reads the carried count first (source pins on the fold gate; the preempt, called)')
 {
   const t = await import('../core-runtime/turnScenarios.ts')
-  const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
+  const { makeRequest } = await import('../../src/engine/loop/turn/makeRequest.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
   const f = t.fixtures
   type Row = Record<string, unknown>
   const j = (value: unknown): string => JSON.stringify(value)
@@ -145,13 +145,13 @@ section('R3 · the wiring reads the carried count first (source pins on the fold
   check(
     'the blocking preempt reuses the carried count, recounts only as fallback, and credits the prune receipt of this iteration against either (never below zero)',
     carriedOver.said === 'end blocking_limit' && carriedUnder.said === 'go_on' && recountedOver.said === 'end blocking_limit' && recountedUnder.said === 'go_on' && unstamped.saved > 0 && unstampedBetween.said === 'go_on' && nothingPruned.said === 'end blocking_limit',
-    `limit 100 — a carried count of 5,000 over a one-line transcript: ${carriedOver.said} (end blocking_limit is right); a carried count of 10 over a transcript stamped 5,000: ${carriedUnder.said} (go_on); no carried count, the stamped transcript: ${recountedOver.said} (end blocking_limit); no carried count, one line: ${recountedUnder.said} (go_on); a prune that saved ${unstamped.saved} of ${unstampedCount} with the limit between the two: ${unstampedBetween.said} (go_on), the same limit with nothing pruned: ${nothingPruned.said} (end blocking_limit) — the blocking check of makeRequest in src/run-core/turn/makeRequest.ts judges by the count the fold gate measured when it carried one, recounts the view only when it carried none, and takes this turn's prune saving off`,
+    `limit 100 — a carried count of 5,000 over a one-line transcript: ${carriedOver.said} (end blocking_limit is right); a carried count of 10 over a transcript stamped 5,000: ${carriedUnder.said} (go_on); no carried count, the stamped transcript: ${recountedOver.said} (end blocking_limit); no carried count, one line: ${recountedUnder.said} (go_on); a prune that saved ${unstamped.saved} of ${unstampedCount} with the limit between the two: ${unstampedBetween.said} (go_on), the same limit with nothing pruned: ${nothingPruned.said} (end blocking_limit) — the blocking check of makeRequest in src/engine/loop/turn/makeRequest.ts judges by the count the fold gate measured when it carried one, recounts the view only when it carried none, and takes this turn's prune saving off`,
   )
   check(
     'a projected request gauge needs no prune subtraction; an unstamped view keeps the receipt credit',
     gauged.gauge !== undefined && gauged.gauge.rebase === true && gauged.saved > 0 && gaugedBetween.said === 'end blocking_limit' && gaugedAbove.said === 'go_on' && unstamped.said === 'go_on' && unstamped.gauge === undefined && unstampedBetween.said === 'go_on' &&
       forced.folds.length === 1 && forced.folds[0]?.source === 'sdk' && j(forced.folds[0]?.tracking) === j(tracking) && forced.folds[0]?.prunedTokensFreed === 0 && j(forced.folds[0]?.forced) === j(f.providerOverflow()),
-    `a pruned view with a projected gauge of ${gaugedCount} (the prune saved ${gauged.saved}): limit ${gaugedCount - Math.floor(gauged.saved / 2)} ${gaugedBetween.said} (end blocking_limit is right: nothing is taken off a count made of the pruned view), limit ${gaugedCount + 1} ${gaugedAbove.said} (go_on); a view with no gauge counted ${unstampedCount} by its usage stamp: limit ${unstampedCount - Math.floor(unstamped.saved / 2)} ${unstampedBetween.said} (go_on: the saving is taken off); the fold gate was asked ${j(forced.folds.map(row => ({ source: row.source, tracking: row.tracking, prunedTokensFreed: row.prunedTokensFreed, forced: row.forced })))} (the source, the turn's tracking, a saving of 0, the overflow that forces it) — src/run-core/turn/makeRequest.ts`,
+    `a pruned view with a projected gauge of ${gaugedCount} (the prune saved ${gauged.saved}): limit ${gaugedCount - Math.floor(gauged.saved / 2)} ${gaugedBetween.said} (end blocking_limit is right: nothing is taken off a count made of the pruned view), limit ${gaugedCount + 1} ${gaugedAbove.said} (go_on); a view with no gauge counted ${unstampedCount} by its usage stamp: limit ${unstampedCount - Math.floor(unstamped.saved / 2)} ${unstampedBetween.said} (go_on: the saving is taken off); the fold gate was asked ${j(forced.folds.map(row => ({ source: row.source, tracking: row.tracking, prunedTokensFreed: row.prunedTokensFreed, forced: row.forced })))} (the source, the turn's tracking, a saving of 0, the overflow that forces it) — src/engine/loop/turn/makeRequest.ts`,
   )
 
   const landedUnder = await preempt(sideQuestion(fat(), { ...f.folded(50), measuredRawTokenCount: 5_000 }))
@@ -164,7 +164,7 @@ section('R3 · the wiring reads the carried count first (source pins on the fold
   check(
     'the preempt stays gated on the just-compacted exemption (a compaction-changed view never reuses a stale number; the exemption holds only under the limit)',
     landedUnder.said === 'go_on' && landedUnder.events.some(event => event.kind === 'compaction_boundary') && landedOver.said === 'end blocking_limit' && landedUncounted.said === 'go_on' && summariser.said === 'go_on' && sessionMemory.said === 'go_on',
-    `limit 100 — a fold that landed at 50 beside a carried count of 5,000 taken before it: ${landedUnder.said} (go_on is right); a fold that landed at 5,000: ${landedOver.said} (end blocking_limit); a fold with no true post figure beside the same carried count: ${landedUncounted.said} (go_on); the summariser's own request over the limit: ${summariser.said} (go_on); the session-memory request: ${sessionMemory.said} (go_on) — the blocking check of makeRequest in src/run-core/turn/makeRequest.ts`,
+    `limit 100 — a fold that landed at 50 beside a carried count of 5,000 taken before it: ${landedUnder.said} (go_on is right); a fold that landed at 5,000: ${landedOver.said} (end blocking_limit); a fold with no true post figure beside the same carried count: ${landedUncounted.said} (go_on); the summariser's own request over the limit: ${summariser.said} (go_on); the session-memory request: ${sessionMemory.said} (go_on) — the blocking check of makeRequest in src/engine/loop/turn/makeRequest.ts`,
   )
 }
 

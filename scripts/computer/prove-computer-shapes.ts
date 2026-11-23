@@ -1,9 +1,9 @@
 import { check, finish, section } from './computerProofKit.ts'
 import { allowEverything, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
-import type { DesktopDriver } from '../../src/services/desktop/driver.ts'
+import type { DesktopDriver } from '../../src/integrations/desktop/driver.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver } = await import('../../src/services/desktop/resolveDriver.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver } = await import('../../src/integrations/desktop/resolveDriver.ts')
 const resolved = resolveDesktopDriver()
 if (resolved.state !== 'ok') throw new Error(resolved.note)
 const driver = resolved.driver as DesktopDriver & { acts: { act: string; detail: Record<string, unknown> }[] }
@@ -65,7 +65,7 @@ const checkpoint = await call({ action: 'sequence', steps: [{ action: 'screensho
 const clicksAfter = driver.acts.filter(act => act.act === 'click').length
 check('an intermediate screenshot never lends unseen pixels: a pixel step after it is refused with the reason and nothing is clicked', checkpoint.outcome === 'failed' && checkpoint.result.includes('click refused: the last screenshot was taken in this same message — you have not seen it; take the screenshot alone, then the region or the act') && clicksAfter === clicksBefore, `${checkpoint.result}; clicks ${clicksBefore} → ${clicksAfter}`)
 check("the refused sequence returns no image and publishes no map (an error answer travels as text alone): the step's screenshot line gives way to the not-returned words", checkpoint.imagePath === undefined && checkpoint.screen === undefined && !checkpoint.result.includes('screenshot:') && checkpoint.result.includes('screenshot taken by the step but not returned'), checkpoint.result)
-const { createAssistantMessage } = await import('../../src/services/messages.ts')
+const { createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
 const unseenShot = await withScreenshot(ComputerTool as never, toolContext(), 'shapes-unseen-shot')
 const sameMessage = createAssistantMessage({ content: [{ type: 'tool_use', id: unseenShot.toolUseId, name: 'Computer', input: { action: 'screenshot', full: true } }, { type: 'tool_use', id: 'shapes-unseen-act', name: 'Computer', input: { action: 'click', x: 10, y: 10 } }] as never })
 const unseen = resultOf(await ComputerTool.call({ action: 'click', x: 10, y: 10, capture: false } as never, toolContext(), allowEverything, sameMessage as never))

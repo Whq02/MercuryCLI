@@ -4,8 +4,8 @@ import { check, finish } from '../ast-tools/lib/harness.ts'
 
 const repoRoot = join(import.meta.dir, '..', '..')
 const PROBE = `
-const { StructureTool } = await import('./src/tools/StructureTool/StructureTool.ts')
-const { getAllBaseTools } = await import('./src/tools.ts')
+const { StructureTool } = await import('./src/tools/structure/StructureTool.ts')
+const { getAllBaseTools } = await import('./src/tools/kit/toolList.ts')
 const schema = StructureTool.inputSchema
 const keys = Object.keys(schema.shape)
 const actions = schema.shape.action.unwrap().options

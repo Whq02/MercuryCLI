@@ -36,9 +36,9 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { filterShellOutput, isShellOutputFilterOn, outputFilterFooter, SHELL_OUTPUT_FILTER_SETTING } = await import('../../src/utils/shell/outputFilter.ts')
-const settingsRoad = await import('../../src/utils/settings/settings.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { filterShellOutput, isShellOutputFilterOn, outputFilterFooter, SHELL_OUTPUT_FILTER_SETTING } = await import('../../src/platform/shell/outputFilter.ts')
+const settingsRoad = await import('../../src/platform/settings/settings.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 
 function setFilterKey(value: boolean | null): void {
   const path = settingsRoad.getSettingsFilePathForSource('userSettings')!
@@ -79,7 +79,7 @@ section('§1 the filter itself: progress redraws collapse to their last line, in
   const clean = 'src/a.ts\nsrc/b.ts\nTests: 3 passed\n'
   const untouched = filterShellOutput(clean)
   check('an output with nothing to filter comes back unchanged, the same string', untouched.text === clean && untouched.changed === false && untouched.leftOut.progress + untouched.leftOut.noise + untouched.leftOut.repeats === 0)
-  const failing = 'Compiling app v0.1.0\nerror[E0425]: cannot find value `x` in this scope\n  --> src/main.rs:2:5\nerror: could not compile `app`'
+  const failing = 'Compiling app v0.1.0\nerror[E0425]: cannot find value `x` in this scope\n  --> src/boot/main.rs:2:5\nerror: could not compile `app`'
   const kept = filterShellOutput(failing)
   check('compiler errors are never dropped', kept.text.includes('error[E0425]') && kept.text.includes('could not compile'), kept.text)
   check('a percentage inside an error line is not a progress redraw', filterShellOutput('error: 50% of the tests failed\nerror: 60% of the tests failed').changed === false)
@@ -89,9 +89,9 @@ section('§1 the filter itself: progress redraws collapse to their last line, in
   check('the setting is spelled shell.filterOutput', SHELL_OUTPUT_FILTER_SETTING === 'shell.filterOutput')
 }
 
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { formatError } = await import('../../src/utils/toolErrors.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { formatError } = await import('../../src/tools/kit/toolErrors.ts')
 let appState = getDefaultAppState()
 const toolContext = {
   options: { engineModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {} },
@@ -161,7 +161,7 @@ section('§5 one law, two shells, one schema row')
 
 section('refusals — real output that resembles progress or chatter is never dropped, and image output bypasses the filter')
 {
-  const { applyShellOutputFilter } = await import('../../src/utils/shell/utils.ts')
+  const { applyShellOutputFilter } = await import('../../src/platform/shell/shellOutput.ts')
   const singlePct = 'Coverage summary: 85.4% of statements covered\nAll suites passed.\n'
   const singleOut = filterShellOutput(singlePct)
   check('a single percentage line in real output is never dropped (a run of one has 0 redraws)', singleOut.text === singlePct && singleOut.changed === false, JSON.stringify(singleOut))

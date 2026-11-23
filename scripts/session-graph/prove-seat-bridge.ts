@@ -13,12 +13,12 @@ const scratch = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'crew-seat
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 mkdirSync(join(scratch, 'home'), { recursive: true })
 
-const caps = await import('../../src/services/crew/capabilities.ts')
-const bridge = await import('../../src/services/crew/seatBridge.ts')
-const dispatch = await import('../../src/services/crew/dispatch.ts')
-const { codexSeatTransport } = await import('../../src/services/crew/adapters/codex.ts')
-const { acpSeatTransport } = await import('../../src/services/crew/adapters/acpProfile.ts')
-type NdjsonChildLike = import('../../src/services/crew/adapters/ndjsonChild.ts').NdjsonChildLike
+const caps = await import('../../src/crew/crewmates/capabilities.ts')
+const bridge = await import('../../src/crew/crewmates/seatBridge.ts')
+const dispatch = await import('../../src/crew/crewmates/dispatch.ts')
+const { codexSeatTransport } = await import('../../src/crew/crewmates/adapters/codex.ts')
+const { acpSeatTransport } = await import('../../src/crew/crewmates/adapters/acpProfile.ts')
+type NdjsonChildLike = import('../../src/crew/crewmates/adapters/ndjsonChild.ts').NdjsonChildLike
 
 const fixture = (name: string): Record<string, unknown> =>
   JSON.parse(readFileSync(`scripts/session-graph/fixtures/${name}.fixture.json`, 'utf8'))
@@ -252,7 +252,7 @@ t.section('§8 — wave-A regression pins')
     deliverImpl?: () => Promise<{ result: 'accepted' | 'rejected' | 'unknown' } & Record<string, unknown>>
     withCancel?: boolean
   }): {
-    transport: import('../../src/services/crew/seatBridge.ts').ExternalSeatTransport
+    transport: import('../../src/crew/crewmates/seatBridge.ts').ExternalSeatTransport
     fireLifecycle: (s: Lifecycle) => void
     deliveries: () => number
   } => {

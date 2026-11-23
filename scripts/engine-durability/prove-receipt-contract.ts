@@ -8,7 +8,7 @@ import { checker } from './harness.ts'
 
 const t = checker()
 
-const contracts = await import('../../src/services/changeTransaction/contracts.ts')
+const contracts = await import('../../src/tools/engines/change-transaction/contracts.ts')
 
 function srcFiles(dir = 'src'): string[] {
   const out: string[] = []
@@ -40,7 +40,7 @@ t.section('§1 — one schema')
   t.check(
     'the single definition site is the contracts owner',
     grepFiles(/export const CHANGE_CONTRACT_VERSION\s*=/)[0] ===
-      'src/services/changeTransaction/contracts.ts',
+      'src/tools/engines/change-transaction/contracts.ts',
     grepFiles(/export const CHANGE_CONTRACT_VERSION\s*=/)[0] ?? '(none)',
   )
 }

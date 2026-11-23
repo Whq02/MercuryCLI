@@ -8,17 +8,17 @@ mkdirSync(home, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
 
-const { setAgentWatchTimingForTests } = await import('../../src/services/agents/watch.js')
-const { clearAgentDefinitionsCache } = await import('../../src/tools/AgentTool/loadAgentsDir.js')
-const { armRunnerAgentFreshness } = await import('../../src/cli/agentFreshness.js')
-type AgentDefinition = import('../../src/types/agent.js').AgentDefinition
+const { setAgentWatchTimingForTests } = await import('../../src/crew/agents/watch.js')
+const { clearAgentDefinitionsCache } = await import('../../src/tools/crewmate/loadAgentsDir.js')
+const { armRunnerAgentFreshness } = await import('../../src/daemon/runner/agentFreshness.js')
+type AgentDefinition = import('../../src/crew/agents/agentDefinition.js').AgentDefinition
 
 let failures = 0
 function check(name: string, cond: boolean, detail?: string): void {
   if (cond) console.log(`  ✓ ${name}`)
   else {
     failures++
-    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — to fix, change armRunnerAgentFreshness in src/cli/agentFreshness.ts (the roster refresh on agent file changes and its disarm); the detail above is the roster it left`)
+    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — to fix, change armRunnerAgentFreshness in src/daemon/runner/agentFreshness.ts (the roster refresh on agent file changes and its disarm); the detail above is the roster it left`)
   }
 }
 

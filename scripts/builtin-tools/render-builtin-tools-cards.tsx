@@ -21,14 +21,14 @@ const CONFIG_HOME = resolveProofHome([process.cwd()])
 
 if (process.env.ARSENAL_CARDS_CHILD) {
   const React = await import('react')
-  const { render, Box, Text } = (await import('../../src/ink.js')) as {
+  const { render, Box, Text } = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
     Box: never
     Text: never
   }
-  const structureUI = await import('../../src/tools/StructureTool/UI.js')
-  const gitUI = await import('../../src/tools/GitTool/UI.js')
-  const journeyUI = await import('../../src/tools/JourneyTool/UI.js')
+  const structureUI = await import('../../src/tools/structure/rows.js')
+  const gitUI = await import('../../src/tools/git/rows.js')
+  const journeyUI = await import('../../src/tools/journey/rows.js')
   const h = React.createElement
   const opts = { verbose: false } as never
 
@@ -83,7 +83,7 @@ if (process.env.ARSENAL_CARDS_CHILD) {
   let failures = 0
   const check = (label: string, cond: boolean, detail = ''): void => {
     if (!cond) failures++
-    const shown = cond ? detail : [detail, 'fix renderToolResultMessage in src/tools/StructureTool/UI, src/tools/GitTool/UI or src/tools/JourneyTool/UI (the glyph and word per outcome); to see the rendered grid run this file with ARSENAL_CARDS_CHILD=1 under scripts/ui/vshot.py'].filter(Boolean).join(' — ')
+    const shown = cond ? detail : [detail, 'fix renderToolResultMessage in src/tools/structure/rows, src/tools/git/rows or src/tools/journey/rows (the glyph and word per outcome); to see the rendered grid run this file with ARSENAL_CARDS_CHILD=1 under scripts/ui/vshot.py'].filter(Boolean).join(' — ')
     console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
   }
   if (!existsSync(VSHOT)) {

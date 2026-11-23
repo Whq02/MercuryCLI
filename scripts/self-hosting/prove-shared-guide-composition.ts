@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/instructions/** src/projectOnboardingState.ts src/utils/cockpit/repoSurfaceMap.ts src/context.ts src/services/attachments/nestedMemory.ts src/utils/config/trust.ts
+// gate-watch: src/sessions/instructions/** src/boot/projectOnboarding.ts src/screen/cockpit/repoSurfaceMap.ts src/engine/requestContext.ts src/engine/attachments/nestedInstructions.ts src/platform/config/trust.ts
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -13,15 +13,15 @@ writeFileSync(driver, `
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import(${JSON.stringify(join(repo, 'src/utils/config/globalConfig.ts'))})
+const { enableConfigs } = await import(${JSON.stringify(join(repo, 'src/platform/config/globalConfig.ts'))})
 enableConfigs()
-const { getEmptyToolPermissionContext } = await import(${JSON.stringify(join(repo, 'src/Tool.ts'))})
-const { getInstructionFiles, composeInstructionPrompt, getInstructionBundle, getInstructionCompositionState, isInstructionFilePath } = await import(${JSON.stringify(join(repo, 'src/services/instructions/engine.ts'))})
-const { getUserContext } = await import(${JSON.stringify(join(repo, 'src/context.ts'))})
-const { getNestedMemoryAttachmentsForFile } = await import(${JSON.stringify(join(repo, 'src/services/attachments/nestedMemory.ts'))})
-const { createFileStateCacheWithSizeLimit } = await import(${JSON.stringify(join(repo, 'src/utils/fileStateCache.ts'))})
-const { getSteps } = await import(${JSON.stringify(join(repo, 'src/projectOnboardingState.ts'))})
-const { composedGuideFilesAt } = await import(${JSON.stringify(join(repo, 'src/services/instructions/adapters/index.ts'))})
+const { getEmptyToolPermissionContext } = await import(${JSON.stringify(join(repo, 'src/tools/kit/tool.ts'))})
+const { getInstructionFiles, composeInstructionPrompt, getInstructionBundle, getInstructionCompositionState, isInstructionFilePath } = await import(${JSON.stringify(join(repo, 'src/sessions/instructions/instructionFiles.ts'))})
+const { getUserContext } = await import(${JSON.stringify(join(repo, 'src/engine/requestContext.ts'))})
+const { getNestedMemoryAttachmentsForFile } = await import(${JSON.stringify(join(repo, 'src/engine/attachments/nestedInstructions.ts'))})
+const { createFileStateCacheWithSizeLimit } = await import(${JSON.stringify(join(repo, 'src/platform/files/fileStateCache.ts'))})
+const { getSteps } = await import(${JSON.stringify(join(repo, 'src/boot/projectOnboarding.ts'))})
+const { composedGuideFilesAt } = await import(${JSON.stringify(join(repo, 'src/sessions/instructions/adapters/index.ts'))})
 const cwd = process.cwd()
 const files = await getInstructionFiles()
 const composed = composeInstructionPrompt(files)
@@ -58,7 +58,7 @@ type Drive = {
 
 let passed = 0
 let failed = 0
-const guideCompositionFailHint = 'fix the guide composition in src/services/instructions/engine.ts (getInstructionFiles, composeInstructionPrompt, getInstructionBundle, isInstructionFilePath), or the guide step in src/projectOnboardingState.ts (getSteps) and composedGuideFilesAt in src/services/instructions/adapters/index.ts'
+const guideCompositionFailHint = 'fix the guide composition in src/sessions/instructions/instructionFiles.ts (getInstructionFiles, composeInstructionPrompt, getInstructionBundle, isInstructionFilePath), or the guide step in src/boot/projectOnboarding.ts (getSteps) and composedGuideFilesAt in src/sessions/instructions/adapters/index.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${guideCompositionFailHint}`}`)

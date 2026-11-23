@@ -19,25 +19,25 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' | change replyAddressLine in src/utils/messages/replyAddress.ts or src/components/messages/TranscriptNameplate.tsx, or where src/components/Message.tsx paints the address line above the answer row' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' | change replyAddressLine in src/engine/message-shapes/replyAddress.ts or src/screen/messages/TranscriptNameplate.tsx, or where src/screen/messages/Message.tsx paints the address line above the answer row' : ''}`)
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 
-const { setIsInteractive } = await import(join(ROOT, 'src/bootstrap/state.ts'))
+const { setIsInteractive } = await import(join(ROOT, 'src/boot/process-state/processState.ts'))
 setIsInteractive(false)
-const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
 const React = (await import('react')).default
-const { render, Box } = await import(join(ROOT, 'src/ink.ts'))
-const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
-const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
-const { Message } = await import(join(ROOT, 'src/components/Message.tsx'))
-const { formatClock, replyAddressLine, REPLY_ADDRESS_LEAD } = await import(join(ROOT, 'src/components/messages/TranscriptNameplate.tsx'))
-const { normalizeMessages } = await import(join(ROOT, 'src/utils/messages/normalize.ts'))
-const { buildMessageLookups } = await import(join(ROOT, 'src/services/messages/lookups.ts'))
-const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/utils/messages/factories.ts'))
-const { createAttachmentMessage } = await import(join(ROOT, 'src/services/attachments/orchestrator.ts'))
-const { BashTool } = await import(join(ROOT, 'src/tools/BashTool/BashTool.tsx'))
+const { render, Box } = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
+const { AppStateProvider } = await import(join(ROOT, 'src/screen/app-state/AppState.tsx'))
+const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/AppStateStore.ts'))
+const { Message } = await import(join(ROOT, 'src/screen/messages/Message.tsx'))
+const { formatClock, replyAddressLine, REPLY_ADDRESS_LEAD } = await import(join(ROOT, 'src/screen/messages/TranscriptNameplate.tsx'))
+const { normalizeMessages } = await import(join(ROOT, 'src/engine/message-shapes/normalize.ts'))
+const { buildMessageLookups } = await import(join(ROOT, 'src/engine/messages/lookups.ts'))
+const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/engine/message-shapes/factories.ts'))
+const { createAttachmentMessage } = await import(join(ROOT, 'src/engine/attachments/turnAttachments.ts'))
+const { BashTool } = await import(join(ROOT, 'src/tools/shell/BashTool.tsx'))
 
 type Raw = Record<string, unknown>
 const h = React.createElement as (...a: unknown[]) => React.ReactElement

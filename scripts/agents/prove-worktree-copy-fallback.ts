@@ -12,10 +12,10 @@ const source = join(root, 'source')
 const target = join(root, 'target')
 const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
 const copied: string[] = []
-const copyFallbackWhere = 'what to change: linkCheckoutDirectories in src/services/worktree.ts, the copy fallback it takes when symlink is denied (EPERM), and the symlinkDirectories entries it reads'
+const copyFallbackWhere = 'what to change: linkCheckoutDirectories in src/platform/git/worktree/worktree.ts, the copy fallback it takes when symlink is denied (EPERM), and the symlinkDirectories entries it reads'
 const copy = fs.cp
-const settings = await import('../../src/utils/settings/settings.js')
-mock.module('../../src/utils/settings/settings.js', () => ({
+const settings = await import('../../src/platform/settings/settings.js')
+mock.module('../../src/platform/settings/settings.js', () => ({
   ...settings,
   getInitialSettings: () => ({ workspace: { worktree: { symlinkDirectories: ['deps', 'vendor/pack', 'exists', 'missing', '../outside'] } } }),
 }))
@@ -24,7 +24,7 @@ mock.module('node:fs/promises', () => ({
   symlink: async (_from: string, to: string) => { throw Object.assign(new Error('fixture link refused'), { code: to.endsWith('missing') ? 'ENOENT' : 'EPERM' }) },
   cp: async (from: string, to: string, options: Parameters<typeof fs.cp>[2]) => { copied.push(to); return copy(from, to, options) },
 }))
-const { prepareWorktreeFiles } = await import('../../src/services/worktree.js')
+const { prepareWorktreeFiles } = await import('../../src/platform/git/worktree/worktree.js')
 try {
   mkdirSync(join(source, 'deps'), { recursive: true })
   mkdirSync(join(source, 'vendor', 'pack'), { recursive: true })

@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import fc from 'fast-check'
-import { findTokenBudgetPositions } from '../../src/utils/tokenBudget.ts'
+import { findTokenBudgetPositions } from '../../src/screen/composer/tokenBudgetMentions.ts'
 
-const WHERE = 'findTokenBudgetPositions in src/utils/tokenBudget.ts'
+const WHERE = 'findTokenBudgetPositions in src/screen/composer/tokenBudgetMentions.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

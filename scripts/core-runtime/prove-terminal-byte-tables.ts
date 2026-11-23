@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
-// gate-watch: src/ink/termio/ansi.ts src/ink/termio/csi.ts src/ink/termio/display-types.ts src/ink/termio/osc.ts
+// gate-watch: src/screen/renderer/termio/ansi.ts src/screen/renderer/termio/csi.ts src/screen/renderer/termio/display-types.ts src/screen/renderer/termio/osc.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import assert from 'node:assert/strict'
-import { BEL, C0, ESC, ESC_TYPE, SEP, isEscFinal } from '../../src/ink/termio/ansi.js'
+import { BEL, C0, ESC, ESC_TYPE, SEP, isEscFinal } from '../../src/screen/renderer/termio/ansi.js'
 import {
   CSI,
   CURSOR_HOME,
@@ -38,9 +38,9 @@ import {
   scrollDown,
   scrollUp,
   setScrollRegion,
-} from '../../src/ink/termio/csi.js'
-import { defaultStyle } from '../../src/ink/termio/display-types.js'
-import { CLEAR_ITERM2_PROGRESS, CLEAR_TERMINAL_TITLE } from '../../src/ink/termio/osc.js'
+} from '../../src/screen/renderer/termio/csi.js'
+import { defaultStyle } from '../../src/screen/renderer/termio/display-types.js'
+import { CLEAR_ITERM2_PROGRESS, CLEAR_TERMINAL_TITLE } from '../../src/screen/renderer/termio/osc.js'
 
 let failures = 0
 let checks = 0
@@ -51,7 +51,7 @@ function check(label: string, run: () => void): void {
     console.log(`  [PASS] ${label}`)
   } catch (error) {
     failures++
-    console.log(`  [FAIL] ${label} — ${String(error instanceof Error ? error.message : error).split('\n')[0]}; restore the table or generator this check names in src/ink/termio/ansi.ts, csi.ts, display-types.ts or osc.ts`)
+    console.log(`  [FAIL] ${label} — ${String(error instanceof Error ? error.message : error).split('\n')[0]}; restore the table or generator this check names in src/screen/renderer/termio/ansi.ts, csi.ts, display-types.ts or osc.ts`)
   }
 }
 

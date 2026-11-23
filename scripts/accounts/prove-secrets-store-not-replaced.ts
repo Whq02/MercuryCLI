@@ -7,7 +7,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — hint: change the store writers and their kept-aside copy in src/utils/accounts/providerSecrets.ts (writeStoredOpenaiApiKey) or src/services/providers/meta/metaAccounts.ts (writePreferredMetaSource), the ledger in src/substrate/storeRecovery.ts, or the sign-out words in src/cli/handlers/providerAuth.ts (providerAuthLogout)' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — hint: change the store writers and their kept-aside copy in src/models/sign-in/account-ledger/providerSecrets.ts (writeStoredOpenaiApiKey) or src/models/roads/meta/metaAccounts.ts (writePreferredMetaSource), the ledger in src/platform/substrate/storeRecovery.ts, or the sign-out words in src/commands/verbs/providerAuth.ts (providerAuthLogout)' : ''}`)
 }
 function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)
@@ -39,9 +39,9 @@ function runIn(body: string): Record<string, unknown> {
     process.chdir(${JSON.stringify(project)})
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const ps = await import(${JSON.stringify(join(SRC, 'utils/accounts/providerSecrets.ts'))})
-    const meta = await import(${JSON.stringify(join(SRC, 'services/providers/meta/metaAccounts.ts'))})
-    const recovery = await import(${JSON.stringify(join(SRC, 'substrate/storeRecovery.ts'))})
+    const ps = await import(${JSON.stringify(join(SRC, 'models/sign-in/account-ledger/providerSecrets.ts'))})
+    const meta = await import(${JSON.stringify(join(SRC, 'models/roads/meta/metaAccounts.ts'))})
+    const recovery = await import(${JSON.stringify(join(SRC, 'platform/substrate/storeRecovery.ts'))})
     const secretsFile = ps.providerSecretsPathForDisplay()
     const metaFile = meta.metaAuthPathForDisplay()
     const dir = path.dirname(secretsFile)
@@ -135,7 +135,7 @@ console.log('the secrets store — there and unreadable: the sign-out of one pro
 if (!POSIX_MODES) skip('the unreadable store', 'a mode-0200 file needs a POSIX process that is not root')
 else {
   const r = runIn(`
-    const cli = await import(${JSON.stringify(join(SRC, 'cli/handlers/providerAuth.ts'))})
+    const cli = await import(${JSON.stringify(join(SRC, 'commands/verbs/providerAuth.ts'))})
     const STORE = ${JSON.stringify(JSON.stringify({ ...FULL_SECRETS, deepseekApiKey: 'fixture-deepseek-key' }, null, 2) + '\n')}
     fs.writeFileSync(secretsFile, STORE, { mode: 0o600 })
     fs.chmodSync(secretsFile, 0o200)
@@ -152,8 +152,8 @@ else {
 console.log('the secrets store — there and it takes no write: every sign-out road says so with the file as the subject and the code alone in brackets')
 {
   const r = runIn(`
-    const cli = await import(${JSON.stringify(join(SRC, 'cli/handlers/providerAuth.ts'))})
-    const removal = await import(${JSON.stringify(join(SRC, 'services/providers/accountSlots/removal.ts'))})
+    const cli = await import(${JSON.stringify(join(SRC, 'commands/verbs/providerAuth.ts'))})
+    const removal = await import(${JSON.stringify(join(SRC, 'models/roads/account-slots/removal.ts'))})
     const STORE = ${JSON.stringify(JSON.stringify({ ...FULL_SECRETS, deepseekApiKey: 'fixture-deepseek-key' }, null, 2) + '\n')}
     fs.writeFileSync(secretsFile, STORE, { mode: 0o600 })
     process.env.MERCURY_FAULT_INJECT = 'rename@.provider-secrets.json:eperm'
@@ -193,7 +193,7 @@ else {
   check('the refusal says what could not be read, the code, that nothing was written and what to do', threw?.message === words && threw.code === 'EACCES', `said: ${threw?.message ?? '(nothing)'} — wanted: ${words}`)
   check('the refusal holds no secret and nothing is kept aside', threw !== null && !threw.message.includes('fixture-muse') && (r.copies as string[]).length === 0)
   const activate = runIn(`
-    const login = await import(${JSON.stringify(join(SRC, 'services/providers/meta/metaLogin.ts'))})
+    const login = await import(${JSON.stringify(join(SRC, 'models/roads/meta/metaLogin.ts'))})
     const FULL = ${JSON.stringify(JSON.stringify(FULL_META, null, 2) + '\n')}
     fs.writeFileSync(metaFile, FULL, { mode: 0o600 })
     fs.chmodSync(metaFile, 0o200)
@@ -203,7 +203,7 @@ else {
   `)
   const answered = activate.answered as { ok?: boolean; receipt?: string } | undefined
   const signIn = runIn(`
-    const login = await import(${JSON.stringify(join(SRC, 'services/providers/meta/metaLogin.ts'))})
+    const login = await import(${JSON.stringify(join(SRC, 'models/roads/meta/metaLogin.ts'))})
     const FULL = ${JSON.stringify(JSON.stringify(FULL_META, null, 2) + '\n')}
     fs.writeFileSync(metaFile, FULL, { mode: 0o600 })
     fs.chmodSync(metaFile, 0o200)

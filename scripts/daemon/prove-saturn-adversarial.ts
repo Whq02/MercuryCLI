@@ -14,29 +14,29 @@ delete process.env.CI
 delete process.env.MERCURY_SATURN_DISABLE
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
-const saturn = await import('../../src/daemon/saturn.ts')
+const saturn = await import('../../src/daemon/saturn/saturn.ts')
 const { applyConcourseScheduleOp } = saturn
-const ticker = await import('../../src/daemon/saturnTicker.ts')
+const ticker = await import('../../src/daemon/saturn/saturnTicker.ts')
 const { tickSaturnOnce, DEFAULT_SATURN_CATCHUP_WINDOW_MS } = ticker
 const { updateConcourseWorkers, concourseWorkersPath } = await import(
-  '../../src/daemon/concourseWorkers.ts'
+  '../../src/daemon/concourse-workers/concourseWorkers.ts'
 )
-const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+const receipts = await import('../../src/daemon/switchboard/sessionReceipts.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
 
 let failures = 0
 function whereOf(label: string): string {
-  if (/^M6b/.test(label)) return 'makeSaturnBirthPort in src/daemon/saturnBirth.ts'
-  if (/^M2x|^M5|^S1|\bbox\b/.test(label)) return 'src/daemon/saturnBoxSchedules.ts (readBoxSchedules, addBoxSchedule, removeBoxSchedule, the box lock) or tickSaturnOnce in src/daemon/saturnTicker.ts'
-  if (/^M1\b/.test(label)) return 'PENDING_SCHEDULE_EDIT_CAP in src/services/saturn/sessionScheduleBridge.ts and SATURN_EDIT_BURST_CAP in src/daemon/saturn.ts'
-  if (/^L1[bc]/.test(label)) return 'saturnNextFireMs in src/daemon/saturn.ts'
-  if (/^L2s/.test(label)) return 'saturnFactsOf in src/daemon/saturn.ts or tickSaturnOnce in src/daemon/saturnTicker.ts'
-  if (/^L4/.test(label)) return 'the schedule tools under src/tools/ScheduleCronTool and src/tools/ScheduleWakeupTool, or src/services/saturn/sessionScheduleBridge.ts'
-  if (/^M12/.test(label)) return 'compileWhenSpelling in src/services/saturn/whenSpelling.ts'
-  return 'tickSaturnOnce in src/daemon/saturnTicker.ts or applyConcourseScheduleOp in src/daemon/saturn.ts'
+  if (/^M6b/.test(label)) return 'makeSaturnBirthPort in src/daemon/saturn/saturnBirth.ts'
+  if (/^M2x|^M5|^S1|\bbox\b/.test(label)) return 'src/daemon/saturn/saturnBoxSchedules.ts (readBoxSchedules, addBoxSchedule, removeBoxSchedule, the box lock) or tickSaturnOnce in src/daemon/saturn/saturnTicker.ts'
+  if (/^M1\b/.test(label)) return 'PENDING_SCHEDULE_EDIT_CAP in src/daemon/saturn/sessionScheduleBridge.ts and SATURN_EDIT_BURST_CAP in src/daemon/saturn/saturn.ts'
+  if (/^L1[bc]/.test(label)) return 'saturnNextFireMs in src/daemon/saturn/saturn.ts'
+  if (/^L2s/.test(label)) return 'saturnFactsOf in src/daemon/saturn/saturn.ts or tickSaturnOnce in src/daemon/saturn/saturnTicker.ts'
+  if (/^L4/.test(label)) return 'the schedule tools under src/tools/cron and src/tools/schedule-wakeup, or src/daemon/saturn/sessionScheduleBridge.ts'
+  if (/^M12/.test(label)) return 'compileWhenSpelling in src/daemon/saturn/whenSpelling.ts'
+  return 'tickSaturnOnce in src/daemon/saturn/saturnTicker.ts or applyConcourseScheduleOp in src/daemon/saturn/saturn.ts'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -201,7 +201,7 @@ console.log('§M2 held-schedule adjudication overlap')
 
 console.log('§M2x held-schedule adjudication overlap (box tier)')
 {
-  const boxMod = await import('../../src/daemon/saturnBoxSchedules.ts')
+  const boxMod = await import('../../src/daemon/saturn/saturnBoxSchedules.ts')
   const { readBoxSchedules, saturnBoxSchedulesPath } = boxMod
   const writeBox = (schedules: unknown[], heldFires: unknown[] = []): void => {
     writeFileSync(saturnBoxSchedulesPath(DAEMON_DIR), JSON.stringify({ version: 1, schedules, heldFires }))
@@ -325,7 +325,7 @@ console.log('§M4 held-line honesty + the L3 flood')
 
 console.log('§M5 box heldFires loud-skip (record corruption, L2)')
 {
-  const boxMod = await import('../../src/daemon/saturnBoxSchedules.ts')
+  const boxMod = await import('../../src/daemon/saturn/saturnBoxSchedules.ts')
   const { readBoxSchedules, saturnBoxSchedulesPath } = boxMod
   updateConcourseWorkers(workers => {
     for (const key of Object.keys(workers)) delete workers[key]
@@ -433,7 +433,7 @@ console.log('§M6 owner-scoped idempotency keys (L5)')
     for (const key of Object.keys(workers)) delete workers[key]
   }, DAEMON_DIR)
 
-  const { makeSaturnBirthPort } = await import('../../src/daemon/saturnBirth.ts')
+  const { makeSaturnBirthPort } = await import('../../src/daemon/saturn/saturnBirth.ts')
   const seenKeys: string[] = []
   const doors = {
     dispatch: async (req: { clientMessageId: string }) => {
@@ -453,9 +453,9 @@ console.log('§M6 owner-scoped idempotency keys (L5)')
 
 console.log('§M1 the burst cap has one truth')
 {
-  const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
-  const seatMod = await import('../../src/daemon/sessionSeat.ts')
-  const { sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
+  const bridge = await import('../../src/daemon/saturn/sessionScheduleBridge.ts')
+  const seatMod = await import('../../src/daemon/session-seat/sessionSeat.ts')
+  const { sessionFactsToWire } = await import('../../src/engine/connector/seatWire.ts')
   check(
     'M1 the bridge latch cap IS the seat clip (one bound; the bridge spells it literally to keep the runner graph light)',
     bridge.PENDING_SCHEDULE_EDIT_CAP === saturn.SATURN_EDIT_BURST_CAP,
@@ -524,7 +524,7 @@ console.log('§M1 the burst cap has one truth')
 
 console.log('§M8 the birth derivation key')
 {
-  const boxMod = await import('../../src/daemon/saturnBoxSchedules.ts')
+  const boxMod = await import('../../src/daemon/saturn/saturnBoxSchedules.ts')
   writeFileSync(boxMod.saturnBoxSchedulesPath(DAEMON_DIR), JSON.stringify({ version: 1, schedules: [], heldFires: [] }))
   const askedKeys: string[] = []
   const recordingDeps = {
@@ -560,7 +560,7 @@ console.log('§M8 the birth derivation key')
 
 console.log('§M10 the id mint collision guard')
 {
-  const boxMod = await import('../../src/daemon/saturnBoxSchedules.ts')
+  const boxMod = await import('../../src/daemon/saturn/saturnBoxSchedules.ts')
   writeFileSync(boxMod.saturnBoxSchedulesPath(DAEMON_DIR), JSON.stringify({ version: 1, schedules: [], heldFires: [] }))
   seedRecord()
   const sequence = ['dddd0001', 'dddd0001', 'dddd0002']
@@ -650,7 +650,7 @@ console.log('§L1 clock adversity')
 
 console.log('§S1 the box lock + atomic publish')
 {
-  const boxMod = await import('../../src/daemon/saturnBoxSchedules.ts')
+  const boxMod = await import('../../src/daemon/saturn/saturnBoxSchedules.ts')
   const { utimesSync, rmdirSync: rmd, existsSync } = await import('node:fs')
   writeFileSync(boxMod.saturnBoxSchedulesPath(DAEMON_DIR), JSON.stringify({ version: 1, schedules: [], heldFires: [] }))
 
@@ -754,11 +754,11 @@ console.log('§L2 record corruption (session side)')
 
 console.log('§L4 the four re-homed tools against the new engine')
 {
-  const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
-  const { CronCreateTool } = await import('../../src/tools/ScheduleCronTool/CronCreateTool.ts')
-  const { CronDeleteTool } = await import('../../src/tools/ScheduleCronTool/CronDeleteTool.ts')
-  const { CronListTool } = await import('../../src/tools/ScheduleCronTool/CronListTool.ts')
-  const { ScheduleWakeupTool } = await import('../../src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts')
+  const bridge = await import('../../src/daemon/saturn/sessionScheduleBridge.ts')
+  const { CronCreateTool } = await import('../../src/tools/cron/CronCreateTool.ts')
+  const { CronDeleteTool } = await import('../../src/tools/cron/CronDeleteTool.ts')
+  const { CronListTool } = await import('../../src/tools/cron/CronListTool.ts')
+  const { ScheduleWakeupTool } = await import('../../src/tools/schedule-wakeup/ScheduleWakeupTool.ts')
 
   seedRecord()
   bridge._resetScheduleBridgeForTesting()
@@ -844,7 +844,7 @@ console.log('§L4 the four re-homed tools against the new engine')
 
 console.log('§M12 screen-seam boundaries')
 {
-  const { compileWhenSpelling } = await import('../../src/services/saturn/whenSpelling.ts')
+  const { compileWhenSpelling } = await import('../../src/daemon/saturn/whenSpelling.ts')
   const beforeMidnight = new Date(2026, 5, 10, 23, 59, 30, 0).getTime()
   const afterMidnight = new Date(2026, 5, 11, 0, 0, 30, 0).getTime()
   const preview = compileWhenSpelling('midnight', beforeMidnight)

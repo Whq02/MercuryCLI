@@ -3,17 +3,17 @@ import { check, finish, section } from './computerProofKit.ts'
 import { ownerOf, resultOf, toolContext, toolResultTurn, toolUseTurn, withScreenshot } from './computerToolKit.ts'
 
 delete process.env.NODE_ENV
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
-const { evalKernelManager } = await import('../../src/services/eval/kernelManager.ts')
-const { resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const session = await import('../../src/services/desktop/desktopSession.ts')
-const retention = await import('../../src/services/desktop/screenshotRetention.ts')
-const { buildOpenaiResponsesRequest } = await import('../../src/services/providers/openai/responsesBridge.ts')
-type ToolUseContext = import('../../src/Tool.ts').ToolUseContext
-type Message = import('../../src/types/message.ts').Message
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { EvalTool } = await import('../../src/tools/eval/EvalTool.ts')
+const { evalKernelManager } = await import('../../src/tools/engines/eval-kernels/kernelManager.ts')
+const { resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const session = await import('../../src/integrations/desktop/desktopSession.ts')
+const retention = await import('../../src/integrations/desktop/screenshotRetention.ts')
+const { buildOpenaiResponsesRequest } = await import('../../src/models/roads/openai/responsesBridge.ts')
+type ToolUseContext = import('../../src/tools/kit/tool.ts').ToolUseContext
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 type Block = Record<string, unknown>
 
 const allow = (async (_tool: unknown, input: Record<string, unknown>) => ({ behavior: 'allow' as const, updatedInput: input })) as never

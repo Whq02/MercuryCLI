@@ -4,7 +4,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
-const BUNDLED = join(REPO, 'src', 'skills', 'bundled')
+const BUNDLED = join(REPO, 'src', 'integrations', 'skills', 'bundled')
 const userSkillsArg = process.argv.indexOf('--user-skills')
 const USER_SKILLS = userSkillsArg >= 0 ? process.argv[userSkillsArg + 1]?.normalize('NFC') : undefined
 
@@ -37,7 +37,7 @@ if (!USER_SKILLS || !existsSync(USER_SKILLS)) {
     check(
       `${userMd} matches bundled`,
       same,
-      same ? '' : `resync: cp src/skills/bundled/${name}/SKILL.md ${userMd}`,
+      same ? '' : `resync: cp src/integrations/skills/bundled/${name}/SKILL.md ${userMd}`,
     )
   }
   console.log(`  (${twins} user-installed twin(s) of ${bundledDirs.length} bundled skill(s) checked)`)

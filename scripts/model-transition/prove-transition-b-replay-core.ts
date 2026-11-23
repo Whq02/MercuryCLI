@@ -9,25 +9,25 @@ const HOME = mkdtempSync(join(tmpdir(), 'ctm-b-core-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.js')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.js')
 const {
   materializeEntriesAt,
   materializeTranscriptAt,
   materializationDigest,
   readAllTranscriptEntries,
-} = await import('../../src/utils/sessionStorage/materialize.js')
-const { applyTranscriptEntry } = await import('../../src/utils/sessionStorage/loading.js')
+} = await import('../../src/sessions/transcripts/materialize.js')
+const { applyTranscriptEntry } = await import('../../src/sessions/transcripts/loading.js')
 const { writeResumeSnapshot, tryLoadResumeSnapshot } = await import(
-  '../../src/utils/sessionStorage/resumeSnapshot.js'
+  '../../src/sessions/transcripts/resumeSnapshot.js'
 )
-const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.js')
+const { decodeTranscriptBuffer } = await import('../../src/sessions/fabric/transcriptDecode.js')
 const { createBranchSession, readBranchManifest } = await import(
-  '../../src/services/branches/branchManifest.js'
+  '../../src/sessions/branches/branchManifest.js'
 )
 
 let failures = 0
 const REPLAY_CORE_FAIL_HINT =
-  'fix the code this check exercises, not the check: materializeEntriesAt, materializeTranscriptAt and materializationDigest in src/utils/sessionStorage/materialize.ts; writeResumeSnapshot and tryLoadResumeSnapshot in src/utils/sessionStorage/resumeSnapshot.ts; applyTranscriptEntry in src/utils/sessionStorage/loading.ts; createBranchSession and readBranchManifest in src/services/branches/branchManifest.ts'
+  'fix the code this check exercises, not the check: materializeEntriesAt, materializeTranscriptAt and materializationDigest in src/sessions/transcripts/materialize.ts; writeResumeSnapshot and tryLoadResumeSnapshot in src/sessions/transcripts/resumeSnapshot.ts; applyTranscriptEntry in src/sessions/transcripts/loading.ts; createBranchSession and readBranchManifest in src/sessions/branches/branchManifest.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(

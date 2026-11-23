@@ -2,10 +2,10 @@
 import { check, finish, section, sourceText } from './computerProofKit.ts'
 import { COMPUTER_ACTIONS } from './computerToolKit.ts'
 
-const { CAPABILITY_UNITS } = await import('../../src/services/capability/census.ts')
-const { EXECUTION_DOMAIN_CENSUS } = await import('../../src/services/primitives/executionCensus.ts')
-const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
-const state = await import('../../src/bootstrap/state.ts')
+const { CAPABILITY_UNITS } = await import('../../src/permissions/capability-census/census.ts')
+const { EXECUTION_DOMAIN_CENSUS } = await import('../../src/engine/runtime-kernel/executionCensus.ts')
+const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
 
 section('§1 the live tool census carries the Computer row')
 {
@@ -33,7 +33,7 @@ section('§3 the flag rows')
   check("MERCURY_COMPUTER_USE is a default-on row on the security tier with the suite as evidence", gate?.kind === 'default-on' && gate.tier === 'security' && gate.evidence === 'scripts/computer/run-all.sh', JSON.stringify(gate))
   check('its off words name =0, the catalog and the untouched driver', /=0/.test(gate?.off ?? '') && /catalog/.test(gate?.off ?? '') && /driver/.test(gate?.off ?? ''), gate?.off)
   check("MERCURY_DESKTOP_DRIVER is a value row consumed by the resolver", byEnv.get('MERCURY_DESKTOP_DRIVER')?.kind === 'value' && (byEnv.get('MERCURY_DESKTOP_DRIVER')?.consumer ?? '').includes('resolveDriver'))
-  check("MERCURY_DESKTOP_FAKE_SCENE and MERCURY_DESKTOP_FAKE_LOG are value rows consumed by the fake driver", byEnv.get('MERCURY_DESKTOP_FAKE_SCENE')?.kind === 'value' && byEnv.get('MERCURY_DESKTOP_FAKE_LOG')?.kind === 'value' && byEnv.get('MERCURY_DESKTOP_FAKE_SCENE')?.consumer === 'src/services/desktop/fakeDesktopDriver.ts' && byEnv.get('MERCURY_DESKTOP_FAKE_LOG')?.consumer === 'src/services/desktop/fakeDesktopDriver.ts')
+  check("MERCURY_DESKTOP_FAKE_SCENE and MERCURY_DESKTOP_FAKE_LOG are value rows consumed by the fake driver", byEnv.get('MERCURY_DESKTOP_FAKE_SCENE')?.kind === 'value' && byEnv.get('MERCURY_DESKTOP_FAKE_LOG')?.kind === 'value' && byEnv.get('MERCURY_DESKTOP_FAKE_SCENE')?.consumer === 'src/integrations/desktop/fakeDesktopDriver.ts' && byEnv.get('MERCURY_DESKTOP_FAKE_LOG')?.consumer === 'src/integrations/desktop/fakeDesktopDriver.ts')
   check("MERCURY_DESKTOP_PACK_DIR is a value row consumed by the pack owner", byEnv.get('MERCURY_DESKTOP_PACK_DIR')?.kind === 'value' && (byEnv.get('MERCURY_DESKTOP_PACK_DIR')?.consumer ?? '').includes('desktop/pack'))
   const access = byEnv.get('MERCURY_COMPUTER_ACCESS')
   check('MERCURY_COMPUTER_ACCESS is a value row consumed by the access owner, paired with the switch and the Sovereign mode row, its off words naming asks and Sovereign mode', access?.kind === 'value' && (access.consumer ?? '').includes('computerAccess') && (access.interactsWith ?? []).includes('MERCURY_COMPUTER_USE') && (access.interactsWith ?? []).includes('MERCURY_SKIP_PERMISSIONS') && (gate?.interactsWith ?? []).includes('MERCURY_COMPUTER_ACCESS') && /asks/.test(access.off ?? '') && /Sovereign mode/.test(access.off ?? ''), JSON.stringify(access))
@@ -53,7 +53,7 @@ section('§3 the flag rows')
 section('§4 the AppState stub is gone and the state facade gained nothing')
 {
   const desktopExports = Object.keys(state).filter(k => /desktop|computer/i.test(k))
-  check('src/bootstrap/state.ts exports nothing named for the desktop or the computer tool', desktopExports.length === 0, desktopExports.join(','))
+  check('src/boot/process-state/processState.ts exports nothing named for the desktop or the computer tool', desktopExports.length === 0, desktopExports.join(','))
 }
 
 section('§5 the suites are seeded')

@@ -12,9 +12,9 @@ process.env['MERCURY_HOME'] = join(process.env['MERCURY_CONFIG_DIR'], 'proof-hom
 delete process.env['MERCURY_DAEMON_DIR']
 
 const t = checker()
-const cd = await import('../../src/utils/cockpit/critterData.js')
-const idle = await import('../../src/utils/cockpit/critterIdle.js')
-const sleep = await import('../../src/services/cockpit/critterSleep.js')
+const cd = await import('../../src/screen/cockpit/critterData.js')
+const idle = await import('../../src/screen/cockpit/critterIdle.js')
+const sleep = await import('../../src/screen/cockpit-gauges/critterSleep.js')
 
 const quiet = {
   turnLive: false,
@@ -412,7 +412,7 @@ t.section('§8 — LIVENESS: nothing ever freezes (the CR-3 mandate)')
   }
 
   {
-    const roster = await import('../../src/services/cockpit/daemonRosterSnapshot.js')
+    const roster = await import('../../src/screen/cockpit-gauges/daemonRosterSnapshot.js')
     const aged = (): number => Date.now() - sleep.SLEEP_AFTER_MS * 3
 
     roster.primeDaemonCrewLivenessForProofs({ engaged: true, workersActive: true })
@@ -463,7 +463,7 @@ t.section('§8 — LIVENESS: nothing ever freezes (the CR-3 mandate)')
 
 t.section('§10 — THE WAKE EDGES (the operator\'s word): a turn wakes, a view never does')
 {
-  const signals = await import('../../src/utils/cockpit/turnSignals.js')
+  const signals = await import('../../src/screen/cockpit/turnSignals.js')
   const aged = (): number => Date.now() - sleep.SLEEP_AFTER_MS * 3
 
   sleep.resetCritterSleepForTests(aged())
@@ -502,7 +502,7 @@ t.section('§10 — THE WAKE EDGES (the operator\'s word): a turn wakes, a view 
 
 t.section('§11 — the per-critter SLEEP GLYPH LADDER (bubbles for the clam, Zzz for the rest)')
 {
-  const { displayWidth } = await import('../../src/utils/glyphs.js')
+  const { displayWidth } = await import('../../src/screen/theme/glyphs.js')
   const byName = Object.fromEntries(cd.CRITTERS.map(d => [d.name, d]))
   const expected: Record<string, string> = {
     crab: cd.SLEEP_GLYPHS_DEFAULT,
@@ -547,11 +547,11 @@ t.section('§11 — the per-critter SLEEP GLYPH LADDER (bubbles for the clam, Zz
   }
   t.check('a column outside the slots is total (falls to the last glyph, never undefined)', cd.sleepGlyphAt(byName['clam']!, [20, 21, 22, 23], 0) === '°' && cd.sleepGlyphAt(byName['crab']!, [], 5) === 'z')
 
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { CritterArt } = await import('../../src/components/mercury-ui/CritterArt.js')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { CritterArt } = await import('../../src/screen/widgets/CritterArt.js')
   const render = async (def: (typeof cd.CRITTERS)[number], props: Record<string, unknown>): Promise<string> =>
     renderToString(React.createElement(CritterArt, { def, ...props }), 60)
   const clam = byName['clam']!
@@ -630,8 +630,8 @@ t.section('§13 — the ladder\'s three conditions: the Zzz path byte-identical 
   const { readFileSync } = await import('node:fs')
   const { composeZzzFrames, ZZZ_FIXTURE_PATH } = await import('./zzzFrames.ts')
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { CritterArt } = await import('../../src/components/mercury-ui/CritterArt.js')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { CritterArt } = await import('../../src/screen/widgets/CritterArt.js')
   const render = async (def: (typeof cd.CRITTERS)[number], props: Record<string, unknown>): Promise<string> =>
     renderToString(React.createElement(CritterArt, { def, ...props }), 60)
   const fixture = JSON.parse(readFileSync(ZZZ_FIXTURE_PATH, 'utf8')) as {
@@ -693,7 +693,7 @@ t.section('§13 — the ladder\'s three conditions: the Zzz path byte-identical 
   }
 
   {
-    const { AnimatedCritterArt } = await import('../../src/components/mercury-ui/AnimatedCritterArt.js')
+    const { AnimatedCritterArt } = await import('../../src/screen/widgets/AnimatedCritterArt.js')
     const prevIdle = process.env['MERCURY_CRITTER_IDLE']
     process.env['MERCURY_CRITTER_IDLE'] = '0'
     process.env['MERCURY_CRITTER_SLEEP'] = '1'

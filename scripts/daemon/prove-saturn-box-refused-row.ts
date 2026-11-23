@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { SaturnScheduleV1 } from '../../src/daemon/saturn.js'
+import type { SaturnScheduleV1 } from '../../src/daemon/saturn/saturn.js'
 
 for (const key of ['NODE_ENV', 'CI', 'MERCURY_HOME', 'MERCURY_DAEMON_DIR', 'MERCURY_SATURN_DISABLE']) delete process.env[key]
 const proofHome = mkdtempSync(join(tmpdir(), 'saturn-box-refused-'))
@@ -19,14 +19,14 @@ const dir = join(proofHome, 'daemon')
 mkdirSync(dir, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = dir
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { readBoxSchedules, saturnBoxSchedulesPath, removeBoxSchedule, setBoxSchedulePaused } = await import('../../src/daemon/saturnBoxSchedules.ts')
-const { tickSaturnOnce } = await import('../../src/daemon/saturnTicker.ts')
-const { ensureWorkerWorktree } = await import('../../src/daemon/concourseWorktrees.ts')
-const { saturnStandingOf, saturnStandingWords } = await import('../../src/daemon/saturn.ts')
-const { BootSaturnScreen } = await import('../../src/components/BootSaturnScreen.tsx')
-const { renderToString } = await import('../../src/utils/staticRender.tsx')
+const { readBoxSchedules, saturnBoxSchedulesPath, removeBoxSchedule, setBoxSchedulePaused } = await import('../../src/daemon/saturn/saturnBoxSchedules.ts')
+const { tickSaturnOnce } = await import('../../src/daemon/saturn/saturnTicker.ts')
+const { ensureWorkerWorktree } = await import('../../src/daemon/concourse-workers/concourseWorktrees.ts')
+const { saturnStandingOf, saturnStandingWords } = await import('../../src/daemon/saturn/saturn.ts')
+const { BootSaturnScreen } = await import('../../src/screen/boot-face/BootSaturnScreen.tsx')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
 const React = (await import('react')).default
 
 let checks = 0
@@ -34,7 +34,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  const said = [detail === '' ? '' : typeof detail === 'string' ? detail : JSON.stringify(detail), 'fix tickSaturnOnce in src/daemon/saturnTicker.ts (stamp, hold and replay), the box file in src/daemon/saturnBoxSchedules.ts, saturnStandingWords in src/daemon/saturn.ts, or src/components/BootSaturnScreen.tsx for the frame checks'].filter(Boolean).join('; ')
+  const said = [detail === '' ? '' : typeof detail === 'string' ? detail : JSON.stringify(detail), 'fix tickSaturnOnce in src/daemon/saturn/saturnTicker.ts (stamp, hold and replay), the box file in src/daemon/saturn/saturnBoxSchedules.ts, saturnStandingWords in src/daemon/saturn/saturn.ts, or src/screen/boot-face/BootSaturnScreen.tsx for the frame checks'].filter(Boolean).join('; ')
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${said}` : ''}`)
 }
 const repo = join(proofHome, 'repo')

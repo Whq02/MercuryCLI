@@ -22,14 +22,14 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS', 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(project)
 
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit, cacheKeys } = await import('../../src/utils/fileStateCache.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
-const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
-const { closeRemoteConnections } = await import('../../src/services/remoteFiles/connection.ts')
-const rewindScreen = (await import('../../src/components/MessageSelector.tsx')) as { writtenElsewhereLine?: (messages: never, from: string) => string | null }
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit, cacheKeys } = await import('../../src/platform/files/fileStateCache.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
+const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
+const { closeRemoteConnections } = await import('../../src/platform/remote-files/connection.ts')
+const rewindScreen = (await import('../../src/screen/rewind-picker/RewindPicker.tsx')) as { writtenElsewhereLine?: (messages: never, from: string) => string | null }
 setSessionTrustAccepted(true)
 enableConfigs()
 setOriginalCwd(project)
@@ -37,13 +37,13 @@ setCwdState(project)
 
 const PORT = 27065
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 420 seconds; look at the last check printed above, then at src/tools/FileWriteTool/FileWriteTool.ts and src/services/remoteFiles/')
+  console.log('  [FAIL] the proof did not finish within 420 seconds; look at the last check printed above, then at src/tools/write/WriteTool.ts and src/platform/remote-files/')
   process.exit(1)
 }, 420_000)
 watchdog.unref()
 let failures = 0
 let checks = 0
-const REMOTE_WRITE_FIX = 'a write to ssh://box/... must behave as the same local write: fix the remote branch of FileWriteTool (call, validateInput, checkPermissions) in src/tools/FileWriteTool/FileWriteTool.ts or the remote file layer in src/services/remoteFiles/'
+const REMOTE_WRITE_FIX = 'a write to ssh://box/... must behave as the same local write: fix the remote branch of FileWriteTool (call, validateInput, checkPermissions) in src/tools/write/WriteTool.ts or the remote file layer in src/platform/remote-files/'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++

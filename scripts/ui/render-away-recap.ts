@@ -21,7 +21,7 @@ const CONFIG_HOME = resolveProofHome([process.cwd()]);
 const NOW = Date.parse('2026-01-01T12:00:00.000Z');
 
 async function richLine(): Promise<string> {
-  const { buildAwaySummary } = await import('../../src/utils/cockpit/awaySummary.js');
+  const { buildAwaySummary } = await import('../../src/screen/cockpit/awaySummary.js');
   const A = (id: string, uses: Array<{ name: string; file?: string }>, err = false): any => ({
     type: 'assistant', uuid: id, timestamp: '2026-01-01T10:00:00.000Z',
     ...(err ? { isApiErrorMessage: true } : {}),
@@ -38,7 +38,7 @@ async function richLine(): Promise<string> {
 
 if (process.env.RECAP_RENDER_CHILD) {
   const React = await import('react');
-  const { render, Text } = (await import('../../src/ink.js')) as {
+  const { render, Text } = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>;
     Text: any;
   };

@@ -12,19 +12,19 @@ mkdirSync(home, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 
 const React = (await import('react')).default
-const { Box, Text, render, flushPendingSyncWork } = await import('../../src/ink.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const notices = await import('../../src/context/notifications.js')
-const row = await import('../../src/components/PromptInput/Notifications.js')
-const { decideHandshake } = await import('../../src/daemon/handshake.js')
-const { olderDaemonRefusalLine, restartDaemonWords } = await import('../../src/daemon/controlSocket.js')
-const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.js')
-const { stringWidth } = await import('../../src/ink/stringWidth.js')
+const { Box, Text, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const notices = await import('../../src/screen/notifications/notifications.js')
+const row = await import('../../src/screen/composer/Notifications.js')
+const { decideHandshake } = await import('../../src/daemon/control/handshake.js')
+const { olderDaemonRefusalLine, restartDaemonWords } = await import('../../src/daemon/control/controlSocket.js')
+const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/control/protocol.js')
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.js')
 
-const WAY_OUT_HINT = 'to fix, change the lines in decideHandshake (src/daemon/handshake.ts) or olderDaemonRefusalLine (src/daemon/controlSocket.ts), the seam split in splitWayOut (src/context/notifications.tsx), the notice row in src/components/PromptInput/Notifications.tsx (noticeRowWayOut, NoticeWords), or src/components/tasks/CompactWorkSummary.tsx'
+const WAY_OUT_HINT = 'to fix, change the lines in decideHandshake (src/daemon/control/handshake.ts) or olderDaemonRefusalLine (src/daemon/control/controlSocket.ts), the seam split in splitWayOut (src/screen/notifications/notifications.tsx), the notice row in src/screen/composer/Notifications.tsx (noticeRowWayOut, NoticeWords), or src/screen/tasks/CompactWorkSummary.tsx'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -116,9 +116,9 @@ section('§3 a notice that fits is painted whole, with no seam of its own')
 
 section('§4 compact summary keeps the notice command')
 {
-  const { CompactWorkSummary } = await import('../../src/components/tasks/CompactWorkSummary.js')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
+  const { CompactWorkSummary } = await import('../../src/screen/tasks/CompactWorkSummary.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
   for (const columns of [80, 100]) {
     const state = getDefaultAppState()
     state.notifications.current = { key: 'compact-notice', priority: 'high', ...split(honest) }

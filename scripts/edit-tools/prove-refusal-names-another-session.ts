@@ -13,12 +13,12 @@ process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
 delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.NODE_ENV
 
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/constants/tools/fileEdit.ts')
-const other = (await import('../../src/tools/FileEditTool/otherSession.ts').catch(() => null)) as typeof import('../../src/tools/FileEditTool/otherSession.ts') | null
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getProjectRoot, getSessionId } = await import('../../src/bootstrap/state.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/kit/names/fileEdit.ts')
+const other = (await import('../../src/tools/edit/otherSession.ts').catch(() => null)) as typeof import('../../src/tools/edit/otherSession.ts') | null
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getProjectRoot, getSessionId } = await import('../../src/boot/process-state/processState.ts')
 
 let failures = 0
 let checks = 0

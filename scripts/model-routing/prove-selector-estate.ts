@@ -9,13 +9,13 @@ import { join } from 'node:path'
 let failures = 0
 let sectionFixHint = ''
 const sectionFixHints: Record<string, string> = {
-  '1': 'fix parseGptModelId in src/utils/model/pins/gptPins.ts',
-  '2': 'fix gptDisplayName / GPT_DISPLAY_PINS in src/utils/model/pins/gptPins.ts, or getPublicModelDisplayName / getMarketingNameForModel / renderModelChip in src/services/model/model.ts',
-  '3': 'fix getContextWindowForModel (src/utils/context.ts) or the pin window in src/utils/model/pins/gptPins.ts',
-  '4': 'fix getModelPricingString / calculateCostFromTokens in src/services/usage/modelCost.ts, or the pin rates in src/utils/model/pins/gptPins.ts',
-  '4b': 'fix the pin row in GPT_DISPLAY_PINS (src/utils/model/pins/gptPins.ts), or the consumer named by the check (model.ts, context.ts, capabilities.ts getModelMaxOutputTokens, modelCost.ts)',
-  '5': 'fix decideModelTransition / providerFamilyOfSetting / crossProviderNote in src/services/model/modelTransition.ts',
-  '6': 'fix the turn-boundary effect on pendingModelSwitch in src/screens/chat/useChatStatus.tsx',
+  '1': 'fix parseGptModelId in src/models/facts/pins/gptPins.ts',
+  '2': 'fix gptDisplayName / GPT_DISPLAY_PINS in src/models/facts/pins/gptPins.ts, or getPublicModelDisplayName / getMarketingNameForModel / renderModelChip in src/models/catalogue/engineModel.ts',
+  '3': 'fix getContextWindowForModel (src/engine/compaction-window/contextFill.ts) or the pin window in src/models/facts/pins/gptPins.ts',
+  '4': 'fix getModelPricingString / calculateCostFromTokens in src/models/usage/modelCost.ts, or the pin rates in src/models/facts/pins/gptPins.ts',
+  '4b': 'fix the pin row in GPT_DISPLAY_PINS (src/models/facts/pins/gptPins.ts), or the consumer named by the check (model.ts, context.ts, capabilities.ts getModelMaxOutputTokens, modelCost.ts)',
+  '5': 'fix decideModelTransition / providerFamilyOfSetting / crossProviderNote in src/models/catalogue/modelTransition.ts',
+  '6': 'fix the turn-boundary effect on pendingModelSwitch in src/screen/chat/useChatStatus.tsx',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -38,14 +38,14 @@ const {
   parseGptModelId,
   gptDisplayName,
   gptDisplayPin,
-} = await import('../../src/utils/model/pins/gptPins.js')
+} = await import('../../src/models/facts/pins/gptPins.js')
 const { getPublicModelDisplayName, getMarketingNameForModel, renderModelChip } = await import(
-  '../../src/services/model/model.js'
+  '../../src/models/catalogue/engineModel.js'
 )
-const { getContextWindowForModel } = await import('../../src/utils/context.js')
-const { formatModelPricing, getModelPricingString, calculateCostFromTokens } = await import('../../src/services/usage/modelCost.js')
+const { getContextWindowForModel } = await import('../../src/engine/compaction-window/contextFill.js')
+const { formatModelPricing, getModelPricingString, calculateCostFromTokens } = await import('../../src/models/usage/modelCost.js')
 const { decideModelTransition, providerFamilyOfSetting, crossProviderNote } = await import(
-  '../../src/services/model/modelTransition.js'
+  '../../src/models/catalogue/modelTransition.js'
 )
 
 console.log('============================================================')
@@ -142,8 +142,8 @@ section('4 · cost — prices DERIVE from the pin, incl. the recorded cached rat
 
 section('4b · the FULL lineup sweeps the same consumers (provider parity)')
 {
-  const { GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.js')
-  const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.js')
+  const { GPT_DISPLAY_PINS } = await import('../../src/models/facts/pins/gptPins.js')
+  const { getModelMaxOutputTokens } = await import('../../src/models/facts/capabilities.js')
   check('the lineup leads with the two 6.2 models of developers.openai.com/api/docs/models, read 2026-11-17, Sol first', GPT_DISPLAY_PINS.map(pin => pin.id).join(',') === 'gpt-6.2-sol,gpt-6.2-astra,gpt-6-astra,gpt-6.1-sol,gpt-6.1-terra,gpt-6-sol,gpt-6-luna,gpt-5.6-sol,gpt-5.6-terra,gpt-5.6-luna,gpt-5.6-cyber,gpt-5.5,gpt-5.5-pro,gpt-5.5-cyber-preview,gpt-5.4,gpt-5.4-pro,gpt-5.4-mini,gpt-5.4-nano', GPT_DISPLAY_PINS.map(pin => pin.id).join(','))
   for (const pin of GPT_DISPLAY_PINS) {
     const identity = parseGptModelId(pin.id)
@@ -200,7 +200,7 @@ section('6 · retention + wiring (structural — the module graph is not bun-loa
 {
   {
     const { openStatusPart } = await import('../ui/chatScenarios.ts')
-    const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+    const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
     const status = await openStatusPart('selector-estate-boundary', { keepHome: true })
     const state = () => status.part.store().getState()
     await status.plant({ seatLive: { ...IDLE_LIVE, inFlight: true, phase: 'thinking' } })

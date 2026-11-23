@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/constants/prompts.ts src/utils/cockpit/runtimePosture.ts src/services/cockpit/harnessMap.ts
-// gate-watch: src/mneme/mnemeFrontPage.ts src/services/agentResults/contracts.ts src/constants/subagentDoctrine.ts
+// gate-watch: src/engine/system-prompt/defaultSystemPrompt.ts src/screen/cockpit/runtimePosture.ts src/screen/cockpit-gauges/harnessMap.ts
+// gate-watch: src/sessions/mneme/mnemeFrontPage.ts src/crew/agent-results/contracts.ts src/tools/crewmate/subagentDoctrine.ts
 // gate-watch: scripts/prompt/fixtures/prompt-ablation/**
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
@@ -37,18 +37,18 @@ function tsv(name: string): Array<Record<string, string>> {
   return rows.map(row => Object.fromEntries(row.split('\t').map((cell, i) => [keys[i]!, cell])))
 }
 
-const { getSystemPrompt, enhanceSystemPromptWithEnvDetails } = await import('../../src/constants/prompts.ts')
-const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
-const { getOriginalCwd, setOriginalCwd, setCwdState, setAskChannel } = await import('../../src/bootstrap/state.ts')
-const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
-const { resetHarnessMapForTest } = await import('../../src/services/cockpit/harnessMap.ts')
-const { getLocalISODate } = await import('../../src/constants/common.ts')
-const { buildSubagentMercurySections } = await import('../../src/constants/subagentDoctrine.ts')
-const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryCrewAgent.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { retainItems } = await import('../../src/mneme/memoryVerbs.ts')
-const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { renderFrontPage } = await import('../../src/mneme/mnemeFrontPage.ts')
+const { getSystemPrompt, enhanceSystemPromptWithEnvDetails } = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+const { clearSystemPromptSections } = await import('../../src/engine/system-prompt/systemPromptSections.ts')
+const { getOriginalCwd, setOriginalCwd, setCwdState, setAskChannel } = await import('../../src/boot/process-state/processState.ts')
+const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/screen/cockpit/runtimePosture.ts')
+const { resetHarnessMapForTest } = await import('../../src/screen/cockpit-gauges/harnessMap.ts')
+const { getLocalISODate } = await import('../../src/platform/primitives/localIsoDate.ts')
+const { buildSubagentMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
+const { MERCURY_CREW_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryCrewAgent.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { retainItems } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { renderFrontPage } = await import('../../src/sessions/mneme/mnemeFrontPage.ts')
 
 const scratch = mkdtempSync(join(tmpdir(), 'sentences-pinned-cwd-'))
 const cwd = process.cwd()
@@ -97,13 +97,13 @@ try {
   const library = mnemeLibraryDir()
   retainItems([{ content: 'the proof home holds one fact so the index renders', topic: 'proof' }], { session: 'sentences-pinned' }, library)
   const landed = maybeConsolidate({ force: true, dir: library, now: new Date('2026-10-16T12:00:00.000Z') })
-  check('the scratch library holds one consolidated fact', landed.consolidated && landed.entries === 1, landed.reason, 'retainItems in src/mneme/memoryVerbs.ts or maybeConsolidate in src/mneme/mnemeConsolidate.ts no longer lands one fact in a fresh library')
+  check('the scratch library holds one consolidated fact', landed.consolidated && landed.entries === 1, landed.reason, 'retainItems in src/sessions/mneme/memoryVerbs.ts or maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts no longer lands one fact in a fresh library')
   const seats: Record<string, string> = { main: await assemble('interactive'), headless: await assemble('headless'), crewmate: await crewmate() }
   for (const [seat, text] of Object.entries(seats)) {
-    check(`${seat}: the memory index sentence is present, verbatim, once`, text.split(M026).length === 2, text.includes('# Memory') ? 'the memory page rides without the sentence' : 'no memory page in the render', 'the sentence is written in renderFrontPage in src/mneme/mnemeFrontPage.ts and must appear once in every seat prompt; restore it there, or update M026 in this file if it was reworded on purpose')
+    check(`${seat}: the memory index sentence is present, verbatim, once`, text.split(M026).length === 2, text.includes('# Memory') ? 'the memory page rides without the sentence' : 'no memory page in the render', 'the sentence is written in renderFrontPage in src/sessions/mneme/mnemeFrontPage.ts and must appear once in every seat prompt; restore it there, or update M026 in this file if it was reworded on purpose')
   }
   const pinsOnly = renderFrontPage({ dir: library, topics: [], archives: [], pins: [{ seq: 1, at: '2026-10-16T12:00:00.000Z' }], usage: {}, now: new Date('2026-10-16T12:00:00.000Z') }).text
-  check('a pins-only library (pins, no topics, no archives) renders the sentence and its referent: the ## Index heading, the empty-index line beneath it', pinsOnly.includes(M026) && pinsOnly.includes('\n## Index\n(nothing saved yet — memory is written only when the user asks for something to be remembered)\n'), pinsOnly, 'renderFrontPage in src/mneme/mnemeFrontPage.ts must print the M026 sentence, the ## Index heading and the empty-index line when only pins exist')
+  check('a pins-only library (pins, no topics, no archives) renders the sentence and its referent: the ## Index heading, the empty-index line beneath it', pinsOnly.includes(M026) && pinsOnly.includes('\n## Index\n(nothing saved yet — memory is written only when the user asks for something to be remembered)\n'), pinsOnly, 'renderFrontPage in src/sessions/mneme/mnemeFrontPage.ts must print the M026 sentence, the ## Index heading and the empty-index line when only pins exist')
 
   section('§2 every sentence the study cut is absent from the seats it rode in')
   const rows = tsv('cut-rows.tsv')
@@ -111,7 +111,7 @@ try {
   for (const row of rows) {
     const sentence = fill(row.sentence!)
     const present = row.seats!.split(' ').filter(seat => seats[seat]!.includes(sentence))
-    check(`${row.id} is absent from ${row.seats} (carrier: ${row.carrier})`, present.length === 0, `still rides the ${present.join(' and ')} seat`, 'a sentence the study cut is back in a seat prompt; find its row in scripts/prompt/fixtures/prompt-ablation/cut-rows.tsv, then remove the sentence from the source named in its carrier column (the seats are assembled in src/constants/prompts.ts and src/constants/subagentDoctrine.ts)')
+    check(`${row.id} is absent from ${row.seats} (carrier: ${row.carrier})`, present.length === 0, `still rides the ${present.join(' and ')} seat`, 'a sentence the study cut is back in a seat prompt; find its row in scripts/prompt/fixtures/prompt-ablation/cut-rows.tsv, then remove the sentence from the source named in its carrier column (the seats are assembled in src/engine/system-prompt/defaultSystemPrompt.ts and src/tools/crewmate/subagentDoctrine.ts)')
   }
 
 

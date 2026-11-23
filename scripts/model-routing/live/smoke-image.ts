@@ -5,9 +5,9 @@ import sharp from 'sharp'
 import { imageVerdict } from './smokeVerdicts.ts'
 
 const { openaiCallModel } = await import(
-  '../../../src/services/providers/openai/openaiCallModel.js'
+  '../../../src/models/roads/openai/openaiCallModel.js'
 )
-const { getEmptyToolPermissionContext } = await import('../../../src/Tool.ts')
+const { getEmptyToolPermissionContext } = await import('../../../src/tools/kit/tool.ts')
 
 const png = await sharp({
   create: { width: 64, height: 64, channels: 3, background: { r: 220, g: 20, b: 20 } },

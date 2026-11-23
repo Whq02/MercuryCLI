@@ -17,13 +17,13 @@ const {
   recordShellCommandOutcome,
   verificationSummary,
   _resetVerificationStateForTesting,
-} = await import('../../src/utils/verification/verificationState.ts')
-const { _resetDeclaredGatesForTesting } = await import('../../src/utils/verification/projectGates.ts')
+} = await import('../../src/platform/verification/verificationState.ts')
+const { _resetDeclaredGatesForTesting } = await import('../../src/platform/verification/projectGates.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const gatesHint = 'fix classifyVerifySegment, classifyVerificationCommand, workspaceVerifiable, recordShellCommandOutcome or verificationSummary in src/utils/verification/verificationState.ts (declared gates load from src/utils/verification/projectGates.ts)'
+  const gatesHint = 'fix classifyVerifySegment, classifyVerificationCommand, workspaceVerifiable, recordShellCommandOutcome or verificationSummary in src/platform/verification/verificationState.ts (declared gates load from src/platform/verification/projectGates.ts)'
   const shown = cond ? detail : detail ? `${detail} — ${gatesHint}` : gatesHint
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }

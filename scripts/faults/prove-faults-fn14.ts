@@ -11,15 +11,15 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 const faultHints: Array<[string, string]> = [
-  ['godotSession:', 'change parseGodotProjectFile in src/services/ide/godotSession.ts to return empty only when project.godot is absent and throw on any other read error'],
-  ['ideTransaction:', 'change latestTransaction, getTransaction, listTransactions or openTransactionIdFor in src/services/ide/ideTransaction.ts to treat only an absent store as empty and throw on corrupt or unreadable files'],
-  ['pythonTests:', 'change latestRunAtRoot, getRun, listRuns or runPythonTests in src/services/ide/pythonTests.ts to treat only absent files as empty, throw on unreadable or corrupt ones, and note an unsaved run in verdictNote'],
-  ['unityTests:', 'change readUnityTestResults in src/services/ide/unityTests.ts to return absent only when the results file is missing and rejected when it cannot be read'],
-  ['projectInstructionWriter:', 'change planProjectInstruction and captureProjectInstruction in src/services/instructions/projectInstructionWriter.ts to refuse as invalid when the target cannot be read, never overwriting it'],
-  ['localServerApply:', 'change planLocalServerApply or applyLocalServerPlan in src/services/localServer/localServerApply.ts to plan by hand or return stale when the systemd override cannot be read'],
-  ['localServerTruth:', 'change readLocalMachineTruth in src/services/localServer/localServerTruth.ts to report the launch form as unknown (the launch form could not be read) when its file or folder cannot be read'],
-  ['ggufServers:', 'change ggufServerRoots, rememberGgufServer or forgetGgufServer in src/services/localSetup/ggufServers.ts to heal a torn list and refuse to overwrite an unreadable one'],
-  ['projectRunners:', 'change detectPackageManager or runRunnerProfile in src/services/ide/projectRunners.ts to name a package.json read failure and a lost output artifact in the verdict'],
+  ['godotSession:', 'change parseGodotProjectFile in src/integrations/ide/godotSession.ts to return empty only when project.godot is absent and throw on any other read error'],
+  ['ideTransaction:', 'change latestTransaction, getTransaction, listTransactions or openTransactionIdFor in src/integrations/ide/ideTransaction.ts to treat only an absent store as empty and throw on corrupt or unreadable files'],
+  ['pythonTests:', 'change latestRunAtRoot, getRun, listRuns or runPythonTests in src/integrations/ide/pythonTests.ts to treat only absent files as empty, throw on unreadable or corrupt ones, and note an unsaved run in verdictNote'],
+  ['unityTests:', 'change readUnityTestResults in src/integrations/ide/unityTests.ts to return absent only when the results file is missing and rejected when it cannot be read'],
+  ['projectInstructionWriter:', 'change planProjectInstruction and captureProjectInstruction in src/sessions/instructions/projectInstructionWriter.ts to refuse as invalid when the target cannot be read, never overwriting it'],
+  ['localServerApply:', 'change planLocalServerApply or applyLocalServerPlan in src/models/local-server/localServerApply.ts to plan by hand or return stale when the systemd override cannot be read'],
+  ['localServerTruth:', 'change readLocalMachineTruth in src/models/local-server/localServerTruth.ts to report the launch form as unknown (the launch form could not be read) when its file or folder cannot be read'],
+  ['ggufServers:', 'change ggufServerRoots, rememberGgufServer or forgetGgufServer in src/models/local-setup/ggufServers.ts to heal a torn list and refuse to overwrite an unreadable one'],
+  ['projectRunners:', 'change detectPackageManager or runRunnerProfile in src/integrations/ide/projectRunners.ts to name a package.json read failure and a lost output artifact in the verdict'],
 ]
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -45,7 +45,7 @@ function throwsMatching(fn: () => unknown, pattern: RegExp): { threw: boolean; m
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
 {
-  const { parseGodotProjectFile, _resetGodotSessionForTesting } = await import('../../src/services/ide/godotSession.ts')
+  const { parseGodotProjectFile, _resetGodotSessionForTesting } = await import('../../src/integrations/ide/godotSession.ts')
   const dir = makeTempDir('fn14-godot-')
   try {
     _resetGodotSessionForTesting()
@@ -69,8 +69,8 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
 }
 
 {
-  const { getTransaction, latestTransaction, listTransactions, openTransactionIdFor } = await import('../../src/services/ide/ideTransaction.ts')
-  const { projectHomeStore } = await import('../../src/utils/projectHomeStores.ts')
+  const { getTransaction, latestTransaction, listTransactions, openTransactionIdFor } = await import('../../src/integrations/ide/ideTransaction.ts')
+  const { projectHomeStore } = await import('../../src/platform/storage/projectHomeStores.ts')
   const dir = makeTempDir('fn14-idetx-')
   try {
     check('ideTransaction: absent store returns null and empty list', latestTransaction(dir) === null && listTransactions(dir).length === 0)
@@ -105,8 +105,8 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
 }
 
 {
-  const { latestRunAtRoot, getRun, listRuns, runPythonTests, testRunsDir } = await import('../../src/services/ide/pythonTests.ts')
-  const { _resetPythonProjectForTesting } = await import('../../src/services/ide/pythonProject.ts')
+  const { latestRunAtRoot, getRun, listRuns, runPythonTests, testRunsDir } = await import('../../src/integrations/ide/pythonTests.ts')
+  const { _resetPythonProjectForTesting } = await import('../../src/integrations/ide/pythonProject.ts')
   const dir = makeTempDir('fn14-pytests-')
   const origPy = process.env.MERCURY_PYTHON
   try {
@@ -188,8 +188,8 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
 }
 
 {
-  const { readUnityTestResults } = await import('../../src/services/ide/unityTests.ts')
-  const { unityTestResultsPath } = await import('../../src/utils/unity/unityProject.ts')
+  const { readUnityTestResults } = await import('../../src/integrations/ide/unityTests.ts')
+  const { unityTestResultsPath } = await import('../../src/integrations/unity-protocol/unityProject.ts')
   const dir = makeTempDir('fn14-unity-')
   try {
     const absent = readUnityTestResults(dir, 'EditMode')
@@ -213,7 +213,7 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
 
 {
   const { readFileSync } = await import('node:fs')
-  const { planProjectInstruction, captureProjectInstruction } = await import('../../src/services/instructions/projectInstructionWriter.ts')
+  const { planProjectInstruction, captureProjectInstruction } = await import('../../src/sessions/instructions/projectInstructionWriter.ts')
   const dir = makeTempDir('fn14-instwriter-')
   try {
     if (POSIX_MODES) {
@@ -242,7 +242,7 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
 
 {
   const { readFileSync } = await import('node:fs')
-  const { planLocalServerApply, applyLocalServerPlan } = await import('../../src/services/localServer/localServerApply.ts')
+  const { planLocalServerApply, applyLocalServerPlan } = await import('../../src/models/local-server/localServerApply.ts')
   const dir = makeTempDir('fn14-localapply-')
   try {
     if (POSIX_MODES) {
@@ -293,7 +293,7 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
 }
 
 {
-  const { readLocalMachineTruth, HOMEBREW_OLLAMA_PLIST } = await import('../../src/services/localServer/localServerTruth.ts')
+  const { readLocalMachineTruth, HOMEBREW_OLLAMA_PLIST } = await import('../../src/models/local-server/localServerTruth.ts')
   const probeEnv = { MERCURY_LOCAL_PROBE_TARGETS: 'ollama=http://127.0.0.1:11434' }
   const linuxTruth = await readLocalMachineTruth({
     env: probeEnv,
@@ -345,7 +345,7 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
 
 {
   const { readFileSync } = await import('node:fs')
-  const { ggufServerRoots, rememberGgufServer, forgetGgufServer } = await import('../../src/services/localSetup/ggufServers.ts')
+  const { ggufServerRoots, rememberGgufServer, forgetGgufServer } = await import('../../src/models/local-setup/ggufServers.ts')
   const regDir = join(scratchHome, 'local-setup')
   const regFile = join(regDir, 'gguf-servers.json')
   mkdirSync(regDir, { recursive: true })
@@ -384,7 +384,7 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
 }
 
 {
-  const { detectPackageManager, runRunnerProfile } = await import('../../src/services/ide/projectRunners.ts')
+  const { detectPackageManager, runRunnerProfile } = await import('../../src/integrations/ide/projectRunners.ts')
   const dir = makeTempDir('fn14-runners-')
   const artifactsRoot = join(scratchHome, 'artifacts')
   const testArtifactsBlocker = join(artifactsRoot, 'test')

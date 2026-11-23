@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { outcomeCount } from '../lib/rows.ts'
-import { ANTHROPIC_CLIENT_CONTRACT_VERSION } from '../../src/constants/oauth.ts'
+import { ANTHROPIC_CLIENT_CONTRACT_VERSION } from '../../src/models/sign-in/oauth/oauth.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -48,7 +48,7 @@ console.log('client-contract boot: a session boot peeks the registry once a day,
 
 section('§0 the boot owner — both session roads start the peek from the deferred-prefetch owner')
 {
-  check('the constant parses', /^\d+\.\d+\.\d+$/.test(CONTRACT), CONTRACT, 'ANTHROPIC_CLIENT_CONTRACT_VERSION in src/constants/oauth.ts must be a three-part number such as 2.1.138')
+  check('the constant parses', /^\d+\.\d+\.\d+$/.test(CONTRACT), CONTRACT, 'ANTHROPIC_CLIENT_CONTRACT_VERSION in src/models/sign-in/oauth/oauth.ts must be a three-part number such as 2.1.138')
 }
 
 if (!existsSync(DIST)) {
@@ -198,27 +198,27 @@ const first = arena('first')
   hold = true
   const run = boot(first, 'c0ffee00-0000-4000-8000-0000000c0a01')
   const peeked = await waitFor(() => reads.length >= 1, 30_000)
-  check('the boot read the registry once before any chat was sent', peeked && reads.length === 1 && fixture.messageRequests().length === 0, `${reads.length} read(s), ${fixture.messageRequests().length} request(s)`, 'startClientContractPeek in src/services/api/clientContractLearned.ts must read the registry once at boot, started from src/main/deferredPrefetches.ts, before any chat request')
-  check('the read asked the latest document with the product agent', reads[0]?.url === '/@anthropic-ai/claude-code/latest' && (reads[0]?.agent ?? '').startsWith('mercury/') && !(reads[0]?.agent ?? '').includes(CONTRACT), JSON.stringify(reads[0] ?? null), 'readClientContractFromRegistry in src/services/api/clientContractLearned.ts must request /@anthropic-ai/claude-code/latest with a mercury/ user agent that does not carry the contract number')
+  check('the boot read the registry once before any chat was sent', peeked && reads.length === 1 && fixture.messageRequests().length === 0, `${reads.length} read(s), ${fixture.messageRequests().length} request(s)`, 'startClientContractPeek in src/engine/requests/clientContractLearned.ts must read the registry once at boot, started from src/boot/main/deferredPrefetches.ts, before any chat request')
+  check('the read asked the latest document with the product agent', reads[0]?.url === '/@anthropic-ai/claude-code/latest' && (reads[0]?.agent ?? '').startsWith('mercury/') && !(reads[0]?.agent ?? '').includes(CONTRACT), JSON.stringify(reads[0] ?? null), 'readClientContractFromRegistry in src/engine/requests/clientContractLearned.ts must request /@anthropic-ai/claude-code/latest with a mercury/ user agent that does not carry the contract number')
   run.send('boot turn one')
   const sent = await waitFor(() => requestFor('boot turn one') !== undefined, 30_000)
   const pendingWhenSent = answeredAt === 0
-  check('the first turn went out while the registry read was still pending (the boot did not wait on it)', sent && pendingWhenSent, `sent=${sent} answeredAt=${answeredAt}`, 'the boot must not wait on the registry read: the peek in src/services/api/clientContractLearned.ts has to run in the background')
-  check('the first turn presented the constant (the peek had not settled)', versionOf(requestFor('boot turn one')) === CONTRACT, versionOf(requestFor('boot turn one')), 'a request sent before the peek settles must present ANTHROPIC_CLIENT_CONTRACT_VERSION from src/constants/oauth.ts')
+  check('the first turn went out while the registry read was still pending (the boot did not wait on it)', sent && pendingWhenSent, `sent=${sent} answeredAt=${answeredAt}`, 'the boot must not wait on the registry read: the peek in src/engine/requests/clientContractLearned.ts has to run in the background')
+  check('the first turn presented the constant (the peek had not settled)', versionOf(requestFor('boot turn one')) === CONTRACT, versionOf(requestFor('boot turn one')), 'a request sent before the peek settles must present ANTHROPIC_CLIENT_CONTRACT_VERSION from src/models/sign-in/oauth/oauth.ts')
   const releaseNow = release as (() => void) | null
   releaseNow?.()
   await waitFor(() => run.results() >= 1, 60_000)
   const settled = await waitFor(() => learnedIn(first) === NEWER && typeof recordIn(first)?.lastPeekAtMs === 'number', 15_000)
-  check('the peek settled: the learned number, its day stamp and its read are in the config home', settled && recordIn(first)?.lastRead?.by === 'peek', JSON.stringify(recordIn(first)), 'peekClientContract in src/services/api/clientContractLearned.ts must write learned, lastPeekAtMs and lastRead.by peek into client-contract.json')
+  check('the peek settled: the learned number, its day stamp and its read are in the config home', settled && recordIn(first)?.lastRead?.by === 'peek', JSON.stringify(recordIn(first)), 'peekClientContract in src/engine/requests/clientContractLearned.ts must write learned, lastPeekAtMs and lastRead.by peek into client-contract.json')
   run.send('boot turn two')
   await waitFor(() => run.results() >= 2, 60_000)
   run.end()
   const code = await run.exit
   check('the process ran both turns and exited 0', code === 0 && run.results() === 2, `exit=${code} results=${run.results()} ${run.stderr().slice(-400)}`, 'read the stderr tail above: the run ended without two completed turns')
-  check('the first request after the peek settled, in the same process, presents the learned number', versionOf(requestFor('boot turn two')) === NEWER, versionOf(requestFor('boot turn two')), 'once the peek has settled, the next request must present the learned number (learnedClientContract in src/services/api/clientContractLearned.ts)')
-  check('the whole boot made exactly one registry read', reads.length === 1, `${reads.length} read(s)`, 'one boot must make exactly one registry read: check peekClientContract in src/services/api/clientContractLearned.ts for a second read')
+  check('the first request after the peek settled, in the same process, presents the learned number', versionOf(requestFor('boot turn two')) === NEWER, versionOf(requestFor('boot turn two')), 'once the peek has settled, the next request must present the learned number (learnedClientContract in src/engine/requests/clientContractLearned.ts)')
+  check('the whole boot made exactly one registry read', reads.length === 1, `${reads.length} read(s)`, 'one boot must make exactly one registry read: check peekClientContract in src/engine/requests/clientContractLearned.ts for a second read')
   const said = notices(first, 'c0ffee00-0000-4000-8000-0000000c0a01')
-  check('the thinking the moved number unbound is dropped as a lawful change naming both numbers, never as a rewrite', said.some(n => n.includes(`after the client-contract number the door presents moved from ${CONTRACT} to ${NEWER}`)) && !said.some(n => n.includes("Mercury's prefix ledger names the part that moved")), JSON.stringify(said), 'clientContractMoveOf in src/services/api/clientContractLearned.ts must supply the notice naming both numbers, and src/services/providers/anthropic/streamCore/wireParams.ts must use it instead of the prefix ledger words')
+  check('the thinking the moved number unbound is dropped as a lawful change naming both numbers, never as a rewrite', said.some(n => n.includes(`after the client-contract number the door presents moved from ${CONTRACT} to ${NEWER}`)) && !said.some(n => n.includes("Mercury's prefix ledger names the part that moved")), JSON.stringify(said), 'clientContractMoveOf in src/engine/requests/clientContractLearned.ts must supply the notice naming both numbers, and src/models/roads/anthropic/stream-core/wireParams.ts must use it instead of the prefix ledger words')
 }
 
 section('§2 the next boot the same day — no read; the learned number presents from its first request')
@@ -231,8 +231,8 @@ section('§2 the next boot the same day — no read; the learned number presents
   run.end()
   const code = await run.exit
   check('the second boot exited 0', code === 0, `exit=${code} ${run.stderr().slice(-400)}`, 'read the stderr tail above for why the second boot failed')
-  check('a second boot in the same config home the same day reads the registry nothing', reads.length === before, `${reads.length - before} read(s)`, 'peekClientContract in src/services/api/clientContractLearned.ts must skip the read when lastPeekAtMs is from today')
-  check('its first request presents the learned number from the config home', versionOf(requestFor('boot turn three')) === NEWER, versionOf(requestFor('boot turn three')), 'learnedClientContract in src/services/api/clientContractLearned.ts must present the number stored in client-contract.json from the first request')
+  check('a second boot in the same config home the same day reads the registry nothing', reads.length === before, `${reads.length - before} read(s)`, 'peekClientContract in src/engine/requests/clientContractLearned.ts must skip the read when lastPeekAtMs is from today')
+  check('its first request presents the learned number from the config home', versionOf(requestFor('boot turn three')) === NEWER, versionOf(requestFor('boot turn three')), 'learnedClientContract in src/engine/requests/clientContractLearned.ts must present the number stored in client-contract.json from the first request')
 }
 
 section('§3 the essential-traffic posture — a boot reads nothing and presents the constant')
@@ -245,8 +245,8 @@ section('§3 the essential-traffic posture — a boot reads nothing and presents
   run.end()
   const code = await run.exit
   check('the dark boot exited 0', code === 0, `exit=${code} ${run.stderr().slice(-400)}`, 'read the stderr tail above for why the dark boot failed')
-  check('under MERCURY_DISABLE_NONESSENTIAL_TRAFFIC the boot reads the registry nothing and writes no record', reads.length === before && recordIn(dark) === null, `${reads.length - before} read(s)`, 'peekClientContract in src/services/api/clientContractLearned.ts must skip with traffic-off when MERCURY_DISABLE_NONESSENTIAL_TRAFFIC is set, and write no record')
-  check('…and presents the constant', versionOf(requestFor('boot turn four')) === CONTRACT, versionOf(requestFor('boot turn four')), 'with the dark posture the request must present ANTHROPIC_CLIENT_CONTRACT_VERSION from src/constants/oauth.ts')
+  check('under MERCURY_DISABLE_NONESSENTIAL_TRAFFIC the boot reads the registry nothing and writes no record', reads.length === before && recordIn(dark) === null, `${reads.length - before} read(s)`, 'peekClientContract in src/engine/requests/clientContractLearned.ts must skip with traffic-off when MERCURY_DISABLE_NONESSENTIAL_TRAFFIC is set, and write no record')
+  check('…and presents the constant', versionOf(requestFor('boot turn four')) === CONTRACT, versionOf(requestFor('boot turn four')), 'with the dark posture the request must present ANTHROPIC_CLIENT_CONTRACT_VERSION from src/models/sign-in/oauth/oauth.ts')
 }
 
 await fixture.close()

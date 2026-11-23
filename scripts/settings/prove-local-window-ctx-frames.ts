@@ -55,7 +55,7 @@ const FIXTURE_ORIGIN = `http://127.0.0.1:${server.port}`
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${FIXTURE_ORIGIN}`
 
 let failures = 0
-const CTX_FRAMES_HINT = 'What to change: the window decision (decideLocalWindow), the rail tag (localWindowReasonTag) and the deck rule (localWindowRuleWords) in src/services/providers/local/localWindow.ts, the rail row in src/services/cockpit/helmVitalsModel.ts, the deck row in src/components/DeckPane.tsx; for the fixture record check, src/services/providers/local/localCatalogue.ts'
+const CTX_FRAMES_HINT = 'What to change: the window decision (decideLocalWindow), the rail tag (localWindowReasonTag) and the deck rule (localWindowRuleWords) in src/models/roads/local/localWindow.ts, the rail row in src/screen/cockpit-gauges/helmVitalsModel.ts, the deck row in src/screen/deck-pane/DeckPane.tsx; for the fixture record check, src/models/roads/local/localCatalogue.ts'
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
   console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}${pass ? '' : ` — ${CTX_FRAMES_HINT}`}`)
@@ -65,41 +65,41 @@ async function stub(relative: string, overrides: Record<string, unknown>): Promi
   const actual = await import(target)
   mock.module(target, () => ({ ...actual, ...overrides }))
 }
-await stub('src/utils/proxy.ts', { getApiFetch: () => globalThis.fetch, getProxyFetchOptions: () => ({}) })
-const config = await import(join(ROOT, 'src/utils/config.ts'))
+await stub('src/platform/network/proxy.ts', { getApiFetch: () => globalThis.fetch, getProxyFetchOptions: () => ({}) })
+const config = await import(join(ROOT, 'src/platform/settings/config.ts'))
 config.enableConfigs()
 
 let focusedModel = `local/${MODEL_27}`
 const connector = { modelFacts: () => ({ main: focusedModel, effective: focusedModel }), subscribeModel: () => () => {}, records: () => [], subscribeRecords: () => () => {}, usage: () => ({ totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }) }
-await stub('src/keybindings/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
-await stub('src/hooks/useExitOnCtrlCD.ts', { useExitOnCtrlCD: () => undefined })
-await stub('src/context/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
-await stub('src/services/health/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
-await stub('src/services/engine-connector/focusedConnector.ts', {
+await stub('src/screen/keys/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
+await stub('src/screen/keys/useExitChord.ts', { useExitOnCtrlCD: () => undefined })
+await stub('src/screen/notifications/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
+await stub('src/platform/health/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
+await stub('src/engine/connector/focusedConnector.ts', {
   getFocusedSessionConnector: () => connector,
   subscribeThroughFocused: (subscribe: (connection: typeof connector, listener: () => void) => () => void) => (listener: () => void) => subscribe(connector, listener),
   hasFocusedSession: () => false,
   landingInFlight: () => false,
   subscribeFocusedSessionConnector: () => () => {},
 })
-await stub('src/components/tasks/useFocusedWork.ts', { useFocusedWorkRows: () => [], useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }), focusedSessionIdOrNull: () => null })
+await stub('src/screen/tasks/useFocusedWork.ts', { useFocusedWorkRows: () => [], useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }), focusedSessionIdOrNull: () => null })
 const vitals = { sessions: { state: 'unavailable' }, git: null, tasks: [], fleet: { state: 'off', conflicts: 0, drifting: 0 }, fleetFull: null, trace: null, crew: null, refreshedAt: 0, version: 1 }
-await stub('src/state/vitalsBus.ts', { useVitals: (selector?: (s: typeof vitals) => unknown) => (selector ? selector(vitals) : vitals) })
-await stub('src/hooks/useDisplayedSessionModel.ts', { useFocusedServedModel: () => focusedModel, useDisplayedSessionModel: () => ({ label: focusedModel, compact: focusedModel.slice('local/'.length), pendingNext: null }), useFocusedServedEffort: () => null, useFocusedBornEffort: () => null, useFocusedSentEffort: () => null })
-await stub('src/hooks/useEngineModel.ts', { useEngineModel: () => focusedModel })
-await stub('src/hooks/useProviderUsageOnShow.ts', { useProviderUsageOnShow: () => undefined })
+await stub('src/screen/app-state/vitalsBus.ts', { useVitals: (selector?: (s: typeof vitals) => unknown) => (selector ? selector(vitals) : vitals) })
+await stub('src/screen/model-picker/useDisplayedSessionModel.ts', { useFocusedServedModel: () => focusedModel, useDisplayedSessionModel: () => ({ label: focusedModel, compact: focusedModel.slice('local/'.length), pendingNext: null }), useFocusedServedEffort: () => null, useFocusedBornEffort: () => null, useFocusedSentEffort: () => null })
+await stub('src/screen/model-picker/useEngineModel.ts', { useEngineModel: () => focusedModel })
+await stub('src/screen/model-picker/useProviderUsageOnShow.ts', { useProviderUsageOnShow: () => undefined })
 
-const ink = await import(join(ROOT, 'src/ink.ts'))
-const { default: StdinContext } = await import(join(ROOT, 'src/ink/components/StdinContext.ts'))
-const { HelmVitalsRail } = await import(join(ROOT, 'src/components/HelmVitalsRail.tsx'))
-const { DeckPane } = await import(join(ROOT, 'src/components/DeckPane.tsx'))
-const { railPlanAt } = await import(join(ROOT, 'src/utils/helmGeometry.ts'))
-const { publishContextUsage } = await import(join(ROOT, 'src/services/cockpit/contextUsageLive.ts'))
-const { refreshLocalDiscovery } = await import(join(ROOT, 'src/services/providers/local/localDiscovery.ts'))
-const { localRecordFor } = await import(join(ROOT, 'src/services/providers/local/localCatalogue.ts'))
-const w = await import(join(ROOT, 'src/services/providers/local/localWindow.ts'))
-const { __pinLocalServerTruthForTest } = await import(join(ROOT, 'src/services/localServer/localServerTruth.ts'))
-type Truth = import('../../src/services/localServer/localServerTruth.ts').LocalServerTruth
+const ink = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
+const { default: StdinContext } = await import(join(ROOT, 'src/screen/renderer/elements/StdinContext.ts'))
+const { HelmVitalsRail } = await import(join(ROOT, 'src/screen/fullscreen-layout/HelmVitalsRail.tsx'))
+const { DeckPane } = await import(join(ROOT, 'src/screen/deck-pane/DeckPane.tsx'))
+const { railPlanAt } = await import(join(ROOT, 'src/screen/fullscreen-layout/helmGeometry.ts'))
+const { publishContextUsage } = await import(join(ROOT, 'src/screen/cockpit-gauges/contextUsageLive.ts'))
+const { refreshLocalDiscovery } = await import(join(ROOT, 'src/models/roads/local/localDiscovery.ts'))
+const { localRecordFor } = await import(join(ROOT, 'src/models/roads/local/localCatalogue.ts'))
+const w = await import(join(ROOT, 'src/models/roads/local/localWindow.ts'))
+const { __pinLocalServerTruthForTest } = await import(join(ROOT, 'src/models/local-server/localServerTruth.ts'))
+type Truth = import('../../src/models/local-server/localServerTruth.ts').LocalServerTruth
 
 const settle = async (): Promise<void> => {
   for (let index = 0; index < 8; index++) {

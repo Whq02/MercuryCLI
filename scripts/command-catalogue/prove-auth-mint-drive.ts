@@ -6,7 +6,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSy
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
+import { FLAG_REGISTRY } from '../../src/platform/substrate/flagRegistry.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 import { recordPty } from '../lib/ptyRecorder.ts'
 

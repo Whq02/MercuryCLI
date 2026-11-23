@@ -9,7 +9,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    what to change: the appearance, roster-normalization and crew-launch rows in src/services/health/sections/profile.ts (registered as PROFILE in src/services/health/sections.ts); a boot-preference or crews-folder failure means the health run wrote state it must only read')
+  if (!cond) console.log('    what to change: the appearance, roster-normalization and crew-launch rows in src/platform/health/sections/profile.ts (registered as PROFILE in src/platform/health/sections.ts); a boot-preference or crews-folder failure means the health run wrote state it must only read')
 }
 
 console.log('============================================================')
@@ -20,8 +20,8 @@ const SCRATCH = mkdtempSync(join(tmpdir(), 'health-profile-'))
 process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
 process.env.MERCURY_HOME = join(SCRATCH, 'home')
 
-const report = await import('../../src/services/health/healthReport.js')
-const menu = await import('../../src/substrate/startupMenu.js')
+const report = await import('../../src/platform/health/healthReport.js')
+const menu = await import('../../src/platform/substrate/startupMenu.js')
 
 const bootBefore = JSON.stringify(menu.readBootEnvChoices())
 

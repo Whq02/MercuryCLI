@@ -3,13 +3,13 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { SessionListing } from '../../src/types/logs.js'
-import { isProjectSession, partitionByProject } from '../../src/utils/sessionFilter.js'
+import type { SessionListing } from '../../src/sessions/transcripts/transcriptEntries.js'
+import { isProjectSession, partitionByProject } from '../../src/screen/session-chooser/sessionFilter.js'
 import {
   isSessionCleared,
   markSessionCleared,
   resetClearedSessionsMemo,
-} from '../../src/utils/sessionStorage/clearedSessions.js'
+} from '../../src/sessions/transcripts/clearedSessions.js'
 
 let failures = 0
 let failureWhere = ''
@@ -30,7 +30,7 @@ console.log('============================================================')
 
 section('1. isProjectSession semantics')
 {
-  failureWhere = 'fix isProjectSession in src/utils/sessionFilter.ts'
+  failureWhere = 'fix isProjectSession in src/screen/session-chooser/sessionFilter.ts'
   const root = '/Users/op/dev/orchard'
   check('exact root ⇒ in', isProjectSession(log('/Users/op/dev/orchard'), root))
   check('nested cwd ⇒ in', isProjectSession(log('/Users/op/dev/orchard/src/utils'), root))
@@ -48,7 +48,7 @@ section('1. isProjectSession semantics')
 
 section('2. partitionByProject')
 {
-  failureWhere = 'fix partitionByProject in src/utils/sessionFilter.ts'
+  failureWhere = 'fix partitionByProject in src/screen/session-chooser/sessionFilter.ts'
   const root = '/r/proj'
   const logs = [log('/r/proj'), log('/r/proj/sub'), log('/r/other'), log(undefined)]
   const { inProject, elsewhere } = partitionByProject(logs, root)
@@ -58,7 +58,7 @@ section('2. partitionByProject')
 
 section('3. the /clear'.concat("'ed-session cache (operator model: cleared = closed on purpose)"))
 {
-  failureWhere = 'fix isSessionCleared and markSessionCleared in src/utils/sessionStorage/clearedSessions.ts'
+  failureWhere = 'fix isSessionCleared and markSessionCleared in src/sessions/transcripts/clearedSessions.ts'
   const prevHome = process.env.MERCURY_CONFIG_DIR
   const home = mkdtempSync(join(tmpdir(), 'cleared-proof-'))
   process.env.MERCURY_CONFIG_DIR = home

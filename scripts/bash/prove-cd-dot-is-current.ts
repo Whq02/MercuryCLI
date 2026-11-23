@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/BashTool/bashPermissions.ts src/tools/BashTool/bashCommandHelpers.ts
+// gate-watch: src/tools/shell/bashPermissions.ts src/tools/shell/compoundCommandPermissions.ts
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -19,9 +19,9 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { bashToolHasPermission, isCurrentFolderSpelling } = await import('../../src/tools/BashTool/bashPermissions.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { bashToolHasPermission, isCurrentFolderSpelling } = await import('../../src/tools/shell/bashPermissions.ts')
 
 let failures = 0
 let checks = 0
@@ -40,13 +40,13 @@ const decide = async (command: string, mode: string): Promise<Decision> => {
   return (await decideToolPermissionWithModes(bash, { command }, context, { message: { id: 'cd-dot' } } as never, 'cd-dot')).decision as Decision
 }
 const shown = (decision: Decision): string => `${decision.behavior}: ${decision.message ?? ''}`
-const cdDotWhere = ' | fix CURRENT_FOLDER_RELATIVE and isCurrentFolderSpelling, and the cd handling that uses isCurrentDirectoryCommand, in src/tools/BashTool/bashPermissions.ts'
+const cdDotWhere = ' | fix CURRENT_FOLDER_RELATIVE and isCurrentFolderSpelling, and the cd handling that uses isCurrentDirectoryCommand, in src/tools/shell/bashPermissions.ts'
 
 console.log('prove-cd-dot-is-current — cd . names the folder the command already runs in, so it changes nothing')
 
 section('§1 the spelling check: dots and separators alone name the current folder')
 for (const spelled of ['.', './', './.', '././', '.\\']) check(`${JSON.stringify(spelled)} is the current folder`, isCurrentFolderSpelling(spelled, root), 'isCurrentFolderSpelling returned false for a spelling of the current folder' + cdDotWhere)
-for (const spelled of ['..', './..', './sub', 'sub', '.hidden', '', '.;', '$PWD']) check(`${JSON.stringify(spelled)} is not`, !isCurrentFolderSpelling(spelled, root), 'isCurrentFolderSpelling returned true for a spelling that names another folder' + cdDotWhere)
+for (const spelled of ['..', '../kit/toolList', './sub', 'sub', '.hidden', '', '.;', '$PWD']) check(`${JSON.stringify(spelled)} is not`, !isCurrentFolderSpelling(spelled, root), 'isCurrentFolderSpelling returned true for a spelling that names another folder' + cdDotWhere)
 check('the absolute spelling of the folder still counts', isCurrentFolderSpelling(root, root), 'isCurrentFolderSpelling no longer matches the absolute path of the folder (shellFolderComparisonKey comparison)' + cdDotWhere)
 
 section('§2 default and implement: a read after cd . is allowed as the read alone would be')
@@ -77,7 +77,7 @@ section('§4 a write after cd . is judged as the write alone: default asks, impl
 section('§5 sovereign asks nothing: every command above is allowed')
 for (const command of ['cd . && git status', 'cd .. && git status', 'cd ./sub && git status', 'cd -P . && git status', 'cd . && echo hi > out.txt']) {
   const verdict = await decide(command, 'sovereign')
-  check(`sovereign: ${command} → allow (not ask)`, verdict.behavior === 'allow', shown(verdict) + ' | sovereign mode must allow every command: see decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts')
+  check(`sovereign: ${command} → allow (not ask)`, verdict.behavior === 'allow', shown(verdict) + ' | sovereign mode must allow every command: see decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts')
 }
 
 process.chdir(previousCwd)

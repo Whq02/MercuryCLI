@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 export {}
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
+const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

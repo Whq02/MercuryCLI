@@ -11,17 +11,17 @@ const project = join(world, 'project')
 mkdirSync(join(project, 'tests'), { recursive: true })
 process.env.MERCURY_CONFIG_DIR = join(world, 'home')
 process.chdir(project)
-const { checkAnchor, formatAnchorFailure, mintFileAnchor } = await import(join(ROOT, 'src/services/changeTransaction/snapshotAnchor.ts'))
-const { planChangeSet } = await import(join(ROOT, 'src/services/changeTransaction/changeSetPlan.ts'))
-const { FileReadTool } = await import(join(ROOT, 'src/tools/FileReadTool/FileReadTool.ts'))
-const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
-const { FILE_UNCHANGED_STUB } = await import(join(ROOT, 'src/constants/tools/fileRead.ts'))
-const { matchExactEdit } = await import(join(ROOT, 'src/tools/FileEditTool/FileEditTool.ts'))
+const { checkAnchor, formatAnchorFailure, mintFileAnchor } = await import(join(ROOT, 'src/tools/engines/change-transaction/snapshotAnchor.ts'))
+const { planChangeSet } = await import(join(ROOT, 'src/tools/engines/change-transaction/changeSetPlan.ts'))
+const { FileReadTool } = await import(join(ROOT, 'src/tools/read/ReadTool.ts'))
+const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/AppStateStore.ts'))
+const { FILE_UNCHANGED_STUB } = await import(join(ROOT, 'src/tools/kit/names/fileRead.ts'))
+const { matchExactEdit } = await import(join(ROOT, 'src/tools/edit/EditTool.ts'))
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  const fixHint = 'fix: the refusal wording is built by checkAnchor and formatAnchorFailure in src/services/changeTransaction/snapshotAnchor.ts; the ChangeSet preflight is planChangeSet in src/services/changeTransaction/changeSetPlan.ts and the apply path is src/tools/ChangeSetTool/ChangeSetTool.ts; the Read anchor print is src/tools/FileReadTool/FileReadTool.ts'
+  const fixHint = 'fix: the refusal wording is built by checkAnchor and formatAnchorFailure in src/tools/engines/change-transaction/snapshotAnchor.ts; the ChangeSet preflight is planChangeSet in src/tools/engines/change-transaction/changeSetPlan.ts and the apply path is src/tools/change-set/ChangeSetTool.ts; the Read anchor print is src/tools/read/ReadTool.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${fixHint}` : ''}`)
 }
 
@@ -59,9 +59,9 @@ const plan = planChangeSet([{ file_path: target, expected_anchor: good.slice(0, 
 const memberFault = (plan as { failures?: Array<{ code: string; message: string }> }).failures?.[0]
 check('the ChangeSet preflight refusal names the member fault (11 of 12 hex characters), nothing else', memberFault?.code === 'malformed-anchor' && /has 11 hex characters after "fa:" where the digest has exactly 12/.test(memberFault.message) && !/without the surrounding|is invalid/.test(memberFault.message), JSON.stringify(memberFault))
 
-const { ChangeSetTool } = await import(join(ROOT, 'src/tools/ChangeSetTool/ChangeSetTool.ts'))
-const { getEmptyToolPermissionContext } = await import(join(ROOT, 'src/Tool.ts'))
-const { processMainOwner } = await import(join(ROOT, 'src/utils/run/resolveOwner.ts'))
+const { ChangeSetTool } = await import(join(ROOT, 'src/tools/change-set/ChangeSetTool.ts'))
+const { getEmptyToolPermissionContext } = await import(join(ROOT, 'src/tools/kit/tool.ts'))
+const { processMainOwner } = await import(join(ROOT, 'src/engine/run-owner/resolveOwner.ts'))
 {
   const readFileState = new Map<string, unknown>()
   readFileState.set(target, { content: "import test from 'node:test'\ntest('ownerId', () => {})\n", timestamp: Date.now() + 60_000 })

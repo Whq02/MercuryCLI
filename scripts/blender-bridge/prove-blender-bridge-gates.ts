@@ -9,10 +9,10 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` | ${hint}` : ''}`)
 }
-const ARMED_FIX = 'change blenderBridgeEnabled in src/utils/blender/bridgeGates.ts'
-const CATALOG_FIX = 'change blenderBridgeToolCatalogEnabled in src/utils/blender/bridgeGates.ts'
-const PORT_FIX = 'change blenderBridgePort in src/utils/blender/bridgeGates.ts'
-const OVERRIDE_FIX = 'change blenderBridgeTokenOverride or blenderBridgeAddonDirOverride in src/utils/blender/bridgeGates.ts'
+const ARMED_FIX = 'change blenderBridgeEnabled in src/integrations/blender-protocol/bridgeGates.ts'
+const CATALOG_FIX = 'change blenderBridgeToolCatalogEnabled in src/integrations/blender-protocol/bridgeGates.ts'
+const PORT_FIX = 'change blenderBridgePort in src/integrations/blender-protocol/bridgeGates.ts'
+const OVERRIDE_FIX = 'change blenderBridgeTokenOverride or blenderBridgeAddonDirOverride in src/integrations/blender-protocol/bridgeGates.ts'
 const ROW_FIX = 'change the MERCURY_BLENDER* rows in FLAG_REGISTRY'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -32,10 +32,10 @@ function resetEnv(): void {
 }
 resetEnv()
 
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const gates = await import('../../src/utils/blender/bridgeGates.js')
-const { BLENDER_BRIDGE_DEFAULT_PORT } = await import('../../src/utils/blender/bridgeProtocol.js')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
+const gates = await import('../../src/integrations/blender-protocol/bridgeGates.js')
+const { BLENDER_BRIDGE_DEFAULT_PORT } = await import('../../src/integrations/blender-protocol/bridgeProtocol.js')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'blender-bridge-gates-'))
 const proj = path.join(scratch, 'studio')
@@ -171,7 +171,7 @@ section('5. registry census — the rows + the ruling’s premise')
   const port = getFlagSpec('MERCURY_BLENDER_BRIDGE_PORT')
   check(
     'PORT row: value-kind, gates-module consumer, default named',
-    port?.kind === 'value' && port.consumer === 'src/utils/blender/bridgeGates.ts' && port.off === '6012',
+    port?.kind === 'value' && port.consumer === 'src/integrations/blender-protocol/bridgeGates.ts' && port.off === '6012',
     '',
     ROW_FIX,
   )
@@ -179,7 +179,7 @@ section('5. registry census — the rows + the ruling’s premise')
   check(
     'TOKEN row: value-kind, gates-module consumer, never-logged + per-install wording',
     token?.kind === 'value' &&
-      token.consumer === 'src/utils/blender/bridgeGates.ts' &&
+      token.consumer === 'src/integrations/blender-protocol/bridgeGates.ts' &&
       /never logged/.test(token.summary) &&
       /per-INSTALL/.test(token.summary),
     '',
@@ -189,7 +189,7 @@ section('5. registry census — the rows + the ruling’s premise')
   check(
     'ADDON_DIR row: value-kind, gates-module consumer, ladder named in off',
     addonDir?.kind === 'value' &&
-      addonDir.consumer === 'src/utils/blender/bridgeGates.ts' &&
+      addonDir.consumer === 'src/integrations/blender-protocol/bridgeGates.ts' &&
       /BLENDER_USER_SCRIPTS/.test(addonDir.off ?? '') &&
       /BLENDER_USER_RESOURCES/.test(addonDir.off ?? ''),
     '',
@@ -211,7 +211,7 @@ section('5. registry census — the rows + the ruling’s premise')
     master?.summary ?? '',
     ROW_FIX + ' (the MERCURY_BLENDER summary must hold the windowless policy sentence)',
   )
-  const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.js')
+  const { STARTUP_MENU } = await import('../../src/platform/substrate/startupMenu.js')
   const menuRow = STARTUP_MENU.find(r => r.env === 'MERCURY_BLENDER')
   check(
     'the boot menu row states both doors of the catalog gate (beside .blend files, or anywhere Blender is located)',
@@ -219,7 +219,7 @@ section('5. registry census — the rows + the ruling’s premise')
       l.startsWith('the `Blender` tool joins the catalog beside .blend files, or anywhere Blender is located — '),
     ),
     '',
-    'change the MERCURY_BLENDER row in STARTUP_MENU in src/substrate/startupMenu.ts so one detail line starts with the catalog-gate sentence',
+    'change the MERCURY_BLENDER row in STARTUP_MENU in src/platform/substrate/startupMenu.ts so one detail line starts with the catalog-gate sentence',
   )
 }
 

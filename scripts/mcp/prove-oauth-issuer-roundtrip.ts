@@ -4,17 +4,17 @@ import { fileURLToPath } from 'node:url'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const arg = process.argv.indexOf('--source-root')
 const root = arg < 0 ? resolve(dirname(fileURLToPath(import.meta.url)), '../..') : resolve(process.argv[arg + 1]!)
-const { enableConfigs } = await import(`${root}/src/utils/config.ts`)
+const { enableConfigs } = await import(`${root}/src/platform/settings/config.ts`)
 enableConfigs()
-const { MercuryMcpAuthProvider, getServerKey } = await import(`${root}/src/services/mcp/auth.ts`)
-const { auth } = await import(`${root}/src/utils/mcp/sdk.ts`)
-const { getSecureStorage } = await import(`${root}/src/utils/secureStorage/index.ts`)
+const { MercuryMcpAuthProvider, getServerKey } = await import(`${root}/src/integrations/mcp/auth.ts`)
+const { auth } = await import(`${root}/src/integrations/mcp-shapes/sdk.ts`)
+const { getSecureStorage } = await import(`${root}/src/platform/secure-storage/index.ts`)
 let checks = 0
 let failures = 0
 const check = (label: string, pass: boolean, detail = ''): void => {
   checks++
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass ? `: ${detail}${detail ? ' ' : ''}[change MercuryMcpAuthProvider (saveClientInformation, saveTokens, tokens, refreshAuthorization) in src/services/mcp/auth.ts so the client and token issuer stamps are stored, read back and bound as this check says]` : ''}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass ? `: ${detail}${detail ? ' ' : ''}[change MercuryMcpAuthProvider (saveClientInformation, saveTokens, tokens, refreshAuthorization) in src/integrations/mcp/auth.ts so the client and token issuer stamps are stored, read back and bound as this check says]` : ''}`)
 }
 let origin = ''
 let tokenRequests = 0

@@ -16,9 +16,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const storage = (await import('../../src/utils/sessionStorage.js')) as typeof import('../../src/utils/sessionStorage.js')
-const agent = (await import('../../src/services/model/agent.js')) as typeof import('../../src/services/model/agent.js')
-const record = (await import('../../src/services/crew/crewmateRecord.js')) as typeof import('../../src/services/crew/crewmateRecord.js')
+const storage = (await import('../../src/sessions/transcripts/sessionStorage.js')) as typeof import('../../src/sessions/transcripts/sessionStorage.js')
+const agent = (await import('../../src/models/catalogue/agentModel.js')) as typeof import('../../src/models/catalogue/agentModel.js')
+const record = (await import('../../src/crew/crewmates/crewmateRecord.js')) as typeof import('../../src/crew/crewmates/crewmateRecord.js')
 
 console.log('============================================================')
 console.log(' Launch parity across resume — proof')
@@ -34,9 +34,9 @@ section('§1 the metadata carrier (round-trip, hermetic home)')
     effortOverride: 'high',
   })
   const back = await storage.readAgentMetadata(id as Parameters<typeof storage.readAgentMetadata>[0])
-  check('model round-trips', back?.model === 'glm-5.2', JSON.stringify(back) + ' · fix writeAgentMetadata and readAgentMetadata in src/utils/sessionStorage.ts')
-  check('effortOverride round-trips', back?.effortOverride === 'high', JSON.stringify(back) + ' · fix writeAgentMetadata and readAgentMetadata in src/utils/sessionStorage.ts')
-  check('agentType/description intact', back?.agentType === 'mercury-crew' && back?.description === 'proof', JSON.stringify(back) + ' · fix writeAgentMetadata and readAgentMetadata in src/utils/sessionStorage.ts')
+  check('model round-trips', back?.model === 'glm-5.2', JSON.stringify(back) + ' · fix writeAgentMetadata and readAgentMetadata in src/sessions/transcripts/sessionStorage.ts')
+  check('effortOverride round-trips', back?.effortOverride === 'high', JSON.stringify(back) + ' · fix writeAgentMetadata and readAgentMetadata in src/sessions/transcripts/sessionStorage.ts')
+  check('agentType/description intact', back?.agentType === 'mercury-crew' && back?.description === 'proof', JSON.stringify(back) + ' · fix writeAgentMetadata and readAgentMetadata in src/sessions/transcripts/sessionStorage.ts')
 }
 
 section('§2 the restore chain (getAgentModel is id-stable)')
@@ -45,19 +45,19 @@ section('§2 the restore chain (getAgentModel is id-stable)')
   check(
     "restored 'claude-sonnet-5' dispatches claude-sonnet-5 (not the parent)",
     agent.getAgentModel('inherit', parent, 'claude-sonnet-5' as never) === 'claude-sonnet-5',
-    agent.getAgentModel('inherit', parent, 'claude-sonnet-5' as never) + ' · fix getAgentModel in src/services/model/agent.ts',
+    agent.getAgentModel('inherit', parent, 'claude-sonnet-5' as never) + ' · fix getAgentModel in src/models/catalogue/agentModel.ts',
   )
   check(
     "restored 'glm-5.2' dispatches glm-5.2 (the zai transport — no silent provider switch)",
     agent.getAgentModel('inherit', parent, 'glm-5.2' as never) === 'glm-5.2',
-    agent.getAgentModel('inherit', parent, 'glm-5.2' as never) + ' · fix getAgentModel in src/services/model/agent.ts',
+    agent.getAgentModel('inherit', parent, 'glm-5.2' as never) + ' · fix getAgentModel in src/models/catalogue/agentModel.ts',
   )
   const haikuRestore = agent.getAgentModel('inherit', parent, 'haiku' as never)
-  check('a restored haiku alias dispatches as the haiku row', /haiku/i.test(haikuRestore), haikuRestore + ' · fix getAgentModel in src/services/model/agent.ts')
+  check('a restored haiku alias dispatches as the haiku row', /haiku/i.test(haikuRestore), haikuRestore + ' · fix getAgentModel in src/models/catalogue/agentModel.ts')
   check(
     'absent persisted model ⇒ legacy re-resolution (inherit → parent)',
     agent.getAgentModel('inherit', parent, undefined) === parent,
-    'fix getAgentModel in src/services/model/agent.ts to return the parent model when no persisted model is given',
+    'fix getAgentModel in src/models/catalogue/agentModel.ts to return the parent model when no persisted model is given',
   )
 }
 
@@ -69,7 +69,7 @@ section('§2 the restore chain (getAgentModel is id-stable)')
       'the run-start merge writes the dispatched model and the effort override the run resolved, and no effortOverride key when none was given (crewmateRecord)',
       withOverride.model === 'claude-sonnet-5' && withOverride.effortOverride === 'high' && withOverride.effort === 'high'
         && without.model === 'claude-sonnet-5' && !('effortOverride' in without) && !('effort' in without),
-      JSON.stringify({ withOverride, without }) + ' · fix recordAtRunStart in src/services/crew/crewmateRecord.ts',
+      JSON.stringify({ withOverride, without }) + ' · fix recordAtRunStart in src/crew/crewmates/crewmateRecord.ts',
     )
   }
 

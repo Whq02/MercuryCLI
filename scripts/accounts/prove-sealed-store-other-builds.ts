@@ -19,14 +19,14 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { getProcessStartInstant } = await import(join(SRC, 'utils/ownerWatch.ts'))
+const { getProcessStartInstant } = await import(join(SRC, 'daemon/control/ownerWatch.ts'))
 
 let total = 0
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   total++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — change startSealedStore in src/utils/secureStorage/sealedStoreStart.ts or otherBuildAlive in src/daemon/otherBuilds.ts so this holds' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — change startSealedStore in src/platform/secure-storage/sealedStoreStart.ts or otherBuildAlive in src/daemon/control/otherBuilds.ts so this holds' : ''}`)
 }
 const section = (title: string): void => {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)

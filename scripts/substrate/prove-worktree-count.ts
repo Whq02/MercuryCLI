@@ -9,7 +9,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — change getWorktreeCountFromFs in src/utils/git/gitFilesystem.ts: it must return 1 plus the linked worktrees found under the common git dir, and 0 outside a repository' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — change getWorktreeCountFromFs in src/platform/git/gitFilesystem.ts: it must return 1 plus the linked worktrees found under the common git dir, and 0 outside a repository' : ''}`)
 }
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-count-')))
@@ -25,8 +25,8 @@ git(repo, 'add', '-A')
 git(repo, '-c', 'user.email=wc@example.com', '-c', 'user.name=wc', 'commit', '-qm', 'init')
 process.chdir(repo)
 
-const fsMod = await import('../../src/utils/git/gitFilesystem.js')
-const { setCwdState } = await import('../../src/bootstrap/state.js')
+const fsMod = await import('../../src/platform/git/gitFilesystem.js')
+const { setCwdState } = await import('../../src/boot/process-state/processState.js')
 const countFrom = async (dir: string): Promise<number> => {
   setCwdState(dir)
   fsMod.clearResolveGitDirCache()

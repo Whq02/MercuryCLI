@@ -6,8 +6,8 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'test-path-selects-home-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const ROOT = join(import.meta.dir, '..', '..')
-const runnerHint = 'fix the node-pattern branch of runRunnerProfile (discoverRunnerProfiles builds the profile) in src/services/ide/projectRunners.ts'
-const { discoverRunnerProfiles, runRunnerProfile } = await import(join(ROOT, 'src/services/ide/projectRunners.ts'))
+const runnerHint = 'fix the node-pattern branch of runRunnerProfile (discoverRunnerProfiles builds the profile) in src/integrations/ide/projectRunners.ts'
+const { discoverRunnerProfiles, runRunnerProfile } = await import(join(ROOT, 'src/integrations/ide/projectRunners.ts'))
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {

@@ -8,7 +8,7 @@ let fail = 0
 const ok = (l: string) => console.log(`  ✓ ${l}`)
 const bad = (l: string) => {
   console.log(`  ✗ ${l}`)
-  console.log('    change toolSearchCooccurEnabled, recordToolDiscovery or cooccurBoostFor in src/tools/ToolSearchTool/cooccurPrior.ts, or the boost line in searchToolsWithKeywords in src/tools/ToolSearchTool/ToolSearchTool.ts, until this line passes')
+  console.log('    change toolSearchCooccurEnabled, recordToolDiscovery or cooccurBoostFor in src/tools/tool-search/cooccurPrior.ts, or the boost line in searchToolsWithKeywords in src/tools/tool-search/ToolSearchTool.ts, until this line passes')
   fail = 1
 }
 const assert = (cond: unknown, l: string) => (cond ? ok(l) : bad(l))
@@ -17,9 +17,9 @@ const dir = mkdtempSync(join(tmpdir(), 'mercury-cooccur-'))
 const tablePath = join(dir, 'cooccur.json')
 process.env.MERCURY_TOOLSEARCH_COOCCUR_PATH = tablePath
 
-const prior = await import('../../src/tools/ToolSearchTool/cooccurPrior.ts')
+const prior = await import('../../src/tools/tool-search/cooccurPrior.ts')
 const { searchToolsWithKeywords } = await import(
-  '../../src/tools/ToolSearchTool/ToolSearchTool.ts'
+  '../../src/tools/tool-search/ToolSearchTool.ts'
 )
 
 const mkTool = (name: string, desc: string) => ({

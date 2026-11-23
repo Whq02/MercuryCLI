@@ -1,6 +1,6 @@
-import type { Command } from '../../commands.js'
-import { flagEnabled } from '../../substrate/flagRegistry.js'
-import { shouldNavCommandBeImmediate } from '../../utils/immediateCommand.js'
+import type { Command } from '../catalogue/commands.js'
+import { flagEnabled } from '../../platform/substrate/flagRegistry.js'
+import { shouldNavCommandBeImmediate } from '../catalogue/immediateCommand.js'
 
 export default {
   type: 'local-jsx',

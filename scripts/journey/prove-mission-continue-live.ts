@@ -239,10 +239,10 @@ function stageA(world: World, label: string): { armedSessionId: string | null } 
   check('the arm confirmation painted', grid.includes('Mission set'), grid.slice(-400), 'the /mission command (src/commands/mission/mission-jsx.tsx) must finish with Mission set: <goal>; if the grid never left the boot face, read the [vshot arm] line above')
   const cards = readCards(world)
   const armed = cards.filter(c => c.state === 'armed')
-  check('exactly one ARMED card on disk', armed.length === 1, JSON.stringify(cards), 'setActiveMission in src/guards/mission.ts must write one card with state armed under projects/<cwd>/missions in the config home')
-  check('the card carries the goal verbatim', armed[0]?.goal === GOAL, armed[0]?.goal, 'the card setActiveMission writes (src/guards/mission.ts) must keep the goal text unchanged')
+  check('exactly one ARMED card on disk', armed.length === 1, JSON.stringify(cards), 'setActiveMission in src/permissions/guards/mission.ts must write one card with state armed under projects/<cwd>/missions in the config home')
+  check('the card carries the goal verbatim', armed[0]?.goal === GOAL, armed[0]?.goal, 'the card setActiveMission writes (src/permissions/guards/mission.ts) must keep the goal text unchanged')
   const debug = debugText(world)
-  check('the debug log records the install', debug.includes('[mission] installed standing mission'), 'no install line', 'setActiveMission in src/guards/mission.ts logs this line through logForDebugging; the drive runs with DEBUG=1 and reads the config home debug folder')
+  check('the debug log records the install', debug.includes('[mission] installed standing mission'), 'no install line', 'setActiveMission in src/permissions/guards/mission.ts logs this line through logForDebugging; the drive runs with DEBUG=1 and reads the config home debug folder')
   reapDaemonFoldersSync([path.join(world.home, 'daemon')])
   return { armedSessionId: armed[0]?.sessionId ?? null }
 }
@@ -274,7 +274,7 @@ function stageB(world: World, label: string, argvTail: string[]): void {
     'the debug log records the RE-ARM',
     !before.includes('[mission] re-armed from card') && after.includes('[mission] re-armed from card'),
     after.slice(-300) || '(no debug lines)',
-    'rearmMissionFromCard in src/guards/mission.ts must log [mission] re-armed from card when --continue or --resume boots into the session',
+    'rearmMissionFromCard in src/permissions/guards/mission.ts must log [mission] re-armed from card when --continue or --resume boots into the session',
   )
   check('/mission paints the standing mission', shown.includes('Standing mission'), asked.split('\n').filter(l => l.trim()).slice(-12).join('\n'), 'the /mission panel in src/commands/mission/mission-jsx.tsx must print the Standing mission title when a mission is armed; the stage B drive sends /mission once the status line reads ready')
   const panelRows = asked.split('\n')
@@ -282,24 +282,24 @@ function stageB(world: World, label: string, argvTail: string[]): void {
   const stateRow = panelRows.findIndex((l, i) => i > titleRow && l.includes('re-armed on resume'))
   const goalRow = panelRows.findIndex((l, i) => i > stateRow && l.includes(GOAL))
   check('the panel paints as rows: the title, then the state with the re-arm reason, then the goal whole', titleRow >= 0 && stateRow > titleRow && goalRow > stateRow, `title@${titleRow} state@${stateRow} goal@${goalRow} · ${panelRows.filter(l => /Standing mission|re-armed|clear" to drop/.test(l) || l.includes(GOAL)).map(l => l.trim()).join(' | ').slice(0, 300)}`, 'the panel in src/commands/mission/mission-jsx.tsx must print the title row, then the state row with the reason, then the whole goal, each on its own row')
-  check('the panel names the resume re-arm', shown.includes('re-armed on resume'), asked.split('\n').filter(l => /mission|Mission/.test(l)).join(' | ').slice(0, 400), 'rearmMissionFromCard in src/guards/mission.ts sets lastReason to re-armed on resume; the panel in src/commands/mission/mission-jsx.tsx must show it')
+  check('the panel names the resume re-arm', shown.includes('re-armed on resume'), asked.split('\n').filter(l => /mission|Mission/.test(l)).join(' | ').slice(0, 400), 'rearmMissionFromCard in src/permissions/guards/mission.ts sets lastReason to re-armed on resume; the panel in src/commands/mission/mission-jsx.tsx must show it')
   const cards = readCards(world)
   const armed = cards.filter(c => c.state === 'armed')
-  check('exactly one ARMED card store-wide after the resume', armed.length === 1, JSON.stringify(cards), 'rearmMissionFromCard in src/guards/mission.ts must leave one armed card: reuse the card when the session id is the same, and mark the old one continued when the id splits')
-  check('the armed card still carries the goal', armed[0]?.goal === GOAL, '', 'the card rewritten by rearmMissionFromCard in src/guards/mission.ts must keep the goal')
+  check('exactly one ARMED card store-wide after the resume', armed.length === 1, JSON.stringify(cards), 'rearmMissionFromCard in src/permissions/guards/mission.ts must leave one armed card: reuse the card when the session id is the same, and mark the old one continued when the id splits')
+  check('the armed card still carries the goal', armed[0]?.goal === GOAL, '', 'the card rewritten by rearmMissionFromCard in src/permissions/guards/mission.ts must keep the goal')
   const split = cards.filter(c => c.state === 'continued')
   check(
     'an id-split leaves the old card `continued` (never orphaned-armed); same-id leaves no residue',
     split.every(c => (c.nextStep ?? '').includes('continued in session')),
     JSON.stringify(split),
-    'rearmMissionFromCard in src/guards/mission.ts must set nextStep to continued in session <id> on the old card when it hands the mission to a new session id',
+    'rearmMissionFromCard in src/permissions/guards/mission.ts must set nextStep to continued in session <id> on the old card when it hands the mission to a new session id',
   )
 }
 
 {
   const world = makeWorld('world-continue')
   const { armedSessionId } = stageA(world, 'WORLD 1')
-  check('stage A yielded a session id', armedSessionId !== null, '', 'stage A found no armed card on disk; read the failed stage A checks above, since setActiveMission in src/guards/mission.ts writes the card')
+  check('stage A yielded a session id', armedSessionId !== null, '', 'stage A found no armed card on disk; read the failed stage A checks above, since setActiveMission in src/permissions/guards/mission.ts writes the card')
   stageB(world, 'WORLD 1', ['--continue'])
 }
 
@@ -307,7 +307,7 @@ function stageB(world: World, label: string, argvTail: string[]): void {
   const world = makeWorld('world-resume')
   const { armedSessionId } = stageA(world, 'WORLD 2')
   if (armedSessionId === null) {
-    check('WORLD 2 stage A yielded a session id', false, '', 'stage A found no armed card on disk; read the failed stage A checks above, since setActiveMission in src/guards/mission.ts writes the card')
+    check('WORLD 2 stage A yielded a session id', false, '', 'stage A found no armed card on disk; read the failed stage A checks above, since setActiveMission in src/permissions/guards/mission.ts writes the card')
   } else {
     stageB(world, 'WORLD 2', ['--resume', armedSessionId])
   }
@@ -476,8 +476,8 @@ function stageB(world: World, label: string, argvTail: string[]): void {
       }
     }
     walk4(path.join(world4.home, 'projects'))
-    check('WORLD 4 the card is keyed by the CONVERSATION (a transcript on disk carries the same id)', card4 !== undefined && transcripts4.includes(card4.sessionId), `card ${card4?.sessionId ?? '(none)'} · transcripts ${transcripts4.join(',')}`, 'setActiveMission in src/guards/mission.ts must key the card by conversationIdHere, the id of the transcript file, not by the hosting runner id')
-    check("WORLD 4 the mission's Stop hook fired in the seat (the card counts a check)", (card4?.iterations ?? 0) >= 1, JSON.stringify(cards4), 'the mission Stop hook in src/guards/mission.ts must run inside the hosting seat process after the turn that follows /mission, and count the check on the card')
+    check('WORLD 4 the card is keyed by the CONVERSATION (a transcript on disk carries the same id)', card4 !== undefined && transcripts4.includes(card4.sessionId), `card ${card4?.sessionId ?? '(none)'} · transcripts ${transcripts4.join(',')}`, 'setActiveMission in src/permissions/guards/mission.ts must key the card by conversationIdHere, the id of the transcript file, not by the hosting runner id')
+    check("WORLD 4 the mission's Stop hook fired in the seat (the card counts a check)", (card4?.iterations ?? 0) >= 1, JSON.stringify(cards4), 'the mission Stop hook in src/permissions/guards/mission.ts must run inside the hosting seat process after the turn that follows /mission, and count the check on the card')
     const debugDir4 = path.join(world4.home, 'debug')
     const seatLog = (existsSync(debugDir4) ? readdirSync(debugDir4) : [])
       .map(name => {
@@ -489,7 +489,7 @@ function stageB(world: World, label: string, argvTail: string[]): void {
       })
       .find(text => text.includes(`[session-runner] claimed: session ${card4?.sessionId ?? '(no card)'}`)) ?? ''
     const seatLines = seatLog.split('\n').filter(l => l.includes('[mission]'))
-    check('WORLD 4 the seat armed the mission in its own process and logged its checks', seatLines.some(l => /installed standing mission|re-armed from card/.test(l)) && seatLines.some(l => /Mission not yet met|pauses: \d+ turns without a tool call/.test(l)), seatLines.map(l => l.slice(-110)).join(' | ').slice(-400) || 'no [mission] line in the runner\'s own debug file', 'the seat process must arm the mission itself (setActiveMission or rearmMissionFromCard in src/guards/mission.ts) and log its Mission not yet met or pause line to its own debug file')
+    check('WORLD 4 the seat armed the mission in its own process and logged its checks', seatLines.some(l => /installed standing mission|re-armed from card/.test(l)) && seatLines.some(l => /Mission not yet met|pauses: \d+ turns without a tool call/.test(l)), seatLines.map(l => l.slice(-110)).join(' | ').slice(-400) || 'no [mission] line in the runner\'s own debug file', 'the seat process must arm the mission itself (setActiveMission or rearmMissionFromCard in src/permissions/guards/mission.ts) and log its Mission not yet met or pause line to its own debug file')
   } finally {
     try {
       fast.kill('SIGTERM')

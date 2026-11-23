@@ -3,12 +3,12 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { DAEMON_USAGE, looksLikeDirectoryArg, parseDaemonVerb, START_TOKEN_SKEW_MS, staleStopVerdict, startTokenEpochMs, daemonRecordIdentity } from '../../src/daemon/verbs.js'
+import { DAEMON_USAGE, looksLikeDirectoryArg, parseDaemonVerb, START_TOKEN_SKEW_MS, staleStopVerdict, startTokenEpochMs, daemonRecordIdentity } from '../../src/daemon/control/verbs.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}fix: src/daemon/verbs.ts (parseDaemonVerb, DAEMON_USAGE, staleStopVerdict, daemonRecordIdentity); the live-verb checks of section 6 run scripts/daemon/hosted-caller-client.ts`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}fix: src/daemon/control/verbs.ts (parseDaemonVerb, DAEMON_USAGE, staleStopVerdict, daemonRecordIdentity); the live-verb checks of section 6 run scripts/daemon/hosted-caller-client.ts`}`)
   if (!cond) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)

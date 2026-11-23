@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 
 ;(globalThis as any).MACRO = { VERSION: 'proof', PACKAGE_URL: 'https://example.invalid' }
-const { performWebSearch } = await import('../../src/services/search/searchDoor.js')
-const { resetSearchPacing } = await import('../../src/services/search/searchPacing.js')
-const { WebSearchTool } = await import('../../src/tools/WebSearchTool/WebSearchTool.js')
+const { performWebSearch } = await import('../../src/tools/engines/web-search/searchDoor.js')
+const { resetSearchPacing } = await import('../../src/tools/engines/web-search/searchPacing.js')
+const { WebSearchTool } = await import('../../src/tools/web-search/WebSearchTool.js')
 
 let now = 1_000_000
 const clock = { now: () => now, random: () => 0.5, sleep: async (ms: number) => { now += ms } }
@@ -138,7 +138,7 @@ const hitsOnlyRun = await performWebSearch(
     },
   },
 )
-assert.ok(hitsOnlyRun.sequence.every(entry => typeof entry !== 'string'), 'hits-only native run in src/services/search/searchDoor.js must emit no string commentary entries')
+assert.ok(hitsOnlyRun.sequence.every(entry => typeof entry !== 'string'), 'hits-only native run in src/tools/engines/web-search/searchDoor.js must emit no string commentary entries')
 const hitsOnlyRendered = renderFromRun('hits only query', hitsOnlyRun)
 assert.equal(hitsOnlyRendered.hits.length, 1)
 assert.ok(hitsOnlyRendered.notes.includes('via OpenAI web search (native)'), `hits-only native answer notes must include via OpenAI web search (native): ${JSON.stringify(hitsOnlyRendered.notes)}`)
@@ -175,6 +175,6 @@ const emptyNativeWalk = await performWebSearch(
 )
 assert.equal(braveKnocks, 1, 'when the native door gives neither hits nor words, the cascade walks on')
 assert.equal(emptyNativeWalk.via, 'brave')
-assert.ok(emptyNativeWalk.notes.some(note => note.includes('Anthropic web search found no matching links')), `empty native fallthrough in src/services/search/searchDoor.js must note "Anthropic web search found no matching links": ${JSON.stringify(emptyNativeWalk.notes)}`)
+assert.ok(emptyNativeWalk.notes.some(note => note.includes('Anthropic web search found no matching links')), `empty native fallthrough in src/tools/engines/web-search/searchDoor.js must note "Anthropic web search found no matching links": ${JSON.stringify(emptyNativeWalk.notes)}`)
 
 console.log('PASS native search answer through performWebSearch: words + hits, cache replay, words alone, hits alone, and empty fallthrough')

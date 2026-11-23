@@ -3,9 +3,9 @@ import assert from 'node:assert/strict'
 import axios from 'axios'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { WebFetchTool } = await import('../../src/tools/WebFetchTool/WebFetchTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
+const { WebFetchTool } = await import('../../src/tools/web-fetch/WebFetchTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
 const seen: string[] = []
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
   const url = request.headers.get('x-fixture-url')!
@@ -23,7 +23,7 @@ const context = { owner: makeOwnerKey({ workspace: process.cwd(), sessionId: 'ba
 const urls = ['/one', '/missing', '/two'].map(path => `https://batch.example.org${path}`)
 const permitted: string[] = []
 let failures = 0
-const check = (label: string, ok: boolean, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${detail ? `: ${detail}` : ''}${ok ? '' : ' — fix: the urls schema and batch call in src/tools/WebFetchTool/WebFetchTool.ts'}`); if (!ok) failures++ }
+const check = (label: string, ok: boolean, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${detail ? `: ${detail}` : ''}${ok ? '' : ' — fix: the urls schema and batch call in src/tools/web-fetch/WebFetchTool.ts'}`); if (!ok) failures++ }
 try {
   check('three-URL schema is offered', WebFetchTool.inputSchema.safeParse({ urls }).success)
   const result = await WebFetchTool.call({ urls } as never, context, (async (_tool, input) => { permitted.push(input.url as string); return { behavior: 'allow', updatedInput: input } }) as never, {} as never)
@@ -38,7 +38,7 @@ try {
   check('a denied URL is not fetched', seen.length === before && denied.data.result.includes('fixture refusal'))
   check('mixed single/batch and oversized lists refuse', !WebFetchTool.inputSchema.safeParse({ url: urls[0], urls }).success && !WebFetchTool.inputSchema.safeParse({ urls: [...urls, urls[0]] }).success)
   const prompt = await WebFetchTool.prompt()
-  const fields = (await import('../../src/utils/zodToJsonSchema.ts')).zodToJsonSchema(WebFetchTool.inputSchema) as any
+  const fields = (await import('../../src/platform/primitives/zodToJsonSchema.ts')).zodToJsonSchema(WebFetchTool.inputSchema) as any
   check('the urls field alone states batch byte budgets', fields.properties.urls.description.includes('132,000') && fields.properties.urls.description.includes('38,000 bytes') && !/132,000|38,000/.test(prompt))
 } catch (error) {
   check('batch call completes', false, String(error))

@@ -9,7 +9,7 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' | to fix: the terminal modes are set in src/ink/root/screen-session.ts and reset in src/ink/root/teardown.ts; a mode whose last reset comes after its last set was disabled while the screen was still live, so find the code that emits that reset (or the pane that was opened and closed) and keep the mode armed'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' | to fix: the terminal modes are set in src/screen/renderer/root/screen-session.ts and reset in src/screen/renderer/root/teardown.ts; a mode whose last reset comes after its last set was disabled while the screen was still live, so find the code that emits that reset (or the pane that was opened and closed) and keep the mode armed'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

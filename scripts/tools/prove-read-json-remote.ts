@@ -9,7 +9,7 @@ process.env.MERCURY_TMPDIR = join(home, 'tmp')
 process.env.MERCURY_BARE = '1'
 mkdirSync(process.env.MERCURY_TMPDIR, { recursive: true })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const remoteJsonFixHint = ' | fix: the JSON query read is readJson in src/tools/FileReadTool/readJson.ts (its private json-queries folder), the remote read and its private remote-files copy are in src/services/remoteFiles/bridge.ts, and the read target and validation are in src/tools/FileReadTool/read/'
+const remoteJsonFixHint = ' | fix: the JSON query read is readJson in src/tools/read/readJson.ts (its private json-queries folder), the remote read and its private remote-files copy are in src/platform/remote-files/bridge.ts, and the read target and validation are in src/tools/read/call/'
 let passed = 0, failed = 0
 const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${detail.slice(0, 800)}${remoteJsonFixHint}`}`) }
 const unavailable = localTransportUnavailable()
@@ -17,14 +17,14 @@ if (unavailable) console.log(`SKIP fake remote POSIX transport: ${unavailable}; 
 else {
   const world = await remoteWorld('local', 0, { clientHome: home })
   const leave = enterWorld(world)
-  const connection = await import('../../src/services/remoteFiles/connection.ts')
+  const connection = await import('../../src/platform/remote-files/connection.ts')
   const scripts: string[] = []
   const remoteRun = connection.remoteRun
-  mock.module('../../src/services/remoteFiles/connection.js', () => ({ ...connection, remoteRun: async (authority: unknown, request: { script: string }) => { scripts.push(request.script); return remoteRun(authority as never, request) } }))
-  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-  const { setCwdState, setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+  mock.module('../../src/platform/remote-files/connection.js', () => ({ ...connection, remoteRun: async (authority: unknown, request: { script: string }) => { scripts.push(request.script); return remoteRun(authority as never, request) } }))
+  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+  const { setCwdState, setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
   setCwdState(world.data); setOriginalCwd(world.data)
   const context = (denies: string[] = []) => ({ messages: [], abortController: new AbortController(), readFileState: createFileStateCacheWithSizeLimit(100), getAppState: () => ({ toolPermissionContext: { ...getEmptyToolPermissionContext(), alwaysDenyRules: { session: denies } } }) })
   const read = async (path: string, ctx = context()) => {
@@ -63,7 +63,7 @@ else {
     writeFileSync(invalid, '{}\n{bad}')
     const error = await read(`ssh://box${invalid}#read?q=.`)
     check('M07 remote parse failure names the public source and no temporary input', error.text.includes('partial-error') && error.text.includes(`source: ssh://box${invalid}`) && !error.text.includes('/copy-'), error.text)
-    const { getMercuryTempDir } = await import('../../src/utils/permissions/filesystem.ts')
+    const { getMercuryTempDir } = await import('../../src/permissions/rules/filesystem.ts')
     const privateNames = new Set<string>()
     const watching = setInterval(() => {
       for (const folder of ['json-queries', 'remote-files']) {

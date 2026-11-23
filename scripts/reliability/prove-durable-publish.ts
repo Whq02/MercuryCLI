@@ -15,14 +15,14 @@ import {
   durableAtomicPublishSync,
   DurablePublishError,
   isDurableTempName,
-} from '../../src/substrate/durablePublish.ts'
+} from '../../src/platform/substrate/durablePublish.ts'
 
 let failures = 0
 const ok = (cond: boolean, label: string) => {
   console.log(`${cond ? '  ✅' : '  ❌'} ${label}`)
   if (!cond) {
     failures++
-    console.log('     fix: durableAtomicPublish, durableAtomicPublishSync, faultPoint and cleanupOrphanDurableTemps in src/substrate/durablePublish.ts (the section number in the label names the case); the kill cases run scripts/reliability/helpers/durablePublishKillChild.ts')
+    console.log('     fix: durableAtomicPublish, durableAtomicPublishSync, faultPoint and cleanupOrphanDurableTemps in src/platform/substrate/durablePublish.ts (the section number in the label names the case); the kill cases run scripts/reliability/helpers/durablePublishKillChild.ts')
   }
 }
 const tmp = mkdtempSync(join(tmpdir(), 'mercury-durpub-'))

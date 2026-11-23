@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/daemon/main.ts src/daemon/handshake.ts src/daemon/ownedDaemon.ts src/services/switchboard/ensureDaemon.ts src/cli/update.ts
+// gate-watch: src/daemon/control/main.ts src/daemon/control/handshake.ts src/daemon/control/ownedDaemon.ts src/daemon/switchboard/ensureDaemon.ts src/commands/verbs/update.ts
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
@@ -20,7 +20,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 1200)}` : ''}${!ok ? ' — change: the handover the checks exercise is moveDaemonToDeployedBuild in src/daemon/handshake.ts (receipt line and restart refusal wording), with the daemon start in src/daemon/ownedDaemon.ts and src/services/switchboard/ensureDaemon.ts; read the daemon log tail printed below the section' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 1200)}` : ''}${!ok ? ' — change: the handover the checks exercise is moveDaemonToDeployedBuild in src/daemon/control/handshake.ts (receipt line and restart refusal wording), with the daemon start in src/daemon/control/ownedDaemon.ts and src/daemon/switchboard/ensureDaemon.ts; read the daemon log tail printed below the section' : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const note = (t: string): void => console.log(`  [NOTE] ${t}`)
@@ -247,7 +247,7 @@ async function withHome<T>(home: string, body: () => Promise<T>): Promise<T> {
   const before = process.env.MERCURY_CONFIG_DIR
   process.env.MERCURY_CONFIG_DIR = home
   delete process.env.MERCURY_HOME
-  const sock = await import(join(ROOT, 'src/daemon/controlSocket.ts'))
+  const sock = await import(join(ROOT, 'src/daemon/control/controlSocket.ts'))
   sock.clearControlKeyMemo?.()
   sock.forgetDaemonProtoForTesting?.()
   try {
@@ -265,10 +265,10 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_DAEMON_DIR
-const sockMod = await import(join(ROOT, 'src/daemon/controlSocket.ts'))
-const protocol = await import(join(ROOT, 'src/daemon/protocol.ts'))
-const hsMod = await import(join(ROOT, 'src/daemon/handshake.ts'))
-const { isProcessAlive } = await import(join(ROOT, 'src/utils/ownerWatch.ts'))
+const sockMod = await import(join(ROOT, 'src/daemon/control/controlSocket.ts'))
+const protocol = await import(join(ROOT, 'src/daemon/control/protocol.ts'))
+const hsMod = await import(join(ROOT, 'src/daemon/control/handshake.ts'))
+const { isProcessAlive } = await import(join(ROOT, 'src/daemon/control/ownerWatch.ts'))
 type Hello = { pid: number; buildTree: string | null; version: string; live: number; ownerPid: number | null }
 const hello = (): Promise<Hello | null> =>
   sockMod.daemonControlRpc({ op: 'hello', proto: protocol.MERCURY_DAEMON_PROTO, clientVersion: OLD_VERSION, clientBuildTree: oldTree }, { timeoutMs: vshotBudgetMs(1500) }).then((r: { ok: boolean; op?: string; pid?: number; buildTree?: string | null; version?: string; live?: number; ownerPid?: number | null }) => (r.ok && r.op === 'hello' ? { pid: r.pid as number, buildTree: r.buildTree ?? null, version: r.version ?? '?', live: r.live ?? 0, ownerPid: r.ownerPid ?? null } : null))

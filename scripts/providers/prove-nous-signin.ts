@@ -9,12 +9,12 @@ import { nousFixture, NOUS_FIXTURE_API_KEY, NOUS_FIXTURE_CLIENT_ID, NOUS_FIXTURE
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_TOOL_DEFER = '1'
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const name of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_MODEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_DISABLE_1M_CONTEXT']) delete process.env[name]
 const fixture = nousFixture()
 Object.assign(process.env, fixture.signinEnv)
 
-const nousFixHint = 'fix the sign-in code in src/services/providers/nous/ (nousOauth.ts for the token grant, refresh and refusal mark, nousLogin.ts for the device sign-in and key receipts, nousAccounts.ts and nousCatalogue.ts for what each surface reads) or the route in src/services/providers/callModelRouter.ts; the loopback fixture is scripts/providers/lib/nous-fixture.ts'
+const nousFixHint = 'fix the sign-in code in src/models/roads/nous/ (nousOauth.ts for the token grant, refresh and refusal mark, nousLogin.ts for the device sign-in and key receipts, nousAccounts.ts and nousCatalogue.ts for what each surface reads) or the route in src/models/roads/callModelRouter.ts; the loopback fixture is scripts/providers/lib/nous-fixture.ts'
 let failures = 0
 let passes = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -26,30 +26,30 @@ const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(r
 async function until(what: string, holds: () => boolean, timeoutMs = 15_000): Promise<void> {
   const deadline = Date.now() + timeoutMs
   while (!holds()) {
-    if (Date.now() > deadline) throw new Error(`timed out waiting until ${what}; look at refreshNousTokens in src/services/providers/nous/nousOauth.ts and the fixture hold in scripts/providers/lib/nous-fixture.ts`)
+    if (Date.now() > deadline) throw new Error(`timed out waiting until ${what}; look at refreshNousTokens in src/models/roads/nous/nousOauth.ts and the fixture hold in scripts/providers/lib/nous-fixture.ts`)
     await sleep(25)
   }
 }
 const EXPIRED_LINE = 'Nous Portal sign-in expired — sign in again (/logins nous) or use an API key'
 const OFFER = '/logins nous retries the sign-in or stores an API key.'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const oauth = await import('../../src/services/providers/nous/nousOauth.ts')
-const accounts = await import('../../src/services/providers/nous/nousAccounts.ts')
-const login = await import('../../src/services/providers/nous/nousLogin.ts')
-const cat = await import('../../src/services/providers/nous/nousCatalogue.ts')
-const usageState = await import('../../src/services/providers/nous/nousUsageState.ts')
-const owner = await import('../../src/services/providers/providerUsage.ts')
-const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')
-const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const oauth = await import('../../src/models/roads/nous/nousOauth.ts')
+const accounts = await import('../../src/models/roads/nous/nousAccounts.ts')
+const login = await import('../../src/models/roads/nous/nousLogin.ts')
+const cat = await import('../../src/models/roads/nous/nousCatalogue.ts')
+const usageState = await import('../../src/models/roads/nous/nousUsageState.ts')
+const owner = await import('../../src/models/roads/providerUsage.ts')
+const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
+const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/models/roads/accountSlots.ts')
+const { resolvePrimaryAgentBackend } = await import('../../src/models/roads/primaryBackend.ts')
 const readinessForRoute = (model: string) => resolvePrimaryAgentBackend(model)!.readiness()
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-type Message = import('../../src/types/message.ts').Message
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 
 async function turn(model: string, prompt: string): Promise<{ captures: typeof fixture.requests; errors: string[]; settled: AssistantMessage[] }> {
   const before = fixture.requests.length
@@ -72,7 +72,7 @@ async function turn(model: string, prompt: string): Promise<{ captures: typeof f
   return { captures: fixture.requests.slice(before), errors, settled }
 }
 
-type LoginEvent = import('../../src/services/providers/nous/nousLogin.ts').NousDeviceLoginEvent
+type LoginEvent = import('../../src/models/roads/nous/nousLogin.ts').NousDeviceLoginEvent
 async function signIn(): Promise<{ outcome: Awaited<ReturnType<typeof login.runNousDeviceLogin>>; events: LoginEvent[]; captures: typeof fixture.requests }> {
   const before = fixture.requests.length
   const events: LoginEvent[] = []

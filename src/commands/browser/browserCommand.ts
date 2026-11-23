@@ -1,4 +1,4 @@
-import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
+import type { LocalCommandResult, LocalJSXCommandContext } from '../catalogue/command.js'
 import {
   browserVersionOf,
   detectInstalledBrowsers,
@@ -6,9 +6,9 @@ import {
   listManagedBrowsers,
   removeManagedBrowser,
   resolveBrowser,
-} from '../../services/browser/browserResolver.js'
-import { driverVersion } from '../../services/browser/browserSession.js'
-import { APPROVAL_RULE_LINE, INSTALLED_NOT_DRIVEN } from '../../services/browser/browserWords.js'
+} from '../../integrations/browser/browserResolver.js'
+import { driverVersion } from '../../integrations/browser/browserSession.js'
+import { APPROVAL_RULE_LINE, INSTALLED_NOT_DRIVEN } from '../../integrations/browser/browserWords.js'
 
 
 function statusText(): string {
@@ -46,7 +46,7 @@ export const call = async (arg: string, _context: LocalJSXCommandContext): Promi
 
   if (verb === 'install') {
     const { installManagedBrowser, planBrowserInstall, persistInstallPlan, readPersistedInstallPlan, clearPersistedInstallPlan } =
-      await import('../../services/browser/browserInstall.js')
+      await import('../../integrations/browser/browserInstall.js')
     let confirming = false
     let buildArg: string | undefined
     for (const token of parts.slice(1)) {

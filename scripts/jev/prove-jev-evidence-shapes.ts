@@ -16,7 +16,7 @@ for (const key of ['TYPESAFE_API_KEY', 'NODE_ENV', 'https_proxy', 'HTTPS_PROXY',
 
 let failures = 0
 let checks = 0
-const EVIDENCE_SHAPES_HINT = 'file and table expansion and its refusals live in src/tools/JevEvalTool/jevEvalEvidence.ts, the evidence schema and its wire text in src/tools/JevEvalTool/jevEvalSchema.ts, the permission check in checkPermissions of src/tools/JevEvalTool/JevEvalTool.ts'
+const EVIDENCE_SHAPES_HINT = 'file and table expansion and its refusals live in src/tools/jev-eval/jevEvalEvidence.ts, the evidence schema and its wire text in src/tools/jev-eval/jevEvalSchema.ts, the permission check in checkPermissions of src/tools/jev-eval/JevEvalTool.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -33,17 +33,17 @@ const { startJevStandin } = await import('./lib/jevStandin.ts')
 const standin = await startJevStandin()
 process.env.MERCURY_JEV_BASE = standin.base
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setJevEnabled, setJevPacePerMinute } = await import('../../src/services/jev/jevSetting.ts')
-const { storeJevApiKey } = await import('../../src/services/jev/jevKey.ts')
-const { jevLedgerSnapshot, resetJevLedger } = await import('../../src/services/jev/jevLedger.ts')
-const { JEV_TOOL_NAME } = await import('../../src/services/jev/jevContract.ts')
-const { formatZodValidationError } = await import('../../src/utils/toolErrors.ts')
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
-const { JevEvalTool, jevEvalCall } = await import('../../src/tools/JevEvalTool/JevEvalTool.ts')
-const { JEV_EVAL_PROMPT } = await import('../../src/tools/JevEvalTool/prompt.ts')
-const constants = (await import('../../src/tools/JevEvalTool/constants.ts')) as Record<string, unknown>
+const { setJevEnabled, setJevPacePerMinute } = await import('../../src/models/jev/jevSetting.ts')
+const { storeJevApiKey } = await import('../../src/models/jev/jevKey.ts')
+const { jevLedgerSnapshot, resetJevLedger } = await import('../../src/models/jev/jevLedger.ts')
+const { JEV_TOOL_NAME } = await import('../../src/models/jev/jevContract.ts')
+const { formatZodValidationError } = await import('../../src/tools/kit/toolErrors.ts')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
+const { JevEvalTool, jevEvalCall } = await import('../../src/tools/jev-eval/JevEvalTool.ts')
+const { JEV_EVAL_PROMPT } = await import('../../src/tools/jev-eval/prompt.ts')
+const constants = (await import('../../src/tools/jev-eval/constants.ts')) as Record<string, unknown>
 const MAX_ROWS = typeof constants.JEV_EVAL_MAX_ROWS === 'number' ? constants.JEV_EVAL_MAX_ROWS : NaN
 const MAX_FILE_BYTES = typeof constants.JEV_EVAL_MAX_FILE_BYTES === 'number' ? constants.JEV_EVAL_MAX_FILE_BYTES : NaN
 
@@ -206,7 +206,7 @@ check('with a pace of 2 the first two rows are sent and the third reads not sent
 setJevPacePerMinute(100)
 
 section('§6 a file item passes the Read rules before anything is read: deny rules, ask rules and the working-directory boundary')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const ctxWith = (extra: Record<string, unknown>): unknown => ({ getAppState: () => ({ toolPermissionContext: { ...getEmptyToolPermissionContext(), ...extra } }) })
 const denied = await JevEvalTool.checkPermissions(call([{ file: { path: TSV } }]) as never, ctxWith({ alwaysDenyRules: { session: [`Read(/${DIR}/**)`] } }) as never)
 check('a Read deny rule on the file\'s directory denies the call, naming the path', denied.behavior === 'deny' && /Reading .*reds\.tsv is denied by the rule/.test((denied as { message?: string }).message ?? ''), JSON.stringify(denied))

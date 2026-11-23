@@ -14,18 +14,18 @@ delete process.env.OPENAI_API_KEY
 let ids = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-3.7-flash']
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch() { return Response.json({ models: ids.map(id => ({ name: `models/${id}`, supportedGenerationMethods: ['generateContent'] })) }) } })
 process.env.MERCURY_GEMINI_API_BASE = `http://127.0.0.1:${server.port}/v1beta`
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { refreshGeminiCatalogue, __resetGeminiCatalogueForTest, newestGeminiGenerationFirst, geminiGeneration } = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const { computedDefault, resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.ts')
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
+const { refreshGeminiCatalogue, __resetGeminiCatalogueForTest, newestGeminiGenerationFirst, geminiGeneration } = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const { computedDefault, resetComputedDefaultMemo } = await import('../../src/models/catalogue/computedDefault.ts')
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) {
     failures++
-    console.log('    fix geminiGeneration or newestGeminiGenerationFirst in src/services/providers/gemini/geminiCatalogue.ts (the sort), or computedDefault in src/services/model/computedDefault.ts (the default it picks from the sorted list)')
+    console.log('    fix geminiGeneration or newestGeminiGenerationFirst in src/models/roads/gemini/geminiCatalogue.ts (the sort), or computedDefault in src/models/catalogue/computedDefault.ts (the default it picks from the sorted list)')
   }
 }
 const defaultFor = async (list: string[]): Promise<{ setting?: string; why: string; source: string }> => {

@@ -2,8 +2,8 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { bootJourneyIsExplicit, consumeBootSurfaceIntent, consumeFaceDoorDeepLink, consumeKitManagerDeepLink, decideSplashReceipt, consumeSplashHandover, markExplicitBootJourney } from '../../src/substrate/splashHandover.js'
-import { bootAttemptsPath, clearBootAttempts, formatBootResidueWarning, readBootAttemptResidue } from '../../src/substrate/bootBeacon.js'
+import { bootJourneyIsExplicit, consumeBootSurfaceIntent, consumeFaceDoorDeepLink, consumeKitManagerDeepLink, decideSplashReceipt, consumeSplashHandover, markExplicitBootJourney } from '../../src/platform/substrate/splashHandover.js'
+import { bootAttemptsPath, clearBootAttempts, formatBootResidueWarning, readBootAttemptResidue } from '../../src/platform/substrate/bootBeacon.js'
 
 let failures = 0
 let hintWhere = ''
@@ -21,7 +21,7 @@ const dirExists = (d: string): boolean => dirs.has(d)
 
 section('(1) decideSplashReceipt — the validation matrix (no shape may cost a boot)')
 {
-  hintWhere = 'to fix, change decideSplashReceipt in src/substrate/splashHandover.ts (or the one-shot readers it arms, consumeBootSurfaceIntent and consumeFaceDoorDeepLink, in the same file)'
+  hintWhere = 'to fix, change decideSplashReceipt in src/platform/substrate/splashHandover.ts (or the one-shot readers it arms, consumeBootSurfaceIntent and consumeFaceDoorDeepLink, in the same file)'
   const d = (raw: string | null) => decideSplashReceipt(raw, NOW, dirExists)
   check('absent file ⇒ no-file, nothing applied', d(null).reason === 'no-file' && d(null).apply === null)
   check('a bare plain-text receipt ("\\n\\nheld\\n") ⇒ malformed, nothing applied', d('\n\nheld\n').reason === 'malformed')
@@ -101,7 +101,7 @@ section('(1) decideSplashReceipt — the validation matrix (no shape may cost a 
 
 section('(1b) the explicit-journey one-shot (argv journeys outrank the landing)')
 {
-  hintWhere = 'to fix, change markExplicitBootJourney and bootJourneyIsExplicit in src/substrate/splashHandover.ts'
+  hintWhere = 'to fix, change markExplicitBootJourney and bootJourneyIsExplicit in src/platform/substrate/splashHandover.ts'
   check('unmarked boot: no explicit journey', bootJourneyIsExplicit() === false)
   markExplicitBootJourney()
   check('marked boot: the resolver reads the fact live', bootJourneyIsExplicit() === true)
@@ -109,7 +109,7 @@ section('(1b) the explicit-journey one-shot (argv journeys outrank the landing)'
 
 section('(2) consumeSplashHandover — one-shot env, file discipline, application')
 {
-  hintWhere = 'to fix, change consumeSplashHandover in src/substrate/splashHandover.ts'
+  hintWhere = 'to fix, change consumeSplashHandover in src/platform/substrate/splashHandover.ts'
   const scratch = mkdtempSync(join(tmpdir(), 'splash receipt '))
   const home = join(scratch, 'home')
   const project = join(scratch, 'picked café-日本 project')
@@ -179,7 +179,7 @@ section('(2) consumeSplashHandover — one-shot env, file discipline, applicatio
 
 section('(3) the boot-completion beacon — asset stamp shape ⇄ bootBeacon reader')
 {
-  hintWhere = 'to fix, change bootAttemptsPath, readBootAttemptResidue, clearBootAttempts or formatBootResidueWarning in src/substrate/bootBeacon.ts'
+  hintWhere = 'to fix, change bootAttemptsPath, readBootAttemptResidue, clearBootAttempts or formatBootResidueWarning in src/platform/substrate/bootBeacon.ts'
   const scratch = mkdtempSync(join(tmpdir(), 'boot beacon '))
   try {
     const p = bootAttemptsPath(scratch)

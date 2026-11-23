@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
-const WHERE_TO_CHANGE = 'to fix: the wire form of each route is the table read by deferralWireFormFor in src/services/providers/deferralWire.ts; the probe that confirms a route is in src/services/providers/deferralProbe.ts; routes and model spaces are declared in src/services/providers/routeLaw.ts; the tool-search wording is src/tools/ToolSearchTool/prompt.ts and the schema mark is toolToAPISchema in src/services/messages/api.ts'
+const WHERE_TO_CHANGE = 'to fix: the wire form of each route is the table read by deferralWireFormFor in src/models/roads/deferralWire.ts; the probe that confirms a route is in src/models/roads/deferralProbe.ts; routes and model spaces are declared in src/models/roads/routeLaw.ts; the tool-search wording is src/tools/tool-search/prompt.ts and the schema mark is toolToAPISchema in src/engine/messages/apiSystemAndToolSchema.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -22,14 +22,14 @@ for (const k of ['ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFE
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'deferral-wire-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const wire = await import('../../src/services/providers/deferralWire.ts')
-const probe = await import('../../src/services/providers/deferralProbe.ts')
-const { PROVIDER_ID_SPACES, declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { getPrompt } = await import('../../src/tools/ToolSearchTool/prompt.ts')
+const wire = await import('../../src/models/roads/deferralWire.ts')
+const probe = await import('../../src/models/roads/deferralProbe.ts')
+const { PROVIDER_ID_SPACES, declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { clearToolSchemaCache } = await import('../../src/models/roads/toolSchemaCache.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { getPrompt } = await import('../../src/tools/tool-search/prompt.ts')
 
 const ROUTE_MODELS: Record<string, string> = {
   anthropic: 'claude-sonnet-5',
@@ -71,7 +71,7 @@ section('§1 THE TABLE — one row per declared route, read by one owner')
   check('DeepSeek V4 Pro and unknown DeepSeek models read the text form (no appended declarations)', ['deepseek-v4-pro', 'deepseek-future'].every(model => wire.deferralWireFormFor(model).form === 'text'))
   check('the retired Flash alias follows the current Flash append form', wire.deferralWireFormFor('deepseek-v4-flash').form === 'text-append')
   const { writeFileSync } = await import('node:fs')
-  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+  const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
   writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), JSON.stringify({ compatProvider: {
     'pod-odoqvdb23009eo': { baseUrl: 'http://127.0.0.1:9/pod/v1', hostPodId: 'odoqvdb23009eo', dialect: 'vllm' },
     'studio': { baseUrl: 'http://127.0.0.1:9/studio/v1', dialect: 'llamacpp' },

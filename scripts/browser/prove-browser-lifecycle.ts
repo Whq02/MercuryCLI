@@ -11,14 +11,14 @@ delete process.env.MERCURY_BROWSER_MAX_SESSIONS
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  const hint = 'change the launch flight and teardown in src/services/browser/session/launch.ts (ensureBrowserSession, closeBrowserSession) or src/services/browser/session/owners.ts (disposeBrowserOwner, liveBrowserSessionCensus); the shutdown sweep is disposeAllOwnersForShutdown in src/utils/run/ownerLifecycle.ts'
+  const hint = 'change the launch flight and teardown in src/integrations/browser/session/launch.ts (ensureBrowserSession, closeBrowserSession) or src/integrations/browser/session/owners.ts (disposeBrowserOwner, liveBrowserSessionCensus); the shutdown sweep is disposeAllOwnersForShutdown in src/engine/run-owner/ownerLifecycle.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${hint}` : ''}`)
 }
 const tick = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
-const session = await import('../../src/services/browser/browserSession.ts')
-const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
-const { disposeAllOwnersForShutdown } = await import('../../src/utils/run/ownerLifecycle.ts')
+const session = await import('../../src/integrations/browser/browserSession.ts')
+const { processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { disposeAllOwnersForShutdown } = await import('../../src/engine/run-owner/ownerLifecycle.ts')
 
 class FixtureChild {
   connected = true
@@ -282,7 +282,7 @@ console.log('L7 dispose is idempotent')
 console.log('L8 the open op names the teardown')
 {
   reset()
-  const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
+  const { BrowserTool } = await import('../../src/tools/browser/BrowserTool.ts')
   const ctx = { agentId: 'fixture-tool-teardown' } as Parameters<typeof BrowserTool.call>[1]
   const OWNER = processOwnerForLane('fixture-tool-teardown')
   const call = BrowserTool.call({ op: 'open', url: 'http://127.0.0.1:9/' } as Parameters<typeof BrowserTool.call>[0], ctx)

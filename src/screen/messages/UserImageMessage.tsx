@@ -1,0 +1,33 @@
+
+import { pathToFileURL } from 'node:url'
+import React from 'react'
+import { Box, Text } from '../themedRenderer.js'
+import Link from '../renderer/elements/Link.js'
+import { storedImageState } from '../../platform/images/imageStore.js'
+
+export function UserImageMessage({
+  addMargin = false,
+  imageId,
+}: {
+  addMargin?: boolean
+  imageId?: number
+}): React.ReactNode {
+  const label = imageId !== undefined ? `[Image #${imageId}]` : '[Image]'
+  const stored = imageId !== undefined ? storedImageState(imageId) : null
+  return (
+    <Box marginTop={addMargin ? 1 : 0}>
+      <Text dimColor>
+        {stored !== null && stored.present ? (
+          <Link url={pathToFileURL(stored.path).href} fallback={label}>
+            {label}
+          </Link>
+        ) : (
+          label
+        )}
+        {stored !== null && !stored.present ? ` · file missing: ${stored.path}` : ''}
+      </Text>
+    </Box>
+  )
+}
+
+export default UserImageMessage

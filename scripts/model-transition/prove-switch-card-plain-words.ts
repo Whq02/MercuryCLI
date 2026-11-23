@@ -26,15 +26,15 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
 
-type TransitionPlan = import('../../src/services/model/modelTransition.ts').TransitionPlan
-const { TransitionPreviewCard } = await import('../../src/components/TransitionPreviewCard.tsx')
-const previewModule = (await import('../../src/services/providers/transitionPreview.ts')) as Partial<typeof import('../../src/services/providers/transitionPreview.ts')> & { transitionPlanSummary: (plan: TransitionPlan) => string }
+type TransitionPlan = import('../../src/models/catalogue/modelTransition.ts').TransitionPlan
+const { TransitionPreviewCard } = await import('../../src/commands/model/TransitionPreviewCard.tsx')
+const previewModule = (await import('../../src/models/roads/transitionPreview.ts')) as Partial<typeof import('../../src/models/roads/transitionPreview.ts')> & { transitionPlanSummary: (plan: TransitionPlan) => string }
 const transitionLossRows = previewModule.transitionLossRows ?? ((): never[] => [])
 const transitionPlanSummary = previewModule.transitionPlanSummary
 const TRANSITION_CARRIED_WORDS = previewModule.TRANSITION_CARRIED_WORDS ?? 'text and tool results carry over unchanged'
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 
 const INTERNAL_WORDS = ['settlement owner', 'plan ', 'span(s)', 'round-trip', 'wire', 'continuation record', 'degrade', 'replay exactly', 'plan cap', 'regenerated', 'CURRENT truth', 'failover candidates', 'delegation']
 
@@ -65,7 +65,7 @@ function planOf(counts: Partial<TransitionPlan['counts']>, extra: Partial<Transi
 }
 
 section('§1 the one owner of the loss words speaks plainly, counts in agreement, and the receipt line carries no plan id')
-switchWordsWhere = 'change the wording in transitionLossRows, transitionPlanSummary or TRANSITION_CARRIED_WORDS in src/services/providers/transitionPreview.ts'
+switchWordsWhere = 'change the wording in transitionLossRows, transitionPlanSummary or TRANSITION_CARRIED_WORDS in src/models/roads/transitionPreview.ts'
 {
   const rows = transitionLossRows(planOf({ 'thinking-continuity-reset': 9 }), 'GPT-6 Luna')
   check('nine thinking blocks: the row says they stay behind and that the new model re-plans from the text (RED on the base: "thinking span(s) reset — reasoning never round-trips to the openai wire")', rows.length === 1 && rows[0]!.n === 9 && rows[0]!.words === 'thinking blocks stay behind — GPT-6 Luna never receives the earlier reasoning and re-plans from the text', j(rows))
@@ -125,7 +125,7 @@ const paint = async (plan: TransitionPlan, props: { refreshed?: boolean } = {}):
 const has = (lines: string[], text: string): boolean => lines.some(line => line.includes(text))
 
 section('§2 the switch card as the user reads it (the Windows frame 109 shape: Sonnet 5.5 ⇄ GPT-6 Luna, nine thinking blocks)')
-switchWordsWhere = 'change the card text in TransitionPreviewCard in src/components/TransitionPreviewCard.tsx (loss rows come from transitionLossRows in src/services/providers/transitionPreview.ts)'
+switchWordsWhere = 'change the card text in TransitionPreviewCard in src/commands/model/TransitionPreviewCard.tsx (loss rows come from transitionLossRows in src/models/roads/transitionPreview.ts)'
 {
   const lines = await paint(planOf({ 'thinking-continuity-reset': 9 }, { itemsTruncated: true }), { refreshed: true })
   const text = lines.join('\n')

@@ -10,10 +10,10 @@ delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 delete process.env.MERCURY_SKIP_PROMPT_HISTORY
 
-const writer = await import('../../src/utils/sessionStorage/writer.ts')
-const logs = await import('../../src/utils/sessionStorage/logs.ts')
-const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
+const writer = await import('../../src/sessions/transcripts/writer.ts')
+const logs = await import('../../src/sessions/transcripts/sessionListings.ts')
+const { loadTranscriptFile } = await import('../../src/sessions/transcripts/loading.ts')
+const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 type MetaRecord = { payload?: { kind?: unknown; metaKind?: unknown; fields?: Record<string, unknown> } }
 const entryOfRecord = (record: MetaRecord): Record<string, unknown> =>
   record.payload?.kind === 'session-meta' ? { type: record.payload.metaKind, ...(record.payload.fields ?? {}) } : {}
@@ -27,9 +27,9 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const STAMP_HINT = ' — What to change: saveSessionModel in src/utils/sessionStorage/logs.ts, or reAppendSessionMetadata in src/utils/sessionStorage/writer.ts'
-const FOLD_HINT = ' — What to change: the model row handler in src/utils/sessionStorage/fold.ts, or resumeFactsOf in src/utils/sessionStorage/logs.ts'
-const CACHE_HINT = ' — What to change: restoreSessionMetadata, clearSessionMetadata or reAppendSessionMetadata in src/utils/sessionStorage/logs.ts'
+const STAMP_HINT = ' — What to change: saveSessionModel in src/sessions/transcripts/sessionListings.ts, or reAppendSessionMetadata in src/sessions/transcripts/writer.ts'
+const FOLD_HINT = ' — What to change: the model row handler in src/sessions/transcripts/fold.ts, or resumeFactsOf in src/sessions/transcripts/sessionListings.ts'
+const CACHE_HINT = ' — What to change: restoreSessionMetadata, clearSessionMetadata or reAppendSessionMetadata in src/sessions/transcripts/sessionListings.ts'
 
 const SID = getSessionId()
 const MODEL_MARK = '"metaKind":"model"'
@@ -97,12 +97,12 @@ section('§5 an old-shape transcript — no model entry — folds to no model: t
 
 section('§6 the source pins: the pre-boundary metadata pass keeps the entry across a compaction; the append path treats it as a metadata kind')
 {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
   const before = modelLines().length
   await project.appendEntry({ type: 'model', sessionId: SID as never, model: CARRIER })
   await writer.flushSessionStorage()
-  check('the writer appends the model kind unconditionally, like every other session fact', modelLines().length === before + 1 && entriesOf().at(-1)?.model === CARRIER, 'appendEntry must write a model entry like any other session fact; see the project class in src/utils/sessionStorage/writer.ts')
+  check('the writer appends the model kind unconditionally, like every other session fact', modelLines().length === before + 1 && entriesOf().at(-1)?.model === CARRIER, 'appendEntry must write a model entry like any other session fact; see the project class in src/sessions/transcripts/writer.ts')
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

@@ -29,7 +29,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}this drove the built dist/mercury.mjs against a SIGSTOPped then SIGTERMed daemon (rebuild with bun run build.ts if src changed): the cockpit must wait out the departing daemon, then spawn exactly one new one; read the daemon hello and state path in src/daemon/controlSocket.ts and the daemon.log under the world dir printed as world kept` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}this drove the built dist/mercury.mjs against a SIGSTOPped then SIGTERMed daemon (rebuild with bun run build.ts if src changed): the cockpit must wait out the departing daemon, then spawn exactly one new one; read the daemon hello and state path in src/daemon/control/controlSocket.ts and the daemon.log under the world dir printed as world kept` : ''}`)
 }
 const record = (label: string, detail: string): void => {
   console.log(`  [record] ${label}: ${detail}`)
@@ -142,8 +142,8 @@ process.env.MERCURY_DAEMON_DIR = DAEMON_DIR
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const manifest = JSON.parse(readFileSync(join(DIST, '..', 'manifest.json'), 'utf8')) as { version: string; buildTree?: string }
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: manifest.version }
-const cs = await import('../../src/daemon/controlSocket.ts')
-const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
+const cs = await import('../../src/daemon/control/controlSocket.ts')
+const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/control/protocol.ts')
 type Raw = { ok: boolean; op?: string; ready?: boolean; pid?: number; code?: string; error?: string; warm?: number }
 const hello = async (timeoutMs = 500): Promise<Raw> =>
   (await cs.daemonControlRpc({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: manifest.version, clientBuildTree: null } as never, { timeoutMs, protoRetry: false })) as Raw

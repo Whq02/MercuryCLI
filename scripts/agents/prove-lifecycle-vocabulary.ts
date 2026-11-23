@@ -17,12 +17,12 @@ const section = (t: string, hint = ''): void => {
 }
 
 const { deriveAgentLifecycle, IDLE_TTL_MS } = await import(
-  '../../src/services/agentResults/lifecycle.ts'
+  '../../src/crew/agent-results/lifecycle.ts'
 )
 
 const NOW = 1_000_000_000
 
-section('§A the derivation truth-table', 'to fix: deriveAgentLifecycle or IDLE_TTL_MS in src/services/agentResults/lifecycle.ts')
+section('§A the derivation truth-table', 'to fix: deriveAgentLifecycle or IDLE_TTL_MS in src/crew/agent-results/lifecycle.ts')
 {
   const running = deriveAgentLifecycle({ taskStatus: 'running', transcriptExists: true, now: NOW })
   check('running: not revivable, messages queue', running.state === 'running' && !running.revivable && running.basis.includes('queue'))
@@ -38,7 +38,7 @@ section('§A the derivation truth-table', 'to fix: deriveAgentLifecycle or IDLE_
   check('no transcript anywhere: aborted, NOT revivable, honest basis', nothing.state === 'aborted' && !nothing.revivable && nothing.basis.includes('nothing to revive'))
 }
 
-section('§B the reconciliation — Mercury keeps aborted revivable', 'to fix: the killed and failed branches of deriveAgentLifecycle in src/services/agentResults/lifecycle.ts')
+section('§B the reconciliation — Mercury keeps aborted revivable', 'to fix: the killed and failed branches of deriveAgentLifecycle in src/crew/agent-results/lifecycle.ts')
 {
   const killed = deriveAgentLifecycle({ taskStatus: 'killed', transcriptExists: true, now: NOW })
   check('killed + transcript: aborted AND revivable (the documented divergence)', killed.state === 'aborted' && killed.revivable && killed.basis.includes('revives'))
@@ -47,15 +47,15 @@ section('§B the reconciliation — Mercury keeps aborted revivable', 'to fix: t
 }
 
 
-section('§E the transcript\'s own end — one fact for every verb once the registry row is gone', 'to fix: the end derivation in readAgentTranscript and transcriptEndWords in src/services/crew/agentTranscriptReader.ts')
+section('§E the transcript\'s own end — one fact for every verb once the registry row is gone', 'to fix: the end derivation in readAgentTranscript and transcriptEndWords in src/crew/crewmates/agentTranscriptReader.ts')
 {
   const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
-  const { readAgentTranscript, transcriptEndWords } = await import('../../src/services/crew/agentTranscriptReader.ts')
-  const { INTERRUPT_MESSAGE, turnCutLine } = await import('../../src/utils/messages/rejectionText.ts')
+  const { readAgentTranscript, transcriptEndWords } = await import('../../src/crew/crewmates/agentTranscriptReader.ts')
+  const { INTERRUPT_MESSAGE, turnCutLine } = await import('../../src/engine/message-shapes/rejectionText.ts')
   const dir = mkdtempSync(join(tmpdir(), 'lifecycle-end-'))
-  const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-  const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
+  const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+  const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
   let seq = 0
   const recordWriter = { sessionId: 'lifecycle-proof' as never, nextOrdinal: () => ordinalOf(++seq), observedAt: '2026-06-19T12:00:00.000Z', source: { channel: 'sdk' } as const }
   const row = (type: 'user' | 'assistant', content: unknown, extra: Record<string, unknown> = {}): string =>

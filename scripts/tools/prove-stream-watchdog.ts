@@ -25,7 +25,7 @@ const ended = failed.terminal.reason === 'model_error' && failed.terminal.error 
 check(
   'a model call that throws ends the run with the model_error terminal, the error on it',
   ended,
-  ended ? '' : `the model call's catch (streamModel, src/run-core/turn/streamModel.ts) must end the run { reason: 'model_error', error }; the run ended ${JSON.stringify(failed.terminal)}`,
+  ended ? '' : `the model call's catch (streamModel, src/engine/loop/turn/streamModel.ts) must end the run { reason: 'model_error', error }; the run ended ${JSON.stringify(failed.terminal)}`,
 )
 const pairings = failed.events.filter(event => event.kind === 'tool_settled')
 const paired = pairings.map(event => {

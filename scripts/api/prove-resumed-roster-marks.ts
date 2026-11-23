@@ -14,28 +14,28 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix: readers must follow the bound_prefix record: isDeferredToolFor in src/tools/ToolSearchTool/prompt.ts, getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts, buildSchemaNotSentHint in src/services/tools/toolExecution.ts, planToolPayload in src/services/providers/toolEconomy.ts' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix: readers must follow the bound_prefix record: isDeferredToolFor in src/tools/tool-search/prompt.ts, getDeferredToolsDeltaAttachment in src/engine/attachments/toolAndServerDeltas.ts, buildSchemaNotSentHint in src/engine/tool-dispatch/toolExecution.ts, planToolPayload in src/models/roads/toolEconomy.ts' : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { z } = await import('zod')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { isDeferredToolFor, isDeferredTool } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { planToolPayload, clearToolRosterLatches, armToolRosterRestore, clearToolRosterRestore, conversationRosterKey } = await import('../../src/services/providers/toolEconomy.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { getDeferredToolsDeltaAttachment } = await import('../../src/services/attachments/deltas.ts')
-const { buildSchemaNotSentHint } = await import('../../src/services/tools/toolExecution.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Message = import('../../src/types/message.ts').Message
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { isDeferredToolFor, isDeferredTool } = await import('../../src/tools/tool-search/prompt.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { planToolPayload, clearToolRosterLatches, armToolRosterRestore, clearToolRosterRestore, conversationRosterKey } = await import('../../src/models/roads/toolEconomy.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { getDeferredToolsDeltaAttachment } = await import('../../src/engine/attachments/toolAndServerDeltas.ts')
+const { buildSchemaNotSentHint } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 function fixtureTool(name: string, flags: { shouldDefer?: boolean; loadInFullOnCloud?: boolean } = {}): Tool {
   return {

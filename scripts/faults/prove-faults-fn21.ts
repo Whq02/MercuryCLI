@@ -33,7 +33,7 @@ function throws(fn: () => unknown): unknown {
 }
 
 async function run(): Promise<void> {
-  const sampleStore = await import('../../src/services/samples/store.ts')
+  const sampleStore = await import('../../src/integrations/samples/store.ts')
 
   {
     const session = 'sess-ver-eacces'
@@ -43,11 +43,11 @@ async function run(): Promise<void> {
       chmodSync(file, 0o000)
       const err = throws(() => sampleStore.readVersion(session, created.record.id, 1))
       chmodSync(file, 0o600)
-      check('samples-readVersion-eacces', err !== null, 'returned null instead of throwing on unreadable version; readVersion in src/services/samples/store.ts must rethrow a read error other than ENOENT')
+      check('samples-readVersion-eacces', err !== null, 'returned null instead of throwing on unreadable version; readVersion in src/integrations/samples/store.ts must rethrow a read error other than ENOENT')
     } else {
       skip('samples-readVersion-eacces', 'needs POSIX non-root')
     }
-    check('samples-readVersion-enoent-control', sampleStore.readVersion(session, created.record.id, 9) === null, 'readVersion in src/services/samples/store.ts must still return null for a version file that does not exist')
+    check('samples-readVersion-enoent-control', sampleStore.readVersion(session, created.record.id, 9) === null, 'readVersion in src/integrations/samples/store.ts must still return null for a version file that does not exist')
   }
 
   {
@@ -57,20 +57,20 @@ async function run(): Promise<void> {
     const corrupt = '[{"version": 1'
     writeFileSync(marksPath, corrupt, 'utf8')
     const errCorrupt = throws(() => sampleStore.appendMarks(session, created.record.id, { version: 1, pins: [], note: 'new', verdict: null }))
-    check('samples-readMarks-corrupt-keeps-file', errCorrupt !== null && readFileSync(marksPath, 'utf8') === corrupt, 'overwrote corrupt marks file; appendMarks in src/services/samples/store.ts must throw on unparseable marks and leave the file as it was')
+    check('samples-readMarks-corrupt-keeps-file', errCorrupt !== null && readFileSync(marksPath, 'utf8') === corrupt, 'overwrote corrupt marks file; appendMarks in src/integrations/samples/store.ts must throw on unparseable marks and leave the file as it was')
     if (POSIX_NON_ROOT) {
       const valid = JSON.stringify([{ version: 1, pins: [], note: 'keep', verdict: null }])
       writeFileSync(marksPath, valid, 'utf8')
       chmodSync(marksPath, 0o000)
       const errUnreadable = throws(() => sampleStore.appendMarks(session, created.record.id, { version: 1, pins: [], note: 'new', verdict: null }))
       chmodSync(marksPath, 0o600)
-      check('samples-readMarks-eacces-keeps-file', errUnreadable !== null && readFileSync(marksPath, 'utf8') === valid, 'overwrote unreadable marks file; appendMarks in src/services/samples/store.ts must throw on an unreadable marks file and leave it as it was')
+      check('samples-readMarks-eacces-keeps-file', errUnreadable !== null && readFileSync(marksPath, 'utf8') === valid, 'overwrote unreadable marks file; appendMarks in src/integrations/samples/store.ts must throw on an unreadable marks file and leave it as it was')
     } else {
       skip('samples-readMarks-eacces-keeps-file', 'needs POSIX non-root')
     }
   }
 
-  const structureQuery = await import('../../src/services/structure/query.ts')
+  const structureQuery = await import('../../src/tools/engines/structure/query.ts')
   {
     const root = join(SCRATCH, 'struct-query')
     const sub = join(root, 'locked-dir')
@@ -87,9 +87,9 @@ async function run(): Promise<void> {
       chmodSync(sub, 0o700)
       chmodSync(lockedFile, 0o600)
       const failedFiles = 'parseFailures' in res ? res.parseFailures.map(f => f.file) : []
-      check('structure-query-unreadable-dir-reported', failedFiles.includes('locked-dir'), `parseFailures=${JSON.stringify(failedFiles)}; runStructureQuery in src/services/structure/query.ts must list an unreadable directory in parseFailures`)
-      check('structure-query-broken-stat-reported', failedFiles.includes('broken.ts'), `parseFailures=${JSON.stringify(failedFiles)}; runStructureQuery in src/services/structure/query.ts must list a file whose stat fails in parseFailures`)
-      check('structure-query-unreadable-file-reported', failedFiles.includes('locked.ts'), `parseFailures=${JSON.stringify(failedFiles)}; runStructureQuery in src/services/structure/query.ts must list an unreadable file in parseFailures`)
+      check('structure-query-unreadable-dir-reported', failedFiles.includes('locked-dir'), `parseFailures=${JSON.stringify(failedFiles)}; runStructureQuery in src/tools/engines/structure/query.ts must list an unreadable directory in parseFailures`)
+      check('structure-query-broken-stat-reported', failedFiles.includes('broken.ts'), `parseFailures=${JSON.stringify(failedFiles)}; runStructureQuery in src/tools/engines/structure/query.ts must list a file whose stat fails in parseFailures`)
+      check('structure-query-unreadable-file-reported', failedFiles.includes('locked.ts'), `parseFailures=${JSON.stringify(failedFiles)}; runStructureQuery in src/tools/engines/structure/query.ts must list an unreadable file in parseFailures`)
     } else {
       skip('structure-query-unreadable-dir-reported', 'needs POSIX non-root')
       skip('structure-query-broken-stat-reported', process.platform === 'win32' ? 'not read on Windows: no symlink privilege' : 'needs POSIX non-root')
@@ -97,8 +97,8 @@ async function run(): Promise<void> {
     }
   }
 
-  const adapterServe = await import('../../src/services/tensorfold/adapter/serve.ts')
-  const adapterIdentity = await import('../../src/services/tensorfold/adapter/identity.ts')
+  const adapterServe = await import('../../src/models/tensorfold/adapter/serve.ts')
+  const adapterIdentity = await import('../../src/models/tensorfold/adapter/identity.ts')
   {
     const port = 59123
     const pidPath = adapterIdentity.adapterChildPidFile(port)
@@ -119,12 +119,12 @@ async function run(): Promise<void> {
         kept = false
       }
       rmSync(pidPath, { force: true })
-      check('adapter-serve-unreadable-pidfile-not-deleted', reapErr !== null && kept, `err=${String(reapErr)} kept=${String(kept)}; reapStaleChild in src/services/tensorfold/adapter/serve.ts must throw on an unreadable pid file and must not delete it`)
+      check('adapter-serve-unreadable-pidfile-not-deleted', reapErr !== null && kept, `err=${String(reapErr)} kept=${String(kept)}; reapStaleChild in src/models/tensorfold/adapter/serve.ts must throw on an unreadable pid file and must not delete it`)
     } else {
       rmSync(pidPath, { force: true })
       skip('adapter-serve-unreadable-pidfile-not-deleted', 'needs POSIX non-root')
     }
-    check('adapter-serve-absent-pidfile-control', adapterServe.readChildPidFile(59124) === undefined, 'readChildPidFile in src/services/tensorfold/adapter/serve.ts must return undefined for an absent pid file')
+    check('adapter-serve-absent-pidfile-control', adapterServe.readChildPidFile(59124) === undefined, 'readChildPidFile in src/models/tensorfold/adapter/serve.ts must return undefined for an absent pid file')
 
     let rememberErr: unknown = null
     try {
@@ -134,10 +134,10 @@ async function run(): Promise<void> {
     } catch (err) {
       rememberErr = err
     }
-    check('adapter-serve-rememberChild-rejects-on-failure', rememberErr !== null, 'swallowed startToken failure silently; rememberChild in src/services/tensorfold/adapter/serve.ts must reject when its token probe throws')
+    check('adapter-serve-rememberChild-rejects-on-failure', rememberErr !== null, 'swallowed startToken failure silently; rememberChild in src/models/tensorfold/adapter/serve.ts must reject when its token probe throws')
   }
 
-  const tfServe = await import('../../src/services/tensorfold/serve.ts')
+  const tfServe = await import('../../src/models/tensorfold/serve.ts')
   {
     const servedDir = join(SCRATCH, 'tf-serve')
     mkdirSync(servedDir, { recursive: true })
@@ -149,7 +149,7 @@ async function run(): Promise<void> {
     } catch (err) {
       stopCorruptErr = err
     }
-    check('tensorfold-serve-stop-corrupt-record-answers-as-before', stopCorruptErr === null, `err=${String(stopCorruptErr)}; stopTensorFold in src/services/tensorfold/serve.ts must answer as before when the served record is corrupt, not throw`)
+    check('tensorfold-serve-stop-corrupt-record-answers-as-before', stopCorruptErr === null, `err=${String(stopCorruptErr)}; stopTensorFold in src/models/tensorfold/serve.ts must answer as before when the served record is corrupt, not throw`)
 
     let startCorruptErr: unknown = null
     try {
@@ -172,7 +172,7 @@ async function run(): Promise<void> {
         startCorruptErr.message.includes('nothing was started') &&
         startCorruptErr.message.includes(corruptFile) &&
         readFileSync(corruptFile, 'utf8') === '{"repo": "broken',
-      `err=${String(startCorruptErr)}; startTensorFold in src/services/tensorfold/serve.ts must throw TensorFoldStartError saying the record could not be read, nothing was started and naming the file, and leave the file unchanged`,
+      `err=${String(startCorruptErr)}; startTensorFold in src/models/tensorfold/serve.ts must throw TensorFoldStartError saying the record could not be read, nothing was started and naming the file, and leave the file unchanged`,
     )
 
     if (POSIX_NON_ROOT) {
@@ -186,7 +186,7 @@ async function run(): Promise<void> {
         stopLockedErr = err
       }
       chmodSync(lockedFile, 0o600)
-      check('tensorfold-serve-stop-eacces-record-answers-as-before', stopLockedErr === null, `err=${String(stopLockedErr)}; stopTensorFold in src/services/tensorfold/serve.ts must answer as before when the served record is unreadable, not throw`)
+      check('tensorfold-serve-stop-eacces-record-answers-as-before', stopLockedErr === null, `err=${String(stopLockedErr)}; stopTensorFold in src/models/tensorfold/serve.ts must answer as before when the served record is unreadable, not throw`)
     } else {
       skip('tensorfold-serve-stop-eacces-record-answers-as-before', 'needs POSIX non-root')
     }
@@ -200,7 +200,7 @@ async function run(): Promise<void> {
     } catch (err) {
       stopNullErr = err
     }
-    check('tensorfold-serve-stop-null-and-absent-control', stopNullErr === null, `err=${String(stopNullErr)}; stopTensorFold in src/services/tensorfold/serve.ts must accept a null or absent served record without throwing`)
+    check('tensorfold-serve-stop-null-and-absent-control', stopNullErr === null, `err=${String(stopNullErr)}; stopTensorFold in src/models/tensorfold/serve.ts must accept a null or absent served record without throwing`)
   }
 }
 

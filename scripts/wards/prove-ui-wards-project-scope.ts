@@ -11,9 +11,9 @@ const root = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'ui-ward-scope-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 process.env.MERCURY_WARDS = '1'
-const { registerWardsGuard } = await import('../../src/guards/wardsGuard.js')
-const { judgeToolCall } = await import('../../src/guards/guards.js')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+const { registerWardsGuard } = await import('../../src/permissions/guards/wardsGuard.js')
+const { judgeToolCall } = await import('../../src/permissions/guards/guards.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
 let failures = 0
 let serial = 0
 const check = (label: string, good: boolean, answer: unknown, hint?: string): void => {
@@ -26,7 +26,7 @@ const project = (name: string, packageName: string, palette: boolean, git = true
   if (git) mkdirSync(join(dir, '.git'))
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: packageName }))
   writeFileSync(join(dir, 'src', 'components', 'Button.tsx'), 'export const color = "blue"\n')
-  if (palette) copyFileSync(join(root, 'src', 'components', 'mercuryPalette.ts'), join(dir, 'src', 'components', 'mercuryPalette.ts'))
+  if (palette) copyFileSync(join(root, 'src', 'screen', 'theme', 'mercuryPalette.ts'), join(dir, 'src', 'components', 'mercuryPalette.ts'))
   return dir
 }
 const judge = async (cwd: string, file: string, text: string, mode = 'default', tool = 'Edit') => runWithCwdOverride(cwd, async () => {
@@ -56,7 +56,7 @@ try {
       for (const [label, text] of [['hex', color], ['emoji', emoji]] as const) {
         for (const tool of ['Edit', 'Write']) {
           const answer = await judge(dir, join(dir, 'src', 'components', 'Button.tsx'), text, mode, tool)
-          check(`${mode}: ${tool} ${label} in ${dir.slice(scratch.length + 1)} is allowed`, !answer.refused, answer, 'a UI ward refused a project that is not the Mercury source tree; check isMercurySource in registerWardsGuard (src/guards/wardsGuard.ts), which must require src/components/mercuryPalette.ts and a package.json named mercury')
+          check(`${mode}: ${tool} ${label} in ${dir.slice(scratch.length + 1)} is allowed`, !answer.refused, answer, 'a UI ward refused a project that is not the Mercury source tree; check isMercurySource in registerWardsGuard (src/permissions/guards/wardsGuard.ts), which must require src/screen/theme/mercuryPalette.ts and a package.json named mercury')
         }
       }
     }
@@ -66,26 +66,26 @@ try {
     for (const tree of [root, mirror]) {
       for (const [label, text, rule] of [['hex', color, 'no-new-hex-outside-theme'], ['emoji', emoji, 'no-emoji-in-tui-source']] as const) {
         const answer = await judge(react, join(tree, 'src', 'components', 'Button.tsx'), text, mode)
-        check(`${mode}: Mercury ${label} is refused from another cwd and through a link`, answer.refused && answer.reason.includes(rule), answer, `the ${rule} ward must refuse edits under the Mercury src/ tree from any cwd and through a link; check isMercurySource in src/guards/wardsGuard.ts and the ward in src/utils/wards/wards.ts`)
+        check(`${mode}: Mercury ${label} is refused from another cwd and through a link`, answer.refused && answer.reason.includes(rule), answer, `the ${rule} ward must refuse edits under the Mercury src/ tree from any cwd and through a link; check isMercurySource in src/permissions/guards/wardsGuard.ts and the ward in src/permissions/wards/wards.ts`)
       }
     }
     const away = await judge(root, join(foreign, 'src', 'components', 'Button.tsx'), color, mode)
-    check(`${mode}: Mercury cwd does not impose its UI rule on another project`, !away.refused, away, 'a file in another project was judged as Mercury source; check the root and src/ prefix test in isMercurySource (src/guards/wardsGuard.ts)')
+    check(`${mode}: Mercury cwd does not impose its UI rule on another project`, !away.refused, away, 'a file in another project was judged as Mercury source; check the root and src/ prefix test in isMercurySource (src/permissions/guards/wardsGuard.ts)')
     const awayUntracked = await judge(root, join(untracked, 'src', 'components', 'Button.tsx'), color, mode)
-    check(`${mode}: Mercury cwd does not impose its UI rule on an untracked project outside the repo`, !awayUntracked.refused, awayUntracked, 'a file in an untracked project was judged as Mercury source; check the root and src/ prefix test in isMercurySource (src/guards/wardsGuard.ts)')
+    check(`${mode}: Mercury cwd does not impose its UI rule on an untracked project outside the repo`, !awayUntracked.refused, awayUntracked, 'a file in an untracked project was judged as Mercury source; check the root and src/ prefix test in isMercurySource (src/permissions/guards/wardsGuard.ts)')
     const nested = await judge(root, join(root, 'scratch', 'react', 'src', 'components', 'Button.tsx'), color, mode)
-    check(`${mode}: a nested subproject path outside root src/ is not treated as Mercury TUI source`, !nested.refused, nested, 'a nested project path was judged as Mercury source; isMercurySource (src/guards/wardsGuard.ts) must require the path to lie under the root src/ of the resolved project')
-    const palette = await judge(root, join(root, 'src', 'components', 'mercuryPalette.ts'), color, mode)
-    check(`${mode}: the sanctioned palette still accepts colors`, !palette.refused, palette, 'edits to src/components/mercuryPalette.ts must stay allowed; check the no-new-hex-outside-theme ward in src/utils/wards/wards.ts')
+    check(`${mode}: a nested subproject path outside root src/ is not treated as Mercury TUI source`, !nested.refused, nested, 'a nested project path was judged as Mercury source; isMercurySource (src/permissions/guards/wardsGuard.ts) must require the path to lie under the root src/ of the resolved project')
+    const palette = await judge(root, join(root, 'src', 'screen', 'theme', 'mercuryPalette.ts'), color, mode)
+    check(`${mode}: the sanctioned palette still accepts colors`, !palette.refused, palette, 'edits to src/screen/theme/mercuryPalette.ts must stay allowed; check the no-new-hex-outside-theme ward in src/permissions/wards/wards.ts')
     const omission = await judge(react, join(react, 'src', 'components', 'Button.tsx'), '// rest of code ...', mode)
-    check(`${mode}: the non-UI omission ward still refuses`, omission.refused && omission.reason.includes('no-omission-placeholder'), omission, 'the no-omission-placeholder ward in src/utils/wards/wards.ts must still refuse in every project, not only in the Mercury source tree')
+    check(`${mode}: the non-UI omission ward still refuses`, omission.refused && omission.reason.includes('no-omission-placeholder'), omission, 'the no-omission-placeholder ward in src/permissions/wards/wards.ts must still refuse in every project, not only in the Mercury source tree')
     const customRule = await judge(react, join(react, 'src', 'components', 'Button.tsx'), 'export const x = "LEGACY_BUTTON_TOKEN"\n', mode)
-    check(`${mode}: a user project's own .mercury/wards.json rule still refuses`, customRule.refused && customRule.reason.includes('no-legacy-token'), customRule, 'the project rule in .mercury/wards.json was not applied; check how src/guards/wardsGuard.ts and src/utils/wards/wards.ts load project wards')
+    check(`${mode}: a user project's own .mercury/wards.json rule still refuses`, customRule.refused && customRule.reason.includes('no-legacy-token'), customRule, 'the project rule in .mercury/wards.json was not applied; check how src/permissions/guards/wardsGuard.ts and src/permissions/wards/wards.ts load project wards')
   }
   for (const malformed of ['{', 'null', JSON.stringify({ nested: { name: 'mercury' } }), JSON.stringify({ name: 'another-app', padding: 'x'.repeat(80_000) })]) {
     writeFileSync(join(copied, 'package.json'), malformed)
     const answer = await judge(copied, join(copied, 'src', 'components', 'Button.tsx'), color)
-    check('a malformed, nested-name or oversized manifest cannot identify Mercury', !answer.refused, answer, 'a bad package.json made the project count as Mercury source; the JSON parse and name check in isMercurySource (src/guards/wardsGuard.ts) must return false for it')
+    check('a malformed, nested-name or oversized manifest cannot identify Mercury', !answer.refused, answer, 'a bad package.json made the project count as Mercury source; the JSON parse and name check in isMercurySource (src/permissions/guards/wardsGuard.ts) must return false for it')
   }
   console.log('refusals: the built product in each permission mode')
   for (const mode of ['default', 'implement', 'sovereign']) {
@@ -116,11 +116,11 @@ try {
       check(`${mode}: product carries the requested permission mode`, rows.some(row => row.type === 'session' && row.mode === mode), rows.find(row => row.type === 'session'), 'the run row did not report the requested mode; check the --mode and --sovereign flags of the run verb and that dist/mercury.mjs is built')
       for (const rule of ['no-new-hex-outside-theme', 'no-emoji-in-tui-source']) {
         const refused = rows.find(row => row.type === 'tool_result' && String(row.output).includes(`Ward '${rule}'`))
-        check(`${mode}: ${rule} refuses before permissions`, refused?.status === 'error', refused, `no error tool_result carried Ward '${rule}'; check the ward in src/utils/wards/wards.ts and its registration in src/guards/wardsGuard.ts, and rebuild dist/mercury.mjs`)
+        check(`${mode}: ${rule} refuses before permissions`, refused?.status === 'error', refused, `no error tool_result carried Ward '${rule}'; check the ward in src/permissions/wards/wards.ts and its registration in src/permissions/guards/wardsGuard.ts, and rebuild dist/mercury.mjs`)
       }
-      check(`${mode}: a refused component was never written`, !existsSync(forbidden), forbidden, 'the Write was not stopped before touching disk; the wards guard (src/guards/wardsGuard.ts) must refuse it before permissions')
-      check(`${mode}: the React component was written byte for byte`, existsSync(permitted) && readFileSync(permitted, 'utf8') === color, permitted, 'the Write into the non-Mercury project did not land; a UI ward must not apply there (isMercurySource in src/guards/wardsGuard.ts)')
-      check(`${mode}: the product finishes after the refusals`, code === 0 && rows.some(row => row.type === 'outcome' && row.status === 'completed'), { code, errors: errors.slice(-300), output: code === 0 ? '' : output.slice(-3000) }, 'the run exited non-zero or reported no completed outcome; read errors and output here, and check the refusal path in src/guards/wardsGuard.ts')
+      check(`${mode}: a refused component was never written`, !existsSync(forbidden), forbidden, 'the Write was not stopped before touching disk; the wards guard (src/permissions/guards/wardsGuard.ts) must refuse it before permissions')
+      check(`${mode}: the React component was written byte for byte`, existsSync(permitted) && readFileSync(permitted, 'utf8') === color, permitted, 'the Write into the non-Mercury project did not land; a UI ward must not apply there (isMercurySource in src/permissions/guards/wardsGuard.ts)')
+      check(`${mode}: the product finishes after the refusals`, code === 0 && rows.some(row => row.type === 'outcome' && row.status === 'completed'), { code, errors: errors.slice(-300), output: code === 0 ? '' : output.slice(-3000) }, 'the run exited non-zero or reported no completed outcome; read errors and output here, and check the refusal path in src/permissions/guards/wardsGuard.ts')
     } finally {
       await api.close()
     }

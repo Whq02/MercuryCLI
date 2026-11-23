@@ -1,20 +1,20 @@
 import * as React from 'react'
-import { modelDoorRoad, removeHostEndpoint, retryHostEndpoint } from '../../../services/host/door.js'
-import { runHostedModel } from '../../../services/host/index.js'
+import { modelDoorRoad, removeHostEndpoint, retryHostEndpoint } from '../../../models/hosting/door.js'
+import { runHostedModel } from '../../../models/hosting/index.js'
 import { llmHostPopupRequest } from '../../llmhost/llmhost.js'
-import { openSettingsPopup } from '../../../utils/cockpit/settingsPopup.js'
-import type { CommandResultDisplay } from '../../../commands.js'
-import type { Message } from '../../../types/message.js'
-import { settleModelSelection, type SeatReceiptState } from '../../../services/model/modelTransition.js'
+import { openSettingsPopup } from '../../../screen/cockpit/settingsPopup.js'
+import type { CommandResultDisplay } from '../../catalogue/commands.js'
+import type { Message } from '../../../engine/message-shapes/message.js'
+import { settleModelSelection, type SeatReceiptState } from '../../../models/catalogue/modelTransition.js'
 import { previewDaemonModelSelection } from '../model.js'
-import { previewForSelection } from '../../../services/providers/transitionPreview.js'
-import type { TransitionPlan } from '../../../services/model/modelTransition.js'
-import { getGptSeatAvailability, type parseKeyConnectValue } from '../../../services/model/modelOptions.js'
-import { getNousAvailability, refreshNousCatalogue } from '../../../services/providers/nous/nousCatalogue.js'
-import { getHuggingfaceAvailability } from '../../../services/providers/huggingface/huggingfaceCatalogue.js'
-import { requestCommandDispatch } from '../../../utils/cockpit/helmFocus.js'
-import type { AppState } from '../../../state/AppState.js'
-import type { AppStateStore } from '../../../state/AppStateStore.js'
+import { previewForSelection } from '../../../models/roads/transitionPreview.js'
+import type { TransitionPlan } from '../../../models/catalogue/modelTransition.js'
+import { getGptSeatAvailability, type parseKeyConnectValue } from '../../../models/catalogue/modelOptions.js'
+import { getNousAvailability, refreshNousCatalogue } from '../../../models/roads/nous/nousCatalogue.js'
+import { getHuggingfaceAvailability } from '../../../models/roads/huggingface/huggingfaceCatalogue.js'
+import { requestCommandDispatch } from '../../../screen/cockpit/helmFocus.js'
+import type { AppState } from '../../../screen/app-state/AppState.js'
+import type { AppStateStore } from '../../../screen/app-state/AppStateStore.js'
 import { retryNamedCompatRow } from './rows.js'
 
 function errorDetail(error: unknown): string {
@@ -70,10 +70,10 @@ export function connectGpt({ onDone, setNotice }: PickContext): void {
   if (why === 'catalogue-pending' || why === 'catalogue-error') {
     void (async () => {
       const { refreshOpenaiCatalogue } = await import(
-        '../../../services/providers/openai/openaiCatalogue.js'
+        '../../../models/roads/openai/openaiCatalogue.js'
       )
       const { resolveOpenaiAccount } = await import(
-        '../../../services/providers/openai/openaiAccounts.js'
+        '../../../models/roads/openai/openaiAccounts.js'
       )
       const account = resolveOpenaiAccount()
       if (!account) {
@@ -107,7 +107,7 @@ export function connectGpt({ onDone, setNotice }: PickContext): void {
 export function connectOpenrouter({ onDone, setNotice }: PickContext): void {
   void (async () => {
     const { getOpenrouterAvailability, refreshOpenrouterCatalogue } = await import(
-      '../../../services/providers/openrouter/openrouterCatalogue.js'
+      '../../../models/roads/openrouter/openrouterCatalogue.js'
     )
     const availability = getOpenrouterAvailability()
     if (
@@ -116,7 +116,7 @@ export function connectOpenrouter({ onDone, setNotice }: PickContext): void {
       availability.why === 'catalogue-error'
     ) {
       const { resolveOpenrouterRequestAuth } = await import(
-        '../../../services/providers/openrouter/openrouterAccounts.js'
+        '../../../models/roads/openrouter/openrouterAccounts.js'
       )
       const auth = resolveOpenrouterRequestAuth()
       if (auth) {
@@ -170,7 +170,7 @@ export function connectNous({ onDone, setNotice }: PickContext): void {
 export function connectGemini({ onDone, setNotice }: PickContext): void {
   void (async () => {
     const { getGeminiAvailability, refreshGeminiCatalogue } = await import(
-      '../../../services/providers/gemini/geminiCatalogue.js'
+      '../../../models/roads/gemini/geminiCatalogue.js'
     )
     const availability = getGeminiAvailability()
     if (
@@ -179,7 +179,7 @@ export function connectGemini({ onDone, setNotice }: PickContext): void {
       availability.why === 'catalogue-error'
     ) {
       const { resolveGeminiAccount } = await import(
-        '../../../services/providers/gemini/geminiAccounts.js'
+        '../../../models/roads/gemini/geminiAccounts.js'
       )
       const account = resolveGeminiAccount()
       if (account) {
@@ -209,7 +209,7 @@ export function connectGemini({ onDone, setNotice }: PickContext): void {
 export function connectHuggingface({ onDone, setNotice }: PickContext): void {
   void (async () => {
     const { refreshHuggingfaceCatalogue } = await import(
-      '../../../services/providers/huggingface/huggingfaceCatalogue.js'
+      '../../../models/roads/huggingface/huggingfaceCatalogue.js'
     )
     const availability = getHuggingfaceAvailability()
     if (availability.state === 'ready') {
@@ -247,10 +247,10 @@ export function selectKeyLane({ onDone, setNotice }: PickContext, id: string, ke
   }
   if (keyLane === 'moonshot') {
     void (async () => {
-      const { resolveMoonshotAccount } = await import('../../../services/providers/moonshot/moonshotAccounts.js')
+      const { resolveMoonshotAccount } = await import('../../../models/roads/moonshot/moonshotAccounts.js')
       const account = resolveMoonshotAccount()
       if (account) {
-        const { moonshotCatalogueRows, refreshMoonshotCatalogue } = await import('../../../services/providers/moonshot/moonshotCatalogue.js')
+        const { moonshotCatalogueRows, refreshMoonshotCatalogue } = await import('../../../models/roads/moonshot/moonshotCatalogue.js')
         setNotice(`Moonshot — reading the model list of the ${account.label}…`)
         let refreshError: string | undefined
         await refreshMoonshotCatalogue({ force: true }).catch((error: unknown) => {

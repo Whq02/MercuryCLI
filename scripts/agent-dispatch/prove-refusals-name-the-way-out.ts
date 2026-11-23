@@ -29,9 +29,9 @@ console.log('============================================================')
 
 section('§2 the words on the wire, in the owner\'s shape')
 {
-  ;(await import('../../src/utils/config.ts')).enableConfigs()
-  const engine = await import('../../src/services/crew/engineDispatch.ts')
-  const discovery = await import('../../src/services/providers/providerDiscovery.ts')
+  ;(await import('../../src/platform/settings/config.ts')).enableConfigs()
+  const engine = await import('../../src/crew/crewmates/engineDispatch.ts')
+  const discovery = await import('../../src/models/roads/providerDiscovery.ts')
   const road = (word: string): Promise<string> => engine.resolveEngineDispatch(word).then(r => `resolved ${r?.model ?? 'null'}`, e => (e instanceof Error ? e.message : String(e)))
   const unrecognised = engine.unrecognisedModelWordRefusal('frobnicator-9000') ?? ''
   check("'frobnicator-9000': names no model — the refusal points at mercury://models and the ask rung, never a provider", unrecognised.includes("model 'frobnicator-9000' names no model") && unrecognised.includes('mercury://models') && unrecognised.includes('ask the operator for the model id') && unrecognised.toLowerCase().includes('never switch to another provider'), unrecognised)

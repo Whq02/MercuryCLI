@@ -10,15 +10,15 @@ process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_CONTEXT_SELECTION
 delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
 
-const cal = await import('../../src/services/run/contextCalibration.js')
-const planMod = await import('../../src/services/run/requestContextPlan.js')
-const sel = await import('../../src/services/run/contextSelection.js')
-const ok = await import('../../src/utils/run/ownerKey.js')
-const auto = await import('../../src/services/compact/autoCompact.js')
+const cal = await import('../../src/engine/run/contextCalibration.js')
+const planMod = await import('../../src/engine/run/requestContextPlan.js')
+const sel = await import('../../src/engine/run/contextSelection.js')
+const ok = await import('../../src/engine/run-owner/ownerKey.js')
+const auto = await import('../../src/engine/compaction/autoFold.js')
 
 let failures = 0
 const CALIBRATION_FAIL_HINT =
-  'fix the code this check exercises, not the check: calibration keys and the bounded EMA store in src/services/run/contextCalibration.ts (calibrationKeyFor, calibrationFor, noteMeasuredUsage); the plan estimate and its reconciliation in src/services/run/requestContextPlan.ts (buildRequestContextPlan, reconcileAppliedPlanUsage); selection in src/services/run/contextSelection.ts; the ladder and thrash guard in src/services/compact/autoCompact.ts'
+  'fix the code this check exercises, not the check: calibration keys and the bounded EMA store in src/engine/run/contextCalibration.ts (calibrationKeyFor, calibrationFor, noteMeasuredUsage); the plan estimate and its reconciliation in src/engine/run/requestContextPlan.ts (buildRequestContextPlan, reconcileAppliedPlanUsage); selection in src/engine/run/contextSelection.ts; the ladder and thrash guard in src/engine/compaction/autoFold.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const hint = detail.includes('src/') ? '' : CALIBRATION_FAIL_HINT
@@ -104,9 +104,9 @@ section('§B C07 — settlement reconciliation through the applied plan')
   check('the NEXT plan estimates through the learned ratio', p2.tokenEstimate?.calibration.calibrated === true && p2.tokenEstimate!.estimatedTokens > est)
   check('no calibration key ⇒ tokenEstimate null (explicit absence)', (await build(msgs, 'inspect', owner)).tokenEstimate === null)
   const t = await import('../core-runtime/turnScenarios.ts')
-  const { declaredRouteOf } = await import('../../src/services/providers/callModelRouter.js')
-  const { mainOwnerOfSession } = await import('../../src/utils/run/resolveOwner.js')
-  const { FallbackTriggeredError } = await import('../../src/services/api/withRetry.js')
+  const { declaredRouteOf } = await import('../../src/models/roads/callModelRouter.js')
+  const { mainOwnerOfSession } = await import('../../src/engine/run-owner/resolveOwner.js')
+  const { FallbackTriggeredError } = await import('../../src/engine/requests/withRetry.js')
   const UNDECLARED = 'model-no-road-declares'
   const carried: string[] = []
   const owedKeys: string[] = []
@@ -119,7 +119,7 @@ section('§B C07 — settlement reconciliation through the applied plan')
   check(
     "turn-machine passes calibrationKeyFor(declaredRouteOf(model) ?? 'unrecognised', model)",
     carried.join(' ') === owedKeys.join(' ') && owedKeys[0] === cal.calibrationKeyFor('anthropic', t.MODEL) && owedKeys[2] === cal.calibrationKeyFor('unrecognised', UNDECLARED),
-    `makeRequest (src/run-core/turn/makeRequest.ts) must hand buildRequestContextPlan the calibration key of the run's model on its declared road, and of the road 'unrecognised' for a model no road declares; for an Anthropic model, a GPT model and an undeclared one the plan's estimate carries [${carried.join(' ')}] and the owner mints [${owedKeys.join(' ')}]`,
+    `makeRequest (src/engine/loop/turn/makeRequest.ts) must hand buildRequestContextPlan the calibration key of the run's model on its declared road, and of the road 'unrecognised' for a model no road declares; for an Anthropic model, a GPT model and an undeclared one the plan's estimate carries [${carried.join(' ')}] and the owner mints [${owedKeys.join(' ')}]`,
   )
   cal.resetCalibration()
   const fellBack = await t.runScripted({
@@ -134,7 +134,7 @@ section('§B C07 — settlement reconciliation through the applied plan')
   check(
     'turn-machine reconciles ONLY the first call (c1)',
     fellBack.terminal.reason === 'completed' && fellBack.requests.length === 2 && applied != null && learned.calibrated && learned.samples === 1 && Math.abs(learned.ratio - 6_000 / applied.baseTokens) < 1e-9,
-    `the model call (streamModel, src/run-core/turn/streamModel.ts) must reconcile the applied plan's estimate against the measured input of the turn's first call alone, the call whose request the plan sized; a turn whose first call measured 6,000 tokens and fell back to a second that measured 9,000, over a plan of ${String(applied?.baseTokens)} base tokens, made ${fellBack.requests.length} model calls and left the key at ${JSON.stringify(learned)}`,
+    `the model call (streamModel, src/engine/loop/turn/streamModel.ts) must reconcile the applied plan's estimate against the measured input of the turn's first call alone, the call whose request the plan sized; a turn whose first call measured 6,000 tokens and fell back to a second that measured 9,000, over a plan of ${String(applied?.baseTokens)} base tokens, made ${fellBack.requests.length} model calls and left the key at ${JSON.stringify(learned)}`,
   )
   cal.resetCalibration()
 }
@@ -169,8 +169,8 @@ section('§C C08 — the SHIPPED typed ladder composes with selection')
   check('detectFixedPrefixOverflow stays live', typeof auto.detectFixedPrefixOverflow === 'function')
   check('the thrash guard stays live', typeof auto.rapidRefillCount === 'function' && auto.AUTOCOMPACT_THRASH_MESSAGE.length > 0)
   const t = await import('../core-runtime/turnScenarios.ts')
-  const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
-  const { splitCarriedOperatorTail } = await import('../../src/services/compact/overflowRecovery.js')
+  const { makeRequest } = await import('../../src/engine/loop/turn/makeRequest.ts')
+  const { splitCarriedOperatorTail } = await import('../../src/engine/compaction/overflowRecovery.js')
   const history: AnyMessage[] = []
   for (let i = 1; i <= 40; i++) history.push((i % 2 ? t.fixtures.ask(`q${i}`) : t.fixtures.says(`a${i}`)) as AnyMessage)
   history.push(t.fixtures.ask('the request') as AnyMessage)
@@ -190,13 +190,13 @@ section('§C C08 — the SHIPPED typed ladder composes with selection')
   check(
     'selection precedes the compaction gate: the rows selection left out of the request are gone from what the gate is handed',
     folds.length === 1 && leftOut.length > 0 && selected.length === history.length - leftOut.length && same(reached, selected) && !reached.some(row => leftOut.some(out => out.uuid === row.uuid)),
-    `makeRequest (src/run-core/turn/makeRequest.ts) must build the request's context plan before it asks deps.autocompact, and ask it with the plan's rows; of ${history.length} rows selection kept ${selected.length} and left out ${leftOut.length}, the gate was asked ${folds.length} time(s) with ${reached.length} rows, ${reached.filter(row => leftOut.some(out => out.uuid === row.uuid)).length} of them rows selection left out`,
+    `makeRequest (src/engine/loop/turn/makeRequest.ts) must build the request's context plan before it asks deps.autocompact, and ask it with the plan's rows; of ${history.length} rows selection kept ${selected.length} and left out ${leftOut.length}, the gate was asked ${folds.length} time(s) with ${reached.length} rows, ${reached.filter(row => leftOut.some(out => out.uuid === row.uuid)).length} of them rows selection left out`,
   )
   const split = splitCarriedOperatorTail(selected as never) as unknown as { head: AnyMessage[]; carry: AnyMessage[] }
   check(
     'the gate consumes the SELECTED view (through the carried-tail split)',
     folds.length === 1 && same(gate.head, split.head) && gate.fork === gate.head && same(gate.carry, split.carry) && gate.carry.length === 1 && (gate.carry[0]?.message as AnyMessage | undefined)?.content === 'the request',
-    `makeRequest (src/run-core/turn/makeRequest.ts) must hand deps.autocompact splitCarriedOperatorTail(the plan's rows).head, as its messages and as forkContextMessages, with the split's carry in postFoldCarry; the split is ${split.head.length} rows and a carry of ${split.carry.length}, and the gate was handed ${gate.head.length} rows${gate.fork === gate.head ? '' : ' (another list as forkContextMessages)'} and a carry of ${gate.carry.length}`,
+    `makeRequest (src/engine/loop/turn/makeRequest.ts) must hand deps.autocompact splitCarriedOperatorTail(the plan's rows).head, as its messages and as forkContextMessages, with the split's carry in postFoldCarry; the split is ${split.head.length} rows and a carry of ${split.carry.length}, and the gate was handed ${gate.head.length} rows${gate.fork === gate.head ? '' : ' (another list as forkContextMessages)'} and a carry of ${gate.carry.length}`,
   )
   delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
   delete process.env.MERCURY_CONTEXT_SELECTION

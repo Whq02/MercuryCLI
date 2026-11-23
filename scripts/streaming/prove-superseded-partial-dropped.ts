@@ -29,9 +29,9 @@ const FINAL = 'The whole reply, sent again on a fresh connection.'
 
 section('§1 the seat: a retracted stream publishes the withdrawn id with its clear, and keeps it until new text')
 try {
-  const { onSeatRow } = await import('../../src/daemon/sessionSeat.ts')
-  const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
-  const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+  const { onSeatRow } = await import('../../src/daemon/session-seat/sessionSeat.ts')
+  const { readSessionTail } = await import('../../src/engine/connector/seatProjections.ts')
+  const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const dir = mkdtempSync(join(tmpdir(), 'superseded-partial-daemon-'))
   const sid = 'aaaaaaaa-bbbb-4ccc-8ddd-superseded01'
   const SHORT = 'concourse-sp1'
@@ -56,44 +56,44 @@ try {
   feed({ type: 'text_delta', message_id: 'msg_first', block: 1, text: PARTIAL[0] })
   feed({ type: 'text_delta', message_id: 'msg_first', block: 1, text: PARTIAL[2] })
   await published(t => t?.text === PARTIAL[0] + PARTIAL[2])
-  check('the first stream\'s text is the tail under its id', tail()?.text === PARTIAL[0] + PARTIAL[2] && tail()?.messageId === 'msg_first' && tail()?.withdrawn === undefined, `${j(tail())} — fix the text_delta and block_start branches of onSeatPartialRow in src/daemon/sessionSeat/stream.ts`)
+  check('the first stream\'s text is the tail under its id', tail()?.text === PARTIAL[0] + PARTIAL[2] && tail()?.messageId === 'msg_first' && tail()?.withdrawn === undefined, `${j(tail())} — fix the text_delta and block_start branches of onSeatPartialRow in src/daemon/session-seat/stream.ts`)
   feed({ type: 'retracted', message_id: 'msg_first' })
-  check('the retraction clears the tail, drops the id and names the withdrawn message', tail()?.text === null && tail()?.messageId === undefined && tail()?.withdrawn === 'msg_first', `${j(tail())} — fix the 'retracted' branch of onSeatPartialRow in src/daemon/sessionSeat/stream.ts (tailWithdrawn, tailMessageId, setSeatTail)`)
+  check('the retraction clears the tail, drops the id and names the withdrawn message', tail()?.text === null && tail()?.messageId === undefined && tail()?.withdrawn === 'msg_first', `${j(tail())} — fix the 'retracted' branch of onSeatPartialRow in src/daemon/session-seat/stream.ts (tailWithdrawn, tailMessageId, setSeatTail)`)
   feed({ type: 'block_start', message_id: 'msg_second', block: 0, of: 'reasoning' })
-  check('the next message\'s block start keeps the withdrawn id standing (a coalesced read still learns it)', tail()?.text === null && tail()?.messageId === 'msg_second' && tail()?.withdrawn === 'msg_first', `${j(tail())} — the block_start branch of onSeatPartialRow in src/daemon/sessionSeat/stream.ts must not clear tailWithdrawn`)
+  check('the next message\'s block start keeps the withdrawn id standing (a coalesced read still learns it)', tail()?.text === null && tail()?.messageId === 'msg_second' && tail()?.withdrawn === 'msg_first', `${j(tail())} — the block_start branch of onSeatPartialRow in src/daemon/session-seat/stream.ts must not clear tailWithdrawn`)
   feed({ type: 'block_start', message_id: 'msg_second', block: 1, of: 'text' })
   feed({ type: 'text_delta', message_id: 'msg_second', block: 1, text: FINAL })
   await published(t => t?.text === FINAL)
-  check('the reissued stream\'s first text retires the withdrawn id', tail()?.text === FINAL && tail()?.messageId === 'msg_second' && tail()?.withdrawn === undefined, `${j(tail())} — the first text_delta after a retraction must retire tailWithdrawn; see src/daemon/sessionSeat/stream.ts and publishTailNow`)
+  check('the reissued stream\'s first text retires the withdrawn id', tail()?.text === FINAL && tail()?.messageId === 'msg_second' && tail()?.withdrawn === undefined, `${j(tail())} — the first text_delta after a retraction must retire tailWithdrawn; see src/daemon/session-seat/stream.ts and publishTailNow`)
   feed({ type: 'text', message_id: 'msg_second', block: 1, text: FINAL })
   feed({ type: 'outcome', schema: 1, turn_id: 't-sp', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
-  check('control: the settled reply clears the tail under its own id and the outcome zeroes it, with no withdrawn mark', tail()?.text === null && tail()?.messageId === undefined && tail()?.withdrawn === undefined, `${j(tail())} — fix how onSeatRow in src/daemon/sessionSeat/rows.ts clears the tail on a settled text and an outcome row`)
+  check('control: the settled reply clears the tail under its own id and the outcome zeroes it, with no withdrawn mark', tail()?.text === null && tail()?.messageId === undefined && tail()?.withdrawn === undefined, `${j(tail())} — fix how onSeatRow in src/daemon/session-seat/rows.ts clears the tail on a settled text and an outcome row`)
   feed({ type: 'block_start', message_id: 'msg_third', block: 0, of: 'text' })
   feed({ type: 'text_delta', message_id: 'msg_third', block: 0, text: 'half a reply' })
   feed({ type: 'retracted', message_id: 'msg_third' })
   feed({ type: 'outcome', schema: 1, turn_id: 't-sp2', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
-  check('refusal: the turn\'s outcome retires a withdrawn mark the next text never consumed', tail()?.withdrawn === undefined && tail()?.text === null, `${j(tail())} — the outcome row handled by onSeatRow in src/daemon/sessionSeat/rows.ts must reset tailWithdrawn`)
+  check('refusal: the turn\'s outcome retires a withdrawn mark the next text never consumed', tail()?.withdrawn === undefined && tail()?.text === null, `${j(tail())} — the outcome row handled by onSeatRow in src/daemon/session-seat/rows.ts must reset tailWithdrawn`)
   rmSync(dir, { recursive: true, force: true })
 } catch (error) {
-  check('the seat leg ran', false, `${String(error)} — the seat leg threw before its checks finished; read the stack for the failing call in src/daemon/sessionSeat/ or src/services/engine-connector/seatProjections.ts`)
+  check('the seat leg ran', false, `${String(error)} — the seat leg threw before its checks finished; read the stack for the failing call in src/daemon/sessionSeat/ or src/engine/connector/seatProjections.ts`)
 }
 
 section('§2 the one paint filter: a reply the record marks retracted is never painted; an unmarked list keeps its identity')
 try {
-  const { withoutRetractedReplies } = await import('../../src/services/engine-connector/midTurnText.ts')
+  const { withoutRetractedReplies } = await import('../../src/engine/connector/midTurnText.ts')
   const assistant = (id: string, text: string, extra: Record<string, unknown> = {}) =>
     ({ type: 'assistant', uuid: `u-${id}`, timestamp: 't', message: { id, role: 'assistant', content: [{ type: 'text', text }] }, ...extra }) as never
   const user = { type: 'user', uuid: 'u-user', timestamp: 't', message: { role: 'user', content: 'hello' } } as never
   const notice = { type: 'system', subtype: 'stream_cut', uuid: 'u-notice', timestamp: 't', content: 'cut' } as never
   const rows = [user, assistant('msg_first', PARTIAL.join(''), { retracted: true }), notice, assistant('msg_second', FINAL)]
   const painted = withoutRetractedReplies(rows) as Array<{ type: string; message?: { id?: string } }>
-  check('the retracted reply is dropped; the user row, the notice and the final reply stay in order', painted.map(row => row.type === 'assistant' ? row.message?.id : row.type).join(',') === 'user,system,msg_second', `${j(painted.map(row => row.type))} — fix withoutRetractedReplies in src/services/engine-connector/midTurnText.ts`)
+  check('the retracted reply is dropped; the user row, the notice and the final reply stay in order', painted.map(row => row.type === 'assistant' ? row.message?.id : row.type).join(',') === 'user,system,msg_second', `${j(painted.map(row => row.type))} — fix withoutRetractedReplies in src/engine/connector/midTurnText.ts`)
   const plain = [user, assistant('msg_second', FINAL)]
-  check('control: a list with no retracted reply comes back as the same array (no repaint churn)', withoutRetractedReplies(plain) === plain, 'withoutRetractedReplies in src/services/engine-connector/midTurnText.ts must return its input array when no row is retracted')
+  check('control: a list with no retracted reply comes back as the same array (no repaint churn)', withoutRetractedReplies(plain) === plain, 'withoutRetractedReplies in src/engine/connector/midTurnText.ts must return its input array when no row is retracted')
   const userRetracted = [{ ...(user as object), retracted: true } as never, assistant('msg_second', FINAL)]
-  check('refusal: the mark is read on assistant rows alone — a stray mark on a user row drops nothing', withoutRetractedReplies(userRetracted).length === 2, 'retractedReply in src/services/engine-connector/midTurnText.ts must test assistant rows only')
+  check('refusal: the mark is read on assistant rows alone — a stray mark on a user row drops nothing', withoutRetractedReplies(userRetracted).length === 2, 'retractedReply in src/engine/connector/midTurnText.ts must test assistant rows only')
 } catch (error) {
-  check('the paint-filter leg ran', false, `${String(error)} — the leg threw before its checks finished; read the stack for the failing call in src/services/engine-connector/midTurnText.ts`)
+  check('the paint-filter leg ran', false, `${String(error)} — the leg threw before its checks finished; read the stack for the failing call in src/engine/connector/midTurnText.ts`)
 }
 
 section('§3 the screen, end to end: the provider cuts the first stream after content, the reissue answers whole — one reply on the screen, the final; the record names the partial; a reload paints one reply')
@@ -114,8 +114,8 @@ const run = await runArtifactArena({
 })
 try {
   const screen = finalScreen(run, 120, 40)
-  check('the final reply is on the screen, once', count(screen, 'The whole reply') === 1, `${screen}\n— the final reply must paint exactly once; if it is missing the reissue never landed, if doubled a retracted or duplicate row is still painted (withoutRetractedReplies in src/services/engine-connector/midTurnText.ts)`)
-  check('the cut stream\'s partial is not painted anywhere on the final screen (the ghost the owner saw)', !screen.includes(PARTIAL_TAIL) && !screen.includes('What just happened'), `${screen}\n— the cut stream's partial text must not paint after the retraction; drop it from the paint path (withoutRetractedReplies in src/services/engine-connector/midTurnText.ts)`)
+  check('the final reply is on the screen, once', count(screen, 'The whole reply') === 1, `${screen}\n— the final reply must paint exactly once; if it is missing the reissue never landed, if doubled a retracted or duplicate row is still painted (withoutRetractedReplies in src/engine/connector/midTurnText.ts)`)
+  check('the cut stream\'s partial is not painted anywhere on the final screen (the ghost the owner saw)', !screen.includes(PARTIAL_TAIL) && !screen.includes('What just happened'), `${screen}\n— the cut stream's partial text must not paint after the retraction; drop it from the paint path (withoutRetractedReplies in src/engine/connector/midTurnText.ts)`)
   check('the composer is back (the turn settled)', /type a prompt|↵ sends|\? for shortcuts/.test(screen), `${screen}\n— the turn never settled after the cut and reissue, so the composer did not return; the run may need more than 28 seconds or the reissue is stuck`)
   const projects = join(run.paths.home, '.mercury', 'projects')
   const transcripts = existsSync(projects)
@@ -137,15 +137,15 @@ try {
     check('the partial that never settled is on no row at all', outputs.every(record => !textOf(record).includes('What just happened')), `${j(outputs.map(textOf))} — the unsettled partial text must never be written to any stored row`)
     const finalRows = outputs.filter(record => textOf(record).includes('The whole reply'))
     check('the final reply is recorded once, unmarked', finalRows.length === 1 && finalRows[0]?.annotations?.retracted !== true, `${j(finalRows.map(record => [record.recordId, record.annotations]))} — the reissued final reply must be stored once and never carry the retracted mark`)
-    const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
-    const midTurn = await import('../../src/services/engine-connector/midTurnText.ts')
+    const { loadTranscriptFile } = await import('../../src/sessions/transcripts/loading.ts')
+    const midTurn = await import('../../src/engine/connector/midTurnText.ts')
     const withoutRetractedReplies: (rows: never) => unknown[] = midTurn.withoutRetractedReplies ?? ((rows: never) => rows as unknown as unknown[])
     const loaded = await loadTranscriptFile(transcript)
     const conversation = [...loaded.messages.values()] as Array<{ type: string; subtype?: string; retracted?: unknown; message?: { content?: Array<{ type?: string; text?: string }> } }>
     const replies = withoutRetractedReplies(conversation as never) as typeof conversation
     const texts = replies.filter(row => row.type === 'assistant').flatMap(row => (row.message?.content ?? []).filter(block => block.type === 'text').map(block => block.text ?? ''))
-    check('a reload paints one reply, the final (the loader keeps the chain; the paint filter drops the marked row)', texts.length === 1 && texts[0]!.includes('The whole reply'), `${j(texts)} — after loadTranscriptFile (src/utils/sessionStorage/loading.ts) and withoutRetractedReplies (src/services/engine-connector/midTurnText.ts) only the final reply may remain`)
-    check('…the loaded conversation still carries the marked row (the chain stays whole) beside the user turn, the cut notice and the reply', conversation.some(row => row.type === 'assistant' && row.retracted === true) && conversation.some(row => row.type === 'user') && conversation.some(row => row.type === 'system' && row.subtype === 'stream_cut'), j(conversation.map(row => [row.type, row.subtype ?? '', row.retracted === true ? 'retracted' : ''])) + ' — loadTranscriptFile in src/utils/sessionStorage/loading.ts must keep the retracted assistant row, the user turn and the stream_cut notice in the chain')
+    check('a reload paints one reply, the final (the loader keeps the chain; the paint filter drops the marked row)', texts.length === 1 && texts[0]!.includes('The whole reply'), `${j(texts)} — after loadTranscriptFile (src/sessions/transcripts/loading.ts) and withoutRetractedReplies (src/engine/connector/midTurnText.ts) only the final reply may remain`)
+    check('…the loaded conversation still carries the marked row (the chain stays whole) beside the user turn, the cut notice and the reply', conversation.some(row => row.type === 'assistant' && row.retracted === true) && conversation.some(row => row.type === 'user') && conversation.some(row => row.type === 'system' && row.subtype === 'stream_cut'), j(conversation.map(row => [row.type, row.subtype ?? '', row.retracted === true ? 'retracted' : ''])) + ' — loadTranscriptFile in src/sessions/transcripts/loading.ts must keep the retracted assistant row, the user turn and the stream_cut notice in the chain')
   }
 } finally {
   run.cleanup()

@@ -4,14 +4,14 @@ import { join } from 'node:path'
 
 assert.ok(process.env.MERCURY_CONFIG_DIR, 'a scratch MERCURY_CONFIG_DIR is required')
 delete process.env.MERCURY_HOME
-const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
 const shipped = JSON.parse(readFileSync(join(import.meta.dir, '../../assets/host/recipes.json'), 'utf8')) as { recipes: { id: string; engine?: string; model: string; image: string; flags: string[] }[] }
 
 let checks = 0
 const check = (name: string, truth: unknown, detail = ''): void => { assert.ok(truth, name + (detail ? ': ' + detail : '')); checks++; console.log('PASS ' + name) }
 const parserOf = (flags: readonly string[]): string | undefined => { const at = flags.indexOf('--tool-call-parser'); return at >= 0 ? flags[at + 1] : undefined }
 
-for (const [source, rows] of [['src/services/host/recipes.ts', HOST_RECIPES], ['assets/host/recipes.json', shipped.recipes]] as const) {
+for (const [source, rows] of [['src/models/hosting/recipes.ts', HOST_RECIPES], ['assets/host/recipes.json', shipped.recipes]] as const) {
   const vllm = rows.filter(row => row.engine === 'vllm')
   check(source + ' carries vLLM recipes to check', vllm.length >= 3, String(vllm.length) + ' | at least 3 recipes with engine vllm must be listed in ' + source)
   for (const row of vllm) {

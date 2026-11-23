@@ -29,9 +29,9 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const { publishSessionFacts, readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { liveTurnStateOf } = await import('../../src/services/resume/conversationRecovery.ts')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+const { publishSessionFacts, readSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
+const { liveTurnStateOf } = await import('../../src/sessions/resume/conversationRecovery.ts')
 
 const SID = '00000000-aaaa-bbbb-cccc-000000000501'
 const HUNG_ID = 'toolu_hung_mid_run'
@@ -68,9 +68,9 @@ section('§1 the idle edge rests the set — a resume onto a cut-mid-tool log is
   const seat = new DaemonSessionConnector(record as never)
   await seat.attach()
   const live = seat.live()
-  check('the fold alone opens no turn (the standing idle-on-resume law — the control)', live.inFlight === false, j({ inFlight: live.inFlight }) + ' | a resume onto a log cut mid-tool must publish idle; read the inFlight rule in src/services/engine-connector/daemon/live.ts')
-  check('the published in-progress set is EMPTY on the idle edge (THE DEFECT PIN: the raw pass-through kept a permanently running tool row)', live.inProgressToolUseIDs.size === 0, j([...live.inProgressToolUseIDs]) + ' | the published set must be the idle set unless the turn is in flight; fix where inProgressToolUseIDs is chosen from inFlight in src/services/engine-connector/daemon/live.ts')
-  check('the tail rests with it (the four-artifact company the set now joins)', seat.tail().read() === null, 'the tail must rest on the idle edge together with the tool set; read the idle-edge handling in src/services/engine-connector/daemon/live.ts')
+  check('the fold alone opens no turn (the standing idle-on-resume law — the control)', live.inFlight === false, j({ inFlight: live.inFlight }) + ' | a resume onto a log cut mid-tool must publish idle; read the inFlight rule in src/engine/connector/daemon/live.ts')
+  check('the published in-progress set is EMPTY on the idle edge (THE DEFECT PIN: the raw pass-through kept a permanently running tool row)', live.inProgressToolUseIDs.size === 0, j([...live.inProgressToolUseIDs]) + ' | the published set must be the idle set unless the turn is in flight; fix where inProgressToolUseIDs is chosen from inFlight in src/engine/connector/daemon/live.ts')
+  check('the tail rests with it (the four-artifact company the set now joins)', seat.tail().read() === null, 'the tail must rest on the idle edge together with the tool set; read the idle-edge handling in src/engine/connector/daemon/live.ts')
   seat.detach()
 }
 
@@ -91,14 +91,14 @@ section('§2 a RUNNING turn keeps its tool truth — the gate never blinds the l
   const seat = new DaemonSessionConnector(record as never)
   await seat.attach()
   const flowed = await until(() => seat.live().inFlight === true && seat.live().inProgressToolUseIDs.has(HUNG_ID))
-  check('busy facts lift the live view and the unanswered id FLOWS to the running dress', flowed, j({ inFlight: seat.live().inFlight, ids: [...seat.live().inProgressToolUseIDs] }) + ' | with busy facts the live view must carry the transcript tool ids; read the inFlight branch in src/services/engine-connector/daemon/live.ts')
+  check('busy facts lift the live view and the unanswered id FLOWS to the running dress', flowed, j({ inFlight: seat.live().inFlight, ids: [...seat.live().inProgressToolUseIDs] }) + ' | with busy facts the live view must carry the transcript tool ids; read the inFlight branch in src/engine/connector/daemon/live.ts')
   seat.detach()
 }
 
 section('§3 the records fold keeps its contract — the gate is at the publish, not in the driver')
 {
   const folded = liveTurnStateOf(rows.map(r => r as never))
-  check('liveTurnStateOf still reports the unresolved id raw (the pulse driver is untouched)', folded.inProgressToolUseIDs.has(HUNG_ID), j([...folded.inProgressToolUseIDs]) + ' | the idle gate belongs in the publish step, not in liveTurnStateOf in src/services/resume/conversationRecovery.ts, which must keep reporting the raw unresolved id')
+  check('liveTurnStateOf still reports the unresolved id raw (the pulse driver is untouched)', folded.inProgressToolUseIDs.has(HUNG_ID), j([...folded.inProgressToolUseIDs]) + ' | the idle gate belongs in the publish step, not in liveTurnStateOf in src/sessions/resume/conversationRecovery.ts, which must keep reporting the raw unresolved id')
   const reply = base({ parentUuid: '00000000-0000-4000-8000-000000000012', type: 'assistant',
     uuid: '00000000-0000-4000-8000-000000000013', requestId: 'req_hung_2',
     message: { id: 'msg_hung_2', type: 'message', role: 'assistant', model: 'claude-opus-4-8',
@@ -106,7 +106,7 @@ section('§3 the records fold keeps its contract — the gate is at the publish,
       stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
     timestamp: '2026-06-19T12:00:09.000Z' })
   const answered = liveTurnStateOf([...rows, reply].map(r => r as never))
-  check('a later reply resolves the unanswered call in the fold itself: no id, no tool phase, idle', answered.inProgressToolUseIDs.size === 0 && answered.inFlight === false && answered.phase === 'idle', j({ ids: [...answered.inProgressToolUseIDs], inFlight: answered.inFlight, phase: answered.phase }) + ' | a later assistant reply must clear the unanswered tool call in liveTurnStateOf in src/services/resume/conversationRecovery.ts')
+  check('a later reply resolves the unanswered call in the fold itself: no id, no tool phase, idle', answered.inProgressToolUseIDs.size === 0 && answered.inFlight === false && answered.phase === 'idle', j({ ids: [...answered.inProgressToolUseIDs], inFlight: answered.inFlight, phase: answered.phase }) + ' | a later assistant reply must clear the unanswered tool call in liveTurnStateOf in src/sessions/resume/conversationRecovery.ts')
 }
 
 console.log(failures === 0 ? '\nprove-idle-tool-rows-rest: ALL LAWS HOLD' : `\nprove-idle-tool-rows-rest: ${failures} FAILURE(S)`)

@@ -7,10 +7,10 @@ pinSourceRef()
 const home = process.env.MERCURY_CONFIG_DIR!
 process.env.MERCURY_DAEMON_DIR = join(home, 'daemon')
 mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.js')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const { sessionFactsPath, readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.js')
-const { statusLine } = await import('../../src/components/SwitchboardTagBar.js')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.js')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+const { sessionFactsPath, readSessionFacts } = await import('../../src/engine/connector/seatProjections.js')
+const { statusLine } = await import('../../src/screen/chat/SwitchboardTagBar.js')
 const record = { sessionId: 'resume-seed', runnerId: '', title: 'saved session', projectLabel: 'fixture', workspaceId: home, home, modelKey: 'claude-opus-4-8' }
 const facts = { schema: 1 as const, sessionId: record.sessionId, atMs: 1000, model: { effective: 'claude-sonnet-5', setting: 'claude-sonnet-5' }, pendingModel: null, busy: false, usage: noSessionConnector().usage(), identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }, skills: [], mcp: [], workspace: { cwd: home, originalCwd: home, projectRoot: home }, queue: [] }
 const write = (value: typeof facts): void => {
@@ -33,7 +33,7 @@ const refresh = (connector: InstanceType<typeof DaemonSessionConnector>): void =
 const words = (connector: InstanceType<typeof DaemonSessionConnector>): string => statusLine(connector.live(), connector.status())
 let checks = 0
 let failures = 0
-function check(label: string, ok: boolean, detail = 'a resumed seat takes its status and model from AdmissionPart.factsArrive (src/services/engine-connector/daemon/admission.ts) and the facts reader in src/services/engine-connector/daemon/facts.ts; read the check label for the law it breaks'): void {
+function check(label: string, ok: boolean, detail = 'a resumed seat takes its status and model from AdmissionPart.factsArrive (src/engine/connector/daemon/admission.ts) and the facts reader in src/engine/connector/daemon/facts.ts; read the check label for the law it breaks'): void {
   checks++
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)

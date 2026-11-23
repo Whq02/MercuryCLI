@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-const { classifyOverflowFault } = await import('../../src/services/api/overflowSignal.js')
-const { mapCompatHttpFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.js')
-const { compatFaultToTypedError } = await import('../../src/services/providers/openaicompat/compatChatCallModel.js')
-const { classifyAPIError, getAssistantMessageFromError } = await import('../../src/services/api/errors.js')
-const { isRetryableError } = await import('../../src/services/api/withRetry.js')
-const { APIError } = await import('../../src/utils/api/sdkErrors.js')
+const { classifyOverflowFault } = await import('../../src/engine/requests/overflowSignal.js')
+const { mapCompatHttpFailure } = await import('../../src/models/roads/openaicompat/compatChatClient.js')
+const { compatFaultToTypedError } = await import('../../src/models/roads/openaicompat/compatChatCallModel.js')
+const { classifyAPIError, getAssistantMessageFromError } = await import('../../src/engine/requests/apiErrorRows.js')
+const { isRetryableError } = await import('../../src/engine/requests/withRetry.js')
+const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
 const failures: string[] = []
 for (const row of [
   { body: { message: 'Too many tokens, please wait before trying again. The input cannot exceed 5000 tokens.' } },

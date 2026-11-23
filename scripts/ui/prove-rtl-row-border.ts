@@ -4,7 +4,7 @@ import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import stripAnsi from 'strip-ansi'
-import presentationData from '../../src/ink/arabicPresentationForms.json'
+import presentationData from '../../src/screen/renderer/arabicPresentationForms.json'
 import unicodeRows from './fixtures/arabic-presentation-forms.json'
 
 process.env.MERCURY_CONFIG_DIR = realpathSync(mkdtempSync(join(tmpdir(), 'rtl-row-border-home-')))
@@ -23,16 +23,16 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 const React = (await import('react')).default
-const { Box } = await import('../../src/ink.js')
-const { renderToString } = await import('../../src/utils/staticRender.tsx')
-const { Markdown } = await import('../../src/components/Markdown.js')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { stringWidth, __correctedWidthForTest: nodeWidth } = await import('../../src/ink/stringWidth.js')
-const { wrapAnsi } = await import('../../src/ink/wrapAnsi.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { Markdown } = await import('../../src/screen/messages/Markdown.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { stringWidth, __correctedWidthForTest: nodeWidth } = await import('../../src/screen/renderer/stringWidth.js')
+const { wrapAnsi } = await import('../../src/screen/renderer/wrapAnsi.js')
 
 const h = React.createElement
 const mounted = (node: unknown) => h(AppStateProvider as never, { initialState: getDefaultAppState() } as never, node as never)
@@ -48,7 +48,7 @@ const ROWS = [
 
 console.log(`§1 the oracle: letters, marks and ${process.env.TERM_PROGRAM} joiners agree on both paths`)
 {
-  sectionFixHint = 'change stringWidth or __correctedWidthForTest in src/ink/stringWidth.ts so both paths return the listed cell count'
+  sectionFixHint = 'change stringWidth or __correctedWidthForTest in src/screen/renderer/stringWidth.ts so both paths return the listed cell count'
   const samples: Array<[string, number]> = [
     ['تفلسف', 5],
     ['بلا تفلسف', 9],
@@ -82,7 +82,7 @@ console.log(`§1 the oracle: letters, marks and ${process.env.TERM_PROGRAM} join
 
 console.log('§2 the wrapper never packs a line wider than its columns')
 {
-  sectionFixHint = 'change wrapAnsi in src/ink/wrapAnsi.ts so no line is wider than its columns by stringWidth'
+  sectionFixHint = 'change wrapAnsi in src/screen/renderer/wrapAnsi.ts so no line is wider than its columns by stringWidth'
   let sound = true
   const faults: string[] = []
   for (const row of [...ROWS, 'می\u200cخواهم '.repeat(24), `\x1b[31m${'a\u200db '.repeat(40)}\x1b[0m`]) {
@@ -98,7 +98,7 @@ console.log('§2 the wrapper never packs a line wider than its columns')
 }
 
 console.log('§3 the rendered row: the right border lands on the frame at 80 and 110 columns')
-sectionFixHint = 'the rendered Markdown inside a bordered Box is wider or narrower than its columns; look at wrapAnsi in src/ink/wrapAnsi.ts and stringWidth in src/ink/stringWidth.ts, then the Markdown component in src/components/Markdown.tsx'
+sectionFixHint = 'the rendered Markdown inside a bordered Box is wider or narrower than its columns; look at wrapAnsi in src/screen/renderer/wrapAnsi.ts and stringWidth in src/screen/renderer/stringWidth.ts, then the Markdown component in src/screen/messages/Markdown.tsx'
 for (const cols of [80, 110]) {
   const frame = await renderToString(
     mounted(h(Box, { width: cols, flexDirection: 'column', borderStyle: 'round' }, h(Box, { paddingX: 1, flexDirection: 'column' }, h(Markdown, { children: ROWS.join('\n\n') })))),
@@ -115,12 +115,12 @@ for (const cols of [80, 110]) {
 
 console.log('§4 the live path: the frame writer addresses every row of the bordered frame so its border cell is the last column, at 80 and 110')
 {
-  sectionFixHint = 'the bytes the frame writer emits put a border cell off the last column or lose an RTL row; look at FrameWriter in src/ink/frame-writer.ts, optimizePatches in src/ink/patch-stream.ts and writeDiffToTerminal in src/ink/session/delivery.ts'
-  const { FrameWriter } = await import('../../src/ink/frame-writer.js')
-  const { optimizePatches } = await import('../../src/ink/patch-stream.js')
-  const { writeDiffToTerminal } = await import('../../src/ink/session/delivery.js')
+  sectionFixHint = 'the bytes the frame writer emits put a border cell off the last column or lose an RTL row; look at FrameWriter in src/screen/renderer/frame-writer.ts, optimizePatches in src/screen/renderer/patch-stream.ts and writeDiffToTerminal in src/screen/renderer/terminal-session/frameDelivery.ts'
+  const { FrameWriter } = await import('../../src/screen/renderer/frame-writer.js')
+  const { optimizePatches } = await import('../../src/screen/renderer/patch-stream.js')
+  const { writeDiffToTerminal } = await import('../../src/screen/renderer/terminal-session/frameDelivery.js')
   const { composeScene, makeContext } = await import('../ink-runtime/frameHarness.js')
-  const { getGraphemeSegmenter } = await import('../../src/utils/intl.js')
+  const { getGraphemeSegmenter } = await import('../../src/platform/text/textSegments.js')
   const serialize = (diff: ReturnType<typeof optimizePatches>): string => {
     let captured = ''
     const fake = { stdout: { write(s: string) { captured += s; return true }, isTTY: false } }
@@ -222,7 +222,7 @@ console.log('§4 the live path: the frame writer addresses every row of the bord
 
 console.log('§5 contextual forms come from the Unicode source rows')
 {
-  sectionFixHint = 'regenerate src/ink/arabicPresentationForms.json from the rows in scripts/ui/fixtures/arabic-presentation-forms.json, or change terminalTextCells in src/ink/session/terminalProfile.ts and shapeBidiForTerminal in src/ink/bidi.ts'
+  sectionFixHint = 'regenerate src/screen/renderer/arabicPresentationForms.json from the rows in scripts/ui/fixtures/arabic-presentation-forms.json, or change terminalTextCells in src/screen/renderer/terminal-session/terminalProfile.ts and shapeBidiForTerminal in src/screen/renderer/bidi.ts'
   const forms: Record<string, Record<string, number>> = {}
   const ligatures: Record<string, Record<string, number>> = {}
   for (const row of unicodeRows.unicodeData) {
@@ -241,13 +241,13 @@ console.log('§5 contextual forms come from the Unicode source rows')
   check('every generated letter/form pair matches its Unicode decomposition', JSON.stringify(forms) === JSON.stringify(presentationData.forms))
   check('every generated lam-alef pair matches its Unicode decomposition', JSON.stringify(ligatures) === JSON.stringify(presentationData.lamAlef))
   check('every joining type matches ArabicShaping', JSON.stringify(joining) === JSON.stringify(presentationData.joining))
-  const { terminalTextCells } = await import('../../src/ink/session/terminalProfile.js')
+  const { terminalTextCells } = await import('../../src/screen/renderer/terminal-session/terminalProfile.js')
   check('only the named Apple profile enables shaping and spacing joiners', ['xterm', 'iTerm.app', 'constructor', 'toString', ''].every(name => {
     const profile = terminalTextCells({ TERM_PROGRAM: name })
     return profile.joinerCells === 0 && !profile.shapeRtl
   }) && terminalTextCells({ TERM_PROGRAM: 'Apple_Terminal' }).shapeRtl)
-  const { shapeBidiForTerminal } = await import('../../src/ink/bidi.js')
-  const { getGraphemeSegmenter } = await import('../../src/utils/intl.js')
+  const { shapeBidiForTerminal } = await import('../../src/screen/renderer/bidi.js')
+  const { getGraphemeSegmenter } = await import('../../src/platform/text/textSegments.js')
   const paint = (text: string): string => shapeBidiForTerminal(Array.from(getGraphemeSegmenter().segment(text), ({ segment }) => ({ value: segment, width: stringWidth(segment), styleId: 0, hyperlink: undefined }))).map(c => c.value).join('')
   const isolated = (text: string): string => Array.from(text, ch => `\u2068${ch}\u2069`).join('')
   const phrase = '**بلا تفلسف** — no tfalsif.'
@@ -266,12 +266,12 @@ console.log('§5 contextual forms come from the Unicode source rows')
 
 console.log('§6 the terminal projection decodes only rows that contain RTL')
 if (appleTerminal) {
-  sectionFixHint = 'change terminalBidiFrame in src/ink/terminalBidiFrame.ts so it matches the full projection built with shapeBidiForTerminal from src/ink/bidi.ts'
-  const { CharPool, HyperlinkPool, StylePool, CellWidth, cellAt, createScreen, setCellAt } = await import('../../src/ink/cell-grid.js')
-  const { terminalBidiFrame } = await import('../../src/ink/terminalBidiFrame.js')
-  const { shapeBidiForTerminal } = await import('../../src/ink/bidi.js')
-  type Frame = import('../../src/ink/frame.js').Frame
-  type Screen = import('../../src/ink/cell-grid.js').Screen
+  sectionFixHint = 'change terminalBidiFrame in src/screen/renderer/terminalBidiFrame.ts so it matches the full projection built with shapeBidiForTerminal from src/screen/renderer/bidi.ts'
+  const { CharPool, HyperlinkPool, StylePool, CellWidth, cellAt, createScreen, setCellAt } = await import('../../src/screen/renderer/cell-grid.js')
+  const { terminalBidiFrame } = await import('../../src/screen/renderer/terminalBidiFrame.js')
+  const { shapeBidiForTerminal } = await import('../../src/screen/renderer/bidi.js')
+  type Frame = import('../../src/screen/renderer/frame.js').Frame
+  type Screen = import('../../src/screen/renderer/cell-grid.js').Screen
   const fullProjection = (frame: Frame): Frame => {
     const source = frame.screen
     let projected: Screen | undefined

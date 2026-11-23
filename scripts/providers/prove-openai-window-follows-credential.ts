@@ -14,7 +14,7 @@ delete process.env.OPENAI_API_KEY
 let failures = 0
 let checks = 0
 const windowCredentialFixHint =
-  'fix in src/services/providers/openai/openaiLimitState.ts (noteOpenaiSourceIdentity, recordOpenaiUsageLimit, recordOpenaiRateHeaders, openaiObservedUsage) for sections A, in src/services/providers/providerUsability.ts (resolveProviderUsability, delegationDispatchBlocker) for B, and in src/services/providers/openai/openaiCatalogue.ts (forgetDepartedOpenaiCatalogues, primeOpenaiCatalogue, getCachedOpenaiCatalogue) for C'
+  'fix in src/models/roads/openai/openaiLimitState.ts (noteOpenaiSourceIdentity, recordOpenaiUsageLimit, recordOpenaiRateHeaders, openaiObservedUsage) for sections A, in src/models/roads/providerUsability.ts (resolveProviderUsability, delegationDispatchBlocker) for B, and in src/models/roads/openai/openaiCatalogue.ts (forgetDepartedOpenaiCatalogues, primeOpenaiCatalogue, getCachedOpenaiCatalogue) for C'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -24,10 +24,10 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const state = await import('../../src/services/providers/openai/openaiLimitState.ts')
-const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const usability = await import('../../src/services/providers/providerUsability.ts')
-type Reads = import('../../src/services/providers/providerUsability.ts').ProviderUsabilityReads
+const state = await import('../../src/models/roads/openai/openaiLimitState.ts')
+const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const usability = await import('../../src/models/roads/providerUsability.ts')
+type Reads = import('../../src/models/roads/providerUsability.ts').ProviderUsabilityReads
 
 const NOW = 1_900_000_000_000
 const clock = (at: number) => () => at

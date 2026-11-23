@@ -10,12 +10,12 @@ process.on('exit', () => {
 })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const ROOT = join(import.meta.dir, '..', '..')
-const { shellNotificationText, keepTagClosed, BACKGROUND_BASH_SUMMARY_PREFIX } = await import(join(ROOT, 'src/tasks/LocalShellTask/LocalShellTask.tsx'))
+const { shellNotificationText, keepTagClosed, BACKGROUND_BASH_SUMMARY_PREFIX } = await import(join(ROOT, 'src/engine/tasks/local-shell/shellTask.tsx'))
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — Fix: shellNotificationText or keepTagClosed in src/tasks/LocalShellTask/LocalShellTask.tsx must emit the command and summary as written, with only a literal closing tag guarded.' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — Fix: shellNotificationText or keepTagClosed in src/engine/tasks/local-shell/shellTask.tsx must emit the command and summary as written, with only a literal closing tag guarded.' : ''}`)
 }
 
 const command = 'sleep 20 && echo "bg-done" > out.txt; grep -c \'<tag>\' out.txt'

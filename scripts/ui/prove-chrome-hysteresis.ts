@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 
-const { chromeModeLive, layoutChromeLive, computeChromeMode, resetChromeModeLatchForTests, LAYOUT_BREAKPOINTS } = await import('../../src/hooks/useLayoutTier.js')
+const { chromeModeLive, layoutChromeLive, computeChromeMode, resetChromeModeLatchForTests, LAYOUT_BREAKPOINTS } = await import('../../src/screen/fullscreen-layout/useLayoutTier.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — change chromeModeLive / layoutChromeLive / computeChromeMode (cockpitLatched, COCKPIT_EXIT_HYST_COLS, LAYOUT_BREAKPOINTS) in src/hooks/useLayoutTier.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — change chromeModeLive / layoutChromeLive / computeChromeMode (cockpitLatched, COCKPIT_EXIT_HYST_COLS, LAYOUT_BREAKPOINTS) in src/screen/fullscreen-layout/useLayoutTier.ts'}`)
 }
 
 console.log('prove-chrome-hysteresis')

@@ -19,7 +19,7 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const hint = 'fix the wait-word handling (stateWord, liveStateWord, the phase choice) in src/services/engine-connector/daemon/live.ts, which DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts reads through live()'
+  const hint = 'fix the wait-word handling (stateWord, liveStateWord, the phase choice) in src/engine/connector/daemon/live.ts, which DaemonSessionConnector in src/engine/connector/daemonConnector.ts reads through live()'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${hint}` : ''}`)
 }
 function section(t: string): void {
@@ -28,8 +28,8 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const { publishSessionFacts, publishSessionTail, readSessionFacts, readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+const { publishSessionFacts, publishSessionTail, readSessionFacts, readSessionTail } = await import('../../src/engine/connector/seatProjections.ts')
 
 const SID = '00000000-aaaa-bbbb-cccc-000000000601'
 const base = (extra: Record<string, unknown>) => ({

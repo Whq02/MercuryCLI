@@ -12,17 +12,17 @@ delete process.env.MERCURY_API_TIMEOUT_MS
 delete process.env.MERCURY_RECOVERY_BUDGET_MINUTES
 delete process.env.NODE_ENV
 
-const patience = await import('../../src/services/providers/patience.js')
-const idle = await import('../../src/services/providers/streamIdleBudget.js')
-const budget = await import('../../src/services/api/recoveryBudget.js')
-const settings = await import('../../src/utils/settings/settings.js')
-const settingsCache = await import('../../src/utils/settings/settingsCache.js')
-const { SettingsSchema } = await import('../../src/utils/settings/types.js')
+const patience = await import('../../src/models/roads/patience.js')
+const idle = await import('../../src/models/roads/streamIdleBudget.js')
+const budget = await import('../../src/engine/requests/recoveryBudget.js')
+const settings = await import('../../src/platform/settings/settings.js')
+const settingsCache = await import('../../src/platform/settings/settingsCache.js')
+const { SettingsSchema } = await import('../../src/platform/settings/settingsSchema.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const hint = 'change the number or rule the label names in src/services/providers/patience.ts (patienceOf, PATIENCE_NORMAL, PATIENCE_PATIENT, patienceWords, patienceEnvPins), src/services/providers/streamIdleBudget.ts (streamIdleTimeoutMsForRoute) or src/services/api/recoveryBudget.ts (recoveryBudgetMs)'
+  const hint = 'change the number or rule the label names in src/models/roads/patience.ts (patienceOf, PATIENCE_NORMAL, PATIENCE_PATIENT, patienceWords, patienceEnvPins), src/models/roads/streamIdleBudget.ts (streamIdleTimeoutMsForRoute) or src/engine/requests/recoveryBudget.ts (recoveryBudgetMs)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${hint}` : ''}`)
 }
 function section(t: string): void {

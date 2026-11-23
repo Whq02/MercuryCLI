@@ -22,26 +22,26 @@ if (!existsSync(DIST) || !nodeBin) {
   process.exit(1)
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 const projDir = mkdtempSync(join(tmpdir(), 'retracted-reply-proj-'))
 bootstrap.setOriginalCwd(projDir)
 bootstrap.setProjectRoot(projDir)
 
-const { ask } = await import('../../src/rows/turn.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { flushSessionStorage, getTranscriptPath, loadTranscriptFile, resetSessionFilePointer } = await import('../../src/utils/sessionStorage.ts')
-const { loadConversationForResume } = await import('../../src/services/resume/conversationRecovery.ts')
-const { normalizeMessagesForAPI } = await import('../../src/services/messages.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-import type { Message } from '../../src/types/message.ts'
+const { ask } = await import('../../src/engine/rows/turn.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+const { flushSessionStorage, getTranscriptPath, loadTranscriptFile, resetSessionFilePointer } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { loadConversationForResume } = await import('../../src/sessions/resume/conversationRecovery.ts')
+const { normalizeMessagesForAPI } = await import('../../src/engine/messages/messages.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 let failures = 0
 let checks = 0
 const WITHDRAWN_REPLY_FIX_HINT =
-  'what to change: the code that withdraws a cut reply (assistant_retracted in src/run-core/turn/modelReply.ts and src/run-core/turn/state.ts) so the live conversation and the next request drop it; for the resume checks, loadConversationForResume in src/services/resume/conversationRecovery.ts; for the R3 chant checks, src/services/tools/chantGuard.ts'
+  'what to change: the code that withdraws a cut reply (assistant_retracted in src/engine/loop/turn/modelReply.ts and src/engine/loop/turn/turnState.ts) so the live conversation and the next request drop it; for the resume checks, loadConversationForResume in src/sessions/resume/conversationRecovery.ts; for the R3 chant checks, src/engine/tool-dispatch/chantGuard.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++

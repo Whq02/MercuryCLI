@@ -15,7 +15,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const fork = await import('../../src/services/agents/forkedAgent.ts')
+const fork = await import('../../src/crew/agents/forkedAgent.ts')
 const { EMPTY_FORK_USAGE_FOLD, foldForkUsageEvent, settleForkUsageFold } = fork
 
 const start = (usage: Record<string, number>) => ({ type: 'message_start', message: { usage } })
@@ -33,10 +33,10 @@ section('§1 the Anthropic three-frame shape: the prompt side survives the delta
     stop,
   ]
   const total = settleForkUsageFold(foldAll(events))
-  check('THE PROMPT SIDE IS THE START FRAME\'S (the base reported 0 in / 0 cache-read)', total.input_tokens === 900 && total.cache_read_input_tokens === 45000 && total.cache_creation_input_tokens === 8000, JSON.stringify(total) + ' — foldForkUsageEvent in src/services/agents/forkedAgent.ts must keep the message_start prompt-side counts when message_delta reports zeros')
-  check("the output is the delta's cumulative count", total.output_tokens === 120, 'foldForkUsageEvent in src/services/agents/forkedAgent.ts must take output_tokens from message_delta')
+  check('THE PROMPT SIDE IS THE START FRAME\'S (the base reported 0 in / 0 cache-read)', total.input_tokens === 900 && total.cache_read_input_tokens === 45000 && total.cache_creation_input_tokens === 8000, JSON.stringify(total) + ' — foldForkUsageEvent in src/crew/agents/forkedAgent.ts must keep the message_start prompt-side counts when message_delta reports zeros')
+  check("the output is the delta's cumulative count", total.output_tokens === 120, 'foldForkUsageEvent in src/crew/agents/forkedAgent.ts must take output_tokens from message_delta')
   const midway = foldAll(events.slice(0, 2))
-  check('before message_stop nothing has joined the total (a response settles once)', midway.total.input_tokens === 0 && midway.open?.input_tokens === 900, 'foldForkUsageEvent in src/services/agents/forkedAgent.ts must add a response to total only at message_stop and hold it in open until then')
+  check('before message_stop nothing has joined the total (a response settles once)', midway.total.input_tokens === 0 && midway.open?.input_tokens === 900, 'foldForkUsageEvent in src/crew/agents/forkedAgent.ts must add a response to total only at message_stop and hold it in open until then')
 }
 
 section('§2 two responses in one fork ADD; the single-delta lanes still fold')
@@ -50,13 +50,13 @@ section('§2 two responses in one fork ADD; the single-delta lanes still fold')
     stop,
   ]
   const total = settleForkUsageFold(foldAll(events))
-  check('two responses add on every counter', total.input_tokens === 300 && total.cache_read_input_tokens === 10100 && total.output_tokens === 100, JSON.stringify(total) + ' — foldForkUsageEvent in src/services/agents/forkedAgent.ts must add each settled response to total')
+  check('two responses add on every counter', total.input_tokens === 300 && total.cache_read_input_tokens === 10100 && total.output_tokens === 100, JSON.stringify(total) + ' — foldForkUsageEvent in src/crew/agents/forkedAgent.ts must add each settled response to total')
   const single = settleForkUsageFold(foldAll([
     start({ input_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 0 }),
     delta({ input_tokens: 1234, cache_creation_input_tokens: 0, cache_read_input_tokens: 300, output_tokens: 56 }),
     stop,
   ]))
-  check('the single-delta lanes fold their complete final delta', single.input_tokens === 1234 && single.cache_read_input_tokens === 300 && single.output_tokens === 56, JSON.stringify(single) + ' — foldForkUsageEvent in src/services/agents/forkedAgent.ts must take a delta that carries the full counts when start reported zeros')
+  check('the single-delta lanes fold their complete final delta', single.input_tokens === 1234 && single.cache_read_input_tokens === 300 && single.output_tokens === 56, JSON.stringify(single) + ' — foldForkUsageEvent in src/crew/agents/forkedAgent.ts must take a delta that carries the full counts when start reported zeros')
 }
 
 section('§3 a response a lane never closed with message_stop still counts at settlement')
@@ -65,9 +65,9 @@ section('§3 a response a lane never closed with message_stop still counts at se
     start({ input_tokens: 700, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 }),
     delta({ input_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 9 }),
   ]))
-  check('the open response settles into the total', total.input_tokens === 700 && total.output_tokens === 9, JSON.stringify(total) + ' — settleForkUsageFold in src/services/agents/forkedAgent.ts must add the open response to total')
-  check('an empty stream settles to the zero record', settleForkUsageFold(EMPTY_FORK_USAGE_FOLD).input_tokens === 0, 'settleForkUsageFold in src/services/agents/forkedAgent.ts must return zero usage for the empty fold')
-  check('an unrelated event leaves the fold untouched', foldForkUsageEvent(EMPTY_FORK_USAGE_FOLD, { type: 'content_block_delta' } as never) === EMPTY_FORK_USAGE_FOLD, 'foldForkUsageEvent in src/services/agents/forkedAgent.ts must return the same fold for an event type it does not read')
+  check('the open response settles into the total', total.input_tokens === 700 && total.output_tokens === 9, JSON.stringify(total) + ' — settleForkUsageFold in src/crew/agents/forkedAgent.ts must add the open response to total')
+  check('an empty stream settles to the zero record', settleForkUsageFold(EMPTY_FORK_USAGE_FOLD).input_tokens === 0, 'settleForkUsageFold in src/crew/agents/forkedAgent.ts must return zero usage for the empty fold')
+  check('an unrelated event leaves the fold untouched', foldForkUsageEvent(EMPTY_FORK_USAGE_FOLD, { type: 'content_block_delta' } as never) === EMPTY_FORK_USAGE_FOLD, 'foldForkUsageEvent in src/crew/agents/forkedAgent.ts must return the same fold for an event type it does not read')
 }
 
 

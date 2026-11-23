@@ -9,21 +9,21 @@ process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
 process.env.NODE_ENV = 'test'
 
-const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.js')
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/boot/process-state/processState.js')
 trustTheProofFolder(true)
-await import('../../src/tools/AgentTool/AgentTool.js')
+await import('../../src/tools/crewmate/CrewmateTool.js')
 const { buildStudioRows } = await import(
-  '../../src/components/agents/studio/studioData.js'
+  '../../src/screen/agents/studio/studioData.js'
 )
 const { clearAgentDefinitionsCache, getAgentDefinitionsWithOverrides } =
-  await import('../../src/tools/AgentTool/loadAgentsDir.js')
+  await import('../../src/tools/crewmate/loadAgentsDir.js')
 
 let failures = 0
 function check(name: string, cond: boolean, detail?: string): void {
   if (cond) console.log(`  ✓ ${name}`)
   else {
     failures++
-    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — to fix, change buildStudioRows in src/components/agents/studio/studioData.ts (rows, shadowing, filters, search), or getAgentDefinitionsWithOverrides in src/tools/AgentTool/loadAgentsDir.ts if the loaded agents are wrong`)
+    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — to fix, change buildStudioRows in src/screen/agents/studio/studioData.ts (rows, shadowing, filters, search), or getAgentDefinitionsWithOverrides in src/tools/crewmate/loadAgentsDir.ts if the loaded agents are wrong`)
   }
 }
 

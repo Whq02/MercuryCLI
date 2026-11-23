@@ -6,7 +6,7 @@ import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture, fakeSshRunner, liveCatalogue } from './runpodFixture.mjs'
 import { hfFixture } from './hfFixture.mjs'
 import { gridToPng } from '../ui/gridToPng.ts'
-import type { LlmHostQuestion, LlmHostRoad } from '../../src/services/llmHost/index.ts'
+import type { LlmHostQuestion, LlmHostRoad } from '../../src/models/llm-host/index.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const baseline = Boolean(pinSourceRef())
@@ -33,18 +33,18 @@ let ssh: ReturnType<typeof fakeSshRunner> | undefined
 let checks = 0
 try {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { hostRunner } = await import('../../src/services/host/ssh.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-  const { currentHostRecipes, rememberSessionHostRecipe } = await import('../../src/services/host/recipesFile.ts')
-  const { writeHostRecord, readHostRecord } = await import('../../src/services/host/store.ts')
-  const bank = await import('../../src/services/host/bank.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { hostRunner } = await import('../../src/models/hosting/ssh.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const { currentHostRecipes, rememberSessionHostRecipe } = await import('../../src/models/hosting/recipesFile.ts')
+  const { writeHostRecord, readHostRecord } = await import('../../src/models/hosting/store.ts')
+  const bank = await import('../../src/models/hosting/bank.ts')
   writeStoredRunpodApiKey(rp.key)
   const recipes = currentHostRecipes()
   const recipe = recipes.find(row => row.id === 'qwen38-27b-rtx-pro-6000')!
@@ -60,7 +60,7 @@ try {
   const road: LlmHostRoad = (ask, emit, signal) => implementation(plan => { question = plan; return ask(plan) }, emit, signal)
   let width = 120, height = 40
   const screen = () => mounted!.screen()
-  const plainWordsHint = 'Fix the screen text in the host road (createHostRoad, src/services/host/index.ts) or the /llmhost popup (llmHostPopupRequest, src/commands/llmhost/llmhost.tsx); rerun this drive with --frames <dir> to save the screens.'
+  const plainWordsHint = 'Fix the screen text in the host road (createHostRoad, src/models/hosting/index.ts) or the /llmhost popup (llmHostPopupRequest, src/commands/llmhost/llmhost.tsx); rerun this drive with --frames <dir> to save the screens.'
   const check = (name: string, truth: unknown) => { assert.ok(truth, name + '\n' + plainWordsHint + '\n' + screen()); checks++; console.log('PASS ' + name) }
   const step = async (name: string) => assert.ok(await waitFor(() => question?.step === name && screen().includes(question.title.slice(0, 24)), 15000), 'question reaches ' + name + '\n' + plainWordsHint + '\n' + screen())
   const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''

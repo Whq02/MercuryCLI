@@ -18,13 +18,13 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const fit = await import('../../src/services/tensorfold/fit.ts')
-const starting = await import('../../src/services/tensorfold/starting.ts')
+const fit = await import('../../src/models/tensorfold/fit.ts')
+const starting = await import('../../src/models/tensorfold/starting.ts')
 
 let failures = 0
-const lookWhere = 'the card text above is what the panel showed; the refusal words (needed · free) are built in src/commands/tensorfold/pickerFacts.ts, the row and card lines in src/components/tensorfold/tensorfoldRows.ts, and the engine own refusal is thrown in src/services/tensorfold/serve.ts; change the one whose output differs from this check, and a refusal must follow the window that was asked and clear when the window moves'
+const lookWhere = 'the card text above is what the panel showed; the refusal words (needed · free) are built in src/commands/tensorfold/pickerFacts.ts, the row and card lines in src/screen/tensorfold/tensorfoldRows.ts, and the engine own refusal is thrown in src/models/tensorfold/serve.ts; change the one whose output differs from this check, and a refusal must follow the window that was asked and clear when the window moves'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}`)

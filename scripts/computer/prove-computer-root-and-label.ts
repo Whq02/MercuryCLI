@@ -2,10 +2,10 @@ import { writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
-import type { DesktopDriver } from '../../src/services/desktop/driver.ts'
+import type { DesktopDriver } from '../../src/integrations/desktop/driver.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
 const scratch = scratchDir('root-and-label')
 const bounds = { x: 0, y: 30, width: 1920, height: 956 }
 const app = { identity: 'com.example.Browser', name: 'Browser', pid: 4242, windowId: 'profile', title: 'Jane Example | Profile', bounds }

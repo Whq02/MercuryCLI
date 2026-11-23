@@ -159,23 +159,23 @@ globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
   throw new Error(`unexpected request: ${spelled}`)
 }) as typeof fetch
 
-;(await import('../../src/utils/config.ts')).enableConfigs()
-const accounts = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
-const catalogue = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
-const { keyLanePins, getModelOptions, MOONSHOT_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
-const { moonshotCallModel } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
-const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
-const { validateModel } = await import('../../src/services/providers/validateModel.ts')
-const { getModelUsage } = await import('../../src/bootstrap/state.ts')
-const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
-const { credentialFingerprint } = await import('../../src/utils/accounts/credentialIdentity.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+;(await import('../../src/platform/settings/config.ts')).enableConfigs()
+const accounts = await import('../../src/models/roads/moonshot/moonshotAccounts.ts')
+const catalogue = await import('../../src/models/roads/moonshot/moonshotCatalogue.ts')
+const { keyLanePins, getModelOptions, MOONSHOT_MODEL_GROUP } = await import('../../src/models/catalogue/modelOptions.ts')
+const { moonshotCallModel } = await import('../../src/models/roads/moonshot/moonshotCallModel.ts')
+const { streamCompatChat } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
+const { validateModel } = await import('../../src/models/roads/validateModel.ts')
+const { getModelUsage } = await import('../../src/boot/process-state/processState.ts')
+const { catalogueEpoch } = await import('../../src/models/roads/catalogueEpoch.ts')
+const { credentialFingerprint } = await import('../../src/models/sign-in/account-ledger/credentialIdentity.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const React = (await import('react')).default
-const { render } = await import('../../src/ink.ts')
-const { AppStoreContext, getDefaultAppState } = await import('../../src/state/AppState.tsx')
-const { createStore } = await import('../../src/state/store.ts')
+const { render } = await import('../../src/screen/themedRenderer.ts')
+const { AppStoreContext, getDefaultAppState } = await import('../../src/screen/app-state/AppState.tsx')
+const { createStore } = await import('../../src/platform/primitives/store.ts')
 const { call } = await import('../../src/commands/model/mercuryModel.tsx')
 
 type Owner = {
@@ -270,16 +270,16 @@ async function captureFrame(name: string): Promise<string[]> {
 section(`§1 no observation, no mapping: a fresh Kimi sign-in lists the aliases bare and refuses ${SERVED} with the plain sentence`)
 await signIn(TOKENS_A)
 check('the live list lands with the two aliases', rows().map(row => row.id).join(',') === `${ALIAS},${FAST_ALIAS}`, rows().map(row => row.id).join(','))
-check('no row carries a served word before any reply was observed', rows().every(row => row.servedAs === undefined), 'keyLanePins in src/services/model/modelOptions.ts must set servedAs only from an observation stored by recordMoonshotServedModel in src/services/providers/moonshot/moonshotAccounts.ts; got ' + JSON.stringify(rows()))
-check(`the owner answers nothing for ${ALIAS}`, servedFor(ALIAS) === undefined && aliasesServing(SERVED).length === 0, `moonshotServedModelFor and moonshotAliasesServing in src/services/providers/moonshot/moonshotAccounts.ts must answer nothing for a fresh account; got ${String(servedFor(ALIAS))} / ${aliasesServing(SERVED).join(',')}`)
+check('no row carries a served word before any reply was observed', rows().every(row => row.servedAs === undefined), 'keyLanePins in src/models/catalogue/modelOptions.ts must set servedAs only from an observation stored by recordMoonshotServedModel in src/models/roads/moonshot/moonshotAccounts.ts; got ' + JSON.stringify(rows()))
+check(`the owner answers nothing for ${ALIAS}`, servedFor(ALIAS) === undefined && aliasesServing(SERVED).length === 0, `moonshotServedModelFor and moonshotAliasesServing in src/models/roads/moonshot/moonshotAccounts.ts must answer nothing for a fresh account; got ${String(servedFor(ALIAS))} / ${aliasesServing(SERVED).join(',')}`)
 check(`the picker labels are the bare aliases`, labelOf(ALIAS) === 'Kimi For Coding' && labelOf(FAST_ALIAS) === 'Kimi For Coding Highspeed', `${labelOf(ALIAS)} / ${labelOf(FAST_ALIAS)}`)
 const plainBefore = await refusalOf(SERVED)
 console.log(`  [record] refusal before any observation: ${plainBefore}`)
 check('the admission refuses with the plain sentence (no invented mapping)', plainBefore === PLAIN_REFUSAL, plainBefore)
-check('the Crewmate tool road throws the same plain sentence', (await dispatchRefusalOf(SERVED)) === PLAIN_REFUSAL, 'resolveEngineDispatch in src/services/crew/engineDispatch.ts must throw the qualifyMoonshotModel refusal (src/services/providers/moonshot/moonshotCatalogue.ts) unchanged; got ' + (await dispatchRefusalOf(SERVED)))
-check('the typed /model road answers the same plain sentence', (await typedRefusalOf(SERVED)) === PLAIN_REFUSAL, 'validateModel in src/services/providers/validateModel.ts must return the qualifyMoonshotModel refusal unchanged; got ' + (await typedRefusalOf(SERVED)))
+check('the Crewmate tool road throws the same plain sentence', (await dispatchRefusalOf(SERVED)) === PLAIN_REFUSAL, 'resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts must throw the qualifyMoonshotModel refusal (src/models/roads/moonshot/moonshotCatalogue.ts) unchanged; got ' + (await dispatchRefusalOf(SERVED)))
+check('the typed /model road answers the same plain sentence', (await typedRefusalOf(SERVED)) === PLAIN_REFUSAL, 'validateModel in src/models/roads/validateModel.ts must return the qualifyMoonshotModel refusal unchanged; got ' + (await typedRefusalOf(SERVED)))
 const unobservedLines = await captureFrame('kimi-unobserved')
-check('[kimi-unobserved] both rows paint the bare alias', rowLine(unobservedLines, 'Kimi For Coding') >= 0 && rowLine(unobservedLines, 'Kimi For Coding Highspeed') >= 0 && !unobservedLines.some(l => l.includes('Kimi For Coding · ')), 'the /model picker (src/commands/model/mercuryModel.tsx, labels from keyLanePinLabel in src/services/model/modelOptions.ts) must paint both Moonshot alias rows bare before any observed reply; got ' + unobservedLines.filter(l => l.includes('Kimi For Coding')).join(' | '))
+check('[kimi-unobserved] both rows paint the bare alias', rowLine(unobservedLines, 'Kimi For Coding') >= 0 && rowLine(unobservedLines, 'Kimi For Coding Highspeed') >= 0 && !unobservedLines.some(l => l.includes('Kimi For Coding · ')), 'the /model picker (src/commands/model/mercuryModel.tsx, labels from keyLanePinLabel in src/models/catalogue/modelOptions.ts) must paint both Moonshot alias rows bare before any observed reply; got ' + unobservedLines.filter(l => l.includes('Kimi For Coding')).join(' | '))
 
 section(`§2 an observed reply: the served-model field of a settled turn on ${ALIAS} paints the row and reaches the refusal`)
 {
@@ -294,14 +294,14 @@ section(`§2 an observed reply: the served-model field of a settled turn on ${AL
   check('a changed observation bumps the catalogue epoch once (the picker repaints in place); an unchanged one does not', recordDirect('kimi-fixture-alias', 'kimi-fixture-target') && catalogueEpoch() === epochBefore + 1 && !recordDirect('kimi-fixture-alias', 'kimi-fixture-target') && catalogueEpoch() === epochBefore + 1)
   recordDirect('kimi-fixture-alias', 'kimi-fixture-alias')
   check(`the ${ALIAS} row carries the served id and its short form`, rowServedAs(ALIAS) === SERVED && rows().find(row => row.id === ALIAS)?.servedAs?.displayName === 'K3', JSON.stringify(rows()))
-  check(`the ${FAST_ALIAS} row stays bare (no reply observed on it)`, rowServedAs(FAST_ALIAS) === undefined, `keyLanePins in src/services/model/modelOptions.ts must attach servedAs only to the alias a reply was observed on; got ${String(rowServedAs(FAST_ALIAS))}`)
+  check(`the ${FAST_ALIAS} row stays bare (no reply observed on it)`, rowServedAs(FAST_ALIAS) === undefined, `keyLanePins in src/models/catalogue/modelOptions.ts must attach servedAs only to the alias a reply was observed on; got ${String(rowServedAs(FAST_ALIAS))}`)
   check(`the picker label reads 'Kimi For Coding · K3' and the other row stays bare`, labelOf(ALIAS) === 'Kimi For Coding · K3' && labelOf(FAST_ALIAS) === 'Kimi For Coding Highspeed', `${labelOf(ALIAS)} / ${labelOf(FAST_ALIAS)}`)
   const observed = await refusalOf(SERVED)
   console.log(`  [record] refusal after the observation: ${observed}`)
-  check(`the admission names the alias: '${SERVED} is served here as ${ALIAS}' and still lists the offered ids`, observed === OBSERVED_REFUSAL, `qualifyMoonshotModel in src/services/providers/moonshot/moonshotCatalogue.ts must add the served-as sentence from moonshotAliasesServing; got ${observed}`)
+  check(`the admission names the alias: '${SERVED} is served here as ${ALIAS}' and still lists the offered ids`, observed === OBSERVED_REFUSAL, `qualifyMoonshotModel in src/models/roads/moonshot/moonshotCatalogue.ts must add the served-as sentence from moonshotAliasesServing; got ${observed}`)
   const dispatch = await dispatchRefusalOf(SERVED)
   check('the Crewmate tool road throws the sentence with the served fact', dispatch === OBSERVED_REFUSAL, dispatch)
-  check('the typed /model road answers the sentence with the served fact', (await typedRefusalOf(SERVED)) === OBSERVED_REFUSAL, 'validateModel in src/services/providers/validateModel.ts must return the qualifyMoonshotModel refusal with the served fact; got ' + (await typedRefusalOf(SERVED)))
+  check('the typed /model road answers the sentence with the served fact', (await typedRefusalOf(SERVED)) === OBSERVED_REFUSAL, 'validateModel in src/models/roads/validateModel.ts must return the qualifyMoonshotModel refusal with the served fact; got ' + (await typedRefusalOf(SERVED)))
   if (frameDir !== undefined) {
     writeFileSync(join(frameDir, `refusal-${SERVED}.txt`), [
       `[before any observed reply] ${plainBefore}`,
@@ -321,11 +321,11 @@ section('§2a the transport fact: the compat client decodes the reply model fiel
   for await (const event of streamCompatChat({ apiKey: 'fixture', url: `${loopback}/coding/v1/chat/completions`, request: { model: ALIAS, messages: [{ role: 'user', content: 'hi' }] } })) events.push(event as { type: string; model?: string })
   const servedEvents = events.filter(event => event.type === 'served-model')
   check(`one served-model event carries the wire's word (${SERVED}), deduplicated across chunks`, servedEvents.length === 1 && servedEvents[0]?.model === SERVED, JSON.stringify(events.map(event => event.type)))
-  check('the text and finish still settle beside it', events.some(event => event.type === 'text-delta') && events.some(event => event.type === 'finish'), 'streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts must still emit text-delta and finish beside served-model; got ' + JSON.stringify(events.map(event => event.type)))
+  check('the text and finish still settle beside it', events.some(event => event.type === 'text-delta') && events.some(event => event.type === 'finish'), 'streamCompatChat in src/models/roads/openaicompat/compatChatClient.ts must still emit text-delta and finish beside served-model; got ' + JSON.stringify(events.map(event => event.type)))
   servedField = null
   const bare: Array<{ type: string }> = []
   for await (const event of streamCompatChat({ apiKey: 'fixture', url: `${loopback}/coding/v1/chat/completions`, request: { model: ALIAS, messages: [{ role: 'user', content: 'hi' }] } })) bare.push(event as { type: string })
-  check('a reply without a model field yields no served-model event (nothing invented)', !bare.some(event => event.type === 'served-model') && bare.some(event => event.type === 'finish'), 'streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts must emit served-model only when a chunk carries a model field; got ' + JSON.stringify(bare.map(event => event.type)))
+  check('a reply without a model field yields no served-model event (nothing invented)', !bare.some(event => event.type === 'served-model') && bare.some(event => event.type === 'finish'), 'streamCompatChat in src/models/roads/openaicompat/compatChatClient.ts must emit served-model only when a chunk carries a model field; got ' + JSON.stringify(bare.map(event => event.type)))
   servedField = SERVED
 }
 
@@ -335,8 +335,8 @@ section('§3 per-account separation: another sign-in, an env key, and the return
   await signIn(TOKENS_B)
   const identityB = identityNow()
   check('the two sign-ins carry different identities (the credential-fingerprint law)', identityA !== undefined && identityB !== undefined && identityA !== identityB, `${identityA} / ${identityB}`)
-  check('the second account reads no observation', servedFor(ALIAS) === undefined && rows().every(row => row.servedAs === undefined), 'served-model records in src/services/providers/moonshot/moonshotAccounts.ts must be keyed by moonshotAccountIdentity so another sign-in reads none; got ' + String(servedFor(ALIAS)))
-  check('the second account is refused with the plain sentence', (await refusalOf(SERVED)) === PLAIN_REFUSAL, 'qualifyMoonshotModel in src/services/providers/moonshot/moonshotCatalogue.ts must add the served-as sentence only from the current account records; got ' + (await refusalOf(SERVED)))
+  check('the second account reads no observation', servedFor(ALIAS) === undefined && rows().every(row => row.servedAs === undefined), 'served-model records in src/models/roads/moonshot/moonshotAccounts.ts must be keyed by moonshotAccountIdentity so another sign-in reads none; got ' + String(servedFor(ALIAS)))
+  check('the second account is refused with the plain sentence', (await refusalOf(SERVED)) === PLAIN_REFUSAL, 'qualifyMoonshotModel in src/models/roads/moonshot/moonshotCatalogue.ts must add the served-as sentence only from the current account records; got ' + (await refusalOf(SERVED)))
   servedField = OTHER_SERVED
   await turn(ALIAS)
   servedField = SERVED
@@ -344,7 +344,7 @@ section('§3 per-account separation: another sign-in, an env key, and the return
   check(`the second account's refusal names its own served id, not the first account's`, (await refusalOf(OTHER_SERVED)).includes(`${OTHER_SERVED} is served here as ${ALIAS}`) && (await refusalOf(SERVED)) === PLAIN_REFUSAL)
   process.env.MOONSHOT_API_KEY = 'fixture-env-key'
   await catalogue.refreshMoonshotCatalogue({ force: true })
-  check('an env key account reads no observation of either sign-in', servedFor(ALIAS) === undefined && rows().every(row => row.servedAs === undefined), 'moonshotServedModelFor in src/services/providers/moonshot/moonshotAccounts.ts must read no record when the account comes from an env key; got ' + String(servedFor(ALIAS)))
+  check('an env key account reads no observation of either sign-in', servedFor(ALIAS) === undefined && rows().every(row => row.servedAs === undefined), 'moonshotServedModelFor in src/models/roads/moonshot/moonshotAccounts.ts must read no record when the account comes from an env key; got ' + String(servedFor(ALIAS)))
   delete process.env.MOONSHOT_API_KEY
   await signIn(TOKENS_A)
   check(`the first account's mapping is back untouched (${ALIAS} → ${SERVED})`, servedFor(ALIAS) === SERVED && labelOf(ALIAS) === 'Kimi For Coding · K3', String(servedFor(ALIAS)))
@@ -361,14 +361,14 @@ section('§4 replacement: a later reply replaces the record; a reply that serves
   check('a reply that names the alias itself drops the record (the row is bare again)', servedFor(ALIAS) === undefined && labelOf(ALIAS) === 'Kimi For Coding', String(servedFor(ALIAS)))
   servedField = null
   await turn(ALIAS)
-  check('a reply without the field observes nothing', servedFor(ALIAS) === undefined, 'moonshotCallModel in src/services/providers/moonshot/moonshotCallModel.ts must record only when a served-model event arrives; got ' + String(servedFor(ALIAS)))
+  check('a reply without the field observes nothing', servedFor(ALIAS) === undefined, 'moonshotCallModel in src/models/roads/moonshot/moonshotCallModel.ts must record only when a served-model event arrives; got ' + String(servedFor(ALIAS)))
   servedField = SERVED
   await turn(ALIAS)
-  check(`the mapping is observed again (${ALIAS} → ${SERVED})`, servedFor(ALIAS) === SERVED, `moonshotCallModel in src/services/providers/moonshot/moonshotCallModel.ts must call recordMoonshotServedModel on a served-model event; got ${String(servedFor(ALIAS))}`)
+  check(`the mapping is observed again (${ALIAS} → ${SERVED})`, servedFor(ALIAS) === SERVED, `moonshotCallModel in src/models/roads/moonshot/moonshotCallModel.ts must call recordMoonshotServedModel on a served-model event; got ${String(servedFor(ALIAS))}`)
   const requestsBefore = chatRequests
   const fileBefore = readFileSync(join(home, '.moonshot-auth.json'), 'utf8')
   await turn(ALIAS)
-  check('an unchanged observation rewrites nothing (the store moves only when the mapping changes)', chatRequests === requestsBefore + 1 && readFileSync(join(home, '.moonshot-auth.json'), 'utf8') === fileBefore, 'recordMoonshotServedModel in src/services/providers/moonshot/moonshotAccounts.ts must write the auth file only when the mapping changes')
+  check('an unchanged observation rewrites nothing (the store moves only when the mapping changes)', chatRequests === requestsBefore + 1 && readFileSync(join(home, '.moonshot-auth.json'), 'utf8') === fileBefore, 'recordMoonshotServedModel in src/models/roads/moonshot/moonshotAccounts.ts must write the auth file only when the mapping changes')
 }
 
 section('§5 persistence: the record rests in the account owner\'s auth-scoped file, survives a restart and a disconnect, and stays keyed to its account')
@@ -377,11 +377,11 @@ section('§5 persistence: the record rests in the account owner\'s auth-scoped f
   const identity = identityNow()
   const stored = identity !== undefined ? file.servedModels?.[identity] : undefined
   check('the auth file carries the record under the account\'s fingerprint, beside the tokens', identity !== undefined && Array.isArray(stored) && stored.some(record => record.requested === ALIAS && record.served === SERVED) && file.tokens !== undefined, JSON.stringify(file.servedModels))
-  check('no token or key material enters the record', !JSON.stringify(file.servedModels ?? {}).includes('fixture-access') && !JSON.stringify(file.servedModels ?? {}).includes('fixture-refresh'), 'recordMoonshotServedModel in src/services/providers/moonshot/moonshotAccounts.ts must store only requested, served and observedAtMs under the account fingerprint')
+  check('no token or key material enters the record', !JSON.stringify(file.servedModels ?? {}).includes('fixture-access') && !JSON.stringify(file.servedModels ?? {}).includes('fixture-refresh'), 'recordMoonshotServedModel in src/models/roads/moonshot/moonshotAccounts.ts must store only requested, served and observedAtMs under the account fingerprint')
   const child = join(scratch, 'read-after-restart.ts')
   writeFileSync(child, [
     ";(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }",
-    `const owner = await import(${JSON.stringify(join(import.meta.dir, '../../src/services/providers/moonshot/moonshotAccounts.ts'))})`,
+    `const owner = await import(${JSON.stringify(join(import.meta.dir, '../../src/models/roads/moonshot/moonshotAccounts.ts'))})`,
     `console.log(JSON.stringify({ served: owner.moonshotServedModelFor(${JSON.stringify(ALIAS)}), aliases: owner.moonshotAliasesServing(${JSON.stringify(SERVED)}) }))`,
     '',
   ].join('\n'))
@@ -395,10 +395,10 @@ section('§5 persistence: the record rests in the account owner\'s auth-scoped f
   }
   check('a fresh process reads the same mapping from the file (the restart law)', restarted.status === 0 && parsed.served === SERVED && (parsed.aliases ?? []).join(',') === ALIAS, `${restarted.status}: ${line || restarted.stderr.trim().split('\n').at(-1)}`)
   accounts.writeMoonshotTokens(null)
-  check('signed out, nothing is observed (no account, no record)', servedFor(ALIAS) === undefined, 'moonshotServedModelFor in src/services/providers/moonshot/moonshotAccounts.ts must answer nothing when no account is signed in; got ' + String(servedFor(ALIAS)))
+  check('signed out, nothing is observed (no account, no record)', servedFor(ALIAS) === undefined, 'moonshotServedModelFor in src/models/roads/moonshot/moonshotAccounts.ts must answer nothing when no account is signed in; got ' + String(servedFor(ALIAS)))
   await signIn(TOKENS_A)
-  check('the same account signing in again reads its own record', servedFor(ALIAS) === SERVED, 'sign-out in src/services/providers/moonshot/moonshotAccounts.ts must keep the servedModels rows so the same fingerprint reads them back; got ' + String(servedFor(ALIAS)))
-  check('the file survives the round trip at the auth scope', existsSync(join(home, '.moonshot-auth.json')), 'writeMoonshotTokens in src/services/providers/moonshot/moonshotAccounts.ts must not delete .moonshot-auth.json on sign-out')
+  check('the same account signing in again reads its own record', servedFor(ALIAS) === SERVED, 'sign-out in src/models/roads/moonshot/moonshotAccounts.ts must keep the servedModels rows so the same fingerprint reads them back; got ' + String(servedFor(ALIAS)))
+  check('the file survives the round trip at the auth scope', existsSync(join(home, '.moonshot-auth.json')), 'writeMoonshotTokens in src/models/roads/moonshot/moonshotAccounts.ts must not delete .moonshot-auth.json on sign-out')
 }
 
 const authFileServedModels = (): Record<string, Array<{ requested: string; served: string; observedAtMs: number }>> =>
@@ -408,10 +408,10 @@ section('§5a a sign-in that changes mid-turn never moves the served model to th
 {
   servedField = ALIAS
   await turn(ALIAS)
-  check('the first account starts this leg with no record for the alias', servedFor(ALIAS) === undefined, 'a reply whose model field equals the alias must drop the record (recordMoonshotServedModel in src/services/providers/moonshot/moonshotAccounts.ts); got ' + String(servedFor(ALIAS)))
+  check('the first account starts this leg with no record for the alias', servedFor(ALIAS) === undefined, 'a reply whose model field equals the alias must drop the record (recordMoonshotServedModel in src/models/roads/moonshot/moonshotAccounts.ts); got ' + String(servedFor(ALIAS)))
   await signIn(TOKENS_B)
   await turn(ALIAS)
-  check('the second account starts this leg with no record for the alias either', servedFor(ALIAS) === undefined, 'records in src/services/providers/moonshot/moonshotAccounts.ts must stay keyed by account fingerprint; got ' + String(servedFor(ALIAS)))
+  check('the second account starts this leg with no record for the alias either', servedFor(ALIAS) === undefined, 'records in src/models/roads/moonshot/moonshotAccounts.ts must stay keyed by account fingerprint; got ' + String(servedFor(ALIAS)))
   await signIn(TOKENS_A)
   servedField = SERVED
   const held = holdNextReply()
@@ -426,9 +426,9 @@ section('§5a a sign-in that changes mid-turn never moves the served model to th
   const identityA = credentialFingerprint(TOKENS_A.refreshToken)
   const recordedForA = authFileServedModels()[identityA] ?? []
   check('the record was written under the fingerprint of the first account\'s refresh token (the dispatch-time identity rule)', recordedForA.some(record => record.requested === ALIAS && record.served === SERVED), JSON.stringify(authFileServedModels()))
-  check('no record was written under the second account', (authFileServedModels()[credentialFingerprint(TOKENS_B.refreshToken)] ?? []).length === 0, 'moonshotCallModel in src/services/providers/moonshot/moonshotCallModel.ts must pass the dispatch-time credential.accountIdentity to recordMoonshotServedModel, not the current identity; got ' + JSON.stringify(authFileServedModels()))
+  check('no record was written under the second account', (authFileServedModels()[credentialFingerprint(TOKENS_B.refreshToken)] ?? []).length === 0, 'moonshotCallModel in src/models/roads/moonshot/moonshotCallModel.ts must pass the dispatch-time credential.accountIdentity to recordMoonshotServedModel, not the current identity; got ' + JSON.stringify(authFileServedModels()))
   await signIn(TOKENS_A)
-  check('signed back in as the first account, the mapping is its own', servedFor(ALIAS) === SERVED && aliasesServing(SERVED).join(',') === ALIAS, `the first account record in src/services/providers/moonshot/moonshotAccounts.ts must survive another sign-in; got ${String(servedFor(ALIAS))} / ${aliasesServing(SERVED).join(',')}`)
+  check('signed back in as the first account, the mapping is its own', servedFor(ALIAS) === SERVED && aliasesServing(SERVED).join(',') === ALIAS, `the first account record in src/models/roads/moonshot/moonshotAccounts.ts must survive another sign-in; got ${String(servedFor(ALIAS))} / ${aliasesServing(SERVED).join(',')}`)
 }
 
 section('§5b a routine token refresh that rotates the refresh token carries the account\'s rows to the new identity')
@@ -450,7 +450,7 @@ section('§5b a routine token refresh that rotates the refresh token carries the
   check('the old identity\'s rows are gone from the file and the new identity holds them', before !== undefined && table[before] === undefined && (after === undefined ? [] : table[after] ?? []).some(record => record.requested === ALIAS && record.served === SERVED), JSON.stringify(table))
   await catalogue.refreshMoonshotCatalogue({ force: true })
   check('the picker row keeps its served word after the rotation', labelOf(ALIAS) === 'Kimi For Coding · K3', String(labelOf(ALIAS)))
-  check('the refusal still names the alias after the rotation', (await refusalOf(SERVED)) === OBSERVED_REFUSAL, 'refreshMoonshotTokens in src/services/providers/moonshot/moonshotAccounts.ts must move the servedModels rows to the new fingerprint; got ' + (await refusalOf(SERVED)))
+  check('the refusal still names the alias after the rotation', (await refusalOf(SERVED)) === OBSERVED_REFUSAL, 'refreshMoonshotTokens in src/models/roads/moonshot/moonshotAccounts.ts must move the servedModels rows to the new fingerprint; got ' + (await refusalOf(SERVED)))
 }
 
 

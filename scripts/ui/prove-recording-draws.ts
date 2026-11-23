@@ -17,7 +17,7 @@ async function chatFrames(name: string): Promise<number> {
   process.env.NODE_ENV = 'development'
   const scenario = SCENARIOS.find(row => row.name === name)
   assert.ok(scenario, `no chat recording named ${name}`)
-  const { default: instances } = await import('../../src/ink/instances.js')
+  const { default: instances } = await import('../../src/screen/renderer/instances.js')
   const { openStage, closeStage } = await import('./chatScenarios.ts')
   const harness = { ...(await import('../lib/settingsPopupHarness.ts')) }
   const scheduler = require('scheduler/unstable_mock') as { unstable_flushAllWithoutAsserting(): void; unstable_advanceTime(ms: number): void }
@@ -53,14 +53,14 @@ async function chatFrames(name: string): Promise<number> {
     const tracked = <A extends unknown[], T>(run: (...args: A) => Promise<T>) => (...args: A): Promise<T> => new Promise((resolve, reject) => {
       pending.push(run(...args).then(value => () => resolve(value), error => () => reject(error)))
     })
-    const history = { ...require('../../src/utils/sessionStorage.js') as typeof import('../../src/utils/sessionStorage.js') }
-    const instructions = { ...require('../../src/services/instructions/engine.js') as typeof import('../../src/services/instructions/engine.js') }
-    const cockpit = { ...require('../../src/services/cockpit/index.js') as typeof import('../../src/services/cockpit/index.js') }
-    const memory = { ...require('../../src/mneme/entryKnapsack.js') as typeof import('../../src/mneme/entryKnapsack.js') }
-    mock.module('../../src/utils/sessionStorage.js', () => ({ ...history, listSessionsAcrossProjects: tracked(history.listSessionsAcrossProjects) }))
-    mock.module('../../src/services/instructions/engine.js', () => ({ ...instructions, getInstructionFiles: tracked(instructions.getInstructionFiles) }))
-    mock.module('../../src/services/cockpit/index.js', () => ({ ...cockpit, gitSnapshot: tracked(cockpit.gitSnapshot), traceSnapshot: tracked(cockpit.traceSnapshot) }))
-    mock.module('../../src/mneme/entryKnapsack.js', () => ({ ...memory, composeMemoryAtStart: tracked(memory.composeMemoryAtStart) }))
+    const history = { ...require('../../src/sessions/transcripts/sessionStorage.js') as typeof import('../../src/sessions/transcripts/sessionStorage.js') }
+    const instructions = { ...require('../../src/sessions/instructions/instructionFiles.js') as typeof import('../../src/sessions/instructions/instructionFiles.js') }
+    const cockpit = { ...require('../../src/screen/cockpit-gauges/index.js') as typeof import('../../src/screen/cockpit-gauges/index.js') }
+    const memory = { ...require('../../src/sessions/mneme/entryKnapsack.js') as typeof import('../../src/sessions/mneme/entryKnapsack.js') }
+    mock.module('../../src/sessions/transcripts/sessionStorage.js', () => ({ ...history, listSessionsAcrossProjects: tracked(history.listSessionsAcrossProjects) }))
+    mock.module('../../src/sessions/instructions/instructionFiles.js', () => ({ ...instructions, getInstructionFiles: tracked(instructions.getInstructionFiles) }))
+    mock.module('../../src/screen/cockpit-gauges/index.js', () => ({ ...cockpit, gitSnapshot: tracked(cockpit.gitSnapshot), traceSnapshot: tracked(cockpit.traceSnapshot) }))
+    mock.module('../../src/sessions/mneme/entryKnapsack.js', () => ({ ...memory, composeMemoryAtStart: tracked(memory.composeMemoryAtStart) }))
     ink.subscribeFrame(() => { frames++ })
     return register(stream, ink)
   })
@@ -84,8 +84,8 @@ async function layoutPasses(): Promise<Map<string, number>> {
   try {
     const trace = join(scratch, 'trace.jsonl')
     process.env.INK_YOGA_TRACE = trace
-    const { createLayoutNode } = await import('../../src/ink/layout/engine.js')
-    const { getCellLayoutCounters } = await import('../../src/ink/layout/cellLayout.js')
+    const { createLayoutNode } = await import('../../src/screen/renderer/layout/engine.js')
+    const { getCellLayoutCounters } = await import('../../src/screen/renderer/layout/cellLayout.js')
     const { recordCorpus, replayScreens } = await import('../ink-runtime/layoutRecordingScenes.js')
     const engine = { create: createLayoutNode, counters: getCellLayoutCounters, trace, open: null }
     const screens = readFileSync(join(import.meta.dir, '../ink-runtime/recordings/layout-node-scenes.jsonl'), 'utf8')

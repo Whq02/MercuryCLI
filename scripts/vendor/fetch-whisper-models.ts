@@ -10,7 +10,7 @@ import {
   mbWords,
   whisperModelByName,
   type WhisperModelRow,
-} from '../../src/services/voice/whisperModels.ts'
+} from '../../src/integrations/voice/whisperModels.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const CACHE_DIR = join(ROOT, 'vendor', 'whisper-models')

@@ -52,9 +52,9 @@ const {
   pythonPackSelectionFor,
   pythonStdlibFor,
   readPythonRecord,
-} = await import('../../src/services/privateChannel/vendoredPython.js')
-const { resolveLayoutRoots, validatePayloadDir } = await import('../../src/services/privateChannel/installLayout.js')
-const { verifyPayloadDir } = await import('../../src/services/privateChannel/artifactVerify.js')
+} = await import('../../src/platform/update-channel/vendoredPython.js')
+const { resolveLayoutRoots, validatePayloadDir } = await import('../../src/platform/update-channel/installLayout.js')
+const { verifyPayloadDir } = await import('../../src/platform/update-channel/artifactVerify.js')
 
 const ROOT = join(import.meta.dir, '..', '..')
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8').replaceAll('\r\n', '\n')
@@ -64,7 +64,7 @@ const BUN = process.execPath
 const IS_WIN = process.platform === 'win32'
 
 let failures = 0
-const pythonFixHint = 'change the owner src/services/privateChannel/vendoredPython.ts for platform, selection, record and check failures, vendor/python.lock.json for lock failures, scripts/vendor/fetch-python.ts for fetch failures, build.ts for build-row and manifest failures, src/services/privateChannel/installLayout.ts and artifactVerify.ts for payload failures, scripts/release/package.mjs and .github/workflows for packager and workflow failures'
+const pythonFixHint = 'change the owner src/platform/update-channel/vendoredPython.ts for platform, selection, record and check failures, vendor/python.lock.json for lock failures, scripts/vendor/fetch-python.ts for fetch failures, build.ts for build-row and manifest failures, src/platform/update-channel/installLayout.ts and artifactVerify.ts for payload failures, scripts/release/package.mjs and .github/workflows for packager and workflow failures'
 const check = (name: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}${pythonFixHint}`}`)
   if (!cond) failures++
@@ -181,7 +181,7 @@ section('§3 the fetch — the owner imported, one tar invocation, --check, the 
 {
   const fetcher = read('scripts/vendor/fetch-python.ts')
   check('the fetch extracts through the shared dialect-proof helper', fetcher.includes("from './tarExtract.ts'") && !fetcher.includes("spawnSync('tar'"))
-  check('the fetch imports the law from the owner (never a second spelling)', fetcher.includes("from '../../src/services/privateChannel/vendoredPython.ts'") && fetcher.includes('pythonBinaryFor(') && fetcher.includes('pythonPackSelectionFor(') && fetcher.includes('pythonPackKeeps(') && fetcher.includes('pythonPackPlatform('))
+  check('the fetch imports the law from the owner (never a second spelling)', fetcher.includes("from '../../src/platform/update-channel/vendoredPython.ts'") && fetcher.includes('pythonBinaryFor(') && fetcher.includes('pythonPackSelectionFor(') && fetcher.includes('pythonPackKeeps(') && fetcher.includes('pythonPackPlatform('))
   check('the fetch carries --check · --force · --platform · --all', ['--check', '--force', '--platform', '--all'].every(f => fetcher.includes(`'${f}'`)))
   check('the fetch refuses a lock url off the pinned release', fetcher.includes('is not the pinned release\'s asset'))
   check('the fetch verifies size and sha256 BEFORE writing the archive', fetcher.indexOf('digest !== pinned.sha256') !== -1 && fetcher.indexOf('digest !== pinned.sha256') < fetcher.indexOf('writeFileSync(archivePath, buf)') && fetcher.includes('buf.byteLength !== pinned.sizeBytes'))
@@ -212,7 +212,7 @@ section('§3 the fetch — the owner imported, one tar invocation, --check, the 
 section('§4 the build row — fixed path, staleness guard, manifest record, degraded label, the shipped tree')
 {
   const build = read('build.ts')
-  check('build.ts imports the owner for the path + platform + binary', build.includes("await import('./src/services/privateChannel/vendoredPython.ts')"))
+  check('build.ts imports the owner for the path + platform + binary', build.includes("await import('./src/platform/update-channel/vendoredPython.ts')"))
   check('build.ts reads vendor/python.lock.json and the shipped platform\'s cache', build.includes("'vendor', 'python.lock.json'") && build.includes("'vendor', 'python', 'extracted', packPlatform"))
   check('a PRESENT-but-stale cache fails the build naming the fetch', build.includes('vendor/python cache does not match vendor/python.lock.json') && build.includes('remedy: bun run scripts/vendor/fetch-python.ts'))
   check('the manifest carries the pythonRuntime record (version · release · platform · both digests)', build.includes('pythonRuntime: pythonVendored && pythonMeta') && build.includes('release: lock.release,') && build.includes("archiveSha256: pinned.sha256"))

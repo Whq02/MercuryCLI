@@ -13,7 +13,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.NODE_ENV = 'test'
 
-const COPY_LATCH_HINT = 'change useCopyOnSelect in src/hooks/useCopyOnSelect.ts (the subscription, the one copy per settled drag, the latch, the opt-out read) or noteOwnInputSelectionSettled in src/utils/cockpit/inputSelectionBridge.ts for the composer selection'
+const COPY_LATCH_HINT = 'change useCopyOnSelect in src/screen/composer/useCopyOnSelect.ts (the subscription, the one copy per settled drag, the latch, the opt-out read) or noteOwnInputSelectionSettled in src/screen/cockpit/inputSelectionBridge.ts for the composer selection'
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + COPY_LATCH_HINT + (detail ? ': ' + detail : '') : ''}`)
@@ -23,14 +23,14 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const j = (v: unknown): string => JSON.stringify(v)
 
 const world = { fullscreen: true, enabled: true }
-const fullscreen = await import('../../src/utils/fullscreen.ts')
-mock.module('../../src/utils/fullscreen.js', () => ({ ...fullscreen, isFullscreenActive: () => world.fullscreen }))
-const config = await import('../../src/utils/config.ts')
-mock.module('../../src/utils/config.js', () => ({ ...config, isCopyOnSelectEnabled: () => world.enabled }))
-const { useCopyOnSelect } = await import('../../src/hooks/useCopyOnSelect.js')
-const { noteOwnInputSelectionSettled, registerInputSelectionOwner } = await import('../../src/utils/cockpit/inputSelectionBridge.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const fullscreen = await import('../../src/screen/fullscreen-layout/fullscreen.ts')
+mock.module('../../src/screen/fullscreen-layout/fullscreen.js', () => ({ ...fullscreen, isFullscreenActive: () => world.fullscreen }))
+const config = await import('../../src/platform/settings/config.ts')
+mock.module('../../src/platform/settings/config.js', () => ({ ...config, isCopyOnSelectEnabled: () => world.enabled }))
+const { useCopyOnSelect } = await import('../../src/screen/composer/useCopyOnSelect.js')
+const { noteOwnInputSelectionSettled, registerInputSelectionOwner } = await import('../../src/screen/cockpit/inputSelectionBridge.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 
 const clipboard: string[] = []
 const toasts: string[] = []

@@ -41,38 +41,38 @@ if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}${ok ? '' : ' (fix: the JEV popup and its rows in src/components/Settings/Jev.tsx, the setting in src/services/jev/jevSetting.ts, the status in src/services/jev/jevStatus.ts, the key in src/services/jev/jevKey.ts, the /jev command in src/commands/jev/jev.tsx, the Boot Settings row in src/components/BootSettingsScreen.tsx; the section heading above names the surface)'}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}${ok ? '' : ' (fix: the JEV popup and its rows in src/screen/settings/Jev.tsx, the setting in src/models/jev/jevSetting.ts, the status in src/models/jev/jevStatus.ts, the key in src/models/jev/jevKey.ts, the /jev command in src/commands/jev/jev.tsx, the Boot Settings row in src/screen/boot-face/BootSettingsScreen.tsx; the section heading above names the surface)'}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const cap = await import('../../src/utils/switchboard/capacityCheck.js')
+const cap = await import('../../src/daemon/switchboard-capacity/capacityCheck.js')
 cap._setHeldMachineSeatReadingForTesting(6, { cores: 8, availableBytes: 6 * cap.SEAT_COST_BYTES.runner, read: 'vm_stat', sampledAt: 0 })
-const setting = await import('../../src/services/jev/jevSetting.js')
-const status = await import('../../src/services/jev/jevStatus.js')
-const keyOwner = await import('../../src/services/jev/jevKey.js')
-const ledger = await import('../../src/services/jev/jevLedger.js')
-const contract = await import('../../src/services/jev/jevContract.js')
-const reader = await import('../../src/services/jev/jevSessionFacts.js')
-const slot = await import('../../src/services/engine-connector/focusedConnector.js')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const secrets = await import('../../src/utils/accounts/providerSecrets.js')
+const setting = await import('../../src/models/jev/jevSetting.js')
+const status = await import('../../src/models/jev/jevStatus.js')
+const keyOwner = await import('../../src/models/jev/jevKey.js')
+const ledger = await import('../../src/models/jev/jevLedger.js')
+const contract = await import('../../src/models/jev/jevContract.js')
+const reader = await import('../../src/models/jev/jevSessionFacts.js')
+const slot = await import('../../src/engine/connector/focusedConnector.js')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
-const { CONFIG_ROW_MARK } = await import('../../src/components/Settings/Config.js')
+const { CONFIG_ROW_MARK } = await import('../../src/screen/settings/Config.js')
 const jevCommand = (await import('../../src/commands/jev/index.js')).default
 const { call: jevCall, jevPopupRequest } = await import('../../src/commands/jev/jev.js')
-const jevBody = await import('../../src/components/Settings/Jev.js')
-const { BootSettingsScreen, JEV_BOOT_DETAIL_WIDTH, jevBootDetailLines, withJevRow } = await import('../../src/components/BootSettingsScreen.js')
-const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.js')
+const jevBody = await import('../../src/screen/settings/Jev.js')
+const { BootSettingsScreen, JEV_BOOT_DETAIL_WIDTH, jevBootDetailLines, withJevRow } = await import('../../src/screen/boot-face/BootSettingsScreen.js')
+const { STARTUP_MENU } = await import('../../src/platform/substrate/startupMenu.js')
 
 const ZERO_USAGE = {
   totalCostUSD: 0,
@@ -86,7 +86,7 @@ const ZERO_USAGE = {
   totalCacheCreationInputTokens: 0,
   hasUnknownModelCost: false,
 }
-type JevSessionFacts = import('../../src/services/jev/jevSessionFacts.js').JevSessionFacts
+type JevSessionFacts = import('../../src/models/jev/jevSessionFacts.js').JevSessionFacts
 const runnerFacts = () => reader.jevFactsOf(ledger.jevLedgerSnapshot(), status.jevStatus())
 const runnerConnector = (): InstanceType<typeof NoSessionConnector> =>
   Object.assign(new NoSessionConnector(), { sessionId: () => 'proof-session', usage: () => ({ ...ZERO_USAGE, jev: runnerFacts() }) })

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { fuseRankings, scoreCandidates, type LookupCandidate } from '../../src/mneme/mnemeLookup.js'
-import { liftLinked } from '../../src/mneme/mnemeLinks.js'
+import { fuseRankings, scoreCandidates, type LookupCandidate } from '../../src/sessions/mneme/mnemeLookup.js'
+import { liftLinked } from '../../src/sessions/mneme/mnemeLinks.js'
 
 interface StudyFootnotes {
   session?: number

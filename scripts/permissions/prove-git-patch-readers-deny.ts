@@ -63,7 +63,7 @@ const SECRET = join(PROJECT, 'secrets', 'k.txt')
 const EVERY_MODE = ['default', 'implement', 'apollo', 'dontAsk', 'flow', 'sovereign'] as const
 const asked = (): number => readFileSync(ASKED, 'utf8').split('\n').filter(line => /--name-only/.test(line)).length
 const bash = (command: string, mode: string, rules: Rules = READ) => decide('Bash', { command }, mode, rules)
-const patchReadersFix = 'Fix: change denyRuleReach in src/tools/BashTool/denyRuleReach.ts and the git readers in src/tools/BashTool/gitPrintedNames.ts, which bashToolHasPermission calls; the stash summary words are added by gitArgs in src/utils/git/spawnArgs.ts. Got: '
+const patchReadersFix = 'Fix: change denyRuleReach in src/tools/shell/denyRuleReach.ts and the git readers in src/tools/shell/gitPrintedNames.ts, which bashToolHasPermission calls; the stash summary words are added by gitArgs in src/platform/git/spawnArgs.ts. Got: '
 
 section('§0 the stand-in git is the one the product asks')
 if (process.platform === 'win32') {
@@ -150,7 +150,7 @@ for (const command of PRINTS_NONE) {
   check(`${shown(command)} · answered in all six modes as with no rule in force`, wrong.length === 0, patchReadersFix + wrong.join(' ‖ '))
 }
 {
-  const { gitArgs } = await import('../../src/utils/git/spawnArgs.ts')
+  const { gitArgs } = await import('../../src/platform/git/spawnArgs.ts')
   const ran = (args: string[]): string => execFileSync(REAL_GIT, gitArgs(args, PROJECT), { cwd: PROJECT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
   const summary = ran(['stash', 'show', 'stash@{1}'])
   check('a plain git stash show, which the rule lets run, is run so that it prints what git prints for it: the summary line of the stash, none of the denied file\'s lines', /secrets\/k\.txt \| 1 \+/.test(summary) && !summary.includes('diff --git') && !summary.includes('+held'), patchReadersFix + summary.slice(0, 200))

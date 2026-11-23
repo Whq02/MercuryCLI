@@ -12,14 +12,14 @@ process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.js')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
-const { parseForSecurity } = await import('../../src/utils/permissions/decision/commandAnalysis.js')
-const { refusalOfShellCommand } = await import('../../src/utils/wards/wardsRefusals.js')
-const { shellCredentialWritePath, shellSelfProtectionReason } = await import('../../src/utils/permissions/shellProtectedPaths.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.js')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.js')
+const { parseForSecurity } = await import('../../src/permissions/rules/decision/commandAnalysis.js')
+const { refusalOfShellCommand } = await import('../../src/permissions/wards/wardsRefusals.js')
+const { shellCredentialWritePath, shellSelfProtectionReason } = await import('../../src/permissions/rules/shellProtectedPaths.js')
 
 const bash = {
   name: 'Bash',
@@ -28,7 +28,7 @@ const bash = {
 }
 let failures = 0
 let checks = 0
-const lineBreakHint = 'change how a command on the line after a pipeline is read in parseForSecurity (src/utils/bash/ast.ts), or how it is judged in bashToolHasPermission (src/tools/BashTool/bashPermissions.ts), refusalOfShellCommand (src/utils/wards/wardsRefusals.ts), shellCredentialWritePath and shellSelfProtectionReason (src/utils/permissions/shellProtectedPaths.ts)'
+const lineBreakHint = 'change how a command on the line after a pipeline is read in parseForSecurity (src/platform/shell/bash/ast.ts), or how it is judged in bashToolHasPermission (src/tools/shell/bashPermissions.ts), refusalOfShellCommand (src/permissions/wards/wardsRefusals.ts), shellCredentialWritePath and shellSelfProtectionReason (src/permissions/rules/shellProtectedPaths.ts)'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++

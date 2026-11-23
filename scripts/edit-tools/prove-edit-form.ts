@@ -6,7 +6,7 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
-const EDIT_FORM_FAIL_HINT = 'to fix, change how the MERCURY_EDIT_FORM flag picks the Edit definition in src/utils/editForm.ts (forcedShortForm, editFormCacheMark) or where the definition is built and cached in src/services/messages/api.ts (toolToAPISchema)'
+const EDIT_FORM_FAIL_HINT = 'to fix, change how the MERCURY_EDIT_FORM flag picks the Edit definition in src/engine/messages/editForm.ts (forcedShortForm, editFormCacheMark) or where the definition is built and cached in src/engine/messages/apiSystemAndToolSchema.ts (toolToAPISchema)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -17,7 +17,7 @@ const section = (t: string): void => {
 }
 const guard = setTimeout(() => {
   console.log('\nTIMEOUT — the edit form proof exceeded 240s')
-  console.log('a driven request never finished; find the section that printed last and look at routedCallModel in src/services/providers/callModelRouter.ts')
+  console.log('a driven request never finished; find the section that printed last and look at routedCallModel in src/models/roads/callModelRouter.ts')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -179,30 +179,30 @@ console.log('============================================================')
 console.log(' the Edit tool in two forms — full and plain, one flag')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { GLM_STATIC_CATALOGUE } = await import('../../src/services/providers/zai/zaiAdapter.ts')
-const { moonshotCatalogueEntries } = await import('../../src/services/providers/moonshot/moonshotAdapter.ts')
-const { refreshMoonshotCatalogue } = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
-const { DEEPSEEK_STATIC_CATALOGUE } = await import('../../src/services/providers/deepseek/deepseekAdapter.ts')
-const { HUGGINGFACE_STATIC_CATALOGUE } = await import('../../src/services/providers/huggingface/huggingfaceAdapter.ts')
-const { PROVIDER_ID_SPACES, FIRST_PARTY_ID_MARK } = await import('../../src/services/providers/idSpaces.ts')
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
-const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
-const { resolveModelCapabilities } = await import('../../src/utils/model/capabilities.ts')
-const { localPromptProfileApplies } = await import('../../src/constants/localPromptProfile.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { getToolSchemaCache, clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
-const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-type Message = import('../../src/types/message.ts').Message
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { GLM_STATIC_CATALOGUE } = await import('../../src/models/roads/zai/zaiAdapter.ts')
+const { moonshotCatalogueEntries } = await import('../../src/models/roads/moonshot/moonshotAdapter.ts')
+const { refreshMoonshotCatalogue } = await import('../../src/models/roads/moonshot/moonshotCatalogue.ts')
+const { DEEPSEEK_STATIC_CATALOGUE } = await import('../../src/models/roads/deepseek/deepseekAdapter.ts')
+const { HUGGINGFACE_STATIC_CATALOGUE } = await import('../../src/models/roads/huggingface/huggingfaceAdapter.ts')
+const { PROVIDER_ID_SPACES, FIRST_PARTY_ID_MARK } = await import('../../src/models/roads/idSpaces.ts')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
+const { deferralWireFormFor } = await import('../../src/models/roads/deferralWire.ts')
+const { resolveModelCapabilities } = await import('../../src/models/facts/capabilities.ts')
+const { localPromptProfileApplies } = await import('../../src/models/roads/localPromptProfile.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { getToolSchemaCache, clearToolSchemaCache } = await import('../../src/models/roads/toolSchemaCache.ts')
+const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 await refreshLocalDiscovery({ force: true })
 await refreshMoonshotCatalogue({ force: true })
@@ -541,7 +541,7 @@ const row = FLAG_REGISTRY.find(flag => flag.env === FLAG)
 check('MERCURY_EDIT_FORM has a registry row, a value flag whose evidence is this proof', row?.kind === 'value' && row.evidence === 'scripts/edit-tools/prove-edit-form.ts', j(row ?? null))
 
 section('§12 with the whole default tool list, deferred definitions and all: every road still carries Edit once, in full, in the form in force')
-const { assembleToolPool } = await import('../../src/tools.ts')
+const { assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
 const WHOLE = assembleToolPool(permissionContext, [])
 const formCarried = (entry: Json | undefined): string => {
   const inner = (entry?.function as Json | undefined) ?? entry

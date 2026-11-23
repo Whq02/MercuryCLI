@@ -17,31 +17,31 @@ process.env.MERCURY_CONFIG_DIR = configDir
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.chdir(projectDir)
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.ts')
+const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.ts')
 setOriginalCwd(projectDir)
 setProjectRoot(projectDir)
 setCwdState(projectDir)
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { BashPermissionRequest } = await import('../../src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { parseForSecurity } = await import('../../src/utils/permissions/decision/commandAnalysis.ts')
-const { flowAskSentence } = await import('../../src/utils/permissions/flowLaw.ts')
-const { consentContentWidth } = await import('../../src/components/permissions/consentBodyBudget.ts')
-const { stringWidth } = await import('../../src/ink/stringWidth.ts')
-const { wrapText } = await import('../../src/utils/truncate.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { BashPermissionRequest } = await import('../../src/permissions/cards/bash/ShellPermissionRequest.tsx')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { parseForSecurity } = await import('../../src/permissions/rules/decision/commandAnalysis.ts')
+const { flowAskSentence } = await import('../../src/permissions/rules/flowLaw.ts')
+const { consentContentWidth } = await import('../../src/permissions/cards/consentBodyBudget.ts')
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.ts')
+const { wrapText } = await import('../../src/platform/text/truncate.ts')
 const { mountOffscreen, waitFor } = await import('../lib/settingsPopupHarness.ts')
 
 let failures = 0
 const HINT =
-  'fit the sentence in fitFlowSentence of src/components/permissions/PermissionRuleExplanation.tsx: the command gives way from its end down to its first word, then the path the sentence names is cut once in its middle with the name of its file kept, and only then do that first word and that name give way; the words Flow asks before, the verb after the colon and the end of the sentence are never cut, and the sentence stays on one row'
+  'fit the sentence in fitFlowSentence of src/permissions/cards/PermissionRuleExplanation.tsx: the command gives way from its end down to its first word, then the path the sentence names is cut once in its middle with the name of its file kept, and only then do that first word and that name give way; the words Flow asks before, the verb after the colon and the end of the sentence are never cut, and the sentence stays on one row'
 
 function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail} — ` : ''}${HINT}`}`)

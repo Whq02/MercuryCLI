@@ -10,16 +10,16 @@ delete process.env.MERCURY_HOME
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 
 let failures = 0
-const P = 'src/input-core/pending-input.ts'
-const Q = 'src/input-core/command-queue.ts'
-const U = 'src/screens/chat/useChatSession.ts'
+const P = 'src/screen/composer/input-core/pending-input.ts'
+const Q = 'src/screen/composer/input-core/command-queue.ts'
+const U = 'src/screen/chat/useChatSession.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail && !ok ? ` — ${detail}` : ''}`)
 }
 
-const pending = await import('../../src/input-core/pending-input.ts')
-const queue = await import('../../src/input-core/command-queue.ts')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const queue = await import('../../src/screen/composer/input-core/command-queue.ts')
 
 console.log('§1 the draft: typing during a re-key wins; a quiet hop restores the page')
 {

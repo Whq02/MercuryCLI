@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/mcp/config.ts src/services/mcp/utils.ts src/components/MCPServerApprovalDialog.tsx src/components/MCPServerMultiselectDialog.tsx src/cli/handlers/mcp.tsx src/services/mcpServerApproval.tsx src/utils/projectConfig.ts
+// gate-watch: src/integrations/mcp/serverConfigs.ts src/integrations/mcp/utils.ts src/screen/mcp/MCPServerApprovalDialog.tsx src/screen/mcp/MCPServerMultiselectDialog.tsx src/commands/verbs/mcp.tsx src/screen/mcp/mcpServerApproval.tsx src/platform/settings/projectConfig.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -11,25 +11,25 @@ const CONFIG_DIR = realpathSync(mkdtempSync(join(tmpdir(), 'project-mcp-file-con
 process.env.MERCURY_CONFIG_DIR = CONFIG_DIR
 const PROJ = realpathSync(mkdtempSync(join(tmpdir(), 'project-mcp-file-proj-')))
 
-const { enableConfigs, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(PROJ)
 bootstrap.setProjectRoot(PROJ)
 bootstrap.setIsInteractive(false)
-const { setCwd } = await import('../../src/utils/Shell.ts')
+const { setCwd } = await import('../../src/platform/shell/shellExec.ts')
 await setCwd(PROJ)
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | change the project scope in src/services/mcp/config.ts (getMercuryMcpConfigs, addMcpConfig, removeMcpConfig, projectMcpFilePath) or its labels in src/services/mcp/utils.ts; the dist legs also need dist rebuilt with bun run build.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | change the project scope in src/integrations/mcp/serverConfigs.ts (getMercuryMcpConfigs, addMcpConfig, removeMcpConfig, projectMcpFilePath) or its labels in src/integrations/mcp/utils.ts; the dist legs also need dist rebuilt with bun run build.ts'}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
 const stdio = (cmd: string): Record<string, unknown> => ({ type: 'stdio', command: cmd, args: [], env: {} })
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — project mcp file proof exceeded 60s; look for a hang in addMcpConfig or removeMcpConfig in src/services/mcp/config.ts')
+  console.log('\n❌ TIMEOUT — project mcp file proof exceeded 60s; look for a hang in addMcpConfig or removeMcpConfig in src/integrations/mcp/serverConfigs.ts')
   process.exit(1)
 }, 60_000)
 guard.unref?.()
@@ -42,8 +42,8 @@ writeFileSync(join(PROJ, otherName), JSON.stringify({ mcpServers: { 'other-file'
 writeFileSync(join(PROJ, '.mercury', 'settings.local.json'), JSON.stringify({ kit: { trustProjectServers: true } }))
 saveCurrentProjectConfig(current => ({ ...current, hasTrustDialogAccepted: true }))
 
-const config = await import('../../src/services/mcp/config.ts')
-const utils = await import('../../src/services/mcp/utils.ts')
+const config = await import('../../src/integrations/mcp/serverConfigs.ts')
+const utils = await import('../../src/integrations/mcp/utils.ts')
 
 console.log('============================================================')
 console.log(' the project MCP file is .mercury/mcp.json')

@@ -3,12 +3,12 @@ import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import { z } from 'zod/v4'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 import { startZenFixture } from '../providers/lib/zen-fixture.ts'
 process.env.MERCURY_CONFIG_DIR = proofHome
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const KEY = 'sk-proof-key-zen-fixture-wire-not-a-real-key-0000000000000000000000000000'
@@ -16,19 +16,19 @@ process.env.OPENCODE_API_KEY = KEY
 const fixture = startZenFixture({ key: KEY })
 process.env.MERCURY_ZEN_API_BASE = fixture.base
 process.env.MERCURY_ZEN_GO_API_BASE = fixture.goBase
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { routedCallModel, classifyModelRoute } = await import('../../src/services/providers/callModelRouter.ts')
-const { canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
-const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
-const { refreshZenCatalogue, zenCatalogueRows, cachedLiveIds, __resetZenCatalogueForTest } = await import('../../src/services/providers/zen/zenCatalogue.ts')
-const { buildZenExtras } = await import('../../src/services/providers/zen/zenCallModel.ts')
-const { zenServedShapeOf, ZEN_DISPLAY_PINS } = await import('../../src/utils/model/pins/zenPins.ts')
-const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { routedCallModel, classifyModelRoute } = await import('../../src/models/roads/callModelRouter.ts')
+const { canonicalWireModelId } = await import('../../src/models/roads/routeLaw.ts')
+const { resolvePrimaryAgentBackend } = await import('../../src/models/roads/primaryBackend.ts')
+const { refreshZenCatalogue, zenCatalogueRows, cachedLiveIds, __resetZenCatalogueForTest } = await import('../../src/models/roads/zen/zenCatalogue.ts')
+const { buildZenExtras } = await import('../../src/models/roads/zen/zenCallModel.ts')
+const { zenServedShapeOf, ZEN_DISPLAY_PINS } = await import('../../src/models/facts/pins/zenPins.ts')
+const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
+const { laneBillingState } = await import('../../src/models/roads/laneBillingState.ts')
+const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
+const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
 function params(model: string, effortValue: string | undefined = 'max', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
   return { messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: thinking ? { type: 'enabled', budgetTokens: 4096 } : { type: 'disabled' }, signal: new AbortController().signal,
@@ -41,7 +41,7 @@ async function run(p: CompatCallModelParams): Promise<AssistantMessage[]> {
 }
 const text = (rows: AssistantMessage[]): string => rows.flatMap(row => row.message.content).map(block => block.type === 'text' ? block.text : '').join('')
 let count = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, `${name} — fix the Zen road: request shape and effort in src/services/providers/zen/zenCallModel.ts, live id list in zen/zenCatalogue.ts, served shapes in src/utils/model/pins/zenPins.ts, routing in src/services/providers/callModelRouter.ts; the fixture is scripts/providers/lib/zen-fixture.ts`); count++; console.log(`[PASS] ${name}`) }
+const check = (name: string, value: unknown): void => { assert.ok(value, `${name} — fix the Zen road: request shape and effort in src/models/roads/zen/zenCallModel.ts, live id list in zen/zenCatalogue.ts, served shapes in src/models/facts/pins/zenPins.ts, routing in src/models/roads/callModelRouter.ts; the fixture is scripts/providers/lib/zen-fixture.ts`); count++; console.log(`[PASS] ${name}`) }
 try {
   check('zen/<id> is a declared qualified namespace that strips to the vendor id', classifyModelRoute('zen/glm-5.3').kind === 'route' && (classifyModelRoute('zen/glm-5.3') as { route: string }).route === 'zen' && canonicalWireModelId('zen/glm-5.3').ok && (canonicalWireModelId('zen/glm-5.3') as { wireId: string }).wireId === 'glm-5.3')
   check('a bare gateway id keeps its native family: glm-5.3 is Z.AI, gpt-5.5 is OpenAI', (classifyModelRoute('glm-5.3') as { route: string }).route === 'zai' && (classifyModelRoute('gpt-5.5') as { route: string }).route === 'openai')
@@ -113,10 +113,10 @@ try {
   let refused = false
   try { await resolveEngineDispatch('zen/claude-fable-5-1') } catch { refused = true }
   check('a crewmate dispatch on an unlisted zen/ id refuses', refused)
-  const { zenApiBase, zenGoApiBase, __resetZenBaseFallbackForTest } = await import('../../src/services/providers/zen/zenAccounts.ts')
-  const { fetchZenLiveModels } = await import('../../src/services/providers/zen/zenCatalogue.ts')
-  const { fetchZenGoUsage } = await import('../../src/services/providers/zen/zenUsageState.ts')
-  const fallbackHint = 'fix zenFetch, zenApiBase and zenGoApiBase in src/services/providers/zen/zenAccounts.ts, or the wrapFetch a lane profile hands the two request roads (compatChatClient.ts, openrouterResponsesTransport.ts)'
+  const { zenApiBase, zenGoApiBase, __resetZenBaseFallbackForTest } = await import('../../src/models/roads/zen/zenAccounts.ts')
+  const { fetchZenLiveModels } = await import('../../src/models/roads/zen/zenCatalogue.ts')
+  const { fetchZenGoUsage } = await import('../../src/models/roads/zen/zenUsageState.ts')
+  const fallbackHint = 'fix zenFetch, zenApiBase and zenGoApiBase in src/models/roads/zen/zenAccounts.ts, or the wrapFetch a lane profile hands the two request roads (compatChatClient.ts, openrouterResponsesTransport.ts)'
   const requests = (paths: string[]): number => paths.filter(path => path.endsWith('/chat/completions') || path.endsWith('/responses')).length
   const answered = await run(params('zen/glm-5.3'))
   check(`while the first base answers, the documented new base is never asked — ${fallbackHint}`, text(answered) !== '' && fixture.newPaths.length === 0 && zenApiBase() === fixture.base)

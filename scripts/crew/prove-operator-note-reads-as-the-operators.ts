@@ -22,9 +22,9 @@ delete process.env.MERCURY_HOME
 
 const { DIST, NODE, LEAD_GATE, LEAD_MODEL, closeWorld, makeTally, makeWorld, sleep } = await import('./crew-world.ts')
 const { hostRunner } = await import('../lib/runnerHost.ts')
-const { getQueuedCommandAttachments } = await import('../../src/services/attachments/queuedCommands.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { enqueuePendingNotification, getCommandQueue } = await import('../../src/utils/messageQueueManager.ts')
+const { getQueuedCommandAttachments } = await import('../../src/engine/attachments/queuedCommands.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { enqueuePendingNotification, getCommandQueue } = await import('../../src/daemon/runner/messageQueueManager.ts')
 
 const tally = makeTally('operator-note-reads-as-the-operators')
 const watchdog = setTimeout(() => {
@@ -39,7 +39,7 @@ const OPERATOR = 'The operator sent a new message while you were working:'
 const COMPLETED = 'A background crewmate completed a task:'
 const RUNTIME = 'Mercury runtime notice:'
 const j = (value: unknown): string => JSON.stringify(value)
-const NOTE_FRAME_HINT = ' — fix the head a drained queued command is given in normalizeAttachmentForAPI (src/services/messages/attachmentText.ts) and wrapCommandText (src/utils/messages/text.ts)'
+const NOTE_FRAME_HINT = ' — fix the head a drained queued command is given in normalizeAttachmentForAPI (src/engine/messages/attachmentText.ts) and wrapCommandText (src/engine/message-shapes/text.ts)'
 const NOTE_WIRE_HINT = ' — the note reaches the crewmate through the queue/add path and the same frame as section 1; if section 1 passes, rebuild dist (build first) and read the requests above'
 const queued = (fields: Record<string, unknown>): Command => {
   const before = getCommandQueue().length

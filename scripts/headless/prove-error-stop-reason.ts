@@ -47,7 +47,7 @@ console.log('§1 --format json')
     'the failed outcome carries no stop word — never a fabricated stop_sequence',
     frame !== null && frame.type === 'outcome' && frame.status === 'failed' && !('stop' in frame),
     JSON.stringify({ status: frame?.status, stop: frame?.stop }),
-    'a failed outcome must leave stop out; change outcomeRow and stopWordOf in src/rows/project.ts',
+    'a failed outcome must leave stop out; change outcomeRow and stopWordOf in src/engine/rows/project.ts',
   )
 }
 
@@ -66,12 +66,12 @@ console.log('\n§2 --format rows')
     })
     .filter((f): f is Record<string, unknown> => f !== null)
   const result = frames.find(f => f.type === 'outcome')
-  check('an outcome row arrives', result !== undefined, `${frames.length} frames`, 'a run with --format rows must print an outcome row as a JSON line on stdout; run the same node dist/mercury.mjs run command by hand, and see outcomeRow in src/rows/project.ts')
+  check('an outcome row arrives', result !== undefined, `${frames.length} frames`, 'a run with --format rows must print an outcome row as a JSON line on stdout; run the same node dist/mercury.mjs run command by hand, and see outcomeRow in src/engine/rows/project.ts')
   check(
     'the stream outcome carries no stop word either',
     result !== undefined && result.status === 'failed' && !('stop' in result),
     JSON.stringify({ status: result?.status, stop: result?.stop }),
-    'a failed outcome row must leave stop out; change outcomeRow and stopWordOf in src/rows/project.ts',
+    'a failed outcome row must leave stop out; change outcomeRow and stopWordOf in src/engine/rows/project.ts',
   )
 }
 

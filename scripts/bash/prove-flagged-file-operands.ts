@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/BashTool/bashPermissions.ts src/tools/BashTool/pathValidation.ts src/Tool.ts
-// gate-watch: src/utils/shell/readOnlyCommandValidation.ts src/utils/permissions/shellProtectedPaths.ts
+// gate-watch: src/tools/shell/bashPermissions.ts src/tools/shell/pathValidation.ts src/tools/kit/tool.ts
+// gate-watch: src/permissions/rules/shell-commands/readOnlyCommandValidation.ts src/permissions/rules/shellProtectedPaths.ts
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -28,11 +28,11 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
-const { PATH_EXTRACTORS, COMMAND_OPERATION_TYPE } = await import('../../src/tools/BashTool/pathValidation.js')
-const { LISTED_WORDS } = await import('../../src/utils/shell/readOnlyCommandValidation.js')
-const { binaryName } = await import('../../src/utils/config/derived.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.js')
+const { PATH_EXTRACTORS, COMMAND_OPERATION_TYPE } = await import('../../src/tools/shell/pathValidation.js')
+const { LISTED_WORDS } = await import('../../src/permissions/rules/shell-commands/readOnlyCommandValidation.js')
+const { binaryName } = await import('../../src/platform/config/derived.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -45,8 +45,8 @@ const context = (extra: Record<string, unknown> = {}) => ({ ...getEmptyToolPermi
 const decide = async (command: string, extra: Record<string, unknown> = {}): Promise<Verdict> =>
   (await bashToolHasPermission({ command } as never, context(extra) as never)) as Verdict
 const shown = (v: Verdict): string => `${v.behavior}: ${v.message ?? ''}`
-const hintOperandPath = ' | fix: the path check in bashToolHasPermission (src/tools/BashTool/bashPermissions.ts) must see this operand; add or correct the command in PATH_EXTRACTORS and COMMAND_OPERATION_TYPE in src/tools/BashTool/pathValidation.ts'
-const hintOperandExtractor = ' | fix: correct this command in PATH_EXTRACTORS in src/tools/BashTool/pathValidation.ts so it returns the wanted operands'
+const hintOperandPath = ' | fix: the path check in bashToolHasPermission (src/tools/shell/bashPermissions.ts) must see this operand; add or correct the command in PATH_EXTRACTORS and COMMAND_OPERATION_TYPE in src/tools/shell/pathValidation.ts'
+const hintOperandExtractor = ' | fix: correct this command in PATH_EXTRACTORS in src/tools/shell/pathValidation.ts so it returns the wanted operands'
 const O = slashed(outside)
 const OD = slashed(outsideDir)
 const outsideAsk = (verb: string, path = outside): string => `Mercury needs permission to ${verb} ${path}, outside the starting folder ('${root}').`
@@ -231,11 +231,11 @@ console.log('\n5. every read-only word that takes a path is a path command')
     binaryName(), 'netstat', 'nproc', 'numfmt', 'pgrep', 'printenv', 'ps', 'pwd', 'seq', 'sleep', 'ss', 'tput', 'true', 'type', 'uname', 'uptime', 'which', 'whoami',
   ])
   const unclassified = [...LISTED_WORDS].filter(word => !(word in COMMAND_OPERATION_TYPE) && !noPath.has(word)).sort()
-  check('no listed read-only word is unclassified', unclassified.length === 0, unclassified.join(' ') + ' | fix: add each listed word to COMMAND_OPERATION_TYPE in src/tools/BashTool/pathValidation.ts, or to the noPath set in this file if it takes no path')
+  check('no listed read-only word is unclassified', unclassified.length === 0, unclassified.join(' ') + ' | fix: add each listed word to COMMAND_OPERATION_TYPE in src/tools/shell/pathValidation.ts, or to the noPath set in this file if it takes no path')
   const stale = [...noPath].filter(word => !LISTED_WORDS.has(word) || word in COMMAND_OPERATION_TYPE).sort()
-  check('the no-path roster names only listed words that are not path commands', stale.length === 0, stale.join(' ') + ' | fix: remove each word from the noPath set in this file, or restore it to LISTED_WORDS in src/utils/shell/readOnlyCommandValidation.ts')
+  check('the no-path roster names only listed words that are not path commands', stale.length === 0, stale.join(' ') + ' | fix: remove each word from the noPath set in this file, or restore it to LISTED_WORDS in src/permissions/rules/shell-commands/readOnlyCommandValidation.ts')
   for (const command of ['xargs', 'tree', 'fd', 'fdfind', 'du', 'realpath', 'readlink', 'comm', 'cmp', 'tac', 'rev', 'fold', 'fmt', 'pr', 'expand', 'unexpand', 'tsort', 'info', 'man', 'date', 'pyright', 'test'] as const) {
-    check(`${command} is a read path command`, COMMAND_OPERATION_TYPE[command] === 'read', String(COMMAND_OPERATION_TYPE[command]) + ' | fix: set this command to read in COMMAND_OPERATION_TYPE in src/tools/BashTool/pathValidation.ts')
+    check(`${command} is a read path command`, COMMAND_OPERATION_TYPE[command] === 'read', String(COMMAND_OPERATION_TYPE[command]) + ' | fix: set this command to read in COMMAND_OPERATION_TYPE in src/tools/shell/pathValidation.ts')
   }
 }
 
@@ -244,7 +244,7 @@ console.log("\n6. Mercury's own credential file through a flag is refused as it 
   const S = slashed(ownSecret)
   for (const command of [`xargs -a ${S} echo`, `xargs --arg-file=${S} echo`, `grep --file=${S} README`, `grep -f${S} README`, `rg --ignore-file=${S} alpha`, `diff --from-file=${S} README`, `cat ${S}`]) {
     const v = await decide(command)
-    check(`${command.replace(ownSecret, '<own-secret>')} → deny`, v.behavior === 'deny' && (v.message ?? '').startsWith('Reading ') && (v.message ?? '').includes("holds Mercury's own credentials"), shown(v) + ' | fix: the credential-file refusal must also cover this flagged operand; see the Reading ... refused deny in bashToolHasPermission (src/tools/BashTool/bashPermissions.ts) and the operand list from PATH_EXTRACTORS in src/tools/BashTool/pathValidation.ts')
+    check(`${command.replace(ownSecret, '<own-secret>')} → deny`, v.behavior === 'deny' && (v.message ?? '').startsWith('Reading ') && (v.message ?? '').includes("holds Mercury's own credentials"), shown(v) + ' | fix: the credential-file refusal must also cover this flagged operand; see the Reading ... refused deny in bashToolHasPermission (src/tools/shell/bashPermissions.ts) and the operand list from PATH_EXTRACTORS in src/tools/shell/pathValidation.ts')
   }
 }
 
@@ -263,11 +263,11 @@ console.log('\n7. xargs with a reading target and no arg-file takes its paths fr
   ]
   for (const [command, part] of piped) {
     const v = await decide(command)
-    check(`${command.replace(outside, '<outside>')} → needs approval naming the part (the engine resolves it to a card)`, v.behavior === 'passthrough' && v.message === `One part of this Bash command needs approval: ${part}`, shown(v) + ' | fix: xargs with a reading target and no arg-file must need approval in bashToolHasPermission (src/tools/BashTool/bashPermissions.ts); the non-reading targets must stay read-only')
+    check(`${command.replace(outside, '<outside>')} → needs approval naming the part (the engine resolves it to a card)`, v.behavior === 'passthrough' && v.message === `One part of this Bash command needs approval: ${part}`, shown(v) + ' | fix: xargs with a reading target and no arg-file must need approval in bashToolHasPermission (src/tools/shell/bashPermissions.ts); the non-reading targets must stay read-only')
   }
   const redirected = await decide('xargs head < list')
   const redirectedWords = xargsNeedsApproval ? xargsApprovalWords('xargs head < list') : '`xargs head < list` requires approval: it is not a read-only form of `xargs`.'
-  check(`xargs head < list → not allowed (${xargsNeedsApproval ? 'Unix-only command on win32' : 'not a read-only form'})`, redirected.behavior === 'passthrough' && redirected.message === redirectedWords, shown(redirected) + ' | fix: a redirected xargs must stay a passthrough in bashToolHasPermission (src/tools/BashTool/bashPermissions.ts)')
+  check(`xargs head < list → not allowed (${xargsNeedsApproval ? 'Unix-only command on win32' : 'not a read-only form'})`, redirected.behavior === 'passthrough' && redirected.message === redirectedWords, shown(redirected) + ' | fix: a redirected xargs must stay a passthrough in bashToolHasPermission (src/tools/shell/bashPermissions.ts)')
   for (const command of ['echo README | xargs echo', "echo a b | xargs printf '%s\\n'", 'ls | xargs -n 1 echo', 'echo x | xargs -0 echo', 'xargs -a list head', 'xargs -a list wc -l', 'xargs -a list grep alpha', 'xargs --arg-file=list tail']) {
     const v = await decide(command)
     checkRead(command, v)

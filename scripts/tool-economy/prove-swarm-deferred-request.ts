@@ -4,9 +4,9 @@ import { createServer } from 'node:http'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
-import type { Tool, ToolUseContext } from '../../src/Tool.ts'
-import type { Message, AssistantMessage } from '../../src/types/message.ts'
-import type { Attachment } from '../../src/utils/attachments/types.ts'
+import type { Tool, ToolUseContext } from '../../src/tools/kit/tool.ts'
+import type { Message, AssistantMessage } from '../../src/engine/message-shapes/message.ts'
+import type { Attachment } from '../../src/engine/attachment-shapes/attachmentTypes.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const name of ['NODE_ENV', 'MERCURY_BARE', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_AUTH_SCOPE_DIR']) delete process.env[name]
@@ -14,7 +14,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.OPENAI_API_KEY = 'fixture-openai-key'
 process.env.MERCURY_DAEMON_DIR = join(proofHome, 'daemon')
 let failures = 0
-const failWhere = 'look in planToolPayload and the roster latch in src/services/providers/toolEconomy.ts, the deferred_tools_delta announcement in src/services/attachments/orchestrator.ts (getAttachments), the seat launch in src/tools/AgentTool/runAgent.ts, and the CrewBoard tool from swarmTools in src/services/crewBoard/seam.ts; the CAPTURE line printed after the request checks holds the raw requests'
+const failWhere = 'look in planToolPayload and the roster latch in src/models/roads/toolEconomy.ts, the deferred_tools_delta announcement in src/engine/attachments/turnAttachments.ts (getAttachments), the seat launch in src/tools/crewmate/runCrewmate.ts, and the CrewBoard tool from swarmTools in src/crew/board/seam.ts; the CAPTURE line printed after the request checks holds the raw requests'
 const check = (label: string, ok: boolean): void => { console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${failWhere}`}`); if (!ok) failures++ }
 const model = 'gpt-6-luna'
 type Item = Record<string, any>
@@ -65,27 +65,27 @@ const host = `127.0.0.1:${address.port}`
 for (const key of ['MERCURY_OPENAI_API_BASE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_OPENAI_AUTH_BASE']) process.env[key] = `http://${host}/v1`
 const workspace = join(proofHome, 'workspace')
 mkdirSync(workspace)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(workspace)
 bootstrap.setCwdState(workspace)
 bootstrap.setProjectRoot(workspace)
 bootstrap.setSessionTrustAccepted(true)
 bootstrap.setIsInteractive(false)
 const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
-const seam = await import('../../src/services/crewBoard/seam.ts')
+const seam = await import('../../src/crew/board/seam.ts')
 runSwarmCommand('on')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/query.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-const { getAttachments, createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
-const { planToolPayload, clearToolRosterLatches, toolRosterLatchFor } = await import('../../src/services/providers/toolEconomy.ts')
-const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
-const { recordGatewayProbe, openaiGatewayProbeKey } = await import('../../src/services/providers/deferralProbe.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { getAttachments, createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
+const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { planToolPayload, clearToolRosterLatches, toolRosterLatchFor } = await import('../../src/models/roads/toolEconomy.ts')
+const { processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { recordGatewayProbe, openaiGatewayProbeKey } = await import('../../src/models/roads/deferralProbe.ts')
 recordGatewayProbe(openaiGatewayProbeKey(host), { verdict: 'openai-native', status: 200, evidence: 'loopback fixture serves native search', probedAt: new Date().toISOString() })
 const fixture = (name: string, extra: Partial<Tool> = {}): Tool => ({
   name, shouldDefer: true, inputSchema: z.object({ value: z.string() }),
@@ -96,7 +96,7 @@ const fixture = (name: string, extra: Partial<Tool> = {}): Tool => ({
 const loaded = fixture('LoadedFixture')
 const pending = fixture('PendingFixture')
 let appState = getDefaultAppState()
-const { assembleToolPool } = await import('../../src/tools.ts')
+const { assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
 const availableTools = [...assembleToolPool(appState.toolPermissionContext, []), loaded, pending] as Tool[]
 let pool: Tool[] = []
 const context = (tools: Tool[], messages: Message[], agentId = 'fixture-seat', engineModel = model): ToolUseContext => ({
@@ -175,8 +175,8 @@ const oldSeatMessages = [createUserMessage({ content: 'An existing seat roster.'
 await plan([ToolSearchTool, { ...board, alwaysLoad: false }, pending], oldSeatMessages, 'old-seat')
 const oldSeat = await plan([ToolSearchTool, board, pending], oldSeatMessages, 'old-seat')
 check('an existing seat keeps its deferred mark rather than changing its cache prefix', oldSeat.deferredNames.has(board.name))
-const { restoreBoundPrefixFromMessages } = await import('../../src/services/providers/anthropic/boundPrefixRecord.ts')
-const { conversationRosterKey, clearToolRosterRestore } = await import('../../src/services/providers/toolEconomy.ts')
+const { restoreBoundPrefixFromMessages } = await import('../../src/models/roads/anthropic/boundPrefixRecord.ts')
+const { conversationRosterKey, clearToolRosterRestore } = await import('../../src/models/roads/toolEconomy.ts')
 for (const enabled of [true, false]) {
   clearToolRosterLatches()
   clearToolRosterRestore()

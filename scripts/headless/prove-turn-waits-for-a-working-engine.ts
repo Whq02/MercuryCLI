@@ -140,7 +140,7 @@ const dead = await startEngine({ answersItsCheck: false, firstByteMs: null })
 const promising = await startEngine({ answersItsCheck: true, firstByteMs: PROMISED_FIRST_BYTE_MS })
 const promisedDead = await startEngine({ answersItsCheck: false, firstByteMs: null })
 
-const deadline = (await import('../../src/utils/deadline.ts')) as unknown as {
+const deadline = (await import('../../src/platform/async/deadline.ts')) as unknown as {
   armInactivityDeadline(opts: { seam: string; limitMs: number }): { touch(): void; cancel(): void; readonly fired: boolean; readonly expiry: Promise<never> }
   declaredWaitEnd?: (sinceMs: number, declaredMs: number, capMs: number) => number
   holdDeadlineUntil?: (held: { touch(): void }, untilMs: number, stepMs: number) => { cancel(): void }

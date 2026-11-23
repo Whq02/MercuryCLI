@@ -37,25 +37,25 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
   process.env[base] = 'http://127.0.0.1:1'
 }
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 
-const configs = await import('../../src/utils/model/configs.ts')
+const configs = await import('../../src/models/facts/builtInModelTable.ts')
 const { ALL_MODEL_CONFIGS, familyDefaultsModel, familyHeadOf, parseFirstPartyGeneration } = configs
-const model = await import('../../src/services/model/model.ts')
-const caps = await import('../../src/utils/model/capabilities.ts')
-const effort = await import('../../src/utils/effort.ts')
-const cost = await import('../../src/services/usage/modelCost.ts')
-const { classOfModel } = await import('../../src/services/providers/modelRegistry.ts')
-const { focusedOptionSupports1m } = await import('../../src/services/model/modelOptions.ts')
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
-const { getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
+const model = await import('../../src/models/catalogue/engineModel.ts')
+const caps = await import('../../src/models/facts/capabilities.ts')
+const effort = await import('../../src/models/effort/effort.ts')
+const cost = await import('../../src/models/usage/modelCost.ts')
+const { classOfModel } = await import('../../src/models/roads/modelRegistry.ts')
+const { focusedOptionSupports1m } = await import('../../src/models/catalogue/modelOptions.ts')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
+const { getGlobalConfig, saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
 
 let failures = 0
 const familySectionHints: Record<string, string> = {
-  '§1': 'to fix, change familyHeadOf or familyDefaultsModel in src/utils/model/configs.ts',
-  '§2': 'to fix, make the reader named in the label resolve an undeclared id through familyDefaultsModel (src/utils/model/configs.ts) in src/utils/model/capabilities.ts, src/utils/effort.ts, src/services/usage/modelCost.ts or src/services/model/model.ts',
-  '§3': 'to fix, change the launch-effort flag lookup (isLaunchEffortPinned) in src/utils/effort.ts',
-  '§5': 'to fix, change the unknown-family road in src/utils/model/capabilities.ts, src/services/usage/modelCost.ts or src/services/model/model.ts',
+  '§1': 'to fix, change familyHeadOf or familyDefaultsModel in src/models/facts/builtInModelTable.ts',
+  '§2': 'to fix, make the reader named in the label resolve an undeclared id through familyDefaultsModel (src/models/facts/builtInModelTable.ts) in src/models/facts/capabilities.ts, src/models/effort/effort.ts, src/models/usage/modelCost.ts or src/models/catalogue/engineModel.ts',
+  '§3': 'to fix, change the launch-effort flag lookup (isLaunchEffortPinned) in src/models/effort/effort.ts',
+  '§5': 'to fix, change the unknown-family road in src/models/facts/capabilities.ts, src/models/usage/modelCost.ts or src/models/catalogue/engineModel.ts',
 }
 let familySection = ''
 function check(label: string, cond: boolean, detail?: string): void {

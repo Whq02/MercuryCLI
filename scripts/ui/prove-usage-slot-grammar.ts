@@ -18,9 +18,9 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 
 console.log('§1 the composers')
 {
-  const usage = await import(join(ROOT, 'src/components/Settings/Usage.tsx'))
-  check('an absent slot names its route in the one shape', usage.absentSlotLine('/logins openai adds a ChatGPT account') === 'none — /logins openai adds a ChatGPT account · n/a', `got ${JSON.stringify(usage.absentSlotLine('/logins openai adds a ChatGPT account'))}; change absentSlotLine in src/components/Settings/usage/ (re-exported by src/components/Settings/Usage.tsx) to return "none — <route> · n/a"`)
-  check('a present slot that is not the billing source says exactly that', usage.INACTIVE_SLOT_LINE === 'not the active billing source this session', `got ${JSON.stringify(usage.INACTIVE_SLOT_LINE)}; change INACTIVE_SLOT_LINE in src/components/Settings/usage/ (re-exported by src/components/Settings/Usage.tsx)`)
+  const usage = await import(join(ROOT, 'src/screen/settings/Usage.tsx'))
+  check('an absent slot names its route in the one shape', usage.absentSlotLine('/logins openai adds a ChatGPT account') === 'none — /logins openai adds a ChatGPT account · n/a', `got ${JSON.stringify(usage.absentSlotLine('/logins openai adds a ChatGPT account'))}; change absentSlotLine in src/screen/settings/usage/ (re-exported by src/screen/settings/Usage.tsx) to return "none — <route> · n/a"`)
+  check('a present slot that is not the billing source says exactly that', usage.INACTIVE_SLOT_LINE === 'not the active billing source this session', `got ${JSON.stringify(usage.INACTIVE_SLOT_LINE)}; change INACTIVE_SLOT_LINE in src/screen/settings/usage/ (re-exported by src/screen/settings/Usage.tsx)`)
 }
 
 console.log('§2 every family section rides the one grammar')

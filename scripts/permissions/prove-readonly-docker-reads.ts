@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/BashTool/readOnlyValidation.ts src/utils/shell/readOnlyCommandValidation.ts src/tools/PowerShellTool/readOnlyValidation.ts src/tools/AgentTool/scoutPolicy.ts src/tools/BashTool/BashTool.tsx
+// gate-watch: src/tools/shell/readOnlyValidation.ts src/permissions/rules/shell-commands/readOnlyCommandValidation.ts src/tools/powershell/readOnlyValidation.ts src/tools/crewmate/scoutPolicy.ts src/tools/shell/BashTool.tsx
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -15,10 +15,10 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { checkReadOnlyConstraints, describeBashNotReadOnly, notReadOnlyClause } = await import('../../src/tools/BashTool/readOnlyValidation.js')
+const { checkReadOnlyConstraints, describeBashNotReadOnly, notReadOnlyClause } = await import('../../src/tools/shell/readOnlyValidation.js')
 
 let failures = 0
-const dockerReadsHint = 'only the four docker reads (ps, images, logs, inspect with known flags) may count as read-only; fix checkReadOnlyConstraints and describeBashNotReadOnly in src/tools/BashTool/readOnlyValidation.ts, the flag tables in src/utils/shell/readOnlyCommandValidation.ts, isAllowlistedCommand in src/tools/PowerShellTool/readOnlyValidation.ts, or scoutRefusal in src/tools/AgentTool/scoutPolicy.ts, whichever the label names'
+const dockerReadsHint = 'only the four docker reads (ps, images, logs, inspect with known flags) may count as read-only; fix checkReadOnlyConstraints and describeBashNotReadOnly in src/tools/shell/readOnlyValidation.ts, the flag tables in src/permissions/rules/shell-commands/readOnlyCommandValidation.ts, isAllowlistedCommand in src/tools/powershell/readOnlyValidation.ts, or scoutRefusal in src/tools/crewmate/scoutPolicy.ts, whichever the label names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${dockerReadsHint}` : ''}`)
@@ -96,7 +96,7 @@ for (const command of ['docker ps $(cat x)', 'docker logs $NAME', 'docker ps --w
 }
 
 console.log('5. PowerShell reads the same four forms through the same flag tables')
-const { isAllowlistedCommand } = await import('../../src/tools/PowerShellTool/readOnlyValidation.js')
+const { isAllowlistedCommand } = await import('../../src/tools/powershell/readOnlyValidation.js')
 const psReadsOnly = (command: string): boolean => {
   const [name, ...args] = command.split(' ')
   return isAllowlistedCommand(
@@ -182,11 +182,11 @@ for (const command of SHAPED_ASKS) check(`asks: ${JSON.stringify(command)}`, !(a
 
 console.log('7. the read-only scout refuses the same forms and runs the same reads')
 delete process.env.NODE_ENV
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-await import('../../src/Tool.js')
-const { scoutRefusal } = await import('../../src/tools/AgentTool/scoutPolicy.js')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
+await import('../../src/tools/kit/tool.js')
+const { scoutRefusal } = await import('../../src/tools/crewmate/scoutPolicy.js')
+const { BashTool } = await import('../../src/tools/shell/BashTool.js')
 const scoutRuns = async (command: string): Promise<boolean> => (await scoutRefusal(BashTool as never, { command })) === null
 for (const command of [...READS, ...SHAPED_READS]) check(`scout runs: ${JSON.stringify(command)}`, await scoutRuns(command))
 for (const command of [...WRITES, ...SHAPED_ASKS]) check(`scout refuses: ${JSON.stringify(command)}`, !(await scoutRuns(command)))

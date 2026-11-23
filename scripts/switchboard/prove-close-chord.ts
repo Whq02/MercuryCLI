@@ -18,12 +18,12 @@ const DIST = POISON_DIST ?? join(REPO, 'dist', 'mercury.mjs')
 
 let failures = 0
 const WHERE: Record<string, string> = {
-  '§1': 'change the ctrl+x ctrl+x row in src/keybindings/defaultBindings.ts or its ACTION_GRAPH row in src/keybindings/actionGraph.ts, or the chord handling in src/keybindings/resolver.ts',
-  '§2 ': 'change claimConcourseCloseChord / invokeConcourseCloseChord in src/services/concourse/closeChordSlot.ts, or publishPendingChord in src/keybindings/pendingChordMirror.ts',
-  '§2b': 'change createCloseChordStage or CLOSE_CHORD_STAGE_WINDOW_MS in src/services/concourse/closeChordStage.ts',
-  '§2c': 'change closeChordRungOf / closeChordHintOf / closeChordLegendOf / closeChordReceiptOf / regionKeysFor in src/components/concourse/controlManifest.ts',
-  '§2d': 'change parkAllConcourseSessions (exported by src/daemon/concourseWorkers.ts) so it skips a record with stoppedAt',
-  '§4': 'rebuild first (bun run build.ts) so dist/mercury.mjs is current, then compare the printed screen words with the rung words in src/components/concourse/controlManifest.ts and the concourse:closeSession handler in src/hooks/useGlobalKeybindings.tsx; rerun with MERCURY_CLOSE_CHORD_KEEP=1 to keep the frames',
+  '§1': 'change the ctrl+x ctrl+x row in src/screen/keys/defaultBindings.ts or its ACTION_GRAPH row in src/screen/keys/actionGraph.ts, or the chord handling in src/screen/keys/resolver.ts',
+  '§2 ': 'change claimConcourseCloseChord / invokeConcourseCloseChord in src/screen/concourse-model/closeChordSlot.ts, or publishPendingChord in src/screen/keys/pendingChordMirror.ts',
+  '§2b': 'change createCloseChordStage or CLOSE_CHORD_STAGE_WINDOW_MS in src/screen/concourse-model/closeChordStage.ts',
+  '§2c': 'change closeChordRungOf / closeChordHintOf / closeChordLegendOf / closeChordReceiptOf / regionKeysFor in src/screen/concourse/controlManifest.ts',
+  '§2d': 'change parkAllConcourseSessions (exported by src/daemon/concourse-workers/concourseWorkers.ts) so it skips a record with stoppedAt',
+  '§4': 'rebuild first (bun run build.ts) so dist/mercury.mjs is current, then compare the printed screen words with the rung words in src/screen/concourse/controlManifest.ts and the concourse:closeSession handler in src/screen/chat/useGlobalKeybindings.tsx; rerun with MERCURY_CLOSE_CHORD_KEEP=1 to keep the frames',
 }
 let where = ''
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -39,10 +39,10 @@ const section = (t: string): void => {
 
 if (POISON_DIST === undefined) {
   section('§1 the registry road (the real bindings through the real resolver)')
-  const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.js')
-  const { ACTION_GRAPH } = await import('../../src/keybindings/actionGraph.js')
-  const { parseBindings } = await import('../../src/keybindings/parser.js')
-  const { resolveKeyWithChordState } = await import('../../src/keybindings/resolver.js')
+  const { DEFAULT_BINDINGS } = await import('../../src/screen/keys/defaultBindings.js')
+  const { ACTION_GRAPH } = await import('../../src/screen/keys/actionGraph.js')
+  const { parseBindings } = await import('../../src/screen/keys/parser.js')
+  const { resolveKeyWithChordState } = await import('../../src/screen/keys/resolver.js')
   const globalBlock = DEFAULT_BINDINGS.find(b => b.context === 'Global')
   check('the Global block binds ctrl+x ctrl+x to concourse:closeSession', globalBlock?.bindings['ctrl+x ctrl+x'] === 'concourse:closeSession')
   const graphRow = (ACTION_GRAPH as Record<string, { contexts: readonly string[] }>)['concourse:closeSession']
@@ -54,7 +54,7 @@ if (POISON_DIST === undefined) {
     home: false, end: false, return: false, escape: false, ctrl: false,
     shift: false, fn: false, tab: false, backspace: false, delete: false,
     meta: false, super: false, isPasted: false, ...over,
-  }) as import('../../src/ink/events/input-event.js').Key
+  }) as import('../../src/screen/renderer/events/input-event.js').Key
   const contexts = ['Chat', 'Global']
   const first = resolveKeyWithChordState('x', key({ ctrl: true }), contexts, bindings, null)
   check('a lone ctrl+x opens the chord (the leader unchanged)', first.type === 'chord_started')
@@ -69,7 +69,7 @@ if (POISON_DIST === undefined) {
   check('esc cancels the open chord one layer deep', esc.type === 'chord_cancelled')
 
   section('§2 the one-slot seam and the pending-chord mirror, pure')
-  const slot = await import('../../src/services/concourse/closeChordSlot.js')
+  const slot = await import('../../src/screen/concourse-model/closeChordSlot.js')
   slot.resetConcourseCloseChordForTesting()
   check('unclaimed: the completion declines silently and claims read false', (slot.invokeConcourseCloseChord(), !slot.concourseCloseChordClaimed()))
   let hits = 0
@@ -85,7 +85,7 @@ if (POISON_DIST === undefined) {
   check('a stale release cannot evict the live claim', second === 2)
   release2()
   check('the live release empties the slot', !slot.concourseCloseChordClaimed())
-  const mirror = await import('../../src/keybindings/pendingChordMirror.js')
+  const mirror = await import('../../src/screen/keys/pendingChordMirror.js')
   mirror.resetPendingChordMirrorForTesting()
   let pings = 0
   const unsub = mirror.subscribePendingChordMirror(() => { pings++ })
@@ -98,7 +98,7 @@ if (POISON_DIST === undefined) {
   mirror.resetPendingChordMirrorForTesting()
 
   section('§2b the stage window — one owner, one clock')
-  const { createCloseChordStage, CLOSE_CHORD_STAGE_WINDOW_MS } = await import('../../src/services/concourse/closeChordStage.js')
+  const { createCloseChordStage, CLOSE_CHORD_STAGE_WINDOW_MS } = await import('../../src/screen/concourse-model/closeChordStage.js')
   check('the product window is the ruled 5 s (generous for the full ⌃x ⌃x repeat)', CLOSE_CHORD_STAGE_WINDOW_MS === 5000)
   {
     const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
@@ -131,8 +131,8 @@ if (POISON_DIST === undefined) {
   }
 
   section('§2c the ladder — one owner for the act and the words')
-  const m = await import('../../src/components/concourse/controlManifest.js')
-  const { keyHintLabel: hostLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+  const m = await import('../../src/screen/concourse/controlManifest.js')
+  const { keyHintLabel: hostLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
   type Cls = Parameters<typeof m.closeChordRungOf>[0]
   check('the ladder from a running row: stop, then archive, then delete — one rung per settled class', m.closeChordRungOf('live', false) === 'stop' && m.closeChordRungOf('paused', false) === 'stop' && m.closeChordRungOf('attached', false) === 'stop' && m.closeChordRungOf('stopped', false) === 'archive' && m.closeChordRungOf('parked', true) === 'delete')
   check('the stage decides only where the row has not settled: a fresh chord on a long-parked row ARMS; a staged press over a live runner re-sends the stop; a stopped row archives either way', m.closeChordRungOf('parked', false) === 'arm-delete' && m.closeChordRungOf('live', true) === 'resend-stop' && m.closeChordRungOf('stopped', true) === 'archive')
@@ -150,7 +150,7 @@ if (POISON_DIST === undefined) {
 
   section('§2d a stopped record STANDS — the quit sweep never parks it')
   {
-    const sup = await import('../../src/daemon/concourseWorkers.js')
+    const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.js')
     const dir = mkdtempSync(join(tmpdir(), 'close-chord-records-'))
     const now = Date.now()
     sup.updateConcourseWorkers(w => {
@@ -162,7 +162,7 @@ if (POISON_DIST === undefined) {
     removeScratch(dir)
   }
 
-  const { regionKeysFor } = await import('../../src/components/concourse/controlManifest.js')
+  const { regionKeysFor } = await import('../../src/screen/concourse/controlManifest.js')
   const live = regionKeysFor('list', { newSession: true, selection: 'live' })
   check("the live row's legend advertises the chord with the staged truth", live.some(k => k.keys === '⌃x ⌃x' && k.label === 'stop · archive · delete'))
   const armed = regionKeysFor('list', { newSession: true, selection: 'live', armed: true })
@@ -383,7 +383,7 @@ if (sendRecs.length === sends.length) {
     for (const g of receiptFrames) writeFileSync(join(dir, `receipt-${g.atMs}.txt`), t(g) + '\n')
     for (const ms of enteredSeries) writeFileSync(join(dir, `entered-${ms}.txt`), t(frameAt(ms)) + '\n')
   }
-  const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+  const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
   const stopWords = (g: { rows: string[] }): string => g.rows.filter(r => /stopp|park|⌃x|ctrl\+x|stream slowly|neighbour ready|deletes|arms/i.test(r)).map(r => r.trim().slice(0, 150)).join(' | ')
   const draftRows = (g: { rows: string[] }): string => g.rows.filter(r => /❯|keep me|tab or click/.test(r)).map(r => r.trim().slice(0, 120)).join(' | ')
   if (POISON_DIST === undefined) {

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import mammoth from 'mammoth'
 
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
-const { citeDocument, parseBibtex, formatReferences, resolveDois } = await import('../../src/tools/DocumentTool/cite.ts')
+const { citeDocument, parseBibtex, formatReferences, resolveDois } = await import('../../src/tools/document/cite.ts')
 const io = { read: async (path: string) => readFileSync(path), signal: new AbortController().signal }
 const bibtex = '@string{journal = "Nature Physics"}\n@article{measurement, author={Aspelmeyer, Markus}, title={Measured {measurement}}, year={2009}, journal=journal, volume={5}, number={1}, pages={11--12}, doi={10.1038/nphys1170}}'
 const liveFetch = globalThis.fetch
@@ -37,7 +37,7 @@ try {
     calls++
     assert.equal(String(url), 'https://api.crossref.org/works/10.1038%2Fnphys1170')
     assert.equal(options.redirect, 'error')
-    assert.ok(options.signal, `src/tools/DocumentTool/cite.ts Crossref fetch for ${String(url)} must pass an AbortSignal`)
+    assert.ok(options.signal, `src/tools/document/cite.ts Crossref fetch for ${String(url)} must pass an AbortSignal`)
     return Response.json({ message: { title: ['Measured measurement'], author: [{ given: 'Markus', family: 'Aspelmeyer' }], issued: { 'date-parts': [[2009, 1]] }, 'container-title': ['Nature Physics'], volume: '5', issue: '1', page: '11-12' } })
   }) as typeof fetch
   for (const style of ['apa', 'ieee', 'chicago', 'harvard'] as const) for (const ext of ['md', 'html', 'docx']) {

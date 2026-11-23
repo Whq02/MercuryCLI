@@ -22,7 +22,7 @@ const skip = (label: string): void => console.log(`  [SKIP] ${label}`)
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
-const cloneModule = (await import('../../src/utils/worktreeClone.ts')) as unknown as {
+const cloneModule = (await import('../../src/platform/git/worktree/worktreeClone.ts')) as unknown as {
   cloneIntoWorktree: (pairs: ReadonlyArray<{ source: string; target: string }>, checkout: string, worktree: string) => Promise<string[]>
   planCloneCalls?: (source: string) => Promise<{ folders: string[]; clones: string[] }>
 }
@@ -136,9 +136,9 @@ try {
     const clones = new Set(calls.clones)
     const cut = new Set(calls.folders)
     const largest = Math.max(...calls.clones.map(sizeUnder))
-    check(`no call clones more than 4,096 entries (the largest of ${calls.clones.length}: ${largest})`, largest <= BOUND, `${largest}; planCloneCalls in src/utils/worktreeClone.ts must cut a folder into its entries when it holds more than ENTRIES_A_CALL (4096) entries`)
-    check('the folders cut into their entries are the folder itself, each group and the folder of 4,815 entries', JSON.stringify([...cut].sort()) === JSON.stringify(['', '/giant', ...Array.from({ length: groups }, (_, index) => `/g${index + 1}`)].sort()), `${JSON.stringify([...cut].sort())}; planCloneCalls in src/utils/worktreeClone.ts should cut only the folder itself, each group and /giant`)
-    check('…each named after the folder above it', calls.folders.every((rel, at) => rel === '' || calls.folders.indexOf(dirname(rel) === '/' ? '' : dirname(rel)) < at && calls.folders.includes(dirname(rel) === '/' ? '' : dirname(rel))), `calls.folders in planCloneCalls (src/utils/worktreeClone.ts) must list each cut folder after the cut folder above it: ${JSON.stringify(calls.folders).slice(0, 200)}`)
+    check(`no call clones more than 4,096 entries (the largest of ${calls.clones.length}: ${largest})`, largest <= BOUND, `${largest}; planCloneCalls in src/platform/git/worktree/worktreeClone.ts must cut a folder into its entries when it holds more than ENTRIES_A_CALL (4096) entries`)
+    check('the folders cut into their entries are the folder itself, each group and the folder of 4,815 entries', JSON.stringify([...cut].sort()) === JSON.stringify(['', '/giant', ...Array.from({ length: groups }, (_, index) => `/g${index + 1}`)].sort()), `${JSON.stringify([...cut].sort())}; planCloneCalls in src/platform/git/worktree/worktreeClone.ts should cut only the folder itself, each group and /giant`)
+    check('…each named after the folder above it', calls.folders.every((rel, at) => rel === '' || calls.folders.indexOf(dirname(rel) === '/' ? '' : dirname(rel)) < at && calls.folders.includes(dirname(rel) === '/' ? '' : dirname(rel))), `calls.folders in planCloneCalls (src/platform/git/worktree/worktreeClone.ts) must list each cut folder after the cut folder above it: ${JSON.stringify(calls.folders).slice(0, 200)}`)
     let uncovered = 0
     let twice = 0
     for (const at of sourceEntries.keys()) {
@@ -146,13 +146,13 @@ try {
       for (let up = at; up !== ''; up = up.slice(0, up.lastIndexOf('/'))) if (clones.has(up)) covering++
       if (cut.has(at) ? covering !== 0 : covering !== 1) covering === 0 ? uncovered++ : twice++
     }
-    check('every entry of the folder is in exactly one call, or is a folder that was cut', uncovered === 0 && twice === 0, `${uncovered} in no call, ${twice} in more than one; planCloneCalls in src/utils/worktreeClone.ts must put each entry under exactly one clones path, or make its folder a cut folder`)
-    check('a folder of 4,001 entries is one call', clones.has('/full') && sizeUnder('/full') === 4001, `${sizeUnder('/full')}; planCloneCalls in src/utils/worktreeClone.ts must keep a folder of at most 4096 entries as one call`)
-    check(links ? 'a file and a link that lie directly in a cut folder are calls of their own' : 'a file that lies directly in a cut folder is a call of its own', clones.has('/top.txt') && (!links || clones.has('/toplink')) && clones.has('/giant/direct-1.js') && clones.has('/giant/direct-2.js'), `planCloneCalls in src/utils/worktreeClone.ts must add the files and links lying directly in a cut folder to clones; clones: ${JSON.stringify([...clones].filter(rel => !rel.includes('/part-') && !/^\/g\d/.test(rel))).slice(0, 200)}`)
+    check('every entry of the folder is in exactly one call, or is a folder that was cut', uncovered === 0 && twice === 0, `${uncovered} in no call, ${twice} in more than one; planCloneCalls in src/platform/git/worktree/worktreeClone.ts must put each entry under exactly one clones path, or make its folder a cut folder`)
+    check('a folder of 4,001 entries is one call', clones.has('/full') && sizeUnder('/full') === 4001, `${sizeUnder('/full')}; planCloneCalls in src/platform/git/worktree/worktreeClone.ts must keep a folder of at most 4096 entries as one call`)
+    check(links ? 'a file and a link that lie directly in a cut folder are calls of their own' : 'a file that lies directly in a cut folder is a call of its own', clones.has('/top.txt') && (!links || clones.has('/toplink')) && clones.has('/giant/direct-1.js') && clones.has('/giant/direct-2.js'), `planCloneCalls in src/platform/git/worktree/worktreeClone.ts must add the files and links lying directly in a cut folder to clones; clones: ${JSON.stringify([...clones].filter(rel => !rel.includes('/part-') && !/^\/g\d/.test(rel))).slice(0, 200)}`)
     const flatCalls = await (plan as NonNullable<typeof plan>)(join(flat, 'flat'))
-    check('a folder whose 4,500 files all lie directly in it stays one call: cutting it would make 4,500', JSON.stringify({ folders: flatCalls.folders, clones: flatCalls.clones }) === JSON.stringify({ folders: [], clones: [''] }), `${JSON.stringify(flatCalls).slice(0, 200)}; planCloneCalls in src/utils/worktreeClone.ts must not cut a folder whose entries are nearly all direct files (see DIRECT_SHARE)`)
+    check('a folder whose 4,500 files all lie directly in it stays one call: cutting it would make 4,500', JSON.stringify({ folders: flatCalls.folders, clones: flatCalls.clones }) === JSON.stringify({ folders: [], clones: [''] }), `${JSON.stringify(flatCalls).slice(0, 200)}; planCloneCalls in src/platform/git/worktree/worktreeClone.ts must not cut a folder whose entries are nearly all direct files (see DIRECT_SHARE)`)
     const smallCalls = await (plan as NonNullable<typeof plan>)(join(flat, 'small'))
-    check('a small folder is one call, as before', JSON.stringify({ folders: smallCalls.folders, clones: smallCalls.clones }) === JSON.stringify({ folders: [], clones: [''] }), `${JSON.stringify(smallCalls)}; planCloneCalls in src/utils/worktreeClone.ts must plan a small folder as the single call for the folder itself`)
+    check('a small folder is one call, as before', JSON.stringify({ folders: smallCalls.folders, clones: smallCalls.clones }) === JSON.stringify({ folders: [], clones: [''] }), `${JSON.stringify(smallCalls)}; planCloneCalls in src/platform/git/worktree/worktreeClone.ts must plan a small folder as the single call for the folder itself`)
   }
 
   if (!cloning) {
@@ -169,14 +169,14 @@ try {
     const bound = Math.max(250, oneCall / 4)
     console.log(`  ONE clonefile call for the folder: ${oneCall} ms, and the longest a rename elsewhere waited meanwhile: ${control.worst.toFixed(0)} ms (${control.done} renames came back)`)
     console.log(`  the product's clone of the same folder: ${product.took.toFixed(0)} ms in all, and the longest a rename elsewhere waited meanwhile: ${product.worst.toFixed(0)} ms (${product.done} renames came back)`)
-    check('the folder is cloned', product.answer[0] === 'cloned', `${JSON.stringify(product.answer)}; cloneIntoWorktree in src/utils/worktreeClone.ts did not clone the node_modules fixture, look at which outcome it returned`)
-    check(`no rename elsewhere on the volume waited a quarter of a second (a quarter of the one call, were the machine so loaded that the call takes over a second): ${product.worst.toFixed(0)} ms against a bound of ${bound.toFixed(0)} ms`, control.answer !== null && product.worst < bound, `${product.worst.toFixed(0)} ms; one call holds it ${control.worst.toFixed(0)} ms; cloneIntoWorktree in src/utils/worktreeClone.ts must clone in calls of at most ENTRIES_A_CALL entries so a rename elsewhere on the volume is not held`)
+    check('the folder is cloned', product.answer[0] === 'cloned', `${JSON.stringify(product.answer)}; cloneIntoWorktree in src/platform/git/worktree/worktreeClone.ts did not clone the node_modules fixture, look at which outcome it returned`)
+    check(`no rename elsewhere on the volume waited a quarter of a second (a quarter of the one call, were the machine so loaded that the call takes over a second): ${product.worst.toFixed(0)} ms against a bound of ${bound.toFixed(0)} ms`, control.answer !== null && product.worst < bound, `${product.worst.toFixed(0)} ms; one call holds it ${control.worst.toFixed(0)} ms; cloneIntoWorktree in src/platform/git/worktree/worktreeClone.ts must clone in calls of at most ENTRIES_A_CALL entries so a rename elsewhere on the volume is not held`)
 
     section('§3 the copy is the folder, entry for entry, the cut folders with what they carried')
     const copy = entriesOf(join(worktree, 'node_modules'))
     const differing = [...sourceEntries].filter(([at, row]) => copy.get(at) !== row).map(([at, row]) => `${at}: ${row} against ${copy.get(at) ?? 'nothing'}`)
-    check('every entry is there with its kind, its size or target, and each folder its mode', copy.size === sourceEntries.size && differing.length === 0, `${copy.size} against ${sourceEntries.size}; ${differing.slice(0, 3).join('; ')}; the copy made by cloneIntoWorktree and planCloneCalls in src/utils/worktreeClone.ts must carry every entry, link target and folder mode of the source`)
-    check('a cut folder keeps its mode', (lstatSync(join(worktree, 'node_modules', 'giant')).mode & 0o7777) === 0o750, `${(lstatSync(join(worktree, 'node_modules', 'giant')).mode & 0o7777).toString(8)}; the cut folder is made by clonefileEach in src/utils/worktreeClone.ts, which must give it the source folder's mode`)
+    check('every entry is there with its kind, its size or target, and each folder its mode', copy.size === sourceEntries.size && differing.length === 0, `${copy.size} against ${sourceEntries.size}; ${differing.slice(0, 3).join('; ')}; the copy made by cloneIntoWorktree and planCloneCalls in src/platform/git/worktree/worktreeClone.ts must carry every entry, link target and folder mode of the source`)
+    check('a cut folder keeps its mode', (lstatSync(join(worktree, 'node_modules', 'giant')).mode & 0o7777) === 0o750, `${(lstatSync(join(worktree, 'node_modules', 'giant')).mode & 0o7777).toString(8)}; the cut folder is made by clonefileEach in src/platform/git/worktree/worktreeClone.ts, which must give it the source folder's mode`)
     const noteOf = (path: string): string => {
       try {
         return execFileSync('xattr', ['-p', 'com.example.proof', path], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
@@ -184,12 +184,12 @@ try {
         return '<none>'
       }
     }
-    check('a cut folder keeps its extended attribute, as a folder cloned whole does', noteOf(join(worktree, 'node_modules', 'giant')) === 'kept' && noteOf(join(worktree, 'node_modules', 'full')) === 'kept', `${noteOf(join(worktree, 'node_modules', 'giant'))} and ${noteOf(join(worktree, 'node_modules', 'full'))}; the cut folder made in src/utils/worktreeClone.ts must keep the source folder's extended attributes`)
+    check('a cut folder keeps its extended attribute, as a folder cloned whole does', noteOf(join(worktree, 'node_modules', 'giant')) === 'kept' && noteOf(join(worktree, 'node_modules', 'full')) === 'kept', `${noteOf(join(worktree, 'node_modules', 'giant'))} and ${noteOf(join(worktree, 'node_modules', 'full'))}; the cut folder made in src/platform/git/worktree/worktreeClone.ts must keep the source folder's extended attributes`)
     check('a file in the copy is its own: a write there does not reach the checkout', (() => {
       writeFileSync(join(worktree, 'node_modules', 'g1', 'pkg-0', 'lib', 'f1.js'), 'changed in the copy\n')
       return readFileSync(join(source, 'g1', 'pkg-0', 'lib', 'f1.js'), 'utf8') === 'module.exports = 1\n'
-    })(), 'a write in the copy changed the checkout file: cloneIntoWorktree in src/utils/worktreeClone.ts must clone files, not link or share them')
-    check('nothing is left beside the copy', readdirSync(dirname(worktree)).every(name => !name.startsWith('.cloning-')), `a .cloning- staging folder was left in ${dirname(worktree)}: cloneIntoWorktree in src/utils/worktreeClone.ts must rename or remove its stage when it finishes`)
+    })(), 'a write in the copy changed the checkout file: cloneIntoWorktree in src/platform/git/worktree/worktreeClone.ts must clone files, not link or share them')
+    check('nothing is left beside the copy', readdirSync(dirname(worktree)).every(name => !name.startsWith('.cloning-')), `a .cloning- staging folder was left in ${dirname(worktree)}: cloneIntoWorktree in src/platform/git/worktree/worktreeClone.ts must rename or remove its stage when it finishes`)
 
     section('§4 two copies asked for at once take their turns: one helper at a time')
     const small = join(source, 'g1')
@@ -217,8 +217,8 @@ try {
     }
     const outcomes = await both
     const smallEntries = [...sourceEntries.keys()].filter(at => at.startsWith('/g1/')).length
-    check('both folders are cloned whole', outcomes[0]?.[0] === 'cloned' && outcomes[1]?.[0] === 'cloned' && entriesOf(join(first, 'node_modules')).size === smallEntries && entriesOf(join(second, 'node_modules')).size === smallEntries, `${JSON.stringify(outcomes)}; two cloneIntoWorktree calls in src/utils/worktreeClone.ts at once must each clone the folder whole`)
-    check('never more than one helper at a time', most === 1, `${most} at once; the clone helper runs in inTurn in src/utils/worktreeClone.ts, which must let one osascript helper run at a time`)
+    check('both folders are cloned whole', outcomes[0]?.[0] === 'cloned' && outcomes[1]?.[0] === 'cloned' && entriesOf(join(first, 'node_modules')).size === smallEntries && entriesOf(join(second, 'node_modules')).size === smallEntries, `${JSON.stringify(outcomes)}; two cloneIntoWorktree calls in src/platform/git/worktree/worktreeClone.ts at once must each clone the folder whole`)
+    check('never more than one helper at a time', most === 1, `${most} at once; the clone helper runs in inTurn in src/platform/git/worktree/worktreeClone.ts, which must let one osascript helper run at a time`)
   }
 } finally {
   removeBig(scratch)

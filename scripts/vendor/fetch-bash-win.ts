@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { BASH_PACK_NAME, BASH_PACK_PATH, bashPackPlatform } from '../../src/utils/shell/bashPack.ts'
-import { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget } from '../../src/services/privateChannel/releaseTarget.ts'
+import { BASH_PACK_NAME, BASH_PACK_PATH, bashPackPlatform } from '../../src/platform/shell/bashPack.ts'
+import { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget } from '../../src/platform/update-channel/releaseTarget.ts'
 import {
   BashWinPackRefused,
   bashWinPackFault,

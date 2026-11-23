@@ -3,7 +3,7 @@ import { rmSync } from 'node:fs'
 import { makeWorld, bootLead, LEAD_MODEL, toolResultOf, userTextsOf } from './crew-world.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ResumeAgentTool } = await import('../../src/tools/ResumeAgentTool/ResumeAgentTool.ts')
+const { ResumeAgentTool } = await import('../../src/tools/resume-crewmate/ResumeAgentTool.ts')
 const childPrompt = 'interrupt-child-only'
 const resumePrompt = 'resume-the-cut-turn-now'
 const world = await makeWorld('resume-interrupt', [
@@ -32,11 +32,11 @@ try {
   assert.equal(second.model, LEAD_MODEL)
   assert.equal(second.output_config?.effort, first.output_config?.effort)
   const secondJson = JSON.stringify(second.messages)
-  assert.ok(secondJson.includes('CHILD-PARTIAL'), 'interrupted child resume request dropped partial assistant text CHILD-PARTIAL in src/tools/AgentTool/resumeAgent.ts')
-  assert.ok(secondJson.includes('[Request interrupted by user]'), 'interrupted child resume request omitted [Request interrupted by user] marker in src/tools/AgentTool/resumeAgent.ts')
-  assert.ok(secondJson.includes(resumePrompt), 'interrupted child resume request omitted resume prompt text in src/tools/AgentTool/resumeAgent.ts')
+  assert.ok(secondJson.includes('CHILD-PARTIAL'), 'interrupted child resume request dropped partial assistant text CHILD-PARTIAL in src/tools/crewmate/resumeCrewmate.ts')
+  assert.ok(secondJson.includes('[Request interrupted by user]'), 'interrupted child resume request omitted [Request interrupted by user] marker in src/tools/crewmate/resumeCrewmate.ts')
+  assert.ok(secondJson.includes(resumePrompt), 'interrupted child resume request omitted resume prompt text in src/tools/crewmate/resumeCrewmate.ts')
   await lead.waitFor('resumed child completes', () => userTextsOf(world).some(text => text.includes('<result>CHILD-RESUMED</result>')))
-  assert.ok(userTextsOf(world).some(text => text.includes('<status>interrupted</status>')), 'lead did not receive interrupted status notice for cut child turn in src/tasks/LocalAgentTask/')
+  assert.ok(userTextsOf(world).some(text => text.includes('<status>interrupted</status>')), 'lead did not receive interrupted status notice for cut child turn in src/engine/tasks/local-agent/')
   assert.equal(childRequests().length, 2, 'exactly one replacement turn')
   assert.equal(await lead.end(), 0)
   console.log('PASS delta pin 11: typed interrupt, partial replay, same model and effort, one immediate replacement turn')

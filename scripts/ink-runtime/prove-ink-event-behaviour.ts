@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { Event } from '../../src/ink/events/event.ts'
+import { Event } from '../../src/screen/renderer/events/event.ts'
 
-const WHERE = 'Event in src/ink/events/event.ts'
+const WHERE = 'Event in src/screen/renderer/events/event.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

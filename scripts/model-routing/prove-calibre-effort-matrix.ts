@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-const effortMatrixHint = ' | to fix, change resolveEffortTruth, resolveWireRequestedEffort or selectableEffortLevels in src/utils/effort.ts, the vocabulary reads in src/utils/model/capabilities.ts, resolveGptReasoningProfile in src/services/providers/openai/openaiCatalogue.ts, the /effort receipts in src/commands/effort/effort.ts, glmAcceptsEffort in src/utils/model/pins/glmPins.ts, or toBridgeMessages in src/services/providers/openai/openaiCallModel.ts, whichever this label names'
+const effortMatrixHint = ' | to fix, change resolveEffortTruth, resolveWireRequestedEffort or selectableEffortLevels in src/models/effort/effort.ts, the vocabulary reads in src/models/facts/capabilities.ts, resolveGptReasoningProfile in src/models/roads/openai/openaiCatalogue.ts, the /effort receipts in src/commands/effort/effort.ts, glmAcceptsEffort in src/models/facts/pins/glmPins.ts, or toBridgeMessages in src/models/roads/openai/openaiCallModel.ts, whichever this label names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : effortMatrixHint}`)
@@ -32,12 +32,12 @@ for (const key of [
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-calibre-effort-'))
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
-const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
+const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.js')
 const { resolveGptReasoningProfile, refreshOpenaiCatalogue, __resetOpenaiCatalogueForTest } = catalogue
-const capabilities = await import('../../src/utils/model/capabilities.js')
-const effort = await import('../../src/utils/effort.js')
+const capabilities = await import('../../src/models/facts/capabilities.js')
+const effort = await import('../../src/models/effort/effort.js')
 const effortCmd = await import('../../src/commands/effort/effort.js')
-const glmPins = await import('../../src/utils/model/pins/glmPins.js')
+const glmPins = await import('../../src/models/facts/pins/glmPins.js')
 
 type LiveModel = Parameters<typeof resolveGptReasoningProfile>[1]
 
@@ -279,7 +279,7 @@ function clearEffortEnv(): void {
 
 {
   console.log('\n— 11 · replay compatibility: same-model rides · cross-model derives —')
-  const bridge = await import('../../src/services/providers/openai/openaiCallModel.js')
+  const bridge = await import('../../src/models/roads/openai/openaiCallModel.js')
   const mkAssistant = (model: string, opts: { record?: boolean; settled?: boolean; id?: string }) => ({
     type: 'assistant' as const,
     uuid: `u-${Math.abs(Math.random() * 1e9) | 0}`,

@@ -3,9 +3,9 @@ import assert from 'node:assert/strict'
 import axios from 'axios'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { readHostedPage } = await import('../../src/tools/WebFetchTool/reader.js')
-const { FetchPacing } = await import('../../src/tools/WebFetchTool/fetchPacing.js')
-const { liveSearchClock } = await import('../../src/services/search/searchPacing.js')
+const { readHostedPage } = await import('../../src/tools/web-fetch/reader.js')
+const { FetchPacing } = await import('../../src/tools/web-fetch/fetchPacing.js')
+const { liveSearchClock } = await import('../../src/tools/engines/web-search/searchPacing.js')
 const priorClock = { ...liveSearchClock }
 const seen: string[] = []
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
@@ -29,13 +29,13 @@ try {
   for (const host of privateNames) {
     const before = seen.length
     const result = await readHostedPage(`https://${host}/dashboard?token=secret`, new AbortController().signal, pace)
-    check(`a page on ${host} is never sent to the hosted reader (its words are the sparse page's own)`, seen.length === before && result.content === undefined && result.notice.includes('not sent to a hosted reader'), `${host} reached the hosted reader or got another notice (${result.notice}); make isPrivateReaderHost in src/tools/WebFetchTool/privateHost.ts match this name, which readHostedPage in src/tools/WebFetchTool/reader.ts checks`)
+    check(`a page on ${host} is never sent to the hosted reader (its words are the sparse page's own)`, seen.length === before && result.content === undefined && result.notice.includes('not sent to a hosted reader'), `${host} reached the hosted reader or got another notice (${result.notice}); make isPrivateReaderHost in src/tools/web-fetch/privateHost.ts match this name, which readHostedPage in src/tools/web-fetch/reader.ts checks`)
   }
   const before = seen.length
   const open = await readHostedPage('https://news.example.org/story?id=1', new AbortController().signal, pace)
-  check('a public host still reaches the reader', seen.length === before + 1 && open.content !== undefined, `a public host got no reader content (${open.notice}); readHostedPage in src/tools/WebFetchTool/reader.ts or isPrivateReaderHost in privateHost.ts refuses too much`)
+  check('a public host still reaches the reader', seen.length === before + 1 && open.content !== undefined, `a public host got no reader content (${open.notice}); readHostedPage in src/tools/web-fetch/reader.ts or isPrivateReaderHost in privateHost.ts refuses too much`)
 
-  const { fetchPage } = await import('../../src/tools/WebFetchTool/fetchTransport.js')
+  const { fetchPage } = await import('../../src/tools/web-fetch/fetchTransport.js')
   Object.assign(liveSearchClock, { now: () => 0, random: () => 0.5, sleep: async () => {} })
   axios.get = (async (url: string) => { throw new axios.AxiosError(`getaddrinfo ENOTFOUND ${new URL(url).hostname}`, 'ENOTFOUND') }) as typeof axios.get
   const refusal = async (url: string): Promise<string> => {
@@ -43,9 +43,9 @@ try {
     return 'fetched'
   }
   const lan = await refusal('http://wiki.lan/page')
-  check('a private DNS failure names its cause, hosted-reader boundary, backoff and robots refusal', lan === 'The robots rules could not be fetched: DNS failure (ENOTFOUND). Hosted reader not attempted: a private address is never sent to the hosted reader. Backed off this host for 30s across agents in this session; do not retry before the wait ends. Mercury cannot verify robots.txt, so the page was not fetched.' && seen.length === before + 1, `${lan} | change readerDecision or the FetchRefusedError text in fetchPage/checkRobots in src/tools/WebFetchTool/fetchTransport.ts, or the reader call count (seen ${seen.length}, want ${before + 1})`)
+  check('a private DNS failure names its cause, hosted-reader boundary, backoff and robots refusal', lan === 'The robots rules could not be fetched: DNS failure (ENOTFOUND). Hosted reader not attempted: a private address is never sent to the hosted reader. Backed off this host for 30s across agents in this session; do not retry before the wait ends. Mercury cannot verify robots.txt, so the page was not fetched.' && seen.length === before + 1, `${lan} | change readerDecision or the FetchRefusedError text in fetchPage/checkRobots in src/tools/web-fetch/fetchTransport.ts, or the reader call count (seen ${seen.length}, want ${before + 1})`)
   const pub = await refusal('https://news.example.org/story?id=2')
-  check('a public DNS failure names its cause, hosted-reader decision, backoff and robots refusal', pub === 'The robots rules could not be fetched: DNS failure (ENOTFOUND). Hosted reader not attempted: it renders sparse successful HTML, not network failures or site refusals. Backed off this host for 30s across agents in this session; do not retry before the wait ends. Mercury cannot verify robots.txt, so the page was not fetched.' && seen.length === before + 1, `${pub} | change readerDecision or the FetchRefusedError text in fetchPage/checkRobots in src/tools/WebFetchTool/fetchTransport.ts, or the reader call count (seen ${seen.length}, want ${before + 1})`)
+  check('a public DNS failure names its cause, hosted-reader decision, backoff and robots refusal', pub === 'The robots rules could not be fetched: DNS failure (ENOTFOUND). Hosted reader not attempted: it renders sparse successful HTML, not network failures or site refusals. Backed off this host for 30s across agents in this session; do not retry before the wait ends. Mercury cannot verify robots.txt, so the page was not fetched.' && seen.length === before + 1, `${pub} | change readerDecision or the FetchRefusedError text in fetchPage/checkRobots in src/tools/web-fetch/fetchTransport.ts, or the reader call count (seen ${seen.length}, want ${before + 1})`)
 } finally {
   Object.assign(liveSearchClock, priorClock)
   axios.get = get

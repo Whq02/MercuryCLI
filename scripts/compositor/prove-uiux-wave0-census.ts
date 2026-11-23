@@ -81,7 +81,7 @@ section('BM-19 — splash OSC 11 ground write, emitted bytes under the one spell
 
 section('UI-007 — same-context legacy-projection collisions in the authored bindings')
 {
-  const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.js')
+  const { DEFAULT_BINDINGS } = await import('../../src/screen/keys/defaultBindings.js')
   const legacyClass = (chord: string): string | null => {
     const c = chord.toLowerCase().trim()
     if (/^ctrl\+shift\+[a-z]$/.test(c)) return `C0:${c.slice(-1)}`
@@ -115,13 +115,13 @@ section('UI-007 — same-context legacy-projection collisions in the authored bi
   check(
     'census: the collision list is DETERMINISTIC and recorded (each row names context, byte class, both actions)',
     collisions.every(c => /^[A-Za-z]+\/C0:.+ vs /.test(c)),
-    collisions.join(' | ') + ' | each row must read context/C0:letter chordA→actionA vs chordB→actionB; fix the offending bindings in src/keybindings/defaultBindings.ts',
+    collisions.join(' | ') + ' | each row must read context/C0:letter chordA→actionA vs chordB→actionB; fix the offending bindings in src/screen/keys/defaultBindings.ts',
   )
 }
 
 section('BM-20 — held is a settled receipt; release is obligation-exact (UI-027..037)')
 {
-  const ledger = await import('../../src/ink/root/terminalModeLedger.js')
+  const ledger = await import('../../src/screen/renderer/root/terminalModeLedger.js')
   ledger._resetTerminalModeLedgerForTesting()
   ledger.noteModesImported('launcher-splash', ['alt-screen', 'alternate-scroll', 'cursor-hidden'])
   const open1 = ledger.openModeObligations('launcher-splash')
@@ -132,7 +132,7 @@ section('BM-20 — held is a settled receipt; release is obligation-exact (UI-02
     JSON.stringify(open1) === JSON.stringify(['alt-screen', 'alternate-scroll', 'cursor-hidden']) &&
       JSON.stringify(open2) === JSON.stringify(['alt-screen', 'cursor-hidden']) &&
       ledger.openModeObligations('someone-else').length === 0,
-    JSON.stringify({ open1, open2 }) + ' | noteModesImported, noteModeReleased and openModeObligations in src/ink/root/terminalModeLedger.ts must track one obligation per imported mode and release them one by one',
+    JSON.stringify({ open1, open2 }) + ' | noteModesImported, noteModeReleased and openModeObligations in src/screen/renderer/root/terminalModeLedger.ts must track one obligation per imported mode and release them one by one',
   )
   ledger._resetTerminalModeLedgerForTesting()
 }
@@ -140,7 +140,7 @@ section('BM-20 — held is a settled receipt; release is obligation-exact (UI-02
 section('BM-22/23 — the remaining desired laws, pinned as flip targets')
 {
   {
-    const policy = await import('../../src/ink/termio/alternateScrollPolicy.js')
+    const policy = await import('../../src/screen/renderer/termio/alternateScrollPolicy.js')
     const arrow = (name: 'up' | 'down'): Record<string, unknown> => ({
       kind: 'key',
       name,
@@ -164,37 +164,37 @@ section('BM-22/23 — the remaining desired laws, pinned as flip targets')
       'UI-053: three wheel notches settle IDENTICALLY split (3×1) or coalesced (1×3) — one notch never walks history',
       JSON.stringify(oneByOne) === JSON.stringify(coalesced) &&
         JSON.stringify(coalesced) === JSON.stringify(['wheelup', 'wheelup', 'wheelup']),
-      `split=${oneByOne.join(',')} coalesced=${coalesced.join(',')}; resolveAlternateScrollIntent in src/ink/termio/alternateScrollPolicy.ts must map each plain arrow to a wheel notch the same way for any batch size`,
+      `split=${oneByOne.join(',')} coalesced=${coalesced.join(',')}; resolveAlternateScrollIntent in src/screen/renderer/termio/alternateScrollPolicy.ts must map each plain arrow to a wheel notch the same way for any batch size`,
     )
     check(
       'UI-054: a mixed batch maps ONLY its plain arrows, order preserved (no all-or-nothing batch shape)',
       JSON.stringify(
         names([arrow('down'), { kind: 'key', name: 'a', ctrl: false, meta: false, shift: false, option: false }, arrow('down')], engaged),
       ) === JSON.stringify(['wheeldown', 'a', 'wheeldown']),
-      'resolveAlternateScrollIntent in src/ink/termio/alternateScrollPolicy.ts must map only the plain arrows of a mixed batch and keep the order',
+      'resolveAlternateScrollIntent in src/screen/renderer/termio/alternateScrollPolicy.ts must map only the plain arrows of a mixed batch and keep the order',
     )
     check(
       'UI-055: an ELEVATED surface keeps arrows as arrows (list navigation owns them)',
       JSON.stringify(names([arrow('up'), arrow('up')], { ...engaged, elevatedSurfaceActive: true })) ===
         JSON.stringify(['up', 'up']),
-      'resolveAlternateScrollIntent in src/ink/termio/alternateScrollPolicy.ts must leave arrows alone when elevatedSurfaceActive is true',
+      'resolveAlternateScrollIntent in src/screen/renderer/termio/alternateScrollPolicy.ts must leave arrows alone when elevatedSurfaceActive is true',
     )
     check(
       'UI-056: tracking-ON and main-screen states are untouched (the policy engages ONLY in native-selection)',
       JSON.stringify(names([arrow('up'), arrow('up')], { ...engaged, mouseTrackingEnabled: true })) ===
         JSON.stringify(['up', 'up']) &&
         JSON.stringify(names([arrow('up')], { ...engaged, altScreenActive: false })) === JSON.stringify(['up']),
-      'resolveAlternateScrollIntent in src/ink/termio/alternateScrollPolicy.ts must engage only with altScreenActive true and mouseTrackingEnabled false',
+      'resolveAlternateScrollIntent in src/screen/renderer/termio/alternateScrollPolicy.ts must engage only with altScreenActive true and mouseTrackingEnabled false',
     )
     check(
       'UI-057: modified arrows never map (ctrl/shift/meta arrows keep their own meanings)',
       JSON.stringify(names([{ ...arrow('up'), shift: true }], engaged)) === JSON.stringify(['up']),
-      'resolveAlternateScrollIntent in src/ink/termio/alternateScrollPolicy.ts must not map an arrow that carries ctrl, shift, meta or option',
+      'resolveAlternateScrollIntent in src/screen/renderer/termio/alternateScrollPolicy.ts must not map an arrow that carries ctrl, shift, meta or option',
     )
     check(
       'UI-057: a super-modified arrow keeps its own meaning too (super+up is never a wheel notch)',
       JSON.stringify(names([{ ...arrow('up'), super: true }, { ...arrow('down'), super: true }], engaged)) === JSON.stringify(['up', 'down']),
-      JSON.stringify(names([{ ...arrow('up'), super: true }], engaged)) + ' | resolveAlternateScrollIntent in src/ink/termio/alternateScrollPolicy.ts must not map an arrow that carries super',
+      JSON.stringify(names([{ ...arrow('up'), super: true }], engaged)) + ' | resolveAlternateScrollIntent in src/screen/renderer/termio/alternateScrollPolicy.ts must not map an arrow that carries super',
     )
     const historyRows = rowsBinding(shippedKeyForms(), action => action === 'history:previous' || action === 'history:next')
     check(
@@ -205,31 +205,31 @@ section('BM-22/23 — the remaining desired laws, pinned as flip targets')
     check(
       '§policy identity: scroll-first-in-native-selection is the documented choice',
       policy.ALTERNATE_SCROLL_POLICY === 'scroll-first-in-native-selection',
-      'ALTERNATE_SCROLL_POLICY in src/ink/termio/alternateScrollPolicy.ts changed; restore it or update this census on purpose',
+      'ALTERNATE_SCROLL_POLICY in src/screen/renderer/termio/alternateScrollPolicy.ts changed; restore it or update this census on purpose',
     )
   }
   {
-    const { defaultPingMethod, buildOsc9Notification } = await import('../../src/ink/termio/notifyPing.js')
+    const { defaultPingMethod, buildOsc9Notification } = await import('../../src/screen/renderer/termio/notifyPing.js')
     check(
       'UI-078: every terminal has a ping road — the bell floor where OSC 9 is unproven (Windows Terminal, an unknown terminal), never silence',
       defaultPingMethod('windows-terminal') === 'bell' && defaultPingMethod('') === 'bell' && defaultPingMethod(null) === 'bell',
-      'defaultPingMethod in src/ink/termio/notifyPing.ts must return bell for windows-terminal, an empty name and null',
+      'defaultPingMethod in src/screen/renderer/termio/notifyPing.ts must return bell for windows-terminal, an empty name and null',
     )
     check(
       'UI-119: Apple Terminal takes the bell — its own profile decides audible versus visual',
       defaultPingMethod('Apple_Terminal') === 'bell',
-      'defaultPingMethod in src/ink/termio/notifyPing.ts must return bell for Apple_Terminal',
+      'defaultPingMethod in src/screen/renderer/termio/notifyPing.ts must return bell for Apple_Terminal',
     )
-    check('OSC 9 stands where proven (iTerm2)', defaultPingMethod('iTerm.app') === 'osc9', 'defaultPingMethod in src/ink/termio/notifyPing.ts must return osc9 for iTerm.app')
+    check('OSC 9 stands where proven (iTerm2)', defaultPingMethod('iTerm.app') === 'osc9', 'defaultPingMethod in src/screen/renderer/termio/notifyPing.ts must return osc9 for iTerm.app')
   }
 }
 
 section('UI-061..064 — authored chords classified through the live protocol; collisions never silent')
 {
-  const { buildAtlas } = await import('../../src/keybindings/atlas.js')
-  const { parseBindings } = await import('../../src/keybindings/parser.js')
-  const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.js')
-  const { classifyChordDelivery } = await import('../../src/keybindings/delivery.js')
+  const { buildAtlas } = await import('../../src/screen/keys/atlas.js')
+  const { parseBindings } = await import('../../src/screen/keys/parser.js')
+  const { DEFAULT_BINDINGS } = await import('../../src/screen/keys/defaultBindings.js')
+  const { classifyChordDelivery } = await import('../../src/screen/keys/delivery.js')
   const defaults = parseBindings(DEFAULT_BINDINGS as never)
   const authored = parseBindings([
     ...(DEFAULT_BINDINGS as never[]),
@@ -246,13 +246,13 @@ section('UI-061..064 — authored chords classified through the live protocol; c
     'UI-063: on a LEGACY wire a user-authored Ctrl+Shift+O is marked aliases-to AND carries its collision (toggleTranscript) — never silent',
     legacyShift?.delivery?.status === 'aliases-to' &&
       legacyShift?.collidesWith?.action === 'app:toggleTranscript',
-    JSON.stringify({ delivery: legacyShift?.delivery, collides: legacyShift?.collidesWith }) + ' | buildAtlas in src/keybindings/atlas.ts must mark ctrl+shift+o as aliases-to on a legacy wire and name the toggleTranscript collision',
+    JSON.stringify({ delivery: legacyShift?.delivery, collides: legacyShift?.collidesWith }) + ' | buildAtlas in src/screen/keys/atlas.ts must mark ctrl+shift+o as aliases-to on a legacy wire and name the toggleTranscript collision',
   )
   check(
     'UI-061: an extended-keys profile delivers the same chord distinctly (no collision marker; declared-identity reason stated)',
     shiftRow(extended)?.delivery?.status === 'deliverable' &&
       shiftRow(extended)?.collidesWith === undefined,
-    'buildAtlas in src/keybindings/atlas.ts must mark ctrl+shift+o deliverable with no collision when extendedKeys is true',
+    'buildAtlas in src/screen/keys/atlas.ts must mark ctrl+shift+o deliverable with no collision when extendedKeys is true',
   )
   const fallbackRow = legacy.find(
     r => r.action === 'app:toggleTerminal' && /ctrl\+x/i.test(r.chord),
@@ -260,7 +260,7 @@ section('UI-061..064 — authored chords classified through the live protocol; c
   check(
     'UI-064: a PORTABLE fallback (ctrl+x o) authored beside it is deliverable on every protocol',
     fallbackRow?.delivery?.status === 'deliverable',
-    'buildAtlas in src/keybindings/atlas.ts and classifyChordDelivery in src/keybindings/delivery.ts must mark a chord sequence deliverable',
+    'buildAtlas in src/screen/keys/atlas.ts and classifyChordDelivery in src/screen/keys/delivery.ts must mark a chord sequence deliverable',
   )
   check(
     'classifier table: shift-collapse on legacy · distinct on extended · sequences and plain keys deliverable',
@@ -269,24 +269,24 @@ section('UI-061..064 — authored chords classified through the live protocol; c
       classifyChordDelivery('ctrl+shift+o', true).status === 'deliverable' &&
       classifyChordDelivery('ctrl+x o', false).status === 'deliverable' &&
       classifyChordDelivery('a', false).status === 'deliverable',
-    'classifyChordDelivery in src/keybindings/delivery.ts must return aliases-to with sibling ctrl+o for ctrl+shift+o on a legacy wire and deliverable otherwise',
+    'classifyChordDelivery in src/screen/keys/delivery.ts must return aliases-to with sibling ctrl+o for ctrl+shift+o on a legacy wire and deliverable otherwise',
   )
 }
 
 
 section('RV — reasoning depth is not answer length; one balanced default + one override')
 {
-  const contract = await import('../../src/prompt/mercuryContract.js')
+  const contract = await import('../../src/engine/system-prompt/mercuryContract.js')
   check(
     'RV-02/08: the constitution names no reasoning-depth knob (no retired word) and no answer-length rule',
     !new RegExp('\\b(effort|' + ['deep', 'think'].join('') + '|' + ['super', 'code'].join('') + '|verbosity|brevity)\\b', 'i').test(contract.MERCURY_CONSTITUTION),
-    'remove the reasoning-depth or answer-length word from MERCURY_CONSTITUTION in src/prompt/mercuryContract.ts',
+    'remove the reasoning-depth or answer-length word from MERCURY_CONSTITUTION in src/engine/system-prompt/mercuryContract.ts',
   )
   check(
     'RV-03/04/05: the stated-preferences rule is the constitution\'s; no narration or appendix rule rides any seat text',
     /stated preferences on scope, approach, delegation and communication ahead of your defaults/.test(contract.MERCURY_CONSTITUTION) &&
       !/narration|appendix/.test([contract.MERCURY_CONSTITUTION, contract.MERCURY_SUBAGENT_CONTRACT].join('\n')),
-    'MERCURY_CONSTITUTION in src/prompt/mercuryContract.ts must keep the stated-preferences sentence, and no narration or appendix rule may appear in it or in MERCURY_SUBAGENT_CONTRACT',
+    'MERCURY_CONSTITUTION in src/engine/system-prompt/mercuryContract.ts must keep the stated-preferences sentence, and no narration or appendix rule may appear in it or in MERCURY_SUBAGENT_CONTRACT',
   )
 }
 
@@ -313,7 +313,7 @@ section('UI-130 — windows-ui binds captures to ONE exact SHA with a live recei
 section('UI-124/125 — copy confirmations name the route that actually settled')
 {
   const { openSelectorPart } = await import('../ui/chatScenarios.ts')
-  const { createAssistantMessage } = await import('../../src/utils/messages/factories.js')
+  const { createAssistantMessage } = await import('../../src/engine/message-shapes/factories.js')
   const copies = await openSelectorPart('uiux-wave0-copy')
   copies.clipboard.confirmation = 'copied (the planted route)'
   await copies.press('c', createAssistantMessage({ content: 'the words of a row' }) as never)

@@ -6,8 +6,8 @@ import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
-const activity = await import('../../src/services/crew/activity.ts')
-type ActivityInput = import('../../src/services/crew/activity.ts').ActivityInput
+const activity = await import('../../src/crew/crewmates/activity.ts')
+type ActivityInput = import('../../src/crew/crewmates/activity.ts').ActivityInput
 
 const fixture = (name: string): Record<string, unknown> =>
   JSON.parse(readFileSync(`scripts/session-graph/fixtures/${name}.fixture.json`, 'utf8'))

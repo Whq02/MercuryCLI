@@ -52,7 +52,7 @@ function under(rows: Row[], root: number): Row[] {
 const isQueryChild = (row: Row): boolean => row.command.includes('--input-type=module') && row.command.includes('node:sqlite')
 let listedUnder: Row[] = []
 const unseen = (): string => `no query child was seen under the owner (listed under it: ${listedUnder.length === 0 ? 'nothing' : listedUnder.map(row => JSON.stringify(row.command.slice(0, 120))).join(' · ')})`
-const queryChildHint = ' | change runSqliteQuery and its child (the disconnect handler and the bound set by MERCURY_SQLITE_QUERY_BOUND_MS) in src/tools/FileReadTool/sqliteQueryProcess.ts'
+const queryChildHint = ' | change runSqliteQuery and its child (the disconnect handler and the bound set by MERCURY_SQLITE_QUERY_BOUND_MS) in src/tools/read/sqliteQueryProcess.ts'
 async function queryChildUnder(root: number, withinMs: number): Promise<{ child: Row; family: Row[] } | null> {
   const until = Date.now() + withinMs
   while (Date.now() < until) {
@@ -76,7 +76,7 @@ async function goneWithin(pid: number, ms: number): Promise<number> {
 if (process.argv[2] === '--owner') {
   const [scenario, file, artifactDirectory] = process.argv.slice(3) as [string, string, string]
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const { runSqliteQuery } = (await import(join(src, 'tools/FileReadTool/sqliteQueryProcess.ts'))) as { runSqliteQuery: (job: Record<string, unknown>, signal: AbortSignal) => Promise<{ rows: string[] }> }
+  const { runSqliteQuery } = (await import(join(src, 'tools/read/sqliteQueryProcess.ts'))) as { runSqliteQuery: (job: Record<string, unknown>, signal: AbortSignal) => Promise<{ rows: string[] }> }
   const job = { file, immutable: false, sql: scenario === 'answer' ? 'SELECT value FROM items ORDER BY id' : ENDLESS, offset: 0, limit: 10, room: 10_000, artifactDirectory }
   const running = runSqliteQuery(job, new AbortController().signal).then(page => ({ rows: page.rows }), error => ({ error: String((error as Error)?.message ?? error) }))
   if (scenario === 'answer') {

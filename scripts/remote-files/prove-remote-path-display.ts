@@ -9,8 +9,8 @@ underScratchHome(import.meta.path)
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { getDisplayPath } = await import('../../src/utils/file.ts')
-const { FilePathLink } = await import('../../src/components/FilePathLink.tsx')
+const { getDisplayPath } = await import('../../src/platform/files/file.ts')
+const { FilePathLink } = await import('../../src/tools/kit/FilePathLink.tsx')
 
 let failures = 0
 let checks = 0
@@ -19,8 +19,8 @@ const check = (label: string, ok: boolean, detail = '', hint = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}${!ok && hint ? ` | fix: ${hint}` : ''}`)
 }
-const displayFix = 'change getDisplayPath in src/utils/file.ts (remote paths come back unchanged through isRemotePath, local paths shorten to the working folder or the home)'
-const linkFix = 'change FilePathLink in src/components/FilePathLink.tsx (a remote path paints as words in a Fragment, a local path as a Link to its file URL with the words as fallback)'
+const displayFix = 'change getDisplayPath in src/platform/files/file.ts (remote paths come back unchanged through isRemotePath, local paths shorten to the working folder or the home)'
+const linkFix = 'change FilePathLink in src/tools/kit/FilePathLink.tsx (a remote path paints as words in a Fragment, a local path as a Link to its file URL with the words as fallback)'
 
 type Painted = { type: unknown; props: { url?: string; fallback?: unknown; children?: unknown } }
 const painted = (filePath: string, children?: string): Painted => FilePathLink(children === undefined ? { filePath } : { filePath, children }) as unknown as Painted

@@ -15,16 +15,16 @@ try {
   const p1 = world.project({ '.clinerules': 'single-file-needle\nSee @docs/x.md\n', 'docs/x.md': 'mentioned-needle\n', 'sub/.clinerules': 'nested-single-needle\n', 'sub/a.ts': '\n' })
   const single = join(p1, '.clinerules')
   const d1 = world.drive(p1, { classify: [single], touch: [join(p1, 'sub/a.ts')] })
-  check('it reaches the first request whole, as written', d1.first === contentsOf(single, 'single-file-needle\nSee @docs/x.md'), d1.first + ' | change the .clinerules single-file read in src/services/instructions/adapters/cline.ts (clineConvention) or getInstructionFiles in src/services/instructions/engine.ts')
-  check('it names its format, classifies as an instruction file and counts as the guide of its folder', d1.entries.find(e => e.path === single)?.convention === 'cline' && d1.classified[single] === true && JSON.stringify(d1.guides) === JSON.stringify([single]), JSON.stringify(d1.entries) + ' | change clineConvention in src/services/instructions/adapters/cline.ts, or isInstructionFilePath and getInstructionBundle in src/services/instructions/engine.ts, or composedGuideFilesAt in src/services/instructions/adapters/index.ts')
-  check('a plain file shown whole counts as read in full', d1.seeded.includes(single), d1.seeded.join(', ') + ' | change seedFileKnowledgeFromInjectedInstructions in src/services/instructions/engine.ts')
-  check('one in a nested folder attaches with its folder', JSON.stringify(d1.touched[0]!.attached.map(a => a.path)) === JSON.stringify([join(p1, 'sub/.clinerules')]), JSON.stringify(d1.touched[0]) + ' | change getNestedMemoryAttachmentsForFile in src/services/attachments/nestedMemory.ts')
+  check('it reaches the first request whole, as written', d1.first === contentsOf(single, 'single-file-needle\nSee @docs/x.md'), d1.first + ' | change the .clinerules single-file read in src/sessions/instructions/adapters/cline.ts (clineConvention) or getInstructionFiles in src/sessions/instructions/instructionFiles.ts')
+  check('it names its format, classifies as an instruction file and counts as the guide of its folder', d1.entries.find(e => e.path === single)?.convention === 'cline' && d1.classified[single] === true && JSON.stringify(d1.guides) === JSON.stringify([single]), JSON.stringify(d1.entries) + ' | change clineConvention in src/sessions/instructions/adapters/cline.ts, or isInstructionFilePath and getInstructionBundle in src/sessions/instructions/instructionFiles.ts, or composedGuideFilesAt in src/sessions/instructions/adapters/index.ts')
+  check('a plain file shown whole counts as read in full', d1.seeded.includes(single), d1.seeded.join(', ') + ' | change seedFileKnowledgeFromInjectedInstructions in src/sessions/instructions/instructionFiles.ts')
+  check('one in a nested folder attaches with its folder', JSON.stringify(d1.touched[0]!.attached.map(a => a.path)) === JSON.stringify([join(p1, 'sub/.clinerules')]), JSON.stringify(d1.touched[0]) + ' | change getNestedMemoryAttachmentsForFile in src/engine/attachments/nestedInstructions.ts')
   const p1b = world.project({ '.clinerules': '---\npaths:\n  - "api/**"\n---\nsingle-scoped-needle\n', 'api/h.go': '\n', 'web/a.ts': '\n' })
   const d1b = world.drive(p1b, { touch: [join(p1b, 'web/a.ts'), join(p1b, 'api/h.go')] })
-  check('with paths the one file is scoped from the folder that holds it', d1b.first === '' && d1b.touched[0]!.attached.length === 0 && d1b.touched[1]!.attached.length === 1 && d1b.touched[1]!.attached[0]!.told.includes(governs(join(p1b, '.clinerules'), 'api/**', 'single-scoped-needle')), JSON.stringify(d1b.touched) + ' | change the paths scoping of a single .clinerules file in src/services/instructions/adapters/cline.ts (read) and getNestedMemoryAttachmentsForFile in src/services/attachments/nestedMemory.ts')
+  check('with paths the one file is scoped from the folder that holds it', d1b.first === '' && d1b.touched[0]!.attached.length === 0 && d1b.touched[1]!.attached.length === 1 && d1b.touched[1]!.attached[0]!.told.includes(governs(join(p1b, '.clinerules'), 'api/**', 'single-scoped-needle')), JSON.stringify(d1b.touched) + ' | change the paths scoping of a single .clinerules file in src/sessions/instructions/adapters/cline.ts (read) and getNestedMemoryAttachmentsForFile in src/engine/attachments/nestedInstructions.ts')
   const p1c = world.project({ 'MERCURY.md': 'native-needle\n', '.clinerules': 'single-file-needle\n' })
   const d1c = world.drive(p1c)
-  check('MERCURY.md decides over it', d1c.first === contentsOf(join(p1c, 'MERCURY.md'), 'native-needle'), d1c.first + ' | change the order in which getInstructionFiles in src/services/instructions/engine.ts picks the deciding guide')
+  check('MERCURY.md decides over it', d1c.first === contentsOf(join(p1c, 'MERCURY.md'), 'native-needle'), d1c.first + ' | change the order in which getInstructionFiles in src/sessions/instructions/instructionFiles.ts picks the deciding guide')
 
   section("Cline's own conditions")
   const p2 = world.project({
@@ -46,10 +46,10 @@ try {
     contentsOf(rule('05-everything.md'), 'everything-needle'),
     contentsOf(join(p2, '.cline/rules/07-second-folder.md'), 'second-folder-needle'),
   ].join('\n\n')
-  check('a rule with no header is always active, one whose header is not YAML loads whole, keys that are not conditions of Cline scope nothing, both folders load', d2.first === expected, d2.first + ' | change clineConvention (rules.read, accepts) in src/services/instructions/adapters/cline.ts or processRuleFile in src/services/instructions/discovery.ts')
-  check('the unreadable header is reported', d2.diagnostics.some(d => d.kind === 'unreadable-rule-header' && d.path === rule('03-broken.md')), JSON.stringify(d2.diagnostics) + ' | change the unreadable-rule-header diagnostic in processRuleFile in src/services/instructions/discovery.ts')
-  check('paths: [] never activates', !d2.first.includes('never-needle') && d2.touched[0]!.attached.every(a => !a.told.includes('never-needle')), JSON.stringify(d2.touched[0]) + ' | change the off reading for an empty paths list in clineConvention in src/services/instructions/adapters/cline.ts')
-  check('a paths that holds no pattern keeps its rule out and is reported', !d2.first.includes('odd-needle') && d2.diagnostics.some(d => d.kind === 'unsupported-rule-activation' && d.path === rule('06-odd.md')), JSON.stringify(d2.diagnostics) + ' | change the unsupported reading in clineConvention in src/services/instructions/adapters/cline.ts and the unsupported-rule-activation diagnostic in processRuleFile in src/services/instructions/discovery.ts')
+  check('a rule with no header is always active, one whose header is not YAML loads whole, keys that are not conditions of Cline scope nothing, both folders load', d2.first === expected, d2.first + ' | change clineConvention (rules.read, accepts) in src/sessions/instructions/adapters/cline.ts or processRuleFile in src/sessions/instructions/discovery.ts')
+  check('the unreadable header is reported', d2.diagnostics.some(d => d.kind === 'unreadable-rule-header' && d.path === rule('03-broken.md')), JSON.stringify(d2.diagnostics) + ' | change the unreadable-rule-header diagnostic in processRuleFile in src/sessions/instructions/discovery.ts')
+  check('paths: [] never activates', !d2.first.includes('never-needle') && d2.touched[0]!.attached.every(a => !a.told.includes('never-needle')), JSON.stringify(d2.touched[0]) + ' | change the off reading for an empty paths list in clineConvention in src/sessions/instructions/adapters/cline.ts')
+  check('a paths that holds no pattern keeps its rule out and is reported', !d2.first.includes('odd-needle') && d2.diagnostics.some(d => d.kind === 'unsupported-rule-activation' && d.path === rule('06-odd.md')), JSON.stringify(d2.diagnostics) + ' | change the unsupported reading in clineConvention in src/sessions/instructions/adapters/cline.ts and the unsupported-rule-activation diagnostic in processRuleFile in src/sessions/instructions/discovery.ts')
 
   section('the nearest one in the chain, both of its folders')
   const p3 = world.project({
@@ -59,7 +59,7 @@ try {
     'packages/app/a.ts': '\n',
   })
   const d3 = world.drive(join(p3, 'packages/app'), { trust: p3 })
-  check('the file and the second folder of the nearest holder both load and the farther one does not', d3.first === [contentsOf(join(p3, 'packages/app/.clinerules'), 'inner-file-needle'), contentsOf(join(p3, 'packages/app/.cline/rules/inner.md'), 'inner-folder-needle')].join('\n\n'), d3.first + ' | change nearestOnly and ruleSources in clineConvention in src/services/instructions/adapters/cline.ts')
+  check('the file and the second folder of the nearest holder both load and the farther one does not', d3.first === [contentsOf(join(p3, 'packages/app/.clinerules'), 'inner-file-needle'), contentsOf(join(p3, 'packages/app/.cline/rules/inner.md'), 'inner-folder-needle')].join('\n\n'), d3.first + ' | change nearestOnly and ruleSources in clineConvention in src/sessions/instructions/adapters/cline.ts')
 } finally {
   world.close()
 }

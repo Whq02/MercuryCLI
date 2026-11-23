@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/acp/* src/cli/run.ts src/cli/headless/runnerAsks.ts src/runner/wire/* scripts/mcp/_fixture-estate-server.mjs
+// gate-watch: src/integrations/acp/* src/daemon/runner/runHeadless.ts src/daemon/runner/runnerAsks.ts src/daemon/runner-wire/* scripts/mcp/_fixture-estate-server.mjs
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, type ChildProcess } from 'node:child_process'
@@ -17,7 +17,7 @@ const acpArgv = process.argv.includes('--base-stdio') ? ['acp', '--stdio'] : ['a
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — look at the elicitation/request handler in src/services/acp/acpServer/attach.ts (it answers elicitation/create, or cancel when the editor declared no elicitation)` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — look at the elicitation/request handler in src/integrations/acp/server/attach.ts (it answers elicitation/create, or cancel when the editor declared no elicitation)` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -47,7 +47,7 @@ if (!existsSync(DIST)) {
 const node = process.execPath.includes('bun') ? 'node' : process.execPath
 console.log(`elicitation over ACP — ${DIST}`)
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the proof exceeded 240s; a section is waiting on the ACP server child (node dist/mercury.mjs acp): see the elicitation/request handler in src/services/acp/acpServer/attach.ts and the last section header above')
+  console.log('\n❌ TIMEOUT — the proof exceeded 240s; a section is waiting on the ACP server child (node dist/mercury.mjs acp): see the elicitation/request handler in src/integrations/acp/server/attach.ts and the last section header above')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

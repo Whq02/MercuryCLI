@@ -3,7 +3,7 @@ import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import type { Frame } from '../lib/rows.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 import { closeWorld, DIST, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, NODE, record, sleep, TURN_MS } from './crew-world.ts'
-import { CANCEL_MESSAGE } from '../../src/utils/messages/rejectionText.ts'
+import { CANCEL_MESSAGE } from '../../src/engine/message-shapes/rejectionText.ts'
 
 if (process.env.MERCURY_CONFIG_DIR) process.env.TMPDIR = process.env.MERCURY_CONFIG_DIR
 const peerModel = 'claude-opus-4-6'
@@ -108,7 +108,7 @@ try {
   const launched = await waitFor('the lead did not launch the crewmate and continue', () => requestsOf(peerModel).length >= 1 && leadRequests().length >= 2, TURN_MS)
   const started = frames.find(frame => frame.type === 'task' && frame.state === 'started' && frame.task_type === 'local_agent')
   const taskId = started?.task_id
-  tally.check('the fixture starts a real background crewmate and the lead\'s turn runs on (its second request streams)', launched && typeof taskId === 'string', `${JSON.stringify({ launched, taskId, lead: leadRequests().length, peer: requestsOf(peerModel).length })} — the Crewmate launch (src/tools/AgentTool) must start a background local_agent task while the lead's turn goes on; read the lead-stderr tail printed by the WAIT TIMEOUT above`)
+  tally.check('the fixture starts a real background crewmate and the lead\'s turn runs on (its second request streams)', launched && typeof taskId === 'string', `${JSON.stringify({ launched, taskId, lead: leadRequests().length, peer: requestsOf(peerModel).length })} — the Crewmate launch (src/tools/crewmate) must start a background local_agent task while the lead's turn goes on; read the lead-stderr tail printed by the WAIT TIMEOUT above`)
   if (typeof taskId !== 'string') throw new Error('the fixture has no crewmate task id')
   console.log(`  ${clock()} interrupt (Esc) within a second of the launch`)
   const firstEsc = await interrupt()
@@ -123,16 +123,16 @@ try {
   console.log(`  ${clock()} p in the crew view while the answer streams`)
   const closed = await pauseGate(true)
   const stopped = (await wire.request('agent/stop', { agent_id: taskId }, { deadlineMs: TURN_MS }).catch((error: unknown) => ({ refused: String(error) }))) as Frame
-  tally.check('p closes the gate and x x stops the crewmate (the daemon\'s two verbs of 06:45:04Z and 06:45:07Z)', closed?.paused === true && closed.changed === true && stopped.receipt === 'applied', `${JSON.stringify({ closed, stopped })} — session/pause_gate (src/runner/wire/sessionVerbs.ts, gate in src/run-core/pauseGate.ts) must close the gate and answer changed: true, and agent/stop must answer receipt 'applied'`)
+  tally.check('p closes the gate and x x stops the crewmate (the daemon\'s two verbs of 06:45:04Z and 06:45:07Z)', closed?.paused === true && closed.changed === true && stopped.receipt === 'applied', `${JSON.stringify({ closed, stopped })} — session/pause_gate (src/daemon/runner-wire/sessionVerbs.ts, gate in src/engine/loop/pauseGate.ts) must close the gate and answer changed: true, and agent/stop must answer receipt 'applied'`)
   const toolAsked = await waitFor('the model never asked for ToolSearch', () => toolCallRow('ToolSearch') !== undefined, TURN_MS)
   const toolSearch = toolCallRow('ToolSearch')
   await sleep(SETTLE_MS)
   const parkedAtTool = await gateFacts()
-  tally.check('the in-flight stream finishes and ToolSearch parks before it runs (the pause gate\'s own law): no tool result, no further request, the facts read parked ≥ 1', toolAsked && toolResultRow(toolSearch?.call_id) === undefined && leadRequests().length === leadBeforeObjection + 1 && parkedAtTool?.paused === true && (parkedAtTool?.parked ?? 0) >= 1, `${JSON.stringify({ toolAsked, result: toolResultRow(toolSearch?.call_id), lead: leadRequests().length, parkedAtTool })} — the pause gate in src/run-core/pauseGate.ts must park a tool call before it runs (no tool result, no further request) and the session facts must count it as parked`)
+  tally.check('the in-flight stream finishes and ToolSearch parks before it runs (the pause gate\'s own law): no tool result, no further request, the facts read parked ≥ 1', toolAsked && toolResultRow(toolSearch?.call_id) === undefined && leadRequests().length === leadBeforeObjection + 1 && parkedAtTool?.paused === true && (parkedAtTool?.parked ?? 0) >= 1, `${JSON.stringify({ toolAsked, result: toolResultRow(toolSearch?.call_id), lead: leadRequests().length, parkedAtTool })} — the pause gate in src/engine/loop/pauseGate.ts must park a tool call before it runs (no tool result, no further request) and the session facts must count it as parked`)
   console.log(`  ${clock()} interrupt (Esc) on the parked tool`)
   const secondEsc = await interrupt()
   const secondTurnEnded = await waitFor('the Esc did not end the parked turn', () => outcomes().length >= 2 && toolResultRow(toolSearch?.call_id) !== undefined, TURN_MS)
-  tally.check('the Esc ends the parked turn: the tool is cancelled before it ran (the operator-stopped words), the turn is over', secondEsc?.interrupted === true && secondTurnEnded && toolResultRow(toolSearch?.call_id)?.output === CANCEL_MESSAGE, `${JSON.stringify({ secondEsc, result: toolResultRow(toolSearch?.call_id) })} — an interrupt while a tool is parked at the gate (src/run-core/pauseGate.ts) must cancel the tool with CANCEL_MESSAGE (src/utils/messages/rejectionText.ts) and end the turn`)
+  tally.check('the Esc ends the parked turn: the tool is cancelled before it ran (the operator-stopped words), the turn is over', secondEsc?.interrupted === true && secondTurnEnded && toolResultRow(toolSearch?.call_id)?.output === CANCEL_MESSAGE, `${JSON.stringify({ secondEsc, result: toolResultRow(toolSearch?.call_id) })} — an interrupt while a tool is parked at the gate (src/engine/loop/pauseGate.ts) must cancel the tool with CANCEL_MESSAGE (src/engine/message-shapes/rejectionText.ts) and end the turn`)
 
   const leadBeforeDemand = leadRequests().length
   console.log(`  ${clock()} the prompt "${DEMAND}" — the one that went unanswered`)
@@ -141,8 +141,8 @@ try {
   const answered = await waitFor('no model request followed the prompt', () => requestCarrying(DEMAND, leadBeforeDemand) !== undefined, TURN_MS)
   const tookMs = Date.now() - t0
   const gateAfter = await gateFacts()
-  tally.check(`the prompt typed into the paused chat is answered: its model request is issued (took ${tookMs}ms)`, answered, `${JSON.stringify({ lead: leadRequests().length, before: leadBeforeDemand, gateAfter })} — a prompt submitted while the gate is closed must reach the model (the pause gate in src/run-core/pauseGate.ts must not hold the operator's own prompt)`)
-  tally.check('the operator\'s own prompt opened the operator\'s gate: the facts read open, nothing parked', gateAfter?.paused === false && gateAfter.parked === 0, `${JSON.stringify(gateAfter)} — submitting the operator's own prompt must resume the gate in src/run-core/pauseGate.ts (paused false, nothing parked)`)
+  tally.check(`the prompt typed into the paused chat is answered: its model request is issued (took ${tookMs}ms)`, answered, `${JSON.stringify({ lead: leadRequests().length, before: leadBeforeDemand, gateAfter })} — a prompt submitted while the gate is closed must reach the model (the pause gate in src/engine/loop/pauseGate.ts must not hold the operator's own prompt)`)
+  tally.check('the operator\'s own prompt opened the operator\'s gate: the facts read open, nothing parked', gateAfter?.paused === false && gateAfter.parked === 0, `${JSON.stringify(gateAfter)} — submitting the operator's own prompt must resume the gate in src/engine/loop/pauseGate.ts (paused false, nothing parked)`)
   const landed = answered && (await waitFor('the answer never landed', () => textLanded(ANSWER), TURN_MS))
   tally.check('the answer lands on the chat', landed, 'the model request for the prompt was issued but its streamed answer never reached the chat as a text row; read the rows and stderr tails above')
   record('s1-requests.json', JSON.stringify(leadRequests().map(request => ({ model: request.body.model, last: lastUserOf(request).slice(0, 200) })), null, 2))
@@ -157,15 +157,15 @@ try {
   const bash = toolCallRow('Bash')
   await sleep(SETTLE_MS)
   const parkedAtBash = await gateFacts()
-  tally.check('p during the stream parks the Bash call before it runs (the facts read the gate closed)', carryStreams && closedAgain?.paused === true && bashAsked && toolResultRow(bash?.call_id) === undefined && parkedAtBash?.paused === true, `${JSON.stringify({ closedAgain, result: toolResultRow(bash?.call_id), parkedAtBash })} — the pause gate (src/run-core/pauseGate.ts) must park the Bash call before it runs and the session facts must read the gate closed`)
+  tally.check('p during the stream parks the Bash call before it runs (the facts read the gate closed)', carryStreams && closedAgain?.paused === true && bashAsked && toolResultRow(bash?.call_id) === undefined && parkedAtBash?.paused === true, `${JSON.stringify({ closedAgain, result: toolResultRow(bash?.call_id), parkedAtBash })} — the pause gate (src/engine/loop/pauseGate.ts) must park the Bash call before it runs and the session facts must read the gate closed`)
   console.log(`  ${clock()} the prompt "${GO_ON}" with no Esc`)
   submit(GO_ON)
   const t1 = Date.now()
   const ran = await waitFor('the parked Bash never ran', () => toolResultRow(bash?.call_id)?.status === 'ok' && (toolResultRow(bash?.call_id)?.output as string | undefined)?.includes(CARRIED) === true, TURN_MS)
-  tally.check(`the words lift the park: the Bash call the model asked for runs with its exact input, from exactly where it stopped (took ${Date.now() - t1}ms)`, ran, `${JSON.stringify(toolResultRow(bash?.call_id))} — a prompt submitted while a tool is parked must lift the gate (src/run-core/pauseGate.ts) so the parked Bash call runs with its original input`)
+  tally.check(`the words lift the park: the Bash call the model asked for runs with its exact input, from exactly where it stopped (took ${Date.now() - t1}ms)`, ran, `${JSON.stringify(toolResultRow(bash?.call_id))} — a prompt submitted while a tool is parked must lift the gate (src/engine/loop/pauseGate.ts) so the parked Bash call runs with its original input`)
   const goneOn = await waitFor('the words were never answered', () => requestCarrying(GO_ON, leadBeforeCarry) !== undefined && textLanded(GONE_ON), TURN_MS)
   const gateEnd = await gateFacts()
-  tally.check('the words reach the model after the turn they lifted, and the gate reads open', goneOn && gateEnd?.paused === false, `${JSON.stringify({ gateEnd, lead: leadRequests().length })} — the prompt that lifted the park must be answered by a further model request, and the gate in src/run-core/pauseGate.ts must read open`)
+  tally.check('the words reach the model after the turn they lifted, and the gate reads open', goneOn && gateEnd?.paused === false, `${JSON.stringify({ gateEnd, lead: leadRequests().length })} — the prompt that lifted the park must be answered by a further model request, and the gate in src/engine/loop/pauseGate.ts must read open`)
 } catch (error) {
   tally.check('the scenes ran to their end', false, error instanceof Error ? error.message : String(error))
 } finally {

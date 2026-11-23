@@ -10,18 +10,18 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'lathe-f2-home-'))
 process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_REPO_HOST
 
-const { gitCompare, gitFileAtRef, gitTreeAtRef } = await import('../../src/services/gitGraph/observe.ts')
+const { gitCompare, gitFileAtRef, gitTreeAtRef } = await import('../../src/platform/git-graph/observe.ts')
 const { searchHost, fetchPrDiffFiles, fetchPrDiffPage, fetchRun, _resetRepoHostCacheForTesting } = await import(
-  '../../src/services/repoHost/repoHost.ts'
+  '../../src/platform/repo-host/repoHost.ts'
 )
-const { watchRun, cancelRunWatch, _resetRunWatchesForTesting } = await import('../../src/services/repoHost/runWatch.ts')
-const { getExecution } = await import('../../src/utils/primitives/executionPlane.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
+const { watchRun, cancelRunWatch, _resetRunWatchesForTesting } = await import('../../src/platform/repo-host/runWatch.ts')
+const { getExecution } = await import('../../src/engine/execution-plane/executionPlane.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix the code this check imports: git at-ref reads and compare in src/services/gitGraph/observe.ts, host search and PR diff in src/services/repoHost/repoHost.ts, run watch in src/services/repoHost/runWatch.ts; the section heading above names the area' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix the code this check imports: git at-ref reads and compare in src/platform/git-graph/observe.ts, host search and PR diff in src/platform/repo-host/repoHost.ts, run watch in src/platform/repo-host/runWatch.ts; the section heading above names the area' : ''}`)
 }
 function section(name: string): void {
   console.log(`\n${name}`)
@@ -197,10 +197,10 @@ section('W. cancellable run watch (finite fixture)')
 section('V. slashed refs · quotepath round-trip · binary honesty · bounded diff · disposal reaping')
 {
   g('branch', 'feature/x')
-  const { splitRefPath, gitFileAtRef, gitTreeAtRef } = await import('../../src/services/gitGraph/observe.ts')
+  const { splitRefPath, gitFileAtRef, gitTreeAtRef } = await import('../../src/platform/git-graph/observe.ts')
   const split = splitRefPath(repo, 'feature/x/lib/a.txt')
   check('splitRefPath resolves the LONGEST-needed ref prefix', split?.ref === 'feature/x' && split.path === 'lib/a.txt', JSON.stringify(split))
-  const { gitAdapter } = await import('../../src/services/resources/adapters/git.ts')
+  const { gitAdapter } = await import('../../src/integrations/resources/adapters/git.ts')
   const viaResource = await gitAdapter.resolve(
     { kind: 'git', id: 'at/feature/x/lib/a.txt', selectors: {}, canonical: 'mercury://git/at/feature/x/lib/a.txt', raw: 'mercury://git/at/feature/x/lib/a.txt' } as never,
     { cwd: repo } as never,
@@ -249,7 +249,7 @@ section('V. slashed refs · quotepath round-trip · binary honesty · bounded di
   writeFileSync(join(stateDir, 'diff.txt'), `${DIFF}\n`)
   _resetRepoHostCacheForTesting()
 
-  const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
+  const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.ts')
   const owner = makeOwnerKey({ workspace: repo, sessionId: 'lathe-f2-dispose', lane: 'main' })
   const watching = await watchRun(owner, repo, '77')
   check('disposal fixture watch registers', watching.state === 'watching')

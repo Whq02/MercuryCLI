@@ -22,16 +22,16 @@ let failures = 0
 let checks = 0
 let where = ''
 const WHERE: Array<[string, string]> = [
-  ['§1 ', 'change the Agents row in STARTUP_MENU (src/substrate/startupMenu.ts) or the switch owner src/services/switchboard/spawnSwitches.ts'],
-  ['§2 ', 'change evaluateLaunchAuthority (src/services/switchboard/launchAuthority.ts) or the latch in src/services/switchboard/spawnSwitches.ts'],
-  ['§3 ', 'the Crewmate tool must follow the spawn switch: look at the roster built by getTools in src/tools.ts and at src/services/switchboard/spawnSwitches.ts'],
-  ['§4 ', 'the Crewmate tool call must answer spawnSwitchOffReceipt (src/services/switchboard/spawnSwitches.ts) while the switch is off'],
-  ['§5 ', 'change spawnSwitchOfRecord, spawnSwitchFactsOfRecord or spawnSwitchLine in src/services/switchboard/spawnSwitches.ts'],
-  ['§6 ', 'change setSessionSpawnSwitch (src/daemon/sessionSeat/spawnSwitch.ts), the seat edges (src/daemon/sessionSeat/edges.ts) or the runner landing (src/cli/headless/spawnSwitchLanding.ts)'],
-  ['§7 ', 'change the roster transition in src/services/providers/anthropic/thinkingBinding.ts (prefixMarkOf, classifyThinkingDrops, describeThinkingDrops, preservedThinkingHealth) or its wording in src/services/switchboard/spawnSwitches.ts'],
-  ['§8', 'rebuild with bun run build.ts first, then look at the switch owner src/services/switchboard/spawnSwitches.ts and the runner landing src/cli/headless/spawnSwitchLanding.ts'],
-  ['§9 ', 'change the spawn-switches health row in src/services/health/sections/crew/crewmates.ts, then rebuild with bun run build.ts'],
-  ['§10 ', 'change the /crewmates command in src/commands/crewmates/spawnSwitch.ts and src/commands/crewmates/index.ts, or the wording in src/services/switchboard/spawnSwitches.ts'],
+  ['§1 ', 'change the Agents row in STARTUP_MENU (src/platform/substrate/startupMenu.ts) or the switch owner src/daemon/switchboard/spawnSwitches.ts'],
+  ['§2 ', 'change evaluateLaunchAuthority (src/daemon/switchboard/launchAuthority.ts) or the latch in src/daemon/switchboard/spawnSwitches.ts'],
+  ['§3 ', 'the Crewmate tool must follow the spawn switch: look at the roster built by getTools in src/tools/kit/toolList.ts and at src/daemon/switchboard/spawnSwitches.ts'],
+  ['§4 ', 'the Crewmate tool call must answer spawnSwitchOffReceipt (src/daemon/switchboard/spawnSwitches.ts) while the switch is off'],
+  ['§5 ', 'change spawnSwitchOfRecord, spawnSwitchFactsOfRecord or spawnSwitchLine in src/daemon/switchboard/spawnSwitches.ts'],
+  ['§6 ', 'change setSessionSpawnSwitch (src/daemon/session-seat/spawnSwitch.ts), the seat edges (src/daemon/session-seat/edges.ts) or the runner landing (src/daemon/runner/spawnSwitchLanding.ts)'],
+  ['§7 ', 'change the roster transition in src/models/roads/anthropic/thinkingBinding.ts (prefixMarkOf, classifyThinkingDrops, describeThinkingDrops, preservedThinkingHealth) or its wording in src/daemon/switchboard/spawnSwitches.ts'],
+  ['§8', 'rebuild with bun run build.ts first, then look at the switch owner src/daemon/switchboard/spawnSwitches.ts and the runner landing src/daemon/runner/spawnSwitchLanding.ts'],
+  ['§9 ', 'change the spawn-switches health row in src/platform/health/sections/crew/crewmates.ts, then rebuild with bun run build.ts'],
+  ['§10 ', 'change the /crewmates command in src/commands/crewmates/spawnSwitch.ts and src/commands/crewmates/index.ts, or the wording in src/daemon/switchboard/spawnSwitches.ts'],
 ]
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
@@ -51,10 +51,10 @@ const guard = setTimeout(() => {
 }, 240_000)
 guard.unref?.()
 
-const menu = await import('../../src/substrate/startupMenu.ts')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
-const sw = await import('../../src/services/switchboard/spawnSwitches.ts')
-const { evaluateLaunchAuthority } = await import('../../src/services/switchboard/launchAuthority.ts')
+const menu = await import('../../src/platform/substrate/startupMenu.ts')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
+const sw = await import('../../src/daemon/switchboard/spawnSwitches.ts')
+const { evaluateLaunchAuthority } = await import('../../src/daemon/switchboard/launchAuthority.ts')
 
 const SUB = 'MERCURY_SESSION_SUBAGENTS'
 const WF = 'MERCURY_SESSION_WORKFLOWS'
@@ -76,7 +76,7 @@ section('§1 the row — a live-class toggle over a registered flag, through the
   check('the choices paint default (on) first, then off', rows.every(r => menu.menuRowChoices(r).map(c => c.label).join('|') === 'default (on)|off'))
   for (const env of [SUB]) {
     const spec = getFlagSpec(env)
-    check(`${env} is registered default-on · behavioral · evidenced by this prover · consumed by the owner`, spec?.kind === 'default-on' && spec.tier === 'behavioral' && spec.evidence === 'scripts/switchboard/prove-spawn-switch.ts' && spec.consumer === 'src/services/switchboard/spawnSwitches.ts', j(spec))
+    check(`${env} is registered default-on · behavioral · evidenced by this prover · consumed by the owner`, spec?.kind === 'default-on' && spec.tier === 'behavioral' && spec.evidence === 'scripts/switchboard/prove-spawn-switch.ts' && spec.consumer === 'src/daemon/switchboard/spawnSwitches.ts', j(spec))
   }
   check('the owner maps the row to its switch and back, and the retired Workflows row to nothing', sw.SPAWN_SWITCH_ENV.subagents === SUB && sw.spawnSwitchKindOfEnv(SUB) === 'subagents' && sw.spawnSwitchKindOfEnv(WF) === null && sw.spawnSwitchKindOfEnv('MERCURY_CAP_FAILOVER') === null)
 
@@ -146,9 +146,9 @@ section('§2 the valve and the latch — one receipt while off; born once, stick
 }
 
 section('§3 the roster — the switch decides whether the model sees the Crewmate tool')
-const { getTools } = await import('../../src/tools.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
+const { getTools } = await import('../../src/tools/kit/toolList.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const rosterNames = (): string[] => getTools({ ...getEmptyToolPermissionContext(), mode: 'default' } as never).map(t => t.name)
 {
   sw._resetSpawnSwitchesForTesting()
@@ -191,9 +191,9 @@ section("§5 the record's view — the admission snapshot's rows and the in-sess
 
 section("§6 the seat verb — idle applies, busy parks and forwards, the runner's frame lands it, the respawn re-forwards")
 {
-  const seat = await import('../../src/daemon/sessionSeat.ts')
-  const sup = await import('../../src/daemon/concourseWorkers.ts')
-  const { readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const seat = await import('../../src/daemon/session-seat/sessionSeat.ts')
+  const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  const { readSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
   const recDir = mkdtempSync(join(tmpdir(), 'spawn-switch-records-'))
   const workspaceId = mkdtempSync(join(tmpdir(), 'spawn-switch-ws-'))
   const sid = '550e8400-e29b-41d4-a716-4466554400c3'
@@ -311,9 +311,9 @@ section("§6 the seat verb — idle applies, busy parks and forwards, the runner
 
 section('§7 the preserved-thinking seam — a roster transition is a lawful prefix change that names the toggle')
 {
-  const tb = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
-  const { createRosterTransitionMessage } = await import('../../src/utils/messages/systemMessages.ts')
-  const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
+  const tb = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
+  const { createRosterTransitionMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+  const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
   const DROP = { type: 'thinking_dropped', path: 'messages.1.content.0', reason: 'prefix_binding_mismatch' } as const
   const history = [createUserMessage({ content: 'hi' }), createAssistantMessage({ content: 'hello' })]
   const mark0 = tb.prefixMarkOf(history as never, 'claude-fable-5-1')
@@ -536,9 +536,9 @@ if (!existsSync(DIST)) {
 section('§10 the command — /crewmates on|off, the grammar, the no-chat sentence')
 {
   const { default: crewmates } = await import('../../src/commands/crewmates/index.ts')
-  const { COMMAND_DOMAINS } = await import('../../src/components/HelpV2/commandDomains.ts')
+  const { COMMAND_DOMAINS } = await import('../../src/screen/help/commandDomains.ts')
   const { runSpawnSwitchCommand } = await import('../../src/commands/crewmates/spawnSwitch.ts')
-  const { builtinCommands } = await import('../../src/commands.ts')
+  const { builtinCommands } = await import('../../src/commands/catalogue/commands.ts')
   check('/crewmates carries the on|off hint and stays the crew view (one word for one thing: /subagents ceased in .34 — no alias, no refusal line)', crewmates.type === 'local-jsx' && crewmates.name === 'crewmates' && crewmates.argumentHint === '[on|off]' && crewmates.description.includes('on or off') && !builtinCommands().some(c => c.name === 'subagents'))
   check('/crewmates is registered in the command table', builtinCommands().some(c => c.name === 'crewmates'))
   check('/crewmates sits in the crew & delegation domain, and the retired word is gone from it', COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('crewmates') === true && COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('subagents') !== true)

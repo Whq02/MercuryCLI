@@ -15,15 +15,15 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const where: Record<string, string> = {
-    P: 'recordNoChangeOutcome / noteSuccessfulMutation in src/services/changeTransaction/repetitionPolicy.ts',
-    V: 'observeToolTerminal in src/utils/run/effectObserver.ts and verificationSummary in src/utils/verification/verificationState.ts',
-    T: 'the no-change path of src/tools/FileEditTool/edit/callParts.ts and mapToolResultToToolResultBlockParam in src/tools/FileEditTool/FileEditTool.ts',
+    P: 'recordNoChangeOutcome / noteSuccessfulMutation in src/tools/engines/change-transaction/repetitionPolicy.ts',
+    V: 'observeToolTerminal in src/engine/run-owner/effectObserver.ts and verificationSummary in src/platform/verification/verificationState.ts',
+    T: 'the no-change path of src/tools/edit/call/callParts.ts and mapToolResultToToolResultBlockParam in src/tools/edit/EditTool.ts',
   }
-  const hint = `fix ${where[label[0]!] ?? 'src/services/changeTransaction/repetitionPolicy.ts'}`
+  const hint = `fix ${where[label[0]!] ?? 'src/tools/engines/change-transaction/repetitionPolicy.ts'}`
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${hint}` : ''}`)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — repetition-policy proof exceeded 90s; an edit through FileEditTool.call in src/tools/FileEditTool/FileEditTool.ts never returned')
+  console.log('\nTIMEOUT — repetition-policy proof exceeded 90s; an edit through FileEditTool.call in src/tools/edit/EditTool.ts never returned')
   process.exit(1)
 }, 90_000)
 guard.unref?.()
@@ -33,15 +33,15 @@ const {
   recordNoChangeOutcome,
   noteSuccessfulMutation,
   _resetRepetitionPolicyForTesting,
-} = await import('../../src/services/changeTransaction/repetitionPolicy.ts')
-const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
+} = await import('../../src/tools/engines/change-transaction/repetitionPolicy.ts')
+const { observeToolTerminal } = await import('../../src/engine/run-owner/effectObserver.ts')
 const { verificationSummary, _resetVerificationStateForTesting } = await import(
-  '../../src/utils/verification/verificationState.ts'
+  '../../src/platform/verification/verificationState.ts'
 )
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { mintFileAnchor } = await import(
-  '../../src/services/changeTransaction/snapshotAnchor.ts'
+  '../../src/tools/engines/change-transaction/snapshotAnchor.ts'
 )
 
 const fixtures = mkdtempSync(join(tmpdir(), 'stillpoint-policy-fix-'))

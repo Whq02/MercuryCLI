@@ -5,18 +5,18 @@ import {
   mapMessagesToOpenaiInput,
   mapToolsToOpenai,
   type BridgeMessage,
-} from '../../src/services/providers/openai/responsesBridge.js'
+} from '../../src/models/roads/openai/responsesBridge.js'
 import {
   mapMessagesToZai,
   mapToolsToZai,
   type ApiShapedTool,
-} from '../../src/services/providers/zai/zaiCodec.js'
-import type { MessageParam } from '../../src/types/wire.js'
-import { toOpenaiStrictSchema } from '../../src/utils/messages/structuredOutputDialect.js'
-import { toOpenaiStrictToolSchema } from '../../src/utils/messages/toolSchemaDialect.js'
+} from '../../src/models/roads/zai/zaiCodec.js'
+import type { MessageParam } from '../../src/engine/message-shapes/wire.js'
+import { toOpenaiStrictSchema } from '../../src/engine/message-shapes/structuredOutputDialect.js'
+import { toOpenaiStrictToolSchema } from '../../src/engine/message-shapes/toolSchemaDialect.js'
 
 let failures = 0
-const codecFixHint = 'fix: the OpenAI side in src/services/providers/openai/responsesBridge.ts (decodeOpenaiTurnRecord, mapMessagesToOpenaiInput, buildOpenaiResponsesRequest, mapToolsToOpenai), the Z.AI side in src/services/providers/zai/zaiCodec.ts (mapMessagesToZai, mapToolsToZai), the strict schemas in src/utils/messages/structuredOutputDialect.ts and toolSchemaDialect.ts'
+const codecFixHint = 'fix: the OpenAI side in src/models/roads/openai/responsesBridge.ts (decodeOpenaiTurnRecord, mapMessagesToOpenaiInput, buildOpenaiResponsesRequest, mapToolsToOpenai), the Z.AI side in src/models/roads/zai/zaiCodec.ts (mapMessagesToZai, mapToolsToZai), the strict schemas in src/engine/message-shapes/structuredOutputDialect.ts and toolSchemaDialect.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${codecFixHint}` : ''}`)

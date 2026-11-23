@@ -36,14 +36,14 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { TaskStopTool } = await import('../../src/tools/TaskStopTool/TaskStopTool.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { TaskStopTool } = await import('../../src/tools/task-stop/TaskStopTool.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const React = (await import('react')).default
-const { renderToString } = await import('../../src/utils/staticRender.tsx')
-const BashToolResultMessage = (await import('../../src/tools/BashTool/BashToolResultMessage.tsx')).default
+const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+const BashToolResultMessage = (await import('../../src/tools/shell/BashToolResultMessage.tsx')).default
 
 let appState = getDefaultAppState()
 const contextWith = (tools: ReadonlyArray<{ name: string }>, toolUseId: string): unknown => ({
@@ -73,7 +73,7 @@ const alive = (pid: number): boolean => {
 }
 
 section('§1 a command that prints and then hangs, timeout 2000: the result carries what it printed and names TaskStop')
-hint = 'the timeout move to the background is in BashTool.tsx (call) and its result text is built in resultBlock.ts, both under src/tools/BashTool/'
+hint = 'the timeout move to the background is in BashTool.tsx (call) and its result text is built in resultBlock.ts, both under src/tools/shell/'
 const withStop = contextWith([{ name: 'TaskStop' }, { name: 'Bash' }], 'timeout-output-1')
 const startedAt = Date.now()
 const first = await (BashTool as unknown as Caller).call({ command: 'echo started; while true; do sleep 1; done', timeout: 2000 } as never, withStop as never)
@@ -95,7 +95,7 @@ check('the result is not an error', (BashTool as unknown as Mapper).mapToolResul
 check('the command is still running after the move (its shell is alive)', typeof out.backgroundPid === 'number' && alive(out.backgroundPid), String(out.backgroundPid))
 
 section('§2 TaskStop on that id ends the command and counts the processes it ended')
-hint = 'TaskStopTool in src/tools/TaskStopTool/TaskStopTool.ts must end the background command and report the processes it ended'
+hint = 'TaskStopTool in src/tools/task-stop/TaskStopTool.ts must end the background command and report the processes it ended'
 const stopped = await (TaskStopTool as unknown as Caller).call({ task_id: out.backgroundTaskId } as never, withStop as never)
 const stopData = stopped.data as { message?: string; processes_ended?: number; settled?: boolean }
 check('TaskStop reports processes_ended ≥ 1', typeof stopData.processes_ended === 'number' && stopData.processes_ended >= 1, JSON.stringify(stopData))
@@ -104,7 +104,7 @@ await new Promise(resolve => setTimeout(resolve, 300))
 check('the shell is gone after the stop', typeof out.backgroundPid === 'number' && !alive(out.backgroundPid), String(out.backgroundPid))
 
 section('§3 the cockpit row says the command runs in the background even though the result has output')
-hint = 'BashToolResultMessage in src/tools/BashTool/BashToolResultMessage.tsx must paint the Running in the background row for a result that moved to the background, and only then'
+hint = 'BashToolResultMessage in src/tools/shell/BashToolResultMessage.tsx must paint the Running in the background row for a result that moved to the background, and only then'
 const painted = await renderToString(React.createElement(BashToolResultMessage, { content: out as never, verbose: false }), 100)
 check('the output line is painted', painted.includes('started'), JSON.stringify(painted))
 check('the `Running in the background` row is painted beside it', painted.includes('Running in the background'), JSON.stringify(painted))
@@ -112,7 +112,7 @@ const finished = await renderToString(React.createElement(BashToolResultMessage,
 check('a finished result with output paints no background row', finished.includes('done') && !finished.includes('Running in the background'), JSON.stringify(finished))
 
 section('§4 the same move without TaskStop in the pool, and a command that has printed nothing')
-hint = 'the result text for a timeout move is built in src/tools/BashTool/resultBlock.ts; it names TaskStop only when TaskStop is in the pool'
+hint = 'the result text for a timeout move is built in src/tools/shell/resultBlock.ts; it names TaskStop only when TaskStop is in the pool'
 const noStop = contextWith([{ name: 'Bash' }], 'timeout-output-2')
 const quiet = await (BashTool as unknown as Caller).call({ command: 'while true; do sleep 1; done', timeout: 2000 } as never, noStop as never)
 const quietOut = quiet.data as Out

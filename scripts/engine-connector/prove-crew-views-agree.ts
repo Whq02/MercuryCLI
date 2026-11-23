@@ -1,26 +1,26 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/tasks/BackgroundTasksDialog.tsx src/services/engine-connector/crewFacts.ts src/state/crewLedger.ts
+// gate-watch: src/screen/tasks/BackgroundTasksDialog.tsx src/engine/connector/crewFacts.ts src/screen/app-state/crewLedger.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { join } from 'node:path'
 
 let failures = 0
-const VIEWS_AGREE_HINT = 'to fix: make the runs board and the crew view derive from one source: boardAgentRowsOf and boardRowElapsedMs (src/components/tasks/BackgroundTasksDialog.tsx, src/components/tasks/backgroundTasks/rows.tsx), crewAgentFactsOf, crewElapsedLabel and workRowOfCrewFacts (src/services/engine-connector/crewFacts.ts), sessionCrewRows (src/state/crewLedger.ts)'
+const VIEWS_AGREE_HINT = 'to fix: make the runs board and the crew view derive from one source: boardAgentRowsOf and boardRowElapsedMs (src/screen/tasks/BackgroundTasksDialog.tsx, src/screen/tasks/background-tasks/rows.tsx), crewAgentFactsOf, crewElapsedLabel and workRowOfCrewFacts (src/engine/connector/crewFacts.ts), sessionCrewRows (src/screen/app-state/crewLedger.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${VIEWS_AGREE_HINT}` : ''}`)
 }
 
-await import('../../src/tools/AgentTool/AgentTool.tsx')
-type WorkRowV1 = import('../../src/services/engine-connector/types.ts').WorkRowV1
-type CrewAgentFacts = import('../../src/services/engine-connector/crewFacts.ts').CrewAgentFacts
-const crew = await import('../../src/services/engine-connector/crewFacts.ts')
-const ledgerMod = await import('../../src/state/crewLedger.ts')
-const board = (await import('../../src/components/tasks/BackgroundTasksDialog.tsx')) as {
+await import('../../src/tools/crewmate/CrewmateTool.tsx')
+type WorkRowV1 = import('../../src/engine/connector/types.ts').WorkRowV1
+type CrewAgentFacts = import('../../src/engine/connector/crewFacts.ts').CrewAgentFacts
+const crew = await import('../../src/engine/connector/crewFacts.ts')
+const ledgerMod = await import('../../src/screen/app-state/crewLedger.ts')
+const board = (await import('../../src/screen/tasks/BackgroundTasksDialog.tsx')) as {
   rosterRowsOf: (rows: readonly WorkRowV1[], kind: WorkRowV1['kind'], excludeIds?: ReadonlySet<string>) => WorkRowV1[]
   boardAgentRowsOf?: (rows: readonly WorkRowV1[], crewFacts: readonly CrewAgentFacts[], excludeIds?: ReadonlySet<string>) => WorkRowV1[]
   boardRowElapsedMs?: (item: { work?: WorkRowV1 }, now: number) => number | null
 }
-const { formatDuration } = await import('../../src/utils/format.ts')
+const { formatDuration } = await import('../../src/platform/text/format.ts')
 
 const boardAgentRows = board.boardAgentRowsOf ?? ((rows, _crewFacts, excludeIds) => board.rosterRowsOf(rows, 'agent', excludeIds))
 const boardElapsed = board.boardRowElapsedMs ?? ((item, now) => (item.work === undefined || !Number.isFinite(item.work.startTime) || item.work.startTime === 0 ? null : Math.max(0, now - item.work.startTime)))

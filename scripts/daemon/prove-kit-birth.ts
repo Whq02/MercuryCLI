@@ -12,7 +12,7 @@ if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 delete process.env.CI
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({
   ...c,
@@ -24,24 +24,24 @@ saveGlobalConfig(c => ({
 }))
 
 process.env.DEEPSEEK_API_KEY = 'fixture-not-a-key'
-const wm = await import('../../src/services/concourse/workerModels.ts')
+const wm = await import('../../src/screen/concourse-model/workerModels.ts')
 const registry = await wm.composeWorkerModelRegistry()
 const AVAILABLE = registry.entries.find(e => e.session.availability === 'available')?.modelId
 const ENSURE_SKIP = AVAILABLE === undefined ? 'skipped — no dispatchable family in this scratch home (the fixture presence did not land)' : ''
 
-const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
-const warm = await import('../../src/daemon/warmRunner.ts')
+const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const warm = await import('../../src/daemon/runner-link/warmRunner.ts')
 const { LEAVE_PENDING, standInRunner } = await import('../lib/seatDoor.ts')
-const { RpcError, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+const { RpcError, RPC_REFUSED } = await import('../../src/daemon/runner-wire/errors.ts')
 type StandInRunner = ReturnType<typeof standInRunner>
-type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
-const { deriveSessionKitForWorkspace, validateSessionKit } = await import('../../src/daemon/sessionKit.ts')
-const { setMcpServerEnabledForWorkspace } = await import('../../src/services/mcp/kitStore.ts')
+type RunnerDoor = import('../../src/daemon/runner-link/runnerConnection.ts').RunnerDoor
+const { deriveSessionKitForWorkspace, validateSessionKit } = await import('../../src/daemon/session-seat/sessionKit.ts')
+const { setMcpServerEnabledForWorkspace } = await import('../../src/integrations/mcp/kitStore.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const where = 'by the label prefix, G1-G3 ensureWarmRunner and G4-G5 claimWarmRunner in src/daemon/warmRunner.ts (the kit the warm spec wears and the kit-equality gate), G6-G7 and R and A makeConcourseAdmitHandler in src/daemon/concourseWorkers/admit.ts with admitWarm.ts, admitCold.ts and reactivate.ts beside it'
+  const where = 'by the label prefix, G1-G3 ensureWarmRunner and G4-G5 claimWarmRunner in src/daemon/runner-link/warmRunner.ts (the kit the warm spec wears and the kit-equality gate), G6-G7 and R and A makeConcourseAdmitHandler in src/daemon/concourse-workers/admit.ts with admitWarm.ts, admitCold.ts and reactivate.ts beside it'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` — change the code the check exercises, ${where}`}`)
 }
 function note(line: string): void {
@@ -158,7 +158,7 @@ console.log('\n── §G4-G8: the warm-claim kit gate ──')
 if (ENSURE_SKIP !== '') {
   note(`G4–G8 ${ENSURE_SKIP}`)
 } else {
-  const { makeConcourseAdmitHandler, readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+  const { makeConcourseAdmitHandler, readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const { realpathSync } = await import('node:fs')
   const MODEL = AVAILABLE!
   {
@@ -274,9 +274,9 @@ console.log('\n── §R: the record-less resume\'s loud row ──')
 if (ENSURE_SKIP !== '') {
   note(`R1–R3 ${ENSURE_SKIP}`)
 } else {
-  const { makeConcourseAdmitHandler, readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-  const { readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
-  const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+  const { makeConcourseAdmitHandler, readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  const { readSessionReceipts } = await import('../../src/daemon/switchboard/sessionReceipts.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
   const { realpathSync } = await import('node:fs')
   const MODEL = AVAILABLE!
   const roster = new FakeRoster()
@@ -304,7 +304,7 @@ console.log('\n── §A: kit-source on the answer ──')
 if (ENSURE_SKIP !== '') {
   note(`A1–A4 ${ENSURE_SKIP}`)
 } else {
-  const { makeConcourseAdmitHandler, updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+  const { makeConcourseAdmitHandler, updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const { realpathSync, readFileSync } = await import('node:fs')
   const MODEL = AVAILABLE!
   const roster = new FakeRoster()

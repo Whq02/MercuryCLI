@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { gridToPng } from '../ui/gridToPng.ts'
-import type { LlmHostQuestion } from '../../src/services/llmHost/index.ts'
+import type { LlmHostQuestion } from '../../src/models/llm-host/index.ts'
 
 const frameDir = (): string | undefined => { const at = process.argv.indexOf('--frames'); return at < 0 ? undefined : process.argv[at + 1] }
 async function save(mounted: Mounted, name: string, width: number, height: number): Promise<void> {
@@ -22,11 +22,11 @@ async function save(mounted: Mounted, name: string, width: number, height: numbe
 export async function captureHostQuestion(plan: LlmHostQuestion, name: string): Promise<void> {
   if (!frameDir()) return
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
   for (const [width, height] of [[120, 44], [80, 28]] as const) {
     popup.openSettingsPopup(llmHostPopupRequest(async ask => { await ask(plan); return { ok: false, words: '' } }))
@@ -43,10 +43,10 @@ export async function captureHostQuestion(plan: LlmHostQuestion, name: string): 
 export async function captureHostNotice(words: string, name: string): Promise<void> {
   if (!frameDir()) return
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { UserTextMessage } = await import('../../src/components/messages/UserTextMessage.tsx')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { UserTextMessage } = await import('../../src/screen/messages/UserTextMessage.tsx')
   for (const [width, height] of [[120, 32], [80, 40]] as const) {
     const mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width, height }, React.createElement(UserTextMessage, { addMargin: false, param: { type: 'text', text: words }, notice: true, verbose: true })))), width, height)
     try {

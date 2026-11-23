@@ -9,13 +9,13 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 
 console.log("the fold runs where the session's model lives: /compact is a session-seat command executed by the runner's own turn context, and no cockpit dialog context ever starts a compaction")
 
-const { commandSeat } = await import('../../src/commands.ts')
+const { commandSeat } = await import('../../src/commands/catalogue/commands.ts')
 const compact = (await import('../../src/commands/compact/index.ts')).default
 check('/compact is a session-seat command (the cockpit sends the line to the runner, never runs it on the dialog context)', commandSeat(compact) === 'session', commandSeat(compact))
 
 {
   const { openDialogsPart } = await import('../ui/chatScenarios.ts')
-  const { BackgroundTasksDialog } = await import('../../src/components/tasks/BackgroundTasksDialog.tsx')
+  const { BackgroundTasksDialog } = await import('../../src/screen/tasks/BackgroundTasksDialog.tsx')
   const dialogs = await openDialogsPart('compact-seat-road-dialogs')
   const React = await import('react')
   await dialogs.plant({ focusedInputDialog: 'cost-threshold' })

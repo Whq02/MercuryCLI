@@ -17,17 +17,17 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { healthContext } = await import('../../src/services/health/healthReport.ts')
-const { HEALTH_SECTIONS } = await import('../../src/services/health/sections.ts')
-const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
-const { getRipgrepStatus } = await import('../../src/utils/ripgrep.ts')
+const { healthContext } = await import('../../src/platform/health/healthReport.ts')
+const { HEALTH_SECTIONS } = await import('../../src/platform/health/sections.ts')
+const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
+const { getRipgrepStatus } = await import('../../src/platform/shell/ripgrep.ts')
 const context = await healthContext()
 const rows = new Map((await Promise.all(HEALTH_SECTIONS.map(entry => entry.checks(context)))).flat().map(row => [row.id, row]))
 const run = async (id: string) => rows.get(id)!.run()
 
-const { getSettingsWithAllErrors } = await import('../../src/services/settings/allErrors.ts')
+const { getSettingsWithAllErrors } = await import('../../src/platform/settings-faults/allErrors.ts')
 const settingsRow = await run('settings')
 const settingsErrors = getSettingsWithAllErrors().errors
 const firstError = settingsErrors[0]

@@ -14,20 +14,20 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.FIRST_HOUR_ENV_FIXTURE = 'environment-read-fixture'
 delete process.env.MERCURY_SHELL_ENGINE
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.js')
-const { getFirstWordPrefix } = await import('../../src/tools/BashTool/bashPermissions.js')
-const { windowsPathToPosixPath } = await import('../../src/utils/windowsPaths.js')
+const { BashTool } = await import('../../src/tools/shell/BashTool.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.js')
+const { getFirstWordPrefix } = await import('../../src/tools/shell/bashPermissions.js')
+const { windowsPathToPosixPath } = await import('../../src/platform/files/windowsPaths.js')
 const nativeHome = process.env.HOME ?? process.env.USERPROFILE ?? ''
 const printedHome = process.platform === 'win32' ? windowsPathToPosixPath(nativeHome) : nativeHome
 let failures = 0
 function check(label: string, ok: boolean, detail = '') {
   if (!ok) failures++
-  const failureHint = 'to fix, change the env and printenv entries in src/utils/shell/readOnlyCommandValidation.ts (what is allowed without a card), getFirstWordPrefix in src/tools/BashTool/bashPermissions.ts (the prefix a card offers), or src/tools/BashTool/denyRuleReach.ts (explicit deny rules)'
+  const failureHint = 'to fix, change the env and printenv entries in src/permissions/rules/shell-commands/readOnlyCommandValidation.ts (what is allowed without a card), getFirstWordPrefix in src/tools/shell/bashPermissions.ts (the prefix a card offers), or src/tools/shell/denyRuleReach.ts (explicit deny rules)'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${failureHint}` : ''}`)
 }
 let appState = { ...getDefaultAppState(), toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' as const, shouldAvoidPermissionPrompts: true } }

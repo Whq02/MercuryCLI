@@ -12,11 +12,11 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
 delete process.env.NODE_ENV
 
-const idle = await import('../../src/services/providers/streamIdleBudget.js')
-const settings = await import('../../src/utils/settings/settings.js')
-const settingsCache = await import('../../src/utils/settings/settingsCache.js')
+const idle = await import('../../src/models/roads/streamIdleBudget.js')
+const settings = await import('../../src/platform/settings/settings.js')
+const settingsCache = await import('../../src/platform/settings/settingsCache.js')
 const fixture = await import('./patience-road-fixture.js')
-const { AnthropicStream: Stream } = await import('../../src/services/providers/anthropic/anthropicStream.js')
+const { AnthropicStream: Stream } = await import('../../src/models/roads/anthropic/anthropicStream.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -66,28 +66,28 @@ async function play(silence: boolean): Promise<Played> {
 section('R1 — fed: the pings the parser drops keep the stream alive for three budgets')
 {
   const run = await play(false)
-  check('every keep-alive was sent and the stream lived to message_stop with no fire', run.sent === fixture.KEEP_ALIVES && run.terminal && run.fire === null, JSON.stringify(run) + ' | keep-alive pings the parser drops must still count as activity: see observeStreamActivity and createStreamIdleWatchdog in src/services/providers/streamIdleBudget.ts')
-  check('the parser yielded only its four events; the tap noted at least every keep-alive', run.yielded === 4 && run.noted >= fixture.KEEP_ALIVES, JSON.stringify(run) + ' | observeStreamActivity in src/services/providers/streamIdleBudget.ts must call its callback for every chunk read, including pings; AnthropicStream.fromSSEResponse in src/services/providers/anthropic/anthropicStream.ts must still yield only the four real events')
-  check('the stream outlived the budget by the keep-alives\' whole span', run.elapsedMs >= fixture.KEEP_ALIVE_EVERY_MS * fixture.KEEP_ALIVES && run.elapsedMs > fixture.ROAD_BUDGET_MS * 2, String(run.elapsedMs) + ' ms | the stream ended early; createStreamIdleWatchdog in src/services/providers/streamIdleBudget.ts must not fire while activity keeps arriving')
+  check('every keep-alive was sent and the stream lived to message_stop with no fire', run.sent === fixture.KEEP_ALIVES && run.terminal && run.fire === null, JSON.stringify(run) + ' | keep-alive pings the parser drops must still count as activity: see observeStreamActivity and createStreamIdleWatchdog in src/models/roads/streamIdleBudget.ts')
+  check('the parser yielded only its four events; the tap noted at least every keep-alive', run.yielded === 4 && run.noted >= fixture.KEEP_ALIVES, JSON.stringify(run) + ' | observeStreamActivity in src/models/roads/streamIdleBudget.ts must call its callback for every chunk read, including pings; AnthropicStream.fromSSEResponse in src/models/roads/anthropic/anthropicStream.ts must still yield only the four real events')
+  check('the stream outlived the budget by the keep-alives\' whole span', run.elapsedMs >= fixture.KEEP_ALIVE_EVERY_MS * fixture.KEEP_ALIVES && run.elapsedMs > fixture.ROAD_BUDGET_MS * 2, String(run.elapsedMs) + ' ms | the stream ended early; createStreamIdleWatchdog in src/models/roads/streamIdleBudget.ts must not fire while activity keeps arriving')
 }
 
 section('R2 — silence: two events, then nothing — the budget fires at its number')
 {
   const run = await play(true)
-  check('the budget fired with the silence measured; the stream never reached its end', run.fire !== null && run.fire.silentMs >= fixture.ROAD_BUDGET_MS && run.yielded === 2 && !run.terminal, JSON.stringify(run) + ' | createStreamIdleWatchdog in src/services/providers/streamIdleBudget.ts must fire once the silence reaches timeoutMs and report silentMs')
-  check('the cut came at the budget, not before and not long after', run.elapsedMs >= fixture.ROAD_BUDGET_MS && run.elapsedMs < fixture.ROAD_BUDGET_MS * 4, String(run.elapsedMs) + ' ms | the watchdog in src/services/providers/streamIdleBudget.ts must fire at its budget, not earlier and not much later')
+  check('the budget fired with the silence measured; the stream never reached its end', run.fire !== null && run.fire.silentMs >= fixture.ROAD_BUDGET_MS && run.yielded === 2 && !run.terminal, JSON.stringify(run) + ' | createStreamIdleWatchdog in src/models/roads/streamIdleBudget.ts must fire once the silence reaches timeoutMs and report silentMs')
+  check('the cut came at the budget, not before and not long after', run.elapsedMs >= fixture.ROAD_BUDGET_MS && run.elapsedMs < fixture.ROAD_BUDGET_MS * 4, String(run.elapsedMs) + ' ms | the watchdog in src/models/roads/streamIdleBudget.ts must fire at its budget, not earlier and not much later')
 }
 
 section('R3 — the number: the fed road lives under the fed budget; the pin outranks it')
 {
-  check('normal: 6 min', idle.streamIdleTimeoutMsForRoute('anthropic') === 360_000, String(idle.streamIdleTimeoutMsForRoute('anthropic')) + ' | the default for the anthropic route in streamIdleTimeoutMsForRoute, src/services/providers/streamIdleBudget.ts, must be 360000 ms')
-  check('the first-byte budget on a warm prefix is the road\'s number', idle.firstByteBudgetMs({ cold: false, promptTokens: 50_000, idleMs: idle.streamIdleTimeoutMsForRoute('anthropic') }) === 360_000, 'firstByteBudgetMs in src/services/providers/streamIdleBudget.ts must return the route idle budget for a warm prefix')
+  check('normal: 6 min', idle.streamIdleTimeoutMsForRoute('anthropic') === 360_000, String(idle.streamIdleTimeoutMsForRoute('anthropic')) + ' | the default for the anthropic route in streamIdleTimeoutMsForRoute, src/models/roads/streamIdleBudget.ts, must be 360000 ms')
+  check('the first-byte budget on a warm prefix is the road\'s number', idle.firstByteBudgetMs({ cold: false, promptTokens: 50_000, idleMs: idle.streamIdleTimeoutMsForRoute('anthropic') }) === 360_000, 'firstByteBudgetMs in src/models/roads/streamIdleBudget.ts must return the route idle budget for a warm prefix')
   const { error } = settings.updateSettingsForSource('userSettings', { patience: 'patient' } as never)
   settingsCache.resetSettingsCache()
-  check('patient: 12 min', error === null && idle.streamIdleTimeoutMsForRoute('anthropic') === 720_000, String(idle.streamIdleTimeoutMsForRoute('anthropic')) + ' | the patience setting patient must double the route budget to 720000 ms in streamIdleTimeoutMsForRoute, src/services/providers/streamIdleBudget.ts; updateSettingsForSource error: ' + String(error))
-  check('patient: the first-byte budget on a warm prefix follows', idle.firstByteBudgetMs({ cold: false, promptTokens: 50_000, idleMs: idle.streamIdleTimeoutMsForRoute('anthropic') }) === 720_000, 'firstByteBudgetMs in src/services/providers/streamIdleBudget.ts must follow the patient route budget for a warm prefix')
+  check('patient: 12 min', error === null && idle.streamIdleTimeoutMsForRoute('anthropic') === 720_000, String(idle.streamIdleTimeoutMsForRoute('anthropic')) + ' | the patience setting patient must double the route budget to 720000 ms in streamIdleTimeoutMsForRoute, src/models/roads/streamIdleBudget.ts; updateSettingsForSource error: ' + String(error))
+  check('patient: the first-byte budget on a warm prefix follows', idle.firstByteBudgetMs({ cold: false, promptTokens: 50_000, idleMs: idle.streamIdleTimeoutMsForRoute('anthropic') }) === 720_000, 'firstByteBudgetMs in src/models/roads/streamIdleBudget.ts must follow the patient route budget for a warm prefix')
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '2000'
-  check('the env pin outranks the setting', idle.streamIdleTimeoutMsForRoute('anthropic') === 2_000, 'streamIdleTimeoutMsForRoute in src/services/providers/streamIdleBudget.ts must let MERCURY_STREAM_IDLE_TIMEOUT_MS win over the patience setting; got ' + String(idle.streamIdleTimeoutMsForRoute('anthropic')))
+  check('the env pin outranks the setting', idle.streamIdleTimeoutMsForRoute('anthropic') === 2_000, 'streamIdleTimeoutMsForRoute in src/models/roads/streamIdleBudget.ts must let MERCURY_STREAM_IDLE_TIMEOUT_MS win over the patience setting; got ' + String(idle.streamIdleTimeoutMsForRoute('anthropic')))
   delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
   settings.updateSettingsForSource('userSettings', { patience: undefined } as never)
   settingsCache.resetSettingsCache()

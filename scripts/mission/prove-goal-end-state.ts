@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/guards/mission.ts src/services/mission/goal.ts src/services/mission/goalJudge.ts
-// gate-watch: src/commands/mission/** src/utils/mission/missionCard.ts
+// gate-watch: src/permissions/guards/mission.ts src/sessions/mission/goal.ts src/sessions/mission/goalJudge.ts
+// gate-watch: src/commands/mission/** src/sessions/mission-card/missionCard.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -17,20 +17,20 @@ for (const key of ['MERCURY_HOME', 'MERCURY_BARE', 'TYPESAFE_API_KEY', 'https_pr
 let failures = 0
 let checks = 0
 const watchdog = setTimeout(() => {
-  console.log('FATAL: prover watchdog (120s) — treat as failure; a stop, judge call or card write never settled: look in src/guards/mission.ts (judgeTurnEnd road) and src/services/mission/goalJudge.ts')
+  console.log('FATAL: prover watchdog (120s) — treat as failure; a stop, judge call or card write never settled: look in src/permissions/guards/mission.ts (judgeTurnEnd road) and src/sessions/mission/goalJudge.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
 const goalSectionHints: Record<string, string> = {
   '§1': 'to fix, change the mission command and its goal alias under src/commands/mission',
-  '§2': 'to fix, change compileGoal in src/services/mission/goal.ts or buildMissionDirective in src/guards/mission.ts',
-  '§3': 'to fix, change the stop judgement and the itemised-close rule in src/guards/mission.ts or the judge in src/services/mission/goalJudge.ts',
-  '§4': 'to fix, change the judge road in src/services/mission/goalJudge.ts or the stop judgement in src/guards/mission.ts',
-  '§5': 'to fix, change the pause and question handling in src/guards/mission.ts or the card in src/utils/mission/missionCard.ts',
-  '§6': 'to fix, change the /mission output in src/commands/mission/mission.ts or judgePrompt and toolTally in src/services/mission/goalJudge.ts',
-  '§7': 'to fix, change syncMissionFromCard in src/guards/mission.ts or the card write in src/utils/mission/missionCard.ts',
-  '§8': 'to fix, change lastLineOf in src/components/concourse/liveTiles.ts or tailActivity in src/services/concourse/concourseSnapshot.ts',
-  '§9': 'to fix, change readJudgeAnswer, verdictOfAnswer or judgeWithModel in src/services/mission/goalJudge.ts',
+  '§2': 'to fix, change compileGoal in src/sessions/mission/goal.ts or buildMissionDirective in src/permissions/guards/mission.ts',
+  '§3': 'to fix, change the stop judgement and the itemised-close rule in src/permissions/guards/mission.ts or the judge in src/sessions/mission/goalJudge.ts',
+  '§4': 'to fix, change the judge road in src/sessions/mission/goalJudge.ts or the stop judgement in src/permissions/guards/mission.ts',
+  '§5': 'to fix, change the pause and question handling in src/permissions/guards/mission.ts or the card in src/sessions/mission-card/missionCard.ts',
+  '§6': 'to fix, change the /mission output in src/commands/mission/mission.ts or judgePrompt and toolTally in src/sessions/mission/goalJudge.ts',
+  '§7': 'to fix, change syncMissionFromCard in src/permissions/guards/mission.ts or the card write in src/sessions/mission-card/missionCard.ts',
+  '§8': 'to fix, change lastLineOf in src/screen/concourse/liveTiles.ts or tailActivity in src/screen/concourse-model/concourseSnapshot.ts',
+  '§9': 'to fix, change readJudgeAnswer, verdictOfAnswer or judgeWithModel in src/sessions/mission/goalJudge.ts',
 }
 let goalSection = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -50,20 +50,20 @@ const { startJevStandin } = await import('../jev/lib/jevStandin.ts')
 const standin = await startJevStandin()
 process.env.MERCURY_JEV_BASE = standin.base
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
-const mission = await import('../../src/guards/mission.ts')
+const mission = await import('../../src/permissions/guards/mission.ts')
 const { MISSION_MET_SENTINEL, MISSION_DIRECTIVE_HEADER, buildMissionDirective, clearActiveMission, getActiveMission, setActiveMission } = mission
-const { readMissionCard } = await import('../../src/utils/mission/missionCard.ts')
-const goalModule = await import('../../src/services/mission/goal.ts').catch(() => null)
-const judgeModule = await import('../../src/services/mission/goalJudge.ts').catch(() => null)
-const { guardsEngaged, judgeTurnEnd, takeTurnNotes } = await import('../../src/guards/guards.ts')
-const { _resetContinuationLatchesForTesting } = await import('../../src/services/run/continuationLatch.ts')
-const { setJevEnabled } = await import('../../src/services/jev/jevSetting.ts')
-const { storeJevApiKey } = await import('../../src/services/jev/jevKey.ts')
-const { jevLedgerSnapshot, resetJevLedger } = await import('../../src/services/jev/jevLedger.ts')
-const { markMutation } = await import('../../src/utils/verification/verificationState.ts')
+const { readMissionCard } = await import('../../src/sessions/mission-card/missionCard.ts')
+const goalModule = await import('../../src/sessions/mission/goal.ts').catch(() => null)
+const judgeModule = await import('../../src/sessions/mission/goalJudge.ts').catch(() => null)
+const { guardsEngaged, judgeTurnEnd, takeTurnNotes } = await import('../../src/permissions/guards/guards.ts')
+const { _resetContinuationLatchesForTesting } = await import('../../src/engine/run/continuationLatch.ts')
+const { setJevEnabled } = await import('../../src/models/jev/jevSetting.ts')
+const { storeJevApiKey } = await import('../../src/models/jev/jevKey.ts')
+const { jevLedgerSnapshot, resetJevLedger } = await import('../../src/models/jev/jevLedger.ts')
+const { markMutation } = await import('../../src/platform/verification/verificationState.ts')
 
 judgeModule?._setMissionJudgeForTesting(null)
 
@@ -102,14 +102,14 @@ console.log('============================================================')
 
 section('§1 the census: /goal is a second name for /mission')
 {
-  const { builtinCommands, findCommand } = await import('../../src/commands.ts')
+  const { builtinCommands, findCommand } = await import('../../src/commands/catalogue/commands.ts')
   const commands = [...builtinCommands()]
   const forms = commands.filter(command => command.name === 'mission')
   check('both mission command forms carry the goal alias', forms.length === 2 && forms.every(command => command.aliases?.includes('goal') === true), j(forms.map(command => ({ type: command.type, aliases: command.aliases }))))
   check('/goal resolves to the mission command', findCommand('goal', commands)?.name === 'mission', j(findCommand('goal', commands)?.name))
   check('no other command answers to goal', commands.every(command => command.name !== 'goal' && (command.aliases?.includes('goal') !== true || command.name === 'mission')))
-  const { generateCommandSuggestions } = await import('../../src/utils/suggestions/commandSuggestions.ts')
-  const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+  const { generateCommandSuggestions } = await import('../../src/screen/suggestions/commandSuggestions.ts')
+  const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
   setIsInteractive(true)
   const painted = generateCommandSuggestions('/goa', commands).map(item => item.displayText)
   check('the typeahead paints /mission (goal) for the alias', painted.includes('/mission (goal)'), j(painted.slice(0, 6)))
@@ -482,7 +482,7 @@ section('§6 the surfaces keep their words: the receipt, the panel, the card')
   const prompted = judgeModule?.judgePrompt(goalModule!.compileGoal('the parser suite is green'), evidence as never).user ?? ''
   check("the judge's tool line is a bounded tally of distinct names with counts, never one name per call: 'Tools: 3 tool call(s) this turn: Read ×2, Bash'", judgeModule?.toolTally(['Read', 'Read', 'Bash']) === 'Read ×2, Bash' && prompted.includes('Tools: 3 tool call(s) this turn: Read ×2, Bash'), j({ tally: judgeModule?.toolTally(['Read', 'Read', 'Bash']), line: prompted.split('\n').find(line => line.startsWith('Tools:')) }))
   const { call: localMission } = await import('../../src/commands/mission/mission.ts')
-  const { conversationIdHere } = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const { conversationIdHere } = await import('../../src/engine/connector/focusedConnector.ts')
   const own = conversationIdHere()
   const OWN_GOAL = 'the parser suite is green'
   arm(own, OWN_GOAL, async () => verdict('met', 0.92, 'the evidence shows the suite green'))
@@ -490,7 +490,7 @@ section('§6 the surfaces keep their words: the receipt, the panel, the card')
   const liveLine = await localMission('', {} as never)
   check("after met, /mission with no words prints the completed line on the live road: 'Mission completed: <goal> — <the judge's reason> · 1 turn · <elapsed>'", ownMet.allowed && liveLine.type === 'text' && liveLine.value.startsWith(`Mission completed: ${OWN_GOAL} — the evidence shows the suite green · 1 turn · `), j({ ownMet, liveLine }))
   clearActiveMission(own)
-  const { writeMissionCard } = await import('../../src/utils/mission/missionCard.ts')
+  const { writeMissionCard } = await import('../../src/sessions/mission-card/missionCard.ts')
   const setAt = new Date(Date.now() - 90_000).toISOString()
   const metAt = new Date(Date.now() - 30_000).toISOString()
   writeMissionCard({ schema: 1, sessionId: own, goal: OWN_GOAL, state: 'met', nextStep: null, iterations: 1, setAt, updatedAt: metAt, outcome: { reason: 'the evidence shows the suite green', metAt, turns: 1 } })
@@ -500,7 +500,7 @@ section('§6 the surfaces keep their words: the receipt, the panel, the card')
 
 section('§7 a newer card wins by time: /goal run again with the same words after a pause re-arms, and the older record never writes over it')
 {
-  const { writeMissionCard } = await import('../../src/utils/mission/missionCard.ts')
+  const { writeMissionCard } = await import('../../src/sessions/mission-card/missionCard.ts')
   const { syncMissionFromCard } = mission
   const S = 'goal-same-words-again'
   const GOAL = 'the report is improved'
@@ -526,11 +526,11 @@ section('§7 a newer card wins by time: /goal run again with the same words afte
 
 section('§8 the concourse paints no marker: the live tile\'s last line and the now label elide the completion line')
 {
-  const { lastLineOf } = await import('../../src/components/concourse/liveTiles.ts')
-  const { tailActivity, activityNowLabel } = await import('../../src/services/concourse/concourseSnapshot.ts')
-  const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-  const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
-  const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
+  const { lastLineOf } = await import('../../src/screen/concourse/liveTiles.ts')
+  const { tailActivity, activityNowLabel } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
+  const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+  const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
+  const { workerTranscriptPath } = await import('../../src/screen/concourse-model/workerTranscript.ts')
   const { mkdirSync, writeFileSync } = await import('node:fs')
   const { dirname } = await import('node:path')
   check('the live tile\'s last line drops a trailing completion line and keeps the words before it', lastLineOf(`wrote hello.txt with the word hello.\n${MISSION_MET_SENTINEL}\n`) === 'wrote hello.txt with the word hello.' && lastLineOf(`done\n${MISSION_MET_SENTINEL}`) === 'done' && lastLineOf('still working') === 'still working', j([lastLineOf(`wrote hello.txt with the word hello.\n${MISSION_MET_SENTINEL}\n`), lastLineOf(`done\n${MISSION_MET_SENTINEL}`)]))
@@ -575,8 +575,8 @@ section("§9 the judge's answer is read strictly: one JSON object, a known verdi
     check("an unreadable answer maps to not yet with the reason 'the judge gave no readable verdict', never to met and never with an invented reason", [prose, noReason, unknown, notJson].every(text => j(verdictOf(text)) === j({ kind: 'not yet', confidence: 0, reason: judgeModule?.JUDGE_UNREADABLE, road: 'model' })) && verdictOf('{"verdict":"met","reason":"all criteria shown"}').kind === 'met', j(verdictOf(prose)))
   }
   const { judgeWithModel, modelRoadOpen, JUDGE_UNREACHABLE } = judgeModule!
-  const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
-  const { utilityCallFor } = await import('../../src/services/model/utilityModel.ts')
+  const { setEngineModelOverride } = await import('../../src/boot/process-state/processState.ts')
+  const { utilityCallFor } = await import('../../src/models/catalogue/utilityModel.ts')
   setEngineModelOverride('claude-opus-5-5')
   process.env.ANTHROPIC_API_KEY = 'proof-key-not-a-real-key-0106'
   process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'

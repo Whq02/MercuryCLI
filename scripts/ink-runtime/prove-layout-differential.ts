@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { createCellLayoutNode } from '../../src/ink/layout/cellLayout.js'
-import type { LayoutNode } from '../../src/ink/layout/node.js'
+import { createCellLayoutNode } from '../../src/screen/renderer/layout/cellLayout.js'
+import type { LayoutNode } from '../../src/screen/renderer/layout/node.js'
 import {
   allScenes,
   lcg,
@@ -35,7 +35,7 @@ function firstDivergence(a: SceneRects[], b: SceneRects[]): string {
   return ''
 }
 
-const YOGA_ADAPTER = join(import.meta.dir, '..', '..', 'src', 'ink', 'layout', 'yoga.ts')
+const YOGA_ADAPTER = join(import.meta.dir, '..', '..', 'src', 'screen', 'renderer', 'layout', 'yoga.ts')
 const GOLDEN = join(import.meta.dir, 'goldens', 'layout-corpus.json')
 const oracleLive = existsSync(YOGA_ADAPTER)
 
@@ -61,7 +61,7 @@ async function compareScenes(scenes: Scene[], viaOracle: (s: Scene) => SceneRect
 }
 
 if (oracleLive) {
-  const { createYogaLayoutNode } = await import('../../src/ink/layout/yoga.js')
+  const { createYogaLayoutNode } = await import('../../src/screen/renderer/layout/yoga.js')
   const oracleRun = (s: Scene) => runScene(s, createYogaLayoutNode as () => LayoutNode)
   await compareScenes(allScenes(), oracleRun)
   await compareScenes(randomScenes(400, 0xce11).map(s => ({ ...s, name: `x${s.name}` })), oracleRun)
@@ -81,7 +81,7 @@ if (oracleLive) {
 check(
   `all ${comparedScenes} scenes agree`,
   mismatchScenes === 0,
-  `${mismatchScenes} scenes diverged; the first divergences are printed above, fix the cell engine in src/ink/layout/cellLayout.ts (calculateLayout) until its rects match the oracle or goldens/layout-corpus.json`,
+  `${mismatchScenes} scenes diverged; the first divergences are printed above, fix the cell engine in src/screen/renderer/layout/cellLayout.ts (calculateLayout) until its rects match the oracle or goldens/layout-corpus.json`,
 )
 
 
@@ -101,8 +101,8 @@ check(
   root.calculateLayout(40, undefined)
   const first = calls
   root.calculateLayout(40, undefined)
-  check('repeat-layout silence: zero measure calls on unchanged relayout', calls === first, `${calls - first} extra calls; calculateLayout in src/ink/layout/cellLayout.ts must not re-run setMeasureFunc callbacks on a clean node`)
-  check('repeat-layout produced a real first measure', first > 0, 'the first calculateLayout in src/ink/layout/cellLayout.ts never called the measure function set with setMeasureFunc')
+  check('repeat-layout silence: zero measure calls on unchanged relayout', calls === first, `${calls - first} extra calls; calculateLayout in src/screen/renderer/layout/cellLayout.ts must not re-run setMeasureFunc callbacks on a clean node`)
+  check('repeat-layout produced a real first measure', first > 0, 'the first calculateLayout in src/screen/renderer/layout/cellLayout.ts never called the measure function set with setMeasureFunc')
 }
 
 {
@@ -110,7 +110,7 @@ check(
   check(
     'getComputed* are NaN before first calculateLayout',
     Number.isNaN(n.getComputedWidth()) && Number.isNaN(n.getComputedLeft()),
-    'getComputedWidth and getComputedLeft in src/ink/layout/cellLayout.ts must return NaN until calculateLayout has run'
+    'getComputedWidth and getComputedLeft in src/screen/renderer/layout/cellLayout.ts must return NaN until calculateLayout has run'
   )
 }
 
@@ -120,7 +120,7 @@ check(
   check(
     'relayout purity: content restored ⇒ rects restored (owned engine)',
     JSON.stringify(rects[0]) === JSON.stringify(rects[3]),
-    'pass 3 of scene relayout-content-change differs from pass 0; calculateLayout in src/ink/layout/cellLayout.ts keeps state from the changed content'
+    'pass 3 of scene relayout-content-change differs from pass 0; calculateLayout in src/screen/renderer/layout/cellLayout.ts keeps state from the changed content'
   )
 }
 
@@ -130,7 +130,7 @@ check(
     const a = runScene(scene, createCellLayoutNode)
     const b = runScene(scene, createCellLayoutNode)
     if (JSON.stringify(a) !== JSON.stringify(b)) {
-      check(`determinism: ${scene.name}`, false, `${firstDivergence(a, b)}; two runs of one scene gave different rects, so calculateLayout in src/ink/layout/cellLayout.ts depends on state outside the tree`)
+      check(`determinism: ${scene.name}`, false, `${firstDivergence(a, b)}; two runs of one scene gave different rects, so calculateLayout in src/screen/renderer/layout/cellLayout.ts depends on state outside the tree`)
     }
   }
 }

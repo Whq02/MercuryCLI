@@ -9,10 +9,10 @@ import { parsePDFOptions } from 'puppeteer-core/internal/common/util.js'
 
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const ROOT = resolve(import.meta.dir, '..', '..')
-const resolver = await import('../../src/services/browser/browserResolver.ts')
-const sessions = await import('../../src/services/browser/browserSession.ts')
-const { printDocument } = await import('../../src/tools/DocumentTool/print.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
+const resolver = await import('../../src/integrations/browser/browserResolver.ts')
+const sessions = await import('../../src/integrations/browser/browserSession.ts')
+const { printDocument } = await import('../../src/tools/document/print.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
 const owner = makeOwnerKey({ workspace: proofHome, sessionId: 'proof', lane: 'main' })
 const fresh = (): AbortSignal => new AbortController().signal
 
@@ -63,7 +63,7 @@ async function liveLeg(): Promise<string> {
   for (const leg of legs) {
     const bytes = await printDocument(fixture(leg.words, leg.pages), leg.input, owner, fresh())
     assert.ok(bytes && bytes.length > 1000, `${leg.words}: the browser returned ${bytes?.length ?? 'no'} bytes`)
-    assert.equal(Buffer.from(bytes.subarray(0, 5)).toString('ascii'), '%PDF-', `${leg.words}: the browser output is not a PDF; check page.pdf in printDocument (src/tools/DocumentTool/print.ts)`)
+    assert.equal(Buffer.from(bytes.subarray(0, 5)).toString('ascii'), '%PDF-', `${leg.words}: the browser output is not a PDF; check page.pdf in printDocument (src/tools/document/print.ts)`)
     const loaded = await PDFDocument.load(bytes)
     assert.equal(loaded.getPageCount(), leg.pages, `${leg.words}: page count`)
     for (const [index, page] of loaded.getPages().entries()) {
@@ -72,13 +72,13 @@ async function liveLeg(): Promise<string> {
       near(box.height, leg.sheet[1], 2, `${leg.words}: page ${index + 1} media box height`)
     }
     const sheets = await readSheets(bytes)
-    assert.equal(sheets.length, leg.pages, `${leg.words}: pdf.js read a different page count than the ${leg.pages} page(s) printed; check the page-break handling in printDocument (src/tools/DocumentTool/print.ts)`)
+    assert.equal(sheets.length, leg.pages, `${leg.words}: pdf.js read a different page count than the ${leg.pages} page(s) printed; check the page-break handling in printDocument (src/tools/document/print.ts)`)
     const drawn: number[] = []
     for (const [index, sheet] of sheets.entries()) {
       const line = sheet.glyphs.find(glyph => glyph.text.startsWith(leg.words))
       assert.ok(line, `${leg.words}: page ${index + 1} carries no body text; glyphs ${JSON.stringify(sheet.glyphs)}; reader notes ${JSON.stringify(readerNotes)}`)
       const row = sheet.glyphs.filter(glyph => Math.abs(glyph.baseline - line.baseline) < 1).sort((a, b) => a.x - b.x)
-      assert.equal(row.map(glyph => glyph.text).join(' '), `${leg.words} page ${index + 1}`, `${leg.words}: page ${index + 1} body line reads differently from the fixture text; check what printDocument (src/tools/DocumentTool/print.ts) sends to page.setContent`)
+      assert.equal(row.map(glyph => glyph.text).join(' '), `${leg.words} page ${index + 1}`, `${leg.words}: page ${index + 1} body line reads differently from the fixture text; check what printDocument (src/tools/document/print.ts) sends to page.setContent`)
       near(line.x, leg.margin, 1, `${leg.words}: page ${index + 1} body text x offset (the left margin as drawn)`)
       drawn.push(line.x)
       assert.ok(line.baseline > leg.margin && line.baseline < leg.margin + 24, `${leg.words}: page ${index + 1} first baseline ${line.baseline} from the top does not sit just inside a ${leg.margin}pt top margin`)
@@ -97,8 +97,8 @@ try {
   const decisions: string[] = []
   let requests: (r: any) => void = () => undefined
   let closeCount = 0, options: any, parsed: any, html = ''
-  mock.module('../../src/services/browser/browserResolver.js', () => ({ ...resolver, resolveBrowser: () => ({ state: 'ok', source: 'managed-cache', executablePath: '/fixture/chrome' }) }))
-  mock.module('../../src/services/browser/browserSession.js', () => ({ ...sessions,
+  mock.module('../../src/integrations/browser/browserResolver.js', () => ({ ...resolver, resolveBrowser: () => ({ state: 'ok', source: 'managed-cache', executablePath: '/fixture/chrome' }) }))
+  mock.module('../../src/integrations/browser/browserSession.js', () => ({ ...sessions,
     ensureBrowserSession: async () => ({ page: {
       setJavaScriptEnabled: async (enabled: boolean) => assert.equal(enabled, false),
       setRequestInterception: async (enabled: boolean) => assert.equal(enabled, true),
@@ -111,32 +111,32 @@ try {
   const browserFlag = process.env.MERCURY_BROWSER
   process.env.MERCURY_BROWSER = '0'
   try {
-    assert.equal(await printDocument('<p>Off</p>', { op: 'create' }, owner, fresh()), null, 'with MERCURY_BROWSER=0 a default print must return null; check the early return in printDocument (src/tools/DocumentTool/print.ts)')
-    await assert.rejects(printDocument('<p>Off</p>', { op: 'create', renderer: 'browser' }, owner, fresh()), /disabled/, 'with MERCURY_BROWSER=0 an explicit renderer browser must throw a disabled error; check the first lines of printDocument in src/tools/DocumentTool/print.ts')
-    assert.equal(closeCount, 0, 'with MERCURY_BROWSER=0 no browser session may be opened or closed; check the early return in printDocument (src/tools/DocumentTool/print.ts)')
+    assert.equal(await printDocument('<p>Off</p>', { op: 'create' }, owner, fresh()), null, 'with MERCURY_BROWSER=0 a default print must return null; check the early return in printDocument (src/tools/document/print.ts)')
+    await assert.rejects(printDocument('<p>Off</p>', { op: 'create', renderer: 'browser' }, owner, fresh()), /disabled/, 'with MERCURY_BROWSER=0 an explicit renderer browser must throw a disabled error; check the first lines of printDocument in src/tools/document/print.ts')
+    assert.equal(closeCount, 0, 'with MERCURY_BROWSER=0 no browser session may be opened or closed; check the early return in printDocument (src/tools/document/print.ts)')
   } finally { if (browserFlag === undefined) delete process.env.MERCURY_BROWSER; else process.env.MERCURY_BROWSER = browserFlag }
   const standIn = async (input: Parameters<typeof printDocument>[1]): Promise<void> => {
     const bytes = await printDocument('<p>Print fixture</p>', input, owner, fresh())
-    assert.equal(Buffer.from(bytes!).toString(), '%PDF', 'printDocument must return the bytes page.pdf produced; check src/tools/DocumentTool/print.ts')
-    assert.equal(html, '<p>Print fixture</p>', 'printDocument must pass the html unchanged to page.setContent; check src/tools/DocumentTool/print.ts')
+    assert.equal(Buffer.from(bytes!).toString(), '%PDF', 'printDocument must return the bytes page.pdf produced; check src/tools/document/print.ts')
+    assert.equal(html, '<p>Print fixture</p>', 'printDocument must pass the html unchanged to page.setContent; check src/tools/document/print.ts')
   }
   await standIn({ op: 'create' })
-  assert.equal(options.format, 'A4', 'a default print must ask page.pdf for format A4; check the format option in printDocument (src/tools/DocumentTool/print.ts)')
-  assert.equal(options.margin.top, '0.75in', 'the default 54pt margin must reach page.pdf as 0.75in; check the margin conversion in printDocument (src/tools/DocumentTool/print.ts)')
-  assert.deepEqual(parsed.margin, { top: 0.75, left: 0.75, bottom: 0.75, right: 0.75 }, 'the driver parser must read the default margin as 0.75 inch on all four sides; check the margin option in printDocument (src/tools/DocumentTool/print.ts)')
-  assert.equal(options.displayHeaderFooter, false, 'without pageNumbers displayHeaderFooter must be false; check printDocument (src/tools/DocumentTool/print.ts)')
+  assert.equal(options.format, 'A4', 'a default print must ask page.pdf for format A4; check the format option in printDocument (src/tools/document/print.ts)')
+  assert.equal(options.margin.top, '0.75in', 'the default 54pt margin must reach page.pdf as 0.75in; check the margin conversion in printDocument (src/tools/document/print.ts)')
+  assert.deepEqual(parsed.margin, { top: 0.75, left: 0.75, bottom: 0.75, right: 0.75 }, 'the driver parser must read the default margin as 0.75 inch on all four sides; check the margin option in printDocument (src/tools/document/print.ts)')
+  assert.equal(options.displayHeaderFooter, false, 'without pageNumbers displayHeaderFooter must be false; check printDocument (src/tools/document/print.ts)')
   await standIn({ op: 'create', paper: 'Letter', margin: 72, pageNumbers: true })
-  assert.equal(options.format, 'Letter', 'paper Letter must reach page.pdf as format Letter; check the format option in printDocument (src/tools/DocumentTool/print.ts)')
-  assert.deepEqual(options.margin, { top: '1in', bottom: '1in', left: '1in', right: '1in' }, 'a 72pt margin must reach page.pdf as 1in on all four sides; check the margin conversion in printDocument (src/tools/DocumentTool/print.ts)')
-  assert.deepEqual(parsed.margin, { top: 1, left: 1, bottom: 1, right: 1 }, 'the driver parser must read the 72pt margin as 1 inch; check the margin option in printDocument (src/tools/DocumentTool/print.ts)')
-  assert.equal(parsed.width, 8.5, 'format Letter must parse to 8.5 inches wide; check the format option in printDocument (src/tools/DocumentTool/print.ts)')
-  assert.equal(parsed.height, 11, 'format Letter must parse to 11 inches tall; check the format option in printDocument (src/tools/DocumentTool/print.ts)')
-  assert.equal(options.displayHeaderFooter, true, 'pageNumbers must turn displayHeaderFooter on; check printDocument (src/tools/DocumentTool/print.ts)')
+  assert.equal(options.format, 'Letter', 'paper Letter must reach page.pdf as format Letter; check the format option in printDocument (src/tools/document/print.ts)')
+  assert.deepEqual(options.margin, { top: '1in', bottom: '1in', left: '1in', right: '1in' }, 'a 72pt margin must reach page.pdf as 1in on all four sides; check the margin conversion in printDocument (src/tools/document/print.ts)')
+  assert.deepEqual(parsed.margin, { top: 1, left: 1, bottom: 1, right: 1 }, 'the driver parser must read the 72pt margin as 1 inch; check the margin option in printDocument (src/tools/document/print.ts)')
+  assert.equal(parsed.width, 8.5, 'format Letter must parse to 8.5 inches wide; check the format option in printDocument (src/tools/document/print.ts)')
+  assert.equal(parsed.height, 11, 'format Letter must parse to 11 inches tall; check the format option in printDocument (src/tools/document/print.ts)')
+  assert.equal(options.displayHeaderFooter, true, 'pageNumbers must turn displayHeaderFooter on; check printDocument (src/tools/document/print.ts)')
   await standIn({ op: 'create', margin: 36 })
-  assert.equal(options.margin.left, '0.5in', 'a 36pt margin must reach page.pdf as 0.5in; check the margin conversion in printDocument (src/tools/DocumentTool/print.ts)')
-  assert.equal(parsed.margin.left, 0.5, 'the driver parser must read the 36pt margin as 0.5 inch; check the margin option in printDocument (src/tools/DocumentTool/print.ts)')
+  assert.equal(options.margin.left, '0.5in', 'a 36pt margin must reach page.pdf as 0.5in; check the margin conversion in printDocument (src/tools/document/print.ts)')
+  assert.equal(parsed.margin.left, 0.5, 'the driver parser must read the 36pt margin as 0.5 inch; check the margin option in printDocument (src/tools/document/print.ts)')
   for (const url of ['https://example.com/', 'file:///secret', 'data:text/html,hello', 'data:image/png;base64,YQ==']) requests({ isInterceptResolutionHandled: () => false, url: () => url, continue: async () => decisions.push('allow'), abort: async () => decisions.push('deny') })
-  assert.deepEqual(decisions, ['deny', 'deny', 'deny', 'allow'], 'request interception must deny http, file and plain data URLs and allow only data:image png or jpeg base64; check the request handler in printDocument (src/tools/DocumentTool/print.ts)')
-  assert.equal(closeCount, 3, 'the browser session must be closed after every print (3 prints); check the closeBrowserSession call in printDocument (src/tools/DocumentTool/print.ts)')
+  assert.deepEqual(decisions, ['deny', 'deny', 'deny', 'allow'], 'request interception must deny http, file and plain data URLs and allow only data:image png or jpeg base64; check the request handler in printDocument (src/tools/document/print.ts)')
+  assert.equal(closeCount, 3, 'the browser session must be closed after every print (3 prints); check the closeBrowserSession call in printDocument (src/tools/document/print.ts)')
   console.log(`PASS print contract: bundled session owner, Letter/page numbers, scripts disabled, network and file URLs denied, session closed after every print; margins in points reach the driver as inches (54 as 0.75in, 72 as 1in, 36 as 0.5in) and pass its own page.pdf option parser; ${liveWords}`)
 } finally { rmSync(proofHome, { recursive: true, force: true }) }

@@ -13,20 +13,20 @@ const official = await startJevStandin()
 const router = await startJevStandin('openrouter')
 process.env.MERCURY_JEV_BASE = official.base
 process.env.MERCURY_OPENROUTER_API_BASE = `${router.base}/api/v1`
-const config = await import('../../src/utils/config.js')
+const config = await import('../../src/platform/settings/config.js')
 config.enableConfigs()
-const setting = await import('../../src/services/jev/jevSetting.ts')
-const key = await import('../../src/services/jev/jevKey.ts')
-const ledger = await import('../../src/services/jev/jevLedger.ts')
-const status = await import('../../src/services/jev/jevStatus.ts')
-const client = await import('../../src/services/jev/jevClient.ts')
-const tool = await import('../../src/tools/JevEvalTool/JevEvalTool.ts')
+const setting = await import('../../src/models/jev/jevSetting.ts')
+const key = await import('../../src/models/jev/jevKey.ts')
+const ledger = await import('../../src/models/jev/jevLedger.ts')
+const status = await import('../../src/models/jev/jevStatus.ts')
+const client = await import('../../src/models/jev/jevClient.ts')
+const tool = await import('../../src/tools/jev-eval/JevEvalTool.ts')
 const command = await import('../../src/commands/jev/jev.tsx')
-const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
-const secrets = await import('../../src/utils/accounts/providerSecrets.ts')
-const assembly = await import('../../src/tools/JevEvalTool/jevEvalRequest.ts')
-const facts = await import('../../src/services/jev/jevSessionFacts.ts')
-const contract = await import('../../src/services/jev/jevContract.ts')
+const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
+const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const assembly = await import('../../src/tools/jev-eval/jevEvalRequest.ts')
+const facts = await import('../../src/models/jev/jevSessionFacts.ts')
+const contract = await import('../../src/models/jev/jevContract.ts')
 const input = { goal: 'Check supplied evidence', evidence: [{ fact: 'A measured fact' }], questions: [{ id: 'yes', kind: 'noul' as const, ask: 'Does the fact support this?' }] }
 const OR_KEY = 'proof-openrouter-key-not-real'
 const TS_KEY = 'proof-typesafe-key-not-real'
@@ -34,7 +34,7 @@ const road = () => (setting.readJevSettings() as unknown as { road?: string }).r
 let checks = 0
 let failures = 0
 const jevRoadsFailHint =
-  'the road setting lives in src/services/jev/jevSetting.ts, the request path in src/services/jev/jevClient.ts, the call in src/tools/JevEvalTool/JevEvalTool.ts (jevEvalCall), the /jev command in src/commands/jev/jev.tsx, the status words in src/services/jev/jevStatus.ts'
+  'the road setting lives in src/models/jev/jevSetting.ts, the request path in src/models/jev/jevClient.ts, the call in src/tools/jev-eval/JevEvalTool.ts (jevEvalCall), the /jev command in src/commands/jev/jev.tsx, the status words in src/models/jev/jevStatus.ts'
 function check(name: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++

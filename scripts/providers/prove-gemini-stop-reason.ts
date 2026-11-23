@@ -15,20 +15,20 @@ const key = 'AIzaFixtureStopReason000000000000000000'
 process.env.GEMINI_API_KEY = key
 writeFileSync(join(proofHome, '.gemini-auth.json'), JSON.stringify({ version: 1, preferredSource: 'api-key' }))
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { geminiCallModel } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
-const { geminiFinishReason } = await import('../../src/services/providers/gemini/geminiClient.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { finalizeAgentTool, finalResponseOf, stoppedPartWay, PROMOTED_NARRATION_NOTE } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+const { geminiCallModel } = await import('../../src/models/roads/gemini/geminiCallModel.ts')
+const { geminiFinishReason } = await import('../../src/models/roads/gemini/geminiClient.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { finalizeAgentTool, finalResponseOf, stoppedPartWay, PROMOTED_NARRATION_NOTE } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
 
 let passes = 0
 let failures = 0
-const STOP_REASON_FAIL_HINT = 'to fix, change how a Gemini reply is minted in src/services/providers/gemini/geminiCallModel.ts (block order, stop_reason), the finish reason mapping geminiFinishReason in src/services/providers/gemini/geminiClient.ts, or the crewmate report (finalizeAgentTool, finalResponseOf, stoppedPartWay) in src/tools/AgentTool/agentToolUtils.ts'
+const STOP_REASON_FAIL_HINT = 'to fix, change how a Gemini reply is minted in src/models/roads/gemini/geminiCallModel.ts (block order, stop_reason), the finish reason mapping geminiFinishReason in src/models/roads/gemini/geminiClient.ts, or the crewmate report (finalizeAgentTool, finalResponseOf, stoppedPartWay) in src/tools/crewmate/crewmateLifecycle.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   if (ok) passes++
   else failures++

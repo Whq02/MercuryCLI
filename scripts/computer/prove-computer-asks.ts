@@ -4,13 +4,13 @@ import { join } from 'node:path'
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, COMPUTER_READS, ownerOf, pixelOfPointOn, pointOfPixelOn, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const session = await import('../../src/services/desktop/desktopSession.ts')
-const { suggestionForExactCommand } = await import('../../src/utils/permissions/shellRuleMatching.ts')
-type ToolUseContext = import('../../src/Tool.ts').ToolUseContext
-type FakeDesktopDriver = import('../../src/services/desktop/fakeDesktopDriver.ts').FakeDesktopDriver
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const session = await import('../../src/integrations/desktop/desktopSession.ts')
+const { suggestionForExactCommand } = await import('../../src/permissions/rules/shellRuleMatching.ts')
+type ToolUseContext = import('../../src/tools/kit/tool.ts').ToolUseContext
+type FakeDesktopDriver = import('../../src/integrations/desktop/fakeDesktopDriver.ts').FakeDesktopDriver
 
 const scratch = scratchDir('asks')
 const TEXTEDIT = { identity: 'com.example.TextEdit', name: 'TextEdit' }
@@ -103,9 +103,9 @@ section('§3 a switch to another application asks again only while no session gr
   check('Finder is now in front', front.ok && front.value.name === 'Finder')
   const next = await permission({ action: 'click', x: 100, y: 100 }, context)
   check('with no card answered (the proof\'s consent stub wrote no grant), the next click asks for Finder', next.behavior === 'ask' && (next.message ?? '').includes('Finder (com.example.Finder)') && !(next.message ?? '').includes('TextEdit'), JSON.stringify(next))
-  const { applyComputerAskChoice } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
-  const { getSessionId } = await import('../../src/bootstrap/state.ts')
-  const grants = await import('../../src/services/desktop/computerGrant.ts')
+  const { applyComputerAskChoice } = await import('../../src/permissions/cards/computer/ComputerPermissionRequest.tsx')
+  const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
+  const grants = await import('../../src/integrations/desktop/computerGrant.ts')
   const yes = applyComputerAskChoice('yes', String(getSessionId()))
   check('the card\'s Yes writes a session grant at once, before any act succeeds', yes.allow && yes.grant?.kind === 'session' && grants.readComputerGrant(String(getSessionId()))?.kind === 'session', JSON.stringify(yes))
   const covered = await permission({ action: 'click', x: 100, y: 100 }, context)
@@ -182,8 +182,8 @@ section('§4b the terminal that asked is not a drift: the answered card brought 
   }
   {
     const scene = await terminalTakes('grant-then-terminal')
-    const { getSessionId } = await import('../../src/bootstrap/state.ts')
-    const grants = await import('../../src/services/desktop/computerGrant.ts')
+    const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
+    const grants = await import('../../src/integrations/desktop/computerGrant.ts')
     grants.writeComputerGrant(String(getSessionId()), grants.sessionComputerGrant(Date.now()))
     const allowed = await permission({ action: 'click', x: 100, y: 100 }, scene.context)
     check('a standing session grant allows with no card, as a grant', allowed.behavior === 'allow' && session.peekCheckedActApp(scene.owner)?.viaGrant === true && session.peekCheckedActApp(scene.owner)?.asked === false, JSON.stringify(allowed))
@@ -354,7 +354,7 @@ section('§8 unknown terminal identity refuses keystrokes instead of guessing')
 
 section('§8 the relayed ask keeps the application name and its rule identity distinct')
 {
-  const { judgedAppFromAsk, computerAskAppLine } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
+  const { judgedAppFromAsk, computerAskAppLine } = await import('../../src/permissions/cards/computer/ComputerPermissionRequest.tsx')
   const suggestions = suggestionForExactCommand('Computer', `app:${TEXTEDIT.identity}`)
   const direct = judgedAppFromAsk(`Computer click (812, 300) in ${TEXTEDIT.name} (${TEXTEDIT.identity}) — the first act this session`, suggestions)
   check('a local ask keeps its application name and identity', JSON.stringify(direct) === JSON.stringify(TEXTEDIT), JSON.stringify(direct))
@@ -370,7 +370,7 @@ section('§8 the relayed ask keeps the application name and its rule identity di
   check("another tool's suggestion supplies no Computer application grant", foreign === null, JSON.stringify(foreign))
   check('missing relay facts retain the unnamed application fallback', judgedAppFromAsk('', undefined) === null)
   check('an empty application identity cannot produce a persistent grant', judgedAppFromAsk('', [{ type: 'addRules', rules: [{ toolName: 'Computer', ruleContent: 'app:' }] }]) === null)
-  const { renderToolUseMessage } = await import('../../src/tools/ComputerTool/UI.tsx')
+  const { renderToolUseMessage } = await import('../../src/tools/computer/rows.tsx')
   const multiline = renderToolUseMessage({ action: 'type', text: 'first\nsecond\tthird' }, { verbose: false })
   check('typed newlines and tabs are spelled on one display row', typeof multiline === 'string' && !/[\r\n\t]/.test(multiline) && multiline.includes('\\n') && multiline.includes('\\t'), String(multiline))
 }
@@ -527,7 +527,7 @@ section("§12 permissive: the application in front at the turn's first call is t
 
 section('§13 the card offers four answers while sovereign mode is already on, five otherwise — the same words in the same order')
 {
-  const { COMPUTER_ASK_CHOICES, computerAskChoicesFor } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
+  const { COMPUTER_ASK_CHOICES, computerAskChoicesFor } = await import('../../src/permissions/cards/computer/ComputerPermissionRequest.tsx')
   check('with sovereign mode off the card offers the five answers exactly as they are', computerAskChoicesFor(false) === COMPUTER_ASK_CHOICES && COMPUTER_ASK_CHOICES.map(c => c.value).join(',') === 'yes,no,hour,day,sovereign')
   const four = computerAskChoicesFor(true)
   check('with sovereign mode on the card offers the first four answers only, unchanged', four.length === 4 && four.every((c, i) => c === COMPUTER_ASK_CHOICES[i]))
@@ -536,8 +536,8 @@ section('§13 the card offers four answers while sovereign mode is already on, f
 
 section('§14 the challenge card: two plain answers, the question in the owner\'s words, the application named')
 {
-  const { COMPUTER_CHALLENGE_CHOICES, COMPUTER_CHALLENGE_QUESTION, COMPUTER_CHALLENGE_NOTE, computerChallengeAppLine, judgedAppFromAsk } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
-  const { CAPTCHA_QUESTION } = await import('../../src/tools/ComputerTool/captcha.ts')
+  const { COMPUTER_CHALLENGE_CHOICES, COMPUTER_CHALLENGE_QUESTION, COMPUTER_CHALLENGE_NOTE, computerChallengeAppLine, judgedAppFromAsk } = await import('../../src/permissions/cards/computer/ComputerPermissionRequest.tsx')
+  const { CAPTCHA_QUESTION } = await import('../../src/tools/computer/captcha.ts')
   check('the challenge card offers Yes and No only, in that order', COMPUTER_CHALLENGE_CHOICES.map(c => c.value).join(',') === 'yes,no')
   check('Yes says exactly what it grants: this window, until the challenge is gone, at most an hour', COMPUTER_CHALLENGE_CHOICES[0]!.label === 'Yes — let Mercury try it in this window until the challenge is gone, at most an hour')
   check('No says the operator completes it and Mercury waits and re-issues', COMPUTER_CHALLENGE_CHOICES[1]!.label === 'No — I will complete it myself; Mercury waits and re-issues (esc)')

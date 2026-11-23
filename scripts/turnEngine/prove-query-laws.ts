@@ -13,23 +13,23 @@ delete process.env.MERCURY_EFFORT_LEVEL
 import { z } from 'zod/v4'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 const projDir = mkdtempSync(join(tmpdir(), 'query-laws-proj-'))
 bootstrap.setOriginalCwd(projDir)
 bootstrap.setProjectRoot(projDir)
 
-const { query } = await import('../../src/query.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage, INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage, INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import(
-  '../../src/utils/fileStateCache.ts'
+  '../../src/platform/files/fileStateCache.ts'
 )
 
 let failures = 0
-const queryLawHint = 'to fix, change the turn loop that query() in src/query.ts runs: the terminal reasons in src/query/transitions.ts and the stream and tool abort handling in src/run-core/turn/modelReply.ts'
+const queryLawHint = 'to fix, change the turn loop that query() in src/engine/turnDoor.ts runs: the terminal reasons in src/engine/turn-entry/transitions.ts and the stream and tool abort handling in src/engine/loop/turn/modelReply.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? '' : detail ? `${detail} | ${queryLawHint}` : queryLawHint
@@ -42,7 +42,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — query laws proof exceeded 180s')
-  console.log('a scripted model turn or a gated probe tool never finished; look at query() in src/query.ts and at the section that printed last')
+  console.log('a scripted model turn or a gated probe tool never finished; look at query() in src/engine/turnDoor.ts and at the section that printed last')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

@@ -39,13 +39,13 @@ export function verbSurfaceFromSource(mainSource, cliSource) {
   const fastPath = [...cliSource.matchAll(/args\[0\] === '([^']+)'/g)].map(m => m[1]).filter(v => !v.startsWith('-'))
   if (commands.length === 0 || fastPath.length === 0) {
     throw new Error(
-      `the launcher templates could not read the product's verb surface from ${VERB_SOURCES.join(', ')} + src/entrypoints/cli.tsx — update verbSurfaceFromSource alongside any deliberate registration-shape change (a stale skip list lets a verb be cancelled into never running)`,
+      `the launcher templates could not read the product's verb surface from ${VERB_SOURCES.join(', ')} + src/boot/entrypoints/cli.tsx — update verbSurfaceFromSource alongside any deliberate registration-shape change (a stale skip list lets a verb be cancelled into never running)`,
     )
   }
   return { commands, fastPath }
 }
 
-const VERB_SOURCES = ['src/main.tsx', 'src/main/sessionDoors.ts', 'src/main/subcommands.ts']
+const VERB_SOURCES = ['src/boot/main.tsx', 'src/boot/main/sessionDoors.ts', 'src/boot/main/subcommands.ts']
 
 export function splashSkipVerbsFrom(surface) {
   const verbs = new Set()
@@ -60,7 +60,7 @@ export function splashSkipVerbsFrom(surface) {
 export const SPLASH_SKIP_VERBS = splashSkipVerbsFrom(
   verbSurfaceFromSource(
     VERB_SOURCES.map(path => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8')).join('\n'),
-    readFileSync(new URL('../../src/entrypoints/cli.tsx', import.meta.url), 'utf8'),
+    readFileSync(new URL('../../src/boot/entrypoints/cli.tsx', import.meta.url), 'utf8'),
   ),
 )
 

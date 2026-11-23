@@ -9,7 +9,7 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'posture-blind-'))
 
 let failures = 0
-const familyBlindHint = 'to fix, make setPermissionModeWithGuards and validateModeEntry in src/utils/permissions/permissionSetup.ts return the same verdict whatever MERCURY_MODEL names'
+const familyBlindHint = 'to fix, make setPermissionModeWithGuards and validateModeEntry in src/permissions/rules/permissionSetup.ts return the same verdict whatever MERCURY_MODEL names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : `${detail ? ` — ${detail}` : ''} — ${familyBlindHint}`}${cond && detail ? ` — ${detail}` : ''}`)
@@ -44,7 +44,7 @@ async function main(): Promise<void> {
   console.log('============================================================')
 
 
-  const { setPermissionModeWithGuards } = await import('../../src/utils/permissions/permissionSetup.js')
+  const { setPermissionModeWithGuards } = await import('../../src/permissions/rules/permissionSetup.js')
 
   type AnyContext = Record<string, unknown>
   const runEntry = (mode: string, context: AnyContext): string => {

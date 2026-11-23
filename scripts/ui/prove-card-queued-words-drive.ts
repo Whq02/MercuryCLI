@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/permissions/CardQueuedWords* src/utils/cockpit/composerSeed* src/screens/Chat*
+// gate-watch: src/permissions/cards/CardQueuedWords.tsx src/screen/cockpit/composerSeed.ts src/screen/chat/Chat.tsx
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { grabScreens, requireDist, runArtifactArena, sendStamp } from '../streaming/artifactArena.ts'
@@ -27,8 +27,8 @@ const YIELD_CUE = 'Waiting for permission…'
 const CLOSING = 'The marker is in place.'
 const ANSWER = 'Two files, as counted.'
 const BACKSPACE = '\\x7f'
-const queuedFix = 'queued-words card: src/components/permissions/CardQueuedWords.tsx and src/utils/cockpit/composerSeed.ts'
-const queuedSendFix = 'words queued under a card: src/utils/cockpit/composerSeed.ts and the Chat screen in src/screens'
+const queuedFix = 'queued-words card: src/permissions/cards/CardQueuedWords.tsx and src/screen/cockpit/composerSeed.ts'
+const queuedSendFix = 'words queued under a card: src/screen/cockpit/composerSeed.ts and the Chat screen in src/screens'
 
 const flat = (rows: string[]): string => rows.map(r => r.replace(/\s+$/, '')).join('\n')
 const rowsWith = (rows: string[], needle: string): string => rows.filter(r => r.includes(needle)).map(r => r.trim()).join(' | ') || `(no row carries "${needle}")`
@@ -96,7 +96,7 @@ try {
     const restedText = flat(rested!.rows)
     check('once the hand rests the card is back on the frame', restedText.includes(NEEDLE), `${queuedFix} · ${rowsWith(rested!.rows, 'Bash')}`)
     check('the typed words are on the same frame as the card (they never vanish)', restedText.includes(WORDS), `${queuedFix} · ${rowsWith(rested!.rows, '❯')}`)
-    check('the row under the card says ↵ is off while the words wait, which digits answer, and that backspace edits them', restedText.includes(HINT), `the hint line is written in src/utils/cockpit/composerSeed.ts · ${rowsWith(rested!.rows, 'words wait')}`)
+    check('the row under the card says ↵ is off while the words wait, which digits answer, and that backspace edits them', restedText.includes(HINT), `the hint line is written in src/screen/cockpit/composerSeed.ts · ${rowsWith(rested!.rows, 'words wait')}`)
 
     dump('after-backspace', edited!.rows)
     const editedText = flat(edited!.rows)

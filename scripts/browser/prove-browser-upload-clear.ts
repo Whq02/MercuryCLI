@@ -25,7 +25,7 @@ const NODE = existsSync(RELEASE_NODE)
         return ''
       }
     })()
-const { repairToolInput } = (await import(join(ROOT, 'src/services/providers/toolCallGate.ts'))) as { repairToolInput: (tool: unknown, input: Record<string, unknown>) => Record<string, unknown> }
+const { repairToolInput } = (await import(join(ROOT, 'src/models/roads/toolCallGate.ts'))) as { repairToolInput: (tool: unknown, input: Record<string, unknown>) => Record<string, unknown> }
 
 const FETCHED = Buffer.from('the bytes of a file that a deep project downloads')
 const DEEP_PROJECT = 140

@@ -30,13 +30,13 @@ const SRC = join(import.meta.dir, '..', '..', 'src')
 let failures = 0
 let checks = 0
 const PROVIDER_CONTRACT_SOURCES: Array<[string, string]> = [
-  ['provider:', 'src/utils/model/providers.ts (isFirstPartyAnthropicBaseUrl, hasAnthropicControlPlane)'],
-  ['canonical:', 'src/utils/model/modelNames.ts (getCanonicalName)'],
-  ['counting:', 'src/services/context/tokens.ts and src/services/tokenEstimation.ts'],
-  ['assembly:', 'src/services/providers/anthropic/requestParams.ts'],
-  ['message-param:', 'src/services/providers/anthropic/messageParams.ts'],
+  ['provider:', 'src/models/facts/providers.ts (isFirstPartyAnthropicBaseUrl, hasAnthropicControlPlane)'],
+  ['canonical:', 'src/models/facts/modelNames.ts (getCanonicalName)'],
+  ['counting:', 'src/engine/context-window/contextTokenCount.ts and src/models/facts/tokenEstimation.ts'],
+  ['assembly:', 'src/models/roads/anthropic/requestParams.ts'],
+  ['message-param:', 'src/models/roads/anthropic/messageParams.ts'],
   ['census:', 'the files named in the detail under src/'],
-  ['', 'src/utils/model/capabilities.ts (the model capability tables behind betas.ts, thinking.ts, effort.ts and context.ts)'],
+  ['', 'src/models/facts/capabilities.ts (the model capability tables behind betas.ts, thinking.ts, effort.ts and context.ts)'],
 ]
 function providerContractHint(label: string): string {
   const where = PROVIDER_CONTRACT_SOURCES.find(([prefix]) => label.startsWith(prefix))?.[1] ?? ''
@@ -69,24 +69,24 @@ function withEnv<T>(env: Record<string, string>, fn: () => T): T {
 
 console.log('native-core T16 — provider-neutral capability contract')
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 
-const prov = await import('../../src/utils/model/providers.js')
-const betas = await import('../../src/utils/betas.js')
-const B = await import('../../src/constants/betas.js')
-const model = await import('../../src/services/model/model.js')
-const thinking = await import('../../src/utils/thinking.js')
-const effort = await import('../../src/utils/effort.js')
-const ctx = await import('../../src/utils/context.js')
-const tokens = await import('../../src/services/context/tokens.js')
-const tokEst = await import('../../src/services/tokenEstimation.js')
-const rp = await import('../../src/services/providers/anthropic/requestParams.js')
-const registry = await import('../../src/substrate/flagRegistry.js')
-const mp = await import('../../src/services/providers/anthropic/messageParams.js')
-const msgs = await import('../../src/services/messages.js')
-const state = await import('../../src/bootstrap/state.js')
-const caps = await import('../../src/utils/model/capabilities.js')
+const prov = await import('../../src/models/facts/providers.js')
+const betas = await import('../../src/models/roads/betas.js')
+const B = await import('../../src/models/roads/betaHeaders.js')
+const model = await import('../../src/models/catalogue/engineModel.js')
+const thinking = await import('../../src/models/effort/thinking.js')
+const effort = await import('../../src/models/effort/effort.js')
+const ctx = await import('../../src/engine/compaction-window/contextFill.js')
+const tokens = await import('../../src/engine/context-window/contextTokenCount.js')
+const tokEst = await import('../../src/models/facts/tokenEstimation.js')
+const rp = await import('../../src/models/roads/anthropic/requestParams.js')
+const registry = await import('../../src/platform/substrate/flagRegistry.js')
+const mp = await import('../../src/models/roads/anthropic/messageParams.js')
+const msgs = await import('../../src/engine/messages/messages.js')
+const state = await import('../../src/boot/process-state/processState.js')
+const caps = await import('../../src/models/facts/capabilities.js')
 
 const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
 

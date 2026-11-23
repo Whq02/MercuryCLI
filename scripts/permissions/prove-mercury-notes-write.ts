@@ -16,17 +16,17 @@ process.env.NODE_ENV = 'test'
 process.chdir(project)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const load = (file: string) => import(pathToFileURL(join(root, file)).href)
-const { getEmptyToolPermissionContext } = await load('src/Tool.ts')
-const { decideToolPermission } = await load('src/utils/permissions/decision/engine.ts')
-const { checkPathSafetyForAutoEdit, isMercuryConfigSegment } = await load('src/utils/permissions/filesystem.ts')
-const { FileWriteTool } = await load('src/tools/FileWriteTool/FileWriteTool.ts')
-const { FileEditTool } = await load('src/tools/FileEditTool/FileEditTool.ts')
+const { getEmptyToolPermissionContext } = await load('src/tools/kit/tool.ts')
+const { decideToolPermission } = await load('src/permissions/rules/decision/engine.ts')
+const { checkPathSafetyForAutoEdit, isMercuryConfigSegment } = await load('src/permissions/rules/filesystem.ts')
+const { FileWriteTool } = await load('src/tools/write/WriteTool.ts')
+const { FileEditTool } = await load('src/tools/edit/EditTool.ts')
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  const failHint = ' — change isMercuryConfigSegment or checkPathSafetyForAutoEdit in src/utils/permissions/filesystem.ts (which .mercury/ paths count as sensitive), or the write ladder in src/utils/permissions/decision/engine.ts'
+  const failHint = ' — change isMercuryConfigSegment or checkPathSafetyForAutoEdit in src/permissions/rules/filesystem.ts (which .mercury/ paths count as sensitive), or the write ladder in src/permissions/rules/decision/engine.ts'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${ok ? '' : failHint}`)
 }
 function context(mode: string) {

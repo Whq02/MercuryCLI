@@ -18,8 +18,8 @@ const INTERRUPTED = 'Request interrupted by user'
 
 tally.section('§1 the verdict: a caller under the daemon it is about to stop is a hosted caller')
 {
-  const mod = (await import('../../src/daemon/hostedCaller.ts').catch(() => null)) as null | Record<string, unknown>
-  tally.check('src/daemon/hostedCaller.ts loads', mod !== null, 'the module is missing (red on the base by construction)')
+  const mod = (await import('../../src/daemon/control/hostedCaller.ts').catch(() => null)) as null | Record<string, unknown>
+  tally.check('src/daemon/control/hostedCaller.ts loads', mod !== null, 'the module is missing (red on the base by construction)')
   if (mod !== null) {
     const verdict = mod.hostedCallerVerdict as (pid: number | null | undefined, facts: { ancestors: readonly number[]; workerParentPid: number | null }) => { hosted: boolean; road?: string; daemonPid?: number }
     const of = mod.hostedCallerOf as (pid: number | null | undefined, opts?: { pid?: number; env?: NodeJS.ProcessEnv; ancestors?: (pid: number) => Promise<number[]> }) => Promise<{ hosted: boolean; road?: string }>
@@ -55,7 +55,7 @@ tally.section('§1 the verdict: a caller under the daemon it is about to stop is
 
 tally.section('§2 the verbs consult the verdict before anything that would end the caller')
 {
-  const { DAEMON_USAGE, parseDaemonVerb } = await import('../../src/daemon/verbs.ts')
+  const { DAEMON_USAGE, parseDaemonVerb } = await import('../../src/daemon/control/verbs.ts')
   const usageLines = DAEMON_USAGE.split('\n')
   const stopRowAt = usageLines.findIndex(l => l.trimStart().startsWith('stop'))
   const stopRow = usageLines.slice(stopRowAt, stopRowAt + 2).filter((l, i) => i === 0 || /^\s{8,}\S/.test(l)).join(' ').replace(/\s+/g, ' ')
@@ -87,8 +87,8 @@ seedFirstRun(runHome, [workA, workB])
 process.env.MERCURY_CONFIG_DIR = runHome
 process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 
 const STOP_ASK = 'stop the daemon from in here'
 const RESTART_ASK = 'restart the daemon from in here'
@@ -163,7 +163,7 @@ const daemonPid = async (): Promise<number | null> => {
 }
 const ping = async (): Promise<boolean> => (await daemonControlRpc({ op: 'ping' })).ok
 const hello = async (): Promise<{ pid?: number; ready?: boolean; live?: number; restartArmed?: boolean } | null> => {
-  const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
+  const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/control/protocol.ts')
   const reply = (await daemonControlRpc({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: '1.0.0', clientBuildTree: null } as never, { timeoutMs: 1500, protoRetry: false })) as { ok?: boolean; pid?: number; ready?: boolean; live?: number; restartArmed?: boolean }
   return reply.ok === true ? reply : null
 }

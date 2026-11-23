@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { createPowerShellProvider, UTF8_OUTPUT_PRELUDE } = await import('../../src/utils/shell/powershellProvider.js')
+const { createPowerShellProvider, UTF8_OUTPUT_PRELUDE } = await import('../../src/platform/shell/powershellProvider.js')
 
 let passed = 0
 let failed = 0
@@ -44,7 +44,7 @@ for (const command of plainCommands) {
   check(
     `plain command omits location-history prelude: ${command}`,
     !hasClear && hasPlain && hasUtf8 && cmdAt !== -1 && trailerAt > cmdAt,
-    `hasClear=${hasClear} hasPlain=${hasPlain} hasUtf8=${hasUtf8} cmdAt=${cmdAt} trailerAt=${trailerAt} — omit CLEAR_LOCATION_HISTORY_PRELUDE for plain commands in src/utils/shell/powershellProvider.ts`,
+    `hasClear=${hasClear} hasPlain=${hasPlain} hasUtf8=${hasUtf8} cmdAt=${cmdAt} trailerAt=${trailerAt} — omit CLEAR_LOCATION_HISTORY_PRELUDE for plain commands in src/platform/shell/powershellProvider.ts`,
   )
 }
 
@@ -82,7 +82,7 @@ for (const command of locationCommands) {
   check(
     `location spelling keeps prelude before command: ${command}`,
     clearAt !== -1 && cmdAt !== -1 && clearAt < cmdAt,
-    `clearAt=${clearAt} cmdAt=${cmdAt} — keep CLEAR_LOCATION_HISTORY_PRELUDE before location commands in src/utils/shell/powershellProvider.ts`,
+    `clearAt=${clearAt} cmdAt=${cmdAt} — keep CLEAR_LOCATION_HISTORY_PRELUDE before location commands in src/platform/shell/powershellProvider.ts`,
   )
 }
 
@@ -135,7 +135,7 @@ for (const command of hidingCommands) {
   check(
     `hiding spelling keeps prelude before command: ${JSON.stringify(command)}`,
     clearAt !== -1 && cmdAt !== -1 && clearAt < cmdAt,
-    `clearAt=${clearAt} cmdAt=${cmdAt} — keep CLEAR_LOCATION_HISTORY_PRELUDE before hiding or uncertain commands in src/utils/shell/powershellProvider.ts`,
+    `clearAt=${clearAt} cmdAt=${cmdAt} — keep CLEAR_LOCATION_HISTORY_PRELUDE before hiding or uncertain commands in src/platform/shell/powershellProvider.ts`,
   )
 }
 

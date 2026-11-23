@@ -28,7 +28,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix: §1 compares the live wire against the resumed one (src/services/resume/conversationRecovery.ts loadConversationForResume, src/services/messages/apiView.ts, src/services/messages/pairing.ts); §2 is the prefix ledger (src/services/providers/anthropic/prefixLedger.ts); §3 runs dist/mercury.mjs, so rebuild with bun run build.ts after a src change' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix: §1 compares the live wire against the resumed one (src/sessions/resume/conversationRecovery.ts loadConversationForResume, src/engine/messages/apiView.ts, src/engine/messages/wirePairing.ts); §2 is the prefix ledger (src/models/roads/anthropic/prefixLedger.ts); §3 runs dist/mercury.mjs, so rebuild with bun run build.ts after a src change' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -47,23 +47,23 @@ guard.unref?.()
 type Block = Record<string, unknown>
 type Row = { role?: string; content?: unknown }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const factories = await import('../../src/utils/messages/factories.ts')
-const apiView = await import('../../src/services/messages/apiView.ts')
-const pairing = await import('../../src/services/messages/pairing.ts')
-const apiFilters = await import('../../src/services/messages/apiFilters.ts')
-const media = await import('../../src/services/providers/anthropic/media.ts')
-const apiLimits = await import('../../src/constants/apiLimits.ts')
-const retention = await import('../../src/services/desktop/screenshotRetention.ts')
-const binding = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
-const cache = await import('../../src/services/providers/anthropic/cacheAndUsage.ts')
-const ledger = await import('../../src/services/providers/anthropic/prefixLedger.ts')
-const writer = await import('../../src/utils/sessionStorage/writer.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const recovery = await import('../../src/services/resume/conversationRecovery.ts')
-const state = await import('../../src/bootstrap/state.ts')
-const resolveOwner = await import('../../src/utils/run/resolveOwner.ts')
+const factories = await import('../../src/engine/message-shapes/factories.ts')
+const apiView = await import('../../src/engine/messages/apiView.ts')
+const pairing = await import('../../src/engine/messages/wirePairing.ts')
+const apiFilters = await import('../../src/engine/messages/apiFilters.ts')
+const media = await import('../../src/models/roads/anthropic/media.ts')
+const apiLimits = await import('../../src/models/roads/mediaLimits.ts')
+const retention = await import('../../src/integrations/desktop/screenshotRetention.ts')
+const binding = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
+const cache = await import('../../src/models/roads/anthropic/cacheAndUsage.ts')
+const ledger = await import('../../src/models/roads/anthropic/prefixLedger.ts')
+const writer = await import('../../src/sessions/transcripts/writer.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
+const recovery = await import('../../src/sessions/resume/conversationRecovery.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const resolveOwner = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 let seq = 0
 const uuidOf = (): string => `0000c0de-0000-4000-8000-${String(++seq).padStart(12, '0')}`

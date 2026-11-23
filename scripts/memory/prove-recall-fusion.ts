@@ -1,4 +1,4 @@
-import { fuseRankings, rankAllCandidates, rankCandidates } from '../../src/mneme/mnemeLookup.js'
+import { fuseRankings, rankAllCandidates, rankCandidates } from '../../src/sessions/mneme/mnemeLookup.js'
 
 let failures = 0
 let failHint = ''
@@ -6,7 +6,7 @@ function check(label: string, holds: boolean, detail: unknown = ''): void {
   console.log(`[${holds ? 'PASS' : 'FAIL'}] ${label}${holds ? '' : ` — ${JSON.stringify(detail)} | to fix: ${failHint}`}`)
   if (!holds) failures++
 }
-failHint = 'change fuseRankings in src/mneme/mnemeLookup.ts (reciprocal rank fusion, first ranking wins ties, one vote per id, offset must be finite and not negative)'
+failHint = 'change fuseRankings in src/sessions/mneme/mnemeLookup.ts (reciprocal rank fusion, first ranking wins ties, one vote per id, offset must be finite and not negative)'
 check('rank fusion rewards agreement between competing orders', JSON.stringify(fuseRankings([['a', 'b', 'c'], ['c', 'b', 'd']])) === JSON.stringify(['c', 'b', 'a', 'd']))
 check('the first ranking resolves equal reciprocal scores', JSON.stringify(fuseRankings([['b', 'a'], ['a', 'b']])) === JSON.stringify(['b', 'a']))
 check('duplicates within one ranking receive only one vote', JSON.stringify(fuseRankings([['a', 'a', 'a', 'b'], ['b', 'a']])) === JSON.stringify(['a', 'b']))
@@ -17,7 +17,7 @@ for (const k of [-1, NaN, Infinity]) {
   try { fuseRankings([['a']], k) } catch (error) { rejected = error instanceof RangeError }
   check(`invalid offset is rejected: ${k}`, rejected)
 }
-failHint = 'change rankCandidates and rankAllCandidates in src/mneme/mnemeLookup.ts (past use as a second ranking, exclusions, limit default 5 and maximum 20)'
+failHint = 'change rankCandidates and rankAllCandidates in src/sessions/mneme/mnemeLookup.ts (past use as a second ranking, exclusions, limit default 5 and maximum 20)'
 const pool = [
   { id: 'seq:1', seq: 1, text: 'quartz quartz quartz', signature: '', slug: 'ranking', pagePath: 'ranking', pending: false },
   { id: 'seq:2', seq: 2, text: 'quartz quartz filler', signature: '', slug: 'ranking', pagePath: 'ranking', pending: false },

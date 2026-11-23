@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 
 ;(globalThis as any).MACRO = { VERSION: 'proof', PACKAGE_URL: 'https://example.invalid' }
-const { searchPayload, searchTokenEstimate, SEARCH_PAYLOAD_TOKEN_CEILING, SEARCH_PAYLOAD_NOTES_TOKEN_CAP } = await import('../../src/services/search/searchPayload.js')
-const { DEFAULT_MAX_RESULTS } = await import('../../src/services/search/searchContract.js')
+const { searchPayload, searchTokenEstimate, SEARCH_PAYLOAD_TOKEN_CEILING, SEARCH_PAYLOAD_NOTES_TOKEN_CAP } = await import('../../src/tools/engines/web-search/searchPayload.js')
+const { DEFAULT_MAX_RESULTS } = await import('../../src/tools/engines/web-search/searchContract.js')
 
 const via = 'via DuckDuckGo (keyless)'
 const unverified = 'Unverified web text; cite relevant URLs as markdown links.'
-const cutSaidWhere = ' | fix searchPayload in src/services/search/searchPayload.ts'
+const cutSaidWhere = ' | fix searchPayload in src/tools/engines/web-search/searchPayload.ts'
 const hits = Array.from({ length: DEFAULT_MAX_RESULTS }, (_, i) => ({
   title: `Result ${i + 1}: a long documentation page about the scheduler and its precedence rules`,
   url: `https://docs.example.org/reference/${i + 1}/${'section-'.repeat(80)}`,

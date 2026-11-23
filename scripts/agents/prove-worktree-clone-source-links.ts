@@ -55,9 +55,9 @@ if (mode !== undefined) {
   } else {
     if (mode === 'cp') process.env.MERCURY_WORKTREE_CLONE = 'cp'
     else delete process.env.MERCURY_WORKTREE_CLONE
-    const exec = await import('../../src/utils/execFileNoThrow.ts')
+    const exec = await import('../../src/platform/processes/execFileNoThrow.ts')
     const original = exec.execFileNoThrowWithCwd
-    mock.module('../../src/utils/execFileNoThrow.ts', () => ({
+    mock.module('../../src/platform/processes/execFileNoThrow.ts', () => ({
       ...exec,
       execFileNoThrowWithCwd: (...args: Parameters<typeof original>): ReturnType<typeof original> => {
         if (args[0] === '/usr/bin/osascript' || (args[0] === 'cp' && args[1][0] === '-a')) replace()
@@ -65,7 +65,7 @@ if (mode !== undefined) {
       },
     }))
   }
-  const { cloneIntoWorktree } = await import('../../src/utils/worktreeClone.ts')
+  const { cloneIntoWorktree } = await import('../../src/platform/git/worktree/worktreeClone.ts')
   const outcome = await cloneIntoWorktree([{ source, target: join(worktree, 'node_modules') }], checkout, worktree)
   const atName = join(worktree, 'node_modules')
   const nestedLink = mode === 'walk-nested' && existsSync(atName) && lstatSync(join(atName, 'nested')).isSymbolicLink() && realpathSync(join(atName, 'nested')) === outside
@@ -76,7 +76,7 @@ if (mode !== undefined) {
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-source-links-')))
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' · ' : '') + 'change cloneIntoWorktree in src/utils/worktreeClone.ts: it must re-check the source before and after the copy, never follow or rewrite a link it finds there, and publish nothing when the source changed' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' · ' : '') + 'change cloneIntoWorktree in src/platform/git/worktree/worktreeClone.ts: it must re-check the source before and after the copy, never follow or rewrite a link it finds there, and publish nothing when the source changed' : ''}`)
   if (!ok) failures++
 }
 try {

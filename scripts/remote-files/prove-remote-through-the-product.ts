@@ -26,7 +26,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
-  if (!ok) console.log('      fix: the ssh:// paths of the Read, Edit, Write, Grep and Glob tools under src/tools, and the shared remote code in src/services/remoteFiles/bridge.ts; this proof runs the built dist/mercury.mjs, so rebuild with bun run build.ts after a change')
+  if (!ok) console.log('      fix: the ssh:// paths of the Read, Edit, Write, Grep and Glob tools under src/tools, and the shared remote code in src/platform/remote-files/bridge.ts; this proof runs the built dist/mercury.mjs, so rebuild with bun run build.ts after a change')
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 

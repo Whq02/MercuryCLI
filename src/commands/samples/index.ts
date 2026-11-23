@@ -1,5 +1,5 @@
-import type { Command } from '../../commands.js'
-import { samplesEnabled } from '../../utils/samples/contracts.js'
+import type { Command } from '../catalogue/commands.js'
+import { samplesEnabled } from '../../integrations/sample-contracts/contracts.js'
 
 export const SAMPLES_OFF_SENTENCE =
   "/samples is off — MERCURY_SAMPLES=1 turns it on (the Boot Menu's Samples row saves it for new sessions)"

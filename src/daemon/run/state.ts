@@ -1,13 +1,13 @@
-import type { DaemonBreaker } from '../../utils/daemonBreaker.js'
-import { isEnvTruthy } from '../../utils/envUtils.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
-import type { ControlServerHandle } from '../controlServer.js'
-import type { DaemonLock } from '../controlSocket.js'
-import type { HandoverStateV1 } from '../handover.js'
-import { parseOwnerPid, type OwnerPipeHandleV1, type OwnerWatchHandleV1 } from '../../utils/ownerWatch.js'
-import type { PlaneOwnerV1 } from '../planeRecords.js'
-import type { TaskRoster } from '../roster.js'
-import { initialSessionlessState } from '../sessionlessExit.js'
+import type { DaemonBreaker } from '../control/daemonBreaker.js'
+import { isEnvTruthy } from '../../platform/environment/envUtils.js'
+import { flagEnv } from '../../platform/substrate/flagRegistry.js'
+import type { ControlServerHandle } from '../control/controlServer.js'
+import type { DaemonLock } from '../control/controlSocket.js'
+import type { HandoverStateV1 } from '../control/handover.js'
+import { parseOwnerPid, type OwnerPipeHandleV1, type OwnerWatchHandleV1 } from '../control/ownerWatch.js'
+import type { PlaneOwnerV1 } from '../control/planeRecords.js'
+import type { TaskRoster } from '../roster/roster.js'
+import { initialSessionlessState } from '../control/sessionlessExit.js'
 
 interface DaemonRunBootFacts {
   dir: string

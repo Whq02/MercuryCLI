@@ -16,7 +16,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  const where = 'to fix, see localModelWindowRow in src/components/Settings/Config.tsx (the note text), chooseLocalWindow in src/services/providers/local/localWindow.ts (the window auto picks), and localRecordFor in src/services/providers/local/localCatalogue.ts (the Modelfile num_ctx read)'
+  const where = 'to fix, see localModelWindowRow in src/screen/settings/Config.tsx (the note text), chooseLocalWindow in src/models/roads/local/localWindow.ts (the window auto picks), and localRecordFor in src/models/roads/local/localCatalogue.ts (the Modelfile num_ctx read)'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail.slice(0, 1400)}` : ''} — ${where}` : ''}`)
 }
 function section(title: string): void {
@@ -54,13 +54,13 @@ await new Promise<void>(done => ollama.listen(0, '127.0.0.1', () => done()))
 const address = ollama.address()
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=http://127.0.0.1:${typeof address === 'object' && address !== null ? address.port : 0}`
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const w = await import('../../src/services/providers/local/localWindow.ts')
-const { __pinLocalServerTruthForTest } = await import('../../src/services/localServer/localServerTruth.ts')
-const { localModelWindowRow, CONFIG_POPUP_HINT, CONFIG_ROW_MARK } = await import('../../src/components/Settings/Config.tsx')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const w = await import('../../src/models/roads/local/localWindow.ts')
+const { __pinLocalServerTruthForTest } = await import('../../src/models/local-server/localServerTruth.ts')
+const { localModelWindowRow, CONFIG_POPUP_HINT, CONFIG_ROW_MARK } = await import('../../src/screen/settings/Config.tsx')
 __pinLocalServerTruthForTest({ loaded: [], listed: [], runners: [], launchForm: { kind: 'unknown', note: 'fixture' }, machine: { platform: 'darwin', totalMemoryBytes: 48 * GIB, usableMemoryBytes: 36 * GIB, usableSource: 'about three quarters of unified memory, the Metal default working set (no server log read)' }, readAtMs: Date.now() } as never)
 await refreshLocalDiscovery({ force: true })
 const stated = localRecordFor(`local/${STATED}`)!
@@ -91,12 +91,12 @@ section('§1 the row /config paints for a local model: what its note says auto m
 }
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-const store = await import('../../src/utils/cockpit/settingsPopup.ts')
+const { Box } = await import('../../src/screen/themedRenderer.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+const store = await import('../../src/screen/cockpit/settingsPopup.ts')
 const { configPopupRequest } = await import('../../src/commands/config/config.tsx')
 
 async function configOn(model: string): Promise<Mounted> {

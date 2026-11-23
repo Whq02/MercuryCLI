@@ -14,17 +14,17 @@ function section(title: string): void {
 }
 
 const t = await openSelectorPart('chat-selector-part')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')
-const { readAllTranscriptEntries } = await import('../../src/utils/sessionStorage/materialize.ts')
-type Message = import('../../src/types/message.ts').Message
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+const { decodeTranscriptBuffer } = await import('../../src/sessions/fabric/transcriptDecode.ts')
+const { readAllTranscriptEntries } = await import('../../src/sessions/transcripts/materialize.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 const asked = (text: string, uuid?: string): Message => ({ ...(createUserMessage({ content: text }) as Message), ...(uuid === undefined ? {} : { uuid }) }) as Message
 const answered = (text: string): Message => createAssistantMessage({ content: text }) as Message
 const said = (): string => t.calls.splice(0).join(' · ')
 const told = (): string => t.notices.splice(0).map(notice => `${notice.key}: ${notice.text}`).join(' | ')
 const heard = (): string => t.session.calls.splice(0).join(' · ')
-const SEL_AT = 'change useChatSelectorView in src/screens/chat/useChatSelector.tsx'
+const SEL_AT = 'change useChatSelectorView in src/screen/chat/useChatSelector.tsx'
 
 section('§1 the selector: when it is drawn and what it is handed')
 const rows = [asked('the first question'), answered('the first answer')]
@@ -49,7 +49,7 @@ const landed = await t.selector().onRestore(anchor, 'both')
 check('a restore asks the session to rewind to the message, in the mode chosen', heard() === `rewind ${JSON.stringify({ userMessageId: anchor.uuid, mode: 'both' })}` && landed.outcome === 'applied', `${SEL_AT} so onRestore asks the session to rewind in the chosen mode; ${JSON.stringify(landed)}`)
 check('a conversation that was wound back gives the words of the message to the composer, as restored words', t.draft().text === 'the question to wind back to' && said() === 'setInputMode prompt', `${SEL_AT} so a wound back conversation stages the message words in the composer; ${JSON.stringify(t.draft())} · ${t.calls.join()}`)
 check('and the receipt is painted', told() === 'rewind-receipt: rewound: conversation wound back — 2 messages left the model\'s view (the transcript keeps them)', `${SEL_AT} so a conversation rewind paints its receipt`)
-const { edit, text: draftText } = await import('../../src/input-core/pending-input.ts')
+const { edit, text: draftText } = await import('../../src/screen/composer/input-core/pending-input.ts')
 edit('')
 t.session.rewind = request => ({ outcome: 'applied', mode: String(request.mode), code: { filesChanged: ['a.ts', 'b.ts'], insertions: 3, deletions: 1 } })
 await t.selector().onRestore(anchor, 'code')
@@ -153,14 +153,14 @@ section('§6 the states the arbitration reads')
   const { useChatSelector } = t.module
   const states = await mountPart(() => useChatSelector())
   const first = states.value()
-  check('the selector starts down, with no preselected message', first.showMessageSelector === false && first.messageSelectorPreselect === undefined, 'change useChatSelector in src/screens/chat/useChatSelector.tsx so the selector starts down with no preselect')
+  check('the selector starts down, with no preselected message', first.showMessageSelector === false && first.messageSelectorPreselect === undefined, 'change useChatSelector in src/screen/chat/useChatSelector.tsx so the selector starts down with no preselect')
   first.openMessageSelector()
   await settle(80)
-  check('opening it shows it, and the opener is the same from one render to the next', states.value().showMessageSelector === true && states.value().openMessageSelector === first.openMessageSelector, 'change useChatSelector in src/screens/chat/useChatSelector.tsx so openMessageSelector shows it and stays the same function across renders')
+  check('opening it shows it, and the opener is the same from one render to the next', states.value().showMessageSelector === true && states.value().openMessageSelector === first.openMessageSelector, 'change useChatSelector in src/screen/chat/useChatSelector.tsx so openMessageSelector shows it and stays the same function across renders')
   states.value().setShowMessageSelector(false)
   states.value().setMessageSelectorPreselect(chosen as never)
   await settle(80)
-  check('it is closed and a message preselected through the setters the part hands on', states.value().showMessageSelector === false && states.value().messageSelectorPreselect === chosen, 'change useChatSelector in src/screens/chat/useChatSelector.tsx so its setters close the selector and preselect a message')
+  check('it is closed and a message preselected through the setters the part hands on', states.value().showMessageSelector === false && states.value().messageSelectorPreselect === chosen, 'change useChatSelector in src/screen/chat/useChatSelector.tsx so its setters close the selector and preselect a message')
   states.unmount()
 }
 

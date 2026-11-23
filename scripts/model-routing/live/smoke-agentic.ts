@@ -5,9 +5,9 @@ import { z } from 'zod'
 import { agenticVerdict } from './smokeVerdicts.ts'
 
 const { openaiCallModel } = await import(
-  '../../../src/services/providers/openai/openaiCallModel.js'
+  '../../../src/models/roads/openai/openaiCallModel.js'
 )
-const { getEmptyToolPermissionContext } = await import('../../../src/Tool.ts')
+const { getEmptyToolPermissionContext } = await import('../../../src/tools/kit/tool.ts')
 
 type AnyMessage = Record<string, unknown>
 type Block = Record<string, unknown>

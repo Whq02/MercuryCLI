@@ -13,10 +13,10 @@ const CONFIGURATION = [
   '<PROJECT>/.mercury/wards.json', '<PROJECT>/.mercury/mcp.json', '<PROJECT>/.mercury/keybindings.json', '<CONFIG>/keybindings.json',
   '<PROJECT>/MERCURY.md', '<PROJECT>/AGENTS.md',
 ]
-const configHint = 'a write to Mercury configuration must stay an ask under Flow: see decideUnderFlow in src/utils/permissions/flowPolicy.ts, isMercuryConfigSegment in src/utils/permissions/filesystem.ts, and for shell writes shellSelfProtectionReason in src/utils/permissions/shellProtectedPaths.ts · '
-const reachHint = 'the ask must reach only Mercury configuration: narrow isMercuryConfigSegment in src/utils/permissions/filesystem.ts · '
-const ruleHint = 'a rule that names the file exactly must grant that file alone: see decideUnderFlow in src/utils/permissions/flowPolicy.ts · '
-const settingsHint = 'a settings change while the session runs must bring the rule into force without letting it answer any of the five Flow asks: see applySettingsChange in src/utils/settings/applySettingsChange.ts and allowRulesThatPreAuthorise in src/utils/permissions/lateAllowRules.ts · '
+const configHint = 'a write to Mercury configuration must stay an ask under Flow: see decideUnderFlow in src/permissions/rules/flowPolicy.ts, isMercuryConfigSegment in src/permissions/rules/filesystem.ts, and for shell writes shellSelfProtectionReason in src/permissions/rules/shellProtectedPaths.ts · '
+const reachHint = 'the ask must reach only Mercury configuration: narrow isMercuryConfigSegment in src/permissions/rules/filesystem.ts · '
+const ruleHint = 'a rule that names the file exactly must grant that file alone: see decideUnderFlow in src/permissions/rules/flowPolicy.ts · '
+const settingsHint = 'a settings change while the session runs must bring the rule into force without letting it answer any of the five Flow asks: see applySettingsChange in src/platform/settings/applySettingsChange.ts and allowRulesThatPreAuthorise in src/permissions/rules/lateAllowRules.ts · '
 const told = (tool: string, input: Record<string, unknown>): string => (tool === 'Bash' ? shown(String(input.command)).slice(0, 110) : `${tool} ${shown(String(input.file_path))}`)
 
 section('the page, docs/TRUST.md')
@@ -73,13 +73,13 @@ section('§4 a rule that arrives by a settings change while the session runs ans
 {
   const { mkdirSync, writeFileSync } = await import('node:fs')
   const { dirname } = await import('node:path')
-  const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
-  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-  const { applySettingsChange } = await import('../../src/utils/settings/applySettingsChange.ts')
-  const { initializeToolPermissionContext } = await import('../../src/utils/permissions/permissionSetup.ts')
-  const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-  const { applyPermissionUpdates, persistPermissionUpdates } = await import('../../src/utils/permissions/PermissionUpdate.ts')
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
+  const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+  const { applySettingsChange } = await import('../../src/platform/settings/applySettingsChange.ts')
+  const { initializeToolPermissionContext } = await import('../../src/permissions/rules/permissionSetup.ts')
+  const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+  const { applyPermissionUpdates, persistPermissionUpdates } = await import('../../src/permissions/rules/permissionUpdate.ts')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
   type Answer = { behavior: string; message?: string }
   type State = { toolPermissionContext: Record<string, unknown> }
   setSessionTrustAccepted(true)

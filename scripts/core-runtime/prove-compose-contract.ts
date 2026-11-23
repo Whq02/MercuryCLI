@@ -7,11 +7,11 @@ import {
   markDirty,
   setTextNodeValue,
   type TextNode,
-} from '../../src/ink/dom.js'
-import { emptyFrame, type Frame } from '../../src/ink/frame.js'
-import createRenderer from '../../src/ink/renderer.js'
-import type { ComposeSignals } from '../../src/ink/compose-walk.js'
-import { lastComposeCounts } from '../../src/ink/compose-buffer.js'
+} from '../../src/screen/renderer/dom.js'
+import { emptyFrame, type Frame } from '../../src/screen/renderer/frame.js'
+import createRenderer from '../../src/screen/renderer/renderer.js'
+import type { ComposeSignals } from '../../src/screen/renderer/compose-walk.js'
+import { lastComposeCounts } from '../../src/screen/renderer/compose-buffer.js'
 import {
   type Cell,
   CellWidth,
@@ -20,10 +20,10 @@ import {
   HyperlinkPool,
   type Screen,
   StylePool,
-} from '../../src/ink/cell-grid.js'
-import type { Styles } from '../../src/ink/styles.js'
-import { FrameWriter } from '../../src/ink/frame-writer.js'
-import { OverlayRecord } from '../../src/ink/geometry/overlay.js'
+} from '../../src/screen/renderer/cell-grid.js'
+import type { Styles } from '../../src/screen/renderer/styles.js'
+import { FrameWriter } from '../../src/screen/renderer/frame-writer.js'
+import { OverlayRecord } from '../../src/screen/renderer/geometry/selectionOverlay.js'
 import {
   clearSelection,
   createSelectionState,
@@ -34,12 +34,12 @@ import {
   setSelectionClipBand,
   startSelection,
   updateSelection,
-} from '../../src/ink/geometry/selection.js'
-import { unionRect } from '../../src/ink/layout/geometry.js'
-import { optimizePatches } from '../../src/ink/patch-stream.js'
-import { applyOverlayPass } from '../../src/ink/root/overlay-pass.js'
-import { writeDiffToTerminal } from '../../src/ink/session/delivery.js'
-import { CURSOR_HOME } from '../../src/ink/termio/csi.js'
+} from '../../src/screen/renderer/geometry/selection.js'
+import { unionRect } from '../../src/screen/renderer/layout/geometry.js'
+import { optimizePatches } from '../../src/screen/renderer/patch-stream.js'
+import { applyOverlayPass } from '../../src/screen/renderer/root/overlay-pass.js'
+import { writeDiffToTerminal } from '../../src/screen/renderer/terminal-session/frameDelivery.js'
+import { CURSOR_HOME } from '../../src/screen/renderer/termio/csi.js'
 import { AnsiEmulator, defaultSgr, sgrStateOfStyleString, type SgrState } from '../ink-runtime/ansiEmulator.js'
 import { applySceneStyle } from '../ink-runtime/frameHarness.js'
 
@@ -50,10 +50,10 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) {
     failures++
     const where = /scroll-xlate|overlay|glass/.test(label)
-      ? 'the selection and overlay path: src/ink/geometry/selection.ts, src/ink/geometry/overlay.ts, applyOverlayPass in src/ink/root/overlay-pass.ts, and the terminal replay writeDiffToTerminal in src/ink/session/delivery.ts'
+      ? 'the selection and overlay path: src/screen/renderer/geometry/selection.ts, src/screen/renderer/geometry/selectionOverlay.ts, applyOverlayPass in src/screen/renderer/root/overlay-pass.ts, and the terminal replay writeDiffToTerminal in src/screen/renderer/terminal-session/frameDelivery.ts'
       : /scroll|sticky|clamp-hold/.test(label)
-        ? 'scroll composition: src/ink/compose-walk.ts (scroll translation) and src/ink/renderer.ts (scrollDrainPending)'
-        : 'frame composition: createRenderer in src/ink/renderer.ts, src/ink/compose-walk.ts and src/ink/compose-buffer.ts (write, blit and incremental paths)'
+        ? 'scroll composition: src/screen/renderer/compose-walk.ts (scroll translation) and src/screen/renderer/renderer.ts (scrollDrainPending)'
+        : 'frame composition: createRenderer in src/screen/renderer/renderer.ts, src/screen/renderer/compose-walk.ts and src/screen/renderer/compose-buffer.ts (write, blit and incremental paths)'
     console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}\n    fix: ${where}`)
   }
 }

@@ -30,7 +30,7 @@ const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 let verbSeq = 0
 const seqOf = (_verb: string): number => ++verbSeq
 
-const connector = (await import(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'))) as {
+const connector = (await import(join(ROOT, 'src/engine/connector/daemonConnector.ts'))) as {
   ProjectionFeed?: new (
     dir: string,
     path: string,
@@ -134,7 +134,7 @@ section('§4 the seat verbs that arm the nudge: set-model and set-permission-mod
     setEffort(level: string): Promise<{ state: string }>
     setPermissionMode(mode: string): Promise<{ outcome: string }>
   }
-  const { DaemonSessionConnector } = (await import(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'))) as {
+  const { DaemonSessionConnector } = (await import(join(ROOT, 'src/engine/connector/daemonConnector.ts'))) as {
     DaemonSessionConnector: new (record: unknown, hands: unknown) => Seat
   }
   const home = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'seat-verb-connector-'))

@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
-const { buildConversationChain } = await import('../../src/utils/sessionStorage/chain.ts')
+const { buildConversationChain } = await import('../../src/sessions/transcripts/chain.ts')
 
 let failures = 0
 let checks = 0
@@ -13,8 +13,8 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   const where = /^(DENY|ALLOW):/.test(label)
-    ? 'fix where runToolUse yields the permission.decided hook row in src/services/tools/toolExecution.ts so it lands after the tool result'
-    : 'fix buildConversationChain in src/utils/sessionStorage/chain.ts so a row recorded after the result threads onto the chain and one between call and result stays a side branch'
+    ? 'fix where runToolUse yields the permission.decided hook row in src/engine/tool-dispatch/toolExecution.ts so it lands after the tool result'
+    : 'fix buildConversationChain in src/sessions/transcripts/chain.ts so a row recorded after the result threads onto the chain and one between call and result stays a side branch'
   const shown = detail ? `${detail} | ${where}` : where
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${shown}` : ''}`)
 }
@@ -48,16 +48,16 @@ section('§3 the tool execution road: the permission.decided row lands after the
   process.env.MERCURY_CONFIG_DIR = home
   process.env.MERCURY_CREDENTIAL_STORE = 'file'
   delete process.env.MERCURY_HOME
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { setSessionTrustAccepted, setIsInteractive, getSessionId } = await import('../../src/bootstrap/state.ts')
+  const { setSessionTrustAccepted, setIsInteractive, getSessionId } = await import('../../src/boot/process-state/processState.ts')
   setSessionTrustAccepted(true)
   setIsInteractive(false)
-  const { refreshHooksSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.ts')
-  const { addSessionHooks } = await import('../../src/utils/hooks/sessionHooks.ts')
+  const { refreshHooksSnapshot } = await import('../../src/integrations/event-hooks/hooksConfigSnapshot.ts')
+  const { addSessionHooks } = await import('../../src/integrations/event-hooks/sessionHooks.ts')
   const { z } = await import('zod/v4')
-  const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   writeFileSync(join(home, 'settings.json'), '{}')
   refreshHooksSnapshot()
   const spy = join(home, 'decided.cjs')

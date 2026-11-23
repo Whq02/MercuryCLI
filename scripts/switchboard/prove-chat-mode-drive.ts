@@ -30,13 +30,13 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { BOOT_FACE_READY, paintsBootFaceReady } = await import('../lib/bootFace.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('         fix: this drive runs the built bundle, so rebuild with bun run build.ts first and read the printed frame above; the key-map row words "no chat open" come from NO_CHAT_HINT in src/context/surfaceRoute.ts, and the /config row "off this boot (--chat)" from src/components/Settings/config/configRowsView.tsx')
+  if (!cond) console.log('         fix: this drive runs the built bundle, so rebuild with bun run build.ts first and read the printed frame above; the key-map row words "no chat open" come from NO_CHAT_HINT in src/screen/routes/surfaceRoute.ts, and the /config row "off this boot (--chat)" from src/screen/settings/config/configRowsView.tsx')
 }
 
 const driver = resolveCaptureDriver()
@@ -199,7 +199,7 @@ function reapHome(home: string): void {
 
 const g = (needle: string, data: string, extra: Send = {}): Send => ({ atTick: 999, requireAwait: true, awaitText: needle, minTick: 5, awaitSettleTicks: 2, data, ...extra })
 
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
 const FACE_NO_CHAT = keyHintLabel('⇧→ no chat open')
 const FACE_TO_CHAT = keyHintLabel('⇧→ chat')
 const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')

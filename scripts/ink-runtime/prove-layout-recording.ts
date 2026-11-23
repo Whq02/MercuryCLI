@@ -2,8 +2,8 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { getCellLayoutCounters } from '../../src/ink/layout/cellLayout.js'
-import { createLayoutNode } from '../../src/ink/layout/engine.js'
+import { getCellLayoutCounters } from '../../src/screen/renderer/layout/cellLayout.js'
+import { createLayoutNode } from '../../src/screen/renderer/layout/engine.js'
 import { recordCorpus, replayScreens, type Engine, type Recorded } from './layoutRecordingScenes.js'
 
 const SELF = 'scripts/ink-runtime/prove-layout-recording.ts'
@@ -59,7 +59,7 @@ console.log(`prove-layout-recording — the layout node of every box: each node'
 const probe = createLayoutNode()
 const made = Object.getPrototypeOf(probe)?.constructor?.name
 probe.free()
-if (made === UNIT) console.log(`  [PASS] the node under the recording is the product's own ${UNIT}, reached through createLayoutNode of src/ink/layout/engine.ts: nothing is replaced; the trees, the answers of the text and the order of the calls are scripted`)
+if (made === UNIT) console.log(`  [PASS] the node under the recording is the product's own ${UNIT}, reached through createLayoutNode of src/screen/renderer/layout/engine.ts: nothing is replaced; the trees, the answers of the text and the order of the calls are scripted`)
 else fail(`the node under the recording is not the product's own ${UNIT}: createLayoutNode answers a ${String(made)}`)
 
 try {

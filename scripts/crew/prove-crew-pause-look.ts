@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
 import stringWidth from 'string-width'
-import type { WorkRowV1 } from '../../src/services/engine-connector/types.ts'
+import type { WorkRowV1 } from '../../src/engine/connector/types.ts'
 
 const argument = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)
@@ -37,22 +37,22 @@ const section = (title: string): void => {
 
 async function main(): Promise<void> {
   const src = (relative: string): string => join(ROOT, 'src', relative)
-  const { enableConfigs } = await import(src('utils/config.ts'))
+  const { enableConfigs } = await import(src('platform/settings/config.ts'))
   enableConfigs()
-  type GateModule = typeof import('../../src/run-core/pauseGate.ts')
-  const gateModule: GateModule | null = await import(src('run-core/pauseGate.ts')).catch(() => null)
-  type DoorModule = typeof import('../../src/components/mercury-ui/screens/crewPauseDoor.ts')
-  const doorModule: DoorModule | null = await import(src('components/mercury-ui/screens/crewPauseDoor.ts')).catch(() => null)
-  console.log(`  gate module: ${gateModule === null ? 'ABSENT (no src/run-core/pauseGate.ts)' : 'present'} · door module: ${doorModule === null ? 'ABSENT' : 'present'}`)
-  const { noSessionConnector } = await import(src('services/engine-connector/noSessionConnector.ts'))
-  const slot = await import(src('services/engine-connector/focusedConnector.ts'))
-  const crew = await import(src('services/engine-connector/crewFacts.ts'))
-  const { CrewView } = await import(src('components/mercury-ui/screens/CrewView.tsx'))
-  const ink = await import(src('ink.ts'))
-  const { default: StdinContext } = await import(src('ink/components/StdinContext.ts'))
-  const { AppStoreContext } = await import(src('state/AppState.tsx'))
-  const { createStore } = await import(src('state/store.ts'))
-  const { getDefaultAppState } = await import(src('state/AppStateStore.ts'))
+  type GateModule = typeof import('../../src/engine/loop/pauseGate.ts')
+  const gateModule: GateModule | null = await import(src('engine/loop/pauseGate.ts')).catch(() => null)
+  type DoorModule = typeof import('../../src/screen/widgets/faces/crewPauseDoor.ts')
+  const doorModule: DoorModule | null = await import(src('screen/widgets/faces/crewPauseDoor.ts')).catch(() => null)
+  console.log(`  gate module: ${gateModule === null ? 'ABSENT (no src/engine/loop/pauseGate.ts)' : 'present'} · door module: ${doorModule === null ? 'ABSENT' : 'present'}`)
+  const { noSessionConnector } = await import(src('engine/connector/noSessionConnector.ts'))
+  const slot = await import(src('engine/connector/focusedConnector.ts'))
+  const crew = await import(src('engine/connector/crewFacts.ts'))
+  const { CrewView } = await import(src('screen/widgets/faces/CrewView.tsx'))
+  const ink = await import(src('screen/themedRenderer.ts'))
+  const { default: StdinContext } = await import(src('screen/renderer/elements/StdinContext.ts'))
+  const { AppStoreContext } = await import(src('screen/app-state/AppState.tsx'))
+  const { createStore } = await import(src('platform/primitives/store.ts'))
+  const { getDefaultAppState } = await import(src('screen/app-state/AppStateStore.ts'))
   const React = (await import(Bun.resolveSync('react', join(ROOT, 'src')))).default
 
   const t0 = Date.now() - 95_000
@@ -150,13 +150,13 @@ async function main(): Promise<void> {
     const facts = crew.crewAgentsOf(parked(), 'fx-session')
     const scout = facts.find(a => a.id === 'ag-scout')
     const reviewer = facts.find(a => a.id === 'ag-reviewer')
-    check('both parked rows still count as running (the loop is alive, parked at a safe point — never a settled pause)', scout?.running === true && reviewer?.running === true && crew.crewCountLabel(facts).startsWith('2 running'), crew.crewCountLabel(facts), 'a parked row must stay running in crewAgentsOf and crewCountLabel, src/services/engine-connector/crewFacts.ts')
-    check('the status cell reads the gate words alone: paused by the operator', scout !== undefined && crew.crewStatusWords(scout, t0) === 'paused by the operator' && reviewer !== undefined && crew.crewStatusWords(reviewer, t0) === 'paused by the operator', `${scout === undefined ? '' : crew.crewStatusWords(scout, t0)} · ${reviewer === undefined ? '' : crew.crewStatusWords(reviewer, t0)}`, 'crewStatusWords in src/services/engine-connector/crewFacts.ts must return the gate words alone for a row whose wait is the operator pause')
+    check('both parked rows still count as running (the loop is alive, parked at a safe point — never a settled pause)', scout?.running === true && reviewer?.running === true && crew.crewCountLabel(facts).startsWith('2 running'), crew.crewCountLabel(facts), 'a parked row must stay running in crewAgentsOf and crewCountLabel, src/engine/connector/crewFacts.ts')
+    check('the status cell reads the gate words alone: paused by the operator', scout !== undefined && crew.crewStatusWords(scout, t0) === 'paused by the operator' && reviewer !== undefined && crew.crewStatusWords(reviewer, t0) === 'paused by the operator', `${scout === undefined ? '' : crew.crewStatusWords(scout, t0)} · ${reviewer === undefined ? '' : crew.crewStatusWords(reviewer, t0)}`, 'crewStatusWords in src/engine/connector/crewFacts.ts must return the gate words alone for a row whose wait is the operator pause')
     const parts = typeof crew.crewOperatorPauseParts === 'function' && scout !== undefined ? crew.crewOperatorPauseParts(scout) : null
     const modelParts = typeof crew.crewOperatorPauseParts === 'function' && reviewer !== undefined ? crew.crewOperatorPauseParts(reviewer) : null
-    check('the tail names the seam it parked at (the tool (Read) on one row, the model call on the other) and the full sentence keeps the door: p resumes it', parts?.detail === 'at a tool (Read)' && modelParts?.detail === 'at a model call' && parts.door === 'p resumes it' && modelParts.door === 'p resumes it', `${JSON.stringify(parts)} · ${JSON.stringify(modelParts)}`, 'crewOperatorPauseParts in src/services/engine-connector/crewFacts.ts must return the seam detail and the door, from the words of pauseGateToolWords and pauseGateModelWords in src/run-core/pauseGate.ts')
-    check('a seat wait is not an operator pause (the recogniser keys on the one spelling)', typeof crew.crewOperatorPauseParts === 'function' && crew.crewOperatorPauseParts({ running: true, wait: 'waiting for a seat — 3 of 3 held (agent-a, the chat)' }) === null, '', 'crewOperatorPauseParts in src/services/engine-connector/crewFacts.ts must be exported and return null for a wait that is not the operator pause spelling')
-    check('the chip words derive from the rows when the gate lives elsewhere: paused by the operator · 2 parked', typeof crew.crewPauseChipWords === 'function' && crew.crewPauseChipWords(facts, { paused: false, parked: 0 }) === 'paused by the operator · 2 parked' && crew.crewPauseChipWords(crew.crewAgentsOf(running(), 'fx-session'), { paused: false, parked: 0 }) === null, '', 'crewPauseChipWords in src/services/engine-connector/crewFacts.ts must be exported, derive the chip from the parked rows and return null when none is parked')
+    check('the tail names the seam it parked at (the tool (Read) on one row, the model call on the other) and the full sentence keeps the door: p resumes it', parts?.detail === 'at a tool (Read)' && modelParts?.detail === 'at a model call' && parts.door === 'p resumes it' && modelParts.door === 'p resumes it', `${JSON.stringify(parts)} · ${JSON.stringify(modelParts)}`, 'crewOperatorPauseParts in src/engine/connector/crewFacts.ts must return the seam detail and the door, from the words of pauseGateToolWords and pauseGateModelWords in src/engine/loop/pauseGate.ts')
+    check('a seat wait is not an operator pause (the recogniser keys on the one spelling)', typeof crew.crewOperatorPauseParts === 'function' && crew.crewOperatorPauseParts({ running: true, wait: 'waiting for a seat — 3 of 3 held (agent-a, the chat)' }) === null, '', 'crewOperatorPauseParts in src/engine/connector/crewFacts.ts must be exported and return null for a wait that is not the operator pause spelling')
+    check('the chip words derive from the rows when the gate lives elsewhere: paused by the operator · 2 parked', typeof crew.crewPauseChipWords === 'function' && crew.crewPauseChipWords(facts, { paused: false, parked: 0 }) === 'paused by the operator · 2 parked' && crew.crewPauseChipWords(crew.crewAgentsOf(running(), 'fx-session'), { paused: false, parked: 0 }) === null, '', 'crewPauseChipWords in src/engine/connector/crewFacts.ts must be exported, derive the chip from the parked rows and return null when none is parked')
   }
 
   section('L2 the view painted at 178x51 and 80x21 — running, then parked: the chip, the rows, the footer door')
@@ -166,17 +166,17 @@ async function main(): Promise<void> {
     const board = await mount(columns, rows)
     const live = board.frame()
     saveFrame(`crew-pause-${columns}x${rows}-running`, live)
-    check(`${columns}x${rows} running: the view paints both rows inside the frame`, live.includes('scout the release') && live.includes('review the gate') && fits(live, columns, rows) && !live.includes('RENDER ERROR'), live.slice(0, 200), 'the view must paint both rows and fit the frame; see src/components/mercury-ui/screens/CrewView.tsx')
-    check(`${columns}x${rows} running: no chip, the footer offers p pause`, !live.includes('paused by the operator') && live.includes('p pause'), live.split('\n').at(-1), 'the footer of CrewView in src/components/mercury-ui/screens/CrewView.tsx must offer p pause and no chip while nothing is parked, with the key text from crewPauseDoorKey in src/components/mercury-ui/screens/crewPauseDoor.ts')
+    check(`${columns}x${rows} running: the view paints both rows inside the frame`, live.includes('scout the release') && live.includes('review the gate') && fits(live, columns, rows) && !live.includes('RENDER ERROR'), live.slice(0, 200), 'the view must paint both rows and fit the frame; see src/screen/widgets/faces/CrewView.tsx')
+    check(`${columns}x${rows} running: no chip, the footer offers p pause`, !live.includes('paused by the operator') && live.includes('p pause'), live.split('\n').at(-1), 'the footer of CrewView in src/screen/widgets/faces/CrewView.tsx must offer p pause and no chip while nothing is parked, with the key text from crewPauseDoorKey in src/screen/widgets/faces/crewPauseDoor.ts')
     seat.setWork(parked())
     await settle()
     const paused = board.frame()
     saveFrame(`crew-pause-${columns}x${rows}-paused`, paused)
-    check(`${columns}x${rows} parked: the chip reads [ paused by the operator · 2 parked ]`, paused.includes('[ paused by the operator · 2 parked ]'), paused.split('\n').slice(0, 8).join(' | '), 'the chip must read from crewPauseChipWords in src/services/engine-connector/crewFacts.ts and be painted by src/components/mercury-ui/screens/CrewView.tsx')
-    check(`${columns}x${rows} parked: each row's status cell reads paused by the operator`, paused.split('\n').filter(line => line.includes('paused by the operator') && !line.includes('[ paused')).length === 2, paused, 'each parked row status cell must come from crewStatusWords in src/services/engine-connector/crewFacts.ts and be painted by src/components/mercury-ui/screens/CrewView.tsx')
-    check(`${columns}x${rows} parked: the footer door turns to p resume`, paused.includes('p resume') && !paused.includes('p pause'), paused.split('\n').at(-1), 'the footer door must turn to p resume while rows are parked; see crewPauseDoorKey in src/components/mercury-ui/screens/crewPauseDoor.ts and its use in src/components/mercury-ui/screens/CrewView.tsx')
-    if (columns === 178) check('178x51 parked: the tails name the seams whole (at a tool (Read) · at a model call) inside the row width', paused.includes('· at a tool (Read)') && paused.includes('· at a model call'), paused, 'the row tail must carry the seam words whole at 178 columns; see crewOperatorPauseParts in src/services/engine-connector/crewFacts.ts and the row width in src/components/mercury-ui/screens/CrewView.tsx')
-    check(`${columns}x${rows} parked: the frame still fits`, fits(paused, columns, rows), '', 'a parked frame must stay within the columns and rows given; see the row and chip layout in src/components/mercury-ui/screens/CrewView.tsx')
+    check(`${columns}x${rows} parked: the chip reads [ paused by the operator · 2 parked ]`, paused.includes('[ paused by the operator · 2 parked ]'), paused.split('\n').slice(0, 8).join(' | '), 'the chip must read from crewPauseChipWords in src/engine/connector/crewFacts.ts and be painted by src/screen/widgets/faces/CrewView.tsx')
+    check(`${columns}x${rows} parked: each row's status cell reads paused by the operator`, paused.split('\n').filter(line => line.includes('paused by the operator') && !line.includes('[ paused')).length === 2, paused, 'each parked row status cell must come from crewStatusWords in src/engine/connector/crewFacts.ts and be painted by src/screen/widgets/faces/CrewView.tsx')
+    check(`${columns}x${rows} parked: the footer door turns to p resume`, paused.includes('p resume') && !paused.includes('p pause'), paused.split('\n').at(-1), 'the footer door must turn to p resume while rows are parked; see crewPauseDoorKey in src/screen/widgets/faces/crewPauseDoor.ts and its use in src/screen/widgets/faces/CrewView.tsx')
+    if (columns === 178) check('178x51 parked: the tails name the seams whole (at a tool (Read) · at a model call) inside the row width', paused.includes('· at a tool (Read)') && paused.includes('· at a model call'), paused, 'the row tail must carry the seam words whole at 178 columns; see crewOperatorPauseParts in src/engine/connector/crewFacts.ts and the row width in src/screen/widgets/faces/CrewView.tsx')
+    check(`${columns}x${rows} parked: the frame still fits`, fits(paused, columns, rows), '', 'a parked frame must stay within the columns and rows given; see the row and chip layout in src/screen/widgets/faces/CrewView.tsx')
     board.close()
     slot._resetFocusedSessionConnectorForTesting()
   }
@@ -189,20 +189,20 @@ async function main(): Promise<void> {
     await board.key('p')
     const hosted = board.frame()
     saveFrame('crew-pause-178x51-p-on-hosted', hosted)
-    check("p on a daemon-hosted session: the press sends pauseGate(true) through the connector's door and the note says every loop parks", JSON.stringify(seat.pauseGateCalls) === '[true]' && doorModule !== null && hosted.includes(doorModule.CREW_PAUSED_NOTE.slice(0, 40)), `calls=${JSON.stringify(seat.pauseGateCalls)} · ${hosted.split('\n').filter(line => line.includes('·')).slice(-2).join(' | ')}`, 'on p a hosted session must call connector pauseGate(true) and show CREW_PAUSED_NOTE; see the p key handler in src/components/mercury-ui/screens/CrewView.tsx and pressCrewPause in src/components/mercury-ui/screens/crewPauseDoor.ts')
-    check("p on a daemon-hosted session: the chip reads the runner's fact, never the face's own gate (which stays open), and the door reads p resume", hosted.includes('[ paused by the operator ]') && hosted.includes('p resume') && gateModule !== null && !gateModule.operatorPauseGate.paused(), hosted.split('\n').slice(0, 10).join(' | '), 'a hosted session must show the chip from the runner fact (roster.pauseGate) and leave the local operatorPauseGate open; see src/components/mercury-ui/screens/CrewView.tsx and pressCrewPause in src/components/mercury-ui/screens/crewPauseDoor.ts')
+    check("p on a daemon-hosted session: the press sends pauseGate(true) through the connector's door and the note says every loop parks", JSON.stringify(seat.pauseGateCalls) === '[true]' && doorModule !== null && hosted.includes(doorModule.CREW_PAUSED_NOTE.slice(0, 40)), `calls=${JSON.stringify(seat.pauseGateCalls)} · ${hosted.split('\n').filter(line => line.includes('·')).slice(-2).join(' | ')}`, 'on p a hosted session must call connector pauseGate(true) and show CREW_PAUSED_NOTE; see the p key handler in src/screen/widgets/faces/CrewView.tsx and pressCrewPause in src/screen/widgets/faces/crewPauseDoor.ts')
+    check("p on a daemon-hosted session: the chip reads the runner's fact, never the face's own gate (which stays open), and the door reads p resume", hosted.includes('[ paused by the operator ]') && hosted.includes('p resume') && gateModule !== null && !gateModule.operatorPauseGate.paused(), hosted.split('\n').slice(0, 10).join(' | '), 'a hosted session must show the chip from the runner fact (roster.pauseGate) and leave the local operatorPauseGate open; see src/screen/widgets/faces/CrewView.tsx and pressCrewPause in src/screen/widgets/faces/crewPauseDoor.ts')
     await board.key('p')
     const hostedResumed = board.frame()
-    check('p again on the hosted session sends pauseGate(false): the chip goes, the note says resumed, the door reads p pause', JSON.stringify(seat.pauseGateCalls) === '[true,false]' && !hostedResumed.includes('[ paused by the operator') && doorModule !== null && hostedResumed.includes(doorModule.CREW_RESUMED_NOTE.slice(0, 30)) && hostedResumed.includes('p pause'), `calls=${JSON.stringify(seat.pauseGateCalls)} · ${hostedResumed.split('\n').slice(-3).join(' | ')}`, 'a second p on a hosted session must call pauseGate(false) and show CREW_RESUMED_NOTE; see pressCrewPause in src/components/mercury-ui/screens/crewPauseDoor.ts')
+    check('p again on the hosted session sends pauseGate(false): the chip goes, the note says resumed, the door reads p pause', JSON.stringify(seat.pauseGateCalls) === '[true,false]' && !hostedResumed.includes('[ paused by the operator') && doorModule !== null && hostedResumed.includes(doorModule.CREW_RESUMED_NOTE.slice(0, 30)) && hostedResumed.includes('p pause'), `calls=${JSON.stringify(seat.pauseGateCalls)} · ${hostedResumed.split('\n').slice(-3).join(' | ')}`, 'a second p on a hosted session must call pauseGate(false) and show CREW_RESUMED_NOTE; see pressCrewPause in src/screen/widgets/faces/crewPauseDoor.ts')
     seat.setCarrier('in-process')
     await board.key('p')
     const pausedFrame = board.frame()
     saveFrame('crew-pause-178x51-p-in-process', pausedFrame)
-    check('p with an in-process carrier closes the gate: the chip appears and the note says every loop parks', gateModule !== null && gateModule.operatorPauseGate.paused() && pausedFrame.includes('[ paused by the operator ]') && doorModule !== null && pausedFrame.includes(doorModule.CREW_PAUSED_NOTE.slice(0, 40)), pausedFrame.split('\n').slice(0, 10).join(' | '), 'p with an in-process carrier must close operatorPauseGate in src/run-core/pauseGate.ts and show the chip and CREW_PAUSED_NOTE; see pressCrewPause in src/components/mercury-ui/screens/crewPauseDoor.ts')
-    check('the footer door reads p resume while the gate is closed', pausedFrame.includes('p resume'), '', 'the footer door must read p resume while the local gate is closed; see crewPauseDoorKey in src/components/mercury-ui/screens/crewPauseDoor.ts and src/components/mercury-ui/screens/CrewView.tsx')
+    check('p with an in-process carrier closes the gate: the chip appears and the note says every loop parks', gateModule !== null && gateModule.operatorPauseGate.paused() && pausedFrame.includes('[ paused by the operator ]') && doorModule !== null && pausedFrame.includes(doorModule.CREW_PAUSED_NOTE.slice(0, 40)), pausedFrame.split('\n').slice(0, 10).join(' | '), 'p with an in-process carrier must close operatorPauseGate in src/engine/loop/pauseGate.ts and show the chip and CREW_PAUSED_NOTE; see pressCrewPause in src/screen/widgets/faces/crewPauseDoor.ts')
+    check('the footer door reads p resume while the gate is closed', pausedFrame.includes('p resume'), '', 'the footer door must read p resume while the local gate is closed; see crewPauseDoorKey in src/screen/widgets/faces/crewPauseDoor.ts and src/screen/widgets/faces/CrewView.tsx')
     await board.key('p')
     const resumedFrame = board.frame()
-    check('p again opens the gate: the chip goes, the note says resumed, the door reads p pause', gateModule !== null && !gateModule.operatorPauseGate.paused() && !resumedFrame.includes('[ paused by the operator') && doorModule !== null && resumedFrame.includes(doorModule.CREW_RESUMED_NOTE.slice(0, 30)) && resumedFrame.includes('p pause'), resumedFrame.split('\n').slice(-3).join(' | '), 'a second p with an in-process carrier must open operatorPauseGate again and show CREW_RESUMED_NOTE; see pressCrewPause in src/components/mercury-ui/screens/crewPauseDoor.ts')
+    check('p again opens the gate: the chip goes, the note says resumed, the door reads p pause', gateModule !== null && !gateModule.operatorPauseGate.paused() && !resumedFrame.includes('[ paused by the operator') && doorModule !== null && resumedFrame.includes(doorModule.CREW_RESUMED_NOTE.slice(0, 30)) && resumedFrame.includes('p pause'), resumedFrame.split('\n').slice(-3).join(' | '), 'a second p with an in-process carrier must open operatorPauseGate again and show CREW_RESUMED_NOTE; see pressCrewPause in src/screen/widgets/faces/crewPauseDoor.ts')
     board.close()
     slot._resetFocusedSessionConnectorForTesting()
   }
@@ -213,7 +213,7 @@ async function main(): Promise<void> {
     const board = await mount(178, 51)
     for (const modifier of ['ctrl', 'meta', 'super'] as const) {
       await board.key('p', { [modifier]: true })
-      check(`${modifier}+p never toggles the session pause gate`, seat.pauseGateCalls.length === 0, '', 'the p handler in src/components/mercury-ui/screens/CrewView.tsx must ignore p pressed with ctrl, meta or super (it acts only on a plain p)')
+      check(`${modifier}+p never toggles the session pause gate`, seat.pauseGateCalls.length === 0, '', 'the p handler in src/screen/widgets/faces/CrewView.tsx must ignore p pressed with ctrl, meta or super (it acts only on a plain p)')
     }
     board.close()
     slot._resetFocusedSessionConnectorForTesting()

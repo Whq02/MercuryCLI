@@ -5,7 +5,7 @@ import {
   COMMAND_DOMAINS,
   FALLBACK_DOMAIN_LABEL,
   groupCommandsByDomain,
-} from '../../src/components/HelpV2/commandDomains.js'
+} from '../../src/screen/help/commandDomains.js'
 
 let fail = 0
 function check(name: string, ok: boolean, detail = ''): void {
@@ -13,9 +13,9 @@ function check(name: string, ok: boolean, detail = ''): void {
   if (!ok) fail = 1
 }
 function domainHint(name: string): string {
-  if (/ship in dist/.test(name)) return 'run bun run build.ts so dist/mercury.mjs carries the labels from src/components/HelpV2/commandDomains.ts'
-  if (/catalogue|memory|curated|flagship/.test(name)) return 'edit the names lists in COMMAND_DOMAINS in src/components/HelpV2/commandDomains.ts so each name is a command or bundled skill the catalogue still has (dead names listed above)'
-  return 'fix COMMAND_DOMAINS or groupCommandsByDomain in src/components/HelpV2/commandDomains.ts'
+  if (/ship in dist/.test(name)) return 'run bun run build.ts so dist/mercury.mjs carries the labels from src/screen/help/commandDomains.ts'
+  if (/catalogue|memory|curated|flagship/.test(name)) return 'edit the names lists in COMMAND_DOMAINS in src/screen/help/commandDomains.ts so each name is a command or bundled skill the catalogue still has (dead names listed above)'
+  return 'fix COMMAND_DOMAINS or groupCommandsByDomain in src/screen/help/commandDomains.ts'
 }
 
 {
@@ -69,9 +69,9 @@ function domainHint(name: string): string {
 
 {
   ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
-  const { effectiveCatalogue } = await import('../../src/commands/effectiveCatalogue.js')
-  const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
-  const { getBundledSkills } = await import('../../src/skills/bundledSkills.ts')
+  const { effectiveCatalogue } = await import('../../src/commands/catalogue/effectiveCatalogue.js')
+  const { initBundledSkills } = await import('../../src/integrations/skills/bundled/index.ts')
+  const { getBundledSkills } = await import('../../src/integrations/skills/bundledSkills.ts')
   initBundledSkills()
   const known = new Set([...effectiveCatalogue().flatMap(surface => [surface.name, ...((surface as { aliases?: string[] }).aliases ?? [])]), ...getBundledSkills().map(s => s.name)])
   const memory = COMMAND_DOMAINS.find(d => d.key === 'memory')

@@ -17,16 +17,16 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && where ? ` — ${where}` : ''}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const facts = await import('../../src/services/switchboard/bootBirthFacts.js')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const slot = await import('../../src/services/engine-connector/focusedConnector.js')
-const { permissionModeOf } = await import('../../src/services/engine-connector/daemonConnector.js')
-const { getEngineModel } = await import('../../src/services/model/model.js')
-const { bornEffortValueOf, focusedEffortLabelOf } = await import('../../src/components/mercury-ui/EffortChip.js')
+const facts = await import('../../src/daemon/switchboard/bootBirthFacts.js')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+const slot = await import('../../src/engine/connector/focusedConnector.js')
+const { permissionModeOf } = await import('../../src/engine/connector/daemonConnector.js')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.js')
+const { bornEffortValueOf, focusedEffortLabelOf } = await import('../../src/screen/widgets/EffortChip.js')
 
-where = 'change armLandingWords, settleLandingWords or bootBirthFacts in src/services/switchboard/bootBirthFacts.ts'
+where = 'change armLandingWords, settleLandingWords or bootBirthFacts in src/daemon/switchboard/bootBirthFacts.ts'
 console.log('R1 the record: the landing words are armed by a door and settled when the landing ends')
 {
   facts._resetBootBirthFactsForTesting()
@@ -45,7 +45,7 @@ console.log('R1 the record: the landing words are armed by a door and settled wh
   check('the reset clears the landing too', facts.bootBirthFacts().landing === null)
 }
 
-where = 'change landingWordsOf in src/services/switchboard/bootBirthFacts.ts'
+where = 'change landingWordsOf in src/daemon/switchboard/bootBirthFacts.ts'
 console.log('R2 the pure read: a birth without a word stays blank; a landing reads its words verbatim')
 {
   const none = facts.landingWordsOf({ landing: null })
@@ -58,7 +58,7 @@ console.log('R2 the pure read: a birth without a word stays blank; a landing rea
   check('a default posture reads default (the chip owner paints nothing for it)', dflt.permissionMode === 'default' && dflt.effort === null && dflt.model === 'claude-opus-5', JSON.stringify(dflt))
 }
 
-where = 'change the NoSessionConnector class in src/services/engine-connector/noSessionConnector.ts or the landing words in src/services/switchboard/bootBirthFacts.ts'
+where = 'change the NoSessionConnector class in src/engine/connector/noSessionConnector.ts or the landing words in src/daemon/switchboard/bootBirthFacts.ts'
 console.log('R3 the resting connector: the landing words while a birth lands, the screen\'s own words otherwise')
 {
   facts._resetBootBirthFactsForTesting()
@@ -82,7 +82,7 @@ console.log('R3 the resting connector: the landing words while a birth lands, th
   facts._resetBootBirthFactsForTesting()
 }
 
-where = 'change permissionModeOf in src/services/engine-connector/daemonConnector.ts'
+where = 'change permissionModeOf in src/engine/connector/daemonConnector.ts'
 console.log('R4 the precedence: the runner\'s own facts outrank the birth; a birth without a word stays blank')
 {
   check('spoken default over a sovereign birth reads default', permissionModeOf({ permissionMode: 'default' }, { permissionMode: 'sovereign' }) === 'default')
@@ -91,7 +91,7 @@ console.log('R4 the precedence: the runner\'s own facts outrank the birth; a bir
   check('unspoken and a birth without a posture: null', permissionModeOf(null, { permissionMode: null }) === null)
 }
 
-where = 'change bornEffortValueOf or focusedEffortLabelOf in src/components/mercury-ui/EffortChip.tsx'
+where = 'change bornEffortValueOf or focusedEffortLabelOf in src/screen/widgets/EffortChip.tsx'
 console.log('R5 the effort chip: the born word stands plain while no seat holds the slot; a seat\'s word outranks it')
 {
   const model = 'claude-opus-5'
@@ -101,7 +101,7 @@ console.log('R5 the effort chip: the born word stands plain while no seat holds 
   check('no born word and no seat word: the born rung is silent', bornEffortValueOf(null, null) === undefined)
 }
 
-where = 'change birthFallbackModel in src/services/switchboard/bootBirthFacts.ts or settledCatalogueRefusal in src/services/switchboard/bornSession.ts'
+where = 'change birthFallbackModel in src/daemon/switchboard/bootBirthFacts.ts or settledCatalogueRefusal in src/daemon/switchboard/bornSession.ts'
 console.log('R6 the birth falls back to a signed-in family only on a settled verdict (no sign-in, or a credential the catalogue refused); a pending catalogue keeps the saved default; the saved default is never written')
 {
   const provider = (f: string): string => (f === 'anthropic' ? 'Anthropic' : f)
@@ -114,15 +114,15 @@ console.log('R6 the birth falls back to a signed-in family only on a settled ver
   check('a usable family is not swapped (no receipt)', facts.birthFallbackModel('claude-opus-5', { family: 'anthropic', familyWord: 'anthropic', hasCredential: true, refusal: null, fallback, providerName: provider }) === undefined)
   check('a family that already IS the fallback is not swapped, refused or not', facts.birthFallbackModel('claude-opus-5', { family: 'anthropic', familyWord: 'anthropic', hasCredential: true, refusal: 'sign-in expired', fallback, providerName: provider }) === undefined)
   check('no signed-in family: no fallback, the daemon refuses honestly', facts.birthFallbackModel('gemini', { family: 'gemini', familyWord: 'gemini', hasCredential: false, refusal: null, fallback: null, providerName: provider }) === undefined)
-  const { settledCatalogueRefusal } = await import('../../src/services/switchboard/bornSession.js')
+  const { settledCatalogueRefusal } = await import('../../src/daemon/switchboard/bornSession.js')
   check('the settled read answers nothing for a family with no account, a family with no catalogue, or an unknown family (the no-sign-in road is the credential read, never this one)', settledCatalogueRefusal('gemini') === null && settledCatalogueRefusal('openai') === null && settledCatalogueRefusal('openrouter') === null && settledCatalogueRefusal('huggingface') === null && settledCatalogueRefusal('anthropic') === null && settledCatalogueRefusal('zai') === null && settledCatalogueRefusal('nothing') === null)
 }
 
-where = 'change settleModelSelection in src/services/model/modelTransition.ts or the NoSessionConnector setModel refusal in src/services/engine-connector/noSessionConnector.ts'
+where = 'change settleModelSelection in src/models/catalogue/modelTransition.ts or the NoSessionConnector setModel refusal in src/engine/connector/noSessionConnector.ts'
 console.log('R7 the one road from a /model pick to the next birth: the pick saves the default and sets the override the screen birth model reads (no chat open: the resting slot refuses, so the door is a chat)')
 {
   check("the resting slot's model door refuses (no chat open, nothing to switch)", (await new NoSessionConnector().setModel()).state === 'refused')
-  const { settleModelSelection } = await import('../../src/services/model/modelTransition.js')
+  const { settleModelSelection } = await import('../../src/models/catalogue/modelTransition.js')
   const settled = settleModelSelection({ engineModel: 'gemini', engineModelForSession: null, pendingModelSwitch: null, lastModelTransition: null } as never, 'claude-fable-5-1', { turnActive: false })
   check('the settle road applies the pick to the main-loop model at once when no turn runs', settled.kind === 'applied' && settled.patch !== null && (settled.patch as { engineModel?: string }).engineModel === 'claude-fable-5-1', JSON.stringify(settled))
 }

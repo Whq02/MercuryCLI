@@ -11,9 +11,9 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-const { resolveKeyWithChordState } = await import('../../src/keybindings/resolver.ts')
-const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
-const { parseBindings } = await import('../../src/keybindings/parser.ts')
+const { resolveKeyWithChordState } = await import('../../src/screen/keys/resolver.ts')
+const { DEFAULT_BINDINGS } = await import('../../src/screen/keys/defaultBindings.ts')
+const { parseBindings } = await import('../../src/screen/keys/parser.ts')
 
 const bindings = parseBindings(DEFAULT_BINDINGS)
 const CONTEXTS = ['Chat', 'Global'] as never[]
@@ -27,15 +27,15 @@ const key = (over: Record<string, unknown> = {}) => ({
 
 console.log('── R. resolver truth ──')
 const armed = resolveKeyWithChordState('x', key({ ctrl: true }) as never, CONTEXTS, bindings as never, null)
-check('ctrl+x arms the chord (chord_started)', armed.type === 'chord_started', `${armed.type}; ctrl+x must start a chord, so check the 'ctrl+x p' row in src/keybindings/defaultBindings.ts and resolveKeyWithChordState in src/keybindings/resolver.ts`)
+check('ctrl+x arms the chord (chord_started)', armed.type === 'chord_started', `${armed.type}; ctrl+x must start a chord, so check the 'ctrl+x p' row in src/screen/keys/defaultBindings.ts and resolveKeyWithChordState in src/screen/keys/resolver.ts`)
 if (armed.type === 'chord_started') {
   const done = resolveKeyWithChordState('p', key() as never, CONTEXTS, bindings as never, armed.pending)
-  check('ctrl+x p completes to the command palette', done.type === 'match' && (done as { action: string }).action === 'app:commandPalette', `${JSON.stringify(done)}; 'ctrl+x p' must resolve to app:commandPalette, so check src/keybindings/defaultBindings.ts and resolveKeyWithChordState in src/keybindings/resolver.ts`)
+  check('ctrl+x p completes to the command palette', done.type === 'match' && (done as { action: string }).action === 'app:commandPalette', `${JSON.stringify(done)}; 'ctrl+x p' must resolve to app:commandPalette, so check src/screen/keys/defaultBindings.ts and resolveKeyWithChordState in src/screen/keys/resolver.ts`)
   const cancelled = resolveKeyWithChordState('q', key() as never, CONTEXTS, bindings as never, armed.pending)
-  check('an unmatched suffix mid-chord cancels (interceptor consumes)', cancelled.type === 'chord_cancelled', `${cancelled.type}; an unmatched second key must return chord_cancelled, so fix the pending-chord branch of resolveKeyWithChordState in src/keybindings/resolver.ts`)
+  check('an unmatched suffix mid-chord cancels (interceptor consumes)', cancelled.type === 'chord_cancelled', `${cancelled.type}; an unmatched second key must return chord_cancelled, so fix the pending-chord branch of resolveKeyWithChordState in src/screen/keys/resolver.ts`)
 }
 const leakShape = resolveKeyWithChordState('p', key() as never, CONTEXTS, bindings as never, null)
-check("a bare 'p' with NO pending state is 'none' — the leak shape the grace stash closes", leakShape.type === 'none', `${leakShape.type}; a lone p with no pending chord must resolve to none, so check the 'p' bindings in src/keybindings/defaultBindings.ts and resolveKeyWithChordState in src/keybindings/resolver.ts`)
+check("a bare 'p' with NO pending state is 'none' — the leak shape the grace stash closes", leakShape.type === 'none', `${leakShape.type}; a lone p with no pending chord must resolve to none, so check the 'p' bindings in src/screen/keys/defaultBindings.ts and resolveKeyWithChordState in src/screen/keys/resolver.ts`)
 
 
 console.log(failures === 0 ? '\nprove-chord-grace: GREEN' : `\nprove-chord-grace: ${failures} FAILURE(S)`)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-import type { LegacyQueryYield } from '../../src/run-core/project-legacy.ts'
-import { settledSidechainMessages } from '../../src/utils/sessionStorage/settledSidechainMessages.ts'
+import type { LegacyQueryYield } from '../../src/engine/loop/project-legacy.ts'
+import { settledSidechainMessages } from '../../src/sessions/transcripts/settledSidechainMessages.ts'
 import { makeTally } from './crew-world.ts'
 
 const tally = makeTally('prove-sidechain-settlement')
@@ -30,12 +30,12 @@ async function* response(): AsyncGenerator<LegacyQueryYield> {
 }
 for await (const item of settledSidechainMessages(response())) {
   if (item.type === 'stream_event') continue
-  tally.check('a streamed row reaches the consumer only after settlement', settled, 'settledSidechainMessages in src/utils/sessionStorage/settledSidechainMessages.ts yielded a message row before the response settled; hold rows in pending until message_stop')
+  tally.check('a streamed row reaches the consumer only after settlement', settled, 'settledSidechainMessages in src/sessions/transcripts/settledSidechainMessages.ts yielded a message row before the response settled; hold rows in pending until message_stop')
   delivered.push(item as unknown as typeof first)
 }
-tally.check('stream progress remains immediate while message rows await settlement', deltaBeforeRows, 'settledSidechainMessages in src/utils/sessionStorage/settledSidechainMessages.ts must yield stream_event items at once and hold only message rows while a response is open')
-tally.check('multiple blocks and interleaved attachments retain their order', delivered.map(item => item.uuid).join(',') === 'first,attachment,last,result', `${delivered.map(item => item.uuid).join(',')}, expected first,attachment,last,result \u2014 settledSidechainMessages in src/utils/sessionStorage/settledSidechainMessages.ts must release held rows in arrival order`)
-tally.check('the settled row carries the final usage, stop reason and replay receipt together', delivered[2] === last && last.message.usage.output_tokens === 29 && last.message.stop_reason === 'tool_use' && (last.apexProviderTurn as { responseId?: string }).responseId === 'fixture-receipt', `usage ${last.message.usage.output_tokens}, stop ${last.message.stop_reason} \u2014 settledSidechainMessages in src/utils/sessionStorage/settledSidechainMessages.ts must hand over the same row object it held, not a copy taken before message_delta`)
+tally.check('stream progress remains immediate while message rows await settlement', deltaBeforeRows, 'settledSidechainMessages in src/sessions/transcripts/settledSidechainMessages.ts must yield stream_event items at once and hold only message rows while a response is open')
+tally.check('multiple blocks and interleaved attachments retain their order', delivered.map(item => item.uuid).join(',') === 'first,attachment,last,result', `${delivered.map(item => item.uuid).join(',')}, expected first,attachment,last,result \u2014 settledSidechainMessages in src/sessions/transcripts/settledSidechainMessages.ts must release held rows in arrival order`)
+tally.check('the settled row carries the final usage, stop reason and replay receipt together', delivered[2] === last && last.message.usage.output_tokens === 29 && last.message.stop_reason === 'tool_use' && (last.apexProviderTurn as { responseId?: string }).responseId === 'fixture-receipt', `usage ${last.message.usage.output_tokens}, stop ${last.message.stop_reason} \u2014 settledSidechainMessages in src/sessions/transcripts/settledSidechainMessages.ts must hand over the same row object it held, not a copy taken before message_delta`)
 
 for (const ending of ['close', 'throw', 'restart', 'retract', 'plain'] as const) {
   const row = message(ending)
@@ -55,7 +55,7 @@ for (const ending of ['close', 'throw', 'restart', 'retract', 'plain'] as const)
     caught = error
   }
   const rows = seen.filter(item => 'uuid' in item)
-  tally.check(`${ending}: every retained row is handed off once, retracted rows never are`, ending === 'retract' ? rows.length === 0 && seen.every(item => item.type !== 'tombstone') : rows.length === 1 && rows[0] === row, `${rows.length} row(s) handed off, ${seen.filter(item => item.type === 'tombstone').length} tombstone(s) passed on \u2014 settledSidechainMessages in src/utils/sessionStorage/settledSidechainMessages.ts must flush held rows on close, throw and restart, and drop a row its tombstone retracts`)
-  tally.check(`${ending}: the stream outcome is preserved`, ending === 'throw' ? caught === failure : caught === undefined, `caught ${String(caught)} \u2014 settledSidechainMessages in src/utils/sessionStorage/settledSidechainMessages.ts must rethrow the source error after flushing, and throw nothing otherwise`)
+  tally.check(`${ending}: every retained row is handed off once, retracted rows never are`, ending === 'retract' ? rows.length === 0 && seen.every(item => item.type !== 'tombstone') : rows.length === 1 && rows[0] === row, `${rows.length} row(s) handed off, ${seen.filter(item => item.type === 'tombstone').length} tombstone(s) passed on \u2014 settledSidechainMessages in src/sessions/transcripts/settledSidechainMessages.ts must flush held rows on close, throw and restart, and drop a row its tombstone retracts`)
+  tally.check(`${ending}: the stream outcome is preserved`, ending === 'throw' ? caught === failure : caught === undefined, `caught ${String(caught)} \u2014 settledSidechainMessages in src/sessions/transcripts/settledSidechainMessages.ts must rethrow the source error after flushing, and throw nothing otherwise`)
 }
 tally.finish()

@@ -8,16 +8,16 @@ delete process.env.MERCURY_HOME
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 globalThis.fetch = Object.assign(async () => { throw new Error('No network in the rental usage proof') }, globalThis.fetch)
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const model = 'compat/pod-current/openai/gpt-oss-120b'
 saveGlobalConfig(config => ({ ...config, compatProvider: {
   'pod-old': { baseUrl: 'http://127.0.0.1:1/v1', models: ['old'], hostPodId: 'old' },
   'pod-current': { baseUrl: 'http://127.0.0.1:2/v1', models: ['openai/gpt-oss-120b'], hostPodId: 'current' },
 } }))
-const { writeHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
+const { writeHostRecord, removeHostRecord } = await import('../../src/models/hosting/store.ts')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
 const connector = new NoSessionConnector()
 connector.modelFacts = () => ({ main: model, effective: model, setting: model, sessionPin: model, pendingSwitch: null })
 setFocusedSessionConnector(connector)
@@ -25,9 +25,9 @@ const now = Date.now()
 writeHostRecord({ id: 'old', name: 'Old rental', recipe: 'gpt-oss-120b-h100', price: 1, startedAt: new Date(now - 3_600_000).toISOString(), status: 'RUNNING', provider: 'pod-old' })
 writeHostRecord({ id: 'current', name: 'Current rental', recipe: 'gpt-oss-120b-h100', price: 3.99, startedAt: new Date(now - 6 * 60_000).toISOString(), status: 'RUNNING', provider: 'pod-current' })
 const React = await import('react')
-const { Usage, usageCompactLines, usageSectionPlan } = await import('../../src/components/Settings/Usage.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
+const { Usage, usageCompactLines, usageSectionPlan } = await import('../../src/screen/settings/Usage.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
 let mounted: Awaited<ReturnType<typeof mountOffscreen>> | undefined
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log((ok ? 'PASS ' : 'FAIL ') + label + (!ok ? '\n' + detail : '')) }
@@ -51,10 +51,10 @@ try {
   const plan = usageSectionPlan([{ id: 'openai-compat', available: true, credentialed: true, credentialLabel: 'pod-old' }])
   const compact = usageCompactLines(plan).map(row => row.text).join('\n')
   check('compact Usage names the same rental and its cost', compact.includes('current') && compact.includes('$3.99/hr') && compact.includes('$0.40') && !compact.includes('pod-old'), compact)
-  const { activeSourceUsage } = await import('../../src/services/providers/providerUsage.ts')
+  const { activeSourceUsage } = await import('../../src/models/roads/providerUsage.ts')
   const usage = activeSourceUsage({ model }) as ReturnType<typeof activeSourceUsage> & { rental?: { spendUSD: number; price: number; id: string } }
   check('F44R-23: active spend resolves the seated rental', usage.rental?.id === 'current' && usage.rental.price === 3.99 && Math.abs(usage.rental.spendUSD - 0.399) < 0.01, JSON.stringify(usage.rental))
-  const { formatCost } = await import('../../src/services/providers/spendSpelling.ts')
+  const { formatCost } = await import('../../src/models/roads/spendSpelling.ts')
   check('provider sub-cent formatting is unchanged', formatCost(0.0007) === '$0.0007')
 } finally { mounted?.unmount(); releaseFocusedSessionConnector(); removeHostRecord('old'); removeHostRecord('current') }
 process.exitCode = failures ? 1 : 0

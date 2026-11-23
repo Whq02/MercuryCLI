@@ -29,7 +29,7 @@ function section(t: string, whereToLook = ''): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the fault-settles-ledger prover exceeded 120s; where to look: the stream runtime that routedCallModel in src/services/providers/callModelRouter.ts hands the model to, which never settled after the dropped socket')
+  console.log('\nTIMEOUT — the fault-settles-ledger prover exceeded 120s; where to look: the stream runtime that routedCallModel in src/models/roads/callModelRouter.ts hands the model to, which never settled after the dropped socket')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -125,15 +125,15 @@ Object.assign(process.env, {
   OPENAI_API_KEY: 'fixture-openai-key',
 })
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const ledger = await import('../../src/cost-tracker.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const ledger = await import('../../src/models/usage/sessionCost.ts')
 
 type Drive = { yielded: Array<Record<string, unknown>>; thrown: string | null; usage: ReturnType<typeof ledger.getUsageForModel>; cost: number; apiMs: number }
 async function drive(model: string): Promise<Drive> {
@@ -186,7 +186,7 @@ const LANES: Array<{ title: string; model: string; ledgerKey?: string }> = [
   { title: '§3 OpenAI (the Responses runtime)', model: 'gpt-5.6-sol' },
 ]
 for (const lane of LANES) {
-  section(`${lane.title}: the socket drops after a content chunk — the request still joins the ledger`, 'routedCallModel in src/services/providers/callModelRouter.ts and its provider runtime must settle a dropped stream and record usage, cost and API duration in src/cost-tracker.ts')
+  section(`${lane.title}: the socket drops after a content chunk — the request still joins the ledger`, 'routedCallModel in src/models/roads/callModelRouter.ts and its provider runtime must settle a dropped stream and record usage, cost and API duration in src/models/usage/sessionCost.ts')
   mode = 'drop-after-content'
   hits.length = 0
   timeline.length = 0
@@ -211,7 +211,7 @@ for (const lane of LANES) {
   check("the API-duration ledger holds the turn's provider time (FN-018 rank 11: these lanes never wrote it)", d.apiMs > 0, String(d.apiMs))
 }
 
-section('§4 control: a completed stream records the wire\'s own usage, never an estimate on top', 'routedCallModel in src/services/providers/callModelRouter.ts and its provider runtime must record the usage the wire reports in src/cost-tracker.ts')
+section('§4 control: a completed stream records the wire\'s own usage, never an estimate on top', 'routedCallModel in src/models/roads/callModelRouter.ts and its provider runtime must record the usage the wire reports in src/models/usage/sessionCost.ts')
 {
   mode = 'complete'
   timeline.length = 0

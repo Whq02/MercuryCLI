@@ -51,9 +51,9 @@ if (scenario !== undefined) {
   const started = performance.now()
   const took = (): number => Math.round(performance.now() - started)
   if (scenario === 'launch') {
-    const state = await import('../../src/bootstrap/state.ts')
-    const config = await import('../../src/utils/config/globalConfig.ts')
-    const { createAgentWorktree } = await import('../../src/services/worktree.ts')
+    const state = await import('../../src/boot/process-state/processState.ts')
+    const config = await import('../../src/platform/config/globalConfig.ts')
+    const { createAgentWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
     process.chdir(dir)
     state.setOriginalCwd(dir)
     state.setCwdState(dir)
@@ -66,7 +66,7 @@ if (scenario !== undefined) {
     console.log('RESULT ' + JSON.stringify({ ms, dependencies: link('node_modules'), pack: link('vendor/pack-a'), failure: made.prepareFailure ?? null, staged: staged(dirname(made.worktreePath)), tracked: present(join(made.worktreePath, 'package.json')) }))
     process.exit(0)
   }
-  const { cloneIntoWorktree } = (await import('../../src/utils/worktreeClone.ts')) as unknown as { cloneIntoWorktree: (pairs: unknown, checkout: string, worktree: string, bound?: number) => Promise<string[]> }
+  const { cloneIntoWorktree } = (await import('../../src/platform/git/worktree/worktreeClone.ts')) as unknown as { cloneIntoWorktree: (pairs: unknown, checkout: string, worktree: string, bound?: number) => Promise<string[]> }
   const home = join(dir, '.mercury', 'worktrees')
   const first = join(home, 'agent-af000001')
   mkdirSync(first, { recursive: true })
@@ -89,7 +89,7 @@ if (scenario !== undefined) {
 process.chdir(ROOT)
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change the file-by-file walk in cloneIntoWorktree (answerBoundMs, WALK_QUIET_BOUND_MS) in src/utils/worktreeClone.ts, or the launch that falls back to links in createAgentWorktree in src/services/worktree.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change the file-by-file walk in cloneIntoWorktree (answerBoundMs, WALK_QUIET_BOUND_MS) in src/platform/git/worktree/worktreeClone.ts, or the launch that falls back to links in createAgentWorktree in src/platform/git/worktree/worktree.ts' : ''}`)
   if (!cond) failures++
 }
 const skip = (label: string): void => console.log(`  [SKIP] ${label}`)

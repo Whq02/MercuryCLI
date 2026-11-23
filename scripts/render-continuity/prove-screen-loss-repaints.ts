@@ -24,7 +24,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  const repaintHint = 'fix overwriteScreen in src/ink/ink/alt-screen.ts (the repair must overwrite cells, never erase the display) or handleWinch and settleResize in src/ink/ink/resize.ts (the size handling)'
+  const repaintHint = 'fix overwriteScreen in src/screen/renderer/instance/alt-screen.ts (the repair must overwrite cells, never erase the display) or handleWinch and settleResize in src/screen/renderer/instance/resize.ts (the size handling)'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${repaintHint}` : ''}`)
 }
 function section(title: string): void {

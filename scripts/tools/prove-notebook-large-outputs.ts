@@ -5,12 +5,12 @@ import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { readNotebook } = await import(join(SRC, 'utils/notebook.ts'))
+const { readNotebook } = await import(join(SRC, 'tools/kit/notebook.ts'))
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  const notebookHint = 'fix readNotebook in src/utils/notebook.ts: a cell whose outputs total over LARGE_OUTPUT_THRESHOLD (image bytes count) becomes the one Outputs are too large pointer, except when the cell is read by id'
+  const notebookHint = 'fix readNotebook in src/tools/kit/notebook.ts: a cell whose outputs total over LARGE_OUTPUT_THRESHOLD (image bytes count) becomes the one Outputs are too large pointer, except when the cell is read by id'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail + ' | ' : ''}${notebookHint}` : ''}`)
 }
 const scratch = mkdtempSync(join(tmpdir(), 'notebook-large-outputs-'))

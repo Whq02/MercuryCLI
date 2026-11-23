@@ -15,7 +15,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — switch matrix adversary prover exceeded 240s; a turn is stuck in queryEvents (src/query.ts) or a fixture server route in this file never answered, so find the last section header printed above')
+  console.log('\nTIMEOUT — switch matrix adversary prover exceeded 240s; a turn is stuck in queryEvents (src/engine/turnDoor.ts) or a fixture server route in this file never answered, so find the last section header printed above')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -190,19 +190,19 @@ console.log('============================================================')
 console.log(' switch matrix adversary — every ordered family pair')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { queryEvents } = await import('../../src/query.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
 const { settleModelSelection, settlePendingAtBoundary } = await import(
-  '../../src/services/model/modelTransition.ts'
+  '../../src/models/catalogue/modelTransition.ts'
 )
-type Message = import('../../src/types/message.ts').Message
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 type Lane = {
   key: string
@@ -432,11 +432,11 @@ async function drivePair(a: Lane, b: Lane): Promise<void> {
       slice = { ...slice, ...settled.patch }
     }
   })
-  check(`T1 settled clean on ${a.key} (${t1.requests.length} rounds)`, t1.threw === undefined && t1.terminal.reason === 'completed' && t1.requests.length >= 2, `threw=${String(t1.threw)} terminal=${JSON.stringify(t1.terminal)} rounds=${t1.requests.length} | hint: the turn loop queryEvents in src/query.ts must run the tool round and complete on the first lane`)
-  check('the mid-turn pick PARKED (settlement kind queued, exactly one pick)', queuedKind === 'queued' && switchesInsideTurn === 1, `kind=${queuedKind} picks=${switchesInsideTurn} | hint: settleModelSelection in src/services/model/modelTransition.ts must return kind queued for a pick made while turnActive is true`)
-  check('the park flags crossProvider truthfully', queuedCross === crossExpected(a, b), `flagged=${String(queuedCross)} expected=${String(crossExpected(a, b))} | hint: settleModelSelection in src/services/model/modelTransition.ts sets crossProvider on the queued result`)
-  check(`NO re-model mid-flight: every T1 round rode ${a.key}'s wire`, t1.requests.every(r => r.path.endsWith(a.pathEnd) && r.body.model === a.wireModel), t1.requests.map(r => `${r.path}:${String(r.body.model)}`).join(' ') + ' | hint: a turn must keep the engineModel it started with (options snapshot in queryEvents, src/query.ts); a parked pick must not change its wire')
-  check('the pending slot survives the turn (applies at the boundary, not inside it)', slice.pendingModelSwitch?.setting === b.setting, 'hint: the queued patch from settleModelSelection in src/services/model/modelTransition.ts must set pendingModelSwitch to the picked setting')
+  check(`T1 settled clean on ${a.key} (${t1.requests.length} rounds)`, t1.threw === undefined && t1.terminal.reason === 'completed' && t1.requests.length >= 2, `threw=${String(t1.threw)} terminal=${JSON.stringify(t1.terminal)} rounds=${t1.requests.length} | hint: the turn loop queryEvents in src/engine/turnDoor.ts must run the tool round and complete on the first lane`)
+  check('the mid-turn pick PARKED (settlement kind queued, exactly one pick)', queuedKind === 'queued' && switchesInsideTurn === 1, `kind=${queuedKind} picks=${switchesInsideTurn} | hint: settleModelSelection in src/models/catalogue/modelTransition.ts must return kind queued for a pick made while turnActive is true`)
+  check('the park flags crossProvider truthfully', queuedCross === crossExpected(a, b), `flagged=${String(queuedCross)} expected=${String(crossExpected(a, b))} | hint: settleModelSelection in src/models/catalogue/modelTransition.ts sets crossProvider on the queued result`)
+  check(`NO re-model mid-flight: every T1 round rode ${a.key}'s wire`, t1.requests.every(r => r.path.endsWith(a.pathEnd) && r.body.model === a.wireModel), t1.requests.map(r => `${r.path}:${String(r.body.model)}`).join(' ') + ' | hint: a turn must keep the engineModel it started with (options snapshot in queryEvents, src/engine/turnDoor.ts); a parked pick must not change its wire')
+  check('the pending slot survives the turn (applies at the boundary, not inside it)', slice.pendingModelSwitch?.setting === b.setting, 'hint: the queued patch from settleModelSelection in src/models/catalogue/modelTransition.ts must set pendingModelSwitch to the picked setting')
   for (const r of t1.requests) {
     const sv = strictViolations(a, r.body)
     const lv = leakViolations(a, r.body)
@@ -445,16 +445,16 @@ async function drivePair(a: Lane, b: Lane): Promise<void> {
   }
 
   const boundary = settlePendingAtBoundary(slice)
-  check('the boundary settles the park', boundary !== null, 'hint: settlePendingAtBoundary in src/services/model/modelTransition.ts must return a settlement while a pendingModelSwitch is held')
+  check('the boundary settles the park', boundary !== null, 'hint: settlePendingAtBoundary in src/models/catalogue/modelTransition.ts must return a settlement while a pendingModelSwitch is held')
   if (boundary === null) return
   slice = { ...slice, ...boundary.patch } as Slice
   const rc = boundary.receipt
-  check('the receipt is honest (previous=A, applied=B, boundary=turn-boundary, crossProvider)', rc.previous === a.setting && rc.applied === b.setting && rc.boundary === 'turn-boundary' && rc.resolution === 'applied' && rc.crossProvider === crossExpected(a, b), JSON.stringify(rc) + ' | hint: the receipt built by settlePendingAtBoundary in src/services/model/modelTransition.ts')
-  check('the pending slot cleared exactly-once', slice.pendingModelSwitch === null && slice.engineModel === b.setting, 'hint: the patch of settlePendingAtBoundary in src/services/model/modelTransition.ts must clear pendingModelSwitch and set engineModel to the picked setting')
+  check('the receipt is honest (previous=A, applied=B, boundary=turn-boundary, crossProvider)', rc.previous === a.setting && rc.applied === b.setting && rc.boundary === 'turn-boundary' && rc.resolution === 'applied' && rc.crossProvider === crossExpected(a, b), JSON.stringify(rc) + ' | hint: the receipt built by settlePendingAtBoundary in src/models/catalogue/modelTransition.ts')
+  check('the pending slot cleared exactly-once', slice.pendingModelSwitch === null && slice.engineModel === b.setting, 'hint: the patch of settlePendingAtBoundary in src/models/catalogue/modelTransition.ts must clear pendingModelSwitch and set engineModel to the picked setting')
 
   history = [...history, ...t1.settledMessages, createUserMessage({ content: 'T2 continue after the switch' }) as Message]
   const t2 = await driveTurn(history, slice.engineModel!, undefined)
-  check(`T2 settled clean on ${b.key}`, t2.threw === undefined && t2.terminal.reason === 'completed' && t2.requests.length >= 1, `threw=${String(t2.threw)} terminal=${JSON.stringify(t2.terminal)} | hint: the second turn after a switch must complete on the new lane (queryEvents in src/query.ts)`)
+  check(`T2 settled clean on ${b.key}`, t2.threw === undefined && t2.terminal.reason === 'completed' && t2.requests.length >= 1, `threw=${String(t2.threw)} terminal=${JSON.stringify(t2.terminal)} | hint: the second turn after a switch must complete on the new lane (queryEvents in src/engine/turnDoor.ts)`)
   const t2main = t2.requests.find(r => JSON.stringify(r.body).includes('T2 '))
   check(`T2 rode ${b.key}'s wire (${b.pathEnd} · ${b.wireModel})`, t2main !== undefined && t2main.path.endsWith(b.pathEnd) && t2main.body.model === b.wireModel, t2.requests.map(r => `${r.path}:${String(r.body.model)}`).join(' ') + ' | hint: the turn after the boundary must send to the new lane path and model')
   if (t2main) {
@@ -473,12 +473,12 @@ async function drivePair(a: Lane, b: Lane): Promise<void> {
   }
 
   const idle = settleModelSelection(slice, a.setting, { turnActive: false })
-  check("the idle pick applies NOW (kind 'applied', boundary 'idle')", idle.kind === 'applied' && idle.receipt?.boundary === 'idle' && idle.receipt.applied === a.setting && idle.receipt.crossProvider === crossExpected(b, a), JSON.stringify(idle) + ' | hint: settleModelSelection in src/services/model/modelTransition.ts must apply at once when turnActive is false')
+  check("the idle pick applies NOW (kind 'applied', boundary 'idle')", idle.kind === 'applied' && idle.receipt?.boundary === 'idle' && idle.receipt.applied === a.setting && idle.receipt.crossProvider === crossExpected(b, a), JSON.stringify(idle) + ' | hint: settleModelSelection in src/models/catalogue/modelTransition.ts must apply at once when turnActive is false')
   if (idle.kind === 'applied') slice = { ...slice, ...idle.patch } as Slice
   history = [...history, ...t2.settledMessages, createUserMessage({ content: 'T3 ride the idle switch back' }) as Message]
   const t3 = await driveTurn(history, slice.engineModel!, undefined)
   const t3main = t3.requests.find(r => JSON.stringify(r.body).includes('T3 '))
-  check(`T3 rode ${a.key}'s wire again after the idle switch back`, t3.threw === undefined && t3main !== undefined && t3main.path.endsWith(a.pathEnd) && t3main.body.model === a.wireModel, `threw=${String(t3.threw)} ${t3.requests.map(r => `${r.path}:${String(r.body.model)}`).join(' ')} | hint: the turn after the idle switch must ride the picked lane (engineModel in the slice, src/services/model/modelTransition.ts)`)
+  check(`T3 rode ${a.key}'s wire again after the idle switch back`, t3.threw === undefined && t3main !== undefined && t3main.path.endsWith(a.pathEnd) && t3main.body.model === a.wireModel, `threw=${String(t3.threw)} ${t3.requests.map(r => `${r.path}:${String(r.body.model)}`).join(' ')} | hint: the turn after the idle switch must ride the picked lane (engineModel in the slice, src/models/catalogue/modelTransition.ts)`)
   if (t3main) {
     const raw = JSON.stringify(t3main.body)
     check('T3 history is whole (T1 + T2 texts both present)', raw.includes('T1 run the probe tool') && raw.includes('T2 continue after the switch'), 'hint: the request builder of the first lane must replay the whole history after switching back')
@@ -509,8 +509,8 @@ section('rogue leg — a direct mid-turn slice write cannot re-model the flight'
   const t1 = await driveTurn(history, rogueSlice.engineModel!, () => {
     rogueSlice = { ...rogueSlice, engineModel: b.setting }
   })
-  check('the rogue drive settled', t1.threw === undefined && t1.terminal.reason === 'completed', String(t1.threw) + ' | hint: queryEvents in src/query.ts must finish the turn on its starting lane')
-  check('every round STILL rode the spawn lane (options snapshot law)', t1.requests.length >= 2 && t1.requests.every(r => r.path.endsWith(a.pathEnd) && r.body.model === a.wireModel), t1.requests.map(r => `${r.path}:${String(r.body.model)}`).join(' ') + ' | hint: queryEvents in src/query.ts must read the model from the options snapshot taken at spawn, not from later slice writes')
+  check('the rogue drive settled', t1.threw === undefined && t1.terminal.reason === 'completed', String(t1.threw) + ' | hint: queryEvents in src/engine/turnDoor.ts must finish the turn on its starting lane')
+  check('every round STILL rode the spawn lane (options snapshot law)', t1.requests.length >= 2 && t1.requests.every(r => r.path.endsWith(a.pathEnd) && r.body.model === a.wireModel), t1.requests.map(r => `${r.path}:${String(r.body.model)}`).join(' ') + ' | hint: queryEvents in src/engine/turnDoor.ts must read the model from the options snapshot taken at spawn, not from later slice writes')
 }
 
 section('poison controls — the strict parsers and the leak sweep can fail')

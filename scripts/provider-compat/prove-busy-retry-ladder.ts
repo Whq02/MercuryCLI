@@ -35,38 +35,38 @@ delete process.env.MERCURY_DISABLE_NONSTREAMING_FALLBACK
 for (const name of ['GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MERCURY_GEMINI_OAUTH_CLIENT_ID', 'MERCURY_GEMINI_OAUTH_CLIENT_SECRET', 'MERCURY_BUSY_RETRY_SCALE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_MODEL', 'MERCURY_COMPAT_API_KEY']) delete process.env[name]
 const access = 'ya29.fixture-busy-access'
 writeFileSync(join(home, '.gemini-auth.json'), JSON.stringify({ version: 1, preferredSource: 'oauth', client: { clientId: 'fixture-client' }, tokens: { accessToken: access, refreshToken: 'fixture-refresh', accessTokenExpiresAtMs: Date.now() + 3600000 } }))
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const busy = await import('../../src/services/providers/busyRetry.ts')
-const idle = await import('../../src/services/providers/streamIdleBudget.ts')
-const budgetModule = await import('../../src/services/api/recoveryBudget.ts')
-const agentModule = (await import('../../src/tools/AgentTool/runAgent.ts')) as { makeRecoveryAccountant?: (args: { budget: unknown; cut: (cutting: { declaredMs: number; honoredMs: number }) => void; words?: (line: string | null) => void }) => { wait: (facts: unknown, loud: boolean) => { honoredMs: number; spent: boolean }; spoke: () => void; end: () => void; standing: () => boolean } }
+const busy = await import('../../src/models/roads/busyRetry.ts')
+const idle = await import('../../src/models/roads/streamIdleBudget.ts')
+const budgetModule = await import('../../src/engine/requests/recoveryBudget.ts')
+const agentModule = (await import('../../src/tools/crewmate/runCrewmate.ts')) as { makeRecoveryAccountant?: (args: { budget: unknown; cut: (cutting: { declaredMs: number; honoredMs: number }) => void; words?: (line: string | null) => void }) => { wait: (facts: unknown, loud: boolean) => { honoredMs: number; spent: boolean }; spoke: () => void; end: () => void; standing: () => boolean } }
 const heldNoticeOf = (busy as { heldBusyRetryNotice?: (wait: unknown) => { retryInMs?: number; retryAttempt?: number; maxRetries?: number; subtype?: string } | null }).heldBusyRetryNotice ?? ((): null => null)
-const { geminiCallModel } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.ts')
-const { zaiCallModel } = await import('../../src/services/providers/zai/zaiCallModel.ts')
-const { deepseekLaneProfile } = await import('../../src/services/providers/deepseek/deepseekCallModel.ts')
-const { moonshotLaneProfile } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
-const { huggingfaceLaneProfile } = await import('../../src/services/providers/huggingface/huggingfaceCallModel.ts')
-const { openrouterLaneProfile } = await import('../../src/services/providers/openrouter/openrouterCallModel.ts')
-const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
-const { compatCallModel } = await import('../../src/services/providers/openaicompat/compatCallModel.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { geminiCallModel } = await import('../../src/models/roads/gemini/geminiCallModel.ts')
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { openaiCallModel } = await import('../../src/models/roads/openai/openaiCallModel.ts')
+const { zaiCallModel } = await import('../../src/models/roads/zai/zaiCallModel.ts')
+const { deepseekLaneProfile } = await import('../../src/models/roads/deepseek/deepseekCallModel.ts')
+const { moonshotLaneProfile } = await import('../../src/models/roads/moonshot/moonshotCallModel.ts')
+const { huggingfaceLaneProfile } = await import('../../src/models/roads/huggingface/huggingfaceCallModel.ts')
+const { openrouterLaneProfile } = await import('../../src/models/roads/openrouter/openrouterCallModel.ts')
+const { localLaneProfileFor } = await import('../../src/models/roads/local/localCallModel.ts')
+const { compatCallModel } = await import('../../src/models/roads/openaicompat/compatCallModel.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.ts')
-const retrySeam = await import('../../src/services/api/withRetry.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-import type { Message } from '../../src/types/message.ts'
-import type { CompatCallModelParams, CompatLaneProfile } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const retrySeam = await import('../../src/engine/requests/withRetry.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+import type { Message } from '../../src/engine/message-shapes/message.ts'
+import type { CompatCallModelParams, CompatLaneProfile } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
 
 let checks = 0
 let failures = 0
 function check(label: string, condition: boolean, detail = ''): void {
   checks++
   if (!condition) failures++
-  const where = 'to fix, see the ladder in src/services/providers/busyRetry.ts (openBusyRetryLadder, nextBusyRetry, isBusyRefusal, takesBusyLadder), the road call model under src/services/providers/, and the home road retry in src/services/api/withRetry.ts'
+  const where = 'to fix, see the ladder in src/models/roads/busyRetry.ts (openBusyRetryLadder, nextBusyRetry, isBusyRefusal, takesBusyLadder), the road call model under src/models/roads/, and the home road retry in src/engine/requests/withRetry.ts'
   const failText = detail ? `${detail} — ${where}` : where
   console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${!condition ? ` — ${failText}` : ''}`)
 }

@@ -11,7 +11,7 @@ import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { buildRefDist, distBuildTree } from '../lib/refDist.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
-import { historyLines } from '../../src/utils/sessionStorage/historyParts.ts'
+import { historyLines } from '../../src/sessions/transcripts/historyParts.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -263,7 +263,7 @@ const leadExecution = (): string | null => {
 async function postWhenTheLeadIsBack(executionBefore: string | null, clientOpId: string, text: string): Promise<string> {
   if (boardPath === null || sessionId === null || !existsSync(boardPath)) return 'no board'
   await untilAsync(() => { const execution = leadExecution(); return execution !== null && execution !== executionBefore }, vshotBudgetMs(90_000), 200)
-  const board = await import('../../src/services/crewBoard/store.ts')
+  const board = await import('../../src/crew/board/store.ts')
   const store = board.open(boardPath, sessionId)
   try {
     const lane = { author: { sessionId, agentId: 'lane-paint', executionId: randomUUID() }, name: 'lane-paint' }
@@ -278,7 +278,7 @@ async function dispatchWhenRecorded(needle: string, promptText: string): Promise
   if (transcript === null || sessionId === null) return 'no session'
   await untilAsync(() => replies(storeRows(transcript)).some(r => r.text.includes(needle)), vshotBudgetMs(120_000))
   await untilAsync(() => readFileSync(transcript, 'utf8').split('\n').some(line => line.includes(needle) && line.includes('"outcome"')), vshotBudgetMs(30_000))
-  const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+  const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
   const reply = (await daemonControlRpc({ op: 'sessionDispatch', clientMessageId: randomUUID(), prompt: promptText, workspaceDir: '', targetSessionId: sessionId, by: 'operator' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; error?: string }
   return reply.ok === true ? 'the daemon took the line' : `refused: ${reply.error ?? JSON.stringify(reply)}`
 }
@@ -321,10 +321,10 @@ let daemon: ChildProcess | null = null
 try {
   section('§0 the reader law — a live stretch rooted after the newest fold paints, in file order')
   {
-    const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
-    const vnext = await import('../../src/utils/sessionStorage/vnext.ts')
-    const factories = await import('../../src/utils/messages/factories.ts')
-    const systemMessages = await import('../../src/utils/messages/systemMessages.ts')
+    const reader = await import('../../src/sessions/transcripts/transcriptReader.ts')
+    const vnext = await import('../../src/sessions/transcripts/vnext.ts')
+    const factories = await import('../../src/engine/message-shapes/factories.ts')
+    const systemMessages = await import('../../src/engine/message-shapes/systemMessages.ts')
     const dir = join(SCRATCH, 'reader-law')
     mkdirSync(dir, { recursive: true })
     const path = join(dir, `${randomUUID()}.jsonl`)
@@ -350,21 +350,21 @@ try {
     const a2 = assistant('a2', 'the reply after the fold', u2.uuid)
     write([u1, a1, B, S, u2, a2])
     let chain = await reader.readTranscriptChainSince(path, null)
-    check('the fold paints with the turn after it', JSON.stringify(named(chain.rows)) === JSON.stringify(['B', 'S', 'u2', 'a2']), JSON.stringify(named(chain.rows)), 'readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts must return the boundary, its summary and the turn after the fold, in that order')
+    check('the fold paints with the turn after it', JSON.stringify(named(chain.rows)) === JSON.stringify(['B', 'S', 'u2', 'a2']), JSON.stringify(named(chain.rows)), 'readTranscriptChainSince in src/sessions/transcripts/transcriptReader.ts must return the boundary, its summary and the turn after the fold, in that order')
     const n1 = user('n1', '<crew-board>{"name":"lane","kind":"message","text":"@main a post the resumed runner painted first"}</crew-board>', null)
     const u3 = user('u3', 'the words after the resume', n1.uuid)
     const a3 = assistant('a3', 'the reply after the resume', u3.uuid)
     write([n1, u3, a3])
     chain = await reader.readTranscriptChainSince(path, chain.cursor)
-    check('a row written after the resume with no parent, and the turn chained onto it, paint after the kept rows in file order', JSON.stringify(named(chain.rows)) === JSON.stringify(['B', 'S', 'u2', 'a2', 'n1', 'u3', 'a3']), JSON.stringify(named(chain.rows)), 'readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts must keep rows written after the resume with no parent, in file order after the kept rows')
+    check('a row written after the resume with no parent, and the turn chained onto it, paint after the kept rows in file order', JSON.stringify(named(chain.rows)) === JSON.stringify(['B', 'S', 'u2', 'a2', 'n1', 'u3', 'a3']), JSON.stringify(named(chain.rows)), 'readTranscriptChainSince in src/sessions/transcripts/transcriptReader.ts must keep rows written after the resume with no parent, in file order after the kept rows')
     const u4 = user('u4', 'a later line through the daemon', a3.uuid)
     const a4 = assistant('a4', 'its reply', u4.uuid)
     write([u4, a4])
     chain = await reader.readTranscriptChainSince(path, chain.cursor)
-    check('every later turn on that stretch follows', JSON.stringify(named(chain.rows)) === JSON.stringify(['B', 'S', 'u2', 'a2', 'n1', 'u3', 'a3', 'u4', 'a4']), JSON.stringify(named(chain.rows)), 'readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts must append every later turn when called again with the returned cursor')
+    check('every later turn on that stretch follows', JSON.stringify(named(chain.rows)) === JSON.stringify(['B', 'S', 'u2', 'a2', 'n1', 'u3', 'a3', 'u4', 'a4']), JSON.stringify(named(chain.rows)), 'readTranscriptChainSince in src/sessions/transcripts/transcriptReader.ts must append every later turn when called again with the returned cursor')
     reader._resetTranscriptReaderForTesting()
     const cold = await reader.readTranscriptChainSince(path, null)
-    check('a cold read (a reattach) paints the same rows', JSON.stringify(named(cold.rows)) === JSON.stringify(named(chain.rows)), JSON.stringify(named(cold.rows)), 'a read from a null cursor in src/utils/sessionStorage/transcriptReader.ts must return the same rows as the cursor reads')
+    check('a cold read (a reattach) paints the same rows', JSON.stringify(named(cold.rows)) === JSON.stringify(named(chain.rows)), JSON.stringify(named(cold.rows)), 'a read from a null cursor in src/sessions/transcripts/transcriptReader.ts must return the same rows as the cursor reads')
   }
 
   section('§1 a fresh session: a tool turn, a long streamed reply, the swarm switch, a compaction, a short reply')
@@ -409,7 +409,7 @@ try {
     await untilAsync(() => transcript === null || !existsSync(`${transcript}.writer.lock`), vshotBudgetMs(30_000))
     const logFd = openSync(join(SCRATCH, 'older-window-daemon.log'), 'a')
     daemon = spawn(NODE, [DIST, 'daemon', 'run', work], { cwd: work, env: childEnv, stdio: ['ignore', logFd, logFd] })
-    const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+    const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
     const serving = await untilAsync(async () => ((await daemonControlRpc({ op: 'ping' } as never, { timeoutMs: 1000 })) as { ok?: boolean }).ok === true, vshotBudgetMs(60_000))
     check('a daemon on this build serves the older window', serving)
     await resumedJourney('older-window', CLIENT_DIST, SHORT_AGAIN, { clientOpId: 'paint-board-post-2', text: BOARD_POST_OLDER, mark: 'PAINT-BOARD-POST-TWO' }, { tag: 'paint-long-3', text: OLDER, firstMark: 'OLDER-R3', end: 'THE-OLDER-END' }, { tag: 'paint-short-3', text: SHORT_OLDER, end: 'THE-SHORT-OLDER-END' })
@@ -417,7 +417,7 @@ try {
 } finally {
   if (daemon !== null) {
     try {
-      const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+      const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
       await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never, { timeoutMs: 5000 })
     } catch {
     }

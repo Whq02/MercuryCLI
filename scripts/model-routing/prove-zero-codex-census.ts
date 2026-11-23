@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { EXECUTION_DOMAIN_CENSUS } from '../../src/services/primitives/executionCensus.ts'
+import { EXECUTION_DOMAIN_CENSUS } from '../../src/engine/runtime-kernel/executionCensus.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -38,9 +38,9 @@ console.log(' zero-Codex census (source + registry + artifact)')
 console.log('============================================================')
 
 check(
-  'the runtime directory is gone (src/services/providers/codex)',
+  'the runtime directory is gone (src/models/roads/codex)',
   !existsSync(join(ROOT, 'src', 'services', 'providers', 'codex')),
-  'delete the directory src/services/providers/codex and everything that imports it',
+  'delete the directory src/models/roads/codex and everything that imports it',
 )
 
 const importHits = hits(['src', 'scripts'], /providers\/codex/)
@@ -49,7 +49,7 @@ check('no import/path reference to providers/codex anywhere in src or scripts', 
 check(
   'the running-work census has no codex domain',
   EXECUTION_DOMAIN_CENSUS.every(entry => !/codex/i.test(entry.domain) && !/codex/i.test(entry.kind ?? '')),
-  'remove the codex entry from EXECUTION_DOMAIN_CENSUS in src/services/primitives/executionCensus.ts',
+  'remove the codex entry from EXECUTION_DOMAIN_CENSUS in src/engine/runtime-kernel/executionCensus.ts',
 )
 
 const spawnHitsAll = hits(['src'], /(spawn|execFile)[^\n]*codex|['"]codex['"]/)

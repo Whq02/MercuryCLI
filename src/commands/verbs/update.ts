@@ -1,0 +1,425 @@
+import { readCurrentVersionState, reconcileManagedShims, resolveLayoutRoots, type LayoutRoots } from 'src/platform/update-channel/installLayout.js'
+import { commandOnPath, commandOnPathWarning, npmWrapperOnPath } from 'src/platform/update-channel/installPath.js'
+import {
+  askYesNo,
+  installerConsentQuestion,
+  installerRoadWords,
+  readVersionAfterUpgrade,
+  runInstallerUpgrade,
+} from 'src/platform/update-channel/installerUpgrade.js'
+import {
+  foreignInstallerOf,
+  NPM_WRAPPER_ROAD_WORDS,
+  resolveInstallProvenance,
+  type ForeignInstaller,
+  type InstallProvenanceV1,
+} from 'src/platform/update-channel/installProvenance.js'
+import {
+  channelStatus,
+  checkForUpdate,
+  performRollback,
+  performUpdate,
+  statusRuntimeLine,
+  type Progress,
+} from 'src/platform/update-channel/updateService.js'
+import { describeChannelRoad } from 'src/platform/update-channel/channelTransport.js'
+import { consumeSkippedGhCmdNotice } from 'src/platform/update-channel/ghRelease.js'
+import { updateReinstallCommand } from 'src/platform/update-channel/updateRemedy.js'
+import { formatBootResidueWarning, readBootAttemptResidue } from 'src/platform/substrate/bootBeacon.js'
+import { jsonStringify } from 'src/platform/logs/slowOperations.js'
+import { cliError, cliJsonError, cliOk } from './exit.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+
+interface UpdateCliOptions {
+  check?: boolean
+  status?: boolean
+  rollback?: boolean
+  allowUnsigned?: boolean
+  yes?: boolean
+  json?: boolean
+}
+
+const progressToStderr: Progress = (state, detail) => {
+  console.error(detail ? `${state}: ${detail}` : state)
+}
+
+const emitJson = (value: unknown): never => cliOk(jsonStringify(value, null, 1) ?? '{}')
+const failJson = (value: unknown): never => cliJsonError(jsonStringify(value, null, 1) ?? '{}')
+
+function refusalExits(reinstallCommand: string): {
+  cliError: (message: string) => never
+  failJson: (value: object) => never
+} {
+  return {
+    cliError: message => cliError(`${message}\n${reinstallCommand}`),
+    failJson: value => failJson({ ...value, reinstallCommand }),
+  }
+}
+
+async function moveDaemonAfterUpdate(): Promise<{ state: string; line: string } | null> {
+  try {
+    const { moveDaemonToDeployedBuild } = await import('../../daemon/control/handshake.js')
+    return await moveDaemonToDeployedBuild({ by: 'mercury update' })
+  } catch (error) {
+    return { state: 'unknown', line: `background daemon: not moved — ${error instanceof Error ? error.message : String(error)}` }
+  }
+}
+
+function openWindowsLine(from: string | null): string {
+  return `any Mercury window still open keeps working on ${from ? `v${from}` : 'the build it started with'} until it is closed and opened again`
+}
+
+export async function moveDaemonAfterInstallerUpgrade(to: string): Promise<{ state: string; line: string } | null> {
+  try {
+    const { deployedRuntime } = await import('../../daemon/control/handover.js')
+    if (deployedRuntime() !== null) return await moveDaemonAfterUpdate()
+    const { handshakeDaemon, liveNoun, finishVerb } = await import('../../daemon/control/handshake.js')
+    const first = await handshakeDaemon()
+    if (first.state === 'absent') return { state: 'absent', line: `background daemon: none running — the next session starts one on v${to}` }
+    const d = first.daemon
+    if (first.state === 'starting' || d === null) {
+      return { state: 'unknown', line: `background daemon: still starting — \`mercury daemon restart\` moves it to v${to} once it answers` }
+    }
+    const old = `v${d.version}${d.pid !== null ? ` (pid ${d.pid})` : ''}`
+    if (d.version === to) return { state: 'current', line: `background daemon: already on v${to} (${old})` }
+    const stopLine = (why: string): { state: string; line: string } => ({
+      state: 'stop',
+      line: `background daemon: ${old} could not be moved — ${why}; \`mercury daemon stop\` ends it and the next session starts one on v${to}`,
+    })
+    const { hostedCallerOf, restartEndsHostedCaller } = await import('../../daemon/control/hostedCaller.js')
+    const { helperPidsOfHome } = await import('../../daemon/control/status.js')
+    if ((await hostedCallerOf(await helperPidsOfHome())).hosted && restartEndsHostedCaller(first)) {
+      return stopLine('this command runs inside a session it hosts, so its restart would end your own turn — run `mercury update` or `mercury daemon restart` from a plain shell')
+    }
+    if (first.heal === 'operator') return stopLine('it predates the version handshake and cannot restart itself')
+    const { daemonControlRpc } = await import('../../daemon/control/controlSocket.js')
+    const { MERCURY_DAEMON_PROTO } = await import('../../daemon/control/protocol.js')
+    const reply = await daemonControlRpc({ op: 'restart-when-idle', proto: MERCURY_DAEMON_PROTO, by: 'mercury update' }, { timeoutMs: 3000 })
+    if (!reply.ok || reply.op !== 'restart-when-idle') return stopLine(`it refused the restart (${reply.ok ? 'unexpected reply' : reply.error})`)
+    if (reply.state === 'refused') return stopLine(reply.detail ?? 'the restart was refused')
+    if (reply.state === 'armed') {
+      return {
+        state: 'when-idle',
+        line: reply.detail !== undefined
+          ? `background daemon: ${old} moves to v${to} when idle — ${reply.detail}`
+          : `background daemon: ${old} moves to v${to} when its ${liveNoun({ live: reply.live, liveSessions: Math.min(first.liveSessions, reply.live) })} ${finishVerb(reply.live)}`,
+      }
+    }
+    return { state: 'moving', line: `background daemon: ${old} is restarting on the updated install — the next session runs on v${to}` }
+  } catch (error) {
+    return { state: 'unknown', line: `background daemon: not moved — ${error instanceof Error ? error.message : String(error)}` }
+  }
+}
+
+function provenanceStatusWords(p: InstallProvenanceV1, npmWrapper: string | null): string {
+  const installer = foreignInstallerOf(p)
+  if (installer) return `installed by ${installer.name} at ${p.activeRoot} — ${installerRoadWords(installer)}`
+  switch (p.kind) {
+    case 'managed':
+      return `installed by \`mercury install\` or the install script at ${p.activeRoot} — \`mercury update\` manages it${npmWrapper === null ? '' : ` (${NPM_WRAPPER_ROAD_WORDS})`}`
+    case 'extracted-release':
+      return `a release archive run in place at ${p.activeRoot} — \`mercury update\` manages the install under the versions directory`
+    case 'development':
+      return `a source checkout at ${p.activeRoot} — rebuild it with \`git pull && bun run build.ts\``
+    default:
+      return `an unrecognized install shape at ${p.activeRoot || '(no entry path)'} — adopt the managed layout with \`mercury install\` for update support`
+  }
+}
+
+async function installerRoad(
+  installer: ForeignInstaller & { updateCommand: string },
+  options: UpdateCliOptions,
+  roots: LayoutRoots,
+  provenance: Record<string, unknown>,
+  reinstallCommand: string,
+): Promise<never> {
+  const { cliError, failJson } = refusalExits(reinstallCommand)
+  const command = installer.updateCommand
+  if (!options.yes) {
+    if (options.json) {
+      return failJson({
+        mode: 'update',
+        state: 'refused',
+        stage: 'consent',
+        reason: `this Mercury was installed by ${installer.name}; \`mercury update\` runs \`${command}\` after asking`,
+        remedy: 'run `mercury update --yes` to run it without the question',
+        provenance,
+      })
+    }
+    const agreed = await askYesNo(installerConsentQuestion(installer))
+    if (!agreed) {
+      return cliError(`update not run — answer y to run \`${command}\`, or run \`mercury update --yes\`\nthe active installation was not changed`)
+    }
+  }
+  if (!options.json) process.stderr.write(`running: ${command}\n`)
+  const from = MACRO.VERSION
+  const ran = await runInstallerUpgrade(installer, { stdoutTo: options.json ? 'stderr' : 'inherit' })
+  if (ran.state === 'not-found') {
+    if (options.json) return failJson({ mode: 'update', state: 'installer-missing', installer: installer.name, command, executable: ran.executable, provenance })
+    return cliError(`update not run: \`${ran.executable}\` is not on PATH, so \`${command}\` cannot run here\nthe active installation was not changed`)
+  }
+  if (ran.state === 'failed') {
+    if (options.json) return failJson({ mode: 'update', state: 'installer-failed', installer: installer.name, command, note: ran.note, provenance })
+    return cliError(`update not completed: \`${command}\` could not run (${ran.note})`)
+  }
+  if (ran.exitCode !== 0) {
+    if (options.json) return failJson({ mode: 'update', state: 'installer-failed', installer: installer.name, command, exitCode: ran.exitCode, provenance })
+    return cliError(`update not completed: \`${command}\` exited ${ran.exitCode}\n  its own words are above; the installation is whatever ${installer.name} left`)
+  }
+  const after = readVersionAfterUpgrade(roots)
+  const daemon = after.state === 'read' ? await moveDaemonAfterInstallerUpgrade(after.version) : null
+  const openWindows = after.state === 'read' && after.version !== from ? openWindowsLine(from) : null
+  if (options.json) {
+    const record = {
+      mode: 'update',
+      state: 'installer-ran',
+      installer: installer.name,
+      command,
+      exitCode: 0,
+      from,
+      to: after.state === 'read' ? after.version : null,
+      commandOnPath: after.state === 'no-command' ? null : after.command,
+      ...(after.state === 'unreadable' ? { note: after.note } : {}),
+      ...(daemon === null ? {} : { daemon }),
+      ...(openWindows === null ? {} : { openWindows }),
+      provenance,
+    }
+    return after.state === 'read' ? emitJson(record) : failJson(record)
+  }
+  switch (after.state) {
+    case 'read':
+      return cliOk(
+        after.version === from
+          ? `Mercury is still ${from} after \`${command}\` — ${installer.name}'s package has not moved past it yet\n  the \`mercury\` your shell runs is ${after.command}${daemon === null ? '' : `\n${daemon.line}`}`
+          : `updated: ${from} → ${after.version} (${installer.name}: \`${command}\`)\n  the \`mercury\` your shell runs is ${after.command}${daemon === null ? '' : `\n${daemon.line}`}\n${openWindows}`,
+      )
+    case 'no-command':
+      return cliError(`\`${command}\` finished; no \`mercury\` is on your PATH to read the installed version from`)
+    case 'unreadable':
+      return cliError(`\`${command}\` finished; ${after.command} --version did not answer (${after.note})`)
+  }
+}
+
+export async function update(options: UpdateCliOptions = {}): Promise<never> {
+  const roots = resolveLayoutRoots()
+  const provenance = resolveInstallProvenance()
+  const installer = foreignInstallerOf(provenance)
+  const sourceCheckout = provenance.kind === 'development' && readCurrentVersionState(roots).state === 'absent'
+  const sourceCheckoutReason = `this Mercury is a source checkout at ${provenance.activeRoot} and no managed install lives under ${roots.versionsDir}; \`mercury update\` manages installs made by \`mercury install\` or the install script`
+  const sourceCheckoutRemedy = 'rebuild it with `git pull && bun run build.ts`'
+  const npmWrapper = provenance.kind === 'managed' ? npmWrapperOnPath(commandOnPath(roots)) : null
+  const reinstallCommand = updateReinstallCommand(provenance, npmWrapper)
+  const { cliError, failJson } = refusalExits(reinstallCommand)
+  const picked = [options.check, options.status, options.rollback].filter(Boolean).length
+  if (picked > 1) {
+    console.error(`mercury update: --check, --status and --rollback are mutually exclusive\n${reinstallCommand}`)
+    process.exit(2)
+  }
+  const provenanceRecord = {
+    kind: provenance.kind,
+    activeRoot: provenance.activeRoot,
+    updateOwner: provenance.updateOwner,
+    updateCommand: installer?.updateCommand ?? null,
+    npmWrapper,
+  }
+  if (installer?.updateCommand === null && !options.rollback) {
+    const remedy = installerRoadWords(installer)
+    const reason = options.status ? provenanceStatusWords(provenance, npmWrapper) : `this Mercury was installed by ${installer.name}; ${remedy}`
+    if (options.json) return emitJson({ mode: options.status ? 'status' : options.check ? 'check' : 'update', state: 'installer-managed', installed: MACRO.VERSION, runningVersion: MACRO.VERSION, reason, remedy, provenance: provenanceRecord })
+    return cliOk(reason)
+  }
+  const progress: Progress = options.json ? () => {} : progressToStderr
+
+  const residue = readBootAttemptResidue()
+  if (residue && residue.count >= 3) {
+    console.error(`mercury update: warning — ${formatBootResidueWarning(residue)}`)
+  }
+
+  if (options.status) {
+    const status = await channelStatus(roots)
+    const ghWarning = consumeSkippedGhCmdNotice()
+    if (ghWarning && !options.json) console.error(ghWarning)
+    const pointerDamaged = status.installedPointer === 'unreadable'
+    if (options.json) {
+      return pointerDamaged
+        ? failJson({ mode: 'status', ...status, provenance: provenanceRecord })
+        : emitJson({ mode: 'status', ...status, provenance: provenanceRecord })
+    }
+    const installedLine =
+      status.installedPointer === 'ok'
+        ? status.installedVersion!
+        : status.installedPointer === 'absent'
+          ? '(no managed install)'
+          : status.installedPointer === 'empty'
+            ? '(pointer file empty — edit <versions>/current.txt to the active version)'
+            : '(pointer file unreadable — fix permissions on <versions>/current.txt)'
+    const lines = [
+      `running version:   ${status.runningVersion}`,
+      `this Mercury:      ${provenanceStatusWords(provenance, npmWrapper)}`,
+      `installed version: ${installedLine}`,
+      `previous version:  ${status.previousVersion ?? '(none)'}`,
+      `versions present:  ${status.versionsReadError !== undefined ? `installed versions could not be read (${status.versionsReadError})` : status.versionsPresent.join(', ') || '(none)'}`,
+      `versions dir:      ${status.versionsDir}`,
+      `stable command:    ${status.shimReadError !== undefined ? `the launcher at ${status.shimPath} could not be read (${status.shimReadError})` : `${status.shimPath} (${status.shim})`}`,
+      `runtime:           ${statusRuntimeLine(status)}`,
+      `channel:           ${status.channelRepo} (GitHub releases — read anonymously, or through gh when it is signed in)`,
+      `channel access:    ${status.access.state === 'ok' ? `ok (${describeChannelRoad(status.access.road)})` : `${status.access.state} — ${status.access.note}`}`,
+    ]
+    return pointerDamaged ? cliError(lines.join('\n')) : cliOk(lines.join('\n'))
+  }
+
+  if (options.rollback) {
+    if (installer) {
+      const reason = `this Mercury was installed by ${installer.name}; \`mercury update --rollback\` manages installs made by \`mercury install\` or the install script`
+      const remedy = `${installer.name} manages this install's versions; ${installerRoadWords(installer, 'rollback')}`
+      if (options.json) return failJson({ mode: 'rollback', state: 'refused', reason, remedy, provenance: provenanceRecord })
+      return cliError(`rollback refused: ${reason}\n  ${remedy}`)
+    }
+    if (sourceCheckout) {
+      const remedy = `a checkout has no earlier version to return to — ${sourceCheckoutRemedy}, or check out an earlier commit`
+      if (options.json) return failJson({ mode: 'rollback', state: 'refused', reason: sourceCheckoutReason, remedy, provenance: provenanceRecord })
+      return cliError(`rollback refused: ${sourceCheckoutReason}\n  ${remedy}`)
+    }
+    const rolled = await performRollback(roots, progress)
+    if (rolled.state === 'rolled-back') reconcileManagedShims(roots)
+    const daemon = rolled.state === 'rolled-back' ? await moveDaemonAfterUpdate() : null
+    const openWindows = rolled.state === 'rolled-back' ? openWindowsLine(rolled.from) : null
+    if (options.json) {
+      return rolled.state === 'rolled-back' ? emitJson({ mode: 'rollback', ...rolled, daemon, openWindows }) : failJson({ mode: 'rollback', ...rolled })
+    }
+    if (rolled.state === 'rolled-back') {
+      return cliOk(
+        `rolled back: ${rolled.from ?? '(unknown)'} → ${rolled.to}\nthe newer version stays under the versions directory for diagnosis; \`mercury update\` reinstalls it${daemon === null ? '' : `\n${daemon.line}`}\n${openWindows}`,
+      )
+    }
+    return cliError(`rollback refused: ${rolled.reason}\n  ${rolled.remedy}`)
+  }
+
+  if (options.check) {
+    const check = await checkForUpdate(roots, progress)
+    const ghWarning = consumeSkippedGhCmdNotice()
+    if (ghWarning && !options.json) console.error(ghWarning)
+    if (options.json) {
+      const ok = check.state === 'update-available' || check.state === 'current' || check.state === 'no-releases'
+      return ok
+        ? emitJson({ mode: 'check', ...check, provenance: provenanceRecord })
+        : failJson({ mode: 'check', ...check, provenance: provenanceRecord })
+    }
+    const thisMercury = provenance.kind !== 'managed' ? `\n  this Mercury: ${provenanceStatusWords(provenance, npmWrapper)}` : ''
+    switch (check.state) {
+      case 'update-available': {
+        const next = installer
+          ? `this Mercury was installed by ${installer.name}; ${installerRoadWords(installer)}`
+          : sourceCheckout
+            ? `this Mercury: ${provenanceStatusWords(provenance, npmWrapper)}`
+            : `run \`mercury update\` to install it${npmWrapper === null ? '' : ` (${NPM_WRAPPER_ROAD_WORDS})`}`
+        const beside = !installer && !sourceCheckout ? thisMercury : ''
+        return cliOk(
+          `update available: ${check.tag} (installed: ${check.installed})\n  asset: ${check.assetName}\n  channel: ${check.channelRepo} (${describeChannelRoad(check.road)})${beside}\n${next}`,
+        )
+      }
+      case 'current':
+        return cliOk(`Mercury is current: ${check.installed} (channel: ${check.channelRepo}, ${describeChannelRoad(check.road)})${thisMercury}`)
+      case 'no-releases':
+        return cliOk(`no releases found on ${check.channelRepo} (${describeChannelRoad(check.road)}); installed: ${check.installed}${thisMercury}`)
+      case 'access-unavailable':
+        return cliError(`update check unavailable: ${check.access.note}\n  ${check.access.remedy}`)
+      case 'unsupported-platform':
+        return cliError(`update check unavailable: ${check.note}`)
+      case 'malformed-release':
+        return cliError(`update check refused: ${check.note}`)
+      case 'invalid-installed-version':
+        return cliError(
+          `installed version "${check.installed}" is not a channel version (v<major>.<minor>.<patch>-<label>.<n>) — this build cannot compare against the channel`,
+        )
+      case 'pointer-unreadable':
+        return cliError(
+          `update check refused: the current-version pointer is unreadable (${check.note})\n  fix permissions on <versions>/current.txt — Mercury never guesses through filesystem damage`,
+        )
+    }
+  }
+
+  if (installer && installer.updateCommand !== null) return installerRoad(installer, options, roots, provenanceRecord, reinstallCommand)
+  if (sourceCheckout) {
+    if (options.json) return failJson({ mode: 'update', state: 'refused', stage: 'provenance', reason: sourceCheckoutReason, remedy: sourceCheckoutRemedy, provenance: provenanceRecord })
+    return cliError(`update refused: ${sourceCheckoutReason}\n  ${sourceCheckoutRemedy}\nthe active installation was not changed`)
+  }
+  const result = await performUpdate(roots, progress, { allowUnsigned: options.allowUnsigned })
+  const ghWarning = consumeSkippedGhCmdNotice()
+  if (ghWarning && !options.json) console.error(ghWarning)
+  const installCurrent = result.state === 'updated' || (result.state === 'no-update' && result.check.state === 'current')
+  if (installCurrent) {
+    reconcileManagedShims(roots)
+  }
+  const daemon = installCurrent ? await moveDaemonAfterUpdate() : null
+  const daemonLine = daemon === null ? '' : `\n${daemon.line}`
+  const openWindows = result.state === 'updated' ? openWindowsLine(result.from) : null
+  const openWindowsLineText = openWindows === null ? '' : `\n${openWindows}`
+  const shellCommand = result.state === 'updated' ? commandOnPath(roots) : null
+  try {
+    const { runLifecycleVerbOpportunity } = await import('../../platform/housekeeping/backgroundHousekeeping.js')
+    await runLifecycleVerbOpportunity('update')
+  } catch (error) {
+    passedOver(error)
+  }
+  if (options.json) {
+    const ok =
+      result.state === 'updated' ||
+      (result.state === 'no-update' && (result.check.state === 'current' || result.check.state === 'no-releases'))
+    const base = shellCommand ? { mode: 'update', ...result, commandOnPath: shellCommand } : { mode: 'update', ...result }
+    const withDaemon = daemon === null ? base : { ...base, daemon }
+    const record = openWindows === null ? withDaemon : { ...withDaemon, openWindows }
+    return ok ? emitJson(record) : failJson(record)
+  }
+  switch (result.state) {
+    case 'updated': {
+      const shimLine =
+        result.shim.state === 'refused-foreign'
+          ? `\n  stable command NOT refreshed: ${result.shim.note}`
+          : result.shim.state === 'written'
+            ? `\n  stable command refreshed: ${result.shim.path}`
+            : ''
+      const shellLines = shellCommand ? commandOnPathWarning(roots, shellCommand, 'the updated one') : null
+      const shellWords = shellLines ? `\n  ${shellLines[0]}\n  ${shellLines[1]}` : ''
+      const prunedLine = result.pruned.length > 0 ? `\n  removed older versions: ${result.pruned.join(', ')}` : ''
+      const leftLine = result.left.length > 0 ? `\n  older versions not removed whole (a file in them is still in use, or could not be deleted; the next update tries again): ${result.left.join(', ')}` : ''
+      return cliOk(
+        `updated: ${result.from} → ${result.to} (${describeChannelRoad(result.road)})\n  signature: ${result.signature}${result.unsignedOverride ? ' (accepted by explicit --allow-unsigned)' : ''}\n  ${result.previousKept ? 'previous version kept — \`mercury update --rollback\` returns to it' : 'no earlier version was installed, so there is nothing to roll back to'}${prunedLine}${leftLine}${shimLine}${shellWords}${daemonLine}${openWindowsLineText}`,
+      )
+    }
+    case 'no-update':
+      switch (result.check.state) {
+        case 'current':
+          return cliOk(`Mercury is current: ${result.check.installed} (channel: ${result.check.channelRepo}, ${describeChannelRoad(result.check.road)})${daemonLine}`)
+        case 'no-releases':
+          return cliOk(`no releases found on ${result.check.channelRepo} (${describeChannelRoad(result.check.road)}); installed: ${result.check.installed}`)
+        case 'access-unavailable':
+          return cliError(`update unavailable: ${result.check.access.note}\n  ${result.check.access.remedy}`)
+        case 'unsupported-platform':
+          return cliError(`update unavailable: ${result.check.note}`)
+        case 'malformed-release':
+          return cliError(`update refused: ${result.check.note}`)
+        case 'invalid-installed-version':
+          return cliError(`installed version "${result.check.installed}" is not a channel version (v<major>.<minor>.<patch>-<label>.<n>)`)
+        case 'pointer-unreadable':
+          return cliError(
+            `update refused: the current-version pointer is unreadable (${result.check.note})\n  fix permissions on <versions>/current.txt — Mercury never guesses through filesystem damage`,
+          )
+        default:
+          return cliError('update did not run')
+      }
+    case 'refused': {
+      const receiptLine = result.receiptPath ? `\n  receipt: ${result.receiptPath}` : ''
+      const retryLine = result.retryable ? ' (retry is appropriate)' : ''
+      return cliError(
+        `update refused at ${result.stage}: ${result.reason}\n  ${result.remedy}${retryLine}${receiptLine}\nthe active installation was not changed`,
+      )
+    }
+    case 'restored': {
+      const receiptLine = result.receiptPath ? `\n  receipt: ${result.receiptPath}` : ''
+      return cliError(
+        `update failed at ${result.stage} and the previous version was restored automatically\n  reason: ${result.reason}\n  active version: ${result.activeVersion}${receiptLine}`,
+      )
+    }
+  }
+}

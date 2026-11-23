@@ -1,4 +1,4 @@
-import { HOST_VENDOR_INFO } from '../../services/host/vendors/vendor.js'
+import { HOST_VENDOR_INFO } from '../../models/hosting/vendors/vendor.js'
 
 export const LLM_HOST_WORDS = {
   description: 'Rent a GPU, use SSH, or connect a running model server',

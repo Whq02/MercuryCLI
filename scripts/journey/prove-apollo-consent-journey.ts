@@ -30,7 +30,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}the built dist/mercury.mjs drove this branch against the fixture server: rebuild with bun run build.ts if src changed, and see the review result wording in src/tools/ApolloReviewTool/ApolloReviewTool.tsx and the kept world dir printed as forensics below` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}the built dist/mercury.mjs drove this branch against the fixture server: rebuild with bun run build.ts if src changed, and see the review result wording in src/tools/apollo-review/ApolloReviewTool.tsx and the kept world dir printed as forensics below` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

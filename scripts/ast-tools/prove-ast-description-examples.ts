@@ -4,10 +4,10 @@ import { join } from 'node:path'
 import { armEnvironment, check, finish, REPO } from './lib/harness.ts'
 
 const env = armEnvironment()
-const { compileFor } = await import(join(REPO, 'src/services/structure/polyglotQuery.ts'))
-const { encodePattern } = await import(join(REPO, 'src/services/structure/pattern.ts'))
-const { loadGrammarEngine, languageByName } = await import(join(REPO, 'src/utils/structure/grammarFacility.ts'))
-const { resolveAstScope, searchAstPattern, isAstRefusal } = await import(join(REPO, 'src/services/structure/astPatterns.ts'))
+const { compileFor } = await import(join(REPO, 'src/tools/engines/structure/polyglotQuery.ts'))
+const { encodePattern } = await import(join(REPO, 'src/tools/engines/structure/pattern.ts'))
+const { loadGrammarEngine, languageByName } = await import(join(REPO, 'src/platform/grammars/grammarFacility.ts'))
+const { resolveAstScope, searchAstPattern, isAstRefusal } = await import(join(REPO, 'src/tools/engines/structure/astPatterns.ts'))
 const root = mkdtempSync(join(tmpdir(), 'ast-examples-'))
 try {
   writeFileSync(join(root, 'orders.py'), 'def process_order(order):\n    return order\n\ndef process_order_v2(o) -> int:\n    return o\n')

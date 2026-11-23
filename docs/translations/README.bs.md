@@ -374,7 +374,7 @@ Dostupne naredbe uključuju:
 - **Apollo Mode**, intervju o specifikaciji: odgovarajte na pitanja agenta da dovršite specifikaciju koju će koristiti za izradu prototipa. Pogledajte [docs/APOLLO-MODE.md](../APOLLO-MODE.md).
 - **Oporavak.** Atomično objavljivanje, operacije zabilježene u dnevniku i usklađivanje pri pokretanju. Pogledajte [docs/DURABILITY.md](../DURABILITY.md).
 
-Zastavice izvršavanja definisane su u `src/substrate/flagRegistry.ts`, izlažu se kao postavke `MERCURY_*` i prikazuju na zahtjev. Kompatibilnost integracija opisana je u [docs/COMPATIBILITY.md](../COMPATIBILITY.md). Potpun indeks dokumentacije nalazi se u [docs/README.md](../README.md).
+Zastavice izvršavanja definisane su u `src/platform/substrate/flagRegistry.ts`, izlažu se kao postavke `MERCURY_*` i prikazuju na zahtjev. Kompatibilnost integracija opisana je u [docs/COMPATIBILITY.md](../COMPATIBILITY.md). Potpun indeks dokumentacije nalazi se u [docs/README.md](../README.md).
 
 ## Slash naredbe
 

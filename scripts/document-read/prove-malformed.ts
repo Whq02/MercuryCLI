@@ -7,7 +7,7 @@ const root = scratch('malformed')
 process.env.MERCURY_CONFIG_DIR = join(root, 'home')
 try {
   const { read, healthy, context } = await reader(root)
-  const { DocumentTool } = await import('../../src/tools/DocumentTool/DocumentTool.ts')
+  const { DocumentTool } = await import('../../src/tools/document/DocumentTool.ts')
   const cases: [string, Buffer, RegExp][] = []
   for (const [ext, part] of [['docx', 'word/document.xml'], ['xlsx', 'xl/worksheets/sheet1.xml'], ['pptx', 'ppt/slides/slide1.xml']]) {
     const bytes = zip({ [part!]: '<document>discarded partial text</document>' })
@@ -32,13 +32,13 @@ try {
     try { message = `RETURNED ${await read(path)}` } catch (error) { message = error instanceof Error ? error.message : String(error) }
     console.log(`${name}: ${message}`)
     if (!message.includes(name) || !reason.test(message) || /RETURNED|\n\s*at |discarded partial text/.test(message) || message.length > path.length + 350) failures.push(name)
-    assert.ok(performance.now() - started < 30_000, `${name} took over 30 seconds; the reader must give up on this malformed file in time: look at the read of this format in src/tools/FileReadTool/FileReadTool.ts`)
+    assert.ok(performance.now() - started < 30_000, `${name} took over 30 seconds; the reader must give up on this malformed file in time: look at the read of this format in src/tools/read/ReadTool.ts`)
     await healthy()
     if (/\.(docx|xlsx|pptx|pdf)$/.test(name)) {
-      await assert.rejects(DocumentTool.call({ op: 'inspect', source: path }, context, undefined as any, { uuid: crypto.randomUUID() } as any), (error: Error) => error.message.includes(name) && reason.test(error.message) && !/\n\s*at /.test(error.message), `DocumentTool inspect of ${name} must throw an error that names the file, matches its cause pattern and has no stack trace: change the error it raises in src/tools/DocumentTool/DocumentTool.ts`)
+      await assert.rejects(DocumentTool.call({ op: 'inspect', source: path }, context, undefined as any, { uuid: crypto.randomUUID() } as any), (error: Error) => error.message.includes(name) && reason.test(error.message) && !/\n\s*at /.test(error.message), `DocumentTool inspect of ${name} must throw an error that names the file, matches its cause pattern and has no stack trace: change the error it raises in src/tools/document/DocumentTool.ts`)
       await healthy()
     }
   }
-  assert.deepEqual(failures, [], 'malformed input must name the file and cause without partial text: the files listed are those whose FileReadTool read (src/tools/FileReadTool/FileReadTool.ts) returned text, lacked the file name or cause, showed a stack trace or partial text, or ran past path length + 350 characters; change the error that read raises for that format; the lines above show each message')
+  assert.deepEqual(failures, [], 'malformed input must name the file and cause without partial text: the files listed are those whose FileReadTool read (src/tools/read/ReadTool.ts) returned text, lacked the file name or cause, showed a stack trace or partial text, or ran past path length + 350 characters; change the error that read raises for that format; the lines above show each message')
   console.log('PASS malformed inputs: ZIP directories, PDF xref/trailer/stream, RTF groups, EPUB container; same-session reads after every failure')
 } finally { cleanup(root) }

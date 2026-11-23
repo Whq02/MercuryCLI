@@ -21,14 +21,14 @@ if (process.argv[2] === '--child') {
   writeFileSync(join(process.env.MERCURY_CONFIG_DIR, 'settings.json'), JSON.stringify({ activity: { progress: true } }))
   process.env.MERCURY_OASIS_BG = '0'
   const React = (await import('react')).default
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
   const { EventEmitter } = await import('node:events')
   const { PassThrough } = await import('node:stream')
-  const { render, Text, useApp } = await import('../../src/ink.ts')
-  const { useTabRing } = await import('../../src/ink/terminalWrite.ts')
-  const { useTerminalTitle } = await import('../../src/ink/hooks/use-terminal-title.ts')
-  const { cleanupTerminalModes } = await import('../../src/utils/shutdownRestoration.ts')
+  const { render, Text, useApp } = await import('../../src/screen/themedRenderer.ts')
+  const { useTabRing } = await import('../../src/screen/renderer/terminalWrite.ts')
+  const { useTerminalTitle } = await import('../../src/screen/renderer/bindings/use-terminal-title.ts')
+  const { cleanupTerminalModes } = await import('../../src/screen/renderer/terminal-session/shutdownRestoration.ts')
   let bytes = ''
   const stream = new PassThrough()
   stream.on('data', (chunk: Buffer | string) => {
@@ -70,8 +70,8 @@ if (process.argv[2] === '--child') {
 let failures = 0
 const headlessWriteHint = (label: string): string =>
   /ring|title/.test(label) && !label.includes('stream carries')
-    ? 'the mode ledger is src/ink/root/terminalModeLedger.ts (shutdownReleaseObligations, noteModeAcquired, noteModeReleased) and the ring is createTabRing in src/ink/terminalWrite.ts: a ring or title must be an open obligation only while held, and be released with its own clear'
-    : 'a headless render must write only the frame: check useTabRing in src/ink/terminalWrite.ts, useTerminalTitle in src/ink/hooks/use-terminal-title.ts and cleanupTerminalModes in src/utils/shutdownRestoration.ts so none of them writes to a stream that is not a live terminal; rerun the child with bun run scripts/ui/prove-headless-writes-nothing.ts --child <dir> to see its own error'
+    ? 'the mode ledger is src/screen/renderer/root/terminalModeLedger.ts (shutdownReleaseObligations, noteModeAcquired, noteModeReleased) and the ring is createTabRing in src/screen/renderer/terminalWrite.ts: a ring or title must be an open obligation only while held, and be released with its own clear'
+    : 'a headless render must write only the frame: check useTabRing in src/screen/renderer/terminalWrite.ts, useTerminalTitle in src/screen/renderer/bindings/use-terminal-title.ts and cleanupTerminalModes in src/screen/renderer/terminal-session/shutdownRestoration.ts so none of them writes to a stream that is not a live terminal; rerun the child with bun run scripts/ui/prove-headless-writes-nothing.ts --child <dir> to see its own error'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${headlessWriteHint(label)}` : ''}`)
   if (!ok) failures++
@@ -101,8 +101,8 @@ section('a headless render inside a terminal process: the stream carries the fra
 
 section('the exit-time restoration follows the ledger: a ring or a title this process armed is cleared, once')
 {
-  const { _resetTerminalModeLedgerForTesting, noteModeAcquired, noteModeReleased, shutdownReleaseObligations } = await import('../../src/ink/root/terminalModeLedger.ts')
-  const { createTabRing } = await import('../../src/ink/terminalWrite.ts')
+  const { _resetTerminalModeLedgerForTesting, noteModeAcquired, noteModeReleased, shutdownReleaseObligations } = await import('../../src/screen/renderer/root/terminalModeLedger.ts')
+  const { createTabRing } = await import('../../src/screen/renderer/terminalWrite.ts')
   _resetTerminalModeLedgerForTesting()
   const written: string[] = []
   const ring = createTabRing(s => written.push(s), () => true)

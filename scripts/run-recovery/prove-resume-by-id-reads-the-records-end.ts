@@ -11,23 +11,23 @@ process.env.ANTHROPIC_API_KEY = 'fixture-key'
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_EFFORT_LEVEL
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 const project = join(scratch, 'project')
 mkdirSync(project, { recursive: true })
 bootstrap.setOriginalCwd(project)
 bootstrap.setProjectRoot(project)
-const { loadConversationForResume } = await import('../../src/services/resume/conversationRecovery.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
+const { loadConversationForResume } = await import('../../src/sessions/resume/conversationRecovery.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  const byIdHint = 'fix the by-id branch of loadConversationForResume (the lastSession read) in src/services/resume/conversationRecovery.ts so that it ends on the same row as the by-file read'
+  const byIdHint = 'fix the by-id branch of loadConversationForResume (the lastSession read) in src/sessions/resume/conversationRecovery.ts so that it ends on the same row as the by-file read'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${byIdHint}${detail ? ` | ${detail.slice(0, 700)}` : ''}` : ''}`)
 }
 function section(title: string): void {

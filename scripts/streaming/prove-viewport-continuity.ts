@@ -10,7 +10,7 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 
 let failures = 0
 function check(name: string, ok: boolean, detail = ''): void {
-  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}${ok ? '' : ' — change: the follow-bottom and unstick logic in src/ink/compose-walk.ts and src/ink/components/ScrollBox.tsx, or the jump pill in src/components/fullscreenLayout/panes.tsx'}`)
+  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}${ok ? '' : ' — change: the follow-bottom and unstick logic in src/screen/renderer/compose-walk.ts and src/screen/renderer/elements/ScrollBox.tsx, or the jump pill in src/screen/fullscreen-layout/panes.tsx'}`)
   if (!ok) failures++
 }
 

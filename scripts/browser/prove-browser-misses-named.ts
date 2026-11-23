@@ -14,11 +14,11 @@ function check(label: string, ok: boolean, detail = '', hint = ''): void {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}${!ok && hint ? ` — change: ${hint}` : ''}`)
 }
 
-const { resolveBrowser } = await import('../../src/services/browser/browserResolver.ts')
-const tool = await import('../../src/tools/BrowserTool/BrowserTool.ts')
+const { resolveBrowser } = await import('../../src/integrations/browser/browserResolver.ts')
+const tool = await import('../../src/tools/browser/BrowserTool.ts')
 const { BrowserTool } = tool
-const { activeSession } = await import('../../src/services/browser/browserSession.ts')
-const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
+const { activeSession } = await import('../../src/integrations/browser/browserSession.ts')
+const { processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
 const { call: browserCommand } = await import('../../src/commands/browser/browserCommand.ts')
 const OWNER = processOwnerForLane(null)
 type ToolInput = Parameters<typeof BrowserTool.call>[0]
@@ -32,37 +32,37 @@ async function run(input: ToolInput): Promise<{ result: string; outcome: string;
 console.log('§1 the driver\'s timeout is recognised whatever the bundle calls its error class')
 {
   const isDriverTimeout = (tool as { isDriverTimeout?: (err: unknown) => boolean }).isDriverTimeout
-  check('the tool exports a timeout test that does not rely on the class name', typeof isDriverTimeout === 'function', '', 'export isDriverTimeout from src/tools/BrowserTool/browser/failures.ts through BrowserTool.ts')
+  check('the tool exports a timeout test that does not rely on the class name', typeof isDriverTimeout === 'function', '', 'export isDriverTimeout from src/tools/browser/ops/failures.ts through BrowserTool.ts')
   if (isDriverTimeout) {
     const mangled = Object.assign(new Error('Timed out after waiting 10000ms'), { name: 'o' })
-    check('a locator timeout with a mangled class name is a timeout', isDriverTimeout(mangled), '', 'make isDriverTimeout in src/tools/BrowserTool/browser/failures.ts match the Timed out after waiting message, not the class name')
+    check('a locator timeout with a mangled class name is a timeout', isDriverTimeout(mangled), '', 'make isDriverTimeout in src/tools/browser/ops/failures.ts match the Timed out after waiting message, not the class name')
     const waited = Object.assign(new Error('Waiting failed: 2000ms exceeded'), { name: 'IQA' })
-    check('a waitForFunction timeout with a mangled class name is a timeout', isDriverTimeout(waited), '', 'make isDriverTimeout in src/tools/BrowserTool/browser/failures.ts match the exceeded wording, not the class name')
+    check('a waitForFunction timeout with a mangled class name is a timeout', isDriverTimeout(waited), '', 'make isDriverTimeout in src/tools/browser/ops/failures.ts match the exceeded wording, not the class name')
     const named = Object.assign(new Error('anything'), { name: 'TimeoutError' })
-    check('the named class still counts', isDriverTimeout(named), '', 'keep the TimeoutError class name counted in isDriverTimeout in src/tools/BrowserTool/browser/failures.ts')
-    check('an ordinary error is not a timeout', !isDriverTimeout(new Error('Protocol error (Runtime.callFunctionOn): Target closed')), '', 'isDriverTimeout in src/tools/BrowserTool/browser/failures.ts must not count a protocol error as a timeout')
+    check('the named class still counts', isDriverTimeout(named), '', 'keep the TimeoutError class name counted in isDriverTimeout in src/tools/browser/ops/failures.ts')
+    check('an ordinary error is not a timeout', !isDriverTimeout(new Error('Protocol error (Runtime.callFunctionOn): Target closed')), '', 'isDriverTimeout in src/tools/browser/ops/failures.ts must not count a protocol error as a timeout')
   }
 }
 
 console.log('§2 the words that need no browser: the console clock, the scheme refusal, the /browser usage line')
 {
   const localClock = (tool as { localClock?: (at: number) => string }).localClock
-  check('the console ring prints the local clock, not UTC', typeof localClock === 'function', 'no localClock export', 'export localClock (defined in src/tools/BrowserTool/browser/page.ts) from BrowserTool.ts')
+  check('the console ring prints the local clock, not UTC', typeof localClock === 'function', 'no localClock export', 'export localClock (defined in src/tools/browser/ops/page.ts) from BrowserTool.ts')
   if (localClock) {
     const at = new Date(2026, 9, 12, 11, 21, 13, 604).getTime()
-    check('…HH:MM:SS.mmm in the local zone', localClock(at) === '11:21:13.604', localClock(at), 'localClock in src/tools/BrowserTool/browser/page.ts must print local-zone HH:MM:SS.mmm')
+    check('…HH:MM:SS.mmm in the local zone', localClock(at) === '11:21:13.604', localClock(at), 'localClock in src/tools/browser/ops/page.ts must print local-zone HH:MM:SS.mmm')
   }
   const refusal = (tool as { openSchemeRefusal?: (url: string | undefined) => string }).openSchemeRefusal
-  check('the open refusal names the scheme it was given', typeof refusal === 'function', 'no openSchemeRefusal export', 'export openSchemeRefusal from BrowserTool.ts (defined in src/tools/BrowserTool/browser/failures.ts)')
+  check('the open refusal names the scheme it was given', typeof refusal === 'function', 'no openSchemeRefusal export', 'export openSchemeRefusal from BrowserTool.ts (defined in src/tools/browser/ops/failures.ts)')
   if (refusal) {
-    check('chrome://version is refused as chrome:, not as file://', /chrome: is not a web scheme/.test(refusal('chrome://version')) && !/file:\/\/ is not supported/.test(refusal('chrome://version')), refusal('chrome://version'), 'openSchemeRefusal in src/tools/BrowserTool/browser/failures.ts must name the scheme it was given')
-    check('ftp:// names ftp:', /ftp: is not a web scheme/.test(refusal('ftp://127.0.0.1/')), refusal('ftp://127.0.0.1/'), 'openSchemeRefusal in src/tools/BrowserTool/browser/failures.ts must name ftp:')
-    check('javascript: names javascript:', /javascript: is not a web scheme/.test(refusal('javascript:alert(1)')), refusal('javascript:alert(1)'), 'openSchemeRefusal in src/tools/BrowserTool/browser/failures.ts must name javascript:')
-    check('about:blank names about:', /about: is not a web scheme/.test(refusal('about:blank')), refusal('about:blank'), 'openSchemeRefusal in src/tools/BrowserTool/browser/failures.ts must name about:')
-    check('file:// keeps its own words (serve the folder first)', /serve the folder first/.test(refusal('file:///tmp/x.html')) && /file:\/\/ is not supported/.test(refusal('file:///tmp/x.html')), refusal('file:///tmp/x.html'), 'openSchemeRefusal in src/tools/BrowserTool/browser/failures.ts must keep the file:// wording with serve the folder first')
+    check('chrome://version is refused as chrome:, not as file://', /chrome: is not a web scheme/.test(refusal('chrome://version')) && !/file:\/\/ is not supported/.test(refusal('chrome://version')), refusal('chrome://version'), 'openSchemeRefusal in src/tools/browser/ops/failures.ts must name the scheme it was given')
+    check('ftp:// names ftp:', /ftp: is not a web scheme/.test(refusal('ftp://127.0.0.1/')), refusal('ftp://127.0.0.1/'), 'openSchemeRefusal in src/tools/browser/ops/failures.ts must name ftp:')
+    check('javascript: names javascript:', /javascript: is not a web scheme/.test(refusal('javascript:alert(1)')), refusal('javascript:alert(1)'), 'openSchemeRefusal in src/tools/browser/ops/failures.ts must name javascript:')
+    check('about:blank names about:', /about: is not a web scheme/.test(refusal('about:blank')), refusal('about:blank'), 'openSchemeRefusal in src/tools/browser/ops/failures.ts must name about:')
+    check('file:// keeps its own words (serve the folder first)', /serve the folder first/.test(refusal('file:///tmp/x.html')) && /file:\/\/ is not supported/.test(refusal('file:///tmp/x.html')), refusal('file:///tmp/x.html'), 'openSchemeRefusal in src/tools/browser/ops/failures.ts must keep the file:// wording with serve the folder first')
   }
   const direct = await BrowserTool.validateInput({ op: 'open', url: 'chrome://version' } as never, {} as never)
-  check('validateInput carries the scheme words', direct.result === false && /chrome: is not a web scheme/.test(direct.message), JSON.stringify(direct), 'validateInput in src/tools/BrowserTool/browser/validate.ts must return openSchemeRefusal for a non-web open url')
+  check('validateInput carries the scheme words', direct.result === false && /chrome: is not a web scheme/.test(direct.message), JSON.stringify(direct), 'validateInput in src/tools/browser/ops/validate.ts must return openSchemeRefusal for a non-web open url')
   const help = await browserCommand('--help', {} as never)
   const helpText = help.type === 'text' ? help.value : ''
   check('/browser --help prints a usage line whose placeholders survive the renderer (no angle brackets)', helpText.includes('usage: /browser [status | install [build-id] [confirm] | remove build-id]') && !helpText.includes('<'), helpText, 'fix the usage line in src/commands/browser/browserCommand.ts (no angle brackets)')
@@ -111,7 +111,7 @@ const A = `http://127.0.0.1:${(server.address() as { port: number }).port}`
 console.log('§3 a selector that matches nothing fails by name, at the deadline, on every act')
 {
   const opened = await run({ op: 'open', url: `${A}/` })
-  check('the fixture opens', opened.outcome === 'succeeded', opened.result, 'the open op of the Browser tool (src/tools/BrowserTool/browser/navigateOps.ts) failed on the local fixture page')
+  check('the fixture opens', opened.outcome === 'succeeded', opened.result, 'the open op of the Browser tool (src/tools/browser/ops/navigateOps.ts) failed on the local fixture page')
   for (const [label, input] of [
     ['select', { op: 'select', selector: 'aria/Colour[role=combobox]', values: ['Purple'], timeoutMs: 600 }],
     ['type', { op: 'type', selector: 'aria/Name[role=textbox]', text: 'x', timeoutMs: 600 }],
@@ -119,10 +119,10 @@ console.log('§3 a selector that matches nothing fails by name, at the deadline,
     ['click', { op: 'click', selector: 'text/Nowhere', timeoutMs: 600 }],
   ] as Array<[string, ToolInput]>) {
     const miss = await run(input)
-    check(`${label}: the miss names the selector and the deadline`, miss.outcome === 'failed' && miss.result.includes(input.selector!) && miss.result.includes('600ms deadline') && !/Timed out after waiting/.test(miss.result), miss.result, 'the missing-selector failure in src/tools/BrowserTool/browser/targets.ts must name the selector and the deadline in ms')
+    check(`${label}: the miss names the selector and the deadline`, miss.outcome === 'failed' && miss.result.includes(input.selector!) && miss.result.includes('600ms deadline') && !/Timed out after waiting/.test(miss.result), miss.result, 'the missing-selector failure in src/tools/browser/ops/targets.ts must name the selector and the deadline in ms')
   }
   const textMiss = await run({ op: 'waitFor', text: 'NEVER APPEARS', timeoutMs: 500 })
-  check('waitFor text: the miss names the text and the deadline', textMiss.outcome === 'failed' && textMiss.result.includes('NEVER APPEARS') && textMiss.result.includes('deadline 500ms exceeded'), textMiss.result, 'the waitFor text miss in src/tools/BrowserTool/browser/navigateOps.ts must name the text and the deadline')
+  check('waitFor text: the miss names the text and the deadline', textMiss.outcome === 'failed' && textMiss.result.includes('NEVER APPEARS') && textMiss.result.includes('deadline 500ms exceeded'), textMiss.result, 'the waitFor text miss in src/tools/browser/ops/navigateOps.ts must name the text and the deadline')
 }
 
 console.log('§4 a selector the tree printed for framed content: no token offered, and the act fails at once naming the frame')
@@ -130,34 +130,34 @@ console.log('§4 a selector the tree printed for framed content: no token offere
   const tree = await run({ op: 'extract', mode: 'tree' })
   const frameRow = tree.result.split('\n').find(l => l.includes('Iframe')) ?? ''
   const framedButton = tree.result.split('\n').find(l => l.includes('"Frame button"')) ?? ''
-  check('the Iframe row names the frame parameter', /use frame with its index or URL substring/.test(frameRow), frameRow, 'the tree row for an iframe in src/tools/BrowserTool/browser/page.ts must say to use frame')
-  check('the framed button carries no aria/ token', framedButton !== '' && !framedButton.includes('→ aria/'), framedButton, 'the tree in src/tools/BrowserTool/browser/page.ts must not print an aria/ token for framed content')
-  check('main-frame rows still carry their tokens', tree.result.includes('→ aria/Deep button[role="button"]'), tree.result, 'the tree in src/tools/BrowserTool/browser/page.ts must still print aria/ tokens for main-frame rows')
+  check('the Iframe row names the frame parameter', /use frame with its index or URL substring/.test(frameRow), frameRow, 'the tree row for an iframe in src/tools/browser/ops/page.ts must say to use frame')
+  check('the framed button carries no aria/ token', framedButton !== '' && !framedButton.includes('→ aria/'), framedButton, 'the tree in src/tools/browser/ops/page.ts must not print an aria/ token for framed content')
+  check('main-frame rows still carry their tokens', tree.result.includes('→ aria/Deep button[role="button"]'), tree.result, 'the tree in src/tools/browser/ops/page.ts must still print aria/ tokens for main-frame rows')
   const click = await run({ op: 'click', selector: 'aria/Frame button[role="button"]', timeoutMs: 8000 })
-  check('the click fails naming the child frame it lives in', click.outcome === 'failed' && /lives inside a child frame \(http:\/\/127\.0\.0\.1:\d+\/framed\)/.test(click.result), click.result, 'the frame check in src/tools/BrowserTool/browser/targets.ts must fail naming the child frame url')
-  check('…and names the frame selector road', /set frame to its index from extract or a unique URL substring/.test(click.result), click.result, 'the frame failure text in src/tools/BrowserTool/browser/targets.ts must name the frame selector road')
-  check('…at once, not after the deadline', click.ms < 3000, `${click.ms}ms`, 'the child-frame failure in src/tools/BrowserTool/browser/targets.ts must be raised before the act waits out its deadline')
+  check('the click fails naming the child frame it lives in', click.outcome === 'failed' && /lives inside a child frame \(http:\/\/127\.0\.0\.1:\d+\/framed\)/.test(click.result), click.result, 'the frame check in src/tools/browser/ops/targets.ts must fail naming the child frame url')
+  check('…and names the frame selector road', /set frame to its index from extract or a unique URL substring/.test(click.result), click.result, 'the frame failure text in src/tools/browser/ops/targets.ts must name the frame selector road')
+  check('…at once, not after the deadline', click.ms < 3000, `${click.ms}ms`, 'the child-frame failure in src/tools/browser/ops/targets.ts must be raised before the act waits out its deadline')
 }
 
 console.log('§5 shadow DOM text reaches extract and the page census')
 {
   const text = await run({ op: 'extract', mode: 'text' })
-  check('extract text crosses open shadow roots', text.result.includes('MARKER-SHADOW-INNER-77') && text.result.includes('shadow idle'), text.result, 'extract text in src/tools/BrowserTool/browser/page.ts must read open shadow roots')
-  check('…and names the host it read', /\[shadow root of div#host\]/.test(text.result), text.result, 'extract text in src/tools/BrowserTool/browser/page.ts must label each shadow root with its host')
+  check('extract text crosses open shadow roots', text.result.includes('MARKER-SHADOW-INNER-77') && text.result.includes('shadow idle'), text.result, 'extract text in src/tools/browser/ops/page.ts must read open shadow roots')
+  check('…and names the host it read', /\[shadow root of div#host\]/.test(text.result), text.result, 'extract text in src/tools/browser/ops/page.ts must label each shadow root with its host')
   const reopened = await run({ op: 'open', url: `${A}/` })
   const census = /page: (\d+) chars of body text/.exec(reopened.result)
-  check('the census counts the shadow text (so a web-components page never reads as "still rendering")', census !== null && Number(census[1]) > 40, reopened.result, 'the page census in src/tools/BrowserTool/browser/navigateOps.ts must count text inside shadow roots')
+  check('the census counts the shadow text (so a web-components page never reads as "still rendering")', census !== null && Number(census[1]) > 40, reopened.result, 'the page census in src/tools/browser/ops/navigateOps.ts must count text inside shadow roots')
 }
 
 console.log('§6 a point outside the viewport is refused by name; a disabled field refuses by its own name')
 {
   const far = await run({ op: 'click', x: 5000, y: 5000 })
-  check('a far point is refused naming the viewport', far.outcome === 'failed' && /outside the 1280x800 viewport/.test(far.result) && /nothing clicked/.test(far.result), far.result, 'the coordinate click in src/tools/BrowserTool/browser/pointerOps.ts must refuse a point outside the viewport and say nothing clicked')
+  check('a far point is refused naming the viewport', far.outcome === 'failed' && /outside the 1280x800 viewport/.test(far.result) && /nothing clicked/.test(far.result), far.result, 'the coordinate click in src/tools/browser/ops/pointerOps.ts must refuse a point outside the viewport and say nothing clicked')
   const negative = await run({ op: 'click', x: -5, y: 10 })
-  check('a negative point is refused', negative.outcome === 'failed' && /outside the 1280x800 viewport/.test(negative.result), negative.result, 'the coordinate click in src/tools/BrowserTool/browser/pointerOps.ts must refuse a negative point')
+  check('a negative point is refused', negative.outcome === 'failed' && /outside the 1280x800 viewport/.test(negative.result), negative.result, 'the coordinate click in src/tools/browser/ops/pointerOps.ts must refuse a negative point')
   await run({ op: 'click', selector: '#ro' })
   const disabled = await run({ op: 'type', selector: '#dis', text: 'z', timeoutMs: 1500 })
-  check('typing into a disabled input is refused as disabled, not as a focus miss', disabled.outcome === 'failed' && /#dis is disabled/.test(disabled.result) && !/holds focus instead/.test(disabled.result), disabled.result, 'the type op in src/tools/BrowserTool/browser/typeOp.ts must refuse a disabled input as disabled before any focus check')
+  check('typing into a disabled input is refused as disabled, not as a focus miss', disabled.outcome === 'failed' && /#dis is disabled/.test(disabled.result) && !/holds focus instead/.test(disabled.result), disabled.result, 'the type op in src/tools/browser/ops/typeOp.ts must refuse a disabled input as disabled before any focus check')
 }
 
 await run({ op: 'close' })

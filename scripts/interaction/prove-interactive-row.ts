@@ -21,16 +21,16 @@ if (process.env.IROW_CHILD) {
     MERCURY_DEMO: false,
   }
   const React = await import('react')
-  const ink = (await import('../../src/ink.js')) as unknown as {
+  const ink = (await import('../../src/screen/themedRenderer.js')) as unknown as {
     render: (n: React.ReactNode) => Promise<unknown>
     Box: React.ComponentType<Record<string, unknown>>
     Text: React.ComponentType<Record<string, unknown>>
     useInput: (h: (input: string, key: Record<string, boolean>) => void) => void
   }
   const h = React.createElement
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
   const { ThemeProvider } = await import(
-    '../../src/components/design-system/ThemeProvider.js'
+    '../../src/screen/theme/ThemeProvider.js'
   )
   const wrapTheme = (node: React.ReactNode): React.ReactNode =>
     process.env.IROW_THEME
@@ -42,8 +42,8 @@ if (process.env.IROW_CHILD) {
       : node
 
   if (process.env.IROW_MODE === 'rows') {
-    const { AlternateScreen } = await import('../../src/ink/components/AlternateScreen.js')
-    const { InteractiveRow } = await import('../../src/components/mercury-ui/InteractiveRow.js')
+    const { AlternateScreen } = await import('../../src/screen/renderer/elements/AlternateScreen.js')
+    const { InteractiveRow } = await import('../../src/screen/widgets/InteractiveRow.js')
     function RowsFixture(): React.ReactNode {
       const [sel, setSel] = React.useState<string>('none')
       const [acts, setActs] = React.useState(0)
@@ -89,7 +89,7 @@ if (process.env.IROW_CHILD) {
     )
   } else {
     const { NavigablePanes } = await import(
-      '../../src/components/mercury-ui/NavigablePanes.js'
+      '../../src/screen/widgets/NavigablePanes.js'
     )
     type R = { id: string; name: string }
     function PanesFixture(): React.ReactNode {
@@ -124,8 +124,8 @@ if (process.env.IROW_CHILD) {
   }
   setTimeout(() => process.exit(0), 30_000)
 } else {
-  const { DEFAULT_THEME_SETTING } = await import('../../src/utils/systemTheme.ts')
-  const { resolveMercuryTokens } = await import('../../src/utils/mercuryTokens.ts')
+  const { DEFAULT_THEME_SETTING } = await import('../../src/screen/theme/systemTheme.ts')
+  const { resolveMercuryTokens } = await import('../../src/screen/theme/mercuryTokens.ts')
   const HOVER_BG = resolveMercuryTokens(DEFAULT_THEME_SETTING, '#DD4444').surface2.replace(/^#/, '').toLowerCase()
 
   let failures = 0
@@ -133,8 +133,8 @@ if (process.env.IROW_CHILD) {
     if (!cond) failures++
     console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
   }
-  const PANES_HINT = 'see src/components/mercury-ui/NavigablePanes.tsx (the PanesFixture in scripts/interaction/prove-interactive-row.ts renders it)'
-  const ROWS_HINT = 'see src/components/mercury-ui/InteractiveRow.tsx (the RowsFixture in scripts/interaction/prove-interactive-row.ts renders it)'
+  const PANES_HINT = 'see src/screen/widgets/NavigablePanes.tsx (the PanesFixture in scripts/interaction/prove-interactive-row.ts renders it)'
+  const ROWS_HINT = 'see src/screen/widgets/InteractiveRow.tsx (the RowsFixture in scripts/interaction/prove-interactive-row.ts renders it)'
   if (!existsSync(VSHOT)) {
     console.error('vshot.py missing — render-verify required; restore scripts/ui/vshot.py, which this proof drives through a PTY')
     process.exit(1)
@@ -337,7 +337,7 @@ if (process.env.IROW_CHILD) {
 
   console.log('\n── E. semantic adaptation — hover paint per theme family ────')
   {
-    const { resolveMercuryTokens } = await import('../../src/utils/mercuryTokens.ts')
+    const { resolveMercuryTokens } = await import('../../src/screen/theme/mercuryTokens.ts')
     const gridForm = (v: string): string => {
       const rgb = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(v)
       if (rgb) {
@@ -377,7 +377,7 @@ if (process.env.IROW_CHILD) {
           `${family}: hover paints THAT family's surface2 (${expected})`,
           litBgs.has(expected),
           `bgs=${[...litBgs].join(',') || 'none'}`,
-          ROWS_HINT + ": hover paint must use resolveMercuryTokens(<family>).surface2 from src/utils/mercuryTokens.ts",
+          ROWS_HINT + ": hover paint must use resolveMercuryTokens(<family>).surface2 from src/screen/theme/mercuryTokens.ts",
         )
       }
     }

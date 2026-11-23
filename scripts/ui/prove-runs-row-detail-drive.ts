@@ -7,7 +7,7 @@ import { DIST, argAfter, makeTally } from '../daemon/dupline-world.ts'
 import { vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startScriptedFixture, type ScriptedFixture } from '../lib/scriptedTurn.ts'
-import wrapText from '../../src/ink/wrap-text.ts'
+import wrapText from '../../src/screen/renderer/wrap-text.ts'
 
 const VSHOT = join(import.meta.dir, 'vshot.py')
 const tally = makeTally('prove-runs-row-detail-drive')

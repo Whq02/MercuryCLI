@@ -24,7 +24,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
+const { streamCompatChat } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 const seen: Array<{ method: string; url: string; body: string }> = []
@@ -61,13 +61,13 @@ try {
   check('the turn finished', events.some(event => event.type === 'finish'), JSON.stringify(events.map(event => event.type)))
   await new Promise(resolve => setTimeout(resolve, 200))
   const files = existsSync(DUMP) ? readdirSync(DUMP).filter(name => name.endsWith('.jsonl')) : []
-  check('one dump file was written for the session', files.length === 1, JSON.stringify(files) + ' - streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts must fetch through wrapFetchWithWireDump (src/services/api/dumpPrompts.ts)')
+  check('one dump file was written for the session', files.length === 1, JSON.stringify(files) + ' - streamCompatChat in src/models/roads/openaicompat/compatChatClient.ts must fetch through wrapFetchWithWireDump (src/engine/requests/dumpPrompts.ts)')
   const rows = files.flatMap(name => readFileSync(join(DUMP, name), 'utf8').split('\n').filter(line => line.trim() !== '').map(line => JSON.parse(line) as Record<string, unknown>))
   const request = rows.find(row => row.kind === 'request')
-  check('the dump holds the request row for the chat-completions call', request !== undefined && request.url === '/v1/chat/completions' && request.model === 'fixture-chat' && request.source === 'compat', JSON.stringify(rows).slice(0, 400) + ' - wrapFetchWithWireDump in src/services/api/dumpPrompts.ts writes the request row')
+  check('the dump holds the request row for the chat-completions call', request !== undefined && request.url === '/v1/chat/completions' && request.model === 'fixture-chat' && request.source === 'compat', JSON.stringify(rows).slice(0, 400) + ' - wrapFetchWithWireDump in src/engine/requests/dumpPrompts.ts writes the request row')
   const response = (request?.response ?? {}) as Record<string, unknown>
   check('the row carries the response facts (status 200, the finish reason, the usage)', response.status === 200 && JSON.stringify(response).includes('stop') && JSON.stringify(response).includes('11'), JSON.stringify(response))
-  check('no credential reaches the file', !JSON.stringify(rows).includes('sk-proof-secret'), 'the dump writer in src/services/api/dumpPrompts.ts must redact the API key before it writes a row')
+  check('no credential reaches the file', !JSON.stringify(rows).includes('sk-proof-secret'), 'the dump writer in src/engine/requests/dumpPrompts.ts must redact the API key before it writes a row')
 } finally {
   server.close()
   rmSync(HOME, { recursive: true, force: true })

@@ -41,8 +41,8 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const key of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[key]
 
 const revokeCalls: Array<{ method: string; path: string; body: Record<string, unknown> }> = []
@@ -76,18 +76,18 @@ const deadBases: Record<string, string> = {
 for (const [k, v] of Object.entries(deadBases)) process.env[k] = v
 process.env.MERCURY_ANTHROPIC_OAUTH_BASE = oauthOrigin
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const { buildProviderSnapshot, resetProviderSnapshotMemo } = await import('../../src/services/providers/modelRegistry.ts')
-const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
-const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
-const { credentialsPath } = await import('../../src/utils/secureStorage/index.ts')
-const secrets = await import('../../src/utils/accounts/providerSecrets.ts')
-const moonshot = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
-const huggingface = await import('../../src/services/providers/huggingface/huggingfaceAccounts.ts')
-const xai = await import('../../src/services/providers/xai/xaiOauth.ts')
-const nous = await import('../../src/services/providers/nous/nousOauth.ts')
+const { buildProviderSnapshot, resetProviderSnapshotMemo } = await import('../../src/models/roads/modelRegistry.ts')
+const { deriveFamilySlotGroups } = await import('../../src/models/roads/accountSlots.ts')
+const { clearOAuthTokenCache } = await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')
+const { credentialsPath } = await import('../../src/platform/secure-storage/index.ts')
+const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const moonshot = await import('../../src/models/roads/moonshot/moonshotAccounts.ts')
+const huggingface = await import('../../src/models/roads/huggingface/huggingfaceAccounts.ts')
+const xai = await import('../../src/models/roads/xai/xaiOauth.ts')
+const nous = await import('../../src/models/roads/nous/nousOauth.ts')
 
 const far = Date.now() + 365 * 24 * 3600_000
 const REFRESH_TOKEN = 'fixture-anthropic-refresh-token'

@@ -11,8 +11,8 @@ const entry = join(outDir, 'entry.ts')
 writeFileSync(
   entry,
   [
-    `export * from '${join(repo, 'src/utils/proxy.ts')}'`,
-    `export { getMTLSAgent, clearMTLSCache } from '${join(repo, 'src/utils/mtls.ts')}'`,
+    `export * from '${join(repo, 'src/platform/network/proxy.ts')}'`,
+    `export { getMTLSAgent, clearMTLSCache } from '${join(repo, 'src/platform/network/mtls.ts')}'`,
     '',
   ].join('\n'),
 )
@@ -34,7 +34,7 @@ const build = await Bun.build({
   ],
 })
 if (!build.success) {
-  console.error('❌ NODE TRANSPORT LANE — bundle failed — the bundle is built from src/utils/proxy.ts and src/utils/mtls.ts; fix the import or syntax error in the log below, or the external and resolver lists in the Bun.build options of this script if a new dependency needs marking external')
+  console.error('❌ NODE TRANSPORT LANE — bundle failed — the bundle is built from src/platform/network/proxy.ts and src/platform/network/mtls.ts; fix the import or syntax error in the log below, or the external and resolver lists in the Bun.build options of this script if a new dependency needs marking external')
   for (const log of build.logs) console.error(String(log))
   process.exit(1)
 }
@@ -54,5 +54,5 @@ const result = spawnSync(nodeBin, [join(repo, 'scripts/api/node-transport-lane.m
   stdio: 'inherit',
   env: { ...process.env },
 })
-if (result.status !== 0) console.error(`❌ NODE TRANSPORT LANE — scripts/api/node-transport-lane.mjs exited ${result.status ?? 'without a status'} on ${nodeBin}; read its failed checks above, they exercise src/utils/proxy.ts and src/utils/mtls.ts under real Node`)
+if (result.status !== 0) console.error(`❌ NODE TRANSPORT LANE — scripts/api/node-transport-lane.mjs exited ${result.status ?? 'without a status'} on ${nodeBin}; read its failed checks above, they exercise src/platform/network/proxy.ts and src/platform/network/mtls.ts under real Node`)
 process.exit(result.status ?? 1)

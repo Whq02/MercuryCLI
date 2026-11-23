@@ -9,9 +9,9 @@ import { PassThrough } from 'node:stream'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'wire-laws-'))
 
-const peerModule = await import('../../src/runner/wire/peer.ts')
-const errors = await import('../../src/runner/wire/errors.ts')
-const methods = await import('../../src/runner/wire/methods.ts')
+const peerModule = await import('../../src/daemon/runner-wire/peer.ts')
+const errors = await import('../../src/daemon/runner-wire/errors.ts')
+const methods = await import('../../src/daemon/runner-wire/methods.ts')
 const { Peer, LineSplitter } = peerModule
 
 let failures = 0
@@ -24,10 +24,10 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 const settle = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-const peerHint = 'change the Peer class in src/runner/wire/peer.ts'
-const splitHint = 'change LineSplitter (feed or flush) in src/runner/wire/peer.ts'
-const methodsHint = 'change the method table in src/runner/wire/methods.ts, or this expectation if the table moved on purpose'
-const errorsHint = 'change the codes and helpers in src/runner/wire/errors.ts'
+const peerHint = 'change the Peer class in src/daemon/runner-wire/peer.ts'
+const splitHint = 'change LineSplitter (feed or flush) in src/daemon/runner-wire/peer.ts'
+const methodsHint = 'change the method table in src/daemon/runner-wire/methods.ts, or this expectation if the table moved on purpose'
+const errorsHint = 'change the codes and helpers in src/daemon/runner-wire/errors.ts'
 
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — runner wire laws exceeded 60s')
@@ -185,7 +185,7 @@ section('W4 parse errors: -32700 with a null id, the stream continues, three in 
   w.raw('bad four\n')
   w.raw('bad five\n')
   await settle(10)
-  check(`three consecutive bad lines report a desync (${j(w.desyncs)})`, j(w.desyncs) === j([3]), peerHint + ' (onDesync fires after BAD_LINE_LIMIT in src/runner/wire/errors.ts)')
+  check(`three consecutive bad lines report a desync (${j(w.desyncs)})`, j(w.desyncs) === j([3]), peerHint + ' (onDesync fires after BAD_LINE_LIMIT in src/daemon/runner-wire/errors.ts)')
   check('the runner names the desync on its log', w.runnerLog.some(l => l.includes('out of step')), peerHint + ' (the desync log line)')
   w.host.end()
 }
@@ -222,9 +222,9 @@ section('W6 method not found and invalid params')
   const notFoundBefore = w.hostSaw.filter(f => (f.error as { code?: number } | undefined)?.code === errors.RPC_METHOD_NOT_FOUND).length
   const noEffort = (await rejection(w.host.request('session/set_effort', {} as never))) as InstanceType<typeof errors.RpcError>
   const issues = (noEffort?.data as { issues?: Array<{ path: string }> } | undefined)?.issues ?? []
-  check('a schema refusal is -32602 with the issues', noEffort?.code === errors.RPC_INVALID_PARAMS && issues.some(i => i.path === 'effort'), j(noEffort) + ' | ' + peerHint + ' or the session/set_effort schema in src/runner/wire/methods.ts')
+  check('a schema refusal is -32602 with the issues', noEffort?.code === errors.RPC_INVALID_PARAMS && issues.some(i => i.path === 'effort'), j(noEffort) + ' | ' + peerHint + ' or the session/set_effort schema in src/daemon/runner-wire/methods.ts')
   const userFrame = (await rejection(w.host.request('queue/add', { type: 'user', message: {} } as never))) as InstanceType<typeof errors.RpcError>
-  check('queue/add refuses a frame that is not an input row', userFrame?.code === errors.RPC_INVALID_PARAMS, 'change the queue/add params schema in src/runner/wire/methods.ts')
+  check('queue/add refuses a frame that is not an input row', userFrame?.code === errors.RPC_INVALID_PARAMS, 'change the queue/add params schema in src/daemon/runner-wire/methods.ts')
   w.raw(j({ jsonrpc: '2.0', method: 'no/such_notification', params: {} }) + '\n')
   await settle(10)
   check('an unknown notification is ignored, never answered', w.hostSaw.filter(f => (f.error as { code?: number } | undefined)?.code === errors.RPC_METHOD_NOT_FOUND).length === notFoundBefore, peerHint)
@@ -502,7 +502,7 @@ section('W15 cancellation before send and before dispatch cannot apply a request
 
 section('W16 incompatible versions refuse explicitly and settle the connection')
 {
-  const read = await import('../../src/rows/read.ts')
+  const read = await import('../../src/engine/rows/read.ts')
   for (const type of ['session', 'outcome']) {
     for (const schema of [2, undefined]) {
       let caught: unknown

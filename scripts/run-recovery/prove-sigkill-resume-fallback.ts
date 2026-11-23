@@ -16,7 +16,7 @@ import { startFixtureApi, handoffTurn, isHandoffRequest, type ScriptedTurn } fro
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' [a session killed after its first reply must still resume: the turn has to be on disk before the reply is printed, and the --resume road is loadInitialMessages in src/cli/headless/resume.ts (its miss text is in src/utils/sessionStorage/resumeMiss.ts)]' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' [a session killed after its first reply must still resume: the turn has to be on disk before the reply is printed, and the --resume road is loadInitialMessages in src/daemon/runner/resume.ts (its miss text is in src/sessions/transcripts/resumeMiss.ts)]' : ''}`)
 }
 
 const ROOT = join(import.meta.dir, '..', '..')

@@ -23,7 +23,7 @@ globalThis.fetch = (async (input: RequestInfo | URL) => {
   throw new Error('this fixture has no network')
 }) as typeof fetch
 
-const FOLLOWS_FAIL_HINT = ' — the popup header line comes from usagePopupLine in src/components/Settings/usageLine.ts and the block from src/components/Settings/usage/anthropicSection.tsx; make both read the same figures from the store that foldUtilizationFromEndpoint fills in src/services/anthropicLimits.ts'
+const FOLLOWS_FAIL_HINT = ' — the popup header line comes from usagePopupLine in src/screen/settings/usageLine.ts and the block from src/screen/settings/usage/anthropicSection.tsx; make both read the same figures from the store that foldUtilizationFromEndpoint fills in src/models/roads/anthropic/anthropicLimits.ts'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
@@ -40,8 +40,8 @@ async function stub(path: string, overrides: Record<string, unknown>): Promise<v
 }
 let held: Promise<void> = Promise.resolve()
 let asks = 0
-await stub('../../src/utils/auth.js', { isClaudeAISubscriber: () => true })
-await stub('../../src/services/providers/providerUsage.js', {
+await stub('../../src/models/sign-in/credentials/auth.js', { isClaudeAISubscriber: () => true })
+await stub('../../src/models/roads/providerUsage.js', {
   refreshProviderUsage: async (id: string): Promise<void> => {
     if (id !== 'anthropic') return
     asks += 1
@@ -51,18 +51,18 @@ await stub('../../src/services/providers/providerUsage.js', {
 
 const React = await import('react')
 const h = React.createElement
-const { Box } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
-const records = await import('../../src/services/anthropicLimits.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
+const records = await import('../../src/models/roads/anthropic/anthropicLimits.js')
 const { call } = await import('../../src/commands/usage/usage.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const auth = { ...(await import('../../src/utils/auth.js')), ...(await import('../../src/services/auth/oauthLifecycle.js')) }
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
-const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.js')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.js')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.js')) }
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.js')
+const { storeOAuthAccountInfo } = await import('../../src/models/sign-in/oauth/client.js')
 storeOAuthAccountInfo({ accountUuid: '00000000-0000-4000-8000-0000000000dd', emailAddress: 'follows@example.com' })
 const saved = auth.saveOAuthTokensIfNeeded({
   accessToken: 'fixture-access-token-follows',

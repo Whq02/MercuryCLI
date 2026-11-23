@@ -108,17 +108,17 @@ const vllm = await serve((req, body, res) => {
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `vllm=${vllm.root}`
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { STREAM_FAULT_RECOVERY_NUDGE, API_ERROR_MESSAGE_PREFIX, isContinuableStreamFaultMessage } = await import('../../src/services/api/errors.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { STREAM_FAULT_RECOVERY_NUDGE, API_ERROR_MESSAGE_PREFIX, isContinuableStreamFaultMessage } = await import('../../src/engine/requests/apiErrorRows.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
 await refreshLocalDiscovery({ force: true })
 const MODEL = `local/${MODEL_ID}`
 
@@ -209,40 +209,40 @@ const tailOf = (text: string, n: number): string => text.slice(-n)
 section('A · a cut after settled text: the continuation replays the partial as the assistant\'s own last message, then the marker')
 {
   const r = await run([cutAfterText, finishNormally])
-  check('the fixture saw two chat requests (the cut turn, then the continuation)', r.wire.length === 2, `${r.wire.length} request(s); a cut after settled text must send one continuation request, see streamFaultRecovery in src/run-core/turn/noToolReply.ts`)
+  check('the fixture saw two chat requests (the cut turn, then the continuation)', r.wire.length === 2, `${r.wire.length} request(s); a cut after settled text must send one continuation request, see streamFaultRecovery in src/engine/loop/turn/noToolReply.ts`)
   check('the run completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
-  check('the cut turn settled its partial text and the typed fault marker (the continuable class)', r.yields.some(y => y.type === 'assistant' && textOf(y.message?.content) === PARTIAL) && r.yields.some(y => y.type === 'assistant' && isContinuableStreamFaultMessage(y as never)), 'the cut turn must settle its partial text as an assistant message plus the typed fault marker; see isContinuableStreamFaultMessage in src/services/api/errors.ts and the stream-fault path in src/services/providers/openaicompat/compatChatCallModel/attempt.ts')
-  check('the one calm notice: asked the model to continue from where it stopped', r.yields.some(y => y.type === 'system' && String((y as { content?: unknown }).content ?? '').includes('asked the model to continue from where it stopped')), 'streamFaultRecovery in src/run-core/turn/noToolReply.ts emits this notice when it continues a cut turn')
+  check('the cut turn settled its partial text and the typed fault marker (the continuable class)', r.yields.some(y => y.type === 'assistant' && textOf(y.message?.content) === PARTIAL) && r.yields.some(y => y.type === 'assistant' && isContinuableStreamFaultMessage(y as never)), 'the cut turn must settle its partial text as an assistant message plus the typed fault marker; see isContinuableStreamFaultMessage in src/engine/requests/apiErrorRows.ts and the stream-fault path in src/models/roads/openaicompat/chat-call-model/attempt.ts')
+  check('the one calm notice: asked the model to continue from where it stopped', r.yields.some(y => y.type === 'system' && String((y as { content?: unknown }).content ?? '').includes('asked the model to continue from where it stopped')), 'streamFaultRecovery in src/engine/loop/turn/noToolReply.ts emits this notice when it continues a cut turn')
 
   const request = r.calls[1]?.messages ?? []
   const lastAssistant = [...request].reverse().find(m => m.type === 'assistant')
-  check('the continuation request: its last assistant message carries the settled partial text verbatim', lastAssistant !== undefined && textOf(lastAssistant.message?.content) === PARTIAL, lastAssistant === undefined ? 'no assistant message' : `last assistant = ${JSON.stringify(textOf(lastAssistant.message?.content).slice(0, 90))}; the continuation request must replay the settled partial as the last assistant message, see streamFaultRecovery in src/run-core/turn/noToolReply.ts`)
-  check("the continuation request carries no API-error row (Mercury's own words never ride as the model's)", !request.some(m => m.type === 'assistant' && m.isApiErrorMessage === true), `${request.filter(m => m.type === 'assistant' && m.isApiErrorMessage === true).length} API-error row(s); the continuation request must drop the fault marker row before it is sent, see streamFaultRecovery in src/run-core/turn/noToolReply.ts`)
+  check('the continuation request: its last assistant message carries the settled partial text verbatim', lastAssistant !== undefined && textOf(lastAssistant.message?.content) === PARTIAL, lastAssistant === undefined ? 'no assistant message' : `last assistant = ${JSON.stringify(textOf(lastAssistant.message?.content).slice(0, 90))}; the continuation request must replay the settled partial as the last assistant message, see streamFaultRecovery in src/engine/loop/turn/noToolReply.ts`)
+  check("the continuation request carries no API-error row (Mercury's own words never ride as the model's)", !request.some(m => m.type === 'assistant' && m.isApiErrorMessage === true), `${request.filter(m => m.type === 'assistant' && m.isApiErrorMessage === true).length} API-error row(s); the continuation request must drop the fault marker row before it is sent, see streamFaultRecovery in src/engine/loop/turn/noToolReply.ts`)
   const marker = request.at(-1)
   const markerBlocks = textBlocksOf(marker?.message?.content)
-  check('the marker is the last message: a meta user message whose first text block is the owned nudge (the transcript lookups key on it)', marker?.type === 'user' && marker.isMeta === true && markerBlocks[0] === STREAM_FAULT_RECOVERY_NUDGE, JSON.stringify(markerBlocks.map(b => b.slice(0, 60))) + '; the marker is built by streamFaultRecoveryContent in src/services/api/errors.ts (first block STREAM_FAULT_RECOVERY_NUDGE, a meta user message last in the request)')
-  check('the marker names the last words of the partial, so the model cannot contradict it', markerBlocks.slice(1).some(b => b.includes(tailOf(PARTIAL, 40))), JSON.stringify(markerBlocks.slice(1)) + '; streamFaultRecoveryTailLine in src/services/api/errors.ts builds the tail line from the partial')
-  check('the marker names the assistant message directly above as the reply so far', markerBlocks.slice(1).some(b => b.includes('directly above')), JSON.stringify(markerBlocks.slice(1)) + '; streamFaultRecoveryTailLine in src/services/api/errors.ts builds this line')
-  check('the message before the marker is the partial (nothing stands between them)', request.at(-2)?.type === 'assistant' && textOf(request.at(-2)?.message?.content) === PARTIAL, `before the marker: ${String(request.at(-2)?.type)} ${JSON.stringify(textOf(request.at(-2)?.message?.content).slice(0, 60))}; the marker must sit directly after the partial, see streamFaultRecovery in src/run-core/turn/noToolReply.ts`)
+  check('the marker is the last message: a meta user message whose first text block is the owned nudge (the transcript lookups key on it)', marker?.type === 'user' && marker.isMeta === true && markerBlocks[0] === STREAM_FAULT_RECOVERY_NUDGE, JSON.stringify(markerBlocks.map(b => b.slice(0, 60))) + '; the marker is built by streamFaultRecoveryContent in src/engine/requests/apiErrorRows.ts (first block STREAM_FAULT_RECOVERY_NUDGE, a meta user message last in the request)')
+  check('the marker names the last words of the partial, so the model cannot contradict it', markerBlocks.slice(1).some(b => b.includes(tailOf(PARTIAL, 40))), JSON.stringify(markerBlocks.slice(1)) + '; streamFaultRecoveryTailLine in src/engine/requests/apiErrorRows.ts builds the tail line from the partial')
+  check('the marker names the assistant message directly above as the reply so far', markerBlocks.slice(1).some(b => b.includes('directly above')), JSON.stringify(markerBlocks.slice(1)) + '; streamFaultRecoveryTailLine in src/engine/requests/apiErrorRows.ts builds this line')
+  check('the message before the marker is the partial (nothing stands between them)', request.at(-2)?.type === 'assistant' && textOf(request.at(-2)?.message?.content) === PARTIAL, `before the marker: ${String(request.at(-2)?.type)} ${JSON.stringify(textOf(request.at(-2)?.message?.content).slice(0, 60))}; the marker must sit directly after the partial, see streamFaultRecovery in src/engine/loop/turn/noToolReply.ts`)
 
   const wire = r.wire[1]?.messages ?? []
   const assistantRows = wire.filter(m => m.role === 'assistant')
   const lastRow = assistantRows.at(-1)
   check('the wire body: the last assistant row is the settled partial, verbatim', lastRow !== undefined && lastRow.content === PARTIAL, `last assistant row = ${JSON.stringify(String(lastRow?.content ?? '').slice(0, 90))}; the wire body must carry the settled partial as the last assistant row`)
-  check("the wire body: no assistant row carries Mercury's API-error prefix", !assistantRows.some(m => String(m.content ?? '').startsWith(API_ERROR_MESSAGE_PREFIX)), JSON.stringify(assistantRows.map(m => String(m.content ?? '').slice(0, 50))) + '; a row starting with API_ERROR_MESSAGE_PREFIX (src/services/api/errors.ts) must not reach the wire')
+  check("the wire body: no assistant row carries Mercury's API-error prefix", !assistantRows.some(m => String(m.content ?? '').startsWith(API_ERROR_MESSAGE_PREFIX)), JSON.stringify(assistantRows.map(m => String(m.content ?? '').slice(0, 50))) + '; a row starting with API_ERROR_MESSAGE_PREFIX (src/engine/requests/apiErrorRows.ts) must not reach the wire')
   const lastAssistantIndex = wire.lastIndexOf(lastRow as never)
   const after = wire[lastAssistantIndex + 1]
-  check('the wire body: the marker row follows the partial directly, carrying the nudge and the partial\'s last words', after?.role === 'user' && String(after.content).startsWith(STREAM_FAULT_RECOVERY_NUDGE) && String(after.content).includes(tailOf(PARTIAL, 40)), `${String(after?.role)}: ${JSON.stringify(String(after?.content ?? '').slice(0, 80))}; the row after the partial must be the marker built by streamFaultRecoveryContent in src/services/api/errors.ts`)
+  check('the wire body: the marker row follows the partial directly, carrying the nudge and the partial\'s last words', after?.role === 'user' && String(after.content).startsWith(STREAM_FAULT_RECOVERY_NUDGE) && String(after.content).includes(tailOf(PARTIAL, 40)), `${String(after?.role)}: ${JSON.stringify(String(after?.content ?? '').slice(0, 80))}; the row after the partial must be the marker built by streamFaultRecoveryContent in src/engine/requests/apiErrorRows.ts`)
 }
 
 section('B · a cut before any text: retry the unchanged request')
 {
   const r = await run([cutBeforeText, finishNormally])
-  check('the fixture saw two chat requests', r.wire.length === 2, `${r.wire.length} request(s); a cut before any text must retry the request once, see retryEligible in src/services/providers/openaicompat/compatChatCallModel/attempt.ts`)
+  check('the fixture saw two chat requests', r.wire.length === 2, `${r.wire.length} request(s); a cut before any text must retry the request once, see retryEligible in src/models/roads/openaicompat/chat-call-model/attempt.ts`)
   check('the run completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
-  check('the retry stays inside the original model call, without a turn-machine nudge', r.calls.length === 1, `${r.calls.length} model calls; the retry of a cut before any text must stay inside the one model call (src/services/providers/openaicompat/compatChatCallModel/attempt.ts), not go through streamFaultRecovery in src/run-core/turn/noToolReply.ts`)
-  check('the retry request is unchanged, including thinking and effort', JSON.stringify(r.wire[1]) === JSON.stringify(r.wire[0]), 'the retry must resend the first request body unchanged; compare r.wire[1] with r.wire[0] (src/services/providers/openaicompat/compatChatCallModel/attempt.ts)')
-  check('neither request carries the empty continuation nudge', r.wire.every(body => !JSON.stringify(body).includes(STREAM_FAULT_RECOVERY_NUDGE)), 'a cut before any text must not add STREAM_FAULT_RECOVERY_NUDGE (src/services/api/errors.ts) to either request')
+  check('the retry stays inside the original model call, without a turn-machine nudge', r.calls.length === 1, `${r.calls.length} model calls; the retry of a cut before any text must stay inside the one model call (src/models/roads/openaicompat/chat-call-model/attempt.ts), not go through streamFaultRecovery in src/engine/loop/turn/noToolReply.ts`)
+  check('the retry request is unchanged, including thinking and effort', JSON.stringify(r.wire[1]) === JSON.stringify(r.wire[0]), 'the retry must resend the first request body unchanged; compare r.wire[1] with r.wire[0] (src/models/roads/openaicompat/chat-call-model/attempt.ts)')
+  check('neither request carries the empty continuation nudge', r.wire.every(body => !JSON.stringify(body).includes(STREAM_FAULT_RECOVERY_NUDGE)), 'a cut before any text must not add STREAM_FAULT_RECOVERY_NUDGE (src/engine/requests/apiErrorRows.ts) to either request')
 }
 
 vllm.server.close()

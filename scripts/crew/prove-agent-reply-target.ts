@@ -11,14 +11,14 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { getCommandQueue, resetCommandQueue } = await import('../../src/input-core/command-queue.ts')
-const { registerAsyncAgent, enqueueAgentNotification, queuePendingMessage, queueOperatorMessage, drainPendingMessages, completeAgentTask } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-const { runAsyncAgentLifecycle, deliverOperatorMessagesAfterStop } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { applyTaskOffsetsAndEvictions } = await import('../../src/utils/task/framework.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { getCommandQueue, resetCommandQueue } = await import('../../src/screen/composer/input-core/command-queue.ts')
+const { registerAsyncAgent, enqueueAgentNotification, queuePendingMessage, queueOperatorMessage, drainPendingMessages, completeAgentTask } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { runAsyncAgentLifecycle, deliverOperatorMessagesAfterStop } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { applyTaskOffsetsAndEvictions } = await import('../../src/engine/task-framework/taskRegistry.ts')
 type AppState = ReturnType<typeof getDefaultAppState>
 const tally = makeTally('prove-agent-reply-target')
 const makeStore = () => {
@@ -27,7 +27,7 @@ const makeStore = () => {
 }
 let seq = 0
 const freshId = (): string => `a${String(++seq).padStart(8, '0')}`
-const NOTIFY = 'enqueueAgentNotification in src/tasks/LocalAgentTask/LocalAgentTask.tsx decides who is told the final answer for a replyTarget and when the task is latched as notified; change it there'
+const NOTIFY = 'enqueueAgentNotification in src/engine/tasks/local-agent/crewmateTask.tsx decides who is told the final answer for a replyTarget and when the task is latched as notified; change it there'
 const notes = (): string[] => getCommandQueue().filter(command => command.mode === 'task-notification').map(command => String(command.value))
 
 for (const replyTarget of ['operator', 'parent'] as const) {
@@ -44,7 +44,7 @@ for (const replyTarget of ['operator', 'parent'] as const) {
     tally.check(`${replyTarget}/${status}: the notification latch settles without needing a lead inbox mark`, store.get().tasks[taskId]?.notified === true, `notified is ${String(store.get().tasks[taskId]?.notified)}; ${NOTIFY}`)
     store.set(state => ({ ...state, tasks: { ...state.tasks, [taskId]: { ...state.tasks[taskId], retain: false, evictAfter: 0 } as never } }))
     applyTaskOffsetsAndEvictions(store.set, {}, [taskId])
-    tally.check(`${replyTarget}/${status}: the settled row can be evicted normally`, store.get().tasks[taskId] === undefined, 'the settled task row is still in state after applyTaskOffsetsAndEvictions in src/utils/task/framework.ts; a notified task with retain false and evictAfter 0 must be evicted there')
+    tally.check(`${replyTarget}/${status}: the settled row can be evicted normally`, store.get().tasks[taskId] === undefined, 'the settled task row is still in state after applyTaskOffsetsAndEvictions in src/engine/task-framework/taskRegistry.ts; a notified task with retain false and evictAfter 0 must be evicted there')
   }
 }
 
@@ -73,8 +73,8 @@ for (const consumed of [false, true]) {
 }
 
 const resumes: Array<{ replyTarget?: string; prompt: string }> = []
-const resumeModule = await import('../../src/tools/AgentTool/resumeAgent.ts')
-mock.module('../../src/tools/AgentTool/resumeAgent.ts', () => ({ ...resumeModule, resumeAgentBackground: async (args: { replyTarget?: string; prompt: string }) => { resumes.push(args); return {} } }))
+const resumeModule = await import('../../src/tools/crewmate/resumeCrewmate.ts')
+mock.module('../../src/tools/crewmate/resumeCrewmate.ts', () => ({ ...resumeModule, resumeAgentBackground: async (args: { replyTarget?: string; prompt: string }) => { resumes.push(args); return {} } }))
 for (const kind of ['owner', 'lead', 'mixed', 'stop'] as const) {
   resetCommandQueue()
   const store = makeStore()
@@ -90,7 +90,7 @@ for (const kind of ['owner', 'lead', 'mixed', 'stop'] as const) {
     await runAsyncAgentLifecycle({ taskId, abortController: task.abortController!, makeStream: stream, metadata: { prompt: 'work', resolvedAgentModel: 'fixture', isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true }, description: kind, toolUseContext: context, rootSetAppState: store.set, agentIdForCleanup: taskId, enableSummarization: false, getWorktreeResult: async () => ({}) })
   }
   const resumed = resumes.at(-1)
-  tally.check(`${kind}: queued follow-ups retain their audience and words at the resume boundary`, resumed?.replyTarget === (kind === 'lead' || kind === 'mixed' ? 'parent' : 'operator') && (kind === 'lead' || resumed.prompt.includes('OWNER-NEXT')) && ((kind !== 'lead' && kind !== 'mixed') || resumed.prompt.includes('LEAD-NEXT')), `${JSON.stringify(resumed)}; runAsyncAgentLifecycle and deliverOperatorMessagesAfterStop in src/tools/AgentTool/agentToolUtils.ts must resume with the replyTarget and words of the queued follow-ups (queueOperatorMessage and queuePendingMessage in src/tasks/LocalAgentTask/LocalAgentTask.tsx)`)
+  tally.check(`${kind}: queued follow-ups retain their audience and words at the resume boundary`, resumed?.replyTarget === (kind === 'lead' || kind === 'mixed' ? 'parent' : 'operator') && (kind === 'lead' || resumed.prompt.includes('OWNER-NEXT')) && ((kind !== 'lead' && kind !== 'mixed') || resumed.prompt.includes('LEAD-NEXT')), `${JSON.stringify(resumed)}; runAsyncAgentLifecycle and deliverOperatorMessagesAfterStop in src/tools/crewmate/crewmateLifecycle.ts must resume with the replyTarget and words of the queued follow-ups (queueOperatorMessage and queuePendingMessage in src/engine/tasks/local-agent/crewmateTask.tsx)`)
 }
 rmSync(home, { recursive: true, force: true })
 tally.finish()

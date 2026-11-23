@@ -14,25 +14,25 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
-const HINT_SNAPSHOT = 'fix buildConcourseSnapshot in src/services/concourse/concourseSnapshot.ts'
-const HINT_SWITCH = 'a project switch must change only the view; look for a write in writeConcourseSeedOverride (src/services/concourse/concourseSnapshot.ts) or applyHarnessGround (src/services/switchboard/harnessGround.ts)'
-const HINT_CHIP = 'fix bootScopedSeedOverrides, readConcourseSeedOverrides or resolveHarnessGround in src/services/concourse/concourseSnapshot.ts'
-const HINT_FOCUS = 'fix the carry-over of the focused session in buildConcourseSnapshot (src/services/concourse/concourseSnapshot.ts); the slot lives in src/services/engine-connector/focusedConnector.ts'
-const HINT_ELSEWHERE = 'fix projectActivity or elsewhereLine in src/services/concourse/projectActivity.ts, or the elsewhere group built in src/services/concourse/concourseSnapshot.ts'
-const HINT_NAMING = 'fix src/services/concourse/sessionNaming.ts (sessionTitleOf, shouldMintTitle) or setConcourseSessionTitle in src/daemon/concourseWorkers/focus.ts'
+const HINT_SNAPSHOT = 'fix buildConcourseSnapshot in src/screen/concourse-model/concourseSnapshot.ts'
+const HINT_SWITCH = 'a project switch must change only the view; look for a write in writeConcourseSeedOverride (src/screen/concourse-model/concourseSnapshot.ts) or applyHarnessGround (src/daemon/switchboard/harnessGround.ts)'
+const HINT_CHIP = 'fix bootScopedSeedOverrides, readConcourseSeedOverrides or resolveHarnessGround in src/screen/concourse-model/concourseSnapshot.ts'
+const HINT_FOCUS = 'fix the carry-over of the focused session in buildConcourseSnapshot (src/screen/concourse-model/concourseSnapshot.ts); the slot lives in src/engine/connector/focusedConnector.ts'
+const HINT_ELSEWHERE = 'fix projectActivity or elsewhereLine in src/screen/concourse-model/projectActivity.ts, or the elsewhere group built in src/screen/concourse-model/concourseSnapshot.ts'
+const HINT_NAMING = 'fix src/screen/concourse-model/sessionNaming.ts (sessionTitleOf, shouldMintTitle) or setConcourseSessionTitle in src/daemon/concourse-workers/focus.ts'
 
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
-const snapshotMod = await import('../../src/services/concourse/concourseSnapshot.ts')
+const { workerTranscriptPath } = await import('../../src/screen/concourse-model/workerTranscript.ts')
+const snapshotMod = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
 const { buildConcourseSnapshot, bootScopedSeedOverrides, readConcourseSeedOverrides, resolveHarnessGround, writeConcourseSeedOverride } = snapshotMod
-const workers = await import('../../src/daemon/concourseWorkers.ts')
-const { applyHarnessGround } = await import('../../src/services/switchboard/harnessGround.ts')
-const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { getCwd } = await import('../../src/utils/cwd.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
+const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { applyHarnessGround } = await import('../../src/daemon/switchboard/harnessGround.ts')
+const slot = await import('../../src/engine/connector/focusedConnector.ts')
+const { getCwd } = await import('../../src/platform/files/cwd.ts')
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const NOW = Date.now()
@@ -141,10 +141,10 @@ console.log('§1 — SWITCHING NEVER TOUCHES A SESSION: a switch is a change of 
     const w = workers.readSessionWorkers(recordsDir)
     return w['concourse-w2']?.pausedAt === NOW - 60_000 && w['concourse-w1']?.endedAt === undefined && w['concourse-w3']?.endedAt === undefined && w['concourse-w1']?.focusedAt === undefined
   })(), '', HINT_SWITCH)
-  check('the switch door is the ground apply: the cwd state moved with it', getCwd() === P_A, '', 'fix applyHarnessGround in src/services/switchboard/harnessGround.ts so it moves the cwd')
+  check('the switch door is the ground apply: the cwd state moved with it', getCwd() === P_A, '', 'fix applyHarnessGround in src/daemon/switchboard/harnessGround.ts so it moves the cwd')
 
   const stamped = workers.focusConcourseSession(S_B1, 'operator:1', recordsDir)
-  check('POISON CONTROL: a lifecycle write (the focus stamp) changes the record bytes and publishes a delta — the comparator has teeth', stamped.outcome === 'applied' && treeBytes(recordsDir) !== before.daemon && existsSync(workers.concourseDeltaPath(recordsDir)), '', 'focusConcourseSession in src/daemon/concourseWorkers/focus.ts must stamp the record and publish a delta, or treeBytes in this file stopped reading the records')
+  check('POISON CONTROL: a lifecycle write (the focus stamp) changes the record bytes and publishes a delta — the comparator has teeth', stamped.outcome === 'applied' && treeBytes(recordsDir) !== before.daemon && existsSync(workers.concourseDeltaPath(recordsDir)), '', 'focusConcourseSession in src/daemon/concourse-workers/focus.ts must stamp the record and publish a delta, or treeBytes in this file stopped reading the records')
   workers.blurConcourseSession(S_B1, 'operator:1', recordsDir)
   rmSync(workers.concourseDeltaPath(recordsDir), { force: true })
 
@@ -172,9 +172,9 @@ console.log('§1 — SWITCHING NEVER TOUCHES A SESSION: a switch is a change of 
 
 console.log('§2 — THE FOCUSED SESSION CARRIES OVER: the board filters by project, then always adds the one focused session, ★ from its own project')
 {
-  const { registerChatPresence, presentStripStops, stripKeyMapHintOf, _resetSurfaceRouteForTesting } = await import('../../src/context/surfaceRoute.ts')
-  const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
-  const paths = await import('../../src/utils/sessionStorage/paths.ts')
+  const { registerChatPresence, presentStripStops, stripKeyMapHintOf, _resetSurfaceRouteForTesting } = await import('../../src/screen/routes/surfaceRoute.ts')
+  const seat = await import('../../src/engine/connector/daemonConnector.ts')
+  const paths = await import('../../src/sessions/transcripts/paths.ts')
   registerChatPresence({ present: () => slot.hasFocusedSession() || slot.landingInFlight(), subscribe: slot.subscribeFocusedSessionConnector })
   seedWorkers([liveRecord('concourse-w1', S_A1, P_A), liveRecord('concourse-w2', S_A2, P_A), liveRecord('concourse-w3', S_B1, P_B)])
   await switchTo(P_A)
@@ -213,8 +213,8 @@ console.log('§2 — THE FOCUSED SESSION CARRIES OVER: the board filters by proj
 
 console.log('§3 — A NEW FOCUS HANDS IT BACK SILENTLY: focusing a session of the current project releases the ★ row — no notice, no state change')
 {
-  const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
-  const paths = await import('../../src/utils/sessionStorage/paths.ts')
+  const seat = await import('../../src/engine/connector/daemonConnector.ts')
+  const paths = await import('../../src/sessions/transcripts/paths.ts')
   seedWorkers([liveRecord('concourse-w1', S_A1, P_A), liveRecord('concourse-w2', S_A2, P_A), liveRecord('concourse-w3', S_B1, P_B)])
   await switchTo(P_A)
   slot.setFocusedSessionConnector(seat.daemonSessionConnectorFor({ sessionId: S_A1, runnerId: 'concourse-w1', title: 'alpha one', projectLabel: basename(P_A), workspaceId: P_A, home: paths.getProjectDir(P_A) }))
@@ -228,7 +228,7 @@ console.log('§3 — A NEW FOCUS HANDS IT BACK SILENTLY: focusing a session of t
   })
   slot.setFocusedSessionConnector(seat.daemonSessionConnectorFor({ sessionId: S_B1, runnerId: 'concourse-w3', title: 'beta one', projectLabel: basename(P_B), workspaceId: P_B, home: paths.getProjectDir(P_B) }))
   off()
-  check('the slot pulsed once for the new focus (the beat the route rebuilds on)', beats === 1, String(beats), 'setFocusedSessionConnector in src/services/engine-connector/focusedConnector.ts must notify its subscribers exactly once per new focus')
+  check('the slot pulsed once for the new focus (the beat the route rebuilds on)', beats === 1, String(beats), 'setFocusedSessionConnector in src/engine/connector/focusedConnector.ts must notify its subscribers exactly once per new focus')
   const handedBack = await build()
   const flat = handedBack.groups.flatMap(g => g.rows)
   check('X left B\'s board — handed back to its own project', !flat.some(r => r.sessionId === S_A1), flat.map(r => r.sessionId.slice(-2)).join(','), HINT_FOCUS)
@@ -249,11 +249,11 @@ console.log('§3 — A NEW FOCUS HANDS IT BACK SILENTLY: focusing a session of t
 
 console.log('§4 — THE RUNNING-COUNT LINE, A DOOR: one line per other project with activity, its own group before PARKED, ↵ = the picker\'s own switch')
 {
-  const { projectActivity, elsewhereLine, ELSEWHERE_CAP, isRunningState, runningByProjectKey } = await import('../../src/services/concourse/projectActivity.ts')
-  const { upsertObligation, resolveObligation } = await import('../../src/services/crew/obligations.ts')
-  const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-  const { projectIdentity } = await import('../../src/utils/bootCardFacts.ts')
-  const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const { projectActivity, elsewhereLine, ELSEWHERE_CAP, isRunningState, runningByProjectKey } = await import('../../src/screen/concourse-model/projectActivity.ts')
+  const { upsertObligation, resolveObligation } = await import('../../src/crew/crewmates/obligations.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+  const { projectIdentity } = await import('../../src/screen/boot-face/bootCardFacts.ts')
+  const seat = await import('../../src/engine/connector/daemonConnector.ts')
   const P_C = join(SCRATCH, 'proj-gamma')
   const P_D = join(SCRATCH, 'proj-delta')
   const P_E = join(SCRATCH, 'proj-epsilon')
@@ -304,7 +304,7 @@ console.log('§4 — THE RUNNING-COUNT LINE, A DOOR: one line per other project 
   const moved = await build()
   const movedRows = moved.groups.find(g => g.id === 'elsewhere')?.rows ?? []
   check('a count change repaints the line in place: same id, same position, new words (E: 1 → 2 running)', movedRows.map(r => r.sessionId).join(',') === fourRows.map(r => r.sessionId).join(',') && movedRows[1]?.title === '2 running in proj-epsilon' && fourRows[1]?.title === '1 running in proj-epsilon', '', HINT_ELSEWHERE)
-  const paths = await import('../../src/utils/sessionStorage/paths.ts')
+  const paths = await import('../../src/sessions/transcripts/paths.ts')
   slot.setFocusedSessionConnector(seat.daemonSessionConnectorFor({ sessionId: S_B1, runnerId: 'concourse-w3', title: 'beta one', projectLabel: basename(P_B), workspaceId: P_B, home: paths.getProjectDir(P_B) }))
   const withStar = await build()
   const bLine = withStar.groups.find(g => g.id === 'elsewhere')?.rows.find(r => r.projectLabel === 'proj-beta')
@@ -322,21 +322,21 @@ console.log('§4 — THE RUNNING-COUNT LINE, A DOOR: one line per other project 
     ],
     { current, excludeSessionId: 'x6', aliveOf: id => id !== 'x3' },
   )
-  check('the pure fold: groups by the catalog key, skips the current project and the excluded id, counts a live waiting session as running and a crashed one only as needs-you, drops paused-only projects', pure.map(p => `${p.name}:${p.running}/${p.needsYou}/${p.finished}`).join(' ') === 'proj-beta:2/1/0 proj-gamma:0/1/0', pure.map(p => `${p.name}:${p.running}/${p.needsYou}/${p.finished}`).join(' '), 'fix projectActivity in src/services/concourse/projectActivity.ts')
-  check('the ONE running predicate', isRunningState('working', false) && isRunningState('ready-to-review', false) && isRunningState('attached', false) && isRunningState('needs-you', true) && !isRunningState('needs-you', false) && !isRunningState('paused', true) && !isRunningState('stopped', true) && !isRunningState('starting', false) && !isRunningState('parked', true), '', 'fix isRunningState in src/services/concourse/projectActivity.ts')
+  check('the pure fold: groups by the catalog key, skips the current project and the excluded id, counts a live waiting session as running and a crashed one only as needs-you, drops paused-only projects', pure.map(p => `${p.name}:${p.running}/${p.needsYou}/${p.finished}`).join(' ') === 'proj-beta:2/1/0 proj-gamma:0/1/0', pure.map(p => `${p.name}:${p.running}/${p.needsYou}/${p.finished}`).join(' '), 'fix projectActivity in src/screen/concourse-model/projectActivity.ts')
+  check('the ONE running predicate', isRunningState('working', false) && isRunningState('ready-to-review', false) && isRunningState('attached', false) && isRunningState('needs-you', true) && !isRunningState('needs-you', false) && !isRunningState('paused', true) && !isRunningState('stopped', true) && !isRunningState('starting', false) && !isRunningState('parked', true), '', 'fix isRunningState in src/screen/concourse-model/projectActivity.ts')
   const line = (running: number, needsYou: number, finished: number): string => elsewhereLine({ dir: P_B, key: 'k', name: 'foo', running, needsYou, finished })
-  check('the line grammar: running leads; needs-you and finished follow only when non-zero; a project with no runner leads with what it has', line(3, 0, 0) === '3 running in foo' && line(2, 1, 1) === '2 running in foo · 1 needs you · 1 finished' && line(0, 2, 0) === '2 need you in foo' && line(0, 0, 1) === '1 finished in foo' && line(0, 1, 1) === '1 finished in foo · 1 needs you', '', 'fix elsewhereLine in src/services/concourse/projectActivity.ts')
+  check('the line grammar: running leads; needs-you and finished follow only when non-zero; a project with no runner leads with what it has', line(3, 0, 0) === '3 running in foo' && line(2, 1, 1) === '2 running in foo · 1 needs you · 1 finished' && line(0, 2, 0) === '2 need you in foo' && line(0, 0, 1) === '1 finished in foo' && line(0, 1, 1) === '1 finished in foo · 1 needs you', '', 'fix elsewhereLine in src/screen/concourse-model/projectActivity.ts')
   const face = await runningByProjectKey(recordsDir)
-  check('the face\'s sync read answers the same running counts per key (B 2 · C 2 · E 2 · F 1; A 2; D none)', face.get(getProjectDir(P_B)) === 2 && face.get(getProjectDir(P_C)) === 2 && face.get(getProjectDir(P_E)) === 2 && face.get(getProjectDir(P_F)) === 1 && face.get(getProjectDir(P_A)) === 2 && face.get(getProjectDir(P_D)) === undefined, [...face.entries()].map(([k, v]) => `${basename(k)}=${v}`).join(','), 'fix runningByProjectKey in src/services/concourse/projectActivity.ts')
+  check('the face\'s sync read answers the same running counts per key (B 2 · C 2 · E 2 · F 1; A 2; D none)', face.get(getProjectDir(P_B)) === 2 && face.get(getProjectDir(P_C)) === 2 && face.get(getProjectDir(P_E)) === 2 && face.get(getProjectDir(P_F)) === 1 && face.get(getProjectDir(P_A)) === 2 && face.get(getProjectDir(P_D)) === undefined, [...face.entries()].map(([k, v]) => `${basename(k)}=${v}`).join(','), 'fix runningByProjectKey in src/screen/concourse-model/projectActivity.ts')
   await resolveObligation(ask.obligationId, { kind: 'withdrawn', by: 'prover', scope: 'switchboard', dir: crewDir })
 }
 
 console.log('§5 — THE CROSS-PROJECT DOOR: an ask in another project rows on the rail as "switch to foo", the ⚑ counts it, ↵ = switch + open')
 {
-  const { upsertObligation, openObligations, resolveObligation } = await import('../../src/services/crew/obligations.ts')
-  const { obligationFacts } = await import('../../src/services/crew/obligationsBridge.ts')
-  const { foldAttention, emptyAttentionState, bucketItems } = await import('../../src/services/attention/contracts.ts')
-  const { railTailParts } = await import('../../src/components/concourse/NeedsYouRail.tsx')
+  const { upsertObligation, openObligations, resolveObligation } = await import('../../src/crew/crewmates/obligations.ts')
+  const { obligationFacts } = await import('../../src/crew/crewmates/obligationsBridge.ts')
+  const { foldAttention, emptyAttentionState, bucketItems } = await import('../../src/screen/attention/contracts.ts')
+  const { railTailParts } = await import('../../src/screen/concourse/NeedsYouRail.tsx')
   const S_B2 = sid('b2')
   slot.releaseFocusedSessionConnector()
   await switchTo(P_A)
@@ -353,8 +353,8 @@ console.log('§5 — THE CROSS-PROJECT DOOR: an ask in another project rows on t
   const snap = await build()
   const foreignRow = snap.needsYou.find(o => o.obligationId === ask.obligationId)
   const localRow = snap.needsYou.find(o => o.obligationId === local.obligationId)
-  check('a foreign ask rows as "switch to <name> · needs you", keeps its question, names ITS project and carries the door', foreignRow?.title === `switch to ${basename(P_B)} · needs you` && foreignRow.question === 'shall I merge?' && foreignRow.projectLabel === basename(P_B) && foreignRow.foreignProject?.dir === P_B && foreignRow.foreignProject.name === basename(P_B), `${foreignRow?.title} | ${foreignRow?.projectLabel}`, 'fix needsYouRowOf in src/services/concourse/concourseSnapshot.ts')
-  check('a local ask keeps the ordinary row — its question as title, its own project, no door', localRow?.title === 'which branch?' && localRow.projectLabel === basename(P_A) && localRow.foreignProject === undefined, '', 'fix needsYouRowOf in src/services/concourse/concourseSnapshot.ts')
+  check('a foreign ask rows as "switch to <name> · needs you", keeps its question, names ITS project and carries the door', foreignRow?.title === `switch to ${basename(P_B)} · needs you` && foreignRow.question === 'shall I merge?' && foreignRow.projectLabel === basename(P_B) && foreignRow.foreignProject?.dir === P_B && foreignRow.foreignProject.name === basename(P_B), `${foreignRow?.title} | ${foreignRow?.projectLabel}`, 'fix needsYouRowOf in src/screen/concourse-model/concourseSnapshot.ts')
+  check('a local ask keeps the ordinary row — its question as title, its own project, no door', localRow?.title === 'which branch?' && localRow.projectLabel === basename(P_A) && localRow.foreignProject === undefined, '', 'fix needsYouRowOf in src/screen/concourse-model/concourseSnapshot.ts')
   check('the rail counts both (the ⚑ counts a foreign need like any need — counts.needsYou is the whole store)', snap.counts.needsYou === 2 && snap.needsYou.length === 2, '', HINT_SNAPSHOT)
   const state1 = await attentionOf()
   check('the attention fold holds the foreign ask in needs-you (the badge\'s own bucket)', bucketItems(state1, 'needs-you').some(i => i.subjectId === `obligation:${ask.obligationId}`))
@@ -364,7 +364,7 @@ console.log('§5 — THE CROSS-PROJECT DOOR: an ask in another project rows on t
   check('the rail\'s one affordance on a door row is "switch & open" (no separate open; dismiss stays)', tail.some(p => p.key === 'answer' && p.text.includes('switch & open')) && !tail.some(p => p.key === 'open') && tail.some(p => p.key === 'dismiss'))
   check('an ordinary row keeps "answer & resume" and "open session"', railTailParts({ projectLabel: 'x', agentLabel: 'y', ageLabel: '01m' }, 200).map(p => p.key).join(',') === 'meta,answer,open,dismiss')
   for (const id of [ask.obligationId, local.obligationId]) await resolveObligation(id, { kind: 'withdrawn', by: 'prover', scope: 'switchboard', dir: crewDir })
-  const { needsYouCount } = await import('../../src/utils/needsYouCount.ts')
+  const { needsYouCount } = await import('../../src/screen/attention/needsYouCount.ts')
 }
 
 console.log('§6 — THE INDICATOR ON THE BOOT FACE: the Projects rows read the same running count from the same owner; a row without one composes its old bytes')
@@ -376,11 +376,11 @@ console.log('§6 — THE INDICATOR ON THE BOOT FACE: the Projects rows read the 
   const vis = (s: string): number => c.vis(s) as number
   const recut = core.assembleCardRows({ cwdBase: 'here', continueTarget: null, menuAvailable: true, concourse: { ctx: 'x' } }) as Array<{ key: string; ctx: string }>
   check('the card composes NO standalone project row (the Session Manager carries the estate)', !recut.some(r => r.key === 'project') && !recut.some(r => r.key === 'sessions') && recut.some(r => r.key === 'concourse'))
-  const { resumeProjectEntryOf } = await import('../../src/components/BootResumeScreen.js')
+  const { resumeProjectEntryOf } = await import('../../src/screen/boot-face/BootResumeScreen.js')
   const mergedRow = resumeProjectEntryOf({ dir: '/p/foo', base: 'foo', ageMs: 5 * 60_000, sessionId: 'a', transcriptPath: null, firstChatAt: 1, firstSessionId: 'a', running: 3 })
-  check('the merged screen\'s project row wears "5m · 3 running"', mergedRow.valueLabel === '5m · 3 running', mergedRow.valueLabel, 'fix resumeProjectEntryOf in src/components/BootResumeScreen.tsx')
+  check('the merged screen\'s project row wears "5m · 3 running"', mergedRow.valueLabel === '5m · 3 running', mergedRow.valueLabel, 'fix resumeProjectEntryOf in src/screen/boot-face/BootResumeScreen.tsx')
   const mergedPlain = resumeProjectEntryOf({ dir: '/p/foo', base: 'foo', ageMs: 5 * 60_000, sessionId: 'a', transcriptPath: null, firstChatAt: 1, firstSessionId: 'a' })
-  check('no count ⇒ the age alone (a row without one says nothing of it)', mergedPlain.valueLabel === '5m', mergedPlain.valueLabel, 'fix resumeProjectEntryOf in src/components/BootResumeScreen.tsx')
+  check('no count ⇒ the age alone (a row without one says nothing of it)', mergedPlain.valueLabel === '5m', mergedPlain.valueLabel, 'fix resumeProjectEntryOf in src/screen/boot-face/BootResumeScreen.tsx')
   const rowsNoCount = [{ base: 'foo', ageMs: 60_000, dirShown: '~/p/foo' }, { base: 'bar', ageMs: 120_000, dirShown: '~/p/bar' }]
   const before = c.composeProjects(rowsNoCount, 0, 100) as { lines: string[] }
   const zero = c.composeProjects(rowsNoCount.map(r => ({ ...r, running: 0 })), 0, 100) as { lines: string[] }
@@ -395,26 +395,26 @@ console.log('§6 — THE INDICATOR ON THE BOOT FACE: the Projects rows read the 
 
 console.log('§7 — THE ANNEX: Projects-↵ hops into a wordless live newborn through the card')
 {
-  const { workedInProjects, catalogFirstChat, _resetProjectCatalogForTesting } = await import('../../src/utils/bootCardFacts.ts')
+  const { workedInProjects, catalogFirstChat, _resetProjectCatalogForTesting } = await import('../../src/screen/boot-face/bootCardFacts.ts')
   const P_G = join(SCRATCH, 'proj-golf')
   const S_G0 = sid('g0')
   mkdirSync(P_G, { recursive: true })
   _resetProjectCatalogForTesting()
   catalogFirstChat(P_G, S_G0)
   const rowG = workedInProjects().find(r => r.dir === P_G)
-  check('a catalogued folder with a wordless first chat lists with the card\'s firstSessionId and no resumable transcript', rowG !== undefined && rowG.sessionId === null && rowG.transcriptPath === null && rowG.firstSessionId === S_G0, JSON.stringify(rowG), 'fix workedInProjects or catalogFirstChat in src/utils/bootCardFacts.ts')
-  check('a card-less project carries no firstSessionId', workedInProjects().find(r => r.dir === P_A)?.firstSessionId === null, '', 'fix workedInProjects in src/utils/bootCardFacts.ts')
+  check('a catalogued folder with a wordless first chat lists with the card\'s firstSessionId and no resumable transcript', rowG !== undefined && rowG.sessionId === null && rowG.transcriptPath === null && rowG.firstSessionId === S_G0, JSON.stringify(rowG), 'fix workedInProjects or catalogFirstChat in src/screen/boot-face/bootCardFacts.ts')
+  check('a card-less project carries no firstSessionId', workedInProjects().find(r => r.dir === P_A)?.firstSessionId === null, '', 'fix workedInProjects in src/screen/boot-face/bootCardFacts.ts')
   seedWorkers([liveRecord('concourse-w1', S_G0, P_G)])
-  check('the gate the face reads: the first session is owned by a LIVE worker (a hop, not a birth)', workers.sessionOwnedByLiveWorker(S_G0, recordsDir) === 'concourse-w1', '', 'fix sessionOwnedByLiveWorker in src/daemon/concourseWorkers/queries.ts')
+  check('the gate the face reads: the first session is owned by a LIVE worker (a hop, not a birth)', workers.sessionOwnedByLiveWorker(S_G0, recordsDir) === 'concourse-w1', '', 'fix sessionOwnedByLiveWorker in src/daemon/concourse-workers/queries.ts')
   seedWorkers([])
-  check('with no live worker the gate answers null (the birth arm stands, as before)', workers.sessionOwnedByLiveWorker(S_G0, recordsDir) === null, '', 'fix sessionOwnedByLiveWorker in src/daemon/concourseWorkers/queries.ts')
+  check('with no live worker the gate answers null (the birth arm stands, as before)', workers.sessionOwnedByLiveWorker(S_G0, recordsDir) === null, '', 'fix sessionOwnedByLiveWorker in src/daemon/concourse-workers/queries.ts')
 }
 
 console.log('§8 — SESSION-AWARE NAMING: three stages, one owner; the mint once at turn two; a typed name survives; never a worker id, in any world')
 {
-  const { sessionTitleOf, newSessionTitle, isWorkerIdTitle, shouldMintTitle } = await import('../../src/services/concourse/sessionNaming.ts')
-  const { transcriptHeadFacts } = await import('../../src/services/concourse/sessionTitleMint.ts')
-  const manifest = await import('../../src/components/concourse/controlManifest.ts')
+  const { sessionTitleOf, newSessionTitle, isWorkerIdTitle, shouldMintTitle } = await import('../../src/screen/concourse-model/sessionNaming.ts')
+  const { transcriptHeadFacts } = await import('../../src/screen/concourse-model/sessionTitleMint.ts')
+  const manifest = await import('../../src/screen/concourse/controlManifest.ts')
   const { setConcourseSessionTitle } = workers
   check('stage 1: an untitled, wordless session is the FACT — "new session · <project> · ready" — never an invented name', sessionTitleOf({ workspaceId: P_A }, () => null) === `new session · ${basename(P_A)} · ready` && newSessionTitle(P_A) === `new session · ${basename(P_A)} · ready`, '', HINT_NAMING)
   check('stage 2: the first words name it the moment they exist (zero cost — the board\'s own brief)', sessionTitleOf({ workspaceId: P_A }, () => 'fix the auth tests') === 'fix the auth tests', '', HINT_NAMING)
@@ -425,14 +425,14 @@ console.log('§8 — SESSION-AWARE NAMING: three stages, one owner; the mint onc
   const S_T2 = sid('t2')
   seedChat(P_A, S_T1, 'one question', 60_000)
   const oneTurn = transcriptHeadFacts({ sessionId: S_T1, workspaceId: P_A })
-  check('one reply on record reads ONE assistant turn — the mint stays shut', oneTurn.assistantTurns === 1 && !shouldMintTitle({}, oneTurn.assistantTurns), '', 'fix transcriptHeadFacts in src/services/concourse/sessionTitleMint.ts or shouldMintTitle in src/services/concourse/sessionNaming.ts')
+  check('one reply on record reads ONE assistant turn — the mint stays shut', oneTurn.assistantTurns === 1 && !shouldMintTitle({}, oneTurn.assistantTurns), '', 'fix transcriptHeadFacts in src/screen/concourse-model/sessionTitleMint.ts or shouldMintTitle in src/screen/concourse-model/sessionNaming.ts')
   {
     const file = workerTranscriptPath({ sessionId: S_T2, workspaceId: P_A })
     mkdirSync(dirname(file), { recursive: true })
     writeFileSync(file, encodeSeedTranscript([...transcriptRows(P_A, S_T2, 'first ask'), ...transcriptRows(P_A, S_T2, 'second ask')] as never, S_T2))
   }
   const twoTurns = transcriptHeadFacts({ sessionId: S_T2, workspaceId: P_A })
-  check('two replies read TWO turns and a description carrying the chat\'s own words', twoTurns.assistantTurns >= 2 && twoTurns.description.includes('first ask') && shouldMintTitle({}, twoTurns.assistantTurns), '', 'fix transcriptHeadFacts in src/services/concourse/sessionTitleMint.ts or shouldMintTitle in src/services/concourse/sessionNaming.ts')
+  check('two replies read TWO turns and a description carrying the chat\'s own words', twoTurns.assistantTurns >= 2 && twoTurns.description.includes('first ask') && shouldMintTitle({}, twoTurns.assistantTurns), '', 'fix transcriptHeadFacts in src/screen/concourse-model/sessionTitleMint.ts or shouldMintTitle in src/screen/concourse-model/sessionNaming.ts')
   rmSync(workers.concourseDeltaPath(recordsDir), { force: true })
   seedWorkers([liveRecord('concourse-w1', S_T2, P_A, { title: undefined })])
   const recOf = (): ConcourseWorkerRecordV1 | undefined => workers.readSessionWorkers(recordsDir)['concourse-w1']
@@ -456,8 +456,8 @@ console.log('§8 — SESSION-AWARE NAMING: three stages, one owner; the mint onc
   const stage3 = (await build()).groups.flatMap(g => g.rows).find(r => r.sessionId === S_T3)
   check('a stored title wins everywhere the snapshot paints (stage 3)', stage3?.title === 'Boot face polish', '', HINT_NAMING)
   {
-    const { QueuePart } = await import('../../src/utils/sessionStorage/writer/queue.ts')
-    const { historyHead } = await import('../../src/utils/sessionStorage/historyParts.ts')
+    const { QueuePart } = await import('../../src/sessions/transcripts/writer/queue.ts')
+    const { historyHead } = await import('../../src/sessions/transcripts/historyParts.ts')
     const S_FOLD = sid('f1')
     const file = workerTranscriptPath({ sessionId: S_FOLD, workspaceId: P_A })
     mkdirSync(dirname(file), { recursive: true })
@@ -477,7 +477,7 @@ console.log('§8 — SESSION-AWARE NAMING: three stages, one owner; the mint onc
     await land({ type: 'assistant', uuid: 'a-fold-3', parentUuid: 'u-fold-3', sessionId: S_FOLD, cwd: P_A, timestamp: ts, isSidechain: false, message: { role: 'assistant', content: [{ type: 'text', text: 'later reply after compaction' }] } })
     const sealed = historyHead(file)
     const folded = transcriptHeadFacts({ sessionId: S_FOLD, workspaceId: P_A })
-    check('a folded session seals its opening turns and transcriptHeadFacts still reads the opening words from the first part', sealed.before > 0 && folded.assistantTurns >= 2 && folded.description.includes('initial architecture brief for mint') && !folded.description.includes('later follow-up after compaction'), JSON.stringify({ before: sealed.before, folded }), 'fix transcriptHeadFacts in src/services/concourse/sessionTitleMint.ts so it reads the opening words from the first sealed part')
+    check('a folded session seals its opening turns and transcriptHeadFacts still reads the opening words from the first part', sealed.before > 0 && folded.assistantTurns >= 2 && folded.description.includes('initial architecture brief for mint') && !folded.description.includes('later follow-up after compaction'), JSON.stringify({ before: sealed.before, folded }), 'fix transcriptHeadFacts in src/screen/concourse-model/sessionTitleMint.ts so it reads the opening words from the first sealed part')
   }
 }
 

@@ -1,9 +1,9 @@
 import { check, finish, section } from './computerProofKit.ts'
 import { resultOf, toolContext } from './computerToolKit.ts'
-import type { DesktopTree } from '../../src/services/desktop/driver.ts'
+import type { DesktopTree } from '../../src/integrations/desktop/driver.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver } = await import('../../src/services/desktop/resolveDriver.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver } = await import('../../src/integrations/desktop/resolveDriver.ts')
 const resolved = resolveDesktopDriver()
 if (resolved.state !== 'ok') throw new Error(resolved.note)
 const driver = resolved.driver

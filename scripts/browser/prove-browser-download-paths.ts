@@ -192,7 +192,7 @@ section('S2 links in the destination, dangling link ids, EXDEV copy fallback, an
     )
   }
 
-  const transfersMod = (await import(join(ROOT, 'src/services/browser/browserTransfers.ts'))) as typeof import('../../src/services/browser/browserTransfers.js')
+  const transfersMod = (await import(join(ROOT, 'src/integrations/browser/browserTransfers.ts'))) as typeof import('../../src/integrations/browser/browserTransfers.js')
   const scratchTransferHome = fs.mkdtempSync(join(tmpdir(), 'mercury-dl-unit-'))
   fs.mkdirSync(join(scratchTransferHome, 'incoming'), { recursive: true })
   const origRename = fs.promises.rename

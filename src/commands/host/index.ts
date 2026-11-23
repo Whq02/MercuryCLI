@@ -1,10 +1,10 @@
 import { parseArgs } from 'node:util'
-import { registerBoxServer, stopBoxTunnel } from '../../services/host/boxRegistration.js'
-import { discoverBox, listBoxes, readBox, type HostBox } from '../../services/host/boxes.js'
-import { BOX_RECIPES, boxFitWords, boxWeightsWords, fitsBox } from '../../services/host/boxRecipes.js'
-import { boxEngineLogs, boxEngineStatus, restartBoxEngine, startBoxEngine, stopBoxEngine } from '../../services/host/boxEngine.js'
-import { boxServiceLifetimeWords } from '../../services/host/boxService.js'
-import { hostRunner, localKeyPath, type HostRunner } from '../../services/host/ssh.js'
+import { registerBoxServer, stopBoxTunnel } from '../../models/hosting/boxRegistration.js'
+import { discoverBox, listBoxes, readBox, type HostBox } from '../../models/hosting/boxes.js'
+import { BOX_RECIPES, boxFitWords, boxWeightsWords, fitsBox } from '../../models/hosting/boxRecipes.js'
+import { boxEngineLogs, boxEngineStatus, restartBoxEngine, startBoxEngine, stopBoxEngine } from '../../models/hosting/boxEngine.js'
+import { boxServiceLifetimeWords } from '../../models/hosting/boxService.js'
+import { hostRunner, localKeyPath, type HostRunner } from '../../models/hosting/ssh.js'
 
 export const HOST_HELP = 'Usage: mercury host start <box|this-computer> <recipe> (--bank <folder> | --download <folder>) [--yes]\n       mercury host add <name> --ssh <host> --os darwin|linux|windows [--user <user>] [--port <port>] [--key <path>]\n       mercury host status [box]\n       mercury host stop|restart|logs|uninstall <box>\n       mercury host recipes [box]\n\nBank paths belong to the selected computer. Without --yes, start prints the size and destination only. Uninstall removes the service, never weights. A service runs while you are logged in on that computer and returns at login after a reboot; on Linux, loginctl enable-linger keeps it running without a login.\n'
 export async function hostCommand(args: string[], options: { runner?: HostRunner; signal?: AbortSignal; print?: (text: string) => void } = {}): Promise<number> {

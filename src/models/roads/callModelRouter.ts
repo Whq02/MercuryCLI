@@ -1,0 +1,221 @@
+import { queryModelWithStreaming } from './anthropic/index.js'
+import type { CallModelParams, CallModelStream } from './callModelContract.js'
+import { API_ERROR_MESSAGE_PREFIX } from '../../engine/requests/apiErrorRows.js'
+import { APIUserAbortError } from '../../engine/request-parts/sdkErrors.js'
+import type { AssistantMessage } from '../../engine/message-shapes/message.js'
+import { createAssistantAPIErrorMessage } from '../../engine/messages/messages.js'
+import { openaiCallModel } from './openai/openaiCallModel.js'
+import { zaiCallModel } from './zai/zaiCallModel.js'
+import { moonshotCallModel } from './moonshot/moonshotCallModel.js'
+import { deepseekCallModel } from './deepseek/deepseekCallModel.js'
+import { xaiCallModel } from './xai/xaiCallModel.js'
+import { metaCallModel } from './meta/metaCallModel.js'
+import { compatCallModel } from './openaicompat/compatCallModel.js'
+import { classifyModelRoute } from './routeLaw.js'
+import { LIVE_LIST_FAMILIES, type ModelRouteVerdict } from './idSpaces.js'
+import { readCatalogueIfPending } from './catalogueOnDemand.js'
+import { openrouterCallModel } from './openrouter/openrouterCallModel.js'
+import { geminiCallModel } from './gemini/geminiCallModel.js'
+import { huggingfaceCallModel } from './huggingface/huggingfaceCallModel.js'
+import { localCallModel } from './local/localCallModel.js'
+import { mistralCallModel } from './mistral/mistralCallModel.js'
+import { nousCallModel } from './nous/nousCallModel.js'
+import { zenCallModel } from './zen/zenCallModel.js'
+import { minimaxCallModel } from './minimax/minimaxCallModel.js'
+import { togetherCallModel } from './together/togetherCallModel.js'
+import { cohereCallModel } from './cohere/cohereCallModel.js'
+import { groqCallModel } from './groq/groqCallModel.js'
+import { meliousCallModel } from './melious/meliousCallModel.js'
+import { orcarouterCallModel } from './orcarouter/orcarouterCallModel.js'
+import { cerebrasCallModel } from './cerebras/cerebrasCallModel.js'
+import { fireworksCallModel } from './fireworks/fireworksCallModel.js'
+import { qwenCallModel } from './qwen/qwenCallModel.js'
+import { homeLaneAdmissionRefusal } from './homeLaneAdmission.js'
+import { anthropicCatalogueRefusal } from './catalogueAdmission.js'
+import { readStoredImageRefsForRequest } from '../../platform/images/imageStore.js'
+import { withBackupVote } from '../../engine/requests/backupEngines.js'
+import { CHOOSE_A_MODEL_DOOR, isChooseAModel } from '../catalogue/computedDefault.js'
+import { rosterRefusal } from '../catalogue/modelAllowlist.js'
+
+export {
+  classifyModelRoute,
+  declaredRouteOf,
+  laneLabelForVerdict,
+  qualifiedWireId,
+  COMPAT_MODEL_PREFIX,
+  isCompatModelId,
+  stripCompatModelPrefix,
+  PROVIDER_ID_SPACES,
+  type CallModelRoute,
+  type ModelRouteVerdict,
+  type ProviderIdSpace,
+} from './routeLaw.js'
+
+export function settleAssistantTurn(
+  settled: readonly AssistantMessage[],
+  aborted: boolean,
+): AssistantMessage {
+  const content = settled.filter(m => !m.isApiErrorMessage)
+  const pool = content.length > 0 ? content : settled
+  const last = pool.at(-1)
+  if (!last) {
+    if (aborted) throw new APIUserAbortError()
+    throw new Error('No assistant message found')
+  }
+  if (pool.length === 1) return last
+  return {
+    ...last,
+    message: {
+      ...last.message,
+      content: pool.flatMap(m => m.message.content),
+    },
+  }
+}
+
+export async function routedCallModelSettled(params: CallModelParams): Promise<AssistantMessage> {
+  const settled: AssistantMessage[] = []
+  for await (const message of routedCallModel(params)) {
+    if (message.type === 'assistant') settled.push(message as AssistantMessage)
+  }
+  return settleAssistantTurn(settled, params.signal.aborted)
+}
+
+async function* homeLaneCall(params: CallModelParams): CallModelStream {
+  const refusal =
+    homeLaneAdmissionRefusal(params.options.model) ??
+    (await anthropicCatalogueRefusal(params.options.model, { signal: params.signal }))
+  if (params.signal.aborted) return
+  if (refusal !== null) {
+    yield createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${refusal}`,
+      error: 'invalid_request',
+      failover: 'unknown-model',
+    })
+    return
+  }
+  yield* queryModelWithStreaming(params)
+}
+
+async function classifyAfterLiveLists(model: string): Promise<ModelRouteVerdict> {
+  const verdict = classifyModelRoute(model)
+  if (verdict.kind !== 'unrecognised' || verdict.carrierShaped) return verdict
+  await Promise.all(LIVE_LIST_FAMILIES.map(family => readCatalogueIfPending(family)))
+  return classifyModelRoute(model)
+}
+
+function rosterRefusalOf(model: string): string | null {
+  return classifyModelRoute(model).kind === 'absence' ? null : rosterRefusal(model)
+}
+
+export async function modelRefusalBeforeAnyRequest(model: string): Promise<string | null> {
+  if (isChooseAModel(model)) return null
+  const outside = rosterRefusalOf(model)
+  if (outside !== null) return outside
+  const verdict = await classifyAfterLiveLists(model)
+  if (verdict.kind === 'absence') return null
+  if (verdict.kind === 'unrecognised' || verdict.route === 'anthropic') return homeLaneAdmissionRefusal(model)
+  return null
+}
+
+export async function* routedCallModel(params: CallModelParams): CallModelStream {
+  yield* withBackupVote(dispatchRoute(params), params.options)
+}
+
+async function* dispatchRoute(params: CallModelParams): CallModelStream {
+  if (isChooseAModel(params.options.model)) {
+    yield createAssistantAPIErrorMessage({ content: CHOOSE_A_MODEL_DOOR, error: 'authentication_failed' })
+    return
+  }
+  const outside = rosterRefusalOf(params.options.model)
+  if (outside !== null) {
+    yield createAssistantAPIErrorMessage({ content: `${API_ERROR_MESSAGE_PREFIX}: ${outside}`, error: 'invalid_request' })
+    return
+  }
+  const verdict = await classifyAfterLiveLists(params.options.model)
+  if (verdict.kind === 'absence') {
+    yield createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: no model id rides this call — the session's model resolves upstream (/model names one; the built-in default otherwise), and this dispatch was handed none.`,
+      error: 'invalid_request',
+    })
+    return
+  }
+  const request = { ...params, messages: await readStoredImageRefsForRequest(params.messages) }
+  if (verdict.kind === 'unrecognised') {
+    yield* homeLaneCall(request)
+    return
+  }
+  switch (verdict.route) {
+    case 'zai':
+      yield* zaiCallModel(request)
+      return
+    case 'openai':
+      yield* openaiCallModel(request)
+      return
+    case 'moonshot':
+      yield* moonshotCallModel(request)
+      return
+    case 'deepseek':
+      yield* deepseekCallModel(request)
+      return
+    case 'xai':
+      yield* xaiCallModel(request)
+      return
+    case 'meta':
+      yield* metaCallModel(request)
+      return
+    case 'openai-compat':
+      yield* compatCallModel(request)
+      return
+    case 'openrouter':
+      yield* openrouterCallModel(request)
+      return
+    case 'gemini':
+      yield* geminiCallModel(request)
+      return
+    case 'huggingface':
+      yield* huggingfaceCallModel(request)
+      return
+    case 'local':
+      yield* localCallModel(request)
+      return
+    case 'anthropic':
+      yield* homeLaneCall(request)
+      return
+    case 'mistral':
+      yield* mistralCallModel(request)
+      return
+    case 'nous':
+      yield* nousCallModel(request)
+      return
+    case 'zen':
+      yield* zenCallModel(request)
+      return
+    case 'minimax':
+      yield* minimaxCallModel(request)
+      return
+    case 'together':
+      yield* togetherCallModel(request)
+      return
+    case 'cohere':
+      yield* cohereCallModel(request)
+      return
+    case 'groq':
+      yield* groqCallModel(request)
+      return
+    case 'melious':
+      yield* meliousCallModel(request)
+      return
+    case 'orcarouter':
+      yield* orcarouterCallModel(request)
+      return
+    case 'cerebras':
+      yield* cerebrasCallModel(request)
+      return
+    case 'fireworks':
+      yield* fireworksCallModel(request)
+      return
+    case 'qwen':
+      yield* qwenCallModel(request)
+      return
+  }
+}

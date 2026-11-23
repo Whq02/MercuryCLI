@@ -8,8 +8,8 @@ import { join } from 'node:path'
 const configHome = mkdtempSync(join(tmpdir(), 'ide-terminal-description-config-'))
 process.env.MERCURY_CONFIG_DIR = configHome
 
-const bridge = await import('../../src/services/acp/ideToolBridge.ts')
-const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
+const bridge = await import('../../src/integrations/acp/ideToolBridge.ts')
+const { getSimplePrompt } = await import('../../src/tools/shell/prompt.ts')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -31,7 +31,7 @@ const doorWith = (caps: { readTextFile: boolean; writeTextFile: boolean; termina
   terminalRelease: async () => ({}),
 })
 
-const PROMPT_HINT = 'fix getSimplePrompt in src/tools/BashTool/prompt.ts (the Editor terminal paragraph appears only when ideTerminalAvailable in src/services/acp/ideToolBridge.ts says the editor offers a terminal)'
+const PROMPT_HINT = 'fix getSimplePrompt in src/tools/shell/prompt.ts (the Editor terminal paragraph appears only when ideTerminalAvailable in src/integrations/acp/ideToolBridge.ts says the editor offers a terminal)'
 const PARAGRAPH = /\n\nEditor terminal: [^\n]*/
 
 try {

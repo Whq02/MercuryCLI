@@ -21,7 +21,7 @@ if (!existsSync(DIST) || nodeBin === null) {
 const scratch = mkdtempSync(join(tmpdir(), 'withdrawn-call-'))
 let failures = 0
 let checks = 0
-const withdrawnCallHint = 'a reply the turn withdraws must answer every call it had announced; for the rows checks (sections A and B) look at how tool_result and retracted rows are projected in src/rows/project.ts, for the editor checks (section C) at the ACP tool_call updates the editor receives. '
+const withdrawnCallHint = 'a reply the turn withdraws must answer every call it had announced; for the rows checks (sections A and B) look at how tool_result and retracted rows are projected in src/engine/rows/project.ts, for the editor checks (section C) at the ACP tool_call updates the editor receives. '
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++

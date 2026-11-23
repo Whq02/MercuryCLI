@@ -51,7 +51,7 @@ interface ProverContext {
 }
 
 export async function makeContext(tools: unknown[], opts: ProverContextOptions = {}): Promise<ProverContext> {
-  const { getEmptyToolPermissionContext } = await import(join(REPO, 'src/Tool.ts'))
+  const { getEmptyToolPermissionContext } = await import(join(REPO, 'src/tools/kit/tool.ts'))
   const toolPermissionContext = {
     ...getEmptyToolPermissionContext(),
     mode: (opts.mode ?? 'default') as never,
@@ -100,8 +100,8 @@ export async function drive(
   prover: ProverContext,
   opts: { answer?: 'allow' | 'deny'; messageId?: string } = {},
 ): Promise<DriveResult> {
-  const { runToolUse } = await import(join(REPO, 'src/services/tools/toolExecution.ts'))
-  const { hasPermissionsToUseTool } = await import(join(REPO, 'src/utils/permissions/permissions.ts'))
+  const { runToolUse } = await import(join(REPO, 'src/engine/tool-dispatch/toolExecution.ts'))
+  const { hasPermissionsToUseTool } = await import(join(REPO, 'src/permissions/rules/permissionDoor.ts'))
   const asks: DriveResult['asks'] = []
   const canUseTool = async (t: never, inp: never, c: never, msg: never, id: string): Promise<unknown> => {
     const decision = await hasPermissionsToUseTool(t, inp, c, msg, id)
@@ -140,8 +140,8 @@ export async function drive(
 }
 
 export async function enterRoot(root: string): Promise<void> {
-  const state = await import(join(REPO, 'src/bootstrap/state.ts'))
-  const config = await import(join(REPO, 'src/utils/config/globalConfig.ts'))
+  const state = await import(join(REPO, 'src/boot/process-state/processState.ts'))
+  const config = await import(join(REPO, 'src/platform/config/globalConfig.ts'))
   process.chdir(root)
   state.setOriginalCwd(root)
   state.setCwdState(root)

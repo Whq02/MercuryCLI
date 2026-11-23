@@ -14,8 +14,8 @@ writeCommand('setsid', '#!/usr/bin/env python3\nimport os,sys\nos.setsid()\nos.e
 writeCommand('tmux', '#!/usr/bin/env python3\nimport subprocess,sys\nif sys.argv[1] == "has-session": sys.exit(1)\nsubprocess.Popen(["bash","-c",sys.argv[-1]],start_new_session=True,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n')
 writeCommand('hf', '#!/bin/bash\necho fixture-downloaded\n')
 writeCommand('sglang', '#!/usr/bin/env python3\nimport os,time\nopen(os.environ["FIXTURE_ENGINE_PID"],"w").write(str(os.getpid()))\nprint("fixture-engine-ready",flush=True)\ntime.sleep(120)\n')
-const { startHostEngine } = await import('../../src/services/host/ssh.ts')
-const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+const { startHostEngine } = await import('../../src/models/hosting/ssh.ts')
+const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
 const env = { ...process.env, PATH: bin + ':' + process.env.PATH, FIXTURE_ENGINE_PID: join(scratch, 'engine.pid') }
 const remoteDir = join(scratch, 'workspace/fixture-launch')
 const commands: string[] = []

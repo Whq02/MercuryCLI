@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, statSync } 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
-import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/models/facts/builtInModelTable.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
@@ -33,9 +33,9 @@ const failHint = (ok: boolean, base: string, hint: string): string => (ok ? base
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 const DISPATCH_DEADLINE_MS = 20_000
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 
 const countingTurn = (n: number) => ({
   kind: 'paced_tool_use' as const,
@@ -161,7 +161,7 @@ const run = await runArtifactArena({
       modelKey: DEFAULT_OPUS,
       effort: 'xhigh',
     } as never, { timeoutMs: DISPATCH_DEADLINE_MS })) as { ok?: boolean; sessionId?: string }
-    check('alpha dispatched', a.ok === true, failHint(a.ok === true, JSON.stringify(a), 'the daemon refused concourseDispatch; read its handler in src/daemon/controlServer.ts and the refusal above'))
+    check('alpha dispatched', a.ok === true, failHint(a.ok === true, JSON.stringify(a), 'the daemon refused concourseDispatch; read its handler in src/daemon/control/controlServer.ts and the refusal above'))
     if (a.ok !== true) bail('alpha refused — the crash pair never staged')
     alphaId = a.sessionId ?? ''
     const alphaTranscript = join(paths.getProjectDir(work), `${alphaId}.jsonl`)
@@ -176,7 +176,7 @@ const run = await runArtifactArena({
       modelKey: DEFAULT_OPUS,
       effort: 'xhigh',
     } as never, { timeoutMs: DISPATCH_DEADLINE_MS })) as { ok?: boolean; sessionId?: string }
-    check('beta dispatched (defaulted → the worktree fork)', b.ok === true, failHint(b.ok === true, JSON.stringify(b), 'the daemon refused the second concourseDispatch; read its handler in src/daemon/controlServer.ts and the refusal above'))
+    check('beta dispatched (defaulted → the worktree fork)', b.ok === true, failHint(b.ok === true, JSON.stringify(b), 'the daemon refused the second concourseDispatch; read its handler in src/daemon/control/controlServer.ts and the refusal above'))
     if (b.ok !== true) bail('beta refused — the crash pair never staged')
     betaId = b.sessionId ?? ''
   },
@@ -201,20 +201,20 @@ await killLeg
   }
   const text = (g: { rows: string[] }): string => g.rows.join('\n')
   const late = grabs.filter(g => g.atMs >= 20000 && text(g).includes('SESSIONS'))
-  check('the board painted after the kill', late.length >= 2, failHint(late.length >= 2, `frames: ${late.map(g => g.atMs).join(',')}`, 'the Concourse screen showed no SESSIONS frame after 20s; set MERCURY_CRASHVIS_CAPTURE_DIR to keep the frames and read the screen under src/components/concourse'))
+  check('the board painted after the kill', late.length >= 2, failHint(late.length >= 2, `frames: ${late.map(g => g.atMs).join(',')}`, 'the Concourse screen showed no SESSIONS frame after 20s; set MERCURY_CRASHVIS_CAPTURE_DIR to keep the frames and read the screen under src/screen/concourse'))
   const bothRows = (g: { rows: string[] }): boolean => text(g).includes('Alpha count') && text(g).includes('Beta count')
-  check('NO VANISH — both rows stand in every post-kill frame (poison: the silent removal)', late.every(bothRows), failHint(late.every(bothRows), late.map(g => `${g.atMs}:${bothRows(g)}`).join(' '), 'a crashed row left the board; buildConcourseSnapshot in src/services/concourse/concourseSnapshot.ts must keep crashed rows until release'))
+  check('NO VANISH — both rows stand in every post-kill frame (poison: the silent removal)', late.every(bothRows), failHint(late.every(bothRows), late.map(g => `${g.atMs}:${bothRows(g)}`).join(' '), 'a crashed row left the board; buildConcourseSnapshot in src/screen/concourse-model/concourseSnapshot.ts must keep crashed rows until release'))
   const needsYou = late.filter(g => /NEEDS YOU · 2/.test(text(g)) && ['Alpha count', 'Beta count'].every(title => g.rows.some(row => row.includes(title) && /headless · crash/.test(row))))
-  const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+  const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const crashRecords = Object.values(readSessionWorkers(daemonDir)).filter(row => row.sessionId === alphaId || row.sessionId === betaId)
   check('both persisted rows carry the complete mid-run crash reason', crashRecords.length === 2 && crashRecords.every(row => /crashed mid-run/.test(row.crash?.reason ?? '')), failHint(crashRecords.length === 2 && crashRecords.every(row => /crashed mid-run/.test(row.crash?.reason ?? '')), JSON.stringify(crashRecords.map(row => row.crash)), 'the daemon must stamp a crashed mid-run reason on each worker record when its worker dies; see stampCrash in src/daemon/roster/life.ts'))
-  check('the pair stands under NEEDS YOU · 2 and each row says why in its own cell (the kind, then the head of the crash reason: headless · crashe…)', needsYou.length >= 1, failHint(needsYou.length >= 1, `frames: ${needsYou.map(g => g.atMs).join(',') || 'none'}`, 'no post-kill frame showed NEEDS YOU · 2 with headless · crash on both rows; the board must group crashed rows under NEEDS YOU and use the crash reason as the row label (src/services/concourse/concourseSnapshot.ts)'))
+  check('the pair stands under NEEDS YOU · 2 and each row says why in its own cell (the kind, then the head of the crash reason: headless · crashe…)', needsYou.length >= 1, failHint(needsYou.length >= 1, `frames: ${needsYou.map(g => g.atMs).join(',') || 'none'}`, 'no post-kill frame showed NEEDS YOU · 2 with headless · crash on both rows; the board must group crashed rows under NEEDS YOU and use the crash reason as the row label (src/screen/concourse-model/concourseSnapshot.ts)'))
   const reviewLie = late.filter(g => {
     const alphaRow = g.rows.find(r => r.includes('Alpha count')) ?? ''
     const betaRow = g.rows.find(r => r.includes('Beta count')) ?? ''
     return /READY TO REVIEW/.test(text(g)) && /●/.test(alphaRow) && /●/.test(betaRow) && !/NEEDS YOU/.test(text(g))
   })
-  check('…never the READY TO REVIEW masquerade (poison: the pre-fix settled-stamp lie)', reviewLie.length === 0, failHint(reviewLie.length === 0, reviewLie.map(g => String(g.atMs)).join(','), 'frames at these times showed READY TO REVIEW for crashed rows; a record with a crash must map to needs-you, not ready-to-review (src/services/concourse/concourseSnapshot.ts)'))
+  check('…never the READY TO REVIEW masquerade (poison: the pre-fix settled-stamp lie)', reviewLie.length === 0, failHint(reviewLie.length === 0, reviewLie.map(g => String(g.atMs)).join(','), 'frames at these times showed READY TO REVIEW for crashed rows; a record with a crash must map to needs-you, not ready-to-review (src/screen/concourse-model/concourseSnapshot.ts)'))
 }
 
 console.log('leg B — reboot reconcile keeps the rows as NEEDS YOU; only release removes')
@@ -239,7 +239,7 @@ seedFirstRun(home2, [work, workB])
 spawnDaemon(home2)
 const daemon2Served = await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000)
 check('daemon2 serves (the reboot)', daemon2Served, failHint(daemon2Served, '', 'the second daemon never answered ping on the same daemon dir; read daemon.log in the scratch folder'))
-const sup = await import('../../src/daemon/concourseWorkers.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 const reconcileKept = await untilAsync(() => {
   const recs = Object.values(sup.readSessionWorkers(daemonDir)).filter(r => r.sessionId === alphaId || r.sessionId === betaId)
   return recs.length === 2 && recs.every(r => r.crash !== undefined && r.endedAt === undefined)
@@ -250,25 +250,25 @@ check(
   failHint(
     reconcileKept,
     JSON.stringify(Object.values(sup.readSessionWorkers(daemonDir)).map(r => ({ w: r.runnerId, crash: r.crash?.reason, endedAt: r.endedAt }))),
-    'the daemon boot reconcile (reconcileConcourseWorkers in src/daemon/concourseWorkers/settle.ts) must keep crash and leave endedAt unset on both records',
+    'the daemon boot reconcile (reconcileConcourseWorkers in src/daemon/concourse-workers/settle.ts) must keep crash and leave endedAt unset on both records',
   ),
 )
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const snapshot = await import('../../src/services/concourse/concourseSnapshot.ts')
-const { projectIdentity } = await import('../../src/utils/bootCardFacts.ts')
+const snapshot = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
+const { projectIdentity } = await import('../../src/screen/boot-face/bootCardFacts.ts')
 const snap = await snapshot.buildConcourseSnapshot({ recordsDir: daemonDir, project: projectIdentity(work) })
 const boardRows = snap.groups.flatMap((g: { rows: Array<{ sessionId: string; state: string; nowLabel: string | null }> }) => g.rows)
 const crashedRows = boardRows.filter(r => r.sessionId === alphaId || r.sessionId === betaId)
-check('the reboot board carries BOTH sessions', crashedRows.length === 2, failHint(crashedRows.length === 2, JSON.stringify(boardRows.map(r => r.sessionId)), 'buildConcourseSnapshot in src/services/concourse/concourseSnapshot.ts dropped a crashed session after the reboot'))
+check('the reboot board carries BOTH sessions', crashedRows.length === 2, failHint(crashedRows.length === 2, JSON.stringify(boardRows.map(r => r.sessionId)), 'buildConcourseSnapshot in src/screen/concourse-model/concourseSnapshot.ts dropped a crashed session after the reboot'))
 check(
   'both paint NEEDS YOU with a crash reason line',
   crashedRows.every(r => r.state === 'needs-you' && /crashed/.test(r.nowLabel ?? '')),
-  failHint(crashedRows.every(r => r.state === 'needs-you' && /crashed/.test(r.nowLabel ?? '')), JSON.stringify(crashedRows.map(r => ({ state: r.state, now: r.nowLabel }))), 'a crashed row must be needs-you with the crash reason as its label (src/services/concourse/concourseSnapshot.ts)'),
+  failHint(crashedRows.every(r => r.state === 'needs-you' && /crashed/.test(r.nowLabel ?? '')), JSON.stringify(crashedRows.map(r => ({ state: r.state, now: r.nowLabel }))), 'a crashed row must be needs-you with the crash reason as its label (src/screen/concourse-model/concourseSnapshot.ts)'),
 )
 const victimWorker = Object.values(sup.readSessionWorkers(daemonDir)).find(r => r.sessionId === alphaId)
 const releaseSettled = victimWorker !== undefined && sup.settleConcourseWorker(victimWorker.runnerId, daemonDir) === true
-check('release (the operator\'s x x) settles the row', releaseSettled, failHint(releaseSettled, '', victimWorker === undefined ? 'no worker record for alpha survived the reboot; see the boot reconcile check above' : 'settleConcourseWorker in src/daemon/concourseWorkers/settle.ts returned false for alpha'))
+check('release (the operator\'s x x) settles the row', releaseSettled, failHint(releaseSettled, '', victimWorker === undefined ? 'no worker record for alpha survived the reboot; see the boot reconcile check above' : 'settleConcourseWorker in src/daemon/concourse-workers/settle.ts returned false for alpha'))
 const snap2 = await snapshot.buildConcourseSnapshot({ recordsDir: daemonDir, project: projectIdentity(work) })
 const after = snap2.groups.flatMap((g: { rows: Array<{ sessionId: string; state: string }> }) => g.rows)
 const alphaAfter = after.filter(r => r.sessionId === alphaId)
@@ -276,7 +276,7 @@ const betaAfter = after.filter(r => r.sessionId === betaId)
 check(
   '…and only then does alpha\'s crash claim clear (row may park, never NEEDS YOU) — beta stays crashed',
   alphaAfter.every(r => r.state !== 'needs-you') && betaAfter.length >= 1 && betaAfter.every(r => r.state === 'needs-you'),
-  failHint(alphaAfter.every(r => r.state !== 'needs-you') && betaAfter.length >= 1 && betaAfter.every(r => r.state === 'needs-you'), JSON.stringify(after.map(r => ({ id: r.sessionId.slice(0, 8), state: r.state }))), 'releasing alpha must clear only its own crash claim and leave beta as needs-you; see settleConcourseWorker in src/daemon/concourseWorkers/settle.ts and the state mapping in src/services/concourse/concourseSnapshot.ts'),
+  failHint(alphaAfter.every(r => r.state !== 'needs-you') && betaAfter.length >= 1 && betaAfter.every(r => r.state === 'needs-you'), JSON.stringify(after.map(r => ({ id: r.sessionId.slice(0, 8), state: r.state }))), 'releasing alpha must clear only its own crash claim and leave beta as needs-you; see settleConcourseWorker in src/daemon/concourse-workers/settle.ts and the state mapping in src/screen/concourse-model/concourseSnapshot.ts'),
 )
 
 try {

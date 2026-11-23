@@ -26,17 +26,17 @@ const text = (words: string): WireBlock[] => [{ type: 'text', text: words }]
 async function endings(): Promise<void> {
   const source = join(dirname(DIST), '..', 'src')
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const boot = await import(join(source, 'bootstrap/state.ts'))
+  const boot = await import(join(source, 'boot/process-state/processState.ts'))
   boot.setOriginalCwd(root); boot.setCwdState(root); boot.setProjectRoot(root)
-  const { enableConfigs } = await import(join(source, 'utils/config/globalConfig.ts'))
+  const { enableConfigs } = await import(join(source, 'platform/config/globalConfig.ts'))
   enableConfigs()
-  const { getDefaultAppState } = await import(join(source, 'state/AppStateStore.ts'))
-  const { getCommandQueue, resetCommandQueue } = await import(join(source, 'input-core/command-queue.ts'))
-  const { registerAsyncAgent } = await import(join(source, 'tasks/LocalAgentTask/LocalAgentTask.tsx'))
-  const { createAssistantMessage } = await import(join(source, 'utils/messages/factories.ts'))
-  const { AbortError } = await import(join(source, 'utils/errors.ts'))
-  const lifecycle = await import(join(source, 'tools/AgentTool/agentToolUtils.ts'))
-  const { resumeAgentBackground } = await import(join(source, 'tools/AgentTool/resumeAgent.ts'))
+  const { getDefaultAppState } = await import(join(source, 'screen/app-state/AppStateStore.ts'))
+  const { getCommandQueue, resetCommandQueue } = await import(join(source, 'screen/composer/input-core/command-queue.ts'))
+  const { registerAsyncAgent } = await import(join(source, 'engine/tasks/local-agent/crewmateTask.tsx'))
+  const { createAssistantMessage } = await import(join(source, 'engine/message-shapes/factories.ts'))
+  const { AbortError } = await import(join(source, 'platform/errors/errors.ts'))
+  const lifecycle = await import(join(source, 'tools/crewmate/crewmateLifecycle.ts'))
+  const { resumeAgentBackground } = await import(join(source, 'tools/crewmate/resumeCrewmate.ts'))
   type AppState = ReturnType<typeof getDefaultAppState>
   const owed = (): boolean => lifecycle.crewmateNoticeOwed?.() === true
   const notes = (): string[] => getCommandQueue().filter((command: { mode: string }) => command.mode === 'task-notification').map((command: { value: unknown }) => String(command.value))

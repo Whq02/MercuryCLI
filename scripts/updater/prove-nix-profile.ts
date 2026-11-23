@@ -14,22 +14,22 @@ if (process.argv[2] === '--children') {
   const at = (path: string): string => pathToFileURL(join(source!, path)).href
   const real = (path: string | null): string | null => { try { return path === null ? null : realpathSync(path) } catch { return path } }
   process.argv[1] = invoked!
-  const running = await import(at('src/daemon/daemonBuild.ts'))
+  const running = await import(at('src/daemon/control/daemonBuild.ts'))
   const registered = running.invokedScriptPath?.() ?? null
   const own = running.selfScriptPath()
   rmSync(link!)
   symlinkSync(upgraded!, link!, 'dir')
-  const { getSelfInvocation } = await import(at('src/daemon/headlessRun.ts'))
+  const { getSelfInvocation } = await import(at('src/daemon/runner-link/headlessRun.ts'))
   const runner = getSelfInvocation().script
   let hostJob: string | null = null
-  const services = await import(at('src/services/projectServices/serviceManager.ts'))
-  mock.module(resolve(source!, 'src/services/projectServices/serviceManager.ts'), () => ({ ...services, startService: async (ask: { spec: { args: string[] } }) => { hostJob = ask.spec.args[0] ?? null; return {} } }))
-  const { sweepHostJobs } = await import(at('src/services/host/jobs.ts'))
+  const services = await import(at('src/tools/engines/project-services/serviceManager.ts'))
+  mock.module(resolve(source!, 'src/tools/engines/project-services/serviceManager.ts'), () => ({ ...services, startService: async (ask: { spec: { args: string[] } }) => { hostJob = ask.spec.args[0] ?? null; return {} } }))
+  const { sweepHostJobs } = await import(at('src/models/hosting/jobs.ts'))
   await sweepHostJobs({ records: [{ id: 'proof-watch', name: 'proof', recipe: 'proof', price: 0, startedAt: '2026-01-01T00:00:00.000Z', status: 'queued', jobKind: 'watch', jobState: 'queued', generation: 'g1' }], alive: () => false })
   let childSession: string | null = null
   const processes = { ...childProcess }
   mock.module('node:child_process', () => ({ ...processes, default: processes, spawn: (_command: string, argv: string[]) => { childSession = argv[0] ?? null; return Object.assign(new EventEmitter(), { stdin: new PassThrough(), stdout: new PassThrough(), kill: () => true, pid: 0 }) } }))
-  const { MercuryChildSession } = await import(at('src/services/acp/childSession.ts'))
+  const { MercuryChildSession } = await import(at('src/integrations/acp/childSession.ts'))
   new MercuryChildSession({ cwd: process.cwd() }, { onExit: () => {}, onTurnEnd: () => {}, onPermissionAsk: () => { throw new Error('the proof child is never asked') } })
   console.log(`CHILDREN ${JSON.stringify({ registered, own, runner: real(runner), hostJob: real(hostJob), childSession: real(childSession) })}`)
   process.exit(0)
@@ -50,7 +50,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  const nixHint = 'fix classifyInstallProvenance in src/services/privateChannel/installProvenance.ts, ownCommandWord in src/services/privateChannel/installPath.ts, invokedScriptPath in src/daemon/daemonBuild.ts, or decideHandshake in src/daemon/handshake.ts'
+  const nixHint = 'fix classifyInstallProvenance in src/platform/update-channel/installProvenance.ts, ownCommandWord in src/platform/update-channel/installPath.ts, invokedScriptPath in src/daemon/control/daemonBuild.ts, or decideHandshake in src/daemon/control/handshake.ts'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${nixHint}` : ''}`)
 }
 function makeOutput(name: string, tree: string): string {
@@ -76,7 +76,7 @@ try {
   const calls: string[] = []
   const observed = Object.fromEntries((['existsSync', 'readFileSync', 'realpathSync'] as const).map(name => [name, (...args: any[]) => { calls.push(name); return (original[name] as any)(...args) }]))
   mock.module('node:fs', () => ({ ...original, ...observed }))
-  const provenance = await import(pathToFileURL(join(root, 'src/services/privateChannel/installProvenance.ts')).href)
+  const provenance = await import(pathToFileURL(join(root, 'src/platform/update-channel/installProvenance.ts')).href)
   const fixtureVersions = join(scratch, 'versions')
   for (const [label, entry] of [['managed', join(fixtureVersions, '9.9.9/mercury.mjs')], ['homebrew', join(scratch, 'Cellar/mercury/9.9.9/libexec/mercury.mjs')]]) {
     mkdirSync(dirname(entry!), { recursive: true })
@@ -90,8 +90,8 @@ try {
     check(`${label}: Nix adds no filesystem operation to the baseline probe`, JSON.stringify(counted) === JSON.stringify(['realpathSync', 'realpathSync', 'existsSync', 'existsSync', 'existsSync', 'existsSync', 'existsSync', 'existsSync', 'existsSync', 'existsSync', 'existsSync', ...(label === 'homebrew' ? ['existsSync'] : [])]), JSON.stringify(counted))
   }
   mock.module('node:fs', () => original)
-  const build = await import(pathToFileURL(join(root, 'src/daemon/daemonBuild.ts')).href)
-  const path = await import(pathToFileURL(join(root, 'src/services/privateChannel/installPath.ts')).href)
+  const build = await import(pathToFileURL(join(root, 'src/daemon/control/daemonBuild.ts')).href)
+  const path = await import(pathToFileURL(join(root, 'src/platform/update-channel/installPath.ts')).href)
   const previousArg = process.argv[1]
   process.argv[1] = logical
   check('the daemon keeps the profile spelling it was invoked by', build.invokedScriptPath?.() === logical, String(build.invokedScriptPath?.()))
@@ -138,8 +138,8 @@ try {
       rmSync(profile)
       symlinkSync(second, profile, 'dir')
       check('upgrading the profile moves its target, not the registered spelling', realpathSync(logical) === join(second, 'libexec/mercury/mercury.mjs') && record?.script === logical)
-      const handshake = await import(pathToFileURL(join(root, 'src/daemon/handshake.ts')).href)
-      const { MERCURY_DAEMON_PROTO } = await import(pathToFileURL(join(root, 'src/daemon/protocol.ts')).href)
+      const handshake = await import(pathToFileURL(join(root, 'src/daemon/control/handshake.ts')).href)
+      const { MERCURY_DAEMON_PROTO } = await import(pathToFileURL(join(root, 'src/daemon/control/protocol.ts')).href)
       const decision = handshake.decideHandshake({ kind: 'hello', reply: { ok: true, op: 'hello', proto: MERCURY_DAEMON_PROTO, minProto: 1, ready: true, version: '9.9.9', buildTree: record?.buildTree, pid: record?.pid, startedAt: 1, ownerPid: null, foreground: false, live: 0, liveSessions: 0, warm: 0, restartArmed: false } }, { proto: MERCURY_DAEMON_PROTO, version: '9.9.9', buildTree: 'b'.repeat(12) })
       check('the running daemon stays identified as its old build after the profile upgrade', record?.buildTree === 'a'.repeat(12) && decision.state === 'rebuilt' && decision.heal === 'operator', JSON.stringify(decision))
     } finally {

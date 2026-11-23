@@ -12,8 +12,8 @@ const entry = join(outDir, 'entry.ts')
 writeFileSync(
   entry,
   [
-    `export * from '${join(repo, 'src/utils/proxy.ts')}'`,
-    `export { deepestErrorDetail, isStaleSocketCode, transportCutOf } from '${join(repo, 'src/utils/api/transportEvidence.ts')}'`,
+    `export * from '${join(repo, 'src/platform/network/proxy.ts')}'`,
+    `export { deepestErrorDetail, isStaleSocketCode, transportCutOf } from '${join(repo, 'src/engine/request-parts/transportEvidence.ts')}'`,
     '',
   ].join('\n'),
 )
@@ -67,5 +67,5 @@ const result = spawnSync(nodeBin, [join(repo, 'scripts/api/http2-lane.mjs'), bun
   env: { ...process.env },
 })
 rmSync(tlsDir, { recursive: true, force: true })
-if (result.status !== 0) console.error('❌ HTTP2 LANE — scripts/api/http2-lane.mjs exited non-zero: read its failing lines above; the code it exercises is bundled from src/utils/proxy.ts and src/utils/api/transportEvidence.ts, and the node binary printed on the first line must be the pinned version')
+if (result.status !== 0) console.error('❌ HTTP2 LANE — scripts/api/http2-lane.mjs exited non-zero: read its failing lines above; the code it exercises is bundled from src/platform/network/proxy.ts and src/engine/request-parts/transportEvidence.ts, and the node binary printed on the first line must be the pinned version')
 process.exit(result.status ?? 1)

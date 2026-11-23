@@ -30,7 +30,7 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const failHint = cond ? '' : ' | to fix: change the folder-as-project facts in src/utils/bootCardFacts.ts (currentProject, projectIdentity, workedInProjects, inProject, catalogFirstChat) or the estate stamp in src/utils/projectLocal/paths.ts (initializeProjectLocalEstate); the label names the law that broke'
+  const failHint = cond ? '' : ' | to fix: change the folder-as-project facts in src/screen/boot-face/bootCardFacts.ts (currentProject, projectIdentity, workedInProjects, inProject, catalogFirstChat) or the estate stamp in src/platform/project-local/paths.ts (initializeProjectLocalEstate); the label names the law that broke'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${failHint}`)
 }
 const read = (rel: string): string => readFileSync(rel, 'utf8')
@@ -54,10 +54,10 @@ function treeHash(root: string): string {
 }
 
 
-const facts = await import('../../src/utils/bootCardFacts.ts')
-const paths = await import('../../src/utils/projectLocal/paths.ts')
-const state = await import('../../src/bootstrap/state.ts')
-const portable = await import('../../src/utils/sessionStoragePortable.ts')
+const facts = await import('../../src/screen/boot-face/bootCardFacts.ts')
+const paths = await import('../../src/platform/project-local/paths.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const portable = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
 const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0))
 
 try {

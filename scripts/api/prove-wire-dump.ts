@@ -25,7 +25,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  const failHint = 'rows, scrubbing and stream reading are wrapFetchWithWireDump, scrubCredentials and createWireResponseReader in src/services/api/dumpPrompts.ts; the replay checks exercise readCapture, reportPairs and normalizeWireBody in scripts/api/wire-prefix-replay.ts; the section 2 checks run the built dist/mercury.mjs with MERCURY_WIRE_DUMP set'
+  const failHint = 'rows, scrubbing and stream reading are wrapFetchWithWireDump, scrubCredentials and createWireResponseReader in src/engine/requests/dumpPrompts.ts; the replay checks exercise readCapture, reportPairs and normalizeWireBody in scripts/api/wire-prefix-replay.ts; the section 2 checks run the built dist/mercury.mjs with MERCURY_WIRE_DUMP set'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${failHint}` : ''}`)
 }
 function section(t: string): void {
@@ -50,7 +50,7 @@ async function waitForRows(file: string, n: number): Promise<Row[]> {
 
 section('§1 the seam — the fetch wrapper records a row, scrubs, and never touches the stream')
 {
-  const { wrapFetchWithWireDump, wireDumpPath, scrubCredentials, createWireResponseReader } = await import('../../src/services/api/dumpPrompts.ts')
+  const { wrapFetchWithWireDump, wireDumpPath, scrubCredentials, createWireResponseReader } = await import('../../src/engine/requests/dumpPrompts.ts')
   const file = wireDumpPath(PURE_DIR)
   const sse = [
     `event: message_start\ndata: ${j({ type: 'message_start', message: { id: 'msg_1', type: 'message', role: 'assistant', model: 'claude-fable-5-1', content: [], stop_reason: null, input_transformations: [{ type: 'thinking_dropped', path: 'messages.1.content.0', reason: 'prefix_binding_mismatch' }], usage: { input_tokens: 25, cache_read_input_tokens: 4321, cache_creation_input_tokens: 10 } } })}\n\n`,

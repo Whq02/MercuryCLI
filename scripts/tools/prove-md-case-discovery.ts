@@ -16,7 +16,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.js')
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/boot/process-state/processState.js')
 trustTheProofFolder(true)
 const agentsDir = join(PROJ, '.mercury', 'agents')
 mkdirSync(agentsDir, { recursive: true })
@@ -27,11 +27,11 @@ writeFileSync(join(agentsDir, 'Upper.MD'), agentBody('upper'))
 
 section('§1 BOTH SPELLINGS DISCOVERED')
 {
-  const { loadMarkdownFilesForSubdir } = await import('../../src/utils/markdownConfigLoader.js')
+  const { loadMarkdownFilesForSubdir } = await import('../../src/platform/settings/markdownConfigLoader.js')
   const files = await loadMarkdownFilesForSubdir('agents', PROJ)
   const names = files.map(f => f.filePath.split('/').pop())
-  check('lower.md is discovered', names.includes('lower.md'), names.join(', ') + (names.includes('lower.md') ? '' : ' | fix: loadMarkdownFilesForSubdir in src/utils/markdownConfigLoader.ts must discover .md files'))
-  check('Upper.MD is discovered too', names.includes('Upper.MD'), names.join(', ') + (names.includes('Upper.MD') ? '' : ' | fix: loadMarkdownFilesForSubdir in src/utils/markdownConfigLoader.ts must match the .md extension case-insensitively (its directory walk lowercases the name before endsWith)'))
+  check('lower.md is discovered', names.includes('lower.md'), names.join(', ') + (names.includes('lower.md') ? '' : ' | fix: loadMarkdownFilesForSubdir in src/platform/settings/markdownConfigLoader.ts must discover .md files'))
+  check('Upper.MD is discovered too', names.includes('Upper.MD'), names.join(', ') + (names.includes('Upper.MD') ? '' : ' | fix: loadMarkdownFilesForSubdir in src/platform/settings/markdownConfigLoader.ts must match the .md extension case-insensitively (its directory walk lowercases the name before endsWith)'))
 }
 
 

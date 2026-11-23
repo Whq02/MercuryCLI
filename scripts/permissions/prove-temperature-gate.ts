@@ -1,8 +1,8 @@
-import { modelSupportsTemperature } from '../../src/utils/betas.ts'
+import { modelSupportsTemperature } from '../../src/models/roads/betas.ts'
 
 let failures = 0
 const check = (ok: boolean, label: string): void => {
-  const failHint = ' — the model id should give the opposite answer; change modelSupportsTemperature in src/utils/betas.ts'
+  const failHint = ' — the model id should give the opposite answer; change modelSupportsTemperature in src/models/roads/betas.ts'
   console.log(`${ok ? '✓' : '✗'} ${label}${ok ? '' : failHint}`)
   if (!ok) failures++
 }

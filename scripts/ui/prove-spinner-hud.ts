@@ -15,7 +15,7 @@ console.log('============================================================')
 console.log('\n  -- work-in-flight gauge --')
 {
   const { openStatusPart } = await import('./chatScenarios.ts')
-  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
   const status = await openStatusPart('spinner-hud-status', { keepHome: true })
   const counts: unknown[] = []
   for (const ids of [['toolu_1'], ['toolu_1', 'toolu_2', 'toolu_3'], []]) {
@@ -23,15 +23,15 @@ console.log('\n  -- work-in-flight gauge --')
     counts.push(status.handed.spinner?.activeToolCount)
   }
   await status.close()
-  check('Chat threads activeToolCount={viewInProgressToolUseIDs.size} to the spinner', counts.join() === '1,3,0', `read ${counts.join()}; make src/screens/chat/useChatStatus.tsx pass activeToolCount={viewInProgressToolUseIDs.size} to the Spinner`)
+  check('Chat threads activeToolCount={viewInProgressToolUseIDs.size} to the spinner', counts.join() === '1,3,0', `read ${counts.join()}; make src/screen/chat/useChatStatus.tsx pass activeToolCount={viewInProgressToolUseIDs.size} to the Spinner`)
 }
 
 console.log('\n  -- the strip height latch: within a turn the working card only grows --')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
-const { spinnerStackDecision } = await import('../../src/components/Spinner/spinnerHud.ts')
-const { stringWidth } = await import('../../src/ink/stringWidth.ts')
+const { spinnerStackDecision } = await import('../../src/screen/spinner/spinnerHud.ts')
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.ts')
 type LatchModule = { stripLinesForEpoch: (latch: { epoch: number; lines: number }, epoch: number, wanted: number) => number; turnStripLines: (epoch: number, wanted: number) => number }
-const latchModule = await import('../../src/components/Spinner/stripHeight.ts').then(m => m as LatchModule).catch(() => null)
+const latchModule = await import('../../src/screen/spinner/stripHeight.ts').then(m => m as LatchModule).catch(() => null)
 const detail = (label: string, cond: boolean, why: string): void => check(cond ? label : `${label} — ${why}`, cond)
 const PHASE_WORDS: (string | null)[] = [
   'reading the prompt · first byte expected within 3m 11s',
@@ -59,7 +59,7 @@ const fallWords = (seq: number[]): string => {
   const at = neverFalls(seq)
   return at === -1 ? 'never falls' : `fell ${seq[at - 1]} → ${seq[at]} at step ${at + 1} (${PHASE_WORDS[at] ?? 'the hold row'})`
 }
-detail('the latch module stands beside the stacking decision (src/components/Spinner/stripHeight.ts)', latchModule !== null, 'missing')
+detail('the latch module stands beside the stacking decision (src/screen/spinner/stripHeight.ts)', latchModule !== null, 'missing')
 {
   const latch = { epoch: 0, lines: 1 }
   const at120 = walk(1, 49, PHASE_WORDS, latch)

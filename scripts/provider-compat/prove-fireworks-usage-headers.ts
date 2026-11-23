@@ -4,11 +4,11 @@ import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import React from 'react'
 import { mock } from 'bun:test'
-import type { AssistantMessage } from '../../src/types/message.ts'
+import type { AssistantMessage } from '../../src/engine/message-shapes/message.ts'
 import { mountOffscreen, settle } from '../lib/settingsPopupHarness.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[name]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.FIREWORKS_API_KEY = 'proof-key-fireworks-headers-not-a-real-key'
@@ -32,11 +32,11 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
 } })
 process.env.MERCURY_FIREWORKS_API_BASE = `http://127.0.0.1:${server.port}/inference/v1`
 try {
-  const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
-  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-  const owner = await import('../../src/services/providers/providerUsage.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+  const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+  const owner = await import('../../src/models/roads/providerUsage.ts')
   async function run(): Promise<AssistantMessage[]> {
     const rows: AssistantMessage[] = []
     for await (const row of routedCallModel({ messages: [createUserMessage({ content: 'hello' })], systemPrompt: asSystemPrompt(['Fixture']), tools: [], thinkingConfig: { type: 'enabled', budgetTokens: 4096 }, signal: new AbortController().signal, options: { model: 'fireworks/gpt-oss-120b', querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => ({}), agents: [], hasAppendSystemPrompt: false, mcpTools: [], effortValue: 'high' } as never })) {
@@ -52,10 +52,10 @@ try {
   assert.deepEqual(figures(), [uncachedRow('9000'), adjustedRow('5000')], 'different headers retain different meanings in /usage')
   console.log('[PASS] both headers reach the usage reader with distinct labels and values')
 
-  mock.module('../../src/services/providers/providerUsage.ts', () => ({ ...owner, providerFamilyPresences: () => [{ id: 'fireworks', available: true, credentialed: true, credentialLabel: 'FIREWORKS_API_KEY (env)' }] }))
-  const keybindings = await import('../../src/keybindings/useKeybinding.ts')
-  mock.module('../../src/keybindings/useKeybinding.ts', () => ({ ...keybindings, useKeybinding: () => undefined }))
-  const { Usage } = await import('../../src/components/Settings/Usage.tsx')
+  mock.module('../../src/models/roads/providerUsage.ts', () => ({ ...owner, providerFamilyPresences: () => [{ id: 'fireworks', available: true, credentialed: true, credentialLabel: 'FIREWORKS_API_KEY (env)' }] }))
+  const keybindings = await import('../../src/screen/keys/useKeybinding.ts')
+  mock.module('../../src/screen/keys/useKeybinding.ts', () => ({ ...keybindings, useKeybinding: () => undefined }))
+  const { Usage } = await import('../../src/screen/settings/Usage.tsx')
   const board = await mountOffscreen(React.createElement(Usage, { width: 116, rowBudget: 44 }), 116, 48)
   try {
     const deadline = Date.now() + 5000
@@ -90,7 +90,7 @@ try {
   assert.deepEqual(figures()?.slice(0, 2), [uncachedRow('9000'), adjustedRow('5000')])
   const retry = reading.figures?.find(row => row.key === 'retry')
   assert.equal(retry!.resetsAtMs! - retry!.observedAtMs!, 3_600_000)
-  assert.ok(reading.readerNote?.includes('rate limited'), `usageForProvider("fireworks") readerNote in src/services/providers/providerUsage.ts must note "rate limited" (got ${reading.readerNote})`)
+  assert.ok(reading.readerNote?.includes('rate limited'), `usageForProvider("fireworks") readerNote in src/models/roads/providerUsage.ts must note "rate limited" (got ${reading.readerNote})`)
   status = 200
   headers = {}
   assert.ok((await run()).some(row => !row.isApiErrorMessage), 'manual Fireworks retry after 429 must settle without API error')

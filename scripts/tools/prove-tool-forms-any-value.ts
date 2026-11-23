@@ -27,16 +27,16 @@ const watchdog = setTimeout(() => {
 }, 180_000)
 watchdog.unref?.()
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { mapToolsToOpenai } = await import('../../src/services/providers/openai/responsesBridge.ts')
-const { gateToolCall } = await import('../../src/services/providers/toolCallGate.ts')
-const { toOpenaiStrictToolSchema } = await import('../../src/utils/messages/toolSchemaDialect.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { mapToolsToOpenai } = await import('../../src/models/roads/openai/responsesBridge.ts')
+const { gateToolCall } = await import('../../src/models/roads/toolCallGate.ts')
+const { toOpenaiStrictToolSchema } = await import('../../src/engine/message-shapes/toolSchemaDialect.ts')
 
 type Node = Record<string, unknown>
 const isNode = (v: unknown): v is Node => typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -65,20 +65,20 @@ section('§1 the converter: a schema that admits any value has no strict spellin
 {
   const typeless = { type: 'object', properties: { payload: { description: 'any JSON value, verbatim' } }, required: ['payload'] }
   const form = toOpenaiStrictToolSchema(typeless)
-  t('a required property with no type (zod unknown) makes the tool non-strict', form.strict === false, JSON.stringify(form), 'toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts must return strict false for a required property with no type')
-  t('…and the reason names the rule and the slot', form.strict === false && ANY_VALUE.test(form.reason) && form.reason.endsWith(' at payload'), form.strict === false ? form.reason : '', 'toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts must give a reason that starts with G1, says admits any value and ends with the slot path')
+  t('a required property with no type (zod unknown) makes the tool non-strict', form.strict === false, JSON.stringify(form), 'toOpenaiStrictToolSchema in src/engine/message-shapes/toolSchemaDialect.ts must return strict false for a required property with no type')
+  t('…and the reason names the rule and the slot', form.strict === false && ANY_VALUE.test(form.reason) && form.reason.endsWith(' at payload'), form.strict === false ? form.reason : '', 'toOpenaiStrictToolSchema in src/engine/message-shapes/toolSchemaDialect.ts must give a reason that starts with G1, says admits any value and ends with the slot path')
   const optional = toOpenaiStrictToolSchema({ type: 'object', properties: { payload: { description: 'maybe anything' } } })
-  t('an optional property with no type is not rescued by nullability: non-strict for the same reason', optional.strict === false && ANY_VALUE.test(optional.reason), JSON.stringify(optional), 'toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts must not turn an optional typeless property strict by making it nullable')
+  t('an optional property with no type is not rescued by nullability: non-strict for the same reason', optional.strict === false && ANY_VALUE.test(optional.reason), JSON.stringify(optional), 'toOpenaiStrictToolSchema in src/engine/message-shapes/toolSchemaDialect.ts must not turn an optional typeless property strict by making it nullable')
   const items = toOpenaiStrictToolSchema({ type: 'object', properties: { xs: { type: 'array', items: {} } }, required: ['xs'] })
-  t('an array whose items admit any value: non-strict at the items', items.strict === false && ANY_VALUE.test(items.reason) && items.reason.endsWith(' at xs.items'), JSON.stringify(items), 'toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts must reject an array whose items schema is empty, with the path ending at .items')
+  t('an array whose items admit any value: non-strict at the items', items.strict === false && ANY_VALUE.test(items.reason) && items.reason.endsWith(' at xs.items'), JSON.stringify(items), 'toOpenaiStrictToolSchema in src/engine/message-shapes/toolSchemaDialect.ts must reject an array whose items schema is empty, with the path ending at .items')
   const literalTrue = toOpenaiStrictToolSchema({ type: 'object', properties: { p: true }, required: ['p'] })
-  t('the literal true schema is the same any-value schema: non-strict', literalTrue.strict === false && ANY_VALUE.test(literalTrue.reason), JSON.stringify(literalTrue), 'toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts must treat the literal true schema as an any-value slot')
+  t('the literal true schema is the same any-value schema: non-strict', literalTrue.strict === false && ANY_VALUE.test(literalTrue.reason), JSON.stringify(literalTrue), 'toOpenaiStrictToolSchema in src/engine/message-shapes/toolSchemaDialect.ts must treat the literal true schema as an any-value slot')
   const nested = toOpenaiStrictToolSchema({ type: 'object', properties: { outer: { type: 'object', properties: { inner: { description: 'deep' } }, required: ['inner'] } }, required: ['outer'] })
-  t('a typeless slot two objects down is found with its path', nested.strict === false && nested.reason.endsWith(' at outer.inner'), JSON.stringify(nested), 'toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts must walk nested object properties and report the dotted path')
+  t('a typeless slot two objects down is found with its path', nested.strict === false && nested.reason.endsWith(' at outer.inner'), JSON.stringify(nested), 'toOpenaiStrictToolSchema in src/engine/message-shapes/toolSchemaDialect.ts must walk nested object properties and report the dotted path')
   const typed = toOpenaiStrictToolSchema({ type: 'object', properties: { a: { type: 'string' }, b: { type: 'object', properties: { c: { type: 'number' } }, required: ['c'], additionalProperties: false }, d: { anyOf: [{ type: 'string' }, { type: 'number' }] }, e: { $ref: '#/$defs/row' } }, required: ['a'], $defs: { row: { type: 'object', properties: { v: { type: 'boolean' } }, required: ['v'], additionalProperties: false } } })
-  t('typed, union and $ref slots beside each other still convert strict (the rule does not over-fire)', typed.strict === true && typelessNodes(typed.strict ? typed.schema : {}).length === 0, JSON.stringify(typed).slice(0, 300), 'toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts must keep typed, union and $ref slots strict')
+  t('typed, union and $ref slots beside each other still convert strict (the rule does not over-fire)', typed.strict === true && typelessNodes(typed.strict ? typed.schema : {}).length === 0, JSON.stringify(typed).slice(0, 300), 'toOpenaiStrictToolSchema in src/engine/message-shapes/toolSchemaDialect.ts must keep typed, union and $ref slots strict')
   const closedEmpty = toOpenaiStrictToolSchema({ type: 'object', properties: {} })
-  t('a tool with no parameters is still a closed empty object, strict', closedEmpty.strict === true, JSON.stringify(closedEmpty), 'toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts must keep a parameterless object strict')
+  t('a tool with no parameters is still a closed empty object, strict', closedEmpty.strict === true, JSON.stringify(closedEmpty), 'toOpenaiStrictToolSchema in src/engine/message-shapes/toolSchemaDialect.ts must keep a parameterless object strict')
 }
 
 section('§2 the real wire: a tool whose args slot admits any JSON value rides non-strict; no strict form carries a typeless node')
@@ -92,19 +92,19 @@ section('§2 the real wire: a tool whose args slot admits any JSON value rides n
   }
   const probeSchema: Node = { type: 'object', properties: { name: { type: 'string', description: 'what to run' }, args: { description: 'Verbatim JSON args (default undefined)' }, script: { type: 'string' } }, required: ['name'] }
   const [probe] = mapToolsToOpenai([{ name: 'AnyValueProbe', input_schema: probeSchema, description: 'a tool whose args slot admits any JSON value' }]) as unknown as Node[]
-  t('a tool whose args slot admits any JSON value is sent strict: false', probe?.strict === false, JSON.stringify(probe?.strict), 'mapToolsToOpenai in src/services/providers/openai/responsesBridge.ts must send strict false for a tool whose schema toOpenaiStrictToolSchema reports as any-value')
+  t('a tool whose args slot admits any JSON value is sent strict: false', probe?.strict === false, JSON.stringify(probe?.strict), 'mapToolsToOpenai in src/models/roads/openai/responsesBridge.ts must send strict false for a tool whose schema toOpenaiStrictToolSchema reports as any-value')
   const probeForm = toOpenaiStrictToolSchema(probeSchema)
-  t('…for the any-value rule at args', probeForm.strict === false && ANY_VALUE.test(probeForm.reason) && probeForm.reason.endsWith(' at args'), probeForm.strict === false ? probeForm.reason : JSON.stringify(probeForm), 'toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts must name the any-value rule at args')
-  t('its non-strict parameters are its schema as written (args keeps its description, no type invented)', isNode(probe?.parameters) && isNode((probe!.parameters as Node).properties) && !('type' in (((probe!.parameters as Node).properties as Node).args as Node)) && (((probe!.parameters as Node).properties as Node).args as Node).description === 'Verbatim JSON args (default undefined)', JSON.stringify((probe?.parameters as Node | undefined)?.properties).slice(0, 300), 'mapToolsToOpenai in src/services/providers/openai/responsesBridge.ts must pass a non-strict tool schema through as written, adding no type to args')
+  t('…for the any-value rule at args', probeForm.strict === false && ANY_VALUE.test(probeForm.reason) && probeForm.reason.endsWith(' at args'), probeForm.strict === false ? probeForm.reason : JSON.stringify(probeForm), 'toOpenaiStrictToolSchema in src/engine/message-shapes/toolSchemaDialect.ts must name the any-value rule at args')
+  t('its non-strict parameters are its schema as written (args keeps its description, no type invented)', isNode(probe?.parameters) && isNode((probe!.parameters as Node).properties) && !('type' in (((probe!.parameters as Node).properties as Node).args as Node)) && (((probe!.parameters as Node).properties as Node).args as Node).description === 'Verbatim JSON args (default undefined)', JSON.stringify((probe?.parameters as Node | undefined)?.properties).slice(0, 300), 'mapToolsToOpenai in src/models/roads/openai/responsesBridge.ts must pass a non-strict tool schema through as written, adding no type to args')
   const typelessStrict = wires.filter(entry => entry.wire.strict === true).flatMap(entry => typelessNodes(entry.wire.parameters).map(path => `${entry.name} at ${path}`))
-  t(`no strict form on the wire carries a node without a type, $ref, anyOf, enum or const (the vendor refuses "schema must have a 'type' key" for the whole request)`, typelessStrict.length === 0, typelessStrict.join(' | '), 'give the named tool property a type in that tool inputSchema under src/tools, or make toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts send that tool non-strict')
+  t(`no strict form on the wire carries a node without a type, $ref, anyOf, enum or const (the vendor refuses "schema must have a 'type' key" for the whole request)`, typelessStrict.length === 0, typelessStrict.join(' | '), 'give the named tool property a type in that tool inputSchema under src/tools, or make toOpenaiStrictToolSchema in src/engine/message-shapes/toolSchemaDialect.ts send that tool non-strict')
   const anyValueTools = wires.filter(entry => entry.wire.strict === false && ANY_VALUE.test(toOpenaiStrictToolSchema(entry.wire.parameters).strict === false ? (toOpenaiStrictToolSchema(entry.wire.parameters) as { reason: string }).reason : '')).map(entry => entry.name)
   t('the any-value rule moves no base tool to non-strict (the rule does not over-fire on the roster)', anyValueTools.length === 0, anyValueTools.join(', '), 'give the any-value property of each listed tool a type in its inputSchema under src/tools')
   const knownReasons = /propertyNames|additionalProperties|admits any value/
   const strangers = wires.filter(entry => entry.wire.strict === false).map(entry => ({ name: entry.name, form: toOpenaiStrictToolSchema(entry.wire.parameters) })).filter(entry => entry.form.strict || !knownReasons.test(entry.form.reason)).map(entry => `${entry.name}: ${entry.form.strict ? 'strict' : entry.form.reason}`)
-  t('every non-strict base tool is non-strict for a free-form map, an open object or an any-value slot — no other reason', strangers.length === 0, strangers.join(' | '), 'each listed tool is non-strict for a reason outside the known three; fix its inputSchema under src/tools or the reasons in toOpenaiStrictToolSchema (src/utils/messages/toolSchemaDialect.ts)')
+  t('every non-strict base tool is non-strict for a free-form map, an open object or an any-value slot — no other reason', strangers.length === 0, strangers.join(' | '), 'each listed tool is non-strict for a reason outside the known three; fix its inputSchema under src/tools or the reasons in toOpenaiStrictToolSchema (src/engine/message-shapes/toolSchemaDialect.ts)')
   const strictCount = wires.filter(entry => entry.wire.strict === true).length
-  t(`the rest of the roster stays strict (${strictCount} of ${wires.length})`, strictCount >= wires.length - 8, `${strictCount} strict of ${wires.length}`, 'too many base tools went non-strict; run this proof to list them and fix their inputSchema under src/tools or toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts')
+  t(`the rest of the roster stays strict (${strictCount} of ${wires.length})`, strictCount >= wires.length - 8, `${strictCount} strict of ${wires.length}`, 'too many base tools went non-strict; run this proof to list them and fix their inputSchema under src/tools or toOpenaiStrictToolSchema in src/engine/message-shapes/toolSchemaDialect.ts')
 }
 
 section('§3 the answer road for a non-strict tool: an omitted or null args reaches the tool as absent')
@@ -112,11 +112,11 @@ section('§3 the answer road for a non-strict tool: an omitted or null args reac
   const { z } = await import('zod/v4')
   const probe = { name: 'AnyValueProbe', inputSchema: z.strictObject({ name: z.string(), args: z.unknown().optional(), script: z.string().optional() }) }
   const plain = gateToolCall([probe] as never, { id: 'w1', name: 'AnyValueProbe', argumentsRaw: JSON.stringify({ name: 'review' }), malformed: false })
-  t('a call naming its subject and no args passes the gate', plain.ok, plain.ok ? '' : plain.refusal.reason, 'gateToolCall in src/services/providers/toolCallGate.ts must pass a call that omits an optional unknown args')
+  t('a call naming its subject and no args passes the gate', plain.ok, plain.ok ? '' : plain.refusal.reason, 'gateToolCall in src/models/roads/toolCallGate.ts must pass a call that omits an optional unknown args')
   const nulled = gateToolCall([probe] as never, { id: 'w2', name: 'AnyValueProbe', argumentsRaw: JSON.stringify({ name: 'review', args: null, script: null }), malformed: false })
-  t('a call with args: null and script: null reaches the tool with both absent', nulled.ok && !('args' in nulled.input) && !('script' in nulled.input), nulled.ok ? JSON.stringify(nulled.input) : nulled.refusal.reason, 'gateToolCall in src/services/providers/toolCallGate.ts must drop null for optional keys before the tool sees the input')
+  t('a call with args: null and script: null reaches the tool with both absent', nulled.ok && !('args' in nulled.input) && !('script' in nulled.input), nulled.ok ? JSON.stringify(nulled.input) : nulled.refusal.reason, 'gateToolCall in src/models/roads/toolCallGate.ts must drop null for optional keys before the tool sees the input')
   const object = gateToolCall([probe] as never, { id: 'w3', name: 'AnyValueProbe', argumentsRaw: JSON.stringify({ name: 'review', args: { files: ['a.ts'], depth: 2 } }), malformed: false })
-  t('an object args rides through verbatim (the any-value slot keeps its whole range)', object.ok && JSON.stringify(object.input.args) === JSON.stringify({ files: ['a.ts'], depth: 2 }), object.ok ? JSON.stringify(object.input) : object.refusal.reason, 'gateToolCall in src/services/providers/toolCallGate.ts must pass an object args value through unchanged')
+  t('an object args rides through verbatim (the any-value slot keeps its whole range)', object.ok && JSON.stringify(object.input.args) === JSON.stringify({ files: ['a.ts'], depth: 2 }), object.ok ? JSON.stringify(object.input) : object.refusal.reason, 'gateToolCall in src/models/roads/toolCallGate.ts must pass an object args value through unchanged')
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

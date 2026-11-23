@@ -16,7 +16,7 @@ export async function writeForkedFixture(opts: {
   deadPerFork: number
   deadFatBytes: number
 }): Promise<ForkedFixture> {
-  const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
+  const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
   const sessionId = 'f0f0f0f0-1111-4000-8000-000000000001'
   let n = 0
   const uid = (): string => `00000000-0000-4000-8000-${String(100000000000 + ++n).slice(1)}`

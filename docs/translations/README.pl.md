@@ -374,7 +374,7 @@ Dostępne polecenia obejmują:
 - **Apollo Mode**, wywiad specyfikacyjny: odpowiadaj na pytania agenta, aby uzupełnić specyfikację, z której zbuduje prototyp. Zobacz [docs/APOLLO-MODE.md](../APOLLO-MODE.md).
 - **Odzyskiwanie.** Atomowa publikacja, operacje zapisane w dzienniku i uzgadnianie przy starcie. Zobacz [docs/DURABILITY.md](../DURABILITY.md).
 
-Flagi uruchomieniowe są zdefiniowane w `src/substrate/flagRegistry.ts`, udostępniane jako ustawienia `MERCURY_*` i renderowane na żądanie. Zgodność integracji jest opisana w [docs/COMPATIBILITY.md](../COMPATIBILITY.md). Pełny indeks dokumentacji znajduje się w [docs/README.md](../README.md).
+Flagi uruchomieniowe są zdefiniowane w `src/platform/substrate/flagRegistry.ts`, udostępniane jako ustawienia `MERCURY_*` i renderowane na żądanie. Zgodność integracji jest opisana w [docs/COMPATIBILITY.md](../COMPATIBILITY.md). Pełny indeks dokumentacji znajduje się w [docs/README.md](../README.md).
 
 ## Polecenia slash
 

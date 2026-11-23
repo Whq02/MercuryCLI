@@ -32,7 +32,7 @@ const check = (label: string, ok: boolean, detail = '', hint = ''): void => {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` — ${hint}` : ''}`)
 }
-const catalogueHint = 'the live-catalogue admission of a model id is in src/services/providers/catalogueAdmission.ts (modelNotOfferedByCatalogue and the refusal paths beside it) and the provider catalogue readers under src/services/providers; the captures and wire ledger are kept under the worlds path printed at the end'
+const catalogueHint = 'the live-catalogue admission of a model id is in src/models/roads/catalogueAdmission.ts (modelNotOfferedByCatalogue and the refusal paths beside it) and the provider catalogue readers under src/models/roads; the captures and wire ledger are kept under the worlds path printed at the end'
 type Grid = Array<Array<{ c?: string }>>
 type Payload = { grid: Grid; marks?: Array<{ label: string; grid: Grid }>; sendReceipts?: unknown[]; endReason?: string }
 const text = (grid: Grid): string => grid.map(row => row.map(cell => cell.c ?? ' ').join('').trimEnd()).join('\n')

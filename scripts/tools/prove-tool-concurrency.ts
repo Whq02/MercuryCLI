@@ -12,26 +12,26 @@ delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 bootstrap.setCwdState(scratch)
-const { buildToolCensus } = await import('../../src/services/capability/census.ts')
-const { runTools } = await import('../../src/services/tools/toolOrchestration.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { buildToolCensus } = await import('../../src/permissions/capability-census/census.ts')
+const { runTools } = await import('../../src/engine/tool-dispatch/toolOrchestration.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ': ' + detail : ''}`)
   if (!ok) {
     failures++
-    console.log('  change isReadOnly or isConcurrencySafe on the named tool (BashTool prepare and its verdicts live in src/tools/BashTool/BashTool.tsx and readOnlyValidation.ts), or the batching in runTools in src/services/tools/toolOrchestration.ts; the census probes are in src/services/capability/census.ts')
+    console.log('  change isReadOnly or isConcurrencySafe on the named tool (BashTool prepare and its verdicts live in src/tools/shell/BashTool.tsx and readOnlyValidation.ts), or the batching in runTools in src/engine/tool-dispatch/toolOrchestration.ts; the census probes are in src/permissions/capability-census/census.ts')
   }
 }
 const watchdog = setTimeout(() => {
-  console.log('[FAIL] watchdog: this proof did not finish in 30 seconds; look at runTools in src/services/tools/toolOrchestration.ts for a call that never settles')
+  console.log('[FAIL] watchdog: this proof did not finish in 30 seconds; look at runTools in src/engine/tool-dispatch/toolOrchestration.ts for a call that never settles')
   process.exit(1)
 }, 30000)
 try {
@@ -45,7 +45,7 @@ try {
     const row = census.rows.find(row => row.name === name)
     check(`${name}: execution or permission state changes serialize`, row?.readOnlyProbe === false && row.concurrencySafeProbe === false)
   }
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
   const cold = { command: 'echo floor-cold-preparation' }
   check('a cold Bash read is unproven, never a synchronous guess', BashTool.isReadOnly(cold as never) === false && BashTool.isConcurrencySafe(cold as never) === false)
   await BashTool.prepare?.(cold as never)

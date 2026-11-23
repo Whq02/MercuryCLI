@@ -268,7 +268,7 @@ if (process.argv[2] === '--serve') {
     })
     const seen = fixture.capture()[0]
     check('the seeding run settled', result.status === 0, `seeding run via the bundle failed (run node dist/mercury.mjs run with the fixture OpenAI route to reproduce); exit ${result.status}; stderr: ${(result.stderr ?? '').slice(-300)}`)
-    check('its record carries the image the wire saw', seen !== undefined && seen.images.length === 1, `the seeding turn must put exactly one image on the wire; see image attach and resize in src/utils/imageResizer.ts; ${j(seen)}`)
+    check('its record carries the image the wire saw', seen !== undefined && seen.images.length === 1, `the seeding turn must put exactly one image on the wire; see image attach and resize in src/platform/images/imageResizer.ts; ${j(seen)}`)
     console.log(`  [record] the seeding bundle sent ${seen ? `${seen.images[0]?.width}x${seen.images[0]?.height}` : 'no image'} (${SEED_DIST})`)
     fixture.kill()
   }
@@ -313,7 +313,7 @@ if (process.argv[2] === '--serve') {
   section(`new · the image rides within the family's patch rule and the provider's refusal paints as the route's error row on ${DIST}`)
   for (const [cols, rows] of SIZES) {
     const shot = await captureRefusal('new', DIST, cols, rows, NEW_NEEDLE)
-    check(`${cols}x${rows}: the image reached the wire once, within the family's patch rule, and the provider's refusal painted as the route's error row`, shot.hit && shot.sent === 1 && shot.images.length === 1 && shot.images.every(i => patches(i.width, i.height) <= 30_000), `a downscale above the 30000-patch limit, a resend of the refused image, or a missing refusal row means checking imageLimitsForModel in src/utils/imageResizer.ts and the pre-send check in src/services/imageValidation.ts; wire requests: ${shot.sent}; images: ${j(shot.images)}; screen tail: ${shot.text.split('\n').slice(-8).join(' | ').slice(0, 500)}`)
+    check(`${cols}x${rows}: the image reached the wire once, within the family's patch rule, and the provider's refusal painted as the route's error row`, shot.hit && shot.sent === 1 && shot.images.length === 1 && shot.images.every(i => patches(i.width, i.height) <= 30_000), `a downscale above the 30000-patch limit, a resend of the refused image, or a missing refusal row means checking imageLimitsForModel in src/platform/images/imageResizer.ts and the pre-send check in src/engine/requests/imageValidation.ts; wire requests: ${shot.sent}; images: ${j(shot.images)}; screen tail: ${shot.text.split('\n').slice(-8).join(' | ').slice(0, 500)}`)
   }
   if (OLD) {
     section(`old · the provider's refusal on ${OLD}`)

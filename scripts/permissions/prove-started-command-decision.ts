@@ -2,7 +2,7 @@
 import { check, decide, fill, fillBash, finish, note, said, section, shown, standInService, type Rules } from './floorsKit.ts'
 
 process.on('exit', code => {
-  if (code !== 0) console.log('  [HINT] a check above failed: fix the decision for Service, Journey and Debug inputs in decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts and the tools checkPermissions under src/tools/ServiceTool, src/tools/JourneyTool and src/tools/DebugTool (history of text sent to a service: src/utils/permissions/serviceInputHistory.ts)')
+  if (code !== 0) console.log('  [HINT] a check above failed: fix the decision for Service, Journey and Debug inputs in decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts and the tools checkPermissions under src/tools/service, src/tools/journey and src/tools/debug (history of text sent to a service: src/permissions/rules/serviceInputHistory.ts)')
 })
 
 type Mode = 'default' | 'implement' | 'apollo' | 'dontAsk' | 'flow' | 'sovereign'
@@ -219,8 +219,8 @@ section('§8 text the debuggee runs passes the floors\' readers')
 
 section('§9 a service\'s inputs are one script: text sent to it is read with the state the text sent before it left')
 {
-  const history = await import('../../src/utils/permissions/serviceInputHistory.ts').catch(() => null)
-  const { getOriginalCwd } = await import('../../src/bootstrap/state.ts')
+  const history = await import('../../src/permissions/rules/serviceInputHistory.ts').catch(() => null)
+  const { getOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
   const PUSH = ['git', 'push', 'origin', 'main'].join(' ')
   check('the history of what a service was sent is there to be told', history !== null)
   const sentTo = (name: string, text: string, submitted = true, run = ':'): void => history?.noteServiceInput(history.serviceInputKey(getOriginalCwd(), name), run, fillBash(text), submitted)

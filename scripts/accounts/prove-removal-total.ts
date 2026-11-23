@@ -53,7 +53,7 @@ for (const base of [
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — a removal must leave every surface consistent; start at executeSlotRemoval in src/services/providers/accountSlots/removal.ts and the sign-in ledger in src/utils/accounts/signInLedger.ts, and read the section heading above for the surface' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — a removal must leave every surface consistent; start at executeSlotRemoval in src/models/roads/account-slots/removal.ts and the sign-in ledger in src/models/sign-in/account-ledger/signInLedger.ts, and read the section heading above for the surface' : ''}`)
 }
 function section(t: string): void {
   console.log(`\n── ${t} ${'─'.repeat(Math.max(2, 68 - t.length))}`)
@@ -64,22 +64,22 @@ console.log('============================================================')
 console.log(' removal is total — no account is a real state')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const slots = await import('../../src/services/providers/accountSlots.ts')
-const usage = await import('../../src/services/providers/providerUsage.ts')
-const identity = await import('../../src/utils/accounts/accountIdentity.ts')
-const scan = await import('../../src/utils/accounts/scopeScan.ts')
-const ledger = await import('../../src/utils/accounts/signInLedger.ts')
-const computed = await import('../../src/services/model/computedDefault.ts')
-const wallet = await import('../../src/services/wallet/wallet.ts')
-const cap = await import('../../src/services/capFailover.ts')
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
-const config = await import('../../src/utils/config/globalConfig.ts')
-const session = await import('../../src/services/accounts/sessionAccount.ts')
-const openai = await import('../../src/services/providers/openai/openaiAccounts.ts')
-type AccountSlot = import('../../src/services/providers/accountSlots.ts').AccountSlot
+const slots = await import('../../src/models/roads/accountSlots.ts')
+const usage = await import('../../src/models/roads/providerUsage.ts')
+const identity = await import('../../src/models/sign-in/account-ledger/accountIdentity.ts')
+const scan = await import('../../src/models/sign-in/account-ledger/scopeScan.ts')
+const ledger = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
+const computed = await import('../../src/models/catalogue/computedDefault.ts')
+const wallet = await import('../../src/models/wallet/wallet.ts')
+const cap = await import('../../src/models/roads/capFailover.ts')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
+const config = await import('../../src/platform/config/globalConfig.ts')
+const session = await import('../../src/models/sign-in/accounts/sessionAccount.ts')
+const openai = await import('../../src/models/roads/openai/openaiAccounts.ts')
+type AccountSlot = import('../../src/models/roads/accountSlots.ts').AccountSlot
 
 const CREDENTIALS = join(home, '.credentials.json')
 const SNAPSHOT = join(home, '.mercury.json')

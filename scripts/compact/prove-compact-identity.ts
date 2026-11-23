@@ -44,14 +44,14 @@ const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFix
 const fixture = await startCrossfamilyFixture({ port: FIXTURE_PORT })
 Object.assign(process.env, fixture.env)
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { call } = await import('../../src/commands/compact/compact.ts')
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
-const { getTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
+const { getTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
 
 function makeMessages(): unknown[] {
   const out: unknown[] = []
@@ -122,9 +122,9 @@ console.log('\nI1 the session id and the transcript file survive the fold byte-i
 
 console.log('\nI5 THE FOCUS LAW — /compact applies to the FOCUSED session (operator rider)')
 {
-  const { commandSeat } = await import('../../src/commands.ts')
+  const { commandSeat } = await import('../../src/commands/catalogue/commands.ts')
   const compactCommand = (await import('../../src/commands/compact/index.ts')).default
-  check('F1 /compact is a session-seat command (the one dispatch rule routes it to the focused chat)', commandSeat(compactCommand as never) === 'session', '', 'remove seat: screen, uiRouteAlias and userPrivate from the command in src/commands/compact/index.ts; commandSeat() in src/commands.ts makes those screen-seat')
+  check('F1 /compact is a session-seat command (the one dispatch rule routes it to the focused chat)', commandSeat(compactCommand as never) === 'session', '', 'remove seat: screen, uiRouteAlias and userPrivate from the command in src/commands/compact/index.ts; commandSeat() in src/commands/catalogue/commands.ts makes those screen-seat')
 
 }
 

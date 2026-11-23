@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/session-graph/**
-# gate-watch: src/services/attention/** src/services/attention/relations.ts
-# gate-watch: src/services/workbench/** src/services/acp/**
-# gate-watch: src/utils/artifacts/**
+# gate-watch: src/screen/attention/actions.ts src/screen/attention/contracts.ts src/screen/attention/relations.ts src/screen/attention/statusFeed.ts src/screen/attention/store.ts src/screen/attention/viewModel.ts src/screen/attention/relations.ts
+# gate-watch: src/screen/workbench/** src/integrations/acp/**
+# gate-watch: src/sessions/artifacts/**
 # gate-watch: scripts/lib/codeText.ts scripts/lib/shippedKeyForms.ts
-# gate-watch: src/cli/run.ts src/commands/crew/index.ts
-# gate-watch: src/components/concourse/ConcourseRoute.tsx src/components/prompts-panel/PromptsPanel.tsx
-# gate-watch: src/components/prompts-panel/rows.ts
-# gate-watch: src/services/concourse/concourseSnapshot.ts
-# gate-watch: src/services/crew/**
-# gate-watch: src/daemon/permissionAsks.ts src/daemon/controlServer.ts
-# gate-watch: src/services/resources/registry.ts
-# gate-watch: src/components/messages/AttachmentMessage.tsx
-# gate-watch: src/components/mercury-ui/screens/CrewView.tsx
-# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/services/messages/attachmentText.ts
-# gate-watch: src/utils/tasks.ts
-# gate-watch: src/rows/* src/runner/wire/*
+# gate-watch: src/daemon/runner/runHeadless.ts src/commands/crew/index.ts
+# gate-watch: src/screen/concourse/ConcourseRoute.tsx src/screen/prompts-panel/PromptsPanel.tsx
+# gate-watch: src/screen/prompts-panel/rows.ts
+# gate-watch: src/screen/concourse-model/concourseSnapshot.ts
+# gate-watch: src/crew/crewmates/activity.ts src/crew/crewmates/adapters/** src/crew/crewmates/agentLaunchPlan.ts src/crew/crewmates/agentTranscriptReader.ts src/crew/crewmates/capabilities.ts src/crew/crewmates/channelCommand.ts src/crew/crewmates/conversations.ts src/crew/crewmates/crewAccountChange.ts src/crew/crewmates/crewWorktreeReminder.ts src/crew/crewmates/crewmateModelWord.ts src/crew/crewmates/crewmateRecord.ts src/crew/crewmates/descriptor.ts src/crew/crewmates/dispatch.ts src/crew/crewmates/engineDispatch.ts src/crew/crewmates/graph.ts src/crew/crewmates/identity.ts src/crew/crewmates/inbox.ts src/crew/crewmates/obligations.ts src/crew/crewmates/obligationsBridge.ts src/crew/crewmates/projection.ts src/crew/crewmates/seatBridge.ts src/crew/crewmates/targetPicker.ts
+# gate-watch: src/daemon/session-seat/permissionAsks.ts src/daemon/control/controlServer.ts
+# gate-watch: src/integrations/resources/registry.ts
+# gate-watch: src/screen/messages/AttachmentMessage.tsx
+# gate-watch: src/screen/widgets/faces/CrewView.tsx
+# gate-watch: src/tools/send-message/SendMessageTool.ts src/engine/messages/attachmentText.ts
+# gate-watch: src/engine/task-framework/tasks.ts
+# gate-watch: src/engine/rows/* src/daemon/runner-wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

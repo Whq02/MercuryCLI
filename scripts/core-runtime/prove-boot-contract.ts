@@ -23,11 +23,11 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 let failures = 0
 let checks = 0
 const WHERE: Array<[string, string]> = [
-  ['profiler:', 'src/utils/startupProfiler.ts (profileCheckpoint, profileReport, getStartupPerfLogPath)'],
+  ['profiler:', 'src/boot/startupProfiler.ts (profileCheckpoint, profileReport, getStartupPerfLogPath)'],
   ['launch-graph:', 'src/boot/launchGraph.ts (registerBackgroundNode, armBackgroundDiscovery, signalInputLive)'],
-  ['boot-env:', 'src/substrate/startupMenu.ts (applyBootMenuEnv, writeBootEnvChoice, readBootEnvChoices, bootEnvPath)'],
-  ['early-input:', 'src/utils/earlyInput.ts'],
-  ['launch:', 'launchChat in src/chatLauncher.ts'],
+  ['boot-env:', 'src/platform/substrate/startupMenu.ts (applyBootMenuEnv, writeBootEnvChoice, readBootEnvChoices, bootEnvPath)'],
+  ['early-input:', 'src/boot/earlyInput.ts'],
+  ['launch:', 'launchChat in src/boot/chatLauncher.ts'],
 ]
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
@@ -41,8 +41,8 @@ function check(label: string, cond: boolean, detail = ''): void {
 console.log('native-core T15 — launch-graph boot contract')
 
 {
-  const p = await import('../../src/utils/startupProfiler.js')
-  const { getPerformance } = await import('../../src/utils/profilerBase.js')
+  const p = await import('../../src/boot/startupProfiler.js')
+  const { getPerformance } = await import('../../src/platform/logs/profiling.js')
 
   p.profileCheckpoint('t15_probe_a')
   p.profileCheckpoint('t15_probe_b')
@@ -166,7 +166,7 @@ console.log('native-core T15 — launch-graph boot contract')
 }
 
 {
-  const menu = await import('../../src/substrate/startupMenu.js')
+  const menu = await import('../../src/platform/substrate/startupMenu.js')
   const dir = join(HERMETIC, 'boot-env')
   mkdirSync(dir, { recursive: true })
 
@@ -301,7 +301,7 @@ console.log('native-core T15 — launch-graph boot contract')
 }
 
 {
-  const ei = await import('../../src/utils/earlyInput.js')
+  const ei = await import('../../src/boot/earlyInput.js')
   ei.startCapturingEarlyInput()
   check(
     'early-input: non-TTY start is a no-op (run-mode safety gate)',
@@ -317,10 +317,10 @@ console.log('native-core T15 — launch-graph boot contract')
 }
 
 {
-  const { launchChat } = await import('../../src/chatLauncher.js')
-  const { App } = await import('../../src/components/App.js')
-  const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.js')
-  const { Chat } = await import('../../src/screens/Chat.js')
+  const { launchChat } = await import('../../src/boot/chatLauncher.js')
+  const { App } = await import('../../src/boot/App.js')
+  const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.js')
+  const { Chat } = await import('../../src/screen/chat/Chat.js')
 
   const calls: Array<{ root: unknown; element: React.ReactElement }> = []
   const fakeRender = async (root: unknown, element: never): Promise<void> => {

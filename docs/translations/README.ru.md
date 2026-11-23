@@ -374,7 +374,7 @@ docker run --rm mercury --version
 - **Apollo Mode**, интервью по спецификации: ответьте на вопросы агента, чтобы завершить спецификацию, по которой он создаст прототип. См. [docs/APOLLO-MODE.md](../APOLLO-MODE.md).
 - **Восстановление.** Атомарная публикация, журналируемые операции и сверка при запуске. См. [docs/DURABILITY.md](../DURABILITY.md).
 
-Флаги выполнения определены в `src/substrate/flagRegistry.ts`, доступны как настройки `MERCURY_*` и выводятся по запросу. Совместимость интеграций описана в [docs/COMPATIBILITY.md](../COMPATIBILITY.md). Полный указатель документации — [docs/README.md](../README.md).
+Флаги выполнения определены в `src/platform/substrate/flagRegistry.ts`, доступны как настройки `MERCURY_*` и выводятся по запросу. Совместимость интеграций описана в [docs/COMPATIBILITY.md](../COMPATIBILITY.md). Полный указатель документации — [docs/README.md](../README.md).
 
 ## Слеш-команды
 

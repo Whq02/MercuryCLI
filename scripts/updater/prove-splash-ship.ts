@@ -3,8 +3,8 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { judgeExtractedLayout } from '../../src/services/privateChannel/channelCore.js'
-import { validatePayloadDir } from '../../src/services/privateChannel/installLayout.js'
+import { judgeExtractedLayout } from '../../src/platform/update-channel/channelCore.js'
+import { validatePayloadDir } from '../../src/platform/update-channel/installLayout.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0

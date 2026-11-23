@@ -18,23 +18,23 @@ process.env.MERCURY_REDUCED_MOTION = '1'
 process.env.BROWSER = '/usr/bin/true'
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
-const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
+const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const { default: instances } = await import('../../src/ink/instances.ts')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
 const h = React.createElement
 const ROOT = join(import.meta.dir, '..', '..')
 const arg = (name: string): string | undefined => {
@@ -127,7 +127,7 @@ async function renderAt(columns: number, rows: number): Promise<string[]> {
   const stdin = new Input()
   const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
-  const insertRef = { current: null } as React.MutableRefObject<import('../../src/components/PromptInput/PromptInput.tsx').PromptInputProps['insertTextRef']['current']>
+  const insertRef = { current: null } as React.MutableRefObject<import('../../src/screen/composer/Composer.tsx').PromptInputProps['insertTextRef']['current']>
   function Transcript(): React.ReactNode {
     return h(Text, null, Array.from({ length: 3 }, (_, index) => `13:00:0${index + 1} [sam] ❯ task ${index + 1}`).join('\n'))
   }
@@ -161,7 +161,7 @@ async function renderAt(columns: number, rows: number): Promise<string[]> {
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(Harness)))
   try {
     const painted = await until(() => insertRef.current !== null && ink.lastFrameText().includes('Type a prompt') && ink.lastFrameText().includes('lanes'))
-    check(`${columns}x${rows}: the cockpit paints its composer placeholder and the lanes header`, painted, ink.lastFrameText().slice(0, 400), 'FullscreenLayout in src/components/FullscreenLayout.tsx or PromptInput did not paint the composer placeholder and the lanes header within 15s; read the frame text above')
+    check(`${columns}x${rows}: the cockpit paints its composer placeholder and the lanes header`, painted, ink.lastFrameText().slice(0, 400), 'FullscreenLayout in src/screen/fullscreen-layout/FullscreenLayout.tsx or PromptInput did not paint the composer placeholder and the lanes header within 15s; read the frame text above')
     await new Promise<void>(resolve => setTimeout(resolve, 150))
     return ink.lastFrameText().replace(/\n$/, '').split('\n')
   } finally {
@@ -178,18 +178,18 @@ for (const [columns, rows] of SIZES) {
   shapes.set(`${columns}x${rows}`, shape)
   console.log(`${columns}x${rows}: ${describe(shape)}`)
   if (frameDir !== undefined) writeFileSync(join(frameDir, `frame-fill-${columns}x${rows}.txt`), `${lines.join('\n')}\n`)
-  check(`${columns}x${rows}: the frame's rows equal the terminal's rows`, shape.rows === rows, `${shape.rows} rows for a ${rows}-row terminal`, 'FullscreenLayout in src/components/FullscreenLayout.tsx must fill exactly the terminal rows')
-  check(`${columns}x${rows}: the first row is the frame's top (no blank rows above)`, shape.frameTop === 0 && shape.firstInkRow === 0 && lines[0]!.includes('lanes'), `frame top ${shape.frameTop}, first ink row ${shape.firstInkRow}`, 'FullscreenLayout in src/components/FullscreenLayout.tsx must start its frame on row 0 with the lanes header')
-  check(`${columns}x${rows}: the last row is the frame's bottom (no blank rows below)`, shape.lastInkRow === rows - 1, `last ink row ${shape.lastInkRow}`, 'FullscreenLayout in src/components/FullscreenLayout.tsx must paint down to the terminal last row')
-  check(`${columns}x${rows}: the outline spans every row from the frame top to the centre column's bottom border`, shape.outlineRows === shape.centreBottom + 1, `${shape.outlineRows} outline rows over ${shape.centreBottom + 1}`, 'the centre column outline in FullscreenLayout (src/components/FullscreenLayout.tsx) must stretch to the bottom border row')
-  check(`${columns}x${rows}: every row is at most ${columns} cells wide`, lines.every(line => [...line.replace(/\x1b\[[0-9;]*m/g, '')].length <= columns), '', 'a painted row is wider than the terminal; check the widths in FullscreenLayout (src/components/FullscreenLayout.tsx) and PromptInput')
+  check(`${columns}x${rows}: the frame's rows equal the terminal's rows`, shape.rows === rows, `${shape.rows} rows for a ${rows}-row terminal`, 'FullscreenLayout in src/screen/fullscreen-layout/FullscreenLayout.tsx must fill exactly the terminal rows')
+  check(`${columns}x${rows}: the first row is the frame's top (no blank rows above)`, shape.frameTop === 0 && shape.firstInkRow === 0 && lines[0]!.includes('lanes'), `frame top ${shape.frameTop}, first ink row ${shape.firstInkRow}`, 'FullscreenLayout in src/screen/fullscreen-layout/FullscreenLayout.tsx must start its frame on row 0 with the lanes header')
+  check(`${columns}x${rows}: the last row is the frame's bottom (no blank rows below)`, shape.lastInkRow === rows - 1, `last ink row ${shape.lastInkRow}`, 'FullscreenLayout in src/screen/fullscreen-layout/FullscreenLayout.tsx must paint down to the terminal last row')
+  check(`${columns}x${rows}: the outline spans every row from the frame top to the centre column's bottom border`, shape.outlineRows === shape.centreBottom + 1, `${shape.outlineRows} outline rows over ${shape.centreBottom + 1}`, 'the centre column outline in FullscreenLayout (src/screen/fullscreen-layout/FullscreenLayout.tsx) must stretch to the bottom border row')
+  check(`${columns}x${rows}: every row is at most ${columns} cells wide`, lines.every(line => [...line.replace(/\x1b\[[0-9;]*m/g, '')].length <= columns), '', 'a painted row is wider than the terminal; check the widths in FullscreenLayout (src/screen/fullscreen-layout/FullscreenLayout.tsx) and PromptInput')
 }
 const base = shapes.get('120x40')!
 for (const [columns, rows] of SIZES) {
   const shape = shapes.get(`${columns}x${rows}`)!
-  check(`${columns}x${rows}: the bottom block keeps the height it has at 120x40 and the centre column takes every remaining row`, rows - shape.centreBottom === 40 - base.centreBottom && rows - shape.composerTop === 40 - base.composerTop, `centre bottom at ${rows - shape.centreBottom} from the end (120x40: ${40 - base.centreBottom}), composer top at ${rows - shape.composerTop} from the end (120x40: ${40 - base.composerTop})`, 'FullscreenLayout in src/components/FullscreenLayout.tsx must give the bottom block a fixed height and the centre column every remaining row')
+  check(`${columns}x${rows}: the bottom block keeps the height it has at 120x40 and the centre column takes every remaining row`, rows - shape.centreBottom === 40 - base.centreBottom && rows - shape.composerTop === 40 - base.composerTop, `centre bottom at ${rows - shape.centreBottom} from the end (120x40: ${40 - base.centreBottom}), composer top at ${rows - shape.composerTop} from the end (120x40: ${40 - base.composerTop})`, 'FullscreenLayout in src/screen/fullscreen-layout/FullscreenLayout.tsx must give the bottom block a fixed height and the centre column every remaining row')
 }
-check('120x40: the source render and the stored grid share the fill facts (rows, frame top, first and last ink rows)', base.rows === storedShape.rows && base.frameTop === storedShape.frameTop && base.firstInkRow === storedShape.firstInkRow && base.lastInkRow === storedShape.lastInkRow, `${describe(base)} vs ${describe(storedShape)}`, 'regenerate the stored grid design-system/live/grids/frame--120x40--dark--truecolor--full.grid.json or fix the fill in src/components/FullscreenLayout.tsx, whichever is wrong')
+check('120x40: the source render and the stored grid share the fill facts (rows, frame top, first and last ink rows)', base.rows === storedShape.rows && base.frameTop === storedShape.frameTop && base.firstInkRow === storedShape.firstInkRow && base.lastInkRow === storedShape.lastInkRow, `${describe(base)} vs ${describe(storedShape)}`, 'regenerate the stored grid design-system/live/grids/frame--120x40--dark--truecolor--full.grid.json or fix the fill in src/screen/fullscreen-layout/FullscreenLayout.tsx, whichever is wrong')
 console.error = originalError
 clearTimeout(hardLimit)
 check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error/.test(line)), faults.join('\n'), 'a console.error during render matched a render fault or hook-order error; read the lines above for the component')

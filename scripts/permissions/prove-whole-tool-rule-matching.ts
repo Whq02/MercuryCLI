@@ -9,13 +9,13 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { toolAlwaysAllowedRule, getDenyRuleForTool, getAskRuleForTool } = await import('../../src/utils/permissions/decision/rules.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { toolAlwaysAllowedRule, getDenyRuleForTool, getAskRuleForTool } = await import('../../src/permissions/rules/decision/rules.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — change toolAlwaysAllowedRule, getDenyRuleForTool or getAskRuleForTool in src/utils/permissions/decision/rules.ts, wholeToolDenyRulesCovering in src/utils/permissions/ruleReason.ts, or RULE_INHERITS in src/constants/tools.ts'}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — change toolAlwaysAllowedRule, getDenyRuleForTool or getAskRuleForTool in src/permissions/rules/decision/rules.ts, wholeToolDenyRulesCovering in src/permissions/rules/ruleReason.ts, or RULE_INHERITS in src/tools/kit/crewmateBarredTools.ts'}`)
 }
 
 const base = getEmptyToolPermissionContext()
@@ -50,9 +50,9 @@ check('a server-wide rule does not match a builtin tool', allowed(['mcp__srv'], 
 
 console.log('a server whose name carries a double underscore keeps its own boundary')
 {
-  const { filterToolsByDenyRules } = await import('../../src/tools.ts')
-  const { wholeToolDenyRulesCovering } = await import('../../src/utils/permissions/ruleReason.ts')
-  const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
+  const { filterToolsByDenyRules } = await import('../../src/tools/kit/toolList.ts')
+  const { wholeToolDenyRulesCovering } = await import('../../src/permissions/rules/ruleReason.ts')
+  const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.ts')
   const { z } = await import('zod/v4')
   const joined = { name: 'mcp__a__b__c', mcpInfo: { serverName: 'a__b', toolName: 'c' } }
   const sibling = { name: 'mcp__a__b__zzz', mcpInfo: { serverName: 'a__b', toolName: 'zzz' } }
@@ -84,8 +84,8 @@ console.log('a server whose name carries a double underscore keeps its own bound
 
 console.log('a tool named like an object property is looked up without a throw')
 {
-  const { RULE_INHERITS } = await import('../../src/constants/tools.ts')
-  const { wholeToolDenyRulesCovering } = await import('../../src/utils/permissions/ruleReason.ts')
+  const { RULE_INHERITS } = await import('../../src/tools/kit/crewmateBarredTools.ts')
+  const { wholeToolDenyRulesCovering } = await import('../../src/permissions/rules/ruleReason.ts')
   const words = ['toString', 'constructor', '__proto__', 'hasOwnProperty', 'valueOf']
   check('the inherits table carries no object prototype', Object.getPrototypeOf(RULE_INHERITS) === null)
   check('a prototype word reads as absent from the table', words.every(word => RULE_INHERITS[word] === undefined))

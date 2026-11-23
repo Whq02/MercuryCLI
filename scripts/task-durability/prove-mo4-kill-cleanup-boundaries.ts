@@ -17,14 +17,14 @@ import {
   durableAtomicPublish,
   DurablePublishError,
   isDurableTempName,
-} from '../../src/substrate/durablePublish.ts'
+} from '../../src/platform/substrate/durablePublish.ts'
 
 const IS_WIN = process.platform === 'win32'
 let failures = 0
 const ok = (cond: boolean, label: string, detail = ''): void => {
   console.log(`  ${cond ? '✅' : '❌'} ${label}${detail ? ` — ${detail}` : ''}`)
   if (!cond) {
-    console.log('     fix: this section exercises durableAtomicPublish, cleanupOrphanDurableTemps and the MERCURY_FAULT_INJECT fault points in src/substrate/durablePublish.ts; change that file so the labelled behaviour holds again (the child that is killed is scripts/reliability/helpers/durablePublishKillChild.ts)')
+    console.log('     fix: this section exercises durableAtomicPublish, cleanupOrphanDurableTemps and the MERCURY_FAULT_INJECT fault points in src/platform/substrate/durablePublish.ts; change that file so the labelled behaviour holds again (the child that is killed is scripts/reliability/helpers/durablePublishKillChild.ts)')
     failures++
   }
 }

@@ -6,13 +6,13 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix boundTailForInline (its row cut, open-fence carry and fenceFoldCensus counters) in src/components/LiveStreamingTail.tsx, or the oracle in this file if the intended bound changed` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix boundTailForInline (its row cut, open-fence carry and fenceFoldCensus counters) in src/screen/messages/LiveStreamingTail.tsx, or the oracle in this file if the intended bound changed` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { boundTailForInline } = await import('../../src/components/LiveStreamingTail.tsx')
+const { boundTailForInline } = await import('../../src/screen/messages/LiveStreamingTail.tsx')
 
 function oracleBound(text: string, rows: number, columns: number): { text: string; truncated: boolean } {
   const capRows = Math.max(4, rows - 6)
@@ -137,7 +137,7 @@ function disagreement(text: string, rows: number, columns: number): string {
   return `live=${JSON.stringify({ t: live.text.slice(0, 40), tr: live.truncated, f: live.openFence })} ref=${JSON.stringify({ t: ref.text.slice(0, 40), tr: ref.truncated, f: refFence })}`
 }
 
-const { fenceFoldCensus } = await import('../../src/components/LiveStreamingTail.tsx')
+const { fenceFoldCensus } = await import('../../src/screen/messages/LiveStreamingTail.tsx')
 
 section('P3 · a long multi-tick stream: the carried fold agrees at every publish, at O(delta)')
 {

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const srcPath = join(repo, 'assets', 'vulcan', 'optable.json')
-const outPath = join(repo, 'src', 'utils', 'vulcan', 'optable.generated.ts')
+const outPath = join(repo, 'src', 'integrations', 'vulcan-optable', 'optable.generated.ts')
 const gdOutPath = join(repo, 'assets', 'vulcan', 'addon', 'core', 'op_classes.gd')
 const ROW = {
   assets: [relative(repo, outPath), relative(repo, gdOutPath)],

@@ -8,7 +8,7 @@ import { removeScratch } from '../lib/removeScratch.ts'
 export const REPO = path.resolve(import.meta.dir, '../..')
 export const FAKE_SERVER = path.join(REPO, 'scripts/lsp/fixtures/fake-lsp-server.mjs')
 export const FAILING_SERVER = path.join(REPO, 'scripts/lsp/fixtures/failing-lsp-server.mjs')
-export const TS_SIDECAR_ENTRY = path.join(REPO, 'src/services/lsp/tsSidecar/entry.ts')
+export const TS_SIDECAR_ENTRY = path.join(REPO, 'src/integrations/lsp/ts-sidecar/entry.ts')
 
 let failures = 0
 export function check(name: string, ok: boolean, detail = ''): void {
@@ -75,9 +75,9 @@ type Driven = { text: string; isError: boolean; data: Record<string, unknown> | 
 export async function openToolDoor(root: string, name = 'LspRead') {
   const harness = await import(path.join(REPO, 'scripts/ast-tools/lib/harness.ts'))
   await harness.enterRoot(root)
-  const { LSP_TOOLS } = await import(path.join(REPO, 'src/tools/LSPTool/LSPTool.ts'))
+  const { LSP_TOOLS } = await import(path.join(REPO, 'src/tools/lsp/lspTools.ts'))
   const tool = LSP_TOOLS.find((tool: { name: string }) => tool.name === name)!
-  const lspManager = await import(path.join(REPO, 'src/services/lsp/manager.ts'))
+  const lspManager = await import(path.join(REPO, 'src/integrations/lsp/serverManagerLifecycle.ts'))
   lspManager.initializeLspServerManager()
   await lspManager.waitForInitialization()
   const prover = await harness.makeContext(LSP_TOOLS, { mode: 'default' })

@@ -24,13 +24,13 @@ for (const name of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_AUTH_BASE', 'MERCURY_O
 
 let failures = 0
 const SECTION_FIX: Record<string, string> = {
-  '§0': 'change resolveProviderUsability in src/services/providers/providerUsability.ts, deriveFamilySlotGroups in src/services/providers/accountSlots.ts or getOpenrouterAvailability in src/services/providers/openrouter/openrouterCatalogue.ts',
-  '§1': 'change compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts, openrouterLaneProfile in src/services/providers/openrouter/openrouterCallModel.ts or the refusal record in src/services/providers/openrouter/openrouterAccounts.ts',
-  '§2': 'change the surface that read the refusal wrongly: providerUsability.ts, accountSlots.ts, openrouter/openrouterCatalogue.ts or providerUsage.ts under src/services/providers/, or loginsFamilyCounts in src/components/BootLoginsScreen.tsx',
-  '§3': 'change how the stored refusal is matched to the key fingerprint in src/services/providers/openrouter/openrouterAccounts.ts and src/utils/accounts/providerSecrets.ts (writeStoredOpenrouterApiKey)',
-  '§4': 'change onResponseHeaders in openrouterLaneProfile (src/services/providers/openrouter/openrouterCallModel.ts) or refreshOpenrouterKeyUsage in src/services/providers/openrouter/openrouterUsageState.ts',
-  '§4b': 'change extraHeaders and streamTransport in openrouterLaneProfile (src/services/providers/openrouter/openrouterCallModel.ts), src/services/providers/openrouter/openrouterResponsesTransport.ts or src/services/providers/openaicompat/compatChatClient.ts',
-  '§5': 'change storeOpenrouterApiKeyLogin in src/services/providers/openrouter/openrouterLogin.ts',
+  '§0': 'change resolveProviderUsability in src/models/roads/providerUsability.ts, deriveFamilySlotGroups in src/models/roads/accountSlots.ts or getOpenrouterAvailability in src/models/roads/openrouter/openrouterCatalogue.ts',
+  '§1': 'change compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts, openrouterLaneProfile in src/models/roads/openrouter/openrouterCallModel.ts or the refusal record in src/models/roads/openrouter/openrouterAccounts.ts',
+  '§2': 'change the surface that read the refusal wrongly: providerUsability.ts, accountSlots.ts, openrouter/openrouterCatalogue.ts or providerUsage.ts under src/models/roads/, or loginsFamilyCounts in src/screen/boot-face/BootLoginsScreen.tsx',
+  '§3': 'change how the stored refusal is matched to the key fingerprint in src/models/roads/openrouter/openrouterAccounts.ts and src/models/sign-in/account-ledger/providerSecrets.ts (writeStoredOpenrouterApiKey)',
+  '§4': 'change onResponseHeaders in openrouterLaneProfile (src/models/roads/openrouter/openrouterCallModel.ts) or refreshOpenrouterKeyUsage in src/models/roads/openrouter/openrouterUsageState.ts',
+  '§4b': 'change extraHeaders and streamTransport in openrouterLaneProfile (src/models/roads/openrouter/openrouterCallModel.ts), src/models/roads/openrouter/openrouterResponsesTransport.ts or src/models/roads/openaicompat/compatChatClient.ts',
+  '§5': 'change storeOpenrouterApiKeyLogin in src/models/roads/openrouter/openrouterLogin.ts',
 }
 let sectionKey = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -108,26 +108,26 @@ async function stub(path: string, overrides: Record<string, unknown>): Promise<v
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...overrides }))
 }
-await stub('../../src/utils/proxy.js', { getApiFetch: () => fetchImpl, getProxyFetchOptions: () => ({}) })
+await stub('../../src/platform/network/proxy.js', { getApiFetch: () => fetchImpl, getProxyFetchOptions: () => ({}) })
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.js')
+const bootstrap = await import('../../src/boot/process-state/processState.js')
 bootstrap.setIsInteractive(false)
-const accounts = await import('../../src/services/providers/openrouter/openrouterAccounts.js')
-const usageState = await import('../../src/services/providers/openrouter/openrouterUsageState.js')
-const catalogue = await import('../../src/services/providers/openrouter/openrouterCatalogue.js')
-const secrets = await import('../../src/utils/accounts/providerSecrets.js')
-const slots = await import('../../src/services/providers/accountSlots.js')
-const usability = await import('../../src/services/providers/providerUsability.js')
-const usage = await import('../../src/services/providers/providerUsage.js')
-const { loginsFamilyCounts } = await import('../../src/components/BootLoginsScreen.js')
-const { openrouterLaneProfile } = await import('../../src/services/providers/openrouter/openrouterCallModel.js')
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.js')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-import type { Message } from '../../src/types/message.ts'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+const accounts = await import('../../src/models/roads/openrouter/openrouterAccounts.js')
+const usageState = await import('../../src/models/roads/openrouter/openrouterUsageState.js')
+const catalogue = await import('../../src/models/roads/openrouter/openrouterCatalogue.js')
+const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.js')
+const slots = await import('../../src/models/roads/accountSlots.js')
+const usability = await import('../../src/models/roads/providerUsability.js')
+const usage = await import('../../src/models/roads/providerUsage.js')
+const { loginsFamilyCounts } = await import('../../src/screen/boot-face/BootLoginsScreen.js')
+const { openrouterLaneProfile } = await import('../../src/models/roads/openrouter/openrouterCallModel.js')
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.js')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+import type { Message } from '../../src/engine/message-shapes/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
 
 const user = (content: string): Message => ({ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content } }) as Message
 const params = (): CompatCallModelParams => ({
@@ -153,10 +153,10 @@ const freshRead = (): void => {
 const childRead = (): { usable: boolean; blockers: string[]; signedIn: boolean | undefined; availability: string } | null => {
   const script = [
     "(globalThis).MACRO = { VERSION: '1.0.0' }",
-    "const { enableConfigs } = await import('./src/utils/config.ts'); enableConfigs()",
-    "const u = await import('./src/services/providers/providerUsability.ts')",
-    "const s = await import('./src/services/providers/accountSlots.ts')",
-    "const c = await import('./src/services/providers/openrouter/openrouterCatalogue.ts')",
+    "const { enableConfigs } = await import('./src/platform/settings/config.ts'); enableConfigs()",
+    "const u = await import('./src/models/roads/providerUsability.ts')",
+    "const s = await import('./src/models/roads/accountSlots.ts')",
+    "const c = await import('./src/models/roads/openrouter/openrouterCatalogue.ts')",
     "const lane = u.resolveProviderUsability().openrouter",
     "const slot = s.deriveFamilySlotGroups().find(g => g.family.id === 'openrouter')?.slots.find(x => x.id === 'openrouter:stored-key')",
     "const a = c.getOpenrouterAvailability()",
@@ -252,8 +252,8 @@ try {
   {
     const attributed = (headers: Headers | undefined): boolean => headers?.get('HTTP-Referer') === 'https://mercury-cli.ai' && headers.get('X-Title') === 'Mercury CLI'
     check('OpenRouter chat requests carry attribution through refused and served turns', requestHeaders.length > 1 && requestHeaders.every(attributed))
-    const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.js')
-    const { streamOpenrouterResponses } = await import('../../src/services/providers/openrouter/openrouterResponsesTransport.js')
+    const { streamCompatChat } = await import('../../src/models/roads/openaicompat/compatChatClient.js')
+    const { streamOpenrouterResponses } = await import('../../src/models/roads/openrouter/openrouterResponsesTransport.js')
     const options = {
       url: `${base}/chat/completions`,
       apiKey: STORED_KEY,
@@ -278,7 +278,7 @@ try {
 
   section('§5 /logins proves a pasted key on GET /key (the models list answers every key): a refused key is refused with the words and never stored; an accepted key is stored and confirmed')
   {
-    const { storeOpenrouterApiKeyLogin } = await import('../../src/services/providers/openrouter/openrouterLogin.js')
+    const { storeOpenrouterApiKeyLogin } = await import('../../src/models/roads/openrouter/openrouterLogin.js')
     secrets.writeStoredOpenrouterApiKey(STORED_KEY)
     hits.length = 0
     keyStatus = 401

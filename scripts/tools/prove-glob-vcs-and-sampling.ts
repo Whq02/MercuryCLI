@@ -3,15 +3,15 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, utimesSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 
-const rg = await import('../../src/utils/ripgrep.ts')
+const rg = await import('../../src/platform/shell/ripgrep.ts')
 const ripGrepAnswer = rg.ripGrepAnswer
 const calls: string[][] = []
-mock.module('../../src/utils/ripgrep.ts', () => ({ ...rg, ripGrepAnswer: (...args: Parameters<typeof ripGrepAnswer>) => { calls.push([...args[0]]); return ripGrepAnswer(...args) } }))
-const { glob } = await import('../../src/utils/glob.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+mock.module('../../src/platform/shell/ripgrep.ts', () => ({ ...rg, ripGrepAnswer: (...args: Parameters<typeof ripGrepAnswer>) => { calls.push([...args[0]]); return ripGrepAnswer(...args) } }))
+const { glob } = await import('../../src/tools/glob/glob.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'glob-spread-')))
 let failures = 0
-const globSamplingHint = 'fix glob in src/utils/glob.ts: prune the VCS directories (.git .svn .hg .bzr .jj .sl) in both ripgrep walks, keep the limit and offset paging, and sample over-cap pages across top-level directories newest-first'
+const globSamplingHint = 'fix glob in src/tools/glob/glob.ts: prune the VCS directories (.git .svn .hg .bzr .jj .sl) in both ripgrep walks, keep the limit and offset paging, and sample over-cap pages across top-level directories newest-first'
 const check = (label: string, ok: boolean): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ' — ' + globSamplingHint}`); if (!ok) failures++ }
 const stamp = (path: string, age: number): void => {
   const file = join(root, path)

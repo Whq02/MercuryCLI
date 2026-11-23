@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/PopupGutter.tsx src/components/CommandPopupSlot.tsx src/components/ModelPickerPopupSlot.tsx src/components/FullscreenLayout.tsx
+// gate-watch: src/screen/overlays/PopupGutter.tsx src/screen/overlays/CommandPopupSlot.tsx src/screen/overlays/ModelPickerPopupSlot.tsx src/screen/fullscreen-layout/FullscreenLayout.tsx
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome } from '../lib/settingsPopupHarness.ts'
@@ -28,7 +28,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}a popup must cover the status band whole or leave it whole: see popupCover and the popup geometry in src/components/PopupGutter.tsx, src/components/CommandPopupSlot.tsx and src/components/ModelPickerPopupSlot.tsx` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}a popup must cover the status band whole or leave it whole: see popupCover and the popup geometry in src/screen/overlays/PopupGutter.tsx, src/screen/overlays/CommandPopupSlot.tsx and src/screen/overlays/ModelPickerPopupSlot.tsx` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -36,22 +36,22 @@ function section(title: string): void {
 
 const React = await import('react')
 const h = React.createElement
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
-const { getEngineModel } = await import('../../src/services/model/model.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
 const effortCommand = await import('../../src/commands/effort/effort.tsx')
 const modelCommand = await import('../../src/commands/model/mercuryModel.tsx')
 const certificate = await import('../../src/commands/health/HealthCertificate.tsx')
-const { CommandPopupLease } = await import('../../src/components/CommandPopupSlot.tsx')
-const { claimCommandPopup } = await import('../../src/utils/cockpit/commandPopup.ts')
+const { CommandPopupLease } = await import('../../src/screen/overlays/CommandPopupSlot.tsx')
+const { claimCommandPopup } = await import('../../src/screen/cockpit/commandPopup.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))

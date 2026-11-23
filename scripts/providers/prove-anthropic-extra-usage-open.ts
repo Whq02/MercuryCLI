@@ -14,22 +14,22 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const extraUsageFixHint = ' (fix the window and overage reading in src/services/anthropicLimits.ts, or the lane and dispatch gate in src/services/providers/providerUsability.ts, whichever the label names)'
+  const extraUsageFixHint = ' (fix the window and overage reading in src/models/roads/anthropic/anthropicLimits.ts, or the lane and dispatch gate in src/models/roads/providerUsability.ts, whichever the label names)'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : extraUsageFixHint}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const limits = await import('../../src/services/anthropicLimits.ts')
-const mock = await import('../../src/services/mockRateLimits.ts')
-const usability = await import('../../src/services/providers/providerUsability.ts')
-const refusal = await import('../../src/services/providers/anthropicRefusal.ts')
-const messages = await import('../../src/services/rateLimitMessages.ts')
-const warning = await import('../../src/services/providers/limitWarning.ts')
-const failover = await import('../../src/services/capFailover.ts')
-type Reads = import('../../src/services/providers/providerUsability.ts').ProviderUsabilityReads
-type Limits = import('../../src/services/anthropicLimits.ts').AnthropicLimits
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+const mock = await import('../../src/models/roads/anthropic/mockRateLimits.ts')
+const usability = await import('../../src/models/roads/providerUsability.ts')
+const refusal = await import('../../src/models/roads/anthropicRefusal.ts')
+const messages = await import('../../src/models/roads/anthropic/rateLimitMessages.ts')
+const warning = await import('../../src/models/roads/limitWarning.ts')
+const failover = await import('../../src/models/roads/capFailover.ts')
+type Reads = import('../../src/models/roads/providerUsability.ts').ProviderUsabilityReads
+type Limits = import('../../src/models/roads/anthropic/anthropicLimits.ts').AnthropicLimits
 
 const OWNER = 'anthropic:oauth:primary:00000000-0000-4000-8000-0000000000ee'
 const ACCOUNT = 'eve@example.com'

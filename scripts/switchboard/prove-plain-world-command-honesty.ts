@@ -132,9 +132,9 @@ check(
   '§1 the honest plain-world sentence paints (the router speaks)',
   /opens a Session Concourse surface/.test(joined) && /off in this boot/.test(joined),
   '',
-  'typing a Concourse-only command such as /crew in a plain-world boot must paint the sentence built in src/services/processUserInput/processSlashCommand.tsx (the The /name command opens a Session Concourse surface line)',
+  'typing a Concourse-only command such as /crew in a plain-world boot must paint the sentence built in src/engine/user-input/processSlashCommand.tsx (the The /name command opens a Session Concourse surface line)',
 )
-check('§2 POISON: the headless-form refusal never paints', !/no headless form/.test(joined), '', 'the plain-world /crew must not paint the headless-form refusal: see the branch order in src/services/processUserInput/processSlashCommand.tsx')
+check('§2 POISON: the headless-form refusal never paints', !/no headless form/.test(joined), '', 'the plain-world /crew must not paint the headless-form refusal: see the branch order in src/engine/user-input/processSlashCommand.tsx')
 const projectsDir = join(configDir, 'projects')
 let transcriptBytes = ''
 if (existsSync(projectsDir)) {
@@ -150,7 +150,7 @@ check(
   '§3 NO transcript byte carries the gated command or a refusal sentence',
   !transcriptBytes.includes('/crew') && !transcriptBytes.includes('no headless form') && !transcriptBytes.includes('Session Concourse surface'),
   '',
-  'the gated /crew line and the router reply must not be written to the transcript: see the plain-world branch in src/services/processUserInput/processSlashCommand.tsx',
+  'the gated /crew line and the router reply must not be written to the transcript: see the plain-world branch in src/engine/user-input/processSlashCommand.tsx',
 )
 const doubled = /· ready · [^\n·]+ · ready/
 check('§3b the status row never repeats "· <project> · ready" twice', !doubled.test(joined), joined.split('\n').filter(r => doubled.test(r)).map(r => r.trim().slice(0, 110)).join(' | ') || 'clean', 'the status row paints the project and ready twice; the row text is printed above')
@@ -159,7 +159,7 @@ const statusRows = joined.split('\n').filter(r => /^ ?ready · |· thinking|· r
 check('§3c no title row paints and "new session" is nowhere after the first words; the status row leads with the model and its effort while a turn runs and rests on ready · the model · the effort, the folder at its right end', titleRows.length === 0 && !/new session/.test(joined) && statusRows.length > 0 && statusRows.every(r => r.trimStart().startsWith('Opus 5.5 · ') || r.trimStart().startsWith('ready · Opus 5.5')) && statusRows.some(r => new RegExp(`^ ?ready · Opus 5\\.5 · \\S+ {2,}${basename(cwd)}(?: ⌥ \\S+)? {2}`).test(r)) && !statusRows.some(r => r.includes(`${basename(cwd)} · ready`)), [...titleRows.slice(0, 1), ...statusRows.slice(0, 1)].map(r => r.trim().slice(0, 100)).join(' | ') || 'no title or status row', 'expected no title row, no new session text, and a status row that leads with the model and effort and rests on ready, the model, the effort, then the folder; the rows seen are printed above')
 const typedNeedle = /(?<![:/\w])\/crew\b/
 const wireHits = api.requests.filter((r: { raw: string }) => typedNeedle.test(r.raw))
-check('§4 the wire never saw /crew', wireHits.length === 0, `${wireHits.length} of ${api.requests.length}`, 'the typed /crew line reached the model request: the plain-world slash command must be answered locally in src/services/processUserInput/processSlashCommand.tsx, the wire evidence is printed below')
+check('§4 the wire never saw /crew', wireHits.length === 0, `${wireHits.length} of ${api.requests.length}`, 'the typed /crew line reached the model request: the plain-world slash command must be answered locally in src/engine/user-input/processSlashCommand.tsx, the wire evidence is printed below')
 for (const hit of wireHits.slice(0, 2)) {
   const raw = (hit as { raw: string }).raw
   const idx = raw.search(typedNeedle)

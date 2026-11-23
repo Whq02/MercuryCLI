@@ -13,14 +13,14 @@ const ROW = {
   assets: 'scripts/critters/fixtures/zzz-frames.json',
   generator: 'bun scripts/critters/gen-zzz-frames.ts',
   check: 'bun scripts/critters/prove-critter-sleep.ts',
-  sources: 'scripts/critters/gen-zzz-frames.ts scripts/critters/zzzFrames.ts src/utils/cockpit/critterData.ts src/utils/cockpit/critterIdle.ts src/components/mercury-ui/CritterArt.tsx src/utils/staticRender.tsx src/utils/config/globalConfig.ts',
+  sources: 'scripts/critters/gen-zzz-frames.ts scripts/critters/zzzFrames.ts src/screen/cockpit/critterData.ts src/screen/cockpit/critterIdle.ts src/screen/widgets/CritterArt.tsx src/screen/renderer/staticRender.tsx src/platform/config/globalConfig.ts',
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 const rerecord = process.argv.includes('--rerecord')
 const positional = process.argv.slice(2).filter(arg => arg !== '--rerecord')
 const root = resolve(positional[0] ?? HERE)
 const out = resolve(positional[1] ?? join(HERE, ROW.assets))
-const { CRITTERS } = await import(`${root}/src/utils/cockpit/critterData.ts`)
+const { CRITTERS } = await import(`${root}/src/screen/cockpit/critterData.ts`)
 const forms = new Set(CRITTERS.flatMap((def: { mini?: unknown; squareDock?: unknown; sleep: Record<string, unknown> }) => [
   ...(Array.isArray(def.mini) ? ['mini'] : []),
   ...(Array.isArray(def.squareDock) ? ['square'] : []),

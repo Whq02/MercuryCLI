@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import fc from 'fast-check'
-import { getModelCapability } from '../../src/utils/model/modelCapabilities.ts'
+import { getModelCapability } from '../../src/models/facts/inactiveCapabilityLookup.ts'
 
-const WHERE = 'getModelCapability in src/utils/model/modelCapabilities.ts'
+const WHERE = 'getModelCapability in src/models/facts/inactiveCapabilityLookup.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

@@ -17,7 +17,7 @@ const entry = join(payload, 'mercury.mjs')
 const node = nodeBinPath()
 let failures = 0
 let checks = 0
-const nixOwnershipFixHint = 'ownership checks: fix classifyInstallProvenance or provenanceGuidance in src/services/privateChannel/installProvenance.ts; update, install and rollback sentence checks: the Nix words live in src/services/privateChannel/updateRemedy.ts and installerUpgrade.ts; a check that finds changed bytes means a command wrote into the read-only Nix payload, home or PATH folder'
+const nixOwnershipFixHint = 'ownership checks: fix classifyInstallProvenance or provenanceGuidance in src/platform/update-channel/installProvenance.ts; update, install and rollback sentence checks: the Nix words live in src/platform/update-channel/updateRemedy.ts and installerUpgrade.ts; a check that finds changed bytes means a command wrote into the read-only Nix payload, home or PATH folder'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
@@ -35,7 +35,7 @@ try {
   copyFileSync(join(dirname(dist), 'manifest.json'), join(payload, 'manifest.json'))
   writeFileSync(join(payload, 'mercury'), '#!/bin/sh\nexit 0\n')
   writeFileSync(marker, 'libexec/mercury\n')
-  const { gatherInstallProbeFacts, classifyInstallProvenance, provenanceGuidance } = await import(pathToFileURL(join(root, 'src/services/privateChannel/installProvenance.ts')).href)
+  const { gatherInstallProbeFacts, classifyInstallProvenance, provenanceGuidance } = await import(pathToFileURL(join(root, 'src/platform/update-channel/installProvenance.ts')).href)
   const versions = join(scratch, 'probe-versions')
   const facts = (path: string, platform: NodeJS.Platform = process.platform) => gatherInstallProbeFacts({ invokedPath: path, versionsDir: versions, platform, env: { IN_NIX_SHELL: 'pure', NIX_PROFILES: output } })
   const owned = classifyInstallProvenance(facts(entry, 'linux'))

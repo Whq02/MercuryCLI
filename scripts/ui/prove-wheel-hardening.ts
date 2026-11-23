@@ -4,8 +4,8 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, pinSourceRef, type Mounted } from '../lib/settingsPopupHarness.js'
-import type { BoardViewSnapshot } from '../../src/services/crewBoard/contracts.js'
-import type { ParsedInput } from '../../src/ink/input/input-decoder.js'
+import type { BoardViewSnapshot } from '../../src/crew/board/contracts.js'
+import type { ParsedInput } from '../../src/screen/renderer/input/input-decoder.js'
 
 pinSourceRef()
 const HOME = pinScratchHome('wheel-hardening')
@@ -54,7 +54,7 @@ const DRAG = '\x1b[<32;10;5M'
 let failures = 0
 let checks = 0
 const WHEEL_HARDENING_FAIL_HINT =
-  'to fix, change coalesceWheelRun in src/ink/components/AppInputLoop.ts (wheel chunk netting and page cap), resolveAlternateScrollIntent in src/ink/termio/alternateScrollPolicy.ts, or the wheel handling of src/components/prompts-panel/PromptsPanel.tsx and src/screens/Chat.tsx'
+  'to fix, change coalesceWheelRun in src/screen/renderer/elements/AppInputLoop.ts (wheel chunk netting and page cap), resolveAlternateScrollIntent in src/screen/renderer/termio/alternateScrollPolicy.ts, or the wheel handling of src/screen/prompts-panel/PromptsPanel.tsx and src/screen/chat/Chat.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
@@ -66,29 +66,29 @@ function section(title: string): void {
 
 const React = await import('react')
 const h = React.createElement
-const { Box } = await import('../../src/ink.js')
-const { App } = await import('../../src/components/App.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.js')
-const { Chat } = await import('../../src/screens/Chat.js')
-const route = await import('../../src/context/surfaceRoute.js')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.js')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { App } = await import('../../src/boot/App.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.js')
+const { Chat } = await import('../../src/screen/chat/Chat.js')
+const route = await import('../../src/screen/routes/surfaceRoute.js')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.js')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true, hasTrustDialogAccepted: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false, hasCompletedOnboarding: true, theme: 'dark' }))
-const pending = await import('../../src/input-core/pending-input.js')
-const slot = await import('../../src/services/engine-connector/focusedConnector.js')
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.js')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.js')
-const { getCommands } = await import('../../src/commands.js')
-const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.js')
-const { PromptsPanel } = await import('../../src/components/prompts-panel/PromptsPanel.js')
-const { coalesceWheelRun } = await import('../../src/ink/components/App.js')
-const { resolveAlternateScrollIntent } = await import('../../src/ink/termio/alternateScrollPolicy.js')
-const { parseMultipleKeypresses, INITIAL_STATE } = await import('../../src/ink/input/input-decoder.js')
+const pending = await import('../../src/screen/composer/input-core/pending-input.js')
+const slot = await import('../../src/engine/connector/focusedConnector.js')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.js')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.js')
+const { getCommands } = await import('../../src/commands/catalogue/commands.js')
+const { markDaemonHaltStanddown } = await import('../../src/daemon/control/daemonStanddown.js')
+const { PromptsPanel } = await import('../../src/screen/prompts-panel/PromptsPanel.js')
+const { coalesceWheelRun } = await import('../../src/screen/renderer/elements/App.js')
+const { resolveAlternateScrollIntent } = await import('../../src/screen/renderer/termio/alternateScrollPolicy.js')
+const { parseMultipleKeypresses, INITIAL_STATE } = await import('../../src/screen/renderer/input/input-decoder.js')
 markDaemonHaltStanddown()
 const commands = await getCommands(PROJECT)
 
@@ -157,7 +157,7 @@ try {
   section('§1 the wheel gesture: one chunk is one gesture, netted and capped at a page')
   const wheel = (name: 'wheelup' | 'wheeldown'): ParsedInput => ({ kind: 'key', name, fn: false, ctrl: false, meta: false, shift: false, option: false, super: false, sequence: '', raw: '', isPasted: false, x: 10, y: 5 })
   const key = (name: string): ParsedInput => ({ kind: 'key', name, fn: false, ctrl: false, meta: false, shift: false, option: false, super: false, sequence: '', raw: '', isPasted: false })
-  if (typeof coalesceWheelRun !== 'function') check('the App coalesces a chunk of wheel reports into one gesture', false, 'coalesceWheelRun is not exported by src/ink/components/App.tsx')
+  if (typeof coalesceWheelRun !== 'function') check('the App coalesces a chunk of wheel reports into one gesture', false, 'coalesceWheelRun is not exported by src/screen/renderer/elements/App.tsx')
   else {
     const one = coalesceWheelRun([wheel('wheelup')], 0, PAGE)
     check('one notch is one step (a selection moves one row; a scrolling body takes three rows per step)', one.steps === 1 && one.end === 1 && one.atom?.name === 'wheelup')

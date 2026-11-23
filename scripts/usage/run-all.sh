@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/main.tsx scripts/lib/spawnCapture.ts
-# gate-watch: src/utils/model/pins/deepseekPins.ts
+# gate-watch: src/boot/main.tsx scripts/lib/spawnCapture.ts
+# gate-watch: src/models/facts/pins/deepseekPins.ts
 # gate-watch: scripts/ui/gridToPng.ts scripts/ui/vshot.py
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

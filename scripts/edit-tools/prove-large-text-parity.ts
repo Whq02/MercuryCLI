@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
 import assert from 'node:assert/strict'
-import { preserveUntouchedLineEndings } from '../../src/utils/file.ts'
+import { preserveUntouchedLineEndings } from '../../src/platform/files/file.ts'
 import {
   _resetSeenLinesForTesting,
   recordSeenLines,
   seenLinesOf,
   SEEN_LINES_BOUNDS,
-} from '../../src/services/changeTransaction/seenLines.ts'
-import type { OwnerKey } from '../../src/utils/run/ownerKey.ts'
+} from '../../src/tools/engines/change-transaction/seenLines.ts'
+import type { OwnerKey } from '../../src/engine/run-owner/ownerKey.ts'
 
 type Range = { start: number; end: number }
 const owner = 'large-text-parity' as OwnerKey
@@ -52,7 +52,7 @@ assert.deepEqual(seenLinesOf(owner, 'fixture', 'generation')?.ranges,
   Array.from({ length: 256 }, (_, i) => ({ start: 9490 + i * 2, end: 9490 + i * 2 })))
 recordSeenLines(owner, 'fixture', 'generation', 9999, 2)
 const tailRanges = seenLinesOf(owner, 'fixture', 'generation')?.ranges
-assert.ok(tailRanges?.some(r => r.start <= 9999 && r.end >= 10000), `src/services/changeTransaction/seenLines.ts recordSeenLines(9999, 2) missing range covering 9999..10000: got ${JSON.stringify(tailRanges?.slice(-3))}`)
+assert.ok(tailRanges?.some(r => r.start <= 9999 && r.end >= 10000), `src/tools/engines/change-transaction/seenLines.ts recordSeenLines(9999, 2) missing range covering 9999..10000: got ${JSON.stringify(tailRanges?.slice(-3))}`)
 _resetSeenLinesForTesting()
 
 for (const majority of ['LF', 'CRLF'] as const) {

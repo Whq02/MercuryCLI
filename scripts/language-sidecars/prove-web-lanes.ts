@@ -2,10 +2,10 @@
 
 import { spawn } from 'node:child_process'
 import { join } from 'node:path'
-import { createFrameReader, createFrameWriter, type JsonRpcMessage } from '../../src/services/lsp/sidecarFraming.ts'
+import { createFrameReader, createFrameWriter, type JsonRpcMessage } from '../../src/integrations/lsp/sidecarFraming.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const ENTRY = join(ROOT, 'src', 'services', 'lsp', 'webSidecar', 'entry.ts')
+const ENTRY = join(ROOT, 'src', 'integrations', 'lsp', 'web-sidecar', 'entry.ts')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -38,7 +38,7 @@ const readChunk = createFrameReader(
     }
   },
   err => {
-    console.error(`client protocol error: ${err.message} (the sidecar wrote a malformed frame; see src/services/lsp/sidecarFraming.ts and src/services/lsp/webSidecar/entry.ts)`)
+    console.error(`client protocol error: ${err.message} (the sidecar wrote a malformed frame; see src/integrations/lsp/sidecarFraming.ts and src/integrations/lsp/web-sidecar/entry.ts)`)
     process.exit(1)
   },
 )
@@ -50,7 +50,7 @@ function request(method: string, params: unknown, timeoutMs = 15_000): Promise<J
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       pending.delete(id)
-      reject(new Error(`request ${method} timed out; the sidecar (src/services/lsp/webSidecar/sidecar.ts) never answered it`))
+      reject(new Error(`request ${method} timed out; the sidecar (src/integrations/lsp/web-sidecar/sidecar.ts) never answered it`))
     }, timeoutMs)
     pending.set(id, msg => {
       clearTimeout(timer)
@@ -72,8 +72,8 @@ const exitCode = new Promise<number | null>(resolve => child.on('exit', code => 
 {
   const init = await request('initialize', { rootUri: null, capabilities: {} })
   const caps = (init.result as { capabilities?: Record<string, unknown> })?.capabilities
-  check('initialize returns capabilities', !!caps, 'the initialize handler in src/services/lsp/webSidecar/sidecar.ts must return a result with capabilities')
-  check('hover + formatting + diagnostics advertised', !!caps?.hoverProvider && !!caps?.documentFormattingProvider && !!caps?.diagnosticProvider, 'advertise hoverProvider, documentFormattingProvider and diagnosticProvider in the initialize result of src/services/lsp/webSidecar/sidecar.ts; got ' + JSON.stringify(Object.keys(caps ?? {})))
+  check('initialize returns capabilities', !!caps, 'the initialize handler in src/integrations/lsp/web-sidecar/sidecar.ts must return a result with capabilities')
+  check('hover + formatting + diagnostics advertised', !!caps?.hoverProvider && !!caps?.documentFormattingProvider && !!caps?.diagnosticProvider, 'advertise hoverProvider, documentFormattingProvider and diagnosticProvider in the initialize result of src/integrations/lsp/web-sidecar/sidecar.ts; got ' + JSON.stringify(Object.keys(caps ?? {})))
   notifyServer('initialized', {})
 }
 
@@ -82,11 +82,11 @@ const exitCode = new Promise<number | null>(resolve => child.on('exit', code => 
   openDoc(uri, 'body { colr: red; }\n')
   const diag = await request('textDocument/diagnostic', { textDocument: { uri } })
   const items = (diag.result as { items?: unknown[] })?.items ?? []
-  check('css: unknown property produces a diagnostic', items.length >= 1, JSON.stringify(items).slice(0, 120) + ' | the textDocument/diagnostic case in src/services/lsp/webSidecar/sidecar.ts must return the css language service diagnostics')
+  check('css: unknown property produces a diagnostic', items.length >= 1, JSON.stringify(items).slice(0, 120) + ' | the textDocument/diagnostic case in src/integrations/lsp/web-sidecar/sidecar.ts must return the css language service diagnostics')
   const hover = await request('textDocument/hover', { textDocument: { uri }, position: { line: 0, character: 1 } })
-  check('css: hover answers on a selector', hover.result !== null && hover.result !== undefined, 'the textDocument/hover case in src/services/lsp/webSidecar/sidecar.ts returned no result for a css selector')
+  check('css: hover answers on a selector', hover.result !== null && hover.result !== undefined, 'the textDocument/hover case in src/integrations/lsp/web-sidecar/sidecar.ts returned no result for a css selector')
   const fmt = await request('textDocument/formatting', { textDocument: { uri }, options: { tabSize: 2, insertSpaces: true } })
-  check('css: format returns edits', Array.isArray(fmt.result), 'the textDocument/formatting case in src/services/lsp/webSidecar/sidecar.ts must return an edit array for css; got ' + JSON.stringify(fmt.error ?? fmt.result).slice(0, 120))
+  check('css: format returns edits', Array.isArray(fmt.result), 'the textDocument/formatting case in src/integrations/lsp/web-sidecar/sidecar.ts must return an edit array for css; got ' + JSON.stringify(fmt.error ?? fmt.result).slice(0, 120))
 }
 
 {
@@ -94,9 +94,9 @@ const exitCode = new Promise<number | null>(resolve => child.on('exit', code => 
   openDoc(uri, '{"a": 1,}\n')
   const diag = await request('textDocument/diagnostic', { textDocument: { uri } })
   const items = (diag.result as { items?: unknown[] })?.items ?? []
-  check('json: trailing comma produces a diagnostic', items.length >= 1, JSON.stringify(items).slice(0, 120) + ' | the textDocument/diagnostic case in src/services/lsp/webSidecar/sidecar.ts must flag a trailing comma in plain json')
+  check('json: trailing comma produces a diagnostic', items.length >= 1, JSON.stringify(items).slice(0, 120) + ' | the textDocument/diagnostic case in src/integrations/lsp/web-sidecar/sidecar.ts must flag a trailing comma in plain json')
   const fmt = await request('textDocument/formatting', { textDocument: { uri }, options: { tabSize: 2, insertSpaces: true } })
-  check('json: format returns edits', Array.isArray(fmt.result) && (fmt.result as unknown[]).length >= 1, 'the textDocument/formatting case in src/services/lsp/webSidecar/sidecar.ts must return at least one edit for json; got ' + JSON.stringify(fmt.error ?? fmt.result).slice(0, 120))
+  check('json: format returns edits', Array.isArray(fmt.result) && (fmt.result as unknown[]).length >= 1, 'the textDocument/formatting case in src/integrations/lsp/web-sidecar/sidecar.ts must return at least one edit for json; got ' + JSON.stringify(fmt.error ?? fmt.result).slice(0, 120))
 }
 
 {
@@ -104,25 +104,25 @@ const exitCode = new Promise<number | null>(resolve => child.on('exit', code => 
   openDoc(uri, 'a: [1, 2\nb: c\n')
   const diag = await request('textDocument/diagnostic', { textDocument: { uri } })
   const items = (diag.result as { items?: unknown[] })?.items ?? []
-  check('yaml: broken flow sequence produces a diagnostic', items.length >= 1, JSON.stringify(items).slice(0, 120) + ' | the textDocument/diagnostic case in src/services/lsp/webSidecar/sidecar.ts must report yaml parse errors')
+  check('yaml: broken flow sequence produces a diagnostic', items.length >= 1, JSON.stringify(items).slice(0, 120) + ' | the textDocument/diagnostic case in src/integrations/lsp/web-sidecar/sidecar.ts must report yaml parse errors')
   const uri2 = 'file:///vista/fixture2.yaml'
   openDoc(uri2, 'key:    value\nlist:\n  - a\n')
   const fmt = await request('textDocument/formatting', { textDocument: { uri: uri2 }, options: { tabSize: 2, insertSpaces: true } })
-  check('yaml: format returns edits', Array.isArray(fmt.result), JSON.stringify(fmt.error ?? fmt.result).slice(0, 120) + ' | the textDocument/formatting case in src/services/lsp/webSidecar/sidecar.ts must return an edit array for yaml')
+  check('yaml: format returns edits', Array.isArray(fmt.result), JSON.stringify(fmt.error ?? fmt.result).slice(0, 120) + ' | the textDocument/formatting case in src/integrations/lsp/web-sidecar/sidecar.ts must return an edit array for yaml')
 }
 
 {
   const uri = 'file:///vista/fixture.html'
   openDoc(uri, '<div  class="a"><p>hi</p></div>\n')
   const hover = await request('textDocument/hover', { textDocument: { uri }, position: { line: 0, character: 2 } })
-  check('html: hover answers on a tag', hover.result !== null && hover.result !== undefined, 'the textDocument/hover case in src/services/lsp/webSidecar/sidecar.ts returned no result for an html tag')
+  check('html: hover answers on a tag', hover.result !== null && hover.result !== undefined, 'the textDocument/hover case in src/integrations/lsp/web-sidecar/sidecar.ts returned no result for an html tag')
   const fmt = await request('textDocument/formatting', { textDocument: { uri }, options: { tabSize: 2, insertSpaces: true } })
-  check('html: format returns edits', Array.isArray(fmt.result), 'the textDocument/formatting case in src/services/lsp/webSidecar/sidecar.ts must return an edit array for html; got ' + JSON.stringify(fmt.error ?? fmt.result).slice(0, 120))
+  check('html: format returns edits', Array.isArray(fmt.result), 'the textDocument/formatting case in src/integrations/lsp/web-sidecar/sidecar.ts must return an edit array for html; got ' + JSON.stringify(fmt.error ?? fmt.result).slice(0, 120))
   const syms = await request('textDocument/documentSymbol', { textDocument: { uri } })
-  check('html: document symbols project', Array.isArray(syms.result) && (syms.result as unknown[]).length >= 1, 'the textDocument/documentSymbol case in src/services/lsp/webSidecar/sidecar.ts must return at least one symbol for html; got ' + JSON.stringify(syms.error ?? syms.result).slice(0, 120))
+  check('html: document symbols project', Array.isArray(syms.result) && (syms.result as unknown[]).length >= 1, 'the textDocument/documentSymbol case in src/integrations/lsp/web-sidecar/sidecar.ts must return at least one symbol for html; got ' + JSON.stringify(syms.error ?? syms.result).slice(0, 120))
   const diag = await request('textDocument/diagnostic', { textDocument: { uri } })
   const items = (diag.result as { items?: unknown[] })?.items ?? []
-  check('html: diagnostics HONESTLY empty (no invented validator)', items.length === 0, 'the textDocument/diagnostic case in src/services/lsp/webSidecar/sidecar.ts must return no items for html; got ' + JSON.stringify(items).slice(0, 120))
+  check('html: diagnostics HONESTLY empty (no invented validator)', items.length === 0, 'the textDocument/diagnostic case in src/integrations/lsp/web-sidecar/sidecar.ts must return no items for html; got ' + JSON.stringify(items).slice(0, 120))
 }
 
 {
@@ -130,26 +130,26 @@ const exitCode = new Promise<number | null>(resolve => child.on('exit', code => 
   openDoc(uri, '{\n  // comment is fine here\n  "compilerOptions": { "strict": true, },\n}\n')
   const diag = await request('textDocument/diagnostic', { textDocument: { uri } })
   const items = (diag.result as { items?: unknown[] })?.items ?? []
-  check('tsconfig.json: comments + trailing commas produce ZERO diagnostics (jsonc by convention)', items.length === 0, JSON.stringify(items).slice(0, 160) + ' | the tsconfig filename patterns near the top of src/services/lsp/webSidecar/sidecar.ts must route tsconfig.json to the lenient jsonc parse')
+  check('tsconfig.json: comments + trailing commas produce ZERO diagnostics (jsonc by convention)', items.length === 0, JSON.stringify(items).slice(0, 160) + ' | the tsconfig filename patterns near the top of src/integrations/lsp/web-sidecar/sidecar.ts must route tsconfig.json to the lenient jsonc parse')
   const uriStrict = 'file:///vista/data.json'
   openDoc(uriStrict, '{"a": 1, /* nope */}\n')
   const strict = await request('textDocument/diagnostic', { textDocument: { uri: uriStrict } })
   const strictItems = (strict.result as { items?: unknown[] })?.items ?? []
-  check('plain .json stays STRICT (comments still flagged)', strictItems.length >= 1, 'src/services/lsp/webSidecar/sidecar.ts must keep plain .json files on the strict parse; only the tsconfig filename patterns may be lenient')
+  check('plain .json stays STRICT (comments still flagged)', strictItems.length >= 1, 'src/integrations/lsp/web-sidecar/sidecar.ts must keep plain .json files on the strict parse; only the tsconfig filename patterns may be lenient')
 }
 
 {
   const uri = 'file:///vista/remote-schema.json'
   openDoc(uri, '{"$schema": "https://example.com/schema.json", "a": 1}\n')
   const diag = await request('textDocument/diagnostic', { textDocument: { uri } }, 20_000)
-  check('law: document naming an https schema still ANSWERS (refusal, no fetch/hang)', diag.result !== undefined, 'schemaRequest in src/services/lsp/webSidecar/sidecar.ts must refuse remote schemas and let the diagnostic request answer')
+  check('law: document naming an https schema still ANSWERS (refusal, no fetch/hang)', diag.result !== undefined, 'schemaRequest in src/integrations/lsp/web-sidecar/sidecar.ts must refuse remote schemas and let the diagnostic request answer')
 }
 
 {
   await request('shutdown', null)
   notifyServer('exit', null)
   const code = await Promise.race([exitCode, new Promise<null>(r => setTimeout(() => r(null), 5000))])
-  check('clean exit after shutdown', code === 0, `exit=${String(code)} | the shutdown and exit handling in src/services/lsp/webSidecar/sidecar.ts and entry.ts must exit the process with code 0 (null means it did not exit within 5s)`)
+  check('clean exit after shutdown', code === 0, `exit=${String(code)} | the shutdown and exit handling in src/integrations/lsp/web-sidecar/sidecar.ts and entry.ts must exit the process with code 0 (null means it did not exit within 5s)`)
 }
 
 child.kill()

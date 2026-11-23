@@ -16,7 +16,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail.slice(0, 300)}` : ''}`)
   if (!cond) {
-    console.log('    fix: the §1 checks exercise Cursor.render and getLineEndOffset in src/utils/Cursor.ts; the pty checks drive the built dist/mercury.mjs (rebuild with bun run build.ts if the source changed) and the composer mouse road in src/components/PromptInput/useComposerSelection.ts (useComposerSelectionRoad) and src/hooks/useTextInput.ts; a failed capture means the pty driver run itself failed, read the stderr tail printed above')
+    console.log('    fix: the §1 checks exercise Cursor.render and getLineEndOffset in src/screen/composer/vim/textCursor.ts; the pty checks drive the built dist/mercury.mjs (rebuild with bun run build.ts if the source changed) and the composer mouse road in src/screen/composer/useComposerSelection.ts (useComposerSelectionRoad) and src/screen/composer/text-input/useTextInput.ts; a failed capture means the pty driver run itself failed, read the stderr tail printed above')
   }
 }
 function section(title: string): void {
@@ -25,7 +25,7 @@ function section(title: string): void {
 
 section('§1 pure — the painted selection and the row-end offset')
 {
-  const { Cursor } = await import('../../src/utils/Cursor.ts')
+  const { Cursor } = await import('../../src/screen/composer/vim/textCursor.ts')
   const invert = (s: string): string => `[${s}]`
   const paint = (s: string): string => `{${s}}`
   const oneRow = Cursor.fromText('hello world', 80, 6).render(' ', '', invert, undefined, undefined, {

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/local-setup/fixtures/**
-# gate-watch: src/services/localSetup/** src/commands/localsetup/**
-# gate-watch: src/services/localServer/** src/services/providers/local/**
+# gate-watch: src/models/local-setup/** src/commands/localsetup/**
+# gate-watch: src/models/local-server/** src/models/roads/local/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

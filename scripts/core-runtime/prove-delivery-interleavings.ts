@@ -19,17 +19,17 @@ for (const k of [
   delete process.env[k]
 }
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import(
-  '../../src/utils/messages/factories.ts'
+  '../../src/engine/message-shapes/factories.ts'
 )
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const queueStore = await import('../../src/input-core/command-queue.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const queueStore = await import('../../src/screen/composer/input-core/command-queue.ts')
 
 let failures = 0
 let checks = 0
@@ -37,7 +37,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   const where = /notice|silence/.test(label)
     ? ''
-    : '\n    fix: queued-command delivery: selectDrainableCommands and consumeDrainedCommands in src/run-core/attachment-drain.ts, the queue in src/input-core/command-queue.ts, and the turn in src/run-core/turn-machine.ts'
+    : '\n    fix: queued-command delivery: selectDrainableCommands and consumeDrainedCommands in src/engine/loop/attachment-drain.ts, the queue in src/screen/composer/input-core/command-queue.ts, and the turn in src/engine/loop/turn-machine.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? where : ''}`)
   if (!cond) failures++
 }
@@ -45,7 +45,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — delivery-interleavings prover exceeded 120s; a generator in the section printed last never finished, so look at query() in src/query.ts and the turn in src/run-core/turn-machine.ts')
+  console.log('\nTIMEOUT — delivery-interleavings prover exceeded 120s; a generator in the section printed last never finished, so look at query() in src/engine/turnDoor.ts and the turn in src/engine/loop/turn-machine.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
@@ -340,13 +340,13 @@ section('A6 — gen.throw() at the attachment yield still consumes the yielded c
 section('A7 — silence stays detail-only; every other turn-machine notice is recorded')
 {
   const t = await import('./turnScenarios.ts')
-  const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
-  const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
-  const { NO_TOOL_RULES, readReply } = await import('../../src/run-core/turn/noToolReply.ts')
-  const { createAssistantAPIErrorMessage } = await import('../../src/services/messages.ts')
-  const { resolveAutoCompactWindow } = await import('../../src/services/compact/autoCompact.ts')
-  const { fitImagesToRequestCap } = await import('../../src/utils/imageResizer.ts')
-  const { rosterOwnerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
+  const { makeRequest } = await import('../../src/engine/loop/turn/makeRequest.ts')
+  const { modelReply } = await import('../../src/engine/loop/turn/modelReply.ts')
+  const { NO_TOOL_RULES, readReply } = await import('../../src/engine/loop/turn/noToolReply.ts')
+  const { createAssistantAPIErrorMessage } = await import('../../src/engine/messages/messages.ts')
+  const { resolveAutoCompactWindow } = await import('../../src/engine/compaction/autoFold.ts')
+  const { fitImagesToRequestCap } = await import('../../src/platform/images/imageResizer.ts')
+  const { rosterOwnerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
   const f = t.fixtures
   type Spoken = { where: string; level: unknown; words: string }
   const systemNotices = (where: string, events: ReadonlyArray<Record<string, unknown> & { kind: string }>): Spoken[] =>
@@ -375,7 +375,7 @@ section('A7 — silence stays detail-only; every other turn-machine notice is re
   check(
     'the turn machine emits system notices',
     spoken.length > 0 && spoken.some(notice => notice.where === NEAR_THE_WINDOW) && spoken.some(notice => notice.where === IMAGE_LEFT_OUT),
-    `the turn machine under src/run-core/turn/ must raise a system notice for a request that failed near the window and for one that left an image out; the counts show which is missing: ${spoken.length} system notice(s) over ${t.SCENARIOS.length} recorded scenarios and two planted requests; ${NEAR_THE_WINDOW}: ${spoken.filter(notice => notice.where === NEAR_THE_WINDOW).length}; ${IMAGE_LEFT_OUT}: ${spoken.filter(notice => notice.where === IMAGE_LEFT_OUT).length}`,
+    `the turn machine under src/engine/loop/turn/ must raise a system notice for a request that failed near the window and for one that left an image out; the counts show which is missing: ${spoken.length} system notice(s) over ${t.SCENARIOS.length} recorded scenarios and two planted requests; ${NEAR_THE_WINDOW}: ${spoken.filter(notice => notice.where === NEAR_THE_WINDOW).length}; ${IMAGE_LEFT_OUT}: ${spoken.filter(notice => notice.where === IMAGE_LEFT_OUT).length}`,
   )
 
   const silenceRule = NO_TOOL_RULES.find(entry => entry.name === 'empty_reply_retry')!
@@ -392,13 +392,13 @@ section('A7 — silence stays detail-only; every other turn-machine notice is re
   check(
     'exactly one silence notice is detail-only, guarded by the silence outcome',
     afterSilence.length === 1 && afterSilence[0]?.level === 'info' && afterOtherReplies.every(notice => notice.level !== 'info') && detailOnly.length > 0 && detailOnly.every(notice => notice.words === silenceWords),
-    `a reply the provider ended with nothing said: ${JSON.stringify(afterSilence)}; an empty reply, a reply cut at the cap and a reply of words: ${JSON.stringify(afterOtherReplies.map(notice => notice.level))}; detail-only notices in the runs: ${JSON.stringify(detailOnly)} — the empty_reply_retry rule of src/run-core/turn/noToolReply.ts gives the silence note alone the level 'info'`,
+    `a reply the provider ended with nothing said: ${JSON.stringify(afterSilence)}; an empty reply, a reply cut at the cap and a reply of words: ${JSON.stringify(afterOtherReplies.map(notice => notice.level))}; detail-only notices in the runs: ${JSON.stringify(detailOnly)} — the empty_reply_retry rule of src/engine/loop/turn/noToolReply.ts gives the silence note alone the level 'info'`,
   )
   const unheard = spoken.filter(notice => !(notice.level === 'info' && notice.words === silenceWords) && notice.level !== 'warning' && notice.level !== 'error' && notice.level !== 'suggestion')
   check(
     'every other system notice of those runs carries an operator-visible level: warning, error or suggestion',
     unheard.length === 0,
-    `${unheard.length} of ${spoken.length - detailOnly.length}: ${unheard.map(notice => `${notice.where} raised [${String(notice.level)}] ${notice.words.slice(0, 80)}`).join(' · ')} — a notice of the turn machine is given 'warning', 'error' or 'suggestion' where it is made under src/run-core/turn/; 'info' reaches no operator`,
+    `${unheard.length} of ${spoken.length - detailOnly.length}: ${unheard.map(notice => `${notice.where} raised [${String(notice.level)}] ${notice.words.slice(0, 80)}`).join(' · ')} — a notice of the turn machine is given 'warning', 'error' or 'suggestion' where it is made under src/engine/loop/turn/; 'info' reaches no operator`,
   )
 }
 

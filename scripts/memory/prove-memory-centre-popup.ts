@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands/memory/memory.tsx src/components/memory/MemoryCentreView.tsx src/components/memory/memoryCentreLayout.ts
-// gate-watch: src/components/Settings/Settings.tsx src/components/SettingsPopupSlot.tsx src/utils/cockpit/settingsPopup.ts src/components/FullscreenLayout.tsx
+// gate-watch: src/commands/memory/memory.tsx src/screen/memory/MemoryCentreView.tsx src/screen/memory/memoryCentreLayout.ts
+// gate-watch: src/screen/settings/Settings.tsx src/screen/overlays/SettingsPopupSlot.tsx src/screen/cockpit/settingsPopup.ts src/screen/fullscreen-layout/FullscreenLayout.tsx
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -34,14 +34,14 @@ const save = (name: string, lines: string[]): void => {
   if (frameDir) writeFileSync(join(frameDir, `${name}.txt`), `${lines.join('\n')}\n`)
 }
 
-const layout = await import('../../src/components/memory/memoryCentreLayout.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const layout = await import('../../src/screen/memory/memoryCentreLayout.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(c => ({ ...c, prStatusFooterEnabled: false }))
 
 section('§1 the layout words: human dates, the overview cells, the lineage rows, the page lines, the footers')
-failHint = 'change the function the check names (humanStamp, overviewRows, pinnedRow, lineageRows, tableLine, pageLines, memoryFooter, memoryPopupLine) in src/components/memory/memoryCentreLayout.ts'
+failHint = 'change the function the check names (humanStamp, overviewRows, pinnedRow, lineageRows, tableLine, pageLines, memoryFooter, memoryPopupLine) in src/screen/memory/memoryCentreLayout.ts'
 {
   const stamp = layout.humanStamp('2026-10-11T01:13:00.000Z')
   const local = new Date('2026-10-11T01:13:00.000Z')
@@ -89,17 +89,17 @@ failHint = 'change the function the check names (humanStamp, overviewRows, pinne
   check('the context line is the project name and the memory folder', layout.memoryPopupLine('/Users/someone/code/app/', '~/.mercury/projects/-Users-someone-code-app/memory/') === 'app · ~/.mercury/projects/-Users-someone-code-app/memory')
 }
 
-const { appendObservation } = await import('../../src/mneme/mnemeBuffer.ts')
-const { maybeConsolidate, listTopicDocs } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { pinFact } = await import('../../src/mneme/mnemeUsage.ts')
-const { openEntry, closeEntry } = await import('../../src/mneme/ledger.ts')
-const { mnemeProjectKey, getMnemeHome } = await import('../../src/mneme/paths.ts')
-const { appendJournalEntry } = await import('../../src/mneme/journal.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { appendObservation } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { maybeConsolidate, listTopicDocs } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { pinFact } = await import('../../src/sessions/mneme/mnemeUsage.ts')
+const { openEntry, closeEntry } = await import('../../src/sessions/mneme/ledger.ts')
+const { mnemeProjectKey, getMnemeHome } = await import('../../src/sessions/mneme/paths.ts')
+const { appendJournalEntry } = await import('../../src/sessions/mneme/journal.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ memory: { journal: true } }))
 resetSettingsCache()
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
+const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 const dir = mnemeLibraryDir()
 for (const word of ['deploys', 'commits', 'reviews']) appendObservation({ text: `About ${word}: handle ${word} the careful way and say exactly what happened.`, source: 'operator', topicHint: 'rules' }, dir)
 appendObservation({ text: 'The owner prefers short plain rows in every table.', source: 'operator', topicHint: 'preferences' }, dir)
@@ -123,16 +123,16 @@ Date.now = realNow
 
 const React = await import('react')
 const h = React.createElement
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const settingsStore = await import('../../src/utils/cockpit/settingsPopup.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const settingsStore = await import('../../src/screen/cockpit/settingsPopup.ts')
 const memoryCommand = await import('../../src/commands/memory/memory.tsx')
 
 function Harness({ columns }: { columns: number }): React.ReactNode {
@@ -254,7 +254,7 @@ function judgeOverview(label: string, scene: Scene): void {
 
 for (const [columns, rows] of [[80, 24], [100, 30], [120, 40]] as const) {
   section(`§2 the overview at ${columns}x${rows}`)
-  failHint = 'the /memory popup (src/commands/memory/memory.tsx) painted something else; compare the printed rows with overviewRows, memoryFooter and tableLine in src/components/memory/memoryCentreLayout.ts, or save frames with --frames <dir> to see the screen'
+  failHint = 'the /memory popup (src/commands/memory/memory.tsx) painted something else; compare the printed rows with overviewRows, memoryFooter and tableLine in src/screen/memory/memoryCentreLayout.ts, or save frames with --frames <dir> to see the screen'
   const scene = await openMemory(columns, rows)
   save(`memory-overview-${columns}x${rows}`, scene.m.lines())
   judgeOverview(`${columns}x${rows}`, scene)
@@ -284,7 +284,7 @@ for (const [columns, rows] of [[80, 24], [100, 30], [120, 40]] as const) {
 }
 
 section('§3 the lineage as a table and a session\'s note as a page (120x40, then the same page at 80x24 and 100x30)')
-failHint = 'the lineage table or note page of the /memory popup (src/commands/memory/memory.tsx) differs; compare with lineageRows, tableLine and pageLines in src/components/memory/memoryCentreLayout.ts, or save frames with --frames <dir>'
+failHint = 'the lineage table or note page of the /memory popup (src/commands/memory/memory.tsx) differs; compare with lineageRows, tableLine and pageLines in src/screen/memory/memoryCentreLayout.ts, or save frames with --frames <dir>'
 for (const [columns, rows] of [[120, 40], [100, 30], [80, 24]] as const) {
   const scene = await openMemory(columns, rows)
   await moveTo(scene.m, 'lineage')
@@ -324,7 +324,7 @@ for (const [columns, rows] of [[120, 40], [100, 30], [80, 24]] as const) {
 }
 
 section('§4 the journal newest first and an entry as a page; the topics and a topic page (120x40)')
-failHint = 'the journal, topics or search views of the /memory popup (src/commands/memory/memory.tsx) differ; compare with pageLines and memoryFooter in src/components/memory/memoryCentreLayout.ts, or save frames with --frames <dir>'
+failHint = 'the journal, topics or search views of the /memory popup (src/commands/memory/memory.tsx) differ; compare with pageLines and memoryFooter in src/screen/memory/memoryCentreLayout.ts, or save frames with --frames <dir>'
 {
   const scene = await openMemory(120, 40)
   await moveTo(scene.m, 'journal')
@@ -375,7 +375,7 @@ failHint = 'the journal, topics or search views of the /memory popup (src/comman
 }
 
 section('§5 the instruction files picker rides the same popup; /memory files opens straight into it')
-failHint = 'the instruction files picker inside the /memory popup: check the files argument and MEMORY_FILES_CLOSED in src/commands/memory/memory.tsx, and the footers in memoryFooter in src/components/memory/memoryCentreLayout.ts'
+failHint = 'the instruction files picker inside the /memory popup: check the files argument and MEMORY_FILES_CLOSED in src/commands/memory/memory.tsx, and the footers in memoryFooter in src/screen/memory/memoryCentreLayout.ts'
 {
   const scene = await openMemory(120, 40)
   await moveTo(scene.m, 'instruction files')

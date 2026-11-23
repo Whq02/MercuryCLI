@@ -46,11 +46,11 @@ function normalize(frame: string): string {
 }
 
 async function captureInchatFrames(): Promise<Record<string, string>> {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { StudioEditor } = await import('../../src/components/agents/studio/StudioEditor.js')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { StudioEditor } = await import('../../src/screen/agents/studio/StudioEditor.js')
 
   const cwd = mkdtempSync(join(tmpdir(), 'agent-face-cwd-'))
   const agentDir = join(cwd, '.mercury', 'agents')
@@ -58,8 +58,8 @@ async function captureInchatFrames(): Promise<Record<string, string>> {
   const agentPath = join(agentDir, 'fixture-scout.md')
   writeFileSync(agentPath, FIXTURE_AGENT_RAW)
 
-  const { decodeAgentDocument } = await import('../../src/services/agents/codec.js')
-  const { revisionDigest } = await import('../../src/services/agents/contracts.js')
+  const { decodeAgentDocument } = await import('../../src/crew/agents/codec.js')
+  const { revisionDigest } = await import('../../src/crew/agents/contracts.js')
   const doc = decodeAgentDocument(FIXTURE_AGENT_RAW, agentPath)
   const fixtureDefinition = {
     agentType: 'fixture-scout',
@@ -109,10 +109,10 @@ async function captureFaceFrames(): Promise<Record<string, string>> {
     agentFormDetailLines,
     agentFormEntryOf,
     agentFormRowIds,
-  } = await import('../../src/components/BootAgentsScreen.js')
-  const { buildStudioRows } = await import('../../src/components/agents/studio/studioData.js')
+  } = await import('../../src/screen/boot-face/BootAgentsScreen.js')
+  const { buildStudioRows } = await import('../../src/screen/agents/studio/studioData.js')
   const { computeStudioValidation, createStudioEditorMachine, studioDestinationPath } = await import(
-    '../../src/components/agents/studio/studioEditorModel.js'
+    '../../src/screen/agents/studio/studioEditorModel.js'
   )
   const core = createSplashCore({ nocolor: true, truecolor: false }) as {
     composeBootMenu: (cols: number, rows: number, m: unknown) => { lines: string[] }
@@ -126,7 +126,7 @@ async function captureFaceFrames(): Promise<Record<string, string>> {
       source: 'projectSettings',
       ...over,
     }) as AgentFixtureDef
-  type AgentFixtureDef = import('../../src/types/agent.js').AgentDefinition
+  type AgentFixtureDef = import('../../src/crew/agents/agentDefinition.js').AgentDefinition
   const scout = mk({
     agentType: 'fixture-scout',
     whenToUse: 'Use this agent to scout the fixture estate when frames need every field painted.',
@@ -150,7 +150,7 @@ async function captureFaceFrames(): Promise<Record<string, string>> {
   const result = {
     activeAgents: [scout, builtin],
     allAgents: [scout, keeper, builtin],
-  } as import('../../src/types/agent.js').AgentDefinitionsResult
+  } as import('../../src/crew/agents/agentDefinition.js').AgentDefinitionsResult
   const built = buildStudioRows(result, { tab: 'all', filter: 'all', query: '' })
   const counts = { active: 2, disabled: 1, issues: 0 }
   const environment = { model: 'fable', critter: 'Crab', critterHue: '#DD4444', dirBase: 'orchard', dirTail: '' }
@@ -219,7 +219,7 @@ async function captureFaceFrames(): Promise<Record<string, string>> {
   }
   machine.dispose()
 
-  const { getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.js')
+  const { getAgentModelPickerRows } = await import('../../src/models/catalogue/agentModelPicker.js')
   const fixtureCatalogue = [
     { value: 'fable', label: 'Fable', description: '' },
     { value: 'gpt-6.2', label: 'GPT-6.2', description: '', group: 'Mercury — OpenAI models', unavailable: 'no OpenAI account connected' },

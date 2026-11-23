@@ -7,12 +7,12 @@ pinSourceRef()
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const React = await import('react')
-const { Box, Text } = await import('../../src/ink.ts')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { LlmHostDialog } = await import('../../src/components/LlmHostDialog.tsx')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { LlmHostDialog } = await import('../../src/commands/llmhost/LlmHostDialog.tsx')
 const { gridToPng } = await import('../ui/gridToPng.ts')
 const at = process.argv.indexOf('--frames')
 const frames = at < 0 ? undefined : process.argv[at + 1]
@@ -35,7 +35,7 @@ const road: NonNullable<Parameters<typeof LlmHostDialog>[0]['road']> = async (_a
 try {
   mounted = await mountOffscreen(React.createElement(Scene), 100, 24)
   const m = mounted
-  assert.ok(await waitFor(() => m.screen().includes(words), 5000), 'termination result reaches the frame; the meter line of src/components/LlmHostDialog.tsx must paint words.terminatedPod for a TERMINATED host\n' + m.screen())
+  assert.ok(await waitFor(() => m.screen().includes(words), 5000), 'termination result reaches the frame; the meter line of src/commands/llmhost/LlmHostDialog.tsx must paint words.terminatedPod for a TERMINATED host\n' + m.screen())
   if (frames) {
     mkdirSync(frames, { recursive: true })
     writeFileSync(join(frames, 'terminated.txt'), m.screen())
@@ -43,7 +43,7 @@ try {
     writeFileSync(join(frames, 'terminated.json'), JSON.stringify({ grid, cols: 100, rows: 24 }))
     await gridToPng(join(frames, 'terminated.json'), join(frames, 'terminated.png'))
   }
-  assert.equal(m.screen().split(words).length - 1, 1, 'the completion says the termination once, not once per event, result and meter; make LlmHostDialog (src/components/LlmHostDialog.tsx) paint words.terminatedPod from one place only')
-  assert.equal(m.screen().split('esc closes').length - 1, 1, 'the popup footer owns its close hint; keep esc closes in one place in src/components/LlmHostDialog.tsx (the exit text) and not in the result or meter')
+  assert.equal(m.screen().split(words).length - 1, 1, 'the completion says the termination once, not once per event, result and meter; make LlmHostDialog (src/commands/llmhost/LlmHostDialog.tsx) paint words.terminatedPod from one place only')
+  assert.equal(m.screen().split('esc closes').length - 1, 1, 'the popup footer owns its close hint; keep esc closes in one place in src/commands/llmhost/LlmHostDialog.tsx (the exit text) and not in the result or meter')
   console.log('HOST COMPLETION GREEN · termination result and close hint each paint exactly once')
 } finally { mounted?.unmount() }

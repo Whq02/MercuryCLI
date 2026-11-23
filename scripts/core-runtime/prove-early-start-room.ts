@@ -13,17 +13,17 @@ for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOK
   delete process.env[k]
 }
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { EarlyStarts } = await import('../../src/services/tools/earlyStarts.ts')
-const { runTools } = await import('../../src/services/tools/toolOrchestration.ts')
-const { resultRoomFor, resultRoomForRound } = await import('../../src/services/run/resultRoom.ts')
-const { getAutoCompactThreshold } = await import('../../src/services/compact/autoCompact.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { EarlyStarts } = await import('../../src/engine/tool-dispatch/earlyStarts.ts')
+const { runTools } = await import('../../src/engine/tool-dispatch/toolOrchestration.ts')
+const { resultRoomFor, resultRoomForRound } = await import('../../src/engine/run/resultRoom.ts')
+const { getAutoCompactThreshold } = await import('../../src/engine/compaction/autoFold.ts')
 
 let failures = 0
 let checks = 0
@@ -33,7 +33,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — early-start-room prover exceeded 120s; look at EarlyStarts in src/services/tools/earlyStarts.ts and runTools in src/services/tools/toolOrchestration.ts for a call that never settles')
+  console.log('\nTIMEOUT — early-start-room prover exceeded 120s; look at EarlyStarts in src/engine/tool-dispatch/earlyStarts.ts and runTools in src/engine/tool-dispatch/toolOrchestration.ts for a call that never settles')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
@@ -131,12 +131,12 @@ console.log('\n── past the fold line: the early road opens the round\'s room
   await early.ready()
   const opened = await settle(() => resultRoomFor(parent) !== null, 2_000)
   const room = resultRoomFor(parent)
-  check('an early-started call opens the round\'s result room on its parent message', opened && room !== null, `room ${room === null ? 'null' : 'present'} — EarlyStarts in src/services/tools/earlyStarts.ts must call openResultRoomForRound (src/services/tools/toolOrchestration.ts) when it starts a call past the fold line`)
-  check('the room is awake past the line', room?.budget.awake === true, JSON.stringify(room?.budget ?? null) + ' — resultRoomBudget in src/services/run/resultRoom.ts must return an awake budget past the fold line')
-  check('the room is registered under the early road\'s round id', resultRoomForRound(early.roundID) === room, 'openResultRoomForRound in src/services/tools/toolOrchestration.ts must bind the room to the round id with bindResultRoomRound')
+  check('an early-started call opens the round\'s result room on its parent message', opened && room !== null, `room ${room === null ? 'null' : 'present'} — EarlyStarts in src/engine/tool-dispatch/earlyStarts.ts must call openResultRoomForRound (src/engine/tool-dispatch/toolOrchestration.ts) when it starts a call past the fold line`)
+  check('the room is awake past the line', room?.budget.awake === true, JSON.stringify(room?.budget ?? null) + ' — resultRoomBudget in src/engine/run/resultRoom.ts must return an awake budget past the fold line')
+  check('the room is registered under the early road\'s round id', resultRoomForRound(early.roundID) === room, 'openResultRoomForRound in src/engine/tool-dispatch/toolOrchestration.ts must bind the room to the round id with bindResultRoomRound')
   const settled = [parent] as never
   for await (const _update of runTools([block('tu_room_1')] as never, settled, allowAll as never, ctx as never, early)) void _update
-  check('the settled round reuses the early road\'s room — one room per round', resultRoomFor(parent) === room && resultRoomForRound(early.roundID) === room, 'runTools and openResultRoomForRound in src/services/tools/toolOrchestration.ts must reuse the room already bound to the round, not open a second one')
+  check('the settled round reuses the early road\'s room — one room per round', resultRoomFor(parent) === room && resultRoomForRound(early.roundID) === room, 'runTools and openResultRoomForRound in src/engine/tool-dispatch/toolOrchestration.ts must reuse the room already bound to the round, not open a second one')
 }
 
 console.log('\n── under the fold line: nothing changes on a normal day')
@@ -147,8 +147,8 @@ console.log('\n── under the fold line: nothing changes on a normal day')
   early.offer(block('tu_room_2'), parent as never, 0)
   await early.ready()
   await settle(() => early.take('tu_room_2') !== undefined, 2_000)
-  check('the early road opens no room under the line', resultRoomFor(parent) === null, 'resultRoomBudget in src/services/run/resultRoom.ts must stay asleep, and openResultRoomForRound in src/services/tools/toolOrchestration.ts must open no room, under the fold line')
-  check('no room is registered for the round under the line', resultRoomForRound(early.roundID) === null, 'openResultRoomForRound in src/services/tools/toolOrchestration.ts must not bind a room to the round under the fold line')
+  check('the early road opens no room under the line', resultRoomFor(parent) === null, 'resultRoomBudget in src/engine/run/resultRoom.ts must stay asleep, and openResultRoomForRound in src/engine/tool-dispatch/toolOrchestration.ts must open no room, under the fold line')
+  check('no room is registered for the round under the line', resultRoomForRound(early.roundID) === null, 'openResultRoomForRound in src/engine/tool-dispatch/toolOrchestration.ts must not bind a room to the round under the fold line')
 }
 
 console.log(`\nEARLY-START-ROOM: ${failures === 0 ? `all ${checks} checks passed` : `${failures} of ${checks} checks FAILED`}`)

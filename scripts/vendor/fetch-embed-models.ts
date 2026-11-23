@@ -11,7 +11,7 @@ import {
   embedModelByName,
   mbWords,
   type EmbedModelRow,
-} from '../../src/mneme/embedModels.ts'
+} from '../../src/sessions/mneme/embedModels.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const CACHE_DIR = join(ROOT, 'vendor', 'embed-models')

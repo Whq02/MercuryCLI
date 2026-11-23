@@ -1,5 +1,5 @@
-import type { InputRow, PromptRow } from '../../src/rows/vocabulary.ts'
-import type { ParamsOf } from '../../src/runner/wire/methods.ts'
+import type { InputRow, PromptRow } from '../../src/engine/rows/vocabulary.ts'
+import type { ParamsOf } from '../../src/daemon/runner-wire/methods.ts'
 import { endProcessGroup } from './processGroup.ts'
 import { hostRunner, type HostedRunner } from './runnerHost.ts'
 

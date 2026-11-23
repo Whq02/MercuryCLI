@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/ide/projectRunners* src/services/ide/pythonProject* src/tools/TestTool/*
+// gate-watch: src/integrations/ide/projectRunners.ts src/integrations/ide/pythonProject.ts src/tools/test/*
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -12,11 +12,11 @@ process.env.MERCURY_PYTHON = process.env.MERCURY_PROOF_PYTEST_PYTHON || (process
 delete process.env.MERCURY_TESTS
 delete process.env.MERCURY_HOME
 
-const runners = await import('../../src/services/ide/projectRunners.ts')
-const { probePytest } = await import('../../src/services/ide/pythonTests.ts')
-const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-type TestRunRecord = import('../../src/services/ide/pythonTests.ts').TestRunRecord
+const runners = await import('../../src/integrations/ide/projectRunners.ts')
+const { probePytest } = await import('../../src/integrations/ide/pythonTests.ts')
+const { TestTool } = await import('../../src/tools/test/TestTool.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
+type TestRunRecord = import('../../src/integrations/ide/pythonTests.ts').TestRunRecord
 type ToolAnswer = { data: { outcome: string; result: string; record?: TestRunRecord }; effect: { outcome: string } }
 
 let failures = 0
@@ -24,13 +24,13 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${!cond ? ' — change resolveTestLane or discoverSubPackages in src/services/ide/projectRunners.ts, or the Test tool in src/tools/TestTool/TestTool.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${!cond ? ' — change resolveTestLane or discoverSubPackages in src/integrations/ide/projectRunners.ts, or the Test tool in src/tools/test/TestTool.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — sub-package-manifests proof exceeded 300s; a Test tool run (src/tools/TestTool/TestTool.ts) did not finish, so look at the last section header above')
+  console.log('\nTIMEOUT — sub-package-manifests proof exceeded 300s; a Test tool run (src/tools/test/TestTool.ts) did not finish, so look at the last section header above')
   process.exit(1)
 }, 300_000)
 guard.unref?.()

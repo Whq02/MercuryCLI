@@ -12,16 +12,16 @@ delete process.env.NODE_ENV
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const freshnessHint = ' | fix: getSkillDirCommands memoises the skill listing per directory and clearSkillCaches must drop that memo, both in src/skills/loadSkillsDir.ts'
+  const freshnessHint = ' | fix: getSkillDirCommands memoises the skill listing per directory and clearSkillCaches must drop that memo, both in src/integrations/skills/loadSkillsDir.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : freshnessHint}`)
 }
 
 
 {
-  const globalConfig = await import('../../src/utils/config/globalConfig.js')
+  const globalConfig = await import('../../src/platform/config/globalConfig.js')
   globalConfig.enableConfigs()
-  ;(await import('../../src/bootstrap/state.ts')).setSessionTrustAccepted(true)
-  const loader = await import('../../src/skills/loadSkillsDir.js')
+  ;(await import('../../src/boot/process-state/processState.ts')).setSessionTrustAccepted(true)
+  const loader = await import('../../src/integrations/skills/loadSkillsDir.js')
 
   const ground = mkdtempSync(join(tmpdir(), 'stale-kitmenu-ground-'))
   const skillsDir = join(ground, '.mercury', 'skills')

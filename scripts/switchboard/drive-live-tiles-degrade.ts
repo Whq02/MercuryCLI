@@ -53,7 +53,7 @@ const spawnDaemonWithHome = (configHome: string): void => {
   })
 }
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boolean> => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -65,7 +65,7 @@ const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boo
   }
   return false
 }
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 
 try {
   const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')

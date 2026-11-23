@@ -4,13 +4,13 @@ import { randomUUID } from 'node:crypto'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.DEEPSEEK_API_KEY = 'fixture-key-not-real'
 process.env.MERCURY_BUSY_RETRY_SCALE = '0.001'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { deepseekLaneProfile } = await import('../../src/services/providers/deepseek/deepseekCallModel.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-;(await import('../../src/bootstrap/state.ts')).setIsInteractive(false)
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { deepseekLaneProfile } = await import('../../src/models/roads/deepseek/deepseekCallModel.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+;(await import('../../src/boot/process-state/processState.ts')).setIsInteractive(false)
 export function sse(chunks: unknown[]): Response {
   return new Response(chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join('') + 'data: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } })
 }

@@ -12,13 +12,13 @@ delete process.env.MERCURY_HOME
 const { startOverflowFixture } = await import('../compact/overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { OPENAI_IMAGE_LIMITS, GEMINI_IMAGE_LIMITS } = await import('../../src/constants/apiLimits.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { OPENAI_IMAGE_LIMITS, GEMINI_IMAGE_LIMITS } = await import('../../src/models/roads/mediaLimits.ts')
 const sharp = (await import('sharp')).default
 const png = await sharp({ create: { width: 8, height: 8, channels: 3, background: 'white' } }).png().toBuffer()
 const marker = 'image elided from this request; Read it again if needed'
@@ -60,23 +60,23 @@ try {
   const wire = JSON.stringify(crowded)
   assert.ok(wire.includes(marker), 'every elided image has a visible marker')
   const wireBytes = Buffer.byteLength(wire)
-  assert.ok(wireBytes <= 128 * 1024 * 1024, `Anthropic fitted request ${wireBytes}B exceeds 128MiB budget in src/utils/messages/imageRequestFit.ts`)
+  assert.ok(wireBytes <= 128 * 1024 * 1024, `Anthropic fitted request ${wireBytes}B exceeds 128MiB budget in src/engine/message-shapes/imageRequestFit.ts`)
   assert.ok(wire.includes(Buffer.concat([png, Buffer.alloc(350_000, 299 % 256)]).toString('base64')), 'newest image stays intact')
-  for (let i = 0; i < 300; i++) assert.ok(wire.includes(`OCR companion ${i}`), `Anthropic fitted request dropped OCR companion ${i} in src/utils/messages/imageRequestFit.ts`)
+  for (let i = 0; i < 300; i++) assert.ok(wire.includes(`OCR companion ${i}`), `Anthropic fitted request dropped OCR companion ${i} in src/engine/message-shapes/imageRequestFit.ts`)
   const gemini = JSON.stringify(await send('gemini-3-pro', history(80_000)))
-  assert.ok(gemini.includes(marker), 'Gemini oversized image request omitted elision marker in src/utils/messages/imageRequestFit.ts')
+  assert.ok(gemini.includes(marker), 'Gemini oversized image request omitted elision marker in src/engine/message-shapes/imageRequestFit.ts')
   const geminiBytes = Buffer.byteLength(gemini)
-  assert.ok(geminiBytes <= GEMINI_IMAGE_LIMITS.maxRequestBytes, `Gemini fitted request ${geminiBytes}B exceeds ${GEMINI_IMAGE_LIMITS.maxRequestBytes}B limit in src/utils/messages/imageRequestFit.ts`)
+  assert.ok(geminiBytes <= GEMINI_IMAGE_LIMITS.maxRequestBytes, `Gemini fitted request ${geminiBytes}B exceeds ${GEMINI_IMAGE_LIMITS.maxRequestBytes}B limit in src/engine/message-shapes/imageRequestFit.ts`)
   await send('gpt-5.6-sol', small)
   const openaiBudget = OPENAI_IMAGE_LIMITS.maxRequestBytes
   try {
     OPENAI_IMAGE_LIMITS.maxRequestBytes = 2 * 1024 * 1024
     const openai = JSON.stringify(await send('gpt-5.6-sol', history(8_000)))
-    assert.ok(openai.includes(marker), 'OpenAI oversized image request omitted elision marker in src/utils/messages/imageRequestFit.ts')
+    assert.ok(openai.includes(marker), 'OpenAI oversized image request omitted elision marker in src/engine/message-shapes/imageRequestFit.ts')
     const openaiBytes = Buffer.byteLength(openai)
-    assert.ok(openaiBytes <= OPENAI_IMAGE_LIMITS.maxRequestBytes, `OpenAI fitted request ${openaiBytes}B exceeds ${OPENAI_IMAGE_LIMITS.maxRequestBytes}B limit in src/utils/messages/imageRequestFit.ts`)
+    assert.ok(openaiBytes <= OPENAI_IMAGE_LIMITS.maxRequestBytes, `OpenAI fitted request ${openaiBytes}B exceeds ${OPENAI_IMAGE_LIMITS.maxRequestBytes}B limit in src/engine/message-shapes/imageRequestFit.ts`)
   } finally { OPENAI_IMAGE_LIMITS.maxRequestBytes = openaiBudget }
-  const { fitWireImages } = await import('../../src/utils/messages/imageRequestFit.ts')
+  const { fitWireImages } = await import('../../src/engine/message-shapes/imageRequestFit.ts')
   for (const [dialect, limits] of [['openai', OPENAI_IMAGE_LIMITS], ['gemini', GEMINI_IMAGE_LIMITS]] as const) {
     const payload = dialect === 'openai'
       ? { input: small.filter(row => row.type === 'user').map((row: any) => ({ type: 'function_call_output', call_id: row.message.content[0].tool_use_id, output: [{ type: 'input_text', text: row.message.content[0].content[0].text }, { type: 'input_image', image_url: `data:image/png;base64,${png.toString('base64')}` }] })) }
@@ -84,9 +84,9 @@ try {
     const before = JSON.stringify(payload)
     const targetBytes = Buffer.byteLength(before) - 10_000
     const fitted = fitWireImages(payload, { ...limits, maxRequestBytes: targetBytes })
-    assert.ok(fitted.removed > 0, `fitWireImages(${dialect}) removed 0 images despite ${targetBytes}B cap in src/utils/messages/imageRequestFit.ts`)
-    assert.ok(JSON.stringify(fitted.request).includes(marker), `fitWireImages(${dialect}) omitted elision marker in src/utils/messages/imageRequestFit.ts`)
-    assert.ok(fitted.bytes <= targetBytes, `fitWireImages(${dialect}) fitted bytes ${fitted.bytes}B exceeds ${targetBytes}B cap in src/utils/messages/imageRequestFit.ts`)
+    assert.ok(fitted.removed > 0, `fitWireImages(${dialect}) removed 0 images despite ${targetBytes}B cap in src/engine/message-shapes/imageRequestFit.ts`)
+    assert.ok(JSON.stringify(fitted.request).includes(marker), `fitWireImages(${dialect}) omitted elision marker in src/engine/message-shapes/imageRequestFit.ts`)
+    assert.ok(fitted.bytes <= targetBytes, `fitWireImages(${dialect}) fitted bytes ${fitted.bytes}B exceeds ${targetBytes}B cap in src/engine/message-shapes/imageRequestFit.ts`)
     assert.equal(JSON.stringify(payload), before)
     assert.equal(fitWireImages(payload, limits).removed, 0, 'a fitting request is not capped')
   }

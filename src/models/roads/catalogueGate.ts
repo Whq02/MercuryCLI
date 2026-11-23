@@ -1,0 +1,145 @@
+import { getEssentialTrafficOnlyReason } from './privacyLevel.js'
+import { resolveMoonshotAccount } from './moonshot/moonshotAccounts.js'
+import { resolveDeepseekApiKey } from './deepseek/deepseekAccounts.js'
+import { resolveXaiCredentialSnapshot } from './xai/xaiAccounts.js'
+import { resolveMetaApiKey } from './meta/metaAccounts.js'
+import { resolveMistralApiKey } from './mistral/mistralAccounts.js'
+import { resolveZenApiKey } from './zen/zenAccounts.js'
+import { resolveMinimaxApiKey } from './minimax/minimaxAccounts.js'
+import { resolveTogetherApiKey } from './together/togetherAccounts.js'
+import { resolveCohereApiKey } from './cohere/cohereAccounts.js'
+import { resolveGroqApiKey } from './groq/groqAccounts.js'
+import { resolveMeliousApiKey } from './melious/meliousAccounts.js'
+import { resolveOrcarouterApiKey } from './orcarouter/orcarouterAccounts.js'
+import { resolveCerebrasApiKey } from './cerebras/cerebrasAccounts.js'
+import { resolveFireworksApiKey } from './fireworks/fireworksAccounts.js'
+import { resolveQwenCredentialSnapshot } from './qwen/qwenAccounts.js'
+import { resolveGeminiAccount } from './gemini/geminiAccounts.js'
+import { resolveHuggingfaceApiKey } from './huggingface/huggingfaceAccounts.js'
+import { resolveOpenaiAccount } from './openai/openaiAccounts.js'
+import { resolveOpenrouterRequestAuth } from './openrouter/openrouterAccounts.js'
+import { hostEnv } from '../../platform/environment/hostEnv.js'
+
+export type CatalogueFamily = 'anthropic' | 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'xai' | 'meta' | 'moonshot' | 'zai' | 'local' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'orcarouter' | 'melious' | 'cerebras' | 'fireworks' | 'qwen' | 'openai-compat'
+
+type CatalogueGateVerdict =
+  | { allowed: true; exempt?: 'local-endpoint' }
+  | {
+      allowed: false
+      why: 'no-credential' | 'traffic-off'
+      reason: string
+    }
+
+const FAMILY_NAMES: Record<Exclude<CatalogueFamily, 'local'>, string> = {
+  'openai-compat': 'Custom endpoint',
+  anthropic: 'Anthropic',
+  huggingface: 'Hugging Face',
+  openrouter: 'OpenRouter',
+  gemini: 'Gemini',
+  openai: 'OpenAI',
+  deepseek: 'DeepSeek',
+  xai: 'xAI',
+  meta: 'Meta',
+  moonshot: 'Moonshot',
+  zai: 'Z.AI',
+  mistral: 'Mistral',
+  nous: 'Nous Portal',
+  zen: 'OpenCode Zen',
+  minimax: 'MiniMax',
+  together: 'Together AI',
+  cohere: 'Cohere',
+  groq: 'Groq',
+  melious: 'Melious AI',
+  orcarouter: 'OrcaRouter',
+  cerebras: 'Cerebras',
+  fireworks: 'Fireworks',
+  qwen: 'Qwen',
+}
+
+export function connectToBrowseReason(family: Exclude<CatalogueFamily, 'local'>): string {
+  return `connect ${FAMILY_NAMES[family]} to browse its models`
+}
+
+function credentialPresent(family: Exclude<CatalogueFamily, 'local'>, env: NodeJS.ProcessEnv): boolean {
+  switch (family) {
+    case 'openai-compat': {
+      const { configuredCompatEndpoints } = require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
+      return configuredCompatEndpoints(env).length > 0
+    }
+    case 'anthropic': {
+      const { anthropicCredentialPresence } =
+        require('./providerUsage.js') as typeof import('./providerUsage.js')
+      return anthropicCredentialPresence().credentialed
+    }
+    case 'huggingface':
+      return resolveHuggingfaceApiKey(env) !== undefined
+    case 'openrouter':
+      return resolveOpenrouterRequestAuth(env) !== undefined
+    case 'gemini':
+      return resolveGeminiAccount(env) !== undefined
+    case 'openai':
+      return resolveOpenaiAccount(env) !== undefined
+    case 'deepseek':
+      return resolveDeepseekApiKey(env) !== undefined
+    case 'xai':
+      return resolveXaiCredentialSnapshot(env) !== undefined
+    case 'meta':
+      return resolveMetaApiKey(env) !== undefined
+    case 'moonshot':
+      return resolveMoonshotAccount(env) !== undefined
+    case 'zai': {
+      const { resolveZaiDispatch } =
+        require('./providerDiscovery.js') as typeof import('./providerDiscovery.js')
+      return resolveZaiDispatch(env) !== undefined
+    }
+    case 'mistral':
+      return resolveMistralApiKey(env) !== undefined
+    case 'nous': {
+      const { resolveNousCredentialSnapshot } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
+      return resolveNousCredentialSnapshot(env) !== undefined
+    }
+    case 'zen':
+      return resolveZenApiKey(env) !== undefined
+    case 'minimax':
+      return resolveMinimaxApiKey(env) !== undefined
+    case 'together':
+      return resolveTogetherApiKey(env) !== undefined
+    case 'cohere':
+      return resolveCohereApiKey(env) !== undefined
+    case 'groq':
+      return resolveGroqApiKey(env) !== undefined
+    case 'melious':
+      return resolveMeliousApiKey(env) !== undefined
+    case 'orcarouter':
+      return resolveOrcarouterApiKey(env) !== undefined
+    case 'cerebras':
+      return resolveCerebrasApiKey(env) !== undefined
+    case 'fireworks':
+      return resolveFireworksApiKey(env) !== undefined
+    case 'qwen':
+      return resolveQwenCredentialSnapshot(env) !== undefined
+  }
+}
+
+export function catalogueTrafficVerdict(
+  family: CatalogueFamily,
+  env: NodeJS.ProcessEnv = hostEnv(),
+): CatalogueGateVerdict {
+  if (family === 'local') return { allowed: true, exempt: 'local-endpoint' }
+  if (!credentialPresent(family, env)) {
+    return {
+      allowed: false,
+      why: 'no-credential',
+      reason: `${connectToBrowseReason(family)} — /logins connects`,
+    }
+  }
+  const trafficOff = getEssentialTrafficOnlyReason(env)
+  if (trafficOff) {
+    return {
+      allowed: false,
+      why: 'traffic-off',
+      reason: `catalogue traffic is off (${trafficOff}) — unset it to browse live models`,
+    }
+  }
+  return { allowed: true }
+}

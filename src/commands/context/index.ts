@@ -1,5 +1,5 @@
-import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
-import type { Command } from '../../commands.js'
+import { getIsNonInteractiveSession } from '../../boot/process-state/processState.js'
+import type { Command } from '../catalogue/commands.js'
 
 export const context: Command = {
   type: 'local-jsx',
@@ -20,5 +20,5 @@ export const contextNonInteractive: Command = {
   },
   supportsNonInteractive: true,
   scope: 'agent',
-  load: () => import('./context-noninteractive.js'),
+  load: () => import('./contextHeadless.js'),
 }

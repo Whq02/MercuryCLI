@@ -15,11 +15,11 @@ try {
   assert.equal(registration.default.userPrivate, true)
   assert.equal(registration.default.supportsNonInteractive, false)
   const React = await import('react')
-  const { Box } = await import(`${f.root}/src/ink.js`)
-  const { AppStateProvider } = await import(`${f.root}/src/state/AppState.tsx`)
-  const { ThemeProvider } = await import(`${f.root}/src/components/design-system/ThemeProvider.tsx`)
-  const { SettingsPopupSlot } = await import(`${f.root}/src/components/SettingsPopupSlot.tsx`)
-  const popup = await import(`${f.root}/src/utils/cockpit/settingsPopup.ts`)
+  const { Box } = await import(`${f.root}/src/screen/themedRenderer.js`)
+  const { AppStateProvider } = await import(`${f.root}/src/screen/app-state/AppState.tsx`)
+  const { ThemeProvider } = await import(`${f.root}/src/screen/theme/ThemeProvider.tsx`)
+  const { SettingsPopupSlot } = await import(`${f.root}/src/screen/overlays/SettingsPopupSlot.tsx`)
+  const popup = await import(`${f.root}/src/screen/cockpit/settingsPopup.ts`)
   const command = await registration.default.load()
   await command.call()
   assert.equal(popup.settingsPopupRequest().view, 'llmhost')
@@ -43,7 +43,7 @@ try {
     const at = process.argv.indexOf('--frames')
     const dir = at >= 0 ? process.argv[at + 1] : undefined
     if (dir) { mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, `${name}.txt`), m.screen()) }
-    assert.ok(!m.screen().includes('RENDER ERROR'), `src/components/LlmHostDialog.tsx painted RENDER ERROR at step ${name}`)
+    assert.ok(!m.screen().includes('RENDER ERROR'), `src/commands/llmhost/LlmHostDialog.tsx painted RENDER ERROR at step ${name}`)
     assert.ok(!m.screen().includes(f.key), 'the typed key never paints')
   }
   const first = async (label: string) => { m.push(KEY.down); await until(`› ${label}`); m.push(KEY.enter) }
@@ -76,40 +76,40 @@ try {
   await until('tokens/s')
   capture('ready')
   const id = `compat/llmhost/${f.model}`
-  const { getContextWindowForModel } = await import(`${f.root}/src/utils/model/capabilities.ts`)
-  const { namedCompatModelOptions } = await import(`${f.root}/src/services/providers/openaicompat/compatCatalogue.ts`)
-  const { loginFamilyRows } = await import(`${f.root}/src/components/loginFamilyRows.ts`)
-  const { resolveCompatApiKey } = await import(`${f.root}/src/services/providers/openaicompat/compatAccounts.ts`)
-  const { SettingsSchema } = await import(`${f.root}/src/utils/settings/types.ts`)
+  const { getContextWindowForModel } = await import(`${f.root}/src/models/facts/capabilities.ts`)
+  const { namedCompatModelOptions } = await import(`${f.root}/src/models/roads/openaicompat/compatCatalogue.ts`)
+  const { loginFamilyRows } = await import(`${f.root}/src/models/sign-in/flow-cards/loginFamilyRows.ts`)
+  const { resolveCompatApiKey } = await import(`${f.root}/src/models/roads/openaicompat/compatAccounts.ts`)
+  const { SettingsSchema } = await import(`${f.root}/src/platform/settings/settingsSchema.ts`)
   const settingsRaw = readFileSync(join(f.home, 'settings.json'), 'utf8')
   const settings = JSON.parse(settingsRaw)
-  assert.ok(SettingsSchema().safeParse(settings).success, 'src/utils/settings/types.ts SettingsSchema rejected saved llmhost settings.json')
+  assert.ok(SettingsSchema().safeParse(settings).success, 'src/platform/settings/settingsSchema.ts SettingsSchema rejected saved llmhost settings.json')
   assert.equal(settings.compatProvider.llmhost.dialect, 'sglang')
   assert.equal(settings.compatProvider.llmhost.sessionAffinityHeader, 'x-session-id')
-  assert.ok(!settingsRaw.includes(f.key), 'src/services/llmHost/index.ts saved settings.json leaked server API key')
+  assert.ok(!settingsRaw.includes(f.key), 'src/models/llm-host/index.ts saved settings.json leaked server API key')
   assert.equal(resolveCompatApiKey(process.env, 'llmhost').key, f.key)
   assert.equal(getContextWindowForModel(id), 1_048_576)
-  assert.ok(namedCompatModelOptions().some((row: any) => row.value === id), `src/services/providers/openaicompat/compatCatalogue.ts missing registered model ${id}`)
-  assert.ok(loginFamilyRows({ engineLegs: true }).some((row: any) => row.value === 'compat/llmhost'), 'src/components/loginFamilyRows.ts missing compat/llmhost row')
+  assert.ok(namedCompatModelOptions().some((row: any) => row.value === id), `src/models/roads/openaicompat/compatCatalogue.ts missing registered model ${id}`)
+  assert.ok(loginFamilyRows({ engineLegs: true }).some((row: any) => row.value === 'compat/llmhost'), 'src/models/sign-in/flow-cards/loginFamilyRows.ts missing compat/llmhost row')
   f.state.mode = 'tools'
   const messages: any[] = [f.createUserMessage({ content: 'two fixture tool turns' })]
   for (let n = 0; n < 3; n++) {
     const replies = await f.run(id, messages)
-    assert.ok(replies.every(row => !row.isApiErrorMessage), `src/services/providers/callModelRouter.ts sglang tool turn ${n} returned API error`)
+    assert.ok(replies.every(row => !row.isApiErrorMessage), `src/models/roads/callModelRouter.ts sglang tool turn ${n} returned API error`)
     const body = f.captures.at(-1)!.body
     assert.equal(body.chat_template_kwargs.clear_thinking, false)
     assert.equal(body.reasoning_effort, 'max')
-    assert.ok(f.captures.at(-1)!.affinity, `src/services/providers/openaicompat/compatChatClient.ts sglang turn ${n} missing session affinity header`)
+    assert.ok(f.captures.at(-1)!.affinity, `src/models/roads/openaicompat/compatChatClient.ts sglang turn ${n} missing session affinity header`)
     for (let prior = 0; prior < n; prior++) {
-      assert.ok(body.messages.some((row: any) => row.reasoning_content?.includes(`reasoning-${prior}`)), `src/services/providers/openaicompat/compatChatClient.ts sglang turn ${n} dropped reasoning-${prior}`)
-      assert.ok(body.messages.some((row: any) => row.tool_call_id === `fixture-call-${prior}`), `src/services/providers/openaicompat/compatChatClient.ts sglang turn ${n} dropped fixture-call-${prior}`)
+      assert.ok(body.messages.some((row: any) => row.reasoning_content?.includes(`reasoning-${prior}`)), `src/models/roads/openaicompat/compatChatClient.ts sglang turn ${n} dropped reasoning-${prior}`)
+      assert.ok(body.messages.some((row: any) => row.tool_call_id === `fixture-call-${prior}`), `src/models/roads/openaicompat/compatChatClient.ts sglang turn ${n} dropped fixture-call-${prior}`)
     }
     messages.push(...replies)
     if (n < 2) messages.push(f.createUserMessage({ content: [{ type: 'tool_result', tool_use_id: `fixture-call-${n}`, content: 'done' }] }))
   }
   f.state.mode = 'reply'
   m.push(KEY.esc)
-  assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'src/components/SettingsPopupSlot.tsx Escape did not close llmhost popup within 5000ms')
+  assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'src/screen/overlays/SettingsPopupSlot.tsx Escape did not close llmhost popup within 5000ms')
   await command.call()
   await until('Where should the model run?')
   m.push(KEY.down); m.push(KEY.down); m.push(KEY.down)
@@ -121,7 +121,7 @@ try {
   m.push(KEY.enter)
   await until('what to do with this server')
   capture('actions')
-  assert.ok(m.screen().includes('check a reply again') && m.screen().includes('change the address') && m.screen().includes('remove this provider'), `src/components/LlmHostDialog.tsx server actions menu missing expected options: ${m.screen().slice(0, 160)}`)
+  assert.ok(m.screen().includes('check a reply again') && m.screen().includes('change the address') && m.screen().includes('remove this provider'), `src/commands/llmhost/LlmHostDialog.tsx server actions menu missing expected options: ${m.screen().slice(0, 160)}`)
   m.push(KEY.esc)
   console.log('LLMHOST GREEN — real popup rows, masked key storage, 1M catalogue, logins, reply timing and two SGLang tool turns; loopback only')
 } finally { mounted?.unmount(); f.close() }

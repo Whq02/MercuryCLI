@@ -2,7 +2,7 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { NODE_SUPPORT } from '../../src/utils/runtime/nodePolicy.js'
+import { NODE_SUPPORT } from '../../src/platform/node-runtime/nodePolicy.js'
 
 const REPO = join(import.meta.dir, '..', '..')
 let failures = 0
@@ -24,16 +24,16 @@ const LIVE: Array<[string, (t: string) => boolean, string]> = [
   ['.github/workflows/private-release.yml', t => t.includes('carries its own Node 24 LTS runtime'), 'generated release notes'],
 ]
 for (const [rel, ok, what] of LIVE) {
-  check(`${rel}: ${what}`, ok(read(rel)), `edit ${rel} so it carries ${what} from NODE_SUPPORT in src/utils/runtime/nodePolicy.ts`)
+  check(`${rel}: ${what}`, ok(read(rel)), `edit ${rel} so it carries ${what} from NODE_SUPPORT in src/platform/node-runtime/nodePolicy.ts`)
 }
 
 section('(2) the stale-claim ratchet (reviewed allowlist, never a rewrite)')
 const ALLOW: Array<[string, string]> = [
-  ['src/skills/bundled/', 'bundled skill content describes third-party tool requirements, not Mercury (category 7)'],
+  ['src/integrations/skills/bundled/', 'bundled skill content describes third-party tool requirements, not Mercury (category 7)'],
   ['mercury-skills/', 'the same content at its source (category 7)'],
-  ['src/constants/changelogArchive.ts', 'dated release history — 1.1.0 shipped on Node 20 (category 6)'],
-  ['src/services/providers/anthropic/streamCore.ts', 'eslint justification naming the Node version an API landed in (category 8)'],
-  ['src/run-core/turn-machine.ts', 'bug-context comment naming the Node-18-era cause (category 6)'],
+  ['src/commands/update-notes/changelogArchive.ts', 'dated release history — 1.1.0 shipped on Node 20 (category 6)'],
+  ['src/models/roads/anthropic/streamCore.ts', 'eslint justification naming the Node version an API landed in (category 8)'],
+  ['src/engine/loop/turn-machine.ts', 'bug-context comment naming the Node-18-era cause (category 6)'],
   ['src/utils/filePersistence/outputsScanner.ts', 'API-availability comment (parentPath, category 8)'],
   ['scripts/node-runtime/', 'these provers name the forbidden strings'],
 ]
@@ -61,7 +61,7 @@ for (const rel of tracked) {
     }
   }
 }
-check('no live tracked surface claims Node 18/20', offenders.length === 0, offenders.slice(0, 8).join(' · ') + ' | reword each file listed to the Node range in NODE_SUPPORT (src/utils/runtime/nodePolicy.ts), or add a reviewed entry to ALLOW in this proof')
+check('no live tracked surface claims Node 18/20', offenders.length === 0, offenders.slice(0, 8).join(' · ') + ' | reword each file listed to the Node range in NODE_SUPPORT (src/platform/node-runtime/nodePolicy.ts), or add a reviewed entry to ALLOW in this proof')
 check('the allowlist is itself reviewed (every entry carries a reason)', ALLOW.every(([, reason]) => reason.length > 10), 'give each ALLOW entry in this proof a reason longer than 10 characters')
 
 section('(3) never "Node 24+" — the unqualified-major claim is banned in live copy')
@@ -78,7 +78,7 @@ for (const rel of tracked) {
   }
   if (/\bNode(\.js)?\s*24\s*\+/.test(text)) plusOffenders.push(rel)
 }
-check('no live surface says "Node 24+"', plusOffenders.length === 0, plusOffenders.slice(0, 5).join(', ') + ' | reword Node 24+ to the qualified range in NODE_SUPPORT (src/utils/runtime/nodePolicy.ts) in each file listed')
+check('no live surface says "Node 24+"', plusOffenders.length === 0, plusOffenders.slice(0, 5).join(', ') + ' | reword Node 24+ to the qualified range in NODE_SUPPORT (src/platform/node-runtime/nodePolicy.ts) in each file listed')
 
 console.log('\n============================================================')
 if (failures === 0) {

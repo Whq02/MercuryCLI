@@ -3,8 +3,8 @@ import { createServer } from 'node:net'
 import { createHash, generateKeyPairSync } from 'node:crypto'
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { assetNameFor } from '../../src/services/privateChannel/channelCore.js'
-import { signStatement, type SigningStatementV1 } from '../../src/services/privateChannel/artifactSigning.js'
+import { assetNameFor } from '../../src/platform/update-channel/channelCore.js'
+import { signStatement, type SigningStatementV1 } from '../../src/platform/update-channel/artifactSigning.js'
 
 const { DOC_SET, readCompatFloor, releaseLayoutSection, topAllowlist } = (await import('../release/payloadContract.mjs')) as {
   DOC_SET: string[]

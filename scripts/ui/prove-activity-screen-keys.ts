@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/tasks/BackgroundTasksDialog.tsx src/components/mercury-ui/components.tsx src/components/mercury-ui/useCursorFollow.ts src/components/PopupForm.tsx src/components/FullscreenLayout.tsx src/state/vitalsBus.ts src/ink/ink.tsx
+// gate-watch: src/screen/tasks/BackgroundTasksDialog.tsx src/screen/widgets/components.tsx src/screen/widgets/useCursorFollow.ts src/screen/overlays/PopupForm.tsx src/screen/fullscreen-layout/FullscreenLayout.tsx src/screen/app-state/vitalsBus.ts src/screen/renderer/screenInstance.tsx
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -32,29 +32,29 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
 for (const key of ['MERCURY_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'NODE_ENV']) delete process.env[key]
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { BackgroundTasksDialog } = await import('../../src/components/tasks/BackgroundTasksDialog.tsx')
-const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
-const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
-const { ScrollKeybindingHandler } = await import('../../src/components/ScrollKeybindingHandler.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { BackgroundTasksDialog } = await import('../../src/screen/tasks/BackgroundTasksDialog.tsx')
+const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
+const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
+const { ScrollKeybindingHandler } = await import('../../src/screen/scroll-keys/ScrollKeybindingHandler.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const { default: instances } = await import('../../src/ink/instances.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { setZenMode } = await import('../../src/utils/cockpit/zenMode.ts')
-const { _publishVitalsForProofs } = await import('../../src/state/vitalsBus.ts')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+const { setZenMode } = await import('../../src/screen/cockpit/zenMode.ts')
+const { _publishVitalsForProofs } = await import('../../src/screen/app-state/vitalsBus.ts')
 const h = React.createElement
 
 const STATS = 'Session statistics'
@@ -80,7 +80,7 @@ let checks = 0
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${!good ? ' | the activity screen is src/components/tasks/BackgroundTasksDialog.tsx (list, keys, scroll) inside src/components/FullscreenLayout.tsx; fix the one that owns what this check names' : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${!good ? ' | the activity screen is src/screen/tasks/BackgroundTasksDialog.tsx (list, keys, scroll) inside src/screen/fullscreen-layout/FullscreenLayout.tsx; fix the one that owns what this check names' : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -114,7 +114,7 @@ class Input extends EventEmitter {
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }
-const hardLimit = setTimeout(() => { console.error('activity-screen-keys exceeded its deadline of 240 s: a wait in this proof never saw its frame, read the last FAIL line above and src/components/tasks/BackgroundTasksDialog.tsx'); process.exit(1) }, 240_000)
+const hardLimit = setTimeout(() => { console.error('activity-screen-keys exceeded its deadline of 240 s: a wait in this proof never saw its frame, read the last FAIL line above and src/screen/tasks/BackgroundTasksDialog.tsx'); process.exit(1) }, 240_000)
 hardLimit.unref()
 
 const rosterRows = Array.from({ length: MONITORS }, (_, index) => ({

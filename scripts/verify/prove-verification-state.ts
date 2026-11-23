@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 let failures = 0
-const stateFixHint = 'change src/utils/verification/verificationState.ts (classifyVerificationCommand for what mints evidence, observeCompletedToolCall and isMutationToolCall for order, verificationSummary for the state and detail, demandedReadBackPaths for read-back debt); the last two checks also read scripts/outcome-pack/ordering.ts'
+const stateFixHint = 'change src/platform/verification/verificationState.ts (classifyVerificationCommand for what mints evidence, observeCompletedToolCall and isMutationToolCall for order, verificationSummary for the state and detail, demandedReadBackPaths for read-back debt); the last two checks also read scripts/outcome-pack/ordering.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${stateFixHint}` : ''}`)
@@ -17,7 +17,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 const REPO = join(fileURLToPath(new URL('.', import.meta.url)), '../..')
 const BUN = process.env.BUN ?? join(homedir(), '.bun/bin/bun')
 
-const vs = await import('../../src/utils/verification/verificationState.js')
+const vs = await import('../../src/platform/verification/verificationState.js')
 const scratch = mkdtempSync(join(tmpdir(), 'verify-state-'))
 const cwd = join(scratch, 'proj')
 mkdirSync(cwd, { recursive: true })
@@ -172,7 +172,7 @@ console.log('\n— PowerShell evidence observation —')
 
   const CHILD = `
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
-const vs = await import('${REPO}/src/utils/verification/verificationState.js')
+const vs = await import('${REPO}/src/platform/verification/verificationState.js')
 const mode = process.env.LEG
 if (mode === 'record') {
   vs.observeCompletedToolCall('Bash', { command: 'bash scripts/run-all-suites.sh' }, true, '${repo}')

@@ -14,20 +14,20 @@ const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — ' + hint : ''}`)
   if (!cond) failures++
 }
-const STORE_ROW_HINT = 'change transcriptStoreCheck in src/services/health/sections/crew/home.ts so the transcript-store row reports '
+const STORE_ROW_HINT = 'change transcriptStoreCheck in src/platform/health/sections/crew/home.ts so the transcript-store row reports '
 
 if (process.argv.includes('--live')) {
   const HOME4 = process.argv[process.argv.indexOf('--live') + 1] as string
   process.env.MERCURY_CONFIG_DIR = HOME4
-  const report = await import('../../src/services/health/healthReport.js')
+  const report = await import('../../src/platform/health/healthReport.js')
   const storeRow = async (): Promise<{ status: string; evidence: string } | null> => {
     const cert = await report.runHealthReport({ depth: 'fast' })
     const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'transcript-store')
     return row ? { status: String(row.status), evidence: String(row.evidence) } : null
   }
-  const { getTranscriptPath } = await import('../../src/utils/sessionStorage/paths.js')
+  const { getTranscriptPath } = await import('../../src/sessions/transcripts/paths.js')
   const live = getTranscriptPath()
-  check('the probe follows the config home of the run', live.startsWith(HOME4) && live.endsWith('.jsonl'), live, 'change getTranscriptPath in src/utils/sessionStorage/paths.ts so the path lies under the MERCURY_CONFIG_DIR of the run and ends in .jsonl')
+  check('the probe follows the config home of the run', live.startsWith(HOME4) && live.endsWith('.jsonl'), live, 'change getTranscriptPath in src/sessions/transcripts/paths.ts so the path lies under the MERCURY_CONFIG_DIR of the run and ends in .jsonl')
   mkdirSync(join(HOME4, 'projects'), { recursive: true })
   const before = await storeRow()
   check('no session file yet: the folder is probed and the words say so', before?.status === 'ok' && before.evidence.includes('no transcript file yet') && before.evidence.includes('the folder'), `${before?.status}: ${before?.evidence}`, STORE_ROW_HINT + 'ok with no transcript file yet and the words the folder when the session file is absent')
@@ -62,7 +62,7 @@ if (process.argv.includes('--live')) {
   process.exit(failures === 0 ? 0 : 1)
 }
 
-const report = await import('../../src/services/health/healthReport.js')
+const report = await import('../../src/platform/health/healthReport.js')
 const storeRow = async (): Promise<{ status: string; evidence: string } | null> => {
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'transcript-store')
@@ -73,7 +73,7 @@ console.log('§1 the damage the card names')
 {
   writeFileSync(join(HOME, 'projects'), 'not a directory\n')
   const row = await storeRow()
-  check('the row exists (transcript-store)', row !== null, '', 'register transcriptStoreCheck (src/services/health/sections/crew/home.ts) in the fast health report so a row with id transcript-store is produced')
+  check('the row exists (transcript-store)', row !== null, '', 'register transcriptStoreCheck (src/platform/health/sections/crew/home.ts) in the fast health report so a row with id transcript-store is produced')
   check(
     'a regular file at projects/ FAILS naming the unusable store',
     row?.status === 'fail' && row.evidence.includes('not a directory') && row.evidence.includes('transcripts'),

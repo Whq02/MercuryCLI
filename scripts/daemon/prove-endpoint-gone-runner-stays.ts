@@ -62,16 +62,16 @@ for (const k of Object.keys(process.env)) {
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({
   ...c,
   switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 6 },
 }))
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { loadConversationForResume } = await import('../../src/services/resume/conversationRecovery.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+const { loadConversationForResume } = await import('../../src/sessions/resume/conversationRecovery.ts')
 
 const GONE_ENDPOINT = 'nothing'
 const GONE_WIRE = 'none'
@@ -301,7 +301,7 @@ try {
     engine: { model: GONE_MODEL },
   })
   const bounced = (await daemonControlRpc({ op: 'reconfigure', short, effort: 'high' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; respawned?: boolean; pending?: boolean; error?: string }
-  check('the seat is bounced onto a fresh runner on the same model', bounced.ok === true && bounced.respawned === true, JSON.stringify(bounced) + ' — the reconfigure op must answer ok with respawned true; see case reconfigure in src/daemon/controlServer.ts')
+  check('the seat is bounced onto a fresh runner on the same model', bounced.ok === true && bounced.respawned === true, JSON.stringify(bounced) + ' — the reconfigure op must answer ok with respawned true; see case reconfigure in src/daemon/control/controlServer.ts')
   const settled = await untilAsync(async () => {
     const row = await rosterRow(short)
     if (row === undefined) return false
@@ -320,7 +320,7 @@ try {
     await untilAsync(() => seatReceiptsOf(sid).some(words => words.includes(GONE_MODEL)), 15_000)
     return seatReceiptsOf(sid).filter(words => words.includes(GONE_MODEL))
   })()
-  check(`one refusal row names ${GONE_MODEL} and its gone endpoint`, receipts.length === 1 && /has no configured endpoint/.test(receipts[0]!), JSON.stringify(receipts) + ' — exactly one seat_receipt row must carry the refusal text of compatModelRefusal in src/services/providers/openaicompat/compatAccounts.ts')
+  check(`one refusal row names ${GONE_MODEL} and its gone endpoint`, receipts.length === 1 && /has no configured endpoint/.test(receipts[0]!), JSON.stringify(receipts) + ' — exactly one seat_receipt row must carry the refusal text of compatModelRefusal in src/models/roads/openaicompat/compatAccounts.ts')
   check('the refusal points to /llmhost and /model', receipts.length === 1 && receipts[0]!.includes('/llmhost') && receipts[0]!.includes('/model'), JSON.stringify(receipts) + ' — the refusal row must tell the reader to use /llmhost and /model')
   console.log(`      receipt: ${receipts[0] ?? '(none)'}`)
   const resumed = await loadConversationForResume(sid, transcriptPath(sid))

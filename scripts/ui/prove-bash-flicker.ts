@@ -51,7 +51,7 @@ console.log('\n── A. compose stability: no frame loses the transcript ──
   } catch {
   }
   rmSync(TEE, { force: true })
-  check('composed frames captured', frames.length > 20, `got ${frames.length} (the INK_COMPOSED_TEE file got too few frames; check the tee write in src/ink/renderer.ts and that the PTY run reached the Bash turn)`)
+  check('composed frames captured', frames.length > 20, `got ${frames.length} (the INK_COMPOSED_TEE file got too few frames; check the tee write in src/screen/renderer/renderer.ts and that the PTY run reached the Bash turn)`)
   let appeared = false
   const gaps: number[] = []
   for (const f of frames) {
@@ -60,7 +60,7 @@ console.log('\n── A. compose stability: no frame loses the transcript ──
     else if (appeared) gaps.push(f.f)
   }
   check('the transcript anchor appeared', appeared, 'no composed frame shows the first task row; the resume-2turn scenario in scripts/ui/renderScenarios.ts or the resume render did not paint it')
-  check('NO composed frame lost it during the Bash turn', gaps.length === 0, `gaps=${gaps.slice(0, 8).join(',')} (a frame during the Bash turn painted without the transcript; change the render path so no frame drops it, frames come from the tee in src/ink/renderer.ts)`)
+  check('NO composed frame lost it during the Bash turn', gaps.length === 0, `gaps=${gaps.slice(0, 8).join(',')} (a frame during the Bash turn painted without the transcript; change the render path so no frame drops it, frames come from the tee in src/screen/renderer/renderer.ts)`)
   const last = frames[frames.length - 1]
   check('the bang output landed', last !== undefined && last.rows.some(r => r.includes('flicker-probe-ran')), 'the last composed frame lacks the bang output; the !echo send did not run or its output was not painted')
 }
@@ -68,10 +68,10 @@ console.log('\n── A. compose stability: no frame loses the transcript ──
 
 console.log('\n── C. the upgrade seam behaves ─────────────────────────────')
 {
-  const { syncOutputSupportedNow, upgradeSyncOutputSupport } = await import('../../src/ink/session/capabilities.ts')
+  const { syncOutputSupportedNow, upgradeSyncOutputSupport } = await import('../../src/screen/renderer/terminal-session/capabilities.ts')
   const before = syncOutputSupportedNow()
   upgradeSyncOutputSupport()
-  check('upgrade flips the live read to true', syncOutputSupportedNow() === true, `before=${before} (upgradeSyncOutputSupport must make syncOutputSupportedNow true in src/ink/session/capabilities.ts; it stays false while MERCURY_NO_SYNC_OUTPUT forces sync output off)`)
+  check('upgrade flips the live read to true', syncOutputSupportedNow() === true, `before=${before} (upgradeSyncOutputSupport must make syncOutputSupportedNow true in src/screen/renderer/terminal-session/capabilities.ts; it stays false while MERCURY_NO_SYNC_OUTPUT forces sync output off)`)
 }
 
 console.log()

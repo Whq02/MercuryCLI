@@ -1,7 +1,7 @@
-import { FrameWriter } from '../../src/ink/frame-writer.js'
-import { emptyFrame, type Frame } from '../../src/ink/frame.js'
-import { optimizePatches } from '../../src/ink/patch-stream.js'
-import { writeDiffToTerminal } from '../../src/ink/session/delivery.js'
+import { FrameWriter } from '../../src/screen/renderer/frame-writer.js'
+import { emptyFrame, type Frame } from '../../src/screen/renderer/frame.js'
+import { optimizePatches } from '../../src/screen/renderer/patch-stream.js'
+import { writeDiffToTerminal } from '../../src/screen/renderer/terminal-session/frameDelivery.js'
 import { AnsiEmulator } from './ansiEmulator.js'
 import { composeScene, makeContext, type SceneNode } from './frameHarness.js'
 
@@ -12,7 +12,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
   if (!cond) {
     failures++
-    console.log('    fix: the column moves (cursorTo patches) are placed where FrameWriter.render in src/ink/frame-writer.ts emits them (see the cursorTo pushes near lines 80 to 200); optimizePatches in src/ink/patch-stream.ts merges them and writeDiffToTerminal in src/ink/session/delivery.ts serializes them')
+    console.log('    fix: the column moves (cursorTo patches) are placed where FrameWriter.render in src/screen/renderer/frame-writer.ts emits them (see the cursorTo pushes near lines 80 to 200); optimizePatches in src/screen/renderer/patch-stream.ts merges them and writeDiffToTerminal in src/screen/renderer/terminal-session/frameDelivery.ts serializes them')
   }
 }
 

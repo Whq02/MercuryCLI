@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-const WHERE = 'initializeWarningHandler in src/utils/warningHandler.ts'
+const WHERE = 'initializeWarningHandler in src/boot/warningHandler.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
@@ -15,8 +15,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 
 const CHILD = `
-const { initializeWarningHandler } = await import(${JSON.stringify(join(ROOT, 'src', 'utils', 'warningHandler.ts'))})
-const { flushDebugLogs } = await import(${JSON.stringify(join(ROOT, 'src', 'utils', 'debug.ts'))})
+const { initializeWarningHandler } = await import(${JSON.stringify(join(ROOT, 'src', 'boot', 'warningHandler.ts'))})
+const { flushDebugLogs } = await import(${JSON.stringify(join(ROOT, 'src', 'platform', 'logs', 'debugLog.ts'))})
 const told = []
 const first = warning => told.push('first:' + warning.name)
 const second = warning => told.push('second:' + warning.name)

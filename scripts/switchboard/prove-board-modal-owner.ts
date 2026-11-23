@@ -2,11 +2,11 @@
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — change boardModalOwner or boardModalArmed in src/components/concourse/boardModalOwner.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — change boardModalOwner or boardModalArmed in src/screen/concourse/boardModalOwner.ts' : ''}`)
 }
 
-const { boardModalOwner, boardModalArmed } = await import('../../src/components/concourse/boardModalOwner.ts')
-type Facts = import('../../src/components/concourse/boardModalOwner.ts').BoardModalFactsV1
+const { boardModalOwner, boardModalArmed } = await import('../../src/screen/concourse/boardModalOwner.ts')
+type Facts = import('../../src/screen/concourse/boardModalOwner.ts').BoardModalFactsV1
 
 const none: Facts = {
   capacityAsk: false,

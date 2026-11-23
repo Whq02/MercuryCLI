@@ -4,9 +4,9 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { createRequire } from 'node:module'
-import { open } from '../../src/services/crewBoard/store.ts'
-import type { BoardPost, BoardPrincipal, BoardReceipt } from '../../src/services/crewBoard/contracts.ts'
-import type { BoardWake } from '../../src/services/crewBoard/wakeState.ts'
+import { open } from '../../src/crew/board/store.ts'
+import type { BoardPost, BoardPrincipal, BoardReceipt } from '../../src/crew/board/contracts.ts'
+import type { BoardWake } from '../../src/crew/board/wakeState.ts'
 
 const sessionId = 'contention'
 const instant = 1_800_000_000_000
@@ -94,7 +94,7 @@ if (workerAt >= 0) {
     assert.equal(new Set(first.map(row => row.seq)).size, 3)
     assert.deepEqual(take(), expectedIds(first))
     assert.equal(take().length, 0)
-    assert(events().filter(event => first.some(row => row.eventId === event.eventId)).every(event => event.createdAt === new Date(instant).toISOString()), 'same-millisecond locked posts did not retain injected clock createdAt in src/services/crewBoard/store.ts')
+    assert(events().filter(event => first.some(row => row.eventId === event.eventId)).every(event => event.createdAt === new Date(instant).toISOString()), 'same-millisecond locked posts did not retain injected clock createdAt in src/crew/board/store.ts')
     console.log('PASS three locked writers commit same-millisecond posts once in SQLite sequence')
 
     const retry = post(writers[0]!, 'retry under contention')
@@ -134,17 +134,17 @@ if (workerAt >= 0) {
       assert.equal(claims.filter(Boolean).length, 1)
       const claim = claims.find(Boolean)!
       const packet = board.wakePacket(main, claim)!
-      assert(packet.eventIds.includes(next.eventId), `contention loop ${i}: wakePacket omitted triggering eventId in src/services/crewBoard/store.ts`)
+      assert(packet.eventIds.includes(next.eventId), `contention loop ${i}: wakePacket omitted triggering eventId in src/crew/board/store.ts`)
       const later = board.post(writers[1]!, { clientOpId: `second-match-${i}`, kind: 'result', text: `second matching post ${i}`, about: 'ready-row' })
-      assert(later.ok, `contention loop ${i}: second matching post failed in src/services/crewBoard/store.ts: ${JSON.stringify(later)}`)
+      assert(later.ok, `contention loop ${i}: second matching post failed in src/crew/board/store.ts: ${JSON.stringify(later)}`)
       const resumed = seat('reader', `resume-${i}`)
       board.enroll(resumed)
       board.admitWake(main, claim)
       board.admitWake(main, claim)
       board.presented(resumed, packet.eventIds, `wake-${i}`)
       const tail = board.boundary(resumed, new Set())!
-      assert(tail.eventIds.includes(later.eventId), `contention loop ${i}: resumed tail boundary omitted second matching post in src/services/crewBoard/store.ts`)
-      assert(!tail.eventIds.includes(next.eventId), `contention loop ${i}: resumed tail boundary replayed already-presented wake post in src/services/crewBoard/store.ts`)
+      assert(tail.eventIds.includes(later.eventId), `contention loop ${i}: resumed tail boundary omitted second matching post in src/crew/board/store.ts`)
+      assert(!tail.eventIds.includes(next.eventId), `contention loop ${i}: resumed tail boundary replayed already-presented wake post in src/crew/board/store.ts`)
       board.presented(resumed, tail.eventIds, `second-${i}`)
       board.complete(resumed, 'completed')
       assert.equal(board.pendingWakes().filter(wake => wake.agent === 'reader').length, 0)
@@ -155,7 +155,7 @@ if (workerAt >= 0) {
     const parked = seat('reader', 'broadcast')
     board.enroll(parked)
     const waitPost = board.post(parked, { clientOpId: 'broadcast-wait', kind: 'ask', text: '@main wake me when kind result' })
-    assert(waitPost.ok, `broadcast wait declaration failed in src/services/crewBoard/store.ts: ${JSON.stringify(waitPost)}`)
+    assert(waitPost.ok, `broadcast wait declaration failed in src/crew/board/store.ts: ${JSON.stringify(waitPost)}`)
     board.complete(parked, 'completed')
     const mixed = receipts(await Promise.all([workers[0]!.send(post(writers[0]!, 'broadcast only', ['all'])).result, workers[1]!.send(post(writers[1]!, 'addressed wake', ['reader'])).result]))
     const wakes = board.pendingWakes().filter(wake => wake.agent === 'reader')
@@ -168,8 +168,8 @@ if (workerAt >= 0) {
 
     board.complete(writers[0]!, 'completed')
     const [appointment, traffic] = await Promise.all([workers[0]!.send({ op: 'captain' }).result, workers[1]!.send(post(writers[1]!, 'team during appointment', ['builders'])).result])
-    assert(appointment.ok, `concurrent captain appointment failed in src/services/crewBoard/store.ts: ${JSON.stringify(appointment)}`)
-    assert(traffic.ok, `concurrent team traffic post failed in src/services/crewBoard/store.ts: ${JSON.stringify(traffic)}`)
+    assert(appointment.ok, `concurrent captain appointment failed in src/crew/board/store.ts: ${JSON.stringify(appointment)}`)
+    assert(traffic.ok, `concurrent team traffic post failed in src/crew/board/store.ts: ${JSON.stringify(traffic)}`)
     const captain = board.captain('builders')!
     assert.equal(captain.agent, 'alpha')
     const captainWakes = board.pendingWakes().filter(wake => wake.agent === 'alpha')

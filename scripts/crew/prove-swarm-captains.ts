@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
-import { open } from '../../src/services/crewBoard/store.ts'
-import { boardSeatName, type BoardPrincipal, type BoardStore } from '../../src/services/crewBoard/contracts.ts'
+import { open } from '../../src/crew/board/store.ts'
+import { boardSeatName, type BoardPrincipal, type BoardStore } from '../../src/crew/board/contracts.ts'
 
 assert(process.env.MERCURY_CONFIG_DIR, 'run with a scratch MERCURY_CONFIG_DIR')
 const home = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR, 'captains-'))
@@ -43,7 +43,7 @@ await check('appointment', () => world('appointment', (board, main, seat, path) 
   assert.equal(board.captain('engine')?.agent, 'alpha')
   assert.equal(boardSeatName(board.captain('engine')!), 'captain Alpha')
   const original = board.post(alpha, { clientOpId: 'old-role', kind: 'result', text: 'The original captain result.' })
-  assert(original.ok, `appointment: captain post failed in src/services/crewBoard/store.ts: ${JSON.stringify(original)}`)
+  assert(original.ok, `appointment: captain post failed in src/crew/board/store.ts: ${JSON.stringify(original)}`)
   assert.equal(board.assignTeam(main, 'alpha', 'view').ok, false)
   assert.equal(board.assignCaptain(main, 'engine', 'beta').ok, true)
   assert.equal(board.seats().filter(p => p.team === 'engine' && p.captain).length, 1)
@@ -53,7 +53,7 @@ await check('appointment', () => world('appointment', (board, main, seat, path) 
   assert.equal(old.captain, true)
   assert.equal(old.team, 'engine')
   const packet = board.boundary(other, new Set())!
-  assert(packet.text.includes('captain Beta'), 'appointment: boundary roster omitted captain Beta in src/services/crewBoard/store.ts')
+  assert(packet.text.includes('captain Beta'), 'appointment: boundary roster omitted captain Beta in src/crew/board/store.ts')
   board.presented(other, packet.eventIds, 'roster-arrived')
   assert.equal(board.boundary(other, new Set()), null)
   const reader = open(path, 'appointment', Date.now, true)
@@ -65,7 +65,7 @@ await check('launch-reservation', () => world('launch-reservation', (board, main
   assert.throws(() => board.reserveEnrollment(main, { agent: 'bad', name: 'Bad', captain: true }), /name and team/)
   board.reserveEnrollment(main, { agent: 'captain', name: 'Captain', team: 'engine', captain: true })
   assert.equal(board.captain('engine'), undefined)
-  assert(!board.member('captain'), 'launch-reservation: reserved captain appeared enrolled before enroll() in src/services/crewBoard/store.ts')
+  assert(!board.member('captain'), 'launch-reservation: reserved captain appeared enrolled before enroll() in src/crew/board/store.ts')
   board.enroll(captain)
   board.cancelEnrollment(main, 'captain')
   assert.equal(board.captain('engine')?.agent, 'captain')
@@ -83,7 +83,7 @@ await check('fifth-seat', () => world('fifth-seat', (board, main, seat) => {
   for (let i = 0; i < 4; i++) board.enroll(seat(`member-${i}`, 'engine'))
   board.settle(seat('member-0', 'engine'))
   assert.throws(() => board.enroll(seat('fifth', 'engine')), /captain/)
-  assert(!board.member('fifth'), 'fifth-seat: refused fifth seat appeared enrolled in src/services/crewBoard/store.ts')
+  assert(!board.member('fifth'), 'fifth-seat: refused fifth seat appeared enrolled in src/crew/board/store.ts')
   assert.throws(() => board.reserveEnrollment(main, { agent: 'fifth', name: 'Fifth', team: 'engine' }), /captain/)
   board.enroll(seat('outside', 'view'))
   assert.equal(board.assignTeam(main, 'outside', 'engine').ok, false)
@@ -92,7 +92,7 @@ await check('fifth-seat', () => world('fifth-seat', (board, main, seat) => {
   assert.equal(board.captain('engine'), undefined)
   assert.throws(() => board.reserveEnrollment(main, { agent: 'sixth', name: 'Sixth', team: 'engine' }), /captain/)
   board.cancelEnrollment(main, 'failed')
-  assert(!board.member('failed'), 'fifth-seat: cancelled reservation still appeared as member in src/services/crewBoard/store.ts')
+  assert(!board.member('failed'), 'fifth-seat: cancelled reservation still appeared as member in src/crew/board/store.ts')
   board.reserveEnrollment(main, { agent: 'fifth', name: 'Fifth', team: 'engine', captain: true })
   board.enroll(seat('fifth', 'engine', 'Fifth'))
   assert.equal(board.captain('engine')?.agent, 'fifth')
@@ -102,7 +102,7 @@ await check('fifth-seat', () => world('fifth-seat', (board, main, seat) => {
 await check('concurrent-reservations', () => world('concurrent-reservations', async (board, main, seat, path) => {
   for (let i = 0; i < 3; i++) board.enroll(seat(`member-${i}`, 'engine'))
   const reserve = (id: string): Promise<{ ok: boolean; reason?: string; id: string }> => new Promise((resolve, reject) => {
-    const source = `import { open } from ${JSON.stringify(new URL('../../src/services/crewBoard/store.ts', import.meta.url).href)}; const board = open(${JSON.stringify(path)}, 'concurrent-reservations'); let result; try { board.reserveEnrollment(${JSON.stringify(main)}, {agent:${JSON.stringify(id)},name:${JSON.stringify(id)},team:'engine'}); result={ok:true,id:${JSON.stringify(id)}}; } catch(error) { result={ok:false,id:${JSON.stringify(id)},reason:String(error)} } finally { board.close() } console.log(JSON.stringify(result))`
+    const source = `import { open } from ${JSON.stringify(new URL('../../src/crew/board/store.ts', import.meta.url).href)}; const board = open(${JSON.stringify(path)}, 'concurrent-reservations'); let result; try { board.reserveEnrollment(${JSON.stringify(main)}, {agent:${JSON.stringify(id)},name:${JSON.stringify(id)},team:'engine'}); result={ok:true,id:${JSON.stringify(id)}}; } catch(error) { result={ok:false,id:${JSON.stringify(id)},reason:String(error)} } finally { board.close() } console.log(JSON.stringify(result))`
     const child = spawn(process.execPath, ['-e', source], { env: process.env, stdio: ['ignore', 'pipe', 'pipe'], timeout: 15000 })
     let stdout = '', stderr = ''
     child.stdout.on('data', value => { stdout += String(value) })
@@ -123,22 +123,22 @@ await check('concurrent-reservations', () => world('concurrent-reservations', as
 }))
 
 await check('schema-and-brief', async () => {
-  const boot = await import('../../src/bootstrap/state.ts')
+  const boot = await import('../../src/boot/process-state/processState.ts')
   boot.setOriginalCwd(home); boot.setCwdState(home); boot.setProjectRoot(home)
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
-  const seam = await import('../../src/services/crewBoard/seam.ts')
+  const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
+  const seam = await import('../../src/crew/board/seam.ts')
   const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
-  const { inputSchema } = await import('../../src/tools/AgentTool/AgentTool.tsx')
+  const { inputSchema } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
   const launch = { description: 'Check the fields', prompt: 'Read the fields', name: 'Captain', team: 'engine', captain: true, model: 'fixture-model', effort: 'high', isolation: 'worktree' }
   const parsed = inputSchema().safeParse(launch)
-  assert(parsed.success, `schema-and-brief: AgentTool inputSchema rejected valid captain launch in src/tools/AgentTool/AgentTool.tsx`)
+  assert(parsed.success, `schema-and-brief: AgentTool inputSchema rejected valid captain launch in src/tools/crewmate/CrewmateTool.tsx`)
   assert.equal(parsed.data.model, launch.model)
   assert.equal(parsed.data.effort, launch.effort)
   assert.equal(parsed.data.isolation, launch.isolation)
-  for (const patch of [{ name: undefined }, { name: ' ' }, { team: undefined }, { captain: 'true' }]) assert(!inputSchema().safeParse({ ...launch, ...patch }).success, `schema-and-brief: AgentTool inputSchema accepted invalid patch ${JSON.stringify(patch)} in src/tools/AgentTool/AgentTool.tsx`)
-  assert(inputSchema().safeParse({ description: 'A plain seat', prompt: 'Read', captain: false }).success, 'schema-and-brief: AgentTool inputSchema rejected plain seat with captain: false in src/tools/AgentTool/AgentTool.tsx')
+  for (const patch of [{ name: undefined }, { name: ' ' }, { team: undefined }, { captain: 'true' }]) assert(!inputSchema().safeParse({ ...launch, ...patch }).success, `schema-and-brief: AgentTool inputSchema accepted invalid patch ${JSON.stringify(patch)} in src/tools/crewmate/CrewmateTool.tsx`)
+  assert(inputSchema().safeParse({ description: 'A plain seat', prompt: 'Read', captain: false }).success, 'schema-and-brief: AgentTool inputSchema rejected plain seat with captain: false in src/tools/crewmate/CrewmateTool.tsx')
   assert.equal(seam.swarmSessionEnabled(), true)
   runSwarmCommand('off')
   assert.throws(() => seam.reserveSwarmLaunch('off', launch), /swarm enrollment/)
@@ -146,10 +146,10 @@ await check('schema-and-brief', async () => {
   runSwarmCommand('on')
   assert.throws(() => seam.reserveSwarmLaunch('peer-launch', launch, 'a-peer'), /Only the lead/)
   const release = seam.reserveSwarmLaunch('captain', launch)
-  assert(await seam.latchSwarmAgent('captain', 'Captain', false, 'engine'), 'schema-and-brief: latchSwarmAgent(captain) returned false in src/services/crewBoard/seam.ts')
+  assert(await seam.latchSwarmAgent('captain', 'Captain', false, 'engine'), 'schema-and-brief: latchSwarmAgent(captain) returned false in src/crew/board/seam.ts')
   release(); release()
-  assert(await seam.latchSwarmAgent('member', 'Member', false, 'engine'), 'schema-and-brief: latchSwarmAgent(member) returned false in src/services/crewBoard/seam.ts')
-  assert(await seam.latchSwarmAgent('plain', 'Plain'), 'schema-and-brief: latchSwarmAgent(plain) returned false in src/services/crewBoard/seam.ts')
+  assert(await seam.latchSwarmAgent('member', 'Member', false, 'engine'), 'schema-and-brief: latchSwarmAgent(member) returned false in src/crew/board/seam.ts')
+  assert(await seam.latchSwarmAgent('plain', 'Plain'), 'schema-and-brief: latchSwarmAgent(plain) returned false in src/crew/board/seam.ts')
   const wait = 'You may park with a declared wait; the board wakes you on it, and the lead can always wake you.'
   const owner = "The owner's board posts outrank the lead's."
   for (const id of ['captain', 'member', 'plain']) {
@@ -157,8 +157,8 @@ await check('schema-and-brief', async () => {
     assert.equal(brief.split(wait).length, 2)
     assert.equal(brief.split(owner).length, 2)
   }
-  assert(seam.swarmBrief('captain')!.includes('You are captain of engine, with a standing wait on its traffic.'), 'schema-and-brief: captain brief omitted standing-wait line in src/services/crewBoard/seam.ts')
-  assert(seam.swarmBrief('member')!.includes("Captain is your team's captain."), 'schema-and-brief: member brief omitted captain identity line in src/services/crewBoard/seam.ts')
+  assert(seam.swarmBrief('captain')!.includes('You are captain of engine, with a standing wait on its traffic.'), 'schema-and-brief: captain brief omitted standing-wait line in src/crew/board/seam.ts')
+  assert(seam.swarmBrief('member')!.includes("Captain is your team's captain."), 'schema-and-brief: member brief omitted captain identity line in src/crew/board/seam.ts')
   seam.swarmStore()?.close()
 })
 
@@ -189,7 +189,7 @@ await check('unicode-labels', () => world('unicode-labels', (board, main, seat, 
   for (const principal of members) board.enroll(principal)
   assert.deepEqual(board.seats().filter(row => row.agent !== 'main').map(row => row.team), Array(4).fill('Équipe'))
   const post = board.postOwner(main, { clientOpId: 'unicode-address', channel: 'team', target: 'équipe', text: 'Reach every member.' })
-  assert(post.ok, `unicode-labels: postOwner failed in src/services/crewBoard/store.ts: ${JSON.stringify(post)}`)
+  assert(post.ok, `unicode-labels: postOwner failed in src/crew/board/store.ts: ${JSON.stringify(post)}`)
   assert.deepEqual([...post.recipients].sort(), ['a', 'b', 'c', 'd', 'main'])
   assert.deepEqual(post.channel, { kind: 'team', target: 'Équipe' })
   assert.throws(() => board.enroll(seat('e', 'ÉQUIPE')), /captain/)
@@ -202,17 +202,17 @@ await check('unicode-labels', () => world('unicode-labels', (board, main, seat, 
   assert.equal(board.assignTeam(main, 'b', 'équipe').ok, true)
   assert.equal(board.assignTeam(main, 'b', 'Other').ok, false)
   const directed = board.postOwner(main, { clientOpId: 'unicode-captain', channel: 'team', target: 'ÉQUIPE', text: 'Reach the captain.' })
-  assert(directed.ok, `unicode-labels: directed postOwner failed in src/services/crewBoard/store.ts: ${JSON.stringify(directed)}`)
+  assert(directed.ok, `unicode-labels: directed postOwner failed in src/crew/board/store.ts: ${JSON.stringify(directed)}`)
   assert.deepEqual([...directed.recipients].sort(), ['b', 'main'])
   board.enroll(seat('e', 'équipe'))
   assert.equal(board.assignCaptain(main, 'ÉQUIPE', 'c').ok, true)
   assert.equal(board.seats().filter(row => row.captain).length, 1)
   const finding = board.post(members[0]!, { clientOpId: 'unicode-finding', kind: 'result', text: 'The label has one identity.', to: ['équipe'] })
-  assert(finding.ok, `unicode-labels: team-addressed post failed in src/services/crewBoard/store.ts: ${JSON.stringify(finding)}`)
+  assert(finding.ok, `unicode-labels: team-addressed post failed in src/crew/board/store.ts: ${JSON.stringify(finding)}`)
   assert.deepEqual([...board.view().events.find(row => row.eventId === finding.eventId)!.mentions].sort(), ['a', 'b', 'c', 'd', 'e'])
-  assert(board.boundary(outsider, new Set())?.eventIds.includes(finding.eventId), 'unicode-labels: finding missing from outsider boundary in src/services/crewBoard/store.ts')
-  assert(board.read(outsider, { since: 0, team: 'équipe' }).events.some(row => row.eventId === finding.eventId), 'unicode-labels: board.read team filter missed finding in src/services/crewBoard/store.ts')
-  assert(board.view(undefined, undefined, 'ÉQUIPE').events.some(row => row.eventId === finding.eventId), 'unicode-labels: board.view team filter missed finding in src/services/crewBoard/store.ts')
+  assert(board.boundary(outsider, new Set())?.eventIds.includes(finding.eventId), 'unicode-labels: finding missing from outsider boundary in src/crew/board/store.ts')
+  assert(board.read(outsider, { since: 0, team: 'équipe' }).events.some(row => row.eventId === finding.eventId), 'unicode-labels: board.read team filter missed finding in src/crew/board/store.ts')
+  assert(board.view(undefined, undefined, 'ÉQUIPE').events.some(row => row.eventId === finding.eventId), 'unicode-labels: board.view team filter missed finding in src/crew/board/store.ts')
   const reopened = open(path, 'unicode-labels', Date.now, true)
   try {
     assert.equal(reopened.captain('équipe')?.agent, 'c')
@@ -250,26 +250,26 @@ await check('unicode-stored', () => world('unicode-stored', async (board, main, 
     board.enroll(seat('reserved', 'équipe', 'Reserved'))
     assert.deepEqual(board.seats().filter(row => row.agent !== 'main').map(row => row.team), Array(4).fill('Équipe'))
     const addressed = board.postOwner(main, { clientOpId: 'stored-members', channel: 'team', target: 'équipe', text: 'One stored identity.' })
-    assert(addressed.ok, `unicode-stored: postOwner failed in src/services/crewBoard/store.ts: ${JSON.stringify(addressed)}`)
+    assert(addressed.ok, `unicode-stored: postOwner failed in src/crew/board/store.ts: ${JSON.stringify(addressed)}`)
     assert.deepEqual([...addressed.recipients].sort(), ['a', 'b', 'c', 'main', 'reserved'])
     assert.throws(() => board.enroll(seat('fifth', 'équipe')), /captain/)
-    assert(board.assignCaptain(main, 'équipe', 'a').ok, 'unicode-stored: assignCaptain(a) failed in src/services/crewBoard/store.ts')
+    assert(board.assignCaptain(main, 'équipe', 'a').ok, 'unicode-stored: assignCaptain(a) failed in src/crew/board/store.ts')
     legacy.prepare("UPDATE captains SET team = 'équipe' WHERE agent = 'a'").run()
     assert.equal(board.captain('ÉQUIPE')?.agent, 'a')
-    assert(board.assignCaptain(main, 'ÉQUIPE', 'b').ok, 'unicode-stored: assignCaptain(b) failed in src/services/crewBoard/store.ts')
+    assert(board.assignCaptain(main, 'ÉQUIPE', 'b').ok, 'unicode-stored: assignCaptain(b) failed in src/crew/board/store.ts')
     assert.deepEqual(legacy.prepare('SELECT team, agent FROM captains').all(), [{ team: 'Équipe', agent: 'b' }])
     const old = board.post(seat('a'), { clientOpId: 'stored-post', kind: 'result', text: 'Earlier spelling.' })
-    assert(old.ok, `unicode-stored: old post failed in src/services/crewBoard/store.ts: ${JSON.stringify(old)}`)
+    assert(old.ok, `unicode-stored: old post failed in src/crew/board/store.ts: ${JSON.stringify(old)}`)
     legacy.prepare("UPDATE events SET record = json_set(record, '$.team', 'équipe') WHERE id = ?").run(old.eventId)
     const fresh = board.post(seat('c'), { clientOpId: 'canonical-post', kind: 'result', text: 'Current spelling.' })
-    assert(fresh.ok, `unicode-stored: fresh post failed in src/services/crewBoard/store.ts: ${JSON.stringify(fresh)}`)
+    assert(fresh.ok, `unicode-stored: fresh post failed in src/crew/board/store.ts: ${JSON.stringify(fresh)}`)
     assert.deepEqual(board.view(undefined, undefined, 'ÉQUIPE').events.map(event => event.eventId), [old.eventId, fresh.eventId])
     assert.deepEqual(board.read(main, { since: 0, team: 'équipe' }).events.filter(event => event.kind === 'result').map(event => event.eventId), [old.eventId, fresh.eventId])
     assert.deepEqual(board.view().teams, ['Équipe'])
     const reader = open(path, 'unicode-stored', Date.now, true)
     try {
       assert.equal(reader.captain('équipe')?.agent, 'b')
-      assert(reader.seats().filter(row => row.agent !== 'main').every(row => row.team === 'Équipe'), 'unicode-stored: reopened reader did not canonicalise team spelling to Équipe in src/services/crewBoard/store.ts')
+      assert(reader.seats().filter(row => row.agent !== 'main').every(row => row.team === 'Équipe'), 'unicode-stored: reopened reader did not canonicalise team spelling to Équipe in src/crew/board/store.ts')
     } finally { reader.close() }
   } finally { legacy.close() }
 }))

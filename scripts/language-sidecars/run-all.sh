@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-env: MERCURY_PROVE_WEB_BUNDLE
-# gate-watch: src/services/structure/** src/tools/StructureTool/**
-# gate-watch: src/services/lsp/webSidecar/**
-# gate-watch: src/services/browser/** src/tools/BrowserTool/** src/commands/browser/**
-# gate-watch: src/services/health/healthReport.ts
+# gate-watch: src/tools/engines/structure/** src/tools/structure/**
+# gate-watch: src/integrations/lsp/web-sidecar/**
+# gate-watch: src/integrations/browser/** src/tools/browser/** src/commands/browser/**
+# gate-watch: src/platform/health/healthReport.ts
 # gate-watch: vendor/grammar-licences/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

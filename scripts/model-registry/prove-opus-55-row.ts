@@ -10,7 +10,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 
 for (const k of [
   'MERCURY_DEFAULT_OPUS_MODEL',
@@ -30,8 +30,8 @@ const {
   parseUserSpecifiedModel,
   renderModelChip,
   renderModelName,
-} = await import('../../src/services/model/model.ts')
-const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
+} = await import('../../src/models/catalogue/engineModel.ts')
+const { recognizeModelId } = await import('../../src/models/roads/idSpaces.ts')
 
 let failures = 0
 let sectionFix = ''
@@ -48,7 +48,7 @@ function section(title: string, fix = ''): void {
 const ID = 'claude-opus-5-5'
 const PREVIOUS = 'claude-opus-5'
 
-section('§1 the fold order and the names: claude-opus-5-5 is its own canonical, never swallowed by the opus-5 arm', 'fix getCanonicalName in src/utils/model/modelNames.ts, renderModelName and parseUserSpecifiedModel in src/services/model/model.ts, or the opus55 row in src/utils/model/configs.ts')
+section('§1 the fold order and the names: claude-opus-5-5 is its own canonical, never swallowed by the opus-5 arm', 'fix getCanonicalName in src/models/facts/modelNames.ts, renderModelName and parseUserSpecifiedModel in src/models/catalogue/engineModel.ts, or the opus55 row in src/models/facts/builtInModelTable.ts')
 {
   check('its own canonical', getCanonicalName(ID) === ID, getCanonicalName(ID))
   check('the [1m] twin folds to the same canonical', getCanonicalName(`${ID}[1m]`) === ID, getCanonicalName(`${ID}[1m]`))
@@ -72,19 +72,19 @@ section('§1 the fold order and the names: claude-opus-5-5 is its own canonical,
   check('the id space recognises the bare id by its claude- mark', recognizeModelId(ID).kind === 'first-party')
 }
 
-section("§2 the row: the opus family's newest generation, its class, its picker rows, its cost tier, its launch effort and its capability truth", 'fix the opus55 generation in src/utils/model/configs.ts (FAMILY_GENERATIONS), the picker rows in src/services/model/modelOptions.ts, the price row in src/services/usage/modelCost.ts, the launch effort in src/utils/effort.ts, or the capability record in src/utils/model/capabilities.ts')
+section("§2 the row: the opus family's newest generation, its class, its picker rows, its cost tier, its launch effort and its capability truth", 'fix the opus55 generation in src/models/facts/builtInModelTable.ts (FAMILY_GENERATIONS), the picker rows in src/models/catalogue/modelOptions.ts, the price row in src/models/usage/modelCost.ts, the launch effort in src/models/effort/effort.ts, or the capability record in src/models/facts/capabilities.ts')
 {
-  const { FAMILY_GENERATIONS, newestGenerationKey, previousGenerationKeys } = await import('../../src/utils/model/configs.ts')
-  const { getDefaultOpusModel, isDefaultOpusNatively1M, renderModelSetting, renderDefaultModelSetting } = await import('../../src/services/model/model.ts')
-  const { classOfModel } = await import('../../src/services/providers/modelRegistry.ts')
-  const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/services/providers/anthropic/anthropicAdapter.ts')
-  const { focusedOptionSupports1m, getModelOptions } = await import('../../src/services/model/modelOptions.ts')
-  const { resolveCatalogueSpelling } = await import('../../src/services/model/modelSpellingFold.ts')
-  const { calculateUSDCost, getModelPricingString, resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
-  const effort = await import('../../src/utils/effort.ts')
-  const caps = await import('../../src/utils/model/capabilities.ts')
-  const { foldLegacyWorkerModelKey } = await import('../../src/services/concourse/workerModels.ts')
-  const { getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
+  const { FAMILY_GENERATIONS, newestGenerationKey, previousGenerationKeys } = await import('../../src/models/facts/builtInModelTable.ts')
+  const { getDefaultOpusModel, isDefaultOpusNatively1M, renderModelSetting, renderDefaultModelSetting } = await import('../../src/models/catalogue/engineModel.ts')
+  const { classOfModel } = await import('../../src/models/roads/modelRegistry.ts')
+  const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/models/roads/anthropic/anthropicAdapter.ts')
+  const { focusedOptionSupports1m, getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
+  const { resolveCatalogueSpelling } = await import('../../src/models/catalogue/modelSpellingFold.ts')
+  const { calculateUSDCost, getModelPricingString, resolveModelPricing } = await import('../../src/models/usage/modelCost.ts')
+  const effort = await import('../../src/models/effort/effort.ts')
+  const caps = await import('../../src/models/facts/capabilities.ts')
+  const { foldLegacyWorkerModelKey } = await import('../../src/screen/concourse-model/workerModels.ts')
+  const { getGlobalConfig, saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
 
   check("the generation table lists opus55 first, Opus 5 second (newest first)", FAMILY_GENERATIONS.opus[0] === 'opus55' && FAMILY_GENERATIONS.opus[1] === 'opus5', FAMILY_GENERATIONS.opus.join(','))
   check("newestGenerationKey('opus') is opus55", newestGenerationKey('opus') === 'opus55')
@@ -148,12 +148,12 @@ section("§2 the row: the opus family's newest generation, its class, its picker
   check('the capability record is coherent on the row', record.canonical === ID && record.thinking.adaptive && record.effort.ceiling === 'max' && record.tools.structuredOutputs && record.context.window === 1_000_000 && record.identity.knowledgeCutoff === 'June 2026', JSON.stringify(record))
 }
 
-section('§3 the wire laws: thinking always on, no forced tool choice, the four disabled roads omit the parameter, the binding rides, foreign thinking leaves the wire both ways', 'fix modelThinkingAlwaysOn, modelSupportsForcedToolChoice and foldToolChoiceForModel in src/utils/model/capabilities.ts, sideQueryThinkingParam in src/services/api/sideQuery.ts, or applyThinkingBinding and modelSwitchReceipt in src/services/providers/anthropic/thinkingBinding.ts')
+section('§3 the wire laws: thinking always on, no forced tool choice, the four disabled roads omit the parameter, the binding rides, foreign thinking leaves the wire both ways', 'fix modelThinkingAlwaysOn, modelSupportsForcedToolChoice and foldToolChoiceForModel in src/models/facts/capabilities.ts, sideQueryThinkingParam in src/engine/requests/sideRequest.ts, or applyThinkingBinding and modelSwitchReceipt in src/models/roads/anthropic/thinkingBinding.ts')
 {
-  const caps = await import('../../src/utils/model/capabilities.ts')
-  const { sideQueryThinkingParam } = await import('../../src/services/api/sideQuery.ts')
-  const { applyThinkingBinding, isSameModel, modelSwitchReceipt } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
-  const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/services/messages/apiFilters.ts')
+  const caps = await import('../../src/models/facts/capabilities.ts')
+  const { sideQueryThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
+  const { applyThinkingBinding, isSameModel, modelSwitchReceipt } = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
+  const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/engine/messages/apiFilters.ts')
   const show = (v: unknown): string => JSON.stringify(v)
 
   check('thinking is always on for the row (the [1m] twin too); Opus 5 keeps its switch; a carrier row never joins', caps.modelThinkingAlwaysOn(ID) && caps.modelThinkingAlwaysOn(`${ID}[1m]`) && !caps.modelThinkingAlwaysOn(PREVIOUS) && !caps.modelThinkingAlwaysOn('openrouter/anthropic/claude-opus-5-5'))
@@ -191,11 +191,11 @@ section('§3 the wire laws: thinking always on, no forced tool choice, the four 
   check("the receipt names the row as a writer the other way", receiptToOpus5 !== null && receiptToOpus5.text.includes('1 thinking block written by Opus 5.5 stays out of the requests to Opus 5 (the conversation switched models); the model re-plans without it.'), show(receiptToOpus5))
 }
 
-section('§4 thinking.display and its beta ride only when explicitly requested', 'fix applyThinkingDisplay and resolveThinkingDisplaySetting in src/services/providers/anthropic/thinkingDisplay.ts, or modelNarratesInThinkingBlocks in src/utils/model/capabilities.ts')
+section('§4 thinking.display and its beta ride only when explicitly requested', 'fix applyThinkingDisplay and resolveThinkingDisplaySetting in src/models/roads/anthropic/thinkingDisplay.ts, or modelNarratesInThinkingBlocks in src/models/facts/capabilities.ts')
 {
-  const caps = await import('../../src/utils/model/capabilities.ts')
-  const { applyThinkingDisplay, resolveThinkingDisplaySetting } = await import('../../src/services/providers/anthropic/thinkingDisplay.ts')
-  const { THINKING_DISPLAY_UPDATES_BETA_HEADER } = await import('../../src/constants/betas.ts')
+  const caps = await import('../../src/models/facts/capabilities.ts')
+  const { applyThinkingDisplay, resolveThinkingDisplaySetting } = await import('../../src/models/roads/anthropic/thinkingDisplay.ts')
+  const { THINKING_DISPLAY_UPDATES_BETA_HEADER } = await import('../../src/models/roads/betaHeaders.ts')
   const show = (v: unknown): string => JSON.stringify(v)
   const HEADER = 'thinking-display-updates-2026-08-18'
 

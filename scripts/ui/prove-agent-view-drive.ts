@@ -230,7 +230,7 @@ async function leg(cols: number, rows: number): Promise<void> {
   const cut = marks['cut-row'] ?? ''
   const cutRow = cut.split('\n').map(centreText).find(line => line.includes('the interrupt ended') || line.includes('Interrupted ·'))
   console.log(`  the cut row in the sleeper's transcript: "${(cutRow ?? '').trim().slice(0, 120)}"`)
-  check(`${tag}: esc interrupts the sleeper alone — its transcript shows the interrupt row (the tool-phase cut names the tool it ended)`, cutRow !== undefined && /the interrupt ended Sleep — the turn is over|Interrupted · What should Mercury do instead\?/.test(cutRow), (cutRow ?? 'no cut row in the centre') + ' · the cut row wording is built in src/utils/messages/turnCut.ts')
+  check(`${tag}: esc interrupts the sleeper alone — its transcript shows the interrupt row (the tool-phase cut names the tool it ended)`, cutRow !== undefined && /the interrupt ended Sleep — the turn is over|Interrupted · What should Mercury do instead\?/.test(cutRow), (cutRow ?? 'no cut row in the centre') + ' · the cut row wording is built in src/engine/message-shapes/turnCut.ts')
   check(`${tag}: the sleeper's card reads interrupted (the operator's own kind, never a bare stopped) and the lead's own turn is untouched (the status row still names the session)`, cut.split('\n').some(line => centreText(line).includes('◉ sleeper') && centreText(line).includes('interrupted')), flat(cut).slice(0, 200))
   check(`${tag}: the view stays on the sleeper after the interrupt`, /(?:viewing|main chat:) sleeper ·/.test(headerRow(cut)), flat(headerRow(cut)).slice(0, 120))
   const back = marks['back'] ?? ''
@@ -244,8 +244,8 @@ async function leg(cols: number, rows: number): Promise<void> {
   const records = sessionRecords(home)
   const interruptedNotice = records.find(line => line.includes('<status>interrupted</status>'))
   console.log(`  the lead's notice in the session records: ${interruptedNotice === undefined ? '(none)' : interruptedNotice.slice(0, 200)}`)
-  check(`${tag}: the lead's notice carries the typed kind <status>interrupted</status> and says the operator interrupted it`, interruptedNotice !== undefined && interruptedNotice.includes('interrupted by the operator on its screen'), records.filter(line => line.includes('task-notification')).join(' | ').slice(0, 300) + ' · the operator-interrupt words are CREW_INTERRUPTED_BY_OPERATOR_WORDS in src/services/engine-connector/crewFacts.ts')
-  check(`${tag}: the notice is the operator's kind, never the crew view's stop`, !records.some(line => line.includes('stopped from the crew view · r on its row')), records.filter(line => line.includes('stopped from the crew view · r on its row')).join(' | ').slice(0, 300) + ' · the stop reason wording is chosen in src/tasks/LocalAgentTask/LocalAgentTask.tsx')
+  check(`${tag}: the lead's notice carries the typed kind <status>interrupted</status> and says the operator interrupted it`, interruptedNotice !== undefined && interruptedNotice.includes('interrupted by the operator on its screen'), records.filter(line => line.includes('task-notification')).join(' | ').slice(0, 300) + ' · the operator-interrupt words are CREW_INTERRUPTED_BY_OPERATOR_WORDS in src/engine/connector/crewFacts.ts')
+  check(`${tag}: the notice is the operator's kind, never the crew view's stop`, !records.some(line => line.includes('stopped from the crew view · r on its row')), records.filter(line => line.includes('stopped from the crew view · r on its row')).join(' | ').slice(0, 300) + ' · the stop reason wording is chosen in src/engine/tasks/local-agent/crewmateTask.tsx')
   if (failures > before || process.env.AGENT_VIEW_KEEP === '1') {
     for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
     dump(`${tag} · final`, cap.text)

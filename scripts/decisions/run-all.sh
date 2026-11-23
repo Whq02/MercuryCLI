@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/utils/errors/**
-# gate-watch: src/utils/permissions/permissions*
-# gate-watch: src/utils/bash/bashParser.ts src/utils/bash/commands.ts src/utils/bash/ParsedCommand.ts src/utils/bash/treeSitterAnalysis.ts
+# gate-watch: src/engine/tool-errors/**
+# gate-watch: src/permissions/rules/permissionDoor.ts src/permissions/rules/permissionsLoader.ts
+# gate-watch: src/platform/shell/bash/bashParser.ts src/platform/shell/bash/commands.ts src/platform/shell/bash/parsedCommand.ts src/platform/shell/bash/treeSitterAnalysis.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

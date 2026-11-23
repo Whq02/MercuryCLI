@@ -40,11 +40,11 @@ const listing = (dir: string, rel = ''): string[] => {
   return out.sort()
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const homeWatch = await import('../../src/daemon/daemonHome.ts')
-const boxMod = await import('../../src/daemon/saturnBoxSchedules.ts')
-const wt = await import('../../src/daemon/concourseWorktrees.ts')
+const homeWatch = await import('../../src/daemon/control/daemonHome.ts')
+const boxMod = await import('../../src/daemon/saturn/saturnBoxSchedules.ts')
+const wt = await import('../../src/daemon/concourse-workers/concourseWorktrees.ts')
 
 const git = (cwd: string, ...args: string[]): string => execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8', env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' } })
 const repo = join(SCRATCH, 'repo')
@@ -67,8 +67,8 @@ const held = {
 const WORKER_SCRIPT = join(SCRATCH, 'worker-audit.ts')
 writeFileSync(WORKER_SCRIPT, [
   "import { existsSync } from 'node:fs'",
-  `const led = await import(${text(join(ROOT, 'src', 'daemon', 'spawnLedger.ts'))})`,
-  `const watch = await import(${text(join(ROOT, 'src', 'daemon', 'workerParentWatch.ts'))})`,
+  `const led = await import(${text(join(ROOT, 'src', 'daemon', 'roster', 'spawnLedger.ts'))})`,
+  `const watch = await import(${text(join(ROOT, 'src', 'daemon', 'concourse-workers', 'workerParentWatch.ts'))})`,
   "led.recordBashAudit('echo from a daemon-spawned worker', 0, false)",
   `console.log(JSON.stringify({ marker: watch.parseWorkerParentPid(), auditPath: led.bashAuditPath(), daemonDirStands: existsSync(${text(DAEMON_DIR)}) }))`,
   '',
@@ -95,32 +95,32 @@ console.log('============================================================')
 console.log("\nC1 a daemon-marked worker's audit row under a standing daemon directory")
 {
   const standing = runSpawnedChild(true)
-  check('C1 the worker carries the daemon marker and writes its audit at the daemon directory', standing.status === 0 && standing.report !== null && standing.report.marker === process.pid && standing.report.auditPath === join(DAEMON_DIR, 'bash-audit.jsonl') && existsSync(join(DAEMON_DIR, 'bash-audit.jsonl')), text(standing), 'recordBashAudit and bashAuditPath in src/daemon/spawnLedger.ts and parseWorkerParentPid in src/daemon/workerParentWatch.ts must write the audit row at the daemon directory for a marked worker')
-  check('C1 the row names the spawner and the command', existsSync(join(DAEMON_DIR, 'bash-audit.jsonl')) && readFileSync(join(DAEMON_DIR, 'bash-audit.jsonl'), 'utf8').includes('"spawnedBy":"daemon-worker:w-gone#') && readFileSync(join(DAEMON_DIR, 'bash-audit.jsonl'), 'utf8').includes('echo from a daemon-spawned worker'), '', 'recordBashAudit in src/daemon/spawnLedger.ts must write the spawnedBy and the command into the row')
+  check('C1 the worker carries the daemon marker and writes its audit at the daemon directory', standing.status === 0 && standing.report !== null && standing.report.marker === process.pid && standing.report.auditPath === join(DAEMON_DIR, 'bash-audit.jsonl') && existsSync(join(DAEMON_DIR, 'bash-audit.jsonl')), text(standing), 'recordBashAudit and bashAuditPath in src/daemon/roster/spawnLedger.ts and parseWorkerParentPid in src/daemon/concourse-workers/workerParentWatch.ts must write the audit row at the daemon directory for a marked worker')
+  check('C1 the row names the spawner and the command', existsSync(join(DAEMON_DIR, 'bash-audit.jsonl')) && readFileSync(join(DAEMON_DIR, 'bash-audit.jsonl'), 'utf8').includes('"spawnedBy":"daemon-worker:w-gone#') && readFileSync(join(DAEMON_DIR, 'bash-audit.jsonl'), 'utf8').includes('echo from a daemon-spawned worker'), '', 'recordBashAudit in src/daemon/roster/spawnLedger.ts must write the spawnedBy and the command into the row')
 }
 
 console.log("\nC2 the daemon directory removed under the worker: the marked worker's audit recreates nothing")
 {
   rmSync(DAEMON_DIR, { recursive: true, force: true })
   const gone = runSpawnedChild(true)
-  check('C2 the audit call never throws in the worker (the swallow-all law) and still reports the daemon marker', gone.status === 0 && gone.report !== null && gone.report.marker === process.pid, text(gone), 'recordBashAudit in src/daemon/spawnLedger.ts must swallow every error when the daemon directory is gone')
-  check('C2 the worker saw no daemon directory after its write, and none stands afterwards (the base recreated it for one audit row)', gone.report !== null && gone.report.daemonDirStands === false && !existsSync(DAEMON_DIR), text({ report: gone.report, files: listing(DAEMON_DIR) }), 'recordBashAudit in src/daemon/spawnLedger.ts must not recreate the daemon directory once it is gone (see armDaemonHomeWatch and daemonHomeStands in src/daemon/daemonHome.ts)')
+  check('C2 the audit call never throws in the worker (the swallow-all law) and still reports the daemon marker', gone.status === 0 && gone.report !== null && gone.report.marker === process.pid, text(gone), 'recordBashAudit in src/daemon/roster/spawnLedger.ts must swallow every error when the daemon directory is gone')
+  check('C2 the worker saw no daemon directory after its write, and none stands afterwards (the base recreated it for one audit row)', gone.report !== null && gone.report.daemonDirStands === false && !existsSync(DAEMON_DIR), text({ report: gone.report, files: listing(DAEMON_DIR) }), 'recordBashAudit in src/daemon/roster/spawnLedger.ts must not recreate the daemon directory once it is gone (see armDaemonHomeWatch and daemonHomeStands in src/daemon/control/daemonHome.ts)')
 }
 
 console.log('\nC3 the same write from a spawned child that carries NO daemon marker keeps the operator-session shape')
 {
   rmSync(DAEMON_DIR, { recursive: true, force: true })
   const unmarked = runSpawnedChild(false)
-  check('C3 an unmarked spawned child reads no marker', unmarked.status === 0 && unmarked.report !== null && unmarked.report.marker === null, text(unmarked), 'parseWorkerParentPid in src/daemon/workerParentWatch.ts must read no marker without MERCURY_WORKER_PARENT_PID')
-  check('C3 its forensics directory is created for the row, as the spawn-ledger proof pins for an operator session', unmarked.report !== null && unmarked.report.daemonDirStands === true && existsSync(join(DAEMON_DIR, 'bash-audit.jsonl')), text({ report: unmarked.report, files: listing(DAEMON_DIR) }), 'recordBashAudit in src/daemon/spawnLedger.ts must still create the directory for an unmarked spawned child')
+  check('C3 an unmarked spawned child reads no marker', unmarked.status === 0 && unmarked.report !== null && unmarked.report.marker === null, text(unmarked), 'parseWorkerParentPid in src/daemon/concourse-workers/workerParentWatch.ts must read no marker without MERCURY_WORKER_PARENT_PID')
+  check('C3 its forensics directory is created for the row, as the spawn-ledger proof pins for an operator session', unmarked.report !== null && unmarked.report.daemonDirStands === true && existsSync(join(DAEMON_DIR, 'bash-audit.jsonl')), text({ report: unmarked.report, files: listing(DAEMON_DIR) }), 'recordBashAudit in src/daemon/roster/spawnLedger.ts must still create the directory for an unmarked spawned child')
 }
 
 console.log('\nU1 unarmed control: with no daemon-home watch (the screen process), the box lock still recreates its parent')
 {
   rmSync(DAEMON_DIR, { recursive: true, force: true })
   const outcome = boxMod.holdBoxFire(held, DAEMON_DIR)
-  check('U1 the unarmed writer holds the fire and the file lands under a recreated directory', outcome === 'held' && existsSync(boxMod.saturnBoxSchedulesPath(DAEMON_DIR)) && boxMod.readBoxSchedules(DAEMON_DIR).heldFires.length === 1, text({ outcome, files: listing(DAEMON_DIR) }), 'holdBoxFire in src/daemon/saturnBoxSchedules.ts must still recreate its parent when no daemon-home watch is armed')
-  check('U1 the lock is released', !existsSync(boxMod.saturnBoxLockPath(DAEMON_DIR)), '', 'holdBoxFire in src/daemon/saturnBoxSchedules.ts must release the box lock')
+  check('U1 the unarmed writer holds the fire and the file lands under a recreated directory', outcome === 'held' && existsSync(boxMod.saturnBoxSchedulesPath(DAEMON_DIR)) && boxMod.readBoxSchedules(DAEMON_DIR).heldFires.length === 1, text({ outcome, files: listing(DAEMON_DIR) }), 'holdBoxFire in src/daemon/saturn/saturnBoxSchedules.ts must still recreate its parent when no daemon-home watch is armed')
+  check('U1 the lock is released', !existsSync(boxMod.saturnBoxLockPath(DAEMON_DIR)), '', 'holdBoxFire in src/daemon/saturn/saturnBoxSchedules.ts must release the box lock')
 }
 
 console.log('\nA1 the armed daemon: the box lock meets ENOENT after the home is gone')
@@ -129,13 +129,13 @@ console.log('\nA1 the armed daemon: the box lock meets ENOENT after the home is 
   mkdirSync(DAEMON_DIR, { recursive: true })
   const noticed: string[] = []
   homeWatch.armDaemonHomeWatch(DAEMON_DIR, where => noticed.push(where))
-  check('A1 the watch stands while the directory stands', homeWatch.daemonHomeStands('the fixture', DAEMON_DIR) && noticed.length === 0, text(noticed), 'daemonHomeStands and armDaemonHomeWatch in src/daemon/daemonHome.ts must report a standing directory without calling back')
+  check('A1 the watch stands while the directory stands', homeWatch.daemonHomeStands('the fixture', DAEMON_DIR) && noticed.length === 0, text(noticed), 'daemonHomeStands and armDaemonHomeWatch in src/daemon/control/daemonHome.ts must report a standing directory without calling back')
   rmSync(DAEMON_DIR, { recursive: true, force: true })
   boxMod.holdBoxFire(held, DAEMON_DIR)
-  check('A1 the daemon directory is NOT recreated for the lock (the base made the lock parent, took the lock and then published the box file into the recreated home)', !existsSync(DAEMON_DIR) && !existsSync(boxMod.saturnBoxSchedulesPath(DAEMON_DIR)), text(listing(DAEMON_DIR)), 'the box lock path in src/daemon/saturnBoxSchedules.ts must check daemonHomeStands (src/daemon/daemonHome.ts) before it creates the lock parent')
-  check("A1 the daemon's home-gone callback fired once, at the box lock", noticed.length === 1 && noticed[0] === 'the box lock', text(noticed), 'the box lock in src/daemon/saturnBoxSchedules.ts must report the gone home once with the place name the box lock')
+  check('A1 the daemon directory is NOT recreated for the lock (the base made the lock parent, took the lock and then published the box file into the recreated home)', !existsSync(DAEMON_DIR) && !existsSync(boxMod.saturnBoxSchedulesPath(DAEMON_DIR)), text(listing(DAEMON_DIR)), 'the box lock path in src/daemon/saturn/saturnBoxSchedules.ts must check daemonHomeStands (src/daemon/control/daemonHome.ts) before it creates the lock parent')
+  check("A1 the daemon's home-gone callback fired once, at the box lock", noticed.length === 1 && noticed[0] === 'the box lock', text(noticed), 'the box lock in src/daemon/saturn/saturnBoxSchedules.ts must report the gone home once with the place name the box lock')
   const again = boxMod.markBoxScheduleFired('0badf00d', Date.now(), DAEMON_DIR)
-  check('A1 a later pen answers from an empty read without touching the disk or the callback again', again === 'missing' && !existsSync(DAEMON_DIR) && noticed.length === 1, text({ again, noticed }), 'markBoxScheduleFired in src/daemon/saturnBoxSchedules.ts must answer missing from an empty read without touching the disk or the callback once the home is gone')
+  check('A1 a later pen answers from an empty read without touching the disk or the callback again', again === 'missing' && !existsSync(DAEMON_DIR) && noticed.length === 1, text({ again, noticed }), 'markBoxScheduleFired in src/daemon/saturn/saturnBoxSchedules.ts must answer missing from an empty read without touching the disk or the callback once the home is gone')
 }
 
 console.log('\nB1 the armed daemon: a worktree carve after the home is gone')
@@ -146,10 +146,10 @@ console.log('\nB1 the armed daemon: a worktree carve after the home is gone')
   homeWatch.armDaemonHomeWatch(DAEMON_DIR, where => noticed.push(where))
   rmSync(DAEMON_DIR, { recursive: true, force: true })
   const carve = await wt.ensureWorkerWorktree(repo, 'concourse-gone', DAEMON_DIR)
-  check('B1 the carve refuses through the existing typed worktree failure', !carve.ok && carve.code === 'worktree-create-failed' && /is gone/.test(carve.error), text(carve), 'ensureWorkerWorktree in src/daemon/concourseWorktrees.ts must return worktree-create-failed with an is gone error when the daemon home is gone')
-  check('B1 the daemon directory is NOT recreated for the worktree root (the base made <daemon>/worktrees and carved a worktree into the gone home)', !existsSync(DAEMON_DIR), text(listing(DAEMON_DIR)), 'ensureWorkerWorktree in src/daemon/concourseWorktrees.ts must check daemonHomeStands (src/daemon/daemonHome.ts) before it creates the worktree root')
-  check('B1 no worktree was registered with the repository', !git(repo, 'worktree', 'list').includes('concourse-gone'), git(repo, 'worktree', 'list'), 'ensureWorkerWorktree in src/daemon/concourseWorktrees.ts must refuse before it runs git worktree add')
-  check("B1 the daemon's home-gone callback fired once, at the worktree root", noticed.length === 1 && noticed[0] === 'the worktree root', text(noticed), 'ensureWorkerWorktree in src/daemon/concourseWorktrees.ts must report the gone home once with the place name the worktree root')
+  check('B1 the carve refuses through the existing typed worktree failure', !carve.ok && carve.code === 'worktree-create-failed' && /is gone/.test(carve.error), text(carve), 'ensureWorkerWorktree in src/daemon/concourse-workers/concourseWorktrees.ts must return worktree-create-failed with an is gone error when the daemon home is gone')
+  check('B1 the daemon directory is NOT recreated for the worktree root (the base made <daemon>/worktrees and carved a worktree into the gone home)', !existsSync(DAEMON_DIR), text(listing(DAEMON_DIR)), 'ensureWorkerWorktree in src/daemon/concourse-workers/concourseWorktrees.ts must check daemonHomeStands (src/daemon/control/daemonHome.ts) before it creates the worktree root')
+  check('B1 no worktree was registered with the repository', !git(repo, 'worktree', 'list').includes('concourse-gone'), git(repo, 'worktree', 'list'), 'ensureWorkerWorktree in src/daemon/concourse-workers/concourseWorktrees.ts must refuse before it runs git worktree add')
+  check("B1 the daemon's home-gone callback fired once, at the worktree root", noticed.length === 1 && noticed[0] === 'the worktree root', text(noticed), 'ensureWorkerWorktree in src/daemon/concourse-workers/concourseWorktrees.ts must report the gone home once with the place name the worktree root')
 }
 
 console.log('\nB2 the armed daemon with its home standing still carves (the guard reads presence, never a stale flag)')
@@ -159,9 +159,9 @@ console.log('\nB2 the armed daemon with its home standing still carves (the guar
   const noticed: string[] = []
   homeWatch.armDaemonHomeWatch(DAEMON_DIR, where => noticed.push(where))
   const carve = await wt.ensureWorkerWorktree(repo, 'concourse-stands', DAEMON_DIR)
-  check('B2 the carve lands under the standing home and the callback stays quiet', carve.ok && carve.created && existsSync(join(carve.path, '.git')) && noticed.length === 0, text({ carve, noticed }), 'the guard in ensureWorkerWorktree (src/daemon/concourseWorktrees.ts) must read the directory presence through daemonHomeStands in src/daemon/daemonHome.ts, not a stale flag')
+  check('B2 the carve lands under the standing home and the callback stays quiet', carve.ok && carve.created && existsSync(join(carve.path, '.git')) && noticed.length === 0, text({ carve, noticed }), 'the guard in ensureWorkerWorktree (src/daemon/concourse-workers/concourseWorktrees.ts) must read the directory presence through daemonHomeStands in src/daemon/control/daemonHome.ts, not a stale flag')
   const outcome = boxMod.holdBoxFire(held, DAEMON_DIR)
-  check('B2 the box pen publishes under the standing home', outcome === 'held' && boxMod.readBoxSchedules(DAEMON_DIR).heldFires.length === 1 && noticed.length === 0, text({ outcome, noticed }), 'holdBoxFire in src/daemon/saturnBoxSchedules.ts must publish under a standing home without calling the home-gone callback')
+  check('B2 the box pen publishes under the standing home', outcome === 'held' && boxMod.readBoxSchedules(DAEMON_DIR).heldFires.length === 1 && noticed.length === 0, text({ outcome, noticed }), 'holdBoxFire in src/daemon/saturn/saturnBoxSchedules.ts must publish under a standing home without calling the home-gone callback')
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

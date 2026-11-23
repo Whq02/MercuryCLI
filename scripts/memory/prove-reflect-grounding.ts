@@ -16,7 +16,7 @@ const watchdog = setTimeout(() => {
 watchdog.unref?.()
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix the citation grounding and the degrade to recall-only in ReflectTool in src/tools/MemoryTools/MemoryTools.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix the citation grounding and the degrade to recall-only in ReflectTool in src/tools/memory/MemoryTools.ts'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -52,12 +52,12 @@ Object.assign(process.env, {
   ANTHROPIC_AUTH_TOKEN: 'fixture-token',
 })
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { retainItems } = await import('../../src/mneme/memoryVerbs.js')
-const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.js')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
-const { ReflectTool } = await import('../../src/tools/MemoryTools/MemoryTools.js')
+const { retainItems } = await import('../../src/sessions/mneme/memoryVerbs.js')
+const { maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.js')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.js')
+const { ReflectTool } = await import('../../src/tools/memory/MemoryTools.js')
 
 const context = {
   options: { engineModel: 'claude-sonnet-5', tools: [], mcpClients: [], isNonInteractiveSession: true },
@@ -73,7 +73,7 @@ retainItems(
   { session: 'reflect' },
 )
 maybeConsolidate({ dir: mnemeLibraryDir(), force: true })
-const { recallQuery } = await import('../../src/mneme/memoryVerbs.js')
+const { recallQuery } = await import('../../src/sessions/mneme/memoryVerbs.js')
 const citableSeqs = recallQuery('release', { limit: 12 })
   .hits.map(h => /^seq:(\d+)$/.exec(h.id)?.[1])
   .filter((v): v is string => Boolean(v))

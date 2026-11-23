@@ -1,7 +1,7 @@
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { getAllReleaseNotes, getStoredChangelog } from '../../src/utils/releaseNotes.js'
+import { getAllReleaseNotes, getStoredChangelog } from '../../src/boot/releaseNotes.js'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 

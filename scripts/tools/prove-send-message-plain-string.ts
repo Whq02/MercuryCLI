@@ -20,23 +20,23 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 300)}` : ''}${cond ? '' : plainFixHint}`)
 }
-const plainFixHint = ' | fix: validation and delivery are validateInput and call in src/tools/SendMessageTool/SendMessageTool.ts; the wording is DESCRIPTION and getPrompt in src/tools/SendMessageTool/prompt.ts (and getPrompt in src/tools/ResumeAgentTool/prompt.ts for the resume line)'
+const plainFixHint = ' | fix: validation and delivery are validateInput and call in src/tools/send-message/SendMessageTool.ts; the wording is DESCRIPTION and getPrompt in src/tools/send-message/prompt.ts (and getPrompt in src/tools/resume-crewmate/prompt.ts for the resume line)'
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the plain-string SendMessage proof exceeded 120s; a call into SendMessageTool (src/tools/SendMessageTool/SendMessageTool.ts) or a task registration never settled, so look at the last section printed above')
+  console.log('\nTIMEOUT — the plain-string SendMessage proof exceeded 120s; a call into SendMessageTool (src/tools/send-message/SendMessageTool.ts) or a task registration never settled, so look at the last section printed above')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
 
-const { SendMessageTool } = await import('../../src/tools/SendMessageTool/SendMessageTool.ts')
-const { DESCRIPTION, getPrompt } = await import('../../src/tools/SendMessageTool/prompt.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { registerAsyncAgent, registerAgentName } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { generateTaskId } = await import('../../src/Task.ts')
-await import('../../src/tasks.ts')
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
-type AppState = import('../../src/state/AppStateStore.ts').AppState
+const { SendMessageTool } = await import('../../src/tools/send-message/SendMessageTool.ts')
+const { DESCRIPTION, getPrompt } = await import('../../src/tools/send-message/prompt.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { registerAsyncAgent, registerAgentName } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
+await import('../../src/engine/tasks/tasks.ts')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
+type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState
 
 type Verdict = { result: boolean; message?: string; errorCode?: number }
 type Answer = { data: { success: boolean; message: string } }
@@ -95,7 +95,7 @@ section('§3 THE WORDS — the description and the prompt say a plain message, b
   check('the description names a crewmate by id or name', /crewmate/.test(DESCRIPTION) && /id or name/.test(DESCRIPTION), DESCRIPTION)
   const prompt = getPrompt()
   check('the prompt carries no example: to and message are the schema\'s', !/Example/.test(prompt) && !/summary/.test(prompt), prompt)
-  const { getPrompt: resumePrompt } = await import('../../src/tools/ResumeAgentTool/prompt.ts')
+  const { getPrompt: resumePrompt } = await import('../../src/tools/resume-crewmate/prompt.ts')
   check('the prompts separate delivery timing from an ended crewmate resume', /next tool boundary/.test(prompt) && /it never starts work/.test(prompt) && /resumed from its transcript/.test(resumePrompt()))
 }
 

@@ -58,8 +58,8 @@ try {
     await first.waitFor('the read turn ended', row => row.type === 'outcome' && row.turn === 1, 120_000)
     session = String(first.rows.find(row => row.type === 'session')?.session_id ?? '')
     const opened = sent()
-    check('the scene: a MERCURY.md imports a rules folder, and its scoped rule is absent until a matching file is read', copies(opened[0]) === 0 && (opened[0] ?? '').includes('native-guide-needle'), `${copies(opened[0])} cop(ies) in the first request; a scoped imported rule must stay out until a file matching its globs is read, while the MERCURY.md text must be sent (instruction text is composed in src/services/instructions/attachedText.ts)`)
-    check('a matching read attaches the imported rule once, as an instruction that governs its files', copies(opened.at(-1)) === 1 && (opened.at(-1) ?? '').includes(HEAD), `${copies(opened.at(-1))} cop(ies) in the request after the read; the rule must attach once under the head it governs files matching (head text in src/services/instructions/attachedText.ts)`)
+    check('the scene: a MERCURY.md imports a rules folder, and its scoped rule is absent until a matching file is read', copies(opened[0]) === 0 && (opened[0] ?? '').includes('native-guide-needle'), `${copies(opened[0])} cop(ies) in the first request; a scoped imported rule must stay out until a file matching its globs is read, while the MERCURY.md text must be sent (instruction text is composed in src/sessions/instructions/attachedText.ts)`)
+    check('a matching read attaches the imported rule once, as an instruction that governs its files', copies(opened.at(-1)) === 1 && (opened.at(-1) ?? '').includes(HEAD), `${copies(opened.at(-1))} cop(ies) in the request after the read; the rule must attach once under the head it governs files matching (head text in src/sessions/instructions/attachedText.ts)`)
     await first.prompt('/compact')
     await first.waitFor('the fold turn ended', row => row.type === 'outcome' && row.turn === 2, 120_000)
     const beforeNext = sent().length
@@ -67,7 +67,7 @@ try {
     await first.waitFor('the turn after the fold ended', row => row.type === 'outcome' && row.turn === 3, 120_000)
     const after = sent().slice(beforeNext)
     check('the first request after a compaction holds nothing of the rule: it is not restored as a file read', after.length > 0 && copies(after[0]) === 0 && !(after[0] ?? '').includes(RAW), `${copies(after[0])} cop(ies) in the first request after the compaction; the fold must not restore the rule as a file read, it comes back only through a matching read`)
-    check('the next matching read attaches it again, once, under its instruction head and not as the raw file', copies(after.at(-1)) === 1 && (after.at(-1) ?? '').includes(HEAD) && !(after.at(-1) ?? '').includes(RAW), `${copies(after.at(-1))} cop(ies) in the last request; the rule must attach once under its instruction head (src/services/instructions/attachedText.ts), never as the raw file`)
+    check('the next matching read attaches it again, once, under its instruction head and not as the raw file', copies(after.at(-1)) === 1 && (after.at(-1) ?? '').includes(HEAD) && !(after.at(-1) ?? '').includes(RAW), `${copies(after.at(-1))} cop(ies) in the last request; the rule must attach once under its instruction head (src/sessions/instructions/attachedText.ts), never as the raw file`)
   } finally {
     await first.stop()
   }

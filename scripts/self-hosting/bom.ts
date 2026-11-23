@@ -21,28 +21,28 @@ const mode = values.mode!
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 delete process.env.MERCURY_BARE
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 if (mode === 'headless') {
-  const { setIsInteractive } = await import('../../src/bootstrap/state.js')
+  const { setIsInteractive } = await import('../../src/boot/process-state/processState.js')
   setIsInteractive(false)
 }
 
 const { getSystemPrompt, enhanceSystemPromptWithEnvDetails } =
-  await import('../../src/constants/prompts.js')
-const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryCrewAgent.js')
-const { getAllBaseTools } = await import('../../src/tools.js')
+  await import('../../src/engine/system-prompt/defaultSystemPrompt.js')
+const { MERCURY_CREW_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryCrewAgent.js')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.js')
 const { readPromptProvenance } = await import(
-  '../../src/utils/cockpit/promptProvenance.js'
+  '../../src/screen/cockpit/promptProvenance.js'
 )
 const { getInstructionBundle } = await import(
-  '../../src/services/instructions/engine.js'
+  '../../src/sessions/instructions/instructionFiles.js'
 )
 const { getInstructionCompositionState } = await import(
-  '../../src/services/instructions/engine.js'
+  '../../src/sessions/instructions/instructionFiles.js'
 )
-const { loadMemoryPrompt } = await import('../../src/mneme/mnemeFrontPage.js')
+const { loadMemoryPrompt } = await import('../../src/sessions/mneme/mnemeFrontPage.js')
 
 type Row = {
   block: string
@@ -66,7 +66,7 @@ if (mode === 'subagent') {
     rows.push({
       block: i === 0 ? 'agent-prompt' : i === 1 ? 'agent-notes' : 'agent-env',
       group: 'subagent',
-      owner: 'src/constants/prompts.ts',
+      owner: 'src/engine/system-prompt/defaultSystemPrompt.ts',
       scope: 'all',
       cacheClass: 'session',
       chars: seg.length,
@@ -83,7 +83,7 @@ if (mode === 'subagent') {
   const provenance = readPromptProvenance()
   if (!provenance) {
     console.error('no provenance recorded — composition failed')
-    console.error('what to change: getSystemPrompt in src/constants/prompts.ts must reach composeSystemPrompt in src/prompt/composer.ts, which calls recordPromptComposition in src/utils/cockpit/promptProvenance.ts; read the earlier error above for why composition stopped')
+    console.error('what to change: getSystemPrompt in src/engine/system-prompt/defaultSystemPrompt.ts must reach composeSystemPrompt in src/engine/system-prompt/composer.ts, which calls recordPromptComposition in src/screen/cockpit/promptProvenance.ts; read the earlier error above for why composition stopped')
     process.exit(1)
   }
   for (const s of provenance.sections) {
@@ -119,7 +119,7 @@ if (mode === 'subagent') {
     rows.push({
       block: 'memory',
       group: 'dynamic',
-      owner: 'src/mneme/mnemeFrontPage.ts',
+      owner: 'src/sessions/mneme/mnemeFrontPage.ts',
       scope: 'all',
       cacheClass: 'session',
       chars: memory.length,

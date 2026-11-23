@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands/memory/memory.tsx src/components/memory/MemoryCentreView.tsx src/components/memory/memoryCentreLayout.ts src/mneme/mnemeCorrect.ts src/mneme/memoryVerbs.ts src/mneme/mnemeConsolidate.ts src/constants/tools/memory.ts src/tools/MemoryTools/MemoryTools.ts docs/MNEME.md
+// gate-watch: src/commands/memory/memory.tsx src/screen/memory/MemoryCentreView.tsx src/screen/memory/memoryCentreLayout.ts src/sessions/mneme/mnemeCorrect.ts src/sessions/mneme/memoryVerbs.ts src/sessions/mneme/mnemeConsolidate.ts src/tools/kit/names/memory.ts src/tools/memory/MemoryTools.ts docs/MNEME.md
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -37,20 +37,20 @@ const OLD_RULE = 'I like short answers - tell me what you did in three lines, no
 const NEW_RULE = 'I want five-line answers, not three'
 const RESTATED = 'give me long, detailed answers from now on'
 
-const layout = await import('../../src/components/memory/memoryCentreLayout.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const layout = await import('../../src/screen/memory/memoryCentreLayout.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(c => ({ ...c, prStatusFooterEnabled: false }))
 
-const { retainItems, correctMemory, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
-const { maybeConsolidate, listTopicDocs } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { readPins } = await import('../../src/mneme/mnemeUsage.ts')
-const { readFrontPage } = await import('../../src/mneme/mnemeFrontPage.ts')
-const { USER_ASKED_RULE_ROAD } = await import('../../src/mneme/mnemeCorrect.ts')
-const { RETAIN_PROMPT, CORRECT_PROMPT } = await import('../../src/constants/tools/memory.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { retainItems, correctMemory, _resetMemoryVerbSessionStateForTesting } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { maybeConsolidate, listTopicDocs } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { readPins } = await import('../../src/sessions/mneme/mnemeUsage.ts')
+const { readFrontPage } = await import('../../src/sessions/mneme/mnemeFrontPage.ts')
+const { USER_ASKED_RULE_ROAD } = await import('../../src/sessions/mneme/mnemeCorrect.ts')
+const { RETAIN_PROMPT, CORRECT_PROMPT } = await import('../../src/tools/kit/names/memory.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ memory: { journal: false } }))
 resetSettingsCache()
 const dir = mnemeLibraryDir()
@@ -72,16 +72,16 @@ check('seed: pinned and marked asked for by the user', readPins(dir).some(p => p
 
 const React = await import('react')
 const h = React.createElement
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const settingsStore = await import('../../src/utils/cockpit/settingsPopup.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const settingsStore = await import('../../src/screen/cockpit/settingsPopup.ts')
 const memoryCommand = await import('../../src/commands/memory/memory.tsx')
 
 function Harness({ columns }: { columns: number }): React.ReactNode {

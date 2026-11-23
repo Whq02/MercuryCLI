@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import { imageWindowFixture } from '../provider-compat/imageWindowFixture.ts'
 
 const fixture = await imageWindowFixture()
-const { compactConversation, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES } = await import('../../src/services/compact/compact.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { estimateRequestTokens } = await import('../../src/services/tokenEstimation.ts')
+const { compactConversation, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES } = await import('../../src/engine/compaction/foldConversation.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+const { estimateRequestTokens } = await import('../../src/models/facts/tokenEstimation.ts')
 const before = JSON.stringify(fixture.messages)
 const state = { toolPermissionContext: fixture.permission, sessionHooks: new Map(), tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'high' }
 const context = {

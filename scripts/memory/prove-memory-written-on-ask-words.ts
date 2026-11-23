@@ -16,9 +16,9 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 
 const WHEN_RULE = 'Memory is written only when the user asks for something to be remembered'
 try {
-  const { RETAIN_PROMPT, RETAIN_DESCRIPTION } = await import('../../src/constants/tools/memory.ts')
-  const { MEMORY_WRITE_VERBS_SENTENCE, emptyMemoryPage, forReader, renderFrontPage } = await import('../../src/mneme/mnemeFrontPage.ts')
-  const { MEMORY_EVIDENCE_CONTRACT } = await import('../../src/mneme/memoryEvidence.ts')
+  const { RETAIN_PROMPT, RETAIN_DESCRIPTION } = await import('../../src/tools/kit/names/memory.ts')
+  const { MEMORY_WRITE_VERBS_SENTENCE, emptyMemoryPage, forReader, renderFrontPage } = await import('../../src/sessions/mneme/mnemeFrontPage.ts')
+  const { MEMORY_EVIDENCE_CONTRACT } = await import('../../src/sessions/mneme/memoryEvidence.ts')
 
   console.log('── the Retain tool: purpose and outcomes, not the memory doctrine ──')
   check('the description names storage and per-item outcomes', RETAIN_PROMPT.startsWith('Store facts in project memory.') && ['stored id', 'already-staged', 'refusal reason'].every(word => RETAIN_PROMPT.includes(word)), RETAIN_PROMPT)

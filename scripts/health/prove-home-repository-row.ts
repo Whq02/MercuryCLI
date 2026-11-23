@@ -39,13 +39,13 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) {
     failures++
-    console.log('    what to change: homeRepositoryCheck and homeRepositoryRemovalWords in src/services/health/healthReport.ts (rows and fix words); for the section 5 checks rebuild with `bun run build.ts` and read the home-repository row of `node dist/mercury.mjs health --json`')
+    console.log('    what to change: homeRepositoryCheck and homeRepositoryRemovalWords in src/platform/health/healthReport.ts (rows and fix words); for the section 5 checks rebuild with `bun run build.ts` and read the home-repository row of `node dist/mercury.mjs health --json`')
   }
 }
 
-const { setCwd } = await import('../../src/utils/Shell.js')
-const { regroundGitWatch } = await import('../../src/utils/git/gitFilesystem.js')
-const report = await import('../../src/services/health/healthReport.js')
+const { setCwd } = await import('../../src/platform/shell/shellExec.js')
+const { regroundGitWatch } = await import('../../src/platform/git/gitFilesystem.js')
+const report = await import('../../src/platform/health/healthReport.js')
 setCwd(PROJECT)
 process.chdir(PROJECT)
 regroundGitWatch()

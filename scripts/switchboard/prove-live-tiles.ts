@@ -8,9 +8,9 @@ import { removeScratch } from '../lib/removeScratch.ts'
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'live-tiles-')))
 process.env['MERCURY_CONFIG_DIR'] = join(SCRATCH, 'home')
 
-const { LiveTileStore, lastLineOf, TILE_BUDGET_MS_PER_S } = await import('../../src/components/concourse/liveTiles.js')
+const { LiveTileStore, lastLineOf, TILE_BUDGET_MS_PER_S } = await import('../../src/screen/concourse/liveTiles.js')
 const { publishSessionTail, readSessionTail, sessionTailDir, sessionTailPath } = await import(
-  '../../src/services/engine-connector/seatProjections.js'
+  '../../src/engine/connector/seatProjections.js'
 )
 
 let checks = 0
@@ -25,11 +25,11 @@ function check(name: string, ok: boolean, detail = ''): void {
   }
 }
 
-const FIX_LASTLINE = 'change lastLineOf in src/components/concourse/liveTiles.ts'
-const FIX_DERIVE = 'change LiveTileStore.derive or gateTailFreshness in src/components/concourse/liveTiles.ts'
-const FIX_EMIT = 'change LiveTileStore.drain (the stamp compare and nowEquals) in src/components/concourse/liveTiles.ts'
-const FIX_BUDGET = 'change LiveTileStore.drain or setDegraded (or TILE_BUDGET_MS_PER_S) in src/components/concourse/liveTiles.ts'
-const FIX_GEOMETRY = 'change switchboardGeometry in src/components/concourse/ConcourseLayout.tsx'
+const FIX_LASTLINE = 'change lastLineOf in src/screen/concourse/liveTiles.ts'
+const FIX_DERIVE = 'change LiveTileStore.derive or gateTailFreshness in src/screen/concourse/liveTiles.ts'
+const FIX_EMIT = 'change LiveTileStore.drain (the stamp compare and nowEquals) in src/screen/concourse/liveTiles.ts'
+const FIX_BUDGET = 'change LiveTileStore.drain or setDegraded (or TILE_BUDGET_MS_PER_S) in src/screen/concourse/liveTiles.ts'
+const FIX_GEOMETRY = 'change switchboardGeometry in src/screen/concourse/ConcourseLayout.tsx'
 
 const tailDir = join(SCRATCH, 'daemon')
 
@@ -200,20 +200,20 @@ console.log('L5 MERCURY_TILES_FORCE_DEGRADE latch')
   const store = makeStore(true)
   const unsub = store.register('s-forced', '/tmp/ws-f', () => {})
   publishSessionTail({ schema: 1, sessionId: 's-forced', atMs: clock, text: 'never shown' }, tailDir)
-  check('forced: degraded from construction', store.isDegraded(), 'change the forceDegrade handling in the LiveTileStore constructor and drain in src/components/concourse/liveTiles.ts')
+  check('forced: degraded from construction', store.isDegraded(), 'change the forceDegrade handling in the LiveTileStore constructor and drain in src/screen/concourse/liveTiles.ts')
   for (let i = 0; i < 4; i++) {
     clock += 5000
     store._drainForTesting()
   }
-  check('forced: probes never lift it', store.isDegraded(), 'change the forceDegrade return in LiveTileStore.drain in src/components/concourse/liveTiles.ts')
-  check('forced: tiles stay on the summary', store.readTile('s-forced').kind === 'still', 'change LiveTileStore.readTile in src/components/concourse/liveTiles.ts')
+  check('forced: probes never lift it', store.isDegraded(), 'change the forceDegrade return in LiveTileStore.drain in src/screen/concourse/liveTiles.ts')
+  check('forced: tiles stay on the summary', store.readTile('s-forced').kind === 'still', 'change LiveTileStore.readTile in src/screen/concourse/liveTiles.ts')
   unsub()
 }
 
 console.log('L6 peek geometry')
 {
   const { switchboardGeometry, ROW_PEEK_DESIRED_ROWS } = await import(
-    '../../src/components/concourse/ConcourseLayout.js'
+    '../../src/screen/concourse/ConcourseLayout.js'
   )
   const closed = switchboardGeometry(120, 40, 0, 4, 2, 1)
   const open = switchboardGeometry(120, 40, 0, 4, 2, 1, ROW_PEEK_DESIRED_ROWS)

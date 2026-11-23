@@ -16,11 +16,11 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail.slice(0, 400) : '') + ' — fix scrollToVisible / setValue in src/services/desktop/fakeDesktopDriver.ts (checks on the fake driver and its scene file) or in the native bridge in src/services/desktop/nativeDriver.ts (checks on the stub pack); their sentences must match native/desktop/src/lib.rs' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail.slice(0, 400) : '') + ' — fix scrollToVisible / setValue in src/integrations/desktop/fakeDesktopDriver.ts (checks on the fake driver and its scene file) or in the native bridge in src/integrations/desktop/nativeDriver.ts (checks on the stub pack); their sentences must match native/desktop/src/lib.rs' : ''}`)
   if (!cond) failures++
 }
 
-const fake = await import('../../src/services/desktop/fakeDesktopDriver.js')
+const fake = await import('../../src/integrations/desktop/fakeDesktopDriver.js')
 type Scene = typeof fake.FAKE_SCENE_DEFAULT
 type Node = Scene['tree'][number]
 
@@ -165,9 +165,9 @@ if (process.platform !== 'darwin') console.log('  [WARN] [4]–[5] drive the nat
 else {
 console.log('\n[4] the native bridge: a stub addon shows what the driver sends and how it reads the answer')
 {
-  const pack = await import('../../src/services/desktop/pack.js')
-  const native = await import('../../src/services/desktop/nativeDriver.js')
-  const { voicePackPlatform } = await import('../../src/utils/voice/voicePack.js')
+  const pack = await import('../../src/integrations/desktop/pack.js')
+  const native = await import('../../src/integrations/desktop/nativeDriver.js')
+  const { voicePackPlatform } = await import('../../src/integrations/voice-pack/voicePack.js')
   const { createHash } = await import('node:crypto')
   const { mkdirSync } = await import('node:fs')
   const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')

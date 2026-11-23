@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/providers/gemini/geminiCatalogue.ts src/components/MercuryModelPicker.tsx src/commands/model/mercuryModel.tsx
+// gate-watch: src/models/roads/gemini/geminiCatalogue.ts src/commands/model/picker/MercuryModelPicker.tsx src/commands/model/mercuryModel.tsx
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { grabScreens, requireDist, runArtifactArena, sendStamp } from '../streaming/artifactArena.ts'
@@ -16,7 +16,7 @@ function dump(label: string, rows: string[]): void {
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const where = ' — to fix: image rows must stay out of the chat picker (GEMINI_NO_CHAT_ID and GEMINI_NO_CHAT_NAME in src/services/providers/gemini/geminiCatalogue.ts); search and Enter behaviour is in src/components/MercuryModelPicker.tsx and src/commands/model/mercuryModel.tsx; run bun run build.ts first if dist is stale'
+  const where = ' — to fix: image rows must stay out of the chat picker (GEMINI_NO_CHAT_ID and GEMINI_NO_CHAT_NAME in src/models/roads/gemini/geminiCatalogue.ts); search and Enter behaviour is in src/commands/model/picker/MercuryModelPicker.tsx and src/commands/model/mercuryModel.tsx; run bun run build.ts first if dist is stale'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${cond ? '' : where}`)
 }
 function section(t: string): void {

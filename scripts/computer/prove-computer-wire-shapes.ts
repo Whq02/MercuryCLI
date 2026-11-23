@@ -57,19 +57,19 @@ Object.assign(process.env, {
   MERCURY_HUGGINGFACE_API_BASE: `${base}/hf/v1`,
 })
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
-const { buildOpenaiResponsesRequest } = await import('../../src/services/providers/openai/responsesBridge.ts')
-const openaiCallModel = await import('../../src/services/providers/openai/openaiCallModel.ts')
-const { mapMessagesToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
-const { pngDimensions } = await import('../../src/services/desktop/fakeDesktopDriver.ts')
-type Message = import('../../src/types/message.ts').Message
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { modelReceivesImageBlocks } = await import('../../src/models/facts/capabilities.ts')
+const { buildOpenaiResponsesRequest } = await import('../../src/models/roads/openai/responsesBridge.ts')
+const openaiCallModel = await import('../../src/models/roads/openai/openaiCallModel.ts')
+const { mapMessagesToZai } = await import('../../src/models/roads/zai/zaiCodec.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { providerDisplayName } = await import('../../src/models/roads/routeLaw.ts')
+const { pngDimensions } = await import('../../src/integrations/desktop/fakeDesktopDriver.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 2, 0, 0, 0, 2, 8, 6, 0, 0, 0])
 const shot = join(scratch, 'shot.png')
@@ -199,7 +199,7 @@ section('§e the refusal on a text-only route names the route\'s display name')
 
 section('§f the latch: a provider refusal of the image parks the model until another is asked for')
 {
-  const { noteImageRefusal, imageRefusedFor, clearImageRefusal } = await import('../../src/services/desktop/desktopSession.ts')
+  const { noteImageRefusal, imageRefusedFor, clearImageRefusal } = await import('../../src/integrations/desktop/desktopSession.ts')
   clearImageRefusal()
   check('nothing is latched at the start', imageRefusedFor('glm-4.6v') === null)
   noteImageRefusal('glm-4.6v', 'images are not supported by this model')
@@ -216,9 +216,9 @@ section('§f the latch: a provider refusal of the image parks the model until an
 
 section('§g declared catalogue modalities decide the refusal, not a boolean-shaped placeholder')
 {
-  const openrouter = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
-  const huggingface = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.ts')
-  const local = await import('../../src/services/providers/local/localDiscovery.ts')
+  const openrouter = await import('../../src/models/roads/openrouter/openrouterCatalogue.ts')
+  const huggingface = await import('../../src/models/roads/huggingface/huggingfaceCatalogue.ts')
+  const local = await import('../../src/models/roads/local/localDiscovery.ts')
   const keys = ['OPENROUTER_API_KEY', 'HF_TOKEN', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC'] as const
   const saved = keys.map(key => [key, process.env[key]] as const)
   process.env.OPENROUTER_API_KEY = 'fixture-openrouter-catalogue'

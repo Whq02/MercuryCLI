@@ -1,14 +1,14 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/messages/rejectionText* src/components/messages/CollapsedReadSearchContent*
-// gate-watch: src/components/messages/collapseReadSearch* src/services/messages/lookups*
-// gate-watch: src/components/messages/* src/utils/messages/*
+// gate-watch: src/engine/message-shapes/rejectionText.ts src/screen/messages/CollapsedReadSearchContent.tsx
+// gate-watch: src/screen/messages/collapseReadSearch.ts src/engine/messages/lookups.ts
+// gate-watch: src/screen/messages/AssistantRedactedThinkingMessage.tsx src/screen/messages/AssistantTextMessage.tsx src/screen/messages/AssistantThinkingMessage.tsx src/screen/messages/AssistantToolUseMessage.tsx src/screen/messages/AttachmentMessage.tsx src/screen/messages/ChatLine.tsx src/screen/messages/CollapsedReadSearchContent.tsx src/screen/messages/CompactBoundaryMessage.tsx src/screen/messages/CrewChatRow.tsx src/screen/messages/GroupedToolUseContent.tsx src/screen/messages/HighlightedThinkingText.tsx src/screen/messages/HookProgressMessage.tsx src/screen/messages/RateLimitMessage.tsx src/screen/messages/ResumeRecapCard.tsx src/screen/messages/SystemAPIErrorMessage.tsx src/screen/messages/SystemTextMessage.tsx src/screen/messages/ToolRowLead.tsx src/screen/messages/TranscriptNameplate.tsx src/screen/messages/TurnReceiptRow.tsx src/screen/messages/UserBashInputMessage.tsx src/screen/messages/UserBashOutputMessage.tsx src/screen/messages/UserChannelMessage.tsx src/screen/messages/UserCommandMessage.tsx src/screen/messages/UserCrewmateNotificationMessage.tsx src/screen/messages/UserImageMessage.tsx src/screen/messages/UserLocalCommandOutputMessage.tsx src/screen/messages/UserMemoryInputMessage.tsx src/screen/messages/UserNoticeMessage.tsx src/screen/messages/UserPromptMessage.tsx src/screen/messages/UserResourceUpdateMessage.tsx src/screen/messages/UserTextMessage.tsx src/screen/messages/collapseReadSearch.ts src/screen/messages/nullRenderingAttachments.ts src/screen/messages/thinkingGrammar.tsx src/screen/messages/transcriptMemory.ts src/screen/messages/withheldThinkingDisclosure.ts src/engine/message-shapes/authWallHold.ts src/engine/message-shapes/batchedContent.ts src/engine/message-shapes/factories.ts src/engine/message-shapes/identity.ts src/engine/message-shapes/imageRequestFit.ts src/engine/message-shapes/normalize.ts src/engine/message-shapes/noticeRows.ts src/engine/message-shapes/openToolUses.ts src/engine/message-shapes/operatorTurns.ts src/engine/message-shapes/outsideReport.ts src/engine/message-shapes/rejectionText.ts src/engine/message-shapes/replyAddress.ts src/engine/message-shapes/resultPairing.ts src/engine/message-shapes/streamingTailStore.ts src/engine/message-shapes/structuredOutputDialect.ts src/engine/message-shapes/systemMessages.ts src/engine/message-shapes/tailRetirement.ts src/engine/message-shapes/text.ts src/engine/message-shapes/thinkingBlock.ts src/engine/message-shapes/toolSchemaDialect.ts src/engine/message-shapes/turnCut.ts src/engine/message-shapes/wireEdits.ts src/screen/messages-list/streamToScreen.ts
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
-import { CANCEL_MESSAGE, INTERRUPT_MESSAGE, REJECT_MESSAGE, denialLineOf, isDenialResultText, isUserInterruptResultText, turnCutOf, turnCutResultText } from '../../src/utils/messages/rejectionText.ts'
-import { buildWardDenial, evaluateWards } from '../../src/utils/wards/wards.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
+import { CANCEL_MESSAGE, INTERRUPT_MESSAGE, REJECT_MESSAGE, denialLineOf, isDenialResultText, isUserInterruptResultText, turnCutOf, turnCutResultText } from '../../src/engine/message-shapes/rejectionText.ts'
+import { buildWardDenial, evaluateWards } from '../../src/permissions/wards/wards.ts'
 import { CONFIG_HOME, RUNTIME_CWD, SID, cleanupScenario, encodeFixtureTranscript, scenario } from './renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
@@ -18,7 +18,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
 }
 
-// gate-watch: src/utils/sessionStoragePortable* src/utils/wards/wards*
+// gate-watch: src/sessions/transcripts/sessionStoragePortable.ts src/permissions/wards/wards.ts src/permissions/wards/wardsRefusals.ts src/permissions/wards/wardsShellRead.ts
 const CANARY_ROOT = realpathSync(mkdtempSync(join(tmpdir(), 'ran-count-')))
 const PROJECT = join(CANARY_ROOT, 'Users', 'proof', 'hunt')
 mkdirSync(join(PROJECT, 'scratch-dir', 'zzz-test'), { recursive: true })
@@ -46,10 +46,10 @@ console.log(' the transcript counts what ran — "Ran" only for commands that ra
 console.log('============================================================')
 
 console.log('\n(A) a ward denial is a DENIAL — the ✕ lead and the refusal line, not an ordinary failure')
-check('the ward text classifies as a denial', isDenialResultText(WARD_ON_DISK), `${WARD_TEXT.slice(0, 80)} — isDenialResultText in src/utils/messages/rejectionText.ts must accept the ward's denial text (the /^Ward '...' blocked this / form) that buildWardDenial in src/utils/wards/wards.ts produces`)
-check('its one line names the ward', denialLineOf(WARD_ON_DISK).startsWith(WARD_LINE), `${denialLineOf(WARD_ON_DISK)} — denialLineOf in src/utils/messages/rejectionText.ts must return the ward's first sentence, which buildWardDenial in src/utils/wards/wards.ts opens with the ward name`)
-check('user interrupts classify as interrupts AND stay stops for isDenialResultText', isUserInterruptResultText(SHELL_INTERRUPTED) && isUserInterruptResultText(TOOL_INTERRUPTED) && isUserInterruptResultText(CANCEL_MESSAGE) && isDenialResultText(SHELL_INTERRUPTED) && isDenialResultText(TOOL_INTERRUPTED), 'isUserInterruptResultText in src/utils/messages/rejectionText.ts must match shell interrupts, Interrupted by user and CANCEL_MESSAGE without changing isDenialResultText')
-check('wards and permission declines are NOT user interrupts', !isUserInterruptResultText(WARD_ON_DISK) && !isUserInterruptResultText(DECLINED_ON_DISK), 'isUserInterruptResultText in src/utils/messages/rejectionText.ts must return false for ward and permission refusals')
+check('the ward text classifies as a denial', isDenialResultText(WARD_ON_DISK), `${WARD_TEXT.slice(0, 80)} — isDenialResultText in src/engine/message-shapes/rejectionText.ts must accept the ward's denial text (the /^Ward '...' blocked this / form) that buildWardDenial in src/permissions/wards/wards.ts produces`)
+check('its one line names the ward', denialLineOf(WARD_ON_DISK).startsWith(WARD_LINE), `${denialLineOf(WARD_ON_DISK)} — denialLineOf in src/engine/message-shapes/rejectionText.ts must return the ward's first sentence, which buildWardDenial in src/permissions/wards/wards.ts opens with the ward name`)
+check('user interrupts classify as interrupts AND stay stops for isDenialResultText', isUserInterruptResultText(SHELL_INTERRUPTED) && isUserInterruptResultText(TOOL_INTERRUPTED) && isUserInterruptResultText(CANCEL_MESSAGE) && isDenialResultText(SHELL_INTERRUPTED) && isDenialResultText(TOOL_INTERRUPTED), 'isUserInterruptResultText in src/engine/message-shapes/rejectionText.ts must match shell interrupts, Interrupted by user and CANCEL_MESSAGE without changing isDenialResultText')
+check('wards and permission declines are NOT user interrupts', !isUserInterruptResultText(WARD_ON_DISK) && !isUserInterruptResultText(DECLINED_ON_DISK), 'isUserInterruptResultText in src/engine/message-shapes/rejectionText.ts must return false for ward and permission refusals')
 
 type Cell = { c: string }
 type Grid = { grid: Cell[][] }
@@ -219,12 +219,12 @@ const wardRows = capture('ward', 'bash command')
 if (wardRows) {
   const foldRow = wardRows.find(row => /bash command/i.test(row))
   const all = flat(wardRows)
-  check('the folded row stands', foldRow !== undefined, wardRows.filter(r => r.trim() !== '').slice(-6).join(' | ') + ' — the folded bash-command row was not on screen: read the PTY capture from vshot.py and the row built in src/components/messages/CollapsedReadSearchContent.tsx')
-  check('the row does NOT say "Ran … bash command"', !/Ran \d+ bash command/.test(all), `${foldRow ?? ''} — a denied bash call is counted as ran: bashDenied/bashRan in src/components/messages/CollapsedReadSearchContent.tsx must come from lookups.deniedToolUseIDs`)
-  check('the row says "blocked … bash command"', /[Bb]locked \d+ bash command/.test(all), `${foldRow ?? ''} — the 'blocked' fragment (bashBlocked) in src/components/messages/CollapsedReadSearchContent.tsx did not render for the ward-denied call`)
-  check('the row carries the ✕ denial lead', (foldRow ?? '').includes('✕'), `${foldRow ?? ''} — the folded row lost its ✕ denial lead: check how src/components/messages/CollapsedReadSearchContent.tsx marks denied members`)
-  check('the ward\'s one line rides under the folded row', all.includes(WARD_LINE), `${foldRow ?? ''} — the ward's one-line refusal (denialLineOf in src/utils/messages/rejectionText.ts) is not shown under the folded row`)
-  check('the model-facing teach text stays off the screen', !all.includes('rewrite the call to comply') && !all.includes('surface the refusal to the operator'), 'the ward\'s model-facing teach text leaked onto the screen: show only denialLineOf(...) from src/utils/messages/rejectionText.ts, not the full ward denial')
+  check('the folded row stands', foldRow !== undefined, wardRows.filter(r => r.trim() !== '').slice(-6).join(' | ') + ' — the folded bash-command row was not on screen: read the PTY capture from vshot.py and the row built in src/screen/messages/CollapsedReadSearchContent.tsx')
+  check('the row does NOT say "Ran … bash command"', !/Ran \d+ bash command/.test(all), `${foldRow ?? ''} — a denied bash call is counted as ran: bashDenied/bashRan in src/screen/messages/CollapsedReadSearchContent.tsx must come from lookups.deniedToolUseIDs`)
+  check('the row says "blocked … bash command"', /[Bb]locked \d+ bash command/.test(all), `${foldRow ?? ''} — the 'blocked' fragment (bashBlocked) in src/screen/messages/CollapsedReadSearchContent.tsx did not render for the ward-denied call`)
+  check('the row carries the ✕ denial lead', (foldRow ?? '').includes('✕'), `${foldRow ?? ''} — the folded row lost its ✕ denial lead: check how src/screen/messages/CollapsedReadSearchContent.tsx marks denied members`)
+  check('the ward\'s one line rides under the folded row', all.includes(WARD_LINE), `${foldRow ?? ''} — the ward's one-line refusal (denialLineOf in src/engine/message-shapes/rejectionText.ts) is not shown under the folded row`)
+  check('the model-facing teach text stays off the screen', !all.includes('rewrite the call to comply') && !all.includes('surface the refusal to the operator'), 'the ward\'s model-facing teach text leaked onto the screen: show only denialLineOf(...) from src/engine/message-shapes/rejectionText.ts, not the full ward denial')
 }
 
 console.log('\n(C) one ran, one ward-blocked, one declined — the count splits and both refusals show')
@@ -233,11 +233,11 @@ if (mixRows) {
   const all = flat(mixRows)
   const foldRow = mixRows.find(row => /bash command/i.test(row)) ?? ''
   if (process.env.RAN_COUNT_DEBUG) console.log(mixRows.filter(r => r.trim() !== '').join('\n'))
-  check('the row counts the ONE command that ran', /[Rr]an 1 bash command/.test(all), `${foldRow} — the ran count (bashRan) in src/components/messages/CollapsedReadSearchContent.tsx must be total bash calls minus denied ones; set RAN_COUNT_DEBUG=1 to print the screen`)
-  check('the blocked calls are named, not counted as ran', /[Bb]locked 2 bash commands/.test(all), `${foldRow} — the blocked count (bashBlocked) in src/components/messages/CollapsedReadSearchContent.tsx must count both the ward-blocked and the declined call`)
-  check('the ward\'s line shows', all.includes(WARD_LINE), 'the ward refusal line is missing from the screen: see denialLineOf in src/utils/messages/rejectionText.ts and the folded row in src/components/messages/CollapsedReadSearchContent.tsx')
-  check('the decline\'s line shows', all.includes(DECLINED_NEEDLE), `${foldRow} — the declined call's line (REJECT_MESSAGE in src/utils/messages/rejectionText.ts) is missing from the screen`)
-  check('no command is counted as ran that did not run', !/[Rr]an [23] bash commands?/.test(all), `${foldRow} — denied calls are still counted as ran: fix bashDenied/bashRan in src/components/messages/CollapsedReadSearchContent.tsx`)
+  check('the row counts the ONE command that ran', /[Rr]an 1 bash command/.test(all), `${foldRow} — the ran count (bashRan) in src/screen/messages/CollapsedReadSearchContent.tsx must be total bash calls minus denied ones; set RAN_COUNT_DEBUG=1 to print the screen`)
+  check('the blocked calls are named, not counted as ran', /[Bb]locked 2 bash commands/.test(all), `${foldRow} — the blocked count (bashBlocked) in src/screen/messages/CollapsedReadSearchContent.tsx must count both the ward-blocked and the declined call`)
+  check('the ward\'s line shows', all.includes(WARD_LINE), 'the ward refusal line is missing from the screen: see denialLineOf in src/engine/message-shapes/rejectionText.ts and the folded row in src/screen/messages/CollapsedReadSearchContent.tsx')
+  check('the decline\'s line shows', all.includes(DECLINED_NEEDLE), `${foldRow} — the declined call's line (REJECT_MESSAGE in src/engine/message-shapes/rejectionText.ts) is missing from the screen`)
+  check('no command is counted as ran that did not run', !/[Rr]an [23] bash commands?/.test(all), `${foldRow} — denied calls are still counted as ran: fix bashDenied/bashRan in src/screen/messages/CollapsedReadSearchContent.tsx`)
 }
 
 console.log('\n(D) an interrupted bash command — summed up as "Interrupted", never "Blocked"')
@@ -245,9 +245,9 @@ const intRows = capture('interrupted', 'bash command')
 if (intRows) {
   const all = flat(intRows)
   const foldRow = intRows.find(row => /bash command/i.test(row)) ?? ''
-  check('the interrupted row says "Interrupted 1 bash command"', /Interrupted 1 bash command/.test(all), `${foldRow} — an interrupted bash call must count as interrupted in src/components/messages/CollapsedReadSearchContent.tsx`)
-  check('the interrupted row does NOT say "Blocked" or "Ran"', !/[Bb]locked \d+ bash command/.test(all) && !/[Rr]an \d+ bash command/.test(all), `${foldRow} — an interrupted bash call must not be counted as blocked or ran in src/components/messages/CollapsedReadSearchContent.tsx`)
-  check('the interrupted row keeps the ✕ lead', foldRow.includes('✕'), `${foldRow} — an interrupted bash row keeps the ✕ lead in src/components/messages/CollapsedReadSearchContent.tsx`)
+  check('the interrupted row says "Interrupted 1 bash command"', /Interrupted 1 bash command/.test(all), `${foldRow} — an interrupted bash call must count as interrupted in src/screen/messages/CollapsedReadSearchContent.tsx`)
+  check('the interrupted row does NOT say "Blocked" or "Ran"', !/[Bb]locked \d+ bash command/.test(all) && !/[Rr]an \d+ bash command/.test(all), `${foldRow} — an interrupted bash call must not be counted as blocked or ran in src/screen/messages/CollapsedReadSearchContent.tsx`)
+  check('the interrupted row keeps the ✕ lead', foldRow.includes('✕'), `${foldRow} — an interrupted bash row keeps the ✕ lead in src/screen/messages/CollapsedReadSearchContent.tsx`)
   check('the interrupt line rides under the folded row', all.includes(INTERRUPT_MESSAGE), `${foldRow} — the interrupt line must still appear under the folded row`)
 }
 
@@ -256,9 +256,9 @@ const biRows = capture('blocked-and-interrupted', 'bash command')
 if (biRows) {
   const all = flat(biRows)
   const foldRow = biRows.find(row => /bash command/i.test(row)) ?? ''
-  check('the row counts the 1 ran command', /[Rr]an 1 bash command/.test(all), `${foldRow} — fix bashRan in src/components/messages/CollapsedReadSearchContent.tsx`)
-  check('the row counts the 1 blocked command separately', /[Bb]locked 1 bash command/.test(all), `${foldRow} — fix bashBlocked in src/components/messages/CollapsedReadSearchContent.tsx`)
-  check('the row counts the 2 interrupted commands separately', /[Ii]nterrupted 2 bash commands/.test(all), `${foldRow} — fix bashInterrupted in src/components/messages/CollapsedReadSearchContent.tsx`)
+  check('the row counts the 1 ran command', /[Rr]an 1 bash command/.test(all), `${foldRow} — fix bashRan in src/screen/messages/CollapsedReadSearchContent.tsx`)
+  check('the row counts the 1 blocked command separately', /[Bb]locked 1 bash command/.test(all), `${foldRow} — fix bashBlocked in src/screen/messages/CollapsedReadSearchContent.tsx`)
+  check('the row counts the 2 interrupted commands separately', /[Ii]nterrupted 2 bash commands/.test(all), `${foldRow} — fix bashInterrupted in src/screen/messages/CollapsedReadSearchContent.tsx`)
 }
 
 check('the canary survived — no fixture command was ever executed', readFileSync(CANARY, 'utf8') === 'alive' && existsSync(join(PROJECT, 'scratch-dir', 'zzz-test')), 'the fixture command ran or the canary file changed: the proof must only render a recorded transcript, so look at what this script or vshot.py launched, not at src/')

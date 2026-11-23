@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/permissions/BashPermissionRequest/** src/hooks/useFocusedWorkspaceCwd* src/services/engine-connector/focusedConnector* src/services/engine-connector/noSessionConnector*
+// gate-watch: src/permissions/cards/bash/** src/screen/focused-session/useFocusedWorkspaceCwd.ts src/engine/connector/focusedConnector.ts src/engine/connector/noSessionConnector.ts
 import { mock } from 'bun:test'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
@@ -20,7 +20,7 @@ process.env.NODE_ENV = 'test'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — fix the folder line of the Bash card in src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx (it reads useFocusedWorkspaceCwd in src/hooks/useFocusedWorkspaceCwd.ts and a per-call cwd input) — ${detail.slice(0, 300)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — fix the folder line of the Bash card in src/permissions/cards/bash/ShellPermissionRequest.tsx (it reads useFocusedWorkspaceCwd in src/screen/focused-session/useFocusedWorkspaceCwd.ts and a per-call cwd input) — ${detail.slice(0, 300)}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -30,19 +30,19 @@ async function stub(path: string, fixture: () => Record<string, unknown>): Promi
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...fixture() }))
 }
-await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined, useKeybindings: () => undefined }))
+await stub('../../src/screen/keys/useKeybinding.js', () => ({ useKeybinding: () => undefined, useKeybindings: () => undefined }))
 
-const { BashPermissionRequest } = await import('../../src/components/permissions/BashPermissionRequest/BashPermissionRequest.js')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const { setFocusedSessionConnector, emitFocusedSessionConnectorChanged, _resetFocusedSessionConnectorForTesting } = await import('../../src/services/engine-connector/focusedConnector.js')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const StdinContext = (await import('../../src/ink/components/StdinContext.js')).default
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
-const { toTildePath } = await import('../../src/utils/path.js')
+const { BashPermissionRequest } = await import('../../src/permissions/cards/bash/ShellPermissionRequest.js')
+const { BashTool } = await import('../../src/tools/shell/BashTool.js')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+const { setFocusedSessionConnector, emitFocusedSessionConnectorChanged, _resetFocusedSessionConnectorForTesting } = await import('../../src/engine/connector/focusedConnector.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const StdinContext = (await import('../../src/screen/renderer/elements/StdinContext.js')).default
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
+const { toTildePath } = await import('../../src/platform/files/path.js')
 
 const PROJECT = realpathSync(mkdtempSync(join(tmpdir(), 'hunt-shell-')))
 const SCRATCH_DIR = join(PROJECT, 'scratch-dir')

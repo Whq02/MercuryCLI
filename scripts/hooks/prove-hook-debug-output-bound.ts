@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/hooks/hookEvents.ts src/utils/hooks/commandRunner.ts src/utils/hooks/fire.ts src/utils/debug.ts
+// gate-watch: src/integrations/event-hooks/hookEvents.ts src/integrations/event-hooks/commandRunner.ts src/integrations/event-hooks/fire.ts src/platform/logs/debugLog.ts
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -24,14 +24,14 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 
 try {
-  const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+  const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
   setSessionTrustAccepted(true)
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { refreshHooksSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.ts')
-  const { fireHooks } = await import('../../src/utils/hooks/fire.ts')
-  const { subscribeHookExecutionEvents } = await import('../../src/utils/hooks/hookEvents.ts')
-  const { flushDebugLogs } = await import('../../src/utils/debug.ts')
+  const { refreshHooksSnapshot } = await import('../../src/integrations/event-hooks/hooksConfigSnapshot.ts')
+  const { fireHooks } = await import('../../src/integrations/event-hooks/fire.ts')
+  const { subscribeHookExecutionEvents } = await import('../../src/integrations/event-hooks/hookEvents.ts')
+  const { flushDebugLogs } = await import('../../src/platform/logs/debugLog.ts')
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ events: { hooks: { 'turn.start': [{ name: 'large', run: `node -e 'process.stdout.write("a".repeat(5000)+"MIDDLE-MARKER"+"a".repeat(12*1024*1024-5013))'` }] } } }))
   refreshHooksSnapshot()
   let delivered = ''
@@ -44,19 +44,19 @@ try {
   await flushDebugLogs()
   const outcome = result.outcomes[0]
   const modelText = outcome?.state.kind === 'text' ? outcome.state.text : ''
-  check('the 12 MB hook follows the existing 10 MB output road', modelText.length > 10 * 1024 * 1024 && modelText.endsWith('[hook output truncated at 10MB]'), String(modelText.length) + ' (the 10 MB cut and its note live in src/utils/hooks/commandRunner.ts, TRUNCATION_NOTE)')
-  check('the model result keeps that full existing view', result.answer.contexts[0] === modelText && delivered === modelText, JSON.stringify({ context: result.answer.contexts[0]?.length, delivered: delivered.length, model: modelText.length }) + ' (fireHooks in src/utils/hooks/fire.ts and emitHookResponse in src/utils/hooks/hookEvents.ts must hand the model and the event the same full text)')
+  check('the 12 MB hook follows the existing 10 MB output road', modelText.length > 10 * 1024 * 1024 && modelText.endsWith('[hook output truncated at 10MB]'), String(modelText.length) + ' (the 10 MB cut and its note live in src/integrations/event-hooks/commandRunner.ts, TRUNCATION_NOTE)')
+  check('the model result keeps that full existing view', result.answer.contexts[0] === modelText && delivered === modelText, JSON.stringify({ context: result.answer.contexts[0]?.length, delivered: delivered.length, model: modelText.length }) + ' (fireHooks in src/integrations/event-hooks/fire.ts and emitHookResponse in src/integrations/event-hooks/hookEvents.ts must hand the model and the event the same full text)')
   const log = readFileSync(logPath, 'utf8')
   const entryStart = log.indexOf('hook large (turn.start) success:', logStart)
   const entry = entryStart < 0 ? '' : log.slice(entryStart)
   const totalBytes = Buffer.byteLength(modelText, 'utf8')
   console.log(`hook debug entry: ${Buffer.byteLength(entry, 'utf8')} bytes; model view: ${totalBytes} bytes`)
-  check('the debug entry exists', entryStart >= 0, 'no line starting with hook large (turn.start) success: reached the log file; look at emitHookResponse in src/utils/hooks/hookEvents.ts and flushDebugLogs in src/utils/debug.ts')
-  check('the debug entry is under 8 KB', Buffer.byteLength(entry, 'utf8') < 8192, String(Buffer.byteLength(entry, 'utf8')) + ' (hookOutputForDebugLog in src/utils/hooks/hookEvents.ts must bound the logged output)')
-  check('the debug entry states the total byte count', entry.includes(`[${totalBytes} bytes total]`), 'hookOutputForDebugLog in src/utils/hooks/hookEvents.ts must write the [N bytes total] line between the head and the tail')
-  check('the debug entry keeps the first 4,000 and last 1,000 characters', entry.includes(modelText.slice(0, 4000)) && entry.includes(modelText.slice(-1000)), 'hookOutputForDebugLog in src/utils/hooks/hookEvents.ts must keep output.slice(0, 4000) and output.slice(-1000)')
-  check('the debug entry omits the middle', !entry.includes(modelText.slice(4500, 5500)), 'hookOutputForDebugLog in src/utils/hooks/hookEvents.ts must drop the middle of long output')
-  check('the model view carries no debug bound marker', !modelText.includes('bytes total]'), 'the bound marker leaked into the text the model sees; apply hookOutputForDebugLog (src/utils/hooks/hookEvents.ts) to the debug log only')
+  check('the debug entry exists', entryStart >= 0, 'no line starting with hook large (turn.start) success: reached the log file; look at emitHookResponse in src/integrations/event-hooks/hookEvents.ts and flushDebugLogs in src/platform/logs/debugLog.ts')
+  check('the debug entry is under 8 KB', Buffer.byteLength(entry, 'utf8') < 8192, String(Buffer.byteLength(entry, 'utf8')) + ' (hookOutputForDebugLog in src/integrations/event-hooks/hookEvents.ts must bound the logged output)')
+  check('the debug entry states the total byte count', entry.includes(`[${totalBytes} bytes total]`), 'hookOutputForDebugLog in src/integrations/event-hooks/hookEvents.ts must write the [N bytes total] line between the head and the tail')
+  check('the debug entry keeps the first 4,000 and last 1,000 characters', entry.includes(modelText.slice(0, 4000)) && entry.includes(modelText.slice(-1000)), 'hookOutputForDebugLog in src/integrations/event-hooks/hookEvents.ts must keep output.slice(0, 4000) and output.slice(-1000)')
+  check('the debug entry omits the middle', !entry.includes(modelText.slice(4500, 5500)), 'hookOutputForDebugLog in src/integrations/event-hooks/hookEvents.ts must drop the middle of long output')
+  check('the model view carries no debug bound marker', !modelText.includes('bytes total]'), 'the bound marker leaked into the text the model sees; apply hookOutputForDebugLog (src/integrations/event-hooks/hookEvents.ts) to the debug log only')
 } finally {
   rmSync(root, { recursive: true, force: true })
 }

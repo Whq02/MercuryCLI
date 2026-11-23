@@ -30,10 +30,10 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail && !ok ? ` — ${detail}` : ''}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const computed = await import('../../src/services/model/computedDefault.ts')
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
+const computed = await import('../../src/models/catalogue/computedDefault.ts')
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
 recordSignIn('gemini', 'api-key')
 computed.resetComputedDefaultMemo()
 
@@ -47,7 +47,7 @@ check('the why names the typed-id door and the logins door', decision.why.includ
 check('the why never names the placeholder\'s family', !/anthropic/i.test(decision.why), decision.why)
 
 console.log('§2 the admission: an unnamed session launch admits keyless with the note')
-const wm = await import('../../src/services/concourse/workerModels.ts')
+const wm = await import('../../src/screen/concourse-model/workerModels.ts')
 const admit = await wm.validateWorkerModelChoice(undefined, 'session')
 check('an unnamed session launch is admitted', admit.ok === true, JSON.stringify(admit))
 if (admit.ok) {

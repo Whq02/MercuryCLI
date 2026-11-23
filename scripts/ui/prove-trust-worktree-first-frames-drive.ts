@@ -25,7 +25,7 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
 }
 const seedHint = 'the seeded keys come from seedFirstRun and canonicalProjectKeyOf in scripts/lib/firstRunSeed.ts; change them there'
 const captureHint = 'the capture is run by scripts/ui/vshot.py through the driver from scripts/lib/captureDriver.ts; rerun with --keep and read the boot-*.json, boot-*.tee and stderr in the scratch folder it prints'
-const trustCardHint = 'the card comes from TrustDialog in src/components/TrustDialog/TrustDialog.tsx, shown by src/interactiveHelpers.tsx when checkHasTrustDialogAccepted in src/utils/config/trust.ts finds no grant for the worktree or its parent folders; make that check see the grant before the first frame'
+const trustCardHint = 'the card comes from TrustDialog in src/screen/trust-dialog/TrustDialog.tsx, shown by src/boot/setupScreens.tsx when checkHasTrustDialogAccepted in src/platform/config/trust.ts finds no grant for the worktree or its parent folders; make that check see the grant before the first frame'
 
 const SCRATCH = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'trust-worktree-')))
 const HOME = join(SCRATCH, 'home')
@@ -213,7 +213,7 @@ try {
   }
 
   const after = projectsOf()
-  check('after the boots the worktree carries its own grant, keyed as the shipped road keyed it', after[LINKED]?.hasTrustDialogAccepted === true, Object.keys(after).join(', '), 'the grant is written by setPathTrusted in src/utils/config/trust.ts; check what the boot in the linked worktree did with the trust dialog')
+  check('after the boots the worktree carries its own grant, keyed as the shipped road keyed it', after[LINKED]?.hasTrustDialogAccepted === true, Object.keys(after).join(', '), 'the grant is written by setPathTrusted in src/platform/config/trust.ts; check what the boot in the linked worktree did with the trust dialog')
   check('the main checkout keeps its grant', after[MAIN]?.hasTrustDialogAccepted === true, '', seedHint)
 } catch (error) {
   failures++

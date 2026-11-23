@@ -12,7 +12,7 @@ delete process.env.MERCURY_SESSION_HOME
 
 let checks = 0
 let failures = 0
-const WHERE_TO_LOOK = 'fix the initialize wait and slow-boot marks in src/daemon/runnerConnection.ts (slowBootMarkMs and the initialize handling) or the request deadline table in src/runner/wire/methods.ts (deadlineOf)'
+const WHERE_TO_LOOK = 'fix the initialize wait and slow-boot marks in src/daemon/runner-link/runnerConnection.ts (slowBootMarkMs and the initialize handling) or the request deadline table in src/daemon/runner-wire/methods.ts (deadlineOf)'
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
   if (!cond) failures++
@@ -22,9 +22,9 @@ const section = (title: string): void => console.log(`\n${title}`)
 const j = (v: unknown): string => JSON.stringify(v)
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
-const wire = await import('../../src/runner/wire/methods.ts')
-const { createPeer } = await import('../../src/runner/wire/peer.ts')
-const connectionModule = await import('../../src/daemon/runnerConnection.ts')
+const wire = await import('../../src/daemon/runner-wire/methods.ts')
+const { createPeer } = await import('../../src/daemon/runner-wire/peer.ts')
+const connectionModule = await import('../../src/daemon/runner-link/runnerConnection.ts')
 const { RunnerConnection } = connectionModule
 
 const capabilities = { holds_asks: true, elevation: false, elicitation: false, partial_rows: false } as never

@@ -2,7 +2,7 @@
 import {
   isEnvShadowedAuthSource,
   loginShadowWarningFor,
-} from '../../src/utils/loginShadow.js'
+} from '../../src/models/sign-in/credentials/loginShadow.js'
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {

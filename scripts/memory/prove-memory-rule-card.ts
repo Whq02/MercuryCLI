@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/ruleCard.ts src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts
-// gate-watch: src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx src/components/permissions/PermissionRequest.tsx
-// gate-watch: src/cli/headless/runnerAsks.ts src/daemon/permissionAsks.ts src/services/engine-connector/daemonConnector.ts src/services/engine-connector/seatProjections.ts
-// gate-watch: src/utils/permissions/decision/engine.ts src/utils/permissions/decision/wrapper.ts src/utils/permissions/permissions.ts
-// gate-watch: src/constants/tools/memory.ts docs/MNEME.md
+// gate-watch: src/tools/memory/MemoryTools.ts src/tools/memory/ruleCard.ts src/sessions/mneme/memoryVerbs.ts src/sessions/mneme/mnemeCorrect.ts
+// gate-watch: src/permissions/cards/memory-rule/MemoryRulePermissionRequest.tsx src/permissions/cards/PermissionRequest.tsx
+// gate-watch: src/daemon/runner/runnerAsks.ts src/daemon/session-seat/permissionAsks.ts src/engine/connector/daemonConnector.ts src/engine/connector/seatProjections.ts
+// gate-watch: src/permissions/rules/decision/engine.ts src/permissions/rules/decision/wrapper.ts src/permissions/rules/permissionDoor.ts
+// gate-watch: src/tools/kit/names/memory.ts docs/MNEME.md
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -30,7 +30,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${ok ? '' : ` — to fix, read CorrectTool and RetainTool in src/tools/MemoryTools/MemoryTools.ts, the card text in src/tools/MemoryTools/ruleCard.ts, the card view in src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx, and retainItems in src/mneme/memoryVerbs.ts`}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${ok ? '' : ` — to fix, read CorrectTool and RetainTool in src/tools/memory/MemoryTools.ts, the card text in src/tools/memory/ruleCard.ts, the card view in src/permissions/cards/memory-rule/MemoryRulePermissionRequest.tsx, and retainItems in src/sessions/mneme/memoryVerbs.ts`}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const j = (v: unknown): string => JSON.stringify(v)
@@ -47,28 +47,28 @@ const NEW_D = 'run the memory suite and the identity suite before every commit'
 const RULE_E = 'ask before any push to a shared branch'
 const RULE_P = 'write commit subjects in the present tense'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ memory: { journal: false } }))
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 resetSettingsCache()
 
-const { retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
-const { maybeConsolidate, listTopicDocs } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { readPins } = await import('../../src/mneme/mnemeUsage.ts')
-const { pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
-const { readFrontPage } = await import('../../src/mneme/mnemeFrontPage.ts')
-const { CorrectTool, RetainTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
-const { RULE_CARD_KEEP } = await import('../../src/tools/MemoryTools/ruleCard.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const daemonAsks = await import('../../src/daemon/permissionAsks.ts')
-const { concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
-const { readSessionAsks } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const { createRunnerAsks, createRuleOnlyAsks } = await import('../../src/cli/headless/runnerAsks.ts')
-const { createPeer } = await import('../../src/runner/wire/peer.ts')
+const { retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { maybeConsolidate, listTopicDocs } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { readPins } = await import('../../src/sessions/mneme/mnemeUsage.ts')
+const { pendingRows } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { readFrontPage } = await import('../../src/sessions/mneme/mnemeFrontPage.ts')
+const { CorrectTool, RetainTool } = await import('../../src/tools/memory/MemoryTools.ts')
+const { RULE_CARD_KEEP } = await import('../../src/tools/memory/ruleCard.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const daemonAsks = await import('../../src/daemon/session-seat/permissionAsks.ts')
+const { concourseWorkersPath } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { readSessionAsks } = await import('../../src/engine/connector/seatProjections.ts')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+const { createRunnerAsks, createRuleOnlyAsks } = await import('../../src/daemon/runner/runnerAsks.ts')
+const { createPeer } = await import('../../src/daemon/runner-wire/peer.ts')
 
 const dir = mnemeLibraryDir()
 const ownerSaid = (text: string) => ({ messageId: `owner-${text.length}-${text.slice(0, 12)}`, text })
@@ -117,10 +117,10 @@ const assistant = { type: 'assistant', uuid: 'rule-card-assistant', message: { i
 
 const React = await import('react')
 const h = React.createElement
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { PermissionRequest } = await import('../../src/components/permissions/PermissionRequest.tsx')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { PermissionRequest } = await import('../../src/permissions/cards/PermissionRequest.tsx')
 const wrap = (node: React.ReactNode): React.ReactNode => h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(KeybindingSetup, null, node))
 
 const WORKER = 'concourse-w1'
@@ -348,10 +348,10 @@ section("§9 the cockpit's re-check after a mode change re-asks the card, never 
 
 section('§10 the words: the Correct and Retain descriptions, prompts and field say the road (the card; sovereign); the manual says it; no word still says the model is refused outright')
 {
-  const { CORRECT_DESCRIPTION, CORRECT_PROMPT, RETAIN_DESCRIPTION, RETAIN_PROMPT } = await import('../../src/constants/tools/memory.ts')
+  const { CORRECT_DESCRIPTION, CORRECT_PROMPT, RETAIN_DESCRIPTION, RETAIN_PROMPT } = await import('../../src/tools/kit/names/memory.ts')
   const { z } = await import('zod/v4')
   const retainSchema = JSON.stringify(z.toJSONSchema(RetainTool.inputSchema as never))
-  const { RECALL_DESCRIPTION, REFLECT_DESCRIPTION } = await import('../../src/constants/tools/memory.ts')
+  const { RECALL_DESCRIPTION, REFLECT_DESCRIPTION } = await import('../../src/tools/kit/names/memory.ts')
   check('the four description() lines that the memory-rule card and the Fallback card print are unchanged from .36 (each one line, so printed whole)', RETAIN_DESCRIPTION === 'Store durable facts into project memory; a rule the user asks Mercury to remember about how to work with them is pinned in their words and on the shelf at once (a project convention about the code goes to the instruction file instead). Replacing a rule the user asked for puts a yes/no card to them first (under sovereign, no card). Per-item outcomes — a failed store is reported, never swallowed.' && CORRECT_DESCRIPTION === 'Correct project memory: supersede a fact with a new truth, amend its wording (after reading the full record), or retract it with a reason. A consolidated fact keeps its history; a pending row is a draft and is struck or replaced. A rule the user asked Mercury to remember changes only on their yes to a card (under sovereign, no card).' && RECALL_DESCRIPTION === 'Search project memory for pointers — facts, pinned rulings, the sessions of this project and the handoffs they left — each an id, a one-line title and footnotes (which session, which ruling, superseded by what). Read one full record by id.' && REFLECT_DESCRIPTION === 'Synthesize an answer over recalled memory with citations to the records used. Costs one model call; falls back to raw recall when synthesis cannot be grounded.')
   check('the Correct description: a rule the user asked for changes only on their yes to a card; under sovereign no card', CORRECT_DESCRIPTION.includes('A rule the user asked Mercury to remember changes only on their yes to a card (under sovereign, no card).'), CORRECT_DESCRIPTION)
   check('the Retain description: replacing a rule the user asked for puts a yes/no card first; under sovereign no card', RETAIN_DESCRIPTION.includes('Replacing a rule the user asked for puts a yes/no card to them first (under sovereign, no card).'), RETAIN_DESCRIPTION)
@@ -363,8 +363,8 @@ section('§10 the words: the Correct and Retain descriptions, prompts and field 
 
 section('§11 the daemon-hosted cockpit gets the same card: the reason survives the wire and routes to the memory card with the words verbatim')
 {
-  const { encodeDecisionReasonForWire, decodeDecisionReasonFromWire } = await import('../../src/utils/permissions/decisionReasonWire.ts')
-  const { isMemoryRuleCard, memoryRuleCardText } = await import('../../src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx')
+  const { encodeDecisionReasonForWire, decodeDecisionReasonFromWire } = await import('../../src/permissions/rules/decisionReasonWire.ts')
+  const { isMemoryRuleCard, memoryRuleCardText } = await import('../../src/permissions/cards/memory-rule/MemoryRulePermissionRequest.tsx')
   const card = `Correct asks to change a rule you asked Mercury to remember.\nseq 9: "${RULE_B}"\nIt will be unpinned and struck; its wording is kept in history.`
   const decoded = decodeDecisionReasonFromWire(JSON.parse(JSON.stringify(encodeDecisionReasonForWire({ type: 'safetyCheck', reason: card, operatorOnly: true }))))
   const relayed = { permissionResult: { behavior: 'ask', message: 'Correct asks to run', ...(decoded === undefined ? {} : { decisionReason: decoded }) }, description: 'Correct asks to run' }

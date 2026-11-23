@@ -15,20 +15,20 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — fix the memory project key in mnemeProjectKeyFor and lineagePath in src/mneme/paths.ts so it caps the same way as capSanitizedName and sanitizePath in src/utils/sessionStoragePortable.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — fix the memory project key in mnemeProjectKeyFor and lineagePath in src/sessions/mneme/paths.ts so it caps the same way as capSanitizedName and sanitizePath in src/sessions/transcripts/sessionStoragePortable.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { mnemeProjectKeyFor, lineagePath, getMemoryBaseDir } = await import('../../src/mneme/paths.js')
-const { getProjectDir, sanitizePath, MAX_SANITIZED_LENGTH, capSanitizedName } = await import('../../src/utils/sessionStoragePortable.js')
-const { sanitizePathComponent } = await import('../../src/utils/tasks.js')
+const { mnemeProjectKeyFor, lineagePath, getMemoryBaseDir } = await import('../../src/sessions/mneme/paths.js')
+const { getProjectDir, sanitizePath, MAX_SANITIZED_LENGTH, capSanitizedName } = await import('../../src/sessions/transcripts/sessionStoragePortable.js')
+const { sanitizePathComponent } = await import('../../src/engine/task-framework/tasks.js')
 
 function freshKey(root: string): string {
-  const module = join(import.meta.dir, '..', '..', 'src', 'mneme', 'paths.ts')
+  const module = join(import.meta.dir, '..', '..', 'src', 'sessions', 'mneme', 'paths.ts')
   const child = spawnSync(process.execPath, ['-e', `globalThis.MACRO={VERSION:'1.0.0'}; const {mnemeProjectKeyFor}=await import(${JSON.stringify(module)}); console.log(mnemeProjectKeyFor(process.argv[1]))`, root], { env: process.env, encoding: 'utf8', windowsHide: true })
   if (child.status !== 0) throw new Error(`key reader rc ${child.status}: ${child.stderr}`)
   return child.stdout.trim()

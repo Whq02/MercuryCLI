@@ -67,11 +67,11 @@ seedFirstRun(keyHome, [work])
 }
 const quietHome = join(SCRATCH, 'quiet-home')
 mkdirSync(quietHome, { recursive: true })
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
-const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.ts')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
+const { storeOAuthAccountInfo } = await import('../../src/models/sign-in/oauth/client.ts')
 storeOAuthAccountInfo({ accountUuid: '00000000-0000-4000-8000-0000000000aa', emailAddress: 'sam@example.com' })
 const saved = auth.saveOAuthTokensIfNeeded({
   accessToken: 'fixture-access-token',
@@ -101,7 +101,7 @@ process.env.MERCURY_CONFIG_DIR = subscriberHome
 enableConfigs()
 
 let failures = 0
-const NOTICE_FIX_HINT = 'to fix, change the notice attachment in src/services/attachments/sessionContext.ts (it reads engine.usageNotice and records usage_limit_notice) or the notice text and tiers in src/services/providers/limitWarning.ts, and build dist/mercury.mjs again with bun run build.ts before rerunning'
+const NOTICE_FIX_HINT = 'to fix, change the notice attachment in src/engine/attachments/sessionNotices.ts (it reads engine.usageNotice and records usage_limit_notice) or the notice text and tiers in src/models/roads/limitWarning.ts, and build dist/mercury.mjs again with bun run build.ts before rerunning'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail} — ` : ''}${NOTICE_FIX_HINT}`}`)

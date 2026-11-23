@@ -11,8 +11,8 @@ const scratch = mkdtempSync(join(tmpdir(), 'interview-dr-'))
 process.env.MERCURY_CONFIG_DIR = scratch
 
 const t = checker()
-const store = await import('../../src/services/interview/store.ts')
-const ctl = await import('../../src/services/interview/controller.ts')
+const store = await import('../../src/tools/engines/interview/store.ts')
+const ctl = await import('../../src/tools/engines/interview/controller.ts')
 
 const INPUT = {
   questions: [

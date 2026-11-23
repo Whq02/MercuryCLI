@@ -2,8 +2,8 @@
 # gate-class: pty
 # gate-env: MERCURY_HELD_CONTINUE_BIN MERCURY_HELD_CONTINUE_CAPTURE_DIR MERCURY_HELD_CONTINUE_KEEP MERCURY_ONEDOOR_CAPTURE_DIR MERCURY_ONEDOOR_KEEP MERCURY_REACTIVATE_CAPTURE_DIR MERCURY_REACTIVATE_DRIVE_MODEL MERCURY_REACTIVATE_KEEP
 # gate-watch: scripts/switchboard/** scripts/switchboard-4/**
-# gate-watch: src/components/concourse/**
-# gate-watch: src/services/switchboard/attachedSession.ts
+# gate-watch: src/screen/concourse/**
+# gate-watch: src/daemon/switchboard/attachedSession.ts
 # gate-watch: scripts/lib/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

@@ -11,7 +11,7 @@ const scenario = argAfter('--scenario') ?? 'all'
 assert(['all', 'roster', 'images', 'compact'].includes(scenario), 'unknown scenario')
 let checks = 0
 let failures = 0
-const FAIL_HINT = 'read the path in the detail as the first part of the request that changed between the two requests (tools, system or messages[i]); fix where that part is built in src/services/providers/anthropic/ (cacheAndUsage.ts builds the system blocks and cache breakpoints), or, for a count or exit check, read the scenario named above and the stderr tail printed with it'
+const FAIL_HINT = 'read the path in the detail as the first part of the request that changed between the two requests (tools, system or messages[i]); fix where that part is built in src/models/roads/anthropic/ (cacheAndUsage.ts builds the system blocks and cache breakpoints), or, for a count or exit check, read the scenario named above and the stderr tail printed with it'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++

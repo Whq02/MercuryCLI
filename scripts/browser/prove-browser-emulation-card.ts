@@ -4,17 +4,17 @@ import { mock } from 'bun:test'
 import { BrowserTool, check, finish, pageOf, permission, requireBrowser, run, serve } from './harness.ts'
 
 process.env.NODE_ENV = 'test'
-const bindings = await import('../../src/keybindings/useKeybinding.js')
-mock.module('../../src/keybindings/useKeybinding.js', () => ({ ...bindings, useKeybinding: () => undefined, useKeybindings: () => undefined }))
-const select = await import('../../src/components/CustomSelect/select.js')
+const bindings = await import('../../src/screen/keys/useKeybinding.js')
+mock.module('../../src/screen/keys/useKeybinding.js', () => ({ ...bindings, useKeybinding: () => undefined, useKeybindings: () => undefined }))
+const select = await import('../../src/screen/select/Select.js')
 const ActualSelect = select.Select
 let choose: ((value: string) => void) | undefined
-mock.module('../../src/components/CustomSelect/select.js', () => ({ ...select, Select: (props: Record<string, unknown>) => { choose = props.onChange as typeof choose; return React.createElement(ActualSelect, props as never) } }))
-const { BrowserPermissionRequest } = await import('../../src/components/permissions/BrowserPermissionRequest/BrowserPermissionRequest.js')
-const { renderToString } = await import('../../src/utils/staticRender.js')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
+mock.module('../../src/screen/select/Select.js', () => ({ ...select, Select: (props: Record<string, unknown>) => { choose = props.onChange as typeof choose; return React.createElement(ActualSelect, props as never) } }))
+const { BrowserPermissionRequest } = await import('../../src/permissions/cards/browser/BrowserPermissionRequest.js')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
 await requireBrowser()
 const A = await serve(27293, (_req, res) => res.end('<title>card</title>'))
 const B = await serve(27294, (_req, res) => res.end('<title>other</title>'))

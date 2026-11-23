@@ -1,0 +1,118 @@
+import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+
+import type { MCPResultType } from './client.js'
+import { toError } from '../../platform/errors/errors.js'
+import { formatFileSize } from '../../platform/text/format.js'
+import { logError } from '../../platform/logs/errorLog.js'
+import { ensureToolResultsDir, getToolResultsDir } from '../../engine/tool-dispatch/toolResultStorage.js'
+
+export function getFormatDescription(type: MCPResultType, schema?: unknown): string {
+  if (type === 'toolResult') return 'plain text'
+  if (type === 'structuredContent') {
+    return schema !== undefined ? `JSON matching the schema ${JSON.stringify(schema)}` : 'JSON'
+  }
+  return schema !== undefined ? `a JSON array matching the schema ${JSON.stringify(schema)}` : 'a JSON array'
+}
+
+export function getLargeOutputInstructions(
+  rawOutputPath: string,
+  contentLength: number,
+  formatDescription: string,
+  maxReadLength?: number,
+): string {
+  const truncation =
+    maxReadLength !== undefined
+      ? ` When you see a truncation warning of the form "[... output truncated ...]" (the shell output cap is ${maxReadLength.toLocaleString()} characters), reduce the chunk size until you can read everything without truncation — **do not proceed until you have**.`
+      : ' If you encounter truncation warnings, reduce the chunk size until you can read everything without truncation — **do not proceed until you have**.'
+  return (
+    `Error: the MCP tool result (${contentLength.toLocaleString()} characters) exceeds the maximum allowed tokens. ` +
+    `The output has been saved to ${rawOutputPath}.\n\n` +
+    `The saved content is ${formatDescription}.\n\n` +
+    'Use the offset and limit parameters to read portions of the file, search within the file, and use a structured-query tool for structured data.\n\n' +
+    'Requirements for summarisation, analysis or review:\n' +
+    `1. Read the file at ${rawOutputPath} in sequential chunks until 100% of the content has been read.${truncation}\n` +
+    '2. Before producing any summary or analysis, explicitly describe what portion of the file you read; ' +
+    'if you did not read everything, **state this explicitly**.'
+  )
+}
+
+const MIME_EXTENSIONS: ReadonlyMap<string, string> = new Map(
+  (
+    [
+      ['pdf', 'application/pdf'], ['json', 'application/json'], ['zip', 'application/zip'],
+      ['csv', 'text/csv'], ['txt', 'text/plain'], ['html', 'text/html'], ['md', 'text/markdown'],
+      ['css', 'text/css'], ['js', 'application/javascript', 'text/javascript', 'application/x-javascript'],
+      ['ts', 'application/typescript', 'text/typescript', 'text/x-typescript'],
+      ['xml', 'application/xml', 'text/xml'], ['yaml', 'application/yaml', 'application/x-yaml', 'text/yaml', 'text/x-yaml'],
+      ['toml', 'application/toml', 'text/x-toml'], ['py', 'text/x-python', 'application/x-python', 'text/x-script.python'],
+      ['sh', 'text/x-shellscript', 'application/x-sh', 'application/x-shellscript'], ['sql', 'application/sql', 'text/x-sql'],
+      ['jsonl', 'application/jsonl', 'application/x-ndjson'], ['rtf', 'application/rtf', 'text/rtf'],
+      ['docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+      ['xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+      ['pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+      ['doc', 'application/msword'], ['xls', 'application/vnd.ms-excel'],
+      ['mp3', 'audio/mpeg'], ['wav', 'audio/wav'], ['ogg', 'audio/ogg'],
+      ['mp4', 'video/mp4'], ['webm', 'video/webm'],
+      ['png', 'image/png'], ['jpg', 'image/jpeg'], ['gif', 'image/gif'], ['webp', 'image/webp'], ['svg', 'image/svg+xml'],
+      ['bmp', 'image/bmp', 'image/x-ms-bmp'], ['tiff', 'image/tiff'], ['heic', 'image/heic'], ['heif', 'image/heif'], ['avif', 'image/avif'],
+      ['ico', 'image/x-icon', 'image/vnd.microsoft.icon'],
+    ] as const
+  ).flatMap(([extension, ...mimes]) => mimes.map(mime => [mime, extension] as const)),
+)
+
+function normalizeMime(mimeType: string | undefined): string {
+  if (!mimeType) return ''
+  return (mimeType.split(';')[0] ?? '').trim().toLowerCase()
+}
+
+export function isBinaryContentType(contentType: string): boolean {
+  const mime = normalizeMime(contentType)
+  if (mime === '') return false
+  if (mime.startsWith('text/')) return false
+  if (mime === 'application/json' || mime.endsWith('+json')) return false
+  if (mime === 'application/xml' || mime.endsWith('+xml')) return false
+  if (mime.startsWith('application/javascript')) return false
+  if (mime === 'application/x-www-form-urlencoded') return false
+  return true
+}
+
+function extensionForMime(mimeType: string | undefined): string {
+  const normalized = normalizeMime(mimeType)
+  if (normalized === '') return 'bin'
+  const mapped = MIME_EXTENSIONS.get(normalized)
+  if (mapped !== undefined) return mapped
+  if (normalized.endsWith('+json')) return 'json'
+  if (normalized.endsWith('+xml')) return 'xml'
+  if (normalized.startsWith('text/')) return 'txt'
+  return 'bin'
+}
+
+type PersistBinaryResult = { filepath: string; size: number; ext: string } | { error: string }
+
+export async function persistBinaryContent(
+  bytes: Buffer,
+  mimeType: string | undefined,
+  persistId: string,
+): Promise<PersistBinaryResult> {
+  await ensureToolResultsDir()
+  const ext = extensionForMime(mimeType)
+  const filepath = join(getToolResultsDir(), `${persistId}.${ext}`)
+  try {
+    await writeFile(filepath, bytes)
+    return { filepath, size: bytes.length, ext }
+  } catch (error) {
+    const err = toError(error)
+    logError(err)
+    return { error: err.message }
+  }
+}
+
+export function getBinaryBlobSavedMessage(
+  filepath: string,
+  mimeType: string | undefined,
+  size: number,
+  sourceDescription: string,
+): string {
+  return `${sourceDescription}: binary content (${mimeType || 'unknown type'}, ${formatFileSize(size)}) saved to ${filepath}`
+}

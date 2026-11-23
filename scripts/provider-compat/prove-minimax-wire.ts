@@ -4,11 +4,11 @@ import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import { z } from 'zod/v4'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 import { MINIMAX_FIXTURE_MODELS, MINIMAX_FIXTURE_PLAN } from '../providers/lib/openweights-fixture.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_BUSY_RETRY_SCALE = '0.2'
@@ -39,7 +39,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   assert.equal(path, '/v1/chat/completions')
   assert.equal(req.method, 'POST')
   const raw = await req.text()
-  assert.ok(!raw.includes(process.env.MINIMAX_API_KEY!), 'MiniMax chat request body in src/services/providers/minimax/ must never contain MINIMAX_API_KEY')
+  assert.ok(!raw.includes(process.env.MINIMAX_API_KEY!), 'MiniMax chat request body in src/models/roads/minimax/ must never contain MINIMAX_API_KEY')
   const body = JSON.parse(raw)
   captures.push({ path, body, bearer })
   if (body.model === 'MiniMax-M3.1-Flash-Preview' && (body.reasoning_effort === 'none' || body.reasoning_effort === 'minimal' || body.thinking?.type === 'disabled' || body.reasoning_split === false)) {
@@ -76,32 +76,32 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   return new Response(stream + 'data: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } })
 } })
 process.env.MERCURY_MINIMAX_API_BASE = `http://127.0.0.1:${server.port}/v1`
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
-const { refreshMinimaxCatalogue, __resetMinimaxCatalogueForTest, minimaxCatalogueRows } = await import('../../src/services/providers/minimax/minimaxCatalogue.ts')
-const { buildMinimaxExtras } = await import('../../src/services/providers/minimax/minimaxCallModel.ts')
-const { storeMinimaxApiKeyLogin } = await import('../../src/services/providers/minimax/minimaxLogin.ts')
-const { fetchMinimaxPlanUsage, refreshMinimaxPlanUsage, minimaxObservedPlanUsage, minimaxPlanFailureWords, __resetMinimaxUsageForTest } = await import('../../src/services/providers/minimax/minimaxUsageState.ts')
-const { minimaxPlanWindowViews, usageForProvider, refreshProviderUsage } = await import('../../src/services/providers/providerUsage.ts')
-const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
-const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
-const { parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
-const { keyLaneListState, keyLanePins } = await import('../../src/services/model/modelOptions.ts')
-const { readStoredMinimaxApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-const { buildMistralExtras } = await import('../../src/services/providers/mistral/mistralCallModel.ts')
-const { buildZenExtras } = await import('../../src/services/providers/zen/zenCallModel.ts')
-const { buildMetaExtras } = await import('../../src/services/providers/meta/metaCallModel.ts')
-const { nousLaneProfile } = await import('../../src/services/providers/nous/nousCallModel.ts')
-const { buildMoonshotExtras, buildDeepseekExtras, buildOpenrouterExtras, buildXaiExtras, buildCompatSlotExtras, buildHuggingfaceExtras, buildGeminiExtras, buildLocalExtras } = await import('../../src/services/providers/openaicompat/compatWire.ts')
-const { configureEffortParams } = await import('../../src/services/providers/anthropic/requestParams.ts')
-const { buildOpenaiResponsesRequest } = await import('../../src/services/providers/openai/responsesBridge.ts')
-const { buildZaiChatRequest } = await import('../../src/services/providers/zai/zaiCodec.ts')
-const { compatFaultToTypedError } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { resolvePrimaryAgentBackend } = await import('../../src/models/roads/primaryBackend.ts')
+const { refreshMinimaxCatalogue, __resetMinimaxCatalogueForTest, minimaxCatalogueRows } = await import('../../src/models/roads/minimax/minimaxCatalogue.ts')
+const { buildMinimaxExtras } = await import('../../src/models/roads/minimax/minimaxCallModel.ts')
+const { storeMinimaxApiKeyLogin } = await import('../../src/models/roads/minimax/minimaxLogin.ts')
+const { fetchMinimaxPlanUsage, refreshMinimaxPlanUsage, minimaxObservedPlanUsage, minimaxPlanFailureWords, __resetMinimaxUsageForTest } = await import('../../src/models/roads/minimax/minimaxUsageState.ts')
+const { minimaxPlanWindowViews, usageForProvider, refreshProviderUsage } = await import('../../src/models/roads/providerUsage.ts')
+const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
+const { laneBillingState } = await import('../../src/models/roads/laneBillingState.ts')
+const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
+const { classifyModelRoute } = await import('../../src/models/roads/routeLaw.ts')
+const { parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.ts')
+const { keyLaneListState, keyLanePins } = await import('../../src/models/catalogue/modelOptions.ts')
+const { readStoredMinimaxApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { buildMistralExtras } = await import('../../src/models/roads/mistral/mistralCallModel.ts')
+const { buildZenExtras } = await import('../../src/models/roads/zen/zenCallModel.ts')
+const { buildMetaExtras } = await import('../../src/models/roads/meta/metaCallModel.ts')
+const { nousLaneProfile } = await import('../../src/models/roads/nous/nousCallModel.ts')
+const { buildMoonshotExtras, buildDeepseekExtras, buildOpenrouterExtras, buildXaiExtras, buildCompatSlotExtras, buildHuggingfaceExtras, buildGeminiExtras, buildLocalExtras } = await import('../../src/models/roads/openaicompat/compatWire.ts')
+const { configureEffortParams } = await import('../../src/models/roads/anthropic/requestParams.ts')
+const { buildOpenaiResponsesRequest } = await import('../../src/models/roads/openai/responsesBridge.ts')
+const { buildZaiChatRequest } = await import('../../src/models/roads/zai/zaiCodec.ts')
+const { compatFaultToTypedError } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
 const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
 function params(model = 'minimax', effortValue: string | undefined = 'max', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
   return { messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: thinking ? { type: 'enabled', budgetTokens: 4096 } : { type: 'disabled' }, signal: new AbortController().signal,
@@ -163,7 +163,7 @@ try {
   planBody = { model_remains: [] }
   const payg = await storeMinimaxApiKeyLogin('proof-key-minimax-payg-fixture-not-a-real-key')
   check('a pay-as-you-go key stores with no plan window named', payg.ok && payg.receipt.includes('no M Plan window — pay-as-you-go'))
-  check('with no override the plan read asks the host its page names (platform.minimax.io/docs/m-plan/faq, read 2026-11-22) while chat stays on the API host, and the proof seam moves both', await (async () => { const accounts = await import('../../src/services/providers/minimax/minimaxAccounts.ts'); return accounts.minimaxPlanRemainsUrl({}) === 'https://www.minimax.io/v1/token_plan/remains' && accounts.minimaxChatCompletionsUrl({}) === 'https://api.minimax.io/v1/chat/completions' && accounts.minimaxPlanRemainsUrl({ MERCURY_MINIMAX_API_BASE: 'http://127.0.0.1:9/v1/' }) === 'http://127.0.0.1:9/v1/token_plan/remains' })())
+  check('with no override the plan read asks the host its page names (platform.minimax.io/docs/m-plan/faq, read 2026-11-22) while chat stays on the API host, and the proof seam moves both', await (async () => { const accounts = await import('../../src/models/roads/minimax/minimaxAccounts.ts'); return accounts.minimaxPlanRemainsUrl({}) === 'https://www.minimax.io/v1/token_plan/remains' && accounts.minimaxChatCompletionsUrl({}) === 'https://api.minimax.io/v1/chat/completions' && accounts.minimaxPlanRemainsUrl({ MERCURY_MINIMAX_API_BASE: 'http://127.0.0.1:9/v1/' }) === 'http://127.0.0.1:9/v1/token_plan/remains' })())
   for (const [status, body] of [[403, { base_resp: { status_code: 1004, status_msg: 'token not match group' } }], [404, { error: 'not found' }], [204, null]] as const) {
     planStatus = status; planBody = body
     __resetMinimaxUsageForTest()
@@ -251,7 +251,7 @@ try {
   check('an id the account does not list refuses before inference', captures.length === before && absent.some(row => row.isApiErrorMessage) && words(absent).includes('minimax-fixture-absent'))
   modelList = []; await refreshMinimaxCatalogue({ force: true })
   const emptyPins = minimaxCatalogueRows()
-  const { minimaxDisplayPin } = await import('../../src/utils/model/pins/minimaxPins.ts')
+  const { minimaxDisplayPin } = await import('../../src/models/facts/pins/minimaxPins.ts')
   check('an empty live list falls to the pins labelled as pins with each row\'s own date, and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === 7 && emptyPins.rows.every(row => row.listedLive === false && row.observedAt === minimaxDisplayPin(row.id)?.observedAt) && keyLaneListState('minimax').kind === 'pin' && !(await run()).some(row => row.isApiErrorMessage) && captures.length === before + 1 && captures.at(-1)?.body.model === 'MiniMax-M3')
   before = captures.length
   modelList = MINIMAX_FIXTURE_MODELS
@@ -268,7 +268,7 @@ try {
   await refreshMinimaxCatalogue({ force: true })
   const pinRows = minimaxCatalogueRows()
   check('with the list unreachable the picker shows the pins, labelled as pins, each dated from the vendor pages', pinRows.source.kind === 'pins' && pinRows.rows.length === 7 && pinRows.rows.every(row => row.listedLive === false && row.observedAt === minimaxDisplayPin(row.id)?.observedAt) && keyLaneListState('minimax').kind === 'pin' && keyLanePins('minimax').every(pin => pin.liveUnknown !== true))
-  check('the catalogue keeps no source words: nothing under src read them, and the pin label is read from the rows and the list state', !('minimaxCatalogueSourceWords' in (await import('../../src/services/providers/minimax/minimaxCatalogue.ts') as Record<string, unknown>)))
+  check('the catalogue keeps no source words: nothing under src read them, and the pin label is read from the rows and the list state', !('minimaxCatalogueSourceWords' in (await import('../../src/models/roads/minimax/minimaxCatalogue.ts') as Record<string, unknown>)))
   process.env.MERCURY_MINIMAX_API_BASE = liveBase
   __resetMinimaxCatalogueForTest()
   const aborted = new AbortController(); aborted.abort()

@@ -21,7 +21,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
-const MACHINE_OUTPUT_WHERE = 'change what the run command writes to stdout, stderr and its exit code so it matches this leg (run bun run build.ts first if src changed; row types are declared in src/rows/vocabulary.ts, an unknown method answers from src/runner/wire/errors.ts)'
+const MACHINE_OUTPUT_WHERE = 'change what the run command writes to stdout, stderr and its exit code so it matches this leg (run bun run build.ts first if src changed; row types are declared in src/engine/rows/vocabulary.ts, an unknown method answers from src/daemon/runner-wire/errors.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${MACHINE_OUTPUT_WHERE}${detail ? ` | ${detail}` : ''}` : ''}`)
@@ -325,7 +325,7 @@ section('L10 — the one spelling: every driven row is a declared type with snak
     }
     await new Promise(resolve => setTimeout(resolve, 500))
   })
-  const { ROW_TYPES, PARTIAL_ROW_TYPES } = await import('../../src/rows/vocabulary.ts')
+  const { ROW_TYPES, PARTIAL_ROW_TYPES } = await import('../../src/engine/rows/vocabulary.ts')
   const declaredTypes = new Set<string>([...ROW_TYPES, ...PARTIAL_ROW_TYPES])
   const unparsed = run.lines.filter(line => {
     try {
@@ -354,7 +354,7 @@ section('L10 — the one spelling: every driven row is a declared type with snak
   check('exit 0', run.exit === 0, `${String(run.exit)} ${run.stderr.slice(0, 200)}`)
 
   section('L11 — a retired control word is an unknown method: -32601, nothing else')
-  const { RPC_METHOD_NOT_FOUND } = await import('../../src/runner/wire/errors.ts')
+  const { RPC_METHOD_NOT_FOUND } = await import('../../src/daemon/runner-wire/errors.ts')
   for (const [word, id] of retiredIds) {
     const answer = messages.find(m => m.id === id) as { error?: { code?: number; message?: string } } | undefined
     check(`${word} → method not found`, answer?.error?.code === RPC_METHOD_NOT_FOUND && String(answer.error.message).includes(word), JSON.stringify(answer ?? null))

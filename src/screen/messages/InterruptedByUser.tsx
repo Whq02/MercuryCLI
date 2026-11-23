@@ -1,0 +1,13 @@
+import { Text } from '../themedRenderer.js';
+import { CRIMSON } from '../theme/mercuryPalette.js';
+import { GLYPH } from '../theme/glyphs.js';
+
+export function InterruptedByUser({ why }: { why?: string | null } = {}) {
+  return (
+    <>
+      <Text color={CRIMSON}>{GLYPH.conflict} </Text>
+      <Text dimColor>{why ? 'Cut off ' : 'Interrupted '}</Text>
+      <Text dimColor>{why ? `· ${why}` : '· What should Mercury do instead?'}</Text>
+    </>
+  );
+}

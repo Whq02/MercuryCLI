@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
-// gate-watch: src/screens/Chat.tsx src/services/engine-connector/** src/daemon/controlServer.ts src/daemon/concourseDispatch.ts
-// gate-watch: src/cli/run.ts src/guards/** src/query/stopHooks.ts src/services/mission/** src/components/messages/AssistantTextMessage.tsx
+// gate-watch: src/screen/chat/Chat.tsx src/engine/connector/** src/daemon/control/controlServer.ts src/daemon/concourse-workers/concourseDispatch.ts
+// gate-watch: src/daemon/runner/runHeadless.ts src/permissions/guards/** src/engine/turn-entry/stopHooks.ts src/sessions/mission/** src/screen/messages/AssistantTextMessage.tsx
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { findRows, firstOutputTs, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { MISSION_DIRECTIVE_HEADER, MISSION_MET_SENTINEL } from '../../src/guards/mission.ts'
-import { MISSION_JUDGE_MARK } from '../../src/services/mission/goalJudge.ts'
+import { MISSION_DIRECTIVE_HEADER, MISSION_MET_SENTINEL } from '../../src/permissions/guards/mission.ts'
+import { MISSION_JUDGE_MARK } from '../../src/sessions/mission/goalJudge.ts'
 
 const argument = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
@@ -53,7 +53,7 @@ function missionCards(configDir: string): Card[] {
 async function transcriptRows(configDir: string, sessionId: string): Promise<Row[]> {
   const path = walk(join(configDir, 'projects')).find(p => p.endsWith(`${sessionId}.jsonl`))
   if (path === undefined) return []
-  const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
+  const reader = await import('../../src/sessions/transcripts/transcriptReader.ts')
   const chain = await reader.readTranscriptChainSince(path, null)
   return chain.rows as unknown as Row[]
 }

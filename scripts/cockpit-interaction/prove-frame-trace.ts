@@ -13,7 +13,7 @@ import {
   readFrameTrace,
   recordFrameTrace,
   traceKeyResolved,
-} from '../../src/ink/root/frame-trace.ts'
+} from '../../src/screen/renderer/root/frame-trace.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 

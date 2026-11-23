@@ -3,14 +3,14 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import * as path from 'node:path'
-import { VULCAN_OPS } from '../../src/utils/vulcan/optable.generated.js'
+import { VULCAN_OPS } from '../../src/integrations/vulcan-optable/optable.generated.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = '', fix = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fix ? ` — to fix: ${fix}` : ''}`)
 }
-const REGEN_ADDON = 'then run node scripts/vulcan/regen-addon.mjs to refresh src/services/vulcan/addonFiles.generated.ts'
+const REGEN_ADDON = 'then run node scripts/vulcan/regen-addon.mjs to refresh src/integrations/vulcan/addonFiles.generated.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -36,8 +36,8 @@ for (const f of readdirSync(catDir).filter(f => f.endsWith('.gd'))) {
 const expected = VULCAN_OPS.filter(o => o.side !== 'mercury').map(o => o.name)
 const missing = expected.filter(o => !owned.has(o))
 const extra = claimed.filter(o => !expected.includes(o))
-check(`every editor-side op owned (${expected.length})`, missing.length === 0, missing.slice(0, 8).join(','), 'add each missing op to func ops() of its category in assets/vulcan/addon/categories/*.gd with a handler, or correct its side in src/utils/vulcan/optable.generated.js')
-check('no undeclared handler ops', extra.length === 0, extra.slice(0, 8).join(','), 'remove each op from func ops() in assets/vulcan/addon/categories/*.gd, or declare it in src/utils/vulcan/optable.generated.js')
+check(`every editor-side op owned (${expected.length})`, missing.length === 0, missing.slice(0, 8).join(','), 'add each missing op to func ops() of its category in assets/vulcan/addon/categories/*.gd with a handler, or correct its side in src/integrations/vulcan-optable/optable.generated.js')
+check('no undeclared handler ops', extra.length === 0, extra.slice(0, 8).join(','), 'remove each op from func ops() in assets/vulcan/addon/categories/*.gd, or declare it in src/integrations/vulcan-optable/optable.generated.js')
 const frontierText = readFileSync(path.join(catDir, 'frontier.gd'), 'utf8')
 const frontierOps = [...owned].filter(([, f]) => f === 'frontier.gd').map(([op]) => op)
 const unhandled = frontierOps.filter(op => !new RegExp(`^\\t\\t"${op}":\\n`, 'm').test(frontierText))
@@ -48,7 +48,7 @@ const server = readFileSync(path.join(addon, 'core', 'server.gd'), 'utf8')
 check('loopback bind literal', server.includes('127.0.0.1'), '', 'bind the server to 127.0.0.1 in assets/vulcan/addon/core/server.gd')
 check('token gate before dispatch', /token/.test(server) && /hello/.test(server), '', 'restore the token and hello handshake in assets/vulcan/addon/core/server.gd')
 const classesTable = readFileSync(path.join(addon, 'core', 'op_classes.gd'), 'utf8')
-check('the server reads the Mercury-side table the optable generates', /OpClassesScript\.mercury_side\(op\)/.test(server) && !/MERCURY_SIDE_OPS/.test(server) && /^const MERCURY_SIDE := \[/m.test(classesTable) && VULCAN_OPS.filter(o => o.side === 'mercury').every(o => classesTable.includes(`\t"${o.name}",`)), '', 'assets/vulcan/addon/core/op_classes.gd must list every Mercury-side op of src/utils/vulcan/optable.generated.js in MERCURY_SIDE, and core/server.gd must call OpClassesScript.mercury_side(op)')
+check('the server reads the Mercury-side table the optable generates', /OpClassesScript\.mercury_side\(op\)/.test(server) && !/MERCURY_SIDE_OPS/.test(server) && /^const MERCURY_SIDE := \[/m.test(classesTable) && VULCAN_OPS.filter(o => o.side === 'mercury').every(o => classesTable.includes(`\t"${o.name}",`)), '', 'assets/vulcan/addon/core/op_classes.gd must list every Mercury-side op of src/integrations/vulcan-optable/optable.generated.js in MERCURY_SIDE, and core/server.gd must call OpClassesScript.mercury_side(op)')
 const undo = readFileSync(path.join(addon, 'core', 'undo.gd'), 'utf8')
 check('undo helper wraps EditorUndoRedoManager', /create_action|undo_redo/i.test(undo), '', 'assets/vulcan/addon/core/undo.gd must go through the editor undo/redo manager')
 const paths = readFileSync(path.join(addon, 'core', 'paths.gd'), 'utf8')
@@ -72,14 +72,14 @@ try {
 } catch {
   checkOk = false
 }
-check('regen-addon --check clean', checkOk, '', 'run node scripts/vulcan/regen-addon.mjs to regenerate src/services/vulcan/addonFiles.generated.ts from assets/vulcan/addon, and keep the result')
+check('regen-addon --check clean', checkOk, '', 'run node scripts/vulcan/regen-addon.mjs to regenerate src/integrations/vulcan/addonFiles.generated.ts from assets/vulcan/addon, and keep the result')
 
 section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
 {
   const { mkdtempSync, rmSync, writeFileSync: wf, readFileSync: rf } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { mutateProjectGodot } = await import(
-    path.join(repo, 'src', 'services', 'vulcan', 'addonInstaller.ts')
+    path.join(repo, 'src', 'integrations', 'vulcan', 'addonInstaller.ts')
   )
   const scratch = mkdtempSync(path.join(tmpdir(), 'sm09-'))
   const proj = path.join(scratch, 'project.godot')
@@ -90,8 +90,8 @@ section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
       text: text + '\n[mercury_vulcan]\n\nport=6010\n',
       edits: [{ section: 'mercury_vulcan', key: 'port', next: '6010', why: 'the addon listens here' }],
     }))
-    check('mutation publishes atomically and preserves unrelated bytes', r1.ok === true && rf(proj, 'utf8').startsWith(BASE), rf(proj, 'utf8').slice(0, 40), 'mutateProjectGodot in src/services/vulcan/addonInstaller.ts must write the result once and leave bytes outside the edit unchanged')
-    check('the seam returns one receipt line per edited row', r1.ok === true && r1.receipts.length === 1 && r1.receipts[0] === 'project.godot [mercury_vulcan] port: (absent) → 6010 — the addon listens here', JSON.stringify(r1).slice(0, 120), 'mutateProjectGodot in src/services/vulcan/addonInstaller.ts must return one receipt per edits row in the form shown by the condition')
+    check('mutation publishes atomically and preserves unrelated bytes', r1.ok === true && rf(proj, 'utf8').startsWith(BASE), rf(proj, 'utf8').slice(0, 40), 'mutateProjectGodot in src/integrations/vulcan/addonInstaller.ts must write the result once and leave bytes outside the edit unchanged')
+    check('the seam returns one receipt line per edited row', r1.ok === true && r1.receipts.length === 1 && r1.receipts[0] === 'project.godot [mercury_vulcan] port: (absent) → 6010 — the addon listens here', JSON.stringify(r1).slice(0, 120), 'mutateProjectGodot in src/integrations/vulcan/addonInstaller.ts must return one receipt per edits row in the form shown by the condition')
 
     wf(proj, BASE)
     let calls = 0
@@ -103,7 +103,7 @@ section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
       return { text: text + '\n[mercury_added]\n\nx=1\n', edits: [] }
     })
     const after = rf(proj, 'utf8')
-    check('concurrent editor save survives (re-merge on fresh content)', r2.ok === true && calls === 2 && after.includes('[editor_saved]') && after.includes('[mercury_added]'), `calls=${calls}`, 'mutateProjectGodot in src/services/vulcan/addonInstaller.ts must reread project.godot and run the mutator again when the file changed under it')
+    check('concurrent editor save survives (re-merge on fresh content)', r2.ok === true && calls === 2 && after.includes('[editor_saved]') && after.includes('[mercury_added]'), `calls=${calls}`, 'mutateProjectGodot in src/integrations/vulcan/addonInstaller.ts must reread project.godot and run the mutator again when the file changed under it')
 
     wf(proj, BASE)
     let always = 0
@@ -112,7 +112,7 @@ section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
       wf(proj, BASE + `\n[churn]\n\nv=${always}\n`)
       return { text: text + '\n[mercury_added]\n\nx=1\n', edits: [] }
     })
-    check('exhaustion ⇒ conflict receipt, zero partial writes', r3.ok === false && !rf(proj, 'utf8').includes('[mercury_added]'), JSON.stringify(r3).slice(0, 90), 'mutateProjectGodot in src/services/vulcan/addonInstaller.ts must give up with ok false and write nothing after its retries run out')
+    check('exhaustion ⇒ conflict receipt, zero partial writes', r3.ok === false && !rf(proj, 'utf8').includes('[mercury_added]'), JSON.stringify(r3).slice(0, 90), 'mutateProjectGodot in src/integrations/vulcan/addonInstaller.ts must give up with ok false and write nothing after its retries run out')
 
     wf(proj, BASE)
     const trace: string[] = []
@@ -126,7 +126,7 @@ section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
     }
     const r4 = await mutateProjectGodot(scratch, (text: string) => ({ text: text + '\n[mercury_added]\n\nx=1\n', edits: [] }), road)
     const r5 = await mutateProjectGodot(scratch, (text: string) => ({ text, edits: [] }), road)
-    check('the road fires before (file still original) then after (previous/next), never for a no-op', r4.ok === true && r5.ok === true && JSON.stringify(trace) === JSON.stringify(['before:true', 'after:true:true']), JSON.stringify(trace), 'mutateProjectGodot in src/services/vulcan/addonInstaller.ts must call road.before before the write and road.after with previous and next, and skip both when the text is unchanged')
+    check('the road fires before (file still original) then after (previous/next), never for a no-op', r4.ok === true && r5.ok === true && JSON.stringify(trace) === JSON.stringify(['before:true', 'after:true:true']), JSON.stringify(trace), 'mutateProjectGodot in src/integrations/vulcan/addonInstaller.ts must call road.before before the write and road.after with previous and next, and skip both when the text is unchanged')
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }

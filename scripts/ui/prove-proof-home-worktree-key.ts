@@ -32,7 +32,7 @@ console.log(' proof home — the seeded slice is the one the product reads')
 console.log('============================================================')
 
 const { seedFirstRun, canonicalProjectKeyOf } = await import('../lib/firstRunSeed.ts')
-const { findCanonicalGitRoot } = await import('../../src/utils/git.ts')
+const { findCanonicalGitRoot } = await import('../../src/platform/git/git.ts')
 
 const main = join(SCRATCH, 'main')
 const lane = join(SCRATCH, 'lane')
@@ -50,7 +50,7 @@ const readProjects = (home: string): Record<string, { hasTrustDialogAccepted?: b
 
 section('the derivation agrees with the product (findCanonicalGitRoot)')
 {
-  failureWhere = 'make canonicalProjectKeyOf in scripts/lib/firstRunSeed.ts derive the same key as findCanonicalGitRoot in src/utils/git.ts'
+  failureWhere = 'make canonicalProjectKeyOf in scripts/lib/firstRunSeed.ts derive the same key as findCanonicalGitRoot in src/platform/git/git.ts'
   check('a linked worktree keys to the MAIN worktree root', canonicalProjectKeyOf(lane) === main, `${canonicalProjectKeyOf(lane)} vs ${main}`)
   check('…exactly as the product derives it', canonicalProjectKeyOf(lane) === findCanonicalGitRoot(lane), `${canonicalProjectKeyOf(lane)} vs ${findCanonicalGitRoot(lane)}`)
   check('the main checkout keys to itself', canonicalProjectKeyOf(main) === main && findCanonicalGitRoot(main) === main)

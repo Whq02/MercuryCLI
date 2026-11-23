@@ -157,21 +157,21 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
   return new Response(JSON.stringify({ type: 'error', error: { type: 'not_found_error', message: `fixture: no list at ${url}` } }), { status: 404, headers: { 'content-type': 'application/json' } })
 }) as typeof fetch
 
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 const React = (await import('react')).default
-const { render } = await import('../../src/ink.ts')
-const { AppStoreContext, getDefaultAppState } = await import('../../src/state/AppState.tsx')
-const { createStore } = await import('../../src/state/store.ts')
+const { render } = await import('../../src/screen/themedRenderer.ts')
+const { AppStoreContext, getDefaultAppState } = await import('../../src/screen/app-state/AppState.tsx')
+const { createStore } = await import('../../src/platform/primitives/store.ts')
 const { call, MercuryModelChoicePicker } = await import('../../src/commands/model/mercuryModel.tsx')
-const accounts = await import('../../src/services/providers/deepseek/deepseekAccounts.ts')
-const catalogue = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts')
+const accounts = await import('../../src/models/roads/deepseek/deepseekAccounts.ts')
+const catalogue = await import('../../src/models/roads/deepseek/deepseekCatalogue.ts')
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail?: string): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | to fix: the open-time list read is useCatalogueRefreshOnOpen and the per-family roads (DEEPSEEK_ROAD) in src/commands/model/picker/roads.ts; the DeepSeek list and pins are in src/services/providers/deepseek/deepseekCatalogue.ts (refreshDeepseekCatalogue, deepseekCatalogueRows); the rows are painted by the picker in src/commands/model/picker/ChoicePicker.tsx'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | to fix: the open-time list read is useCatalogueRefreshOnOpen and the per-family roads (DEEPSEEK_ROAD) in src/commands/model/picker/roads.ts; the DeepSeek list and pins are in src/models/roads/deepseek/deepseekCatalogue.ts (refreshDeepseekCatalogue, deepseekCatalogueRows); the rows are painted by the picker in src/commands/model/picker/ChoicePicker.tsx'}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -338,8 +338,8 @@ try {
 
   for (const [family, lane] of Object.entries(addedLists)) {
     const owner = family === 'xai'
-      ? await import('../../src/services/providers/xai/xaiCatalogue.ts').then(module => ({ reset: module.__resetXaiCatalogueForTest, refresh: module.refreshXaiCatalogue }))
-      : await import('../../src/services/providers/meta/metaCatalogue.ts').then(module => ({ reset: module.__resetMetaCatalogueForTest, refresh: module.refreshMetaCatalogue }))
+      ? await import('../../src/models/roads/xai/xaiCatalogue.ts').then(module => ({ reset: module.__resetXaiCatalogueForTest, refresh: module.refreshXaiCatalogue }))
+      : await import('../../src/models/roads/meta/metaCatalogue.ts').then(module => ({ reset: module.__resetMetaCatalogueForTest, refresh: module.refreshMetaCatalogue }))
     process.env[lane.base] = `${BASE}/${family}/v1`
     process.env[lane.key] = KEY
     const title = ` ${family.toUpperCase()} · `

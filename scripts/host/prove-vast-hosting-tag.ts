@@ -6,7 +6,7 @@ if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_D
 const f = await llmhostFixture()
 const vast = await vastFixture()
 try {
-  const { VastClient } = await import('../../src/services/host/vendors/vast.ts')
+  const { VastClient } = await import('../../src/models/hosting/vendors/vast.ts')
   const shape = { gpu_name: 'B200', gpu_ram: 192 * 1024, num_gpus: 4, dph_total: 9.25, verification: 'verified', reliability2: 0.999, reliability: 0.999, direct_port_count: 1, rentable: true, rented: false, cuda_max_good: 13, disk_space: 10000 }
   vast.state.customOffers = [{ ...shape, id: 201 }, { ...shape, id: 202, datacenter: true }, { ...shape, id: 203, datacenter: false }, { ...shape, id: 204, datacenter: null }]
   const rows = await new VastClient(vast.key, vast.baseUrl).offers(new AbortController().signal)

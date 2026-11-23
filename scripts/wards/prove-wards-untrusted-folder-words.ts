@@ -8,7 +8,7 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
-const untrustedWordsFixHint = 'change the denial words a folder rule of an untrusted folder gets (the text ending "the same call will be denied again") in src/utils/wards/wards.ts, or untrustedWorkspaceHeadless in src/utils/config/trust.ts for the trust reading, or the wards guard in src/guards/wardsGuard.ts'
+const untrustedWordsFixHint = 'change the denial words a folder rule of an untrusted folder gets (the text ending "the same call will be denied again") in src/permissions/wards/wards.ts, or untrustedWorkspaceHeadless in src/platform/config/trust.ts for the trust reading, or the wards guard in src/permissions/guards/wardsGuard.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -41,13 +41,13 @@ writeFileSync(
 )
 for (const key of ['MERCURY_SPAWNED_BY', 'MERCURY_WARDS', 'MERCURY_SKIP_PERMISSIONS']) delete process.env[key]
 
-const { enableConfigs } = await import(join(SRC, 'utils/config.ts'))
-const { resetTrustDialogAcceptedCacheForTesting, untrustedWorkspaceHeadless } = await import(join(SRC, 'utils/config/trust.ts'))
-const state = await import(join(SRC, 'bootstrap/state.ts'))
-const { registerWardsGuard, resetWardsEngagedSessionsForTest, WARDS_HOOK_ID } = await import(join(SRC, 'guards/wardsGuard.ts'))
-const { judgeToolCall, resetGuardsForTesting } = await import(join(SRC, 'guards/guards.ts'))
-const { runWithCwdOverride } = await import(join(SRC, 'utils/cwd.ts'))
-const { deleteFlagEnv, setFlagEnv } = await import(join(SRC, 'substrate/flagRegistry.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/settings/config.ts'))
+const { resetTrustDialogAcceptedCacheForTesting, untrustedWorkspaceHeadless } = await import(join(SRC, 'platform/config/trust.ts'))
+const state = await import(join(SRC, 'boot/process-state/processState.ts'))
+const { registerWardsGuard, resetWardsEngagedSessionsForTest, WARDS_HOOK_ID } = await import(join(SRC, 'permissions/guards/wardsGuard.ts'))
+const { judgeToolCall, resetGuardsForTesting } = await import(join(SRC, 'permissions/guards/guards.ts'))
+const { runWithCwdOverride } = await import(join(SRC, 'platform/files/cwd.ts'))
+const { deleteFlagEnv, setFlagEnv } = await import(join(SRC, 'platform/substrate/flagRegistry.ts'))
 enableConfigs()
 
 const shell = { name: 'Bash', shellCommandOf: (value: Record<string, unknown>) => (typeof value.command === 'string' ? value.command : undefined) } as never

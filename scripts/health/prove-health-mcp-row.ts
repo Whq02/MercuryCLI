@@ -81,9 +81,9 @@ try {
   const certificate = JSON.parse(j.text) as { sections: Array<{ checks: Row[] }> }
   const allChecks = certificate.sections.flatMap(section => section.checks)
   const mcpIndex = allChecks.findIndex(check => check.id === 'mcp')
-  check('health --json produces the record (0/3 by verdict — FC-044) and carries the mcp row', (j.status === 0 || j.status === 3) && row !== undefined, `status=${String(j.status)}`, 'run node dist/mercury.mjs health --json in a project with an mcpServers entry; the mcp row is built by mcpCheck in src/services/health/sections/runtime/services.ts, and an exit other than 0 or 3 or a missing row id mcp means the health command or that check broke')
-  check('the row names the server with its state', typeof row?.evidence === 'string' && /\bfixture-echo \((configured|starting|failed|ready|needs-auth|disabled)\)/.test(row.evidence), row?.evidence?.slice(0, 120) ?? '', 'the evidence must list the configured fixture-echo server as name (state); fix the serverList line of mcpCheck in src/services/health/sections/runtime/services.ts')
-  check('no evidence anywhere reads [object Object]', !j.text.includes('[object Object]'), 'an object was interpolated into an evidence string; find [object Object] in the health --json output and fix the check that built that row (the mcp row is mcpCheck in src/services/health/sections/runtime/services.ts)')
+  check('health --json produces the record (0/3 by verdict — FC-044) and carries the mcp row', (j.status === 0 || j.status === 3) && row !== undefined, `status=${String(j.status)}`, 'run node dist/mercury.mjs health --json in a project with an mcpServers entry; the mcp row is built by mcpCheck in src/platform/health/sections/runtime/services.ts, and an exit other than 0 or 3 or a missing row id mcp means the health command or that check broke')
+  check('the row names the server with its state', typeof row?.evidence === 'string' && /\bfixture-echo \((configured|starting|failed|ready|needs-auth|disabled)\)/.test(row.evidence), row?.evidence?.slice(0, 120) ?? '', 'the evidence must list the configured fixture-echo server as name (state); fix the serverList line of mcpCheck in src/platform/health/sections/runtime/services.ts')
+  check('no evidence anywhere reads [object Object]', !j.text.includes('[object Object]'), 'an object was interpolated into an evidence string; find [object Object] in the health --json output and fix the check that built that row (the mcp row is mcpCheck in src/platform/health/sections/runtime/services.ts)')
 
   console.log('S the cockpit at 120×40 — the MCP policy row carries the server name')
   const driver = resolveCaptureDriver()
@@ -131,7 +131,7 @@ try {
     }
     const mcpLine = lines.find(l => l.includes('MCP policy')) ?? ''
     check('/health painted its certificate', lines.some(l => l.includes('Mercury · health')), 'the grid has no Mercury · health title; the /health screen did not open from the resumed session, or the capture read an empty grid (MERCURY_HEALTH_CAPTURE_DIR saves it)')
-    check('the MCP policy row is on screen and names the fixture server', mcpLine !== '' && lines.slice(lines.indexOf(mcpLine), lines.indexOf(mcpLine) + 3).some(line => line.includes('fixture-echo')), mcpLine.trim().slice(0, 120), 'the opened MCP policy row must carry the fixture-echo server name within three lines; the evidence is composed by mcpCheck in src/services/health/sections/runtime/services.ts')
+    check('the MCP policy row is on screen and names the fixture server', mcpLine !== '' && lines.slice(lines.indexOf(mcpLine), lines.indexOf(mcpLine) + 3).some(line => line.includes('fixture-echo')), mcpLine.trim().slice(0, 120), 'the opened MCP policy row must carry the fixture-echo server name within three lines; the evidence is composed by mcpCheck in src/platform/health/sections/runtime/services.ts')
     check('no grid cell holds [object Object]', !lines.some(l => l.includes('[object Object]')), 'an object was interpolated into a health row shown on screen; set MERCURY_HEALTH_CAPTURE_DIR to save the grid and find the row')
   }
 

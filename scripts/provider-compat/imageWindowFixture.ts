@@ -24,7 +24,7 @@ export async function imageWindowFixture() {
     if (url === '/v1/chat/completions') {
       const body = JSON.parse(raw)
       requests.push(body)
-      const { estimateRequestTokens } = await import('../../src/services/tokenEstimation.ts')
+      const { estimateRequestTokens } = await import('../../src/models/facts/tokenEstimation.ts')
       if (estimateRequestTokens(body, model) > state.window) {
         res.writeHead(400, { 'content-type': 'application/json' })
         return res.end(JSON.stringify({ error: { message: 'maximum context length exceeded' } }))
@@ -42,14 +42,14 @@ export async function imageWindowFixture() {
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const root = `http://127.0.0.1:${(server.address() as { port: number }).port}`
   process.env.MERCURY_LOCAL_PROBE_TARGETS = `llamacpp=${root}`
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-  const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+  const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+  const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
   const permission = getEmptyToolPermissionContext()
-  const messages: import('../../src/types/message.ts').Message[] = [createUserMessage({ content: 'Review this page without losing the artifact paths.' })]
+  const messages: import('../../src/engine/message-shapes/message.ts').Message[] = [createUserMessage({ content: 'Review this page without losing the artifact paths.' })]
   for (let i = 0; i < 9; i++) {
     messages.push(createAssistantMessage({ content: [{ type: 'tool_use', id: `shot-${i}`, name: 'Browser', input: { op: 'screenshot' } }] }))
     messages.push(createUserMessage({ content: [{ type: 'tool_result', tool_use_id: `shot-${i}`, content: [{ type: 'text', text: `screenshot: /captures/${i}.png (https://example.test, 1280x800)` }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: String(i).repeat(170_000) } }] }] }))

@@ -16,13 +16,13 @@ for (const k of ['MERCURY_CRITTER_IDLE', 'MERCURY_CRITTER_GAZE', 'MERCURY_CRITTE
 
 let failures = 0
 const WHERE: Array<[string, string]> = [
-  ['T1', 'the ledger fold is createProgressTracker, updateProgressFromMessage and getProgressUpdate in src/tasks/LocalAgentTask/LocalAgentTask.tsx'],
-  ['T2', 'the roster projection is projectWorkRoster in src/services/engine-connector/workRoster.ts'],
-  ['T3', 'the crew record and its labels are in src/services/engine-connector/crewFacts.ts (crewAgentsOf, crewRowLine and the crew*Label functions); the /tasks board derives from rosterRowsOf in src/components/tasks/BackgroundTasksDialog.tsx'],
-  ['T4', 'the view is src/components/mercury-ui/screens/CrewView.tsx and the card is RosterWorkDetail in src/components/tasks/backgroundTasks/rows.tsx; their words come from src/services/engine-connector/crewFacts.ts'],
-  ['T5', 'the usage line is crewUsageLine in src/services/engine-connector/crewFacts.ts; the session ledger is addToTotalSessionCost in src/cost-tracker.ts'],
-  ['T7', 'the status vocabulary is crewStateOf in src/services/engine-connector/crewFacts.ts; the transcript cards are renderGroupedAgentToolUse and renderToolUseProgressMessage in src/tools/AgentTool/UI.tsx'],
-  ['T8', 'the ask wait words are crewStatusWords and CREW_ASK_WAIT_WORDS in src/services/engine-connector/crewFacts.ts, and pendingAsks rides projectWorkRoster in src/services/engine-connector/workRoster.ts'],
+  ['T1', 'the ledger fold is createProgressTracker, updateProgressFromMessage and getProgressUpdate in src/engine/tasks/local-agent/crewmateTask.tsx'],
+  ['T2', 'the roster projection is projectWorkRoster in src/engine/connector/workRoster.ts'],
+  ['T3', 'the crew record and its labels are in src/engine/connector/crewFacts.ts (crewAgentsOf, crewRowLine and the crew*Label functions); the /tasks board derives from rosterRowsOf in src/screen/tasks/BackgroundTasksDialog.tsx'],
+  ['T4', 'the view is src/screen/widgets/faces/CrewView.tsx and the card is RosterWorkDetail in src/screen/tasks/background-tasks/rows.tsx; their words come from src/engine/connector/crewFacts.ts'],
+  ['T5', 'the usage line is crewUsageLine in src/engine/connector/crewFacts.ts; the session ledger is addToTotalSessionCost in src/models/usage/sessionCost.ts'],
+  ['T7', 'the status vocabulary is crewStateOf in src/engine/connector/crewFacts.ts; the transcript cards are renderGroupedAgentToolUse and renderToolUseProgressMessage in src/tools/crewmate/rows.tsx'],
+  ['T8', 'the ask wait words are crewStatusWords and CREW_ASK_WAIT_WORDS in src/engine/connector/crewFacts.ts, and pendingAsks rides projectWorkRoster in src/engine/connector/workRoster.ts'],
 ]
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -32,18 +32,18 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && said ? ` — ${said}` : ''}`)
 }
 
-await import('../../src/tools/AgentTool/AgentTool.tsx')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 const { createProgressTracker, getProgressUpdate, updateProgressFromMessage } = await import(
-  '../../src/tasks/LocalAgentTask/LocalAgentTask.tsx'
+  '../../src/engine/tasks/local-agent/crewmateTask.tsx'
 )
-const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.ts')
-const crew = await import('../../src/services/engine-connector/crewFacts.ts')
-const { rosterRowsOf, RosterWorkDetail } = await import('../../src/components/tasks/BackgroundTasksDialog.tsx')
-const { modelPricingBasis } = await import('../../src/services/usage/modelCost.ts')
-const { formatDuration, formatTokens } = await import('../../src/utils/format.ts')
-type WorkRowV1 = import('../../src/services/engine-connector/types.ts').WorkRowV1
+const { projectWorkRoster } = await import('../../src/engine/connector/workRoster.ts')
+const crew = await import('../../src/engine/connector/crewFacts.ts')
+const { rosterRowsOf, RosterWorkDetail } = await import('../../src/screen/tasks/BackgroundTasksDialog.tsx')
+const { modelPricingBasis } = await import('../../src/models/usage/modelCost.ts')
+const { formatDuration, formatTokens } = await import('../../src/platform/text/format.ts')
+type WorkRowV1 = import('../../src/engine/connector/types.ts').WorkRowV1
 
 const OPENAI_ID = 'gpt-5.2'
 const ANTHROPIC_ID = 'claude-fable-5-1'
@@ -242,11 +242,11 @@ const agents = crew.crewAgentsOf(rows, 'fx-session')
 console.log('— T4 the Crew view painted off-screen —')
 {
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
   const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import(
-    '../../src/services/engine-connector/focusedConnector.ts'
+    '../../src/engine/connector/focusedConnector.ts'
   )
-  const { CrewView } = await import('../../src/components/mercury-ui/screens/CrewView.tsx')
+  const { CrewView } = await import('../../src/screen/widgets/faces/CrewView.tsx')
   const NO_ASKS: never[] = []
   const fakeConnector = (work: { rows: WorkRowV1[]; mission: never[] }): never =>
     ({
@@ -321,9 +321,9 @@ console.log('— T5 the usage attribution —')
     String(line),
   )
   check('T5 no settled response ⇒ no line (never a zero that reads as fact)', crew.crewUsageLine([agents.find(a => a.id === 'ag3')!]) === null)
-  const { addToTotalSessionCost } = await import('../../src/cost-tracker.ts')
-  const state = await import('../../src/bootstrap/state.ts')
-  const { runWithAgentContext } = await import('../../src/utils/agentContext.ts')
+  const { addToTotalSessionCost } = await import('../../src/models/usage/sessionCost.ts')
+  const state = await import('../../src/boot/process-state/processState.ts')
+  const { runWithAgentContext } = await import('../../src/crew/agents/agentContext.ts')
   const inBefore = state.getTotalInputTokens()
   const outBefore = state.getTotalOutputTokens()
   runWithAgentContext(
@@ -372,13 +372,13 @@ console.log('— T7 the status vocabulary and the transcript card —')
   )
   check('T7 the row line speaks the vocabulary', crew.crewRowLine(agents.find(a => a.id === 'ag4')!, t0).includes(' · landed · '))
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
   const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import(
-    '../../src/services/engine-connector/focusedConnector.ts'
+    '../../src/engine/connector/focusedConnector.ts'
   )
-  const { CrewView } = await import('../../src/components/mercury-ui/screens/CrewView.tsx')
-  const ui = await import('../../src/tools/AgentTool/UI.tsx')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
+  const { CrewView } = await import('../../src/screen/widgets/faces/CrewView.tsx')
+  const ui = await import('../../src/tools/crewmate/rows.tsx')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
   const NO_ASKS: never[] = []
   const fake = (work: { rows: WorkRowV1[]; mission: never[] }): never =>
     ({

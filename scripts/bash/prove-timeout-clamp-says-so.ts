@@ -32,9 +32,9 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
 }
 
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { getMaxTimeoutMs } = await import('../../src/tools/BashTool/prompt.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { getMaxTimeoutMs } = await import('../../src/tools/shell/prompt.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 let appState = getDefaultAppState()
 const toolContext = {
   options: { engineModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {} },
@@ -58,7 +58,7 @@ try {
   const cap = getMaxTimeoutMs()
   console.log(`the cap on this host: ${cap} ms`)
   const over = await drive('echo clamp-probe', cap + 300_000)
-  check('a timeout above the cap is named in the result with the cap that applied and the background road (the field rows 1B-15, 1C-08)', over.includes('clamp-probe') && over.includes('is above the cap') && over.includes('run_in_background'), `${over.slice(0, 400)}; the result text built in src/tools/BashTool/BashTool.tsx must say the timeout is above the cap, name the cap that applied and point to run_in_background`)
+  check('a timeout above the cap is named in the result with the cap that applied and the background road (the field rows 1B-15, 1C-08)', over.includes('clamp-probe') && over.includes('is above the cap') && over.includes('run_in_background'), `${over.slice(0, 400)}; the result text built in src/tools/shell/BashTool.tsx must say the timeout is above the cap, name the cap that applied and point to run_in_background`)
   const within = await drive('echo within-probe', Math.min(cap, 60_000))
   check('a timeout within the cap says nothing about it', within.includes('within-probe') && !within.includes('is above the cap'), `${within.slice(0, 300)}; BashTool.tsx must add the above-the-cap note only when the requested timeout exceeds getMaxTimeoutMs()`)
   const none = await drive('echo default-probe', undefined as never)

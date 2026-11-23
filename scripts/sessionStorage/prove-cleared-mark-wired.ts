@@ -10,13 +10,13 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' | to fix, change markSessionCleared, unmarkSessionCleared or isSessionCleared in src/utils/sessionStorage/clearedSessions.ts so the mark of a session id is written, read back and removed'}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' | to fix, change markSessionCleared, unmarkSessionCleared or isSessionCleared in src/sessions/transcripts/clearedSessions.ts so the mark of a session id is written, read back and removed'}`)
   if (!ok) failures = 1
 }
 
 
 {
-  const cleared = await import('../../src/utils/sessionStorage/clearedSessions.ts')
+  const cleared = await import('../../src/sessions/transcripts/clearedSessions.ts')
   const id = 'sess-cleared-proof-1'
   t('§2 an unmarked id reads uncleared', cleared.isSessionCleared(id) === false)
   cleared.markSessionCleared(id)

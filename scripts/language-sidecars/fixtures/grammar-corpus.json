@@ -437,7 +437,7 @@
    "find_package(ZLIB 1.2 QUIET)",
    "",
    "set(SOURCES",
-   "    src/main.cpp",
+   "    src/boot/main.cpp",
    "    src/harbour.cpp",
    "    src/table.cpp)",
    "",

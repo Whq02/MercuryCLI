@@ -374,7 +374,7 @@ docker run --rm mercury --version
 - **Apollo Mode**（仕様インタビュー）。エージェントの質問に答えて、プロトタイプの構築に使う仕様を完成させます。[docs/APOLLO-MODE.md](../APOLLO-MODE.md) を参照してください。
 - **復旧。** アトミックな公開、ジャーナル化された操作、起動時の照合。[docs/DURABILITY.md](../DURABILITY.md) を参照してください。
 
-ランタイムフラグは `src/substrate/flagRegistry.ts` で定義され、`MERCURY_*` の設定として公開され、必要に応じて表示されます。統合の互換性は [docs/COMPATIBILITY.md](../COMPATIBILITY.md) に記載されています。ドキュメントの完全な索引は [docs/README.md](../README.md) にあります。
+ランタイムフラグは `src/platform/substrate/flagRegistry.ts` で定義され、`MERCURY_*` の設定として公開され、必要に応じて表示されます。統合の互換性は [docs/COMPATIBILITY.md](../COMPATIBILITY.md) に記載されています。ドキュメントの完全な索引は [docs/README.md](../README.md) にあります。
 
 ## スラッシュコマンド
 

@@ -15,17 +15,17 @@ const t = checker()
 
 t.section('§2 — THE ONE NAME stands where the second name stood')
 {
-  const row = (await import('../../src/substrate/flagRegistry.js')).getFlagSpec('MERCURY_LOGIN_COMMAND')
+  const row = (await import('../../src/platform/substrate/flagRegistry.js')).getFlagSpec('MERCURY_LOGIN_COMMAND')
   const shown = row ? `  { ${Object.entries(row).map(([key, value]) => `${key}: ${typeof value === 'string' ? `'${value}'` : JSON.stringify(value)}`).join(', ')} },` : ''
   t.check('the flag keeps its env name and its words say /logins', row?.summary === 'the /logins command; =0 removes it' && row.off === '=0 no /logins', shown.slice(0, 160))
 }
 
 t.section('§3 — THE SILENT ALIAS: login stays because a saved keybinding can name it; it paints nowhere')
 {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
-  const { findCommand } = await import('../../src/commands.js')
-  const { generateCommandSuggestions } = await import('../../src/utils/suggestions/commandSuggestions.js')
+  const { findCommand } = await import('../../src/commands/catalogue/commands.js')
+  const { generateCommandSuggestions } = await import('../../src/screen/suggestions/commandSuggestions.js')
   const fake = (over: Record<string, unknown>): never =>
     ({ type: 'local-jsx', name: 'logins', description: 'Sign in', load: async () => ({}), ...over }) as never
   t.check(

@@ -13,8 +13,8 @@ const LOCKFILE_MODULE = createRequire(import.meta.url).resolve('proper-lockfile'
 const ROOT = scratchRoot('lock')
 const t = checker()
 
-const { defineStore, STORE_LOCK_OPTIONS } = await import('../../src/substrate/fileStore.ts')
-const lockfileUtil = await import('../../src/utils/lockfile.ts')
+const { defineStore, STORE_LOCK_OPTIONS } = await import('../../src/platform/substrate/fileStore.ts')
+const lockfileUtil = await import('../../src/platform/storage/lockfile.ts')
 
 t.section('§1 — the store lock declares its ownership contract explicitly')
 {

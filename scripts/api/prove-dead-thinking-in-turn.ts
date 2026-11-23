@@ -26,7 +26,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} | what to change: a section 1 failure is in judgeAndRecordPrefix of src/services/providers/anthropic/prefixLedger.ts; a section 2 or 3 failure means the built bundle (rebuild dist/mercury.mjs first) sent a changed prefix or dropped thinking differently, so read the printed request rows and the debug log named above` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} | what to change: a section 1 failure is in judgeAndRecordPrefix of src/models/roads/anthropic/prefixLedger.ts; a section 2 or 3 failure means the built bundle (rebuild dist/mercury.mjs first) sent a changed prefix or dropped thinking differently, so read the printed request rows and the debug log named above` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -63,7 +63,7 @@ const TILDE_INPUT = { file_path: '~\\Documents\\notes.txt' }
 
 section("§1 the ledger's words — two sends of a Windows-shaped tool row name nothing; a moved byte inside it is named as /health spells it")
 {
-  const { judgeAndRecordPrefix, resetPrefixLedger } = await import('../../src/services/providers/anthropic/prefixLedger.ts')
+  const { judgeAndRecordPrefix, resetPrefixLedger } = await import('../../src/models/roads/anthropic/prefixLedger.ts')
   const system = [{ type: 'text', text: 'You are Mercury.' }]
   const tools = [
     { name: 'Bash', description: 'Run a shell command', input_schema: { type: 'object', properties: { command: { type: 'string' } } } },

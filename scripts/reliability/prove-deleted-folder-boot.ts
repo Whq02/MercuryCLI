@@ -45,16 +45,16 @@ const r = spawnSync('bash', ['-c', script], {
 const out = `${r.stdout ?? ''}${r.stderr ?? ''}`
 const stderrTrimmed = (r.stderr ?? '').trim()
 
-check('the boot exits non-zero (the folder is gone; nothing was opened)', typeof r.status === 'number' && r.status !== 0, `status=${r.status}; the missing-folder branch at the top of src/entrypoints/cli.tsx (cwdIsMissing) must exit non-zero; rebuild with bun run build.ts if the bundle is stale`)
-check('stderr is the ONE plain line, in Mercury\'s words', stderrTrimmed === EXPECTED, `${JSON.stringify(stderrTrimmed.slice(0, 200))}; src/entrypoints/cli.tsx must write MISSING_CWD_LINE (src/utils/runtime/nodePolicy.ts) to stderr and nothing else when cwdIsMissing()`)
-check('the crash card is NOT shown (no "MERCURY COULD NOT START")', !out.includes('MERCURY COULD NOT START'), `${out.slice(0, 200)}; src/entrypoints/cli.tsx must exit on cwdIsMissing() before the crash card path runs`)
-check('Node\'s own uv_cwd sentence is NOT surfaced to the operator', !out.includes('uv_cwd'), `${out.slice(0, 200)}; the missing-folder branch in src/entrypoints/cli.tsx and src/utils/gracefulShutdown.ts must replace Node's uv_cwd error with MISSING_CWD_LINE`)
+check('the boot exits non-zero (the folder is gone; nothing was opened)', typeof r.status === 'number' && r.status !== 0, `status=${r.status}; the missing-folder branch at the top of src/boot/entrypoints/cli.tsx (cwdIsMissing) must exit non-zero; rebuild with bun run build.ts if the bundle is stale`)
+check('stderr is the ONE plain line, in Mercury\'s words', stderrTrimmed === EXPECTED, `${JSON.stringify(stderrTrimmed.slice(0, 200))}; src/boot/entrypoints/cli.tsx must write MISSING_CWD_LINE (src/platform/node-runtime/nodePolicy.ts) to stderr and nothing else when cwdIsMissing()`)
+check('the crash card is NOT shown (no "MERCURY COULD NOT START")', !out.includes('MERCURY COULD NOT START'), `${out.slice(0, 200)}; src/boot/entrypoints/cli.tsx must exit on cwdIsMissing() before the crash card path runs`)
+check('Node\'s own uv_cwd sentence is NOT surfaced to the operator', !out.includes('uv_cwd'), `${out.slice(0, 200)}; the missing-folder branch in src/boot/entrypoints/cli.tsx and src/platform/processes/gracefulShutdown.ts must replace Node's uv_cwd error with MISSING_CWD_LINE`)
 
 const crashesDir = join(home, 'crashes')
 const crashFiles = existsSync(crashesDir) ? readdirSync(crashesDir).filter(f => f.startsWith('crash-')) : []
-check('NO crash record is written (so the next boot shows no crash notice)', crashFiles.length === 0, `${crashFiles.join(', ')}; a missing folder must not reach persistCrashReport in src/utils/crashReport.ts (see isMissingCwd in src/utils/runtime/nodePolicy.ts and src/utils/gracefulShutdown.ts)`)
+check('NO crash record is written (so the next boot shows no crash notice)', crashFiles.length === 0, `${crashFiles.join(', ')}; a missing folder must not reach persistCrashReport in src/platform/logs/crashReport.ts (see isMissingCwd in src/platform/node-runtime/nodePolicy.ts and src/platform/processes/gracefulShutdown.ts)`)
 const bootNoticed = existsSync(join(home, '.boot-noticed'))
-check('no boot-crash notice marker is left behind', !bootNoticed, `${join(home, '.boot-noticed')} exists; the missing-folder exit must not write the notice marker handled in src/utils/crashReport.ts`)
+check('no boot-crash notice marker is left behind', !bootNoticed, `${join(home, '.boot-noticed')} exists; the missing-folder exit must not write the notice marker handled in src/platform/logs/crashReport.ts`)
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ prove-deleted-folder-boot: all green' : `\n❌ prove-deleted-folder-boot: ${failures} FAILURE(S)`)

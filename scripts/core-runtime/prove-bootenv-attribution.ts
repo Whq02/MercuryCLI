@@ -17,18 +17,18 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) {
     failures++
     const where = label.startsWith('reader ')
-      ? "the 'flags' row of settingsChecks in src/services/health/sections/settings.ts"
+      ? "the 'flags' row of settingsChecks in src/platform/health/sections/settings.ts"
       : label.startsWith('registry:')
         ? 'the MERCURY_BOOT_ENV_APPLIED row of FLAG_REGISTRY in the flag registry'
-        : 'applyBootMenuEnv, bootEnvSelfApplied, realEnvPin, resolveEffectiveSettingsSnapshot and the boot admission snapshot in src/substrate/startupMenu.ts'
+        : 'applyBootMenuEnv, bootEnvSelfApplied, realEnvPin, resolveEffectiveSettingsSnapshot and the boot admission snapshot in src/platform/substrate/startupMenu.ts'
     console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}\n    fix: ${where}`)
   }
 }
 
 console.log('core-runtime — boot-env attribution')
 
-const menu = await import('../../src/substrate/startupMenu.js')
-const { FLAG_REGISTRY, flagSpellings } = await import('../../src/substrate/flagRegistry.js')
+const menu = await import('../../src/platform/substrate/startupMenu.js')
+const { FLAG_REGISTRY, flagSpellings } = await import('../../src/platform/substrate/flagRegistry.js')
 type Snapshot = ReturnType<typeof menu.resolveEffectiveSettingsSnapshot>
 const rowOf = (snap: Snapshot, env: string) => snap.rows.find(r => r.env === env)
 const snapshot = (env: NodeJS.ProcessEnv, path: string, sessionId = 'probe'): Snapshot =>
@@ -221,7 +221,7 @@ let parentEnv: NodeJS.ProcessEnv = {}
     JSON.stringify(r),
   )
   check('default env: the owner reads process.env — the applied row is not a pin', menu.realEnvPin(B) === null)
-  const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
+  const { settingsChecks } = await import('../../src/platform/health/sections/settings.ts')
   const flagsRow = await settingsChecks().find(row => row.id === 'flags')?.run()
   check(
     "reader /health's Env overrides row: the applied row is a saved boot default, never an override",
@@ -249,7 +249,7 @@ let parentEnv: NodeJS.ProcessEnv = {}
   const registryRow = FLAG_REGISTRY.find(f => f.env === 'MERCURY_BOOT_ENV_APPLIED')
   check(
     'registry: the receipt is a registered self-stamped value row owned by the applier',
-    registryRow?.kind === 'value' && registryRow.selfStamped === true && registryRow.consumer === 'src/substrate/startupMenu.ts',
+    registryRow?.kind === 'value' && registryRow.selfStamped === true && registryRow.consumer === 'src/platform/substrate/startupMenu.ts',
   )
 }
 

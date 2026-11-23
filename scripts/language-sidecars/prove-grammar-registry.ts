@@ -5,13 +5,13 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/utils/structure/grammarRegistry.ts')
-const { languageForFile, languageByName, patternLanguageForFile } = await import('../../src/utils/structure/grammarFacility.ts')
+const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/platform/grammars/grammarRegistry.ts')
+const { languageForFile, languageByName, patternLanguageForFile } = await import('../../src/platform/grammars/grammarFacility.ts')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' · fix the rows in src/utils/structure/grammarRegistry.ts, the routing in src/utils/structure/grammarFacility.ts, or the lock vendor/grammars.lock.json with its texts in vendor/grammar-licences; a missing wasm needs bun install or scripts/vendor/fetch-grammars.ts, a dist check needs a rebuild with bun run build.ts'}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' · fix the rows in src/platform/grammars/grammarRegistry.ts, the routing in src/platform/grammars/grammarFacility.ts, or the lock vendor/grammars.lock.json with its texts in vendor/grammar-licences; a missing wasm needs bun install or scripts/vendor/fetch-grammars.ts, a dist check needs a rebuild with bun run build.ts'}`)
 }
 
 {

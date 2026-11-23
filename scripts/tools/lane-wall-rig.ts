@@ -1,21 +1,21 @@
 import '../lib/hermetic.ts'
-import type { QueuedCommand } from '../../src/types/textInputTypes.ts'
+import type { QueuedCommand } from '../../src/screen/composer/input-core/textInput.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-const { createTurnDriver } = await import('../../src/cli/headless/turnDriver.ts')
+const { createTurnDriver } = await import('../../src/daemon/runner/turnDriver.ts')
 type TurnDriverPorts = Parameters<typeof createTurnDriver>[0]
-const { REOPEN_GRACE_MS, WALL_RECHECK_MS } = await import('../../src/tools/MonitorTool/watchMailbox.ts')
+const { REOPEN_GRACE_MS, WALL_RECHECK_MS } = await import('../../src/tools/monitor/watchMailbox.ts')
 type WatchWall = { closed: boolean; reopensAtMs?: number }
-const wallModule = (await import('../../src/tools/MonitorTool/laneWall.ts')) as unknown as { sessionLaneWall: (nowMs?: number, reads?: unknown) => WatchWall }
+const wallModule = (await import('../../src/tools/monitor/laneWall.ts')) as unknown as { sessionLaneWall: (nowMs?: number, reads?: unknown) => WatchWall }
 export type LimitWindow = { state: 'limited'; resetsAtMs: number; observedAtMs: number } | { state: 'clear' }
 type LaneWindowLeaf = {
   isLaneWindowFamily: (family: string) => boolean
   activeLaneWindow: (family: string, reads: unknown) => LimitWindow
   laneWindowFact: (family: string, reads: unknown) => { resetsAtMs: number; observedAtMs: number } | undefined
 }
-const leaf = (await import('../../src/services/providers/laneWindowFact.ts').catch(() => undefined)) as unknown as LaneWindowLeaf | undefined
+const leaf = (await import('../../src/models/roads/laneWindowFact.ts').catch(() => undefined)) as unknown as LaneWindowLeaf | undefined
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -74,7 +74,7 @@ export function proveWallReads(fixture: Fixture, label: string, setWindow: (w: L
 export function proveWindowFact(family: string, label: string): void {
   section(`§1b the fact the seat publishes — the ${label} lane's wall while it stands, nothing otherwise`)
   if (leaf === undefined) {
-    check(`the window-fact leaf answers for the ${label} family`, false, 'src/services/providers/laneWindowFact.ts is missing')
+    check(`the window-fact leaf answers for the ${label} family`, false, 'src/models/roads/laneWindowFact.ts is missing')
     return
   }
   check(`${family} is a window family`, leaf.isLaneWindowFamily(family) === true)

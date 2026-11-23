@@ -4,14 +4,14 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawn } from 'node:child_process'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
-import { compactModeChip } from '../../src/components/mercury-ui/compactModeChip.ts'
+import { compactModeChip } from '../../src/screen/widgets/compactModeChip.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
-import type { PermissionMode } from '../../src/types/permissions.ts'
+import type { PermissionMode } from '../../src/permissions/rules/permissions.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { permissionModeSymbol, permissionModeTitle } = await import('../../src/utils/permissions/PermissionMode.ts')
+const { permissionModeSymbol, permissionModeTitle } = await import('../../src/permissions/rules/permissionMode.ts')
 const REPO = realpathSync(join(import.meta.dir, '..', '..'))
 const VSHOT = join(import.meta.dir, 'vshot.py')
 const BIN = join(REPO, 'dist', 'mercury.mjs')

@@ -129,7 +129,7 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
 }) as typeof fetch
 
 let failures = 0
-const WHERE = 'the setting view.accountIdentity is declared in src/utils/settings/types.ts and read by accountIdentityShown in src/services/wallet/identityWords.ts; the words are chosen by shownIdentityWords and providerIdentityLine in src/services/providers/providerIdentityLine.ts and presenceIdentityWords in src/services/providers/providerUsage.ts; the screens paint what those return'
+const WHERE = 'the setting view.accountIdentity is declared in src/platform/settings/settingsSchema.ts and read by accountIdentityShown in src/models/wallet/identityWords.ts; the words are chosen by shownIdentityWords and providerIdentityLine in src/models/roads/providerIdentityLine.ts and presenceIdentityWords in src/models/roads/providerUsage.ts; the screens paint what those return'
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
   console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass ? ` — ${detail ? `${detail}; ` : ''}${WHERE}` : ''}`)
@@ -142,7 +142,7 @@ async function stub(relative: string, overrides: Record<string, unknown>): Promi
   const actual = await import(target)
   mock.module(target, () => ({ ...actual, ...overrides }))
 }
-await stub('src/utils/proxy.ts', { getApiFetch: () => globalThis.fetch, getProxyFetchOptions: () => ({}) })
+await stub('src/platform/network/proxy.ts', { getApiFetch: () => globalThis.fetch, getProxyFetchOptions: () => ({}) })
 
 const writeJson = (path: string, value: unknown): void => writeFileSync(path, JSON.stringify(value, null, 2) + '\n', { mode: 0o600 })
 writeJson(join(HOME, '.credentials.json'), {
@@ -169,14 +169,14 @@ type Leg = 'absent' | 'shown' | 'hidden'
 const settingOf: Record<Leg, boolean | undefined> = { absent: undefined, shown: true, hidden: false }
 writeJson(USER_SETTINGS, { engine: { model: MODEL } })
 
-const config = await import(join(ROOT, 'src/utils/config.ts'))
+const config = await import(join(ROOT, 'src/platform/settings/config.ts'))
 config.enableConfigs()
 config.saveGlobalConfig((current: Record<string, unknown>) => ({ ...current, hasCompletedOnboarding: true, oauthAccount: undefined }))
-const { resetSettingsCache } = await import(join(ROOT, 'src/utils/settings/settingsCache.ts'))
-const ledger = await import(join(ROOT, 'src/utils/accounts/signInLedger.ts'))
-const localDiscovery = await import(join(ROOT, 'src/services/providers/local/localDiscovery.ts'))
-const discovery = await import(join(ROOT, 'src/services/providers/providerDiscovery.ts'))
-const registry = await import(join(ROOT, 'src/services/providers/modelRegistry.ts'))
+const { resetSettingsCache } = await import(join(ROOT, 'src/platform/settings/settingsCache.ts'))
+const ledger = await import(join(ROOT, 'src/models/sign-in/account-ledger/signInLedger.ts'))
+const localDiscovery = await import(join(ROOT, 'src/models/roads/local/localDiscovery.ts'))
+const discovery = await import(join(ROOT, 'src/models/roads/providerDiscovery.ts'))
+const registry = await import(join(ROOT, 'src/models/roads/modelRegistry.ts'))
 await localDiscovery.refreshLocalDiscovery({ force: true })
 discovery.__resetProviderDiscoveryForTest()
 registry.resetProviderSnapshotMemo()
@@ -188,10 +188,10 @@ function setIdentity(leg: Leg): void {
   resetSettingsCache()
 }
 
-await stub('src/keybindings/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
-await stub('src/hooks/useExitOnCtrlCD.ts', { useExitOnCtrlCD: () => undefined })
-await stub('src/context/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
-await stub('src/services/health/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
+await stub('src/screen/keys/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
+await stub('src/screen/keys/useExitChord.ts', { useExitOnCtrlCD: () => undefined })
+await stub('src/screen/notifications/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
+await stub('src/platform/health/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
 let focusedModel = MODEL
 const connector = {
   modelFacts: () => ({ main: focusedModel, effective: focusedModel }),
@@ -200,32 +200,32 @@ const connector = {
   subscribeRecords: () => () => {},
   usage: () => ({ totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }),
 }
-await stub('src/services/engine-connector/focusedConnector.ts', {
+await stub('src/engine/connector/focusedConnector.ts', {
   getFocusedSessionConnector: () => connector,
   subscribeThroughFocused: (subscribe: (connection: typeof connector, listener: () => void) => () => void) => (listener: () => void) => subscribe(connector, listener),
   hasFocusedSession: () => false,
   landingInFlight: () => false,
   subscribeFocusedSessionConnector: () => () => {},
 })
-await stub('src/components/tasks/useFocusedWork.ts', {
+await stub('src/screen/tasks/useFocusedWork.ts', {
   useFocusedWorkRows: () => [],
   useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }),
   focusedSessionIdOrNull: () => null,
 })
-await stub('src/state/vitalsBus.ts', { useVitals: () => ({ trace: null }) })
+await stub('src/screen/app-state/vitalsBus.ts', { useVitals: () => ({ trace: null }) })
 
 const activeUsageReads = new Set<Promise<void>>()
-const ownerRefresh = (await import(join(ROOT, 'src/services/providers/providerUsage.ts'))).refreshProviderUsage
-await stub('src/services/providers/providerUsage.ts', { refreshProviderUsage: (...args: Parameters<typeof ownerRefresh>) => {
+const ownerRefresh = (await import(join(ROOT, 'src/models/roads/providerUsage.ts'))).refreshProviderUsage
+await stub('src/models/roads/providerUsage.ts', { refreshProviderUsage: (...args: Parameters<typeof ownerRefresh>) => {
   const reading = ownerRefresh(...args)
   activeUsageReads.add(reading)
   void reading.then(() => activeUsageReads.delete(reading), () => activeUsageReads.delete(reading))
   return reading
 } })
-const ink = await import(join(ROOT, 'src/ink.ts'))
-const { default: StdinContext } = await import(join(ROOT, 'src/ink/components/StdinContext.ts'))
-const { InputEvent } = await import(join(ROOT, 'src/ink/events/input-event.ts'))
-const { interpretKey } = await import(join(ROOT, 'src/ink/input/interpreter.ts'))
+const ink = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
+const { default: StdinContext } = await import(join(ROOT, 'src/screen/renderer/elements/StdinContext.ts'))
+const { InputEvent } = await import(join(ROOT, 'src/screen/renderer/events/input-event.ts'))
+const { interpretKey } = await import(join(ROOT, 'src/screen/renderer/input/interpreter.ts'))
 const settle = async (): Promise<void> => {
   ink.flushPendingSyncWork()
   await new Promise<void>(resolve => setImmediate(resolve))
@@ -287,18 +287,18 @@ async function paint(content: React.ReactNode, columns: number, rows: number, wa
 
 const COLS = 178
 const ROWS = 51
-const { HelmVitalsRail } = await import(join(ROOT, 'src/components/HelmVitalsRail.tsx'))
-const { railPlanAt } = await import(join(ROOT, 'src/utils/helmGeometry.ts'))
-const { settingsPopupGeometry } = await import(join(ROOT, 'src/components/SettingsPopupSlot.tsx'))
-const popupStore = await import(join(ROOT, 'src/utils/cockpit/settingsPopup.ts'))
+const { HelmVitalsRail } = await import(join(ROOT, 'src/screen/fullscreen-layout/HelmVitalsRail.tsx'))
+const { railPlanAt } = await import(join(ROOT, 'src/screen/fullscreen-layout/helmGeometry.ts'))
+const { settingsPopupGeometry } = await import(join(ROOT, 'src/screen/overlays/SettingsPopupSlot.tsx'))
+const popupStore = await import(join(ROOT, 'src/screen/cockpit/settingsPopup.ts'))
 const usageCommand = await import(join(ROOT, 'src/commands/usage/usage.tsx'))
-const logins = await import(join(ROOT, 'src/components/BootLoginsScreen.tsx'))
-const { BootSplashScreen } = await import(join(ROOT, 'src/components/BootSplashScreen.tsx'))
-const usage = await import(join(ROOT, 'src/services/providers/providerUsage.ts'))
-const identityLine = await import(join(ROOT, 'src/services/providers/providerIdentityLine.ts'))
-const slots = await import(join(ROOT, 'src/services/providers/accountSlots.ts'))
-const words = await import(join(ROOT, 'src/services/wallet/identityWords.ts'))
-const status = await import(join(ROOT, 'src/components/status.tsx'))
+const logins = await import(join(ROOT, 'src/screen/boot-face/BootLoginsScreen.tsx'))
+const { BootSplashScreen } = await import(join(ROOT, 'src/screen/boot-face/BootSplashScreen.tsx'))
+const usage = await import(join(ROOT, 'src/models/roads/providerUsage.ts'))
+const identityLine = await import(join(ROOT, 'src/models/roads/providerIdentityLine.ts'))
+const slots = await import(join(ROOT, 'src/models/roads/accountSlots.ts'))
+const words = await import(join(ROOT, 'src/models/wallet/identityWords.ts'))
+const status = await import(join(ROOT, 'src/commands/verbs/status.tsx'))
 
 const POPUP_TITLES = ['Anthropic usage', 'OpenAI usage', 'Z.AI usage', 'OpenRouter usage', 'Gemini usage', 'Moonshot usage', 'DeepSeek usage', 'xAI usage', 'Meta usage', 'Custom endpoint usage', 'Hugging Face usage', 'Local models usage']
 async function paintPopup(): Promise<string[]> {
@@ -367,7 +367,7 @@ const lineUnder = (frames: string[], title: string): string => {
 
 section('§1 view.accountIdentity is a declared setting, a boolean, absent unless written')
 {
-  const { SettingsSchema } = await import(join(ROOT, 'src/utils/settings/types.ts'))
+  const { SettingsSchema } = await import(join(ROOT, 'src/platform/settings/settingsSchema.ts'))
   const on = SettingsSchema().safeParse({ view: { accountIdentity: true } })
   const off = SettingsSchema().safeParse({ view: { accountIdentity: false } })
   const bad = SettingsSchema().safeParse({ view: { accountIdentity: 'hidden' } })
@@ -454,9 +454,9 @@ section('§4 the roads that stay: the command line and the /accounts board')
   const RUNNER = join(HOME, 'auth-status-runner.ts')
   writeFileSync(RUNNER, [
     ";(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }",
-    `const { enableConfigs } = await import(${JSON.stringify(join(ROOT, 'src/utils/config.ts'))})`,
+    `const { enableConfigs } = await import(${JSON.stringify(join(ROOT, 'src/platform/settings/config.ts'))})`,
     'enableConfigs()',
-    `const { authStatus } = await import(${JSON.stringify(join(ROOT, 'src/cli/handlers/auth.ts'))})`,
+    `const { authStatus } = await import(${JSON.stringify(join(ROOT, 'src/commands/verbs/auth.ts'))})`,
     'await authStatus({ json: true })',
   ].join('\n') + '\n')
   const authStatus = (leg: Leg): string => {
@@ -485,7 +485,7 @@ section('§5 /config carries the one row in the view group: Account identity · 
 
 section('§6 the other mints: the Saturn trail, the window refusal and the sign-in wall row drop the address when hidden')
 {
-  const saturn = await import(join(ROOT, 'src/components/BootSaturnScreen.tsx'))
+  const saturn = await import(join(ROOT, 'src/screen/boot-face/BootSaturnScreen.tsx'))
   const stills = await import(join(ROOT, 'scripts/ui/saturn-screen-stills.ts'))
   const row = (stills.FIXTURE_FACTS.rows as Array<{ schedule: { account: { family: string; source: string; identity?: string } } }>).find(candidate => candidate.schedule.account.identity !== undefined)
   check('the Saturn fixture carries a schedule with a captured identity', row !== undefined)
@@ -499,8 +499,8 @@ section('§6 the other mints: the Saturn trail, the window refusal and the sign-
     const hiddenTrail = trail('hidden')
     check('hidden: the Saturn trail keeps the family and source and drops the address', hiddenTrail.split('\n').some(line => line === `account: ${family}/${source}`) && !hiddenTrail.includes(identity!), hiddenTrail.split('\n').find(line => line.startsWith('account:')))
   }
-  const limits = await import(join(ROOT, 'src/services/anthropicLimits.ts'))
-  const refusal = await import(join(ROOT, 'src/services/providers/anthropicRefusal.ts'))
+  const limits = await import(join(ROOT, 'src/models/roads/anthropic/anthropicLimits.ts'))
+  const refusal = await import(join(ROOT, 'src/models/roads/anthropicRefusal.ts'))
   const OWNER = 'anthropic:oauth:primary:00000000-0000-4000-8000-0000000000aa'
   limits.resetLimitsForCredentialSwitch()
   limits.__setAnthropicOwnerResolverForTest(() => OWNER, () => ANTHROPIC_EMAIL)
@@ -514,8 +514,8 @@ section('§6 the other mints: the Saturn trail, the window refusal and the sign-
   check('hidden: the window refusal names the signed-in account, no address', hiddenWords.includes('reached for the signed-in account') && !hiddenWords.includes('@'), hiddenWords)
   limits.__setAnthropicOwnerResolverForTest(null)
   limits.resetLimitsForCredentialSwitch()
-  const { APIError } = await import('../../src/utils/api/sdkErrors.js')
-  const errors = await import(join(ROOT, 'src/services/api/errors.ts'))
+  const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
+  const errors = await import(join(ROOT, 'src/engine/requests/apiErrorRows.ts'))
   const RECORD = 'record@example.com'
   config.saveGlobalConfig((current: Record<string, unknown>) => ({ ...current, oauthAccount: { accountUuid: 'uuid-record-fixture', emailAddress: RECORD, organizationUuid: 'org-record-fixture' } }))
   const wallRow = (leg: Leg): string => {
@@ -533,7 +533,7 @@ section('§6 the other mints: the Saturn trail, the window refusal and the sign-
 
 section('§7 the model picker header and the provider identity words read the owners')
 {
-  const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
+  const { AppStateProvider } = await import(join(ROOT, 'src/screen/app-state/AppState.tsx'))
   const model = await import(join(ROOT, 'src/commands/model/mercuryModel.tsx'))
   const picker = async (leg: Leg): Promise<string> => {
     setIdentity(leg)
@@ -550,8 +550,8 @@ section('§7 the model picker header and the provider identity words read the ow
   check('true: the picker frame is byte-identical to absent', truePicker === shownPicker)
   check('hidden: the picker header keeps the door and drops the account', heading(hiddenPicker) !== '' && !heading(hiddenPicker).includes('@') && heading(hiddenPicker).includes('login'), heading(hiddenPicker).trim())
   check('hidden: no line of the picker carries an address, a username or a key tail', leaks(hiddenPicker).length === 0, JSON.stringify(leaks(hiddenPicker)))
-  const identityLine = await import(join(ROOT, 'src/services/providers/providerIdentityLine.ts'))
-  const registry = await import(join(ROOT, 'src/services/providers/modelRegistry.ts'))
+  const identityLine = await import(join(ROOT, 'src/models/roads/providerIdentityLine.ts'))
+  const registry = await import(join(ROOT, 'src/models/roads/modelRegistry.ts'))
   const hfLine = (leg: Leg): string => {
     setIdentity(leg)
     registry.resetProviderSnapshotMemo()

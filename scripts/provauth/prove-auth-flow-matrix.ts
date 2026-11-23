@@ -45,15 +45,15 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_AUTH_SCOPE_DIR = home
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 
-const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.js')
+const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.js')
 type UsabilityReads = NonNullable<Parameters<typeof resolveProviderUsability>[0]>
 const { activeSourceUsage, anthropicCredentialPresence } = await import(
-  '../../src/services/providers/providerUsage.js'
+  '../../src/models/roads/providerUsage.js'
 )
-const accountSlots = await import('../../src/services/providers/accountSlots.js')
+const accountSlots = await import('../../src/models/roads/accountSlots.js')
 const {
   slotSigninState,
   mainLoopIdentity,
@@ -61,31 +61,31 @@ const {
   signinCeilingRefusal,
   familySigninCeiling,
 } = accountSlots
-type AccountSlotT = import('../../src/services/providers/accountSlots.js').AccountSlot
+type AccountSlotT = import('../../src/models/roads/accountSlots.js').AccountSlot
 const { classifyCredentialWall, credentialWallLine, reconnectDoorFor, isRevokedSignInText } =
-  await import('../../src/services/providers/credentialWall.js')
+  await import('../../src/models/roads/credentialWall.js')
 const { compatFaultToTypedError } = await import(
-  '../../src/services/providers/openaicompat/compatChatCallModel.js'
+  '../../src/models/roads/openaicompat/compatChatCallModel.js'
 )
 const { loginFamilyRows, loginFamilyFocusFor, loginFamilyInitialFocus } = await import(
-  '../../src/components/loginFamilyRows.js'
+  '../../src/models/sign-in/flow-cards/loginFamilyRows.js'
 )
-const { isAnthropicOAuthSignInExpired } = await import('../../src/utils/auth.js')
-const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.js')
-const gemini = await import('../../src/services/providers/gemini/geminiAccounts.js')
-const openaiAcc = await import('../../src/services/providers/openai/openaiAccounts.js')
-const moonshot = await import('../../src/services/providers/moonshot/moonshotAccounts.js')
+const { isAnthropicOAuthSignInExpired } = await import('../../src/models/sign-in/credentials/auth.js')
+const { clearOAuthTokenCache } = await import('../../src/models/sign-in/lifecycle/oauthLifecycle.js')
+const gemini = await import('../../src/models/roads/gemini/geminiAccounts.js')
+const openaiAcc = await import('../../src/models/roads/openai/openaiAccounts.js')
+const moonshot = await import('../../src/models/roads/moonshot/moonshotAccounts.js')
 const huggingface = await import(
-  '../../src/services/providers/huggingface/huggingfaceAccounts.js'
+  '../../src/models/roads/huggingface/huggingfaceAccounts.js'
 )
 const { writeStoredZaiApiKey, readStoredZaiApiKey } = await import(
-  '../../src/utils/accounts/providerSecrets.js'
+  '../../src/models/sign-in/account-ledger/providerSecrets.js'
 )
 
-const hintUsabilityResolver = ' | resolveProviderUsability in src/services/providers/providerUsability must give the family its typed blocker'
-const hintLoginRows = ' | loginFamilyRows, loginFamilyInitialFocus and loginFamilyFocusFor in src/components/loginFamilyRows decide this'
-const hintCredentialWall = ' | classifyCredentialWall and credentialWallLine in src/services/providers/credentialWall decide this'
-const hintSlotRemoval = ' | executeSlotRemoval, slotSigninState and mainLoopIdentity in src/services/providers/accountSlots decide this'
+const hintUsabilityResolver = ' | resolveProviderUsability in src/models/roads/providerUsability must give the family its typed blocker'
+const hintLoginRows = ' | loginFamilyRows, loginFamilyInitialFocus and loginFamilyFocusFor in src/models/sign-in/flow-cards/loginFamilyRows decide this'
+const hintCredentialWall = ' | classifyCredentialWall and credentialWallLine in src/models/roads/credentialWall decide this'
+const hintSlotRemoval = ' | executeSlotRemoval, slotSigninState and mainLoopIdentity in src/models/roads/account-slots decide this'
 const hintGridTables = ' | edit the DRIVEN and ABSENT tables in section 0 of this file so every family in resolveProviderUsability has every arm either driven or typed absent'
 
 const SEAT_ABSENT_REASON = 'no OpenAI account — /logins openai connects one'
@@ -365,7 +365,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     check(
       `${family}: usage card signed-out whyNot names the door`,
       view.sourceKind === 'none' && view.whyNot === expectedWhyNot[family],
-      `whyNot=${JSON.stringify(view.whyNot)} | activeSourceUsage in src/services/providers/providerUsage must name the door for a signed-out family`,
+      `whyNot=${JSON.stringify(view.whyNot)} | activeSourceUsage in src/models/roads/provider-usage must name the door for a signed-out family`,
     )
   }
 
@@ -437,13 +437,13 @@ const NOW_MS = Date.now()
   check(
     'anthropic: expired WITH a refresh token is NOT stranded (refresh happens at use)',
     isAnthropicOAuthSignInExpired() === false,
-    'isAnthropicOAuthSignInExpired in src/utils/auth must treat a clock-expired set with a refresh token as refreshable',
+    'isAnthropicOAuthSignInExpired in src/models/sign-in/credentials/auth must treat a clock-expired set with a refresh token as refreshable',
   )
   seed(null)
   check(
     'anthropic: expired with NO refresh token IS the stranded sign-in',
     isAnthropicOAuthSignInExpired() === true,
-    'isAnthropicOAuthSignInExpired in src/utils/auth must report an expired set with no refresh token as stranded',
+    'isAnthropicOAuthSignInExpired in src/models/sign-in/credentials/auth must report an expired set with no refresh token as stranded',
   )
   seed('fixture-refresh-token-00000000001')
 }
@@ -609,7 +609,7 @@ section('§3 expiry-at-rest: the stranded states paint loud, with the right door
   check(
     'anthropic: presence stays credentialed AND carries expired:true (present-but-dead honesty)',
     presence.credentialed === true && presence.expired === true,
-    JSON.stringify(presence) + ' | anthropicCredentialPresence in src/services/providers/providerUsage must keep an expired set credentialed and mark expired',
+    JSON.stringify(presence) + ' | anthropicCredentialPresence in src/models/roads/provider-usage must keep an expired set credentialed and mark expired',
   )
 
   const scopeSlot = {
@@ -1004,7 +1004,7 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
 
 {
   const openrouter = await import(
-    '../../src/services/providers/openrouter/openrouterAccounts.js'
+    '../../src/models/roads/openrouter/openrouterAccounts.js'
   )
   let notified = false
   const handles = openrouter.beginOpenrouterConnect({
@@ -1028,7 +1028,7 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
 
 {
   const openrouter = await import(
-    '../../src/services/providers/openrouter/openrouterAccounts.js'
+    '../../src/models/roads/openrouter/openrouterAccounts.js'
   )
   const gate = exchangeGate()
   let disclosed: unknown = null
@@ -1081,7 +1081,7 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
 
 {
   const openrouter = await import(
-    '../../src/services/providers/openrouter/openrouterAccounts.js'
+    '../../src/models/roads/openrouter/openrouterAccounts.js'
   )
   const gate = exchangeGate()
   const issues: string[] = []
@@ -1159,7 +1159,7 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
 }
 {
   const gate = exchangeGate()
-  const openaiMod = await import('../../src/services/providers/openai/openaiAccounts.js')
+  const openaiMod = await import('../../src/models/roads/openai/openaiAccounts.js')
   const handles = openaiMod.beginOpenaiBrowserConnect({
     skipBrowserOpen: true,
     loopbackPort: 0,
@@ -1307,7 +1307,7 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
 
 {
   const { runKimiDeviceLogin } = await import(
-    '../../src/services/providers/moonshot/moonshotLogin.js'
+    '../../src/models/roads/moonshot/moonshotLogin.js'
   )
   moonshot.writeMoonshotTokens(null)
   let cancelled = false
@@ -1362,7 +1362,7 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
 
 {
   const { runHuggingfaceDeviceLogin } = await import(
-    '../../src/services/providers/huggingface/huggingfaceLogin.js'
+    '../../src/models/roads/huggingface/huggingfaceLogin.js'
   )
   huggingface.writeHuggingfaceTokens(null)
   const hfEnv = { ...process.env, MERCURY_HUGGINGFACE_OAUTH_CLIENT_ID: 'client-fixture' }
@@ -1419,7 +1419,7 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
 
 {
   const { runKimiDeviceLogin, KIMI_SETTLED_AFTER_CANCEL_RECEIPT } = await import(
-    '../../src/services/providers/moonshot/moonshotLogin.js'
+    '../../src/models/roads/moonshot/moonshotLogin.js'
   )
   moonshot.writeMoonshotTokens(null)
   let cancelled = false
@@ -1473,7 +1473,7 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
 
 {
   const { runHuggingfaceDeviceLogin, HUGGINGFACE_SETTLED_AFTER_CANCEL_RECEIPT } = await import(
-    '../../src/services/providers/huggingface/huggingfaceLogin.js'
+    '../../src/models/roads/huggingface/huggingfaceLogin.js'
   )
   huggingface.writeHuggingfaceTokens(null)
   const hfEnv = { ...process.env, MERCURY_HUGGINGFACE_OAUTH_CLIENT_ID: 'client-fixture' }
@@ -1534,7 +1534,7 @@ section('§8 accounts-side refusal hygiene + the gemini no-probe gate copy')
 
 {
   const { GEMINI_CLIENT_STORED_UNVERIFIED_NOTE } = await import(
-    '../../src/services/providers/gemini/geminiAccounts.js'
+    '../../src/models/roads/gemini/geminiAccounts.js'
   )
   check(
     'the client note names invalid_client and how to correct the ID',
@@ -1548,7 +1548,7 @@ section('§9 the evidence pair end-to-end + the dead-door sweep')
 
   clearOAuthTokenCache()
   const { observedCredentialWall, credentialWallLineForModel } = await import(
-    '../../src/services/providers/credentialWall.js'
+    '../../src/models/roads/credentialWall.js'
   )
   check(
     "anthropic: the stranded sign-in answers the observed wall 'sign-in' with the full row line",
@@ -1557,10 +1557,10 @@ section('§9 the evidence pair end-to-end + the dead-door sweep')
         'Anthropic sign-in expired — switch providers (/model) or reconnect (/logins anthropic)',
     credentialWallLineForModel('claude-fable-5'),
   )
-  const { APIError } = await import('../../src/utils/api/sdkErrors.js')
-  const { getAssistantMessageFromError } = await import('../../src/services/api/errors.js')
-  const { API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errorPrefix.js')
-  const { getIsNonInteractiveSession } = await import('../../src/bootstrap/state.js')
+  const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
+  const { getAssistantMessageFromError } = await import('../../src/engine/requests/apiErrorRows.js')
+  const { API_ERROR_MESSAGE_PREFIX } = await import('../../src/engine/requests/apiErrorPrefix.js')
+  const { getIsNonInteractiveSession } = await import('../../src/boot/process-state/processState.js')
   const posture = { nonInteractive: getIsNonInteractiveSession() }
   const rowText = (row: { message: { content: unknown } }): string =>
     (row.message.content as Array<{ type?: string; text?: string }>).map(b => (b.type === 'text' ? (b.text ?? '') : '')).join('')
@@ -1585,7 +1585,7 @@ section('§9 the evidence pair end-to-end + the dead-door sweep')
     expiredText,
   )
   const { recordLaneBillingRefusal, recordLaneTurnSettled, __resetLaneBillingStateForTest } =
-    await import('../../src/services/providers/laneBillingState.js')
+    await import('../../src/models/roads/laneBillingState.js')
   __resetLaneBillingStateForTest()
   recordLaneBillingRefusal('openrouter' as never, {
     detail: 'Key limit exceeded (HTTP 403)',
@@ -1652,19 +1652,19 @@ section('§9 the evidence pair end-to-end + the dead-door sweep')
       }).note,
     )
   }
-  const { lateSettleNotice: faceNotice } = await import('../../src/components/BootLoginsScreen.js')
+  const { lateSettleNotice: faceNotice } = await import('../../src/screen/boot-face/BootLoginsScreen.js')
   sentences.push(faceNotice('openrouter'))
   const { KIMI_CONNECT_STOPPED_RECEIPT, KIMI_SETTLED_AFTER_CANCEL_RECEIPT } = await import(
-    '../../src/services/providers/moonshot/moonshotLogin.js'
+    '../../src/models/roads/moonshot/moonshotLogin.js'
   )
   const { HUGGINGFACE_SETTLED_AFTER_CANCEL_RECEIPT } = await import(
-    '../../src/services/providers/huggingface/huggingfaceLogin.js'
+    '../../src/models/roads/huggingface/huggingfaceLogin.js'
   )
   sentences.push(KIMI_SETTLED_AFTER_CANCEL_RECEIPT, HUGGINGFACE_SETTLED_AFTER_CANCEL_RECEIPT)
-  const { HUGGINGFACE_CONNECT_STOPPED_RECEIPT } = await import('../../src/services/providers/huggingface/huggingfaceLogin.js')
-  const { OPENROUTER_CONNECT_STOPPED_RECEIPT } = await import('../../src/services/providers/openrouter/openrouterLogin.js')
-  const { GEMINI_CONNECT_STOPPED_RECEIPT } = await import('../../src/services/providers/gemini/geminiLogin.js')
-  const { OPENAI_CONNECT_STOPPED_RECEIPT } = await import('../../src/services/providers/openai/openaiLogin.js')
+  const { HUGGINGFACE_CONNECT_STOPPED_RECEIPT } = await import('../../src/models/roads/huggingface/huggingfaceLogin.js')
+  const { OPENROUTER_CONNECT_STOPPED_RECEIPT } = await import('../../src/models/roads/openrouter/openrouterLogin.js')
+  const { GEMINI_CONNECT_STOPPED_RECEIPT } = await import('../../src/models/roads/gemini/geminiLogin.js')
+  const { OPENAI_CONNECT_STOPPED_RECEIPT } = await import('../../src/models/roads/openai/openaiLogin.js')
   sentences.push(
     KIMI_CONNECT_STOPPED_RECEIPT,
     HUGGINGFACE_CONNECT_STOPPED_RECEIPT,
@@ -1672,14 +1672,14 @@ section('§9 the evidence pair end-to-end + the dead-door sweep')
     GEMINI_CONNECT_STOPPED_RECEIPT,
     OPENAI_CONNECT_STOPPED_RECEIPT,
   )
-  const { nonAnthropicBootNotice } = await import('../../src/services/providers/providerUsability.js')
+  const { nonAnthropicBootNotice } = await import('../../src/models/roads/providerUsability.js')
   const bootNotice = nonAnthropicBootNotice({
     ...usabilityMap,
     zai: { ...usabilityMap.zai, usable: true, credential: 'api-key', blockers: [] },
   })
   if (bootNotice !== null) sentences.push(bootNotice)
 
-  const { effectiveCatalogue } = await import('../../src/commands/effectiveCatalogue.js')
+  const { effectiveCatalogue } = await import('../../src/commands/catalogue/effectiveCatalogue.js')
   const registered = new Set(
     effectiveCatalogue().flatMap(surface => [surface.name, ...surface.aliases]),
   )
@@ -1708,7 +1708,7 @@ section('§9 the evidence pair end-to-end + the dead-door sweep')
 section('§10 the cross-account laws: SF1 spoken · the structural ceiling fence · the release roads')
 
 {
-  const { scheduleAccountVerdict } = await import('../../src/daemon/saturnAccount.js')
+  const { scheduleAccountVerdict } = await import('../../src/daemon/saturn/saturnAccount.js')
   const base = { credentialed: true, stranded: false, refreshable: true, expiresAt: NOW_MS + 60_000 }
   const verdictOf = (live: Record<string, unknown>): string =>
     scheduleAccountVerdict({
@@ -1805,10 +1805,10 @@ section('§10 the cross-account laws: SF1 spoken · the structural ceiling fence
 section('§11 the keyed search tier: Brave · Tavily — doors, refusals, quota, precedence')
 
 {
-  const { braveSearch, resolveBraveSearchApiKey } = await import('../../src/services/search/brave.js')
-  const { tavilySearch, resolveTavilyApiKey } = await import('../../src/services/search/tavily.js')
+  const { braveSearch, resolveBraveSearchApiKey } = await import('../../src/tools/engines/web-search/brave.js')
+  const { tavilySearch, resolveTavilyApiKey } = await import('../../src/tools/engines/web-search/tavily.js')
   const { writeStoredBraveSearchApiKey, writeStoredTavilyApiKey } = await import(
-    '../../src/utils/accounts/providerSecrets.js'
+    '../../src/models/sign-in/account-ledger/providerSecrets.js'
   )
   const request = { query: 'matrix fixture' } as never
 

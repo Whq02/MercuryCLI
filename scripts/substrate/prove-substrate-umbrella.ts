@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
-import { isMercurySubstrateProfileOn } from '../../src/utils/config.js'
-import { isInvocationTraceEnabled } from '../../src/utils/observability/invocationTrace.js'
-import { substrateSnapshot } from '../../src/services/cockpit/substrateSnapshot.js'
+import { isMercurySubstrateProfileOn } from '../../src/platform/settings/config.js'
+import { isInvocationTraceEnabled } from '../../src/platform/observability/invocationTrace.js'
+import { substrateSnapshot } from '../../src/screen/cockpit-gauges/substrateSnapshot.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
-import { createAssistantMessage, createUserMessage } from '../../src/utils/messages/factories.ts'
-import { ensureToolResultPairing } from '../../src/services/messages/pairing.ts'
-import { SYNTHETIC_TOOL_RESULT_PLACEHOLDER } from '../../src/utils/messages/rejectionText.ts'
+import { createAssistantMessage, createUserMessage } from '../../src/engine/message-shapes/factories.ts'
+import { ensureToolResultPairing } from '../../src/engine/messages/wirePairing.ts'
+import { SYNTHETIC_TOOL_RESULT_PLACEHOLDER } from '../../src/engine/message-shapes/rejectionText.ts'
 
 const call = createAssistantMessage({ content: [{ type: 'tool_use', id: 'unanswered', name: 'Bash', input: { command: 'publish' } }] })
 const stored = JSON.stringify(call)

@@ -12,29 +12,29 @@ process.env.MERCURY_CHANGESET_DIR = mkdtempSync(join(tmpdir(), 'anchor-patch-app
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}to fix: the anchor-patch apply path of ChangeSetTool (call and validateInput in src/tools/ChangeSetTool/ChangeSetTool.ts) or its helpers in src/services/changeTransaction/ (anchorPatch.ts, patchRegisters.ts, seenLines.ts)` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}to fix: the anchor-patch apply path of ChangeSetTool (call and validateInput in src/tools/change-set/ChangeSetTool.ts) or its helpers in src/tools/engines/change-transaction/ (anchorPatch.ts, patchRegisters.ts, seenLines.ts)` : ''}`)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — apply proof exceeded 120s; a ChangeSetTool call (src/tools/ChangeSetTool/ChangeSetTool.ts) did not return, and the last check printed above is the step before it')
+  console.log('\nTIMEOUT — apply proof exceeded 120s; a ChangeSetTool call (src/tools/change-set/ChangeSetTool.ts) did not return, and the last check printed above is the step before it')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
 
-const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
-const { countLines } = await import('../../src/services/changeTransaction/hunks.ts')
+const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
+const { countLines } = await import('../../src/tools/engines/change-transaction/hunks.ts')
 const { fileGeneration, recordSeenLines } = await import(
-  '../../src/services/changeTransaction/seenLines.ts'
+  '../../src/tools/engines/change-transaction/seenLines.ts'
 )
 const { listPatchRegisters } = await import(
-  '../../src/services/changeTransaction/patchRegisters.ts'
+  '../../src/tools/engines/change-transaction/patchRegisters.ts'
 )
-const { listJournalOperations } = await import('../../src/substrate/operationJournal.ts')
+const { listJournalOperations } = await import('../../src/platform/substrate/operationJournal.ts')
 const { changeSetJournalDir } = await import(
-  '../../src/services/changeTransaction/changeSetContracts.ts'
+  '../../src/tools/engines/change-transaction/changeSetContracts.ts'
 )
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 const fixtures = realpathSync(mkdtempSync(join(tmpdir(), 'anchor-patch-apply-fix-')))
 const owner = processMainOwner()

@@ -25,7 +25,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — the prefix ledger is src/services/providers/anthropic/prefixLedger.ts (judgeAndRecordPrefix, describePrefixMismatch) and the thinking binding is src/services/providers/anthropic/thinkingBinding.ts; the §3 legs run the built dist/mercury.mjs, so rebuild with bun run build.ts first' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — the prefix ledger is src/models/roads/anthropic/prefixLedger.ts (judgeAndRecordPrefix, describePrefixMismatch) and the thinking binding is src/models/roads/anthropic/thinkingBinding.ts; the §3 legs run the built dist/mercury.mjs, so rebuild with bun run build.ts first' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -38,8 +38,8 @@ const guard = setTimeout(() => {
 }, 240_000)
 guard.unref?.()
 
-const ledger = await import('../../src/services/providers/anthropic/prefixLedger.ts')
-const binding = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
+const ledger = await import('../../src/models/roads/anthropic/prefixLedger.ts')
+const binding = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
 const { judgeAndRecordPrefix, takePrefixVerdict, pendingPrefixVerdict, resetPrefixLedger, prefixRecordFor, applyInducedPrefixEdit, resolveInducedPrefixEdit, inducedEditApplies, boundTools, lastThinkingMessageIndex, describePrefixMismatch, recordDroppedThinking } = ledger
 
 type Block = Record<string, unknown>
@@ -67,7 +67,7 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   const r2 = { system: SYSTEM, tools: TOOLS, messages: [user(TEXT('first prompt')), assistant(THINK('one'), TEXT('a')), user(TEXT('second prompt'))] }
   const v2 = judgeAndRecordPrefix('main', KEY, r2)
   check('an appended request holds (compared, no mismatch, the last replayed block at message 1)', v2.compared && v2.mismatch === null && v2.lastThinkingIndex === 1, j(v2))
-  const { DEAD_THINKING_PLACEHOLDER } = await import('../../src/utils/model/deadThinkingPlaceholder.ts')
+  const { DEAD_THINKING_PLACEHOLDER } = await import('../../src/models/facts/deadThinkingPlaceholder.ts')
   const r2b = { system: SYSTEM, tools: TOOLS, messages: [user(TEXT('first prompt')), assistant(TEXT(DEAD_THINKING_PLACEHOLDER)), user(TEXT('second prompt'))] }
   const v2b = judgeAndRecordPrefix('main', KEY, r2b)
   check('a thinking-only row replayed as the placeholder digests no new text block (no mismatch)', v2b.compared && v2b.mismatch === null, j(v2b))
@@ -183,8 +183,8 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   const collected = deadThinkingMarks([user(TEXT('x')), deadRow, { type: 'system', subtype: 'informational', content: 'noise' }] as never)
   check('deadThinkingMarks reads every thinking_dead row into a map by response id', collected.size === 2 && collected.get('msg_1')?.has(0) === true && collected.get('msg_2')?.has(0) === true)
   const { createDeadThinkingAttachment } = binding
-  const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.ts')
-  const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
+  const { isTranscribable } = await import('../../src/sessions/transcripts/chain.ts')
+  const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
   const deadAtt = createDeadThinkingAttachment([{ messageId: 'msg_1', blockIndex: 0 }, { messageId: 'msg_2', blockIndex: 0 }])
   check('the dead marks ride a dead_thinking attachment', deadAtt.type === 'attachment' && (deadAtt.attachment as { type: string }).type === 'dead_thinking')
   check('deadThinkingMarks reads the attachment form (and the legacy system row) into the map', deadThinkingMarks([user(TEXT('x')), deadAtt, deadRow] as never).get('msg_1')?.has(0) === true && deadThinkingMarks([deadAtt] as never).get('msg_2')?.has(0) === true)
@@ -295,9 +295,9 @@ section('§1b complete bound fields and reasoning continuity')
   const twice = [{ type: 'thinking_dropped', path: 'messages.5.content.0', reason: 'prefix_binding_mismatch' }]
   check('a repeated drop report marks a block once', recordDroppedThinking('complete-fields', twice) === 1 && recordDroppedThinking('complete-fields', twice) === 0)
 
-  const { buildRequestContextPlan } = await import('../../src/services/run/requestContextPlan.js')
-  const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.js')
-  const { normalizeMessagesForAPI } = await import('../../src/services/messages/apiView.js')
+  const { buildRequestContextPlan } = await import('../../src/engine/run/requestContextPlan.js')
+  const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.js')
+  const { normalizeMessagesForAPI } = await import('../../src/engine/messages/apiView.js')
   const saved = process.env.MERCURY_TIME_BASED_MC
   process.env.MERCURY_TIME_BASED_MC = '1'
   const history = Array.from({ length: 13 }, (_, i) => [
@@ -328,11 +328,11 @@ section('§1b complete bound fields and reasoning continuity')
 
 section('§1c the observer sees final transport overlays')
 {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
-  const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.js')
-  const { createUserMessage } = await import('../../src/services/messages.js')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+  const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.js')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.js')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
   const savedNodeEnv = process.env.NODE_ENV
   const savedExtra = process.env.MERCURY_EXTRA_BODY
   const savedBase = process.env.ANTHROPIC_BASE_URL
@@ -378,11 +378,11 @@ section('§1c the observer sees final transport overlays')
 
 section('§1d a block the API dropped stays on the wire as returned — the API drops it again unbilled, the record stays quiet and the ledger names no rewrite')
 {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
-  const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.js')
-  const { createUserMessage } = await import('../../src/services/messages.js')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+  const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.js')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.js')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
   const savedNodeEnv = process.env.NODE_ENV
   const savedBase = process.env.ANTHROPIC_BASE_URL
   const savedBinding = process.env.MERCURY_THINKING_BINDING
@@ -446,14 +446,14 @@ section('§1d a block the API dropped stays on the wire as returned — the API 
 
 section('capability mounts append guidance while the real request prefix holds')
 {
-  const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.js')
-  const { getSystemPrompt } = await import('../../src/constants/prompts.js')
-  const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.js')
-  const { createUserMessage } = await import('../../src/services/messages.js')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-  const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.js')
-  const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.js')
-  const { getOriginalCwd, setOriginalCwd, setCwdState } = await import('../../src/bootstrap/state.js')
+  const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.js')
+  const { getSystemPrompt } = await import('../../src/engine/system-prompt/defaultSystemPrompt.js')
+  const { clearSystemPromptSections } = await import('../../src/engine/system-prompt/systemPromptSections.js')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.js')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+  const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.js')
+  const { clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.js')
+  const { getOriginalCwd, setOriginalCwd, setCwdState } = await import('../../src/boot/process-state/processState.js')
   const cwd = process.cwd()
   const originalCwd = getOriginalCwd()
   const scratch = mkdtempSync(join(tmpdir(), 'capability-prefix-'))

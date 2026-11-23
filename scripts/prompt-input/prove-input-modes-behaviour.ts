@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import fc from 'fast-check'
-import { BASH_MODE_CHARACTER, getModeFromInput, getValueFromInput, isInputModeCharacter } from '../../src/components/PromptInput/inputModes.ts'
+import { BASH_MODE_CHARACTER, getModeFromInput, getValueFromInput, isInputModeCharacter } from '../../src/screen/composer/inputModes.ts'
 
-const WHERE = 'src/components/PromptInput/inputModes.ts'
+const WHERE = 'src/screen/composer/inputModes.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

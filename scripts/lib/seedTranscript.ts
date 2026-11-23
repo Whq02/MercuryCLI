@@ -1,5 +1,5 @@
-import { entryToRecord } from '../../src/fabric/entryCodec.ts'
-import { ordinalOf } from '../../src/fabric/ordinal.ts'
+import { entryToRecord } from '../../src/sessions/fabric/entryCodec.ts'
+import { ordinalOf } from '../../src/sessions/fabric/ordinal.ts'
 
 export function encodeSeedTranscript(
   rows: ReadonlyArray<Record<string, unknown>>,

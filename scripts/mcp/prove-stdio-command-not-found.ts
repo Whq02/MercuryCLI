@@ -17,9 +17,9 @@ if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 delete process.env.CI
 process.env.MERCURY_MCP_TIMEOUT_MS = '3000'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 
 const comspecHitFile = join(SCRATCH, 'comspec-was-invoked')
@@ -42,14 +42,14 @@ const check = (name: string, ok: boolean, detail = ''): void => {
 }
 
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — prove-stdio-command-not-found exceeded 60s; a connect in reconnectMcpServerImpl (src/services/mcp/client.ts) did not settle, look at the PASS or FAIL line printed last above')
+  console.log('\nTIMEOUT — prove-stdio-command-not-found exceeded 60s; a connect in reconnectMcpServerImpl (src/integrations/mcp/client.ts) did not settle, look at the PASS or FAIL line printed last above')
   process.exit(1)
 }, 60_000)
 watchdog.unref?.()
 let lockedAliasDir: string | null = null
 
 try {
-  const mcp = await import('../../src/services/mcp/client.ts')
+  const mcp = await import('../../src/integrations/mcp/client.ts')
 
   console.log('============================================================')
   console.log(' MCP stdio command-not-found on Windows (SUBMIT 279)')
@@ -57,7 +57,7 @@ try {
 
   const connectFailed = async (name: string, config: Record<string, unknown>): Promise<string> => {
     const { client } = await mcp.reconnectMcpServerImpl(name, { ...config, scope: 'local' } as never)
-    check(`${name}: settles failed`, client.type === 'failed', `the connect must settle as failed (reconnectMcpServerImpl in src/services/mcp/client.ts); type=${String(client.type)}`)
+    check(`${name}: settles failed`, client.type === 'failed', `the connect must settle as failed (reconnectMcpServerImpl in src/integrations/mcp/client.ts); type=${String(client.type)}`)
     return client.type === 'failed' ? String(client.error ?? '') : ''
   }
 
@@ -71,12 +71,12 @@ try {
   check(
     'explicit missing command reads "command not found" on win32',
     explicitReason.startsWith(`command not found: ${missingExplicit}`) && explicitReason.includes('retry from /mcp'),
-    `describeMcpConnectFailure (src/services/mcp/utils.ts) must word an ENOENT as command not found, and missingSpawnCommandError (src/utils/platform/programs.ts) must report the missing command before cmd.exe runs; got: ${explicitReason}`,
+    `describeMcpConnectFailure (src/integrations/mcp/utils.ts) must word an ENOENT as command not found, and missingSpawnCommandError (src/platform/host-os/programs.ts) must report the missing command before cmd.exe runs; got: ${explicitReason}`,
   )
   check(
     'explicit missing command never surfaces cmd.exe stderr',
     !explicitReason.includes('Connection closed') && !explicitReason.includes('cannot find the path'),
-    `the stdio transport (src/services/mcp/client/transports.ts) must check the command with missingSpawnCommandError before it spawns, so cmd.exe stderr never reaches the reason; got: ${explicitReason}`,
+    `the stdio transport (src/integrations/mcp/client/transports.ts) must check the command with missingSpawnCommandError before it spawns, so cmd.exe stderr never reaches the reason; got: ${explicitReason}`,
   )
 
   const missingBare = 'definitely-missing-mcp-cmd-submit-279'
@@ -89,10 +89,10 @@ try {
   check(
     'bare missing command reads "command not found" on win32',
     bareReason.startsWith(`command not found: ${missingBare}`) && bareReason.includes('retry from /mcp'),
-    `missingSpawnCommandError (src/utils/platform/programs.ts) must find a bare missing command on PATH and describeMcpConnectFailure (src/services/mcp/utils.ts) must word it as command not found; got: ${bareReason}`,
+    `missingSpawnCommandError (src/platform/host-os/programs.ts) must find a bare missing command on PATH and describeMcpConnectFailure (src/integrations/mcp/utils.ts) must word it as command not found; got: ${bareReason}`,
   )
   if (HOST_PLATFORM !== 'win32') {
-    check('cmd.exe was never spawned for missing commands', !existsSync(comspecHitFile), 'the stdio transport (src/services/mcp/client/transports.ts) must refuse a missing command through missingSpawnCommandError before it spawns cmd.exe')
+    check('cmd.exe was never spawned for missing commands', !existsSync(comspecHitFile), 'the stdio transport (src/integrations/mcp/client/transports.ts) must refuse a missing command through missingSpawnCommandError before it spawns cmd.exe')
   }
 
   const realBin = HOST_PLATFORM === 'win32' ? process.execPath : join(SCRATCH, 'real-runner.exe')
@@ -109,7 +109,7 @@ try {
   check(
     'existing command passes preflight and still reports server stderr',
     loudReason.includes('server stderr: boot failed: bad key') && !loudReason.startsWith('command not found:'),
-    `missingSpawnCommandError (src/utils/platform/programs.ts) must accept an existing command, and describeMcpConnectFailure (src/services/mcp/utils.ts) must append the server stderr tail; got: ${loudReason}`,
+    `missingSpawnCommandError (src/platform/host-os/programs.ts) must accept an existing command, and describeMcpConnectFailure (src/integrations/mcp/utils.ts) must append the server stderr tail; got: ${loudReason}`,
   )
 
   if (HOST_PLATFORM !== 'win32') {
@@ -134,7 +134,7 @@ try {
     check(
       'app execution alias (bare) is not refused as "command not found" on win32',
       !bareAliasReason.startsWith('command not found:'),
-      `missingSpawnCommandError (src/utils/platform/programs.ts) must not refuse a path entry that exists as a link even when its target cannot be read; got: ${bareAliasReason}`,
+      `missingSpawnCommandError (src/platform/host-os/programs.ts) must not refuse a path entry that exists as a link even when its target cannot be read; got: ${bareAliasReason}`,
     )
 
     const fullAliasReason = await connectFailed('alias-full-win32', {
@@ -146,7 +146,7 @@ try {
     check(
       'app execution alias (full path) is not refused as "command not found" on win32',
       !fullAliasReason.startsWith('command not found:'),
-      `missingSpawnCommandError (src/utils/platform/programs.ts) must not refuse a full path that exists as a link even when its target cannot be read; got: ${fullAliasReason}`,
+      `missingSpawnCommandError (src/platform/host-os/programs.ts) must not refuse a full path that exists as a link even when its target cannot be read; got: ${fullAliasReason}`,
     )
 
     const danglingReason = await connectFailed('dangling-link-win32', {
@@ -158,7 +158,7 @@ try {
     check(
       'dangling link still reads "command not found" on win32',
       danglingReason.startsWith('command not found: dangling-server') && danglingReason.includes('retry from /mcp'),
-      `missingSpawnCommandError (src/utils/platform/programs.ts) must still report a link whose target is missing as command not found; got: ${danglingReason}`,
+      `missingSpawnCommandError (src/platform/host-os/programs.ts) must still report a link whose target is missing as command not found; got: ${danglingReason}`,
     )
   } else {
     const winApps = join(process.env.LOCALAPPDATA ?? '', 'Microsoft', 'WindowsApps')
@@ -195,7 +195,7 @@ try {
       check(
         'app execution alias (bare) is not refused as "command not found" on win32',
         !bareAliasReason.startsWith('command not found:'),
-        `missingSpawnCommandError (src/utils/platform/programs.ts) must accept a bare app execution alias; got: ${bareAliasReason}`,
+        `missingSpawnCommandError (src/platform/host-os/programs.ts) must accept a bare app execution alias; got: ${bareAliasReason}`,
       )
       const fullAliasReason = await connectFailed('alias-full-win32', {
         type: 'stdio',
@@ -206,14 +206,14 @@ try {
       check(
         'app execution alias (full path) is not refused as "command not found" on win32',
         !fullAliasReason.startsWith('command not found:'),
-        `missingSpawnCommandError (src/utils/platform/programs.ts) must accept a full-path app execution alias; got: ${fullAliasReason}`,
+        `missingSpawnCommandError (src/platform/host-os/programs.ts) must accept a full-path app execution alias; got: ${fullAliasReason}`,
       )
     } else {
-      const { missingSpawnCommandError } = await import('../../src/utils/platform/programs.ts')
+      const { missingSpawnCommandError } = await import('../../src/platform/host-os/programs.ts')
       check(
         'app execution alias passes missingSpawnCommandError on win32',
         missingSpawnCommandError(foundAlias.bare) === null && missingSpawnCommandError(foundAlias.file) === null,
-        `missingSpawnCommandError (src/utils/platform/programs.ts) must return null for an app execution alias; alias file: ${foundAlias.file}`,
+        `missingSpawnCommandError (src/platform/host-os/programs.ts) must return null for an app execution alias; alias file: ${foundAlias.file}`,
       )
     }
   }

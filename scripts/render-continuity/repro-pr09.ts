@@ -205,7 +205,7 @@ for (const spec of specs) {
   }
 
   const key = (c: number[]): string => `${c[0]},${c[1]}`
-  const { getTheme: getTheme09 } = await import('../../src/utils/theme.js')
+  const { getTheme: getTheme09 } = await import('../../src/screen/theme/theme.js')
   const _rgb09 = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(String(getTheme09('dark').selectionBg))
   const SEL_BG = _rgb09
     ? _rgb09.slice(1).map(n => Number(n).toString(16).padStart(2, '0')).join('')

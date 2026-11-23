@@ -44,12 +44,12 @@ const watches: Array<{ options: WatchOptions; stopped: boolean; pipeClosed: numb
 const pipes: Array<{ fd: number; onClosed: () => void; closed: boolean }> = []
 const note = (call: string, args: unknown[]): void => void seen.push({ call, args })
 
-const workers = await import('../../src/daemon/concourseWorkers.ts')
-const ownerWatch = await import('../../src/utils/ownerWatch.ts')
-const controlSocket = await import('../../src/daemon/controlSocket.ts')
-const idleRetirement = await import('../../src/daemon/idleRetirement.ts')
-const sleepDoor = await import('../../src/utils/sleep.ts')
-mock.module('../../src/daemon/concourseWorkers.ts', () => ({
+const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const ownerWatch = await import('../../src/daemon/control/ownerWatch.ts')
+const controlSocket = await import('../../src/daemon/control/controlSocket.ts')
+const idleRetirement = await import('../../src/daemon/control/idleRetirement.ts')
+const sleepDoor = await import('../../src/platform/async/sleep.ts')
+mock.module('../../src/daemon/concourse-workers/concourseWorkers.ts', () => ({
   ...workers,
   parkAllConcourseSessions: (...args: unknown[]) => {
     note('parkAll', args)
@@ -73,7 +73,7 @@ mock.module('../../src/daemon/concourseWorkers.ts', () => ({
     return script.records
   },
 }))
-mock.module('../../src/utils/ownerWatch.ts', () => ({
+mock.module('../../src/daemon/control/ownerWatch.ts', () => ({
   ...ownerWatch,
   getProcessStartTokenAsync: (pid: number) => {
     note('token', [pid])
@@ -107,15 +107,15 @@ mock.module('../../src/utils/ownerWatch.ts', () => ({
   parseOwnerFd: () => script.ownerFd,
   isProcessAlive: (pid: number) => script.alive(pid),
 }))
-mock.module('../../src/daemon/controlSocket.ts', () => ({
+mock.module('../../src/daemon/control/controlSocket.ts', () => ({
   ...controlSocket,
   readDaemonState: async () => script.record,
   writeDaemonState: async (record: unknown) => {
     note('writeRecord', [record])
   },
 }))
-mock.module('../../src/daemon/idleRetirement.ts', () => ({ ...idleRetirement, sessionParkDrainMs: () => script.ceilingMs }))
-mock.module('../../src/utils/sleep.ts', () => ({
+mock.module('../../src/daemon/control/idleRetirement.ts', () => ({ ...idleRetirement, sessionParkDrainMs: () => script.ceilingMs }))
+mock.module('../../src/platform/async/sleep.ts', () => ({
   ...sleepDoor,
   sleep: async (ms: number) => {
     note('sleep', [ms])
@@ -125,8 +125,8 @@ mock.module('../../src/utils/sleep.ts', () => ({
 
 const owner = await import('../../src/daemon/run/owner.ts')
 const { makeDaemonRunState } = await import('../../src/daemon/run/state.ts')
-const { DaemonBreaker } = await import('../../src/utils/daemonBreaker.ts')
-const { SESSIONLESS_EXIT_GRACE_MS } = await import('../../src/daemon/sessionlessExit.ts')
+const { DaemonBreaker } = await import('../../src/daemon/control/daemonBreaker.ts')
+const { SESSIONLESS_EXIT_GRACE_MS } = await import('../../src/daemon/control/sessionlessExit.ts')
 
 const roster = { planted: 'roster' }
 const fresh = (): ReturnType<typeof makeDaemonRunState> => {

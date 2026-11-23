@@ -10,10 +10,10 @@ process.env.MERCURY_HOME = mkdtempSync(join(tmpdir(), 'ctm-g03p-home-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
 
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { resolveDisplayedSessionModel } = await import(
-  '../../src/hooks/useDisplayedSessionModel.ts'
+  '../../src/screen/model-picker/useDisplayedSessionModel.ts'
 )
 
 let failures = 0

@@ -201,7 +201,7 @@ tally.section('a file target is unchanged: every row through the step and the ou
 
 tally.section('the seam: the exit drain waits while the reader is alive, the guard hands the caller\'s callback to the real write')
 {
-  const { drainPipedStdoutForExit } = await import('../../src/utils/gracefulShutdown.ts')
+  const { drainPipedStdoutForExit } = await import('../../src/platform/processes/gracefulShutdown.ts')
   const alive = { isTTY: false, writableLength: 300, destroyed: false, writable: true }
   let settled = false
   const waiting = drainPipedStdoutForExit(alive).then(result => {
@@ -217,7 +217,7 @@ tally.section('the seam: the exit drain waits while the reader is alive, the gua
   const goneResult = await drainPipedStdoutForExit(gone)
   tally.check('a reader whose pipe is gone ends the wait with the remainder counted', !goneResult.drained && goneResult.remainingBytes === 300)
   tally.check('a TTY never waits', (await drainPipedStdoutForExit({ isTTY: true, writableLength: 5, destroyed: false, writable: true })).drained)
-  const { observeStdoutPressure } = await import('../../src/utils/gracefulShutdown.ts')
+  const { observeStdoutPressure } = await import('../../src/platform/processes/gracefulShutdown.ts')
   const listeners: Record<string, Array<(...args: unknown[]) => void>> = {}
   const errored = {
     isTTY: false,

@@ -7,15 +7,15 @@ import { join } from 'node:path'
 let failures = 0
 const tableHint = (label: string): string =>
   label.startsWith('docs')
-    ? 'to fix, make the events table of docs/HOOKS.md agree with hookEventTable in src/utils/hooks/contract.ts (one row per event, its match field and its answer fields)'
-    : 'to fix, change hookEventTable, the payload and answer schemas or the match helpers in src/utils/hooks/contract.ts, or this file expectation if the event table was meant to change'
+    ? 'to fix, make the events table of docs/HOOKS.md agree with hookEventTable in src/integrations/event-hooks/contract.ts (one row per event, its match field and its answer fields)'
+    : 'to fix, change hookEventTable, the payload and answer schemas or the match helpers in src/integrations/event-hooks/contract.ts, or this file expectation if the event table was meant to change'
 const check = (label: string, cond: boolean, detail = ''): void => {
   const tail = [detail, cond ? '' : tableHint(label)].filter(part => part !== '').join(' | ')
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${tail ? ' — ' + tail : ''}`)
   if (!cond) failures++
 }
 
-const C = await import('../../src/utils/hooks/contract.ts')
+const C = await import('../../src/integrations/event-hooks/contract.ts')
 
 const EVENTS = [
   'turn.start', 'turn.answer', 'turn.end',

@@ -1,11 +1,11 @@
 import type { UUID } from 'node:crypto'
-import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js'
-import { getSessionId } from '../../bootstrap/state.js'
-import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
-import { getTranscriptPath, saveAgentName, saveCustomTitle } from '../../utils/sessionStorage.js'
-import { isCompactBoundaryMessage } from '../../services/messages.js'
+import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../catalogue/command.js'
+import { getSessionId } from '../../boot/process-state/processState.js'
+import { getFocusedSessionConnector, hasFocusedSession } from '../../engine/connector/focusedConnector.js'
+import { getTranscriptPath, saveAgentName, saveCustomTitle } from '../../sessions/transcripts/sessionStorage.js'
+import { isCompactBoundaryMessage } from '../../engine/messages/messages.js'
 import { generateSessionName } from './generateSessionName.js'
-import { partiallySanitizeUnicode } from '../../utils/sanitization.js'
+import { partiallySanitizeUnicode } from '../../platform/text/unicodeSanitization.js'
 
 export async function call(
   onDone: LocalJSXCommandOnDone,
@@ -48,7 +48,7 @@ export async function call(
 
   if (focusedSessionId !== '') {
     try {
-      const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
+      const { daemonControlRpc } = await import('../../daemon/control/controlSocket.js')
       const reply = await daemonControlRpc(
         { op: 'sessionControl', action: 'set-title', sessionId: focusedSessionId, by: 'operator', title: name, titleSource: 'operator' },
         { timeoutMs: 10_000 },

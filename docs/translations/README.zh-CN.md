@@ -374,7 +374,7 @@ docker run --rm mercury --version
 - **Apollo Mode**，即规格访谈（specification interview）：回答智能体的问题，以完成它将用来构建原型的规格说明。参见 [docs/APOLLO-MODE.md](../APOLLO-MODE.md)。
 - **恢复。** 原子化发布、带日志的操作，以及启动时的状态对账（reconciliation）。参见 [docs/DURABILITY.md](../DURABILITY.md)。
 
-运行时标志定义在 `src/substrate/flagRegistry.ts` 中，以 `MERCURY_*` 设置的形式对外提供，并按需展示。集成兼容性记录在 [docs/COMPATIBILITY.md](../COMPATIBILITY.md) 中。完整的文档索引见 [docs/README.md](../README.md)。
+运行时标志定义在 `src/platform/substrate/flagRegistry.ts` 中，以 `MERCURY_*` 设置的形式对外提供，并按需展示。集成兼容性记录在 [docs/COMPATIBILITY.md](../COMPATIBILITY.md) 中。完整的文档索引见 [docs/README.md](../README.md)。
 
 ## 斜杠命令
 

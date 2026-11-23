@@ -22,7 +22,7 @@ const FOLD_CLAUSE = 'the fold runs by itself at that line and the turn goes on a
 const FOLD_NOTE = 'Your context is folded automatically when it nears its window and the turn goes on after the fold: a context near full is no reason to end your turn.'
 
 let failures = 0
-const WHERE_TO_CHANGE = 'to fix: the tool is src/tools/ContextLeftTool/ContextLeftTool.ts with its wording in src/tools/ContextLeftTool/prompt.ts, listed by getAllBaseTools and getTools in src/tools.ts; the numbers it reports come from contextFillView in src/services/context/contextFill.ts; its deferral comes from isDeferredTool in src/tools/ToolSearchTool/prompt.ts'
+const WHERE_TO_CHANGE = 'to fix: the tool is src/tools/context-left/ContextLeftTool.ts with its wording in src/tools/context-left/prompt.ts, listed by getAllBaseTools and getTools in src/tools/kit/toolList.ts; the numbers it reports come from contextFillView in src/engine/context-window/contextFill.ts; its deferral comes from isDeferredTool in src/tools/tool-search/prompt.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${WHERE_TO_CHANGE}`}`)
@@ -31,18 +31,18 @@ const section = (title: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setCwdState(ROOT)
-const { getTools, getAllBaseTools, assembleToolPool } = await import('../../src/tools.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { contextFillView } = await import('../../src/services/context/contextFill.ts')
-const { isDeferredTool } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { TOOL_FAMILY_BY_NAME } = await import('../../src/components/mercury-ui/toolGlyphs.ts')
-const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/constants/tools.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Message = import('../../src/types/message.ts').Message
+const { getTools, getAllBaseTools, assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { contextFillView } = await import('../../src/engine/context-window/contextFill.ts')
+const { isDeferredTool } = await import('../../src/tools/tool-search/prompt.ts')
+const { TOOL_FAMILY_BY_NAME } = await import('../../src/screen/widgets/toolGlyphs.ts')
+const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/tools/kit/crewmateBarredTools.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 console.log('============================================================')
 console.log(` ${TOOL_NAME} — the model can ask how many tokens remain`)
@@ -56,14 +56,14 @@ check(`getTools() offers a tool named ${TOOL_NAME}`, tool !== undefined, `offere
 check(`getAllBaseTools() lists ${TOOL_NAME} unconditionally`, getAllBaseTools().some(candidate => candidate.name === TOOL_NAME))
 check(`assembleToolPool() shows ${TOOL_NAME} to the model`, assembleToolPool(permissionContext, []).some(candidate => candidate.name === TOOL_NAME))
 check(`${TOOL_NAME} defers like every rare tool — announced by line, its schema fetched through ToolSearch — so it adds nothing to the first request`, tool !== undefined && isDeferredTool(tool))
-const { searchToolsWithKeywords } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
+const { searchToolsWithKeywords } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
 const deferred = offered.filter(candidate => isDeferredTool(candidate))
 const found = await searchToolsWithKeywords('how much context window is left', deferred, offered, 3)
 check(`a ToolSearch for the context window finds ${TOOL_NAME} first among the deferred tools`, found[0] === TOOL_NAME, `found: ${found.join(', ')}`)
 
-let mod: typeof import('../../src/tools/ContextLeftTool/ContextLeftTool.ts') | null = null
+let mod: typeof import('../../src/tools/context-left/ContextLeftTool.ts') | null = null
 try {
-  mod = await import('../../src/tools/ContextLeftTool/ContextLeftTool.ts')
+  mod = await import('../../src/tools/context-left/ContextLeftTool.ts')
 } catch (error) {
   check('the tool module loads', false, String(error))
 }
@@ -85,7 +85,7 @@ const toolResult = (text: string): Message =>
   ({ type: 'user', uuid: `t-${++n}`, timestamp: new Date().toISOString(), message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_1', content: text }] } }) as never
 const count = (value: number): string => value.toLocaleString('en-US')
 
-async function answer(messages: Message[], model: string): Promise<import('../../src/tools/ContextLeftTool/ContextLeftTool.ts').ContextLeftOutput> {
+async function answer(messages: Message[], model: string): Promise<import('../../src/tools/context-left/ContextLeftTool.ts').ContextLeftOutput> {
   const context = {
     messages,
     options: { engineModel: model, tools: [], commands: [], mcpClients: [], verbose: false, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } },
@@ -210,8 +210,8 @@ section('§9 every roster that counts tools by name carries it')
 
 section("a crewmate's standing notes say the same fact once, only while the fold is automatic")
 {
-  const prompts = await import('../../src/constants/prompts.ts')
-  const local = await import('../../src/constants/localPromptProfile.ts')
+  const prompts = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+  const local = await import('../../src/models/roads/localPromptProfile.ts')
   const notesOf = async (): Promise<string[]> => {
     const blocks = await prompts.enhanceSystemPromptWithEnvDetails(['Crewmate instructions.'], STATED, undefined, 'a1fold0note')
     return (blocks.find(block => block.startsWith('Notes:')) ?? '').split('\n')

@@ -6,7 +6,7 @@ import { delimiter, join, resolve } from 'node:path'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 
 let failures = 0
-const whichFixHint = 'change whichSync in src/utils/which.ts (what it searches: PATH entries only, never the launch folder on Windows, the current directory for an empty PATH entry on POSIX), or its imports if the build check failed'
+const whichFixHint = 'change whichSync in src/platform/processes/which.ts (what it searches: PATH entries only, never the launch folder on Windows, the current directory for an empty PATH entry on POSIX), or its imports if the build check failed'
 function check(label: string, cond: boolean, detail = ''): void {
   if (cond) {
     console.log(`  [PASS] ${label}`)
@@ -64,7 +64,7 @@ console.log('============================================================')
 console.log(' which() and the launch folder')
 console.log('============================================================')
 
-const built = await Bun.build({ entrypoints: [resolve(import.meta.dir, '../../src/utils/which.ts')], target: 'node', format: 'esm', outdir: join(root, 'built') })
+const built = await Bun.build({ entrypoints: [resolve(import.meta.dir, '../../src/platform/processes/which.ts')], target: 'node', format: 'esm', outdir: join(root, 'built') })
 check('which.ts and the modules it imports build for Node', built.success && built.outputs.length === 1, built.logs.map(String).join(' | '))
 const whichForNode = built.outputs[0]?.path ?? ''
 

@@ -7,28 +7,28 @@ const prompt = `Shows or closes the record Mercury keeps of the work in this pro
 const { $schema, ...schema } = z.toJSONSchema(TransactionTool.inputSchema)
 check('T1 strict two-operation schema with only op, verdict, unresolved', JSON.stringify(Object.keys(schema.properties ?? {})) === '["op","verdict","unresolved"]' &&
   JSON.stringify((schema.properties?.op as { enum?: string[] })?.enum) === '["status","finish"]' &&
-  JSON.stringify(schema.required) === '["op"]' && schema.additionalProperties === false, `${JSON.stringify(schema)} — change TransactionTool.inputSchema in src/tools/TransactionTool/TransactionTool.ts to op, verdict and unresolved only, op limited to status and finish, strict`)
+  JSON.stringify(schema.required) === '["op"]' && schema.additionalProperties === false, `${JSON.stringify(schema)} — change TransactionTool.inputSchema in src/tools/transaction/TransactionTool.ts to op, verdict and unresolved only, op limited to status and finish, strict`)
 const validation = await TransactionTool.validateInput!({ op: 'finish' } as never, {} as never)
-check('T4 finish still requires its verdict', !validation.result && validation.message === 'finish requires verdict: "completed" | "failed" | "abandoned".', `${JSON.stringify(validation)} — change validateInput in src/tools/TransactionTool/TransactionTool.ts so op finish without a verdict is refused with the exact message`)
+check('T4 finish still requires its verdict', !validation.result && validation.message === 'finish requires verdict: "completed" | "failed" | "abandoned".', `${JSON.stringify(validation)} — change validateInput in src/tools/transaction/TransactionTool.ts so op finish without a verdict is refused with the exact message`)
 check('T5 status only is read-only, including the empty-input guard', TransactionTool.isReadOnly({ op: 'status' } as never) &&
-  !TransactionTool.isReadOnly({ op: 'finish', verdict: 'failed' } as never) && !TransactionTool.isReadOnly({} as never), 'change isReadOnly in src/tools/TransactionTool/TransactionTool.ts so only op status is read-only, and empty input is not')
+  !TransactionTool.isReadOnly({ op: 'finish', verdict: 'failed' } as never) && !TransactionTool.isReadOnly({} as never), 'change isReadOnly in src/tools/transaction/TransactionTool.ts so only op status is read-only, and empty input is not')
 const description = await TransactionTool.prompt({} as never)
 const bytes = Buffer.byteLength(JSON.stringify({ name: 'Transaction', description, input_schema: schema, eager_input_streaming: true, defer_loading: true }))
-check('T6 exact description, naming no other tool, and definition at most 1500 bytes', description === prompt && !/\b(?:Edit|Write|ChangeSet|AstEdit|NotebookEdit|Structure|Bash|Test|Launch|Journey)\b/.test(description) && bytes <= 1500, `${bytes} bytes, limit 1500 — the description of TransactionTool in src/tools/TransactionTool/TransactionTool.ts must equal the prompt constant of this proof, name no other tool, and keep the definition within the limit`)
+check('T6 exact description, naming no other tool, and definition at most 1500 bytes', description === prompt && !/\b(?:Edit|Write|ChangeSet|AstEdit|NotebookEdit|Structure|Bash|Test|Launch|Journey)\b/.test(description) && bytes <= 1500, `${bytes} bytes, limit 1500 — the description of TransactionTool in src/tools/transaction/TransactionTool.ts must equal the prompt constant of this proof, name no other tool, and keep the definition within the limit`)
 console.log(`MEASURE Transaction definition ${bytes} bytes; description ${Buffer.byteLength(description)}; schema ${Buffer.byteLength(JSON.stringify(schema))}`)
 check('surface guards retain deferral, strictness, output size, concurrency and replay', TransactionTool.shouldDefer === true && TransactionTool.strict === true &&
-  TransactionTool.maxResultSizeChars === 40_000 && !TransactionTool.isConcurrencySafe({} as never) && !('outputSchema' in TransactionTool), 'TransactionTool in src/tools/TransactionTool/TransactionTool.ts must keep shouldDefer and strict true, maxResultSizeChars 40000, not be concurrency safe, and define no outputSchema')
+  TransactionTool.maxResultSizeChars === 40_000 && !TransactionTool.isConcurrencySafe({} as never) && !('outputSchema' in TransactionTool), 'TransactionTool in src/tools/transaction/TransactionTool.ts must keep shouldDefer and strict true, maxResultSizeChars 40000, not be concurrency safe, and define no outputSchema')
 
 const noCheck = fixture(['one.txt'], true)
 emit(noCheck)
 const refused = await finish(noCheck)
 const live = tx.latestTransaction(noCheck.root)
 check('T7 refusal saves an open record and names the missing check', refused.data.outcome === 'failed' &&
-  refused.data.result.startsWith('"completed" refused on tx-') && refused.data.result.includes('no check has run since the last change (file.edit: one.txt) — run the project\'s tests or build through Bash or Test; the result is recorded here by itself') && live?.verdict === 'open', `${refused.data.result} — the completed refusal in src/tools/TransactionTool/TransactionTool.ts must keep the record open and name the missing check`)
-check('T7 refusal keeps the effect shape for the generic error mapper', refused.effect?.outcome === 'failed' && refused.effect.operation === 'transaction.finish' && refused.effect.changedPaths.length === 0, `effect ${JSON.stringify(refused.effect)} — the finish refusal in src/tools/TransactionTool/TransactionTool.ts must return an effect with outcome failed, operation transaction.finish and no changed paths`)
-const { runToolUse } = await import('../../src/services/tools/toolExecution.js')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+  refused.data.result.startsWith('"completed" refused on tx-') && refused.data.result.includes('no check has run since the last change (file.edit: one.txt) — run the project\'s tests or build through Bash or Test; the result is recorded here by itself') && live?.verdict === 'open', `${refused.data.result} — the completed refusal in src/tools/transaction/TransactionTool.ts must keep the record open and name the missing check`)
+check('T7 refusal keeps the effect shape for the generic error mapper', refused.effect?.outcome === 'failed' && refused.effect.operation === 'transaction.finish' && refused.effect.changedPaths.length === 0, `effect ${JSON.stringify(refused.effect)} — the finish refusal in src/tools/transaction/TransactionTool.ts must return an effect with outcome failed, operation transaction.finish and no changed paths`)
+const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 const wire = await runWithCwdOverride(noCheck.root, async () => {
   const context = { owner: noCheck.owner, abortController: new AbortController(), messages: [], readFileState: new Map(), toolDecisions: new Map(),
     getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} } }),
@@ -42,7 +42,7 @@ const wire = await runWithCwdOverride(noCheck.root, async () => {
   }
   return blocks.find(block => block.type === 'tool_result')
 })
-check('T7 the real tool-call path marks the completion refusal is_error', wire?.is_error === true && String(wire.content).includes('"completed" refused on tx-'), `${JSON.stringify(wire)} — a refused completed finish in src/tools/TransactionTool/TransactionTool.ts must reach the tool result as is_error true`)
+check('T7 the real tool-call path marks the completion refusal is_error', wire?.is_error === true && String(wire.content).includes('"completed" refused on tx-'), `${JSON.stringify(wire)} — a refused completed finish in src/tools/transaction/TransactionTool.ts must reach the tool result as is_error true`)
 
 const retry = fixture()
 emit(retry)
@@ -50,7 +50,7 @@ evidence(retry, false)
 await status(retry)
 evidence(retry, true)
 const retried = await finish(retry)
-check('T8 newest passing check clears the earlier failed check without another edit', retried.data.outcome === 'succeeded' && retried.data.result.startsWith('Finished tx-') && retried.data.result.includes('as completed.'), `${retried.data.result} — completionGapsFor in src/services/ide/ideTransaction.ts must treat the newest passing check as clearing an earlier failed check`)
+check('T8 newest passing check clears the earlier failed check without another edit', retried.data.outcome === 'succeeded' && retried.data.result.startsWith('Finished tx-') && retried.data.result.includes('as completed.'), `${retried.data.result} — completionGapsFor in src/integrations/ide/ideTransaction.ts must treat the newest passing check as clearing an earlier failed check`)
 
 for (const outcome of ['failed', 'indeterminate'] as const) {
   const f = fixture()
@@ -58,12 +58,12 @@ for (const outcome of ['failed', 'indeterminate'] as const) {
   evidence(f)
   emit(f, 'file.edit', { outcome, ok: outcome !== 'failed' })
   const result = await finish(f)
-  check(`T9 ${outcome} change after the landed one still blocks completion`, result.data.outcome === 'failed' && result.data.result.includes(`a change after the last landed one ended ${outcome} (file.edit: one.txt)`), `${result.data.result} — completionGapsFor in src/services/ide/ideTransaction.ts must block completion for a failed or indeterminate change after the last landed one`)
+  check(`T9 ${outcome} change after the landed one still blocks completion`, result.data.outcome === 'failed' && result.data.result.includes(`a change after the last landed one ended ${outcome} (file.edit: one.txt)`), `${result.data.result} — completionGapsFor in src/integrations/ide/ideTransaction.ts must block completion for a failed or indeterminate change after the last landed one`)
   const closed = await finish(f, 'failed', ['u1'])
-  check('T10 failed finish keeps unresolved verbatim and is no-change', closed.data.outcome === 'no-change' && tx.latestTransaction(f.root)?.unresolved.at(-1) === 'u1', `outcome ${closed.data.outcome} — finish with verdict failed in src/tools/TransactionTool/TransactionTool.ts must return no-change and keep the unresolved entries verbatim`)
+  check('T10 failed finish keeps unresolved verbatim and is no-change', closed.data.outcome === 'no-change' && tx.latestTransaction(f.root)?.unresolved.at(-1) === 'u1', `outcome ${closed.data.outcome} — finish with verdict failed in src/tools/transaction/TransactionTool.ts must return no-change and keep the unresolved entries verbatim`)
 }
 const empty = fixture()
-check('T11 nothing to finish keeps the exact result', (await finish(empty)).data.result === 'Nothing to finish — no transaction is open at this root.', 'finish in src/tools/TransactionTool/TransactionTool.ts must return the exact nothing-to-finish text when no record is open')
+check('T11 nothing to finish keeps the exact result', (await finish(empty)).data.result === 'Nothing to finish — no transaction is open at this root.', 'finish in src/tools/transaction/TransactionTool.ts must return the exact nothing-to-finish text when no record is open')
 
 const old = fixture()
 const oldRecord = { _v: 1, id: 'tx-1791200000000-19be44', intent: 'fix the cart total rounding', owner: old.owner,
@@ -85,27 +85,27 @@ Checks since the last change:
 "completed" cannot land yet:
   - the last change carries no mercury://receipt ref (a record from an older build) — finish it with verdict "abandoned"; the next change starts a new record
 mercury://ide/transaction/${oldRecord.id}`
-check('T12 historical record decodes and prints the exact compatibility shape', oldStatus === expected, `${oldStatus} — the status text for a record from an older build in src/tools/TransactionTool/TransactionTool.ts and src/services/ide/ideTransaction.ts must match the expected compatibility shape in this proof`)
-check('T12 historical apply without receipt cannot complete', (await finish(old)).data.outcome === 'failed', 'completionGapsFor in src/services/ide/ideTransaction.ts must refuse completion when the last change carries no receipt ref')
-check('T12 historical record can be abandoned', (await finish(old, 'abandoned')).data.outcome === 'no-change', 'finish with verdict abandoned in src/tools/TransactionTool/TransactionTool.ts must always land and return no-change')
+check('T12 historical record decodes and prints the exact compatibility shape', oldStatus === expected, `${oldStatus} — the status text for a record from an older build in src/tools/transaction/TransactionTool.ts and src/integrations/ide/ideTransaction.ts must match the expected compatibility shape in this proof`)
+check('T12 historical apply without receipt cannot complete', (await finish(old)).data.outcome === 'failed', 'completionGapsFor in src/integrations/ide/ideTransaction.ts must refuse completion when the last change carries no receipt ref')
+check('T12 historical record can be abandoned', (await finish(old, 'abandoned')).data.outcome === 'no-change', 'finish with verdict abandoned in src/tools/transaction/TransactionTool.ts must always land and return no-change')
 const allKinds = { ...oldRecord, id: 'tx-all-kinds', steps: tx.TX_STEP_KINDS.map(kind => ({ kind, at: 1, summary: kind, refs: [], outcome: 'info' })) }
 writeFileSync(join(store, `${allKinds.id}.json`), JSON.stringify(allKinds))
-check('all thirteen historical kinds remain decodable', tx.TX_STEP_KINDS.length === 13 && tx.getTransaction(allKinds.id, old.root)?.steps.length === 13, 'TX_STEP_KINDS and the record decoder in src/services/ide/ideTransaction.ts must keep all thirteen step kinds')
+check('all thirteen historical kinds remain decodable', tx.TX_STEP_KINDS.length === 13 && tx.getTransaction(allKinds.id, old.root)?.steps.length === 13, 'TX_STEP_KINDS and the record decoder in src/integrations/ide/ideTransaction.ts must keep all thirteen step kinds')
 
 const root = fixture()
 emit(root)
 await finish(root)
 const another = { ...root, owner: `${root.owner}-other` as typeof root.owner }
-check('status reports saved receipts invisible to another owner without replay', (await status(another)).includes('receipt not visible here (earlier process or another agent): re-read before relying on it'), 'status in src/tools/TransactionTool/TransactionTool.ts must report saved receipts as not visible to another owner without replaying them')
+check('status reports saved receipts invisible to another owner without replay', (await status(another)).includes('receipt not visible here (earlier process or another agent): re-read before relying on it'), 'status in src/tools/transaction/TransactionTool.ts must report saved receipts as not visible to another owner without replaying them')
 evidence(root)
 await finish(root)
-check('status after finish names the latest saved record, not a new journal', (await status(root)).startsWith('Nothing recorded at this root since the last finish.') && (await status(root)).includes('Latest record:'), 'status in src/tools/TransactionTool/TransactionTool.ts must open with the nothing-recorded line and name the latest saved record after a finish')
+check('status after finish names the latest saved record, not a new journal', (await status(root)).startsWith('Nothing recorded at this root since the last finish.') && (await status(root)).includes('Latest record:'), 'status in src/tools/transaction/TransactionTool.ts must open with the nothing-recorded line and name the latest saved record after a finish')
 emit(root)
-check('next change after finish opens an unsaved record', (await status(root)).startsWith('unsaved record [open]'), 'status in src/tools/TransactionTool/TransactionTool.ts must show an unsaved open record for the first change after a finish')
+check('next change after finish opens an unsaved record', (await status(root)).startsWith('unsaved record [open]'), 'status in src/tools/transaction/TransactionTool.ts must show an unsaved open record for the first change after a finish')
 
 const dropped = fixture()
 const windowed = await tx.openTransaction({ owner: dropped.owner, intent: 'window loses anchor', from: dropped.root })
 for (let n = 0; n < 101; n++) await tx.noteStep({ id: windowed.id, owner: dropped.owner, from: dropped.root, kind: n === 0 ? 'apply' : 'test', summary: 'window', outcome: 'ok' })
-check('a dropped landed change cannot manufacture completion', tx.completionGapsFor(tx.getTransaction(windowed.id, dropped.root)!).some(gap => gap.startsWith('no change has landed')), 'completionGapsFor in src/services/ide/ideTransaction.ts must report no change landed when the landed change fell out of the 100-step window')
+check('a dropped landed change cannot manufacture completion', tx.completionGapsFor(tx.getTransaction(windowed.id, dropped.root)!).some(gap => gap.startsWith('no change has landed')), 'completionGapsFor in src/integrations/ide/ideTransaction.ts must report no change landed when the landed change fell out of the 100-step window')
 
 done('prove-transaction-contract')

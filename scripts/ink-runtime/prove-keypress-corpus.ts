@@ -6,7 +6,7 @@ import {
   parseMultipleKeypresses,
   type KeyParseState,
   type ParsedInput,
-} from '../../src/ink/input/input-decoder.js'
+} from '../../src/screen/renderer/input/input-decoder.js'
 
 const GOLDEN = join(import.meta.dir, 'goldens', 'keypress-corpus.json')
 const record = process.argv.includes('--record')
@@ -215,7 +215,7 @@ for (const entry of CORPUS) {
       check(
         `chunk-split invariance: ${entry.name} @${i}`,
         false,
-        `split(${i}) ⇒ ${JSON.stringify(semanticTrace(split.events))} vs whole ⇒ ${wholeTrace}; parseMultipleKeypresses in src/ink/input/input-decoder.ts must buffer a partial sequence across reads so a split input decodes like the whole`,
+        `split(${i}) ⇒ ${JSON.stringify(semanticTrace(split.events))} vs whole ⇒ ${wholeTrace}; parseMultipleKeypresses in src/screen/renderer/input/input-decoder.ts must buffer a partial sequence across reads so a split input decodes like the whole`,
       )
       break
     }
@@ -225,7 +225,7 @@ for (const entry of CORPUS) {
     check(
       `char-by-char invariance: ${entry.name}`,
       JSON.stringify(semanticTrace(cbc.events)) === wholeTrace,
-      `cbc ⇒ ${JSON.stringify(semanticTrace(cbc.events))}; parseMultipleKeypresses in src/ink/input/input-decoder.ts must decode one character per read like the whole input (or add a cbcExempt reason in CORPUS)`,
+      `cbc ⇒ ${JSON.stringify(semanticTrace(cbc.events))}; parseMultipleKeypresses in src/screen/renderer/input/input-decoder.ts must decode one character per read like the whole input (or add a cbcExempt reason in CORPUS)`,
     )
   } else if (entry.cbcExempt !== undefined) {
     console.log(`  [....] char-by-char invariance: ${entry.name} — exempt: ${entry.cbcExempt}`)
@@ -234,7 +234,7 @@ for (const entry of CORPUS) {
   check(
     `post-flush state clean: ${entry.name}`,
     whole.endState.mode === 'NORMAL' && whole.endState.incomplete === '',
-    `${JSON.stringify(whole.endState)}; parseMultipleKeypresses(state, null) in src/ink/input/input-decoder.ts must flush the pending sequence and return to NORMAL mode`,
+    `${JSON.stringify(whole.endState)}; parseMultipleKeypresses(state, null) in src/screen/renderer/input/input-decoder.ts must flush the pending sequence and return to NORMAL mode`,
   )
 }
 
@@ -245,12 +245,12 @@ for (const probe of BYTE_PROBES) {
     `byte-split invariance: ${probe.name}`,
     JSON.stringify(semanticTrace(split.events)) ===
       JSON.stringify(semanticTrace(whole.events)),
-    `split ⇒ ${JSON.stringify(semanticTrace(split.events))} vs whole ⇒ ${JSON.stringify(semanticTrace(whole.events))}; parseMultipleKeypresses in src/ink/input/input-decoder.ts must hold an incomplete UTF-8 sequence until its remaining bytes arrive`,
+    `split ⇒ ${JSON.stringify(semanticTrace(split.events))} vs whole ⇒ ${JSON.stringify(semanticTrace(whole.events))}; parseMultipleKeypresses in src/screen/renderer/input/input-decoder.ts must hold an incomplete UTF-8 sequence until its remaining bytes arrive`,
   )
   check(
     `byte-split leaves no pending state: ${probe.name}`,
     split.endState.incomplete === '' && split.endState.mode === 'NORMAL',
-    `${JSON.stringify(split.endState)}; parseMultipleKeypresses in src/ink/input/input-decoder.ts must not leave a completed byte-split sequence pending`,
+    `${JSON.stringify(split.endState)}; parseMultipleKeypresses in src/screen/renderer/input/input-decoder.ts must not leave a completed byte-split sequence pending`,
   )
   results[probe.name] = split
 }
@@ -261,7 +261,7 @@ for (const probe of DANGLING_PROBES) {
     `dangling tail flushes like the whole feed: ${probe.name}`,
     JSON.stringify(semanticTrace(dangling.events)) ===
       JSON.stringify(semanticTrace(whole.events)),
-    `dangling ⇒ ${JSON.stringify(semanticTrace(dangling.events))} vs whole ⇒ ${JSON.stringify(semanticTrace(whole.events))}; the final parseMultipleKeypresses(state, null) flush in src/ink/input/input-decoder.ts must emit a dangling partial sequence as the whole feed does`,
+    `dangling ⇒ ${JSON.stringify(semanticTrace(dangling.events))} vs whole ⇒ ${JSON.stringify(semanticTrace(whole.events))}; the final parseMultipleKeypresses(state, null) flush in src/screen/renderer/input/input-decoder.ts must emit a dangling partial sequence as the whole feed does`,
   )
   results[probe.name] = dangling
 }
@@ -294,7 +294,7 @@ if (record) {
           )
       }
     }
-    check('all decoded sequences match the golden', mismatches === 0, `${mismatches} entries diverged; the [FAIL] lines above show golden vs live, so change parseMultipleKeypresses in src/ink/input/input-decoder.ts back, or run --record if the new decoding is intended`)
+    check('all decoded sequences match the golden', mismatches === 0, `${mismatches} entries diverged; the [FAIL] lines above show golden vs live, so change parseMultipleKeypresses in src/screen/renderer/input/input-decoder.ts back, or run --record if the new decoding is intended`)
   }
 }
 

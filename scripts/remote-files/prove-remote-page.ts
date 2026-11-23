@@ -19,15 +19,15 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS'])
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(project)
 
-const { parseRemotePath } = await import('../../src/utils/remoteFiles/target.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
-const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
-const { closeRemoteConnections } = await import('../../src/services/remoteFiles/connection.ts')
+const { parseRemotePath } = await import('../../src/platform/remote-file-target/target.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
+const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
+const { closeRemoteConnections } = await import('../../src/platform/remote-files/connection.ts')
 setSessionTrustAccepted(true)
 enableConfigs()
 setOriginalCwd(project)
@@ -36,8 +36,8 @@ setCwdState(project)
 let failures = 0
 let checks = 0
 const SECTION_FIX: Record<string, string> = {
-  'every path': 'either change parseRemotePath in src/utils/remoteFiles/target.ts, or correct the ssh:// example the failing check names in docs/REMOTE-FILES.md',
-  'the rules ': 'either change the permission check of the tool the failing check calls (checkPermissions in src/tools/FileReadTool/FileReadTool.ts or src/tools/FileEditTool/FileEditTool.ts, call in src/tools/GrepTool/GrepTool.ts), or correct the rules example in docs/REMOTE-FILES.md',
+  'every path': 'either change parseRemotePath in src/platform/remote-file-target/target.ts, or correct the ssh:// example the failing check names in docs/REMOTE-FILES.md',
+  'the rules ': 'either change the permission check of the tool the failing check calls (checkPermissions in src/tools/read/ReadTool.ts or src/tools/edit/EditTool.ts, call in src/tools/grep/GrepTool.ts), or correct the rules example in docs/REMOTE-FILES.md',
 }
 let sectionKey = ''
 const check = (label: string, ok: boolean, detail = ''): void => {

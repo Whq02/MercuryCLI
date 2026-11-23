@@ -1,4 +1,4 @@
-import { evaluateCommitGate } from '../../src/guards/commitGate.js'
+import { evaluateCommitGate } from '../../src/permissions/guards/commitGate.js'
 
 interface Case {
   cmd: string
@@ -48,7 +48,7 @@ for (const c of CASES) {
   const tag = ok ? '[PASS]' : '[FAIL]'
   const exp = c.allow ? 'ALLOW' : 'DENY '
   console.log(`  ${tag} ${exp}  ${JSON.stringify(c.cmd)}`)
-  if (!ok) console.log(`         expected ${c.allow ? 'ALLOW' : 'DENY'}, got ${got ? 'ALLOW' : 'DENY'} — ${c.why}; change evaluateCommitGate in src/guards/commitGate.ts so this command is ${c.allow ? 'allowed' : 'denied'}`)
+  if (!ok) console.log(`         expected ${c.allow ? 'ALLOW' : 'DENY'}, got ${got ? 'ALLOW' : 'DENY'} — ${c.why}; change evaluateCommitGate in src/permissions/guards/commitGate.ts so this command is ${c.allow ? 'allowed' : 'denied'}`)
 }
 
 console.log('\n— fresh-receipt attestation —')
@@ -63,7 +63,7 @@ console.log('\n— fresh-receipt attestation —')
   ]
   for (const [label, ok] of cases) {
     if (!ok) fail = 1
-    console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — evaluateCommitGate in src/guards/commitGate.ts must return the allow value and rule (bare-commit, fresh-receipt, no-verify-flag) named in this label'}`)
+    console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — evaluateCommitGate in src/permissions/guards/commitGate.ts must return the allow value and rule (bare-commit, fresh-receipt, no-verify-flag) named in this label'}`)
   }
 }
 
@@ -91,13 +91,13 @@ console.log('\n— cross-shell pipefail exit-preservation (real subprocess) —'
     const redOk = !red.includes('COMMIT')
     const greenOk = green.includes('COMMIT')
     if (!redOk || !greenOk) fail = 1
-    console.log(`  [${redOk ? 'PASS' : 'FAIL'}] ${shell}: failing verify | tail never reaches the commit${redOk ? '' : ` — got ${JSON.stringify(red)}; this ${shell} does not keep the verifier exit under pipefail, so the pipefail allowance in src/guards/commitGate.ts (pipefailActiveBefore) cannot be trusted on it`}`)
+    console.log(`  [${redOk ? 'PASS' : 'FAIL'}] ${shell}: failing verify | tail never reaches the commit${redOk ? '' : ` — got ${JSON.stringify(red)}; this ${shell} does not keep the verifier exit under pipefail, so the pipefail allowance in src/permissions/guards/commitGate.ts (pipefailActiveBefore) cannot be trusted on it`}`)
     console.log(`  [${greenOk ? 'PASS' : 'FAIL'}] ${shell}: green verify | tail reaches the commit${greenOk ? '' : ` — got ${JSON.stringify(green)}; the probe script 'set -o pipefail && true | tail -1 && echo COMMIT' did not print COMMIT in ${shell}, check that shell on this runner`}`)
   }
 }
 
 console.log()
 if (fail === 0) console.log(`✅ ALL PASS — ${CASES.length} commit-gate control-flow cases + receipt + cross-shell legs`)
-else console.log('❌ FAILED — commit-gate control-flow proof; see the [FAIL] lines above and change evaluateCommitGate in src/guards/commitGate.ts')
+else console.log('❌ FAILED — commit-gate control-flow proof; see the [FAIL] lines above and change evaluateCommitGate in src/permissions/guards/commitGate.ts')
 console.log()
 process.exit(fail)

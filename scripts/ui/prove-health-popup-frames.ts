@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands/health/HealthCertificate.tsx src/commands/health/health.tsx src/components/CommandPopupSlot.tsx src/utils/cockpit/commandPopup.ts src/components/FullscreenLayout.tsx src/components/PopupGutter.tsx
+// gate-watch: src/commands/health/HealthCertificate.tsx src/commands/health/health.tsx src/screen/overlays/CommandPopupSlot.tsx src/screen/cockpit/commandPopup.ts src/screen/fullscreen-layout/FullscreenLayout.tsx src/screen/overlays/PopupGutter.tsx
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -31,27 +31,27 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
 for (const key of ['MERCURY_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'NODE_ENV']) delete process.env[key]
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
-const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
+const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const { default: instances } = await import('../../src/ink/instances.ts')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
 const healthCommand = await import('../../src/commands/health/health.tsx')
 const certificate = await import('../../src/commands/health/HealthCertificate.tsx')
-const { CommandPopupLease } = await import('../../src/components/CommandPopupSlot.tsx')
-const { claimCommandPopup } = await import('../../src/utils/cockpit/commandPopup.ts')
+const { CommandPopupLease } = await import('../../src/screen/overlays/CommandPopupSlot.tsx')
+const { claimCommandPopup } = await import('../../src/screen/cockpit/commandPopup.ts')
 const h = React.createElement
 
 const TITLE = 'Mercury · health'
@@ -120,7 +120,7 @@ class Input extends EventEmitter {
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }
-const hardLimit = setTimeout(() => { console.error('health-popup-frames exceeded its 420s deadline: a scene never painted or settled; read the last [PASS]/[FAIL] line above, then src/commands/health/HealthCertificate.tsx and src/components/CommandPopupSlot.tsx'); process.exit(1) }, 420_000)
+const hardLimit = setTimeout(() => { console.error('health-popup-frames exceeded its 420s deadline: a scene never painted or settled; read the last [PASS]/[FAIL] line above, then src/commands/health/HealthCertificate.tsx and src/screen/overlays/CommandPopupSlot.tsx'); process.exit(1) }, 420_000)
 hardLimit.unref()
 
 type Window = { top: number; bottom: number; left: number; right: number; width: number; height: number; rows: string[] }
@@ -217,7 +217,7 @@ async function openScene(cols: number, rows: number, fixture?: ReportFixture, wa
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Harness)))
   const lines = (): string[] => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n')
   const painted = await until(() => lines().join('\n').includes(TITLE) && lines().join('\n').includes(COMPOSER))
-  check(`the session painted the popup at ${cols}x${rows}`, painted, lines().slice(0, 6).join(' | '), 'the health popup and the composer must both paint; see src/commands/health/health.tsx, src/commands/health/HealthCertificate.tsx and src/components/CommandPopupSlot.tsx')
+  check(`the session painted the popup at ${cols}x${rows}`, painted, lines().slice(0, 6).join(' | '), 'the health popup and the composer must both paint; see src/commands/health/health.tsx, src/commands/health/HealthCertificate.tsx and src/screen/overlays/CommandPopupSlot.tsx')
   if (waitForVerdict) {
     const settled = await until(() => {
       const window = windowOf(lines())
@@ -247,9 +247,9 @@ async function openScene(cols: number, rows: number, fixture?: ReportFixture, wa
 function frameReadsRight(label: string, lines: string[], cols: number, rows: number, cursorAt?: string): Window | null {
   const window = windowOf(lines)
   console.log(`${label}: ${describe(window)}`)
-  check(`${label}: one closed bordered window titled ${TITLE}`, window !== null && wholeBottom(window), lines.slice(0, 8).join(' | '), 'the popup frame must be one closed bordered window; see healthPopupShape in src/commands/health/HealthCertificate.tsx and src/components/CommandPopupSlot.tsx')
+  check(`${label}: one closed bordered window titled ${TITLE}`, window !== null && wholeBottom(window), lines.slice(0, 8).join(' | '), 'the popup frame must be one closed bordered window; see healthPopupShape in src/commands/health/HealthCertificate.tsx and src/screen/overlays/CommandPopupSlot.tsx')
   if (window === null) return null
-  check(`${label}: the window lies inside the terminal (${cols}x${rows})`, window.right < cols && window.bottom < rows && window.left >= 0 && window.top >= 0, describe(window), 'the popup must fit inside the terminal; fix healthPopupShape in src/commands/health/HealthCertificate.tsx or the popup placement in src/components/CommandPopupSlot.tsx')
+  check(`${label}: the window lies inside the terminal (${cols}x${rows})`, window.right < cols && window.bottom < rows && window.left >= 0 && window.top >= 0, describe(window), 'the popup must fit inside the terminal; fix healthPopupShape in src/commands/health/HealthCertificate.tsx or the popup placement in src/screen/overlays/CommandPopupSlot.tsx')
   check(`${label}: the verdict chip sits on the title row beside the lockup`, VERDICT.test(inner(window.rows[1]!)) && inner(window.rows[1]!).includes(`${TITLE} · `), inner(window.rows[1]!), 'the title row in src/commands/health/HealthCertificate.tsx must read the lockup then a verdict chip')
   const expected = certificate.healthPopupLayout(window.height, 0, 1000)
   check(`${label}: no provenance lecture or duplicate detail hint`, !window.rows.some(row => row.includes('every claim names its evidence') || inner(row) === LEGEND))
@@ -260,7 +260,7 @@ function frameReadsRight(label: string, lines: string[], cols: number, rows: num
   check(`${label}: the check rows are the list and the cursor row is inside the window`, checkRows(window).length > 0 && cursorRow(window) !== undefined, `${checkRows(window).length} rows · cursor ${cursorRow(window) ?? '(none)'}`, 'the check rows and the cursor row must be painted inside the window; see the list in src/commands/health/HealthCertificate.tsx')
   if (cursorAt !== undefined) check(`${label}: the cursor row stays where it was left (${cursorAt})`, cursorLabel(window) === cursorAt, cursorLabel(window) ?? '(none)')
   const composerRow = lines.findIndex(line => line.includes(COMPOSER))
-  check(`${label}: the composer stays visible under the popup`, composerRow > window.bottom, `composer row ${composerRow}`, 'the popup must end above the composer; see healthPopupShape rows in src/commands/health/HealthCertificate.tsx and src/components/FullscreenLayout.tsx')
+  check(`${label}: the composer stays visible under the popup`, composerRow > window.bottom, `composer row ${composerRow}`, 'the popup must end above the composer; see healthPopupShape rows in src/commands/health/HealthCertificate.tsx and src/screen/fullscreen-layout/FullscreenLayout.tsx')
   check(`${label}: the title paints once (nothing of the popup outside the frame)`, lines.filter(line => line.includes(TITLE)).length === 1)
   return window
 }
@@ -343,7 +343,7 @@ section('§3 a click outside the popup closes it')
   await sleep(300)
   scene.push(CLICK_OUTSIDE)
   const closed = await until(() => scene.done().length > 0, 5000)
-  check('a click on the chat beside the popup closes it like esc', closed, JSON.stringify(scene.done()), 'a click outside the popup must close it; see src/components/CommandPopupSlot.tsx and src/utils/cockpit/commandPopup.ts')
+  check('a click on the chat beside the popup closes it like esc', closed, JSON.stringify(scene.done()), 'a click outside the popup must close it; see src/screen/overlays/CommandPopupSlot.tsx and src/screen/cockpit/commandPopup.ts')
   await scene.close()
 }
 

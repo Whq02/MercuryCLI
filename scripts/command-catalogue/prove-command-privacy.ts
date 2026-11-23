@@ -14,11 +14,11 @@ process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
 delete process.env.MERCURY_HOME
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { builtinCommands, commandSeat, sessionSeatCommandTable } = await import('../../src/commands.js')
-const { processUserInput } = await import('../../src/services/processUserInput/processUserInput.js')
-const { setOriginalCwd } = await import('../../src/bootstrap/state.js')
+const { builtinCommands, commandSeat, sessionSeatCommandTable } = await import('../../src/commands/catalogue/commands.js')
+const { processUserInput } = await import('../../src/engine/user-input/processUserInput.js')
+const { setOriginalCwd } = await import('../../src/boot/process-state/processState.js')
 const cwd = join(SCRATCH, 'project')
 mkdirSync(cwd)
 setOriginalCwd(cwd)
@@ -29,15 +29,15 @@ const byName = (name: string) => all.find(command => command.name === name)
 const privateNames = ['usage', 'config', 'localsetup', 'llmhost', 'jev'] as const
 for (const name of [...privateNames, 'crew']) {
   const command = byName(name)
-  check(`/${name} is registered and SCREEN-seat`, command !== undefined && commandSeat(command) === 'screen', '', 'register the command in src/commands.ts and give it seat: screen or userPrivate: true so commandSeat() returns screen')
+  check(`/${name} is registered and SCREEN-seat`, command !== undefined && commandSeat(command) === 'screen', '', 'register the command in src/commands/catalogue/commands.ts and give it seat: screen or userPrivate: true so commandSeat() returns screen')
 }
-check('the private set carries the userPrivate mark', privateNames.every(name => (byName(name) as { userPrivate?: boolean } | undefined)?.userPrivate === true), '', 'set userPrivate: true on the failing command definition; commandSeat() in src/commands.ts reads it')
+check('the private set carries the userPrivate mark', privateNames.every(name => (byName(name) as { userPrivate?: boolean } | undefined)?.userPrivate === true), '', 'set userPrivate: true on the failing command definition; commandSeat() in src/commands/catalogue/commands.ts reads it')
 const runnerTable = sessionSeatCommandTable(all)
-check('the runner table excludes every private and screen-estate command', [...privateNames, 'crew'].every(name => !runnerTable.some(command => command.name === name)), '', 'sessionSeatCommandTable() in src/commands.ts must filter out every command whose commandSeat() is screen')
+check('the runner table excludes every private and screen-estate command', [...privateNames, 'crew'].every(name => !runnerTable.some(command => command.name === name)), '', 'sessionSeatCommandTable() in src/commands/catalogue/commands.ts must filter out every command whose commandSeat() is screen')
 check('ordinary session locals keep their seat', ['compact'].every(name => {
   const command = byName(name)
   return command !== undefined && commandSeat(command) === 'session'
-}), '', 'commandSeat() in src/commands.ts must keep /compact on the session seat')
+}), '', 'commandSeat() in src/commands/catalogue/commands.ts must keep /compact on the session seat')
 const context = {
   options: { commands: runnerTable, tools: [], mcpClients: [], isNonInteractiveSession: true },
   getAppState: () => ({ toolPermissionContext: { mode: 'default', additionalWorkingDirectories: new Map(), alwaysAllowRules: {}, alwaysDenyRules: {} } }),
@@ -50,12 +50,12 @@ const dispatch = (input: string) => processUserInput({ input, mode: 'prompt', se
 try {
   for (const name of ['usage', 'config', 'llmhost']) {
     const result = await dispatch(`/${name}`)
-    check(`a stray /${name} creates zero conversation rows`, result.messages.length === 0, String(result.messages.length), 'a screen-seat command must return no messages from processSlashCommand in src/services/processUserInput/processSlashCommand.tsx')
-    check(`…and starts no query`, result.shouldQuery === false, '', 'the refusal path in src/services/processUserInput/processSlashCommand.tsx must return shouldQuery false')
-    check(`…its receipt rides resultText alone and names the command's one seat`, new RegExp(`The /${name} command is an interactive surface`).test(result.resultText ?? '') && (result as { commandRefused?: boolean }).commandRefused === true, result.resultText ?? '(none)', 'the refusal receipt for a screen-seat command is built in src/services/processUserInput/processSlashCommand.tsx; it must carry the interactive-surface text and commandRefused true')
+    check(`a stray /${name} creates zero conversation rows`, result.messages.length === 0, String(result.messages.length), 'a screen-seat command must return no messages from processSlashCommand in src/engine/user-input/processSlashCommand.tsx')
+    check(`…and starts no query`, result.shouldQuery === false, '', 'the refusal path in src/engine/user-input/processSlashCommand.tsx must return shouldQuery false')
+    check(`…its receipt rides resultText alone and names the command's one seat`, new RegExp(`The /${name} command is an interactive surface`).test(result.resultText ?? '') && (result as { commandRefused?: boolean }).commandRefused === true, result.resultText ?? '(none)', 'the refusal receipt for a screen-seat command is built in src/engine/user-input/processSlashCommand.tsx; it must carry the interactive-surface text and commandRefused true')
   }
   const halt = await dispatch('/halt')
-  check('a stray /halt answers as an unknown command, refused', /^Unknown command: \/halt/.test(halt.resultText ?? '') && halt.shouldQuery === false && (halt as { commandRefused?: boolean }).commandRefused === true, halt.resultText ?? '(none)', 'an unregistered command must be refused as Unknown command in src/services/processUserInput/processSlashCommand.tsx with commandRefused true and no query')
+  check('a stray /halt answers as an unknown command, refused', /^Unknown command: \/halt/.test(halt.resultText ?? '') && halt.shouldQuery === false && (halt as { commandRefused?: boolean }).commandRefused === true, halt.resultText ?? '(none)', 'an unregistered command must be refused as Unknown command in src/engine/user-input/processSlashCommand.tsx with commandRefused true and no query')
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }

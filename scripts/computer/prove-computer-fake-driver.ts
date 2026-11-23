@@ -3,11 +3,11 @@ import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { abortAfter, abortedSignal, check, finish, freshSignal, isPng, scratchDir, section, TWO_DISPLAYS_SCENE } from './computerProofKit.ts'
 
-const fake = await import('../../src/services/desktop/fakeDesktopDriver.ts')
+const fake = await import('../../src/integrations/desktop/fakeDesktopDriver.ts')
 const { FakeDesktopDriver, FAKE_SCENE_DEFAULT, fakeDesktopDriverFromEnvironment, pngDimensions, readFakeActLog, readFakeScene } = fake
-const { displaysFingerprint } = await import('../../src/services/desktop/driver.ts')
-type FakeScene = import('../../src/services/desktop/fakeDesktopDriver.ts').FakeScene
-type DesktopApplication = import('../../src/services/desktop/driver.ts').DesktopApplication
+const { displaysFingerprint } = await import('../../src/integrations/desktop/driver.ts')
+type FakeScene = import('../../src/integrations/desktop/fakeDesktopDriver.ts').FakeScene
+type DesktopApplication = import('../../src/integrations/desktop/driver.ts').DesktopApplication
 
 const scratch = scratchDir('fake-driver')
 const FINDER: DesktopApplication = { identity: 'com.example.Finder', name: 'Finder', pid: 4300, title: null, bounds: { x: 0, y: 0, width: 600, height: 400 } }

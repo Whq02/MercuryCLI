@@ -11,13 +11,13 @@ const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 
 let failures = 0
 const BACKUP_FAILURE_HINT =
-  'fix findMostRecentBackup or restoreConfigFromBackup in src/utils/config/globalConfig.ts, whichever this check names'
+  'fix findMostRecentBackup or restoreConfigFromBackup in src/platform/config/globalConfig.ts, whichever this check names'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${BACKUP_FAILURE_HINT}` : ''}`)
 }
 
-const config = await import(join(SRC, 'utils/config/globalConfig.ts'))
+const config = await import(join(SRC, 'platform/config/globalConfig.ts'))
 const backupDir = config.getConfigBackupDir() as string
 const file = join(HOME, '.mercury.json')
 const GOOD_OLD = '{"numStartups":3,"hasCompletedOnboarding":true}\n'

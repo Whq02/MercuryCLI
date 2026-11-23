@@ -12,13 +12,13 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    what to change: the warning text of detectManagedSettingsWarnings in src/utils/healthDiagnostic.ts and the exclusive preprocess of ExtensionsSettingsSchema in src/utils/settings/types.ts must say what the reader does (full lock for an invalid value, ignored for an unrecognised surface name)')
+  if (!cond) console.log('    what to change: the warning text of detectManagedSettingsWarnings in src/platform/health/healthDiagnostic.ts and the exclusive preprocess of ExtensionsSettingsSchema in src/platform/settings/settingsSchema.ts must say what the reader does (full lock for an invalid value, ignored for an unrecognised surface name)')
 }
 
-const fsOps = await import('../../src/utils/fsOperations.ts')
-const { getManagedFilePath } = await import('../../src/utils/settings/managedPath.ts')
-const { detectManagedSettingsWarnings } = await import('../../src/utils/healthDiagnostic.ts')
-const { ExtensionsSettingsSchema } = await import('../../src/utils/settings/types.ts')
+const fsOps = await import('../../src/platform/files/fsOperations.ts')
+const { getManagedFilePath } = await import('../../src/platform/settings/managedPath.ts')
+const { detectManagedSettingsWarnings } = await import('../../src/platform/health/healthDiagnostic.ts')
+const { ExtensionsSettingsSchema } = await import('../../src/platform/settings/settingsSchema.ts')
 
 const policyPath = join(getManagedFilePath(), 'managed-settings.json')
 const real = fsOps.getFsImplementation()

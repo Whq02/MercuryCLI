@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-import { cellAt, markNoSelectRegion, type Screen } from '../../src/ink/cell-grid.ts'
-import { OverlayRecord } from '../../src/ink/geometry/overlay.ts'
-import { applySearchHighlight } from '../../src/ink/searchHighlight.ts'
+import { cellAt, markNoSelectRegion, type Screen } from '../../src/screen/renderer/cell-grid.ts'
+import { OverlayRecord } from '../../src/screen/renderer/geometry/selectionOverlay.ts'
+import { applySearchHighlight } from '../../src/screen/renderer/searchHighlight.ts'
 import { composeScene, makeContext, screenLines, type FrameScene } from './frameHarness.ts'
 
-const WHERE = 'applySearchHighlight in src/ink/searchHighlight.ts'
+const WHERE = 'applySearchHighlight in src/screen/renderer/searchHighlight.ts'
 const COLS = 24
 const ROWS = ['Alpha beta ALPHA', 'nothing here', '\u65e5\u672c\u8a9e alpha', 'aaaaa', 'ab cd', 'caf\u00e9 CAF\u00c9', '\u0130stanbul i']
 const scene: FrameScene = { name: 'search-highlight', cols: COLS, rows: ROWS.length, root: { kind: 'box', style: { flexDirection: 'column' }, children: ROWS.map(text => ({ kind: 'text' as const, text })) } }

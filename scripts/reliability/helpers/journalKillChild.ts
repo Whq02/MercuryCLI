@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { runJournaledOperation } from '../../../src/substrate/operationJournal.ts'
+import { runJournaledOperation } from '../../../src/platform/substrate/operationJournal.ts'
 
 const dir = process.env.RELIA_JOURNAL_DIR
 const work = process.env.RELIA_WORK_DIR

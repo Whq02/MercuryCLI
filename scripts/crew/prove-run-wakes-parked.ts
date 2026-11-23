@@ -69,9 +69,9 @@ async function journey(kind: 'captain' | 'held' | 'deadline'): Promise<void> {
     const metaFile = findFiles(home, `agent-${captain.agent}.meta.json`)[0]
     assert(metaFile, 'captain metadata is recorded before its completion notice')
     const metadata = JSON.parse(readFileSync(metaFile, 'utf8'))
-    assert(typeof metadata.worktreePath === 'string', `captain agent metadata omitted worktreePath string in src/tools/AgentTool/: ${JSON.stringify(metadata).slice(0, 160)}`)
+    assert(typeof metadata.worktreePath === 'string', `captain agent metadata omitted worktreePath string in src/tools/crewmate/: ${JSON.stringify(metadata).slice(0, 160)}`)
     const within = relative(cwd, metadata.worktreePath)
-    assert(within && !within.startsWith('..'), `captain worktreePath escaped workspace cwd in src/tools/AgentTool/: ${within}`)
+    assert(within && !within.startsWith('..'), `captain worktreePath escaped workspace cwd in src/tools/crewmate/: ${within}`)
     moved = { from: metadata.worktreePath, to: `${metadata.worktreePath}.away` }
     renameSync(moved.from, moved.to)
   }
@@ -175,17 +175,17 @@ async function pendingLiveness(): Promise<void> {
   tally.section('dispatch liveness between board and task state')
   const source = join(dirname(DIST), '..', 'src')
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const boot = await import(join(source, 'bootstrap/state.ts'))
+  const boot = await import(join(source, 'boot/process-state/processState.ts'))
   boot.setOriginalCwd(root); boot.setCwdState(root); boot.setProjectRoot(root)
-  const { enableConfigs } = await import(join(source, 'utils/config/globalConfig.ts'))
+  const { enableConfigs } = await import(join(source, 'platform/config/globalConfig.ts'))
   enableConfigs()
-  const { updateSettingsForSource } = await import(join(source, 'utils/settings/settings.ts'))
+  const { updateSettingsForSource } = await import(join(source, 'platform/settings/settings.ts'))
   updateSettingsForSource('userSettings', { swarm: { enabled: true } })
-  const seam = await import(join(source, 'services/crewBoard/seam.ts'))
-  const { BoardResumeDirectoryError } = await import(join(source, 'tools/AgentTool/resumeAgent.ts'))
-  const { flushSessionStorage } = await import(join(source, 'utils/sessionStorage/writer.ts'))
-  const { getCommandQueue, dequeue, peek } = await import(join(source, 'input-core/command-queue.ts'))
-  const { createTurnDriver } = await import(join(source, 'cli/headless/turnDriver.ts'))
+  const seam = await import(join(source, 'crew/board/seam.ts'))
+  const { BoardResumeDirectoryError } = await import(join(source, 'tools/crewmate/resumeCrewmate.ts'))
+  const { flushSessionStorage } = await import(join(source, 'sessions/transcripts/writer.ts'))
+  const { getCommandQueue, dequeue, peek } = await import(join(source, 'screen/composer/input-core/command-queue.ts'))
+  const { createTurnDriver } = await import(join(source, 'daemon/runner/turnDriver.ts'))
   const { runSwarmCommand } = await import(join(source, 'commands/swarm/swarm.ts'))
   const swarmOnText = runSwarmCommand('on')
   assert(swarmOnText.startsWith('Swarm on'), `runSwarmCommand('on') failed in pendingLiveness: ${swarmOnText}`)
@@ -209,9 +209,9 @@ async function pendingLiveness(): Promise<void> {
   try {
     tally.check('the dispatcher exposes liveness without keeping an empty board alive', typeof watcher.hasPending === 'function' && !pending())
     const waitPost = board.post(target, { clientOpId: 'wait', kind: 'ask', text: '@main wake me when kind result' })
-    assert(waitPost.ok, `target wait declaration failed in src/services/crewBoard/store.ts: ${JSON.stringify(waitPost)}`)
+    assert(waitPost.ok, `target wait declaration failed in src/crew/board/store.ts: ${JSON.stringify(waitPost)}`)
     const triggerPost = board.post(poster, { clientOpId: 'trigger', kind: 'result', text: 'PENDING-WAKE' })
-    assert(triggerPost.ok, `poster trigger post failed in src/services/crewBoard/store.ts: ${JSON.stringify(triggerPost)}`)
+    assert(triggerPost.ok, `poster trigger post failed in src/crew/board/store.ts: ${JSON.stringify(triggerPost)}`)
     seam.settleSwarmAgent('target')
     seam.mirrorSwarmNotice('target', 'completed', 'Target completed', 'completed')
     await flushSessionStorage()
@@ -243,7 +243,7 @@ async function pendingLiveness(): Promise<void> {
           await new Promise<void>(resolve => setImmediate(resolve))
           heldQuiet = !pending() && board.pendingWakes().length === 0 && board.seats().find((seat: { agent: string }) => seat.agent === 'target')?.wakeProblem?.kind === 'worktree-missing' && getCommandQueue().some((command: { mode: string }) => command.mode === 'task-notification')
         } },
-      } satisfies import('../../src/cli/headless/turnDriver.ts').TurnDriverPorts)
+      } satisfies import('../../src/daemon/runner/turnDriver.ts').TurnDriverPorts)
       driver.kick()
       await ended
     }

@@ -1,0 +1,613 @@
+import { queryModelWithStreaming } from './anthropic/index.js'
+import type { CallModel } from './callModelContract.js'
+import { normalizeModelStringForAPI } from '../catalogue/engineModel.js'
+import { resolveZaiApiKey } from './providerDiscovery.js'
+import { parseGptModelId } from '../facts/pins/gptPins.js'
+import { resolveOpenaiAccount } from './openai/openaiAccounts.js'
+import { classifyModelRoute, type CallModelRoute } from './callModelRouter.js'
+import { activeWalletEntry } from '../wallet/wallet.js'
+import { openrouterCallModel, openrouterLiveProofState } from './openrouter/openrouterCallModel.js'
+import { resolveOpenrouterApiKey } from './openrouter/openrouterAccounts.js'
+import { geminiCallModel, geminiLiveProofState } from './gemini/geminiCallModel.js'
+import { resolveGeminiAccount } from './gemini/geminiAccounts.js'
+import { openaiCallModel, openaiLiveProofState } from './openai/openaiCallModel.js'
+import { zaiCallModel, zaiLiveProofState } from './zai/zaiCallModel.js'
+import { moonshotCallModel, moonshotLiveProofState } from './moonshot/moonshotCallModel.js'
+import { moonshotDispatchSource } from './moonshot/moonshotAccounts.js'
+import { deepseekCallModel, deepseekLiveProofState } from './deepseek/deepseekCallModel.js'
+import { resolveDeepseekApiKey } from './deepseek/deepseekAccounts.js'
+import { xaiCallModel, xaiLiveProofState } from './xai/xaiCallModel.js'
+import { resolveXaiCredentialSnapshot } from './xai/xaiAccounts.js'
+import { metaCallModel, metaLiveProofState } from './meta/metaCallModel.js'
+import { resolveMetaApiKey } from './meta/metaAccounts.js'
+import { mistralCallModel, mistralLiveProofState } from './mistral/mistralCallModel.js'
+import { resolveMistralApiKey } from './mistral/mistralAccounts.js'
+import { nousCallModel, nousLiveProofState } from './nous/nousCallModel.js'
+import { resolveNousAccount } from './nous/nousAccounts.js'
+import { NOUS_SIGNIN_EXPIRED_LINE } from './nous/nousOauth.js'
+import { zenCallModel, zenLiveProofState } from './zen/zenCallModel.js'
+import { resolveZenApiKey } from './zen/zenAccounts.js'
+import { minimaxCallModel, minimaxLiveProofState } from './minimax/minimaxCallModel.js'
+import { resolveMinimaxApiKey } from './minimax/minimaxAccounts.js'
+import { togetherCallModel, togetherLiveProofState } from './together/togetherCallModel.js'
+import { resolveTogetherApiKey } from './together/togetherAccounts.js'
+import { cohereCallModel, cohereLiveProofState } from './cohere/cohereCallModel.js'
+import { resolveCohereApiKey } from './cohere/cohereAccounts.js'
+import { groqCallModel, groqLiveProofState } from './groq/groqCallModel.js'
+import { meliousCallModel, meliousLiveProofState } from './melious/meliousCallModel.js'
+import { resolveGroqApiKey } from './groq/groqAccounts.js'
+import { resolveMeliousApiKey } from './melious/meliousAccounts.js'
+import { orcarouterCallModel, orcarouterLiveProofState } from './orcarouter/orcarouterCallModel.js'
+import { resolveOrcarouterApiKey } from './orcarouter/orcarouterAccounts.js'
+import { cerebrasCallModel, cerebrasLiveProofState } from './cerebras/cerebrasCallModel.js'
+import { resolveCerebrasApiKey } from './cerebras/cerebrasAccounts.js'
+import { fireworksCallModel, fireworksLiveProofState } from './fireworks/fireworksCallModel.js'
+import { resolveFireworksApiKey } from './fireworks/fireworksAccounts.js'
+import { qwenCallModel, qwenLiveProofState } from './qwen/qwenCallModel.js'
+import { resolveQwenCredentialSnapshot } from './qwen/qwenAccounts.js'
+import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
+import { configuredCompatEndpoints } from './openaicompat/compatAccounts.js'
+import {
+  huggingfaceCallModel,
+  huggingfaceLiveProofState,
+} from './huggingface/huggingfaceCallModel.js'
+import { resolveHuggingfaceApiKey } from './huggingface/huggingfaceAccounts.js'
+import { localCallModel, localLiveProofState } from './local/localCallModel.js'
+import { resolveLocalAccount } from './local/localAccounts.js'
+
+export const APEX_BACKEND_CONTRACT_VERSION = 1
+
+type PrimaryBackendId =
+  | 'anthropic-messages'
+  | 'zai-glm'
+  | 'openai-responses'
+  | 'moonshot-chat'
+  | 'deepseek-chat'
+  | 'xai-chat'
+  | 'meta-chat'
+  | 'openai-compat-chat'
+  | 'openrouter-chat'
+  | 'gemini-generate'
+  | 'huggingface-chat'
+  | 'local-chat'
+  | 'mistral-chat'
+  | 'nous-chat'
+  | 'zen-gateway'
+  | 'minimax-chat'
+  | 'together-chat'
+  | 'cohere-chat'
+  | 'groq-chat'
+  | 'melious-chat'
+  | 'orcarouter-chat'
+  | 'cerebras-chat'
+  | 'fireworks-chat'
+  | 'qwen-chat'
+
+interface AgentRuntimeRef {
+  contractVersion: typeof APEX_BACKEND_CONTRACT_VERSION
+  backend?: PrimaryBackendId
+  provider?:
+    | 'anthropic'
+    | 'zai'
+    | 'openai'
+    | 'moonshot'
+    | 'deepseek'
+    | 'xai'
+    | 'meta'
+    | 'openai-compat'
+    | 'openrouter'
+    | 'gemini'
+    | 'huggingface'
+    | 'local'
+    | 'mistral'
+    | 'nous'
+    | 'zen'
+    | 'minimax'
+    | 'together'
+    | 'cohere'
+    | 'groq'
+    | 'melious'
+    | 'orcarouter'
+    | 'cerebras'
+    | 'fireworks'
+    | 'qwen'
+  route: CallModelRoute | 'unrecognised' | 'absence'
+  canonicalModel: string
+  family:
+    | { kind: 'claude' }
+    | { kind: 'glm' }
+    | { kind: 'gpt'; major: number; minor: number; variant: string }
+    | { kind: 'kimi' }
+    | { kind: 'deepseek' }
+    | { kind: 'grok' }
+    | { kind: 'muse' }
+    | { kind: 'compat' }
+    | { kind: 'openrouter' }
+    | { kind: 'gemini' }
+    | { kind: 'huggingface' }
+    | { kind: 'local' }
+    | { kind: 'mistral' }
+    | { kind: 'zen' }
+    | { kind: 'groq' }
+    | { kind: 'melious' }
+    | { kind: 'orcarouter' }
+    | { kind: 'cerebras' }
+    | { kind: 'fireworks' }
+    | { kind: 'qwen' }
+    | { kind: 'unknown' }
+    | { kind: 'nous' }
+    | { kind: 'minimax' }
+    | { kind: 'together' }
+    | { kind: 'cohere' }
+  walletEntryId?: string
+}
+
+type BackendReadiness =
+  | { state: 'ready'; detail: string }
+  | { state: 'configured'; detail: string }
+  | { state: 'unavailable'; reason: string }
+
+interface PrimaryAgentBackend {
+  id: PrimaryBackendId
+  provider: AgentRuntimeRef['provider']
+  label: string
+  callModel: CallModel
+  readiness(): BackendReadiness
+}
+
+function anthropicReadiness(): BackendReadiness {
+  return { state: 'ready', detail: 'main-loop Anthropic transport' }
+}
+
+const anthropicBackend: PrimaryAgentBackend = {
+  id: 'anthropic-messages',
+  provider: 'anthropic',
+  label: 'Anthropic Messages (main loop)',
+  callModel: queryModelWithStreaming,
+  readiness: anthropicReadiness,
+}
+
+const openaiBackend: PrimaryAgentBackend = {
+  id: 'openai-responses',
+  provider: 'openai',
+  label: 'OpenAI Responses (native, in-process)',
+  callModel: openaiCallModel,
+  readiness: (): BackendReadiness => {
+    const account = resolveOpenaiAccount()
+    if (!account) return { state: 'unavailable', reason: 'no OpenAI account source connected' }
+    const proof = openaiLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model}) · ${account.label}` }
+      : {
+          state: 'configured',
+          detail: `${account.label} connected · native Responses runtime landed · no live turn proven this session`,
+        }
+  },
+}
+
+const zaiBackend: PrimaryAgentBackend = {
+  id: 'zai-glm',
+  provider: 'zai',
+  label: 'Z.AI GLM (native, in-process)',
+  callModel: zaiCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveZaiApiKey()) return { state: 'unavailable', reason: 'no API key (/logins zai, or ZAI_API_KEY)' }
+    const proof = zaiLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : {
+          state: 'configured',
+          detail: 'key present · native runtime landed · no live turn proven this session',
+        }
+  },
+}
+
+const moonshotBackend: PrimaryAgentBackend = {
+  id: 'moonshot-chat',
+  provider: 'moonshot',
+  label: 'Moonshot Kimi (native, in-process)',
+  callModel: moonshotCallModel,
+  readiness: (): BackendReadiness => {
+    const source = moonshotDispatchSource()
+    if (source === undefined) {
+      return { state: 'unavailable', reason: 'no Kimi sign-in or Moonshot API key (/logins moonshot, or MOONSHOT_API_KEY)' }
+    }
+    const proof = moonshotLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : {
+          state: 'configured',
+          detail: `${source === 'kimi-oauth' ? 'Kimi sign-in' : 'key'} present · shared compat runtime landed · no live turn proven this session`,
+        }
+  },
+}
+
+const deepseekBackend: PrimaryAgentBackend = {
+  id: 'deepseek-chat',
+  provider: 'deepseek',
+  label: 'DeepSeek (native, in-process)',
+  callModel: deepseekCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveDeepseekApiKey()) {
+      return { state: 'unavailable', reason: 'no API key (/logins deepseek, or DEEPSEEK_API_KEY)' }
+    }
+    const proof = deepseekLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · shared compat runtime landed · no live turn proven this session' }
+  },
+}
+
+const xaiBackend: PrimaryAgentBackend = {
+  id: 'xai-chat', provider: 'xai', label: 'xAI (native, in-process)',
+  callModel: xaiCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveXaiCredentialSnapshot()) return { state: 'unavailable', reason: 'no usable Grok sign-in or API key (/logins xai, or XAI_API_KEY)' }
+    const proof = xaiLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'credential present · no live turn proven this session' }
+  },
+}
+
+const metaBackend: PrimaryAgentBackend = {
+  id: 'meta-chat', provider: 'meta', label: 'Meta (native, in-process)',
+  callModel: metaCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveMetaApiKey()) return { state: 'unavailable', reason: 'no API key (/logins meta, or MODEL_API_KEY)' }
+    const proof = metaLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
+const mistralBackend: PrimaryAgentBackend = {
+  id: 'mistral-chat', provider: 'mistral', label: 'Mistral (native, in-process)',
+  callModel: mistralCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveMistralApiKey()) return { state: 'unavailable', reason: 'no API key (/logins mistral, or MISTRAL_API_KEY)' }
+    const proof = mistralLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
+const zenBackend: PrimaryAgentBackend = {
+  id: 'zen-gateway', provider: 'zen', label: 'OpenCode Zen (gateway, in-process)',
+  callModel: zenCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveZenApiKey()) return { state: 'unavailable', reason: 'no API key (/logins zen, or OPENCODE_API_KEY)' }
+    const proof = zenLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
+const minimaxBackend: PrimaryAgentBackend = {
+  id: 'minimax-chat', provider: 'minimax', label: 'MiniMax (native, in-process)',
+  callModel: minimaxCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveMinimaxApiKey()) return { state: 'unavailable', reason: 'no API key (/logins minimax, or MINIMAX_API_KEY)' }
+    const proof = minimaxLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
+const togetherBackend: PrimaryAgentBackend = {
+  id: 'together-chat', provider: 'together', label: 'Together AI (gateway, in-process)',
+  callModel: togetherCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveTogetherApiKey()) return { state: 'unavailable', reason: 'no API key (/logins together, or TOGETHER_API_KEY)' }
+    const proof = togetherLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
+const cohereBackend: PrimaryAgentBackend = {
+  id: 'cohere-chat', provider: 'cohere', label: 'Cohere (native, in-process)',
+  callModel: cohereCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveCohereApiKey()) return { state: 'unavailable', reason: 'no API key (/logins cohere, or COHERE_API_KEY)' }
+    const proof = cohereLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
+const groqBackend: PrimaryAgentBackend = {
+  id: 'groq-chat', provider: 'groq', label: 'Groq (gateway, in-process)',
+  callModel: groqCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveGroqApiKey()) return { state: 'unavailable', reason: 'no API key (/logins groq, or GROQ_API_KEY)' }
+    const proof = groqLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
+const meliousBackend: PrimaryAgentBackend = {
+  id: 'melious-chat', provider: 'melious', label: 'Melious AI (gateway, in-process)',
+  callModel: meliousCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveMeliousApiKey()) return { state: 'unavailable', reason: 'no API key (/logins melious, or MELIOUS_API_KEY)' }
+    const proof = meliousLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
+const orcarouterBackend: PrimaryAgentBackend = {
+  id: 'orcarouter-chat', provider: 'orcarouter', label: 'OrcaRouter',
+  callModel: orcarouterCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveOrcarouterApiKey()) return { state: 'unavailable', reason: 'no API key (/logins orcarouter, or ORCAROUTER_API_KEY)' }
+    const proof = orcarouterLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `${proof.model}` }
+      : { state: 'configured', detail: 'API key present' }
+  },
+}
+const cerebrasBackend: PrimaryAgentBackend = {
+  id: 'cerebras-chat', provider: 'cerebras', label: 'Cerebras (gateway, in-process)',
+  callModel: cerebrasCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveCerebrasApiKey()) return { state: 'unavailable', reason: 'no API key (/logins cerebras, or CEREBRAS_API_KEY)' }
+    const proof = cerebrasLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
+const fireworksBackend: PrimaryAgentBackend = {
+  id: 'fireworks-chat', provider: 'fireworks', label: 'Fireworks (gateway, in-process)',
+  callModel: fireworksCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveFireworksApiKey()) return { state: 'unavailable', reason: 'no API key (/logins fireworks, or FIREWORKS_API_KEY)' }
+    const proof = fireworksLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
+const qwenBackend: PrimaryAgentBackend = {
+  id: 'qwen-chat', provider: 'qwen', label: 'Qwen (QwenCloud or Model Studio, in-process)',
+  callModel: qwenCallModel,
+  readiness: (): BackendReadiness => {
+    if (!resolveQwenCredentialSnapshot()) return { state: 'unavailable', reason: 'no sign-in or API key (/logins qwen, or DASHSCOPE_API_KEY)' }
+    const proof = qwenLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
+const compatBackend: PrimaryAgentBackend = {
+  id: 'openai-compat-chat',
+  provider: 'openai-compat',
+  label: 'OpenAI-compatible endpoint (operator-named)',
+  callModel: compatCallModel,
+  readiness: (): BackendReadiness => {
+    if (configuredCompatEndpoints().length === 0) {
+      return { state: 'unavailable', reason: 'no endpoint configured (MERCURY_COMPAT_BASE_URL)' }
+    }
+    const proof = compatSlotLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'endpoint configured · shared compat runtime landed · no live turn proven this session' }
+  },
+}
+
+const huggingfaceBackend: PrimaryAgentBackend = {
+  id: 'huggingface-chat',
+  provider: 'huggingface',
+  label: 'Hugging Face Inference Providers (router, in-process)',
+  callModel: huggingfaceCallModel,
+  readiness: (): BackendReadiness => {
+    const key = resolveHuggingfaceApiKey()
+    if (!key) return { state: 'unavailable', reason: 'no credential (/logins, or HF_TOKEN)' }
+    const proof = huggingfaceLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model}) · ${key.source}` }
+      : {
+          state: 'configured',
+          detail: `credential present (${key.source}) · shared compat runtime landed · no live turn proven this session`,
+        }
+  },
+}
+
+const localBackend: PrimaryAgentBackend = {
+  id: 'local-chat',
+  provider: 'local',
+  label: 'Local models (Ollama · LM Studio · vLLM · llama.cpp, in-process)',
+  callModel: localCallModel,
+  readiness: (): BackendReadiness => {
+    const account = resolveLocalAccount()
+    if (!account) return { state: 'unavailable', reason: 'no local server discovered (Ollama :11434 · LM Studio :1234 · vLLM :8000 · llama.cpp :8080 · MERCURY_LOCAL_BASE_URL)' }
+    const proof = localLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model}) · ${account.label}` }
+      : {
+          state: 'configured',
+          detail: `${account.label} · shared compat runtime · no live turn proven this session`,
+        }
+  },
+}
+
+const openrouterBackend: PrimaryAgentBackend = {
+  id: 'openrouter-chat',
+  provider: 'openrouter',
+  label: 'OpenRouter (multi-vendor catalogue, shared compat runtime)',
+  callModel: openrouterCallModel,
+  readiness: (): BackendReadiness => {
+    const key = resolveOpenrouterApiKey()
+    if (!key) {
+      return { state: 'unavailable', reason: 'no OpenRouter credential (/logins, or OPENROUTER_API_KEY)' }
+    }
+    const proof = openrouterLiveProofState()
+    const source =
+      key.source === 'oauth' ? 'OAuth-minted key' : key.source === 'env' ? 'OPENROUTER_API_KEY' : 'stored key'
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model}) · ${source}` }
+      : {
+          state: 'configured',
+          detail: `${source} present · shared compat runtime landed · no live turn proven this session`,
+        }
+  },
+}
+
+const geminiBackend: PrimaryAgentBackend = {
+  id: 'gemini-generate',
+  provider: 'gemini',
+  label: 'Gemini (OpenAI-compatibility surface, shared compat runtime)',
+  callModel: geminiCallModel,
+  readiness: (): BackendReadiness => {
+    const account = resolveGeminiAccount()
+    if (!account) {
+      return {
+        state: 'unavailable',
+        reason: 'no Gemini credential (/logins, or GOOGLE_API_KEY / GEMINI_API_KEY)',
+      }
+    }
+    const proof = geminiLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model}) · ${account.label}` }
+      : {
+          state: 'configured',
+          detail: `${account.label} · shared compat runtime landed · no live turn proven this session`,
+        }
+  },
+}
+
+const nousBackend: PrimaryAgentBackend = {
+  id: 'nous-chat',
+  provider: 'nous',
+  label: 'Nous Portal (multi-vendor gateway, shared compat runtime)',
+  callModel: nousCallModel,
+  readiness: (): BackendReadiness => {
+    const account = resolveNousAccount()
+    if (!account) return { state: 'unavailable', reason: 'no Nous Portal API key (/logins nous, or NOUS_API_KEY)' }
+    if (account.expired) return { state: 'unavailable', reason: NOUS_SIGNIN_EXPIRED_LINE }
+    const proof = nousLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model}) · ${account.label}` }
+      : { state: 'configured', detail: `${account.label} · shared compat runtime · no live turn proven this session` }
+  },
+}
+
+const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
+  anthropic: anthropicBackend,
+  zai: zaiBackend,
+  openai: openaiBackend,
+  moonshot: moonshotBackend,
+  deepseek: deepseekBackend,
+  xai: xaiBackend,
+  meta: metaBackend,
+  'openai-compat': compatBackend,
+  openrouter: openrouterBackend,
+  gemini: geminiBackend,
+  huggingface: huggingfaceBackend,
+  local: localBackend,
+  mistral: mistralBackend,
+  nous: nousBackend,
+  zen: zenBackend,
+  minimax: minimaxBackend,
+  together: togetherBackend,
+  cohere: cohereBackend,
+  groq: groqBackend,
+  melious: meliousBackend,
+  orcarouter: orcarouterBackend,
+  cerebras: cerebrasBackend,
+  fireworks: fireworksBackend,
+  qwen: qwenBackend,
+}
+
+export function resolvePrimaryAgentBackend(model: string | undefined): PrimaryAgentBackend | null {
+  const verdict = classifyModelRoute(model)
+  return verdict.kind === 'route' ? BACKENDS[verdict.route] : null
+}
+
+export function describeAgentRuntimeRef(model: string | undefined): AgentRuntimeRef {
+  const canonical = normalizeModelStringForAPI(model ?? '').trim()
+  const verdict = classifyModelRoute(model)
+  if (verdict.kind !== 'route') {
+    return {
+      contractVersion: APEX_BACKEND_CONTRACT_VERSION,
+      route: verdict.kind,
+      canonicalModel: canonical,
+      family: { kind: 'unknown' },
+    }
+  }
+  const route = verdict.route
+  const backend = BACKENDS[route]
+  let family: AgentRuntimeRef['family']
+  if (route === 'openai') {
+    const parsed = parseGptModelId(canonical)
+    family = parsed
+      ? { kind: 'gpt', major: parsed.major, minor: parsed.minor, variant: parsed.variant }
+      : { kind: 'unknown' }
+  } else if (route === 'zai') {
+    family = { kind: 'glm' }
+  } else if (route === 'moonshot') {
+    family = { kind: 'kimi' }
+  } else if (route === 'deepseek') {
+    family = { kind: 'deepseek' }
+  } else if (route === 'xai') {
+    family = { kind: 'grok' }
+  } else if (route === 'meta') {
+    family = { kind: 'muse' }
+  } else if (route === 'openai-compat') {
+    family = { kind: 'compat' }
+  } else if (route === 'openrouter') {
+    family = { kind: 'openrouter' }
+  } else if (route === 'gemini') {
+    family = { kind: 'gemini' }
+  } else if (route === 'huggingface') {
+    family = { kind: 'huggingface' }
+  } else if (route === 'local') {
+    family = { kind: 'local' }
+  } else if (route === 'mistral') {
+    family = { kind: 'mistral' }
+  } else if (route === 'nous') {
+    family = { kind: 'nous' }
+  } else if (route === 'zen') {
+    family = { kind: 'zen' }
+  } else if (route === 'minimax') {
+    family = { kind: 'minimax' }
+  } else if (route === 'together') {
+    family = { kind: 'together' }
+  } else if (route === 'cohere') {
+    family = { kind: 'cohere' }
+  } else if (route === 'groq') {
+    family = { kind: 'groq' }
+  } else if (route === 'melious') {
+    family = { kind: 'melious' }
+  } else if (route === 'orcarouter') {
+    family = { kind: 'orcarouter' }
+  } else if (route === 'cerebras') {
+    family = { kind: 'cerebras' }
+  } else if (route === 'fireworks') {
+    family = { kind: 'fireworks' }
+  } else if (route === 'qwen') {
+    family = { kind: 'qwen' }
+  } else {
+    family = canonical.toLowerCase().includes('claude') ? { kind: 'claude' } : { kind: 'unknown' }
+  }
+  let walletEntryId: string | undefined
+  try {
+    if (route === 'openai' || route === 'anthropic' || route === 'openrouter' || route === 'gemini') {
+      walletEntryId = activeWalletEntry(route)?.id
+    }
+  } catch {
+    walletEntryId = undefined
+  }
+  return {
+    contractVersion: APEX_BACKEND_CONTRACT_VERSION,
+    backend: backend.id,
+    provider: backend.provider,
+    route,
+    canonicalModel: canonical,
+    family,
+    ...(walletEntryId !== undefined ? { walletEntryId } : {}),
+  }
+}

@@ -4,23 +4,23 @@ import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import * as React from 'react'
-import Ink from '../../src/ink/ink.js'
-import instances from '../../src/ink/instances.js'
-import { Box, Text } from '../../src/ink.js'
-import { AlternateScreen } from '../../src/ink/components/AlternateScreen.js'
-import { useDeclaredCursor } from '../../src/ink/hooks/use-declared-cursor.js'
+import Ink from '../../src/screen/renderer/screenInstance.js'
+import instances from '../../src/screen/renderer/instances.js'
+import { Box, Text } from '../../src/screen/themedRenderer.js'
+import { AlternateScreen } from '../../src/screen/renderer/elements/AlternateScreen.js'
+import { useDeclaredCursor } from '../../src/screen/renderer/bindings/use-declared-cursor.js'
 import { AnsiEmulator } from '../ink-runtime/ansiEmulator.js'
-import { getCellLayoutCounters } from '../../src/ink/layout/cellLayout.js'
-import { RenderScheduler, type SchedulerClock } from '../../src/ink/root/render-scheduler.js'
-import { FrameLedger } from '../../src/ink/root/frame-ledger.js'
-import { planCursor } from '../../src/ink/root/cursor-park.js'
-import { runTeardownSuite } from '../../src/ink/root/teardown.js'
-import { applyOverlayPass } from '../../src/ink/root/overlay-pass.js'
-import { writeAllSync, type DeliverySyscalls } from '../../src/ink/session/delivery.js'
-import { addPendingClear, consumeAbsoluteRemovedFlag } from '../../src/ink/node-cache.js'
-import * as dom from '../../src/ink/dom.js'
-import { createScreen, CharPool, HyperlinkPool, StylePool } from '../../src/ink/cell-grid.js'
-import { createSelectionState, startSelection, updateSelection, finishSelection } from '../../src/ink/geometry/selection.js'
+import { getCellLayoutCounters } from '../../src/screen/renderer/layout/cellLayout.js'
+import { RenderScheduler, type SchedulerClock } from '../../src/screen/renderer/root/render-scheduler.js'
+import { FrameLedger } from '../../src/screen/renderer/root/frame-ledger.js'
+import { planCursor } from '../../src/screen/renderer/root/cursor-park.js'
+import { runTeardownSuite } from '../../src/screen/renderer/root/teardown.js'
+import { applyOverlayPass } from '../../src/screen/renderer/root/overlay-pass.js'
+import { writeAllSync, type DeliverySyscalls } from '../../src/screen/renderer/terminal-session/frameDelivery.js'
+import { addPendingClear, consumeAbsoluteRemovedFlag } from '../../src/screen/renderer/node-cache.js'
+import * as dom from '../../src/screen/renderer/dom.js'
+import { createScreen, CharPool, HyperlinkPool, StylePool } from '../../src/screen/renderer/cell-grid.js'
+import { createSelectionState, startSelection, updateSelection, finishSelection } from '../../src/screen/renderer/geometry/selection.js'
 import {
   enterEditorBytes,
   exitEditorBytes,
@@ -30,9 +30,9 @@ import {
   reassertModesBytes,
   reenterAltBytes,
   resizeReassertBytes,
-} from '../../src/ink/root/screen-session.js'
-import type { Patch } from '../../src/ink/frame.js'
-import { __fluxProbeResetForTest, fluxSummary } from '../../src/utils/flux/fluxProbe.js'
+} from '../../src/screen/renderer/root/screen-session.js'
+import type { Patch } from '../../src/screen/renderer/frame.js'
+import { __fluxProbeResetForTest, fluxSummary } from '../../src/integrations/media-flux/fluxProbe.js'
 
 if (process.env.NODE_ENV === 'test') {
   console.error('prove-root-contract must not run with NODE_ENV=test (lattice bypass); run it with NODE_ENV unset: bun scripts/core-runtime/prove-root-contract.ts')
@@ -46,7 +46,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) {
     failures++
     console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
-    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the code this section exercises (src/ink/ink.ts, src/ink/root/: render-scheduler, frame-ledger, cursor-park, teardown, overlay-pass; src/ink/session/delivery.ts) so the condition holds`)
+    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the code this section exercises (src/screen/renderer/instance.ts, src/screen/renderer/root/: render-scheduler, frame-ledger, cursor-park, teardown, overlay-pass; src/screen/renderer/terminal-session/frameDelivery.ts) so the condition holds`)
   }
 }
 
@@ -221,8 +221,8 @@ console.log('native-core T6 — renderer-root lifecycle contract')
   writeFileSync(childPath, `
 import { EventEmitter } from 'node:events'
 import * as React from 'react'
-import Ink from '${repoRoot}/src/ink/ink.js'
-import { Text } from '${repoRoot}/src/ink.js'
+import Ink from '${repoRoot}/src/screen/renderer/screenInstance.js'
+import { Text } from '${repoRoot}/src/screen/themedRenderer.js'
 class FakeStdout extends EventEmitter {
   isTTY = true; columns = ${COLS}; rows = ${ROWS}; writes: string[] = []
   write(s: string): boolean { this.writes.push(s); return true }

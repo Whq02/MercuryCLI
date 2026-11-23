@@ -20,10 +20,10 @@ const {
   markSessionNonInteractive,
   resetRuntimePostureForTest,
   runtimePostureEnabled,
-} = await import('../../src/utils/cockpit/runtimePosture.js')
-const { buildSubagentMercurySections } = await import('../../src/constants/subagentDoctrine.js')
+} = await import('../../src/screen/cockpit/runtimePosture.js')
+const { buildSubagentMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.js')
 
-const POSTURE_HINT = 'change getRuntimePostureSection or getRuntimePostureDoctrineLine in src/utils/cockpit/runtimePosture.ts (or buildSubagentMercurySections in src/constants/subagentDoctrine.ts for the subagent checks) so the posture text matches this label'
+const POSTURE_HINT = 'change getRuntimePostureSection or getRuntimePostureDoctrineLine in src/screen/cockpit/runtimePosture.ts (or buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts for the subagent checks) so the posture text matches this label'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -64,7 +64,7 @@ section('interactive posture (the default) — nothing armed, nothing to say')
 
 section('headless posture (the daemon-child / run truth)')
 {
-  const { setAskChannel } = await import('../../src/bootstrap/state.ts')
+  const { setAskChannel } = await import('../../src/boot/process-state/processState.ts')
   resetRuntimePostureForTest()
   setAskChannel('none')
   markSessionNonInteractive('implement')
@@ -89,7 +89,7 @@ section('headless posture (the daemon-child / run truth)')
 
 section('oculus posture (a screen belongs to the session) — one line in plain words; the headless half untouched')
 {
-  const { setAskChannel, setSessionKind } = await import('../../src/bootstrap/state.ts')
+  const { setAskChannel, setSessionKind } = await import('../../src/boot/process-state/processState.ts')
   resetRuntimePostureForTest()
   setAskChannel('sdk')
   setSessionKind('oculus')
@@ -119,7 +119,7 @@ section('oculus posture (a screen belongs to the session) — one line in plain 
 section('boot-state capture — kills + MCP cap render when armed at boot')
 {
   const { killCapability, restoreCapability } = await import(
-    '../../src/utils/permissions/capabilityGate.js'
+    '../../src/permissions/rules/capabilityGate.js'
   )
   resetRuntimePostureForTest()
   process.env.MERCURY_MCP_MAX_RISK = 'low'
@@ -144,7 +144,7 @@ section('composition into the subagent doctrine (both chokepoints share the seam
     'an interactive parent\'s child carries no posture line (its seat contract says a denied tool is a real denial; a lease refusal names the holder)',
     interactiveChild.every(s => !s.startsWith('Runtime posture:')),
   )
-  const { setAskChannel } = await import('../../src/bootstrap/state.ts')
+  const { setAskChannel } = await import('../../src/boot/process-state/processState.ts')
   setAskChannel('none')
   markSessionNonInteractive('default')
   const sections = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
@@ -157,7 +157,7 @@ section('composition into the subagent doctrine (both chokepoints share the seam
     'fable-exempt agents still get the posture (it is scope-neutral)',
     exempt.some(s => s.startsWith('Runtime posture:')),
   )
-  const { setSessionKind } = await import('../../src/bootstrap/state.ts')
+  const { setSessionKind } = await import('../../src/boot/process-state/processState.ts')
   resetRuntimePostureForTest()
   setAskChannel('sdk')
   setSessionKind('oculus')

@@ -80,10 +80,10 @@ try {
     const text = body.messages.filter((message: any) => message.role === 'user').flatMap((message: any) => typeof message.content === 'string' ? [message.content] : message.content.filter((block: any) => block.type === 'text').map((block: any) => block.text))
     const userBytes = text.reduce((n: number, item: string) => n + Buffer.byteLength(item), 0)
     if (index === 0) initialUserBytes = userBytes
-    else assert.equal(userBytes, initialUserBytes, `no repeated user-context injection; request ${index + 1} carries ${userBytes} user text bytes against ${initialUserBytes} in request 1, so something re-injected context (see src/utils/attachments/userContext.ts getUserContextAttachment)`)
+    else assert.equal(userBytes, initialUserBytes, `no repeated user-context injection; request ${index + 1} carries ${userBytes} user text bytes against ${initialUserBytes} in request 1, so something re-injected context (see src/engine/attachment-shapes/userContext.ts getUserContextAttachment)`)
     assert.equal(text.filter((item: string) => item.includes('# environment')).length, 1, `request ${index + 1} carries the environment block a number of times other than one; it must appear exactly once`)
     assert.equal(text.filter((item: string) => item.includes('The skills this session offers')).length, 1, `request ${index + 1} carries the skills listing a number of times other than one; it must appear exactly once`)
-    assert.ok(text.every((item: string) => !item.includes('# Tool manual:')), `unused tools carry no full manuals; request ${index + 1} sent a full tool manual for a tool not yet used, see src/services/attachments/toolManuals.ts`)
+    assert.ok(text.every((item: string) => !item.includes('# Tool manual:')), `unused tools carry no full manuals; request ${index + 1} sent a full tool manual for a tool not yet used, see src/engine/attachments/toolManuals.ts`)
     for (const name of ['Debug', 'Browser', 'Crewmate']) {
       const tool = body.tools.find((tool: any) => tool.name === name)
       assert.ok(tool, `request ${index + 1} has no ${name} tool in its tools array`)

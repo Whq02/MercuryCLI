@@ -30,7 +30,7 @@ function walk(dir: string): void {
       continue
     }
     if (!/\.(ts|tsx|mts|mjs)$/.test(name)) continue
-    if (full === join(ROOT, 'src', 'ink.ts')) continue
+    if (full === join(ROOT, 'src', 'screen', 'themedRenderer.ts')) continue
     const src = readFileSync(full, 'utf8')
     for (const m of src.matchAll(/from\s+['"]([^'"]*\/ink\/[^'"]+)['"]/g)) {
       const spec = m[1]!

@@ -8,7 +8,7 @@ import * as path from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' | fix parseUnityTestResults, readUnityTestResults or unityRerunFailedArgs in src/services/ide/unityTests.ts, or unityTestResultsPath in src/utils/unity/unityProject.ts, against the fixtures in scripts/ide/fixtures/unity'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' | fix parseUnityTestResults, readUnityTestResults or unityRerunFailedArgs in src/integrations/ide/unityTests.ts, or unityTestResultsPath in src/integrations/unity-protocol/unityProject.ts, against the fixtures in scripts/ide/fixtures/unity'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -22,8 +22,8 @@ const {
   parseUnityTestResults,
   readUnityTestResults,
   unityRerunFailedArgs,
-} = await import('../../src/services/ide/unityTests.js')
-const { unityTestResultsPath } = await import('../../src/utils/unity/unityProject.js')
+} = await import('../../src/integrations/ide/unityTests.js')
+const { unityTestResultsPath } = await import('../../src/integrations/unity-protocol/unityProject.js')
 
 const fixtures = path.join(import.meta.dir, 'fixtures', 'unity')
 const load = (name: string): string => readFileSync(path.join(fixtures, name), 'utf8')

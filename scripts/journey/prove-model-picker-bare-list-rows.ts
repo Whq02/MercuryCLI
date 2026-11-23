@@ -138,16 +138,16 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
   return new Response(JSON.stringify({ type: 'error', error: { type: 'not_found_error', message: `fixture: no list at ${url}` } }), { status: 404, headers: { 'content-type': 'application/json' } })
 }) as typeof fetch
 
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 const React = (await import('react')).default
-const { render } = await import('../../src/ink.ts')
-const { AppStoreContext, getDefaultAppState } = await import('../../src/state/AppState.tsx')
-const { createStore } = await import('../../src/state/store.ts')
+const { render } = await import('../../src/screen/themedRenderer.ts')
+const { AppStoreContext, getDefaultAppState } = await import('../../src/screen/app-state/AppState.tsx')
+const { createStore } = await import('../../src/platform/primitives/store.ts')
 const { call } = await import('../../src/commands/model/mercuryModel.tsx')
-const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const moonshot = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
-const deepseek = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts')
-const options = await import('../../src/services/model/modelOptions.ts')
+const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const moonshot = await import('../../src/models/roads/moonshot/moonshotCatalogue.ts')
+const deepseek = await import('../../src/models/roads/deepseek/deepseekCatalogue.ts')
+const options = await import('../../src/models/catalogue/modelOptions.ts')
 const { getModelOptions, isProviderActionRow, OPENAI_MODEL_GROUP, MOONSHOT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, ZAI_MODEL_GROUP } = options
 
 let failures = 0
@@ -239,21 +239,21 @@ try {
   {
     await primeOpenai()
     const availability = catalogue.getGptSeatAvailability()
-    check('the bare list qualifies every id: the seat is ready with ten ids, the three gpt ids first', availability.state === 'ready' && availability.ids.join(',') === [...KNOWN, ...BARE].join(','), JSON.stringify(availability), 'getGptSeatAvailability in src/services/providers/openai/openaiCatalogue.ts must report ready with every id of the bare /v1/models list, the gpt ids first')
+    check('the bare list qualifies every id: the seat is ready with ten ids, the three gpt ids first', availability.state === 'ready' && availability.ids.join(',') === [...KNOWN, ...BARE].join(','), JSON.stringify(availability), 'getGptSeatAvailability in src/models/roads/openai/openaiCatalogue.ts must report ready with every id of the bare /v1/models list, the gpt ids first')
     const rows = openaiRows()
     const live = liveOpenaiRows()
     record(`the OpenAI section: ${rows.map(row => `${row.value}${row.description === '' ? '' : ` [${row.description}]`}${row.unavailable === undefined ? '' : ' (unavailable)'}`).join(' · ')}`)
-    check('nothing filtered: the seven bare ids are selectable rows, in the list\'s order, after the three gpt rows', live.map(row => row.value).join(',') === [...KNOWN, ...BARE].join(','), live.map(row => row.value).join(','), 'getModelOptions in src/services/model/modelOptions.ts must list every id of the bare list as a selectable OpenAI row, in the list order after the three gpt rows')
-    check('the unserved pins still trail as visible-but-unavailable rows', rows.slice(live.length).map(row => row.label).join(',') === UNSERVED.join(',') && rows.slice(live.length).every(row => row.unavailable !== undefined), rows.slice(live.length).map(row => row.label).join(','), 'getModelOptions in src/services/model/modelOptions.ts must keep the unserved pins after the live rows, each marked unavailable')
+    check('nothing filtered: the seven bare ids are selectable rows, in the list\'s order, after the three gpt rows', live.map(row => row.value).join(',') === [...KNOWN, ...BARE].join(','), live.map(row => row.value).join(','), 'getModelOptions in src/models/catalogue/modelOptions.ts must list every id of the bare list as a selectable OpenAI row, in the list order after the three gpt rows')
+    check('the unserved pins still trail as visible-but-unavailable rows', rows.slice(live.length).map(row => row.label).join(',') === UNSERVED.join(',') && rows.slice(live.length).every(row => row.unavailable !== undefined), rows.slice(live.length).map(row => row.label).join(','), 'getModelOptions in src/models/catalogue/modelOptions.ts must keep the unserved pins after the live rows, each marked unavailable')
     const unknown = live.filter(row => BARE.includes(row.value))
-    check(`each of the seven carries the marker "${MARKER}" as its words`, unknown.length === 7 && unknown.every(row => row.description === MARKER), unknown.map(row => `${row.value}:"${row.description}"`).join(' · '), 'getModelOptions in src/services/model/modelOptions.ts must give each live id the catalogue does not know the description live · unknown to mercury (the MARKER constant in this file)')
-    check('each unknown row is named by its raw id and stays selectable', unknown.every(row => row.label === row.value && row.unavailable === undefined), unknown.map(row => `${row.value}:${row.label}`).join(','), 'getModelOptions in src/services/model/modelOptions.ts must label an unknown live row with its raw id and leave it selectable')
-    check('each unknown row carries the typed live-unknown field and states no window (the bare list states none)', unknown.every(row => row.liveUnknown === true && row.statedContextWindow === undefined), unknown.map(row => `${row.value}:${String(row.liveUnknown)}/${String(row.statedContextWindow)}`).join(' · '), 'getModelOptions in src/services/model/modelOptions.ts must set liveUnknown true and no statedContextWindow on an unknown row of the bare list')
-    check('the model-facing description of an unknown row says it is listed live and unknown to the catalogue, never a GPT agent', unknown.every(row => (row.descriptionForModel ?? '').startsWith(`${row.value} (${row.value}) — listed live by the connected OpenAI API key`) && (row.descriptionForModel ?? '').includes("unknown to Mercury's catalogue") && !(row.descriptionForModel ?? '').includes('a GPT primary agent')), unknown[0]?.descriptionForModel, 'the descriptionForModel that getModelOptions (src/services/model/modelOptions.ts) builds for an unknown OpenAI row must start with the id and say it is listed live by the key and unknown to the catalogue')
+    check(`each of the seven carries the marker "${MARKER}" as its words`, unknown.length === 7 && unknown.every(row => row.description === MARKER), unknown.map(row => `${row.value}:"${row.description}"`).join(' · '), 'getModelOptions in src/models/catalogue/modelOptions.ts must give each live id the catalogue does not know the description live · unknown to mercury (the MARKER constant in this file)')
+    check('each unknown row is named by its raw id and stays selectable', unknown.every(row => row.label === row.value && row.unavailable === undefined), unknown.map(row => `${row.value}:${row.label}`).join(','), 'getModelOptions in src/models/catalogue/modelOptions.ts must label an unknown live row with its raw id and leave it selectable')
+    check('each unknown row carries the typed live-unknown field and states no window (the bare list states none)', unknown.every(row => row.liveUnknown === true && row.statedContextWindow === undefined), unknown.map(row => `${row.value}:${String(row.liveUnknown)}/${String(row.statedContextWindow)}`).join(' · '), 'getModelOptions in src/models/catalogue/modelOptions.ts must set liveUnknown true and no statedContextWindow on an unknown row of the bare list')
+    check('the model-facing description of an unknown row says it is listed live and unknown to the catalogue, never a GPT agent', unknown.every(row => (row.descriptionForModel ?? '').startsWith(`${row.value} (${row.value}) — listed live by the connected OpenAI API key`) && (row.descriptionForModel ?? '').includes("unknown to Mercury's catalogue") && !(row.descriptionForModel ?? '').includes('a GPT primary agent')), unknown[0]?.descriptionForModel, 'the descriptionForModel that getModelOptions (src/models/catalogue/modelOptions.ts) builds for an unknown OpenAI row must start with the id and say it is listed live by the key and unknown to the catalogue')
     const known = live.filter(row => KNOWN.includes(row.value))
-    check('a known bare id is unmarked: the pinned rows and the grammar-only row alike carry no words', known.length === 3 && known.every(row => row.description === '' && row.liveUnknown === undefined) && known.map(row => row.label).join(',') === KNOWN.map(id => KNOWN_NAMES[id]).join(','), known.map(row => `${row.value}:"${row.description}"`).join(' · '), 'getModelOptions in src/services/model/modelOptions.ts must leave the three known gpt rows with an empty description and no liveUnknown, labelled by their catalogue names')
+    check('a known bare id is unmarked: the pinned rows and the grammar-only row alike carry no words', known.length === 3 && known.every(row => row.description === '' && row.liveUnknown === undefined) && known.map(row => row.label).join(',') === KNOWN.map(id => KNOWN_NAMES[id]).join(','), known.map(row => `${row.value}:"${row.description}"`).join(' · '), 'getModelOptions in src/models/catalogue/modelOptions.ts must leave the three known gpt rows with an empty description and no liveUnknown, labelled by their catalogue names')
     check('the known rows keep their model-facing description', known.every(row => (row.descriptionForModel ?? '').includes('a GPT primary agent from the live catalogue')))
-    check('the marker is the one exception to the neutral grammar: every other model row of every group stays wordless', getModelOptions().filter(o => !isProviderActionRow(o.value) && o.description !== '').every(o => o.description === MARKER && BARE.includes(o.value)), getModelOptions().filter(o => !isProviderActionRow(o.value) && o.description !== '' && o.description !== MARKER).map(o => `${o.value}:${o.description}`).join(' · '), 'in getModelOptions (src/services/model/modelOptions.ts) only the unknown OpenAI ids may carry a description; a row listed here gained words it must not have')
+    check('the marker is the one exception to the neutral grammar: every other model row of every group stays wordless', getModelOptions().filter(o => !isProviderActionRow(o.value) && o.description !== '').every(o => o.description === MARKER && BARE.includes(o.value)), getModelOptions().filter(o => !isProviderActionRow(o.value) && o.description !== '' && o.description !== MARKER).map(o => `${o.value}:${o.description}`).join(' · '), 'in getModelOptions (src/models/catalogue/modelOptions.ts) only the unknown OpenAI ids may carry a description; a row listed here gained words it must not have')
   }
 
   for (const band of BANDS) {
@@ -328,7 +328,7 @@ try {
     deepseek.__resetDeepseekCatalogueForTest()
     const kimi = await moonshot.refreshMoonshotCatalogue({ force: true })
     const seek = await deepseek.refreshDeepseekCatalogue({ force: true })
-    check('both fixture lists land', kimi?.models.length === 3 && seek?.models.length === 2 && kimi.lastError === undefined && seek.lastError === undefined, JSON.stringify([kimi, seek]), 'refreshMoonshotCatalogue and refreshDeepseekCatalogue (src/services/providers/moonshot/moonshotCatalogue.ts and src/services/providers/deepseek/deepseekCatalogue.ts) must read the fixture lists this script serves without lastError')
+    check('both fixture lists land', kimi?.models.length === 3 && seek?.models.length === 2 && kimi.lastError === undefined && seek.lastError === undefined, JSON.stringify([kimi, seek]), 'refreshMoonshotCatalogue and refreshDeepseekCatalogue (src/models/roads/moonshot/moonshotCatalogue.ts and src/models/roads/deepseek/deepseekCatalogue.ts) must read the fixture lists this script serves without lastError')
     const all = getModelOptions()
     const lane = (group: string) => all.filter(o => o.group === group && !isProviderActionRow(o.value))
     const kimiRows = lane(MOONSHOT_MODEL_GROUP)

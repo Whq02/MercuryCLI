@@ -9,7 +9,7 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const onboardingFixHint = 'change projectOnboardingHint, noteProjectOnboardingShown or incrementProjectOnboardingSeenCount in src/projectOnboardingState.ts'
+const onboardingFixHint = 'change projectOnboardingHint, noteProjectOnboardingShown or incrementProjectOnboardingSeenCount in src/boot/projectOnboarding.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   const shown = cond ? detail : detail ? detail + '; ' + onboardingFixHint : onboardingFixHint
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
@@ -17,16 +17,16 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { setCwd } = await import('../../src/utils/Shell.js')
-const onboarding = (await import('../../src/projectOnboardingState.ts')) as unknown as {
+const { setCwd } = await import('../../src/platform/shell/shellExec.js')
+const onboarding = (await import('../../src/boot/projectOnboarding.ts')) as unknown as {
   projectOnboardingHint?: (() => string | undefined) & { cache?: { clear?: () => void } }
   shouldShowProjectOnboarding: (() => boolean) & { cache?: { clear?: () => void } }
   noteProjectOnboardingShown?: () => void
   incrementProjectOnboardingSeenCount: () => void
 }
-const { getCurrentProjectConfig } = await import('../../src/utils/config.js')
+const { getCurrentProjectConfig } = await import('../../src/platform/settings/config.js')
 
 const hintAt = (dir: string): string | undefined => {
   setCwd(dir)

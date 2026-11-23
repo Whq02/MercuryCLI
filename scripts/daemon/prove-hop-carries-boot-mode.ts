@@ -31,13 +31,13 @@ const KEY = 'proof-key-ci-gate-not-a-real-key'
 const PROOF_ENV = { MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: KEY, ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', MERCURY_DAP: '0', MERCURY_WARM_RUNNER: '0' }
 process.env.ANTHROPIC_API_KEY = KEY
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
-const workers = await import('../../src/daemon/concourseWorkers.ts')
-const { readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { permissionModeTitle } = await import('../../src/utils/permissions/PermissionMode.ts')
-const { getNextPermissionMode } = await import('../../src/utils/permissions/getNextPermissionMode.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/control/protocol.ts')
+const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { readSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+const { permissionModeTitle } = await import('../../src/permissions/rules/permissionMode.ts')
+const { getNextPermissionMode } = await import('../../src/permissions/rules/getNextPermissionMode.ts')
 
 const watchdog = setTimeout(() => {
   console.log('\nTIMEOUT: prove-hop-carries-boot-mode exceeded 420s; a daemon, a runner or the screen never answered: read the last run header above and the frames under it')
@@ -59,9 +59,9 @@ const bandWordOf = (mode: string): string => (mode === 'default' ? 'blank' : mod
 const ringFrom = (mode: Mode) => getNextPermissionMode({ mode, isBypassPermissionsModeAvailable: true } as never)
 
 const HINTS = {
-  hop: 'a hop into a live runner must push no mode: hopIntoBoardSessionLanding and applyLaunchWordOnHop in src/services/switchboard/hopIntoSession.ts carry the model and the effort only, and the live arm of reactivateConcourseSession (src/daemon/concourseWorkers/reactivate.ts) answers liveHop without a respawn',
-  band: "the mode band must read the focused session's own mode: permissionModeOf in src/services/engine-connector/daemonConnector.ts (the runner's word outranks the launch's) and modeBand in src/components/MercuryFrame.tsx",
-  copy: "the chat's own copy of the mode must take the live session's mode when the chat mounts onto it: the mount arm beside adoptRunnerMode in useChatAsks (src/screens/chat/useChatAsks.tsx); shift+tab (cyclePermission) and /config's row (getEffectivePermissionMode in src/utils/config/derived.ts) read that copy",
+  hop: 'a hop into a live runner must push no mode: hopIntoBoardSessionLanding and applyLaunchWordOnHop in src/daemon/switchboard/hopIntoSession.ts carry the model and the effort only, and the live arm of reactivateConcourseSession (src/daemon/concourse-workers/reactivate.ts) answers liveHop without a respawn',
+  band: "the mode band must read the focused session's own mode: permissionModeOf in src/engine/connector/daemonConnector.ts (the runner's word outranks the launch's) and modeBand in src/screen/frame-chips/MercuryFrame.tsx",
+  copy: "the chat's own copy of the mode must take the live session's mode when the chat mounts onto it: the mount arm beside adoptRunnerMode in useChatAsks (src/screen/chat/useChatAsks.tsx); shift+tab (cyclePermission) and /config's row (getEffectivePermissionMode in src/platform/config/derived.ts) read that copy",
   drive: 'the drive did not reach this point: read the frames above (rebuild dist with bun run build.ts if it is stale)',
 }
 let failures = 0

@@ -6,20 +6,20 @@ const root = writeProject(scratch, 'project', {})
 writeProject(scratch, 'home', { 'settings.json': JSON.stringify({ guardrails: { allow: ['LSP'] }, events: { hooks: { 'tool.before': [{ match: 'LSP', run: 'true' }, { match: '^LSP$', run: 'true' }] } } }) })
 const { enterRoot } = await import('../ast-tools/lib/harness.ts')
 await enterRoot(root)
-const available = await import('../../src/tools/LSPTool/LSPTool.ts')
+const available = await import('../../src/tools/lsp/lspTools.ts')
 if (!('LSP_TOOLS' in available)) {
   check('the LSP setting family covers all seven tools without a callable alias', false)
   cleanup(scratch)
   finish('prove-lsp-split-settings')
 }
 const { LSP_TOOLS } = available
-const { getEmptyToolPermissionContext, findToolByName } = await import('../../src/Tool.ts')
-const { initializeToolPermissionContext } = await import('../../src/utils/permissions/permissionSetup.ts')
-const { toolAlwaysAllowedRule, getDenyRuleForTool, getAskRuleForTool } = await import('../../src/utils/permissions/decision/rules.ts')
-const { killCapability, restoreCapability, isCapabilityKilled, capabilityKillReason } = await import('../../src/utils/permissions/capabilityGate.ts')
-const { matchesPattern } = await import('../../src/utils/hooks/matching.ts')
-const { resolveAgentTools } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { lspPermissionNote, lspCliNote, lspHookNote, lspAgentNote } = await import('../../src/utils/lsp/toolFamily.ts')
+const { getEmptyToolPermissionContext, findToolByName } = await import('../../src/tools/kit/tool.ts')
+const { initializeToolPermissionContext } = await import('../../src/permissions/rules/permissionSetup.ts')
+const { toolAlwaysAllowedRule, getDenyRuleForTool, getAskRuleForTool } = await import('../../src/permissions/rules/decision/rules.ts')
+const { killCapability, restoreCapability, isCapabilityKilled, capabilityKillReason } = await import('../../src/permissions/rules/capabilityGate.ts')
+const { matchesPattern } = await import('../../src/integrations/event-hooks/matching.ts')
+const { resolveAgentTools } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { lspPermissionNote, lspCliNote, lspHookNote, lspAgentNote } = await import('../../src/integrations/lsp-family/toolFamily.ts')
 const successors = 'LspRead, LspRename, LspMoveSymbol, LspMoveFile, LspCodeAction, LspFormat and LspRequest'
 for (const kind of ['allow', 'deny'] as const) {
   const initialized = await initializeToolPermissionContext({ allowedToolsCli: kind === 'allow' ? ['LSP'] : [], disallowedToolsCli: kind === 'deny' ? ['LSP'] : [], permissionMode: 'default', allowDangerouslySkipPermissions: false })

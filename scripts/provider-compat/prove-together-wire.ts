@@ -4,11 +4,11 @@ import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import { z } from 'zod/v4'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 import { TOGETHER_FIXTURE_MODELS } from '../providers/lib/openweights-fixture.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_BUSY_RETRY_SCALE = '0.2'
@@ -33,7 +33,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   assert.equal(path, '/v1/chat/completions')
   assert.equal(req.method, 'POST')
   const raw = await req.text()
-  assert.ok(!raw.includes(process.env.TOGETHER_API_KEY!), 'Together chat request body in src/services/providers/together/ must never contain TOGETHER_API_KEY')
+  assert.ok(!raw.includes(process.env.TOGETHER_API_KEY!), 'Together chat request body in src/models/roads/together/ must never contain TOGETHER_API_KEY')
   const body = JSON.parse(raw)
   captures.push({ path, body, bearer })
   if (body.model === 'openai/gpt-oss-120b' && body.reasoning_effort !== undefined && !['low', 'medium', 'high'].includes(body.reasoning_effort)) return Response.json({ error: { message: `reasoning_effort '${body.reasoning_effort}' is not supported for this model`, type: 'invalid_request_error' } }, { status: 400 })
@@ -65,25 +65,25 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   return new Response(stream + 'data: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } })
 } })
 process.env.MERCURY_TOGETHER_API_BASE = `http://127.0.0.1:${server.port}/v1`
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
-const { refreshTogetherCatalogue, __resetTogetherCatalogueForTest, togetherCatalogueRows, togetherCatalogueSourceWords, getCachedTogetherCatalogue } = await import('../../src/services/providers/together/togetherCatalogue.ts')
-const { buildTogetherExtras } = await import('../../src/services/providers/together/togetherCallModel.ts')
-const { storeTogetherApiKeyLogin } = await import('../../src/services/providers/together/togetherLogin.ts')
-const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
-const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
-const { classifyModelRoute, canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
-const { parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
-const { keyLaneListState, keyLanePins } = await import('../../src/services/model/modelOptions.ts')
-const { readStoredTogetherApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-const { resolveContextWindow, modelThinkingAlwaysOn, effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
-const { resolveEffortTruth } = await import('../../src/utils/effort.ts')
-const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { resolvePrimaryAgentBackend } = await import('../../src/models/roads/primaryBackend.ts')
+const { refreshTogetherCatalogue, __resetTogetherCatalogueForTest, togetherCatalogueRows, togetherCatalogueSourceWords, getCachedTogetherCatalogue } = await import('../../src/models/roads/together/togetherCatalogue.ts')
+const { buildTogetherExtras } = await import('../../src/models/roads/together/togetherCallModel.ts')
+const { storeTogetherApiKeyLogin } = await import('../../src/models/roads/together/togetherLogin.ts')
+const { usageForProvider } = await import('../../src/models/roads/providerUsage.ts')
+const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
+const { laneBillingState } = await import('../../src/models/roads/laneBillingState.ts')
+const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
+const { classifyModelRoute, canonicalWireModelId } = await import('../../src/models/roads/routeLaw.ts')
+const { parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.ts')
+const { keyLaneListState, keyLanePins } = await import('../../src/models/catalogue/modelOptions.ts')
+const { readStoredTogetherApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { resolveContextWindow, modelThinkingAlwaysOn, effortVocabularyFor } = await import('../../src/models/facts/capabilities.ts')
+const { resolveEffortTruth } = await import('../../src/models/effort/effort.ts')
+const { resolveModelPricing } = await import('../../src/models/usage/modelCost.ts')
 const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
 function params(model = 'together/moonshotai/Kimi-K3', effortValue: string | undefined = 'high', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
   return { messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: thinking ? { type: 'enabled', budgetTokens: 4096 } : { type: 'disabled' }, signal: new AbortController().signal,

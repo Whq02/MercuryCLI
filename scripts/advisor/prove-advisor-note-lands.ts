@@ -31,7 +31,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix the advisor service under src/services/advisor (when a note is composed and queued) or how the chat reads and paints advisor rows (src/utils/messages/noticeRows.ts, src/utils/messages/text.ts); the check label names the law, and the run needs a fresh dist (bun run build.ts)' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix the advisor service under src/models/advisor (when a note is composed and queued) or how the chat reads and paints advisor rows (src/engine/message-shapes/noticeRows.ts, src/engine/message-shapes/text.ts); the check label names the law, and the run needs a fresh dist (bun run build.ts)' : ''}`)
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
@@ -178,22 +178,22 @@ await new Promise<void>(r => server.listen(0, '127.0.0.1', r))
 const address = server.address()
 const FIXTURE_URL = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}`
 
-const { setIsInteractive } = await import(join(ROOT, 'src/bootstrap/state.ts'))
+const { setIsInteractive } = await import(join(ROOT, 'src/boot/process-state/processState.ts'))
 setIsInteractive(false)
-const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
 const React = (await import('react')).default
-const { render, Box } = await import(join(ROOT, 'src/ink.ts'))
-const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
-const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
-const { Message } = await import(join(ROOT, 'src/components/Message.tsx'))
-const { normalizeMessages } = await import(join(ROOT, 'src/utils/messages/normalize.ts'))
-const { buildMessageLookups } = await import(join(ROOT, 'src/services/messages/lookups.ts'))
-const { deserializeLiveMessages } = await import(join(ROOT, 'src/services/resume/conversationRecovery.ts'))
-const reader = await import(join(ROOT, 'src/utils/sessionStorage/transcriptReader.ts'))
-const rows = await import(join(ROOT, 'src/utils/messages/noticeRows.ts'))
-const text = await import(join(ROOT, 'src/utils/messages/text.ts'))
-const { projectSlug } = await import(join(ROOT, 'src/utils/sessionStoragePortable.ts'))
+const { render, Box } = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
+const { AppStateProvider } = await import(join(ROOT, 'src/screen/app-state/AppState.tsx'))
+const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/AppStateStore.ts'))
+const { Message } = await import(join(ROOT, 'src/screen/messages/Message.tsx'))
+const { normalizeMessages } = await import(join(ROOT, 'src/engine/message-shapes/normalize.ts'))
+const { buildMessageLookups } = await import(join(ROOT, 'src/engine/messages/lookups.ts'))
+const { deserializeLiveMessages } = await import(join(ROOT, 'src/sessions/resume/conversationRecovery.ts'))
+const reader = await import(join(ROOT, 'src/sessions/transcripts/transcriptReader.ts'))
+const rows = await import(join(ROOT, 'src/engine/message-shapes/noticeRows.ts'))
+const text = await import(join(ROOT, 'src/engine/message-shapes/text.ts'))
+const { projectSlug } = await import(join(ROOT, 'src/sessions/transcripts/sessionStoragePortable.ts'))
 const { seedFirstRun } = await import(join(ROOT, 'scripts/lib/firstRunSeed.ts'))
 const h = React.createElement as (...a: unknown[]) => React.ReactElement
 const strip = (s: string): string => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')

@@ -20,16 +20,16 @@ function seed(source: 'oauth' | 'api-key' = 'oauth'): void {
   writeFileSync(join(home, '.gemini-auth.json'), JSON.stringify({ version: 1, preferredSource: source, client: { clientId: 'fixture-client' }, tokens: { accessToken: access, refreshToken: 'fixture-refresh', accessTokenExpiresAtMs: Date.now() + 3600000 } }))
 }
 seed()
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { geminiCallModel, geminiLaneProfile, geminiLiveProofState, GEMINI_ACCOUNT_BILLING_REMEDY } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getUsageForModel } = await import('../../src/bootstrap/state.ts')
-const { entryToRecord, recordToEntry } = await import('../../src/fabric/entryCodec.ts')
-const { foldSplitTurnsForWire } = await import('../../src/services/messages/pairing.ts')
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+const { geminiCallModel, geminiLaneProfile, geminiLiveProofState, GEMINI_ACCOUNT_BILLING_REMEDY } = await import('../../src/models/roads/gemini/geminiCallModel.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getUsageForModel } = await import('../../src/boot/process-state/processState.ts')
+const { entryToRecord, recordToEntry } = await import('../../src/sessions/fabric/entryCodec.ts')
+const { foldSplitTurnsForWire } = await import('../../src/engine/messages/wirePairing.ts')
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
 
 let checks = 0
 let failures = 0
@@ -37,7 +37,7 @@ function check(label: string, condition: boolean, detail?: string): void {
   checks++
   if (!condition) failures++
   console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}`)
-  if (!condition) console.log(`  fix: ${detail ?? 'compare the behaviour in src/services/providers/gemini/geminiCallModel.ts (turn flow, errors), geminiClient.ts (stream faults) and geminiCodec.ts (request and replay shape) with the label above'}`)
+  if (!condition) console.log(`  fix: ${detail ?? 'compare the behaviour in src/models/roads/gemini/geminiCallModel.ts (turn flow, errors), geminiClient.ts (stream faults) and geminiCodec.ts (request and replay shape) with the label above'}`)
 }
 const model = 'gemini-3.5-flash'
 const tool = { name: 'FixtureEcho', prompt: async () => 'Echo the supplied text.', inputSchema: z.object({ text: z.string(), optional: z.string().optional() }), inputJSONSchema: { type: 'object', properties: { text: { type: 'string' }, optional: { type: 'string' } }, required: ['text'] } }
@@ -208,8 +208,8 @@ try {
 } finally {
   globalThis.fetch = realFetch
 }
-const { streamGeminiContent } = await import('../../src/services/providers/gemini/geminiClient.ts')
-const { buildGeminiRequest } = await import('../../src/services/providers/gemini/geminiCodec.ts')
+const { streamGeminiContent } = await import('../../src/models/roads/gemini/geminiClient.ts')
+const { buildGeminiRequest } = await import('../../src/models/roads/gemini/geminiCodec.ts')
 async function client(fetchImpl: typeof fetch, extras: Record<string, unknown> = {}) {
   const events: any[] = []
   const turns: any[] = []

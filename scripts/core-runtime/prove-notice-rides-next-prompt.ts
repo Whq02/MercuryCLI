@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import type { QueuedCommand } from '../../src/types/textInputTypes.ts'
+import type { QueuedCommand } from '../../src/screen/composer/input-core/textInput.ts'
 
-const { createTurnDriver } = await import('../../src/cli/headless/turnDriver.ts')
+const { createTurnDriver } = await import('../../src/daemon/runner/turnDriver.ts')
 type TurnDriverPorts = Parameters<typeof createTurnDriver>[0]
 
 let failures = 0
-const noticeFix = 'fix createTurnDriver in src/cli/headless/turnDriver.ts: the notices taken into initialNotices (ridesNextWords, outside-report origin) and the agent-wait sleep on AGENT_WAIT_TICK_MS decide what rides a prompt'
+const noticeFix = 'fix createTurnDriver in src/daemon/runner/turnDriver.ts: the notices taken into initialNotices (ridesNextWords, outside-report origin) and the agent-wait sleep on AGENT_WAIT_TICK_MS decide what rides a prompt'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail.slice(0, 500) : '') + ' — ' + noticeFix : ''}`)
   if (!cond) failures++

@@ -13,16 +13,16 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 const { scenario, cleanupScenario, SID, SID_ERRORED, RUNTIME_CWD } = await import('./renderScenarios.ts')
-const { getProjectDir, extractFirstPromptFromHead } = await import('../../src/utils/sessionStoragePortable.ts')
-const { recentLaneLabel } = await import('../../src/services/cockpit/helmLanesModel.ts')
-const { rowLabel } = await import('../../src/components/mercury-ui/screens/sessionPickerModel.ts')
-const { createSyntheticUserCaveatMessage, createUserMessage, formatCommandInputTags } = await import('../../src/utils/messages/factories.ts')
+const { getProjectDir, extractFirstPromptFromHead } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
+const { recentLaneLabel } = await import('../../src/screen/cockpit-gauges/helmLanesModel.ts')
+const { rowLabel } = await import('../../src/screen/widgets/faces/sessionPickerModel.ts')
+const { createSyntheticUserCaveatMessage, createUserMessage, formatCommandInputTags } = await import('../../src/engine/message-shapes/factories.ts')
 const title = 'after command'
 const frameIndex = process.argv.indexOf('--frames')
 const frameDir = frameIndex < 0 ? undefined : process.argv[frameIndex + 1]
 if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let failures = 0
-const nameRoadsHint = 'change recentLaneLabel in src/services/cockpit/helmLanesModel/sections.ts and rowLabel in src/components/mercury-ui/screens/sessionPickerModel.ts so both strip command markup and show the first real prompt or summary'
+const nameRoadsHint = 'change recentLaneLabel in src/screen/cockpit-gauges/helm-lanes-model/sections.ts and rowLabel in src/screen/widgets/faces/sessionPickerModel.ts so both strip command markup and show the first real prompt or summary'
 function check(label: string, ok: boolean, detail: string, hint: string = nameRoadsHint): void {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label} — ${detail}${ok ? '' : `; ${hint}`}`)
@@ -34,7 +34,7 @@ const entries = [
   createUserMessage({ content: title }),
 ].map((row, index, rows) => ({ ...row, sessionId: SID_ERRORED, cwd: RUNTIME_CWD, parentUuid: index === 0 ? null : rows[index - 1]!.uuid }))
 const bytes = encodeSeedTranscript(entries, SID_ERRORED)
-const log = { firstPrompt: extractFirstPromptFromHead(bytes), sessionId: SID_ERRORED } as import('../../src/types/logs.ts').SessionListing
+const log = { firstPrompt: extractFirstPromptFromHead(bytes), sessionId: SID_ERRORED } as import('../../src/sessions/transcripts/transcriptEntries.ts').SessionListing
 check('the RECENT lane and /sessions name the same first real prompt', recentLaneLabel(log) === title && rowLabel(log) === title, `${recentLaneLabel(log)} / ${rowLabel(log)}`)
 const tagged = { ...log, firstPrompt: '<local-command-caveat>synthetic words</local-command-caveat>', summary: title }
 check('the RECENT lane and /sessions share the summary and markup cleanup', recentLaneLabel(tagged) === rowLabel(tagged) && rowLabel(tagged) === title, `${recentLaneLabel(tagged)} / ${rowLabel(tagged)}`)

@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { gitArgs, gitArgsAsync } from '../../src/utils/git/spawnArgs.ts'
+import { gitArgs, gitArgsAsync } from '../../src/platform/git/spawnArgs.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'git-cache-fresh-'))
 const init = (root: string): void => {
@@ -26,7 +26,7 @@ try {
     init(root)
     const executable = filter(root, 'fresh')
     const initialArgs = await argsOf(['add', '--', 'file.txt'], root)
-    assert.ok(!initialArgs.includes('filter.fresh.clean='), `${road}: gitArgs suppressed absent filter helper before file existed in src/utils/git/spawnArgs.ts: ${initialArgs.join(' ').slice(0, 160)}`)
+    assert.ok(!initialArgs.includes('filter.fresh.clean='), `${road}: gitArgs suppressed absent filter helper before file existed in src/platform/git/spawnArgs.ts: ${initialArgs.join(' ').slice(0, 160)}`)
     writeFileSync(executable, 'exit 0\n')
     check(`${road}: a helper created after the config cache warmed is still suppressed`, (await argsOf(['add', '--', 'file.txt'], root)).includes('filter.fresh.clean='))
     rmSync(executable)

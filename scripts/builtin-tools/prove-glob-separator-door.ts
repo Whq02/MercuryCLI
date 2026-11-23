@@ -22,21 +22,21 @@ type Door = {
   normalizeGlobPattern: (pattern: string, platform?: NodeJS.Platform) => string
   splitGrepGlobField: (field: string, platform?: NodeJS.Platform) => string[]
 }
-const normHint = 'change normalizeGlobPattern in src/utils/globPattern.ts'
-const splitHint = 'change splitGrepGlobField in src/utils/globPattern.ts'
+const normHint = 'change normalizeGlobPattern in src/tools/glob/globPattern.ts'
+const splitHint = 'change splitGrepGlobField in src/tools/glob/globPattern.ts'
 let door: Door | null = null
 try {
-  door = (await import('../../src/utils/globPattern.ts')) as Door
+  door = (await import('../../src/tools/glob/globPattern.ts')) as Door
 } catch (e) {
   console.log(`  (the door module is absent: ${e instanceof Error ? e.message.split('\n')[0] : String(e)})`)
 }
 
 section('§1 normalizeGlobPattern — win32 rewrites separators, POSIX is a no-op')
-check('the door module exists', door !== null, 'src/utils/globPattern.ts must exist and export normalizeGlobPattern and splitGrepGlobField')
+check('the door module exists', door !== null, 'src/tools/glob/globPattern.ts must exist and export normalizeGlobPattern and splitGrepGlobField')
 if (door) {
   const n = door.normalizeGlobPattern
   check("win32: 'src\\**\\*.ts' → 'src/**/*.ts'", n('src\\**\\*.ts', 'win32') === 'src/**/*.ts', `${n('src\\**\\*.ts', 'win32')} | ${normHint}`)
-  check("win32: 'src\\utils\\path.ts' → 'src/utils/path.ts'", n('src\\utils\\path.ts', 'win32') === 'src/utils/path.ts', normHint)
+  check("win32: 'src\\utils\\path.ts' → 'src/platform/files/path.ts'", n('src\\utils\\path.ts', 'win32') === 'src/platform/files/path.ts', normHint)
   check("win32: a mixed spelling 'src\\utils/*.ts' → 'src/utils/*.ts'", n('src\\utils/*.ts', 'win32') === 'src/utils/*.ts', normHint)
   check("win32: an already-forward pattern is unchanged", n('src/**/*.ts', 'win32') === 'src/**/*.ts', normHint)
   check("win32: a brace group keeps its braces", n('src\\**\\*.{ts,tsx}', 'win32') === 'src/**/*.{ts,tsx}', normHint)
@@ -72,7 +72,7 @@ if (process.platform === 'win32') {
   writeFileSync(join(fixture, 'a1.ts'), '')
   writeFileSync(join(fixture, 'sub', 'c.ts'), '')
   try {
-    const { ripGrep } = await import('../../src/utils/ripgrep.ts')
+    const { ripGrep } = await import('../../src/platform/shell/ripgrep.ts')
     const escaped = door.normalizeGlobPattern('a\\[1\\].ts')
     const hits = await ripGrep(['--files', '--glob', escaped], fixture, new AbortController().signal)
     check("'a\\[1\\].ts' still names the literal file a[1].ts (escape kept)", hits.length === 1 && /a\[1\]\.ts$/.test(hits[0] ?? ''), `${JSON.stringify(hits)} | ${normHint} so it leaves backslashes alone off win32`)

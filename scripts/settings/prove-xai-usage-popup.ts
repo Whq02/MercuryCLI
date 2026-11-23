@@ -17,20 +17,20 @@ const originalNow = Date.now
 let now = XAI_FIXTURE_NOW
 Date.now = () => now
 const fixture = xaiUsageFixture()
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[name]
 Object.assign(process.env, fixture.env)
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const owner = await import('../../src/services/providers/providerUsage.ts')
-const fresh = await import('../../src/services/providers/usageFreshness.ts')
-mock.module('../../src/services/providers/providerUsage.ts', () => ({ ...owner, providerFamilyPresences: () => [{ id: 'xai', available: true, credentialed: true, credentialLabel: 'xAI API key (fixture)' }, { id: 'deepseek', available: false, credentialed: false }, { id: 'openai-compat', available: false, credentialed: false }] }))
-const keybindings = await import('../../src/keybindings/useKeybinding.ts')
-mock.module('../../src/keybindings/useKeybinding.ts', () => ({ ...keybindings, useKeybinding: () => undefined }))
-const { Usage } = await import('../../src/components/Settings/Usage.tsx')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const owner = await import('../../src/models/roads/providerUsage.ts')
+const fresh = await import('../../src/models/roads/usageFreshness.ts')
+mock.module('../../src/models/roads/providerUsage.ts', () => ({ ...owner, providerFamilyPresences: () => [{ id: 'xai', available: true, credentialed: true, credentialLabel: 'xAI API key (fixture)' }, { id: 'deepseek', available: false, credentialed: false }, { id: 'openai-compat', available: false, credentialed: false }] }))
+const keybindings = await import('../../src/screen/keys/useKeybinding.ts')
+mock.module('../../src/screen/keys/useKeybinding.ts', () => ({ ...keybindings, useKeybinding: () => undefined }))
+const { Usage } = await import('../../src/screen/settings/Usage.tsx')
 const framesArg = process.argv.indexOf('--frames')
 const frames = framesArg >= 0 ? process.argv[framesArg + 1] : undefined
 let checks = 0
-const XAI_POPUP_FAIL_HINT = ' — the xAI section painted by the Usage board in src/components/Settings/Usage.tsx does not show what this label names; fix what it reads from refreshProviderUsage in src/services/providers/providerUsage.ts, or rerun with --frames <dir> to write the painted frames and read them'
+const XAI_POPUP_FAIL_HINT = ' — the xAI section painted by the Usage board in src/screen/settings/Usage.tsx does not show what this label names; fix what it reads from refreshProviderUsage in src/models/roads/providerUsage.ts, or rerun with --frames <dir> to write the painted frames and read them'
 const check = (label: string, ok: unknown): void => { assert.ok(ok, `${label}${XAI_POPUP_FAIL_HINT}`); checks++; console.log(`[PASS] ${label}`) }
 async function capture(name: string, width: number): Promise<string> {
   const board = await mountOffscreen(React.createElement(Usage, { width, rowBudget: 44 }), width, 48)
@@ -59,7 +59,7 @@ try {
   delete process.env.XAI_MANAGEMENT_API_KEY
   const missing = await capture('xai-usage-api-only', 116)
   check('API-only usage paints the exact management-key remedy without a failure or an old balance', missing.includes("add a management key from the console's settings page to read usage — /logins xai") && !missing.includes('refused') && !missing.includes('USD 12.34'))
-  const oauth = await import('../../src/services/providers/xai/xaiOauth.ts')
+  const oauth = await import('../../src/models/roads/xai/xaiOauth.ts')
   const { XAI_FIXTURE_SUBSCRIPTION_TOKEN } = await import('../providers/lib/xai-usage-fixture.ts')
   oauth.writeXaiTokens({ accessToken: XAI_FIXTURE_SUBSCRIPTION_TOKEN, refreshToken: 'fixture-subscription-refresh', expiresAtMs: now + 3600_000, email: 'fixture@example.invalid' })
   oauth.writePreferredXaiSource('grok-subscription')

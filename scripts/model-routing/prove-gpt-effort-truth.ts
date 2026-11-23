@@ -9,7 +9,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix resolveGptReasoningProfile in src/services/providers/openai/openaiCatalogue.ts, resolveEffortTruth and resolveAppliedEffort in src/utils/effort.ts, or the effort vocabulary functions in src/utils/model/capabilities.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix resolveGptReasoningProfile in src/models/roads/openai/openaiCatalogue.ts, resolveEffortTruth and resolveAppliedEffort in src/models/effort/effort.ts, or the effort vocabulary functions in src/models/facts/capabilities.ts'}`)
 }
 
 console.log('============================================================')
@@ -30,10 +30,10 @@ for (const key of [
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-gpt-effort-'))
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
-const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
+const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.js')
 const { resolveGptReasoningProfile, refreshOpenaiCatalogue, __resetOpenaiCatalogueForTest } = catalogue
-const capabilities = await import('../../src/utils/model/capabilities.js')
-const effort = await import('../../src/utils/effort.js')
+const capabilities = await import('../../src/models/facts/capabilities.js')
+const effort = await import('../../src/models/effort/effort.js')
 
 const liveModel = (efforts: string[], def?: string) =>
   ({
@@ -220,7 +220,7 @@ const liveModel = (efforts: string[], def?: string) =>
 
 {
   console.log('\n— 7 · a remembered wire refusal narrows the listed ladder until the wire proves the word —')
-  const store = await import('../../src/services/providers/openai/qualificationStore.js')
+  const store = await import('../../src/models/roads/openai/qualificationStore.js')
   const listFetch: typeof fetch = (async () =>
     new Response(
       JSON.stringify({

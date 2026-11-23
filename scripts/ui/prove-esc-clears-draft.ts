@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, rmSync, statSync } from '
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetScale } from '../lib/captureDriver.ts'
-import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/models/facts/builtInModelTable.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
@@ -21,9 +21,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/warmRunner.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/runner-link/warmRunner.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 const { runArtifactArena, grabScreens, sendStamp } = await import('../streaming/artifactArena.ts')
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): Promise<boolean> => {
   const t0 = Date.now()
@@ -105,13 +105,13 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
     const before = grabs[0]
     check(`${tag}: the draft was TYPED into the composer`, before !== undefined && text(before).includes(DRAFT), 'the draft never showed in the composer; check the Type a prompt wait in the sends list of this file and that dist/mercury.mjs is built from the current source')
     const between = grabs[1]
-    check(`${tag}: the FIRST esc alone never clears (draft intact between the escs)`, between !== undefined && text(between).includes(DRAFT), 'the first esc removed the draft; the esc clear in src/hooks/useTextInput.ts (ESC_CLEAR_WINDOW_MS) must only clear on the second esc inside the window')
+    check(`${tag}: the FIRST esc alone never clears (draft intact between the escs)`, between !== undefined && text(between).includes(DRAFT), 'the first esc removed the draft; the esc clear in src/screen/composer/text-input/useTextInput.ts (ESC_CLEAR_WINDOW_MS) must only clear on the second esc inside the window')
     const after = grabs.slice(2)
     if (gapMs <= 3000) {
-      check(`${tag}: esc·esc inside 3 s CLEARS the draft (poison: the no-op / the 800 ms blink)`, after.length > 0 && after.every(g => !text(g).includes(DRAFT)), after.map(g => `${g.atMs}:${text(g).includes(DRAFT)}`).join(' ') + ' · the double esc must clear the draft in src/hooks/useTextInput.ts (ESC_CLEAR_WINDOW_MS is 3000)')
-      check(`${tag}: the receipt says so (draft cleared)`, after.some(g => /draft cleared/.test(text(g))) || grabs.some(g => /draft cleared/.test(text(g))), 'no draft cleared receipt painted; the clear in src/hooks/useTextInput.ts posts it')
+      check(`${tag}: esc·esc inside 3 s CLEARS the draft (poison: the no-op / the 800 ms blink)`, after.length > 0 && after.every(g => !text(g).includes(DRAFT)), after.map(g => `${g.atMs}:${text(g).includes(DRAFT)}`).join(' ') + ' · the double esc must clear the draft in src/screen/composer/text-input/useTextInput.ts (ESC_CLEAR_WINDOW_MS is 3000)')
+      check(`${tag}: the receipt says so (draft cleared)`, after.some(g => /draft cleared/.test(text(g))) || grabs.some(g => /draft cleared/.test(text(g))), 'no draft cleared receipt painted; the clear in src/screen/composer/text-input/useTextInput.ts posts it')
     } else {
-      check(`${tag}: esc · past the window · esc leaves the draft INTACT`, after.length > 0 && after.every(g => text(g).includes(DRAFT)), after.map(g => `${g.atMs}:${text(g).includes(DRAFT)}`).join(' ') + ' · a second esc past ESC_CLEAR_WINDOW_MS in src/hooks/useTextInput.ts must not clear the draft')
+      check(`${tag}: esc · past the window · esc leaves the draft INTACT`, after.length > 0 && after.every(g => text(g).includes(DRAFT)), after.map(g => `${g.atMs}:${text(g).includes(DRAFT)}`).join(' ') + ' · a second esc past ESC_CLEAR_WINDOW_MS in src/screen/composer/text-input/useTextInput.ts must not clear the draft')
     }
   } finally {
     run.cleanup()

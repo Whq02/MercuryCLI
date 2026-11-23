@@ -12,7 +12,7 @@ type Result = { name: string; answer?: unknown; rejected?: string; calls: string
 if (process.argv[2] === '--ask') {
   const bin = process.argv[3]!
   const cases = JSON.parse(readFileSync(process.argv[4]!, 'utf8')) as Case[]
-  const { fetchPrStatus } = await import('../../src/utils/ghPrStatus.ts')
+  const { fetchPrStatus } = await import('../../src/platform/git/ghPrStatus.ts')
   const results: Result[] = []
   for (const one of cases) {
     rmSync(join(bin, 'calls.log'), { force: true })
@@ -31,7 +31,7 @@ if (process.argv[2] === '--ask') {
   process.exit(0)
 }
 
-const WHERE = 'fetchPrStatus in src/utils/ghPrStatus.ts'
+const WHERE = 'fetchPrStatus in src/platform/git/ghPrStatus.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

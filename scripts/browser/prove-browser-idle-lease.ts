@@ -6,9 +6,9 @@ process.env.MERCURY_BROWSER_PATH = process.execPath
 process.env.MERCURY_BROWSER = '1'
 process.env.MERCURY_BROWSER_MAX_SESSIONS = '3'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const sessions = await import('../../src/services/browser/browserSession.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
+const sessions = await import('../../src/integrations/browser/browserSession.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const { BrowserTool } = await import('../../src/tools/browser/BrowserTool.ts')
 const timers = new Map<object, () => void>()
 const realTimeout = globalThis.setTimeout
 const realClear = globalThis.clearTimeout
@@ -50,7 +50,7 @@ function check(label: string, ok: boolean) {
 try {
   for (const member of crew) {
     const ensured = await sessions.ensureBrowserSession(member)
-    assert.ok(!('state' in ensured), `ensureBrowserSession(${member}) failed unexpectedly in src/services/browser/browserSession.ts: ${JSON.stringify(ensured).slice(0, 160)}`)
+    assert.ok(!('state' in ensured), `ensureBrowserSession(${member}) failed unexpectedly in src/integrations/browser/browserSession.ts: ${JSON.stringify(ensured).slice(0, 160)}`)
   }
   const fourth = await sessions.ensureBrowserSession(owner('agent:d'))
   check('three children retain their existing allowance', 'state' in fourth && fourth.state === 'at-capacity')

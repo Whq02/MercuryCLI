@@ -9,7 +9,7 @@ import * as path from 'node:path'
 const root = mkdtempSync(path.join(tmpdir(), 'declared-runner-'))
 process.env.MERCURY_CONFIG_DIR = path.join(root, 'home')
 process.env.MERCURY_BARE = '1'
-const { discoverRunnerProfiles, resolveRunnerBinary, runRunnerProfile } = await import('../../src/services/ide/projectRunners.ts')
+const { discoverRunnerProfiles, resolveRunnerBinary, runRunnerProfile } = await import('../../src/integrations/ide/projectRunners.ts')
 const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
 const binDir = path.join(root, 'node_modules', '.bin')
 mkdirSync(binDir, { recursive: true })
@@ -45,7 +45,7 @@ try {
         assert.equal(run.record.counts.passed, 1)
         assert.deepEqual(run.record.command.slice(0, 2), [process.execPath, entry])
         const tail = run.record.outputTail.join('\n')
-        assert.ok(tail.includes(JSON.stringify(selection)), `${runner}: runRunnerProfile altered shell metacharacters in selection in src/services/ide/projectRunners.ts: ${tail.slice(0, 200)}`)
+        assert.ok(tail.includes(JSON.stringify(selection)), `${runner}: runRunnerProfile altered shell metacharacters in selection in src/integrations/ide/projectRunners.ts: ${tail.slice(0, 200)}`)
       }
     })
     rmSync(`${bin}.cmd`)

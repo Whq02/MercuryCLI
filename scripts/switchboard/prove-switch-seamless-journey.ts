@@ -28,7 +28,7 @@ if (!existsSync(DIST)) {
 }
 
 let failures = 0
-const SEAMLESS_FAIL_HINT = 'rerun with SWITCH_KEEP=1 to print every grabbed frame and keep the scratch folder with its daemon.log; the daemon ping and concourseDispatch ops go through daemonControlRpc in src/daemon/controlSocket.ts, and the lane string above lists what each grab painted (board, alpha, beta or other)'
+const SEAMLESS_FAIL_HINT = 'rerun with SWITCH_KEEP=1 to print every grabbed frame and keep the scratch folder with its daemon.log; the daemon ping and concourseDispatch ops go through daemonControlRpc in src/daemon/control/controlSocket.ts, and the lane string above lists what each grab painted (board, alpha, beta or other)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? detail : detail ? `${detail} — ${SEAMLESS_FAIL_HINT}` : SEAMLESS_FAIL_HINT
@@ -71,7 +71,7 @@ const spawnDaemonWithHome = (configHome: string): void => {
   })
 }
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boolean> => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -83,7 +83,7 @@ const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boo
   }
   return false
 }
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 let alphaSid = ''
 let betaSid = ''
 try {

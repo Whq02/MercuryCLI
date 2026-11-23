@@ -4,11 +4,11 @@ import { join } from 'node:path'
 import { check, finish, scratchDir, section, sourceText } from './computerProofKit.ts'
 import { allowEverything, ownerOf, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const { readFakeScene } = await import('../../src/services/desktop/fakeDesktopDriver.ts')
-const driverModule = (await import('../../src/services/desktop/driver.ts')) as { TREE_UNANSWERED_REASON?: string }
-const session = await import('../../src/services/desktop/desktopSession.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const { readFakeScene } = await import('../../src/integrations/desktop/fakeDesktopDriver.ts')
+const driverModule = (await import('../../src/integrations/desktop/driver.ts')) as { TREE_UNANSWERED_REASON?: string }
+const session = await import('../../src/integrations/desktop/desktopSession.ts')
 
 const REASON = 'an element whose children could not be read (its application did not answer)'
 const UNANSWERED_TREE = `truncated: the tree goes on past ${REASON} — read again, narrow with root or find, or act on what is shown`

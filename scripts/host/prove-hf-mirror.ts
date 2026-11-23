@@ -11,12 +11,12 @@ import { runpodFixture, fakeSshRunner } from './runpodFixture.mjs'
 
 assert.ok(process.env.MERCURY_CONFIG_DIR, 'a scratch MERCURY_CONFIG_DIR is required')
 if (process.argv.includes('--worker-recipe') || process.argv.includes('--volume-recipe')) {
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const { readHostRecord } = await import('../../src/services/host/store.ts')
-  const { hostRecipeOfRecord } = await import('../../src/services/host/recipesFile.ts')
-  const { weightManifest } = await import('../../src/services/host/keptWeights.ts')
-  const { fastLoadRecipes } = await import('../../src/services/host/fastLoad.ts')
+  const { readHostRecord } = await import('../../src/models/hosting/store.ts')
+  const { hostRecipeOfRecord } = await import('../../src/models/hosting/recipesFile.ts')
+  const { weightManifest } = await import('../../src/models/hosting/keptWeights.ts')
+  const { fastLoadRecipes } = await import('../../src/models/hosting/fastLoad.ts')
   const row = process.argv.includes('--volume-recipe') ? fastLoadRecipes().find(recipe => recipe.id === process.argv.at(-1))! : hostRecipeOfRecord(readHostRecord('fixture-hf-worker')!)!
   console.log(JSON.stringify(weightManifest(row)))
 } else {
@@ -35,16 +35,16 @@ if (process.argv.includes('--worker-recipe') || process.argv.includes('--volume-
   const check = (name: string, truth: unknown) => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
   let ssh: ReturnType<typeof fakeSshRunner> | undefined
   try {
-    const { searchHuggingFace, pickHuggingFaceModel, fetchHuggingFaceRepo } = await import('../../src/services/host/hfRecipes.ts')
-    const { hostRecipeSchema } = await import('../../src/services/host/recipesFile.ts')
-    const { weightManifest, weightCheckScript } = await import('../../src/services/host/keptWeights.ts')
-    const { bankDownloadPlan, rememberBankFolder, bankModelFolder, sealBank, bankState } = await import('../../src/services/host/bank.ts')
-    const { mirrorToVolume } = await import('../../src/services/host/fastLoad.ts')
-    const { queueHostSetup } = await import('../../src/services/host/jobs.ts')
-    const { RunpodClient } = await import('../../src/services/host/runpod.ts')
-    const { hostRunner } = await import('../../src/services/host/ssh.ts')
-    const { runHostJob } = await import('../../src/services/host/worker.ts')
-    const { keptVolumes } = await import('../../src/services/host/volumes.ts')
+    const { searchHuggingFace, pickHuggingFaceModel, fetchHuggingFaceRepo } = await import('../../src/models/hosting/hfRecipes.ts')
+    const { hostRecipeSchema } = await import('../../src/models/hosting/recipesFile.ts')
+    const { weightManifest, weightCheckScript } = await import('../../src/models/hosting/keptWeights.ts')
+    const { bankDownloadPlan, rememberBankFolder, bankModelFolder, sealBank, bankState } = await import('../../src/models/hosting/bank.ts')
+    const { mirrorToVolume } = await import('../../src/models/hosting/fastLoad.ts')
+    const { queueHostSetup } = await import('../../src/models/hosting/jobs.ts')
+    const { RunpodClient } = await import('../../src/models/hosting/runpod.ts')
+    const { hostRunner } = await import('../../src/models/hosting/ssh.ts')
+    const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+    const { keptVolumes } = await import('../../src/models/hosting/volumes.ts')
     const bytes = [Buffer.from('first shard'), Buffer.from('second shard'), Buffer.from('third shard'), Buffer.from('fourth shard')]
     hf.repos.gguf.files = bytes.map((data, index) => ({ path: 'Q4_K_M/tiny-Q4_K_M-' + String(index + 1).padStart(5, '0') + '-of-00004.gguf', size: data.length, sha256: createHash('sha256').update(data).digest('hex') }))
     hf.repos.gguf.files.push(...Array.from({ length: 5 }, (_, index) => ({ path: 'other-' + index + '.json', size: 1 })))
@@ -92,7 +92,7 @@ if (process.argv.includes('--worker-recipe') || process.argv.includes('--volume-
     writeFileSync(join(local, manifest.files[0]!.path), bytes[0]!)
     check('an embedded manifest rejects path traversal, missing hashes and a moving revision', !hostRecipeSchema.safeParse({ ...recipe, weightManifest: { ...manifest, files: [{ ...manifest.files[0], path: '../escape.gguf' }] } }).success && !hostRecipeSchema.safeParse({ ...recipe, weightManifest: { ...manifest, files: [{ path: 'empty.gguf', size: 1 }] } }).success && !hostRecipeSchema.safeParse({ ...recipe, weightManifest: { ...manifest, revision: 'main' } }).success)
     ssh = fakeSshRunner(f.baseUrl, hostRunner)
-    const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
+    const { writeStoredRunpodApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
     writeStoredRunpodApiKey(rp.key)
     const api = new RunpodClient(rp.key, rp.baseUrl)
     const jobs: Promise<void>[] = []
@@ -108,7 +108,7 @@ if (process.argv.includes('--worker-recipe') || process.argv.includes('--volume-
     }, () => {}, new AbortController().signal, options)
     await Promise.all(jobs)
     check('the mirror fills and verifies one volume and terminates its one temporary pod', seen.includes('fast-load-confirm') && rp.state.volumeCreates === 1 && rp.state.creates === 1 && rp.state.deletes === 1 && rp.state.pods.size === 0 && keptVolumes().some(volume => volume.model === recipe.model && volume.state === 'kept'))
-    const { writeBankRegistry } = await import('../../src/services/host/bank.ts')
+    const { writeBankRegistry } = await import('../../src/models/hosting/bank.ts')
     writeBankRegistry({ folder, models: {} })
     const volumeChild = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--volume-recipe', recipe.id], { env: process.env, encoding: 'utf8' })
     assert.equal(volumeChild.status, 0, volumeChild.stderr)

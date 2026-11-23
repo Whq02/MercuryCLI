@@ -23,12 +23,12 @@ const server=Bun.serve({hostname:'127.0.0.1',port:0,async fetch(req){
 }})
 process.env.MERCURY_OPENAI_API_BASE=`http://127.0.0.1:${server.port}/v1`
 const load=(p:string):Promise<any>=>import(join(root,p))
-const {enableConfigs}=await load('src/utils/config.ts');enableConfigs()
-const {openaiCallModel}=await load('src/services/providers/openai/openaiCallModel.ts')
-const {asSystemPrompt}=await load('src/utils/systemPromptType.ts')
-const {getEmptyToolPermissionContext}=await load('src/Tool.ts')
+const {enableConfigs}=await load('src/platform/settings/config.ts');enableConfigs()
+const {openaiCallModel}=await load('src/models/roads/openai/openaiCallModel.ts')
+const {asSystemPrompt}=await load('src/engine/system-prompt/systemPromptType.ts')
+const {getEmptyToolPermissionContext}=await load('src/tools/kit/tool.ts')
 let failed=0
-const check=(label:string,yes:boolean):void=>{if(!yes)failed++;console.log(`[${yes?'PASS':'FAIL'}] ${label}${yes?'':' | to fix: the field policy is openaiCacheRetention and rejectOpenaiCacheRetention in src/services/providers/openai/openaiCacheRetention.ts; the one-time retry on a refused field is in src/services/providers/openai/openaiCallModel.ts'}`)}
+const check=(label:string,yes:boolean):void=>{if(!yes)failed++;console.log(`[${yes?'PASS':'FAIL'}] ${label}${yes?'':' | to fix: the field policy is openaiCacheRetention and rejectOpenaiCacheRetention in src/models/roads/openai/openaiCacheRetention.ts; the one-time retry on a refused field is in src/models/roads/openai/openaiCallModel.ts'}`)}
 async function run(model:string):Promise<any[]>{const rows:any[]=[];for await(const row of openaiCallModel({messages:[{type:'user',uuid:randomUUID(),message:{role:'user',content:'answer complete'}}],systemPrompt:asSystemPrompt(['stable instructions']),tools:[],thinkingConfig:{type:'adaptive'},signal:new AbortController().signal,options:{model,querySource:'main_thread',isNonInteractiveSession:true,getToolPermissionContext:async()=>getEmptyToolPermissionContext(),agents:[],mcpTools:[],hasAppendSystemPrompt:false,effortValue:'high'}}))rows.push(row);return rows}
 try{
  await run('gpt-5.5')
@@ -41,7 +41,7 @@ try{
  if(retry.length>1){const {prompt_cache_retention,...first}=retry[0];check('the retry keeps every other request byte',JSON.stringify(first)===JSON.stringify(retry[1]))}
  console.log('\nrefusals')
  mode='unrelated';const unrelated=requests.length;await run('gpt-5.6-sol');check('an unrelated400 is not swallowed as a cache retry',requests.length===unrelated+1)
- const policy=await load('src/services/providers/openai/openaiCacheRetention.ts').catch(()=>null)
+ const policy=await load('src/models/roads/openai/openaiCacheRetention.ts').catch(()=>null)
  check('retention policy is available for account-source controls',policy!==null)
  if(policy!==null){
   check('the subscription road receives no retention field',Object.keys(policy.openaiCacheRetention('gpt-5.5','chatgpt-subscription')).length===0)

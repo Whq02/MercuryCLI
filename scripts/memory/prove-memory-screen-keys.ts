@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands/memory/memory.tsx src/components/memory/MemoryCentreView.tsx src/components/memory/memoryCentreLayout.ts src/mneme/memoryRefs.ts src/components/mercury-ui/useFlatList.ts
+// gate-watch: src/commands/memory/memory.tsx src/screen/memory/MemoryCentreView.tsx src/screen/memory/memoryCentreLayout.ts src/sessions/mneme/memoryRefs.ts src/screen/widgets/useFlatList.ts
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -21,7 +21,7 @@ if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let checks = 0
 let failures = 0
-const MEMORY_SCREEN_HINT = 'change the /memory screen: its words, footers and key rules are in src/components/memory/memoryCentreLayout.ts, its views and key handling in src/components/memory/MemoryCentreView.tsx, the search rows in src/mneme/memoryRefs.ts'
+const MEMORY_SCREEN_HINT = 'change the /memory screen: its words, footers and key rules are in src/screen/memory/memoryCentreLayout.ts, its views and key handling in src/screen/memory/MemoryCentreView.tsx, the search rows in src/sessions/mneme/memoryRefs.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
@@ -41,8 +41,8 @@ const SHORT_RULE = 'use tabs not spaces in every file you write for me'
 const PLAIN_FACT = 'the staging database for this project is called stagedb7'
 const CONVENTION = 'Tests: use zebrafinch only, never the other runner, and never touch the existing tests'
 
-const layout = (await import('../../src/components/memory/memoryCentreLayout.ts')) as Record<string, unknown>
-const view = (await import('../../src/components/memory/MemoryCentreView.tsx')) as Record<string, unknown>
+const layout = (await import('../../src/screen/memory/memoryCentreLayout.ts')) as Record<string, unknown>
+const view = (await import('../../src/screen/memory/MemoryCentreView.tsx')) as Record<string, unknown>
 const call = <T,>(mod: Record<string, unknown>, name: string, ...args: unknown[]): T | undefined => {
   const fn = mod[name]
   return typeof fn === 'function' ? (fn as (...a: unknown[]) => T)(...args) : undefined
@@ -73,16 +73,16 @@ section('§0 the layout words: the search scope, the conventions, the file page,
   check('a source reads in plain words', call<string>(view, 'sourceWords', 'tool:Retain s:83fe6475') === 'from the chat' && call<string>(view, 'sourceWords', 'operator') === 'from /memory' && call<string>(view, 'sourceWords', 'handover:notes') === 'taken in from notes')
 }
 
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(c => ({ ...c, prStatusFooterEnabled: false }))
-const { appendObservation } = await import('../../src/mneme/mnemeBuffer.ts')
-const { maybeConsolidate, listTopicDocs } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { pinFact, readPins } = await import('../../src/mneme/mnemeUsage.ts')
-const { collectMemoryRefs } = await import('../../src/mneme/memoryRefs.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { appendObservation } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { maybeConsolidate, listTopicDocs } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { pinFact, readPins } = await import('../../src/sessions/mneme/mnemeUsage.ts')
+const { collectMemoryRefs } = await import('../../src/sessions/mneme/memoryRefs.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ memory: { journal: true } }))
 resetSettingsCache()
 writeFileSync(join(HOME, 'MERCURY.md'), `# Project conventions\n\n- ${CONVENTION}\n- Commit messages in the imperative\n`)
@@ -111,16 +111,16 @@ section('§1 the search reaches every fact with its seq: a long line keeps its s
 
 const React = await import('react')
 const h = React.createElement
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const settingsStore = await import('../../src/utils/cockpit/settingsPopup.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const settingsStore = await import('../../src/screen/cockpit/settingsPopup.ts')
 const memoryCommand = await import('../../src/commands/memory/memory.tsx')
 
 function Harness({ columns }: { columns: number }): React.ReactNode {

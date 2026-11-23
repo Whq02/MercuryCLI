@@ -1,0 +1,796 @@
+import {
+  evaluateGptCandidate,
+  qualifiedGptCandidates,
+  refreshOpenaiCatalogue,
+  GPT_DISPLAY_PINS,
+} from '../../models/roads/openai/openaiCatalogue.js'
+import { resolveOpenaiAccount } from '../../models/roads/openai/openaiAccounts.js'
+import { buildProviderSnapshot } from '../../models/roads/modelRegistry.js'
+import { refreshProviderDiscovery } from '../../models/roads/providerDiscovery.js'
+import { DEPRECATED_GPT_IDS } from '../../models/roads/openai/openaiAdapter.js'
+import { zaiCatalogueEntries, zaiCatalogueEntry } from '../../models/roads/zai/zaiAdapter.js'
+import { qualifyMoonshotModel } from '../../models/roads/moonshot/moonshotCatalogue.js'
+import { kimiDisplayName } from '../../models/facts/pins/kimiPins.js'
+import { deepseekCatalogueEntries, deepseekCatalogueEntry } from '../../models/roads/deepseek/deepseekAdapter.js'
+import { xaiCatalogueEntries, xaiCatalogueEntry } from '../../models/roads/xai/xaiAdapter.js'
+import { metaCatalogueEntries, metaCatalogueEntry } from '../../models/roads/meta/metaAdapter.js'
+import { mistralCatalogueEntries, mistralCatalogueEntry } from '../../models/roads/mistral/mistralAdapter.js'
+import {
+  compatSlotModelIds,
+  resolveCompatSlotConfig,
+} from '../../models/roads/openaicompat/compatAccounts.js'
+import { COMPAT_MODEL_PREFIX, isCompatModelId } from '../../models/roads/routeLaw.js'
+import { HUGGINGFACE_STATIC_CATALOGUE, huggingfaceLiveCatalogue } from '../../models/roads/huggingface/huggingfaceAdapter.js'
+import { zenCatalogueEntries, zenCatalogueEntry } from '../../models/roads/zen/zenAdapter.js'
+import { minimaxCatalogueEntries, minimaxCatalogueEntry } from '../../models/roads/minimax/minimaxAdapter.js'
+import { togetherCatalogueEntries, togetherCatalogueEntry } from '../../models/roads/together/togetherAdapter.js'
+import { cohereCatalogueEntries, cohereCatalogueEntry } from '../../models/roads/cohere/cohereAdapter.js'
+import { isTogetherModelId } from '../../models/facts/pins/togetherPins.js'
+import { isZenModelId } from '../../models/facts/pins/zenPins.js'
+import { isGroqModelId } from '../../models/facts/pins/groqPins.js'
+import { isMeliousModelId } from '../../models/roads/melious/meliousCatalogue.js'
+import { isOrcarouterModelId } from '../../models/roads/orcarouter/orcarouterCatalogue.js'
+import { groqCatalogueEntries, groqCatalogueEntry } from '../../models/roads/groq/groqAdapter.js'
+import { meliousCatalogueEntries, meliousCatalogueEntry } from '../../models/roads/melious/meliousAdapter.js'
+import { orcarouterCatalogueEntries, orcarouterCatalogueEntry } from '../../models/roads/orcarouter/orcarouterAdapter.js'
+import { isCerebrasModelId } from '../../models/facts/pins/cerebrasPins.js'
+import { cerebrasCatalogueEntries, cerebrasCatalogueEntry } from '../../models/roads/cerebras/cerebrasAdapter.js'
+import { isFireworksModelId } from '../../models/facts/pins/fireworksPins.js'
+import { fireworksCatalogueEntries, fireworksCatalogueEntry } from '../../models/roads/fireworks/fireworksAdapter.js'
+import { qwenCatalogueEntries, qwenCatalogueEntry } from '../../models/roads/qwen/qwenAdapter.js'
+import { localLiveCatalogue } from '../../models/roads/local/localAdapter.js'
+import {
+  HUGGINGFACE_MODEL_PREFIX,
+  isHuggingfaceModelId,
+} from '../../models/facts/pins/huggingfacePins.js'
+import { huggingfaceLiveModel, refreshHuggingfaceCatalogue } from '../../models/roads/huggingface/huggingfaceCatalogue.js'
+import { isLocalModelId, localRecordFor, localWireId, LOCAL_MODEL_PREFIX } from '../../models/roads/local/localCatalogue.js'
+import { refreshLocalDiscovery } from '../../models/roads/local/localDiscovery.js'
+import { getEngineModel, parseUserSpecifiedModel, parseUserSpecifiedModelRaw } from '../../models/catalogue/engineModel.js'
+import { bareFamilyListWords, bareFamilyWordOf, bareFamilyWordOfRoute, bareModelIdOf } from '../../models/catalogue/bareFamilyWords.js'
+import { isModelAlias } from '../../models/facts/aliases.js'
+import { isModelFamilyWord, modelFamilyWords } from '../../models/catalogue/modelFamilies.js'
+import { canonicalWireModelId, classifyModelRoute, declaredRouteOf, providerDisplayName } from '../../models/roads/routeLaw.js'
+import { isModelFromDisabledProvider, isProviderDisabled } from '../../models/roads/disabledProviders.js'
+import { LIVE_LIST_FAMILIES, liveListedRouteOf, qualifiedIdSpaceOf } from '../../models/roads/idSpaces.js'
+import { readCatalogueIfPending } from '../../models/roads/catalogueOnDemand.js'
+import { resolveGeminiAccount } from '../../models/roads/gemini/geminiAccounts.js'
+import {
+  geminiGenerateModels,
+  newestGeminiGenerationFirst,
+  geminiPlanEffortRow,
+  refreshGeminiCatalogue,
+} from '../../models/roads/gemini/geminiCatalogue.js'
+import { resolveOpenrouterAccount } from '../../models/roads/openrouter/openrouterAccounts.js'
+import { refreshOpenrouterCatalogue } from '../../models/roads/openrouter/openrouterCatalogue.js'
+
+export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'orcarouter', 'melious', 'cerebras', 'fireworks', 'qwen'] as const
+type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
+
+export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
+  if (typeof v !== 'string' || !isOneOf(ENGINE_DISPATCH_MODELS, v)) return false
+  const route = v === 'gpt' ? 'openai' : v === 'glm' ? 'zai' : v === 'kimi' ? 'moonshot' : v === 'grok' ? 'xai' : v === 'muse' ? 'meta' : v === 'compat' ? 'openai-compat' : v
+  return !isProviderDisabled(route)
+}
+
+const OPENROUTER_MODEL_PREFIX = 'openrouter/'
+
+function isOpenrouterModelId(v: string): boolean {
+  return v.trim().toLowerCase().startsWith(OPENROUTER_MODEL_PREFIX)
+}
+
+const NOUS_ENGINE_MODEL_PREFIX = 'nous/'
+
+function isNousModelId(v: string): boolean {
+  return v.trim().toLowerCase().startsWith(NOUS_ENGINE_MODEL_PREFIX)
+}
+
+function isGoogleRosterModelId(v: string): boolean {
+  return qualifiedIdSpaceOf(v)?.route === 'gemini'
+}
+
+export function isExactEngineModelId(v: unknown): v is string {
+  if (typeof v !== 'string') return false
+  if (isModelFromDisabledProvider(v)) return false
+  return (
+    liveListedRouteOf(v) !== undefined ||
+    /^(gpt|glm|kimi|moonshot|deepseek|grok|muse|gemini|mistral|ministral|codestral|minimax|command|north|c4ai-aya)-/i.test(v.trim()) ||
+    /^(?:qwen|qwq|qvq)(?:[0-9.]|-)/i.test(v.trim()) ||
+    isCompatModelId(v) ||
+    isHuggingfaceModelId(v) ||
+    isLocalModelId(v) ||
+    isOpenrouterModelId(v) ||
+    isNousModelId(v) ||
+    isZenModelId(v) ||
+    isTogetherModelId(v) ||
+    isGroqModelId(v) ||
+    isMeliousModelId(v) ||
+    isOrcarouterModelId(v) ||
+    isCerebrasModelId(v) ||
+    isFireworksModelId(v) ||
+    isGoogleRosterModelId(v)
+  )
+}
+
+function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'mistral' | 'minimax' | 'cohere' | 'qwen' | undefined {
+  const listed = liveListedRouteOf(id)
+  if (listed !== undefined) return listed
+  if (/^gpt-/i.test(id)) return 'openai'
+  if (/^(kimi|moonshot)-/i.test(id)) return 'moonshot'
+  if (/^deepseek-/i.test(id)) return 'deepseek'
+  if (/^grok-/i.test(id)) return 'xai'
+  if (/^muse-/i.test(id)) return 'meta'
+  if (/^gemini-/i.test(id) || isGoogleRosterModelId(id)) return 'gemini'
+  if (/^(mistral|ministral|codestral)-/i.test(id)) return 'mistral'
+  if (/^minimax-/i.test(id)) return 'minimax'
+  if (/^(command|north|c4ai-aya)-/i.test(id)) return 'cohere'
+  if (/^(?:qwen|qwq|qvq)(?:[0-9.]|-)/i.test(id)) return 'qwen'
+  return undefined
+}
+
+async function readLiveListsForBareId(modelParam: string | undefined): Promise<void> {
+  if (typeof modelParam !== 'string') return
+  const word = modelParam.trim()
+  if (word === '' || qualifiedIdSpaceOf(word) !== undefined) return
+  const verdict = classifyModelRoute(parseUserSpecifiedModelRaw(word))
+  if (verdict.kind !== 'unrecognised' || verdict.carrierShaped) return
+  await Promise.all(LIVE_LIST_FAMILIES.map(family => readCatalogueIfPending(family)))
+}
+
+import { MODEL_LOOKUP_LADDER } from '../../models/facts/modelLookup.js'
+import { passedOverAs } from '../../platform/errors/passedOver.js'
+import { isOneOf } from '../../platform/primitives/isOneOf.js'
+
+const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, google/*, mistral-*, minimax-*, command-*, qwen3*, qwen-*, compat/*, huggingface/*, local/*, openrouter/*, nous/*, together/*'
+
+export function unrecognisedModelWordRefusal(model: string | undefined): string | null {
+  if (model === undefined) return null
+  const word = model.trim()
+  if (word === '') return null
+  const lowered = word.toLowerCase()
+  if (isEngineDispatchModel(lowered) || isExactEngineModelId(word)) return null
+  if (isModelFamilyWord(lowered) || (!isProviderDisabled('anthropic') && isModelAlias(lowered))) return null
+  const parsed = parseUserSpecifiedModel(word)
+  const routeVerdict = classifyModelRoute(parsed)
+  if (routeVerdict.kind === 'route' && !isProviderDisabled(routeVerdict.route)) return null
+  return `model '${word}' names no model: no provider family declares it. Pass a family word (${modelFamilyWords().join(' · ')}), a first-party alias, an exact id of a listed row, or an engine id (${ENGINE_ID_SHAPES}). mercury://models lists the providers the operator is signed into and the models each reaches. ${MODEL_LOOKUP_LADDER}`
+}
+
+type EngineProvider =
+  | 'openai'
+  | 'zai'
+  | 'moonshot'
+  | 'deepseek'
+  | 'xai'
+  | 'meta'
+  | 'openai-compat'
+  | 'huggingface'
+  | 'local'
+  | 'gemini'
+  | 'openrouter'
+  | 'mistral'
+  | 'nous'
+  | 'zen'
+  | 'minimax'
+  | 'together'
+  | 'cohere'
+  | 'groq'
+  | 'melious'
+  | 'orcarouter'
+  | 'cerebras'
+  | 'fireworks'
+  | 'qwen'
+
+export interface EngineDispatch {
+  backend: EngineProvider
+  model: string
+  displayLabel: string
+  note?: string
+}
+
+const SIGN_IN_DOORS: Partial<Record<EngineProvider, string>> = {
+  openai: '/logins openai',
+  zai: '/logins zai',
+  moonshot: '/logins moonshot',
+  deepseek: '/logins deepseek',
+  xai: '/logins xai',
+  meta: '/logins meta',
+  huggingface: '/logins huggingface',
+  gemini: '/logins gemini',
+  openrouter: '/logins openrouter',
+  mistral: '/logins mistral',
+  nous: '/logins nous',
+  zen: '/logins zen',
+  minimax: '/logins minimax',
+  together: '/logins together',
+  cohere: '/logins cohere',
+  groq: '/logins groq',
+  melious: '/logins melious',
+  orcarouter: '/logins orcarouter',
+  cerebras: '/logins cerebras',
+  fireworks: '/logins fireworks',
+  qwen: '/logins qwen',
+}
+
+function providerUnavailableRefusal(provider: EngineProvider, reason: string | undefined): string {
+  const door = SIGN_IN_DOORS[provider]
+  const why = reason ?? 'unknown'
+  if (door !== undefined && /^no-(api-key|credential|account):/.test(why)) {
+    return `Engine provider ${provider} is unavailable (${why}) — the operator is not signed in to ${providerDisplayName(provider)}; ${door} connects it. mercury://models lists the providers that are signed in; never switch to another provider on your own.`
+  }
+  if (provider === 'local') return `Engine provider local is unavailable (${why}) — no local server lists a model; start Ollama, LM Studio, vLLM or llama.cpp-server, or set MERCURY_LOCAL_BASE_URL. mercury://models lists what is reachable.`
+  if (provider === 'openai-compat') return `Engine provider openai-compat is unavailable (${why}) — MERCURY_COMPAT_BASE_URL (or the compatProvider config block) configures the endpoint slot. mercury://models lists what is reachable.`
+  return `Engine provider ${provider} is unavailable (${why}). /health ROUTER names the fix; mercury://models lists the providers that are signed in.`
+}
+
+async function requireProviderAvailable(provider: EngineProvider): Promise<void> {
+  await refreshProviderDiscovery(provider)
+  const snapshot = buildProviderSnapshot()
+  const entry = snapshot.providers.find(p => p.id === provider)
+  if (!entry?.available) {
+    throw new Error(providerUnavailableRefusal(provider, entry?.reason))
+  }
+}
+
+async function resolveGptClassDispatch(): Promise<EngineDispatch> {
+  const account = resolveOpenaiAccount()
+  if (!account) {
+    throw new Error(
+      'Engine provider openai has no connected account source — /logins signs in to this account or attaches an API key.',
+    )
+  }
+  const snapshot = await refreshOpenaiCatalogue(account.kind)
+  const head = qualifiedGptCandidates('specialist', account.kind)[0]
+  if (!head) {
+    throw new Error(
+      snapshot?.lastError
+        ? `The 'gpt' class cannot resolve — the live model catalogue is unavailable (${snapshot.lastError}). Name an exact id this build knows from mercury://models/known (e.g. gpt-5.6-sol), or retry when the list reads; never switch to another provider on your own.`
+        : `The 'gpt' class cannot resolve — the ${account.label} catalogue offers no usable GPT model. mercury://models shows what the account does reach; ask the operator for the model id, and never switch to another provider on your own.`,
+    )
+  }
+  return {
+    backend: 'openai',
+    model: head.identity.canonicalId,
+    displayLabel: head.displayName,
+  }
+}
+
+async function resolveGptExactModel(id: string): Promise<EngineDispatch> {
+  if (DEPRECATED_GPT_IDS.includes(id)) {
+    throw new Error(
+      `GPT model '${id}' is DEPRECATED/retired in the current catalogue — refusing to dispatch a dead id. Current ids: ${GPT_DISPLAY_PINS.map(p => p.id).join(', ')} (or 'gpt' for the catalogue's default; mercury://models lists what the account reaches). Never switch to another provider on your own.`,
+    )
+  }
+  const account = resolveOpenaiAccount()
+  if (!account) {
+    throw new Error(
+      'Engine provider openai has no connected account source — /logins signs in to this account or attaches an API key.',
+    )
+  }
+  await refreshOpenaiCatalogue(account.kind)
+  const evaluated = evaluateGptCandidate(id, account.kind)
+  if (evaluated.ok) {
+    return {
+      backend: 'openai',
+      model: evaluated.candidate.identity.canonicalId,
+      displayLabel: evaluated.candidate.displayName,
+    }
+  }
+  if (evaluated.why.reason === 'catalogue-unavailable') {
+    const pinned = GPT_DISPLAY_PINS.find(pin => pin.id === id.trim().toLowerCase())
+    if (!pinned) {
+      throw new Error(
+        `GPT model '${id}' is not a catalogue-verified id — the live list could not be read and this build knows only ${GPT_DISPLAY_PINS.map(p => p.id).join(', ')} (mercury://models/known). Name one of them, or ask the operator for the model id; never switch to another provider on your own.`,
+      )
+    }
+    return {
+      backend: 'openai',
+      model: pinned.id,
+      displayLabel: `${pinned.displayName} (static-pin validated)`,
+    }
+  }
+  const offered = qualifiedGptCandidates('specialist', account.kind)
+    .map(c => c.identity.canonicalId)
+    .join(', ')
+  throw new Error(
+    `GPT model '${id}' is not accepted by the live catalogue (${evaluated.why.reason}). ${offered ? `The catalogue offers: ${offered} — name one of them (mercury://models lists them)` : 'The catalogue currently offers no usable ids'}, or ask the operator for the model id; never switch to another provider on your own.`,
+  )
+}
+
+async function resolveHuggingfaceClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'huggingface') {
+    return { backend: 'huggingface', model: main, displayLabel: main.slice(HUGGINGFACE_MODEL_PREFIX.length) }
+  }
+  await refreshHuggingfaceCatalogue().catch(passedOverAs(null))
+  const head = huggingfaceLiveCatalogue()?.entries[0] ?? HUGGINGFACE_STATIC_CATALOGUE[0]
+  if (!head) throw new Error("The 'huggingface' class cannot resolve — the router's model list could not be read and this build pins no Hugging Face row. Name an exact huggingface/<org>/<model> id from mercury://models/known, or ask the operator for the model id; never switch to another provider on your own.")
+  return { backend: 'huggingface', model: head.id, displayLabel: head.displayLabel }
+}
+
+async function resolveHuggingfaceExactModel(id: string): Promise<EngineDispatch> {
+  const slug = id.slice(HUGGINGFACE_MODEL_PREFIX.length)
+  const snapshot = await refreshHuggingfaceCatalogue().catch(passedOverAs(null))
+  if (snapshot && snapshot.models.length > 0) {
+    const live = huggingfaceLiveModel(slug)
+    if (!live) {
+      throw new Error(
+        `Hugging Face model '${id}' is not listed by the router catalogue (${snapshot.models.length} live models) — name a listed huggingface/<org>/<model> id (mercury://models lists them), or 'huggingface' for the flagship, or ask the operator for the model id; never switch to another provider on your own.`,
+      )
+    }
+    return { backend: 'huggingface', model: `${HUGGINGFACE_MODEL_PREFIX}${live.id}${slug.includes(':') ? slug.slice(slug.lastIndexOf(':')) : ''}`, displayLabel: live.id }
+  }
+  const verdict = canonicalWireModelId(id)
+  if (!verdict.ok) throw new Error(verdict.reason)
+  return { backend: 'huggingface', model: id, displayLabel: `${slug} (catalogue unreachable — the router validates at dispatch)` }
+}
+
+async function resolveLocalClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'local' && localRecordFor(main)) {
+    return { backend: 'local', model: main, displayLabel: localWireId(main) }
+  }
+  const first = localLiveCatalogue()[0]
+  if (!first) throw new Error("The 'local' class cannot resolve — no local server lists a model (start Ollama/LM Studio/vLLM/llama.cpp-server, or set MERCURY_LOCAL_BASE_URL). mercury://models lists what is reachable; never switch to another provider on your own.")
+  return { backend: 'local', model: first.id, displayLabel: first.displayLabel }
+}
+
+async function resolveGeminiClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'gemini') {
+    return { backend: 'gemini', model: main, displayLabel: main }
+  }
+  const account = resolveGeminiAccount()
+  if (!account) {
+    throw new Error(
+      'Engine provider gemini has no connected account source — /logins gemini signs in or attaches an API key.',
+    )
+  }
+  const snapshot = await refreshGeminiCatalogue(account.kind).catch(passedOverAs(null))
+  const head = newestGeminiGenerationFirst(geminiGenerateModels(snapshot), m => m.id)[0]
+  if (!head) {
+    throw new Error(
+      snapshot?.lastError
+        ? `The 'gemini' class cannot resolve — the live model catalogue is unavailable (${snapshot.lastError}). Name an exact gemini-* id this build knows from mercury://models/known, or retry when the list reads; never switch to another provider on your own.`
+        : "The 'gemini' class cannot resolve — the live catalogue lists no generateContent model. Name an exact gemini-* id from mercury://models, or ask the operator for the model id; never switch to another provider on your own.",
+    )
+  }
+  return { backend: 'gemini', model: head.id, displayLabel: head.displayName ?? head.id }
+}
+
+async function resolveGeminiExactModel(id: string): Promise<EngineDispatch> {
+  const account = resolveGeminiAccount()
+  if (!account) {
+    throw new Error(
+      'Engine provider gemini has no connected account source — /logins gemini signs in or attaches an API key.',
+    )
+  }
+  const snapshot = await refreshGeminiCatalogue(account.kind).catch(passedOverAs(null))
+  const live = geminiGenerateModels(snapshot)
+  if (live.length > 0) {
+    const match = live.find(m => m.id === id) ?? (account.kind === 'plan' ? geminiPlanEffortRow(id, undefined) : undefined)
+    if (!match) {
+      throw new Error(
+        `Gemini model '${id}' is not listed by the live catalogue (${live.length} generateContent models) — name a listed gemini-* id (mercury://models lists them), or 'gemini' for the catalogue head, or ask the operator for the model id; never switch to another provider on your own.`,
+      )
+    }
+    return { backend: 'gemini', model: match.id, displayLabel: match.displayName ?? match.id }
+  }
+  return { backend: 'gemini', model: id, displayLabel: `${id} (catalogue unreachable — the runtime validates at dispatch)` }
+}
+
+async function resolveZenClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'zen') {
+    return { backend: 'zen', model: main, displayLabel: zenCatalogueEntry(main)?.displayLabel ?? main.slice('zen/'.length) }
+  }
+  if (!zenCatalogueEntries().length) await readCatalogueIfPending('zen')
+  const head = zenCatalogueEntries()[0]
+  if (!head) {
+    throw new Error("The 'zen' class cannot resolve — the OpenCode Zen gateway's model list has not been read or lists no row this road carries. Name an exact zen/<id> this build knows from mercury://models/known, or retry when the list lands; never switch to another provider on your own.")
+  }
+  return { backend: 'zen', model: head.id, displayLabel: head.displayLabel }
+}
+
+async function resolveTogetherClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'together') {
+    return { backend: 'together', model: main, displayLabel: togetherCatalogueEntry(main)?.displayLabel ?? main.slice('together/'.length) }
+  }
+  if (!togetherCatalogueEntries().length) await readCatalogueIfPending('together')
+  const head = togetherCatalogueEntries()[0]
+  if (!head) {
+    throw new Error("The 'together' class cannot resolve — the Together AI gateway's chat list has not been read or lists no row. Name an exact together/<org>/<model> this build knows from mercury://models/known, or retry when the list lands; never switch to another provider on your own.")
+  }
+  return { backend: 'together', model: head.id, displayLabel: head.displayLabel }
+}
+
+async function resolveGroqClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'groq') return { backend: 'groq', model: main, displayLabel: groqCatalogueEntry(main)?.displayLabel ?? main }
+  if (!groqCatalogueEntries().length) await readCatalogueIfPending('groq')
+  const head = groqCatalogueEntries()[0]
+  if (!head) throw new Error("The Groq text model list has not been read or serves no row — mercury://models names the available qualified ids; never switch to another provider on your own.")
+  return { backend: 'groq', model: head.id, displayLabel: head.displayLabel }
+}
+async function resolveMeliousClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'melious') return { backend: 'melious', model: main, displayLabel: meliousCatalogueEntry(main)?.displayLabel ?? main }
+  if (!meliousCatalogueEntries().length) await readCatalogueIfPending('melious')
+  const head = meliousCatalogueEntries()[0]
+  if (!head) throw new Error("The Melious text model list has not been read or serves no row — mercury://models names the available qualified ids; never switch to another provider on your own.")
+  return { backend: 'melious', model: head.id, displayLabel: head.displayLabel }
+}
+async function resolveOrcarouterClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'orcarouter') return { backend: 'orcarouter', model: main, displayLabel: orcarouterCatalogueEntry(main)?.displayLabel ?? main }
+  if (!orcarouterCatalogueEntries().length) await readCatalogueIfPending('orcarouter')
+  const head = orcarouterCatalogueEntries()[0]
+  if (!head) throw new Error("The OrcaRouter text model list has not been read or serves no row — mercury://models names the available qualified ids; never switch to another provider on your own.")
+  return { backend: 'orcarouter', model: head.id, displayLabel: head.displayLabel }
+}
+async function resolveCerebrasClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'cerebras') return { backend: 'cerebras', model: main, displayLabel: cerebrasCatalogueEntry(main)?.displayLabel ?? main }
+  if (!cerebrasCatalogueEntries().length) await readCatalogueIfPending('cerebras')
+  const head = cerebrasCatalogueEntries()[0]
+  if (!head) throw new Error("The Cerebras text model list has not been read or serves no row — mercury://models names the available qualified ids; never switch to another provider on your own.")
+  return { backend: 'cerebras', model: head.id, displayLabel: head.displayLabel }
+}
+async function resolveFireworksClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'fireworks') return { backend: 'fireworks', model: main, displayLabel: fireworksCatalogueEntry(main)?.displayLabel ?? main }
+  if (!fireworksCatalogueEntries().length) await readCatalogueIfPending('fireworks')
+  const head = fireworksCatalogueEntries()[0]
+  if (!head) throw new Error("The Fireworks text model list has not been read or serves no row — mercury://models names the available qualified ids; never switch to another provider on your own.")
+  return { backend: 'fireworks', model: head.id, displayLabel: head.displayLabel }
+}
+async function resolveOpenrouterClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'openrouter') {
+    return { backend: 'openrouter', model: main, displayLabel: main.slice(OPENROUTER_MODEL_PREFIX.length) }
+  }
+  return {
+    backend: 'openrouter',
+    model: 'openrouter/openrouter/auto',
+    displayLabel: 'Auto Router (openrouter/auto)',
+  }
+}
+
+async function resolveOpenrouterExactModel(id: string): Promise<EngineDispatch> {
+  const account = resolveOpenrouterAccount()
+  if (!account) {
+    throw new Error(
+      'Engine provider openrouter has no connected account source — /logins openrouter connects one.',
+    )
+  }
+  const slug = id.slice(OPENROUTER_MODEL_PREFIX.length)
+  const snapshot = await refreshOpenrouterCatalogue(account.keySource).catch(passedOverAs(null))
+  if (snapshot && snapshot.models.length > 0) {
+    const match = snapshot.models.find(m => m.id.toLowerCase() === slug.toLowerCase())
+    if (!match) {
+      throw new Error(
+        `OpenRouter model '${id}' is not listed by the live catalogue (${snapshot.models.length} models) — name a listed openrouter/<vendor>/<model> id (mercury://models lists them), or 'openrouter' for the auto router, or ask the operator for the model id; never switch to another provider on your own.`,
+      )
+    }
+    return { backend: 'openrouter', model: `${OPENROUTER_MODEL_PREFIX}${match.id}`, displayLabel: match.name ?? match.id }
+  }
+  const verdict = canonicalWireModelId(id)
+  if (!verdict.ok) throw new Error(verdict.reason)
+  return { backend: 'openrouter', model: id, displayLabel: `${slug} (catalogue unreachable — the router validates at dispatch)` }
+}
+
+async function resolveNousClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'nous') {
+    return { backend: 'nous', model: main, displayLabel: main.slice(NOUS_ENGINE_MODEL_PREFIX.length) }
+  }
+  const { getNousModelOptions, refreshNousCatalogue } = await import('../../models/roads/nous/nousCatalogue.js')
+  await refreshNousCatalogue().catch(passedOverAs(null))
+  const head = getNousModelOptions().find(option => option.value.startsWith(NOUS_ENGINE_MODEL_PREFIX) && option.unavailable === undefined)
+  if (!head) {
+    throw new Error("The 'nous' class cannot resolve — the Nous Portal catalogue serves no selectable row yet (the key's live list has not been read, or listed none). Name an exact nous/<vendor>/<model> id from mercury://models, or ask the operator for the model id; never switch to another provider on your own.")
+  }
+  return { backend: 'nous', model: head.value, displayLabel: head.label }
+}
+
+async function resolveNousExactModel(id: string): Promise<EngineDispatch> {
+  const { resolveNousAccount } = await import('../../models/roads/nous/nousAccounts.js')
+  if (!resolveNousAccount()) {
+    throw new Error('Engine provider nous has no API key — /logins nous stores one (or set NOUS_API_KEY).')
+  }
+  const { refreshNousCatalogue } = await import('../../models/roads/nous/nousCatalogue.js')
+  const slug = id.slice(NOUS_ENGINE_MODEL_PREFIX.length)
+  const snapshot = await refreshNousCatalogue().catch(passedOverAs(null))
+  if (snapshot && snapshot.models.length > 0) {
+    const match = snapshot.models.find(m => m.id.toLowerCase() === slug.toLowerCase())
+    if (!match) {
+      throw new Error(`Nous Portal model '${id}' is not listed by the live catalogue (${snapshot.models.length} models) — name a listed nous/<vendor>/<model> id (mercury://models lists them), or ask the operator for the model id; never switch to another provider on your own.`)
+    }
+    return { backend: 'nous', model: `${NOUS_ENGINE_MODEL_PREFIX}${match.id}`, displayLabel: match.name ?? match.id }
+  }
+  const verdict = canonicalWireModelId(id)
+  if (!verdict.ok) throw new Error(verdict.reason)
+  return { backend: 'nous', model: id, displayLabel: `${slug} (catalogue unreachable — the Portal validates at dispatch)` }
+}
+
+async function resolveLocalExactModel(id: string): Promise<EngineDispatch> {
+  if (!localRecordFor(id)) await refreshLocalDiscovery({ force: true }).catch(passedOverAs(null))
+  const record = localRecordFor(id)
+  if (!record) {
+    const listed = localLiveCatalogue().map(e => e.id)
+    throw new Error(
+      `No local server lists '${id}'${listed.length > 0 ? ` (discovered: ${listed.join(', ')})` : ' (no local server answered)'} — never dispatching an undiscovered id. mercury://models lists the discovered models; name one of them, or ask the operator for the model id; never switch to another provider on your own.`,
+    )
+  }
+  return { backend: 'local', model: `${LOCAL_MODEL_PREFIX}${record.id}`, displayLabel: record.displayName ?? record.id }
+}
+
+export async function resolveEngineDispatch(
+  modelParam: string | undefined,
+): Promise<EngineDispatch | null> {
+  if (isEngineDispatchModel(modelParam)) {
+    if (modelParam === 'gpt') {
+      await requireProviderAvailable('openai')
+      return resolveGptClassDispatch()
+    }
+    const familyWord = bareFamilyWordOf(modelParam)
+    if (familyWord !== undefined) {
+      await requireProviderAvailable(familyWord.route)
+      await readCatalogueIfPending(familyWord.route)
+      const head = familyWord.headRow()
+      if (head) return { backend: familyWord.route, model: head.id, displayLabel: head.displayName }
+      const providerName = providerDisplayName(familyWord.route)
+      const pinned = familyWord.pinnedDefault()
+      if (!pinned) {
+        throw new Error(
+          `The '${familyWord.word}' class cannot resolve — ${bareFamilyListWords(familyWord, providerName)} and this build pins no ${providerName} default. Name an exact id from mercury://models or mercury://models/known, or ask the operator for the model id.`,
+        )
+      }
+      return {
+        backend: familyWord.route,
+        model: pinned.id,
+        displayLabel: pinned.displayName,
+        note: `${bareFamilyListWords(familyWord, providerName)} — ${pinned.displayName} (${pinned.id}), the family's default this build knows, runs; the provider's own answer decides. mercury://models shows the live list, mercury://models/known what this build knows.`,
+      }
+    }
+    if (modelParam === 'huggingface') {
+      await requireProviderAvailable('huggingface')
+      return resolveHuggingfaceClassDispatch()
+    }
+    if (modelParam === 'local') {
+      await requireProviderAvailable('local')
+      return resolveLocalClassDispatch()
+    }
+    if (modelParam === 'gemini') {
+      await requireProviderAvailable('gemini')
+      return resolveGeminiClassDispatch()
+    }
+    if (modelParam === 'openrouter') {
+      await requireProviderAvailable('openrouter')
+      return resolveOpenrouterClassDispatch()
+    }
+    if (modelParam === 'nous') {
+      await requireProviderAvailable('nous')
+      return resolveNousClassDispatch()
+    }
+    if (modelParam === 'zen') {
+      await requireProviderAvailable('zen')
+      return resolveZenClassDispatch()
+    }
+    if (modelParam === 'together') {
+      await requireProviderAvailable('together')
+      return resolveTogetherClassDispatch()
+    }
+    if (modelParam === 'groq') {
+      await requireProviderAvailable('groq')
+      return resolveGroqClassDispatch()
+    }
+    if (modelParam === 'melious') {
+      await requireProviderAvailable('melious')
+      return resolveMeliousClassDispatch()
+    }
+    if (modelParam === 'orcarouter') {
+      await requireProviderAvailable('orcarouter')
+      return resolveOrcarouterClassDispatch()
+    }
+    if (modelParam === 'cerebras') {
+      await requireProviderAvailable('cerebras')
+      return resolveCerebrasClassDispatch()
+    }
+    if (modelParam === 'fireworks') {
+      await requireProviderAvailable('fireworks')
+      return resolveFireworksClassDispatch()
+    }
+    await requireProviderAvailable('openai-compat')
+    const first = compatSlotModelIds()[0]
+    if (!first) {
+      throw new Error(
+        "The 'compat' class cannot resolve — the endpoint slot names no models (MERCURY_COMPAT_MODELS or the compatProvider config block). Name an exact compat/<id> instead, or ask the operator for the model id; never switch to another provider on your own.",
+      )
+    }
+    return { backend: 'openai-compat', model: first, displayLabel: first }
+  }
+  await readLiveListsForBareId(modelParam)
+  if (isExactEngineModelId(modelParam)) {
+    const id = modelParam!.trim()
+    const family = exactEngineFamilyOf(id)
+    if (family === 'openai') {
+      await requireProviderAvailable('openai')
+      return resolveGptExactModel(id.toLowerCase())
+    }
+    if (family === 'moonshot') {
+      await requireProviderAvailable('moonshot')
+      const qualification = await qualifyMoonshotModel(id.toLowerCase())
+      if (qualification.kind === 'refused') throw new Error(qualification.message)
+      return {
+        backend: 'moonshot', model: qualification.modelId,
+        displayLabel: `${kimiDisplayName(qualification.modelId) ?? kimiDisplayName(id) ?? qualification.modelId}${qualification.kind === 'degraded' ? ` (${qualification.note})` : ''}`,
+      }
+    }
+    if (family === 'meta') {
+      await requireProviderAvailable('meta')
+      return resolveKeyLaneExactModel('meta', id, metaCatalogueEntry, metaCatalogueEntries)
+    }
+    if (family === 'mistral') {
+      await requireProviderAvailable('mistral')
+      return resolveKeyLaneExactModel('mistral', id, mistralCatalogueEntry, mistralCatalogueEntries)
+    }
+    if (family === 'minimax') {
+      await requireProviderAvailable('minimax')
+      return resolveKeyLaneExactModel('minimax', id, minimaxCatalogueEntry, minimaxCatalogueEntries)
+    }
+    if (family === 'cohere') {
+      await requireProviderAvailable('cohere')
+      return resolveKeyLaneExactModel('cohere', id, cohereCatalogueEntry, cohereCatalogueEntries)
+    }
+    if (family === 'qwen') {
+      await requireProviderAvailable('qwen')
+      return resolveKeyLaneExactModel('qwen', id, qwenCatalogueEntry, qwenCatalogueEntries)
+    }
+    if (family === 'deepseek') {
+      await requireProviderAvailable('deepseek')
+      return resolveKeyLaneExactModel('deepseek', id, deepseekCatalogueEntry, deepseekCatalogueEntries)
+    }
+    if (family === 'xai') {
+      await requireProviderAvailable('xai')
+      return resolveKeyLaneExactModel('xai', id, xaiCatalogueEntry, xaiCatalogueEntries)
+    }
+    if (family === 'gemini') {
+      await requireProviderAvailable('gemini')
+      return resolveGeminiExactModel(id.toLowerCase())
+    }
+    if (isOpenrouterModelId(id)) {
+      await requireProviderAvailable('openrouter')
+      return resolveOpenrouterExactModel(id)
+    }
+    if (isNousModelId(id)) {
+      await requireProviderAvailable('nous')
+      return resolveNousExactModel(id)
+    }
+    if (isHuggingfaceModelId(id)) {
+      await requireProviderAvailable('huggingface')
+      return resolveHuggingfaceExactModel(id)
+    }
+    if (isLocalModelId(id)) {
+      await requireProviderAvailable('local')
+      return resolveLocalExactModel(id)
+    }
+    if (isTogetherModelId(id)) {
+      await requireProviderAvailable('together')
+      if (!togetherCatalogueEntry(id)) await readCatalogueIfPending('together')
+      const pin = togetherCatalogueEntry(id)
+      if (!pin) {
+        throw new Error(
+          `Together AI model '${id}' is not on the gateway's chat list (listed: ${togetherCatalogueEntries().map(c => c.id).join(', ')}) — name one of them from mercury://models, or ask the operator for the model id; never switch to another provider on your own.`,
+        )
+      }
+      return { backend: 'together', model: pin.id, displayLabel: pin.displayLabel }
+    }
+    if (isOrcarouterModelId(id)) {
+      await requireProviderAvailable('orcarouter')
+      return { backend: 'orcarouter', model: id, displayLabel: orcarouterCatalogueEntry(id)?.displayLabel ?? id }
+    }
+    if (isGroqModelId(id)) {
+      await requireProviderAvailable('groq')
+      if (!groqCatalogueEntry(id)) await readCatalogueIfPending('groq')
+      const row = groqCatalogueEntry(id)
+      if (!row) throw new Error(`Groq model '${id}' is not on the available text list (${groqCatalogueEntries().map(row => row.id).join(', ')}) — mercury://models lists it; never switch to another provider on your own.`)
+      return { backend: 'groq', model: row.id, displayLabel: row.displayLabel }
+    }
+    if (isMeliousModelId(id)) {
+      await requireProviderAvailable('melious')
+      if (!meliousCatalogueEntry(id)) await readCatalogueIfPending('melious')
+      const row = meliousCatalogueEntry(id)
+      if (!row) throw new Error(`Melious model '${id}' is not on the available text list (${meliousCatalogueEntries().map(row => row.id).join(', ')}) — mercury://models lists it; never switch to another provider on your own.`)
+      return { backend: 'melious', model: row.id, displayLabel: row.displayLabel }
+    }
+    if (isCerebrasModelId(id)) {
+      await requireProviderAvailable('cerebras')
+      if (!cerebrasCatalogueEntry(id)) await readCatalogueIfPending('cerebras')
+      const row = cerebrasCatalogueEntry(id)
+      if (!row) throw new Error(`Cerebras model '${id}' is not on the available text list (${cerebrasCatalogueEntries().map(row => row.id).join(', ')}) — mercury://models lists it; never switch to another provider on your own.`)
+      return { backend: 'cerebras', model: row.id, displayLabel: row.displayLabel }
+    }
+    if (isFireworksModelId(id)) {
+      await requireProviderAvailable('fireworks')
+      if (!fireworksCatalogueEntry(id)) await readCatalogueIfPending('fireworks')
+      const row = fireworksCatalogueEntry(id)
+      if (!row) throw new Error(`Fireworks model '${id}' is not on the available text list (${fireworksCatalogueEntries().map(row => row.id).join(', ')}) — mercury://models lists it; never switch to another provider on your own.`)
+      return { backend: 'fireworks', model: row.id, displayLabel: row.displayLabel }
+    }
+    if (isZenModelId(id)) {
+      await requireProviderAvailable('zen')
+      if (!zenCatalogueEntry(id)) await readCatalogueIfPending('zen')
+      const pin = zenCatalogueEntry(id)
+      if (!pin) {
+        throw new Error(
+          `OpenCode Zen model '${id}' is not on the gateway's list (listed: ${zenCatalogueEntries().map(c => c.id).join(', ')}) — name one of them from mercury://models, or ask the operator for the model id; never switch to another provider on your own.`,
+        )
+      }
+      return { backend: 'zen', model: pin.id, displayLabel: pin.displayLabel }
+    }
+    if (isCompatModelId(id)) {
+      await requireProviderAvailable('openai-compat')
+      const { compatModelEndpoint, compatModelRefusal } = await import('../../models/roads/openaicompat/compatAccounts.js')
+      const endpoint = compatModelEndpoint(id)
+      if (endpoint?.endpoint.named) {
+        const refusal = compatModelRefusal(id)
+        if (refusal) throw new Error(refusal)
+        return { backend: 'openai-compat', model: id, displayLabel: `${endpoint.wireId} (${endpoint.endpoint.label})` }
+      }
+      const named = compatSlotModelIds()
+      if (named.length > 0 && !named.includes(id.toLowerCase())) {
+        throw new Error(
+          `compat model '${id}' is not in the slot's named list (${named.join(', ')}) — name one of them (mercury://models lists them), or the operator extends MERCURY_COMPAT_MODELS or the compatProvider config block; never switch to another provider on your own.`,
+        )
+      }
+      const label = resolveCompatSlotConfig()?.label ?? 'Custom endpoint'
+      return {
+        backend: 'openai-compat',
+        model: id.toLowerCase(),
+        displayLabel: `${id.slice(COMPAT_MODEL_PREFIX.length)} (${label})`,
+      }
+    }
+    await requireProviderAvailable('zai')
+    return resolveKeyLaneExactModel('zai', id, zaiCatalogueEntry, zaiCatalogueEntries)
+  }
+  return null
+}
+
+type KeyLaneRoute = 'xai' | 'meta' | 'mistral' | 'deepseek' | 'zai' | 'minimax' | 'cohere' | 'qwen'
+
+async function resolveKeyLaneExactModel(
+  route: KeyLaneRoute,
+  id: string,
+  liveEntry: (id: string) => { id: string; displayLabel: string } | undefined,
+  liveEntries: () => ReadonlyArray<{ id: string; displayLabel: string }>,
+): Promise<EngineDispatch> {
+  const family = bareFamilyWordOfRoute(route)
+  const providerName = providerDisplayName(route)
+  const bare = bareModelIdOf(id)
+  if (!liveEntry(bare)) await readCatalogueIfPending(route)
+  const live = liveEntry(bare)
+  if (live) return { backend: route, model: live.id, displayLabel: live.displayLabel }
+  const state = family?.listState()
+  if (state?.kind === 'live') {
+    const listed = liveEntries().map(entry => entry.id)
+    throw new Error(
+      `${providerName} model '${id}' is not on the account's live model list${listed.length > 0 ? ` (listed: ${listed.join(', ')})` : ' (the list serves no chat model)'} — name one of the listed ids from mercury://models, or ask the operator for the model id; never switch to another provider on your own.`,
+    )
+  }
+  const known = family?.knownRow(bare)
+  const listWords = family === undefined ? `the ${providerName} model list could not be read` : bareFamilyListWords(family, providerName)
+  if (known) {
+    return {
+      backend: route,
+      model: known.id,
+      displayLabel: known.displayName,
+      note: `${listWords} — ${known.displayName} (${known.id}) runs as this build knows it; the provider's own answer decides. mercury://models shows the live list, mercury://models/known what this build knows.`,
+    }
+  }
+  const knownIds = family?.knownRows().map(row => row.id) ?? []
+  throw new Error(
+    `${providerName} model '${id}' is on neither mercury://models (${listWords}) nor mercury://models/known${knownIds.length > 0 ? ` (this build knows: ${knownIds.join(', ')})` : ''}. ${MODEL_LOOKUP_LADDER}`,
+  )
+}

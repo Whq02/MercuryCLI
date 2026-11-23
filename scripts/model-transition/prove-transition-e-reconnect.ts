@@ -8,17 +8,17 @@ const HOME = mkdtempSync(join(tmpdir(), 'ctm-e-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.js')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.js')
 const { materializeEntriesAt, materializationDigest, readAllTranscriptEntries } = await import(
-  '../../src/utils/sessionStorage/materialize.js'
+  '../../src/sessions/transcripts/materialize.js'
 )
-const { applyTranscriptEntry } = await import('../../src/utils/sessionStorage/loading.js')
+const { applyTranscriptEntry } = await import('../../src/sessions/transcripts/loading.js')
 const { writeResumeSnapshot, tryLoadResumeSnapshot } = await import(
-  '../../src/utils/sessionStorage/resumeSnapshot.js'
+  '../../src/sessions/transcripts/resumeSnapshot.js'
 )
-const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.js')
-const { createBranchSession } = await import('../../src/services/branches/branchManifest.js')
-const act = await import('../../src/services/crew/activity.js')
+const { decodeTranscriptBuffer } = await import('../../src/sessions/fabric/transcriptDecode.js')
+const { createBranchSession } = await import('../../src/sessions/branches/branchManifest.js')
+const act = await import('../../src/crew/crewmates/activity.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -69,21 +69,21 @@ section('§A E01/transcript — snapshot + proven suffix, typed miss, watermark 
   }
   writeResumeSnapshot(SRC, prefix.fold, cursor)
   const hit = await tryLoadResumeSnapshot(SRC)
-  check('a compatible snapshot loads (proof-on-read prefix digest)', hit !== null, 'tryLoadResumeSnapshot in src/utils/sessionStorage/resumeSnapshot.ts returned null for a snapshot written by writeResumeSnapshot; check its schema, historyPart, byteCursor and prefix-digest guards')
+  check('a compatible snapshot loads (proof-on-read prefix digest)', hit !== null, 'tryLoadResumeSnapshot in src/sessions/transcripts/resumeSnapshot.ts returned null for a snapshot written by writeResumeSnapshot; check its schema, historyPart, byteCursor and prefix-digest guards')
   if (hit) {
-    check('the missing suffix is PROVEN and delivered (hit.tail)', hit.tail.length === Buffer.byteLength(raw) - cursor, `tail length ${hit.tail.length}; tryLoadResumeSnapshot in src/utils/sessionStorage/resumeSnapshot.ts must return exactly the bytes after byteCursor`)
+    check('the missing suffix is PROVEN and delivered (hit.tail)', hit.tail.length === Buffer.byteLength(raw) - cursor, `tail length ${hit.tail.length}; tryLoadResumeSnapshot in src/sessions/transcripts/resumeSnapshot.ts must return exactly the bytes after byteCursor`)
     const tailEntries = decodeTranscriptBuffer(hit.tail).entries
     for (const e of tailEntries) applyTranscriptEntry(hit.fold, e as never)
-    check('snapshot + suffix ≡ the pure full replay (digest law)', materializationDigest(hit.fold) === full.digest, 'the folded snapshot plus tail differs from materializeEntriesAt over all entries; check deserializeFold in src/utils/sessionStorage/resumeSnapshot.ts and applyTranscriptEntry in src/utils/sessionStorage/loading.ts')
+    check('snapshot + suffix ≡ the pure full replay (digest law)', materializationDigest(hit.fold) === full.digest, 'the folded snapshot plus tail differs from materializeEntriesAt over all entries; check deserializeFold in src/sessions/transcripts/resumeSnapshot.ts and applyTranscriptEntry in src/sessions/transcripts/loading.ts')
   }
   const ALIEN = join(HOME, 'alien.jsonl')
   writeFileSync(ALIEN, raw)
-  check('no snapshot ⇒ TYPED null (the explicit full-read fallback)', (await tryLoadResumeSnapshot(ALIEN)) === null, 'tryLoadResumeSnapshot in src/utils/sessionStorage/resumeSnapshot.ts must return null when no snapshot file exists for the transcript')
+  check('no snapshot ⇒ TYPED null (the explicit full-read fallback)', (await tryLoadResumeSnapshot(ALIEN)) === null, 'tryLoadResumeSnapshot in src/sessions/transcripts/resumeSnapshot.ts must return null when no snapshot file exists for the transcript')
   const MOVED = join(HOME, 'moved.jsonl')
   writeFileSync(MOVED, raw)
   writeResumeSnapshot(MOVED, prefix.fold, cursor)
   writeFileSync(MOVED, raw.replace('reply 8', 'REPLY X'))
-  check('a stale snapshot refuses TYPED (never a wrong resume)', (await tryLoadResumeSnapshot(MOVED)) === null, 'tryLoadResumeSnapshot in src/utils/sessionStorage/resumeSnapshot.ts accepted a snapshot whose covered prefix changed; its digestPrefixTail comparison must refuse it')
+  check('a stale snapshot refuses TYPED (never a wrong resume)', (await tryLoadResumeSnapshot(MOVED)) === null, 'tryLoadResumeSnapshot in src/sessions/transcripts/resumeSnapshot.ts accepted a snapshot whose covered prefix changed; its digestPrefixTail comparison must refuse it')
 }
 
 section('§D E04 — slow subscribers bounded; the terminal settlement survives')
@@ -107,11 +107,11 @@ section('§D E04 — slow subscribers bounded; the terminal settlement survives'
     adapterKind: 'opencode',
   })
   const feed = act.cachedActivityFeed()
-  check('a THROWING subscriber never blocks ingestion', calls >= 2, `${calls} listener calls; ingestActivity in src/services/crew/activity.ts must catch a throwing subscriber and keep notifying`)
+  check('a THROWING subscriber never blocks ingestion', calls >= 2, `${calls} listener calls; ingestActivity in src/crew/crewmates/activity.ts must catch a throwing subscriber and keep notifying`)
   const rowId = [...feed.order].find(id => id.includes('tu_e04'))
   const row = rowId ? feed.rows.get(rowId) : undefined
-  check('the terminal settlement survives (phase left running)', row !== undefined && row.phase !== 'running', `${row?.phase}; the tool_call_update completed event must settle the row through ingestActivity and foldActivity in src/services/crew/activity.ts`)
-  check('the feed stays a bounded ring', feed.order.length <= 1024, `${feed.order.length} rows; foldActivity in src/services/crew/activity.ts must trim the feed order to its cap`)
+  check('the terminal settlement survives (phase left running)', row !== undefined && row.phase !== 'running', `${row?.phase}; the tool_call_update completed event must settle the row through ingestActivity and foldActivity in src/crew/crewmates/activity.ts`)
+  check('the feed stays a bounded ring', feed.order.length <= 1024, `${feed.order.length} rows; foldActivity in src/crew/crewmates/activity.ts must trim the feed order to its cap`)
   unsub()
   act._resetActivityFeedForTesting()
 }
@@ -144,29 +144,29 @@ section('§E E05 — payloads stay shared references across branch lineages')
     cwd: '/tmp/proj',
     providerOrigin: 'test',
   })
-  check('the branch created', res.ok, `createBranchSession in src/services/branches/branchManifest.ts refused the fork: ${JSON.stringify(res)}`)
+  check('the branch created', res.ok, `createBranchSession in src/sessions/branches/branchManifest.ts refused the fork: ${JSON.stringify(res)}`)
   if (res.ok) {
     const branchText = readFileSync(res.branchTranscriptPath, 'utf8')
-    check('the branch carries the SAME pointer bytes', branchText.includes(blobPath), 'createBranchSession in src/services/branches/branchManifest.ts must copy the persisted-output pointer line unchanged into the branch transcript')
-    check('no payload copy per branch (one blob on disk)', readdirSync(blobDir).length === 1, `${readdirSync(blobDir).length} files in the payload dir; createBranchSession in src/services/branches/branchManifest.ts must share the blob, not copy it`)
+    check('the branch carries the SAME pointer bytes', branchText.includes(blobPath), 'createBranchSession in src/sessions/branches/branchManifest.ts must copy the persisted-output pointer line unchanged into the branch transcript')
+    check('no payload copy per branch (one blob on disk)', readdirSync(blobDir).length === 1, `${readdirSync(blobDir).length} files in the payload dir; createBranchSession in src/sessions/branches/branchManifest.ts must share the blob, not copy it`)
     check(
       'the payload stays reachable from BOTH lineages',
       existsSync(blobPath) && readFileSync(PSRC, 'utf8').includes(blobPath) && branchText.includes(blobPath),
-      'the blob or a pointer to it is gone from the source or the branch transcript; createBranchSession in src/services/branches/branchManifest.ts must leave the blob and both pointers in place',
+      'the blob or a pointer to it is gone from the source or the branch transcript; createBranchSession in src/sessions/branches/branchManifest.ts must leave the blob and both pointers in place',
     )
   }
 }
 
 section('§F E03 — resize/focus/unread reparse zero (the memo seam + counter)')
 {
-  const norm = await import('../../src/utils/messages/normalize.js')
+  const norm = await import('../../src/engine/message-shapes/normalize.js')
   const before = norm._normalizePassesForProof
   const fixture = [
     { type: 'user', uuid: '00000000-0000-4000-8000-00000000e031', message: { role: 'user', content: 'hello' } },
   ] as never[]
   norm.normalizeMessages(fixture as never)
   norm.normalizeMessages(fixture as never)
-  check('the instrumented counter counts passes', norm._normalizePassesForProof === before + 2, 'normalizeMessages in src/utils/messages/normalize.ts must add exactly one to _normalizePassesForProof per call')
+  check('the instrumented counter counts passes', norm._normalizePassesForProof === before + 2, 'normalizeMessages in src/engine/message-shapes/normalize.ts must add exactly one to _normalizePassesForProof per call')
 }
 
 console.log(

@@ -16,10 +16,10 @@ process.env.HOME = home
 process.env.OLDPWD = home
 process.env.CDPATH = `.:${home}`
 
-const { loginExportsCarried, toolShellEnv, withLoginExports } = await import('../../src/utils/subprocessEnv.js')
-const { exec, setCwd } = await import('../../src/utils/Shell.js')
-const { endEngineSessionFor, resolveShellEngine, runEngineCommand } = await import('../../src/utils/shell/engineSession.js')
-const { locateGitBash } = await import('../../src/utils/windowsPaths.js')
+const { loginExportsCarried, toolShellEnv, withLoginExports } = await import('../../src/platform/processes/subprocessEnv.js')
+const { exec, setCwd } = await import('../../src/platform/shell/shellExec.js')
+const { endEngineSessionFor, resolveShellEngine, runEngineCommand } = await import('../../src/platform/shell/engineSession.js')
+const { locateGitBash } = await import('../../src/platform/files/windowsPaths.js')
 setCwd(proj)
 
 const shQuote = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`
@@ -159,8 +159,8 @@ try {
     }
   }
 
-  const { createPowerShellProvider } = await import('../../src/utils/shell/powershellProvider.js')
-  const { getCachedPowerShellPath } = await import('../../src/utils/shell/powershellDetection.js')
+  const { createPowerShellProvider } = await import('../../src/platform/shell/powershellProvider.js')
+  const { getCachedPowerShellPath } = await import('../../src/platform/shell/powershellDetection.js')
   const psProvider = createPowerShellProvider('pwsh')
   const psBuilt = await psProvider.buildExecCommand('cd -', { id: 'old-folder-check' })
   const clearAt = psBuilt.commandString.indexOf('Set-Location -LiteralPath .')

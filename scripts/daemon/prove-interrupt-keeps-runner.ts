@@ -10,7 +10,7 @@ import { mock } from 'bun:test'
 import { DIST, NODE, SCRATCH_ROOT, bound, childEnv, makeTally, removeWorld, sleep } from './dupline-world.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startScriptedFixture, type Script } from '../lib/scriptedTurn.ts'
-import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
+import type { RunnerChildSpec } from '../../src/daemon/runner-link/headlessRun.ts'
 
 const tally = makeTally('prove-interrupt-keeps-runner')
 const world = mkdtempSync(join(SCRATCH_ROOT, 'interrupt-keeps-runner-'))
@@ -77,7 +77,7 @@ console.log('============================================================')
 
 tally.section('§1 the rule, pure: the first death in a healthy window respawns at once; the second and later keep the ladder; the ceilings stand')
 {
-  const { decideRespawn, longLivedBackoffMs, DEFAULT_LONG_LIVED_CONFIG } = await import('../../src/daemon/longLivedRespawn.ts')
+  const { decideRespawn, longLivedBackoffMs, DEFAULT_LONG_LIVED_CONFIG } = await import('../../src/daemon/roster/longLivedRespawn.ts')
   const first = decideRespawn(1)
   tally.check('red on the base: the first respawn waits nothing (delayMs 0)', first.action === 'respawn' && first.delayMs === 0, JSON.stringify(first))
   const ladder = [2, 3, 4, 5].map(n => decideRespawn(n))
@@ -96,8 +96,8 @@ tally.section('§2 the roster on fixture children: a death from outside is a cra
   console.error = ((...args: unknown[]): void => {
     daemonLog.push(args.map(a => (typeof a === 'string' ? a : String(a))).join(' '))
   }) as typeof console.error
-  const realChildren = await import('../../src/daemon/headlessRun.ts')
-  const { recordSpawn } = await import('../../src/daemon/spawnLedger.ts')
+  const realChildren = await import('../../src/daemon/runner-link/headlessRun.ts')
+  const { recordSpawn } = await import('../../src/daemon/roster/spawnLedger.ts')
   type FakeChild = EventEmitter & { pid: number; stdin: PassThrough; stdout: PassThrough; stderr: PassThrough; kill: () => boolean }
   const spawnAt = new Map<string, number[]>()
   const fakeChild = (): FakeChild =>
@@ -109,7 +109,7 @@ tally.section('§2 the roster on fixture children: a death from outside is a cra
       kill: () => true,
     })
   const children = new Map<string, FakeChild[]>()
-  mock.module('../../src/daemon/headlessRun.ts', () => ({
+  mock.module('../../src/daemon/runner-link/headlessRun.ts', () => ({
     ...realChildren,
     spawnRunnerChild: (spec: RunnerChildSpec) => {
       const child = fakeChild()
@@ -123,7 +123,7 @@ tally.section('§2 the roster on fixture children: a death from outside is a cra
       return { child, argv: [], env: {} }
     },
   }))
-  const { TaskRoster } = await import('../../src/daemon/roster.ts')
+  const { TaskRoster } = await import('../../src/daemon/roster/roster.ts')
   const roster = new TaskRoster({ dir: world, breaker: {} as never, maxInflight: 4 })
   const specOf = (short: string): RunnerChildSpec => ({
     cwd: world,
@@ -212,8 +212,8 @@ const work = join(world, 'work')
 mkdirSync(work, { recursive: true })
 writeFileSync(join(work, 'README.md'), '# fixture\n')
 seedFirstRun(runHome, [work])
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 
 const PROBE = 'esc probe: run the long command'
 const MEANWHILE = 'esc probe: the line sent while the command ran'

@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import fc from 'fast-check'
-import { stripDisplayTags, stripDisplayTagsAllowEmpty, stripIdeContextTags } from '../../src/utils/displayTags.ts'
+import { stripDisplayTags, stripDisplayTagsAllowEmpty, stripIdeContextTags } from '../../src/screen/messages/displayTags.ts'
 
-const WHERE = 'src/utils/displayTags.ts'
+const WHERE = 'src/screen/messages/displayTags.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

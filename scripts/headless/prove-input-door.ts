@@ -42,22 +42,22 @@ async function spied(rel: string, wanted: string[]): Promise<void> {
   mock.module(at(rel), () => ({ ...real, ...wrapped }))
 }
 
-await spied('src/utils/messageQueueManager.ts', ['enqueue', 'remove'])
-await spied('src/input-core/command-queue.ts', ['subscribeQueueConsumption', 'queuedWordsWaitForTurnEnd'])
-await spied('src/tasks/LocalAgentTask/LocalAgentTask.tsx', ['handOverForegroundAgentsToQueuedMessage'])
-await spied('src/services/saturn/sessionScheduleBridge.ts', ['registerLocalWakeSink'])
-await spied('src/tools/MonitorTool/laneWall.ts', ['sessionLaneWall'])
-await spied('src/utils/sessionStorage.ts', ['doesMessageExistInSession'])
-await spied('src/utils/commandLifecycle.ts', ['notifyCommandLifecycle'])
-await spied('src/guards/mission.ts', ['syncMissionFromCard', 'resumeMissionOnOperatorInput', 'clearActiveMission', 'setActiveMission'])
-await spied('src/utils/gracefulShutdown.ts', ['gracefulShutdownSync'])
+await spied('src/daemon/runner/messageQueueManager.ts', ['enqueue', 'remove'])
+await spied('src/screen/composer/input-core/command-queue.ts', ['subscribeQueueConsumption', 'queuedWordsWaitForTurnEnd'])
+await spied('src/engine/tasks/local-agent/crewmateTask.tsx', ['handOverForegroundAgentsToQueuedMessage'])
+await spied('src/daemon/saturn/sessionScheduleBridge.ts', ['registerLocalWakeSink'])
+await spied('src/tools/monitor/laneWall.ts', ['sessionLaneWall'])
+await spied('src/sessions/transcripts/sessionStorage.ts', ['doesMessageExistInSession'])
+await spied('src/daemon/runner/commandLifecycle.ts', ['notifyCommandLifecycle'])
+await spied('src/permissions/guards/mission.ts', ['syncMissionFromCard', 'resumeMissionOnOperatorInput', 'clearActiveMission', 'setActiveMission'])
+await spied('src/platform/processes/gracefulShutdown.ts', ['gracefulShutdownSync'])
 
-const door = await import('../../src/cli/headless/inputDoor.ts')
-const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
-const { saturnQueueStamp, screenCommandQueueStamp } = await import('../../src/utils/messages/noticeRows.ts')
-const { operatorPauseGate } = await import('../../src/run-core/pauseGate.ts')
-const { RPC_INVALID_PARAMS } = await import('../../src/runner/wire/errors.ts')
-const { AGENT_MESSAGE_STATUS } = await import('../../src/constants/agentMessage.ts')
+const door = await import('../../src/daemon/runner/inputDoor.ts')
+const { createRunnerState } = await import('../../src/daemon/runner/runnerPorts.ts')
+const { saturnQueueStamp, screenCommandQueueStamp } = await import('../../src/engine/message-shapes/noticeRows.ts')
+const { operatorPauseGate } = await import('../../src/engine/loop/pauseGate.ts')
+const { RPC_INVALID_PARAMS } = await import('../../src/daemon/runner-wire/errors.ts')
+const { AGENT_MESSAGE_STATUS } = await import('../../src/engine/tasks/local-agent/agentMessage.ts')
 
 type Ports = Parameters<typeof door.acceptInput>[1]
 type Queued = Record<string, unknown>
@@ -105,7 +105,7 @@ section('§1 a queued command is stamped: its time from the frame or the arrival
   const [first, second, third] = queued()
   const arrived = (command: Queued | undefined): boolean => typeof command?.sentAt === 'string' && Math.abs(Date.parse(command.sentAt as string) - before) < 5_000
   check("the runner stamps the queued command from the frame's timestamp, or the arrival", j(verdict) === j({ accepted: true }) && first?.sentAt === '2026-01-02T03:04:05.000Z' && arrived(second) && arrived(third) && first.value === 'the words' && first.mode === 'prompt', j(queued().map(command => command.sentAt)))
-  check('the door starts the MCP servers, marks the session started and kicks the driver once for each line', framed.inits() === 3 && framed.live.sessionInitialized && framed.kicks() === 3 && said('syncMissionFromCard').length === 3, `inits ${framed.inits()} kicks ${framed.kicks()} started ${framed.live.sessionInitialized} syncs ${said('syncMissionFromCard').length}; acceptInput in src/cli/headless/inputDoor.ts must start MCP, mark the session started and kick once per line`)
+  check('the door starts the MCP servers, marks the session started and kicks the driver once for each line', framed.inits() === 3 && framed.live.sessionInitialized && framed.kicks() === 3 && said('syncMissionFromCard').length === 3, `inits ${framed.inits()} kicks ${framed.kicks()} started ${framed.live.sessionInitialized} syncs ${said('syncMissionFromCard').length}; acceptInput in src/daemon/runner/inputDoor.ts must start MCP, mark the session started and kick once per line`)
   const ordered = scene()
   await within(door.acceptInput({ kind: 'prompt', content: 'one line' }, ordered.ports))
   const placeOf = (name: string): number => seen.findIndex(call => call.name === name)
@@ -158,7 +158,7 @@ section('§2 the foreground crewmates are handed over on a human prompt mid-turn
   marked.local.now = true
   await within(door.acceptInput({ kind: 'prompt', content: '/model' }, marked.ports))
   await within(door.acceptInput({ kind: 'shell', command: 'ls', priority: 'next' }, scene().ports))
-  check('a local command is marked as one on the queue, and a shell line is queued in bash mode with its priority', queued().length === 1 && queued()[0]!.mode === 'bash' && queued()[0]!.priority === 'next' && queued()[0]!.value === 'ls', `${j(queued())}; acceptInput in src/cli/headless/inputDoor.ts must queue a shell line in bash mode with its priority and queue the local command as one`)
+  check('a local command is marked as one on the queue, and a shell line is queued in bash mode with its priority', queued().length === 1 && queued()[0]!.mode === 'bash' && queued()[0]!.priority === 'next' && queued()[0]!.value === 'ls', `${j(queued())}; acceptInput in src/daemon/runner/inputDoor.ts must queue a shell line in bash mode with its priority and queue the local command as one`)
 }
 
 section('§3 a line seen before, a note for a crewmate, a report from outside')
@@ -205,8 +205,8 @@ section('§4 a row from the wire: refused when empty, carried whole when not')
 
 section('§5 the rows door of a runner that waits for a claim, and the local wake')
 {
-  const { BOOT_STEPS } = await import('../../src/cli/headless/boot/bootList.ts')
-  const { BOOT_ENDS } = await import('../../src/cli/headless/runnerPorts.ts')
+  const { BOOT_STEPS } = await import('../../src/daemon/runner/boot/bootList.ts')
+  const { BOOT_ENDS } = await import('../../src/daemon/runner/runnerPorts.ts')
   const refusal = BOOT_STEPS.find(step => step.name === 'refuseClaimlessRowsDoor')
   const booting = async (wire: boolean, awaiting: boolean): Promise<{ result: unknown; lines: string[]; exits: unknown[] }> => {
     const s = scene({ options: wire ? { door: 'wire' } : {} })
@@ -238,7 +238,7 @@ section('§5 the rows door of a runner that waits for a claim, and the local wak
   const streaming = scene({ streamingInput: true })
   door.armLocalWake(streaming.ports)
   const sink = said('registerLocalWakeSink')[0]?.args[0] as ((prompt: string, facts?: Record<string, unknown>) => void) | undefined
-  check('run.ts arms the local-wake sink only for streaming input (the OFF-surface evidence)', armedForOneShot === 0 && said('registerLocalWakeSink').length === 1 && typeof sink === 'function', `one-shot arms ${armedForOneShot}, total ${said('registerLocalWakeSink').length}; armLocalWake in src/cli/headless/inputDoor.ts must register the sink only when streamingInput is set`)
+  check('run.ts arms the local-wake sink only for streaming input (the OFF-surface evidence)', armedForOneShot === 0 && said('registerLocalWakeSink').length === 1 && typeof sink === 'function', `one-shot arms ${armedForOneShot}, total ${said('registerLocalWakeSink').length}; armLocalWake in src/daemon/runner/inputDoor.ts must register the sink only when streamingInput is set`)
   sink?.('the wake words', { spelling: 'in ten minutes', reason: 'look again' })
   const woke = queued()[0]
   const origin = woke?.origin as { kind?: string; fire?: string; firedAt?: string; spelling?: string; reason?: string } | undefined
@@ -252,7 +252,7 @@ section('§5 the rows door of a runner that waits for a claim, and the local wak
   answers.set('sessionLaneWall', () => ({ closed: true, reopensAtMs: Date.now() + 60_000 }))
   door.armLocalWake(walled.ports)
   ;(said('registerLocalWakeSink')[0]?.args[0] as (prompt: string) => void)('behind the wall')
-  check('a wake after the input closed queues nothing, and a wake behind a closed wall waits and does not queue', queued().length === 0 && closed.kicks() === 0 && walled.kicks() === 0, `${j(queued())} kicks ${closed.kicks()} ${walled.kicks()}; the sink armed by armLocalWake in src/cli/headless/inputDoor.ts must queue nothing after inputClosed or behind a closed lane wall`)
+  check('a wake after the input closed queues nothing, and a wake behind a closed wall waits and does not queue', queued().length === 0 && closed.kicks() === 0 && walled.kicks() === 0, `${j(queued())} kicks ${closed.kicks()} ${walled.kicks()}; the sink armed by armLocalWake in src/daemon/runner/inputDoor.ts must queue nothing after inputClosed or behind a closed lane wall`)
 }
 
 section('§6 the notification frames: one announcer, each notice once, and never one the runner retired itself')
@@ -267,7 +267,7 @@ section('§6 the notification frames: one announcer, each notice once, and never
   door.emitCommandNotifications([a, a, b, words] as never, s.ports)
   door.emitCommandNotifications([a, b] as never, s.ports)
   check("lock: every road that speaks a notice's frame — the drain, the idle kick and the next operator turn's held deliveries — goes through one announcer that speaks each notice exactly once", frames.length === 3 && frames[0]!.length === 1 && frames[0]![0]!.includes('<task-id>a</task-id>') && frames[1]![0]!.includes('<task-id>b</task-id>') && frames[2]!.length === 0, j(frames))
-  check('an outside report speaks no frame, and two notices in one value speak two', door.taskNotificationPayloads({ mode: 'task-notification', value: 'x', origin: { kind: 'outside-report' } } as never).length === 0 && door.taskNotificationPayloads({ mode: 'prompt', value: `${String(a.value)} and ${String(b.value)}` } as never).length === 2, 'taskNotificationPayloads in src/cli/headless/inputDoor.ts must return no payload for an outside-report and two for a value holding two notices')
+  check('an outside report speaks no frame, and two notices in one value speak two', door.taskNotificationPayloads({ mode: 'task-notification', value: 'x', origin: { kind: 'outside-report' } } as never).length === 0 && door.taskNotificationPayloads({ mode: 'prompt', value: `${String(a.value)} and ${String(b.value)}` } as never).length === 2, 'taskNotificationPayloads in src/daemon/runner/inputDoor.ts must return no payload for an outside-report and two for a value holding two notices')
 
   const told = scene({ enqueueRow: (row: Record<string, unknown>) => void rows.push(row), liveScope: () => ({ session_id: 'the-session', turn: 2 }) })
   door.emitTaskNotificationFrames(
@@ -282,7 +282,7 @@ section('§6 the notification frames: one announcer, each notice once, and never
   check(
     'a completion is one task row under the live scope: ended with its status, call, file, summary and usage; killed reads stopped; a message or a pause is progress; a payload with no status is no row',
     rows.length === 3 && rows[0]!.type === 'task' && rows[0]!.state === 'ended' && rows[0]!.status === 'completed' && rows[0]!.task_id === 't-1' && rows[0]!.turn === 2 && j(rows[0]!.usage) === j({ tokens: 120, tool_uses: 3, duration_ms: 900 }) && rows[1]!.status === 'stopped' && !('usage' in rows[1]!) && rows[2]!.state === 'progress' && !('status' in rows[2]!),
-    `${j(rows)}; emitTaskNotificationFrames in src/cli/headless/inputDoor.ts builds these task rows`,
+    `${j(rows)}; emitTaskNotificationFrames in src/daemon/runner/inputDoor.ts builds these task rows`,
   )
 
   const drained: unknown[][] = []

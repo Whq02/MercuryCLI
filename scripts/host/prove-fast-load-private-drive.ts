@@ -23,7 +23,7 @@ const base = shipped.recipes.find(row => row.id === 'deepseek41-b200')
 assert.ok(base && base.gpu === 'B200' && base.count === 4 && base.cuda === '13.0', 'the shipped DeepSeek 4× B200 row is the shape the owner’s private rows copy')
 const privateRow = (id: string, gpu: string, vramGb: number, extra: Record<string, unknown> = {}) => ({ ...base, id, label: 'DeepSeek-V4.1-Flash UNCENSORED (dealignai)', model: MODEL, gpu, vramGb, diskGb: 650, weightsGb: 510.3, source: 'https://huggingface.co/' + MODEL, verification: 'private row · MIT · a fine-tune served with the base model’s documented recipe; not measured', verified: { by: 'documented', on: '2026-10-22', note: 'the base model’s cookbook recipe applied to the fine-tune; not booted by Mercury', source: 'https://huggingface.co/' + MODEL }, weightManifest: undefined, ...extra })
 const tinyRow = { ...base, id: 'tiny-private-b200', label: 'Tiny private', model: 'fixture/tiny-private', diskGb: 20, weightsGb: 0, source: 'https://huggingface.co/fixture/tiny-private', verification: 'private row', verified: { by: 'documented', on: '2026-10-22', source: 'https://huggingface.co/fixture/tiny-private' }, weightManifest: undefined, efforts: undefined }
-const { hostDirectory } = await import('../../src/services/host/store.ts')
+const { hostDirectory } = await import('../../src/models/hosting/store.ts')
 mkdirSync(hostDirectory(), { recursive: true })
 const privateFile = join(hostDirectory(), 'private-recipes.json')
 const writePrivate = (rows: unknown[]) => writeFileSync(privateFile, JSON.stringify({ version: shipped.version, publishedAt: shipped.publishedAt, recipes: rows }))
@@ -65,13 +65,13 @@ function ownerFolder(path: string, options: { receipts?: boolean; sums?: boolean
 }
 const smallBytes = Object.values(smallFiles).reduce((n, data) => n + data.length, 0) + Object.values(lfsSmall).reduce((n, data) => n + data.length, 0)
 
-const keptWeights = await import('../../src/services/host/keptWeights.ts')
-const bank = await import('../../src/services/host/bank.ts')
-const volumes = await import('../../src/services/host/volumes.ts')
-const bankManifestModule = await import('../../src/services/host/bankManifest.ts').catch(() => undefined)
+const keptWeights = await import('../../src/models/hosting/keptWeights.ts')
+const bank = await import('../../src/models/hosting/bank.ts')
+const volumes = await import('../../src/models/hosting/volumes.ts')
+const bankManifestModule = await import('../../src/models/hosting/bankManifest.ts').catch(() => undefined)
 const bytesMatchRecipe = (bytes: number, weightsGb: number): boolean => bankManifestModule?.bytesMatchRecipe(bytes, weightsGb) ?? false
 const bankManifest = (recipe: any, path: string) => bankManifestModule?.bankManifest(recipe, path) ?? { reason: 'no bank manifest road' }
-const { currentHostRecipes } = await import('../../src/services/host/recipesFile.ts')
+const { currentHostRecipes } = await import('../../src/models/hosting/recipesFile.ts')
 writePrivate([privateRow('deepseek41-uncensored-b200', 'B200', 180), privateRow('deepseek41-uncensored-b300', 'B300', 288), privateRow('deepseek41-uncensored-gb300', 'GB300', 288), tinyRow])
 const recipes = currentHostRecipes()
 const owner = recipes.find(row => row.id === 'deepseek41-uncensored-b200')!
@@ -152,16 +152,16 @@ let mounted: Awaited<ReturnType<typeof mountOffscreen>> | undefined
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
 try {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { hostRunner } = await import('../../src/services/host/ssh.ts')
-  const { runHostJob } = await import('../../src/services/host/worker.ts')
-  const { hostRecords, readHostRecord } = await import('../../src/services/host/store.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { hostRunner } = await import('../../src/models/hosting/ssh.ts')
+  const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+  const { hostRecords, readHostRecord } = await import('../../src/models/hosting/store.ts')
   assert.ok(hostDirectory().startsWith(f.home), 'the host directory follows the fixture home')
   mkdirSync(hostDirectory(), { recursive: true })
   writeFileSync(join(hostDirectory(), 'private-recipes.json'), JSON.stringify({ version: shipped.version, publishedAt: shipped.publishedAt, recipes: [...shipped.recipes, privateRow('deepseek41-uncensored-b200', 'B200', 180), privateRow('deepseek41-uncensored-b300', 'B300', 288), privateRow('deepseek41-uncensored-gb300', 'GB300', 288)] }))

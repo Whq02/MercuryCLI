@@ -37,7 +37,7 @@ console.log('============================================================')
 
 section('the epoch store: one signal, heard once per settle')
 const { bumpCatalogueEpoch, catalogueEpoch, subscribeCatalogueEpoch } = await import(
-  '../../src/services/providers/catalogueEpoch.ts'
+  '../../src/models/roads/catalogueEpoch.ts'
 )
 {
   let heard = 0
@@ -46,23 +46,23 @@ const { bumpCatalogueEpoch, catalogueEpoch, subscribeCatalogueEpoch } = await im
   })
   const e0 = catalogueEpoch()
   bumpCatalogueEpoch()
-  check('a bump advances the epoch by one', catalogueEpoch() === e0 + 1, 'bumpCatalogueEpoch in src/services/providers/catalogueEpoch.ts must add exactly one to the epoch')
-  check('a subscriber hears one bump once', heard === 1, `heard ${heard}; bumpCatalogueEpoch in src/services/providers/catalogueEpoch.ts must call each subscribed listener once per bump`)
+  check('a bump advances the epoch by one', catalogueEpoch() === e0 + 1, 'bumpCatalogueEpoch in src/models/roads/catalogueEpoch.ts must add exactly one to the epoch')
+  check('a subscriber hears one bump once', heard === 1, `heard ${heard}; bumpCatalogueEpoch in src/models/roads/catalogueEpoch.ts must call each subscribed listener once per bump`)
   off()
   bumpCatalogueEpoch()
-  check('an unsubscribed listener hears nothing more', heard === 1, `heard ${heard}; the function subscribeCatalogueEpoch returns in src/services/providers/catalogueEpoch.ts must remove the listener`)
+  check('an unsubscribed listener hears nothing more', heard === 1, `heard ${heard}; the function subscribeCatalogueEpoch returns in src/models/roads/catalogueEpoch.ts must remove the listener`)
 }
 
 section('the OpenRouter refresh bumps on success and on failure')
 {
   const { refreshOpenrouterCatalogue } = await import(
-    '../../src/services/providers/openrouter/openrouterCatalogue.ts'
+    '../../src/models/roads/openrouter/openrouterCatalogue.ts'
   )
   const { resolveOpenrouterRequestAuth } = await import(
-    '../../src/services/providers/openrouter/openrouterAccounts.ts'
+    '../../src/models/roads/openrouter/openrouterAccounts.ts'
   )
   const auth = resolveOpenrouterRequestAuth()
-  check('the env key resolves an OpenRouter credential', auth !== undefined, 'resolveOpenrouterRequestAuth in src/services/providers/openrouter/openrouterAccounts.ts returned nothing for OPENROUTER_API_KEY')
+  check('the env key resolves an OpenRouter credential', auth !== undefined, 'resolveOpenrouterRequestAuth in src/models/roads/openrouter/openrouterAccounts.ts returned nothing for OPENROUTER_API_KEY')
   if (auth) {
     const page = {
       data: [{ id: 'anthropic/claude-opus-5', name: 'Anthropic: Claude Opus 5', context_length: 1_000_000 }],
@@ -73,33 +73,33 @@ section('the OpenRouter refresh bumps on success and on failure')
       new Response(JSON.stringify(page), { status: 200, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch
     const before = catalogueEpoch()
     const landed = await refreshOpenrouterCatalogue(auth.account.keySource, { force: true, fetchImpl: okFetch })
-    check('a landed fetch settles the snapshot with its rows', (landed?.models.length ?? 0) === 1, (landed?.lastError ?? 'models ' + landed?.models.length) + '; refreshOpenrouterCatalogue in src/services/providers/openrouter/openrouterCatalogue.ts must store the fetched rows in the snapshot it returns')
-    check('…and bumps the epoch', catalogueEpoch() === before + 1, `${before} → ${catalogueEpoch()}; the finally block of refreshOpenrouterCatalogue in src/services/providers/openrouter/openrouterCatalogue.ts must call bumpCatalogueEpoch when the rows change`)
+    check('a landed fetch settles the snapshot with its rows', (landed?.models.length ?? 0) === 1, (landed?.lastError ?? 'models ' + landed?.models.length) + '; refreshOpenrouterCatalogue in src/models/roads/openrouter/openrouterCatalogue.ts must store the fetched rows in the snapshot it returns')
+    check('…and bumps the epoch', catalogueEpoch() === before + 1, `${before} → ${catalogueEpoch()}; the finally block of refreshOpenrouterCatalogue in src/models/roads/openrouter/openrouterCatalogue.ts must call bumpCatalogueEpoch when the rows change`)
     const failFetch = (async () => new Response('nope', { status: 500 })) as unknown as typeof fetch
     const before2 = catalogueEpoch()
     const failed = await refreshOpenrouterCatalogue(auth.account.keySource, { force: true, fetchImpl: failFetch })
-    check('a failed fetch settles stale-but-labelled', failed?.lastError !== undefined, 'the catch block of refreshOpenrouterCatalogue in src/services/providers/openrouter/openrouterCatalogue.ts must set lastError on the snapshot')
-    check('…and bumps the epoch too (the screen must reflect the failure)', catalogueEpoch() === before2 + 1, 'the finally block of refreshOpenrouterCatalogue in src/services/providers/openrouter/openrouterCatalogue.ts must bump the epoch when only lastError changes')
+    check('a failed fetch settles stale-but-labelled', failed?.lastError !== undefined, 'the catch block of refreshOpenrouterCatalogue in src/models/roads/openrouter/openrouterCatalogue.ts must set lastError on the snapshot')
+    check('…and bumps the epoch too (the screen must reflect the failure)', catalogueEpoch() === before2 + 1, 'the finally block of refreshOpenrouterCatalogue in src/models/roads/openrouter/openrouterCatalogue.ts must bump the epoch when only lastError changes')
   }
 }
 
 section('group detail lines wrap by whole segments')
 {
-  const { packLines } = await import('../../src/components/mercury-ui/geometry.ts')
+  const { packLines } = await import('../../src/screen/widgets/geometry.ts')
   const detail = 'frontier: GPT-5.6 Sol · 2026-07-21 · no OpenAI account — /logins'
   const lines = packLines(detail.split(' · '), 58)
   check(
     'a 66-wide detail packs into two whole-segment lines at the 62-panel interior (58)',
     lines.length === 2 && lines[0] === 'frontier: GPT-5.6 Sol · 2026-07-21' && lines[1] === 'no OpenAI account — /logins',
-    `${JSON.stringify(lines)}; packLines in src/components/mercury-ui/geometry.ts must break between whole segments at the budget`,
+    `${JSON.stringify(lines)}; packLines in src/screen/widgets/geometry.ts must break between whole segments at the budget`,
   )
   check(
     'a fitting detail stays one line',
     packLines('frontier: Fable 5 · Anthropic API key · credential present'.split(' · '), 58).length === 1,
-    'packLines in src/components/mercury-ui/geometry.ts must keep a detail that fits the budget on one line',
+    'packLines in src/screen/widgets/geometry.ts must keep a detail that fits the budget on one line',
   )
-  check('an over-wide single segment stands alone (the renderer truncates it)', packLines(['x'.repeat(80)], 58).length === 1, 'packLines in src/components/mercury-ui/geometry.ts must return one line for a single segment wider than the budget')
-  check('nothing is dropped: every segment survives the wrap', lines.join(' · ') === detail, `packLines in src/components/mercury-ui/geometry.ts must keep every segment: ${JSON.stringify(lines)}`)
+  check('an over-wide single segment stands alone (the renderer truncates it)', packLines(['x'.repeat(80)], 58).length === 1, 'packLines in src/screen/widgets/geometry.ts must return one line for a single segment wider than the budget')
+  check('nothing is dropped: every segment survives the wrap', lines.join(' · ') === detail, `packLines in src/screen/widgets/geometry.ts must keep every segment: ${JSON.stringify(lines)}`)
 }
 
 
@@ -114,12 +114,12 @@ if (driver.kind !== 'posix-pty') {
 } else {
   const PENDING_HOLD_MS = Math.min(vshotBudgetMs(10_000), 12_000)
   const FIXTURE_ROWS = (readFileSync(FIXTURE, 'utf8').match(/^\s+\{ id: '/gm) ?? []).length
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const { getModelOptions } = await import('../../src/services/model/modelOptions.ts')
-  const { OPENROUTER_MODEL_GROUP } = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
-  const { ANTHROPIC_MODEL_GROUP, isProviderActionRow } = await import('../../src/services/model/modelOptions.ts')
-  const picker = await import('../../src/utils/model/modelPickerGroups.ts')
+  const { getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
+  const { OPENROUTER_MODEL_GROUP } = await import('../../src/models/roads/openrouter/openrouterCatalogue.ts')
+  const { ANTHROPIC_MODEL_GROUP, isProviderActionRow } = await import('../../src/models/catalogue/modelOptions.ts')
+  const picker = await import('../../src/models/facts/modelPickerGroups.ts')
   const pickerRows = getModelOptions().map(row => ({
     id: row.value,
     name: row.label,
@@ -200,16 +200,16 @@ if (driver.kind !== 'posix-pty') {
       const text = (g: Array<Array<{ c: string }>>): string => g.map(row => row.map(c => c.c).join('')).join('\n')
       const pending = payload.marks?.find(m => m.label === 'pending')
       const landed = payload.marks?.find(m => m.label === 'landed')
-      check('the pending moment was observed', pending !== undefined, 'the pending mark needs the picker to paint OpenRouter — connecting… (openrouterCatalogue.ts in src/services/providers/openrouter) while the fixture holds its reply')
+      check('the pending moment was observed', pending !== undefined, 'the pending mark needs the picker to paint OpenRouter — connecting… (openrouterCatalogue.ts in src/models/roads/openrouter) while the fixture holds its reply')
       check('the landed moment was observed', landed !== undefined, 'the landed mark needs the OPENROUTER heading to show the live row count once the fixture answers; look at the frame the drive printed or at the grid JSON in the scratch folder')
       if (pending && landed) {
         const p = text(pending.grid)
         const l = text(landed.grid)
-        check('pending: the OpenRouter group paints its connecting row, no rows yet', p.includes('OpenRouter — connecting…') && !showsId(p, 'openrouter/anthropic/claude-opus-5'), 'while the fetch is pending the OpenRouter group in src/services/providers/openrouter/openrouterCatalogue.ts must offer only the connecting row')
-        check('landed: the catalogue rows replaced the connecting row (each id in its cell, cut to the column with …)', showsId(l, 'openrouter/anthropic/claude-opus-5') && showsId(l, 'openrouter/google/gemini-3.1-pro') && !l.includes('OpenRouter — connecting…'), `${l.split('\n').filter(line => line.includes('openrouter/')).map(line => line.trim()).join(' | ')}; the OpenRouter group in src/services/providers/openrouter/openrouterCatalogue.ts must replace the connecting row with the fetched rows`)
-        check('both moments belong to ONE open (the picker never closed between them)', landed.atTick > pending.atTick && l.includes('Mercury · model') && p.includes('Mercury · model'), 'the picker closed or reopened between the two marks; the live catalogue must update the open /model picker in place (catalogueEpoch in src/services/providers/catalogueEpoch.ts)')
+        check('pending: the OpenRouter group paints its connecting row, no rows yet', p.includes('OpenRouter — connecting…') && !showsId(p, 'openrouter/anthropic/claude-opus-5'), 'while the fetch is pending the OpenRouter group in src/models/roads/openrouter/openrouterCatalogue.ts must offer only the connecting row')
+        check('landed: the catalogue rows replaced the connecting row (each id in its cell, cut to the column with …)', showsId(l, 'openrouter/anthropic/claude-opus-5') && showsId(l, 'openrouter/google/gemini-3.1-pro') && !l.includes('OpenRouter — connecting…'), `${l.split('\n').filter(line => line.includes('openrouter/')).map(line => line.trim()).join(' | ')}; the OpenRouter group in src/models/roads/openrouter/openrouterCatalogue.ts must replace the connecting row with the fetched rows`)
+        check('both moments belong to ONE open (the picker never closed between them)', landed.atTick > pending.atTick && l.includes('Mercury · model') && p.includes('Mercury · model'), 'the picker closed or reopened between the two marks; the live catalogue must update the open /model picker in place (catalogueEpoch in src/models/roads/catalogueEpoch.ts)')
         const openrouterHeading = (t: string): string => (t.match(/[▾▸❯] OPENROUTER · [^│\n]+/)?.[0] ?? '').trim()
-        check(`the OpenRouter heading counts the landed rows (${FIXTURE_ROWS} live, the fixture's lineup)`, openrouterHeading(l).endsWith(`· ${FIXTURE_ROWS} live`) && !/\d+ live/.test(openrouterHeading(p)), `${openrouterHeading(p)} → ${openrouterHeading(l)}; the group heading in src/utils/model/modelPickerGroups.ts must show the live row count once the rows land`)
+        check(`the OpenRouter heading counts the landed rows (${FIXTURE_ROWS} live, the fixture's lineup)`, openrouterHeading(l).endsWith(`· ${FIXTURE_ROWS} live`) && !/\d+ live/.test(openrouterHeading(p)), `${openrouterHeading(p)} → ${openrouterHeading(l)}; the group heading in src/models/facts/modelPickerGroups.ts must show the live row count once the rows land`)
         check('the rows landed under the cursor (the focus box holds the first live row)', new RegExp(`│ │ \\S.*${idCellPattern('openrouter/anthropic/claude-opus-5')}`).test(l), l.split('\n').filter(line => line.includes('│ │ ')).map(line => line.trim()).join(' | '))
       }
     } else {

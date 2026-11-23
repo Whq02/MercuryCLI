@@ -12,7 +12,7 @@ for (const key of ['MERCURY_HOME', 'MERCURY_DAEMON_PERSIST', 'MERCURY_DAEMON_OWN
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const WHERE_TO_LOOK = 'fix the merge before publish and the keep-aside of an unusable ledger in src/daemon/concourseDispatch.ts (keepDamagedFileAsideSync, flushDeferredDispatchPublishes) and the recovery ledger in src/substrate/storeRecovery.ts'
+const WHERE_TO_LOOK = 'fix the merge before publish and the keep-aside of an unusable ledger in src/daemon/concourse-workers/concourseDispatch.ts (keepDamagedFileAsideSync, flushDeferredDispatchPublishes) and the recovery ledger in src/platform/substrate/storeRecovery.ts'
 const check = (label: string, cond: boolean, detail: unknown = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)} (${WHERE_TO_LOOK})` : ''}`)
@@ -20,8 +20,8 @@ const check = (label: string, cond: boolean, detail: unknown = ''): void => {
 const skip = (label: string, why: string): void => console.log(`  [SKIP] ${label} — ${why}`)
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
-const dispatch = await import('../../src/daemon/concourseDispatch.ts')
-const recovery = await import('../../src/substrate/storeRecovery.ts')
+const dispatch = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
+const recovery = await import('../../src/platform/substrate/storeRecovery.ts')
 
 const HELD = { schema: 1, clientMessageId: 'msg-held-1', promptDigest: 'd1', envelopeDigest: 'e1', envelopeVersion: 2, state: 'queued', stateRevision: 1, acceptedAt: 1000, heldReason: 'seat', workspaceId: '/fixture/project', heldOp: { prompt: 'the queued launch of another writer', workspaceDir: '/fixture/project' } }
 const WORKING = { schema: 1, clientMessageId: 'msg-working-2', promptDigest: 'd2', envelopeDigest: 'e2', envelopeVersion: 2, state: 'working', stateRevision: 3, acceptedAt: 2000, workerId: 'concourse-w2', sessionId: 's-2' }

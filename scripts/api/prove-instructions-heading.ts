@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/context.ts src/utils/userContextReminder.ts src/tools/AgentTool/runAgent.ts src/utils/attachments/userContext.ts
+// gate-watch: src/engine/requestContext.ts src/engine/attachments/userContextReminder.ts src/tools/crewmate/runCrewmate.ts src/engine/attachment-shapes/userContext.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
@@ -32,7 +32,7 @@ process.chdir(project)
 
 let failures = 0
 let checks = 0
-const HEADING_FAIL_HINT = 'to fix, change the heading or the reminder body in src/utils/userContextReminder.ts (INSTRUCTIONS_CONTEXT_KEY, userContextReminderBody), the composed context in src/context.ts (getUserContext), or the resume row in src/utils/attachments/userContext.ts (getUserContextAttachment, latestUserContextBody); for the wire checks under section 4 rebuild dist/mercury.mjs first (bun run build.ts)'
+const HEADING_FAIL_HINT = 'to fix, change the heading or the reminder body in src/engine/attachments/userContextReminder.ts (INSTRUCTIONS_CONTEXT_KEY, userContextReminderBody), the composed context in src/engine/requestContext.ts (getUserContext), or the resume row in src/engine/attachment-shapes/userContext.ts (getUserContextAttachment, latestUserContextBody); for the wire checks under section 4 rebuild dist/mercury.mjs first (bun run build.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -45,12 +45,12 @@ const sha = (file: string): string => createHash('sha256').update(readFileSync(f
 
 console.log('the model reads the project instructions under Mercury\'s heading')
 
-const reminder = await import('../../src/utils/userContextReminder.ts')
+const reminder = await import('../../src/engine/attachments/userContextReminder.ts')
 const { INSTRUCTIONS_CONTEXT_KEY, USER_CONTEXT_REMINDER_OPEN, userContextReminderBody } = reminder
-const globalConfig = await import('../../src/utils/config/globalConfig.ts')
+const globalConfig = await import('../../src/platform/config/globalConfig.ts')
 globalConfig.enableConfigs()
-const context = await import('../../src/context.ts')
-const attachments = await import('../../src/utils/attachments/userContext.ts')
+const context = await import('../../src/engine/requestContext.ts')
+const attachments = await import('../../src/engine/attachment-shapes/userContext.ts')
 const reader = await import('./read-instruction-heading.ts')
 
 section('§1 the key: the composed instruction files ride under one key, rendered as `# instructions`')
@@ -70,9 +70,9 @@ section('§1 the key: the composed instruction files ride under one key, rendere
 
 section('§3 resume: an old saved session whose stored context row was rendered under another heading opens; its rows stay byte-identical; one fresh row is appended')
 {
-  const vnext = await import('../../src/utils/sessionStorage/vnext.ts')
-  const logs = await import('../../src/utils/sessionStorage/logs.ts')
-  const paths = await import('../../src/utils/sessionStorage/paths.ts')
+  const vnext = await import('../../src/sessions/transcripts/vnext.ts')
+  const logs = await import('../../src/sessions/transcripts/sessionListings.ts')
+  const paths = await import('../../src/sessions/transcripts/paths.ts')
   const SID = '00000000-aaaa-4000-8000-00000000c0de'
   const at = (i: number): string => new Date(Date.parse('2026-09-01T00:00:00.000Z') + i * 1000).toISOString()
   const base = (uuid: string, parent: string | null, i: number): Record<string, unknown> => ({ uuid, parentUuid: parent, isSidechain: false, cwd: project, sessionId: SID, version: '1.0.0', timestamp: at(i) })

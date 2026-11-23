@@ -29,10 +29,10 @@ function section(title: string): void {
 
 section('1. the detector, its own tick driven on a clock the proof holds')
 {
-  const { default: instances } = await import('../../src/ink/instances.ts')
-  const out = (await import('../../src/ink/terminalOut.ts')) as { termWrite: (stream: never, bytes: string) => void; noteTerminalWriteHeld?: (ms: number) => void }
-  const { writeAllSync } = await import('../../src/ink/session/delivery.ts')
-  const { startEventLoopStallDetector } = await import('../../src/utils/eventLoopStallDetector.ts')
+  const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+  const out = (await import('../../src/screen/renderer/terminalOut.ts')) as { termWrite: (stream: never, bytes: string) => void; noteTerminalWriteHeld?: (ms: number) => void }
+  const { writeAllSync } = await import('../../src/screen/renderer/terminal-session/frameDelivery.ts')
+  const { startEventLoopStallDetector } = await import('../../src/boot/main/eventLoopStallDetector.ts')
 
   let wall = 1_000_000
   let steady = 5_000
@@ -63,25 +63,25 @@ section('1. the detector, its own tick driven on a clock the proof holds')
       wall += ms
     }
 
-    check('the detector armed its interval', tick !== null, 'src/utils/eventLoopStallDetector.ts: startEventLoopStallDetector must arm its interval with setInterval')
-    check('a tick on time re-asserts nothing', wakesAfter(200) === 0, 'src/utils/eventLoopStallDetector.ts: the tick must not call reassertTerminalModes when the gap is short')
-    check('a loop that stood still seven seconds with no terminal write in it is read as a wake', wakesAfter(7200) === 1, 'src/utils/eventLoopStallDetector.ts: the tick must call reassertTerminalModes after a seven-second gap that held no terminal write')
+    check('the detector armed its interval', tick !== null, 'src/boot/main/eventLoopStallDetector.ts: startEventLoopStallDetector must arm its interval with setInterval')
+    check('a tick on time re-asserts nothing', wakesAfter(200) === 0, 'src/boot/main/eventLoopStallDetector.ts: the tick must not call reassertTerminalModes when the gap is short')
+    check('a loop that stood still seven seconds with no terminal write in it is read as a wake', wakesAfter(7200) === 1, 'src/boot/main/eventLoopStallDetector.ts: the tick must call reassertTerminalModes after a seven-second gap that held no terminal write')
 
     const frame = Buffer.from('a frame')
     const holdsFrame = heldWrite(6950)
     const delivered = writeAllSync(1, frame, { writeSync: (_fd, data) => (holdsFrame(), data.length), sleep: () => {} } as never)
-    check('a frame the terminal held for seven seconds was delivered whole', delivered === true, 'src/ink/session/delivery.ts: writeAllSync must return true once every byte is written')
-    check('seven seconds inside a frame write are no wake', wakesAfter(250) === 0, 'the detector re-asserted the screen; src/ink/session/delivery.ts: writeAllSync must report the time it held through noteTerminalWriteHeld, and src/utils/eventLoopStallDetector.ts must subtract it')
+    check('a frame the terminal held for seven seconds was delivered whole', delivered === true, 'src/screen/renderer/terminal-session/frameDelivery.ts: writeAllSync must return true once every byte is written')
+    check('seven seconds inside a frame write are no wake', wakesAfter(250) === 0, 'the detector re-asserted the screen; src/screen/renderer/terminal-session/frameDelivery.ts: writeAllSync must report the time it held through noteTerminalWriteHeld, and src/boot/main/eventLoopStallDetector.ts must subtract it')
 
     const holdsModes = heldWrite(6950)
     out.termWrite({ write: () => (holdsModes(), true) } as never, 'a mode write')
-    check('seven seconds inside a mode write are no wake', wakesAfter(250) === 0, 'the detector re-asserted the screen; src/ink/terminalOut.ts: termWrite must report the time it held through noteTerminalWriteHeld, and src/utils/eventLoopStallDetector.ts must subtract it')
+    check('seven seconds inside a mode write are no wake', wakesAfter(250) === 0, 'the detector re-asserted the screen; src/screen/renderer/terminalOut.ts: termWrite must report the time it held through noteTerminalWriteHeld, and src/boot/main/eventLoopStallDetector.ts must subtract it')
 
-    check('what a write held is spent by the tick that read it: the next seven-second gap is a wake', wakesAfter(7200) === 1, 'src/ink/terminalOut.ts: takeTerminalWriteHeldMs must reset the held time to zero when the tick reads it')
+    check('what a write held is spent by the tick that read it: the next seven-second gap is a wake', wakesAfter(7200) === 1, 'src/screen/renderer/terminalOut.ts: takeTerminalWriteHeldMs must reset the held time to zero when the tick reads it')
 
     const holdsBriefly = heldWrite(800)
     out.termWrite({ write: () => (holdsBriefly(), true) } as never, 'a short write')
-    check('a long gap with a short write in it is still a wake', wakesAfter(8400) === 1, 'src/utils/eventLoopStallDetector.ts: only the held time may be subtracted from the gap, not the whole gap')
+    check('a long gap with a short write in it is still a wake', wakesAfter(8400) === 1, 'src/boot/main/eventLoopStallDetector.ts: only the held time may be subtracted from the gap, not the whole gap')
 
     let threw = false
     try {
@@ -89,7 +89,7 @@ section('1. the detector, its own tick driven on a clock the proof holds')
     } catch {
       threw = true
     }
-    check('a write that throws after holding still reports what it held', threw && wakesAfter(250) === 0, 'src/ink/terminalOut.ts: termWrite must call noteTerminalWriteHeld even when the stream write throws')
+    check('a write that throws after holding still reports what it held', threw && wakesAfter(250) === 0, 'src/screen/renderer/terminalOut.ts: termWrite must call noteTerminalWriteHeld even when the stream write throws')
   } finally {
     Date.now = realDateNow
     performance.now = realSteadyNow
@@ -140,8 +140,8 @@ section('2. the built product: a terminal that stops draining for seven seconds'
       check('both frames were captured', painted !== undefined && drained !== undefined, 'the rig output holds no snap named painted or drained; scripts/render-continuity/lib/screenrig.py must write both snaps')
       if (painted && drained) {
         check(`twelve redraws were written into a terminal that did not read (${drained.flash.bytes} bytes arrived once it did)`, drained.flash.bytes > 100_000, `${drained.flash.bytes} bytes; the redraw bytes did not reach the terminal, so check the held step and the REDRAW input in this proof`)
-        check('the wait was not read as a wake: the alternate screen is never left', drained.flash.altSwitch === 0 && drained.flash.lostAt === null, `${drained.flash.altSwitch} alternate-screen switches; ${drained.flash.maxLost} cells lost at ${JSON.stringify(drained.flash.lostAt)}; src/utils/eventLoopStallDetector.ts must not re-assert the screen while a terminal write is held`)
-        check('and the screen holds the painted frame', differing(drained, painted) === 0, `${differing(drained, painted)} cells differ; the screen changed after the held write, so look at what src/utils/eventLoopStallDetector.ts re-asserted`)
+        check('the wait was not read as a wake: the alternate screen is never left', drained.flash.altSwitch === 0 && drained.flash.lostAt === null, `${drained.flash.altSwitch} alternate-screen switches; ${drained.flash.maxLost} cells lost at ${JSON.stringify(drained.flash.lostAt)}; src/boot/main/eventLoopStallDetector.ts must not re-assert the screen while a terminal write is held`)
+        check('and the screen holds the painted frame', differing(drained, painted) === 0, `${differing(drained, painted)} cells differ; the screen changed after the held write, so look at what src/boot/main/eventLoopStallDetector.ts re-asserted`)
       }
     }
   } finally {

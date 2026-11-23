@@ -6,7 +6,7 @@ import { armEnvironment, check, drive, enterRoot, finish, makeContext, section, 
 
 armEnvironment()
 
-const { AstEditTool } = await import(join(REPO, 'src/tools/AstEditTool/AstEditTool.ts'))
+const { AstEditTool } = await import(join(REPO, 'src/tools/ast-edit/AstEditTool.ts'))
 
 const root = mkdtempSync(join(tmpdir(), 'ast-nothing-to-write-'))
 const damaged = 'function outer( {\n  needle(1);\n  const x = needle(2)\n}\nneedle(3);\n'

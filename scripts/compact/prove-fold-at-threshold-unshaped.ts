@@ -20,14 +20,14 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}the fold under test is compactConversation in src/services/compact/compact.ts (the threshold is getAutoCompactThreshold in src/services/compact/autoCompact.ts, the conversation comes from scripts/compact/thresholdFixture.ts)` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}the fold under test is compactConversation in src/engine/compaction/foldConversation.ts (the threshold is getAutoCompactThreshold in src/engine/compaction/autoFold.ts, the conversation comes from scripts/compact/thresholdFixture.ts)` : ''}`)
 }
 const record = (line: string): void => console.log(`  [record] ${line}`)
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the fold-at-threshold prover exceeded 300s; a fold or summariser request never returned, so look at compactConversation in src/services/compact/compact.ts and the fixture server in scripts/compact/overflowFixture.ts')
+  console.log('\nTIMEOUT — the fold-at-threshold prover exceeded 300s; a fold or summariser request never returned, so look at compactConversation in src/engine/compaction/foldConversation.ts and the fixture server in scripts/compact/overflowFixture.ts')
   process.exit(1)
 }, 300_000)
 watchdog.unref?.()
@@ -36,23 +36,23 @@ const { startOverflowFixture } = await import('./overflowFixture.ts')
 type Captured = import('./overflowFixture.ts').Captured
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { refreshGeminiCatalogue } = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
-const { getAutoCompactThreshold, getBlockingLimit } = await import('../../src/services/compact/autoCompact.ts')
+const { refreshGeminiCatalogue } = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
+const { getAutoCompactThreshold, getBlockingLimit } = await import('../../src/engine/compaction/autoFold.ts')
 const { conversationAtThreshold } = await import('./thresholdFixture.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { recordSentRequest } = await import('../../src/services/agents/forkedAgent.ts')
-const { rosterOwnerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/query.ts')
-const { compactConversation, shouldRideCacheSharingFork, PROSE_SKIPPED_KEY } = await import('../../src/services/compact/compact.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { recordSentRequest } = await import('../../src/crew/agents/forkedAgent.ts')
+const { rosterOwnerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { compactConversation, shouldRideCacheSharingFork, PROSE_SKIPPED_KEY } = await import('../../src/engine/compaction/foldConversation.ts')
 
 const GEMINI = 'gemini-3-pro'
 const GEMINI_WINDOW = 1_048_576
@@ -153,7 +153,7 @@ async function atThreshold(label: string, model: string, family: string, resultC
   const ceilingFollows = JSON.stringify(refCeiling) === JSON.stringify(foldCeiling) || (typeof refCeiling === 'number' && typeof foldCeiling === 'number' && foldCeiling <= refCeiling && refCeiling - foldCeiling < 4_000)
   check(`${label}: the posture is the session request's, and the output ceiling is the session's or the fit's answer for the fold prompt's few extra tokens (under 4,000 lower, never higher)`, JSON.stringify(posture(reference)) === JSON.stringify(posture(requests[0]?.body as Body | undefined)) && ceilingFollows, JSON.stringify({ reference: posture(reference), fold: posture(requests[0]?.body as Body | undefined), ceilings: { reference: refCeiling, fold: foldCeiling } }).slice(0, 300))
   if (shouldRideCacheSharingFork(model, thinkingConfig as never)) {
-    check(`${label}: the cache-sharing fork carried the summary — no direct lane, no hand-over`, roads.length === 1 && roads[0]?.road === 'fork' && roads[0]?.outcome === 'summary', `${roads.map(r => `${r.road}:${r.outcome}${r.detail !== undefined ? ` (${r.detail})` : ''}`).join(', ') || 'no row'} — summarizeViaCacheSharingFork (src/services/compact/compact.ts) hands a failure of its nested turn to the direct lane, which lands the same summary: the context this proof builds must let that turn start (startTurn) and carry what runForkedAgent reads`)
+    check(`${label}: the cache-sharing fork carried the summary — no direct lane, no hand-over`, roads.length === 1 && roads[0]?.road === 'fork' && roads[0]?.outcome === 'summary', `${roads.map(r => `${r.road}:${r.outcome}${r.detail !== undefined ? ` (${r.detail})` : ''}`).join(', ') || 'no row'} — summarizeViaCacheSharingFork (src/engine/compaction/foldConversation.ts) hands a failure of its nested turn to the direct lane, which lands the same summary: the context this proof builds must let that turn start (startTurn) and carry what runForkedAgent reads`)
     const rows = rowsOf(requests[0]?.body as Body | undefined) as any[]
     const marked = rows.map((row, at) => (Array.isArray(row.content) && row.content.some((block: any) => block.cache_control !== undefined) ? at : -1)).filter(at => at >= 0)
     const markedRound = marked.length === 1 ? built.ids.indexOf(rows[marked[0]!]?.content?.find((block: any) => block.type === 'tool_result')?.tool_use_id) : -1

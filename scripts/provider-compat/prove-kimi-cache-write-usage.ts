@@ -2,12 +2,12 @@ import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 import { z } from 'zod/v4'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_CONFIG_DIR = proofHome
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[name]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MOONSHOT_API_KEY = 'proof-key-kimi-cache-not-a-real-key'
@@ -37,17 +37,17 @@ process.env.MERCURY_MOONSHOT_API_BASE = `http://127.0.0.1:${server.port}/v1`
 process.env.MERCURY_MOONSHOT_CODING_BASE = `http://127.0.0.1:${server.port}/coding/v1`
 process.env.MERCURY_MOONSHOT_OAUTH_BASE = `http://127.0.0.1:${server.port}/auth`
 try {
-  const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
-  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-  const { compatChatCallModel, mapCompatUsageToAnthropic } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-  const { decodeCompatUsage } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-  const { moonshotLaneProfile } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
-  const { buildMoonshotExtras } = await import('../../src/services/providers/openaicompat/compatWire.ts')
-  const { calculateUSDCost, resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
-  const { getModelUsage } = await import('../../src/bootstrap/state.ts')
-  const { usageForProvider, refreshProviderUsage } = await import('../../src/services/providers/providerUsage.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+  const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+  const { compatChatCallModel, mapCompatUsageToAnthropic } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+  const { decodeCompatUsage } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+  const { moonshotLaneProfile } = await import('../../src/models/roads/moonshot/moonshotCallModel.ts')
+  const { buildMoonshotExtras } = await import('../../src/models/roads/openaicompat/compatWire.ts')
+  const { calculateUSDCost, resolveModelPricing } = await import('../../src/models/usage/modelCost.ts')
+  const { getModelUsage } = await import('../../src/boot/process-state/processState.ts')
+  const { usageForProvider, refreshProviderUsage } = await import('../../src/models/roads/providerUsage.ts')
   const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
   const near = (actual: number, expected: number) => assert.ok(Math.abs(actual - expected) < 1e-12, `${actual} != ${expected}`)
   async function run(options: { ttl?: '1h'; model?: string; messages?: Message[]; signal?: AbortSignal } = {}): Promise<AssistantMessage[]> {
@@ -116,8 +116,8 @@ try {
   mode = 'text'
   buckets(await run({ messages: [...called, createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'kimi-cache-call', content: 'hello' }] })] }), 400, 300)
   const history = captures.at(-1)!.body.messages
-  assert.ok(history.some((row: any) => row.role === 'assistant' && row.tool_calls?.[0]?.id === 'kimi-cache-call' && row.reasoning_content === 'Keep the cached prefix.'), 'Moonshot replay in src/services/providers/moonshot/ must preserve assistant tool_calls and reasoning_content')
-  assert.ok(history.some((row: any) => row.role === 'tool' && row.tool_call_id === 'kimi-cache-call'), 'Moonshot replay in src/services/providers/moonshot/ must include paired tool_result for kimi-cache-call')
+  assert.ok(history.some((row: any) => row.role === 'assistant' && row.tool_calls?.[0]?.id === 'kimi-cache-call' && row.reasoning_content === 'Keep the cached prefix.'), 'Moonshot replay in src/models/roads/moonshot/ must preserve assistant tool_calls and reasoning_content')
+  assert.ok(history.some((row: any) => row.role === 'tool' && row.tool_call_id === 'kimi-cache-call'), 'Moonshot replay in src/models/roads/moonshot/ must include paired tool_result for kimi-cache-call')
   mode = 'rate'
   const beforeRate = captures.length
   assert.ok((await run()).some(row => row.error === 'rate_limit'), 'Moonshot 429 must settle with error=rate_limit')
@@ -138,7 +138,7 @@ try {
   assert.equal(api.sourceKind, 'api-key')
   assert.equal(api.shape, 'api-spend')
   assert.equal(api.balance?.display, 'USD 12')
-  const { writeMoonshotTokens } = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
+  const { writeMoonshotTokens } = await import('../../src/models/roads/moonshot/moonshotAccounts.ts')
   writeMoonshotTokens({ accessToken: 'proof-kimi-plan-token', accessTokenExpiresAtMs: Date.now() + 3_600_000 }, 'global')
   delete process.env.MOONSHOT_API_KEY
   await run({ model: 'k3' })

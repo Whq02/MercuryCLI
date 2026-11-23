@@ -1,13 +1,13 @@
-import type { TensorFoldPickerFacts, TensorFoldRowAct } from '../../components/tensorfold/tensorfoldRows.js'
-import { gibWords, tokensWords } from '../../services/localServer/localServerMemory.js'
-import { llamaCppWords } from '../../services/tensorfold/adapter/identity.js'
-import type { TensorFoldModelRow } from '../../services/tensorfold/contracts.js'
-import { engineServedByAdapter, type TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
-import type { TensorFoldInventoryRow } from '../../services/tensorfold/inventory.js'
-import { bestTensorFoldFit } from '../../services/tensorfold/inventory.js'
+import type { TensorFoldPickerFacts, TensorFoldRowAct } from '../../screen/tensorfold/tensorfoldRows.js'
+import { gibWords, tokensWords } from '../../models/local-server/localServerMemory.js'
+import { llamaCppWords } from '../../models/tensorfold/adapter/identity.js'
+import type { TensorFoldModelRow } from '../../models/tensorfold/contracts.js'
+import { engineServedByAdapter, type TensorFoldEngineFound } from '../../models/tensorfold/engine.js'
+import type { TensorFoldInventoryRow } from '../../models/tensorfold/inventory.js'
+import { bestTensorFoldFit } from '../../models/tensorfold/inventory.js'
 import type { TensorFoldAct, TensorFoldOutsideServer, TensorFoldPanelFacts } from './scene.js'
 
-export type { TensorFoldAct as TensorFoldPickerAct } from '../../components/tensorfold/tensorfoldRows.js'
+export type { TensorFoldAct as TensorFoldPickerAct } from '../../screen/tensorfold/tensorfoldRows.js'
 
 function rowActOf(act: TensorFoldAct | undefined, row: TensorFoldInventoryRow, usableGib: number | undefined, window: number, platform: NodeJS.Platform): TensorFoldRowAct | undefined {
   if (act === undefined) return undefined

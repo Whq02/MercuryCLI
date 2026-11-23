@@ -2,7 +2,7 @@
 import { openKeysPart } from './chatScenarios.ts'
 
 let failures = 0
-const keysPartFix = 'fix what ChatKeys hands its handlers, the Escape hold and the suspend and resume writes in src/screens/chat/ChatKeys.tsx'
+const keysPartFix = 'fix what ChatKeys hands its handlers, the Escape hold and the suspend and resume writes in src/screen/chat/ChatKeys.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}${keysPartFix}` : ''}`)
@@ -12,10 +12,10 @@ function section(title: string): void {
 }
 
 const t = await openKeysPart('chat-keys-part')
-const { isVimModeEnabled } = await import('../../src/components/PromptInput/utils.ts')
-const { ASK_USER_QUESTION_TOOL_NAME } = await import('../../src/tools/AskUserQuestionTool/prompt.ts')
-const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+const { isVimModeEnabled } = await import('../../src/screen/composer/composerConfig.ts')
+const { ASK_USER_QUESTION_TOOL_NAME } = await import('../../src/tools/ask-question/prompt.ts')
+const { createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
 const said = (name: 'global' | 'command' | 'scroll' | 'actions' | 'cancel'): string => JSON.stringify(t.handed[name], (_key, value) => (typeof value === 'function' ? 'fn' : value))
 
 section('§1 the five handlers the part mounts, and what it hands each')

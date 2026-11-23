@@ -18,28 +18,28 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_TASKS = '1'
 process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
 process.chdir(cwd)
-const bootstrap = await import(`${source}/src/bootstrap/state.ts`)
+const bootstrap = await import(`${source}/src/boot/process-state/processState.ts`)
 bootstrap.setOriginalCwd(cwd)
 bootstrap.setProjectRoot(cwd)
 bootstrap.setCwdState(cwd)
-const { enableConfigs } = await import(`${source}/src/utils/config/globalConfig.ts`)
+const { enableConfigs } = await import(`${source}/src/platform/config/globalConfig.ts`)
 enableConfigs()
-const writer = await import(`${source}/src/utils/sessionStorage/writer.ts`)
-const { createUserMessage } = await import(`${source}/src/utils/messages/factories.ts`)
-const { createAttachmentMessage } = await import(`${source}/src/services/attachments/orchestrator.ts`)
-const capsule = await import(`${source}/src/services/attachments/contextCapsule.ts`)
-const { normalizeAttachmentForAPI } = await import(`${source}/src/services/messages/attachmentText.ts`)
+const writer = await import(`${source}/src/sessions/transcripts/writer.ts`)
+const { createUserMessage } = await import(`${source}/src/engine/message-shapes/factories.ts`)
+const { createAttachmentMessage } = await import(`${source}/src/engine/attachments/turnAttachments.ts`)
+const capsule = await import(`${source}/src/engine/attachments/contextCapsule.ts`)
+const { normalizeAttachmentForAPI } = await import(`${source}/src/engine/messages/attachmentText.ts`)
 const original = Object.values(capsuleFixtures).flat()
 const attachments = capsule.foldAttachmentsIntoCapsule ? capsule.foldAttachmentsIntoCapsule(original, [], 'Prove the attachment facts') : original
 const sessionId = bootstrap.getSessionId()
-const { getTranscriptPathForSession } = await import(`${source}/src/utils/sessionStorage/paths.ts`)
+const { getTranscriptPathForSession } = await import(`${source}/src/sessions/transcripts/paths.ts`)
 const transcript = getTranscriptPathForSession(sessionId)
 writer.setSessionFileForTesting(transcript)
 await writer.recordTranscript([createUserMessage({ content: 'Prove the attachment facts' }), ...attachments.map(createAttachmentMessage)])
 await writer.flushSessionStorage()
 console.log(`build under proof: ${DIST}`)
 console.log(`seed records: ${readFileSync(transcript, 'utf8').split('\n').filter(Boolean).length}`)
-const capsuleHint = 'the capsule is built by foldAttachmentsIntoCapsule in src/services/attachments/contextCapsule.ts and must reach the request body once, carrying every old reminder fact'
+const capsuleHint = 'the capsule is built by foldAttachmentsIntoCapsule in src/engine/attachments/contextCapsule.ts and must reach the request body once, carrying every old reminder fact'
 const fixture = await startScriptedFixture(() => [{ type: 'text', text: 'capsule request answered' }])
 const port = Number(new URL(fixture.base).port)
 try {
@@ -70,7 +70,7 @@ try {
   }
   const disk = readFileSync(transcript, 'utf8')
   const persistedKinds = original.filter(row => normalizeAttachmentForAPI(row).length > 0).map(row => row.type)
-  tally.check('the transcript keeps every previously-persisted receipt kind for old readers', persistedKinds.every(kind => disk.includes(`"attachmentType":"${kind}"`)), 'the transcript on disk must keep each attachment as its own record; check recordTranscript in src/utils/sessionStorage/writer.ts and foldAttachmentsIntoCapsule in src/services/attachments/contextCapsule.ts')
+  tally.check('the transcript keeps every previously-persisted receipt kind for old readers', persistedKinds.every(kind => disk.includes(`"attachmentType":"${kind}"`)), 'the transcript on disk must keep each attachment as its own record; check recordTranscript in src/sessions/transcripts/writer.ts and foldAttachmentsIntoCapsule in src/engine/attachments/contextCapsule.ts')
 } finally {
   await fixture.close()
   process.chdir(source)

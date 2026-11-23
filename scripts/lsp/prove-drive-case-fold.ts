@@ -8,7 +8,7 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const registry = await import('../../src/services/lsp/LSPDiagnosticRegistry.ts')
+const registry = await import('../../src/integrations/lsp/LSPDiagnosticRegistry.ts')
 const {
   registerPendingLSPDiagnostic,
   checkForLSPDiagnostics,
@@ -34,7 +34,7 @@ section('§1 PEEK ACROSS THE CASE SEAM')
 {
   recordPublishedReport('pyright', { uri: SERVER_CASED, diagnostics: [diag('unused import')] } as never)
   const hit = peekLastPublishedReport('pyright', MERCURY_CASED)
-  check('a server-cased record answers a Mercury-cased peek (FC-014)', hit !== undefined, JSON.stringify(hit ?? null), 'make peekLastPublishedReport in src/services/lsp/LSPDiagnosticRegistry.ts fold the drive-letter case (foldDriveCase) the same way recordPublishedReport keys its entry')
+  check('a server-cased record answers a Mercury-cased peek (FC-014)', hit !== undefined, JSON.stringify(hit ?? null), 'make peekLastPublishedReport in src/integrations/lsp/LSPDiagnosticRegistry.ts fold the drive-letter case (foldDriveCase) the same way recordPublishedReport keys its entry')
 }
 
 section('§2 THE DEDUP-CLEAR CYCLE')
@@ -42,7 +42,7 @@ section('§2 THE DEDUP-CLEAR CYCLE')
   resetAllLSPDiagnosticState()
   registerPendingLSPDiagnostic({ serverName: 'pyright', files: [{ uri: SERVER_CASED, diagnostics: [diag('E100 first')] } as never] })
   const first = checkForLSPDiagnostics()
-  check('the first publish delivers', first.length === 1, JSON.stringify(first.map(f => f.files.length)), 'registerPendingLSPDiagnostic then checkForLSPDiagnostics in src/services/lsp/LSPDiagnosticRegistry.ts must deliver a first publish once')
+  check('the first publish delivers', first.length === 1, JSON.stringify(first.map(f => f.files.length)), 'registerPendingLSPDiagnostic then checkForLSPDiagnostics in src/integrations/lsp/LSPDiagnosticRegistry.ts must deliver a first publish once')
 
   clearDeliveredDiagnosticsForFile(MERCURY_CASED)
   registerPendingLSPDiagnostic({ serverName: 'pyright', files: [{ uri: SERVER_CASED, diagnostics: [diag('E100 first')] } as never] })
@@ -51,7 +51,7 @@ section('§2 THE DEDUP-CLEAR CYCLE')
     'after a Mercury-cased clear the SAME diagnostic redelivers (the clear reached the set)',
     second.length === 1 && second[0]!.files.some(f => f.diagnostics.length === 1),
     JSON.stringify(second),
-    'clearDeliveredDiagnosticsForFile in src/services/lsp/LSPDiagnosticRegistry.ts must fold the drive-letter case (foldDriveCase) so it deletes the key the delivered set holds',
+    'clearDeliveredDiagnosticsForFile in src/integrations/lsp/LSPDiagnosticRegistry.ts must fold the drive-letter case (foldDriveCase) so it deletes the key the delivered set holds',
   )
 }
 
@@ -60,8 +60,8 @@ section('§3 NON-DRIVE PATHS UNTOUCHED')
   resetAllLSPDiagnosticState()
   const posix = '/Users/me/proj/app.py'
   recordPublishedReport('pyright', { uri: posix, diagnostics: [diag('posix')] } as never)
-  check('a POSIX path round-trips byte-identically', peekLastPublishedReport('pyright', posix) !== undefined, '', 'foldDriveCase in src/services/lsp/LSPDiagnosticRegistry.ts must leave a path without a drive letter unchanged')
-  check('and a case-DIFFERENT posix path is a different file (no over-folding)', peekLastPublishedReport('pyright', '/users/me/proj/app.py') === undefined, '', 'foldDriveCase in src/services/lsp/LSPDiagnosticRegistry.ts must change only a leading drive letter (a-z followed by : and a slash), never lowercase or fold other paths')
+  check('a POSIX path round-trips byte-identically', peekLastPublishedReport('pyright', posix) !== undefined, '', 'foldDriveCase in src/integrations/lsp/LSPDiagnosticRegistry.ts must leave a path without a drive letter unchanged')
+  check('and a case-DIFFERENT posix path is a different file (no over-folding)', peekLastPublishedReport('pyright', '/users/me/proj/app.py') === undefined, '', 'foldDriveCase in src/integrations/lsp/LSPDiagnosticRegistry.ts must change only a leading drive letter (a-z followed by : and a slash), never lowercase or fold other paths')
 }
 
 rmSync(HOME, { recursive: true, force: true })

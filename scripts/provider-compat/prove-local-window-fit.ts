@@ -14,15 +14,15 @@ delete process.env.MERCURY_LOCAL_BASE_URL
 
 let failures = 0
 const FIT_HINTS: Record<string, string> = {
-  '1': 'change decideLocalWindow or chooseLocalWindow in src/services/providers/local/localWindow.ts (the automatic ceiling and the words), or the discovery record in src/services/providers/local/localDiscovery.ts',
-  '2': 'change fitLocalWindow, localWindowRefusal or the rung words in src/services/localServer/localWindowFit.ts, or the memory arithmetic in src/services/localServer/localServerMemory.ts',
-  '3': 'change decideLocalWindow (hold and setting handling) in src/services/providers/local/localWindow.ts',
-  '4': 'change chooseLocalWindow or doubledRequestWindow in src/services/providers/local/localWindow.ts (the unread-machine fallback and its words)',
-  '5': 'change localCallModel in src/services/providers/local/localCallModel.ts or decideLocalWindow in src/services/providers/local/localWindow.ts so the first send carries the held num_ctx',
-  '6': 'change localWindowChoiceLine, localWindowValueWords, localWindowReasonTag or localWindowRuleWords in src/services/providers/local/localWindow.ts, or localModelWindowRow in src/components/Settings/config/configRowFacts.ts',
-  '7': 'change chooseWindowFrom or chooseWindow in src/services/localSetup/setupWindow.ts so step 5 matches chooseLocalWindow in src/services/providers/local/localWindow.ts',
-  '8': 'change the hybrid geometry (kvGeometryOf) in src/services/localServer/localServerMemory.ts or the measured arm in src/services/localServer/localWindowFit.ts',
-  '9': 'change localWindowRoomWarning or localWindowRoomFloor in src/services/localServer/localWindowFit.ts',
+  '1': 'change decideLocalWindow or chooseLocalWindow in src/models/roads/local/localWindow.ts (the automatic ceiling and the words), or the discovery record in src/models/roads/local/localDiscovery.ts',
+  '2': 'change fitLocalWindow, localWindowRefusal or the rung words in src/models/local-server/localWindowFit.ts, or the memory arithmetic in src/models/local-server/localServerMemory.ts',
+  '3': 'change decideLocalWindow (hold and setting handling) in src/models/roads/local/localWindow.ts',
+  '4': 'change chooseLocalWindow or doubledRequestWindow in src/models/roads/local/localWindow.ts (the unread-machine fallback and its words)',
+  '5': 'change localCallModel in src/models/roads/local/localCallModel.ts or decideLocalWindow in src/models/roads/local/localWindow.ts so the first send carries the held num_ctx',
+  '6': 'change localWindowChoiceLine, localWindowValueWords, localWindowReasonTag or localWindowRuleWords in src/models/roads/local/localWindow.ts, or localModelWindowRow in src/screen/settings/config/configRowFacts.ts',
+  '7': 'change chooseWindowFrom or chooseWindow in src/models/local-setup/setupWindow.ts so step 5 matches chooseLocalWindow in src/models/roads/local/localWindow.ts',
+  '8': 'change the hybrid geometry (kvGeometryOf) in src/models/local-server/localServerMemory.ts or the measured arm in src/models/local-server/localWindowFit.ts',
+  '9': 'change localWindowRoomWarning or localWindowRoomFloor in src/models/local-server/localWindowFit.ts',
 }
 let sectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -107,17 +107,17 @@ const ollama = await new Promise<{ server: Server; root: string }>(resolve => {
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const w = await import('../../src/services/providers/local/localWindow.ts')
-const truthModule = await import('../../src/services/localServer/localServerTruth.ts')
+const w = await import('../../src/models/roads/local/localWindow.ts')
+const truthModule = await import('../../src/models/local-server/localServerTruth.ts')
 const { __pinLocalServerTruthForTest, __resetLocalServerTruthForTest } = truthModule
 const defaultMachineTruth: (platform: NodeJS.Platform, totalMemoryBytes: number, availableMemoryBytes?: number) => { platform: NodeJS.Platform; totalMemoryBytes: number; usableMemoryBytes: number; usableSource: string } =
   (truthModule as { defaultMachineTruth?: typeof defaultMachineTruth }).defaultMachineTruth ?? (() => ({ platform: 'darwin', totalMemoryBytes: 0, usableMemoryBytes: 0, usableSource: 'absent on the base' }))
-const memory = await import('../../src/services/localServer/localServerMemory.ts')
-const { refreshLocalDiscovery, __resetLocalDiscoveryForTest } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-type Truth = import('../../src/services/localServer/localServerTruth.ts').LocalServerTruth
+const memory = await import('../../src/models/local-server/localServerMemory.ts')
+const { refreshLocalDiscovery, __resetLocalDiscoveryForTest } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+type Truth = import('../../src/models/local-server/localServerTruth.ts').LocalServerTruth
 const METAL_FRACTION_WORDS = 'about three quarters of unified memory, the Metal default working set (no server log read)'
 
 function truthOf(opts: { totalGib: number; usableGib?: number; source?: string; cacheType?: string; slots?: number; env?: Record<string, string> }): Truth {
@@ -152,9 +152,9 @@ section("1 · the seam (red on the base): auto is the biggest window that fits t
 section('2 · the one owner: fitLocalWindow — the biggest ladder rung ≤ the trained max whose projected load fits the usable ceiling')
 const owner = await (async () => {
   try {
-    return await import('../../src/services/localServer/localWindowFit.ts')
+    return await import('../../src/models/local-server/localWindowFit.ts')
   } catch (error) {
-    check('src/services/localServer/localWindowFit.ts imports', false, error instanceof Error ? error.message.split('\n')[0] ?? '' : String(error))
+    check('src/models/local-server/localWindowFit.ts imports', false, error instanceof Error ? error.message.split('\n')[0] ?? '' : String(error))
     return undefined
   }
 })()
@@ -257,7 +257,7 @@ section('5 · the dispatch road: the first send under auto reads the machine tru
   w.__resetLocalWindowsForTest()
   __resetLocalDiscoveryForTest()
   await refreshLocalDiscovery({ force: true })
-  const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
+  const { localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
   const params = (chars: number, extra: Record<string, unknown>) => ({
     messages: [{ type: 'user', message: { role: 'user', content: 'x'.repeat(chars) }, uuid: '00000000-0000-4000-8000-000000000001', timestamp: new Date().toISOString() }] as never,
     systemPrompt: [] as never,
@@ -281,7 +281,7 @@ section('5 · the dispatch road: the first send under auto reads the machine tru
 
 section("6 · the words: the picker's w row, the /config row, the rail's reason tag and the deck's rule sentence")
 {
-  const { localModelWindowRow } = await import('../../src/components/Settings/Config.tsx')
+  const { localModelWindowRow } = await import('../../src/screen/settings/Config.tsx')
   __pinLocalServerTruthForTest(OWNER_BOX)
   w.__resetLocalWindowsForTest()
   const record = localRecordFor(`local/${MODEL_27}`)!
@@ -326,7 +326,7 @@ section("6 · the words: the picker's w row, the /config row, the rail's reason 
 
 section("7 · step 5 of /localsetup on the same owner: the ceiling from the truth reader, the cache type and slots from the runner")
 {
-  const setup = await import('../../src/services/localSetup/index.ts')
+  const setup = await import('../../src/models/local-setup/index.ts')
   const g9 = memory.kvGeometryOf(INFO_9)!
   const pure = setup.chooseWindowFrom({ tag: MODEL_9, weightsBytes: WEIGHTS_9, geometry: g9, trainedMax: 262144, machineBytes: 48 * GIB, usableBytes: Math.round(36.9 * GIB), slots: 1, cacheType: 'q8_0' })
   check("chooseWindowFrom is the owner's answer with the tag beside it, the ceiling applied: 128k, the 256k that fits named", pure.tag === MODEL_9 && pure.window === 131072 && pure.words === '128k · the automatic ceiling (256k fits: 6.1 GiB weights + 4.3 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot) · pin trained max or a number in /config for more' && setup.windowWords(pure).startsWith('128k · 6.1 GiB weights + ') && setup.windowWords(pure).endsWith(' of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot'), `${pure.words} || ${setup.windowWords(pure)}`)
@@ -401,7 +401,7 @@ section(`8 · the hybrid law (red on the base): ${HYBRID_27} states one head_cou
   const CAPPED_MEASURED_WORDS = '128k · the automatic ceiling (256k fits: 17.8 GiB measured at 128k + 4.3 GiB more cache = 22.0 GiB of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot) · pin trained max or a number in /config for more'
   check('auto on the loaded record takes the measured arm beneath the ceiling: 128k cap, the words naming the measured 256k fit, the fit carrying the measurement', decided.window === 131072 && decided.reason === 'cap' && decided.words === CAPPED_MEASURED_WORDS && decided.fit?.words === MEASURED_WORDS && decided.fit.measured?.bytes === RESIDENT_H27_128K, `${decided.window} · ${decided.words}`)
   check("the picker's w row on the loaded record: served 128k, auto → 128k cap held", w.localWindowChoiceLine(loadedRecord, { wide: true, truth: OWNER_BOX }) === 'window · served 128k · [auto → 128k cap held] · server · 32k · 64k · 128k · max · number · ctrl+w cycles', w.localWindowChoiceLine(loadedRecord, { wide: true, truth: OWNER_BOX }))
-  const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
+  const { localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
   const from = hits.length
   const yielded: Array<{ isApiErrorMessage?: boolean }> = []
   const params = {

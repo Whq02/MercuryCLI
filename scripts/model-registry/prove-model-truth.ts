@@ -6,11 +6,11 @@ import {
   getDefaultOpusModel,
   isDefaultOpusNatively1M,
   parseUserSpecifiedModel,
-} from '../../src/services/model/model.js'
-import { getModelKnowledgeCutoff } from '../../src/utils/model/capabilities.js'
-import { gatherFrontierFacts } from '../../src/services/model/frontierPolicy.js'
-import { buildProviderSnapshot, classOfModel } from '../../src/services/providers/modelRegistry.js'
-import { SKILL_FILES as BUNDLED_PROVIDER_APIS_FILES } from '../../src/skills/bundled/provider-apisContent.js'
+} from '../../src/models/catalogue/engineModel.js'
+import { getModelKnowledgeCutoff } from '../../src/models/facts/capabilities.js'
+import { gatherFrontierFacts } from '../../src/models/catalogue/frontierPolicy.js'
+import { buildProviderSnapshot, classOfModel } from '../../src/models/roads/modelRegistry.js'
+import { SKILL_FILES as BUNDLED_PROVIDER_APIS_FILES } from '../../src/integrations/skills/bundled/provider-apisContent.js'
 
 for (const k of [
   'MERCURY_DEFAULT_OPUS_MODEL',
@@ -81,7 +81,7 @@ section('6. router class mirrors — every first-party generation classifies to 
 
 section('7. code-side model default census — literals resolve live, tiers track owners')
 {
-  const { foldLegacyWorkerModelKey } = await import('../../src/services/concourse/workerModels.ts')
+  const { foldLegacyWorkerModelKey } = await import('../../src/screen/concourse-model/workerModels.ts')
   const crewOpus = foldLegacyWorkerModelKey('opus')
   check(
     `a crew record's 'opus' (${crewOpus}) folds to getDefaultOpusModel()`,
@@ -102,15 +102,15 @@ section('8. prose surfaces — bundled skills + living docs track the owners')
   })
   const files = (directory: string): string[] => readdirSync(join(repoRoot, directory), { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? files(join(directory, entry.name)) : [join(directory, entry.name)])
   check('the skill census reads model names from a nonempty catalogue owner', catalogue.length > 0 && names.includes(getDefaultOpusModel()))
-  for (const directory of ['mercury-skills/provider-apis', 'src/skills/bundled/provider-apis']) {
+  for (const directory of ['mercury-skills/provider-apis', 'src/integrations/skills/bundled/provider-apis']) {
     const tree = files(directory)
     const frozen = tree.flatMap(path => fixedRows(src(path)).map(row => `${path}: ${row}`))
     check(`${directory}: every skill file is free of fixed catalogue rows`, tree.length >= 6 && frozen.length === 0, frozen.join('\n'))
   }
   const externalModelsMd = src('mercury-skills/provider-apis/references/models.md')
-  check('mercury-skills/provider-apis: model facts come from the live catalogue reader', externalModelsMd.includes('src/services/providers/catalogueOnDemand.ts') && externalModelsMd.includes('current catalogue') && externalModelsMd.includes('no model inventory'))
+  check('mercury-skills/provider-apis: model facts come from the live catalogue reader', externalModelsMd.includes('src/models/roads/catalogueOnDemand.ts') && externalModelsMd.includes('current catalogue') && externalModelsMd.includes('no model inventory'))
   const bundledModelsMd = BUNDLED_PROVIDER_APIS_FILES['references/models.md'] ?? ''
-  check('src/skills/bundled/provider-apis: model facts come from the live catalogue reader', bundledModelsMd.includes('src/services/providers/catalogueOnDemand.ts') && bundledModelsMd.includes('current catalogue') && bundledModelsMd.includes('no model inventory'))
+  check('src/integrations/skills/bundled/provider-apis: model facts come from the live catalogue reader', bundledModelsMd.includes('src/models/roads/catalogueOnDemand.ts') && bundledModelsMd.includes('current catalogue') && bundledModelsMd.includes('no model inventory'))
   const sample = catalogue.find(model => model.id === getDefaultOpusModel())!
   check('the census rejects a planted model ID row', fixedRows(`| \`${sample.id}\` | fixture |`).length === 1)
   check('the census rejects a planted marketing-name row', fixedRows(`| ${sample.displayLabel} | fixture |`).length === 1)

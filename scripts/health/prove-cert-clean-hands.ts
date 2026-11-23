@@ -16,10 +16,10 @@ execFileSync('git', ['add', '.'], { cwd: REPO })
 execFileSync('git', ['-c', 'user.email=p@p', '-c', 'user.name=proof', 'commit', '-q', '-m', 'seed'], { cwd: REPO })
 process.chdir(REPO)
 
-const { getIsClean } = await import('../../src/utils/git.ts')
+const { getIsClean } = await import('../../src/platform/git/git.ts')
 
 let failures = 0
-const WHERE_TO_LOOK = 'to fix: getIsClean runs probeClean in src/utils/git.ts, which parses git status --porcelain and must skip only paths under the project dir health/ folder while counting every other untracked file'
+const WHERE_TO_LOOK = 'to fix: getIsClean runs probeClean in src/platform/git/git.ts, which parses git status --porcelain and must skip only paths under the project dir health/ folder while counting every other untracked file'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — ' + WHERE_TO_LOOK}`)
   if (!cond) failures++

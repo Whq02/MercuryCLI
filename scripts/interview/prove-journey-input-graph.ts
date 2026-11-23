@@ -15,7 +15,7 @@ import {
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import { checker } from '../engine-durability/harness.ts'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
-import { REJECT_MESSAGE } from '../../src/utils/messages/rejectionText.ts'
+import { REJECT_MESSAGE } from '../../src/engine/message-shapes/rejectionText.ts'
 
 const t = checker()
 requireDist()

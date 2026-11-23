@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 import * as t from './turnScenarios.ts'
 
-const { makeRequest, planContext, foldContext, holdBlockingLimit } = await import('../../src/run-core/turn/makeRequest.ts')
-const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
-const { noToolReply } = await import('../../src/run-core/turn/noToolReply.ts')
-const { runToolCalls } = await import('../../src/run-core/turn/runToolCalls.ts')
-const { afterTools, MAX_TURNS_CLOSING_TEXT } = await import('../../src/run-core/turn/afterTools.ts')
-const queue = await import('../../src/utils/messageQueueManager.ts')
+const { makeRequest, planContext, foldContext, holdBlockingLimit } = await import('../../src/engine/loop/turn/makeRequest.ts')
+const { modelReply } = await import('../../src/engine/loop/turn/modelReply.ts')
+const { noToolReply } = await import('../../src/engine/loop/turn/noToolReply.ts')
+const { runToolCalls } = await import('../../src/engine/loop/turn/runToolCalls.ts')
+const { afterTools, MAX_TURNS_CLOSING_TEXT } = await import('../../src/engine/loop/turn/afterTools.ts')
+const queue = await import('../../src/daemon/runner/messageQueueManager.ts')
 
 const f = t.fixtures
 type Row = Record<string, unknown>
@@ -18,7 +18,7 @@ let currentSectionTitle = ''
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  const where = ` | change the step this section names, in src/run-core/turn (section: ${currentSectionTitle})`
+  const where = ` | change the step this section names, in src/engine/loop/turn (section: ${currentSectionTitle})`
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? where : ''}`)
 }
 const section = (title: string): void => {
@@ -26,7 +26,7 @@ const section = (title: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the turn steps exceeded 180s; a planted step never decided, last section: ' + currentSectionTitle + ' (steps live in src/run-core/turn)')
+  console.log('\nTIMEOUT — the turn steps exceeded 180s; a planted step never decided, last section: ' + currentSectionTitle + ' (steps live in src/engine/loop/turn)')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -57,7 +57,7 @@ console.log('============================================================')
 console.log(' the steps of a turn, each called with a planted state: what it yields and what it decides')
 console.log('============================================================')
 
-section('(1) making the request: src/run-core/turn/makeRequest.ts')
+section('(1) making the request: src/engine/loop/turn/makeRequest.ts')
 {
   const made = await request({ script: [] }, {}, 3)
   const iter = made.decision.iter
@@ -121,7 +121,7 @@ section('(1b) the three parts of making the request, each called alone')
   tight.close()
 }
 
-section("(2) the model's reply: src/run-core/turn/modelReply.ts")
+section("(2) the model's reply: src/engine/loop/turn/modelReply.ts")
 {
   const plain = await reply({ script: [f.yields(f.says('done.'))] })
   check('a reply of words goes on: one model call, the reply settled, no tool asked', plain.decision.kind === 'go_on' && plain.planted.requests.length === 1 && kinds(plain.events) === 'model_permit,model_call_started,assistant_settled' && (plain.iter.assistantMessages as unknown[]).length === 1 && plain.iter.needsFollowUp === false, `${said(plain.decision)} · ${kinds(plain.events)}`)
@@ -155,7 +155,7 @@ section("(2) the model's reply: src/run-core/turn/modelReply.ts")
   spent.planted.close()
 }
 
-section('(3) the reply that asks for no tool: src/run-core/turn/noToolReply.ts')
+section('(3) the reply that asks for no tool: src/engine/loop/turn/noToolReply.ts')
 {
   const tool = await t.plantReply({ script: [f.yields(f.calls('tu_1', 'EchoTool', { text: 'x' }))] })
   const passed = await t.drain(noToolReply(tool.run as never, tool.iter as never))
@@ -175,7 +175,7 @@ section('(3) the reply that asks for no tool: src/run-core/turn/noToolReply.ts')
   plain.close()
 }
 
-section('(4) running the tools: src/run-core/turn/runToolCalls.ts')
+section('(4) running the tools: src/engine/loop/turn/runToolCalls.ts')
 {
   const ran = await t.plantReply({ script: [f.yields(f.calls('tu_1', 'EchoTool', { text: 'x' }))] })
   const out = await t.drain(runToolCalls(ran.run as never, ran.iter as never))
@@ -205,7 +205,7 @@ section('(4) running the tools: src/run-core/turn/runToolCalls.ts')
   marked.close()
 }
 
-section('(5) what follows the tools: src/run-core/turn/afterTools.ts')
+section('(5) what follows the tools: src/engine/loop/turn/afterTools.ts')
 {
   const round = async (plan: Parameters<typeof t.plantReply>[0], change: Parameters<typeof t.plantReply>[1] = {}) => {
     const planted = await t.plantReply(plan, change)
@@ -261,7 +261,7 @@ section('(5) what follows the tools: src/run-core/turn/afterTools.ts')
   refreshed.planted.close()
 }
 
-section('(6) the loop of src/run-core/turn-machine.ts applies each decision')
+section('(6) the loop of src/engine/loop/turn-machine.ts applies each decision')
 {
   const run = await t.runScripted({ script: [f.yields(f.calls('tu_1', 'EchoTool', { text: 'x' })), f.yields(f.says('after tools.'))] })
   const order = kinds(run.events)

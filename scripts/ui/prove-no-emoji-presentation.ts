@@ -13,11 +13,11 @@ import {
   hasEmojiPresentation,
   hasEmojiProperty,
 } from './lib/emojiProperties.ts'
-import { GLYPH, SPARK, displayWidth, padTo } from '../../src/utils/glyphs.js'
-import { stringWidth } from '../../src/ink/stringWidth.js'
-import wrapText from '../../src/ink/wrap-text.js'
-import { truncatePathMiddle, truncateStartToWidth, truncateToWidth } from '../../src/utils/truncate.js'
-import { THINKING_GLYPH, THINKING_LABEL } from '../../src/components/messages/thinkingGrammar.js'
+import { GLYPH, SPARK, displayWidth, padTo } from '../../src/screen/theme/glyphs.js'
+import { stringWidth } from '../../src/screen/renderer/stringWidth.js'
+import wrapText from '../../src/screen/renderer/wrap-text.js'
+import { truncatePathMiddle, truncateStartToWidth, truncateToWidth } from '../../src/platform/text/truncate.js'
+import { THINKING_GLYPH, THINKING_LABEL } from '../../src/screen/messages/thinkingGrammar.js'
 
 const HERE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const ROOT = existsSync(join(HERE_ROOT, 'src', 'components')) ? HERE_ROOT : process.cwd()
@@ -43,7 +43,7 @@ const BASE_FONT_TEXT = new Set<number>([
   0x2122,
 ])
 
-const WIRE_PAYLOAD_FILES = new Set<string>(['src/ink/session/widthProbe.ts'])
+const WIRE_PAYLOAD_FILES = new Set<string>(['src/screen/renderer/terminal-session/widthProbe.ts'])
 
 type Rule = 'emoji-presentation' | 'emoji-selector' | 'text-selector' | 'emoji-property'
 type Finding = { file: string; line: number; col: number; codePoint: number; rule: Rule; via: string }
@@ -191,7 +191,7 @@ check(
   'no Emoji_Presentation=Yes code point and no U+FE0E / U+FE0F anywhere',
   anywhere.length === 0,
   anywhere.length ? `\n      - ${anywhere.slice(0, 40).map(describe).join('\n      - ')}` : 'clean',
-  'replace each listed code point in the named src file with a text-default glyph from GLYPH in src/utils/glyphs.ts, and delete any U+FE0E / U+FE0F',
+  'replace each listed code point in the named src file with a text-default glyph from GLYPH in src/screen/theme/glyphs.ts, and delete any U+FE0E / U+FE0F',
 )
 
 section('§2 PAINTED: every string, template chunk, JSX text and figures symbol')
@@ -199,7 +199,7 @@ check(
   'no painted Emoji=Yes code point at all, selector or not (beyond the named base-font exemptions), and no selector',
   painted.length === 0,
   painted.length ? `\n      - ${painted.slice(0, 60).map(describe).join('\n      - ')}` : 'clean',
-  'replace each listed painted string, template chunk, JSX text or figures symbol in the named src file with a glyph from GLYPH in src/utils/glyphs.ts that has no Emoji property',
+  'replace each listed painted string, template chunk, JSX text or figures symbol in the named src file with a glyph from GLYPH in src/screen/theme/glyphs.ts that has no Emoji property',
 )
 
 section('§3 THE KIT: the vocabulary never leans on the selector')
@@ -214,7 +214,7 @@ const kitHits = [
   ...Object.entries(GLYPH).map(([k, v]) => carrying(`GLYPH.${k}`, v)),
   ...SPARK.map((v, i) => carrying(`SPARK[${i}]`, v)),
 ].filter((x): x is string => x !== null)
-check('no GLYPH / SPARK token carries the Emoji property', kitHits.length === 0, kitHits.join(', ') || `${Object.keys(GLYPH).length + SPARK.length} tokens clean`, 'change the listed GLYPH / SPARK tokens in src/utils/glyphs.ts to glyphs without the Emoji property')
+check('no GLYPH / SPARK token carries the Emoji property', kitHits.length === 0, kitHits.join(', ') || `${Object.keys(GLYPH).length + SPARK.length} tokens clean`, 'change the listed GLYPH / SPARK tokens in src/screen/theme/glyphs.ts to glyphs without the Emoji property')
 check('the thinking glyph carries no Emoji property (U+273B, the teardrop-spoked asterisk)', THINKING_GLYPH === '\u273B' && carrying('thinking', THINKING_GLYPH) === null)
 check('the thinking label measures glyph + space + word + ellipsis, one cell for the glyph', stringWidth(THINKING_GLYPH) === 1 && stringWidth(THINKING_LABEL) === 1 + 1 + 'thinking'.length + 1)
 check('the figures symbols Mercury still reaches carry no Emoji property (pointer, arrows, checkboxes, star, circle, bullet, ellipsis, pointerSmall, cross)', ['pointer', 'arrowUp', 'arrowDown', 'arrowLeft', 'arrowRight', 'checkboxOn', 'checkboxOff', 'star', 'circle', 'bullet', 'ellipsis', 'pointerSmall', 'cross'].every(name => carrying(name, (mainSymbols as Record<string, string>)[name]!) === null))
@@ -226,25 +226,25 @@ const intact = (s: string): boolean => {
   const cps = Array.from(s)
   return cps.every((c, i) => c !== VS15 || cps[i - 1] === '\u25B2')
 }
-check('stringWidth(pair) === 1 (the selector is zero-width)', stringWidth(PAIR) === 1, `w=${stringWidth(PAIR)}`, 'stringWidth in src/ink/stringWidth.ts must count U+FE0E as zero width')
+check('stringWidth(pair) === 1 (the selector is zero-width)', stringWidth(PAIR) === 1, `w=${stringWidth(PAIR)}`, 'stringWidth in src/screen/renderer/stringWidth.ts must count U+FE0E as zero width')
 check('displayWidth("pair warn") === 6', displayWidth(`${PAIR} warn`) === 6)
 check('padTo(pair, 3) fills to exactly 3 cells', displayWidth(padTo(PAIR, 3)) === 3 && padTo(PAIR, 3) === `${PAIR}  `)
 {
   const end = truncateToWidth(`${PAIR} warning`, 3)
-  check('end truncation keeps the pair whole', end.includes(PAIR) && intact(end), JSON.stringify(end), 'truncateToWidth in src/utils/truncate.ts must not split a glyph from its U+FE0E')
+  check('end truncation keeps the pair whole', end.includes(PAIR) && intact(end), JSON.stringify(end), 'truncateToWidth in src/platform/text/truncate.ts must not split a glyph from its U+FE0E')
   const start = truncateStartToWidth(`warning ${PAIR}`, 3)
-  check('start truncation keeps the pair whole', start.includes(PAIR) && intact(start), JSON.stringify(start), 'truncateStartToWidth in src/utils/truncate.ts must not split a glyph from its U+FE0E')
+  check('start truncation keeps the pair whole', start.includes(PAIR) && intact(start), JSON.stringify(start), 'truncateStartToWidth in src/platform/text/truncate.ts must not split a glyph from its U+FE0E')
   const mid = truncatePathMiddle(`src/${PAIR}dir/file.ts`, 14)
-  check('middle truncation keeps the pair whole', mid.includes(PAIR) && intact(mid), JSON.stringify(mid), 'truncatePathMiddle in src/utils/truncate.ts must not split a glyph from its U+FE0E')
+  check('middle truncation keeps the pair whole', mid.includes(PAIR) && intact(mid), JSON.stringify(mid), 'truncatePathMiddle in src/platform/text/truncate.ts must not split a glyph from its U+FE0E')
   const dropped = truncatePathMiddle(`src/${PAIR}/file.ts`, 13)
   check('a budget landing ON the pair drops it whole, never the base alone', intact(dropped) && !dropped.includes('\u25B2') === !dropped.includes(VS15), JSON.stringify(dropped))
   for (const mode of ['truncate', 'truncate-start', 'truncate-middle'] as const) {
     const out = wrapText(`aaaa ${PAIR}bbbb ${PAIR}cccc`, 7, mode)
-    check(`ink ${mode} never orphans the selector`, intact(out), JSON.stringify(out), 'wrapText in src/ink/wrap-text.ts must not split a glyph from its U+FE0E')
+    check(`ink ${mode} never orphans the selector`, intact(out), JSON.stringify(out), 'wrapText in src/screen/renderer/wrap-text.ts must not split a glyph from its U+FE0E')
   }
   const wrapped = wrapText(`aaaa${PAIR}bbbb ${PAIR}cc`, 5, 'wrap')
   const lines = wrapped.split('\n')
-  check('a hard wrap never separates base and selector', lines.every(intact) && lines.every(l => stringWidth(l) <= 5), JSON.stringify(wrapped), 'wrapText in src/ink/wrap-text.ts must not break between a glyph and its U+FE0E')
+  check('a hard wrap never separates base and selector', lines.every(intact) && lines.every(l => stringWidth(l) <= 5), JSON.stringify(wrapped), 'wrapText in src/screen/renderer/wrap-text.ts must not break between a glyph and its U+FE0E')
 }
 
 section('§5 SELF-TEST: the census bites on each planted form and stays quiet on the compliant ones')

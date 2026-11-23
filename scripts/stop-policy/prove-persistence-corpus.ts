@@ -15,10 +15,10 @@ function section(t: string): void {
 }
 
 async function main(): Promise<void> {
-  const ok = await import('../../src/utils/run/ownerKey.js')
-  const kernel = await import('../../src/services/run/runKernel.js')
-  const { evaluateStop } = await import('../../src/services/run/completionEvaluator.js')
-  const mission = await import('../../src/guards/mission.js')
+  const ok = await import('../../src/engine/run-owner/ownerKey.js')
+  const kernel = await import('../../src/engine/run/runKernel.js')
+  const { evaluateStop } = await import('../../src/engine/run/completionEvaluator.js')
+  const mission = await import('../../src/permissions/guards/mission.js')
 
   const owner = ok.makeOwnerKey({ workspace: '/tmp/speedster', sessionId: 'corpus', lane: 'main' })
   const HOUR = 3_600_000
@@ -227,7 +227,7 @@ async function main(): Promise<void> {
 
   section('classes 6/7 — /mission: contradictory conditions and already-met missions (S5)')
   {
-    const { guardsEngaged, judgeTurnEnd } = await import('../../src/guards/guards.js')
+    const { guardsEngaged, judgeTurnEnd } = await import('../../src/permissions/guards/guards.js')
     const missionJudge = (sessionId: string): ((m: unknown[]) => Promise<boolean>) | undefined =>
       guardsEngaged(sessionId).turn.some(id => id.startsWith('mission-'))
         ? async messages => (await judgeTurnEnd(sessionId, { messages: messages as never })).length === 0
@@ -238,9 +238,9 @@ async function main(): Promise<void> {
     ]
 
     const { _resetContinuationLatchesForTesting } = await import(
-      '../../src/services/run/continuationLatch.js'
+      '../../src/engine/run/continuationLatch.js'
     )
-    const { _setMissionJudgeForTesting } = await import('../../src/services/mission/goalJudge.js')
+    const { _setMissionJudgeForTesting } = await import('../../src/sessions/mission/goalJudge.js')
     _setMissionJudgeForTesting(null)
 
     _resetContinuationLatchesForTesting()
@@ -287,7 +287,7 @@ async function main(): Promise<void> {
     const expectedRed = EXPECTED_RED.has(leg.label)
     if (!expectedRed && !leg.pass) {
       unexpectedFailures++
-      console.log(`  [REGRESSION] green leg failed: ${leg.label}${leg.detail ? ` — ${leg.detail}` : ''} — change evaluateStop in src/services/run/completionEvaluator.ts, reduceRunEvent in src/services/run/runKernel.ts, or the mission hook in src/guards/guards.ts and src/guards/mission.ts that this leg exercises`)
+      console.log(`  [REGRESSION] green leg failed: ${leg.label}${leg.detail ? ` — ${leg.detail}` : ''} — change evaluateStop in src/engine/run/completionEvaluator.ts, reduceRunEvent in src/engine/run/runKernel.ts, or the mission hook in src/permissions/guards/guards.ts and src/permissions/guards/mission.ts that this leg exercises`)
     } else if (expectedRed && leg.pass) {
       unexpectedPasses++
       console.log(`  [NOT-REPRODUCED] expected-red leg passed: ${leg.label}`)

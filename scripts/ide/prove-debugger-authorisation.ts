@@ -8,7 +8,7 @@ process.chdir(resolve(import.meta.dir, '..', '..'))
 const t = checker()
 
 const { adapterSilenceMessage, darwinDebuggerAuthorisationHint, _resetDarwinDebuggerAuthForTesting } = await import(
-  '../../src/services/dap/dapClient.ts'
+  '../../src/integrations/debugger/dapClient.ts'
 )
 
 t.section('§1 adapterSilenceMessage — the OS is named, never guessed')
@@ -39,7 +39,7 @@ t.section('§1 adapterSilenceMessage — the OS is named, never guessed')
 
 t.section('§2 the IDE plane row names the macOS authorisation state: both answers of the probe, handed in, on any host')
 {
-  const { codingLoopFastChecks, idePlaneFastCheck } = await import('../../src/services/health/sections/coding-loop-fast.ts')
+  const { codingLoopFastChecks, idePlaneFastCheck } = await import('../../src/platform/health/sections/coding-loop-fast.ts')
   const OFF = 'Developer mode is currently disabled.'
   const ON = 'Developer mode is currently enabled.'
   const hintOff = darwinDebuggerAuthorisationHint(() => OFF)

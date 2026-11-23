@@ -8,19 +8,19 @@ import { join } from 'node:path'
 const HOME = mkdtempSync(join(tmpdir(), 'neutral-surfaces-proof-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const { providerFamilyPresences } = await import('../../src/services/providers/providerUsage.ts')
-const { usageSectionPlan } = await import('../../src/components/Settings/Usage.tsx')
-const { noteCredentialChange } = await import('../../src/utils/accounts/signInLedger.ts')
+const { providerFamilyPresences } = await import('../../src/models/roads/providerUsage.ts')
+const { usageSectionPlan } = await import('../../src/screen/settings/Usage.tsx')
+const { noteCredentialChange } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
 const { configProviderRows, mainLoopPointerText } = await import(
-  '../../src/components/Settings/Config.tsx'
+  '../../src/screen/settings/Config.tsx'
 )
 
 let failures = 0
 const NEUTRAL_FAILURE_HINT =
-  'fix the family enumeration in src/services/providers/providerUsage.ts (providerFamilyPresences, anyProviderCredentialed), the /usage sections in src/components/Settings/usage/plan.ts (usageSectionPlan), the /config rows in src/components/Settings/config/configRowFacts.ts (configProviderRows, mainLoopPointerText), or the availability gate in src/commands.ts (meetsAvailabilityRequirement), whichever this check names'
+  'fix the family enumeration in src/models/roads/providerUsage.ts (providerFamilyPresences, anyProviderCredentialed), the /usage sections in src/screen/settings/usage/plan.ts (usageSectionPlan), the /config rows in src/screen/settings/config/configRowFacts.ts (configProviderRows, mainLoopPointerText), or the availability gate in src/commands/catalogue/commands.ts (meetsAvailabilityRequirement), whichever this check names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${NEUTRAL_FAILURE_HINT}` : ''}`)
@@ -194,7 +194,7 @@ section('(4) the /usage gate — UNGATED, proven OpenAI-only')
   const plan = usageSectionPlan(fams)
   check('the /usage plan carries the OpenAI section', plan.some(s => s.id === 'openai' && s.kind === 'engine'))
 
-  const { meetsAvailabilityRequirement } = await import('../../src/commands.ts')
+  const { meetsAvailabilityRequirement } = await import('../../src/commands/catalogue/commands.ts')
   check(
     'meetsAvailabilityRequirement passes on the OpenAI credential alone',
     meetsAvailabilityRequirement({ name: 'usage', description: '', availability: ['any-provider-credential'] } as never) === true,
@@ -213,10 +213,10 @@ section('(5) the gate under an ISOLATED credential world (fresh child, file stor
     env.HOME = home
     const src = `
       ;(globalThis).MACRO = { VERSION: '1.0.0' }
-      const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/config.ts'))})
+      const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/platform/settings/config.ts'))})
       enableConfigs()
-      const { providerFamilyPresences, anyProviderCredentialed } = await import(${JSON.stringify(join(import.meta.dir, '../../src/services/providers/providerUsage.ts'))})
-      const { meetsAvailabilityRequirement } = await import(${JSON.stringify(join(import.meta.dir, '../../src/commands.ts'))})
+      const { providerFamilyPresences, anyProviderCredentialed } = await import(${JSON.stringify(join(import.meta.dir, '../../src/models/roads/providerUsage.ts'))})
+      const { meetsAvailabilityRequirement } = await import(${JSON.stringify(join(import.meta.dir, '../../src/commands/catalogue/commands.ts'))})
       const fams = providerFamilyPresences()
       console.log(JSON.stringify({
         credentialed: fams.filter(f => f.credentialed).map(f => f.id),

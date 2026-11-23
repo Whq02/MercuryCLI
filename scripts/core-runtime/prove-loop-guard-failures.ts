@@ -19,38 +19,38 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 for (const key of ['MERCURY_BARE', 'MERCURY_SCRIPTED_STREAM', 'NODE_ENV']) delete process.env[key]
 globalThis.fetch = Object.assign(async () => { throw new Error('network is not part of this fixture') }, globalThis.fetch)
 
-const watchdog = setTimeout(() => { console.error('Fixture exceeded 90 seconds; a scripted run never reached its end, look at closeRound in src/services/tools/loopGuard.ts and the turn loop in src/run-core/turn/afterTools.ts'); process.exit(1) }, 90_000)
+const watchdog = setTimeout(() => { console.error('Fixture exceeded 90 seconds; a scripted run never reached its end, look at closeRound in src/engine/tool-dispatch/loopGuard.ts and the turn loop in src/engine/loop/turn/afterTools.ts'); process.exit(1) }, 90_000)
 watchdog.unref?.()
-const queryModule = await import('../../src/query.ts')
+const queryModule = await import('../../src/engine/turnDoor.ts')
 const realQuery = queryModule.query
 let scriptedDeps: Record<string, unknown> = {}
-mock.module('../../src/query.ts', () => ({
+mock.module('../../src/engine/turnDoor.ts', () => ({
   ...queryModule,
   query: (params: Record<string, unknown>) => realQuery({ ...params, deps: { ...(params.deps as object), ...scriptedDeps } } as never),
 }))
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(cwd)
 bootstrap.setCwdState(cwd)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setPathTrusted } = await import('../../src/utils/config/trust.ts')
+const { setPathTrusted } = await import('../../src/platform/config/trust.ts')
 setPathTrusted(cwd)
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { refreshHooksSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.ts')
-const { getSettingsFilePathForSource } = await import('../../src/utils/settings/settings.ts')
-const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
-const { finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
-const { enqueueAgentNotification } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const queue = await import('../../src/input-core/command-queue.ts')
-const { flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { refreshHooksSnapshot } = await import('../../src/integrations/event-hooks/hooksConfigSnapshot.ts')
+const { getSettingsFilePathForSource } = await import('../../src/platform/settings/settings.ts')
+const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { finalizeAgentTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { enqueueAgentNotification } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const queue = await import('../../src/screen/composer/input-core/command-queue.ts')
+const { flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 
-type Message = import('../../src/types/message.ts').Message
-type SystemMessage = import('../../src/types/message.ts').SystemMessage
-type AppState = import('../../src/state/AppStateStore.ts').AppState
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type SystemMessage = import('../../src/engine/message-shapes/message.ts').SystemMessage
+type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState
 type Step = { name: string; input: Record<string, unknown> }
 type Mode = 'error' | 'permission' | 'hook' | 'changing' | 'success-between' | 'success'
 const MODEL = 'claude-opus-4-8'
@@ -64,7 +64,7 @@ let executions = 0
 let sequence = 0
 let failures = 0
 let checks = 0
-const LOOP_GUARD_WHERE = 'closeRound in src/services/tools/loopGuard.ts (the failed-call count, the reminder at two, the stop at three)'
+const LOOP_GUARD_WHERE = 'closeRound in src/engine/tool-dispatch/loopGuard.ts (the failed-call count, the reminder at two, the stop at three)'
 function check(name: string, ok: boolean, detail: unknown = '', hint = ''): void {
   checks++
   if (!ok) failures++
@@ -170,9 +170,9 @@ const crew = await run(repeats(4), { agent: true })
 check('runAgent stops the crewmate on three even in an interactive process', crew.calls.length === 3 && Boolean(stopped(crew)), { calls: crew.calls.length, stop: stopped(crew) }, 'a crewmate run through runAgent must stop on three; see the lane test in stopFailedCalls in ' + LOOP_GUARD_WHERE)
 const final = finalizeAgentTool(crew.yields, crew.agentId, { prompt: 'fixture', resolvedAgentModel: MODEL, isBuiltInAgent: true, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true })
 const failure = final.outcome?.status === 'failed' ? final.outcome : undefined
-check('crewmate finalization preserves the loop-stopped cause', failure?.reason === 'loop-stopped' && failure.error === stopped(crew)?.attachment.message, final.outcome, 'finalizeAgentTool in src/tools/AgentTool/agentToolUtils.ts must report status failed with reason loop-stopped and the loop_stopped message as the error')
+check('crewmate finalization preserves the loop-stopped cause', failure?.reason === 'loop-stopped' && failure.error === stopped(crew)?.attachment.message, final.outcome, 'finalizeAgentTool in src/tools/crewmate/crewmateLifecycle.ts must report status failed with reason loop-stopped and the loop_stopped message as the error')
 const parent = AgentTool.mapToolResultToToolResultBlockParam({ ...final, status: 'failed', prompt: 'fixture', error: failure?.error } as never, 'parent-fixture')
-check('the parent tool result is an error with the repeated call shape and cause', parent.is_error === true && JSON.stringify(parent.content).includes('command') && JSON.stringify(parent.content).includes(ERROR.split('\n')[0]!), parent, 'AgentTool.mapToolResultToToolResultBlockParam in src/tools/AgentTool/AgentTool.tsx must return an error result that carries the error text of a failed run')
+check('the parent tool result is an error with the repeated call shape and cause', parent.is_error === true && JSON.stringify(parent.content).includes('command') && JSON.stringify(parent.content).includes(ERROR.split('\n')[0]!), parent, 'AgentTool.mapToolResultToToolResultBlockParam in src/tools/crewmate/CrewmateTool.tsx must return an error result that carries the error text of a failed run')
 
 for (const kind of ['permission', 'hook'] as const) {
   const result = await run(repeats(4), { agent: true, mode: kind })
@@ -181,7 +181,7 @@ for (const kind of ['permission', 'hook'] as const) {
   check(`${kind} refusal text reaches the second-call reminder and the stop`, notices(result).some(row => 'content' in row && row.content.includes(expected)) && Boolean(stopped(result)?.attachment.message.includes(expected)), { reminders: notices(result).length, stopped: stopped(result)?.attachment.message }, 'the refusal text must be the errorText carried by the reminder and the stop; see ' + LOOP_GUARD_WHERE)
 }
 const changed = await run(repeats(4).map((step, i) => ({ ...step, input: { ...step.input, command: i < 2 ? INPUT.command : INPUT.command + ' ' } })), { agent: true })
-check('a one-byte argument difference resets the count', changed.calls.length === 5 && !stopped(changed), { calls: changed.calls.length, stop: stopped(changed) }, 'failures are keyed by tool name and exact arguments; see toolCallKey in src/services/tools/loopGuard.ts and the failureKey reset in closeRound')
+check('a one-byte argument difference resets the count', changed.calls.length === 5 && !stopped(changed), { calls: changed.calls.length, stop: stopped(changed) }, 'failures are keyed by tool name and exact arguments; see toolCallKey in src/engine/tool-dispatch/loopGuard.ts and the failureKey reset in closeRound')
 const success = await run(repeats(5), { agent: true, mode: 'success-between' })
 check('success between failures with byte-identical arguments resets the count', success.calls.length === 6 && !stopped(success), { calls: success.calls.length, stop: stopped(success) }, 'a successful call must set failureRun back to zero; see ' + LOOP_GUARD_WHERE)
 const changedError = await run(repeats(4), { agent: true, mode: 'changing' })
@@ -191,7 +191,7 @@ check('a different tool resets consecutive failures', other.calls.length === 6 &
 const successful = await run(repeats(9), { agent: true, mode: 'success', loopGuard: true })
 check('successful identical calls never trigger the failure stop, including with loopGuard enabled', successful.calls.length === 10 && !stopped(successful) && notices(successful).length === 0, { calls: successful.calls.length, stop: stopped(successful), reminders: notices(successful).length }, 'only failed results may count toward the failure reminder and stop; see ' + LOOP_GUARD_WHERE)
 const foregroundKey = await run(repeats(9), { loopGuard: true })
-check('loopGuard enabled does not stop foreground identical failures', foregroundKey.calls.length === 10 && !stopped(foregroundKey), { calls: foregroundKey.calls.length, stop: stopped(foregroundKey) }, 'the turns.loopGuard setting (isLoopGuardStopEnabled in src/services/tools/loopGuard.ts) must not feed the failed-call stop in closeRound')
+check('loopGuard enabled does not stop foreground identical failures', foregroundKey.calls.length === 10 && !stopped(foregroundKey), { calls: foregroundKey.calls.length, stop: stopped(foregroundKey) }, 'the turns.loopGuard setting (isLoopGuardStopEnabled in src/engine/tool-dispatch/loopGuard.ts) must not feed the failed-call stop in closeRound')
 for (const name of ['Sleep', 'UnavailableFixture']) {
   const result = await run(repeats(4, name), { agent: true })
   check(`${name} failures are counted`, result.calls.length === 3 && stopped(result)?.attachment.cycle[0] === name, { calls: result.calls.length, stop: stopped(result) }, 'failures of every tool name, even an unavailable one, must be counted; see ' + LOOP_GUARD_WHERE)
@@ -202,7 +202,7 @@ queue.resetCommandQueue()
 let appState = { ...getDefaultAppState(), tasks: { [crew.agentId]: { id: crew.agentId, type: 'local_agent', status: 'failed', notified: false, endTime: Date.now() } } } as unknown as AppState
 enqueueAgentNotification({ taskId: crew.agentId, description: 'failure fixture', status: 'failed', error: failure?.error, setAppState: update => { appState = update(appState) } })
 const completion = String(queue.getCommandQueue()[0]?.value ?? '')
-check('the real completion notification carries the cause instead of silence', completion.includes('command') && completion.includes(ERROR), completion, 'enqueueAgentNotification in src/tasks/LocalAgentTask/LocalAgentTask.tsx must put the failed run error text in the queued notification')
+check('the real completion notification carries the cause instead of silence', completion.includes('command') && completion.includes(ERROR), completion, 'enqueueAgentNotification in src/engine/tasks/local-agent/crewmateTask.tsx must put the failed run error text in the queued notification')
 queue.resetCommandQueue()
 
 const frameArg = process.argv.indexOf('--frames')
@@ -210,11 +210,11 @@ if (frameArg >= 0) {
   const frames = process.argv[frameArg + 1]!
   mkdirSync(frames, { recursive: true })
   const React = (await import('react')).default
-  const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { SystemTextMessage } = await import('../../src/components/messages/SystemTextMessage.tsx')
-  const { UserTextMessage } = await import('../../src/components/messages/UserTextMessage.tsx')
-  const { MessageMetaProvider } = await import('../../src/components/messages/TranscriptNameplate.tsx')
+  const { renderToAnsiString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { SystemTextMessage } = await import('../../src/screen/messages/SystemTextMessage.tsx')
+  const { UserTextMessage } = await import('../../src/screen/messages/UserTextMessage.tsx')
+  const { MessageMetaProvider } = await import('../../src/screen/messages/TranscriptNameplate.tsx')
   const reminder = notices(same)[0]
   writeFileSync(join(frames, 'observed.json'), JSON.stringify({ reminder, completion }))
   for (const columns of [80, 120]) {

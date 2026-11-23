@@ -4,31 +4,31 @@ import { mock } from 'bun:test'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
-import type { ConcourseCallbacks, ConcourseSnapshotV1 } from '../../src/components/concourse/contracts.js'
+import type { ConcourseCallbacks, ConcourseSnapshotV1 } from '../../src/screen/concourse/contracts.js'
 
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_FULLSCREEN = '1'
 process.env.MERCURY_REDUCED_MOTION = '1'
 process.env.MERCURY_LIVE_GLYPHS = '0'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const config = await import('../../src/utils/config.js')
+const config = await import('../../src/platform/settings/config.js')
 config.enableConfigs()
-const capacity = await import('../../src/utils/switchboard/capacityCheck.js')
+const capacity = await import('../../src/daemon/switchboard-capacity/capacityCheck.js')
 const capacityAnswers: boolean[] = []
 const trustAnswers: string[] = []
 let capacityNeeded = true
-mock.module('../../src/utils/switchboard/capacityCheck.js', () => ({
+mock.module('../../src/daemon/switchboard-capacity/capacityCheck.js', () => ({
   ...capacity, needsCapacityAsk: () => capacityNeeded,
   recordCapacityDecision: async (allowed: boolean) => { capacityAnswers.push(allowed); return { recommendedSeats: 4 } },
 }))
-mock.module('../../src/utils/config.js', () => ({ ...config, isPathTrusted: () => false, setPathTrusted: (dir: string) => { trustAnswers.push(dir) } }))
-const ink = await import('../../src/ink.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { ConcourseScreen, _resetConcourseCapsuleForTesting } = await import('../../src/components/concourse/ConcourseScreen.js')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.js')
+mock.module('../../src/platform/settings/config.js', () => ({ ...config, isPathTrusted: () => false, setPathTrusted: (dir: string) => { trustAnswers.push(dir) } }))
+const ink = await import('../../src/screen/themedRenderer.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { ConcourseScreen, _resetConcourseCapsuleForTesting } = await import('../../src/screen/concourse/ConcourseScreen.js')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.js')
 const settle = async (): Promise<void> => {
   for (let i = 0; i < 8; i++) { ink.flushPendingSyncWork(); await new Promise<void>(resolve => setTimeout(resolve, 5)) }
 }
@@ -37,9 +37,9 @@ const warnings: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { warnings.push(args.map(String).join(' ')); originalError(...args) }
 const consentChordHint = (label: string): string => {
-  if (label.includes('extension')) return 'the extension uninstall confirm lives in src/components/extensions/board/slot.tsx (slotParts onInput): it must return on ctrl, meta or super and act only on a plain y'
-  if (label.includes('React keys')) return 'a list in src/components/concourse/ConcourseScreen.tsx or its rows renders without a stable key prop; read the console.error warning printed above'
-  return 'the consent keys live in src/components/concourse/screen/keys/modalKeys.ts (modalKeys): act on y or n only when plainConsent holds (no ctrl, meta or super); a card that does not mount is drawn from src/components/concourse/screen/modals.tsx'
+  if (label.includes('extension')) return 'the extension uninstall confirm lives in src/screen/extensions/board/slot.tsx (slotParts onInput): it must return on ctrl, meta or super and act only on a plain y'
+  if (label.includes('React keys')) return 'a list in src/screen/concourse/ConcourseScreen.tsx or its rows renders without a stable key prop; read the console.error warning printed above'
+  return 'the consent keys live in src/screen/concourse/screen/keys/modalKeys.ts (modalKeys): act on y or n only when plainConsent holds (no ctrl, meta or super); a card that does not mount is drawn from src/screen/concourse/screen/modals.tsx'
 }
 const check = (label: string, ok: boolean): void => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${consentChordHint(label)}`}`) }
 const noop = (): void => {}
@@ -118,17 +118,17 @@ capacityNeeded = false
   } finally { scene.close() }
 }
 {
-  const installed = await import('../../src/extensions/install.js')
+  const installed = await import('../../src/integrations/extensions/install.js')
   let removals = 0
-  mock.module('../../src/extensions/install.js', () => ({
+  mock.module('../../src/integrations/extensions/install.js', () => ({
     ...installed,
     uninstallPreview: () => ({ version: '1.0', dataBytes: 12 }),
     uninstall: () => { removals++; return { ok: false, reason: 'fixture refused' } },
   }))
   type CapturedPane = { sections: Array<{ rows: unknown[] }>; rowActions: Array<{ key: string; run: (row: unknown) => void }>; composerSlot?: { active: boolean; onInput: (input: string, key: Record<string, boolean>) => void } }
   let pane: CapturedPane | null = null
-  mock.module('../../src/components/mercury-ui/NavigablePanes.js', () => ({ NavigablePanes: (props: CapturedPane) => { pane = props; return React.createElement(ink.Text, null, 'extension fixture') } }))
-  const { ExtensionsBoard } = await import('../../src/components/extensions/ExtensionsBoard.js')
+  mock.module('../../src/screen/widgets/NavigablePanes.js', () => ({ NavigablePanes: (props: CapturedPane) => { pane = props; return React.createElement(ink.Text, null, 'extension fixture') } }))
+  const { ExtensionsBoard } = await import('../../src/screen/extensions/ExtensionsBoard.js')
   const state = getDefaultAppState()
   state.extensions = { ...state.extensions, roster: [{ id: 'fixture', name: 'fixture', label: 'source', version: '1.0', home: 'installed', pending: null, blockedBy: null, record: null, manifest: null, switchedOn: false, approved: false, availableVersion: null, shadowedBy: null, root: null } as never] }
   const scene = await mount(React.createElement(ExtensionsBoard, { route: { kind: 'board', section: 'installed' }, onClose: noop, appendTranscript: noop }), state)

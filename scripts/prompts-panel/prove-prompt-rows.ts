@@ -3,8 +3,8 @@ import { join } from 'node:path'
 
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 
-const rows = await import('../../src/components/prompts-panel/rows.ts')
-const xml = await import('../../src/constants/xml.ts')
+const rows = await import('../../src/screen/prompts-panel/rows.ts')
+const xml = await import('../../src/engine/message-shapes/messageTags.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = '', hint = ''): void {
@@ -58,12 +58,12 @@ section('§1 — PROMPTS rows')
     user([{ type: 'text', text: 'ship it' }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AA==' } }]),
   ]
   const out = rows.promptRows(records as never)
-  check('exactly the eight sent prompts survive (tool results, meta, summary, stdout, task/tick, crewmate rows are not prompts)', out.length === 8, out.map(r => r.text).join(' | '), 'promptRows in src/components/prompts-panel/rows.ts must keep only the sent prompts and drop tool results, meta, summary, stdout, task, tick and crewmate records')
-  check('order = the order sent, numbered from 1 (newest at the bottom)', out.map(r => r.n).join(',') === '1,2,3,4,5,6,7,8' && out[0]!.text === 'audit the retry ladder' && out[7]!.text === 'ship it', '', 'promptRows in src/components/prompts-panel/rows.ts must keep transcript order and number rows from 1')
-  check('plain · bash · slash classified', out.map(r => r.mode).join(',') === 'plain,plain,bash,slash,slash,slash,plain,plain', out.map(r => r.mode).join(','), 'classifyPrompt in src/components/prompts-panel/rows.ts decides each mode; fix it for the wire shape named in the row that differs')
+  check('exactly the eight sent prompts survive (tool results, meta, summary, stdout, task/tick, crewmate rows are not prompts)', out.length === 8, out.map(r => r.text).join(' | '), 'promptRows in src/screen/prompts-panel/rows.ts must keep only the sent prompts and drop tool results, meta, summary, stdout, task, tick and crewmate records')
+  check('order = the order sent, numbered from 1 (newest at the bottom)', out.map(r => r.n).join(',') === '1,2,3,4,5,6,7,8' && out[0]!.text === 'audit the retry ladder' && out[7]!.text === 'ship it', '', 'promptRows in src/screen/prompts-panel/rows.ts must keep transcript order and number rows from 1')
+  check('plain · bash · slash classified', out.map(r => r.mode).join(',') === 'plain,plain,bash,slash,slash,slash,plain,plain', out.map(r => r.mode).join(','), 'classifyPrompt in src/screen/prompts-panel/rows.ts decides each mode; fix it for the wire shape named in the row that differs')
   check('the REAL slash wire order (message tag first) reads /name args', out[5]!.mode === 'slash' && out[5]!.text === '/compact keep the receipts')
-  check('a plain prompt quoting a bash tag mid-sentence stays PLAIN with the operator’s words (never re-labelled bash, never replaced by the quoted command)', out[6]!.mode === 'plain' && /^the doc says/.test(out[6]!.text) && /do not run it$/.test(out[6]!.text) && !/^!/.test(out[6]!.text), `${out[6]!.mode}: ${out[6]!.text}`, 'classifyPrompt in src/components/prompts-panel/rows.ts must treat a bash tag as a bash send only when it is the whole prompt')
-  check('a bash send is only the WHOLE wire shape (a tag with trailing words is not a bash send)', rows.classifyPrompt(`<${xml.BASH_INPUT_TAG}>ls</${xml.BASH_INPUT_TAG}> and then some words`).mode === 'plain', '', 'classifyPrompt in src/components/prompts-panel/rows.ts must anchor its bash match to the whole text')
+  check('a plain prompt quoting a bash tag mid-sentence stays PLAIN with the operator’s words (never re-labelled bash, never replaced by the quoted command)', out[6]!.mode === 'plain' && /^the doc says/.test(out[6]!.text) && /do not run it$/.test(out[6]!.text) && !/^!/.test(out[6]!.text), `${out[6]!.mode}: ${out[6]!.text}`, 'classifyPrompt in src/screen/prompts-panel/rows.ts must treat a bash tag as a bash send only when it is the whole prompt')
+  check('a bash send is only the WHOLE wire shape (a tag with trailing words is not a bash send)', rows.classifyPrompt(`<${xml.BASH_INPUT_TAG}>ls</${xml.BASH_INPUT_TAG}> and then some words`).mode === 'plain', '', 'classifyPrompt in src/screen/prompts-panel/rows.ts must anchor its bash match to the whole text')
   check('a bash send reads as the operator typed it (! cmd)', out[2]!.text === '! git status --short' && out[2]!.firstLine === '! git status --short')
   check('a slash send reads /name args', out[3]!.text === '/model opus')
   check('a skill send is spelled /name args', out[4]!.text === '/code-review high')
@@ -96,14 +96,14 @@ section('§2 — CREW TRAFFIC rows')
     assistant([{ type: 'tool_use', id: 'toolu_b1', name: 'Bash', input: { command: 'ls' } }]),
   ]
   const msgs = rows.crewTrafficMessages(records as never)
-  check('six traffic messages (1 launch · 3 sends · 2 replies); a Bash call is not traffic', msgs.length === 6, msgs.map(m => `${m.dir}:${m.agent}:${m.via}`).join(' '), 'crewTrafficMessages in src/components/prompts-panel/rows.ts must collect the Crewmate launch, SendMessage calls and crewmate replies and nothing else')
+  check('six traffic messages (1 launch · 3 sends · 2 replies); a Bash call is not traffic', msgs.length === 6, msgs.map(m => `${m.dir}:${m.agent}:${m.via}`).join(' '), 'crewTrafficMessages in src/screen/prompts-panel/rows.ts must collect the Crewmate launch, SendMessage calls and crewmate replies and nothing else')
   check('the launch brief is lead → agent, keyed by the agent name', msgs[0]!.via === 'launch' && msgs[0]!.dir === 'to' && msgs[0]!.agent === 'PANEL' && msgs[0]!.firstLine === 'You are lane PANEL.')
   check('a structured SendMessage body reads its type + content', msgs[2]!.agent === 'CLAM' && msgs[2]!.text.includes('[question]') && msgs[2]!.text.includes('Is the splash yours?'))
   check('a reply carries the agent id, the summary attr and the unescaped body', msgs[3]!.dir === 'from' && msgs[3]!.agent === 'PANEL' && msgs[3]!.summary === 'tab one landed' && msgs[3]!.text.includes('& pushed'))
   const threaded = rows.crewTrafficRows(records as never)
   const heads = threaded.filter(r => r.kind === 'crew-thread')
-  check('threaded per agent in first-seen order (PANEL, CLAM)', heads.map(h => (h.kind === 'crew-thread' ? h.agent : '')).join(',') === 'PANEL,CLAM', '', 'crewTrafficRows in src/components/prompts-panel/rows.ts must emit one crew-thread head per agent in first-seen order')
-  check('thread counts are honest (PANEL 4 · CLAM 2)', heads.map(h => (h.kind === 'crew-thread' ? h.count : 0)).join(',') === '4,2', '', 'the count on each crew-thread head from crewTrafficRows in src/components/prompts-panel/rows.ts must equal the messages of that agent')
+  check('threaded per agent in first-seen order (PANEL, CLAM)', heads.map(h => (h.kind === 'crew-thread' ? h.agent : '')).join(',') === 'PANEL,CLAM', '', 'crewTrafficRows in src/screen/prompts-panel/rows.ts must emit one crew-thread head per agent in first-seen order')
+  check('thread counts are honest (PANEL 4 · CLAM 2)', heads.map(h => (h.kind === 'crew-thread' ? h.count : 0)).join(',') === '4,2', '', 'the count on each crew-thread head from crewTrafficRows in src/screen/prompts-panel/rows.ts must equal the messages of that agent')
   const panelThread = threaded.slice(1, 5)
   check('inside a thread: oldest → newest (launch · message · reply · message)', panelThread.map(r => (r.kind === 'crew' ? r.via : 'x')).join(',') === 'launch,message,reply,message')
   check('no agents this session ⇒ [] (the honest empty line is the surface’s)', rows.crewTrafficRows([user('hello'), assistant([{ type: 'text', text: 'hi' }])] as never).length === 0)
@@ -116,14 +116,14 @@ section('§3 — the limits line')
   check('nothing sent', rows.limitsLine(rows.recordLimits([]), 0, clock) === '0 prompts · nothing sent in this chat yet')
   const fresh = [user('one', {}, '2026-08-26T12:01:00.000Z'), user('two', {}, '2026-08-26T12:05:00.000Z')]
   const l1 = rows.limitsLine(rows.recordLimits(fresh as never, '2026-08-26T12:00:00.000Z'), 2, clock)
-  check('from the start of this session (records newer than the process)', l1 === '2 prompts since 12:01 · from the start of this session', l1, 'limitsLine and recordLimits in src/components/prompts-panel/rows.ts build this sentence')
+  check('from the start of this session (records newer than the process)', l1 === '2 prompts since 12:01 · from the start of this session', l1, 'limitsLine and recordLimits in src/screen/prompts-panel/rows.ts build this sentence')
   const l2 = rows.limitsLine(rows.recordLimits(fresh as never, '2026-08-26T13:00:00.000Z'), 2, clock)
-  check('a resumed transcript is said out loud', /resumed transcript included/.test(l2), l2, 'limitsLine in src/components/prompts-panel/rows.ts must say a resumed transcript is included when records predate the process start')
+  check('a resumed transcript is said out loud', /resumed transcript included/.test(l2), l2, 'limitsLine in src/screen/prompts-panel/rows.ts must say a resumed transcript is included when records predate the process start')
   const compacted = [...fresh, user('summary', { isCompactSummary: true }, '2026-08-26T12:06:00.000Z')]
   const l3 = rows.limitsLine(rows.recordLimits(compacted as never, '2026-08-26T12:00:00.000Z'), 2, clock)
-  check('a compaction says the gap in one line', /a compaction hides the earlier prompts/.test(l3), l3, 'limitsLine in src/components/prompts-panel/rows.ts must say that a compaction hides the earlier prompts')
+  check('a compaction says the gap in one line', /a compaction hides the earlier prompts/.test(l3), l3, 'limitsLine in src/screen/prompts-panel/rows.ts must say that a compaction hides the earlier prompts')
   const fullest = rows.limitsLine(rows.recordLimits(compacted as never, '2026-08-26T13:00:00.000Z'), 120, clock)
-  check('the fullest limits line fits the 100-column header whole (≤ 96 cells)', fullest.length <= 96, `${fullest.length}: ${fullest}`, 'shorten the wording of limitsLine in src/components/prompts-panel/rows.ts so its longest form fits the header')
+  check('the fullest limits line fits the 100-column header whole (≤ 96 cells)', fullest.length <= 96, `${fullest.length}: ${fullest}`, 'shorten the wording of limitsLine in src/screen/prompts-panel/rows.ts so its longest form fits the header')
   const boundary = [...fresh, { type: 'system', subtype: 'compact_boundary', content: '', uuid: uuid(), timestamp: '2026-08-26T12:07:00.000Z' }]
   check('a compact_boundary system row counts as a compaction too', rows.recordLimits(boundary as never).compacted)
   check('one prompt reads singular', rows.limitsLine(rows.recordLimits([fresh[0]!] as never, '2026-08-26T12:00:00.000Z'), 1, clock).startsWith('1 prompt since'))
@@ -134,7 +134,7 @@ section('§3 — the limits line')
 
 {
   console.log('\n§FC-080 the composer slot height truth')
-  const layout = await import('../../src/components/prompts-panel/composerLayout.ts')
+  const layout = await import('../../src/screen/prompts-panel/composerLayout.ts')
   check('an empty buffer needs header + one input row', layout.promptsComposerRows(0) === 2)
   check('a one-line buffer needs 2', layout.promptsComposerRows(60) === 2)
   check('a wrapped buffer grows the declaration', layout.promptsComposerRows(200) === 4)
@@ -142,7 +142,7 @@ section('§3 — the limits line')
     'a ceiling-sized paste is CAPPED — never the whole panel',
     layout.promptsComposerRows(4000) === layout.COMPOSER_SLOT_MAX_ROWS,
     String(layout.promptsComposerRows(4000)),
-    'promptsComposerRows in src/components/prompts-panel/composerLayout.ts must cap its result at COMPOSER_SLOT_MAX_ROWS',
+    'promptsComposerRows in src/screen/prompts-panel/composerLayout.ts must cap its result at COMPOSER_SLOT_MAX_ROWS',
   )
 }
 

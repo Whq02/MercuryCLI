@@ -26,21 +26,21 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_HOME
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 try {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
-  const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
-  const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
-  const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-  const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
-  const { getToolManualAttachments } = await import('../../src/services/attachments/toolManuals.ts')
-  const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-  const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-  const { isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
-  const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-  const tools: import('../../src/Tool.js').Tool[] = [DebugTool, BrowserTool, AgentTool, ToolSearchTool]
+  const { DebugTool } = await import('../../src/tools/debug/DebugTool.ts')
+  const { BrowserTool } = await import('../../src/tools/browser/BrowserTool.ts')
+  const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+  const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+  const { clearToolSchemaCache } = await import('../../src/models/roads/toolSchemaCache.ts')
+  const { getToolManualAttachments } = await import('../../src/engine/attachments/toolManuals.ts')
+  const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
+  const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+  const { isNullRenderingAttachment } = await import('../../src/screen/messages/nullRenderingAttachments.ts')
+  const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+  const tools: import('../../src/tools/kit/tool.js').Tool[] = [DebugTool, BrowserTool, AgentTool, ToolSearchTool]
   const permission = getEmptyToolPermissionContext()
   const options = { getToolPermissionContext: async () => permission, tools, agents: [], model: 'claude-fable-5-1', conversationKey: 'wire-manual-proof' }
   const context: any = { options: { tools, engineModel: options.model, agentDefinitions: { activeAgents: [] } }, getAppState: () => ({ toolPermissionContext: permission, mcp: { clients: [] } }), messages: [] }
@@ -63,14 +63,14 @@ try {
     assert.ok(normalizedManual.includes(tool.name), `normalizeAttachmentForAPI omitted ${tool.name} manual in src/utils/messages/attachmentText.ts`)
     if (tool.name === 'Browser') {
       const fullBytes = Buffer.byteLength(full)
-      assert.ok(bytes <= 350 && fullBytes <= 3000, `Browser wire/manual size (${bytes}B / ${fullBytes}B) exceeded 350B / 3000B ceiling in src/tools/BrowserTool/BrowserTool.ts`)
-      assert.ok(!schema.description.includes('status:') && !schema.description.includes('waitFor:'), 'Browser wire description leaked status:/waitFor: manual text in src/tools/BrowserTool/BrowserTool.ts')
+      assert.ok(bytes <= 350 && fullBytes <= 3000, `Browser wire/manual size (${bytes}B / ${fullBytes}B) exceeded 350B / 3000B ceiling in src/tools/browser/BrowserTool.ts`)
+      assert.ok(!schema.description.includes('status:') && !schema.description.includes('waitFor:'), 'Browser wire description leaked status:/waitFor: manual text in src/tools/browser/BrowserTool.ts')
       assert.equal(schema.input_schema.properties.op.description, 'Browser operation.')
       for (const operation of schema.input_schema.properties.op.enum as string[]) assert.ok(full.includes(operation), `${operation} has manual depth`)
     }
     if (tool.name === 'Debug') {
       const debugFullBytes = Buffer.byteLength(full)
-      assert.ok(bytes <= 600 && debugFullBytes <= 4000, `Debug wire/manual size (${bytes}B / ${debugFullBytes}B) exceeded 600B / 4000B ceiling in src/tools/DebugTool/DebugTool.ts`)
+      assert.ok(bytes <= 600 && debugFullBytes <= 4000, `Debug wire/manual size (${bytes}B / ${debugFullBytes}B) exceeded 600B / 4000B ceiling in src/tools/debug/DebugTool.ts`)
       assert.equal(schema.input_schema.properties.op.description, 'Debug operation.')
       for (const operation of schema.input_schema.properties.op.enum as string[]) assert.ok(full.includes(operation), `${operation} has manual depth`)
       assert.ok(!schema.description.includes('launch:') && !schema.description.includes('Full usage notes'), 'the wire does not abridge the manual')

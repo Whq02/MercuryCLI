@@ -3,19 +3,19 @@ process.env.FORCE_COLOR = '3'
 delete process.env.NO_COLOR
 
 const { appendChildNode, createNode, createTextNode, removeChildNode } = await import(
-  '../../src/ink/dom.js'
+  '../../src/screen/renderer/dom.js'
 )
-type DOMElement = import('../../src/ink/dom.js').DOMElement
-const { emptyFrame } = await import('../../src/ink/frame.js')
-type Frame = import('../../src/ink/frame.js').Frame
-const { default: createRenderer } = await import('../../src/ink/renderer.js')
-const { cellAt } = await import('../../src/ink/cell-grid.js')
+type DOMElement = import('../../src/screen/renderer/dom.js').DOMElement
+const { emptyFrame } = await import('../../src/screen/renderer/frame.js')
+type Frame = import('../../src/screen/renderer/frame.js').Frame
+const { default: createRenderer } = await import('../../src/screen/renderer/renderer.js')
+const { cellAt } = await import('../../src/screen/renderer/cell-grid.js')
 const { applySceneStyle, makeContext } = await import('../ink-runtime/frameHarness.ts')
 type ComposeContext = import('../ink-runtime/frameHarness.ts').ComposeContext
 
 let failures = 0
 function check(name: string, ok: boolean, detail = ''): void {
-  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok ? '' : ` — ${detail ? `${detail}; ` : ''}fix how the compose pass paints background grounds and opaque boxes: src/ink/compose-walk.ts, reached through createRenderer in src/ink/renderer.ts`}`)
+  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok ? '' : ` — ${detail ? `${detail}; ` : ''}fix how the compose pass paints background grounds and opaque boxes: src/screen/renderer/compose-walk.ts, reached through createRenderer in src/screen/renderer/renderer.ts`}`)
   if (!ok) failures++
 }
 

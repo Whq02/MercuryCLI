@@ -26,13 +26,13 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 const React = await import('react')
-const { App } = await import('../../src/components/App.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { App } = await import('../../src/boot/App.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { PopupFrameContext } = await import('../../src/components/PopupGutter.js')
+const { PopupFrameContext } = await import('../../src/screen/overlays/PopupGutter.js')
 const { McpPopup } = await import('../../src/commands/mcp/McpPopup.js')
-const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
+const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.js')
 const h = React.createElement
 
 const FRAME = { width: 78, rows: 12 }

@@ -8,19 +8,19 @@ import { mock } from 'bun:test'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'rewind-rows-home-'))
 
 const SRC = join(import.meta.dir, '..', '..', 'src')
-const realShellToolUtils = await import(join(SRC, 'utils', 'shell', 'shellToolUtils.ts'))
+const realShellToolUtils = await import(join(SRC, 'tools', 'kit', 'shellTools.ts'))
 let psToolOffered = true
-mock.module(join(SRC, 'utils', 'shell', 'shellToolUtils.js'), () => ({
+mock.module(join(SRC, 'tools', 'kit', 'shellTools.js'), () => ({
   ...realShellToolUtils,
   isPowerShellToolEnabled: () => psToolOffered,
 }))
 
-const { statsBetween } = await import('../../src/components/MessageSelector.tsx')
-const { isSqliteRowTarget } = await import('../../src/tools/FileWriteTool/structuredTargets.ts')
+const { statsBetween } = await import('../../src/screen/rewind-picker/RewindPicker.tsx')
+const { isSqliteRowTarget } = await import('../../src/tools/write/structuredTargets.ts')
 
 let failures = 0
 let checks = 0
-let rowCountsHint = 'change statsBetween in src/components/messageSelector/stats.ts or isSqliteRowTarget in src/tools/FileWriteTool/structuredTargets.ts'
+let rowCountsHint = 'change statsBetween in src/screen/rewind-picker/stats.ts or isSqliteRowTarget in src/tools/write/structuredTargets.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
@@ -95,17 +95,17 @@ const notRows = ['/w/rows.sqlite', '/w/rows.sqlite:items', '/w/notes.sqlite.md',
 check('every address a row write reports reads as a row, and nothing a rewind restores does', rowAddresses.every(path => isSqliteRowTarget(path)) && notRows.every(path => !isSqliteRowTarget(path)), JSON.stringify({ rows: rowAddresses.map(path => isSqliteRowTarget(path)), others: notRows.map(path => isSqliteRowTarget(path)) }))
 
 console.log('\n── rewind list and card after shell commands ──')
-rowCountsHint = 'the list row text and the confirm card text are built in src/components/messageSelector/views.tsx and the shell-command counts in src/components/messageSelector/stats.ts'
+rowCountsHint = 'the list row text and the confirm card text are built in src/screen/rewind-picker/views.tsx and the shell-command counts in src/screen/rewind-picker/stats.ts'
 {
   const React = await import('react')
   const { execFileSync } = await import('node:child_process')
   const { mkdtempSync: mkTmp, readFileSync, rmSync, writeFileSync } = await import('node:fs')
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { MessageSelector } = await import('../../src/components/MessageSelector.tsx')
-  const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { MessageSelector } = await import('../../src/screen/rewind-picker/RewindPicker.tsx')
+  const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+  const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
   const { mountOffscreen, waitFor } = await import('../lib/settingsPopupHarness.ts')
 
   const workDir = mkTmp(join(tmpdir(), 'rewind-shell-'))
@@ -385,7 +385,7 @@ rowCountsHint = 'the list row text and the confirm card text are built in src/co
       psToolOffered = true
     }
 
-    const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+    const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
     const mixedMsgs = [
       userMsg('u-pre-ro', 'check directory via bash'),
       assistantTool('a-pre-ro', 'Bash', { command: 'pwd' }),

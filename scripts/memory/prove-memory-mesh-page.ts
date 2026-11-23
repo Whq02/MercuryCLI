@@ -22,18 +22,18 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 
-const mesh = await import('../../src/mneme/mnemeMeshPage.js')
-const docs = await import('../../src/mneme/mnemeTopicDocs.js')
-const usage = await import('../../src/mneme/mnemeUsage.js')
-const ledger = await import('../../src/mneme/ledger.js')
-const signal = await import('../../src/mneme/mnemeSignal.js')
-const { mnemeProjectKey } = await import('../../src/mneme/paths.js')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
-const { appendObservation } = await import('../../src/mneme/mnemeBuffer.js')
-const { getSessionId } = await import('../../src/bootstrap/state.js')
+const mesh = await import('../../src/sessions/mneme/mnemeMeshPage.js')
+const docs = await import('../../src/sessions/mneme/mnemeTopicDocs.js')
+const usage = await import('../../src/sessions/mneme/mnemeUsage.js')
+const ledger = await import('../../src/sessions/mneme/ledger.js')
+const signal = await import('../../src/sessions/mneme/mnemeSignal.js')
+const { mnemeProjectKey } = await import('../../src/sessions/mneme/paths.js')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.js')
+const { appendObservation } = await import('../../src/sessions/mneme/mnemeBuffer.js')
+const { getSessionId } = await import('../../src/boot/process-state/processState.js')
 const page = await import('../../src/commands/memory/memoryPage.js')
-const store = await import('../../src/services/samples/store.js')
-const { closeSampleListener } = await import('../../src/services/samples/listener.js')
+const store = await import('../../src/integrations/samples/store.js')
+const { closeSampleListener } = await import('../../src/integrations/samples/listener.js')
 
 const dir = mnemeLibraryDir()
 mkdirSync(dir, { recursive: true })
@@ -88,7 +88,7 @@ const digestTree = (root: string): string => {
 const libraryBefore = digestTree(dir)
 
 console.log('\n[N] the facts are nodes with their first words, their marks and their counts')
-failHint = 'change memoryMesh in src/mneme/mnemeMeshPage.ts (node fields: firstWords, text, kind, pinned, stale, counts)'
+failHint = 'change memoryMesh in src/sessions/mneme/mnemeMeshPage.ts (node fields: firstWords, text, kind, pinned, stale, counts)'
 const model = mesh.memoryMesh(dir, { sessions, now })
 const node = (id: string) => model.nodes.find(n => n.id === id)
 {
@@ -103,7 +103,7 @@ const node = (id: string) => model.nodes.find(n => n.id === id)
 }
 
 console.log('\n[E] the links are edges: supersedes, ruling, session')
-failHint = 'change the edge building in memoryMesh in src/mneme/mnemeMeshPage.ts (kinds supersedes, ruling, session)'
+failHint = 'change the edge building in memoryMesh in src/sessions/mneme/mnemeMeshPage.ts (kinds supersedes, ruling, session)'
 {
   const has = (from: string, to: string, kind: string): boolean => model.edges.some(e => e.from === from && e.to === to && e.kind === kind)
   const pendingId = model.nodes.find(n => n.kind === 'pending')!.id
@@ -116,7 +116,7 @@ failHint = 'change the edge building in memoryMesh in src/mneme/mnemeMeshPage.ts
 }
 
 console.log('\n[P] the page draws every node and edge, opens each record, and fetches nothing')
-failHint = 'change renderMemoryMeshPage in src/mneme/mnemeMeshPage.ts (its data-node, data-edge, escaping and no-fetch output)'
+failHint = 'change renderMemoryMeshPage in src/sessions/mneme/mnemeMeshPage.ts (its data-node, data-edge, escaping and no-fetch output)'
 const html = mesh.renderMemoryMeshPage(model)
 {
   check('every node is drawn as a link to its record', model.nodes.every(n => html.includes(`data-node="${n.id}"`) && html.includes(`href="#${mesh.meshAnchor(n.id)}"`) && html.includes(`id="${mesh.meshAnchor(n.id)}"`)))
@@ -129,7 +129,7 @@ const html = mesh.renderMemoryMeshPage(model)
 }
 
 console.log('\n[S] /memory page keeps it through the Samples road, versioned, served on this machine')
-failHint = 'change openMemoryPage in src/commands/memory/memoryPage.ts, or the Samples store and listener it uses under src/services/samples'
+failHint = 'change openMemoryPage in src/commands/memory/memoryPage.ts, or the Samples store and listener it uses under src/integrations/samples'
 {
   const opened: string[] = []
   const first = await page.openMemoryPage({ dir, sessionId: current, sessions, now, open: async url => { opened.push(url); return true } })

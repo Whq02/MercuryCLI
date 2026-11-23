@@ -59,16 +59,16 @@ console.log('============================================================')
 console.log('[6] the three Craft extensions ship without application binaries (read on a platform with a release; the no-release reading is prove-bundled-platform-quiet)')
 {
   const bare = run(['extensions', 'list', '--json'], { MERCURY_CRAFT_PLATFORM: 'linux-x64' })
-  check('list --json exits 0', bare.code === 0, 'node dist/mercury.mjs extensions list --json must exit 0 (the extensions verb in src/extensions/cli.ts); ' + bare.stderr.slice(0, 200))
+  check('list --json exits 0', bare.code === 0, 'node dist/mercury.mjs extensions list --json must exit 0 (the extensions verb in src/integrations/extensions/cli.ts); ' + bare.stderr.slice(0, 200))
   const parsed = JSON.parse(bare.stdout.slice(bare.stdout.indexOf('{'))) as { extensions: Array<{ name: string; from: string; health: { outcome: string } | null; path: string }> }
   const shipped = parsed.extensions.filter(e => e.from === 'mercury')
-  check('exactly FilmCraft, PhotoCraft, LightCraft and the off-by-default media engine are bundled', JSON.stringify(shipped.map(e => e.name).sort()) === JSON.stringify(['filmcraft', 'lightcraft', 'mercury-media', 'photocraft']), 'the shipped list comes from bundledRoster in src/extensions/bundled/index.ts; read: ' + JSON.stringify(shipped.map(e => e.name).sort()))
+  check('exactly FilmCraft, PhotoCraft, LightCraft and the off-by-default media engine are bundled', JSON.stringify(shipped.map(e => e.name).sort()) === JSON.stringify(['filmcraft', 'lightcraft', 'mercury-media', 'photocraft']), 'the shipped list comes from bundledRoster in src/integrations/extensions/bundled/index.ts; read: ' + JSON.stringify(shipped.map(e => e.name).sort()))
   const bundled = shipped.filter(e => e.name !== 'mercury-media')
   for (const entry of bundled) {
     const manifest = JSON.parse(readFileSync(join(entry.path, 'mercury-extension.json'), 'utf8'))
     check(`${entry.name}: one server and one skill directory`, Object.keys(manifest.contributes.servers).length === 1 && manifest.contributes.skills.length === 1, 'fix contributes in the bundled mercury-extension.json of ' + entry.name + ' so it names one server and one skills directory')
-    check(`${entry.name}: loads without an installed app`, entry.health?.outcome === 'loads', 'computeHealth in src/extensions/health.ts read ' + JSON.stringify(entry.health) + '; a bundled Craft extension must load before any application is installed')
-    check(`${entry.name}: no application was installed at discovery`, !existsSync(join(home, 'extensions', 'data', `${entry.name}@mercury`, 'runtime')), 'bundled discovery must not create the extension data runtime folder; see bundledRoster and materialize in src/extensions/bundled/index.ts')
+    check(`${entry.name}: loads without an installed app`, entry.health?.outcome === 'loads', 'computeHealth in src/integrations/extensions/health.ts read ' + JSON.stringify(entry.health) + '; a bundled Craft extension must load before any application is installed')
+    check(`${entry.name}: no application was installed at discovery`, !existsSync(join(home, 'extensions', 'data', `${entry.name}@mercury`, 'runtime')), 'bundled discovery must not create the extension data runtime folder; see bundledRoster and materialize in src/integrations/extensions/bundled/index.ts')
   }
 }
 
@@ -78,39 +78,39 @@ console.log('[1] the fixture bundled extension: <name>@mercury, approved, on')
   check('list --json exits 0', listed.code === 0, 'node dist/mercury.mjs extensions list --json must exit 0 with the fixture bundled root; ' + listed.stderr.slice(0, 200))
   const parsed = JSON.parse(listed.stdout.slice(listed.stdout.indexOf('{'))) as { extensions: Array<{ id: string; from: string; approved: boolean; state: string; trust: string; health: { outcome: string } | null }> }
   const row = parsed.extensions.find(e => e.id === 'bundle-probe@mercury')
-  check('the row is bundle-probe@mercury', row !== undefined, 'bundledRoster in src/extensions/bundled/index.ts must list the fixture named by MERCURY_EXTENSIONS_BUNDLED_FIXTURE; rows read: ' + parsed.extensions.map(e => e.id).join(','))
-  check('installing Mercury is the approval (approved without a card)', row?.approved === true, 'recordBundledApproval in src/extensions/install.ts must approve a bundled row at first boot')
-  check('on by its default with honest health', row?.trust === 'on' && row?.health?.outcome === 'loads', 'a bundled row defaults on with health loads (bundledRoster in src/extensions/bundled/index.ts, computeHealth in src/extensions/health.ts); row: ' + JSON.stringify(row))
+  check('the row is bundle-probe@mercury', row !== undefined, 'bundledRoster in src/integrations/extensions/bundled/index.ts must list the fixture named by MERCURY_EXTENSIONS_BUNDLED_FIXTURE; rows read: ' + parsed.extensions.map(e => e.id).join(','))
+  check('installing Mercury is the approval (approved without a card)', row?.approved === true, 'recordBundledApproval in src/integrations/extensions/install.ts must approve a bundled row at first boot')
+  check('on by its default with honest health', row?.trust === 'on' && row?.health?.outcome === 'loads', 'a bundled row defaults on with health loads (bundledRoster in src/integrations/extensions/bundled/index.ts, computeHealth in src/integrations/extensions/health.ts); row: ' + JSON.stringify(row))
   const record = JSON.parse(readFileSync(join(home, 'extensions', 'installed.json'), 'utf8')) as Record<string, { approval: { at: string } | null; label: string }>
-  check('the first-boot approval record is on file', record['bundle-probe@mercury']?.approval !== null && record['bundle-probe@mercury']?.label === 'mercury', 'recordBundledApproval in src/extensions/install.ts must write an approved record with label mercury to installed.json')
+  check('the first-boot approval record is on file', record['bundle-probe@mercury']?.approval !== null && record['bundle-probe@mercury']?.label === 'mercury', 'recordBundledApproval in src/integrations/extensions/install.ts must write an approved record with label mercury to installed.json')
 }
 
 console.log('[2] disable writes the settings key; enable restores')
 {
   const off = run(['extensions', 'disable', 'bundle-probe@mercury'], withFixture)
-  check('disable exits 0', off.code === 0, 'extensions disable must exit 0 for a bundled id (src/extensions/cli.ts); ' + off.stderr.slice(0, 120))
+  check('disable exits 0', off.code === 0, 'extensions disable must exit 0 for a bundled id (src/integrations/extensions/cli.ts); ' + off.stderr.slice(0, 120))
   const settings = JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8')) as { extensions?: { enabled?: Record<string, boolean> } }
-  check('the switch lives under extensions.enabled["bundle-probe@mercury"]', settings.extensions?.enabled?.['bundle-probe@mercury'] === false, 'extensions disable must write false under extensions.enabled in settings.json (src/extensions/cli.ts and install.ts)')
+  check('the switch lives under extensions.enabled["bundle-probe@mercury"]', settings.extensions?.enabled?.['bundle-probe@mercury'] === false, 'extensions disable must write false under extensions.enabled in settings.json (src/integrations/extensions/cli.ts and install.ts)')
   const listed = run(['extensions', 'list', '--json'], withFixture)
   const parsed = JSON.parse(listed.stdout.slice(listed.stdout.indexOf('{'))) as { extensions: Array<{ id: string; trust: string }> }
-  check('the row reads off', parsed.extensions.find(e => e.id === 'bundle-probe@mercury')?.trust === 'off', 'a disabled bundled row must read trust off in extensions list --json (src/extensions/cli.ts)')
+  check('the row reads off', parsed.extensions.find(e => e.id === 'bundle-probe@mercury')?.trust === 'off', 'a disabled bundled row must read trust off in extensions list --json (src/integrations/extensions/cli.ts)')
   const on = run(['extensions', 'enable', 'bundle-probe@mercury'], withFixture)
-  check('enable exits 0 and restores', on.code === 0, 'extensions enable must exit 0 for a bundled id (src/extensions/cli.ts); ' + on.stderr.slice(0, 120))
+  check('enable exits 0 and restores', on.code === 0, 'extensions enable must exit 0 for a bundled id (src/integrations/extensions/cli.ts); ' + on.stderr.slice(0, 120))
 }
 
 console.log('[3] a bundled row cannot be uninstalled or updated')
 {
   const un = run(['extensions', 'uninstall', 'bundle-probe@mercury', '--yes'], withFixture)
-  check('uninstall refuses with the reason (exit 1)', un.code === 1 && (un.stderr + un.stdout).includes('bundled'), 'uninstall of a mercury-labelled id must refuse with exit 1 naming bundled (src/extensions/install.ts); ' + (un.stderr + un.stdout).slice(0, 160))
+  check('uninstall refuses with the reason (exit 1)', un.code === 1 && (un.stderr + un.stdout).includes('bundled'), 'uninstall of a mercury-labelled id must refuse with exit 1 naming bundled (src/integrations/extensions/install.ts); ' + (un.stderr + un.stdout).slice(0, 160))
   const up = run(['extensions', 'update', 'bundle-probe@mercury'], withFixture)
-  check('update refuses: it updates with Mercury', up.code === 1 && (up.stderr + up.stdout).includes('updates with Mercury'), 'update of a mercury-labelled id must refuse with exit 1 saying it updates with Mercury (update in src/extensions/install.ts); ' + (up.stderr + up.stdout).slice(0, 160))
+  check('update refuses: it updates with Mercury', up.code === 1 && (up.stderr + up.stdout).includes('updates with Mercury'), 'update of a mercury-labelled id must refuse with exit 1 saying it updates with Mercury (update in src/integrations/extensions/install.ts); ' + (up.stderr + up.stdout).slice(0, 160))
 }
 
 console.log('[4] an availability predicate answering false removes the row entirely')
 {
   const listed = run(['extensions', 'list', '--json'], { MERCURY_EXTENSIONS_BUNDLED_FIXTURE: FIXTURE_GATED })
   const parsed = JSON.parse(listed.stdout.slice(listed.stdout.indexOf('{'))) as { extensions: Array<{ id: string }> }
-  check('no row, no ghost', !parsed.extensions.some(e => e.id === 'gated-probe@mercury'), 'bundledRoster in src/extensions/bundled/index.ts must drop a row whose isAvailable answers false; rows read: ' + JSON.stringify(parsed.extensions.map(e => e.id)))
+  check('no row, no ghost', !parsed.extensions.some(e => e.id === 'gated-probe@mercury'), 'bundledRoster in src/integrations/extensions/bundled/index.ts must drop a row whose isAvailable answers false; rows read: ' + JSON.stringify(parsed.extensions.map(e => e.id)))
 }
 
 console.log('[5] a bundled extension with an unmet need reads partial with the reason')
@@ -118,8 +118,8 @@ console.log('[5] a bundled extension with an unmet need reads partial with the r
   const listed = run(['extensions', 'list', '--json'], { MERCURY_EXTENSIONS_BUNDLED_FIXTURE: FIXTURE_NEEDS })
   const parsed = JSON.parse(listed.stdout.slice(listed.stdout.indexOf('{'))) as { extensions: Array<{ id: string; health: { outcome: string; reasons: string[] } | null }> }
   const row = parsed.extensions.find(e => e.id === 'needs-probe@mercury')
-  check('the row reads partial', row?.health?.outcome === 'partial', 'computeHealth in src/extensions/health.ts must read partial when a need is unmet; row: ' + JSON.stringify(row))
-  check('the reason names the missing binary', row?.health?.reasons.some(r => r === 'fixture-binary-that-does-not-exist not on PATH') === true, 'the missing-binary reason is written by resolveContributions in src/extensions/load/contributions.ts; reasons: ' + JSON.stringify(row?.health?.reasons))
+  check('the row reads partial', row?.health?.outcome === 'partial', 'computeHealth in src/integrations/extensions/health.ts must read partial when a need is unmet; row: ' + JSON.stringify(row))
+  check('the reason names the missing binary', row?.health?.reasons.some(r => r === 'fixture-binary-that-does-not-exist not on PATH') === true, 'the missing-binary reason is written by resolveContributions in src/integrations/extensions/load/contributions.ts; reasons: ' + JSON.stringify(row?.health?.reasons))
 }
 
 console.log('[7] the built bundle carries the new literals and none of the retired ones')
@@ -127,10 +127,10 @@ console.log('[7] the built bundle carries the new literals and none of the retir
   const dist = readFileSync(DIST, 'utf8')
   const J = (...parts: string[]): string => parts.join('')
   for (const literal of ['mercury-extension.json', 'mercury-extensions.json', 'MERCURY_EXTENSION_ROOT', 'MERCURY_EXTENSION_DATA'] as const) {
-    check(`dist carries ${literal}`, dist.includes(literal), 'dist/mercury.mjs lacks ' + literal + '; rebuild with bun run build.ts, and if it is still missing restore the literal in src/extensions')
+    check(`dist carries ${literal}`, dist.includes(literal), 'dist/mercury.mjs lacks ' + literal + '; rebuild with bun run build.ts, and if it is still missing restore the literal in src/integrations/extensions')
   }
-  check('dist carries the ext: server prefix helper', dist.includes(J('ext', ':')), 'dist/mercury.mjs lacks the ext: server prefix (SERVER_PREFIX in src/extensions/manifest.ts); rebuild with bun run build.ts')
-  check('dist carries the record files', dist.includes('installed.json') && dist.includes('sources.json'), 'dist/mercury.mjs lacks the record file names (src/extensions/paths.ts); rebuild with bun run build.ts')
+  check('dist carries the ext: server prefix helper', dist.includes(J('ext', ':')), 'dist/mercury.mjs lacks the ext: server prefix (SERVER_PREFIX in src/integrations/extensions/manifest.ts); rebuild with bun run build.ts')
+  check('dist carries the record files', dist.includes('installed.json') && dist.includes('sources.json'), 'dist/mercury.mjs lacks the record file names (src/integrations/extensions/paths.ts); rebuild with bun run build.ts')
   for (const [label, needle] of [
     ['the retired manifest dir', J('.mercury', '-plug', 'in')],
     ['the retired registry file', J('known_', 'market', 'places.json')],

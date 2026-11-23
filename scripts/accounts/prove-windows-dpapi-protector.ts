@@ -15,12 +15,12 @@ process.env.OPENAI_API_KEY = 'fixture-env-provider-key'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { plainTextStorage } = await import(join(SRC, 'utils/secureStorage/plainTextStorage.ts'))
-const { setAuthScope } = await import(join(SRC, 'utils/envUtils.ts'))
-const index = await import(join(SRC, 'utils/secureStorage/index.ts'))
-const dpapi = await import(join(SRC, 'utils/secureStorage/windowsDpapiProtector.ts')).catch(() => null)
-const system = await import(join(SRC, 'utils/secureStorage/systemProtector.ts')).catch(() => null)
-const files = await import(join(SRC, 'utils/secureStorage/fileStorage.ts')).catch(() => null)
+const { plainTextStorage } = await import(join(SRC, 'platform/secure-storage/plainTextStorage.ts'))
+const { setAuthScope } = await import(join(SRC, 'platform/environment/envUtils.ts'))
+const index = await import(join(SRC, 'platform/secure-storage/index.ts'))
+const dpapi = await import(join(SRC, 'platform/secure-storage/windowsDpapiProtector.ts')).catch(() => null)
+const system = await import(join(SRC, 'platform/secure-storage/systemProtector.ts')).catch(() => null)
+const files = await import(join(SRC, 'platform/secure-storage/fileStorage.ts')).catch(() => null)
 
 type Answer = { ok: true; bytes: Buffer } | { ok: false; why: string; final: boolean }
 type Protector = {
@@ -129,7 +129,7 @@ if (process.platform === 'win32') {
   chmodSync(join(STAND_IN_DIR, 'powershell.exe'), 0o755)
   process.env.SystemRoot = ROOT
 
-  section('§1 the request: the system\'s PowerShell by its own path, the key on stdin and nowhere else', 'createDpapiProtector in src/utils/secureStorage/windowsDpapiProtector.ts (how it starts PowerShell and what it sends), or STAND_IN in this file if the stand-in is what misbehaves')
+  section('§1 the request: the system\'s PowerShell by its own path, the key on stdin and nowhere else', 'createDpapiProtector in src/platform/secure-storage/windowsDpapiProtector.ts (how it starts PowerShell and what it sends), or STAND_IN in this file if the stand-in is what misbehaves')
   {
     setMode('answers')
     const protector = protectorOf()
@@ -154,7 +154,7 @@ if (process.platform === 'win32') {
     check('the PowerShell it starts is not handed the session\'s token or a provider key', seen.length === 4 && seen.every(call => call.secretsInEnv.length === 0), JSON.stringify(seen[0]?.secretsInEnv))
   }
 
-  section('§2 the answers: it says why whenever the system does not give the bytes', 'how createDpapiProtector in src/utils/secureStorage/windowsDpapiProtector.ts reads the PowerShell answer, its exit, its timeout and its missing executable, and the why and final it returns')
+  section('§2 the answers: it says why whenever the system does not give the bytes', 'how createDpapiProtector in src/platform/secure-storage/windowsDpapiProtector.ts reads the PowerShell answer, its exit, its timeout and its missing executable, and the why and final it returns')
   {
     const quick = protectorOf(1500)
     const key = randomBytes(32)
@@ -206,7 +206,7 @@ if (process.platform === 'win32') {
     process.env.SystemRoot = ROOT
   }
 
-  section('§3 the store over it: two starts for the first sealing, one for a process that reads, none after', 'fileStorageFor in src/utils/secureStorage/fileStorage.ts (sealing, caching the unwrapped key, plaintext fallback and its warning)')
+  section('§3 the store over it: two starts for the first sealing, one for a process that reads, none after', 'fileStorageFor in src/platform/secure-storage/fileStorage.ts (sealing, caching the unwrapped key, plaintext fallback and its warning)')
   {
     setMode('answers')
     rmSync(CALLS, { force: true })
@@ -240,7 +240,7 @@ if (process.platform === 'win32') {
   }
 }
 
-section('§4 the choice, by platform and by the flag', 'systemProtectorFor in src/utils/secureStorage/systemProtector.ts, fileStorageFor in src/utils/secureStorage/fileStorage.ts, or getSecureStorage in src/utils/secureStorage/index.ts')
+section('§4 the choice, by platform and by the flag', 'systemProtectorFor in src/platform/secure-storage/systemProtector.ts, fileStorageFor in src/platform/secure-storage/fileStorage.ts, or getSecureStorage in src/platform/secure-storage/index.ts')
 {
   const forWindows = system?.systemProtectorFor('win32', undefined) as Protector | null | undefined
   check('Windows has a protector: dpapi-user', forWindows?.scheme === 'dpapi-user', String(forWindows?.scheme))
@@ -255,7 +255,7 @@ section('§4 the choice, by platform and by the flag', 'systemProtectorFor in sr
 }
 
 if (REAL) {
-  section('--real: the system\'s own PowerShell and DPAPI', 'createDpapiProtector in src/utils/secureStorage/windowsDpapiProtector.ts (read the answer printed above) or fileStorageFor in src/utils/secureStorage/fileStorage.ts')
+  section('--real: the system\'s own PowerShell and DPAPI', 'createDpapiProtector in src/platform/secure-storage/windowsDpapiProtector.ts (read the answer printed above) or fileStorageFor in src/platform/secure-storage/fileStorage.ts')
   if (process.platform !== 'win32') {
     check('--real is run on Windows', false, process.platform)
   } else {

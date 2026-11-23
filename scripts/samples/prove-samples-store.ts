@@ -10,17 +10,17 @@ process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 process.env.BROWSER = '/usr/bin/true'
 process.env.MERCURY_SAMPLES = '1'
 
-const store = await import('../../src/services/samples/store.ts')
+const store = await import('../../src/integrations/samples/store.ts')
 
 let failures = 0
 let currentSectionKey = ''
 const sectionWhere: Record<string, string> = {
-  S1: 'createOrAppendSample, slugOf and listSamples in src/services/samples/store.ts',
-  S2: 'readVersion, sampleDir, getSample and the record write in src/services/samples/store.ts',
-  S3: 'listSamples, getSample and the atomic record write in src/services/samples/store.ts',
-  S4: 'appendMarks and readMarks in src/services/samples/store.ts',
-  S5: 'sampleUrl, writeFallbackPage, setSampleListenerAddress and sessionOfSample in src/services/samples/store.ts',
-  P: 'the id and path validation in samplesRoot, sampleDir, getSample and readVersion in src/services/samples/store.ts',
+  S1: 'createOrAppendSample, slugOf and listSamples in src/integrations/samples/store.ts',
+  S2: 'readVersion, sampleDir, getSample and the record write in src/integrations/samples/store.ts',
+  S3: 'listSamples, getSample and the atomic record write in src/integrations/samples/store.ts',
+  S4: 'appendMarks and readMarks in src/integrations/samples/store.ts',
+  S5: 'sampleUrl, writeFallbackPage, setSampleListenerAddress and sessionOfSample in src/integrations/samples/store.ts',
+  P: 'the id and path validation in samplesRoot, sampleDir, getSample and readVersion in src/integrations/samples/store.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++

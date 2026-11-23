@@ -20,14 +20,14 @@ if (!existsSync(DIST) || !nodeBin) {
   process.exit(1)
 }
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { loadConversationForResume, getResumePrompt } = await import('../../src/services/resume/conversationRecovery.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { normalizeMessagesForAPI } = await import('../../src/services/messages.ts')
-import type { Message } from '../../src/types/message.ts'
+const { loadConversationForResume, getResumePrompt } = await import('../../src/sessions/resume/conversationRecovery.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+const { normalizeMessagesForAPI } = await import('../../src/engine/messages/messages.ts')
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 const SENTENCE = 'The previous run ended before this call returned a result; whether the call started or finished is not known.'
 const PLACEHOLDER_HEAD = 'No result was recorded for this tool call'
@@ -36,8 +36,8 @@ const CONTINUATION = getResumePrompt()
 let failures = 0
 let checks = 0
 let sectionTitle = ''
-const resumeHint = 'change loadConversationForResume in src/services/resume/conversationRecovery.ts (or normalizeMessagesForAPI in src/services/messages.ts for the request shape) so a call with no result keeps the call plus one error result carrying the sentence'
-const bundleHint = 'the built bundle did not resume as the loader does: rebuild with bun run build.ts and rerun, then compare the wire shown with the loader checks of sections 1 to 6 (src/services/resume/conversationRecovery.ts)'
+const resumeHint = 'change loadConversationForResume in src/sessions/resume/conversationRecovery.ts (or normalizeMessagesForAPI in src/engine/messages/messages.ts for the request shape) so a call with no result keeps the call plus one error result carrying the sentence'
+const bundleHint = 'the built bundle did not resume as the loader does: rebuild with bun run build.ts and rerun, then compare the wire shown with the loader checks of sections 1 to 6 (src/sessions/resume/conversationRecovery.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++

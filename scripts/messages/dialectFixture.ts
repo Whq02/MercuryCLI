@@ -1,5 +1,5 @@
 
-import type { Message, UserMessage, AssistantMessage } from '../../src/types/message.ts'
+import type { Message, UserMessage, AssistantMessage } from '../../src/engine/message-shapes/message.ts'
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}` as never
 const ts = (n: number) => `2026-01-01T00:${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}.000Z`

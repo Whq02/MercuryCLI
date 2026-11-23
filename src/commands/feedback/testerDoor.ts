@@ -1,8 +1,8 @@
-import { conversationIdHere, getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
-import type { Message } from '../../types/message.js'
-import { buildAwayRecap } from '../../utils/cockpit/awaySummary.js'
-import { isDenialResultText } from '../../utils/messages/rejectionText.js'
-import { passedOver } from '../../utils/passedOver.js'
+import { conversationIdHere, getFocusedSessionConnector, hasFocusedSession } from '../../engine/connector/focusedConnector.js'
+import type { Message } from '../../engine/message-shapes/message.js'
+import { buildAwayRecap } from '../../screen/cockpit/awaySummary.js'
+import { isDenialResultText } from '../../engine/message-shapes/rejectionText.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
 
 const TESTER_DOOR_URL = 'https://mercury-cli.ai/report'
 export const TESTER_DOOR_LINE = `Something broke? ${TESTER_DOOR_URL}`

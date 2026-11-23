@@ -7,23 +7,23 @@ process.chdir(ROOT)
 
 let failures = 0
 let checks = 0
-let where = 'crewClockOf, crewActiveIn, statusLine and fitStatusLine in src/components/SwitchboardTagBar.tsx'
+let where = 'crewClockOf, crewActiveIn, statusLine and fitStatusLine in src/screen/chat/SwitchboardTagBar.tsx'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — to change: ${where}`}`)
 }
 const section = (t: string): void => {
-  if (t.startsWith('§3')) where = 'UNNAMED_SESSION_WORD and newSessionTitle in src/services/concourse/sessionNaming.ts'
+  if (t.startsWith('§3')) where = 'UNNAMED_SESSION_WORD and newSessionTitle in src/screen/concourse-model/sessionNaming.ts'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const bar = await import('../../src/components/SwitchboardTagBar.tsx')
-const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
-const { stringWidth } = await import('../../src/ink/stringWidth.ts')
-type SessionLiveV1 = import('../../src/services/engine-connector/seatLive.ts').SessionLiveV1
-type SeatStatusV1 = import('../../src/services/engine-connector/seatLive.ts').SeatStatusV1
-type WorkRowV1 = import('../../src/services/engine-connector/types.ts').WorkRowV1
+const bar = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
+const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.ts')
+type SessionLiveV1 = import('../../src/engine/connector/seatLive.ts').SessionLiveV1
+type SeatStatusV1 = import('../../src/engine/connector/seatLive.ts').SeatStatusV1
+type WorkRowV1 = import('../../src/engine/connector/types.ts').WorkRowV1
 
 const NOW = 1_800_000_000_000
 const M = 60_000
@@ -92,7 +92,7 @@ section('§2 the row\'s words per state, with and without a crew, at three width
 
 section('§3 the title row is gone: the pane opens on the berth card')
 {
-  const naming = await import('../../src/services/concourse/sessionNaming.ts')
+  const naming = await import('../../src/screen/concourse-model/sessionNaming.ts')
   check('the unnamed word has one owner, the naming owner', naming.UNNAMED_SESSION_WORD === 'new session' && naming.newSessionTitle('/tmp/proj').startsWith(`${naming.UNNAMED_SESSION_WORD} · `))
 }
 

@@ -1,17 +1,17 @@
-import { composeFooterHint, footerAdvertisesClose } from '../../src/components/mercury-ui/footerHint.js'
+import { composeFooterHint, footerAdvertisesClose } from '../../src/screen/widgets/footerHint.js'
 
 let fail = 0
 function eq(label: string, got: string, want: string): void {
   const ok = got === want
   if (!ok) fail++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}`)
-  if (!ok) console.log(`         got:  ${JSON.stringify(got)}\n         want: ${JSON.stringify(want)}\n         to fix: composeFooterHint in src/components/mercury-ui/footerHint.ts must append the close hint only when the footer does not already advertise a close, defer or clear action, and never when closeKeys is none`)
+  if (!ok) console.log(`         got:  ${JSON.stringify(got)}\n         want: ${JSON.stringify(want)}\n         to fix: composeFooterHint in src/screen/widgets/footerHint.ts must append the close hint only when the footer does not already advertise a close, defer or clear action, and never when closeKeys is none`)
 }
 function is(label: string, got: boolean, want: boolean): void {
   const ok = got === want
   if (!ok) fail++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}`)
-  if (!ok) console.log(`         got ${got}, want ${want}\n         to fix: footerAdvertisesClose in src/components/mercury-ui/footerHint.ts decides whether a footer segment already offers esc or a left arrow close, defer or clear`)
+  if (!ok) console.log(`         got ${got}, want ${want}\n         to fix: footerAdvertisesClose in src/screen/widgets/footerHint.ts decides whether a footer segment already offers esc or a left arrow close, defer or clear`)
 }
 
 console.log('── byte-identical for footers with NO close token ──')

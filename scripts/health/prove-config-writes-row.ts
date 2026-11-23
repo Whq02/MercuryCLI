@@ -13,10 +13,10 @@ const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
   if (!cond) failures++
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const globalConfig = await import('../../src/utils/config/globalConfig.js')
-const report = await import('../../src/services/health/healthReport.js')
+const globalConfig = await import('../../src/platform/config/globalConfig.js')
+const report = await import('../../src/platform/health/healthReport.js')
 const row = async (): Promise<{ status: string; evidence: string } | null> => {
   const cert = await report.runHealthReport({ depth: 'fast' })
   const r = cert.sections.flatMap(s => s.checks).find(c => c.id === 'config-writes')
@@ -26,12 +26,12 @@ const row = async (): Promise<{ status: string; evidence: string } | null> => {
 console.log('§1 a clean session reads ok')
 {
   const clean = await row()
-  check('the row exists (config-writes)', clean !== null, '', 'register the config-writes check (configWritesCheck in src/services/health/sections/crew/home.ts) in the health report sections')
+  check('the row exists (config-writes)', clean !== null, '', 'register the config-writes check (configWritesCheck in src/platform/health/sections/crew/home.ts) in the health report sections')
   check(
     'clean reads ok: serialized, 0 fallbacks',
     clean?.status === 'ok' && clean.evidence.includes('0 lockless fallbacks'),
     `${clean?.status}: ${clean?.evidence}`,
-    'change configWritesCheck in src/services/health/sections/crew/home.ts, or getConfigLocklessFallbackCount in src/utils/config/globalConfig.ts if the count is not 0 on a clean session',
+    'change configWritesCheck in src/platform/health/sections/crew/home.ts, or getConfigLocklessFallbackCount in src/platform/config/globalConfig.ts if the count is not 0 on a clean session',
   )
 }
 
@@ -46,7 +46,7 @@ console.log('\n§2 recorded fallbacks WARN, counted')
       degraded.evidence.includes('2 config write(s)') &&
       degraded.evidence.includes('race'),
     `${degraded?.status}: ${degraded?.evidence}`,
-    'change configWritesCheck in src/services/health/sections/crew/home.ts so noteConfigLocklessFallback calls in src/utils/config/globalConfig.ts show as a warn with the count and the race wording',
+    'change configWritesCheck in src/platform/health/sections/crew/home.ts so noteConfigLocklessFallback calls in src/platform/config/globalConfig.ts show as a warn with the count and the race wording',
   )
 }
 

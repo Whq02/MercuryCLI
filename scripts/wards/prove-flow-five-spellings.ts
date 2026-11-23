@@ -12,7 +12,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks += 1
   if (!ok) failures += 1
-  const flowHint = 'to fix, change the Flow ask reading in src/utils/permissions/flowLaw.ts (flowShellAsk, flowAskSentence), reached through decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts, or for a rule or Sovereign row the shell reading in src/tools/BashTool/bashPermissions.ts'
+  const flowHint = 'to fix, change the Flow ask reading in src/permissions/rules/flowLaw.ts (flowShellAsk, flowAskSentence), reached through decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts, or for a rule or Sovereign row the shell reading in src/tools/shell/bashPermissions.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${flowHint}${detail ? ` | ${detail.slice(0, 600)}` : ''}` : ''}`)
 }
 function section(title: string): void {
@@ -78,19 +78,19 @@ process.on('exit', () => {
 })
 
 const { z } = (await import(Bun.resolveSync('zod/v4', ROOT))) as typeof import('zod/v4')
-const { getEmptyToolPermissionContext } = await import(join(SRC, 'Tool.ts'))
-const { decideToolPermissionWithModes } = await import(join(SRC, 'utils/permissions/decision/wrapper.ts'))
-const { bashToolHasPermission } = await import(join(SRC, 'tools/BashTool/bashPermissions.ts'))
-const { enableConfigs } = await import(join(SRC, 'utils/config.ts'))
-const { daemonStatePath } = await import(join(SRC, 'daemon/controlSocket.ts'))
-const { FileReadTool } = await import(join(SRC, 'tools/FileReadTool/FileReadTool.ts'))
-const { FileWriteTool } = await import(join(SRC, 'tools/FileWriteTool/FileWriteTool.ts'))
-const { FileEditTool } = await import(join(SRC, 'tools/FileEditTool/FileEditTool.ts'))
-const { EvalTool } = await import(join(SRC, 'tools/EvalTool/EvalTool.ts'))
-const keychain = await import(join(SRC, 'utils/secureStorage/macOsKeychainHelpers.ts'))
-const { flagEnv } = await import(join(SRC, 'substrate/flagRegistry.ts'))
+const { getEmptyToolPermissionContext } = await import(join(SRC, 'tools/kit/tool.ts'))
+const { decideToolPermissionWithModes } = await import(join(SRC, 'permissions/rules/decision/wrapper.ts'))
+const { bashToolHasPermission } = await import(join(SRC, 'tools/shell/bashPermissions.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/settings/config.ts'))
+const { daemonStatePath } = await import(join(SRC, 'daemon/control/controlSocket.ts'))
+const { FileReadTool } = await import(join(SRC, 'tools/read/ReadTool.ts'))
+const { FileWriteTool } = await import(join(SRC, 'tools/write/WriteTool.ts'))
+const { FileEditTool } = await import(join(SRC, 'tools/edit/EditTool.ts'))
+const { EvalTool } = await import(join(SRC, 'tools/eval/EvalTool.ts'))
+const keychain = await import(join(SRC, 'platform/secure-storage/macOsKeychainHelpers.ts'))
+const { flagEnv } = await import(join(SRC, 'platform/substrate/flagRegistry.ts'))
 enableConfigs()
-const bootstrap = await import(join(SRC, 'bootstrap/state.ts'))
+const bootstrap = await import(join(SRC, 'boot/process-state/processState.ts'))
 bootstrap.setOriginalCwd(PROJECT)
 bootstrap.setCwdState(PROJECT)
 bootstrap.setProjectRoot(PROJECT)

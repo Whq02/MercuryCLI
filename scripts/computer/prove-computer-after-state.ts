@@ -2,10 +2,10 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, finish, scratchDir, section, sourceText } from './computerProofKit.ts'
 import { allowEverything, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
-import type { DesktopApplication, DesktopTreeElement } from '../../src/services/desktop/driver.ts'
+import type { DesktopApplication, DesktopTreeElement } from '../../src/integrations/desktop/driver.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
 const app: DesktopApplication = { identity: 'com.google.Chrome', name: 'Google Chrome', pid: 123, windowId: 'browser', title: null, bounds: { x: 0, y: 0, width: 400, height: 300 } }
 const scene = join(scratchDir('after-state'), 'scene.json')
 writeFileSync(scene, JSON.stringify({ frontmost: app, displays: [{ index: 0, id: 'proof', originX: 0, originY: 0, width: 400, height: 300, scale: 1, primary: true }], tree: [] }))
@@ -90,7 +90,7 @@ check('a new front application exposes its title but not its unapproved tree', s
 driver.frontmostApplication = frontmost
 
 section('optional after-state phrases')
-const { treeObservation } = await import('../../src/tools/ComputerTool/fastRoad.ts')
+const { treeObservation } = await import('../../src/tools/computer/fastRoad.ts')
 const observation = (identity: string, elements: DesktopTreeElement[]) => treeObservation({ app: { ...app, identity, name: identity, title: 'Document' }, tree: { elements, truncated: false, reason: null } })
 const sheet = observation('com.example.Editor', [row(0, 'AXWindow', 'Document'), row(1, 'AXSheet', 'Save as'), row(2, 'AXTextField', 'Name', { focused: true })])
 check('sheets use the dialog phrase', sheet === 'now: window "Document" · dialog "Save as" · focus AXTextField "Name"', sheet)

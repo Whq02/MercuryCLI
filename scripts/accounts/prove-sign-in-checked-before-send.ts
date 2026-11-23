@@ -71,22 +71,22 @@ const oauth = (over: Record<string, unknown>) => ({
 })
 writeFileSync(join(HOME, '.mercury.json'), JSON.stringify({ hasCompletedOnboarding: true, lastOnboardingVersion: '99.0.0', theme: 'dark' }) + '\n')
 
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
-const fresh = await import('../../src/services/accounts/signInFreshness.ts')
-const ledger = await import('../../src/utils/accounts/signInLedger.ts')
-const { credentialWallLineForModel } = await import('../../src/services/providers/credentialWall.ts')
-const { promptBehindAuthWall } = await import('../../src/utils/messages/authWallHold.ts')
-const { decideResend } = await import('../../src/hooks/useAuthWallHold.ts')
-const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
-const { loginsGlance } = await import('../../src/components/BootLoginsScreen.tsx')
-const { runHealthReport } = await import('../../src/services/health/healthReport.ts')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
+const fresh = await import('../../src/models/sign-in/accounts/signInFreshness.ts')
+const ledger = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
+const { credentialWallLineForModel } = await import('../../src/models/roads/credentialWall.ts')
+const { promptBehindAuthWall } = await import('../../src/engine/message-shapes/authWallHold.ts')
+const { decideResend } = await import('../../src/screen/chat/useAuthWallHold.ts')
+const { deriveFamilySlotGroups } = await import('../../src/models/roads/accountSlots.ts')
+const { loginsGlance } = await import('../../src/screen/boot-face/BootLoginsScreen.tsx')
+const { runHealthReport } = await import('../../src/platform/health/healthReport.ts')
 
 const reread = (): void => {
   auth.clearOAuthTokenCache()
   auth.invalidateOnDiskChange()
 }
 
-section('§1 a valid sign-in: nothing new, no network', 'checkAnthropicSignInFresh in src/services/accounts/signInFreshness.ts, loginsGlance in src/components/BootLoginsScreen.tsx, credentialWallLineForModel in src/services/providers/credentialWall.ts')
+section('§1 a valid sign-in: nothing new, no network', 'checkAnthropicSignInFresh in src/models/sign-in/accounts/signInFreshness.ts, loginsGlance in src/screen/boot-face/BootLoginsScreen.tsx, credentialWallLineForModel in src/models/roads/credentialWall.ts')
 writeCredentials(oauth({}))
 reread()
 {
@@ -97,7 +97,7 @@ reread()
   check('no wall stands for an Anthropic model', credentialWallLineForModel('claude-sonnet-4-5') === undefined)
 }
 
-section('§2 a lapsed token with a dead refresh grant (the field case): the open-time check finds it before any prompt', 'checkAnthropicSignInFresh in src/services/accounts/signInFreshness.ts (refresh, blanking the dead grant, ledger epoch), isAnthropicOAuthSignInExpired in src/utils/auth.ts, signInLedgerEpoch in src/utils/accounts/signInLedger.ts, loginsGlance in src/components/BootLoginsScreen.tsx, credentialWallLineForModel in src/services/providers/credentialWall.ts')
+section('§2 a lapsed token with a dead refresh grant (the field case): the open-time check finds it before any prompt', 'checkAnthropicSignInFresh in src/models/sign-in/accounts/signInFreshness.ts (refresh, blanking the dead grant, ledger epoch), isAnthropicOAuthSignInExpired in src/models/sign-in/credentials/auth.ts, signInLedgerEpoch in src/models/sign-in/account-ledger/signInLedger.ts, loginsGlance in src/screen/boot-face/BootLoginsScreen.tsx, credentialWallLineForModel in src/models/roads/credentialWall.ts')
 writeCredentials(oauth({ expiresAt: NOW - HOUR }))
 reread()
 auth.__resetKnownDeadRefreshTokensForTest()
@@ -116,7 +116,7 @@ auth.__resetKnownDeadRefreshTokensForTest()
   check('a second check is local: expired without another network call', again.state === 'expired' && again.probed === false && tokenCalls.length === 1, JSON.stringify(again))
 }
 
-section('§3 /health names the expired sign-in (PROPOSED ROW WORDS) and renews a lapsed-but-live one', 'the auth-anthropic row of authChecks in src/services/health/sections/auth.ts, run through runHealthReport in src/services/health/healthReport.ts, and checkAnthropicSignInFresh in src/services/accounts/signInFreshness.ts')
+section('§3 /health names the expired sign-in (PROPOSED ROW WORDS) and renews a lapsed-but-live one', 'the auth-anthropic row of authChecks in src/platform/health/sections/auth.ts, run through runHealthReport in src/platform/health/healthReport.ts, and checkAnthropicSignInFresh in src/models/sign-in/accounts/signInFreshness.ts')
 {
   const report = await runHealthReport({ depth: 'fast' })
   const row = report.sections.flatMap(s => s.checks).find(c => c.id === 'auth-anthropic')
@@ -134,7 +134,7 @@ section('§3 /health names the expired sign-in (PROPOSED ROW WORDS) and renews a
   grantVerdict = 'invalid_grant'
 }
 
-section('§4 the prompt behind a sign-in wall is held, and sent again once /logins lands a credential', 'promptBehindAuthWall in src/utils/messages/authWallHold.ts and decideResend in src/hooks/useAuthWallHold.ts')
+section('§4 the prompt behind a sign-in wall is held, and sent again once /logins lands a credential', 'promptBehindAuthWall in src/engine/message-shapes/authWallHold.ts and decideResend in src/screen/chat/useAuthWallHold.ts')
 const WALL_LINE = 'API Error: Anthropic sign-in expired — switch providers (--model) or reconnect (/logins anthropic, in an interactive session)'
 const user = (uuid: string, text: string, extra: Record<string, unknown> = {}) => ({ type: 'user', uuid, timestamp: new Date().toISOString(), message: { role: 'user', content: [{ type: 'text', text }] }, ...extra })
 const wall = (uuid: string) => ({ type: 'assistant', uuid, timestamp: new Date().toISOString(), isApiErrorMessage: true, error: 'authentication_failed', message: { id: 'err', role: 'assistant', type: 'message', content: [{ type: 'text', text: WALL_LINE }], usage: {}, model: 'fixture', stop_reason: null, stop_sequence: null } })
@@ -164,7 +164,7 @@ const BRIEF = 'اقرأ سندات الأرض في المجلد وابدأ با�
   check('nothing held, nothing sent', decideResend(null, { door: 'logins', epoch: 8, model: hold.model, walled: false, composerText: BRIEF }) === 'none')
 }
 
-section('§5 the wiring: the chat restores the held words to an empty composer and rides the /logins and /model doors; the boot runs the check once', 'the hold wiring in src/hooks/useAuthWallHold.ts and its chat mount, the scenario in scripts/ui/chatScenarios.ts, and the auth-openai row of authChecks in src/services/health/sections/auth.ts')
+section('§5 the wiring: the chat restores the held words to an empty composer and rides the /logins and /model doors; the boot runs the check once', 'the hold wiring in src/screen/chat/useAuthWallHold.ts and its chat mount, the scenario in scripts/ui/chatScenarios.ts, and the auth-openai row of authChecks in src/platform/health/sections/auth.ts')
 {
   const { openDraftPart } = await import('../ui/chatScenarios.ts')
   const composer = await openDraftPart('sign-in-wall-hold', { keepHome: true })
@@ -176,8 +176,8 @@ section('§5 the wiring: the chat restores the held words to an empty composer a
   check('Chat mounts the hold over the focused transcript with the composer and the effective model', restored === expected && holding?.text === BRIEF && typeof holding.model === 'string' && holding.model !== '', `${JSON.stringify(restored.slice(0, 60))} · ${JSON.stringify(holding)}`)
   writeFileSync(join(HOME, '.openai-auth.json'), JSON.stringify({ version: 1, tokens: { accessToken: 'fixture-openai-access-0001', refreshToken: '' } }) + '\n', { mode: 0o600 })
   reread()
-  const { credentialWallLine } = await import('../../src/services/providers/credentialWall.ts')
-  const { authChecks } = await import('../../src/services/health/sections/auth.ts')
+  const { credentialWallLine } = await import('../../src/models/roads/credentialWall.ts')
+  const { authChecks } = await import('../../src/platform/health/sections/auth.ts')
   const openaiRow = await (await authChecks()).find(row => row.id === 'auth-openai')?.run()
   check('/health probes the OpenAI subscription the same way and names an expired one (PROPOSED ROW WORDS)', openaiRow?.status === 'warn' && openaiRow.evidence === 'ChatGPT subscription — sign-in expired' && openaiRow.fix === credentialWallLine('openai', 'sign-in'), JSON.stringify(openaiRow))
 }

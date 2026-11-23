@@ -4,12 +4,12 @@ import { createHash } from 'node:crypto'
 import { cpSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { bundledRoster } from '../../src/extensions/bundled/index.js'
-import { setSwitch } from '../../src/extensions/install.js'
+import { bundledRoster } from '../../src/integrations/extensions/bundled/index.js'
+import { setSwitch } from '../../src/integrations/extensions/install.js'
 import { proofHome, removeProofHome } from './fixture.ts'
 
 try {
-  const source = resolve(import.meta.dir, '../../src/extensions/bundled/mercury-media/server')
+  const source = resolve(import.meta.dir, '../../src/integrations/extensions/bundled/mercury-media/server')
   const root = join(proofHome, 'isolated-engine')
   cpSync(source, root, { recursive: true })
   const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8')) as { version: string; runtimeTag: string; files: Record<string, string> }
@@ -33,16 +33,16 @@ try {
   assert.equal(config.imageModel, 'fixture-image')
   assert.equal(config.videoModel, 'fixture-video')
   assert.equal(config.nice, 6)
-  const { updateSettingsForSource, getSettingsForSource } = await import('../../src/utils/settings/settings.ts')
-  const { saveMediaSettings } = await import('../../src/services/media/settings.ts')
+  const { updateSettingsForSource, getSettingsForSource } = await import('../../src/platform/settings/settings.ts')
+  const { saveMediaSettings } = await import('../../src/integrations/media/settings.ts')
   assert.equal(updateSettingsForSource('userSettings', { media: { root: storage, serverPath: join(root, 'server.js') } }).error, null)
   await saveMediaSettings({ imageModel: 'flux2-klein-4b', videoModel: 'wan22-ti2v-5b' })
   assert.equal((await readMediaConfig(storage)).imageModel, 'flux2-klein-4b')
   assert.equal((await readMediaConfig(storage)).videoModel, 'wan22-ti2v-5b')
   assert.equal(getSettingsForSource('userSettings')?.media?.imageModel, undefined)
   assert.equal(getSettingsForSource('userSettings')?.media?.videoModel, undefined)
-  const { readMediaCatalogue } = await import('../../src/services/media/catalogue.ts')
-  const { mediaRows } = await import('../../src/services/media/setup.ts')
+  const { readMediaCatalogue } = await import('../../src/integrations/media/catalogue.ts')
+  const { mediaRows } = await import('../../src/integrations/media/setup.ts')
   const catalogue = await readMediaCatalogue()
   const docs = readFileSync(resolve(import.meta.dir, '../../docs/MEDIA.md'), 'utf8')
   for (const row of mediaRows(catalogue, storage, { totalMemoryBytes: 1024 ** 4, usableMemoryBytes: 1024 ** 4 }, 1024 ** 4)) {

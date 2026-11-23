@@ -87,7 +87,7 @@ function runScenario(body: string): Record<string, unknown> {
       }
     `)
     const threw = r.threw as { code: string | null; message: string } | null
-    check('remove-readonly-rejects', threw !== null && (threw.code === 'EACCES' || threw.code === 'EPERM') && r.stillPresent === true && r.absentThrew === null, `${JSON.stringify(r)} — removeTranscriptMessage in src/utils/sessionStorage/writer.ts must reject with EACCES/EPERM on a read-only transcript, leave the line in place, and not throw when the file is absent`)
+    check('remove-readonly-rejects', threw !== null && (threw.code === 'EACCES' || threw.code === 'EPERM') && r.stillPresent === true && r.absentThrew === null, `${JSON.stringify(r)} — removeTranscriptMessage in src/sessions/transcripts/writer.ts must reject with EACCES/EPERM on a read-only transcript, leave the line in place, and not throw when the file is absent`)
   }
 }
 
@@ -129,7 +129,7 @@ function runScenario(body: string): Record<string, unknown> {
       typeof health.sentence === 'string' &&
       health.sentence.startsWith(`Session transcript at ${existing} could not be read (`) &&
       health.sentence.endsWith('), so new messages may be saved out of order — restore read permission on the file.')
-    check('vnext-unreadable-not-cached', r.threw === null && sentenceOk && r.notices === 1 && Number(r.afterOrdinal) > 5 && r.afterHasHeader === false, `${JSON.stringify(r)} — encodeTranscriptLine in src/utils/sessionStorage/vnext.ts must not cache an unreadable transcript's format, must report store health once with the 'could not be read' sentence naming the file, and must continue the ordinal once the file is readable`)
+    check('vnext-unreadable-not-cached', r.threw === null && sentenceOk && r.notices === 1 && Number(r.afterOrdinal) > 5 && r.afterHasHeader === false, `${JSON.stringify(r)} — encodeTranscriptLine in src/sessions/transcripts/vnext.ts must not cache an unreadable transcript's format, must report store health once with the 'could not be read' sentence naming the file, and must continue the ordinal once the file is readable`)
   }
 }
 {
@@ -206,7 +206,7 @@ function runScenario(body: string): Record<string, unknown> {
       typeof health.sentence === 'string' &&
       health.sentence.startsWith(`Agent transcript at ${agentFile} could not be read (`) &&
       health.sentence.endsWith('), so entries may be duplicated — restore read permission on the file.')
-    check('writer-agent-messages-unreadable-not-cached', r.threw === null && sentenceOk && r.notices === 1 && r.occurrences === 1, `${JSON.stringify(r)} — recordSidechainTranscript in src/utils/sessionStorage/writer.ts must report the 'Agent transcript ... could not be read' store-health sentence once for an unreadable agent file and must not cache it, so an entry already on disk is not duplicated`)
+    check('writer-agent-messages-unreadable-not-cached', r.threw === null && sentenceOk && r.notices === 1 && r.occurrences === 1, `${JSON.stringify(r)} — recordSidechainTranscript in src/sessions/transcripts/writer.ts must report the 'Agent transcript ... could not be read' store-health sentence once for an unreadable agent file and must not cache it, so an entry already on disk is not duplicated`)
   }
 }
 {
@@ -258,8 +258,8 @@ function runScenario(body: string): Record<string, unknown> {
     const dropIn = r.unreadableDropIn as { display?: { theme?: string } }
     const file = r.unreadableFile as { display?: { theme?: string } }
     const control = r.absentControl as { display?: { theme?: string } }
-    check('mdm-unreadable-dropin-goes-on', dropIn?.display?.theme === 'dark' && control?.display?.theme === 'dark', `${JSON.stringify(r)} — ensureMdmSettingsLoaded in src/utils/settings/mdm/settings.ts must skip an unreadable managed-settings.d directory and still load the HKCU settings`)
-    check('mdm-unreadable-file-goes-on', file?.display?.theme === 'dark' && control?.display?.theme === 'dark', `${JSON.stringify(r)} — ensureMdmSettingsLoaded in src/utils/settings/mdm/settings.ts must skip an unreadable managed-settings.json and still load the HKCU settings`)
+    check('mdm-unreadable-dropin-goes-on', dropIn?.display?.theme === 'dark' && control?.display?.theme === 'dark', `${JSON.stringify(r)} — ensureMdmSettingsLoaded in src/platform/settings/mdm/settings.ts must skip an unreadable managed-settings.d directory and still load the HKCU settings`)
+    check('mdm-unreadable-file-goes-on', file?.display?.theme === 'dark' && control?.display?.theme === 'dark', `${JSON.stringify(r)} — ensureMdmSettingsLoaded in src/platform/settings/mdm/settings.ts must skip an unreadable managed-settings.json and still load the HKCU settings`)
   }
 }
 {
@@ -295,8 +295,8 @@ function runScenario(body: string): Record<string, unknown> {
     const presence = r.presence as { hasDropIns: boolean }
     const absentLoaded = r.absentLoaded as { errors: unknown[] }
     const absentPresence = r.absentPresence as { hasDropIns: boolean }
-    check('settings-unreadable-dropin-reported', loaded.errors.some(e => e.message?.includes('settings file unreadable')) && absentLoaded.errors.length === 0, `${JSON.stringify(r)} — loadManagedFileSettings in src/utils/settings/settings.ts must report a 'settings file unreadable' error for an unreadable drop-in directory and no error when it is absent`)
-    check('settings-unreadable-dropin-presence-reads-absent', presence.hasDropIns === false && absentPresence.hasDropIns === false, `${JSON.stringify(r)} — getManagedFileSettingsPresence in src/utils/settings/settings.ts must report hasDropIns false for an unreadable drop-in directory`)
+    check('settings-unreadable-dropin-reported', loaded.errors.some(e => e.message?.includes('settings file unreadable')) && absentLoaded.errors.length === 0, `${JSON.stringify(r)} — loadManagedFileSettings in src/platform/settings/settings.ts must report a 'settings file unreadable' error for an unreadable drop-in directory and no error when it is absent`)
+    check('settings-unreadable-dropin-presence-reads-absent', presence.hasDropIns === false && absentPresence.hasDropIns === false, `${JSON.stringify(r)} — getManagedFileSettingsPresence in src/platform/settings/settings.ts must report hasDropIns false for an unreadable drop-in directory`)
   }
 }
 {
@@ -399,12 +399,12 @@ function runScenario(body: string): Record<string, unknown> {
     const unreadableHwmThrew = r.unreadableHwmThrew as { code: string | null } | null
     const deleteDeniedThrew = r.deleteDeniedThrew as { code: string | null } | null
     const claimThrew = r.claimThrew as { name: string | null } | null
-    check('tasks-ensure-dir-fails-on-enotdir', ensureDirThrew !== null && (ensureDirThrew.code === 'EEXIST' || ensureDirThrew.code === 'ENOTDIR'), `${JSON.stringify(r.ensureDirThrew)} — ensureTasksDir in src/utils/tasks.ts must throw EEXIST/ENOTDIR when the tasks root is a file`)
-    check('tasks-epoch-unreadable-and-corrupt-throw', r.absentEpoch === 0 && unreadableEpochThrew !== null && (unreadableEpochThrew.code === 'EACCES' || unreadableEpochThrew.code === 'EPERM') && corruptEpochThrew !== null, `${JSON.stringify({ absent: r.absentEpoch, unreadable: r.unreadableEpochThrew, corrupt: r.corruptEpochThrew })} — readTaskEpoch in src/utils/tasks.ts must return 0 for an absent .epoch and throw for an unreadable or corrupt one`)
-    check('tasks-list-unreadable-dir-throws', Array.isArray(r.absentList) && r.absentList.length === 0 && unreadableListThrew !== null && (unreadableListThrew.code === 'EACCES' || unreadableListThrew.code === 'EPERM'), `${JSON.stringify({ absent: r.absentList, unreadable: r.unreadableListThrew })} — listTasks in src/utils/tasks.ts must return [] for a missing list and throw EACCES/EPERM for an unreadable list directory`)
-    check('tasks-highwatermark-unreadable-refuses-create', unreadableHwmThrew !== null && (unreadableHwmThrew.code === 'EACCES' || unreadableHwmThrew.code === 'EPERM'), `${JSON.stringify(r.unreadableHwmThrew)} — createTask in src/utils/tasks.ts must throw EACCES/EPERM when .highwatermark is unreadable instead of reusing an id`)
-    check('tasks-delete-failure-throws', r.deleteAbsent === false && deleteDeniedThrew !== null && (deleteDeniedThrew.code === 'EACCES' || deleteDeniedThrew.code === 'EPERM'), `${JSON.stringify({ absent: r.deleteAbsent, denied: r.deleteDeniedThrew })} — deleteTask in src/utils/tasks.ts must return false for an absent task and throw EACCES/EPERM when the delete is denied`)
-    check('tasks-claim-failure-throws', claimThrew !== null, `${JSON.stringify(r.claimThrew)} — claimTask in src/utils/tasks.ts must throw when the list's .epoch is corrupt`)
+    check('tasks-ensure-dir-fails-on-enotdir', ensureDirThrew !== null && (ensureDirThrew.code === 'EEXIST' || ensureDirThrew.code === 'ENOTDIR'), `${JSON.stringify(r.ensureDirThrew)} — ensureTasksDir in src/engine/task-framework/tasks.ts must throw EEXIST/ENOTDIR when the tasks root is a file`)
+    check('tasks-epoch-unreadable-and-corrupt-throw', r.absentEpoch === 0 && unreadableEpochThrew !== null && (unreadableEpochThrew.code === 'EACCES' || unreadableEpochThrew.code === 'EPERM') && corruptEpochThrew !== null, `${JSON.stringify({ absent: r.absentEpoch, unreadable: r.unreadableEpochThrew, corrupt: r.corruptEpochThrew })} — readTaskEpoch in src/engine/task-framework/tasks.ts must return 0 for an absent .epoch and throw for an unreadable or corrupt one`)
+    check('tasks-list-unreadable-dir-throws', Array.isArray(r.absentList) && r.absentList.length === 0 && unreadableListThrew !== null && (unreadableListThrew.code === 'EACCES' || unreadableListThrew.code === 'EPERM'), `${JSON.stringify({ absent: r.absentList, unreadable: r.unreadableListThrew })} — listTasks in src/engine/task-framework/tasks.ts must return [] for a missing list and throw EACCES/EPERM for an unreadable list directory`)
+    check('tasks-highwatermark-unreadable-refuses-create', unreadableHwmThrew !== null && (unreadableHwmThrew.code === 'EACCES' || unreadableHwmThrew.code === 'EPERM'), `${JSON.stringify(r.unreadableHwmThrew)} — createTask in src/engine/task-framework/tasks.ts must throw EACCES/EPERM when .highwatermark is unreadable instead of reusing an id`)
+    check('tasks-delete-failure-throws', r.deleteAbsent === false && deleteDeniedThrew !== null && (deleteDeniedThrew.code === 'EACCES' || deleteDeniedThrew.code === 'EPERM'), `${JSON.stringify({ absent: r.deleteAbsent, denied: r.deleteDeniedThrew })} — deleteTask in src/engine/task-framework/tasks.ts must return false for an absent task and throw EACCES/EPERM when the delete is denied`)
+    check('tasks-claim-failure-throws', claimThrew !== null, `${JSON.stringify(r.claimThrew)} — claimTask in src/engine/task-framework/tasks.ts must throw when the list's .epoch is corrupt`)
   }
 }
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)

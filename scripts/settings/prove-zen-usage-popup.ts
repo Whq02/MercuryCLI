@@ -14,24 +14,24 @@ import { startZenFixture } from '../providers/lib/zen-fixture.ts'
 process.env.MERCURY_RECESS = '0'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const originalNow = Date.now
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[name]
 const KEY = 'sk-proof-key-zen-fixture-popup-not-a-real-key-000000000000000000000000000'
 const fixture = startZenFixture({ key: KEY })
 process.env.MERCURY_ZEN_API_BASE = fixture.base
 process.env.MERCURY_ZEN_GO_API_BASE = fixture.goBase
 process.env.OPENCODE_API_KEY = fixture.goKey
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const owner = await import('../../src/services/providers/providerUsage.ts')
-mock.module('../../src/services/providers/providerUsage.ts', () => ({ ...owner, providerFamilyPresences: () => [{ id: 'zen', available: true, credentialed: true, credentialLabel: 'OPENCODE_API_KEY (env)' }, { id: 'deepseek', available: false, credentialed: false }, { id: 'openai-compat', available: false, credentialed: false }] }))
-const keybindings = await import('../../src/keybindings/useKeybinding.ts')
-mock.module('../../src/keybindings/useKeybinding.ts', () => ({ ...keybindings, useKeybinding: () => undefined }))
-const { Usage } = await import('../../src/components/Settings/Usage.tsx')
-const { __resetZenUsageForTest } = await import('../../src/services/providers/zen/zenUsageState.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const owner = await import('../../src/models/roads/providerUsage.ts')
+mock.module('../../src/models/roads/providerUsage.ts', () => ({ ...owner, providerFamilyPresences: () => [{ id: 'zen', available: true, credentialed: true, credentialLabel: 'OPENCODE_API_KEY (env)' }, { id: 'deepseek', available: false, credentialed: false }, { id: 'openai-compat', available: false, credentialed: false }] }))
+const keybindings = await import('../../src/screen/keys/useKeybinding.ts')
+mock.module('../../src/screen/keys/useKeybinding.ts', () => ({ ...keybindings, useKeybinding: () => undefined }))
+const { Usage } = await import('../../src/screen/settings/Usage.tsx')
+const { __resetZenUsageForTest } = await import('../../src/models/roads/zen/zenUsageState.ts')
 const framesArg = process.argv.indexOf('--frames')
 const frames = framesArg >= 0 ? process.argv[framesArg + 1] : undefined
 let checks = 0
-const ZEN_POPUP_FAIL_HINT = ' — the Zen section painted by the Usage board in src/components/Settings/Usage.tsx does not show what this label names; fix what it reads from refreshProviderUsage in src/services/providers/providerUsage.ts and zenUsageState.ts under src/services/providers/zen, or rerun with --frames <dir> to write the painted frames and read them'
+const ZEN_POPUP_FAIL_HINT = ' — the Zen section painted by the Usage board in src/screen/settings/Usage.tsx does not show what this label names; fix what it reads from refreshProviderUsage in src/models/roads/providerUsage.ts and zenUsageState.ts under src/models/roads/zen, or rerun with --frames <dir> to write the painted frames and read them'
 const check = (label: string, ok: unknown): void => { assert.ok(ok, `${label}${ZEN_POPUP_FAIL_HINT}`); checks++; console.log(`[PASS] ${label}`) }
 async function capture(name: string, width: number): Promise<string> {
   const board = await mountOffscreen(React.createElement(Usage, { width, rowBudget: 44 }), width, 48)

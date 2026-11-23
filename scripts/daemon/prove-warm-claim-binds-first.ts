@@ -5,8 +5,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { mock } from 'bun:test'
-import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
-import type { InputRow } from '../../src/rows/vocabulary.ts'
+import type { RunnerChildSpec } from '../../src/daemon/runner-link/headlessRun.ts'
+import type { InputRow } from '../../src/engine/rows/vocabulary.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -33,7 +33,7 @@ for (const name of ['MERCURY_HOME', 'MERCURY_MODEL', 'MERCURY_SESSION_HOME', 'ME
 const HOOK_SECONDS = 12
 const REPLY = 'THE WORD AFTER THE LOAD.'
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — prove-warm-claim-binds-first exceeded 240s — a warm runner or the claim never settled; read the last section header above and claimWarmRunner in src/daemon/warmRunner.ts')
+  console.log('\nTIMEOUT — prove-warm-claim-binds-first exceeded 240s — a warm runner or the claim never settled; read the last section header above and claimWarmRunner in src/daemon/runner-link/warmRunner.ts')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()
@@ -49,10 +49,10 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 function section(t: string): void {
   sectionHint = t.startsWith('§3')
-    ? 'change: the transcript check before a resume claim binds, src/cli/headless/claimSession.ts'
+    ? 'change: the transcript check before a resume claim binds, src/daemon/runner/claimSession.ts'
     : t.startsWith('§2')
-      ? 'change: claimWarmRunner in src/daemon/warmRunner.ts and the refusal in src/cli/headless/claimSession.ts (a missing transcript must be refused at once)'
-      : 'change: claimWarmRunner in src/daemon/warmRunner.ts must answer the claim before the session loads; the admit road is src/daemon/concourseWorkers/admit.ts and reactivate.ts'
+      ? 'change: claimWarmRunner in src/daemon/runner-link/warmRunner.ts and the refusal in src/daemon/runner/claimSession.ts (a missing transcript must be refused at once)'
+      : 'change: claimWarmRunner in src/daemon/runner-link/warmRunner.ts must answer the claim before the session loads; the admit road is src/daemon/concourse-workers/admit.ts and reactivate.ts'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)
@@ -84,10 +84,10 @@ process.env.ANTHROPIC_BASE_URL = api.url
 const { sourceLauncher } = await import('../lib/seatLauncher.ts')
 const launcher = sourceLauncher(scratch)
 
-const real = await import('../../src/daemon/headlessRun.ts')
+const real = await import('../../src/daemon/runner-link/headlessRun.ts')
 type Spawned = { short: string; respawn: boolean; pid: number | undefined }
 const spawns: Spawned[] = []
-mock.module('../../src/daemon/headlessRun.ts', () => ({
+mock.module('../../src/daemon/runner-link/headlessRun.ts', () => ({
   ...real,
   spawnRunnerChild: (spec: RunnerChildSpec, opts?: { respawn?: boolean }) => {
     const invocation = real.buildRunnerInvocation(spec, opts)
@@ -101,14 +101,14 @@ mock.module('../../src/daemon/headlessRun.ts', () => ({
   },
 }))
 
-const { TaskRoster } = await import('../../src/daemon/roster.ts')
-const sup = await import('../../src/daemon/concourseWorkers.ts')
-const warm = await import('../../src/daemon/warmRunner.ts')
-const seat = await import('../../src/daemon/sessionSeat.ts')
-const { runnerStateFactOf } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.ts')
+const { TaskRoster } = await import('../../src/daemon/roster/roster.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const warm = await import('../../src/daemon/runner-link/warmRunner.ts')
+const seat = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { runnerStateFactOf } = await import('../../src/engine/connector/seatProjections.ts')
+const { validateWorkerModelChoice } = await import('../../src/screen/concourse-model/workerModels.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
 
@@ -255,7 +255,7 @@ section('§2 a resume claim for a session with no transcript is still refused at
   const short = warmed.short ?? ''
   check('the pool warms a runner for the bare workspace', warmed.state === 'warmed' && short !== '', j(warmed))
   check('it answers initialize', await until(() => rosterEntry(short)?.ready === true, 90_000), j(rosterEntry(short)))
-  const { deriveSessionKitForWorkspace } = await import('../../src/daemon/sessionKit.ts')
+  const { deriveSessionKitForWorkspace } = await import('../../src/daemon/session-seat/sessionKit.ts')
   const wsId = sup.canonicalWorkspaceId(wsBare)
   const refusedAt = Date.now()
   const outcome = await warm.claimWarmRunner(

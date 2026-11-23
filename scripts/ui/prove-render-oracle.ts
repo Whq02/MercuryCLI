@@ -47,7 +47,7 @@ t('healthy capture accepted', good.ok, good.reason, 'Fix evaluateCapture in scri
 
 const tmp = mkdtempSync(join(tmpdir(), 'mercury-oracle-'))
 const res = spawnSync(process.execPath, ['-e',
-  `const { scenario, RUNTIME_CWD } = await import('${join(import.meta.dir, 'renderScenarios.ts')}'); const { getProjectDir } = await import('${join(import.meta.dir, '../../src/utils/sessionStoragePortable.ts')}'); const { join } = await import('node:path'); const cfg = scenario('resume-2turn', 80, 44); console.log(join(getProjectDir(RUNTIME_CWD), cfg.argv[cfg.argv.indexOf('--resume') + 1] + '.jsonl'))`,
+  `const { scenario, RUNTIME_CWD } = await import('${join(import.meta.dir, 'renderScenarios.ts')}'); const { getProjectDir } = await import('${join(import.meta.dir, '../../src/sessions/transcripts/sessionStoragePortable.ts')}'); const { join } = await import('node:path'); const cfg = scenario('resume-2turn', 80, 44); console.log(join(getProjectDir(RUNTIME_CWD), cfg.argv[cfg.argv.indexOf('--resume') + 1] + '.jsonl'))`,
 ], { encoding: 'utf-8', timeout: 20000, env: { ...process.env, MERCURY_CONFIG_DIR: tmp, MERCURY_DAEMON_DIR: join(tmp, 'daemon') } })
 const staged = (res.stdout ?? '').trim().split('\n').pop() ?? ''
 t('scenario() stages in the product-resolved store under MERCURY_CONFIG_DIR/projects',

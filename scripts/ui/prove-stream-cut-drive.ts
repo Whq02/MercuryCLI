@@ -39,13 +39,13 @@ delete process.env.NODE_ENV
 for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'HF_TOKEN', 'MERCURY_MODEL']) {
   delete process.env[k]
 }
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    hint: the calm line is painted in src/components/messages/SystemTextMessage.tsx, the continuation nudge text is in src/services/api/errors.ts, the forensics debug line is built in src/services/providers/openai/streamCutForensics.ts, and the reconstructed-continuation note in src/services/providers/openai/openaiCallModel/bridgeMessages.ts; rerun with --frames <dir> to keep the captured screens')
+  if (!cond) console.log('    hint: the calm line is painted in src/screen/messages/SystemTextMessage.tsx, the continuation nudge text is in src/engine/requests/apiErrorRows.ts, the forensics debug line is built in src/models/roads/openai/streamCutForensics.ts, and the reconstructed-continuation note in src/models/roads/openai/call-model/bridgeMessages.ts; rerun with --frames <dir> to keep the captured screens')
 }
 if (FRAMES !== undefined) mkdirSync(FRAMES, { recursive: true })
 

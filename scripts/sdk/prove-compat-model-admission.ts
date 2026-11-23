@@ -79,7 +79,7 @@ try {
     }
   })
   await check('Python model admission parity', () => pythonProof('python-compat-models.py', c))
-  assert(c.requests.length > 0 && c.requests.every(request => request.fault === undefined && request.auth === `Bearer ${c.key}`), `compat fixture received ${c.requests.length} requests with faults or bad auth in src/services/providers/openaicompat/`)
+  assert(c.requests.length > 0 && c.requests.every(request => request.fault === undefined && request.auth === `Bearer ${c.key}`), `compat fixture received ${c.requests.length} requests with faults or bad auth in src/models/roads/openaicompat/`)
 } finally { await c.close(); clearTimeout(guard) }
 assert.deepEqual(failures, [])
 console.log('PASS compat and Anthropic model admission through both real SDKs')

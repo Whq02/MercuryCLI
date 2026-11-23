@@ -15,9 +15,9 @@ const sizes = (arg('--sizes') ?? '80x24,120x40,178x51').split(',').map(size => s
 const driver = requireCaptureDriver('resume-first-status')
 const savedModel = 'claude-opus-4-8'
 const savedName = 'Opus 4.8'
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.js')
-const { sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.js')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.js')
+const { sessionFactsPath } = await import('../../src/engine/connector/seatProjections.js')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
 const run = (argv: string[], cwd: string, env: NodeJS.ProcessEnv, timeout: number): Promise<{ code: number; stderr: string }> => new Promise(resolve => {
   execFile(argv[0]!, argv.slice(1), { cwd, env, timeout, maxBuffer: 4 * 1024 * 1024 }, (error, _stdout, stderr) => resolve({ code: error ? Number(error.code) || 1 : 0, stderr }))
 })

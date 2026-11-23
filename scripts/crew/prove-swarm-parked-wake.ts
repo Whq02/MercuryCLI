@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { boardNamesSeat, boardWaitWords, boardWakeEligible, matchesBoardWait, parseBoardWait, type BoardWait } from '../../src/services/crewBoard/waits.ts'
-import type { BoardEvent, BoardSeat } from '../../src/services/crewBoard/contracts.ts'
+import { boardNamesSeat, boardWaitWords, boardWakeEligible, matchesBoardWait, parseBoardWait, type BoardWait } from '../../src/crew/board/waits.ts'
+import type { BoardEvent, BoardSeat } from '../../src/crew/board/contracts.ts'
 
 let checks = 0
 const check = (label: string, value: unknown): void => { assert(value, label); checks++; console.log(`PASS ${label}`) }
@@ -14,7 +14,7 @@ const seats = [reader, writer, other]
 const declaration = (text: string) => parseBoardWait({ kind: 'ask', text }, reader, seats)
 const arm = (text: string): BoardWait => {
   const predicate = declaration(text)
-  assert(predicate, `parseBoardWait returned null for valid declaration in src/services/crewBoard/waits.ts: ${text}`)
+  assert(predicate, `parseBoardWait returned null for valid declaration in src/crew/board/waits.ts: ${text}`)
   return { eventId: 'declared', seq: 10, version: 1, predicate, standing: false }
 }
 const event = (extra: Partial<BoardEvent> & { addresses?: string[]; authorRole?: 'peer' | 'owner' | 'system'; channel?: { kind: string }; recipients?: BoardSeat[] } = {}) => ({
@@ -46,8 +46,8 @@ check('a stable named recipient wakes without a declaration; a team expansion is
 check('self, main, lifecycle, mirrors and broadcasts cannot wake a peer; a name beside @all still does', !boardWakeEligible(event(), writer.agent) && !boardWakeEligible(event(), 'main') && !boardWakeEligible(event({ authorRole: 'system' }), reader.agent) && !boardWakeEligible(event({ kind: 'notice' }), reader.agent) && !boardWakeEligible(event({ kind: 'message' }), reader.agent) && !boardNamesSeat(event({ addresses: ['all'], recipients: [reader] }), reader) && boardNamesSeat(event({ addresses: ['all', 'Reader'], recipients: [reader] }), reader) && !matchesBoardWait(event({ addresses: ['all'] }), byKind, reader.agent))
 check('direct owner posts can wake, general cannot, and body mentions never route', boardNamesSeat(event({ authorRole: 'owner', mentions: ['reader', 'main'], channel: { kind: 'whisper', target: 'Reader' }, text: '@all is only body text' }), reader) && !boardNamesSeat(event({ authorRole: 'owner', mentions: ['reader', 'main'], channel: { kind: 'general' } }), reader))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { boardResumeRefusal } = await import('../../src/tools/AgentTool/resumeAgent.ts')
-const { operatorPauseGate } = await import('../../src/run-core/pauseGate.ts')
+const { boardResumeRefusal } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
+const { operatorPauseGate } = await import('../../src/engine/loop/pauseGate.ts')
 const task = (status: string, extra: Record<string, unknown> = {}) => ({ type: 'local_agent', id: 'reader', agentId: 'reader', status, ...extra })
 check('a completed local task can resume but a live owner cannot', boardResumeRefusal('reader', { reader: task('completed') }) === null && boardResumeRefusal('reader', { reader: task('running') }) !== null)
 for (const held of [task('pending'), task('killed'), task('failed', { stopReason: 'crew-stop' }), task('failed', { paused: { why: 'provider busy' } })]) assert.notEqual(boardResumeRefusal('reader', { reader: held }), null)
@@ -57,7 +57,7 @@ try {
   check('a board event never lifts the operator pause', boardResumeRefusal('reader', { reader: task('completed') }) !== null && operatorPauseGate.holds('reader'))
 } finally { operatorPauseGate.resume() }
 const { Database } = await import('bun:sqlite')
-const { createWakeState } = await import('../../src/services/crewBoard/wakeState.ts')
+const { createWakeState } = await import('../../src/crew/board/wakeState.ts')
 const db = new Database(':memory:')
 db.exec('CREATE TABLE seen_events (agent TEXT NOT NULL, event TEXT NOT NULL, PRIMARY KEY(agent, event))')
 const wakes = createWakeState(db, false)
@@ -79,7 +79,7 @@ try {
   check('an unread matching post carries across parking', wakes.pending()[0]?.eventId === unread.eventId)
   const candidate = wakes.pending()[0]!
   const claimed = transaction(() => wakes.claim(candidate))!
-  assert(claimed, 'wakeState.claim returned null for pending candidate in src/services/crewBoard/wakeState.ts')
+  assert(claimed, 'wakeState.claim returned null for pending candidate in src/crew/board/wakeState.ts')
   check('one atomic claim reserves the event without displaying a running seat', wakes.state(reader.agent) === 'parked' && transaction(() => wakes.claim(candidate)) === null && wakes.pending().length === 0)
   wakes.hold(claimed, 'admission refused', { kind: 'worktree-missing', path: '/fixture/worktree' })
   check('a failed admission stays unread and held without spin retry', wakes.pending().length === 0 && wakes.wait(reader.agent) !== undefined && wakes.problem(reader.agent)?.path === '/fixture/worktree' && db.query('SELECT state FROM wake_claims WHERE agent = ?').get(reader.agent)?.state === 'held')
@@ -148,16 +148,16 @@ try {
   check('reopening preserves parked state, the replacement wait and the held claim', saved.state(reader.agent) === 'parked' && saved.wait(reader.agent)?.predicate.kind === 'about' && saved.pending().length === 0)
 } finally { reopened.close(); for (const suffix of ['', '-wal', '-shm']) rmSync(statePath + suffix, { force: true }) }
 {
-  const { open } = await import('../../src/services/crewBoard/store.ts')
+  const { open } = await import('../../src/crew/board/store.ts')
   const ownerBoard = open(join(home, 'owner-wake.sqlite'), 'owner-wake')
   const principal = (agent: string) => ({ author: { sessionId: 'owner-wake', agentId: agent, executionId: 'run' }, name: agent })
   const lead = principal('main'), a = principal('A'), b = principal('B')
   try {
     for (const seat of [lead, a, b]) ownerBoard.enroll(seat)
-    assert(ownerBoard.post(a, { clientOpId: 'wait-ask', kind: 'ask', text: '@main wake me when kind ask' }).ok, 'owner-wake: wait declaration failed in src/services/crewBoard/store.ts')
+    assert(ownerBoard.post(a, { clientOpId: 'wait-ask', kind: 'ask', text: '@main wake me when kind ask' }).ok, 'owner-wake: wait declaration failed in src/crew/board/store.ts')
     ownerBoard.complete(a, 'completed'); ownerBoard.complete(b, 'completed')
     const directed = ownerBoard.postOwner(lead, { clientOpId: 'whisper-b', channel: 'whisper', target: 'B', text: 'Work with this, mentioning @A does not widen it.' })
-    assert(directed.ok, `owner-wake: postOwner(whisper) failed in src/services/crewBoard/store.ts: ${JSON.stringify(directed)}`)
+    assert(directed.ok, `owner-wake: postOwner(whisper) failed in src/crew/board/store.ts: ${JSON.stringify(directed)}`)
     check('owner commands never wake outside their fixed targets, even for a matching wait', ownerBoard.pendingWakes().map(wake => wake.agent).join(',') === 'B' && ownerBoard.seats().find(seat => seat.agent === 'A')?.wait !== undefined)
     check('a directed owner post remains publicly readable without waking the reader', ownerBoard.read(a, { since: directed.seq - 1 }).events.some(event => event.eventId === directed.eventId))
     const ownerClaim = ownerBoard.claimWake(lead, ownerBoard.pendingWakes()[0]!)!
@@ -165,16 +165,16 @@ try {
     check('an owner wake carries its trusted role and channel with one body', ownerPacket.text.includes('"authorRole":"owner"') && ownerPacket.text.includes('"channel":{"kind":"whisper","target":"B"}') && ownerPacket.text.includes('[owner]: Work with this, mentioning @A does not widen it.') && ownerPacket.text.split('Work with this, mentioning @A does not widen it.').length === 2)
   } finally { ownerBoard.close() }
 }
-const boot = await import('../../src/bootstrap/state.ts')
+const boot = await import('../../src/boot/process-state/processState.ts')
 boot.setOriginalCwd(home); boot.setCwdState(home); boot.setProjectRoot(home)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
 updateSettingsForSource('userSettings', { swarm: { enabled: true } })
-const seam = await import('../../src/services/crewBoard/seam.ts')
+const seam = await import('../../src/crew/board/seam.ts')
 const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
-const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-const { getSwarmAttachments } = await import('../../src/services/attachments/queuedCommands.ts')
+const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
+const { getSwarmAttachments } = await import('../../src/engine/attachments/queuedCommands.ts')
 const swarmOnText = runSwarmCommand('on')
 assert(swarmOnText.startsWith('Swarm on'), `runSwarmCommand('on') failed in src/commands/swarm/swarm.ts: ${swarmOnText}`)
 await seam.latchSwarmAgent('woken', 'Woken')
@@ -182,17 +182,17 @@ await seam.latchSwarmAgent('poster', 'Poster')
 const board = seam.swarmStore()!
 const woken = seam.swarmPrincipal('woken')!, poster = seam.swarmPrincipal('poster')!, main = seam.swarmPrincipal()!
 let tasks: Record<string, unknown> = { woken: { ...task('running'), id: 'woken', agentId: 'woken' } }
-const context = { getAppState: () => ({ tasks }), options: {}, abortController: new AbortController(), toolUseId: 'stale-call' } as unknown as import('../../src/Tool.ts').ToolUseContext
+const context = { getAppState: () => ({ tasks }), options: {}, abortController: new AbortController(), toolUseId: 'stale-call' } as unknown as import('../../src/tools/kit/tool.ts').ToolUseContext
 const leadContext = new AsyncLocalStorage<string>()
 let count = 0
 let finish!: () => void
 const fired = new Promise<void>(resolve => { finish = resolve })
-const resume: typeof import('../../src/tools/AgentTool/resumeAgent.ts').resumeAgentBackground = async args => {
+const resume: typeof import('../../src/tools/crewmate/resumeCrewmate.ts').resumeAgentBackground = async args => {
   count++
   assert.equal(leadContext.getStore(), 'lead')
   assert.equal(args.toolUseContext.toolUseId, undefined)
   assert.equal(args.automatic, true)
-  assert(args.boardEventIds?.length, 'resumeAgentBackground called without boardEventIds in src/services/crewBoard/seam.ts')
+  assert(args.boardEventIds?.length, 'resumeAgentBackground called without boardEventIds in src/crew/board/seam.ts')
   assert.equal(args.prompt.split('WAKE-PACKET-WITNESS').length, 2)
   tasks = { woken: { ...task('running'), id: 'woken', agentId: 'woken' } }
   await seam.latchSwarmAgent('woken', 'Woken', true)
@@ -206,12 +206,12 @@ const resume: typeof import('../../src/tools/AgentTool/resumeAgent.ts').resumeAg
 const watchers = leadContext.run('lead', () => [seam.watchSwarmResumes(() => context, (async () => ({ behavior: 'allow', updatedInput: {} })) as never, () => true, resume), seam.watchSwarmResumes(() => context, (async () => ({ behavior: 'allow', updatedInput: {} })) as never, () => true, resume)])
 let timeout: ReturnType<typeof setTimeout> | undefined
 try {
-  assert(board.post(woken, { clientOpId: 'declare-public', kind: 'ask', text: '@main wake me when about public-trigger' }).ok, 'public-trigger wait declaration failed in src/services/crewBoard/store.ts')
+  assert(board.post(woken, { clientOpId: 'declare-public', kind: 'ask', text: '@main wake me when about public-trigger' }).ok, 'public-trigger wait declaration failed in src/crew/board/store.ts')
   const beforeInvalid = board.view().snapshot
   assert.equal(board.post(woken, { clientOpId: 'declare-invalid', kind: 'ask', text: '@main wake me when arbitrary code' }).ok, false)
   check('the public post parser rejects malformed conditions before appending', board.view().snapshot === beforeInvalid)
   const posted = leadContext.run('poster', () => board.post(poster, { clientOpId: 'public-trigger', kind: 'result', text: 'WAKE-PACKET-WITNESS', about: 'public-trigger' }))
-  assert(posted.ok, `public-trigger post failed in src/services/crewBoard/store.ts: ${JSON.stringify(posted)}`)
+  assert(posted.ok, `public-trigger post failed in src/crew/board/store.ts: ${JSON.stringify(posted)}`)
   seam.settleSwarmAgent('woken')
   check('the real board requires a completed lifecycle after early settlement', board.pendingWakes().length === 0)
   const openWaits = board.boundary(main, new Set())!

@@ -3,9 +3,9 @@ import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = realpathSync(mkdtempSync(join(tmpdir(), 'seat-agent-frames-home-')))
-const { onSeatRow } = await import('../../src/daemon/sessionSeat.ts')
-const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { onSeatRow } = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { readSessionTail } = await import('../../src/engine/connector/seatProjections.ts')
+const { readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 let failures = 0
 let checks = 0
@@ -52,16 +52,16 @@ section("§1 a background agent's tagged row on an idle seat paints nothing in t
 const idleActivity = activity()
 onSeatRow(SHORT, settle('the child finished after the handover', 'toolu_agent_1'), roster as never, dir)
 await published()
-check('the tail stays empty', (tail()?.text ?? null) === null && (tail()?.turnChars ?? 0) === 0, JSON.stringify(tail()), 'onSeatRow in src/daemon/sessionSeat/rows.ts (the tagged check on row.parent_call_id) must skip a row tagged with parent_call_id on an idle seat')
-check('the activity record is untouched', activity() === idleActivity, `${idleActivity} → ${activity()}`, 'onSeatRow in src/daemon/sessionSeat/rows.ts must not stamp the worker activity for a row tagged with parent_call_id')
+check('the tail stays empty', (tail()?.text ?? null) === null && (tail()?.turnChars ?? 0) === 0, JSON.stringify(tail()), 'onSeatRow in src/daemon/session-seat/rows.ts (the tagged check on row.parent_call_id) must skip a row tagged with parent_call_id on an idle seat')
+check('the activity record is untouched', activity() === idleActivity, `${idleActivity} → ${activity()}`, 'onSeatRow in src/daemon/session-seat/rows.ts must not stamp the worker activity for a row tagged with parent_call_id')
 
 section("§2 control: the seat's own settle-class reply rides the tail and stamps activity, as today")
 onSeatRow(SHORT, settle('Settled whole.'), roster as never, dir)
 await published()
-check('the tail carries the reply', tail()?.text === 'Settled whole.' && tail()?.turnChars === 'Settled whole.'.length, JSON.stringify(tail()), 'onSeatRow in src/daemon/sessionSeat/rows.ts must still put the seat own settled text row in the tail and turnChars')
-check('the activity record moved', activity() !== idleActivity, activity(), 'onSeatRow in src/daemon/sessionSeat/rows.ts must still stamp worker activity for an untagged row')
+check('the tail carries the reply', tail()?.text === 'Settled whole.' && tail()?.turnChars === 'Settled whole.'.length, JSON.stringify(tail()), 'onSeatRow in src/daemon/session-seat/rows.ts must still put the seat own settled text row in the tail and turnChars')
+check('the activity record moved', activity() !== idleActivity, activity(), 'onSeatRow in src/daemon/session-seat/rows.ts must still stamp worker activity for an untagged row')
 onSeatRow(SHORT, result, roster as never, dir)
-check('the outcome clears the tail', (tail()?.text ?? null) === null, JSON.stringify(tail()), 'onSeatRow in src/daemon/sessionSeat/rows.ts must clear the tail text on an outcome row')
+check('the outcome clears the tail', (tail()?.text ?? null) === null, JSON.stringify(tail()), 'onSeatRow in src/daemon/session-seat/rows.ts must clear the tail text on an outcome row')
 
 section("§3 a foreground helper's tagged row during a streaming turn leaves the tail and the activity as they were")
 onSeatRow(SHORT, row({ type: 'block_start', message_id: 'msg_stream', block: 0, of: 'text' }), roster as never, dir)
@@ -72,8 +72,8 @@ const streamedActivity = activity()
 await new Promise(resolve => setTimeout(resolve, 5))
 onSeatRow(SHORT, settle('a helper spoke', 'toolu_agent_2'), roster as never, dir)
 await published()
-check('the streamed tail stands unchanged, byte for byte', JSON.stringify(tail()) === streamedTail, `${streamedTail} → ${JSON.stringify(tail())}`, 'onSeatRow in src/daemon/sessionSeat/rows.ts must ignore a tagged settle row while the seat streams, so the tail text and turnChars stay as streamed')
-check('the activity record stands unchanged', activity() === streamedActivity, `${streamedActivity} → ${activity()}`, 'onSeatRow in src/daemon/sessionSeat/rows.ts must not stamp worker activity for a row tagged with parent_call_id during a stream')
+check('the streamed tail stands unchanged, byte for byte', JSON.stringify(tail()) === streamedTail, `${streamedTail} → ${JSON.stringify(tail())}`, 'onSeatRow in src/daemon/session-seat/rows.ts must ignore a tagged settle row while the seat streams, so the tail text and turnChars stay as streamed')
+check('the activity record stands unchanged', activity() === streamedActivity, `${streamedActivity} → ${activity()}`, 'onSeatRow in src/daemon/session-seat/rows.ts must not stamp worker activity for a row tagged with parent_call_id during a stream')
 onSeatRow(SHORT, result, roster as never, dir)
 
 rmSync(dir, { recursive: true, force: true })

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 
-# gate-watch: src/services/structure/** src/tools/StructureTool/**
-# gate-watch: src/services/repoHost/** src/services/gitGraph/** src/tools/GitTool/**
-# gate-watch: src/services/ide/pythonTests.ts src/tools/TestTool/**
-# gate-watch: src/services/resources/adapters/repo.ts src/services/resources/adapters/structure.ts
-# gate-watch: src/tools/AstSearchTool/** src/tools/AstEditTool/**
+# gate-watch: src/tools/engines/structure/** src/tools/structure/**
+# gate-watch: src/platform/repo-host/** src/platform/git-graph/** src/tools/git/**
+# gate-watch: src/integrations/ide/pythonTests.ts src/tools/test/**
+# gate-watch: src/integrations/resources/adapters/repo.ts src/integrations/resources/adapters/structure.ts
+# gate-watch: src/tools/ast-search/** src/tools/ast-edit/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

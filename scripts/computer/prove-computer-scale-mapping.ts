@@ -4,14 +4,14 @@ import { join } from 'node:path'
 import { check, finish, HOME, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
 
-const { pointOfPixel, pixelOfPoint } = await import('../../src/tools/ComputerTool/screenMap.ts')
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const { pngDimensions } = await import('../../src/services/desktop/fakeDesktopDriver.ts')
-const { imageDimensionsFromHeader } = await import('../../src/utils/imageProcessor/imageProcessorJs.ts')
-const { clampToolResultImageBlocks } = await import('../../src/utils/imageResizer.ts')
-const { DESKTOP_SHOTS_KEEP } = await import('../../src/services/desktop/desktopSession.ts')
-type ScreenMap = import('../../src/tools/ComputerTool/screenMap.ts').ScreenMap
+const { pointOfPixel, pixelOfPoint } = await import('../../src/tools/computer/screenMap.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const { pngDimensions } = await import('../../src/integrations/desktop/fakeDesktopDriver.ts')
+const { imageDimensionsFromHeader } = await import('../../src/platform/images/imageProcessorJs.ts')
+const { clampToolResultImageBlocks } = await import('../../src/platform/images/imageResizer.ts')
+const { DESKTOP_SHOTS_KEEP } = await import('../../src/integrations/desktop/desktopSession.ts')
+type ScreenMap = import('../../src/tools/computer/screenMap.ts').ScreenMap
 
 const scratch = scratchDir('scale-mapping')
 const map = (fields: Partial<ScreenMap>): ScreenMap => ({

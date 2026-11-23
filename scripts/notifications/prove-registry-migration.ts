@@ -9,8 +9,8 @@ import { checker, scratchRoot } from '../engine-durability/harness.ts'
 const t = checker()
 const root = scratchRoot('registry-migration')
 
-const registry = (await import('../../src/utils/concurrentSessions.js')) as Record<string, unknown>
-const sup = await import('../../src/daemon/concourseWorkers.js')
+const registry = (await import('../../src/sessions/transcripts/concurrentSessions.js')) as Record<string, unknown>
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.js')
 
 t.section('§1 — the vestigial halves are gone; the peer-enumeration surface remains')
 {

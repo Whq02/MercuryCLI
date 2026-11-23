@@ -40,13 +40,13 @@ const productFiles = (dir: string): string[] =>
     if (statSync(path).isDirectory()) return productFiles(path)
     return /\.(tsx?|txt)$/.test(entry) && !entry.endsWith('.d.ts') ? [path] : []
   })
-const PUBLISHED_HISTORY = 'src/constants/changelogArchive.ts'
+const PUBLISHED_HISTORY = 'src/commands/update-notes/changelogArchive.ts'
 const files = productFiles(join(REPO, 'src'))
 const sources = new Map(files.map(path => [relative(REPO, path), readFileSync(path, 'utf8')]).filter(([rel]) => rel !== PUBLISHED_HISTORY))
 
 section('§1 the two env names left the registry and no source file spells them')
 {
-  const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
+  const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
   for (const name of ENV_NAMES) {
     check(`${name}: the registry does not know it`, getFlagSpec(name) === undefined)
     const spelled = [...sources].filter(([, text]) => text.includes(name)).map(([rel]) => rel)
@@ -90,13 +90,13 @@ section('§3 no product string names the judge: every string, template part and 
 
 section('§4 the decision band names no judge stage')
 {
-  const stageIds = sources.get('src/types/permissions.ts') ?? ''
-  const wrapper = sources.get('src/utils/permissions/decision/wrapper.ts') ?? ''
+  const stageIds = sources.get('src/permissions/rules/permissions.ts') ?? ''
+  const wrapper = sources.get('src/permissions/rules/decision/wrapper.ts') ?? ''
   for (const word of STAGE_WORDS) {
-    check(`the stage ids carry no ${word} stage`, stageIds.includes('export type WrapperStageId =') && !stageIds.includes(word), 'src/types/permissions.ts')
+    check(`the stage ids carry no ${word} stage`, stageIds.includes('export type WrapperStageId =') && !stageIds.includes(word), 'src/permissions/rules/permissions.ts')
     check(`the wrapper records no ${word} stage`, !wrapper.includes(word), 'wrapper.ts')
   }
-  const judgeFiles = [...sources].filter(([rel]) => /src\/utils\/permissions\/(flowClass|class)ifier|flowBlockReview|classifierApprovals|bashClass/.test(rel)).map(([rel]) => rel)
+  const judgeFiles = [...sources].filter(([rel]) => /src\/permissions\/rules\/(flowClass|class)ifier|flowBlockReview|classifierApprovals|bashClass/.test(rel)).map(([rel]) => rel)
   check('no module of the judge remains under src', judgeFiles.length === 0, judgeFiles.join(', '))
 }
 

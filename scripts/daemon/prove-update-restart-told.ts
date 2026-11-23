@@ -36,17 +36,17 @@ const STANDALONE = existsSync(PACK_NODE)
 const KEEP = process.env.UPDATE_RESTART_KEEP === '1'
 let failures = 0
 const SECTION_HINTS: Record<string, string> = {
-  '§1': 'change: the daemon start or the Monitor/background-shell arming; look in the daemon log printed above and src/daemon/handshake.ts',
-  '§2': 'change: the installed-build move the daemon detects in src/daemon/run/heal.ts, or the notice line composed in src/tools/MonitorTool/watchReceipts.ts',
+  '§1': 'change: the daemon start or the Monitor/background-shell arming; look in the daemon log printed above and src/daemon/control/handshake.ts',
+  '§2': 'change: the installed-build move the daemon detects in src/daemon/run/heal.ts, or the notice line composed in src/tools/monitor/watchReceipts.ts',
   '§2b': 'change: the refusal and the runner facts in restartSessionOnInstalledBuild, src/commands/restart/restart.ts',
-  '§2c': 'change: the once-only installed-build notice in src/daemon/run/heal.ts and src/tools/MonitorTool/watchReceipts.ts',
-  '§2d': 'change: the installed-build notice row and its words in src/tools/MonitorTool/watchReceipts.ts',
-  '§3': 'change: restartSessionOnInstalledBuild in src/commands/restart/restart.ts, moveDaemonToDeployedBuild in src/daemon/handshake.ts, or the watch line in composeRestartLine, src/tools/MonitorTool/watchReceipts.ts',
-  '§3e': 'change: moveDaemonToDeployedBuild in src/daemon/handshake.ts and decideHandover in src/daemon/handover.ts (a mid-flight turn must finish on the old runner)',
-  '§4': 'change: decideHandover in src/daemon/handover.ts, runnerRestartReasonOf in src/daemon/concourseWorkers/revive.ts, or the restart line in src/tools/MonitorTool/watchReceipts.ts',
-  '§4b': 'change: the handover bound and refusal text in moveDaemonToDeployedBuild, src/daemon/handshake.ts',
-  '§5': 'change: the headless path must never emit the installed-build notice (src/tools/MonitorTool/watchReceipts.ts and src/daemon/run/heal.ts)',
-  '§6': 'change: the older-build wording in composeRestartLine (src/tools/MonitorTool/watchReceipts.ts) or the restart in src/commands/restart/restart.ts',
+  '§2c': 'change: the once-only installed-build notice in src/daemon/run/heal.ts and src/tools/monitor/watchReceipts.ts',
+  '§2d': 'change: the installed-build notice row and its words in src/tools/monitor/watchReceipts.ts',
+  '§3': 'change: restartSessionOnInstalledBuild in src/commands/restart/restart.ts, moveDaemonToDeployedBuild in src/daemon/control/handshake.ts, or the watch line in composeRestartLine, src/tools/monitor/watchReceipts.ts',
+  '§3e': 'change: moveDaemonToDeployedBuild in src/daemon/control/handshake.ts and decideHandover in src/daemon/control/handover.ts (a mid-flight turn must finish on the old runner)',
+  '§4': 'change: decideHandover in src/daemon/control/handover.ts, runnerRestartReasonOf in src/daemon/concourse-workers/revive.ts, or the restart line in src/tools/monitor/watchReceipts.ts',
+  '§4b': 'change: the handover bound and refusal text in moveDaemonToDeployedBuild, src/daemon/control/handshake.ts',
+  '§5': 'change: the headless path must never emit the installed-build notice (src/tools/monitor/watchReceipts.ts and src/daemon/run/heal.ts)',
+  '§6': 'change: the older-build wording in composeRestartLine (src/tools/monitor/watchReceipts.ts) or the restart in src/commands/restart/restart.ts',
 }
 let sectionHint = ''
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -158,19 +158,19 @@ const pointBoth = (target: string): void => {
 }
 pointBoth('X')
 
-const { daemonControlRpc, readControlKey } = await import('../../src/daemon/controlSocket.ts')
-const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
-const { sessionParkDrainMs } = await import('../../src/daemon/idleRetirement.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const { isProcessAlive } = await import('../../src/utils/ownerWatch.ts')
-const { readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
-const sup = await import('../../src/daemon/concourseWorkers.ts')
-const { composeRestartLine } = await import('../../src/tools/MonitorTool/watchReceipts.ts')
+const { daemonControlRpc, readControlKey } = await import('../../src/daemon/control/controlSocket.ts')
+const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/control/protocol.ts')
+const { sessionParkDrainMs } = await import('../../src/daemon/control/idleRetirement.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
+const { isProcessAlive } = await import('../../src/daemon/control/ownerWatch.ts')
+const { readSessionReceipts } = await import('../../src/daemon/switchboard/sessionReceipts.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { composeRestartLine } = await import('../../src/tools/monitor/watchReceipts.ts')
 const { restartSessionOnInstalledBuild } = await import('../../src/commands/restart/restart.ts')
-const { moveDaemonToDeployedBuild } = await import('../../src/daemon/handshake.ts')
-const { deployedRuntime, decideHandover, forwardFrame, predecessorSockPath } = await import('../../src/daemon/handover.ts')
-const { decidePlaneBoot } = await import('../../src/daemon/planeBoot.ts')
-const { resetOwnedDaemonBreakerForTesting } = await import('../../src/daemon/ownedDaemon.ts')
+const { moveDaemonToDeployedBuild } = await import('../../src/daemon/control/handshake.ts')
+const { deployedRuntime, decideHandover, forwardFrame, predecessorSockPath } = await import('../../src/daemon/control/handover.ts')
+const { decidePlaneBoot } = await import('../../src/daemon/control/planeBoot.ts')
+const { resetOwnedDaemonBreakerForTesting } = await import('../../src/daemon/control/ownedDaemon.ts')
 const freshProcess = (): void => resetOwnedDaemonBreakerForTesting()
 const DRAIN_WAIT_CEILING_MS = 180_000
 const SUPERSEDED_EXIT_WAIT_MS = 60_000
@@ -348,7 +348,7 @@ for (const [k, v] of Object.entries(daemonEnv)) {
 process.env.MERCURY_DAEMON_OWNER_PID = String(process.pid)
 process.execPath = NODE
 process.chdir(work)
-;(await import('../../src/utils/Shell.ts')).setCwd(work)
+;(await import('../../src/platform/shell/shellExec.ts')).setCwd(work)
 
 const read = (p: string): string => {
   try {
@@ -421,7 +421,7 @@ const A = spawnDaemon(logA)
 const Apid = A.pid ?? 0
 
 const hello = async (): Promise<{ pid: number; buildTree: string | null } | null> => {
-  const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
+  const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/control/protocol.ts')
   const reply = (await daemonControlRpc({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: '1.0.0', clientBuildTree: null } as never, {
     timeoutMs: 2000,
     protoRetry: false,
@@ -613,17 +613,17 @@ try {
   for (const cleared of clearIds) await stopSession(cleared)
 
   section('§2d field: the installed-build notice paints its words without expanding')
-  const { recordToEntry } = await import('../../src/fabric/entryCodec.ts')
+  const { recordToEntry } = await import('../../src/sessions/fabric/entryCodec.ts')
   const rows = transcriptOf(sid).split('\n').filter(Boolean).flatMap(line => { try { const raw = JSON.parse(line); return [recordToEntry(raw) ?? raw] } catch { return [] } })
   const notice = rows.find(row => row.type === 'system' && row.subtype === 'seat_receipt' && typeof row.content === 'string' && row.content.includes(BEHIND_WORDS))
   check('the installed-build notice is one recorded visible system row, never a hidden attachment', notice !== undefined && !rows.some(row => row.type === 'attachment' && JSON.stringify(row).includes(BEHIND_WORDS)), JSON.stringify(rows.filter(row => JSON.stringify(row).includes(BEHIND_WORDS)).map(row => row.type + (row.subtype ? ':' + row.subtype : ''))))
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
   const React = await import('react')
-  const { SystemTextMessage } = await import('../../src/components/messages/SystemTextMessage.tsx')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
+  const { SystemTextMessage } = await import('../../src/screen/messages/SystemTextMessage.tsx')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { renderToAnsiString } = await import('../../src/screen/renderer/staticRender.tsx')
   const painted = await renderToAnsiString(React.createElement(AppStateProvider, { initialState: getDefaultAppState() }, React.createElement(SystemTextMessage, { addMargin: false, message: notice as never, verbose: false })), 100)
   const paintedFlat = painted.replace(/\s+/g, ' ')
   check('notice words and /restart paint without ctrl+o', paintedFlat.includes(BEHIND_WORDS) && paintedFlat.includes('/restart switches to it') && !paintedFlat.includes('1 line ›'), painted)

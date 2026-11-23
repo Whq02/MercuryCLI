@@ -12,7 +12,7 @@ const {
   boardRank,
   decideTransition,
   isLiveState,
-} = await import('../../src/utils/concourseLifecycle.js')
+} = await import('../../src/daemon/concourse-workers/concourseLifecycle.js')
 type State = (typeof CONCOURSE_SESSION_STATES)[number]
 
 const EXPECT: Record<State, State[]> = {

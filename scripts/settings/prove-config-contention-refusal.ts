@@ -21,8 +21,8 @@ function runIn(home: string, body: string): Record<string, unknown> {
     const fs = await import('node:fs')
     const path = await import('node:path')
     const child_process = await import('node:child_process')
-    const env = await import(${JSON.stringify(join(SRC, 'utils/env.ts'))})
-    const g = await import(${JSON.stringify(join(SRC, 'utils/config/globalConfig.ts'))})
+    const env = await import(${JSON.stringify(join(SRC, 'platform/environment/env.ts'))})
+    const g = await import(${JSON.stringify(join(SRC, 'platform/config/globalConfig.ts'))})
     g.enableConfigs()
     const file = env.getGlobalMercuryFile()
     const raw = () => { try { return fs.readFileSync(file, 'utf8') } catch { return null } }
@@ -46,7 +46,7 @@ console.log('L1 the held lock — the save refuses, the file stands')
     // The holder: a REAL child taking the same lock artefact and holding it
     // well past the waiter's ~2s ladder.
     const holderSrc =
-      'const lockfile = await import(' + ${JSON.stringify(JSON.stringify(join(SRC, 'utils/lockfile.ts')))} + ');' +
+      'const lockfile = await import(' + ${JSON.stringify(JSON.stringify(join(SRC, 'platform/storage/lockfile.ts')))} + ');' +
       'lockfile.lockSync(' + JSON.stringify(file) + ', { lockfilePath: ' + JSON.stringify(file + '.lock') + ', realpath: false });' +
       'console.log(\\'HELD\\');' +
       'setTimeout(() => {}, 8000)'
@@ -61,8 +61,8 @@ console.log('L1 the held lock — the save refuses, the file stands')
     out.themeAfter = JSON.parse(raw()).theme
     holder.kill()
   `)
-  check('the file is byte-identical after the save under a held lock', r.same === true, `theme after: ${r.themeAfter}`, 'saveGlobalConfig in src/utils/config/globalConfig.ts must refuse the write when the lock is held past its backoff ladder (the ELOCKED branch of saveGlobalConfigOutcome) and leave the file untouched')
-  check('the refusal is counted', r.refusals === 1 && r.refusalsBefore === 0, `refusals=${JSON.stringify(r.refusals)} (before=${JSON.stringify(r.refusalsBefore)})`, 'the ELOCKED branch of saveGlobalConfigOutcome in src/utils/config/globalConfig.ts must call noteConfigContentionRefusal once, and getConfigContentionRefusalCount must be exported')
+  check('the file is byte-identical after the save under a held lock', r.same === true, `theme after: ${r.themeAfter}`, 'saveGlobalConfig in src/platform/config/globalConfig.ts must refuse the write when the lock is held past its backoff ladder (the ELOCKED branch of saveGlobalConfigOutcome) and leave the file untouched')
+  check('the refusal is counted', r.refusals === 1 && r.refusalsBefore === 0, `refusals=${JSON.stringify(r.refusals)} (before=${JSON.stringify(r.refusalsBefore)})`, 'the ELOCKED branch of saveGlobalConfigOutcome in src/platform/config/globalConfig.ts must call noteConfigContentionRefusal once, and getConfigContentionRefusalCount must be exported')
 }
 
 console.log('L2 control — an uncontended save lands')
@@ -77,8 +77,8 @@ console.log('L2 control — an uncontended save lands')
     out.keeper = parsed.mcpServers?.keeper !== undefined
     out.refusals = g.getConfigContentionRefusalCount?.() ?? 'absent'
   `)
-  check('the save lands and keeps the rest of the monolith', r.theme === 'not-a-theme' && r.keeper === true, JSON.stringify(r), 'an uncontended saveGlobalConfig in src/utils/config/globalConfig.ts must write the updater result and keep the other keys of the file')
-  check('no refusal is counted', r.refusals === 0 || r.refusals === 'absent', `refusals=${JSON.stringify(r.refusals)}`, 'noteConfigContentionRefusal in src/utils/config/globalConfig.ts must be called only when the lock was refused, not on an uncontended save')
+  check('the save lands and keeps the rest of the monolith', r.theme === 'not-a-theme' && r.keeper === true, JSON.stringify(r), 'an uncontended saveGlobalConfig in src/platform/config/globalConfig.ts must write the updater result and keep the other keys of the file')
+  check('no refusal is counted', r.refusals === 0 || r.refusals === 'absent', `refusals=${JSON.stringify(r.refusals)}`, 'noteConfigContentionRefusal in src/platform/config/globalConfig.ts must be called only when the lock was refused, not on an uncontended save')
 }
 
 console.log('L3 the backup runs outside the locked section')
@@ -92,7 +92,7 @@ console.log('L3 the backup runs outside the locked section')
     const backups = (() => { try { return fs.readdirSync(g.getConfigBackupDir()).filter(n => n.includes('.backup.')) } catch { return [] } })()
     out.backups = backups.length
   `)
-  check('a save still mints the timestamped backup', (r.backups as number) >= 1, `backups=${r.backups}`, 'a save through src/utils/config/globalConfig.ts must still run backupOutgoingConfig so a stamped .backup. copy lands in getConfigBackupDir()')
+  check('a save still mints the timestamped backup', (r.backups as number) >= 1, `backups=${r.backups}`, 'a save through src/platform/config/globalConfig.ts must still run backupOutgoingConfig so a stamped .backup. copy lands in getConfigBackupDir()')
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)

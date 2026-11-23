@@ -1,0 +1,362 @@
+import type { PastedContent } from '../../../platform/settings/config.js'
+import type {
+  PromptInputMode,
+} from './textInput.js'
+import { getSessionId, onSessionSwitch, updateLastInteractionTime } from '../../../boot/process-state/processState.js'
+import { getFocusedSessionConnector } from '../../../engine/connector/focusedConnector.js'
+import { activityManager } from '../../../platform/observability/activityManager.js'
+import {
+  cancelPendingDraftSave,
+  deleteDraft,
+  flushDraftSaves,
+  readDraftSync,
+  saveDraftDebounced,
+  migrateOrphanedDraft,
+} from './promptDraft.js'
+import { createSignal } from '../../../platform/async/signal.js'
+import { markTypingActivity } from '../../cockpit/typingActivity.js'
+import { normalizePastedInput } from './composer-document.js'
+import { startTimeout, stopTimeout } from '../../../platform/async/timers.js'
+
+export function sanitizeComposerText(raw: string): string {
+  return normalizePastedInput(raw.replace(/[\u0080-\u009f]/g, ''))
+    .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '')
+    .normalize('NFC')
+}
+
+export type ComposerDraft = {
+  text: string
+  cursorOffset: number
+  mode: PromptInputMode
+  pastedContents: Record<number, PastedContent>
+}
+
+export type StashedPrompt = {
+  text: string
+  cursorOffset: number
+  mode: PromptInputMode
+  pastedContents: Record<number, PastedContent>
+}
+
+export type EditInterceptors = {
+  interceptSuggestion?: (prev: string, next: string) => boolean
+  onEmptyToNonempty?: () => void
+}
+
+const PROMPT_SUPPRESSION_MS = 1500
+
+
+let draft: ComposerDraft = {
+  text: '',
+  cursorOffset: 0,
+  mode: 'prompt',
+  pastedContents: {},
+}
+let stash: StashedPrompt | undefined
+let restoredPrompt: string | undefined
+let interceptors: EditInterceptors = {}
+let initialized = false
+let owningSessionId: string | null = null
+let suppressionTimer: ReturnType<typeof setTimeout> | null = null
+let editSeq = 0
+let commitSeq = 0
+
+const changed = createSignal()
+let typedIn = false
+const activeChanged = createSignal()
+
+function setActive(next: boolean): void {
+  if (typedIn === next) return
+  typedIn = next
+  activeChanged.emit()
+}
+
+function commit(): void {
+  commitSeq++
+  changed.emit()
+}
+
+
+function persistDraft(): void {
+  saveDraftDebounced(owningSessionId ?? getSessionId(), {
+    text: draft.text,
+    cursorOffset: draft.cursorOffset,
+    mode: draft.mode,
+    pastedContents: draft.pastedContents,
+  })
+}
+
+export function flushDrafts(): Promise<void> {
+  return flushDraftSaves()
+}
+
+export const readDraftFor = readDraftSync
+
+export function clearForSubmit(submittedText?: string): void {
+  cancelPendingDraftSave()
+  deleteDraft(owningSessionId ?? getSessionId())
+  restoredPrompt = undefined
+  if (submittedText !== undefined) {
+    staged = { text: submittedText, at: Date.now() }
+    lastSubmitted = { text: submittedText.replace(/\s+$/, ''), at: Date.now() }
+  }
+}
+
+let lastSubmitted: { text: string; at: number } | null = null
+const SUBMITTED_PAGE_WINDOW_MS = 15_000
+
+
+export const subscribePendingInput = changed.subscribe
+export const subscribeActive = activeChanged.subscribe
+
+export function active(): boolean {
+  return typedIn
+}
+
+export function text(): string {
+  return draft.text
+}
+
+export function mode(): PromptInputMode {
+  return draft.mode
+}
+
+export function pastedContents(): Record<number, PastedContent> {
+  return draft.pastedContents
+}
+
+export function stashedPrompt(): StashedPrompt | undefined {
+  return stash
+}
+
+export function editGeneration(): number {
+  return commitSeq
+}
+
+
+export function initOnce(seed: {
+  text: string
+  mode: PromptInputMode
+  pastedContents: Record<number, PastedContent>
+  cursorOffset?: number
+}): void {
+  if (initialized) return
+  initialized = true
+  const text = sanitizeComposerText(seed.text)
+  draft = {
+    text,
+    cursorOffset: Math.min(seed.cursorOffset ?? text.length, text.length),
+    mode: seed.mode,
+    pastedContents: seed.pastedContents,
+  }
+}
+
+export function initSession(
+  sessionId: string | null | undefined,
+  earlyInput: string,
+): void {
+  if (initialized) return
+  owningSessionId = sessionId ?? null
+  const saved = readDraftSync(sessionId)
+  const chosenText = earlyInput !== '' ? earlyInput : (saved?.text ?? '')
+  initOnce({
+    text: chosenText,
+    mode: saved?.mode === 'bash' || saved?.mode === 'prompt' ? saved.mode : 'prompt',
+    pastedContents: saved?.pastedContents ?? {},
+    cursorOffset:
+      saved && saved.text === chosenText
+        ? Math.max(0, Math.min(saved.cursorOffset, chosenText.length))
+        : undefined,
+  })
+}
+
+export async function rekeyToSession(sessionId: string | null, opts?: { landing?: boolean }): Promise<void> {
+  const fence = editSeq
+  const typedWhileLanding = opts?.landing === true ? draft.text : ''
+  const left = owningSessionId ?? getSessionId()
+  const named = opts?.landing === true && readDraftSync(sessionId) === null
+  if (named) owningSessionId = sessionId
+  await flushDraftSaves()
+  owningSessionId = sessionId
+  if (opts?.landing === true && sessionId !== null) await migrateOrphanedDraft(sessionId, named ? left : null)
+  let saved = readDraftSync(sessionId)
+  if (
+    opts?.landing === true &&
+    saved &&
+    lastSubmitted !== null &&
+    Date.now() - lastSubmitted.at < SUBMITTED_PAGE_WINDOW_MS &&
+    saved.text.replace(/\s+$/, '') === lastSubmitted.text
+  ) {
+    deleteDraft(sessionId)
+    saved = null
+  }
+  if (editSeq !== fence) return
+  if (typedWhileLanding !== '' && (!saved || saved.text === '')) return
+  const text = sanitizeComposerText(saved?.text ?? '')
+  draft = {
+    text,
+    cursorOffset:
+      saved && saved.text === text ? Math.max(0, Math.min(saved.cursorOffset, text.length)) : text.length,
+    mode: saved?.mode === 'bash' || saved?.mode === 'prompt' ? saved.mode : 'prompt',
+    pastedContents: saved?.pastedContents ?? {},
+  }
+  restoredPrompt = undefined
+  commit()
+}
+
+onSessionSwitch(id => {
+  if (!initialized || getFocusedSessionConnector().sessionId() !== '') return
+  void rekeyToSession(String(id), { landing: true })
+})
+
+export function registerInterceptors(next: EditInterceptors): () => void {
+  interceptors = next
+  return () => {
+    if (interceptors === next) interceptors = {}
+  }
+}
+
+export function resetPendingInputForTests(): void {
+  draft = { text: '', cursorOffset: 0, mode: 'prompt', pastedContents: {} }
+  stash = undefined
+  restoredPrompt = undefined
+  staged = null
+  interceptors = {}
+  initialized = false
+  owningSessionId = null
+  editSeq = 0
+  commitSeq = 0
+  typedIn = false
+  if (suppressionTimer !== null) {
+    stopTimeout(suppressionTimer)
+    suppressionTimer = null
+  }
+}
+
+
+function armSuppressionTimer(nonempty: boolean): void {
+  if (suppressionTimer !== null) {
+    stopTimeout(suppressionTimer)
+    suppressionTimer = null
+  }
+  if (!nonempty) return
+  suppressionTimer = startTimeout(() => {
+    suppressionTimer = null
+    setActive(false)
+  }, PROMPT_SUPPRESSION_MS)
+}
+
+export function edit(raw: string, options?: { restored?: boolean }): void {
+  const prev = draft.text
+  const startsCommand = restoredPrompt === prev && prev !== '' && raw.startsWith(`${prev}/`)
+  const value = sanitizeComposerText(startsCommand ? raw.slice(prev.length) : raw)
+  if (interceptors.interceptSuggestion?.(prev, value)) return
+  restoredPrompt = options?.restored === true ? value : undefined
+  if (startsCommand) draft = { ...draft, mode: 'prompt', pastedContents: {} }
+  if (prev === '' && value !== '') {
+    interceptors.onEmptyToNonempty?.()
+  }
+  editSeq++
+  draft = { ...draft, text: value }
+  commit()
+  persistDraft()
+  activityManager.recordUserActivity()
+  updateLastInteractionTime(true)
+  setActive(value.trim().length > 0)
+  armSuppressionTimer(value.trim().length > 0)
+  markTypingActivity()
+}
+
+export function append(seed: string): void {
+  edit(draft.text + seed)
+}
+
+
+export function setMode(next: PromptInputMode): void {
+  if (draft.mode === next) return
+  draft = { ...draft, mode: next }
+  commit()
+  persistDraft()
+}
+
+export function setPastedContents(
+  next: Record<number, PastedContent>,
+): void {
+  if (draft.pastedContents === next) return
+  draft = { ...draft, pastedContents: next }
+  commit()
+  persistDraft()
+}
+
+export function reportCursor(offset: number): void {
+  if (draft.cursorOffset === offset) return
+  draft = { ...draft, cursorOffset: offset }
+  persistDraft()
+}
+
+
+export function setStash(next: StashedPrompt | undefined): void {
+  stash = next
+  commit()
+}
+
+export function stashDraft(cursorOffset: number = draft.cursorOffset): void {
+  stash = {
+    text: draft.text,
+    cursorOffset,
+    mode: draft.mode,
+    pastedContents: draft.pastedContents,
+  }
+  edit('')
+  setPastedContents({})
+  setMode('prompt')
+  commit()
+}
+
+export function popStash(): StashedPrompt | undefined {
+  const pocket = stash
+  if (pocket === undefined) return undefined
+  if (draft.text.trim() !== '') return undefined
+  stash = undefined
+  edit(pocket.text)
+  setPastedContents(pocket.pastedContents)
+  setMode(pocket.mode)
+  commit()
+  return pocket
+}
+
+
+let staged: { text: string; at: number } | null = null
+
+export function stagedSubmit(): { text: string; at: number } | null {
+  return staged
+}
+
+export function clearStaged(): void {
+  staged = null
+}
+
+export function restoreStaged(expectedText?: string): { text: string } | null {
+  const record = staged
+  if (record === null) return null
+  if (expectedText !== undefined && record.text !== expectedText) return null
+  staged = null
+  edit(record.text)
+  return { text: record.text }
+}
+
+
+export function shouldAutoRestore(ctx: {
+  reason: unknown
+  queryActive: boolean
+  queueLength: number
+  viewingAgent: boolean
+}): boolean {
+  return (
+    ctx.reason === 'user-cancel' &&
+    !ctx.queryActive &&
+    draft.text === '' &&
+    ctx.queueLength === 0 &&
+    !ctx.viewingAgent
+  )
+}

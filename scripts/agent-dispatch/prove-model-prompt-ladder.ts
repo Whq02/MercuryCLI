@@ -25,13 +25,13 @@ console.log('============================================================')
 console.log(" the model prompt's ladder: read mercury://models, then mercury://models/known, then ask — never a live-catalogue demand, never another provider")
 console.log('============================================================')
 
-;(await import('../../src/utils/config.ts')).enableConfigs()
-const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
-const { agentRosterOf, withoutAgentRoster } = await import('../../src/tools/AgentTool/prompt.ts')
-const { AGENT_TOOL_NAME } = await import('../../src/constants/tools/agent.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+;(await import('../../src/platform/settings/config.ts')).enableConfigs()
+const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { agentRosterOf, withoutAgentRoster } = await import('../../src/tools/crewmate/prompt.ts')
+const { AGENT_TOOL_NAME } = await import('../../src/tools/kit/names/agent.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
 const schema = zodToJsonSchema(AgentTool.inputSchema as never) as { properties?: Record<string, { description?: string }> }
 const wireWords = schema.properties?.model?.description ?? ''
 const permissionContext = getEmptyToolPermissionContext()
@@ -52,10 +52,10 @@ section("§1 the launch tool's model parameter")
 
 section('§2 the same words wherever the model parameter repeats')
 {
-  const { InspectTool } = await import('../../src/tools/InspectTool/InspectTool.ts')
+  const { InspectTool } = await import('../../src/tools/inspect/InspectTool.ts')
   const inspect = await InspectTool.prompt({} as never)
   check('Inspect names both model pages once and carries no launch runbook', inspect.includes("models — mercury://models lists reachable models live; mercury://models/known lists this build's pin tables, not reachability.") && inspect.split('mercury://models/known').length === 2 && !inspect.includes('Before naming a model for a launch') && Buffer.byteLength(inspect) <= 800, inspect)
-  const { readTargetPromptLines } = await import('../../src/tools/FileReadTool/readTarget.ts')
+  const { readTargetPromptLines } = await import('../../src/tools/read/readTarget.ts')
   const read = readTargetPromptLines()
   check("the Read tool's description keeps its byte budget: mercury:// records in one sentence, the models pages not named (the fact lives once, in the launch parameter and the Inspect listing)", read.includes('A mercury:// reference reads a session record') && !read.includes('mercury://models'), read)
 }

@@ -8,17 +8,17 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
 const React = (await import('react')).default
-const { render } = await import('../../src/ink.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { renderCreateResultMessage, renderCreateToolUseMessage } = await import('../../src/tools/ScheduleCronTool/UI.tsx')
+const { render } = await import('../../src/screen/themedRenderer.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { renderCreateResultMessage, renderCreateToolUseMessage } = await import('../../src/tools/cron/rows.tsx')
 let failures = 0
-const check = (label: string, ok: boolean) => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`); if (!ok) console.log('  change renderCreateResultMessage (the result row) or renderCreateToolUseMessage (the header) in src/tools/ScheduleCronTool/UI.tsx') }
+const check = (label: string, ok: boolean) => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`); if (!ok) console.log('  change renderCreateResultMessage (the result row) or renderCreateToolUseMessage (the header) in src/tools/cron/rows.tsx') }
 const frameAt = process.argv.indexOf('--frames')
 const framePath = frameAt < 0 ? undefined : process.argv[frameAt + 1]
 const captured: string[] = []

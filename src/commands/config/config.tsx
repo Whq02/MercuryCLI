@@ -5,10 +5,10 @@ import {
   CONFIG_POPUP_WIDTH,
   Config,
   configPopupFolder,
-} from '../../components/Settings/Config.js'
-import { useSettingsPopupFrame } from '../../components/Settings/Settings.js'
-import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
-import { openSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
+} from '../../screen/settings/Config.js'
+import { useSettingsPopupFrame } from '../../screen/settings/Settings.js'
+import type { LocalCommandResult, LocalJSXCommandContext } from '../catalogue/command.js'
+import { openSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../screen/cockpit/settingsPopup.js'
 
 export function ConfigPopupBody({ geometry, context }: { geometry: SettingsPopupGeometry; context: LocalJSXCommandContext }): React.ReactNode {
   const frame = useSettingsPopupFrame()

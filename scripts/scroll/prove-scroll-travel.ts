@@ -2,7 +2,7 @@
 import { mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -248,8 +248,8 @@ function runCell(cell: Cell): void {
     const second = a.deltas[2]
     console.log(`  flick ${cell.tag}: deltas [${a.deltas.join(',')}] unmeasured [${a.unmeasured.join(',')}] first ${first} second ${second}`)
     check(`${cell.tag}: all sends delivered`, !undelivered, 'stuck sends; vshot reported UNDELIVERED-SENDS, so a scripted key in sends of runCell never found its awaited text on screen')
-    check(`${cell.tag}: the flick moved the view up`, typeof second === 'number' && second < 0, `second ${second}; the wheel flick did not move the view up, so check the wheel handling in src/components/ScrollKeybindingHandler.tsx`)
-    check(`${cell.tag}: the first flick from the tail, through rows never measured, travels as far as the second, to the row`, typeof first === 'number' && typeof second === 'number' && Math.abs(first - second) <= 1, `first ${first} rows, second ${second} rows; the first flick from the tail must travel as far as the second, so check how the scroll request is sized in src/components/ScrollKeybindingHandler.tsx`)
+    check(`${cell.tag}: the flick moved the view up`, typeof second === 'number' && second < 0, `second ${second}; the wheel flick did not move the view up, so check the wheel handling in src/screen/scroll-keys/ScrollKeybindingHandler.tsx`)
+    check(`${cell.tag}: the first flick from the tail, through rows never measured, travels as far as the second, to the row`, typeof first === 'number' && typeof second === 'number' && Math.abs(first - second) <= 1, `first ${first} rows, second ${second} rows; the first flick from the tail must travel as far as the second, so check how the scroll request is sized in src/screen/scroll-keys/ScrollKeybindingHandler.tsx`)
     return
   }
   const shown = a.deltas.map(d => String(d)).join(',')
@@ -260,7 +260,7 @@ function runCell(cell: Cell): void {
   check(`${cell.tag}: the transcript region measured from the frames is a real pane (≥ 6 rows)`, a.viewport >= 6, `region ${a.viewport}; the transcript pane read from the p-mark grids is too short, so check the rows of this cell in STANDING and regionOf in scripts/scroll/paneRuler.ts`)
   check(`${cell.tag}: every paging observation has a usable position (no unmeasured mark)`, a.unmeasured.length === 0, `unmeasured: ${a.unmeasured.join(',') || '(none)'}; the listed marks show no turn signature in the pane, so look at their grids in the kept captures and at paneSigs in scripts/scroll/paneRuler.ts`)
   check(`${cell.tag}: exactly one measured delta per press`, a.deltas.length === cell.presses, `${a.deltas.length} deltas for ${cell.presses} presses; a press was not observed, see the unmeasured check above`)
-  check(`${cell.tag}: every press reached the scroller (requests = presses)`, reqs.length === cell.presses, `${reqs.length} requests for ${cell.presses} presses; a PageUp did not reach the scroller, so check the page-up binding in src/components/ScrollKeybindingHandler.tsx`)
+  check(`${cell.tag}: every press reached the scroller (requests = presses)`, reqs.length === cell.presses, `${reqs.length} requests for ${cell.presses} presses; a PageUp did not reach the scroller, so check the page-up binding in src/screen/scroll-keys/ScrollKeybindingHandler.tsx`)
   const pressFrames = (payload.marks ?? []).filter((m: { label: string }) => /^p\d+$/.test(m.label)).map((m: { grid: Grid }) => m.grid)
   for (let i = 0; i < a.deltas.length; i++) {
     const d = a.deltas[i]!
@@ -270,10 +270,10 @@ function runCell(cell: Cell): void {
       continue
     }
     check(`${cell.tag}: press ${i + 1} asked a page of its own viewport (${r.viewport} − ${OVERLAP_ROWS})`, -r.delta === r.viewport - OVERLAP_ROWS,
-      `asked ${-r.delta} rows at viewport ${r.viewport}; a PageUp must ask viewport minus OVERLAP_ROWS rows, so check the page size in src/components/ScrollKeybindingHandler.tsx`)
+      `asked ${-r.delta} rows at viewport ${r.viewport}; a PageUp must ask viewport minus OVERLAP_ROWS rows, so check the page size in src/screen/scroll-keys/ScrollKeybindingHandler.tsx`)
     const frame = pressFrames[i + 1] ?? pressFrames[pressFrames.length - 1]
     const paneNow = frame ? viewportRows(frame) : a.viewport
-    check(`${cell.tag}: press ${i + 1} viewport never exceeds the pane on screen`, r.viewport <= paneNow + 1, `viewport ${r.viewport} vs pane ${paneNow}; the viewport height the scroller reports is taller than the pane painted, so check where it is measured for the scroll request in src/components/ScrollKeybindingHandler.tsx`)
+    check(`${cell.tag}: press ${i + 1} viewport never exceeds the pane on screen`, r.viewport <= paneNow + 1, `viewport ${r.viewport} vs pane ${paneNow}; the viewport height the scroller reports is taller than the pane painted, so check where it is measured for the scroll request in src/screen/scroll-keys/ScrollKeybindingHandler.tsx`)
     check(`${cell.tag}: press ${i + 1} row-exact (settled what it asked)`, Math.abs(-d - -r.delta) <= 1,
       `settled ${-d} rows vs asked ${-r.delta}; the view did not travel the rows the scroll request asked for`)
     check(`${cell.tag}: press ${i + 1} monotone up`, d < 0, `delta ${d}; a PageUp moved the view down or not at all`)

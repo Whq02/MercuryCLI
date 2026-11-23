@@ -8,10 +8,10 @@ process.env.NODE_ENV = 'test'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'catalogue-backoff-'))
 delete process.env.MERCURY_HOME
 
-const { saveGlobalConfig } = await import('../../src/utils/config.js')
-const { refreshCompatCatalogues, cachedCompatCatalogue } = await import('../../src/services/providers/openaicompat/compatCatalogue.js')
-const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.js')
-const { refreshZaiCatalogue } = await import('../../src/services/providers/zai/zaiCatalogue.js')
+const { saveGlobalConfig } = await import('../../src/platform/settings/config.js')
+const { refreshCompatCatalogues, cachedCompatCatalogue } = await import('../../src/models/roads/openaicompat/compatCatalogue.js')
+const { configuredCompatEndpoints } = await import('../../src/models/roads/openaicompat/compatAccounts.js')
+const { refreshZaiCatalogue } = await import('../../src/models/roads/zai/zaiCatalogue.js')
 const realNow = Date.now
 let now = 1_000_000
 Date.now = () => now
@@ -40,7 +40,7 @@ try {
   await refreshCompatCatalogues({ name: 'west', env, fetchImpl })
   assert.ok(requests > 0, 'another URL is not held behind the failed endpoint')
   const east = configuredCompatEndpoints(env).find(endpoint => endpoint.name === 'east')!
-  assert.ok(cachedCompatCatalogue(east, env)?.error?.includes('fixture offline'), `cachedCompatCatalogue(east) in src/services/providers/openaicompat/compatCatalogue.js must preserve "fixture offline" error`)
+  assert.ok(cachedCompatCatalogue(east, env)?.error?.includes('fixture offline'), `cachedCompatCatalogue(east) in src/models/roads/openaicompat/compatCatalogue.js must preserve "fixture offline" error`)
   assert.deepEqual(failures, [])
   console.log('catalogue failure backoff, URL isolation and force refresh: PASS')
 } finally { Date.now = realNow }

@@ -3,8 +3,8 @@ import { accountsWorld, KEY, WORKSPACE, until } from './anthropicAccountsFixture
 const world = await accountsWorld()
 const subscriptionAccount = { accountUuid: 'existing-subscription', emailAddress: 'subscription@example.invalid' }
 world.config.saveGlobalConfig(current => ({ ...current, oauthAccount: subscriptionAccount }))
-const { OAuthService } = await import('../../src/services/oauth/index.ts')
-const { createAnthropicLoginMachine } = await import('../../src/components/mercury-ui/screens/anthropicLoginModel.ts')
+const { OAuthService } = await import('../../src/models/sign-in/oauth/index.ts')
+const { createAnthropicLoginMachine } = await import('../../src/screen/widgets/faces/anthropicLoginModel.ts')
 const unhandled: unknown[] = []
 const rejected = (error: unknown) => { unhandled.push(error) }
 process.on('unhandledRejection', rejected)
@@ -39,7 +39,7 @@ try {
   machine.retry()
   await until(() => created === 2 && machine.snapshot().flow.name === 'error')
   const failure = machine.snapshot().flow
-  assert.ok(failure.name === 'error', `src/components/mercury-ui/screens/anthropicLoginModel.ts 403 refusal expected error flow, got ${failure.name}`)
+  assert.ok(failure.name === 'error', `src/screen/widgets/faces/anthropicLoginModel.ts 403 refusal expected error flow, got ${failure.name}`)
   assert.equal(failure.message, 'Your role does not permit API keys')
   assert.ok(failure.retry, 'Console refusal must leave a working retry')
   assert.equal(recorded, 0)
@@ -53,7 +53,7 @@ try {
   assert.equal(recorded, 1)
   assert.equal(world.auth.getAnthropicApiKey(), KEY)
   assert.equal(world.auth.getAnthropicApiKeyWorkspaceId(KEY), WORKSPACE)
-  assert.ok(world.requests.some(row => row.path === '/v1/oauth/token' && row.body.grant_type === 'authorization_code'), `src/services/oauth/index.ts did not post authorization_code exchange to /v1/oauth/token`)
+  assert.ok(world.requests.some(row => row.path === '/v1/oauth/token' && row.body.grant_type === 'authorization_code'), `src/models/sign-in/oauth/index.ts did not post authorization_code exchange to /v1/oauth/token`)
   assert.equal(world.requests.filter(row => row.path.endsWith('/create_api_key')).length, 4)
   console.log('PASS Console exchange, failed save, provider refusal, keyless mint, retry and landed workspace key')
 } finally {

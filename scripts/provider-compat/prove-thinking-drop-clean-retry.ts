@@ -25,11 +25,11 @@ process.env.MERCURY_COMPAT_BASE_URL = base + '/v1'
 process.env.MERCURY_COMPAT_MODELS = 'fixture-thinking'
 process.env.MERCURY_ZAI_API_BASE = base + '/v4'
 process.env.ZAI_API_KEY = 'fixture-thinking-key'
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
-const { createUserMessage } = await import('../../src/services/messages.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { getUsageForModel, resetCostState } = await import('../../src/cost-tracker.js')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.js')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.js')
+const { createUserMessage } = await import('../../src/engine/messages/messages.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { getUsageForModel, resetCostState } = await import('../../src/models/usage/sessionCost.js')
 const failures: string[] = []
 try {
   for (const model of ['compat/fixture-thinking', 'glm-5.2']) {
@@ -48,7 +48,7 @@ try {
       } finally { clearTimeout(timer) }
       const expected = mode === 'tool' || mode === 'cancel' ? 1 : 2
       if (bodies.length !== expected) failures.push(`${model}/${mode}: ${bodies.length} requests instead of ${expected}`)
-      if (bodies.length > 1) assert.deepEqual(bodies[1], bodies[0], 'retry retains the original request, effort, thinking and tools, with no continuation nudge; the retry after a thinking-only stream must resend the same body: see the invisibleOnly fault return in src/services/providers/openaicompat/compatChatCallModel/attempt.ts (compat) and src/services/providers/zai/zaiCallModel.ts (Z.AI)')
+      if (bodies.length > 1) assert.deepEqual(bodies[1], bodies[0], 'retry retains the original request, effort, thinking and tools, with no continuation nudge; the retry after a thinking-only stream must resend the same body: see the invisibleOnly fault return in src/models/roads/openaicompat/chat-call-model/attempt.ts (compat) and src/models/roads/zai/zaiCallModel.ts (Z.AI)')
       if (mode === 'thinking' || mode === 'white') {
         if (!rows.some(row => row.type === 'assistant' && row.message.content.some((block: any) => block.text === 'Recovered answer.'))) failures.push(`${model}/${mode}: no recovered answer`)
         if (rows.some(row => row.isApiErrorMessage)) failures.push(`${model}/${mode}: unnecessary terminal fault`)
@@ -57,7 +57,7 @@ try {
       if (mode === 'thinking' && !((getUsageForModel(model)?.outputTokens ?? 0) > 0)) failures.push(`${model}: interrupted thinking usage lost`)
     }
   }
-  assert.deepEqual(failures, [], `${failures.join('; ')}. Fix the thinking-only (invisibleOnly) retry path in src/services/providers/openaicompat/compatChatCallModel/attempt.ts and src/services/providers/zai/zaiCallModel.ts so a stream with only thinking or whitespace retries once with the same request, and a tool call or cancel does not retry.`)
+  assert.deepEqual(failures, [], `${failures.join('; ')}. Fix the thinking-only (invisibleOnly) retry path in src/models/roads/openaicompat/chat-call-model/attempt.ts and src/models/roads/zai/zaiCallModel.ts so a stream with only thinking or whitespace retries once with the same request, and a tool call or cancel does not retry.`)
   console.log('thinking-only stream drops retry clean once on compat and Z.AI: PASS')
 } finally {
   server.stop(true)

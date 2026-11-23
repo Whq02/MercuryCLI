@@ -14,14 +14,14 @@ const PINNED_DEBUGPY = '1.8.22'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix: adapter and interpreter choice in src/services/dap/debugpyResolver.ts (resolvePythonDebugAdapter, bundledPythonInterpreter), the journey steps in src/tools/DebugTool/DebugTool.ts, the readiness row lane:dap:python in src/services/health/readiness.ts; a missing dist/vendor tree needs bun run scripts/vendor/fetch-debugpy.ts && bun run build.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix: adapter and interpreter choice in src/integrations/debugger/debugpyResolver.ts (resolvePythonDebugAdapter, bundledPythonInterpreter), the journey steps in src/tools/debug/DebugTool.ts, the readiness row lane:dap:python in src/platform/health/readiness.ts; a missing dist/vendor tree needs bun run scripts/vendor/fetch-debugpy.ts && bun run build.ts'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — proof exceeded 600s; the last section header above names the step that never returned; look in src/tools/DebugTool/DebugTool.ts and src/services/dap/dapClient.ts')
+  console.log('\n❌ TIMEOUT — proof exceeded 600s; the last section header above names the step that never returned; look in src/tools/debug/DebugTool.ts and src/integrations/debugger/dapClient.ts')
   process.exit(1)
 }, 600_000)
 guard.unref?.()
@@ -66,10 +66,10 @@ delete process.env.MERCURY_PYTHON
 delete process.env.VIRTUAL_ENV
 delete process.env.CONDA_PREFIX
 
-const resolver = await import('../../src/services/dap/debugpyResolver.js')
-const pythonProject = await import('../../src/services/ide/pythonProject.js')
-const dap = await import('../../src/services/dap/dapClient.js')
-const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
+const resolver = await import('../../src/integrations/debugger/debugpyResolver.js')
+const pythonProject = await import('../../src/integrations/ide/pythonProject.js')
+const dap = await import('../../src/integrations/debugger/dapClient.js')
+const { DebugTool } = await import('../../src/tools/debug/DebugTool.js')
 
 const resetResolvers = (): void => {
   resolver._resetDebugpyResolverForTesting()
@@ -174,7 +174,7 @@ await journey('bundled', 'forge-proof', machinePythonReachesTheFloor ? null : bu
 
 section('(3) readiness agreement — the production consumer reads the same probe')
 {
-  const { collectReadiness } = await import('../../src/services/health/readiness.js')
+  const { collectReadiness } = await import('../../src/platform/health/readiness.js')
   const report = collectReadiness({ includeEnv: false })
   const row = report.records.find(r => r.id === 'lane:dap:python')
   check('lane:dap:python row exists', row !== undefined)

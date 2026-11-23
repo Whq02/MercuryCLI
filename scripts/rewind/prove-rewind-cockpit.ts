@@ -27,8 +27,8 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const protocol = await import('../../src/daemon/protocol.ts')
-const socketMod = await import('../../src/daemon/controlSocket.ts')
+const protocol = await import('../../src/daemon/control/protocol.ts')
+const socketMod = await import('../../src/daemon/control/controlSocket.ts')
 const { encodeFrame, readControlFrame } = protocol
 const { controlSockPath, forgetDaemonProtoForTesting } = socketMod
 const SESSION = '00000000-0000-4000-8000-00000000rw01'
@@ -72,9 +72,9 @@ function startDaemon(opts: { proto: number; receipt?: Record<string, unknown> })
 
 section('§1 — the connector doors: the resting slot refuses typed; the hosted connector folds the facts')
 {
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-  const { publishSessionFacts, readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+  const { publishSessionFacts, readSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
   const untilPublished = async (capture: boolean): Promise<void> => {
     const deadline = Date.now() + 3000
     while (Date.now() < deadline) {
@@ -85,40 +85,40 @@ section('§1 — the connector doors: the resting slot refuses typed; the hosted
   }
 
   const resting = new NoSessionConnector()
-  check("the resting slot reads capture 'off' with no restore points", resting.checkpointFacts().capture === 'off' && resting.checkpointFacts().restorable.size === 0, `${j(resting.checkpointFacts())} | change checkpointFacts in src/services/engine-connector/noSessionConnector.ts`)
+  check("the resting slot reads capture 'off' with no restore points", resting.checkpointFacts().capture === 'off' && resting.checkpointFacts().restorable.size === 0, `${j(resting.checkpointFacts())} | change checkpointFacts in src/engine/connector/noSessionConnector.ts`)
   const refused = await resting.rewind({ userMessageId: 'u1', mode: 'both' })
-  check("…and refuses a rewind typed ('no-chat') naming the door a chat starts through", refused.outcome === 'refused' && refused.refusal === 'no-chat' && (refused.detail ?? '').includes('New Session'), `${j(refused)} | change rewind and NO_CHAT_OPEN in src/services/engine-connector/noSessionConnector.ts`)
+  check("…and refuses a rewind typed ('no-chat') naming the door a chat starts through", refused.outcome === 'refused' && refused.refusal === 'no-chat' && (refused.detail ?? '').includes('New Session'), `${j(refused)} | change rewind and NO_CHAT_OPEN in src/engine/connector/noSessionConnector.ts`)
 
   const record = { sessionId: SESSION, runnerId: 'concourse-w1', title: 'cockpit', projectLabel: 'scratch', workspaceId: '/scratch/nowhere', home: CONFIG }
   const older = new DaemonSessionConnector(record)
-  check("a hosted connector with NO facts reads 'unknown' (an older runner — never 'on')", older.checkpointFacts().capture === 'unknown' && older.checkpointFacts().restorable.size === 0, `${j({ c: older.checkpointFacts().capture })} | change checkpointFacts in src/services/engine-connector/daemon/work.ts`)
+  check("a hosted connector with NO facts reads 'unknown' (an older runner — never 'on')", older.checkpointFacts().capture === 'unknown' && older.checkpointFacts().restorable.size === 0, `${j({ c: older.checkpointFacts().capture })} | change checkpointFacts in src/engine/connector/daemon/work.ts`)
 
   const base = { schema: 1 as const, sessionId: SESSION, atMs: Date.now(), model: { effective: 'm', setting: null }, usage: { totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }, identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }, skills: [], mcp: [], permissionMode: 'default' as const, workspace: { cwd: '/x', originalCwd: '/x', projectRoot: '/x', instructionRoots: [] }, queue: [], pendingModel: null, busy: false }
   publishSessionFacts({ ...base, fileCheckpoints: { capture: true, restorable: ['u-1', 'u-2'] } } as never, DAEMON_DIR)
   await untilPublished(true)
   const seat = new DaemonSessionConnector(record)
   const facts = seat.checkpointFacts()
-  check("published facts fold to capture 'on' with the restorable set", facts.capture === 'on' && facts.restorable.has('u-1') && facts.restorable.has('u-2') && !facts.restorable.has('u-3'), `${j({ c: facts.capture, r: [...facts.restorable] })} | change checkpointFacts in src/services/engine-connector/daemon/work.ts (the fileCheckpoints fold of the published session facts)`)
-  check('the snapshot is stable by identity across reads (the uSES law)', seat.checkpointFacts() === facts, 'checkpointFacts in src/services/engine-connector/daemon/work.ts must return the same object while the published facts are unchanged')
+  check("published facts fold to capture 'on' with the restorable set", facts.capture === 'on' && facts.restorable.has('u-1') && facts.restorable.has('u-2') && !facts.restorable.has('u-3'), `${j({ c: facts.capture, r: [...facts.restorable] })} | change checkpointFacts in src/engine/connector/daemon/work.ts (the fileCheckpoints fold of the published session facts)`)
+  check('the snapshot is stable by identity across reads (the uSES law)', seat.checkpointFacts() === facts, 'checkpointFacts in src/engine/connector/daemon/work.ts must return the same object while the published facts are unchanged')
   publishSessionFacts({ ...base, fileCheckpoints: { capture: false, restorable: [] } } as never, DAEMON_DIR)
   await untilPublished(false)
   const off = new DaemonSessionConnector(record)
-  check("capture false folds to 'off'", off.checkpointFacts().capture === 'off' && off.checkpointFacts().restorable.size === 0, `${j({ c: off.checkpointFacts().capture })} | change checkpointFacts in src/services/engine-connector/daemon/work.ts so fileCheckpoints.capture false reads off`)
+  check("capture false folds to 'off'", off.checkpointFacts().capture === 'off' && off.checkpointFacts().restorable.size === 0, `${j({ c: off.checkpointFacts().capture })} | change checkpointFacts in src/engine/connector/daemon/work.ts so fileCheckpoints.capture false reads off`)
 }
 
 section('§2 — the road: a proto-5 daemon relays the receipt; a proto-4 daemon answers daemon-older')
 {
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
   const record = { sessionId: SESSION, runnerId: 'concourse-w1', title: 'cockpit', projectLabel: 'scratch', workspaceId: '/scratch/nowhere', home: CONFIG }
   {
     forgetDaemonProtoForTesting()
     const daemon = await startDaemon({ proto: 5, receipt: { outcome: 'applied', code: { filesChanged: ['alpha.txt'], insertions: 1, deletions: 1 }, conversation: { turnUuid: 'u-2', removed: 3 } } })
     const seat = new DaemonSessionConnector(record)
     const receipt = await seat.rewind({ userMessageId: 'u-2', mode: 'both' })
-    check("the daemon received the sessionRewind op", daemon.received.includes('sessionRewind'), `${j(daemon.received)} | the rewind verb in src/services/engine-connector/daemon/verbs.ts must send the sessionRewind op to the daemon`)
-    check("the runner's receipt is relayed verbatim (applied · the file · the boundary)", receipt.outcome === 'applied' && receipt.mode === 'both' && receipt.code?.filesChanged[0] === 'alpha.txt' && receipt.conversation?.removed === 3, `${j(receipt)} | the rewind verb in src/services/engine-connector/daemon/verbs.ts must return the daemon reply as the receipt`)
+    check("the daemon received the sessionRewind op", daemon.received.includes('sessionRewind'), `${j(daemon.received)} | the rewind verb in src/engine/connector/daemon/verbs.ts must send the sessionRewind op to the daemon`)
+    check("the runner's receipt is relayed verbatim (applied · the file · the boundary)", receipt.outcome === 'applied' && receipt.mode === 'both' && receipt.code?.filesChanged[0] === 'alpha.txt' && receipt.conversation?.removed === 3, `${j(receipt)} | the rewind verb in src/engine/connector/daemon/verbs.ts must return the daemon reply as the receipt`)
     const dry = await seat.rewind({ userMessageId: 'u-2', mode: 'code', dryRun: true })
-    check('a dry run rides the wire with its flag and comes back typed', dry.outcome === 'applied' && dry.mode === 'code', `${j(dry)} | the rewind verb in src/services/engine-connector/daemon/verbs.ts must send dryRun on the wire and return the typed receipt`)
+    check('a dry run rides the wire with its flag and comes back typed', dry.outcome === 'applied' && dry.mode === 'code', `${j(dry)} | the rewind verb in src/engine/connector/daemon/verbs.ts must send dryRun on the wire and return the typed receipt`)
     await daemon.close()
   }
   {
@@ -126,7 +126,7 @@ section('§2 — the road: a proto-5 daemon relays the receipt; a proto-4 daemon
     const daemon = await startDaemon({ proto: 4 })
     const seat = new DaemonSessionConnector(record)
     const receipt = await seat.rewind({ userMessageId: 'u-2', mode: 'conversation' })
-    check("an older daemon's unknown-op refusal answers 'daemon-older' naming the daemon restart (the one owner's sentence; the mixed-version law, screen side)", receipt.outcome === 'refused' && receipt.refusal === 'daemon-older' && (receipt.detail ?? '').includes(socketMod.restartDaemonWords()), `${j({ receipt, received: daemon.received })} | change the rewind verb in src/services/engine-connector/daemon/verbs.ts (the daemon-older refusal) or restartDaemonWords in src/daemon/controlSocket.ts`)
+    check("an older daemon's unknown-op refusal answers 'daemon-older' naming the daemon restart (the one owner's sentence; the mixed-version law, screen side)", receipt.outcome === 'refused' && receipt.refusal === 'daemon-older' && (receipt.detail ?? '').includes(socketMod.restartDaemonWords()), `${j({ receipt, received: daemon.received })} | change the rewind verb in src/engine/connector/daemon/verbs.ts (the daemon-older refusal) or restartDaemonWords in src/daemon/control/controlSocket.ts`)
     await daemon.close()
   }
   {
@@ -137,7 +137,7 @@ section('§2 — the road: a proto-5 daemon relays the receipt; a proto-4 daemon
     }
     const seat = new DaemonSessionConnector(record)
     const receipt = await seat.rewind({ userMessageId: 'u-2', mode: 'code' })
-    check("no daemon at all answers 'restore-failed' with nothing assumed restored — never a throw", receipt.outcome === 'refused' && receipt.refusal === 'restore-failed' && (receipt.detail ?? '').includes('nothing is assumed restored'), `${j(receipt)} | change the rewind verb in src/services/engine-connector/daemon/verbs.ts so an unreachable daemon answers restore-failed instead of throwing`)
+    check("no daemon at all answers 'restore-failed' with nothing assumed restored — never a throw", receipt.outcome === 'refused' && receipt.refusal === 'restore-failed' && (receipt.detail ?? '').includes('nothing is assumed restored'), `${j(receipt)} | change the rewind verb in src/engine/connector/daemon/verbs.ts so an unreachable daemon answers restore-failed instead of throwing`)
   }
 }
 
@@ -157,9 +157,9 @@ section('§3 — the surfaces tell the truth')
     const asked = selector.session.calls.splice(0)
     const receipts = selector.notices.splice(0)
     const landedDraft = selector.draft().text
-    check("the Chat's restore road calls the connector's rewind and paints the receipt", asked.join() === `rewind ${JSON.stringify({ userMessageId: '00000000-0000-4000-8000-00000000a001', mode: 'both' })}` && receipts.length === 1 && receipts[0]!.key === 'rewind-receipt' && receipts[0]!.text.startsWith('rewound: '), `${asked.join()} · ${j(receipts)} | change onRestore in src/screens/chat/useChatSelector.tsx`)
-    check('the Chat onRestore callback, its landed-rewind gate and the resubmit all exist inside that one callback', landedDraft === 'the words to wind back to' && selector.calls.splice(0).join() === 'setInputMode prompt', `${j({ landedDraft })} | change onRestore in src/screens/chat/useChatSelector.tsx`)
-    const pendingStore = await import('../../src/input-core/pending-input.ts')
+    check("the Chat's restore road calls the connector's rewind and paints the receipt", asked.join() === `rewind ${JSON.stringify({ userMessageId: '00000000-0000-4000-8000-00000000a001', mode: 'both' })}` && receipts.length === 1 && receipts[0]!.key === 'rewind-receipt' && receipts[0]!.text.startsWith('rewound: '), `${asked.join()} · ${j(receipts)} | change onRestore in src/screen/chat/useChatSelector.tsx`)
+    check('the Chat onRestore callback, its landed-rewind gate and the resubmit all exist inside that one callback', landedDraft === 'the words to wind back to' && selector.calls.splice(0).join() === 'setInputMode prompt', `${j({ landedDraft })} | change onRestore in src/screen/chat/useChatSelector.tsx`)
+    const pendingStore = await import('../../src/screen/composer/input-core/pending-input.ts')
     pendingStore.edit('')
     selector.session.rewind = answer('refused', false)
     await selector.selector().onRestore(anchor, 'both')
@@ -167,7 +167,7 @@ section('§3 — the surfaces tell the truth')
     selector.session.rewind = answer('applied', false)
     await selector.selector().onRestore(anchor, 'code')
     const afterCodeOnly = selector.draft().text
-    check('the composer takes the words back only after a LANDED conversation rewind', draftWhenAsked.join('|') === '||' && afterRefusal === '' && afterCodeOnly === '' && landedDraft !== '', `${j({ draftWhenAsked, afterRefusal, afterCodeOnly, landedDraft })} | change onRestore in src/screens/chat/useChatSelector.tsx so the draft fills only after a landed conversation rewind`)
+    check('the composer takes the words back only after a LANDED conversation rewind', draftWhenAsked.join('|') === '||' && afterRefusal === '' && afterCodeOnly === '' && landedDraft !== '', `${j({ draftWhenAsked, afterRefusal, afterCodeOnly, landedDraft })} | change onRestore in src/screen/chat/useChatSelector.tsx so the draft fills only after a landed conversation rewind`)
     selector.session.calls.length = 0
     selector.session.turnActive = true
     selector.session.onInterrupt = () => void setTimeout(() => (selector.session.turnActive = false), 300)
@@ -183,7 +183,7 @@ section('§3 — the surfaces tell the truth')
     const boundedIn = Date.now() - boundedAt
     const boundedOrder = selector.session.calls.splice(0).map(call => call.split(' ')[0]).join(' · ')
     await selector.close()
-    check('a running turn is interrupted and given a bounded settle before the ask', settledOrder === 'interrupt · rewind' && settledIn >= 250 && settledIn < 3000 && boundedOrder === 'interrupt · rewind' && boundedIn >= 4500 && boundedIn < 9000, `${j({ settledOrder, settledIn, boundedOrder, boundedIn })} | change onRestore in src/screens/chat/useChatSelector.tsx so it interrupts a running turn, waits a bounded time, then rewinds`)
+    check('a running turn is interrupted and given a bounded settle before the ask', settledOrder === 'interrupt · rewind' && settledIn >= 250 && settledIn < 3000 && boundedOrder === 'interrupt · rewind' && boundedIn >= 4500 && boundedIn < 9000, `${j({ settledOrder, settledIn, boundedOrder, boundedIn })} | change onRestore in src/screen/chat/useChatSelector.tsx so it interrupts a running turn, waits a bounded time, then rewinds`)
   }
 }
 

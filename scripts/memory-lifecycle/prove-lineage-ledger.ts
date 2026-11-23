@@ -19,7 +19,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix the ledger in src/mneme/ledger.ts, the entry page in src/mneme/entryPage.ts, the handoff ask in src/mneme/handoffAsk.ts, or the close hook in src/mneme/sessionClose.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix the ledger in src/sessions/mneme/ledger.ts, the entry page in src/sessions/mneme/entryPage.ts, the handoff ask in src/sessions/mneme/handoffAsk.ts, or the close hook in src/sessions/mneme/sessionClose.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -31,14 +31,14 @@ let frozen = Date.UTC(2026, 9, 11, 1, 2, 3, 456)
 Date.now = () => frozen
 const frozenIso = (): string => new Date(frozen).toISOString()
 
-const ledger = await import('../../src/mneme/ledger.ts')
-const { composeEntryPage, FIRST_SESSION_LINE, ENTRY_PAGE_HEADING, NO_NOTE_LEFT } = await import('../../src/mneme/entryPage.ts')
-const { handoffGrade } = await import('../../src/mneme/memoryEvidence.ts')
-const { lineagePath, mnemeProjectKeyFor } = await import('../../src/mneme/paths.ts')
-const { handoffAskDue, _resetHandoffAskForTesting } = await import('../../src/mneme/handoffAsk.ts')
-const { registerSessionCloser, registerSessionCloseAsk, runSessionClosers, sessionCloseAsks, _resetSessionClosersForTesting } = await import('../../src/mneme/sessionClose.ts')
-const state = await import('../../src/bootstrap/state.ts')
-const queue = await import('../../src/input-core/command-queue.ts')
+const ledger = await import('../../src/sessions/mneme/ledger.ts')
+const { composeEntryPage, FIRST_SESSION_LINE, ENTRY_PAGE_HEADING, NO_NOTE_LEFT } = await import('../../src/sessions/mneme/entryPage.ts')
+const { handoffGrade } = await import('../../src/sessions/mneme/memoryEvidence.ts')
+const { lineagePath, mnemeProjectKeyFor } = await import('../../src/sessions/mneme/paths.ts')
+const { handoffAskDue, _resetHandoffAskForTesting } = await import('../../src/sessions/mneme/handoffAsk.ts')
+const { registerSessionCloser, registerSessionCloseAsk, runSessionClosers, sessionCloseAsks, _resetSessionClosersForTesting } = await import('../../src/sessions/mneme/sessionClose.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const queue = await import('../../src/screen/composer/input-core/command-queue.ts')
 
 const KEY = 'lineage-proof-project'
 
@@ -140,7 +140,7 @@ try {
   {
     _resetHandoffAskForTesting()
     const sessionId = String(state.getSessionId())
-    const projectKey = (await import('../../src/mneme/paths.ts')).mnemeProjectKey()
+    const projectKey = (await import('../../src/sessions/mneme/paths.ts')).mnemeProjectKey()
     state.setRunInputClosed(false)
     ledger.openEntry(projectKey, { sessionId, model: 'claude-fable-5-1' })
     check('input still open: not due', handoffAskDue({ querySource: 'sdk' }) === false)

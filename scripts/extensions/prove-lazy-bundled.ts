@@ -5,19 +5,19 @@ import { join } from 'node:path'
 import { spyOn } from 'bun:test'
 import * as crypto from 'node:crypto'
 import { removeScratch } from '../lib/removeScratch.ts'
-import { setCwdState, setOriginalCwd, setProjectRoot } from '../../src/bootstrap/state.js'
-import { enableConfigs } from '../../src/utils/config/globalConfig.js'
-import { computeRoster } from '../../src/extensions/roster.js'
-import { bootExtensions, reloadExtensions } from '../../src/extensions/reload.js'
-import { getExtensionMcpServers } from '../../src/extensions/load/servers.js'
-import { setSwitch } from '../../src/extensions/install.js'
-import { bundledMetadata, bundledPayloads } from '../../src/extensions/bundled/content.generated.js'
-import { bundledRoster } from '../../src/extensions/bundled/index.js'
-import { contributionsHash } from '../../src/extensions/manifest.js'
-import { hashTree } from '../../src/extensions/tree.js'
-import { callMCPToolWithUrlElicitationRetry, clearServerCache, fetchToolsForClient, getServerCacheKey, prefetchAllMcpResources } from '../../src/services/mcp/client.js'
-import { StdioClientTransport } from '../../src/utils/mcp/sdk.js'
-import type { ConnectedMCPServer } from '../../src/utils/mcp/types.js'
+import { setCwdState, setOriginalCwd, setProjectRoot } from '../../src/boot/process-state/processState.js'
+import { enableConfigs } from '../../src/platform/config/globalConfig.js'
+import { computeRoster } from '../../src/integrations/extensions/roster.js'
+import { bootExtensions, reloadExtensions } from '../../src/integrations/extensions/reload.js'
+import { getExtensionMcpServers } from '../../src/integrations/extensions/load/servers.js'
+import { setSwitch } from '../../src/integrations/extensions/install.js'
+import { bundledMetadata, bundledPayloads } from '../../src/integrations/extensions/bundled/content.generated.js'
+import { bundledRoster } from '../../src/integrations/extensions/bundled/index.js'
+import { contributionsHash } from '../../src/integrations/extensions/manifest.js'
+import { hashTree } from '../../src/integrations/extensions/tree.js'
+import { callMCPToolWithUrlElicitationRetry, clearServerCache, fetchToolsForClient, getServerCacheKey, prefetchAllMcpResources } from '../../src/integrations/mcp/client.js'
+import { StdioClientTransport } from '../../src/integrations/mcp-shapes/sdk.js'
+import type { ConnectedMCPServer } from '../../src/integrations/mcp-shapes/mcpServerRecords.js'
 
 setCwdState(proofHome)
 setOriginalCwd(proofHome)
@@ -28,16 +28,16 @@ try {
   const boot = await bootExtensions({ cwd: proofHome })
   const media = boot.set.roster.entries.find(e => e.name === 'mercury-media')!
   assert.equal(media.switchedOn, false)
-  assert.ok(media.root && !existsSync(media.root), `src/extensions/bundled/index.ts disabled mercury-media must not materialize ${media.root ?? 'missing root'}`)
+  assert.ok(media.root && !existsSync(media.root), `src/integrations/extensions/bundled/index.ts disabled mercury-media must not materialize ${media.root ?? 'missing root'}`)
   const coldConfigs = getExtensionMcpServers()
   configs.push(coldConfigs)
   assert.equal(Object.keys(coldConfigs).length, 3, JSON.stringify({ counts: boot.counts, health: [...boot.set.healthById] }))
   const cold = await prefetchAllMcpResources(coldConfigs)
   const clients = cold.clients as ConnectedMCPServer[]
   assert.equal(clients.length, 3)
-  assert.ok(clients.every(c => c.type === 'connected'), `src/services/mcp/client.ts expected all 3 bundled Craft clients connected: ${clients.map(c => `${c.name}:${c.type}`).join(', ')}`)
+  assert.ok(clients.every(c => c.type === 'connected'), `src/integrations/mcp/client.ts expected all 3 bundled Craft clients connected: ${clients.map(c => `${c.name}:${c.type}`).join(', ')}`)
   const transports = clients.map(c => c.client.transport as StdioClientTransport)
-  assert.ok(transports.every(t => t instanceof StdioClientTransport && t.pid === null), `src/services/mcp/client.ts lazy bundled Craft bridges must not spawn pids at cold boot: pids=${transports.map(t => t.pid).join(',')}`)
+  assert.ok(transports.every(t => t instanceof StdioClientTransport && t.pid === null), `src/integrations/mcp/client.ts lazy bundled Craft bridges must not spawn pids at cold boot: pids=${transports.map(t => t.pid).join(',')}`)
   assert.equal(cold.tools.filter(t => t.mcpInfo?.toolName.startsWith('craft_')).length, 9)
   for (const client of clients) {
     const metadata = client.config.bundledBootstrap!
@@ -53,7 +53,7 @@ try {
   const firstMs = performance.now() - start
   assert.match(JSON.stringify(first.content), /FilmCraft/)
   assert.match(JSON.stringify(concurrent.content), /FilmCraft/)
-  assert.ok(transport.pid !== null, 'src/services/mcp/client.ts lazy FilmCraft transport did not spawn a pid on first craft_status call')
+  assert.ok(transport.pid !== null, 'src/integrations/mcp/client.ts lazy FilmCraft transport did not spawn a pid on first craft_status call')
   const pid = transport.pid
   assert.equal(transports.filter(t => t.pid !== null).length, 1)
   const secondStart = performance.now()
@@ -83,9 +83,9 @@ try {
     assert.equal(hashSpy.mock.calls.length, 0)
   } finally { hashSpy.mockRestore() }
   console.log(`30 rosters: mean ${(timings.reduce((a, b) => a + b, 0) / timings.length).toFixed(3)} ms; zero payload hash calls`)
-  assert.ok(!existsSync(media.root!), `src/extensions/roster.ts computeRoster unexpectedly materialized disabled ${media.root}`)
+  assert.ok(!existsSync(media.root!), `src/integrations/extensions/roster.ts computeRoster unexpectedly materialized disabled ${media.root}`)
   assert.equal(setSwitch(media.id, true).ok, true)
-  assert.ok(existsSync(join(media.root!, 'server/server.js')), `src/extensions/install.ts enabling ${media.id} did not materialize server/server.js`)
+  assert.ok(existsSync(join(media.root!, 'server/server.js')), `src/integrations/extensions/install.ts enabling ${media.id} did not materialize server/server.js`)
   const enabledHashSpy = spyOn(crypto, 'createHash')
   try {
     for (let i = 0; i < 3; i++) assert.equal(computeRoster({ cwd: proofHome }).entries.find(e => e.id === media.id)?.switchedOn, true)

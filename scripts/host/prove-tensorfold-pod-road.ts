@@ -7,17 +7,17 @@ import { runpodFixture } from './runpodFixture.mjs'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(process.env.TMPDIR ?? '/private/tmp', 'tensorfold-pod-road-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
-const { TENSORFOLD_HOST_VERSION, tensorFoldKeyWriteCommand, tensorFoldReadyCommand } = await import('../../src/services/host/tensorfoldRelease.ts')
-const pod = await import('../../src/services/host/tensorfoldPod.ts')
-const { hostDirectory, hostRecords, readHostRecord, removeHostRecord, writeHostRecord } = await import('../../src/services/host/store.ts')
-const { listBoxes, readBox } = await import('../../src/services/host/boxes.ts')
-const { tensorFoldHosts, tensorFoldHostKey } = await import('../../src/services/providers/local/tensorfoldHosts.ts')
-const { vendorClient } = await import('../../src/services/host/vendors/client.ts')
-const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
+const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
+const { TENSORFOLD_HOST_VERSION, tensorFoldKeyWriteCommand, tensorFoldReadyCommand } = await import('../../src/models/hosting/tensorfoldRelease.ts')
+const pod = await import('../../src/models/hosting/tensorfoldPod.ts')
+const { hostDirectory, hostRecords, readHostRecord, removeHostRecord, writeHostRecord } = await import('../../src/models/hosting/store.ts')
+const { listBoxes, readBox } = await import('../../src/models/hosting/boxes.ts')
+const { tensorFoldHosts, tensorFoldHostKey } = await import('../../src/models/roads/local/tensorfoldHosts.ts')
+const { vendorClient } = await import('../../src/models/hosting/vendors/client.ts')
+const { writeStoredRunpodApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
 
 let checks = 0
-const failureHint = 'fix the function this check names in src/services/host/tensorfoldPod.ts (pod key, registration, facts, rent row, card words, stopTensorFoldPod), or in src/services/host/tensorfoldRelease.ts for the key-write and readiness commands'
+const failureHint = 'fix the function this check names in src/models/hosting/tensorfoldPod.ts (pod key, registration, facts, rent row, card words, stopTensorFoldPod), or in src/models/hosting/tensorfoldRelease.ts for the key-write and readiness commands'
 const check = (name: string, truth: unknown): void => { assert.ok(truth, name + ' · ' + failureHint); checks++; console.log('PASS ' + name) }
 const bash = (command: string): Promise<{ status: number | null; stdout: string; stderr: string }> => new Promise((resolve, reject) => {
   const child = spawn('bash', ['-c', command], { stdio: ['ignore', 'pipe', 'pipe'] })

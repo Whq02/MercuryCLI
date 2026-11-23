@@ -9,15 +9,15 @@ let failures = 0
 let seamWhere = ''
 const seamPointers: Record<string, string> = {
   '(1)': 'change registerMcpAddCommand in src/commands/mcp/addCommand.ts, or where the mcp command calls it, so add is registered before parsing',
-  '(2)': 'change createReadRuleSuggestion in src/utils/permissions/PermissionUpdate.ts (the writer) or rootForPattern in src/utils/permissions/filesystem.ts (the reader) so both use one drive spelling',
-  '(3)': 'change normalizePathForConfigKey in src/utils/path.ts',
-  '(4)': 'change the gh probe in src/services/health/sections/coding-loop-fast.ts or whichSync in src/utils/which.ts',
-  '(5)': 'change canonicalHomeSpelling in src/utils/envUtils.ts',
-  '(10)': 'change the starter file in src/keybindings/template.ts (generateKeybindingsTemplate) or the rules in src/keybindings/validate.ts',
-  '(12)': 'change the reserved-shortcut tables in src/keybindings/reservedShortcuts.ts',
-  '(14)': 'change sweepProbeDir in src/services/health/healthDeepProbes.ts',
-  '(15)': 'change ripGrep, ripGrepAnswer or isRipgrepUsageDiagnostic in src/utils/ripgrep.ts',
-  '(17)': 'change getRawSpellingKeychainStorageServiceName in src/utils/secureStorage/macOsKeychainHelpers.ts or operatorPrincipal in src/substrate/identity/identity.ts',
+  '(2)': 'change createReadRuleSuggestion in src/permissions/rules/permissionUpdate.ts (the writer) or rootForPattern in src/permissions/rules/filesystem.ts (the reader) so both use one drive spelling',
+  '(3)': 'change normalizePathForConfigKey in src/platform/files/path.ts',
+  '(4)': 'change the gh probe in src/platform/health/sections/coding-loop-fast.ts or whichSync in src/platform/processes/which.ts',
+  '(5)': 'change canonicalHomeSpelling in src/platform/environment/envUtils.ts',
+  '(10)': 'change the starter file in src/screen/keys/template.ts (generateKeybindingsTemplate) or the rules in src/screen/keys/validate.ts',
+  '(12)': 'change the reserved-shortcut tables in src/screen/keys/reservedShortcuts.ts',
+  '(14)': 'change sweepProbeDir in src/platform/health/healthDeepProbes.ts',
+  '(15)': 'change ripGrep, ripGrepAnswer or isRipgrepUsageDiagnostic in src/platform/shell/ripgrep.ts',
+  '(17)': 'change getRawSpellingKeychainStorageServiceName in src/platform/secure-storage/macOsKeychainHelpers.ts or operatorPrincipal in src/platform/substrate/identity/identity.ts',
 }
 const check = (name: string, cond: boolean, detail = ''): void => {
   const hint = [detail, seamWhere].filter(part => part !== '').join(' | ')
@@ -40,7 +40,7 @@ section('(1) `mercury mcp add` is registered BEFORE the parser looks for it')
   check('the add command is registered by its owning module', add !== undefined && builtHelp('mcp').includes(` add ${add.usage()} ${add.description()} `), `the owning module registers: add ${add?.usage()} ${add?.description()}`)
 
   const dist = join(ROOT, 'dist', 'mercury.mjs')
-  const { whichSync: whichExe } = await import('../../src/utils/which.js')
+  const { whichSync: whichExe } = await import('../../src/platform/processes/which.js')
   const nodeExe = whichExe('node')
   if (existsSync(dist) && nodeExe !== null) {
     const home = mkdtempSync(join(tmpdir(), 'winseams-mcp-'))
@@ -65,8 +65,8 @@ section('(2) path-scoped permission rules match on Windows — the writer and th
   const scratchHome = mkdtempSync(join(tmpdir(), 'winseams-perm-'))
   process.env.MERCURY_CONFIG_DIR = scratchHome
   try {
-    const { createReadRuleSuggestion } = await import('../../src/utils/permissions/PermissionUpdate.js')
-    const { rootForPattern } = await import('../../src/utils/permissions/filesystem.js')
+    const { createReadRuleSuggestion } = await import('../../src/permissions/rules/permissionUpdate.js')
+    const { rootForPattern } = await import('../../src/permissions/rules/filesystem.js')
     const content = (u: unknown): string | undefined => (u as { rules?: Array<{ ruleContent?: string }> } | undefined)?.rules?.[0]?.ruleContent
     check('the writer anchors a backslash drive path at the drive: C:\\proj ⇒ //C/proj/**', content(createReadRuleSuggestion('C:\\proj')) === '//C/proj/**')
     check('…and a forward-slash drive path the same way, upper-casing the letter', content(createReadRuleSuggestion('c:/proj/sub')) === '//C/proj/sub/**')
@@ -95,7 +95,7 @@ section('(2) path-scoped permission rules match on Windows — the writer and th
 
 section('(3) one folder, one config key; the trust card compares keys')
 {
-  const { normalizePathForConfigKey } = await import('../../src/utils/path.js')
+  const { normalizePathForConfigKey } = await import('../../src/platform/files/path.js')
   check('a lower-case drive letter folds to the canonical upper case', normalizePathForConfigKey('c:\\proj\\sub') === 'C:/proj/sub')
   check('an upper-case drive letter is unchanged', normalizePathForConfigKey('C:\\proj') === 'C:/proj')
   check('backslashes become forward slashes (the key spelling)', normalizePathForConfigKey('C:\\Users\\op\\.mercury') === 'C:/Users/op/.mercury')
@@ -105,8 +105,8 @@ section('(3) one folder, one config key; the trust card compares keys')
 
 section('(4) executable probes ride the one PATHEXT-aware owner')
 {
-  const { codingLoopFastChecks } = await import('../../src/services/health/sections/coding-loop-fast.ts')
-  const { whichSync: lookup } = await import('../../src/utils/which.ts')
+  const { codingLoopFastChecks } = await import('../../src/platform/health/sections/coding-loop-fast.ts')
+  const { whichSync: lookup } = await import('../../src/platform/processes/which.ts')
   const workbench = codingLoopFastChecks().find(row => row.id === 'anvil-workbench-fast')
   const repoLineOf = (detail: string | undefined): string => detail?.split('\n')[0] ?? ''
   const workbenchHere = repoLineOf((await workbench?.run())?.detail)
@@ -121,14 +121,14 @@ section('(4) executable probes ride the one PATHEXT-aware owner')
   }
   check("the repo-host row asks whichSync('gh')", workbenchHere.startsWith('repo host: OFF') || workbenchHere === `repo host: ${ghHere ? 'gh on PATH (mercury://repo live)' : 'gh ABSENT — context unavailable (remedy: install gh + gh auth login)'}`, workbenchHere)
   check('no bare-name gh PATH walk survives in the health report', workbenchHere.startsWith('repo host: OFF') || workbenchNowhere.startsWith('repo host: gh ABSENT'), workbenchNowhere)
-  const { whichSync } = await import('../../src/utils/which.js')
+  const { whichSync } = await import('../../src/platform/processes/which.js')
   check('the owner resolves a real executable on this host', whichSync('node') !== null || whichSync('bun') !== null)
   check('the owner answers null for a name that is not on PATH', whichSync('winseams-no-such-binary-7f3a') === null)
 }
 
 section('(5) one config home, one spelling')
 {
-  const { canonicalHomeSpelling } = await import('../../src/utils/envUtils.js')
+  const { canonicalHomeSpelling } = await import('../../src/platform/environment/envUtils.js')
   check('win32: a trailing backslash is dropped', canonicalHomeSpelling('C:\\Users\\op\\.mercury\\', 'win32') === 'C:\\Users\\op\\.mercury')
   check('win32: forward slashes become the OS spelling', canonicalHomeSpelling('C:/Users/op/.mercury', 'win32') === 'C:\\Users\\op\\.mercury')
   check('win32: the drive letter is upper-cased', canonicalHomeSpelling('c:\\h', 'win32') === 'C:\\h')
@@ -146,9 +146,9 @@ section('(5) one config home, one spelling')
 
 section('(10) the starter keybindings.json passes the product\'s own validator')
 {
-  const { generateKeybindingsTemplate } = await import('../../src/keybindings/template.js')
-  const { validateUserConfig, checkReservedShortcuts, isUserConfigContext } = await import('../../src/keybindings/validate.js')
-  const { parseKeybindings } = await import('../../src/keybindings/loadUserBindings.js').catch(() => ({ parseKeybindings: undefined as undefined }))
+  const { generateKeybindingsTemplate } = await import('../../src/screen/keys/template.js')
+  const { validateUserConfig, checkReservedShortcuts, isUserConfigContext } = await import('../../src/screen/keys/validate.js')
+  const { parseKeybindings } = await import('../../src/screen/keys/loadUserBindings.js').catch(() => ({ parseKeybindings: undefined as undefined }))
   const text = generateKeybindingsTemplate()
   const parsed = JSON.parse(text) as { bindings: Array<{ context: string; bindings: Record<string, string | null> }> }
   check('the template parses as JSON with a bindings list', Array.isArray(parsed.bindings) && parsed.bindings.length > 0)
@@ -167,7 +167,7 @@ section('(10) the starter keybindings.json passes the product\'s own validator')
 
 section('(12) the reserved-shortcut table knows Windows')
 {
-  const { reservedShortcutsFor, WINDOWS_RESERVED, NON_REBINDABLE, MACOS_RESERVED } = await import('../../src/keybindings/reservedShortcuts.js')
+  const { reservedShortcutsFor, WINDOWS_RESERVED, NON_REBINDABLE, MACOS_RESERVED } = await import('../../src/screen/keys/reservedShortcuts.js')
   const win = reservedShortcutsFor('windows')
   const keys = new Set(win.map(s => s.key))
   check('Windows Terminal copy/paste chords are reserved', keys.has('ctrl+shift+c') && keys.has('ctrl+shift+v'))
@@ -183,7 +183,7 @@ section('(12) the reserved-shortcut table knows Windows')
 section('(14) a deep probe\'s scratch sweep never outranks its verdict')
 {
   ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '0.0.0' }
-  const { sweepProbeDir } = await import('../../src/services/health/healthDeepProbes.js')
+  const { sweepProbeDir } = await import('../../src/platform/health/healthDeepProbes.js')
   let calls = 0
   const flakyTwice = (): void => {
     calls++
@@ -208,9 +208,9 @@ section('(14) a deep probe\'s scratch sweep never outranks its verdict')
 section('(15) an invalid Grep pattern is a refusal, never "no matches"')
 {
   ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '0.0.0' }
-  const { ripGrep, RipgrepUsageError, resolveRipgrep } = await import('../../src/utils/ripgrep.js')
+  const { ripGrep, RipgrepUsageError, resolveRipgrep } = await import('../../src/platform/shell/ripgrep.js')
   const rg = resolveRipgrep()
-  const { whichSync: whichRg } = await import('../../src/utils/which.js')
+  const { whichSync: whichRg } = await import('../../src/platform/processes/which.js')
   const rgPresent = rg.mode === 'system' ? whichRg(rg.config.rgPath) !== null : existsSync(rg.config.rgPath)
   const scratch = mkdtempSync(join(tmpdir(), 'winseams-rg-'))
   try {
@@ -229,7 +229,7 @@ section('(15) an invalid Grep pattern is a refusal, never "no matches"')
     }
     const found = !rgPresent ? [] : await ripGrep(['-n', 'beta'], scratch, new AbortController().signal)
     check('a valid search still returns its matches', !rgPresent || found.some(line => line.includes('beta')), JSON.stringify(found))
-    const { isRipgrepUsageDiagnostic, ripGrepAnswer } = await import('../../src/utils/ripgrep.js')
+    const { isRipgrepUsageDiagnostic, ripGrepAnswer } = await import('../../src/platform/shell/ripgrep.js')
     check(
       'usage shapes read as usage (regex parse error · the error:-led argument refusal · an unrecognized flag)',
       isRipgrepUsageDiagnostic('rg: regex parse error:\n    (unclosed\n    ^\nerror: unclosed group') &&
@@ -291,8 +291,8 @@ section('(17) raw-spelling credential continuity + the one keyed principal (the 
     process.env.MERCURY_CONFIG_DIR = '/h/op/.mercury/'
     process.env.USER = 'op'
     const { createHash } = await import('node:crypto')
-    const helpers = await import('../../src/utils/secureStorage/macOsKeychainHelpers.js')
-    const identity = await import('../../src/substrate/identity/identity.js')
+    const helpers = await import('../../src/platform/secure-storage/macOsKeychainHelpers.js')
+    const identity = await import('../../src/platform/substrate/identity/identity.js')
     const rawName = helpers.getRawSpellingKeychainStorageServiceName('-credentials')
     const expectedHash = createHash('sha256').update('/h/op/.mercury/').digest('hex').slice(0, 8)
     check('a trailing-separator pin derives the raw-spelling service name from the RAW hash', rawName !== null && rawName.startsWith('Mercury') && rawName.endsWith(`-${expectedHash}`), String(rawName))

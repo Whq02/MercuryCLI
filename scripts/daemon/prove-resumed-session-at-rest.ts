@@ -32,14 +32,14 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const j = (value: unknown): string => JSON.stringify(value)
 
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 4 } }))
-const sup = await import('../../src/daemon/concourseWorkers.ts')
-const { startControlServer } = await import('../../src/daemon/controlServer.ts')
-const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
-const { controlSockPath } = await import('../../src/daemon/controlSocket.ts')
-type Rec = import('../../src/daemon/concourseWorkers.ts').ConcourseWorkerRecordV1
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { startControlServer } = await import('../../src/daemon/control/controlServer.ts')
+const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/control/protocol.ts')
+const { controlSockPath } = await import('../../src/daemon/control/controlSocket.ts')
+type Rec = import('../../src/daemon/concourse-workers/concourseWorkers.ts').ConcourseWorkerRecordV1
 type Spec = ReturnType<typeof sup.buildConcourseWorkerSpec>
 
 const ALIVE = { needsYou: false, alive: true }
@@ -48,7 +48,7 @@ const now = Date.now()
 
 console.log('A1 the board reads working only of a turn in flight: a session admitted at rest stands under READY TO REVIEW until it is given words')
 {
-  where = 'fix concourseRecordState in src/daemon/concourseWorkers/recordState.ts (and turnInFlightOf in src/daemon/concourseWorkers/record.ts)'
+  where = 'fix concourseRecordState in src/daemon/concourse-workers/recordState.ts (and turnInFlightOf in src/daemon/concourse-workers/record.ts)'
   check('a session brought back by a resume with no message, alive, nothing delivered: ready to review (red before: working, with the busy glyph)', state({ resumedAtRestAt: now }) === 'ready-to-review', state({ resumedAtRestAt: now }))
   check('a wordless newborn reads as it did: ready to review', state({ bornBlankAt: now }) === 'ready-to-review')
   check('given words, either one works until that turn settles, then is ready again', state({ resumedAtRestAt: now, lastDeliveryAt: now + 10 }) === 'working' && state({ resumedAtRestAt: now, lastDeliveryAt: now + 10, lastTurnSettledAt: now + 20 }) === 'ready-to-review' && state({ bornBlankAt: now, lastDeliveryAt: now + 10 }) === 'working')
@@ -59,7 +59,7 @@ console.log('A1 the board reads working only of a turn in flight: a session admi
 
 console.log("A2 the control door marks the one admission that brings a session back with no message: sessionAdmit with a resume id and no blank birth")
 {
-  where = 'fix readSessionAdmit in src/daemon/controlServer.ts (the resumedAtRest flag it forwards to concourseAdmit)'
+  where = 'fix readSessionAdmit in src/daemon/control/controlServer.ts (the resumedAtRest flag it forwards to concourseAdmit)'
   const socketPath = process.platform === 'win32' ? controlSockPath() : join(SCRATCH, 'fixture.sock')
   const forwarded: Array<Record<string, unknown>> = []
   const server = await startControlServer({
@@ -117,7 +117,7 @@ class FakeRoster {
 
 console.log('A3 the admission writes it on the record, and the record reads at rest from its first beat')
 {
-  where = 'fix makeConcourseAdmitHandler in src/daemon/concourseWorkers/admit.ts (the resumedAtRest stamp), concourseRecordState in src/daemon/concourseWorkers/recordState.ts, or markConcourseWorkerDelivery and markConcourseWorkerTurnSettled in src/daemon/concourseWorkers/marks.ts'
+  where = 'fix makeConcourseAdmitHandler in src/daemon/concourse-workers/admit.ts (the resumedAtRest stamp), concourseRecordState in src/daemon/concourse-workers/recordState.ts, or markConcourseWorkerDelivery and markConcourseWorkerTurnSettled in src/daemon/concourse-workers/marks.ts'
   const roster = new FakeRoster()
   const dir = mkdtempSync(join(SCRATCH, 'daemon-'))
   const ws = realpathSync(mkdtempSync(join(SCRATCH, 'ws-')))
@@ -141,7 +141,7 @@ console.log('A3 the admission writes it on the record, and the record reads at r
 
 console.log('A4 a session that already has a record is taken back with no message: at rest too, by a warm runner or a new one, and a turn its dead runner left open is not called running')
 {
-  where = 'fix makeConcourseAdmitHandler in src/daemon/concourseWorkers/admit.ts, concourseRecordState in src/daemon/concourseWorkers/recordState.ts, stopConcourseSession and completeRequestedStop in src/daemon/concourseWorkers/stop.ts, or reviveConcourseWorker in src/daemon/concourseWorkers/revive.ts'
+  where = 'fix makeConcourseAdmitHandler in src/daemon/concourse-workers/admit.ts, concourseRecordState in src/daemon/concourse-workers/recordState.ts, stopConcourseSession and completeRequestedStop in src/daemon/concourse-workers/stop.ts, or reviveConcourseWorker in src/daemon/concourse-workers/revive.ts'
   const DEAD_PID = 2_147_000_000
   let n = 0
   const world = (warm: boolean): { roster: FakeRoster; dir: string; ws: string; admit: ReturnType<typeof sup.makeConcourseAdmitHandler>; warmed: () => number } => {

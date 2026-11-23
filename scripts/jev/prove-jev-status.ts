@@ -3,7 +3,7 @@
 
 let failures = 0
 let checks = 0
-const jevStatusHint = 'fix resolveJevStatus, JEV_STATUS_HEADWORDS, jevStatusIsFinalForSession or jevStatusLine in src/services/jev/jevStatus.ts (the reason order and the words), or the attempt and wire-failure records in src/services/jev/jevLedger.ts'
+const jevStatusHint = 'fix resolveJevStatus, JEV_STATUS_HEADWORDS, jevStatusIsFinalForSession or jevStatusLine in src/models/jev/jevStatus.ts (the reason order and the words), or the attempt and wire-failure records in src/models/jev/jevLedger.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -13,9 +13,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const contract = await import('../../src/services/jev/jevContract.js')
-const ledger = await import('../../src/services/jev/jevLedger.js')
-const status = await import('../../src/services/jev/jevStatus.js')
+const contract = await import('../../src/models/jev/jevContract.js')
+const ledger = await import('../../src/models/jev/jevLedger.js')
+const status = await import('../../src/models/jev/jevStatus.js')
 const { JEV_STATUS_KINDS } = contract
 const { jevAdmission: _admission, jevLedgerSnapshot, noteJevAttempt, noteJevWireFailure, resetJevLedger, settleJevCall } = ledger
 const { JEV_STATUS_HEADWORDS, jevStatusIsFinalForSession, jevStatusLine, resolveJevStatus } = status

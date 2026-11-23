@@ -11,7 +11,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
-import { defineStore } from '../../src/substrate/fileStore.ts'
+import { defineStore } from '../../src/platform/substrate/fileStore.ts'
 
 let failures = 0
 const ok = (cond: boolean, label: string, hint = '') => {
@@ -61,11 +61,11 @@ const runChild = (
     parsed = JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}')
   } catch {
   }
-  ok(res.status === 0, `FC2 collide child ran (${res.status}${res.stderr ? ` — ${res.stderr.slice(0, 120)}` : ''})`, 'run scripts/reliability/helpers/sidecarCollideChild.ts directly with bun and fix the error it prints; it saves run sidecars through saveRunSidecar in src/services/run/runSidecar.ts')
+  ok(res.status === 0, `FC2 collide child ran (${res.status}${res.stderr ? ` — ${res.stderr.slice(0, 120)}` : ''})`, 'run scripts/reliability/helpers/sidecarCollideChild.ts directly with bun and fix the error it prints; it saves run sidecars through saveRunSidecar in src/engine/run/runSidecar.ts')
   ok(
     (parsed.anomalies ?? -1) === 0 && (parsed.orphanTmps ?? -1) === 0,
     `FC2 FIXED: collision-free temps under overlap (${parsed.anomalies}/${parsed.rounds} anomalies, ${parsed.orphanTmps} orphan tmp(s))`,
-    'saveRunSidecar in src/services/run/runSidecar.ts must write each overlapping save through a collision-free temp file and leave no orphan temp behind',
+    'saveRunSidecar in src/engine/run/runSidecar.ts must write each overlapping save through a collision-free temp file and leave no orphan temp behind',
   )
 }
 
@@ -102,7 +102,7 @@ const runChild = (
       quarantines.length === 1 &&
       readFileSync(join(tmp, quarantines[0]!), 'utf8') === DAMAGED,
     'FC5 FIXED: the mutation proceeds only AFTER the only damaged copy is preserved in quarantine (exact bytes)',
-    'a mutate on a damaged store (src/substrate/fileStore.ts, quarantine in src/substrate/storeRecovery.ts) must first save the unreadable bytes to a .damaged-*.recovered file and only then write the new value',
+    'a mutate on a damaged store (src/platform/substrate/fileStore.ts, quarantine in src/platform/substrate/storeRecovery.ts) must first save the unreadable bytes to a .damaged-*.recovered file and only then write the new value',
   )
 }
 
@@ -165,7 +165,7 @@ const runChild = (
   ok(
     pinned,
     `FC6 FIXED: an interrupted reset resurrects NOTHING — ${survivors} files survived the kill, ${liveIds.length} served as live`,
-    'resetTaskList in src/utils/tasks.ts must leave no task of the old epoch served as live when the process dies part way through the reset; if survivors is 0 or the full seed count the kill missed its window, so rerun',
+    'resetTaskList in src/engine/task-framework/tasks.ts must leave no task of the old epoch served as live when the process dies part way through the reset; if survivors is 0 or the full seed count the kill missed its window, so rerun',
   )
   const swept = runChild('taskSweepChild.ts', { RELIA_LIST: listId })
   let sweptCount = -1
@@ -179,7 +179,7 @@ const runChild = (
   ok(
     swept.status === 0 && sweptCount === survivors && remaining === 0,
     `FC6 GC: sweepDeadEpochTasks reclaimed all ${sweptCount} dead bodies`,
-    'sweepDeadEpochTasks in src/utils/tasks.ts must remove every dead-epoch task file, and its count must equal the files that survived the killed reset; run scripts/reliability/helpers/taskSweepChild.ts to see its error',
+    'sweepDeadEpochTasks in src/engine/task-framework/tasks.ts must remove every dead-epoch task file, and its count must equal the files that survived the killed reset; run scripts/reliability/helpers/taskSweepChild.ts to see its error',
   )
   const liveProbe = runChild('taskCreateChild.ts', { RELIA_LIST: listId })
   let probe: { id?: string; live?: string[] } = {}
@@ -190,7 +190,7 @@ const runChild = (
   ok(
     liveProbe.status === 0 && typeof probe.id === 'string' && (probe.live ?? []).includes(probe.id),
     `FC6 LIVENESS: a current-epoch task serves as live (created ${probe.id ?? '?'}, ${probe.live?.length ?? 0} live)`,
-    'a task created after a reset must be listed as live; check the epoch handling in src/utils/tasks.ts and run scripts/reliability/helpers/taskCreateChild.ts to see its error',
+    'a task created after a reset must be listed as live; check the epoch handling in src/engine/task-framework/tasks.ts and run scripts/reliability/helpers/taskCreateChild.ts to see its error',
   )
 }
 
@@ -240,7 +240,7 @@ const runChild = (
   ok(
     fixedFc8,
     `FC8 FIXED: coalesced commits arrive as one catch-up emission with skippedRevisions=1 (${JSON.stringify(observed)})`,
-    'the change subscription in src/substrate/fileStore.ts (subscribeChanges) must deliver two commits inside one debounce window as a single emission with cause catch-up and skippedRevisions 1',
+    'the change subscription in src/platform/substrate/fileStore.ts (subscribeChanges) must deliver two commits inside one debounce window as a single emission with cause catch-up and skippedRevisions 1',
   )
 }
 

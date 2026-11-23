@@ -4,10 +4,10 @@ import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import { z } from 'zod/v4'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MODEL_API_KEY = 'meta-fixture-wire-not-a-real-key'
@@ -25,7 +25,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   assert.equal(path, '/v1/chat/completions')
   assert.equal(req.method, 'POST')
   const raw = await req.text()
-  assert.ok(!raw.includes(process.env.MODEL_API_KEY!), 'Meta chat request body in src/services/providers/meta/ must never contain MODEL_API_KEY')
+  assert.ok(!raw.includes(process.env.MODEL_API_KEY!), 'Meta chat request body in src/models/roads/meta/ must never contain MODEL_API_KEY')
   const body = JSON.parse(raw)
   captures.push({ path, body, bearer: req.headers.get('authorization') === `Bearer ${process.env.MODEL_API_KEY}` })
   if (mode === 'auth' || mode === 'billing' || mode === 'busy') {
@@ -50,16 +50,16 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   return new Response(stream + 'data: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } })
 } })
 process.env.MERCURY_META_API_BASE = `http://127.0.0.1:${server.port}/v1`
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
-const { refreshMetaCatalogue, __resetMetaCatalogueForTest } = await import('../../src/services/providers/meta/metaCatalogue.ts')
-const { buildMetaExtras } = await import('../../src/services/providers/meta/metaCallModel.ts')
-const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { resolvePrimaryAgentBackend } = await import('../../src/models/roads/primaryBackend.ts')
+const { refreshMetaCatalogue, __resetMetaCatalogueForTest } = await import('../../src/models/roads/meta/metaCatalogue.ts')
+const { buildMetaExtras } = await import('../../src/models/roads/meta/metaCallModel.ts')
+const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
+const { laneBillingState } = await import('../../src/models/roads/laneBillingState.ts')
+const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
 const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
 function params(model = 'muse', effortValue: string | undefined = 'max', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
   return { messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: thinking ? { type: 'enabled', budgetTokens: 4096 } : { type: 'disabled' }, signal: new AbortController().signal,

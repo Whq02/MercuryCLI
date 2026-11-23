@@ -5,14 +5,14 @@ import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const { appendObservation } = await import('../../src/mneme/mnemeBuffer.ts')
-const { maybeConsolidate, listTopicDocs, readLibraryMeta } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { correctFact, retireFact } = await import('../../src/mneme/mnemeCorrect.ts')
-const { grepAll } = await import('../../src/mneme/mnemeRetrieval.ts')
+const { appendObservation } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { maybeConsolidate, listTopicDocs, readLibraryMeta } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { correctFact, retireFact } = await import('../../src/sessions/mneme/mnemeCorrect.ts')
+const { grepAll } = await import('../../src/sessions/mneme/mnemeRetrieval.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + 'fix correctFact or retireFact in src/mneme/mnemeCorrect.ts, or the topic document read and write in src/mneme/mnemeConsolidate.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + 'fix correctFact or retireFact in src/sessions/mneme/mnemeCorrect.ts, or the topic document read and write in src/sessions/mneme/mnemeConsolidate.ts' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

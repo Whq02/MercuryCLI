@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import type { Message } from '../../src/types/message.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'fold-obligations-'))
 process.env.MERCURY_CONFIG_DIR = home
@@ -12,16 +12,16 @@ process.env.MERCURY_TMPDIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY ??= 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { compactConversation, buildPostCompactMessages, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } = await import('../../src/services/compact/compact.ts')
-const { renderFoldLedger } = await import('../../src/services/compact/foldLedger.ts')
-const { operatorMessagesBlockText } = await import('../../src/utils/compact/operatorMessages.ts')
-const { roughTokenCountEstimation } = await import('../../src/services/tokenEstimation.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { compactConversation, buildPostCompactMessages, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } = await import('../../src/engine/compaction/foldConversation.ts')
+const { renderFoldLedger } = await import('../../src/engine/compaction/foldLedger.ts')
+const { operatorMessagesBlockText } = await import('../../src/engine/compaction-window/operatorMessages.ts')
+const { roughTokenCountEstimation } = await import('../../src/models/facts/tokenEstimation.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 
 let checks = 0
 let failures = 0
@@ -30,9 +30,9 @@ const check = (label: string, condition: boolean, detail = '', changeHint = ''):
   if (!condition) failures++
   console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition || !(detail || changeHint) ? '' : `: ${[detail, changeHint].filter(Boolean).join(' | ')}`}`)
 }
-const ledgerWhere = 'change the fold ledger index built in compactConversation (src/services/compact/compact.ts) or rendered by renderFoldLedger (src/services/compact/foldLedger.ts)'
-const operatorBlockWhere = 'change how the fold builds the operator messages block in compactConversation (src/services/compact/compact.ts) or operatorMessagesBlockText (src/utils/compact/operatorMessages.ts)'
-const refuseWhere = 'change the over-threshold refusal in compactConversation (src/services/compact/compact.ts), ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD'
+const ledgerWhere = 'change the fold ledger index built in compactConversation (src/engine/compaction/foldConversation.ts) or rendered by renderFoldLedger (src/engine/compaction/foldLedger.ts)'
+const operatorBlockWhere = 'change how the fold builds the operator messages block in compactConversation (src/engine/compaction/foldConversation.ts) or operatorMessagesBlockText (src/engine/compaction-window/operatorMessages.ts)'
+const refuseWhere = 'change the over-threshold refusal in compactConversation (src/engine/compaction/foldConversation.ts), ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD'
 
 let clock = Date.UTC(2026, 9, 16)
 const user = (content: unknown): Message => ({ type: 'user', uuid: randomUUID(), timestamp: new Date(clock++).toISOString(), message: { role: 'user', content } }) as Message
@@ -93,7 +93,7 @@ try {
   const blockBytes = [Buffer.byteLength(operatorMessagesBlockText(firstBlock as never)), Buffer.byteLength(operatorMessagesBlockText(secondBlock as never))]
   check(`the index stays bounded per fold (${indexBytes[0]} → ${indexBytes[1]} bytes) and the block grows only to the session's asks within its 20k-token budget (${blockBytes[0]} → ${blockBytes[1]} bytes)`, indexBytes[1] < indexBytes[0] * 1.5 && blockBytes[1] <= 20_000 * 4 + 2_000, `index bytes ${indexBytes.join(' -> ')}, block bytes ${blockBytes.join(' -> ')}`, ledgerWhere + ' (index size) or ' + operatorBlockWhere + ' (block budget)')
   const second2 = (first.summaryMessages[0]!.message.content as string)
-  check('the summary message opens with the summary and ends with the stretch\'s index', second2.startsWith('The context window turned over') && second2.includes('## Fold ledger'), second2.slice(0, 120), 'change how compactConversation (src/services/compact/compact.ts) assembles the summary message and appends the ledger')
+  check('the summary message opens with the summary and ends with the stretch\'s index', second2.startsWith('The context window turned over') && second2.includes('## Fold ledger'), second2.slice(0, 120), 'change how compactConversation (src/engine/compaction/foldConversation.ts) assembles the summary message and appends the ledger')
 
   const paged = await fold(stretch(50, 300, 'paged'), context())
   const pagedIndex = indexJson(paged)
@@ -104,7 +104,7 @@ try {
   const third = await fold(bigAsks, context(), smallWindow)
   const thirdBlock = blockOf(third)
   const thirdBlockTokens = thirdBlock ? thirdBlock.messages.reduce((n, m) => n + roughTokenCountEstimation(m.text), 0) : 0
-  check(`a small window: fold 1 of a wide stretch lands under ${smallWindow} tokens with its block whole`, third.truePostCompactTokenCount !== undefined && third.truePostCompactTokenCount < smallWindow && thirdBlock !== undefined && thirdBlock.omitted === 0, String(third.truePostCompactTokenCount), 'change how compactConversation (src/services/compact/compact.ts) fits the fold and its operator block under the autoCompactThreshold option')
+  check(`a small window: fold 1 of a wide stretch lands under ${smallWindow} tokens with its block whole`, third.truePostCompactTokenCount !== undefined && third.truePostCompactTokenCount < smallWindow && thirdBlock !== undefined && thirdBlock.omitted === 0, String(third.truePostCompactTokenCount), 'change how compactConversation (src/engine/compaction/foldConversation.ts) fits the fold and its operator block under the autoCompactThreshold option')
   const fourthInput = [...buildPostCompactMessages(third), ...stretch(12, 6_000, 'wider')]
   const fourth = await fold(fourthInput, context(), smallWindow)
   const fourthBlock = blockOf(fourth)
@@ -124,7 +124,7 @@ try {
   let refusal = ''
   try { await fold(heavy, ctxHeavy, 10_000) } catch (error) { refusal = error instanceof Error ? error.message : String(error) }
   check('obligations over the ceiling: the fold refuses BEFORE any summary request, with the threshold key so the prune rung opens', refusal.startsWith(ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD) && refusal.includes('no summary was requested') && api.messageRequests().length === paidBefore, `${refusal.slice(0, 120)} requests=${api.messageRequests().length - paidBefore}`, refuseWhere + ' so it throws before any summary request')
-  check('…the original context is byte-identical, the read state kept, and no compaction.after hook fired', JSON.stringify(heavy) === before && (ctxHeavy as { readFileState: Map<string, { content: string }> }).readFileState.get('kept.ts')?.content === 'original' && postCompactHooks(events) === 0, JSON.stringify(events.map(e => e.hookType ?? e.stage ?? e.type)), 'change compactConversation (src/services/compact/compact.ts) so a refused fold leaves the context, the read state and the post_compact hook untouched')
+  check('…the original context is byte-identical, the read state kept, and no compaction.after hook fired', JSON.stringify(heavy) === before && (ctxHeavy as { readFileState: Map<string, { content: string }> }).readFileState.get('kept.ts')?.content === 'original' && postCompactHooks(events) === 0, JSON.stringify(events.map(e => e.hookType ?? e.stage ?? e.type)), 'change compactConversation (src/engine/compaction/foldConversation.ts) so a refused fold leaves the context, the read state and the post_compact hook untouched')
 
   const events2: Progress[] = []
   const giantId = randomUUID()
@@ -135,13 +135,13 @@ try {
   try { giant = await fold(oneGiantRound, context(events2), 20_000) } catch (error) { tailRefusal = error instanceof Error ? error.message : String(error) }
   const giantRounds = giant?.boundaryMarker.compactMetadata.recentRounds
   const giantResults = (giant?.messagesToKeep ?? []).flatMap(row => row.type === 'user' && Array.isArray(row.message.content) ? row.message.content.filter(block => block.type === 'tool_result').map(block => String(block.content)) : [])
-  check('a stretch whose latest complete round cannot fit whole: the round is kept with its giant result folded into the summary (one summary paid) and the fold lands under the threshold — no refusal, no prune rung', tailRefusal === '' && giant !== undefined && (giantRounds?.kept ?? 0) >= 1 && giantRounds?.folded === 1 && giantResults.filter(text => text.startsWith('[result folded into the summary above')).length === 1 && (giant.truePostCompactTokenCount ?? Infinity) < 20_000 && api.messageRequests().length === paid2 + 1, `${tailRefusal.slice(0, 140)} rounds=${JSON.stringify(giantRounds)} requests=${api.messageRequests().length - paid2}`, 'change compactConversation (src/services/compact/compact.ts) so the latest round is kept with its giant tool result folded into the summary, one summary request, and no refusal')
-  check('…and compaction.after fired once for the landed fold', postCompactHooks(events2) === 1, JSON.stringify(events2.map(e => e.hookType ?? e.stage ?? e.type)), 'change compactConversation (src/services/compact/compact.ts) so the post_compact hook fires once for a landed fold')
+  check('a stretch whose latest complete round cannot fit whole: the round is kept with its giant result folded into the summary (one summary paid) and the fold lands under the threshold — no refusal, no prune rung', tailRefusal === '' && giant !== undefined && (giantRounds?.kept ?? 0) >= 1 && giantRounds?.folded === 1 && giantResults.filter(text => text.startsWith('[result folded into the summary above')).length === 1 && (giant.truePostCompactTokenCount ?? Infinity) < 20_000 && api.messageRequests().length === paid2 + 1, `${tailRefusal.slice(0, 140)} rounds=${JSON.stringify(giantRounds)} requests=${api.messageRequests().length - paid2}`, 'change compactConversation (src/engine/compaction/foldConversation.ts) so the latest round is kept with its giant tool result folded into the summary, one summary request, and no refusal')
+  check('…and compaction.after fired once for the landed fold', postCompactHooks(events2) === 1, JSON.stringify(events2.map(e => e.hookType ?? e.stage ?? e.type)), 'change compactConversation (src/engine/compaction/foldConversation.ts) so the post_compact hook fires once for a landed fold')
 
   const events3: Progress[] = []
   const landed = await fold(stretch(6, 400, 'hooks'), context(events3), 200_000)
   const order = events3.map(e => e.hookType ?? e.stage ?? e.type)
-  check('a landed fold fires compaction.after exactly once, after the restore stage', postCompactHooks(events3) === 1 && order.includes('restoring') && order.indexOf('post_compact') > order.indexOf('restoring') && landed.summaryMessages.length === 1, JSON.stringify(order), 'change compactConversation (src/services/compact/compact.ts) so the post_compact hook fires once, after the restoring stage')
+  check('a landed fold fires compaction.after exactly once, after the restore stage', postCompactHooks(events3) === 1 && order.includes('restoring') && order.indexOf('post_compact') > order.indexOf('restoring') && landed.summaryMessages.length === 1, JSON.stringify(order), 'change compactConversation (src/engine/compaction/foldConversation.ts) so the post_compact hook fires once, after the restoring stage')
 } finally {
   await api.close()
   rmSync(home, { recursive: true, force: true })

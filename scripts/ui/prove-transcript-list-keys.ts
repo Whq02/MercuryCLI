@@ -5,10 +5,10 @@ import { join } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const { reconcileItemKeys } = await import(join(ROOT, 'src/components/virtualListKeys.ts'))
+const { reconcileItemKeys } = await import(join(ROOT, 'src/screen/virtual-message-list/virtualListKeys.ts'))
 
 let failures = 0
-const keysHint = 'change reconcileItemKeys in src/components/virtualListKeys.ts (keys must be exact per index, unique among siblings, and keep array identity on a pure append); VirtualMessageList.tsx consumes it'
+const keysHint = 'change reconcileItemKeys in src/screen/virtual-message-list/virtualListKeys.ts (keys must be exact per index, unique among siblings, and keep array identity on a pure append); VirtualMessageList.tsx consumes it'
 const check = (label: string, ok: boolean, detail = ''): void => {
   const shown = !ok && !label.startsWith('CONTROL') ? (detail ? `${detail} — ${keysHint}` : keysHint) : detail
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && shown ? ` — ${shown}` : ''}`)
@@ -185,8 +185,8 @@ section('§7 the long scrolled window — 400 rows, every live mutation, keys ex
 section('§8 the keyed-map path, live — a windowed keyed list through the real reconciler')
 {
   const React = await import('react')
-  const { render, Box, Text } = await import('../../src/ink.js')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
+  const { render, Box, Text } = await import('../../src/screen/themedRenderer.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
   const h = React.createElement as (...a: unknown[]) => React.ReactElement
 
   let lastChunk = ''

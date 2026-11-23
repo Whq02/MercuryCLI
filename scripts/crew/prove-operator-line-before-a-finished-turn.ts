@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { bootRunner, bound, childEnv, DIST, exportWorld, isOutcome, isSession, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome, sleep, type Runner } from '../daemon/dupline-world.ts'
-import { PeerDeadline } from '../../src/runner/wire/peer.ts'
+import { PeerDeadline } from '../../src/daemon/runner-wire/peer.ts'
 import { LEAD_ASK_HELD, LEAD_ASK_SLEEPER, SEAT_NAME, SEAT_SLEEP_SECONDS, startCrewStopFixture, type Fixture } from './crew-stop-fixture.ts'
 
 const { check, section, finish, failed } = makeTally('prove-operator-line-before-a-finished-turn')

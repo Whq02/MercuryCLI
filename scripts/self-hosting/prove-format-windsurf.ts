@@ -6,7 +6,7 @@ const world = openWorld('format-windsurf')
 const { check, section, close } = checker()
 const always = (body: string): string => `---\ntrigger: always_on\n---\n${body}`
 const scoped = (patterns: string[], body: string): string => `---\ntrigger: glob\nglobs: ${patterns.join(',')}\n---\n${body}`
-const windsurfHint = ' | change the Windsurf adapter in src/services/instructions/adapters/windsurf.ts'
+const windsurfHint = ' | change the Windsurf adapter in src/sessions/instructions/adapters/windsurf.ts'
 const offered = (lines: string[]): string => `Rule files offered by description (not loaded; Read one when its description fits the work):\n${lines.join('\n')}`
 
 try {

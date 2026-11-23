@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/utils/verification/**
+# gate-watch: src/platform/verification/**
 # gate-watch: scripts/gate/impact-narrowed.txt
 # gate-watch: scripts/outcome-pack/**
 set -u

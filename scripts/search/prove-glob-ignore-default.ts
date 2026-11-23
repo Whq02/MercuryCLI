@@ -39,8 +39,8 @@ put(join(loose, 'a.ts'))
 put(join(loose, '.gitignore'), 'skipped.ts\n')
 put(join(loose, 'skipped.ts'))
 
-const { GlobTool, ignoredPathsLine } = await import('../../src/tools/GlobTool/GlobTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { GlobTool, ignoredPathsLine } = await import('../../src/tools/glob/GlobTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 type Answer = { data: { numFiles: number; filenames: string[]; truncated: boolean; ignored?: number; incomplete?: string } }
 const ask = async (input: Record<string, unknown>): Promise<Answer> => {
@@ -52,8 +52,8 @@ const ask = async (input: Record<string, unknown>): Promise<Answer> => {
 }
 const spoken = (answer: Answer): string => String((GlobTool.mapToolResultToToolResultBlockParam(answer.data as never, 'toolu_ignore') as { content: unknown }).content)
 const j = (v: unknown): string => JSON.stringify(v)
-const hintGlob = 'change the Glob tool call in src/tools/GlobTool/GlobTool.ts so ignore files apply by default and the hidden paths are counted. '
-const hintTail = 'change ignoredPathsLine or mapToolResultToToolResultBlockParam in src/tools/GlobTool/GlobTool.ts. '
+const hintGlob = 'change the Glob tool call in src/tools/glob/GlobTool.ts so ignore files apply by default and the hidden paths are counted. '
+const hintTail = 'change ignoredPathsLine or mapToolResultToToolResultBlockParam in src/tools/glob/GlobTool.ts. '
 
 try {
   console.log('\n§1 the pass, step 4: **/*.ts in a project with node_modules (the base answered 100 dependency paths and none of the project\'s)')
@@ -68,8 +68,8 @@ try {
   check('the count line comes after the listed files, never first', words.includes('src/defu.ts') && words.includes('· 120 paths') && words.indexOf('src/defu.ts') < words.indexOf('· 120 paths'), hintTail + words.slice(0, 200))
   check('the line formats thousands and carries the count alone', ignoredPathsLine(1204) === '· 1,204 paths under ignore rules not listed', hintTail + 'got ' + ignoredPathsLine(1204))
   check('one ignored path reads singular', ignoredPathsLine(1) === '· 1 path under ignore rules not listed', hintTail + 'got ' + ignoredPathsLine(1))
-  const { DESCRIPTION } = await import('../../src/tools/GlobTool/prompt.ts')
-  check('the tool\'s description carries the road inside an ignored folder (the tail never claims it)', DESCRIPTION.includes('naming an ignored folder as the path searches inside it') && DESCRIPTION.includes('Ignore files apply'), 'change DESCRIPTION in src/tools/GlobTool/prompt.ts. ' + DESCRIPTION)
+  const { DESCRIPTION } = await import('../../src/tools/glob/prompt.ts')
+  check('the tool\'s description carries the road inside an ignored folder (the tail never claims it)', DESCRIPTION.includes('naming an ignored folder as the path searches inside it') && DESCRIPTION.includes('Ignore files apply'), 'change DESCRIPTION in src/tools/glob/prompt.ts. ' + DESCRIPTION)
 
   console.log('\n§2 the whole tree, and a search that matches only ignored files')
   const everything = await ask({ pattern: '**/*', path: project })
@@ -97,9 +97,9 @@ try {
   const outsideGit = await ask({ pattern: '*.ts', path: loose })
   check('outside a git repository a .gitignore has no force (ripgrep\'s own rule): both files list, nothing is counted', outsideGit.data.numFiles === 2 && (outsideGit.data.ignored ?? 0) === 0, hintGlob + 'a .gitignore must apply only inside a git repository; ' + j(outsideGit.data))
   const persisted = GlobTool.outputSchema!.safeParse({ durationMs: 1, numFiles: 0, filenames: [], truncated: false, ignored: 3 })
-  check('a resumed transcript\'s result with the count parses', persisted.success, 'add ignored as an optional number to the output schema in src/tools/GlobTool/GlobTool.ts')
+  check('a resumed transcript\'s result with the count parses', persisted.success, 'add ignored as an optional number to the output schema in src/tools/glob/GlobTool.ts')
   const before = GlobTool.outputSchema!.safeParse({ durationMs: 1, numFiles: 0, filenames: [], truncated: false })
-  check('a result persisted without the count still parses', before.success, 'make ignored optional in the output schema in src/tools/GlobTool/GlobTool.ts')
+  check('a result persisted without the count still parses', before.success, 'make ignored optional in the output schema in src/tools/glob/GlobTool.ts')
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

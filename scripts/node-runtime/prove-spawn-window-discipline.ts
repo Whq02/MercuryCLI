@@ -24,49 +24,49 @@ interface Site {
 
 const ALLOWLIST: ReadonlyArray<{ path: string; callee: string; value: string; count: number; reason: string }> = [
   {
-    path: 'src/utils/editor.ts',
+    path: 'src/platform/editor/externalEditor.ts',
     callee: 'spawnSync',
     value: 'false',
     count: 2,
     reason: 'interactive terminal editor on THIS console (alternate screen); CREATE_NO_WINDOW would sever it',
   },
   {
-    path: 'src/utils/promptEditor.ts',
+    path: 'src/screen/composer/promptEditor.ts',
     callee: 'spawn',
     value: 'false',
     count: 2,
     reason: 'the external prompt editor takes over this console (stdio inherit): the start by the system\'s own command-line rules on Windows, and the shell start elsewhere',
   },
   {
-    path: 'src/substrate/directSplash.ts',
+    path: 'src/platform/substrate/directSplash.ts',
     callee: 'spawnSync',
     value: 'false',
     count: 1,
     reason: 'the launch splash asset IS the screen on a direct start (stdio inherit); CREATE_NO_WINDOW would sever it from this console',
   },
   {
-    path: 'src/services/worktree.ts',
+    path: 'src/platform/git/worktree/worktree.ts',
     callee: 'spawnSync',
     value: 'options?.inherit !== true',
     count: 1,
     reason: 'runTmuxSync: hidden except the interactive attach leg (computed, self-describing)',
   },
   {
-    path: 'src/ink/session/windowsHostSetup.ts',
+    path: 'src/screen/renderer/terminal-session/windowsHostSetup.ts',
     callee: 'execFile',
     value: 'false',
     count: 1,
     reason: 'deliberately OPENS a visible console: cmd /c start — the winget install in its own window (the card labels it so)',
   },
   {
-    path: 'src/utils/runtime/win32Console.ts',
+    path: 'src/platform/node-runtime/win32Console.ts',
     callee: 'spawnSync',
     value: '<indirect>',
     count: 1,
     reason: 'options own one shape owner (chcpSpawnShape); prove-win32-console §7 pins windowsHide === false there — chcp must aim at OUR console',
   },
   {
-    path: 'src/utils/ripgrep.ts',
+    path: 'src/platform/shell/ripgrep.ts',
     callee: 'Bun.spawn',
     value: '<absent>',
     count: 1,
@@ -232,18 +232,18 @@ for (const row of ALLOWLIST) {
 
 section('(3) the sighting anchors — both operator journeys ride hidden spawns')
 {
-  const consent = sites.filter(s => s.path === 'src/daemon/concourseWorktrees.ts')
+  const consent = sites.filter(s => s.path === 'src/daemon/concourse-workers/concourseWorktrees.ts')
   check('both git wrapper legs are walked (sync probe + async add/prune)', consent.length >= 2, `found ${consent.length}`)
   check('every concourseWorktrees spawn is hidden (git offer + the board beat run HERE)', consent.length > 0 && consent.every(s => s.value === 'true'))
-  const verif = sites.filter(s => s.path === 'src/utils/verification/verificationState.ts')
+  const verif = sites.filter(s => s.path === 'src/platform/verification/verificationState.ts')
   check('every verificationState git spawn is hidden (the per-beat worker road)', verif.length >= 4 && verif.every(s => s.value === 'true'), `found ${verif.length}`)
-  check('src/daemon/concourseWorktrees.ts: git spawns take gitExe(), never the bare literal', consent.every(s => !s.bareGit))
-  check('src/utils/verification/verificationState.ts: git spawns take gitExe(), never the bare literal', verif.every(s => !s.bareGit))
+  check('src/daemon/concourse-workers/concourseWorktrees.ts: git spawns take gitExe(), never the bare literal', consent.every(s => !s.bareGit))
+  check('src/platform/verification/verificationState.ts: git spawns take gitExe(), never the bare literal', verif.every(s => !s.bareGit))
 }
 
 section('(4) execa containment — one spawn library, ridden only through named doors')
 {
-  const allowedImporters = new Set(['src/utils/execFileNoThrow.ts', 'src/utils/imagePaste.ts'])
+  const allowedImporters = new Set(['src/platform/processes/execFileNoThrow.ts', 'src/screen/composer/imagePaste.ts'])
   const strays = execaImporters.filter(f => !allowedImporters.has(f))
   check('direct execa imports stay exactly {execFileNoThrow.ts, imagePaste.ts}', strays.length === 0, strays.join(' · '))
   check('both named doors still import execa (a moved wrapper must move this pin)', allowedImporters.size === execaImporters.length, execaImporters.join(' · '))
@@ -256,7 +256,7 @@ check('zero imports of cross-spawn/open/tinyexec/shelljs/child-process-promise i
 section('(6) Bun.spawn stays contained')
 {
   const bun = sites.filter(s => s.callee.startsWith('Bun.'))
-  check('exactly one Bun.spawn site, in ripgrep.ts (the bun-runtime argv0 road)', bun.length === 1 && bun[0]!.path === 'src/utils/ripgrep.ts', bun.map(s => `${s.path}:${s.line}`).join(' · '))
+  check('exactly one Bun.spawn site, in ripgrep.ts (the bun-runtime argv0 road)', bun.length === 1 && bun[0]!.path === 'src/platform/shell/ripgrep.ts', bun.map(s => `${s.path}:${s.line}`).join(' · '))
 }
 
 console.log('\n============================================================')

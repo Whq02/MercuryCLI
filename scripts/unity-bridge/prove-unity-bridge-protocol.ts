@@ -4,13 +4,13 @@ import * as net from 'node:net'
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
-import { UnityBridgeClient } from '../../src/services/unity/bridgeClient.js'
-import { parseUnityTestResults } from '../../src/services/ide/unityTests.js'
+import { UnityBridgeClient } from '../../src/integrations/unity/bridgeClient.js'
+import { parseUnityTestResults } from '../../src/integrations/ide/unityTests.js'
 import { startFakeUnityBridge } from './fake-bridge.js'
 
 let failures = 0
 const PROTOCOL_FAIL_HINT =
-  'to fix, change UnityBridgeClient (request, handshake, nextDelayMs backoff, drainEvents) in src/services/unity/bridgeClient.ts, or the fake server in scripts/unity-bridge/fake-bridge.ts for a refusal the server arm sends'
+  'to fix, change UnityBridgeClient (request, handshake, nextDelayMs backoff, drainEvents) in src/integrations/unity/bridgeClient.ts, or the fake server in scripts/unity-bridge/fake-bridge.ts for a refusal the server arm sends'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? detail : detail ? `${detail}; ${PROTOCOL_FAIL_HINT}` : PROTOCOL_FAIL_HINT

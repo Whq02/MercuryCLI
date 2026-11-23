@@ -7,14 +7,14 @@ import {
   setXtversionName,
   syncOutputSupportedNow,
   upgradeSyncOutputSupport,
-} from '../../src/ink/session/capabilities.js'
+} from '../../src/screen/renderer/terminal-session/capabilities.js'
 import {
   type DeliverySyscalls,
   writeAllSync,
   writeDiffToTerminal,
-} from '../../src/ink/session/delivery.js'
-import { regionScrollTrustedNow, supportsExtendedKeys } from '../../src/ink/session/capabilities.js'
-import { env as detectedEnv } from '../../src/utils/env.js'
+} from '../../src/screen/renderer/terminal-session/frameDelivery.js'
+import { regionScrollTrustedNow, supportsExtendedKeys } from '../../src/screen/renderer/terminal-session/capabilities.js'
+import { env as detectedEnv } from '../../src/platform/environment/env.js'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -27,23 +27,23 @@ import {
   kittyKeyboard,
   oscColor,
   xtversion,
-} from '../../src/ink/session/querier.js'
-import type { TerminalResponse } from '../../src/ink/input/input-decoder.js'
+} from '../../src/screen/renderer/terminal-session/terminalQuerier.js'
+import type { TerminalResponse } from '../../src/screen/renderer/input/input-decoder.js'
 import {
   getTerminalFocused,
   getTerminalFocusState,
   resetTerminalFocusState,
   setTerminalFocused,
   subscribeTerminalFocus,
-} from '../../src/ink/session/focus-store.js'
+} from '../../src/screen/renderer/terminal-session/terminalFocusStore.js'
 import {
   INITIAL_STATE,
   type KeyParseState,
   parseMultipleKeypresses,
-} from '../../src/ink/input/input-decoder.js'
-import type { Diff } from '../../src/ink/frame.js'
-import { BSU, ESU } from '../../src/ink/termio/dec.js'
-import { getClearTerminalSequence } from '../../src/ink/session/capabilities.js'
+} from '../../src/screen/renderer/input/input-decoder.js'
+import type { Diff } from '../../src/screen/renderer/frame.js'
+import { BSU, ESU } from '../../src/screen/renderer/termio/dec.js'
+import { getClearTerminalSequence } from '../../src/screen/renderer/terminal-session/capabilities.js'
 
 let failures = 0
 let checks = 0
@@ -52,7 +52,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) {
     failures++
     console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
-    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the code this check exercises (src/ink/session/: capabilities, delivery, querier, focus-store; src/ink/input/input-decoder.ts) so the condition holds`)
+    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the code this check exercises (src/screen/renderer/terminal-session/: capabilities, delivery, querier, focus-store; src/screen/renderer/input/input-decoder.ts) so the condition holds`)
   }
 }
 

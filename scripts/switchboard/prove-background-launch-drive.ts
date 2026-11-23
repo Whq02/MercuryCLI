@@ -37,7 +37,7 @@ const script: Script = req => {
 const fixture = await startScriptedFixture(script)
 const port = Number(new URL(fixture.base).port)
 
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 type World = { runHome: string; cwd: string; env: NodeJS.ProcessEnv; sid: string }
 function world(name: string, sid: string, settingOn: boolean): World {

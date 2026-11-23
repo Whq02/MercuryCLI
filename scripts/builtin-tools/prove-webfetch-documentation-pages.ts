@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import axios from 'axios'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { WebFetchTool } = await import('../../src/tools/WebFetchTool/WebFetchTool.js')
-const { clearWebFetchCache } = await import('../../src/tools/WebFetchTool/utils.js')
+const { WebFetchTool } = await import('../../src/tools/web-fetch/WebFetchTool.js')
+const { clearWebFetchCache } = await import('../../src/tools/web-fetch/fetchContent.js')
 const fixture = async (name: string) => Bun.file(new URL(`./fixtures/webfetch/${name}.html`, import.meta.url)).text()
 const pages: Record<string, string> = {
   '/3/library/stdtypes.html': await fixture('sphinx-stdtypes'),
@@ -27,7 +27,7 @@ axios.get = ((url: string, options: { headers?: object }) => {
 let failures = 0
 const check = (name: string, ok: boolean, detail = '') => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : `\n${detail}\nfix: page extraction in src/tools/WebFetchTool/extractHtml.ts (content landmark), table rows in src/tools/WebFetchTool/tableRule.ts, the character window notice in src/tools/WebFetchTool/pageBudget.ts`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : `\n${detail}\nfix: page extraction in src/tools/web-fetch/extractHtml.ts (content landmark), table rows in src/tools/web-fetch/tableRule.ts, the character window notice in src/tools/web-fetch/pageBudget.ts`}`)
 }
 const fetched = async (path: string): Promise<{ text: string; lines: string[]; window: number; shown: number; total: number; ended: boolean }> => {
   const result = await WebFetchTool.call({ url: `https://fixture.example${path}` }, { abortController: new AbortController(), options: { isNonInteractiveSession: true } } as never)

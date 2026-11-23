@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { marked } from 'marked'
-import { configureMarked, hasMarkdownMarkers } from '../../src/utils/markdown.js'
+import { configureMarked, hasMarkdownMarkers } from '../../src/screen/messages/markdownText.js'
 
 let failures = 0
 let checks = 0
@@ -8,7 +8,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — change hasMarkdownMarkers in src/utils/markdown.ts so the gate opens exactly for text that marked lexes to styled tokens`)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — change hasMarkdownMarkers in src/screen/messages/markdownText.ts so the gate opens exactly for text that marked lexes to styled tokens`)
   }
 }
 

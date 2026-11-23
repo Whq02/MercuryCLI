@@ -9,11 +9,11 @@ process.env.MERCURY_CONFIG_DIR = join(root, 'home')
 process.env.MERCURY_BARE = '1'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_DESKTOP_PACK_DIR = resolve(import.meta.dir, '../../vendor/desktop', `${process.platform}-${process.arch}`)
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getImageProcessor } = await import('../../src/utils/imageProcessor/imageProcessor.ts')
-const { resolveOcrEngine } = await import('../../src/services/ocr.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getImageProcessor } = await import('../../src/platform/images/imageProcessor.ts')
+const { resolveOcrEngine } = await import('../../src/tools/kit/ocr.ts')
 const context = () => ({ options: { engineModel: 'claude-sonnet-5-5' }, abortController: new AbortController(), readFileState: createFileStateCacheWithSizeLimit(100), messages: [], getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }) as never
 const normalise = (s: string) => s.normalize('NFKC').replace(/[\u064b-\u065f\u0670\u0640\u200e\u200f\u202a-\u202e\u2066-\u2069\s.،]/g, '')
 try {
@@ -28,7 +28,7 @@ try {
   assert.equal(image.data.type, 'image')
   assert.equal(image.newMessages?.length ?? 0, 0)
   const block = FileReadTool.mapToolResultToToolResultBlockParam(image.data, 'crop-call')
-  assert.ok(Array.isArray(block.content), `FileReadTool.mapToolResultToToolResultBlockParam returned non-array content for cropped image in src/tools/FileReadTool/FileReadTool.ts`)
+  assert.ok(Array.isArray(block.content), `FileReadTool.mapToolResultToToolResultBlockParam returned non-array content for cropped image in src/tools/read/ReadTool.ts`)
   const caption = block.content.find((part: any) => part.type === 'text') as any
   assert.match(caption?.text ?? '', /This image is the crop \[100, 50, 900, 450\]/)
   assert.match(caption.text, /scaled by 2/)
@@ -41,7 +41,7 @@ try {
   if (process.platform === 'darwin') {
     const engine = await resolveOcrEngine()
     assert.equal(engine.kind, 'native')
-    assert.ok(engine.languages.includes('ar-SA'), `macOS Vision OCR engine languages omitted ar-SA in src/services/ocr.ts: ${engine.languages.join(',')}`)
+    assert.ok(engine.languages.includes('ar-SA'), `macOS Vision OCR engine languages omitted ar-SA in src/tools/kit/ocr.ts: ${engine.languages.join(',')}`)
     const text = await FileReadTool.call({ file_path: path, ocr: true }, context())
     assert.equal(text.data.type, 'text')
     assert.match(text.data.file.content, /languages:.*ar-SA/)

@@ -31,7 +31,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: compactConversation in src/services/compact/compact.ts must send the summary request on the seated model own family wire with the session posture and install the summary; the wire log is captured by scripts/lib/crossfamilyConcourseFixture.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: compactConversation in src/engine/compaction/foldConversation.ts must send the summary request on the seated model own family wire with the session posture and install the summary; the wire log is captured by scripts/lib/crossfamilyConcourseFixture.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -39,7 +39,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — compact router families prover exceeded 120s; compactConversation in src/services/compact/compact.ts did not return, or the fixture from scripts/lib/crossfamilyConcourseFixture.ts did not answer')
+  console.log('\nTIMEOUT — compact router families prover exceeded 120s; compactConversation in src/engine/compaction/foldConversation.ts did not return, or the fixture from scripts/lib/crossfamilyConcourseFixture.ts did not answer')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -79,13 +79,13 @@ if (CAPTURE_DIR) {
   closeProxy = () => new Promise<void>(resolve => proxy.close(() => resolve()))
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { compactConversation } = await import('../../src/services/compact/compact.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+const { compactConversation } = await import('../../src/engine/compaction/foldConversation.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
 
 const RETIRED_GENERIC_MARK = 'tasked with summarizing conversations'
 const SESSION_POSTURE_MARK = 'fixture-driven session posture'

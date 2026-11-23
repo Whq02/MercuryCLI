@@ -2,7 +2,7 @@ import { copyFileSync, existsSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/utils/structure/grammarRegistry.ts')
+const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/platform/grammars/grammarRegistry.ts')
 {
   const ROOT = join(import.meta.dir, '..', '..')
   const vscodeDir = join(ROOT, 'node_modules', '@vscode', 'tree-sitter-wasm', 'wasm')
@@ -22,8 +22,8 @@ const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../s
   }
   process.env.MERCURY_TREESITTER_VENDOR_DIR = composed
 }
-const { loadGrammarEngine, parsePolyglot, languageByName } = await import('../../src/utils/structure/grammarFacility.ts')
-const { resolveAstScope, searchAstPattern, isAstRefusal } = await import('../../src/services/structure/astPatterns.ts')
+const { loadGrammarEngine, parsePolyglot, languageByName } = await import('../../src/platform/grammars/grammarFacility.ts')
+const { resolveAstScope, searchAstPattern, isAstRefusal } = await import('../../src/tools/engines/structure/astPatterns.ts')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -390,7 +390,7 @@ const READS_EVERY_TEXT = new Set(['markdown'])
 
 {
   const missing = GRAMMAR_REGISTRY.filter(g => !FIXTURES[g.name]).map(g => g.name)
-  check('every registry row has a proof fixture', missing.length === 0, `${missing.join(',')} — add a FIXTURES entry for each language named here in this file, or remove its row from GRAMMAR_REGISTRY in src/utils/structure/grammarRegistry.ts`)
+  check('every registry row has a proof fixture', missing.length === 0, `${missing.join(',')} — add a FIXTURES entry for each language named here in this file, or remove its row from GRAMMAR_REGISTRY in src/platform/grammars/grammarRegistry.ts`)
 }
 
 const engine = await loadGrammarEngine()
@@ -408,7 +408,7 @@ for (const lang of GRAMMAR_REGISTRY) {
 
   const good = await parsePolyglot(engine, lang, fx.good)
   const goodOk = !('state' in good) && good.parseErrors.length === 0
-  check('good fixture parses clean', goodOk, `${'state' in good ? good.note : good.parseErrors.join('; ')} — parsePolyglot in src/utils/structure/grammarFacility.ts could not parse the good fixture of ${lang.name} cleanly; fix the fixture text in FIXTURES or the vendored grammar wasm for ${lang.name}`)
+  check('good fixture parses clean', goodOk, `${'state' in good ? good.note : good.parseErrors.join('; ')} — parsePolyglot in src/platform/grammars/grammarFacility.ts could not parse the good fixture of ${lang.name} cleanly; fix the fixture text in FIXTURES or the vendored grammar wasm for ${lang.name}`)
   if (!('state' in good)) good.tree.delete()
 
   let brokenOk = READS_EVERY_TEXT.has(lang.name)
@@ -426,7 +426,7 @@ for (const lang of GRAMMAR_REGISTRY) {
   const scope = resolveAstScope({ cwd: root, lang: lang.name })
   const q = isAstRefusal(scope) ? scope : await searchAstPattern(scope, { pattern: fx.pattern })
   const queryOk = !isAstRefusal(q) && q.matches.length >= 1 && q.matches.every(m => m.lang === lang.name)
-  check(`pattern '${fx.pattern}' matches through the real matcher`, queryOk, `${isAstRefusal(q) ? q.refused : `${q.matches.length} matches`} — searchAstPattern in src/services/structure/astPatterns.ts must find the pattern in the good fixture of ${lang.name} with every match in that language; fix the pattern or file name of the fixture in FIXTURES, or the matcher for this language`)
+  check(`pattern '${fx.pattern}' matches through the real matcher`, queryOk, `${isAstRefusal(q) ? q.refused : `${q.matches.length} matches`} — searchAstPattern in src/tools/engines/structure/astPatterns.ts must find the pattern in the good fixture of ${lang.name} with every match in that language; fix the pattern or file name of the fixture in FIXTURES, or the matcher for this language`)
   censusRows.push(
     `${lang.name.padEnd(11)} parse:${goodOk ? 'ok' : 'FAIL'} errors:${brokenOk ? 'ok' : 'FAIL'} query:${queryOk ? 'ok' : 'FAIL'}`,
   )
@@ -434,7 +434,7 @@ for (const lang of GRAMMAR_REGISTRY) {
 
 {
   const reg = languageByName('python')
-  check('census drove the registry rows (sanity)', reg !== null && censusRows.length === GRAMMAR_REGISTRY.length, `${censusRows.length} census rows for ${GRAMMAR_REGISTRY.length} registry rows — a registry row was skipped for lack of a FIXTURES entry, or languageByName in src/utils/structure/grammarFacility.ts no longer finds python`)
+  check('census drove the registry rows (sanity)', reg !== null && censusRows.length === GRAMMAR_REGISTRY.length, `${censusRows.length} census rows for ${GRAMMAR_REGISTRY.length} registry rows — a registry row was skipped for lack of a FIXTURES entry, or languageByName in src/platform/grammars/grammarFacility.ts no longer finds python`)
 }
 
 console.log('\n== known vendored gaps (expected-defect pins) ==')
@@ -461,7 +461,7 @@ console.log('\n== known vendored gaps (expected-defect pins) ==')
   for (const gap of KNOWN_VENDORED_GAPS) {
     const lang = GRAMMAR_REGISTRY.find(l => l.name === gap.lang)
     if (!lang) {
-      check(`${gap.card} pin: registry carries ${gap.lang}`, false, `GRAMMAR_REGISTRY in src/utils/structure/grammarRegistry.ts has no ${gap.lang} row; drop or update this gap entry in KNOWN_VENDORED_GAPS`)
+      check(`${gap.card} pin: registry carries ${gap.lang}`, false, `GRAMMAR_REGISTRY in src/platform/grammars/grammarRegistry.ts has no ${gap.lang} row; drop or update this gap entry in KNOWN_VENDORED_GAPS`)
       continue
     }
     const parsed = await parsePolyglot(engine, lang, gap.code)

@@ -24,31 +24,31 @@ if (scenario !== null) {
     { repo: 'TensorFold/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-MLX-4bit', shortName: 'nemotron-lightning', label: 'Nemotron Lightning', family: 'nemotron', state: 'not-pulled' as const, fit: fit(20.8), window: 262_144, qualified: true },
     { repo: 'mlx-community/Qwen3.5-2B-MLX-4bit', shortName: 'qwen3.5-2b', label: 'Qwen3.5 2B', family: 'qwen3_5', state: 'on-disk' as const, fit: fit(7.6), window: 262_144, qualified: true, bytesOnDisk: 1.6 * GIB },
   ]
-  const realEngine = await import('../../src/services/tensorfold/engine.ts')
-  mock.module('../../src/services/tensorfold/engine.js', () => ({
+  const realEngine = await import('../../src/models/tensorfold/engine.ts')
+  mock.module('../../src/models/tensorfold/engine.js', () => ({
     ...realEngine,
     findTensorFoldEngine: async () => (Bun.which('tensorfold') !== null ? { version: '1.2.2', binary: Bun.which('tensorfold')!, chip: 'Apple M5 Pro', backends: ['metal'], families: [] } : null),
     tensorFoldMachine: () => ({ chip: 'Apple M5 Pro', usableGib: 36 }),
   }))
-  const realInventory = await import('../../src/services/tensorfold/inventory.ts')
-  mock.module('../../src/services/tensorfold/inventory.js', () => ({
+  const realInventory = await import('../../src/models/tensorfold/inventory.ts')
+  mock.module('../../src/models/tensorfold/inventory.js', () => ({
     ...realInventory,
     readTensorFoldInventory: async () => ROWS_ON_DISK,
     bestTensorFoldFit: (rows: readonly { repo: string }[]) => rows[0] ?? null,
   }))
-  mock.module('../../src/services/providers/local/tensorfoldApp.js', () => ({
+  mock.module('../../src/models/roads/local/tensorfoldApp.js', () => ({
     detectTensorFoldApp: async () => ({ running: false }),
   }))
   const React = await import('react')
   const { KEY, mountOffscreen, settle, waitFor } = await import('../lib/settingsPopupHarness.ts')
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const handover = await import('../../src/substrate/splashHandover.js')
-  const helm = await import('../../src/utils/cockpit/helmFocus.js')
-  const facts = await import('../../src/components/tensorfold/tensorfoldFacts.js')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-  const { Onboarding } = await import('../../src/components/Onboarding.js')
+  const handover = await import('../../src/platform/substrate/splashHandover.js')
+  const helm = await import('../../src/screen/cockpit/helmFocus.js')
+  const facts = await import('../../src/screen/tensorfold/tensorfoldFacts.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+  const { Onboarding } = await import('../../src/boot/first-run/Onboarding.js')
   const h = React.createElement
   let finished = 0
   const element = h(AppStateProvider as never, {} as never, h(KeybindingSetup as never, {} as never, h(Onboarding as never, { onDone: () => { finished++ } } as never)))
@@ -93,7 +93,7 @@ if (scenario !== null) {
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}${cond ? '' : ' — the rows come from loginFamilyRows in src/components/loginFamilyRows.ts, the offer from src/components/tensorfold/tensorfoldFacts.ts, and arming or disarming the /tensorfold deep link is in src/components/ConsoleOAuthFlow.tsx; if the detail is a child exit status and stderr, the scenario crashed, so fix what it names'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}${cond ? '' : ' — the rows come from loginFamilyRows in src/models/sign-in/flow-cards/loginFamilyRows.ts, the offer from src/screen/tensorfold/tensorfoldFacts.ts, and arming or disarming the /tensorfold deep link is in src/models/sign-in/flow-cards/SignInFlow.tsx; if the detail is a child exit status and stderr, the scenario crashed, so fix what it names'}`)
 }
 const DEAD = 'http://127.0.0.1:9'
 const SCRATCH = mkdtempSync(join(tmpdir(), 'tensorfold-first-run-'))
@@ -202,8 +202,8 @@ if (capable) {
 
 console.log('§5 the rows on every platform: first on a capable machine, after the subscriptions on Windows')
 {
-  const rows = await import('../../src/components/loginFamilyRows.ts')
-  const facts = await import('../../src/components/tensorfold/tensorfoldFacts.ts')
+  const rows = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.ts')
+  const facts = await import('../../src/screen/tensorfold/tensorfoldFacts.ts')
   const host = rows.loginFamilyRows({ engineLegs: true, tensorfold: { kind: 'host' } })
   check('Windows: the row reads on a host and sits after the two subscriptions', host[2]?.label === 'TensorFold — on a host: a server on your network or a rented GPU pod (/tensorfold)' && host[0]?.value === 'openai' && host[1]?.value === 'anthropic', host.slice(0, 3).map(row => row.label).join(' | '))
   const served = rows.loginFamilyRows({ engineLegs: true, tensorfold: { kind: 'served', model: 'qwen3.5-2b', version: '1.2.2' } })

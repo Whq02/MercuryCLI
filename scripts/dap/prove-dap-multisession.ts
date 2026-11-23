@@ -7,17 +7,17 @@ import { join } from 'node:path'
 let failures = 0
 let sectionHint = ''
 const SECTION_HINTS: Record<string, string> = {
-  '1': 'look in src/services/dap/client/reverse.ts (startDebugging and runInTerminal replies), src/services/dap/client/tree.ts (treeTerminated, treeVerifiedBreakpoints) and src/services/dap/client/stops.ts (waitForStopOutcome); the execution-plane child lines come from src/services/resources/adapters/execution.ts',
-  '2': 'look at createDapSession and removeDapSession in src/services/dap/dapClient.ts: re-launch on an alias must dispose the old tree, and a clean run must reach treeTerminated (src/services/dap/client/tree.ts)',
-  '2b': 'look at startBodyOf in src/services/dap/client/launch.ts: runtimeArgs go on the launch body only when the option is given',
-  '3': 'look at the bound checks and the refusal reply for startDebugging in src/services/dap/client/reverse.ts',
-  '4': 'look at the child-session handling in src/services/dap/client/reverse.ts and tree.ts (treeSize, stop routing in stops.ts)',
-  '5': 'look at debugTarget in src/services/dap/client/tree.ts: with several live children and none stopped it must return ambiguousDetail naming every member and refusing to guess',
-  '6': 'look at startDebugging handling in src/services/dap/client/reverse.ts and tree aggregation in src/services/dap/client/tree.ts (treeTerminated)',
-  '7': 'look at src/tools/DebugTool/DebugTool.ts (op routing, launch, stack, breakpoints, status, continue, disconnect) and the tree helpers in src/services/dap/client/tree.ts',
-  '7b': 'look at how src/tools/DebugTool/DebugTool.ts reports a continue that ends the tree (exit code from the DAP exited event or adapter output)',
-  '8': 'look at treeVerifiedBreakpoints in src/services/dap/client/tree.ts and the breakpoint-changed handling in src/services/dap/client/messages.ts',
-  '9': 'look at resolveJsDebugServer and jsDebugSourceLabel in src/services/dap/jsDebugResolver.ts and the MERCURY_JS_DEBUG_DAP row in FLAG_REGISTRY',
+  '1': 'look in src/integrations/debugger/client/reverse.ts (startDebugging and runInTerminal replies), src/integrations/debugger/client/tree.ts (treeTerminated, treeVerifiedBreakpoints) and src/integrations/debugger/client/stops.ts (waitForStopOutcome); the execution-plane child lines come from src/integrations/resources/adapters/execution.ts',
+  '2': 'look at createDapSession and removeDapSession in src/integrations/debugger/dapClient.ts: re-launch on an alias must dispose the old tree, and a clean run must reach treeTerminated (src/integrations/debugger/client/tree.ts)',
+  '2b': 'look at startBodyOf in src/integrations/debugger/client/launch.ts: runtimeArgs go on the launch body only when the option is given',
+  '3': 'look at the bound checks and the refusal reply for startDebugging in src/integrations/debugger/client/reverse.ts',
+  '4': 'look at the child-session handling in src/integrations/debugger/client/reverse.ts and tree.ts (treeSize, stop routing in stops.ts)',
+  '5': 'look at debugTarget in src/integrations/debugger/client/tree.ts: with several live children and none stopped it must return ambiguousDetail naming every member and refusing to guess',
+  '6': 'look at startDebugging handling in src/integrations/debugger/client/reverse.ts and tree aggregation in src/integrations/debugger/client/tree.ts (treeTerminated)',
+  '7': 'look at src/tools/debug/DebugTool.ts (op routing, launch, stack, breakpoints, status, continue, disconnect) and the tree helpers in src/integrations/debugger/client/tree.ts',
+  '7b': 'look at how src/tools/debug/DebugTool.ts reports a continue that ends the tree (exit code from the DAP exited event or adapter output)',
+  '8': 'look at treeVerifiedBreakpoints in src/integrations/debugger/client/tree.ts and the breakpoint-changed handling in src/integrations/debugger/client/messages.ts',
+  '9': 'look at resolveJsDebugServer and jsDebugSourceLabel in src/integrations/debugger/jsDebugResolver.ts and the MERCURY_JS_DEBUG_DAP row in FLAG_REGISTRY',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -62,8 +62,8 @@ async function main(): Promise<void> {
     removeDapSession,
     _dapSessionCountForTesting,
     _setDapChildBoundsForTesting,
-  } = await import('../../src/services/dap/dapClient.js')
-  const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
+  } = await import('../../src/integrations/debugger/dapClient.js')
+  const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.js')
   const OWNER = makeOwnerKey({ workspace: '/tmp/w', sessionId: 'dap-multi-proof', lane: 'main' })
 
   console.log('============================================================')
@@ -107,7 +107,7 @@ async function main(): Promise<void> {
       check('parent breakpoint UNVERIFIED (a multi-session parent binds nothing)', rootBps[0]?.verified === false)
       const childBps = child.breakpoints.get('/tmp/demo.js') ?? []
       check('child breakpoint VERIFIED (the child is the verifier)', childBps[0]?.verified === true)
-      const { executionAdapter } = await import('../../src/services/resources/adapters/execution.ts')
+      const { executionAdapter } = await import('../../src/integrations/resources/adapters/execution.ts')
       const planeRead = await executionAdapter.resolve(
         { kind: 'execution', id: 'debug:walk', selectors: {}, canonical: 'mercury://execution/debug:walk' } as never,
         { owner: OWNER, cwd: process.cwd() } as never,
@@ -314,7 +314,7 @@ async function main(): Promise<void> {
   section('7. the Debug tool routes the tree (target routing, fan-out, status)')
   {
     clearKnobs()
-    const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
+    const { DebugTool } = await import('../../src/tools/debug/DebugTool.js')
     const call = async (input: Record<string, unknown>): Promise<string> =>
       ((await DebugTool.call(input as never, {} as never)) as { data: { result: string } }).data.result
     const launch = await call({ op: 'launch', adapter: 'mockmulti', program: '/tmp/demo.js', file: '/tmp/demo.js', lines: [3] })
@@ -363,7 +363,7 @@ async function main(): Promise<void> {
 
   section('7b. non-zero child exit codes reach the Debug result')
   {
-    const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
+    const { DebugTool } = await import('../../src/tools/debug/DebugTool.js')
     const call = async (input: Record<string, unknown>): Promise<string> =>
       ((await DebugTool.call(input as never, {} as never)) as { data: { result: string } }).data.result
     for (const printed of [false, true]) {
@@ -408,7 +408,7 @@ async function main(): Promise<void> {
   section('9. the resolver ladder + the retired-PARTIAL honesty (re-cut WITH reason)')
   {
     clearKnobs()
-    const { resolveJsDebugServer, jsDebugSourceLabel } = await import('../../src/services/dap/dapClient.js')
+    const { resolveJsDebugServer, jsDebugSourceLabel } = await import('../../src/integrations/debugger/dapClient.js')
     const savedPin = process.env.MERCURY_JS_DEBUG_DAP
     process.env.MERCURY_JS_DEBUG_DAP = MOCK
     const pinned = resolveJsDebugServer()
@@ -421,7 +421,7 @@ async function main(): Promise<void> {
 
     check(
       'the flag registry row names the ladder',
-      (await import('../../src/substrate/flagRegistry.js')).getFlagSpec('MERCURY_JS_DEBUG_DAP')?.summary.includes('env override > the vendored dist/vendor/js-debug bundle > the legacy ~/.js-debug unpack') === true,
+      (await import('../../src/platform/substrate/flagRegistry.js')).getFlagSpec('MERCURY_JS_DEBUG_DAP')?.summary.includes('env override > the vendored dist/vendor/js-debug bundle > the legacy ~/.js-debug unpack') === true,
     )
   }
 

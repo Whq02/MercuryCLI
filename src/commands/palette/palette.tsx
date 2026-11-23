@@ -1,5 +1,5 @@
-import { PaletteView } from '../../components/mercury-ui/PaletteView.js'
-import type { LocalJSXCommandCall } from '../../types/command.js'
+import { PaletteView } from '../../screen/widgets/PaletteView.js'
+import type { LocalJSXCommandCall } from '../catalogue/command.js'
 
 export const call: LocalJSXCommandCall = async onDone => {
   return (

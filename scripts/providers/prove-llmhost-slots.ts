@@ -18,7 +18,7 @@ delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
 delete process.env.MERCURY_SILENT_AFTER_HEADERS_MS
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/constants/credentialEnvSpellings.ts`)
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/models/sign-in/credentials/credentialEnvSpellings.ts`)
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_COMPAT_BASE_URL', 'MERCURY_COMPAT_MODELS', 'MERCURY_COMPAT_LABEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
 for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_.*_API_KEY$/.test(key)) delete process.env[key]
 
@@ -271,16 +271,16 @@ const vllmPort = await new Promise<number>((resolvePort, rejectPort) => {
 })
 const vllmBaseUrl = `http://127.0.0.1:${vllmPort}/v1`
 try {
-  const { enableConfigs } = await import(`${root}/src/utils/config.ts`)
+  const { enableConfigs } = await import(`${root}/src/platform/settings/config.ts`)
   enableConfigs()
-  const { resetSettingsCache } = await import(`${root}/src/utils/settings/settingsCache.ts`)
-  const { SettingsSchema } = await import(`${root}/src/utils/settings/types.ts`)
-  const { routedCallModel } = await import(`${root}/src/services/providers/callModelRouter.ts`)
-  const { createUserMessage } = await import(`${root}/src/services/messages.ts`)
-  const { asSystemPrompt } = await import(`${root}/src/utils/systemPromptType.ts`)
-  const { processOwnerForLane } = await import(`${root}/src/utils/run/resolveOwner.ts`)
-  const idle = (await import(`${root}/src/services/providers/streamIdleBudget.ts`)) as Record<string, any>
-  const { HOST_RECIPES } = await import(`${root}/src/services/host/recipes.ts`)
+  const { resetSettingsCache } = await import(`${root}/src/platform/settings/settingsCache.ts`)
+  const { SettingsSchema } = await import(`${root}/src/platform/settings/settingsSchema.ts`)
+  const { routedCallModel } = await import(`${root}/src/models/roads/callModelRouter.ts`)
+  const { createUserMessage } = await import(`${root}/src/engine/messages/messages.ts`)
+  const { asSystemPrompt } = await import(`${root}/src/engine/system-prompt/systemPromptType.ts`)
+  const { processOwnerForLane } = await import(`${root}/src/engine/run-owner/resolveOwner.ts`)
+  const idle = (await import(`${root}/src/models/roads/streamIdleBudget.ts`)) as Record<string, any>
+  const { HOST_RECIPES } = await import(`${root}/src/models/hosting/recipes.ts`)
 
   const tool = {
     name: 'FixtureEcho',
@@ -419,7 +419,7 @@ try {
   for (let i = 0; i < 8; i++) {
     const userB = createUserMessage({ content: `other conversation ${i}` })
     const replies = await runTurn(llamaId, [userB], { agentId: `agent-${i}` })
-    assert.ok(replies.length > 0 && replies.every(row => !row.isApiErrorMessage), `src/services/providers/callModelRouter.ts crewmate agent-${i} llamacpp slot turn failed: len=${replies.length}`)
+    assert.ok(replies.length > 0 && replies.every(row => !row.isApiErrorMessage), `src/models/roads/callModelRouter.ts crewmate agent-${i} llamacpp slot turn failed: len=${replies.length}`)
     const body = captures.at(-1)!.body
     if (typeof body.id_slot === 'number') {
       crewSlots.push(body.id_slot)
@@ -744,8 +744,8 @@ try {
     `verification=${fastRow?.verification ?? 'missing'}`,
   )
 
-  const { compatChatCallModel } = await import(`${root}/src/services/providers/openaicompat/compatChatCallModel.ts`)
-  const { compatSlotLaneProfile } = await import(`${root}/src/services/providers/openaicompat/compatCallModel.ts`)
+  const { compatChatCallModel } = await import(`${root}/src/models/roads/openaicompat/compatChatCallModel.ts`)
+  const { compatSlotLaneProfile } = await import(`${root}/src/models/roads/openaicompat/compatCallModel.ts`)
   async function scripted(attempts: any[][]): Promise<{ events: any[]; assistants: any[]; calls: number }> {
     let calls = 0
     const profile = {
@@ -896,12 +896,12 @@ try {
     `calls=${paintCut.calls} settled=${settledOrder(paintCut.assistants)} errors=${paintCut.assistants.filter(row => row.isApiErrorMessage).length}`,
   )
 
-  await import(`${root}/src/tasks.ts`)
-  const { runAgent } = await import(`${root}/src/tools/AgentTool/runAgent.ts`)
-  const { query: startTurn } = await import(`${root}/src/query.ts`)
-  const { getDefaultAppState } = await import(`${root}/src/state/AppStateStore.ts`)
-  const { createFileStateCacheWithSizeLimit } = await import(`${root}/src/utils/fileStateCache.ts`)
-  const { runWithCwdOverride } = await import(`${root}/src/utils/cwd.ts`)
+  await import(`${root}/src/engine/tasks/tasks.ts`)
+  const { runAgent } = await import(`${root}/src/tools/crewmate/runCrewmate.ts`)
+  const { query: startTurn } = await import(`${root}/src/engine/turnDoor.ts`)
+  const { getDefaultAppState } = await import(`${root}/src/screen/app-state/AppStateStore.ts`)
+  const { createFileStateCacheWithSizeLimit } = await import(`${root}/src/platform/files/fileStateCache.ts`)
+  const { runWithCwdOverride } = await import(`${root}/src/platform/files/cwd.ts`)
   process.env.MERCURY_AGENT_IDLE_MINUTES = SLOW_TOOL_IDLE_MINUTES
   try {
     state.mode = 'slow-tool-stream'

@@ -9,15 +9,15 @@ import {
   buildZaiChatRequest,
   mapMessagesToZai,
   mapToolsToZai,
-} from '../../src/services/providers/zai/zaiCodec.ts'
+} from '../../src/models/roads/zai/zaiCodec.ts'
 import {
   mapZaiHttpFailure,
   streamZaiChat,
   ZAI_CHAT_COMPLETIONS_URL,
   type ZaiStreamEvent,
-} from '../../src/services/providers/zai/zaiClient.ts'
-import { GLM_EFFORTS, glmAcceptsEffort, isGlmModelId } from '../../src/utils/model/pins/glmPins.ts'
-import { zaiProviderAdapter } from '../../src/services/providers/zai/zaiAdapter.ts'
+} from '../../src/models/roads/zai/zaiClient.ts'
+import { GLM_EFFORTS, glmAcceptsEffort, isGlmModelId } from '../../src/models/facts/pins/glmPins.ts'
+import { zaiProviderAdapter } from '../../src/models/roads/zai/zaiAdapter.ts'
 
 const t = checker()
 
@@ -254,7 +254,7 @@ t.section('§4 — the keyless lane refuses with ZERO provider I/O')
     describe.catalogue.map(c => c.id).join(','),
   )
 
-  const { zaiCallModel } = await import('../../src/services/providers/zai/zaiCallModel.ts')
+  const { zaiCallModel } = await import('../../src/models/roads/zai/zaiCallModel.ts')
   const realFetch = globalThis.fetch
   const wireCalls: string[] = []
   globalThis.fetch = (async (input: RequestInfo | URL) => {

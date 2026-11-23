@@ -5,12 +5,12 @@
 import {
   bigWordmarkRows,
   wordmarkForm,
-} from '../../src/components/mercury-ui/assets.tsx'
-import { rampSegments, type RampSegment } from '../../src/components/mercury-ui/focalRamp.ts'
-import { TERRA } from '../../src/components/mercuryPalette.ts'
+} from '../../src/screen/widgets/assets.tsx'
+import { rampSegments, type RampSegment } from '../../src/screen/widgets/focalRamp.ts'
+import { TERRA } from '../../src/screen/theme/mercuryPalette.ts'
 
 const WARM_RED_SAMPLE = '#DE4A35'
-import { resolveMercuryTokens } from '../../src/utils/mercuryTokens.ts'
+import { resolveMercuryTokens } from '../../src/screen/theme/mercuryTokens.ts'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()

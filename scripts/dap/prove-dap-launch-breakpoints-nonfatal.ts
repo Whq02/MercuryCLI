@@ -15,8 +15,8 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const launchBpHint = ' — a failed or slow setBreakpoints round must be recorded unverified with its reason and must not fail the launch; see the breakpoint round in src/services/dap/client/start.ts and createDapSession in src/services/dap/dapClient.ts'
-const launchResultHint = ' — the launch result text is built in src/tools/DebugTool/DebugTool.ts (the launch path that prints UNVERIFIED lines)'
+const launchBpHint = ' — a failed or slow setBreakpoints round must be recorded unverified with its reason and must not fail the launch; see the breakpoint round in src/integrations/debugger/client/start.ts and createDapSession in src/integrations/debugger/dapClient.ts'
+const launchResultHint = ' — the launch result text is built in src/tools/debug/DebugTool.ts (the launch path that prints UNVERIFIED lines)'
 
 async function main(): Promise<void> {
   const MOCK = join(import.meta.dir, 'mock-dap-adapter.mjs')
@@ -25,9 +25,9 @@ async function main(): Promise<void> {
   delete process.env.MOCK_DAP_REFUSE_BREAKPOINTS
   delete process.env.MOCK_DAP_BREAKPOINT_DELAY_MS
 
-  const { createDapSession, getDapSession, removeDapSession } = await import(join(SRC, 'services/dap/dapClient.ts'))
-  const { makeOwnerKey } = await import(join(SRC, 'utils/run/ownerKey.ts'))
-  const { DebugTool } = await import(join(SRC, 'tools/DebugTool/DebugTool.ts'))
+  const { createDapSession, getDapSession, removeDapSession } = await import(join(SRC, 'integrations/debugger/dapClient.ts'))
+  const { makeOwnerKey } = await import(join(SRC, 'engine/run-owner/ownerKey.ts'))
+  const { DebugTool } = await import(join(SRC, 'tools/debug/DebugTool.ts'))
   const OWNER = makeOwnerKey({ workspace: '/tmp/w', sessionId: 'dap-bp-nonfatal', lane: 'main' })
 
   section('L1 a refused setBreakpoints round: the program still launches')

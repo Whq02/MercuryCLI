@@ -2,12 +2,12 @@
 import { join } from 'node:path'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { StylePool, HyperlinkPool } = await import(join(SRC, 'ink/cell-grid.ts'))
+const { StylePool, HyperlinkPool } = await import(join(SRC, 'screen/renderer/cell-grid.ts'))
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  const hint = 'change the StylePool or HyperlinkPool method this label names in src/ink/cell-grid.ts (withCurrentMatch, withSelectionBg, setSelectionBg, transition, HyperlinkPool.intern)'
+  const hint = 'change the StylePool or HyperlinkPool method this label names in src/screen/renderer/cell-grid.ts (withCurrentMatch, withSelectionBg, setSelectionBg, transition, HyperlinkPool.intern)'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${hint}` : ''}`)
 }
 type Code = { type: 'ansi'; code: string; endCode: string }

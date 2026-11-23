@@ -22,7 +22,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-const BCAST_COMPOSER_FIX = 'fix: the broadcast composer words in src/components/concourse/screen/composerGate.ts and src/components/concourse/screen/useConcourseFaces.tsx; marks are in the capture under BROADCAST_CAPTURE_DIR (mark-*.txt)'
+const BCAST_COMPOSER_FIX = 'fix: the broadcast composer words in src/screen/concourse/screen/composerGate.ts and src/screen/concourse/screen/useConcourseFaces.tsx; marks are in the capture under BROADCAST_CAPTURE_DIR (mark-*.txt)'
 const BCAST_MARK_FIX = 'fix: how the Concourse board marks and counts rows (the check beside a marked title); read the mark-*.txt capture under BROADCAST_CAPTURE_DIR to see the frame'
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
@@ -126,7 +126,7 @@ const env = {
     BCAST_COMPOSER_FIX,
   )
   console.log('L4 — the honest partial send')
-  check('the summary is the ruled arithmetic', has(mk('sent'), 'sent to 2 of 3 · 1 skipped'), 'fix: the broadcast summary words in src/components/concourse/screen/composerGate.ts; the frame is mark-sent.txt under BROADCAST_CAPTURE_DIR')
+  check('the summary is the ruled arithmetic', has(mk('sent'), 'sent to 2 of 3 · 1 skipped'), 'fix: the broadcast summary words in src/screen/concourse/screen/composerGate.ts; the frame is mark-sent.txt under BROADCAST_CAPTURE_DIR')
   check(
     'the skipped queued row keeps its own cell (waits, where a session shows its age), never a sent mark',
     mk('sent').some(l => l.includes('Trace reconnect r') && /\bwaits\b/.test(l) && !l.includes('sent')),

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/compact/autoCompact.ts src/services/compact/verbatimTail.ts src/services/compact/compact.ts
+// gate-watch: src/engine/compaction/autoFold.ts src/engine/compaction/verbatimTail.ts src/engine/compaction/foldConversation.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -10,17 +10,17 @@ const home = mkdtempSync(join(tmpdir(), 'window-turn-reserve-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'ollama=http://127.0.0.1:11434'
 for (const key of ['MERCURY_HOME', 'MERCURY_BLOCKING_LIMIT_OVERRIDE', 'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_MAX_OUTPUT_TOKENS']) delete process.env[key]
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { writeLocalWindowSetting, __resetLocalWindowsForTest } = await import('../../src/services/providers/local/localWindow.ts')
-const auto = await import('../../src/services/compact/autoCompact.ts')
-const { foldLandingCeiling } = await import('../../src/services/compact/verbatimTail.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
-const { estimateTurnsToCompact, recordCtxSample, noteCtxTurnBoundary, resetCtxForecastForTest } = await import('../../src/services/cockpit/ctxForecast.ts')
-const { ollamaChatBody } = await import('../../src/services/providers/local/ollamaChatTransport.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { writeLocalWindowSetting, __resetLocalWindowsForTest } = await import('../../src/models/roads/local/localWindow.ts')
+const auto = await import('../../src/engine/compaction/autoFold.ts')
+const { foldLandingCeiling } = await import('../../src/engine/compaction/verbatimTail.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { getModelMaxOutputTokens } = await import('../../src/models/facts/capabilities.ts')
+const { estimateTurnsToCompact, recordCtxSample, noteCtxTurnBoundary, resetCtxForecastForTest } = await import('../../src/screen/cockpit-gauges/ctxForecast.ts')
+const { ollamaChatBody } = await import('../../src/models/roads/local/ollamaChatTransport.ts')
 const model = 'local/window-proof:9b'
 const fetchImpl: typeof fetch = (async (url: string | URL | Request) => {
   const path = new URL(String(url)).pathname

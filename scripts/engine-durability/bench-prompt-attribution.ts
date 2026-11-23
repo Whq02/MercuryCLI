@@ -6,14 +6,14 @@ process.env.MERCURY_DESKTOP_DRIVER = 'none'
 const WANT_TOKENS = process.argv.includes('--tokens')
 const AS_JSON = process.argv.includes('--json')
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
-const { getAllBaseTools, getTools } = await import('../../src/tools.ts')
-const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
-const { resolveBehaviourContract } = await import('../../src/prompt/behaviourContract.ts')
+const { getAllBaseTools, getTools } = await import('../../src/tools/kit/toolList.ts')
+const { getSystemPrompt } = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+const { resolveBehaviourContract } = await import('../../src/engine/system-prompt/behaviourContract.ts')
 
 const MODEL = 'claude-opus-5'
 const DEFAULT_CTX = {
@@ -46,7 +46,7 @@ const rows: Row[] = contract.sections.map(s => ({
   bytes: bytes(s.text),
 }))
 
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
 let describedOk = 0
 let toolSchemaBytes = 0
 const apiTools: unknown[] = []
@@ -84,7 +84,7 @@ let toolSchemaTokens: number | undefined
 if (WANT_TOKENS) {
   try {
     const { countTokensWithAPI, countMessagesTokensWithAPI } = await import(
-      '../../src/services/tokenEstimation.ts'
+      '../../src/models/facts/tokenEstimation.ts'
     )
     const textsByClass = new Map<string, string[]>()
     for (const r of rows) {

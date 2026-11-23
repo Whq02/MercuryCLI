@@ -17,20 +17,20 @@ delete process.env.MERCURY_SESSION_KIT
 
 let failures = 0
 const whereToLook = (name: string): string => {
-  if (name.startsWith('KR')) return 'src/services/mcp/sessionKitPin.ts (noteRefusedKitOnSessionReceipt)'
-  if (/^K(8|9|10)$/.test(name)) return 'src/daemon/concourseWorkers.ts (buildConcourseWorkerSpec)'
-  if (name === 'K11') return 'src/daemon/sessionKit.ts (validateSessionKit)'
+  if (name.startsWith('KR')) return 'src/integrations/mcp/sessionKitPin.ts (noteRefusedKitOnSessionReceipt)'
+  if (/^K(8|9|10)$/.test(name)) return 'src/daemon/concourse-workers/concourseWorkers.ts (buildConcourseWorkerSpec)'
+  if (name === 'K11') return 'src/daemon/session-seat/sessionKit.ts (validateSessionKit)'
   if (name === 'K17') return 'the flag registry (FLAG_REGISTRY) (the MERCURY_SESSION_KIT row)'
-  if (name.startsWith('K')) return 'src/services/mcp/sessionKitPin.ts (consumeSessionKitPin, sessionKitOf)'
-  if (/^S/.test(name)) return 'src/services/mcp/membership.ts (isMcpCatalogueMember, isMcpOrgan, partitionMcpConfigsByMembership)'
-  if (/^C(9|10|11)$/.test(name)) return 'src/daemon/sessionKit.ts (resolveSessionKitOnRecord)'
-  if (/^C1[23]$/.test(name)) return 'src/daemon/sessionSeat.ts (onFactsAnswer)'
-  if (/^C[5-8]$/.test(name)) return 'src/services/mcp/sessionKitPin.ts (completeProcessSessionKit) and src/services/mcp/membership.ts'
-  if (name.startsWith('C')) return 'src/services/mcp/kitCompletion.ts (completeSessionKitFromRoster)'
-  if (name.startsWith('E')) return 'src/extensions/active.ts (activeFor) and src/services/mcp/sessionKitPin.ts'
-  if (name.startsWith('I')) return 'src/tools/AgentTool/runAgent.ts (connectAgentMcpServers)'
-  if (name.startsWith('N')) return 'src/daemon/headlessRun.ts (buildRunnerInvocation) and src/daemon/concourseWorkers.ts (buildConcourseWorkerSpec)'
-  return 'src/services/mcp/sessionKitPin.ts'
+  if (name.startsWith('K')) return 'src/integrations/mcp/sessionKitPin.ts (consumeSessionKitPin, sessionKitOf)'
+  if (/^S/.test(name)) return 'src/integrations/mcp/membership.ts (isMcpCatalogueMember, isMcpOrgan, partitionMcpConfigsByMembership)'
+  if (/^C(9|10|11)$/.test(name)) return 'src/daemon/session-seat/sessionKit.ts (resolveSessionKitOnRecord)'
+  if (/^C1[23]$/.test(name)) return 'src/daemon/session-seat/sessionSeat.ts (onFactsAnswer)'
+  if (/^C[5-8]$/.test(name)) return 'src/integrations/mcp/sessionKitPin.ts (completeProcessSessionKit) and src/integrations/mcp/membership.ts'
+  if (name.startsWith('C')) return 'src/integrations/mcp/kitCompletion.ts (completeSessionKitFromRoster)'
+  if (name.startsWith('E')) return 'src/integrations/extensions/active.ts (activeFor) and src/integrations/mcp/sessionKitPin.ts'
+  if (name.startsWith('I')) return 'src/tools/crewmate/runCrewmate.ts (connectAgentMcpServers)'
+  if (name.startsWith('N')) return 'src/daemon/runner-link/headlessRun.ts (buildRunnerInvocation) and src/daemon/concourse-workers/concourseWorkers.ts (buildConcourseWorkerSpec)'
+  return 'src/integrations/mcp/sessionKitPin.ts'
 }
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail} — ` : ''}change the code, not the check: ${whereToLook(name)}` : ''}`)
@@ -39,7 +39,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const deepEq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — kit-runner prover exceeded 120s: an awaited call never returned; run the file alone and see which section printed last, then look in the module that section names (src/tools/AgentTool/runAgent.ts connectAgentMcpServers for §I, src/daemon/sessionSeat.ts onFactsAnswer for §C)')
+  console.log('\nTIMEOUT — kit-runner prover exceeded 120s: an awaited call never returned; run the file alone and see which section printed last, then look in the module that section names (src/tools/crewmate/runCrewmate.ts connectAgentMcpServers for §I, src/daemon/session-seat/sessionSeat.ts onFactsAnswer for §C)')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
@@ -49,7 +49,7 @@ console.log('============================================================')
 console.log(' KIT-RUNNER — sessions obey their kit')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
 const K_RESOLVED = {
@@ -69,7 +69,7 @@ const K_UNRESOLVED = {
 
 section('§K the carry (poison-first: a dropped or malformed kit must never mean whole-config)')
 {
-  const pin = await import('../../src/services/mcp/sessionKitPin.ts')
+  const pin = await import('../../src/integrations/mcp/sessionKitPin.ts')
 
   pin._resetSessionKitPinForTesting()
   process.env.MERCURY_SESSION_KIT = '{not json'
@@ -113,7 +113,7 @@ section('§K the carry (poison-first: a dropped or malformed kit must never mean
 
 section('§K2 the spec composes the carry (the daemon half)')
 {
-  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
+  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const base = { runnerId: 'w-kit', sessionId: '11111111-2222-4333-8444-555555555555', workspaceId: PROJECT, modelKey: 'test-model' }
   const withKit = buildConcourseWorkerSpec({ ...base, kit: K_RESOLVED as never })
   const parsed = JSON.parse((withKit.extraEnv as Record<string, string>).MERCURY_SESSION_KIT ?? 'null') as unknown
@@ -122,23 +122,23 @@ section('§K2 the spec composes the carry (the daemon half)')
   t("K9 no kit ⇒ the key is ABSENT from extraEnv (absent, never the string 'undefined' — absence IS the whole-config law)", !('MERCURY_SESSION_KIT' in (noKit.extraEnv as Record<string, string>)))
   const warm = buildConcourseWorkerSpec({ runnerId: 'w-warm', workspaceId: PROJECT, modelKey: 'test-model', warm: true })
   t('K10 the builder stamps NO kit env on a kit-less spec, warm included (absence is the law; the warm ensure hands its own kit — prove-kit-birth §G)', !('MERCURY_SESSION_KIT' in (warm.extraEnv as Record<string, string>)))
-  const round = await import('../../src/daemon/sessionKit.ts')
+  const round = await import('../../src/daemon/session-seat/sessionKit.ts')
   const validated = round.validateSessionKit(parsed)
   t("K11 the carried JSON round-trips the wire's own narrowing (the runner re-validates the daemon's bytes)", validated.ok && deepEq(validated.ok ? validated.kit : null, K_RESOLVED))
 }
 
 section('§K3 call-site census (source-shape: every non-warm road passes the kit; one env owner)')
 {
-  const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
+  const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
   const row = (FLAG_REGISTRY as ReadonlyArray<{ env: string; kind: string }>).find(r => r.env === 'MERCURY_SESSION_KIT')
   t("K17 the flagRegistry row exists, kind 'value' (prove-flag-registry enforces the read pattern mechanically)", row !== undefined && row.kind === 'value')
 }
 
 section('§S the swap: every membership road answers the process kit through the one owner')
 {
-  const pin = await import('../../src/services/mcp/sessionKitPin.ts')
-  const membership = await import('../../src/services/mcp/membership.ts')
-  const { setMcpServerEnabled } = await import('../../src/services/mcp/config.ts')
+  const pin = await import('../../src/integrations/mcp/sessionKitPin.ts')
+  const membership = await import('../../src/integrations/mcp/membership.ts')
+  const { setMcpServerEnabled } = await import('../../src/integrations/mcp/serverConfigs.ts')
   const latch = (kit: unknown): void => {
     pin._resetSessionKitPinForTesting()
     process.env.MERCURY_SESSION_KIT = JSON.stringify(kit)
@@ -176,10 +176,10 @@ section('§S the swap: every membership road answers the process kit through the
 
 section('§C the completion (poison: a second road to resolved; a resolved record overwritten)')
 {
-  const pin = await import('../../src/services/mcp/sessionKitPin.ts')
-  const g = await import('../../src/skills/kitGovernance.ts')
-  const { completeSessionKitFromRoster } = await import('../../src/services/mcp/kitCompletion.ts')
-  const membership = await import('../../src/services/mcp/membership.ts')
+  const pin = await import('../../src/integrations/mcp/sessionKitPin.ts')
+  const g = await import('../../src/integrations/skills/kitGovernance.ts')
+  const { completeSessionKitFromRoster } = await import('../../src/integrations/mcp/kitCompletion.ts')
+  const membership = await import('../../src/integrations/mcp/membership.ts')
 
   const UNRESOLVED = {
     schema: 1,
@@ -207,7 +207,7 @@ section('§C the completion (poison: a second road to resolved; a resolved recor
   )
   t("C2 the skills halves follow the overlay's own product (kit-on unmarked; kit-invocable marked; an off-master extension skill contributes nothing; builtins never)", deepEq(R.skills, ['s:on']) && deepEq(R.invocable, ['s:inv']))
   t("C3 the masters land on the snapshot ('off' survives even for a master the active set still lists)", deepEq(R.extensions, { 'quiet-ext': 'off', 'loud-ext': 'on' }))
-  const revalidated = (await import('../../src/daemon/sessionKit.ts')).validateSessionKit(R)
+  const revalidated = (await import('../../src/daemon/session-seat/sessionKit.ts')).validateSessionKit(R)
   t('C4 the composed kit is RESOLVED and wire-legal (the daemon will stamp these exact bytes)', revalidated.ok && R.resolved === undefined)
 
   g._resetKitGovernanceForTesting()
@@ -226,7 +226,7 @@ section('§C the completion (poison: a second road to resolved; a resolved recor
   t('C8 a composer bug cannot latch what the wire would refuse: a still-unresolved or malformed flip refuses typed', pin.completeProcessSessionKit(UNRESOLVED as never) === false && pin.completeProcessSessionKit({ schema: 1, mcp: ['bad name!'], skills: [], invocable: [] } as never) === false && pin.sessionKitOf()?.resolved === false)
   pin._resetSessionKitPinForTesting()
 
-  const { resolveSessionKitOnRecord } = await import('../../src/daemon/sessionKit.ts')
+  const { resolveSessionKitOnRecord } = await import('../../src/daemon/session-seat/sessionKit.ts')
   const recUnresolved = { kit: JSON.parse(JSON.stringify(UNRESOLVED)) } as never as { kit?: typeof R }
   t('C9 the pen completes an UNRESOLVED record once (a deep copy, never an alias)', resolveSessionKitOnRecord(recUnresolved as never, R) === true && deepEq(recUnresolved.kit, R) && recUnresolved.kit !== R)
   const before = JSON.stringify(recUnresolved.kit)
@@ -235,9 +235,9 @@ section('§C the completion (poison: a second road to resolved; a resolved recor
   const recResolved = { kit: { schema: 1, mcp: ['x'], skills: [], invocable: [] } } as never as { kit?: typeof R }
   t('C11 a pre-kit record is never stamped from a facts answer; an answer still unresolved stamps nothing', resolveSessionKitOnRecord(recPrekit as never, R) === false && recPrekit.kit === undefined && resolveSessionKitOnRecord(recResolved as never, UNRESOLVED as never) === false && deepEq(recResolved.kit?.mcp, ['x']))
 
-  const seat = await import('../../src/daemon/sessionSeat.ts')
-  const { readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-  const { sessionKitToWire } = await import('../../src/services/engine-connector/seatWire.ts')
+  const seat = await import('../../src/daemon/session-seat/sessionSeat.ts')
+  const { readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  const { sessionKitToWire } = await import('../../src/engine/connector/seatWire.ts')
   const DAEMON_DIR = process.env.MERCURY_DAEMON_DIR
   const SID = '22222222-3333-4444-8555-666666666666'
   updateConcourseWorkers(workers => {
@@ -276,8 +276,8 @@ section('§C the completion (poison: a second road to resolved; a resolved recor
 
 section('§E the extension AND: off in EITHER store contributes NOTHING, every kind')
 {
-  const pin = await import('../../src/services/mcp/sessionKitPin.ts')
-  const active = await import('../../src/extensions/active.ts')
+  const pin = await import('../../src/integrations/mcp/sessionKitPin.ts')
+  const active = await import('../../src/integrations/extensions/active.ts')
   const extOf = (name: string, switches: Record<string, boolean>): unknown => ({
     entry: { id: `test:${name}` },
     manifest: { name },
@@ -314,8 +314,8 @@ section('§E the extension AND: off in EITHER store contributes NOTHING, every k
 
 section('§I the inline agent-def door (poison: the byte-identical cache-hit teardown — Q2(b))')
 {
-  const { connectAgentMcpServers } = await import('../../src/tools/AgentTool/runAgent.ts')
-  const { connectToServer, getServerCacheKey } = await import('../../src/services/mcp/client.ts')
+  const { connectAgentMcpServers } = await import('../../src/tools/crewmate/runCrewmate.ts')
+  const { connectToServer, getServerCacheKey } = await import('../../src/integrations/mcp/client.ts')
   const memo = (connectToServer as unknown as { cache: Map<string, unknown> }).cache
   const definition = { agentType: 'prover-agent', source: 'built-in' } as never
 
@@ -368,8 +368,8 @@ section('§I the inline agent-def door (poison: the byte-identical cache-hit tea
 
 section('§N non-session insulation (poison: a kit env appearing on a warm/utility spec)')
 {
-  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
-  const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.ts')
+  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  const { buildRunnerInvocation } = await import('../../src/daemon/runner-link/headlessRun.ts')
   const base = { runnerId: 'w-ins', sessionId: '33333333-4444-4555-8666-777777777777', workspaceId: PROJECT, modelKey: 'test-model' }
 
   process.env.MERCURY_SESSION_KIT = JSON.stringify({ schema: 1, mcp: ['stray'], skills: [], invocable: [] })
@@ -383,8 +383,8 @@ section('§N non-session insulation (poison: a kit env appearing on a warm/utili
 
 section('§KR a refused pin lands on the session receipt too — once, the same typed sentence')
 {
-  const pin = await import('../../src/services/mcp/sessionKitPin.ts')
-  const { readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
+  const pin = await import('../../src/integrations/mcp/sessionKitPin.ts')
+  const { readSessionReceipts } = await import('../../src/daemon/switchboard/sessionReceipts.ts')
   const { mkdtempSync } = await import('node:fs')
   const HOME = mkdtempSync(join(SCRATCH, 'receipt-home-'))
   const SID = '44444444-5555-4666-8777-888888888888'

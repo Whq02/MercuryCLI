@@ -4,8 +4,8 @@ import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import * as changelog from '../../src/constants/changelog.js'
-import { getAllReleaseNotes, getStoredChangelog } from '../../src/utils/releaseNotes.js'
+import * as changelog from '../../src/commands/update-notes/changelog.js'
+import { getAllReleaseNotes, getStoredChangelog } from '../../src/boot/releaseNotes.js'
 
 const { releaseNotesFor } = (await import('./notesFromChangelog.mjs')) as {
   releaseNotesFor: (version: string, rootDir: string) => string | undefined
@@ -19,7 +19,7 @@ const check = (name: string, cond: boolean, detail = ''): void => {
 }
 
 const buildChangelog = (changelog as { buildMercuryChangelog?: (rootDir?: string) => string }).buildMercuryChangelog
-check('src/constants/changelog.ts exports buildMercuryChangelog(rootDir)', typeof buildChangelog === 'function')
+check('src/commands/update-notes/changelog.ts exports buildMercuryChangelog(rootDir)', typeof buildChangelog === 'function')
 
 const stored = await getStoredChangelog()
 const all = getAllReleaseNotes(stored)
@@ -95,12 +95,12 @@ try {
 
   const pkgArgs = [join(releaseScriptsDir, 'package.mjs'), '--target', 'windows-x64', '--allow-degraded', '--allow-stale-verify-receipts', ...(process.platform === 'win32' ? [] : ['--assemble-only'])]
   const pkgMissingDoc = spawnSync('node', pkgArgs, { encoding: 'utf8', timeout: 30_000 })
-  check('package.mjs ignores a duplicate src/constants/changelog.ts and fails naming docs/releases/9.9.8.md', pkgMissingDoc.status !== 0 && pkgMissingDoc.stderr.includes('docs/releases/9.9.8.md'), pkgMissingDoc.stderr.trim().slice(0, 200))
+  check('package.mjs ignores a duplicate src/commands/update-notes/changelog.ts and fails naming docs/releases/9.9.8.md', pkgMissingDoc.status !== 0 && pkgMissingDoc.stderr.includes('docs/releases/9.9.8.md'), pkgMissingDoc.stderr.trim().slice(0, 200))
 
   rmSync(join(fixture, 'src', 'constants'), { recursive: true, force: true })
   writeFileSync(join(releasesDir, '9.9.8.md'), '# 9.9.8 — ready for the tag\n\n## What changed\n\n- Packaged from docs\n')
   const pkgWithDoc = spawnSync('node', pkgArgs, { encoding: 'utf8', timeout: 30_000 })
-  check('package.mjs accepts docs/releases/9.9.8.md without src/constants/changelog.ts and advances to THIRD_PARTY_NOTICES.md', pkgWithDoc.status !== 0 && pkgWithDoc.stderr.includes('THIRD_PARTY_NOTICES.md'), pkgWithDoc.stderr.trim().slice(0, 200))
+  check('package.mjs accepts docs/releases/9.9.8.md without src/commands/update-notes/changelog.ts and advances to THIRD_PARTY_NOTICES.md', pkgWithDoc.status !== 0 && pkgWithDoc.stderr.includes('THIRD_PARTY_NOTICES.md'), pkgWithDoc.stderr.trim().slice(0, 200))
 } finally {
   rmSync(fixture, { recursive: true, force: true })
 }

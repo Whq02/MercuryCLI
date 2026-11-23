@@ -15,12 +15,12 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.chdir(cwd)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const paths = await import('../../src/extensions/paths.ts')
-const records = await import('../../src/extensions/records.ts')
-const sources = await import('../../src/extensions/sources.ts')
-const install = await import('../../src/extensions/install.ts')
+const paths = await import('../../src/integrations/extensions/paths.ts')
+const records = await import('../../src/integrations/extensions/records.ts')
+const sources = await import('../../src/integrations/extensions/sources.ts')
+const install = await import('../../src/integrations/extensions/install.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -66,65 +66,65 @@ console.log('[1] versionFolderName refuses the path words typed')
 {
   for (const hostile of ['..', '.', '']) {
     const r = refusedTyped(() => paths.versionFolderName(hostile))
-    check(`'${hostile}' throws the typed refusal`, r.threw && r.typed, r.threw ? `threw ${r.name}; versionFolderName in src/extensions/paths.ts must throw VersionFolderTraversalError for this version` : 'returned a folder name; versionFolderName in src/extensions/paths.ts must throw VersionFolderTraversalError for this version')
+    check(`'${hostile}' throws the typed refusal`, r.threw && r.typed, r.threw ? `threw ${r.name}; versionFolderName in src/integrations/extensions/paths.ts must throw VersionFolderTraversalError for this version` : 'returned a folder name; versionFolderName in src/integrations/extensions/paths.ts must throw VersionFolderTraversalError for this version')
   }
   for (const legal of ['1.0.0', '2024.1', 'v1', '1.0.0-rc.1', '.hidden']) {
     let folded = ''
     const r = refusedTyped(() => (folded = paths.versionFolderName(legal)))
-    check(`'${legal}' still folds`, !r.threw && folded.length > 0, r.threw ? `threw ${r.name}; versionFolderName in src/extensions/paths.ts must fold a legal version into a folder name` : 'versionFolderName in src/extensions/paths.ts returned an empty folder name for a legal version')
+    check(`'${legal}' still folds`, !r.threw && folded.length > 0, r.threw ? `threw ${r.name}; versionFolderName in src/integrations/extensions/paths.ts must fold a legal version into a folder name` : 'versionFolderName in src/integrations/extensions/paths.ts returned an empty folder name for a legal version')
   }
   const dirOk = paths.getInstalledVersionDir('good@local', '1.0.0')
-  check('the version dir for a legal version is under installed/<id>/', dirOk.includes(join('installed', 'good@local')), `got ${dirOk}; getInstalledVersionDir in src/extensions/paths.ts must nest under installed/<id>/`)
+  check('the version dir for a legal version is under installed/<id>/', dirOk.includes(join('installed', 'good@local')), `got ${dirOk}; getInstalledVersionDir in src/integrations/extensions/paths.ts must nest under installed/<id>/`)
 }
 
 console.log('[2] install: refusal BEFORE any change; the tree stays byte-intact')
 {
   const added = await sources.addSource(srcroot, { label: 'local' })
-  check('the source adds', added.ok, added.ok ? '' : `${added.reason}; addSource in src/extensions/sources.ts refused the fixture folder`)
+  check('the source adds', added.ok, added.ok ? '' : `${added.reason}; addSource in src/integrations/extensions/sources.ts refused the fixture folder`)
   const good = await install.installFromSource('local', 'good')
-  check('good 1.0.0 installs', good.ok && good.record.version === '1.0.0', 'installFromSource in src/extensions/install.ts did not install good 1.0.0: ' + JSON.stringify(good))
-  check('good approves', install.approve('good@local').ok, 'approve in src/extensions/install.ts refused good@local')
+  check('good 1.0.0 installs', good.ok && good.record.version === '1.0.0', 'installFromSource in src/integrations/extensions/install.ts did not install good 1.0.0: ' + JSON.stringify(good))
+  check('good approves', install.approve('good@local').ok, 'approve in src/integrations/extensions/install.ts refused good@local')
   const goodDir = paths.getInstalledVersionDir('good@local', '1.0.0')
   const goodManifestBefore = readFileSync(join(goodDir, 'mercury-extension.json'), 'utf8')
 
   const trav = await install.installFromSource('local', 'vtrav').catch((error: unknown) => ({ ok: false as const, reason: `THREW: ${error instanceof Error ? error.message : String(error)}` }))
-  check('vtrav (version ..) is refused, not installed', !trav.ok, trav.ok ? 'install reported ok; installFromSource in src/extensions/install.ts must refuse a version that cannot name a folder' : '')
-  check('the refusal names the version-folder law', !trav.ok && /cannot name an install folder/.test(trav.reason), trav.ok ? '' : `${trav.reason}; installFromSource in src/extensions/install.ts must return the VersionFolderTraversalError message (src/extensions/paths.ts)`)
-  check('installed/ survives whole', existsSync(goodDir), 'the good@local tree is gone; installFromSource in src/extensions/install.ts must refuse before it touches installed/')
-  check('good is byte-intact', existsSync(join(goodDir, 'mercury-extension.json')) && readFileSync(join(goodDir, 'mercury-extension.json'), 'utf8') === goodManifestBefore, 'the refused install changed the good tree; installFromSource in src/extensions/install.ts must refuse before any write')
+  check('vtrav (version ..) is refused, not installed', !trav.ok, trav.ok ? 'install reported ok; installFromSource in src/integrations/extensions/install.ts must refuse a version that cannot name a folder' : '')
+  check('the refusal names the version-folder law', !trav.ok && /cannot name an install folder/.test(trav.reason), trav.ok ? '' : `${trav.reason}; installFromSource in src/integrations/extensions/install.ts must return the VersionFolderTraversalError message (src/integrations/extensions/paths.ts)`)
+  check('installed/ survives whole', existsSync(goodDir), 'the good@local tree is gone; installFromSource in src/integrations/extensions/install.ts must refuse before it touches installed/')
+  check('good is byte-intact', existsSync(join(goodDir, 'mercury-extension.json')) && readFileSync(join(goodDir, 'mercury-extension.json'), 'utf8') === goodManifestBefore, 'the refused install changed the good tree; installFromSource in src/integrations/extensions/install.ts must refuse before any write')
   const residue = existsSync(paths.getInstalledDir()) ? readdirSync(paths.getInstalledDir()).filter(n => n.startsWith('.installing-')) : []
-  check('no staging residue', residue.length === 0, `${residue.join(' ')}; installFromSource in src/extensions/install.ts must remove its .installing- staging folder when it refuses`)
-  check('the good record still stands', records.installedOrEmpty()['good@local'] !== undefined, 'a refused install must not remove other records; see installFromSource in src/extensions/install.ts')
+  check('no staging residue', residue.length === 0, `${residue.join(' ')}; installFromSource in src/integrations/extensions/install.ts must remove its .installing- staging folder when it refuses`)
+  check('the good record still stands', records.installedOrEmpty()['good@local'] !== undefined, 'a refused install must not remove other records; see installFromSource in src/integrations/extensions/install.ts')
 
   const dot = await install.installFromSource('local', 'vdot').catch((error: unknown) => ({ ok: false as const, reason: `THREW: ${error instanceof Error ? error.message : String(error)}` }))
-  check('vdot (version .) is refused, not mis-nested', !dot.ok, dot.ok ? 'install reported ok; installFromSource in src/extensions/install.ts must refuse version .' : '')
-  check('nothing landed at the id directory itself', !existsSync(join(paths.getInstalledIdDir('vdot@local'), 'mercury-extension.json')), 'a version . landed in the id folder itself; versionFolderName in src/extensions/paths.ts must refuse it')
+  check('vdot (version .) is refused, not mis-nested', !dot.ok, dot.ok ? 'install reported ok; installFromSource in src/integrations/extensions/install.ts must refuse version .' : '')
+  check('nothing landed at the id directory itself', !existsSync(join(paths.getInstalledIdDir('vdot@local'), 'mercury-extension.json')), 'a version . landed in the id folder itself; versionFolderName in src/integrations/extensions/paths.ts must refuse it')
 }
 
 console.log('[3] update: the same pair refuses; the running version is untouched')
 {
   const b = await install.installFromSource('local', 'goodb')
-  check('goodb 1.0.0 installs', b.ok, 'installFromSource in src/extensions/install.ts did not install goodb 1.0.0: ' + JSON.stringify(b))
-  check('goodb approves', install.approve('goodb@local').ok, 'approve in src/extensions/install.ts refused goodb@local')
+  check('goodb 1.0.0 installs', b.ok, 'installFromSource in src/integrations/extensions/install.ts did not install goodb 1.0.0: ' + JSON.stringify(b))
+  check('goodb approves', install.approve('goodb@local').ok, 'approve in src/integrations/extensions/install.ts refused goodb@local')
   const bDir = paths.getInstalledVersionDir('goodb@local', '1.0.0')
   writeExtension('goodb', '..')
   writeCatalogue({ good: '1.0.0', vtrav: '..', vdot: '.', goodb: '..', goodc: '1.0.0' })
   const upTrav = await install.update('goodb@local').catch((error: unknown) => ({ ok: false as const, reason: `THREW: ${error instanceof Error ? error.message : String(error)}` }))
-  check('update to version .. is refused typed', !upTrav.ok && /cannot name an install folder/.test((upTrav as { reason?: string }).reason ?? ''), upTrav.ok ? 'update reported ok; update in src/extensions/install.ts must refuse a version that cannot name a folder' : `${(upTrav as { reason?: string }).reason}; update in src/extensions/install.ts must return the VersionFolderTraversalError message`)
-  check('the running 1.0.0 stays', existsSync(bDir), 'update in src/extensions/install.ts must refuse before it replaces the running version folder')
-  check('installed/ survives the update road', existsSync(paths.getInstalledVersionDir('good@local', '1.0.0')), 'update in src/extensions/install.ts must not touch other installs')
+  check('update to version .. is refused typed', !upTrav.ok && /cannot name an install folder/.test((upTrav as { reason?: string }).reason ?? ''), upTrav.ok ? 'update reported ok; update in src/integrations/extensions/install.ts must refuse a version that cannot name a folder' : `${(upTrav as { reason?: string }).reason}; update in src/integrations/extensions/install.ts must return the VersionFolderTraversalError message`)
+  check('the running 1.0.0 stays', existsSync(bDir), 'update in src/integrations/extensions/install.ts must refuse before it replaces the running version folder')
+  check('installed/ survives the update road', existsSync(paths.getInstalledVersionDir('good@local', '1.0.0')), 'update in src/integrations/extensions/install.ts must not touch other installs')
   const residue = existsSync(paths.getInstalledDir()) ? readdirSync(paths.getInstalledDir()).filter(n => n.startsWith('.updating-')) : []
-  check('no update staging residue', residue.length === 0, `${residue.join(' ')}; update in src/extensions/install.ts must remove its .updating- staging folder when it refuses`)
+  check('no update staging residue', residue.length === 0, `${residue.join(' ')}; update in src/integrations/extensions/install.ts must remove its .updating- staging folder when it refuses`)
 
   const c = await install.installFromSource('local', 'goodc')
-  check('goodc 1.0.0 installs', c.ok, 'installFromSource in src/extensions/install.ts did not install goodc 1.0.0: ' + JSON.stringify(c))
-  check('goodc approves', install.approve('goodc@local').ok, 'approve in src/extensions/install.ts refused goodc@local')
+  check('goodc 1.0.0 installs', c.ok, 'installFromSource in src/integrations/extensions/install.ts did not install goodc 1.0.0: ' + JSON.stringify(c))
+  check('goodc approves', install.approve('goodc@local').ok, 'approve in src/integrations/extensions/install.ts refused goodc@local')
   const cDir = paths.getInstalledVersionDir('goodc@local', '1.0.0')
   writeExtension('goodc', '.')
   writeCatalogue({ good: '1.0.0', vtrav: '..', vdot: '.', goodb: '..', goodc: '.' })
   const upDot = await install.update('goodc@local').catch((error: unknown) => ({ ok: false as const, reason: `THREW: ${error instanceof Error ? error.message : String(error)}` }))
-  check('update to version . is refused typed', !upDot.ok && /cannot name an install folder/.test((upDot as { reason?: string }).reason ?? ''), upDot.ok ? 'update reported ok; update in src/extensions/install.ts must refuse version .' : `${(upDot as { reason?: string }).reason}; update in src/extensions/install.ts must return the VersionFolderTraversalError message`)
-  check('the running goodc 1.0.0 stays', existsSync(cDir) && existsSync(join(cDir, 'mercury-extension.json')), 'update in src/extensions/install.ts must leave the running goodc 1.0.0 folder whole when it refuses')
+  check('update to version . is refused typed', !upDot.ok && /cannot name an install folder/.test((upDot as { reason?: string }).reason ?? ''), upDot.ok ? 'update reported ok; update in src/integrations/extensions/install.ts must refuse version .' : `${(upDot as { reason?: string }).reason}; update in src/integrations/extensions/install.ts must return the VersionFolderTraversalError message`)
+  check('the running goodc 1.0.0 stays', existsSync(cDir) && existsSync(join(cDir, 'mercury-extension.json')), 'update in src/integrations/extensions/install.ts must leave the running goodc 1.0.0 folder whole when it refuses')
 }
 
 removeScratch(scratch)

@@ -5,10 +5,10 @@ import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { catalogue, installFixture, removeProofHome, root, serverPath } from './fixture.ts'
-import { writeHostRecord } from '../../src/services/host/store.js'
-import { closeHostTunnel, type HostRunner } from '../../src/services/host/ssh.js'
-import { mediaHostInstallScript, readMediaHostSnapshot, runMediaHostSetup, mediaHostStatePath } from '../../src/services/media/host.js'
-import { mediaPullPlan, pullMedia } from '../../src/services/media/setup.js'
+import { writeHostRecord } from '../../src/models/hosting/store.js'
+import { closeHostTunnel, type HostRunner } from '../../src/models/hosting/ssh.js'
+import { mediaHostInstallScript, readMediaHostSnapshot, runMediaHostSetup, mediaHostStatePath } from '../../src/integrations/media/host.js'
+import { mediaPullPlan, pullMedia } from '../../src/integrations/media/setup.js'
 
 const calls: { command: string; args: string[] }[] = []
 const servers: Server[] = []

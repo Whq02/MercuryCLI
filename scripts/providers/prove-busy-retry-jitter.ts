@@ -1,9 +1,9 @@
-import { BUSY_RETRY_RUNGS_MS, nextBusyRetry, nextBusyRetryWithinBudget, openBusyRetryLadder } from '../../src/services/providers/busyRetry.ts'
+import { BUSY_RETRY_RUNGS_MS, nextBusyRetry, nextBusyRetryWithinBudget, openBusyRetryLadder } from '../../src/models/roads/busyRetry.ts'
 
-const jitter = await import(new URL('../../src/services/api/retryJitter.ts', import.meta.url).href).catch(() => undefined)
+const jitter = await import(new URL('../../src/engine/requests/retryJitter.ts', import.meta.url).href).catch(() => undefined)
 let failures = 0
 function check(label: string, value: boolean): void {
-  const busyRetryFixHint = value ? '' : ' (fix the rung spread and budget in nextBusyRetry and openBusyRetryLadder in src/services/providers/busyRetry.ts, or jitterRetryDelay in src/services/api/retryJitter.ts)'
+  const busyRetryFixHint = value ? '' : ' (fix the rung spread and budget in nextBusyRetry and openBusyRetryLadder in src/models/roads/busyRetry.ts, or jitterRetryDelay in src/engine/requests/retryJitter.ts)'
   console.log(`[${value ? 'PASS' : 'FAIL'}] ${label}${busyRetryFixHint}`)
   if (!value) failures++
 }

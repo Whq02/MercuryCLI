@@ -17,17 +17,17 @@ delete process.env.MERCURY_SESSION_KIT
 process.chdir(project)
 let failures = 0
 const check = (name: string, ok: boolean) => {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ' — to fix, look at getSkillListingAttachments, getDynamicSkillAttachments, suppressNextSkillListing and resetSentSkillNames in src/utils/attachments/skillListing.ts'}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ' — to fix, look at getSkillListingAttachments, getDynamicSkillAttachments, suppressNextSkillListing and resetSentSkillNames in src/engine/attachment-shapes/skillListing.ts'}`)
   if (!ok) failures++
 }
 try {
-  const { enableConfigs } = await import(`${root}/src/utils/config/globalConfig.ts`)
+  const { enableConfigs } = await import(`${root}/src/platform/config/globalConfig.ts`)
   enableConfigs()
-  const { setSessionTrustAccepted } = await import(`${root}/src/bootstrap/state.ts`)
+  const { setSessionTrustAccepted } = await import(`${root}/src/boot/process-state/processState.ts`)
   setSessionTrustAccepted(true)
-  const listing = await import(`${root}/src/utils/attachments/skillListing.ts`)
-  const { getEngineModel } = await import(`${root}/src/services/model/model.ts`)
-  const { SKILL_TOOL_NAME } = await import(`${root}/src/constants/tools/skill.ts`)
+  const listing = await import(`${root}/src/engine/attachment-shapes/skillListing.ts`)
+  const { getEngineModel } = await import(`${root}/src/models/catalogue/engineModel.ts`)
+  const { SKILL_TOOL_NAME } = await import(`${root}/src/tools/kit/names/skill.ts`)
   const context = {
     options: { tools: [{ name: SKILL_TOOL_NAME }], engineModel: getEngineModel() },
     getAppState: () => ({ mcp: { commands: [] } }),
@@ -43,7 +43,7 @@ try {
   check('compaction resets exactly once', (await listing.getSkillListingAttachments(context)).length === 0)
   listing.resetSentSkillNames()
   listing.suppressNextSkillListing()
-  const bootstrap = await import(`${root}/src/bootstrap/state.ts`)
+  const bootstrap = await import(`${root}/src/boot/process-state/processState.ts`)
   bootstrap.regenerateSessionId()
   const child = await listing.getSkillListingAttachments({ ...context, agentId: 'capsule-child', messages: [] })
   check('a child cannot consume the main resume suppression', child.some((row: any) => row.content.includes('capsule-proof')))

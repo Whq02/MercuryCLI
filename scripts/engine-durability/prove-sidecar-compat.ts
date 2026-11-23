@@ -9,10 +9,10 @@ import { checker, scratchRoot, guardWrite } from './harness.ts'
 const ROOT = scratchRoot('sidecarcompat')
 const t = checker()
 
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const sidecar = await import('../../src/services/run/runSidecar.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const sidecar = await import('../../src/engine/run/runSidecar.ts')
 const { emptyRunSnapshot, RUN_SCHEMA_VERSION } = await import(
-  '../../src/services/run/runKernel.ts'
+  '../../src/engine/run/runKernel.ts'
 )
 
 const owner = (id: string) => makeOwnerKey({ workspace: ROOT, sessionId: id, lane: 'main' })

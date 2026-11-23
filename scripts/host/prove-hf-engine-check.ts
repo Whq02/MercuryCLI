@@ -22,10 +22,10 @@ globalThis.fetch = Object.assign((input: RequestInfo | URL, init?: RequestInit) 
 
 const hf = await hfFixture({ extra: [fixtureExtraRepos.exl3, fixtureExtraRepos.hqq] })
 try {
-  const { parseGgufHeader, tensorFamily, compareGgufWithEngine, readGgufHeader, checkGgufAgainstEngine, LLAMACPP_ENGINE_TABLE, hubFileUrl } = await import('../../src/services/host/ggufHeader.ts')
-  const { searchHuggingFace, pickHuggingFaceModel, deriveHostRecipe, derivedRecipeWords, forgetDerivedHfRecipes, unloadableQuantisation, HF_LOOK_FOR_WORDS } = await import('../../src/services/host/hfRecipes.ts')
-  const { LLAMACPP_ENGINE_SHA } = await import('../../src/services/host/recipes.ts')
-  const { forgetSessionHostRecipes } = await import('../../src/services/host/recipesFile.ts')
+  const { parseGgufHeader, tensorFamily, compareGgufWithEngine, readGgufHeader, checkGgufAgainstEngine, LLAMACPP_ENGINE_TABLE, hubFileUrl } = await import('../../src/models/hosting/ggufHeader.ts')
+  const { searchHuggingFace, pickHuggingFaceModel, deriveHostRecipe, derivedRecipeWords, forgetDerivedHfRecipes, unloadableQuantisation, HF_LOOK_FOR_WORDS } = await import('../../src/models/hosting/hfRecipes.ts')
+  const { LLAMACPP_ENGINE_SHA } = await import('../../src/models/hosting/recipes.ts')
+  const { forgetSessionHostRecipes } = await import('../../src/models/hosting/recipesFile.ts')
   const short = LLAMACPP_ENGINE_SHA.slice(0, 7)
   check('the engine table was generated at the pinned llama.cpp', LLAMACPP_ENGINE_TABLE.llamacpp === LLAMACPP_ENGINE_SHA && LLAMACPP_ENGINE_TABLE.architectures.length > 100 && LLAMACPP_ENGINE_TABLE.tensors.length > 200 && !LLAMACPP_ENGINE_TABLE.architectures.includes('(unknown)'))
 

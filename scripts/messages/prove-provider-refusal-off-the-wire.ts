@@ -11,21 +11,21 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 
-type Message = import('../../src/types/message.js').Message
-type AssistantMessage = import('../../src/types/message.js').AssistantMessage
-type UserMessage = import('../../src/types/message.js').UserMessage
-type PendingToolCall = import('../../src/utils/wards/wards.js').PendingToolCall
+type Message = import('../../src/engine/message-shapes/message.js').Message
+type AssistantMessage = import('../../src/engine/message-shapes/message.js').AssistantMessage
+type UserMessage = import('../../src/engine/message-shapes/message.js').UserMessage
+type PendingToolCall = import('../../src/permissions/wards/wards.js').PendingToolCall
 
-const { requestConversationPlan } = await import('../../src/services/messages/apiPlan.ts')
-const { createAssistantAPIErrorMessage, createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { REFUSAL_WARDS, buildWardDenial, evaluateWards } = await import('../../src/utils/wards/wards.ts')
+const { requestConversationPlan } = await import('../../src/engine/messages/apiPlan.ts')
+const { createAssistantAPIErrorMessage, createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { REFUSAL_WARDS, buildWardDenial, evaluateWards } = await import('../../src/permissions/wards/wards.ts')
 
 let failures = 0
 let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — to fix, read requestConversationPlan in src/services/messages/apiPlan.ts (which rows and words reach the wire; a refused turn and its error row must be left out, tool pairs kept, roles alternating) and, for the ward checks, evaluateWards, buildWardDenial and REFUSAL_WARDS in src/utils/wards/wards.ts`}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — to fix, read requestConversationPlan in src/engine/messages/apiPlan.ts (which rows and words reach the wire; a refused turn and its error row must be left out, tool pairs kept, roles alternating) and, for the ward checks, evaluateWards, buildWardDenial and REFUSAL_WARDS in src/permissions/wards/wards.ts`}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

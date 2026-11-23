@@ -18,7 +18,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — change ${TENSORFOLD_WIRE_AT}` : ''}`)
 }
-const TENSORFOLD_WIRE_AT = 'by section: section 1 buildLocalExtras in src/services/providers/openaicompat/compatWire.ts (the dial in effortVocabularyFor, src/utils/model/capabilities.ts, and tensorFoldOutputCeiling in src/services/providers/local/localCallModel.ts); section 2 decodeTensorFoldRuntime and decodeCompatUsage in src/services/providers/openaicompat/compatChatClient.ts; section 3 the turn in src/services/providers/openaicompat/compatChatCallModel.ts and the ledger in src/services/providers/local/tensorfoldUsage.ts; the discovered record in src/services/providers/local/localDiscovery.ts'
+const TENSORFOLD_WIRE_AT = 'by section: section 1 buildLocalExtras in src/models/roads/openaicompat/compatWire.ts (the dial in effortVocabularyFor, src/models/facts/capabilities.ts, and tensorFoldOutputCeiling in src/models/roads/local/localCallModel.ts); section 2 decodeTensorFoldRuntime and decodeCompatUsage in src/models/roads/openaicompat/compatChatClient.ts; section 3 the turn in src/models/roads/openaicompat/compatChatCallModel.ts and the ledger in src/models/roads/local/tensorfoldUsage.ts; the discovered record in src/models/roads/local/localDiscovery.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
@@ -83,16 +83,16 @@ const tensorfold = await serve((req, body, res) => {
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `tensorfold=${tensorfold.root}`
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { localLaneProfileFor, localModelAcceptsEffort, tensorFoldOutputCeiling } = await import('../../src/services/providers/local/localCallModel.ts')
-const wire = await import('../../src/services/providers/openaicompat/compatWire.ts')
-const { decodeTensorFoldRuntime, decodeCompatUsage } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
-const usageLedger = await import('../../src/services/providers/local/tensorfoldUsage.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { localLaneProfileFor, localModelAcceptsEffort, tensorFoldOutputCeiling } = await import('../../src/models/roads/local/localCallModel.ts')
+const wire = await import('../../src/models/roads/openaicompat/compatWire.ts')
+const { decodeTensorFoldRuntime, decodeCompatUsage } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { effortVocabularyFor } = await import('../../src/models/facts/capabilities.ts')
+const usageLedger = await import('../../src/models/roads/local/tensorfoldUsage.ts')
 
 await refreshLocalDiscovery({ force: true })
 const record = localRecordFor('local/qwen3.5-2b')

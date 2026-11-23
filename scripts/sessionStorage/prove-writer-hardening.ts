@@ -9,12 +9,12 @@ process.env.MERCURY_CONFIG_DIR = CONFIG_SCRATCH
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { appendEntryToFile } = await import(
-  join(ROOT, 'src/utils/sessionStorage/writer.ts')
+  join(ROOT, 'src/sessions/transcripts/writer.ts')
 )
 const { getAgentMetadataPath, readAgentMetadata, writeAgentMetadata } =
-  await import(join(ROOT, 'src/utils/sessionStorage/paths.ts'))
+  await import(join(ROOT, 'src/sessions/transcripts/paths.ts'))
 const { applySnipRemovals } = await import(
-  join(ROOT, 'src/utils/sessionStorage/chain.ts')
+  join(ROOT, 'src/sessions/transcripts/chain.ts')
 )
 
 let failures = 0
@@ -44,7 +44,7 @@ try {
       'appendEntryToFile creates the whole missing parent chain',
       !threw,
       '',
-      'appendEntryToFile in src/utils/sessionStorage/writer.ts must create missing parent directories before it appends, and must not throw',
+      'appendEntryToFile in src/sessions/transcripts/writer.ts must create missing parent directories before it appends, and must not throw',
     )
     if (!threw) {
       const raw = readFileSync(deep, 'utf8')
@@ -52,7 +52,7 @@ try {
         'the appended line carries the entry (tag round-trips)',
         raw.includes('"p1-proof"'),
         raw.slice(0, 120),
-        'appendEntryToFile in src/utils/sessionStorage/writer.ts must write the entry as a JSON line',
+        'appendEntryToFile in src/sessions/transcripts/writer.ts must write the entry as a JSON line',
       )
     }
   }
@@ -66,7 +66,7 @@ try {
       'missing sidecar reads as null (fallback path)',
       missing === null,
       '',
-      'readAgentMetadata in src/utils/sessionStorage/paths.ts must return null when the sidecar file does not exist',
+      'readAgentMetadata in src/sessions/transcripts/paths.ts must return null when the sidecar file does not exist',
     )
 
     mkdirSync(dirname(sidecar), { recursive: true })
@@ -82,7 +82,7 @@ try {
       'corrupt sidecar reads as null instead of throwing',
       !corruptThrew && corruptResult === null,
       '',
-      'readAgentMetadata in src/utils/sessionStorage/paths.ts must catch a JSON parse error and return null',
+      'readAgentMetadata in src/sessions/transcripts/paths.ts must catch a JSON parse error and return null',
     )
 
     await writeAgentMetadata(agentId, { agentType: 'verifier', model: 'm-1' })
@@ -91,7 +91,7 @@ try {
       'valid sidecar round-trips agentType + model',
       roundTrip?.agentType === 'verifier' && roundTrip?.model === 'm-1',
       '',
-      'writeAgentMetadata and readAgentMetadata in src/utils/sessionStorage/paths.ts must store and return agentType and model',
+      'writeAgentMetadata and readAgentMetadata in src/sessions/transcripts/paths.ts must store and return agentType and model',
     )
   }
 
@@ -126,19 +126,19 @@ try {
       'snip victims leave the map',
       !map.has('b') && !map.has('c'),
       '',
-      'applySnipRemovals in src/utils/sessionStorage/chain.ts must delete every uuid in snipMetadata.removedUuids from the map',
+      'applySnipRemovals in src/sessions/transcripts/chain.ts must delete every uuid in snipMetadata.removedUuids from the map',
     )
     check(
       'the dangling survivor re-links across the removed range',
       map.get('d')?.parentUuid === 'a',
       `d.parentUuid=${map.get('d')?.parentUuid}`,
-      'applySnipRemovals in src/utils/sessionStorage/chain.ts must point a survivor whose parent was removed at the nearest kept ancestor',
+      'applySnipRemovals in src/sessions/transcripts/chain.ts must point a survivor whose parent was removed at the nearest kept ancestor',
     )
     check(
       'untouched entries keep their links',
       map.get('a')?.parentUuid === null,
       '',
-      'applySnipRemovals in src/utils/sessionStorage/chain.ts must leave entries outside the removed range unchanged',
+      'applySnipRemovals in src/sessions/transcripts/chain.ts must leave entries outside the removed range unchanged',
     )
 
     const clean = new Map<string, Msg>([
@@ -150,7 +150,7 @@ try {
       'a map without snip boundaries is untouched',
       clean.size === 2 && clean.get('b')?.parentUuid === 'a',
       '',
-      'applySnipRemovals in src/utils/sessionStorage/chain.ts must change nothing when no entry carries snipMetadata',
+      'applySnipRemovals in src/sessions/transcripts/chain.ts must change nothing when no entry carries snipMetadata',
     )
   }
 } finally {

@@ -28,25 +28,25 @@ async function stub(path: string, fixture: () => Record<string, unknown>): Promi
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...fixture() }))
 }
-await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined, useKeybindings: () => undefined }))
+await stub('../../src/screen/keys/useKeybinding.js', () => ({ useKeybinding: () => undefined, useKeybindings: () => undefined }))
 let platform: 'windows' | 'macos' = 'macos'
-await stub('../../src/utils/platform.js', () => ({ getPlatform: () => platform }))
+await stub('../../src/platform/environment/platform.js', () => ({ getPlatform: () => platform }))
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { setCwdState } = await import('../../src/bootstrap/state.js')
-const { createEditRuleSuggestion, createReadRuleSuggestion } = await import('../../src/utils/permissions/PermissionUpdate.js')
-const helpers = await import('../../src/components/permissions/shellPermissionHelpers.js')
+const { setCwdState } = await import('../../src/boot/process-state/processState.js')
+const { createEditRuleSuggestion, createReadRuleSuggestion } = await import('../../src/permissions/rules/permissionUpdate.js')
+const helpers = await import('../../src/permissions/cards/shellAskParts.js')
 const { generateShellSuggestionsLabel } = helpers
 const displayFolderOfRule = (cleaned: string, spelling: 'windows' | 'posix'): string =>
   typeof helpers.displayFolderOfRule === 'function' ? helpers.displayFolderOfRule(cleaned, spelling) : '(this build has no displayFolderOfRule)'
 const folderSeparator = (spelling: 'windows' | 'posix'): string => (typeof helpers.folderSeparator === 'function' ? helpers.folderSeparator(spelling) : '(this build has no folderSeparator)')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { Box, EventEmitter, Text, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { Box, EventEmitter, Text, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 
 const BOX_DIR = 'C:\\Users\\WHQ\\AppData\\Local\\Temp\\mercury\\C--Users-WHQ-Desktop-windowsbox\\f611f98b-d1c2-4f19-ad5b-379bf07e586e\\scratchpad\\f5'
 const BOX_DISPLAY = 'C:\\Users\\WHQ\\AppData\\Lo…f07e586e\\scratchpad\\f5'

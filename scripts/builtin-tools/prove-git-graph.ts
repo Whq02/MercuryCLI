@@ -8,7 +8,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix: the repo readers gitStatus, gitDiff, gitCommitMeta, gitMergeBase, gitWorktrees, gitConflicts in src/services/gitGraph/observe.ts; the SM- checks exercise preparePlan and applyPlan in src/services/gitGraph/plan.ts' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix: the repo readers gitStatus, gitDiff, gitCommitMeta, gitMergeBase, gitWorktrees, gitConflicts in src/platform/git-graph/observe.ts; the SM- checks exercise preparePlan and applyPlan in src/platform/git-graph/plan.ts' : ''}`)
 }
 
 const {
@@ -18,7 +18,7 @@ const {
   gitMergeBase,
   gitWorktrees,
   gitConflicts,
-} = await import('../../src/services/gitGraph/observe.ts')
+} = await import('../../src/platform/git-graph/observe.ts')
 
 const root = mkdtempSync(join(tmpdir(), 'builtin-tools-git-'))
 function sh(args: string[], cwd = root): string {
@@ -140,7 +140,7 @@ try {
   check('unmerged files typed in status', !('state' in statusConf) && statusConf.files.some(f => f.kind === 'unmerged'))
 
   console.log('── SM-08: one file across two commits (disjoint hunks) ──')
-  const { preparePlan, applyPlan } = await import('../../src/services/gitGraph/plan.ts')
+  const { preparePlan, applyPlan } = await import('../../src/platform/git-graph/plan.ts')
   const owner = 'proof:sm08' as never
   const root2 = mkdtempSync(join(tmpdir(), 'builtin-tools-sm08-'))
   try {

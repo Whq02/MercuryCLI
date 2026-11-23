@@ -2,9 +2,9 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(process.argv[2] ?? fileURLToPath(new URL('../..', import.meta.url)))
-const { smooshIntoToolResult } = await import(`${root}/src/services/messages/merge.ts`)
+const { smooshIntoToolResult } = await import(`${root}/src/engine/messages/merge.ts`)
 let failures = 0
-const hint = 'change smooshIntoToolResult in src/services/messages/merge.ts so this case returns the shape the label names'
+const hint = 'change smooshIntoToolResult in src/engine/messages/merge.ts so this case returns the shape the label names'
 const check = (name: string, ok: boolean, detail = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${detail ? `${detail}; ` : ''}${hint}`}`)
   if (!ok) failures++

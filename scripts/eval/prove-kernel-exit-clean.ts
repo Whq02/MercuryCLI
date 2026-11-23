@@ -5,13 +5,13 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { check as baseCheck, cleanup, finish, loadEval, refusingBridge, section, setup, sleep, within } from './lib.js'
-import type { ProcKernel } from '../../src/services/eval/procKernel.js'
+import type { ProcKernel } from '../../src/tools/engines/eval-kernels/procKernel.js'
 
 const check = (label: string, cond: boolean, detail = '', fix = ''): void => baseCheck(label, cond, cond || !fix ? detail : detail ? `${detail} — ${fix}` : fix)
 
 const { work } = setup()
-const { pythonCandidates } = await import('../../src/services/eval/interpreters.js')
-const { EVAL_SHUTDOWN_GRACE_MS } = await import('../../src/services/eval/contracts.js')
+const { pythonCandidates } = await import('../../src/tools/engines/eval-kernels/interpreters.js')
+const { EVAL_SHUTDOWN_GRACE_MS } = await import('../../src/tools/engines/eval-kernels/contracts.js')
 
 const ROUNDS = Math.max(1, Number(process.env.KERNEL_EXIT_CLEAN_ROUNDS ?? 20) || 20)
 const REPORTS = join(homedir(), 'Library', 'Logs', 'DiagnosticReports')
@@ -199,9 +199,9 @@ async function road(name: string, end: (manager: Manager, live: NonNullable<Retu
       if (!gone(live.pid)) result.wrong.push(`round ${n}: pid ${live.pid} still alive`)
     }
   }
-  check(`${name}: ${ROUNDS} kernels started and the marker line arrived whole every time`, result.markers === ROUNDS, result.wrong.slice(0, 3).join(' | '), 'a cell printed on a fresh kernel but its last line did not arrive whole; see the end-mark handling in ProcKernel in src/services/eval/procKernel.ts')
-  check(`${name}: ${ROUNDS} kernels ended and none by SIGABRT`, result.exits.length === ROUNDS && result.aborts === 0, `exits=${result.exits.length} aborts=${result.aborts}`, 'a kernel aborted (SIGABRT) or did not exit; the Python runner in src/services/eval/pyRunnerSource.ts must leave through its one exit path')
-  check(`${name}: every exit had the road's own code and signal, within its window`, result.wrong.length === 0, result.wrong.slice(0, 3).join(' | '), 'the rounds above name the wrong exit; see ProcKernel.dispose and ProcKernel.kill in src/services/eval/procKernel.ts and the exit handling in src/services/eval/pyRunnerSource.ts')
+  check(`${name}: ${ROUNDS} kernels started and the marker line arrived whole every time`, result.markers === ROUNDS, result.wrong.slice(0, 3).join(' | '), 'a cell printed on a fresh kernel but its last line did not arrive whole; see the end-mark handling in ProcKernel in src/tools/engines/eval-kernels/procKernel.ts')
+  check(`${name}: ${ROUNDS} kernels ended and none by SIGABRT`, result.exits.length === ROUNDS && result.aborts === 0, `exits=${result.exits.length} aborts=${result.aborts}`, 'a kernel aborted (SIGABRT) or did not exit; the Python runner in src/tools/engines/eval-kernels/pyRunnerSource.ts must leave through its one exit path')
+  check(`${name}: every exit had the road's own code and signal, within its window`, result.wrong.length === 0, result.wrong.slice(0, 3).join(' | '), 'the rounds above name the wrong exit; see ProcKernel.dispose and ProcKernel.kill in src/tools/engines/eval-kernels/procKernel.ts and the exit handling in src/tools/engines/eval-kernels/pyRunnerSource.ts')
 }
 
 try {
@@ -236,9 +236,9 @@ try {
       }
       await manager.disposeAll()
     }
-    check(`§2: ${ROUNDS} kernels started and the marker line arrived whole every time`, result.markers === ROUNDS, result.wrong.slice(0, 3).join(' | '), 'a cell printed on a fresh kernel but its last line did not arrive whole; see the end-mark handling in ProcKernel in src/services/eval/procKernel.ts')
-    check(`§2: ${ROUNDS} kernels reaped and none by SIGABRT`, result.exits.length === ROUNDS && result.aborts === 0, `exits=${result.exits.length} aborts=${result.aborts}`, 'the idle sweep in src/services/eval/kernelManager.ts must end each idle kernel and the runner must exit without SIGABRT')
-    check('§2: every reaped kernel left with exit 0 and no signal', result.wrong.length === 0, result.wrong.slice(0, 3).join(' | '), 'the idle sweep in src/services/eval/kernelManager.ts must dispose the kernel politely; see ProcKernel.dispose in src/services/eval/procKernel.ts')
+    check(`§2: ${ROUNDS} kernels started and the marker line arrived whole every time`, result.markers === ROUNDS, result.wrong.slice(0, 3).join(' | '), 'a cell printed on a fresh kernel but its last line did not arrive whole; see the end-mark handling in ProcKernel in src/tools/engines/eval-kernels/procKernel.ts')
+    check(`§2: ${ROUNDS} kernels reaped and none by SIGABRT`, result.exits.length === ROUNDS && result.aborts === 0, `exits=${result.exits.length} aborts=${result.aborts}`, 'the idle sweep in src/tools/engines/eval-kernels/kernelManager.ts must end each idle kernel and the runner must exit without SIGABRT')
+    check('§2: every reaped kernel left with exit 0 and no signal', result.wrong.length === 0, result.wrong.slice(0, 3).join(' | '), 'the idle sweep in src/tools/engines/eval-kernels/kernelManager.ts must dispose the kernel politely; see ProcKernel.dispose in src/tools/engines/eval-kernels/procKernel.ts')
   }
 
   await road('§3 SIGTERM to an idle kernel', async (_manager, live) => {
@@ -299,8 +299,8 @@ try {
       else wrong.push(`round ${n}: stdout ${JSON.stringify(outcome.stdout.text)}`)
       await manager.disposeAll()
     }
-    check(`§5: ${ROUNDS} kernels left at once with exit 0 on SIGTERM mid-cell, none by SIGABRT`, clean === ROUNDS && aborts === 0, `clean=${clean} aborts=${aborts} ${wrong.slice(0, 3).join(' | ')}`, 'on SIGTERM the Python runner must flush and exit 0 at once; see the SIGTERM handler in src/services/eval/pyRunnerSource.ts')
-    check(`§5: the printed line reached the host whole every time`, intact === ROUNDS, wrong.slice(0, 3).join(' | '), 'bytes printed before the kernel left must reach the host; see the stdout handling in ProcKernel in src/services/eval/procKernel.ts')
+    check(`§5: ${ROUNDS} kernels left at once with exit 0 on SIGTERM mid-cell, none by SIGABRT`, clean === ROUNDS && aborts === 0, `clean=${clean} aborts=${aborts} ${wrong.slice(0, 3).join(' | ')}`, 'on SIGTERM the Python runner must flush and exit 0 at once; see the SIGTERM handler in src/tools/engines/eval-kernels/pyRunnerSource.ts')
+    check(`§5: the printed line reached the host whole every time`, intact === ROUNDS, wrong.slice(0, 3).join(' | '), 'bytes printed before the kernel left must reach the host; see the stdout handling in ProcKernel in src/tools/engines/eval-kernels/procKernel.ts')
   }
 
   section('§6 the escalation: a kernel that ignores SIGTERM is struck with SIGKILL after the grace, never left to abort')
@@ -313,7 +313,7 @@ try {
       abortSignal: new AbortController().signal,
       serveBridge: bridge,
     }))
-    check('§6: the cell ran', outcome.status === 'ok' && outcome.stdout.text === 'deaf\n', JSON.stringify(outcome.stdout.text), 'a plain Python cell failed on a fresh kernel; see runCell in src/services/eval/kernelManager.ts')
+    check('§6: the cell ran', outcome.status === 'ok' && outcome.stdout.text === 'deaf\n', JSON.stringify(outcome.stdout.text), 'a plain Python cell failed on a fresh kernel; see runCell in src/tools/engines/eval-kernels/kernelManager.ts')
     const live = liveKernel(manager)
     check('§6: the kernel is alive after the cell', live !== null)
     if (live) {
@@ -321,7 +321,7 @@ try {
       const since = Date.now()
       live.kernel.kill()
       const exit = await within('§6: the kernel exit', 5_000, live.exit).catch(() => null)
-      check('§6: the strike landed as SIGKILL after the grace, not SIGABRT and not never', exit !== null && exit.signal === 'SIGKILL' && exit.at - since >= 400 && exit.at - since < 3_000, exit ? `signal=${String(exit.signal)} after ${exit.at - since} ms` : 'no exit', 'ProcKernel.kill in src/services/eval/procKernel.ts must send SIGTERM, then SIGKILL after KILL_GRACE_MS')
+      check('§6: the strike landed as SIGKILL after the grace, not SIGABRT and not never', exit !== null && exit.signal === 'SIGKILL' && exit.at - since >= 400 && exit.at - since < 3_000, exit ? `signal=${String(exit.signal)} after ${exit.at - since} ms` : 'no exit', 'ProcKernel.kill in src/tools/engines/eval-kernels/procKernel.ts must send SIGTERM, then SIGKILL after KILL_GRACE_MS')
     }
     await manager.disposeAll()
   }
@@ -365,8 +365,8 @@ try {
       else wrong.push(`round ${n}: ${JSON.stringify({ status: outcome.status, error: outcome.error?.name, notes: outcome.annotations, exits: watch.exits })}`)
       await manager.disposeAll()
     }
-    check(`§7: ${ROUNDS} rounds, no kernel aborted`, aborts === 0, `aborts=${aborts}`, 'a cell whose error cannot be printed must not abort the Python runner; see its error reporting in src/services/eval/pyRunnerSource.ts')
-    check(`§7: the cell reports its error and the kernel survives every time (no death, no retry)`, reported === ROUNDS && survived === ROUNDS, `reported=${reported} survived=${survived} ${wrong.slice(0, 2).join(' | ')}`, 'the runner must report the error frame even when printing the error fails and keep its kernel; see its error reporting in src/services/eval/pyRunnerSource.ts')
+    check(`§7: ${ROUNDS} rounds, no kernel aborted`, aborts === 0, `aborts=${aborts}`, 'a cell whose error cannot be printed must not abort the Python runner; see its error reporting in src/tools/engines/eval-kernels/pyRunnerSource.ts')
+    check(`§7: the cell reports its error and the kernel survives every time (no death, no retry)`, reported === ROUNDS && survived === ROUNDS, `reported=${reported} survived=${survived} ${wrong.slice(0, 2).join(' | ')}`, 'the runner must report the error frame even when printing the error fails and keep its kernel; see its error reporting in src/tools/engines/eval-kernels/pyRunnerSource.ts')
   }
 
   section('§8 the roads that still end the kernel from inside a cell leave through the one exit, never finalization')
@@ -391,8 +391,8 @@ try {
         else wrong.push(`round ${n}: ${JSON.stringify(watch.exits)}`)
         await manager.disposeAll()
       }
-      check(`§8 ${label}: no SIGABRT in 5 rounds`, aborts === 0, `aborts=${aborts}`, 'when the protocol pipe is closed the runner must exit through its one exit path; see src/services/eval/pyRunnerSource.ts')
-      check(`§8 ${label}: every kernel left with exit ${String(expectCode)} and no signal`, asExpected === 5, wrong.slice(0, 2).join(' | '), 'the runner must exit with the expected code and no signal when the protocol pipe is closed; see src/services/eval/pyRunnerSource.ts')
+      check(`§8 ${label}: no SIGABRT in 5 rounds`, aborts === 0, `aborts=${aborts}`, 'when the protocol pipe is closed the runner must exit through its one exit path; see src/tools/engines/eval-kernels/pyRunnerSource.ts')
+      check(`§8 ${label}: every kernel left with exit ${String(expectCode)} and no signal`, asExpected === 5, wrong.slice(0, 2).join(' | '), 'the runner must exit with the expected code and no signal when the protocol pipe is closed; see src/tools/engines/eval-kernels/pyRunnerSource.ts')
     }
   }
 
@@ -406,7 +406,7 @@ try {
       abortSignal: new AbortController().signal,
       serveBridge: bridge,
     }))
-    check('§9: the cell completes and the kernel is not wedged on the stdin buffer lock', outcome.status === 'ok' && outcome.stdout.text === 'still here\n', JSON.stringify({ status: outcome.status, notes: outcome.annotations }), 'the runner stdin reader must not hold a lock a cell can take by closing sys.__stdin__; see src/services/eval/pyRunnerSource.ts')
+    check('§9: the cell completes and the kernel is not wedged on the stdin buffer lock', outcome.status === 'ok' && outcome.stdout.text === 'still here\n', JSON.stringify({ status: outcome.status, notes: outcome.annotations }), 'the runner stdin reader must not hold a lock a cell can take by closing sys.__stdin__; see src/tools/engines/eval-kernels/pyRunnerSource.ts')
     const again = await within('§9: the next cell', 60_000, runCell(manager, {
       owner: 'stdin-close',
       cwd: work,
@@ -414,7 +414,7 @@ try {
       abortSignal: new AbortController().signal,
       serveBridge: bridge,
     }))
-    check('§9: the same kernel runs the next cell', again.status === 'ok' && again.stdout.text === 'next\n' && !again.annotations.some(a => /replaced|reaped|died/.test(a)), JSON.stringify(again.annotations), 'closing sys.__stdin__ in a cell must not end the kernel; see src/services/eval/pyRunnerSource.ts')
+    check('§9: the same kernel runs the next cell', again.status === 'ok' && again.stdout.text === 'next\n' && !again.annotations.some(a => /replaced|reaped|died/.test(a)), JSON.stringify(again.annotations), 'closing sys.__stdin__ in a cell must not end the kernel; see src/tools/engines/eval-kernels/pyRunnerSource.ts')
     const live = liveKernel(manager)
     if (live) allPids.push(live.pid)
     await manager.disposeAll()
@@ -426,7 +426,7 @@ try {
     const fresh = pythonReports().filter(name => !reportsBefore.includes(name))
     const ours = [...reportPids(fresh)].filter(pid => allPids.includes(pid))
     console.log(`      ${allPids.length} kernel pids this run (${bunStdioFlakes} spawn retried on Bun's stdio connect flake); ${reportsBefore.length} Python crash reports before, ${fresh.length} new${fresh.length > 0 ? ` (${fresh.join(', ')})` : ''}`)
-    check('§10: no Python crash report names a kernel of this run', ours.length === 0, ours.join(', '), 'the pids are kernels of this run that crashed; their reports are in the DiagnosticReports folder, and src/services/eval/pyRunnerSource.ts must leave through its one exit path')
+    check('§10: no Python crash report names a kernel of this run', ours.length === 0, ours.join(', '), 'the pids are kernels of this run that crashed; their reports are in the DiagnosticReports folder, and src/tools/engines/eval-kernels/pyRunnerSource.ts must leave through its one exit path')
   }
 } finally {
   cleanup()

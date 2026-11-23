@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/health/healthReport.ts src/utils/healthCertCore.ts src/services/providers/anthropic/modelRefusal.ts src/services/providers/anthropic/thinkingBinding.ts
+// gate-watch: src/platform/health/healthReport.ts src/platform/health/healthCertCore.ts src/models/roads/anthropic/modelRefusal.ts src/models/roads/anthropic/thinkingBinding.ts
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -23,10 +23,10 @@ delete process.env.MERCURY_HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const core = await import('../../src/utils/healthCertCore.ts')
-const refusal = await import('../../src/services/providers/anthropic/modelRefusal.ts')
-const thinking = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
-const { describeAnthropicClientContract } = await import('../../src/constants/oauth.ts')
+const core = await import('../../src/platform/health/healthCertCore.ts')
+const refusal = await import('../../src/models/roads/anthropic/modelRefusal.ts')
+const thinking = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
+const { describeAnthropicClientContract } = await import('../../src/models/sign-in/oauth/oauth.ts')
 
 const HOUR = 60 * 60 * 1000
 const NOW = Date.now()
@@ -34,11 +34,11 @@ const NOW = Date.now()
 section('§1 a refused model id is a notice, not a permanent caution')
 {
   const status = (refusal as { modelRefusalHealthStatus?: (r: { kind: string; seenAtMs: number }, now: number) => string }).modelRefusalHealthStatus
-  check('the store exports the notice law', typeof status === 'function', '', 'export modelRefusalHealthStatus from src/services/providers/anthropic/modelRefusal.ts')
-  check('a not-served refusal seen ten minutes ago still warns', status?.({ kind: 'not-served', seenAtMs: NOW - 10 * 60_000 }, NOW) === 'warn', '', 'modelRefusalHealthStatus in src/services/providers/anthropic/modelRefusal.ts must return warn for a recent not-served refusal')
-  check('a not-served refusal seen two hours ago is a record (info)', status?.({ kind: 'not-served', seenAtMs: NOW - 2 * HOUR }, NOW) === 'info', '', 'modelRefusalHealthStatus in src/services/providers/anthropic/modelRefusal.ts must return info once a not-served refusal is older than its notice window')
-  check('a client-version floor refusal keeps warning until the client moves', status?.({ kind: 'contract-floor', seenAtMs: NOW - 2 * HOUR }, NOW) === 'warn', '', 'modelRefusalHealthStatus in src/services/providers/anthropic/modelRefusal.ts must keep warn for kind contract-floor whatever its age')
-  check('a subscription-tier refusal keeps warning until the plan moves', status?.({ kind: 'tier', seenAtMs: NOW - 2 * HOUR }, NOW) === 'warn', '', 'modelRefusalHealthStatus in src/services/providers/anthropic/modelRefusal.ts must keep warn for kind tier whatever its age')
+  check('the store exports the notice law', typeof status === 'function', '', 'export modelRefusalHealthStatus from src/models/roads/anthropic/modelRefusal.ts')
+  check('a not-served refusal seen ten minutes ago still warns', status?.({ kind: 'not-served', seenAtMs: NOW - 10 * 60_000 }, NOW) === 'warn', '', 'modelRefusalHealthStatus in src/models/roads/anthropic/modelRefusal.ts must return warn for a recent not-served refusal')
+  check('a not-served refusal seen two hours ago is a record (info)', status?.({ kind: 'not-served', seenAtMs: NOW - 2 * HOUR }, NOW) === 'info', '', 'modelRefusalHealthStatus in src/models/roads/anthropic/modelRefusal.ts must return info once a not-served refusal is older than its notice window')
+  check('a client-version floor refusal keeps warning until the client moves', status?.({ kind: 'contract-floor', seenAtMs: NOW - 2 * HOUR }, NOW) === 'warn', '', 'modelRefusalHealthStatus in src/models/roads/anthropic/modelRefusal.ts must keep warn for kind contract-floor whatever its age')
+  check('a subscription-tier refusal keeps warning until the plan moves', status?.({ kind: 'tier', seenAtMs: NOW - 2 * HOUR }, NOW) === 'warn', '', 'modelRefusalHealthStatus in src/models/roads/anthropic/modelRefusal.ts must keep warn for kind tier whatever its age')
 }
 
 section('§2 a recorded thinking drop is a notice, not a permanent caution')
@@ -50,19 +50,19 @@ section('§2 a recorded thinking drop is a notice, not a permanent caution')
   })
   const health = thinking.preservedThinkingHealth as (l: unknown, s: string, now?: number) => { status: string; detail?: string; fix?: string }
   const recent = health(ledger(NOW - 10 * 60_000, 'other-session'), 'this-session', NOW)
-  check('a rewrite recorded ten minutes ago warns, with the bug-report fix', recent.status === 'warn' && (recent.fix ?? '').includes('bug report'), JSON.stringify(recent), 'preservedThinkingHealth in src/services/providers/anthropic/thinkingBinding.ts must warn on a recent drop and keep the bug report fix')
+  check('a rewrite recorded ten minutes ago warns, with the bug-report fix', recent.status === 'warn' && (recent.fix ?? '').includes('bug report'), JSON.stringify(recent), 'preservedThinkingHealth in src/models/roads/anthropic/thinkingBinding.ts must warn on a recent drop and keep the bug report fix')
   const old = health(ledger(NOW - 2 * HOUR, 'other-session'), 'this-session', NOW)
-  check('the same record two hours later, from another session, is info', old.status === 'info', JSON.stringify(old), 'preservedThinkingHealth in src/services/providers/anthropic/thinkingBinding.ts must return info for an old drop recorded by another session')
-  check('…saying so', (old.detail ?? '').includes('informational only'), JSON.stringify(old), 'the info detail built by preservedThinkingHealth in src/services/providers/anthropic/thinkingBinding.ts must say informational only')
-  check('…while the bug-report fix still stands for the report', (old.fix ?? '').includes('bug report'), JSON.stringify(old), 'the info result of preservedThinkingHealth in src/services/providers/anthropic/thinkingBinding.ts must still carry the bug report fix')
+  check('the same record two hours later, from another session, is info', old.status === 'info', JSON.stringify(old), 'preservedThinkingHealth in src/models/roads/anthropic/thinkingBinding.ts must return info for an old drop recorded by another session')
+  check('…saying so', (old.detail ?? '').includes('informational only'), JSON.stringify(old), 'the info detail built by preservedThinkingHealth in src/models/roads/anthropic/thinkingBinding.ts must say informational only')
+  check('…while the bug-report fix still stands for the report', (old.fix ?? '').includes('bug report'), JSON.stringify(old), 'the info result of preservedThinkingHealth in src/models/roads/anthropic/thinkingBinding.ts must still carry the bug report fix')
   const mine = health(ledger(NOW - 2 * HOUR, 'this-session'), 'this-session', NOW)
-  check('a record from THIS session keeps warning whatever its age (the drops are happening here)', mine.status === 'warn', JSON.stringify(mine), 'preservedThinkingHealth in src/services/providers/anthropic/thinkingBinding.ts must keep warn when the record belongs to the current session id')
+  check('a record from THIS session keeps warning whatever its age (the drops are happening here)', mine.status === 'warn', JSON.stringify(mine), 'preservedThinkingHealth in src/models/roads/anthropic/thinkingBinding.ts must keep warn when the record belongs to the current session id')
 }
 
 section('§3 the rail keeps a deep fault behind a later fast caution (the carry law, pure)')
 {
   const carry = (core as { carryDeepReadings?: (f: unknown, p: unknown, ids: Set<string>) => { verdict: string; attention: Array<{ id: string; status: string; ranAt?: string; depth?: string }>; counts: Record<string, number> } }).carryDeepReadings
-  check('the core exports the carry law', typeof carry === 'function', '', 'export carryDeepReadings from src/utils/healthCertCore.ts')
+  check('the core exports the carry law', typeof carry === 'function', '', 'export carryDeepReadings from src/platform/health/healthCertCore.ts')
   const deepAt = new Date(NOW - 20_000).toISOString()
   const previous = {
     verdict: 'fault', ranAt: deepAt, head: { sha: null, branch: null, dirty: null }, version: 'x', depth: 'deep',
@@ -78,15 +78,15 @@ section('§3 the rail keeps a deep fault behind a later fast caution (the carry 
     attention: [{ id: 'model-refusals', label: 'Refused models', status: 'warn', evidence: 'claude-banana-9', depth: 'fast' }],
   }
   const merged = carry?.(fresh, previous, new Set(['model-refusals', 'build-identity']))
-  check('a fast caution after a deep fault keeps the fault', merged?.verdict === 'fault', JSON.stringify(merged), 'carryDeepReadings in src/utils/healthCertCore.ts must keep the previous deep fault verdict when the fresh fast run is only a caution')
+  check('a fast caution after a deep fault keeps the fault', merged?.verdict === 'fault', JSON.stringify(merged), 'carryDeepReadings in src/platform/health/healthCertCore.ts must keep the previous deep fault verdict when the fresh fast run is only a caution')
   const carried = merged?.attention.find(r => r.id === 'artifact-signature-payload')
-  check('the deep row rides along with its own stamp and depth', carried?.status === 'fail' && carried.ranAt === deepAt && carried.depth === 'deep', JSON.stringify(merged?.attention), 'carryDeepReadings in src/utils/healthCertCore.ts must copy the deep row with its own ranAt and depth')
-  check('the fast row is the fresh one, once', merged?.attention.filter(r => r.id === 'model-refusals').length === 1 && merged?.counts.fail === 1, JSON.stringify(merged), 'carryDeepReadings in src/utils/healthCertCore.ts must keep the fresh row once and count the carried fail')
+  check('the deep row rides along with its own stamp and depth', carried?.status === 'fail' && carried.ranAt === deepAt && carried.depth === 'deep', JSON.stringify(merged?.attention), 'carryDeepReadings in src/platform/health/healthCertCore.ts must copy the deep row with its own ranAt and depth')
+  check('the fast row is the fresh one, once', merged?.attention.filter(r => r.id === 'model-refusals').length === 1 && merged?.counts.fail === 1, JSON.stringify(merged), 'carryDeepReadings in src/platform/health/healthCertCore.ts must keep the fresh row once and count the carried fail')
   const deepAgain = carry?.({ ...fresh, depth: 'deep', verdict: 'certified', attention: [] }, previous, new Set(['artifact-signature-payload']))
-  check('a new deep run supersedes the carried reading', deepAgain?.verdict === 'certified' && deepAgain.attention.length === 0, JSON.stringify(deepAgain), 'carryDeepReadings in src/utils/healthCertCore.ts must not carry a row the new deep run re-evaluated')
+  check('a new deep run supersedes the carried reading', deepAgain?.verdict === 'certified' && deepAgain.attention.length === 0, JSON.stringify(deepAgain), 'carryDeepReadings in src/platform/health/healthCertCore.ts must not carry a row the new deep run re-evaluated')
   const reevaluated = carry?.(fresh, previous, new Set(['model-refusals', 'artifact-signature-payload']))
-  check('a row the fresh run re-evaluated is never carried', reevaluated?.verdict === 'caution', JSON.stringify(reevaluated), 'carryDeepReadings in src/utils/healthCertCore.ts must skip previous rows whose ids the fresh run re-evaluated')
-  check('with nothing to carry the fresh summary stands as written', carry?.(fresh, null, new Set()) === fresh, '', 'carryDeepReadings in src/utils/healthCertCore.ts must return the fresh summary object itself when there is no previous summary')
+  check('a row the fresh run re-evaluated is never carried', reevaluated?.verdict === 'caution', JSON.stringify(reevaluated), 'carryDeepReadings in src/platform/health/healthCertCore.ts must skip previous rows whose ids the fresh run re-evaluated')
+  check('with nothing to carry the fresh summary stands as written', carry?.(fresh, null, new Set()) === fresh, '', 'carryDeepReadings in src/platform/health/healthCertCore.ts must return the fresh summary object itself when there is no previous summary')
 }
 
 function run(args: string[]): { status: number; json: Record<string, unknown> | null; stdout: string; stderr: string } {
@@ -152,35 +152,35 @@ section('§4 live: recent records warn and health --fix forgets them; two-hour-o
   const recent = run(['health', '--json'])
   const refusalsRow = rowsOf(recent.json).find(r => r.id === 'model-refusals')
   const thinkingRow = rowsOf(recent.json).find(r => r.id === 'preserved-thinking')
-  check('health --json answered', recent.json !== null, recent.stderr.slice(-300), 'run node dist/mercury.mjs health --json (build with bun run build.ts first) and read the error; the report is built in src/services/health/healthReport.ts')
-  check('a ten-minute-old refusal warns and carries a safe forget remedy', refusalsRow?.status === 'warn' && refusalsRow.remedy?.class === 'safe' && (refusalsRow.remedy.plan ?? '').includes('forget'), JSON.stringify(refusalsRow), 'the model-refusals row of health --json must be warn with a safe remedy whose plan says forget; see src/services/health/healthReport.ts and src/services/providers/anthropic/modelRefusal.ts')
-  check('a ten-minute-old thinking record warns and carries a safe forget remedy', thinkingRow?.status === 'warn' && thinkingRow.remedy?.class === 'safe' && (thinkingRow.remedy.plan ?? '').includes('forget'), JSON.stringify(thinkingRow), 'the preserved-thinking row of health --json must be warn with a safe remedy whose plan says forget; see src/services/health/sections/memory.ts')
+  check('health --json answered', recent.json !== null, recent.stderr.slice(-300), 'run node dist/mercury.mjs health --json (build with bun run build.ts first) and read the error; the report is built in src/platform/health/healthReport.ts')
+  check('a ten-minute-old refusal warns and carries a safe forget remedy', refusalsRow?.status === 'warn' && refusalsRow.remedy?.class === 'safe' && (refusalsRow.remedy.plan ?? '').includes('forget'), JSON.stringify(refusalsRow), 'the model-refusals row of health --json must be warn with a safe remedy whose plan says forget; see src/platform/health/healthReport.ts and src/models/roads/anthropic/modelRefusal.ts')
+  check('a ten-minute-old thinking record warns and carries a safe forget remedy', thinkingRow?.status === 'warn' && thinkingRow.remedy?.class === 'safe' && (thinkingRow.remedy.plan ?? '').includes('forget'), JSON.stringify(thinkingRow), 'the preserved-thinking row of health --json must be warn with a safe remedy whose plan says forget; see src/platform/health/sections/memory.ts')
 
   const fixRefusals = run(['health', '--fix', '--only', 'model-refusals'])
   const applied = (fixRefusals.json?.fixes ?? []) as Array<{ id: string; verified?: { ok: boolean } }>
-  check('health --fix --only model-refusals applies a remedy and verifies it', fixRefusals.status === 0 && applied.some(f => f.id === 'model-refusals' && f.verified?.ok === true), `${fixRefusals.status} ${fixRefusals.stdout.slice(0, 400)} ${fixRefusals.stderr.slice(-200)}`, 'run health --fix --only model-refusals; its remedy must apply and verify (src/services/health/healthReport.ts)')
+  check('health --fix --only model-refusals applies a remedy and verifies it', fixRefusals.status === 0 && applied.some(f => f.id === 'model-refusals' && f.verified?.ok === true), `${fixRefusals.status} ${fixRefusals.stdout.slice(0, 400)} ${fixRefusals.stderr.slice(-200)}`, 'run health --fix --only model-refusals; its remedy must apply and verify (src/platform/health/healthReport.ts)')
   check('…and the records are gone', !existsSync(join(HOME, 'model-refusals')) || readdirSync(join(HOME, 'model-refusals')).every(n => !n.endsWith('.json')))
   const fixThinking = run(['health', '--fix', '--only', 'preserved-thinking'])
   const appliedThinking = (fixThinking.json?.fixes ?? []) as Array<{ id: string; verified?: { ok: boolean } }>
-  check('health --fix --only preserved-thinking applies a remedy and verifies it', fixThinking.status === 0 && appliedThinking.some(f => f.id === 'preserved-thinking' && f.verified?.ok === true), `${fixThinking.status} ${fixThinking.stdout.slice(0, 400)} ${fixThinking.stderr.slice(-200)}`, 'run health --fix --only preserved-thinking; its remedy must apply and verify (src/services/health/sections/memory.ts)')
+  check('health --fix --only preserved-thinking applies a remedy and verifies it', fixThinking.status === 0 && appliedThinking.some(f => f.id === 'preserved-thinking' && f.verified?.ok === true), `${fixThinking.status} ${fixThinking.stdout.slice(0, 400)} ${fixThinking.stderr.slice(-200)}`, 'run health --fix --only preserved-thinking; its remedy must apply and verify (src/platform/health/sections/memory.ts)')
   check('…and the record is gone', !existsSync(join(HOME, 'preserved-thinking.json')))
   const after = run(['health', '--json'])
-  check('afterwards the thinking row reads ok and the refusals row reads no refusal', rowsOf(after.json).find(r => r.id === 'preserved-thinking')?.status === 'ok' && rowsOf(after.json).find(r => r.id === 'model-refusals')?.status === 'info', JSON.stringify([rowsOf(after.json).find(r => r.id === 'preserved-thinking'), rowsOf(after.json).find(r => r.id === 'model-refusals')]), 'after the forget remedies the preserved-thinking row must read ok and the model-refusals row info; see src/services/health/sections/memory.ts and src/services/health/healthReport.ts')
+  check('afterwards the thinking row reads ok and the refusals row reads no refusal', rowsOf(after.json).find(r => r.id === 'preserved-thinking')?.status === 'ok' && rowsOf(after.json).find(r => r.id === 'model-refusals')?.status === 'info', JSON.stringify([rowsOf(after.json).find(r => r.id === 'preserved-thinking'), rowsOf(after.json).find(r => r.id === 'model-refusals')]), 'after the forget remedies the preserved-thinking row must read ok and the model-refusals row info; see src/platform/health/sections/memory.ts and src/platform/health/healthReport.ts')
 
   seedRefusal(NOW - 2 * HOUR)
   seedThinking(NOW - 2 * HOUR)
   const old = run(['health', '--json'])
   const oldRefusals = rowsOf(old.json).find(r => r.id === 'model-refusals')
   const oldThinking = rowsOf(old.json).find(r => r.id === 'preserved-thinking')
-  check('a two-hour-old refusal reads info and still lists the id', oldRefusals?.status === 'info' && (oldRefusals.evidence ?? '').includes('claude-banana-9'), JSON.stringify(oldRefusals), 'modelRefusalHealthStatus in src/services/providers/anthropic/modelRefusal.ts must give info for an old refusal and the row must still list the id')
-  check('a two-hour-old thinking record from another session reads info', oldThinking?.status === 'info', JSON.stringify(oldThinking), 'preservedThinkingHealth in src/services/providers/anthropic/thinkingBinding.ts must return info for an old record from another session')
-  check('neither old record holds the certificate at caution', !['warn', 'fail'].includes(oldRefusals?.status ?? '') && !['warn', 'fail'].includes(oldThinking?.status ?? ''), JSON.stringify([oldRefusals?.status, oldThinking?.status]), 'an old record must not reach warn or fail; see modelRefusalHealthStatus in src/services/providers/anthropic/modelRefusal.ts and preservedThinkingHealth in src/services/providers/anthropic/thinkingBinding.ts')
+  check('a two-hour-old refusal reads info and still lists the id', oldRefusals?.status === 'info' && (oldRefusals.evidence ?? '').includes('claude-banana-9'), JSON.stringify(oldRefusals), 'modelRefusalHealthStatus in src/models/roads/anthropic/modelRefusal.ts must give info for an old refusal and the row must still list the id')
+  check('a two-hour-old thinking record from another session reads info', oldThinking?.status === 'info', JSON.stringify(oldThinking), 'preservedThinkingHealth in src/models/roads/anthropic/thinkingBinding.ts must return info for an old record from another session')
+  check('neither old record holds the certificate at caution', !['warn', 'fail'].includes(oldRefusals?.status ?? '') && !['warn', 'fail'].includes(oldThinking?.status ?? ''), JSON.stringify([oldRefusals?.status, oldThinking?.status]), 'an old record must not reach warn or fail; see modelRefusalHealthStatus in src/models/roads/anthropic/modelRefusal.ts and preservedThinkingHealth in src/models/roads/anthropic/thinkingBinding.ts')
 }
 
 section('§5 live: a fast certificate written after a deep fault keeps the fault in the rail\'s summary')
 {
   const path = findLastCert()
-  check('the certificate summary file exists after the runs above', path !== null, HOME, 'health --json must write last-cert.json under the config home; see the cert writer near line 405 of src/services/health/healthReport.ts')
+  check('the certificate summary file exists after the runs above', path !== null, HOME, 'health --json must write last-cert.json under the config home; see the cert writer near line 405 of src/platform/health/healthReport.ts')
   if (path !== null) {
     const current = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>
     const deepAt = new Date(NOW - 5_000).toISOString()
@@ -194,12 +194,12 @@ section('§5 live: a fast certificate written after a deep fault keeps the fault
       attention: [{ id: 'artifact-signature-payload', label: 'Payload signature', status: 'fail', evidence: 'TAMPERED — payload tree differs from the signed digest', depth: 'deep' }],
     }, null, 2))
     const fast = run(['health', '--json'])
-    check('the fast run itself is not a fault (nothing fast fails here)', String(fast.json?.verdict ?? '') !== 'fault', String(fast.json?.verdict), 'a fast health --json run with no fast failure must not report fault; see src/services/health/healthReport.ts')
+    check('the fast run itself is not a fault (nothing fast fails here)', String(fast.json?.verdict ?? '') !== 'fault', String(fast.json?.verdict), 'a fast health --json run with no fast failure must not report fault; see src/platform/health/healthReport.ts')
     const written = JSON.parse(readFileSync(path, 'utf8')) as { verdict: string; depth?: string; attention: Array<{ id: string; status: string; depth?: string; ranAt?: string }> }
-    check('the summary the rail reads still says fault', written.verdict === 'fault', JSON.stringify({ verdict: written.verdict, depth: written.depth }), 'healthReport.ts must call carryDeepReadings (src/utils/healthCertCore.ts) so a fast run keeps the previous deep fault in last-cert.json')
+    check('the summary the rail reads still says fault', written.verdict === 'fault', JSON.stringify({ verdict: written.verdict, depth: written.depth }), 'healthReport.ts must call carryDeepReadings (src/platform/health/healthCertCore.ts) so a fast run keeps the previous deep fault in last-cert.json')
     const carried = written.attention.find(r => r.id === 'artifact-signature-payload')
-    check('…carrying the deep row with the deep run\'s own stamp', carried?.status === 'fail' && carried.depth === 'deep' && carried.ranAt === deepAt, JSON.stringify(written.attention), 'carryDeepReadings in src/utils/healthCertCore.ts must keep the deep row with its own depth and ranAt in last-cert.json')
-    check('…under the fast run\'s own depth and time', written.depth === 'fast', JSON.stringify({ depth: written.depth }), 'the merged summary written by src/services/health/healthReport.ts must take depth and time from the fresh fast run')
+    check('…carrying the deep row with the deep run\'s own stamp', carried?.status === 'fail' && carried.depth === 'deep' && carried.ranAt === deepAt, JSON.stringify(written.attention), 'carryDeepReadings in src/platform/health/healthCertCore.ts must keep the deep row with its own depth and ranAt in last-cert.json')
+    check('…under the fast run\'s own depth and time', written.depth === 'fast', JSON.stringify({ depth: written.depth }), 'the merged summary written by src/platform/health/healthReport.ts must take depth and time from the fresh fast run')
   }
 }
 

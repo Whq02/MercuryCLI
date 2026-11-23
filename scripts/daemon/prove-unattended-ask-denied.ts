@@ -20,7 +20,7 @@ process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const askHint = 'change holdWorkerAsk, operatorClientPresence and unattendedAskDenialMessage in src/daemon/permissionAsks.ts (the deny at once or park decision), the presence table in src/daemon/clientPresence.ts, or the screen beat in src/services/switchboard/screenPresence.ts'
+const askHint = 'change holdWorkerAsk, operatorClientPresence and unattendedAskDenialMessage in src/daemon/session-seat/permissionAsks.ts (the deny at once or park decision), the presence table in src/daemon/control/clientPresence.ts, or the screen beat in src/daemon/switchboard/screenPresence.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${askHint}` : ''}`)
@@ -72,13 +72,13 @@ console.log(' the unattended permission ask: with no operator client attached th
 console.log(' the base parks every ask whoever is there (checks marked red on the base)')
 console.log('============================================================')
 
-const asks = await import('../../src/daemon/permissionAsks.ts')
-const { concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
-const { daemonStatePath: daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
-const { isDenialResultText, UNANSWERED_ASK_REJECT_MESSAGE } = await import('../../src/utils/messages/rejectionText.ts')
-const obligations = await import('../../src/services/crew/obligations.ts')
+const asks = await import('../../src/daemon/session-seat/permissionAsks.ts')
+const { concourseWorkersPath } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { daemonStatePath: daemonStatePath } = await import('../../src/daemon/control/controlSocket.ts')
+const { isDenialResultText, UNANSWERED_ASK_REJECT_MESSAGE } = await import('../../src/engine/message-shapes/rejectionText.ts')
+const obligations = await import('../../src/crew/crewmates/obligations.ts')
 type Presence = 'attached' | 'absent' | 'unknown'
-type Answer = import('../../src/runner/wire/methods.ts').PermissionAnswer
+type Answer = import('../../src/daemon/runner-wire/methods.ts').PermissionAnswer
 const presenceOf = (asks as { operatorClientPresence?: (dir?: string, now?: number) => Presence }).operatorClientPresence
 type PresenceTable = {
   noteClientPresence: (pid: number, kind: 'screen', now?: number) => void
@@ -86,14 +86,14 @@ type PresenceTable = {
   resetClientPresenceForProofs: (opts?: { since?: number }) => void
   CLIENT_PRESENCE_STALE_MS: number
 }
-const presenceTable = (await import('../../src/daemon/clientPresence.ts').catch(() => null)) as PresenceTable | null
+const presenceTable = (await import('../../src/daemon/control/clientPresence.ts').catch(() => null)) as PresenceTable | null
 type ScreenBeat = {
   screenPresenceFrame: (pid?: number) => { op: string; clientPid: number; clientKind: string }
   startScreenPresenceBeat: () => boolean
   stopScreenPresenceBeat: () => void
   screenPresenceBeatArmed: () => boolean
 }
-const screenBeat = (await import('../../src/services/switchboard/screenPresence.ts').catch(() => null)) as ScreenBeat | null
+const screenBeat = (await import('../../src/daemon/switchboard/screenPresence.ts').catch(() => null)) as ScreenBeat | null
 const warmTable = (): void => presenceTable?.resetClientPresenceForProofs({ since: Date.now() - presenceTable.CLIENT_PRESENCE_STALE_MS - 1 })
 const denialOf = (asks as { unattendedAskDenialMessage?: (toolName: string) => string }).unattendedAskDenialMessage
 const CAUSE = (asks as { NO_CLIENT_ATTACHED_CAUSE?: string }).NO_CLIENT_ATTACHED_CAUSE
@@ -125,7 +125,7 @@ const isAskRow = (o: { ref?: string; sessionId?: string }): boolean => (o.ref?.s
 const parked = (id: string): boolean => asks.listPendingPermissionAsks().some(a => a.requestId === id)
 type ReceiptRow = { ref?: string; sessionId?: string; status?: string; revision?: number; createdAtMs?: number; settledAtMs?: number; settlement?: { by?: string }; question?: string }
 const rowWords = (o: ReceiptRow): string => `${o.ref ?? '?'} ${o.status ?? '?'} rev=${String(o.revision)} by=${j(o.settlement?.by ?? '')} created=${String(o.createdAtMs)} settled=${String(o.settledAtMs)}`
-const { crewStoreRoot } = await import('../../src/services/crew/identity.ts')
+const { crewStoreRoot } = await import('../../src/crew/crewmates/identity.ts')
 const switchboardStorePath = (): string => join(crewStoreRoot(), 'obligations-switchboard.json')
 const committedRows = (): ReceiptRow[] => {
   try {
@@ -238,7 +238,7 @@ section('A4 the screen-presence beat: a live client that keeps beating is attach
     rmSync(daemonStatePath(), { force: true })
     const frame = screen.screenPresenceFrame(4242)
     check('the screen\'s beat is a keyless hello naming its pid and kind', frame.op === 'hello' && frame.clientPid === 4242 && frame.clientKind === 'screen', j(frame))
-    const bootstrap = await import('../../src/bootstrap/state.ts')
+    const bootstrap = await import('../../src/boot/process-state/processState.ts')
     bootstrap.setIsInteractive(false)
     check('a non-interactive process (a headless seat, a daemon child) never beats', screen.startScreenPresenceBeat() === false && !screen.screenPresenceBeatArmed())
     bootstrap.setIsInteractive(true)
@@ -263,7 +263,7 @@ async function bootSeatWorld(label: string, owned: boolean, turns: Turn[]): Prom
   const work = join(root, 'work')
   const work2 = join(root, 'work-two')
   for (const d of [home, daemonDir, work, work2]) mkdirSync(d, { recursive: true })
-  const { ALL_MODEL_CONFIGS, newestGenerationKey } = await import('../../src/utils/model/configs.ts')
+  const { ALL_MODEL_CONFIGS, newestGenerationKey } = await import('../../src/models/facts/builtInModelTable.ts')
   const modelKey = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
   const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
   seedFirstRun(home, [work, work2])
@@ -294,8 +294,8 @@ async function bootSeatWorld(label: string, owned: boolean, turns: Turn[]): Prom
   })
   process.env.MERCURY_DAEMON_DIR = daemonDir
   process.env.MERCURY_CONFIG_DIR = home
-  const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-  const paths = await import('../../src/utils/sessionStorage/paths.ts')
+  const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+  const paths = await import('../../src/sessions/transcripts/paths.ts')
   const close = async (): Promise<void> => {
     try {
       await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
@@ -420,8 +420,8 @@ section('D the blank-chat row: a persistent, ownerless daemon with a live screen
     writeFileSync(
       screenScript,
       `;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }\n` +
-        `const { daemonControlRpc } = await import(${j(join(REPO, 'src', 'daemon', 'controlSocket.ts'))})\n` +
-        `const { screenPresenceFrame } = await import(${j(join(REPO, 'src', 'services', 'switchboard', 'screenPresence.ts'))})\n` +
+        `const { daemonControlRpc } = await import(${j(join(REPO, 'src', 'daemon', 'control', 'controlSocket.ts'))})\n` +
+        `const { screenPresenceFrame } = await import(${j(join(REPO, 'src', 'daemon', 'switchboard', 'screenPresence.ts'))})\n` +
         `const beat = async (): Promise<void> => { try { await daemonControlRpc(screenPresenceFrame(), { timeoutMs: 1000, protoRetry: false }) } catch {} }\n` +
         `await beat()\nconsole.log('BEATING ' + process.pid)\nsetInterval(() => void beat(), 2000)\n`,
     )

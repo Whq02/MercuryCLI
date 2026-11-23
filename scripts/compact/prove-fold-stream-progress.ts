@@ -25,17 +25,17 @@ const fixture = await startOverflowFixture({ stream(request, res) {
   return true
 } })
 Object.assign(process.env, fixture.env)
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { compactConversation, withFoldStatus, setFoldBoundsForTests } = await import('../../src/services/compact/compact.ts')
-const { foldRowWords } = await import('../../src/services/compact/foldStatus.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { FoldStatusRow } = await import('../../src/components/FoldStatusRow.tsx')
-const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-type Fold = import('../../src/services/compact/foldStatus.ts').FoldStatusV1
+const { compactConversation, withFoldStatus, setFoldBoundsForTests } = await import('../../src/engine/compaction/foldConversation.ts')
+const { foldRowWords } = await import('../../src/engine/compaction/foldStatus.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+const { FoldStatusRow } = await import('../../src/screen/messages/FoldStatusRow.tsx')
+const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+type Fold = import('../../src/engine/compaction/foldStatus.ts').FoldStatusV1
 let fold: Fold | null = null
 const listeners = new Set<() => void>()
 const stamps: Fold[] = []

@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
-import { Parser } from '../../src/ink/termio/display.js'
+import { Parser } from '../../src/screen/renderer/termio/displayParser.js'
 import {
   type Action,
   type Color,
   defaultStyle,
   type TextStyle,
-} from '../../src/ink/termio/display-types.js'
+} from '../../src/screen/renderer/termio/display-types.js'
 import {
   applySgrParams,
   defaultSgr,
@@ -20,7 +20,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}\n    fix: the Parser in src/ink/termio/display.ts (with csi.ts, osc.ts and dec.ts beside it) breaks this contract`)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}\n    fix: the Parser in src/screen/renderer/termio/displayParser.ts (with csi.ts, osc.ts and dec.ts beside it) breaks this contract`)
   }
 }
 

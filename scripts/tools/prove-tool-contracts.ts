@@ -14,7 +14,7 @@ const t = (name: string, ok: boolean, detail = '', hint = ''): void => {
   if (!ok) failures = 1
 }
 
-const aliases = await import('../../src/utils/model/aliases.ts')
+const aliases = await import('../../src/models/facts/aliases.ts')
 t(
   'AGENT_DISPATCH_MODELS is the canonical list',
   Array.isArray(aliases.AGENT_DISPATCH_MODELS) &&
@@ -22,10 +22,10 @@ t(
       m => (aliases.AGENT_DISPATCH_MODELS as readonly string[]).includes(m),
     ),
   '',
-  'add the missing model word to AGENT_DISPATCH_MODELS in src/utils/model/aliases.ts',
+  'add the missing model word to AGENT_DISPATCH_MODELS in src/models/facts/aliases.ts',
 )
 
-const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
+const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
 const agentSchema = AgentTool.inputSchema
 const agentBase = { description: 'test', prompt: 'test' }
 for (const m of [
@@ -42,76 +42,76 @@ for (const m of [
     `Agent schema accepts model '${m}'`,
     agentSchema.safeParse({ ...agentBase, model: m }).success === true,
     '',
-    'the model field of the inputSchema in src/tools/AgentTool/AgentTool.tsx must accept every word of AGENT_DISPATCH_MODELS (src/utils/model/aliases.ts)',
+    'the model field of the inputSchema in src/tools/crewmate/CrewmateTool.tsx must accept every word of AGENT_DISPATCH_MODELS (src/models/facts/aliases.ts)',
   )
 }
-const { CANONICAL_MODEL_IDS } = await import('../../src/utils/model/configs.ts')
+const { CANONICAL_MODEL_IDS } = await import('../../src/models/facts/builtInModelTable.ts')
 for (const id of CANONICAL_MODEL_IDS) {
-  t(`Agent schema accepts the served id '${id}'`, agentSchema.safeParse({ ...agentBase, model: id }).success === true, '', 'the model field of the inputSchema in src/tools/AgentTool/AgentTool.tsx must accept every id in CANONICAL_MODEL_IDS (src/utils/model/configs.ts)')
+  t(`Agent schema accepts the served id '${id}'`, agentSchema.safeParse({ ...agentBase, model: id }).success === true, '', 'the model field of the inputSchema in src/tools/crewmate/CrewmateTool.tsx must accept every id in CANONICAL_MODEL_IDS (src/models/facts/builtInModelTable.ts)')
 }
 for (const id of ['gemini-2.5-pro', 'openrouter/qwen/qwen3-coder', 'huggingface/org/model', 'local/llama3']) {
-  t(`Agent schema accepts the exact engine id '${id}' (the dispatch grammar validates it)`, agentSchema.safeParse({ ...agentBase, model: id }).success === true, '', 'the model field of the inputSchema in src/tools/AgentTool/AgentTool.tsx must pass an exact engine id on to the dispatch grammar in src/services/crew/engineDispatch.ts')
+  t(`Agent schema accepts the exact engine id '${id}' (the dispatch grammar validates it)`, agentSchema.safeParse({ ...agentBase, model: id }).success === true, '', 'the model field of the inputSchema in src/tools/crewmate/CrewmateTool.tsx must pass an exact engine id on to the dispatch grammar in src/crew/crewmates/engineDispatch.ts')
 }
-const { unrecognisedModelWordRefusal } = await import('../../src/services/crew/engineDispatch.ts')
-const { modelFamilyWords } = await import('../../src/services/model/modelFamilies.ts')
-t('the dispatch grammar refuses a word no family declares, naming it', (unrecognisedModelWordRefusal('banana') ?? '').includes("'banana'"), '', 'unrecognisedModelWordRefusal in src/services/crew/engineDispatch.ts must refuse an unknown word and quote it')
-t('the dispatch grammar admits a served first-party id', unrecognisedModelWordRefusal('claude-haiku-4-5') === null, '', 'unrecognisedModelWordRefusal in src/services/crew/engineDispatch.ts must return null for a served first-party id')
-t('the dispatch grammar admits every family word', modelFamilyWords().every(word => unrecognisedModelWordRefusal(word) === null), '', 'unrecognisedModelWordRefusal in src/services/crew/engineDispatch.ts must return null for every word of modelFamilyWords in src/services/model/modelFamilies.ts')
-t('the dispatch grammar admits the engine class aliases and exact engine ids', ['gpt', 'gemini', 'gpt-5.6-sol', 'openrouter/qwen/qwen3-coder'].every(word => unrecognisedModelWordRefusal(word) === null), '', 'unrecognisedModelWordRefusal in src/services/crew/engineDispatch.ts must return null for the engine class aliases and exact engine ids')
+const { unrecognisedModelWordRefusal } = await import('../../src/crew/crewmates/engineDispatch.ts')
+const { modelFamilyWords } = await import('../../src/models/catalogue/modelFamilies.ts')
+t('the dispatch grammar refuses a word no family declares, naming it', (unrecognisedModelWordRefusal('banana') ?? '').includes("'banana'"), '', 'unrecognisedModelWordRefusal in src/crew/crewmates/engineDispatch.ts must refuse an unknown word and quote it')
+t('the dispatch grammar admits a served first-party id', unrecognisedModelWordRefusal('claude-haiku-4-5') === null, '', 'unrecognisedModelWordRefusal in src/crew/crewmates/engineDispatch.ts must return null for a served first-party id')
+t('the dispatch grammar admits every family word', modelFamilyWords().every(word => unrecognisedModelWordRefusal(word) === null), '', 'unrecognisedModelWordRefusal in src/crew/crewmates/engineDispatch.ts must return null for every word of modelFamilyWords in src/models/catalogue/modelFamilies.ts')
+t('the dispatch grammar admits the engine class aliases and exact engine ids', ['gpt', 'gemini', 'gpt-5.6-sol', 'openrouter/qwen/qwen3-coder'].every(word => unrecognisedModelWordRefusal(word) === null), '', 'unrecognisedModelWordRefusal in src/crew/crewmates/engineDispatch.ts must return null for the engine class aliases and exact engine ids')
 const modelDescription = (agentSchema as unknown as { shape: { model: { description?: string } } }).shape.model.description ?? ''
-t('the model parameter\'s description enumerates no per-boot id list (prompt-cache stable)', modelDescription.length > 0 && !modelDescription.includes('gpt-5.6-sol') && !modelDescription.includes('glm-5.2'), '', 'the model field description in the inputSchema of src/tools/AgentTool/AgentTool.tsx must stay non-empty and name no per-boot engine id')
+t('the model parameter\'s description enumerates no per-boot id list (prompt-cache stable)', modelDescription.length > 0 && !modelDescription.includes('gpt-5.6-sol') && !modelDescription.includes('glm-5.2'), '', 'the model field description in the inputSchema of src/tools/crewmate/CrewmateTool.tsx must stay non-empty and name no per-boot engine id')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.ts')
-const { getModelOptions } = await import('../../src/services/model/modelOptions.ts')
+const { getAgentModelPickerRows } = await import('../../src/models/catalogue/agentModelPicker.ts')
+const { getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
 const options = getAgentModelPickerRows()
 t(
   'picker offers the full fable id as its saved value and label',
   options.some(o => o.value === 'claude-fable-5-1' && o.label === o.value),
   '',
-  'getAgentModelPickerRows in src/services/model/agentModelPicker.ts must offer claude-fable-5-1 with its id as label',
+  'getAgentModelPickerRows in src/models/catalogue/agentModelPicker.ts must offer claude-fable-5-1 with its id as label',
 )
 t(
   'picker lists one row per model: no [1m] twin row (the typed [1m] forms stay accepted above)',
   options.every(o => !o.value.endsWith('[1m]')),
   '',
-  'getAgentModelPickerRows in src/services/model/agentModelPicker.ts must list no [1m] twin row',
+  'getAgentModelPickerRows in src/models/catalogue/agentModelPicker.ts must list no [1m] twin row',
 )
 t(
   'picker offers every catalogue row after inherit (no tier is dropped)',
   options.length === getModelOptions().length + 1,
   `${options.length} rows against ${getModelOptions().length} catalogue rows`,
-  'getAgentModelPickerRows in src/services/model/agentModelPicker.ts must return inherit plus one row per getModelOptions row (src/services/model/modelOptions.ts)',
+  'getAgentModelPickerRows in src/models/catalogue/agentModelPicker.ts must return inherit plus one row per getModelOptions row (src/models/catalogue/modelOptions.ts)',
 )
 t(
   'picker leads with inherit (the agent grammar\'s own default)',
   options[0]?.value === 'inherit',
   '',
-  'getAgentModelPickerRows in src/services/model/agentModelPicker.ts must put inherit first',
+  'getAgentModelPickerRows in src/models/catalogue/agentModelPicker.ts must put inherit first',
 )
 
-const { getAgentModel } = await import('../../src/services/model/agent.ts')
+const { getAgentModel } = await import('../../src/models/catalogue/agentModel.ts')
 const pinned = getAgentModel('haiku', 'claude-opus-4-8', undefined, 'default')
-t('a haiku agent-def pin resolves to the haiku row', /haiku/i.test(pinned), `resolved=${pinned}`, 'getAgentModel in src/services/model/agent.ts must resolve the haiku pin to the haiku row')
+t('a haiku agent-def pin resolves to the haiku row', /haiku/i.test(pinned), `resolved=${pinned}`, 'getAgentModel in src/models/catalogue/agentModel.ts must resolve the haiku pin to the haiku row')
 
 t(
   "Agent run_in_background accepts quoted 'true'",
   agentSchema.safeParse({ ...agentBase, run_in_background: 'true' }).success ===
     true,
   '',
-  'the run_in_background field of the inputSchema in src/tools/AgentTool/AgentTool.tsx must accept the quoted string true',
+  'the run_in_background field of the inputSchema in src/tools/crewmate/CrewmateTool.tsx must accept the quoted string true',
 )
 t(
   'Agent run_in_background still rejects garbage',
   agentSchema.safeParse({ ...agentBase, run_in_background: 'yes' }).success ===
     false,
   '',
-  'the run_in_background field of the inputSchema in src/tools/AgentTool/AgentTool.tsx must still reject other strings',
+  'the run_in_background field of the inputSchema in src/tools/crewmate/CrewmateTool.tsx must still reject other strings',
 )
 
 const { formatZodValidationError } = await import(
-  '../../src/utils/toolErrors.ts'
+  '../../src/tools/kit/toolErrors.ts'
 )
 type Parsed<T> = { success: true; data: T } | { success: false; error: never }
 const refusal = (tool: string, r: { success: boolean; error?: unknown }): string =>
@@ -119,20 +119,20 @@ const refusal = (tool: string, r: { success: boolean; error?: unknown }): string
 const describes = (schema: unknown, key: string): string =>
   ((schema as { shape: Record<string, { description?: string }> }).shape[key]?.description ?? '')
 
-const { SleepTool } = await import('../../src/tools/SleepTool/SleepTool.tsx')
+const { SleepTool } = await import('../../src/tools/sleep/SleepTool.tsx')
 {
   const r = SleepTool.inputSchema.safeParse({ seconds: '30' })
   t(
     'Sleep seconds accepts a quoted number',
     r.success === true && (r as { data?: { seconds?: number } }).data?.seconds === 30,
     '',
-    'the seconds field of the inputSchema in src/tools/SleepTool/SleepTool.tsx must coerce a quoted number',
+    'the seconds field of the inputSchema in src/tools/sleep/SleepTool.tsx must coerce a quoted number',
   )
   t(
     'Sleep seconds keeps its positive bound',
     SleepTool.inputSchema.safeParse({ seconds: '-5' }).success === false,
     '',
-    'the seconds field of the inputSchema in src/tools/SleepTool/SleepTool.tsx must keep its positive bound',
+    'the seconds field of the inputSchema in src/tools/sleep/SleepTool.tsx must keep its positive bound',
   )
   const above = SleepTool.inputSchema.safeParse({ seconds: '4000' }) as Parsed<{ seconds: number }>
   t(
@@ -146,7 +146,7 @@ const { SleepTool } = await import('../../src/tools/SleepTool/SleepTool.tsx')
   t("the seconds parameter's own words name both bounds and say a value outside them is clamped", words.includes('min 1') && words.includes('max 3600') && /clamped/.test(words), words)
 }
 
-const monitorModule = await import('../../src/tools/MonitorTool/MonitorTool.ts')
+const monitorModule = await import('../../src/tools/monitor/MonitorTool.ts')
 {
   const MonitorTool = monitorModule.MonitorTool as {
     inputSchema: { safeParse: (v: unknown) => { success: boolean; data?: { timeout_ms?: number }; error?: unknown } }
@@ -185,7 +185,7 @@ const monitorModule = await import('../../src/tools/MonitorTool/MonitorTool.ts')
 }
 
 const { AskUserQuestionTool } = await import(
-  '../../src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx'
+  '../../src/tools/ask-question/AskUserQuestionTool.tsx'
 )
 {
   const q = {
@@ -210,7 +210,7 @@ const { AskUserQuestionTool } = await import(
   )
 }
 
-const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
+const { DebugTool } = await import('../../src/tools/debug/DebugTool.ts')
 {
   const r = DebugTool.inputSchema.safeParse({
     op: 'continue',
@@ -254,9 +254,9 @@ const { z } = await import('zod/v4')
     'invalid_value names the parameter and allowed values',
     msg.includes('`mode`') && msg.includes('fast') && msg.includes('slow'),
     msg.slice(0, 160),
-    'formatZodValidationError in src/utils/toolErrors.ts must name the parameter and list the allowed values for an invalid_value issue',
+    'formatZodValidationError in src/tools/kit/toolErrors.ts must name the parameter and list the allowed values for an invalid_value issue',
   )
-  t('invalid_value is prose, not raw issue JSON', !msg.includes('"code"'), '', 'formatZodValidationError in src/utils/toolErrors.ts must render an invalid_value issue as a sentence')
+  t('invalid_value is prose, not raw issue JSON', !msg.includes('"code"'), '', 'formatZodValidationError in src/tools/kit/toolErrors.ts must render an invalid_value issue as a sentence')
 
   const smallErr = schema.safeParse({ mode: 'fast', count: 0, name: 'x' })
   const smallMsg = formatZodValidationError(
@@ -267,9 +267,9 @@ const { z } = await import('zod/v4')
     'too_small names the parameter and the bound',
     smallMsg.includes('`count`') && smallMsg.includes('1'),
     smallMsg.slice(0, 160),
-    'formatZodValidationError in src/utils/toolErrors.ts must name the parameter and the bound for a too_small issue',
+    'formatZodValidationError in src/tools/kit/toolErrors.ts must name the parameter and the bound for a too_small issue',
   )
-  t('too_small is prose, not raw issue JSON', !smallMsg.includes('"code"'), '', 'formatZodValidationError in src/utils/toolErrors.ts must render a too_small issue as a sentence')
+  t('too_small is prose, not raw issue JSON', !smallMsg.includes('"code"'), '', 'formatZodValidationError in src/tools/kit/toolErrors.ts must render a too_small issue as a sentence')
 
   const bigErr = schema.safeParse({ mode: 'fast', count: 99, name: 'x' })
   const bigMsg = formatZodValidationError(
@@ -280,7 +280,7 @@ const { z } = await import('zod/v4')
     'too_big names the parameter and the bound',
     bigMsg.includes('`count`') && bigMsg.includes('10'),
     bigMsg.slice(0, 160),
-    'formatZodValidationError in src/utils/toolErrors.ts must name the parameter and the bound for a too_big issue',
+    'formatZodValidationError in src/tools/kit/toolErrors.ts must name the parameter and the bound for a too_big issue',
   )
 
   const sized = z.strictObject({ items: z.array(z.object({ content: z.string() })).min(1).max(20), limit: z.number().int().min(1).max(50).optional() })
@@ -317,7 +317,7 @@ const { z } = await import('zod/v4')
     customMsg.includes('timeout_ms must be ≤ 100') &&
       !customMsg.includes('"code"'),
     customMsg.slice(0, 160),
-    'formatZodValidationError in src/utils/toolErrors.ts must surface a custom issue message as prose',
+    'formatZodValidationError in src/tools/kit/toolErrors.ts must surface a custom issue message as prose',
   )
 
   const unknownKey = schema.safeParse({
@@ -337,25 +337,25 @@ const { z } = await import('zod/v4')
       unknownMsg.includes('mode') &&
       unknownMsg.includes('count'),
     unknownMsg.slice(0, 200),
-    'formatZodValidationError in src/utils/toolErrors.ts must list the valid top-level parameters when given the schema and an unexpected key',
+    'formatZodValidationError in src/tools/kit/toolErrors.ts must list the valid top-level parameters when given the schema and an unexpected key',
   )
 }
 
 {
   const { cpSync } = await import('node:fs')
   const { resolve } = await import('node:path')
-  const { mcpToolPartition } = await import('../../src/tools.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { registerBundledAppInstall } = await import('../../src/extensions/installConsent.ts')
+  const { mcpToolPartition } = await import('../../src/tools/kit/toolList.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { registerBundledAppInstall } = await import('../../src/integrations/extensions/installConsent.ts')
   const root = resolve(import.meta.dir, '../..')
   const serverName = 'ext:filmcraft:app'
-  const { default: filmcraftLock } = (await import('../../src/extensions/bundled/filmcraft/server/filmcraft.lock.json', { with: { type: 'json' } })) as { default: { platforms?: Record<string, unknown> } }
+  const { default: filmcraftLock } = (await import('../../src/integrations/extensions/bundled/filmcraft/server/filmcraft.lock.json', { with: { type: 'json' } })) as { default: { platforms?: Record<string, unknown> } }
   const platforms = Object.keys(filmcraftLock.platforms ?? {})
-  const { hostPlatform } = (await import('../../src/extensions/bundled/shared/install.mjs')) as unknown as { hostPlatform: () => string }
+  const { hostPlatform } = (await import('../../src/integrations/extensions/bundled/shared/install.mjs')) as unknown as { hostPlatform: () => string }
   if (!platforms.includes(hostPlatform())) process.env.MERCURY_CRAFT_PLATFORM = platforms[0]
   const delivered = mkdtempSync(join(proofHome, 'filmcraft-'))
-  cpSync(join(root, 'src/extensions/bundled/filmcraft'), delivered, { recursive: true })
-  cpSync(join(root, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
+  cpSync(join(root, 'src/integrations/extensions/bundled/filmcraft'), delivered, { recursive: true })
+  cpSync(join(root, 'src/integrations/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
   registerBundledAppInstall(serverName, delivered, mkdtempSync(join(proofHome, 'craft-data-')))
   let seen: Record<string, unknown> | undefined
   const mcpTool = (name: string, toolName: string): never => ({
@@ -364,9 +364,9 @@ const { z } = await import('zod/v4')
     call: async (input: Record<string, unknown>) => { seen = input; return { data: [] } },
   }) as never
   const partition = mcpToolPartition([mcpTool('mcp__zeta__late', 'late'), mcpTool('mcp__ext_filmcraft_app__craft_install', 'craft_install'), mcpTool('mcp__alpha__early', 'early')], getEmptyToolPermissionContext())
-  t('the partition is name-sorted whatever the connection order', partition.map(tool => tool.name).join(',') === 'mcp__alpha__early,mcp__ext_filmcraft_app__craft_install,mcp__zeta__late', partition.map(tool => tool.name).join(','), 'mcpToolPartition in src/tools.ts must return the tools sorted by name')
+  t('the partition is name-sorted whatever the connection order', partition.map(tool => tool.name).join(',') === 'mcp__alpha__early,mcp__ext_filmcraft_app__craft_install,mcp__zeta__late', partition.map(tool => tool.name).join(','), 'mcpToolPartition in src/tools/kit/toolList.ts must return the tools sorted by name')
   await partition[1]!.call({}, { abortController: new AbortController() } as never, null as never, undefined as never)
-  t('the bundled craft_install member reaches its server consent-wrapped: the call carries the signed install grant', typeof seen?._mercuryInstallGrant === 'string' && /^[A-Za-z0-9_-]+\.[a-f0-9]{64}$/.test(String(seen._mercuryInstallGrant)), JSON.stringify(seen), 'the consent wrapper that mcpToolPartition in src/tools.ts applies to the bundled craft_install member must add a signed _mercuryInstallGrant to the call input')
+  t('the bundled craft_install member reaches its server consent-wrapped: the call carries the signed install grant', typeof seen?._mercuryInstallGrant === 'string' && /^[A-Za-z0-9_-]+\.[a-f0-9]{64}$/.test(String(seen._mercuryInstallGrant)), JSON.stringify(seen), 'the consent wrapper that mcpToolPartition in src/tools/kit/toolList.ts applies to the bundled craft_install member must add a signed _mercuryInstallGrant to the call input')
 }
 
 process.exit(failures)

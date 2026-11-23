@@ -8,7 +8,7 @@ export function startDaemonClientBeat(intervalMs: number = DAEMON_CLIENT_BEAT_MS
   const send = async (): Promise<void> => {
     if (stopped) return
     try {
-      const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+      const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
       const reply = (await daemonControlRpc({ op: 'hello', clientPid: process.pid, clientKind: 'client' } as never, { timeoutMs: 1_000, protoRetry: false })) as { ok?: boolean }
       if (reply.ok === true) beats++
     } catch {

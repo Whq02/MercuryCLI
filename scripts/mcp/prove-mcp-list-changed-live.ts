@@ -26,27 +26,27 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the list_changed proof exceeded 120s; find the section header printed last above and look at the step after it (a hung connect in reconnectMcpServerImpl, src/services/mcp/client.ts, or a callTool the fixture scripts/mcp/_fixture-list-changed-server.mjs never answered)')
+  console.log('\nTIMEOUT — the list_changed proof exceeded 120s; find the section header printed last above and look at the step after it (a hung connect in reconnectMcpServerImpl, src/integrations/mcp/client.ts, or a callTool the fixture scripts/mcp/_fixture-list-changed-server.mjs never answered)')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const mcp = await import('../../src/services/mcp/client.ts')
-const economy = await import('../../src/services/providers/toolEconomy.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { clearToolSchemaCache, clearConversationToolSchemas, getToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
-const { requestDeliberateToolChange } = await import('../../src/services/providers/lawfulPrefixChange.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getToolSchemaDeltaAttachment } = await import('../../src/services/attachments/toolSchemaDelta.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Message = import('../../src/types/message.ts').Message
+const mcp = await import('../../src/integrations/mcp/client.ts')
+const economy = await import('../../src/models/roads/toolEconomy.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { clearToolSchemaCache, clearConversationToolSchemas, getToolSchemaCache } = await import('../../src/models/roads/toolSchemaCache.ts')
+const { requestDeliberateToolChange } = await import('../../src/models/roads/lawfulPrefixChange.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getToolSchemaDeltaAttachment } = await import('../../src/engine/attachments/toolSchemaDelta.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const FIXTURE = join(ROOT, 'scripts', 'mcp', '_fixture-list-changed-server.mjs')
 const stateFile = join(HOME, 'installed.txt')
@@ -60,7 +60,7 @@ const scoped = {
 } as never
 const MODEL = 'claude-fable-5-1'
 const ctxFor = (pool: Tool[]): unknown => ({ options: { engineModel: MODEL, tools: pool, agentDefinitions: { activeAgents: [] } }, getAppState: () => ({ ...getDefaultAppState(), toolPermissionContext: getEmptyToolPermissionContext() }), agentId: undefined })
-const { rosterOwnerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
+const { rosterOwnerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
 const owner = String(rosterOwnerFromToolUseContext(ctxFor([]) as never))
 const first = createUserMessage({ content: 'Generate a swatch.' }) as unknown as Message
 const enumOf = (definition: unknown): string[] => ((definition as { input_schema?: { properties?: { model?: { enum?: string[] } } } } | undefined)?.input_schema?.properties?.model?.enum ?? [])
@@ -75,12 +75,12 @@ try {
   section("§1 the SDK's own server over stdio, through production's connect: the first tools/list is the server's opening shape")
   const connected = await mcp.reconnectMcpServerImpl(NAME, scoped)
   const client = connected.client
-  check('the server connected and advertises tools/list_changed', client.type === 'connected' && (client as { capabilities?: { tools?: { listChanged?: boolean } } }).capabilities?.tools?.listChanged === true, 'make the fixture scripts/mcp/_fixture-list-changed-server.mjs declare tools.listChanged, and check reconnectMcpServerImpl in src/services/mcp/client.ts keeps the server capabilities: ' + j(client.type === 'connected' ? (client as { capabilities?: unknown }).capabilities : client))
+  check('the server connected and advertises tools/list_changed', client.type === 'connected' && (client as { capabilities?: { tools?: { listChanged?: boolean } } }).capabilities?.tools?.listChanged === true, 'make the fixture scripts/mcp/_fixture-list-changed-server.mjs declare tools.listChanged, and check reconnectMcpServerImpl in src/integrations/mcp/client.ts keeps the server capabilities: ' + j(client.type === 'connected' ? (client as { capabilities?: unknown }).capabilities : client))
   if (client.type !== 'connected') throw new Error('no connection')
   const v1 = await mcp.fetchToolsForClient(client)
   const generateName = v1.map(nameOf).find(name => name.endsWith('__image_generate'))!
   const modelsName = generateName.replace('image_generate', 'media_models')
-  check('the opening tool list carries image_generate with two models and no media_models', generateName !== undefined && !v1.map(nameOf).includes(modelsName) && j((v1.find(tool => tool.name === generateName) as { inputJSONSchema?: unknown })?.inputJSONSchema).includes('flux2-klein-4b') && !j((v1.find(tool => tool.name === generateName) as { inputJSONSchema?: unknown })?.inputJSONSchema).includes('qwen-image-21'), 'fetchToolsForClient (src/services/mcp/client.ts) must return the opening tool list of the fixture scripts/mcp/_fixture-list-changed-server.mjs unchanged: ' + j(v1.map(nameOf)))
+  check('the opening tool list carries image_generate with two models and no media_models', generateName !== undefined && !v1.map(nameOf).includes(modelsName) && j((v1.find(tool => tool.name === generateName) as { inputJSONSchema?: unknown })?.inputJSONSchema).includes('flux2-klein-4b') && !j((v1.find(tool => tool.name === generateName) as { inputJSONSchema?: unknown })?.inputJSONSchema).includes('qwen-image-21'), 'fetchToolsForClient (src/integrations/mcp/client.ts) must return the opening tool list of the fixture scripts/mcp/_fixture-list-changed-server.mjs unchanged: ' + j(v1.map(nameOf)))
 
   section('§2 the conversation froze its roster on the opening shape; then the server installs a model and announces tools/list_changed')
   clearToolSchemaCache()
@@ -90,7 +90,7 @@ try {
   const messages: Message[] = [first]
   const p1 = await plan(poolV1, messages)
   const sentGenerate = await render(v1.find(tool => tool.name === generateName)!, p1)
-  check('the first request lists image_generate deferred with the two models', p1.deferredNames.has(generateName) && j(enumOf(sentGenerate)) === j(['z-image-turbo', 'flux2-klein-4b']), 'planToolPayload (src/services/providers/toolEconomy.ts) must defer image_generate and toolToAPISchema (src/services/messages/api.ts) must send the opening schema: ' + j(sentGenerate))
+  check('the first request lists image_generate deferred with the two models', p1.deferredNames.has(generateName) && j(enumOf(sentGenerate)) === j(['z-image-turbo', 'flux2-klein-4b']), 'planToolPayload (src/models/roads/toolEconomy.ts) must defer image_generate and toolToAPISchema (src/engine/messages/apiSystemAndToolSchema.ts) must send the opening schema: ' + j(sentGenerate))
 
   let refetched: Tool[] | null = null
   let fired = 0
@@ -108,20 +108,20 @@ try {
   const installed = await client.client.callTool({ name: 'install_model', arguments: { name: 'qwen-image-21' } })
   check('the install ran on the server', j(installed.content).includes('installed qwen-image-21'), 'the install_model tool of scripts/mcp/_fixture-list-changed-server.mjs did not report the install: ' + j(installed.content))
   await Promise.race([landed, new Promise<void>((_, reject) => setTimeout(() => reject(new Error('no tools/list_changed within 10s')), 10_000))])
-  check("Mercury's listener heard the notification and re-read the server's tools", fired >= 1 && refetched !== null, `onMcpListChanged (src/services/mcp/client/protocolClient.ts) must call its handler when the server sends tools/list_changed and the handler must refetch the tools; fired ${fired}`)
+  check("Mercury's listener heard the notification and re-read the server's tools", fired >= 1 && refetched !== null, `onMcpListChanged (src/integrations/mcp/client/protocolClient.ts) must call its handler when the server sends tools/list_changed and the handler must refetch the tools; fired ${fired}`)
   const v2 = refetched as unknown as Tool[]
-  check('the re-read carries media_models and the three-model image_generate', v2.map(nameOf).includes(modelsName) && j((v2.find(tool => tool.name === generateName) as { inputJSONSchema?: unknown })?.inputJSONSchema).includes('qwen-image-21'), 'fetchToolsForClient (src/services/mcp/client.ts) must read the tools afresh after its cache entry is deleted: ' + j(v2.map(nameOf)))
-  check('the rendered definitions were cleared so the refreshed server is read afresh', getToolSchemaCache().size === 0, 'requestDeliberateToolChange (src/services/providers/lawfulPrefixChange.ts) must clear the rendered tool schema cache (src/utils/toolSchemaCache.ts)')
+  check('the re-read carries media_models and the three-model image_generate', v2.map(nameOf).includes(modelsName) && j((v2.find(tool => tool.name === generateName) as { inputJSONSchema?: unknown })?.inputJSONSchema).includes('qwen-image-21'), 'fetchToolsForClient (src/integrations/mcp/client.ts) must read the tools afresh after its cache entry is deleted: ' + j(v2.map(nameOf)))
+  check('the rendered definitions were cleared so the refreshed server is read afresh', getToolSchemaCache().size === 0, 'requestDeliberateToolChange (src/models/roads/lawfulPrefixChange.ts) must clear the rendered tool schema cache (src/models/roads/toolSchemaCache.ts)')
 
   section('§3 the next request, same conversation: the new tool joins deferred, and the unreferenced deferred tool takes its new input on the wire — nothing bound moved, no restart')
   const poolV2: Tool[] = [ToolSearchTool as never, ...v2]
   const p2 = await plan(poolV2, messages)
-  check('the roster keeps its order and appends media_models at the end, deferred', j(p2.roster.map(nameOf).slice(0, p1.roster.length)) === j(p1.roster.map(nameOf)) && p2.roster.map(nameOf).at(-1) === modelsName && p2.deferredNames.has(modelsName), 'planToolPayload (src/services/providers/toolEconomy.ts) must keep the latched roster order and append new tools at the end, deferred: ' + j(p2.roster.map(nameOf)))
-  check('image_generate, listed but never referenced, is unbound', p2.isBound(generateName) === false, 'planToolPayload (src/services/providers/toolEconomy.ts) must bind only tools a conversation has referenced')
+  check('the roster keeps its order and appends media_models at the end, deferred', j(p2.roster.map(nameOf).slice(0, p1.roster.length)) === j(p1.roster.map(nameOf)) && p2.roster.map(nameOf).at(-1) === modelsName && p2.deferredNames.has(modelsName), 'planToolPayload (src/models/roads/toolEconomy.ts) must keep the latched roster order and append new tools at the end, deferred: ' + j(p2.roster.map(nameOf)))
+  check('image_generate, listed but never referenced, is unbound', p2.isBound(generateName) === false, 'planToolPayload (src/models/roads/toolEconomy.ts) must bind only tools a conversation has referenced')
   const liveGenerate = await render(v2.find(tool => tool.name === generateName)!, p2)
-  check('image_generate goes out with the three models at once (an unreferenced deferred tool is outside the bound prefix)', j(enumOf(liveGenerate)) === j(['z-image-turbo', 'flux2-klein-4b', 'qwen-image-21']), 'an unreferenced deferred tool must be rendered from its live definition in toolToAPISchema (src/services/messages/api.ts): ' + j(liveGenerate))
+  check('image_generate goes out with the three models at once (an unreferenced deferred tool is outside the bound prefix)', j(enumOf(liveGenerate)) === j(['z-image-turbo', 'flux2-klein-4b', 'qwen-image-21']), 'an unreferenced deferred tool must be rendered from its live definition in toolToAPISchema (src/engine/messages/apiSystemAndToolSchema.ts): ' + j(liveGenerate))
   const noDelta = await getToolSchemaDeltaAttachment(ctxFor(poolV2) as never, messages)
-  check('no schema delta row for a tool whose live definition already rides the wire', noDelta.length === 0, 'getToolSchemaDeltaAttachment (src/services/attachments/toolSchemaDelta.ts) must emit no row for a tool that is not bound: ' + j(noDelta))
+  check('no schema delta row for a tool whose live definition already rides the wire', noDelta.length === 0, 'getToolSchemaDeltaAttachment (src/engine/attachments/toolSchemaDelta.ts) must emit no row for a tool that is not bound: ' + j(noDelta))
 
   section('§4 a conversation that had already loaded image_generate through ToolSearch: its sent definition holds, and the new input reaches the model on a new row')
   clearConversationToolSchemas()
@@ -133,21 +133,21 @@ try {
   ]
   const r1 = await plan(poolV1, referenced)
   const boundSent = await render(v1.find(tool => tool.name === generateName)!, r1)
-  check('the loaded tool was sent with two models', j(enumOf(boundSent)) === j(['z-image-turbo', 'flux2-klein-4b']), 'toolToAPISchema (src/services/messages/api.ts) must send the opening schema for a tool the conversation loaded: ' + j(boundSent))
+  check('the loaded tool was sent with two models', j(enumOf(boundSent)) === j(['z-image-turbo', 'flux2-klein-4b']), 'toolToAPISchema (src/engine/messages/apiSystemAndToolSchema.ts) must send the opening schema for a tool the conversation loaded: ' + j(boundSent))
   const r2 = await plan(poolV2, referenced)
-  check('image_generate, referenced, is bound', r2.isBound(generateName) === true, 'planToolPayload (src/services/providers/toolEconomy.ts) must bind a tool named by a tool_reference in the messages')
+  check('image_generate, referenced, is bound', r2.isBound(generateName) === true, 'planToolPayload (src/models/roads/toolEconomy.ts) must bind a tool named by a tool_reference in the messages')
   const boundAgain = await render(v2.find(tool => tool.name === generateName)!, r2)
-  check('the wire keeps the definition the conversation was sent (two models): the bound prefix never moves', j(enumOf(boundAgain)) === j(['z-image-turbo', 'flux2-klein-4b']), 'a bound tool must keep its first sent definition in toolToAPISchema (src/services/messages/api.ts) and src/utils/toolSchemaCache.ts: ' + j(boundAgain))
+  check('the wire keeps the definition the conversation was sent (two models): the bound prefix never moves', j(enumOf(boundAgain)) === j(['z-image-turbo', 'flux2-klein-4b']), 'a bound tool must keep its first sent definition in toolToAPISchema (src/engine/messages/apiSystemAndToolSchema.ts) and src/models/roads/toolSchemaCache.ts: ' + j(boundAgain))
   const delta = await getToolSchemaDeltaAttachment(ctxFor(poolV2) as never, referenced)
   const deltaRow = delta[0] as { type: string; tools?: Array<{ name: string }>; body?: string } | undefined
-  check('the schema delta row names image_generate with the three models, so the model can ask for qwen-image-21 without a restart', delta.length === 1 && deltaRow?.type === 'tool_schema_delta' && j(deltaRow.tools?.map(t => t.name)) === j([generateName]) && (deltaRow.body ?? '').includes('qwen-image-21'), 'getToolSchemaDeltaAttachment (src/services/attachments/toolSchemaDelta.ts) must emit one tool_schema_delta row naming the changed bound tool and its new input: ' + j(delta))
+  check('the schema delta row names image_generate with the three models, so the model can ask for qwen-image-21 without a restart', delta.length === 1 && deltaRow?.type === 'tool_schema_delta' && j(deltaRow.tools?.map(t => t.name)) === j([generateName]) && (deltaRow.body ?? '').includes('qwen-image-21'), 'getToolSchemaDeltaAttachment (src/engine/attachments/toolSchemaDelta.ts) must emit one tool_schema_delta row naming the changed bound tool and its new input: ' + j(delta))
   const result = await client.client.callTool({ name: 'image_generate', arguments: { prompt: 'a rune', model: 'qwen-image-21' } })
   check('a call with the new model name is accepted by the server', j(result.content).includes('with qwen-image-21'), 'the image_generate tool of scripts/mcp/_fixture-list-changed-server.mjs did not accept the installed model: ' + j(result.content))
 
   section('§5 /mcp reconnect for a server that does not announce: the reconnected server starts with the installed model and its tools are read afresh')
   await mcp.clearServerCache(NAME, scoped)
   const again = await mcp.reconnectMcpServerImpl(NAME, scoped)
-  check('the reconnect landed with the three-model image_generate and media_models', again.client.type === 'connected' && again.tools.map(nameOf).includes(modelsName) && j((again.tools.find(tool => tool.name === generateName) as { inputJSONSchema?: unknown })?.inputJSONSchema).includes('qwen-image-21'), 'reconnectMcpServerImpl (src/services/mcp/client.ts) must read the tools afresh after clearServerCache: ' + j(again.tools.map(nameOf)))
+  check('the reconnect landed with the three-model image_generate and media_models', again.client.type === 'connected' && again.tools.map(nameOf).includes(modelsName) && j((again.tools.find(tool => tool.name === generateName) as { inputJSONSchema?: unknown })?.inputJSONSchema).includes('qwen-image-21'), 'reconnectMcpServerImpl (src/integrations/mcp/client.ts) must read the tools afresh after clearServerCache: ' + j(again.tools.map(nameOf)))
   if (again.client.type === 'connected') await again.client.client.close().catch(() => {})
 } finally {
   await mcp.clearServerCache(NAME, scoped).catch(() => {})

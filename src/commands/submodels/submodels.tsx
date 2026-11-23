@@ -1,8 +1,8 @@
 import * as React from 'react'
-import { CommandCenter } from '../../components/mercury-ui/components.js'
-import { SubModelPicker, type SubModelRoutePick } from '../../components/SubModelPicker.js'
-import { setSubModel, type SubModelContainer } from '../../services/model/subModelSlots.js'
-import type { LocalJSXCommandCall, LocalJSXCommandOnDone } from '../../types/command.js'
+import { CommandCenter } from '../../screen/widgets/components.js'
+import { SubModelPicker, type SubModelRoutePick } from './SubModelPicker.js'
+import { setSubModel, type SubModelContainer } from '../../models/catalogue/subModelSlots.js'
+import type { LocalJSXCommandCall, LocalJSXCommandOnDone } from '../catalogue/command.js'
 
 
 let parkedPick: { container: SubModelContainer; modelId: string } | null = null

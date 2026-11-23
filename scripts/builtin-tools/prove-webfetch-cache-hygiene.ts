@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { LRUCache } from 'lru-cache'
-import { getPrompt } from '../../src/tools/WebFetchTool/prompt.ts'
+import { getPrompt } from '../../src/tools/web-fetch/prompt.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -29,12 +29,12 @@ console.log('prove-webfetch-cache-hygiene — the self-cleaning cache is literal
   check(
     'WITHOUT autopurge the expired page is unservable yet its bytes linger (the class is real)',
     lingering > 0 && bare.get('u') === undefined,
-    `calculatedSize=${lingering}; this models the lru-cache behaviour that urlCache in src/tools/WebFetchTool/utils.ts guards with ttlAutopurge, so a failure means the lru-cache package changed`,
+    `calculatedSize=${lingering}; this models the lru-cache behaviour that urlCache in src/tools/web-fetch/fetchContent.ts guards with ttlAutopurge, so a failure means the lru-cache package changed`,
   )
   check(
     'WITH autopurge the expired page drains on the timer',
     purged.get('u') === undefined && purged.calculatedSize === 0,
-    `calculatedSize=${purged.calculatedSize}; urlCache in src/tools/WebFetchTool/utils.ts relies on ttlAutopurge: true, so a failure means the lru-cache package changed`,
+    `calculatedSize=${purged.calculatedSize}; urlCache in src/tools/web-fetch/fetchContent.ts relies on ttlAutopurge: true, so a failure means the lru-cache package changed`,
   )
 }
 
@@ -43,9 +43,9 @@ console.log('prove-webfetch-cache-hygiene — the self-cleaning cache is literal
   check(
     'the prompt discloses the fifteen-minute repeat-fetch lifetime once',
     prompt.split('Repeat pulls ride a fifteen-minute cache.').length === 2,
-    'change getPrompt in src/tools/WebFetchTool/prompt.ts so the sentence appears exactly once',
+    'change getPrompt in src/tools/web-fetch/prompt.ts so the sentence appears exactly once',
   )
-  check('the disclosure stays in one paragraph under 340 bytes', !prompt.includes('\n') && Buffer.byteLength(prompt) <= 340, `${String(Buffer.byteLength(prompt))} bytes; shorten getPrompt in src/tools/WebFetchTool/prompt.ts to one paragraph of at most 340 bytes`)
+  check('the disclosure stays in one paragraph under 340 bytes', !prompt.includes('\n') && Buffer.byteLength(prompt) <= 340, `${String(Buffer.byteLength(prompt))} bytes; shorten getPrompt in src/tools/web-fetch/prompt.ts to one paragraph of at most 340 bytes`)
 }
 
 console.log('')

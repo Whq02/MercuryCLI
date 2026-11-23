@@ -3,11 +3,11 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, ownerOf, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
-import type { DesktopDriver } from '../../src/services/desktop/driver.ts'
+import type { DesktopDriver } from '../../src/integrations/desktop/driver.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const session = await import('../../src/services/desktop/desktopSession.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const session = await import('../../src/integrations/desktop/desktopSession.ts')
 const app = { identity: 'com.example.Editor', name: 'Editor', pid: 123, windowId: 'editor', title: 'Document', bounds: { x: 0, y: 0, width: 400, height: 300 } }
 const scene = join(scratchDir('sequence-lines'), 'scene.json')
 writeFileSync(scene, JSON.stringify({ displays: [{ index: 0, id: 'proof', originX: 0, originY: 0, width: 400, height: 300, scale: 2, primary: true }], frontmost: app, cursor: { x: 50, y: 50 }, lines: ['Editor proof'], tree: [{ role: 'AXButton', title: 'Save', frame: { x: 100, y: 80, width: 40, height: 20 } }] }))

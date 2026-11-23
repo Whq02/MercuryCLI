@@ -20,14 +20,14 @@ async function* scriptedMachine(): AsyncGenerator<unknown, Terminal> {
   return { reason: 'completed' }
 }
 
-mock.module('../../src/run-core/turn-machine.ts', () => ({
+mock.module('../../src/engine/loop/turn-machine.ts', () => ({
   runEventCore: () => scriptedMachine(),
 }))
 
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const sidecar = await import('../../src/services/run/runSidecar.ts')
-const coord = await import('../../src/services/run/runCoordinator.ts')
-const { queryEvents } = await import('../../src/query.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const sidecar = await import('../../src/engine/run/runSidecar.ts')
+const coord = await import('../../src/engine/run/runCoordinator.ts')
+const { queryEvents } = await import('../../src/engine/turnDoor.ts')
 
 function paramsFor(owner: string): unknown {
   return {

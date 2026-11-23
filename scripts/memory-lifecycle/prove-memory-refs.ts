@@ -7,13 +7,13 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'refs-home-'))
 
-const { appendObservation } = await import('../../src/mneme/mnemeBuffer.ts')
-const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { collectMemoryRefs, renderMemoryRefLine } = await import('../../src/mneme/memoryRefs.ts')
-const { lookupTokens } = await import('../../src/mneme/mnemeLookup.ts')
+const { appendObservation } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { collectMemoryRefs, renderMemoryRefLine } = await import('../../src/sessions/mneme/memoryRefs.ts')
+const { lookupTokens } = await import('../../src/sessions/mneme/mnemeLookup.ts')
 
 let failures = 0
-const REFS_FIX_HINT = 'change the code, not the check: ref selection, ranking, freshness and the render line are in src/mneme/memoryRefs.ts (collectMemoryRefs, renderMemoryRefLine); the query tokens and filler words are in src/mneme/mnemeLookup.ts (lookupTokens)'
+const REFS_FIX_HINT = 'change the code, not the check: ref selection, ranking, freshness and the render line are in src/sessions/mneme/memoryRefs.ts (collectMemoryRefs, renderMemoryRefLine); the query tokens and filler words are in src/sessions/mneme/mnemeLookup.ts (lookupTokens)'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? ' — to fix: ' + REFS_FIX_HINT : ''}`)
   if (!cond) failures++

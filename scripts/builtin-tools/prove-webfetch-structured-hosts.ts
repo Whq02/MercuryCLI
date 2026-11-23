@@ -15,10 +15,10 @@ process.env.GITHUB_TOKEN = 'ghp_fixture_review_not_a_secret'
 process.env.GH_TOKEN = 'ghp_fixture_review_not_a_secret'
 process.env.NPM_TOKEN = 'npm_fixture_review_not_a_secret'
 
-const { WebFetchTool } = await import('../../src/tools/WebFetchTool/WebFetchTool.js')
-const { clearWebFetchCache } = await import('../../src/tools/WebFetchTool/utils.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { DESCRIPTION, getPrompt } = await import('../../src/tools/WebFetchTool/prompt.js')
+const { WebFetchTool } = await import('../../src/tools/web-fetch/WebFetchTool.js')
+const { clearWebFetchCache } = await import('../../src/tools/web-fetch/fetchContent.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { DESCRIPTION, getPrompt } = await import('../../src/tools/web-fetch/prompt.js')
 
 const FIXTURES = join(import.meta.dir, 'fixtures', 'webfetch', 'structured')
 const readFixture = (name: string): string => readFileSync(join(FIXTURES, name), 'utf8')
@@ -236,7 +236,7 @@ const callFetch = async (url: string): Promise<{ code: number; result: string }>
     { url },
     { abortController: new AbortController(), options: { isNonInteractiveSession: true } } as never,
   )
-  assert.ok('data' in res, `WebFetchTool.call(${url}) in src/tools/WebFetchTool/WebFetchTool.ts must return a data payload`)
+  assert.ok('data' in res, `WebFetchTool.call(${url}) in src/tools/web-fetch/WebFetchTool.ts must return a data payload`)
   return { code: res.data.code, result: res.data.result }
 }
 
@@ -595,7 +595,7 @@ try {
       `${aheadDone.code} ${nextDone.code}`,
     )
 
-    const { hasPermissionsToUseTool } = await import('../../src/utils/permissions/permissions.js')
+    const { hasPermissionsToUseTool } = await import('../../src/permissions/rules/permissionDoor.js')
     for (const mode of ['default', 'sovereign'] as const) {
       const context = {
         abortController: new AbortController(),

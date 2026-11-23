@@ -3,8 +3,8 @@ import { spawnSync } from 'node:child_process'
 import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, renameSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, relative, resolve } from 'node:path'
-import type { PathEntryIo, PathEntryOutcome, UserPathRead } from '../../src/services/privateChannel/installPath.js'
-import { resolveLayoutRoots, type LayoutRoots } from '../../src/services/privateChannel/installLayout.js'
+import type { PathEntryIo, PathEntryOutcome, UserPathRead } from '../../src/platform/update-channel/installPath.js'
+import { resolveLayoutRoots, type LayoutRoots } from '../../src/platform/update-channel/installLayout.js'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 
@@ -70,8 +70,8 @@ const {
   WIN32_READ_USER_PATH_PS1,
   WIN32_USER_PATH_STORE,
   WIN32_WRITE_USER_PATH_PS1,
-} = await import('../../src/services/privateChannel/installPath.js')
-const { describePathOutcome, describePathRemoval } = await import('../../src/cli/installVerb.js')
+} = await import('../../src/platform/update-channel/installPath.js')
+const { describePathOutcome, describePathRemoval } = await import('../../src/commands/verbs/installVerb.js')
 const { cmdLauncher, parseEnginesNode, posixLauncher, ps1Launcher } = (await import('../release/launcherTemplates.mjs')) as {
   cmdLauncher: (p: unknown) => string
   parseEnginesNode: (range: string | undefined) => unknown
@@ -89,7 +89,7 @@ const NODE_POLICY = parseEnginesNode(pkg.engines?.node)
 const IS_WIN = process.platform === 'win32'
 
 let failures = 0
-const FIX_WHERE_HINT = 'to fix, change the PATH decision in src/services/privateChannel/installPath.ts (ensureBinDirOnPath, removeBinDirFromPath), the printed lines in src/cli/installVerb.ts (describePathOutcome, describePathRemoval), or the launchers in scripts/release/launcherTemplates.mjs, whichever this check names'
+const FIX_WHERE_HINT = 'to fix, change the PATH decision in src/platform/update-channel/installPath.ts (ensureBinDirOnPath, removeBinDirFromPath), the printed lines in src/commands/verbs/installVerb.ts (describePathOutcome, describePathRemoval), or the launchers in scripts/release/launcherTemplates.mjs, whichever this check names'
 const check = (name: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail} — ` : ''}${FIX_WHERE_HINT}`}`)
   if (!cond) failures++

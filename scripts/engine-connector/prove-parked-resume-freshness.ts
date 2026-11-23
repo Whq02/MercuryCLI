@@ -12,32 +12,32 @@ const work = join(home, 'work')
 process.env.MERCURY_DAEMON_DIR = daemon
 mkdirSync(daemon, { recursive: true })
 mkdirSync(work, { recursive: true })
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const ensure = await import('../../src/services/switchboard/ensureDaemon.js')
-mock.module('../../src/services/switchboard/ensureDaemon.js', () => ({ ...ensure, ensureOwnedDaemon: async () => true }))
-const control = await import('../../src/daemon/controlSocket.js')
+const ensure = await import('../../src/daemon/switchboard/ensureDaemon.js')
+mock.module('../../src/daemon/switchboard/ensureDaemon.js', () => ({ ...ensure, ensureOwnedDaemon: async () => true }))
+const control = await import('../../src/daemon/control/controlSocket.js')
 let answer!: (reply: Record<string, unknown>) => void
 let admission = new Promise<Record<string, unknown>>(resolve => { answer = resolve })
 const asked: Array<Record<string, unknown>> = []
 let pingAnswers = true
 let scripted: (request: Record<string, unknown>) => Record<string, unknown> | Promise<Record<string, unknown>> | undefined = () => undefined
 let unreachableAt = 0
-mock.module('../../src/daemon/controlSocket.js', () => ({ ...control, daemonLastUnreachableAt: () => unreachableAt, daemonControlRpc: async (request: { op: string }) => {
+mock.module('../../src/daemon/control/controlSocket.js', () => ({ ...control, daemonLastUnreachableAt: () => unreachableAt, daemonControlRpc: async (request: { op: string }) => {
   asked.push(request as Record<string, unknown>)
   const reply = request.op === 'ping' && !pingAnswers ? { ok: false, code: 'ENOCONN', error: 'daemon unreachable (ENOENT)' } : await (scripted(request as Record<string, unknown>) ?? (request.op === 'sessionAdmit' ? admission : { ok: true, outcome: 'applied' }))
   if (reply.code === 'ENOCONN') unreachableAt = Date.now()
   return reply
 } }))
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.js')
-const { sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.js')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const { getFocusedSessionConnector, releaseFocusedSessionConnector, setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
-const { daemonSessionConnectorFor } = await import('../../src/services/engine-connector/daemonConnector.js')
-const { focusResumedSession } = await import('../../src/services/switchboard/hopIntoSession.js')
-const { statusLine } = await import('../../src/components/SwitchboardTagBar.js')
-const { sessionOwnedByLiveWorker } = await import('../../src/daemon/concourseWorkers.js')
-const { subscribeSeatReceipts } = await import('../../src/utils/model/seatReceipts.js')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.js')
+const { sessionFactsPath } = await import('../../src/engine/connector/seatProjections.js')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+const { getFocusedSessionConnector, releaseFocusedSessionConnector, setFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.js')
+const { daemonSessionConnectorFor } = await import('../../src/engine/connector/daemonConnector.js')
+const { focusResumedSession } = await import('../../src/daemon/switchboard/hopIntoSession.js')
+const { statusLine } = await import('../../src/screen/chat/SwitchboardTagBar.js')
+const { sessionOwnedByLiveWorker } = await import('../../src/daemon/concourse-workers/concourseWorkers.js')
+const { subscribeSeatReceipts } = await import('../../src/models/facts/seatReceipts.js')
 const receipts: string[] = []
 subscribeSeatReceipts(receipt => { receipts.push(receipt.text) })
 const sid = '00000000-0000-4000-8000-000000000099'
@@ -59,9 +59,9 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — to change: the resume path is focusResumedSession in src/services/switchboard/hopIntoSession.ts and the admission wait of DaemonSessionConnector (AdmissionPart in src/services/engine-connector/daemon/admission.ts); the row words come from statusLine in src/components/SwitchboardTagBar.tsx; the fixture records (concourse-workers.json, the session facts file, the scripted daemonControlRpc) are at the top of this file'}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — to change: the resume path is focusResumedSession in src/daemon/switchboard/hopIntoSession.ts and the admission wait of DaemonSessionConnector (AdmissionPart in src/engine/connector/daemon/admission.ts); the row words come from statusLine in src/screen/chat/SwitchboardTagBar.tsx; the fixture records (concourse-workers.json, the session facts file, the scripted daemonControlRpc) are at the top of this file'}`)
 }
-const focused = () => getFocusedSessionConnector() as ReturnType<typeof getFocusedSessionConnector> & { live: () => import('../../src/services/engine-connector/seatLive.js').SessionLiveV1; status: () => import('../../src/services/engine-connector/seatLive.js').SeatStatusV1; readFacts: () => void }
+const focused = () => getFocusedSessionConnector() as ReturnType<typeof getFocusedSessionConnector> & { live: () => import('../../src/engine/connector/seatLive.js').SessionLiveV1; status: () => import('../../src/engine/connector/seatLive.js').SeatStatusV1; readFacts: () => void }
 const words = (): string => statusLine(focused().live(), focused().status())
 const waitNextAdmission = (): void => { admission = new Promise(resolve => { answer = resolve }) }
 const resumed = async (): Promise<Awaited<ReturnType<typeof focusResumedSession>>> => {

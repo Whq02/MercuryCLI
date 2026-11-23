@@ -4,7 +4,7 @@ import {
   helmRowAction,
   helmRowSig,
   type HelmRow,
-} from '../../src/utils/cockpit/helmFocus.js'
+} from '../../src/screen/cockpit/helmFocus.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = '', hint = ''): void {
@@ -21,7 +21,7 @@ console.log('============================================================')
 
 section('helmFocus — no console row kind (pure)')
 const commandRow: HelmRow = { kind: 'command', command: '/health', label: 'open' }
-check('a command row is a plain command action', helmRowAction(commandRow)?.type === 'command' && helmRowSig(commandRow) === 'c:/health:open', '', 'change helmRowAction (type command) or helmRowSig (c:<command>:<label>) in src/utils/cockpit/helmFocus.ts')
+check('a command row is a plain command action', helmRowAction(commandRow)?.type === 'command' && helmRowSig(commandRow) === 'c:/health:open', '', 'change helmRowAction (type command) or helmRowSig (c:<command>:<label>) in src/screen/cockpit/helmFocus.ts')
 
 
 console.log('')

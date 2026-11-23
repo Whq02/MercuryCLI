@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/BashTool/pathValidation.ts src/utils/permissions/filesystem.ts src/bootstrap/state.ts
+// gate-watch: src/tools/shell/pathValidation.ts src/permissions/rules/filesystem.ts src/boot/process-state/processState.ts
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -13,14 +13,14 @@ for (const dir of [project, outside, home]) mkdirSync(dir)
 process.env.MERCURY_CONFIG_DIR = home
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+const { setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
 setOriginalCwd(project)
 const { checkParsedPaths: checkPathConstraints } = await import('../bash/floor-proof-helpers.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  const refusalWhere = 'a shell write is an ordinary permission ask naming the permission card and the single starting folder; fix checkPathConstraints in src/tools/BashTool/pathValidation.ts'
+  const refusalWhere = 'a shell write is an ordinary permission ask naming the permission card and the single starting folder; fix checkPathConstraints in src/tools/shell/pathValidation.ts'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${ok ? '' : `${detail ? ' ' : ' — '}(${refusalWhere})`}`)
 }
 try {

@@ -27,8 +27,8 @@ const check = (label: string, ok: boolean, detail = '', hint = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { parseSettingsFile } = await import('../../src/utils/settings/settings.ts')
-const { settingsFaultLine } = await import('../../src/utils/settings/validation.ts')
+const { parseSettingsFile } = await import('../../src/platform/settings/settings.ts')
+const { settingsFaultLine } = await import('../../src/platform/settings/validation.ts')
 let n = 0
 const parse = (body: unknown): ReturnType<typeof parseSettingsFile> => {
   const path = join(process.env.MERCURY_CONFIG_DIR as string, `case-${n++}.json`)
@@ -39,14 +39,14 @@ const parse = (body: unknown): ReturnType<typeof parseSettingsFile> => {
 section('§1 an unknown settings key is a named warning at load — the file still applies')
 {
   const root = parse({ zzzFieldWalkUnknownKey: true, engine: { model: 'claude-opus-5-5' } })
-  check('a root-level unknown key is one validation record', root.errors.length === 1, JSON.stringify(root.errors), 'parseSettingsFile in src/utils/settings/settings.ts must return one validation record for an unknown root key')
+  check('a root-level unknown key is one validation record', root.errors.length === 1, JSON.stringify(root.errors), 'parseSettingsFile in src/platform/settings/settings.ts must return one validation record for an unknown root key')
   const first = root.errors[0]
-  check('…with the generic unknown-field words and the key named', first?.message === 'Unrecognized field: zzzFieldWalkUnknownKey', first?.message, 'the unknown-field message is built in src/utils/settings/validation.ts; it must read Unrecognized field: and the key')
+  check('…with the generic unknown-field words and the key named', first?.message === 'Unrecognized field: zzzFieldWalkUnknownKey', first?.message, 'the unknown-field message is built in src/platform/settings/validation.ts; it must read Unrecognized field: and the key')
   check('…at the root path', first?.path === '', JSON.stringify(first?.path))
-  check('…graded a warning (the rest of the file applies), with the generic tip', first?.severity === 'warning' && /typos/.test(first?.suggestion ?? ''), JSON.stringify(first), 'an unknown key must be graded warning with the generic typos tip; see src/utils/settings/validation.ts')
-  check('…and the known keys beside it still load', root.settings?.engine?.model === 'claude-opus-5-5', JSON.stringify(root.settings), 'parseSettingsFile in src/utils/settings/settings.ts must still apply known keys when an unknown key is present')
+  check('…graded a warning (the rest of the file applies), with the generic tip', first?.severity === 'warning' && /typos/.test(first?.suggestion ?? ''), JSON.stringify(first), 'an unknown key must be graded warning with the generic typos tip; see src/platform/settings/validation.ts')
+  check('…and the known keys beside it still load', root.settings?.engine?.model === 'claude-opus-5-5', JSON.stringify(root.settings), 'parseSettingsFile in src/platform/settings/settings.ts must still apply known keys when an unknown key is present')
   const nested = parse({ engine: { modell: 'x', model: 'claude-opus-5-5' } })
-  check('a typo inside a known group is named with its group path', nested.errors.length === 1 && nested.errors[0]?.path === 'engine' && nested.errors[0]?.message === 'Unrecognized field: modell', JSON.stringify(nested.errors), 'the record for a nested unknown key must carry the group path; see src/utils/settings/validation.ts')
+  check('a typo inside a known group is named with its group path', nested.errors.length === 1 && nested.errors[0]?.path === 'engine' && nested.errors[0]?.message === 'Unrecognized field: modell', JSON.stringify(nested.errors), 'the record for a nested unknown key must carry the group path; see src/platform/settings/validation.ts')
   const both = parse({ zzFieldUnknownKey: true, engine: { modell: 'x' } })
   check('two unknown keys are two records', both.errors.length === 2 && both.errors.every(e => e.severity === 'warning'), JSON.stringify(both.errors.map(e => `${e.path}:${e.message}`)))
   const clean = parse({ $schema: 'x', engine: { model: 'claude-opus-5-5', effort: 'high' }, guardrails: { allow: ['Read'] }, events: { hooks: { 'tool.before': [{ match: '*', run: 'true' }] } } })
@@ -54,7 +54,7 @@ section('§1 an unknown settings key is a named warning at load — the file sti
   const beside = parse({ engine: { modell: 'x' }, events: { hooks: { 'tool.before': [{ match: 'startu[p', run: 'true' }] } } })
   check('an unknown key beside a refused hook entry: both named, both warnings', beside.errors.length === 2 && beside.errors.some(e => /not a valid regular expression/.test(e.message)) && beside.errors.some(e => e.message === 'Unrecognized field: modell'), JSON.stringify(beside.errors.map(e => e.message)))
   const line = settingsFaultLine(nested.errors[0]!)
-  check('the one-line form names the file, the path, the words and the effect', /settings: .*case-1\.json · engine · Unrecognized field: modell — this value is skipped; the rest of the file applies$/.test(line), line, 'fix settingsFaultLine in src/utils/settings/validation.ts so it prints file, path, words and effect')
+  check('the one-line form names the file, the path, the words and the effect', /settings: .*case-1\.json · engine · Unrecognized field: modell — this value is skipped; the rest of the file applies$/.test(line), line, 'fix settingsFaultLine in src/platform/settings/validation.ts so it prints file, path, words and effect')
 }
 
 const API_KEY = 'fixture-key-000'
@@ -126,7 +126,7 @@ section('§3 the built product: a headless run names every settings fault on std
   const r = await run(world, ['run', '--format', 'text', '--resume', 'notauuid', 'hi'])
   check('the run still refuses the bad resume target as a usage error (exit 2) — no model call', r.code === 2, `${r.code} · ${r.err.trim().slice(0, 160)}`, 'mercury run with a bad --resume id must exit 2 as a usage error before any model call')
   const lines = r.err.split('\n').filter(l => /settings: /.test(l))
-  check('two settings lines on stderr, one per fault', lines.length === 2, r.err.trim().slice(0, 400), 'a headless run must print one settings: line on stderr per settings fault, using settingsFaultLine in src/utils/settings/validation.ts')
+  check('two settings lines on stderr, one per fault', lines.length === 2, r.err.trim().slice(0, 400), 'a headless run must print one settings: line on stderr per settings fault, using settingsFaultLine in src/platform/settings/validation.ts')
   check('the refused hook entry is named with its path and words', lines.some(l => /settings\.json · events\.hooks\.tool\.after\.0 · match is not a valid regular expression: "startu\[p" — this value is skipped; the rest of the file applies/.test(l)), lines.join(' | '))
   check('the unknown key is named with the generic words', lines.some(l => /settings\.json · engine · Unrecognized field: modell — this value is skipped; the rest of the file applies/.test(l)), lines.join(' | '))
   check('nothing about settings reaches stdout', !/settings: /.test(r.out), r.out.slice(0, 200), 'settings fault lines belong on stderr only')

@@ -9,10 +9,10 @@ import {
   REOPEN_GRACE_MS,
   WALL_RECHECK_MS,
   type WatchWall,
-} from '../../src/tools/MonitorTool/watchMailbox.ts'
-import { MonitorTool, monitorExpiryNotice } from '../../src/tools/MonitorTool/MonitorTool.ts'
-import * as monitorModule from '../../src/tools/MonitorTool/MonitorTool.ts'
-import { formatZodValidationError } from '../../src/utils/toolErrors.ts'
+} from '../../src/tools/monitor/watchMailbox.ts'
+import { MonitorTool, monitorExpiryNotice } from '../../src/tools/monitor/MonitorTool.ts'
+import * as monitorModule from '../../src/tools/monitor/MonitorTool.ts'
+import { formatZodValidationError } from '../../src/tools/kit/toolErrors.ts'
 
 let failures = 0
 let hintFor = ''
@@ -57,7 +57,7 @@ function harness(wall: WatchWall) {
 
 {
   const h = harness({ closed: false })
-  hintFor = 'createWatchMailbox in src/tools/MonitorTool/watchMailbox.ts must fold lines inside BURST_WINDOW_MS into one delivery and leave no timer armed after it'
+  hintFor = 'createWatchMailbox in src/tools/monitor/watchMailbox.ts must fold lines inside BURST_WINDOW_MS into one delivery and leave no timer armed after it'
   h.mailbox.push('one\n')
   h.advance(50)
   h.mailbox.push('two\n')
@@ -72,7 +72,7 @@ function harness(wall: WatchWall) {
 
 {
   const h = harness({ closed: false })
-  hintFor = 'createWatchMailbox in src/tools/MonitorTool/watchMailbox.ts must arm no timer and deliver nothing for an idle watch or blank lines'
+  hintFor = 'createWatchMailbox in src/tools/monitor/watchMailbox.ts must arm no timer and deliver nothing for an idle watch or blank lines'
   h.advance(24 * 60 * 60 * 1000)
   check('a quiet watch delivers nothing and arms nothing', h.delivered.length === 0 && h.live().length === 0)
   h.mailbox.push('\n\n')
@@ -82,7 +82,7 @@ function harness(wall: WatchWall) {
 
 {
   const h = harness({ closed: false })
-  hintFor = 'createWatchMailbox in src/tools/MonitorTool/watchMailbox.ts must hold lines while the wall is closed, re-check at reopensAtMs plus REOPEN_GRACE_MS, then flush them as one notification under heldHeader'
+  hintFor = 'createWatchMailbox in src/tools/monitor/watchMailbox.ts must hold lines while the wall is closed, re-check at reopensAtMs plus REOPEN_GRACE_MS, then flush them as one notification under heldHeader'
   h.mailbox.push('early\n')
   h.advance(BURST_WINDOW_MS)
   check('a line that lands with the window open is delivered at once', h.delivered.length === 1 && h.delivered[0] === 'early')
@@ -114,7 +114,7 @@ function harness(wall: WatchWall) {
 
 {
   const h = harness({ closed: true })
-  hintFor = 'createWatchMailbox in src/tools/MonitorTool/watchMailbox.ts must re-check a closed wall with no reopen time every WALL_RECHECK_MS, and a fresh line after reopening must carry the held lines in one notification'
+  hintFor = 'createWatchMailbox in src/tools/monitor/watchMailbox.ts must re-check a closed wall with no reopen time every WALL_RECHECK_MS, and a fresh line after reopening must carry the held lines in one notification'
   h.mailbox.push('held while closed\n')
   h.advance(BURST_WINDOW_MS)
   check('a closed window with no stated reopen time re-checks on the long bound', h.live().length === 1 && h.live()[0]!.at - h.nowMs() === WALL_RECHECK_MS)
@@ -129,7 +129,7 @@ function harness(wall: WatchWall) {
 
 {
   const h = harness({ closed: false })
-  hintFor = 'LISTED_LINES_CAP and the trailer text in src/tools/MonitorTool/watchMailbox.ts decide how many lines a notification lists and how the rest is counted'
+  hintFor = 'LISTED_LINES_CAP and the trailer text in src/tools/monitor/watchMailbox.ts decide how many lines a notification lists and how the rest is counted'
   const many = Array.from({ length: LISTED_LINES_CAP + 5 }, (_, i) => `line ${i + 1}`)
   h.mailbox.push(`${many.join('\n')}\n`)
   h.advance(BURST_WINDOW_MS)
@@ -139,7 +139,7 @@ function harness(wall: WatchWall) {
 
 {
   const h = harness({ closed: true })
-  hintFor = 'HELD_LINES_CAP and the flush in src/tools/MonitorTool/watchMailbox.ts must count every held line in the header and the trailer'
+  hintFor = 'HELD_LINES_CAP and the flush in src/tools/monitor/watchMailbox.ts must count every held line in the header and the trailer'
   for (let i = 0; i < HELD_LINES_CAP + 50; i++) h.mailbox.push(`held ${i + 1}\n`)
   h.advance(BURST_WINDOW_MS)
   check('the held buffer is bounded and counts what it dropped', h.mailbox.heldCount() === HELD_LINES_CAP + 50)
@@ -152,7 +152,7 @@ function harness(wall: WatchWall) {
 
 {
   const h = harness({ closed: true })
-  hintFor = 'the dispose method of createWatchMailbox in src/tools/MonitorTool/watchMailbox.ts must clear every timer and drop held lines'
+  hintFor = 'the dispose method of createWatchMailbox in src/tools/monitor/watchMailbox.ts must clear every timer and drop held lines'
   h.mailbox.push('doomed\n')
   h.mailbox.dispose()
   h.advance(WALL_RECHECK_MS * 2)
@@ -160,7 +160,7 @@ function harness(wall: WatchWall) {
 }
 
 {
-  hintFor = 'monitorExpiryNotice in src/tools/MonitorTool/MonitorTool.ts, the Monitor tool prompt and the timeout_ms field description under src/tools/MonitorTool carry these words'
+  hintFor = 'monitorExpiryNotice in src/tools/monitor/MonitorTool.ts, the Monitor tool prompt and the timeout_ms field description under src/tools/monitor carry these words'
   const notice = monitorExpiryNotice('the comms watch', 'b1', 300_000, 3)
   check('the expiry notice names the watch, the deadline and the event count', notice.includes('"the comms watch"') && notice.includes('task b1') && notice.includes('300s') && notice.includes('3 events'))
   check('the expiry notice says how to re-arm and names the persistent flag', notice.includes('calling Monitor again with the same command') && notice.includes('persistent: true'))
@@ -172,7 +172,7 @@ function harness(wall: WatchWall) {
 }
 
 {
-  hintFor = 'monitorDeadline, the inputSchema timeout_ms field and mapToolResultToToolResultBlockParam in src/tools/MonitorTool/MonitorTool.ts own the clamp rules and their wording'
+  hintFor = 'monitorDeadline, the inputSchema timeout_ms field and mapToolResultToToolResultBlockParam in src/tools/monitor/MonitorTool.ts own the clamp rules and their wording'
   type Deadline = (timeoutMs: number | undefined, persistent: boolean | undefined) => { timeoutMs: number; clamped: string | null }
   const monitorDeadline = (monitorModule as { monitorDeadline?: Deadline }).monitorDeadline
   const base = { description: 'watch', command: 'echo hi' }

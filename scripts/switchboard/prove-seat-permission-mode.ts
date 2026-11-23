@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-const seatModeFailHint = 'change seatInitialPermissionMode in src/daemon/concourseWorkers/spec.ts (the mode a seat boots in: the override, else the saved guardrails.mode in settings.json, else default; a saved sovereign or unknown word gives default)'
+const seatModeFailHint = 'change seatInitialPermissionMode in src/daemon/concourse-workers/spec.ts (the mode a seat boots in: the override, else the saved guardrails.mode in settings.json, else default; a saved sovereign or unknown word gives default)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? detail : detail ? `${detail}; ${seatModeFailHint}` : seatModeFailHint
@@ -22,7 +22,7 @@ function resolveIn(opts: { defaultMode?: string; override?: string; home?: strin
     writeFileSync(join(home, 'settings.json'), JSON.stringify(settings))
   }
   const src = `
-    import { seatInitialPermissionMode } from ${JSON.stringify(join(HERE, '../../src/daemon/concourseWorkers.ts'))}
+    import { seatInitialPermissionMode } from ${JSON.stringify(join(HERE, '../../src/daemon/concourse-workers/concourseWorkers.ts'))}
     const override = process.env.__OVERRIDE__ && process.env.__OVERRIDE__.length > 0 ? process.env.__OVERRIDE__ : undefined
     process.stdout.write(String(seatInitialPermissionMode(override)))
   `

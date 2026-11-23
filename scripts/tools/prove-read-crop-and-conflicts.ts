@@ -13,12 +13,12 @@ process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { unresolvedConflictBlocks } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { imageDimensionsFromHeader } = await import('../../src/utils/imageProcessor/imageProcessorJs.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { unresolvedConflictBlocks } = await import('../../src/tools/read/ReadTool.ts')
+const { imageDimensionsFromHeader } = await import('../../src/platform/images/imageProcessorJs.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
 let failures = 0
@@ -26,7 +26,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 400 ? `${detail.slice(0, 400)}…` : detail}` : ''}${cond ? '' : checkFixHint}`)
 }
-const checkFixHint = ' | fix: crop and scale handling is in src/tools/FileReadTool/read/image.ts (refusals and captions), the crop and scale parameters in read/schema.ts, the crop-ignored note in read/call.ts, the conflict-block count line in read/serialize.ts (unresolvedConflictBlocks); the JavaScript road is extract and resize in src/utils/imageProcessor/imageProcessorJs.ts'
+const checkFixHint = ' | fix: crop and scale handling is in src/tools/read/call/image.ts (refusals and captions), the crop and scale parameters in read/schema.ts, the crop-ignored note in read/call.ts, the conflict-block count line in read/serialize.ts (unresolvedConflictBlocks); the JavaScript road is extract and resize in src/platform/images/imageProcessorJs.ts'
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
 }
@@ -124,7 +124,7 @@ section('A. a crop box is cut from the original pixels before any downscale')
   check('A5 a box on a small image is exact to the pixel (8x4 to the right 4x4)', tiny.ok && sizeOf(tiny.data)?.width === 4 && sizeOf(tiny.data)?.height === 4, messageOf(tiny))
   const full = await read({ file_path: small, crop: [0, 0, 8, 4] })
   check('A6 a box that is the whole image is the whole image', full.ok && sizeOf(full.data)?.width === 8 && sizeOf(full.data)?.height === 4, messageOf(full))
-  const { javascriptImageProcessor } = await import('../../src/utils/imageProcessor/imageProcessorJs.ts')
+  const { javascriptImageProcessor } = await import('../../src/platform/images/imageProcessorJs.ts')
   const jsCrop = await javascriptImageProcessor(readFileSync(small)).extract({ left: 4, top: 0, width: 4, height: 4 }).toBuffer()
   check('A8 the JavaScript road (no native processor) crops the same box to 4x4', imageDimensionsFromHeader(jsCrop)?.width === 4 && imageDimensionsFromHeader(jsCrop)?.height === 4)
   const plain = await read({ file_path: small })
@@ -179,8 +179,8 @@ section('B. a box that passes the edge is cut to the image and says so; refusals
 
 section('E. a whole-number scale enlarges a crop pixel for pixel; a fractional one blends as before')
 {
-  const { decodePng, javascriptImageProcessor } = await import('../../src/utils/imageProcessor/imageProcessorJs.ts')
-  const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+  const { decodePng, javascriptImageProcessor } = await import('../../src/platform/images/imageProcessorJs.ts')
+  const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
   const sprite = join(fixtures, 'sprite.png')
   const colourAt = (x: number, y: number): [number, number, number] => ((x >> 2) + (y >> 2)) % 2 ? [176, 46, 43] : [78, 110, 62]
   writeFileSync(sprite, png(16, 16, colourAt))

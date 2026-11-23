@@ -13,13 +13,13 @@ mkdirSync(join(PROJ, '.mercury'), { recursive: true })
 writeFileSync(join(PROJ, '.mercury', 'settings.json'), JSON.stringify({ briefs: { exclude: ['**/MERCURY.md'] } }))
 process.chdir(PROJ)
 
-const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.ts')
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/boot/process-state/processState.ts')
 trustTheProofFolder(true)
-const adapter = await import('../../src/services/instructions/nativeSource.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const adapter = await import('../../src/sessions/instructions/nativeSource.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 
 let failures = 0
-const excludesScopeFailHint = 'fix isProjectInstructionExcluded (the isExcluded of mercuryNativeConvention in src/services/instructions/nativeSource.ts) so a briefs.exclude pattern applies only to files of the scope whose settings declared it'
+const excludesScopeFailHint = 'fix isProjectInstructionExcluded (the isExcluded of mercuryNativeConvention in src/sessions/instructions/nativeSource.ts) so a briefs.exclude pattern applies only to files of the scope whose settings declared it'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — ' + excludesScopeFailHint}`)
   if (!cond) failures++

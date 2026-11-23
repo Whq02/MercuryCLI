@@ -56,32 +56,32 @@ const data = join(root, 'data')
 if (process.argv[2] === 'repeat-private') {
   const first = light.privateEnvironment(data)
   const second = light.privateEnvironment(data)
-  assert.equal(first.LIGHTCRAFT_CONFIG_DIR, second.LIGHTCRAFT_CONFIG_DIR, 'privateEnvironment must reuse the same config dir on every call: see privateEnvironment in src/extensions/bundled/lightcraft/server/install.mjs')
-  assert.notEqual(first.TMPDIR, second.TMPDIR, 'privateEnvironment must give each call its own TMPDIR: see privateEnvironment in src/extensions/bundled/lightcraft/server/install.mjs')
+  assert.equal(first.LIGHTCRAFT_CONFIG_DIR, second.LIGHTCRAFT_CONFIG_DIR, 'privateEnvironment must reuse the same config dir on every call: see privateEnvironment in src/integrations/extensions/bundled/lightcraft/server/install.mjs')
+  assert.notEqual(first.TMPDIR, second.TMPDIR, 'privateEnvironment must give each call its own TMPDIR: see privateEnvironment in src/integrations/extensions/bundled/lightcraft/server/install.mjs')
   let calls = readCalls()
-  assert.equal(calls.filter(call => call.path === first.LIGHTCRAFT_CONFIG_DIR && call.set).length, 1, 'the ACL must be set once and only read on the repeat call: see privateEnvironment in src/extensions/bundled/lightcraft/server/install.mjs')
-  assert.equal(calls.filter(call => call.path === first.LIGHTCRAFT_CONFIG_DIR && call.read).length, 2, 'each call must read the ACL with Get-Acl before deciding to set it: see privateEnvironment in src/extensions/bundled/lightcraft/server/install.mjs')
+  assert.equal(calls.filter(call => call.path === first.LIGHTCRAFT_CONFIG_DIR && call.set).length, 1, 'the ACL must be set once and only read on the repeat call: see privateEnvironment in src/integrations/extensions/bundled/lightcraft/server/install.mjs')
+  assert.equal(calls.filter(call => call.path === first.LIGHTCRAFT_CONFIG_DIR && call.read).length, 2, 'each call must read the ACL with Get-Acl before deciding to set it: see privateEnvironment in src/integrations/extensions/bundled/lightcraft/server/install.mjs')
   const state = JSON.parse(readFileSync(process.env.CRAFT_FIXTURE_STATE, 'utf8'))
   state[first.LIGHTCRAFT_CONFIG_DIR] = 'public'
   writeFileSync(process.env.CRAFT_FIXTURE_STATE, JSON.stringify(state))
   light.privateEnvironment(data)
   calls = readCalls()
-  assert.equal(calls.filter(call => call.path === first.LIGHTCRAFT_CONFIG_DIR && call.set).length, 2, 'a directory that stopped being private must have its ACL set again: see privateEnvironment in src/extensions/bundled/lightcraft/server/install.mjs')
+  assert.equal(calls.filter(call => call.path === first.LIGHTCRAFT_CONFIG_DIR && call.set).length, 2, 'a directory that stopped being private must have its ACL set again: see privateEnvironment in src/integrations/extensions/bundled/lightcraft/server/install.mjs')
 } else if (process.argv[2] === 'clean-environment') {
   light.privateEnvironment(data)
   const token = photo.prepareControl(join(root, 'photo-data'))
   writeFileSync(token, 'a'.repeat(64))
-  assert.equal(photo.readPrivateToken(token), 'a'.repeat(64), 'readPrivateToken must return the token written to the control file: see readPrivateToken in src/extensions/bundled/photocraft/server/install.mjs')
+  assert.equal(photo.readPrivateToken(token), 'a'.repeat(64), 'readPrivateToken must return the token written to the control file: see readPrivateToken in src/integrations/extensions/bundled/photocraft/server/install.mjs')
   const calls = readCalls()
-  assert.equal(calls.length, 4, 'expected four PowerShell ACL calls across privateEnvironment and prepareControl/readPrivateToken: see src/extensions/bundled/lightcraft/server/install.mjs and src/extensions/bundled/photocraft/server/install.mjs')
+  assert.equal(calls.length, 4, 'expected four PowerShell ACL calls across privateEnvironment and prepareControl/readPrivateToken: see src/integrations/extensions/bundled/lightcraft/server/install.mjs and src/integrations/extensions/bundled/photocraft/server/install.mjs')
   for (const call of calls) assert.deepEqual(call.modules, {}, 'PowerShell 5.1 must rebuild its default module path')
-  assert(process.env.PSModulePath.includes('WindowsApps'), 'the ACL helpers must strip PSModulePath from the child environment only and leave process.env untouched: see powershellEnvironment in src/extensions/bundled/shared/powershell.mjs')
-  assert(process.env.PsModulePath.includes('WindowsApps'), 'the ACL helpers must strip every spelling of PSModulePath from the child environment only and leave process.env untouched: see powershellEnvironment in src/extensions/bundled/shared/powershell.mjs')
+  assert(process.env.PSModulePath.includes('WindowsApps'), 'the ACL helpers must strip PSModulePath from the child environment only and leave process.env untouched: see powershellEnvironment in src/integrations/extensions/bundled/shared/powershell.mjs')
+  assert(process.env.PsModulePath.includes('WindowsApps'), 'the ACL helpers must strip every spelling of PSModulePath from the child environment only and leave process.env untouched: see powershellEnvironment in src/integrations/extensions/bundled/shared/powershell.mjs')
 } else {
   for (const failure of ['Microsoft.PowerShell.Security module could not be loaded', 'PrivilegeNotHeld: SeSecurityPrivilege', 'PowerShell ACL operation timed out']) {
     process.env.CRAFT_FIXTURE_FAILURE = failure
-    assert.throws(() => photo.prepareControl(join(root, 'photo-data')), error => error.message.includes(failure) && error.stderr.toString().includes(failure), 'prepareControl must surface the original PowerShell error in its message and stderr: see prepareControl in src/extensions/bundled/photocraft/server/install.mjs')
-    assert.throws(() => light.privateEnvironment(data), error => error.message.includes(failure) && error.stderr.toString().includes(failure), 'privateEnvironment must surface the original PowerShell error in its message and stderr: see privateEnvironment in src/extensions/bundled/lightcraft/server/install.mjs')
+    assert.throws(() => photo.prepareControl(join(root, 'photo-data')), error => error.message.includes(failure) && error.stderr.toString().includes(failure), 'prepareControl must surface the original PowerShell error in its message and stderr: see prepareControl in src/integrations/extensions/bundled/photocraft/server/install.mjs')
+    assert.throws(() => light.privateEnvironment(data), error => error.message.includes(failure) && error.stderr.toString().includes(failure), 'privateEnvironment must surface the original PowerShell error in its message and stderr: see privateEnvironment in src/integrations/extensions/bundled/lightcraft/server/install.mjs')
   }
 }
 `
@@ -103,8 +103,8 @@ try {
     const folder = join(scratch, name)
     mkdirSync(folder)
     for (const extension of ['lightcraft', 'photocraft']) {
-      cpSync(join(root, 'src/extensions/bundled', extension), join(folder, extension), { recursive: true })
-      cpSync(join(root, 'src/extensions/bundled/shared'), join(folder, extension, 'shared'), { recursive: true })
+      cpSync(join(root, 'src/integrations/extensions/bundled', extension), join(folder, extension), { recursive: true })
+      cpSync(join(root, 'src/integrations/extensions/bundled/shared'), join(folder, extension, 'shared'), { recursive: true })
     }
     const file = join(folder, 'runner.mjs')
     writeFileSync(file, runner)
@@ -119,8 +119,8 @@ try {
     })
     if (result.status !== 0) {
       failed++
-      console.error(`FAIL ${name}: exit ${result.status}\n${result.stderr || result.error}\nthe failing assertion ran in runner.mjs against privateEnvironment in src/extensions/bundled/lightcraft/server/install.mjs and prepareControl in src/extensions/bundled/photocraft/server/install.mjs`)
+      console.error(`FAIL ${name}: exit ${result.status}\n${result.stderr || result.error}\nthe failing assertion ran in runner.mjs against privateEnvironment in src/integrations/extensions/bundled/lightcraft/server/install.mjs and prepareControl in src/integrations/extensions/bundled/photocraft/server/install.mjs`)
     } else console.log(`PASS ${name}: exit 0`)
   }
-  assert.equal(failed, 0, 'Windows ACL fixtures failed: read the FAIL lines above for the case and its assertion; the code under test is in src/extensions/bundled/lightcraft/server/install.mjs and src/extensions/bundled/photocraft/server/install.mjs')
+  assert.equal(failed, 0, 'Windows ACL fixtures failed: read the FAIL lines above for the case and its assertion; the code under test is in src/integrations/extensions/bundled/lightcraft/server/install.mjs and src/integrations/extensions/bundled/photocraft/server/install.mjs')
 } finally { rmSync(scratch, { recursive: true, force: true }) }

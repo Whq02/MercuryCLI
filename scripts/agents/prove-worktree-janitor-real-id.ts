@@ -13,18 +13,18 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change isAgentLane (the WORKTREE_LANE marker), createAgentWorktree and cleanupStaleAgentWorktrees in src/services/worktree.ts, or crewLeftoverWorktrees in src/services/crew/crewWorktreeReminder.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change isAgentLane (the WORKTREE_LANE marker), createAgentWorktree and cleanupStaleAgentWorktrees in src/platform/git/worktree/worktree.ts, or crewLeftoverWorktrees in src/crew/crewmates/crewWorktreeReminder.ts' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const state = await import('../../src/bootstrap/state.ts')
-const config = await import('../../src/utils/config/globalConfig.ts')
-const { generateTaskId } = await import('../../src/Task.ts')
-const { toAgentId } = await import('../../src/types/ids.ts')
-const worktree = await import('../../src/services/worktree.ts')
-const reminder = await import('../../src/services/crew/crewWorktreeReminder.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const config = await import('../../src/platform/config/globalConfig.ts')
+const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
+const { toAgentId } = await import('../../src/sessions/transcripts/ids.ts')
+const worktree = await import('../../src/platform/git/worktree/worktree.ts')
+const reminder = await import('../../src/crew/crewmates/crewWorktreeReminder.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
 
 const DAY = 86_400_000
 const MARKER = 'WORKTREE_LANE'

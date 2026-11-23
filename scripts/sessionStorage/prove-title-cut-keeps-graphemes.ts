@@ -22,10 +22,10 @@ const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${t
 const lastUnit = (text: string): string => (text.codePointAt(text.length - 1) ?? 0).toString(16)
 const FAMILY = '👨‍👩‍👧‍👦'
 
-const { extractFirstPromptFromHead } = await import('../../src/utils/sessionStoragePortable.ts')
-const { promptLabel } = await import('../../src/utils/sessionStorage/sessionIndex.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { sessionsListCli } = await import('../../src/cli/sessionsVerb.ts')
+const { extractFirstPromptFromHead } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
+const { promptLabel } = await import('../../src/sessions/transcripts/sessionIndex.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+const { sessionsListCli } = await import('../../src/commands/verbs/sessionsVerb.ts')
 
 try {
   section('§1 the first-prompt title cut at 200 code units lands between graphemes, never inside an emoji')
@@ -33,21 +33,21 @@ try {
     const text = 'a'.repeat(199) + '😀' + ' and the words that follow'
     const line = JSON.stringify({ schemaVersion: 1, payload: { kind: 'input', content: [{ kind: 'text', text }] } })
     const title: string = extractFirstPromptFromHead(line + '\n')
-    check('the title is well-formed UTF-16 (no lone surrogate before the ellipsis)', title.isWellFormed(), `cut at a grapheme with sliceHeadAtGrapheme (src/utils/intl.ts) in extractFirstPromptFromHead (src/utils/sessionStoragePortable.ts); length ${title.length} last unit ${lastUnit(title.slice(0, -1))}`)
-    check('the title ends with the ellipsis and stays within the cut', title.endsWith('…') && title.length <= 201, `title length ${title.length}; the FIRST_PROMPT_MAX cut plus ellipsis in extractFirstPromptFromHead (src/utils/sessionStoragePortable.ts) must stay within 201 units`)
+    check('the title is well-formed UTF-16 (no lone surrogate before the ellipsis)', title.isWellFormed(), `cut at a grapheme with sliceHeadAtGrapheme (src/platform/text/textSegments.ts) in extractFirstPromptFromHead (src/sessions/transcripts/sessionStoragePortable.ts); length ${title.length} last unit ${lastUnit(title.slice(0, -1))}`)
+    check('the title ends with the ellipsis and stays within the cut', title.endsWith('…') && title.length <= 201, `title length ${title.length}; the FIRST_PROMPT_MAX cut plus ellipsis in extractFirstPromptFromHead (src/sessions/transcripts/sessionStoragePortable.ts) must stay within 201 units`)
     const family = 'b'.repeat(198) + FAMILY + ' tail'
     const familyLine = JSON.stringify({ schemaVersion: 1, payload: { kind: 'input', content: family } })
     const familyTitle: string = extractFirstPromptFromHead(familyLine + '\n')
-    check('a joined emoji sequence straddling the cut is kept whole or left out, never split', familyTitle.isWellFormed() && (familyTitle.includes(FAMILY) || !familyTitle.includes('\u200d')), `sliceHeadAtGrapheme (src/utils/intl.ts) must not split a joined emoji; length ${familyTitle.length} last unit ${lastUnit(familyTitle.slice(0, -1))}`)
+    check('a joined emoji sequence straddling the cut is kept whole or left out, never split', familyTitle.isWellFormed() && (familyTitle.includes(FAMILY) || !familyTitle.includes('\u200d')), `sliceHeadAtGrapheme (src/platform/text/textSegments.ts) must not split a joined emoji; length ${familyTitle.length} last unit ${lastUnit(familyTitle.slice(0, -1))}`)
     const short: string = extractFirstPromptFromHead(JSON.stringify({ schemaVersion: 1, payload: { kind: 'input', content: 'short 😀 prompt' } }) + '\n')
-    check('a short prompt is untouched', short === 'short 😀 prompt', `got ${JSON.stringify(short)}; extractFirstPromptFromHead (src/utils/sessionStoragePortable.ts) must return a prompt under the cut unchanged`)
+    check('a short prompt is untouched', short === 'short 😀 prompt', `got ${JSON.stringify(short)}; extractFirstPromptFromHead (src/sessions/transcripts/sessionStoragePortable.ts) must return a prompt under the cut unchanged`)
   }
 
   section('§2 the resume-list label takes the same cut')
   {
     const label: string = promptLabel('c'.repeat(199) + '😀' + ' tail')
-    check('the label is well-formed and ends with the ellipsis', label.isWellFormed() && label.endsWith('…'), `clippedPrompt in src/utils/sessionStorage/sessionIndex.ts must cut with sliceHeadAtGrapheme; length ${label.length} last unit ${lastUnit(label.slice(0, -1))}`)
-    check('a short label is untouched', promptLabel('short 😀 label') === 'short 😀 label', `got ${JSON.stringify(promptLabel('short 😀 label'))}; promptLabel in src/utils/sessionStorage/sessionIndex.ts must return a short label unchanged`)
+    check('the label is well-formed and ends with the ellipsis', label.isWellFormed() && label.endsWith('…'), `clippedPrompt in src/sessions/transcripts/sessionIndex.ts must cut with sliceHeadAtGrapheme; length ${label.length} last unit ${lastUnit(label.slice(0, -1))}`)
+    check('a short label is untouched', promptLabel('short 😀 label') === 'short 😀 label', `got ${JSON.stringify(promptLabel('short 😀 label'))}; promptLabel in src/sessions/transcripts/sessionIndex.ts must return a short label unchanged`)
   }
 
   section('§3 `mercury sessions list` cuts a long title at 80 without splitting an emoji')
@@ -60,9 +60,9 @@ try {
     const out: string[] = []
     const code = await sessionsListCli({}, { out: (l: string) => out.push(l), err: () => {}, interactive: false, ask: async () => false })
     const row = out.find(l => l.includes(id)) ?? ''
-    check('the listing printed the session', code === 0 && row !== '', `exit ${code}; sessionsListCli in src/cli/sessionsVerb.ts must print one row per saved session; output: ${out.join(' | ').slice(0, 250)}`)
-    check('the printed row is well-formed UTF-16: the emoji at the cut is whole or gone, never a replacement character', row.isWellFormed() && !row.includes('\ufffd'), `the row cut in sessionsListCli (src/cli/sessionsVerb.ts) must use sliceHeadAtGrapheme; row tail ${JSON.stringify(row.slice(-40))}`)
-    check('the title is cut with the ellipsis', row.includes('…'), `sessionsListCli (src/cli/sessionsVerb.ts) must end a title over 80 units with an ellipsis; row tail ${row.slice(-60)}`)
+    check('the listing printed the session', code === 0 && row !== '', `exit ${code}; sessionsListCli in src/commands/verbs/sessionsVerb.ts must print one row per saved session; output: ${out.join(' | ').slice(0, 250)}`)
+    check('the printed row is well-formed UTF-16: the emoji at the cut is whole or gone, never a replacement character', row.isWellFormed() && !row.includes('\ufffd'), `the row cut in sessionsListCli (src/commands/verbs/sessionsVerb.ts) must use sliceHeadAtGrapheme; row tail ${JSON.stringify(row.slice(-40))}`)
+    check('the title is cut with the ellipsis', row.includes('…'), `sessionsListCli (src/commands/verbs/sessionsVerb.ts) must end a title over 80 units with an ellipsis; row tail ${row.slice(-60)}`)
   }
 } finally {
   removeScratch(PROJ)

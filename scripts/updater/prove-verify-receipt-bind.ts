@@ -49,9 +49,9 @@ section('§1 the pure decision')
   const T1d = tree('d')
   const T9 = tree('9')
   const diffs: Record<string, string[]> = {
-    [`${T0}..${T1}`]: ['src/utils/auth.ts'],
+    [`${T0}..${T1}`]: ['src/models/sign-in/credentials/auth.ts'],
     [`${T1}..${T2}`]: ['scripts/gate/gate-ledger.jsonl'],
-    [`${T0}..${T2}`]: ['src/utils/auth.ts', 'scripts/gate/gate-ledger.jsonl'],
+    [`${T0}..${T2}`]: ['src/models/sign-in/credentials/auth.ts', 'scripts/gate/gate-ledger.jsonl'],
     [`${T1}..${T1d}`]: ['src/services/x.ts'],
     [`${T2}..${T1d}`]: ['src/services/x.ts', 'scripts/gate/gate-ledger.jsonl'],
     [`${T9}..${T1}`]: ['docs/notes.md'],
@@ -83,7 +83,7 @@ section('§1 the pure decision')
 
   const stale = decide({ buildTree: T0, rows: [row('c2', T2)] })
   check('A STALE DIST IS REFUSED before any row is read (the base certified it)', !stale.ok && stale.reason === 'stale-dist', JSON.stringify(stale))
-  check('…and the refusal names the offending path', !stale.ok && /src\/utils\/auth\.ts/.test(stale.detail), !stale.ok ? stale.detail : '')
+  check('…and the refusal names the offending path', !stale.ok && /src\/models\/sign-in\/credentials\/auth\.ts/.test(stale.detail), !stale.ok ? stale.detail : '')
   const staleExact = decide({ buildTree: T0, rows: [row('c0', T0)] })
   check('…even when an old row matches the stale dist exactly', !staleExact.ok && staleExact.reason === 'stale-dist')
 

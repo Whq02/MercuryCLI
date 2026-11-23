@@ -7,11 +7,11 @@ import { LANGUAGE_FIXTURES, writeLanguageFixtures, writeRenameFixture } from './
 
 const { engineDir } = armEnvironment()
 
-const { AstSearchTool } = await import(join(REPO, 'src/tools/AstSearchTool/AstSearchTool.ts'))
-const { AstEditTool } = await import(join(REPO, 'src/tools/AstEditTool/AstEditTool.ts'))
-const { GRAMMAR_REGISTRY } = await import(join(REPO, 'src/utils/structure/grammarRegistry.ts'))
-const { subscribeChangeReceipts } = await import(join(REPO, 'src/services/changeTransaction/receipts.ts'))
-const { fileHistoryMakeSnapshot, fileHistoryRestore } = await import(join(REPO, 'src/services/changeTransaction/fileHistory.ts'))
+const { AstSearchTool } = await import(join(REPO, 'src/tools/ast-search/AstSearchTool.ts'))
+const { AstEditTool } = await import(join(REPO, 'src/tools/ast-edit/AstEditTool.ts'))
+const { GRAMMAR_REGISTRY } = await import(join(REPO, 'src/platform/grammars/grammarRegistry.ts'))
+const { subscribeChangeReceipts } = await import(join(REPO, 'src/tools/engines/change-transaction/receipts.ts'))
+const { fileHistoryMakeSnapshot, fileHistoryRestore } = await import(join(REPO, 'src/tools/engines/change-transaction/fileHistory.ts'))
 
 const root = mkdtempSync(join(tmpdir(), 'ast-edit-'))
 writeLanguageFixtures(root)

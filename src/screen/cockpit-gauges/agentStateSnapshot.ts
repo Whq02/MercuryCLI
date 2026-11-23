@@ -1,0 +1,62 @@
+
+import { getSessionId } from '../../boot/process-state/processState.js'
+import { flagEnabled } from '../../platform/substrate/flagRegistry.js'
+import {
+  type AgentStateVerdict,
+  agentNeedsYouEnabled,
+  getAgentStateVerdict,
+} from '../attention/agentNeedsYou.js'
+import { type Snapshot, withState } from '../cockpit/types.js'
+
+type AgentStateData = {
+  verdict: AgentStateVerdict | null
+  needsAttention: boolean
+  ageMs: number | null
+}
+
+const EMPTY: AgentStateData = {
+  verdict: null,
+  needsAttention: false,
+  ageMs: null,
+}
+
+export function agentStateSnapshot(): Snapshot<{ data: AgentStateData }> {
+  if (!agentNeedsYouEnabled()) {
+    return withState(
+      'off',
+      EMPTY,
+      !flagEnabled('MERCURY_AGENT_NEEDS_YOU')
+        ? 'MERCURY_AGENT_NEEDS_YOU=0 (opted out)'
+        : 'needs-you off',
+      'agentNeedsYou',
+    )
+  }
+  try {
+    const rec = getAgentStateVerdict(getSessionId())
+    if (!rec) {
+      return withState(
+        'unavailable',
+        EMPTY,
+        'no verdict yet this session',
+        'agentNeedsYou',
+      )
+    }
+    return withState(
+      'live',
+      {
+        verdict: rec.verdict,
+        needsAttention: rec.verdict.tempo === 'blocked',
+        ageMs: Date.now() - rec.at,
+      },
+      undefined,
+      'agentNeedsYou',
+    )
+  } catch (e) {
+    return withState(
+      'failed',
+      EMPTY,
+      `agentStateSnapshot error: ${e instanceof Error ? e.message : String(e)}`,
+      'agentNeedsYou',
+    )
+  }
+}

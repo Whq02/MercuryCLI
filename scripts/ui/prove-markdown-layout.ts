@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { join } from 'node:path'
 import { marked } from 'marked'
-import sliceAnsi from '../../src/utils/sliceAnsi.js'
-import { stringWidth } from '../../src/ink/stringWidth.js'
+import sliceAnsi from '../../src/platform/text/sliceAnsi.js'
+import { stringWidth } from '../../src/screen/renderer/stringWidth.js'
 import stripAnsi from 'strip-ansi'
 
 let failures = 0
@@ -11,7 +11,7 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
 const LEXER_HINT = 'the installed marked package no longer returns this token structure for the list, so check its version and whatever reads list item tokens'
-const TABLE_HINT = 'renderTable in this file or the sliceAnsi and stringWidth helpers it calls (src/utils/sliceAnsi.ts, src/ink/stringWidth.ts) no longer budget the table columns as asserted'
+const TABLE_HINT = 'renderTable in this file or the sliceAnsi and stringWidth helpers it calls (src/platform/text/sliceAnsi.ts, src/screen/renderer/stringWidth.ts) no longer budget the table columns as asserted'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }

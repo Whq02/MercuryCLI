@@ -11,10 +11,10 @@ type Kind = 'starts' | 'starts nothing' | 'refuses' | 'answers create late' | 'o
 
 if (process.argv.includes('--scenes')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const bridge = await import('../../src/services/acp/ideToolBridge.ts')
-  const { PeerDeadline } = await import('../../src/runner/wire/peer.ts')
-  const { setCwd, terminalShellInvocation } = await import('../../src/utils/Shell.ts')
-  const { systemShellRecord } = await import('../../src/utils/shell/shellRecord.ts')
+  const bridge = await import('../../src/integrations/acp/ideToolBridge.ts')
+  const { PeerDeadline } = await import('../../src/daemon/runner-wire/peer.ts')
+  const { setCwd, terminalShellInvocation } = await import('../../src/platform/shell/shellExec.ts')
+  const { systemShellRecord } = await import('../../src/platform/shell/shellRecord.ts')
   const home = homedir()
   setCwd(home)
   const record = (await systemShellRecord()).path
@@ -91,7 +91,7 @@ if (process.argv.includes('--scenes')) {
 }
 
 let failures = 0
-const terminalFixHint = 'change execViaIdeTerminal in src/services/acp/ideToolBridge.ts or terminalShellInvocation in src/utils/Shell.ts'
+const terminalFixHint = 'change execViaIdeTerminal in src/integrations/acp/ideToolBridge.ts or terminalShellInvocation in src/platform/shell/shellExec.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + terminalFixHint : ''}`)

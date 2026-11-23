@@ -30,12 +30,12 @@ const READY_ROW = /ready · .+? · (max|xhigh|high|medium|low)\b/
 
 section('§1 by construction — the notice names the word the status chip names')
 {
-  const modulePath = join(ROOT, 'src', 'components', 'PromptInput', 'composerEffortNotice.ts')
-  check('the composer owns an effort-notice module beside the chip label', existsSync(modulePath), modulePath, 'restore src/components/PromptInput/composerEffortNotice.ts')
+  const modulePath = join(ROOT, 'src', 'screen', 'composer', 'composerEffortNotice.ts')
+  check('the composer owns an effort-notice module beside the chip label', existsSync(modulePath), modulePath, 'restore src/screen/composer/composerEffortNotice.ts')
   if (existsSync(modulePath)) {
-    const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+    const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
     enableConfigs()
-    const { composerEffortLabel, composerEffortNotice } = await import('../../src/components/PromptInput/composerEffortNotice.ts')
+    const { composerEffortLabel, composerEffortNotice } = await import('../../src/screen/composer/composerEffortNotice.ts')
     const model = 'claude-opus-5-5'
     const table: Array<[string, Parameters<typeof composerEffortNotice>[0]]> = [
       ['a seat word with the screen state reset (the picker pick)', { model, seatEffort: 'max', sentEffort: undefined, effortValue: undefined, bornEffort: null }],
@@ -49,9 +49,9 @@ section('§1 by construction — the notice names the word the status chip names
       const chip = composerEffortLabel(facts)
       const notice = composerEffortNotice(facts)
       const word = notice === undefined ? undefined : EFFORT_ROW.exec(notice)?.[1]
-      check(`${label}: the notice carries the chip's word (${chip})`, chip !== undefined && word === chip, `notice ${JSON.stringify(notice)} chip ${JSON.stringify(chip)}`, 'composerEffortNotice and composerEffortLabel in src/components/PromptInput/composerEffortNotice.ts must name the same effort word')
+      check(`${label}: the notice carries the chip's word (${chip})`, chip !== undefined && word === chip, `notice ${JSON.stringify(notice)} chip ${JSON.stringify(chip)}`, 'composerEffortNotice and composerEffortLabel in src/screen/composer/composerEffortNotice.ts must name the same effort word')
     }
-    check('a model without an effort axis has no notice', composerEffortNotice({ model: 'claude-haiku-4-5-20251001', seatEffort: 'max', sentEffort: undefined, effortValue: 'max', bornEffort: null }) === undefined, '', 'composerEffortNotice in src/components/PromptInput/composerEffortNotice.ts must return undefined for a model without an effort axis')
+    check('a model without an effort axis has no notice', composerEffortNotice({ model: 'claude-haiku-4-5-20251001', seatEffort: 'max', sentEffort: undefined, effortValue: 'max', bornEffort: null }) === undefined, '', 'composerEffortNotice in src/screen/composer/composerEffortNotice.ts must return undefined for a model without an effort axis')
   }
 }
 
@@ -181,16 +181,16 @@ if (driver.kind !== 'posix-pty') {
     const switched = marks.get('switched')
     const after = ['picked', 'switched', 'picked-later', 'picked-latest'].map(label => marks.get(label)).filter((m): m is Mark => m !== undefined)
     check('the hosted chat booted with an empty composer', idle !== undefined && rows(idle.grid).some(r => r.includes(PROMPT)), idle ? rows(idle.grid).filter(r => r.includes('❯')).join(' | ') : 'no mark', 'the chat did not boot to an empty composer; check the rebuilt dist/mercury.mjs --chat')
-    check('the session has landed at max before the picker opens', idle !== undefined && statusWord(idle.grid) === 'max', idle ? rows(idle.grid).filter(r => READY_ROW.test(r)).join(' | ') : 'no mark', 'the settings.json engine.effort max did not reach the status row; check the status chip label in src/components/PromptInput/composerEffortNotice.ts')
+    check('the session has landed at max before the picker opens', idle !== undefined && statusWord(idle.grid) === 'max', idle ? rows(idle.grid).filter(r => READY_ROW.test(r)).join(' | ') : 'no mark', 'the settings.json engine.effort max did not reach the status row; check the status chip label in src/screen/composer/composerEffortNotice.ts')
     check('the four readings after the pick were taken', after.length === 4, after.map(m => m.label).join(','), 'a mark was not captured; the sends script of this test timed out waiting for the picker or the model switch')
     const status = after.map(m => statusWord(m.grid))
-    check('the status row carries the seat word max after the pick', status.every(w => w === 'max'), after.map(m => rows(m.grid).filter(r => r.includes('ready ·')).join(' | ')).join(' || '), 'the picker pick moved the status chip off max; check composerEffortLabel in src/components/PromptInput/composerEffortNotice.ts')
+    check('the status row carries the seat word max after the pick', status.every(w => w === 'max'), after.map(m => rows(m.grid).filter(r => r.includes('ready ·')).join(' | ')).join(' || '), 'the picker pick moved the status chip off max; check composerEffortLabel in src/screen/composer/composerEffortNotice.ts')
     const seen = after.map(m => ({ label: m.label, word: noticeWord(m.grid), status: statusWord(m.grid) }))
     check(
       'no effort notice after the pick names a word the status row does not show',
       seen.every(s => s.word === undefined || s.word === s.status),
       seen.map(s => `${s.label}: notice ${JSON.stringify(s.word)} status ${JSON.stringify(s.status)}`).join(' · '),
-      'composerEffortNotice in src/components/PromptInput/composerEffortNotice.ts must name the word composerEffortLabel shows',
+      'composerEffortNotice in src/screen/composer/composerEffortNotice.ts must name the word composerEffortLabel shows',
     )
     check('the switch itself was announced', switched !== undefined && rows(switched.grid).some(r => r.includes('Set model to')), switched ? rows(switched.grid).filter(r => r.includes('model')).join(' | ') : 'no mark', 'the Set model to line never appeared after the pick; the model switch announcement is missing')
     for (const m of after) writeFileSync(join(scratch, `${m.label}.txt`), rows(m.grid).join('\n'))

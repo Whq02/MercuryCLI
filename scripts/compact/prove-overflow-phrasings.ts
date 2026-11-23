@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/api/overflowSignal.ts src/services/providers/openaicompat/compatChatCallModel.ts src/services/providers/local/localCallModel.ts src/services/compact/overflowRecovery.ts
+// gate-watch: src/engine/requests/overflowSignal.ts src/models/roads/openaicompat/compatChatCallModel.ts src/models/roads/local/localCallModel.ts src/engine/compaction/overflowRecovery.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -8,7 +8,7 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
-const PHRASINGS_FAILURE_HINT = ' | change classifyOverflowFault or overflowSignalOf in src/services/api/overflowSignal.ts (the phrasing patterns, exclusions and bodiless-400 measure), mapCompatHttpFailure in src/services/providers/openaicompat/compatChatClient.ts, or measureOverflow in src/services/compact/overflowRecovery.ts'
+const PHRASINGS_FAILURE_HINT = ' | change classifyOverflowFault or overflowSignalOf in src/engine/requests/overflowSignal.ts (the phrasing patterns, exclusions and bodiless-400 measure), mapCompatHttpFailure in src/models/roads/openaicompat/compatChatClient.ts, or measureOverflow in src/engine/compaction/overflowRecovery.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -18,7 +18,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — overflow phrasings prover exceeded 180s; the S4 loopback call through routedCallModel (src/services/providers/callModelRouter.ts) never settled, check the fixture in scripts/compact/overflowFixture.ts and the section printed last above')
+  console.log('\nTIMEOUT — overflow phrasings prover exceeded 180s; the S4 loopback call through routedCallModel (src/models/roads/callModelRouter.ts) never settled, check the fixture in scripts/compact/overflowFixture.ts and the section printed last above')
   process.exit(1)
 }, 180_000)
 watchdog.unref?.()
@@ -46,23 +46,23 @@ console.log(' S3 a bodiless 400 read against a measure: nothing without one, not
 console.log(' S4 the same at the REAL compat seam over the loopback: a small request stays a plain error, a near-window request carries the stamp with Mercury\'s count')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const signalMod = await import('../../src/services/api/overflowSignal.ts')
+const signalMod = await import('../../src/engine/requests/overflowSignal.ts')
 const { classifyOverflowFault, overflowSignalOf, overflowWhoClause } = signalMod
-const { mapCompatHttpFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-const { getAssistantMessageFromError } = await import('../../src/services/api/errors.ts')
-const { APIError } = await import('../../src/utils/api/sdkErrors.js')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
-const { measureOverflow } = await import('../../src/services/compact/overflowRecovery.ts')
+const { mapCompatHttpFailure } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+const { getAssistantMessageFromError } = await import('../../src/engine/requests/apiErrorRows.ts')
+const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
+const { measureOverflow } = await import('../../src/engine/compaction/overflowRecovery.ts')
 
-type Sig = import('../../src/services/api/overflowSignal.ts').OverflowSignal
+type Sig = import('../../src/engine/requests/overflowSignal.ts').OverflowSignal
 type AnyMsg = Record<string, unknown> & { type?: string }
 
 const viaCompat = (family: string, status: number, body: unknown): Sig | null => {
@@ -211,8 +211,8 @@ async function callLane(model: string, messages: unknown[]): Promise<{ errors: A
   const small = await callLane(model, [createUserMessage({ content: 'fixture ask' })])
   check('the small request reached the wire and the wire answered 400 with no body', fixture.captured.length > before && small.errors.length > 0, `captured=${fixture.captured.length - before} errors=${small.errors.length}`)
   check('a small request\'s bodiless 400 settles as an error WITHOUT a stamp', small.errors.length > 0 && small.errors.every(m => overflowSignalOf(m as never) === null), JSON.stringify(small.errors.map(m => (m as { overflowSignal?: unknown }).overflowSignal)))
-  const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-  const { localGuardWindow } = await import('../../src/services/providers/local/localCallModel.ts')
+  const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+  const { localGuardWindow } = await import('../../src/models/roads/local/localCallModel.ts')
   const record = localRecordFor('local/fixture-local')
   const served = record === undefined ? undefined : localGuardWindow(record)?.tokens
   const catalogued = getContextWindowForModel(model)

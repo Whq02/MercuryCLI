@@ -7,12 +7,12 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  const sovereignWarningWhere = 'to fix: the row data (warnWhenOn, label, options, default, summary) and menuRowWarning are in src/substrate/startupMenu.ts, which src/components/bootSettings/menuModel.ts reads to place the warning line; if only a stored still differs on purpose, regenerate with bun scripts/ui/sovereign-menu-stills.ts --write'
+  const sovereignWarningWhere = 'to fix: the row data (warnWhenOn, label, options, default, summary) and menuRowWarning are in src/platform/substrate/startupMenu.ts, which src/screen/boot-face/settings/menuModel.ts reads to place the warning line; if only a stored still differs on purpose, regenerate with bun scripts/ui/sovereign-menu-stills.ts --write'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 600)} · ` : ''}${sovereignWarningWhere}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 
-const { STARTUP_MENU, menuRowWarning } = await import('../../src/substrate/startupMenu.ts')
+const { STARTUP_MENU, menuRowWarning } = await import('../../src/platform/substrate/startupMenu.ts')
 const { STILLS, composeSovereignMenu, readStill, renderStill, stillPath, SOVEREIGN_ROW_ENV } = await import('./sovereign-menu-stills.ts')
 
 const WORDS = 'nothing asks or stops you — every action runs as you'

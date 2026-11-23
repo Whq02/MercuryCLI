@@ -10,9 +10,9 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { Box, Text, render } = await import('../../src/ink.ts')
-const { renderMessageRow } = await import('../../src/components/messagesList/row.tsx')
-const { sessionMirrorView } = await import('../../src/components/concourse/sessionMirror/sessionMirrorView.tsx')
+const { Box, Text, render } = await import('../../src/screen/themedRenderer.ts')
+const { renderMessageRow } = await import('../../src/screen/messages-list/row.tsx')
+const { sessionMirrorView } = await import('../../src/screen/concourse/session-mirror/sessionMirrorView.tsx')
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {

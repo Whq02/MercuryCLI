@@ -8,20 +8,20 @@ delete process.env.MERCURY_EFFORT_LEVEL
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const GAUGE_FIX =
-  'make the chip, the slider and the readout resolve one tier: getDisplayedEffortLabel and getDisplayedEffortLevel in src/utils/effort.ts, effortPopupOpeningRow in src/commands/effort/EffortPopup, showCurrentEffort in src/commands/effort/effort, focusedEffortLabelOf in src/components/mercury-ui/EffortChip'
+  'make the chip, the slider and the readout resolve one tier: getDisplayedEffortLabel and getDisplayedEffortLevel in src/models/effort/effort.ts, effortPopupOpeningRow in src/commands/effort/EffortPopup, showCurrentEffort in src/commands/effort/effort, focusedEffortLabelOf in src/screen/widgets/EffortChip'
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${GAUGE_FIX}`}`)
   if (!ok) failures = 1
 }
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const effort = await import('../../src/utils/effort.js')
+const effort = await import('../../src/models/effort/effort.js')
 const popup = await import('../../src/commands/effort/EffortPopup.js')
 const cmd = await import('../../src/commands/effort/effort.js')
 
-type EffortValue = import('../../src/utils/effort.js').EffortValue
+type EffortValue = import('../../src/models/effort/effort.js').EffortValue
 
 function sliderOpens(model: string, stored: EffortValue | undefined): string {
   const rows = popup.effortPopupRows(model)
@@ -114,7 +114,7 @@ console.log('— §4 override targets keep their own truths —')
 
 console.log('— §5 a hosted session: the seat\'s served word rules BOTH gauges, the app state only when no seat speaks —')
 {
-  const chip = await import('../../src/components/mercury-ui/EffortChip.js')
+  const chip = await import('../../src/screen/widgets/EffortChip.js')
   const hostedOpens = (model: string, seat: string | null, sent: string | null | undefined, stored: EffortValue | undefined): string => {
     const rows = popup.effortPopupRows(model)
     return String(rows[popup.effortPopupOpeningRow(model, stored, undefined, seat, sent)]?.value)

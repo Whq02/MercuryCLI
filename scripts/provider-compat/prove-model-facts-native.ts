@@ -14,7 +14,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/constants/credentialEnvSpellings.ts`)
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/models/sign-in/credentials/credentialEnvSpellings.ts`)
 for (const key of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[key]
 const captures: any[] = []
 const sse = (data: unknown): string => `data: ${JSON.stringify(data)}\n\n`
@@ -34,14 +34,14 @@ globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   if (url.origin !== origin) throw new Error(`non-loopback proof request refused: ${url.origin}`)
   return nativeFetch(input, init)
 }) as typeof fetch
-const { enableConfigs } = await import(`${root}/src/utils/config.ts`)
+const { enableConfigs } = await import(`${root}/src/platform/settings/config.ts`)
 enableConfigs()
-const { resetSettingsCache } = await import(`${root}/src/utils/settings/settingsCache.ts`)
-const { routedCallModel } = await import(`${root}/src/services/providers/callModelRouter.ts`)
-const { createUserMessage } = await import(`${root}/src/services/messages.ts`)
-const { asSystemPrompt } = await import(`${root}/src/utils/systemPromptType.ts`)
-const catalogue = await import(`${root}/src/services/providers/openai/openaiCatalogue.ts`)
-const { getContextWindowForModel, modelReceivesImageBlocks } = await import(`${root}/src/utils/model/capabilities.ts`)
+const { resetSettingsCache } = await import(`${root}/src/platform/settings/settingsCache.ts`)
+const { routedCallModel } = await import(`${root}/src/models/roads/callModelRouter.ts`)
+const { createUserMessage } = await import(`${root}/src/engine/messages/messages.ts`)
+const { asSystemPrompt } = await import(`${root}/src/engine/system-prompt/systemPromptType.ts`)
+const catalogue = await import(`${root}/src/models/roads/openai/openaiCatalogue.ts`)
+const { getContextWindowForModel, modelReceivesImageBlocks } = await import(`${root}/src/models/facts/capabilities.ts`)
 const set = (models: unknown) => { writeFileSync(join(home, 'settings.json'), JSON.stringify({ models })); resetSettingsCache() }
 const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
 const fresh = 'gpt-9.9'
@@ -56,7 +56,7 @@ async function run(model: string, messages = prompt): Promise<any[]> {
 }
 let checks = 0
 let failures = 0
-const NATIVE_FACTS_HINT = 'to fix, change how a settings.json models entry is merged with the live catalogue in evaluateGptCandidate / primeOpenaiCatalogue (src/services/providers/openai/openaiCatalogue.ts), or the window and image reads getContextWindowForModel / modelReceivesImageBlocks (src/utils/model/capabilities.ts), or the request built through routedCallModel (src/services/providers/callModelRouter.ts)'
+const NATIVE_FACTS_HINT = 'to fix, change how a settings.json models entry is merged with the live catalogue in evaluateGptCandidate / primeOpenaiCatalogue (src/models/roads/openai/openaiCatalogue.ts), or the window and image reads getContextWindowForModel / modelReceivesImageBlocks (src/models/facts/capabilities.ts), or the request built through routedCallModel (src/models/roads/callModelRouter.ts)'
 const check = (name: string, pass: unknown) => { checks++; if (!pass) failures++; console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}${pass ? '' : ` — ${NATIVE_FACTS_HINT}`}`) }
 const served = (rows: any[]) => rows.some(row => !row.isApiErrorMessage && row.message.content.some((block: any) => block.text === 'NATIVE-FACTS-SETTLED'))
 try {

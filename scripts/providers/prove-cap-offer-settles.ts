@@ -21,10 +21,10 @@ function section(t: string, hint = ''): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const cap = await import('../../src/services/capFailover.ts')
-const { ALL_MODEL_CONFIGS } = await import('../../src/utils/model/configs.ts')
-const { previewForSelection } = await import('../../src/services/providers/transitionPreview.ts')
-const { settleModelSelection } = await import('../../src/services/model/modelTransition.ts')
+const cap = await import('../../src/models/roads/capFailover.ts')
+const { ALL_MODEL_CONFIGS } = await import('../../src/models/facts/builtInModelTable.ts')
+const { previewForSelection } = await import('../../src/models/roads/transitionPreview.ts')
+const { settleModelSelection } = await import('../../src/models/catalogue/modelTransition.ts')
 
 const FABLE_52 = ALL_MODEL_CONFIGS.fable52.firstParty
 const FABLE_51 = ALL_MODEL_CONFIGS.fable51.firstParty
@@ -34,7 +34,7 @@ console.log('============================================================')
 console.log(' cap offer — settles or says why; disarms once answered')
 console.log('============================================================')
 
-section('§A the armed-state owner — an answered offer survives the state/reset jitter', 'noteCapOfferAnswered, capOfferAnswered or noteCapWindowObserved in src/services/capFailover.ts')
+section('§A the armed-state owner — an answered offer survives the state/reset jitter', 'noteCapOfferAnswered, capOfferAnswered or noteCapWindowObserved in src/models/roads/capFailover.ts')
 {
   cap._resetOfferMemoriesForTesting()
 
@@ -91,7 +91,7 @@ section('§A the armed-state owner — an answered offer survives the state/rese
   check('answering the handoff leaves the same family RETURN armed', cap.capOfferAnswered('return', 'openai') === false)
 }
 
-section('§B the target is the exact newest frontier MEMBER, never the collapsed base id', 'deriveCapFailoverCandidates in src/services/capFailover.ts, or previewForSelection in src/services/providers/transitionPreview.ts, or the fable entries in src/utils/model/configs.ts')
+section('§B the target is the exact newest frontier MEMBER, never the collapsed base id', 'deriveCapFailoverCandidates in src/models/roads/capFailover.ts, or previewForSelection in src/models/roads/transitionPreview.ts, or the fable entries in src/models/facts/builtInModelTable.ts')
 {
   cap._resetOfferMemoriesForTesting()
   check('the config table names the three fable members distinctly', FABLE_52 === 'claude-fable-5-2' && FABLE_51 === 'claude-fable-5-1' && FABLE_5 === 'claude-fable-5' && new Set([FABLE_52, FABLE_51, FABLE_5]).size === 3)
@@ -120,7 +120,7 @@ section('§B the target is the exact newest frontier MEMBER, never the collapsed
   check('the plan is a real cross-provider move to the anthropic wire', plan.crossProvider === true && plan.targetRoute === 'anthropic')
 }
 
-section('§C confirm settles through the ONE owner; a no-op is a receipt, never a loop', 'settleModelSelection in src/services/model/modelTransition.ts')
+section('§C confirm settles through the ONE owner; a no-op is a receipt, never a loop', 'settleModelSelection in src/models/catalogue/modelTransition.ts')
 {
   const applied = settleModelSelection(
     { engineModel: 'gpt-5.6-sol', engineModelForSession: null, pendingModelSwitch: null },
@@ -147,7 +147,7 @@ section('§C confirm settles through the ONE owner; a no-op is a receipt, never 
   check('a mid-turn confirm queues at the boundary (a typed verdict)', queued.kind === 'queued')
 }
 
-section('§D the neutral candidate law and the decision core are unchanged', 'deriveCapFailoverCandidates, decideCapAction or decideCapReturn in src/services/capFailover.ts')
+section('§D the neutral candidate law and the decision core are unchanged', 'deriveCapFailoverCandidates, decideCapAction or decideCapReturn in src/models/roads/capFailover.ts')
 {
   cap._resetOfferMemoriesForTesting()
   const map = {
@@ -170,7 +170,7 @@ section('§D the neutral candidate law and the decision core are unchanged', 'de
 }
 
 
-section('§F the offer lists every other signed-in family; at-cap lanes last and marked; the switch lands on the CHOSEN row', 'deriveCapFailoverCandidates or capUsageWords in src/services/capFailover.ts, or settleModelSelection in src/services/model/modelTransition.ts')
+section('§F the offer lists every other signed-in family; at-cap lanes last and marked; the switch lands on the CHOSEN row', 'deriveCapFailoverCandidates or capUsageWords in src/models/roads/capFailover.ts, or settleModelSelection in src/models/catalogue/modelTransition.ts')
 {
   cap._resetOfferMemoriesForTesting()
   const now = Date.now()
@@ -229,7 +229,7 @@ section('§F the offer lists every other signed-in family; at-cap lanes last and
   check('without a window read no lane is at-cap and the list mirrors the candidates', blind.listed.every(r => !r.atCap) && JSON.stringify(blind.listed.map(r => r.route)) === JSON.stringify(blind.candidates.map(c => c.route)))
 }
 
-section('§G the offer fires on the BINDING window: the seat model\'s weekly pool, named — a family without pools reads as before', 'observedFamilyWindow in src/services/capFailover.ts, or bindingWindowOf in src/services/providers/providerUsage.ts')
+section('§G the offer fires on the BINDING window: the seat model\'s weekly pool, named — a family without pools reads as before', 'observedFamilyWindow in src/models/roads/capFailover.ts, or bindingWindowOf in src/models/roads/providerUsage.ts')
 {
   const now = Date.now()
   const poolReset = now + (22 * 3600 + 51 * 60) * 1000
@@ -244,7 +244,7 @@ section('§G the offer fires on the BINDING window: the seat model\'s weekly poo
       live('seven_day_sonnet', 'Sonnet', 5, poolReset),
     ],
   }
-  const { bindingWindowOf } = await import('../../src/services/providers/providerUsage.ts')
+  const { bindingWindowOf } = await import('../../src/models/roads/providerUsage.ts')
   const ownerPick = bindingWindowOf({ provider: 'anthropic', shape: 'subscription-windows', windows: reads.anthropicWindows(), pools: reads.anthropicPools() }, FABLE_51)
   check("the usage owner picks the Fable pool for a Fable seat and names it in the strip's words ('Fable limit')", ownerPick?.window.key === 'seven_day_fable' && ownerPick?.windowName === 'Fable limit', JSON.stringify(ownerPick))
   const fableSeat = cap.observedFamilyWindow('anthropic', reads, { model: FABLE_51 })
@@ -268,7 +268,7 @@ section('§G the offer fires on the BINDING window: the seat model\'s weekly poo
   const throwingPools = cap.observedFamilyWindow('anthropic', { ...reads, anthropicPools: () => { throw new Error('reader down') } }, { model: FABLE_51 })
   check('a pool reader that throws never unsettles the latch fact', throwingPools.state === 'allowed')
 
-  const limits = await import('../../src/services/anthropicLimits.ts')
+  const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
   limits.__setRawUtilizationForTest({
     five_hour: { utilization: 0.36, resets_at: Math.floor((now + 3600_000) / 1000) },
     seven_day: { utilization: 0.44, resets_at: Math.floor((now + 5 * 86400_000) / 1000) },
@@ -280,7 +280,7 @@ section('§G the offer fires on the BINDING window: the seat model\'s weekly poo
 }
 
 
-section('§I the within-family slot rung: a stable wall key, re-armed only by an observed clear', 'slotWallKey or noteSlotWallObserved in src/services/capFailover.ts')
+section('§I the within-family slot rung: a stable wall key, re-armed only by an observed clear', 'slotWallKey or noteSlotWallObserved in src/models/roads/capFailover.ts')
 {
   cap._resetOfferMemoriesForTesting()
   check('the slot wall key is the family and the walled seat — no reset moment', cap.slotWallKey('openai', 'subscription') === 'slot|openai|subscription')
@@ -296,9 +296,9 @@ section('§I the within-family slot rung: a stable wall key, re-armed only by an
   check('a clear on the OTHER seat leaves this seat\'s answered wall alone', cap.offerDismissed(key))
 }
 
-section("§J a band that lands re-runs the offer at once: the OpenAI record's change signal, and the composer following both families' signals", 'the OpenAI limit record in src/services/providers/openai/openaiLimitState.ts (adoptOpenaiObservedUsage, recordOpenaiRateHeaders, recordOpenaiUsageLimit, forgetOpenaiLimitSource and the version they bump)')
+section("§J a band that lands re-runs the offer at once: the OpenAI record's change signal, and the composer following both families' signals", 'the OpenAI limit record in src/models/roads/openai/openaiLimitState.ts (adoptOpenaiObservedUsage, recordOpenaiRateHeaders, recordOpenaiUsageLimit, forgetOpenaiLimitSource and the version they bump)')
 {
-  const openai = await import('../../src/services/providers/openai/openaiLimitState.ts')
+  const openai = await import('../../src/models/roads/openai/openaiLimitState.ts')
   openai.__resetOpenaiLimitStateForTest()
   let fired = 0
   const off = openai.subscribeOpenaiObserved(() => {

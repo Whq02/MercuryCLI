@@ -1,0 +1,29 @@
+import React from 'react'
+import { MessageResponse } from '../kit/MessageResponse.js'
+import { Text } from '../../screen/themedRenderer.js'
+import { truncate } from '../../platform/text/format.js'
+import type { RecordConventionOutput } from './RecordConventionTool.js'
+
+export function renderRecordConventionToolUseMessage(
+  input: Partial<{ rule: string; replaces: string }>,
+): React.ReactNode {
+  return input.rule ? truncate(input.rule, 72, true) : ''
+}
+
+export function renderRecordConventionResultMessage(
+  output: RecordConventionOutput,
+): React.ReactNode {
+  return (
+    <MessageResponse>
+      {output.action === 'recorded' || output.action === 'updated' ? (
+        <Text>
+          {output.action === 'recorded' ? 'Recorded' : 'Merged'} into{' '}
+          <Text bold>{output.path?.split(/[\\/]/).pop() ?? 'the estate'}</Text>
+          <Text dimColor> · /memory finds it by its words</Text>
+        </Text>
+      ) : (
+        <Text dimColor>{output.detail}</Text>
+      )}
+    </MessageResponse>
+  )
+}

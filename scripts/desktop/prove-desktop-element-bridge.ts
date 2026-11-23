@@ -17,15 +17,15 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail.slice(0, 400) : '') + ' — fix the element query bridge (readElement and the other child queries, their stdin payload and answer reading) in src/services/desktop/nativeDriver.ts, or the fake driver in src/services/desktop/fakeDesktopDriver.ts for the scene checks' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail.slice(0, 400) : '') + ' — fix the element query bridge (readElement and the other child queries, their stdin payload and answer reading) in src/integrations/desktop/nativeDriver.ts, or the fake driver in src/integrations/desktop/fakeDesktopDriver.ts for the scene checks' : ''}`)
   if (!cond) failures++
 }
 const warn = (line: string): void => console.log(`  [WARN] ${line}`)
 
-const pack = await import('../../src/services/desktop/pack.js')
-const native = await import('../../src/services/desktop/nativeDriver.js')
-const fake = await import('../../src/services/desktop/fakeDesktopDriver.js')
-const { voicePackPlatform } = await import('../../src/utils/voice/voicePack.js')
+const pack = await import('../../src/integrations/desktop/pack.js')
+const native = await import('../../src/integrations/desktop/nativeDriver.js')
+const fake = await import('../../src/integrations/desktop/fakeDesktopDriver.js')
+const { voicePackPlatform } = await import('../../src/integrations/voice-pack/voicePack.js')
 
 const PLATFORM = voicePackPlatform()
 const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')

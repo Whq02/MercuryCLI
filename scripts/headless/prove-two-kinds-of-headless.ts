@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/sessionKind.ts src/cli/run.ts src/utils/cockpit/runtimePosture.ts src/utils/permissions/askClock.ts src/daemon/permissionAsks.ts src/services/tools/toolExecution.ts src/rows/turn.ts src/services/resources/adapters/seat.ts src/daemon/concourseWorkers.ts src/daemon/warmRunner.ts src/bootstrap/state.ts
+// gate-watch: src/daemon/concourse-workers/sessionKind.ts src/daemon/runner/runHeadless.ts src/screen/cockpit/runtimePosture.ts src/permissions/rules/askClock.ts src/daemon/session-seat/permissionAsks.ts src/engine/tool-dispatch/toolExecution.ts src/engine/rows/turn.ts src/integrations/resources/adapters/seat.ts src/daemon/concourse-workers/concourseWorkers.ts src/daemon/runner-link/warmRunner.ts src/boot/process-state/processState.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
-import type { PermissionRequestParams } from '../../src/runner/wire/methods.ts'
+import type { PermissionRequestParams } from '../../src/daemon/runner-wire/methods.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import type { Frame } from '../lib/rows.ts'
 
@@ -28,7 +28,7 @@ const LIMIT_MINUTES = '0.05'
 const LIMIT_MS = 3_000
 
 let failures = 0
-const WHERE_TO_LOOK = 'to fix: the kind vocabulary and pin are in src/utils/sessionKind.ts, the posture words in getRuntimePostureSection (src/utils/cockpit/runtimePosture.ts), the ask clock in askLimitMs (src/utils/permissions/askClock.ts), the spawn stamp in src/daemon/concourseWorkers.ts and the daemon ask limit in src/daemon/permissionAsks.ts'
+const WHERE_TO_LOOK = 'to fix: the kind vocabulary and pin are in src/daemon/concourse-workers/sessionKind.ts, the posture words in getRuntimePostureSection (src/screen/cockpit/runtimePosture.ts), the ask clock in askLimitMs (src/permissions/rules/askClock.ts), the spawn stamp in src/daemon/concourse-workers/concourseWorkers.ts and the daemon ask limit in src/daemon/session-seat/permissionAsks.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + (detail ? detail + ' · ' : '') + WHERE_TO_LOOK}`)
   if (!ok) failures++
@@ -60,7 +60,7 @@ const HEADLESS_SEAT_BARE = 'headless, non-interactive: no host answers an ask, s
 
 section('§0 THE ONE FACT — born where the daemon decides who asked, stamped on the spec and the record, consumed once by the runner')
 await guarded(async () => {
-  const kinds = await import('../../src/utils/sessionKind.ts')
+  const kinds = await import('../../src/daemon/concourse-workers/sessionKind.ts')
   check('RED ON THE BASE: the vocabulary has exactly two words, oculus and headless', j(kinds.SESSION_KINDS) === j(['oculus', 'headless']))
   check("the operator's own doors are a screen: by 'operator' is oculus", kinds.sessionKindOfAsker('operator') === 'oculus')
   check("a terminal-pid attribution ('operator:<pid>') is the same screen", kinds.sessionKindOfAsker('operator:4242') === 'oculus')
@@ -68,11 +68,11 @@ await guarded(async () => {
   check('a concourse worker asks for a headless session', kinds.sessionKindOfAsker('concourse-w3') === 'headless')
   check('nobody named asks for a headless session', kinds.sessionKindOfAsker(undefined) === 'headless')
   check('a retired or foreign spelling is no kind at all (no alias, no migration)', kinds.parseSessionKind('interactive') === undefined && kinds.parseSessionKind('OCULUS') === undefined && kinds.parseSessionKind('') === undefined)
-  const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
+  const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
   const row = FLAG_REGISTRY.find(f => f.env === 'MERCURY_SESSION_KIND')
-  check('the stamp is a registered value flag whose consumer is the vocabulary module', row?.kind === 'value' && (row?.consumer ?? '').includes('src/utils/sessionKind.ts'), j(row))
+  check('the stamp is a registered value flag whose consumer is the vocabulary module', row?.kind === 'value' && (row?.consumer ?? '').includes('src/daemon/concourse-workers/sessionKind.ts'), j(row))
 
-  const concourse = await import('../../src/daemon/concourseWorkers.ts')
+  const concourse = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const spec = concourse.buildConcourseWorkerSpec({ runnerId: 'concourse-w1', sessionId: 's-1', workspaceId: ROOT, modelKey: MODEL, kind: 'oculus' })
   check("buildConcourseWorkerSpec stamps the kind on the spec's extraEnv (respawn-carried)", spec.extraEnv?.MERCURY_SESSION_KIND === 'oculus', j(spec.extraEnv))
   const bare = concourse.buildConcourseWorkerSpec({ runnerId: 'concourse-w1', sessionId: 's-1', workspaceId: ROOT, modelKey: MODEL })
@@ -107,11 +107,11 @@ await guarded(async () => {
     wireDoor.startsWith('- Session: oculus') && printDoor.line.startsWith('- Session: non-interactive') && printDoor.status === 'blocked' && bareBoot.startsWith('- Session: non-interactive'),
     JSON.stringify({ wireDoor: wireDoor.slice(0, 60), printDoor: { line: printDoor.line.slice(0, 60), status: printDoor.status }, bareBoot: bareBoot.slice(0, 60) }),
   )
-  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
+  const { runtimeChecks } = await import('../../src/platform/health/sections/runtime.ts')
   const kindRow = await runtimeChecks().find(row => row.id === 'session-kind')?.run()
   check("/health carries the Session kind row, read from the focused session's record and spoken in the vocabulary's words", kindRow?.status === 'info' && kindRow.evidence.startsWith('no session is focused here') && kindRow.evidence.includes('oculus: a screen belongs to it') && kindRow.evidence.includes('headless: unattended'), kindRow?.evidence)
-  const focus = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const sessionRecords = await import('../../src/daemon/concourseWorkers.ts')
+  const focus = await import('../../src/engine/connector/focusedConnector.ts')
+  const sessionRecords = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const focusedId = 'two-kinds-focused-session'
   const kindOnRecord = async (kind: 'oculus' | 'headless' | undefined): Promise<string> => {
     sessionRecords.updateConcourseWorkers(all => {
@@ -139,10 +139,10 @@ await guarded(async () => {
 
 section('§0b THE WORDS IN-PROCESS — the oculus posture, doctrine and seat words; the headless half byte-identical to the base')
 await guarded(async () => {
-  const state = await import('../../src/bootstrap/state.ts')
-  const posture = await import('../../src/utils/cockpit/runtimePosture.ts')
-  const seat = await import('../../src/services/resources/adapters/seat.ts')
-  const { askLimitMs } = await import('../../src/utils/permissions/askClock.ts')
+  const state = await import('../../src/boot/process-state/processState.ts')
+  const posture = await import('../../src/screen/cockpit/runtimePosture.ts')
+  const seat = await import('../../src/integrations/resources/adapters/seat.ts')
+  const { askLimitMs } = await import('../../src/permissions/rules/askClock.ts')
   const savedExpiry = process.env.MERCURY_PERMISSION_ASK_EXPIRY_MINUTES
   delete process.env.MERCURY_PERMISSION_ASK_EXPIRY_MINUTES
   delete process.env.MERCURY_RUNTIME_POSTURE
@@ -193,8 +193,8 @@ await guarded(async () => {
   mkdirSync(daemonDir, { recursive: true })
   const savedDaemonDir = process.env.MERCURY_DAEMON_DIR
   process.env.MERCURY_DAEMON_DIR = daemonDir
-  const asks = await import('../../src/daemon/permissionAsks.ts')
-  const { concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
+  const asks = await import('../../src/daemon/session-seat/permissionAsks.ts')
+  const { concourseWorkersPath } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const record = (short: string, kind?: string) => ({
     runnerId: short,
     sessionId: `sess-${short}`,
@@ -361,7 +361,7 @@ await guarded(async () => {
     let promptsEqual = true
     let postureDiffers = false
     let firstLineDiff = ''
-    const { computeHarnessMapLines } = await import('../../src/services/cockpit/harnessMap.ts')
+    const { computeHarnessMapLines } = await import('../../src/screen/cockpit-gauges/harnessMap.ts')
     const DEBUG_WITHHELD = '- The Debug tool is withheld'
     const steadyMap = computeHarnessMapLines().filter(line => !line.startsWith(DEBUG_WITHHELD))
     let mapOnTheScreenAlone = a.requests.length > 0

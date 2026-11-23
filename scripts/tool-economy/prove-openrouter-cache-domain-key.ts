@@ -7,7 +7,7 @@ import { z } from 'zod/v4'
 
 let failures = 0
 let checks = 0
-const CACHE_KEY_FAIL_HINT = 'the prompt_cache_key is minted by mintCacheDomainKey in src/utils/cache/cacheDomain.ts (provider scope, served model, project path, behavior contract digest, tool schema digest) and sent by src/services/providers/openrouter/openrouterResponsesTransport.ts; change what feeds that mint so only a real compatibility change moves the key'
+const CACHE_KEY_FAIL_HINT = 'the prompt_cache_key is minted by mintCacheDomainKey in src/platform/cache-clock/cacheDomain.ts (provider scope, served model, project path, behavior contract digest, tool schema digest) and sent by src/models/roads/openrouter/openrouterResponsesTransport.ts; change what feeds that mint so only a real compatibility change moves the key'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -104,19 +104,19 @@ process.env.MERCURY_OPENROUTER_AUTH_BASE = `${base}/auth`
 process.env.OPENROUTER_API_KEY = 'fixture-openrouter-key'
 process.env.MERCURY_MODEL = MODEL
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { composeSystemPrompt } = await import('../../src/prompt/composer.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Message = import('../../src/types/message.ts').Message
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
+const { clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { composeSystemPrompt } = await import('../../src/engine/system-prompt/composer.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 
 function fixtureTool(name: string, opts: { defer?: boolean; mcp?: string; params?: string[] } = {}): Tool {
   const shape: Record<string, z.ZodTypeAny> = {}

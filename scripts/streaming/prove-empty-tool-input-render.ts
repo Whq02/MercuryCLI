@@ -15,7 +15,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { posixPtyDriverOrSkip, vshotBudgetMs } from '../lib/captureDriver.ts'
-import { projectSlug } from '../../src/utils/sessionStoragePortable.ts'
+import { projectSlug } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
 import { driverOutcome } from './artifactArena.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 
@@ -30,7 +30,7 @@ if (!existsSync(DIST)) {
 
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
-  const emptyInputHint = ' | fix: a resumed Bash tool_use with input {} must render without a crash; start at renderToolUseMessage in src/tools/BashTool/UI.tsx and the row component that calls it, and read the app-root crash report under the config home crashes folder for the failing component; if the capture did not run to its deadline, the driver is scripts/streaming/ptydrive.py'
+  const emptyInputHint = ' | fix: a resumed Bash tool_use with input {} must render without a crash; start at renderToolUseMessage in src/tools/shell/rows.tsx and the row component that calls it, and read the app-root crash report under the config home crashes folder for the failing component; if the capture did not run to its deadline, the driver is scripts/streaming/ptydrive.py'
   console.log(`  ${ok ? '✓' : '✗'} ${name}${ok ? '' : `${detail ? ` — ${detail}` : ''}${emptyInputHint}`}`)
   if (!ok) failures++
 }

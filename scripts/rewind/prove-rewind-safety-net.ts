@@ -23,32 +23,32 @@ process.chdir(cwd)
 let failures = 0
 const check = (name: string, ok: boolean, detail?: unknown): void => {
   if (!ok) failures++
-  const rewindHint = 'change handleRewindSession or handleFileRestoreSession in src/cli/headless/controlHandlers.ts, the snapshots in src/services/changeTransaction/fileHistory.ts, the daemon route rewindSession in src/daemon/sessionSeat/verbs.ts, or the 500 MB sweep cleanupOldMessageFilesInBackground in src/services/cleanup.ts (the /health row lifecycle-collection is in src/services/health/sections/crew/scratch.ts)'
+  const rewindHint = 'change handleRewindSession or handleFileRestoreSession in src/daemon/runner/controlHandlers.ts, the snapshots in src/tools/engines/change-transaction/fileHistory.ts, the daemon route rewindSession in src/daemon/session-seat/verbs.ts, or the 500 MB sweep cleanupOldMessageFilesInBackground in src/sessions/transcripts/retentionSweep.ts (the /health row lifecycle-collection is in src/platform/health/sections/crew/scratch.ts)'
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${detail === undefined ? '' : `${JSON.stringify(detail)} | `}${rewindHint}`}`)
 }
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(cwd)
 bootstrap.setIsInteractive(true)
-const history = await import('../../src/services/changeTransaction/fileHistory.ts')
-const handlers = await import('../../src/cli/headless/controlHandlers.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
+const history = await import('../../src/tools/engines/change-transaction/fileHistory.ts')
+const handlers = await import('../../src/daemon/runner/controlHandlers.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 const { standInRunner } = await import('../lib/seatDoor.ts')
-const { rewindSession } = await import('../../src/daemon/sessionSeat.ts')
-const { startControlServer } = await import('../../src/daemon/controlServer.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { publishSessionFacts, readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { sessionFactsToWire, rewindOutcomeToWire } = await import('../../src/services/engine-connector/seatWire.ts')
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const { METHODS } = await import('../../src/runner/wire/methods.ts')
-const { RPC_METHOD_NOT_FOUND } = await import('../../src/runner/wire/errors.ts')
-const { daemonControlRpc, forgetDaemonProtoForTesting } = await import('../../src/daemon/controlSocket.ts')
-type AppState = import('../../src/state/AppStateStore.ts').AppState
-type Receipt = import('../../src/daemon/protocol.ts').SessionRewindOutcomeV1
-type FileRequest = import('../../src/daemon/protocol.ts').SessionFileRestoreRequest
+const { rewindSession } = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { startControlServer } = await import('../../src/daemon/control/controlServer.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { publishSessionFacts, readSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
+const { sessionFactsToWire, rewindOutcomeToWire } = await import('../../src/engine/connector/seatWire.ts')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+const { METHODS } = await import('../../src/daemon/runner-wire/methods.ts')
+const { RPC_METHOD_NOT_FOUND } = await import('../../src/daemon/runner-wire/errors.ts')
+const { daemonControlRpc, forgetDaemonProtoForTesting } = await import('../../src/daemon/control/controlSocket.ts')
+type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState
+type Receipt = import('../../src/daemon/control/protocol.ts').SessionRewindOutcomeV1
+type FileRequest = import('../../src/daemon/control/protocol.ts').SessionFileRestoreRequest
 let app = getDefaultAppState()
 const setAppState = (update: (prev: AppState) => AppState): void => { app = update(app) }
 const updateHistory = (update: (prev: AppState['fileHistory']) => AppState['fileHistory']): void => setAppState(prev => ({ ...prev, fileHistory: update(prev.fileHistory) }))
@@ -145,7 +145,7 @@ try {
   const malformed = await daemonControlRpc({ op: 'sessionFileRestore', sessionId: sid, by: 'operator', userMessageId: first, action: 'restore' } as never)
   check('a single-file request without a file cannot degrade to whole-tree restore', malformed.ok === false, malformed)
   if (supportsFiles) {
-    const { RpcError } = await import('../../src/runner/wire/errors.ts')
+    const { RpcError } = await import('../../src/daemon/runner-wire/errors.ts')
     stand.runner.onRequest('session/file_restore', () => { throw new RpcError(RPC_METHOD_NOT_FOUND, 'unknown method session/file_restore') })
     const before = readFileSync(beta)
     const older = await restore({ filePath: 'beta.txt' })
@@ -154,7 +154,7 @@ try {
     check('the old rewind method remains callable after an unsupported new method', oldDry.refusal === 'drift', oldDry)
   } else check('the additive runner method exists', false)
 
-  const cleanup = await import('../../src/services/cleanup.ts')
+  const cleanup = await import('../../src/sessions/transcripts/retentionSweep.ts')
   const store = join(home, 'file-history')
   await flushSessionStorage()
   rmSync(store, { recursive: true, force: true })
@@ -174,7 +174,7 @@ try {
   const extra = makeStore('b-latest', 1, 0)
   const over = await sweep()
   check('one byte over 500 MB prunes oldest first, not directory-name order', over.errors === 0 && !existsSync(oldest) && existsSync(middle) && existsSync(newest) && existsSync(extra), over)
-  const { runHealthReport } = await import('../../src/services/health/healthReport.ts')
+  const { runHealthReport } = await import('../../src/platform/health/healthReport.ts')
   const certificate = await runHealthReport()
   const row = certificate.sections.flatMap(section => section.checks).find(check => check.id === 'lifecycle-collection')
   check('/health State cleanup reports actual usage and the 500 MB cap', row?.evidence.includes('file history 300.0 MB / 500 MB') === true, row?.evidence)

@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
 import { EventEmitter } from 'node:events'
 import React from 'react'
-import { AlternateScreen } from '../../src/ink/components/AlternateScreen.js'
-import Box from '../../src/ink/components/Box.js'
-import Text from '../../src/ink/components/Text.js'
-import useInput from '../../src/ink/hooks/use-input.js'
-import Ink from '../../src/ink/ink.js'
-import instances from '../../src/ink/instances.js'
-import { readTerminalWidthMeasurements, WIDTH_PROBE_SAMPLES } from '../../src/ink/session/widthProbe.js'
+import { AlternateScreen } from '../../src/screen/renderer/elements/AlternateScreen.js'
+import Box from '../../src/screen/renderer/elements/Box.js'
+import Text from '../../src/screen/renderer/elements/Text.js'
+import useInput from '../../src/screen/renderer/bindings/use-input.js'
+import Ink from '../../src/screen/renderer/screenInstance.js'
+import instances from '../../src/screen/renderer/instances.js'
+import { readTerminalWidthMeasurements, WIDTH_PROBE_SAMPLES } from '../../src/screen/renderer/terminal-session/widthProbe.js'
 import { AnsiEmulator } from './ansiEmulator.js'
 
 const COLS = 40
@@ -127,13 +127,13 @@ console.log('§1 a first screen that takes the alternate screen and the keyboard
   check(
     'control: the alternate screen is entered once and the eight samples are asked',
     countOf(bytes, ALT_ENTRY) === 1 && countOf(bytes, CURSOR_ASK) === WIDTH_PROBE_SAMPLES.length,
-    `entries ${countOf(bytes, ALT_ENTRY)}, asks ${countOf(bytes, CURSOR_ASK)}; the alternate screen must be entered once and queueTerminalWidthProbe in src/ink/session/widthProbe.ts must ask one cursor position per entry of WIDTH_PROBE_SAMPLES`,
+    `entries ${countOf(bytes, ALT_ENTRY)}, asks ${countOf(bytes, CURSOR_ASK)}; the alternate screen must be entered once and queueTerminalWidthProbe in src/screen/renderer/terminal-session/widthProbe.ts must ask one cursor position per entry of WIDTH_PROBE_SAMPLES`,
   )
   const before = altAt < 0 ? bytes : bytes.slice(0, altAt)
   check(
     "no sample is written, no row erased and no cell addressed before the alternate screen's entry: what stood in the terminal stays",
     altAt >= 0 && !before.includes(CURSOR_ASK) && !before.includes(LINE_ERASE) && !/\x1b\[\d+;\d+H/.test(before),
-    `entry at ${altAt}, first ask at ${firstAsk}, first row erase at ${firstErase}; before the entry: ${show(before)}; the width probe (queueTerminalWidthProbe in src/ink/session/widthProbe.ts) must not write its samples until the alternate screen entry has been written`,
+    `entry at ${altAt}, first ask at ${firstAsk}, first row erase at ${firstErase}; before the entry: ${show(before)}; the width probe (queueTerminalWidthProbe in src/screen/renderer/terminal-session/widthProbe.ts) must not write its samples until the alternate screen entry has been written`,
   )
   check(
     'the entry and the first frame go out in one write, down to the last row, and the samples in a later one',
@@ -145,14 +145,14 @@ console.log('§1 a first screen that takes the alternate screen and the keyboard
   check(
     "the terminal's answers are taken: the eight classes are measured",
     JSON.stringify(measured) === JSON.stringify(expected),
-    `${JSON.stringify(measured)} against ${JSON.stringify(expected)}; the cursor replies must be read back by queueTerminalWidthProbe and returned by readTerminalWidthMeasurements in src/ink/session/widthProbe.ts`,
+    `${JSON.stringify(measured)} against ${JSON.stringify(expected)}; the cursor replies must be read back by queueTerminalWidthProbe and returned by readTerminalWidthMeasurements in src/screen/renderer/terminal-session/widthProbe.ts`,
   )
   const lines = out.lines()
   const wanted = Array.from({ length: ROWS }, (_, i) => rowText(i + 1))
   check(
     "after the probe every row of the frame stands again, the eight it sampled on among them",
     JSON.stringify(lines) === JSON.stringify(wanted),
-    JSON.stringify(lines) + '; the frame rows must be repainted after the probe erased the rows it sampled on (see the probe request in src/ink/session/widthProbe.ts)',
+    JSON.stringify(lines) + '; the frame rows must be repainted after the probe erased the rows it sampled on (see the probe request in src/screen/renderer/terminal-session/widthProbe.ts)',
   )
   ;(ink as unknown as { isTTY: boolean }).isTTY = false
   ink.unmount()
@@ -184,7 +184,7 @@ console.log('§2 a first screen that gives the alternate screen up before its en
   check(
     "the alternate screen is never entered, and nothing of the probe is written on the terminal's own screen",
     !out.bytes.includes(ALT_ENTRY) && !out.bytes.includes(CURSOR_ASK) && !out.bytes.includes(LINE_ERASE) && !out.bytes.includes('\x1b7'),
-    show(out.bytes) + '; a screen that gives up the alternate entry before it is written must leave the width probe unsent (src/ink/session/widthProbe.ts)',
+    show(out.bytes) + '; a screen that gives up the alternate entry before it is written must leave the width probe unsent (src/screen/renderer/terminal-session/widthProbe.ts)',
   )
   ;(ink as unknown as { isTTY: boolean }).isTTY = false
   ink.unmount()

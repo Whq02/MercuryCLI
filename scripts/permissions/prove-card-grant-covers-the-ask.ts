@@ -52,23 +52,23 @@ if (hostPlatform.value !== 'win32') {
 }
 process.chdir(HOST.project)
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { getPlatform } = await import('../../src/utils/platform.ts')
-const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getResolvedWorkingDirPaths } = await import('../../src/utils/permissions/filesystem.ts')
-const { applyPermissionUpdates } = await import('../../src/utils/permissions/PermissionUpdate.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { pinnedCommandAnalysis } = await import('../../src/utils/permissions/decision/commandAnalysis.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { PowerShellTool } = await import('../../src/tools/PowerShellTool/PowerShellTool.tsx')
-const { BashPermissionRequest } = await import('../../src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx')
-const { PowerShellPermissionRequest } = await import('../../src/components/permissions/PowerShellPermissionRequest/PowerShellPermissionRequest.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
+const { getPlatform } = await import('../../src/platform/environment/platform.ts')
+const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getResolvedWorkingDirPaths } = await import('../../src/permissions/rules/filesystem.ts')
+const { applyPermissionUpdates } = await import('../../src/permissions/rules/permissionUpdate.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { pinnedCommandAnalysis } = await import('../../src/permissions/rules/decision/commandAnalysis.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { PowerShellTool } = await import('../../src/tools/powershell/PowerShellTool.tsx')
+const { BashPermissionRequest } = await import('../../src/permissions/cards/bash/ShellPermissionRequest.tsx')
+const { PowerShellPermissionRequest } = await import('../../src/permissions/cards/powershell/PowerShellPermissionRequest.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
 const { KEY, mountOffscreen, waitFor } = await import('../lib/settingsPopupHarness.ts')
 
 type Mode = 'default' | 'implement' | 'flow'
@@ -78,7 +78,7 @@ type Asked = { decision: Decision; choices: string[]; repeat: string; handed: un
 const NO = '2. No, and tell Mercury what to do differently (esc)'
 const MODE_WORDS: Record<Mode, string> = { default: 'Default', implement: 'Implement', flow: 'Flow' }
 const WHERE =
-  'a choice whose rules leave the same call asking, or that needs a mode switch its words do not name, must not reach the card: drop it where the ask is settled, askWithCoveringGrant under decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts; the words of a choice that stays are generateShellSuggestionsLabel in src/components/permissions/shellPermissionHelpers.tsx'
+  'a choice whose rules leave the same call asking, or that needs a mode switch its words do not name, must not reach the card: drop it where the ask is settled, askWithCoveringGrant under decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts; the words of a choice that stays are generateShellSuggestionsLabel in src/permissions/cards/shellAskParts.tsx'
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {

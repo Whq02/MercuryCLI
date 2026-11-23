@@ -12,7 +12,7 @@ const { scenario, cleanupScenario, writeSyntheticSession, SID } = await import('
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ' [change clearFocusedSession in src/services/switchboard/hopIntoSession.ts (called by src/commands/clear/clear.ts) so /clear drops the old transcript and the born chat takes focus; for a capture that did not run, read the vshot output above]'}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ' [change clearFocusedSession in src/daemon/switchboard/hopIntoSession.ts (called by src/commands/clear/clear.ts) so /clear drops the old transcript and the born chat takes focus; for a capture that did not run, read the vshot output above]'}`)
   if (!ok) failures = 1
 }
 
@@ -110,7 +110,7 @@ try {
 
   {
     const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-    const { getTaskPath } = await import('../../src/utils/tasks.ts')
+    const { getTaskPath } = await import('../../src/engine/task-framework/tasks.ts')
     const OLD_VERB = 'Reviewing the planning doc'
     const homeTurn = mkdtempSync(join(tmpdir(), 'clear-then-turn-'))
     writeSyntheticSession('thinking', SID)

@@ -8,19 +8,19 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
 const React = (await import('react')).default
-const { render } = await import('../../src/ink.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const ui = await import('../../src/tools/ScheduleCronTool/UI.tsx')
-const { CronDeleteTool } = await import('../../src/tools/ScheduleCronTool/CronDeleteTool.ts')
-const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
+const { render } = await import('../../src/screen/themedRenderer.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const ui = await import('../../src/tools/cron/rows.tsx')
+const { CronDeleteTool } = await import('../../src/tools/cron/CronDeleteTool.ts')
+const bridge = await import('../../src/daemon/saturn/sessionScheduleBridge.ts')
 let failures = 0
-const cronRowsFailHint = 'to fix, change the render functions in src/tools/ScheduleCronTool/UI.tsx or the validation and result text in src/tools/ScheduleCronTool/CronDeleteTool.ts'
+const cronRowsFailHint = 'to fix, change the render functions in src/tools/cron/rows.tsx or the validation and result text in src/tools/cron/CronDeleteTool.ts'
 const check = (label: string, ok: boolean, detail = ''): void => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail + ' · ' : ''}${cronRowsFailHint}` : ''}`) }
 const j = (v: unknown): string => JSON.stringify(v)
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands/effort/EffortPopup.tsx src/commands/effort/effort.tsx src/components/CommandPopupSlot.tsx src/utils/cockpit/commandPopup.ts src/components/FullscreenLayout.tsx src/components/PopupGutter.tsx
+// gate-watch: src/commands/effort/EffortPopup.tsx src/commands/effort/effort.tsx src/screen/overlays/CommandPopupSlot.tsx src/screen/cockpit/commandPopup.ts src/screen/fullscreen-layout/FullscreenLayout.tsx src/screen/overlays/PopupGutter.tsx
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -31,27 +31,27 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
 for (const key of ['MERCURY_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'NODE_ENV']) delete process.env[key]
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
-const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
+const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const { default: instances } = await import('../../src/ink/instances.ts')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
 const effortCommand = await import('../../src/commands/effort/effort.tsx')
 const popup = await import('../../src/commands/effort/EffortPopup.tsx')
-const { getEngineModel } = await import('../../src/services/model/model.ts')
-const { MODEL_PICKER_CURRENT } = await import('../../src/utils/model/modelPickerGroups.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
+const { MODEL_PICKER_CURRENT } = await import('../../src/models/facts/modelPickerGroups.ts')
 const h = React.createElement
 
 const TITLE = 'Mercury · effort'
@@ -231,7 +231,7 @@ function frameReadsRight(label: string, lines: string[], cols: number, rows: num
   console.log(`${label}: ${describe(window)}`)
   check(`${label}: one closed bordered window titled ${TITLE}`, window !== null && wholeBottom(window), `${lines.slice(0, 8).join(' | ')} · EffortPopup in src/commands/effort/EffortPopup.tsx must paint a closed bordered window with the title and a bottom border`)
   if (window === null) return null
-  check(`${label}: the window lies inside the terminal (${cols}x${rows})`, window.right < cols && window.bottom < rows && window.left >= 0 && window.top >= 0, `${describe(window)} · the popup must fit this terminal size; see how src/commands/effort/EffortPopup.tsx and src/components/CommandPopupSlot.tsx size and place it`)
+  check(`${label}: the window lies inside the terminal (${cols}x${rows})`, window.right < cols && window.bottom < rows && window.left >= 0 && window.top >= 0, `${describe(window)} · the popup must fit this terminal size; see how src/commands/effort/EffortPopup.tsx and src/screen/overlays/CommandPopupSlot.tsx size and place it`)
   check(`${label}: the rows are the tiers the model serves, auto first, max last (${expectedRows.join(' ')})`, tierRows(window).join(' ') === expectedRows.join(' '), `${tierRows(window).join(' ')} · the painted rows must equal effortPopupRows(model) in src/commands/effort/EffortPopup.tsx`)
   const current = window.rows.map(inner).find(row => row.endsWith(` ${MODEL_PICKER_CURRENT}`))
   check(`${label}: exactly one row carries the ${MODEL_PICKER_CURRENT} mark and it is the running tier (${expectedCurrent})`, window.rows.map(inner).filter(row => row.endsWith(` ${MODEL_PICKER_CURRENT}`)).length === 1 && current !== undefined && current.slice(2).trim().startsWith(expectedCurrent), `${current ?? '(no current row)'} · only the tier from effortPopupOpeningLevel in src/commands/effort/EffortPopup.tsx may carry the current mark`)
@@ -241,7 +241,7 @@ function frameReadsRight(label: string, lines: string[], cols: number, rows: num
   check(`${label}: the model line names the model and the ladder`, window.rows.some(row => inner(row).includes('effort ') && inner(row).includes('…') && inner(row).includes('running ')), `${window.rows.slice(1, 4).map(inner).join(' | ')} · the model line in src/commands/effort/EffortPopup.tsx must carry effort, the ladder with an ellipsis, and running`)
   check(`${label}: the env-override line ${envLine ? 'is painted' : 'is absent'}`, window.rows.some(row => inner(row).startsWith('MERCURY_EFFORT_LEVEL=')) === envLine, `${window.rows.slice(1, 4).map(inner).join(' | ')} · the MERCURY_EFFORT_LEVEL= line must appear in src/commands/effort/EffortPopup.tsx only while that env variable is set`)
   const composerRow = lines.findIndex(line => line.includes(COMPOSER))
-  check(`${label}: the composer stays visible under the popup`, composerRow > window.bottom, `composer row ${composerRow} · the popup must not cover the composer; see src/components/CommandPopupSlot.tsx and src/components/FullscreenLayout.tsx`)
+  check(`${label}: the composer stays visible under the popup`, composerRow > window.bottom, `composer row ${composerRow} · the popup must not cover the composer; see src/screen/overlays/CommandPopupSlot.tsx and src/screen/fullscreen-layout/FullscreenLayout.tsx`)
   return window
 }
 
@@ -253,7 +253,7 @@ for (const [cols, rows] of SIZES) {
   const window = frameReadsRight(`${cols}x${rows}`, frame, cols, rows, false)
   if (window !== null && cols >= 100) {
     const lanesRow = frame.findIndex(line => line.includes('lanes'))
-    check(`${cols}x${rows}: the lanes rail stays visible left of the window`, lanesRow >= 0 && Array.from(frame[window.top + 2] ?? '').slice(0, window.left).join('').trim() !== '', 'nothing painted left of the window · the popup must leave the lanes rail visible at 100 columns and wider; see src/components/PopupGutter.tsx')
+    check(`${cols}x${rows}: the lanes rail stays visible left of the window`, lanesRow >= 0 && Array.from(frame[window.top + 2] ?? '').slice(0, window.left).join('').trim() !== '', 'nothing painted left of the window · the popup must leave the lanes rail visible at 100 columns and wider; see src/screen/overlays/PopupGutter.tsx')
   }
   await scene.close()
 }
@@ -317,7 +317,7 @@ section('§4 a click outside the popup closes it with nothing changed')
   await sleep(250)
   scene.push(CLICK_OUTSIDE)
   const closed = await until(() => scene.done().length > 0, 5000)
-  check('a click on the chat beside the popup closes it like esc', closed && String(scene.done()[0]?.[0]).startsWith('Effort unchanged ('), `${JSON.stringify(scene.done())} · a click outside the popup must close it like esc; see src/components/CommandPopupSlot.tsx and src/commands/effort/EffortPopup.tsx`)
+  check('a click on the chat beside the popup closes it like esc', closed && String(scene.done()[0]?.[0]).startsWith('Effort unchanged ('), `${JSON.stringify(scene.done())} · a click outside the popup must close it like esc; see src/screen/overlays/CommandPopupSlot.tsx and src/commands/effort/EffortPopup.tsx`)
   await scene.close()
 }
 
@@ -334,7 +334,7 @@ section('§5 a live resize while the popup is open, with the env pin painted')
     const frame = scene.lines()
     save(`effort-resize-${cols}x${rows}`, frame)
     frameReadsRight(`resize → ${cols}x${rows}`, frame, cols, rows, true, cursorBefore)
-    check(`resize → ${cols}x${rows}: nothing of the popup paints outside the frame (no second title)`, frame.filter(line => line.includes(TITLE)).length === 1, 'a second popup title was painted after the resize; see src/components/FullscreenLayout.tsx and src/components/CommandPopupSlot.tsx')
+    check(`resize → ${cols}x${rows}: nothing of the popup paints outside the frame (no second title)`, frame.filter(line => line.includes(TITLE)).length === 1, 'a second popup title was painted after the resize; see src/screen/fullscreen-layout/FullscreenLayout.tsx and src/screen/overlays/CommandPopupSlot.tsx')
   }
   delete process.env.MERCURY_EFFORT_LEVEL
   await scene.close()

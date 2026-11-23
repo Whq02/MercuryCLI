@@ -13,13 +13,13 @@ delete process.env.MERCURY_HOME
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 pinSourceRef()
 let checks = 0
-const failureHint = ' · fix the code the check names: GGUF header and shard checks live in src/services/host/ggufHeader.ts (parseGgufHeader, compareGgufWithEngine, checkGgufAgainstEngine); table, pin, image stamp and registry checks live in scripts/host/export-llamacpp-engine.ts (engineProblems, imageStampProblems, readRegistryImage) with the pins in src/services/host/recipes.ts; run bun scripts/host/export-llamacpp-engine.ts --check to see the drift'
+const failureHint = ' · fix the code the check names: GGUF header and shard checks live in src/models/hosting/ggufHeader.ts (parseGgufHeader, compareGgufWithEngine, checkGgufAgainstEngine); table, pin, image stamp and registry checks live in scripts/host/export-llamacpp-engine.ts (engineProblems, imageStampProblems, readRegistryImage) with the pins in src/models/hosting/recipes.ts; run bun scripts/host/export-llamacpp-engine.ts --check to see the drift'
 const check = (name: string, value: unknown) => { assert.ok(value, name + failureHint); checks++; console.log('PASS ' + name) }
 const root = resolve(import.meta.dir, '../..')
 const sha256 = (text: string): string => 'sha256:' + createHash('sha256').update(text).digest('hex')
 
-const { parseGgufHeader, compareGgufWithEngine, checkGgufAgainstEngine, LLAMACPP_ENGINE_TABLE } = await import('../../src/services/host/ggufHeader.ts')
-const { LLAMACPP_ENGINE_SHA, LLAMACPP_ENGINE_IMAGE } = await import('../../src/services/host/recipes.ts')
+const { parseGgufHeader, compareGgufWithEngine, checkGgufAgainstEngine, LLAMACPP_ENGINE_TABLE } = await import('../../src/models/hosting/ggufHeader.ts')
+const { LLAMACPP_ENGINE_SHA, LLAMACPP_ENGINE_IMAGE } = await import('../../src/models/hosting/recipes.ts')
 const { engineProblems, imageStampProblems, readRegistryImage } = await import('./export-llamacpp-engine.ts')
 const asset = JSON.parse(readFileSync(join(root, 'assets/host/llamacpp-engine.json'), 'utf8')) as Parameters<typeof engineProblems>[0]['asset']
 const dockerfile = readFileSync(join(root, 'scripts/host/Dockerfile.llamacpp'), 'utf8').replaceAll('\r\n', '\n')

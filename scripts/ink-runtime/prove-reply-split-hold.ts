@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
-import { INITIAL_STATE, parseMultipleKeypresses, type KeyParseState, type ParsedInput } from '../../src/ink/input/input-decoder.ts'
-import { InputEvent } from '../../src/ink/events/input-event.ts'
+import { INITIAL_STATE, parseMultipleKeypresses, type KeyParseState, type ParsedInput } from '../../src/screen/renderer/input/input-decoder.ts'
+import { InputEvent } from '../../src/screen/renderer/events/input-event.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix how createScanner holds and releases a split reply head across flush() in src/ink/input/scanner.ts, or how parseMultipleKeypresses turns tokens into atoms in src/ink/input/input-decoder.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix how createScanner holds and releases a split reply head across flush() in src/screen/renderer/input/scanner.ts, or how parseMultipleKeypresses turns tokens into atoms in src/screen/renderer/input/input-decoder.ts` : ''}`)
 }
 
 function typedText(atoms: ParsedInput[]): string[] {

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { VERIFIER_BRIEF } from '../../../src/commands/verify.js'
+import { VERIFIER_BRIEF } from '../../../src/commands/verify/index.js'
 import type { HelixFamilyId, HelixTask } from '../corpus/contracts.js'
 
 export interface HelixPolicy {

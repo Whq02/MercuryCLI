@@ -7,7 +7,7 @@ import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs, resolveCaptureDriver } from '../lib/captureDriver.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { childEnv, startFixture } from '../daemon/dupline-world.ts'
-import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
+import { keyHintLabel } from '../../src/screen/widgets/keyHintLabel.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {

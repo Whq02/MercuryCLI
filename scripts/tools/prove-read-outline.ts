@@ -13,10 +13,10 @@ process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
 process.env.BROWSER = '/usr/bin/true'
 delete process.env.NODE_ENV
 
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 
 let failures = 0
 let checks = 0
@@ -24,7 +24,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   console.log(
-    `  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.length > 600 ? `${detail.slice(0, 600)}…` : detail}` : ''} | fix the outline mode of the Read tool in src/tools/FileReadTool/outline.ts (and its outline option in src/tools/FileReadTool/FileReadTool.ts); a failure on a Read or Edit step after an outline Read points at the read-state entry the outline path writes` : ''}`,
+    `  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.length > 600 ? `${detail.slice(0, 600)}…` : detail}` : ''} | fix the outline mode of the Read tool in src/tools/read/outline.ts (and its outline option in src/tools/read/ReadTool.ts); a failure on a Read or Edit step after an outline Read points at the read-state entry the outline path writes` : ''}`,
   )
 }
 function section(t: string): void {

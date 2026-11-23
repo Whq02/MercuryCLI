@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 import { execFileSync } from 'node:child_process'
@@ -22,16 +22,16 @@ process.env.GIT_CONFIG_SYSTEM = '/dev/null'
 process.env.XDG_CONFIG_HOME = join(scratch, 'xdg')
 writeFileSync(process.env.GIT_CONFIG_GLOBAL, '')
 
-const wt = await import('../../src/daemon/concourseWorktrees.ts')
-const sup = await import('../../src/daemon/concourseWorkers.ts')
-const disp = await import('../../src/daemon/concourseDispatch.ts')
+const wt = await import('../../src/daemon/concourse-workers/concourseWorktrees.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const disp = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
 
 let failures = 0
 function check(label: string, ok: boolean, detail?: string): void {
   if (ok) console.log(`  ✅ ${label}`)
   else {
     failures += 1
-    const where = 'change by section above: §1-§5 and §10 src/daemon/concourseWorktrees.ts (ensureWorkerWorktree, classifyWorktreeDirt, reapWorkerWorktree, forkCommitState); §6-§7 src/daemon/concourseWorkers.ts (settleConcourseWorker, reconcileConcourseWorkers, recordCollisionEvidence); §8 preflightConcourseDispatch in src/daemon/concourseDispatch.ts'
+    const where = 'change by section above: §1-§5 and §10 src/daemon/concourse-workers/concourseWorktrees.ts (ensureWorkerWorktree, classifyWorktreeDirt, reapWorkerWorktree, forkCommitState); §6-§7 src/daemon/concourse-workers/concourseWorkers.ts (settleConcourseWorker, reconcileConcourseWorkers, recordCollisionEvidence); §8 preflightConcourseDispatch in src/daemon/concourse-workers/concourseDispatch.ts'
     console.log(`  ❌ ${label} — ${detail ? `${detail} | ` : ''}${where}`)
   }
 }

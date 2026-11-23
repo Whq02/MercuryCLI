@@ -14,7 +14,7 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_SEATS
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${!ok ? ` — ${detail ? `${detail}; ` : ''}seatCeilingFactsAsync, refreshHeldReadingAsync, refreshMemorySample and seatCeilingDetailLines in src/utils/switchboard/capacityCheck.ts decide when a sample is taken, how the held reading is kept and what the ceiling reads` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${!ok ? ` — ${detail ? `${detail}; ` : ''}seatCeilingFactsAsync, refreshHeldReadingAsync, refreshMemorySample and seatCeilingDetailLines in src/daemon/switchboard-capacity/capacityCheck.ts decide when a sample is taken, how the held reading is kept and what the ceiling reads` : ''}`)
   if (!ok) failures++
 }
 let syncCalls = 0
@@ -36,8 +36,8 @@ mock.module('node:child_process', () => ({
   execSync: () => { syncCalls++; throw new Error('synchronous process creation') },
   execFileSync: () => { syncCalls++; throw new Error('synchronous process creation') },
 }))
-mock.module(join(ROOT, 'src/utils/availableCores.ts'), () => ({ availableCores: () => 8 }))
-mock.module(join(ROOT, 'src/utils/execFileNoThrow.ts'), () => ({
+mock.module(join(ROOT, 'src/platform/processes/availableCores.ts'), () => ({ availableCores: () => 8 }))
+mock.module(join(ROOT, 'src/platform/processes/execFileNoThrow.ts'), () => ({
   execFileNoThrowWithCwd: async () => { throw new Error('unexpected subprocess') },
   execFileNoThrow: () => {
     samples++
@@ -46,8 +46,8 @@ mock.module(join(ROOT, 'src/utils/execFileNoThrow.ts'), () => ({
 }))
 const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
 Object.defineProperty(process, 'platform', { ...platform, value: 'darwin' })
-const cap = await import('../../src/utils/switchboard/capacityCheck.ts')
-const config = await import('../../src/utils/config/globalConfig.ts')
+const cap = await import('../../src/daemon/switchboard-capacity/capacityCheck.ts')
+const config = await import('../../src/platform/config/globalConfig.ts')
 config.enableConfigs()
 const clock = Date.now
 let now = clock()

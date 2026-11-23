@@ -12,14 +12,14 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  const standInHint = 'fix the stand-in table (parameterStandIn) and formatZodValidationError in src/utils/toolErrors.ts, or the Grep input schema in src/tools/GrepTool/GrepTool.ts'
+  const standInHint = 'fix the stand-in table (parameterStandIn) and formatZodValidationError in src/tools/kit/toolErrors.ts, or the Grep input schema in src/tools/grep/GrepTool.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${standInHint}` : ''}`)
   if (!cond) failures++
 }
 
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { formatZodValidationError, parameterStandIn } = await import('../../src/utils/toolErrors.ts')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { formatZodValidationError, parameterStandIn } = await import('../../src/tools/kit/toolErrors.ts')
 import type { z } from 'zod/v4'
 
 const refusal = (tool: { name: string; inputSchema: { safeParse(input: unknown): { success: boolean; error?: unknown } }; inputJSONSchema?: unknown }, input: Record<string, unknown>): string => {

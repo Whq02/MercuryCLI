@@ -374,7 +374,7 @@ I comandi disponibili includono:
 - **Apollo Mode**, l'intervista di specifica: rispondi alle domande dell'agente per completare la specifica che userà per costruire un prototipo. Vedi [docs/APOLLO-MODE.md](../APOLLO-MODE.md).
 - **Ripristino.** Pubblicazione atomica, operazioni registrate in un journal e riconciliazione all'avvio. Vedi [docs/DURABILITY.md](../DURABILITY.md).
 
-I flag di runtime sono definiti in `src/substrate/flagRegistry.ts`, esposti come impostazioni `MERCURY_*` e generati su richiesta. La compatibilità delle integrazioni è documentata in [docs/COMPATIBILITY.md](../COMPATIBILITY.md). L'indice completo della documentazione è in [docs/README.md](../README.md).
+I flag di runtime sono definiti in `src/platform/substrate/flagRegistry.ts`, esposti come impostazioni `MERCURY_*` e generati su richiesta. La compatibilità delle integrazioni è documentata in [docs/COMPATIBILITY.md](../COMPATIBILITY.md). L'indice completo della documentazione è in [docs/README.md](../README.md).
 
 ## Comandi slash
 

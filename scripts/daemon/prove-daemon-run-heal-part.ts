@@ -53,11 +53,11 @@ const watches: Watch[] = []
 const timers: Array<{ ms: number; run: () => void; unref: boolean; cleared: boolean }> = []
 
 const fs = await import('node:fs')
-const controlSocket = await import('../../src/daemon/controlSocket.ts')
-const daemonHome = await import('../../src/daemon/daemonHome.ts')
-const handover = await import('../../src/daemon/handover.ts')
-const planeRecords = await import('../../src/daemon/planeRecords.ts')
-const debug = await import('../../src/utils/debug.ts')
+const controlSocket = await import('../../src/daemon/control/controlSocket.ts')
+const daemonHome = await import('../../src/daemon/control/daemonHome.ts')
+const handover = await import('../../src/daemon/control/handover.ts')
+const planeRecords = await import('../../src/daemon/control/planeRecords.ts')
+const debug = await import('../../src/platform/logs/debugLog.ts')
 const SOCK = controlSocket.controlSockPath()
 const KEY = controlSocket.controlKeyPath()
 const OWN = handover.predecessorSockPath(process.pid)
@@ -77,8 +77,8 @@ mock.module('node:fs', () => ({
     }
   },
 }))
-mock.module('../../src/daemon/controlSocket.ts', () => ({ ...controlSocket, reassertControlKey: (key: string) => neighbour(`write the control key ${key} again`) }))
-mock.module('../../src/daemon/daemonHome.ts', () => ({
+mock.module('../../src/daemon/control/controlSocket.ts', () => ({ ...controlSocket, reassertControlKey: (key: string) => neighbour(`write the control key ${key} again`) }))
+mock.module('../../src/daemon/control/daemonHome.ts', () => ({
   ...daemonHome,
   daemonHomeStands: (where: string) => {
     const stands = script.homeStands.shift() ?? true
@@ -86,19 +86,19 @@ mock.module('../../src/daemon/daemonHome.ts', () => ({
     return stands
   },
 }))
-mock.module('../../src/daemon/handover.ts', () => ({ ...handover, deployedRuntime: () => (script.deployed === null ? null : { buildTree: script.deployed, script: '/deployed/mercury.mjs', version: '1.0.0', layout: 'source' }) }))
-mock.module('../../src/daemon/planeRecords.ts', () => ({
+mock.module('../../src/daemon/control/handover.ts', () => ({ ...handover, deployedRuntime: () => (script.deployed === null ? null : { buildTree: script.deployed, script: '/deployed/mercury.mjs', version: '1.0.0', layout: 'source' }) }))
+mock.module('../../src/daemon/control/planeRecords.ts', () => ({
   ...planeRecords,
   readPlaneOwnerSync: () => {
     note('read who serves the plane')
     return script.owner
   },
 }))
-mock.module('../../src/utils/debug.ts', () => ({ ...debug, logForDebugging: (line: string) => note(`debug: ${line}`) }))
+mock.module('../../src/platform/logs/debugLog.ts', () => ({ ...debug, logForDebugging: (line: string) => note(`debug: ${line}`) }))
 
 const part = await import('../../src/daemon/run/heal.ts')
 const { makeDaemonRunState } = await import('../../src/daemon/run/state.ts')
-const { DaemonBreaker } = await import('../../src/utils/daemonBreaker.ts')
+const { DaemonBreaker } = await import('../../src/daemon/control/daemonBreaker.ts')
 
 type State = ReturnType<typeof makeDaemonRunState>
 const OURS = 'aaaaaaaaaaaa'

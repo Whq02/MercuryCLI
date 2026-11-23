@@ -90,7 +90,7 @@ try {
     symlinkSync(npm, join(bin, 'mercury'))
     refused(managed, ['--check'], 'npm i -g mercury-tech-cli@latest', { PATH: `${bin}${delimiter}${env.PATH}` })
   }
-  const { updateReinstallCommand } = await import('../../src/services/privateChannel/updateRemedy.js')
+  const { updateReinstallCommand } = await import('../../src/platform/update-channel/updateRemedy.js')
   const provenance = (kind: 'unknown' | 'managed' | 'homebrew' | 'npm', invokedPath = '') => ({ kind, invokedPath })
   assert.equal(updateReinstallCommand(provenance('unknown'), null, 'win32'), 'irm https://mercury-cli.ai/install.ps1 | iex')
   assert.equal(updateReinstallCommand(provenance('unknown'), null, 'linux'), 'curl -fsSL https://mercury-cli.ai/install.sh | sh')

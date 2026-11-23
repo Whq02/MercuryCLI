@@ -9,8 +9,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { applyPromptToMarkdown } = await import('../../src/tools/WebFetchTool/utils.ts')
-const { AbortError } = await import('../../src/utils/errors.ts')
+const { applyPromptToMarkdown } = await import('../../src/tools/web-fetch/fetchContent.ts')
+const { AbortError } = await import('../../src/platform/errors/errors.ts')
 
 const fakeMsg = (text: string) => ({ message: { content: [{ type: 'text', text }] } })
 const thrower = (msg: string) => async () => {
@@ -18,7 +18,7 @@ const thrower = (msg: string) => async () => {
 }
 const sig = new AbortController().signal
 
-const summariserHint = 'change applyPromptToMarkdown in src/tools/WebFetchTool/utils.ts'
+const summariserHint = 'change applyPromptToMarkdown in src/tools/web-fetch/fetchContent.ts'
 const reading = (text: string) => `[Model reading of the extracted page, not the page’s own words.]\n\n${text}`
 console.log('============================================================')
 console.log(' WebFetch summariser — the utility call, then the session model when it differs, then an honest road')

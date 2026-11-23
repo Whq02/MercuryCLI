@@ -9,7 +9,7 @@ import { fakeCommand } from '../dap/fakeCommand.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix the Blender owner in src/utils/blender/blenderProject.ts (mercuryBlenderEnabled, discoverBlendFiles, locateBlender, probeBlenderVersion, blenderLaneReadinessRecords, BLENDER_INSTALL_REMEDY) for the section named above'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix the Blender owner in src/integrations/blender-protocol/blenderProject.ts (mercuryBlenderEnabled, discoverBlendFiles, locateBlender, probeBlenderVersion, blenderLaneReadinessRecords, BLENDER_INSTALL_REMEDY) for the section named above'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -28,7 +28,7 @@ const {
   _resetBlenderVersionProbeForTesting,
   BLENDER_INSTALL_REMEDY,
   BLEND_FILE_CAP,
-} = await import('../../src/utils/blender/blenderProject.js')
+} = await import('../../src/integrations/blender-protocol/blenderProject.js')
 
 const savedEnv = { ...process.env }
 function restore(): void {

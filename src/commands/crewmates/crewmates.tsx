@@ -1,6 +1,6 @@
-import type { LocalJSXCommandCall } from '../../types/command.js'
-import { openCrewView } from '../../utils/cockpit/crewView.js'
-import { parseSpawnSwitchArg } from '../../services/switchboard/spawnSwitches.js'
+import type { LocalJSXCommandCall } from '../catalogue/command.js'
+import { openCrewView } from '../../screen/cockpit/crewView.js'
+import { parseSpawnSwitchArg } from '../../daemon/switchboard/spawnSwitches.js'
 import { runSpawnSwitchCommand } from './spawnSwitch.js'
 
 export const call: LocalJSXCommandCall = async (onDone, _context, args) => {

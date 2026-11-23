@@ -3,12 +3,12 @@
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const { parseLegacyCommandString } = await import(join(ROOT, 'src/utils/resolvedInvocation.ts'))
+const { parseLegacyCommandString } = await import(join(ROOT, 'src/platform/processes/resolvedInvocation.ts'))
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const shown = cond ? detail : `${detail ? detail + ' — ' : ''}change parseLegacyCommandString in src/utils/resolvedInvocation.ts so this input tokenizes as the label says`
+  const shown = cond ? detail : `${detail ? detail + ' — ' : ''}change parseLegacyCommandString in src/platform/processes/resolvedInvocation.ts so this input tokenizes as the label says`
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
 }
 const eq = (raw: string, exe: string, args: string[]): boolean => {

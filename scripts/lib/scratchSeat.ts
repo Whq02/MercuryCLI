@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { DIST, NODE, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, sleep } from '../daemon/dupline-world.ts'
-import { seedScratchHome, startScriptedFixture, type Script } from '../lib/scriptedTurn.ts'
+import { seedScratchHome, startScriptedFixture, type Script } from './scriptedTurn.ts'
 
 export { DIST, NODE, bound, childEnv, isOutcome, makeTally, seedScratchHome, sleep, startScriptedFixture }
 export type { Script }

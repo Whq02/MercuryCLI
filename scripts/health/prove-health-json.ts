@@ -72,15 +72,15 @@ try {
     check(
       'bare run exits 0 or 3 (report produced; 3 = fault verdict on this signed-out scratch home — FC-044)',
       r.status === 0 || r.status === 3,
-      `status=${r.status} — health --json must print its record and exit 0, or 3 for a fault verdict: see the exit codes in src/cli/healthJson.ts (build first with bun run build.ts)`,
+      `status=${r.status} — health --json must print its record and exit 0, or 3 for a fault verdict: see the exit codes in src/commands/verbs/healthJson.ts (build first with bun run build.ts)`,
     )
     const cert = r.json as Cert
-    check('cert has verdict/sections/head/version', !!cert && typeof cert.verdict === 'string' && Array.isArray(cert.sections) && 'head' in cert, 'stdout of node dist/mercury.mjs health --json must parse as one certificate with verdict, sections and head: see src/cli/healthJson.ts and runHealthReport in src/services/health/healthReport.ts')
+    check('cert has verdict/sections/head/version', !!cert && typeof cert.verdict === 'string' && Array.isArray(cert.sections) && 'head' in cert, 'stdout of node dist/mercury.mjs health --json must parse as one certificate with verdict, sections and head: see src/commands/verbs/healthJson.ts and runHealthReport in src/platform/health/healthReport.ts')
     check('ranAt is ISO-8601', !Number.isNaN(Date.parse(cert.ranAt)))
     const checks = allChecks(cert)
     check(`every check carries NON-EMPTY evidence (${checks.length} checks)`,
       checks.length >= 15 && checks.every(c => typeof c.evidence === 'string' && c.evidence.length > 0),
-      `${checks.filter(c => !c.evidence).map(c => c.id).join(',')} — the listed check ids return no evidence string (or fewer than 15 checks ran): give each check in src/services/health/sections a non-empty evidence`)
+      `${checks.filter(c => !c.evidence).map(c => c.id).join(',')} — the listed check ids return no evidence string (or fewer than 15 checks ran): give each check in src/platform/health/sections a non-empty evidence`)
     check('every status is in the 7-status enum', checks.every(c => STATUSES.has(c.status)))
     check('no gate in a bare project reads info (not fabricated ok/unknown)', byId(cert, 'gate')?.status === 'info')
     check('no sandbox row in RUNTIME', byId(cert, 'sandbox') === undefined)
@@ -93,14 +93,14 @@ try {
       const row = authSection?.checks.find(c => c.id === `auth-${provider}`)
       check(`AUTH carries one row for ${provider} (absent ⇒ an absent row, never silence)`,
         !!row && typeof row.evidence === 'string' && row.evidence.length > 0,
-        `${JSON.stringify(row)} — the auth section under src/services/health/sections must return an auth-${provider} row with evidence`)
+        `${JSON.stringify(row)} — the auth section under src/platform/health/sections must return an auth-${provider} row with evidence`)
     }
     check('the legacy single-provider auth row is gone', !authSection?.checks.some(c => c.id === 'auth'))
     const projectsDir = join(scratchHome, '.mercury', 'projects')
     const slugs = existsSync(projectsDir) ? readdirSync(projectsDir) : []
-    check('the bare run wrote ONE project store under the config home', slugs.length === 1, `${JSON.stringify(slugs)} — a health run must create exactly one project folder under MERCURY_CONFIG_DIR/projects; see the last-cert write in src/services/health/healthReport.ts`)
+    check('the bare run wrote ONE project store under the config home', slugs.length === 1, `${JSON.stringify(slugs)} — a health run must create exactly one project folder under MERCURY_CONFIG_DIR/projects; see the last-cert write in src/platform/health/healthReport.ts`)
     const lastCert = join(projectsDir, slugs[0] ?? '(none)', 'health', 'last-cert.json')
-    check('last-cert summary artifact written under the config home\'s project store', existsSync(lastCert), `${lastCert} — not written; the health run must write last-cert.json into the config home project store (src/services/health/healthReport.ts)`)
+    check('last-cert summary artifact written under the config home\'s project store', existsSync(lastCert), `${lastCert} — not written; the health run must write last-cert.json into the config home project store (src/platform/health/healthReport.ts)`)
     check('POISON: nothing was written into the project folder\'s .mercury/health', !existsSync(join(dir, '.mercury', 'health', 'last-cert.json')))
     const sum = JSON.parse(readFileSync(lastCert, 'utf8')) as { verdict?: string; counts?: unknown }
     check('last-cert summary carries verdict + counts', typeof sum.verdict === 'string' && !!sum.counts)
@@ -121,7 +121,7 @@ try {
     )
     const r = runHealth(dir)
     const gate = byId(r.json as Cert, 'gate')
-    check('planted green verdict (no repo) ⇒ gate ok', gate?.status === 'ok', `${JSON.stringify(gate)} — the gate row (src/services/health/sections/proofs.ts, healthPreflight.ts) must read the planted .mercury/gate/verdict.json as ok`)
+    check('planted green verdict (no repo) ⇒ gate ok', gate?.status === 'ok', `${JSON.stringify(gate)} — the gate row (src/platform/health/sections/proofs.ts, healthPreflight.ts) must read the planted .mercury/gate/verdict.json as ok`)
     check('gate evidence says the sha comparison was skipped', String(gate?.evidence).includes('sha comparison skipped'))
   }
 
@@ -137,7 +137,7 @@ try {
     )
     const r = runHealth(dir)
     const gate = byId(r.json as Cert, 'gate')
-    check('green verdict @ a moved HEAD ⇒ stale (never silently green)', gate?.status === 'stale', `${JSON.stringify(gate)} — the gate row (src/services/health/sections/proofs.ts, healthPreflight.ts) must read a green verdict recorded at another HEAD as stale`)
+    check('green verdict @ a moved HEAD ⇒ stale (never silently green)', gate?.status === 'stale', `${JSON.stringify(gate)} — the gate row (src/platform/health/sections/proofs.ts, healthPreflight.ts) must read a green verdict recorded at another HEAD as stale`)
     check('stale evidence names the movement', String(gate?.evidence).includes('HEAD has moved'))
     check('a stale gate rolls the verdict to caution-or-worse', (r.json as Cert).verdict !== 'certified')
   }
@@ -152,19 +152,19 @@ try {
     )
     const r = runHealth(dir)
     const cert = r.json as Cert
-    check('red verdict ⇒ gate fail', byId(cert, 'gate')?.status === 'fail', `gate status ${byId(cert, 'gate')?.status} — the gate row (src/services/health/sections/proofs.ts, healthPreflight.ts) must fail on a verdict with ok false`)
+    check('red verdict ⇒ gate fail', byId(cert, 'gate')?.status === 'fail', `gate status ${byId(cert, 'gate')?.status} — the gate row (src/platform/health/sections/proofs.ts, healthPreflight.ts) must fail on a verdict with ok false`)
     check('red evidence names the red suites', String(byId(cert, 'gate')?.evidence).includes('crew'))
     check('a failing check rolls the verdict to FAULT', cert.verdict === 'fault')
-    check('FAULT exits 3 — produced AND the guard fires (FC-044)', r.status === 3, `status=${r.status} — src/cli/healthJson.ts must exit 3 when the verdict is fault`)
+    check('FAULT exits 3 — produced AND the guard fires (FC-044)', r.status === 3, `status=${r.status} — src/commands/verbs/healthJson.ts must exit 3 when the verdict is fault`)
   }
 
   {
     const dir = join(scratch, 'off')
     mkdirSync(dir, { recursive: true })
     const r = runHealth(dir, { MERCURY_HEALTH_CERT: '0' })
-    check('MERCURY_HEALTH_CERT=0 ⇒ exit 1 (could not produce)', r.status === 1, `status=${r.status} — src/cli/healthJson.ts must exit 1 with code cert-unavailable when MERCURY_HEALTH_CERT is 0`)
+    check('MERCURY_HEALTH_CERT=0 ⇒ exit 1 (could not produce)', r.status === 1, `status=${r.status} — src/commands/verbs/healthJson.ts must exit 1 with code cert-unavailable when MERCURY_HEALTH_CERT is 0`)
     const err = r.json as { code?: string; error?: string }
-    check('gated-off error is JSON on stdout with a stable code', err?.code === 'cert-unavailable' && typeof err?.error === 'string', `${JSON.stringify(err)} — the gated-off branch of src/cli/healthJson.ts must print JSON on stdout with code cert-unavailable and an error string`)
+    check('gated-off error is JSON on stdout with a stable code', err?.code === 'cert-unavailable' && typeof err?.error === 'string', `${JSON.stringify(err)} — the gated-off branch of src/commands/verbs/healthJson.ts must print JSON on stdout with code cert-unavailable and an error string`)
   }
 
   {
@@ -173,26 +173,26 @@ try {
     const piped = runHealth(dir)
     const pipedCert = piped.json as Cert
     const pipedRow = byId(pipedCert, 'iface-terminal')
-    check('piped: the profile row is NEVER a fault', pipedRow !== undefined && pipedRow.status !== 'fail', `${JSON.stringify(pipedRow)} — the not-isTTY branch of the iface-terminal check in src/services/health/sections/interface.ts must never return fail`)
-    check("piped: the row reads neutral 'info'", pipedRow?.status === 'info', `${pipedRow?.status} — the not-isTTY branch of the iface-terminal check in src/services/health/sections/interface.ts must return status info`)
-    check('piped: the evidence names the environmental condition', /environmental/.test(String(pipedRow?.evidence)), `${String(pipedRow?.evidence)} — the not-isTTY branch of the iface-terminal check in src/services/health/sections/interface.ts must start its evidence with environmental`)
+    check('piped: the profile row is NEVER a fault', pipedRow !== undefined && pipedRow.status !== 'fail', `${JSON.stringify(pipedRow)} — the not-isTTY branch of the iface-terminal check in src/platform/health/sections/interface.ts must never return fail`)
+    check("piped: the row reads neutral 'info'", pipedRow?.status === 'info', `${pipedRow?.status} — the not-isTTY branch of the iface-terminal check in src/platform/health/sections/interface.ts must return status info`)
+    check('piped: the evidence names the environmental condition', /environmental/.test(String(pipedRow?.evidence)), `${String(pipedRow?.evidence)} — the not-isTTY branch of the iface-terminal check in src/platform/health/sections/interface.ts must start its evidence with environmental`)
   }
   {
     const dir = join(scratch, 'only-json')
     mkdirSync(dir, { recursive: true })
     const r = runHealth(dir, {}, 'health', ['--only', 'build-identity'])
-    check('--only run exits 0', r.status === 0, `status=${r.status} — the only handling in src/cli/healthJson.ts must exit 0 for a known check id`)
+    check('--only run exits 0', r.status === 0, `status=${r.status} — the only handling in src/commands/verbs/healthJson.ts must exit 0 for a known check id`)
     const cert = r.json as Cert
     const checks = cert ? allChecks(cert) : []
-    check('the record carries EXACTLY one check', checks.length === 1, `${checks.length} checks — filterCertificateToCheck in src/cli/healthJson.ts must keep only the named check`)
+    check('the record carries EXACTLY one check', checks.length === 1, `${checks.length} checks — filterCertificateToCheck in src/commands/verbs/healthJson.ts must keep only the named check`)
     check('…the named one', checks[0]?.id === 'build-identity', checks[0]?.id)
-    check('…with the verdict recomputed over what remains', cert.verdict === 'certified', `${cert.verdict} — src/cli/healthJson.ts must recompute the verdict over the rows that remain after --only`)
+    check('…with the verdict recomputed over what remains', cert.verdict === 'certified', `${cert.verdict} — src/commands/verbs/healthJson.ts must recompute the verdict over the rows that remain after --only`)
 
     const bad = runHealth(dir, {}, 'health', ['--only', 'no-such-check'])
-    check('unknown id ⇒ exit 1', bad.status === 1, `status=${bad.status} — src/cli/healthJson.ts must exit 1 with code unknown-check-id for an id no check has`)
+    check('unknown id ⇒ exit 1', bad.status === 1, `status=${bad.status} — src/commands/verbs/healthJson.ts must exit 1 with code unknown-check-id for an id no check has`)
     const err = bad.json as { code?: string; knownIds?: string[] }
-    check('…typed refusal', err?.code === 'unknown-check-id', `${err?.code} — src/cli/healthJson.ts must print code unknown-check-id`)
-    check('…naming the known ids', Array.isArray(err?.knownIds) && err.knownIds.includes('build-identity'), `${JSON.stringify(err)} — the unknown-check-id refusal in src/cli/healthJson.ts must list every known check id in knownIds`)
+    check('…typed refusal', err?.code === 'unknown-check-id', `${err?.code} — src/commands/verbs/healthJson.ts must print code unknown-check-id`)
+    check('…naming the known ids', Array.isArray(err?.knownIds) && err.knownIds.includes('build-identity'), `${JSON.stringify(err)} — the unknown-check-id refusal in src/commands/verbs/healthJson.ts must list every known check id in knownIds`)
   }
 
   {
@@ -213,7 +213,7 @@ try {
       pipedStatus = err.status ?? -1
       pipedOut = err.stdout ?? ''
     }
-    check('plain piped --only exits 0', pipedStatus === 0, `status=${pipedStatus} — node dist/mercury.mjs health --only build-identity piped must exit 0 (src/cli/healthJson.ts)`)
+    check('plain piped --only exits 0', pipedStatus === 0, `status=${pipedStatus} — node dist/mercury.mjs health --only build-identity piped must exit 0 (src/commands/verbs/healthJson.ts)`)
     check('…prints the one check row', pipedOut.includes('Mercury build'), `${pipedOut.slice(0, 200)} — health --only build-identity must print the Mercury build row`)
     check('…and ONLY that row', (pipedOut.match(/^\s*\[[A-Z]+\]/gm) ?? []).length === 1, `${pipedOut.slice(0, 300)} — health --only must print only the named check row, not the whole panel`)
     check('…with the verdict line', /verdict: [A-Z]+/.test(pipedOut), `${pipedOut.slice(-200)} — health --only must end with a verdict line such as verdict: CERTIFIED`)

@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import ts from 'typescript'
-import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
+import { FLAG_REGISTRY } from '../../src/platform/substrate/flagRegistry.ts'
 import { ModuleCache, declarationOf, functionOf, importOf, importedDeclaration, unwrap } from './sourceCensus.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -11,7 +11,7 @@ const SELF = 'scripts/gate/prove-source-patterns.ts'
 const CENSUS = 'scripts/gate/sourceCensus.ts'
 const TABLE = 'scripts/gate/source-patterns.tsv'
 const CODE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
-const PAYLOADS = 'src/extensions/bundled/'
+const PAYLOADS = 'src/integrations/extensions/bundled/'
 const PAYLOAD_LIST = 'scripts/gate/source-patterns-payloads.txt'
 const PAYLOAD_FILES = new Set(readFileSync(join(ROOT, PAYLOAD_LIST), 'utf8').split('\n').filter(Boolean).map(name => PAYLOADS + name))
 const AT_THE_ROOT = new Set(['node_modules', 'dist', '.git'])
@@ -19,14 +19,14 @@ const DOOR = 'flagEnv'
 const LOOSE = 'flagEnvLoose'
 const PAUSE = 'hand-built-pause'
 const ALIAS = 'sleep-alias'
-const SLEEP_DOOR = 'src/utils/sleep.ts'
-const FAILURE_DOOR = 'src/utils/passedOver.ts'
+const SLEEP_DOOR = 'src/platform/async/sleep.ts'
+const FAILURE_DOOR = 'src/platform/errors/passedOver.ts'
 const PASS = 'passedOver'
 const PASS_AS = 'passedOverAs'
-const TIMER_DOOR = 'src/utils/timers.ts'
-const AMBIENT_DOOR = 'src/utils/hostEnv.ts'
-const EFFECT_DOOR = 'src/hooks/effects.ts'
-const DEADLINE_DOOR = 'src/utils/deadline.ts'
+const TIMER_DOOR = 'src/platform/async/timers.ts'
+const AMBIENT_DOOR = 'src/platform/environment/hostEnv.ts'
+const EFFECT_DOOR = 'src/screen/effects/effects.ts'
+const DEADLINE_DOOR = 'src/platform/async/deadline.ts'
 const RACE = 'Promise.race'
 const INTERVAL = 'startInterval'
 const CLASSES = ['deadline', 'poll-event', 'poll-loop', 'events', 'clock', 'heartbeat', 'periodic', 'later', 'row8']
@@ -976,7 +976,7 @@ function plantedEstate(): void {
   const planted: Array<{ file: string; lines: string[]; seen: Array<[number, Habit]> }> = [
     {
       file: 'src/planted/screen.ts',
-      lines: ["import { useSubscription as hear, useDerivedState, useLayoutDerivedState } from '../hooks/effects.js'", "import * as effects from '../hooks/effects.js'", 'hear(fn, [])', 'useDerivedState(fn)', 'useLayoutDerivedState(fn)', 'effects.useLayoutSubscription(fn)', "effects['useMeasure'](fn)", 'function local(hear: () => void) { hear() }', 'other.useMeasure(fn)'],
+      lines: ["import { useSubscription as hear, useDerivedState, useLayoutDerivedState } from '../screen/effects/effects.js'", "import * as effects from '../screen/effects/effects.js'", 'hear(fn, [])', 'useDerivedState(fn)', 'useLayoutDerivedState(fn)', 'effects.useLayoutSubscription(fn)', "effects['useMeasure'](fn)", 'function local(hear: () => void) { hear() }', 'other.useMeasure(fn)'],
       seen: [[3, 'useSubscription'], [4, 'useDerivedState'], [5, 'useLayoutDerivedState'], [6, 'useLayoutSubscription'], [7, 'useMeasure']],
     },
     {
@@ -1031,9 +1031,9 @@ function plantedEstate(): void {
         'await new Promise<void>(resolve => kick(resolve, 14))',
         'function nudge(done: () => void, ms: number): void { setTimeout(done, ms) }',
         'await new Promise<void>(resolve => nudge(resolve, 15))',
-        "import { sleep as doze } from '../utils/sleep.js'",
-        "const { sleep: snooze } = await import('../utils/sleep.js')",
-        "export { sleep as rest } from '../utils/sleep.js'",
+        "import { sleep as doze } from '../platform/async/sleep.js'",
+        "const { sleep: snooze } = await import('../platform/async/sleep.js')",
+        "export { sleep as rest } from '../platform/async/sleep.js'",
         'await delay(16, undefined, { signal })',
       ],
       seen: [
@@ -1079,9 +1079,9 @@ function plantedEstate(): void {
         'function heard(done: () => void, label: string): void { listeners.set(label, done) }',
         "const closed = new Promise<void>(resolve => heard(resolve, 'closed'))",
         'const woken = new Promise<void>(resolve => waiters.push(resolve))',
-        "import { sleep } from '../utils/sleep.js'",
+        "import { sleep } from '../platform/async/sleep.js'",
         "import { sleep as tick } from './sleep.js'",
-        "import { passedOver, passedOverAs } from '../utils/passedOver.js'",
+        "import { passedOver, passedOverAs } from '../platform/errors/passedOver.js'",
         'try { work() } catch (error) { passedOver(error) }',
         'function answered(): unknown { try { return work() } catch (error) { passedOver(error); return null } }',
         'work().catch(passedOver).then(done, passedOverAs(null))',
@@ -1208,10 +1208,10 @@ function plantedEstate(): void {
     {
       file: 'src/planted/waits.ts',
       lines: [
-        "import { startInterval } from '../utils/timers.js'",
+        "import { startInterval } from '../platform/async/timers.js'",
         'const first = await Promise.race([work(), other()])',
         'const beat = startInterval(() => {}, 1000)',
-        "const { startInterval: every } = await import('../utils/timers.js')",
+        "const { startInterval: every } = await import('../platform/async/timers.js')",
         'const ticking = every(() => {}, 5)',
         'const both = [await Promise.race([a, b]), await Promise.race([c, d])]',
         'export const out = [first, beat, ticking, both]',
@@ -1237,7 +1237,7 @@ function plantedEstate(): void {
         'work().catch(error => report(error))',
         'export const hostEnv = process.env',
         'export const out = [shaped, loose, Panel]',
-        "import { passedOver, passedOverAs } from '../utils/passedOver.js'",
+        "import { passedOver, passedOverAs } from '../platform/errors/passedOver.js'",
         'try { work() } catch (error) { passedOver(error) }',
         'work().catch(passedOver).then(done, passedOverAs(0))',
       ],
@@ -1264,11 +1264,11 @@ function plantedEstate(): void {
     stands('src/planted/Screen.tsx'),
     differs,
   )
-  const doorSpelled = Object.entries(HABITS).filter(([, line]) => /utils\/sleep\.ts/.test(line))
+  const doorSpelled = Object.entries(HABITS).filter(([, line]) => /platform\/async\/sleep\.ts/.test(line))
   check(
     `a line that names the door spells it one way, ${SLEEP_DOOR} (${doorSpelled.length} of the ${NAMES.length} lines name it)`,
-    doorSpelled.length >= 8 && doorSpelled.every(([, line]) => (line.match(/[\w/]*utils\/sleep\.ts/g) ?? []).every(spelling => spelling === SLEEP_DOOR)),
-    doorSpelled.filter(([, line]) => (line.match(/[\w/]*utils\/sleep\.ts/g) ?? []).some(spelling => spelling !== SLEEP_DOOR)).map(([habit]) => habit).join(', '),
+    doorSpelled.length >= 8 && doorSpelled.every(([, line]) => (line.match(/[\w/]*platform\/async\/sleep\.ts/g) ?? []).every(spelling => spelling === SLEEP_DOOR)),
+    doorSpelled.filter(([, line]) => (line.match(/[\w/]*platform\/async\/sleep\.ts/g) ?? []).some(spelling => spelling !== SLEEP_DOOR)).map(([habit]) => habit).join(', '),
   )
   check(
     'a cast through unknown or any is seen in both spellings, and a cast to never and a cast to any alone; @ts-ignore, @ts-expect-error and @TS-NOCHECK are seen; a lint directive is seen for eslint in its three forms, biome, prettier, an editor inspection and a coverage tool; a catch block is seen empty (also with a lone semicolon or a void of the error) and answering with a default (a return, a return of null, a continue); a rejection handler is seen empty and answering with a default',
@@ -1350,7 +1350,7 @@ function plantedEstate(): void {
   const aliasedWords = told(ALIAS, aliased.over)
   check(
     'the door under another name in a file with no row is red by its own line, which says to import it as sleep: an import, a name taken out of a dynamic import and a re-export',
-    aliased.over.length === 1 && aliased.total === aliased.allowed + 3 && aliasedWords.includes(`import { sleep } from ${SLEEP_DOOR}`) && [`50 ${ALIAS} · import { sleep } from '../utils/sleep.js'`, `51 ${ALIAS} · const { sleep } = await import('../utils/sleep.js')`, `52 ${ALIAS} · import { sleep } from '../utils/sleep.js'`].every(line => aliasedWords.includes(`src/planted/timers.ts:${line}`)),
+    aliased.over.length === 1 && aliased.total === aliased.allowed + 3 && aliasedWords.includes(`import { sleep } from ${SLEEP_DOOR}`) && [`50 ${ALIAS} · import { sleep } from '../platform/async/sleep.js'`, `51 ${ALIAS} · const { sleep } = await import('../platform/async/sleep.js')`, `52 ${ALIAS} · import { sleep } from '../platform/async/sleep.js'`].every(line => aliasedWords.includes(`src/planted/timers.ts:${line}`)),
     aliasedWords,
   )
   const lowered = tableOf(text.replace('empty-catch\tsrc/planted/rest.ts\t4\n', 'empty-catch\tsrc/planted/rest.ts\t3\n'))!

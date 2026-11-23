@@ -14,7 +14,7 @@ process.env.MERCURY_CONFIG_DIR = proofHome
 delete process.env.MERCURY_HOME
 process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
 const sdk = await import('../../sdk/src/index.ts')
-const project = await import('../../src/rows/project.ts')
+const project = await import('../../src/engine/rows/project.ts')
 const dist = join(ROOT, 'dist', 'mercury.mjs')
 if (!existsSync(dist)) {
   console.error(`FAIL run bundle exists: ${dist}`)
@@ -74,11 +74,11 @@ section('C1 a tool turn with partial rows through the package: every row parses,
     const exit = await run.exit
     check('the run completed with exit 0 and the outcome row says completed', exit.code === 0 && outcome.status === 'completed' && sdk.OUTCOME_EXIT_CODES[outcome.status] === exit.code, j({ exit, status: outcome.status }) + ' · the run through sdk/src (run, OUTCOME_EXIT_CODES) did not end completed with exit 0; read exit.stderr above and the fixture API turns in this proof')
     check('the iterator yielded every row the listeners saw, in the same order, and threw nothing', iterationError === undefined && iterated.join(',') === events.join(','), j({ iterationError: String(iterationError), iterated, events }) + ' · the run iterator and the on(row) listener in sdk/src must see the same rows in the same order')
-    check('every row the door emitted parsed through the package (no wire error)', run.error === null && run.rows.length === events.length, String(run.error) + ' · a row the run door wrote failed to parse in sdk/src (parse.ts, rows.ts); compare it with the writer in src/rows/project.ts')
+    check('every row the door emitted parsed through the package (no wire error)', run.error === null && run.rows.length === events.length, String(run.error) + ' · a row the run door wrote failed to parse in sdk/src (parse.ts, rows.ts); compare it with the writer in src/engine/rows/project.ts')
     const declared = new Set<string>([...sdk.ROW_TYPES, ...sdk.PARTIAL_ROW_TYPES])
     check('every emitted row type is declared in the generated vocabulary', events.every(type => declared.has(type)), j(events.filter(type => !declared.has(type))) + ' · these row types are emitted but missing from ROW_TYPES or PARTIAL_ROW_TYPES in the sdk package (sdk/src/index.ts exports); regenerate the vocabulary')
     const core = ['session', 'turn', 'reasoning', 'text', 'tool_call', 'tool_result', 'step', 'outcome', 'block_start', 'text_delta', 'reasoning_delta', 'tool_input_delta']
-    check('the core rows of a tool turn with partial rows all arrived', core.every(type => events.includes(type)), j({ missing: core.filter(type => !events.includes(type)), events }) + ' · the run door did not write these rows for a tool turn with --partial; look at the row writers in src/rows/project.ts')
+    check('the core rows of a tool turn with partial rows all arrived', core.every(type => events.includes(type)), j({ missing: core.filter(type => !events.includes(type)), events }) + ' · the run door did not write these rows for a tool turn with --partial; look at the row writers in src/engine/rows/project.ts')
     check('the session row came first, the outcome last, seq contiguous from 1', run.rows[0]?.type === 'session' && run.rows.at(-1)?.type === 'outcome' && run.rows.every((row, i) => row.seq === i + 1))
     check('the resolved outcome is the last row of the stream (the same object)', run.rows.at(-1) === outcome)
     const session = await run.session
@@ -141,7 +141,7 @@ section('C2 every declared row type has a parser: the product\'s own writers pro
       const stamped = stamper.stamp(draft as never) as Record<string, unknown>
       pythonRows.push(stamped)
       const read = sdk.rowOf(stamped)
-      check(`${type} row written by the product parses through the package's ${type} schema`, read.ok && read.row.type === type, read.ok ? 'the row parsed as another type; compare its schema in sdk/src with the writer in src/rows/project.ts' : j({ reason: read.reason, issues: read.issues.slice(0, 3) }) + ' · the writer in src/rows/project.ts and the schema in sdk/src disagree on this row; update whichever is stale')
+      check(`${type} row written by the product parses through the package's ${type} schema`, read.ok && read.row.type === type, read.ok ? 'the row parsed as another type; compare its schema in sdk/src with the writer in src/engine/rows/project.ts' : j({ reason: read.reason, issues: read.issues.slice(0, 3) }) + ' · the writer in src/engine/rows/project.ts and the schema in sdk/src disagree on this row; update whichever is stale')
       const line = sdk.parseRow(JSON.stringify(stamped))
       check(`${type} row round-trips through parseRow`, line.ok && JSON.stringify(line.row) === JSON.stringify(stamped))
     }

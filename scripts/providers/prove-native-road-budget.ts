@@ -13,7 +13,7 @@ delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
 delete process.env.MERCURY_API_TIMEOUT_MS
 delete process.env.NODE_ENV
 
-const nativeRoadFixHint = 'fix streamOllamaChat, localApiAgentOptions or withLocalDispatcher in src/services/providers/local/ollamaChatTransport.ts, the budget words in src/services/providers/streamIdleBudget.ts, or the local law in localStreamLawFor in src/services/providers/localLiveness.ts (the node lane is scripts/providers/lib/native-road-node-lane.mjs; its output is printed above as node ·)'
+const nativeRoadFixHint = 'fix streamOllamaChat, localApiAgentOptions or withLocalDispatcher in src/models/roads/local/ollamaChatTransport.ts, the budget words in src/models/roads/streamIdleBudget.ts, or the local law in localStreamLawFor in src/models/roads/localLiveness.ts (the node lane is scripts/providers/lib/native-road-node-lane.mjs; its output is printed above as node ·)'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -73,11 +73,11 @@ async function advance(ms: number): Promise<void> {
   await settle()
 }
 
-const transport = (await import('../../src/services/providers/local/ollamaChatTransport.js')) as Record<string, unknown> & typeof import('../../src/services/providers/local/ollamaChatTransport.js')
+const transport = (await import('../../src/models/roads/local/ollamaChatTransport.js')) as Record<string, unknown> & typeof import('../../src/models/roads/local/ollamaChatTransport.js')
 const { streamOllamaChat } = transport
-const budget = await import('../../src/services/providers/streamIdleBudget.js')
-const liveness = await import('../../src/services/providers/localLiveness.js')
-const proxy = await import('../../src/utils/proxy.js')
+const budget = await import('../../src/models/roads/streamIdleBudget.js')
+const liveness = await import('../../src/models/roads/localLiveness.js')
+const proxy = await import('../../src/platform/network/proxy.js')
 
 const encoder = new TextEncoder()
 const row = (data: unknown): string => `${JSON.stringify(data)}\n`
@@ -383,7 +383,7 @@ section('N7 · the product\'s runtime (node + the bundled undici): the API dispa
   const outDir = join(repo, 'node_modules', '.cache', 'mercury-native-road-node')
   mkdirSync(outDir, { recursive: true })
   const entry = join(outDir, 'entry.ts')
-  writeFileSync(entry, `export * from '${join(repo, 'src/services/providers/local/ollamaChatTransport.ts')}'\nexport { REAL_STREAM_TIMERS } from '${join(repo, 'src/services/providers/streamIdleBudget.ts')}'\n`)
+  writeFileSync(entry, `export * from '${join(repo, 'src/models/roads/local/ollamaChatTransport.ts')}'\nexport { REAL_STREAM_TIMERS } from '${join(repo, 'src/models/roads/streamIdleBudget.ts')}'\n`)
   const build = await Bun.build({
     entrypoints: [entry],
     target: 'node',

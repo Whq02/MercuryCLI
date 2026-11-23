@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/compact/compact.ts src/services/instructions/** src/utils/config/globalConfig.ts src/utils/fileStateCache.ts src/state/AppStateStore.ts src/bootstrap/state.ts
+// gate-watch: src/engine/compaction/foldConversation.ts src/sessions/instructions/** src/platform/config/globalConfig.ts src/platform/files/fileStateCache.ts src/screen/app-state/AppStateStore.ts src/boot/process-state/processState.ts
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -13,14 +13,14 @@ writeFileSync(driver, `
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
-const bootstrap = await import(${JSON.stringify(join(repo, 'src/bootstrap/state.ts'))})
+const bootstrap = await import(${JSON.stringify(join(repo, 'src/boot/process-state/processState.ts'))})
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import(${JSON.stringify(join(repo, 'src/utils/config/globalConfig.ts'))})
+const { enableConfigs } = await import(${JSON.stringify(join(repo, 'src/platform/config/globalConfig.ts'))})
 enableConfigs()
-const { getDefaultAppState } = await import(${JSON.stringify(join(repo, 'src/state/AppStateStore.ts'))})
-const { createFileStateCacheWithSizeLimit } = await import(${JSON.stringify(join(repo, 'src/utils/fileStateCache.ts'))})
-const { getInstructionFiles, isInstructionFilePath } = await import(${JSON.stringify(join(repo, 'src/services/instructions/engine.ts'))})
-const compact = await import(${JSON.stringify(join(repo, 'src/services/compact/compact.ts'))})
+const { getDefaultAppState } = await import(${JSON.stringify(join(repo, 'src/screen/app-state/AppStateStore.ts'))})
+const { createFileStateCacheWithSizeLimit } = await import(${JSON.stringify(join(repo, 'src/platform/files/fileStateCache.ts'))})
+const { getInstructionFiles, isInstructionFilePath } = await import(${JSON.stringify(join(repo, 'src/sessions/instructions/instructionFiles.ts'))})
+const compact = await import(${JSON.stringify(join(repo, 'src/engine/compaction/foldConversation.ts'))})
 const cwd = process.cwd()
 const composed = (await getInstructionFiles()).map(f => f.path)
 let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>) }
@@ -55,7 +55,7 @@ let passed = 0
 let failed = 0
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix: which files a fold restores, in createPostCompactFileAttachments (src/services/compact/compact/attachments.ts), and what counts as an instruction file, in getInstructionFiles and isInstructionFilePath (src/services/instructions/engine.ts)'}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix: which files a fold restores, in createPostCompactFileAttachments (src/engine/compaction/fold/foldAttachments.ts), and what counts as an instruction file, in getInstructionFiles and isInstructionFilePath (src/sessions/instructions/instructionFiles.ts)'}`)
 }
 
 let projects = 0

@@ -10,18 +10,18 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_LOCAL_BASE_URL
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { estimateContextTokens } = await import('../../src/services/compact/microCompact.ts')
-const { estimateRequestTokens } = await import('../../src/services/providers/streamIdleBudget.ts')
-const { localPreComposeEstimate, localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { mapMessagesToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { contextFill } = await import('../../src/services/context/tokens.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-type Message = import('../../src/types/message.ts').Message
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
+const { estimateRequestTokens } = await import('../../src/models/roads/streamIdleBudget.ts')
+const { localPreComposeEstimate, localLaneProfileFor } = await import('../../src/models/roads/local/localCallModel.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { mapMessagesToZai } = await import('../../src/models/roads/zai/zaiCodec.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { contextFill } = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 const messages: Message[] = []
 for (let i = 0; i < 9; i++) {
   messages.push(createAssistantMessage({ content: [{ type: 'tool_use', id: `shot-${i}`, name: 'Browser', input: { op: 'screenshot' } }] }))
@@ -38,25 +38,25 @@ try {
     const precompose = localPreComposeEstimate({ messages, systemPrompt: asSystemPrompt([]), tools: [], model } as never)
     const screen = contextFill(messages, model)
     console.log(JSON.stringify({ vision, meter, guard, precompose, screen: screen.tokens }))
-    assert.equal(meter, guard, 'meter and composed guard count the same content: make estimateContextTokens (src/services/compact/microCompact.ts) and estimateRequestTokens (src/services/providers/streamIdleBudget.ts) count image blocks and the codec placeholder the same way')
-    assert.equal(precompose, guard, 'precompose does not count stored image bytes or transcript metadata: change localPreComposeEstimate in src/services/providers/local/localCallModel.ts so it skips base64 image data and the screenshot path line')
-    assert.equal(screen.tokens, guard, 'screen estimate follows the selected model: change contextFill in src/services/context/tokens.ts so it estimates with the selected model, as estimateRequestTokens does')
-    assert.ok(guard < (vision ? 19000 : 1000), 'base64 is never text tokens: change estimateRequestTokens in src/services/providers/streamIdleBudget.ts so image data is not counted as text')
+    assert.equal(meter, guard, 'meter and composed guard count the same content: make estimateContextTokens (src/engine/compaction/pruneToolResults.ts) and estimateRequestTokens (src/models/roads/streamIdleBudget.ts) count image blocks and the codec placeholder the same way')
+    assert.equal(precompose, guard, 'precompose does not count stored image bytes or transcript metadata: change localPreComposeEstimate in src/models/roads/local/localCallModel.ts so it skips base64 image data and the screenshot path line')
+    assert.equal(screen.tokens, guard, 'screen estimate follows the selected model: change contextFill in src/engine/context-window/contextTokenCount.ts so it estimates with the selected model, as estimateRequestTokens does')
+    assert.ok(guard < (vision ? 19000 : 1000), 'base64 is never text tokens: change estimateRequestTokens in src/models/roads/streamIdleBudget.ts so image data is not counted as text')
     const profile = localLaneProfileFor(localRecordFor(model)!)
     assert.equal(profile.requestFitRefusal?.({ estTokens: guard, requestBytes: JSON.stringify(wire).length, toolCount: 0, wireModel: model }), undefined)
     const schemas = Array.from({ length: 13 }, (_, i) => ({ type: 'function', function: { name: `tool_${i}`, description: 'fixture tool '.repeat(30), parameters: { type: 'object', properties: { path: { type: 'string' } } } } }))
-    const { requestGaugeFixed, estimateRequestGauge } = await import('../../src/services/run/requestGauge.ts')
+    const { requestGaugeFixed, estimateRequestGauge } = await import('../../src/engine/run/requestGauge.ts')
     const fixed = requestGaugeFixed(schemas)
     const fullMeter = estimateRequestGauge(messages, fixed, { ratio: 1, samples: 0, residuals: [] }, model)
     const fullGuard = (estimateRequestTokens as (body: unknown, model: string) => number)({ ...wire, tools: schemas }, model)
-    assert.ok(Math.abs(fullMeter - fullGuard) <= fullGuard * 0.03, '13 tool schemas use the existing rough-rate tolerance: estimateRequestGauge and requestGaugeFixed in src/services/run/requestGauge.ts must stay within 3% of estimateRequestTokens in src/services/providers/streamIdleBudget.ts')
-    assert.ok(fullGuard > guard, 'tool schemas are counted: estimateRequestTokens in src/services/providers/streamIdleBudget.ts must count the tools field')
+    assert.ok(Math.abs(fullMeter - fullGuard) <= fullGuard * 0.03, '13 tool schemas use the existing rough-rate tolerance: estimateRequestGauge and requestGaugeFixed in src/engine/run/requestGauge.ts must stay within 3% of estimateRequestTokens in src/models/roads/streamIdleBudget.ts')
+    assert.ok(fullGuard > guard, 'tool schemas are counted: estimateRequestTokens in src/models/roads/streamIdleBudget.ts must count the tools field')
     if (vision) {
       const stripped = wire.messages.map(row => 'content' in row && Array.isArray(row.content) ? { ...row, content: row.content.filter(part => part.type !== 'image_url') } : row)
       const noImages = (estimateRequestTokens as (body: unknown, model: string) => number)({ ...wire, messages: stripped }, model)
-      assert.equal(guard - noImages, 9 * 2000, 'delivered images use the existing media-token estimate; removed blocks cost zero: change the image-block cost in estimateRequestTokens in src/services/providers/streamIdleBudget.ts')
+      assert.equal(guard - noImages, 9 * 2000, 'delivered images use the existing media-token estimate; removed blocks cost zero: change the image-block cost in estimateRequestTokens in src/models/roads/streamIdleBudget.ts')
     } else {
-      assert.equal(JSON.stringify(wire).includes('[image]'), true, 'the codec placeholder is present and counted: mapMessagesToZai in src/services/providers/zai/zaiCodec.ts must write the [image] placeholder when imagesSupported is false')
+      assert.equal(JSON.stringify(wire).includes('[image]'), true, 'the codec placeholder is present and counted: mapMessagesToZai in src/models/roads/zai/zaiCodec.ts must write the [image] placeholder when imagesSupported is false')
     }
   }
   console.log('Image-aware meter, precompose, composed guard and stripped-block checks passed')

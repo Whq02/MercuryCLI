@@ -45,18 +45,18 @@ const textsOf = (content: unknown): string[] => {
 }
 const wireTexts = (messages: ReadonlyArray<{ message: { content: unknown } }>): string[] => messages.flatMap(m => textsOf(m.message.content))
 const has = (texts: string[], needle: string): boolean => texts.some(text => text.includes(needle))
-const planHint = 'change requestConversationPlan or withoutOrphanCaveats in src/services/messages/apiPlan.ts, or the rows made by createModelSwitchBreadcrumbs in src/utils/messages/factories.ts'
+const planHint = 'change requestConversationPlan or withoutOrphanCaveats in src/engine/messages/apiPlan.ts, or the rows made by createModelSwitchBreadcrumbs in src/engine/message-shapes/factories.ts'
 
 section('§1 the wire plan — the /model rows are the operator\'s record, never the model\'s view; a caveat with no rows under it never leaves')
 {
-  const { createModelSwitchBreadcrumbs, createSyntheticUserCaveatMessage, createUserMessage, formatCommandInputTags } = await import('../../src/utils/messages/factories.ts')
-  const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-  const { requestConversationPlan } = await import('../../src/services/messages/apiPlan.ts')
+  const { createModelSwitchBreadcrumbs, createSyntheticUserCaveatMessage, createUserMessage, formatCommandInputTags } = await import('../../src/engine/message-shapes/factories.ts')
+  const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
+  const { requestConversationPlan } = await import('../../src/engine/messages/apiPlan.ts')
   const prompt = (text: string) => createUserMessage({ content: text, permissionMode: 'default' })
   const reply = (id: string, text: string) => ({ type: 'assistant' as const, uuid: id, timestamp: '2026-10-11T00:00:00.000Z', message: { id, model: FABLE, role: 'assistant' as const, type: 'message' as const, content: [{ type: 'text' as const, text, citations: [] }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } })
   const rows = createModelSwitchBreadcrumbs(OPUS, 'Opus 5')
-  check('the three /model rows are born as the transcript\'s own (isVirtual) — the caveat, the command row and the stdout row', rows.length === 3 && rows.every(row => row.isVirtual === true), j(rows.map(row => [row.isVirtual, String(row.message.content).slice(0, 40)])) + ' | change createModelSwitchBreadcrumbs in src/utils/messages/factories.ts so each row is isVirtual')
-  check('the rows still read as the /model record for the operator (the command row and the stdout row carry their words)', String(rows[1]!.message.content).includes(MODEL_COMMAND_MARK) && String(rows[2]!.message.content).includes(`${STDOUT_MARK} Opus 5`), j(rows.map(row => row.message.content)) + ' | change createModelSwitchBreadcrumbs in src/utils/messages/factories.ts')
+  check('the three /model rows are born as the transcript\'s own (isVirtual) — the caveat, the command row and the stdout row', rows.length === 3 && rows.every(row => row.isVirtual === true), j(rows.map(row => [row.isVirtual, String(row.message.content).slice(0, 40)])) + ' | change createModelSwitchBreadcrumbs in src/engine/message-shapes/factories.ts so each row is isVirtual')
+  check('the rows still read as the /model record for the operator (the command row and the stdout row carry their words)', String(rows[1]!.message.content).includes(MODEL_COMMAND_MARK) && String(rows[2]!.message.content).includes(`${STDOUT_MARK} Opus 5`), j(rows.map(row => row.message.content)) + ' | change createModelSwitchBreadcrumbs in src/engine/message-shapes/factories.ts')
   for (const geometry of ['anthropic', 'family'] as const) {
     const conversation = [prompt('first'), reply('a1', 'one'), ...rows, prompt('second')] as never[]
     const sent = wireTexts(requestConversationPlan(conversation, [], geometry).messages)
@@ -90,8 +90,8 @@ section('§1 the wire plan — the /model rows are the operator\'s record, never
     check(`${geometry}: a caveat whose rows follow an attachment stands`, wireTexts(requestConversationPlan(noticeThenRows, [], geometry).messages).filter(text => text.includes(CAVEAT_MARK)).length === 1, planHint)
   }
   const untouched = [prompt('first'), reply('a1', 'one'), caveat(), helpRow, helpOut, prompt('next')] as never[]
-  const plan = (await import('../../src/services/messages/apiPlan.ts')) as { withoutOrphanCaveats?: (rows: unknown[]) => unknown[] }
-  check('a view with no orphan comes back as the same array (render layers bail on identity)', typeof plan.withoutOrphanCaveats === 'function' && plan.withoutOrphanCaveats(untouched) === untouched, 'withoutOrphanCaveats in src/services/messages/apiPlan.ts must be exported and return its input array when no caveat is orphaned')
+  const plan = (await import('../../src/engine/messages/apiPlan.ts')) as { withoutOrphanCaveats?: (rows: unknown[]) => unknown[] }
+  check('a view with no orphan comes back as the same array (render layers bail on identity)', typeof plan.withoutOrphanCaveats === 'function' && plan.withoutOrphanCaveats(untouched) === untouched, 'withoutOrphanCaveats in src/engine/messages/apiPlan.ts must be exported and return its input array when no caveat is orphaned')
 }
 
 const DIST = join(import.meta.dir, '..', '..', 'dist', 'mercury.mjs')
@@ -142,11 +142,11 @@ if (!existsSync(DIST)) {
     } catch (error) {
       seatError = error instanceof Error ? error.message : String(error)
     }
-    check('the two turns settled and the switch verb answered', seatError === '' && switchAnswer !== null && (switchAnswer as { model?: string }).model === OPUS, (seatError || j(switchAnswer)) + ' | the runner verb session/set_model is declared in src/runner/wire/sessionVerbs.ts')
+    check('the two turns settled and the switch verb answered', seatError === '' && switchAnswer !== null && (switchAnswer as { model?: string }).model === OPUS, (seatError || j(switchAnswer)) + ' | the runner verb session/set_model is declared in src/daemon/runner-wire/sessionVerbs.ts')
     const requests = fixture.messageRequests()
     const second = requests[1]?.body as { model?: string; messages?: Array<{ role?: string; content?: unknown }> } | undefined
     const secondTexts = (second?.messages ?? []).flatMap(m => textsOf(m.content))
-    check('the request after the switch dispatches on the new model', second?.model === OPUS, j(second?.model) + ' | the request after session/set_model must dispatch on the new model; the verb is declared in src/runner/wire/sessionVerbs.ts')
+    check('the request after the switch dispatches on the new model', second?.model === OPUS, j(second?.model) + ' | the request after session/set_model must dispatch on the new model; the verb is declared in src/daemon/runner-wire/sessionVerbs.ts')
     check('that request carries no local-command caveat, no /model command row and no "Model now:" (RED on the base: the three rows rode in it)', !secondTexts.some(text => text.includes(CAVEAT_MARK) || text.includes(MODEL_COMMAND_MARK) || text.includes(STDOUT_MARK)), j(secondTexts) + ' | ' + planHint)
     check('the operator\'s question rides whole', secondTexts.some(text => text.includes('what are you running on now?')), j(secondTexts) + ' | ' + planHint)
     const commandRows = host.rows.filter(row => row.type === 'command_output' && typeof row.text === 'string' && row.text.includes(STDOUT_MARK))
@@ -166,8 +166,8 @@ if (!existsSync(DIST)) {
     const recordedCommand = recorded.filter(line => line.includes(MODEL_COMMAND_MARK))
     const recordedStdout = recorded.filter(line => line.includes(STDOUT_MARK))
     const recordedCaveat = recorded.filter(line => line.includes(CAVEAT_MARK))
-    check('the session file keeps the three rows as the operator\'s record', files.length === 1 && recordedCommand.length === 1 && recordedStdout.length === 1 && recordedCaveat.length === 1, j({ files, command: recordedCommand.length, stdout: recordedStdout.length, caveat: recordedCaveat.length }) + ' | the session file must keep all three rows; they are made by createModelSwitchBreadcrumbs in src/utils/messages/factories.ts')
-    check('each recorded row is marked as the transcript\'s own (isVirtual) so a resume keeps it off the wire too', [...recordedCommand, ...recordedStdout, ...recordedCaveat].every(line => /"isVirtual":\s*true/.test(line)), recordedCommand[0]?.slice(0, 400) + ' | each row made by createModelSwitchBreadcrumbs in src/utils/messages/factories.ts must be isVirtual')
+    check('the session file keeps the three rows as the operator\'s record', files.length === 1 && recordedCommand.length === 1 && recordedStdout.length === 1 && recordedCaveat.length === 1, j({ files, command: recordedCommand.length, stdout: recordedStdout.length, caveat: recordedCaveat.length }) + ' | the session file must keep all three rows; they are made by createModelSwitchBreadcrumbs in src/engine/message-shapes/factories.ts')
+    check('each recorded row is marked as the transcript\'s own (isVirtual) so a resume keeps it off the wire too', [...recordedCommand, ...recordedStdout, ...recordedCaveat].every(line => /"isVirtual":\s*true/.test(line)), recordedCommand[0]?.slice(0, 400) + ' | each row made by createModelSwitchBreadcrumbs in src/engine/message-shapes/factories.ts must be isVirtual')
     clearTimeout(killer)
     await host.stop(5_000).catch(() => null)
 

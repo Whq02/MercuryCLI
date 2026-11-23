@@ -6,7 +6,7 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'crew-interrupt-home-'))
 
-await import('../../src/tasks.js')
+await import('../../src/engine/tasks/tasks.js')
 const {
   AGENT_RESUME_DOOR,
   AGENT_RESUME_NOTE,
@@ -15,31 +15,31 @@ const {
   crewStillRunning,
   registerAgentForeground,
   registerAsyncAgent,
-} = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
-const { runAsyncAgentLifecycle } = await import('../../src/tools/AgentTool/agentToolUtils.js')
-const { createTurnDriver } = await import('../../src/cli/headless/turnDriver.js')
-const { getCommandQueueSnapshot, resetCommandQueue } = await import('../../src/utils/messageQueueManager.js')
-const { AbortError } = await import('../../src/utils/errors.js')
+} = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+const { runAsyncAgentLifecycle } = await import('../../src/tools/crewmate/crewmateLifecycle.js')
+const { createTurnDriver } = await import('../../src/daemon/runner/turnDriver.js')
+const { getCommandQueueSnapshot, resetCommandQueue } = await import('../../src/daemon/runner/messageQueueManager.js')
+const { AbortError } = await import('../../src/platform/errors/errors.js')
 const { CREW_STOP_WINDOW_MS, crewStopArmed, crewStopHint, pressCrewStop } = await import(
-  '../../src/components/mercury-ui/screens/crewStopChord.js'
+  '../../src/screen/widgets/faces/crewStopChord.js'
 )
-const { crewStillRunningLine } = await import('../../src/services/engine-connector/crewFacts.js')
-const { stopOrDismissAgent } = await import('../../src/state/crewmateViewHelpers.js')
+const { crewStillRunningLine } = await import('../../src/engine/connector/crewFacts.js')
+const { stopOrDismissAgent } = await import('../../src/crew/crewmates/crewmateView.js')
 
-import type { Message as MessageType } from '../../src/types/message.js'
+import type { Message as MessageType } from '../../src/engine/message-shapes/message.js'
 
 let failures = 0
 let sectionKey = ''
 const SECTION_FIX: Record<string, string> = {
-  '§K1a': 'registerAsyncAgent, registerAgentForeground and crewStillRunning in src/tasks/LocalAgentTask/LocalAgentTask.tsx, crewStillRunningLine in src/services/engine-connector/crewFacts.ts',
-  '§K1b': 'createTurnDriver and releaseHold in src/cli/headless/turnDriver.ts',
-  '§K2': 'pressCrewStop, crewStopArmed and CREW_STOP_WINDOW_MS in src/components/mercury-ui/screens/crewStopChord.ts',
-  '§K3': 'runAsyncAgentLifecycle in src/tools/AgentTool/agentToolUtils.ts, agentStopReasonOf in src/tasks/LocalAgentTask/LocalAgentTask.tsx, stopOrDismissAgent in src/state/crewmateViewHelpers.ts',
-  '§K4': 'AGENT_RESUME_NOTE in src/tasks/LocalAgentTask/LocalAgentTask.tsx',
-  '§K10': 'foldAgentWaitEvent and agentWaitWords in src/tasks/LocalAgentTask/agentWait.ts, the crew fact words in src/services/engine-connector/crewFacts.ts',
-  '§K10b': 'primeOpenaiCatalogue and refreshOpenaiCatalogue in src/services/providers/openai/openaiCatalogue.ts',
-  '§K4b': 'resolveWorkerTools in src/tools/AgentTool/agentToolUtils.ts',
-  '§K11': 'DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts',
+  '§K1a': 'registerAsyncAgent, registerAgentForeground and crewStillRunning in src/engine/tasks/local-agent/crewmateTask.tsx, crewStillRunningLine in src/engine/connector/crewFacts.ts',
+  '§K1b': 'createTurnDriver and releaseHold in src/daemon/runner/turnDriver.ts',
+  '§K2': 'pressCrewStop, crewStopArmed and CREW_STOP_WINDOW_MS in src/screen/widgets/faces/crewStopChord.ts',
+  '§K3': 'runAsyncAgentLifecycle in src/tools/crewmate/crewmateLifecycle.ts, agentStopReasonOf in src/engine/tasks/local-agent/crewmateTask.tsx, stopOrDismissAgent in src/crew/crewmates/crewmateView.ts',
+  '§K4': 'AGENT_RESUME_NOTE in src/engine/tasks/local-agent/crewmateTask.tsx',
+  '§K10': 'foldAgentWaitEvent and agentWaitWords in src/engine/tasks/local-agent/agentWait.ts, the crew fact words in src/engine/connector/crewFacts.ts',
+  '§K10b': 'primeOpenaiCatalogue and refreshOpenaiCatalogue in src/models/roads/openai/openaiCatalogue.ts',
+  '§K4b': 'resolveWorkerTools in src/tools/crewmate/crewmateLifecycle.ts',
+  '§K11': 'DaemonSessionConnector in src/engine/connector/daemonConnector.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -130,7 +130,7 @@ async function driverScenario(opts: { releaseBeforeResult: boolean; tasksRunning
     idleTimerStop: () => {},
     idleTimerStart: () => {},
     onCycleError: error => {
-      console.log(`  [FAIL] the driver cycle threw — ${String(error)} — see createTurnDriver in src/cli/headless/turnDriver.ts`)
+      console.log(`  [FAIL] the driver cycle threw — ${String(error)} — see createTurnDriver in src/daemon/runner/turnDriver.ts`)
       failures++
       resolveSettled()
       return { type: 'outcome' } as never
@@ -240,8 +240,8 @@ section('§K4 the resume road — one owner behind every door')
 
 section('§K10 the wait tells its truth — the phase fold, the one spelling, every surface')
 {
-  const { foldAgentWaitEvent, agentWaitWords, agentWaitElapsed } = await import('../../src/tasks/LocalAgentTask/agentWait.js')
-  const { createProgressTracker, foldQueryProgressIntoTracker, getProgressUpdate } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+  const { foldAgentWaitEvent, agentWaitWords, agentWaitElapsed } = await import('../../src/engine/tasks/local-agent/agentWait.js')
+  const { createProgressTracker, foldQueryProgressIntoTracker, getProgressUpdate } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
   const t0 = 1_000_000
   let wait = foldAgentWaitEvent(null, { type: 'stream_request_start' }, t0)
   check('K10 the request leaves ⇒ request-sent', wait?.phase === 'request-sent' && agentWaitWords(wait, t0 + 2000) === 'request sent')
@@ -270,8 +270,8 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   check('K10 the counter\'s spelling', agentWaitElapsed(12_000) === '12s' && agentWaitElapsed(130_000) === '2m 10s' && agentWaitElapsed(3_900_000) === '1h 5m')
   const tracker = createProgressTracker()
   check('K10 the tracker folds and reports a change once', foldQueryProgressIntoTracker(tracker, { type: 'stream_request_start' }, t0) === true && foldQueryProgressIntoTracker(tracker, { type: 'stream_event', event: { type: 'ping' } }, t0 + 1) === false && getProgressUpdate(tracker).phase?.phase === 'request-sent')
-  const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.js')
-  const crew = await import('../../src/services/engine-connector/crewFacts.js')
+  const { projectWorkRoster } = await import('../../src/engine/connector/workRoster.js')
+  const crew = await import('../../src/engine/connector/crewFacts.js')
   const running = { id: 'ag-w', type: 'local_agent', status: 'running', description: 'crew-fable', agentId: 'ag-w', prompt: 'p', agentType: 'mercury-crew', isBackgrounded: true, outputFile: '/n', outputOffset: 0, notified: false, startTime: t0, progress: { toolUseCount: 0, tokenCount: 0, recentActivities: [], phase: { phase: 'first-byte', sinceMs: t0, budgetMs: 45_000 } } }
   const rows = projectWorkRoster({ 'ag-w': running } as never)
   check('K10 the roster row carries the phase whole', rows[0]?.phase?.phase === 'first-byte' && rows[0]?.phase?.budgetMs === 45_000)
@@ -285,14 +285,14 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   const seatRow = projectWorkRoster({ 'ag-s': { ...running, id: 'ag-s', agentId: 'ag-s', wait: 'waiting for a seat — 3 of 3 held (a, b, the chat)' } } as never)
   const seatFacts = crew.crewAgentFactsOf(seatRow[0]!, 'fx')!
   check('K10 the seat gate\'s own sentence outranks the phase on the card line; the status cell speaks the GATE and the holders ride the row\'s tail (a narrow row sheds the holders last, never the gate)', crew.crewPhaseWords(seatFacts, t0 + 2000) === 'waiting for a seat — 3 of 3 held (a, b, the chat)' && crew.crewStatusWords(seatFacts, t0 + 2000) === 'waiting for a seat — 3 of 3 held' && crew.crewWaitHolders(seatFacts) === 'held by a, b, the chat' && crew.crewWaitLine(seatFacts) === 'waiting for a seat — 3 of 3 held (a, b, the chat)' && seatFacts.phase?.phase === 'first-byte')
-  const aw = await import('../../src/tasks/LocalAgentTask/agentWait.js')
+  const aw = await import('../../src/engine/tasks/local-agent/agentWait.js')
   const stillWords = aw.agentWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, null)
   check('K10 the one spelling without a counter — the still for a per-frame channel', stillWords === 'waiting for the first byte, limit 1m' && aw.agentWaitWords({ phase: 'reasoning', sinceMs: t0 }, null) === 'reasoning, no tokens yet' && aw.agentWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, t0 + 3000) === 'waiting for the first byte · 3s, limit 1m', stillWords)
 }
 
 section('§K10b a GPT seat pays no per-runner catalogue fetch — the daemon\'s snapshot rides the claim')
 {
-  const cat = await import('../../src/services/providers/openai/openaiCatalogue.js')
+  const cat = await import('../../src/models/roads/openai/openaiCatalogue.js')
   cat.__resetOpenaiCatalogueForTest()
   const env = { ...process.env, OPENAI_API_KEY: 'sk-test-crew-wait-prime', MERCURY_CREDENTIAL_STORE: 'file' } as NodeJS.ProcessEnv
   const model = { id: 'gpt-5.6-sol', supportedReasoningEfforts: ['low', 'medium', 'high'], reasoningEffortsStated: true, defaultReasoningEffort: 'medium', supportedInApi: true, priority: 1 } as never
@@ -314,7 +314,7 @@ section('§K10b a GPT seat pays no per-runner catalogue fetch — the daemon\'s 
 
 section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')
 {
-  const { resolveWorkerTools } = await import('../../src/tools/AgentTool/agentToolUtils.js')
+  const { resolveWorkerTools } = await import('../../src/tools/crewmate/crewmateLifecycle.js')
   const def = { agentType: 'mercury-crew', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
   const tool = (name: string): never => ({ name, description: '', inputSchema: {}, call: async () => ({}) }) as never
   const pool = [tool('Read'), tool('Bash'), tool('Crewmate')] as never
@@ -325,9 +325,9 @@ section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')
 
 {
   section('§K11 the fold releases the receipt')
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.js')
-  const { createSystemMessage } = await import('../../src/utils/messages/systemMessages.js')
-  const vnext = await import('../../src/utils/sessionStorage/vnext.js')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.js')
+  const { createSystemMessage } = await import('../../src/engine/message-shapes/systemMessages.js')
+  const vnext = await import('../../src/sessions/transcripts/vnext.js')
   const home = mkdtempSync(join(tmpdir(), 'crew-fold-ws-'))
   const SID = '00000000-aaaa-4000-8000-00000000f01d'
   const file = join(home, `${SID}.jsonl`)

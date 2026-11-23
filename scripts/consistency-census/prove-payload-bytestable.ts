@@ -35,30 +35,30 @@ writeFileSync(join(vendorRoot, 'debugpy', 'adapter', '__main__.py'), '')
 const before = walk(payload)
 
 process.env.MERCURY_DEBUGPY_VENDOR_DIR = vendorRoot
-const resolver = await import('../../src/services/dap/debugpyResolver.ts')
+const resolver = await import('../../src/integrations/debugger/debugpyResolver.ts')
 resolver._resetDebugpyResolverForTesting()
 const resolution = resolver.resolvePythonDebugAdapter()
-check('§A probe resolves green against the vendored copy', resolution.state === 'ok', resolution.state === 'ok' ? '' : resolution.reason, 'resolvePythonDebugAdapter in src/services/dap/debugpyResolver.ts must resolve the copy named by MERCURY_DEBUGPY_VENDOR_DIR')
+check('§A probe resolves green against the vendored copy', resolution.state === 'ok', resolution.state === 'ok' ? '' : resolution.reason, 'resolvePythonDebugAdapter in src/integrations/debugger/debugpyResolver.ts must resolve the copy named by MERCURY_DEBUGPY_VENDOR_DIR')
 const after = walk(payload)
-check('§A the payload is BYTE-STABLE through the probe (zero files added)', JSON.stringify(after) === JSON.stringify(before), `${after.length - before.length} new file(s)`, 'resolvePythonDebugAdapter in src/services/dap/debugpyResolver.ts must not write into the vendored payload')
+check('§A the payload is BYTE-STABLE through the probe (zero files added)', JSON.stringify(after) === JSON.stringify(before), `${after.length - before.length} new file(s)`, 'resolvePythonDebugAdapter in src/integrations/debugger/debugpyResolver.ts must not write into the vendored payload')
 
 const env = resolver.pythonSpawnEnv()
 const prefix = env.PYTHONPYCACHEPREFIX
-check('§A2 the spawn env carries the cache prefix (or the suppression fallback)', typeof prefix === 'string' || env.PYTHONDONTWRITEBYTECODE === '1', '', 'pythonSpawnEnv in src/services/dap/debugpyResolver.ts must set PYTHONPYCACHEPREFIX or PYTHONDONTWRITEBYTECODE')
+check('§A2 the spawn env carries the cache prefix (or the suppression fallback)', typeof prefix === 'string' || env.PYTHONDONTWRITEBYTECODE === '1', '', 'pythonSpawnEnv in src/integrations/debugger/debugpyResolver.ts must set PYTHONPYCACHEPREFIX or PYTHONDONTWRITEBYTECODE')
 if (typeof prefix === 'string') {
-  check('§A2 the cache root lives under the mercury cache home, not the payload', prefix.includes('pycache') && !prefix.startsWith(payload), '', 'pythonSpawnEnv in src/services/dap/debugpyResolver.ts must put PYTHONPYCACHEPREFIX in a pycache folder under the cache home, outside the payload')
+  check('§A2 the cache root lives under the mercury cache home, not the payload', prefix.includes('pycache') && !prefix.startsWith(payload), '', 'pythonSpawnEnv in src/integrations/debugger/debugpyResolver.ts must put PYTHONPYCACHEPREFIX in a pycache folder under the cache home, outside the payload')
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
 
 
 const env2 = resolver.pythonSpawnEnv()
-check('§D repeated resolution agrees on ONE cache root', env.PYTHONPYCACHEPREFIX === env2.PYTHONPYCACHEPREFIX, '', 'pythonSpawnEnv in src/services/dap/debugpyResolver.ts must return the same PYTHONPYCACHEPREFIX on every call')
+check('§D repeated resolution agrees on ONE cache root', env.PYTHONPYCACHEPREFIX === env2.PYTHONPYCACHEPREFIX, '', 'pythonSpawnEnv in src/integrations/debugger/debugpyResolver.ts must return the same PYTHONPYCACHEPREFIX on every call')
 
 {
   const { spawn } = await import('node:child_process')
   const snippet =
-    `const{pythonSpawnEnv}=await import(${JSON.stringify(join(ROOT, 'src/services/dap/debugpyResolver.ts'))});` +
+    `const{pythonSpawnEnv}=await import(${JSON.stringify(join(ROOT, 'src/integrations/debugger/debugpyResolver.ts'))});` +
     `console.log(pythonSpawnEnv().PYTHONPYCACHEPREFIX ?? 'SUPPRESSED')`
   const runOnce = (): Promise<{ code: number | null; out: string }> =>
     new Promise(resolvePromise => {
@@ -68,15 +68,15 @@ check('§D repeated resolution agrees on ONE cache root', env.PYTHONPYCACHEPREFI
       child.on('close', code => resolvePromise({ code, out: out.trim() }))
     })
   const [a, b] = await Promise.all([runOnce(), runOnce()])
-  check('§D2 concurrent resolutions both succeed', a.code === 0 && b.code === 0, `${a.code}/${b.code}`, 'pythonSpawnEnv in src/services/dap/debugpyResolver.ts must not fail when two processes resolve at once')
-  check('§D2 concurrent resolutions agree on ONE root', a.out === b.out && a.out.length > 0, `${a.out} vs ${b.out}`, 'pythonSpawnEnv in src/services/dap/debugpyResolver.ts must pick one cache root across concurrent processes')
+  check('§D2 concurrent resolutions both succeed', a.code === 0 && b.code === 0, `${a.code}/${b.code}`, 'pythonSpawnEnv in src/integrations/debugger/debugpyResolver.ts must not fail when two processes resolve at once')
+  check('§D2 concurrent resolutions agree on ONE root', a.out === b.out && a.out.length > 0, `${a.out} vs ${b.out}`, 'pythonSpawnEnv in src/integrations/debugger/debugpyResolver.ts must pick one cache root across concurrent processes')
 }
 
 {
   const distVendor = join(ROOT, 'dist', 'vendor', 'debugpy')
   try {
     const pollution = walk(distVendor).filter(p => p.endsWith('.pyc') || p.includes('__pycache__'))
-    check('§E the REAL vendored payload carries zero bytecode after suite-driven use', pollution.length === 0, `${pollution.length} file(s)`, 'delete the .pyc and __pycache__ files under dist/vendor/debugpy and find what ran Python without the PYTHONPYCACHEPREFIX from pythonSpawnEnv in src/services/dap/debugpyResolver.ts')
+    check('§E the REAL vendored payload carries zero bytecode after suite-driven use', pollution.length === 0, `${pollution.length} file(s)`, 'delete the .pyc and __pycache__ files under dist/vendor/debugpy and find what ran Python without the PYTHONPYCACHEPREFIX from pythonSpawnEnv in src/integrations/debugger/debugpyResolver.ts')
   } catch {
     console.log('  [SKIP] §E no dist/vendor/debugpy at this root (unbuilt checkout)')
   }
@@ -84,17 +84,17 @@ check('§D repeated resolution agrees on ONE cache root', env.PYTHONPYCACHEPREFI
 
 {
   const { describeArtifactIdentity, artifactIdentityLine } = await import(
-    '../../src/utils/artifactIdentity.ts'
+    '../../src/platform/product/artifactIdentity.ts'
   )
   const id = describeArtifactIdentity('9.9.9-fixture')
-  check('§F the projection carries version + distribution', id.version === '9.9.9-fixture' && ['packaged-install', 'source-build', 'source-run'].includes(id.distribution), '', 'describeArtifactIdentity in src/utils/artifactIdentity.ts must return the version it was given and a known distribution')
+  check('§F the projection carries version + distribution', id.version === '9.9.9-fixture' && ['packaged-install', 'source-build', 'source-run'].includes(id.distribution), '', 'describeArtifactIdentity in src/platform/product/artifactIdentity.ts must return the version it was given and a known distribution')
   const line = artifactIdentityLine(id)
-  check('§F the concise line leads with the UNMANGLED semver', line.startsWith('v9.9.9-fixture ·'), '', 'artifactIdentityLine in src/utils/artifactIdentity.ts must begin with v and the unchanged version')
-  const { healthContext } = await import('../../src/services/health/healthReport.ts')
-  const { identityChecks } = await import('../../src/services/health/sections/identity.ts')
+  check('§F the concise line leads with the UNMANGLED semver', line.startsWith('v9.9.9-fixture ·'), '', 'artifactIdentityLine in src/platform/product/artifactIdentity.ts must begin with v and the unchanged version')
+  const { healthContext } = await import('../../src/platform/health/healthReport.ts')
+  const { identityChecks } = await import('../../src/platform/health/sections/identity.ts')
   const context = await healthContext()
   const buildRow = await identityChecks(context).find(row => row.id === 'build-identity')?.run()
-  check('§F /health build row consumes the ONE projection', buildRow?.evidence.startsWith(artifactIdentityLine(describeArtifactIdentity(context.version))) === true, buildRow?.evidence, 'the build-identity check in src/services/health/sections/identity.ts must build its evidence from artifactIdentityLine and describeArtifactIdentity in src/utils/artifactIdentity.ts')
+  check('§F /health build row consumes the ONE projection', buildRow?.evidence.startsWith(artifactIdentityLine(describeArtifactIdentity(context.version))) === true, buildRow?.evidence, 'the build-identity check in src/platform/health/sections/identity.ts must build its evidence from artifactIdentityLine and describeArtifactIdentity in src/platform/product/artifactIdentity.ts')
 }
 
 console.log(failed === 0 ? '\n ✅ MANAGED PAYLOADS STAY BYTE-STABLE' : `\n ❌ ${failed} FAILED`)

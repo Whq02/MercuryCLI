@@ -15,7 +15,7 @@ const check = (name: string, ok: boolean, detail?: string): void => {
 console.log('§3 SSR-06 — run capsule truncation: cells + ellipsis, fitting lines untouched')
 {
   const { buildRunCapsuleLine } = await import('../../src/commands/run/runInspectorModel.ts')
-  const { stringWidth } = await import('../../src/ink/stringWidth.ts')
+  const { stringWidth } = await import('../../src/screen/renderer/stringWidth.ts')
   const snap = (blocker: string | null, nextAction = ''): Record<string, unknown> => ({
     schema: 1, runId: 'r', owner: 'o', rootMessageId: null, objective: '', startedAt: 0, updatedAt: 0,
     lifecycle: 'active', substantive: true, phase: 'build', phaseReason: '', deliverables: [],

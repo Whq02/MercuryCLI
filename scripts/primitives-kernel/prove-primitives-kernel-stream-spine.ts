@@ -10,11 +10,11 @@ function check(name: string, ok: boolean, detail?: string): void {
   } else {
     fail++
     console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
-    console.log('       fix: stream events are projected by projectAnthropicStreamEvent, and the model-turn execution is begun and settled by beginModelTurnExecution and settleModelTurnExecution, all in src/services/primitives/canonicalStream.ts')
+    console.log('       fix: stream events are projected by projectAnthropicStreamEvent, and the model-turn execution is begun and settled by beginModelTurnExecution and settleModelTurnExecution, all in src/engine/runtime-kernel/canonicalStream.ts')
   }
 }
 
-const P = await import('../../src/services/primitives/index.ts')
+const P = await import('../../src/engine/runtime-kernel/index.ts')
 
 console.log('SSE → canonical projection (fixture stream)')
 {

@@ -3,7 +3,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 
 let failures = 0
-const effortCopyHint = 'change getEffortLevelDescription or the modelSupportsXHighEffort and modelSupportsMaxEffort predicates in src/utils/effort.ts so the copy and the predicates agree'
+const effortCopyHint = 'change getEffortLevelDescription or the modelSupportsXHighEffort and modelSupportsMaxEffort predicates in src/models/effort/effort.ts so the copy and the predicates agree'
 const check = (label: string, cond: boolean, detail = ''): void => {
   const shown = cond ? detail : detail ? detail + '; ' + effortCopyHint : effortCopyHint
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
@@ -16,7 +16,7 @@ console.log('============================================================')
 
 {
   const { getEffortLevelDescription, modelSupportsXHighEffort, modelSupportsMaxEffort } =
-    await import('../../src/utils/effort.ts')
+    await import('../../src/models/effort/effort.ts')
   const xhigh = getEffortLevelDescription('xhigh')
   const max = getEffortLevelDescription('max')
   check('Sonnet 5 appears in the xhigh copy (catalog: supportsXHigh)', xhigh.includes('Sonnet 5'), xhigh)

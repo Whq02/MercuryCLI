@@ -1,5 +1,5 @@
-import type { LocalCommandCall } from '../../types/command.js'
-import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
+import type { LocalCommandCall } from '../catalogue/command.js'
+import { getGlobalConfig, saveGlobalConfig } from '../../platform/settings/config.js'
 
 export const call: LocalCommandCall = async () => {
   const stored = getGlobalConfig().editorMode ?? 'normal'

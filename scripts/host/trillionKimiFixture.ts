@@ -32,8 +32,8 @@ export async function trillionKimiFixture() {
 }
 
 export async function proveKimiReplay(f: Awaited<ReturnType<typeof trillionKimiFixture>>, check: (name: string, truth: unknown) => void) {
-  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-  const { refreshCompatCatalogues } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
+  const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+  const { refreshCompatCatalogues } = await import('../../src/models/roads/openaicompat/compatCatalogue.ts')
   const id = 'compat/kimi/' + f.model
   writeFileSync(join(f.home, 'settings.json'), JSON.stringify({ compatProvider: { kimi: { baseUrl: f.baseUrl, dialect: 'sglang' } } }))
   resetSettingsCache()

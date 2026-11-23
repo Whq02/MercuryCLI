@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { setSystemPromptSectionCacheEntry, getSystemPromptSectionCache } = await import('../../src/bootstrap/state.js')
-const { runPostCompactCleanup } = await import('../../src/services/compact/postCompactCleanup.js')
+const { setSystemPromptSectionCacheEntry, getSystemPromptSectionCache } = await import('../../src/boot/process-state/processState.js')
+const { runPostCompactCleanup } = await import('../../src/engine/compaction/postFoldCleanup.js')
 const messages = [{ type: 'attachment', attachment: { type: 'bound_prefix', boundKey: 'fixture|summary|claude-fixture', rosterEnabled: true, roster: [], sections: [{ name: 'cache-epoch-fixture', key: 'stable-key', value: 'stable prefix bytes' }], systemContext: {} } }] as never
 setSystemPromptSectionCacheEntry('cache-epoch-fixture', 'stable prefix bytes', 'stable-key')
 ;(runPostCompactCleanup as (...args: unknown[]) => void)('sdk', messages)
 assert.equal(getSystemPromptSectionCache().get('cache-epoch-fixture')?.value, 'stable prefix bytes', 'a fold restores the byte-identical stable prefix after clearing transient caches')
 console.log('PASS stable cached sections survive the fold epoch')
 
-const { carryFoldPrefix, foldCacheUsage } = await import('../../src/services/compact/cacheEpoch.js')
-const { conversationRosterKey } = await import('../../src/services/providers/toolEconomy.js')
-const { judgeAndRecordPrefix, resetPrefixLedger } = await import('../../src/services/providers/anthropic/prefixLedger.js')
+const { carryFoldPrefix, foldCacheUsage } = await import('../../src/engine/compaction/cacheEpoch.js')
+const { conversationRosterKey } = await import('../../src/models/roads/toolEconomy.js')
+const { judgeAndRecordPrefix, resetPrefixLedger } = await import('../../src/models/roads/anthropic/prefixLedger.js')
 const owner = 'cache-epoch-proof'
 const model = 'claude-fixture'
 const user = (uuid: string, content: string) => ({ type: 'user', uuid, message: { role: 'user', content } }) as never

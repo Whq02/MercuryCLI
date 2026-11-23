@@ -12,14 +12,14 @@ if (!process.argv.includes('--child')) {
 } else {
   if (homedir() !== process.env.AST_PROOF_HOME) throw new Error('wrong proof home before product imports')
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const { AstEditTool } = await import('../../src/tools/AstEditTool/AstEditTool.ts')
-  const { _setBeforeRenameHookForProofs } = await import('../../src/services/changeTransaction/changeSetCommit.ts')
+  const { AstEditTool } = await import('../../src/tools/ast-edit/AstEditTool.ts')
+  const { _setBeforeRenameHookForProofs } = await import('../../src/tools/engines/change-transaction/changeSetCommit.ts')
   const { drive, enterRoot, makeContext } = await import('./lib/harness.ts')
   const world = gitFixture('ast-recovery-transaction-')
   const launch = process.cwd()
   let checks = 0
   let failures = 0
-  const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail} · to fix: the apply and rollback path of AstEditTool in src/tools/AstEditTool/AstEditTool.ts and the commit in src/services/changeTransaction/changeSetCommit.ts` : ''}`) }
+  const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail} · to fix: the apply and rollback path of AstEditTool in src/tools/ast-edit/AstEditTool.ts and the commit in src/tools/engines/change-transaction/changeSetCommit.ts` : ''}`) }
   const source = 'const broken = ;\nneedle(1);\n'
   try {
     world.put('a.ts', source); world.put('b.ts', source)

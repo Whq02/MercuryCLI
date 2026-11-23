@@ -1,5 +1,5 @@
-import { getPlatform } from '../../src/utils/platform.js'
-import { suspiciousWindowsPattern, containsWindowsDevicePath } from '../../src/utils/permissions/windowsPath.js'
+import { getPlatform } from '../../src/platform/environment/platform.js'
+import { suspiciousWindowsPattern, containsWindowsDevicePath } from '../../src/permissions/rules/windowsPath.js'
 
 let failed = 0
 const forms = [
@@ -26,16 +26,16 @@ for (const platform of ['windows', 'wsl', 'macos', 'linux'] as const) {
     const ok = suspiciousWindowsPattern(path) === label
     console.log(`${ok ? 'PASS' : 'FAIL'} ${platform} ${path}: ${label}`)
     if (!ok) {
-      console.log(`  suspiciousWindowsPattern(${JSON.stringify(path)}) on ${platform} returned ${JSON.stringify(suspiciousWindowsPattern(path))}, expected ${JSON.stringify(label)}; change suspiciousWindowsPattern in src/utils/permissions/windowsPath.ts`)
+      console.log(`  suspiciousWindowsPattern(${JSON.stringify(path)}) on ${platform} returned ${JSON.stringify(suspiciousWindowsPattern(path))}, expected ${JSON.stringify(label)}; change suspiciousWindowsPattern in src/permissions/rules/windowsPath.ts`)
       failed++
     }
   }
   for (const path of ['C:/project/file.txt', '/usr/local/file', 'a..b', 'normal', '.', '..', './x', '../x', 'a/.', 'a/..']) if (suspiciousWindowsPattern(path) !== null) {
-    console.log(`FAIL ${platform} ordinary path ${JSON.stringify(path)} was flagged as ${JSON.stringify(suspiciousWindowsPattern(path))}; suspiciousWindowsPattern in src/utils/permissions/windowsPath.ts must return null for it`)
+    console.log(`FAIL ${platform} ordinary path ${JSON.stringify(path)} was flagged as ${JSON.stringify(suspiciousWindowsPattern(path))}; suspiciousWindowsPattern in src/permissions/rules/windowsPath.ts must return null for it`)
     failed++
   }
   for (const path of [String.raw`cat '\\?\C:\project\file'`, String.raw`Get-Content '\\.\C:\project\file'`, String.raw`dir \\.`, String.raw`\\??\share`]) if (containsWindowsDevicePath(path) !== (platform === 'windows')) {
-    console.log(`FAIL ${platform} containsWindowsDevicePath(${JSON.stringify(path)}) must be ${platform === 'windows'}; change containsWindowsDevicePath in src/utils/permissions/windowsPath.ts`)
+    console.log(`FAIL ${platform} containsWindowsDevicePath(${JSON.stringify(path)}) must be ${platform === 'windows'}; change containsWindowsDevicePath in src/permissions/rules/windowsPath.ts`)
     failed++
   }
 }

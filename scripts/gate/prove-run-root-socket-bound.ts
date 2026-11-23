@@ -8,7 +8,7 @@ const root = resolve(process.env.PROOF_SUBJECT_ROOT ?? join(import.meta.dir, '..
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  const fixAt = 'change the proof run root choice (header line, TMPDIR fit test and /tmp fallback) in scripts/gate/run-suite.sh, or controlSockPath in src/daemon/controlSocket.ts'
+  const fixAt = 'change the proof run root choice (header line, TMPDIR fit test and /tmp fallback) in scripts/gate/run-suite.sh, or controlSockPath in src/daemon/control/controlSocket.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${fixAt}`}`)
 }
 
@@ -18,7 +18,7 @@ console.log('============================================================')
 
 async function measureSocketBound(): Promise<number> {
   const prevDaemonDir = process.env.MERCURY_DAEMON_DIR
-  const { controlSockPath } = await import(join(root, 'src/daemon/controlSocket.ts'))
+  const { controlSockPath } = await import(join(root, 'src/daemon/control/controlSocket.ts'))
   try {
     let lo = 16
     let hi = 256
@@ -51,8 +51,8 @@ import net from 'node:net'
 import { join } from 'node:path'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { controlSockPath, daemonDir } = await import(${JSON.stringify(join(root, 'src/daemon/controlSocket.ts'))})
-const { startControlServer } = await import(${JSON.stringify(join(root, 'src/daemon/controlServer.ts'))})
+const { controlSockPath, daemonDir } = await import(${JSON.stringify(join(root, 'src/daemon/control/controlSocket.ts'))})
+const { startControlServer } = await import(${JSON.stringify(join(root, 'src/daemon/control/controlServer.ts'))})
 mkdirSync(daemonDir(), { recursive: true })
 const preferred = join(daemonDir(), 'control.sock')
 const sock = controlSockPath()

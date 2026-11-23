@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { DIST, FRAMES, argAfter, makeTally } from '../daemon/dupline-world.ts'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
-import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
+import { keyHintLabel } from '../../src/screen/widgets/keyHintLabel.ts'
 
 const VSHOT = join(import.meta.dir, 'vshot.py')
 const tally = makeTally('prove-composer-draft-survives-click-drive')

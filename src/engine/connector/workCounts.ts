@@ -1,0 +1,74 @@
+import type { ConcourseWorkerRecordV1 } from '../../daemon/concourse-workers/concourseWorkers.js'
+import { isDelegationToolName } from '../../screen/cockpit/toolVerb.js'
+import type { SampleRowV1, WorkRosterV1, WorkRowV1 } from './types.js'
+
+export function workRowRuns(row: WorkRowV1): boolean {
+  return row.status === 'running' || row.status === 'pending'
+}
+
+export interface WorkCountsV1 {
+  agents: number
+  shells: number
+  asks: number
+}
+
+export function workCounts(rows: readonly WorkRowV1[]): WorkCountsV1 {
+  const counts: WorkCountsV1 = { agents: 0, shells: 0, asks: 0 }
+  for (const row of rows) {
+    if (!workRowRuns(row)) continue
+    switch (row.kind) {
+      case 'agent':
+        counts.agents += 1
+        break
+      case 'shell':
+      case 'monitor':
+        counts.shells += 1
+        break
+      default:
+        break
+    }
+    counts.asks += row.pendingAsks ?? 0
+  }
+  return counts
+}
+
+export function workChipLine(counts: WorkCountsV1): string | null {
+  const parts: string[] = []
+  if (counts.agents > 0) parts.push(`${counts.agents} crewmate${counts.agents === 1 ? '' : 's'}`)
+  if (counts.shells > 0) parts.push(`${counts.shells} shell${counts.shells === 1 ? '' : 's'}`)
+  if (parts.length === 0) return null
+  const line = parts.join(' · ')
+  return counts.asks > 0 ? `${line} · ${counts.asks} ask${counts.asks === 1 ? '' : 's'}` : line
+}
+
+export function workWaitingWords(counts: WorkCountsV1): string | null {
+  const line = workChipLine(counts)
+  return line === null ? null : `waiting on ${line}`
+}
+
+export function delegationWaitWords(activeTool: string | undefined, rows: readonly WorkRowV1[]): string | null {
+  if (!isDelegationToolName(activeTool)) return null
+  return workWaitingWords(workCounts(rows))
+}
+
+export function withSampleWords(line: string, samples: readonly SampleRowV1[]): string {
+  if (samples.length === 0) return line
+  const words = `${samples.length} sample${samples.length === 1 ? '' : 's'}`
+  return line === '' ? words : `${line} · ${words}`
+}
+
+export const WORK_UNREPORTED_MARK = '—'
+export const WORK_UNREPORTED_LINE = 'the runner has not reported its work yet'
+
+export function workUnreported(roster: Pick<WorkRosterV1, 'reported'>): boolean {
+  return roster.reported === false
+}
+
+export function runnerRecordAlive(
+  rec: Pick<ConcourseWorkerRecordV1, 'endedAt' | 'attachedAt' | 'pid'>,
+  alive: (pid: number) => boolean,
+): boolean {
+  if (rec.endedAt !== undefined) return false
+  if (rec.attachedAt !== undefined) return true
+  return rec.pid !== undefined && alive(rec.pid)
+}

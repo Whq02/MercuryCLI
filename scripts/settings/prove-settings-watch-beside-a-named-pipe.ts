@@ -37,7 +37,7 @@ for (const seat of seats) {
     const stderr = host.stderr().trim()
     detail = `${error instanceof Error ? error.message : String(error)} — seat exit ${host.child.exitCode ?? 'pending'}${host.child.signalCode ? `, signal ${host.child.signalCode}` : ''}; its stderr (${stderr.length} bytes, the last 1500): ${JSON.stringify(stderr.slice(-1500))} (a seat still alive has its forensics printed above by the launcher)`
   }
-  tally.check(`the seat answers initialize within ${DEADLINE_MS / 1000} s: the settings watcher never opens the pipe`, answered, `${detail}; the seat hung or died booting beside a pipe, so change the chokidar.watch options in src/utils/settings/changeDetector.ts so that it never opens a named pipe (its ignoringSpecialFiles filter)`)
+  tally.check(`the seat answers initialize within ${DEADLINE_MS / 1000} s: the settings watcher never opens the pipe`, answered, `${detail}; the seat hung or died booting beside a pipe, so change the chokidar.watch options in src/platform/settings/changeDetector.ts so that it never opens a named pipe (its ignoringSpecialFiles filter)`)
   host.end()
   await host.stop(3_000)
 }

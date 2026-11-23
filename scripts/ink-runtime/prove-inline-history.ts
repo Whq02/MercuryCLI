@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
-import type { Frame } from '../../src/ink/frame.js'
-import { FrameWriter } from '../../src/ink/frame-writer.js'
-import { optimizePatches as optimize } from '../../src/ink/patch-stream.js'
-import { charInCellAt } from '../../src/ink/cell-grid.js'
-import { writeDiffToTerminal } from '../../src/ink/session/delivery.js'
+import type { Frame } from '../../src/screen/renderer/frame.js'
+import { FrameWriter } from '../../src/screen/renderer/frame-writer.js'
+import { optimizePatches as optimize } from '../../src/screen/renderer/patch-stream.js'
+import { charInCellAt } from '../../src/screen/renderer/cell-grid.js'
+import { writeDiffToTerminal } from '../../src/screen/renderer/terminal-session/frameDelivery.js'
 import { AnsiEmulator } from './ansiEmulator.js'
 import {
   composeScene,
@@ -113,13 +113,13 @@ for (let si = 0; si < steps.length; si++) {
   check(
     `step ${si}: no clearTerminal patch`,
     clearPatches.length === 0,
-    `${clearPatches.length} clearTerminal patches; the inline (non-alt-screen) path of FrameWriter.render in src/ink/frame-writer.ts must not emit clearTerminal`,
+    `${clearPatches.length} clearTerminal patches; the inline (non-alt-screen) path of FrameWriter.render in src/screen/renderer/frame-writer.ts must not emit clearTerminal`,
   )
   const bytes = serialize(diff)
   check(
     `step ${si}: no ED bytes ([J/[2J/[3J)`,
     !/\x1b\[[0-3]?J/.test(bytes),
-    `${JSON.stringify(bytes.slice(0, 120))}; the bytes writeDiffToTerminal (src/ink/session/delivery.ts) wrote contain an erase-display escape, so an inline frame diff must not produce one`,
+    `${JSON.stringify(bytes.slice(0, 120))}; the bytes writeDiffToTerminal (src/screen/renderer/terminal-session/frameDelivery.ts) wrote contain an erase-display escape, so an inline frame diff must not produce one`,
   )
 
   try {
@@ -131,13 +131,13 @@ for (let si = 0; si < steps.length; si++) {
   check(
     `step ${si}: emulator saw no ED`,
     emu.edClears === 0 && emu.scrollbackErased === 0,
-    `edClears ${emu.edClears}, scrollbackErased ${emu.scrollbackErased}; an inline frame diff from FrameWriter.render (src/ink/frame-writer.ts) cleared the screen or scrollback`,
+    `edClears ${emu.edClears}, scrollbackErased ${emu.scrollbackErased}; an inline frame diff from FrameWriter.render (src/screen/renderer/frame-writer.ts) cleared the screen or scrollback`,
   )
 
   check(
     `step ${si}: scrollback prefix stable (${frozenSnapshot.length} frozen rows)`,
     frozenSnapshot.every((row, i) => emu.scrollback[i] === row),
-    `frozen ${JSON.stringify(frozenSnapshot)} vs now ${JSON.stringify(emu.scrollback.slice(0, frozenSnapshot.length))}; rows already ceded to scrollback were rewritten, so check how FrameWriter.render (src/ink/frame-writer.ts) repaints rows above the live region`,
+    `frozen ${JSON.stringify(frozenSnapshot)} vs now ${JSON.stringify(emu.scrollback.slice(0, frozenSnapshot.length))}; rows already ceded to scrollback were rewritten, so check how FrameWriter.render (src/screen/renderer/frame-writer.ts) repaints rows above the live region`,
   )
   frozenSnapshot = [...emu.scrollback]
   if (frame.screen.height > VIEWPORT) sawGrowthPastViewport = true
@@ -150,7 +150,7 @@ for (let si = 0; si < steps.length; si++) {
   check(
     `step ${si}: logical output ends with the frame's lines`,
     JSON.stringify(tail) === JSON.stringify(lines),
-    `tail ${JSON.stringify(tail)} vs frame ${JSON.stringify(lines)}; the replayed terminal no longer matches the composed frame, so check the diff FrameWriter.render (src/ink/frame-writer.ts) and optimizePatches (src/ink/patch-stream.ts) produce`,
+    `tail ${JSON.stringify(tail)} vs frame ${JSON.stringify(lines)}; the replayed terminal no longer matches the composed frame, so check the diff FrameWriter.render (src/screen/renderer/frame-writer.ts) and optimizePatches (src/screen/renderer/patch-stream.ts) produce`,
   )
 
   prevFrame = frame
@@ -164,7 +164,7 @@ check(
 check(
   'journey actually ceded rows to scrollback',
   frozenSnapshot.length > 0,
-  'the emulator scrollback stayed empty; the inline diff never scrolled rows out of the live region, so check writeDiffToTerminal in src/ink/session/delivery.ts',
+  'the emulator scrollback stayed empty; the inline diff never scrolled rows out of the live region, so check writeDiffToTerminal in src/screen/renderer/terminal-session/frameDelivery.ts',
 )
 
 if (failures > 0) {

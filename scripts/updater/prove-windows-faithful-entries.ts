@@ -3,9 +3,9 @@ import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import * as layout from '../../src/services/privateChannel/installLayout.js'
-import type { LayoutRoots } from '../../src/services/privateChannel/installLayout.js'
-import { TEARDOWN_SUITE } from '../../src/ink/root/teardown.ts'
+import * as layout from '../../src/platform/update-channel/installLayout.js'
+import type { LayoutRoots } from '../../src/platform/update-channel/installLayout.js'
+import { TEARDOWN_SUITE } from '../../src/screen/renderer/root/teardown.ts'
 import { slashed } from '../lib/platformPath.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
@@ -17,11 +17,11 @@ const powershellEntryContent = (): string => optional.powershellEntryContent?.()
 
 let failures = 0
 const whereToFix: Record<string, string> = {
-  '(1)': 'change resolveLayoutRoots or WIN32_POWERSHELL_ENTRY in src/services/privateChannel/installLayout.ts',
-  '(2)': 'change powershellEntryContent in src/services/privateChannel/installLayout.ts',
-  '(3)': 'change writeShimSet, reconcileManagedShims or uninstallLayout in src/services/privateChannel/installLayout.ts',
-  '(4)': 'change the shell text built by shimContent in src/services/privateChannel/installLayout.ts',
-  '(5)': 'change the shell text built by shimContent in src/services/privateChannel/installLayout.ts (the facade run by this fixture)',
+  '(1)': 'change resolveLayoutRoots or WIN32_POWERSHELL_ENTRY in src/platform/update-channel/installLayout.ts',
+  '(2)': 'change powershellEntryContent in src/platform/update-channel/installLayout.ts',
+  '(3)': 'change writeShimSet, reconcileManagedShims or uninstallLayout in src/platform/update-channel/installLayout.ts',
+  '(4)': 'change the shell text built by shimContent in src/platform/update-channel/installLayout.ts',
+  '(5)': 'change the shell text built by shimContent in src/platform/update-channel/installLayout.ts (the facade run by this fixture)',
   '(6)': 'change installingDoc in scripts/release/launcherTemplates.mjs',
 }
 let fixWhere = ''

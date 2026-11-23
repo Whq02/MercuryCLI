@@ -154,7 +154,7 @@ check "a scripts/ entry pinned to a scratch home keeps it" "$([ "$rc" = 0 ] && [
 printf "console.log(process.env.MERCURY_CONFIG_DIR ?? '')\n" >"$scratch/outside.ts"
 from_root "$bun" "$scratch/outside.ts"; rc=$?
 check "an entry outside scripts/ sees no home pinned" "$([ "$rc" = 0 ] && [ -z "$(first)" ] && echo 0 || echo 1)" "rc=$rc home=$(first)"
-from_root "$bun" -e "import('./src/utils/envUtils.ts').then(m => console.log(m.getMercuryHome()))"; rc=$?
+from_root "$bun" -e "import('./src/platform/environment/envUtils.ts').then(m => console.log(m.getMercuryHome()))"; rc=$?
 check "the product's own resolver, loaded outside scripts/, still answers the default home" "$([ "$rc" = 0 ] && [ "$(first)" = "$scratch/home/.mercury" ] && echo 0 || echo 1)" "rc=$rc home=$(first) $(head -c 200 "$scratch/err")"
 estate="$scratch/estate"
 mkdir -p "$estate/scripts/lib" "$estate/scripts/vendor" "$estate/scripts/gate" "$estate/src"

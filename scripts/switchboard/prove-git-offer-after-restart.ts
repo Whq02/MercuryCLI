@@ -8,8 +8,8 @@ const STAGE = process.env.GIT_OFFER_RESTART_STAGE
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
 if (STAGE === 'answer') {
-  const asks = await import('../../src/daemon/permissionAsks.js')
-  const obligations = await import('../../src/services/crew/obligations.js')
+  const asks = await import('../../src/daemon/session-seat/permissionAsks.js')
+  const obligations = await import('../../src/crew/crewmates/obligations.js')
   const requestId = process.env.GIT_OFFER_RESTART_ID ?? ''
   const allow = process.env.GIT_OFFER_RESTART_ALLOW === 'yes'
   const rowOf = async (): Promise<{ status: string; by?: string } | null> => {
@@ -40,16 +40,16 @@ process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
 
 let failures = 0
-const fixWhere = 'change mintGitInitAsk (sidecar git-init-asks.json) and answerPermissionAsk (an answer after a restart applies once and settles the row) in src/daemon/permissionAsks.ts'
+const fixWhere = 'change mintGitInitAsk (sidecar git-init-asks.json) and answerPermissionAsk (an answer after a restart applies once and settles the row) in src/daemon/session-seat/permissionAsks.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = !cond ? `${detail ? `${detail} — ` : ''}fix: ${fixWhere}` : ''
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
-const asks = await import('../../src/daemon/permissionAsks.js')
-const obligations = await import('../../src/services/crew/obligations.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const asks = await import('../../src/daemon/session-seat/permissionAsks.js')
+const obligations = await import('../../src/crew/crewmates/obligations.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 interface Answered {
@@ -93,7 +93,7 @@ for (const [folder, allow] of [[yesFolder, true], [noFolder, false]] as const) {
   const minted = asks.mintGitInitAsk(folder) as { requestId: string }
   check(`${word}: the first daemon raises the offer and its card stands (the row and the sidecar are on disk)`, typeof minted.requestId === 'string' && (await openRowSoon(minted.requestId)) && existsSync(join(daemonDir, 'git-init-asks.json')), JSON.stringify(minted))
   const held = await firstDaemonIsQuiet()
-  check(`${word}: the first daemon holds no store lock when the next one answers`, held.length === 0, `still standing after 5 s: ${held.join(', ')} (the commit lane in src/substrate/groupCommit.ts releases after it publishes; this process must not block while it does)`)
+  check(`${word}: the first daemon holds no store lock when the next one answers`, held.length === 0, `still standing after 5 s: ${held.join(', ')} (the commit lane in src/platform/substrate/groupCommit.ts releases after it publishes; this process must not block while it does)`)
   const said = answerInANewProcess(minted.requestId, allow)
   check(`${word}: the next daemon holds nothing in memory and still knows the offer from its sidecar`, said !== null && said.heldBefore === false && said.first.outcome === 'applied', JSON.stringify(said))
   check(`${word}: …and the first answer settles the card as answered by the operator (red on the base: the row stays open and the card stands)`, said?.afterFirst?.status === 'answered' && said.afterFirst.by === 'operator', JSON.stringify(said?.afterFirst))

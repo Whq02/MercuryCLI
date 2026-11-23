@@ -43,25 +43,25 @@ writeFileSync(join(P, 'example.test.js'), 'const {test}=require("node:test"); te
 process.env.MERCURY_PYTHON = debugFixturePython(ROOT) ?? '/usr/bin/python3'
 process.env.MERCURY_DEBUGPY_VENDOR_DIR = join(ROOT, 'dist/vendor/debugpy')
 process.chdir(P)
-const { enableConfigs } = await product('utils/config.ts')
+const { enableConfigs } = await product('platform/settings/config.ts')
 enableConfigs()
-const { runWithCwdOverride } = await product('utils/cwd.ts')
-const { _resetPythonProjectForTesting } = await product('services/ide/pythonProject.ts')
-const { _resetDebugpyResolverForTesting } = await product('services/dap/debugpyResolver.ts')
+const { runWithCwdOverride } = await product('platform/files/cwd.ts')
+const { _resetPythonProjectForTesting } = await product('integrations/ide/pythonProject.ts')
+const { _resetDebugpyResolverForTesting } = await product('integrations/debugger/debugpyResolver.ts')
 _resetDebugpyResolverForTesting()
-const { LaunchTool } = await product('tools/LaunchTool/LaunchTool.ts')
-const { DebugTool } = await product('tools/DebugTool/DebugTool.ts')
-const { TestTool } = await product('tools/TestTool/TestTool.ts')
-const { ToolSearchTool } = await product('tools/ToolSearchTool/ToolSearchTool.ts')
+const { LaunchTool } = await product('tools/launch/LaunchTool.ts')
+const { DebugTool } = await product('tools/debug/DebugTool.ts')
+const { TestTool } = await product('tools/test/TestTool.ts')
+const { ToolSearchTool } = await product('tools/tool-search/ToolSearchTool.ts')
 const { getEmptyToolPermissionContext } = await product('Tool.ts')
-const { discoverLaunchProfiles } = await product('services/ide/launchProfiles.ts')
-const { listRuns } = await product('services/ide/pythonTests.ts')
-const { getDapSession } = await product('services/dap/dapClient.ts')
-const { ownerFromToolUseContext } = await product('utils/run/resolveOwner.ts')
-const { disposeOwner } = await product('utils/run/ownerLifecycle.ts')
-const { formatDeferredToolLine } = await product('tools/ToolSearchTool/prompt.ts')
-const { zodToJsonSchema } = await product('utils/zodToJsonSchema.ts')
-const { classifyEffectStep } = await product('services/ide/txAutoCapture.ts')
+const { discoverLaunchProfiles } = await product('integrations/ide/launchProfiles.ts')
+const { listRuns } = await product('integrations/ide/pythonTests.ts')
+const { getDapSession } = await product('integrations/debugger/dapClient.ts')
+const { ownerFromToolUseContext } = await product('engine/run-owner/resolveOwner.ts')
+const { disposeOwner } = await product('engine/run-owner/ownerLifecycle.ts')
+const { formatDeferredToolLine } = await product('tools/tool-search/prompt.ts')
+const { zodToJsonSchema } = await product('platform/primitives/zodToJsonSchema.ts')
+const { classifyEffectStep } = await product('integrations/ide/txAutoCapture.ts')
 const context = (tools = [LaunchTool, DebugTool, TestTool], deny: string[] = []): any => ({
   getAppState: () => ({ toolPermissionContext: { ...getEmptyToolPermissionContext(), alwaysDenyRules: { cliArg: deny } } }),
   options: { tools, engineModel: 'claude-sonnet-5-5' }, messages: [], abortController: new AbortController(),
@@ -89,77 +89,77 @@ try {
     const test = await suite()
     if (!hello || !test) throw new Error('fixture discovery omitted Python profiles')
     const dbg = await call('debug', hello.id, { file: join(P, 'hello.py'), lines: [3] })
-    check('L1 debug uses the owner words, frames, route and default session', /^launched .*hello\.py via python \(session 'main'\)\. breakpoints — .*: line 3 verified; first stop: stopped — reason breakpoint/.test(dbg.data.result) && dbg.data.result.includes('\n#0 ') && dbg.data.result.split('\n').at(-1)?.startsWith(`Launch ${hello.id} ran as: Debug {"op":"launch"`) && Boolean(getDapSession(owner, 'main')) && !getDapSession(owner, 'launch') && dbg.data.route?.tool === 'Debug', `${dbg.data.result} — change op debug in src/tools/LaunchTool/LaunchTool.ts so it returns the Debug launch text in session main, ending with the Launch route line`)
-    check('debug effect preserves launch.debug, the owner stop card and debuggee', dbg.effect.operation === 'launch.debug' && dbg.effect.details?.stopCard?.verifiedBreakpoints === 1 && dbg.effect.details?.debuggee === 'stopped' && dbg.effect.details?.route?.tool === 'Debug', `effect ${JSON.stringify(dbg.effect)} — the effect the Launch debug op returns in src/tools/LaunchTool/LaunchTool.ts must keep operation launch.debug plus the stop card, debuggee and route details`)
+    check('L1 debug uses the owner words, frames, route and default session', /^launched .*hello\.py via python \(session 'main'\)\. breakpoints — .*: line 3 verified; first stop: stopped — reason breakpoint/.test(dbg.data.result) && dbg.data.result.includes('\n#0 ') && dbg.data.result.split('\n').at(-1)?.startsWith(`Launch ${hello.id} ran as: Debug {"op":"launch"`) && Boolean(getDapSession(owner, 'main')) && !getDapSession(owner, 'launch') && dbg.data.route?.tool === 'Debug', `${dbg.data.result} — change op debug in src/tools/launch/LaunchTool.ts so it returns the Debug launch text in session main, ending with the Launch route line`)
+    check('debug effect preserves launch.debug, the owner stop card and debuggee', dbg.effect.operation === 'launch.debug' && dbg.effect.details?.stopCard?.verifiedBreakpoints === 1 && dbg.effect.details?.debuggee === 'stopped' && dbg.effect.details?.route?.tool === 'Debug', `effect ${JSON.stringify(dbg.effect)} — the effect the Launch debug op returns in src/tools/launch/LaunchTool.ts must keep operation launch.debug plus the stop card, debuggee and route details`)
     const stack = await DebugTool.call({ op: 'stack' }, ctx)
-    check('L2 the next Debug call needs no session', stack.data.result.includes('#0 '), `${stack.data.result} — the Launch debug op in src/tools/LaunchTool/LaunchTool.ts must leave the default session main alive for the next Debug call`)
+    check('L2 the next Debug call needs no session', stack.data.result.includes('#0 '), `${stack.data.result} — the Launch debug op in src/tools/launch/LaunchTool.ts must leave the default session main alive for the next Debug call`)
     await disposeOwner(owner)
     const out = await call('test', test.id)
     const recordId = out.data.result.match(/record: mercury:\/\/test\/run\/([^\s]+)/)?.[1]
-    check('L3 test preserves Test summary, record, route and effect details', out.data.result.startsWith('ran: ') && out.data.result.includes('unittest all — 1 passed · 0 failed') && out.data.result.endsWith(routeText('Test', { op: 'run', framework: 'unittest' }, test.id)) && recordId !== undefined && out.effect.details?.testRun?.id === recordId, `${out.data.result} — the Launch test op in src/tools/LaunchTool/LaunchTool.ts must return the Test summary, its record line, the route line and testRun details unchanged`)
+    check('L3 test preserves Test summary, record, route and effect details', out.data.result.startsWith('ran: ') && out.data.result.includes('unittest all — 1 passed · 0 failed') && out.data.result.endsWith(routeText('Test', { op: 'run', framework: 'unittest' }, test.id)) && recordId !== undefined && out.effect.details?.testRun?.id === recordId, `${out.data.result} — the Launch test op in src/tools/launch/LaunchTool.ts must return the Test summary, its record line, the route line and testRun details unchanged`)
     const report = await TestTool.call({ op: 'report', runId: recordId }, ctx)
-    check('Test text is byte-identical to its own report of that same record', withoutRoute(out.data.result) === report.data.result, `Launch text without its route line differs from the Test report of record ${recordId} — the Launch test op in src/tools/LaunchTool/LaunchTool.ts must return Test text unchanged and add only the route line`)
-    check('Transaction still counts launch.test as test and launch.build as build, not debug', classifyEffectStep(out.effect) === 'test' && classifyEffectStep({ ...out.effect, operation: 'launch.build' }) === 'build' && classifyEffectStep(dbg.effect) === null, 'classifyEffectStep in src/services/ide/txAutoCapture.ts must map launch.test to test, launch.build to build and launch.debug to null')
+    check('Test text is byte-identical to its own report of that same record', withoutRoute(out.data.result) === report.data.result, `Launch text without its route line differs from the Test report of record ${recordId} — the Launch test op in src/tools/launch/LaunchTool.ts must return Test text unchanged and add only the route line`)
+    check('Transaction still counts launch.test as test and launch.build as build, not debug', classifyEffectStep(out.effect) === 'test' && classifyEffectStep({ ...out.effect, operation: 'launch.build' }) === 'build' && classifyEffectStep(dbg.effect) === null, 'classifyEffectStep in src/integrations/ide/txAutoCapture.ts must map launch.test to test, launch.build to build and launch.debug to null')
     const tAsk = await LaunchTool.checkPermissions({ op: 'test', profile: test.id }, ctx)
     const dAsk = await LaunchTool.checkPermissions({ op: 'debug', profile: hello.id }, ctx)
-    check('L6 permission asks reuse each owner’s exact words', tAsk.behavior === 'passthrough' && tAsk.message === `Launch test ${test.id} (run all tests (unittest)) → Test run (python lane: the shared project interpreter)` && dAsk.behavior === 'passthrough' && dAsk.message === `Launch debug ${hello.id} (hello (py)) → Debug launch: ${P}/hello.py (adapter python)`, `test ask: ${JSON.stringify(tAsk)}; debug ask: ${JSON.stringify(dAsk)} — change checkPermissions in src/tools/LaunchTool/LaunchTool.ts so each ask reuses the owner tool permission words`)
+    check('L6 permission asks reuse each owner’s exact words', tAsk.behavior === 'passthrough' && tAsk.message === `Launch test ${test.id} (run all tests (unittest)) → Test run (python lane: the shared project interpreter)` && dAsk.behavior === 'passthrough' && dAsk.message === `Launch debug ${hello.id} (hello (py)) → Debug launch: ${P}/hello.py (adapter python)`, `test ask: ${JSON.stringify(tAsk)}; debug ask: ${JSON.stringify(dAsk)} — change checkPermissions in src/tools/launch/LaunchTool.ts so each ask reuses the owner tool permission words`)
     for (const op of ['debug', 'run']) {
       const denied = await LaunchTool.checkPermissions({ op, profile: hello.id }, context(undefined, ['Debug']))
-      check(`L7 ${op} cannot bypass a Debug deny`, denied.behavior === 'deny' && denied.message === `Launch ${op} runs through the Debug tool, which a deny rule blocks in this session — nothing ran. If the task needs Debug, say so to the user.`, `${JSON.stringify(denied)} — checkPermissions in src/tools/LaunchTool/LaunchTool.ts must deny op ${op} when a Debug deny rule is set`)
+      check(`L7 ${op} cannot bypass a Debug deny`, denied.behavior === 'deny' && denied.message === `Launch ${op} runs through the Debug tool, which a deny rule blocks in this session — nothing ran. If the task needs Debug, say so to the user.`, `${JSON.stringify(denied)} — checkPermissions in src/tools/launch/LaunchTool.ts must deny op ${op} when a Debug deny rule is set`)
     }
     const before = listRuns().length
     const absent = await call('test', test.id, {}, context([LaunchTool, DebugTool]))
-    check('L8 absent Test refuses without a record', absent.data.outcome === 'failed' && absent.data.result === 'Launch test runs through the Test tool, which is not available in this session — nothing ran. If the task needs Test, say so to the user.' && listRuns().length === before, `${absent.data.result} — Launch test in src/tools/LaunchTool/LaunchTool.ts must refuse with outcome failed and the exact not-available text, and must not add a Test run record`)
+    check('L8 absent Test refuses without a record', absent.data.outcome === 'failed' && absent.data.result === 'Launch test runs through the Test tool, which is not available in this session — nothing ran. If the task needs Test, say so to the user.' && listRuns().length === before, `${absent.data.result} — Launch test in src/tools/launch/LaunchTool.ts must refuse with outcome failed and the exact not-available text, and must not add a Test run record`)
     const noTest = await LaunchTool.checkPermissions({ op: 'test', profile: test.id }, context(undefined, ['Test']))
-    check('Test deny also blocks routed tests', noTest.behavior === 'deny', `${JSON.stringify(noTest)} — checkPermissions in src/tools/LaunchTool/LaunchTool.ts must deny op test when a Test deny rule is set`)
+    check('Test deny also blocks routed tests', noTest.behavior === 'deny', `${JSON.stringify(noTest)} — checkPermissions in src/tools/launch/LaunchTool.ts must deny op test when a Test deny rule is set`)
     const whole = await call('debug', test.id)
-    check('L10 a suite debug names the one-test call', whole.data.outcome === 'no-change' && whole.data.result.includes('Test {"op":"debug","node":"<test id>"}'), `${whole.data.result} — debug on a whole-suite profile in src/tools/LaunchTool/LaunchTool.ts must return outcome no-change and name the one-test Test debug call`)
+    check('L10 a suite debug names the one-test call', whole.data.outcome === 'no-change' && whole.data.result.includes('Test {"op":"debug","node":"<test id>"}'), `${whole.data.result} — debug on a whole-suite profile in src/tools/launch/LaunchTool.ts must return outcome no-change and name the one-test Test debug call`)
     const runner = all.find((p: any) => p.runnerRef && p.kind === 'test')!
     const inspect = await call('inspect', runner.id)
-    check('L11 inspect reveals the runner id and exact Test call', inspect.data.result.includes('test → node-test runner profile rp-') && inspect.data.result.includes('test runs as: Test {"op":"run","profile":"rp-') && !inspect.data.result.includes('(no payload)'), `${inspect.data.result} — inspect on a runner profile in src/tools/LaunchTool/LaunchTool.ts must print the runner profile id and the exact Test run call`)
+    check('L11 inspect reveals the runner id and exact Test call', inspect.data.result.includes('test → node-test runner profile rp-') && inspect.data.result.includes('test runs as: Test {"op":"run","profile":"rp-') && !inspect.data.result.includes('(no payload)'), `${inspect.data.result} — inspect on a runner profile in src/tools/launch/LaunchTool.ts must print the runner profile id and the exact Test run call`)
     const progress: unknown[] = []
     const runnerOut = await call('test', runner.id, {}, ctx, row => progress.push(row))
-    check('runner route preserves Test progress and exact profile', runnerOut.data.route?.input?.profile === runner.runnerRef.profileId && runnerOut.data.result.startsWith('ran: node --test --test-reporter tap') && progress.length > 0 && LaunchTool.renderToolUseProgressMessage === TestTool.renderToolUseProgressMessage, `${runnerOut.data.result} (progress rows ${progress.length}) — the Launch test op in src/tools/LaunchTool/LaunchTool.ts must route a runner profile to Test with its profile id, pass progress through, and reuse Test progress rendering`)
+    check('runner route preserves Test progress and exact profile', runnerOut.data.route?.input?.profile === runner.runnerRef.profileId && runnerOut.data.result.startsWith('ran: node --test --test-reporter tap') && progress.length > 0 && LaunchTool.renderToolUseProgressMessage === TestTool.renderToolUseProgressMessage, `${runnerOut.data.result} (progress rows ${progress.length}) — the Launch test op in src/tools/launch/LaunchTool.ts must route a runner profile to Test with its profile id, pass progress through, and reuse Test progress rendering`)
     const bad = await call('test', hello.id)
-    check('test kind refusal names debug and run', bad.data.result.endsWith('(use op:"debug" or op:"run")'), `${bad.data.result} — the kind refusal in src/tools/LaunchTool/LaunchTool.ts must end by naming op debug or run`)
+    check('test kind refusal names debug and run', bad.data.result.endsWith('(use op:"debug" or op:"run")'), `${bad.data.result} — the kind refusal in src/tools/launch/LaunchTool.ts must end by naming op debug or run`)
     const badBuild = await call('build', test.id)
-    check('build kind refusal names test', badBuild.data.result.endsWith('(use op:"test")'), `${badBuild.data.result} — the kind refusal in src/tools/LaunchTool/LaunchTool.ts must end by naming op test`)
+    check('build kind refusal names test', badBuild.data.result.endsWith('(use op:"test")'), `${badBuild.data.result} — the kind refusal in src/tools/launch/LaunchTool.ts must end by naming op test`)
     for (const extra of [{ file: 'a.py' }, { lines: [3] }, { file: 'a.py', lines: [] }, { lines: [] }]) {
       const validated = await LaunchTool.validateInput({ op: 'debug', profile: 'lp-x', ...extra }, ctx)
-      check(`L12 unpaired breakpoint input ${JSON.stringify(extra)} refuses`, validated.result === false && validated.message === 'debug breakpoints need file and lines together — pass both, or neither to stop at the program\'s first line', `${JSON.stringify(validated)} — validateInput in src/tools/LaunchTool/LaunchTool.ts must refuse a debug call that passes only one of file and lines, with the exact message`)
+      check(`L12 unpaired breakpoint input ${JSON.stringify(extra)} refuses`, validated.result === false && validated.message === 'debug breakpoints need file and lines together — pass both, or neither to stop at the program\'s first line', `${JSON.stringify(validated)} — validateInput in src/tools/launch/LaunchTool.ts must refuse a debug call that passes only one of file and lines, with the exact message`)
     }
     const slow = all.find((p: any) => p.label === 'slow (py)')!
     const live = await call('run', slow.id)
-    check('L13 a live run names exact session-qualified Debug calls', live.data.result === 'slow (py) is RUNNING in Debug session \'launch\' — read its output with Debug {"op":"output","session":"launch"}; stop it with Debug {"op":"disconnect","session":"launch"}', `${live.data.result} — the RUNNING text of op run in src/tools/LaunchTool/LaunchTool.ts must name the exact session-qualified Debug output and disconnect calls`)
+    check('L13 a live run names exact session-qualified Debug calls', live.data.result === 'slow (py) is RUNNING in Debug session \'launch\' — read its output with Debug {"op":"output","session":"launch"}; stop it with Debug {"op":"disconnect","session":"launch"}', `${live.data.result} — the RUNNING text of op run in src/tools/launch/LaunchTool.ts must name the exact session-qualified Debug output and disconnect calls`)
     const ended = await DebugTool.call({ op: 'disconnect', session: 'launch' }, ctx)
     check('L13 the named session disconnects', ended.data.result.includes('disconnected'))
     const custom = all.find((p: any) => p.label === 'cwd (py)')!
     const customOut = await call('debug', custom.id, { session: 'x' })
     const customAgain = await call('debug', custom.id, { session: 'x' })
     const lastLine = customAgain.data.result.split('\n').at(-1) ?? ''
-    check('custom debug carries cwd, args, replacement and session clauses in order', customOut.data.route?.input?.args?.[0] === 'one' && lastLine.endsWith(`; cwd ${P}/sub from the profile; it replaced the live session 'x'; pass session:"x" on every Debug call`), `${lastLine} — the route line of op debug in src/tools/LaunchTool/LaunchTool.ts must carry the cwd, replacement and session clauses in that order, and the profile args must reach the route input`)
+    check('custom debug carries cwd, args, replacement and session clauses in order', customOut.data.route?.input?.args?.[0] === 'one' && lastLine.endsWith(`; cwd ${P}/sub from the profile; it replaced the live session 'x'; pass session:"x" on every Debug call`), `${lastLine} — the route line of op debug in src/tools/launch/LaunchTool.ts must carry the cwd, replacement and session clauses in that order, and the profile args must reach the route input`)
     const cwd = await DebugTool.call({ op: 'evaluate', session: 'x', expression: '__import__("os").getcwd()' }, ctx)
-    check('the profile cwd reaches the real debuggee', cwd.data.result.includes(`${P}/sub`), `${cwd.data.result} — the launch.json cwd of the profile must reach the debuggee through the Debug launch call that src/tools/LaunchTool/LaunchTool.ts builds`)
+    check('the profile cwd reaches the real debuggee', cwd.data.result.includes(`${P}/sub`), `${cwd.data.result} — the launch.json cwd of the profile must reach the debuggee through the Debug launch call that src/tools/launch/LaunchTool.ts builds`)
     await disposeOwner(owner)
     const deferredCtx = context([LaunchTool, { ...DebugTool, loadInFullOnCloud: false }, TestTool, ToolSearchTool])
     const unloaded = await call('debug', hello.id, {}, deferredCtx)
-    check('L18 an unloaded next owner gets its exact load call', unloaded.data.result.endsWith('; load Debug first: ToolSearch "select:Debug"'), `${unloaded.data.result} — the route line of op debug in src/tools/LaunchTool/LaunchTool.ts must end with the ToolSearch load call when Debug is deferred and not yet loaded`)
+    check('L18 an unloaded next owner gets its exact load call', unloaded.data.result.endsWith('; load Debug first: ToolSearch "select:Debug"'), `${unloaded.data.result} — the route line of op debug in src/tools/launch/LaunchTool.ts must end with the ToolSearch load call when Debug is deferred and not yet loaded`)
     await disposeOwner(owner)
     deferredCtx.messages = [{ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'load-debug', content: [{ type: 'tool_reference', tool_name: 'Debug' }] }] } }]
     const loaded = await call('debug', hello.id, {}, deferredCtx)
-    check('L18 loading the owner removes the load clause', loaded.data.route?.tool === 'Debug' && !loaded.data.result.includes('; load Debug first:'), `${loaded.data.result} — the load clause in src/tools/LaunchTool/LaunchTool.ts must be dropped once a tool_reference to Debug is in the messages`)
+    check('L18 loading the owner removes the load clause', loaded.data.route?.tool === 'Debug' && !loaded.data.result.includes('; load Debug first:'), `${loaded.data.result} — the load clause in src/tools/launch/LaunchTool.ts must be dropped once a tool_reference to Debug is in the messages`)
     await disposeOwner(owner)
     for (const [flag, op, profile, tool] of [['MERCURY_DAP', 'debug', hello.id, 'Debug'], ['MERCURY_DAP', 'run', hello.id, 'Debug'], ['MERCURY_TESTS', 'test', test.id, 'Test']]) {
       process.env[flag] = '0'
       const bare = { getAppState: () => ({}), abortController: new AbortController() }
       const gated = await call(op, profile, {}, bare)
-      check(`catalog fallback respects ${flag}=0 for ${op}`, gated.data.outcome === 'failed' && gated.data.result.includes(`${tool} tool, which is not available`), `${gated.data.result} — the Launch ${op} op in src/tools/LaunchTool/LaunchTool.ts must refuse when ${flag}=0 even without an options.tools catalog`)
+      check(`catalog fallback respects ${flag}=0 for ${op}`, gated.data.outcome === 'failed' && gated.data.result.includes(`${tool} tool, which is not available`), `${gated.data.result} — the Launch ${op} op in src/tools/launch/LaunchTool.ts must refuse when ${flag}=0 even without an options.tools catalog`)
       delete process.env[flag]
     }
   })
   await inProject(R, async () => {
     const out = await call('test', (await suite()).id)
-    check('L4 evidence-free runs retain Test’s verdict note', out.data.outcome === 'failed' && out.data.result.includes('NOTE: no structured case records arrived (exit 3)'), `${out.data.result} — the Launch test op in src/tools/LaunchTool/LaunchTool.ts must keep the Test verdict note and outcome failed for a run with no case records`)
+    check('L4 evidence-free runs retain Test’s verdict note', out.data.outcome === 'failed' && out.data.result.includes('NOTE: no structured case records arrived (exit 3)'), `${out.data.result} — the Launch test op in src/tools/launch/LaunchTool.ts must keep the Test verdict note and outcome failed for a run with no case records`)
   })
   await inProject(S, async () => {
     const c = context()
@@ -174,17 +174,17 @@ try {
   await inProject(Q, async () => {
     await TestTool.call({ op: 'run' }, ctx)
     const rerun = (await profiles()).find((p: any) => p.test?.selectionLabel === 'rerun-failed')!
-    check('L9 discovery offers the failed nodes', rerun?.test?.selection.length === 2, `rerun-failed profile ${JSON.stringify(rerun?.test)} — discoverLaunchProfiles in src/services/ide/launchProfiles.ts must offer a rerun-failed profile holding both failing nodes of the last Test run`)
+    check('L9 discovery offers the failed nodes', rerun?.test?.selection.length === 2, `rerun-failed profile ${JSON.stringify(rerun?.test)} — discoverLaunchProfiles in src/integrations/ide/launchProfiles.ts must offer a rerun-failed profile holding both failing nodes of the last Test run`)
     const out = await call('debug', rerun.id)
-    check('L9 rerun debug is Test’s one-test operation in main', out.data.result.startsWith("debugging tests.test_case.TestBad.test_bad (unittest) in Debug session 'main'") && out.data.result.includes('ran as: Test {"op":"debug"') && out.data.route?.input?.session === 'main', `${out.data.result} — op debug on a rerun-failed profile in src/tools/LaunchTool/LaunchTool.ts must route to Test op debug on the first failed node in session main`)
-    check('rerun debug counts and names the next failing node', out.data.result.endsWith('; 1 more failing test(s) — Test {"op":"debug","node":"tests.test_case.TestBad.test_other"} debugs another'), `${out.data.result} — the rerun debug text from src/tools/LaunchTool/LaunchTool.ts must end by counting and naming the next failing node`)
+    check('L9 rerun debug is Test’s one-test operation in main', out.data.result.startsWith("debugging tests.test_case.TestBad.test_bad (unittest) in Debug session 'main'") && out.data.result.includes('ran as: Test {"op":"debug"') && out.data.route?.input?.session === 'main', `${out.data.result} — op debug on a rerun-failed profile in src/tools/launch/LaunchTool.ts must route to Test op debug on the first failed node in session main`)
+    check('rerun debug counts and names the next failing node', out.data.result.endsWith('; 1 more failing test(s) — Test {"op":"debug","node":"tests.test_case.TestBad.test_other"} debugs another'), `${out.data.result} — the rerun debug text from src/tools/launch/LaunchTool.ts must end by counting and naming the next failing node`)
     await disposeOwner(owner)
     for (const blocked of ['Test', 'Debug']) {
       const denied = await LaunchTool.checkPermissions({ op: 'debug', profile: rerun.id }, context(undefined, [blocked]))
-      check(`rerun debug requires ${blocked} permission`, denied.behavior === 'deny', `${JSON.stringify(denied)} — checkPermissions in src/tools/LaunchTool/LaunchTool.ts must deny a rerun debug when a ${blocked} deny rule is set`)
+      check(`rerun debug requires ${blocked} permission`, denied.behavior === 'deny', `${JSON.stringify(denied)} — checkPermissions in src/tools/launch/LaunchTool.ts must deny a rerun debug when a ${blocked} deny rule is set`)
     }
     const run = await call('test', rerun.id)
-    check('rerun test routes through Test rerunFailed', run.data.route?.input?.op === 'rerunFailed' && run.effect.operation === 'launch.test' && run.data.result.endsWith(routeText('Test', { op: 'rerunFailed' }, rerun.id)), `${run.data.result} — op test on a rerun-failed profile in src/tools/LaunchTool/LaunchTool.ts must route to Test op rerunFailed with effect operation launch.test and the route line last`)
+    check('rerun test routes through Test rerunFailed', run.data.route?.input?.op === 'rerunFailed' && run.effect.operation === 'launch.test' && run.data.result.endsWith(routeText('Test', { op: 'rerunFailed' }, rerun.id)), `${run.data.result} — op test on a rerun-failed profile in src/tools/launch/LaunchTool.ts must route to Test op rerunFailed with effect operation launch.test and the route line last`)
   })
   check('L14 the whole Launch description matches the specified words, and names no other tool', await LaunchTool.prompt() === prompt && !/\b(?:Debug|Test)\b/.test(prompt.replace(/\bLaunch action\b/, '')))
   check('L15 every stored input shape still parses', [
@@ -195,7 +195,7 @@ try {
   const definition = { name: LaunchTool.name, description: await LaunchTool.prompt(), input_schema: zodToJsonSchema(LaunchTool.inputSchema), eager_input_streaming: true, defer_loading: true }
   const bytes = Buffer.byteLength(JSON.stringify(definition))
   console.log(`MEASURE Launch definition ${bytes} bytes; description ${Buffer.byteLength(definition.description)}; schema ${Buffer.byteLength(JSON.stringify(definition.input_schema))}`)
-  check('L16 definition is at most 2,133 bytes and stays deferred', bytes <= 2133 && LaunchTool.shouldDefer === true, `definition is ${bytes} bytes, limit 2133 — shorten the description or schema of LaunchTool in src/tools/LaunchTool/LaunchTool.ts and keep shouldDefer true`)
+  check('L16 definition is at most 2,133 bytes and stays deferred', bytes <= 2133 && LaunchTool.shouldDefer === true, `definition is ${bytes} bytes, limit 2133 — shorten the description or schema of LaunchTool in src/tools/launch/LaunchTool.ts and keep shouldDefer true`)
   check('L17 search hint and announcement line name the purpose, unclipped and without another tool', LaunchTool.searchHint === hint && formatDeferredToolLine(LaunchTool) === `Launch — ${hint}` && !/\b(?:Debug|Test)\b/.test(hint))
 } catch (error) {
   failures++

@@ -201,7 +201,7 @@ for (const group of GROUPS) {
     const verdicts = await verdictsOf(command, group)
     const ok = verdicts.every(([, decision]) => group.refuses(decision.behavior))
     if (ok) controlsOk += 1
-    if (!ok || !quiet) check(`control · ${shown(command)} · ${group.want} in ${group.modes.join(', ')}`, ok, 'make the deny rule reach this command in every listed mode (src/tools/BashTool/denyRuleReach.ts, pathValidation.ts) · ' + verdicts.map(([mode, decision]) => `${mode}: ${said(decision).replaceAll(RUN_ROOT, '<root>').slice(0, 90)}`).join(' · '))
+    if (!ok || !quiet) check(`control · ${shown(command)} · ${group.want} in ${group.modes.join(', ')}`, ok, 'make the deny rule reach this command in every listed mode (src/tools/shell/denyRuleReach.ts, pathValidation.ts) · ' + verdicts.map(([mode, decision]) => `${mode}: ${said(decision).replaceAll(RUN_ROOT, '<root>').slice(0, 90)}`).join(' · '))
   }
   let dodged = 0
   for (const row of group.rows) {
@@ -209,7 +209,7 @@ for (const group of GROUPS) {
     const verdicts = await verdictsOf(command, group)
     const ok = verdicts.every(([, decision]) => group.refuses(decision.behavior))
     if (!ok) dodged += 1
-    if (!ok || !quiet) check(`${shown(command)}${row.l ? ` (${row.l})` : ''} · ${group.want} in ${group.modes.join(', ')}`, ok, 'teach the Bash layer to follow this spelling to the denied command or path (src/tools/BashTool/denyRuleReach.ts, pathValidation.ts) · ' + verdicts.map(([mode, decision]) => `${mode}: ${said(decision).replaceAll(RUN_ROOT, '<root>').slice(0, 70)}`).join(' · '))
+    if (!ok || !quiet) check(`${shown(command)}${row.l ? ` (${row.l})` : ''} · ${group.want} in ${group.modes.join(', ')}`, ok, 'teach the Bash layer to follow this spelling to the denied command or path (src/tools/shell/denyRuleReach.ts, pathValidation.ts) · ' + verdicts.map(([mode, decision]) => `${mode}: ${said(decision).replaceAll(RUN_ROOT, '<root>').slice(0, 70)}`).join(' · '))
   }
   for (const row of group.notes ?? []) {
     const command = fill(row.c)
@@ -222,5 +222,5 @@ for (const group of GROUPS) {
 section('tally')
 for (const line of tally) note(line)
 note('every row is a bashToolHasPermission decision through decideToolPermissionWithModes; no command is run')
-note('what the Bash layer can follow is matched against the deny rules in every mode; what it cannot establish is asked about in Default and Implement and refused under Sovereign mode and Flow while a deny rule is in force (src/tools/BashTool/denyRuleReach.ts, pathValidation.ts)')
+note('what the Bash layer can follow is matched against the deny rules in every mode; what it cannot establish is asked about in Default and Implement and refused under Sovereign mode and Flow while a deny rule is in force (src/tools/shell/denyRuleReach.ts, pathValidation.ts)')
 finish('prove-bash-deny-rules-every-spelling')

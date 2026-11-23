@@ -5,9 +5,9 @@ import {
   windowsObservation,
   windowsSignalRefusal,
   type WindowsRawRow,
-} from '../../src/daemon/processSweepWindows.js'
+} from '../../src/daemon/process-sweep/processSweepWindows.js'
 
-const SWEEP_FAIL_HINT = 'prove-process-sweep failed at the assertion above (its line is in the stack): the behaviour under test is windowsObservation (terminal and terminalAlive), decodeWindowsProcessRows (row validation), windowsIdentityMatches (pid, start token, start time, executable, user) and windowsSignalRefusal (console, unknown, identity and not-ours refusals), all in src/daemon/processSweepWindows.ts; change that function, not the recorded row'
+const SWEEP_FAIL_HINT = 'prove-process-sweep failed at the assertion above (its line is in the stack): the behaviour under test is windowsObservation (terminal and terminalAlive), decodeWindowsProcessRows (row validation), windowsIdentityMatches (pid, start token, start time, executable, user) and windowsSignalRefusal (console, unknown, identity and not-ours refusals), all in src/daemon/process-sweep/processSweepWindows.ts; change that function, not the recorded row'
 process.on('exit', code => {
   if (code !== 0) console.error(SWEEP_FAIL_HINT)
 })

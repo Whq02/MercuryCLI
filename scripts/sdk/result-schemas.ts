@@ -3,10 +3,10 @@ import { join } from 'node:path'
 
 type Schema = Record<string, any>
 export const RESULT_SCHEMA_SOURCES = {
-  projections: 'src/services/engine-connector/seatProjections.ts',
-  encoders: 'src/services/engine-connector/seatWire.ts',
-  protocol: 'src/daemon/protocol.ts',
-  arms: 'src/cli/headless/runnerArms.ts',
+  projections: 'src/engine/connector/seatProjections.ts',
+  encoders: 'src/engine/connector/seatWire.ts',
+  protocol: 'src/daemon/control/protocol.ts',
+  arms: 'src/daemon/runner/runnerArms.ts',
 } as const
 export async function resultSchemas(root: string): Promise<Record<string, Schema>> {
   const { sessionFactsToWire, rewindOutcomeToWire } = await import(join(root, RESULT_SCHEMA_SOURCES.encoders))

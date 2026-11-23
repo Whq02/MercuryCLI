@@ -3,19 +3,19 @@ import { check, fill, finish, note, section } from './floorsKit.ts'
 
 const { mkdirSync, writeFileSync } = await import('node:fs')
 const { dirname } = await import('node:path')
-const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const setup = await import('../../src/utils/permissions/permissionSetup.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { MonitorTool } = await import('../../src/tools/MonitorTool/MonitorTool.ts')
-const { permissionRuleValueFromString, permissionRuleValueToString } = await import('../../src/utils/permissions/permissionRuleParser.ts')
+const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const setup = await import('../../src/permissions/rules/permissionSetup.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { MonitorTool } = await import('../../src/tools/monitor/MonitorTool.ts')
+const { permissionRuleValueFromString, permissionRuleValueToString } = await import('../../src/permissions/rules/permissionRuleParser.ts')
 
 type Maps = { mode: string; alwaysAllowRules: Record<string, string[] | undefined>; strippedDangerousRules?: Record<string, string[]> }
 type Answer = { behavior: string; message?: string }
 const PUSH = ['git', 'push', 'origin', 'main'].join(' ')
-const asideFix = 'Fix: which allow rules Flow sets aside is stripDangerousPermissionsForFlow and restoreDangerousPermissions in src/utils/permissions/permissionSetup.ts; the ask before a push is in src/utils/permissions/flowLaw.ts. Got: '
+const asideFix = 'Fix: which allow rules Flow sets aside is stripDangerousPermissionsForFlow and restoreDangerousPermissions in src/permissions/rules/permissionSetup.ts; the ask before a push is in src/permissions/rules/flowLaw.ts. Got: '
 const told = (answer: Answer): string => `${answer.behavior}${answer.message ? `: ${answer.message.slice(0, 140)}` : ''}`
 const contextWith = (allow: string[]): Maps => ({ ...(getEmptyToolPermissionContext() as unknown as Maps), mode: 'flow', alwaysAllowRules: { userSettings: allow } })
 const aside = (written: string): { kept: boolean; stashed: boolean; back: boolean } => {

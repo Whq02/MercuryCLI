@@ -20,26 +20,26 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const refusalWhere = 'classification and words: classifyAnthropicRefusal, anthropicSignInWords, anthropicWindowWords, standingAnthropicRefusal in src/services/providers/anthropicRefusal.ts; dispatch refusal: delegationDispatchBlocker in src/services/providers/providerUsability.ts; latch: extractQuotaStatusFromError in src/services/anthropicLimits.ts; chat notice: getAssistantMessageFromError in src/services/api/errors.ts'
+  const refusalWhere = 'classification and words: classifyAnthropicRefusal, anthropicSignInWords, anthropicWindowWords, standingAnthropicRefusal in src/models/roads/anthropicRefusal.ts; dispatch refusal: delegationDispatchBlocker in src/models/roads/providerUsability.ts; latch: extractQuotaStatusFromError in src/models/roads/anthropic/anthropicLimits.ts; chat notice: getAssistantMessageFromError in src/engine/requests/apiErrorRows.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}fix the owner this label names (${refusalWhere})` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const refusal = await import('../../src/services/providers/anthropicRefusal.ts')
-const limits = await import('../../src/services/anthropicLimits.ts')
-const mock = await import('../../src/services/mockRateLimits.ts')
-const usability = await import('../../src/services/providers/providerUsability.ts')
-const wall = await import('../../src/services/providers/credentialWall.ts')
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
-const { APIError } = await import('../../src/utils/api/sdkErrors.js')
-const { getAssistantMessageFromError } = await import('../../src/services/api/errors.ts')
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const refusal = await import('../../src/models/roads/anthropicRefusal.ts')
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+const mock = await import('../../src/models/roads/anthropic/mockRateLimits.ts')
+const usability = await import('../../src/models/roads/providerUsability.ts')
+const wall = await import('../../src/models/roads/credentialWall.ts')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
+const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
+const { getAssistantMessageFromError } = await import('../../src/engine/requests/apiErrorRows.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(true)
-type Reads = import('../../src/services/providers/providerUsability.ts').ProviderUsabilityReads
+type Reads = import('../../src/models/roads/providerUsability.ts').ProviderUsabilityReads
 
 const classify = refusal.classifyAnthropicRefusal
 const REVOKED_401 = '401 {"type":"error","error":{"type":"authentication_error","message":"OAuth access token has been revoked"}}'
@@ -205,8 +205,8 @@ section("§6 the chat's notice: a 401 on a dead sign-in speaks the sign-in line;
 
 section('§7 the roads read the one classification')
 {
-  const { authChecks } = await import('../../src/services/health/sections/auth.ts')
-  const usageOwner = await import('../../src/services/providers/providerUsage.ts')
+  const { authChecks } = await import('../../src/platform/health/sections/auth.ts')
+  const usageOwner = await import('../../src/models/roads/providerUsage.ts')
   seed(DEAD_SIGN_IN)
   const authSays = await (await authChecks()).find(row => row.id === 'auth-anthropic')?.run()
   seed(null)

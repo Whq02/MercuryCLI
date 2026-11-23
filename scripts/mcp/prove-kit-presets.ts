@@ -17,13 +17,13 @@ delete process.env.MERCURY_SESSION_KIT
 
 let failures = 0
 const whereToLook = (name: string): string => {
-  if (/^P1-1[89]/.test(name)) return 'src/services/mcp/presetStore.ts (saveKitPreset, deleteKitPreset) must not touch the menu record or arm the next-session facts in src/services/switchboard/bootBirthFacts.ts'
-  if (name.startsWith('P1')) return 'src/services/mcp/presetStore.ts (saveKitPreset, kitPresetDeltas, deleteKitPreset)'
-  if (name.startsWith('P2')) return 'src/services/kitMenu/presetHook.ts (kitPresetHook, bindKitPresetHook) and the store it calls in src/services/mcp/presetStore.ts'
-  if (name.startsWith('P3')) return 'src/services/kitMenu/presetWear.ts (resolvePresetWear, wearPresetForNextSession, disarmWornPreset) and src/services/switchboard/bootBirthFacts.ts (takeWornPresetKit)'
-  if (name.startsWith('P4')) return 'src/daemon/sessionKit.ts (deriveSessionKitForPreset, restampSessionKit)'
-  if (name.startsWith('P6')) return 'src/services/kitMenu/presetWear.ts (resolvePresetWear) and src/daemon/sessionKit.ts must give the same verdict'
-  return 'src/services/kitMenu/presetWear.ts and src/daemon/sessionKit.ts must refuse through the preset store in src/services/mcp/presetStore.ts, and no door may rewrite the other store'
+  if (/^P1-1[89]/.test(name)) return 'src/integrations/mcp/presetStore.ts (saveKitPreset, deleteKitPreset) must not touch the menu record or arm the next-session facts in src/daemon/switchboard/bootBirthFacts.ts'
+  if (name.startsWith('P1')) return 'src/integrations/mcp/presetStore.ts (saveKitPreset, kitPresetDeltas, deleteKitPreset)'
+  if (name.startsWith('P2')) return 'src/screen/kit-menu-model/presetHook.ts (kitPresetHook, bindKitPresetHook) and the store it calls in src/integrations/mcp/presetStore.ts'
+  if (name.startsWith('P3')) return 'src/screen/kit-menu-model/presetWear.ts (resolvePresetWear, wearPresetForNextSession, disarmWornPreset) and src/daemon/switchboard/bootBirthFacts.ts (takeWornPresetKit)'
+  if (name.startsWith('P4')) return 'src/daemon/session-seat/sessionKit.ts (deriveSessionKitForPreset, restampSessionKit)'
+  if (name.startsWith('P6')) return 'src/screen/kit-menu-model/presetWear.ts (resolvePresetWear) and src/daemon/session-seat/sessionKit.ts must give the same verdict'
+  return 'src/screen/kit-menu-model/presetWear.ts and src/daemon/session-seat/sessionKit.ts must refuse through the preset store in src/integrations/mcp/presetStore.ts, and no door may rewrite the other store'
 }
 const t = (name: string, ok: boolean, detail = ''): void => {
   const shown = `${detail ? `${detail} — ` : ''}change the code, not the check: ${whereToLook(name)}`
@@ -33,7 +33,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const deepEq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — kit-presets prover exceeded 120s: an awaited call never returned; run the file alone and see which section printed last, then look in src/services/mcp/presetStore.ts, src/services/kitMenu/presetWear.ts or src/daemon/concourseWorkers.ts (reactivateConcourseSession)')
+  console.log('\nTIMEOUT — kit-presets prover exceeded 120s: an awaited call never returned; run the file alone and see which section printed last, then look in src/integrations/mcp/presetStore.ts, src/screen/kit-menu-model/presetWear.ts or src/daemon/concourse-workers/concourseWorkers.ts (reactivateConcourseSession)')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
@@ -43,13 +43,13 @@ console.log('============================================================')
 console.log(' KIT-PRESETS — named kit snapshots at both doors')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getGlobalMercuryFile } = await import('../../src/utils/env.ts')
-const { saveGlobalConfig } = await import('../../src/utils/config.ts')
-const store = await import('../../src/services/mcp/presetStore.ts')
-const { KIT_LIST_CAP } = await import('../../src/daemon/sessionKit.ts')
-const kitStore = await import('../../src/services/mcp/kitStore.ts')
+const { getGlobalMercuryFile } = await import('../../src/platform/environment/env.ts')
+const { saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
+const store = await import('../../src/integrations/mcp/presetStore.ts')
+const { KIT_LIST_CAP } = await import('../../src/daemon/session-seat/sessionKit.ts')
+const kitStore = await import('../../src/integrations/mcp/kitStore.ts')
 
 const configBytes = (): string => {
   try {
@@ -72,7 +72,7 @@ section('§P1 — THE STORE: named KitDeltasV1 snapshots in the global config')
   t('P1-1 a fresh store lists nothing and the config file carries NO kitPresets field', deepEq(store.listKitPresets(), []) && !configBytes().includes('kitPresets'))
   const empty = store.kitPresetDeltas('writing')
   t("P1-2 an unknown preset on the empty store refuses typed ('unknown preset' + the none-saved words)", !empty.ok && empty.reason.startsWith("unknown preset 'writing'") && empty.reason.includes('none saved yet'), JSON.stringify(empty))
-  const hook = await import('../../src/services/kitMenu/presetHook.ts')
+  const hook = await import('../../src/screen/kit-menu-model/presetHook.ts')
   t('P1-3 the name grammar has ONE owner: presetHook re-exports presetStore’s presetNameProblem by identity', hook.presetNameProblem === store.presetNameProblem && hook.PRESET_NAME_PATTERN === store.PRESET_NAME_PATTERN && hook.PRESET_NAME_MAX === store.PRESET_NAME_MAX)
   const badName = store.saveKitPreset('review/kit', D_SMALL)
   t('P1-4 a save under a bad name refuses in the grammar’s own words', !badName.ok && badName.reason.includes('letters, digits, hyphens and spaces'))
@@ -128,7 +128,7 @@ section('§P1-ISO — the store touches NOTHING else: menu record · facts · la
 {
   kitStore.setSkillStateForWorkspace(PROJECT, 'deploy', 'invocable')
   const menuBefore = JSON.stringify(kitStore.kitDeltasForWorkspace(PROJECT))
-  const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
+  const facts = await import('../../src/daemon/switchboard/bootBirthFacts.ts')
   facts._resetBootBirthFactsForTesting()
   store.saveKitPreset('iso', D_WRITING)
   store.saveKitPreset('iso', D_SMALL)
@@ -140,7 +140,7 @@ section('§P1-ISO — the store touches NOTHING else: menu record · facts · la
 
 section('§P2 — THE MENU DOOR: the default hook IS the store (the typed-refusal placeholder is dead)')
 {
-  const hook = await import('../../src/services/kitMenu/presetHook.ts')
+  const hook = await import('../../src/screen/kit-menu-model/presetHook.ts')
   hook._resetKitPresetHookForTesting()
   t('P2-1 the default binding is the store door itself (reset lands on STORE_PRESET_HOOK, never a refusal placeholder)', hook.kitPresetHook() === hook.STORE_PRESET_HOOK)
   const snapshot = {
@@ -164,8 +164,8 @@ section('§P2 — THE MENU DOOR: the default hook IS the store (the typed-refusa
 
 section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu default resumes; a live hop never consumes')
 {
-  const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
-  const wearMod = await import('../../src/services/kitMenu/presetWear.ts')
+  const facts = await import('../../src/daemon/switchboard/bootBirthFacts.ts')
+  const wearMod = await import('../../src/screen/kit-menu-model/presetWear.ts')
   const KIT_MENU = { schema: 1 as const, mcp: ['github', 'postgres'], skills: ['deploy'], invocable: [] }
   const KIT_WORN = { schema: 1 as const, mcp: ['github'], skills: [], invocable: [] }
   facts._resetBootBirthFactsForTesting()
@@ -183,8 +183,8 @@ section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu def
   t("P3-6 disarm is one gesture and says so; disarming nothing answers honestly", disarmed.ok && disarmed.receipt === "preset 'writing' disarmed — the menu's default stands" && !wearMod.disarmWornPreset().ok)
   facts._resetBootBirthFactsForTesting()
 
-  const kitTypes = await import('../../src/services/kitMenu/kitTypes.ts')
-  const rows: import('../../src/services/kitMenu/kitTypes.ts').KitRow[] = [
+  const kitTypes = await import('../../src/screen/kit-menu-model/kitTypes.ts')
+  const rows: import('../../src/screen/kit-menu-model/kitTypes.ts').KitRow[] = [
     { kind: 'mcp', section: 'mcp', name: 'github', scope: 'user', extension: null },
     { kind: 'mcp', section: 'mcp', name: 'postgres', scope: 'user', extension: null },
     { kind: 'extension', section: 'mcp', name: 'orchard-tools', contributes: '1 server' },
@@ -209,7 +209,7 @@ section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu def
   facts._resetBootBirthFactsForTesting()
   store.deleteKitPreset('writing')
 
-  const sup = await import('../../src/daemon/concourseWorkers.ts')
+  const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const REC_KIT = { schema: 1 as const, mcp: ['postgres'], skills: [], invocable: [] }
   const liveRec = {
     schema: 1,
@@ -222,7 +222,7 @@ section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu def
     lastLiveAt: Date.now(),
     pid: process.pid,
     kit: JSON.parse(JSON.stringify(REC_KIT)),
-  } as unknown as import('../../src/daemon/concourseWorkers.ts').ConcourseWorkerRecordV1
+  } as unknown as import('../../src/daemon/concourse-workers/concourseWorkers.ts').ConcourseWorkerRecordV1
   const hopped = await sup.reactivateConcourseSession(
     liveRec,
     { modelKey: 'x', by: 'proof', kit: KIT_WORN },
@@ -235,8 +235,8 @@ section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu def
 
 section('§P4 — THE DAEMON\'S PRESET DOOR: the preset derivation, the closed-roster refusals, the held replay, the receipt line')
 {
-  const sk = await import('../../src/daemon/sessionKit.ts')
-  const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
+  const sk = await import('../../src/daemon/session-seat/sessionKit.ts')
+  const facts = await import('../../src/daemon/switchboard/bootBirthFacts.ts')
   facts._resetBootBirthFactsForTesting()
   const unknown = sk.deriveSessionKitForPreset('ghost', PROJECT)
   t('P4-1 an unknown preset refuses typed at the derivation (the closed-roster law — never the menu default)', !unknown.ok && unknown.reason.includes("unknown preset 'ghost'"), JSON.stringify(unknown))
@@ -255,12 +255,12 @@ section('§P4 — THE DAEMON\'S PRESET DOOR: the preset derivation, the closed-r
   t("P4-5 a damaged entry refuses typed at the store's narrowing; a grammar-breaking name refuses typed at the wire's own law (validateKitDeltas)", !mangled.ok && mangled.reason.includes('damaged in the config') && !badGrammar.ok && badGrammar.reason.includes("preset 'bad-grammar' refused —"), JSON.stringify({ mangled, badGrammar }))
   const KIT_A = { schema: 1 as const, mcp: ['srv-on'], skills: [], invocable: [] }
   const KIT_B = { schema: 1 as const, mcp: [], skills: [], invocable: [], resolved: false as const, deltas: { mcpOff: ['srv-on'], skillStates: {}, extensionsOff: [] } }
-  const { canonicalWorkspaceId } = await import('../../src/daemon/concourseWorkers.ts')
+  const { canonicalWorkspaceId } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const wsId = canonicalWorkspaceId(PROJECT)
-  const rec = { schema: 1, runnerId: 'w-restamp', sessionId: 'sess-restamp-proof', workspaceId: wsId, spawnedAt: Date.now(), lastLiveAt: Date.now(), kit: KIT_A } as unknown as import('../../src/daemon/concourseWorkers.ts').ConcourseWorkerRecordV1
+  const rec = { schema: 1, runnerId: 'w-restamp', sessionId: 'sess-restamp-proof', workspaceId: wsId, spawnedAt: Date.now(), lastLiveAt: Date.now(), kit: KIT_A } as unknown as import('../../src/daemon/concourse-workers/concourseWorkers.ts').ConcourseWorkerRecordV1
   sk.restampSessionKit(rec, KIT_B, 'preset', 'proof')
-  const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-  const { readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+  const { readSessionReceipts } = await import('../../src/daemon/switchboard/sessionReceipts.ts')
   const restampRow = JSON.stringify(readSessionReceipts(getProjectDir(wsId), 'sess-restamp-proof'))
   t("P4-6 a preset re-stamp's receipt says the preset truth (never 'from the current menu') with source 'preset' in details", deepEq(rec.kit, KIT_B) && restampRow.includes('kit re-stamped from the named preset (preset)') && restampRow.includes('"source":"preset"') && !restampRow.includes('from the current menu'), restampRow.slice(0, 200))
   store.deleteKitPreset('coord')
@@ -276,8 +276,8 @@ section('§P4 — THE DAEMON\'S PRESET DOOR: the preset derivation, the closed-r
 section('§P5 — THE SWEEP: vocabulary lane-wide · both-directions isolation · one grammar at both doors · no world checks')
 {
 
-  const wearMod = await import('../../src/services/kitMenu/presetWear.ts')
-  const sk = await import('../../src/daemon/sessionKit.ts')
+  const wearMod = await import('../../src/screen/kit-menu-model/presetWear.ts')
+  const sk = await import('../../src/daemon/session-seat/sessionKit.ts')
   const wearUnknown = wearMod.wearPresetForNextSession('nobody', [])
   const deriveUnknown = sk.deriveSessionKitForPreset('nobody', PROJECT)
   t("P5-2 both doors refuse an unknown preset through the store's ONE sentence ('unknown preset …' + the roster words)", !wearUnknown.ok && !deriveUnknown.ok && wearUnknown.reason.startsWith("unknown preset 'nobody'") && deriveUnknown.reason.startsWith("unknown preset 'nobody'"))
@@ -295,12 +295,12 @@ section('§P5 — THE SWEEP: vocabulary lane-wide · both-directions isolation �
 
 
 
-  const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
+  const facts = await import('../../src/daemon/switchboard/bootBirthFacts.ts')
   facts._resetBootBirthFactsForTesting()
   const MENU_KIT = { schema: 1 as const, mcp: ['github'], skills: [], invocable: [] }
   facts.setNextSessionFacts({ kit: MENU_KIT })
   store.saveKitPreset('cycle', { mcpOff: [], skillStates: {}, extensionsOff: [] })
-  const rows: import('../../src/services/kitMenu/kitTypes.ts').KitRow[] = [{ kind: 'mcp', section: 'mcp', name: 'github', scope: 'user', extension: null }]
+  const rows: import('../../src/screen/kit-menu-model/kitTypes.ts').KitRow[] = [{ kind: 'mcp', section: 'mcp', name: 'github', scope: 'user', extension: null }]
   wearMod.wearPresetForNextSession('cycle', rows)
   facts.takeWornPresetKit()
   wearMod.wearPresetForNextSession('cycle', rows)
@@ -313,11 +313,11 @@ section('§P5 — THE SWEEP: vocabulary lane-wide · both-directions isolation �
 
 section('§P6 — ONE LAW AT BOTH DOORS (the lead\'s ruling): a preset\'s OFF stays off wherever it is worn')
 {
-  const wearMod = await import('../../src/services/kitMenu/presetWear.ts')
-  const sk = await import('../../src/daemon/sessionKit.ts')
-  const { completeSessionKitFromRoster } = await import('../../src/services/mcp/kitCompletion.ts')
+  const wearMod = await import('../../src/screen/kit-menu-model/presetWear.ts')
+  const sk = await import('../../src/daemon/session-seat/sessionKit.ts')
+  const { completeSessionKitFromRoster } = await import('../../src/integrations/mcp/kitCompletion.ts')
   const LATE = { mcpOff: ['late-srv'], skillStates: { 'late-skill': 'off' as const, 'late-inv': 'invocable' as const }, extensionsOff: ['late-ext'] }
-  const rows: import('../../src/services/kitMenu/kitTypes.ts').KitRow[] = [
+  const rows: import('../../src/screen/kit-menu-model/kitTypes.ts').KitRow[] = [
     { kind: 'mcp', section: 'mcp', name: 'github', scope: 'user', extension: null },
     { kind: 'skill', section: 'skill', name: 'deploy', source: 'project settings', extension: null },
   ]
@@ -326,7 +326,7 @@ section('§P6 — ONE LAW AT BOTH DOORS (the lead\'s ruling): a preset\'s OFF st
     { schema: 1, mcp: [], skills: [], invocable: [], resolved: false, deltas: LATE },
     { mcpNames: [], commands: [], extensions: [] },
   )
-  const verdictOf = (kit: import('../../src/daemon/sessionKit.ts').SessionKitV1): Record<string, string> => ({
+  const verdictOf = (kit: import('../../src/daemon/session-seat/sessionKit.ts').SessionKitV1): Record<string, string> => ({
     'late-skill': (kit.skillsOff ?? []).includes('late-skill') ? 'off-by-name' : 'unnamed',
     'late-ext': kit.extensions?.['late-ext'] === 'off' ? 'off-by-name' : 'unnamed',
     'late-srv': kit.mcp.includes('late-srv') ? 'member' : 'excluded-by-absence',
@@ -340,7 +340,7 @@ section('§P6 — ONE LAW AT BOTH DOORS (the lead\'s ruling): a preset\'s OFF st
   store.saveKitPreset('travel', LATE)
   const receipt = wearMod.wearPresetForNextSession('travel', rows)
   t("P6-5 the wear receipt names the kept-off members as biting ('kept off by name') beside the doesn't-bite census", receipt.ok && receipt.receipt.includes('2 off deltas name members this repo lacks (late-skill (skill), late-ext (extension)) — kept off by name') && receipt.receipt.includes("don't bite"), JSON.stringify(receipt))
-  const factsMod = await import('../../src/services/switchboard/bootBirthFacts.ts')
+  const factsMod = await import('../../src/daemon/switchboard/bootBirthFacts.ts')
   t('P6-6 the armed one-shot carries the off-by-name kit (the birth wears it verbatim)', deepEq(factsMod.peekWornPresetKit()?.kit.skillsOff, ['late-skill']) && factsMod.peekWornPresetKit()?.kit.extensions?.['late-ext'] === 'off')
   factsMod._resetBootBirthFactsForTesting()
   store.deleteKitPreset('travel')

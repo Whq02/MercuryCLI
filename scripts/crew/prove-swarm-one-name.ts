@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
-import { open } from '../../src/services/crewBoard/store.ts'
-import type { BoardPrincipal, BoardStore } from '../../src/services/crewBoard/contracts.ts'
+import { open } from '../../src/crew/board/store.ts'
+import type { BoardPrincipal, BoardStore } from '../../src/crew/board/contracts.ts'
 
 assert(process.env.MERCURY_CONFIG_DIR, 'run with a scratch MERCURY_CONFIG_DIR')
 const home = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR, 'one-name-'))
@@ -83,7 +83,7 @@ await check('one-mention-one-wake', () => world('one-mention-one-wake', w => {
 await check('its-own-wait-and-queued-wake-leave-with-it', () => world('own-wait', w => {
   const old = w.launch('old', 'reviewer')
   const peer = w.launch('peer', 'peer')
-  assert(w.say(old, '@main wake me when kind result', 'ask').ok, 'own-wait: wait declaration failed in src/services/crewBoard/store.ts')
+  assert(w.say(old, '@main wake me when kind result', 'ask').ok, 'own-wait: wait declaration failed in src/crew/board/store.ts')
   w.park(old)
   w.say(peer, 'a result nobody is named in')
   assert.deepEqual(w.woken(), ['old'], 'the wait it declared has queued its wake')
@@ -100,7 +100,7 @@ await check('its-own-wait-and-queued-wake-leave-with-it', () => world('own-wait'
 await check('waits-on-the-seat-follow-the-name', () => world('waits-follow', w => {
   const old = w.launch('old', 'reviewer')
   const peer = w.launch('peer', 'peer')
-  assert(w.say(peer, '@main wake me when seat reviewer posts', 'ask').ok, 'waits-follow: wait declaration failed in src/services/crewBoard/store.ts')
+  assert(w.say(peer, '@main wake me when seat reviewer posts', 'ask').ok, 'waits-follow: wait declaration failed in src/crew/board/store.ts')
   w.park(peer)
   w.park(old)
   const fresh = w.launch('fresh', 'reviewer')
@@ -131,7 +131,7 @@ await check('the-captaincy-follows-the-name', () => world('captaincy', w => {
 await check('a-launch-that-fails-puts-the-seat-back', () => world('put-back', w => {
   const old = w.launch('old', 'reviewer', { team: 'review', captain: true })
   const peer = w.launch('peer', 'peer')
-  assert(w.say(old, '@main wake me when kind result', 'ask').ok, 'put-back: wait declaration failed in src/services/crewBoard/store.ts')
+  assert(w.say(old, '@main wake me when kind result', 'ask').ok, 'put-back: wait declaration failed in src/crew/board/store.ts')
   w.park(old)
   w.say(peer, 'a result')
   const before = { roster: w.roster(), woken: w.woken(), captain: w.board.captain('review')?.agent, wait: w.board.seats().find(seat => seat.agent === 'old')?.wait }
@@ -218,7 +218,7 @@ await check('an-unnamed-launch-as-before', () => world('unnamed', w => {
 await check('started-again-by-id', () => world('by-id', w => {
   const old = w.launch('old', 'reviewer', { team: 'review', captain: true })
   const peer = w.launch('peer', 'peer')
-  assert(w.say(peer, '@main wake me when seat reviewer posts', 'ask').ok, 'by-id: wait declaration failed in src/services/crewBoard/store.ts')
+  assert(w.say(peer, '@main wake me when seat reviewer posts', 'ask').ok, 'by-id: wait declaration failed in src/crew/board/store.ts')
   w.park(peer)
   w.park(old)
   const fresh = w.launch('fresh', 'reviewer', { team: 'review' })
@@ -248,7 +248,7 @@ await check('a-run-that-is-over-holds-no-name', () => {
   return world('run-over', w => {
     const old = w.launch('old', 'reviewer', { team: 'review', captain: true })
     const peer = w.launch('peer', 'peer')
-    assert(w.say(peer, '@main wake me when seat reviewer posts', 'ask').ok, 'run-over: wait declaration failed in src/services/crewBoard/store.ts')
+    assert(w.say(peer, '@main wake me when seat reviewer posts', 'ask').ok, 'run-over: wait declaration failed in src/crew/board/store.ts')
     w.park(peer)
     assert.throws(() => w.board.reserveEnrollment(w.main, { agent: 'fresh', name: 'reviewer', team: 'review', named: true }), RUNNING('reviewer'), 'refused while the holder\'s run is alive')
     alive.delete('old')
@@ -296,13 +296,13 @@ await check('the-boards-own-addresses-name-no-seat', () => world('reserved', w =
 }))
 
 await check('the-launch-and-resume-roads', async () => {
-  const bootstrap = await import('../../src/bootstrap/state.ts')
+  const bootstrap = await import('../../src/boot/process-state/processState.ts')
   bootstrap.setOriginalCwd(home); bootstrap.setCwdState(home); bootstrap.setProjectRoot(home)
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+  const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
   updateSettingsForSource('userSettings', { swarm: { enabled: true } })
-  const seam = await import('../../src/services/crewBoard/seam.ts')
+  const seam = await import('../../src/crew/board/seam.ts')
   const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
   const swarmOnText = runSwarmCommand('on')
   assert(swarmOnText.startsWith('Swarm on'), `runSwarmCommand('on') failed in src/commands/swarm/swarm.ts: ${swarmOnText}`)
@@ -317,7 +317,7 @@ await check('the-launch-and-resume-roads', async () => {
   assert.deepEqual(names(), ['solo=first:parked'])
   await launch('second', { name: 'solo', description: 'the second launch' })
   assert.deepEqual(names(), ['solo=second:running'], 'the tool\'s own launch of a named seat retires the parked seat of that name')
-  const from = (agentId: string) => ({ agentId, toolUseId: `call-${agentId}` }) as unknown as import('../../src/Tool.ts').ToolUseContext
+  const from = (agentId: string) => ({ agentId, toolUseId: `call-${agentId}` }) as unknown as import('../../src/tools/kit/tool.ts').ToolUseContext
   await launch('third', { name: 'other', description: 'a peer' })
   assert.deepEqual(seam.swarmPeerMessage(from('third'), 'first', 'a note for the retired seat'), { handled: false }, 'a peer\'s message to the retired seat by its id is not parked on a board it no longer reads')
   await assert.rejects(seam.latchSwarmAgent('first', 'solo', true), RUNNING('solo'))

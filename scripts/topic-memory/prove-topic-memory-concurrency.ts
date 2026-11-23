@@ -5,8 +5,8 @@ import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { appendObservation, readBuffer } = await import('../../src/mneme/mnemeBuffer.ts')
-const { listTopicDocs, maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
+const { appendObservation, readBuffer } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { listTopicDocs, maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
 
 let failures = 0
 let hint = ''
@@ -19,7 +19,7 @@ const section = (t: string, h = ''): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-section('§1 crash recovery: stale consuming-* absorbed, nothing lost', 'in src/mneme/mnemeConsolidate.ts consumeBuffer must take every stale consuming-*.jsonl file along with current.jsonl, and maybeConsolidate must consolidate them')
+section('§1 crash recovery: stale consuming-* absorbed, nothing lost', 'in src/sessions/mneme/mnemeConsolidate.ts consumeBuffer must take every stale consuming-*.jsonl file along with current.jsonl, and maybeConsolidate must consolidate them')
 {
   const dir = mkdtempSync(join(tmpdir(), 'mneme-cc1-'))
   mkdirSync(dir, { recursive: true })
@@ -37,7 +37,7 @@ section('§1 crash recovery: stale consuming-* absorbed, nothing lost', 'in src/
   check('orphaned row recovered', texts.includes('orphaned row'), texts.join(' | '))
 }
 
-section('§2 the consolidator lock: back-off + stale steal', 'in src/mneme/mnemeConsolidate.ts acquireConsolidateLock must refuse while .consolidate.lock is fresh and steal it once stale, and maybeConsolidate must return reason "lock held" without touching the buffer')
+section('§2 the consolidator lock: back-off + stale steal', 'in src/sessions/mneme/mnemeConsolidate.ts acquireConsolidateLock must refuse while .consolidate.lock is fresh and steal it once stale, and maybeConsolidate must return reason "lock held" without touching the buffer')
 {
   const dir = mkdtempSync(join(tmpdir(), 'mneme-cc2-'))
   appendObservation({ text: 'a row', source: 'proof' }, dir)
@@ -51,7 +51,7 @@ section('§2 the consolidator lock: back-off + stale steal', 'in src/mneme/mneme
   check('stale lock stolen, consolidation proceeds', stolen.consolidated, stolen.reason)
 }
 
-section('§3 refusal restores CONTENT, not just count', 'in src/mneme/mnemeConsolidate.ts maybeConsolidate must refuse a draft that drops rows, and restoreConsumed must put the consumed rows back into current.jsonl byte for byte')
+section('§3 refusal restores CONTENT, not just count', 'in src/sessions/mneme/mnemeConsolidate.ts maybeConsolidate must refuse a draft that drops rows, and restoreConsumed must put the consumed rows back into current.jsonl byte for byte')
 {
   const dir = mkdtempSync(join(tmpdir(), 'mneme-cc3-'))
   appendObservation({ text: 'precious observation', source: 'proof', topicHint: 't' }, dir)
@@ -63,7 +63,7 @@ section('§3 refusal restores CONTENT, not just count', 'in src/mneme/mnemeConso
   check('restored rows consolidate fine afterwards', maybeConsolidate({ force: true, dir }).consolidated)
 }
 
-section('§4 rows appended after a batch survive its cleanup', 'in src/mneme/mnemeConsolidate.ts maybeConsolidate/consumeBuffer must clean up only the files of the batch it took, leaving rows appended afterwards in current.jsonl')
+section('§4 rows appended after a batch survive its cleanup', 'in src/sessions/mneme/mnemeConsolidate.ts maybeConsolidate/consumeBuffer must clean up only the files of the batch it took, leaving rows appended afterwards in current.jsonl')
 {
   const dir = mkdtempSync(join(tmpdir(), 'mneme-cc4-'))
   appendObservation({ text: 'batch one row', source: 'proof', topicHint: 't' }, dir)

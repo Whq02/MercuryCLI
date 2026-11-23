@@ -4,14 +4,14 @@ import { join } from 'node:path'
 
 const root = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const files = await import(join(root, 'services/attachments/fileAttachments.ts'))
-const helpers = await import(join(root, 'utils/file.ts'))
-const shared = await import(join(root, 'utils/attachments/shared.ts'))
-const pdf = await import(join(root, 'utils/pdf.ts'))
-const fsops = await import(join(root, 'utils/fsOperations.ts'))
-const read = await import(join(root, 'tools/FileReadTool/FileReadTool.ts'))
-const { PDF_AT_MENTION_INLINE_THRESHOLD: threshold } = await import(join(root, 'constants/apiLimits.ts'))
-const { MAX_LINES_TO_READ } = await import(join(root, 'constants/tools/fileRead.ts'))
+const files = await import(join(root, 'engine/attachments/fileAttachments.ts'))
+const helpers = await import(join(root, 'platform/files/file.ts'))
+const shared = await import(join(root, 'engine/attachment-shapes/fileReadDenied.ts'))
+const pdf = await import(join(root, 'tools/kit/pdf.ts'))
+const fsops = await import(join(root, 'platform/files/fsOperations.ts'))
+const read = await import(join(root, 'tools/read/ReadTool.ts'))
+const { PDF_AT_MENTION_INLINE_THRESHOLD: threshold } = await import(join(root, 'models/roads/mediaLimits.ts'))
+const { MAX_LINES_TO_READ } = await import(join(root, 'tools/kit/names/fileRead.ts'))
 const context = { readFileState: new Map(), getAppState: () => ({ toolPermissionContext: {} }), abortController: new AbortController() }
 const path = join(process.env.MERCURY_CONFIG_DIR!, 'tracked.txt')
 let denied = false
@@ -82,7 +82,7 @@ try {
   const before = calls.length
   assert.deepEqual(await files.getChangedFiles(context as never), [])
   assert.equal(calls.length, before)
-  assert(context.readFileState.has(path), 'getChangedFiles evicted partial-view file entry from readFileState in src/services/attachments/fileAttachments.ts')
+  assert(context.readFileState.has(path), 'getChangedFiles evicted partial-view file entry from readFileState in src/engine/attachments/fileAttachments.ts')
   context.readFileState.set(path, { content: 'old\n', timestamp: 1, offset: 2 })
   const windowed = await files.getChangedFiles(context as never)
   assert.equal(calls.length, before + 1)
@@ -90,13 +90,13 @@ try {
   assert.equal(windowed.length, 1)
   assert.equal(windowed[0].type, 'edited_text_file')
   assert.match(windowed[0].snippet, /^\s*2\tnew$/)
-  assert(!context.readFileState.has(path), 'getChangedFiles retained stale readFileState entry after emitting edited_text_file in src/services/attachments/fileAttachments.ts')
+  assert(!context.readFileState.has(path), 'getChangedFiles retained stale readFileState entry after emitting edited_text_file in src/engine/attachments/fileAttachments.ts')
   context.readFileState.set(path, { content: 'old\n', timestamp: 1 })
   ioFailure = 'EACCES'
   assert.deepEqual(await files.getChangedFiles(context as never), [])
-  assert(context.readFileState.has(path), 'getChangedFiles evicted readFileState entry on non-ENOENT EACCES error in src/services/attachments/fileAttachments.ts')
+  assert(context.readFileState.has(path), 'getChangedFiles evicted readFileState entry on non-ENOENT EACCES error in src/engine/attachments/fileAttachments.ts')
   ioFailure = 'ENOENT'
   assert.deepEqual(await files.getChangedFiles(context as never), [])
-  assert(!context.readFileState.has(path), 'getChangedFiles did not evict readFileState entry on ENOENT in src/services/attachments/fileAttachments.ts')
+  assert(!context.readFileState.has(path), 'getChangedFiles did not evict readFileState entry on ENOENT in src/engine/attachments/fileAttachments.ts')
   console.log('PASS PDF threshold/fallback, denied and cached reads, exact mtime, overflow policy, the window an overflow names, the row of a mention no window fits, the windowed refresh and ENOENT-only eviction')
 } finally { for (const spy of spies) spy.mockRestore() }

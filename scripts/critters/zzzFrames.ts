@@ -16,13 +16,13 @@ type ZzzFixture = {
 }
 
 export async function composeZzzFrames(root: string, critters?: readonly string[]): Promise<ZzzFrame[]> {
-  const { enableConfigs } = await import(`${root}/src/utils/config/globalConfig.js`)
+  const { enableConfigs } = await import(`${root}/src/platform/config/globalConfig.js`)
   enableConfigs()
   const React = (await import(`${root}/node_modules/react/index.js`)).default
-  const cd = await import(`${root}/src/utils/cockpit/critterData.js`)
-  const idle = await import(`${root}/src/utils/cockpit/critterIdle.js`)
-  const { renderToString, renderToAnsiString } = await import(`${root}/src/utils/staticRender.tsx`)
-  const { CritterArt } = await import(`${root}/src/components/mercury-ui/CritterArt.js`)
+  const cd = await import(`${root}/src/screen/cockpit/critterData.js`)
+  const idle = await import(`${root}/src/screen/cockpit/critterIdle.js`)
+  const { renderToString, renderToAnsiString } = await import(`${root}/src/screen/renderer/staticRender.tsx`)
+  const { CritterArt } = await import(`${root}/src/screen/widgets/CritterArt.js`)
 
   const names: readonly string[] = critters ?? cd.CRITTERS.map((d: { name: string }) => d.name)
   const frames: ZzzFrame[] = []

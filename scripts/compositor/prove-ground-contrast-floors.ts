@@ -7,11 +7,11 @@ import { checker } from '../engine-durability/harness.ts'
 const t = checker()
 
 const { resolveMercuryTokens, contrastRatio } = await import(
-  '../../src/utils/mercuryTokens.ts'
+  '../../src/screen/theme/mercuryTokens.ts'
 )
-const { TERRA } = await import('../../src/components/mercuryPalette.ts')
+const { TERRA } = await import('../../src/screen/theme/mercuryPalette.ts')
 const { OCTOPUS_HUE, JELLYFISH_HUE, CLAM_HUE } = await import(
-  '../../src/utils/cockpit/critterData.ts'
+  '../../src/screen/cockpit/critterData.ts'
 )
 
 const ACCENTS: Array<[string, string]> = [

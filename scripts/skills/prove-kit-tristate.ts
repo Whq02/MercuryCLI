@@ -16,13 +16,13 @@ delete process.env.MERCURY_SESSION_KIT
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  const kitFixHint = ' | fix: the classifier and overlay halves are isKitGovernedSkillCommand, kitDropsCommand and withKitSkillMark in src/skills/kitGovernance.ts; the three seams are getCommands and getSkillToolCommands in src/commands.ts and skillsRosterOf in src/services/engine-connector/rosterTerms.ts; the pin is consumeSessionKitPin in src/services/mcp/sessionKitPin.ts'
+  const kitFixHint = ' | fix: the classifier and overlay halves are isKitGovernedSkillCommand, kitDropsCommand and withKitSkillMark in src/integrations/skills/kitGovernance.ts; the three seams are getCommands and getSkillToolCommands in src/commands/catalogue/commands.ts and skillsRosterOf in src/engine/connector/rosterTerms.ts; the pin is consumeSessionKitPin in src/integrations/mcp/sessionKitPin.ts'
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? `${detail ? ` — ${detail}` : ''}${kitFixHint}` : ''}`)
   if (!ok) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — tri-state prover exceeded 120s; a load or import hung, look at getCommands in src/commands.ts and getSkillDirCommands in src/skills/loadSkillsDir.ts')
+  console.log('\nTIMEOUT — tri-state prover exceeded 120s; a load or import hung, look at getCommands in src/commands/catalogue/commands.ts and getSkillDirCommands in src/integrations/skills/loadSkillsDir.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
@@ -31,13 +31,13 @@ console.log('============================================================')
 console.log(' KIT tri-state — on · invocable · off, at the three seams')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-;(await import('../../src/bootstrap/state.ts')).setSessionTrustAccepted(true)
+;(await import('../../src/boot/process-state/processState.ts')).setSessionTrustAccepted(true)
 
 section('§1 the classifier and the two overlay halves, pure')
 {
-  const g = await import('../../src/skills/kitGovernance.ts')
+  const g = await import('../../src/integrations/skills/kitGovernance.ts')
   g._resetKitGovernanceForTesting()
   const loader = { type: 'prompt', name: 'ns:alpha', description: 'a', loadedFrom: 'skills', source: 'projectSettings' } as never
   const invocable = { type: 'prompt', name: 'old-cmd', description: 'l', loadedFrom: 'skills', source: 'projectSettings' } as never
@@ -79,12 +79,12 @@ const writeSkill = (name: string, frontmatter = ''): void => {
   writeSkill('gamma')
   writeSkill('delta', 'disable-model-invocation: true\n')
 
-  const { getSkillDirCommands } = await import('../../src/skills/loadSkillsDir.ts')
+  const { getSkillDirCommands } = await import('../../src/integrations/skills/loadSkillsDir.ts')
   const loaderNames = (await getSkillDirCommands(PROJECT)).map(c => c.name)
   const nameOf = (base: string): string => loaderNames.find(n => n === base || n.endsWith(`:${base}`)) ?? base
   t('T10 the loader lists the four scratch skills (their own spellings drive the kit below)', ['alpha', 'beta', 'gamma', 'delta'].every(b => loaderNames.some(n => n === b || n.endsWith(`:${b}`))), loaderNames.join(','))
 
-  const pin = await import('../../src/services/mcp/sessionKitPin.ts')
+  const pin = await import('../../src/integrations/mcp/sessionKitPin.ts')
   pin._resetSessionKitPinForTesting()
   process.env.MERCURY_SESSION_KIT = JSON.stringify({
     schema: 1,
@@ -97,7 +97,7 @@ const writeSkill = (name: string, frontmatter = ''): void => {
   const receipt = pin.consumeSessionKitPin()
   t('T11 the kit latched through the consumed-once pin (the runner\'s own door)', receipt.outcome === 'pinned')
 
-  const commands = await import('../../src/commands.ts')
+  const commands = await import('../../src/commands/catalogue/commands.ts')
   const table = await commands.getCommands(PROJECT)
   const inTable = (base: string): boolean => table.some(c => c.name === nameOf(base))
   const row = (base: string): { disableModelInvocation?: boolean; kitSkillState?: string } | undefined =>
@@ -107,7 +107,7 @@ const writeSkill = (name: string, frontmatter = ''): void => {
   const ambient = await commands.getSkillToolCommands(PROJECT)
   const inAmbient = (base: string): boolean => ambient.some(c => c.name === nameOf(base))
   t('T14 SEAM 2, the model list: ambient = author-allows ∧ kit-on (alpha only; beta kit-excluded; delta author-excluded; gamma absent)', inAmbient('alpha') && !inAmbient('beta') && !inAmbient('delta') && !inAmbient('gamma'))
-  const { skillsRosterOf } = await import('../../src/services/engine-connector/rosterTerms.ts')
+  const { skillsRosterOf } = await import('../../src/engine/connector/rosterTerms.ts')
   const roster = skillsRosterOf(table)
   const rosterRow = (base: string): { state?: string } | undefined => roster.find(r => r.name === nameOf(base))
   t("T15 SEAM 3, the facts roster: the tri-state spoken — beta and delta 'invocable' (kit and author read as one law), alpha ambient (no state), gamma absent", rosterRow('beta')?.state === 'invocable' && rosterRow('delta')?.state === 'invocable' && rosterRow('alpha') !== undefined && rosterRow('alpha')?.state === undefined && rosterRow('gamma') === undefined)
@@ -116,7 +116,7 @@ const writeSkill = (name: string, frontmatter = ''): void => {
   writeSkill('epsilon')
   const again = await commands.getCommands(PROJECT)
   t('T16 a skill written after the first load is NOT listed without a cache clear (the disk memo still serves — the overlay forced no second walk)', !again.some(c => c.name === nameOf('epsilon')))
-  const { clearSkillCaches } = await import('../../src/skills/loadSkillsDir.ts')
+  const { clearSkillCaches } = await import('../../src/integrations/skills/loadSkillsDir.ts')
   clearSkillCaches()
   commands.clearCommandMemoizationCaches()
   const fresh = await commands.getCommands(PROJECT)

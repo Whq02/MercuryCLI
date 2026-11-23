@@ -2,7 +2,7 @@
 import { settle, waitFor } from '../lib/settingsPopupHarness.ts'
 import { openStatusPart } from './chatScenarios.ts'
 
-const STATUS_PART_HINT = 'change the status part in src/screens/chat/useChatStatus.tsx (the turn boundary, seat clock, tip, signals and spinner rows this check reads)'
+const STATUS_PART_HINT = 'change the status part in src/screen/chat/useChatStatus.tsx (the turn boundary, seat clock, tip, signals and spinner rows this check reads)'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
@@ -13,10 +13,10 @@ function section(title: string): void {
 }
 
 const t = await openStatusPart('chat-status-part')
-const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
-const { FOLD_ROW_HEAD } = await import('../../src/services/compact/foldStatus.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { BASH_INPUT_TAG } = await import('../../src/constants/xml.ts')
+const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
+const { FOLD_ROW_HEAD } = await import('../../src/engine/compaction/foldStatus.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { BASH_INPUT_TAG } = await import('../../src/engine/message-shapes/messageTags.ts')
 type Live = typeof IDLE_LIVE
 const live = (over: Partial<Live>): Live => ({ ...IDLE_LIVE, ...over })
 const state = (): ReturnType<ReturnType<typeof t.part.store>['getState']> => t.part.store().getState()

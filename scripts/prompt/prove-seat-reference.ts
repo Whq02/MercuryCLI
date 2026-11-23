@@ -60,7 +60,7 @@ const systemTextOf = (body: { system?: unknown }): string => {
 
 section('§1 the environment section names no engine; the seat reference does')
 {
-  const prompts = await import('../../src/constants/prompts.ts')
+  const prompts = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
   const main = await prompts.computeSimpleEnvInfo(FABLE)
   check('the main env block carries no engine line and no model id (RED on the base: "In this seat the model you run through Mercury is …")', !main.includes(ENGINE_LINE) && !main.includes(FABLE), main)
   check('the main env block still carries its labelled lines', main.includes('# Environment') && main.includes('Platform:') && main.includes('OS Version:'), main)
@@ -68,10 +68,10 @@ section('§1 the environment section names no engine; the seat reference does')
   check('the subagent env block carries no engine line and no model id (RED on the base)', !child.includes(ENGINE_LINE) && !child.includes(OPUS), child)
   check('the subagent env block closes its <env> and keeps the cutoff and currency facts', /<\/env>\n\nKnowledge cutoff for this model: /.test(child) && child.includes('Model currency'), child.slice(child.indexOf('</env>') - 20, child.indexOf('</env>') + 80))
 
-  const seat = (await import('../../src/services/resources/adapters/seat.ts').catch(() => null)) as typeof import('../../src/services/resources/adapters/seat.ts') | null
+  const seat = (await import('../../src/integrations/resources/adapters/seat.ts').catch(() => null)) as typeof import('../../src/integrations/resources/adapters/seat.ts') | null
   check('the seat adapter module exists (RED on the base: absent)', seat !== null)
-  const { resolveResource, resourceAdapterKinds } = await import('../../src/services/resources/registry.ts')
-  const owner = (await import('../../src/utils/run/resolveOwner.ts')).ownerFromToolUseContext({})
+  const { resolveResource, resourceAdapterKinds } = await import('../../src/integrations/resources/registry.ts')
+  const owner = (await import('../../src/engine/run-owner/resolveOwner.ts')).ownerFromToolUseContext({})
   const state = { effortValue: 'high', toolPermissionContext: { mode: 'default' } }
   const live = await resolveResource('mercury://seat', { owner, cwd, getAppState: () => state, engineModel: OPUS })
   check('mercury://seat resolves inside a turn with the model, the effort, the posture and the engines', live.state === 'ok' && live.resource.structured !== undefined && (live.resource.structured as { model: string }).model === OPUS, j(live))
@@ -83,14 +83,14 @@ section('§1 the environment section names no engine; the seat reference does')
   const wrong = await resolveResource('mercury://seat/other', { owner, cwd, engineModel: OPUS })
   check('mercury://seat has one form; an id under it is absent', wrong.state === 'absent', j(wrong))
   check('the seat kind is listed for the Inspect prompt', (await resourceAdapterKinds()).some(kind => kind.kind === 'seat' && kind.describe.includes('mercury://seat')), j((await resourceAdapterKinds()).map(kind => kind.kind)))
-  const { InspectTool } = await import('../../src/tools/InspectTool/InspectTool.ts')
+  const { InspectTool } = await import('../../src/tools/inspect/InspectTool.ts')
   const prompt = await InspectTool.prompt({} as never)
   check('the Inspect kinds list carries the seat facts once, without a lookup doctrine', prompt.includes("seat — mercury://seat gives this turn's model, effort, posture and session engine history with switch times.") && prompt.split('mercury://seat').length === 2 && !prompt.includes('Asked which model'), prompt)
   const words = seat === null ? '' : seat.seatPostureWords('implement')
   check('the posture words carry the permission mode', words.endsWith('; permission mode implement'), words)
 
-  const { ledgerClock, openEntry, recordEngine } = await import('../../src/mneme/ledger.ts')
-  const { mnemeProjectKeyFor } = await import('../../src/mneme/paths.ts')
+  const { ledgerClock, openEntry, recordEngine } = await import('../../src/sessions/mneme/ledger.ts')
+  const { mnemeProjectKeyFor } = await import('../../src/sessions/mneme/paths.ts')
   const key = mnemeProjectKeyFor(cwd)
   const realNow = Date.now
   Date.now = () => 1_760_000_000_000
@@ -154,7 +154,7 @@ if (!existsSync(DIST)) {
     const seatText = toolResultTexts.join('\n')
     check('the request after the Inspect call dispatches on the new model', third?.model === OPUS, j(third?.model))
     check('the seat reference the seat read names the LIVE engine after the switch, not the one it started on', seatText.includes(`model this turn runs on: ${OPUS}`) && !seatText.includes(`model this turn runs on: ${FABLE}`), seatText)
-    const { stampLocal } = await import('../../src/mneme/entryPage.ts')
+    const { stampLocal } = await import('../../src/sessions/mneme/entryPage.ts')
     check('…and the ledger\'s engines for this session, the start engine and the switch, each with its clock time in LOCAL time with the zone (the raw UTC string read as local in the field)', seatText.includes(`${stampLocal(new Date(1_760_000_000_000).toISOString())}  ${FABLE}`) && seatText.includes(`${stampLocal(new Date(1_760_000_060_000).toISOString())}  ${OPUS}`) && !seatText.includes(new Date(1_760_000_000_000).toISOString()), seatText)
     check('…and the posture of a hosted runner (a host holds the asks) with its permission mode', seatText.includes('a host holds the asks') && seatText.includes('permission mode'), seatText)
     clearTimeout(killer)

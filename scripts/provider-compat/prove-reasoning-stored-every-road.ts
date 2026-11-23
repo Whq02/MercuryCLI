@@ -20,7 +20,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail?: string): void {
   checks++
   if (!cond) failures++
-  const failHint = cond ? '' : ' | to fix: the reader named in the label emits the reasoning deltas, so change its stream function (section 1 src/services/providers/openaicompat/compatChatClient.ts, 2 src/services/providers/zai/zaiClient.ts, 3 src/services/providers/gemini/geminiClient.ts, 4 src/services/providers/local/ollamaChatTransport.ts, 5 src/services/providers/openai/openaiWire.ts and openaiClient.ts, 6 src/services/providers/moonshot/moonshotCallModel.ts and src/fabric/entryCodec.ts)'
+  const failHint = cond ? '' : ' | to fix: the reader named in the label emits the reasoning deltas, so change its stream function (section 1 src/models/roads/openaicompat/compatChatClient.ts, 2 src/models/roads/zai/zaiClient.ts, 3 src/models/roads/gemini/geminiClient.ts, 4 src/models/roads/local/ollamaChatTransport.ts, 5 src/models/roads/openai/openaiWire.ts and openaiClient.ts, 6 src/models/roads/moonshot/moonshotCallModel.ts and src/sessions/fabric/entryCodec.ts)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${failHint}`)
 }
 function section(title: string): void {
@@ -38,13 +38,13 @@ const collect = async <T,>(events: AsyncIterable<T>): Promise<T[]> => {
 const reasoningOf = (events: ReadonlyArray<{ type: string; text?: string }>): string => events.filter(event => event.type === 'reasoning-delta').map(event => event.text ?? '').join('')
 const request = { model: 'fixture-model', messages: [{ role: 'user' as const, content: 'fixture input' }] }
 
-;(await import('../../src/utils/config.ts')).enableConfigs()
-const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-const { streamGeminiContent } = await import('../../src/services/providers/gemini/geminiClient.ts')
-const { streamOllamaChat } = await import('../../src/services/providers/local/ollamaChatTransport.ts')
-const { streamZaiChat } = await import('../../src/services/providers/zai/zaiClient.ts')
-const { ResponsesStreamFold } = await import('../../src/services/providers/openai/openaiWire.ts')
-const { streamOpenaiResponses } = await import('../../src/services/providers/openai/openaiClient.ts')
+;(await import('../../src/platform/settings/config.ts')).enableConfigs()
+const { streamCompatChat } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+const { streamGeminiContent } = await import('../../src/models/roads/gemini/geminiClient.ts')
+const { streamOllamaChat } = await import('../../src/models/roads/local/ollamaChatTransport.ts')
+const { streamZaiChat } = await import('../../src/models/roads/zai/zaiClient.ts')
+const { ResponsesStreamFold } = await import('../../src/models/roads/openai/openaiWire.ts')
+const { streamOpenaiResponses } = await import('../../src/models/roads/openai/openaiClient.ts')
 
 section('§1 the shared chat runtime (Moonshot · DeepSeek · xAI · Meta · Mistral · Nous · MiniMax · Together · Cohere · Groq · Cerebras · Fireworks · Melious · OrcaRouter · Qwen · Hugging Face · OpenRouter chat · custom endpoints): every spelling of a reasoning block lands as reasoning deltas, verbatim, before the answer')
 for (const [spelling, chunks] of [
@@ -126,10 +126,10 @@ section('§6 the stored row: a reasoning block the runtime settles is an assista
   }) as typeof fetch
   try {
     process.env.MOONSHOT_API_KEY = 'fixture-moonshot-key-not-real'
-    const { moonshotCallModel } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
-    const { createUserMessage } = await import('../../src/services/messages.ts')
-    const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-    const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
+    const { moonshotCallModel } = await import('../../src/models/roads/moonshot/moonshotCallModel.ts')
+    const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+    const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+    const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
     const assistants: Array<{ message: { content: unknown } }> = []
     for await (const item of moonshotCallModel({
       messages: [createUserMessage({ content: 'say hi' })],

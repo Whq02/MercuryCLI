@@ -6,29 +6,29 @@ pinSourceRef()
 const home = pinScratchHome('memory-toggle-receipt')
 let failures = 0
 const check = (label: string, ok: boolean): void => {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' | to fix: the Memory: on/off row, its focus and its updateSettingsForSource write are in src/components/memory/MemoryFileSelector.tsx; flip the shown switch only after the write returns no error'}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' | to fix: the Memory: on/off row, its focus and its updateSettingsForSource write are in src/screen/memory/MemoryFileSelector.tsx; flip the shown switch only after the write returns no error'}`)
   if (!ok) failures++
 }
-await import('../../src/tools/AgentTool/AgentTool.js')
-const settings = await import('../../src/utils/settings/settings.js')
-const instructions = await import('../../src/services/instructions/engine.js')
+await import('../../src/tools/crewmate/CrewmateTool.js')
+const settings = await import('../../src/platform/settings/settings.js')
+const instructions = await import('../../src/sessions/instructions/instructionFiles.js')
 let refused = true
 const writes: boolean[] = []
 const files = Promise.resolve([])
-mock.module('../../src/services/instructions/engine.js', () => ({ ...instructions, getInstructionFiles: () => files }))
-mock.module('../../src/utils/settings/settings.js', () => ({
+mock.module('../../src/sessions/instructions/instructionFiles.js', () => ({ ...instructions, getInstructionFiles: () => files }))
+mock.module('../../src/platform/settings/settings.js', () => ({
   ...settings,
   updateSettingsForSource: (_source: string, patch: { memory: { enabled: boolean } }) => {
     writes.push(patch.memory.enabled)
     return { error: refused ? new Error('fixture write refused') : null }
   },
 }))
-const { MemoryFileSelector } = await import('../../src/components/memory/MemoryFileSelector.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-const { Box, Text } = await import('../../src/ink.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { MemoryFileSelector } = await import('../../src/screen/memory/MemoryFileSelector.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 let inputReady = false
 function ReadyPicker(): React.ReactNode {

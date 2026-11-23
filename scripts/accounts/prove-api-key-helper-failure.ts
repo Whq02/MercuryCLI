@@ -24,7 +24,7 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
-  if (!ok) console.log('    fix: helper run, cache and failure record live in getApiKeyFromApiKeyHelper, getApiKeyHelperFailure and apiKeyHelperFailedLast in src/utils/auth.ts; the 401 retry rule is isRetryableError in src/services/api/withRetry.ts; the painted message is built in src/services/api/errors.ts')
+  if (!ok) console.log('    fix: helper run, cache and failure record live in getApiKeyFromApiKeyHelper, getApiKeyHelperFailure and apiKeyHelperFailedLast in src/models/sign-in/credentials/auth.ts; the 401 retry rule is isRetryableError in src/engine/requests/withRetry.ts; the painted message is built in src/engine/requests/apiErrorRows.ts')
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -40,16 +40,16 @@ writeFileSync(OK, "import { appendFileSync } from 'node:fs'\nappendFileSync(proc
 const executions = (): number => (existsSync(COUNT) ? readFileSync(COUNT, 'utf8').length : 0)
 const helperLine = (script: string): string => `"${process.execPath}" "${script}"`
 
-const sdkEntry = join(SRC, 'utils/api/sdkErrors.ts')
+const sdkEntry = join(SRC, 'engine/request-parts/sdkErrors.ts')
 
-const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/config/globalConfig.ts'))
 enableConfigs()
-const settings = await import(join(SRC, 'utils/settings/settings.ts'))
-const { resetSettingsCache } = await import(join(SRC, 'utils/settings/settingsCache.ts'))
-const auth = await import(join(SRC, 'utils/auth.ts'))
-const retry = await import(join(SRC, 'services/api/withRetry.ts'))
-const errors = await import(join(SRC, 'services/api/errors.ts'))
-const state = await import(join(SRC, 'bootstrap/state.ts'))
+const settings = await import(join(SRC, 'platform/settings/settings.ts'))
+const { resetSettingsCache } = await import(join(SRC, 'platform/settings/settingsCache.ts'))
+const auth = await import(join(SRC, 'models/sign-in/credentials/auth.ts'))
+const retry = await import(join(SRC, 'engine/requests/withRetry.ts'))
+const errors = await import(join(SRC, 'engine/requests/apiErrorRows.ts'))
+const state = await import(join(SRC, 'boot/process-state/processState.ts'))
 const sdk = (await import(sdkEntry)) as { APIError: new (status: number, body: unknown, message: string, headers: unknown) => unknown }
 
 function configureHelper(script: string): void {

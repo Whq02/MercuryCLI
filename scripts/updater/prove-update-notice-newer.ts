@@ -21,11 +21,11 @@ const {
   faceUpdateNoticeText,
   UPDATE_NOTICE_DAILY_MS,
   writeUpdateNoticeCache,
-} = await import('../../src/services/privateChannel/quietUpdateNotice.ts')
+} = await import('../../src/platform/update-channel/quietUpdateNotice.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  const noticeHint = 'fix decideQuietCheck, decideFaceNotice, runQuietUpdateCheck, quietUpdateCheckArmed or scheduleQuietUpdateNotice in src/services/privateChannel/quietUpdateNotice.ts'
+  const noticeHint = 'fix decideQuietCheck, decideFaceNotice, runQuietUpdateCheck, quietUpdateCheckArmed or scheduleQuietUpdateNotice in src/platform/update-channel/quietUpdateNotice.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${noticeHint}` : ''}`)
   if (!cond) failures++
 }
@@ -160,7 +160,7 @@ for (const [from, to] of [['1.0.0-rc.1', '1.0.0-rc.2'], ['1.0.0-rc.2', '1.0.0'],
 
 section('§5 the two switches: MERCURY_UPDATE_NOTICE=0 and MERCURY_DISABLE_NONESSENTIAL_TRAFFIC each keep the daily check dark')
 {
-  const { quietUpdateCheckArmed, scheduleQuietUpdateNotice } = await import('../../src/services/privateChannel/quietUpdateNotice.ts')
+  const { quietUpdateCheckArmed, scheduleQuietUpdateNotice } = await import('../../src/platform/update-channel/quietUpdateNotice.ts')
   const saved = { notice: process.env.MERCURY_UPDATE_NOTICE, traffic: process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC }
   delete process.env.MERCURY_UPDATE_NOTICE
   delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC

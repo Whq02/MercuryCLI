@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/acp/* src/types/permissions.ts src/utils/permissions/PermissionMode.ts src/cli/run.ts
+// gate-watch: src/integrations/acp/* src/permissions/rules/permissions.ts src/permissions/rules/permissionMode.ts src/daemon/runner/runHeadless.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, type ChildProcess } from 'node:child_process'
@@ -61,8 +61,8 @@ process.on('exit', () => {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(configHome, [projDir])
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { PERMISSION_MODES } = await import('../../src/types/permissions.ts')
-const { MODE_GLOSS } = await import('../../src/utils/settings/validationTips.ts')
+const { PERMISSION_MODES } = await import('../../src/permissions/rules/permissions.ts')
+const { MODE_GLOSS } = await import('../../src/platform/settings/validationTips.ts')
 const acp = await import('@agentclientprotocol/sdk')
 
 type Harness = {
@@ -119,46 +119,46 @@ try {
   const created = await h.agent.request('session/new', { cwd: projDir, mcpServers: [] })
   const sid = created.sessionId
   const offered = (created.modes?.availableModes ?? []).map(m => m.id)
-  check('session/new offers the product\'s mode list exactly (the one list, in its order)', j(offered) === j([...PERMISSION_MODES]), j(offered), 'the session/new reply in src/services/acp must list PERMISSION_MODES from src/types/permissions.ts in order')
+  check('session/new offers the product\'s mode list exactly (the one list, in its order)', j(offered) === j([...PERMISSION_MODES]), j(offered), 'the session/new reply in src/integrations/acp must list PERMISSION_MODES from src/permissions/rules/permissions.ts in order')
   const configured = (created.configOptions ?? []).find(o => o.id === 'permission-mode') as { options?: Array<{ value: string }> } | undefined
-  check('the permission-mode config option lists the same words', j((configured?.options ?? []).map(o => o.value)) === j([...PERMISSION_MODES]), j(configured), 'the permission-mode config option in src/services/acp must list PERMISSION_MODES from src/types/permissions.ts')
+  check('the permission-mode config option lists the same words', j((configured?.options ?? []).map(o => o.value)) === j([...PERMISSION_MODES]), j(configured), 'the permission-mode config option in src/integrations/acp must list PERMISSION_MODES from src/permissions/rules/permissions.ts')
   const names = (created.modes?.availableModes ?? []).map(m => m.name)
-  check("the names are the product's titles (Sovereign Mode, Don't Ask, Apollo Mode among them)", names.includes('Sovereign Mode') && names.includes("Don't Ask") && names.includes('Apollo Mode'), j(names), 'the mode names sent by src/services/acp must be the product titles of the modes')
+  check("the names are the product's titles (Sovereign Mode, Don't Ask, Apollo Mode among them)", names.includes('Sovereign Mode') && names.includes("Don't Ask") && names.includes('Apollo Mode'), j(names), 'the mode names sent by src/integrations/acp must be the product titles of the modes')
   const glossed = (created.modes?.availableModes ?? []).map(m => [m.id, m.description])
-  check("each mode's description is the product's one gloss (the settings tips' MODE_GLOSS), word for word", glossed.length > 0 && glossed.every(([id, description]) => description === MODE_GLOSS[id as keyof typeof MODE_GLOSS]), j(glossed), 'the mode descriptions sent by src/services/acp must be MODE_GLOSS from src/utils/settings/validationTips.ts')
+  check("each mode's description is the product's one gloss (the settings tips' MODE_GLOSS), word for word", glossed.length > 0 && glossed.every(([id, description]) => description === MODE_GLOSS[id as keyof typeof MODE_GLOSS]), j(glossed), 'the mode descriptions sent by src/integrations/acp must be MODE_GLOSS from src/platform/settings/validationTips.ts')
   const unknown = await errorOf(h.agent.request('session/set_mode', { sessionId: sid, modeId: 'frobnicate' }))
-  check('an unknown word is refused and the refusal lists the modes', unknown.includes("unknown mode 'frobnicate'") && unknown.includes('sovereign') && unknown.includes('apollo'), unknown, 'session/set_mode in src/services/acp must refuse an unknown mode with the text unknown mode and the list of valid modes')
+  check('an unknown word is refused and the refusal lists the modes', unknown.includes("unknown mode 'frobnicate'") && unknown.includes('sovereign') && unknown.includes('apollo'), unknown, 'session/set_mode in src/integrations/acp must refuse an unknown mode with the text unknown mode and the list of valid modes')
 
   for (const modeId of offered.filter(mode => mode !== 'sovereign')) {
     const selected = await errorOf(h.agent.request('session/set_mode', { sessionId: sid, modeId }))
-    check(`every offered mode is selectable: ${modeId}`, selected === '', selected, 'session/set_mode in src/services/acp must accept every mode that session/new offers')
+    check(`every offered mode is selectable: ${modeId}`, selected === '', selected, 'session/set_mode in src/integrations/acp must accept every mode that session/new offers')
     const configuredMode = await errorOf(h.agent.request('session/set_config_option', { sessionId: sid, configId: 'permission-mode', value: modeId }))
-    check(`every offered mode is configurable: ${modeId}`, configuredMode === '', configuredMode, 'session/set_config_option for permission-mode in src/services/acp must accept every mode that session/new offers')
+    check(`every offered mode is configurable: ${modeId}`, configuredMode === '', configuredMode, 'session/set_config_option for permission-mode in src/integrations/acp must accept every mode that session/new offers')
   }
   await h.agent.request('session/set_mode', { sessionId: sid, modeId: 'default' })
 
   section('§2 Sovereign over ACP: the user\'s consent is asked on the editor\'s own card; declined stays out, allowed lands and is never saved')
   consent = 'deny'
   const declined = await errorOf(h.agent.request('session/set_mode', { sessionId: sid, modeId: 'sovereign' }))
-  check('the consent card reached the editor as a permission request titled Sovereign Mode', h.asks.some(a => j(a).includes('Sovereign Mode')), j(h.asks), 'session/set_mode to sovereign in src/services/acp must send a session/request_permission card titled Sovereign Mode')
-  check('declined: the mode is refused naming the consent', declined.includes('consent'), declined, 'session/set_mode in src/services/acp must refuse sovereign with an error that names the consent when the card is declined')
-  check('declined: no current_mode_update to sovereign', !h.updates.some(u => u.sessionUpdate === 'current_mode_update' && u.currentModeId === 'sovereign'), '', 'src/services/acp must not send current_mode_update to sovereign after a declined consent')
+  check('the consent card reached the editor as a permission request titled Sovereign Mode', h.asks.some(a => j(a).includes('Sovereign Mode')), j(h.asks), 'session/set_mode to sovereign in src/integrations/acp must send a session/request_permission card titled Sovereign Mode')
+  check('declined: the mode is refused naming the consent', declined.includes('consent'), declined, 'session/set_mode in src/integrations/acp must refuse sovereign with an error that names the consent when the card is declined')
+  check('declined: no current_mode_update to sovereign', !h.updates.some(u => u.sessionUpdate === 'current_mode_update' && u.currentModeId === 'sovereign'), '', 'src/integrations/acp must not send current_mode_update to sovereign after a declined consent')
   consent = 'allow'
   const allowed = await errorOf(h.agent.request('session/set_mode', { sessionId: sid, modeId: 'sovereign' }))
-  check('allowed: the runner confirms sovereign (the session was launched armed) and the editor hears current_mode_update', allowed === '' && (await until(() => h.updates.some(u => u.sessionUpdate === 'current_mode_update' && u.currentModeId === 'sovereign'), 10_000)), allowed, 'src/services/acp must accept sovereign once the consent is allowed and send current_mode_update to sovereign')
+  check('allowed: the runner confirms sovereign (the session was launched armed) and the editor hears current_mode_update', allowed === '' && (await until(() => h.updates.some(u => u.sessionUpdate === 'current_mode_update' && u.currentModeId === 'sovereign'), 10_000)), allowed, 'src/integrations/acp must accept sovereign once the consent is allowed and send current_mode_update to sovereign')
   const savedPath = join(configHome, 'projects', `${encodeURIComponent(projDir).replace(/%2F/g, '-')}`)
   void savedPath
   const turn = await h.agent.request('session/prompt', { sessionId: sid, prompt: [{ type: 'text', text: 'hi' }] })
-  check('a turn runs in sovereign', turn.stopReason === 'end_turn', j(turn), 'session/prompt in src/services/acp must finish a turn with end_turn while in sovereign')
+  check('a turn runs in sovereign', turn.stopReason === 'end_turn', j(turn), 'session/prompt in src/integrations/acp must finish a turn with end_turn while in sovereign')
   await h.agent.request('session/close', { sessionId: sid }).catch(() => {})
 
   section('§3 a saved sovereign is never resumed: the consent is per request')
-  const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
   const saved = join(getProjectDir(projDir), `${encodeURIComponent(sid)}.acp.json`)
   const record = existsSync(saved) ? (JSON.parse(readFileSync(saved, 'utf8')) as { permissionMode?: string }) : null
-  check('the saved mode record holds default, not sovereign', record !== null && record.permissionMode === 'default', j(record), 'the .acp.json record written by src/services/acp must store default, never sovereign, as permissionMode')
+  check('the saved mode record holds default, not sovereign', record !== null && record.permissionMode === 'default', j(record), 'the .acp.json record written by src/integrations/acp must store default, never sovereign, as permissionMode')
   const loaded = await h.agent.request('session/load', { sessionId: sid, cwd: projDir, mcpServers: [] })
-  check('session/load resumes in default', loaded.modes?.currentModeId === 'default', j(loaded.modes?.currentModeId), 'session/load in src/services/acp must resume in default, never in a saved sovereign')
+  check('session/load resumes in default', loaded.modes?.currentModeId === 'default', j(loaded.modes?.currentModeId), 'session/load in src/integrations/acp must resume in default, never in a saved sovereign')
   await h.agent.request('session/close', { sessionId: sid }).catch(() => {})
 } catch (error) {
   check('the proof ran to its end', false, error instanceof Error ? error.message : String(error), 'a request in the proof threw; read the message above and the stderr of the spawned mercury acp server')

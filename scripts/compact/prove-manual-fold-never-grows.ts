@@ -40,16 +40,16 @@ const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFix
 const fixture = await startCrossfamilyFixture({ port: 0 })
 Object.assign(process.env, fixture.env)
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { call } = await import('../../src/commands/compact/compact.ts')
-const { compactConversation, buildPostCompactMessages, projectManualFold } = await import('../../src/services/compact/compact.ts')
-const { estimateContextTokens } = await import('../../src/services/compact/microCompact.ts')
-const { requestGaugeDigest } = await import('../../src/services/run/requestGauge.ts')
-const { stripThinkingFromIndex } = await import('../../src/services/messages/apiFilters.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+const { compactConversation, buildPostCompactMessages, projectManualFold } = await import('../../src/engine/compaction/foldConversation.ts')
+const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
+const { requestGaugeDigest } = await import('../../src/engine/run/requestGauge.ts')
+const { stripThinkingFromIndex } = await import('../../src/engine/messages/apiFilters.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
 
 const MODEL = 'claude-opus-4-8'
 type AnyMsg = Record<string, unknown> & { type?: string }
@@ -160,7 +160,7 @@ section('1 restored files would make the fold grow: projection counts disk size,
     'projection detects that restoring files would grow the fold and chooses restoreFiles=false',
     projection !== null && projection.restoreFiles === false && projection.after < projection.before,
     JSON.stringify(projection),
-    'projectManualFold in src/services/compact/compact/projection.ts and createPostCompactFileAttachments in src/services/compact/compact/attachments.ts must count real disk-restored file sizes and retry without files when restoring files would not shrink',
+    'projectManualFold in src/engine/compaction/fold/projection.ts and createPostCompactFileAttachments in src/engine/compaction/fold/foldAttachments.ts must count real disk-restored file sizes and retry without files when restoring files would not shrink',
   )
   const reqsBefore = summaryRequests()
   const result = (await call('', ctx as never)) as CompactCallResult
@@ -171,7 +171,7 @@ section('1 restored files would make the fold grow: projection counts disk size,
     'the manual fold runs once and drops restored files so context strictly shrinks',
     summaryRequests() === reqsBefore + 1 && restoredFileCount === 0 && afterTokens < beforeTokens && (result.compactionResult.truePostCompactTokenCount ?? Infinity) < result.compactionResult.preCompactTokenCount,
     `before=${beforeTokens} after=${afterTokens} receipt=${plainOf(result)} restoredFiles=${restoredFileCount}`,
-    'call in src/commands/compact/compact.ts and compactConversation in src/services/compact/compact.ts must pass restoreFiles=false from projectManualFold and omit file attachments when they would grow the fold',
+    'call in src/commands/compact/compact.ts and compactConversation in src/engine/compaction/foldConversation.ts must pass restoreFiles=false from projectManualFold and omit file attachments when they would grow the fold',
   )
 }
 
@@ -278,7 +278,7 @@ function windowsShapedSession(): { messages: AnyMsg[]; reads: InstanceType<typeo
 
 section('2 Windows SUBMIT 352 shape (RequestGauge + high-effort thinking + large recent read + restored files): the summariser is asked, and the fold lands smaller or not at all')
 {
-  const hintJudged = 'compactConversation in src/services/compact/compact.ts must judge the real summary by the one estimate of createFoldMeter in src/services/compact/compact/foldMeasure.ts: land the fold without its restored files when that is smaller than the conversation, and keep the conversation when it is not'
+  const hintJudged = 'compactConversation in src/engine/compaction/foldConversation.ts must judge the real summary by the one estimate of createFoldMeter in src/engine/compaction/fold/foldMeasure.ts: land the fold without its restored files when that is smaller than the conversation, and keep the conversation when it is not'
   const short = windowsShapedSession()
   const reqsBefore = summaryRequests()
   const landed = (await call('', makeContext(short.messages, short.reads) as never)) as CompactCallResult
@@ -308,7 +308,7 @@ section('2 Windows SUBMIT 352 shape (RequestGauge + high-effort thinking + large
       return { result: undefined, threw: error instanceof Error ? error.message : String(error), asked: asked() }
     }
   })
-  const hintKept = 'compactConversation in src/services/compact/compact.ts must throw its refusal before anything of the fold is committed: the read state of the caller and its conversation rows stand as they were'
+  const hintKept = 'compactConversation in src/engine/compaction/foldConversation.ts must throw its refusal before anything of the fold is committed: the read state of the caller and its conversation rows stand as they were'
   check(
     'a summary of the 2,000 tokens the projection used to assume: the summariser is asked exactly once',
     refused.asked === 1,
@@ -373,13 +373,13 @@ section('3 post-summary growth guard: when the summariser returns an oversized s
       'aborts instead of committing a fold whose real summary grew the context',
       result === undefined && threw !== undefined,
       `threw=${threw ?? 'none'} result=${result ? plainOf(result) : 'none'}`,
-      'compactConversation in src/services/compact/compact.ts must refuse when recompactionInfo.mustShrink is true and the real measured post-compact context is not smaller than meter.before',
+      'compactConversation in src/engine/compaction/foldConversation.ts must refuse when recompactionInfo.mustShrink is true and the real measured post-compact context is not smaller than meter.before',
     )
     check(
       'restores readFileState intact when aborting after the summariser',
       JSON.stringify([...reads.entries()]) === readSnapshot,
       `keys=${[...reads.keys()].join(',')} size=${reads.size}`,
-      'compactConversation in src/services/compact/compact.ts must restore context.readFileState from ledgerBeforeFold before throwing on a post-summary growth abort',
+      'compactConversation in src/engine/compaction/foldConversation.ts must restore context.readFileState from ledgerBeforeFold before throwing on a post-summary growth abort',
     )
   })
 }
@@ -404,7 +404,7 @@ section('4 automatic fold drops restored files when they would push the landed c
     'automatic fold drops restored files so it does not land larger than before',
     afterTokens < beforeTokens && restoredFileCount === 0,
     `before=${beforeTokens} after=${afterTokens} restoredFiles=${restoredFileCount}`,
-    'landFold in src/services/compact/compact/foldLanding.ts must drop restored file attachments when truePostCompactTokenCount >= before',
+    'landFold in src/engine/compaction/fold/foldLanding.ts must drop restored file attachments when truePostCompactTokenCount >= before',
   )
 }
 

@@ -11,7 +11,7 @@ process.env.NODE_ENV = 'test'
 process.chdir(ROOT)
 
 let failures = 0
-const FUSION_FIX_HINT = 'fuseRecallRankings and semanticRanking in src/mneme/mnemeLookup.ts (the semantic ranking must join the fusion), chooseAtStart in src/mneme/entryKnapsack.ts (start pick scoring); if the semantic ranking is empty, rebuild the index with rebuildEmbedIndex in src/mneme/mnemeIndex.ts'
+const FUSION_FIX_HINT = 'fuseRecallRankings and semanticRanking in src/sessions/mneme/mnemeLookup.ts (the semantic ranking must join the fusion), chooseAtStart in src/sessions/mneme/entryKnapsack.ts (start pick scoring); if the semantic ranking is empty, rebuild the index with rebuildEmbedIndex in src/sessions/mneme/mnemeIndex.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${cond ? '' : ` | fix: ${FUSION_FIX_HINT}`}`)
   if (!cond) failures++
@@ -22,13 +22,13 @@ const finish = (): never => {
   process.exit(failures > 0 ? 1 : 0)
 }
 
-const { seedEmbedPackDirForTest } = await import('../../src/mneme/embedPack.js')
-const { seedEmbedModelForTest } = await import('../../src/mneme/embedModels.js')
-const idx = await import('../../src/mneme/mnemeIndex.js')
-const lookup = await import('../../src/mneme/mnemeLookup.js')
-const docs = await import('../../src/mneme/mnemeTopicDocs.js')
-const usage = await import('../../src/mneme/mnemeUsage.js')
-const knapsack = await import('../../src/mneme/entryKnapsack.js')
+const { seedEmbedPackDirForTest } = await import('../../src/sessions/mneme/embedPack.js')
+const { seedEmbedModelForTest } = await import('../../src/sessions/mneme/embedModels.js')
+const idx = await import('../../src/sessions/mneme/mnemeIndex.js')
+const lookup = await import('../../src/sessions/mneme/mnemeLookup.js')
+const docs = await import('../../src/sessions/mneme/mnemeTopicDocs.js')
+const usage = await import('../../src/sessions/mneme/mnemeUsage.js')
+const knapsack = await import('../../src/sessions/mneme/entryKnapsack.js')
 
 const PACK_DIR = join(ROOT, 'vendor', 'embed', 'darwin-arm64')
 if (!existsSync(join(PACK_DIR, '.vendor-manifest.json'))) {

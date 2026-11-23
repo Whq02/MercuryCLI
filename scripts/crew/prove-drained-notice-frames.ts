@@ -24,21 +24,21 @@ pinSourceRef()
 
 const { DIST, NODE, LEAD_GATE, LEAD_MODEL, closeWorld, makeTally, makeWorld, sleep } = await import('./crew-world.ts')
 const { hostRunner } = await import('../lib/runnerHost.ts')
-const { getQueuedCommandAttachments } = await import('../../src/services/attachments/queuedCommands.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { enqueuePendingNotification, getCommandQueue } = await import('../../src/utils/messageQueueManager.ts')
-const { wrapInSystemReminder } = await import('../../src/utils/messages/text.ts')
-const { saturnQueueStamp } = await import('../../src/utils/messages/noticeRows.ts')
-const { BOARD_PACKET_RULE } = await import('../../src/services/crewBoard/contracts.ts')
-const { enqueueBoardWake } = await import('../../src/services/crewBoard/seam.ts')
-const { composeRestartLine, deadWatchLine, monitorNoticeBlock } = await import('../../src/tools/MonitorTool/watchReceipts.ts')
-const { enqueueAgentReceiptRow, enqueueMessageToMainAgent, agentMessageNotice, agentMessageSummary, AGENT_RESUME_DOOR } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { overloadNoticeWords } = await import('../../src/tasks/LocalAgentTask/agentOverload.ts')
-const { operatorResumeWords } = await import('../../src/tools/AgentTool/resumeAgent.ts')
-const { shellNotificationText } = await import('../../src/tasks/LocalShellTask/LocalShellTask.tsx')
-const { applyWakeReason } = await import('../../src/services/saturn/sessionScheduleBridge.ts')
-const { MISSION_COMPLETED_HEAD } = await import('../../src/guards/mission.ts')
-const { hostNotice, deliverHostNotices } = await import('../../src/services/host/notices.ts')
+const { getQueuedCommandAttachments } = await import('../../src/engine/attachments/queuedCommands.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { enqueuePendingNotification, getCommandQueue } = await import('../../src/daemon/runner/messageQueueManager.ts')
+const { wrapInSystemReminder } = await import('../../src/engine/message-shapes/text.ts')
+const { saturnQueueStamp } = await import('../../src/engine/message-shapes/noticeRows.ts')
+const { BOARD_PACKET_RULE } = await import('../../src/crew/board/contracts.ts')
+const { enqueueBoardWake } = await import('../../src/crew/board/seam.ts')
+const { composeRestartLine, deadWatchLine, monitorNoticeBlock } = await import('../../src/tools/monitor/watchReceipts.ts')
+const { enqueueAgentReceiptRow, enqueueMessageToMainAgent, agentMessageNotice, agentMessageSummary, AGENT_RESUME_DOOR } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { overloadNoticeWords } = await import('../../src/engine/tasks/local-agent/agentOverload.ts')
+const { operatorResumeWords } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
+const { shellNotificationText } = await import('../../src/engine/tasks/local-shell/shellTask.tsx')
+const { applyWakeReason } = await import('../../src/daemon/saturn/sessionScheduleBridge.ts')
+const { MISSION_COMPLETED_HEAD } = await import('../../src/permissions/guards/mission.ts')
+const { hostNotice, deliverHostNotices } = await import('../../src/models/hosting/notices.ts')
 
 const tally = makeTally('drained-notice-frames')
 const watchdog = setTimeout(() => {
@@ -50,7 +50,7 @@ watchdog.unref?.()
 type Command = ReturnType<typeof getCommandQueue>[number]
 type Said = { text: string; rows: number; hidden: boolean }
 const j = (value: unknown): string => JSON.stringify(value)
-const frameFix = 'fix wrapCommandText or taskNoticeHead in src/utils/messages/text.ts so the drained notice gets the head and tail this check expects'
+const frameFix = 'fix wrapCommandText or taskNoticeHead in src/engine/message-shapes/text.ts so the drained notice gets the head and tail this check expects'
 const reminder = (...lines: string[]): string => `<system-reminder>\n${lines.join('\n')}\n</system-reminder>`
 const queuedBy = (produce: () => void): Command => {
   const before = getCommandQueue().length
@@ -112,7 +112,7 @@ tally.section('§1 one row a kind: the queue item its producer makes, drained at
     const said = await drained(command)
     tally.check(`${name}: "${head}" over the notice as it was queued, one hidden reminder`, said.text === reminder(head, valueOf(command)) && said.rows === 1 && said.hidden, `${said.text.slice(0, 220)}; ${frameFix}`)
   }
-  tally.check('the mission\'s noun is the product\'s own word for it', MISSION_COMPLETED_HEAD === 'Mission completed:', `${MISSION_COMPLETED_HEAD}; MISSION_COMPLETED_HEAD in src/guards/mission.ts and the MISSION head in this file must agree`)
+  tally.check('the mission\'s noun is the product\'s own word for it', MISSION_COMPLETED_HEAD === 'Mission completed:', `${MISSION_COMPLETED_HEAD}; MISSION_COMPLETED_HEAD in src/permissions/guards/mission.ts and the MISSION head in this file must agree`)
 
   const whole: Array<[string, Command]> = [
     ['a board wake that carries advice', queuedBy(() => enqueueBoardWake('Read reference-only posts with CrewBoard.'))],
@@ -124,7 +124,7 @@ tally.section('§1 one row a kind: the queue item its producer makes, drained at
   ]
   for (const [name, command] of whole) {
     const said = await drained(command)
-    tally.check(`${name}, a notice that is itself one whole reminder: passed as that reminder, byte for byte what it is between turns (the parent heads it as a crewmate's completion and nests it)`, said.text === valueOf(command) && said.rows === 1 && said.hidden, `${j(said.text.slice(0, 220))}; a notice that is one whole reminder must pass unchanged, see wholeReminderWords and wrapCommandText in src/utils/messages/text.ts`)
+    tally.check(`${name}, a notice that is itself one whole reminder: passed as that reminder, byte for byte what it is between turns (the parent heads it as a crewmate's completion and nests it)`, said.text === valueOf(command) && said.rows === 1 && said.hidden, `${j(said.text.slice(0, 220))}; a notice that is one whole reminder must pass unchanged, see wholeReminderWords and wrapCommandText in src/engine/message-shapes/text.ts`)
   }
   tally.check('the two wakes are the product\'s own words', valueOf(whole[0]![1]) === reminder('Read reference-only posts with CrewBoard.') && valueOf(whole[1]![1]) === reminder(BOARD_PACKET_RULE))
   const two = `${wrapInSystemReminder('one')}\n${wrapInSystemReminder('two')}`

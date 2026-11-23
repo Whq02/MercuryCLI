@@ -2,7 +2,7 @@
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { SessionFactsV1 } from '../../src/services/engine-connector/seatProjections.ts'
+import type { SessionFactsV1 } from '../../src/engine/connector/seatProjections.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -14,15 +14,15 @@ process.env.MERCURY_DAEMON_DIR = plane
 process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { FactsPart } = await import('../../src/services/engine-connector/daemon/facts.ts')
-const { publishSessionFacts, readSessionFacts, sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { getEngineModel } = await import('../../src/services/model/model.ts')
+const { FactsPart } = await import('../../src/engine/connector/daemon/facts.ts')
+const { publishSessionFacts, readSessionFacts, sessionFactsPath } = await import('../../src/engine/connector/seatProjections.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
 
-const PART = 'src/services/engine-connector/daemon/facts.ts'
+const PART = 'src/engine/connector/daemon/facts.ts'
 let failures = 0
-const WHERE = 'the part under test is FactsPart in src/services/engine-connector/daemon/facts.ts: change its behaviour there to match the check, or update this check if the law moved'
+const WHERE = 'the part under test is FactsPart in src/engine/connector/daemon/facts.ts: change its behaviour there to match the check, or update this check if the law moved'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${WHERE}` : ''}`)

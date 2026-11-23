@@ -5,7 +5,7 @@ import {
   cellColor,
   CRITTERS,
   critterDefForKey,
-} from '../../src/utils/cockpit/critterData.js'
+} from '../../src/screen/cockpit/critterData.js'
 import { CONFIG_HOME, scenario } from '../ui/renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
@@ -19,7 +19,7 @@ const norm = (c: unknown): string => String(c ?? '').replace('#', '').toLowerCas
 
 const ALL = [...CRITTERS]
 for (const def of ALL) {
-  t(`${def.name}: the dock grid carries 'K' pupils`, def.squareDock.some(r => r.includes('K')), `add a K pupil cell to the squareDock rows of ${def.name} in src/utils/cockpit/critterData.ts`)
+  t(`${def.name}: the dock grid carries 'K' pupils`, def.squareDock.some(r => r.includes('K')), `add a K pupil cell to the squareDock rows of ${def.name} in src/screen/cockpit/critterData.ts`)
 }
 
 type GridCell = { c: string; fg: string; bg: string }
@@ -62,7 +62,7 @@ function pupilCellsInBerthRegion(g: Grid): number {
   if (hits === 0) {
     hits = pupilCellsInBerthRegion(capture('b'))
   }
-  t('cockpit berth renders the dock sprite (K-pupil mix on screen, top region)', hits > 0, `pupil cells=${hits}; the berth critter in src/components/MercuryHome.tsx (berth:critter) must draw the crab squareDock with its K pupil colour from cellColor in src/utils/cockpit/critterData.ts in the top 14 rows`)
+  t('cockpit berth renders the dock sprite (K-pupil mix on screen, top region)', hits > 0, `pupil cells=${hits}; the berth critter in src/screen/fullscreen-layout/MercuryHome.tsx (berth:critter) must draw the crab squareDock with its K pupil colour from cellColor in src/screen/cockpit/critterData.ts in the top 14 rows`)
 }
 
 console.log(failures === 0 ? '✅ berth-sprite contract holds' : '❌ berth-sprite contract BROKEN')

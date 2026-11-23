@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import type { Message } from '../../src/types/message.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'fold-landing-room-'))
 process.env.MERCURY_CONFIG_DIR = home
@@ -11,14 +11,14 @@ process.env.MERCURY_TMPDIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY ??= 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { compactConversation, buildPostCompactMessages, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } = await import('../../src/services/compact/compact.ts')
-const tailModule = await import('../../src/services/compact/verbatimTail.ts') as Record<string, unknown>
-const { foldReceipt, foldReceiptWords } = await import('../../src/services/compact/foldReceipt.ts')
-const { estimateContextTokens } = await import('../../src/services/compact/microCompact.ts')
-const { groupMessagesByApiRound } = await import('../../src/services/compact/grouping.ts')
+const { compactConversation, buildPostCompactMessages, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } = await import('../../src/engine/compaction/foldConversation.ts')
+const tailModule = await import('../../src/engine/compaction/verbatimTail.ts') as Record<string, unknown>
+const { foldReceipt, foldReceiptWords } = await import('../../src/engine/compaction/foldReceipt.ts')
+const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
+const { groupMessagesByApiRound } = await import('../../src/engine/compaction/groupByApiRound.ts')
 const LANDING_ROOM_FLOOR_TOKENS = (tailModule.LANDING_ROOM_FLOOR_TOKENS as number | undefined) ?? 20_000
 const LANDING_ROOM_MAX_SHARE = (tailModule.LANDING_ROOM_MAX_SHARE as number | undefined) ?? 2
 const FOLDED_RESULT_KEY = (tailModule.FOLDED_RESULT_KEY as string | undefined) ?? '[result folded into the summary above'
@@ -26,17 +26,17 @@ const foldLandingCeiling = (tailModule.foldLandingCeiling as ((threshold: number
   const largest = Math.max(0, ...groupMessagesByApiRound([...messages]).map(group => estimateContextTokens(group)))
   return Math.max(1, threshold - Math.min(Math.max(Math.ceil(largest * ratio), LANDING_ROOM_FLOOR_TOKENS), Math.floor(threshold / LANDING_ROOM_MAX_SHARE)))
 })
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
 
 let checks = 0
 let failures = 0
 const check = (label: string, condition: boolean, detail = ''): void => {
   checks++
   if (!condition) failures++
-  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition ? '' : `: ${detail ? `${detail}; ` : ''}the landing line is foldLandingCeiling in src/services/compact/verbatimTail.ts, the fold that keeps rounds and folds large results is compactConversation in src/services/compact/compact.ts, the receipt words are foldReceiptWords in src/services/compact/foldReceipt.ts`}`)
+  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition ? '' : `: ${detail ? `${detail}; ` : ''}the landing line is foldLandingCeiling in src/engine/compaction/verbatimTail.ts, the fold that keeps rounds and folds large results is compactConversation in src/engine/compaction/foldConversation.ts, the receipt words are foldReceiptWords in src/engine/compaction/foldReceipt.ts`}`)
 }
 
 let clock = Date.UTC(2026, 9, 17)
@@ -122,9 +122,9 @@ try {
 
   console.log('L5 the room is in the gauge\'s units: with a learned density ratio above 1 the landing line leaves room for the largest round AS THE GAUGE COUNTS IT')
   {
-    const { calibrationKeyFor } = await import('../../src/services/run/contextCalibration.ts')
-    const { readRequestGauge } = await import('../../src/services/run/requestGauge.ts')
-    const { roughTokenCountEstimationForMessages } = await import('../../src/services/tokenEstimation.ts')
+    const { calibrationKeyFor } = await import('../../src/engine/run/contextCalibration.ts')
+    const { readRequestGauge } = await import('../../src/engine/run/requestGauge.ts')
+    const { roughTokenCountEstimationForMessages } = await import('../../src/models/facts/tokenEstimation.ts')
     const ratio = 1.4
     const threshold = 126_000
     const history = stretch(8, 96_000, 'dense')

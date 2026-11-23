@@ -2,10 +2,10 @@
 import {
   managedRootCandidates,
   resolveManagedRoot,
-} from '../../src/utils/settings/managedPath.js'
+} from '../../src/platform/settings/managedPath.js'
 
 let failures = 0
-const managedRootFixHint = 'fix: managedRootCandidates (per-platform root list, Mercury-named) or resolveManagedRoot (first existing candidate wins, a throwing probe falls through) in src/utils/settings/managedPath.ts'
+const managedRootFixHint = 'fix: managedRootCandidates (per-platform root list, Mercury-named) or resolveManagedRoot (first existing candidate wins, a throwing probe falls through) in src/platform/settings/managedPath.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${managedRootFixHint}` : ''}`)

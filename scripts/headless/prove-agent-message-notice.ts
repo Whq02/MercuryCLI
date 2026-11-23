@@ -7,7 +7,7 @@ import { DIST, MODEL, NODE, childEnv, makeTally, sleep } from '../daemon/dupline
 import { hostRunner } from '../lib/runnerHost.ts'
 import { seedScratchHome, startScriptedFixture, type ScriptedFixture, type ScriptedRequest, type WireBlock } from '../lib/scriptedTurn.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { POLL_INTERVAL_MS } from '../../src/utils/task/framework.ts'
+import { POLL_INTERVAL_MS } from '../../src/engine/task-framework/taskRegistry.ts'
 
 const tally = makeTally('prove-agent-message-notice')
 if (!existsSync(DIST)) {

@@ -1,0 +1,37 @@
+import { getPlatform } from '../../platform/environment/platform.js'
+
+type UncPathRisk = { risky: false } | { risky: true; host: string; form: string }
+
+export function uncPathRisk(input: string, opts: { command?: boolean } = {}): UncPathRisk {
+  if (getPlatform() !== 'windows') return { risky: false }
+  const decoded = input.replace(/%(?:2f|5c|3a|40|7c)/gi, code => String.fromCharCode(parseInt(code.slice(1), 16)))
+  const spelling = decoded
+    .replace(/[`'"]/g, '')
+    .replace(/(^|[\s=(,;])((?:file:[\\/]{2,}[A-Za-z][:|]|[A-Za-z]:)[^\s|&;<>]*)/gi, (_m, lead: string, token: string) => {
+      const prefix = /^file:[\\/]{2,}/i.exec(token)?.[0] ?? ''
+      return lead + prefix + token.slice(prefix.length).replace(/[\\/]{2,}/g, run => run[0]!)
+    })
+  const text = spelling.replace(/\\/g, '/')
+  const namespace = /\/{1,2}(?:\?\?|[?.])\/(?:UNC\/|GLOBALROOT\/Device\/(?:Mup|LanmanRedirector)\/)([^\s/]+)/ig
+  const extended = namespace.exec(text)
+  if (extended) return { risky: true, host: extended[1]!, form: 'namespace-unc' }
+  const paths = /(?:\b(?:file|smb):)?\/{2,}([^\s/]+)/ig
+  for (const match of text.matchAll(paths)) {
+    const host = match[1]!
+    if (host === '?' || host === '.' || host === '??') continue
+    if (/^file:/i.test(match[0]) && /^[A-Za-z][:|]$/.test(host)) continue
+    const before = text.slice(0, match.index)
+    if (before.endsWith(':') && spelling[match.index] === '/' && spelling[match.index + 1] === '/') continue
+    if (opts.command === true && !text.slice(match.index + match[0].length).startsWith('/') && !/[.:[\]]/.test(host)) continue
+    return { risky: true, host, form: /@|DavWWWRoot/i.test(match[0] + text.slice(match.index + match[0].length)) ? 'webdav' : 'unc' }
+  }
+  const marker = /([^\s/;|<>()]*)(?:@SSL@\d+|@\d+@SSL)/i.exec(text)
+  if (marker) return { risky: true, host: marker[1] || '(unspecified)', form: 'webdav-marker' }
+  if (/DavWWWRoot/i.test(text)) return { risky: true, host: '(unspecified)', form: 'webdav-marker' }
+  return { risky: false }
+}
+
+export function uncPathMessage(input: string, risk: Extract<UncPathRisk, { risky: true }>): string {
+  const host = risk.host === '(unspecified)' ? 'a remote host' : `the remote host ${risk.host}`
+  return `${input} may reach ${host} over SMB/WebDAV; a UNC path can leak this machine's login — Mercury does not open it without explicit permission.`
+}

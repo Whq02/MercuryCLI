@@ -15,13 +15,13 @@ let failures = 0
 const leftovers: string[] = []
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}fix the Browser tool: checkPermissions and call in src/tools/BrowserTool/BrowserTool.ts, its operations in src/tools/BrowserTool/browser/, or the session and origin grants in src/services/browser/browserSession.ts (the § heading above this line names the area)` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}fix the Browser tool: checkPermissions and call in src/tools/browser/BrowserTool.ts, its operations in src/tools/browser/ops/, or the session and origin grants in src/integrations/browser/browserSession.ts (the § heading above this line names the area)` : ''}`)
 }
 
-const { resolveBrowser } = await import('../../src/services/browser/browserResolver.ts')
-const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
-const { activeSession } = await import('../../src/services/browser/browserSession.ts')
-const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
+const { resolveBrowser } = await import('../../src/integrations/browser/browserResolver.ts')
+const { BrowserTool } = await import('../../src/tools/browser/BrowserTool.ts')
+const { activeSession } = await import('../../src/integrations/browser/browserSession.ts')
+const { processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
 const OWNER = processOwnerForLane(null)
 type ToolInput = Parameters<typeof BrowserTool.call>[0]
 
@@ -35,7 +35,7 @@ type ToolInput = Parameters<typeof BrowserTool.call>[0]
       const provisioned = await provisionManagedBrowserForTheGate(line => console.log(line))
       const again = provisioned.ok ? resolveBrowser() : first
       if (again.state === 'ok') return again
-      console.error(`  [FAIL] hosted gate has no drivable browser — ${again.note}${provisioned.ok ? '' : `; provisioning failed: ${provisioned.note}`}; make a browser resolvable for the Browser tool (resolveBrowser in src/services/browser/browserResolver.ts) or provision one in the gate`)
+      console.error(`  [FAIL] hosted gate has no drivable browser — ${again.note}${provisioned.ok ? '' : `; provisioning failed: ${provisioned.note}`}; make a browser resolvable for the Browser tool (resolveBrowser in src/integrations/browser/browserResolver.ts) or provision one in the gate`)
       process.exit(1)
     }
     console.log(`__SUITE_SKIPPED browser: ${first.note}`)
@@ -554,15 +554,15 @@ console.log('§10b non-web schemes')
   await page().goto('data:text/html,<button id="d">d</button>')
   const ask = await perm({ op: 'click', selector: '#d' })
   check('a page-conjured scheme (data:) ASKS naming the scheme', ask.behavior === 'ask' && (ask.message ?? '').includes('data:'), JSON.stringify(ask))
-  const { originOf } = await import('../../src/services/browser/browserSession.ts')
+  const { originOf } = await import('../../src/integrations/browser/browserSession.ts')
   check('a malformed URL gets its OWN marker (never about:blank\'s standing)', originOf('::::not a url') === 'unparseable:')
   await run({ op: 'open', url: `${A}/` })
 }
 
 console.log('§16 engine-chain truth')
 {
-  const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const engineCtx = (opts: { mode?: string; allow?: string[]; deny?: string[] }) => {
     const toolPermissionContext = {
       ...getEmptyToolPermissionContext(),
@@ -643,7 +643,7 @@ async function permB(input: Partial<ToolInput>): Promise<{ behavior: string; mes
 }
 {
   const { approvedOriginList, noteCheckedActOrigin, consumeCheckedActOrigin } = await import(
-    '../../src/services/browser/browserSession.ts'
+    '../../src/integrations/browser/browserSession.ts'
   )
   const askB = await permB({ op: 'open', url: `${A}/` })
   check('owner B asks for an origin owner A already approved (grants never cross owners)', askB.behavior === 'ask', JSON.stringify(askB))
@@ -672,7 +672,7 @@ async function permB(input: Partial<ToolInput>): Promise<{ behavior: string; mes
 
 console.log('§18 per-owner reap')
 {
-  const { disposeBrowserOwner, approvedOriginList } = await import('../../src/services/browser/browserSession.ts')
+  const { disposeBrowserOwner, approvedOriginList } = await import('../../src/integrations/browser/browserSession.ts')
   const pidA = activeSession(OWNER)!.browser.process()?.pid
   const pidB = activeSession(OWNER_B)!.browser.process()?.pid
   await disposeBrowserOwner(OWNER_B)
@@ -700,7 +700,7 @@ console.log('§18 per-owner reap')
 console.log('§19 the children cap')
 {
   const { browserSessionCap, ensureBrowserSession, disposeBrowserOwner } = await import(
-    '../../src/services/browser/browserSession.ts'
+    '../../src/integrations/browser/browserSession.ts'
   )
   check('no cap without the variable', browserSessionCap() === null)
   process.env.MERCURY_BROWSER_MAX_SESSIONS = '0'
@@ -737,7 +737,7 @@ console.log('§19 the children cap')
 console.log('§19b same-owner launch single-flight')
 {
   const { ensureBrowserSession, disposeBrowserOwner, liveBrowserSessionCensus } = await import(
-    '../../src/services/browser/browserSession.ts'
+    '../../src/integrations/browser/browserSession.ts'
   )
   const OWNER_S = processOwnerForLane('fixture-single-flight')
   const [s1, s2] = await Promise.all([ensureBrowserSession(OWNER_S), ensureBrowserSession(OWNER_S)])
@@ -760,8 +760,8 @@ console.log('§19b same-owner launch single-flight')
 
 console.log('§20 the secretRef credential road')
 {
-  const { resolveBrowserSecret, scrubSecretFromText } = await import('../../src/services/browser/browserSecrets.ts')
-  const { secretPairingApproved } = await import('../../src/services/browser/browserSession.ts')
+  const { resolveBrowserSecret, scrubSecretFromText } = await import('../../src/integrations/browser/browserSecrets.ts')
+  const { secretPairingApproved } = await import('../../src/integrations/browser/browserSession.ts')
   const SECRET_VALUE = 'fixture-hunter2-9QzX'
   process.env.MERCURY_BROWSER_SECRET_TEST_LOGIN = SECRET_VALUE
   await run({ op: 'open', url: `${A}/` })
@@ -781,8 +781,8 @@ console.log('§20 the secretRef credential road')
     ask.decisionReason?.type === 'safetyCheck' && ask.decisionReason?.operatorOnly === true,
     JSON.stringify(ask.decisionReason),
   )
-  const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const engineCtx = (opts: { allow?: string[] }) => {
     const toolPermissionContext = {
       ...getEmptyToolPermissionContext(),
@@ -918,7 +918,7 @@ console.log('§20 the secretRef credential road')
     const openedB = await run({ op: 'open', url: `${B}/` })
     check('the saved-code section reaches the second origin in its own session (a refusal here would make the next check read the first origin)', openedB.outcome === 'succeeded' && page().url().startsWith(B), `${openedB.result} · url=${page().url()}`)
     await addOtp()
-    const { approveSecretPairing } = await import('../../src/services/browser/browserSession.ts')
+    const { approveSecretPairing } = await import('../../src/integrations/browser/browserSession.ts')
     approveSecretPairing(OWNER, 'SAVED_OTP', B)
     await perm(otpInput)
     const wrongOrigin = await run(otpInput)
@@ -965,8 +965,8 @@ console.log('§14 exit reap drill')
   const child = join(dir, 'exit-drill.ts')
   writeFileSync(
     child,
-    `const { ensureBrowserSession } = await import(${JSON.stringify(join(ROOT, 'src', 'services', 'browser', 'browserSession.ts'))})
-const { processOwnerForLane } = await import(${JSON.stringify(join(ROOT, 'src', 'utils', 'run', 'resolveOwner.ts'))})
+    `const { ensureBrowserSession } = await import(${JSON.stringify(join(ROOT, 'src', 'integrations', 'browser', 'browserSession.ts'))})
+const { processOwnerForLane } = await import(${JSON.stringify(join(ROOT, 'src', 'engine', 'run-owner', 'resolveOwner.ts'))})
 const s = await ensureBrowserSession(processOwnerForLane(null))
 if ('state' in s) { console.log('DRILL-UNAVAILABLE: ' + s.note); process.exit(3) }
 console.log('DRILL-PID ' + s.browser.process()?.pid)

@@ -30,10 +30,10 @@ if (!existsSync(BIN)) {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 let failures = 0
-const oneDoorFailHint = 'a session born at the face carries bornBlankAt, stamped in src/daemon/concourseWorkers/admitWarm.ts and admitCold.ts when the request is bornBlank, and the records are read with readSessionWorkers (src/daemon/concourseWorkers.ts); the face rows and the concourse on/off switch come from chatOnlyBootOf in src/context/surfaceRoute.ts and concourseEnabled in src/services/concourse/concourseEnabled.ts; set MERCURY_ONEDOOR_CAPTURE_DIR to keep the captured screens and MERCURY_ONEDOOR_KEEP=1 to keep the scratch folder'
+const oneDoorFailHint = 'a session born at the face carries bornBlankAt, stamped in src/daemon/concourse-workers/admitWarm.ts and admitCold.ts when the request is bornBlank, and the records are read with readSessionWorkers (src/daemon/concourse-workers/concourseWorkers.ts); the face rows and the concourse on/off switch come from chatOnlyBootOf in src/screen/routes/surfaceRoute.ts and concourseEnabled in src/screen/concourse-model/concourseEnabled.ts; set MERCURY_ONEDOOR_CAPTURE_DIR to keep the captured screens and MERCURY_ONEDOOR_KEEP=1 to keep the scratch folder'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? detail : detail ? `${detail}; ${oneDoorFailHint}` : oneDoorFailHint
@@ -48,7 +48,7 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [CWD])
 
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
 const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')
 const FACE_NO_CHAT = keyHintLabel('⇧→ no chat open')
 const COMPOSER = 'Type a prompt'

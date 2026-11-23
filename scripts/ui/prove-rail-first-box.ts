@@ -100,27 +100,27 @@ const workListeners = new Set<() => void>()
 const roster = { rows: rosterRows(), mission: [], samples: [], reported: true }
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
-const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
+const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const { default: instances } = await import('../../src/ink/instances.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocus.ts')
-const { railPlanAt } = await import('../../src/utils/helmGeometry.ts')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+const { resetHelmFocusForTest } = await import('../../src/screen/cockpit/helmFocus.ts')
+const { railPlanAt } = await import('../../src/screen/fullscreen-layout/helmGeometry.ts')
 const h = React.createElement
 
 const resting = noSessionConnector() as unknown as Record<string, unknown>
@@ -153,7 +153,7 @@ async function renderAt(columns: number, rows: number): Promise<string[]> {
   const stdin = new Input()
   const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(columns, rows) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
-  const insertRef = { current: null } as React.MutableRefObject<import('../../src/components/PromptInput/PromptInput.tsx').PromptInputProps['insertTextRef']['current']>
+  const insertRef = { current: null } as React.MutableRefObject<import('../../src/screen/composer/Composer.tsx').PromptInputProps['insertTextRef']['current']>
   function Harness(): React.ReactNode {
     const { controls, focus } = useCompactWorkControls()
     const [vimMode, setVimMode] = React.useState<'INSERT' | 'NORMAL'>('INSERT')
@@ -185,7 +185,7 @@ async function renderAt(columns: number, rows: number): Promise<string[]> {
   try {
     const text = (): string => stripAnsi(ink.lastFrameText())
     const painted = await until(() => insertRef.current !== null && text().includes('Type a prompt'))
-    check(`${columns}x${rows}: the layout paints its composer placeholder`, painted, text().slice(0, 400) + ' | the layout never painted the Type a prompt placeholder within 15 s; check the composer in src/components/PromptInput/PromptInput.tsx and the FullscreenLayout mount')
+    check(`${columns}x${rows}: the layout paints its composer placeholder`, painted, text().slice(0, 400) + ' | the layout never painted the Type a prompt placeholder within 15 s; check the composer in src/screen/composer/Composer.tsx and the FullscreenLayout mount')
     let last = ''
     let stable = 0
     const deadline = Date.now() + 8000
@@ -213,16 +213,16 @@ for (const [columns, rows] of SIZES) {
   const lines = await renderAt(columns, rows)
   if (frameDir !== undefined) writeFileSync(join(frameDir, `rail-first-box-${columns}x${rows}.txt`), `${lines.join('\n')}\n`)
   const frame = lines.join('\n')
-  check(`${columns}x${rows}: no SEAT box paints anywhere`, !/SEAT ·/.test(frame) && !/\bSEAT\b/.test(frame), 'a SEAT box still paints in the rail; remove it from the sections built in src/services/cockpit/helmLanesModel/sections.ts')
-  check(`${columns}x${rows}: no seat self row paints (no "(you)" row, no peer count)`, !/\(you\)/.test(frame) && !/\d+ peers?\b/.test(frame), 'a seat self row or peer count still paints; remove it from the rail rows in src/services/cockpit/helmLanesModel/sections.ts')
+  check(`${columns}x${rows}: no SEAT box paints anywhere`, !/SEAT ·/.test(frame) && !/\bSEAT\b/.test(frame), 'a SEAT box still paints in the rail; remove it from the sections built in src/screen/cockpit-gauges/helm-lanes-model/sections.ts')
+  check(`${columns}x${rows}: no seat self row paints (no "(you)" row, no peer count)`, !/\(you\)/.test(frame) && !/\d+ peers?\b/.test(frame), 'a seat self row or peer count still paints; remove it from the rail rows in src/screen/cockpit-gauges/helm-lanes-model/sections.ts')
   if (columns >= 150) {
     const lanesW = railPlanAt(columns, true).lanesW
     const headers = railHeaders(lines, lanesW)
-    check(`${columns}x${rows}: the lanes rail paints with its banner on the first row`, (lines[0] ?? '').includes('lanes'), (lines[0] ?? '') + ' | the first row has no lanes banner; check that railPlanAt in src/utils/helmGeometry.ts gives a lanes width at this size and that the rail is mounted in FullscreenLayout')
-    check(`${columns}x${rows}: the rail's first box is CREW`, headers[0] === 'CREW', `boxes: ${headers.join(' › ') || 'none'} | put the CREW section (crewSection area in src/services/cockpit/helmLanesModel/sections.ts) first in the rail order`)
-    check(`${columns}x${rows}: the crew rows stand in the CREW box`, /✶ Mercury Lead/.test(frame) && /atlas/.test(frame) && /fjord/.test(frame), 'the roster rows (Mercury Lead, atlas, fjord) are missing from the CREW box; check the crew rows built in src/services/cockpit/helmLanesModel/sections.ts')
+    check(`${columns}x${rows}: the lanes rail paints with its banner on the first row`, (lines[0] ?? '').includes('lanes'), (lines[0] ?? '') + ' | the first row has no lanes banner; check that railPlanAt in src/screen/fullscreen-layout/helmGeometry.ts gives a lanes width at this size and that the rail is mounted in FullscreenLayout')
+    check(`${columns}x${rows}: the rail's first box is CREW`, headers[0] === 'CREW', `boxes: ${headers.join(' › ') || 'none'} | put the CREW section (crewSection area in src/screen/cockpit-gauges/helm-lanes-model/sections.ts) first in the rail order`)
+    check(`${columns}x${rows}: the crew rows stand in the CREW box`, /✶ Mercury Lead/.test(frame) && /atlas/.test(frame) && /fjord/.test(frame), 'the roster rows (Mercury Lead, atlas, fjord) are missing from the CREW box; check the crew rows built in src/screen/cockpit-gauges/helm-lanes-model/sections.ts')
   } else {
-    check(`${columns}x${rows}: the narrow layout paints no lanes rail`, !(lines[0] ?? '').includes('lanes'), (lines[0] ?? '') + ' | a lanes rail paints at this narrow width; check railPlanAt in src/utils/helmGeometry.ts so it returns no lanes width below 150 columns')
+    check(`${columns}x${rows}: the narrow layout paints no lanes rail`, !(lines[0] ?? '').includes('lanes'), (lines[0] ?? '') + ' | a lanes rail paints at this narrow width; check railPlanAt in src/screen/fullscreen-layout/helmGeometry.ts so it returns no lanes width below 150 columns')
   }
 }
 console.error = originalError

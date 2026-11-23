@@ -17,21 +17,21 @@ const originalNow = Date.now
 let now = MISTRAL_FIXTURE_NOW
 Date.now = () => now
 const fixture = mistralFixture()
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[name]
 Object.assign(process.env, fixture.env)
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const owner = await import('../../src/services/providers/providerUsage.ts')
-const fresh = await import('../../src/services/providers/usageFreshness.ts')
-const { __resetMistralUsageForTest } = await import('../../src/services/providers/mistral/mistralUsageState.ts')
-mock.module('../../src/services/providers/providerUsage.ts', () => ({ ...owner, providerFamilyPresences: () => [{ id: 'mistral', available: true, credentialed: true, credentialLabel: 'Mistral API key (fixture)' }, { id: 'deepseek', available: false, credentialed: false }, { id: 'openai-compat', available: false, credentialed: false }] }))
-const keybindings = await import('../../src/keybindings/useKeybinding.ts')
-mock.module('../../src/keybindings/useKeybinding.ts', () => ({ ...keybindings, useKeybinding: () => undefined }))
-const { Usage } = await import('../../src/components/Settings/Usage.tsx')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const owner = await import('../../src/models/roads/providerUsage.ts')
+const fresh = await import('../../src/models/roads/usageFreshness.ts')
+const { __resetMistralUsageForTest } = await import('../../src/models/roads/mistral/mistralUsageState.ts')
+mock.module('../../src/models/roads/providerUsage.ts', () => ({ ...owner, providerFamilyPresences: () => [{ id: 'mistral', available: true, credentialed: true, credentialLabel: 'Mistral API key (fixture)' }, { id: 'deepseek', available: false, credentialed: false }, { id: 'openai-compat', available: false, credentialed: false }] }))
+const keybindings = await import('../../src/screen/keys/useKeybinding.ts')
+mock.module('../../src/screen/keys/useKeybinding.ts', () => ({ ...keybindings, useKeybinding: () => undefined }))
+const { Usage } = await import('../../src/screen/settings/Usage.tsx')
 const framesArg = process.argv.indexOf('--frames')
 const frames = framesArg >= 0 ? process.argv[framesArg + 1] : undefined
 let checks = 0
-const check = (label: string, ok: unknown): void => { assert.ok(ok, `${label}. Change the Mistral figures built in src/services/providers/providerUsage/mistral.ts, the board title and notes in src/components/Settings/usage/plan.ts, or the Admin API key remedy in src/services/providers/mistral/mistralUsageState.ts (MISTRAL_ADMIN_KEY_HINT). Rerun with --frames <dir> to write the captured frames.`); checks++; console.log(`[PASS] ${label}`) }
+const check = (label: string, ok: unknown): void => { assert.ok(ok, `${label}. Change the Mistral figures built in src/models/roads/provider-usage/mistral.ts, the board title and notes in src/screen/settings/usage/plan.ts, or the Admin API key remedy in src/models/roads/mistral/mistralUsageState.ts (MISTRAL_ADMIN_KEY_HINT). Rerun with --frames <dir> to write the captured frames.`); checks++; console.log(`[PASS] ${label}`) }
 async function capture(name: string, width: number): Promise<string> {
   const board = await mountOffscreen(React.createElement(Usage, { width, rowBudget: 44 }), width, 48)
   try {

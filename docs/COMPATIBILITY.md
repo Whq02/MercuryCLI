@@ -1,7 +1,7 @@
 # Compatibility
 
 Mercury keeps configuration in its `.mercury` homes, reads `MERCURY_*`
-switches from `src/substrate/flagRegistry.ts`, and ships six platform archives.
+switches from `src/platform/substrate/flagRegistry.ts`, and ships six platform archives.
 
 Providers and platforms also have their own variables, such as
 `ANTHROPIC_API_KEY` and `PATH`. [SETTINGS.md](SETTINGS.md) covers the settings
@@ -122,7 +122,7 @@ the override that raises the presented version are on the
 
 Mercury stamps only its own spellings into processes it spawns: an MCP
 `headersHelper` receives `MERCURY_MCP_SERVER_NAME` and
-`MERCURY_MCP_SERVER_URL` (`src/services/mcp/headersHelper.ts`); a hosting
+`MERCURY_MCP_SERVER_URL` (`src/integrations/mcp/serverHeaders.ts`); a hosting
 application that spawns Mercury passes the `MERCURY_HOST_*` handshake. Credential-bearing variables (the session OAuth
 token among them) are stripped from ordinary subprocess environments.
 
@@ -131,11 +131,11 @@ token among them) are stripped from ordinary subprocess environments.
 Settings files point at Mercury's own JSON schema. The runtime generates it
 from the live validator and refreshes it at
 `<config-home>/schema/settings.schema.json`
-(`src/utils/settings/localSchema.ts`); every user-settings write stamps
-`$schema` with that path (`src/utils/settings/settings.ts`), so an editor
+(`src/platform/settings/localSchema.ts`); every user-settings write stamps
+`$schema` with that path (`src/platform/settings/settings.ts`), so an editor
 validates real Mercury settings offline, versioned with the installed build.
 `$schema` is an editor pointer (separate from active configuration): a file carrying any other
-pointer keeps validating (`src/utils/settings/types.ts`), and no foreign
+pointer keeps validating (`src/platform/settings/settingsSchema.ts`), and no foreign
 schema URL is ever written.
 The committed review snapshot is `scripts/settings/settings-schema.json`,
 held equal to the generator.
@@ -145,7 +145,7 @@ held equal to the generator.
 Mercury is a Model Context Protocol client. Server configs merge across
 scopes (the project `.mercury/mcp.json` walk, the user scope, the local scope, a
 managed `managed-mcp.json`, and extension-provided servers in
-`src/services/mcp/config.ts`) with per-repository server selection in the
+`src/integrations/mcp/serverConfigs.ts`) with per-repository server selection in the
 Boot Menu's MCPs & Skills record, session-scoped toggles in `/mcp`
 ([KIT.md](KIT.md)), project-scope server approval prompts, and a risk
 ceiling (`MERCURY_MCP_MAX_RISK`). An extension declares its MCP servers in
@@ -174,8 +174,8 @@ source is your act (`docs/EXTENSIONS.md`).
 
 Skills load from Mercury's homes alone (`.mercury/skills` under the starting
 project's instruction chain, `~/.mercury/skills`, the managed policy tree,
-and approved extensions in `src/skills/loadSkillsDir.ts` and
-`src/extensions/load/commands.ts`). A skill body's template tokens expand in
+and approved extensions in `src/integrations/skills/loadSkillsDir.ts` and
+`src/integrations/extensions/load/commands.ts`). A skill body's template tokens expand in
 Mercury's spelling alone, `${MERCURY_SKILL_DIR}` and `${MERCURY_SESSION_ID}`.
 
 ## Credentials on macOS
@@ -183,14 +183,14 @@ Mercury's spelling alone, `${MERCURY_SKILL_DIR}` and `${MERCURY_SESSION_ID}`.
 Keychain writes use Mercury's own service name, keyed to the resolved auth
 config home (every home's name carries a hash of its path). Reads also try
 one bounded fallback entry
-(`src/utils/secureStorage/macOsKeychainHelpers.ts`): a credential stored
+(`src/platform/secure-storage/macOsKeychainHelpers.ts`): a credential stored
 under the raw spelling of a non-canonical config-home pin is moved to the
 canonical name on the first successful read.
 
 ## Platforms
 
 One release archive per target. The target owner is
-`src/services/privateChannel/releaseTarget.ts`: the packager's and the build's
+`src/platform/update-channel/releaseTarget.ts`: the packager's and the build's
 `--target` vocabulary, the archive a machine asks for (`mercury update`), and
 the installers' `uname` map. Every archive carries its own Node runtime, search
 binary and image processor for that platform, and the voice capture and

@@ -21,9 +21,9 @@ process.stderr.write = ((chunk: unknown, ...rest: unknown[]): boolean => {
   return realWrite(chunk, ...rest)
 }) as typeof process.stderr.write
 
-const wire = await import('../../src/services/providers/openai/openaiWire.js')
-const { streamOneOpenaiAttempt } = await import('../../src/services/providers/openai/openaiCallModel.js')
-import type { OpenaiStreamEvent } from '../../src/services/providers/openai/openaiWire.ts'
+const wire = await import('../../src/models/roads/openai/openaiWire.js')
+const { streamOneOpenaiAttempt } = await import('../../src/models/roads/openai/openaiCallModel.js')
+import type { OpenaiStreamEvent } from '../../src/models/roads/openai/openaiWire.ts'
 
 const model = 'gpt-6.2-astra'
 const marker = '[openai] input_transformations on'
@@ -121,7 +121,7 @@ try {
     assert.deepEqual(wire.readInputTransformations(undefined), [])
   })
   await check('one item is counted in the singular', () => {
-    assert.ok(wire.inputTransformationsLine(model, [{ id: 'rs_a', action: 'removed', reason: 'end_user_mismatch', type: 'reasoning' }]).includes('lists 1 reasoning item of this request (removed 1; end_user_mismatch 1): rs_a removed end_user_mismatch'), 'inputTransformationsLine in src/services/providers/openai/openaiWire.ts must format singular reasoning item count')
+    assert.ok(wire.inputTransformationsLine(model, [{ id: 'rs_a', action: 'removed', reason: 'end_user_mismatch', type: 'reasoning' }]).includes('lists 1 reasoning item of this request (removed 1; end_user_mismatch 1): rs_a removed end_user_mismatch'), 'inputTransformationsLine in src/models/roads/openai/openaiWire.ts must format singular reasoning item count')
   })
   await check('only a row whose type says reasoning is counted as a reasoning item: another is counted and listed by its type', () => {
     const rows = wire.readInputTransformations({ input_transformations: [{ id: 'rs_a', action: 'removed', reason: 'prefix_mismatch', type: 'reasoning' }, { id: 'msg_1', action: 'rewritten', reason: 'prefix_mismatch', type: 'message' }, { id: 'fc_1', action: 'removed', reason: 'model_mismatch', type: 'function_call' }] })

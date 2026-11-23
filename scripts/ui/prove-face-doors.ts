@@ -14,8 +14,8 @@ import {
   healthTrailEntries,
   healthVerdictLine,
   wrapPlain,
-} from '../../src/components/BootHealthScreen.js'
-import { HEALTH_STATUS_META, type HealthCheck, type HealthStatus } from '../../src/services/health/healthReport.js'
+} from '../../src/screen/boot-face/BootHealthScreen.js'
+import { HEALTH_STATUS_META, type HealthCheck, type HealthStatus } from '../../src/platform/health/healthReport.js'
 import {
   resumeDetailLines,
   resumeElsewhereEntry,
@@ -24,7 +24,7 @@ import {
   resumeLegendOf,
   resumeStatusLine,
   resumeSummaryRows,
-} from '../../src/components/BootResumeScreen.js'
+} from '../../src/screen/boot-face/BootResumeScreen.js'
 import { FIXED_CERT, RESUME_FIXTURE_LOGS, STILLS, composeHealth, composeResume, readStill, renderStill, resumeModelOf } from './face-door-stills.ts'
 
 const t = checker()
@@ -180,11 +180,11 @@ t.section('§7 — THE REAL MOUNT (staticRender with an injected certificate)')
   process.env['FORCE_COLOR'] = '3'
   process.env['MERCURY_CRITTER_GAZE'] = '0'
   process.env['MERCURY_LIVE_GLYPHS'] = '0'
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { BootHealthScreen } = await import('../../src/components/BootHealthScreen.js')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { BootHealthScreen } = await import('../../src/screen/boot-face/BootHealthScreen.js')
   const frame = await renderToString(
     React.createElement(BootHealthScreen, { certificate: FIXED_CERT, fullScene: { columns: 120, rows: 40 } } as never),
     120,
@@ -225,8 +225,8 @@ t.section('§8 — THE RESUME SKIN (one core, the face grammar; the real journey
 t.section('§9 — THE RESUME MOUNT (staticRender with an injected model; the lawful route door)')
 {
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { BootResumeScreen } = await import('../../src/components/BootResumeScreen.js')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { BootResumeScreen } = await import('../../src/screen/boot-face/BootResumeScreen.js')
   const model = { ...resumeModelOf('all'), pendingMore: 0 }
   const frame = await renderToString(
     React.createElement(BootResumeScreen, { model, fullScene: { columns: 120, rows: 40 } } as never),
@@ -241,10 +241,10 @@ t.section('§9 — THE RESUME MOUNT (staticRender with an injected model; the la
 t.section('§11 — ROUTE SILENCE around the real layers (no transition, no settle, the strip unmoved)')
 {
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { BootHealthScreen } = await import('../../src/components/BootHealthScreen.js')
-  const { BootResumeScreen } = await import('../../src/components/BootResumeScreen.js')
-  const routeStore = await import('../../src/context/surfaceRoute.js')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { BootHealthScreen } = await import('../../src/screen/boot-face/BootHealthScreen.js')
+  const { BootResumeScreen } = await import('../../src/screen/boot-face/BootResumeScreen.js')
+  const routeStore = await import('../../src/screen/routes/surfaceRoute.js')
   routeStore._resetSurfaceRouteForTesting()
   const unregister = routeStore.registerRouteSurface('boot-settings', { render: () => null })
   routeStore.initializeSurfaceRoute({ kind: 'boot-settings' })
@@ -263,8 +263,8 @@ t.section('§11 — ROUTE SILENCE around the real layers (no transition, no sett
 
 t.section('§12 — THE SPLASH ROAD (C5, Way A): the face-door deep-link outranks policy BOTH directions')
 {
-  const routeStore = await import('../../src/context/surfaceRoute.js')
-  const handover = await import('../../src/substrate/splashHandover.js')
+  const routeStore = await import('../../src/screen/routes/surfaceRoute.js')
+  const handover = await import('../../src/platform/substrate/splashHandover.js')
   process.env['MERCURY_FULLSCREEN'] = '1'
   routeStore._resetSurfaceRouteForTesting()
   const unregFace = routeStore.registerRouteSurface('boot-settings', { render: () => null })
@@ -300,21 +300,21 @@ t.section('§12 — THE SPLASH ROAD (C5, Way A): the face-door deep-link outrank
 
 t.section('§13 — BOARD CONNECT ROWS (the selected action opens sign-in on its family, not the plain face, and arms the way back to the picker)')
 {
-  const { armSignInPickerReturn, consumeSignInPickerReturn } = await import('../../src/components/concourse/ConcourseScreen.js')
+  const { armSignInPickerReturn, consumeSignInPickerReturn } = await import('../../src/screen/concourse/ConcourseScreen.js')
   armSignInPickerReturn({ kind: 'default' })
   t.check('the one-shot is consumed exactly once', JSON.stringify(consumeSignInPickerReturn()) === JSON.stringify({ kind: 'default' }) && consumeSignInPickerReturn() === null)
 }
 
 t.section('§14 — THE FAMILY RIDES THE DOOR (the row names its family; the face opens the sign-in layer on it and returns to the opener)')
 {
-  const { signInFamilyOfRow, GPT_CONNECT_OPTION_VALUE, ANTHROPIC_CONNECT_OPTION_VALUE, keyConnectValue } = await import('../../src/services/model/modelOptions.js')
+  const { signInFamilyOfRow, GPT_CONNECT_OPTION_VALUE, ANTHROPIC_CONNECT_OPTION_VALUE, keyConnectValue } = await import('../../src/models/catalogue/modelOptions.js')
   t.check('the GPT connect row names openai', signInFamilyOfRow(GPT_CONNECT_OPTION_VALUE) === 'openai')
   t.check('the Anthropic connect row names anthropic', signInFamilyOfRow(ANTHROPIC_CONNECT_OPTION_VALUE) === 'anthropic')
   for (const family of ['openrouter', 'gemini', 'huggingface']) t.check(`the ${family} connect row names ${family}`, signInFamilyOfRow(`__mercury_${family}_connect__`) === family)
   for (const lane of ['zai', 'moonshot', 'deepseek'] as const) t.check(`the ${lane} key row names ${lane}`, signInFamilyOfRow(keyConnectValue(lane)) === lane)
   t.check('the custom-endpoint row, a catalogue door and a model name no family', signInFamilyOfRow(keyConnectValue('compat')) === undefined && signInFamilyOfRow('__mercury_gemini_expand__') === undefined && signInFamilyOfRow('claude-opus-5') === undefined)
 
-  const handover = await import('../../src/substrate/splashHandover.js')
+  const handover = await import('../../src/platform/substrate/splashHandover.js')
   handover.consumeFaceDoorDeepLink()
   handover.armFaceDoorDeepLink('logins', { family: 'gemini', returnToOpener: true })
   t.check('the opener rides the armed door and is peeked with it', handover.peekFaceDoorDeepLink() === 'logins' && JSON.stringify(handover.peekFaceDoorOpener()) === JSON.stringify({ family: 'gemini', returnToOpener: true }))

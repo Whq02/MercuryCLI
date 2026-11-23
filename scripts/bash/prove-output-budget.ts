@@ -47,15 +47,15 @@ if (process.platform !== 'win32') process.env.PATH = `${SHIM_DIR}:${process.env.
 let failures = 0
 let checks = 0
 const WHERE_BY_SECTION: Record<string, string> = {
-  '0': 'the fixture assumes getMaxOutputLength in src/utils/shell/outputLimits.ts allows 30 000 characters; unset MERCURY_SHELL_MAX_OUTPUT or fix that function',
-  '1': 'change maxOutputCharsField, readMaxOutputChars and refuseMaxOutputChars in src/tools/BashTool/maxOutputChars.ts, their use in src/tools/BashTool/BashTool.tsx, or the input normaliser in src/services/messages/api.ts',
-  '2': 'change formatOutput in src/utils/shell/utils.ts',
-  '3': 'change resolveOutputBudget and the floor and default constants in src/utils/shell/outputLimits.ts',
-  '4': 'change how the Bash tool applies the budget in src/tools/BashTool/BashTool.tsx, formatOutput in src/utils/shell/utils.ts, or formatError in src/utils/toolErrors.ts',
-  '5': 'change the spill road: src/utils/task/TaskOutput.ts and how src/tools/BashTool/BashTool.tsx reads it',
-  '7': 'change formatError in src/utils/toolErrors.ts',
-  '8': 'change the PowerShell tool in src/tools/PowerShellTool/PowerShellTool.tsx so it matches the Bash tool',
-  '9': 'change outputBudgetClause in src/utils/shell/utils.ts or clampWait and clampClause in src/utils/waitCeiling.ts',
+  '0': 'the fixture assumes getMaxOutputLength in src/platform/shell/outputLimits.ts allows 30 000 characters; unset MERCURY_SHELL_MAX_OUTPUT or fix that function',
+  '1': 'change maxOutputCharsField, readMaxOutputChars and refuseMaxOutputChars in src/tools/shell/maxOutputChars.ts, their use in src/tools/shell/BashTool.tsx, or the input normaliser in src/engine/messages/apiSystemAndToolSchema.ts',
+  '2': 'change formatOutput in src/platform/shell/shellOutput.ts',
+  '3': 'change resolveOutputBudget and the floor and default constants in src/platform/shell/outputLimits.ts',
+  '4': 'change how the Bash tool applies the budget in src/tools/shell/BashTool.tsx, formatOutput in src/platform/shell/shellOutput.ts, or formatError in src/tools/kit/toolErrors.ts',
+  '5': 'change the spill road: src/engine/task-framework/taskOutput.ts and how src/tools/shell/BashTool.tsx reads it',
+  '7': 'change formatError in src/tools/kit/toolErrors.ts',
+  '8': 'change the PowerShell tool in src/tools/powershell/PowerShellTool.tsx so it matches the Bash tool',
+  '9': 'change outputBudgetClause in src/platform/shell/shellOutput.ts or clampWait and clampClause in src/tools/kit/waitCeiling.ts',
 }
 let sectionKey = '0'
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -68,27 +68,27 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(72) + '\n' + t)
 }
 
-const limits = (await import('../../src/utils/shell/outputLimits.ts')) as Record<string, unknown>
+const limits = (await import('../../src/platform/shell/outputLimits.ts')) as Record<string, unknown>
 const getMaxOutputLength = limits.getMaxOutputLength as () => number
 const cap = getMaxOutputLength()
 const defaultCap = limits.BASH_MAX_OUTPUT_DEFAULT as number
 const floor = typeof limits.BASH_MAX_OUTPUT_FLOOR === 'number' ? (limits.BASH_MAX_OUTPUT_FLOOR as number) : NaN
 type Budget = { effective: number; requested?: number; clampedTo?: string }
 const resolveOutputBudget = limits.resolveOutputBudget as ((requested: number | undefined) => Budget) | undefined
-const bashUtils = (await import('../../src/utils/shell/utils.ts')) as Record<string, unknown>
+const bashUtils = (await import('../../src/platform/shell/shellOutput.ts')) as Record<string, unknown>
 const formatOutput = bashUtils.formatOutput as (content: string, opts?: { preExcerpted?: boolean; maxLength?: number }) => { totalLines: number; truncatedContent: string }
 const outputBudgetClause = bashUtils.outputBudgetClause as (budget: Budget) => string | undefined
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { normalizeToolInput } = await import('../../src/services/messages/api.ts')
-const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
-const { getScratchpadDir } = await import('../../src/utils/permissions/filesystem.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const toolErrors = (await import('../../src/utils/toolErrors.ts')) as Record<string, unknown>
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { normalizeToolInput } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { getSimplePrompt } = await import('../../src/tools/shell/prompt.ts')
+const { getScratchpadDir } = await import('../../src/permissions/rules/filesystem.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const toolErrors = (await import('../../src/tools/kit/toolErrors.ts')) as Record<string, unknown>
 const formatError = toolErrors.formatError as (error: unknown) => string
 const formatZodValidationError = toolErrors.formatZodValidationError as (toolName: string, error: unknown, inputSchema?: unknown) => string
 const windowedError = toolErrors.windowedError as (<E extends Error>(error: E) => E) | undefined
 const cutAroundSpillNotice = toolErrors.cutAroundSpillNotice as ((content: string, maxLength: number) => string | null) | undefined
-const { ShellError } = await import('../../src/utils/errors.ts')
+const { ShellError } = await import('../../src/platform/errors/errors.ts')
 
 const LINE_WIDTH = 50
 const VERDICT = 'Tests: 1 failed, 412 passed'.padEnd(LINE_WIDTH - 1, '.')
@@ -265,7 +265,7 @@ const spilledOver = await run({ command: bigCommand, max_output_chars: 999_999 }
 check('a value above the cap on the spill road adds no clause: the window played no part', !/clamped to/.test(spilledOver.content) && withoutPaths(spilledOver.out.stdout) === withoutPaths(spilledPlain.out.stdout), spilledOver.content.slice(-200))
 
 section('§5b a FAILING command over the cap: the thrown text takes the window and keeps the spill notice with its path — and so does the model text, at any budget')
-const { TaskOutput } = await import('../../src/utils/task/TaskOutput.ts')
+const { TaskOutput } = await import('../../src/engine/task-framework/taskOutput.ts')
 const bigFailing = `${bigCommand}; exit 3`
 const SPILL_NOTICE = /\n\n\[(\d+) bytes truncated from the middle — the head and the tail of the output are shown; the complete output is saved at ([^\n]*?\.output)\]\n\n/
 const HEADLINE = 'Shell command failed (exit code 3)\n'
@@ -319,13 +319,13 @@ check('a shell error carrying a spill notice past the fixed window keeps the not
 check('…and its count stays honest: shown bytes + the count = the whole output', spilledNotice !== null && (spilledModel.match(/H/g) ?? []).length + (spilledModel.match(/T/g) ?? []).length + Number(spilledNotice?.[1] ?? 0) === 98_000, `${(spilledModel.match(/H/g) ?? []).length} + ${(spilledModel.match(/T/g) ?? []).length} shown + ${spilledNotice?.[1] ?? '(no notice)'}`)
 
 section('§8 PowerShell parity: the same field, the same words, the same window and clause — the tool driven end to end through a pwsh shim on PATH that runs the command with bash')
-const { PowerShellTool } = await import('../../src/tools/PowerShellTool/PowerShellTool.tsx')
-const { getPrompt: getPowerShellPrompt } = await import('../../src/tools/PowerShellTool/prompt.ts')
+const { PowerShellTool } = await import('../../src/tools/powershell/PowerShellTool.tsx')
+const { getPrompt: getPowerShellPrompt } = await import('../../src/tools/powershell/prompt.ts')
 const psSchema = PowerShellTool.inputSchema as unknown as { safeParse: (value: unknown) => Parsed }
 const psAccepted = psSchema.safeParse({ command: 'true', max_output_chars: 2000 })
 check('the PowerShell schema accepts max_output_chars: 2000', psAccepted.success && psAccepted.data?.max_output_chars === 2000, psAccepted.success ? JSON.stringify(psAccepted.data) : `${(psAccepted.error?.issues ?? []).map(i => i.message).join('; ')} → ${formatZodValidationError('PowerShell', psAccepted.error, PowerShellTool.inputSchema).replace(/\n/g, ' ')}`)
 for (const bad of [0, -5, 2.5, 'ten']) check(`PowerShell keeps a typed refusal for ${JSON.stringify(bad)}`, !psSchema.safeParse({ command: 'true', max_output_chars: bad }).success)
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
 const psJson = zodToJsonSchema(PowerShellTool.inputSchema as never) as { properties?: Record<string, { type?: string; description?: string }>; required?: string[] }
 const psProjected = psJson.properties?.max_output_chars
 check('the PowerShell projection carries the field as an optional integer', psProjected?.type === 'integer' && !(psJson.required ?? []).includes('max_output_chars'), JSON.stringify(psProjected ?? null))
@@ -360,7 +360,7 @@ const psFailOver = await failPs({ command: psFailing, max_output_chars: 999_999 
 check('PowerShell: a value above the cap on the error road: today’s bytes plus the clause once, the model text whole', psFailOver.text === `${thirtyK}\n${overClause}${psFailSuffix}` && !/characters removed/.test(psFailOver.model) && (psFailOver.model.match(/clamped to/g) ?? []).length === 1 && psFailOver.model.length > cap, `${psFailOver.text.length} thrown / ${psFailOver.model.length} model chars; tail ${JSON.stringify(psFailOver.text.slice(-100))}`)
 
 section('§9 one function mints every clamp clause')
-const ceiling = (await import('../../src/utils/waitCeiling.ts')) as Record<string, unknown>
+const ceiling = (await import('../../src/tools/kit/waitCeiling.ts')) as Record<string, unknown>
 const clampWait = ceiling.clampWait as (parameter: string, requested: number, floor: number, ceiling: number, unit: string) => { value: number; clause: string | null }
 const clampClause = ceiling.clampClause as ((parameter: string, value: number, bound: 'maximum' | 'minimum', unit: string) => string) | undefined
 check('the Bash clause is clampWait’s own grammar inside brackets, above the cap', outputBudgetClause({ effective: cap, requested: 999_999, clampedTo: 'maximum' }) === `[${clampWait('max_output_chars', 999_999, floor, cap, 'chars').clause}]` && overClause === `[${clampWait('max_output_chars', 999_999, floor, cap, 'chars').clause}]`)

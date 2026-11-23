@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { DUNE_FAINT } from '../../src/components/mercuryPalette.ts'
+import { DUNE_FAINT } from '../../src/screen/theme/mercuryPalette.ts'
 import { CONFIG_HOME, cleanupScenario, scenario } from '../ui/renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
@@ -81,19 +81,19 @@ if (base) {
   errY = rowOf('Error: ENOENT: no such file or directory')
   check('baseline: agent Done row present', agentY >= 0, '', 'the click-expand scenario in scripts/ui/renderScenarios.ts must paint an agent row reading Done (3 tool uses; check the synthetic session it writes and how the agent row renders')
   if (agentY < 0) dumpFrame('baseline frame — the agent Done row is absent', base.lines)
-  check('baseline: agent report HIDDEN', rowOf('REPORT-LINE') === -1, '', 'a collapsed agent result must not show its report; see isItemClickable and the expansion state in src/components/messagesList/useRowExpansion.ts')
+  check('baseline: agent report HIDDEN', rowOf('REPORT-LINE') === -1, '', 'a collapsed agent result must not show its report; see isItemClickable and the expansion state in src/screen/messages-list/useRowExpansion.ts')
   check(
     'baseline: agent row carries the ⌄ cue',
     agentY >= 0 && (base.lines[agentY]!.includes('⌄') || (base.lines[agentY + 1] ?? '').includes('⌄')),
     '',
-    'a collapsed agent row must carry the ⌄ cue on its Done row or the row below it; see hiddenAgentToolUses in src/tools/AgentTool/UI.tsx',
+    'a collapsed agent row must carry the ⌄ cue on its Done row or the row below it; see hiddenAgentToolUses in src/tools/crewmate/rows.tsx',
   )
   check('baseline: glob group collapsed', globY >= 0 && rowOf('GlobTool/prompt.ts') === -1, '', 'the Searched for 1 pattern group must paint collapsed with its file list hidden until clicked')
   check(
     'baseline: Edit says its first error clause with stack frames hidden',
     errY >= 0 && rowOf('+3 stack frames') === -1 && rowOf('at Object.openSync') === -1 && rowOf('The target file could not be read') === -1,
     '',
-    'a collapsed tool error must show only its first clause and keep the +3 stack frames fold and the raw frames hidden; see isItemClickable in src/components/messagesList/useRowExpansion.ts',
+    'a collapsed tool error must show only its first clause and keep the +3 stack frames fold and the raw frames hidden; see isItemClickable in src/screen/messages-list/useRowExpansion.ts',
   )
 }
 
@@ -109,14 +109,14 @@ if (base && agentY >= 0) {
   )
   if (t) {
     const rowOf = (needle: string): number => t.lines.findIndex(l => l.includes(needle))
-    check('toggle: agent report hidden again after 2nd click', rowOf('REPORT-LINE') === -1, '', 'the second click on the open agent report must collapse it again; see toggleExpandedRow in src/components/messages/transcriptMemory.ts')
+    check('toggle: agent report hidden again after 2nd click', rowOf('REPORT-LINE') === -1, '', 'the second click on the open agent report must collapse it again; see toggleExpandedRow in src/screen/messages/transcriptMemory.ts')
     const doneY = rowOf('Done (3 tool uses')
-    check('toggle: agent Done row back on screen', doneY >= 0, '', 'after the collapse the Done (3 tool uses row must be painted again; see src/components/messagesList/useRowExpansion.ts')
+    check('toggle: agent Done row back on screen', doneY >= 0, '', 'after the collapse the Done (3 tool uses row must be painted again; see src/screen/messages-list/useRowExpansion.ts')
     check(
       'toggle: the ⌄ cue is back (honest fold marker)',
       doneY >= 0 && ((t.lines[doneY] ?? '').includes('⌄') || (t.lines[doneY + 1] ?? '').includes('⌄')),
       '',
-      'the collapsed agent row must show the ⌄ cue again after the toggle; see src/tools/AgentTool/UI.tsx and src/components/messagesList/useRowExpansion.ts',
+      'the collapsed agent row must show the ⌄ cue again after the toggle; see src/tools/crewmate/rows.tsx and src/screen/messages-list/useRowExpansion.ts',
     )
   }
 } else {
@@ -136,15 +136,15 @@ if (base && globY >= 0 && errY >= 0) {
   if (e) {
     const rowOf = (needle: string): number => e.lines.findIndex(l => l.includes(needle))
     const fileRow = rowOf('GlobTool/prompt.ts')
-    check('glob click: file list revealed', fileRow >= 0 && rowOf('GlobTool.ts') >= 0, '', 'a click on the Searched for 1 pattern row must expand its file list; see isItemClickable and toggleExpandedRow wiring in src/components/messagesList/useRowExpansion.ts')
+    check('glob click: file list revealed', fileRow >= 0 && rowOf('GlobTool.ts') >= 0, '', 'a click on the Searched for 1 pattern row must expand its file list; see isItemClickable and toggleExpandedRow wiring in src/screen/messages-list/useRowExpansion.ts')
     check(
       'glob click: expanded block wears the DUNE_FAINT bg',
       fileRow >= 0 &&
         e.grid[fileRow]!.some(c => c.bg?.toLowerCase() === DUNE_FAINT.slice(1).toLowerCase()),
       '',
-      'the expanded block must paint DUNE_FAINT (src/components/mercuryPalette.ts) as its background on the revealed rows',
+      'the expanded block must paint DUNE_FAINT (src/screen/theme/mercuryPalette.ts) as its background on the revealed rows',
     )
-    check('error click: raw stack frames revealed', rowOf('at Object.openSync') >= 0, '', 'a click on the collapsed error row must reveal its raw stack frames; see isItemClickable in src/components/messagesList/useRowExpansion.ts')
+    check('error click: raw stack frames revealed', rowOf('at Object.openSync') >= 0, '', 'a click on the collapsed error row must reveal its raw stack frames; see isItemClickable in src/screen/messages-list/useRowExpansion.ts')
     check('error click: fold row gone', rowOf('+3 stack frames') === -1, '', 'once the error is expanded the +3 stack frames fold row must no longer be painted')
   }
 } else {
@@ -233,7 +233,7 @@ cleanupScenario('click-expand')
       'clicking the FURTHER-UP row expands it (echo hi revealed)',
       afterTop !== null && afterTop.some(l => l.includes('Bash echo hi')),
       afterTop === null ? 'capture failed' : bashRows(afterTop),
-      'a click on the upper bash command row must expand it; see isItemClickable in src/components/messagesList/useRowExpansion.ts',
+      'a click on the upper bash command row must expand it; see isItemClickable in src/screen/messages-list/useRowExpansion.ts',
     )
     const afterBot = run(
       'bottom',
@@ -247,7 +247,7 @@ cleanupScenario('click-expand')
       'clicking the newest row expands it (shasum revealed)',
       afterBot !== null && afterBot.some(l => l.includes('shasum -a 256')),
       afterBot === null ? 'capture failed' : bashRows(afterBot),
-      'a click on the newest bash command row must expand it while the upper one is open; see isItemClickable in src/components/messagesList/useRowExpansion.ts',
+      'a click on the newest bash command row must expand it while the upper one is open; see isItemClickable in src/screen/messages-list/useRowExpansion.ts',
     )
     const jitter = run(
       'jitter',
@@ -261,7 +261,7 @@ cleanupScenario('click-expand')
       'a one-cell drift click still toggles (the slop law)',
       jitter !== null && jitter.some(l => l.includes('Bash echo hi')),
       jitter === null ? 'capture failed' : bashRows(jitter),
-      'a press and release one cell apart must still toggle the row; see the click handling that calls toggleExpandedRow from src/components/messages/transcriptMemory.ts',
+      'a press and release one cell apart must still toggle the row; see the click handling that calls toggleExpandedRow from src/screen/messages/transcriptMemory.ts',
     )
   }
 }

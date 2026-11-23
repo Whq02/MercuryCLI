@@ -12,7 +12,7 @@ const { scenario, cleanupScenario } = await import('../ui/renderScenarios.ts')
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  const changeViewHint = 'fix the card paint in src/components/InlineChangeView.tsx (state word, counts, ctrl+o expands, diff · file rails, hunk body) or the diagnostics and mercury://structure/preview lines in src/tools/StructureTool/StructureTool.ts; the fixture is the structure-card scenario in scripts/ui/renderScenarios.ts'
+  const changeViewHint = 'fix the card paint in src/tools/kit/InlineChangeView.tsx (state word, counts, ctrl+o expands, diff · file rails, hunk body) or the diagnostics and mercury://structure/preview lines in src/tools/structure/StructureTool.ts; the fixture is the structure-card scenario in scripts/ui/renderScenarios.ts'
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${changeViewHint}`}`)
   if (!ok) failures = 1
 }

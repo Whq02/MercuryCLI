@@ -9,10 +9,10 @@ process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 delete process.env.MERCURY_HOME
 
-const writer = await import(join(SRC, 'utils/sessionStorage/writer.ts'))
+const writer = await import(join(SRC, 'sessions/transcripts/writer.ts'))
 
 let failures = 0
-const drainLadderFailHint = 'fix the drain, retry timer and failure streak in src/utils/sessionStorage/writer/queue.ts, the flush entry flushSessionStorage in src/utils/sessionStorage/writer.ts, or the published fact in src/utils/sessionStorage/writer/storeHealth.ts (transcriptStoreHealth)'
+const drainLadderFailHint = 'fix the drain, retry timer and failure streak in src/sessions/transcripts/writer/queue.ts, the flush entry flushSessionStorage in src/sessions/transcripts/writer.ts, or the published fact in src/sessions/transcripts/writer/storeHealth.ts (transcriptStoreHealth)'
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${drainLadderFailHint}`}`)
   if (!ok) failures = 1

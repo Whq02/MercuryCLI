@@ -13,7 +13,7 @@ delete process.env.MERCURY_MODEL
 delete process.env.MERCURY_HOME
 
 let failures = 0
-const startHint = 'to fix, change the session.start payload and first-prompt answer built by runSessionStartHooks in src/services/sessionStart.ts (its model comes from getEngineModel in src/services/model/model.ts; the resume payload from loadConversationForResume in src/services/resume/conversationRecovery.ts; the headless boot fallback from loadInitialMessages in src/cli/headless/resume.ts)'
+const startHint = 'to fix, change the session.start payload and first-prompt answer built by runSessionStartHooks in src/daemon/runner/sessionStart.ts (its model comes from getEngineModel in src/models/catalogue/engineModel.ts; the resume payload from loadConversationForResume in src/sessions/resume/conversationRecovery.ts; the headless boot fallback from loadInitialMessages in src/daemon/runner/resume.ts)'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${startHint}` : ''}`)
   if (!cond) failures++
@@ -32,15 +32,15 @@ const writeSettings = (engine?: Record<string, unknown>): void =>
     }),
   )
 
-const state = await import('../../src/bootstrap/state.js')
-const { setCwd } = await import('../../src/utils/Shell.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
-const { refreshHooksSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.js')
-const { runSessionStartHooks, takeFirstPrompt } = await import('../../src/services/sessionStart.js')
-const { getEngineModel } = await import('../../src/services/model/model.js')
-const { loadConversationForResume } = await import('../../src/services/resume/conversationRecovery.js')
-const { loadInitialMessages } = await import('../../src/cli/headless/resume.js')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.js')
+const state = await import('../../src/boot/process-state/processState.js')
+const { setCwd } = await import('../../src/platform/shell/shellExec.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
+const { refreshHooksSnapshot } = await import('../../src/integrations/event-hooks/hooksConfigSnapshot.js')
+const { runSessionStartHooks, takeFirstPrompt } = await import('../../src/daemon/runner/sessionStart.js')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.js')
+const { loadConversationForResume } = await import('../../src/sessions/resume/conversationRecovery.js')
+const { loadInitialMessages } = await import('../../src/daemon/runner/resume.js')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.js')
 
 setCwd(PROJ)
 state.setOriginalCwd(PROJ)

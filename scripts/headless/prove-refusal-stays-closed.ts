@@ -195,12 +195,12 @@ async function runSeat(tag: string, script: () => ScriptedTurn[], prompts: strin
 
 section('§0 the plan: a provider refusal (stop_reason: refusal) is shown to the user in the transcript and never fed back to the model — the row leaves the wire view, the turns around it stay lawful')
 {
-  closedFixHint = 'change requestConversationPlan in src/services/messages/apiPlan.ts so a provider refusal row is left out of the wire view while the transcript keeps it and the turns stay alternating'
+  closedFixHint = 'change requestConversationPlan in src/engine/messages/apiPlan.ts so a provider refusal row is left out of the wire view while the transcript keeps it and the turns stay alternating'
   ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
   process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
   process.env.MERCURY_LOCAL_PROBE_TARGETS ??= 'none'
-  const { requestConversationPlan } = await import('../../src/services/messages/apiPlan.ts')
-  const { createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
+  const { requestConversationPlan } = await import('../../src/engine/messages/apiPlan.ts')
+  const { createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
   const COCKPIT_WORDS = 'The model ended the response early (stop_reason: refusal). Use /rewind (or shift+up) to edit your last message, or start a new session. If refusals repeat, try /model claude-haiku-4-5-20251001.'
   const HEADLESS_WORDS = 'The model ended the response early (stop_reason: refusal). Try rephrasing the request or a different approach.'
   for (const [road, words] of [['cockpit', COCKPIT_WORDS], ['headless', HEADLESS_WORDS]] as const) {
@@ -232,7 +232,7 @@ section('§0 the plan: a provider refusal (stop_reason: refusal) is shown to the
 
 section('§1 the model view: the provider refusal never reaches the next request (the ward refusals of §2 still do, as closed tool results)')
 {
-  closedFixHint = 'the built bundle at dist/mercury.mjs sent a refusal row or its words to the model: look at where requests are planned in src/services/messages/apiPlan.ts, then rebuild with bun run build.ts'
+  closedFixHint = 'the built bundle at dist/mercury.mjs sent a refusal row or its words to the model: look at where requests are planned in src/engine/messages/apiPlan.ts, then rebuild with bun run build.ts'
   const prompts = [
     `Use the Bash tool to run exactly this command and nothing else: ${ROOT_DELETE}`,
     `Use the Bash tool to run exactly this command and nothing else: ${HOME_DELETE_TARGET}`,
@@ -259,7 +259,7 @@ section('§1 the model view: the provider refusal never reaches the next request
 
 section('§2 the resurface: a scripted model that re-issues the refused commands on a harmless prompt meets the same refusals')
 {
-  closedFixHint = 'the ward rules no-root-recursive-delete and no-other-user-delete and the refusal text buildWardDenial live in src/utils/wards/wards.ts; the harmless python3 call must still run; rebuild with bun run build.ts after a change'
+  closedFixHint = 'the ward rules no-root-recursive-delete and no-other-user-delete and the refusal text buildWardDenial live in src/permissions/wards/wards.ts; the harmless python3 call must still run; rebuild with bun run build.ts after a change'
   const prompts = [
     `Use the Bash tool to run exactly this command and nothing else: ${ROOT_DELETE}`,
     `Use the Bash tool to run exactly this command and nothing else: ${HOME_DELETE_TARGET}`,
@@ -288,7 +288,7 @@ section('§2 the resurface: a scripted model that re-issues the refused commands
   }
 }
 
-closedFixHint = 'a destructive command ran or removed the canary file: check the ward rules in src/utils/wards/wards.ts and the permission road that lets a Bash rm reach the shell'
+closedFixHint = 'a destructive command ran or removed the canary file: check the ward rules in src/permissions/wards/wards.ts and the permission road that lets a Bash rm reach the shell'
 check('the canary survived — no destructive command ever ran', readFileSync(canary, 'alive'.length === 0 ? 'utf8' : 'utf8') === 'alive')
 rmSync(canaryRoot, { recursive: true, force: true })
 

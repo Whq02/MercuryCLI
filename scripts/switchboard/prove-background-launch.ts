@@ -24,9 +24,9 @@ const ROOT = join(import.meta.dirname, '../..')
 type Kind = 'subagents'
 const KINDS: Kind[] = ['subagents']
 
-const { focusConcourseSession, grantConcourseWorkflows, readSessionWorkers, revokeConcourseWorkflows, updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.js')
-const { evaluateLaunchAuthority } = await import('../../src/services/switchboard/launchAuthority.js')
-const { spawnSwitchOffReceipt } = await import('../../src/services/switchboard/spawnSwitches.js')
+const { focusConcourseSession, grantConcourseWorkflows, readSessionWorkers, revokeConcourseWorkflows, updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.js')
+const { evaluateLaunchAuthority } = await import('../../src/daemon/switchboard/launchAuthority.js')
+const { spawnSwitchOffReceipt } = await import('../../src/daemon/switchboard/spawnSwitches.js')
 
 type Setting = {
   BACKGROUND_LAUNCH_KEY: string
@@ -38,7 +38,7 @@ type Setting = {
 }
 let setting: Setting | null = null
 try {
-  setting = (await import('../../src/services/switchboard/backgroundLaunch.js')) as unknown as Setting
+  setting = (await import('../../src/daemon/switchboard/backgroundLaunch.js')) as unknown as Setting
 } catch (error) {
   console.log(`  (the setting module is absent on this tree: ${error instanceof Error ? error.message.split('\n')[0] : String(error)})`)
 }
@@ -65,7 +65,7 @@ const refusalRoads = (reason: string): boolean =>
 
 console.log('LAW 1 — the truth table: switch × role × focus × tag × setting')
 {
-  lawSource = 'evaluateLaunchAuthority in src/services/switchboard/launchAuthority.ts, or the focus, grant and revoke functions behind src/daemon/concourseWorkers.ts'
+  lawSource = 'evaluateLaunchAuthority in src/daemon/switchboard/launchAuthority.ts, or the focus, grant and revoke functions behind src/daemon/concourse-workers/concourseWorkers.ts'
   for (const kind of KINDS) {
     const off = evaluateLaunchAuthority(kind, { roleEnvOn: true, dir: recDir, sessionId: sidA, settingOn: true, spawnSwitch: { on: false, source: 'in-session' } } as never)
     check(`${kind}: the session's own switch off refuses with the switch receipt whatever the setting says`, !off.allowed && off.cause === 'session-switch' && off.reason === spawnSwitchOffReceipt(kind), j(off))
@@ -111,9 +111,9 @@ console.log('LAW 1 — the truth table: switch × role × focus × tag × settin
 
 console.log('LAW 2 — the one leaf: off by default, read live, absent when off')
 {
-  lawSource = 'src/services/switchboard/backgroundLaunch.ts (the setting module), the backgroundSessionsLaunchCrewmates key in src/utils/config/schema.ts and src/utils/config/globalConfig.ts'
-  const { enableConfigs, getGlobalConfig } = await import('../../src/utils/config.js')
-  const schema = await import('../../src/utils/config/schema.js')
+  lawSource = 'src/daemon/switchboard/backgroundLaunch.ts (the setting module), the backgroundSessionsLaunchCrewmates key in src/platform/config/schema.ts and src/platform/config/globalConfig.ts'
+  const { enableConfigs, getGlobalConfig } = await import('../../src/platform/settings/config.js')
+  const schema = await import('../../src/platform/config/schema.js')
   enableConfigs()
   check('the setting module exists', setting !== null)
   check('the leaf is on the global-config key allowlist', (schema.GLOBAL_CONFIG_KEYS as readonly string[]).includes('backgroundSessionsLaunchCrewmates') && schema.isGlobalConfigKey('backgroundSessionsLaunchCrewmates'))
@@ -135,7 +135,7 @@ console.log('LAW 2 — the one leaf: off by default, read live, absent when off'
   const after = JSON.parse(readFileSync(join(HOME, '.mercury.json'), 'utf8')) as Record<string, unknown>
   check('turned off, the key leaves the file (absent = off, never a stored false)', !('backgroundSessionsLaunchCrewmates' in after), j(after))
   check('and the valve refuses again', !evaluateLaunchAuthority('subagents', { roleEnvOn: true, dir: recDir, sessionId: sidB } as never).allowed)
-  const { decodeGlobalConfigFields } = await import('../../src/utils/config/globalConfig.js')
+  const { decodeGlobalConfigFields } = await import('../../src/platform/config/globalConfig.js')
   const decoded = decodeGlobalConfigFields({ backgroundSessionsLaunchCrewmates: 'yes', numStartups: 1 }) as Record<string, unknown>
   check('a stored value that is not a boolean is dropped at the read door (the field-shape guard)', !('backgroundSessionsLaunchCrewmates' in decoded), j(decoded))
   check('the receipt words say what the switch does, on and off', setting !== null && setting.backgroundLaunchReceiptWords(true).startsWith(`${LABEL} on — `) && setting.backgroundLaunchReceiptWords(false).startsWith(`${LABEL} off — `))
@@ -143,8 +143,8 @@ console.log('LAW 2 — the one leaf: off by default, read live, absent when off'
 
 console.log("LAW 4 — the worker's prompt sentence follows the setting at spawn")
 {
-  lawSource = 'buildConcourseWorkerSpec behind src/daemon/concourseWorkers.ts, the system prompt it appends'
-  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.js')
+  lawSource = 'buildConcourseWorkerSpec behind src/daemon/concourse-workers/concourseWorkers.ts, the system prompt it appends'
+  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourse-workers/concourseWorkers.js')
   const specOf = () => buildConcourseWorkerSpec({ runnerId: 'concourse-w9', sessionId: sidA, workspaceId, modelKey: 'claude-fable-5', cwd: join(workspaceId, '.wt', 'concourse-w9') })
   const off = specOf().appendSystemPrompt ?? ''
   check('setting OFF: the worker is told delegation needs the tag, the operator, or the setting turned on', off.includes('Delegation (crewmates) is available only while this session holds the crewmates-allowed tag, the operator is present, or the operator has turned on ' + LABEL + ' — when the tool is absent, plan and work single-handed; never wait for it.'), off)
@@ -212,7 +212,7 @@ console.log('LAW 5 — the /health status row says why backgrounded sessions may
 
 console.log('LAW 3 — the source pins')
 {
-  lawSource = 'BACKGROUND_LAUNCH_MENU_ROW in src/services/switchboard/backgroundLaunch.ts'
+  lawSource = 'BACKGROUND_LAUNCH_MENU_ROW in src/daemon/switchboard/backgroundLaunch.ts'
   const row = setting?.BACKGROUND_LAUNCH_MENU_ROW
   check("the boot-menu row descriptor: the agents group, a live toggle, off by default, keyed by the leaf", row !== undefined && row.group === 'agents' && row.kind === 'toggle' && row.defaultLabel === 'off' && row.applicationClass === 'live' && row.env === 'backgroundSessionsLaunchCrewmates' && row.label === LABEL, j(row))
 }

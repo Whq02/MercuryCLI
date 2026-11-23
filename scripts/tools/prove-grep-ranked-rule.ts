@@ -17,12 +17,12 @@ let failures = 0
 let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' — Hint: the rule lives in src/tools/GrepTool/rankedSearch.ts (rankedWords, holdsWord, rankedScope, rankedRefusal, countPassArgs, linePassArgs, rankedSearch, renderRanked); change the function this check names there, not the check.'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' — Hint: the rule lives in src/tools/grep/rankedSearch.ts (rankedWords, holdsWord, rankedScope, rankedRefusal, countPassArgs, linePassArgs, rankedSearch, renderRanked); change the function this check names there, not the check.'}`)
   if (!cond) failures++
 }
 
-const { countPassArgs, holdsWord, linePassArgs, rankedRefusal, rankedScope, rankedSearch, rankedWords, renderRanked } = await import('../../src/tools/GrepTool/rankedSearch.ts')
-const { ripGrepAnswer } = await import('../../src/utils/ripgrep.ts')
+const { countPassArgs, holdsWord, linePassArgs, rankedRefusal, rankedScope, rankedSearch, rankedWords, renderRanked } = await import('../../src/tools/grep/rankedSearch.ts')
+const { ripGrepAnswer } = await import('../../src/platform/shell/ripgrep.ts')
 
 type Pass = { lines: string[]; complete: boolean; reason?: string }
 const names = (pattern: string): string[] => rankedWords(pattern).map(word => word.word)

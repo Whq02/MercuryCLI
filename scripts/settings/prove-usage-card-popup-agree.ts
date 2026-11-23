@@ -8,8 +8,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
-import type { DOMElement } from '../../src/ink/dom.js'
-import type { UsageWindowView } from '../../src/services/providers/providerUsage.ts'
+import type { DOMElement } from '../../src/screen/renderer/dom.js'
+import type { UsageWindowView } from '../../src/models/roads/providerUsage.ts'
 
 const localeString = Date.prototype.toLocaleString
 Date.prototype.toLocaleString = function (_locales, options) { return localeString.call(this, 'en-US', { ...options, timeZone: 'UTC' }) }
@@ -33,7 +33,7 @@ const arg = (name: string): string | undefined => {
 }
 let failures = 0
 const USAGE_AGREE_FAILURE_HINT =
-  'fix the shared usage read in src/services/providers/providerUsage.ts (windowSourceUsages, openaiObservedWindowViews, usageViewIsStale) and the age words in src/services/providers/usageFreshness.ts (usageSourceWords, usageAgeTail), so the card rows and the /usage popup in src/components/Settings/Usage.tsx read the same record, whichever this check names'
+  'fix the shared usage read in src/models/roads/providerUsage.ts (windowSourceUsages, openaiObservedWindowViews, usageViewIsStale) and the age words in src/models/roads/usageFreshness.ts (usageSourceWords, usageAgeTail), so the card rows and the /usage popup in src/screen/settings/Usage.tsx read the same record, whichever this check names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${USAGE_AGREE_FAILURE_HINT}` : ''}`)
@@ -44,34 +44,34 @@ function section(t: string): void {
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 async function stub(path: string, fixtureExports: () => Record<string, unknown>): Promise<void> {
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...fixtureExports() }))
 }
-await stub('../../src/services/providers/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
-await stub('../../src/services/providers/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
-await stub('../../src/hooks/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
-await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
-await stub('../../src/services/providers/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
-await stub('../../src/services/providers/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined }))
-await stub('../../src/services/providers/local/localAccounts.js', () => ({ resolveLocalAccount: () => undefined }))
-await stub('../../src/components/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
+await stub('../../src/models/roads/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
+await stub('../../src/models/roads/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
+await stub('../../src/screen/model-picker/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
+await stub('../../src/screen/keys/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
+await stub('../../src/models/roads/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
+await stub('../../src/models/roads/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined }))
+await stub('../../src/models/roads/local/localAccounts.js', () => ({ resolveLocalAccount: () => undefined }))
+await stub('../../src/screen/keys/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
 
-const { noteCredentialChange } = await import('../../src/utils/accounts/signInLedger.ts')
-const openaiLimits = await import('../../src/services/providers/openai/openaiLimitState.ts')
-const owner = await import('../../src/services/providers/providerUsage.ts')
-const fresh = await import('../../src/services/providers/usageFreshness.ts')
-const { formatCountdown, formatCountdownCoarse } = await import('../../src/services/cockpit/quota.ts')
-const { Usage } = await import('../../src/components/Settings/Usage.js')
-const { Box, Text, render, flushPendingSyncWork, EventEmitter } = await import('../../src/ink.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { UsageMeter } = await import('../../src/components/mercury-ui/components.js')
-const { railPanelInnerWidth } = await import('../../src/components/mercury-ui/RailPanel.js')
-const { railPlanAt } = await import('../../src/utils/helmGeometry.ts')
+const { noteCredentialChange } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
+const openaiLimits = await import('../../src/models/roads/openai/openaiLimitState.ts')
+const owner = await import('../../src/models/roads/providerUsage.ts')
+const fresh = await import('../../src/models/roads/usageFreshness.ts')
+const { formatCountdown, formatCountdownCoarse } = await import('../../src/screen/cockpit-gauges/quota.ts')
+const { Usage } = await import('../../src/screen/settings/Usage.js')
+const { Box, Text, render, flushPendingSyncWork, EventEmitter } = await import('../../src/screen/themedRenderer.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { UsageMeter } = await import('../../src/screen/widgets/components.js')
+const { railPanelInnerWidth } = await import('../../src/screen/widgets/RailPanel.js')
+const { railPlanAt } = await import('../../src/screen/fullscreen-layout/helmGeometry.ts')
 
 const settle = async (): Promise<void> => {
   for (let index = 0; index < 6; index++) {

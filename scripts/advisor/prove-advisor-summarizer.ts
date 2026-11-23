@@ -18,7 +18,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix liveAdvisorSummarizer in src/services/advisor/advisorSummarizer.ts (the request it sends) or compactAdvisorContext in src/services/advisor/advisorContext.ts (the fold of the memory rows)' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix liveAdvisorSummarizer in src/models/advisor/advisorSummarizer.ts (the request it sends) or compactAdvisorContext in src/models/advisor/advisorContext.ts (the fold of the memory rows)' : ''}`)
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
@@ -26,12 +26,12 @@ const j = (v: unknown): string => JSON.stringify(v)
 const { startOverflowFixture, OVERFLOW_LANES } = await import('../compact/overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const summarizer = await import('../../src/services/advisor/advisorSummarizer.ts')
-const advisor = await import('../../src/services/advisor/advisorContext.ts')
+const summarizer = await import('../../src/models/advisor/advisorSummarizer.ts')
+const advisor = await import('../../src/models/advisor/advisorContext.ts')
 
 const SYSTEM = 'You are summarizing the older portion of a memory. Write three numbered sections.'
 const TRANSCRIPT = "[the agent's conversation, as shown to you] the parser accepts quoted commas\n[your note to the agent] run the fourteen checks before the commit"
@@ -100,8 +100,8 @@ try {
 
   section('§5 A PROVIDER ERROR AFTER PARTIAL TEXT — the error row is never the summary, and the words before it are not one either')
   {
-    const router = await import('../../src/services/providers/callModelRouter.js')
-    mock.module('../../src/services/providers/callModelRouter.js', () => ({
+    const router = await import('../../src/models/roads/callModelRouter.js')
+    mock.module('../../src/models/roads/callModelRouter.js', () => ({
       ...router,
       async *routedCallModel() {
         yield { type: 'assistant', message: { content: [{ type: 'text', text: 'partial summary' }] } }

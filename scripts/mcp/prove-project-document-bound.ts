@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/mcp/config.ts src/services/mcp/client.ts src/cli/handlers/mcp.tsx
+// gate-watch: src/integrations/mcp/serverConfigs.ts src/integrations/mcp/client.ts src/commands/verbs/mcp.tsx
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -20,10 +20,10 @@ delete process.env.MERCURY_MCP_CONNECTION_BATCH
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 let failures = 0
 const documentBoundHint = (label: string): string => {
-  if (label.startsWith('mcp list')) return 'change mcpListHandler in src/cli/handlers/mcp.tsx (after rebuilding dist with bun run build.ts) so the list shows the bounded servers and the document line'
-  if (label.startsWith('the scripted') || label.startsWith('the existing')) return 'change getMcpToolsCommandsAndResources in src/services/mcp/client.ts so local servers connect with at most three overlapping'
+  if (label.startsWith('mcp list')) return 'change mcpListHandler in src/commands/verbs/mcp.tsx (after rebuilding dist with bun run build.ts) so the list shows the bounded servers and the document line'
+  if (label.startsWith('the scripted') || label.startsWith('the existing')) return 'change getMcpToolsCommandsAndResources in src/integrations/mcp/client.ts so local servers connect with at most three overlapping'
   if (label.startsWith('the built CLI')) return 'run bun run build.ts to write dist/mercury.mjs'
-  return 'change parseMcpConfig in src/services/mcp/config.ts so a project document keeps its first 64 entries in file order and carries one document line'
+  return 'change parseMcpConfig in src/integrations/mcp/serverConfigs.ts so a project document keeps its first 64 entries in file order and carries one document line'
 }
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
@@ -49,7 +49,7 @@ const list = (): { status: number | null; output: string; elapsed: number } => {
 
 try {
   check('the built CLI exists for the mcp list fixture', existsSync(dist), dist)
-  const { parseMcpConfig } = await import('../../src/services/mcp/config.ts')
+  const { parseMcpConfig } = await import('../../src/integrations/mcp/serverConfigs.ts')
   const large = parseMcpConfig({ configObject: { mcpServers: entries(2000) }, expandVars: false, scope: 'project', filePath: projectFile })
   check('a 2,000-entry document keeps its first 64 entries', Object.keys(large.config?.mcpServers ?? {}).length === 64, String(Object.keys(large.config?.mcpServers ?? {}).length))
   check('the kept entries are in file order', Object.keys(large.config?.mcpServers ?? {})[63] === 'server-0063' && !('server-0064' in (large.config?.mcpServers ?? {})))
@@ -76,9 +76,9 @@ try {
 
   const overlapLog = join(root, 'overlap.jsonl')
   writeFileSync(overlapLog, '')
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { getMcpToolsCommandsAndResources, clearServerCache } = await import('../../src/services/mcp/client.ts')
+  const { getMcpToolsCommandsAndResources, clearServerCache } = await import('../../src/integrations/mcp/client.ts')
   const concurrency = Object.fromEntries(Object.entries(entries(10, process.execPath, [join(import.meta.dir, '_fixture-document-concurrency.mjs'), overlapLog])).map(([name, config]) => [name, { ...config, scope: 'local' as const }]))
   await getMcpToolsCommandsAndResources(() => {}, concurrency)
   await new Promise(resolve => setTimeout(resolve, 500))

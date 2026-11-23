@@ -10,12 +10,12 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
-const RESTORE_OWNER = 'restorePreservedReads in src/services/compact/compact/attachments.ts, re-exported by src/services/compact/compact.ts'
+const RESTORE_OWNER = 'restorePreservedReads in src/engine/compaction/fold/foldAttachments.ts, re-exported by src/engine/compaction/foldConversation.ts'
 
-const compact = await import(join(SRC, 'services/compact/compact.ts'))
-const { createFileStateCacheWithSizeLimit } = await import(join(SRC, 'utils/fileStateCache.ts'))
-const { createAssistantMessage, createUserMessage } = await import(join(SRC, 'services/messages.ts'))
-const { FILE_UNCHANGED_STUB } = await import(join(SRC, 'constants/tools/fileRead.ts'))
+const compact = await import(join(SRC, 'engine/compaction/foldConversation.ts'))
+const { createFileStateCacheWithSizeLimit } = await import(join(SRC, 'platform/files/fileStateCache.ts'))
+const { createAssistantMessage, createUserMessage } = await import(join(SRC, 'engine/messages/messages.ts'))
+const { FILE_UNCHANGED_STUB } = await import(join(SRC, 'tools/kit/names/fileRead.ts'))
 
 type Entry = { content: string; timestamp: number; offset: number | undefined; limit: number | undefined }
 const restore = compact.restorePreservedReads as

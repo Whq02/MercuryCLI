@@ -11,16 +11,16 @@ import {
   type KeyParseState,
   type ParsedInput,
   parseMultipleKeypresses,
-} from '../../src/ink/input/input-decoder.ts'
-import { InputEvent } from '../../src/ink/events/input-event.ts'
-import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
+} from '../../src/screen/renderer/input/input-decoder.ts'
+import { InputEvent } from '../../src/screen/renderer/events/input-event.ts'
+import { keyHintLabel } from '../../src/screen/widgets/keyHintLabel.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
-const mouseTailWhere = 'a mouse report cut by a flush must be swallowed whole, never typed: fix parseMultipleKeypresses (its flush path) in src/ink/input/input-decoder.ts; the pty checks run the built dist/mercury.mjs, so rebuild it before reading them'
+const mouseTailWhere = 'a mouse report cut by a flush must be swallowed whole, never typed: fix parseMultipleKeypresses (its flush path) in src/screen/renderer/input/input-decoder.ts; the pty checks run the built dist/mercury.mjs, so rebuild it before reading them'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ` — ${detail.slice(0, 300)}` : '') : ` — ${mouseTailWhere}${detail ? `; ${detail.slice(0, 300)}` : ''}`}`)

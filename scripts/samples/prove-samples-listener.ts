@@ -11,26 +11,26 @@ process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 process.env.BROWSER = '/usr/bin/true'
 process.env.MERCURY_SAMPLES = '1'
 const { sampleCellRunner } = await import('./evalCell.js')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
-const store = await import('../../src/services/samples/store.ts')
-const listener = await import('../../src/services/samples/listener.ts')
-const { getCommandQueue } = await import('../../src/utils/messageQueueManager.ts')
-const { normalizeSampleDoc, renderSampleDoc } = await import('../../src/services/samples/renderDoc.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.ts')
+const store = await import('../../src/integrations/samples/store.ts')
+const listener = await import('../../src/integrations/samples/listener.ts')
+const { getCommandQueue } = await import('../../src/daemon/runner/messageQueueManager.ts')
+const { normalizeSampleDoc, renderSampleDoc } = await import('../../src/integrations/samples/renderDoc.ts')
 
 let failures = 0
 let currentSectionKey = ''
 const sectionWhere: Record<string, string> = {
-  B: 'the sample() bridge call run by scripts/samples/evalCell.js, the records in src/services/samples/store.ts and the page from renderSampleDoc in src/services/samples/renderDoc.ts',
-  L1: 'sampleListenerAddress in src/services/samples/listener.ts and sampleUrl in src/services/samples/store.ts',
-  L2: 'the token check and the 404 answers in the request handler of src/services/samples/listener.ts',
-  L3: 'the shell answer in the request handler of src/services/samples/listener.ts',
-  L4: 'the version route in the request handler of src/services/samples/listener.ts',
-  L5: 'the versions route in the request handler of src/services/samples/listener.ts',
-  L6: 'the marks route in src/services/samples/listener.ts, parseMarksBody and formatMarksMessage in src/services/samples/marks.ts, appendMarks in src/services/samples/store.ts',
-  L7: 'the marks route refusals in src/services/samples/listener.ts and parseMarksBody in src/services/samples/marks.ts',
-  L8: 'closeSampleListener in src/services/samples/listener.ts and the address kept by src/services/samples/store.ts',
-  P: 'the token comparison in the request handler of src/services/samples/listener.ts',
+  B: 'the sample() bridge call run by scripts/samples/evalCell.js, the records in src/integrations/samples/store.ts and the page from renderSampleDoc in src/integrations/samples/renderDoc.ts',
+  L1: 'sampleListenerAddress in src/integrations/samples/listener.ts and sampleUrl in src/integrations/samples/store.ts',
+  L2: 'the token check and the 404 answers in the request handler of src/integrations/samples/listener.ts',
+  L3: 'the shell answer in the request handler of src/integrations/samples/listener.ts',
+  L4: 'the version route in the request handler of src/integrations/samples/listener.ts',
+  L5: 'the versions route in the request handler of src/integrations/samples/listener.ts',
+  L6: 'the marks route in src/integrations/samples/listener.ts, parseMarksBody and formatMarksMessage in src/integrations/samples/marks.ts, appendMarks in src/integrations/samples/store.ts',
+  L7: 'the marks route refusals in src/integrations/samples/listener.ts and parseMarksBody in src/integrations/samples/marks.ts',
+  L8: 'closeSampleListener in src/integrations/samples/listener.ts and the address kept by src/integrations/samples/store.ts',
+  P: 'the token comparison in the request handler of src/integrations/samples/listener.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -44,7 +44,7 @@ function section(t: string): void {
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — samples listener proof exceeded 120s; a cell run or an http call to the listener (src/services/samples/listener.ts) did not answer')
+  console.log('\n❌ TIMEOUT — samples listener proof exceeded 120s; a cell run or an http call to the listener (src/integrations/samples/listener.ts) did not answer')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

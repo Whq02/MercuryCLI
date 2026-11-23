@@ -47,29 +47,29 @@ process.env.BROWSER = '/usr/bin/true'
 const mod = async <T>(rel: string): Promise<T> => (await import(join(ROOT, rel))) as T
 const reactModule = await mod<{ default?: typeof import('react') } & typeof import('react')>('node_modules/react/index.js')
 const React = reactModule.default ?? reactModule
-const { default: Ink } = await mod<typeof import('../../src/ink/ink.tsx')>('src/ink/ink.tsx')
-const { Text } = await mod<typeof import('../../src/ink.ts')>('src/ink.ts')
-const { App } = await mod<typeof import('../../src/components/App.tsx')>('src/components/App.tsx')
-const { getDefaultAppState } = await mod<typeof import('../../src/state/AppStateStore.ts')>('src/state/AppStateStore.ts')
-const { KeybindingSetup } = await mod<typeof import('../../src/keybindings/KeybindingProviderSetup.tsx')>('src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await mod<typeof import('../../src/components/FullscreenLayout.tsx')>('src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await mod<typeof import('../../src/components/PromptInput/PromptInput.tsx')>('src/components/PromptInput/PromptInput.tsx')
-const { SpinnerWithVerb } = await mod<typeof import('../../src/components/Spinner.tsx')>('src/components/Spinner.tsx')
-const { GlobalKeybindingHandlers } = await mod<typeof import('../../src/hooks/useGlobalKeybindings.tsx')>('src/hooks/useGlobalKeybindings.tsx')
-const { resetChromeModeLatchForTests } = await mod<typeof import('../../src/hooks/useLayoutTier.ts')>('src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await mod<typeof import('../../src/context/surfaceRoute.ts')>('src/context/surfaceRoute.ts')
-const { enableConfigs, saveCurrentProjectConfig } = await mod<typeof import('../../src/utils/config.ts')>('src/utils/config.ts')
-const pending = await mod<typeof import('../../src/input-core/pending-input.ts')>('src/input-core/pending-input.ts')
-const { default: instances } = await mod<typeof import('../../src/ink/instances.ts')>('src/ink/instances.ts')
-const focusedSlot = await mod<typeof import('../../src/services/engine-connector/focusedConnector.ts')>('src/services/engine-connector/focusedConnector.ts')
-const { noSessionConnector } = await mod<typeof import('../../src/services/engine-connector/noSessionConnector.ts')>('src/services/engine-connector/noSessionConnector.ts')
-const vitals = await mod<typeof import('../../src/state/vitalsBus.ts')>('src/state/vitalsBus.ts')
-const helm = await mod<typeof import('../../src/utils/cockpit/helmFocus.ts')>('src/utils/cockpit/helmFocus.ts')
-type WorkRoster = import('../../src/services/engine-connector/types.ts').WorkRosterV1
-type Connector = import('../../src/services/engine-connector/types.ts').EngineConnectorV1
-type Row = import('../../src/utils/cockpit/helmFocus.ts').HelmRow
-type InsertRef = import('../../src/components/PromptInput/PromptInput.tsx').PromptInputProps['insertTextRef']
-type ScrollHandle = import('../../src/ink/components/ScrollBox.tsx').ScrollBoxHandle
+const { default: Ink } = await mod<typeof import('../../src/screen/renderer/screenInstance.tsx')>('src/screen/renderer/screenInstance.tsx')
+const { Text } = await mod<typeof import('../../src/screen/themedRenderer.ts')>('src/screen/themedRenderer.ts')
+const { App } = await mod<typeof import('../../src/boot/App.tsx')>('src/boot/App.tsx')
+const { getDefaultAppState } = await mod<typeof import('../../src/screen/app-state/AppStateStore.ts')>('src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await mod<typeof import('../../src/screen/keys/KeybindingProviderSetup.tsx')>('src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await mod<typeof import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')>('src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await mod<typeof import('../../src/screen/composer/Composer.tsx')>('src/screen/composer/Composer.tsx')
+const { SpinnerWithVerb } = await mod<typeof import('../../src/screen/spinner/Spinner.tsx')>('src/screen/spinner/Spinner.tsx')
+const { GlobalKeybindingHandlers } = await mod<typeof import('../../src/screen/chat/useGlobalKeybindings.tsx')>('src/screen/chat/useGlobalKeybindings.tsx')
+const { resetChromeModeLatchForTests } = await mod<typeof import('../../src/screen/fullscreen-layout/useLayoutTier.ts')>('src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await mod<typeof import('../../src/screen/routes/surfaceRoute.ts')>('src/screen/routes/surfaceRoute.ts')
+const { enableConfigs, saveCurrentProjectConfig } = await mod<typeof import('../../src/platform/settings/config.ts')>('src/platform/settings/config.ts')
+const pending = await mod<typeof import('../../src/screen/composer/input-core/pending-input.ts')>('src/screen/composer/input-core/pending-input.ts')
+const { default: instances } = await mod<typeof import('../../src/screen/renderer/instances.ts')>('src/screen/renderer/instances.ts')
+const focusedSlot = await mod<typeof import('../../src/engine/connector/focusedConnector.ts')>('src/engine/connector/focusedConnector.ts')
+const { noSessionConnector } = await mod<typeof import('../../src/engine/connector/noSessionConnector.ts')>('src/engine/connector/noSessionConnector.ts')
+const vitals = await mod<typeof import('../../src/screen/app-state/vitalsBus.ts')>('src/screen/app-state/vitalsBus.ts')
+const helm = await mod<typeof import('../../src/screen/cockpit/helmFocus.ts')>('src/screen/cockpit/helmFocus.ts')
+type WorkRoster = import('../../src/engine/connector/types.ts').WorkRosterV1
+type Connector = import('../../src/engine/connector/types.ts').EngineConnectorV1
+type Row = import('../../src/screen/cockpit/helmFocus.ts').HelmRow
+type InsertRef = import('../../src/screen/composer/Composer.tsx').PromptInputProps['insertTextRef']
+type ScrollHandle = import('../../src/screen/renderer/elements/ScrollBox.tsx').ScrollBoxHandle
 
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
@@ -223,15 +223,15 @@ function dumpRail(name: string, frame: string, since: number): void {
 }
 function railCard(name: string, frame: string): void {
   const rail = railText(frame)
-  check(`${name}: the rail paints no TASKS card`, !/TASKS/.test(rail) && !/no open tasks/.test(rail), railHits(frame, /TASKS|no open tasks/), 'the lanes rail must not paint a TASKS card; the ledger belongs to the working strip and the ctrl+t tree, so remove the card from the rail sections built in src/services/cockpit/helmLanesModel.ts')
-  check(`${name}: the rail publishes no ledger rows of its own`, missionLabels().length === 0, missionLabels().join(', '), 'getHelmRows(lanes) in src/utils/cockpit/helmFocus.ts must not list mission: rows; stop the lanes model from publishing the task ledger as rail rows')
+  check(`${name}: the rail paints no TASKS card`, !/TASKS/.test(rail) && !/no open tasks/.test(rail), railHits(frame, /TASKS|no open tasks/), 'the lanes rail must not paint a TASKS card; the ledger belongs to the working strip and the ctrl+t tree, so remove the card from the rail sections built in src/screen/cockpit-gauges/helmLanesModel.ts')
+  check(`${name}: the rail publishes no ledger rows of its own`, missionLabels().length === 0, missionLabels().join(', '), 'getHelmRows(lanes) in src/screen/cockpit/helmFocus.ts must not list mission: rows; stop the lanes model from publishing the task ledger as rail rows')
 }
 function runsDoor(name: string, frame: string): void {
   const rail = railText(frame)
-  check(`${name}: RUNS counts the one live shell`, /RUNS · 1 live/.test(rail), railHits(frame, /RUNS/), 'the RUNS section (label RUNS, count live) is built in src/services/cockpit/helmLanesModel/sections.ts; it must count the one running shell row')
-  check(`${name}: the run row names the shell with its live elapsed verb`, new RegExp(`${SHELL_NAME} · shell 12m`).test(rail), railHits(frame, /shell/), 'the run row text comes from the RUNS section in src/services/cockpit/helmLanesModel/sections.ts; it must read name, then shell, then the elapsed minutes')
+  check(`${name}: RUNS counts the one live shell`, /RUNS · 1 live/.test(rail), railHits(frame, /RUNS/), 'the RUNS section (label RUNS, count live) is built in src/screen/cockpit-gauges/helm-lanes-model/sections.ts; it must count the one running shell row')
+  check(`${name}: the run row names the shell with its live elapsed verb`, new RegExp(`${SHELL_NAME} · shell 12m`).test(rail), railHits(frame, /shell/), 'the run row text comes from the RUNS section in src/screen/cockpit-gauges/helm-lanes-model/sections.ts; it must read name, then shell, then the elapsed minutes')
   const door = lanesRows().find(row => row.label === `run:${SHELL_ID}`)
-  check(`${name}: the run row opens its card on the /runs board`, door !== undefined && door.kind === 'command' && door.command === `/runs ${SHELL_ID}`, JSON.stringify(door ?? null), 'the RUNS section in src/services/cockpit/helmLanesModel/sections.ts must publish a row labelled run:<id> with kind command and command /runs <id>')
+  check(`${name}: the run row opens its card on the /runs board`, door !== undefined && door.kind === 'command' && door.command === `/runs ${SHELL_ID}`, JSON.stringify(door ?? null), 'the RUNS section in src/screen/cockpit-gauges/helm-lanes-model/sections.ts must publish a row labelled run:<id> with kind command and command /runs <id>')
 }
 
 console.log(`helm tasks-card proof — product root ${ROOT} at ${COLS}x${ROWS}`)
@@ -241,7 +241,7 @@ console.log(`helm tasks-card proof — product root ${ROOT} at ${COLS}x${ROWS}`)
   const world = await mount('busy-empty', { rows: [shellRow()], mission: [] })
   const frame = world.frame()
   file('busy-empty-ledger-178x51.txt', frame)
-  check('the fixture owns the files door (the scratch project) and the rail paints no seat row', !/\(you\)/.test(railText(frame)) && /FILES · fixture-project/.test(railText(frame)), railHits(frame, /\(you\)|FILES/), 'with no seats the lanes rail paints no (you) row and its FILES door names the project folder; check the sections in src/services/cockpit/helmLanesModel/sections.ts')
+  check('the fixture owns the files door (the scratch project) and the rail paints no seat row', !/\(you\)/.test(railText(frame)) && /FILES · fixture-project/.test(railText(frame)), railHits(frame, /\(you\)|FILES/), 'with no seats the lanes rail paints no (you) row and its FILES door names the project folder; check the sections in src/screen/cockpit-gauges/helm-lanes-model/sections.ts')
   runsDoor('busy-empty', frame)
   railCard('busy-empty', frame)
   dumpRail('busy-empty', frame, since)
@@ -255,8 +255,8 @@ console.log(`helm tasks-card proof — product root ${ROOT} at ${COLS}x${ROWS}`)
   file('busy-ledger-178x51.txt', frame)
   runsDoor('busy-ledger', frame)
   railCard('busy-ledger', frame)
-  check('busy-ledger: the rail paints none of the ledger rows', !/Charting the reef|Refit the tide|Sound the harb/.test(railText(frame)), railHits(frame, /reef|tide|harb/), 'ledger subjects belong in the working strip and the ctrl+t tree only; remove them from the lanes rail in src/services/cockpit/helmLanesModel.ts')
-  check('busy-ledger: the working strip narrates the next pending task (the ledger reached the spinner)', frame.includes('next: Refit the tide gauges'), '', 'the working strip in src/components/Spinner.tsx must print next: and the first pending task subject; check that the vitals bus tasks reach it')
+  check('busy-ledger: the rail paints none of the ledger rows', !/Charting the reef|Refit the tide|Sound the harb/.test(railText(frame)), railHits(frame, /reef|tide|harb/), 'ledger subjects belong in the working strip and the ctrl+t tree only; remove them from the lanes rail in src/screen/cockpit-gauges/helmLanesModel.ts')
+  check('busy-ledger: the working strip narrates the next pending task (the ledger reached the spinner)', frame.includes('next: Refit the tide gauges'), '', 'the working strip in src/screen/spinner/Spinner.tsx must print next: and the first pending task subject; check that the vitals bus tasks reach it')
   check('busy-ledger: the ledger tree is closed until the operator opens it', !frame.includes('Stow the survey gear'), '', 'the completed row must show only in the ctrl+t ledger tree; a closed tree must not list it, so check the working strip and rail for a completed-task leak')
   dumpRail('busy-ledger', frame, since)
   const sinceTree = failures
@@ -265,7 +265,7 @@ console.log(`helm tasks-card proof — product root ${ROOT} at ${COLS}x${ROWS}`)
   const opened = await until('ctrl+t: the ledger tree opens inline in the cockpit (the completed row only the tree lists)', () => world.frame().includes('Stow the survey gear'))
   const tree = world.frame()
   file('ctrl-t-ledger-tree-178x51.txt', tree)
-  check('ctrl+t: the tree lists the in-progress and queued rows too', tree.includes('Chart the reef current') && tree.includes('Refit the tide gauges') && tree.includes('Sound the harbor depth'), '', 'the ctrl+t ledger tree must list every ledger row; check that ctrl+t reaches the cockpit key handler (GlobalKeybindingHandlers in src/hooks/useGlobalKeybindings.tsx) and opens the tree')
+  check('ctrl+t: the tree lists the in-progress and queued rows too', tree.includes('Chart the reef current') && tree.includes('Refit the tide gauges') && tree.includes('Sound the harbor depth'), '', 'the ctrl+t ledger tree must list every ledger row; check that ctrl+t reaches the cockpit key handler (GlobalKeybindingHandlers in src/screen/chat/useGlobalKeybindings.tsx) and opens the tree')
   railCard('ctrl+t', tree)
   runsDoor('ctrl+t', tree)
   if (opened) {
@@ -282,10 +282,10 @@ console.log(`helm tasks-card proof — product root ${ROOT} at ${COLS}x${ROWS}`)
   const frame = world.frame()
   file('solo-ledger-178x51.txt', frame)
   const rail = railText(frame)
-  check('solo-ledger: no RUNS section without a live process', !/RUNS/.test(rail), railHits(frame, /RUNS/), 'the RUNS section in src/services/cockpit/helmLanesModel/sections.ts must be omitted when the work roster has no live rows')
+  check('solo-ledger: no RUNS section without a live process', !/RUNS/.test(rail), railHits(frame, /RUNS/), 'the RUNS section in src/screen/cockpit-gauges/helm-lanes-model/sections.ts must be omitted when the work roster has no live rows')
   railCard('solo-ledger', frame)
-  check('solo-ledger: the rail paints none of the ledger rows', !/Charting the reef|Refit the tide|Sound the harb/.test(rail), railHits(frame, /reef|tide|harb/), 'ledger subjects belong in the working strip and the ctrl+t tree only; remove them from the lanes rail in src/services/cockpit/helmLanesModel.ts')
-  check('solo-ledger: a ledger alone leaves the solo layout in place (the NEXT hints paint)', /NEXT/.test(rail) && /\/health/.test(rail) && /\/memory/.test(rail), railHits(frame, /NEXT|\/health|\/memory/), 'a ledger alone must not switch the rail off the solo layout; the NEXT section is built in src/services/cockpit/helmLanesModel/sections.ts')
+  check('solo-ledger: the rail paints none of the ledger rows', !/Charting the reef|Refit the tide|Sound the harb/.test(rail), railHits(frame, /reef|tide|harb/), 'ledger subjects belong in the working strip and the ctrl+t tree only; remove them from the lanes rail in src/screen/cockpit-gauges/helmLanesModel.ts')
+  check('solo-ledger: a ledger alone leaves the solo layout in place (the NEXT hints paint)', /NEXT/.test(rail) && /\/health/.test(rail) && /\/memory/.test(rail), railHits(frame, /NEXT|\/health|\/memory/), 'a ledger alone must not switch the rail off the solo layout; the NEXT section is built in src/screen/cockpit-gauges/helm-lanes-model/sections.ts')
   dumpRail('solo-ledger', frame, since)
   await world.close()
 }

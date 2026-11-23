@@ -8,11 +8,11 @@ const check = (name: string, ok: boolean, detail = ''): void => {
   if (ok) console.log(`  ok  ${name}`)
   else {
     failures++
-    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''} — fix isBrokenPipeError, BROKEN_STDOUT_LINE or StructuredIO.write in src/cli/structuredIO.ts`)
+    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''} — fix isBrokenPipeError, BROKEN_STDOUT_LINE or StructuredIO.write in src/daemon/runner/structuredIO.ts`)
   }
 }
 
-const io = await import('../../src/cli/structuredIO.js')
+const io = await import('../../src/daemon/runner/structuredIO.js')
 
 console.log('§1 the vocabulary')
 {

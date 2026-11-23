@@ -2,7 +2,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import * as M from '../../src/services/messages.ts';
+import * as M from '../../src/engine/messages/messages.ts';
 import { CORPUS, COMPOSITE, TOOLS_FIXTURE } from './fixtures.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -491,7 +491,7 @@ if (unaccounted.length) {
 {
   const boundary = CORPUS.boundaries![0] as unknown as { subtype?: string; compactMetadata?: { trigger?: unknown; preTokens?: unknown }; logicalParentUuid?: unknown; uuid?: string; timestamp?: string };
   const shape = (label: string, ok: boolean, detail: string): void => {
-    console.log(`  [${ok ? 'PASS' : 'FAIL'}] fixture shape: ${label}${ok ? '' : ' — ' + detail + ' — fix the fixture in scripts/messages/fixtures.ts, or the constructor or reader this label names in src/services/messages.ts'}`);
+    console.log(`  [${ok ? 'PASS' : 'FAIL'}] fixture shape: ${label}${ok ? '' : ' — ' + detail + ' — fix the fixture in scripts/messages/fixtures.ts, or the constructor or reader this label names in src/engine/messages/messages.ts'}`);
     if (!ok) failures++;
   };
   shape('the compact boundary carries a string trigger and a numeric token count', boundary.subtype === 'compact_boundary' && boundary.compactMetadata?.trigger === 'auto' && boundary.compactMetadata?.preTokens === 120_000, JSON.stringify(boundary.compactMetadata));
@@ -584,7 +584,7 @@ if (RECORD) {
       const b = JSON.stringify(results[k]);
       if (a !== b) {
         failures++;
-        console.log(`  [FAIL] parity broke: ${k} (an unintended change: restore the behavior of this export in src/services/messages.ts; a deliberate one: re-record with --record-only=${k})`);
+        console.log(`  [FAIL] parity broke: ${k} (an unintended change: restore the behavior of this export in src/engine/messages/messages.ts; a deliberate one: re-record with --record-only=${k})`);
         let i = 0;
         while (i < Math.min(a.length, b.length) && a[i] === b[i]) i++;
         console.log(`      golden:  …${a.slice(Math.max(0, i - 60), i + 90)}…`);

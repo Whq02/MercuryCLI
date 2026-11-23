@@ -15,8 +15,8 @@ const {
   restoreAttributionStateFromSnapshots,
   stateToSnapshotMessage,
   trackFileModification,
-} = await import('../../src/utils/commitAttribution.ts')
-import type { AttributionSnapshotEntry } from '../../src/types/logs.ts'
+} = await import('../../src/screen/app-state/commitAttribution.ts')
+import type { AttributionSnapshotEntry } from '../../src/sessions/transcripts/transcriptEntries.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -46,16 +46,16 @@ const mixedSnapshot = {
 section('§1 RESTORE — the one spelling reads; a foreign key contributes nothing')
 const restored = restoreAttributionStateFromSnapshots([mixedSnapshot])
 const entry = restored.fileStates.get('notes.txt')
-check('the current spelling survives restore (41 chars)', entry?.mercuryContribution === 41, 'restoreAttributionStateFromSnapshots in src/utils/commitAttribution.ts must keep mercuryContribution')
-check('a foreign-spelled count contributes NOTHING (0)', restored.fileStates.get('other.txt')?.mercuryContribution === 0, 'restoreAttributionStateFromSnapshots in src/utils/commitAttribution.ts must not read claudeContribution')
-check('no rehydrated entry carries a foreign key', ![...restored.fileStates.values()].some(e => 'claudeContribution' in e), 'restoreAttributionStateFromSnapshots in src/utils/commitAttribution.ts must not copy a foreign key onto restored entries')
+check('the current spelling survives restore (41 chars)', entry?.mercuryContribution === 41, 'restoreAttributionStateFromSnapshots in src/screen/app-state/commitAttribution.ts must keep mercuryContribution')
+check('a foreign-spelled count contributes NOTHING (0)', restored.fileStates.get('other.txt')?.mercuryContribution === 0, 'restoreAttributionStateFromSnapshots in src/screen/app-state/commitAttribution.ts must not read claudeContribution')
+check('no rehydrated entry carries a foreign key', ![...restored.fileStates.values()].some(e => 'claudeContribution' in e), 'restoreAttributionStateFromSnapshots in src/screen/app-state/commitAttribution.ts must not copy a foreign key onto restored entries')
 
 section('§2 WRITE — trackers sum onto restored counts; snapshots emit ONLY the one key')
 const tracked = trackFileModification(restored, 'notes.txt', 'aaaa', 'aaaabbb', false, 2)
-check('tracker sums restored + new (44)', tracked.fileStates.get('notes.txt')?.mercuryContribution === 44, 'trackFileModification in src/utils/commitAttribution.ts must add the new chars onto the restored mercuryContribution')
+check('tracker sums restored + new (44)', tracked.fileStates.get('notes.txt')?.mercuryContribution === 44, 'trackFileModification in src/screen/app-state/commitAttribution.ts must add the new chars onto the restored mercuryContribution')
 const emitted = JSON.stringify(stateToSnapshotMessage(tracked, '00000000-0000-0000-0000-000000000002'))
-check('snapshot emits mercuryContribution', emitted.includes('"mercuryContribution":44'), `stateToSnapshotMessage in src/utils/commitAttribution.ts must emit mercuryContribution; emitted ${emitted}`)
-check('snapshot never emits a foreign spelling', !emitted.includes('claudeContribution'), `stateToSnapshotMessage in src/utils/commitAttribution.ts must emit only mercuryContribution; emitted ${emitted}`)
+check('snapshot emits mercuryContribution', emitted.includes('"mercuryContribution":44'), `stateToSnapshotMessage in src/screen/app-state/commitAttribution.ts must emit mercuryContribution; emitted ${emitted}`)
+check('snapshot never emits a foreign spelling', !emitted.includes('claudeContribution'), `stateToSnapshotMessage in src/screen/app-state/commitAttribution.ts must emit only mercuryContribution; emitted ${emitted}`)
 
 section('§3 DEEP READ — the merge/read path speaks the one spelling too')
 writeFileSync(join(scratch, 'notes.txt'), 'hello world')
@@ -65,7 +65,7 @@ const rawState = {
   fileStates: { 'notes.txt': { contentHash: 'bbbb', mercuryContribution: 7, mtime: 1 } },
 } as unknown as Parameters<typeof calculateCommitAttribution>[0][number]
 const data = await calculateCommitAttribution([rawState], ['notes.txt'])
-check('merge/read path reads the one spelling (7 mercury chars)', data.files['notes.txt']?.mercuryChars === 7, `calculateCommitAttribution in src/utils/commitAttribution.ts must read mercuryContribution; got ${data.files['notes.txt']?.mercuryChars}`)
+check('merge/read path reads the one spelling (7 mercury chars)', data.files['notes.txt']?.mercuryChars === 7, `calculateCommitAttribution in src/screen/app-state/commitAttribution.ts must read mercuryContribution; got ${data.files['notes.txt']?.mercuryChars}`)
 
 console.log('\n' + '═'.repeat(76))
 if (failures > 0) {

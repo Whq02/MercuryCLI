@@ -8,10 +8,10 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'mcp-null-optionals-
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { withoutNullOptionals, connectToServer, fetchToolsForClient, callMCPToolWithUrlElicitationRetry, clearServerCache } = await import('../../src/services/mcp/client.ts')
+const { withoutNullOptionals, connectToServer, fetchToolsForClient, callMCPToolWithUrlElicitationRetry, clearServerCache } = await import('../../src/integrations/mcp/client.ts')
 
 let failures = 0
-const FAIL_HINT = 'change withoutNullOptionals in src/services/mcp/client/nullOptionals.ts (applied where callMCPToolWithUrlElicitationRetry builds the call in src/services/mcp/client.ts); the connect and listing checks read scripts/mcp/_fixture-strict-args-server.mjs'
+const FAIL_HINT = 'change withoutNullOptionals in src/integrations/mcp/client/nullOptionals.ts (applied where callMCPToolWithUrlElicitationRetry builds the call in src/integrations/mcp/client.ts); the connect and listing checks read scripts/mcp/_fixture-strict-args-server.mjs'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' | ' : '') + FAIL_HINT : ''}`)
   if (!cond) failures++
@@ -70,7 +70,7 @@ check('nested arguments without a null come back as the same object', withoutNul
 check('an array of scalars rides unchanged', JSON.stringify(withoutNullOptionals({ prompt: 'p', tags: ['a', null] }, { properties: { tags: { type: 'array', items: { type: 'string' } } } }).tags) === '["a",null]')
 
 console.log('\nend to end: a strict server never sees the nested null')
-const config: import('../../src/utils/mcp/types.ts').ScopedMcpServerConfig = { type: 'stdio', scope: 'dynamic', command: process.execPath, args: [join(import.meta.dir, '_fixture-strict-args-server.mjs')] }
+const config: import('../../src/integrations/mcp-shapes/mcpServerRecords.ts').ScopedMcpServerConfig = { type: 'stdio', scope: 'dynamic', command: process.execPath, args: [join(import.meta.dir, '_fixture-strict-args-server.mjs')] }
 const connection = await connectToServer('strict-args', config)
 try {
   check('the strict fixture connects', connection.type === 'connected')

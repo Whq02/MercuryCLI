@@ -20,11 +20,11 @@ const VSHOT = join(dirname(SELF), 'vshot.py')
 
 if (process.env.HEALTH_RENDER_CHILD) {
   const React = await import('react')
-  const { render } = (await import('../../src/ink.js')) as {
+  const { render } = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
   }
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
   const { MercuryHealthCertificate } = await import('../../src/commands/health/HealthCertificate.js')
   const h = React.createElement
   void render(

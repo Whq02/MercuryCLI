@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 
-import { classifyToolError } from '../../src/utils/errors/classifyToolError.js'
+import { classifyToolError } from '../../src/engine/tool-errors/classifyToolError.js'
 
 let fail = 0
 const t = (name: string, ok: boolean, detail = '') => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ' | fix: change classifyToolError in src/utils/errors/classifyToolError.ts (headline, body cap, stack-frame count and the error-class hint table), not this table'}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ' | fix: change classifyToolError in src/engine/tool-errors/classifyToolError.ts (headline, body cap, stack-frame count and the error-class hint table), not this table'}`)
   if (!ok) fail = 1
 }
 

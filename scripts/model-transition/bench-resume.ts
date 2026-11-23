@@ -22,8 +22,8 @@ if (process.argv[2] === '--measure') {
   const file = process.argv[3]!
   process.env.MERCURY_CONFIG_DIR = join(tmpdir(), 'ctm-bench-config')
   delete process.env.MERCURY_RESUME_SNAPSHOT
-  const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
-  const { snapshotPathFor } = await import('../../src/utils/sessionStorage/resumeSnapshot.ts')
+  const { loadTranscriptFile } = await import('../../src/sessions/transcripts/loading.ts')
+  const { snapshotPathFor } = await import('../../src/sessions/transcripts/resumeSnapshot.ts')
   const { generateCorpus } = await import('./gen-scale-corpus.ts')
   const sidecar = snapshotPathFor(file)
   const median = (xs: number[]) => xs.slice().sort((p, q) => p - q)[Math.floor(xs.length / 2)]!

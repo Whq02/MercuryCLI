@@ -62,11 +62,11 @@ if (process.argv.includes('--row')) {
     },
   })
   const home = homedir()
-  const { exec, setCwd } = await import('../../src/utils/Shell.ts')
-  const record = await import('../../src/utils/shell/shellRecord.ts')
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { formatError } = await import('../../src/utils/toolErrors.ts')
+  const { exec, setCwd } = await import('../../src/platform/shell/shellExec.ts')
+  const record = await import('../../src/platform/shell/shellRecord.ts')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { formatError } = await import('../../src/tools/kit/toolErrors.ts')
   setCwd(home)
   let appState = getDefaultAppState()
   const toolContext = {
@@ -143,9 +143,9 @@ if (process.argv.includes('--row')) {
 if (process.argv.includes('--asked-alone')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   const home = homedir()
-  const { beginReadOnlyDiagnostic } = await import('../../src/utils/diagnosticReadOnly.ts')
+  const { beginReadOnlyDiagnostic } = await import('../../src/platform/logs/diagnosticReadOnly.ts')
   beginReadOnlyDiagnostic(process.argv.includes('--another-row-asked') ? 'runtime' : undefined)
-  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
+  const { runtimeChecks } = await import('../../src/platform/health/sections/runtime.ts')
   const spec = runtimeChecks().find(row => row.id === 'shell')
   const started = Date.now()
   const said = spec === undefined ? null : ((await spec.run()) as Said)
@@ -173,10 +173,10 @@ if (process.argv.includes('--first-prompt')) {
     },
   })
   const home = homedir()
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const { getSystemPrompt } = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
   await getSystemPrompt([{ name: 'Read' }] as never, 'claude-opus-4-8')
   await pause(1_500)
   const withoutBash = otherShellStarts(home)
@@ -203,13 +203,13 @@ if (process.argv.includes('--tool-list')) {
   })
   const home = homedir()
   const runs = (): number => (existsSync(join(home, 'login-runs')) ? readFileSync(join(home, 'login-runs'), 'utf8').trim().split('\n').length : 0)
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { getTools } = await import('../../src/tools.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-  const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+  const { getTools } = await import('../../src/tools/kit/toolList.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { getSystemPrompt } = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+  const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
   const empty = getEmptyToolPermissionContext()
   setIsInteractive(true)
   const drawn = getTools(empty)
@@ -257,9 +257,9 @@ if (process.argv.includes('--first-lines')) {
   })
   const home = homedir()
   const runs = (): string[] => (existsSync(join(home, 'login-runs')) ? readFileSync(join(home, 'login-runs'), 'utf8').trim().split('\n') : [])
-  const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+  const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
   setIsInteractive(kind === 'screen')
-  const { init } = await import('../../src/entrypoints/init.ts')
+  const { init } = await import('../../src/boot/entrypoints/init.ts')
   await init()
   if (kind === 'ends-early') {
     const began = Date.now()
@@ -272,13 +272,13 @@ if (process.argv.includes('--first-lines')) {
   while (early && runs().length === 0 && Date.now() - began < 8_000) await pause(25)
   if (!early) await pause(1_500)
   const beforeAnyToolList = runs().length
-  const { getTools } = await import('../../src/tools.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const { getTools } = await import('../../src/tools/kit/toolList.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { getSystemPrompt } = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
   const empty = getEmptyToolPermissionContext()
   if (kind === 'pending') {
-    const { getInitialSettings } = await import('../../src/utils/settings/settings.ts')
+    const { getInitialSettings } = await import('../../src/platform/settings/settings.ts')
     for (const [key, value] of Object.entries(getInitialSettings().environment?.values ?? {})) process.env[key] = String(value)
   }
   const list = getTools(kind === 'toolset' ? { ...empty, baseTools: ['Read', 'Edit'] } : kind === 'blocked' ? { ...empty, alwaysDenyRules: { ...empty.alwaysDenyRules, cliArg: ['Bash'] } } : empty)
@@ -305,12 +305,12 @@ if (process.argv.includes('--ends-early')) {
   })
   const home = homedir()
   if (process.argv.includes('--stays')) process.on('SIGQUIT', () => { if (process.listenerCount('SIGQUIT') === 1) process.exit(131) })
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
   if (process.argv.includes('--by-the-tool-list')) {
-    const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+    const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
     enableConfigs()
-    const { getTools } = await import('../../src/tools.ts')
-    const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+    const { getTools } = await import('../../src/tools/kit/toolList.ts')
+    const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
     getTools(getEmptyToolPermissionContext())
   } else {
     void BashTool.prompt({ tools: [] } as never)
@@ -324,7 +324,7 @@ if (process.argv.includes('--ends-early')) {
 
 if (process.argv.includes('--start-up-files')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const { checkPathSafetyForAutoEdit } = await import('../../src/utils/permissions/filesystem.ts')
+  const { checkPathSafetyForAutoEdit } = await import('../../src/permissions/rules/filesystem.ts')
   const home = homedir()
   const asked = Object.fromEntries(['.bash_profile', '.bash_login', '.profile', '.bashrc', 'notes.txt'].map(name => [name, checkPathSafetyForAutoEdit(join(home, name)).safe === false]))
   console.log(`FILES ${JSON.stringify(asked)}`)
@@ -832,7 +832,7 @@ try {
 
 {
   console.log('\nthe PATH a command gets from the launch PATH and the login shell\'s')
-  const { pathWithLoginEntries } = await import('../../src/utils/subprocessEnv.ts')
+  const { pathWithLoginEntries } = await import('../../src/platform/processes/subprocessEnv.ts')
   const terminal = '/Users/u/.local/bin:/Users/u/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin'
   const merged = (launch: string, login: string, platform = 'darwin'): string => pathWithLoginEntries(launch, { PATH: login }, platform)
   check('started bare (/usr/bin:/bin), a command gets the terminal\'s PATH in the terminal\'s order', merged('/usr/bin:/bin', terminal) === terminal, merged('/usr/bin:/bin', terminal))

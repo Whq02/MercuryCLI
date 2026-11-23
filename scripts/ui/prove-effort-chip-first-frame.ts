@@ -2,9 +2,9 @@
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 300)}` : ''}${cond ? '' : ' | fix focusedEffortLabelOf in src/components/mercury-ui/EffortChip.tsx (the asked mark, the sent word and the born word)'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 300)}` : ''}${cond ? '' : ' | fix focusedEffortLabelOf in src/screen/widgets/EffortChip.tsx (the asked mark, the sent word and the born word)'}`)
 }
-const { focusedEffortLabelOf } = await import('../../src/components/mercury-ui/EffortChip.tsx')
+const { focusedEffortLabelOf } = await import('../../src/screen/widgets/EffortChip.tsx')
 const model = 'claude-opus-5'
 console.log('§1 the chip: the seat word paints plain while the runner has not said what it sends')
 check('a seat word with no sent word yet reads plain for the chip', focusedEffortLabelOf(model, 'high', undefined, undefined, null, false) === 'high', focusedEffortLabelOf(model, 'high', undefined, undefined, null, false))

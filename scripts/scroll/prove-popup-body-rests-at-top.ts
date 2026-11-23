@@ -5,10 +5,10 @@ import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor } f
 const home = pinScratchHome('popup-body-rests-at-top')
 const React = await import('react')
 const h = React.createElement
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { Box, Text } = await import('../../src/ink.ts')
-const { default: ScrollBox } = await import('../../src/ink/components/ScrollBox.tsx')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { default: ScrollBox } = await import('../../src/screen/renderer/elements/ScrollBox.tsx')
 
 let failures = 0
 let checks = 0
@@ -55,10 +55,10 @@ console.log('a pop-up body that says it rests at its top stays there when its co
 section('the scroll box: content that fits, then grows past the viewport')
 {
   const follows = await grown(false)
-  check('control: all five rows show while the content fits', follows.before.join(',') === [1, 2, 3, 4, 5].map(row).join(','), `the offscreen mount did not draw all five rows of a ScrollBox (src/ink/components/ScrollBox.tsx) whose content fits;${follows.before.join(',')}`)
-  check('control: a box that says nothing follows its end when the content grows, as a transcript does', follows.after.length === VIEWPORT && follows.after[follows.after.length - 1] === row(30) && !follows.after.includes(row(1)), `a ScrollBox without restsAtTop (src/ink/components/ScrollBox.tsx) must keep following its end as content grows; ${follows.after.join(',')}`)
+  check('control: all five rows show while the content fits', follows.before.join(',') === [1, 2, 3, 4, 5].map(row).join(','), `the offscreen mount did not draw all five rows of a ScrollBox (src/screen/renderer/elements/ScrollBox.tsx) whose content fits;${follows.before.join(',')}`)
+  check('control: a box that says nothing follows its end when the content grows, as a transcript does', follows.after.length === VIEWPORT && follows.after[follows.after.length - 1] === row(30) && !follows.after.includes(row(1)), `a ScrollBox without restsAtTop (src/screen/renderer/elements/ScrollBox.tsx) must keep following its end as content grows; ${follows.after.join(',')}`)
   const rests = await grown(true)
-  check('a box that rests at its top shows its first rows after the same growth', rests.after.join(',') === Array.from({ length: VIEWPORT }, (_, i) => row(i + 1)).join(','), `a ScrollBox with restsAtTop (src/ink/components/ScrollBox.tsx, the restsAtTop effect and the sticky logic that reads lastStableAtBottom) must stay at its first rows when content grows; ${rests.after.join(',')}`)
+  check('a box that rests at its top shows its first rows after the same growth', rests.after.join(',') === Array.from({ length: VIEWPORT }, (_, i) => row(i + 1)).join(','), `a ScrollBox with restsAtTop (src/screen/renderer/elements/ScrollBox.tsx, the restsAtTop effect and the sticky logic that reads lastStableAtBottom) must stay at its first rows when content grows; ${rests.after.join(',')}`)
 }
 
 

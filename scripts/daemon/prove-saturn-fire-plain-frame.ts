@@ -13,13 +13,13 @@ if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 delete process.env.CI
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const saturn = await import('../../src/daemon/saturn.ts')
-const ticker = await import('../../src/daemon/saturnTicker.ts')
-const workers = await import('../../src/daemon/concourseWorkers.ts')
-const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
-const ledger = await import('../../src/services/providers/anthropic/prefixLedger.ts')
+const saturn = await import('../../src/daemon/saturn/saturn.ts')
+const ticker = await import('../../src/daemon/saturn/saturnTicker.ts')
+const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const bridge = await import('../../src/daemon/saturn/sessionScheduleBridge.ts')
+const ledger = await import('../../src/models/roads/anthropic/prefixLedger.ts')
 
 let failures = 0
 let checks = 0
@@ -94,8 +94,8 @@ const parkedFire = saturn.applyConcourseScheduleOp(
   addDeps as never,
   DAEMON_DIR,
 )
-check('three fire schedules land: same model, a captured other model, and one on a parked session', sameModel.outcome === 'applied' && otherModel.outcome === 'applied' && parkedFire.outcome === 'applied', `${sameModel.outcome} ${otherModel.outcome} ${parkedFire.outcome} (applyConcourseScheduleOp in src/daemon/saturn.ts must apply a fire add on live and parked sessions)`)
-check("the add-time derivation reads the session's model for a plain fire and the captured key for the other", j(addDerivations) === j([LIVE_MODEL, OTHER_MODEL, LIVE_MODEL]), `${j(addDerivations)} (applyConcourseScheduleOp in src/daemon/saturn.ts must derive the account from the session model for a plain fire and from the captured modelKey otherwise)`)
+check('three fire schedules land: same model, a captured other model, and one on a parked session', sameModel.outcome === 'applied' && otherModel.outcome === 'applied' && parkedFire.outcome === 'applied', `${sameModel.outcome} ${otherModel.outcome} ${parkedFire.outcome} (applyConcourseScheduleOp in src/daemon/saturn/saturn.ts must apply a fire add on live and parked sessions)`)
+check("the add-time derivation reads the session's model for a plain fire and the captured key for the other", j(addDerivations) === j([LIVE_MODEL, OTHER_MODEL, LIVE_MODEL]), `${j(addDerivations)} (applyConcourseScheduleOp in src/daemon/saturn/saturn.ts must derive the account from the session model for a plain fire and from the captured modelKey otherwise)`)
 const T0 = Date.now()
 workers.updateConcourseWorkers(workers => {
   for (const rec of Object.values(workers)) {
@@ -103,7 +103,7 @@ workers.updateConcourseWorkers(workers => {
   }
 }, DAEMON_DIR)
 const capturedKeys = Object.values(readWorkers()).flatMap(rec => ((rec.schedules ?? []) as Array<{ modelKey?: string }>).map(s => s.modelKey))
-check('the captured keys stand on the record as provenance', capturedKeys.filter(k => k === OTHER_MODEL).length === 1 && capturedKeys.filter(k => k === LIVE_MODEL).length === 2, `${j(capturedKeys)} (applyConcourseScheduleOp in src/daemon/saturn.ts must store the modelKey on each schedule row)`)
+check('the captured keys stand on the record as provenance', capturedKeys.filter(k => k === OTHER_MODEL).length === 1 && capturedKeys.filter(k => k === LIVE_MODEL).length === 2, `${j(capturedKeys)} (applyConcourseScheduleOp in src/daemon/saturn/saturn.ts must store the modelKey on each schedule row)`)
 
 const fireDerivations: string[] = []
 const delivered: Array<Record<string, unknown>> = []
@@ -124,26 +124,26 @@ const ports = {
   dir: DAEMON_DIR,
 }
 const report = await ticker.tickSaturnOnce(ports as never)
-check('the tick fires all three', report.fired === 3 && report.held === 0 && delivered.length === 3, `${j(report)} (tickSaturnOnce in src/daemon/saturnTicker.ts must fire all three due schedules and hold none)`)
+check('the tick fires all three', report.fired === 3 && report.held === 0 && delivered.length === 3, `${j(report)} (tickSaturnOnce in src/daemon/saturn/saturnTicker.ts must fire all three due schedules and hold none)`)
 const FRAME_KEYS = 'by,clientMessageId,origin,parked,prompt,sessionId,workspaceId'
 for (const d of delivered) {
   const keys = Object.keys(d).sort().join(',')
-  check(`the delivery for '${String(d.prompt)}' is a plain frame: ${FRAME_KEYS} — no model, no system, no tools, no messages`, keys === FRAME_KEYS, `${keys} (the fire delivery built in src/daemon/saturnTicker.ts must carry exactly the plain frame keys, no model or prefix)`)
+  check(`the delivery for '${String(d.prompt)}' is a plain frame: ${FRAME_KEYS} — no model, no system, no tools, no messages`, keys === FRAME_KEYS, `${keys} (the fire delivery built in src/daemon/saturn/saturnTicker.ts must carry exactly the plain frame keys, no model or prefix)`)
   const origin = d.origin as Record<string, unknown> | undefined
-  check(`…and its origin names the schedule that fired it, nothing of the model`, origin !== undefined && origin.kind === 'saturn' && origin.fire === 'cron' && origin.firedAt === new Date(T0).toISOString() && typeof origin.scheduleId === 'string' && !('model' in origin), `${j(origin)} (the origin of the fire delivery in src/daemon/saturnTicker.ts must be kind saturn, fire cron, firedAt, scheduleId, and no model)`)
+  check(`…and its origin names the schedule that fired it, nothing of the model`, origin !== undefined && origin.kind === 'saturn' && origin.fire === 'cron' && origin.firedAt === new Date(T0).toISOString() && typeof origin.scheduleId === 'string' && !('model' in origin), `${j(origin)} (the origin of the fire delivery in src/daemon/saturn/saturnTicker.ts must be kind saturn, fire cron, firedAt, scheduleId, and no model)`)
 }
 const byPrompt = (prompt: string): Record<string, unknown> | undefined => delivered.find(d => d.prompt === prompt)
-check('the same-model fire delivers into the live session, not parked', byPrompt('same-model beat')?.sessionId === SESSION_LIVE && byPrompt('same-model beat')?.parked === false, 'tickSaturnOnce in src/daemon/saturnTicker.ts must deliver a fire to the live session with parked false')
-check('the captured-other-model fire delivers into the same live session, the same plain frame, not parked', byPrompt('other-model beat')?.sessionId === SESSION_LIVE && byPrompt('other-model beat')?.parked === false, 'tickSaturnOnce in src/daemon/saturnTicker.ts must send a captured-other-model fire as the same plain frame into the live session')
-check("the parked session's fire rides the same door with parked true (the revive road), still without a model", byPrompt('parked beat')?.sessionId === SESSION_PARKED && byPrompt('parked beat')?.parked === true, 'tickSaturnOnce in src/daemon/saturnTicker.ts must deliver a parked-session fire with parked true and no model')
-check("the fire-time derivation reads the SESSION's live model for every fire — the captured other key is never consulted", fireDerivations.length === 3 && fireDerivations.every(k => k === LIVE_MODEL), `${j(fireDerivations)} (resolveFireTimeAccount in src/daemon/saturnTicker.ts must derive from the session live model for a fire)`)
+check('the same-model fire delivers into the live session, not parked', byPrompt('same-model beat')?.sessionId === SESSION_LIVE && byPrompt('same-model beat')?.parked === false, 'tickSaturnOnce in src/daemon/saturn/saturnTicker.ts must deliver a fire to the live session with parked false')
+check('the captured-other-model fire delivers into the same live session, the same plain frame, not parked', byPrompt('other-model beat')?.sessionId === SESSION_LIVE && byPrompt('other-model beat')?.parked === false, 'tickSaturnOnce in src/daemon/saturn/saturnTicker.ts must send a captured-other-model fire as the same plain frame into the live session')
+check("the parked session's fire rides the same door with parked true (the revive road), still without a model", byPrompt('parked beat')?.sessionId === SESSION_PARKED && byPrompt('parked beat')?.parked === true, 'tickSaturnOnce in src/daemon/saturn/saturnTicker.ts must deliver a parked-session fire with parked true and no model')
+check("the fire-time derivation reads the SESSION's live model for every fire — the captured other key is never consulted", fireDerivations.length === 3 && fireDerivations.every(k => k === LIVE_MODEL), `${j(fireDerivations)} (resolveFireTimeAccount in src/daemon/saturn/saturnTicker.ts must derive from the session live model for a fire)`)
 const afterKeys = Object.values(readWorkers()).flatMap(rec => ((rec.schedules ?? []) as Array<{ modelKey?: string }>).map(s => s.modelKey))
-check('the captured key is untouched by the fire (provenance only; the family did not move)', j(afterKeys.sort()) === j(capturedKeys.slice().sort()), `${j(afterKeys)} (a fire in src/daemon/saturnTicker.ts must leave the stored schedule modelKey as it was)`)
-check('each delivery names its fire once: saturn-<session>-<schedule>-<dueAt>', delivered.every(d => String(d.clientMessageId).startsWith(`saturn-${String(d.sessionId)}-`)), `${j(delivered.map(d => d.clientMessageId))} (the clientMessageId built in src/daemon/saturnTicker.ts must start saturn-<session>-)`)
+check('the captured key is untouched by the fire (provenance only; the family did not move)', j(afterKeys.sort()) === j(capturedKeys.slice().sort()), `${j(afterKeys)} (a fire in src/daemon/saturn/saturnTicker.ts must leave the stored schedule modelKey as it was)`)
+check('each delivery names its fire once: saturn-<session>-<schedule>-<dueAt>', delivered.every(d => String(d.clientMessageId).startsWith(`saturn-${String(d.sessionId)}-`)), `${j(delivered.map(d => d.clientMessageId))} (the clientMessageId built in src/daemon/saturn/saturnTicker.ts must start saturn-<session>-)`)
 
 section('§2 the fired words are an appended user row — the wake reason rides inside it, nothing sent before it moves')
-check('with no reason the fired prompt is byte-identical', bridge.applyWakeReason('same-model beat', undefined) === 'same-model beat' && bridge.applyWakeReason('same-model beat', ' \r\n ') === 'same-model beat', 'applyWakeReason in src/services/saturn/sessionScheduleBridge.ts must return the prompt unchanged when the reason is empty')
-check('a reason is one bracketed line ahead of the prompt inside the new row', bridge.applyWakeReason('same-model beat', 'the loop\r\nwoke') === '[self-paced wake — why you woke: the loop woke]\n\nsame-model beat', 'applyWakeReason in src/services/saturn/sessionScheduleBridge.ts must put the reason on one bracketed line ahead of the prompt')
+check('with no reason the fired prompt is byte-identical', bridge.applyWakeReason('same-model beat', undefined) === 'same-model beat' && bridge.applyWakeReason('same-model beat', ' \r\n ') === 'same-model beat', 'applyWakeReason in src/daemon/saturn/sessionScheduleBridge.ts must return the prompt unchanged when the reason is empty')
+check('a reason is one bracketed line ahead of the prompt inside the new row', bridge.applyWakeReason('same-model beat', 'the loop\r\nwoke') === '[self-paced wake — why you woke: the loop woke]\n\nsame-model beat', 'applyWakeReason in src/daemon/saturn/sessionScheduleBridge.ts must put the reason on one bracketed line ahead of the prompt')
 type Block = Record<string, unknown>
 const THINK = (text: string): Block => ({ type: 'thinking', thinking: text, signature: `sig-${text}` })
 const TEXT = (text: string): Block => ({ type: 'text', text })
@@ -160,7 +160,7 @@ const key = 'owner|first|claude-fable-5-1'
 ledger.judgeAndRecordPrefix('fire-owner', key, { system: SYSTEM, tools: TOOLS, messages: history }, [null, 'msg_1', null, 'msg_2'])
 const fired = [...history, { role: 'user', content: [TEXT(bridge.applyWakeReason('same-model beat', 'the loop woke'))] }]
 const verdict = ledger.judgeAndRecordPrefix('fire-owner', key, { system: SYSTEM, tools: TOOLS, messages: fired }, [null, 'msg_1', null, 'msg_2', null])
-check("the request the fire's turn sends compares against the session's own record and moves nothing ahead of the preserved thinking", verdict.compared && verdict.mismatch === null && verdict.lastThinkingIndex === 3, verdict.mismatch ? ledger.describePrefixMismatch(verdict.mismatch) : `compared=${verdict.compared} (the fired prompt must only append a user row; check applyWakeReason in src/services/saturn/sessionScheduleBridge.ts and judgeAndRecordPrefix in src/services/providers/anthropic/prefixLedger.ts)`)
+check("the request the fire's turn sends compares against the session's own record and moves nothing ahead of the preserved thinking", verdict.compared && verdict.mismatch === null && verdict.lastThinkingIndex === 3, verdict.mismatch ? ledger.describePrefixMismatch(verdict.mismatch) : `compared=${verdict.compared} (the fired prompt must only append a user row; check applyWakeReason in src/daemon/saturn/sessionScheduleBridge.ts and judgeAndRecordPrefix in src/models/roads/anthropic/prefixLedger.ts)`)
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} saturn fire plain frame: ${checks - failures}/${checks} checks passed`)
 process.exit(failures === 0 ? 0 : 1)

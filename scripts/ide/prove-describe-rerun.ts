@@ -8,12 +8,12 @@ import * as path from 'node:path'
 const home = mkdtempSync(path.join(tmpdir(), 'describe-rerun-'))
 process.env.MERCURY_CONFIG_DIR = path.join(home, 'home')
 process.env.MERCURY_BARE = '1'
-const runners = await import('../../src/services/ide/projectRunners.ts')
-const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+const runners = await import('../../src/integrations/ide/projectRunners.ts')
+const { TestTool } = await import('../../src/tools/test/TestTool.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
 let failures = 0
 function check(name: string, ok: boolean, detail: unknown) {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${JSON.stringify(detail)}${ok ? '' : ' | fix runRunnerProfile and rerunRunnerFailures in src/services/ide/projectRunners.ts (rerun selection, counts, no-match verdict) or the rerunFailed op of the Test tool in src/tools/TestTool/TestTool.ts'}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${JSON.stringify(detail)}${ok ? '' : ' | fix runRunnerProfile and rerunRunnerFailures in src/integrations/ide/projectRunners.ts (rerun selection, counts, no-match verdict) or the rerunFailed op of the Test tool in src/tools/test/TestTool.ts'}`)
   if (!ok) failures++
 }
 try {

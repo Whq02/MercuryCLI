@@ -1,4 +1,4 @@
-import type { Command } from '../../types/command.js'
+import type { Command } from '../catalogue/command.js'
 
 const lsp = {
   type: 'local',

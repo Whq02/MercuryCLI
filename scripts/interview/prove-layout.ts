@@ -6,8 +6,8 @@ import { checker } from '../engine-durability/harness.ts'
 import {
   measureOptionPane,
   resolveInterviewLayout,
-} from '../../src/components/permissions/AskUserQuestionPermissionRequest/interviewLayout.ts'
-import type { InterviewQuestion } from '../../src/services/interview/contracts.ts'
+} from '../../src/permissions/cards/ask-user-question/interviewLayout.ts'
+import type { InterviewQuestion } from '../../src/tools/engines/interview/contracts.ts'
 
 const t = checker()
 

@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { Command } from 'commander'
-import { registerTuneDoor, tuneDoor, TUNE_DOOR_HELP } from '../../src/cli/tuneDoor.ts'
+import { registerTuneDoor, tuneDoor, TUNE_DOOR_HELP } from '../../src/commands/verbs/tuneDoor.ts'
 
 const home = join(proofHome, 'program'), invocations: Array<{ command: string; args: string[]; cwd: string; inherit: boolean }> = []
 let failBuild = false
@@ -51,6 +51,6 @@ command.action((args: string[]) => { passed = args })
 await cli.parseAsync(['tune', 'export', '--out', 'folder with spaces', '--help'], { from: 'user' })
 assert.deepEqual(passed, ['export', '--out', 'folder with spaces', '--help'])
 const helpText = command.helpInformation()
-assert.ok(helpText.includes('--repository <git-url>'), `src/cli/tuneDoor.ts help missing --repository <git-url>: ${helpText.slice(0, 140)}`)
-assert.ok(helpText.includes('--update'), `src/cli/tuneDoor.ts help missing --update: ${helpText.slice(0, 140)}`)
+assert.ok(helpText.includes('--repository <git-url>'), `src/commands/verbs/tuneDoor.ts help missing --repository <git-url>: ${helpText.slice(0, 140)}`)
+assert.ok(helpText.includes('--update'), `src/commands/verbs/tuneDoor.ts help missing --update: ${helpText.slice(0, 140)}`)
 console.log('PASS registered help and subcommand flags pass through without core interpretation')

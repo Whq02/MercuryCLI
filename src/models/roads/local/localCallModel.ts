@@ -1,0 +1,357 @@
+import type { Tool, Tools } from '../../../tools/kit/tool.js'
+import { isDeferredTool, isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../../../tools/tool-search/prompt.js'
+import { localPromptProfileApplies, localToolForm } from '../localPromptProfile.js'
+import { deferralWireFormFor } from '../deferralWire.js'
+import type { Message } from '../../../engine/message-shapes/message.js'
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
+import { toolToAPISchema } from '../../../engine/messages/apiSystemAndToolSchema.js'
+import { extractDiscoveredToolNames, isToolSearchEnabledOptimistic } from '../../../engine/messages/toolSearch.js'
+import { getToolSchemaCache } from '../toolSchemaCache.js'
+import { zodToJsonSchema } from '../../../platform/primitives/zodToJsonSchema.js'
+import { inlineLocalSchemaRefs } from '../inlineSchemaRefs.js'
+import { processOwnerForLane } from '../../../engine/run-owner/resolveOwner.js'
+import {
+  compatChatCallModel,
+  compatDispatchModelId,
+  compatLaneLiveProofState,
+  laneExtrasWithOperatorEffort,
+  type CompatCallModelParams,
+  type CompatLaneProfile,
+} from '../openaicompat/compatChatCallModel.js'
+import { buildLocalExtras, LOCAL_SERVER_EFFORTS, localThinkingOff, tensorFoldRefusesEffort } from '../openaicompat/compatWire.js'
+import { nearestSupportedWireEffort } from '../../facts/pins/gptPins.js'
+import { getMaxOutputTokensForModel } from '../anthropic/streamCore.js'
+import { effortVocabularyFor } from '../../facts/capabilities.js'
+import { EFFORT_STAMP_NONE, EFFORT_STAMP_THINKING_OFF, EFFORT_STAMP_THINKING_ON, type EffortWireFact } from '../../effort/effortStamp.js'
+import { planToolPayload, toolsOnTheWire } from '../toolEconomy.js'
+import { mapToolsToZai, toolDeclarationRowInResult, type ApiShapedTool } from '../zai/zaiCodec.js'
+import { QWEN_TEMPLATE_EFFORTS, QWEN_TEMPLATE_EFFORT_STEPS, qwenTemplateEffort, qwenTemplateReadsEffort } from '../../facts/pins/qwenTemplate.js'
+import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKeyFor } from './localAccounts.js'
+import { configuredProviderKeyCommand, recoverProviderKeyCommand } from '../providerKeyCommand.js'
+import { localContextSourceWords, localFitRefusalSentence, localRecordFor, localServerName, localWireId } from './localCatalogue.js'
+import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, residentServedWindow, type LocalDiscoveryIo, type LocalModelRecord } from './localDiscovery.js'
+import { adoptableLocalWindow, adoptLocalWindow, decideLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, localPlannedWindow, localWindowApplication, localWindowDecisionLine, localWindowFits, localWindowSettingOf, localWindowSourceWords, releaseOutgrownLocalWindow, type HeldLocalWindow } from './localWindow.js'
+import { ollamaChatTransport, ollamaChatUrl } from './ollamaChatTransport.js'
+import { tensorFoldRequestBegins } from './tensorfoldPrefill.js'
+import { noteTensorFoldTurn } from './tensorfoldUsage.js'
+import type { CompatCallModelParams as LocalCallParams } from '../openaicompat/compatChatCallModel.js'
+import { logForDebugging } from '../../../platform/logs/debugLog.js'
+import { estimateRequestTokens } from '../../facts/tokenEstimation.js'
+import { localTurnTakesTheServer } from './localTurn.js'
+import { passedOverAs } from '../../../platform/errors/passedOver.js'
+
+export function localModelAcceptsEffort(record: LocalModelRecord): boolean {
+  if (record.server === 'ollama' || record.server === 'lmstudio' || record.server === 'tensorfold') return record.thinkingDeclared === true
+  return record.server === 'vllm' || record.server === 'llamacpp'
+}
+
+function servesQwenTemplate(record: LocalModelRecord): boolean {
+  return (record.server === 'vllm' || record.server === 'llamacpp') && qwenTemplateReadsEffort(record.id)
+}
+
+function statedTemplateEfforts(record: LocalModelRecord): readonly string[] | undefined {
+  return record.server === 'llamacpp' && record.efforts !== undefined && record.efforts.length > 0 && !servesQwenTemplate(record) ? record.efforts : undefined
+}
+
+export function localServedEfforts(record: LocalModelRecord): { vocabulary: readonly string[]; steps?: Readonly<Record<string, string>> } {
+  return servesQwenTemplate(record) ? { vocabulary: QWEN_TEMPLATE_EFFORTS, steps: QWEN_TEMPLATE_EFFORT_STEPS } : { vocabulary: statedTemplateEfforts(record) ?? LOCAL_SERVER_EFFORTS[record.server] }
+}
+
+export const TENSORFOLD_OUTPUT_CEILING = 32768
+
+export function tensorFoldOutputCeiling(record: LocalModelRecord): number {
+  const window = localGuardWindow(record)?.tokens ?? record.contextWindow?.tokens
+  return window === undefined ? TENSORFOLD_OUTPUT_CEILING : Math.max(1, Math.min(TENSORFOLD_OUTPUT_CEILING, Math.floor(window / 2)))
+}
+
+export function localGuardWindow(record: LocalModelRecord, hold?: HeldLocalWindow): { tokens: number; sourceWords: string } | undefined {
+  if (hold !== undefined) {
+    const application = localWindowApplication(record)
+    if ((application === 'request' || application === 'load') && hold.window !== undefined) {
+      return { tokens: hold.window, sourceWords: localWindowSourceWords(hold) }
+    }
+    const stated = record.contextWindow
+    if (stated === undefined || (stated.source !== 'served' && stated.source !== 'modelfile')) return undefined
+    return { tokens: stated.tokens, sourceWords: localContextSourceWords(stated.source) }
+  }
+  const planned = localPlannedWindow(record)
+  if (planned === undefined || planned.source === 'model-max') return undefined
+  return { tokens: planned.tokens, sourceWords: planned.sourceWords }
+}
+
+export function localPromptFitRefusal(model: string, params: LocalEstimateParams): string | undefined {
+  const record = localRecordFor(model)
+  if (record === undefined) return undefined
+  const guard = localGuardWindow(record)
+  if (guard === undefined) return undefined
+  const toolWire = localToolWireGuess(params.tools, params.messages, model)
+  const fixed = localPreComposeEstimate({ ...params, messages: [], toolWire, model })
+  if (fixed <= guard.tokens * LOCAL_FIT_TOLERANCE) return undefined
+  const estTokens = localPreComposeEstimate({ ...params, toolWire, model })
+  return localFitRefusalSentence({ id: record.id, estTokens, toolCount: toolWire.schemas, window: guard.tokens, sourceWords: guard.sourceWords })
+}
+
+export function localPromptFits(model: string, params: LocalEstimateParams): boolean {
+  const record = localRecordFor(model)
+  if (record === undefined) return false
+  const guard = localGuardWindow(record)
+  if (guard === undefined) return false
+  const toolWire = localToolWireGuess(params.tools, params.messages, model)
+  return localWindowFits(guard.tokens, localPreComposeEstimate({ ...params, toolWire, model }))
+}
+
+export const LOCAL_WIRE_BYTES_PER_TOKEN = 3.9
+export const LOCAL_FIT_TOLERANCE = 4 / 3
+const LOCAL_UNRENDERED_DESCRIPTION_BYTES = 2048
+
+export interface LocalToolWire {
+  schemas: number
+  schemaBytes: number
+  named: number
+}
+
+export type LocalEstimateParams = Pick<LocalCallParams, 'messages' | 'systemPrompt' | 'tools'> & { toolWire?: LocalToolWire; model?: string; options?: Pick<LocalCallParams['options'], 'model'> }
+
+function wireBytesOf(apiTools: readonly ApiShapedTool[]): number {
+  return apiTools.length === 0 ? 0 : Buffer.byteLength(JSON.stringify(mapToolsToZai(apiTools)), 'utf8')
+}
+
+function unrenderedApiTool(tool: Tool): ApiShapedTool {
+  const explicit = (tool as { inputJSONSchema?: unknown }).inputJSONSchema
+  let input_schema: unknown = {}
+  try {
+    input_schema = inlineLocalSchemaRefs((explicit as Record<string, unknown> | undefined) ?? zodToJsonSchema(tool.inputSchema))
+  } catch {
+    input_schema = {}
+  }
+  return { name: tool.name, description: ' '.repeat(LOCAL_UNRENDERED_DESCRIPTION_BYTES), input_schema }
+}
+
+function profileApiTool(tool: Tool, model: string, rendered: ReadonlyMap<string, ApiShapedTool>): ApiShapedTool {
+  const plain = unrenderedApiTool(tool)
+  const short = localToolForm(tool.name, model, plain.description ?? '', plain.input_schema)
+  return short.description !== plain.description ? { name: tool.name, description: short.description, input_schema: short.input_schema } : rendered.get(tool.name) ?? plain
+}
+
+export function localToolWireGuess(tools: Tools, messages: readonly Message[], model?: string): LocalToolWire {
+  const profileModel = model !== undefined && localPromptProfileApplies(model) ? model : undefined
+  const deferred = new Set(tools.filter(tool => (profileModel !== undefined ? isDeferredToolFor(tool, profileModel) : isDeferredTool(tool))).map(tool => tool.name))
+  const deferring = isToolSearchEnabledOptimistic() && tools.some(tool => tool.name === TOOL_SEARCH_TOOL_NAME) && deferred.size > 0
+  const admitted = deferring ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
+  const admittedJoin = profileModel === undefined || deferralWireFormFor(profileModel).form === 'text'
+  const roster = deferring ? tools.filter(tool => !deferred.has(tool.name) || (admittedJoin && admitted.has(tool.name))) : tools.filter(tool => tool.name !== TOOL_SEARCH_TOOL_NAME)
+  const rendered = new Map<string, ApiShapedTool>()
+  for (const built of getToolSchemaCache().values()) rendered.set(built.name, { name: built.name, ...(built.description ? { description: built.description } : {}), input_schema: built.input_schema })
+  const apiTools = roster.map(tool => (profileModel !== undefined ? profileApiTool(tool, profileModel, rendered) : rendered.get(tool.name) ?? unrenderedApiTool(tool)))
+  const named = deferring ? [...deferred].filter(name => !admitted.has(name)).length : 0
+  return { schemas: apiTools.length, schemaBytes: wireBytesOf(apiTools), named }
+}
+
+export async function localToolWireOf(params: CompatCallModelParams): Promise<LocalToolWire> {
+  const { options } = params
+  const model = compatDispatchModelId(options.model)
+  const plan = await planToolPayload({
+    model,
+    tools: params.tools,
+    messages: params.messages,
+    getToolPermissionContext: options.getToolPermissionContext,
+    agents: options.agents,
+    latchKey: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)),
+    hasPendingMcpServers: options.hasPendingMcpServers,
+    source: 'estimate',
+  })
+  const declared = plan.admissionDeclarations.flatMap(declaration => declaration.tools)
+  const schemas = await Promise.all(
+    toolsOnTheWire(plan).map(tool =>
+      toolToAPISchema(tool, {
+        getToolPermissionContext: options.getToolPermissionContext,
+        tools: plan.roster,
+        agents: options.agents,
+        allowedAgentTypes: options.allowedAgentTypes,
+        model,
+        conversationKey: plan.conversationKey,
+      }),
+    ),
+  )
+  const apiTools: ApiShapedTool[] = []
+  for (const schema of schemas) {
+    const shaped = schema as { name?: string; description?: string; input_schema?: unknown }
+    if (typeof shaped.name === 'string' && shaped.input_schema !== undefined) {
+      apiTools.push({ name: shaped.name, ...(shaped.description ? { description: shaped.description } : {}), input_schema: shaped.input_schema })
+    }
+  }
+  const named = [...plan.deferredNames].filter(name => !plan.admittedNames.has(name) && !declared.some(tool => tool.name === name)).length
+  return { schemas: plan.roster.length, schemaBytes: wireBytesOf(apiTools), named }
+}
+
+export function localPreComposeEstimate(params: LocalEstimateParams): number {
+  const tokens = estimateRequestTokens({ messages: params.messages, system: params.systemPrompt }, params.model ?? params.options?.model)
+  const wire = params.toolWire ?? localToolWireGuess(params.tools, params.messages, params.model ?? params.options?.model)
+  return tokens + Math.ceil(wire.schemaBytes / LOCAL_WIRE_BYTES_PER_TOKEN)
+}
+
+export function ollamaThinkingValue(record: LocalModelRecord, effortValue: string | undefined, thinkingEnabled: boolean): boolean | string | undefined {
+  const thinking = record.thinking
+  if (thinking === undefined) return record.thinkingDeclared === true ? !localThinkingOff({ server: record.server, acceptsEffort: localModelAcceptsEffort(record), thinkingEnabled }) : undefined
+  if (!thinkingEnabled && thinking.values.includes(false)) return false
+  if (thinking.values.some(value => typeof value === 'string')) return effortValue ?? thinking.default
+  return thinking.values.includes(thinkingEnabled) ? thinkingEnabled : thinking.default
+}
+
+export function tensorFoldEffortApplied(model: string, level: string): string | undefined {
+  const record = localRecordFor(model)
+  if (record === undefined || record.server !== 'tensorfold') return undefined
+  const extras = laneExtrasWithOperatorEffort(localLaneProfileFor(record), effortVocabularyFor(model), { wireModel: record.id, effortValue: level, thinkingEnabled: true, maxOutputTokensOverride: undefined })
+  return typeof extras.reasoning_effort === 'string' ? extras.reasoning_effort : EFFORT_STAMP_NONE
+}
+
+export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile {
+  let think: boolean | string | undefined
+  const ollamaEffortOnWire = (): EffortWireFact => {
+    if (think === undefined) return { kind: 'unsupported' }
+    return { kind: 'sent', parameter: 'think', value: think, applied: typeof think === 'boolean' ? think ? EFFORT_STAMP_THINKING_ON : EFFORT_STAMP_THINKING_OFF : think }
+  }
+  return {
+    lane: 'local',
+    providerLabel: localServerName(record),
+    resolveCredential: () => {
+      const key = resolveLocalApiKeyFor(record.baseUrl)
+      return key ? { apiKey: key.key } : {}
+    },
+    recoverCredential: async () => {
+      if (!configuredProviderKeyCommand('local')) return null
+      const fresh = recoverProviderKeyCommand('local')
+      return fresh ? { apiKey: fresh } : undefined
+    },
+    credentialHint: 'the local server is not reachable.',
+    authRemedy:
+      'the server rejected the request credential — set MERCURY_LOCAL_API_KEY to the key the server was started with (its --api-key), or start it keyless.',
+    requestUrl: () => `${record.baseUrl}/chat/completions`,
+    wireModelId: () => record.id,
+    buildExtras: args => {
+      think = ollamaThinkingValue(record, args.effortValue, args.thinkingEnabled)
+      const stated = statedTemplateEfforts(record)
+      const effortValue =
+        args.effortValue === undefined
+          ? undefined
+          : servesQwenTemplate(record)
+            ? qwenTemplateEffort(args.effortValue)
+            : stated !== undefined && !stated.includes(args.effortValue)
+              ? nearestSupportedWireEffort(args.effortValue, stated)
+              : args.effortValue
+      return buildLocalExtras({ ...args, effortValue, server: record.server, acceptsEffort: localModelAcceptsEffort(record), ...(stated !== undefined ? { vocabulary: stated } : {}), ...(record.thinkingSwitch !== undefined ? { thinkingSwitch: record.thinkingSwitch } : {}) })
+    },
+    omitsToolChoice: record.server === 'ollama',
+    keepsReasoningOnContinuations: () => true,
+    toolDeclarationRow: toolDeclarationRowInResult,
+    ...(record.server === 'tensorfold'
+      ? {
+          keepsReasoningHistory: () => true,
+          refusesEffort: (wireEffort: string) => tensorFoldRefusesEffort(wireEffort, record.thinkingSwitch),
+          outputCeiling: () => tensorFoldOutputCeiling(record),
+          noteRuntime: (reading: { runtime: Parameters<typeof noteTensorFoldTurn>[0]['runtime']; usage: Parameters<typeof noteTensorFoldTurn>[0]['usage']; served: string | undefined }) => {
+            noteTensorFoldTurn({ model: reading.served ?? record.id, baseUrl: record.baseUrl, usage: reading.usage, runtime: reading.runtime })
+          },
+        }
+      : {}),
+    ...(record.server === 'ollama'
+      ? {
+          streamTransport: (options: Parameters<NonNullable<CompatLaneProfile['streamTransport']>>[0]) => {
+            const fit = heldLocalWindow(record)?.fit
+            return ollamaChatTransport(
+              { ...options, url: ollamaChatUrl(record.baseUrl) },
+              {
+                ...heldLocalKnobs(record),
+                ...(think !== undefined ? { think } : {}),
+                ...(fit !== undefined ? { fit } : {}),
+              },
+            )
+          },
+          effortOnWire: ollamaEffortOnWire,
+          outputCeiling: (modelId: string) => getMaxOutputTokensForModel(modelId),
+        }
+      : {}),
+    requestFitRefusal: ({ estTokens, toolCount }) => {
+      const guard = localGuardWindow(record)
+      if (guard === undefined) return undefined
+      if (estTokens <= guard.tokens * LOCAL_FIT_TOLERANCE) return undefined
+      return localFitRefusalSentence({ id: record.id, estTokens, toolCount, window: guard.tokens, sourceWords: guard.sourceWords })
+    },
+    servedWindowTokens: () => localGuardWindow(record)?.tokens,
+    toolsInPrompt: () => record.toolsDeclared === false,
+  }
+}
+
+export function undiscoveredLocalHint(modelId: string): string {
+  const wire = localWireId(modelId)
+  const ollama = getCachedLocalDiscovery()?.servers.find(server => server.kind === 'ollama')
+  if (ollama) {
+    return `no local server lists this model — ${ollama.label} answers but has not pulled '${wire}': ollama pull ${wire} (or ${LOCAL_PULL_RECOMMENDATION}); /model lists what is pulled and re-probes on open.`
+  }
+  return `no local server lists this model — start Ollama (:11434), LM Studio (:1234), vLLM (:8000) or llama.cpp-server (:8080), or point MERCURY_LOCAL_BASE_URL at your server, then ${LOCAL_PULL_RECOMMENDATION}; /model re-probes on open.`
+}
+
+function undiscoveredProfile(modelId: string): CompatLaneProfile {
+  return {
+    lane: 'local',
+    providerLabel: 'Local models',
+    resolveCredential: () => undefined,
+    credentialHint: undiscoveredLocalHint(modelId),
+    requestUrl: () => {
+      throw new Error('undiscovered local model — resolveCredential refuses before this point')
+    },
+    wireModelId: id => localWireId(id),
+    buildExtras: () => ({}),
+  }
+}
+
+export function localLiveProofState(): { at: number; model: string } | null {
+  return compatLaneLiveProofState('local')
+}
+
+export async function* localCallModel(params: CallModelParams): CallModelStream {
+  let record = localRecordFor(params.options.model)
+  if (!record) {
+    await refreshLocalDiscovery({ force: true }).catch(passedOverAs(undefined))
+    record = localModelRecord(localWireId(params.options.model))
+  }
+  let confirmAfter = false
+  const engine = record !== undefined && record.server === 'tensorfold' ? tensorFoldRequestBegins(record, params.messages, params.options) : undefined
+  try {
+    if (record) {
+      const application = localWindowApplication(record)
+      const io: LocalDiscoveryIo = { signal: params.signal }
+      if (application === 'request' || application === 'load') {
+        const setting = localWindowSettingOf(record)
+        const current = localPreComposeEstimate(params)
+        releaseOutgrownLocalWindow(record, current)
+        const held = heldLocalWindow(record)
+        const estimate = held !== undefined && held.setting === setting ? held.estTokens : localPreComposeEstimate({ ...params, toolWire: await localToolWireOf(params) })
+        const decision = decideLocalWindow(record, estimate, setting, await ensureLocalWindowTruth(record, setting))
+        logForDebugging(localWindowDecisionLine(record, decision))
+        if (application === 'load') {
+          await ensureServedWindow(record, io, decision.window !== undefined ? { numCtx: decision.window } : undefined)
+        } else {
+          confirmAfter = await settleOllamaWindow(record, decision, Math.max(current, estimate), io)
+        }
+      } else {
+        await ensureServedWindow(record, io)
+      }
+    }
+    localTurnTakesTheServer(record)
+    const profile = record ? localLaneProfileFor(record) : undiscoveredProfile(params.options.model)
+    yield* compatChatCallModel(engine?.transport !== undefined ? { ...profile, streamTransport: engine.transport } : profile, params)
+  } finally {
+    engine?.ends()
+  }
+  if (record && confirmAfter && !params.signal.aborted) await confirmServedWindow(record, { signal: params.signal })
+}
+
+export async function settleOllamaWindow(record: LocalModelRecord, decided: HeldLocalWindow, estTokens: number, io: LocalDiscoveryIo): Promise<boolean> {
+  let hold = decided
+  await ensureServedWindow(record, io, hold.window === undefined ? heldLocalKnobs(record) : { probeOnly: true })
+  const resident = residentServedWindow(record)
+  if (adoptableLocalWindow(hold, resident, estTokens)) hold = adoptLocalWindow(record, hold, resident)
+  else if (hold.window !== undefined && resident !== undefined && resident !== hold.window) logForDebugging(`[local-window] ${record.id}: the server holds it at ${resident}, this session's window is ${hold.window} — the request reloads the runner at ${hold.window}`)
+  return hold.window === undefined || resident !== hold.window
+}

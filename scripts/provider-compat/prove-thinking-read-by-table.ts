@@ -2,7 +2,7 @@
 import { proofHome } from '../lib/hermetic.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const name of Object.keys(process.env)) {
@@ -13,7 +13,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 
-const HINT = 'to fix, change THINKING_READ_BY_ALL, THINKING_READ_BY or readsThinkingOf in src/services/providers/anthropic/thinkingBinding.ts to say what platform.claude.com/docs/en/build-with-claude/preserved-thinking says (read 2026-11-22), and give a new model row its place in NAMES and READS here'
+const HINT = 'to fix, change THINKING_READ_BY_ALL, THINKING_READ_BY or readsThinkingOf in src/models/roads/anthropic/thinkingBinding.ts to say what platform.claude.com/docs/en/build-with-claude/preserved-thinking says (read 2026-11-22), and give a new model row its place in NAMES and READS here'
 let failures = 0
 function check(label: string, cond: boolean, detail?: string): void {
   if (!cond) failures++
@@ -69,17 +69,17 @@ const fixtureFetch: typeof fetch = (input, init) => {
 }
 globalThis.fetch = fixtureFetch
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { switchSession } = await import('../../src/bootstrap/state.ts')
-const { asSessionId } = await import('../../src/types/ids.ts')
+const { switchSession } = await import('../../src/boot/process-state/processState.ts')
+const { asSessionId } = await import('../../src/sessions/transcripts/ids.ts')
 switchSession(asSessionId('33333333-3333-4333-8333-333333333333'))
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { readsThinkingOf } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
-const { ALL_MODEL_CONFIGS } = await import('../../src/utils/model/configs.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { readsThinkingOf } = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
+const { ALL_MODEL_CONFIGS } = await import('../../src/models/facts/builtInModelTable.ts')
 
 const j = (value: unknown): string => JSON.stringify(value)
 type Sent = { roles: string[]; thinkingBlocks: number; settled: AssistantMessage[]; failed: string | null }

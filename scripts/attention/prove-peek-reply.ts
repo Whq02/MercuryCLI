@@ -3,9 +3,9 @@ import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 
-let A: typeof import('../../src/services/attention/actions.ts') | null = null
+let A: typeof import('../../src/screen/attention/actions.ts') | null = null
 try {
-  A = await import('../../src/services/attention/actions.ts')
+  A = await import('../../src/screen/attention/actions.ts')
 } catch {
   A = null
 }
@@ -13,8 +13,8 @@ if (!A || typeof (A as Record<string, unknown>).submitReply !== 'function') {
   t.check('actions.ts exports submitReply', false, 'absent at this tree')
   t.finish('prove-peek-reply')
 }
-const q = await import('../../src/input-core/command-queue.ts')
-const focused = await import('../../src/services/engine-connector/focusedConnector.ts')
+const q = await import('../../src/screen/composer/input-core/command-queue.ts')
+const focused = await import('../../src/engine/connector/focusedConnector.ts')
 
 t.section('§1 — the reply routes (the delivery door)')
 {

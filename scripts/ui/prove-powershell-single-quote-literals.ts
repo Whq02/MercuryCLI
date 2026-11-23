@@ -10,11 +10,11 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 
-const { escapeForPowershellSingleQuotes } = await import('../../src/utils/powershellLiteral.ts')
-const { resumeHintArgument } = await import('../../src/utils/shutdownRestoration.ts')
+const { escapeForPowershellSingleQuotes } = await import('../../src/platform/shell/powershellLiteral.ts')
+const { resumeHintArgument } = await import('../../src/screen/renderer/terminal-session/shutdownRestoration.ts')
 
-const escaperHint = 'fix escapeForPowershellSingleQuotes in src/utils/powershellLiteral.ts'
-const resumeHintHint = 'fix quoteResumeTitleForShell in src/utils/platform/words.ts (called by resumeHintArgument in src/utils/shutdownRestoration.ts)'
+const escaperHint = 'fix escapeForPowershellSingleQuotes in src/platform/shell/powershellLiteral.ts'
+const resumeHintHint = 'fix quoteResumeTitleForShell in src/platform/host-os/words.ts (called by resumeHintArgument in src/screen/renderer/terminal-session/shutdownRestoration.ts)'
 const units = (text: string): string => Array.from({ length: text.length }, (_, i) => text.charCodeAt(i)).join(',')
 const CASES = [
   "it's here",

@@ -1,12 +1,12 @@
 import { readdirSync } from 'node:fs'
 import { dirname, basename } from 'node:path'
-import { makeOwnerKey } from '../../../src/utils/run/ownerKey.ts'
-import { emptyRunSnapshot } from '../../../src/services/run/runKernel.ts'
+import { makeOwnerKey } from '../../../src/engine/run-owner/ownerKey.ts'
+import { emptyRunSnapshot } from '../../../src/engine/run/runKernel.ts'
 import {
   loadRunSidecar,
   runSidecarPath,
   saveRunSidecar,
-} from '../../../src/services/run/runSidecar.ts'
+} from '../../../src/engine/run/runSidecar.ts'
 
 const owner = makeOwnerKey({
   workspace: process.cwd(),

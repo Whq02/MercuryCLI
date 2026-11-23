@@ -74,7 +74,7 @@ const SHRINK_AT = 70
 const GROW_AT = 110
 const tk = (authored: number): number => Math.round(authored * vshotBudgetScale())
 const STORM_AT = 140
-const RAIL_CLICK_HINT = 'fix the click-to-select path of the lanes rail rows: onSelect of InteractiveRow in WorkbenchCardRow and the lane row in src/components/HelmLanesRail.tsx must move the helm cursor (setHelmCursor or setHelmCursorBySig) after a terminal resize; the captured marks are in the artifacts folder named on the last line'
+const RAIL_CLICK_HINT = 'fix the click-to-select path of the lanes rail rows: onSelect of InteractiveRow in WorkbenchCardRow and the lane row in src/screen/fullscreen-layout/HelmLanesRail.tsx must move the helm cursor (setHelmCursor or setHelmCursorBySig) after a terminal resize; the captured marks are in the artifacts folder named on the last line'
 
 mkdirSync(SCRATCH, { recursive: true })
 
@@ -119,7 +119,7 @@ for (const shape of SHAPES) {
   check(`${shape.tag}: drive exits 0`, res.status === 0, `status ${res.status}: ${(res.stdout ?? '').slice(-500)} — the vshot drive failed: read its output above and rerun scripts/ui/vshot.py with the config in the artifacts folder named on the last line`)
   const undelivered = /UNDELIVERED-SENDS/.test(res.stdout ?? '')
   check(`${shape.tag}: every send became due (clicks resolved on the live grid)`, !undelivered,
-    `${(res.stdout ?? '').split('\n').filter(l => l.includes('UNDELIVERED')).join(' ')} — a scripted send never found its awaitText or click target on the live grid; the screen text in the sends list of this file no longer matches what src/components/HelmLanesRail.tsx draws`)
+    `${(res.stdout ?? '').split('\n').filter(l => l.includes('UNDELIVERED')).join(' ')} — a scripted send never found its awaitText or click target on the live grid; the screen text in the sends list of this file no longer matches what src/screen/fullscreen-layout/HelmLanesRail.tsx draws`)
   if (res.status !== 0 || undelivered) continue
 
   const payload = JSON.parse(readFileSync(out, 'utf-8')) as { marks: Mark[] }

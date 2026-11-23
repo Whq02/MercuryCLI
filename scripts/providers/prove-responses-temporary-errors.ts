@@ -1,9 +1,9 @@
-import { ResponsesStreamFold } from '../../src/services/providers/openai/openaiWire.ts'
-import { nextBusyRetry, openBusyRetryLadder, takesBusyLadder } from '../../src/services/providers/busyRetry.ts'
-const classifier = await import(new URL('../../src/services/providers/temporaryStreamError.ts', import.meta.url).href).catch(() => undefined)
+import { ResponsesStreamFold } from '../../src/models/roads/openai/openaiWire.ts'
+import { nextBusyRetry, openBusyRetryLadder, takesBusyLadder } from '../../src/models/roads/busyRetry.ts'
+const classifier = await import(new URL('../../src/models/roads/temporaryStreamError.ts', import.meta.url).href).catch(() => undefined)
 
 let failures = 0
-const temporaryErrorsFailureHint = 'change how ResponsesStreamFold in src/services/providers/openai/openaiWire.ts marks a stream fault retryable, the classifier in src/services/providers/temporaryStreamError.ts, or the six-step ladder in src/services/providers/busyRetry.ts, whichever this label names'
+const temporaryErrorsFailureHint = 'change how ResponsesStreamFold in src/models/roads/openai/openaiWire.ts marks a stream fault retryable, the classifier in src/models/roads/temporaryStreamError.ts, or the six-step ladder in src/models/roads/busyRetry.ts, whichever this label names'
 function check(label: string, value: boolean): void {
   console.log(`[${value ? 'PASS' : 'FAIL'}] ${label}${value ? '' : ` — ${temporaryErrorsFailureHint}`}`)
   if (!value) failures++

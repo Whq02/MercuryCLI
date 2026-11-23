@@ -60,7 +60,7 @@ process names a file once, however many times it reads it.
 ## Deadlines and watchdogs
 
 Long-running work is fenced by registered ceilings in the in-code registry
-(`src/substrate/flagRegistry.ts`; rendered on demand to an untracked path);
+(`src/platform/substrate/flagRegistry.ts`; rendered on demand to an untracked path);
 the main ones:
 
 - **Crewmate inactivity** (`MERCURY_AGENT_IDLE_MINUTES`, default 15 minutes,

@@ -80,8 +80,8 @@ import { join } from 'node:path'
 if (homedir() !== process.env.DRV_HOME) throw new Error('the home folder is ' + homedir() + ', not the scratch home of this proof')
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const repo = ${JSON.stringify(repo)}
-const { getPlatform } = await import(join(repo, 'src/utils/platform.ts'))
-const { parseInstructionFileContent } = await import(join(repo, 'src/services/instructions/sourceText.ts'))
+const { getPlatform } = await import(join(repo, 'src/platform/environment/platform.ts'))
+const { parseInstructionFileContent } = await import(join(repo, 'src/sessions/instructions/sourceText.ts'))
 const plan = JSON.parse(process.env.DRV_PLAN ?? '{}')
 const file = join(plan.root, 'MERCURY.md')
 const read: Record<string, Record<string, unknown>> = {}
@@ -93,8 +93,8 @@ for (const seam of plan.seams) {
     read[seam][row.name] = { includes: parsed.includePaths, bare: parsed.bareMentionPaths }
   }
 }
-const { processInstructionFile, pathInInstructionRoots } = await import(join(repo, 'src/services/instructions/discovery.ts'))
-const { getFsImplementation, safeResolvePath } = await import(join(repo, 'src/utils/fsOperations.ts'))
+const { processInstructionFile, pathInInstructionRoots } = await import(join(repo, 'src/sessions/instructions/discovery.ts'))
+const { getFsImplementation, safeResolvePath } = await import(join(repo, 'src/platform/files/fsOperations.ts'))
 const fs: any = getFsImplementation()
 const calls: string[] = []
 for (const key of Object.keys(fs)) {
@@ -122,7 +122,7 @@ let passed = 0
 let failed = 0
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)} | change parseInstructionFileContent in src/services/instructions/sourceText.ts (how an @ path is read) or processInstructionFile in src/services/instructions/discovery.ts (an import held as external-import-blocked)` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)} | change parseInstructionFileContent in src/sessions/instructions/sourceText.ts (how an @ path is read) or processInstructionFile in src/sessions/instructions/discovery.ts (an import held as external-import-blocked)` : ''}`)
 }
 
 type Seam = (typeof SEAMS)[number]

@@ -7,7 +7,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const failHint = 'change the compaction-trace functions in src/utils/observability/invocationTrace.ts or parseTraceLines, aggregateCompaction and traceSnapshot in src/utils/cockpit/traceSnapshot.ts'
+  const failHint = 'change the compaction-trace functions in src/platform/observability/invocationTrace.ts or parseTraceLines, aggregateCompaction and traceSnapshot in src/screen/cockpit/traceSnapshot.ts'
   const shown = cond ? detail : detail ? detail + ' — ' + failHint : failHint
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
 }
@@ -27,8 +27,8 @@ const {
   emitCompactionTrace,
   isCompactionTraceEnabled,
   getInvocationTracePath,
-} = await import('../../src/utils/observability/invocationTrace.js')
-const { traceSnapshot, aggregateCompaction, parseTraceLines } = await import('../../src/utils/cockpit/traceSnapshot.js')
+} = await import('../../src/platform/observability/invocationTrace.js')
+const { traceSnapshot, aggregateCompaction, parseTraceLines } = await import('../../src/screen/cockpit/traceSnapshot.js')
 
 console.log('============================================================')
 console.log(' compaction-event trace lane — proof')

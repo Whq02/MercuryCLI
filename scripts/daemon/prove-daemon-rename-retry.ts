@@ -15,11 +15,11 @@ process.env.MERCURY_DAEMON_DIR = DAEMON
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_FAULT_INJECT
 
-const { processSweepCensusPath, recordProcessCensusAtBoot } = await import('../../src/daemon/processSweepRun.ts')
-const { mintGitInitAsk } = await import('../../src/daemon/permissionAsks.ts')
-const { migrateTranscriptHomeToLaw } = await import('../../src/daemon/concourseWorkers.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { _resetFaultInjectionCountersForTests } = await import('../../src/substrate/durablePublish.ts')
+const { processSweepCensusPath, recordProcessCensusAtBoot } = await import('../../src/daemon/process-sweep/processSweepRun.ts')
+const { mintGitInitAsk } = await import('../../src/daemon/session-seat/permissionAsks.ts')
+const { migrateTranscriptHomeToLaw } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+const { _resetFaultInjectionCountersForTests } = await import('../../src/platform/substrate/durablePublish.ts')
 
 const IS_WINDOWS = process.platform === 'win32'
 const HOLD_MS = 150
@@ -157,18 +157,18 @@ console.log('§1 with nothing holding the files, each write lands with the bytes
 {
   seedCensus()
   const census = await recordProcessCensusAtBoot(censusDeps)
-  check('the boot census replaces census.json with the writer\'s own bytes and leaves no temp beside it', censusLanded(census), read(censusPath).slice(0, 60), 'recordProcessCensusAtBoot in src/daemon/processSweepRun.ts must write census.json through its temp file and renameWithWin32Retry, with no temp left beside it')
+  check('the boot census replaces census.json with the writer\'s own bytes and leaves no temp beside it', censusLanded(census), read(censusPath).slice(0, 60), 'recordProcessCensusAtBoot in src/daemon/process-sweep/processSweepRun.ts must write census.json through its temp file and renameWithWin32Retry, with no temp left beside it')
 }
 {
   seedAsks()
   const folder = freshFolder()
   const id = askIdOf(mintGitInitAsk(folder))
-  check('the git-init ask lands in git-init-asks.json with the writer\'s own bytes and leaves no temp beside it', asksLanded(id, folder), read(asksPath), 'mintGitInitAsk in src/daemon/permissionAsks.ts must publish git-init-asks.json through publishInDaemonHome in src/daemon/daemonHome.ts with no temp left beside it')
+  check('the git-init ask lands in git-init-asks.json with the writer\'s own bytes and leaves no temp beside it', asksLanded(id, folder), read(asksPath), 'mintGitInitAsk in src/daemon/session-seat/permissionAsks.ts must publish git-init-asks.json through publishInDaemonHome in src/daemon/control/daemonHome.ts with no temp left beside it')
 }
 {
   const t = seedTranscript()
   migrateTranscriptHomeToLaw(t.rec)
-  check('the worktree transcript moves to the workspace project folder byte for byte', transcriptMoved(t), '', 'migrateTranscriptHomeToLaw in src/daemon/concourseWorkers/revive.ts must move the session jsonl from the worktree project folder to the workspace project folder unchanged')
+  check('the worktree transcript moves to the workspace project folder byte for byte', transcriptMoved(t), '', 'migrateTranscriptHomeToLaw in src/daemon/concourse-workers/revive.ts must move the session jsonl from the worktree project folder to the workspace project folder unchanged')
 }
 
 if (IS_WINDOWS) {
@@ -177,38 +177,38 @@ if (IS_WINDOWS) {
     seedCensus()
     const run = await whileHeld(censusPath, () => recordProcessCensusAtBoot(censusDeps))
     check('the holder took census.json', run.engaged === 'held', run.engaged, 'the PowerShell holder child never printed HELD; check that powershell starts on this machine and can open census.json for read without delete sharing')
-    check('the boot census lands once the holder lets go', censusLanded(run.value), read(censusPath).slice(0, 60), 'the rename in recordProcessCensusAtBoot (src/daemon/processSweepRun.ts) must retry through renameWithWin32Retry until the holder lets go')
+    check('the boot census lands once the holder lets go', censusLanded(run.value), read(censusPath).slice(0, 60), 'the rename in recordProcessCensusAtBoot (src/daemon/process-sweep/processSweepRun.ts) must retry through renameWithWin32Retry until the holder lets go')
   }
   {
     seedAsks()
     const folder = freshFolder()
     const run = await whileHeld(asksPath, () => mintGitInitAsk(folder))
     check('the holder took git-init-asks.json', run.engaged === 'held', run.engaged, 'the PowerShell holder child never printed HELD; check that powershell starts on this machine and can open git-init-asks.json for read without delete sharing')
-    check('the git-init ask lands once the holder lets go', asksLanded(askIdOf(run.value), folder), read(asksPath), 'publishInDaemonHome in src/daemon/daemonHome.ts must retry its rename through renameWithWin32RetrySync until the holder lets go')
+    check('the git-init ask lands once the holder lets go', asksLanded(askIdOf(run.value), folder), read(asksPath), 'publishInDaemonHome in src/daemon/control/daemonHome.ts must retry its rename through renameWithWin32RetrySync until the holder lets go')
   }
   {
     const t = seedTranscript()
     const run = await whileHeld(t.legacy, () => migrateTranscriptHomeToLaw(t.rec))
     check('the holder took the worktree transcript', run.engaged === 'held', run.engaged, 'the PowerShell holder child never printed HELD; check that powershell starts on this machine and can open the transcript for read without delete sharing')
-    check('the transcript moves once the holder lets go', transcriptMoved(t), '', 'migrateTranscriptHomeToLaw in src/daemon/concourseWorkers/revive.ts must move the file with renameWithWin32RetrySync so it waits out the holder')
+    check('the transcript moves once the holder lets go', transcriptMoved(t), '', 'migrateTranscriptHomeToLaw in src/daemon/concourse-workers/revive.ts must move the file with renameWithWin32RetrySync so it waits out the holder')
   }
 } else {
   console.log('§2 an open handle never blocks a rename on POSIX: each write lands at once, as it always has')
   {
     seedCensus()
     const census = await whileOpen(censusPath, () => recordProcessCensusAtBoot(censusDeps))
-    check('the boot census lands through an open handle on census.json', censusLanded(census), read(censusPath).slice(0, 60), 'recordProcessCensusAtBoot in src/daemon/processSweepRun.ts must write census.json and leave no temp file beside it')
+    check('the boot census lands through an open handle on census.json', censusLanded(census), read(censusPath).slice(0, 60), 'recordProcessCensusAtBoot in src/daemon/process-sweep/processSweepRun.ts must write census.json and leave no temp file beside it')
   }
   {
     seedAsks()
     const folder = freshFolder()
     const minted = await whileOpen(asksPath, () => mintGitInitAsk(folder))
-    check('the git-init ask lands through an open handle on git-init-asks.json', asksLanded(askIdOf(minted), folder), read(asksPath), 'mintGitInitAsk in src/daemon/permissionAsks.ts must publish git-init-asks.json and leave no temp file beside it')
+    check('the git-init ask lands through an open handle on git-init-asks.json', asksLanded(askIdOf(minted), folder), read(asksPath), 'mintGitInitAsk in src/daemon/session-seat/permissionAsks.ts must publish git-init-asks.json and leave no temp file beside it')
   }
   {
     const t = seedTranscript()
     await whileOpen(t.legacy, () => migrateTranscriptHomeToLaw(t.rec))
-    check('the transcript moves through an open handle on it', transcriptMoved(t), '', 'migrateTranscriptHomeToLaw in src/daemon/concourseWorkers/revive.ts must move the session jsonl to the workspace project folder')
+    check('the transcript moves through an open handle on it', transcriptMoved(t), '', 'migrateTranscriptHomeToLaw in src/daemon/concourse-workers/revive.ts must move the session jsonl to the workspace project folder')
   }
 }
 
@@ -217,27 +217,27 @@ if (IS_WINDOWS) {
   {
     seedCensus()
     await withFault('rename@census.json:eperm', () => recordProcessCensusAtBoot(censusDeps))
-    check('an EPERM that never clears leaves the last census whole', read(censusPath) === OLD_CENSUS, read(censusPath).slice(0, 60), 'a rename that keeps failing must leave census.json untouched; see the write in src/daemon/processSweepRun.ts and renameWithWin32Retry in src/substrate/durablePublish.ts')
+    check('an EPERM that never clears leaves the last census whole', read(censusPath) === OLD_CENSUS, read(censusPath).slice(0, 60), 'a rename that keeps failing must leave census.json untouched; see the write in src/daemon/process-sweep/processSweepRun.ts and renameWithWin32Retry in src/platform/substrate/durablePublish.ts')
     seedCensus()
     const census = await withFault('rename@census.json:eperm#2', () => recordProcessCensusAtBoot(censusDeps))
-    check('EPERM twice, then clear: the census lands through the bounded retry', censusLanded(census), read(censusPath).slice(0, 60), 'renameWithWin32Retry in src/substrate/durablePublish.ts must retry an EPERM rename within its bound so the census lands')
+    check('EPERM twice, then clear: the census lands through the bounded retry', censusLanded(census), read(censusPath).slice(0, 60), 'renameWithWin32Retry in src/platform/substrate/durablePublish.ts must retry an EPERM rename within its bound so the census lands')
   }
   {
     seedAsks()
     await withFault('rename@git-init-asks.json:eperm', () => mintGitInitAsk(freshFolder()))
-    check('an EPERM that never clears leaves the git-init sidecar as it was', read(asksPath) === '{}', read(asksPath), 'a rename that keeps failing must leave git-init-asks.json untouched; see publishInDaemonHome in src/daemon/daemonHome.ts')
+    check('an EPERM that never clears leaves the git-init sidecar as it was', read(asksPath) === '{}', read(asksPath), 'a rename that keeps failing must leave git-init-asks.json untouched; see publishInDaemonHome in src/daemon/control/daemonHome.ts')
     seedAsks()
     const folder = freshFolder()
     const minted = await withFault('rename@git-init-asks.json:eperm#2', () => mintGitInitAsk(folder))
-    check('EPERM twice, then clear: the git-init ask lands through the bounded retry', asksLanded(askIdOf(minted), folder), read(asksPath), 'publishInDaemonHome in src/daemon/daemonHome.ts must retry an EPERM rename through renameWithWin32RetrySync within its bound')
+    check('EPERM twice, then clear: the git-init ask lands through the bounded retry', asksLanded(askIdOf(minted), folder), read(asksPath), 'publishInDaemonHome in src/daemon/control/daemonHome.ts must retry an EPERM rename through renameWithWin32RetrySync within its bound')
   }
   {
     const stays = seedTranscript()
     await withFault(`rename@${stays.rec.sessionId}.jsonl:eperm`, () => migrateTranscriptHomeToLaw(stays.rec))
-    check('an EPERM that never clears leaves the transcript where it was', transcriptStayed(stays), '', 'migrateTranscriptHomeToLaw in src/daemon/concourseWorkers/revive.ts must leave the legacy transcript in place when the rename never succeeds')
+    check('an EPERM that never clears leaves the transcript where it was', transcriptStayed(stays), '', 'migrateTranscriptHomeToLaw in src/daemon/concourse-workers/revive.ts must leave the legacy transcript in place when the rename never succeeds')
     const moves = seedTranscript()
     await withFault(`rename@${moves.rec.sessionId}.jsonl:eperm#2`, () => migrateTranscriptHomeToLaw(moves.rec))
-    check('EPERM twice, then clear: the transcript moves through the bounded retry', transcriptMoved(moves), '', 'migrateTranscriptHomeToLaw in src/daemon/concourseWorkers/revive.ts must retry an EPERM rename through renameWithWin32RetrySync within its bound')
+    check('EPERM twice, then clear: the transcript moves through the bounded retry', transcriptMoved(moves), '', 'migrateTranscriptHomeToLaw in src/daemon/concourse-workers/revive.ts must retry an EPERM rename through renameWithWin32RetrySync within its bound')
   }
 }
 

@@ -59,12 +59,12 @@ globalThis.fetch = ((input: unknown) => {
   throw new Error(`tripwire: fetch ${target}`)
 }) as typeof fetch
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const records = await import('../../src/extensions/records.ts')
-const rosterMod = await import('../../src/extensions/roster.ts')
-const sourcesMod = await import('../../src/extensions/sources.ts')
-const paths = await import('../../src/extensions/paths.ts')
+const records = await import('../../src/integrations/extensions/records.ts')
+const rosterMod = await import('../../src/integrations/extensions/roster.ts')
+const sourcesMod = await import('../../src/integrations/extensions/sources.ts')
+const paths = await import('../../src/integrations/extensions/paths.ts')
 
 console.log('============================================================')
 console.log(' zero network — boot never fetches; no source without an act')
@@ -73,13 +73,13 @@ console.log('============================================================')
 console.log('[1] a fresh home: four bundled extensions, no added source or request')
 {
   const roster = rosterMod.computeRoster({ cwd })
-  check('the three Craft bundles and disabled media bundle are present', JSON.stringify(roster.entries.map(e => e.name).sort()) === JSON.stringify(['filmcraft', 'lightcraft', 'mercury-media', 'photocraft']) && roster.entries.every(e => e.home === 'bundled') && roster.problems.length === 0, 'a fresh home must list exactly filmcraft, lightcraft, mercury-media and photocraft, all bundled, with no problems; fix computeRoster in src/extensions/roster.ts; entries: ' + JSON.stringify(roster.entries.map(e => [e.name, e.home])) + ' problems: ' + JSON.stringify(roster.problems))
-  check('the media engine stays off', roster.entries.find(e => e.name === 'mercury-media')?.switchedOn === false && !existsSync(join(home, 'media', 'runtime.json')), 'mercury-media must stay switched off and boot must not write media/runtime.json in the config home; see computeRoster in src/extensions/roster.ts')
-  check('no source exists', sourcesMod.listSources().length === 0, 'a fresh home must hold no source; find what adds one at boot, see listSources and addSource in src/extensions/sources.ts')
-  check('only bundled approval records were created', !existsSync(paths.getSourcesFile()) && Object.values(records.installedOrEmpty()).every(r => r.label === 'mercury'), 'boot may write only approval records labelled mercury and must not create sources.json; see installedOrEmpty and updateSources in src/extensions/records.ts and getSourcesFile in src/extensions/paths.ts')
-  check('no application runtime exists at boot', roster.entries.every(e => !existsSync(join(paths.getExtensionDataDir(e.id), 'runtime'))), 'boot must not create a runtime folder under any extension data dir; see getExtensionDataDir in src/extensions/paths.ts and remove the code that creates it at boot')
-  check('no request left the process', netHits.length === 0, netHits.join(' · ') + ' — computeRoster and the extension load path must not fetch; remove the call named here (src/extensions/roster.ts)')
-  check('no git/ssh spawned', shimHits() === '', shimHits() + ' — computeRoster and the extension load path must not spawn git or ssh; remove the call named here (src/extensions/roster.ts)')
+  check('the three Craft bundles and disabled media bundle are present', JSON.stringify(roster.entries.map(e => e.name).sort()) === JSON.stringify(['filmcraft', 'lightcraft', 'mercury-media', 'photocraft']) && roster.entries.every(e => e.home === 'bundled') && roster.problems.length === 0, 'a fresh home must list exactly filmcraft, lightcraft, mercury-media and photocraft, all bundled, with no problems; fix computeRoster in src/integrations/extensions/roster.ts; entries: ' + JSON.stringify(roster.entries.map(e => [e.name, e.home])) + ' problems: ' + JSON.stringify(roster.problems))
+  check('the media engine stays off', roster.entries.find(e => e.name === 'mercury-media')?.switchedOn === false && !existsSync(join(home, 'media', 'runtime.json')), 'mercury-media must stay switched off and boot must not write media/runtime.json in the config home; see computeRoster in src/integrations/extensions/roster.ts')
+  check('no source exists', sourcesMod.listSources().length === 0, 'a fresh home must hold no source; find what adds one at boot, see listSources and addSource in src/integrations/extensions/sources.ts')
+  check('only bundled approval records were created', !existsSync(paths.getSourcesFile()) && Object.values(records.installedOrEmpty()).every(r => r.label === 'mercury'), 'boot may write only approval records labelled mercury and must not create sources.json; see installedOrEmpty and updateSources in src/integrations/extensions/records.ts and getSourcesFile in src/integrations/extensions/paths.ts')
+  check('no application runtime exists at boot', roster.entries.every(e => !existsSync(join(paths.getExtensionDataDir(e.id), 'runtime'))), 'boot must not create a runtime folder under any extension data dir; see getExtensionDataDir in src/integrations/extensions/paths.ts and remove the code that creates it at boot')
+  check('no request left the process', netHits.length === 0, netHits.join(' · ') + ' — computeRoster and the extension load path must not fetch; remove the call named here (src/integrations/extensions/roster.ts)')
+  check('no git/ssh spawned', shimHits() === '', shimHits() + ' — computeRoster and the extension load path must not spawn git or ssh; remove the call named here (src/integrations/extensions/roster.ts)')
 }
 
 console.log('[2] the built binary, headless, on a populated home: disk only')
@@ -89,11 +89,11 @@ if (!existsSync(DIST)) {
   const FIXTURE = join(import.meta.dir, 'fixtures', 'fixture-source')
   const folderSource = join(scratch, 'folder-source')
   cpSync(FIXTURE, folderSource, { recursive: true })
-  const install = await import('../../src/extensions/install.ts')
+  const install = await import('../../src/integrations/extensions/install.ts')
   const added = await sourcesMod.addSource(folderSource, { label: 'fixture-source' })
-  check('the populated home: source added (an operator act)', added.ok, 'addSource in src/extensions/sources.ts refused the folder copied from scripts/extensions/fixtures/fixture-source: ' + JSON.stringify(added))
+  check('the populated home: source added (an operator act)', added.ok, 'addSource in src/integrations/extensions/sources.ts refused the folder copied from scripts/extensions/fixtures/fixture-source: ' + JSON.stringify(added))
   const installed = await install.installFromSource('fixture-source', 'kitchen-sink')
-  check('the populated home: extension installed + approved', installed.ok && install.approve('kitchen-sink@fixture-source').ok, 'installFromSource or approve in src/extensions/install.ts failed for kitchen-sink@fixture-source: ' + JSON.stringify(installed))
+  check('the populated home: extension installed + approved', installed.ok && install.approve('kitchen-sink@fixture-source').ok, 'installFromSource or approve in src/integrations/extensions/install.ts failed for kitchen-sink@fixture-source: ' + JSON.stringify(installed))
   records.updateSources(current => ({
     ...current,
     'stale-remote': { kind: 'archive', where: 'http://203.0.113.7/crew.zip', ref: null, addedAt: '2026-01-01T00:00:00Z', checkedAt: '2026-01-01T00:00:00Z', commit: null, lastError: null },
@@ -168,24 +168,24 @@ globalThis.fetch = (input) => { const t = typeof input === 'string' ? input : St
   }
   check('the binary exits 0', code === 0, `exit ${code}; node dist/mercury.mjs extensions list --json must exit 0 on a populated home with the network blocked; read the child stderr line above and rebuild with bun run build.ts if dist is stale`)
   const parsed = JSON.parse(stdout.slice(stdout.indexOf('{'))) as { extensions: Array<{ id: string; trust: string }> }
-  check('the roster answers from disk (the installed row is on)', parsed.extensions.some(e => e.id === 'kitchen-sink@fixture-source' && e.trust === 'on'), JSON.stringify(parsed.extensions) + ' — extensions list --json must read the installed row from disk; check how the list command reads installed.json (getInstalledFile in src/extensions/paths.ts)')
-  const { Client, StdioClientTransport } = await import('../../src/utils/mcp/sdk.ts')
+  check('the roster answers from disk (the installed row is on)', parsed.extensions.some(e => e.id === 'kitchen-sink@fixture-source' && e.trust === 'on'), JSON.stringify(parsed.extensions) + ' — extensions list --json must read the installed row from disk; check how the list command reads installed.json (getInstalledFile in src/integrations/extensions/paths.ts)')
+  const { Client, StdioClientTransport } = await import('../../src/integrations/mcp-shapes/sdk.ts')
   for (const entry of rosterMod.computeRoster({ cwd }).entries.filter(e => e.home === 'bundled' && ['filmcraft', 'lightcraft', 'photocraft'].includes(e.name))) {
     const client = new Client({ name: 'craft-zero-network', version: '1.0.0' })
     await client.connect(new StdioClientTransport({ command: 'node', args: [join(entry.root!, 'server', 'bridge.mjs')], env: { ...env, MERCURY_EXTENSION_DATA: paths.getExtensionDataDir(entry.id) } as Record<string, string>, stderr: 'pipe' }))
     try {
       const tools = await client.listTools()
-      check(`${entry.name}: discovery exposes status/install/connect only`, JSON.stringify(tools.tools.map(t => t.name)) === JSON.stringify(['craft_status', 'craft_install', 'craft_connect']), 'a bundled Craft bridge must list only craft_status, craft_install and craft_connect before an install; fix the tool list of that extension server/bridge.mjs under src/extensions/bundled; got ' + JSON.stringify(tools.tools.map(t => t.name)))
+      check(`${entry.name}: discovery exposes status/install/connect only`, JSON.stringify(tools.tools.map(t => t.name)) === JSON.stringify(['craft_status', 'craft_install', 'craft_connect']), 'a bundled Craft bridge must list only craft_status, craft_install and craft_connect before an install; fix the tool list of that extension server/bridge.mjs under src/integrations/extensions/bundled; got ' + JSON.stringify(tools.tools.map(t => t.name)))
       const status = await client.callTool({ name: 'craft_status', arguments: {} })
-      check(`${entry.name}: status remains absent without an install`, !status.isError && JSON.stringify(status).includes('absent'), 'craft_status must answer absent without an error when nothing is installed; fix that extension server/bridge.mjs under src/extensions/bundled; got ' + JSON.stringify(status))
+      check(`${entry.name}: status remains absent without an install`, !status.isError && JSON.stringify(status).includes('absent'), 'craft_status must answer absent without an error when nothing is installed; fix that extension server/bridge.mjs under src/integrations/extensions/bundled; got ' + JSON.stringify(status))
     } finally { await client.close() }
-    check(`${entry.name}: discovery wrote no application runtime`, !existsSync(join(paths.getExtensionDataDir(entry.id), 'runtime')), 'discovery through the bridge must not create a runtime folder in the extension data dir; fix that extension server/bridge.mjs under src/extensions/bundled')
+    check(`${entry.name}: discovery wrote no application runtime`, !existsSync(join(paths.getExtensionDataDir(entry.id), 'runtime')), 'discovery through the bridge must not create a runtime folder in the extension data dir; fix that extension server/bridge.mjs under src/integrations/extensions/bundled')
   }
   const net = existsSync(netlog) ? readFileSync(netlog, 'utf8').trim() : ''
-  check('the boot made no outbound connection and no request (request log EMPTY)', net === '', net + ' — the built binary connected or requested during extensions list or bridge discovery; the logged line names it; remove that call from the boot path (src/extensions/boot.ts, roster.ts) and rebuild')
-  check('the boot spawned no git/ssh', shimHits() === '', shimHits() + ' — the built binary spawned git or ssh during extensions list; remove that call from the boot path (src/extensions/boot.ts, roster.ts) and rebuild')
-  check('sources.json is byte-identical after the boot', readFileSync(paths.getSourcesFile(), 'utf8') === sourcesBefore, 'extensions list and boot must not rewrite sources.json; find the updateSources call (src/extensions/records.ts) reached at boot, for example a checkedAt refresh')
-  check('installed.json is byte-identical after the boot', readFileSync(paths.getInstalledFile(), 'utf8') === installedBefore, 'extensions list and boot must not rewrite installed.json; find the write reached at boot in src/extensions/records.ts or install.ts')
+  check('the boot made no outbound connection and no request (request log EMPTY)', net === '', net + ' — the built binary connected or requested during extensions list or bridge discovery; the logged line names it; remove that call from the boot path (src/integrations/extensions/boot.ts, roster.ts) and rebuild')
+  check('the boot spawned no git/ssh', shimHits() === '', shimHits() + ' — the built binary spawned git or ssh during extensions list; remove that call from the boot path (src/integrations/extensions/boot.ts, roster.ts) and rebuild')
+  check('sources.json is byte-identical after the boot', readFileSync(paths.getSourcesFile(), 'utf8') === sourcesBefore, 'extensions list and boot must not rewrite sources.json; find the updateSources call (src/integrations/extensions/records.ts) reached at boot, for example a checkedAt refresh')
+  check('installed.json is byte-identical after the boot', readFileSync(paths.getInstalledFile(), 'utf8') === installedBefore, 'extensions list and boot must not rewrite installed.json; find the write reached at boot in src/integrations/extensions/records.ts or install.ts')
 
   console.log('[3] the built binary spells no vendor source')
   const dist = readFileSync(DIST, 'utf8')

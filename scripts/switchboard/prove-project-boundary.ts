@@ -58,20 +58,20 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
-const HINT_BOUNDARY = 'fix projectBoundaryOf, projectScopePathspec or launchFolderBoundsProject in src/utils/projectBoundary.ts'
-const HINT_PROBE = 'the git probe named in the label must append the pathspec from projectScopePathspec (src/utils/projectBoundary.ts); the PROBES line above lists every call that ran'
+const HINT_BOUNDARY = 'fix projectBoundaryOf, projectScopePathspec or launchFolderBoundsProject in src/platform/files/projectBoundary.ts'
+const HINT_PROBE = 'the git probe named in the label must append the pathspec from projectScopePathspec (src/platform/files/projectBoundary.ts); the PROBES line above lists every call that ran'
 
-const boundary = await import('../../src/utils/projectBoundary.js')
-const gitMod = await import('../../src/utils/git.js')
-const { setCwd } = await import('../../src/utils/Shell.js')
-const { regroundGitWatch } = await import('../../src/utils/git/gitFilesystem.js')
-const health = await import('../../src/services/health/healthReport.js')
-const observe = await import('../../src/services/gitGraph/observe.js')
-const wt = await import('../../src/daemon/concourseWorktrees.js')
-const context = await import('../../src/context.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const boundary = await import('../../src/platform/files/projectBoundary.js')
+const gitMod = await import('../../src/platform/git/git.js')
+const { setCwd } = await import('../../src/platform/shell/shellExec.js')
+const { regroundGitWatch } = await import('../../src/platform/git/gitFilesystem.js')
+const health = await import('../../src/platform/health/healthReport.js')
+const observe = await import('../../src/platform/git-graph/observe.js')
+const wt = await import('../../src/daemon/concourse-workers/concourseWorktrees.js')
+const context = await import('../../src/engine/requestContext.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const suggestions = await import('../../src/hooks/fileSuggestions.js')
+const suggestions = await import('../../src/screen/composer/typeahead/fileSuggestions.js')
 
 console.log('B1 projectBoundaryOf — the owner')
 {
@@ -133,14 +133,14 @@ console.log('\nB2 the probes from a folder under a home repository carry the bou
   const probes = rows.filter(isProbe)
   console.log(`  [PROBES] ${probes.length} status/add/ls-files calls: ${probes.map(r => `${r.args} @ ${probeCwd(r).replace(SCRATCH, '$S')}`).join(' · ')}`)
   const kinds = (needle: RegExp): Row[] => probes.filter(r => needle.test(r.args))
-  check('the certificate clean flag ran bounded (status --untracked-files=all -- .)', kinds(/--untracked-files=all/).length >= 1 && kinds(/--untracked-files=all/).every(r => r.args.endsWith('-- .')), '', 'getIsClean in src/utils/git.ts must append the pathspec; ' + HINT_PROBE)
-  check('the file status ran bounded (status --porcelain -z -- .)', kinds(/--porcelain -z/).length >= 1 && kinds(/--porcelain -z/).every(r => r.args.endsWith('-- .')), '', 'getFileStatus in src/utils/git.ts must append the pathspec; ' + HINT_PROBE)
-  check('the conversation status block ran bounded (status --short -- .)', kinds(/status --short/).length >= 1 && kinds(/status --short/).every(r => r.args.endsWith('-- .')), '', 'getGitStatus in src/context.ts must append the pathspec; ' + HINT_PROBE)
-  check('the health digest ran bounded (add -A -- .)', kinds(/(^| )add -A/).length >= 1 && kinds(/(^| )add -A/).every(r => r.args.endsWith('-- .')), '', 'computeWorkingTreeSha in src/services/health/healthReport.ts must append the pathspec; ' + HINT_PROBE)
-  check('the project-intel status ran bounded (porcelain=v2 -- .)', kinds(/--porcelain=v2/).length >= 1 && kinds(/--porcelain=v2/).every(r => r.args.endsWith('-- .')), '', 'gitStatus in src/services/gitGraph/observe.ts must append the pathspec; ' + HINT_PROBE)
-  check("the board's dirt probe ran bounded (-C <folder> status --porcelain [--untracked-files=normal] -- .)", kinds(/-C .* status --porcelain( --untracked-files=normal)? -- \.$/).length >= 1, '', 'classifyWorktreeDirt in src/daemon/concourseWorktrees.ts must run -C <folder> status bounded; ' + HINT_PROBE)
+  check('the certificate clean flag ran bounded (status --untracked-files=all -- .)', kinds(/--untracked-files=all/).length >= 1 && kinds(/--untracked-files=all/).every(r => r.args.endsWith('-- .')), '', 'getIsClean in src/platform/git/git.ts must append the pathspec; ' + HINT_PROBE)
+  check('the file status ran bounded (status --porcelain -z -- .)', kinds(/--porcelain -z/).length >= 1 && kinds(/--porcelain -z/).every(r => r.args.endsWith('-- .')), '', 'getFileStatus in src/platform/git/git.ts must append the pathspec; ' + HINT_PROBE)
+  check('the conversation status block ran bounded (status --short -- .)', kinds(/status --short/).length >= 1 && kinds(/status --short/).every(r => r.args.endsWith('-- .')), '', 'getGitStatus in src/engine/requestContext.ts must append the pathspec; ' + HINT_PROBE)
+  check('the health digest ran bounded (add -A -- .)', kinds(/(^| )add -A/).length >= 1 && kinds(/(^| )add -A/).every(r => r.args.endsWith('-- .')), '', 'computeWorkingTreeSha in src/platform/health/healthReport.ts must append the pathspec; ' + HINT_PROBE)
+  check('the project-intel status ran bounded (porcelain=v2 -- .)', kinds(/--porcelain=v2/).length >= 1 && kinds(/--porcelain=v2/).every(r => r.args.endsWith('-- .')), '', 'gitStatus in src/platform/git-graph/observe.ts must append the pathspec; ' + HINT_PROBE)
+  check("the board's dirt probe ran bounded (-C <folder> status --porcelain [--untracked-files=normal] -- .)", kinds(/-C .* status --porcelain( --untracked-files=normal)? -- \.$/).length >= 1, '', 'classifyWorktreeDirt in src/daemon/concourse-workers/concourseWorktrees.ts must run -C <folder> status bounded; ' + HINT_PROBE)
   const lsFiles = kinds(/ls-files/)
-  check('the @-file index listed from the boundary (ls-files … -- Desktop/proj at the root)', lsFiles.length >= 1 && lsFiles.every(r => r.args.endsWith('-- Desktop/proj')), lsFiles.map(r => r.args).join(' | '), 'the @-file index in src/hooks/fileSuggestions.ts must list from the boundary with the pathspec; ' + HINT_PROBE)
+  check('the @-file index listed from the boundary (ls-files … -- Desktop/proj at the root)', lsFiles.length >= 1 && lsFiles.every(r => r.args.endsWith('-- Desktop/proj')), lsFiles.map(r => r.args).join(' | '), 'the @-file index in src/screen/composer/typeahead/fileSuggestions.ts must list from the boundary with the pathspec; ' + HINT_PROBE)
   check('no status/add/ls-files probe ran unbounded', probes.every(r => r.args.endsWith('-- .') || r.args.endsWith('-- Desktop/proj')), probes.filter(r => !(r.args.endsWith('-- .') || r.args.endsWith('-- Desktop/proj'))).map(r => r.args).join(' | '), HINT_PROBE)
   check('every probe ran at or below the launch folder (never `-C <home>`)', probes.every(r => probeCwd(r) === PROJ || probeCwd(r) === HOME_FX && /ls-files/.test(r.args)), probes.map(r => probeCwd(r).replace(SCRATCH, '$S')).join(','), 'a probe ran with -C <home>; ' + HINT_PROBE)
 }
@@ -158,8 +158,8 @@ console.log('\nB3 the same probes from a real project carry no pathspec tail (no
   const probes = rows.filter(isProbe)
   console.log(`  [PROBES] ${probes.length} status/add/ls-files calls: ${probes.map(r => `${r.args} @ ${probeCwd(r).replace(SCRATCH, '$S')}`).join(' · ')}`)
   check('at least the six probe shapes ran', probes.length >= 6, String(probes.length), 'a probe site did not run: look at the exercise function in this file and the probes it calls')
-  check('no probe carries a `--` pathspec tail', probes.every(r => !/ -- /.test(r.args) && !r.args.endsWith('--')), probes.filter(r => / -- /.test(r.args)).map(r => r.args).join(' | '), 'projectScopePathspec in src/utils/projectBoundary.ts must return no pathspec for a real project root')
-  check('the @-file index listed the whole repository from its root', probes.some(r => /ls-files --recurse-submodules$/.test(r.args) && probeCwd(r) === REAL), '', 'the @-file index in src/hooks/fileSuggestions.ts must list the whole repository from its root')
+  check('no probe carries a `--` pathspec tail', probes.every(r => !/ -- /.test(r.args) && !r.args.endsWith('--')), probes.filter(r => / -- /.test(r.args)).map(r => r.args).join(' | '), 'projectScopePathspec in src/platform/files/projectBoundary.ts must return no pathspec for a real project root')
+  check('the @-file index listed the whole repository from its root', probes.some(r => /ls-files --recurse-submodules$/.test(r.args) && probeCwd(r) === REAL), '', 'the @-file index in src/screen/composer/typeahead/fileSuggestions.ts must list the whole repository from its root')
 }
 }
 

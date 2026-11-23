@@ -13,12 +13,12 @@ mkdirSync(cwd)
 process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
 const src = (file: string) => import(pathToFileURL(join(root, 'src', file)).href)
-const { enableConfigs } = await src('utils/config/globalConfig.ts')
+const { enableConfigs } = await src('platform/config/globalConfig.ts')
 enableConfigs()
-const writer = await src('utils/sessionStorage/writer.ts')
-const logs = await src('utils/sessionStorage/logs.ts')
-const { getProjectDir } = await src('utils/sessionStorage/paths.ts')
-const { listSessionsImpl } = await src('utils/listSessionsImpl.ts')
+const writer = await src('sessions/transcripts/writer.ts')
+const logs = await src('sessions/transcripts/sessionListings.ts')
+const { getProjectDir } = await src('sessions/transcripts/paths.ts')
+const { listSessionsImpl } = await src('sessions/transcripts/listSessions.ts')
 const sessionId = '00000000-0000-4000-8000-00000000c0de'
 const row = (uuid: string, parentUuid: string | null, content: unknown) => ({
   type: 'user', uuid, parentUuid, isSidechain: false, sessionId, cwd, version: 'proof',
@@ -36,8 +36,8 @@ try {
   ]))
   const rows = await listSessionsImpl({ dir: cwd })
   const listed = rows.find((entry: { sessionId: string }) => entry.sessionId === sessionId)
-  assert.ok(listed !== undefined, 'FAIL the tagged session is listed; fix listSessionsImpl in src/utils/listSessionsImpl.ts so a session saved with saveTag (src/utils/sessionStorage/logs.ts) is listed for the directory')
-  assert.equal(listed.tag, 'operator tag', 'FAIL the editor listing reads the tag the product stored as a session-meta record; fix the tag scan in listSessionsImpl (src/utils/listSessionsImpl.ts) so it reads the tag-kind session-meta line and ignores a tag-shaped field inside tool output')
+  assert.ok(listed !== undefined, 'FAIL the tagged session is listed; fix listSessionsImpl in src/sessions/transcripts/listSessions.ts so a session saved with saveTag (src/sessions/transcripts/sessionListings.ts) is listed for the directory')
+  assert.equal(listed.tag, 'operator tag', 'FAIL the editor listing reads the tag the product stored as a session-meta record; fix the tag scan in listSessionsImpl (src/sessions/transcripts/listSessions.ts) so it reads the tag-kind session-meta line and ignores a tag-shaped field inside tool output')
   writer.resetProjectForTesting()
   console.log('PASS the editor session list carries the saved tag and ignores a tag-shaped field inside tool output')
 } finally {

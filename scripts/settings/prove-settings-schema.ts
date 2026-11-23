@@ -11,21 +11,21 @@ function check(name: string, ok: boolean, detail?: string): void {
     console.log(`  ok  ${name}`)
   } else {
     failures++
-    console.log(`  RED ${name}${detail ? ` — ${detail}` : ''} — the schema comes from generateSettingsJSONSchema in src/utils/settings/schemaOutput.ts and SettingsSchema in src/utils/settings/types.ts; the local copy is written by ensureLocalSettingsSchema in src/utils/settings/localSchema.ts; after a settings change regenerate the snapshot with bun scripts/settings/gen-settings-schema.ts`)
+    console.log(`  RED ${name}${detail ? ` — ${detail}` : ''} — the schema comes from generateSettingsJSONSchema in src/platform/settings/schemaOutput.ts and SettingsSchema in src/platform/settings/settingsSchema.ts; the local copy is written by ensureLocalSettingsSchema in src/platform/settings/localSchema.ts; after a settings change regenerate the snapshot with bun scripts/settings/gen-settings-schema.ts`)
   }
 }
 
 const scratchHome = mkdtempSync(join(tmpdir(), 'ownname-schema-'))
 process.env.MERCURY_CONFIG_DIR = scratchHome
 
-const { generateSettingsJSONSchema } = await import('../../src/utils/settings/schemaOutput.js')
+const { generateSettingsJSONSchema } = await import('../../src/platform/settings/schemaOutput.js')
 const { ensureLocalSettingsSchema, settingsSchemaLocalPath } = await import(
-  '../../src/utils/settings/localSchema.js'
+  '../../src/platform/settings/localSchema.js'
 )
 const { updateSettingsForSource, getSettingsWriteFilePathForSource } = await import(
-  '../../src/utils/settings/settings.js'
+  '../../src/platform/settings/settings.js'
 )
-const { SettingsSchema } = await import('../../src/utils/settings/types.js')
+const { SettingsSchema } = await import('../../src/platform/settings/settingsSchema.js')
 const { default: Ajv2020 } = await import('ajv/dist/2020.js')
 
 try {

@@ -66,7 +66,7 @@ if (process.argv.includes('--record')) {
       if (current.arm === 'subscriber') {
         assert.equal(request.headers.authorization, 'Bearer fixture-subscriber')
         assert.equal(request.headers['x-api-key'], undefined)
-        assert.ok(request.headers['anthropic-beta']?.includes('oauth-2025-04-20'), `subscriber arm Anthropic request in src/services/providers/anthropic/ must include anthropic-beta oauth-2025-04-20 (got ${request.headers['anthropic-beta']})`)
+        assert.ok(request.headers['anthropic-beta']?.includes('oauth-2025-04-20'), `subscriber arm Anthropic request in src/models/roads/anthropic/ must include anthropic-beta oauth-2025-04-20 (got ${request.headers['anthropic-beta']})`)
       }
     }
     console.log(`PASS ${current.arm}: ordered requests, transcript, usage, client identity and errors equal`)

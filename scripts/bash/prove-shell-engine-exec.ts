@@ -38,9 +38,9 @@ console.log('============================================================')
 console.log(`  engine under test: ${engine} (pin ${ENGINE_ENV}=${process.env[ENGINE_ENV] ?? 'unset'}; lane ${lane.state}: ${lane.reason})`)
 console.log(`  SHELL for the system lane: ${process.env.SHELL}`)
 
-const { exec, setCwd, getShellCwd } = await import('../../src/utils/Shell.ts')
-const { getCwd } = await import('../../src/utils/cwd.ts')
-const { getMaxOutputLength } = await import('../../src/utils/shell/outputLimits.ts')
+const { exec, setCwd, getShellCwd } = await import('../../src/platform/shell/shellExec.ts')
+const { getCwd } = await import('../../src/platform/files/cwd.ts')
+const { getMaxOutputLength } = await import('../../src/platform/shell/outputLimits.ts')
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'shell-engine-exec-')))
 setCwd(SCRATCH)
@@ -118,7 +118,7 @@ async function row(
     const bytes = got.fileSize ?? Buffer.byteLength(got.out)
     if (bytes !== want.bytes) problems.push(`bytes ${bytes} (want ${want.bytes})`)
   }
-  check(label, problems.length === 0, `${problems.join('; ')}; change exec in src/utils/Shell.ts (the Bash tool's execution seam; the brush engine road is src/utils/shell/engineSession.ts) so this command settles as the row expects`)
+  check(label, problems.length === 0, `${problems.join('; ')}; change exec in src/platform/shell/shellExec.ts (the Bash tool's execution seam; the brush engine road is src/platform/shell/engineSession.ts) so this command settles as the row expects`)
   return got
 }
 
@@ -142,7 +142,7 @@ section('§0 the live engine answers the pin')
   check(
     'the engine under test is the one on the wire (brush answers a version; the system shell answers none)',
     engine === 'brush' ? answered !== 'system' && answered !== '' : answered === 'system',
-    `answered ${JSON.stringify(answered)}; the shell chosen by resolveShellEngine in src/utils/shell/engineSession.ts does not match the ${ENGINE_ENV} pin, so check the pin and the vendored brush pack (vendor/brush)`,
+    `answered ${JSON.stringify(answered)}; the shell chosen by resolveShellEngine in src/platform/shell/engineSession.ts does not match the ${ENGINE_ENV} pin, so check the pin and the vendored brush pack (vendor/brush)`,
   )
 }
 
@@ -219,7 +219,7 @@ section('§4 exit codes and stream order')
 section('§5 the cwd record — the shell directory, which the cd moves; the session directory never follows')
 {
   await row('cd moves the shell directory', `cd "${SUB}"`, { code: 0, out: '', cwd: SUB })
-  check('…and the session directory stayed where the session is', getCwd() === SCRATCH, `session ${getCwd()}; a shell cd must update only the shell directory (setCwd and getShellCwd in src/utils/Shell.ts), never the session directory`)
+  check('…and the session directory stayed where the session is', getCwd() === SCRATCH, `session ${getCwd()}; a shell cd must update only the shell directory (setCwd and getShellCwd in src/platform/shell/shellExec.ts), never the session directory`)
   await row('pwd reads the moved directory', 'pwd', { code: 0, out: SUB_PRINTED, cwd: SUB })
   await row('a relative cd resolves against the shell directory', 'cd deep && pwd', { code: 0, out: DEEP_PRINTED, cwd: DEEP })
   await row('cd ../.. climbs', 'cd ../..', { code: 0, cwd: SCRATCH })
@@ -231,10 +231,10 @@ section('§5 the cwd record — the shell directory, which the cd moves; the ses
     { outMatch: /^done/m },
   )
   note(`deleted-directory row: code ${deleted.code} out ${JSON.stringify(deleted.out.trim().slice(0, 120))}`)
-  check('…and that directory exists on disk', existsSync(deleted.cwd), `${deleted.cwd}; exec in src/utils/Shell.ts must not record a deleted directory as the shell cwd (fall back to one that exists)`)
+  check('…and that directory exists on disk', existsSync(deleted.cwd), `${deleted.cwd}; exec in src/platform/shell/shellExec.ts must not record a deleted directory as the shell cwd (fall back to one that exists)`)
   const after = await run('pwd')
   const shellCwdPrinted = await printed(getShellCwd())
-  check('…and the next command runs there', after.code === 0 && after.out.trim() === shellCwdPrinted, `pwd ${JSON.stringify(after.out.trim())} vs shell ${shellCwdPrinted}; the next command must start in the recorded shell cwd (exec in src/utils/Shell.ts)`)
+  check('…and the next command runs there', after.code === 0 && after.out.trim() === shellCwdPrinted, `pwd ${JSON.stringify(after.out.trim())} vs shell ${shellCwdPrinted}; the next command must start in the recorded shell cwd (exec in src/platform/shell/shellExec.ts)`)
   const physicalTmp = msysPrints ? (await run('cygpath -w /tmp')).out.trim() : realpathSync('/tmp')
   await row('cd -P resolves a symlinked directory to its physical path', 'cd -P /tmp && pwd -P', { code: 0, out: await printed(physicalTmp), cwd: physicalTmp })
   const home = realpathSync(homedir())
@@ -242,7 +242,7 @@ section('§5 the cwd record — the shell directory, which the cd moves; the ses
   const odd = join(SCRATCH, 'sp ace', 'ünï')
   await row('a directory with spaces and non-ASCII letters is recorded NFC-normalized', `mkdir -p "${odd}" && cd "${odd}"`, { code: 0, cwd: odd.normalize('NFC') })
   await row('back to the scratch root', `cd "${SCRATCH}"`, { code: 0, cwd: SCRATCH })
-  check('through every cd of this section the session directory never moved', getCwd() === SCRATCH, `session ${getCwd()}; a shell cd must update only the shell directory (setCwd and getShellCwd in src/utils/Shell.ts), never the session directory`)
+  check('through every cd of this section the session directory never moved', getCwd() === SCRATCH, `session ${getCwd()}; a shell cd must update only the shell directory (setCwd and getShellCwd in src/platform/shell/shellExec.ts), never the session directory`)
 }
 
 section('§6 the environment the seam sets')
@@ -263,9 +263,9 @@ section('§7 the security preamble and globs')
   check(
     'extended globs: the preamble disables them on the system shell (the pattern never expands); brush keeps them on (the shopt is a no-op)',
     engine === 'brush' ? /one\.txt two\.txt/.test(extglob.out) : !/one\.txt two\.txt/.test(extglob.out),
-    `code ${extglob.code} out ${JSON.stringify(extglob.out.trim())}; the system shell must run with extglob off (BASH_GLOB_PREAMBLE in src/utils/shell/shellRecord.ts) and brush with it on`,
+    `code ${extglob.code} out ${JSON.stringify(extglob.out.trim())}; the system shell must run with extglob off (BASH_GLOB_PREAMBLE in src/platform/shell/shellRecord.ts) and brush with it on`,
   )
-  check('the extended-glob probe never moved the session directory (the cd was subshell-scoped)', getCwd() === SCRATCH, `cwd ${getCwd()}; the cd inside the probe's subshell must not move the session directory (setCwd in src/utils/Shell.ts)`)
+  check('the extended-glob probe never moved the session directory (the cd was subshell-scoped)', getCwd() === SCRATCH, `cwd ${getCwd()}; the cd inside the probe's subshell must not move the session directory (setCwd in src/platform/shell/shellExec.ts)`)
   note(`extended-pattern row (${engine}): code ${extglob.code} out ${JSON.stringify(extglob.out.trim().slice(0, 80))}`)
   await row('an unmatched glob passes through literally', `echo "${slashed(GLOB)}"/*.nomatch | sed "s#${slashed(SCRATCH)}##"`, { code: 0, out: '/glob/*.nomatch' })
   await row('a matched glob expands', `ls "${GLOB}"/*.txt | wc -l | tr -d ' '`, { code: 0, out: '2' })
@@ -281,7 +281,7 @@ section('§8 state between calls (the engines differ by contract)')
   const opt = await run('set -e; :')
   const leak = await run('false; echo survived')
   note(`a set -e from a previous call: code ${opt.code} then ${JSON.stringify(leak.out.trim())} code ${leak.code} (${engine}: ${leak.out.includes('survived') ? (engine === 'brush' ? 'the option persists but errexit is suppressed at the command boundary' : 'options reset per call') : 'the option persisted and aborted the command'})`)
-  check('the cwd persists on both engines', (await run('pwd')).out.trim() === SCRATCH_PRINTED, 'a later call must start in the recorded shell cwd on both engines: exec in src/utils/Shell.ts')
+  check('the cwd persists on both engines', (await run('pwd')).out.trim() === SCRATCH_PRINTED, 'a later call must start in the recorded shell cwd on both engines: exec in src/platform/shell/shellExec.ts')
 }
 
 section('§9 timeouts, aborts, and a shell that dies')
@@ -289,13 +289,13 @@ section('§9 timeouts, aborts, and a shell that dies')
   await row('a command past its timeout is killed with the timed-out note', 'sleep 3', { code: 143, interrupted: false, stderrMatch: /timed out/, maxMs: 4000 }, { timeout: 400 })
   await row('the next call runs after a timeout kill', 'echo alive-after-timeout', { code: 0, out: 'alive-after-timeout' })
   const aborted = await run('sleep 3', { abortAfterMs: 300 })
-  check('an abort kills the command and marks it interrupted', aborted.interrupted && aborted.code !== 0 && aborted.ms < 2500, `code ${aborted.code} interrupted ${aborted.interrupted} after ${aborted.ms}ms; an abort of the signal passed to exec in src/utils/Shell.ts must kill the command promptly and mark the result interrupted`)
+  check('an abort kills the command and marks it interrupted', aborted.interrupted && aborted.code !== 0 && aborted.ms < 2500, `code ${aborted.code} interrupted ${aborted.interrupted} after ${aborted.ms}ms; an abort of the signal passed to exec in src/platform/shell/shellExec.ts must kill the command promptly and mark the result interrupted`)
   await row('the next call runs after an abort', 'echo alive-after-abort', { code: 0, out: 'alive-after-abort' })
   await row('exec replaces the shell and the call still settles', 'exec true', { code: 0, out: '' })
   await row('the next call runs after an exec', 'echo alive-after-exec', { code: 0, out: 'alive-after-exec' })
   const killed = await run('kill -TERM $$')
   note(`kill -TERM $$ → code ${killed.code}, interrupted ${killed.interrupted}, stderr ${JSON.stringify(killed.stderr.slice(0, 80))}`)
-  check('a shell that kills itself settles non-zero', killed.code !== 0, `code ${killed.code}; a shell that dies mid-command must settle the exec call in src/utils/Shell.ts with a non-zero code`)
+  check('a shell that kills itself settles non-zero', killed.code !== 0, `code ${killed.code}; a shell that dies mid-command must settle the exec call in src/platform/shell/shellExec.ts with a non-zero code`)
   await row('the next call runs after the shell killed itself', 'echo alive-after-kill', { code: 0, out: 'alive-after-kill' })
 }
 
@@ -316,9 +316,9 @@ section('§11 concurrent calls')
   check(
     'three concurrent calls each carry only their own output',
     results[0]!.out.trim() === 'A' && results[1]!.out.trim() === 'B' && results[2]!.out.trim() === 'C',
-    `${results.map(r => JSON.stringify(r.out.trim())).join(' ')}; concurrent exec calls in src/utils/Shell.ts must not share output, so check how each call's stdout is collected`,
+    `${results.map(r => JSON.stringify(r.out.trim())).join(' ')}; concurrent exec calls in src/platform/shell/shellExec.ts must not share output, so check how each call's stdout is collected`,
   )
-  check('…and all settle within 5s', Date.now() - started < 5000, `${Date.now() - started}ms; concurrent exec calls in src/utils/Shell.ts should not wait on one another beyond the slowest command`)
+  check('…and all settle within 5s', Date.now() - started < 5000, `${Date.now() - started}ms; concurrent exec calls in src/platform/shell/shellExec.ts should not wait on one another beyond the slowest command`)
   note(`concurrency wall time ${Date.now() - started}ms (${engine}: ${Date.now() - started < 550 ? 'parallel' : 'serialized'})`)
 }
 
@@ -328,13 +328,13 @@ section('§12 a background-intent call takes its own shell; the session is untou
   const controller = new AbortController()
   const handle = await exec('echo "${BRUSH_VERSION:-system} [${BG_MARK:-none}]"', controller.signal, 'bash', { timeout: 20_000, shouldAutoBackground: false, backgroundIntent: true })
   const bg = await handle.result
-  check('a background-intent call is answered by the system shell in its own process — never the shared engine session, whose state it cannot see', bg.stdout.trim() === 'system [none]', `${JSON.stringify(bg.stdout.slice(0, 80))}; exec in src/utils/Shell.ts must send a backgroundIntent call to its own system shell process, not the engine session`)
+  check('a background-intent call is answered by the system shell in its own process — never the shared engine session, whose state it cannot see', bg.stdout.trim() === 'system [none]', `${JSON.stringify(bg.stdout.slice(0, 80))}; exec in src/platform/shell/shellExec.ts must send a backgroundIntent call to its own system shell process, not the engine session`)
   await row('the next foreground call: the session state stands on the engine, resets on the system shell', 'echo "[${BG_MARK:-none}]"', { system: { code: 0, out: '[none]' }, brush: { code: 0, out: '[kept]' } })
 }
 
 section('§13 the live progress view: first lines, a silent command, a stray frame byte')
 {
-  const { TaskOutput } = await import('../../src/utils/task/TaskOutput.ts')
+  const { TaskOutput } = await import('../../src/engine/task-framework/taskOutput.ts')
   const gated = async (label: string, command: (gate: string) => string, seen: (all: string) => boolean): Promise<void> => {
     const gate = join(mkdtempSync(join(tmpdir(), 'progress-gate-')), 'open')
     let sawIt = false
@@ -359,7 +359,7 @@ section('§13 the live progress view: first lines, a silent command, a stray fra
     const result = await handle.result
     TaskOutput.stopPolling(handle.taskOutput.taskId)
     handle.cleanup()
-    check(label, sawIt && result.code === 0, `seen=${sawIt} code=${result.code}; the onProgress callback of exec (src/utils/Shell.ts) must fire from the output TaskOutput polls (src/utils/task/TaskOutput.ts) before the command ends`)
+    check(label, sawIt && result.code === 0, `seen=${sawIt} code=${result.code}; the onProgress callback of exec (src/platform/shell/shellExec.ts) must fire from the output TaskOutput polls (src/engine/task-framework/taskOutput.ts) before the command ends`)
   }
   const wait = (gate: string): string => `while [ ! -f "${gate}" ]; do sleep 0.05; done`
   await gated('a command that writes one line at a time reaches the live view before it ends', gate => `echo line1; echo line2; ${wait(gate)}; echo line3`, all => all.includes('line1'))
@@ -379,7 +379,7 @@ section('§14 two owners through the seam: a process each on the system shell, a
     return r
   })
   const [ra, rb] = await Promise.all([a, b])
-  check("two owners run at the same time: the second owner's short command settles first", order[0] === 'b' && ra.out.trim() === 'A' && rb.out.trim() === 'B', `order ${order.join(',')}; calls with different owners must not queue behind one another in exec (src/utils/Shell.ts)`)
+  check("two owners run at the same time: the second owner's short command settles first", order[0] === 'b' && ra.out.trim() === 'A' && rb.out.trim() === 'B', `order ${order.join(',')}; calls with different owners must not queue behind one another in exec (src/platform/shell/shellExec.ts)`)
   await run('OWNER_VAR=a-only; :', { owner: 'owner-a' })
   await row("an owner's variable is not seen by another owner", 'echo "[${OWNER_VAR:-none}]"', { code: 0, out: '[none]' }, { owner: 'owner-b' })
   await row('…and stays visible to its owner on the engine (the system shell resets it, its own contract)', 'echo "[${OWNER_VAR:-none}]"', { system: { code: 0, out: '[none]' }, brush: { code: 0, out: '[a-only]' } }, { owner: 'owner-a' })
@@ -391,7 +391,7 @@ section('§14 two owners through the seam: a process each on the system shell, a
 
 section('§15 an abort with the interrupt reason (the steer road): kept for the background on the system shell; stopped, and said, on the engine')
 {
-  const { spawnShellTask } = await import('../../src/tasks/LocalShellTask/LocalShellTask.tsx')
+  const { spawnShellTask } = await import('../../src/engine/tasks/local-shell/shellTask.tsx')
   type State = { tasks: Record<string, { status?: string; notified?: boolean }> }
   let state: State = { tasks: {} }
   const setAppState = (f: (prev: State) => State): void => {
@@ -403,29 +403,29 @@ section('§15 an abort with the interrupt reason (the steer road): kept for the 
   const handle = await exec(`: > "${gate}"; echo started; sleep 1; echo ended`, turn.signal, 'bash', { timeout: 20_000, shouldAutoBackground: false })
   const deadline = Date.now() + 10_000
   while (!existsSync(gate) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20))
-  check('the command is in flight (its gate file exists)', existsSync(gate), `${gate} was never created, so the exec call in src/utils/Shell.ts did not start the command within 10s`)
+  check('the command is in flight (its gate file exists)', existsSync(gate), `${gate} was never created, so the exec call in src/platform/shell/shellExec.ts did not start the command within 10s`)
   turn.abort('interrupt')
   const spawned = await spawnShellTask({ command: 'interrupt probe', description: 'interrupt probe', shellCommand: handle }, taskContext)
   const result = await handle.result
   check(
     "the spawn reports acceptance truthfully: the system shell's running command is accepted; the engine's stopped command is refused",
     engine === 'brush' ? spawned.accepted === false : spawned.accepted === true,
-    `accepted=${String(spawned.accepted)} status=${handle.status}; spawnShellTask in src/tasks/LocalShellTask/LocalShellTask.tsx must accept a running command and refuse one the engine already stopped`,
+    `accepted=${String(spawned.accepted)} status=${handle.status}; spawnShellTask in src/engine/tasks/local-shell/shellTask.tsx must accept a running command and refuse one the engine already stopped`,
   )
   check(
     "the command settles by its engine's contract: run to its end and backgrounded on the system shell; stopped and marked interrupted on the engine",
     engine === 'brush'
       ? result.interrupted && result.code === 137 && result.backgroundTaskId === undefined
       : !result.interrupted && result.code === 0 && result.backgroundTaskId === spawned.taskId,
-    `${JSON.stringify({ code: result.code, interrupted: result.interrupted, backgroundTaskId: result.backgroundTaskId })}; an interrupt abort must stop the command on the engine and let it run on and background on the system shell (exec in src/utils/Shell.ts, spawnShellTask in src/tasks/LocalShellTask/LocalShellTask.tsx)`,
+    `${JSON.stringify({ code: result.code, interrupted: result.interrupted, backgroundTaskId: result.backgroundTaskId })}; an interrupt abort must stop the command on the engine and let it run on and background on the system shell (exec in src/platform/shell/shellExec.ts, spawnShellTask in src/engine/tasks/local-shell/shellTask.tsx)`,
   )
-  check('a refused background settles its row from the real result, never a running phantom', engine === 'brush' ? state.tasks[spawned.taskId]?.status === 'failed' && state.tasks[spawned.taskId]?.notified === true : state.tasks[spawned.taskId]?.status !== undefined, `${JSON.stringify(state.tasks[spawned.taskId] ?? null)?.slice(0, 120)}; spawnShellTask in src/tasks/LocalShellTask/LocalShellTask.tsx must settle the task row from the real result (failed and notified) when the background is refused`)
+  check('a refused background settles its row from the real result, never a running phantom', engine === 'brush' ? state.tasks[spawned.taskId]?.status === 'failed' && state.tasks[spawned.taskId]?.notified === true : state.tasks[spawned.taskId]?.status !== undefined, `${JSON.stringify(state.tasks[spawned.taskId] ?? null)?.slice(0, 120)}; spawnShellTask in src/engine/tasks/local-shell/shellTask.tsx must settle the task row from the real result (failed and notified) when the background is refused`)
   if (spawned.accepted === false) handle.cleanup()
   await row("the next call: the engine's result says the session was reset by the interrupt; the system shell owes no note", 'echo next', { system: { code: 0, out: 'next', stderrMatch: /^$/ }, brush: { code: 0, out: 'next', stderrMatch: /interrupted/ } })
   const finished = await exec('echo finished', new AbortController().signal, 'bash', { timeout: 20_000, shouldAutoBackground: false })
   await finished.result
   const late = await spawnShellTask({ command: 'late probe', description: 'late probe', shellCommand: finished }, taskContext)
-  check('a command that already ended is refused on both engines (accepted false)', late.accepted === false, `accepted=${String(late.accepted)}; spawnShellTask in src/tasks/LocalShellTask/LocalShellTask.tsx must refuse a command that already ended`)
+  check('a command that already ended is refused on both engines (accepted false)', late.accepted === false, `accepted=${String(late.accepted)}; spawnShellTask in src/engine/tasks/local-shell/shellTask.tsx must refuse a command that already ended`)
   finished.cleanup()
 }
 

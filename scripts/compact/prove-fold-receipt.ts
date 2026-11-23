@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import type { Message } from '../../src/types/message.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'fold-receipt-'))
 process.env.MERCURY_CONFIG_DIR = home
@@ -12,19 +12,19 @@ process.env.MERCURY_TMPDIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY ??= 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { compactConversation } = await import('../../src/services/compact/compact.ts')
-const receipts = await import('../../src/services/compact/foldReceipt.ts').catch(() => null)
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const { acceptUserRequest, noteRunEvent } = await import('../../src/services/run/runCoordinator.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { overflowRecoveryNotice, overflowRefusalText } = await import('../../src/services/compact/overflowRecovery.ts')
-const { formatTokens } = await import('../../src/utils/format.ts')
-const { pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
+const { compactConversation } = await import('../../src/engine/compaction/foldConversation.ts')
+const receipts = await import('../../src/engine/compaction/foldReceipt.ts').catch(() => null)
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const { acceptUserRequest, noteRunEvent } = await import('../../src/engine/run/runCoordinator.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { overflowRecoveryNotice, overflowRefusalText } = await import('../../src/engine/compaction/overflowRecovery.ts')
+const { formatTokens } = await import('../../src/platform/text/format.ts')
+const { pendingRows } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
 
 let checks = 0
 let failures = 0
@@ -34,9 +34,9 @@ const check = (label: string, condition: boolean, detail = ''): void => {
   console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition || !detail ? '' : `: ${detail}`}`)
 }
 
-const hintReceiptRead = 'change foldReceipt or foldReceiptWords in src/services/compact/foldReceipt.ts'
-const hintBoundary = 'the committed boundary metadata comes from compactConversation in src/services/compact/compact.ts; the receipt reading it is foldReceipt in src/services/compact/foldReceipt.ts'
-const hintOverflow = 'change overflowRecoveryNotice or overflowRefusalText in src/services/compact/overflowRecovery.ts'
+const hintReceiptRead = 'change foldReceipt or foldReceiptWords in src/engine/compaction/foldReceipt.ts'
+const hintBoundary = 'the committed boundary metadata comes from compactConversation in src/engine/compaction/foldConversation.ts; the receipt reading it is foldReceipt in src/engine/compaction/foldReceipt.ts'
+const hintOverflow = 'change overflowRecoveryNotice or overflowRefusalText in src/engine/compaction/overflowRecovery.ts'
 
 let clock = Date.UTC(2026, 9, 16)
 const user = (content: unknown): Message => ({ type: 'user', uuid: randomUUID(), timestamp: new Date(clock++).toISOString(), message: { role: 'user', content } }) as Message

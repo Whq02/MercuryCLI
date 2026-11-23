@@ -23,20 +23,20 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
   process.env[base] = 'http://127.0.0.1:1'
 }
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 
 const React = (await import('react')).default
-const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent } = await import('../../src/ink.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.js')
-const words = await import('../../src/utils/model/modelPickerGroups.js')
-const { modelPickerFooter } = await import('../../src/utils/model/modelPickerFooter.js')
-type ModelChoice = import('../../src/components/MercuryModelPicker.js').ModelChoice
+const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent } = await import('../../src/screen/themedRenderer.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.js')
+const words = await import('../../src/models/facts/modelPickerGroups.js')
+const { modelPickerFooter } = await import('../../src/models/facts/modelPickerFooter.js')
+type ModelChoice = import('../../src/commands/model/picker/MercuryModelPicker.js').ModelChoice
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}the picker words live in src/utils/model/modelPickerGroups.ts and src/utils/model/modelPickerFooter.ts; the search box, focus and esc behaviour in src/components/MercuryModelPicker.tsx` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}the picker words live in src/models/facts/modelPickerGroups.ts and src/models/facts/modelPickerFooter.ts; the search box, focus and esc behaviour in src/commands/model/picker/MercuryModelPicker.tsx` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

@@ -6,9 +6,9 @@ import { accountsWorld, KEY } from './anthropicAccountsFixture.ts'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'anthropic-paste-'))
 const world = await accountsWorld()
 try {
-  const { anthropicArmPickRows } = await import('../../src/components/loginFamilyRows.ts')
+  const { anthropicArmPickRows } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.ts')
   assert.ok(anthropicArmPickRows.some(row => String(row.value) === 'key'), 'Anthropic must offer a separate API-key paste row')
-  const { storeAnthropicApiKeyLogin } = await import('../../src/services/providers/anthropic/anthropicLogin.ts')
+  const { storeAnthropicApiKeyLogin } = await import('../../src/models/roads/anthropic/anthropicLogin.ts')
   const bad = await storeAnthropicApiKeyLogin('sk-ant-usr-refused')
   assert.equal(bad.stored, false)
   assert.match(bad.receipt, /invalid x-api-key/)

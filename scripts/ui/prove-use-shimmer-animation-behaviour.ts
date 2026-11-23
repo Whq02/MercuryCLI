@@ -4,11 +4,11 @@ import { untilAsync } from '../lib/untilAsync.ts'
 
 const home = pinScratchHome('use-shimmer-animation')
 const React = await import('react')
-const { Box, Text } = await import('../../src/ink.ts')
-const { ClockContext } = await import('../../src/ink/components/ClockContext.tsx')
-const { useShimmerAnimation } = await import('../../src/components/Spinner/useShimmerAnimation.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { ClockContext } = await import('../../src/screen/renderer/elements/ClockContext.tsx')
+const { useShimmerAnimation } = await import('../../src/screen/spinner/useShimmerAnimation.ts')
 
-const WHERE = 'useShimmerAnimation in src/components/Spinner/useShimmerAnimation.ts'
+const WHERE = 'useShimmerAnimation in src/screen/spinner/useShimmerAnimation.ts'
 const STALLED = -10_000
 type Mode = Parameters<typeof useShimmerAnimation>[0]
 type Shown = { mode: Mode; message: string; stalled: boolean }

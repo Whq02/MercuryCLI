@@ -7,21 +7,21 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix: buildPreview and applyPreview in src/services/structure/transform.ts; receipt checks read isMutationOperation in src/services/changeTransaction/contracts.ts, evidence checks read src/services/primitives/evidencePlane.ts' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix: buildPreview and applyPreview in src/tools/engines/structure/transform.ts; receipt checks read isMutationOperation in src/tools/engines/change-transaction/contracts.ts, evidence checks read src/engine/runtime-kernel/evidencePlane.ts' : ''}`)
 }
 
-const { runStructureQuery } = await import('../../src/services/structure/query.ts')
-const { buildPreview, applyPreview } = await import('../../src/services/structure/transform.ts')
+const { runStructureQuery } = await import('../../src/tools/engines/structure/query.ts')
+const { buildPreview, applyPreview } = await import('../../src/tools/engines/structure/transform.ts')
 const { getPreview, _resetStructureStoreForTesting } = await import(
-  '../../src/services/structure/store.ts'
+  '../../src/tools/engines/structure/store.ts'
 )
 const { isMutationOperation } = await import(
-  '../../src/services/changeTransaction/contracts.ts'
+  '../../src/tools/engines/change-transaction/contracts.ts'
 )
 const { evidenceFor, _resetEvidencePlaneForTesting } = await import(
-  '../../src/services/primitives/evidencePlane.ts'
+  '../../src/engine/runtime-kernel/evidencePlane.ts'
 )
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 const owner = processMainOwner()
 process.env.MERCURY_CHANGESET_DIR = mkdtempSync(join(tmpdir(), 'builtin-tools-transform-cs-'))

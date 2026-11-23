@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import figures from 'figures'
-import { GLYPH } from '../../src/utils/glyphs.js'
+import { GLYPH } from '../../src/screen/theme/glyphs.js'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { DIST, nodeBinPath, requireDist } from '../streaming/artifactArena.ts'
@@ -45,7 +45,7 @@ const Q1_TEXT = 'orchard'
 const Q2_TEXT = 'plums'
 const QP_TEXT = 'walnut'
 const NOTE = 'keep it small'
-const CARD_DIR = 'src/components/permissions/AskUserQuestionPermissionRequest'
+const CARD_DIR = 'src/permissions/cards/ask-user-question'
 
 const twoQuestions: ScriptedTurn[] = [
   {
@@ -414,10 +414,10 @@ if (wants('A')) {
   check('A: the review names Q1’s replaced answer (B, not the text)', review.some(r => r.includes('In-memory')) && !review.some(r => r.includes(Q1_TEXT)), `the review must list the committed answer, not the replaced draft: see ${CARD_DIR}/SubmitQuestionsView.tsx`)
   check('A: the review names Q2’s two rows AND the typed text', review.some(r => r.includes('Manual flush') && r.includes('Warm start') && r.includes(Q2_TEXT)), `the review must list every selected row and the typed text: see ${CARD_DIR}/SubmitQuestionsView.tsx`)
   if (!review.some(r => r.includes(Q2_TEXT))) dumpFrame('review', review)
-  check('A: the run finished (the model read the answers and replied)', d.final.some(r => r.includes('cache plan is settled')), `the answers did not reach the model or the run did not end: read the [driver] and [wire] lines above; the tool is src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx`)
-  check('A: the transcript row shows what was answered', d.final.some(r => r.includes('In-memory')) && d.final.some(r => r.includes(Q2_TEXT)), `the transcript row for the answered question is rendered in src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx`)
-  check('A: the answer shape carries B (Q1) and B, D + the text (Q2)', d.toolResultText.includes('In-memory') && d.toolResultText.includes('Manual flush') && d.toolResultText.includes('Warm start') && d.toolResultText.includes(Q2_TEXT), d.toolResultText.slice(0, 300) + ' · the answer shape is built in src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx')
-  check('A: the replaced Q1 text is NOT in the answer shape', !d.toolResultText.includes(Q1_TEXT), `a replaced Other draft must not be sent: see ${CARD_DIR}/questionState.ts and src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx`)
+  check('A: the run finished (the model read the answers and replied)', d.final.some(r => r.includes('cache plan is settled')), `the answers did not reach the model or the run did not end: read the [driver] and [wire] lines above; the tool is src/tools/ask-question/AskUserQuestionTool.tsx`)
+  check('A: the transcript row shows what was answered', d.final.some(r => r.includes('In-memory')) && d.final.some(r => r.includes(Q2_TEXT)), `the transcript row for the answered question is rendered in src/tools/ask-question/AskUserQuestionTool.tsx`)
+  check('A: the answer shape carries B (Q1) and B, D + the text (Q2)', d.toolResultText.includes('In-memory') && d.toolResultText.includes('Manual flush') && d.toolResultText.includes('Warm start') && d.toolResultText.includes(Q2_TEXT), d.toolResultText.slice(0, 300) + ' · the answer shape is built in src/tools/ask-question/AskUserQuestionTool.tsx')
+  check('A: the replaced Q1 text is NOT in the answer shape', !d.toolResultText.includes(Q1_TEXT), `a replaced Other draft must not be sent: see ${CARD_DIR}/questionState.ts and src/tools/ask-question/AskUserQuestionTool.tsx`)
   if (failures === 0) d.discard()
   else console.log(`  [forensics] world kept: ${d.world}`)
 }
@@ -476,7 +476,7 @@ if (wants('B')) {
   const review = markOr(d, 'b-review')
   check('B: the review names Q1’s typed answer', review.some(r => r.includes(Q1_TEXT)), `see ${CARD_DIR}/SubmitQuestionsView.tsx`)
   check('B: the review names Q2’s rows and text', review.some(r => r.includes('Manual flush') && r.includes('Warm start') && r.includes(Q2_TEXT)), `see ${CARD_DIR}/SubmitQuestionsView.tsx`)
-  check('B: the answer shape carries the Q1 text and Q2’s rows + text', d.toolResultText.includes(Q1_TEXT) && d.toolResultText.includes('Manual flush') && d.toolResultText.includes('Warm start') && d.toolResultText.includes(Q2_TEXT), d.toolResultText.slice(0, 300) + ' · the answer shape is built in src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx')
+  check('B: the answer shape carries the Q1 text and Q2’s rows + text', d.toolResultText.includes(Q1_TEXT) && d.toolResultText.includes('Manual flush') && d.toolResultText.includes('Warm start') && d.toolResultText.includes(Q2_TEXT), d.toolResultText.slice(0, 300) + ' · the answer shape is built in src/tools/ask-question/AskUserQuestionTool.tsx')
   check('B: the run finished', d.final.some(r => r.includes('cache plan is settled')), `the run did not end after the answers: read the [driver] and [wire] lines above`)
   if (failures === before) d.discard()
   else console.log(`  [forensics] world kept: ${d.world}`)
@@ -526,7 +526,7 @@ if (wants('C')) {
   check('C: the review carries Flat with its notes', review.some(r => r.includes('Flat') && r.includes(NOTE)), `the review must carry the notes: see ${CARD_DIR}/SubmitQuestionsView.tsx`)
   if (!review.some(r => r.includes(NOTE))) dumpFrame('c-review', review)
   check('C: the review carries the E text of the second question', review.some(r => r.includes(QP_TEXT)), `see ${CARD_DIR}/SubmitQuestionsView.tsx`)
-  check('C: the answer shape carries Flat, its preview, the notes and the E text', d.toolResultText.includes('Flat') && d.toolResultText.includes('Object.freeze') && d.toolResultText.includes(NOTE) && d.toolResultText.includes(QP_TEXT), d.toolResultText.slice(0, 400) + ' · the answer shape is built in src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx')
+  check('C: the answer shape carries Flat, its preview, the notes and the E text', d.toolResultText.includes('Flat') && d.toolResultText.includes('Object.freeze') && d.toolResultText.includes(NOTE) && d.toolResultText.includes(QP_TEXT), d.toolResultText.slice(0, 400) + ' · the answer shape is built in src/tools/ask-question/AskUserQuestionTool.tsx')
   check('C: the run finished', d.final.some(r => r.includes('cache plan is settled')), `the run did not end after the answers: read the [driver] and [wire] lines above`)
   if (failures === before) d.discard()
   else console.log(`  [forensics] world kept: ${d.world}`)
@@ -545,7 +545,7 @@ if (wants('D')) {
   const card = markOr(d, 'd-card')
   check('D: the card was up with its Esc affordance stated', card.some(r => r.includes('Esc to cancel')), `the footer with Esc to cancel is built in ${CARD_DIR}/QuestionView.tsx`)
   const denied = d.final.some(r => r.includes('User declined to answer'))
-  check('D: after Esc the card is gone and the denial is on the transcript', !d.final.some(r => r.includes('Esc to cancel')) && denied, `Esc must close the card and leave User declined to answer on the transcript: see src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx and ${CARD_DIR}/AskUserQuestionPermissionRequest.tsx`)
+  check('D: after Esc the card is gone and the denial is on the transcript', !d.final.some(r => r.includes('Esc to cancel')) && denied, `Esc must close the card and leave User declined to answer on the transcript: see src/tools/ask-question/AskUserQuestionTool.tsx and ${CARD_DIR}/AskUserQuestionPermissionRequest.tsx`)
   if (!denied) dumpFrame('d-final', d.final)
   check('D: the session continued (the model replied to the denial)', d.final.some(r => r.includes('stopping here as asked')), `the denial must reach the model so the session continues: read the [driver] and [wire] lines above`)
   if (failures === before) d.discard()

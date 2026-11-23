@@ -1,0 +1,295 @@
+import { readFileSync, readdirSync } from 'node:fs'
+import { homedir, userInfo } from 'node:os'
+import { dirname, join, posix, resolve } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { describeArtifactIdentity } from '../../platform/product/artifactIdentity.js'
+import { defaultMercuryHome, getMercuryHome } from '../../platform/environment/envUtils.js'
+import { subprocessEnv } from '../../platform/processes/subprocessEnv.js'
+import { execFileNoThrow } from '../../platform/processes/execFileNoThrow.js'
+import { getAncestorPidsAsync } from '../../platform/processes/processLiveness.js'
+import { readDaemonState } from '../../daemon/control/daemonState.js'
+import { getProcessStartTokenAsync, isProcessAlive } from '../../daemon/control/ownerWatch.js'
+import { protectedPathForms } from './protectedPaths.js'
+import { matchWildcardPattern } from './shellRuleMatching.js'
+import { directoryTheShellStandsIn } from '../../platform/files/cwd.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+import { hostEnv } from '../../platform/environment/hostEnv.js'
+import { parentPidProbeKind, posixProcessTableSupported } from '../../platform/host-os/processes.js'
+
+const inside = (path: string, root: string): boolean => path === root || path.startsWith(root + '/')
+
+function runtimeRoots(): string[] {
+  const artifact = describeArtifactIdentity('')
+  const roots = [join(getMercuryHome(), 'runtime'), join(defaultMercuryHome(), 'runtime'), ...protectedPathForms(process.execPath).map(path => posix.dirname(path))]
+  if (artifact.entry && artifact.distribution !== 'source-run') roots.push(dirname(artifact.entry))
+  return roots.flatMap(root => protectedPathForms(root))
+}
+
+export function placedUnder(path: string, cwd: string | undefined): string {
+  if (cwd === undefined || !/^[A-Za-z]:[\\/]/.test(cwd)) return path
+  const word = path.trim().replace(/\\/g, '/')
+  if (word === '' || /^(?:[/~$%]|[A-Za-z]:)/.test(word) || word.includes('://')) return path
+  return posix.join(cwd.replace(/\\/g, '/'), word)
+}
+
+function spelledOnDisk(path: string): string {
+  if (!/^(?:\/(?!\/)|[a-z]:\/)/i.test(path)) return path
+  const parts = path.split(/[\\/]/).filter(part => part !== '')
+  const drive = /^[a-z]:$/i.test(parts[0] ?? '') ? parts.shift()!.toUpperCase() : ''
+  const found: string[] = []
+  for (const [index, part] of parts.entries()) {
+    let names: string[] = []
+    try {
+      names = readdirSync(`${drive}/${found.join('/')}`)
+    } catch (error) {
+      passedOver(error)
+    }
+    const name = names.includes(part) ? part : names.find(entry => entry.normalize('NFC').toLowerCase() === part)
+    if (name === undefined) return `${drive}/${[...found, ...parts.slice(index)].join('/')}`
+    found.push(name)
+  }
+  return `${drive}/${found.join('/')}`
+}
+
+export function runtimeWritePath(path: string, cwd = directoryTheShellStandsIn(), removesTree = true): string | null {
+  const root = runtimeRootOf(path, cwd, removesTree)
+  return root === null ? null : spelledOnDisk(root)
+}
+
+function runtimeRootOf(path: string, cwd: string, removesTree: boolean): string | null {
+  const roots = runtimeRoots()
+  for (const candidate of protectedPathForms(placedUnder(path, cwd), cwd)) {
+    const conventional = candidate.match(/^(?:\/(?:users|home)\/[^/]+|\/root|[a-z]:\/users\/[^/]+)\/\.mercury\/runtime(?=\/|$)/)?.[0]
+    if (conventional) return conventional
+    for (const root of roots) {
+      if (inside(candidate, root) || (removesTree && inside(root, candidate))) return root
+      if (removesTree && /[*?[]/.test(candidate)) {
+        let parent = root
+        while (parent !== posix.dirname(parent)) {
+          if (matchWildcardPattern(candidate, parent, true)) return root
+          parent = posix.dirname(parent)
+        }
+      }
+    }
+  }
+  return null
+}
+
+function name(word: string): string {
+  return word.split(/[\\/]/).pop()!.toLowerCase().replace(/\.exe$/, '')
+}
+
+function optionValues(args: string[], option: RegExp): string[] {
+  const result: string[] = []
+  for (let i = 0; i < args.length; i++) {
+    const word = args[i]!
+    const split = word.search(/[:=]/)
+    if (option.test(split < 0 ? word : word.slice(0, split))) {
+      result.push(split < 0 ? args[++i] ?? '' : word.slice(split + 1))
+    }
+  }
+  return result.flatMap(value => value.split(','))
+}
+
+function positionals(args: string[], valued: RegExp, slashOptions = true): string[] {
+  const result: string[] = []
+  let ended = false
+  for (let i = 0; i < args.length; i++) {
+    const word = args[i]!
+    if (word === '--') { ended = true; continue }
+    if (!ended && valued.test(word)) { i++; continue }
+    if (ended || !(slashOptions ? /^[-/]/ : /^-/).test(word)) result.push(word)
+  }
+  return result
+}
+
+async function protectedPids(): Promise<number[]> {
+  const pids = [process.pid]
+  const state = await readDaemonState()
+  if (state && Number.isSafeInteger(state.pid) && state.pid > 0 && isProcessAlive(state.pid)) {
+    const token = state.startToken ? await getProcessStartTokenAsync(state.pid, state.startToken) : null
+    if (!state.startToken || token === null || token === state.startToken) pids.push(state.pid)
+  }
+  return pids
+}
+
+type OwnProcesses = { lines: string[]; names: string[] }
+
+let ownProcessesRead: { at: number; key: string; found: OwnProcesses } | undefined
+
+async function ownProcesses(pids: number[]): Promise<OwnProcesses> {
+  const state = await readDaemonState()
+  const recorded = state?.script ? [state.script] : []
+  if (!posixProcessTableSupported()) return { lines: recorded, names: [] }
+  const key = pids.join(',')
+  if (ownProcessesRead !== undefined && ownProcessesRead.key === key && Date.now() - ownProcessesRead.at < 2000) return ownProcessesRead.found
+  const listed = await execFileNoThrow('ps', ['-axo', 'pid=,ppid=,command='])
+  const rows = new Map<number, { parent: number; line: string }>()
+  for (const row of listed.code === 0 ? listed.stdout.split('\n') : []) {
+    const read = /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(row)
+    if (read !== null) rows.set(Number(read[1]), { parent: Number(read[2]), line: read[3]! })
+  }
+  const own = new Set(pids)
+  for (let grew = true; grew; ) {
+    grew = false
+    for (const [pid, row] of rows) {
+      if (own.has(pid) || !own.has(row.parent) || pid === process.pid) continue
+      if (row.parent === process.pid) continue
+      own.add(pid)
+      grew = true
+    }
+  }
+  const lines = [...recorded, ...[...own].flatMap(pid => (rows.has(pid) ? [rows.get(pid)!.line] : []))]
+  const found = { lines, names: lines.map(line => name(line.split(/\s+/)[0] ?? '')).filter(word => word !== '') }
+  ownProcessesRead = { at: Date.now(), key, found }
+  return found
+}
+
+function imageMatches(pattern: string, regex: boolean, full: boolean, insensitive: boolean, own: OwnProcesses = { lines: [], names: [] }): boolean {
+  const images = [name(process.execPath), name(process.execPath) + '.exe', 'mercury', 'mercury.exe', ...own.names]
+  const candidates = full ? [...images, [process.execPath, ...process.argv.slice(1)].join(' '), ...own.lines] : images
+  if (!regex) return candidates.some(image => matchWildcardPattern(pattern, image, insensitive))
+  try {
+    const re = new RegExp(pattern, insensitive ? 'i' : '')
+    return candidates.some(image => re.test(image))
+  } catch (error) {
+    passedOver(error)
+    return false
+  }
+}
+
+function operandsBeforeRedirect(args: string[], end?: number): string[] {
+  return end === undefined ? args : args.slice(0, Math.max(0, end - 1))
+}
+
+function selectedImages(argv: string[], end?: number): string[] {
+  const command = name(argv[0] ?? '')
+  const args = argv.slice(1)
+  if (command === 'taskkill') return optionValues(args, /^\/im$/i)
+  if (command === 'stop-process' || command === 'get-process' || command === 'spps' || command === 'gps') {
+    const named = optionValues(args, /^-n(?:a(?:m(?:e)?)?)?$/i)
+    if (named.length) return named
+    if (args.some(arg => /^-(?:id|inputobject)(?:[:=]|$)/i.test(arg))) return []
+    return positionals(args, /^-(?:erroraction|ea|warningaction|wa)$/i).filter(arg => !/^\d+$/.test(arg))
+  }
+  if (command === 'killall') return positionals(operandsBeforeRedirect(args, end), /^-(?:u|user|s|signal|t)$/i, false)
+  if (command === 'pkill' || command === 'pgrep') {
+    return positionals(operandsBeforeRedirect(args, end), /^-(?:[ugGPUsFt]|-(?:euid|uid|group|pgroup|parent|session|terminal|pidfile|signal))$/, false).slice(-1)
+  }
+  return []
+}
+
+export async function namesMercuryProcess(pattern: string): Promise<boolean> {
+  return imageMatches(pattern, true, true, true, await ownProcesses(await protectedPids()))
+}
+
+function ownUser(named: string): boolean {
+  if (/^\$\{?(?:USER|LOGNAME|USERNAME|UID|EUID)\}?$/.test(named)) return true
+  const names = [hostEnv().USER, hostEnv().LOGNAME, hostEnv().USERNAME]
+  try {
+    const info = userInfo()
+    names.push(info.username, String(info.uid))
+  } catch {
+    if (process.getuid !== undefined) names.push(String(process.getuid()))
+  }
+  return names.some(candidate => candidate !== undefined && candidate !== '' && candidate === named)
+}
+
+const ownsMercury = (target: string): string => 'Stopping ' + target + ' is refused: it owns Mercury’s running process or daemon.'
+
+async function launchAgentReason(args: string[], pids: number[]): Promise<string | null> {
+  if (!['bootout', 'unload', 'remove', 'kill', 'stop', 'disable', 'kickstart'].includes(args[0] ?? '')) return null
+  const targets = args.slice(1).filter(arg => !arg.startsWith('-'))
+  const named = targets.find(target => /mercury[^/]*$/i.test(target))
+  if (named !== undefined) return ownsMercury(named)
+  for (const target of targets) {
+    if (!target.endsWith('.plist') && !target.includes('/')) continue
+    if (target.endsWith('.plist')) {
+      try {
+        const text = readFileSync(resolve(directoryTheShellStandsIn(), target.replace(/^~(?=\/|$)/, homedir())), 'utf8')
+        const program = /<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/.exec(text)?.[1]
+          ?? /<key>Program<\/key>\s*(<string>[^<]*<\/string>)/.exec(text)?.[1] ?? ''
+        const paths = [...program.matchAll(/<string>([^<]+)/g)].map(match => match[1]!)
+        const entries = [process.argv[1], (await readDaemonState())?.script].filter((path): path is string => !!path).flatMap(path => protectedPathForms(path))
+        if (paths.some(path => protectedPathForms(path).some(form => entries.includes(form)))) return ownsMercury(target)
+      } catch (error) {
+        passedOver(error)
+      }
+    } else if (process.platform === 'darwin') {
+      try {
+        const printed = execFileSync('launchctl', ['print', target], { encoding: 'utf8', timeout: 2000, windowsHide: true, env: { ...subprocessEnv() }, stdio: ['ignore', 'pipe', 'ignore'] })
+        if ([...printed.matchAll(/\bpid\s*=\s*(\d+)/g)].some(match => pids.includes(Number(match[1])))) return ownsMercury(target)
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+  }
+  return null
+}
+
+async function parentPid(pid: number): Promise<number | undefined> {
+  if (pid === process.pid) return process.ppid
+  if (parentPidProbeKind() === 'win32-ancestors') return (await getAncestorPidsAsync(pid, 1))[0]
+  const result = await execFileNoThrow('ps', ['-o', 'ppid=', '-p', String(pid)])
+  const parent = Number(result.stdout.trim())
+  return result.code === 0 && parent > 0 ? parent : undefined
+}
+
+export async function runtimeProcessRefusal(commands: string[][], operandEnds?: ReadonlyMap<string[], number>): Promise<string | null> {
+  const kills = new Set(['kill', 'pkill', 'killall', 'taskkill', 'stop-process', 'spps', 'launchctl', 'lldb', 'gdb'])
+  if (!commands.some(argv => kills.has(name(argv[0] ?? '')) || argv.some(word => kills.has(name(word))))) return null
+  const pids = await protectedPids()
+  const hasPipedKill = commands.some(argv => ['kill', 'stop-process', 'spps'].includes(name(argv[0] ?? '')) || (name(argv[0] ?? '') === 'xargs' && argv.some(word => name(word) === 'kill')))
+  for (const argv of commands) {
+    const end = operandEnds?.get(argv)
+    const command = name(argv[0] ?? '')
+    const args = argv.slice(1)
+    if (args.some(arg => /^-whatif$/i.test(arg))) continue
+    if (command === 'launchctl') {
+      const refusal = await launchAgentReason(args, pids)
+      if (refusal) return refusal
+    }
+    if (command === 'lldb' || command === 'gdb') {
+      const attached = [...optionValues(args, /^(?:-p|--pid|--attach-pid)$/), ...(command === 'gdb' ? positionals(args, /^-(?:ex|x|-command|-eval-command|-args|-pid|p)$/) : [])].find(value => /^\d+$/.test(value) && pids.includes(Number(value)))
+      if (attached) return 'Attaching a debugger to pid ' + attached + ' is refused: it is Mercury’s own process or daemon.'
+      continue
+    }
+    if (command === 'kill' && args.some(arg => /^\$\{?PPID\}?$/.test(arg))) return 'Killing the shell’s parent is refused: it is Mercury’s own process.'
+    if (command === 'pkill' || command === 'killall') {
+      const group = optionValues(args, /^-(?:g|s|-pgroup|-session)$/).find(value => /^\d+$/.test(value) && pids.includes(Number(value)))
+      if (command === 'pkill' && group) return 'Killing process group ' + group + ' is refused: it holds Mercury’s own process or daemon.'
+      const users = optionValues(args, command === 'pkill' ? /^-(?:u|U|-euid|-uid)$/ : /^-(?:u|user)$/i)
+      const user = users.find(ownUser)
+      if (user !== undefined && selectedImages(argv, end).length === 0) return 'Killing every process of user ' + user + ' is refused: Mercury’s own process and daemon run as that user.'
+    }
+    const filters = command === 'taskkill' ? optionValues(args, /^\/fi$/i) : []
+    const filterPids = filters.flatMap(value => /^pid\s+eq\s+(\d+)$/i.exec(value)?.slice(1) ?? [])
+    if (command === 'kill' || command === 'taskkill' || command === 'stop-process' || command === 'spps' || (hasPipedKill && ['get-process', 'gps'].includes(command))) {
+      if (command === 'kill' && (args.some(arg => /^-(?:l|L|0)$/.test(arg)) || optionValues(args, /^-(?:s|-signal)$/).some(value => /^(?:0|SIG0)$/i.test(value)))) continue
+      if (command === 'kill' && (args.at(-1) === '-1' && args.length > 1 || args.includes('0'))) return 'Killing all processes or the shell process group is refused: it can terminate Mercury’s running process or daemon.'
+      const targets = command === 'taskkill' ? [...optionValues(args, /^\/pid$/i), ...filterPids]
+        : command === 'kill' ? [...positionals(args, /^-(?:s|n|-signal)$/), ...args.filter(arg => /^-\d+$/.test(arg))]
+        : [...optionValues(args, /^-id$/i), ...positionals(args, /^-(?:name|n|inputobject|erroraction|ea)$/i)]
+      const pid = targets.find(target => /^-?\d+$/.test(target) && pids.includes(Math.abs(Number(target))))
+      if (pid) return (pid.startsWith('-') ? 'Killing process group ' + pid.slice(1) : 'Killing pid ' + pid) + ' is refused: it is Mercury’s own process or daemon.'
+    }
+    if (!kills.has(command) && !(hasPipedKill && ['pgrep', 'get-process', 'gps'].includes(command))) continue
+    if (filterPids.length && !filterPids.some(pid => pids.includes(Number(pid)))) continue
+    const parents = ['pkill', 'pgrep'].includes(command) ? optionValues(args, /^-(?:P|-parent)$/) : []
+    const ownParent = parents.find(parent => /^\d+$/.test(parent) && pids.includes(Number(parent)))
+    if (ownParent !== undefined && (command === 'pkill' || hasPipedKill)) return 'Killing the children of pid ' + ownParent + ' is refused: they are the processes Mercury’s own process or daemon runs.'
+    if (parents.length) {
+      const ownParents = await Promise.all(pids.map(parentPid))
+      if (ownParents.every(parent => parent !== undefined && !parents.includes(String(parent)))) continue
+    }
+    const regex = command === 'pkill' || command === 'pgrep' || (command === 'killall' && args.some(arg => /^-(?:r|-regexp)$/.test(arg)))
+    const full = regex && args.some(arg => /^-[^-]*f/.test(arg) || arg === '--full')
+    const insensitive = !regex || args.some(arg => /^-[^-]*i/.test(arg) || arg === '--ignore-case')
+    const images = [...selectedImages(argv, end), ...filters.flatMap(value => /^imagename\s+eq\s+(.+)$/i.exec(value)?.slice(1) ?? [])]
+    for (const image of images) {
+      const exact = regex && args.some(arg => /^-(?:[a-z]*x[a-z]*|-exact)$/.test(arg))
+      if (imageMatches(exact ? '^(?:' + image + ')$' : image, regex, full, insensitive, await ownProcesses(pids))) return 'Killing by image ' + image + ' is refused: it can terminate Mercury’s running process or daemon. Use the pid of the unrelated process instead.'
+    }
+  }
+  return null
+}

@@ -15,7 +15,7 @@ if (!existsSync(DIST)) {
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}fix: a refusal answered inside the quiet window must record no api_error row and publish no retry wait (the wait shape is RequestWaitV1 in src/services/providers/streamIdleBudget.ts), and the reply must land after the 529 refusals; the daemon log is in the [forensics] world kept below, and dist/mercury.mjs must be rebuilt with bun run build.ts after a source change`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}fix: a refusal answered inside the quiet window must record no api_error row and publish no retry wait (the wait shape is RequestWaitV1 in src/models/roads/streamIdleBudget.ts), and the reply must land after the 529 refusals; the daemon log is in the [forensics] world kept below, and dist/mercury.mjs must be rebuilt with bun run build.ts after a source change`}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number, everyMs = 100): Promise<boolean> => {
@@ -41,9 +41,9 @@ process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(configDir, [work])
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const { decodeRequestWait } = await import('../../src/services/providers/streamIdleBudget.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
+const { decodeRequestWait } = await import('../../src/models/roads/streamIdleBudget.ts')
 
 type Capture = { kind: string; at: number; arm?: string; status?: number }
 const captureFile = join(SCRATCH, 'wire-captures.jsonl')

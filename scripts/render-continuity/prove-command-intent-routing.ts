@@ -10,11 +10,11 @@ import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'poise-intent-config.'))
 
-const { builtinCommands } = await import('../../src/commands.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { builtinCommands } = await import('../../src/commands/catalogue/commands.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 const { classifyAgentViewSubmission } = await import(
-  '../../src/components/PromptInput/promptIntent.ts'
+  '../../src/screen/composer/promptIntent.ts'
 )
 const { runPulseArena, anchoredOffset, restoreOffsets } = await import('./lib/pulseArena.ts')
 const { checker } = await import('../engine-durability/harness.ts')
@@ -31,7 +31,7 @@ const t = {
 
 t.section('§1 generated registry matrix: every command classifies to its declared scope')
 {
-  const { isCommandEnabled } = await import('../../src/commands.ts')
+  const { isCommandEnabled } = await import('../../src/commands/catalogue/commands.ts')
   const safeEnabled = (c: { isEnabled?: () => boolean }): boolean => {
     try {
       return isCommandEnabled(c as never)
@@ -70,14 +70,14 @@ t.section('§1 generated registry matrix: every command classifies to its declar
     misrouted.length === 0,
     misrouted.slice(0, 6).join(' · ') ||
       `${sessionCount} session / ${agentCount} agent / ${disabledHonest} disabled-honest`,
-    'fix classifyAgentViewSubmission in src/components/PromptInput/promptIntent.ts for the misrouted names listed',
+    'fix classifyAgentViewSubmission in src/screen/composer/promptIntent.ts for the misrouted names listed',
   )
   const CREWMATE_SCOPED = ['compact', 'context', 'effort', 'model', 'usage']
   t.check(
     `the roster's agent-scoped commands are exactly the five that act on a selected crewmate (${CREWMATE_SCOPED.join(', ')}); a new one must opt in explicitly`,
     [...agentScoped].sort().join(',') === CREWMATE_SCOPED.join(','),
     [...agentScoped].sort().join(','),
-    'classifyAgentViewSubmission in src/components/PromptInput/promptIntent.ts decides which commands are agent-scoped; either restore the five or update CREWMATE_SCOPED in this file if a command was meant to opt in',
+    'classifyAgentViewSubmission in src/screen/composer/promptIntent.ts decides which commands are agent-scoped; either restore the five or update CREWMATE_SCOPED in this file if a command was meant to opt in',
   )
   const aliasDrift = roster
     .filter(c => c.aliases?.length)
@@ -87,7 +87,7 @@ t.section('§1 generated registry matrix: every command classifies to its declar
         return !((viaAlias.kind === 'session-command' || viaAlias.kind === 'agent-command') && viaAlias.command.name === c.name)
       }),
     )
-  t.check('every roster alias resolves to its owner command', aliasDrift.length === 0, aliasDrift.join(','), 'the listed aliases must classify to their owner command in classifyAgentViewSubmission, src/components/PromptInput/promptIntent.ts')
+  t.check('every roster alias resolves to its owner command', aliasDrift.length === 0, aliasDrift.join(','), 'the listed aliases must classify to their owner command in classifyAgentViewSubmission, src/screen/composer/promptIntent.ts')
 }
 
 t.section('§2 unknown / literal / guidance laws')
@@ -98,24 +98,24 @@ t.section('§2 unknown / literal / guidance laws')
     'unknown slash input classifies unknown-command (never guidance)',
     unknown.kind === 'unknown-command' && unknown.bareName === 'frobnicate',
     unknown.kind,
-    'classifyAgentViewSubmission in src/components/PromptInput/promptIntent.ts must return unknown-command with bareName for a slash name outside the roster',
+    'classifyAgentViewSubmission in src/screen/composer/promptIntent.ts must return unknown-command with bareName for a slash name outside the roster',
   )
   const unknownArgs = classifyAgentViewSubmission('/frobnicate now please', false, commands)
   t.check(
     'unknown slash with args keeps the bare name',
     unknownArgs.kind === 'unknown-command' && unknownArgs.bareName === 'frobnicate',
     unknownArgs.kind,
-    'classifyAgentViewSubmission in src/components/PromptInput/promptIntent.ts must keep bareName when an unknown slash name has arguments',
+    'classifyAgentViewSubmission in src/screen/composer/promptIntent.ts must keep bareName when an unknown slash name has arguments',
   )
   const literal = classifyAgentViewSubmission('//health check this', false, commands)
   t.check(
     "'//x …' is the literal-send path delivering '/x …'",
     literal.kind === 'agent-literal' && literal.text === '/health check this',
     JSON.stringify(literal),
-    'classifyAgentViewSubmission in src/components/PromptInput/promptIntent.ts must turn a leading // into agent-literal with one slash removed',
+    'classifyAgentViewSubmission in src/screen/composer/promptIntent.ts must turn a leading // into agent-literal with one slash removed',
   )
   const guidance = classifyAgentViewSubmission('please fix the tests', false, commands)
-  t.check('plain text is agent guidance', guidance.kind === 'agent-guidance', guidance.kind, 'classifyAgentViewSubmission in src/components/PromptInput/promptIntent.ts must return agent-guidance for text that does not start with a slash')
+  t.check('plain text is agent guidance', guidance.kind === 'agent-guidance', guidance.kind, 'classifyAgentViewSubmission in src/screen/composer/promptIntent.ts must return agent-guidance for text that does not start with a slash')
 }
 
 t.section('§3 journey: agent view routes commands locally, guidance to the agent')
@@ -248,7 +248,7 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
       "an unknown /name answers the screen's own sentence (never the runner's)",
       iClosed >= 0 && iNotify > iClosed,
       iNotify > iClosed ? undefined : forensics(iClosed),
-      'typing /frobnicate must paint the screen sentence Unknown command: /frobnicate (the unknown-command path of classifyAgentViewSubmission in src/components/PromptInput/promptIntent.ts); the frames above show what painted',
+      'typing /frobnicate must paint the screen sentence Unknown command: /frobnicate (the unknown-command path of classifyAgentViewSubmission in src/screen/composer/promptIntent.ts); the frames above show what painted',
     )
 
     type Msg = { role: string; content: unknown }
@@ -274,8 +274,8 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
                 )),
         ),
       )
-    t.check('no /frobnicate in any model call', !userTextIncludes('/frobnicate'), undefined, 'an unknown slash command was sent to the model as user text; classifyAgentViewSubmission in src/components/PromptInput/promptIntent.ts must keep it local')
-    t.check('no /vim in any model call', !userTextIncludes('/vim'), undefined, 'a slash command was sent to the model as user text; classifyAgentViewSubmission in src/components/PromptInput/promptIntent.ts must route it as a command, not as guidance')
+    t.check('no /frobnicate in any model call', !userTextIncludes('/frobnicate'), undefined, 'an unknown slash command was sent to the model as user text; classifyAgentViewSubmission in src/screen/composer/promptIntent.ts must keep it local')
+    t.check('no /vim in any model call', !userTextIncludes('/vim'), undefined, 'a slash command was sent to the model as user text; classifyAgentViewSubmission in src/screen/composer/promptIntent.ts must route it as a command, not as guidance')
 
     const { mkdirSync, writeFileSync } = await import('node:fs')
     const framesArg = process.argv.indexOf('--frames')

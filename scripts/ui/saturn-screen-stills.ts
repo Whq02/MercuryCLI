@@ -18,10 +18,10 @@ import {
   type SaturnFormStateV1,
   type SaturnScreenFactsV1,
   type SaturnScreenRowV1,
-} from '../../src/components/BootSaturnScreen.js'
-import { compileWhenSpelling } from '../../src/services/saturn/whenSpelling.js'
-import { saturnFactsOf, type HeldFireV1, type SaturnScheduleV1 } from '../../src/daemon/saturn.js'
-import type { SessionReceiptEntry } from '../../src/services/switchboard/sessionReceipts.js'
+} from '../../src/screen/boot-face/BootSaturnScreen.js'
+import { compileWhenSpelling } from '../../src/daemon/saturn/whenSpelling.js'
+import { saturnFactsOf, type HeldFireV1, type SaturnScheduleV1 } from '../../src/daemon/saturn/saturn.js'
+import type { SessionReceiptEntry } from '../../src/daemon/switchboard/sessionReceipts.js'
 
 const STILLS_DIR = join(import.meta.dir, 'fixtures', 'saturn-screen')
 

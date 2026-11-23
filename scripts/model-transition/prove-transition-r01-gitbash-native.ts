@@ -11,7 +11,7 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — to fix: ' + hint : ''}`)
 }
 
-const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
+const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
 
 const gitBash = FLAG_REGISTRY.find(s => s.env === 'MERCURY_GIT_BASH_PATH')
 const psTool = FLAG_REGISTRY.find(s => s.env === 'MERCURY_USE_POWERSHELL_TOOL')
@@ -30,7 +30,7 @@ chmodSync(join(shimDir, 'dir'), 0o755)
 function resolveBashWith(env: Record<string, string | undefined>): string {
   const script = `
     ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
-    const { findGitBashPath } = await import('${join(ROOT, 'src/utils/windowsPaths.ts').replace(/\\/g, '\\\\')}')
+    const { findGitBashPath } = await import('${join(ROOT, 'src/platform/files/windowsPaths.ts').replace(/\\/g, '\\\\')}')
     console.log(findGitBashPath())
   `
   return execFileSync(BUN, ['-e', script], {
@@ -47,16 +47,16 @@ check(
   '§B the MERCURY_GIT_BASH_PATH override resolves',
   resolveBashWith({ MERCURY_GIT_BASH_PATH: '/bin/bash' }) === '/bin/bash',
   '',
-  'make findGitBashPath in src/utils/windowsPaths.ts return the MERCURY_GIT_BASH_PATH value when it names an existing file',
+  'make findGitBashPath in src/platform/files/windowsPaths.ts return the MERCURY_GIT_BASH_PATH value when it names an existing file',
 )
 
 
-const { GIT_BASH_REMEDY } = await import('../../src/utils/windowsPaths.ts')
+const { GIT_BASH_REMEDY } = await import('../../src/platform/files/windowsPaths.ts')
 check(
   '§D the message a machine with no bash is given names MERCURY_GIT_BASH_PATH',
   GIT_BASH_REMEDY.includes('MERCURY_GIT_BASH_PATH='),
   '',
-  'put the text MERCURY_GIT_BASH_PATH= in GIT_BASH_REMEDY in src/utils/windowsPaths.ts',
+  'put the text MERCURY_GIT_BASH_PATH= in GIT_BASH_REMEDY in src/platform/files/windowsPaths.ts',
 )
 
 console.log(

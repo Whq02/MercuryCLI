@@ -21,25 +21,25 @@ process.env.ANTHROPIC_API_KEY = 'fixture-key'
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_EFFORT_LEVEL
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 const loaderCwd = join(scratch, 'loader-cwd')
 mkdirSync(loaderCwd, { recursive: true })
 bootstrap.setOriginalCwd(loaderCwd)
 bootstrap.setProjectRoot(loaderCwd)
-const { loadConversationForResume, getResumePrompt } = await import('../../src/services/resume/conversationRecovery.ts')
-const { loadTranscriptFile } = await import('../../src/utils/sessionStorage.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { ENDED_RUN_TOOL_RESULT, NO_RESPONSE_REQUESTED } = await import('../../src/utils/messages/rejectionText.ts')
-import type { Message } from '../../src/types/message.ts'
+const { loadConversationForResume, getResumePrompt } = await import('../../src/sessions/resume/conversationRecovery.ts')
+const { loadTranscriptFile } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+const { ENDED_RUN_TOOL_RESULT, NO_RESPONSE_REQUESTED } = await import('../../src/engine/message-shapes/rejectionText.ts')
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${cond ? '' : ' — to fix: the section title says which record shape failed; the resume reading (finished turn or cut turn, the cut-off sentence, the stand-in reply) is decided in loadConversationForResume and its interruption detection in src/services/resume/conversationRecovery.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${cond ? '' : ' — to fix: the section title says which record shape failed; the resume reading (finished turn or cut turn, the cut-off sentence, the stand-in reply) is decided in loadConversationForResume and its interruption detection in src/sessions/resume/conversationRecovery.ts'}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)

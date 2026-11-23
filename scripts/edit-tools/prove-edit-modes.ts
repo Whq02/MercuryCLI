@@ -10,22 +10,22 @@ process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 
-const { planAppend, findSection, planSectionEdit } = await import('../../src/tools/FileEditTool/sectionEdit.ts')
-const { planHunks, formatHunkOutcomes } = await import('../../src/services/changeTransaction/hunks.ts')
-const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
-const { fileGeneration, recordSeenLines, _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { planAppend, findSection, planSectionEdit } = await import('../../src/tools/edit/sectionEdit.ts')
+const { planHunks, formatHunkOutcomes } = await import('../../src/tools/engines/change-transaction/hunks.ts')
+const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
+const { fileGeneration, recordSeenLines, _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
 const editModesFailHints: Record<string, string> = {
-  P: 'fix planAppend, findSection or planSectionEdit in src/tools/FileEditTool/sectionEdit.ts',
-  O: 'fix planHunks or formatHunkOutcomes in src/services/changeTransaction/hunks.ts',
-  L: 'fix the append, section or hunks mode of src/tools/FileEditTool/FileEditTool.ts (sectionEdit.ts beside it and src/services/changeTransaction/hunks.ts do the planning)',
-  K: 'fix the read-knowledge check of validateInput and call in src/tools/FileEditTool/FileEditTool.ts, or the ledger in src/services/changeTransaction/seenLines.ts and snapshotAnchor.ts',
-  N: 'fix normalizeToolInput in src/services/messages/api.ts',
-  R: 'fix how validateInput, inputsEquivalent and call in src/tools/FileEditTool/FileEditTool.ts treat empty optional fields',
+  P: 'fix planAppend, findSection or planSectionEdit in src/tools/edit/sectionEdit.ts',
+  O: 'fix planHunks or formatHunkOutcomes in src/tools/engines/change-transaction/hunks.ts',
+  L: 'fix the append, section or hunks mode of src/tools/edit/EditTool.ts (sectionEdit.ts beside it and src/tools/engines/change-transaction/hunks.ts do the planning)',
+  K: 'fix the read-knowledge check of validateInput and call in src/tools/edit/EditTool.ts, or the ledger in src/tools/engines/change-transaction/seenLines.ts and snapshotAnchor.ts',
+  N: 'fix normalizeToolInput in src/engine/messages/apiSystemAndToolSchema.ts',
+  R: 'fix how validateInput, inputsEquivalent and call in src/tools/edit/EditTool.ts treat empty optional fields',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -36,7 +36,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — edit modes proof exceeded 90s; a FileEditTool call in src/tools/FileEditTool/FileEditTool.ts or a planner in src/services/changeTransaction/hunks.ts is hanging, so find the last section header printed above')
+  console.log('\nTIMEOUT — edit modes proof exceeded 90s; a FileEditTool call in src/tools/edit/EditTool.ts or a planner in src/tools/engines/change-transaction/hunks.ts is hanging, so find the last section header printed above')
   process.exit(1)
 }, 90_000)
 guard.unref?.()
@@ -232,7 +232,7 @@ section('K. read knowledge keyed to content')
   const inWindow = await edit({ file_path: windowed, old_string: 'const b = 2', new_string: 'const b = 22' }, ctxW)
   check('K7 a windowed read that showed the line edits it', inWindow.ok && readFileSync(windowed, 'utf8').includes('const b = 22'), inWindow.ok ? '' : inWindow.error)
   check('K8 the file size is what statSync says (no torn write)', statSync(windowed).size === Buffer.byteLength(readFileSync(windowed, 'utf8')))
-  const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
+  const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
   for (const priorRead of [false, true]) {
     const searched = join(fixtures, `searched-${priorRead}.ts`)
     writeFileSync(searched, body)
@@ -280,7 +280,7 @@ section('K. read knowledge keyed to content')
 
 section('N. the tool-input normaliser keeps every mode')
 {
-  const { normalizeToolInput } = await import('../../src/services/messages/api.ts')
+  const { normalizeToolInput } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
   const hunks = normalizeToolInput(FileEditTool as never, { file_path: join(fixtures, 'n.md'), hunks: [{ lines: '1', replace: 'a' }], expected_anchor: 'fa:000000000000' }) as Record<string, unknown>
   check('N1 hunks and expected_anchor ride through', Array.isArray(hunks.hunks) && hunks.expected_anchor === 'fa:000000000000' && hunks.old_string === undefined, JSON.stringify(hunks))
   const appended = normalizeToolInput(FileEditTool as never, { file_path: join(fixtures, 'n.md'), section: '## A', append: 'x' }) as Record<string, unknown>

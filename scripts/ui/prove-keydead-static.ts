@@ -8,20 +8,20 @@ const ROOT = join(import.meta.dir, '..', '..')
 const TREES = ['src/components', 'src/screens', 'src/commands']
 
 const ALLOW: Record<string, string> = {
-  'src/components/concourse/sessionMirror/sessionMirrorView.tsx :: enter': "the live pane's empty-state note for a ready-to-review newborn — its ↵ is the live box's empty-draft verb (the composer beside it, same region) entering the selected row",
-  'src/components/concourse/route/useConcourseDraftDispatch.ts :: letter:y':
+  'src/screen/concourse/session-mirror/sessionMirrorView.tsx :: enter': "the live pane's empty-state note for a ready-to-review newborn — its ↵ is the live box's empty-draft verb (the composer beside it, same region) entering the selected row",
+  'src/screen/concourse/route/useConcourseDraftDispatch.ts :: letter:y':
     'the daemon-start offer (the operator\'s word): ConcourseScreen routes y/n while daemonOfferArmed → callbacks.answerDaemonOffer (out-of-file binder across the ConcourseCallbacks seam)',
-  'src/components/concourse/route/useConcourseDraftDispatch.ts :: letter:n':
+  'src/screen/concourse/route/useConcourseDraftDispatch.ts :: letter:n':
     'the daemon-start offer: same ConcourseScreen y/n routing → callbacks.answerDaemonOffer (out-of-file binder)',
-  'src/components/concourse/route/useConcourseDraftDispatch.ts :: enter':
+  'src/screen/concourse/route/useConcourseDraftDispatch.ts :: enter':
     'ConcourseScreen.tsx key.return → callbacks.submitSessionDraft (out-of-file binder across the ConcourseCallbacks seam)',
-  'src/components/concourse/route/receipts.ts :: enter':
+  'src/screen/concourse/route/receipts.ts :: enter':
     'ConcourseScreen.tsx key.return → callbacks.submitSessionDraft (out-of-file binder across the ConcourseCallbacks seam)',
-  'src/components/mercury-ui/parity/accountRows.tsx :: enter':
+  'src/screen/widgets/parity/accountRows.tsx :: enter':
     'AccountView.tsx hands its useInteractiveList the return action for the rows this file draws (out-of-file binder in the door)',
-  'src/components/agents/studio/AgentStudio.tsx :: letter:o':
+  'src/screen/agents/studio/AgentStudio.tsx :: letter:o':
     'agents/studio/agentStudioParts.tsx opens the row in the editor on o (out-of-file binder in the part)',
-  'src/components/agents/studio/AgentStudio.tsx :: tab':
+  'src/screen/agents/studio/AgentStudio.tsx :: tab':
     'agents/studio/agentStudioParts.tsx widens the scope on key.tab (out-of-file binder in the part)',
 }
 
@@ -248,8 +248,8 @@ check('a paging comparison on another value cannot borrow the decoder binding', 
   const scratchHome = pinScratchHome('keydead-console-oauth')
   process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
   const React = await import('react')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { ConsoleOAuthFlow } = await import('../../src/components/ConsoleOAuthFlow.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { ConsoleOAuthFlow } = await import('../../src/models/sign-in/flow-cards/SignInFlow.js')
   let skipped = 0
   let done = 0
   const mounted = await mountOffscreen(
@@ -277,7 +277,7 @@ check('a paging comparison on another value cannot borrow the decoder binding', 
     const ignoredModified = skipped === 0
     mounted.push('s')
     const fired = await waitFor(() => skipped === 1, 2000)
-    check('ConsoleOAuthFlow binds plain s on its menu to the sign-in-later callback', rendered && ignoredModified && fired && skipped === 1 && done === 0, `rendered=${rendered} ignoredModified=${ignoredModified} skipped=${skipped} done=${done}`, 'change the plain s binding of the sign-in menu in src/components/ConsoleOAuthFlow.tsx so it calls onSkip once, ignores a modified s, and never calls onDone')
+    check('ConsoleOAuthFlow binds plain s on its menu to the sign-in-later callback', rendered && ignoredModified && fired && skipped === 1 && done === 0, `rendered=${rendered} ignoredModified=${ignoredModified} skipped=${skipped} done=${done}`, 'change the plain s binding of the sign-in menu in src/models/sign-in/flow-cards/SignInFlow.tsx so it calls onSkip once, ignores a modified s, and never calls onDone')
   } finally {
     mounted.unmount()
     await releaseScratchHome(scratchHome)

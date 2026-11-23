@@ -11,11 +11,11 @@ const {
   capabilityKillReason,
   reseedCapabilityKillsFromEnv,
   listCapabilityKills,
-} = await import('../../src/utils/permissions/capabilityGate.ts')
+} = await import('../../src/permissions/rules/capabilityGate.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — fix: how MERCURY_KILL entries are read and matched is reseedCapabilityKillsFromEnv, isCapabilityKilled and capabilityKillReason in src/utils/permissions/capabilityGate.ts; the kills row of the health check (section 4) is in src/services/health/sections/settings.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — fix: how MERCURY_KILL entries are read and matched is reseedCapabilityKillsFromEnv, isCapabilityKilled and capabilityKillReason in src/permissions/rules/capabilityGate.ts; the kills row of the health check (section 4) is in src/platform/health/sections/settings.ts'}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -69,7 +69,7 @@ section('§3 MCP SERVER SEMANTICS')
 
 section('§4 HEALTH WIRING')
 {
-  const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
+  const { settingsChecks } = await import('../../src/platform/health/sections/settings.ts')
   const killsRow = settingsChecks().find(row => row.id === 'kills')
   reseedWith('nosuchbuiltin')
   const unmatchedSays = await killsRow?.run()

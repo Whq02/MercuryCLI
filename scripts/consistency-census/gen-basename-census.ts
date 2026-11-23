@@ -25,7 +25,7 @@ interface Hit {
   needle: string
   excerpt: string
 }
-const OTHER_GUIDE_ADAPTER = 'src/services/instructions/adapters/claudeCode.ts'
+const OTHER_GUIDE_ADAPTER = 'src/sessions/instructions/adapters/claudeCode.ts'
 const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boolean; cls: string; why: string }> = [
   {
     test: (f, needle) => needle === OTHER_GUIDE && f === OTHER_GUIDE_ADAPTER,
@@ -38,17 +38,17 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
     why: "another tool's home or guide file is an ordinary file — outside that one adapter nothing in src probes, lists, protects or composes it",
   },
   {
-    test: f => f === 'src/utils/env.ts' || f === 'src/utils/envUtils.ts',
+    test: f => f === 'src/platform/environment/env.ts' || f === 'src/platform/environment/envUtils.ts',
     cls: 'owner-internal',
     why: 'the config-home monolith family — the home resolver owns the home basenames',
   },
   {
-    test: f => f === 'src/utils/projectConfig.ts',
+    test: f => f === 'src/platform/settings/projectConfig.ts',
     cls: 'owner-internal',
     why: 'the project-dirs owner — the ONE place project basenames join paths',
   },
   {
-    test: f => f.startsWith('src/services/instructions/'),
+    test: f => f.startsWith('src/sessions/instructions/'),
     cls: 'guide-probe',
     why: 'the instruction engine: the native convention names MERCURY.md, the shared convention AGENTS.md (composed when no MERCURY.md stands), the capture writer and the effective-size measure name the entry files',
   },
@@ -68,42 +68,42 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
     why: 'the MANAGED estate projection (the managed root mirrors the canonical .mercury layout)',
   },
   {
-    test: f => f === 'src/services/projectIntel/impact.ts' || f === 'src/utils/verification/verificationState.ts',
+    test: f => f === 'src/sessions/project-intel/impact.ts' || f === 'src/platform/verification/verificationState.ts',
     cls: 'own-guard',
     why: "Mercury's home held as protection vocabulary (the scan's walk-skips, the tree digest's exclusions) — never a read or a write path",
   },
   {
-    test: f => f === 'src/entrypoints/cli.tsx',
+    test: f => f === 'src/boot/entrypoints/cli.tsx',
     cls: 'owner-internal',
     why: 'the env-less compile-cache fallback mirrors the three-rung home ladder (projectdirs prover pins it)',
   },
   {
-    test: (f, _n, excerpt) => f === 'src/services/privateChannel/installLayout.ts' && /\$env:MERCURY_CONFIG_DIR/.test(excerpt),
+    test: (f, _n, excerpt) => f === 'src/platform/update-channel/installLayout.ts' && /\$env:MERCURY_CONFIG_DIR/.test(excerpt),
     cls: 'owner-internal',
     why: 'the managed PowerShell entry is a template string that mirrors the three-rung home ladder (MERCURY_CONFIG_DIR, MERCURY_HOME, the home) as the .cmd does — the shell reads it, src never does',
   },
   {
-    test: (f, n) => f === 'src/utils/cockpit/repoSurfaceMap.ts' && (n === 'MERCURY.md' || n === 'AGENTS.md'),
+    test: (f, n) => f === 'src/screen/cockpit/repoSurfaceMap.ts' && (n === 'MERCURY.md' || n === 'AGENTS.md'),
     cls: 'guide-probe',
     why: 'the surface map lists the guides present at the root by name — existence only, never a content load',
   },
   {
-    test: f => f === 'src/utils/proofHomeGuard.ts',
+    test: f => f === 'src/models/roads/proofHomeGuard.ts',
     cls: 'own-guard',
     why: 'the proof-write guard names the account store as a forbidden boundary, never a write destination or the configurable scratch home',
   },
   {
-    test: f => f === 'src/utils/permissions/filesystem.ts',
+    test: f => f === 'src/permissions/rules/filesystem.ts',
     cls: 'own-guard',
     why: "the permission estate names Mercury's own config as protected paths (edits ask first)",
   },
   {
-    test: f => f === 'src/utils/markdownConfigLoader.ts' || f === 'src/skills/loadSkillsDir.ts' || f === 'src/utils/config/derived.ts',
+    test: f => f === 'src/platform/settings/markdownConfigLoader.ts' || f === 'src/integrations/skills/loadSkillsDir.ts' || f === 'src/platform/config/derived.ts',
     cls: 'guide-probe',
     why: 'the markdown/skills/rules discovery surfaces name the .mercury home and the user guide file beside the owner calls',
   },
   {
-    test: (f, needle) => (needle === 'MERCURY.md' || needle === 'AGENTS.md') && f.startsWith('src/services/projectIntel/'),
+    test: (f, needle) => (needle === 'MERCURY.md' || needle === 'AGENTS.md') && f.startsWith('src/sessions/project-intel/'),
     cls: 'guide-probe',
     why: 'the project intel facts name the guides Mercury loads — existence only, never a content load',
   },

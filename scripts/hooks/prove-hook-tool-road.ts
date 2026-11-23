@@ -6,7 +6,7 @@ import { dist, payloadKindsOf, quote, runDoor, savedHookRowsOf, say, sceneRoot, 
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 let failures = 0
-const toolRoadHint = 'Fix the tool hooks (tool.before, tool.after, permission.decided) in src/services/tools/toolHooks.ts and where the tool call runs them in src/services/tools/toolExecution.ts, then rebuild dist with bun run build.ts; the rows and stderr dump below shows the run.'
+const toolRoadHint = 'Fix the tool hooks (tool.before, tool.after, permission.decided) in src/engine/tool-dispatch/toolHooks.ts and where the tool call runs them in src/engine/tool-dispatch/toolExecution.ts, then rebuild dist with bun run build.ts; the rows and stderr dump below shows the run.'
 const check = (label: string, good: boolean, detail = ''): void => {
   if (!good) failures++
   console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good ? `${detail ? ` — ${detail}` : ''} — ${toolRoadHint}` : ''}`)

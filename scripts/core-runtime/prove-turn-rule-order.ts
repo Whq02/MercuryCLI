@@ -11,15 +11,15 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'turn-rule-order-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'turn-rule-order-daemon-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { NO_TOOL_RULES } = await import('../../src/run-core/turn/noToolReply.ts')
+const { NO_TOOL_RULES } = await import('../../src/engine/loop/turn/noToolReply.ts')
 const { SCENARIOS, record } = await import('./turnScenarios.ts')
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const SELF = 'scripts/core-runtime/prove-turn-rule-order.ts'
-const RULES_FILE = 'src/run-core/turn/noToolReply.ts'
+const RULES_FILE = 'src/engine/loop/turn/noToolReply.ts'
 const SCENARIO_FILE = 'scripts/core-runtime/turnScenarios.ts'
-const DOOR = 'src/run-core/turn-machine.ts'
-const INSIDE = 'src/run-core/turn/'
+const DOOR = 'src/engine/loop/turn-machine.ts'
+const INSIDE = 'src/engine/loop/turn/'
 
 const ORDER = [
   'overflow_recovery',

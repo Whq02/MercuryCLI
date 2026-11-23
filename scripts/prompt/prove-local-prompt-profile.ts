@@ -26,8 +26,8 @@ delete process.env.MERCURY_LOCAL_PROMPT_PROFILE
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'local-profile-proof-home-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { localLaw, LOCAL_SUBAGENT_DOCTRINE, LOCAL_POSTURE_WORDS, localToolForm } = await import('../../src/constants/localPromptProfile.ts')
-const { MERCURY_CONSTITUTION, MERCURY_HEADLESS_CONSTITUTION } = await import('../../src/prompt/mercuryContract.ts')
+const { localLaw, LOCAL_SUBAGENT_DOCTRINE, LOCAL_POSTURE_WORDS, localToolForm } = await import('../../src/models/roads/localPromptProfile.ts')
+const { MERCURY_CONSTITUTION, MERCURY_HEADLESS_CONSTITUTION } = await import('../../src/engine/system-prompt/mercuryContract.ts')
 
 const CEILINGS = { system: 5_600, tools: 5_700, tokens: 4_700 } as const
 const CORE = ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'ToolSearch']
@@ -248,9 +248,9 @@ check('RED ON A TREE WITHOUT THE ENGINE GATE: an admitted tool joins the tools t
 
 section('§11 the first-turn reminder on the attachment road — opening turn only, re-opened after a fold')
 {
-  const { firstTurnUserContext } = await import('../../src/services/messages/api.ts')
-  const { getUserContextAttachment } = await import('../../src/utils/attachments/userContext.ts')
-  const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
+  const { firstTurnUserContext } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+  const { getUserContextAttachment } = await import('../../src/engine/attachment-shapes/userContext.ts')
+  const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
   const firstUser = createUserMessage({ content: 'Read README.md.' })
   const userContext = { environment: 'Is a git repository: Yes', currentDate: 'Today\'s date is 2026-01-01.' }
   const systemContext = { gitStatus: 'This is the repository\'s git status: clean', gitRules: 'Git rules.' }
@@ -268,9 +268,9 @@ section('§11 the first-turn reminder on the attachment road — opening turn on
   const reopened = await getUserContextAttachment(folded as never, merged, false)
   const reopenedRow = reopened[0] as { body?: string } | undefined
   check('after a fold the next turn re-delivers the moved text', (reopenedRow?.body ?? '').includes('# gitStatus') && (reopenedRow?.body ?? '').includes('# Scratchpad'), JSON.stringify(reopened).slice(0, 200))
-  const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
-  const { getSessionId, regenerateSessionId, getSystemPromptSectionCache } = await import('../../src/bootstrap/state.ts')
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { getSystemPrompt } = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+  const { getSessionId, regenerateSessionId, getSystemPromptSectionCache } = await import('../../src/boot/process-state/processState.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
   const memoryKey = (): string | null | undefined => getSystemPromptSectionCache().get('memory_at_start')?.key
   const requestKey = `${String(getSessionId())}:request`

@@ -1,7 +1,7 @@
-import type { Command } from '../../commands.js'
-import type { LocalCommandCall } from '../../types/command.js'
+import type { Command } from '../catalogue/commands.js'
+import type { LocalCommandCall } from '../catalogue/command.js'
 
-const call: LocalCommandCall = async args => (await import('../../services/crew/channelCommand.js')).runChannelCommand('whisper', args)
+const call: LocalCommandCall = async args => (await import('../../crew/crewmates/channelCommand.js')).runChannelCommand('whisper', args)
 
 const whisper = {
   type: 'local',

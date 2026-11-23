@@ -38,18 +38,18 @@ process.env.ANTHROPIC_API_KEY = 'prover-key'
 delete process.env.ANTHROPIC_BASE_URL
 
 const SECTION_FAILURE_HINTS: Record<string, string> = {
-  '§1': 'make configureEffortParams in src/services/providers/anthropic/requestParams.ts send the tier that resolveEffortTruth in src/utils/effort.ts returns as wire',
-  '§1b': 'check queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts and configureEffortParams in src/services/providers/anthropic/requestParams.ts: effort belongs in output_config, never in the anthropic-beta header',
-  '§2': 'make resolveGptReasoningProfile in src/services/providers/openai/openaiCatalogue.ts and buildOpenaiResponsesRequest in src/services/providers/openai/responsesBridge.ts agree with resolveEffortTruth in src/utils/effort.ts',
-  '§3': 'make glmEffortsFor in src/utils/model/pins/glmPins.ts and buildZaiChatRequest in src/services/providers/zai/zaiCodec.ts agree with resolveEffortTruth in src/utils/effort.ts',
-  '§4': 'make the builder named in the label, in src/services/providers/openaicompat/compatWire.ts, agree with resolveEffortTruth in src/utils/effort.ts',
-  '§5': 'check thinkingOffWireEffort and the build*Extras builders in src/services/providers/openaicompat/compatWire.ts against the thinking-off branch of resolveEffortTruth in src/utils/effort.ts',
-  '§6': 'check effortVocabularyFor in src/utils/model/capabilities.ts and resolveEffortTruth in src/utils/effort.ts: a model without an effort dial must resolve to the absence label',
-  '§7': 'check effortSentOf in src/services/engine-connector/seatProjections.ts: session/facts effortSent must come from resolveEffortTruth',
-  '§8': 'check parseCliEffort and describeEffortEnvOverride in src/utils/effort.ts, the two doors for the effort flag and MERCURY_EFFORT_LEVEL',
-  '§10': 'check effortVocabularyFor in src/utils/model/capabilities.ts: each model family must report its expected view kind and thinking gate',
+  '§1': 'make configureEffortParams in src/models/roads/anthropic/requestParams.ts send the tier that resolveEffortTruth in src/models/effort/effort.ts returns as wire',
+  '§1b': 'check queryModelWithStreaming in src/models/roads/anthropic/streamCore.ts and configureEffortParams in src/models/roads/anthropic/requestParams.ts: effort belongs in output_config, never in the anthropic-beta header',
+  '§2': 'make resolveGptReasoningProfile in src/models/roads/openai/openaiCatalogue.ts and buildOpenaiResponsesRequest in src/models/roads/openai/responsesBridge.ts agree with resolveEffortTruth in src/models/effort/effort.ts',
+  '§3': 'make glmEffortsFor in src/models/facts/pins/glmPins.ts and buildZaiChatRequest in src/models/roads/zai/zaiCodec.ts agree with resolveEffortTruth in src/models/effort/effort.ts',
+  '§4': 'make the builder named in the label, in src/models/roads/openaicompat/compatWire.ts, agree with resolveEffortTruth in src/models/effort/effort.ts',
+  '§5': 'check thinkingOffWireEffort and the build*Extras builders in src/models/roads/openaicompat/compatWire.ts against the thinking-off branch of resolveEffortTruth in src/models/effort/effort.ts',
+  '§6': 'check effortVocabularyFor in src/models/facts/capabilities.ts and resolveEffortTruth in src/models/effort/effort.ts: a model without an effort dial must resolve to the absence label',
+  '§7': 'check effortSentOf in src/engine/connector/seatProjections.ts: session/facts effortSent must come from resolveEffortTruth',
+  '§8': 'check parseCliEffort and describeEffortEnvOverride in src/models/effort/effort.ts, the two doors for the effort flag and MERCURY_EFFORT_LEVEL',
+  '§10': 'check effortVocabularyFor in src/models/facts/capabilities.ts: each model family must report its expected view kind and thinking gate',
 }
-let failureHint = 'the fixture catalogue did not land: check the refresh function of that provider catalogue under src/services/providers, and the fixture rows in this file'
+let failureHint = 'the fixture catalogue did not land: check the refresh function of that provider catalogue under src/models/roads, and the fixture rows in this file'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -61,31 +61,31 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const configModule = (await import('../../src/utils/config.ts')) as unknown as { enableConfigs?: () => void }
+const configModule = (await import('../../src/platform/settings/config.ts')) as unknown as { enableConfigs?: () => void }
 configModule.enableConfigs?.()
 
-const effort = await import('../../src/utils/effort.ts')
-const caps = await import('../../src/utils/model/capabilities.ts')
-const thinking = await import('../../src/utils/thinking.ts')
-const requestParams = await import('../../src/services/providers/anthropic/requestParams.ts')
-const openaiCatalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const responsesBridge = await import('../../src/services/providers/openai/responsesBridge.ts')
-const gptPins = await import('../../src/utils/model/pins/gptPins.ts')
-const glmPins = await import('../../src/utils/model/pins/glmPins.ts')
-const zaiCodec = await import('../../src/services/providers/zai/zaiCodec.ts')
-const wire = await import('../../src/services/providers/openaicompat/compatWire.ts')
-const openrouter = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
-const gemini = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const localDiscovery = await import('../../src/services/providers/local/localDiscovery.ts')
-const localCatalogue = await import('../../src/services/providers/local/localCatalogue.ts')
-const localCallModel = await import('../../src/services/providers/local/localCallModel.ts')
-const routerAnthropic = await import('../../src/services/providers/anthropic/anthropicAdapter.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const effort = await import('../../src/models/effort/effort.ts')
+const caps = await import('../../src/models/facts/capabilities.ts')
+const thinking = await import('../../src/models/effort/thinking.ts')
+const requestParams = await import('../../src/models/roads/anthropic/requestParams.ts')
+const openaiCatalogue = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const responsesBridge = await import('../../src/models/roads/openai/responsesBridge.ts')
+const gptPins = await import('../../src/models/facts/pins/gptPins.ts')
+const glmPins = await import('../../src/models/facts/pins/glmPins.ts')
+const zaiCodec = await import('../../src/models/roads/zai/zaiCodec.ts')
+const wire = await import('../../src/models/roads/openaicompat/compatWire.ts')
+const openrouter = await import('../../src/models/roads/openrouter/openrouterCatalogue.ts')
+const gemini = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const localDiscovery = await import('../../src/models/roads/local/localDiscovery.ts')
+const localCatalogue = await import('../../src/models/roads/local/localCatalogue.ts')
+const localCallModel = await import('../../src/models/roads/local/localCallModel.ts')
+const routerAnthropic = await import('../../src/models/roads/anthropic/anthropicAdapter.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const B = await import('../../src/constants/betas.ts')
+const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const B = await import('../../src/models/roads/betaHeaders.ts')
 
 type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max']
@@ -423,7 +423,7 @@ section('§6 honest absence: every no-dial id labels itself with the one word')
 section('§7 the surfaces read the owner')
 {
   const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
-  const { effortSentOf } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const { effortSentOf } = await import('../../src/engine/connector/seatProjections.ts')
   const SEAT_MODEL = 'claude-sonnet-4-6'
   const asked = [undefined, ...effort.EFFORT_LEVELS]
   const seatSent = await withFixtureRunner([], async host => {

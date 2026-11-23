@@ -9,7 +9,7 @@ function contract(root: string): Record<string, unknown> {
   const config = ts.readConfigFile(join(root, 'tsconfig.json'), ts.sys.readFile)
   assert.equal(config.error, undefined)
   const options = ts.parseJsonConfigFileContent(config.config, ts.sys, root).options
-  const entries = ['src/ink.ts', 'src/ink/ink.tsx', 'src/ink/components/ScrollBox.tsx']
+  const entries = ['src/screen/themedRenderer.ts', 'src/screen/renderer/screenInstance.tsx', 'src/screen/renderer/elements/ScrollBox.tsx']
   const program = ts.createProgram(entries.map(path => join(root, path)), options)
   const checker = program.getTypeChecker()
   const flags = ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseStructuralFallback | ts.TypeFormatFlags.InTypeAlias
@@ -118,13 +118,13 @@ try {
     moved.set(`${kind}:${name}`, { note: `${reason} (${lane}, ${commit})`, digest: digest ?? null })
   }
   let named = checkShapeExports(before, after, moved)
-  const driftedTarget = 'src/ink/components/ScrollBox.tsx:ScrollBoxProps'
+  const driftedTarget = 'src/screen/renderer/elements/ScrollBox.tsx:ScrollBoxProps'
   const driftedAfter = { ...after, [driftedTarget]: { ...(after[driftedTarget] as Record<string, unknown>), drifted: true } }
   assert.throws(
     () => checkShapeExports(before, driftedAfter, moved, true),
     /export shape drifted past its recorded movement/,
   )
-  const count = Object.keys(before).filter(name => name.startsWith('src/ink.ts:')).length
+  const count = Object.keys(before).filter(name => name.startsWith('src/screen/themedRenderer.ts:')).length
   console.log(`[PASS] engine contract: ${count} facade exports and ${Object.keys(before).length - count} engine/scroll exports keep their names and resolved type shapes except the ${named} movements the record names`)
 } finally {
   if (own) rmSync(work, { recursive: true, force: true })

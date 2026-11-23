@@ -3,14 +3,14 @@
 
 
 let failures = 0
-const recordFailHint = 'change nativeCwdFromShellRecord in src/utils/windowsPaths.ts'
+const recordFailHint = 'change nativeCwdFromShellRecord in src/platform/files/windowsPaths.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ` · ${recordFailHint}`}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { nativeCwdFromShellRecord } = await import('../../src/utils/windowsPaths.ts')
+const { nativeCwdFromShellRecord } = await import('../../src/platform/files/windowsPaths.ts')
 type Verdict = { path: string } | { refused: string }
 const pathOf = (v: Verdict): string => ('path' in v ? v.path : `REFUSED: ${v.refused}`)
 

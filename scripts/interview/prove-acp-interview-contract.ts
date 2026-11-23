@@ -4,9 +4,9 @@ import { checker } from '../engine-durability/harness.ts'
 import { isDeepStrictEqual } from 'node:util'
 
 const t = checker()
-const { permissionAskWire, permissionAllowedOf, permissionAnswerOf } = await import('../../src/services/acp/acpServer.ts')
-const { questionFormOf } = await import('../../src/services/acp/questionForm.ts')
-const { AskUserQuestionTool } = await import('../../src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx')
+const { permissionAskWire, permissionAllowedOf, permissionAnswerOf } = await import('../../src/integrations/acp/acpServer.ts')
+const { questionFormOf } = await import('../../src/integrations/acp/questionForm.ts')
+const { AskUserQuestionTool } = await import('../../src/tools/ask-question/AskUserQuestionTool.tsx')
 
 const input = {
   questions: [

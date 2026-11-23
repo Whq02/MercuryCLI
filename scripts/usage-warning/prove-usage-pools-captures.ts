@@ -146,8 +146,8 @@ const FACE_THEN_COMPOSER: Send[] = [
 ]
 const BAR = '[█░▰▱]{2,4}'
 const POOLS_SEND_HINT = 'a scripted send never became due, so its awaitText did not show on screen; set USAGE_POOLS_SHOT_DIR to keep the captured frames and read the last one'
-const POOLS_RAIL_HINT = 'change usageRows in src/services/cockpit/helmVitalsModel.ts (the USAGE panel rows) or the fixture payload in baseEnv above'
-const POOLS_WARNING_HINT = 'the strip warning text is built in src/services/providers/limitWarning.ts (warningFacts, anthropicWarning)'
+const POOLS_RAIL_HINT = 'change usageRows in src/screen/cockpit-gauges/helmVitalsModel.ts (the USAGE panel rows) or the fixture payload in baseEnv above'
+const POOLS_WARNING_HINT = 'the strip warning text is built in src/models/roads/limitWarning.ts (warningFacts, anthropicWarning)'
 
 console.log('============================================================')
 console.log(' usage pool captures — the rail at 160 cols · the band at 120 cols')

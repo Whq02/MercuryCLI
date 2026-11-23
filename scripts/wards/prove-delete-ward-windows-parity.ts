@@ -1,6 +1,6 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const PARITY_FAIL_HINT = 'fix: the rules no-root-recursive-delete and no-other-user-delete in REFUSAL_WARDS (src/utils/wards/wards.ts), and for the cd and lister cases refusalOfShellCommand in src/utils/wards/wardsRefusals.ts; the detail above is the rule that answered'
+const PARITY_FAIL_HINT = 'fix: the rules no-root-recursive-delete and no-other-user-delete in REFUSAL_WARDS (src/permissions/wards/wards.ts), and for the cd and lister cases refusalOfShellCommand in src/permissions/wards/wardsRefusals.ts; the detail above is the rule that answered'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -263,7 +263,7 @@ async function main(): Promise<void> {
   delete process.env.MERCURY_WARDS
   const savedHome = process.env.HOME
   const savedProfile = process.env.USERPROFILE
-  const wards = await import('../../src/utils/wards/wards.js')
+  const wards = await import('../../src/permissions/wards/wards.js')
   const pending = (command: string, toolName = 'PowerShell') => ({ toolName, input: { command }, shellCommand: command })
   const verdictOf = (command: string, toolName?: string) => wards.evaluateWards(wards.REFUSAL_WARDS, pending(command, toolName))
   const refused = (command: string, toolName?: string): boolean => !verdictOf(command, toolName).allow
@@ -301,7 +301,7 @@ async function main(): Promise<void> {
     section('§6d win32 — the box\'s controls stay true: the own profile (F37W-5B-11), a folder outside any Users tree (F37W-5B-09) and an echo of the words are not this ward\'s business')
     for (const [command, tool] of BOX_CONTROLS) check(`not warded by no-other-user-delete (${tool}): ${JSON.stringify(command)}`, ruleOf(command, tool) !== 'no-other-user-delete', ruleOf(command, tool))
     section('§6e win32 — the Windows box\'s SUBMIT 266: a recursive delete AFTER a cd into the home is refused as it is on the Mac, through the road the Bash and PowerShell tools take (the shell reader); nothing is executed')
-    const { refusalOfShellCommand } = await import('../../src/utils/wards/wardsRefusals.js')
+    const { refusalOfShellCommand } = await import('../../src/permissions/wards/wardsRefusals.js')
     const through = async (command: string, tool: string, cwd: string): Promise<string> => {
       const verdict = await refusalOfShellCommand(pending(command, tool) as never, cwd)
       return verdict.allow ? '(allowed)' : verdict.rule.name

@@ -12,18 +12,18 @@ process.env.MERCURY_DESKTOP_DRIVER = 'none'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'NODE_ENV', 'MERCURY_HOME']) delete process.env[k]
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-await import('../../src/tasks.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { drainPendingMessages, queueOperatorMessage, queuePendingMessage, takeOperatorMessages } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { ResumeAgentTool } = await import('../../src/tools/ResumeAgentTool/ResumeAgentTool.ts')
-import type { AppState } from '../../src/state/AppStateStore.ts'
+await import('../../src/engine/tasks/tasks.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { drainPendingMessages, queueOperatorMessage, queuePendingMessage, takeOperatorMessages } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { ResumeAgentTool } = await import('../../src/tools/resume-crewmate/ResumeAgentTool.ts')
+import type { AppState } from '../../src/screen/app-state/AppStateStore.ts'
 
 let failures = 0
 let checks = 0
@@ -164,27 +164,27 @@ section('§1 the recorded sequence: a message queued while the turn runs starts 
   const r = await run(store, AGENT, [[textTurn('I have written and verified docs/18.')], [textTurn('docs/18 now conforms to docs/21 §0.')]], index => {
     if (index === 0) queuePendingMessage(AGENT, 'The shared Runtime Contract is now written in docs/21 §0. Read it now and make docs/18 conform exactly.', store.set)
   })
-  check('the run made two model calls: the queued message became the next turn', r.calls.length === 2, `${r.calls.length} — the queued_message rule in src/run-core/turn/noToolReply.ts must hand a crewmate's pending messages (queuePendingMessage in src/tasks/LocalAgentTask/LocalAgentTask.tsx) to a new turn when a reply ends without tool calls`)
-  check('the run ended completed, after the second turn, never between', r.terminal.reason === 'completed', `${JSON.stringify(r.terminal)} — the run must end only after the queued turn is answered; see the queued_message rule in src/run-core/turn/noToolReply.ts`)
+  check('the run made two model calls: the queued message became the next turn', r.calls.length === 2, `${r.calls.length} — the queued_message rule in src/engine/loop/turn/noToolReply.ts must hand a crewmate's pending messages (queuePendingMessage in src/engine/tasks/local-agent/crewmateTask.tsx) to a new turn when a reply ends without tool calls`)
+  check('the run ended completed, after the second turn, never between', r.terminal.reason === 'completed', `${JSON.stringify(r.terminal)} — the run must end only after the queued turn is answered; see the queued_message rule in src/engine/loop/turn/noToolReply.ts`)
   const second = textsOf(r.calls[1]?.messages ?? [])
-  check('the second call carries the queued message as its newest row', second.at(-1)?.includes('make docs/18 conform exactly') === true, `${JSON.stringify(second.slice(-2))} — the queued_message rule in src/run-core/turn/noToolReply.ts must append the message as the last row of the next request`)
-  check('the first call carried no such row', !textsOf(r.calls[0]?.messages ?? []).some(text => text.includes('conform exactly')), 'the message is queued during call 0, so only a later call may carry it; check where the queued_message rule in src/run-core/turn/noToolReply.ts reads the queue')
-  check('the queue is empty once the message rode a turn', pendingOf(store, AGENT).length === 0, `${JSON.stringify(pendingOf(store, AGENT))} — the queued_message rule in src/run-core/turn/noToolReply.ts must drain the messages it hands over`)
-  check('the queued message reached the transcript as a row', r.yields.some(m => textsOf([m]).some(text => text.includes('conform exactly'))), 'the queued_message rule in src/run-core/turn/noToolReply.ts must also yield each handed-over message as a row of the run')
+  check('the second call carries the queued message as its newest row', second.at(-1)?.includes('make docs/18 conform exactly') === true, `${JSON.stringify(second.slice(-2))} — the queued_message rule in src/engine/loop/turn/noToolReply.ts must append the message as the last row of the next request`)
+  check('the first call carried no such row', !textsOf(r.calls[0]?.messages ?? []).some(text => text.includes('conform exactly')), 'the message is queued during call 0, so only a later call may carry it; check where the queued_message rule in src/engine/loop/turn/noToolReply.ts reads the queue')
+  check('the queue is empty once the message rode a turn', pendingOf(store, AGENT).length === 0, `${JSON.stringify(pendingOf(store, AGENT))} — the queued_message rule in src/engine/loop/turn/noToolReply.ts must drain the messages it hands over`)
+  check('the queued message reached the transcript as a row', r.yields.some(m => textsOf([m]).some(text => text.includes('conform exactly'))), 'the queued_message rule in src/engine/loop/turn/noToolReply.ts must also yield each handed-over message as a row of the run')
   const assistantTexts = r.yields.filter(m => m.type === 'assistant').map(m => JSON.stringify((m.message as { content: unknown }).content))
-  check('both replies stand in the transcript', assistantTexts.some(t => t.includes('verified docs/18')) && assistantTexts.some(t => t.includes('conforms to docs/21')), 'the run must yield the assistant replies of both turns; see the turn loop in src/run-core/turn-machine.ts')
+  check('both replies stand in the transcript', assistantTexts.some(t => t.includes('verified docs/18')) && assistantTexts.some(t => t.includes('conforms to docs/21')), 'the run must yield the assistant replies of both turns; see the turn loop in src/engine/loop/turn-machine.ts')
 }
 
 section('§2 nothing queued, nothing invented: a quiet run ends on its first reply; the main agent is untouched')
 {
   const store = makeStore({ [AGENT]: agentTask(AGENT) })
   const r = await run(store, AGENT, [[textTurn('done')]], () => {})
-  check('one call, completed', r.calls.length === 1 && r.terminal.reason === 'completed', `${r.calls.length} ${JSON.stringify(r.terminal)} — with nothing queued the queued_message rule in src/run-core/turn/noToolReply.ts must decide nothing and let the reply stand`)
+  check('one call, completed', r.calls.length === 1 && r.terminal.reason === 'completed', `${r.calls.length} ${JSON.stringify(r.terminal)} — with nothing queued the queued_message rule in src/engine/loop/turn/noToolReply.ts must decide nothing and let the reply stand`)
   const main = makeStore({ [AGENT]: agentTask(AGENT) })
   const m = await run(main, undefined, [[textTurn('done')]], index => {
     if (index === 0) queuePendingMessage(AGENT, 'for the crewmate, not for the lead', main.set)
   })
-  check("the lead's own run never drains a crewmate's queue", m.calls.length === 1 && pendingOf(main, AGENT).length === 1, `${m.calls.length} ${JSON.stringify(pendingOf(main, AGENT))} — a run with no agent id must not read any crewmate's pendingMessages; see getAgentPendingMessageAttachments in src/services/attachments/queuedCommands.ts`)
+  check("the lead's own run never drains a crewmate's queue", m.calls.length === 1 && pendingOf(main, AGENT).length === 1, `${m.calls.length} ${JSON.stringify(pendingOf(main, AGENT))} — a run with no agent id must not read any crewmate's pendingMessages; see getAgentPendingMessageAttachments in src/engine/attachments/queuedCommands.ts`)
 }
 
 section('§3 two messages queued in one turn ride one new turn, in order; a third queued during that turn rides a third')
@@ -197,13 +197,13 @@ section('§3 two messages queued in one turn ride one new turn, in order; a thir
     }
     if (index === 1) queuePendingMessage(AGENT, 'guidance three', store.set)
   })
-  check('three calls', r.calls.length === 3, `${r.calls.length} — each reply that ends without tool calls and finds queued messages must start another turn (queued_message rule, src/run-core/turn/noToolReply.ts)`)
+  check('three calls', r.calls.length === 3, `${r.calls.length} — each reply that ends without tool calls and finds queued messages must start another turn (queued_message rule, src/engine/loop/turn/noToolReply.ts)`)
   const second = textsOf(r.calls[1]?.messages ?? [])
   const oneAt = second.findIndex(text => text.includes('guidance one'))
   const twoAt = second.findIndex(text => text.includes('guidance two'))
-  check('the second call carries both earlier messages in order', oneAt >= 0 && twoAt > oneAt && !second.some(text => text.includes('guidance three')), `${JSON.stringify(second.slice(-3))} — the queued_message rule in src/run-core/turn/noToolReply.ts must hand over every message queued so far, in queue order, and none queued later`)
-  check('the third call carries the third', textsOf(r.calls[2]?.messages ?? []).some(text => text.includes('guidance three')), 'a message queued during the second turn must ride a third turn; see the queued_message rule in src/run-core/turn/noToolReply.ts')
-  check('completed with an empty queue', r.terminal.reason === 'completed' && pendingOf(store, AGENT).length === 0, `${JSON.stringify(r.terminal)} ${JSON.stringify(pendingOf(store, AGENT))} — the run must end completed with every queued message drained (queued_message rule, src/run-core/turn/noToolReply.ts)`)
+  check('the second call carries both earlier messages in order', oneAt >= 0 && twoAt > oneAt && !second.some(text => text.includes('guidance three')), `${JSON.stringify(second.slice(-3))} — the queued_message rule in src/engine/loop/turn/noToolReply.ts must hand over every message queued so far, in queue order, and none queued later`)
+  check('the third call carries the third', textsOf(r.calls[2]?.messages ?? []).some(text => text.includes('guidance three')), 'a message queued during the second turn must ride a third turn; see the queued_message rule in src/engine/loop/turn/noToolReply.ts')
+  check('completed with an empty queue', r.terminal.reason === 'completed' && pendingOf(store, AGENT).length === 0, `${JSON.stringify(r.terminal)} ${JSON.stringify(pendingOf(store, AGENT))} — the run must end completed with every queued message drained (queued_message rule, src/engine/loop/turn/noToolReply.ts)`)
 }
 
 section("§4 the lifecycle's end-of-run drain takes exactly what it peeked; later arrivals stay queued")
@@ -214,16 +214,16 @@ section("§4 the lifecycle's end-of-run drain takes exactly what it peeked; late
   const peeked = [...pendingOf(store, 'a1')]
   queuePendingMessage('a1', 'arrived during the resume', store.set)
   const drained = drainPendingMessages('a1', store.get, store.set, peeked.length)
-  check('the bounded drain returns the peeked messages only', JSON.stringify(drained) === JSON.stringify(['peeked one', 'peeked two']), `${JSON.stringify(drained)} — drainPendingMessages in src/tasks/LocalAgentTask/LocalAgentTask.tsx must take only the first limit messages`)
-  check('the message that arrived after the peek stays queued for the next run', JSON.stringify(pendingOf(store, 'a1')) === JSON.stringify(['arrived during the resume']), `${JSON.stringify(pendingOf(store, 'a1'))} — drainPendingMessages in src/tasks/LocalAgentTask/LocalAgentTask.tsx must leave pendingMessages beyond the limit in place`)
-  check('an unbounded drain still takes everything', JSON.stringify(drainPendingMessages('a1', store.get, store.set)) === JSON.stringify(['arrived during the resume']) && pendingOf(store, 'a1').length === 0, 'drainPendingMessages in src/tasks/LocalAgentTask/LocalAgentTask.tsx must take every pending message when no limit is given')
+  check('the bounded drain returns the peeked messages only', JSON.stringify(drained) === JSON.stringify(['peeked one', 'peeked two']), `${JSON.stringify(drained)} — drainPendingMessages in src/engine/tasks/local-agent/crewmateTask.tsx must take only the first limit messages`)
+  check('the message that arrived after the peek stays queued for the next run', JSON.stringify(pendingOf(store, 'a1')) === JSON.stringify(['arrived during the resume']), `${JSON.stringify(pendingOf(store, 'a1'))} — drainPendingMessages in src/engine/tasks/local-agent/crewmateTask.tsx must leave pendingMessages beyond the limit in place`)
+  check('an unbounded drain still takes everything', JSON.stringify(drainPendingMessages('a1', store.get, store.set)) === JSON.stringify(['arrived during the resume']) && pendingOf(store, 'a1').length === 0, 'drainPendingMessages in src/engine/tasks/local-agent/crewmateTask.tsx must take every pending message when no limit is given')
   queueOperatorMessage('a1', 'operator one', store.set)
   queueOperatorMessage('a1', 'operator two', store.set)
   const taken = takeOperatorMessages('a1', store.get, store.set, 1)
   const left = ((store.state.tasks as Record<string, { operatorMessages?: string[] }>).a1?.operatorMessages ?? [])
-  check('the operator lane drains by count the same way', JSON.stringify(taken) === JSON.stringify(['operator one']) && JSON.stringify(left) === JSON.stringify(['operator two']), `${JSON.stringify([taken, left])} — takeOperatorMessages in src/tasks/LocalAgentTask/LocalAgentTask.tsx must honour its limit like drainPendingMessages`)
+  check('the operator lane drains by count the same way', JSON.stringify(taken) === JSON.stringify(['operator one']) && JSON.stringify(left) === JSON.stringify(['operator two']), `${JSON.stringify([taken, left])} — takeOperatorMessages in src/engine/tasks/local-agent/crewmateTask.tsx must honour its limit like drainPendingMessages`)
   const t = await import('../core-runtime/turnScenarios.ts')
-  const { NO_TOOL_RULES, readReply } = await import('../../src/run-core/turn/noToolReply.ts')
+  const { NO_TOOL_RULES, readReply } = await import('../../src/engine/loop/turn/noToolReply.ts')
   const queuedRule = NO_TOOL_RULES.find(entry => entry.name === 'queued_message')!
   const atTheNaturalEnd = async (plan: Parameters<typeof t.plantReply>[0]) => {
     const planted = await t.plantReply(plan)
@@ -242,7 +242,7 @@ section("§4 the lifecycle's end-of-run drain takes exactly what it peeked; late
   check(
     'the turn machine reads a crewmate\'s queue at the natural end of a turn and continues with reason queued_message',
     t.reasonOf(crew.decision) === 'hand_over queued_message' && JSON.stringify(handed?.transition) === JSON.stringify({ reason: 'queued_message', count: 2 }) && crew.events.filter(event => event.kind === 'attachment').length === 2 && JSON.stringify(textsOf(handed?.messages ?? []).slice(-2)) === JSON.stringify(['read the contract', 'and conform to it']) && t.reasonOf(lead.decision) === 'nothing' && lead.events.length === 0,
-    `a crewmate with two queued messages: ${t.reasonOf(crew.decision)} ${JSON.stringify(handed?.transition)}, ${crew.events.length} row(s); a run with no agent id, the same queue filed where an absent id would read it: ${t.reasonOf(lead.decision)}, ${lead.events.length} row(s) — the queued_message rule of src/run-core/turn/noToolReply.ts hands over with the count of the crewmate's own pending messages, each as a row of the next turn; for a run with no agent id getAgentPendingMessageAttachments (src/services/attachments/queuedCommands.ts) answers nothing, and the rule decides nothing`,
+    `a crewmate with two queued messages: ${t.reasonOf(crew.decision)} ${JSON.stringify(handed?.transition)}, ${crew.events.length} row(s); a run with no agent id, the same queue filed where an absent id would read it: ${t.reasonOf(lead.decision)}, ${lead.events.length} row(s) — the queued_message rule of src/engine/loop/turn/noToolReply.ts hands over with the count of the crewmate's own pending messages, each as a row of the next turn; for a run with no agent id getAgentPendingMessageAttachments (src/engine/attachments/queuedCommands.ts) answers nothing, and the rule decides nothing`,
   )
 }
 
@@ -254,18 +254,18 @@ section('§5 ResumeCrewmate on a running crewmate joins the queue, even with a m
   const parent = createAssistantMessage({ content: 'resuming' })
   const first = await ResumeAgentTool.call({ to: 'opus-consistency-c2', effort: 'medium', message: 'Director rulings on your four decision items.' } as never, rig.ctx as never, allowAll as never, parent as never)
   const firstData = (first as { data: { success: boolean; message: string } }).data
-  check('the call succeeds: the message is queued, nothing is refused', firstData.success === true, `${JSON.stringify(firstData)} — a running crewmate must accept the message with model or effort named; see the running branch of call in src/tools/ResumeAgentTool/ResumeAgentTool.ts`)
-  check('the answer says the message was queued and when it is read', firstData.message.includes('the message was queued') && firstData.message.includes('next tool boundary') && firstData.message.includes('next turn when the current one ends'), `${firstData.message} — the success text of the running branch in src/tools/ResumeAgentTool/ResumeAgentTool.ts must say it was queued and when it is read`)
-  check('the answer says the effort was not applied and where it would be', firstData.message.includes('effort medium was not applied') && firstData.message.includes('once it has finished'), `${firstData.message} — the kept-overrides sentence in src/tools/ResumeAgentTool/ResumeAgentTool.ts must name each override as not applied and say to name it again once the crewmate has finished`)
-  check('the old refusal is gone', !firstData.message.includes('nothing was queued'), 'a running crewmate with no override named must not get the refusal text; see src/tools/ResumeAgentTool/ResumeAgentTool.ts')
-  check('the queue holds the message as a crew notice', pendingOf(store, 'addbsftfg').length === 1 && pendingOf(store, 'addbsftfg')[0]!.includes('Director rulings on your four decision items.'), `${JSON.stringify(pendingOf(store, 'addbsftfg'))} — the running branch in src/tools/ResumeAgentTool/ResumeAgentTool.ts must call queuePendingMessage with the message`)
+  check('the call succeeds: the message is queued, nothing is refused', firstData.success === true, `${JSON.stringify(firstData)} — a running crewmate must accept the message with model or effort named; see the running branch of call in src/tools/resume-crewmate/ResumeAgentTool.ts`)
+  check('the answer says the message was queued and when it is read', firstData.message.includes('the message was queued') && firstData.message.includes('next tool boundary') && firstData.message.includes('next turn when the current one ends'), `${firstData.message} — the success text of the running branch in src/tools/resume-crewmate/ResumeAgentTool.ts must say it was queued and when it is read`)
+  check('the answer says the effort was not applied and where it would be', firstData.message.includes('effort medium was not applied') && firstData.message.includes('once it has finished'), `${firstData.message} — the kept-overrides sentence in src/tools/resume-crewmate/ResumeAgentTool.ts must name each override as not applied and say to name it again once the crewmate has finished`)
+  check('the old refusal is gone', !firstData.message.includes('nothing was queued'), 'a running crewmate with no override named must not get the refusal text; see src/tools/resume-crewmate/ResumeAgentTool.ts')
+  check('the queue holds the message as a crew notice', pendingOf(store, 'addbsftfg').length === 1 && pendingOf(store, 'addbsftfg')[0]!.includes('Director rulings on your four decision items.'), `${JSON.stringify(pendingOf(store, 'addbsftfg'))} — the running branch in src/tools/resume-crewmate/ResumeAgentTool.ts must call queuePendingMessage with the message`)
   const second = await ResumeAgentTool.call({ to: 'addbsftfg', message: 'And one more.' } as never, rig.ctx as never, allowAll as never, parent as never)
   const secondData = (second as { data: { success: boolean; message: string } }).data
-  check('a second message names what is queued ahead of it', secondData.success === true && secondData.message.includes('1 earlier message is queued ahead of it') && !secondData.message.includes('not applied'), `${secondData.message} — the queue sentence in src/tools/ResumeAgentTool/ResumeAgentTool.ts must count the earlier pendingMessages and name no override when none was given`)
-  check('both wait in order', pendingOf(store, 'addbsftfg').length === 2 && pendingOf(store, 'addbsftfg')[1]!.includes('And one more.'), 'the second message must be appended behind the first in pendingMessages; see queuePendingMessage in src/tasks/LocalAgentTask/LocalAgentTask.tsx')
+  check('a second message names what is queued ahead of it', secondData.success === true && secondData.message.includes('1 earlier message is queued ahead of it') && !secondData.message.includes('not applied'), `${secondData.message} — the queue sentence in src/tools/resume-crewmate/ResumeAgentTool.ts must count the earlier pendingMessages and name no override when none was given`)
+  check('both wait in order', pendingOf(store, 'addbsftfg').length === 2 && pendingOf(store, 'addbsftfg')[1]!.includes('And one more.'), 'the second message must be appended behind the first in pendingMessages; see queuePendingMessage in src/engine/tasks/local-agent/crewmateTask.tsx')
   const both = await ResumeAgentTool.call({ to: 'addbsftfg', model: 'claude-opus-4-8', effort: 'max', message: 'Third.' } as never, rig.ctx as never, allowAll as never, parent as never)
   const bothData = (both as { data: { success: boolean; message: string } }).data
-  check('model and effort together are both named as kept for a finished resume', bothData.success === true && bothData.message.includes('model claude-opus-4-8 and effort max were not applied') && bothData.message.includes('2 earlier messages are queued ahead of it'), `${bothData.message} — the kept-overrides and queue sentences in src/tools/ResumeAgentTool/ResumeAgentTool.ts must name both overrides and the two earlier messages`)
+  check('model and effort together are both named as kept for a finished resume', bothData.success === true && bothData.message.includes('model claude-opus-4-8 and effort max were not applied') && bothData.message.includes('2 earlier messages are queued ahead of it'), `${bothData.message} — the kept-overrides and queue sentences in src/tools/resume-crewmate/ResumeAgentTool.ts must name both overrides and the two earlier messages`)
 }
 
 rmSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true, force: true })

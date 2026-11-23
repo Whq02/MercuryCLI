@@ -7,7 +7,7 @@ import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { cleanupScenario, scenario } from './renderScenarios.ts'
 import { runJobControlHost } from './jobcontrolHost.ts'
-import { enterEditorBytes, rawModeDisarmBytes } from '../../src/ink/root/screen-session.ts'
+import { enterEditorBytes, rawModeDisarmBytes } from '../../src/screen/renderer/root/screen-session.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'vte-sequences-'))
 process.env.MERCURY_CONFIG_DIR = home
@@ -18,8 +18,8 @@ try {
     else process.env.VTE_VERSION = version
     const safe = version === undefined || Number(version) >= 5300
     for (const bytes of [rawModeDisarmBytes(), enterEditorBytes({ altActive: true, mouseTracking: true })]) {
-      assert.equal(bytes.includes('\x1b[>4m'), safe, `modifyOtherKeys reset at ${version}; the reset must be emitted only when isExtendedCsiSafe() in src/ink/session/capabilities.ts is true (VTE 5300 or newer, or unset), as used by rawModeDisarmBytes and enterEditorBytes in src/ink/root/screen-session.ts`)
-      assert.equal(bytes.includes('\x1b[<u'), safe, `kitty reset at ${version}; the reset must be emitted only when isExtendedCsiSafe() in src/ink/session/capabilities.ts is true (VTE 5300 or newer, or unset), as used by rawModeDisarmBytes and enterEditorBytes in src/ink/root/screen-session.ts`)
+      assert.equal(bytes.includes('\x1b[>4m'), safe, `modifyOtherKeys reset at ${version}; the reset must be emitted only when isExtendedCsiSafe() in src/screen/renderer/terminal-session/capabilities.ts is true (VTE 5300 or newer, or unset), as used by rawModeDisarmBytes and enterEditorBytes in src/screen/renderer/root/screen-session.ts`)
+      assert.equal(bytes.includes('\x1b[<u'), safe, `kitty reset at ${version}; the reset must be emitted only when isExtendedCsiSafe() in src/screen/renderer/terminal-session/capabilities.ts is true (VTE 5300 or newer, or unset), as used by rawModeDisarmBytes and enterEditorBytes in src/screen/renderer/root/screen-session.ts`)
     }
   }
   const driver = resolveCaptureDriver()
@@ -40,7 +40,7 @@ try {
     assert.equal(run.status, 0, `${run.stderr} (the job-control host run for VTE ${version} exited nonzero; see scripts/ui/jobcontrolHost.ts for the host and its report)`)
     assert.equal(run.report?.endReason, 'steps-done', `${JSON.stringify(run.report)} (the scripted steps did not finish for VTE ${version}; a wait in the steps list timed out, so check which screen text never appeared)`)
     for (const sequence of ['\x1b[>0q', '\x1b[>4m', '\x1b[<u']) {
-      assert.equal(run.tee.includes(sequence), version === '5300', `VTE ${version} ${JSON.stringify(sequence)}; the session may send this sequence only when isExtendedCsiSafe() in src/ink/session/capabilities.ts is true (the identity query is gated in src/ink/components/App.tsx, the shutdown reset in src/utils/shutdownRestoration.ts)`)
+      assert.equal(run.tee.includes(sequence), version === '5300', `VTE ${version} ${JSON.stringify(sequence)}; the session may send this sequence only when isExtendedCsiSafe() in src/screen/renderer/terminal-session/capabilities.ts is true (the identity query is gated in src/screen/renderer/elements/App.tsx, the shutdown reset in src/screen/renderer/terminal-session/shutdownRestoration.ts)`)
     }
   }
   console.log('PASS tui-08 VTE below 0.53 receives no unsafe identity query or extended keyboard reset')

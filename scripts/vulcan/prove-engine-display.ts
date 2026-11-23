@@ -3,8 +3,8 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { accessSync, constants, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, relative, resolve } from 'node:path'
-import type { EngineJob, EngineJobRequest, EngineResultRow, EngineRunRecord } from '../../src/services/vulcan/engine/service.js'
-import type { EngineHandle } from '../../src/services/vulcan/engine/spawn.js'
+import type { EngineJob, EngineJobRequest, EngineResultRow, EngineRunRecord } from '../../src/integrations/vulcan/engine/service.js'
+import type { EngineHandle } from '../../src/integrations/vulcan/engine/spawn.js'
 
 const args = process.argv.slice(2)
 const suppliedGodot = process.env.GODOT_BIN
@@ -70,13 +70,13 @@ async function main(executable: string): Promise<void> {
   console.log(`ARTIFACTS ${scratch}`)
   console.log('DISPLAY AUTHORIZED: isolated native Godot windows will open; external editors and games are not controlled')
 
-  const { EngineJobService } = await import('../../src/services/vulcan/engine/service.js')
-  const { parseEngineMediaRequest } = await import('../../src/services/vulcan/engine/media.js')
-  const { strictGodotCensus } = await import('../../src/services/vulcan/godotProcessCensus.js')
-  const { parseEngineTreeSpec } = await import('../../src/services/vulcan/engine/frozenTree.js')
-  const { runEngineOp } = await import('../../src/services/vulcan/engine/ops.js')
-  const { liveEngines, spawnEngine, sweepEngineOrphans } = await import('../../src/services/vulcan/engine/spawn.js')
-  const { decodePng } = await import('../../src/utils/imageProcessor/imageProcessorJs.js')
+  const { EngineJobService } = await import('../../src/integrations/vulcan/engine/service.js')
+  const { parseEngineMediaRequest } = await import('../../src/integrations/vulcan/engine/media.js')
+  const { strictGodotCensus } = await import('../../src/integrations/vulcan/godotProcessCensus.js')
+  const { parseEngineTreeSpec } = await import('../../src/integrations/vulcan/engine/frozenTree.js')
+  const { runEngineOp } = await import('../../src/integrations/vulcan/engine/ops.js')
+  const { liveEngines, spawnEngine, sweepEngineOrphans } = await import('../../src/integrations/vulcan/engine/spawn.js')
+  const { decodePng } = await import('../../src/platform/images/imageProcessorJs.js')
   const fixtureSource = join(import.meta.dir, 'fixtures', 'engine-service', 'tests', 'display_fixture.gd')
   copyFileSync(fixtureSource, join(project, 'tests', 'display_fixture.gd'))
   assert.ok(!/func\s+mercury_media_capture\s*\(/.test(readFileSync(fixtureSource, 'utf8')), 'Native fixture must not supply an Image capture hook')

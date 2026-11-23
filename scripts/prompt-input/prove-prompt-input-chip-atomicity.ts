@@ -12,7 +12,7 @@ const { scenario, cleanupScenario, writeSyntheticSession, SID } = await import('
 const cfg = scenario('resume-2turn', 120, 40)
 
 let failures = 0
-const t = (name: string, ok: boolean, detail = 'change the chip hop on left and right and the whole-chip backspace in src/utils/Cursor.ts (chipEndingAt, chipStartingAt) so a pasted chip moves and deletes as one unit'): void => {
+const t = (name: string, ok: boolean, detail = 'change the chip hop on left and right and the whole-chip backspace in src/screen/composer/vim/textCursor.ts (chipEndingAt, chipStartingAt) so a pasted chip moves and deletes as one unit'): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
   if (!ok) failures = 1
 }

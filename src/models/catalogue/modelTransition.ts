@@ -1,0 +1,264 @@
+import { parseUserSpecifiedModel } from './engineModel.js'
+import {
+  declaredRouteOf,
+  providerDisplayName,
+  type CallModelRoute,
+} from '../roads/routeLaw.js'
+
+export type ProviderFamily = CallModelRoute | 'unrecognised'
+
+export function providerFamilyOfSetting(setting: string | null): ProviderFamily {
+  const resolved = parseUserSpecifiedModel(setting === null ? 'best' : setting)
+  return declaredRouteOf(resolved) ?? 'unrecognised'
+}
+
+type ModelTransitionDecision =
+  | { kind: 'no-op-same' }
+  | { kind: 'apply-now'; crossProvider: boolean }
+  | { kind: 'defer-pending'; crossProvider: boolean }
+
+interface ModelTransitionInput {
+  currentSetting: string | null
+  nextSetting: string | null
+  turnActive: boolean
+}
+
+export function decideModelTransition(i: ModelTransitionInput): ModelTransitionDecision {
+  const currentResolved =
+    i.currentSetting === null ? null : parseUserSpecifiedModel(i.currentSetting)
+  const nextResolved = i.nextSetting === null ? null : parseUserSpecifiedModel(i.nextSetting)
+  if (currentResolved === nextResolved) {
+    return { kind: 'no-op-same' }
+  }
+  const crossProvider =
+    providerFamilyOfSetting(i.currentSetting) !== providerFamilyOfSetting(i.nextSetting)
+  if (i.turnActive) {
+    return { kind: 'defer-pending', crossProvider }
+  }
+  return { kind: 'apply-now', crossProvider }
+}
+
+
+import type { ModelTransitionReceipt } from '../../engine/message-shapes/message.js'
+export type { ModelTransitionReceipt }
+
+interface TransitionStateSlice {
+  engineModel: string | null
+  engineModelForSession: string | null
+  pendingModelSwitch: { setting: string | null } | null
+  lastModelTransition?: ModelTransitionReceipt | null
+}
+
+export type SettledSelection =
+  | { kind: 'no-op'; patch: null; receipt: null }
+  | {
+      kind: 'cancelled-pending'
+      patch: Partial<TransitionStateSlice>
+      receipt: ModelTransitionReceipt
+    }
+  | {
+      kind: 'queued'
+      patch: Partial<TransitionStateSlice>
+      receipt: null
+      crossProvider: boolean
+    }
+  | {
+      kind: 'applied'
+      patch: Partial<TransitionStateSlice>
+      receipt: ModelTransitionReceipt
+    }
+
+export function settleModelSelection(
+  prev: TransitionStateSlice,
+  next: string | null,
+  opts: {
+    turnActive: boolean
+    boundary?: 'idle'
+  },
+): SettledSelection {
+  const current = prev.engineModelForSession ?? prev.engineModel
+  const decision = decideModelTransition({
+    currentSetting: current,
+    nextSetting: next,
+    turnActive: opts.turnActive,
+  })
+  if (decision.kind === 'no-op-same') {
+    if (prev.pendingModelSwitch !== null) {
+      const receipt: ModelTransitionReceipt = {
+        previous: current,
+        requested: prev.pendingModelSwitch.setting,
+        applied: current,
+        resolution: 'cancelled-pending',
+        boundary: opts.boundary ?? 'idle',
+        crossProvider: false,
+        cacheDisposition: 'none',
+      }
+      return {
+        kind: 'cancelled-pending',
+        patch: { pendingModelSwitch: null, lastModelTransition: receipt },
+        receipt,
+      }
+    }
+    return { kind: 'no-op', patch: null, receipt: null }
+  }
+  if (decision.kind === 'defer-pending') {
+    return {
+      kind: 'queued',
+      patch: { pendingModelSwitch: { setting: next } },
+      receipt: null,
+      crossProvider: decision.crossProvider,
+    }
+  }
+  const receipt: ModelTransitionReceipt = {
+    previous: current,
+    requested: next,
+    applied: next,
+    resolution: 'applied',
+    boundary: opts.boundary ?? 'idle',
+    crossProvider: decision.crossProvider,
+    cacheDisposition: 'keyed-sections-recompute-once',
+  }
+  return {
+    kind: 'applied',
+    patch: {
+      engineModel: next,
+      engineModelForSession: null,
+      pendingModelSwitch: null,
+      lastModelTransition: receipt,
+    },
+    receipt,
+  }
+}
+
+export function settlePendingAtBoundary(
+  prev: TransitionStateSlice,
+): { patch: Partial<TransitionStateSlice>; receipt: ModelTransitionReceipt } | null {
+  if (prev.pendingModelSwitch === null) return null
+  const next = prev.pendingModelSwitch.setting
+  const current = prev.engineModelForSession ?? prev.engineModel
+  const receipt: ModelTransitionReceipt = {
+    previous: current,
+    requested: next,
+    applied: next,
+    resolution: 'applied',
+    boundary: 'turn-boundary',
+    crossProvider:
+      providerFamilyOfSetting(current) !== providerFamilyOfSetting(next),
+    cacheDisposition: 'keyed-sections-recompute-once',
+  }
+  return {
+    patch: {
+      engineModel: next,
+      engineModelForSession: null,
+      pendingModelSwitch: null,
+      lastModelTransition: receipt,
+    },
+    receipt,
+  }
+}
+
+export type SeatReceiptState = 'applied' | 'queued' | 'no-op' | 'refused'
+
+export function seatWithFold(
+  session: { carrier: 'in-process' | 'daemon'; sendWords: (text: string) => Promise<unknown> },
+  targetRoute: ProviderFamily,
+  seat: (settled?: (state: SeatReceiptState) => void) => void,
+  park: (command: string) => void,
+): void {
+  if (session.carrier !== 'daemon') {
+    park('/compact')
+    seat()
+    return
+  }
+  if (targetRoute !== 'local') {
+    void session.sendWords('/compact').then(() => seat())
+    return
+  }
+  seat(state => {
+    if (state !== 'refused') void session.sendWords('/compact')
+  })
+}
+
+export function crossProviderNote(next: string | null): string {
+  const family = providerFamilyOfSetting(next)
+  if (family === 'openai') {
+    return ' · cross-provider: turns move to the native OpenAI Responses transport (history replays statelessly; Anthropic thinking never round-trips)'
+  }
+  if (family === 'zai') {
+    return ' · cross-provider: turns move to the native Z.AI transport'
+  }
+  if (family === 'anthropic') {
+    return ' · cross-provider: turns return to the Anthropic transport'
+  }
+  if (family === 'unrecognised') {
+    return ' · cross-provider: the transport changes with it'
+  }
+  return ` · cross-provider: turns move to the ${providerDisplayName(family)} transport`
+}
+
+
+export type TransitionDispositionClass =
+  | 'carried-exact'
+  | 'tool-results-exact'
+  | 'thinking-continuity-reset'
+  | 'stateless-replay-reset'
+  | 'image-degraded'
+  | 'unknown-block-degraded'
+
+export const MEANINGFUL_LOSS_CLASSES: readonly TransitionDispositionClass[] = [
+  'thinking-continuity-reset',
+  'stateless-replay-reset',
+  'image-degraded',
+  'unknown-block-degraded',
+]
+
+export type TransitionPlanItem = {
+  ref: string
+  disposition: TransitionDispositionClass
+  detail?: string
+}
+
+type TransitionWindowSource = 'operator' | 'live-current' | 'static-pin' | 'capability' | 'fallback' | 'suffix-1m' | 'beta-header'
+
+export type TransitionWindowFact = {
+  count: number
+  countSource: 'usage' | 'estimate'
+  countModel?: string
+  window: number
+  inputLimit?: true
+  windowSource: TransitionWindowSource
+  limit: number
+  fits: boolean
+}
+
+export type TransitionPlan = {
+  v: 1
+  planDigest: string
+  from: string | null
+  to: string | null
+  crossProvider: boolean
+  targetRoute: ProviderFamily
+  sourceRevision: string
+  capabilityEpoch: string
+  counts: Record<TransitionDispositionClass, number>
+  items: TransitionPlanItem[]
+  itemsTruncated: boolean
+  window?: TransitionWindowFact
+  needsChoice: boolean
+  computedAt: string
+}
+
+export function confirmTransitionPlan(
+  plan: TransitionPlan,
+  current: { sourceRevision: string; capabilityEpoch: string },
+):
+  | { ok: true }
+  | { ok: false; reason: 'stale-source' | 'stale-capability' } {
+  if (plan.sourceRevision !== current.sourceRevision) {
+    return { ok: false, reason: 'stale-source' }
+  }
+  if (plan.capabilityEpoch !== current.capabilityEpoch) {
+    return { ok: false, reason: 'stale-capability' }
+  }
+  return { ok: true }
+}

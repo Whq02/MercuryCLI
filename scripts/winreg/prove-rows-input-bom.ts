@@ -7,10 +7,10 @@ const HOME = mkdtempSync(join(tmpdir(), 'rows-input-bom-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_CONFIG_DIR = HOME
 
-const { StructuredIO } = await import('../../src/cli/structuredIO.ts')
+const { StructuredIO } = await import('../../src/daemon/runner/structuredIO.ts')
 
 let failures = 0
-const BOM_FAIL_HINT = 'to fix: the line reader of StructuredIO in src/cli/structuredIO.ts must drop a leading byte order mark (stripBOM, from src/utils/jsonRead.ts) from the buffered line before it classifies the row, whichever chunk the mark arrives in'
+const BOM_FAIL_HINT = 'to fix: the line reader of StructuredIO in src/daemon/runner/structuredIO.ts must drop a leading byte order mark (stripBOM, from src/platform/storage/jsonRead.ts) from the buffered line before it classifies the row, whichever chunk the mark arrives in'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${BOM_FAIL_HINT}` : ''}`)

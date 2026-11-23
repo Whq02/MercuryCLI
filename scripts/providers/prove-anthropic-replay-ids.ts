@@ -25,10 +25,10 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req: Requ
 try {
   const base = `http://127.0.0.1:${server.port}`
   Object.assign(process.env, { ANTHROPIC_BASE_URL: base, ANTHROPIC_API_KEY: 'fixture-key-not-real', MERCURY_COMPAT_BASE_URL: `${base}/compat/v1`, MERCURY_COMPAT_API_KEY: 'fixture-key-not-real', MERCURY_COMPAT_MODELS: 'qwen-max', MERCURY_COMPAT_LABEL: 'fixture', MERCURY_LOCAL_PROBE_TARGETS: 'none' })
-  ;(await import('../../src/utils/config.ts')).enableConfigs()
-  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
+  ;(await import('../../src/platform/settings/config.ts')).enableConfigs()
+  const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
   const tool = { name: 'EchoTool', description: async () => 'echo', prompt: async () => 'echo', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'EchoTool', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
   async function run(model: string, messages: any[]) {
     const out: any[] = []
@@ -40,13 +40,13 @@ try {
   assert.equal(first.flatMap(m => m.message.content).find(b => b.type === 'tool_use')?.id, id)
   const result = createUserMessage({ content: [{ type: 'tool_result', tool_use_id: id, content: 'hi' }] })
   const second = await run('claude-sonnet-5', [user, ...first, result])
-  assert(second.some(m => !m.isApiErrorMessage && m.message.content.some((b: any) => b.text === 'ok')), `src/services/providers/callModelRouter.ts cross-route replay to Anthropic did not return 'ok': ${JSON.stringify(second.map(m => ({ err: m.isApiErrorMessage, content: m.message.content }))).slice(0, 160)}`)
+  assert(second.some(m => !m.isApiErrorMessage && m.message.content.some((b: any) => b.text === 'ok')), `src/models/roads/callModelRouter.ts cross-route replay to Anthropic did not return 'ok': ${JSON.stringify(second.map(m => ({ err: m.isApiErrorMessage, content: m.message.content }))).slice(0, 160)}`)
   const blocks = requests.at(-1).messages.flatMap((m: any) => Array.isArray(m.content) ? m.content : [])
   assert.equal(blocks.find((b: any) => b.type === 'tool_use').id, blocks.find((b: any) => b.type === 'tool_result').tool_use_id)
   assert.equal(first.flatMap(m => m.message.content).find(b => b.type === 'tool_use')?.id, id)
   console.log('P14 cross-route IDs are paired on the Anthropic wire without changing stored history')
 } finally { server.stop(true) }
-const { normalizeAnthropicToolIds } = await import('../../src/services/providers/anthropic/toolIds.ts')
+const { normalizeAnthropicToolIds } = await import('../../src/models/roads/anthropic/toolIds.ts')
 const { createHash } = await import('node:crypto')
 const collision = `toolu_${createHash('sha256').update('a.b').digest('hex')}`
 const originalIds = ['safe-id_0', 'a.b', 'a:b', collision]

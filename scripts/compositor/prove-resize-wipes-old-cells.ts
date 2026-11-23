@@ -2,9 +2,9 @@
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
 import { createElement } from 'react'
-import Ink from '../../src/ink/ink.js'
-import { Text } from '../../src/ink.js'
-import { RESIZE_SETTLE_MS } from '../../src/ink/constants.js'
+import Ink from '../../src/screen/renderer/screenInstance.js'
+import { Text } from '../../src/screen/themedRenderer.js'
+import { RESIZE_SETTLE_MS } from '../../src/screen/renderer/constants.js'
 import { settle } from '../lib/settingsPopupHarness.js'
 
 class Output extends EventEmitter {
@@ -48,7 +48,7 @@ for (const program of ['Apple_Terminal', 'iTerm.app']) {
   const count = bytes.split(erase).length - 1
   const correct = bytes.split(whole).length === 2 && (program === 'Apple_Terminal' ? count === 1 && bytes.indexOf(erase) !== -1 && bytes.indexOf(whole) !== -1 && bytes.indexOf(erase) < bytes.indexOf(whole) : count === 0)
   if (!correct) {
-    console.error(`${program}: ${count} display erases, ${bytes.split(whole).length - 1} whole frames; in src/ink/ink/resize.ts erase the alternate screen once before the settled overwrite on an Apple Terminal shrink only`)
+    console.error(`${program}: ${count} display erases, ${bytes.split(whole).length - 1} whole frames; in src/screen/renderer/instance/resize.ts erase the alternate screen once before the settled overwrite on an Apple Terminal shrink only`)
     process.exitCode = 1
   } else console.log(`${program}: settled shrink repainted with ${count} display erases`)
 }

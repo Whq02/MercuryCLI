@@ -5,7 +5,7 @@ import { KEY, mountOffscreen, pinSourceRef, waitFor, type Mounted } from '../lib
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture } from './runpodFixture.mjs'
 import { vastFixture } from './vastFixture.mjs'
-import type { LlmHostQuestion } from '../../src/services/llmHost/index.ts'
+import type { LlmHostQuestion } from '../../src/models/llm-host/index.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 pinSourceRef()
@@ -24,16 +24,16 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 let mounted: Mounted | undefined
 try {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
-  const { rememberBankFolder } = await import('../../src/services/host/bank.ts')
-  const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { saveVendorKey } = await import('../../src/models/hosting/vendors/client.ts')
+  const { rememberBankFolder } = await import('../../src/models/hosting/bank.ts')
+  const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
   const recipes = join(f.home, 'recipes.json')
   writeFileSync(recipes, JSON.stringify({ version: 2, publishedAt: '2026-10-22', recipes: [HOST_RECIPES.find(row => row.id === 'gpt-oss-120b-h100')] }))
   process.env.MERCURY_HOST_RECIPES_FILE = recipes

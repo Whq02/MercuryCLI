@@ -6,7 +6,7 @@ import { join } from 'node:path'
 
 let failures = 0
 const UNREADABLE_FAILURE_HINT =
-  'fix the failed-read handling in src/utils/config/globalConfig.ts (enableConfigs, getGlobalConfig, saveGlobalConfig, which raise ConfigReadError) or src/utils/config/projectConfig.ts (saveCurrentProjectConfig), whichever this check names'
+  'fix the failed-read handling in src/platform/config/globalConfig.ts (enableConfigs, getGlobalConfig, saveGlobalConfig, which raise ConfigReadError) or src/platform/config/projectConfig.ts (saveCurrentProjectConfig), whichever this check names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? detail : detail ? `${detail}; ${UNREADABLE_FAILURE_HINT}` : UNREADABLE_FAILURE_HINT
@@ -38,10 +38,10 @@ function runIn(home: string, body: string): Record<string, unknown> {
     delete process.env.CI
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const env = await import(${JSON.stringify(join(SRC, 'utils/env.ts'))})
-    const fsops = await import(${JSON.stringify(join(SRC, 'utils/fsOperations.ts'))})
-    const g = await import(${JSON.stringify(join(SRC, 'utils/config/globalConfig.ts'))})
-    const p = await import(${JSON.stringify(join(SRC, 'utils/config/projectConfig.ts'))})
+    const env = await import(${JSON.stringify(join(SRC, 'platform/environment/env.ts'))})
+    const fsops = await import(${JSON.stringify(join(SRC, 'platform/files/fsOperations.ts'))})
+    const g = await import(${JSON.stringify(join(SRC, 'platform/config/globalConfig.ts'))})
+    const p = await import(${JSON.stringify(join(SRC, 'platform/config/projectConfig.ts'))})
     const file = env.getGlobalMercuryFile()
     const readDisk = () => { try { return fs.readFileSync(file, 'utf8') } catch { return null } }
     const errOf = (e) => e ? { name: e.name, code: e.code ?? null, filePath: e.filePath ?? null, message: String(e.message ?? e) } : null

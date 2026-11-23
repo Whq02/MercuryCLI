@@ -1,15 +1,15 @@
 #!/usr/bin/env bun
 import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const oauth = await import('../../src/constants/oauth.ts')
-const env = await import('../../src/utils/env.ts')
+const oauth = await import('../../src/models/sign-in/oauth/oauth.ts')
+const env = await import('../../src/platform/environment/env.ts')
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — hint: change isLoopbackOauthOrigin or getOauthConfig (MERCURY_ANTHROPIC_OAUTH_BASE pin) in src/constants/oauth.ts, or globalConfigFileIn in src/utils/env.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — hint: change isLoopbackOauthOrigin or getOauthConfig (MERCURY_ANTHROPIC_OAUTH_BASE pin) in src/models/sign-in/oauth/oauth.ts, or globalConfigFileIn in src/platform/environment/env.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

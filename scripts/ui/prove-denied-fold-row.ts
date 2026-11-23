@@ -2,14 +2,14 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
-import { unansweredAskRefusal } from '../../src/utils/permissions/askClock.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
+import { unansweredAskRefusal } from '../../src/permissions/rules/askClock.ts'
 import {
   REJECT_MESSAGE,
   REJECT_MESSAGE_WITH_REASON_PREFIX,
   denialLineOf,
   isDenialResultText,
-} from '../../src/utils/messages/rejectionText.ts'
+} from '../../src/engine/message-shapes/rejectionText.ts'
 import { CONFIG_HOME, RUNTIME_CWD, SID, cleanupScenario, encodeFixtureTranscript, scenario } from './renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
@@ -30,11 +30,11 @@ console.log(' denied fold row — the refusal\'s one line rides the folded tool 
 console.log('============================================================')
 
 console.log('\n(A) denialLineOf — the one line of every denial the classifier reads')
-check('an expired ask: the sentence that names the clock and that nothing ran', denialLineOf(EXPIRED) === EXPIRED_LINE, `fix denialLineOf in src/utils/messages/rejectionText.ts or unansweredAskRefusal in src/utils/permissions/askClock.ts; got: ${denialLineOf(EXPIRED)}`)
-check('the same through the transcript\'s error wrapper', denialLineOf(EXPIRED_ON_DISK) === EXPIRED_LINE, `denialLineOf in src/utils/messages/rejectionText.ts must strip the tool_use_error wrapper; got: ${denialLineOf(EXPIRED_ON_DISK)}`)
-check('the operator\'s No: its first sentence', denialLineOf(REJECT_MESSAGE) === DECLINED_LINE, `denialLineOf in src/utils/messages/rejectionText.ts must return the first sentence of REJECT_MESSAGE; got: ${denialLineOf(REJECT_MESSAGE)}`)
-check('the operator\'s No with a reason keeps the reason', denialLineOf(`${REJECT_MESSAGE_WITH_REASON_PREFIX}use the staging box`) === `${DECLINED_LINE} The operator said: use the staging box`, `denialLineOf in src/utils/messages/rejectionText.ts must keep the reason after REJECT_MESSAGE_WITH_REASON_PREFIX; got: ${denialLineOf(`${REJECT_MESSAGE_WITH_REASON_PREFIX}use the staging box`)}`)
-check('the expiry refusal is a denial the row classifier reads', isDenialResultText(EXPIRED_ON_DISK), 'isDenialResultText in src/utils/messages/rejectionText.ts must accept the unansweredAskRefusal text')
+check('an expired ask: the sentence that names the clock and that nothing ran', denialLineOf(EXPIRED) === EXPIRED_LINE, `fix denialLineOf in src/engine/message-shapes/rejectionText.ts or unansweredAskRefusal in src/permissions/rules/askClock.ts; got: ${denialLineOf(EXPIRED)}`)
+check('the same through the transcript\'s error wrapper', denialLineOf(EXPIRED_ON_DISK) === EXPIRED_LINE, `denialLineOf in src/engine/message-shapes/rejectionText.ts must strip the tool_use_error wrapper; got: ${denialLineOf(EXPIRED_ON_DISK)}`)
+check('the operator\'s No: its first sentence', denialLineOf(REJECT_MESSAGE) === DECLINED_LINE, `denialLineOf in src/engine/message-shapes/rejectionText.ts must return the first sentence of REJECT_MESSAGE; got: ${denialLineOf(REJECT_MESSAGE)}`)
+check('the operator\'s No with a reason keeps the reason', denialLineOf(`${REJECT_MESSAGE_WITH_REASON_PREFIX}use the staging box`) === `${DECLINED_LINE} The operator said: use the staging box`, `denialLineOf in src/engine/message-shapes/rejectionText.ts must keep the reason after REJECT_MESSAGE_WITH_REASON_PREFIX; got: ${denialLineOf(`${REJECT_MESSAGE_WITH_REASON_PREFIX}use the staging box`)}`)
+check('the expiry refusal is a denial the row classifier reads', isDenialResultText(EXPIRED_ON_DISK), 'isDenialResultText in src/engine/message-shapes/rejectionText.ts must accept the unansweredAskRefusal text')
 
 type Cell = { c: string }
 type Grid = { grid: Cell[][] }
@@ -116,7 +116,7 @@ if (folded) {
   const rows = rowsOf(folded)
   const foldRow = rows.find(row => /bash command/.test(row))
   check('the folded row stands with the ✕ lead', foldRow !== undefined && foldRow.includes('✕'), `the folded denied Bash row must lead with the cross; rows: ${around(rows, /bash command/)}`)
-  check('the refusal\'s one line rides under the folded row', flat(folded).includes('nobody answered the permission ask within 10m, so it expired and was refused; the action was not run'), `the folded tool row must show the denial line from denialLineOf in src/utils/messages/rejectionText.ts; rows: ${around(rows, /bash command/)}`)
+  check('the refusal\'s one line rides under the folded row', flat(folded).includes('nobody answered the permission ask within 10m, so it expired and was refused; the action was not run'), `the folded tool row must show the denial line from denialLineOf in src/engine/message-shapes/rejectionText.ts; rows: ${around(rows, /bash command/)}`)
   check('the guidance meant for the model stays off the screen', !flat(folded).includes('Do not try to reach the same effect'))
 }
 
@@ -126,7 +126,7 @@ if (expanded) {
   const rows = rowsOf(expanded)
   const memberRow = rows.find(row => /✕ Bash/.test(row))
   check('the expanded group shows the Bash member with the ✕ lead', memberRow !== undefined, `the expanded group must list the denied Bash member with the cross; rows: ${around(rows, /Expanded group/)}`)
-  check('the refusal\'s one line sits under the member row', flat(expanded).includes('nobody answered the permission ask within 10m, so it expired and was refused; the action was not run'), `the expanded member row must show the denial line from denialLineOf in src/utils/messages/rejectionText.ts; rows: ${around(rows, /✕ Bash/)}`)
+  check('the refusal\'s one line sits under the member row', flat(expanded).includes('nobody answered the permission ask within 10m, so it expired and was refused; the action was not run'), `the expanded member row must show the denial line from denialLineOf in src/engine/message-shapes/rejectionText.ts; rows: ${around(rows, /✕ Bash/)}`)
 }
 cleanupScenario('two-bash-click')
 

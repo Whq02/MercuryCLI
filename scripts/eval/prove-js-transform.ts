@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { runInNewContext } from 'node:vm'
-import { splitTopLevelSegments, transformJsCell } from '../../src/services/eval/jsCellTransform.js'
+import { splitTopLevelSegments, transformJsCell } from '../../src/tools/engines/eval-kernels/jsCellTransform.js'
 import { check, finish, section } from './lib.js'
-const fixTransform = 'fix transformJsCell in src/services/eval/jsCellTransform.ts'
+const fixTransform = 'fix transformJsCell in src/tools/engines/eval-kernels/jsCellTransform.ts'
 function hinted(label: string, cond: boolean, detail: string, hint: string): void {
   check(label, cond, cond ? detail : `${detail ? `${detail} | ` : ''}${hint}`)
 }
@@ -78,7 +78,7 @@ for (const [label, source, expected] of lexicalCells) {
   hinted(`${label}: the raw cell parses`, parsesAsCellBody(source), '', 'the fixture cell in lexicalCells in this file is not valid JavaScript; correct the fixture source')
   hinted(`${label}: transformed cell parses`, parsesAsCellBody(t.code), t.code, fixTransform + ' so declarator separators inside strings, templates, regexes and comments are not split')
   hinted(`${label}: only declared names persist`, JSON.stringify(t.persistedNames) === JSON.stringify(Object.keys(expected)), JSON.stringify(t.persistedNames), fixTransform + ' so persistedNames holds exactly the declared names of this cell')
-  hinted(`${label}: segment bytes are unchanged`, splitTopLevelSegments(source).map(s => s.text).join('') === source, '', 'fix splitTopLevelSegments in src/services/eval/jsCellTransform.ts so the joined segment texts equal the source')
+  hinted(`${label}: segment bytes are unchanged`, splitTopLevelSegments(source).map(s => s.text).join('') === source, '', 'fix splitTopLevelSegments in src/tools/engines/eval-kernels/jsCellTransform.ts so the joined segment texts equal the source')
   const scope: Record<string, unknown> = {}
   try {
     await runInNewContext(`(async () => {\n${t.code}\n})()`, scope)

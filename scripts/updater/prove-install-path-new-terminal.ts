@@ -12,9 +12,9 @@ const inside = (root: string, path: string): boolean => {
 }
 
 if (process.argv[2] === '--in-session') {
-  const { resolveLayoutRoots } = await import('../../src/services/privateChannel/installLayout.js')
-  const { ensureBinDirOnPath, realPathEntryIo, removeBinDirFromPath } = await import('../../src/services/privateChannel/installPath.js')
-  const { describePathOutcome, describePathRemoval } = await import('../../src/cli/installVerb.js')
+  const { resolveLayoutRoots } = await import('../../src/platform/update-channel/installLayout.js')
+  const { ensureBinDirOnPath, realPathEntryIo, removeBinDirFromPath } = await import('../../src/platform/update-channel/installPath.js')
+  const { describePathOutcome, describePathRemoval } = await import('../../src/commands/verbs/installVerb.js')
   const roots = resolveLayoutRoots()
   const own = process.env.MERCURY_PROOF_LAYOUT_SCRATCH ?? ''
   if (!inside(own, homedir()) || !inside(own, roots.binDir)) {
@@ -95,7 +95,7 @@ const SCENES: Scene[] = [
 ]
 
 let failures = 0
-const FIX_WHERE_HINT = 'to fix, change which startup files get the PATH line (decidePosix) or what uninstall takes back (removePosixPathLines) in src/services/privateChannel/installPath.ts'
+const FIX_WHERE_HINT = 'to fix, change which startup files get the PATH line (decidePosix) or what uninstall takes back (removePosixPathLines) in src/platform/update-channel/installPath.ts'
 const check = (name: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail} — ` : ''}${FIX_WHERE_HINT}`}`)
   if (!cond) failures++

@@ -1,0 +1,8 @@
+import type { bootEnvPath, MenuRow } from '../../../platform/substrate/startupMenu.js';
+import type { SeatCeilingFacts } from '../../../daemon/switchboard-capacity/capacityCheck.js';
+import type { readMotionSetting, MotionSetting } from '../../cockpit/motionSetting.js';
+import type { readJevSettings } from '../../../models/jev/jevSetting.js';
+import type { backgroundSessionsLaunchCrewmates } from '../../../daemon/switchboard/backgroundLaunch.js';
+import type { Dispatch, SetStateAction } from 'react';
+
+export type SettingsContext = { setBackgroundLaunchTick: Dispatch<SetStateAction<number>>; setLastReceipt: Dispatch<SetStateAction<string | null>>; setMotionTick: Dispatch<SetStateAction<number>>; setJevTick: Dispatch<SetStateAction<number>>; setSeatFacts: Dispatch<SetStateAction<SeatCeilingFacts | null>>; setSeatsTick: Dispatch<SetStateAction<number>>; commitBackgroundLaunch: (next: boolean) => string; commitJev: (next: boolean) => string; commitMotion: (next: MotionSetting) => string; commitSeats: (next: number | null) => string; isBackgroundLaunchRow: (row: MenuRow) => boolean; isJevRow: (row: MenuRow) => boolean; isMotionRow: (row: MenuRow) => boolean; isSeatsRow: (row: MenuRow) => boolean; liveCount: number | null; path: ReturnType<typeof bootEnvPath>; saved: Record<string, string>; setSaveTick: Dispatch<SetStateAction<number>>; backgroundLaunchOn: ReturnType<typeof backgroundSessionsLaunchCrewmates>; commitRow: (row: MenuRow, value: string | null) => string; jevSettings: ReturnType<typeof readJevSettings>; motionSetting: ReturnType<typeof readMotionSetting>; seatFacts: SeatCeilingFacts | null };

@@ -10,14 +10,14 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'mission-one-owner-'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_TASK_LIST_ID
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const tasks = await import('../../src/utils/tasks.ts')
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
+const tasks = await import('../../src/engine/task-framework/tasks.ts')
+const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 
 let failures = 0
 let checks = 0
-let missionOwnerWhere = 'fix getTaskListId, createTask or listSessionMission in src/utils/tasks.ts'
+let missionOwnerWhere = 'fix getTaskListId, createTask or listSessionMission in src/engine/task-framework/tasks.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -40,10 +40,10 @@ section("§1 the runner's ledger: the session's own list")
 
 section('§2 the signal: one row from the writer, read by the daemon, admitted by the schema')
 {
-  const { missionUpdatedRow, createRowStamper } = await import('../../src/rows/project.ts')
-  missionOwnerWhere = 'fix missionUpdatedRow or createRowStamper in src/rows/project.ts, parseRow in src/rows/read.ts, or RowSchema in src/rows/vocabulary.ts'
-  const { RowSchema } = await import('../../src/rows/vocabulary.ts')
-  const { parseRow } = await import('../../src/rows/read.ts')
+  const { missionUpdatedRow, createRowStamper } = await import('../../src/engine/rows/project.ts')
+  missionOwnerWhere = 'fix missionUpdatedRow or createRowStamper in src/engine/rows/project.ts, parseRow in src/engine/rows/read.ts, or RowSchema in src/engine/rows/vocabulary.ts'
+  const { RowSchema } = await import('../../src/engine/rows/vocabulary.ts')
+  const { parseRow } = await import('../../src/engine/rows/read.ts')
   const row = createRowStamper(() => '2026-10-02T00:00:00.000Z').stamp(missionUpdatedRow({ session_id: 'sess-1' }))
   check("the row is a mission_updated row carrying the session's id", row.type === 'mission_updated' && row.session_id === 'sess-1' && typeof row.seq === 'number', j(row))
   const line = JSON.stringify(row)

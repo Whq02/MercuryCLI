@@ -9,7 +9,7 @@ import * as path from 'node:path'
 const SYS_PY = '/usr/bin/python3'
 
 let failures = 0
-const selectionFixHint = 'fix: selection_plan in UNITTEST_RUNNER_SOURCE (and runPythonTests / discoverPythonTests) in src/services/ide/pythonTests.ts'
+const selectionFixHint = 'fix: selection_plan in UNITTEST_RUNNER_SOURCE (and runPythonTests / discoverPythonTests) in src/integrations/ide/pythonTests.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${selectionFixHint}` : ''}`)
@@ -53,10 +53,10 @@ writeFileSync(path.join(repo, '.mercury', 'wave', 'test_timing.py'), 'import uni
 writeFileSync(path.join(repo, 'alpha.beta', 'test_dotted.py'), 'import unittest\n\nclass TestDotted(unittest.TestCase):\n    def test_dotted(self):\n        self.assertTrue(True)\n')
 
 process.chdir(repo)
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const tests = await import('../../src/services/ide/pythonTests.js')
-const { _resetPythonProjectForTesting } = await import('../../src/services/ide/pythonProject.js')
+const tests = await import('../../src/integrations/ide/pythonTests.js')
+const { _resetPythonProjectForTesting } = await import('../../src/integrations/ide/pythonProject.js')
 _resetPythonProjectForTesting()
 
 type Record = Extract<Awaited<ReturnType<typeof tests.runPythonTests>>, { state: 'ok' }>['record']

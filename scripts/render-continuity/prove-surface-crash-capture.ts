@@ -18,8 +18,8 @@ const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && hint ? ` | fix: ${hint}` : ''}`)
 }
-const cardFix = 'change SurfaceCrashCard in src/components/SurfaceRouter.tsx, which paints the card; its fault is injected by SurfaceFaultInjection when MERCURY_FAULT_INJECT_SURFACE names the screen; the card text is in the marked capture file under the captures folder printed below'
-const reportFix = 'change persistCrashReport in src/utils/crashReport.ts (it writes crash-<time>-surface.json under the config home crashes folder; SurfaceRouter.tsx calls it with origin surface)'
+const cardFix = 'change SurfaceCrashCard in src/screen/routes/SurfaceRouter.tsx, which paints the card; its fault is injected by SurfaceFaultInjection when MERCURY_FAULT_INJECT_SURFACE names the screen; the card text is in the marked capture file under the captures folder printed below'
+const reportFix = 'change persistCrashReport in src/platform/logs/crashReport.ts (it writes crash-<time>-surface.json under the config home crashes folder; SurfaceRouter.tsx calls it with origin surface)'
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 
@@ -77,7 +77,7 @@ const card = markedLines.get('card') ?? []
 const text = card.join('\n')
 check('the card names the screen and the containment', text.includes('this screen (boot-settings) could not be painted') && text.includes('everything beneath it is untouched'), card.find(l => l.includes('could not'))?.trim() ?? '(no card line)', cardFix)
 check('the card points at the report archive', text.includes('crash report:'), 'the card lacks the crash report line', cardFix)
-check("the card's moves carry the exit chord's one sentence", text.includes('press ctrl+c twice to close Mercury'), 'the card lacks the exit chord sentence', 'SurfaceCrashCard in src/components/SurfaceRouter.tsx builds its moves line from exitChordNoticeText in src/components/PromptInput/ExitChordNotice.tsx')
+check("the card's moves carry the exit chord's one sentence", text.includes('press ctrl+c twice to close Mercury'), 'the card lacks the exit chord sentence', 'SurfaceCrashCard in src/screen/routes/SurfaceRouter.tsx builds its moves line from exitChordNoticeText in src/screen/composer/ExitChordNotice.tsx')
 
 {
   const dir = join(scratch, 'crashes')
@@ -85,8 +85,8 @@ check("the card's moves carry the exit chord's one sentence", text.includes('pre
   check("a 'surface'-origin crash report persisted", names.length >= 1, existsSync(dir) ? readdirSync(dir).join(',') : '(no crashes dir)', reportFix)
   if (names.length >= 1) {
     const record = JSON.parse(readFileSync(join(dir, names[names.length - 1]!), 'utf8')) as Record<string, unknown>
-    check('…naming the injection', String(record.message).includes("fault injection: surface 'boot-settings'"), String(record.message), 'SurfaceFaultInjection in src/components/SurfaceRouter.tsx throws this message; ' + reportFix)
-    check('…with B20 identity riding (version · platform · surface)', typeof record.version === 'string' && typeof record.platform === 'string' && 'surface' in record, JSON.stringify({ version: record.version, platform: record.platform, surface: record.surface }), 'crashIdentity in src/utils/crashReport.ts supplies version, platform and surface to the report that persistCrashReport writes')
+    check('…naming the injection', String(record.message).includes("fault injection: surface 'boot-settings'"), String(record.message), 'SurfaceFaultInjection in src/screen/routes/SurfaceRouter.tsx throws this message; ' + reportFix)
+    check('…with B20 identity riding (version · platform · surface)', typeof record.version === 'string' && typeof record.platform === 'string' && 'surface' in record, JSON.stringify({ version: record.version, platform: record.platform, surface: record.surface }), 'crashIdentity in src/platform/logs/crashReport.ts supplies version, platform and surface to the report that persistCrashReport writes')
   }
 }
 console.log(`  captures kept: ${OUT_DIR}`)

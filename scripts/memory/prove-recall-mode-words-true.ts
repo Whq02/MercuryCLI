@@ -14,7 +14,7 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.slice(0, 400)}` : ''} — fix the recall-mode words and model readiness in src/mneme/embedModels.ts (memoryRecallModeWords, memoryRecallModeLine, servableEmbedModelNames, describeSemanticReadiness) or the derived index in src/mneme/mnemeIndex.ts (embedIndexEngineStatus, ensureEmbedIndex), or Recall in recallQuery in src/mneme/memoryVerbs.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.slice(0, 400)}` : ''} — fix the recall-mode words and model readiness in src/sessions/mneme/embedModels.ts (memoryRecallModeWords, memoryRecallModeLine, servableEmbedModelNames, describeSemanticReadiness) or the derived index in src/sessions/mneme/mnemeIndex.ts (embedIndexEngineStatus, ensureEmbedIndex), or Recall in recallQuery in src/sessions/mneme/memoryVerbs.ts` : ''}`)
   if (!cond) failures++
 }
 const finish = (note: string): never => {
@@ -23,12 +23,12 @@ const finish = (note: string): never => {
   process.exit(failures > 0 ? 1 : 0)
 }
 
-const pack = await import('../../src/mneme/embedPack.js')
-const models = await import('../../src/mneme/embedModels.js')
-const idx = await import('../../src/mneme/mnemeIndex.js')
-const docs = await import('../../src/mneme/mnemeTopicDocs.js')
-const { recallQuery, retainItems } = await import('../../src/mneme/memoryVerbs.js')
-const { voicePackPlatform } = await import('../../src/utils/voice/voicePack.js')
+const pack = await import('../../src/sessions/mneme/embedPack.js')
+const models = await import('../../src/sessions/mneme/embedModels.js')
+const idx = await import('../../src/sessions/mneme/mnemeIndex.js')
+const docs = await import('../../src/sessions/mneme/mnemeTopicDocs.js')
+const { recallQuery, retainItems } = await import('../../src/sessions/mneme/memoryVerbs.js')
+const { voicePackPlatform } = await import('../../src/integrations/voice-pack/voicePack.js')
 
 const PACK_DIR = pack.embedPackDirFor(ROOT, voicePackPlatform())
 const CACHE_DIR = join(ROOT, models.EMBED_MODELS_VENDOR_PATH)

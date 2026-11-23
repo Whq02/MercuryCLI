@@ -19,12 +19,12 @@ const SELF = fileURLToPath(import.meta.url)
 
 if (process.env.TOOLGLYPH_RENDER_CHILD) {
   const React = await import('react')
-  const { render, Box, Text } = (await import('../../src/ink.js')) as {
+  const { render, Box, Text } = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
     Box: React.ComponentType<Record<string, unknown>>
     Text: React.ComponentType<Record<string, unknown>>
   }
-  const { TOOL_FAMILY_MARKS } = await import('../../src/components/mercury-ui/toolGlyphs.js')
+  const { TOOL_FAMILY_MARKS } = await import('../../src/screen/widgets/toolGlyphs.js')
   void render(
     React.createElement(
       Box,
@@ -50,8 +50,8 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     TOOL_FAMILY_MARKS,
     toolFamilyFor,
     toolMarkFor,
-  } = await import('../../src/components/mercury-ui/toolGlyphs.ts')
-  const { charWidth, GLYPH } = await import('../../src/utils/glyphs.ts')
+  } = await import('../../src/screen/widgets/toolGlyphs.ts')
+  const { charWidth, GLYPH } = await import('../../src/screen/theme/glyphs.ts')
   const {
     EMPTY_FACETS,
     facetsSatisfy,
@@ -59,7 +59,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     parseSearchQuery,
     renderableSearchText,
     toolInputFiles,
-  } = await import('../../src/utils/transcriptSearch.ts')
+  } = await import('../../src/screen/virtual-message-list/transcriptSearch.ts')
 
   const t = checker()
   const scratch = mkdtempSync(join(tmpdir(), 'hz-toolproj-'))
@@ -72,19 +72,19 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     t.check(
       'every family mark is exactly one cell under the canonical width model',
       marks.every(m => charWidth(m.glyph) === 1),
-      marks.map(m => `${m.glyph}=${charWidth(m.glyph)}`).join(' ') + ' | change the glyph of the wide mark in TOOL_FAMILY_MARKS in src/components/mercury-ui/toolGlyphs.ts',
+      marks.map(m => `${m.glyph}=${charWidth(m.glyph)}`).join(' ') + ' | change the glyph of the wide mark in TOOL_FAMILY_MARKS in src/screen/widgets/toolGlyphs.ts',
     )
     const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{1F1E6}-\u{1F1FF}]/u
-    t.check('no emoji in the vocabulary', !marks.some(m => EMOJI.test(m.glyph)), 'cell-grid safe | replace the emoji glyph in TOOL_FAMILY_MARKS in src/components/mercury-ui/toolGlyphs.ts')
+    t.check('no emoji in the vocabulary', !marks.some(m => EMOJI.test(m.glyph)), 'cell-grid safe | replace the emoji glyph in TOOL_FAMILY_MARKS in src/screen/widgets/toolGlyphs.ts')
     t.check(
       'the families are visually DISTINCT — one glyph each',
       new Set(marks.map(m => m.glyph)).size === marks.length,
-      `${new Set(marks.map(m => m.glyph)).size}/${marks.length} | give each family its own glyph in TOOL_FAMILY_MARKS in src/components/mercury-ui/toolGlyphs.ts`,
+      `${new Set(marks.map(m => m.glyph)).size}/${marks.length} | give each family its own glyph in TOOL_FAMILY_MARKS in src/screen/widgets/toolGlyphs.ts`,
     )
     t.check(
       'and their text fallbacks are distinct too — the family survives a glyphless profile',
       new Set(marks.map(m => m.fallback)).size === marks.length,
-      marks.map(m => m.fallback).join(',') + ' | give each family its own fallback in TOOL_FAMILY_MARKS in src/components/mercury-ui/toolGlyphs.ts',
+      marks.map(m => m.fallback).join(',') + ' | give each family its own fallback in TOOL_FAMILY_MARKS in src/screen/widgets/toolGlyphs.ts',
     )
     const statusSpine = new Set([
       GLYPH.ok, GLYPH.pending, GLYPH.inProgress, GLYPH.done, GLYPH.read,
@@ -95,12 +95,12 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     t.check(
       'no family mark collides with the honest-state spine',
       collisions.length === 0,
-      collisions.map(m => m.glyph).join(' ') + ' | change the colliding glyph in TOOL_FAMILY_MARKS in src/components/mercury-ui/toolGlyphs.ts, it matches a status glyph in src/utils/glyphs.ts',
+      collisions.map(m => m.glyph).join(' ') + ' | change the colliding glyph in TOOL_FAMILY_MARKS in src/screen/widgets/toolGlyphs.ts, it matches a status glyph in src/screen/theme/glyphs.ts',
     )
     t.check(
       'tone is a TOKEN ROLE, never a colour literal',
       marks.every(m => ['accent', 'info', 'textSecondary'].includes(m.tone)),
-      [...new Set(marks.map(m => m.tone))].join(',') + ' | use only accent, info or textSecondary as tone in TOOL_FAMILY_MARKS in src/components/mercury-ui/toolGlyphs.ts',
+      [...new Set(marks.map(m => m.tone))].join(',') + ' | use only accent, info or textSecondary as tone in TOOL_FAMILY_MARKS in src/screen/widgets/toolGlyphs.ts',
     )
 
     t.check('Bash is shell', toolFamilyFor('Bash') === 'shell', toolFamilyFor('Bash'))
@@ -210,7 +210,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
 
   t.section('§4 — the wiring: one projection, one source of "failed"')
   {
-    const { DocumentTool } = await import('../../src/tools/DocumentTool/DocumentTool.ts')
+    const { DocumentTool } = await import('../../src/tools/document/DocumentTool.ts')
     const documentResult = { op: 'inspect', road: 'pdf', files: [{ path: '/reports/quarterly-summary.pdf', bytes: 1024, sha256: 'ab' }], detail: 'twelve pages, two tables' }
     const resultRow = (id: string) => ({ type: 'user', uuid: `u-${id}`, timestamp: new Date(0).toISOString(), message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content: 'ok' }] }, toolUseResult: documentResult }) as unknown as Parameters<typeof renderableSearchText>[0]
     const through = renderableSearchText(resultRow('doc-1'), id => (id === 'doc-1' ? DocumentTool : undefined))
@@ -227,7 +227,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     )
     const quiet = renderableSearchText(resultRow('doc-3'), () => ({ name: 'Monitor', extractSearchText: () => 'never indexed' }))
     t.check('a non-indexing tool contributes no search text even with an extractor', quiet === '', JSON.stringify(quiet))
-    const { highlightTextOf } = await import('../../src/screens/chat/useChatSearch.tsx')
+    const { highlightTextOf } = await import('../../src/screen/chat/useChatSearch.tsx')
     const highlighted = ['', 'gate verdict', 'tool:bash verdict', 'file:src/a.ts tool:"Read" failed: build ok', 'failed:'].map(query => highlightTextOf(query))
     t.check(
       'every HIGHLIGHT call either clears or routes through the query parser',
@@ -284,7 +284,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
         t.check(
           `${family}: the mark paints, and its separator lands in column 2`,
           line !== undefined && line.startsWith(`${mark.glyph}|`),
-          (line?.slice(0, 12).trim() ?? 'missing') + ' | fix the glyph of this family in TOOL_FAMILY_MARKS in src/components/mercury-ui/toolGlyphs.ts, it must paint as one cell then a pipe',
+          (line?.slice(0, 12).trim() ?? 'missing') + ' | fix the glyph of this family in TOOL_FAMILY_MARKS in src/screen/widgets/toolGlyphs.ts, it must paint as one cell then a pipe',
         )
       }
     }

@@ -6,12 +6,12 @@ import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, type M
 type Step = { label: string; title: string | null; cursor: string; calls: string[]; modes: string[]; lines: string[] }
 type Recording = { scenario: string; size: string; warmups: string; steps: Step[] }
 
-type Message = import('../../src/types/message.ts').Message
-type SessionLiveV1 = import('../../src/services/engine-connector/seatLive.ts').SessionLiveV1
-type SeatStatusV1 = import('../../src/services/engine-connector/seatLive.ts').SeatStatusV1
-type SessionAskV1 = import('../../src/services/engine-connector/types.ts').SessionAskV1
-type PermissionMode = import('../../src/types/permissions.ts').PermissionMode
-type AppStateStore = ReturnType<typeof import('../../src/state/AppState.tsx').useAppStateStore>
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type SessionLiveV1 = import('../../src/engine/connector/seatLive.ts').SessionLiveV1
+type SeatStatusV1 = import('../../src/engine/connector/seatLive.ts').SeatStatusV1
+type SessionAskV1 = import('../../src/engine/connector/types.ts').SessionAskV1
+type PermissionMode = import('../../src/permissions/rules/permissions.ts').PermissionMode
+type AppStateStore = ReturnType<typeof import('../../src/screen/app-state/AppState.tsx').useAppStateStore>
 
 type ScriptedSession = {
   connector: object
@@ -66,10 +66,10 @@ type Stage = {
 }
 
 type SrcDoor = {
-  pending: typeof import('../../src/input-core/pending-input.ts')
-  slot: typeof import('../../src/services/engine-connector/focusedConnector.ts')
-  route: typeof import('../../src/context/surfaceRoute.ts')
-  seatLive: typeof import('../../src/services/engine-connector/seatLive.ts')
+  pending: typeof import('../../src/screen/composer/input-core/pending-input.ts')
+  slot: typeof import('../../src/engine/connector/focusedConnector.ts')
+  route: typeof import('../../src/screen/routes/surfaceRoute.ts')
+  seatLive: typeof import('../../src/engine/connector/seatLive.ts')
 }
 
 type StageOptions = { columns?: number; rows?: number; reducedMotion?: boolean; session?: 'none' | 'empty' | 'history'; env?: Record<string, string>; plant?: 'crash' | 'crash-resumable' | 'worktree' | 'preflight' | 'fold-notice' | 'housekeeping' | 'update-notice' | 'handshake' | 'tmux' | 'commands' }
@@ -114,8 +114,8 @@ let teardownSunk = false
 async function mountSunk(element: unknown, columns: number, rows: number, opts?: { mouseTracking?: boolean }): Promise<Mounted> {
   if (!teardownSunk) {
     teardownSunk = true
-    const real = { ...(await import('../../src/ink/session/delivery.ts')) }
-    mock.module('../../src/ink/session/delivery.ts', () => ({
+    const real = { ...(await import('../../src/screen/renderer/terminal-session/frameDelivery.ts')) }
+    mock.module('../../src/screen/renderer/terminal-session/frameDelivery.ts', () => ({
       ...real,
       writeAllSync: (fd: number, data: Buffer, syscalls?: Parameters<typeof real.writeAllSync>[2]): boolean => {
         if (fd !== 1) return real.writeAllSync(fd, data, syscalls)
@@ -160,17 +160,17 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
   process.chdir(project)
 
   if (options.plant === 'preflight') {
-    const real = await import('../../src/services/health/healthPreflight.ts')
-    mock.module('../../src/services/health/healthPreflight.ts', () => ({
+    const real = await import('../../src/platform/health/healthPreflight.ts')
+    mock.module('../../src/platform/health/healthPreflight.ts', () => ({
       ...real,
       mercuryBootPreflightEnabled: () => true,
       runAndRecordPreflight: async () => ({ verdict: 'fail', ranAt: FIXED_STAMP, failing: [{ id: 'ripgrep', evidence: 'ripgrep MISSING @ rg' }], degraded: [], durationMs: 1, via: 'preflight' }),
     }))
   }
   if (options.plant === 'fold-notice') {
-    const real = await import('../../src/services/run/runCoordinator.ts')
+    const real = await import('../../src/engine/run/runCoordinator.ts')
     let notice: unknown = { interruptedTools: 2, blocker: { description: 'the build waits for a sign-in', resumeCondition: 'sign in with /logins and say continue' } }
-    mock.module('../../src/services/run/runCoordinator.ts', () => ({
+    mock.module('../../src/engine/run/runCoordinator.ts', () => ({
       ...real,
       takeResumeFoldNotice: () => {
         const taken = notice
@@ -180,8 +180,8 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
     }))
   }
   if (options.plant === 'housekeeping') {
-    const real = await import('../../src/services/backgroundHousekeeping.ts')
-    mock.module('../../src/services/backgroundHousekeeping.ts', () => ({
+    const real = await import('../../src/platform/housekeeping/backgroundHousekeeping.ts')
+    mock.module('../../src/platform/housekeeping/backgroundHousekeeping.ts', () => ({
       ...real,
       startBackgroundHousekeeping: () => {
         throw new Error('a planted fault of the housekeeping')
@@ -189,8 +189,8 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
     }))
   }
   const warmed = { daemon: 0, runners: [] as string[], contextWindows: 0 }
-  const realEnsure = { ...(await import('../../src/services/switchboard/ensureDaemon.ts')) }
-  mock.module('../../src/services/switchboard/ensureDaemon.ts', () => ({
+  const realEnsure = { ...(await import('../../src/daemon/switchboard/ensureDaemon.ts')) }
+  mock.module('../../src/daemon/switchboard/ensureDaemon.ts', () => ({
     ...realEnsure,
     ensureOwnedDaemon: async () => {
       warmed.daemon++
@@ -201,16 +201,16 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
       return true
     },
   }))
-  const realWindows = { ...(await import('../../src/services/context/contextWindowWarmup.ts')) }
-  mock.module('../../src/services/context/contextWindowWarmup.ts', () => ({
+  const realWindows = { ...(await import('../../src/engine/context-window/contextWindowWarmup.ts')) }
+  mock.module('../../src/engine/context-window/contextWindowWarmup.ts', () => ({
     ...realWindows,
     warmContextWindowSources: async () => {
       warmed.contextWindows++
     },
   }))
   if (options.plant === 'update-notice') {
-    const real = { ...(await import('../../src/services/privateChannel/quietUpdateNotice.ts')) }
-    mock.module('../../src/services/privateChannel/quietUpdateNotice.ts', () => ({
+    const real = { ...(await import('../../src/platform/update-channel/quietUpdateNotice.ts')) }
+    mock.module('../../src/platform/update-channel/quietUpdateNotice.ts', () => ({
       ...real,
       scheduleQuietUpdateNotice: (notify: (text: string) => void) => {
         const timer = setTimeout(() => notify(real.updateNoticeText('9.9.9')), 0)
@@ -220,8 +220,8 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
   }
   const handshake = { line: null as string | null, heard: new Set<() => void>() }
   if (options.plant === 'handshake') {
-    const real = { ...(await import('../../src/daemon/handshake.ts')) }
-    mock.module('../../src/daemon/handshake.ts', () => ({
+    const real = { ...(await import('../../src/daemon/control/handshake.ts')) }
+    mock.module('../../src/daemon/control/handshake.ts', () => ({
       ...real,
       lastDaemonHandshake: () => (handshake.line === null ? null : { line: handshake.line }),
       subscribeDaemonHandshake: (listener: () => void) => {
@@ -231,8 +231,8 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
     }))
   }
   if (options.plant === 'tmux') {
-    const real = { ...(await import('../../src/utils/fullscreen.ts')) }
-    mock.module('../../src/utils/fullscreen.ts', () => ({
+    const real = { ...(await import('../../src/screen/fullscreen-layout/fullscreen.ts')) }
+    mock.module('../../src/screen/fullscreen-layout/fullscreen.ts', () => ({
       ...real,
       maybeGetTmuxMouseHint: async () => 'tmux detected: PageUp/PageDown scroll the transcript. Add `set -g mouse on` to ~/.tmux.conf to restore wheel scrolling.',
     }))
@@ -240,34 +240,34 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
 
   const React = await import('react')
   const h = React.createElement
-  const { App } = await import('../../src/components/App.tsx')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { useAppStateStore } = await import('../../src/state/AppState.tsx')
-  const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.tsx')
-  const { Chat } = await import('../../src/screens/Chat.tsx')
-  const route = await import('../../src/context/surfaceRoute.ts')
-  const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/hooks/useLayoutTier.ts')
-  const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-  const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
-  const { setCwdState, setIsInteractive } = await import('../../src/bootstrap/state.ts')
-  const { TerminalWriteContext } = await import('../../src/ink/terminalWrite.ts')
-  const { Text, useStdin } = await import('../../src/ink.ts')
-  const helm = await import('../../src/utils/cockpit/helmFocus.ts')
+  const { App } = await import('../../src/boot/App.tsx')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { useAppStateStore } = await import('../../src/screen/app-state/AppState.tsx')
+  const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.tsx')
+  const { Chat } = await import('../../src/screen/chat/Chat.tsx')
+  const route = await import('../../src/screen/routes/surfaceRoute.ts')
+  const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+  const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+  const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
+  const { setCwdState, setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
+  const { TerminalWriteContext } = await import('../../src/screen/renderer/terminalWrite.ts')
+  const { Text, useStdin } = await import('../../src/screen/themedRenderer.ts')
+  const helm = await import('../../src/screen/cockpit/helmFocus.ts')
   setCwdState(project)
   setIsInteractive(true)
   enableConfigs()
   saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true, hasTrustDialogAccepted: true }))
   saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false, hasCompletedOnboarding: true, theme: 'dark' }))
-  const pending = await import('../../src/input-core/pending-input.ts')
-  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-  const seatLive = await import('../../src/services/engine-connector/seatLive.ts')
-  const { createStreamingTailStore } = await import('../../src/utils/messages/streamingTailStore.ts')
-  const { getCommands } = await import('../../src/commands.ts')
-  const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.ts')
-  const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
+  const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+  const slot = await import('../../src/engine/connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+  const seatLive = await import('../../src/engine/connector/seatLive.ts')
+  const { createStreamingTailStore } = await import('../../src/engine/message-shapes/streamingTailStore.ts')
+  const { getCommands } = await import('../../src/commands/catalogue/commands.ts')
+  const { markDaemonHaltStanddown } = await import('../../src/daemon/control/daemonStanddown.ts')
+  const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
   const buildAsk = await askBuilder()
-  const modeRecord = await import('../../src/utils/permissions/modeTransitions.ts')
+  const modeRecord = await import('../../src/permissions/rules/modeTransitions.ts')
   modeRecord.clearModeTransitions()
   markDaemonHaltStanddown()
   const dialogs: Stage['dialogs'] = []
@@ -505,12 +505,12 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
   if (focused !== null) slot.setFocusedSessionConnector(focused.connector as never)
 
   if (options.plant === 'crash') {
-    const { persistCrashReport } = await import('../../src/utils/crashReport.ts')
+    const { persistCrashReport } = await import('../../src/platform/logs/crashReport.ts')
     persistCrashReport(new Error('a planted crash of an earlier session'), undefined, 'app-root')
   }
   if (options.plant === 'crash-resumable') {
-    const { persistCrashReport } = await import('../../src/utils/crashReport.ts')
-    const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+    const { persistCrashReport } = await import('../../src/platform/logs/crashReport.ts')
+    const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
     const crashed = newSession('rec-crashed', [])
     mkdirSync(getProjectDir(project), { recursive: true })
     writeFileSync(join(getProjectDir(project), 'rec-crashed.jsonl'), `${JSON.stringify(user('what the crashed session was asked'))}\n`)
@@ -520,7 +520,7 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
     else slot.setFocusedSessionConnector(focused.connector as never)
   }
   if (options.plant === 'worktree') {
-    const { restoreWorktreeSession } = await import('../../src/services/worktree.ts')
+    const { restoreWorktreeSession } = await import('../../src/platform/git/worktree/worktree.ts')
     restoreWorktreeSession({ originalCwd: project, worktreePath: project, worktreeName: 'proof-tree', sessionId: 'rec-session', creationDurationMs: 21_000 })
   }
   route.initializeSurfaceRoute(route.ROOT_CHAT_ROUTE)
@@ -690,8 +690,8 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
 }
 
 export async function askBuilder(): Promise<(id: string, command: string, cwd: string, tell: (word: string) => void) => SessionAskV1> {
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   return (id, command, cwd, tell) => {
     const state = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' }, tasks: {}, sessionHooks: new Map() }
     const context = {
@@ -742,11 +742,11 @@ export async function mountPart<T>(use: (store: AppStateStore) => T, options: { 
   globals.MACRO ??= { VERSION: '1.0.0' }
   const React = await import('react')
   const h = React.createElement
-  const { App } = await import('../../src/components/App.tsx')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { useAppStateStore } = await import('../../src/state/AppState.tsx')
-  const { TerminalWriteContext } = await import('../../src/ink/terminalWrite.ts')
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { App } = await import('../../src/boot/App.tsx')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { useAppStateStore } = await import('../../src/screen/app-state/AppState.tsx')
+  const { TerminalWriteContext } = await import('../../src/screen/renderer/terminalWrite.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
   let call = use
   let held: T | undefined
@@ -797,13 +797,13 @@ export async function mountPart<T>(use: (store: AppStateStore) => T, options: { 
   }
 }
 
-type TranscriptHook = typeof import('../../src/screens/chat/useChatSearch.tsx').useChatSearch
+type TranscriptHook = typeof import('../../src/screen/chat/useChatSearch.tsx').useChatSearch
 type TranscriptArgs = Parameters<TranscriptHook>[0]
 type TranscriptValue = ReturnType<TranscriptHook>
 
 type TranscriptPart = {
   part: PartMount<TranscriptValue>
-  module: typeof import('../../src/screens/chat/useChatSearch.tsx')
+  module: typeof import('../../src/screen/chat/useChatSearch.tsx')
   plant: (over: Partial<TranscriptArgs>) => Promise<void>
   setRows: (rows: Message[]) => Promise<void>
   rowsOf: (count: number) => Message[]
@@ -824,11 +824,11 @@ export async function openTranscriptPart(tag: string, size: { columns?: number; 
   delete process.env.VISUAL
   const highlights: string[] = []
   const highlightApi = { setQuery: (query: string) => void highlights.push(query), scanElement: () => [], setPositions: () => {} }
-  mock.module('../../src/ink/hooks/use-search-highlight.ts', () => ({ useSearchHighlight: () => highlightApi }))
-  const realEditor = await import('../../src/utils/editor.ts')
+  mock.module('../../src/screen/renderer/bindings/use-search-highlight.ts', () => ({ useSearchHighlight: () => highlightApi }))
+  const realEditor = await import('../../src/platform/editor/externalEditor.ts')
   const realPlatform = process.platform
   const editor = { answer: true, platform: realPlatform as string, asked: [] as string[] }
-  mock.module('../../src/utils/editor.ts', () => ({
+  mock.module('../../src/platform/editor/externalEditor.ts', () => ({
     ...realEditor,
     openFileInExternalEditor: (path: string) => {
       editor.asked.push(path)
@@ -838,12 +838,12 @@ export async function openTranscriptPart(tag: string, size: { columns?: number; 
   }))
   const React = await import('react')
   const h = React.createElement
-  const module = await import('../../src/screens/chat/useChatSearch.tsx')
-  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-  const route = await import('../../src/context/surfaceRoute.ts')
-  const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-  const { default: useInput } = await import('../../src/ink/hooks/use-input.ts')
+  const module = await import('../../src/screen/chat/useChatSearch.tsx')
+  const slot = await import('../../src/engine/connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+  const route = await import('../../src/screen/routes/surfaceRoute.ts')
+  const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+  const { default: useInput } = await import('../../src/screen/renderer/bindings/use-input.ts')
   const rowsOf = (count: number): Message[] => Array.from({ length: count }, (_, i) => (i % 2 === 0 ? createUserMessage({ content: `question ${i} about the gate` }) : createAssistantMessage({ content: `answer ${i} about the gate` })) as Message)
   let rows: Message[] = []
   let over: Partial<TranscriptArgs> = {}
@@ -944,12 +944,12 @@ export async function openTranscriptPart(tag: string, size: { columns?: number; 
   }
 }
 
-type AsksHook = typeof import('../../src/screens/chat/useChatAsks.tsx').useChatAsks
+type AsksHook = typeof import('../../src/screen/chat/useChatAsks.tsx').useChatAsks
 type AsksValue = ReturnType<AsksHook>
 
 type AsksPart = {
   part: PartMount<AsksValue>
-  module: typeof import('../../src/screens/chat/useChatAsks.tsx')
+  module: typeof import('../../src/screen/chat/useChatAsks.tsx')
   calls: string[]
   notices: Array<{ key: string; text: string }>
   ask: (id: string, command: string) => SessionAskV1
@@ -962,9 +962,9 @@ type AsksPart = {
 
 export async function openAsksPart(tag: string, options: { keepHome?: boolean; held?: { mode: PermissionMode; facts: 'live' | 'record' } } = {}): Promise<AsksPart> {
   const home = options.keepHome === true ? null : pinScratchHome(tag)
-  const module = await import('../../src/screens/chat/useChatAsks.tsx')
-  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const module = await import('../../src/screen/chat/useChatAsks.tsx')
+  const slot = await import('../../src/engine/connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
   const buildAsk = await askBuilder()
   const calls: string[] = []
   const notices: Array<{ key: string; text: string }> = []
@@ -1033,14 +1033,14 @@ export async function openAsksPart(tag: string, options: { keepHome?: boolean; h
   }
 }
 
-type DraftHook = typeof import('../../src/screens/chat/useChatDraft.ts').useChatDraft
+type DraftHook = typeof import('../../src/screen/chat/useChatDraft.ts').useChatDraft
 type DraftArgs = Parameters<DraftHook>[0]
 type DraftValue = ReturnType<DraftHook>
 
 type DraftPart = {
   part: PartMount<DraftValue>
-  pending: typeof import('../../src/input-core/pending-input.ts')
-  seed: typeof import('../../src/utils/cockpit/composerSeed.ts')
+  pending: typeof import('../../src/screen/composer/input-core/pending-input.ts')
+  seed: typeof import('../../src/screen/cockpit/composerSeed.ts')
   pins: () => number
   scrolledAt: { current: number }
   plant: (over: Partial<DraftArgs>) => Promise<void>
@@ -1050,12 +1050,12 @@ type DraftPart = {
 
 export async function openDraftPart(tag: string, options: { keepHome?: boolean; earlyInput?: string } = {}): Promise<DraftPart> {
   const home = options.keepHome === true ? null : pinScratchHome(tag)
-  const module = await import('../../src/screens/chat/useChatDraft.ts')
-  const pending = await import('../../src/input-core/pending-input.ts')
-  const seed = await import('../../src/utils/cockpit/composerSeed.ts')
-  const { seedEarlyInput } = await import('../../src/utils/earlyInput.ts')
-  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const module = await import('../../src/screen/chat/useChatDraft.ts')
+  const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+  const seed = await import('../../src/screen/cockpit/composerSeed.ts')
+  const { seedEarlyInput } = await import('../../src/boot/earlyInput.ts')
+  const slot = await import('../../src/engine/connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
   slot.setFocusedSessionConnector(Object.assign(new NoSessionConnector(), { sessionId: () => tag }) as never)
   pending.resetPendingInputForTests()
   seed.__composerSeedResetForTest()
@@ -1091,7 +1091,7 @@ export async function openDraftPart(tag: string, options: { keepHome?: boolean; 
   }
 }
 
-type KeysProps = Parameters<typeof import('../../src/screens/chat/ChatKeys.tsx').ChatKeys>[0]
+type KeysProps = Parameters<typeof import('../../src/screen/chat/ChatKeys.tsx').ChatKeys>[0]
 type KeysHandler = 'global' | 'command' | 'scroll' | 'actions' | 'cancel'
 
 type KeysPart = {
@@ -1126,22 +1126,22 @@ export async function openKeysPart(tag: string, options: { keepHome?: boolean } 
       }, [])
       return null
     }
-  const realGlobal = { ...(await import('../../src/hooks/useGlobalKeybindings.tsx')) }
-  mock.module('../../src/hooks/useGlobalKeybindings.tsx', () => ({ ...realGlobal, GlobalKeybindingHandlers: spy('global') }))
-  const realCommand = { ...(await import('../../src/hooks/useCommandKeybindings.tsx')) }
-  mock.module('../../src/hooks/useCommandKeybindings.tsx', () => ({ ...realCommand, CommandKeybindingHandlers: spy('command') }))
-  const realScroll = { ...(await import('../../src/components/ScrollKeybindingHandler.tsx')) }
-  mock.module('../../src/components/ScrollKeybindingHandler.tsx', () => ({ ...realScroll, ScrollKeybindingHandler: spy('scroll') }))
-  const realActions = { ...(await import('../../src/components/messageActions.tsx')) }
-  mock.module('../../src/components/messageActions.tsx', () => ({ ...realActions, MessageActionsKeybindings: spy('actions') }))
-  const realCancel = { ...(await import('../../src/hooks/useCancelRequest.ts')) }
-  mock.module('../../src/hooks/useCancelRequest.ts', () => ({ ...realCancel, CancelRequestHandler: spy('cancel') }))
-  const { ChatKeys } = await import('../../src/screens/chat/ChatKeys.tsx')
-  const { useEscapeOwned } = await import('../../src/hooks/useEscapeOwned.ts')
-  const { useStdin } = await import('../../src/ink.ts')
-  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
-  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const realGlobal = { ...(await import('../../src/screen/chat/useGlobalKeybindings.tsx')) }
+  mock.module('../../src/screen/chat/useGlobalKeybindings.tsx', () => ({ ...realGlobal, GlobalKeybindingHandlers: spy('global') }))
+  const realCommand = { ...(await import('../../src/screen/chat/useCommandKeybindings.tsx')) }
+  mock.module('../../src/screen/chat/useCommandKeybindings.tsx', () => ({ ...realCommand, CommandKeybindingHandlers: spy('command') }))
+  const realScroll = { ...(await import('../../src/screen/scroll-keys/ScrollKeybindingHandler.tsx')) }
+  mock.module('../../src/screen/scroll-keys/ScrollKeybindingHandler.tsx', () => ({ ...realScroll, ScrollKeybindingHandler: spy('scroll') }))
+  const realActions = { ...(await import('../../src/screen/messages/messageActions.tsx')) }
+  mock.module('../../src/screen/messages/messageActions.tsx', () => ({ ...realActions, MessageActionsKeybindings: spy('actions') }))
+  const realCancel = { ...(await import('../../src/screen/chat/interruptKeys.ts')) }
+  mock.module('../../src/screen/chat/interruptKeys.ts', () => ({ ...realCancel, CancelRequestHandler: spy('cancel') }))
+  const { ChatKeys } = await import('../../src/screen/chat/ChatKeys.tsx')
+  const { useEscapeOwned } = await import('../../src/screen/keys/useEscapeOwned.ts')
+  const { useStdin } = await import('../../src/screen/themedRenderer.ts')
+  const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
+  const slot = await import('../../src/engine/connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
   slot.setFocusedSessionConnector(Object.assign(new NoSessionConnector(), { sessionId: () => tag }) as never)
   let mounts = 0
   function Body(): null {
@@ -1228,7 +1228,7 @@ export async function openKeysPart(tag: string, options: { keepHome?: boolean } 
   }
 }
 
-type DialogsModule = typeof import('../../src/screens/chat/useChatDialogs.tsx')
+type DialogsModule = typeof import('../../src/screen/chat/useChatDialogs.tsx')
 type DialogsViewArgs = Parameters<DialogsModule['useChatDialogsView']>[0]
 type DialogsViewValue = ReturnType<DialogsModule['useChatDialogsView']>
 
@@ -1254,18 +1254,18 @@ export async function openDialogsPart(tag: string, options: { keepHome?: boolean
   const h = React.createElement
   const hops: unknown[][] = []
   const hop: DialogsPart['hop'] = { outcome: { ok: true } }
-  const realHop = { ...(await import('../../src/services/switchboard/hopIntoSession.ts')) }
-  mock.module('../../src/services/switchboard/hopIntoSession.ts', () => ({
+  const realHop = { ...(await import('../../src/daemon/switchboard/hopIntoSession.ts')) }
+  mock.module('../../src/daemon/switchboard/hopIntoSession.ts', () => ({
     ...realHop,
     focusResumedSession: async (...call: unknown[]) => {
       hops.push(call)
       return hop.outcome
     },
   }))
-  const module = await import('../../src/screens/chat/useChatDialogs.tsx')
-  const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const module = await import('../../src/screen/chat/useChatDialogs.tsx')
+  const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+  const slot = await import('../../src/engine/connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
   const before = slot.hasFocusedSession() ? slot.getFocusedSessionConnector() : null
   const base = new NoSessionConnector()
   const zeroUsage = base.usage()
@@ -1330,15 +1330,15 @@ export async function openDialogsPart(tag: string, options: { keepHome?: boolean
   }
 }
 
-type SessionModule = typeof import('../../src/screens/chat/useChatSession.ts')
+type SessionModule = typeof import('../../src/screen/chat/useChatSession.ts')
 type SessionArgs = Parameters<SessionModule['useChatSession']>[0]
 type SessionValue = ReturnType<SessionModule['useChatSession']>
 
 type SessionPart = {
   module: SessionModule
   part: PartMount<SessionValue>
-  warmth: typeof import('../../src/services/concourse/sessionWarmth.ts')
-  route: typeof import('../../src/context/surfaceRoute.ts')
+  warmth: typeof import('../../src/screen/concourse-model/sessionWarmth.ts')
+  route: typeof import('../../src/screen/routes/surfaceRoute.ts')
   plant: (over: Partial<SessionArgs>) => Promise<void>
   focus: (id: string | null, over?: Partial<SessionArgs>) => Promise<void>
   rekeys: string[]
@@ -1350,28 +1350,28 @@ export async function openSessionPart(tag: string, options: { keepHome?: boolean
   const home = options.keepHome === true ? null : pinScratchHome(tag)
   const rekeys: string[] = []
   const calls: string[] = []
-  const realPending = { ...(await import('../../src/input-core/pending-input.ts')) }
-  mock.module('../../src/input-core/pending-input.ts', () => ({
+  const realPending = { ...(await import('../../src/screen/composer/input-core/pending-input.ts')) }
+  mock.module('../../src/screen/composer/input-core/pending-input.ts', () => ({
     ...realPending,
     rekeyToSession: (id: string | null, opts?: { landing?: boolean }) => {
       rekeys.push(`draft ${id ?? 'null'} landing=${opts?.landing === true}`)
       return realPending.rekeyToSession(id, opts)
     },
   }))
-  const realQueue = { ...(await import('../../src/input-core/command-queue.ts')) }
-  mock.module('../../src/input-core/command-queue.ts', () => ({
+  const realQueue = { ...(await import('../../src/screen/composer/input-core/command-queue.ts')) }
+  mock.module('../../src/screen/composer/input-core/command-queue.ts', () => ({
     ...realQueue,
     rekeyCommandQueueToSession: (id: string | null, opts?: { landing?: boolean }) => {
       rekeys.push(`queue ${id ?? 'null'} landing=${opts?.landing === true}`)
       realQueue.rekeyCommandQueueToSession(id, opts)
     },
   }))
-  await import('../../src/components/SurfaceRouter.tsx')
-  const module = await import('../../src/screens/chat/useChatSession.ts')
-  const warmth = await import('../../src/services/concourse/sessionWarmth.ts')
-  const route = await import('../../src/context/surfaceRoute.ts')
-  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  await import('../../src/screen/routes/SurfaceRouter.tsx')
+  const module = await import('../../src/screen/chat/useChatSession.ts')
+  const warmth = await import('../../src/screen/concourse-model/sessionWarmth.ts')
+  const route = await import('../../src/screen/routes/surfaceRoute.ts')
+  const slot = await import('../../src/engine/connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
   const before = slot.hasFocusedSession() ? slot.getFocusedSessionConnector() : null
   const fullscreenBefore = process.env.MERCURY_FULLSCREEN
   process.env.MERCURY_FULLSCREEN = '1'
@@ -1445,7 +1445,7 @@ export async function sessionRekeys(tag: string): Promise<{ atMount: string; hop
   return { atMount, hop, again, rest, landing }
 }
 
-type SelectorModule = typeof import('../../src/screens/chat/useChatSelector.tsx')
+type SelectorModule = typeof import('../../src/screen/chat/useChatSelector.tsx')
 type SelectorArgs = Parameters<SelectorModule['useChatSelectorView']>[0]
 type SelectorValue = ReturnType<SelectorModule['useChatSelectorView']>
 type RewindAnswer = { outcome: 'applied' | 'noop' | 'refused'; mode: string; refusal?: string; detail?: string; conversation?: { removed: number }; code?: { filesChanged: string[]; insertions: number; deletions: number } }
@@ -1465,7 +1465,7 @@ type SelectorHandlers = {
 type SelectorPart = {
   module: SelectorModule
   part: PartMount<SelectorValue>
-  cursor: typeof import('../../src/components/messageCursorStore.ts')
+  cursor: typeof import('../../src/screen/messages/messageCursorStore.ts')
   plant: (over: Partial<SelectorArgs>) => Promise<void>
   selector: () => SelectorHandlers
   press: (key: 'c' | 'enter', message: Message) => Promise<void>
@@ -1481,20 +1481,20 @@ type SelectorPart = {
 export async function openSelectorPart(tag: string, options: { keepHome?: boolean } = {}): Promise<SelectorPart> {
   const home = options.keepHome === true ? null : pinScratchHome(tag)
   const clipboard = { confirmation: 'copied (the scripted clipboard)', copied: [] as string[] }
-  const realOsc = { ...(await import('../../src/ink/termio/osc.ts')) }
-  mock.module('../../src/ink/termio/osc.ts', () => ({
+  const realOsc = { ...(await import('../../src/screen/renderer/termio/osc.ts')) }
+  mock.module('../../src/screen/renderer/termio/osc.ts', () => ({
     ...realOsc,
     setClipboardWithReceipt: async (text: string) => {
       clipboard.copied.push(text)
       return { sequence: '', confirmation: clipboard.confirmation, settled: [] }
     },
   }))
-  const module = await import('../../src/screens/chat/useChatSelector.tsx')
-  const cursor = await import('../../src/components/messageCursorStore.ts')
-  const pending = await import('../../src/input-core/pending-input.ts')
-  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const module = await import('../../src/screen/chat/useChatSelector.tsx')
+  const cursor = await import('../../src/screen/messages/messageCursorStore.ts')
+  const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+  const slot = await import('../../src/engine/connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
   const before = slot.hasFocusedSession() ? slot.getFocusedSessionConnector() : null
   const calls: string[] = []
@@ -1580,7 +1580,7 @@ export async function openSelectorPart(tag: string, options: { keepHome?: boolea
   }
 }
 
-type StatusModule = typeof import('../../src/screens/chat/useChatStatus.tsx')
+type StatusModule = typeof import('../../src/screen/chat/useChatStatus.tsx')
 type StatusRow = 'spinner' | 'hold' | 'rollup'
 type StatusPlant = {
   seatLive: SessionLiveV1
@@ -1599,7 +1599,7 @@ type StatusValue = ReturnType<StatusModule['useChatTurnBoundary']> & ReturnType<
 
 type StatusPart = {
   part: PartMount<StatusValue>
-  signals: typeof import('../../src/utils/cockpit/turnSignals.ts')
+  signals: typeof import('../../src/screen/cockpit/turnSignals.ts')
   plant: (over: Partial<StatusPlant>) => Promise<void>
   handed: Record<StatusRow, Record<string, unknown> | null>
   mostSpinners: () => number
@@ -1630,15 +1630,15 @@ export async function openStatusPart(tag: string, options: { keepHome?: boolean 
       }, [])
       return null
     }
-  const realSpinner = { ...(await import('../../src/components/Spinner.tsx')) }
-  mock.module('../../src/components/Spinner.tsx', () => ({ ...realSpinner, SpinnerWithVerb: spy('spinner') }))
-  const realHold = { ...(await import('../../src/components/Spinner/StreamingHoldRow.tsx')) }
-  mock.module('../../src/components/Spinner/StreamingHoldRow.tsx', () => ({ ...realHold, StreamingHoldRow: spy('hold') }))
-  const realRollup = { ...(await import('../../src/components/MercuryTurnRollup.tsx')) }
-  mock.module('../../src/components/MercuryTurnRollup.tsx', () => ({ ...realRollup, MercuryTurnRollup: spy('rollup') }))
+  const realSpinner = { ...(await import('../../src/screen/spinner/Spinner.tsx')) }
+  mock.module('../../src/screen/spinner/Spinner.tsx', () => ({ ...realSpinner, SpinnerWithVerb: spy('spinner') }))
+  const realHold = { ...(await import('../../src/screen/spinner/StreamingHoldRow.tsx')) }
+  mock.module('../../src/screen/spinner/StreamingHoldRow.tsx', () => ({ ...realHold, StreamingHoldRow: spy('hold') }))
+  const realRollup = { ...(await import('../../src/screen/chat/MercuryTurnRollup.tsx')) }
+  mock.module('../../src/screen/chat/MercuryTurnRollup.tsx', () => ({ ...realRollup, MercuryTurnRollup: spy('rollup') }))
   const tips: StatusPart['tips'] = { asked: [], next: null, shown: [] }
-  const realTips = { ...(await import('../../src/services/tips/tipScheduler.ts')) }
-  mock.module('../../src/services/tips/tipScheduler.ts', () => ({
+  const realTips = { ...(await import('../../src/screen/tips/tipScheduler.ts')) }
+  mock.module('../../src/screen/tips/tipScheduler.ts', () => ({
     ...realTips,
     getTipToShowOnSpinner: async (context?: { bashTools?: Set<string> }) => {
       tips.asked.push({ bashTools: [...(context?.bashTools ?? [])] })
@@ -1647,11 +1647,11 @@ export async function openStatusPart(tag: string, options: { keepHome?: boolean 
     },
     recordShownTip: (tip: { id: string }) => void tips.shown.push(tip.id),
   }))
-  const module = await import('../../src/screens/chat/useChatStatus.tsx')
-  const signals = await import('../../src/utils/cockpit/turnSignals.ts')
-  const seatLive = await import('../../src/services/engine-connector/seatLive.ts')
-  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const module = await import('../../src/screen/chat/useChatStatus.tsx')
+  const signals = await import('../../src/screen/cockpit/turnSignals.ts')
+  const seatLive = await import('../../src/engine/connector/seatLive.ts')
+  const slot = await import('../../src/engine/connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
   const before = slot.hasFocusedSession() ? slot.getFocusedSessionConnector() : null
   const session: StatusPart['session'] = { chars: 0, tokens: null, facts: { ...seatLive.IDLE_TURN_FACTS }, completedAt: null, records: [], warns: false }
   let plant: StatusPlant = { seatLive: seatLive.IDLE_LIVE, focusedInputDialog: undefined, textActive: false, toolJSX: null, toolUseConfirmQueue: [], messages: [], isStopping: false, streamingSuppressed: false, isCompact: false, spinnerTip: undefined, verbose: false }
@@ -1719,8 +1719,8 @@ export async function closeStage(stage: Stage): Promise<void> {
 }
 
 async function holdReceiptExpiry(stage: Stage, key: string, show: () => Promise<void>): Promise<() => void> {
-  const timers = await import('../../src/utils/timers.ts')
-  const { RECEIPT_TIMEOUT_MS } = await import('../../src/screens/chat/limits.ts')
+  const timers = await import('../../src/platform/async/timers.ts')
+  const { RECEIPT_TIMEOUT_MS } = await import('../../src/screen/chat/limits.ts')
   const start = timers.startTimeout
   const store = stage.store()
   let hold: (() => void) | undefined
@@ -2177,7 +2177,7 @@ export const SCENARIOS: Scenario[] = [
     options: { columns: 200, rows: 40 },
     run: async stage => {
       await stage.mark('first frame', has(PLACEHOLDER))
-      const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
+      const { loadTranscriptFile } = await import('../../src/sessions/transcripts/loading.ts')
       const retired = join(stage.project, 'retired.jsonl')
       writeFileSync(retired, `${JSON.stringify(stage.user('a row in a format no longer read'))}\n`)
       await loadTranscriptFile(retired)
@@ -2190,7 +2190,7 @@ export const SCENARIOS: Scenario[] = [
     options: { columns: 200, rows: 40 },
     run: async stage => {
       await stage.mark('first frame', has(PLACEHOLDER))
-      const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
+      const { loadTranscriptFile } = await import('../../src/sessions/transcripts/loading.ts')
       const torn = join(stage.project, 'torn.jsonl')
       writeFileSync(torn, `${JSON.stringify({ schemaVersion: 1, recordId: 'rec-torn-1', payload: { kind: 'message' } })}\n{"schemaVersion": 1, "recordId": "rec-torn-2", "payl\n`)
       await loadTranscriptFile(torn)
@@ -2232,7 +2232,7 @@ export const SCENARIOS: Scenario[] = [
     covers: ['session'],
     run: async stage => {
       await stage.mark('first frame', has(PLACEHOLDER))
-      const warmth = await import('../../src/services/concourse/sessionWarmth.ts')
+      const warmth = await import('../../src/screen/concourse-model/sessionWarmth.ts')
       const kept = [stage.user('what the warm session was asked'), stage.assistant('WARM-1 an answer kept from the last visit.')]
       warmth.rememberSessionWarmth('rec-warm', kept, 0)
       warmth.armEntryWarmth('rec-warm', 'the warm session', 'rec-session')

@@ -8,11 +8,11 @@ import mammoth from 'mammoth'
 import ExcelJS from 'exceljs'
 
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
-const { createDocument } = await import('../../src/tools/DocumentTool/create.ts')
-const { convertDocument, handlePdf, selectedPages, htmlMarkdown } = await import('../../src/tools/DocumentTool/convert.ts')
-const { parsePdfText } = await import('../../src/tools/DocumentTool/pdfAdapter.ts')
-const { safeForOffice, parseXml } = await import('../../src/tools/DocumentTool/archive.ts')
-const { whichSync } = await import('../../src/utils/which.ts')
+const { createDocument } = await import('../../src/tools/document/create.ts')
+const { convertDocument, handlePdf, selectedPages, htmlMarkdown } = await import('../../src/tools/document/convert.ts')
+const { parsePdfText } = await import('../../src/tools/document/pdfAdapter.ts')
+const { safeForOffice, parseXml } = await import('../../src/tools/document/archive.ts')
+const { whichSync } = await import('../../src/platform/processes/which.ts')
 const io = { read: async (path: string) => readFileSync(path), signal: new AbortController().signal }
 const save = (product: Awaited<ReturnType<typeof createDocument>>): void => { for (const file of product.files) writeFileSync(file.path, file.bytes) }
 try {
@@ -61,13 +61,13 @@ try {
   assert.match(strFromU8(zip['word/footnotes.xml']!), /Appendix source/)
   assert.match(strFromU8(zip['docProps/core.xml']!), /Appendix report/)
   assert.equal(strFromU8(zip['word/styles.xml']!), strFromU8(unzipSync(readFileSync(join(proofHome, 'source.docx')))['word/styles.xml']!))
-  assert.ok(safeForOffice(readFileSync(join(proofHome, 'source.docx'))), 'src/tools/DocumentTool/archive.ts safeForOffice rejected freshly generated source.docx')
+  assert.ok(safeForOffice(readFileSync(join(proofHome, 'source.docx'))), 'src/tools/document/archive.ts safeForOffice rejected freshly generated source.docx')
   assert.throws(() => parseXml('<!DOCTYPE r [<!ENTITY x SYSTEM "file:///secret">]><r>&x;</r>'), /document type/)
   for (const converter of ['soffice', 'pandoc']) {
     if (!whichSync(converter)) { console.log(`SKIP live ${converter}: not on PATH`); continue }
     const to = converter === 'soffice' ? 'pdf' : 'html'
     const external = await convertDocument({ op: 'convert', source: join(proofHome, 'source.docx'), output: join(proofHome, `external.${to}`), renderer: converter === 'soffice' ? 'libreoffice' : 'pandoc' }, io)
-    assert.ok(external.files[0]!.bytes.length, `src/tools/DocumentTool/convert.ts ${converter} conversion to ${to} produced 0 bytes`)
+    assert.ok(external.files[0]!.bytes.length, `src/tools/document/convert.ts ${converter} conversion to ${to} produced 0 bytes`)
     assert.equal(external.road, converter === 'soffice' ? 'LibreOffice' : 'pandoc')
   }
   console.log('PASS convert: twelve text-document directions, slide text to PDF, CSV round trip, PDF order/split/rotate/metadata and styled DOCX append with footnotes')

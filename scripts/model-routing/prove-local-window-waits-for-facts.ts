@@ -14,10 +14,10 @@ process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 const LOCAL_WINDOW_SECTION_HINTS: Record<string, string> = {
-  '§1': 'change refreshLocalDiscovery in src/services/providers/local/localDiscovery.ts and heldLocalWindow in src/services/providers/local/localWindow.ts so the hold is the Modelfile num_ctx',
-  '§2': 'change awaitContextWindowSource in src/services/context/contextWindowWarmup.ts so a record marked factsUnread is re-read through /api/show before any window is held',
-  '§3': 'change awaitContextWindowSource in src/services/context/contextWindowWarmup.ts and heldLocalWindow in src/services/providers/local/localWindow.ts so a hold made on unread facts is decided again once a discovery reads the Modelfile',
-  '§4': 'change heldLocalWindow in src/services/providers/local/localWindow.ts so a tag with no num_ctx keeps the same hold across discoveries',
+  '§1': 'change refreshLocalDiscovery in src/models/roads/local/localDiscovery.ts and heldLocalWindow in src/models/roads/local/localWindow.ts so the hold is the Modelfile num_ctx',
+  '§2': 'change awaitContextWindowSource in src/engine/context-window/contextWindowWarmup.ts so a record marked factsUnread is re-read through /api/show before any window is held',
+  '§3': 'change awaitContextWindowSource in src/engine/context-window/contextWindowWarmup.ts and heldLocalWindow in src/models/roads/local/localWindow.ts so a hold made on unread facts is decided again once a discovery reads the Modelfile',
+  '§4': 'change heldLocalWindow in src/models/roads/local/localWindow.ts so a tag with no num_ctx keeps the same hold across discoveries',
 }
 let localWindowFailureHint = ''
 let failures = 0
@@ -68,17 +68,17 @@ await new Promise<void>(done => ollama.listen(0, '127.0.0.1', () => done()))
 const address = ollama.address()
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=http://127.0.0.1:${typeof address === 'object' && address !== null ? address.port : 0}`
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const preview = await import('../../src/services/providers/transitionPreview.ts')
-const discovery = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const windows = await import('../../src/services/providers/local/localWindow.ts')
-const { awaitContextWindowSource, contextWindowSourceReady } = await import('../../src/services/context/contextWindowWarmup.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
+const preview = await import('../../src/models/roads/transitionPreview.ts')
+const discovery = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const windows = await import('../../src/models/roads/local/localWindow.ts')
+const { awaitContextWindowSource, contextWindowSourceReady } = await import('../../src/engine/context-window/contextWindowWarmup.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
 
 const note = (n: number): string => {
   let out = ''

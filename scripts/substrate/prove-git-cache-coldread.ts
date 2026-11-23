@@ -10,7 +10,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — change: the cold-read path of getCachedBranch and getCachedHead in src/utils/git/gitFilesystem.ts, or getGitState in src/utils/git.ts, so that every concurrent first read answers the real value'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — change: the cold-read path of getCachedBranch and getCachedHead in src/platform/git/gitFilesystem.ts, or getGitState in src/platform/git/git.ts, so that every concurrent first read answers the real value'}`)
 }
 
 const repo = mkdtempSync(join(tmpdir(), 'git-cache-coldread-'))
@@ -29,8 +29,8 @@ async function main(): Promise<void> {
   console.log(' the git cache cold-read answers truth to EVERY racer')
   console.log('============================================================')
 
-  const fsMod = await import('../../src/utils/git/gitFilesystem.js')
-  const gitMod = await import('../../src/utils/git.js')
+  const fsMod = await import('../../src/platform/git/gitFilesystem.js')
+  const gitMod = await import('../../src/platform/git/git.js')
 
   console.log('\n§1 concurrent FIRST reads of one key all answer the branch')
   {

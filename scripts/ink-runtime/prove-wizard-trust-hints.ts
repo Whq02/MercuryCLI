@@ -2,7 +2,7 @@ import React from 'react'
 import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, waitFor } from '../lib/settingsPopupHarness.js'
-import type { Root } from '../../src/ink/root.js'
+import type { Root } from '../../src/screen/renderer/root.js'
 
 pinSourceRef()
 const home = pinScratchHome('wizard-trust-hints')
@@ -26,10 +26,10 @@ for (const key of Object.keys(process.env)) {
 }
 const stdoutTty = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
 Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: true })
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { showSetupScreens } = await import('../../src/interactiveHelpers.js')
-const { Text } = await import('../../src/ink.js')
+const { showSetupScreens } = await import('../../src/boot/setupScreens.js')
+const { Text } = await import('../../src/screen/themedRenderer.js')
 const mounted = await mountOffscreen(React.createElement(Text, null, ' '), 80, 24)
 const root: Root = {
   render: element => mounted.resize(element, 80, 24),
@@ -53,25 +53,25 @@ async function sees(text: string): Promise<void> {
 
 try {
   await sees('theme · 1/4')
-  check('theme has one footer', mounted.lines().filter(line => line.includes('↑↓')).length === 1, 'the theme step must paint exactly one footer with the arrow hint; remove the duplicate hint line in src/components/Onboarding.tsx (per-step hint table near line 444)')
+  check('theme has one footer', mounted.lines().filter(line => line.includes('↑↓')).length === 1, 'the theme step must paint exactly one footer with the arrow hint; remove the duplicate hint line in src/boot/first-run/Onboarding.tsx (per-step hint table near line 444)')
   mounted.push(KEY.enter)
   await sees('sign in · 2/4')
-  check('sign in has one navigation footer', mounted.lines().filter(line => line.includes('↑↓')).length === 1, 'the sign in step must paint exactly one navigation footer; remove the duplicate hint line in src/components/Onboarding.tsx (per-step hint table near line 444)')
+  check('sign in has one navigation footer', mounted.lines().filter(line => line.includes('↑↓')).length === 1, 'the sign in step must paint exactly one navigation footer; remove the duplicate hint line in src/boot/first-run/Onboarding.tsx (per-step hint table near line 444)')
   mounted.push('s')
   await sees('guardrails · 3/4')
-  check('guardrails has one footer', mounted.lines().filter(line => line.includes('↵ continue · esc back')).length === 1, 'the guardrails step must paint exactly one continue/back footer; remove the duplicate hint line in src/components/Onboarding.tsx')
+  check('guardrails has one footer', mounted.lines().filter(line => line.includes('↵ continue · esc back')).length === 1, 'the guardrails step must paint exactly one continue/back footer; remove the duplicate hint line in src/boot/first-run/Onboarding.tsx')
   mounted.push(KEY.enter)
   await sees('trust · 4/4')
   await sees('esc exit')
   const frame = mounted.screen()
   console.log(`FRAME 80x24\n${frame}`)
   const hints = mounted.lines().filter(line => line.includes('↑↓ move'))
-  check('trust keeps the frame navigation hint exactly once', hints.length === 1 && hints[0]?.includes('↑↓ move · ↵ select · esc exit') === true, JSON.stringify(hints) + ' - the trust step footer comes from the footer prop in src/interactiveHelpers.tsx (showSetupScreens); the card in src/components/TrustDialog/TrustDialog.tsx must not repeat it')
-  check('the duplicate card hint is gone', !frame.includes('confirm') && !frame.includes('esc exits'), 'the trust card repeats the frame hint; remove the extra hint text from src/components/TrustDialog/TrustDialog.tsx or the footer in src/interactiveHelpers.tsx')
-  check('the trust choices remain visible at 80x24', frame.includes('Yes, I trust this folder') && frame.includes('No, exit'), 'the trust choices did not fit 80x24; check the layout of src/components/TrustDialog/TrustDialog.tsx (shortFrame branch)')
+  check('trust keeps the frame navigation hint exactly once', hints.length === 1 && hints[0]?.includes('↑↓ move · ↵ select · esc exit') === true, JSON.stringify(hints) + ' - the trust step footer comes from the footer prop in src/boot/setupScreens.tsx (showSetupScreens); the card in src/screen/trust-dialog/TrustDialog.tsx must not repeat it')
+  check('the duplicate card hint is gone', !frame.includes('confirm') && !frame.includes('esc exits'), 'the trust card repeats the frame hint; remove the extra hint text from src/screen/trust-dialog/TrustDialog.tsx or the footer in src/boot/setupScreens.tsx')
+  check('the trust choices remain visible at 80x24', frame.includes('Yes, I trust this folder') && frame.includes('No, exit'), 'the trust choices did not fit 80x24; check the layout of src/screen/trust-dialog/TrustDialog.tsx (shortFrame branch)')
   mounted.push('\x03')
   await sees('press ctrl+c again to close Mercury')
-  check('the first exit chord still paints its confirmation', mounted.screen().includes('press ctrl+c again to close Mercury'), 'ctrl+c on the trust step must show the exit-chord notice; see exitState and exitChordNoticeText in src/components/TrustDialog/TrustDialog.tsx')
+  check('the first exit chord still paints its confirmation', mounted.screen().includes('press ctrl+c again to close Mercury'), 'ctrl+c on the trust step must show the exit-chord notice; see exitState and exitChordNoticeText in src/screen/trust-dialog/TrustDialog.tsx')
 } finally {
   mounted.unmount()
   if (stdoutTty) Object.defineProperty(process.stdout, 'isTTY', stdoutTty)

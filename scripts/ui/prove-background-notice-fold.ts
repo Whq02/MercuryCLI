@@ -14,13 +14,13 @@ const check = (name: string, ok: boolean, detail?: string): void => {
   } else {
     failures++
     console.error(`  RED ${name}${detail ? ` — ${detail}` : ''}`)
-    console.error('      hint: the folding of background shell notices is collapseBackgroundBashNotifications (and shellNoticeOf, shellNoticesOf) in src/utils/collapseBackgroundBashNotifications.ts, called from composeTranscript in src/components/messagesList/transcript.ts; for the bundle checks rebuild dist/mercury.mjs first')
+    console.error('      hint: the folding of background shell notices is collapseBackgroundBashNotifications (and shellNoticeOf, shellNoticesOf) in src/screen/messages-list/foldShellNotices.ts, called from composeTranscript in src/screen/messages-list/transcript.ts; for the bundle checks rebuild dist/mercury.mjs first')
   }
 }
 
-const fold = await import('../../src/utils/collapseBackgroundBashNotifications.ts')
-const { BACKGROUND_BASH_SUMMARY_PREFIX } = await import('../../src/tasks/LocalShellTask/LocalShellTask.tsx')
-const { extractTag } = await import('../../src/services/messages.ts')
+const fold = await import('../../src/screen/messages-list/foldShellNotices.ts')
+const { BACKGROUND_BASH_SUMMARY_PREFIX } = await import('../../src/engine/tasks/local-shell/shellTask.tsx')
+const { extractTag } = await import('../../src/engine/messages/messages.ts')
 
 type Row = Record<string, unknown> & { type: string; uuid: string; timestamp: string; queued?: true }
 type Outcome = 'completed' | 'failed' | 'killed'
@@ -132,7 +132,7 @@ console.log('§2 the real bundle — one folded row in the chat, the three in th
     console.log(`  (skipped: capture driver ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind})`)
   } else {
     const { CONFIG_HOME, RUNTIME_CWD, SID, cleanupScenario, encodeFixtureTranscript, scenario } = await import('./renderScenarios.ts')
-    const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+    const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
     const cfg = scenario('cockpit-scrolled', 150, 40) as Record<string, unknown>
     const base = (extra: Record<string, unknown>): Record<string, unknown> => ({ isSidechain: false, userType: 'external', entrypoint: 'cli', cwd: RUNTIME_CWD, sessionId: SID, version: '1.0.0-beta.1', gitBranch: 'main', ...extra })
     const U1 = '00000000-0000-4000-8000-000000000001'

@@ -13,7 +13,7 @@ process.env.MERCURY_DESKTOP_DRIVER = 'none'
 
 let failures = 0
 let checks = 0
-const GAUGE_PLAN_WHERE = 'change planToolPayloadUnseeded and planToolPayload in src/services/providers/toolEconomy.ts (the unseeded plan reads a latch and never writes one; the lane plan seeds the latch and spends the restored record), or the turn machine in src/run-core/turn-machine.ts'
+const GAUGE_PLAN_WHERE = 'change planToolPayloadUnseeded and planToolPayload in src/models/roads/toolEconomy.ts (the unseeded plan reads a latch and never writes one; the lane plan seeds the latch and spends the restored record), or the turn machine in src/engine/loop/turn-machine.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -23,21 +23,21 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { z } = await import('zod')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { planToolPayload, planToolPayloadUnseeded, toolsOnTheWire, toolRosterLatchFor, clearToolRosterLatches, armToolRosterRestore, clearToolRosterRestore, conversationRosterKey } = await import('../../src/services/providers/toolEconomy.ts')
-const { rosterOwnerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
-const { runEventCore } = await import('../../src/run-core/turn-machine.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Message = import('../../src/types/message.ts').Message
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { planToolPayload, planToolPayloadUnseeded, toolsOnTheWire, toolRosterLatchFor, clearToolRosterLatches, armToolRosterRestore, clearToolRosterRestore, conversationRosterKey } = await import('../../src/models/roads/toolEconomy.ts')
+const { rosterOwnerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { runEventCore } = await import('../../src/engine/loop/turn-machine.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 function fixtureTool(name: string, flags: { shouldDefer?: boolean } = {}): Tool {
   return {
@@ -184,7 +184,7 @@ section('§3 the owners: the gauge and the local warm read the one unseeded plan
   check(
     'the request gauge plans through planToolPayloadUnseeded: a pool the planner plans as another gives the request the same fixed part, and a pool it plans otherwise gives another',
     beside.planned === alone.planned && deferring.planned !== alone.planned && alone.fixed !== 'no gauge' && deferring.fixed !== 'no gauge' && beside.fixed === alone.fixed && deferring.fixed !== alone.fixed,
-    `makeRequest (src/run-core/turn/makeRequest.ts) must size the request's fixed part from toolsOnTheWire(planToolPayloadUnseeded({ …, source: 'gauge' })), never from the pool it is handed; the planner's roster and the fixed part the reply was stamped with read ${JSON.stringify(sized)}`,
+    `makeRequest (src/engine/loop/turn/makeRequest.ts) must size the request's fixed part from toolsOnTheWire(planToolPayloadUnseeded({ …, source: 'gauge' })), never from the pool it is handed; the planner's roster and the fixed part the reply was stamped with read ${JSON.stringify(sized)}`,
   )
   const runnable = { ...plain, mapToolResultToToolResultBlockParam: (data: unknown, toolUseId: string) => ({ type: 'tool_result', tool_use_id: toolUseId, content: String(data) }) } as unknown as Tool
   const round = await turnWhoseLaneNeverPlans([runnable, ToolSearchTool as never, fixtureTool('F', { shouldDefer: true })], { toolRound: true, restore: true })
@@ -192,7 +192,7 @@ section('§3 the owners: the gauge and the local warm read the one unseeded plan
   check(
     'nothing else in the turn machine plans: over a run of two model calls and a tool round whose lane never plans, the conversation stays unlatched and the restored record unspent, so the lane\'s first plan after it still names the retired tool',
     round.ended === 'completed' && round.latchedAtCall === 'false,false' && round.latchedAfter === false && laneFirst === 'RetiredTool',
-    `no step under src/run-core/turn/ may plan with a latch key: planToolPayload seeds the conversation's roster and spends the restored record, and the gauge's plan is the unseeded one; the run ended ${round.ended}, the latch read [${round.latchedAtCall}] at its model calls and ${String(round.latchedAfter)} after it, and the lane's first plan after it names ${laneFirst}`,
+    `no step under src/engine/loop/turn/ may plan with a latch key: planToolPayload seeds the conversation's roster and spends the restored record, and the gauge's plan is the unseeded one; the run ended ${round.ended}, the latch read [${round.latchedAtCall}] at its model calls and ${String(round.latchedAfter)} after it, and the lane's first plan after it names ${laneFirst}`,
   )
   clearToolRosterLatches()
   clearToolRosterRestore()

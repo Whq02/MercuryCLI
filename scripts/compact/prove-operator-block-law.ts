@@ -18,24 +18,24 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix: the operator-messages block in src/utils/compact/operatorMessages.ts (selectOperatorMessages, operatorMessagesBlockText), its place in buildPostCompactMessages (src/services/compact/compact/result.ts), or the wire projection normalizeMessagesForAPI (src/services/messages/apiView.ts)'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix: the operator-messages block in src/engine/compaction-window/operatorMessages.ts (selectOperatorMessages, operatorMessagesBlockText), its place in buildPostCompactMessages (src/engine/compaction/fold/foldResult.ts), or the wire projection normalizeMessagesForAPI (src/engine/messages/apiView.ts)'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.ts')
-const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { normalizeMessagesForAPI } = await import('../../src/services/messages/apiView.ts')
-const { buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
-const { selectOperatorMessages, operatorMessagesBlockText, OPERATOR_MESSAGES_ATTACHMENT_TYPE } = await import('../../src/utils/compact/operatorMessages.ts')
-const { getCompactUserSummaryMessage } = await import('../../src/services/compact/prompt.ts')
-const { computeVerbatimRecentTail } = await import('../../src/services/compact/verbatimTail.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { normalizeMessagesForAPI } = await import('../../src/engine/messages/apiView.ts')
+const { buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { selectOperatorMessages, operatorMessagesBlockText, OPERATOR_MESSAGES_ATTACHMENT_TYPE } = await import('../../src/engine/compaction-window/operatorMessages.ts')
+const { getCompactUserSummaryMessage } = await import('../../src/engine/compaction/summariserPrompt.ts')
+const { computeVerbatimRecentTail } = await import('../../src/engine/compaction/verbatimTail.ts')
 
 const BLOCK_HEADER = "The operator's own messages from this stretch and the earlier folds"
 const SUMMARY_HEADER = 'The context window turned over'

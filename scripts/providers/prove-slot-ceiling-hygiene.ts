@@ -14,9 +14,9 @@ delete process.env.ANTHROPIC_API_KEY
 let failures = 0
 let checks = 0
 const SECTION_FIX: Record<string, string> = {
-  '§A': 'change signinCeilingRefusal in src/services/providers/accountSlots.ts',
-  '§B': 'change scanAccountScopes in src/utils/accounts/scopeScan.ts, or the OAuth token save (saveOAuthTokensIfNeeded) in src/utils/auth.ts or src/services/auth/oauthLifecycle.ts so a second save replaces the stored slot',
-  '§D': 'change deriveFamilySlotGroups or maskedKeyTail in src/services/providers/accountSlots.ts so a slot field never carries more than the last four characters of a key',
+  '§A': 'change signinCeilingRefusal in src/models/roads/accountSlots.ts',
+  '§B': 'change scanAccountScopes in src/models/sign-in/account-ledger/scopeScan.ts, or the OAuth token save (saveOAuthTokensIfNeeded) in src/models/sign-in/credentials/auth.ts or src/models/sign-in/lifecycle/oauthLifecycle.ts so a second save replaces the stored slot',
+  '§D': 'change deriveFamilySlotGroups or maskedKeyTail in src/models/roads/accountSlots.ts so a slot field never carries more than the last four characters of a key',
 }
 let sectionKey = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -31,12 +31,12 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const slots = await import('../../src/services/providers/accountSlots.ts')
-const scopes = await import('../../src/utils/accounts/scopeScan.ts')
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
-const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/constants/oauth.ts')
+const slots = await import('../../src/models/roads/accountSlots.ts')
+const scopes = await import('../../src/models/sign-in/account-ledger/scopeScan.ts')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
+const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/models/sign-in/oauth/oauth.ts')
 
 section('§A the typed ceiling refusal — boundary-exact, family-named')
 {
@@ -74,7 +74,7 @@ section('§B the structural universe — one scope, replace-on-save')
 section('§D masked tails — planted long keys never surface beyond last-four')
 {
   const KEY = (name: string): string => `sk-${name}-SECRETBODY-0123456789abcdef-${name}TAIL`
-  const reads: import('../../src/services/providers/accountSlots.ts').AccountSlotReads = {
+  const reads: import('../../src/models/roads/accountSlots.ts').AccountSlotReads = {
     scanScopes: () => [{ name: 'primary', dir: process.env.MERCURY_CONFIG_DIR!, isCurrent: true, hasConfig: false, foreignHarness: false, authed: true }] as never,
     anthropicApiKey: () => ({ key: KEY('anthropic'), source: 'credentials.keyCommand' as never }),
     zaiEnvKey: () => KEY('zai'),

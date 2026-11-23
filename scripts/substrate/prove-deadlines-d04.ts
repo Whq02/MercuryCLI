@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { EventEmitter } from 'node:events'
 import { Writable } from 'node:stream'
-import { drainPipedStdoutForExit, observeStdoutPressure } from '../../src/utils/gracefulShutdown.js'
+import { drainPipedStdoutForExit, observeStdoutPressure } from '../../src/platform/processes/gracefulShutdown.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -31,8 +31,8 @@ section('gracefulShutdown: drainPipedStdoutForExit settles on stream drain/error
   }, 5)
   const result = await drainPipedStdoutForExit(emitter, STAND_IN_POLL_MS)
   const elapsed = Math.round(performance.now() - t0)
-  check('an emitting stream settles on drain well before the stood-in poll period', result.drained && result.remainingBytes === 0 && elapsed < SETTLE_CEILING_MS, `drained=${result.drained} remaining=${result.remainingBytes} elapsed=${elapsed}ms; make drainPipedStdoutForExit in src/utils/gracefulShutdown.ts resolve on the stream drain event instead of waiting for its poll period`)
-  check('no timer or drain listener is left behind after drain', activeTimeouts() === baseTimers && emitter.listenerCount('drain') === 0, `timers=${activeTimeouts() - baseTimers} listeners=${emitter.listenerCount('drain')}; drainPipedStdoutForExit in src/utils/gracefulShutdown.ts must clear its timer and remove its drain listener when it settles`)
+  check('an emitting stream settles on drain well before the stood-in poll period', result.drained && result.remainingBytes === 0 && elapsed < SETTLE_CEILING_MS, `drained=${result.drained} remaining=${result.remainingBytes} elapsed=${elapsed}ms; make drainPipedStdoutForExit in src/platform/processes/gracefulShutdown.ts resolve on the stream drain event instead of waiting for its poll period`)
+  check('no timer or drain listener is left behind after drain', activeTimeouts() === baseTimers && emitter.listenerCount('drain') === 0, `timers=${activeTimeouts() - baseTimers} listeners=${emitter.listenerCount('drain')}; drainPipedStdoutForExit in src/platform/processes/gracefulShutdown.ts must clear its timer and remove its drain listener when it settles`)
 }
 
 {
@@ -57,8 +57,8 @@ section('gracefulShutdown: drainPipedStdoutForExit settles on stream drain/error
   }, 5)
   const result = await drainPipedStdoutForExit(blind, STAND_IN_POLL_MS)
   const elapsed = Math.round(performance.now() - t0)
-  check('an observed blind stream settles on drain well before the stood-in poll period', result.drained && elapsed < SETTLE_CEILING_MS, `drained=${result.drained} elapsed=${elapsed}ms; observeStdoutPressure and drainPipedStdoutForExit in src/utils/gracefulShutdown.ts must settle on a drain event from an observed stream`)
-  check('no timer is left behind after observed drain', activeTimeouts() === baseTimers, `timers=${activeTimeouts() - baseTimers}; drainPipedStdoutForExit in src/utils/gracefulShutdown.ts must clear its timer once the observed drain event settles it`)
+  check('an observed blind stream settles on drain well before the stood-in poll period', result.drained && elapsed < SETTLE_CEILING_MS, `drained=${result.drained} elapsed=${elapsed}ms; observeStdoutPressure and drainPipedStdoutForExit in src/platform/processes/gracefulShutdown.ts must settle on a drain event from an observed stream`)
+  check('no timer is left behind after observed drain', activeTimeouts() === baseTimers, `timers=${activeTimeouts() - baseTimers}; drainPipedStdoutForExit in src/platform/processes/gracefulShutdown.ts must clear its timer once the observed drain event settles it`)
 }
 
 {
@@ -83,8 +83,8 @@ section('gracefulShutdown: drainPipedStdoutForExit settles on stream drain/error
   }, 5)
   const result = await drainPipedStdoutForExit(broken, STAND_IN_POLL_MS)
   const elapsed = Math.round(performance.now() - t0)
-  check('an observed stream settles on EPIPE well before the stood-in poll period', !result.drained && elapsed < SETTLE_CEILING_MS, `drained=${result.drained} elapsed=${elapsed}ms; observeStdoutPressure and drainPipedStdoutForExit in src/utils/gracefulShutdown.ts must settle with drained false on an error event from an observed stream`)
-  check('no timer is left behind after observed EPIPE', activeTimeouts() === baseTimers, `timers=${activeTimeouts() - baseTimers}; drainPipedStdoutForExit in src/utils/gracefulShutdown.ts must clear its timer once the error event settles it`)
+  check('an observed stream settles on EPIPE well before the stood-in poll period', !result.drained && elapsed < SETTLE_CEILING_MS, `drained=${result.drained} elapsed=${elapsed}ms; observeStdoutPressure and drainPipedStdoutForExit in src/platform/processes/gracefulShutdown.ts must settle with drained false on an error event from an observed stream`)
+  check('no timer is left behind after observed EPIPE', activeTimeouts() === baseTimers, `timers=${activeTimeouts() - baseTimers}; drainPipedStdoutForExit in src/platform/processes/gracefulShutdown.ts must clear its timer once the error event settles it`)
 }
 
 {
@@ -103,8 +103,8 @@ section('gracefulShutdown: drainPipedStdoutForExit settles on stream drain/error
   }, 10)
   const result = await drainPipedStdoutForExit(stream, STAND_IN_POLL_MS)
   const elapsed = Math.round(performance.now() - t0)
-  check('a real Writable under backpressure settles on Node drain well before the stood-in poll period', !accepted && result.drained && result.remainingBytes === 0 && elapsed < SETTLE_CEILING_MS, `accepted=${accepted} drained=${result.drained} remaining=${result.remainingBytes} elapsed=${elapsed}ms; drainPipedStdoutForExit in src/utils/gracefulShutdown.ts must settle on the drain event of a real Writable under backpressure`)
-  check('no timer or drain listener is left behind on the Writable', activeTimeouts() === baseTimers && stream.listenerCount('drain') === 0, `timers=${activeTimeouts() - baseTimers} listeners=${stream.listenerCount('drain')}; drainPipedStdoutForExit in src/utils/gracefulShutdown.ts must clear its timer and remove its drain listener when it settles`)
+  check('a real Writable under backpressure settles on Node drain well before the stood-in poll period', !accepted && result.drained && result.remainingBytes === 0 && elapsed < SETTLE_CEILING_MS, `accepted=${accepted} drained=${result.drained} remaining=${result.remainingBytes} elapsed=${elapsed}ms; drainPipedStdoutForExit in src/platform/processes/gracefulShutdown.ts must settle on the drain event of a real Writable under backpressure`)
+  check('no timer or drain listener is left behind on the Writable', activeTimeouts() === baseTimers && stream.listenerCount('drain') === 0, `timers=${activeTimeouts() - baseTimers} listeners=${stream.listenerCount('drain')}; drainPipedStdoutForExit in src/platform/processes/gracefulShutdown.ts must clear its timer and remove its drain listener when it settles`)
 }
 
 console.log(failures === 0 ? '\nprove-deadlines-d04: green' : `\nprove-deadlines-d04: ${failures} failed`)

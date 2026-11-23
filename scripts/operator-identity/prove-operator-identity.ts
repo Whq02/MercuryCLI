@@ -11,13 +11,13 @@ process.env.USER = 'opid-tester'
 
 import { createHash } from 'node:crypto'
 
-const identity = await import('../../src/substrate/identity/identity.js')
-const keys = await import('../../src/substrate/identity/operatorKey.js')
+const identity = await import('../../src/platform/substrate/identity/identity.js')
+const keys = await import('../../src/platform/substrate/identity/operatorKey.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix ensureOperatorKey, operatorKeyPath, operatorKeyId, signAsOperator or verifyOperatorSignature in src/substrate/identity/operatorKey.ts, or operatorPrincipal and assistantPrincipal in src/substrate/identity/identity.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix ensureOperatorKey, operatorKeyPath, operatorKeyId, signAsOperator or verifyOperatorSignature in src/platform/substrate/identity/operatorKey.ts, or operatorPrincipal and assistantPrincipal in src/platform/substrate/identity/identity.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

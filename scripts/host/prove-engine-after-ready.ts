@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
-import { engineDeathAfterReady, waitHostEngine, type HostRunner, type SshTarget } from '../../src/services/host/ssh.ts'
-import { currentHostRecipes } from '../../src/services/host/recipesFile.ts'
+import { engineDeathAfterReady, waitHostEngine, type HostRunner, type SshTarget } from '../../src/models/hosting/ssh.ts'
+import { currentHostRecipes } from '../../src/models/hosting/recipesFile.ts'
 
 let checks = 0
 const check = (name: string, truth: unknown, detail = ''): void => { assert.ok(truth, name + (detail ? '\n' + detail : '')); checks++; console.log('PASS ' + name) }
@@ -27,13 +27,13 @@ const health = (remote: string): boolean => remote.includes('/health')
 console.log('§1 an engine that died after READY is read as a death with its own reason, never as a dropped tunnel')
 const oomRunner = fakeRunner(remote => poll(remote) ? 'launch.log:\n[TP2] Freezing GC in Scheduler process\nMERCURY_ENGINE_EXITED\nMERCURY_ENGINE_CAUSE torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.00 GiB. GPU 1 has a total capacity of 178.37 GiB of which 364.00 MiB is free\n' : '')
 const death = await engineDeathAfterReady(target, recipe, oomRunner, signal)
-check('a dead engine answers with its cause', death instanceof Error && death.message.startsWith('the engine died after setup: ') && /out of memory/i.test(death.message), death?.message + '\nchange engineDeathAfterReady / engineDeathAfterReadyWords in src/services/host/ssh.ts so a death carries the engine cause line')
-check('the reason is the engine’s own line, not a frame', death instanceof Error && !/\+0x[0-9a-f]+\)\[0x/.test(death.message), death?.message + '\nchange the cause-line selection in src/services/host/ssh.ts so stack frames are skipped')
+check('a dead engine answers with its cause', death instanceof Error && death.message.startsWith('the engine died after setup: ') && /out of memory/i.test(death.message), death?.message + '\nchange engineDeathAfterReady / engineDeathAfterReadyWords in src/models/hosting/ssh.ts so a death carries the engine cause line')
+check('the reason is the engine’s own line, not a frame', death instanceof Error && !/\+0x[0-9a-f]+\)\[0x/.test(death.message), death?.message + '\nchange the cause-line selection in src/models/hosting/ssh.ts so stack frames are skipped')
 const liveRunner = fakeRunner(remote => poll(remote) ? '[TP0] Decode batch. #running-req: 1\n' : '')
-check('a live engine answers nothing, so the tunnel road goes on', await engineDeathAfterReady(target, recipe, liveRunner, signal) === undefined, 'engineDeathAfterReady in src/services/host/ssh.ts must return undefined when the poll output has no MERCURY_ENGINE_EXITED')
+check('a live engine answers nothing, so the tunnel road goes on', await engineDeathAfterReady(target, recipe, liveRunner, signal) === undefined, 'engineDeathAfterReady in src/models/hosting/ssh.ts must return undefined when the poll output has no MERCURY_ENGINE_EXITED')
 const exitedQuietly = fakeRunner(remote => poll(remote) ? 'MERCURY_ENGINE_EXITED\n' : '')
 const quiet = await engineDeathAfterReady(target, recipe, exitedQuietly, signal)
-check('an engine that exited without a captured line still reads as a death', quiet instanceof Error && quiet.message === 'the engine died after setup: the engine process exited', quiet?.message + '\nchange engineDeathAfterReadyWords in src/services/host/ssh.ts so an exit with no cause line reads "the engine process exited"')
+check('an engine that exited without a captured line still reads as a death', quiet instanceof Error && quiet.message === 'the engine died after setup: the engine process exited', quiet?.message + '\nchange engineDeathAfterReadyWords in src/models/hosting/ssh.ts so an exit with no cause line reads "the engine process exited"')
 
 console.log('§2 the engine clock keeps running while the engine log keeps moving, and stops when it stops')
 let line = 0
@@ -44,12 +44,12 @@ const progressing = fakeRunner(remote => {
 })
 const t0 = Date.now()
 await waitHostEngine(target, recipe, progressing, signal, 20, 60, () => {}, 10_000)
-check('an engine still printing progress is given time past the budget and reaches READY', line >= 12 && Date.now() - t0 >= 60, 'polls ' + line + ' · ' + (Date.now() - t0) + ' ms\nchange waitHostEngine in src/services/host/ssh.ts so new engine log lines extend the deadline')
+check('an engine still printing progress is given time past the budget and reaches READY', line >= 12 && Date.now() - t0 >= 60, 'polls ' + line + ' · ' + (Date.now() - t0) + ' ms\nchange waitHostEngine in src/models/hosting/ssh.ts so new engine log lines extend the deadline')
 const silent = fakeRunner(remote => poll(remote) ? 'loading weights\n' : health(remote) ? new Error('curl: (7) connection refused') : '')
 const t1 = Date.now()
 const stalled = await waitHostEngine(target, recipe, silent, signal, 20, 60, () => {}, 150).then(() => undefined, (error: unknown) => error)
-check('an engine that prints nothing new stops at the budget plus the grace', stalled instanceof Error && /Engine not ready/.test(stalled.message) && Date.now() - t1 < 2000, String(stalled) + '\nchange waitHostEngine in src/services/host/ssh.ts so a silent log stops at the budget plus progressGraceMs with an "Engine not ready" error')
+check('an engine that prints nothing new stops at the budget plus the grace', stalled instanceof Error && /Engine not ready/.test(stalled.message) && Date.now() - t1 < 2000, String(stalled) + '\nchange waitHostEngine in src/models/hosting/ssh.ts so a silent log stops at the budget plus progressGraceMs with an "Engine not ready" error')
 
 console.log('§3 the keep-alive road asks the engine before it reconnects, and the notice names the choice')
-check('an out-of-memory death after setup never carries the loading-time shape verdict', death instanceof Error && !death.message.includes('too small') && death.message.includes('the engine ran out of GPU memory after setup · Resume restarts it; a shorter conversation or the Tune screen’s smaller context fits'), death?.message + '\nchange the out-of-memory wording that engineDeathAfterReadyWords in src/services/host/ssh.ts appends')
+check('an out-of-memory death after setup never carries the loading-time shape verdict', death instanceof Error && !death.message.includes('too small') && death.message.includes('the engine ran out of GPU memory after setup · Resume restarts it; a shorter conversation or the Tune screen’s smaller context fits'), death?.message + '\nchange the out-of-memory wording that engineDeathAfterReadyWords in src/models/hosting/ssh.ts appends')
 console.log('ENGINE AFTER READY GREEN — ' + checks + ' checks; fake runners, no machine, no network')

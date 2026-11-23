@@ -35,11 +35,11 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 const ESC = '\u001b'
 const escapes = (text: string): number => (text.match(/\u001b\[[0-9;]*[A-Za-z]/g) ?? []).length
-const plainBlockWhere = ' · the model-facing text is built by mapResultToBlock in src/tools/BashTool/resultBlock.ts, which must strip the escape sequences from stdout and stderr'
-const toolShellWhere = ' · the tool shell environment comes from TOOL_SHELL_DEFAULTS in src/utils/subprocessEnv.ts (NO_COLOR=1, FORCE_COLOR=0)'
+const plainBlockWhere = ' · the model-facing text is built by mapResultToBlock in src/tools/shell/resultBlock.ts, which must strip the escape sequences from stdout and stderr'
+const toolShellWhere = ' · the tool shell environment comes from TOOL_SHELL_DEFAULTS in src/platform/processes/subprocessEnv.ts (NO_COLOR=1, FORCE_COLOR=0)'
 
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 
 let appState = getDefaultAppState()
 const toolContext = {
@@ -76,7 +76,7 @@ try {
   await BashTool.prepare?.(input as never)
   const result = await (BashTool as unknown as Caller).call(input as never, toolContext)
   const out = result.data as Out
-  check('the process wrote the escape bytes and the tool records them (the two streams merged, as the tool promises)', out.stdout.includes(`${ESC}[31m`) && out.stdout.includes(`${ESC}[1m`), JSON.stringify(out) + ' · the BashTool call in src/tools/BashTool/BashTool.tsx must record the process bytes unchanged in stdout')
+  check('the process wrote the escape bytes and the tool records them (the two streams merged, as the tool promises)', out.stdout.includes(`${ESC}[31m`) && out.stdout.includes(`${ESC}[1m`), JSON.stringify(out) + ' · the BashTool call in src/tools/shell/BashTool.tsx must record the process bytes unchanged in stdout')
   const content = mapped(out)
   check('the model reads "red plain" and "err" with no escape byte', content.includes('red plain') && content.includes('err') && !content.includes(ESC), JSON.stringify(content) + plainBlockWhere)
 

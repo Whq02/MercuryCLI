@@ -1,10 +1,10 @@
-import { queryUtility } from '../../services/providers/anthropic/streamCore.js'
-import type { Message } from '../../types/message.js'
-import { logForDebugging } from '../../utils/debug.js'
-import { safeParseJSON } from '../../utils/json.js'
-import { extractTextContent } from '../../services/messages.js'
-import { extractConversationText } from '../../services/concourse/sessionTitle.js'
-import { asSystemPrompt } from '../../utils/systemPromptType.js'
+import { queryUtility } from '../../models/roads/anthropic/streamCore.js'
+import type { Message } from '../../engine/message-shapes/message.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
+import { safeParseJSON } from '../../platform/storage/json.js'
+import { extractTextContent } from '../../engine/messages/messages.js'
+import { extractConversationText } from '../../screen/concourse-model/sessionTitle.js'
+import { asSystemPrompt } from '../../engine/system-prompt/systemPromptType.js'
 
 const NAME_SYSTEM_PROMPT = [
   'Generate a short kebab-case name for this coding session: 2-4 words, lower-cased, joined by hyphens, capturing the main topic or goal.',

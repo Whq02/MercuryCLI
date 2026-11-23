@@ -66,7 +66,7 @@ const textsOf = (content: unknown): string[] => {
 
 section('§1 the seat page speaks local time, names /model, and the Read tool points the seat at it')
 {
-  const seat = await import('../../src/services/resources/adapters/seat.ts')
+  const seat = await import('../../src/integrations/resources/adapters/seat.ts')
   const startAt = '2026-10-12T09:00:04.000Z'
   const switchAt = '2026-10-12T09:04:06.193Z'
   const text = seat.seatReferenceText({
@@ -80,20 +80,20 @@ section('§1 the seat page speaks local time, names /model, and the Read tool po
   })
   const lines = text.split('\n')
   const engineRows = lines.filter(line => LOCAL_CLOCK.test(line))
-  check('each engine row carries the ledger time in LOCAL time with the zone in brackets (RED on the base: the raw ISO UTC string)', engineRows.length === 2 && !ISO_CLOCK.test(text), j(lines.filter(line => line.includes(FABLE) || line.includes(SONNET))) + ' | change seatReferenceText in src/services/resources/adapters/seat.ts so each engine row prints stampLocal time, not the raw ISO string')
-  check('…the start row and the switch row read the clock of this machine, not UTC', text.includes(`  ${localWords(startAt)}  ${FABLE}`) && text.includes(`  ${localWords(switchAt)}  ${SONNET}`), text + '\n      change the engine row format in seatReferenceText (src/services/resources/adapters/seat.ts) to the local clock of this machine')
-  check('the engines heading says the times are local and that the first row is the start', text.includes('local time, the zone in brackets') && text.includes('the first row is the start'), (lines.find(line => line.startsWith('engines this session')) ?? '') + ' | restore the engines heading wording in seatReferenceText (src/services/resources/adapters/seat.ts)')
-  check('the page says in its own words where the switch is made: /model for the model, /effort for the effort (RED on the base: no command named)', text.includes('switches the model with /model') && text.includes('the effort with /effort'), text + '\n      restore SEAT_SWITCH_SENTENCE in src/services/resources/adapters/seat.ts so it names /model and /effort')
-  check('…and that it is read live, so a switch already shows', text.includes('read live'), text + '\n      restore the words read live in SEAT_SWITCH_SENTENCE (src/services/resources/adapters/seat.ts)')
-  check('the evidence sentence rules out an earlier reply, an environment variable (MERCURY_MODEL) and an earlier copy of the ledger', text.includes('an earlier reply') && text.includes('MERCURY_MODEL') && text.includes('copy of the ledger'), text + '\n      restore SEAT_EVIDENCE_SENTENCE in src/services/resources/adapters/seat.ts so it names an earlier reply, MERCURY_MODEL and a copy of the ledger')
-  check('the live model still leads the page with its name', lines[0] === `model this turn runs on: ${SONNET} (Sonnet 5.5)`, String(lines[0]) + ' | the first line of seatReferenceText (src/services/resources/adapters/seat.ts) must lead with the live model')
+  check('each engine row carries the ledger time in LOCAL time with the zone in brackets (RED on the base: the raw ISO UTC string)', engineRows.length === 2 && !ISO_CLOCK.test(text), j(lines.filter(line => line.includes(FABLE) || line.includes(SONNET))) + ' | change seatReferenceText in src/integrations/resources/adapters/seat.ts so each engine row prints stampLocal time, not the raw ISO string')
+  check('…the start row and the switch row read the clock of this machine, not UTC', text.includes(`  ${localWords(startAt)}  ${FABLE}`) && text.includes(`  ${localWords(switchAt)}  ${SONNET}`), text + '\n      change the engine row format in seatReferenceText (src/integrations/resources/adapters/seat.ts) to the local clock of this machine')
+  check('the engines heading says the times are local and that the first row is the start', text.includes('local time, the zone in brackets') && text.includes('the first row is the start'), (lines.find(line => line.startsWith('engines this session')) ?? '') + ' | restore the engines heading wording in seatReferenceText (src/integrations/resources/adapters/seat.ts)')
+  check('the page says in its own words where the switch is made: /model for the model, /effort for the effort (RED on the base: no command named)', text.includes('switches the model with /model') && text.includes('the effort with /effort'), text + '\n      restore SEAT_SWITCH_SENTENCE in src/integrations/resources/adapters/seat.ts so it names /model and /effort')
+  check('…and that it is read live, so a switch already shows', text.includes('read live'), text + '\n      restore the words read live in SEAT_SWITCH_SENTENCE (src/integrations/resources/adapters/seat.ts)')
+  check('the evidence sentence rules out an earlier reply, an environment variable (MERCURY_MODEL) and an earlier copy of the ledger', text.includes('an earlier reply') && text.includes('MERCURY_MODEL') && text.includes('copy of the ledger'), text + '\n      restore SEAT_EVIDENCE_SENTENCE in src/integrations/resources/adapters/seat.ts so it names an earlier reply, MERCURY_MODEL and a copy of the ledger')
+  check('the live model still leads the page with its name', lines[0] === `model this turn runs on: ${SONNET} (Sonnet 5.5)`, String(lines[0]) + ' | the first line of seatReferenceText (src/integrations/resources/adapters/seat.ts) must lead with the live model')
 
-  const { readTargetPromptLines } = await import('../../src/tools/FileReadTool/readTarget.ts')
+  const { readTargetPromptLines } = await import('../../src/tools/read/readTarget.ts')
   const readLines = readTargetPromptLines()
-  check('the Read tool (always loaded) tells the seat that mercury://seat is its own record and what it holds (Inspect is deferred, so the fact rides Read)', readLines.includes("mercury://seat is this seat's own") && readLines.includes('the model, effort and posture this turn runs on'), readLines + ' | restore the mercury://seat sentence in readTargetPromptLines (src/tools/FileReadTool/readTarget.ts)')
-  check('…as a fact, not a rule: no "never from an earlier reply" sentence rides the tool text (the result of reading the record answers the question)', !readLines.includes('never from an earlier reply') && !readLines.includes('the ledger file'), readLines + ' | remove the rule wording from readTargetPromptLines (src/tools/FileReadTool/readTarget.ts)')
-  const { InspectTool } = await import('../../src/tools/InspectTool/InspectTool.ts')
-  check('the Inspect tool is deferred, which is why the pointer must ride Read', (InspectTool as { shouldDefer?: boolean }).shouldDefer === true, 'InspectTool.shouldDefer in src/tools/InspectTool/InspectTool.ts is no longer true; if Inspect now loads up front, the pointer on Read may be dropped, otherwise set shouldDefer back to true')
+  check('the Read tool (always loaded) tells the seat that mercury://seat is its own record and what it holds (Inspect is deferred, so the fact rides Read)', readLines.includes("mercury://seat is this seat's own") && readLines.includes('the model, effort and posture this turn runs on'), readLines + ' | restore the mercury://seat sentence in readTargetPromptLines (src/tools/read/readTarget.ts)')
+  check('…as a fact, not a rule: no "never from an earlier reply" sentence rides the tool text (the result of reading the record answers the question)', !readLines.includes('never from an earlier reply') && !readLines.includes('the ledger file'), readLines + ' | remove the rule wording from readTargetPromptLines (src/tools/read/readTarget.ts)')
+  const { InspectTool } = await import('../../src/tools/inspect/InspectTool.ts')
+  check('the Inspect tool is deferred, which is why the pointer must ride Read', (InspectTool as { shouldDefer?: boolean }).shouldDefer === true, 'InspectTool.shouldDefer in src/tools/inspect/InspectTool.ts is no longer true; if Inspect now loads up front, the pointer on Read may be dropped, otherwise set shouldDefer back to true')
 }
 
 const DIST = join(import.meta.dir, '..', '..', 'dist', 'mercury.mjs')
@@ -114,7 +114,7 @@ if (!existsSync(DIST)) {
       { kind: 'text', text: 'SL-S1', model: SONNET },
     ]
     const fixture = await startFixtureApi(turns, { apiChecks: true })
-    const { stampSpawnReceipt } = await import('../../src/substrate/envStamps.ts')
+    const { stampSpawnReceipt } = await import('../../src/platform/substrate/envStamps.ts')
     const env: Record<string, string | undefined> = {
       HOME: home,
       PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
@@ -148,7 +148,7 @@ if (!existsSync(DIST)) {
     } catch (thrown) {
       error = thrown instanceof Error ? thrown.message : String(thrown)
     }
-    check('the three turns settled (two through a Read of mercury://seat, one through a Bash echo of the stamp)', error === '', (error || host.stderr().slice(-800)) + ' | the runner did not settle all three turns; the host verbs are in src/runner/wire/sessionVerbs.ts (session/set_model)')
+    check('the three turns settled (two through a Read of mercury://seat, one through a Bash echo of the stamp)', error === '', (error || host.stderr().slice(-800)) + ' | the runner did not settle all three turns; the host verbs are in src/daemon/runner-wire/sessionVerbs.ts (session/set_model)')
     const requests = fixture.messageRequests().map(r => r.body as { model?: string; messages?: Array<{ content?: unknown }> })
     const seatTextsIn = (index: number): string =>
       ((requests[index]?.messages ?? [])
@@ -159,17 +159,17 @@ if (!existsSync(DIST)) {
         .map(line => line.replace(/^\d+\t/, ''))
         .join('\n')
     const firstSeat = seatTextsIn(2)
-    check('after the first switch the request dispatches on the new model', requests[2]?.model === OPUS, j(requests.map(r => r.model)) + ' | session/set_model (declared in src/runner/wire/sessionVerbs.ts) must change the model the next request dispatches on')
-    check('the seat page read after the first switch names the LIVE engine', firstSeat.includes(`model this turn runs on: ${OPUS}`) && !firstSeat.includes(`model this turn runs on: ${FABLE}`), firstSeat + '\n      the seat page must read the live model after a switch (seatReference and seatReferenceText in src/services/resources/adapters/seat.ts)')
+    check('after the first switch the request dispatches on the new model', requests[2]?.model === OPUS, j(requests.map(r => r.model)) + ' | session/set_model (declared in src/daemon/runner-wire/sessionVerbs.ts) must change the model the next request dispatches on')
+    check('the seat page read after the first switch names the LIVE engine', firstSeat.includes(`model this turn runs on: ${OPUS}`) && !firstSeat.includes(`model this turn runs on: ${FABLE}`), firstSeat + '\n      the seat page must read the live model after a switch (seatReference and seatReferenceText in src/integrations/resources/adapters/seat.ts)')
     const firstRows = firstSeat.split('\n').filter(line => LOCAL_CLOCK.test(line))
-    check('…and lists the start engine and the switch, each in local time with the zone (RED on the base: ISO UTC)', firstRows.length === 2 && firstRows[0]!.includes(FABLE) && firstRows[1]!.includes(OPUS) && !ISO_CLOCK.test(firstSeat), firstSeat + '\n      engine rows must be start then switch in local time (seatReferenceText in src/services/resources/adapters/seat.ts)')
-    check('…and names /model as the place the switch is made', firstSeat.includes('/model'), firstSeat + '\n      SEAT_SWITCH_SENTENCE in src/services/resources/adapters/seat.ts must name /model')
+    check('…and lists the start engine and the switch, each in local time with the zone (RED on the base: ISO UTC)', firstRows.length === 2 && firstRows[0]!.includes(FABLE) && firstRows[1]!.includes(OPUS) && !ISO_CLOCK.test(firstSeat), firstSeat + '\n      engine rows must be start then switch in local time (seatReferenceText in src/integrations/resources/adapters/seat.ts)')
+    check('…and names /model as the place the switch is made', firstSeat.includes('/model'), firstSeat + '\n      SEAT_SWITCH_SENTENCE in src/integrations/resources/adapters/seat.ts must name /model')
     const stampTexts = (requests[4]?.messages ?? []).flatMap(m => textsOf(m.content)).filter(text => text.includes('stamp='))
     check('the session stamp a Bash call inherits names the engine running NOW, not the one the session started on (RED on the base: the start model for the session\'s life)', stampTexts.some(text => text.includes(`stamp=${SONNET}`)) && !stampTexts.some(text => text.includes(`stamp=${FABLE}`)), j(stampTexts) + ' | the MERCURY_MODEL stamp a Bash call inherits must follow the live engine after session/set_model, not the start model')
     const secondSeat = seatTextsIn(5)
-    check('the seat page read after the second switch names the live engine again', secondSeat.includes(`model this turn runs on: ${SONNET}`), secondSeat + '\n      the seat page must read the live model after the second switch (seatReference in src/services/resources/adapters/seat.ts)')
+    check('the seat page read after the second switch names the live engine again', secondSeat.includes(`model this turn runs on: ${SONNET}`), secondSeat + '\n      the seat page must read the live model after the second switch (seatReference in src/integrations/resources/adapters/seat.ts)')
     const secondRows = secondSeat.split('\n').filter(line => LOCAL_CLOCK.test(line))
-    check('…and lists all three engines in order, the start and both switches, in local time', secondRows.length === 3 && secondRows[0]!.includes(FABLE) && secondRows[1]!.includes(OPUS) && secondRows[2]!.includes(SONNET), secondSeat + '\n      every switch must add one engine row in order (seatReferenceText in src/services/resources/adapters/seat.ts)')
+    check('…and lists all three engines in order, the start and both switches, in local time', secondRows.length === 3 && secondRows[0]!.includes(FABLE) && secondRows[1]!.includes(OPUS) && secondRows[2]!.includes(SONNET), secondSeat + '\n      every switch must add one engine row in order (seatReferenceText in src/integrations/resources/adapters/seat.ts)')
     const firstSystem = requests[0]?.messages === undefined ? '' : JSON.stringify((requests[0] as { system?: unknown }).system ?? '')
     check('the system prompt carries no engine stamp for the model to quote', !firstSystem.includes('the model you run through Mercury is'), firstSystem.slice(0, 200) + ' | remove the engine stamp sentence from the system prompt; the model reads its engine from mercury://seat')
     clearTimeout(killer)

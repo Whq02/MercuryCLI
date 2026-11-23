@@ -5,8 +5,8 @@ import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import { z } from 'zod/v4'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'DEEPSEEK_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'HF_TOKEN', 'ZAI_API_KEY', 'MOONSHOT_API_KEY', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -26,10 +26,10 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   if (path === '/proxy/v1/responses') {
     const body = await req.json() as Record<string, any>
     captures.push({ path, body, bearer: req.headers.get('authorization') === 'Bearer fixture-subscription-access', headers: Object.fromEntries(req.headers.entries()) })
-    assert.ok(!/opencode|openclaw|hermes/i.test(req.headers.get('user-agent') ?? ''), 'xAI subscription user-agent in src/services/providers/xai/ must not carry foreign agent tokens')
+    assert.ok(!/opencode|openclaw|hermes/i.test(req.headers.get('user-agent') ?? ''), 'xAI subscription user-agent in src/models/roads/xai/ must not carry foreign agent tokens')
     assert.equal(req.headers.get('X-XAI-Token-Auth'), 'xai-grok-cli')
     assert.equal(req.headers.get('x-grok-model-override'), body.model)
-    assert.ok(req.headers.get('x-grok-client-version'), 'xAI subscription request in src/services/providers/xai/ must send x-grok-client-version header')
+    assert.ok(req.headers.get('x-grok-client-version'), 'xAI subscription request in src/models/roads/xai/ must send x-grok-client-version header')
     const item = mode === 'tools'
       ? { type: 'function_call', id: 'fc_sub', call_id: 'call_sub', name: 'FixtureEcho', arguments: '{"text":"subscription"}', status: 'completed' }
       : { type: 'message', id: 'msg_sub', role: 'assistant', content: [{ type: 'output_text', text: 'GROK-SUBSCRIPTION-SETTLED', annotations: [] }], status: 'completed' }
@@ -45,7 +45,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   assert.equal(path, '/v1/chat/completions')
   assert.equal(req.method, 'POST')
   const raw = await req.text()
-  assert.ok(!raw.includes(process.env.XAI_API_KEY!), 'xAI chat request body in src/services/providers/xai/ must never contain XAI_API_KEY')
+  assert.ok(!raw.includes(process.env.XAI_API_KEY!), 'xAI chat request body in src/models/roads/xai/ must never contain XAI_API_KEY')
   const body = JSON.parse(raw)
   assert.equal(req.headers.has('X-XAI-Token-Auth'), false)
   captures.push({ path, body, bearer: req.headers.get('authorization') === `Bearer ${process.env.XAI_API_KEY}`, headers: Object.fromEntries(req.headers.entries()) })
@@ -66,17 +66,17 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
 } })
 process.env.MERCURY_XAI_API_BASE = `http://127.0.0.1:${server.port}/v1`
 process.env.MERCURY_XAI_GROK_PROXY_BASE = `http://127.0.0.1:${server.port}/proxy/v1`
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
-const { refreshXaiCatalogue } = await import('../../src/services/providers/xai/xaiCatalogue.ts')
-const { decodeCompatUsage } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-const { xaiLaneProfile } = await import('../../src/services/providers/xai/xaiCallModel.ts')
-const { buildXaiExtras } = await import('../../src/services/providers/openaicompat/compatWire.ts')
-const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { resolvePrimaryAgentBackend } = await import('../../src/models/roads/primaryBackend.ts')
+const { refreshXaiCatalogue } = await import('../../src/models/roads/xai/xaiCatalogue.ts')
+const { decodeCompatUsage } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+const { xaiLaneProfile } = await import('../../src/models/roads/xai/xaiCallModel.ts')
+const { buildXaiExtras } = await import('../../src/models/roads/openaicompat/compatWire.ts')
+const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
+const { laneBillingState } = await import('../../src/models/roads/laneBillingState.ts')
 const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
 function params(model = 'grok', effortValue: string | undefined = 'max', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
   return { messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: thinking ? { type: 'enabled', budgetTokens: 4096 } : { type: 'disabled' }, signal: new AbortController().signal,
@@ -143,7 +143,7 @@ try {
   const abort = new AbortController(); abort.abort()
   const cancelled = await run({ ...params(), signal: abort.signal })
   check('pre-aborted calls return quietly with no chat request', cancelled.length === 0 && captures.length === beforeAbsent)
-  const { __resetXaiCatalogueForTest } = await import('../../src/services/providers/xai/xaiCatalogue.ts')
+  const { __resetXaiCatalogueForTest } = await import('../../src/models/roads/xai/xaiCatalogue.ts')
   __resetXaiCatalogueForTest()
   let releaseList: () => void = () => {}
   holdList = new Promise<void>(resolve => { releaseList = resolve })
@@ -158,7 +158,7 @@ try {
   clearTimeout(deadline)
   releaseList(); await pendingList
   check('cancellation during discovery does not wait for the catalogue bound', interrupted !== null && interrupted.length === 0 && captures.length === beforeAbsent)
-  const oauth = await import('../../src/services/providers/xai/xaiOauth.ts')
+  const oauth = await import('../../src/models/roads/xai/xaiOauth.ts')
   holdList = undefined; listEntered = undefined
   modelList = [{ id: 'grok-4.7', created: 7 }]
   oauth.writeXaiTokens({ accessToken: 'fixture-subscription-access', refreshToken: 'fixture-subscription-refresh', expiresAtMs: Date.now() + 3600_000 })
@@ -172,7 +172,7 @@ try {
   check('the subscription lists on the Grok proxy with its bearer, never on the API-key base', listPaths.slice(keyListPaths).length >= 1 && listPaths.slice(keyListPaths).every(row => row.path === '/proxy/v1/models' && row.bearer === 'Bearer fixture-subscription-access') && listPaths.slice(0, keyListPaths).every(row => row.path === '/v1/models'))
   check('subscription bearer rides the Grok proxy Responses road with the CLI identity headers OpenClaw sends', captures.at(-1)?.path === '/proxy/v1/responses' && captures.at(-1)?.bearer && captures.at(-1)?.headers['x-xai-token-auth'] === 'xai-grok-cli' && captures.at(-1)?.headers['x-grok-model-override'] === 'grok-4.7' && captures.at(-1)?.headers['x-grok-client-version'] === '2026.9.7')
   check('subscription uses flat function tools, typed input and stateless encrypted reasoning', subscriptionBody.tools[0].name === 'FixtureEcho' && !subscriptionBody.tools[0].function && !('defer_loading' in subscriptionBody.tools[0]) && subscriptionBody.tools.every((tool: any) => tool.type === 'function') && Array.isArray(subscriptionBody.input) && subscriptionBody.store === false && subscriptionBody.include.includes('reasoning.encrypted_content'))
-  const { foldSplitTurnsForWire } = await import('../../src/services/messages/pairing.ts')
+  const { foldSplitTurnsForWire } = await import('../../src/engine/messages/wirePairing.ts')
   check('wire normalization preserves the xAI replay record', foldSplitTurnsForWire(subscriptionTools).some(row => row.type === 'assistant' && row.xaiProviderTurn?.items.length === 2))
   check('subscription tool call settles with its own provider replay record', subscriptionTools.some(row => row.message.content.some(block => block.type === 'tool_use' && block.id === 'call_sub')) && subscriptionTools.at(-1)?.xaiProviderTurn?.items.length === 2)
   mode = 'text'
@@ -181,7 +181,7 @@ try {
   check('subscription replay preserves encrypted reasoning and pairs tool output by call id as a string the proxy accepts', input.some((row: any) => row.type === 'reasoning' && row.encrypted_content === 'fixture-encrypted') && input.some((row: any) => row.type === 'function_call_output' && row.call_id === 'call_sub' && row.output === 'subscription result'))
   check('subscription Responses text and usage settle under xAI', subText.some(row => JSON.stringify(row.message.content).includes('GROK-SUBSCRIPTION-SETTLED')) && subText.at(-1)?.message.usage?.output_tokens === 10)
   check('the proxy reasoning subset reaches the same thinking field', subText.at(-1)?.message.usage?.output_tokens_details?.thinking_tokens === 7)
-  const { xaiProxyToolOutputs } = await import('../../src/services/providers/xai/xaiResponsesTransport.ts')
+  const { xaiProxyToolOutputs } = await import('../../src/models/roads/xai/xaiResponsesTransport.ts')
   const rehomed = xaiProxyToolOutputs([
     { type: 'function_call_output', call_id: 'call_a', output: [{ type: 'input_text', text: 'shot taken' }, { type: 'input_image', image_url: 'data:image/png;base64,AAAA' }] },
     { type: 'function_call_output', call_id: 'call_b', output: 'plain' },

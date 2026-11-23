@@ -19,7 +19,7 @@ delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
 let failures = 0
 let checks = 0
 const latchFixHint =
-  'fix in src/services/anthropicLimits.ts (extractQuotaStatusFromHeaders, extractQuotaStatusFromError, anthropicWindowObserved, anthropicLimitVerdict, resetLimitsForCredentialSwitch); the meters check reads quotaWindows in src/services/cockpit/quota.ts, the fixture-seam check reads shouldProcessMockLimits in src/services/rateLimitMocking.ts, the subscriber checks read isClaudeAISubscriber in src/utils/auth.ts'
+  'fix in src/models/roads/anthropic/anthropicLimits.ts (extractQuotaStatusFromHeaders, extractQuotaStatusFromError, anthropicWindowObserved, anthropicLimitVerdict, resetLimitsForCredentialSwitch); the meters check reads quotaWindows in src/screen/cockpit-gauges/quota.ts, the fixture-seam check reads shouldProcessMockLimits in src/models/roads/anthropic/rateLimitMocking.ts, the subscriber checks read isClaudeAISubscriber in src/models/sign-in/credentials/auth.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -29,13 +29,13 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
-const limits = await import('../../src/services/anthropicLimits.ts')
-const mocking = await import('../../src/services/rateLimitMocking.ts')
-const { quotaWindows } = await import('../../src/services/cockpit/quota.ts')
-const { APIError } = await import('../../src/utils/api/sdkErrors.js')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+const mocking = await import('../../src/models/roads/anthropic/rateLimitMocking.ts')
+const { quotaWindows } = await import('../../src/screen/cockpit-gauges/quota.ts')
+const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
 
 const credsPath = join(HOME, '.credentials.json')
 const seed = (oauth: Record<string, unknown> | null): void => {

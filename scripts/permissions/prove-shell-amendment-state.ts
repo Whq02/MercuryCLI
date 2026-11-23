@@ -15,19 +15,19 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  const hint = 'fix handleInputModeToggle, handleFocus or handleReject in useShellPermissionFeedback in src/components/permissions/useShellPermissionFeedback.ts'
+  const hint = 'fix handleInputModeToggle, handleFocus or handleReject in useShellPermissionFeedback in src/permissions/cards/useShellPermissionFeedback.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' — ' : '') + hint : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { useShellPermissionFeedback } = await import('../../src/components/permissions/useShellPermissionFeedback.js')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { useShellPermissionFeedback } = await import('../../src/permissions/cards/useShellPermissionFeedback.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 
 type Feedback = ReturnType<typeof useShellPermissionFeedback>
 

@@ -84,12 +84,12 @@ console.log('§1 the built health --json leaves the config home unmutated (no co
     const was = before.get(rel)
     if (was === undefined || mt > was + 0.5) changed.push(rel)
   }
-  check('the first and subsequent health runs create no board database or sidecars', ![...before.keys(), ...after.keys()].some(rel => rel.includes('/boards/')), [...after.keys()].filter(rel => rel.includes('/boards/')).join(', ') + ' (health --json must open no board store: look in src/cli/healthJson.ts for the call that opens one)')
-  check('no config file is written under the home', !changed.some(r => r === '.mercury.json' || r.endsWith('.mercury.json')), changed.join(', ') + ' (health --json must not save config: find the save in the path run by src/cli/healthJson.ts)')
-  check('no timestamped config backup is written', !changed.some(r => r.startsWith('backups/')), changed.join(', ') + ' (a config save ran during health --json; src/cli/healthJson.ts must not reach one)')
-  check('no verification index is written under the home', !changed.some(r => r.startsWith('verify/')), changed.join(', ') + ' (computeWorkingTreeDigest in src/utils/verification/verificationState.ts must use the private temp index while isReadOnlyDiagnostic() is true)')
-  check('no housekeeping sentinel is stamped', !changed.some(r => r.includes('last-cleanup') || r.includes('.cleanup')), changed.join(', ') + ' (a startup housekeeping step stamped the home during health --json; skip it under the read-only diagnostic from src/cli/healthJson.ts)')
-  check('the ONLY files that move across a steady-state run are the accepted certificate artifacts', changed.length === 0, `moved: ${changed.join(', ')} (each listed file was written by health --json; stop that write under the read-only diagnostic, see src/utils/diagnosticReadOnly.ts and src/cli/healthJson.ts)`)
+  check('the first and subsequent health runs create no board database or sidecars', ![...before.keys(), ...after.keys()].some(rel => rel.includes('/boards/')), [...after.keys()].filter(rel => rel.includes('/boards/')).join(', ') + ' (health --json must open no board store: look in src/commands/verbs/healthJson.ts for the call that opens one)')
+  check('no config file is written under the home', !changed.some(r => r === '.mercury.json' || r.endsWith('.mercury.json')), changed.join(', ') + ' (health --json must not save config: find the save in the path run by src/commands/verbs/healthJson.ts)')
+  check('no timestamped config backup is written', !changed.some(r => r.startsWith('backups/')), changed.join(', ') + ' (a config save ran during health --json; src/commands/verbs/healthJson.ts must not reach one)')
+  check('no verification index is written under the home', !changed.some(r => r.startsWith('verify/')), changed.join(', ') + ' (computeWorkingTreeDigest in src/platform/verification/verificationState.ts must use the private temp index while isReadOnlyDiagnostic() is true)')
+  check('no housekeeping sentinel is stamped', !changed.some(r => r.includes('last-cleanup') || r.includes('.cleanup')), changed.join(', ') + ' (a startup housekeeping step stamped the home during health --json; skip it under the read-only diagnostic from src/commands/verbs/healthJson.ts)')
+  check('the ONLY files that move across a steady-state run are the accepted certificate artifacts', changed.length === 0, `moved: ${changed.join(', ')} (each listed file was written by health --json; stop that write under the read-only diagnostic, see src/platform/logs/diagnosticReadOnly.ts and src/commands/verbs/healthJson.ts)`)
 }
 
 console.log('\n§2 the verification digest routes to a private temp index under a read-only diagnostic (no home index)')
@@ -100,20 +100,20 @@ console.log('\n§2 the verification digest routes to a private temp index under 
   const repo = join(SCRATCH, 'repo2')
   seedRepo(repo)
 
-  const { computeWorkingTreeDigest } = await import('../../src/utils/verification/verificationState.ts')
-  const { beginReadOnlyDiagnostic } = await import('../../src/utils/diagnosticReadOnly.ts')
+  const { computeWorkingTreeDigest } = await import('../../src/platform/verification/verificationState.ts')
+  const { beginReadOnlyDiagnostic } = await import('../../src/platform/logs/diagnosticReadOnly.ts')
 
   const verifyDir = join(home, 'verify')
   const d1 = computeWorkingTreeDigest(repo, { fresh: true })
   const wroteIndexNormally = existsSync(verifyDir) && readdirSync(verifyDir).length > 0
-  check('a NON read-only digest writes the shared index under the home (the defect road)', wroteIndexNormally && typeof d1 === 'string', `${d1} (computeWorkingTreeDigest in src/utils/verification/verificationState.ts should write its index under the home verify folder when not read-only)`)
+  check('a NON read-only digest writes the shared index under the home (the defect road)', wroteIndexNormally && typeof d1 === 'string', `${d1} (computeWorkingTreeDigest in src/platform/verification/verificationState.ts should write its index under the home verify folder when not read-only)`)
 
   rmSync(verifyDir, { recursive: true, force: true })
   beginReadOnlyDiagnostic()
   const d2 = computeWorkingTreeDigest(repo, { fresh: true })
   const wroteIndexReadOnly = existsSync(verifyDir) && readdirSync(verifyDir).length > 0
-  check('a read-only digest writes NO shared index under the home', !wroteIndexReadOnly, existsSync(verifyDir) ? readdirSync(verifyDir).join(',') + ' (computeWorkingTreeDigest in src/utils/verification/verificationState.ts must not write under the home verify folder after beginReadOnlyDiagnostic)' : '(absent)')
-  check('the read-only digest is the SAME tree hash (no verdict change)', d2 === d1, `${d1} vs ${d2} (the private temp index path of computeWorkingTreeDigest in src/utils/verification/verificationState.ts must hash the same tree as the shared index)`)
+  check('a read-only digest writes NO shared index under the home', !wroteIndexReadOnly, existsSync(verifyDir) ? readdirSync(verifyDir).join(',') + ' (computeWorkingTreeDigest in src/platform/verification/verificationState.ts must not write under the home verify folder after beginReadOnlyDiagnostic)' : '(absent)')
+  check('the read-only digest is the SAME tree hash (no verdict change)', d2 === d1, `${d1} vs ${d2} (the private temp index path of computeWorkingTreeDigest in src/platform/verification/verificationState.ts must hash the same tree as the shared index)`)
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

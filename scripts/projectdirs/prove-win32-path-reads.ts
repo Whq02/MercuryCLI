@@ -91,34 +91,34 @@ section("§2 the leftover census names each store in git's spelling on every pla
   writeFileSync(join(REPO, '.mercury', 'workflows', 'runs', 'run.json'), '{}\n')
   git('add', '.')
   git('-c', 'user.email=p@p', '-c', 'user.name=proof', 'commit', '-q', '-m', 'seed with two local stores')
-  const { PROJECT_HOME_STORES, projectHomeLeftovers } = await import('../../src/utils/projectHomeStores.ts')
+  const { PROJECT_HOME_STORES, projectHomeLeftovers } = await import('../../src/platform/storage/projectHomeStores.ts')
   const rows = projectHomeLeftovers(REPO).sort()
-  check('the census names .mercury/reviews and .mercury/workflows/runs', JSON.stringify(rows) === JSON.stringify(['.mercury/reviews', '.mercury/workflows/runs']), JSON.stringify(rows) + ' — fix projectHomeLeftovers or PROJECT_HOME_STORES in src/utils/projectHomeStores.ts')
+  check('the census names .mercury/reviews and .mercury/workflows/runs', JSON.stringify(rows) === JSON.stringify(['.mercury/reviews', '.mercury/workflows/runs']), JSON.stringify(rows) + ' — fix projectHomeLeftovers or PROJECT_HOME_STORES in src/platform/storage/projectHomeStores.ts')
   const bySegments = new Set(PROJECT_HOME_STORES.map(s => ['.mercury', ...s].join('/')))
-  check('every row is the /-joined spelling of its store and carries no win32 separator', rows.every(r => bySegments.has(r) && !r.includes('\\')), JSON.stringify(rows) + ' — projectHomeLeftovers in src/utils/projectHomeStores.ts must return /-joined store paths')
+  check('every row is the /-joined spelling of its store and carries no win32 separator', rows.every(r => bySegments.has(r) && !r.includes('\\')), JSON.stringify(rows) + ' — projectHomeLeftovers in src/platform/storage/projectHomeStores.ts must return /-joined store paths')
   const listed = git('ls-files', '-z', '--', ...rows).split('\0').filter(f => f !== '')
-  check("git answers every row as a pathspec and lists its files under `<row>/` — /health's compare holds", rows.every(dir => listed.some(f => f.startsWith(`${dir}/`))), JSON.stringify(listed) + ' — projectHomeLeftovers in src/utils/projectHomeStores.ts must return rows that git accepts as pathspecs')
+  check("git answers every row as a pathspec and lists its files under `<row>/` — /health's compare holds", rows.every(dir => listed.some(f => f.startsWith(`${dir}/`))), JSON.stringify(listed) + ' — projectHomeLeftovers in src/platform/storage/projectHomeStores.ts must return rows that git accepts as pathspecs')
   rmSync(REPO, { recursive: true, force: true })
 }
 
 section("§3 the isolation read compares the product's resolved home with the private root under the platform's path semantics")
 {
   const root = 'C:\\Users\\r\\AppData\\Local\\Temp\\mercury-parity-1-abcdef'
-  const { canonicalHomeSpelling } = await import('../../src/utils/envUtils.ts')
-  const { isPathInside } = await import('../../src/utils/pathPrefix.ts')
+  const { canonicalHomeSpelling } = await import('../../src/platform/environment/envUtils.ts')
+  const { isPathInside } = await import('../../src/tools/read/pathPrefix.ts')
   const home = win32.join(root, 'home')
   const canonical = canonicalHomeSpelling(home, 'win32')
   const projects = win32.join(canonical, 'projects')
   const templated = `${root}/home`
-  check("the platform's join spells the private home with the platform's separator and the product keeps that spelling", home === `${root}\\home` && canonical === home, canonical + ' — fix canonicalHomeSpelling in src/utils/envUtils.ts')
+  check("the platform's join spells the private home with the platform's separator and the product keeps that spelling", home === `${root}\\home` && canonical === home, canonical + ' — fix canonicalHomeSpelling in src/platform/environment/envUtils.ts')
   record('the /-templated home against the resolved projects dir', `${JSON.stringify(projects)}.startsWith(${JSON.stringify(templated)}) → ${projects.startsWith(templated)}`)
-  check('the product re-spells a /-templated home, so a startsWith on the template can never hold on win32', canonicalHomeSpelling(templated, 'win32') === home && !projects.startsWith(templated), 'canonicalHomeSpelling in src/utils/envUtils.ts must re-spell a /-templated home with the platform separator')
+  check('the product re-spells a /-templated home, so a startsWith on the template can never hold on win32', canonicalHomeSpelling(templated, 'win32') === home && !projects.startsWith(templated), 'canonicalHomeSpelling in src/platform/environment/envUtils.ts must re-spell a /-templated home with the platform separator')
   if (reads) {
     const r = reads
     check('the resolved projects dir reads inside the private home (isInside, win32)', r.isInside(projects, home, 'win32'), 'fix isInside in scripts/lib/platformPath.ts')
     check('under the process.platform seam set to win32 the default read agrees', withPlatform('win32', () => r.isInside(projects, home)), 'isInside in scripts/lib/platformPath.ts must default to process.platform')
     check('a sibling home never reads inside, nor does the root itself', !r.isInside(win32.join(root, 'home2', 'projects'), home, 'win32') && !r.isInside(root, home, 'win32'), 'fix isInside in scripts/lib/platformPath.ts so a sibling home and the root never read inside')
-    check("the product's own prefix test agrees", isPathInside(projects, home, 'win32'), 'fix isPathInside in src/utils/pathPrefix.ts to agree with isInside under win32')
+    check("the product's own prefix test agrees", isPathInside(projects, home, 'win32'), 'fix isPathInside in src/tools/read/pathPrefix.ts to agree with isInside under win32')
     check('the presentation fold spells the root the way the golden harness presents it', r.slashed(root, 'win32') === 'C:/Users/r/AppData/Local/Temp/mercury-parity-1-abcdef', 'fix slashed in scripts/lib/platformPath.ts')
     check(
       'the POSIX arm is untouched',
@@ -144,7 +144,7 @@ section("§3 the isolation read compares the product's resolved home with the pr
   check(
     'the parity proof under the win32 platform seam resolves the config home to the private root and stays green',
     run.status === 0 && isolationLine.includes('[PASS]'),
-    `exit ${run.status} · ${isolationLine.trim()} · ${verdict.trim()} — run scripts/sessionStorage/prove-sessionstorage-parity.ts with a preload that sets process.platform to win32 and read its isolation line; the config home is resolved in src/utils/envUtils.ts`,
+    `exit ${run.status} · ${isolationLine.trim()} · ${verdict.trim()} — run scripts/sessionStorage/prove-sessionstorage-parity.ts with a preload that sets process.platform to win32 and read its isolation line; the config home is resolved in src/platform/environment/envUtils.ts`,
   )
 }
 

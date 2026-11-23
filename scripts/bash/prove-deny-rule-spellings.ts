@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/BashTool/bashPermissions.ts src/utils/git/spawnArgs.ts src/utils/bash/ast.ts
+// gate-watch: src/tools/shell/bashPermissions.ts src/platform/git/spawnArgs.ts src/platform/shell/bash/ast.ts
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -18,11 +18,11 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
 setSessionTrustAccepted(true)
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
 
 let failures = 0
 let checks = 0
@@ -45,7 +45,7 @@ const decide = async (command: string, mode: string, deny: string[] = RULES): Pr
 const shown = (decision: Decision): string => `${decision.behavior}: ${decision.message ?? ''}`
 const deniedBy = (decision: Decision, rule: string): boolean => decision.behavior === 'deny' && String(decision.message).includes(`denied by the rule ${rule}`)
 const ASKING_MODES = ['default', 'implement', 'flow']
-const denyWhere = ' | the Bash deny-rule match in bashToolHasPermission (src/tools/BashTool/bashPermissions.ts, with src/utils/bash/ast.ts for how the command is read) must read this spelling as the same command'
+const denyWhere = ' | the Bash deny-rule match in bashToolHasPermission (src/tools/shell/bashPermissions.ts, with src/platform/shell/bash/ast.ts for how the command is read) must read this spelling as the same command'
 
 const variants: Array<[string, string, string]> = [
   ['rm x', 'Bash(rm *)', 'the plain spelling'],
@@ -98,12 +98,12 @@ for (const [command, label] of [
 ] as Array<[string, string]>) {
   for (const mode of ASKING_MODES) {
     const verdict = await decide(command, mode)
-    check(`${mode}: ${command} — ${label} → not denied`, verdict.behavior !== 'deny', shown(verdict) + ' | the deny rule is matching further than its prefix; narrow the match in bashToolHasPermission (src/tools/BashTool/bashPermissions.ts)')
+    check(`${mode}: ${command} — ${label} → not denied`, verdict.behavior !== 'deny', shown(verdict) + ' | the deny rule is matching further than its prefix; narrow the match in bashToolHasPermission (src/tools/shell/bashPermissions.ts)')
   }
 }
 for (const command of ['echo rm x', 'git status', 'ls']) {
   const verdict = await decide(command, 'default')
-  check(`default: ${command} stays allowed`, verdict.behavior === 'allow', shown(verdict) + ' | a read-only command was denied or asked; see bashToolHasPermission in src/tools/BashTool/bashPermissions.ts')
+  check(`default: ${command} stays allowed`, verdict.behavior === 'allow', shown(verdict) + ' | a read-only command was denied or asked; see bashToolHasPermission in src/tools/shell/bashPermissions.ts')
 }
 
 section('§3 sovereign asks nothing: the same spellings refuse there by the rule, the rest run, and nothing is asked')
@@ -114,7 +114,7 @@ section('§3 sovereign asks nothing: the same spellings refuse there by the rule
   }
   for (const command of ['echo rm x', 'rmdir x', 'git status', 'sudo ls', 'ls', 'find . -delete']) {
     const verdict = await decide(command, 'sovereign')
-    check(`sovereign: ${command} → allow (not ask)`, verdict.behavior === 'allow', shown(verdict) + ' | sovereign mode must allow what no deny rule names; see decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts')
+    check(`sovereign: ${command} → allow (not ask)`, verdict.behavior === 'allow', shown(verdict) + ' | sovereign mode must allow what no deny rule names; see decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts')
   }
 }
 

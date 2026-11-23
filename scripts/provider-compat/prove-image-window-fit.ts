@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import { imageWindowFixture } from './imageWindowFixture.ts'
 
 const fixture = await imageWindowFixture()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { estimateRequestTokens } = await import('../../src/services/tokenEstimation.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { estimateRequestTokens } = await import('../../src/models/facts/tokenEstimation.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const images = (request: Record<string, any>): string[] => request.messages.flatMap((row: any) => Array.isArray(row.content) ? row.content.filter((part: any) => part.type === 'image_url').map((part: any) => part.image_url.url) : [])
 const before = JSON.stringify(fixture.messages)
 async function drive(messages = fixture.messages) {
@@ -20,7 +20,7 @@ try {
   const kept = images(request)
   assert.equal(kept.length, 4, 'oldest five images degrade; the latest four fit')
   assert.deepEqual(kept.map(url => url.slice(-1)), ['5', '6', '7', '8'])
-  assert.ok(estimateRequestTokens(request, fixture.model) <= fixture.state.window, `estimateRequestTokens in src/services/tokenEstimation.ts must fit within window ${fixture.state.window}`)
+  assert.ok(estimateRequestTokens(request, fixture.model) <= fixture.state.window, `estimateRequestTokens in src/models/facts/tokenEstimation.ts must fit within window ${fixture.state.window}`)
   for (let i = 0; i < 9; i++) assert.ok(JSON.stringify(request.messages).includes(`/captures/${i}.png`), 'every artifact path survives')
   assert.equal(JSON.stringify(fixture.messages), before, 'the full transcript is unchanged')
   fixture.state.window = 262144

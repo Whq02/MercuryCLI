@@ -15,8 +15,8 @@ process.chdir(PRIVATE_CWD)
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-const S = await import('../../src/utils/sessionStorage.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+const S = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
 const { recordOrVerify, snap, clone } = await import('../lib/goldenReplay.ts')
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -187,22 +187,22 @@ const isolation = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) isolationFailures++
 }
 isolation('the run owns fresh private roots, never the shared /tmp names', PRIVATE_HOME !== SHARED_HOME && PRIVATE_CWD !== SHARED_CWD && PRIVATE_ROOT.includes(`mercury-parity-${process.pid}-`), `the roots are made at the top of this script and must not equal the shared /tmp names; ${PRIVATE_ROOT}`)
-isolation('the product resolved the config home to the private root', isInside(S.getProjectsDir(), PRIVATE_HOME), `getProjectsDir in src/utils/sessionStorage.ts must resolve under MERCURY_CONFIG_DIR; ${S.getProjectsDir()}`)
+isolation('the product resolved the config home to the private root', isInside(S.getProjectsDir(), PRIVATE_HOME), `getProjectsDir in src/sessions/transcripts/sessionStorage.ts must resolve under MERCURY_CONFIG_DIR; ${S.getProjectsDir()}`)
 isolation('the boot cwd latched to the private cwd', realpathSync(process.cwd()) === realpathSync(PRIVATE_CWD), `the process.chdir(PRIVATE_CWD) at the top of this script no longer sticks; ${process.cwd()}`)
 const presented = JSON.stringify(results)
 isolation('no private-root byte reaches the golden presentation (neutralized at the boundary only)', !presented.includes(slashed(PRIVATE_ROOT)) && !presented.includes(PARITY_CWD_SLUG), `a golden case leaks a private path; add it to neutral() in this script or fix the case; ${presented.slice(0, 120)}`)
 isolation('the presentation still carries the machine-neutral shared spellings', presented.includes(SHARED_HOME) && presented.includes('«parity-cwd»'), 'the path cases (getProjectsDir, getTranscriptPathForSession, getAgentTranscriptPath, getProjectDir) must go through neutral() in this script')
 
-const W = await import('../../src/utils/sessionStorage/writer.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const W = await import('../../src/sessions/transcripts/writer.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 S.resetProjectForTesting()
-isolation('reading the project before a write creates no writer', W.peekProject() === null, 'peekProject in src/utils/sessionStorage/writer.ts must stay null until getProject is called')
+isolation('reading the project before a write creates no writer', W.peekProject() === null, 'peekProject in src/sessions/transcripts/writer.ts must stay null until getProject is called')
 W.getProject()
 S.setSessionFileForTesting(join(PRIVATE_HOME, 'inert.jsonl'))
 await S.recordTranscript([user('00000000-0000-4000-8000-000000000301', null, 'local transcript')])
 await S.flushSessionStorage()
-isolation('the transcript has one local persistence road', existsSync(join(PRIVATE_HOME, 'inert.jsonl')), 'recordTranscript and flushSessionStorage (src/utils/sessionStorage.ts) must write the transcript to the file set by setSessionFileForTesting')
+isolation('the transcript has one local persistence road', existsSync(join(PRIVATE_HOME, 'inert.jsonl')), 'recordTranscript and flushSessionStorage (src/sessions/transcripts/sessionStorage.ts) must write the transcript to the file set by setSessionFileForTesting')
 S.resetProjectForTesting()
 
 const failures = isolationFailures + recordOrVerify({

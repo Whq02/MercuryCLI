@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/BashTool/bashPermissions.ts src/tools/BashTool/pathValidation.ts src/Tool.ts
-// gate-watch: src/tools/GrepTool/GrepTool.ts src/utils/verification/scanCeiling.ts
+// gate-watch: src/tools/shell/bashPermissions.ts src/tools/shell/pathValidation.ts src/tools/kit/tool.ts
+// gate-watch: src/tools/grep/GrepTool.ts src/platform/verification/scanCeiling.ts
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -28,10 +28,10 @@ process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_TREE_SCAN_CEILING
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.js')
-const { DEFAULT_SCAN_CEILING, scanCeiling } = await import('../../src/utils/verification/scanCeiling.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.js')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.js')
+const { DEFAULT_SCAN_CEILING, scanCeiling } = await import('../../src/platform/verification/scanCeiling.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -43,7 +43,7 @@ type Verdict = { behavior: string; message?: string }
 const context = (extra: Record<string, unknown> = {}) => ({ ...getEmptyToolPermissionContext(), mode: 'default', ...extra })
 const decide = async (command: string, extra: Record<string, unknown> = {}): Promise<Verdict> =>
   (await bashToolHasPermission({ command } as never, context(extra) as never)) as Verdict
-const linkAskWhere = ' · the ask for a link-following command is decided in src/tools/BashTool/pathValidation.ts: FOLLOWS_LINKS names the commands and flags that follow links, and the walk of the tree builds the ask'
+const linkAskWhere = ' · the ask for a link-following command is decided in src/tools/shell/pathValidation.ts: FOLLOWS_LINKS names the commands and flags that follow links, and the walk of the tree builds the ask'
 const shown = (v: Verdict): string => `${v.behavior}: ${v.message ?? ''}${linkAskWhere}`
 const linkAsk = (verb: string): string => `Mercury needs permission to ${verb} ${outside}, outside the starting folder ('${root}').`
 const RG_RULE = { alwaysAllowRules: { userSettings: ['Bash(rg *)'] } }
@@ -118,14 +118,14 @@ console.log('\n4. the Grep tool does not follow the link')
   const toolContext = { abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) } as never
   type Answer = { data: { numFiles: number; filenames: string[] } }
   const marker = (await GrepTool.call({ pattern: 'outside marker', path: root } as never, toolContext)) as Answer
-  check('a search for the outside words under the root finds nothing', marker.data.numFiles === 0, j(marker.data) + ' · the Grep tool must not follow a link that leaves the searched folder: see call in src/tools/GrepTool/GrepTool.ts')
+  check('a search for the outside words under the root finds nothing', marker.data.numFiles === 0, j(marker.data) + ' · the Grep tool must not follow a link that leaves the searched folder: see call in src/tools/grep/GrepTool.ts')
   const alpha = (await GrepTool.call({ pattern: 'alpha', path: root } as never, toolContext)) as Answer
-  check('the control: the in-folder file is found and the link is not', alpha.data.numFiles === 2 && alpha.data.filenames.every(name => !name.includes('link-out') && !name.startsWith(outside)), j(alpha.data) + ' · the Grep tool must list the two in-folder files and no link: see call in src/tools/GrepTool/GrepTool.ts')
+  check('the control: the in-folder file is found and the link is not', alpha.data.numFiles === 2 && alpha.data.filenames.every(name => !name.includes('link-out') && !name.startsWith(outside)), j(alpha.data) + ' · the Grep tool must list the two in-folder files and no link: see call in src/tools/grep/GrepTool.ts')
 }
 
 console.log('\n5. the walk is bounded by the tree-fingerprint ceiling; past it the command asks')
 {
-  check(`the default ceiling is ${DEFAULT_SCAN_CEILING} entries`, scanCeiling() === DEFAULT_SCAN_CEILING, String(scanCeiling()) + ' · scanCeiling in src/utils/verification/scanCeiling.ts must return DEFAULT_SCAN_CEILING when MERCURY_TREE_SCAN_CEILING is unset')
+  check(`the default ceiling is ${DEFAULT_SCAN_CEILING} entries`, scanCeiling() === DEFAULT_SCAN_CEILING, String(scanCeiling()) + ' · scanCeiling in src/platform/verification/scanCeiling.ts must return DEFAULT_SCAN_CEILING when MERCURY_TREE_SCAN_CEILING is unset')
   process.env.MERCURY_TREE_SCAN_CEILING = '2'
   const over = await decide('grep -R alpha .')
   check('over the ceiling, grep -R asks', over.behavior === 'ask' && over.message === `grep follows links under ${root}, a tree of more than 2 entries; narrow the search, or approve`, shown(over))

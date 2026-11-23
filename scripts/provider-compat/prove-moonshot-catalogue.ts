@@ -13,22 +13,22 @@ for (const name of ['MOONSHOT_API_KEY', 'ZAI_API_KEY', 'OPENAI_API_KEY', 'OPENRO
 process.env.MERCURY_MOONSHOT_API_BASE = 'http://127.0.0.1:1/platform'
 process.env.MERCURY_MOONSHOT_CODING_BASE = 'http://127.0.0.1:1/coding'
 process.env.MERCURY_MOONSHOT_OAUTH_BASE = 'http://127.0.0.1:1/auth'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { writeStoredMoonshotApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-const { writeMoonshotTokens } = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
-const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
-const { keyLanePins } = await import('../../src/services/model/modelOptions.ts')
-const { computedDefault, resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.ts')
-const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
-const { describeMoonshotProvider, listMoonshotModels } = await import('../../src/services/providers/moonshot/moonshotAdapter.ts')
-const catalogue = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts').catch(() => null)
+const { writeStoredMoonshotApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { writeMoonshotTokens } = await import('../../src/models/roads/moonshot/moonshotAccounts.ts')
+const { catalogueEpoch } = await import('../../src/models/roads/catalogueEpoch.ts')
+const { keyLanePins } = await import('../../src/models/catalogue/modelOptions.ts')
+const { computedDefault, resetComputedDefaultMemo } = await import('../../src/models/catalogue/computedDefault.ts')
+const { providerFrontierFact } = await import('../../src/models/catalogue/providerFrontier.ts')
+const { describeMoonshotProvider, listMoonshotModels } = await import('../../src/models/roads/moonshot/moonshotAdapter.ts')
+const catalogue = await import('../../src/models/roads/moonshot/moonshotCatalogue.ts').catch(() => null)
 let failures = 0
 let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  const failHint = ok ? '' : ' | to fix: read the failing label, then change the matching function in src/services/providers/moonshot/moonshotCatalogue.ts (decodeMoonshotModel, fetchMoonshotLiveModels, refreshMoonshotCatalogue, moonshotCatalogueRows, qualifyMoonshotModel); default-choice labels: computedDefault in src/services/model/computedDefault.ts; chat labels: src/services/providers/moonshot/moonshotCallModel.ts'
+  const failHint = ok ? '' : ' | to fix: read the failing label, then change the matching function in src/models/roads/moonshot/moonshotCatalogue.ts (decodeMoonshotModel, fetchMoonshotLiveModels, refreshMoonshotCatalogue, moonshotCatalogueRows, qualifyMoonshotModel); default-choice labels: computedDefault in src/models/catalogue/computedDefault.ts; chat labels: src/models/roads/moonshot/moonshotCallModel.ts'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${failHint}`)
 }
 const page = { object: 'list', data: [
@@ -59,7 +59,7 @@ if (catalogue) {
   check('signed out: refresh is a non-event', await c.refreshMoonshotCatalogue({ fetchImpl: pageFetch() }) === null && calls.length === 0)
   check('signed out: kick starts nothing', !c.kickMoonshotCatalogue({ fetchImpl: pageFetch() }) && calls.length === 0)
   const preview = c.moonshotCatalogueRows()
-  const { kimiDisplayPin } = await import('../../src/utils/model/pins/kimiPins.ts')
+  const { kimiDisplayPin } = await import('../../src/models/facts/pins/kimiPins.ts')
   check('signed out, the dated observations preview the lineup with each row\'s own date and none is listed live', preview.source.kind === 'pin' && preview.rows[0]?.id === 'kimi-k3' && preview.rows.every(row => !row.listedLive && row.observedAt === kimiDisplayPin(row.id)?.observedAt))
   const documentedModels = ['kimi-k3.1-pro', 'kimi-k3.1-pro-highspeed', 'kimi-k3', 'kimi-k2.7-code', 'kimi-k2.7-code-highspeed', 'kimi-k2.6']
   check('signed-out preview matches the served list at https://platform.kimi.ai/docs/models.md (2026-10-25)', JSON.stringify(preview.rows.map(row => row.id).sort()) === JSON.stringify(documentedModels.sort()), preview.rows.map(row => row.id).join(','))
@@ -86,13 +86,13 @@ if (catalogue) {
   const absent = await c.qualifyMoonshotModel('kimi-k3')
   check('a missing typed id refuses with the shared account-labelled sentence', absent.kind === 'refused' && absent.message === "model 'kimi-k3' is not offered by the Moonshot API key (stored, auth-scoped) live catalogue. The catalogue offers: kimi-fixture-next, kimi-k2.6.", JSON.stringify(absent))
   check('an untyped served id is admitted', (await c.qualifyMoonshotModel('kimi-fixture-next')).kind === 'ok')
-  const { resolveEngineDispatch, unrecognisedModelWordRefusal } = await import('../../src/services/crew/engineDispatch.ts')
+  const { resolveEngineDispatch, unrecognisedModelWordRefusal } = await import('../../src/crew/crewmates/engineDispatch.ts')
   check('the specialist alias resolves the newest live row', (await resolveEngineDispatch('kimi'))?.model === 'kimi-fixture-next')
   check('a served untyped specialist id is admitted', (await resolveEngineDispatch('kimi-fixture-next'))?.model === 'kimi-fixture-next')
   const deadSpecialist = await resolveEngineDispatch('kimi-k3').then(() => '', error => String(error))
   check('a retired specialist id is refused by the same catalogue', deadSpecialist.includes("model 'kimi-k3' is not offered by the"))
   check("a served id passes the tool's word check; the live admission decides the retired one", unrecognisedModelWordRefusal('kimi-fixture-next') === null && unrecognisedModelWordRefusal('kimi-k3') === null)
-  const { validateModel } = await import('../../src/services/providers/validateModel.ts')
+  const { validateModel } = await import('../../src/models/roads/validateModel.ts')
   check('typing a model reads the same live admission', (await validateModel('kimi-fixture-next')).valid && !(await validateModel('kimi-k3')).valid)
   clock += 1000
   await c.refreshMoonshotCatalogue({ fetchImpl: pageFetch(), now })
@@ -140,7 +140,7 @@ if (catalogue) {
   let release: (() => void) | undefined
   const held = new Promise<void>(resolve => { release = resolve })
   const priming = c.refreshMoonshotCatalogue({ force: true, fetchImpl: (async () => { await held; return Response.json(page) }) as typeof fetch })
-  const { moonshotCallModel } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
+  const { moonshotCallModel } = await import('../../src/models/roads/moonshot/moonshotCallModel.ts')
   const controller = new AbortController()
   const turn = moonshotCallModel({ signal: controller.signal, options: { model: 'kimi-fixture-next' } } as never).next()
   controller.abort()
@@ -219,10 +219,10 @@ if (catalogue) {
   const untyped = computedDefault()
   check('lacking every typed row: the served rows stand under mechanical names, the newest is the default, the adapter agrees', untyped.setting === 'kimi-untyped-a' && untyped.row === 'Kimi Untyped A' && keyLanePins('moonshot').map(row => row.id).join(',') === 'kimi-untyped-a,kimi-untyped-b' && listMoonshotModels()[0]?.ref.model === 'kimi-untyped-a', JSON.stringify({ setting: untyped.setting, row: untyped.row }))
   console.log('the unnamed-default boundary reads once, never for an explicit choice, never past the allowance')
-  const { readComputedDefaultCatalogue, mostRecentSignInFamily } = await import('../../src/services/model/computedDefault.ts')
-  const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
-  const { CATALOGUE_READ_BOUND_MS } = await import('../../src/services/providers/catalogueOnDemand.ts')
-  const { getUserSpecifiedModelSetting, normalizeModelStringForAPI } = await import('../../src/services/model/model.ts')
+  const { readComputedDefaultCatalogue, mostRecentSignInFamily } = await import('../../src/models/catalogue/computedDefault.ts')
+  const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
+  const { CATALOGUE_READ_BOUND_MS } = await import('../../src/models/roads/catalogueOnDemand.ts')
+  const { getUserSpecifiedModelSetting, normalizeModelStringForAPI } = await import('../../src/models/catalogue/engineModel.ts')
   recordSignIn('moonshot', 'api-key')
   c.__resetMoonshotCatalogueForTest()
   process.env.MERCURY_MODEL = 'kimi-k2.6'
@@ -252,8 +252,8 @@ if (catalogue) {
   check('a served id spelled in upper case is admitted', (await c.qualifyMoonshotModel('KIMI-FIXTURE-NEXT')).kind === 'ok')
   check('the call road strips a window annotation before the admission, and the raw spelling alone is not a served id', (await c.qualifyMoonshotModel(normalizeModelStringForAPI('kimi-fixture-next[1m]'))).kind === 'ok' && (await c.qualifyMoonshotModel('kimi-fixture-next[1m]')).kind === 'refused')
   console.log('a live id outside the kimi- grammar (the moonshot-* shape the route law declares): a guard, green before and after')
-  const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
-  const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
+  const { recognizeModelId } = await import('../../src/models/roads/idSpaces.ts')
+  const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
   await c.refreshMoonshotCatalogue({ force: true, fetchImpl: pageFetch({ object: 'list', data: [
     { id: 'moonshot-v2', object: 'model', created: 500, owned_by: 'moonshot', context_length: 262144, supports_image_in: false, supports_video_in: false, supports_reasoning: true },
     { id: 'kimi-k2.6', object: 'model', created: 100, owned_by: 'moonshot' },
@@ -268,8 +268,8 @@ if (catalogue) {
   check('guard: the specialist alias follows the newest served row whatever its shape', (await resolveEngineDispatch('kimi'))?.model === 'moonshot-v2')
   await c.refreshMoonshotCatalogue({ force: true, fetchImpl: pageFetch() })
   console.log('two chats on one held refresh')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const chatParams = (signal: AbortSignal): Parameters<typeof moonshotCallModel>[0] => ({
     messages: [createUserMessage({ content: 'say hi' })],
     systemPrompt: ['fixture system prompt'],
@@ -346,8 +346,8 @@ if (catalogue) {
   const refusedTurn = await collect(moonshotCallModel(chatParams(new AbortController().signal)))
   check('a refusal after a degraded admission is one message, the refusal, with no note before it', refusedTurn.length === 1 && refusedTurn[0]?.api === true && !refusedTurn.some(item => item.text.includes('catalogue is unavailable')), JSON.stringify(refusedTurn))
   chatStatus = 200
-  const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-  const { moonshotLaneProfile } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
+  const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+  const { moonshotLaneProfile } = await import('../../src/models/roads/moonshot/moonshotCallModel.ts')
   const plainTurn = await collect(compatChatCallModel(moonshotLaneProfile, chatParams(new AbortController().signal)))
   check('a profile without the seam is the road as it was: the answer is the first settled block and no note rides', plainTurn[0]?.text === 'fixture answer' && !plainTurn.some(item => item.text.includes('catalogue is unavailable')), JSON.stringify(plainTurn))
   chatFixture.closeAllConnections()

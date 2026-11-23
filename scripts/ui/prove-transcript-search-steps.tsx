@@ -3,18 +3,18 @@ import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settl
 
 pinSourceRef()
 const home = pinScratchHome('transcript-search-steps')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { Box, Text } = await import('../../src/ink.js')
-const { default: ScrollBox } = await import('../../src/ink/components/ScrollBox.js')
-const { VirtualMessageList } = await import('../../src/components/VirtualMessageList.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { createUserMessage } = await import('../../src/utils/messages/factories.js')
-type Jump = import('../../src/components/VirtualMessageList.js').JumpHandle
-type Scroll = import('../../src/ink/components/ScrollBox.js').ScrollBoxHandle
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { default: ScrollBox } = await import('../../src/screen/renderer/elements/ScrollBox.js')
+const { VirtualMessageList } = await import('../../src/screen/virtual-message-list/VirtualMessageList.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { createUserMessage } = await import('../../src/engine/message-shapes/factories.js')
+type Jump = import('../../src/screen/virtual-message-list/VirtualMessageList.js').JumpHandle
+type Scroll = import('../../src/screen/renderer/elements/ScrollBox.js').ScrollBoxHandle
 let failures = 0
-const stepsHint = 'change setSearchQuery, nextMatch and prevMatch in jumpHandleOf (src/components/virtualMessageList/handles.ts), or the step logic they call in src/components/virtualMessageList/search.ts, so each step moves the selected occurrence by one and setPositions reports it'
+const stepsHint = 'change setSearchQuery, nextMatch and prevMatch in jumpHandleOf (src/screen/virtual-message-list/handles.ts), or the step logic they call in src/screen/virtual-message-list/search.ts, so each step moves the selected occurrence by one and setPositions reports it'
 const check = (label: string, ok: boolean): void => {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${stepsHint}`}`)
   if (!ok) failures++

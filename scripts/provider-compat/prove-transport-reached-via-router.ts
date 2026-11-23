@@ -19,13 +19,13 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { utilityCallFor } = await import('../../src/services/model/utilityModel.ts')
-type CallModelParams = import('../../src/services/providers/callModelContract.ts').CallModelParams
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { utilityCallFor } = await import('../../src/models/catalogue/utilityModel.ts')
+type CallModelParams = import('../../src/models/roads/callModelContract.ts').CallModelParams
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 
 const streamCalls: CallModelParams[] = []
 const settledCalls: CallModelParams[] = []
@@ -50,8 +50,8 @@ function fakeAssistant(text: string): AssistantMessage {
   } as unknown as AssistantMessage
 }
 
-const realRouter = { ...(await import('../../src/services/providers/callModelRouter.ts')) }
-mock.module('../../src/services/providers/callModelRouter.ts', () => ({
+const realRouter = { ...(await import('../../src/models/roads/callModelRouter.ts')) }
+mock.module('../../src/models/roads/callModelRouter.ts', () => ({
   ...realRouter,
   routedCallModel: async function* (params: CallModelParams) {
     streamCalls.push(params)
@@ -62,17 +62,17 @@ mock.module('../../src/services/providers/callModelRouter.ts', () => ({
     return fakeAssistant(nextReplyText)
   },
 }))
-const realCatalogueOnDemand = { ...(await import('../../src/services/providers/catalogueOnDemand.ts')) }
-mock.module('../../src/services/providers/catalogueOnDemand.ts', () => ({
+const realCatalogueOnDemand = { ...(await import('../../src/models/roads/catalogueOnDemand.ts')) }
+mock.module('../../src/models/roads/catalogueOnDemand.ts', () => ({
   ...realCatalogueOnDemand,
   readCatalogueIfPending: async () => undefined,
 }))
 
-const { queryUtility } = await import('../../src/services/providers/anthropic/streamCore.ts')
-const { nativeSearch } = await import('../../src/services/search/nativeSearch.ts')
-const { nativeSearchFamilyOf, resolveSearchDoorPlan } = await import('../../src/services/search/searchDoor.ts')
-const { runQuestionHook } = await import('../../src/services/hooks/questionRunner.ts')
-const { generateAgent } = await import('../../src/components/agents/generateAgent.ts')
+const { queryUtility } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { nativeSearch } = await import('../../src/tools/engines/web-search/nativeSearch.ts')
+const { nativeSearchFamilyOf, resolveSearchDoorPlan } = await import('../../src/tools/engines/web-search/searchDoor.ts')
+const { runQuestionHook } = await import('../../src/integrations/event-hook-runners/questionRunner.ts')
+const { generateAgent } = await import('../../src/screen/agents/generateCrewmate.ts')
 
 const makeToolContext = (engineModel: string): never =>
   ({
@@ -110,7 +110,7 @@ section('§2 the routed helpers stay routed — queryWithModel / queryUtility')
   check(
     'queryUtility rides queryWithModel through routedCallModel',
     streamCalls.length === 1 && reply.message.content[0]?.type === 'text' && reply.message.content[0].text === 'utility-answer',
-    JSON.stringify({ calls: streamCalls.length, content: reply.message.content }) + ' — queryUtility in src/services/providers/anthropic/streamCore.ts must send its one call through routedCallModel (src/services/providers/callModelRouter.ts), not a direct client'
+    JSON.stringify({ calls: streamCalls.length, content: reply.message.content }) + ' — queryUtility in src/models/roads/anthropic/streamCore.ts must send its one call through routedCallModel (src/models/roads/callModelRouter.ts), not a direct client'
   )
   check(
     "queryUtility's model and floor are the helper's (utilityCallFor), the floor pinned",
@@ -120,7 +120,7 @@ section('§2 the routed helpers stay routed — queryWithModel / queryUtility')
       call.options.effortPinned === true &&
       call.options.ridesSessionEffort === false &&
       call.thinkingConfig.type === expected.thinkingConfig.type,
-    JSON.stringify({ got: call?.options, expected }) + ' — queryUtility in src/services/providers/anthropic/streamCore.ts must take model, effort and thinking from utilityCallFor (src/services/model/utilityModel.ts) and pin the effort'
+    JSON.stringify({ got: call?.options, expected }) + ' — queryUtility in src/models/roads/anthropic/streamCore.ts must take model, effort and thinking from utilityCallFor (src/models/catalogue/utilityModel.ts) and pin the effort'
   )
 }
 
@@ -139,7 +139,7 @@ section('§3 the rewritten sites reach the wire through the router')
       searchCall.options.model === 'gpt-5.4' &&
       searchCall.options.querySource === 'web_search_tool' &&
       searchCall.options.nativeWebSearch?.maxUses === 8,
-    JSON.stringify({ ok: searchOutcome.ok, calls: streamCalls.length, model: searchCall?.options.model, nativeWebSearch: searchCall?.options.nativeWebSearch }) + ' — nativeSearch in src/services/search/nativeSearch.ts must call routedCallModel once with the main model, querySource web_search_tool and nativeWebSearch.maxUses 8'
+    JSON.stringify({ ok: searchOutcome.ok, calls: streamCalls.length, model: searchCall?.options.model, nativeWebSearch: searchCall?.options.nativeWebSearch }) + ' — nativeSearch in src/tools/engines/web-search/nativeSearch.ts must call routedCallModel once with the main model, querySource web_search_tool and nativeWebSearch.maxUses 8'
   )
 
   const anthropicPlan = resolveSearchDoorPlan({ mainModel: 'claude-sonnet-5', keylessAllowed: false })
@@ -156,7 +156,7 @@ section('§3 the rewritten sites reach the wire through the router')
       openaiPlan.doors[0]?.kind === 'native' &&
       openaiPlan.doors[0].family === 'openai' &&
       !deepseekPlan.doors.some(door => door.kind === 'native'),
-    JSON.stringify({ anthropic: anthropicPlan.doors, openai: openaiPlan.doors, deepseek: deepseekPlan.doors }) + ' — nativeSearchFamilyOf and resolveSearchDoorPlan in src/services/search/searchDoor.ts must open the native door only for the main model own family'
+    JSON.stringify({ anthropic: anthropicPlan.doors, openai: openaiPlan.doors, deepseek: deepseekPlan.doors }) + ' — nativeSearchFamilyOf and resolveSearchDoorPlan in src/tools/engines/web-search/searchDoor.ts must open the native door only for the main model own family'
   )
 
   settledCalls.length = 0
@@ -181,7 +181,7 @@ section('§3 the rewritten sites reach the wire through the router')
       hookDefaultCall.options.effortValue === expectedHookDefault.effortValue &&
       hookDefaultCall.options.effortPinned === true &&
       hookDefaultCall.options.querySource === 'hook_prompt',
-    JSON.stringify({ end: hookDefaultEnd, calls: settledCalls.length, got: hookDefaultCall?.options, expected: expectedHookDefault }) + ' — runQuestionHook in src/services/hooks/questionRunner.ts must call routedCallModelSettled once with the utilityCallFor() model and pinned effort, querySource hook_prompt'
+    JSON.stringify({ end: hookDefaultEnd, calls: settledCalls.length, got: hookDefaultCall?.options, expected: expectedHookDefault }) + ' — runQuestionHook in src/integrations/event-hook-runners/questionRunner.ts must call routedCallModelSettled once with the utilityCallFor() model and pinned effort, querySource hook_prompt'
   )
 
   settledCalls.length = 0
@@ -206,7 +206,7 @@ section('§3 the rewritten sites reach the wire through the router')
       hookNamedCall.options.model === expectedHookNamed.model &&
       hookNamedCall.options.effortValue === expectedHookNamed.effortValue &&
       hookNamedCall.options.effortPinned === true,
-    JSON.stringify({ end: hookNamedEnd, calls: settledCalls.length, got: hookNamedCall?.options, expected: expectedHookNamed }) + ' — runQuestionHook in src/services/hooks/questionRunner.ts must route a hook model through utilityCallFor(model, { named: true }) with a pinned effort'
+    JSON.stringify({ end: hookNamedEnd, calls: settledCalls.length, got: hookNamedCall?.options, expected: expectedHookNamed }) + ' — runQuestionHook in src/integrations/event-hook-runners/questionRunner.ts must route a hook model through utilityCallFor(model, { named: true }) with a pinned effort'
   )
 
   settledCalls.length = 0
@@ -220,7 +220,7 @@ section('§3 the rewritten sites reach the wire through the router')
       agentCall.options.model === 'gpt-5.4' &&
       agentCall.options.querySource === 'agent_creation' &&
       draft.identifier === 'router-agent',
-    JSON.stringify({ calls: settledCalls.length, model: agentCall?.options.model, draft }) + ' — generateAgent in src/components/agents/generateAgent.ts must call routedCallModelSettled once with the requested model and querySource agent_creation'
+    JSON.stringify({ calls: settledCalls.length, model: agentCall?.options.model, draft }) + ' — generateAgent in src/screen/agents/generateCrewmate.ts must call routedCallModelSettled once with the requested model and querySource agent_creation'
   )
 }
 

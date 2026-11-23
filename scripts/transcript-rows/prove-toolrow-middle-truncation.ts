@@ -7,15 +7,15 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'toolrow-trunc-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 const React = (await import('react')).default
-const { renderToString } = await import('../../src/utils/staticRender.tsx')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
 const { AssistantToolUseMessage } = await import(
-  '../../src/components/messages/AssistantToolUseMessage.js'
+  '../../src/screen/messages/AssistantToolUseMessage.js'
 )
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.js')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.js')
 
 let failures = 0
 function check(cond: boolean, label: string, detail = ''): void {
@@ -24,7 +24,7 @@ function check(cond: boolean, label: string, detail = ''): void {
 }
 
 const TOOL_USE_ID = 'toolu_trunc_01'
-const rowWhere = ' | fix the truncate-middle Text of the tool row in src/components/messages/AssistantToolUseMessage.tsx'
+const rowWhere = ' | fix the truncate-middle Text of the tool row in src/screen/messages/AssistantToolUseMessage.tsx'
 
 function lookupsFor(): unknown {
   return {

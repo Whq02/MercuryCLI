@@ -7,11 +7,11 @@ import { join } from 'node:path'
 const home = mkdtempSync(join(tmpdir(), 'browser-model-switch-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_BROWSER_PATH = process.execPath
-const browser = await import('../../src/services/browser/browserSession.ts')
-const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
-const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
-const { settleModelSelection } = await import('../../src/services/model/modelTransition.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const browser = await import('../../src/integrations/browser/browserSession.ts')
+const { BrowserTool } = await import('../../src/tools/browser/BrowserTool.ts')
+const { ownerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { settleModelSelection } = await import('../../src/models/catalogue/modelTransition.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 let pressed = 0
 const page = { url: () => 'https://example.test/', on: () => {}, viewport: () => ({ width: 1280, height: 800 }), title: async () => 'fixture', evaluate: async () => undefined, keyboard: { press: async () => { pressed++ } } }
 const child = { connected: true, on: () => {}, process: () => null, pages: async () => [page], newPage: async () => page, close: async () => {} }
@@ -22,7 +22,7 @@ const owner = ownerFromToolUseContext(context())
 try {
   assert.equal((await BrowserTool.checkPermissions({ op: 'open', url: page.url() }, context())).behavior, 'ask')
   const ensured = await browser.ensureBrowserSession(owner)
-  assert.ok(!('state' in ensured), `ensureBrowserSession(${owner}) returned refusal in src/services/browser/browserSession.ts: ${JSON.stringify(ensured).slice(0, 160)}`)
+  assert.ok(!('state' in ensured), `ensureBrowserSession(${owner}) returned refusal in src/integrations/browser/browserSession.ts: ${JSON.stringify(ensured).slice(0, 160)}`)
   browser.approveWebOrigin(owner, 'https://example.test')
   const initial = browser.activeSession(owner)
   const changed = settleModelSelection(state, 'gpt-5.6-sol', { turnActive: false })

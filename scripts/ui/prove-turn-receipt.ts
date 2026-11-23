@@ -6,13 +6,13 @@ import React from 'react'
 import stripAnsi from 'strip-ansi'
 
 const { injectTurnReceipts, isScratchpadPath, isTurnReceiptEnabled, delegatedSpendLine, formatDelegatedTokens, formatDelegatedCost, createdLineCount, hasActivity, NO_TOOLS_RAN_WORDS, otherToolsLine } = await import(
-  '../../src/utils/cockpit/turnReceipt.js'
+  '../../src/screen/cockpit/turnReceipt.js'
 )
 const TEMP_ROOT = '/tmp/claude-1/'
 const inject = (rows: never[]) => injectTurnReceipts(rows, TEMP_ROOT)
 
 let failures = 0
-const RECEIPT_FAIL_HINT = ' — the receipt rows are derived by injectTurnReceipts and its helpers in src/utils/cockpit/turnReceipt.ts; fix the counting or boundary rule there'
+const RECEIPT_FAIL_HINT = ' — the receipt rows are derived by injectTurnReceipts and its helpers in src/screen/cockpit/turnReceipt.ts; fix the counting or boundary rule there'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : RECEIPT_FAIL_HINT}`)
@@ -326,14 +326,14 @@ withEnv('1', () => {
 
 section('refused launches stay error rows; only results with an agent id count')
 {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
-  const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.js')
-  const { normalizeMessages } = await import('../../src/utils/messages/normalize.js')
-  const { composeTranscript } = await import('../../src/components/Messages.js')
-  const { Message } = await import('../../src/components/Message.js')
-  const { Box } = await import('../../src/ink.js')
-  const { renderToAnsiString } = await import('../../src/utils/staticRender.js')
+  const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.js')
+  const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.js')
+  const { composeTranscript } = await import('../../src/screen/messages/Messages.js')
+  const { Message } = await import('../../src/screen/messages/Message.js')
+  const { Box } = await import('../../src/screen/themedRenderer.js')
+  const { renderToAnsiString } = await import('../../src/screen/renderer/staticRender.js')
   const tools = [AgentTool]
   const descriptions = ['Gate medic: Linux refused', 'Gate medic: Mac refused', 'Gate medic: Linux pool', 'Gate medic: Mac pool']
   const errors = ['Unknown model: fixture-invalid', 'Worktree not found: missing-worktree']

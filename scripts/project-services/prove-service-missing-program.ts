@@ -13,16 +13,16 @@ const REPLY = 'spawn produced no pid'
 
 if (process.argv[2] === '--child') {
   const [mode, workDir, home] = process.argv.slice(3) as [string, string, string]
-  const { crashReportDir } = await import('../../src/utils/crashReport.ts')
+  const { crashReportDir } = await import('../../src/platform/logs/crashReport.ts')
   if (relative(home, crashReportDir()) !== 'crashes') {
     console.log(`REFUSED ${crashReportDir()}`)
     process.exit(3)
   }
   console.log(`CRASHDIR ${crashReportDir()}`)
-  const { setupGracefulShutdown } = await import('../../src/utils/gracefulShutdown.ts')
+  const { setupGracefulShutdown } = await import('../../src/platform/processes/gracefulShutdown.ts')
   setupGracefulShutdown()
   process.on('uncaughtException', err => console.log(`UNCAUGHT ${err.message}`))
-  const { readRecord, startService, stopService } = await import('../../src/services/projectServices/serviceManager.ts')
+  const { readRecord, startService, stopService } = await import('../../src/tools/engines/project-services/serviceManager.ts')
   if (mode === 'control') {
     process.nextTick(() => {
       throw new Error('control-uncaught')
@@ -128,8 +128,8 @@ const messageOf = (run: Run, file: string): string => {
 }
 const describeReports = (run: Run): string => reportsOf(run).map(f => `${f}: ${messageOf(run, f)}`).join(' | ')
 const ranToEnd = (run: Run): string => `status=${run.status} stderr=${JSON.stringify(run.stderr.slice(-300))}`
-const hintStartService = ' | fix startService in src/services/projectServices/serviceManager.ts: a spawn that yields no pid must attach child.on(error) and return { error } without writing a record'
-const hintCrashReport = ' | check the uncaughtException handler in setupGracefulShutdown in src/utils/gracefulShutdown.ts and persistCrashReport in src/utils/crashReport.ts'
+const hintStartService = ' | fix startService in src/tools/engines/project-services/serviceManager.ts: a spawn that yields no pid must attach child.on(error) and return { error } without writing a record'
+const hintCrashReport = ' | check the uncaughtException handler in setupGracefulShutdown in src/platform/processes/gracefulShutdown.ts and persistCrashReport in src/platform/logs/crashReport.ts'
 const hintChildRun = ' | run the child by hand with: bun run scripts/project-services/prove-service-missing-program.ts --child <missing|found|control> <workDir> <home> and read its stderr'
 
 console.log('============================================================')
@@ -141,7 +141,7 @@ section('§1 a program that is not found: the model gets its error and nothing c
   const run = runChild('missing')
   check('the child ran to its end (exit 0)', run.status === 0, ranToEnd(run) + hintChildRun)
   const dir = tagged(run, 'CRASHDIR')
-  check('its crash reporter writes inside the throwaway home (never the real one)', dir !== undefined && relative(run.home, dir) === 'crashes', String(dir) + ' | crashReportDir in src/utils/crashReport.ts must resolve under MERCURY_CONFIG_DIR/crashes')
+  check('its crash reporter writes inside the throwaway home (never the real one)', dir !== undefined && relative(run.home, dir) === 'crashes', String(dir) + ' | crashReportDir in src/platform/logs/crashReport.ts must resolve under MERCURY_CONFIG_DIR/crashes')
   check(`the model gets exactly the error it got before: ${REPLY}`, tagged(run, 'RESULT') === JSON.stringify({ error: REPLY }), String(tagged(run, 'RESULT')) + hintStartService)
   check('no service record is left behind', tagged(run, 'RECORD') === 'null', String(tagged(run, 'RECORD')) + hintStartService)
   check('NO UNCAUGHT EXCEPTION reaches the process (the base left the spawn failure unlistened)', uncaughtOf(run).length === 0, uncaughtOf(run).join(' | ') + hintStartService)
@@ -163,13 +163,13 @@ section('§3 a program that is found starts and stops exactly as before')
   check('the child ran to its end (exit 0)', run.status === 0, ranToEnd(run) + hintChildRun)
   const result = parse(tagged(run, 'RESULT')) as { error?: string; record?: { pid?: number; state?: string } } | undefined
   const pid = Number(result?.record?.pid)
-  check('the start answers a record: a pid and state starting, no error', result !== undefined && result.error === undefined && Number.isInteger(pid) && pid > 0 && result.record?.state === 'starting', String(tagged(run, 'RESULT')).slice(0, 300) + ' | startService in src/services/projectServices/serviceManager.ts must still return the record for a program that is found')
-  check('the stop settles it as stopped', parse(tagged(run, 'STOPPED')) === 'stopped', String(tagged(run, 'STOPPED')) + ' | stopService in src/services/projectServices/serviceManager.ts must settle the record as stopped')
+  check('the start answers a record: a pid and state starting, no error', result !== undefined && result.error === undefined && Number.isInteger(pid) && pid > 0 && result.record?.state === 'starting', String(tagged(run, 'RESULT')).slice(0, 300) + ' | startService in src/tools/engines/project-services/serviceManager.ts must still return the record for a program that is found')
+  check('the stop settles it as stopped', parse(tagged(run, 'STOPPED')) === 'stopped', String(tagged(run, 'STOPPED')) + ' | stopService in src/tools/engines/project-services/serviceManager.ts must settle the record as stopped')
   check('no uncaught exception and no crash report', uncaughtOf(run).length === 0 && reportsOf(run).length === 0, `${uncaughtOf(run).join(' | ')} ${describeReports(run)}` + hintStartService)
   const deadline = Date.now() + 5000
   while (Number.isInteger(pid) && pid > 0 && alive(pid) && Date.now() < deadline) await sleep(50)
   const gone = !(Number.isInteger(pid) && pid > 0 && alive(pid))
-  check('the service process is gone', gone, `pid ${pid} is still running | stopService in src/services/projectServices/serviceManager.ts must end the spawned process`)
+  check('the service process is gone', gone, `pid ${pid} is still running | stopService in src/tools/engines/project-services/serviceManager.ts must end the spawned process`)
   if (!gone) {
     try {
       process.kill(pid, 'SIGKILL')

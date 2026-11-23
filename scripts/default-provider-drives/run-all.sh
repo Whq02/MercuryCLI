@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-watch: scripts/default-provider/**
 # gate-watch: src/commands/defaultprovider/**
-# gate-watch: src/utils/model/model* src/components/ConsoleOAuthFlow*
+# gate-watch: src/models/facts/inactiveCapabilityLookup.ts src/models/facts/modelLookup.ts src/models/facts/modelNameMatcher.ts src/models/facts/modelNames.ts src/models/facts/modelPickerFooter.ts src/models/facts/modelPickerGroups.ts src/models/facts/modelUseLedger.ts src/models/facts/pinnedModelIds.ts src/models/sign-in/flow-cards/SignInFlow.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

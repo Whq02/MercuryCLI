@@ -6,19 +6,19 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_HOME
 
-const { createSystemAPIErrorMessage } = await import('../../src/utils/messages/systemMessages.ts')
-const { createAssistantAPIErrorMessage } = await import('../../src/utils/messages/factories.ts')
-const { API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errorPrefix.ts')
-const { APIConnectionError, APIConnectionTimeoutError, APIError } = await import('../../src/utils/api/sdkErrors.ts')
-const { NetworkOutageError, ReconnectBudgetSpentError, nextReconnect, openReconnectLadder } = await import('../../src/services/api/reconnectLadder.ts')
-const { transportCutWords } = await import('../../src/utils/api/transportEvidence.ts')
-const { firstByteTimeoutLine, retryNoticeWait, requestWaitLine } = await import('../../src/services/providers/streamIdleBudget.ts')
-const { recoveryNoticeFacts } = await import('../../src/services/api/recoveryBudget.ts')
-const { isNullRenderingSystemRow, isTransportRetryNotice } = await import('../../src/components/messages/nullRenderingAttachments.ts')
-const { retryWaitRow } = await import('../../src/rows/project.ts')
-const { SystemTextMessage } = await import('../../src/components/messages/SystemTextMessage.tsx')
-const { AssistantTextMessage } = await import('../../src/components/messages/AssistantTextMessage.tsx')
-const { renderToString } = await import('../../src/utils/staticRender.tsx')
+const { createSystemAPIErrorMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { createAssistantAPIErrorMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { API_ERROR_MESSAGE_PREFIX } = await import('../../src/engine/requests/apiErrorPrefix.ts')
+const { APIConnectionError, APIConnectionTimeoutError, APIError } = await import('../../src/engine/request-parts/sdkErrors.ts')
+const { NetworkOutageError, ReconnectBudgetSpentError, nextReconnect, openReconnectLadder } = await import('../../src/engine/requests/reconnectLadder.ts')
+const { transportCutWords } = await import('../../src/engine/request-parts/transportEvidence.ts')
+const { firstByteTimeoutLine, retryNoticeWait, requestWaitLine } = await import('../../src/models/roads/streamIdleBudget.ts')
+const { recoveryNoticeFacts } = await import('../../src/engine/requests/recoveryBudget.ts')
+const { isNullRenderingSystemRow, isTransportRetryNotice } = await import('../../src/screen/messages/nullRenderingAttachments.ts')
+const { retryWaitRow } = await import('../../src/engine/rows/project.ts')
+const { SystemTextMessage } = await import('../../src/screen/messages/SystemTextMessage.tsx')
+const { AssistantTextMessage } = await import('../../src/screen/messages/AssistantTextMessage.tsx')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
 
 let failures = 0
 let checks = 0
@@ -27,14 +27,14 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
-const predicateHint = '; change isTransportRetryNotice or isNullRenderingSystemRow in src/components/messages/nullRenderingAttachments.ts so a self-healing transport retry is silent and a provider answer (429, 503, 529) keeps its row'
-const painterHint = '; change the SystemTextMessage branch in src/components/messages/SystemTextMessage.tsx that returns null for isTransportRetryNotice, so a transport retry paints nothing and a provider answer keeps its words'
-const factsHint = '; change createSystemAPIErrorMessage in src/utils/messages/systemMessages.ts so the notice row keeps its retry facts'
-const budgetHint = '; change recoveryNoticeFacts in src/services/api/recoveryBudget.ts'
-const waitHint = '; change retryNoticeWait or requestWaitLine in src/services/providers/streamIdleBudget.ts'
-const sdkRowHint = '; change retryWaitRow in src/rows/project.ts'
-const ladderHint = '; change nextReconnect or openReconnectLadder in src/services/api/reconnectLadder.ts'
-const finalRowHint = '; change the spent-budget message of ReconnectBudgetSpentError in src/services/api/reconnectLadder.ts, or how src/components/messages/AssistantTextMessage.tsx paints it'
+const predicateHint = '; change isTransportRetryNotice or isNullRenderingSystemRow in src/screen/messages/nullRenderingAttachments.ts so a self-healing transport retry is silent and a provider answer (429, 503, 529) keeps its row'
+const painterHint = '; change the SystemTextMessage branch in src/screen/messages/SystemTextMessage.tsx that returns null for isTransportRetryNotice, so a transport retry paints nothing and a provider answer keeps its words'
+const factsHint = '; change createSystemAPIErrorMessage in src/engine/message-shapes/systemMessages.ts so the notice row keeps its retry facts'
+const budgetHint = '; change recoveryNoticeFacts in src/engine/requests/recoveryBudget.ts'
+const waitHint = '; change retryNoticeWait or requestWaitLine in src/models/roads/streamIdleBudget.ts'
+const sdkRowHint = '; change retryWaitRow in src/engine/rows/project.ts'
+const ladderHint = '; change nextReconnect or openReconnectLadder in src/engine/requests/reconnectLadder.ts'
+const finalRowHint = '; change the spent-budget message of ReconnectBudgetSpentError in src/engine/requests/reconnectLadder.ts, or how src/screen/messages/AssistantTextMessage.tsx paints it'
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }

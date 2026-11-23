@@ -8,18 +8,18 @@ const SCRATCH = mkdtempSync(join(tmpdir(), 'mercury-tips-proof-'))
 process.env.MERCURY_CONFIG_DIR = SCRATCH
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { getRelevantTips } = await import('../../src/services/tips/tipRegistry.ts')
-const { selectTipWithLongestTimeSinceShown } = await import('../../src/services/tips/tipScheduler.ts')
-const { stringWidth } = await import('../../src/ink/stringWidth.ts')
-const { builtinCommands } = await import('../../src/commands.ts')
-const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
+const { getRelevantTips } = await import('../../src/screen/tips/tipRegistry.ts')
+const { selectTipWithLongestTimeSinceShown } = await import('../../src/screen/tips/tipScheduler.ts')
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.ts')
+const { builtinCommands } = await import('../../src/commands/catalogue/commands.ts')
+const { DEFAULT_BINDINGS } = await import('../../src/screen/keys/defaultBindings.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  const failHint = cond ? '' : ' | to fix: edit the named tip in src/services/tips/tipRegistry.ts (its text, id or cooldown), the order or pick in src/services/tips/tipScheduler.ts, or a chord in src/keybindings/defaultBindings.ts'
+  const failHint = cond ? '' : ' | to fix: edit the named tip in src/screen/tips/tipRegistry.ts (its text, id or cooldown), the order or pick in src/screen/tips/tipScheduler.ts, or a chord in src/screen/keys/defaultBindings.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${failHint}`)
 }
 

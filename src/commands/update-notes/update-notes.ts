@@ -1,8 +1,8 @@
-import type { LocalCommandResult } from '../../types/command.js'
-import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
-import { MERCURY_VERSION } from '../../constants/product.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
-import { earlierReleasesLine, getAllReleaseNotes } from '../../utils/releaseNotes.js'
+import type { LocalCommandResult } from '../catalogue/command.js'
+import { getIsNonInteractiveSession } from '../../boot/process-state/processState.js'
+import { MERCURY_VERSION } from '../../platform/product/product.js'
+import { flagEnv } from '../../platform/substrate/flagRegistry.js'
+import { earlierReleasesLine, getAllReleaseNotes } from '../../boot/releaseNotes.js'
 
 function section(version: string, notes: string[]): string {
   return [`Version ${version}:`, ...notes.map(note => `• ${note}`)].join('\n')

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/services/samples/** src/services/eval/** src/tools/EvalTool/** src/components/samples/**
+# gate-watch: src/integrations/samples/** src/tools/engines/eval-kernels/** src/tools/eval/** src/screen/samples/**
 # gate-watch: scripts/lib/*
-# gate-watch: src/services/engine-connector/daemonConnector.ts
-# gate-watch: src/tools/FileEditTool/FileEditTool.ts
-# gate-watch: src/tools/FileReadTool/FileReadTool.ts
-# gate-watch: src/rows/* src/runner/wire/*
+# gate-watch: src/engine/connector/daemonConnector.ts
+# gate-watch: src/tools/edit/EditTool.ts
+# gate-watch: src/tools/read/ReadTool.ts
+# gate-watch: src/engine/rows/* src/daemon/runner-wire/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

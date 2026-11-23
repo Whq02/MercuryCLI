@@ -3,13 +3,13 @@
 
 import { mock } from 'bun:test'
 import { dirname, join, resolve } from 'node:path'
-import type { FoldStatusV1 } from '../../src/services/compact/foldStatus.ts'
+import type { FoldStatusV1 } from '../../src/engine/compaction/foldStatus.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const at = (rel: string): string => join(ROOT, rel)
 
 let failures = 0
-const WHERE_TO_LOOK = 'change the boot step this check names in its own file under src/cli/headless/boot/ (BOOT_STEPS in bootList.ts lists them), or the resume closure hydrateResumedRun in src/cli/headless/resumeHydration.ts'
+const WHERE_TO_LOOK = 'change the boot step this check names in its own file under src/daemon/runner/boot/ (BOOT_STEPS in bootList.ts lists them), or the resume closure hydrateResumedRun in src/daemon/runner/resumeHydration.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${WHERE_TO_LOOK}` : ''}`)
@@ -20,7 +20,7 @@ const UNSETTLED = Symbol('unsettled')
 const within = <T,>(work: Promise<T> | T, ms = 3_000): Promise<T | typeof UNSETTLED> => Promise.race([Promise.resolve(work), new Promise<typeof UNSETTLED>(done => setTimeout(() => done(UNSETTLED), ms))])
 const pause = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))
 setTimeout(() => {
-  console.log('  [FAIL] the proof ended within its two minutes — a boot step or a resume step never settled: find the last section printed above and look in its step file under src/cli/headless/boot/ or in hydrateResumedRun of src/cli/headless/resumeHydration.ts')
+  console.log('  [FAIL] the proof ended within its two minutes — a boot step or a resume step never settled: find the last section printed above and look in its step file under src/daemon/runner/boot/ or in hydrateResumedRun of src/daemon/runner/resumeHydration.ts')
   process.exit(1)
 }, 120_000).unref()
 
@@ -59,50 +59,50 @@ async function watched(rel: string, wanted: string[]): Promise<void> {
   mock.module(at(rel), () => ({ ...real, ...wrapped }))
 }
 
-await spied('src/substrate/recoveryOrchestrator.ts', ['runBootRecovery'])
-await spied('src/services/run/runCoordinator.ts', ['getRunSnapshot', 'reconcileOnResume'])
-await spied('src/tasks/LocalAgentTask/launchReceipts.ts', ['reconcileBackgroundLaunchesOnResume'])
-await spied('src/cli/headless/restartCarry.ts', ['carryRunnerAcrossRestart'])
-await spied('src/tasks/LocalAgentTask/pauseCarry.ts', ['carryPausedCrewmatesOnResume'])
-await spied('src/tools/MonitorTool/watchReceipts.ts', ['reconcileWatchesOnResume', 'reconcileBackgroundShellsOnResume'])
-await spied('src/tasks/taskLaunchLedger.ts', ['reconcileTaskLaunchesOnResume'])
-await spied('src/services/switchboard/sessionReceipts.ts', ['appendSessionReceipt'])
-await spied('src/utils/messageQueueManager.ts', ['enqueuePendingNotification'])
-await spied('src/utils/log.ts', ['logError'])
+await spied('src/platform/substrate/recoveryOrchestrator.ts', ['runBootRecovery'])
+await spied('src/engine/run/runCoordinator.ts', ['getRunSnapshot', 'reconcileOnResume'])
+await spied('src/engine/tasks/local-agent/launchReceipts.ts', ['reconcileBackgroundLaunchesOnResume'])
+await spied('src/daemon/runner/restartCarry.ts', ['carryRunnerAcrossRestart'])
+await spied('src/engine/tasks/local-agent/pauseCarry.ts', ['carryPausedCrewmatesOnResume'])
+await spied('src/tools/monitor/watchReceipts.ts', ['reconcileWatchesOnResume', 'reconcileBackgroundShellsOnResume'])
+await spied('src/engine/tasks/taskLaunchLedger.ts', ['reconcileTaskLaunchesOnResume'])
+await spied('src/daemon/switchboard/sessionReceipts.ts', ['appendSessionReceipt'])
+await spied('src/daemon/runner/messageQueueManager.ts', ['enqueuePendingNotification'])
+await spied('src/platform/logs/errorLog.ts', ['logError'])
 
-await watched('src/cli/agentFreshness.ts', ['armRunnerAgentFreshness'])
-await watched('src/services/settings/faultNotices.ts', ['currentSettingsFaults', 'untoldSettingsFaults'])
-await watched('src/utils/text/hiddenCharacterFindings.ts', ['currentHiddenCharacterLines', 'untoldHiddenCharacterLines'])
-await watched('src/utils/hooks/hooksConfigSnapshot.ts', ['hooksSkippedForTrustLine'])
-await watched('src/services/mcp/config.ts', ['mcpServersSkippedForTrustLine'])
-await watched('src/tools.ts', ['toolsWithheldByDeny'])
-await watched('src/utils/messageQueueManager.ts', ['subscribeToCommandQueue', 'getCommandQueue'])
-await watched('src/utils/sdkEventQueue.ts', ['subscribeRows', 'drainRows'])
-await watched('src/utils/cleanupRegistry.ts', ['registerCleanup'])
-await watched('src/utils/tasks.ts', ['onTasksUpdated'])
-await watched('src/guards/mission.ts', ['subscribeActiveMission', 'rearmMissionFromCard'])
-await watched('src/services/samples/store.ts', ['subscribeSampleChanges'])
-await watched('src/services/resume/sessionRestore.ts', ['restoreConversationModel'])
-await watched('src/cli/headless/model.ts', ['resolveHeadlessModel'])
-await watched('src/cli/headless/resume.ts', ['emitLoadError', 'loadInitialMessages'])
-await watched('src/utils/gracefulShutdown.ts', ['gracefulShutdownSync'])
-await watched('src/services/providers/local/localWarm.ts', ['armLocalWarm'])
-await watched('src/services/agents/queryContext.ts', ['buildSideQuestionFallbackParams'])
-await watched('src/utils/runPhases.ts', ['noteRunPhase'])
-await watched('src/utils/activityLedger.ts', ['noteHeadlessActivity'])
-await watched('src/utils/headlessProfiler.ts', ['headlessProfilerStartTurn'])
-await watched('src/utils/wireStdoutGuard.ts', ['installWireStdoutGuard'])
-await watched('src/utils/process.ts', ['registerProcessOutputErrorHandlers'])
-await watched('src/utils/sessionStorage.ts', ['saveSessionModel'])
-await watched('src/services/switchboard/sessionReceipts.ts', ['settleClearModel'])
-await watched('src/utils/sessionStorage/writer.ts', ['recordTranscript'])
-await watched('src/guards/wardsGuard.ts', ['registerWardsGuard'])
-await watched('src/services/crew/identity.ts', ['bootCrewIdentity'])
-await watched('src/utils/boxLock.ts', ['refreshBoxReading'])
-await watched('src/services/saturn/sessionScheduleBridge.ts', ['registerLocalWakeSink'])
+await watched('src/daemon/runner/agentFreshness.ts', ['armRunnerAgentFreshness'])
+await watched('src/platform/settings-faults/faultNotices.ts', ['currentSettingsFaults', 'untoldSettingsFaults'])
+await watched('src/platform/text/hiddenCharacterFindings.ts', ['currentHiddenCharacterLines', 'untoldHiddenCharacterLines'])
+await watched('src/integrations/event-hooks/hooksConfigSnapshot.ts', ['hooksSkippedForTrustLine'])
+await watched('src/integrations/mcp/serverConfigs.ts', ['mcpServersSkippedForTrustLine'])
+await watched('src/tools/kit/toolList.ts', ['toolsWithheldByDeny'])
+await watched('src/daemon/runner/messageQueueManager.ts', ['subscribeToCommandQueue', 'getCommandQueue'])
+await watched('src/daemon/runner/sdkEventQueue.ts', ['subscribeRows', 'drainRows'])
+await watched('src/platform/processes/cleanupRegistry.ts', ['registerCleanup'])
+await watched('src/engine/task-framework/tasks.ts', ['onTasksUpdated'])
+await watched('src/permissions/guards/mission.ts', ['subscribeActiveMission', 'rearmMissionFromCard'])
+await watched('src/integrations/samples/store.ts', ['subscribeSampleChanges'])
+await watched('src/sessions/resume/sessionRestore.ts', ['restoreConversationModel'])
+await watched('src/daemon/runner/model.ts', ['resolveHeadlessModel'])
+await watched('src/daemon/runner/resume.ts', ['emitLoadError', 'loadInitialMessages'])
+await watched('src/platform/processes/gracefulShutdown.ts', ['gracefulShutdownSync'])
+await watched('src/models/roads/local/localWarm.ts', ['armLocalWarm'])
+await watched('src/engine/system-prompt/systemPromptParts.ts', ['buildSideQuestionFallbackParams'])
+await watched('src/platform/logs/runPhases.ts', ['noteRunPhase'])
+await watched('src/platform/logs/activityLedger.ts', ['noteHeadlessActivity'])
+await watched('src/platform/logs/headlessProfiler.ts', ['headlessProfilerStartTurn'])
+await watched('src/daemon/runner/wireStdoutGuard.ts', ['installWireStdoutGuard'])
+await watched('src/platform/processes/process.ts', ['registerProcessOutputErrorHandlers'])
+await watched('src/sessions/transcripts/sessionStorage.ts', ['saveSessionModel'])
+await watched('src/daemon/switchboard/sessionReceipts.ts', ['settleClearModel'])
+await watched('src/sessions/transcripts/writer.ts', ['recordTranscript'])
+await watched('src/permissions/guards/wardsGuard.ts', ['registerWardsGuard'])
+await watched('src/crew/crewmates/identity.ts', ['bootCrewIdentity'])
+await watched('src/platform/storage/boxLock.ts', ['refreshBoxReading'])
+await watched('src/daemon/saturn/sessionScheduleBridge.ts', ['registerLocalWakeSink'])
 {
-  const real = (await import(at('src/utils/settings/changeDetector.ts'))) as { settingsChangeDetector: Record<string, unknown> }
-  mock.module(at('src/utils/settings/changeDetector.ts'), () => ({
+  const real = (await import(at('src/platform/settings/changeDetector.ts'))) as { settingsChangeDetector: Record<string, unknown> }
+  mock.module(at('src/platform/settings/changeDetector.ts'), () => ({
     ...real,
     settingsChangeDetector: {
       ...real.settingsChangeDetector,
@@ -114,28 +114,28 @@ await watched('src/services/saturn/sessionScheduleBridge.ts', ['registerLocalWak
   }))
 }
 
-const { hydrateResumedRun } = await import('../../src/cli/headless/resumeHydration.ts')
-const { BOOT_ENDS, createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
-const { BOOT_STEPS } = await import('../../src/cli/headless/boot/bootList.ts')
-const { coerceRestartReason } = await import('../../src/tasks/LocalAgentTask/launchReceipts.ts')
-const { composeRestartLine } = await import('../../src/tools/MonitorTool/watchReceipts.ts')
-const { wrapInSystemReminder } = await import('../../src/utils/messages/text.ts')
-const { getEngineModelOverride, getSessionId, setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
-const { getCwd } = await import('../../src/utils/cwd.ts')
-const { compactionRow } = await import('../../src/rows/project.ts')
-const { bootModelRefusalLine } = await import('../../src/cli/headless/model.ts')
-const { priorTurnCount } = await import('../../src/cli/headless/claimSession.ts')
-const { getEngineModel, parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
-const { getModelOptions } = await import('../../src/services/model/modelOptions.ts')
-const { modelSupportsEffort } = await import('../../src/utils/model/capabilities.ts')
-const { resolveEffortTruth } = await import('../../src/utils/effort.ts')
-const { getTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { hydrateResumedRun } = await import('../../src/daemon/runner/resumeHydration.ts')
+const { BOOT_ENDS, createRunnerState } = await import('../../src/daemon/runner/runnerPorts.ts')
+const { BOOT_STEPS } = await import('../../src/daemon/runner/boot/bootList.ts')
+const { coerceRestartReason } = await import('../../src/engine/tasks/local-agent/launchReceipts.ts')
+const { composeRestartLine } = await import('../../src/tools/monitor/watchReceipts.ts')
+const { wrapInSystemReminder } = await import('../../src/engine/message-shapes/text.ts')
+const { getEngineModelOverride, getSessionId, setEngineModelOverride } = await import('../../src/boot/process-state/processState.ts')
+const { getCwd } = await import('../../src/platform/files/cwd.ts')
+const { compactionRow } = await import('../../src/engine/rows/project.ts')
+const { bootModelRefusalLine } = await import('../../src/daemon/runner/model.ts')
+const { priorTurnCount } = await import('../../src/daemon/runner/claimSession.ts')
+const { getEngineModel, parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.ts')
+const { getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
+const { modelSupportsEffort } = await import('../../src/models/facts/capabilities.ts')
+const { resolveEffortTruth } = await import('../../src/models/effort/effort.ts')
+const { getTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
 type Ports = Parameters<typeof hydrateResumedRun>[0]
-type LaunchReconcile = Awaited<ReturnType<typeof import('../../src/tasks/taskLaunchLedger.ts').reconcileTaskLaunchesOnResume>>
-type CarryOutcome = Awaited<ReturnType<typeof import('../../src/cli/headless/restartCarry.ts').carryRunnerAcrossRestart>>
+type LaunchReconcile = Awaited<ReturnType<typeof import('../../src/engine/tasks/taskLaunchLedger.ts').reconcileTaskLaunchesOnResume>>
+type CarryOutcome = Awaited<ReturnType<typeof import('../../src/daemon/runner/restartCarry.ts').carryRunnerAcrossRestart>>
 type Scene = { ports: Ports; live: Ports['live']; messages: unknown[]; getAppState: () => unknown; setAppState: () => void; canUseTool: () => void; relaunchContext: () => Promise<unknown>; rows: Array<Record<string, unknown>>; launches: LaunchReconcile }
 
 function scene(reason: string | undefined, messages: unknown[] = [{ type: 'user', uuid: 'u-1', message: { role: 'user', content: 'the first words' } }]): Scene {
@@ -262,7 +262,7 @@ function fresh(): void {
 section('§3 the cold road: the boot reads the restart reason, wires the session it carries, and runs the one resume closure')
 {
   const absent = CALLED.filter(name => !BOOT_STEPS.some(step => step.name === name))
-  check(`BOOT_STEPS of src/cli/headless/boot/bootList.ts holds the ${CALLED.length} steps this proof calls, each by its name`, absent.length === 0, `${absent.join(', ')} left the list: put the step back, or move its checks with what it did`)
+  check(`BOOT_STEPS of src/daemon/runner/boot/bootList.ts holds the ${CALLED.length} steps this proof calls, each by its name`, absent.length === 0, `${absent.join(', ')} left the list: put the step back, or move its checks with what it did`)
   for (const options of [{ resume: 'the-session' }, { continue: true }]) {
     const resumed = scene('crash')
     await ran('hydrateColdResume', { ...(resumed.ports as object), options })

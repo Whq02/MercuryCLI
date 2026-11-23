@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import React, { useState } from 'react'
-import Ink from '../../src/ink/ink.tsx'
-import Text from '../../src/ink/components/Text.tsx'
-import useInput from '../../src/ink/hooks/use-input.ts'
-import instances from '../../src/ink/instances.ts'
-import { readFrameTrace, recordFrameTrace, traceKeyResolved, _resetFrameTraceForTesting } from '../../src/ink/root/frame-trace.ts'
+import Ink from '../../src/screen/renderer/screenInstance.tsx'
+import Text from '../../src/screen/renderer/elements/Text.tsx'
+import useInput from '../../src/screen/renderer/bindings/use-input.ts'
+import instances from '../../src/screen/renderer/instances.ts'
+import { readFrameTrace, recordFrameTrace, traceKeyResolved, _resetFrameTraceForTesting } from '../../src/screen/renderer/root/frame-trace.ts'
 
 class Output extends EventEmitter {
   isTTY = true
@@ -52,7 +52,7 @@ for (const key of ['a', 'b', 'c', 'd', 'e']) {
   const writes = stdout.writes.slice(marker)
   assert.ok(writes.length > 0, 'the real input owner must produce an echo frame')
   const trace = readFrameTrace()
-  assert.ok(trace.some(row => row.inputToFrameMs !== null), `frame trace recorded no inputToFrameMs after key=${key} (rows=${trace.length}); check src/ink/root/frame-trace.ts`)
+  assert.ok(trace.some(row => row.inputToFrameMs !== null), `frame trace recorded no inputToFrameMs after key=${key} (rows=${trace.length}); check src/screen/renderer/root/frame-trace.ts`)
   samples.push({ firstMs: writes[0]!.at - started, lastMs: writes[writes.length - 1]!.at - started, bytes: writes.reduce((sum, write) => sum + Buffer.byteLength(write.bytes), 0), frames: trace.length, engineMs: trace.reduce((sum, row) => sum + row.totalMs, 0) })
   const settled = stdout.writes.length
   ink.onRender()

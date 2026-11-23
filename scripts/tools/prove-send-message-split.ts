@@ -10,24 +10,24 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-await import('../../src/tasks.ts')
-const { SendMessageTool } = await import('../../src/tools/SendMessageTool/SendMessageTool.ts')
-const resumePath = join(import.meta.dir, '../../src/tools/ResumeAgentTool/ResumeAgentTool.ts')
+await import('../../src/engine/tasks/tasks.ts')
+const { SendMessageTool } = await import('../../src/tools/send-message/SendMessageTool.ts')
+const resumePath = join(import.meta.dir, '../../src/tools/resume-crewmate/ResumeAgentTool.ts')
 const ResumeAgentTool = existsSync(resumePath) ? (await import(resumePath)).ResumeAgentTool as typeof SendMessageTool : undefined
-const { getPrompt } = await import('../../src/tools/SendMessageTool/prompt.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { registerAsyncAgent, registerAgentName, killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { generateTaskId } = await import('../../src/Task.ts')
-const { getAgentTranscriptPath, writeAgentMetadata } = await import('../../src/utils/sessionStorage/paths.ts')
-const { asAgentId } = await import('../../src/types/ids.ts')
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
-const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
-type AppState = import('../../src/state/AppStateStore.ts').AppState
+const { getPrompt } = await import('../../src/tools/send-message/prompt.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { registerAsyncAgent, registerAgentName, killAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
+const { getAgentTranscriptPath, writeAgentMetadata } = await import('../../src/sessions/transcripts/paths.ts')
+const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
+const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
+const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
+type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState
 type Output = { success: boolean; message: string }
 let failures = 0
 let checks = 0
@@ -36,7 +36,7 @@ const check = (label: string, yes: boolean, detail = '') => {
   if (!yes) failures++
   console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${!yes && detail ? ` — ${detail}` : ''}${yes ? '' : splitFixHint}`)
 }
-const splitFixHint = ' | fix: delivery, refusals and validation are call and validateInput in src/tools/SendMessageTool/SendMessageTool.ts (SendMessage) and src/tools/ResumeAgentTool/ResumeAgentTool.ts (ResumeCrewmate); the SendMessage prompt is getPrompt in src/tools/SendMessageTool/prompt.ts'
+const splitFixHint = ' | fix: delivery, refusals and validation are call and validateInput in src/tools/send-message/SendMessageTool.ts (SendMessage) and src/tools/resume-crewmate/ResumeAgentTool.ts (ResumeCrewmate); the SendMessage prompt is getPrompt in src/tools/send-message/prompt.ts'
 let state = { ...getDefaultAppState(), toolPermissionContext: getEmptyToolPermissionContext() } as AppState
 const setState = (update: (prev: AppState) => AppState) => { state = update(state) }
 const context = (agentId?: string) => ({
@@ -78,7 +78,7 @@ const evict = (id: string) => {
   state = { ...state, tasks, agentNameRegistry: new Map([...state.agentNameRegistry].filter(([, value]) => String(value) !== id)) }
 }
 const stop = (id: string) => killAsyncAgent(id, setState as never)
-const guard = setTimeout(() => { console.log('[FAIL] split proof exceeded 120 seconds; a SendMessage or ResumeCrewmate call (src/tools/SendMessageTool/SendMessageTool.ts, src/tools/ResumeAgentTool/ResumeAgentTool.ts) never settled, so look at the last line printed above'); process.exit(1) }, 120_000)
+const guard = setTimeout(() => { console.log('[FAIL] split proof exceeded 120 seconds; a SendMessage or ResumeCrewmate call (src/tools/send-message/SendMessageTool.ts, src/tools/resume-crewmate/ResumeAgentTool.ts) never settled, so look at the last line printed above'); process.exit(1) }, 120_000)
 guard.unref()
 
 check('ResumeCrewmate exists as a separate verb', ResumeAgentTool !== undefined)

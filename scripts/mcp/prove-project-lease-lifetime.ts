@@ -4,37 +4,37 @@ import { removeScratch } from '../lib/removeScratch.ts'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { mock } from 'bun:test'
-import type { QueryParams } from '../../src/query.ts'
-import type { ToolUseContext } from '../../src/Tool.ts'
+import type { QueryParams } from '../../src/engine/turnDoor.ts'
+import type { ToolUseContext } from '../../src/tools/kit/tool.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const root = join(proofHome, 'work')
 const secondRoot = join(proofHome, 'second')
 mkdirSync(root, { recursive: true })
 mkdirSync(secondRoot, { recursive: true })
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(root)
 bootstrap.setProjectRoot(root)
 bootstrap.setCwdState(root)
 bootstrap.switchSession('00000000-0000-4000-8000-000000000046' as never, root)
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { beginAgentProjectLeases, projectLeaseHolder, takeProjectLeases, releaseProjectLeases, listProjectLeases } = await import('../../src/services/vulcan/engine/leases.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { registerAsyncAgent, killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const realQuery = await import('../../src/query.ts')
+const { beginAgentProjectLeases, projectLeaseHolder, takeProjectLeases, releaseProjectLeases, listProjectLeases } = await import('../../src/integrations/vulcan/engine/leases.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { registerAsyncAgent, killAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const realQuery = await import('../../src/engine/turnDoor.ts')
 const modes = new Map<string, string>()
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)}; fix the agent lease lifetime in beginAgentProjectLeases and takeProjectLeases (src/services/vulcan/engine/leases.ts) and where runAgent starts and ends it (src/tools/AgentTool/runAgent.ts)` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)}; fix the agent lease lifetime in beginAgentProjectLeases and takeProjectLeases (src/integrations/vulcan/engine/leases.ts) and where runAgent starts and ends it (src/tools/crewmate/runCrewmate.ts)` : ''}`)
 }
-mock.module('../../src/query.ts', () => ({
+mock.module('../../src/engine/turnDoor.ts', () => ({
   ...realQuery,
   query: async function* (params: QueryParams) {
     const id = params.toolUseContext.agentId!
@@ -44,7 +44,7 @@ mock.module('../../src/query.ts', () => ({
     if (modes.get(id) === 'failure') throw new Error('lease fixture failure')
   },
 }))
-const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
+const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
 const MODEL = 'claude-opus-4-8'
 const definition = { agentType: 'lease-proof', whenToUse: 'lease fixture', source: 'projectSettings', omitProjectInstructions: true, getSystemPrompt: () => 'Lease fixture.' } as never
 const allow = (async (_tool: unknown, input: Record<string, unknown>) => ({ behavior: 'allow', updatedInput: input })) as never
@@ -143,7 +143,7 @@ try {
   check('a late take after the agent ended is refused', late.includes('agent has ended') && !(await paths()).includes('late.ts'), late)
 } finally {
   await releaseProjectLeases(root, foreign)
-  const { runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.ts')
+  const { runCleanupFunctions } = await import('../../src/platform/processes/cleanupRegistry.ts')
   await runCleanupFunctions()
   mock.restore()
   try {

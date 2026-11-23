@@ -19,17 +19,17 @@ for (const name of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS']
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(project)
 
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { GlobTool } = await import('../../src/tools/GlobTool/GlobTool.ts')
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
-const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
-const { closeRemoteConnections } = await import('../../src/services/remoteFiles/connection.ts')
-const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
+const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
+const { closeRemoteConnections } = await import('../../src/platform/remote-files/connection.ts')
+const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.ts')
 setSessionTrustAccepted(true)
 enableConfigs()
 setOriginalCwd(project)
@@ -40,7 +40,7 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const orderHint = 'change decideToolPermission in src/utils/permissions/decision/engine.ts or the tool validateInput and call under src/tools/ (FileReadTool, FileWriteTool, FileEditTool, GlobTool, GrepTool) so the decision and refusal come before any ssh start; the ssh start itself is in src/services/remoteFiles/'
+  const orderHint = 'change decideToolPermission in src/permissions/rules/decision/engine.ts or the tool validateInput and call under src/tools/ (FileReadTool, FileWriteTool, FileEditTool, GlobTool, GrepTool) so the decision and refusal come before any ssh start; the ssh start itself is in src/platform/remote-files/'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 700)} | ` : ''}${orderHint}` : ''}`)
 }
 const tools = [FileReadTool, FileWriteTool, FileEditTool, GlobTool, GrepTool]

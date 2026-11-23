@@ -5,12 +5,12 @@ import '../lib/hermetic.ts'
 process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_BARE
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { noteSessionEngine, _resetLineageSessionForTesting } = await import('../../src/mneme/lineageSession.ts')
-const { askForHandoff, handoffAskText, _resetHandoffAskForTesting } = await import('../../src/mneme/handoffAsk.ts')
-const { registerSessionCloseAsk, _resetSessionClosersForTesting } = await import('../../src/mneme/sessionClose.ts')
-const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
+const { noteSessionEngine, _resetLineageSessionForTesting } = await import('../../src/sessions/mneme/lineageSession.ts')
+const { askForHandoff, handoffAskText, _resetHandoffAskForTesting } = await import('../../src/sessions/mneme/handoffAsk.ts')
+const { registerSessionCloseAsk, _resetSessionClosersForTesting } = await import('../../src/sessions/mneme/sessionClose.ts')
+const { createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
 const { HANDOFF_ASK_MARK } = await import('../lib/fixtureApi.ts')
 
 let failures = 0
@@ -21,7 +21,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const HINT = 'update HANDOFF_ASK (returned by handoffAskText) in src/mneme/handoffAsk.ts'
+const HINT = 'update HANDOFF_ASK (returned by handoffAskText) in src/sessions/mneme/handoffAsk.ts'
 
 const sessionId = '00000000-0000-4000-8000-00000000c001'
 _resetSessionClosersForTesting()
@@ -87,7 +87,7 @@ await askForHandoff({
 check(
   'askForHandoff sends the built instruction verbatim to the runner',
   sentPrompt === built,
-  `check askForHandoff and handoffAskText in src/mneme/handoffAsk.ts; sent: ${sentPrompt}`,
+  `check askForHandoff and handoffAskText in src/sessions/mneme/handoffAsk.ts; sent: ${sentPrompt}`,
 )
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} closing note holds what was seen: ${checks - failures}/${checks} checks passed`)

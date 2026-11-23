@@ -7,27 +7,27 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'toolrow-pulse-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 const React = (await import('react')).default
-const { renderToString } = await import('../../src/utils/staticRender.tsx')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
 const { AssistantToolUseMessage } = await import(
-  '../../src/components/messages/AssistantToolUseMessage.js'
+  '../../src/screen/messages/AssistantToolUseMessage.js'
 )
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.js')
-const { liveTurnStateOf } = await import('../../src/services/resume/conversationRecovery.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { WORK_FRAMES } = await import('../../src/utils/cockpit/liveGlyphs.js')
-const { GLYPH } = await import('../../src/utils/glyphs.js')
-const { BLACK_CIRCLE } = await import('../../src/constants/figures.js')
-const { TOOL_FAMILY_MARKS } = await import('../../src/components/mercury-ui/toolGlyphs.js')
+const { BashTool } = await import('../../src/tools/shell/BashTool.js')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.js')
+const { liveTurnStateOf } = await import('../../src/sessions/resume/conversationRecovery.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { WORK_FRAMES } = await import('../../src/screen/cockpit/liveGlyphs.js')
+const { GLYPH } = await import('../../src/screen/theme/glyphs.js')
+const { BLACK_CIRCLE } = await import('../../src/screen/theme/rowGlyphs.js')
+const { TOOL_FAMILY_MARKS } = await import('../../src/screen/widgets/toolGlyphs.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' [change liveTurnStateOf in src/services/resume/conversationRecovery.ts (which calls are in progress), AssistantToolUseMessage in src/components/messages/AssistantToolUseMessage.tsx (the row lead and the running body), or viewInProgressToolUseIDs in src/screens/chat/useChatStatus.tsx (the daemon-hosted set)]'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' [change liveTurnStateOf in src/sessions/resume/conversationRecovery.ts (which calls are in progress), AssistantToolUseMessage in src/screen/messages/AssistantToolUseMessage.tsx (the row lead and the running body), or viewInProgressToolUseIDs in src/screen/chat/useChatStatus.tsx (the daemon-hosted set)]'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -214,7 +214,7 @@ section('§C the daemon-hosted feed seams (source locks, call-shaped)')
 {
   {
     const { openStatusPart } = await import('../ui/chatScenarios.ts')
-    const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+    const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
     const status = await openStatusPart('toolrow-pulse-status', { keepHome: true })
     const liveSet = new Set(['toolu_live_1', 'toolu_live_2'])
     await status.plant({ seatLive: { ...IDLE_LIVE, inFlight: true, phase: 'tool', inProgressToolUseIDs: liveSet } })

@@ -65,13 +65,13 @@ writeFileSync(
 
 process.env.MERCURY_JS_DEBUG_DAP = JS_DEBUG
 process.chdir(nodeProj)
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const launch = await import('../../src/services/ide/launchProfiles.js')
-const { LaunchTool } = await import('../../src/tools/LaunchTool/LaunchTool.js')
-const dap = await import('../../src/services/dap/dapClient.js')
-const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.js')
-const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.js')
+const launch = await import('../../src/integrations/ide/launchProfiles.js')
+const { LaunchTool } = await import('../../src/tools/launch/LaunchTool.js')
+const dap = await import('../../src/integrations/debugger/dapClient.js')
+const { ownerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.js')
+const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.js')
 const ctx = { getAppState: () => ({}) } as never
 
 try {
@@ -83,20 +83,20 @@ try {
     const d = await launch.discoverLaunchProfiles(nodeProj)
     const runProfile = d.profiles.find(p => p.label === 'run')
     const sevenProfile = d.profiles.find(p => p.label === 'seven')
-    check('both launch profiles are discovered', runProfile !== undefined && sevenProfile !== undefined, JSON.stringify(d.profiles.map(p => p.label)) + ' · discoverLaunchProfiles in src/services/ide/launchProfiles.ts must list the run and seven entries of the fixture .vscode/launch.json')
+    check('both launch profiles are discovered', runProfile !== undefined && sevenProfile !== undefined, JSON.stringify(d.profiles.map(p => p.label)) + ' · discoverLaunchProfiles in src/integrations/ide/launchProfiles.ts must list the run and seven entries of the fixture .vscode/launch.json')
     const ran = (await LaunchTool.call({ op: 'run', profile: runProfile!.id } as never, ctx)) as { data: { result: string; outcome: string } }
     const ranLine = ran.data.result.split('\n')[0] ?? ''
     console.log(`  run → ${ranLine}`)
-    check('the natural end carries the program’s stdout', ran.data.result.includes('VAR is one'), ran.data.result.slice(0, 300) + ' · the Launch run op (src/tools/LaunchTool/LaunchTool.ts) must return the program stdout in its result')
-    check('the natural end is never spelled as the adapter’s own exit (code 1, a kill signal)', !/adapter exited/.test(ranLine) && !/code 1\b/.test(ranLine) && !/SIGKILL/.test(ranLine), ranLine + ' · debuggeeEndDetail in src/services/dap/client/tree.ts must not report a natural end as an adapter exit')
-    check('the natural end says the program ended without a non-zero exit code', /debuggee ended \(no non-zero exit code reported\)|debuggee exited \(code 0\)/.test(ranLine), ranLine + ' · debuggeeEndDetail in src/services/dap/client/tree.ts must say the debuggee ended without a non-zero exit code')
+    check('the natural end carries the program’s stdout', ran.data.result.includes('VAR is one'), ran.data.result.slice(0, 300) + ' · the Launch run op (src/tools/launch/LaunchTool.ts) must return the program stdout in its result')
+    check('the natural end is never spelled as the adapter’s own exit (code 1, a kill signal)', !/adapter exited/.test(ranLine) && !/code 1\b/.test(ranLine) && !/SIGKILL/.test(ranLine), ranLine + ' · debuggeeEndDetail in src/integrations/debugger/client/tree.ts must not report a natural end as an adapter exit')
+    check('the natural end says the program ended without a non-zero exit code', /debuggee ended \(no non-zero exit code reported\)|debuggee exited \(code 0\)/.test(ranLine), ranLine + ' · debuggeeEndDetail in src/integrations/debugger/client/tree.ts must say the debuggee ended without a non-zero exit code')
     const seven = (await LaunchTool.call({ op: 'run', profile: sevenProfile!.id } as never, ctx)) as { data: { result: string; outcome: string } }
     const sevenLine = seven.data.result.split('\n')[0] ?? ''
     console.log(`  seven → ${sevenLine}`)
-    check('an explicit process.exit(7) is reported as the program’s exit code 7', /debuggee exited \(code 7\)/.test(sevenLine), sevenLine + ' · debuggeeEndDetail in src/services/dap/client/tree.ts must report the program own exit code')
-    check('…and never as the adapter’s end', !/adapter exited/.test(sevenLine), sevenLine + ' · debuggeeEndDetail in src/services/dap/client/tree.ts must prefer the debuggee exit over the adapter end')
+    check('an explicit process.exit(7) is reported as the program’s exit code 7', /debuggee exited \(code 7\)/.test(sevenLine), sevenLine + ' · debuggeeEndDetail in src/integrations/debugger/client/tree.ts must report the program own exit code')
+    check('…and never as the adapter’s end', !/adapter exited/.test(sevenLine), sevenLine + ' · debuggeeEndDetail in src/integrations/debugger/client/tree.ts must prefer the debuggee exit over the adapter end')
     await disposeOwner(ownerFromToolUseContext(ctx))
-    check('the sessions are reaped', dap._dapSessionCountForTesting() === 0, 'a DAP session outlived disposeOwner of the Launch run op; see disposeOwner in src/utils/run/ownerLifecycle.ts')
+    check('the sessions are reaped', dap._dapSessionCountForTesting() === 0, 'a DAP session outlived disposeOwner of the Launch run op; see disposeOwner in src/engine/run-owner/ownerLifecycle.ts')
   }
 
   section('§2 the Test debug op with no Python debugger: one line names what is missing and how to install it, and the test still runs without a stop')
@@ -114,25 +114,25 @@ try {
   } else {
     process.env.MERCURY_PYTHON = SYS_PY
     delete process.env.MERCURY_DEBUGPY_VENDOR_DIR
-    const resolver = await import('../../src/services/dap/debugpyResolver.js')
+    const resolver = await import('../../src/integrations/debugger/debugpyResolver.js')
     resolver._resetDebugpyResolverForTesting()
-    const { _resetPythonProjectForTesting, projectPythonDebugAdapter } = await import('../../src/services/ide/pythonProject.js')
+    const { _resetPythonProjectForTesting, projectPythonDebugAdapter } = await import('../../src/integrations/ide/pythonProject.js')
     _resetPythonProjectForTesting()
     process.chdir(pyProj)
     const adapter = projectPythonDebugAdapter(pyProj)
     if (adapter.state === 'ok') {
       console.log(`  [SKIP — LOUD] ${SYS_PY} carries debugpy (${JSON.stringify(adapter.provenance)}) — this leg needs an interpreter without it`)
     } else {
-      const { TestTool } = await import('../../src/tools/TestTool/TestTool.js')
-      const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+      const { TestTool } = await import('../../src/tools/test/TestTool.js')
+      const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
       const out = (await runWithCwdOverride(pyProj, () => TestTool.call({ op: 'debug', node: 'tests.test_sum.TestSum.test_add_three_plus_four', framework: 'unittest' } as never, ctx))) as { data: { result: string; outcome: string } }
       const first = out.data.result.split('\n')[0] ?? ''
       console.log(`  debug → ${first}`)
-      check('the first line says no Python debugger is on this machine', first.startsWith('no Python debugger (debugpy) on this machine — '), first + ' · debuggerMissingLine in src/tools/TestTool/TestTool.ts must build the first line of the Test debug op result')
-      check('…with the install words', /pip install debugpy/.test(first) && /py -m pip install debugpy/.test(first), first + ' · the remedy passed to debuggerMissingLine in src/tools/TestTool/TestTool.ts must carry both install commands')
-      check('…and that the test ran without a stop', first.endsWith('; the test ran without a stop'), first + ' · debuggerMissingLine in src/tools/TestTool/TestTool.ts must end the line with that phrase')
-      check('the run’s own verdict follows: the failing test is named with its counts', /unittest nodes:tests\.test_sum\.TestSum\.test_add_three_plus_four — 0 passed · 1 failed/.test(out.data.result) && /AssertionError: 7 != 8/.test(out.data.result) && out.data.outcome === 'failed', out.data.result.slice(0, 400) + ' · the Test debug op (src/tools/TestTool/TestTool.ts) must still run the test and append its verdict with outcome failed')
-      check('the result is a typed answer, never a thrown tool error', !/^Error|adapter 'python' is unavailable:/.test(first), first + ' · the Test debug op (src/tools/TestTool/TestTool.ts) must return a typed answer, not throw')
+      check('the first line says no Python debugger is on this machine', first.startsWith('no Python debugger (debugpy) on this machine — '), first + ' · debuggerMissingLine in src/tools/test/TestTool.ts must build the first line of the Test debug op result')
+      check('…with the install words', /pip install debugpy/.test(first) && /py -m pip install debugpy/.test(first), first + ' · the remedy passed to debuggerMissingLine in src/tools/test/TestTool.ts must carry both install commands')
+      check('…and that the test ran without a stop', first.endsWith('; the test ran without a stop'), first + ' · debuggerMissingLine in src/tools/test/TestTool.ts must end the line with that phrase')
+      check('the run’s own verdict follows: the failing test is named with its counts', /unittest nodes:tests\.test_sum\.TestSum\.test_add_three_plus_four — 0 passed · 1 failed/.test(out.data.result) && /AssertionError: 7 != 8/.test(out.data.result) && out.data.outcome === 'failed', out.data.result.slice(0, 400) + ' · the Test debug op (src/tools/test/TestTool.ts) must still run the test and append its verdict with outcome failed')
+      check('the result is a typed answer, never a thrown tool error', !/^Error|adapter 'python' is unavailable:/.test(first), first + ' · the Test debug op (src/tools/test/TestTool.ts) must return a typed answer, not throw')
     }
   }
 } finally {

@@ -7,10 +7,10 @@ import {
   type HealthCheck,
   type HealthStatus,
   type LastCertSummary,
-} from '../../utils/healthCertCore.js'
-import { lastCertPath, runHealthReport } from '../../services/health/healthReport.js'
-import { passedOver } from '../../utils/passedOver.js'
-import { withDeadline } from '../../utils/deadline.js'
+} from '../../platform/health/healthCertCore.js'
+import { lastCertPath, runHealthReport } from '../../platform/health/healthReport.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+import { withDeadline } from '../../platform/async/deadline.js'
 
 const HEALTH_DEADLINE_MS = 20_000
 export const FRESH_CERT_MS = 10 * 60_000

@@ -22,13 +22,13 @@ const LONG = 'W'.repeat(200) + 'ENDMARK'
 
 if (process.env.VANGUARD_CARDS_CHILD) {
   const React = await import('react')
-  const { render } = (await import('../../src/ink.js')) as {
+  const { render } = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
   }
-  const { Box } = await import('../../src/ink.js')
-  const inspect = await import('../../src/tools/InspectTool/UI.js')
-  const service = await import('../../src/tools/ServiceTool/UI.js')
-  const debug = await import('../../src/tools/DebugTool/UI.js')
+  const { Box } = await import('../../src/screen/themedRenderer.js')
+  const inspect = await import('../../src/tools/inspect/rows.js')
+  const service = await import('../../src/tools/service/rows.js')
+  const debug = await import('../../src/tools/debug/rows.js')
   const h = React.createElement
   const opts = { verbose: false }
   const tree = h(
@@ -111,11 +111,11 @@ if (process.env.VANGUARD_CARDS_CHILD) {
   for (const cols of [120, 80]) {
     console.log(`\n  ── cards @ ${cols} ──`)
     const grid = capture(cols)
-    check(`@${cols}: the Inspect card header renders on the grammar (● + title)`, /●.*INSPECTCARD/.test(grid), '', 'check renderToolResultMessage in src/tools/InspectTool/UI.tsx and the card glyphs in src/components/mercury-ui/toolCardGrammar.ts')
-    check(`@${cols}: the Service card reads IN-MOTION for running (◐)`, /◐.*SERVICECARD|◐.*describe/.test(grid), '', 'check renderToolResultMessage in src/tools/ServiceTool/UI.tsx and the running-state glyph in src/components/mercury-ui/toolCardGrammar.ts')
-    check(`@${cols}: the Debug card reads indeterminate (?)`, /\?.*stack|\? *stack/.test(grid), '', 'check renderToolResultMessage in src/tools/DebugTool/UI.tsx and the indeterminate glyph in src/components/mercury-ui/toolCardGrammar.ts')
-    check(`@${cols}: hostile long tokens TRUNCATE inside the width (no ENDMARK)`, !grid.includes('ENDMARK'), '', 'a card line is no longer truncated; check the wrap="truncate-end" lines in renderToolResultMessage of src/tools/InspectTool/UI.tsx, ServiceTool/UI.tsx and DebugTool/UI.tsx')
-    check(`@${cols}: NO emoji in the grid`, !EMOJI.test(grid), '', 'an emoji reaches a card; look in the three tool UI.tsx files above and src/components/mercury-ui/toolCardGrammar.ts')
+    check(`@${cols}: the Inspect card header renders on the grammar (● + title)`, /●.*INSPECTCARD/.test(grid), '', 'check renderToolResultMessage in src/tools/inspect/rows.tsx and the card glyphs in src/screen/widgets/toolCardGrammar.ts')
+    check(`@${cols}: the Service card reads IN-MOTION for running (◐)`, /◐.*SERVICECARD|◐.*describe/.test(grid), '', 'check renderToolResultMessage in src/tools/service/rows.tsx and the running-state glyph in src/screen/widgets/toolCardGrammar.ts')
+    check(`@${cols}: the Debug card reads indeterminate (?)`, /\?.*stack|\? *stack/.test(grid), '', 'check renderToolResultMessage in src/tools/debug/rows.tsx and the indeterminate glyph in src/screen/widgets/toolCardGrammar.ts')
+    check(`@${cols}: hostile long tokens TRUNCATE inside the width (no ENDMARK)`, !grid.includes('ENDMARK'), '', 'a card line is no longer truncated; check the wrap="truncate-end" lines in renderToolResultMessage of src/tools/inspect/rows.tsx, ServiceTool/UI.tsx and DebugTool/UI.tsx')
+    check(`@${cols}: NO emoji in the grid`, !EMOJI.test(grid), '', 'an emoji reaches a card; look in the three tool UI.tsx files above and src/screen/widgets/toolCardGrammar.ts')
   }
 
   console.log('\n' + '='.repeat(60))

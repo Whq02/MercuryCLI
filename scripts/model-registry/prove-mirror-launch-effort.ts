@@ -15,15 +15,15 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}${ok ? '' : ` — to fix, read resolveEffortTruth, isLaunchEffortPinned and getDefaultEffortForModel in src/utils/effort.ts (the launch default of a Mythos mirror must follow its Fable row), executeEffort in src/commands/effort/effort.tsx (the typed effort), and for the wire checks the capture child scripts/model-registry/context1mHeaderCapture.ts`}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}${ok ? '' : ` — to fix, read resolveEffortTruth, isLaunchEffortPinned and getDefaultEffortForModel in src/models/effort/effort.ts (the launch default of a Mythos mirror must follow its Fable row), executeEffort in src/commands/effort/effort.tsx (the typed effort), and for the wire checks the capture child scripts/model-registry/context1mHeaderCapture.ts`}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const effort = await import('../../src/utils/effort.ts')
+const effort = await import('../../src/models/effort/effort.ts')
 const { executeEffort } = await import('../../src/commands/effort/effort.tsx')
 
 const PAIRS: Array<[string, string]> = [['claude-mythos-5-1', 'claude-fable-5-1'], ['claude-mythos-5', 'claude-fable-5'], ['claude-mythos-5-2', 'claude-fable-5-2']]

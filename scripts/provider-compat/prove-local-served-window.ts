@@ -14,7 +14,7 @@ delete process.env.MERCURY_LOCAL_BASE_URL
 delete process.env.MERCURY_DISABLE_1M_CONTEXT
 
 let failures = 0
-const SERVED_WINDOW_HINT = 'to fix, change the window choice in chooseLocalWindow / heldLocalWindow (src/services/providers/local/localWindow.ts), the send path in localCallModel (src/services/providers/local/localCallModel.ts), or the served-figure read in refreshLocalDiscovery (src/services/providers/local/localDiscovery.ts) that this section exercises'
+const SERVED_WINDOW_HINT = 'to fix, change the window choice in chooseLocalWindow / heldLocalWindow (src/models/roads/local/localWindow.ts), the send path in localCallModel (src/models/roads/local/localCallModel.ts), or the served-figure read in refreshLocalDiscovery (src/models/roads/local/localDiscovery.ts) that this section exercises'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${SERVED_WINDOW_HINT}` : ''}`)
@@ -98,16 +98,16 @@ const state: FixtureState = { loaded: false, loadedCtx: undefined, serverDefault
 const ollama = await ollamaFixture(state)
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const discovery = await import('../../src/services/providers/local/localDiscovery.ts')
+const discovery = await import('../../src/models/roads/local/localDiscovery.ts')
 const { refreshLocalDiscovery, __resetLocalDiscoveryForTest, LOCAL_DISCOVERY_TTL_MS } = discovery
-const { localRecordFor, getLocalModelOptions } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { localCallModel, localPreComposeEstimate } = await import('../../src/services/providers/local/localCallModel.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
-const { resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
-const windowModule = await import('../../src/services/providers/local/localWindow.ts')
+const { localRecordFor, getLocalModelOptions } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { localCallModel, localPreComposeEstimate } = await import('../../src/models/roads/local/localCallModel.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { catalogueEpoch } = await import('../../src/models/roads/catalogueEpoch.ts')
+const { resolveContextWindow } = await import('../../src/models/facts/capabilities.ts')
+const windowModule = await import('../../src/models/roads/local/localWindow.ts')
 const { doubledRequestWindow: autoLocalWindow, writeLocalWindowSetting, __resetLocalWindowsForTest, heldLocalWindow } = windowModule
 
 const PERSISTED = `local/${MODEL}`

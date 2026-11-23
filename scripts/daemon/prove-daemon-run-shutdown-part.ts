@@ -53,10 +53,10 @@ const noting = <T extends object>(who: string, plantedCalls: T): T =>
   })
 
 const STAND_INS = {
-  '../../utils/debug.js': { logForDebugging: (line: string) => note(`debug: ${line}`) },
-  '../spawnLedger.js': { recordSpawnExit: (row: { kind: string; event: string; id: string; reason: string }) => note(`ledger ${row.kind} ${row.event} ${row.id} ${row.reason}`) },
-  '../../utils/processGroup.js': { treeEndsSettled: (boundMs: number) => neighbour(`the killed trees settled within ${boundMs} ms`) },
-  '../controlSocket.js': {
+  '../../platform/logs/debugLog.js': { logForDebugging: (line: string) => note(`debug: ${line}`) },
+  '../roster/spawnLedger.js': { recordSpawnExit: (row: { kind: string; event: string; id: string; reason: string }) => note(`ledger ${row.kind} ${row.event} ${row.id} ${row.reason}`) },
+  '../../platform/processes/processGroup.js': { treeEndsSettled: (boundMs: number) => neighbour(`the killed trees settled within ${boundMs} ms`) },
+  '../control/controlSocket.js': {
     clearControlKey: () => neighbour('clear the control key'),
     clearDaemonState: () => neighbour('clear the daemon record'),
     markDaemonStoppingSync: () => {
@@ -64,7 +64,7 @@ const STAND_INS = {
       return true
     },
   },
-  '../planeRecords.js': {
+  '../control/planeRecords.js': {
     supersededByLivePlaneOwnerSync: () => {
       note('read who serves the plane')
       return script.supersededBy
@@ -72,20 +72,20 @@ const STAND_INS = {
   },
 }
 
-const controlSocket = await import('../../src/daemon/controlSocket.ts')
-const planeRecords = await import('../../src/daemon/planeRecords.ts')
-const spawnLedger = await import('../../src/daemon/spawnLedger.ts')
-const debug = await import('../../src/utils/debug.ts')
-const processGroup = await import('../../src/utils/processGroup.ts')
-mock.module('../../src/daemon/controlSocket.ts', () => ({ ...controlSocket, ...STAND_INS['../controlSocket.js'] }))
-mock.module('../../src/daemon/planeRecords.ts', () => ({ ...planeRecords, ...STAND_INS['../planeRecords.js'] }))
-mock.module('../../src/daemon/spawnLedger.ts', () => ({ ...spawnLedger, ...STAND_INS['../spawnLedger.js'] }))
-mock.module('../../src/utils/debug.ts', () => ({ ...debug, ...STAND_INS['../../utils/debug.js'] }))
-mock.module('../../src/utils/processGroup.ts', () => ({ ...processGroup, ...STAND_INS['../../utils/processGroup.js'] }))
+const controlSocket = await import('../../src/daemon/control/controlSocket.ts')
+const planeRecords = await import('../../src/daemon/control/planeRecords.ts')
+const spawnLedger = await import('../../src/daemon/roster/spawnLedger.ts')
+const debug = await import('../../src/platform/logs/debugLog.ts')
+const processGroup = await import('../../src/platform/processes/processGroup.ts')
+mock.module('../../src/daemon/control/controlSocket.ts', () => ({ ...controlSocket, ...STAND_INS['../control/controlSocket.js'] }))
+mock.module('../../src/daemon/control/planeRecords.ts', () => ({ ...planeRecords, ...STAND_INS['../control/planeRecords.js'] }))
+mock.module('../../src/daemon/roster/spawnLedger.ts', () => ({ ...spawnLedger, ...STAND_INS['../roster/spawnLedger.js'] }))
+mock.module('../../src/platform/logs/debugLog.ts', () => ({ ...debug, ...STAND_INS['../../platform/logs/debugLog.js'] }))
+mock.module('../../src/platform/processes/processGroup.ts', () => ({ ...processGroup, ...STAND_INS['../../platform/processes/processGroup.js'] }))
 
 const part = await import('../../src/daemon/run/shutdown.ts')
 const { makeDaemonRunState } = await import('../../src/daemon/run/state.ts')
-const { DaemonBreaker } = await import('../../src/utils/daemonBreaker.ts')
+const { DaemonBreaker } = await import('../../src/daemon/control/daemonBreaker.ts')
 
 type State = ReturnType<typeof makeDaemonRunState>
 const KEEP_ALIVE = { the: 'keep-alive' } as unknown as ReturnType<typeof setInterval>

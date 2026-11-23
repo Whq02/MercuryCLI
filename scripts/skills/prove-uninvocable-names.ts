@@ -24,25 +24,25 @@ const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
 setSessionTrustAccepted(true)
-const { parseSlashCommand } = await import('../../src/utils/slashCommandParsing.ts')
-const { getCommands } = await import('../../src/commands.ts')
-const skillsMod = (await import('../../src/skills/loadSkillsDir.ts')) as unknown as {
+const { parseSlashCommand } = await import('../../src/commands/catalogue/slashCommandParsing.ts')
+const { getCommands } = await import('../../src/commands/catalogue/commands.ts')
+const skillsMod = (await import('../../src/integrations/skills/loadSkillsDir.ts')) as unknown as {
   getSkillLoadRefusals: () => Array<{ path: string; error: string; source: string }>
   slashNameProblem?: (name: string) => string | null
 }
 
 section("§1 THE PARSER'S GRAMMAR")
 {
-  check('the gate is exported (slashNameProblem)', typeof skillsMod.slashNameProblem === 'function', '', 'export slashNameProblem from src/skills/loadSkillsDir.ts')
-  check('the empty name is unparseable (/ alone is null)', parseSlashCommand('/') === null, '', 'parseSlashCommand in src/utils/slashCommandParsing.ts must return null for a bare slash')
+  check('the gate is exported (slashNameProblem)', typeof skillsMod.slashNameProblem === 'function', '', 'export slashNameProblem from src/integrations/skills/loadSkillsDir.ts')
+  check('the empty name is unparseable (/ alone is null)', parseSlashCommand('/') === null, '', 'parseSlashCommand in src/commands/catalogue/slashCommandParsing.ts must return null for a bare slash')
   const spaced = parseSlashCommand('/w5 has space')
   check(
     "a spaced name can never round-trip ('/w5 has space' parses as command 'w5')",
     spaced !== null && spaced.commandName === 'w5',
     JSON.stringify(spaced),
-    'parseSlashCommand in src/utils/slashCommandParsing.ts must stop the command name at the first space',
+    'parseSlashCommand in src/commands/catalogue/slashCommandParsing.ts must stop the command name at the first space',
   )
 }
 
@@ -52,19 +52,19 @@ const refusals = skillsMod.getSkillLoadRefusals()
 
 section('§2 THE SKILLS ROAD')
 {
-  check('the fine skill registers', names.includes('fine'), '', 'a valid skill under .mercury/skills is missing from getCommands in src/commands.ts; check the loader in src/skills/loadSkillsDir.ts')
-  check('no EMPTY-named command sits in the roster', !names.some(n => n === '' || n.endsWith(':')), '', 'refuse empty or trailing-colon skill names in slashNameProblem in src/skills/loadSkillsDir.ts')
+  check('the fine skill registers', names.includes('fine'), '', 'a valid skill under .mercury/skills is missing from getCommands in src/commands/catalogue/commands.ts; check the loader in src/integrations/skills/loadSkillsDir.ts')
+  check('no EMPTY-named command sits in the roster', !names.some(n => n === '' || n.endsWith(':')), '', 'refuse empty or trailing-colon skill names in slashNameProblem in src/integrations/skills/loadSkillsDir.ts')
   check(
     'no spaced command sits in the roster',
     !names.some(n => /\s/.test(n)),
     JSON.stringify(names.filter(n => /\s/.test(n))),
-    'refuse names with whitespace in slashNameProblem in src/skills/loadSkillsDir.ts so they never reach the roster',
+    'refuse names with whitespace in slashNameProblem in src/integrations/skills/loadSkillsDir.ts so they never reach the roster',
   )
   check(
     'the spaced skill directory is refused, named uninvocable',
     refusals.some(r => r.path.includes('has space') && r.error.includes('uninvocable')),
     JSON.stringify(refusals.filter(r => r.path.includes('has space'))),
-    'the skill loader in src/skills/loadSkillsDir.ts must record a refusal whose error contains uninvocable for a name slashNameProblem rejects',
+    'the skill loader in src/integrations/skills/loadSkillsDir.ts must record a refusal whose error contains uninvocable for a name slashNameProblem rejects',
   )
 }
 

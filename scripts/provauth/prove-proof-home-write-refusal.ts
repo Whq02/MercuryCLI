@@ -11,7 +11,7 @@ const scratch = mkdtempSync(join(tmpdir(), 'proof-home-wall-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'proof-home')
 let checks = 0
 const check = (label: string, ok: unknown, detail = ''): void => {
-  assert(ok, `${label}${detail ? ` — ${detail}` : ''} — fix the proof-home refusal in src/utils/proofHomeGuard.ts, or the credential writer that must call it (src/utils/accounts/providerSecrets.ts or the provider accounts file named by the check)`)
+  assert(ok, `${label}${detail ? ` — ${detail}` : ''} — fix the proof-home refusal in src/models/roads/proofHomeGuard.ts, or the credential writer that must call it (src/models/sign-in/account-ledger/providerSecrets.ts or the provider accounts file named by the check)`)
   checks++
   console.log(`PASS ${label}`)
 }
@@ -29,10 +29,10 @@ type Outcome = {
 }
 
 const childSource = `
-const secrets = await import(${JSON.stringify(join(ROOT, 'src/utils/accounts/providerSecrets.ts'))})
-const { storeHuggingfaceTokenLogin } = await import(${JSON.stringify(join(ROOT, 'src/services/providers/huggingface/huggingfaceLogin.ts'))})
+const secrets = await import(${JSON.stringify(join(ROOT, 'src/models/sign-in/account-ledger/providerSecrets.ts'))})
+const { storeHuggingfaceTokenLogin } = await import(${JSON.stringify(join(ROOT, 'src/models/roads/huggingface/huggingfaceLogin.ts'))})
 let proofProcessName = () => undefined
-try { ({ proofProcessName } = await import(${JSON.stringify(join(ROOT, 'src/utils/proofHomeGuard.ts'))})) } catch {}
+try { ({ proofProcessName } = await import(${JSON.stringify(join(ROOT, 'src/models/roads/proofHomeGuard.ts'))})) } catch {}
 const key = process.argv[2]
 const mode = process.argv[3]
 const out = { threw: false, message: '', code: '', proof: proofProcessName() ?? null }
@@ -54,13 +54,13 @@ if (mode === 'all') {
   try { secrets.publishAuthScopedJson('.huggingface-auth.json', file => ({ ...file, accessToken: key })); out.auth = { threw: false, message: '' } } catch (error) { out.auth = { threw: true, message: String(error && error.message || error) } }
   out.oauth = {}
   const stores = {
-    '.huggingface-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/services/providers/huggingface/huggingfaceAccounts.ts'))})).writeHuggingfaceTokens({ accessToken: key }),
-    '.openai-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/services/providers/openai/openaiAccounts.ts'))})).writePreferredOpenaiSource('api-key'),
-    '.openrouter-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/services/providers/openrouter/openrouterAccounts.ts'))})).disconnectOpenrouterOauthKey(),
-    '.gemini-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/services/providers/gemini/geminiAccounts.ts'))})).writePreferredGeminiSource('api-key'),
-    '.moonshot-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/services/providers/moonshot/moonshotAccounts.ts'))})).writeMoonshotTokens({ accessToken: key }),
-    '.xai-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/services/providers/xai/xaiOauth.ts'))})).writeXaiTokens({ accessToken: key, refreshToken: key }),
-    '.nous-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/services/providers/nous/nousOauth.ts'))})).writeNousTokens({ accessToken: key, refreshToken: key }),
+    '.huggingface-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/models/roads/huggingface/huggingfaceAccounts.ts'))})).writeHuggingfaceTokens({ accessToken: key }),
+    '.openai-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/models/roads/openai/openaiAccounts.ts'))})).writePreferredOpenaiSource('api-key'),
+    '.openrouter-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/models/roads/openrouter/openrouterAccounts.ts'))})).disconnectOpenrouterOauthKey(),
+    '.gemini-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/models/roads/gemini/geminiAccounts.ts'))})).writePreferredGeminiSource('api-key'),
+    '.moonshot-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/models/roads/moonshot/moonshotAccounts.ts'))})).writeMoonshotTokens({ accessToken: key }),
+    '.xai-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/models/roads/xai/xaiOauth.ts'))})).writeXaiTokens({ accessToken: key, refreshToken: key }),
+    '.nous-auth.json': async () => (await import(${JSON.stringify(join(ROOT, 'src/models/roads/nous/nousOauth.ts'))})).writeNousTokens({ accessToken: key, refreshToken: key }),
   }
   for (const [file, write] of Object.entries(stores)) {
     try { await write(); out.oauth[file] = { threw: false, message: '' } } catch (error) { out.oauth[file] = { threw: true, message: String(error && error.message || error) } }

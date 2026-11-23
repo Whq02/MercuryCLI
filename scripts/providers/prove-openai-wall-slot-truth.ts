@@ -3,7 +3,7 @@
 
 let failures = 0
 const wallSlotFixHint =
-  'fix in src/services/providers/openai/openaiLimitState.ts (recordOpenaiUsageLimit, openaiLimitWindow: one record per source) or in src/services/providers/providerUsability.ts (resolveProviderUsability: the openai lane must follow the active source)'
+  'fix in src/models/roads/openai/openaiLimitState.ts (recordOpenaiUsageLimit, openaiLimitWindow: one record per source) or in src/models/roads/providerUsability.ts (resolveProviderUsability: the openai lane must follow the active source)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${wallSlotFixHint}` : ''}`)
@@ -16,11 +16,11 @@ const {
   recordOpenaiUsageLimit,
   openaiLimitWindow,
   __resetOpenaiLimitStateForTest,
-} = await import('../../src/services/providers/openai/openaiLimitState.ts')
+} = await import('../../src/models/roads/openai/openaiLimitState.ts')
 const { resolveProviderUsability } = await import(
-  '../../src/services/providers/providerUsability.ts'
+  '../../src/models/roads/providerUsability.ts'
 )
-type Reads = import('../../src/services/providers/providerUsability.ts').ProviderUsabilityReads
+type Reads = import('../../src/models/roads/providerUsability.ts').ProviderUsabilityReads
 
 const NOW = 1_900_000_000_000
 const clock = (at: number) => () => at

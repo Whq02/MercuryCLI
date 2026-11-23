@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/health/healthReport.ts src/mneme/embedModels.ts src/mneme/embedPack.ts
+// gate-watch: src/platform/health/healthReport.ts src/sessions/mneme/embedModels.ts src/sessions/mneme/embedPack.ts
 import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -13,17 +13,17 @@ process.env.NODE_ENV = 'test'
 const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
-const EMBEDDER_ROW_FAIL_HINT = 'to fix, change the memory-embedder row (its section, label, status, evidence text and /memory link) in src/services/health/sections/memory.ts'
+const EMBEDDER_ROW_FAIL_HINT = 'to fix, change the memory-embedder row (its section, label, status, evidence text and /memory link) in src/platform/health/sections/memory.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail.slice(0, 400) + ' | ' : ''}${EMBEDDER_ROW_FAIL_HINT}` : ''}`)
   if (!cond) failures++
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const report = await import('../../src/services/health/healthReport.js')
-const { seedEmbedPackDirForTest, embedPackDirFor, EMBED_PACK_MANIFEST_FILE } = await import('../../src/mneme/embedPack.js')
-const { seedEmbedModelForTest, memoryRecallModeWords, WORD_MATCH_ONLY_WORDS, embedDefaultModel } = await import('../../src/mneme/embedModels.js')
+const report = await import('../../src/platform/health/healthReport.js')
+const { seedEmbedPackDirForTest, embedPackDirFor, EMBED_PACK_MANIFEST_FILE } = await import('../../src/sessions/mneme/embedPack.js')
+const { seedEmbedModelForTest, memoryRecallModeWords, WORD_MATCH_ONLY_WORDS, embedDefaultModel } = await import('../../src/sessions/mneme/embedModels.js')
 type Row = { id: string; label: string; status: string; evidence: string; link?: string }
 const row = async (): Promise<{ section: string; row: Row } | null> => {
   const cert = await report.runHealthReport({ depth: 'fast' })
@@ -74,7 +74,7 @@ if (missing.length === 0) {
 
 console.log('\n§4 with memory off the row is off and still states the pack fact')
 {
-  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
+  const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
   writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ memory: { enabled: false } }))
   resetSettingsCache()
   const found = await row()

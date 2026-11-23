@@ -25,8 +25,8 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-const { getProjectDir, getProjectsDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const verb = (await import('../../src/cli/sessionsVerb.ts')) as { sessionsListCli?: (options: { all?: boolean; limit?: number }, io: unknown) => Promise<number> }
+const { getProjectDir, getProjectsDir } = await import('../../src/sessions/transcripts/paths.ts')
+const verb = (await import('../../src/commands/verbs/sessionsVerb.ts')) as { sessionsListCli?: (options: { all?: boolean; limit?: number }, io: unknown) => Promise<number> }
 
 const STORE = getProjectDir(PROJ)
 const OTHER_STORE = join(getProjectsDir(), '-other-project')

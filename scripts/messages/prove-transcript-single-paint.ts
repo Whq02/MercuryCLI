@@ -3,26 +3,26 @@ process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { loadTranscriptFile } from '../../src/utils/sessionStorage/loading.ts'
-import { buildConversationChain, findLatestMessage } from '../../src/utils/sessionStorage/chain.ts'
-import { deserializeLiveMessages } from '../../src/services/resume/conversationRecovery.ts'
-import { normalizeMessages } from '../../src/utils/messages/normalize.ts'
-import { applyGrouping } from '../../src/utils/groupToolUses.ts'
-import { injectTurnReceipts } from '../../src/utils/cockpit/turnReceipt.ts'
-import { collapseReadSearchGroups } from '../../src/components/messages/collapseReadSearch.ts'
-import { getAllBaseTools } from '../../src/tools.ts'
-import { entryToRecord } from '../../src/fabric/entryCodec.ts'
+import { loadTranscriptFile } from '../../src/sessions/transcripts/loading.ts'
+import { buildConversationChain, findLatestMessage } from '../../src/sessions/transcripts/chain.ts'
+import { deserializeLiveMessages } from '../../src/sessions/resume/conversationRecovery.ts'
+import { normalizeMessages } from '../../src/engine/message-shapes/normalize.ts'
+import { applyGrouping } from '../../src/screen/messages/groupToolUses.ts'
+import { injectTurnReceipts } from '../../src/screen/cockpit/turnReceipt.ts'
+import { collapseReadSearchGroups } from '../../src/screen/messages/collapseReadSearch.ts'
+import { getAllBaseTools } from '../../src/tools/kit/toolList.ts'
+import { entryToRecord } from '../../src/sessions/fabric/entryCodec.ts'
 
 let failures = 0
 const paintStageHints: Array<[string, string]> = [
-  ['§1', 'loadTranscriptFile in src/utils/sessionStorage/loading.ts'],
-  ['§2 chain', 'buildConversationChain in src/utils/sessionStorage/chain.ts'],
-  ['§2 deserialized', 'deserializeLiveMessages in src/services/resume/conversationRecovery.ts'],
-  ['§2 normalized', 'normalizeMessages in src/utils/messages/normalize.ts'],
-  ['§3 grouped', 'applyGrouping in src/utils/groupToolUses.ts'],
-  ['§3 receipts', 'injectTurnReceipts in src/utils/cockpit/turnReceipt.ts'],
-  ['§3 collapsed', 'collapseReadSearchGroups in src/components/messages/collapseReadSearch.ts'],
-  ['§4', 'normalizeMessages in src/utils/messages/normalize.ts'],
+  ['§1', 'loadTranscriptFile in src/sessions/transcripts/loading.ts'],
+  ['§2 chain', 'buildConversationChain in src/sessions/transcripts/chain.ts'],
+  ['§2 deserialized', 'deserializeLiveMessages in src/sessions/resume/conversationRecovery.ts'],
+  ['§2 normalized', 'normalizeMessages in src/engine/message-shapes/normalize.ts'],
+  ['§3 grouped', 'applyGrouping in src/screen/messages/groupToolUses.ts'],
+  ['§3 receipts', 'injectTurnReceipts in src/screen/cockpit/turnReceipt.ts'],
+  ['§3 collapsed', 'collapseReadSearchGroups in src/screen/messages/collapseReadSearch.ts'],
+  ['§4', 'normalizeMessages in src/engine/message-shapes/normalize.ts'],
 ]
 const t = (name: string, ok: boolean, detail = ''): void => {
   const paintStageHint = paintStageHints.find(([prefix]) => name.startsWith(prefix))?.[1]

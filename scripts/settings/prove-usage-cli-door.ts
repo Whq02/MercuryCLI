@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/cli/handlers/usage.ts src/main.tsx src/components/Settings/usageLine.ts src/services/providers/providerUsage.ts src/services/providers/usageFreshness.ts scripts/providers/lib/usage-plan-world.ts
+// gate-watch: src/commands/verbs/usage.ts src/boot/main.tsx src/screen/settings/usageLine.ts src/models/roads/providerUsage.ts src/models/roads/usageFreshness.ts scripts/providers/lib/usage-plan-world.ts
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -11,7 +11,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${cond ? '' : ' — see composeUsageReading and usageCli in src/cli/handlers/usage.ts (the reading) and the usage reader in src/services/providers/providerUsage.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${cond ? '' : ' — see composeUsageReading and usageCli in src/commands/verbs/usage.ts (the reading) and the usage reader in src/models/roads/providerUsage.ts'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -21,7 +21,7 @@ type Source = { provider: string; sourceKind: string; label: string; tier?: stri
 type Reading = { schema: number; readAt: string; line: string; model: string; sampled: string[]; signIns: Array<{ provider: string; credentialed: boolean; label?: string; identity?: string }>; active: Source; providers: Source[] }
 
 try {
-  const door = await import(world.path('src/cli/handlers/usage.ts')) as typeof import('../../src/cli/handlers/usage.js')
+  const door = await import(world.path('src/commands/verbs/usage.ts')) as typeof import('../../src/commands/verbs/usage.js')
 
   section('§1 the JSON reading on a home with two sign-ins (a Kimi sign-in and a GLM Coding Plan key): what the /usage screen reads, with every figure stamped (RED on the base: no usage verb exists — `mercury usage` fell to the docs skill and --json was an unknown option)')
   const requestsBefore = world.requests.length

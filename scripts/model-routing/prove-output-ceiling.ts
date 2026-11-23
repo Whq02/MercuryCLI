@@ -32,7 +32,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — to fix, read getModelMaxOutputTokens, getMaxThinkingTokensForModel, resolveModelCapabilities and resolveContextWindow in src/utils/model/capabilities.ts (the default and upper limit per model), getMaxOutputTokensForModel, adjustParamsForNonStreaming and MAX_NON_STREAMING_TOKENS in src/services/providers/anthropic/streamCore.ts (the max_tokens on the wire), and compactConversation in src/services/compact/compact.ts (the fold request)`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — to fix, read getModelMaxOutputTokens, getMaxThinkingTokensForModel, resolveModelCapabilities and resolveContextWindow in src/models/facts/capabilities.ts (the default and upper limit per model), getMaxOutputTokensForModel, adjustParamsForNonStreaming and MAX_NON_STREAMING_TOKENS in src/models/roads/anthropic/streamCore.ts (the max_tokens on the wire), and compactConversation in src/engine/compaction/foldConversation.ts (the fold request)`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -49,21 +49,21 @@ const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFix
 const fixture = await startCrossfamilyFixture({ port: 0 })
 Object.assign(process.env, fixture.env)
 
-const configModule = (await import('../../src/utils/config.ts')) as unknown as { enableConfigs?: () => void }
+const configModule = (await import('../../src/platform/settings/config.ts')) as unknown as { enableConfigs?: () => void }
 configModule.enableConfigs?.()
-const caps = await import('../../src/utils/model/capabilities.ts')
-const openrouter = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
-const gemini = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const localDiscovery = await import('../../src/services/providers/local/localDiscovery.ts')
-const localCatalogue = await import('../../src/services/providers/local/localCatalogue.ts')
-const gptPins = await import('../../src/utils/model/pins/gptPins.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const caps = await import('../../src/models/facts/capabilities.ts')
+const openrouter = await import('../../src/models/roads/openrouter/openrouterCatalogue.ts')
+const gemini = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const localDiscovery = await import('../../src/models/roads/local/localDiscovery.ts')
+const localCatalogue = await import('../../src/models/roads/local/localCatalogue.ts')
+const gptPins = await import('../../src/models/facts/pins/gptPins.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const streamCore = await import('../../src/services/providers/anthropic/streamCore.ts')
+const streamCore = await import('../../src/models/roads/anthropic/streamCore.ts')
 const { queryModelWithStreaming, getMaxOutputTokensForModel, adjustParamsForNonStreaming, MAX_NON_STREAMING_TOKENS } = streamCore
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const context = await import('../../src/utils/context.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const context = await import('../../src/engine/compaction-window/contextFill.ts')
 
 const CEILING = 128_000
 const TODAY_DEFAULT = 32_000
@@ -249,9 +249,9 @@ async function captureRequest(model: string, thinkingConfig: { type: string; bud
 
 section('§4 the compaction request follows: neither fold lane sends an override, so its max_tokens is the session request\'s own (the default, or the operator\'s MERCURY_MAX_OUTPUT_TOKENS)')
 {
-  const { compactConversation, shouldRideCacheSharingFork } = await import('../../src/services/compact/compact.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+  const { compactConversation, shouldRideCacheSharingFork } = await import('../../src/engine/compaction/foldConversation.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
   let uuidSeq = 0
   const nextUuid = (): string => `00000000-0000-4000-a000-${String(++uuidSeq).padStart(12, '0')}`
   const assistantRow = (text: string): unknown => {

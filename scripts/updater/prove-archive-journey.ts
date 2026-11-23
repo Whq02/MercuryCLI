@@ -4,8 +4,8 @@ import { createHash } from 'node:crypto'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { assetNameFor, formatPrivateVersion, parsePrivateVersion } from '../../src/services/privateChannel/channelCore.js'
-import { releaseTargetFor } from '../../src/services/privateChannel/releaseTarget.js'
+import { assetNameFor, formatPrivateVersion, parsePrivateVersion } from '../../src/platform/update-channel/channelCore.js'
+import { releaseTargetFor } from '../../src/platform/update-channel/releaseTarget.js'
 import { closedLoopbackPort } from './journeyFixtures.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -39,7 +39,7 @@ const FLOOR = readCompatFloor()
 const NODE_POLICY = parseEnginesNode(pkg.engines?.node)
 
 let failures = 0
-const FAIL_HINT = 'change the install verb in src/cli/installVerb.ts, the update verb in src/cli/update.ts, or the layout functions in src/services/privateChannel/installLayout.ts (installPayload, switchCurrent, uninstallLayout) so the output named by this check holds'
+const FAIL_HINT = 'change the install verb in src/commands/verbs/installVerb.ts, the update verb in src/commands/verbs/update.ts, or the layout functions in src/platform/update-channel/installLayout.ts (installPayload, switchCurrent, uninstallLayout) so the output named by this check holds'
 const check = (name: string, cond: boolean, detail = ''): void => {
   const shown = cond ? '' : detail ? `${detail} | hint: ${FAIL_HINT}` : FAIL_HINT
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${shown ? ` — ${shown}` : ''}`)

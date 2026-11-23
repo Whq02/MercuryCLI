@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-const USAGE_FAIL_HINT = ' — this drives dist/mercury.mjs, so rebuild with bun run build.ts first; set USAGE_FRESH_SHOT_DIR to keep every captured frame and USAGE_FRESH_LEGS (a,b,c,e,f) to rerun one leg; the read trigger, backoff and wait wording are in src/services/providers/anthropic/anthropicUsageState.ts'
+const USAGE_FAIL_HINT = ' — this drives dist/mercury.mjs, so rebuild with bun run build.ts first; set USAGE_FRESH_SHOT_DIR to keep every captured frame and USAGE_FRESH_LEGS (a,b,c,e,f) to rerun one leg; the read trigger, backoff and wait wording are in src/models/roads/anthropic/anthropicUsageState.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : USAGE_FAIL_HINT}`)
@@ -23,7 +23,7 @@ const LEGS = new Set((process.env.USAGE_FRESH_LEGS ?? 'a,b,c,e,f').split(',').ma
 
 const { resolveCaptureDriver, captureEngineEntry } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {

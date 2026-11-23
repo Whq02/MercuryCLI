@@ -17,10 +17,10 @@ async function reading(item: Call, mode: Mode) {
   return { decision, what }
 }
 
-const verdictSource = 'the verdict comes from decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts (Bash rows through src/tools/BashTool/bashPermissions.ts); fix the floor that answered differently, or change docs/TRUST.md if the page is what moved'
-const credentialWriteSource = 'credential-store writes are refused in src/utils/permissions/filesystem.ts (file tools) and src/utils/permissions/shellProtectedPaths.ts (shell commands)'
+const verdictSource = 'the verdict comes from decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts (Bash rows through src/tools/shell/bashPermissions.ts); fix the floor that answered differently, or change docs/TRUST.md if the page is what moved'
+const credentialWriteSource = 'credential-store writes are refused in src/permissions/rules/filesystem.ts (file tools) and src/permissions/rules/shellProtectedPaths.ts (shell commands)'
 const pageHint = 'docs/TRUST.md no longer says this; restore the sentence there, or change this check if the floor itself was changed on purpose'
-const loaderHint = 'the instruction-file loader getInstructionFiles in src/services/instructions/engine.ts no longer composes what MERCURY.md @imports; fix the loader'
+const loaderHint = 'the instruction-file loader getInstructionFiles in src/sessions/instructions/instructionFiles.ts no longer composes what MERCURY.md @imports; fix the loader'
 async function expect(id: string, item: Call, modes: Mode[], good: (behavior: string) => boolean, claim: string): Promise<void> {
   for (const mode of modes) {
     const { decision, what } = await reading(item, mode)
@@ -125,8 +125,8 @@ if (runs('T-3.6')) {
 if (runs('T-3.7')) {
   section('T-3.7 floor 5: a file MERCURY.md @imports is an instruction file, and a write of it asks as a write of MERCURY.md does')
   const { writeFileSync } = await import('node:fs')
-  const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
-  const loader = await import('../../src/services/instructions/engine.ts')
+  const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
+  const loader = await import('../../src/sessions/instructions/instructionFiles.ts')
   setSessionTrustAccepted(true)
   check('the page counts what MERCURY.md @imports among the instruction files', /Instruction files \(MERCURY\.md and what it `@imports`/.test(page), pageHint)
   const composes = async (): Promise<string[]> => {

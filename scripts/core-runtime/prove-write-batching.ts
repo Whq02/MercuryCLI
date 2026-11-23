@@ -14,23 +14,23 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_SCRIPTED_STREAM', 'NODE_ENV']) delete process.env[k]
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { runTools } = await import('../../src/services/tools/toolOrchestration.ts')
-const { batchClaimOf, canonicalPath, claimsCompatible, pathsOverlap } = await import('../../src/services/tools/toolBatching.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { GlobTool } = await import('../../src/tools/GlobTool/GlobTool.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { NotebookEditTool } = await import('../../src/tools/NotebookEditTool/NotebookEditTool.ts')
-const { getCwd } = await import('../../src/utils/cwd.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { runTools } = await import('../../src/engine/tool-dispatch/toolOrchestration.ts')
+const { batchClaimOf, canonicalPath, claimsCompatible, pathsOverlap } = await import('../../src/engine/tool-dispatch/toolBatching.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
+const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { NotebookEditTool } = await import('../../src/tools/notebook-edit/NotebookEditTool.ts')
+const { getCwd } = await import('../../src/platform/files/cwd.ts')
 
 let failures = 0
 let checks = 0
@@ -41,17 +41,17 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 let hint = ''
 const HINTS: Record<string, string> = {
-  '1': "batchClaimOf in src/services/tools/toolBatching.ts builds a claim from the tool's inputSchema, isConcurrencySafe, isReadOnly and getPath; change the one that is wrong for this tool under src/tools/ (or batchClaimOf itself)",
-  '2': 'canonicalPath in src/services/tools/toolBatching.ts resolves a symlink with realpathSync.native, a missing file under its real parent, and folds case with foldHostCaseInsensitivePath (src/utils/platform/paths.ts); change it there',
-  '3': 'pathsOverlap and claimsCompatible in src/services/tools/toolBatching.ts decide this; change them there',
-  refusals: 'canonicalPath and batchClaimOf in src/services/tools/toolBatching.ts decide the claims; for the read-before-edit refusal, check how runTools in src/services/tools/toolOrchestration.ts runs the edits and that the edit tool still refuses an unread file',
+  '1': "batchClaimOf in src/engine/tool-dispatch/toolBatching.ts builds a claim from the tool's inputSchema, isConcurrencySafe, isReadOnly and getPath; change the one that is wrong for this tool under src/tools/ (or batchClaimOf itself)",
+  '2': 'canonicalPath in src/engine/tool-dispatch/toolBatching.ts resolves a symlink with realpathSync.native, a missing file under its real parent, and folds case with foldHostCaseInsensitivePath (src/platform/host-os/paths.ts); change it there',
+  '3': 'pathsOverlap and claimsCompatible in src/engine/tool-dispatch/toolBatching.ts decide this; change them there',
+  refusals: 'canonicalPath and batchClaimOf in src/engine/tool-dispatch/toolBatching.ts decide the claims; for the read-before-edit refusal, check how runTools in src/engine/tool-dispatch/toolOrchestration.ts runs the edits and that the edit tool still refuses an unread file',
 }
 function section(t: string): void {
-  hint = HINTS[t.split(' ')[0]!] ?? 'runTools in src/services/tools/toolOrchestration.ts starts a batch of calls only while claimsCompatible (src/services/tools/toolBatching.ts) holds for each; a call that starts too early or too late means the claim from batchClaimOf or the batch grouping in runTools is wrong'
+  hint = HINTS[t.split(' ')[0]!] ?? 'runTools in src/engine/tool-dispatch/toolOrchestration.ts starts a batch of calls only while claimsCompatible (src/engine/tool-dispatch/toolBatching.ts) holds for each; a call that starts too early or too late means the claim from batchClaimOf or the batch grouping in runTools is wrong'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — write-batching prover exceeded 120s; a fixture tool call never finished, so look at runTools in src/services/tools/toolOrchestration.ts for a batch that waits on a call it never starts, and at the last check printed above')
+  console.log('\nTIMEOUT — write-batching prover exceeded 120s; a fixture tool call never finished, so look at runTools in src/engine/tool-dispatch/toolOrchestration.ts for a batch that waits on a call it never starts, and at the last check printed above')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
@@ -234,7 +234,7 @@ const TOOLS = [
   fixtureTool({ name: 'Shell', readOnly: false, safe: false, pathOf: () => undefined }),
 ]
 hint = ''
-check('the fixture tools carry the members the batching law reads, as the real tools do', ['getPath', 'isReadOnly', 'isConcurrencySafe'].every(member => typeof (FileEditTool as unknown as Record<string, unknown>)[member] === 'function' && typeof (FileReadTool as unknown as Record<string, unknown>)[member] === 'function'), 'FileEditTool or FileReadTool (src/tools/FileEditTool, src/tools/FileReadTool) lost getPath, isReadOnly or isConcurrencySafe, which batchClaimOf in src/services/tools/toolBatching.ts reads; restore it, or update the fixture tools in this file')
+check('the fixture tools carry the members the batching law reads, as the real tools do', ['getPath', 'isReadOnly', 'isConcurrencySafe'].every(member => typeof (FileEditTool as unknown as Record<string, unknown>)[member] === 'function' && typeof (FileReadTool as unknown as Record<string, unknown>)[member] === 'function'), 'FileEditTool or FileReadTool (src/tools/FileEditTool, src/tools/read) lost getPath, isReadOnly or isConcurrencySafe, which batchClaimOf in src/engine/tool-dispatch/toolBatching.ts reads; restore it, or update the fixture tools in this file')
 
 const allowAll = async (_tool: unknown, input: Record<string, unknown>) =>
   ({ behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'rig' } }) as never

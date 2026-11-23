@@ -11,7 +11,6 @@ concourseList	1
 concourseRelease	1
 concourseWarm	3
 concourseWithdraw	3
-contract	8
 detach	5
 elicitation/complete	1
 elicitation/request	1
@@ -36,15 +35,15 @@ queue/withdraw	1
 restart-when-idle	3
 resume	34
 resume-agent	1
-row	78
+row	75
 schedule/edit	3
 send-now	1
 session-facts	3
 session/set_mode	2
 sessionAdmit	3
-sessionControl	19
+sessionControl	16
 sessionDispatch	2
-sessionList	2
+sessionList	1
 sessionRelease	3
 sessionRewind	1
 set-effort	1

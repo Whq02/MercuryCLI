@@ -19,13 +19,13 @@ delete process.env['STY']
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const where = label.startsWith('R4') ? 'isProgressReportingAvailable in src/ink/session/capabilities.ts' : label.startsWith('R5') ? 'streamRenderedMessages in src/components/exportRenderer.tsx' : 'createTabRing in src/ink/terminalWrite.ts'
+  const where = label.startsWith('R4') ? 'isProgressReportingAvailable in src/screen/renderer/terminal-session/capabilities.ts' : label.startsWith('R5') ? 'streamRenderedMessages in src/screen/chat/exportRenderer.tsx' : 'createTabRing in src/screen/renderer/terminalWrite.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail}${detail ? ' · ' : ''}change ${where}` : ''}`)
 }
 
-const { createTabRing } = await import('../../src/ink/terminalWrite.ts')
-const { isProgressReportingAvailable } = await import('../../src/ink/session/capabilities.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { createTabRing } = await import('../../src/screen/renderer/terminalWrite.ts')
+const { isProgressReportingAvailable } = await import('../../src/screen/renderer/terminal-session/capabilities.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
 const RING = /^\x1b\]9;4;3;0(?:\x07|\x1b\\)$/
@@ -108,7 +108,7 @@ console.log('— R4 the capability owner —')
 
 console.log('— R5 the headless render —')
 {
-  const { streamRenderedMessages } = await import('../../src/components/exportRenderer.tsx')
+  const { streamRenderedMessages } = await import('../../src/screen/chat/exportRenderer.tsx')
   const messages = [
     {
       type: 'user',

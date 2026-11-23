@@ -29,7 +29,7 @@ console.log(' Bash permission & read-only security — surface proof')
 console.log('============================================================')
 
 const { parsePermissionRule, matchWildcardPattern, permissionRuleExtractPrefix } =
-  await import('../../src/utils/permissions/shellRuleMatching.js')
+  await import('../../src/permissions/rules/shellRuleMatching.js')
 
 section('rule parser — the deny/ask/allow rule shapes bashPermissions resolves')
 {
@@ -50,7 +50,7 @@ section('wildcard matcher — a deny like Bash(rm *) catches rm, with a real wor
   check('git status does NOT match "git status-x" (exact-ish boundary)', !matchWildcardPattern('git status', 'git statusx'))
 }
 
-const ro = await import('../../src/utils/shell/readOnlyCommandValidation.js')
+const ro = await import('../../src/permissions/rules/shell-commands/readOnlyCommandValidation.js')
 
 section('read-only allowlist — git read-only subcommands in, git WRITERS out')
 {

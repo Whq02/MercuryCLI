@@ -43,30 +43,30 @@ for (const name of Object.keys(process.env)) {
 const React = await import('react')
 const h = React.createElement
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { recordCapacityDecision } = await import('../../src/utils/switchboard/capacityCheck.ts')
+const { recordCapacityDecision } = await import('../../src/daemon/switchboard-capacity/capacityCheck.ts')
 await recordCapacityDecision(false)
 
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { default: reconciler } = await import('../../src/ink/reconciler.js')
-const { disposeKeybindingWatcher } = await import('../../src/keybindings/loadUserBindings.js')
-const { Box } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { useRegisterOverlay } = await import('../../src/context/overlayContext.tsx')
-const { useElevatedSurface } = await import('../../src/components/mercury-ui/useElevatedSurface.ts')
-const { ConcourseScreen, _resetConcourseCapsuleForTesting } = await import('../../src/components/concourse/ConcourseScreen.tsx')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
+const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { useRegisterOverlay } = await import('../../src/screen/overlays/overlayHooks.tsx')
+const { useElevatedSurface } = await import('../../src/screen/widgets/useElevatedSurface.ts')
+const { ConcourseScreen, _resetConcourseCapsuleForTesting } = await import('../../src/screen/concourse/ConcourseScreen.tsx')
 
 function ConcourseHost({
   snapshot,
   callbacks,
 }: {
-  snapshot: import('../../src/components/concourse/contracts.ts').ConcourseSnapshotV1
-  callbacks: import('../../src/components/concourse/contracts.ts').ConcourseCallbacks
+  snapshot: import('../../src/screen/concourse/contracts.ts').ConcourseSnapshotV1
+  callbacks: import('../../src/screen/concourse/contracts.ts').ConcourseCallbacks
 }): React.ReactNode {
   const elevatedRef = useElevatedSurface()
   useRegisterOverlay('surface:concourse', true, { ownsPageKeys: true })
@@ -77,9 +77,9 @@ function ConcourseHost({
   )
 }
 
-type ConcourseCallbacks = import('../../src/components/concourse/contracts.ts').ConcourseCallbacks
-type ConcourseRowV1 = import('../../src/components/concourse/contracts.ts').ConcourseRowV1
-type ConcourseSnapshotV1 = import('../../src/components/concourse/contracts.ts').ConcourseSnapshotV1
+type ConcourseCallbacks = import('../../src/screen/concourse/contracts.ts').ConcourseCallbacks
+type ConcourseRowV1 = import('../../src/screen/concourse/contracts.ts').ConcourseRowV1
+type ConcourseSnapshotV1 = import('../../src/screen/concourse/contracts.ts').ConcourseSnapshotV1
 
 class FakeStdout extends EventEmitter {
   isTTY = true

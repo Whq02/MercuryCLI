@@ -9,15 +9,15 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}fix the seat reading, ceiling and stored decision in src/utils/switchboard/capacityCheck.ts (machineSeatReading, recordCapacityDecision, resolveSeatCeiling, describeSeatReading, recommendSeats) or the admission refusal in src/daemon/concourseWorkers/admission.ts (effectiveSeatCeiling, evaluateConcourseAdmission)`
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}fix the seat reading, ceiling and stored decision in src/daemon/switchboard-capacity/capacityCheck.ts (machineSeatReading, recordCapacityDecision, resolveSeatCeiling, describeSeatReading, recommendSeats) or the admission refusal in src/daemon/concourse-workers/admission.ts (effectiveSeatCeiling, evaluateConcourseAdmission)`
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const cap = await import('../../src/utils/switchboard/capacityCheck.ts')
-const sup = await import('../../src/daemon/concourseWorkers.ts')
+const cap = await import('../../src/daemon/switchboard-capacity/capacityCheck.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 {
   const gb = (n: number): number => n * 2 ** 30
@@ -45,7 +45,7 @@ const sup = await import('../../src/daemon/concourseWorkers.ts')
   const held = cap.heldMachineSeatFacts()
   check('C3 declining answers the machine reading (spoken, not stored) — the reading this process holds, the one the ceiling reads', stored.allowed === false && stored.recommendedSeats === held.seats, `spoken ${stored.recommendedSeats} · held ${held.seats}`)
   check('C3 the held reading is its own sample through the one derivation (cores + available memory, no process scan)', held.sample !== null && held.seats === cap.machineSeatReading(held.sample.cores, held.sample.availableBytes) && ['vm_stat', 'meminfo', 'counter', 'free'].includes(held.sample.read), held.sample === null ? 'no sample' : `${held.seats} seats ← ${cap.seatReadingInputsWords(held.sample)} (${held.sample.read})`)
-  const { getGlobalConfig } = await import('../../src/utils/config.ts')
+  const { getGlobalConfig } = await import('../../src/platform/settings/config.ts')
   const onDisk = getGlobalConfig().switchboardCapacity
   check('C3 the declined decision stores NO number', onDisk !== undefined && onDisk.allowed === false && onDisk.recommendedSeats === undefined, JSON.stringify(onDisk))
   check('C3 the resolved ceiling is the machine reading', cap.resolveSeatCeiling() === cap.heldMachineSeatReading(), `${cap.resolveSeatCeiling()} · held ${cap.heldMachineSeatReading()}`)

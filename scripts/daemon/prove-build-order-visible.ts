@@ -1,7 +1,7 @@
 import { proofHome } from '../lib/hermetic.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
-import * as hs from '../../src/daemon/handshake.js'
-import { MERCURY_DAEMON_PROTO } from '../../src/daemon/protocol.js'
+import * as hs from '../../src/daemon/control/handshake.js'
+import { MERCURY_DAEMON_PROTO } from '../../src/daemon/control/protocol.js'
 
 try {
 let failed = 0

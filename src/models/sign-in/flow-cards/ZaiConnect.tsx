@@ -1,0 +1,113 @@
+import * as React from 'react'
+import { useState } from 'react'
+import { Box, Text, useInput } from '../../../screen/themedRenderer.js'
+import TextInput from '../../../screen/composer/text-input/TextInput.js'
+import { Select } from '../../../screen/select/index.js'
+import { useMercuryTokens } from '../../../screen/widgets/useMercuryTokens.js'
+import type { ZaiApiPlan } from '../../roads/zai/zaiClient.js'
+import { storeZaiApiKeyLogin, zaiPlanLabel } from '../../roads/zai/zaiLogin.js'
+import { keyPasteGuardNote } from '../../../screen/widgets/faces/keyPasteGuards.js'
+import { keyPageLine } from './loginFamilyRows.js'
+import { KeyCardTitle } from './KeyCardTitle.js'
+import { usePopupCompact } from '../../../screen/overlays/popupFormContext.js'
+
+
+export function ZaiConnect({
+  onResult,
+}: {
+  onResult: (result: { ok: boolean; receipt: string }) => void
+}): React.ReactNode {
+  const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
+  const [plan, setPlan] = useState<ZaiApiPlan | undefined>(undefined)
+
+  if (plan === undefined) {
+    return (
+      <Box flexDirection="column" paddingX={compact ? 0 : 1} gap={compact ? 0 : 1}>
+        <Text bold color={tokens.accent} wrap="truncate-end">
+          Connect GLM (Z.AI) — API key
+        </Text>
+        {compact ? null : (
+          <Text color={tokens.textSecondary}>
+            Z.AI signs in with API keys only. Which key is this? A GLM Coding Plan key is valid on the Coding
+            Plan base and refused on the general one, so the answer picks the base.
+          </Text>
+        )}
+        {compact ? null : <Text color={tokens.textSecondary}>{keyPageLine('zai')}</Text>}
+        <Select
+          options={[
+            { label: 'GLM Coding Plan key — api.z.ai/api/coding/paas/v4', value: 'coding' },
+            { label: 'Z.AI API key (general, pay-as-you-go) — api.z.ai/api/paas/v4', value: 'general' },
+          ]}
+          onChange={value => setPlan(value as ZaiApiPlan)}
+          onCancel={() => onResult({ ok: false, receipt: 'GLM (Z.AI) key entry cancelled — nothing stored.' })}
+        />
+      </Box>
+    )
+  }
+
+  return <ZaiKeyLeg plan={plan} onBack={() => setPlan(undefined)} onResult={onResult} />
+}
+
+function ZaiKeyLeg({
+  plan,
+  onBack,
+  onResult,
+}: {
+  plan: ZaiApiPlan
+  onBack: () => void
+  onResult: (result: { ok: boolean; receipt: string }) => void
+}): React.ReactNode {
+  const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
+  const [value, setValue] = useState('')
+  const [cursor, setCursor] = useState(0)
+  const [note, setNote] = useState<string | null>(null)
+  useInput((_input, key) => {
+    if (key.escape) onBack()
+  })
+  const submit = (raw: string): void => {
+    const key = raw.trim()
+    if (!key) return
+    const guard = keyPasteGuardNote(key, { stores: `a ${zaiPlanLabel(plan)}` })
+    if (guard !== null) {
+      setNote(guard)
+      return
+    }
+    setNote('checking the key with Z.AI…')
+    void storeZaiApiKeyLogin(key, plan).then(outcome => {
+      if (!outcome.stored) {
+        setNote(outcome.receipt)
+        return
+      }
+      onResult({ ok: outcome.ok, receipt: outcome.receipt })
+    })
+  }
+  return (
+    <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>
+      <KeyCardTitle family="zai" short={zaiPlanLabel(plan)}>{`Connect GLM (Z.AI) — ${zaiPlanLabel(plan)}`}</KeyCardTitle>
+      {compact ? null : (
+        <Text>
+          Paste your {zaiPlanLabel(plan)}. Stored auth-scoped (mode 600), never logged; a ZAI_API_KEY env var
+          always wins over the store (and rides the general base).
+        </Text>
+      )}
+      <Box>
+        <Text>Key: </Text>
+        <TextInput
+          value={value}
+          onChange={setValue}
+          onSubmit={submit}
+          mask="*"
+          columns={48}
+          cursorOffset={cursor}
+          onChangeCursorOffset={setCursor}
+        />
+      </Box>
+      {note !== null ? <Text color={tokens.warning}>{note}</Text> : null}
+      {compact ? null : <Text dimColor>esc back</Text>}
+    </Box>
+  )
+}
+
+export default ZaiConnect

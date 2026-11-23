@@ -11,14 +11,14 @@ mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { AsksPart } = await import('../../src/services/engine-connector/daemon/asks.ts')
-const { publishSessionAsks, sessionAsksPath } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { getEngineModel } = await import('../../src/services/model/model.ts')
+const { AsksPart } = await import('../../src/engine/connector/daemon/asks.ts')
+const { publishSessionAsks, sessionAsksPath } = await import('../../src/engine/connector/seatProjections.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  const hint = 'change the AsksPart method this check calls (readAsks, asks, answerAsk, settleAsk, dropAll, subscribeAsks) in src/services/engine-connector/daemon/asks.ts until this holds'
+  const hint = 'change the AsksPart method this check calls (readAsks, asks, answerAsk, settleAsk, dropAll, subscribeAsks) in src/engine/connector/daemon/asks.ts until this holds'
   const shown = !ok ? [detail, hint].filter(Boolean).join(' — ') : ''
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }

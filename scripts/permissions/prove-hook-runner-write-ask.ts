@@ -22,11 +22,11 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
-const { checkWritePermissionForTool, checkReadPermissionForTool, checkPathSafetyForAutoEdit } = await import('../../src/utils/permissions/filesystem.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
+const { checkWritePermissionForTool, checkReadPermissionForTool, checkPathSafetyForAutoEdit } = await import('../../src/permissions/rules/filesystem.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
 
 let failures = 0
 let checks = 0

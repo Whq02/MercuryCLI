@@ -10,18 +10,18 @@ process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_BARE
 try {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { askForHandoff } = await import('../../src/mneme/handoffAsk.ts')
-  const { createSubagentContext } = await import('../../src/services/agents/forkedAgent.ts')
-  const { resolveHookPermissionDecision } = await import('../../src/services/tools/toolHooks.ts')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-  const { openEntry } = await import('../../src/mneme/ledger.ts')
-  const { mnemeProjectKey } = await import('../../src/mneme/paths.ts')
-  const { getSessionId } = await import('../../src/bootstrap/state.ts')
+  const { askForHandoff } = await import('../../src/sessions/mneme/handoffAsk.ts')
+  const { createSubagentContext } = await import('../../src/crew/agents/forkedAgent.ts')
+  const { resolveHookPermissionDecision } = await import('../../src/engine/tool-dispatch/toolHooks.ts')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
+  const { openEntry } = await import('../../src/sessions/mneme/ledger.ts')
+  const { mnemeProjectKey } = await import('../../src/sessions/mneme/paths.ts')
+  const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
   openEntry(mnemeProjectKey(), { sessionId: String(getSessionId()), model: 'fixture' })
-  const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+  const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
   const state = getDefaultAppState()
   const parent = {
     abortController: new AbortController(), readFileState: createFileStateCacheWithSizeLimit(10),
@@ -43,7 +43,7 @@ try {
       } catch (error) { console.error(error); throw error }
     },
   })
-  assert.equal(decision, 'deny', 'a tool.before allow must not bypass the closing ask allowlist: the canUseTool that askForHandoff (src/mneme/handoffAsk.ts) passes to the closing ask must deny a tool outside handoffAskText(...).tools, and an allow from resolveHookPermissionDecision (src/services/tools/toolHooks.ts) must not skip it')
+  assert.equal(decision, 'deny', 'a tool.before allow must not bypass the closing ask allowlist: the canUseTool that askForHandoff (src/sessions/mneme/handoffAsk.ts) passes to the closing ask must deny a tool outside handoffAskText(...).tools, and an allow from resolveHookPermissionDecision (src/engine/tool-dispatch/toolHooks.ts) must not skip it')
   console.log('HANDOFF TOOL WALL GREEN')
 } finally {
   rmSync(home, { recursive: true, force: true })

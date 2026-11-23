@@ -9,11 +9,11 @@ const {
   planEntriesOf,
   usageWireOf,
   attentionWire,
-} = await import('../../src/services/acp/acpServer.ts')
+} = await import('../../src/integrations/acp/acpServer.ts')
 const { foldAttention, emptyAttentionState } = await import(
-  '../../src/services/attention/contracts.ts'
+  '../../src/screen/attention/contracts.ts'
 )
-const { foldRelations, emptyRelationState } = await import('../../src/services/attention/relations.ts')
+const { foldRelations, emptyRelationState } = await import('../../src/screen/attention/relations.ts')
 
 t.section('§1 ACP prompt lands in ComposerDocumentV2 (refs in the doc, bodies aside)')
 {
@@ -205,7 +205,7 @@ t.section('§4 attentionWire — versioned five-bucket receipts + edges')
 
 t.section('§4b attentionWireFromSnapshot — the ACP route is the bridge fold, never a dormant store')
 {
-  const { attentionWireFromSnapshot } = await import('../../src/services/acp/acpServer.ts')
+  const { attentionWireFromSnapshot } = await import('../../src/integrations/acp/acpServer.ts')
   const snap = {
     refreshedAt: 5000,
     threads: [

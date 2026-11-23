@@ -6,15 +6,15 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'single-envelope-home-'))
 
 const ROOT = join(import.meta.dir, '..', '..')
-const { recordTranscript, flushSessionStorage } = await import(join(ROOT, 'src/utils/sessionStorage/writer.ts'))
-const { createUserMessage, createAssistantMessage, createSystemMessage } = await import(join(ROOT, 'src/services/messages.ts'))
-const { createAttachmentMessage } = await import(join(ROOT, 'src/services/attachments/orchestrator.ts'))
-const { getSessionId } = await import(join(ROOT, 'src/bootstrap/state.ts'))
-const loading = await import(join(ROOT, 'src/utils/sessionStorage/loading.ts'))
-const chain = await import(join(ROOT, 'src/utils/sessionStorage/chain.ts'))
+const { recordTranscript, flushSessionStorage } = await import(join(ROOT, 'src/sessions/transcripts/writer.ts'))
+const { createUserMessage, createAssistantMessage, createSystemMessage } = await import(join(ROOT, 'src/engine/messages/messages.ts'))
+const { createAttachmentMessage } = await import(join(ROOT, 'src/engine/attachments/turnAttachments.ts'))
+const { getSessionId } = await import(join(ROOT, 'src/boot/process-state/processState.ts'))
+const loading = await import(join(ROOT, 'src/sessions/transcripts/loading.ts'))
+const chain = await import(join(ROOT, 'src/sessions/transcripts/chain.ts'))
 
 let failures = 0
-const envelopeHint = 'change how recordTranscript in src/utils/sessionStorage/writer.ts chooses each row parent, or the chain read in src/utils/sessionStorage/loading.ts and chain.ts'
+const envelopeHint = 'change how recordTranscript in src/sessions/transcripts/writer.ts chooses each row parent, or the chain read in src/sessions/transcripts/loading.ts and chain.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${envelopeHint}` : ''}`)
   if (!ok) failures++

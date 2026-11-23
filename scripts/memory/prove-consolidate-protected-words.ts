@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/mnemeSimilarity.ts src/mneme/mnemePolarity.ts src/mneme/mnemeConsolidate.ts src/mneme/mnemeContradiction.ts src/mneme/mnemeText.ts
+// gate-watch: src/sessions/mneme/mnemeSimilarity.ts src/sessions/mneme/mnemePolarity.ts src/sessions/mneme/mnemeConsolidate.ts src/sessions/mneme/mnemeContradiction.ts src/sessions/mneme/mnemeText.ts
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -14,17 +14,17 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 400)} — ` : ''}fix mergeSimilar, protectedWords or polarityKeepsApart in src/mneme/mnemeSimilarity.ts (or maybeConsolidate in src/mneme/mnemeConsolidate.ts) so protected words keep rows apart` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 400)} — ` : ''}fix mergeSimilar, protectedWords or polarityKeepsApart in src/sessions/mneme/mnemeSimilarity.ts (or maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts) so protected words keep rows apart` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { mergeSimilar, shingleSimilarity, protectedWords, properNames, polarityKeepsApart, CONSOLIDATE_SIMILARITY_THRESHOLD } = await import('../../src/mneme/mnemeSimilarity.ts')
-const { POLARITY_PAIRS } = await import('../../src/mneme/mnemePolarity.ts')
-const guard = await import('../../src/mneme/mnemeContradiction.ts')
-const { currentBufferPath } = await import('../../src/mneme/mnemeBuffer.ts')
-const { maybeConsolidate, listTopicDocs, listArchiveDocs } = await import('../../src/mneme/mnemeConsolidate.ts')
+const { mergeSimilar, shingleSimilarity, protectedWords, properNames, polarityKeepsApart, CONSOLIDATE_SIMILARITY_THRESHOLD } = await import('../../src/sessions/mneme/mnemeSimilarity.ts')
+const { POLARITY_PAIRS } = await import('../../src/sessions/mneme/mnemePolarity.ts')
+const guard = await import('../../src/sessions/mneme/mnemeContradiction.ts')
+const { currentBufferPath } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { maybeConsolidate, listTopicDocs, listArchiveDocs } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
 
 const now = new Date('2026-10-14T02:00:00.000Z')
 const seed = (dir: string, text: string, stamp: number) => {

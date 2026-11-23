@@ -13,7 +13,7 @@ const FIXTURE = join(import.meta.dir, 'mid-turn-reply-fixture-server.ts')
 const BUN = process.env.BUN ?? join(process.env.HOME ?? '', '.bun/bin/bun')
 
 const MID_TURN_FAIL_HINT =
-  'change replyMarkOf, isReplyText and stampReply in src/run-core/attachment-drain.ts (which drained row earns a reply mark and which envelope carries it); for the drive checks run bun run build.ts first, the transcript reader text is in src/services/resources/adapters/transcript.ts and src/utils/messages/replyAddress.ts'
+  'change replyMarkOf, isReplyText and stampReply in src/engine/loop/attachment-drain.ts (which drained row earns a reply mark and which envelope carries it); for the drive checks run bun run build.ts first, the transcript reader text is in src/integrations/resources/adapters/transcript.ts and src/engine/message-shapes/replyAddress.ts'
 
 let failures = 0
 let checks = 0
@@ -49,8 +49,8 @@ const UC = '33333333-3333-4333-8333-333333333333'
 
 section('P the pure laws: which drained row earns a mark, which envelope is the reply, the mark is spent once')
 {
-  const drain = await import(join(SRC, 'run-core/attachment-drain.ts'))
-  const { createAssistantMessage, createAssistantAPIErrorMessage } = await import(join(SRC, 'utils/messages/factories.ts'))
+  const drain = await import(join(SRC, 'engine/loop/attachment-drain.ts'))
+  const { createAssistantMessage, createAssistantAPIErrorMessage } = await import(join(SRC, 'engine/message-shapes/factories.ts'))
   const row = (attachment: Record<string, unknown>, timestamp = '2026-10-14T23:12:00.000Z') => ({ timestamp, attachment })
   const operator = row({ type: 'queued_command', prompt: 'x', source_uuid: UA, commandMode: 'prompt' })
   check('an operator prompt drained mid-turn earns a mark: its uuid and the row\'s clock', j(drain.replyMarkOf(operator)) === j({ uuid: UA, at: '2026-10-14T23:12:00.000Z' }), j(drain.replyMarkOf(operator)))
@@ -235,7 +235,7 @@ const findTranscript = (dir: string, sessionId: string): string | null => {
   }
   return null
 }
-const reader = await import(join(SRC, 'utils/sessionStorage/transcriptReader.ts'))
+const reader = await import(join(SRC, 'sessions/transcripts/transcriptReader.ts'))
 const transcriptRows = async (sessionId: string): Promise<Row[]> => {
   const path = findTranscript(join(RUN_HOME, 'projects'), sessionId)
   if (path === null) return []
@@ -296,8 +296,8 @@ check('no other text row of the turn carries the mark', otherTexts.every(f => ro
 const doneRow = lines.slice(beforeTwo).find(f => f.type === 'text' && String(f.text).startsWith('done: '))
 check("the turn's closing text (after the answer) is unmarked — the mark is the answer's alone", doneRow !== undefined && rowMarksOf(doneRow).length === 0, j(doneRow?.in_reply_to))
 {
-  const { jsonlConciseRows } = await import(join(SRC, 'services/resources/adapters/transcript.ts'))
-  const { formatClock, REPLY_ADDRESS_LEAD } = await import(join(SRC, 'utils/messages/replyAddress.ts'))
+  const { jsonlConciseRows } = await import(join(SRC, 'integrations/resources/adapters/transcript.ts'))
+  const { formatClock, REPLY_ADDRESS_LEAD } = await import(join(SRC, 'engine/message-shapes/replyAddress.ts'))
   const concise = jsonlConciseRows(findTranscript(join(RUN_HOME, 'projects'), sessionId) ?? '') as string[]
   const answerLine = concise.find(row => row.startsWith(`assistant: ${HEARD_LEAD}`))
   check(`THE MARK ON THE mercury://transcript READER: the answer row ends "· ${REPLY_ADDRESS_LEAD} ${formatClock(TA)} message"`, answerLine !== undefined && answerLine.endsWith(` · ${REPLY_ADDRESS_LEAD} ${formatClock(TA)} message`), j(answerLine))
@@ -323,8 +323,8 @@ check('NO ROW OF THE TURN CARRIES THE MARK: the tool-only message spent it', row
 const silentTexts = lines.slice(beforeSilent).filter(f => f.type === 'text')
 check('no headless text row of the turn carries in_reply_to', silentTexts.length > 0 && silentTexts.every(f => rowMarksOf(f).length === 0), j(silentTexts.map(f => [String(f.text).slice(0, 30), f.in_reply_to])))
 {
-  const { jsonlConciseRows } = await import(join(SRC, 'services/resources/adapters/transcript.ts'))
-  const { formatClock, REPLY_ADDRESS_LEAD } = await import(join(SRC, 'utils/messages/replyAddress.ts'))
+  const { jsonlConciseRows } = await import(join(SRC, 'integrations/resources/adapters/transcript.ts'))
+  const { formatClock, REPLY_ADDRESS_LEAD } = await import(join(SRC, 'engine/message-shapes/replyAddress.ts'))
   const concise = jsonlConciseRows(findTranscript(join(RUN_HOME, 'projects'), sessionId) ?? '') as string[]
   check('the transcript reader shows no address for the line', !concise.some(row => row.includes(`${REPLY_ADDRESS_LEAD} ${formatClock(TC)} message`)), j(concise.filter(row => row.includes(REPLY_ADDRESS_LEAD))))
 }

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-const orFailHint = 'catalogue checks exercise refreshOpenrouterCatalogue, getOpenrouterAvailability and getOpenrouterModelOptions in src/services/providers/openrouter/openrouterCatalogue.ts; key-usage and rate-header checks exercise refreshOpenrouterKeyUsage, recordOpenrouterRateHeaders and openrouterLimitWindow in src/services/providers/openrouter/openrouterUsageState.ts'
+const orFailHint = 'catalogue checks exercise refreshOpenrouterCatalogue, getOpenrouterAvailability and getOpenrouterModelOptions in src/models/roads/openrouter/openrouterCatalogue.ts; key-usage and rate-header checks exercise refreshOpenrouterKeyUsage, recordOpenrouterRateHeaders and openrouterLimitWindow in src/models/roads/openrouter/openrouterUsageState.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail === '' ? orFailHint : detail}` : ''}`)
@@ -32,8 +32,8 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-openrouter-ca
 process.env.MERCURY_OPENROUTER_AUTH_BASE = 'https://fixture.invalid/auth'
 process.env.MERCURY_OPENROUTER_API_BASE = 'https://fixture.invalid/api/v1'
 
-const catalogue = await import('../../src/services/providers/openrouter/openrouterCatalogue.js')
-const usageState = await import('../../src/services/providers/openrouter/openrouterUsageState.js')
+const catalogue = await import('../../src/models/roads/openrouter/openrouterCatalogue.js')
+const usageState = await import('../../src/models/roads/openrouter/openrouterUsageState.js')
 const {
   __resetOpenrouterCatalogueForTest,
   getCachedOpenrouterCatalogue,
@@ -46,7 +46,7 @@ const {
   openrouterModelsForVendor,
   refreshOpenrouterCatalogue,
 } = catalogue
-const { isCatalogueDoorRow, isProviderActionRow } = await import('../../src/services/model/modelOptions.js')
+const { isCatalogueDoorRow, isProviderActionRow } = await import('../../src/models/catalogue/modelOptions.js')
 const {
   __resetOpenrouterUsageStateForTest,
   openrouterLimitWindow,
@@ -54,7 +54,7 @@ const {
   recordOpenrouterRateHeaders,
   refreshOpenrouterKeyUsage,
 } = usageState
-const providerUsage = await import('../../src/services/providers/providerUsage.js')
+const providerUsage = await import('../../src/models/roads/providerUsage.js')
 
 const PAGE_ONE = {
   data: [
@@ -168,13 +168,13 @@ process.env.OPENROUTER_API_KEY = 'sk-or-v1-PROVERKEY000000000000'
   check('a row with a stated context_length carries statedContextWindow (200000)', stated?.statedContextWindow === 200000)
   const unstated = modelRows.find(r => r.value === 'openrouter/google/gemini-fixture')
   check('a row with NO stated context carries no window (no borrowed default)', unstated !== undefined && unstated.statedContextWindow === undefined)
-  const { resolveContextWindow } = await import('../../src/utils/model/capabilities.js')
+  const { resolveContextWindow } = await import('../../src/models/facts/capabilities.js')
   const budget = resolveContextWindow('openrouter/anthropic/claude-fixture')
-  check('resolveContextWindow budgets a listed openrouter id at its stated window', budget.effectiveWindow === 200000 && budget.source === 'live-current', JSON.stringify({ w: budget.effectiveWindow, s: budget.source }) + ' — see resolveContextWindow in src/utils/model/capabilities.ts')
+  check('resolveContextWindow budgets a listed openrouter id at its stated window', budget.effectiveWindow === 200000 && budget.source === 'live-current', JSON.stringify({ w: budget.effectiveWindow, s: budget.source }) + ' — see resolveContextWindow in src/models/facts/capabilities.ts')
   const dressed = resolveContextWindow('openrouter/anthropic/claude-fixture[1m]')
-  check('a Mercury-dressed openrouter id budgets as its listed base row (no lying 1M)', dressed.effectiveWindow === 200000, String(dressed.effectiveWindow) + ' — see resolveContextWindow in src/utils/model/capabilities.ts')
+  check('a Mercury-dressed openrouter id budgets as its listed base row (no lying 1M)', dressed.effectiveWindow === 200000, String(dressed.effectiveWindow) + ' — see resolveContextWindow in src/models/facts/capabilities.ts')
   const unlisted = resolveContextWindow('openrouter/nobody/unlisted-model')
-  check('an unlisted openrouter id falls to the LABELLED conservative default', unlisted.effectiveWindow === 200000 && unlisted.source === 'fallback' && /states no context length/.test(unlisted.fallbackReason ?? ''), JSON.stringify({ s: unlisted.source, r: unlisted.fallbackReason }) + ' — see resolveContextWindow in src/utils/model/capabilities.ts')
+  check('an unlisted openrouter id falls to the LABELLED conservative default', unlisted.effectiveWindow === 200000 && unlisted.source === 'fallback' && /states no context length/.test(unlisted.fallbackReason ?? ''), JSON.stringify({ s: unlisted.source, r: unlisted.fallbackReason }) + ' — see resolveContextWindow in src/models/facts/capabilities.ts')
   check('the reroute vendor filter answers mechanically', openrouterModelsForVendor('google').length === 1 && openrouterModelsForVendor('google')[0]!.id === 'google/gemini-fixture')
   check('below the bound there is no door row', !rows.some(r => r.value === OPENROUTER_EXPAND_OPTION_VALUE))
 }
@@ -199,7 +199,7 @@ process.env.OPENROUTER_API_KEY = 'sk-or-v1-PROVERKEY000000000000'
   const door = bounded[24]
   check('the picker bounds the rows to 24 and appends the door row (the count law: 25 rows)', bounded.length === 25 && bounded.slice(0, 24).every(r => String(r.value).startsWith('openrouter/vendor/') && r.unavailable === undefined) && door?.value === OPENROUTER_EXPAND_OPTION_VALUE, JSON.stringify(bounded.map(r => r.value)))
   check('the door carries the live count and the group, says what ↵ does, and is selectable (never a refused row)', door?.label === 'OpenRouter — 30 models live' && door?.description === '↵ expand · 30 live · type to filter' && door?.catalogueDoor?.total === 30 && door?.catalogueDoor?.family === 'OpenRouter' && door?.group === OPENROUTER_MODEL_GROUP && door?.unavailable === undefined, JSON.stringify(door))
-  check('the door is an ACTION row by the one shape predicate (never a model to any composer)', isCatalogueDoorRow(OPENROUTER_EXPAND_OPTION_VALUE) && isProviderActionRow(OPENROUTER_EXPAND_OPTION_VALUE) && !isCatalogueDoorRow('__mercury_openrouter_connect__') && !isCatalogueDoorRow('openrouter/vendor/model-1'), 'see isCatalogueDoorRow and isProviderActionRow in src/services/model/modelOptions.ts')
+  check('the door is an ACTION row by the one shape predicate (never a model to any composer)', isCatalogueDoorRow(OPENROUTER_EXPAND_OPTION_VALUE) && isProviderActionRow(OPENROUTER_EXPAND_OPTION_VALUE) && !isCatalogueDoorRow('__mercury_openrouter_connect__') && !isCatalogueDoorRow('openrouter/vendor/model-1'), 'see isCatalogueDoorRow and isProviderActionRow in src/models/catalogue/modelOptions.ts')
   const full = getOpenrouterFullModelOptions()
   check(
     'the full-rows accessor returns every snapshot row healed and deduped like the bounded view (the junk row collapsed onto its listed twin: 29 rows), the vendor\'s order kept, no door',

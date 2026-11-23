@@ -2,7 +2,7 @@ import { resolve } from 'node:path'
 
 const sourceArg = process.argv.indexOf('--source-root')
 const root = sourceArg < 0 ? resolve(import.meta.dir, '../..') : resolve(process.argv[sourceArg + 1]!)
-const { getQueuedCommandAttachments } = await import(`${root}/src/services/attachments/queuedCommands.ts`)
+const { getQueuedCommandAttachments } = await import(`${root}/src/engine/attachments/queuedCommands.ts`)
 let failures = 0
 const check = (name: string, ok: boolean, detail = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)
@@ -10,7 +10,7 @@ const check = (name: string, ok: boolean, detail = '') => {
 }
 const tinyPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
 const tinyGif = 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
-const pasteHint = 'change getQueuedCommandAttachments, buildImageContentBlocks and pastedImageBlock in src/services/attachments/queuedCommands.ts'
+const pasteHint = 'change getQueuedCommandAttachments, buildImageContentBlocks and pastedImageBlock in src/engine/attachments/queuedCommands.ts'
 const command = (extra: Record<string, unknown>) => ({ uuid: 'q-1', value: 'look at these', mode: 'prompt', origin: { kind: 'user' }, isMeta: false, ...extra })
 
 const none = await getQueuedCommandAttachments([command({})])

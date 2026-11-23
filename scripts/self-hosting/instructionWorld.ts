@@ -63,15 +63,15 @@ import { join, sep } from 'node:path'
 if (homedir() !== process.env.DRV_HOME) throw new Error('the home folder is ' + homedir() + ', not the scratch home of this proof')
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const repo = ${JSON.stringify(repo)}
-const { enableConfigs } = await import(join(repo, 'src/utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(repo, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
-const { getEmptyToolPermissionContext } = await import(join(repo, 'src/Tool.ts'))
-const { getInstructionFiles, getInstructionBundle, getInstructionCompositionState, isInstructionFilePath, seedFileKnowledgeFromInjectedInstructions } = await import(join(repo, 'src/services/instructions/engine.ts'))
-const { getUserContext } = await import(join(repo, 'src/context.ts'))
-const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/services/attachments/nestedMemory.ts'))
-const { normalizeAttachmentForAPI } = await import(join(repo, 'src/services/messages/attachmentText.ts'))
-const { createFileStateCacheWithSizeLimit } = await import(join(repo, 'src/utils/fileStateCache.ts'))
-const { composedGuideFilesAt } = await import(join(repo, 'src/services/instructions/adapters/index.ts'))
+const { getEmptyToolPermissionContext } = await import(join(repo, 'src/tools/kit/tool.ts'))
+const { getInstructionFiles, getInstructionBundle, getInstructionCompositionState, isInstructionFilePath, seedFileKnowledgeFromInjectedInstructions } = await import(join(repo, 'src/sessions/instructions/instructionFiles.ts'))
+const { getUserContext } = await import(join(repo, 'src/engine/requestContext.ts'))
+const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/engine/attachments/nestedInstructions.ts'))
+const { normalizeAttachmentForAPI } = await import(join(repo, 'src/engine/messages/attachmentText.ts'))
+const { createFileStateCacheWithSizeLimit } = await import(join(repo, 'src/platform/files/fileStateCache.ts'))
+const { composedGuideFilesAt } = await import(join(repo, 'src/sessions/instructions/adapters/index.ts'))
 const plan = JSON.parse(process.env.DRV_PLAN ?? '{}')
 const cwd = process.cwd()
 const files = await getInstructionFiles()
@@ -81,14 +81,14 @@ const held = (path: string): boolean => context.readFileState.has(path)
 const screens = async (): Promise<{ rows: string[]; listed: string[]; attached: string[]; words: { footer: string; centre: string; health: string } }> => {
   let listing: any
   try {
-    listing = await import(join(repo, 'src/services/instructions/listing.ts'))
+    listing = await import(join(repo, 'src/sessions/instructions/listing.ts'))
   } catch {
     return { rows: [], listed: [], attached: [], words: { footer: '', centre: '', health: '' } }
   }
-  const { getRelativeMemoryPath } = await import(join(repo, 'src/components/memory/MemoryUpdateNotification.tsx'))
+  const { getRelativeMemoryPath } = await import(join(repo, 'src/screen/memory/MemoryUpdateNotification.tsx'))
   const shown = (path: string): string => getRelativeMemoryPath(path).split(sep).join('/')
   const { profileStatusLine } = await import(join(repo, 'src/commands/memory/memory.tsx'))
-  const { filesRow } = await import(join(repo, 'src/components/memory/memoryCentreLayout.ts'))
+  const { filesRow } = await import(join(repo, 'src/screen/memory/memoryCentreLayout.ts'))
   listing.getInstructionListing.cache.clear()
   const family = (entry: any): string => (entry.family === 'native' ? 'Mercury-native · ' : entry.family === 'shared' ? 'shared guide · ' : '')
   const listed = await listing.getInstructionListing()

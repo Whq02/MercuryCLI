@@ -9,7 +9,7 @@ for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_MODEL',
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-ctx-free-'))
 
 let failures = 0
-const FREE_SPACE_HINT = 'change analyzeContextUsage in src/services/context/analyzeContext.ts so the headline, the category rows, the grid, the percentage and Free space all use one numerator'
+const FREE_SPACE_HINT = 'change analyzeContextUsage in src/engine/context-window/analyzeContext.ts so the headline, the category rows, the grid, the percentage and Free space all use one numerator'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const failText = [detail, FREE_SPACE_HINT].filter(Boolean).join(' — ')
@@ -19,11 +19,11 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { analyzeContextUsage } = await import('../../src/services/context/analyzeContext.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
+const { analyzeContextUsage } = await import('../../src/engine/context-window/analyzeContext.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 
 const MODEL = 'claude-fable-5-1'
 const agents = { activeAgents: [], allAgents: [] }

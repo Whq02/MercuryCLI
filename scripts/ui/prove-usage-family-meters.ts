@@ -53,49 +53,49 @@ console.log('============================================================')
 console.log(' usage family meters — the Fable week paints beside all-models')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 section('§1 — the seam: the armed payload stands in for the wire, whole')
 {
-  const { mockUtilizationPayload } = await import('../../src/services/mockRateLimits.ts')
+  const { mockUtilizationPayload } = await import('../../src/models/roads/anthropic/mockRateLimits.ts')
   const armed = mockUtilizationPayload()
-  check('the armed seam parses the payload', armed !== null, JSON.stringify(armed) + ' — mockUtilizationPayload in src/services/mockRateLimits.ts must parse MERCURY_MOCK_USAGE_PAYLOAD when MERCURY_MOCK_LIMITS is 1')
-  check('…fable bucket intact at 99', armed?.seven_day_fable?.utilization === 99, `seven_day_fable=${JSON.stringify(armed?.seven_day_fable)} — mockUtilizationPayload in src/services/mockRateLimits.ts must pass the seven_day_fable bucket through unchanged`)
+  check('the armed seam parses the payload', armed !== null, JSON.stringify(armed) + ' — mockUtilizationPayload in src/models/roads/anthropic/mockRateLimits.ts must parse MERCURY_MOCK_USAGE_PAYLOAD when MERCURY_MOCK_LIMITS is 1')
+  check('…fable bucket intact at 99', armed?.seven_day_fable?.utilization === 99, `seven_day_fable=${JSON.stringify(armed?.seven_day_fable)} — mockUtilizationPayload in src/models/roads/anthropic/mockRateLimits.ts must pass the seven_day_fable bucket through unchanged`)
 
-  const { fetchUtilization } = await import('../../src/services/api/usage.ts')
+  const { fetchUtilization } = await import('../../src/models/usage/anthropicUsageFetch.ts')
   const fetched = await fetchUtilization()
-  check('fetchUtilization answers the fixture payload with ZERO network', fetched !== null, JSON.stringify(fetched) + ' — fetchUtilization in src/services/api/usage.ts must return mockUtilizationPayload() before any request when it is non-null')
-  check('…all-models week at 51', fetched?.seven_day?.utilization === 51, `seven_day=${JSON.stringify(fetched?.seven_day)} — fetchUtilization in src/services/api/usage.ts must return the armed payload whole`)
-  check('…the FABLE bucket rides the answer at 99 (the missing meter)', fetched?.seven_day_fable?.utilization === 99, `seven_day_fable=${JSON.stringify(fetched?.seven_day_fable)} — fetchUtilization in src/services/api/usage.ts must not drop the seven_day_fable bucket`)
-  check('…the opus bucket rides at 12', fetched?.seven_day_opus?.utilization === 12, `seven_day_opus=${JSON.stringify(fetched?.seven_day_opus)} — fetchUtilization in src/services/api/usage.ts must not drop the seven_day_opus bucket`)
+  check('fetchUtilization answers the fixture payload with ZERO network', fetched !== null, JSON.stringify(fetched) + ' — fetchUtilization in src/models/usage/anthropicUsageFetch.ts must return mockUtilizationPayload() before any request when it is non-null')
+  check('…all-models week at 51', fetched?.seven_day?.utilization === 51, `seven_day=${JSON.stringify(fetched?.seven_day)} — fetchUtilization in src/models/usage/anthropicUsageFetch.ts must return the armed payload whole`)
+  check('…the FABLE bucket rides the answer at 99 (the missing meter)', fetched?.seven_day_fable?.utilization === 99, `seven_day_fable=${JSON.stringify(fetched?.seven_day_fable)} — fetchUtilization in src/models/usage/anthropicUsageFetch.ts must not drop the seven_day_fable bucket`)
+  check('…the opus bucket rides at 12', fetched?.seven_day_opus?.utilization === 12, `seven_day_opus=${JSON.stringify(fetched?.seven_day_opus)} — fetchUtilization in src/models/usage/anthropicUsageFetch.ts must not drop the seven_day_opus bucket`)
 
   delete process.env.MERCURY_MOCK_LIMITS
   const folded = mockUtilizationPayload()
-  check('the unarmed seam folds shut (null — the wire would answer)', folded === null, `got ${JSON.stringify(folded)} — mockUtilizationPayload in src/services/mockRateLimits.ts must return null unless MERCURY_MOCK_LIMITS is 1`)
+  check('the unarmed seam folds shut (null — the wire would answer)', folded === null, `got ${JSON.stringify(folded)} — mockUtilizationPayload in src/models/roads/anthropic/mockRateLimits.ts must return null unless MERCURY_MOCK_LIMITS is 1`)
   process.env.MERCURY_MOCK_LIMITS = '1'
 }
 
 section('§2 — the one owner walks the full per-family vocabulary; the panel reads it')
 {
-  const { anthropicPoolWindowViews } = await import('../../src/services/providers/providerUsage.ts')
-  const { WEEKLY_POOL_CLAIMS } = await import('../../src/services/anthropicLimits.ts')
-  check('the owner\'s vocabulary lists every pooled family (fable included)', WEEKLY_POOL_CLAIMS.join(',') === 'seven_day_fable,seven_day_opus,seven_day_sonnet', `got ${WEEKLY_POOL_CLAIMS.join(',')} — WEEKLY_POOL_CLAIMS in src/services/anthropicLimits.ts must list every pooled family`)
+  const { anthropicPoolWindowViews } = await import('../../src/models/roads/providerUsage.ts')
+  const { WEEKLY_POOL_CLAIMS } = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+  check('the owner\'s vocabulary lists every pooled family (fable included)', WEEKLY_POOL_CLAIMS.join(',') === 'seven_day_fable,seven_day_opus,seven_day_sonnet', `got ${WEEKLY_POOL_CLAIMS.join(',')} — WEEKLY_POOL_CLAIMS in src/models/roads/anthropic/anthropicLimits.ts must list every pooled family`)
   const pools = anthropicPoolWindowViews()
   const byKey = Object.fromEntries(pools.map(p => [p.key, Math.round(p.usedPct ?? -1)]))
-  check('the owner reads the FABLE pool at 99', byKey.seven_day_fable === 99, JSON.stringify(byKey) + ' — anthropicPoolWindowViews in src/services/providers/providerUsage.ts must return a seven_day_fable window from the fetched payload')
-  check('…and the Opus pool at 12', byKey.seven_day_opus === 12, JSON.stringify(byKey) + ' — anthropicPoolWindowViews in src/services/providers/providerUsage.ts')
-  check('…and the Sonnet pool the endpoint never stated is ABSENT (never 0%)', !('seven_day_sonnet' in byKey), JSON.stringify(byKey) + ' — anthropicPoolWindowViews in src/services/providers/providerUsage.ts must skip a pool the endpoint did not state')
-  check('every pool names its feed (endpoint-fed) and carries its stamp', pools.every(p => p.source === 'endpoint' && typeof p.observedAtMs === 'number'), JSON.stringify(pools.map(p => ({ key: p.key, source: p.source, observedAtMs: p.observedAtMs }))) + ' — anthropicPoolWindowViews in src/services/providers/providerUsage.ts must set source to endpoint and observedAtMs on every pool it returns')
+  check('the owner reads the FABLE pool at 99', byKey.seven_day_fable === 99, JSON.stringify(byKey) + ' — anthropicPoolWindowViews in src/models/roads/providerUsage.ts must return a seven_day_fable window from the fetched payload')
+  check('…and the Opus pool at 12', byKey.seven_day_opus === 12, JSON.stringify(byKey) + ' — anthropicPoolWindowViews in src/models/roads/providerUsage.ts')
+  check('…and the Sonnet pool the endpoint never stated is ABSENT (never 0%)', !('seven_day_sonnet' in byKey), JSON.stringify(byKey) + ' — anthropicPoolWindowViews in src/models/roads/providerUsage.ts must skip a pool the endpoint did not state')
+  check('every pool names its feed (endpoint-fed) and carries its stamp', pools.every(p => p.source === 'endpoint' && typeof p.observedAtMs === 'number'), JSON.stringify(pools.map(p => ({ key: p.key, source: p.source, observedAtMs: p.observedAtMs }))) + ' — anthropicPoolWindowViews in src/models/roads/providerUsage.ts must set source to endpoint and observedAtMs on every pool it returns')
 
 }
 
 section('§3 — the seeded subscriber passes the fetch gate')
 {
-  const auth = await import('../../src/utils/auth.ts')
-  check('the seeded home reads as a claude.ai subscriber', auth.isClaudeAISubscriber() === true, 'isClaudeAISubscriber in src/utils/auth.ts must read the seeded claudeAiOauth entry in .credentials.json under MERCURY_CONFIG_DIR')
-  check('…with the profile scope (the fetch gate)', auth.hasProfileScope() === true, 'hasProfileScope in src/utils/auth.ts must find user:profile in the seeded scopes')
-  check('…on the max plan (the seeded custodian word)', auth.getSubscriptionType() === 'max', `got ${auth.getSubscriptionType()} — getSubscriptionType in src/utils/auth.ts must read subscriptionType from the seeded credentials`)
+  const auth = await import('../../src/models/sign-in/credentials/auth.ts')
+  check('the seeded home reads as a claude.ai subscriber', auth.isClaudeAISubscriber() === true, 'isClaudeAISubscriber in src/models/sign-in/credentials/auth.ts must read the seeded claudeAiOauth entry in .credentials.json under MERCURY_CONFIG_DIR')
+  check('…with the profile scope (the fetch gate)', auth.hasProfileScope() === true, 'hasProfileScope in src/models/sign-in/credentials/auth.ts must find user:profile in the seeded scopes')
+  check('…on the max plan (the seeded custodian word)', auth.getSubscriptionType() === 'max', `got ${auth.getSubscriptionType()} — getSubscriptionType in src/models/sign-in/credentials/auth.ts must read subscriptionType from the seeded credentials`)
 }
 
 try {

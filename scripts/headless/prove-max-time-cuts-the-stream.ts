@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
-// gate-watch: src/rows/turn.ts src/cli/run.ts src/services/providers/local/ollamaChatTransport.ts src/services/providers/local/localCallModel.ts src/rows/vocabulary.ts
+// gate-watch: src/engine/rows/turn.ts src/daemon/runner/runHeadless.ts src/models/roads/local/ollamaChatTransport.ts src/models/roads/local/localCallModel.ts src/engine/rows/vocabulary.ts
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
-import { OUTCOME_SENTENCES } from '../../src/rows/vocabulary.ts'
+import { OUTCOME_SENTENCES } from '../../src/engine/rows/vocabulary.ts'
 
 const at = process.argv.indexOf('--dist')
 const dist = resolve(at < 0 ? join(import.meta.dir, '../../dist/mercury.mjs') : process.argv[at + 1]!)
@@ -15,7 +15,7 @@ if (!existsSync(dist)) {
 }
 
 let failures = 0
-const maxTimeHint = 'to fix, change how the run ends at --max-time in src/rows/turn/modelRows.ts (the time_limit end) and src/rows/turn/settle.ts, or how the Ollama transport aborts its request in src/services/providers/local/ollamaChatTransport.ts (options.signal), then rebuild dist'
+const maxTimeHint = 'to fix, change how the run ends at --max-time in src/engine/rows/turn/modelRows.ts (the time_limit end) and src/engine/rows/turn/settle.ts, or how the Ollama transport aborts its request in src/models/roads/local/ollamaChatTransport.ts (options.signal), then rebuild dist'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail}${detail ? ' — ' : ''}${maxTimeHint}`}`)
   if (!ok) failures++

@@ -40,15 +40,15 @@ const FOLD = 'Write the running record of this conversation'
 const SKILLS = '## Skills'
 const WORKING_SET = '# Working set (task-scoped'
 const APOLLO = '# Apollo Mode'
-const COUNT = 'createFoldMeter in src/services/compact/compact/foldMeasure.ts must state the after size as what stands after the fold plus the rows the next turn sends again, on the scale the seated model reads the conversation in, and nothing the fold removed'
-const RETURNS = 'the turn after a fold now sends this text again: add it to the rows withoutSkillsList in src/services/compact/compact/foldMeasure.ts leaves out of the count before the fold, so the after size counts it'
+const COUNT = 'createFoldMeter in src/engine/compaction/fold/foldMeasure.ts must state the after size as what stands after the fold plus the rows the next turn sends again, on the scale the seated model reads the conversation in, and nothing the fold removed'
+const RETURNS = 'the turn after a fold now sends this text again: add it to the rows withoutSkillsList in src/engine/compaction/fold/foldMeasure.ts leaves out of the count before the fold, so the after size counts it'
 
 section('1 the built product, Apollo mode, a project with a working set, a provider that reports no usage: what the request after a fold carries')
 {
   const { randomUUID } = await import('node:crypto')
-  const { estimateContentTokens } = await import('../../src/services/roughTokenEstimation.ts')
-  const { recordToEntry } = await import('../../src/fabric/entryCodec.ts')
-  const { historyLines } = await import('../../src/utils/sessionStorage/historyParts.ts')
+  const { estimateContentTokens } = await import('../../src/engine/context-window/roughTokenEstimation.ts')
+  const { recordToEntry } = await import('../../src/sessions/fabric/entryCodec.ts')
+  const { historyLines } = await import('../../src/sessions/transcripts/historyParts.ts')
   const { transcriptFiles } = await import('../daemon/dupline-world.ts')
   const { liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
   type Turn = import('../lib/fixtureApi.ts').ScriptedTurn
@@ -101,18 +101,18 @@ section('1 the built product, Apollo mode, a project with a working set, a provi
 const { startOverflowFixture } = await import('./overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createAttachmentMessage } = await import('../../src/utils/attachments/attachmentMessage.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { contextFill } = await import('../../src/services/context/tokens.ts')
-const { primeOpenaiCatalogue } = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const { buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
-const { estimateContextTokens } = await import('../../src/services/compact/microCompact.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createAttachmentMessage } = await import('../../src/engine/attachment-shapes/attachmentMessage.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { contextFill } = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { primeOpenaiCatalogue } = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const { buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
 const { call } = await import('../../src/commands/compact/compact.ts')
 
 const SOURCE = 'claude-opus-4-8'

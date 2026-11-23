@@ -1,6 +1,6 @@
-import type { LocalJSXCommandCall } from '../../types/command.js'
-import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import { swarmMasterEnabled, swarmSessionEnabled, swarmStore } from '../../services/crewBoard/seam.js'
+import type { LocalJSXCommandCall } from '../catalogue/command.js'
+import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
+import { swarmMasterEnabled, swarmSessionEnabled, swarmStore } from '../../crew/board/seam.js'
 
 const USAGE = 'usage: /swarmchat [on|off|all|team \\<name\\>|main] — /swarmchat alone toggles board messages in the chat'
 

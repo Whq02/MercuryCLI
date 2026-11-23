@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/diff.ts
+// gate-watch: src/platform/text/diff.ts
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'diff-hunks-home-'))
 delete process.env.MERCURY_HOME
 
 let failures = 0
-const diffHunksFailHint = 'fix the matching function in src/utils/diff.ts (getPatchFromContents, getPatchForDisplay, adjustHunkLineNumbers or countLinesChanged; the line totals live in src/bootstrap/state.ts)'
+const diffHunksFailHint = 'fix the matching function in src/platform/text/diff.ts (getPatchFromContents, getPatchForDisplay, adjustHunkLineNumbers or countLinesChanged; the line totals live in src/boot/process-state/processState.ts)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? (detail ? ' — ' + detail + ' — ' : ' — ') + diffHunksFailHint : ''}`)
   if (!ok) failures++
@@ -17,8 +17,8 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { adjustHunkLineNumbers, countLinesChanged, getPatchForDisplay, getPatchFromContents } = await import('../../src/utils/diff.ts')
-const { getTotalLinesAdded, getTotalLinesRemoved } = await import('../../src/bootstrap/state.ts')
+const { adjustHunkLineNumbers, countLinesChanged, getPatchForDisplay, getPatchFromContents } = await import('../../src/platform/text/diff.ts')
+const { getTotalLinesAdded, getTotalLinesRemoved } = await import('../../src/boot/process-state/processState.ts')
 
 section('§1 ampersands and dollar signs survive the diff untouched, on both sides')
 {

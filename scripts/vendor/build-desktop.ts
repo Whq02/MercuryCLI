@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
-import { voiceCargoTriple, voicePackPlatform } from '../../src/utils/voice/voicePack.ts'
+import { voiceCargoTriple, voicePackPlatform } from '../../src/integrations/voice-pack/voicePack.ts'
 import {
   DESKTOP_ADDON_FILE,
   DESKTOP_BUILD_COMMAND,
@@ -18,8 +18,8 @@ import {
   readDesktopPackManifest,
   type DesktopPackCrate,
   type DesktopPackManifest,
-} from '../../src/services/desktop/pack.ts'
-import { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget } from '../../src/services/privateChannel/releaseTarget.ts'
+} from '../../src/integrations/desktop/pack.ts'
+import { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget } from '../../src/platform/update-channel/releaseTarget.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const NATIVE_DIR = join(ROOT, ...DESKTOP_NATIVE_PATH.split('/'))

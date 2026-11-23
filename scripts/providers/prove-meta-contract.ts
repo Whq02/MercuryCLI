@@ -6,19 +6,19 @@ import { join } from 'node:path'
 (globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const key of ['MODEL_API_KEY', 'META_API_KEY']) delete process.env[key]
 process.env.MERCURY_META_API_BASE = 'http://127.0.0.1:1/v1'
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
-const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { refreshProviderDiscovery } = await import('../../src/services/providers/providerDiscovery.ts')
-const { parseFamilyFocus } = await import('../../src/commands/login/login.tsx')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const { usageForProvider } = await import('../../src/models/roads/providerUsage.ts')
+const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
+const { refreshProviderDiscovery } = await import('../../src/models/roads/providerDiscovery.ts')
+const { parseFamilyFocus } = await import('../../src/commands/logins/login.tsx')
 const { parseDefaultProviderWord } = await import('../../src/commands/defaultprovider/defaultprovider.tsx')
-const { loginFamilyRows, keyPageLine } = await import('../../src/components/loginFamilyRows.ts')
-const { keyLegTitle, keyLegStoreLine, keyLegGuardOpts, keyPromptPaneLines, loginsFlowStatusOf } = await import('../../src/components/BootLoginsScreen.tsx')
-const { keyLaneProviderRows, keyConnectValue } = await import('../../src/services/model/modelOptions.ts')
-const { subModelConnectHome } = await import('../../src/services/model/subModelSlots.ts')
-const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
+const { loginFamilyRows, keyPageLine } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.ts')
+const { keyLegTitle, keyLegStoreLine, keyLegGuardOpts, keyPromptPaneLines, loginsFlowStatusOf } = await import('../../src/screen/boot-face/BootLoginsScreen.tsx')
+const { keyLaneProviderRows, keyConnectValue } = await import('../../src/models/catalogue/modelOptions.ts')
+const { subModelConnectHome } = await import('../../src/models/catalogue/subModelSlots.ts')
+const { buildProviderSnapshot } = await import('../../src/models/roads/modelRegistry.ts')
 let count = 0
-const metaFailureHint = 'change the Meta rows and words in src/services/providers/ (modelRegistry.ts, providerUsage.ts, providerUsability.ts, providerDiscovery.ts), src/components/loginFamilyRows.ts, src/components/BootLoginsScreen.tsx, src/services/model/modelOptions.ts or src/services/model/subModelSlots.ts, whichever this check names'
+const metaFailureHint = 'change the Meta rows and words in src/models/roads/ (modelRegistry.ts, providerUsage.ts, providerUsability.ts, providerDiscovery.ts), src/models/sign-in/flow-cards/loginFamilyRows.ts, src/screen/boot-face/BootLoginsScreen.tsx, src/models/catalogue/modelOptions.ts or src/models/catalogue/subModelSlots.ts, whichever this check names'
 const check = (name: string, value: unknown): void => { assert.ok(value, `${name} — ${metaFailureHint}`); count++; console.log(`[PASS] ${name}`) }
 try {
   check('Meta is a primary provider, with a signed-out usage and readiness truth', buildProviderSnapshot().providers.some(provider => provider.id === 'meta') && usageForProvider('meta').sourceKind === 'none' && !resolveProviderUsability().meta.usable)

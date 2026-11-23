@@ -1,5 +1,5 @@
-import { logForDebugging } from '../../utils/debug.js'
-import { pollUntil } from '../../utils/deadline.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
+import { pollUntil } from '../../platform/async/deadline.js'
 import {
   nextLiveCockpitOwner,
   PARK_DRAIN_CUT_REASON,
@@ -8,13 +8,13 @@ import {
   pendingParkRequests,
   readSessionWorkers,
   withdrawParkRequestsBy,
-} from '../concourseWorkers.js'
-import { readDaemonState, writeDaemonState } from '../controlSocket.js'
-import { sessionParkDrainMs } from '../idleRetirement.js'
-import { armOwnerPipe, getProcessStartTokenAsync, isProcessAlive, parseOwnerFd, startOwnerWatch } from '../../utils/ownerWatch.js'
-import { decideSessionlessExit } from '../sessionlessExit.js'
+} from '../concourse-workers/concourseWorkers.js'
+import { readDaemonState, writeDaemonState } from '../control/controlSocket.js'
+import { sessionParkDrainMs } from '../control/idleRetirement.js'
+import { armOwnerPipe, getProcessStartTokenAsync, isProcessAlive, parseOwnerFd, startOwnerWatch } from '../control/ownerWatch.js'
+import { decideSessionlessExit } from '../control/sessionlessExit.js'
 import type { DaemonRunState } from './state.js'
-import { errorMessage } from '../../utils/errors.js'
+import { errorMessage } from '../../platform/errors/errors.js'
 
 interface OwnerNeeds {
   shutdown: (signal: string) => void

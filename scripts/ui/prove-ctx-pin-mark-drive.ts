@@ -37,8 +37,8 @@ delete process.env.NODE_ENV
 for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'HF_TOKEN', 'MERCURY_MODEL']) {
   delete process.env[k]
 }
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
-const { MODEL_PICKER_TITLE } = await import('../../src/utils/model/modelPickerGroups.ts')
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
+const { MODEL_PICKER_TITLE } = await import('../../src/models/facts/modelPickerGroups.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -256,17 +256,17 @@ try {
     const boot = shot.marks.boot ?? ''
     if (!cockpit) {
       check(`${tag}: the composer painted`, boot.includes(readyText), `${boot.slice(-200)} | the composer never painted; run the bundle at this size and read the boot path, and check dist/mercury.mjs is current`)
-      check(`${tag}: the ctx figure here is the percent alone — no window size, no pin word`, /\bctx —/.test(ctxRowOf(boot)) && !/\d+k/.test(ctxRowOf(boot)) && !/\d+k pin\b/.test(boot), `${ctxRowOf(boot) || '(no ctx row)'} | below the cockpit the ctx figure must be the percent alone; fix the ctx label in the header against contextWindowLabel in src/services/context/contextFill.ts`)
+      check(`${tag}: the ctx figure here is the percent alone — no window size, no pin word`, /\bctx —/.test(ctxRowOf(boot)) && !/\d+k/.test(ctxRowOf(boot)) && !/\d+k pin\b/.test(boot), `${ctxRowOf(boot) || '(no ctx row)'} | below the cockpit the ctx figure must be the percent alone; fix the ctx label in the header against contextWindowLabel in src/engine/context-window/contextFill.ts`)
       continue
     }
     const bootRow = ctxRowOf(boot)
-    check(`${tag}: before the session's first turn, the rail's ctx row carries the pinned window with the mark, or the live ceiling already unmarked when the list landed before the first paint`, /ctx — · 1050k pin\b/.test(bootRow) || /ctx — · 872k(?!\s*pin)/.test(bootRow) && !/\bpin\b/.test(bootRow), `${bootRow || '(no ctx row)'} | the pin mark comes from windowPinned and contextWindowLabel in src/services/context/contextFill.ts; check the rail ctx row passes windowPinned through`)
+    check(`${tag}: before the session's first turn, the rail's ctx row carries the pinned window with the mark, or the live ceiling already unmarked when the list landed before the first paint`, /ctx — · 1050k pin\b/.test(bootRow) || /ctx — · 872k(?!\s*pin)/.test(bootRow) && !/\bpin\b/.test(bootRow), `${bootRow || '(no ctx row)'} | the pin mark comes from windowPinned and contextWindowLabel in src/engine/context-window/contextFill.ts; check the rail ctx row passes windowPinned through`)
     const landed = shot.marks.landed ?? ''
     const landedRow = ctxRowOf(landed)
-    check(`${tag}: after the session's own turn, the figure is the list's ceiling and the mark is gone — no picker opened`, /ctx \S+ · 872k(?!\s*pin)/.test(landedRow) && !/\bpin\b/.test(landedRow), `${landedRow || `the mark never fired; the final row reads ${JSON.stringify(ctxRowOf(shot.final))}`} | the pin must clear once the runner reports the live list; check windowPinned in src/services/context/contextFill.ts and where the runner stores the list`)
+    check(`${tag}: after the session's own turn, the figure is the list's ceiling and the mark is gone — no picker opened`, /ctx \S+ · 872k(?!\s*pin)/.test(landedRow) && !/\bpin\b/.test(landedRow), `${landedRow || `the mark never fired; the final row reads ${JSON.stringify(ctxRowOf(shot.final))}`} | the pin must clear once the runner reports the live list; check windowPinned in src/engine/context-window/contextFill.ts and where the runner stores the list`)
     const live = shot.marks.live ?? ''
     const liveRow = ctxRowOf(live)
-    check(`${tag}: after the picker's own read, the figure holds and stays unmarked`, /ctx \S+ · 872k(?!\s*pin)/.test(liveRow) && !/\bpin\b/.test(liveRow), `${liveRow || `the mark never fired; the final row reads ${JSON.stringify(ctxRowOf(shot.final))}`} | the figure must hold at the live ceiling and stay unmarked after the /model picker reads the list; check windowPinned in src/services/context/contextFill.ts`)
+    check(`${tag}: after the picker's own read, the figure holds and stays unmarked`, /ctx \S+ · 872k(?!\s*pin)/.test(liveRow) && !/\bpin\b/.test(liveRow), `${liveRow || `the mark never fired; the final row reads ${JSON.stringify(ctxRowOf(shot.final))}`} | the figure must hold at the live ceiling and stay unmarked after the /model picker reads the list; check windowPinned in src/engine/context-window/contextFill.ts`)
     check(`${tag}: the runner primes the list and the picker refreshes it once on open`, modelsHits.length - hitsBefore === 2, `${modelsHits.length - hitsBefore} models reads, expected 2 (one by the runner, one by the picker on open); fix whichever path lists models too often or not at all`)
   }
 } finally {

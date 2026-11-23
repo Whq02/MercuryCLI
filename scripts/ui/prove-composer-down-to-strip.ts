@@ -31,38 +31,38 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
 for (const key of ['MERCURY_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'NODE_ENV']) delete process.env[key]
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
-const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
-const { LAYOUT_BREAKPOINTS, resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { useLayoutChrome } = await import('../../src/context/layoutChromeContext.tsx')
-const { CockpitBottomStatus } = await import('../../src/context/cockpitActiveContext.tsx')
-const { MercuryFrame } = await import('../../src/components/MercuryFrame.tsx')
-const { FocusedSessionStatusRow } = await import('../../src/components/SwitchboardTagBar.tsx')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
+const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
+const { LAYOUT_BREAKPOINTS, resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { useLayoutChrome } = await import('../../src/screen/fullscreen-layout/layoutChromeContext.tsx')
+const { CockpitBottomStatus } = await import('../../src/screen/cockpit/cockpitActiveContext.tsx')
+const { MercuryFrame } = await import('../../src/screen/frame-chips/MercuryFrame.tsx')
+const { FocusedSessionStatusRow } = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const { default: instances } = await import('../../src/ink/instances.ts')
-const { getEngineModel } = await import('../../src/services/model/model.ts')
-const { railPlan, resetRailTier } = await import('../../src/utils/helmGeometry.ts')
-const { setZenMode, zenModeOn } = await import('../../src/utils/cockpit/zenMode.ts')
-const { getSettingsFilePathForSource } = await import('../../src/utils/settings/settings.ts')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
+const { railPlan, resetRailTier } = await import('../../src/screen/fullscreen-layout/helmGeometry.ts')
+const { setZenMode, zenModeOn } = await import('../../src/screen/cockpit/zenMode.ts')
+const { getSettingsFilePathForSource } = await import('../../src/platform/settings/settings.ts')
 const { default: zenCommand } = await import('../../src/commands/zen/index.ts')
 const { call: callZen, executeZen } = await import('../../src/commands/zen/zen.tsx')
-const { builtinCommands } = await import('../../src/commands.ts')
-const { COMMAND_DOMAINS } = await import('../../src/components/HelpV2/commandDomains.ts')
-const { closeSettingsPopup, openSettingsPopup } = await import('../../src/utils/cockpit/settingsPopup.ts')
+const { builtinCommands } = await import('../../src/commands/catalogue/commands.ts')
+const { COMMAND_DOMAINS } = await import('../../src/screen/help/commandDomains.ts')
+const { closeSettingsPopup, openSettingsPopup } = await import('../../src/screen/cockpit/settingsPopup.ts')
 const { configPopupRequest } = await import('../../src/commands/config/config.tsx')
-const { CONFIG_POPUP_HINT } = await import('../../src/components/Settings/Config.tsx')
+const { CONFIG_POPUP_HINT } = await import('../../src/screen/settings/Config.tsx')
 const h = React.createElement
 
 const COMPOSER = 'Type a prompt'
@@ -82,9 +82,9 @@ function check(label: string, good: boolean, detail = ''): void {
   console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${good ? '' : ` | fix: ${failureHint(label)}`}`)
 }
 function failureHint(label: string): string {
-  if (/rail|full width|band rule|zen chip|composer is whole|status row/.test(label)) return 'the layout at this size comes from railPlan in src/utils/helmGeometry.ts and the zen state in src/utils/cockpit/zenMode.ts; change them, then check the frame this size paints'
-  if (/strip|\u2193|\u2191|typed letter|esc leaves|composer takes the keys/.test(label)) return 'the hand-off between the composer and the counts strip is driven by the compactFocus prop in src/components/PromptInput/PromptInput.tsx; its hint text is in src/components/mercury-ui/compactModeChip.ts'
-  return 'see the detail above and the component this section paints, src/components/PromptInput/PromptInput.tsx'
+  if (/rail|full width|band rule|zen chip|composer is whole|status row/.test(label)) return 'the layout at this size comes from railPlan in src/screen/fullscreen-layout/helmGeometry.ts and the zen state in src/screen/cockpit/zenMode.ts; change them, then check the frame this size paints'
+  if (/strip|\u2193|\u2191|typed letter|esc leaves|composer takes the keys/.test(label)) return 'the hand-off between the composer and the counts strip is driven by the compactFocus prop in src/screen/composer/Composer.tsx; its hint text is in src/screen/widgets/compactModeChip.ts'
+  return 'see the detail above and the component this section paints, src/screen/composer/Composer.tsx'
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -118,7 +118,7 @@ class Input extends EventEmitter {
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }
-const hardLimit = setTimeout(() => { console.error('composer-down-to-strip exceeded its 240 s deadline; a frame this proof waits for (the chat, the strip focus) never painted, so look at the last until() wait it printed and at src/components/PromptInput/PromptInput.tsx'); process.exit(1) }, 240_000)
+const hardLimit = setTimeout(() => { console.error('composer-down-to-strip exceeded its 240 s deadline; a frame this proof waits for (the chat, the strip focus) never painted, so look at the last until() wait it printed and at src/screen/composer/Composer.tsx'); process.exit(1) }, 240_000)
 hardLimit.unref()
 
 const save = (name: string, lines: string[]): void => {

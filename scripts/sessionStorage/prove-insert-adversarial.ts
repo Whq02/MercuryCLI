@@ -7,10 +7,10 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'insert-adv-home-'))
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { recordTranscript, flushSessionStorage, settleTranscriptMessage } = await import(
-  join(ROOT, 'src/utils/sessionStorage/writer.ts')
+  join(ROOT, 'src/sessions/transcripts/writer.ts')
 )
-const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/services/messages.ts'))
-const { getSessionId } = await import(join(ROOT, 'src/bootstrap/state.ts'))
+const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/engine/messages/messages.ts'))
+const { getSessionId } = await import(join(ROOT, 'src/boot/process-state/processState.ts'))
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -64,17 +64,17 @@ const birthB = createUserMessage({ content: 'born second' })
   await Promise.all([pA, pB])
   await flushSessionStorage()
   const parents = readParents()
-  check('both birth batches are recorded', parents.has(uuidOf(birthA)) && parents.has(uuidOf(birthB)), `${parents.size} records; fix recordTranscript in src/utils/sessionStorage/writer.ts so every batch reaches the session file`)
+  check('both birth batches are recorded', parents.has(uuidOf(birthA)) && parents.has(uuidOf(birthB)), `${parents.size} records; fix recordTranscript in src/sessions/transcripts/writer.ts so every batch reaches the session file`)
   const roots = [uuidOf(birthA), uuidOf(birthB)].filter(u => parents.get(u) === null || parents.get(u) === undefined)
   check(
     'exactly ONE root — a record never roots while a live leaf stands (two roots fork at birth and the display walk DROPS one batch)',
     roots.length === 1,
-    `roots=${roots.length}: A.parent=${parents.get(uuidOf(birthA))} B.parent=${parents.get(uuidOf(birthB))}; fix recordTranscript in src/utils/sessionStorage/writer.ts to take its parent from the live leaf of a same-tick writer`,
+    `roots=${roots.length}: A.parent=${parents.get(uuidOf(birthA))} B.parent=${parents.get(uuidOf(birthB))}; fix recordTranscript in src/sessions/transcripts/writer.ts to take its parent from the live leaf of a same-tick writer`,
   )
   check(
     'the second birth writer chains onto the first',
     parents.get(uuidOf(birthB)) === uuidOf(birthA),
-    `B.parent=${parents.get(uuidOf(birthB))}; fix recordTranscript in src/utils/sessionStorage/writer.ts to chain a same-tick birth writer onto the first`,
+    `B.parent=${parents.get(uuidOf(birthB))}; fix recordTranscript in src/sessions/transcripts/writer.ts to chain a same-tick birth writer onto the first`,
   )
 }
 
@@ -89,10 +89,10 @@ const w3 = createUserMessage({ content: 'third of three' })
   await Promise.all([p1, p2, p3])
   await flushSessionStorage()
   const parents = readParents()
-  check('all three landed', parents.has(uuidOf(w1)) && parents.has(uuidOf(w2)) && parents.has(uuidOf(w3)), `${parents.size} records; fix recordTranscript in src/utils/sessionStorage/writer.ts so every same-tick batch is written`)
-  check('the first chains onto the pre-race leaf', parents.get(uuidOf(w1)) === uuidOf(birthB), `w1.parent=${parents.get(uuidOf(w1))}; fix recordTranscript in src/utils/sessionStorage/writer.ts to chain the first writer onto the leaf before the race`)
-  check('the second chains onto the first', parents.get(uuidOf(w2)) === uuidOf(w1), `w2.parent=${parents.get(uuidOf(w2))}; fix recordTranscript in src/utils/sessionStorage/writer.ts to chain writers in call order`)
-  check('the third chains onto the second', parents.get(uuidOf(w3)) === uuidOf(w2), `w3.parent=${parents.get(uuidOf(w3))}; fix recordTranscript in src/utils/sessionStorage/writer.ts to chain writers in call order`)
+  check('all three landed', parents.has(uuidOf(w1)) && parents.has(uuidOf(w2)) && parents.has(uuidOf(w3)), `${parents.size} records; fix recordTranscript in src/sessions/transcripts/writer.ts so every same-tick batch is written`)
+  check('the first chains onto the pre-race leaf', parents.get(uuidOf(w1)) === uuidOf(birthB), `w1.parent=${parents.get(uuidOf(w1))}; fix recordTranscript in src/sessions/transcripts/writer.ts to chain the first writer onto the leaf before the race`)
+  check('the second chains onto the first', parents.get(uuidOf(w2)) === uuidOf(w1), `w2.parent=${parents.get(uuidOf(w2))}; fix recordTranscript in src/sessions/transcripts/writer.ts to chain writers in call order`)
+  check('the third chains onto the second', parents.get(uuidOf(w3)) === uuidOf(w2), `w3.parent=${parents.get(uuidOf(w3))}; fix recordTranscript in src/sessions/transcripts/writer.ts to chain writers in call order`)
 }
 
 section('C3 — settleMessage racing an insert: last-wins republish, no fork')
@@ -106,9 +106,9 @@ section('C3 — settleMessage racing an insert: last-wins republish, no fork')
   await Promise.all([pSettle, pInsert])
   await flushSessionStorage()
   const parents = readParents()
-  check('the settled row keeps its identity (one uuid, last-wins)', parents.has(uuidOf(settledTwin)), 'fix settleTranscriptMessage in src/utils/sessionStorage/writer.ts to republish the same uuid')
-  check('the settled row keeps its parent (the republish never re-parents)', parents.get(uuidOf(settledTwin)) === uuidOf(w3), `parent=${parents.get(uuidOf(settledTwin))}; fix settleTranscriptMessage in src/utils/sessionStorage/writer.ts to keep the original parent when it republishes`)
-  check('the racing insert chains onto the settled row, linear', parents.get(uuidOf(racer)) === uuidOf(settledTwin), `racer.parent=${parents.get(uuidOf(racer))}; fix recordTranscript and settleTranscriptMessage in src/utils/sessionStorage/writer.ts so an insert racing a settle chains onto the settled row`)
+  check('the settled row keeps its identity (one uuid, last-wins)', parents.has(uuidOf(settledTwin)), 'fix settleTranscriptMessage in src/sessions/transcripts/writer.ts to republish the same uuid')
+  check('the settled row keeps its parent (the republish never re-parents)', parents.get(uuidOf(settledTwin)) === uuidOf(w3), `parent=${parents.get(uuidOf(settledTwin))}; fix settleTranscriptMessage in src/sessions/transcripts/writer.ts to keep the original parent when it republishes`)
+  check('the racing insert chains onto the settled row, linear', parents.get(uuidOf(racer)) === uuidOf(settledTwin), `racer.parent=${parents.get(uuidOf(racer))}; fix recordTranscript and settleTranscriptMessage in src/sessions/transcripts/writer.ts so an insert racing a settle chains onto the settled row`)
 }
 
 console.log(

@@ -16,29 +16,29 @@ process.env.MERCURY_DAEMON_DIR = join(HERMETIC_HOME, 'daemon')
 const {
   INITIAL_STATE,
   parseMultipleKeypresses,
-} = await import('../../src/ink/input/input-decoder.js')
-type KeyParseState = import('../../src/ink/input/input-decoder.js').KeyParseState
-type ParsedInput = import('../../src/ink/input/input-decoder.js').ParsedInput
-type ParsedKey = import('../../src/ink/input/input-decoder.js').ParsedKey
-const { stringWidth } = await import('../../src/ink/stringWidth.js')
-const { Parser } = await import('../../src/ink/termio/display.js')
-type Action = import('../../src/ink/termio/display-types.js').Action
-const { FrameWriter } = await import('../../src/ink/frame-writer.js')
-const { optimizePatches: optimize } = await import('../../src/ink/patch-stream.js')
-const { writeDiffToTerminal } = await import('../../src/ink/session/delivery.js')
-const { CURSOR_HOME } = await import('../../src/ink/termio/csi.js')
+} = await import('../../src/screen/renderer/input/input-decoder.js')
+type KeyParseState = import('../../src/screen/renderer/input/input-decoder.js').KeyParseState
+type ParsedInput = import('../../src/screen/renderer/input/input-decoder.js').ParsedInput
+type ParsedKey = import('../../src/screen/renderer/input/input-decoder.js').ParsedKey
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.js')
+const { Parser } = await import('../../src/screen/renderer/termio/displayParser.js')
+type Action = import('../../src/screen/renderer/termio/display-types.js').Action
+const { FrameWriter } = await import('../../src/screen/renderer/frame-writer.js')
+const { optimizePatches: optimize } = await import('../../src/screen/renderer/patch-stream.js')
+const { writeDiffToTerminal } = await import('../../src/screen/renderer/terminal-session/frameDelivery.js')
+const { CURSOR_HOME } = await import('../../src/screen/renderer/termio/csi.js')
 const { composeScene, makeContext } = await import('../ink-runtime/frameHarness.js')
 const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
 
 let failures = 0
 let checks = 0
 const UNICODE_WHERE: Array<[string, string]> = [
-  ['decoder ', 'parseMultipleKeypresses in src/ink/input/input-decoder.ts (paste start, end and flush handling)'],
-  ['width ', 'stringWidth in src/ink/stringWidth.ts'],
-  ['display ', 'the Parser text grapheme widths in src/ink/termio/display.ts'],
-  ['writer ', 'FrameWriter in src/ink/frame-writer.ts, then optimizePatches in src/ink/patch-stream.ts and writeDiffToTerminal in src/ink/session/delivery.ts'],
-  ['rig paste', 'usePasteHandler in src/hooks/usePasteHandler.ts'],
-  ['rig ', 'the stdin read and paste flush path of src/ink/ink.tsx and parseMultipleKeypresses in src/ink/input/input-decoder.ts'],
+  ['decoder ', 'parseMultipleKeypresses in src/screen/renderer/input/input-decoder.ts (paste start, end and flush handling)'],
+  ['width ', 'stringWidth in src/screen/renderer/stringWidth.ts'],
+  ['display ', 'the Parser text grapheme widths in src/screen/renderer/termio/displayParser.ts'],
+  ['writer ', 'FrameWriter in src/screen/renderer/frame-writer.ts, then optimizePatches in src/screen/renderer/patch-stream.ts and writeDiffToTerminal in src/screen/renderer/terminal-session/frameDelivery.ts'],
+  ['rig paste', 'usePasteHandler in src/screen/composer/usePasteHandler.ts'],
+  ['rig ', 'the stdin read and paste flush path of src/screen/renderer/screenInstance.tsx and parseMultipleKeypresses in src/screen/renderer/input/input-decoder.ts'],
 ]
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
@@ -257,12 +257,12 @@ const FAMILY = '\u{1f468}\u{200d}\u{1f469}\u{200d}\u{1f467}\u{200d}\u{1f466}'
 
 {
   const React = await import('react')
-  const { default: Ink } = await import('../../src/ink/ink.js')
-  const { default: instances } = await import('../../src/ink/instances.js')
-  const { Text, useInput } = await import('../../src/ink.js')
-  const { usePasteHandler } = await import('../../src/hooks/usePasteHandler.js')
-  type Key = import('../../src/ink/events/input-event.js').Key
-  type InputEvent = import('../../src/ink/events/input-event.js').InputEvent
+  const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+  const { default: instances } = await import('../../src/screen/renderer/instances.js')
+  const { Text, useInput } = await import('../../src/screen/themedRenderer.js')
+  const { usePasteHandler } = await import('../../src/screen/composer/usePasteHandler.js')
+  type Key = import('../../src/screen/renderer/events/input-event.js').Key
+  type InputEvent = import('../../src/screen/renderer/events/input-event.js').InputEvent
 
   class FakeStdout extends EventEmitter {
     isTTY = true

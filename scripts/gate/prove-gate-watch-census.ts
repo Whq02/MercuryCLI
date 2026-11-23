@@ -71,7 +71,7 @@ function siblingSubsumes(glob: string, peers: Set<string>, narrowed: string[]): 
 
 function bundledOf(tracked: string[], targets: (rel: string) => string[]): Set<string> {
   const bundled = new Set<string>()
-  const queue = ['src/main.tsx', 'src/cli/run.ts'].filter(f => tracked.includes(f))
+  const queue = ['src/boot/main.tsx', 'src/daemon/runner/runHeadless.ts'].filter(f => tracked.includes(f))
   for (const f of queue) bundled.add(f)
   while (queue.length > 0) {
     for (const to of targets(queue.pop()!)) {

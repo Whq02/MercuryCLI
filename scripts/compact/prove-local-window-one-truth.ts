@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/compact/autoCompact.ts src/run-core/turn-machine.ts src/utils/model/capabilities.ts src/services/providers/local/localWindow.ts src/services/providers/local/localCallModel.ts src/services/context/contextFill.ts src/services/cockpit/modelGauge.ts
+// gate-watch: src/engine/compaction/autoFold.ts src/engine/loop/turn-machine.ts src/models/facts/capabilities.ts src/models/roads/local/localWindow.ts src/models/roads/local/localCallModel.ts src/engine/context-window/contextFill.ts src/screen/cockpit-gauges/modelGauge.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
@@ -102,29 +102,29 @@ const ollama = await new Promise<{ server: Server; root: string }>(resolve => {
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 bootstrap.setAskChannel('none')
-const { resolveContextWindow, getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
-const { getBlockingLimit, calculateTokenWarningState, MANUAL_COMPACT_BUFFER_TOKENS } = await import('../../src/services/compact/autoCompact.ts')
-const { contextFillView } = await import('../../src/services/context/contextFill.ts')
-const { modelGauge } = await import('../../src/services/cockpit/modelGauge.ts')
-const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
-const w = await import('../../src/services/providers/local/localWindow.ts')
-const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { queryEvents } = await import('../../src/query.ts')
-const { legacyYieldsOf } = await import('../../src/run-core/project-legacy.ts')
-const { estimateOverflowSignal } = await import('../../src/services/api/overflowSignal.ts')
-const { overflowRefusalText } = await import('../../src/services/compact/overflowRecovery.ts')
-type Message = import('../../src/types/message.ts').Message
+const { resolveContextWindow, getModelMaxOutputTokens } = await import('../../src/models/facts/capabilities.ts')
+const { getBlockingLimit, calculateTokenWarningState, MANUAL_COMPACT_BUFFER_TOKENS } = await import('../../src/engine/compaction/autoFold.ts')
+const { contextFillView } = await import('../../src/engine/context-window/contextFill.ts')
+const { modelGauge } = await import('../../src/screen/cockpit-gauges/modelGauge.ts')
+const { catalogueEpoch } = await import('../../src/models/roads/catalogueEpoch.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
+const w = await import('../../src/models/roads/local/localWindow.ts')
+const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { legacyYieldsOf } = await import('../../src/engine/loop/project-legacy.ts')
+const { estimateOverflowSignal } = await import('../../src/engine/requests/overflowSignal.ts')
+const { overflowRefusalText } = await import('../../src/engine/compaction/overflowRecovery.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 await refreshLocalDiscovery({ force: true })
 const coder = localRecordFor(`local/${CODER}`)!
@@ -151,7 +151,7 @@ async function sendOne(model: string, text: string): Promise<{ numCtx: number | 
   return { numCtx: chats[before]?.numCtx, errors }
 }
 
-section('§1 the pre-flight limit reads the window Mercury sends: a 4,096 served model with the Local model window set to 32k budgets 32,768, not the server\'s 4,096', 'compare resolveContextWindow in src/utils/model/capabilities.ts and getBlockingLimit in src/utils/compact/autoCompactWindow.ts with the setting read by localWindowSettingOf and writeLocalWindowSetting in src/services/providers/local/localWindow.ts')
+section('§1 the pre-flight limit reads the window Mercury sends: a 4,096 served model with the Local model window set to 32k budgets 32,768, not the server\'s 4,096', 'compare resolveContextWindow in src/models/facts/capabilities.ts and getBlockingLimit in src/engine/compaction-window/autoFoldWindow.ts with the setting read by localWindowSettingOf and writeLocalWindowSetting in src/models/roads/local/localWindow.ts')
 {
   w.__resetLocalWindowsForTest()
   w.writeLocalWindowSetting(coder, 32768)
@@ -167,7 +167,7 @@ section('§1 the pre-flight limit reads the window Mercury sends: a 4,096 served
   record(`the sentence the tester saw on the base: ${stale}`)
 }
 
-section('§2 the request budgets its selected window; the gauges follow the loaded window before and after the turn', 'check the window num_ctx that localCallModel in src/services/providers/local/localCallModel.ts sends and holds through heldLocalWindow in localWindow.ts, and the gauges in contextFillView (src/services/context/contextFill.ts) and modelGauge (src/services/cockpit/modelGauge.ts)')
+section('§2 the request budgets its selected window; the gauges follow the loaded window before and after the turn', 'check the window num_ctx that localCallModel in src/models/roads/local/localCallModel.ts sends and holds through heldLocalWindow in localWindow.ts, and the gauges in contextFillView (src/engine/context-window/contextFill.ts) and modelGauge (src/screen/cockpit-gauges/modelGauge.ts)')
 {
   const messages = [createUserMessage({ content: 'hello' })] as Message[]
   const fill = contextFillView(messages, CODER_MODEL)
@@ -179,7 +179,7 @@ section('§2 the request budgets its selected window; the gauges follow the load
   check('the limit, the gauge and the request still agree after the turn', getBlockingLimit(CODER_MODEL) === limitOn(CODER_MODEL, 32768) && contextFillView(messages, CODER_MODEL).window === 32768, String(getBlockingLimit(CODER_MODEL)))
 }
 
-section('§3 a setting changes the next request without a restart; the gauge changes when that window is loaded', 'check that writeLocalWindowSetting in src/services/providers/local/localWindow.ts bumps catalogueEpoch (src/services/providers/catalogueEpoch.ts) and that resolveContextWindow and getBlockingLimit read the new setting, not the held window')
+section('§3 a setting changes the next request without a restart; the gauge changes when that window is loaded', 'check that writeLocalWindowSetting in src/models/roads/local/localWindow.ts bumps catalogueEpoch (src/models/roads/catalogueEpoch.ts) and that resolveContextWindow and getBlockingLimit read the new setting, not the held window')
 {
   const epochBefore = catalogueEpoch()
   w.writeLocalWindowSetting(coder, 65536)
@@ -198,7 +198,7 @@ section('§3 a setting changes the next request without a restart; the gauge cha
   check('the auto request carried num_ctx 131072 — the same window the limit read', sentAuto.numCtx === CODER_TRAINED_MAX && w.heldLocalWindow(coder)?.window === CODER_TRAINED_MAX && getBlockingLimit(CODER_MODEL) === limitOn(CODER_MODEL, CODER_TRAINED_MAX), JSON.stringify(sentAuto))
 }
 
-section("§3b a Modelfile's num_ctx under auto: the limit, the guard and the request read the tag's own 8,192, never the trained 131,072 (red on the base: 131,072 on all three)", 'check how modelfileContext is read in src/services/providers/local/localDiscovery.ts and used by the auto decision in src/services/providers/local/localWindow.ts, then by resolveContextWindow in src/utils/model/capabilities.ts')
+section("§3b a Modelfile's num_ctx under auto: the limit, the guard and the request read the tag's own 8,192, never the trained 131,072 (red on the base: 131,072 on all three)", 'check how modelfileContext is read in src/models/roads/local/localDiscovery.ts and used by the auto decision in src/models/roads/local/localWindow.ts, then by resolveContextWindow in src/models/facts/capabilities.ts')
 {
   const tagged = localRecordFor(`local/${TAGGED}`)!
   const TAGGED_MODEL = `local/${TAGGED}`
@@ -214,7 +214,7 @@ section("§3b a Modelfile's num_ctx under auto: the limit, the guard and the req
   check('back on auto the limit reads the Modelfile figure again', resolveContextWindow(TAGGED_MODEL).effectiveWindow === TAGGED_NUM_CTX, JSON.stringify(resolveContextWindow(TAGGED_MODEL)))
 }
 
-section('§4 a 13,761-token system prompt against a true 4,096 model: the turn refuses with the real numbers (the prompt\'s estimate against the chosen window) and the window remedy, never "1,904 > 72"', 'check the refusal text from overflowRefusalText in src/services/compact/overflowRecovery.ts and the window the pre-flight reads through getBlockingLimit in src/utils/compact/autoCompactWindow.ts')
+section('§4 a 13,761-token system prompt against a true 4,096 model: the turn refuses with the real numbers (the prompt\'s estimate against the chosen window) and the window remedy, never "1,904 > 72"', 'check the refusal text from overflowRefusalText in src/engine/compaction/overflowRecovery.ts and the window the pre-flight reads through getBlockingLimit in src/engine/compaction-window/autoFoldWindow.ts')
 {
   w.__resetLocalWindowsForTest()
   w.writeLocalWindowSetting(tiny, 32768)
@@ -304,11 +304,11 @@ section('§4 a 13,761-token system prompt against a true 4,096 model: the turn r
   check("the tester's case on the 32k-set model: the same prompt passes the pre-flight and reaches the model (terminal completed, one call, no error row) — red on the base: blocking_limit at 72", served.terminal.reason === 'completed' && served.calls === 1 && served.errors.length === 0, JSON.stringify({ terminal: served.terminal, errors: served.errors }))
 }
 
-section('§5 the headless road (mercury run --format rows): a model ALREADY RESIDENT at 4,096 with a 13.7k prompt and a 32k setting proceeds at 32,768 and completes; a true 4k model fails with the local sentence, never "nothing more could be pruned — /compact"', 'check the same pre-flight window and refusal text as section 4, reached through Conversation in src/rows/turn.ts: getBlockingLimit in src/utils/compact/autoCompactWindow.ts and overflowRefusalText in src/services/compact/overflowRecovery.ts')
+section('§5 the headless road (mercury run --format rows): a model ALREADY RESIDENT at 4,096 with a 13.7k prompt and a 32k setting proceeds at 32,768 and completes; a true 4k model fails with the local sentence, never "nothing more could be pruned — /compact"', 'check the same pre-flight window and refusal text as section 4, reached through Conversation in src/engine/rows/turn.ts: getBlockingLimit in src/engine/compaction-window/autoFoldWindow.ts and overflowRefusalText in src/engine/compaction/overflowRecovery.ts')
 {
-  const { Conversation } = await import('../../src/rows/turn.ts')
-  const { exitCodeOf } = await import('../../src/rows/vocabulary.ts')
-  const { refreshLocalDiscovery: reprobe } = await import('../../src/services/providers/local/localDiscovery.ts')
+  const { Conversation } = await import('../../src/engine/rows/turn.ts')
+  const { exitCodeOf } = await import('../../src/engine/rows/vocabulary.ts')
+  const { refreshLocalDiscovery: reprobe } = await import('../../src/models/roads/local/localDiscovery.ts')
   bootstrap.setSessionPersistenceDisabled(true)
   loaded.set(CODER, SERVED_DEFAULT)
   loaded.set(TINY, SERVED_DEFAULT)
@@ -368,11 +368,11 @@ section('§5 the headless road (mercury run --format rows): a model ALREADY RESI
   bootstrap.setSessionPersistenceDisabled(false)
 }
 
-section('§6 a 32k auto-compaction trigger budgets the measured fixed material plus one turn, and three tool turns never attempt a fold below that point', 'check getAutoCompactThresholdWithFixed in src/utils/compact/autoCompactWindow.ts and autoCompactIfNeeded in src/services/compact/autoCompact.ts')
+section('§6 a 32k auto-compaction trigger budgets the measured fixed material plus one turn, and three tool turns never attempt a fold below that point', 'check getAutoCompactThresholdWithFixed in src/engine/compaction-window/autoFoldWindow.ts and autoCompactIfNeeded in src/engine/compaction/autoFold.ts')
 {
-  const autoCompact = await import('../../src/services/compact/autoCompact.ts')
-  const { bindRequestGauge } = await import('../../src/services/run/requestGauge.ts')
-  const { flushDebugLogs } = await import('../../src/utils/debug.ts')
+  const autoCompact = await import('../../src/engine/compaction/autoFold.ts')
+  const { bindRequestGauge } = await import('../../src/engine/run/requestGauge.ts')
+  const { flushDebugLogs } = await import('../../src/platform/logs/debugLog.ts')
   w.writeLocalWindowSetting(coder, 32768)
   const thresholdFor = autoCompact.getAutoCompactThresholdWithFixed
   const smallBefore = autoCompact.getAutoCompactThreshold(CODER_MODEL)

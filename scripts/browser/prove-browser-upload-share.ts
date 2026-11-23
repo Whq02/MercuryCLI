@@ -8,17 +8,17 @@ import { join } from 'node:path'
 import { BrowserTool, check, finish, lead, ownerOf, permission, requireBrowser, run, section, serve, sessions } from './harness.ts'
 
 process.env.NODE_ENV = 'test'
-const bindings = await import('../../src/keybindings/useKeybinding.js')
-mock.module('../../src/keybindings/useKeybinding.js', () => ({ ...bindings, useKeybinding: () => undefined, useKeybindings: () => undefined }))
-const { BrowserPermissionRequest } = await import('../../src/components/permissions/BrowserPermissionRequest/BrowserPermissionRequest.js')
-const { renderToString } = await import('../../src/utils/staticRender.js')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.js')
-const { checkReadPermissionForTool } = await import('../../src/utils/permissions/filesystem.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { getPlatform } = await import('../../src/utils/platform.js')
+const bindings = await import('../../src/screen/keys/useKeybinding.js')
+mock.module('../../src/screen/keys/useKeybinding.js', () => ({ ...bindings, useKeybinding: () => undefined, useKeybindings: () => undefined }))
+const { BrowserPermissionRequest } = await import('../../src/permissions/cards/browser/BrowserPermissionRequest.js')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.js')
+const { checkReadPermissionForTool } = await import('../../src/permissions/rules/filesystem.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { getPlatform } = await import('../../src/platform/environment/platform.js')
 
 await requireBrowser()
 

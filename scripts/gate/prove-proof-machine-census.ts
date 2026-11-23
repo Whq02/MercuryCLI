@@ -3,8 +3,8 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve, sep } from 'node:path'
-import { defaultMercuryHome } from '../../src/utils/envUtils.ts'
-import { accountStoreHome, homeIsAccountStore, refuseProofWriteIntoAccountStore } from '../../src/utils/proofHomeGuard.ts'
+import { defaultMercuryHome } from '../../src/platform/environment/envUtils.ts'
+import { accountStoreHome, homeIsAccountStore, refuseProofWriteIntoAccountStore } from '../../src/models/roads/proofHomeGuard.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const SCRIPTS = join(ROOT, 'scripts')
@@ -45,21 +45,21 @@ section('the product spells its config home once')
   const offenders: string[] = []
   let refusalBoundaries = 0
   const HOME_JOIN_BY_NAME = new Set([
-    'src/utils/envUtils.ts',
-    'src/services/privateChannel/installLayout.ts',
+    'src/platform/environment/envUtils.ts',
+    'src/platform/update-channel/installLayout.ts',
   ])
   for (const file of tracked(['src/**/*.ts', 'src/**/*.tsx'])) {
     if (HOME_JOIN_BY_NAME.has(file)) continue
     code(file)
       .split('\n')
       .forEach((line, i) => {
-        if (file === 'src/utils/proofHomeGuard.ts' && line.trim() === "return resolve(join(homedir(), '.mercury'))") refusalBoundaries++
+        if (file === 'src/models/roads/proofHomeGuard.ts' && line.trim() === "return resolve(join(homedir(), '.mercury'))") refusalBoundaries++
         else if (SPELLING.test(line)) offenders.push(`${file}:${i + 1}`)
       })
   }
   check(
     defaultMercuryHome() === join(homedir(), '.mercury'),
-    'src/utils/envUtils.ts derives the default home from homedir() (the one resolver)',
+    'src/platform/environment/envUtils.ts derives the default home from homedir() (the one resolver)',
   )
   let refusedCode = ''
   try {

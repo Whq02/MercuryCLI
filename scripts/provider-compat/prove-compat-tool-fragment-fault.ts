@@ -11,9 +11,9 @@ try {
     assert.equal(url.hostname, '127.0.0.1')
     return fetchBefore(input, init)
   }) as typeof fetch
-  const { updateSettingsForSource } = await import(`${f.root}/src/utils/settings/settings.ts`)
-  const { routedCallModel } = await import(`${f.root}/src/services/providers/callModelRouter.ts`)
-  const { asSystemPrompt } = await import(`${f.root}/src/utils/systemPromptType.ts`)
+  const { updateSettingsForSource } = await import(`${f.root}/src/platform/settings/settings.ts`)
+  const { routedCallModel } = await import(`${f.root}/src/models/roads/callModelRouter.ts`)
+  const { asSystemPrompt } = await import(`${f.root}/src/engine/system-prompt/systemPromptType.ts`)
   const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
   for (const dialect of ['llamacpp', 'vllm', 'sglang', 'ollama']) {
     const engine = await startEngineRules(dialect)

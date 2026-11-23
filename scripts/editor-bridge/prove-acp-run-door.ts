@@ -13,7 +13,7 @@ if (!existsSync(dist)) { console.error(`FAIL ACP bundle exists: ${dist} — run 
 const home = realpathSync(mkdtempSync(join(tmpdir(), 'acp-run-door-')))
 seedFirstRun(home, [home])
 process.env.MERCURY_CONFIG_DIR = home
-const { MercuryChildSession } = await import('../../src/services/acp/childSession.ts')
+const { MercuryChildSession } = await import('../../src/integrations/acp/childSession.ts')
 const api = await startFixtureApi([{ kind: 'text', text: 'The editor turn answered.' }])
 let answer = '', session = '', failures = 0
 let finish!: (outcome: string) => void
@@ -35,8 +35,8 @@ const child = new MercuryChildSession({ cwd: home, permissionMode: 'flow', entry
   onTurnEnd: outcome => { finish(outcome) },
   onExit: code => { finish(`exit ${code}`) },
 })
-const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail} — look at the MercuryChildSession constructor (runner argv) and writeUserPrompt in src/services/acp/childSession.ts`}`); if (!ok) failures++ }
-const timer = setTimeout(() => { console.log('FAIL no turn outcome from the ACP run child within 60s: check the child spawned by MercuryChildSession in src/services/acp/childSession.ts and the fixture api'); finish('deadline') }, 60_000)
+const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail} — look at the MercuryChildSession constructor (runner argv) and writeUserPrompt in src/integrations/acp/childSession.ts`}`); if (!ok) failures++ }
+const timer = setTimeout(() => { console.log('FAIL no turn outcome from the ACP run child within 60s: check the child spawned by MercuryChildSession in src/integrations/acp/childSession.ts and the fixture api'); finish('deadline') }, 60_000)
 try {
   const argv = child.child.spawnargs.slice(1)
   check('the ACP child starts through the runner door with its mode and no output words', argv[0] === dist && argv[1] === 'runner' && !argv.some(a => a.startsWith('--input') || a.startsWith('--format') || a.startsWith('--permission')) && argv[argv.indexOf('--mode') + 1] === 'flow', JSON.stringify(argv))

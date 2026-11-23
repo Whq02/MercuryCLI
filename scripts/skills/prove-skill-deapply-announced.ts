@@ -16,12 +16,12 @@ delete process.env.MERCURY_SESSION_KIT
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? detail + ' — ' : ''}change getSkillListingAttachments in src/utils/attachments/skillListing.ts (removedNames, resetSentSkillNames) or the skill_listing render in src/services/messages/attachmentText.ts so a removed skill is announced once` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? detail + ' — ' : ''}change getSkillListingAttachments in src/engine/attachment-shapes/skillListing.ts (removedNames, resetSentSkillNames) or the skill_listing render in src/engine/messages/attachmentText.ts so a removed skill is announced once` : ''}`)
   if (!ok) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — de-apply prover exceeded 120s; a listing call never returned, look at getSkillListingAttachments in src/utils/attachments/skillListing.ts')
+  console.log('\nTIMEOUT — de-apply prover exceeded 120s; a listing call never returned, look at getSkillListingAttachments in src/engine/attachment-shapes/skillListing.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
@@ -30,9 +30,9 @@ console.log('============================================================')
 console.log(' skill de-apply announced — the fourth removal arm')
 console.log('============================================================')
 
-const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
 setSessionTrustAccepted(true)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
 const skillDir = join(PROJECT, '.mercury', 'skills')
@@ -44,11 +44,11 @@ writeSkill('depa-alpha')
 writeSkill('depa-beta')
 writeSkill('depa-gamma')
 
-const commands = await import('../../src/commands.ts')
-const listing = await import('../../src/utils/attachments/skillListing.ts')
-const { SKILL_TOOL_NAME } = await import('../../src/constants/tools/skill.ts')
-const pin = await import('../../src/services/mcp/sessionKitPin.ts')
-const governance = await import('../../src/skills/kitGovernance.ts')
+const commands = await import('../../src/commands/catalogue/commands.ts')
+const listing = await import('../../src/engine/attachment-shapes/skillListing.ts')
+const { SKILL_TOOL_NAME } = await import('../../src/tools/kit/names/skill.ts')
+const pin = await import('../../src/integrations/mcp/sessionKitPin.ts')
+const governance = await import('../../src/integrations/skills/kitGovernance.ts')
 
 type ListingAttachment = { type: string; content: string; skillCount: number; isInitial: boolean; removedNames?: string[] }
 const context = {
@@ -142,7 +142,7 @@ section('§4 a skill file deleted from disk announces too (one roster law)')
 
 section('§5 the render arm and the legacy shape')
 {
-  const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
+  const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
   const rendered = normalizeAttachmentForAPI(
     { type: 'skill_listing', content: '', skillCount: 0, isInitial: false, removedNames: ['depa-x'] } as never,
   ) as Array<{ message?: { content?: unknown } }>

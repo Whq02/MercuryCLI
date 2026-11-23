@@ -18,8 +18,8 @@ import {
   checkBashPackDir,
   type BashPackManifest,
   type BashPackPlatform,
-} from '../../src/utils/shell/bashPack.ts'
-import { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget } from '../../src/services/privateChannel/releaseTarget.ts'
+} from '../../src/platform/shell/bashPack.ts'
+import { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget } from '../../src/platform/update-channel/releaseTarget.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const LOCK_PATH = join(ROOT, 'vendor', 'bash.lock.json')

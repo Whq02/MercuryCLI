@@ -15,7 +15,7 @@ delete process.env.NODE_ENV
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}fix how createAndStoreApiKey in src/services/oauth/client.ts turns the key-creation response into its error message or returned key` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}fix how createAndStoreApiKey in src/models/sign-in/oauth/client.ts turns the key-creation response into its error message or returned key` : ''}`)
 }
 
 type Answer = { status: number; body: string; contentType?: string }
@@ -28,9 +28,9 @@ await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
 const port = (server.address() as { port: number }).port
 process.env.MERCURY_ANTHROPIC_OAUTH_BASE = `http://127.0.0.1:${port}`
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const oauth = await import('../../src/services/oauth/client.ts')
+const oauth = await import('../../src/models/sign-in/oauth/client.ts')
 async function refusal(): Promise<string> {
   try {
     const key = await oauth.createAndStoreApiKey('proof-access-token')

@@ -22,7 +22,7 @@ const RETIRED_WORDS = new RegExp(`\\b(${[...RETIRED_EVENTS, ...RETIRED_FIELDS].j
 
 const EXCLUDED: Array<[string, string]> = [
   ['docs/releases/', 'published release pages are history'],
-  ['src/constants/changelogArchive.ts', 'past release notes stay as published'],
+  ['src/commands/update-notes/changelogArchive.ts', 'past release notes stay as published'],
   ['scripts/identity/prove-hook-spellings-retired.ts', 'this census composes the words it hunts'],
   ['scripts/identity/prove-retired-keys-unknown.ts', 'names the retired spellings it proves unknown'],
   ['scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', 'holds old transcript rows by design'],

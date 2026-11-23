@@ -14,7 +14,7 @@ for (const key of ['MERCURY_VOICE_BACKEND', 'MERCURY_VOICE_FIXTURE_WAV', 'MERCUR
 process.chdir(ROOT)
 
 let failures = 0
-const VOICE_FIX_HINT = 'to fix, change the vendor build scripts/vendor/build-voice.ts, the addon sources in native/voice, the pack owner src/utils/voice/voicePack.ts, or the capture owner src/services/voice/capture.ts (wav shape in src/services/voice/wav.ts), whichever this check names'
+const VOICE_FIX_HINT = 'to fix, change the vendor build scripts/vendor/build-voice.ts, the addon sources in native/voice, the pack owner src/integrations/voice-pack/voicePack.ts, or the capture owner src/integrations/voice/capture.ts (wav shape in src/integrations/voice/wav.ts), whichever this check names'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail.slice(0, 400)} — ` : ''}${VOICE_FIX_HINT}`}`)
   if (!cond) failures++
@@ -22,9 +22,9 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const warn = (line: string): void => console.log(`  [WARN] ${line}`)
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
-const pack = await import('../../src/utils/voice/voicePack.js')
-const capture = await import('../../src/services/voice/capture.js')
-const wav = await import('../../src/services/voice/wav.js')
+const pack = await import('../../src/integrations/voice-pack/voicePack.js')
+const capture = await import('../../src/integrations/voice/capture.js')
+const wav = await import('../../src/integrations/voice/wav.js')
 
 const PLATFORM = pack.voicePackPlatform()
 const PACK_DIR = join(ROOT, ...pack.VOICE_PACK_PATH.split('/'), PLATFORM)
@@ -39,7 +39,7 @@ const build = spawnSync(BUN, ['run', 'scripts/vendor/build-voice.ts'], { cwd: RO
 const buildOut = `${build.stdout ?? ''}\n${build.stderr ?? ''}`
 
 async function healthRowSaysNone(): Promise<boolean> {
-  const report = await import('../../src/services/health/healthReport.js')
+  const report = await import('../../src/platform/health/healthReport.js')
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'iface-voice')
   return row !== undefined && String(row.evidence).includes('backend: none')

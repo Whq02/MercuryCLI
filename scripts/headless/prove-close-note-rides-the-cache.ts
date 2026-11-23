@@ -37,7 +37,7 @@ for (const format of ['rows', 'json', 'text', 'sdk'] as const) {
       outcome = await task.outcome
       code = (await task.exit).code
       rows = task.rows as Array<Record<string, any>>
-      check('SDK final message is the model answer', outcome.answer === finalAnswer, `answer was ${JSON.stringify(outcome.answer)}; the run outcome in src/cli/headless/printDriver.ts must carry the model answer unchanged`)
+      check('SDK final message is the model answer', outcome.answer === finalAnswer, `answer was ${JSON.stringify(outcome.answer)}; the run outcome in src/daemon/runner/runnerDriver.ts must carry the model answer unchanged`)
     } else {
       const child = spawn('node', [dist, 'run', '--format', format, '--mode', 'flow', 'Read input.txt and answer.'], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
       child.stdout.on('data', d => { out += String(d) })
@@ -47,17 +47,17 @@ for (const format of ['rows', 'json', 'text', 'sdk'] as const) {
       if (format === 'rows') {
         rows = out.trim().split('\n').filter(Boolean).map(line => JSON.parse(line))
         outcome = rows.find(row => row.type === 'outcome')
-        check('rows carry the final answer unchanged', rows.filter(row => row.type === 'text').map(row => row.text).join('') === finalAnswer, 'the text rows differ from the model answer; a headless run must not append a close note to them (exitNoteDue and leaveNoteBeforeExit in src/cli/headless/printDriver.ts)')
+        check('rows carry the final answer unchanged', rows.filter(row => row.type === 'text').map(row => row.text).join('') === finalAnswer, 'the text rows differ from the model answer; a headless run must not append a close note to them (exitNoteDue and leaveNoteBeforeExit in src/daemon/runner/runnerDriver.ts)')
       } else if (format === 'json') outcome = JSON.parse(out)
-      else check('text output is the final answer unchanged', out === `${finalAnswer}\n`, `stdout was ${JSON.stringify(out.slice(0, 300))}; a headless run must print the answer alone, see exitNoteDue and leaveNoteBeforeExit in src/cli/headless/printDriver.ts`)
+      else check('text output is the final answer unchanged', out === `${finalAnswer}\n`, `stdout was ${JSON.stringify(out.slice(0, 300))}; a headless run must print the answer alone, see exitNoteDue and leaveNoteBeforeExit in src/daemon/runner/runnerDriver.ts`)
     }
     const requests = api.messageRequests()
     check(`${format}: run exits successfully`, code === 0, JSON.stringify({ code, err: err.slice(0, 300) }))
-    check(`${format}: two task calls, not three`, requests.length === 2, `${requests.length} model requests; a headless run must not make the extra close-note call: see exitNoteDue and leaveNoteBeforeExit in src/cli/headless/printDriver.ts and src/mneme/exitHandoff.ts`)
-    check(`${format}: no close-note request`, !requests.some(request => isHandoffRequest(request)), `${requests.filter(request => isHandoffRequest(request)).length} close-note requests; stop the headless exit path from asking for one (src/cli/headless/printDriver.ts, src/mneme/exitHandoff.ts)`)
-    check(`${format}: no close-note row`, !rows.some(row => row.type === 'close'), 'a close row was emitted; the headless run must not leave an exit note (src/cli/headless/printDriver.ts)')
+    check(`${format}: two task calls, not three`, requests.length === 2, `${requests.length} model requests; a headless run must not make the extra close-note call: see exitNoteDue and leaveNoteBeforeExit in src/daemon/runner/runnerDriver.ts and src/sessions/mneme/exitHandoff.ts`)
+    check(`${format}: no close-note request`, !requests.some(request => isHandoffRequest(request)), `${requests.filter(request => isHandoffRequest(request)).length} close-note requests; stop the headless exit path from asking for one (src/daemon/runner/runnerDriver.ts, src/sessions/mneme/exitHandoff.ts)`)
+    check(`${format}: no close-note row`, !rows.some(row => row.type === 'close'), 'a close row was emitted; the headless run must not leave an exit note (src/daemon/runner/runnerDriver.ts)')
     if (outcome) {
-      check(`${format}: outcome has the final answer and exit-road status`, outcome.answer === finalAnswer && outcome.status === 'completed', `answer ${JSON.stringify(outcome.answer)} status ${String(outcome.status)}; the outcome built in src/cli/headless/printDriver.ts must keep the model answer and a completed status`)
+      check(`${format}: outcome has the final answer and exit-road status`, outcome.answer === finalAnswer && outcome.status === 'completed', `answer ${JSON.stringify(outcome.answer)} status ${String(outcome.status)}; the outcome built in src/daemon/runner/runnerDriver.ts must keep the model answer and a completed status`)
       check(`${format}: outcome counts task calls and their tokens only`, outcome.steps === 2 && outcome.usage.input_tokens === 290 && outcome.usage.output_tokens === 22 && outcome.usage.cached_input_tokens === 70, JSON.stringify(outcome.usage))
     }
     if (rows.length) check(`${format}: one tool call and result survive`, rows.filter(row => row.type === 'tool_call').length === 1 && rows.filter(row => row.type === 'tool_result').length === 1, `${rows.filter(row => row.type === 'tool_call').length} tool calls and ${rows.filter(row => row.type === 'tool_result').length} results in the rows; the run must emit exactly one of each`)
@@ -66,7 +66,7 @@ for (const format of ['rows', 'json', 'text', 'sdk'] as const) {
     check(`${format}: saved session counts exclude the removed call`, project?.lastTotalInputTokens === 220 && project?.lastTotalOutputTokens === 22 && project?.lastTotalCacheReadInputTokens === 70, JSON.stringify(project && { input: project.lastTotalInputTokens, output: project.lastTotalOutputTokens, cached: project.lastTotalCacheReadInputTokens }))
     const transcripts = filesUnder(home).filter(file => file.endsWith('.jsonl')).map(file => readFileSync(file, 'utf8')).join('\n')
     check(`${format}: recorded final answer stays whole`, transcripts.includes(JSON.stringify(finalAnswer).slice(1, -1)), 'the saved transcript lacks the whole final answer; the recorded session must keep it unchanged')
-    check(`${format}: no synthetic note is recorded`, !transcripts.includes('This extra call must never run.'), 'the close-note text reached the saved transcript; the headless exit path must not record a synthetic note (src/cli/headless/printDriver.ts, src/mneme/exitHandoff.ts)')
+    check(`${format}: no synthetic note is recorded`, !transcripts.includes('This extra call must never run.'), 'the close-note text reached the saved transcript; the headless exit path must not record a synthetic note (src/daemon/runner/runnerDriver.ts, src/sessions/mneme/exitHandoff.ts)')
   } finally {
     await api.close()
     rmSync(home, { recursive: true, force: true })

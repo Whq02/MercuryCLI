@@ -10,7 +10,7 @@ const walked: string[] = []
 const files: string[] = []
 function walk(path: string): void {
   const rel = relative(root, path)
-  if (rel === 'src/constants/changelogArchive.ts' || rel === 'scripts/identity/forbidden-code-tool.ts') return
+  if (rel === 'src/commands/update-notes/changelogArchive.ts' || rel === 'scripts/identity/forbidden-code-tool.ts') return
   if (rel) walked.push(rel)
   if (statSync(path).isDirectory()) {
     for (const entry of readdirSync(path, { withFileTypes: true })) {

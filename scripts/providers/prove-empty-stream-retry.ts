@@ -23,7 +23,7 @@ const ANSWER = 'the readme holds one heading'
 const PARTIAL = 'the partial words'
 const MARKER = 'ended the stream before its first event'
 const TRIES = 3
-const EMPTY_STREAM_HINT = 'to fix, read the empty-stream retry in src/services/providers/emptyStreamRetry.ts and its notice wording; this proof runs the built bundle, so rebuild with bun run build.ts after a change, and rerun with --keep to keep the world'
+const EMPTY_STREAM_HINT = 'to fix, read the empty-stream retry in src/models/roads/emptyStreamRetry.ts and its notice wording; this proof runs the built bundle, so rebuild with bun run build.ts after a change, and rerun with --keep to keep the world'
 
 let checks = 0
 let failures = 0

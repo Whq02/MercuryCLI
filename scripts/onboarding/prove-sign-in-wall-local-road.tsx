@@ -55,15 +55,15 @@ if (scenario !== null) {
   }
   const React = await import('react')
   const { KEY, mountOffscreen, settle, waitFor } = await import('../lib/settingsPopupHarness.ts')
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const handover = await import('../../src/substrate/splashHandover.js')
-  const discovery = await import('../../src/services/providers/local/localDiscovery.js')
+  const handover = await import('../../src/platform/substrate/splashHandover.js')
+  const discovery = await import('../../src/models/roads/local/localDiscovery.js')
   if (scenario === 'local-primed') await discovery.refreshLocalDiscovery({ force: true })
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-  const { Onboarding } = await import('../../src/components/Onboarding.js')
-  const { loginFamilyRows } = await import('../../src/components/loginFamilyRows.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+  const { Onboarding } = await import('../../src/boot/first-run/Onboarding.js')
+  const { loginFamilyRows } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.ts')
   const h = React.createElement
   const element = h(AppStateProvider as never, {} as never, h(KeybindingSetup as never, {} as never, h(Onboarding as never, { onDone: () => {} } as never)))
   const mounted = await mountOffscreen(element, COLS, ROWS)
@@ -156,13 +156,13 @@ console.log('§1 a local server answers while the sign-in station paints: the la
 {
   const frames = run('local')
   const catalogue = frames.catalogue ?? frames.error ?? ''
-  check('the station is offered (sign in · 2/N on the rail)', /sign in · 2\/\d/.test(catalogue), catalogue.split('\n').slice(0, 3).join(' / ') + ' — the sign-in station did not paint; if this text is a child exit status and stderr, the scenario crashed, so fix what it names (the station is src/components/Onboarding.tsx)')
-  check(`the last row reads "Sign in later to look around, ${LOCAL_WORDS}"`, flat(frames.focused ?? '').includes(`Sign in later to look around, ${LOCAL_WORDS}`), 'change signInLaterRow in src/components/loginFamilyRows.ts, or the local discovery that feeds it; the focused frame ends: ' + flat(frames.focused ?? '').slice(-400))
-  check('the words "Sign-in is required to run the agent" are nowhere on the frame', !flat(catalogue).includes('Sign-in is required to run the agent'), 'remove the words from the sign-in station text; the later-row words are owned by src/components/loginFamilyRows.ts')
-  check('the fourteen hosted rows still stand above it', flat(catalogue).includes('OpenAI — ChatGPT subscription') && flat(catalogue).includes('OpenCode Zen'), 'restore the hosted rows that loginFamilyRows in src/components/loginFamilyRows.ts returns to the sign-in station')
-  check('↓ to the end focuses the local row', focusedRow(frames.focused ?? '').startsWith('Sign in later to look around, or run a local model'), focusedRow(frames.focused ?? '') + ' — the last row must be the sign-in-later row from signInLaterRow in src/components/loginFamilyRows.ts')
-  check('Enter continues the walk credential-free (Guardrails next)', (frames.after ?? '').includes('Guardrails'), (frames.after ?? '').split('\n').slice(0, 3).join(' / ') + ' — Enter on the later row must move on to the Guardrails step; see the later-row branch in src/components/ConsoleOAuthFlow.tsx')
-  check("Enter armed the 'model' face door: the home face opens the model picker on arrival", frames.door === 'model', `door=${frames.door} probed=${frames.probed} — the later-row branch in src/components/ConsoleOAuthFlow.tsx must call armFaceDoorDeepLink('model') when localRoadOpen is true`)
+  check('the station is offered (sign in · 2/N on the rail)', /sign in · 2\/\d/.test(catalogue), catalogue.split('\n').slice(0, 3).join(' / ') + ' — the sign-in station did not paint; if this text is a child exit status and stderr, the scenario crashed, so fix what it names (the station is src/boot/first-run/Onboarding.tsx)')
+  check(`the last row reads "Sign in later to look around, ${LOCAL_WORDS}"`, flat(frames.focused ?? '').includes(`Sign in later to look around, ${LOCAL_WORDS}`), 'change signInLaterRow in src/models/sign-in/flow-cards/loginFamilyRows.ts, or the local discovery that feeds it; the focused frame ends: ' + flat(frames.focused ?? '').slice(-400))
+  check('the words "Sign-in is required to run the agent" are nowhere on the frame', !flat(catalogue).includes('Sign-in is required to run the agent'), 'remove the words from the sign-in station text; the later-row words are owned by src/models/sign-in/flow-cards/loginFamilyRows.ts')
+  check('the fourteen hosted rows still stand above it', flat(catalogue).includes('OpenAI — ChatGPT subscription') && flat(catalogue).includes('OpenCode Zen'), 'restore the hosted rows that loginFamilyRows in src/models/sign-in/flow-cards/loginFamilyRows.ts returns to the sign-in station')
+  check('↓ to the end focuses the local row', focusedRow(frames.focused ?? '').startsWith('Sign in later to look around, or run a local model'), focusedRow(frames.focused ?? '') + ' — the last row must be the sign-in-later row from signInLaterRow in src/models/sign-in/flow-cards/loginFamilyRows.ts')
+  check('Enter continues the walk credential-free (Guardrails next)', (frames.after ?? '').includes('Guardrails'), (frames.after ?? '').split('\n').slice(0, 3).join(' / ') + ' — Enter on the later row must move on to the Guardrails step; see the later-row branch in src/models/sign-in/flow-cards/SignInFlow.tsx')
+  check("Enter armed the 'model' face door: the home face opens the model picker on arrival", frames.door === 'model', `door=${frames.door} probed=${frames.probed} — the later-row branch in src/models/sign-in/flow-cards/SignInFlow.tsx must call armFaceDoorDeepLink('model') when localRoadOpen is true`)
 }
 
 console.log('§1b a FRESH home on the default road (MERCURY_LOCAL_PROBE_TARGETS unset): the station probes the documented default ports itself and paints the found row from the server on 11434')
@@ -170,19 +170,19 @@ console.log('§1b a FRESH home on the default road (MERCURY_LOCAL_PROBE_TARGETS 
   const frames = run('local-default')
   const catalogue = frames.catalogue ?? frames.error ?? ''
   check('the child saw no probe variable (the default road, not a pinned target set)', frames.probeEnv === 'undefined', `probeEnv=${frames.probeEnv} — the scenario child must run with MERCURY_LOCAL_PROBE_TARGETS deleted`)
-  check('the targets the station probed are the four documented defaults, Ollama first on 11434', frames.targets === 'http://127.0.0.1:11434,http://127.0.0.1:1234,http://127.0.0.1:8000,http://127.0.0.1:8080', `targets=${frames.targets} — change the default target list that localProbeTargets reads in src/services/providers/local/localDiscovery.ts`)
-  check(`the last row reads "Sign in later to look around, ${LOCAL_WORDS}" — the station's own refresh landed and repainted the wall`, flat(frames.focused ?? '').includes(`Sign in later to look around, ${LOCAL_WORDS}`), 'the station must start its own local discovery refresh and repaint the row (signInLaterRow in src/components/loginFamilyRows.ts); the focused frame ends: ' + flat(frames.focused ?? '').slice(-400))
-  check('no-server words are nowhere on the frame', !flat(catalogue).includes('The agent needs a sign-in or a local model'), 'the no-server row (SIGN_IN_LATER_ROW in src/components/loginFamilyRows.ts) painted although a server answered on 11434')
-  check('one server in the snapshot (the three dead default ports are simply absent)', frames.probed === '1', `probed=${frames.probed} — the cached snapshot from getCachedLocalDiscovery in src/services/providers/local/localDiscovery.ts should hold only the Ollama server`)
-  check("Enter on the row arms the 'model' door", frames.door === 'model', `door=${frames.door} — the later-row branch in src/components/ConsoleOAuthFlow.tsx must call armFaceDoorDeepLink('model')`)
+  check('the targets the station probed are the four documented defaults, Ollama first on 11434', frames.targets === 'http://127.0.0.1:11434,http://127.0.0.1:1234,http://127.0.0.1:8000,http://127.0.0.1:8080', `targets=${frames.targets} — change the default target list that localProbeTargets reads in src/models/roads/local/localDiscovery.ts`)
+  check(`the last row reads "Sign in later to look around, ${LOCAL_WORDS}" — the station's own refresh landed and repainted the wall`, flat(frames.focused ?? '').includes(`Sign in later to look around, ${LOCAL_WORDS}`), 'the station must start its own local discovery refresh and repaint the row (signInLaterRow in src/models/sign-in/flow-cards/loginFamilyRows.ts); the focused frame ends: ' + flat(frames.focused ?? '').slice(-400))
+  check('no-server words are nowhere on the frame', !flat(catalogue).includes('The agent needs a sign-in or a local model'), 'the no-server row (SIGN_IN_LATER_ROW in src/models/sign-in/flow-cards/loginFamilyRows.ts) painted although a server answered on 11434')
+  check('one server in the snapshot (the three dead default ports are simply absent)', frames.probed === '1', `probed=${frames.probed} — the cached snapshot from getCachedLocalDiscovery in src/models/roads/local/localDiscovery.ts should hold only the Ollama server`)
+  check("Enter on the row arms the 'model' door", frames.door === 'model', `door=${frames.door} — the later-row branch in src/models/sign-in/flow-cards/SignInFlow.tsx must call armFaceDoorDeepLink('model')`)
 }
 
 console.log('§2 the probe landed before the walk mounted (the picker already knows the server): the station is still offered, with the same row')
 {
   const frames = run('local-primed')
   const catalogue = frames.catalogue ?? frames.error ?? ''
-  check('a found local server never skips the sign-in station', /sign in · 2\/\d/.test(catalogue) && flat(frames.focused ?? '').includes(LOCAL_WORDS), catalogue.split('\n').slice(0, 3).join(' / ') + ' — a server already in the discovery cache must not skip the station and must still show the found-server row (signInLaterRow in src/components/loginFamilyRows.ts)')
-  check("Enter on the row arms the 'model' door here too", frames.door === 'model', `door=${frames.door} — the later-row branch in src/components/ConsoleOAuthFlow.tsx must call armFaceDoorDeepLink('model')`)
+  check('a found local server never skips the sign-in station', /sign in · 2\/\d/.test(catalogue) && flat(frames.focused ?? '').includes(LOCAL_WORDS), catalogue.split('\n').slice(0, 3).join(' / ') + ' — a server already in the discovery cache must not skip the station and must still show the found-server row (signInLaterRow in src/models/sign-in/flow-cards/loginFamilyRows.ts)')
+  check("Enter on the row arms the 'model' door here too", frames.door === 'model', `door=${frames.door} — the later-row branch in src/models/sign-in/flow-cards/SignInFlow.tsx must call armFaceDoorDeepLink('model')`)
 }
 
 const NO_SERVER_ROW = 'Sign in later to look around. The agent needs a sign-in or a local model (/localsetup).'
@@ -190,14 +190,14 @@ console.log('§3 no local server answers: the row says a sign-in OR a local mode
 {
   const frames = run('none')
   const catalogue = frames.catalogue ?? frames.error ?? ''
-  check(`the row reads "${NO_SERVER_ROW}"`, flat(catalogue).includes(NO_SERVER_ROW), 'change SIGN_IN_LATER_ROW in src/components/loginFamilyRows.ts to the expected words; the frame ends: ' + flat(catalogue).slice(-300))
-  check('the row stands on ONE line at 120×40', catalogue.split('\n').some(line => line.includes(NO_SERVER_ROW)), catalogue.split('\n').filter(line => line.includes('Sign in later')).join(' / ') + ' — shorten SIGN_IN_LATER_ROW in src/components/loginFamilyRows.ts or the row layout so it fits one line')
-  check('/localsetup is on the no-server frame (the readiness row that names it sits below the fold)', catalogue.includes('/localsetup'), 'SIGN_IN_LATER_ROW in src/components/loginFamilyRows.ts must name /localsetup')
-  check('the words "Sign-in is required to run the agent" are nowhere on this frame either', !flat(catalogue).includes('Sign-in is required to run the agent'), 'remove those words from the sign-in station text; the later-row words are owned by src/components/loginFamilyRows.ts')
-  check('no found-server words paint', !flat(catalogue).includes('run a local model —'), 'with MERCURY_LOCAL_PROBE_TARGETS=none no server may be found; signInLaterRow in src/components/loginFamilyRows.ts must return SIGN_IN_LATER_ROW when localRoadOpen is false')
-  check('↓ to the end focuses the row, /localsetup still on the frame', focusedRow(frames.focused ?? '').startsWith('Sign in later to look around. The agent needs') && (frames.focused ?? '').includes('/localsetup'), focusedRow(frames.focused ?? '') + ' — the last row must be SIGN_IN_LATER_ROW from src/components/loginFamilyRows.ts, with /localsetup on the frame')
-  check('Enter continues the walk (Guardrails next)', (frames.after ?? '').includes('Guardrails'), 'Enter on the later row must move on to the Guardrails step; see the later-row branch in src/components/ConsoleOAuthFlow.tsx')
-  check('no face door is armed', frames.door === 'null', `door=${frames.door} — the later-row branch in src/components/ConsoleOAuthFlow.tsx must call armFaceDoorDeepLink only when localRoadOpen is true`)
+  check(`the row reads "${NO_SERVER_ROW}"`, flat(catalogue).includes(NO_SERVER_ROW), 'change SIGN_IN_LATER_ROW in src/models/sign-in/flow-cards/loginFamilyRows.ts to the expected words; the frame ends: ' + flat(catalogue).slice(-300))
+  check('the row stands on ONE line at 120×40', catalogue.split('\n').some(line => line.includes(NO_SERVER_ROW)), catalogue.split('\n').filter(line => line.includes('Sign in later')).join(' / ') + ' — shorten SIGN_IN_LATER_ROW in src/models/sign-in/flow-cards/loginFamilyRows.ts or the row layout so it fits one line')
+  check('/localsetup is on the no-server frame (the readiness row that names it sits below the fold)', catalogue.includes('/localsetup'), 'SIGN_IN_LATER_ROW in src/models/sign-in/flow-cards/loginFamilyRows.ts must name /localsetup')
+  check('the words "Sign-in is required to run the agent" are nowhere on this frame either', !flat(catalogue).includes('Sign-in is required to run the agent'), 'remove those words from the sign-in station text; the later-row words are owned by src/models/sign-in/flow-cards/loginFamilyRows.ts')
+  check('no found-server words paint', !flat(catalogue).includes('run a local model —'), 'with MERCURY_LOCAL_PROBE_TARGETS=none no server may be found; signInLaterRow in src/models/sign-in/flow-cards/loginFamilyRows.ts must return SIGN_IN_LATER_ROW when localRoadOpen is false')
+  check('↓ to the end focuses the row, /localsetup still on the frame', focusedRow(frames.focused ?? '').startsWith('Sign in later to look around. The agent needs') && (frames.focused ?? '').includes('/localsetup'), focusedRow(frames.focused ?? '') + ' — the last row must be SIGN_IN_LATER_ROW from src/models/sign-in/flow-cards/loginFamilyRows.ts, with /localsetup on the frame')
+  check('Enter continues the walk (Guardrails next)', (frames.after ?? '').includes('Guardrails'), 'Enter on the later row must move on to the Guardrails step; see the later-row branch in src/models/sign-in/flow-cards/SignInFlow.tsx')
+  check('no face door is armed', frames.door === 'null', `door=${frames.door} — the later-row branch in src/models/sign-in/flow-cards/SignInFlow.tsx must call armFaceDoorDeepLink only when localRoadOpen is true`)
 }
 
 console.log('§3b the same at 80×24: the row is below the first window, focused it wraps to two lines and /localsetup is on the frame')
@@ -206,17 +206,17 @@ console.log('§3b the same at 80×24: the row is below the first window, focused
   const catalogue = frames.catalogue ?? frames.error ?? ''
   check('the station paints at 80×24 (sign in · 2/N on the rail)', /sign in · 2\/\d/.test(catalogue), catalogue.split('\n').slice(0, 3).join(' / '))
   const focused = frames.focused ?? ''
-  check('↓ to the end focuses the row', focusedRow(focused).startsWith('Sign in later to look around. The agent needs'), focusedRow(focused) + ' — the last row must be SIGN_IN_LATER_ROW from src/components/loginFamilyRows.ts')
+  check('↓ to the end focuses the row', focusedRow(focused).startsWith('Sign in later to look around. The agent needs'), focusedRow(focused) + ' — the last row must be SIGN_IN_LATER_ROW from src/models/sign-in/flow-cards/loginFamilyRows.ts')
   const unboxed = focused.split('\n').map(line => line.replace(/[│╭╮╰╯─]/g, ' ')).join(' ').replace(/\s+/g, ' ')
-  check(`the whole row reads across its wrapped lines: "${NO_SERVER_ROW}"`, unboxed.includes(NO_SERVER_ROW), 'the focused row must wrap, not truncate, at 80 columns (SIGN_IN_LATER_ROW in src/components/loginFamilyRows.ts); the frame ends: ' + unboxed.slice(-300))
+  check(`the whole row reads across its wrapped lines: "${NO_SERVER_ROW}"`, unboxed.includes(NO_SERVER_ROW), 'the focused row must wrap, not truncate, at 80 columns (SIGN_IN_LATER_ROW in src/models/sign-in/flow-cards/loginFamilyRows.ts); the frame ends: ' + unboxed.slice(-300))
   check('/localsetup is on the 80×24 frame', focused.includes('/localsetup'), 'the focused later row must wrap so /localsetup stays visible at 80×24')
-  check('Enter continues the walk (Guardrails next)', (frames.after ?? '').includes('Guardrails'), 'Enter on the later row must move on to the Guardrails step; see the later-row branch in src/components/ConsoleOAuthFlow.tsx')
+  check('Enter continues the walk (Guardrails next)', (frames.after ?? '').includes('Guardrails'), 'Enter on the later row must move on to the Guardrails step; see the later-row branch in src/models/sign-in/flow-cards/SignInFlow.tsx')
 }
 
 console.log('§4 the wiring: the door opens the picker; the row owner holds the words')
 {
-  const { LOCAL_NO_SERVER_BLOCKER } = await import('../../src/services/providers/local/localAccounts.ts')
-  const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
+  const { LOCAL_NO_SERVER_BLOCKER } = await import('../../src/models/roads/local/localAccounts.ts')
+  const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
   check("the wall's readiness row for Local servers names /localsetup when no server answers (the readiness block below the roster paints this blocker)", LOCAL_NO_SERVER_BLOCKER.includes('/localsetup sets one up (Ollama, LM Studio, vLLM, llama.cpp)') && resolveProviderUsability({ anthropicApiKey: () => null, anthropicSubscriber: () => false, anthropicBearerToken: () => false, anthropicLimitStatus: () => 'allowed', gptSeat: () => ({ state: 'disabled', reason: 'no OpenAI account is signed in', why: 'no-account' }), zaiKeyPresent: () => false, moonshotAccount: () => undefined, deepseekKeyPresent: () => false, xaiKeyPresent: () => false, compatConfigured: () => false, huggingfaceAccount: () => undefined, localServerPresent: () => false, openrouterKeyPresent: () => false, geminiAccount: () => undefined }).local.blockers[0] === LOCAL_NO_SERVER_BLOCKER)
 }
 

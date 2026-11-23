@@ -8,8 +8,8 @@ process.env.MERCURY_CONFIG_DIR = scratch
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { rearrangePipeCommand } = await import('../../src/utils/bash/bashPipeCommand.ts')
-const { locateGitBash } = await import('../../src/utils/windowsPaths.ts')
+const { rearrangePipeCommand } = await import('../../src/platform/shell/bash/bashPipeCommand.ts')
+const { locateGitBash } = await import('../../src/platform/files/windowsPaths.ts')
 const gitBash = process.platform === 'win32' ? locateGitBash() : null
 const shell = gitBash !== null && 'path' in gitBash ? gitBash.path : 'bash'
 let failures = 0
@@ -17,7 +17,7 @@ let checks = 0
 function check(name: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  const where = name.endsWith('original command prints exact bytes') ? 'this control runs the command in plain bash without Mercury code, so check the bash on PATH (or Git Bash on Windows)' : 'rearrangePipeCommand in src/utils/bash/bashPipeCommand.ts must keep quoted whitespace byte for byte'
+  const where = name.endsWith('original command prints exact bytes') ? 'this control runs the command in plain bash without Mercury code, so check the bash on PATH (or Git Bash on Windows)' : 'rearrangePipeCommand in src/platform/shell/bash/bashPipeCommand.ts must keep quoted whitespace byte for byte'
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${!ok ? ` — ${detail ? `${detail} — ` : ''}to fix: ${where}` : ''}`)
 }
 const quote = (value: string): string => `'${value.split("'").join("'\\''")}'`

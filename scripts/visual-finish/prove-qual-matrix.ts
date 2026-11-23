@@ -2,13 +2,13 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { bigWordmarkRows } from '../../src/components/mercury-ui/assets.tsx'
-import { rampSegments, type RampSegment } from '../../src/components/mercury-ui/focalRamp.ts'
-import { TERRA } from '../../src/components/mercuryPalette.ts'
+import { bigWordmarkRows } from '../../src/screen/widgets/assets.tsx'
+import { rampSegments, type RampSegment } from '../../src/screen/widgets/focalRamp.ts'
+import { TERRA } from '../../src/screen/theme/mercuryPalette.ts'
 
 const WARM_RED_SAMPLE = '#DE4A35'
-import { resolveMercuryTokens } from '../../src/utils/mercuryTokens.ts'
-import { shouldHonorNoColor } from '../../src/ink/colorize.ts'
+import { resolveMercuryTokens } from '../../src/screen/theme/mercuryTokens.ts'
+import { shouldHonorNoColor } from '../../src/screen/renderer/colorize.ts'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()

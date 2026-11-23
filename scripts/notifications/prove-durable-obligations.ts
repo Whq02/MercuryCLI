@@ -10,10 +10,10 @@ const t = checker()
 const root = scratchRoot('durable-obligations')
 process.env.MERCURY_CREW_DIR = join(root, 'crew')
 
-const obl = await import('../../src/services/crew/obligations.js')
+const obl = await import('../../src/crew/crewmates/obligations.js')
 
 t.section('§1 — the durable obligation owner exists at the crew-conversation owner')
-t.check('src/services/crew/obligations.ts exists', obl != null, 'present')
+t.check('src/crew/crewmates/obligations.ts exists', obl != null, 'present')
 for (const fn of ['upsertObligation', 'openObligations', 'resolveObligation'] as const) {
   t.check(`it exports ${fn}()`, typeof obl[fn] === 'function', 'present')
 }
@@ -118,7 +118,7 @@ t.section('§8 — oldest-first ordering + the per-principal filter')
 
 t.section('§9 — per-obligation storage: the conversation ring cannot evict it')
 {
-  const conv = await import('../../src/services/crew/conversations.js')
+  const conv = await import('../../src/crew/crewmates/conversations.js')
   const thread = await conv.mintConversation({ kind: 'work', title: 'ring-storm', participants: [] })
   const row = await obl.upsertObligation({
     ref: 'obl-ring',
@@ -152,9 +152,9 @@ t.section('§10 — retention: settled rows bound, OPEN rows never dropped')
 
 t.section('§11 — the attention bridge translation (pure; per-principal projection)')
 {
-  const bridge = await import('../../src/services/crew/obligationsBridge.js')
+  const bridge = await import('../../src/crew/crewmates/obligationsBridge.js')
   bridge._resetObligationsBridgeForTesting()
-  const mk = (id: string, over: Partial<import('../../src/services/crew/obligations.js').ObligationV1> = {}): import('../../src/services/crew/obligations.js').ObligationV1 => ({
+  const mk = (id: string, over: Partial<import('../../src/crew/crewmates/obligations.js').ObligationV1> = {}): import('../../src/crew/crewmates/obligations.js').ObligationV1 => ({
     schema: 1,
     obligationId: id,
     ref: `ref-${id}`,
@@ -183,8 +183,8 @@ t.section('§11 — the attention bridge translation (pure; per-principal projec
 
 t.section('§12 — the PRODUCTION raiser: crew dispatch wires the durable twin')
 {
-  const conv = await import('../../src/services/crew/conversations.js')
-  const disp = await import('../../src/services/crew/dispatch.js')
+  const conv = await import('../../src/crew/crewmates/conversations.js')
+  const disp = await import('../../src/crew/crewmates/dispatch.js')
   const thread = await conv.mintConversation({ kind: 'work', title: 'wire', participants: [] })
   const receipt = await disp.dispatchToAgent({
     clientMessageId: 'cmid-wire-1',

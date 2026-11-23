@@ -5,7 +5,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSy
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { LayoutRoots } from '../../src/services/privateChannel/installLayout.js'
+import type { LayoutRoots } from '../../src/platform/update-channel/installLayout.js'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 if (!process.env.MERCURY_PROOF_LAYOUT_SCRATCH) {
@@ -72,10 +72,10 @@ const {
   validatePayloadDir,
   versionDirIntact,
   writeShim,
-} = await import('../../src/services/privateChannel/installLayout.js')
+} = await import('../../src/platform/update-channel/installLayout.js')
 
 let failures = 0
-const installLayoutFixHint = 'fix the function this check exercises in src/services/privateChannel/installLayout.ts (validatePayloadDir, installPayload, switchCurrent, acquireUpdateLock, writeShim, shimContent, uninstallLayout, formatUninstallReport, sweepUpdaterResidue, pruneSupersededVersions, readCurrentVersionState, pointerValueOf, pathEntryEquals or reconcileManagedShims, as the check name says); the payload digest checks compare with scripts/release/payloadContract.mjs'
+const installLayoutFixHint = 'fix the function this check exercises in src/platform/update-channel/installLayout.ts (validatePayloadDir, installPayload, switchCurrent, acquireUpdateLock, writeShim, shimContent, uninstallLayout, formatUninstallReport, sweepUpdaterResidue, pruneSupersededVersions, readCurrentVersionState, pointerValueOf, pathEntryEquals or reconcileManagedShims, as the check name says); the payload digest checks compare with scripts/release/payloadContract.mjs'
 const check = (name: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}${installLayoutFixHint}`}`)
   if (!cond) failures++

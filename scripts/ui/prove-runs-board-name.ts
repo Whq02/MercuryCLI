@@ -42,9 +42,9 @@ try {
       try { payload = JSON.parse(readFileSync(out, 'utf8')) as Capture } catch {}
       const frame = rowsOf(payload?.marks?.find(mark => mark.label === 'board')?.grid ?? payload?.grid ?? [])
       if (frameDir !== undefined) writeFileSync(join(frameDir, `${band.cols}x${band.rows}-${command}.txt`), frame.join('\n') + '\n')
-      check(`${band.cols}: /${command} completes its command road`, result.status === 0 && payload?.marks?.some(mark => mark.label === 'board') === true, `rc ${result.status} ${(result.stderr ?? '').slice(-300)}; the capture by scripts/ui/vshot.py did not reach the board screen text Mercury — , so check that the command in src/commands/tasks/index.ts (name runs, alias tasks) loads and that the frame it did capture is in ${home}`)
+      check(`${band.cols}: /${command} completes its command road`, result.status === 0 && payload?.marks?.some(mark => mark.label === 'board') === true, `rc ${result.status} ${(result.stderr ?? '').slice(-300)}; the capture by scripts/ui/vshot.py did not reach the board screen text Mercury — , so check that the command in src/commands/runs/index.ts (name runs, alias tasks) loads and that the frame it did capture is in ${home}`)
       const heading = frame.find(row => row.includes('Mercury — runs') || row.includes('Mercury — tasks') || row.includes('Unknown command') || row.includes('Unknown skill')) ?? ''
-      check(`${band.cols}: /${command} opens the runs board`, heading.includes('Mercury — runs') && !heading.includes('Unknown'), `${heading}; both /runs and /tasks must resolve to the command in src/commands/tasks/index.ts (name runs, alias tasks) and open the board headed Mercury — runs`)
+      check(`${band.cols}: /${command} opens the runs board`, heading.includes('Mercury — runs') && !heading.includes('Unknown'), `${heading}; both /runs and /tasks must resolve to the command in src/commands/runs/index.ts (name runs, alias tasks) and open the board headed Mercury — runs`)
       cleanupScenario('resume-2turn')
     }
   }

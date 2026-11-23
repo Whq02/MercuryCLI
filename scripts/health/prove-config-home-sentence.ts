@@ -16,7 +16,7 @@ const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
 }
 
 const homeRow = async (): Promise<{ status: string; evidence: string }> => {
-  const report = await import('../../src/services/health/healthReport.js')
+  const report = await import('../../src/platform/health/healthReport.js')
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'config-home')
   return { status: String(row?.status), evidence: String(row?.evidence) }
@@ -30,7 +30,7 @@ check(
     overridden.evidence.includes(DAEMON) &&
     !overridden.evidence.includes('daemon plane inside the home'),
   `${overridden.status}: ${overridden.evidence.slice(0, 160)}`,
-  'change the config-home check in src/services/health/sections/crew/home.ts so the evidence says daemon plane OVERRIDDEN and the MERCURY_DAEMON_DIR path when it is set',
+  'change the config-home check in src/platform/health/sections/crew/home.ts so the evidence says daemon plane OVERRIDDEN and the MERCURY_DAEMON_DIR path when it is set',
 )
 delete process.env.MERCURY_DAEMON_DIR
 

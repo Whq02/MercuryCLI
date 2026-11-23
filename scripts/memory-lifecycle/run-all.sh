@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/mneme/** src/services/backgroundHousekeeping* src/query/stopHooks*
-# gate-watch: src/tools/JournalTool/** src/main.tsx
-# gate-watch: src/utils/gracefulShutdown.ts src/services/changeTransaction/fileHistory.ts
-# gate-watch: src/utils/sessionStorage/transcriptReader.ts src/fabric/transcriptDecode.ts
-# gate-watch: src/components/ExitFlow.tsx
-# gate-watch: src/services/engine-connector/types.ts
-# gate-watch: src/daemon/workerIdentity.ts
-# gate-watch: src/run-core/turn/**
+# gate-watch: src/sessions/mneme/** src/platform/housekeeping/backgroundHousekeeping.ts src/engine/turn-entry/stopHooks.ts
+# gate-watch: src/tools/journal/** src/boot/main.tsx
+# gate-watch: src/platform/processes/gracefulShutdown.ts src/tools/engines/change-transaction/fileHistory.ts
+# gate-watch: src/sessions/transcripts/transcriptReader.ts src/sessions/fabric/transcriptDecode.ts
+# gate-watch: src/commands/exit/ExitFlow.tsx
+# gate-watch: src/engine/connector/types.ts
+# gate-watch: src/daemon/concourse-workers/workerIdentity.ts
+# gate-watch: src/engine/loop/turn/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

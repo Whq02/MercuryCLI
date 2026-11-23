@@ -23,7 +23,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
 try {
-  const { vendorClient } = await import('../../src/services/host/vendors/client.ts')
+  const { vendorClient } = await import('../../src/models/hosting/vendors/client.ts')
 
   {
     const credDir = join(home, '.host-credentials')
@@ -102,9 +102,9 @@ try {
   }
 
   {
-    const { reconcileHostTune } = await import('../../src/services/host/tune.ts')
-    const { readHostRecord, removeHostRecord, writeHostRecord } = await import('../../src/services/host/store.ts')
-    const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+    const { reconcileHostTune } = await import('../../src/models/hosting/tune.ts')
+    const { readHostRecord, removeHostRecord, writeHostRecord } = await import('../../src/models/hosting/store.ts')
+    const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
     const recipe = HOST_RECIPES.find(row => row.engine === 'llamacpp')!
     const fromTune = { quality: recipe.id, conversations: 4, contextPerConversation: 131072, effort: 'high' as const, updatedAt: new Date().toISOString() }
     const toTune = { quality: recipe.id, conversations: 8, contextPerConversation: 65536, effort: 'max' as const, updatedAt: new Date().toISOString() }
@@ -164,7 +164,7 @@ try {
   }
 
   {
-    const { locateBlender, blenderLaneReadinessRecords } = await import('../../src/utils/blender/blenderProject.ts')
+    const { locateBlender, blenderLaneReadinessRecords } = await import('../../src/integrations/blender-protocol/blenderProject.ts')
     const prevBin = process.env.MERCURY_BLENDER_BIN
     const prevEnabled = process.env.MERCURY_BLENDER
     try {
@@ -212,7 +212,7 @@ try {
   }
 
   {
-    const workerMod = await import('../../src/services/host/worker.ts') as {
+    const workerMod = await import('../../src/models/hosting/worker.ts') as {
       restoreRentingSessionOutcome?: (record: { sessionId?: string; sessionModel?: string; sessionModelBefore?: string }) => Promise<{ state: string; detail?: string }>
     }
     const daemonDir = join(home, 'daemon')
@@ -270,9 +270,9 @@ try {
       JSON.stringify(movedOutcome),
     )
 
-    const { terminateTensorFoldPod } = await import('../../src/services/host/tensorfoldPod.ts')
-    const { writeHostRecord } = await import('../../src/services/host/store.ts')
-    const { HostVendorHttpError } = await import('../../src/services/host/vendors/http.ts')
+    const { terminateTensorFoldPod } = await import('../../src/models/hosting/tensorfoldPod.ts')
+    const { writeHostRecord } = await import('../../src/models/hosting/store.ts')
+    const { HostVendorHttpError } = await import('../../src/models/hosting/vendors/http.ts')
     const goneClient = {
       vendor: 'runpod',
       label: 'Runpod',

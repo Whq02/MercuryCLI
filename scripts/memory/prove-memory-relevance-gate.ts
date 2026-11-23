@@ -7,9 +7,9 @@ const home = mkdtempSync(join(tmpdir(), 'memory-gate-'))
 process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
 process.env.MERCURY_EMBED_ENGINE = 'off'
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { emptyDoc, serializeTopicDoc } = await import('../../src/mneme/mnemeTopicDocs.ts')
-const { lookupFacts, automaticMemoryCandidates } = await import('../../src/mneme/mnemeLookup.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { emptyDoc, serializeTopicDoc } = await import('../../src/sessions/mneme/mnemeTopicDocs.ts')
+const { lookupFacts, automaticMemoryCandidates } = await import('../../src/sessions/mneme/mnemeLookup.ts')
 const dir = mnemeLibraryDir()
 mkdirSync(dir, { recursive: true })
 const now = new Date().toISOString()
@@ -27,7 +27,7 @@ writeFileSync(join(dir, 'topic-harbour.md'), serializeTopicDoc(doc))
 try {
   assert.equal(lookupFacts('ordinary release update', { dir }).length, 0, 'a low-information query does not walk the library')
   const exact = lookupFacts('quartz engine cobalt receipt', { dir })
-  assert.ok(exact.some(row => row.id === 'seq:28'), `lookupFacts("quartz engine cobalt receipt") in src/mneme/mnemeLookup.ts must include seq:28 (got ${exact.map(row => row.id).join(',')})`)
+  assert.ok(exact.some(row => row.id === 'seq:28'), `lookupFacts("quartz engine cobalt receipt") in src/sessions/mneme/mnemeLookup.ts must include seq:28 (got ${exact.map(row => row.id).join(',')})`)
   assert.equal(lookupFacts('quartz engine cobalt receipt', { dir, exclude: new Set(exact.map(row => row.id)) }).length, 0, 'exclusions do not backfill lower ranks')
   const triggered = automaticMemoryCandidates('please review the harbour pages and tell me what changed', { dir, files: ['docs/releases/notes.md'], limit: Infinity })
   assert.ok(triggered.some(row => row.id === 'seq:27' && row.admission === 'constraint' && row.text.includes('private harbour key out of public copy')), 'the release-notes rule is admitted as a constraint when a release-notes path is in hand')

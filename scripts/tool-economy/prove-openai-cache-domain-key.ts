@@ -98,18 +98,18 @@ process.env.MERCURY_OPENAI_API_BASE = base
 process.env.MERCURY_OPENAI_CHATGPT_BASE = base
 process.env.MERCURY_OPENAI_AUTH_BASE = base
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
-const { openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { composeSystemPrompt } = await import('../../src/prompt/composer.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Message = import('../../src/types/message.ts').Message
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
+const { clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.ts')
+const { openaiCallModel } = await import('../../src/models/roads/openai/openaiCallModel.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { composeSystemPrompt } = await import('../../src/engine/system-prompt/composer.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 
 function fixtureTool(name: string, opts: { defer?: boolean; params?: string[] } = {}): Tool {
   const shape: Record<string, z.ZodTypeAny> = {}
@@ -186,27 +186,27 @@ const first = await drive([createUserMessage({ content: 'first process, first tu
 clearToolRosterLatches()
 const second = await drive([createUserMessage({ content: 'second process, another first turn' }) as Message], { ownerKey: 'owner-two', systemPrompt: composed({ sessionId: 'session-0002' }) })
 {
-  check('both processes rode /v1/responses with a prompt_cache_key', first.body !== undefined && second.body !== undefined && typeof first.body.prompt_cache_key === 'string' && typeof second.body.prompt_cache_key === 'string', `${first.errors.join(' | ')} ${second.errors.join(' | ')} — the drive sent no /v1/responses body with prompt_cache_key; look at promptCacheKey in openOpenaiTurn (src/services/providers/openai/openaiCallModel/prepareTurn.ts) and the errors above`)
-  check('the two instructions differ only in the session-class environment section (the scratchpad path)', typeof first.body?.instructions === 'string' && typeof second.body?.instructions === 'string' && first.body.instructions !== second.body.instructions && (first.body.instructions as string).replace('session-0001', 'session-0002') === second.body.instructions, 'the instructions must differ only by the scratchpad session id; check renderOpenaiInstructions in the openai provider and what composeSystemPrompt (src/prompt/composer.ts) puts into the static sections')
-  check('the tools arrays are byte-identical', JSON.stringify(first.body?.tools) === JSON.stringify(second.body?.tools) && Array.isArray(first.body?.tools), 'the tools array must not depend on the session or owner; check apiTools in src/services/providers/openai/openaiCallModel/prepareTurn.ts')
-  check('THE LAW: the two processes mint the SAME prompt_cache_key (the session id never reaches the cache domain)', keyOf(first) === keyOf(second), `${keyOf(first)} vs ${keyOf(second)} — keep the session id and owner out of the inputs of mintCacheDomainKey (src/utils/cache/cacheDomain.ts) as called in openOpenaiTurn (src/services/providers/openai/openaiCallModel/prepareTurn.ts)`)
-  check('the key is the opaque cache-domain digest', /^mercury-domain:[0-9a-f]{24}$/.test(keyOf(first)), `${keyOf(first)} — the key must be the mercury-domain digest that mintCacheDomainKey (src/utils/cache/cacheDomain.ts) returns`)
+  check('both processes rode /v1/responses with a prompt_cache_key', first.body !== undefined && second.body !== undefined && typeof first.body.prompt_cache_key === 'string' && typeof second.body.prompt_cache_key === 'string', `${first.errors.join(' | ')} ${second.errors.join(' | ')} — the drive sent no /v1/responses body with prompt_cache_key; look at promptCacheKey in openOpenaiTurn (src/models/roads/openai/call-model/prepareTurn.ts) and the errors above`)
+  check('the two instructions differ only in the session-class environment section (the scratchpad path)', typeof first.body?.instructions === 'string' && typeof second.body?.instructions === 'string' && first.body.instructions !== second.body.instructions && (first.body.instructions as string).replace('session-0001', 'session-0002') === second.body.instructions, 'the instructions must differ only by the scratchpad session id; check renderOpenaiInstructions in the openai provider and what composeSystemPrompt (src/engine/system-prompt/composer.ts) puts into the static sections')
+  check('the tools arrays are byte-identical', JSON.stringify(first.body?.tools) === JSON.stringify(second.body?.tools) && Array.isArray(first.body?.tools), 'the tools array must not depend on the session or owner; check apiTools in src/models/roads/openai/call-model/prepareTurn.ts')
+  check('THE LAW: the two processes mint the SAME prompt_cache_key (the session id never reaches the cache domain)', keyOf(first) === keyOf(second), `${keyOf(first)} vs ${keyOf(second)} — keep the session id and owner out of the inputs of mintCacheDomainKey (src/platform/cache-clock/cacheDomain.ts) as called in openOpenaiTurn (src/models/roads/openai/call-model/prepareTurn.ts)`)
+  check('the key is the opaque cache-domain digest', /^mercury-domain:[0-9a-f]{24}$/.test(keyOf(first)), `${keyOf(first)} — the key must be the mercury-domain digest that mintCacheDomainKey (src/platform/cache-clock/cacheDomain.ts) returns`)
   clearToolRosterLatches()
   const tail = await drive([createUserMessage({ content: 'third process' }) as Message], { ownerKey: 'owner-three', systemPrompt: composed({ tail: 'gitStatus: M src/calc.ts' }) })
-  check('the appended system-context tail (the git status snapshot) never moves the key', keyOf(tail) === keyOf(first), `${keyOf(tail)} vs ${keyOf(first)} — the trailing system-context entry must not feed behaviorContractDigest in openOpenaiTurn (src/services/providers/openai/openaiCallModel/prepareTurn.ts)`)
+  check('the appended system-context tail (the git status snapshot) never moves the key', keyOf(tail) === keyOf(first), `${keyOf(tail)} vs ${keyOf(first)} — the trailing system-context entry must not feed behaviorContractDigest in openOpenaiTurn (src/models/roads/openai/call-model/prepareTurn.ts)`)
 }
 
 section('§2 A REAL COMPATIBILITY CHANGE MOVES THE KEY — another model, another roster, another static section')
 {
   clearToolRosterLatches()
   const otherModel = await drive([createUserMessage({ content: 'first process, first turn' }) as Message], { ownerKey: 'owner-m', model: OTHER_MODEL })
-  check('another model mints another key', otherModel.body !== undefined && keyOf(otherModel) !== keyOf(first), `${keyOf(otherModel)} ${otherModel.errors.join(' | ')} — servedModel must stay an input of mintCacheDomainKey (src/utils/cache/cacheDomain.ts)`)
+  check('another model mints another key', otherModel.body !== undefined && keyOf(otherModel) !== keyOf(first), `${keyOf(otherModel)} ${otherModel.errors.join(' | ')} — servedModel must stay an input of mintCacheDomainKey (src/platform/cache-clock/cacheDomain.ts)`)
   clearToolRosterLatches()
   const otherRoster = await drive([createUserMessage({ content: 'first process, first turn' }) as Message], { ownerKey: 'owner-r', tools: [...POOL, fixtureTool('Write')] })
-  check('another roster mints another key', otherRoster.body !== undefined && keyOf(otherRoster) !== keyOf(first), `${keyOf(otherRoster)} — toolSchemaDigest, built from apiTools in openOpenaiTurn (src/services/providers/openai/openaiCallModel/prepareTurn.ts), must cover the tool roster`)
+  check('another roster mints another key', otherRoster.body !== undefined && keyOf(otherRoster) !== keyOf(first), `${keyOf(otherRoster)} — toolSchemaDigest, built from apiTools in openOpenaiTurn (src/models/roads/openai/call-model/prepareTurn.ts), must cover the tool roster`)
   clearToolRosterLatches()
   const otherPrompt = await drive([createUserMessage({ content: 'first process, first turn' }) as Message], { ownerKey: 'owner-p', systemPrompt: composed({ intro: 'You are a different fixture assistant. Reply briefly.' }) })
-  check('another static section mints another key', otherPrompt.body !== undefined && keyOf(otherPrompt) !== keyOf(first), `${keyOf(otherPrompt)} — behaviorContractDigest (stableBehaviourDigest of the contract in src/services/providers/openai/openaiCallModel/prepareTurn.ts) must cover the static prompt sections`)
+  check('another static section mints another key', otherPrompt.body !== undefined && keyOf(otherPrompt) !== keyOf(first), `${keyOf(otherPrompt)} — behaviorContractDigest (stableBehaviourDigest of the contract in src/models/roads/openai/call-model/prepareTurn.ts) must cover the static prompt sections`)
 }
 
 

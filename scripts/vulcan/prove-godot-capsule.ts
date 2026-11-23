@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const { staticGodotCapsule } = await import(join(ROOT, 'src/services/vulcan/godotCapsule.ts'))
-const { derivePresence } = await import(join(ROOT, 'src/services/vulcan/editorPresence.ts'))
+const { staticGodotCapsule } = await import(join(ROOT, 'src/integrations/vulcan/godotCapsule.ts'))
+const { derivePresence } = await import(join(ROOT, 'src/integrations/vulcan/editorPresence.ts'))
 const NO_EDITOR = derivePresence(6010, false, { ok: true, processes: [] }, '/fixture')
 const UNBRIDGED = derivePresence(
   6010,
@@ -15,7 +15,7 @@ const UNBRIDGED = derivePresence(
   '/fixture',
 )
 
-const FAIL_HINT = 'fix: staticGodotCapsule in src/services/vulcan/godotCapsule.ts (editor state comes from derivePresence in src/services/vulcan/editorPresence.ts), or the fixture in this file'
+const FAIL_HINT = 'fix: staticGodotCapsule in src/integrations/vulcan/godotCapsule.ts (editor state comes from derivePresence in src/integrations/vulcan/editorPresence.ts), or the fixture in this file'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++

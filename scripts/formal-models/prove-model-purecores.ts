@@ -12,9 +12,9 @@ const t = checker()
 const SEED = 20260807
 
 const { emptyInterviewState, foldInterview, rebuildInterview } = await import(
-  '../../src/services/interview/contracts.ts'
+  '../../src/tools/engines/interview/contracts.ts'
 )
-const { resolveSelectionBudget } = await import('../../src/services/run/contextSelection.ts')
+const { resolveSelectionBudget } = await import('../../src/engine/run/contextSelection.ts')
 
 type Ev = Parameters<typeof rebuildInterview>[0][number]
 

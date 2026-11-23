@@ -101,16 +101,16 @@ function poisoned(frame: string, box: PopupFrame, poison: 'square corners' | 'a 
 }
 
 const { check: tallyCheck, finish } = tally()
-const zaiFramesHint = 'change the Z.AI reading in src/services/providers/zai/zaiUsageState.ts or src/services/providers/providerUsage.ts (usageForProvider, refreshProviderUsage); card rows in src/components/HelmVitalsRail.tsx, popup frame in src/components/SettingsPopupSlot.tsx and src/components/PopupGutter.tsx, popup sections in src/components/Settings/usage/'
+const zaiFramesHint = 'change the Z.AI reading in src/models/roads/zai/zaiUsageState.ts or src/models/roads/providerUsage.ts (usageForProvider, refreshProviderUsage); card rows in src/screen/fullscreen-layout/HelmVitalsRail.tsx, popup frame in src/screen/overlays/SettingsPopupSlot.tsx and src/screen/overlays/PopupGutter.tsx, popup sections in src/screen/settings/usage/'
 const check = (name: string, ok: boolean, detail = ''): void => tallyCheck(name, ok, ok ? detail : `${detail ? `${detail} | ` : ''}${zaiFramesHint}`)
 const world = await usagePlanWorld()
 try {
   const { owner, fresh, quota, ink } = world
-  const { HelmVitalsRail } = await import(world.path('src/components/HelmVitalsRail.tsx'))
-  const { railPlanAt } = await import(world.path('src/utils/helmGeometry.ts'))
-  const { SettingsPopupSlot } = await import(world.path('src/components/SettingsPopupSlot.tsx'))
-  const { POPUP_GUTTER, popupWidth } = await import(world.path('src/components/PopupGutter.tsx'))
-  const popup = await import(world.path('src/utils/cockpit/settingsPopup.ts'))
+  const { HelmVitalsRail } = await import(world.path('src/screen/fullscreen-layout/HelmVitalsRail.tsx'))
+  const { railPlanAt } = await import(world.path('src/screen/fullscreen-layout/helmGeometry.ts'))
+  const { SettingsPopupSlot } = await import(world.path('src/screen/overlays/SettingsPopupSlot.tsx'))
+  const { POPUP_GUTTER, popupWidth } = await import(world.path('src/screen/overlays/PopupGutter.tsx'))
+  const popup = await import(world.path('src/screen/cockpit/settingsPopup.ts'))
   const { call } = await import(world.path('src/commands/usage/usage.tsx'))
   const frameLaw = (frame: string, at: Size): string[] => {
     const ask = popup.settingsPopupRequest()
@@ -207,10 +207,10 @@ try {
   world.save('usage-card', narrowPlan.vitals ? 'unexpected: a vitals rail at 80 columns' : `no sidebar usage card at ${NARROW.columns}x${NARROW.rows}: the cockpit's vitals rail needs both rails engaged (railPlanAt vitals=false)`, NARROW)
   check('80x21: the cockpit has no vitals rail at 80 columns (the card is a wide-cockpit surface)', narrowPlan.vitals === false)
 
-  const readerPath = world.path('src/services/providers/zai/zaiUsageState.ts')
+  const readerPath = world.path('src/models/roads/zai/zaiUsageState.ts')
   check('the Z.ai quota reader exists (the states below need it)', existsSync(readerPath), 'no such module on this tree')
   if (!existsSync(readerPath)) throw new Error('base tree: no reader')
-  const zaiReader = await import(readerPath) as typeof import('../../src/services/providers/zai/zaiUsageState.js')
+  const zaiReader = await import(readerPath) as typeof import('../../src/models/roads/zai/zaiUsageState.js')
   zaiReader.__resetZaiUsageForTest()
   world.setNow(world.now() + 2_500)
   await board.repaint(card(WIDE.columns, WIDE.rows))

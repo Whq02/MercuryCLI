@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
-import type { WorkRowV1 } from '../../src/services/engine-connector/types.ts'
+import type { WorkRowV1 } from '../../src/engine/connector/types.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'pause-gate-laws-'))
@@ -17,30 +17,30 @@ for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOK
   delete process.env[k]
 }
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { drainRows } = await import('../../src/utils/sdkEventQueue.ts')
-const seat = await import('../../src/daemon/sessionSeat.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
-const { readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { drainRows } = await import('../../src/daemon/runner/sdkEventQueue.ts')
+const seat = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { sessionFactsToWire } = await import('../../src/engine/connector/seatWire.ts')
+const { readSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
 
-type GateModule = typeof import('../../src/run-core/pauseGate.ts')
-const gateModule: GateModule | null = await import('../../src/run-core/pauseGate.ts').catch(() => null)
+type GateModule = typeof import('../../src/engine/loop/pauseGate.ts')
+const gateModule: GateModule | null = await import('../../src/engine/loop/pauseGate.ts').catch(() => null)
 const gate = gateModule?.operatorPauseGate ?? null
 let failures = 0
 let checks = 0
 function whereToLook(label: string): string {
-  if (/model call|model seam/.test(label)) return 'the model seam in src/run-core/turn/streamModel.ts (operatorPauseGate.park) and the gate in src/run-core/pauseGate.ts'
-  if (/tool (starts|seam)|tools? started|running tool/.test(label)) return 'parkBeforeTool in src/run-core/pauseGate.ts'
-  if (/park|frame|facts|row|wait words|daemon/.test(label)) return 'parkBeforeTool and requestParkFrame in src/run-core/pauseGate.ts, and the seat facts path in src/daemon/sessionSeat.ts'
-  return 'createPauseGate in src/run-core/pauseGate.ts (and where the loops park: parkBeforeTool there, the model seam in src/run-core/turn/streamModel.ts)'
+  if (/model call|model seam/.test(label)) return 'the model seam in src/engine/loop/turn/streamModel.ts (operatorPauseGate.park) and the gate in src/engine/loop/pauseGate.ts'
+  if (/tool (starts|seam)|tools? started|running tool/.test(label)) return 'parkBeforeTool in src/engine/loop/pauseGate.ts'
+  if (/park|frame|facts|row|wait words|daemon/.test(label)) return 'parkBeforeTool and requestParkFrame in src/engine/loop/pauseGate.ts, and the seat facts path in src/daemon/session-seat/sessionSeat.ts'
+  return 'createPauseGate in src/engine/loop/pauseGate.ts (and where the loops park: parkBeforeTool there, the model seam in src/engine/loop/turn/streamModel.ts)'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
@@ -54,13 +54,13 @@ const j = (v: unknown): string => JSON.stringify(v)
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the pause-gate proof exceeded 180s; a loop never parked or never resumed, look at src/run-core/pauseGate.ts and the "[WAIT TIMEOUT]" line printed last')
+  console.log('\nTIMEOUT — the pause-gate proof exceeded 180s; a loop never parked or never resumed, look at src/engine/loop/pauseGate.ts and the "[WAIT TIMEOUT]" line printed last')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
 
 console.log('pause gate — one process-wide park at the two safe points')
-console.log(`  gate module: ${gateModule === null ? 'ABSENT (no src/run-core/pauseGate.ts — pause is a no-op here)' : 'present'}`)
+console.log(`  gate module: ${gateModule === null ? 'ABSENT (no src/engine/loop/pauseGate.ts — pause is a no-op here)' : 'present'}`)
 
 type Latch = { promise: Promise<void>; open: () => void; opened: boolean }
 function latch(): Latch {
@@ -79,7 +79,7 @@ async function until(cond: () => boolean, what: string, ms = 8_000): Promise<boo
   const t0 = Date.now()
   while (!cond()) {
     if (Date.now() - t0 > ms) {
-      console.log(`  [WAIT TIMEOUT] ${what} — the rig never reached this state in ${ms} ms; see src/run-core/pauseGate.ts`)
+      console.log(`  [WAIT TIMEOUT] ${what} — the rig never reached this state in ${ms} ms; see src/engine/loop/pauseGate.ts`)
       return false
     }
     await settle(5)
@@ -360,7 +360,7 @@ check('the gate is open and nothing is parked at the end', gate?.paused() === fa
 
 section('G1 THE GATE\'S OWN LAWS — park is immediate while open, releases all on resume, releases one on its own abort')
 if (gateModule === null) {
-  check('the gate module exists (src/run-core/pauseGate.ts)', false, 'absent on this tree')
+  check('the gate module exists (src/engine/loop/pauseGate.ts)', false, 'absent on this tree')
 } else {
   const g = gateModule.createPauseGate()
   let immediate = false
@@ -396,7 +396,7 @@ if (gateModule === null) {
 
 section('G2 A LIFT FOR ONE SEAT — a message to one seat releases that seat\'s wait and exempts it while the gate stays closed; the others stay parked; the lift ends when the gate reopens')
 if (gateModule === null) {
-  check('the gate module exists (src/run-core/pauseGate.ts)', false, 'absent on this tree')
+  check('the gate module exists (src/engine/loop/pauseGate.ts)', false, 'absent on this tree')
 } else {
   const g = gateModule.createPauseGate()
   check('the gate carries lift() and holds()', typeof g.lift === 'function' && typeof g.holds === 'function')

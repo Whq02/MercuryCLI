@@ -39,7 +39,7 @@ const control = scratchWorld('settings-fifo-control')
 seedScratchHome(control.runHome, control.cwd)
 writeFileSync(join(control.runHome, 'settings.json'), '{}')
 const c = await bootExits('control', control.runHome, control.cwd)
-tally.check('the control boot exits well inside the deadline', c.exited && c.ms < DEADLINE_MS / 2, `code ${c.code} after ${c.ms} ms; a plain settings.json boot should not hang, look at the boot path that reads it in src/utils/settings/settings.ts (readSettingsFileUncached)`)
+tally.check('the control boot exits well inside the deadline', c.exited && c.ms < DEADLINE_MS / 2, `code ${c.code} after ${c.ms} ms; a plain settings.json boot should not hang, look at the boot path that reads it in src/platform/settings/settings.ts (readSettingsFileUncached)`)
 tally.check('and it answered the turn: one completed outcome row carrying the answer', answered(c), `${JSON.stringify(c.outcome ?? null)}; the control run printed no completed rows outcome carrying the scripted answer, so check the run --format rows path before suspecting settings`)
 
 const specials: Array<{ name: string; make: (settings: string) => void }> = [
@@ -55,8 +55,8 @@ for (const special of specials) {
   rmSync(settings)
   special.make(settings)
   const f = await bootExits(special.name, world.runHome, world.cwd)
-  tally.check(`the seat exits (refusing ${special.name}) instead of blocking forever on it`, f.exited, f.exited ? `code ${f.code} after ${f.ms} ms` : `hung past ${DEADLINE_MS} ms (the control took ${c.ms} ms); readSettingsFileUncached in src/utils/settings/settings.ts must refuse a non-regular settings file through readFileSync in src/utils/fileRead.ts instead of opening it`)
-  tally.check('and it still answered the turn: one completed outcome row carrying the answer', answered(f), `code ${f.code}; outcome ${JSON.stringify(f.outcome ?? null)}; stdout ${f.stdout.slice(0, 160)}; a refused special settings file must report an error and the boot must go on, see readSettingsFileUncached in src/utils/settings/settings.ts`)
+  tally.check(`the seat exits (refusing ${special.name}) instead of blocking forever on it`, f.exited, f.exited ? `code ${f.code} after ${f.ms} ms` : `hung past ${DEADLINE_MS} ms (the control took ${c.ms} ms); readSettingsFileUncached in src/platform/settings/settings.ts must refuse a non-regular settings file through readFileSync in src/platform/files/syncFileRead.ts instead of opening it`)
+  tally.check('and it still answered the turn: one completed outcome row carrying the answer', answered(f), `code ${f.code}; outcome ${JSON.stringify(f.outcome ?? null)}; stdout ${f.stdout.slice(0, 160)}; a refused special settings file must report an error and the boot must go on, see readSettingsFileUncached in src/platform/settings/settings.ts`)
 }
 await fixture.close()
 tally.finish()

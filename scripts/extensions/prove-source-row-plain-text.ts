@@ -14,12 +14,12 @@ delete process.env.NODE_ENV
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const where = 'change plainRowText (strips control bytes, folds line breaks and tabs) or sourceWhereWords (builds the source row words from the error) in src/components/extensions/rowWords.ts'
+  const where = 'change plainRowText (strips control bytes, folds line breaks and tabs) or sourceWhereWords (builds the source row words from the error) in src/screen/extensions/rowWords.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${where}` : ''}`)
 }
 
 const CONTROL = /[\u0000-\u0008\u000B-\u001F\u007F\u0080-\u009F]/
-const { sourceWhereWords, plainRowText } = await import('../../src/components/extensions/rowWords.ts')
+const { sourceWhereWords, plainRowText } = await import('../../src/screen/extensions/rowWords.ts')
 const lastError = 'remote: \u001b[31mpre-receive hook declined\u001b[0m\u0007 \u001b]0;title\u0007\r\nfatal: \u0085the remote hung up'
 const base = {
   label: 'crew-tools',

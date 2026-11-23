@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { MercuryChildSession as CurrentChild } from '../../src/services/acp/childSession.ts'
+import { MercuryChildSession as CurrentChild } from '../../src/integrations/acp/childSession.ts'
 
 const sourceAt = process.argv.indexOf('--source')
 const { MercuryChildSession } = sourceAt < 0 ? { MercuryChildSession: CurrentChild } : await import(pathToFileURL(resolve(process.argv[sourceAt + 1]!)).href)
@@ -58,7 +58,7 @@ createInterface({ input: process.stdin }).on('line', line => {
 let failures = 0
 const check = (label: string, yes: boolean, detail: unknown = '') => {
   if (!yes) failures++
-  console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${yes ? '' : ` — ${JSON.stringify(detail)} — change interrupt() or writeUserPrompt() in MercuryChildSession, src/services/acp/childSession.ts`}`)
+  console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${yes ? '' : ` — ${JSON.stringify(detail)} — change interrupt() or writeUserPrompt() in MercuryChildSession, src/integrations/acp/childSession.ts`}`)
 }
 const bounded = async <T,>(promise: Promise<T>, ms: number): Promise<T | null> => {
   let timer: ReturnType<typeof setTimeout>

@@ -22,10 +22,10 @@ const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { loadGrammarEngine } = await import('../../src/utils/structure/grammarFacility.js')
+const { loadGrammarEngine } = await import('../../src/platform/grammars/grammarFacility.js')
 const engine = await loadGrammarEngine()
 if (engine.state !== 'ok') {
-  console.log(`  [FAIL] engine unavailable: ${engine.note} | the test copies tree-sitter.js and tree-sitter.wasm from node_modules/@vscode/tree-sitter-wasm/wasm into a temp dir; check they exist (bun run setup) and look at loadGrammarEngine in src/utils/structure/grammarFacility.ts`)
+  console.log(`  [FAIL] engine unavailable: ${engine.note} | the test copies tree-sitter.js and tree-sitter.wasm from node_modules/@vscode/tree-sitter-wasm/wasm into a temp dir; check they exist (bun run setup) and look at loadGrammarEngine in src/platform/grammars/grammarFacility.ts`)
   console.log('\nprove-loader-channel-quiet: 1 FAILURE(S)')
   process.exit(1)
 }
@@ -62,19 +62,19 @@ section('§1 A NOT-A-GRAMMAR WASM REJECTS QUIETLY')
     'the reject is honest and typed (unavailable with a note naming the failure)',
     note.includes('failed to load'),
     note,
-    'in src/utils/structure/grammarFacility.ts the loadLanguage catch must return a note that starts with grammar name then failed to load'
+    'in src/platform/grammars/grammarFacility.ts the loadLanguage catch must return a note that starts with grammar name then failed to load'
   )
   check(
     'ZERO console output during the load (the 150-line symbol dump is gone from the product channel)',
     captured.consoleCalls.length === 0,
     captured.consoleCalls[0]?.slice(0, 80) ?? '',
-    'loadLanguage in src/utils/structure/grammarFacility.ts must run mod.Language.load inside withLibraryChannelsRouted so console.log/warn/error go to logForDebugging',
+    'loadLanguage in src/platform/grammars/grammarFacility.ts must run mod.Language.load inside withLibraryChannelsRouted so console.log/warn/error go to logForDebugging',
   )
   check(
     'ZERO raw stdout writes during the load',
     captured.stdoutWrites.length === 0,
     '',
-    'something wrote straight to process.stdout during loadLanguage in src/utils/structure/grammarFacility.ts; withLibraryChannelsRouted only reroutes console.log/warn/error, not process.stdout.write',
+    'something wrote straight to process.stdout during loadLanguage in src/platform/grammars/grammarFacility.ts; withLibraryChannelsRouted only reroutes console.log/warn/error, not process.stdout.write',
   )
 }
 
@@ -88,13 +88,13 @@ section('§2 A REAL GRAMMAR STILL LOADS AND PARSES')
     'python loads (no unavailable state)',
     typeof loaded === 'object' && loaded !== null && (loaded as { state?: string }).state === undefined,
     '',
-    'loadLanguage in src/utils/structure/grammarFacility.ts returned an unavailable note for tree-sitter-python.wasm; check the wasm copied from node_modules/@vscode/tree-sitter-wasm/wasm and its declared name',
+    'loadLanguage in src/platform/grammars/grammarFacility.ts returned an unavailable note for tree-sitter-python.wasm; check the wasm copied from node_modules/@vscode/tree-sitter-wasm/wasm and its declared name',
   )
   check(
     'and loads quietly too',
     captured.consoleCalls.length === 0 && captured.stdoutWrites.length === 0,
     '',
-    'loadLanguage in src/utils/structure/grammarFacility.ts printed to console or stdout while loading a real grammar; keep Language.load inside withLibraryChannelsRouted',
+    'loadLanguage in src/platform/grammars/grammarFacility.ts printed to console or stdout while loading a real grammar; keep Language.load inside withLibraryChannelsRouted',
   )
   engine.parser.setLanguage(result)
   const tree = engine.parser.parse('print(1)')
@@ -102,7 +102,7 @@ section('§2 A REAL GRAMMAR STILL LOADS AND PARSES')
     'and parses',
     tree !== null && tree.rootNode.type === 'module',
     '',
-    'engine.parser.parse of print(1) with the python grammar did not give a module root; the language that loadLanguage returned in src/utils/structure/grammarFacility.ts is not the python grammar',
+    'engine.parser.parse of print(1) with the python grammar did not give a module root; the language that loadLanguage returned in src/platform/grammars/grammarFacility.ts is not the python grammar',
   )
   tree?.delete()
 }

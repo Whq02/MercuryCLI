@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
-// gate-watch: src/cli/run.ts src/runner/wire/* src/cli/headless/runnerMethods.ts
+// gate-watch: src/daemon/runner/runHeadless.ts src/daemon/runner-wire/* src/daemon/runner/runnerMethods.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, rmSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { hostRunner, scratchHome } from '../lib/runnerHost.ts'
-import { RPC_INVALID_REQUEST, RPC_PARSE_ERROR } from '../../src/runner/wire/errors.ts'
+import { RPC_INVALID_REQUEST, RPC_PARSE_ERROR } from '../../src/daemon/runner-wire/errors.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -16,7 +16,7 @@ const argAfter = (flag: string): string | undefined => {
 const DIST = argAfter('--dist') !== undefined ? resolve(argAfter('--dist')!) : join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
-const BAD_LINE_FAIL_HINT = 'to fix, change onLineOf and badLine (the -32700 and -32600 answers, the bad-line counter) in src/runner/wire/peer.ts, or onDesync (the stderr line and exit 1) in src/cli/headless/boot/openWireDoor.ts; this proof runs the built bundle, so rebuild it with bun run build.ts after the change'
+const BAD_LINE_FAIL_HINT = 'to fix, change onLineOf and badLine (the -32700 and -32600 answers, the bad-line counter) in src/daemon/runner-wire/peer.ts, or onDesync (the stderr line and exit 1) in src/daemon/runner/boot/openWireDoor.ts; this proof runs the built bundle, so rebuild it with bun run build.ts after the change'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${BAD_LINE_FAIL_HINT}` : ''}`)
@@ -37,7 +37,7 @@ if (node === null) {
 }
 console.log(`a bad line on stdin — ${DIST} through the runner door`)
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the proof exceeded 240s; the runner child never answered or exited, look at the last section header printed and at src/runner/wire/peer.ts (badLine) and src/cli/headless/boot/openWireDoor.ts (onDesync)')
+  console.log('\n❌ TIMEOUT — the proof exceeded 240s; the runner child never answered or exited, look at the last section header printed and at src/daemon/runner-wire/peer.ts (badLine) and src/daemon/runner/boot/openWireDoor.ts (onDesync)')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

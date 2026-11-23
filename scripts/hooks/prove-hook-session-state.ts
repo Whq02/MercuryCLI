@@ -14,19 +14,19 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 
 let failures = 0
-const sessionStateHint = 'Fix the session.state firing in observeSessionStates and noteSessionAsking (src/daemon/sessionStateHooks.ts), or the state lists and payload of session.state in src/utils/hooks/contract.ts.'
+const sessionStateHint = 'Fix the session.state firing in observeSessionStates and noteSessionAsking (src/daemon/session-seat/sessionStateHooks.ts), or the state lists and payload of session.state in src/integrations/event-hooks/contract.ts.'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail}` : ''} — ${sessionStateHint}` : ''}`)
 }
 
-const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
 setSessionTrustAccepted(true)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { refreshHooksSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.ts')
-const { observeSessionStates, noteSessionAsking, forgetSessionStates } = await import('../../src/daemon/sessionStateHooks.ts')
-const { SESSION_STATE_HOOK_STATES } = await import('../../src/utils/hooks/contract.ts')
+const { refreshHooksSnapshot } = await import('../../src/integrations/event-hooks/hooksConfigSnapshot.ts')
+const { observeSessionStates, noteSessionAsking, forgetSessionStates } = await import('../../src/daemon/session-seat/sessionStateHooks.ts')
+const { SESSION_STATE_HOOK_STATES } = await import('../../src/integrations/event-hooks/contract.ts')
 
 const capture = join(root, 'states.jsonl')
 const q = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`
@@ -85,7 +85,7 @@ await settle()
 rows = fired()
 check('a recorded pid that no longer answers is needs-you with the process named gone', rows.length === 6 && rows[5]!.state === 'needs-you' && rows[5]!.detail === 'its process is gone', JSON.stringify(rows.slice(5)))
 
-const { SESSION_BOARD_STATES, hookEventTable } = await import('../../src/utils/hooks/contract.ts')
+const { SESSION_BOARD_STATES, hookEventTable } = await import('../../src/integrations/event-hooks/contract.ts')
 check('the table reads `from` as the board vocabulary: the lifecycle states plus attached, stopped and parked', ['attached', 'stopped', 'parked', 'working', 'needs-you'].every(word => (SESSION_BOARD_STATES as readonly string[]).includes(word)) && hookEventTable['session.state'].payload().safeParse({ state: 'needs-you', from: 'attached', workspace: '/w' }).success && !hookEventTable['session.state'].payload().safeParse({ state: 'needs-you', from: 'elsewhere', workspace: '/w' }).success)
 forgetSessionStates()
 observeSessionStates(workers({ ...settled, attachedAt: Date.now() }))

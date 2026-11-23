@@ -78,7 +78,7 @@ function countOf(hay: string, needle: string): number {
   return n
 }
 
-const hintResume = 'a resumed run must rebuild the finished turn once from the record: look at loadConversationForResume in src/services/resume/conversationRecovery.ts. '
+const hintResume = 'a resumed run must rebuild the finished turn once from the record: look at loadConversationForResume in src/sessions/resume/conversationRecovery.ts. '
 console.log('============================================================')
 console.log(' S16 — restart after a COMPLETED turn (no duplication)')
 console.log('============================================================')
@@ -120,8 +120,8 @@ function transcriptFiles(): Array<{ path: string; text: string }> {
   return out
 }
 const t1Files = transcriptFiles()
-check('turn 1 persisted: the user prompt is in a transcript', t1Files.some(f => countOf(f.text, 'write the file') >= 1), 'no transcript under ' + projectDirRoot + ' holds the first prompt; the session writer in src/utils/sessionStorage/writer.ts did not record the turn')
-check('turn 1 persisted: the completion is in a transcript', t1Files.some(f => countOf(f.text, MARKER) >= 1), 'no transcript under ' + projectDirRoot + ' holds the first completion; the session writer in src/utils/sessionStorage/writer.ts did not record the reply')
+check('turn 1 persisted: the user prompt is in a transcript', t1Files.some(f => countOf(f.text, 'write the file') >= 1), 'no transcript under ' + projectDirRoot + ' holds the first prompt; the session writer in src/sessions/transcripts/writer.ts did not record the turn')
+check('turn 1 persisted: the completion is in a transcript', t1Files.some(f => countOf(f.text, MARKER) >= 1), 'no transcript under ' + projectDirRoot + ' holds the first completion; the session writer in src/sessions/transcripts/writer.ts did not record the reply')
 
 const r2 = await run(arena, ['run', 'second prompt', '--model', 'claude-opus-4-8', '--resume', SID])
 check('resume exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 300)}`)

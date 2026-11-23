@@ -19,21 +19,21 @@ import {
   subscribeIdleMotion,
   TRIP_RUN,
   TRIP_RUN_COST_MS,
-} from '../../src/utils/cockpit/motionGovernor.js'
-import { FRAME_INTERVAL_MS } from '../../src/ink/constants.js'
-import { createClock, providerClockPeriodMs, type ClockTimers } from '../../src/ink/components/ClockContext.js'
-import { critterIdleTickMs, IDLE_TICK_MS, SLEEP_TICK_MS } from '../../src/utils/cockpit/critterIdle.js'
+} from '../../src/screen/cockpit/motionGovernor.js'
+import { FRAME_INTERVAL_MS } from '../../src/screen/renderer/constants.js'
+import { createClock, providerClockPeriodMs, type ClockTimers } from '../../src/screen/renderer/elements/ClockContext.js'
+import { critterIdleTickMs, IDLE_TICK_MS, SLEEP_TICK_MS } from '../../src/screen/cockpit/critterIdle.js'
 import {
   DECOR_TICK_MS,
   glyphTickMs,
   READY_TICK_MS,
   REDUCED_TICK_MS,
   WORK_TICK_MS,
-} from '../../src/utils/cockpit/liveGlyphs.js'
-import { getFlagSpec } from '../../src/substrate/flagRegistry.js'
+} from '../../src/screen/cockpit/liveGlyphs.js'
+import { getFlagSpec } from '../../src/platform/substrate/flagRegistry.js'
 
 let failures = 0
-const motionFailureHint = 'to fix, change the trip, release and cadence rules in src/utils/cockpit/motionGovernor.ts (noteFrameCost, governorLevel, reducedPeriodMs, idleMotionLevel), the tick tables in src/utils/cockpit/critterIdle.ts (critterIdleTickMs) and src/utils/cockpit/liveGlyphs.ts (glyphTickMs), or the clock in src/ink/components/ClockContext.tsx'
+const motionFailureHint = 'to fix, change the trip, release and cadence rules in src/screen/cockpit/motionGovernor.ts (noteFrameCost, governorLevel, reducedPeriodMs, idleMotionLevel), the tick tables in src/screen/cockpit/critterIdle.ts (critterIdleTickMs) and src/screen/cockpit/liveGlyphs.ts (glyphTickMs), or the clock in src/screen/renderer/elements/ClockContext.tsx'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? '' : detail ? `${detail} | ${motionFailureHint}` : motionFailureHint

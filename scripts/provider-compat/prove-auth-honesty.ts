@@ -15,8 +15,8 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const honestyRefusalWhere = 'the refusal text is built in src/services/providers/openaicompat/compatChatCallModel/faults.ts and the family call model under src/services/providers/ (routedCallModel in callModelRouter.ts picks the family)'
-const honestyRefreshWhere = 'the one forced refresh on a 401 and its refusal text live in the family call model under src/services/providers/ (geminiCallModel.ts, openai/openaiCallModel.ts) and its accounts file'
+const honestyRefusalWhere = 'the refusal text is built in src/models/roads/openaicompat/chat-call-model/faults.ts and the family call model under src/models/roads/ (routedCallModel in callModelRouter.ts picks the family)'
+const honestyRefreshWhere = 'the one forced refresh on a 401 and its refusal text live in the family call model under src/models/roads/ (geminiCallModel.ts, openai/openaiCallModel.ts) and its accounts file'
 
 delete process.env.NODE_ENV
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'auth-honesty-'))
@@ -129,15 +129,15 @@ console.log('============================================================')
 console.log(' auth honesty + credential recovery — every family, loopback')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const geminiAccounts = await import('../../src/services/providers/gemini/geminiAccounts.ts')
-const hfAccounts = await import('../../src/services/providers/huggingface/huggingfaceAccounts.ts')
-const openaiAccounts = await import('../../src/services/providers/openai/openaiAccounts.ts')
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const geminiAccounts = await import('../../src/models/roads/gemini/geminiAccounts.ts')
+const hfAccounts = await import('../../src/models/roads/huggingface/huggingfaceAccounts.ts')
+const openaiAccounts = await import('../../src/models/roads/openai/openaiAccounts.ts')
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 
 async function drive(model: string): Promise<{ errors: AssistantMessage[]; settled: AssistantMessage[]; text: string; threw: unknown }> {
   hits = []
@@ -289,20 +289,20 @@ const now = Date.now()
 
 section('§4 · readiness derivations tell the truth the dispatch would tell')
 {
-  const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-  const { writeStoredZaiApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-  const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
-  const { __resetLaneBillingStateForTest } = await import('../../src/services/providers/laneBillingState.ts')
+  const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
+  const { writeStoredZaiApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const { deriveFamilySlotGroups } = await import('../../src/models/roads/accountSlots.ts')
+  const { __resetLaneBillingStateForTest } = await import('../../src/models/roads/laneBillingState.ts')
   __resetLaneBillingStateForTest()
   delete process.env.ZAI_API_KEY
   writeStoredZaiApiKey('stored-zai-key-fixture')
   const storedOnly = resolveProviderUsability().zai
-  check('zai usability: a stored key with no env pin reads USABLE (the resolver truth, not an env-only read)', storedOnly.usable === true && storedOnly.credential === 'api-key' && storedOnly.blockers.length === 0, `${JSON.stringify(storedOnly)} — resolveProviderUsability in src/services/providers/providerUsability.ts must read the stored key, not only the environment`)
+  check('zai usability: a stored key with no env pin reads USABLE (the resolver truth, not an env-only read)', storedOnly.usable === true && storedOnly.credential === 'api-key' && storedOnly.blockers.length === 0, `${JSON.stringify(storedOnly)} — resolveProviderUsability in src/models/roads/providerUsability.ts must read the stored key, not only the environment`)
   writeStoredZaiApiKey(null)
   const none = resolveProviderUsability().zai
-  check('zai usability: no key anywhere reads unusable with the attach route named', none.usable === false && none.blockers.some(b => b.includes('ZAI_API_KEY')), `${JSON.stringify(none)} — resolveProviderUsability in src/services/providers/providerUsability.ts must report unusable and name ZAI_API_KEY`)
+  check('zai usability: no key anywhere reads unusable with the attach route named', none.usable === false && none.blockers.some(b => b.includes('ZAI_API_KEY')), `${JSON.stringify(none)} — resolveProviderUsability in src/models/roads/providerUsability.ts must report unusable and name ZAI_API_KEY`)
   process.env.ZAI_API_KEY = KEYS.ZAI_API_KEY
-  check('zai usability: the env pin reads usable', resolveProviderUsability().zai.usable === true, 'resolveProviderUsability in src/services/providers/providerUsability.ts must read an env ZAI_API_KEY as usable')
+  check('zai usability: the env pin reads usable', resolveProviderUsability().zai.usable === true, 'resolveProviderUsability in src/models/roads/providerUsability.ts must read an env ZAI_API_KEY as usable')
 
   const hfSlot = (oauth: { accessToken: string; refreshToken?: string; accessTokenExpiresAtMs?: number }) =>
     deriveFamilySlotGroups(undefined, {
@@ -315,11 +315,11 @@ section('§4 · readiness derivations tell the truth the dispatch would tell')
       .flatMap(g => g.slots)
       .find(s => s.id === 'huggingface:oauth')
   const expired = hfSlot({ accessToken: 'hf-expired', accessTokenExpiresAtMs: Date.now() - 1 })
-  check('hf slot: expired + no refresh token ⇒ signedIn false, inactive, the note routes to /logins', expired !== undefined && expired.signedIn === false && expired.active === false && (expired.stateNote ?? '').includes('/logins'), `${JSON.stringify(expired)} — deriveFamilySlotGroups in src/services/providers/accountSlots.ts`)
+  check('hf slot: expired + no refresh token ⇒ signedIn false, inactive, the note routes to /logins', expired !== undefined && expired.signedIn === false && expired.active === false && (expired.stateNote ?? '').includes('/logins'), `${JSON.stringify(expired)} — deriveFamilySlotGroups in src/models/roads/accountSlots.ts`)
   const refreshable = hfSlot({ accessToken: 'hf-expired', refreshToken: 'rt', accessTokenExpiresAtMs: Date.now() - 1 })
-  check('hf slot: expired WITH a refresh token stays signed in (the dispatch resolver refreshes it)', refreshable?.signedIn === true && refreshable.active === true && refreshable.stateNote === undefined, `${JSON.stringify(refreshable)} — deriveFamilySlotGroups in src/services/providers/accountSlots.ts`)
+  check('hf slot: expired WITH a refresh token stays signed in (the dispatch resolver refreshes it)', refreshable?.signedIn === true && refreshable.active === true && refreshable.stateNote === undefined, `${JSON.stringify(refreshable)} — deriveFamilySlotGroups in src/models/roads/accountSlots.ts`)
   const fresh = hfSlot({ accessToken: 'hf-fresh', accessTokenExpiresAtMs: Date.now() + 3_600_000 })
-  check('hf slot: a fresh token is signed in and active', fresh?.signedIn === true && fresh.active === true, `${JSON.stringify(fresh)} — deriveFamilySlotGroups in src/services/providers/accountSlots.ts`)
+  check('hf slot: a fresh token is signed in and active', fresh?.signedIn === true && fresh.active === true, `${JSON.stringify(fresh)} — deriveFamilySlotGroups in src/models/roads/accountSlots.ts`)
 }
 
 section('§5 · the ANTHROPIC lane: an OBSERVED-expired claude.ai sign-in fails fast and says so (item 11)')
@@ -331,12 +331,12 @@ section('§5 · the ANTHROPIC lane: an OBSERVED-expired claude.ai sign-in fails 
   const home = process.env.MERCURY_CONFIG_DIR!
   mkdirSync(home, { recursive: true })
   const credsPath = join(home, '.credentials.json')
-  const { isAnthropicOAuthSignInExpired, __resetKnownDeadRefreshTokensForTest } = await import('../../src/utils/auth.js')
-const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.js')
-  const { isRetryableError } = await import('../../src/services/api/withRetry.js')
-  const { getAssistantMessageFromError } = await import('../../src/services/api/errors.js')
-  const { anthropicCredentialPresence } = await import('../../src/services/providers/providerUsage.js')
-  const { APIError } = await import('../../src/utils/api/sdkErrors.js')
+  const { isAnthropicOAuthSignInExpired, __resetKnownDeadRefreshTokensForTest } = await import('../../src/models/sign-in/credentials/auth.js')
+const { clearOAuthTokenCache } = await import('../../src/models/sign-in/lifecycle/oauthLifecycle.js')
+  const { isRetryableError } = await import('../../src/engine/requests/withRetry.js')
+  const { getAssistantMessageFromError } = await import('../../src/engine/requests/apiErrorRows.js')
+  const { anthropicCredentialPresence } = await import('../../src/models/roads/providerUsage.js')
+  const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
   const seed = (oauth: Record<string, unknown> | null): void => {
     __resetKnownDeadRefreshTokensForTest()
     clearOAuthTokenCache()
@@ -352,33 +352,33 @@ const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLife
   const textOf = (m: { message: { content: unknown } }): string => JSON.stringify(m.message.content)
 
   seed({ accessToken: 'at-dead', refreshToken: '', expiresAt: Date.now() - 60_000, scopes: ['user:inference'], subscriptionType: 'pro', rateLimitTier: null })
-  check('dead sign-in: the estate observes it (isAnthropicOAuthSignInExpired)', isAnthropicOAuthSignInExpired() === true, 'isAnthropicOAuthSignInExpired in src/utils/auth.ts must be true for an expired token with no refresh token')
-  check('dead sign-in: a 401 is NOT retryable — fail fast, no backoff ladder', isRetryableError(err401) === false, 'isRetryableError in src/services/api/withRetry.ts must not retry a 401 when the sign-in is observed expired')
+  check('dead sign-in: the estate observes it (isAnthropicOAuthSignInExpired)', isAnthropicOAuthSignInExpired() === true, 'isAnthropicOAuthSignInExpired in src/models/sign-in/credentials/auth.ts must be true for an expired token with no refresh token')
+  check('dead sign-in: a 401 is NOT retryable — fail fast, no backoff ladder', isRetryableError(err401) === false, 'isRetryableError in src/engine/requests/withRetry.ts must not retry a 401 when the sign-in is observed expired')
   const deadLine = textOf(getAssistantMessageFromError(err401, 'claude-opus-5') as never)
-  check('dead sign-in: the ATTRIBUTED line names the reconnect', deadLine.includes('Anthropic sign-in expired') && deadLine.includes('/logins'), `${deadLine.slice(0, 200)} — getAssistantMessageFromError in src/services/api/errors.ts must name the expired sign-in and /logins`)
+  check('dead sign-in: the ATTRIBUTED line names the reconnect', deadLine.includes('Anthropic sign-in expired') && deadLine.includes('/logins'), `${deadLine.slice(0, 200)} — getAssistantMessageFromError in src/engine/requests/apiErrorRows.ts must name the expired sign-in and /logins`)
   const deadPresence = anthropicCredentialPresence()
-  check('dead sign-in: the presence owner carries expired (the /model row reads it)', deadPresence.expired === true, `${JSON.stringify(deadPresence)} — anthropicCredentialPresence in src/services/providers/providerUsage.ts must carry expired`)
+  check('dead sign-in: the presence owner carries expired (the /model row reads it)', deadPresence.expired === true, `${JSON.stringify(deadPresence)} — anthropicCredentialPresence in src/models/roads/providerUsage.ts must carry expired`)
 
   seed({ accessToken: 'at-old', refreshToken: 'rt-alive', expiresAt: Date.now() - 60_000, scopes: ['user:inference'], subscriptionType: 'pro', rateLimitTier: null })
-  check('refreshable: NOT observed-expired', isAnthropicOAuthSignInExpired() === false, 'isAnthropicOAuthSignInExpired in src/utils/auth.ts must stay false while a refresh token exists')
-  check('refreshable: a 401 never enters the backoff ladder; credential recovery is separate', isRetryableError(err401) === false, 'isRetryableError in src/services/api/withRetry.ts must not retry a 401')
-  check('refreshable: no expired flag on the presence owner', anthropicCredentialPresence().expired === undefined, 'anthropicCredentialPresence in src/services/providers/providerUsage.ts must not set expired while a refresh token exists')
+  check('refreshable: NOT observed-expired', isAnthropicOAuthSignInExpired() === false, 'isAnthropicOAuthSignInExpired in src/models/sign-in/credentials/auth.ts must stay false while a refresh token exists')
+  check('refreshable: a 401 never enters the backoff ladder; credential recovery is separate', isRetryableError(err401) === false, 'isRetryableError in src/engine/requests/withRetry.ts must not retry a 401')
+  check('refreshable: no expired flag on the presence owner', anthropicCredentialPresence().expired === undefined, 'anthropicCredentialPresence in src/models/roads/providerUsage.ts must not set expired while a refresh token exists')
 
   seed(null)
-  check('no oauth: predicate inert', isAnthropicOAuthSignInExpired() === false, 'isAnthropicOAuthSignInExpired in src/utils/auth.ts must be false with no claude.ai sign-in stored')
+  check('no oauth: predicate inert', isAnthropicOAuthSignInExpired() === false, 'isAnthropicOAuthSignInExpired in src/models/sign-in/credentials/auth.ts must be false with no claude.ai sign-in stored')
   const genericLine = textOf(getAssistantMessageFromError(err401, 'claude-opus-5') as never)
-  check('no oauth: the generic 401 text stands (no false attribution)', !genericLine.includes('sign-in expired'), `${genericLine.slice(0, 200)} — getAssistantMessageFromError in src/services/api/errors.ts must not blame an expired sign-in when none is stored`)
+  check('no oauth: the generic 401 text stands (no false attribution)', !genericLine.includes('sign-in expired'), `${genericLine.slice(0, 200)} — getAssistantMessageFromError in src/engine/requests/apiErrorRows.ts must not blame an expired sign-in when none is stored`)
 
   seed({ accessToken: 'at-dead', refreshToken: '', expiresAt: Date.now() - 60_000, scopes: ['user:inference'], subscriptionType: 'pro', rateLimitTier: null })
   clearOAuthTokenCache()
-  const { authChecks } = await import('../../src/services/health/sections/auth.ts')
-  const { anthropicSignInWords } = await import('../../src/services/providers/anthropicRefusal.ts')
+  const { authChecks } = await import('../../src/platform/health/sections/auth.ts')
+  const { anthropicSignInWords } = await import('../../src/models/roads/anthropicRefusal.ts')
   const expiredRow = await (await authChecks()).find(row => row.id === 'auth-anthropic')?.run()
-  check('health AUTH row: expired branch present (warn on the observed or checked state, the one line as the fix)', expiredRow?.status === 'warn' && expiredRow.evidence.endsWith('— sign-in expired') && expiredRow.fix === anthropicSignInWords(), `${JSON.stringify(expiredRow)} — the auth-anthropic row in authChecks, src/services/health/sections/auth.ts`)
+  check('health AUTH row: expired branch present (warn on the observed or checked state, the one line as the fix)', expiredRow?.status === 'warn' && expiredRow.evidence.endsWith('— sign-in expired') && expiredRow.fix === anthropicSignInWords(), `${JSON.stringify(expiredRow)} — the auth-anthropic row in authChecks, src/platform/health/sections/auth.ts`)
   seed({ accessToken: 'at-dead', refreshToken: '', expiresAt: Date.now() - 60_000, scopes: ['user:inference'], subscriptionType: 'pro', rateLimitTier: null })
   process.env.ANTHROPIC_AUTH_TOKEN = 'env-shadow-token'
   clearOAuthTokenCache()
-  check('env-shadowed: the expiry attribution stands down (the shadow owns the 401)', isAnthropicOAuthSignInExpired() === false, 'isAnthropicOAuthSignInExpired in src/utils/auth.ts must be false while ANTHROPIC_AUTH_TOKEN is set')
+  check('env-shadowed: the expiry attribution stands down (the shadow owns the 401)', isAnthropicOAuthSignInExpired() === false, 'isAnthropicOAuthSignInExpired in src/models/sign-in/credentials/auth.ts must be false while ANTHROPIC_AUTH_TOKEN is set')
   delete process.env.ANTHROPIC_AUTH_TOKEN
 
   process.env.ANTHROPIC_AUTH_TOKEN = savedEnvBearer

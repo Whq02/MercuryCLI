@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/attachments/modeLifecycles.ts src/services/attachments/orchestrator.ts
-// gate-watch: src/services/messages/attachmentText.ts src/utils/thinking.ts src/utils/effort.ts
-// gate-watch: src/run-core/attachment-drain.ts
+// gate-watch: src/engine/attachment-shapes/dateAndModeNotices.ts src/engine/attachments/turnAttachments.ts
+// gate-watch: src/engine/messages/attachmentText.ts src/models/effort/thinking.ts src/models/effort/effort.ts
+// gate-watch: src/engine/loop/attachment-drain.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
@@ -152,7 +152,7 @@ if (!existsSync(DIST)) {
       check(`"${word}" appears in the user turn once — the prompt — and in no reminder`, carrying.length === 1, `${carrying.length} texts carry it: ${carrying.map(t => t.slice(0, 120)).join(' | ')} | the word must appear only in the prompt; a reminder or attachment is repeating it, see the attachment code in the files named in the gate-watch lines of this script`)
       const systemOf = (b: Body): string => steady(JSON.stringify(b.system))
       check(`"${word}": the system prompt and the tools are the control's`, systemOf(body) === systemOf(control) && JSON.stringify(body.tools) === JSON.stringify(control.tools), 'the typed word changed the system prompt or the tool list; remove whatever keys on the word in the files named in the gate-watch lines of this script')
-      check(`"${word}": the thinking and effort fields are the control's`, JSON.stringify(body.thinking) === JSON.stringify(control.thinking) && JSON.stringify(body.output_config) === JSON.stringify(control.output_config), 'the typed word changed thinking or effort; look in src/utils/thinking.ts and src/utils/effort.ts for logic that reads the prompt text')
+      check(`"${word}": the thinking and effort fields are the control's`, JSON.stringify(body.thinking) === JSON.stringify(control.thinking) && JSON.stringify(body.output_config) === JSON.stringify(control.output_config), 'the typed word changed thinking or effort; look in src/models/effort/thinking.ts and src/models/effort/effort.ts for logic that reads the prompt text')
     }
     await fixture.close()
   }

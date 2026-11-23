@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/commands/effort/EffortPopup.tsx src/commands/effort/effort.tsx src/commands/effort/index.ts
-// gate-watch: src/commands.ts src/state/AppStateStore.ts src/utils/settings/settings.ts src/utils/settings/types.ts src/utils/effort.ts
+// gate-watch: src/commands/catalogue/commands.ts src/screen/app-state/AppStateStore.ts src/platform/settings/settings.ts src/platform/settings/settingsSchema.ts src/models/effort/effort.ts
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -24,14 +24,14 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 const popup = await import('../../src/commands/effort/EffortPopup.js')
 const cmd = await import('../../src/commands/effort/effort.js')
 const effortCommand = (await import('../../src/commands/effort/index.js')).default
-const store = await import('../../src/state/AppStateStore.js')
-const settings = await import('../../src/utils/settings/settings.js')
-const commands = await import('../../src/commands.js')
+const store = await import('../../src/screen/app-state/AppStateStore.js')
+const settings = await import('../../src/platform/settings/settings.js')
+const commands = await import('../../src/commands/catalogue/commands.js')
 
 console.log('— the popup: auto then the ladder, the last row max, for every model that serves max —')
 for (const model of ['claude-opus-5', 'claude-opus-4-8', 'claude-fable-5-1', 'claude-sonnet-5-5']) {
@@ -59,22 +59,22 @@ t('…and neither answer changes the effort', unknownA.effortUpdate === undefine
 t('…and the result shape carries no mode field', !('supercodeUpdate' in unknownA), 'the result of executeEffort in src/commands/effort/effort.tsx must not carry a supercodeUpdate field')
 
 console.log('— the state: the app state holds an effort value and no mode flag —')
-t('getDefaultAppState has no supercode key', !('supercode' in store.getDefaultAppState()), 'getDefaultAppState in src/state/AppStateStore.ts must not define a supercode key')
+t('getDefaultAppState has no supercode key', !('supercode' in store.getDefaultAppState()), 'getDefaultAppState in src/screen/app-state/AppStateStore.ts must not define a supercode key')
 
 console.log('— the settings: a stored mode key is an unknown key like any other —')
 const home = process.env.MERCURY_CONFIG_DIR
 const settingsPath = join(home, 'settings.json')
 writeFileSync(settingsPath, JSON.stringify({ engine: { supercode: true, frobnicate: true, effort: 'high' }, supercodeEffort: true, ultracodeEffort: true }, null, 2))
 const w = settings.updateSettingsForSource('userSettings', { engine: { effort: 'xhigh' } })
-t('a write beside the stored keys lands', w.error === null, `${String(w.error)} — updateSettingsForSource in src/utils/settings/settings.ts must accept a write of engine.effort beside stored unknown keys`)
+t('a write beside the stored keys lands', w.error === null, `${String(w.error)} — updateSettingsForSource in src/platform/settings/settings.ts must accept a write of engine.effort beside stored unknown keys`)
 const raw = JSON.parse(readFileSync(settingsPath, 'utf8')) as { engine?: Record<string, unknown>; supercodeEffort?: unknown; ultracodeEffort?: unknown }
-t('the stored keys are treated alike: each stays as written, none is rewritten, none is adopted', raw.engine?.supercode === true && raw.engine?.frobnicate === true && raw.supercodeEffort === true && raw.ultracodeEffort === true && raw.engine?.effort === 'xhigh', `${JSON.stringify(raw)} — updateSettingsForSource in src/utils/settings/settings.ts must leave the stored supercode, frobnicate, supercodeEffort and ultracodeEffort keys as written and set engine.effort to xhigh`)
+t('the stored keys are treated alike: each stays as written, none is rewritten, none is adopted', raw.engine?.supercode === true && raw.engine?.frobnicate === true && raw.supercodeEffort === true && raw.ultracodeEffort === true && raw.engine?.effort === 'xhigh', `${JSON.stringify(raw)} — updateSettingsForSource in src/platform/settings/settings.ts must leave the stored supercode, frobnicate, supercodeEffort and ultracodeEffort keys as written and set engine.effort to xhigh`)
 const typed = settings.getInitialSettings() as { engine?: Record<string, unknown> }
-t('the typed read carries the ladder word and treats the stored mode keys alike', typed.engine?.effort === 'xhigh' && ('supercode' in (typed.engine ?? {})) === ('frobnicate' in (typed.engine ?? {})), `${JSON.stringify(typed.engine)} — getInitialSettings in src/utils/settings/settings.ts must return engine.effort xhigh and treat a stored supercode key exactly like frobnicate (the schema in src/utils/settings/types.ts must not name supercode)`)
+t('the typed read carries the ladder word and treats the stored mode keys alike', typed.engine?.effort === 'xhigh' && ('supercode' in (typed.engine ?? {})) === ('frobnicate' in (typed.engine ?? {})), `${JSON.stringify(typed.engine)} — getInitialSettings in src/platform/settings/settings.ts must return engine.effort xhigh and treat a stored supercode key exactly like frobnicate (the schema in src/platform/settings/settingsSchema.ts must not name supercode)`)
 
 console.log('— the command roster: /supercode is unknown like /frobnicate —')
 const names = new Set((await commands.getCommands('.')).map((c: { name: string }) => c.name))
-t('no command named supercode is registered', !names.has('supercode'), 'getCommands in src/commands.ts must not register a command named supercode')
+t('no command named supercode is registered', !names.has('supercode'), 'getCommands in src/commands/catalogue/commands.ts must not register a command named supercode')
 if (!existsSync(DIST)) {
   t('the bundle is built (bun run build.ts; MERCURY_PROOF_BUNDLE points elsewhere)', false, `${DIST} — run bun run build.ts to write dist/mercury.mjs, or set MERCURY_PROOF_BUNDLE to a built bundle`)
 } else {

@@ -19,9 +19,9 @@ const guard = setTimeout(() => {
 }, 120_000)
 guard.unref?.()
 
-const { runTextChangeSetCommit, recoverChangeSetJournal, commitPlanDigest } = await import(join(SRC, 'services/changeTransaction/changeSetCommit.ts'))
-const { sha256Hex } = await import(join(SRC, 'utils/hash.ts'))
-const { listJournalOperations } = await import(join(SRC, 'substrate/operationJournal.ts'))
+const { runTextChangeSetCommit, recoverChangeSetJournal, commitPlanDigest } = await import(join(SRC, 'tools/engines/change-transaction/changeSetCommit.ts'))
+const { sha256Hex } = await import(join(SRC, 'platform/primitives/hash.ts'))
+const { listJournalOperations } = await import(join(SRC, 'platform/substrate/operationJournal.ts'))
 
 const dir = realpathSync(mkdtempSync(join(tmpdir(), 'comp-iso-')))
 const csHome = mkdtempSync(join(tmpdir(), 'comp-iso-cs-'))
@@ -65,20 +65,20 @@ try {
 } finally {
   delete process.env.MERCURY_FAULT_INJECT
 }
-check('the outcome is indeterminate (one path could not be restored)', out.kind === 'indeterminate', `${JSON.stringify(out)} — the compensation loop of runTextChangeSetCommit in src/services/changeTransaction/changeSetCommit.ts must answer indeterminate when one restore fails`)
-check('the targets on BOTH sides of the failing one are restored', diskState()[0] === 'original' && diskState()[2] === 'original', `${diskState().join(',')} — the compensation loop in src/services/changeTransaction/changeSetCommit.ts must keep restoring the other targets after one restore throws`)
-check('only the failing target keeps the planned bytes, intact', diskState()[1] === 'planned', `${diskState().join(',')} — a failed restore in src/services/changeTransaction/changeSetCommit.ts must leave that target's planned bytes untouched`)
-check('the landed list names exactly it, nothing diverged', out.landedPaths?.length === 1 && out.landedPaths[0] === paths[1] && out.divergedPaths?.length === 0, `${JSON.stringify({ landed: out.landedPaths, diverged: out.divergedPaths })} — the indeterminate outcome built in src/services/changeTransaction/changeSetCommit.ts must list only the unrestored path as landed`)
-check('the reason names the path, the errno, and that the planned bytes are still in place', (out.reason ?? '').includes(paths[1]!) && /EPERM/.test(out.reason ?? '') && /planned bytes are still in place/.test(out.reason ?? ''), `${out.reason} — the indeterminate reason in src/services/changeTransaction/changeSetCommit.ts must carry the path, the errno and "planned bytes are still in place"`)
-check('the staged temps are swept', noStrayTemps(), 'a .tmp file is left beside the targets; every exit of runTextChangeSetCommit in src/services/changeTransaction/changeSetCommit.ts must unlink its staged temps')
-check('the journal op is retained non-terminal for boot recovery', (await nonTerminalOps()) === 1, 'an indeterminate commit must leave its journal operation non-terminal so recoverChangeSetJournal in src/services/changeTransaction/changeSetCommit.ts can settle it at boot')
+check('the outcome is indeterminate (one path could not be restored)', out.kind === 'indeterminate', `${JSON.stringify(out)} — the compensation loop of runTextChangeSetCommit in src/tools/engines/change-transaction/changeSetCommit.ts must answer indeterminate when one restore fails`)
+check('the targets on BOTH sides of the failing one are restored', diskState()[0] === 'original' && diskState()[2] === 'original', `${diskState().join(',')} — the compensation loop in src/tools/engines/change-transaction/changeSetCommit.ts must keep restoring the other targets after one restore throws`)
+check('only the failing target keeps the planned bytes, intact', diskState()[1] === 'planned', `${diskState().join(',')} — a failed restore in src/tools/engines/change-transaction/changeSetCommit.ts must leave that target's planned bytes untouched`)
+check('the landed list names exactly it, nothing diverged', out.landedPaths?.length === 1 && out.landedPaths[0] === paths[1] && out.divergedPaths?.length === 0, `${JSON.stringify({ landed: out.landedPaths, diverged: out.divergedPaths })} — the indeterminate outcome built in src/tools/engines/change-transaction/changeSetCommit.ts must list only the unrestored path as landed`)
+check('the reason names the path, the errno, and that the planned bytes are still in place', (out.reason ?? '').includes(paths[1]!) && /EPERM/.test(out.reason ?? '') && /planned bytes are still in place/.test(out.reason ?? ''), `${out.reason} — the indeterminate reason in src/tools/engines/change-transaction/changeSetCommit.ts must carry the path, the errno and "planned bytes are still in place"`)
+check('the staged temps are swept', noStrayTemps(), 'a .tmp file is left beside the targets; every exit of runTextChangeSetCommit in src/tools/engines/change-transaction/changeSetCommit.ts must unlink its staged temps')
+check('the journal op is retained non-terminal for boot recovery', (await nonTerminalOps()) === 1, 'an indeterminate commit must leave its journal operation non-terminal so recoverChangeSetJournal in src/tools/engines/change-transaction/changeSetCommit.ts can settle it at boot')
 
 console.log('── C2 boot recovery settles the one remaining path ──')
 {
   const summary = await recoverChangeSetJournal({ journalDir: join(csHome, 'journal'), bundleRoot: join(csHome, 'bundles') })
-  check('recovery compensates the remaining path (verified)', summary.compensated.length === 1 && diskState().every(s => s === 'original'), `${JSON.stringify(summary)} ${diskState().join(',')} — recoverChangeSetJournal in src/services/changeTransaction/changeSetCommit.ts must compensate the one path the first run left behind`)
+  check('recovery compensates the remaining path (verified)', summary.compensated.length === 1 && diskState().every(s => s === 'original'), `${JSON.stringify(summary)} ${diskState().join(',')} — recoverChangeSetJournal in src/tools/engines/change-transaction/changeSetCommit.ts must compensate the one path the first run left behind`)
   const second = await recoverChangeSetJournal({ journalDir: join(csHome, 'journal'), bundleRoot: join(csHome, 'bundles') })
-  check('a second recovery run is a no-op', second.rolledForward.length === 0 && second.compensated.length === 0 && second.unrecoverable.length === 0, `${JSON.stringify(second)} — recoverChangeSetJournal in src/services/changeTransaction/changeSetCommit.ts must settle the journal operation so a second run finds nothing to do`)
+  check('a second recovery run is a no-op', second.rolledForward.length === 0 && second.compensated.length === 0 && second.unrecoverable.length === 0, `${JSON.stringify(second)} — recoverChangeSetJournal in src/tools/engines/change-transaction/changeSetCommit.ts must settle the journal operation so a second run finds nothing to do`)
 }
 
 

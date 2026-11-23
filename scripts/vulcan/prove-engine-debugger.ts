@@ -6,7 +6,7 @@ import { connect, createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
-assert.ok(existsSync(resolve(import.meta.dir, '../../src/services/vulcan/engine/debuggerTransport.ts')), 'engine debugger transport must exist')
+assert.ok(existsSync(resolve(import.meta.dir, '../../src/integrations/vulcan/engine/debuggerTransport.ts')), 'engine debugger transport must exist')
 
 const root = resolve(import.meta.dir, '../..')
 const artifactArg = process.argv.indexOf('--artifacts')
@@ -15,14 +15,14 @@ mkdirSync(scratch, { recursive: true })
 const config = join(scratch, 'config')
 mkdirSync(config, { recursive: true })
 Object.assign(process.env, { MERCURY_CONFIG_DIR: config, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', ANTHROPIC_API_KEY: 'fixture-key-not-live', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', OPENAI_API_KEY: 'fixture-key-not-live', OPENAI_BASE_URL: 'http://127.0.0.1:1' })
-const { decodeGodotVariant, encodeGodotVariant, encodeGodotPacket, GodotPacketDecoder, GodotDebuggerTransport } = await import('../../src/services/vulcan/engine/debuggerTransport.js')
-const { GodotDebuggerProfile, decodeGodotProfileFrame } = await import('../../src/services/vulcan/engine/debuggerProfile.js')
-const { parseEngineMediaRequest } = await import('../../src/services/vulcan/engine/media.js')
-const { EngineJobService } = await import('../../src/services/vulcan/engine/service.js')
-const { parseEngineTreeSpec } = await import('../../src/services/vulcan/engine/frozenTree.js')
-const { liveEngines } = await import('../../src/services/vulcan/engine/spawn.js')
-const { godotEngineCli, parseGodotCliArgs } = await import('../../src/cli/godotEngineCli.js')
-const { vulcanOp } = await import('../../src/utils/vulcan/optable.generated.js')
+const { decodeGodotVariant, encodeGodotVariant, encodeGodotPacket, GodotPacketDecoder, GodotDebuggerTransport } = await import('../../src/integrations/vulcan/engine/debuggerTransport.js')
+const { GodotDebuggerProfile, decodeGodotProfileFrame } = await import('../../src/integrations/vulcan/engine/debuggerProfile.js')
+const { parseEngineMediaRequest } = await import('../../src/integrations/vulcan/engine/media.js')
+const { EngineJobService } = await import('../../src/integrations/vulcan/engine/service.js')
+const { parseEngineTreeSpec } = await import('../../src/integrations/vulcan/engine/frozenTree.js')
+const { liveEngines } = await import('../../src/integrations/vulcan/engine/spawn.js')
+const { godotEngineCli, parseGodotCliArgs } = await import('../../src/commands/verbs/godotEngineCli.js')
+const { vulcanOp } = await import('../../src/integrations/vulcan-optable/optable.generated.js')
 let checks = 0
 const evidence: Array<{ label: string; value: unknown }> = []
 function check(label: string, condition: unknown, value?: unknown): void {
@@ -179,7 +179,7 @@ if (!executable.resolved) {
     const holdingScript = join(scratch, 'holding-engine.ts')
     writeFileSync(holdingScript, [
       `const godot = ${JSON.stringify(executable.resolved)}`,
-      `const transportModule = ${JSON.stringify(join(root, 'src/services/vulcan/engine/debuggerTransport.ts'))}`,
+      `const transportModule = ${JSON.stringify(join(root, 'src/integrations/vulcan/engine/debuggerTransport.ts'))}`,
       "const { spawnSync } = await import('node:child_process')",
       "const { readFileSync } = await import('node:fs')",
       "const { connect } = await import('node:net')",

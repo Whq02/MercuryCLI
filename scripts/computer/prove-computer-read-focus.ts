@@ -1,11 +1,11 @@
 import { check, finish } from './computerProofKit.ts'
 import { ownerOf, resultOf, toolContext } from './computerToolKit.ts'
-import type { DesktopApplication, DesktopDriver, DesktopFocusedText, DesktopAnswer, DesktopTreeElement } from '../../src/services/desktop/driver.ts'
+import type { DesktopApplication, DesktopDriver, DesktopFocusedText, DesktopAnswer, DesktopTreeElement } from '../../src/integrations/desktop/driver.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { WEB_CONTENT_NOTICE } = await import('../../src/tools/BashTool/webContent.ts')
-const { resolveDesktopDriver } = await import('../../src/services/desktop/resolveDriver.ts')
-const session = await import('../../src/services/desktop/desktopSession.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { WEB_CONTENT_NOTICE } = await import('../../src/tools/shell/webContent.ts')
+const { resolveDesktopDriver } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const session = await import('../../src/integrations/desktop/desktopSession.ts')
 const resolved = resolveDesktopDriver()
 if (resolved.state !== 'ok') throw new Error(resolved.note)
 const driver = resolved.driver as DesktopDriver & {
@@ -36,7 +36,7 @@ const permission = await ComputerTool.checkPermissions(input as never, context)
 check('read asks for the application before reading', permission.behavior === 'ask' && reads === 0, JSON.stringify(permission))
 const read = await call(input)
 check('labelled read returns text beyond tree clipping', read.outcome === 'succeeded' && read.result === `${WEB_CONTENT_NOTICE}\nread "Webhook URL": ${JSON.stringify(long)}` && !read.imagePath, read.result)
-const refApi = await import('../../src/tools/ComputerTool/screenMap.ts') as unknown as { outlineTree?: Function; rememberTreeRefs?: Function }
+const refApi = await import('../../src/tools/computer/screenMap.ts') as unknown as { outlineTree?: Function; rememberTreeRefs?: Function }
 if (refApi.outlineTree && refApi.rememberTreeRefs) {
   const tree = { elements: [element], truncated: false, reason: null }
   const outline = refApi.outlineTree(tree, app.bounds)

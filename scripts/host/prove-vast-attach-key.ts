@@ -37,15 +37,15 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 }, nativeFetch)
 const failures: string[] = []
 let checks = 0
-const attachKeyHint = 'change the SSH wait and key attach step of runHostJob in src/services/host/worker.ts, or VastClient.attachSshKey and VastClient.get in src/services/host/vendors/vast.ts'
+const attachKeyHint = 'change the SSH wait and key attach step of runHostJob in src/models/hosting/worker.ts, or VastClient.attachSshKey and VastClient.get in src/models/hosting/vendors/vast.ts'
 const check = (name: string, truth: unknown, detail = '') => { if (truth) { checks++; console.log('PASS ' + name) } else { failures.push(name); console.error('FAIL ' + name + ': ' + detail + ' · ' + attachKeyHint) } }
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
 try {
-  const { hostRunner, ensureHostKey, closeHostTunnel } = await import('../../src/services/host/ssh.ts')
-  const { runHostJob } = await import('../../src/services/host/worker.ts')
-  const { queueHostSetup } = await import('../../src/services/host/jobs.ts')
-  const { readHostRecord, hostDirectory } = await import('../../src/services/host/store.ts')
-  const { vendorClient, saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
+  const { hostRunner, ensureHostKey, closeHostTunnel } = await import('../../src/models/hosting/ssh.ts')
+  const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+  const { queueHostSetup } = await import('../../src/models/hosting/jobs.ts')
+  const { readHostRecord, hostDirectory } = await import('../../src/models/hosting/store.ts')
+  const { vendorClient, saveVendorKey } = await import('../../src/models/hosting/vendors/client.ts')
   saveVendorKey('vast', vast.key)
   const api = vendorClient('vast', { key: vast.key, apiBaseUrl: vast.baseUrl })
   const destroyed = await api.get('424242', new AbortController().signal).then(() => undefined, (error: unknown) => error as { status?: number; message: string })

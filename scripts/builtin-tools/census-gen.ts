@@ -1,4 +1,4 @@
-import { buildToolCensus, stableCensus, CENSUS_VERSION } from '../../src/services/capability/census.ts'
+import { buildToolCensus, stableCensus, CENSUS_VERSION } from '../../src/permissions/capability-census/census.ts'
 
 export function toolCensus() {
   const census = buildToolCensus()

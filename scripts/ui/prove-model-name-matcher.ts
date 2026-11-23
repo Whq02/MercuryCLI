@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/model/modelNameMatcher.ts src/services/model/modelNameRoad.ts src/services/providers/validateModel.ts
-// gate-watch: src/commands/model/mercuryModel.tsx src/main.tsx src/tools/AgentTool/AgentTool.tsx src/utils/model/modelPickerGroups.ts
+// gate-watch: src/models/facts/modelNameMatcher.ts src/models/catalogue/modelNameRoad.ts src/models/roads/validateModel.ts
+// gate-watch: src/commands/model/mercuryModel.tsx src/boot/main.tsx src/tools/crewmate/CrewmateTool.tsx src/models/facts/modelPickerGroups.ts
 import { existsSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
@@ -22,9 +22,9 @@ let checks = 0
 let failures = 0
 let sectionTitleNow = ''
 const failureWhereBySection: Array<[string, string]> = [
-  ['§1', 'change matchModelName or modelNameKey in src/utils/model/modelNameMatcher.ts'],
-  ['§2', 'change matchReachableModelName, modelNameAskWords, modelNameHeadlessRefusal or reachableModelEntries in src/services/model/modelNameRoad.ts, or the --model flag road it feeds'],
-  ['§3', 'change validateModel in src/services/providers/validateModel.ts so a 404 from the endpoint is an invalid id'],
+  ['§1', 'change matchModelName or modelNameKey in src/models/facts/modelNameMatcher.ts'],
+  ['§2', 'change matchReachableModelName, modelNameAskWords, modelNameHeadlessRefusal or reachableModelEntries in src/models/catalogue/modelNameRoad.ts, or the --model flag road it feeds'],
+  ['§3', 'change validateModel in src/models/roads/validateModel.ts so a 404 from the endpoint is an invalid id'],
   ['§4', 'change the call handler in src/commands/model/mercuryModel.tsx (what /model does with a typed name)'],
 ]
 function failureWhere(): string {
@@ -41,8 +41,8 @@ function section(title: string): void {
   console.log(`\n${title}`)
 }
 
-const matcher = await import('../../src/utils/model/modelNameMatcher.ts')
-type Match = import('../../src/utils/model/modelNameMatcher.ts').ModelNameMatch
+const matcher = await import('../../src/models/facts/modelNameMatcher.ts')
+type Match = import('../../src/models/facts/modelNameMatcher.ts').ModelNameMatch
 
 section('§1 the table: typed forms → one id, several, or none (a typo never matches)')
 {
@@ -93,7 +93,7 @@ section('§1 the table: typed forms → one id, several, or none (a typo never m
 
 section('§2 the three roads read the one module')
 {
-  const road = await import('../../src/services/model/modelNameRoad.ts')
+  const road = await import('../../src/models/catalogue/modelNameRoad.ts')
   const { builtCli } = await import('../lib/builtProduct.ts')
   const flagRun = (typed: string) => builtCli(['run', '--model', typed, 'hi'], { env: { ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key' } })
   const refusedRun = flagRun('gemini three point five')
@@ -121,8 +121,8 @@ section('§2 the three roads read the one module')
 
 section('§2b an exact declared id passes as itself: the prefix rule never reads it as a longer listed id')
 {
-  const road = await import('../../src/services/model/modelNameRoad.ts')
-  const catalogue = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
+  const road = await import('../../src/models/catalogue/modelNameRoad.ts')
+  const catalogue = await import('../../src/models/roads/anthropic/anthropicCatalogue.ts')
   const page = (ids: string[]): typeof fetch =>
     (async () => new Response(JSON.stringify({ data: ids.map(id => ({ type: 'model', id, display_name: id })), has_more: false }), { status: 200, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch
   const listed = async (ids: string[]): Promise<void> => {
@@ -160,7 +160,7 @@ section('§2b an exact declared id passes as itself: the prefix rule never reads
   catalogue.__resetAnthropicCatalogueForTest()
 }
 
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(c => ({ ...c, prStatusFooterEnabled: false }))
@@ -181,7 +181,7 @@ const fixture = createServer((request, response) => {
 await new Promise<void>(resolve => fixture.listen(0, '127.0.0.1', () => resolve()))
 process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(fixture.address() as { port: number }).port}`
 {
-  const { validateModel } = await import('../../src/services/providers/validateModel.ts')
+  const { validateModel } = await import('../../src/models/roads/validateModel.ts')
   const verdict = await validateModel('claude-banana-9')
   check('the probe reached the endpoint with the typed id', hits.length >= 1 && hits[0]!.endsWith('model=claude-banana-9'), JSON.stringify(hits))
   check('a 404 from the endpoint makes the id invalid, with the reason', verdict.valid === false && /Model not found/.test(verdict.error ?? ''), JSON.stringify(verdict))
@@ -190,16 +190,16 @@ process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(fixture.address() as { por
 section('§4 the cockpit: a typed name that matches is said back; one that does not opens the picker asking, and nothing is saved')
 const React = await import('react')
 const h = React.createElement
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const settingsStore = await import('../../src/utils/cockpit/settingsPopup.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const settingsStore = await import('../../src/screen/cockpit/settingsPopup.ts')
 const modelCommand = await import('../../src/commands/model/mercuryModel.tsx')
 const TITLE = 'Mercury · model'
 const settingsPath = join(HOME, 'settings.json')

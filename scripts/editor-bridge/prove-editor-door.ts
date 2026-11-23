@@ -31,8 +31,8 @@ const env = {
   TMPDIR: tmpdir(),
 }
 const OPTION_HINT = 'the root option table must hold no editor option: remove --ide and --editor-link from the root command so an unknown option takes the parser error path'
-const COMMAND_HINT = 'the command table must hold no /ide: remove it so the unknown-command sentence in src/services/processUserInput/processSlashCommand.tsx answers it'
-const BRIDGE_HINT = 'fix the bridge status output in src/cli/editorBridge.ts (it must print vsix: and the manual install line when no editor CLI is on the path)'
+const COMMAND_HINT = 'the command table must hold no /ide: remove it so the unknown-command sentence in src/engine/user-input/processSlashCommand.tsx answers it'
+const BRIDGE_HINT = 'fix the bridge status output in src/commands/verbs/editorBridge.ts (it must print vsix: and the manual install line when no editor CLI is on the path)'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok && detail ? `: ${detail}` : ''}`)
@@ -66,7 +66,7 @@ try {
 
   console.log('§2 the command table')
   const unknown = await run(['run', '/frobnicate'])
-  check('an unknown slash command through run is refused with the cockpit\'s sentence on stderr and exit 1', unknown.code === 1 && unknown.out === '' && unknown.err.trim() === 'Unknown command: /frobnicate · /help lists commands', `fix the unknown-command sentence in src/services/processUserInput/processSlashCommand.tsx or the run verb that prints it; got ${JSON.stringify(unknown)}`)
+  check('an unknown slash command through run is refused with the cockpit\'s sentence on stderr and exit 1', unknown.code === 1 && unknown.out === '' && unknown.err.trim() === 'Unknown command: /frobnicate · /help lists commands', `fix the unknown-command sentence in src/engine/user-input/processSlashCommand.tsx or the run verb that prints it; got ${JSON.stringify(unknown)}`)
   const ide = await run(['run', '/ide'])
   const sansPointer = (text: string): string => text.replace(/ — closest: \/[\w:-]+/, '')
   check('/ide answers exactly as any unknown command does', ide.code === unknown.code && ide.out === unknown.out && sansPointer(ide.err) === unknown.err.replaceAll('frobnicate', 'ide'), `${COMMAND_HINT}; got ${JSON.stringify(ide)}`)
@@ -74,7 +74,7 @@ try {
   console.log('§3 the door that stands')
   const status = await run(['bridge', 'status'], { PATH: '/usr/bin:/bin' })
   check('mercury bridge status answers from the bundle (no editor CLI on the path — the manual road)', status.code === 0 && status.out.includes('vsix:') && status.out.includes('manual install'), `${BRIDGE_HINT}; got ${JSON.stringify(status)}`)
-  check('the ACP server module is product', existsSync(join(import.meta.dir, '../../src/services/acp/acpServer.ts')), 'restore src/services/acp/acpServer.ts, the ACP server module the editor door depends on')
+  check('the ACP server module is product', existsSync(join(import.meta.dir, '../../src/integrations/acp/acpServer.ts')), 'restore src/integrations/acp/acpServer.ts, the ACP server module the editor door depends on')
 } finally {
   rmSync(root, { recursive: true, force: true })
 }

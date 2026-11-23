@@ -15,14 +15,14 @@ function meterRuns(runs: string[]): string[] {
 }
 
 const { check, finish } = tally()
-const popupUsageWhere = 'see the Usage component in src/components/Settings/Usage.tsx (its src/components/Settings/usage folder) and src/commands/usage/usage.tsx'
+const popupUsageWhere = 'see the Usage component in src/screen/settings/Usage.tsx (its src/screen/settings/usage folder) and src/commands/usage/usage.tsx'
 const world = await usagePlanWorld()
 try {
   const { owner, fresh } = world
-  const { SettingsPopupSlot } = await import(world.path('src/components/SettingsPopupSlot.tsx'))
-  const popup = await import(world.path('src/utils/cockpit/settingsPopup.ts'))
+  const { SettingsPopupSlot } = await import(world.path('src/screen/overlays/SettingsPopupSlot.tsx'))
+  const popup = await import(world.path('src/screen/cockpit/settingsPopup.ts'))
   const { call } = await import(world.path('src/commands/usage/usage.tsx'))
-  const { Usage } = await import(world.path('src/components/Settings/Usage.tsx'))
+  const { Usage } = await import(world.path('src/screen/settings/Usage.tsx'))
   await call('', {} as never)
   const board = await world.mount(React.createElement(SettingsPopupSlot, { overlay: true }))
   const view = owner.usageForProvider('moonshot')

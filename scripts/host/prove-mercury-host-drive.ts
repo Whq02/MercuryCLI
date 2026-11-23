@@ -12,7 +12,7 @@ if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_D
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 const fixture = boxFixture(process.env.MERCURY_CONFIG_DIR)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.js')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.js')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_HOME', 'MERCURY_MODEL', 'MERCURY_COMPAT_BASE_URL', 'MERCURY_COMPAT_MODELS', 'MERCURY_COMPAT_LABEL']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const at = process.argv.indexOf('--frames')
@@ -34,20 +34,20 @@ let mounted: Mounted | undefined
 const images: Promise<unknown>[] = []
 let checks = 0
 try {
-  const { enableConfigs } = await import('../../src/utils/config.js'); enableConfigs()
-  const { boxServiceFiles, writeBoxService } = await import('../../src/services/host/boxService.js')
-  const { boxFacts } = await import('../../src/services/host/boxes.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js'); enableConfigs()
+  const { boxServiceFiles, writeBoxService } = await import('../../src/models/hosting/boxService.js')
+  const { boxFacts } = await import('../../src/models/hosting/boxes.js')
   const machine = boxFacts({ name: 'this-computer', kind: 'this-computer' }, facts)
   writeBoxService({ name: machine.name, recipe: '', model: '', engine: 'llamacpp', destination: fixture.bank, bank: true, port, ...boxServiceFiles(machine), state: 'uninstalled' })
   const React = await import('react')
-  const { Box } = await import('../../src/ink.js')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.js')
+  const { Box } = await import('../../src/screen/themedRenderer.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.js')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.js')
-  const { createHostRoad } = await import('../../src/services/host/index.js')
-  const { namedCompatModelOptions } = await import('../../src/services/providers/openaicompat/compatCatalogue.js')
+  const { createHostRoad } = await import('../../src/models/hosting/index.js')
+  const { namedCompatModelOptions } = await import('../../src/models/roads/openaicompat/compatCatalogue.js')
   const road = createHostRoad({ runner })
   const open = () => popup.openSettingsPopup(llmHostPopupRequest(road))
   open()

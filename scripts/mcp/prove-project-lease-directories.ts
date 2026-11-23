@@ -9,19 +9,19 @@ import { Client, type CallToolResult } from '@modelcontextprotocol/client'
 const root = join(proofHome, 'work')
 mkdirSync(join(root, 'assets', 'icons'), { recursive: true })
 writeFileSync(join(root, 'notes.txt'), 'notes\n')
-const { switchSession, setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+const { switchSession, setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
 setOriginalCwd(root)
 switchSession('00000000-0000-4000-8000-000000000052' as never, root)
-const { projectLeaseHolder, takeProjectLeases, releaseProjectLeases, describeProjectLeases, engineLeaseRefusal } = await import('../../src/services/vulcan/engine/leases.ts')
-const { createMercuryServer, withMercuryLeaseHolder } = await import('../../src/services/mcp/mercuryServer.ts')
-const { createLinkedTransportPair } = await import('../../src/services/mcp/InProcessTransport.ts')
+const { projectLeaseHolder, takeProjectLeases, releaseProjectLeases, describeProjectLeases, engineLeaseRefusal } = await import('../../src/integrations/vulcan/engine/leases.ts')
+const { createMercuryServer, withMercuryLeaseHolder } = await import('../../src/integrations/mcp/mercuryServer.ts')
+const { createLinkedTransportPair } = await import('../../src/integrations/mcp/InProcessTransport.ts')
 
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)?.slice(0, 600)}; fix directory leases in takeProjectLeases, releaseProjectLeases, describeProjectLeases and engineLeaseRefusal (src/services/vulcan/engine/leases.ts), or the lease_take tool in src/services/mcp/mercuryServer.ts` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)?.slice(0, 600)}; fix directory leases in takeProjectLeases, releaseProjectLeases, describeProjectLeases and engineLeaseRefusal (src/integrations/vulcan/engine/leases.ts), or the lease_take tool in src/integrations/mcp/mercuryServer.ts` : ''}`)
 }
 const owner = projectLeaseHolder('tree-owner')
 const other = projectLeaseHolder('other')

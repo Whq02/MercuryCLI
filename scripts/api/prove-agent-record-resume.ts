@@ -13,12 +13,12 @@ delete process.env.MERCURY_THINKING_BINDING
 delete process.env.ANTHROPIC_BASE_URL
 
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
-import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/models/facts/builtInModelTable.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = process.env.REPRO_DIST ?? join(ROOT, 'dist', 'mercury.mjs')
 const j = (v: unknown): string => JSON.stringify(v)
-const RECORD_SRC_HINT = 'change src/services/providers/anthropic/boundPrefixRecord.ts (boundPrefixRecordToEmit and restoreBoundPrefixFromMessages), which writes and replays the first-exchange record'
+const RECORD_SRC_HINT = 'change src/models/roads/anthropic/boundPrefixRecord.ts (boundPrefixRecordToEmit and restoreBoundPrefixFromMessages), which writes and replays the first-exchange record'
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {

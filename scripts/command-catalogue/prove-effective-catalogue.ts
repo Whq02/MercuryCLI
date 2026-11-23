@@ -22,19 +22,19 @@ function check(name: string, ok: boolean, detail?: string): void {
 
 console.log('prove-effective-catalogue — the ONE surface catalogue + the zero-specimen law')
 
-const { builtinCommands } = await import('../../src/commands.js')
+const { builtinCommands } = await import('../../src/commands/catalogue/commands.js')
 const { effectiveCatalogue, normalSurfaces } = await import(
-  '../../src/commands/effectiveCatalogue.js'
+  '../../src/commands/catalogue/effectiveCatalogue.js'
 )
 const registry = builtinCommands()
 const catalogue = effectiveCatalogue()
-check('registry loads (the excised roster, >70 built-ins)', registry.length > 70, `${registry.length}; builtinCommands() in src/commands.ts returned too few commands, restore the dropped registrations there`)
-check('catalogue rows = registry rows', catalogue.length === registry.length, `catalogue ${catalogue.length} vs registry ${registry.length}; effectiveCatalogue() in src/commands/effectiveCatalogue.ts must return one row per builtinCommands() entry`)
+check('registry loads (the excised roster, >70 built-ins)', registry.length > 70, `${registry.length}; builtinCommands() in src/commands/catalogue/commands.ts returned too few commands, restore the dropped registrations there`)
+check('catalogue rows = registry rows', catalogue.length === registry.length, `catalogue ${catalogue.length} vs registry ${registry.length}; effectiveCatalogue() in src/commands/catalogue/effectiveCatalogue.ts must return one row per builtinCommands() entry`)
 
 {
-  check('every route is a normal or a hidden route (no development-only class stands behind a flag)', catalogue.every(s => s.visibility === 'normal' || s.visibility === 'hidden'), catalogue.filter(s => s.visibility !== 'normal' && s.visibility !== 'hidden').map(s => s.name).join(', ') + ' (visibilityOf in src/commands/effectiveCatalogue.ts may return only normal or hidden)')
+  check('every route is a normal or a hidden route (no development-only class stands behind a flag)', catalogue.every(s => s.visibility === 'normal' || s.visibility === 'hidden'), catalogue.filter(s => s.visibility !== 'normal' && s.visibility !== 'hidden').map(s => s.name).join(', ') + ' (visibilityOf in src/commands/catalogue/effectiveCatalogue.ts may return only normal or hidden)')
   const normal = normalSurfaces()
-  check('normalSurfaces() holds enabled normal routes only', normal.every(s => s.visibility === 'normal' && s.enabled), 'normalSurfaces() in src/commands/effectiveCatalogue.ts must filter on enabled and visibility normal')
+  check('normalSurfaces() holds enabled normal routes only', normal.every(s => s.visibility === 'normal' && s.enabled), 'normalSurfaces() in src/commands/catalogue/effectiveCatalogue.ts must filter on enabled and visibility normal')
 }
 
 {
@@ -62,7 +62,7 @@ check('catalogue rows = registry rows', catalogue.length === registry.length, `c
   check(
     'every normal surface maps to a curated /help domain (no “everything else”)',
     uncurated.length === 0,
-    uncurated.map(s => s.name).join(', ') + ' (add each name to a domain in COMMAND_DOMAINS, src/components/HelpV2/commandDomains.ts)',
+    uncurated.map(s => s.name).join(', ') + ' (add each name to a domain in COMMAND_DOMAINS, src/screen/help/commandDomains.ts)',
   )
   const uncuratedGated = effectiveCatalogue().filter(
     s => s.visibility === 'normal' && s.category === 'other',
@@ -70,14 +70,14 @@ check('catalogue rows = registry rows', catalogue.length === registry.length, `c
   check(
     'gated-off normal rows are curated too (the enabling session finds them organized)',
     uncuratedGated.length === 0,
-    uncuratedGated.map(s => s.name).join(', ') + ' (add each name to a domain in COMMAND_DOMAINS, src/components/HelpV2/commandDomains.ts)',
+    uncuratedGated.map(s => s.name).join(', ') + ' (add each name to a domain in COMMAND_DOMAINS, src/screen/help/commandDomains.ts)',
   )
 }
 
 
 {
-  const { isCommandEnabled } = await import('../../src/types/command.js')
-  const { getIsInteractive, setIsInteractive } = await import('../../src/bootstrap/state.js')
+  const { isCommandEnabled } = await import('../../src/commands/catalogue/command.js')
+  const { getIsInteractive, setIsInteractive } = await import('../../src/boot/process-state/processState.js')
 
   const BLESSED_PAIRS = ['context', 'mission'] as const
 
@@ -102,7 +102,7 @@ check('catalogue rows = registry rows', catalogue.length === registry.length, `c
   try {
     for (const name of BLESSED_PAIRS) {
       const pair = byName.get(name) ?? []
-      check(`/${name}: exactly two registrations`, pair.length === 2, `${pair.length}; builtinCommands() in src/commands.ts must register /${name} twice`)
+      check(`/${name}: exactly two registrations`, pair.length === 2, `${pair.length}; builtinCommands() in src/commands/catalogue/commands.ts must register /${name} twice`)
       if (pair.length !== 2) continue
 
       setIsInteractive(true)
@@ -113,7 +113,7 @@ check('catalogue rows = registry rows', catalogue.length === registry.length, `c
       check(
         `/${name}: exactly one enabled member per posture`,
         enabledInteractive.length === 1 && enabledHeadless.length === 1,
-        `interactive=${enabledInteractive.length} nonInteractive=${enabledHeadless.length}; check isEnabled of both /${name} registrations (isCommandEnabled in src/types/command.ts)`,
+        `interactive=${enabledInteractive.length} nonInteractive=${enabledHeadless.length}; check isEnabled of both /${name} registrations (isCommandEnabled in src/commands/catalogue/command.ts)`,
       )
       check(
         `/${name}: the enabled member SWAPS with the posture (exact complement)`,
@@ -135,7 +135,7 @@ check('catalogue rows = registry rows', catalogue.length === registry.length, `c
     check(
       'every non-pair name is registered exactly once',
       overRegistered.length === 0,
-      overRegistered.map(([name, list]) => `${name}×${list.length}`).join(', ') + ' (remove the duplicate registration in builtinCommands, src/commands.ts)',
+      overRegistered.map(([name, list]) => `${name}×${list.length}`).join(', ') + ' (remove the duplicate registration in builtinCommands, src/commands/catalogue/commands.ts)',
     )
   } finally {
     setIsInteractive(initialInteractive)
@@ -143,7 +143,7 @@ check('catalogue rows = registry rows', catalogue.length === registry.length, `c
 }
 
 {
-  const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.js')
+  const { DEFAULT_BINDINGS } = await import('../../src/screen/keys/defaultBindings.js')
   const known = new Set<string>()
   for (const cmd of registry) {
     known.add(cmd.name)
@@ -158,12 +158,12 @@ check('catalogue rows = registry rows', catalogue.length === registry.length, `c
     }
   }
   check('the default bindings carry command actions to resolve', commandActions.length > 0,
-    `${commandActions.length}; DEFAULT_BINDINGS in src/keybindings/defaultBindings.ts holds no command: actions`)
+    `${commandActions.length}; DEFAULT_BINDINGS in src/screen/keys/defaultBindings.ts holds no command: actions`)
   const orphans = commandActions.filter(name => !known.has(name))
   check(
     'every command:<name> default binding resolves to a registered name/alias',
     orphans.length === 0,
-    orphans.join(', ') + ' (fix the command: action in src/keybindings/defaultBindings.ts or register the command)',
+    orphans.join(', ') + ' (fix the command: action in src/screen/keys/defaultBindings.ts or register the command)',
   )
 }
 

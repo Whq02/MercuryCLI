@@ -6,8 +6,8 @@ import { checker, count, openWorld } from './instructionWorld.ts'
 const world = openWorld('format-gemini')
 const { check, section, close } = checker()
 const contents = (path: string, body: string): string => `Contents of ${path} (project instructions, checked into the codebase):\n\n${body}`
-const geminiWhere = ' | change geminiConvention in src/services/instructions/adapters/gemini.ts or getInstructionFiles in src/services/instructions/engine.ts'
-const geminiAttachWhere = ' | change getNestedMemoryAttachmentsForFile in src/services/attachments/nestedMemory.ts'
+const geminiWhere = ' | change geminiConvention in src/sessions/instructions/adapters/gemini.ts or getInstructionFiles in src/sessions/instructions/instructionFiles.ts'
+const geminiAttachWhere = ' | change getNestedMemoryAttachmentsForFile in src/engine/attachments/nestedInstructions.ts'
 
 try {
   section('§1 a project whose only guide is GEMINI.md')
@@ -16,14 +16,14 @@ try {
   check('the first request carries it in the form a shared guide has', d1.first === contents(join(p1, 'GEMINI.md'), 'gemini-root-needle'), d1.first + geminiWhere)
   const e1 = d1.entries.find(e => e.path === join(p1, 'GEMINI.md'))
   check('the entry is shared, from the project walk, and names its format', e1?.family === 'shared' && e1.origin === 'project-walk' && e1.convention === 'gemini', JSON.stringify(e1) + geminiWhere)
-  check('the folder counts as guided', JSON.stringify(d1.guides) === JSON.stringify([join(p1, 'GEMINI.md')]), JSON.stringify(d1.guides) + ' | change composedGuideFilesAt in src/services/instructions/adapters/index.ts')
+  check('the folder counts as guided', JSON.stringify(d1.guides) === JSON.stringify([join(p1, 'GEMINI.md')]), JSON.stringify(d1.guides) + ' | change composedGuideFilesAt in src/sessions/instructions/adapters/index.ts')
   check('the file classifies as an instruction file', d1.classified[join(p1, 'GEMINI.md')] === true)
 
   section('§2 the folder form beside it: both load, the root file first')
   const p2 = world.project({ 'GEMINI.md': 'gemini-root-needle\n', '.gemini/GEMINI.md': 'gemini-folder-needle\n' })
   const d2 = world.drive(p2, { classify: [join(p2, '.gemini/GEMINI.md'), join(p2, 'docs/GEMINI.md')] })
   check('both compose, each once', count(d2.first, 'gemini-root-needle') === 1 && count(d2.first, 'gemini-folder-needle') === 1, d2.paths.join(', ') + geminiWhere)
-  check('the root file composes before the folder file', JSON.stringify(d2.paths) === JSON.stringify([join(p2, 'GEMINI.md'), join(p2, '.gemini/GEMINI.md')]), d2.paths.join(', ') + ' | change the guides order in geminiConvention in src/services/instructions/adapters/gemini.ts')
+  check('the root file composes before the folder file', JSON.stringify(d2.paths) === JSON.stringify([join(p2, 'GEMINI.md'), join(p2, '.gemini/GEMINI.md')]), d2.paths.join(', ') + ' | change the guides order in geminiConvention in src/sessions/instructions/adapters/gemini.ts')
   check('the folder file classifies as an instruction file', d2.classified[join(p2, '.gemini/GEMINI.md')] === true)
   check('a GEMINI.md in any folder classifies as one (it attaches there)', d2.classified[join(p2, 'docs/GEMINI.md')] === true)
   const p2b = world.project({ '.gemini/GEMINI.md': 'gemini-folder-needle\n' })
@@ -33,8 +33,8 @@ try {
   section('§3 an import in GEMINI.md is followed, inside the project')
   const p3 = world.project({ 'GEMINI.md': 'gemini-root-needle\n@./docs/style.md\n', 'docs/style.md': 'imported-style-needle\n' })
   const d3 = world.drive(p3)
-  check('the imported file composes once', count(d3.first, 'imported-style-needle') === 1, d3.paths.join(', ') + ' | change import following in processInstructionFile in src/services/instructions/discovery.ts')
-  check('it rides the import chain of GEMINI.md', d3.entries.find(e => e.path === join(p3, 'docs/style.md'))?.parent === join(p3, 'GEMINI.md'), JSON.stringify(d3.entries) + ' | change import following in processInstructionFile in src/services/instructions/discovery.ts')
+  check('the imported file composes once', count(d3.first, 'imported-style-needle') === 1, d3.paths.join(', ') + ' | change import following in processInstructionFile in src/sessions/instructions/discovery.ts')
+  check('it rides the import chain of GEMINI.md', d3.entries.find(e => e.path === join(p3, 'docs/style.md'))?.parent === join(p3, 'GEMINI.md'), JSON.stringify(d3.entries) + ' | change import following in processInstructionFile in src/sessions/instructions/discovery.ts')
 
   section('§4 MERCURY.md decides')
   const p4 = world.project({ 'MERCURY.md': 'native-needle\n', 'GEMINI.md': 'gemini-root-needle\n', '.gemini/GEMINI.md': 'gemini-folder-needle\n' })
@@ -44,7 +44,7 @@ try {
   const p4b = world.project({ 'MERCURY.md': '@GEMINI.md\nnative-needle\n', 'GEMINI.md': 'gemini-root-needle\n' })
   const d4b = world.drive(p4b)
   check('an explicit import in MERCURY.md brings it in, once', count(d4b.first, 'gemini-root-needle') === 1 && d4b.first.includes('native-needle'), d4b.first + geminiWhere)
-  check('the imported file rides the native chain', d4b.entries.find(e => e.path === join(p4b, 'GEMINI.md'))?.parent === join(p4b, 'MERCURY.md'), JSON.stringify(d4b.entries) + ' | change import following in processInstructionFile in src/services/instructions/discovery.ts')
+  check('the imported file rides the native chain', d4b.entries.find(e => e.path === join(p4b, 'GEMINI.md'))?.parent === join(p4b, 'MERCURY.md'), JSON.stringify(d4b.entries) + ' | change import following in processInstructionFile in src/sessions/instructions/discovery.ts')
   const p4c = world.project({ 'MERCURY.md': 'parent-native-needle\n', 'app/GEMINI.md': 'gemini-root-needle\n', 'app/a.ts': '\n' })
   const d4c = world.drive(join(p4c, 'app'), { trust: p4c })
   check('a MERCURY.md above the working directory decides too', d4c.first.includes('parent-native-needle') && !d4c.first.includes('gemini-root-needle'), d4c.first + geminiWhere)
@@ -54,10 +54,10 @@ try {
 
   section('§5 the switches that exist: the native profile, the exclusion list, an untrusted folder')
   const d5 = world.drive(p2, { settings: { briefs: { profile: 'native' } }, classify: [join(p2, 'GEMINI.md')] })
-  check('the native profile composes neither', d5.first === '', d5.first + ' | change conventionsForProfile in src/services/instructions/adapters/index.ts')
+  check('the native profile composes neither', d5.first === '', d5.first + ' | change conventionsForProfile in src/sessions/instructions/adapters/index.ts')
   check('under native the file is an ordinary file', d5.classified[join(p2, 'GEMINI.md')] === false)
   const d5b = world.drive(p2, { settings: { briefs: { exclude: ['**/GEMINI.md'] } } })
-  check('an excluded GEMINI.md composes nothing', d5b.first === '', d5b.first + ' | change matchesInstructionExcludes in src/services/instructions/discovery.ts')
+  check('an excluded GEMINI.md composes nothing', d5b.first === '', d5b.first + ' | change matchesInstructionExcludes in src/sessions/instructions/discovery.ts')
   const d5c = world.drive(p2, { untrusted: true })
   check('a folder never trusted composes nothing headless', d5c.first === '' && d5c.paths.length === 0, d5c.paths.join(', ') + geminiWhere)
 
@@ -88,7 +88,7 @@ try {
   check('with the home elsewhere the same folders are plain parents and all four compose', ['personal-gemini-needle', 'home-root-gemini-needle', 'workspace-gemini-needle', 'project-gemini-needle'].every(needle => d8b.first.includes(needle)), d8b.paths.join(', ') + geminiWhere)
   const d8c = world.drive(p8, { home: p8 })
   check('started in the home folder itself, its root file is read and the tool folder there stays personal', d8c.first === contents(join(p8, 'GEMINI.md'), 'home-root-gemini-needle'), d8c.first + geminiWhere)
-  check('the guide list there names the root file alone', JSON.stringify(d8c.guides) === JSON.stringify([join(p8, 'GEMINI.md')]), JSON.stringify(d8c.guides) + ' | change composedGuideFilesAt in src/services/instructions/adapters/index.ts')
+  check('the guide list there names the root file alone', JSON.stringify(d8c.guides) === JSON.stringify([join(p8, 'GEMINI.md')]), JSON.stringify(d8c.guides) + ' | change composedGuideFilesAt in src/sessions/instructions/adapters/index.ts')
 
   section('§9 beside the other shared guide: all load, identical text once')
   const p9 = world.project({ 'AGENTS.md': 'agents-needle\n', 'GEMINI.md': 'gemini-root-needle\n' })
@@ -96,14 +96,14 @@ try {
   check('AGENTS.md and GEMINI.md both compose, AGENTS.md first', JSON.stringify(d9.paths) === JSON.stringify([join(p9, 'AGENTS.md'), join(p9, 'GEMINI.md')]), d9.paths.join(', ') + geminiWhere)
   const p9b = world.project({ 'AGENTS.md': 'same-text-needle\n', 'GEMINI.md': 'same-text-needle\n' })
   const d9b = world.drive(p9b)
-  check('two files of identical text compose once', count(d9b.first, 'same-text-needle') === 1, d9b.first + ' | change the duplicate-content drop in src/services/instructions/engine.ts')
-  check('the dropped copy is reported as a duplicate', d9b.diagnostics.some(d => d.kind === 'duplicate-content' && d.path === join(p9b, 'GEMINI.md')), JSON.stringify(d9b.diagnostics) + ' | change the duplicate-content diagnostic in src/services/instructions/engine.ts')
+  check('two files of identical text compose once', count(d9b.first, 'same-text-needle') === 1, d9b.first + ' | change the duplicate-content drop in src/sessions/instructions/instructionFiles.ts')
+  check('the dropped copy is reported as a duplicate', d9b.diagnostics.some(d => d.kind === 'duplicate-content' && d.path === join(p9b, 'GEMINI.md')), JSON.stringify(d9b.diagnostics) + ' | change the duplicate-content diagnostic in src/sessions/instructions/instructionFiles.ts')
   if (process.platform !== 'win32') {
     const p9c = world.project({ 'AGENTS.md': 'linked-text-needle\n' })
     mkdirSync(p9c, { recursive: true })
     symlinkSync('AGENTS.md', join(p9c, 'GEMINI.md'))
     const d9c = world.drive(p9c)
-    check('a GEMINI.md that is a link to AGENTS.md composes its text once', count(d9c.first, 'linked-text-needle') === 1, d9c.first + ' | change the duplicate-content drop in src/services/instructions/engine.ts')
+    check('a GEMINI.md that is a link to AGENTS.md composes its text once', count(d9c.first, 'linked-text-needle') === 1, d9c.first + ' | change the duplicate-content drop in src/sessions/instructions/instructionFiles.ts')
   }
 } finally {
   world.close()

@@ -82,10 +82,10 @@ for (const request of fixture.messageRequests()) {
     }
   }
 }
-check('the host was asked once', asksSeen === 1, `${asksSeen} asks; the Write call should reach the host ask channel exactly once, look at createHostCanUseTool in src/cli/headless/runnerAsks.ts`)
-check('the model received a tool_result for the denied call', denialTexts.length >= 1, `exit=${exit} stderr=${host.stderr().slice(0, 200)} — a denied ask must still return a tool_result to the model; look at decisionOfAnswer in src/cli/headless/runnerAsks.ts`)
-check('the denial names the host', denialTexts.some(text => /Permission denied by the host\b/.test(text)), `${denialTexts.join(' | ').slice(0, 300)} — a deny answer with no message must read Permission denied by the host; change the fallback message in decisionOfAnswer in src/cli/headless/runnerAsks.ts`)
-check('…and no SDK', denialTexts.every(text => !/SDK/.test(text)), `${denialTexts.join(' | ').slice(0, 300)} — the denial must not mention SDK; remove that word from the deny message in decisionOfAnswer in src/cli/headless/runnerAsks.ts`)
+check('the host was asked once', asksSeen === 1, `${asksSeen} asks; the Write call should reach the host ask channel exactly once, look at createHostCanUseTool in src/daemon/runner/runnerAsks.ts`)
+check('the model received a tool_result for the denied call', denialTexts.length >= 1, `exit=${exit} stderr=${host.stderr().slice(0, 200)} — a denied ask must still return a tool_result to the model; look at decisionOfAnswer in src/daemon/runner/runnerAsks.ts`)
+check('the denial names the host', denialTexts.some(text => /Permission denied by the host\b/.test(text)), `${denialTexts.join(' | ').slice(0, 300)} — a deny answer with no message must read Permission denied by the host; change the fallback message in decisionOfAnswer in src/daemon/runner/runnerAsks.ts`)
+check('…and no SDK', denialTexts.every(text => !/SDK/.test(text)), `${denialTexts.join(' | ').slice(0, 300)} — the denial must not mention SDK; remove that word from the deny message in decisionOfAnswer in src/daemon/runner/runnerAsks.ts`)
 
 await fixture.close()
 rmSync(home, { recursive: true, force: true })

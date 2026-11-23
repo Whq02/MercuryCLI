@@ -17,7 +17,7 @@ import {
   type HealthCertificate,
   type HealthCheck,
   type GateVerdict,
-} from '../../src/utils/healthCertCore.ts'
+} from '../../src/platform/health/healthCertCore.ts'
 
 let failures = 0
 function check(name: string, cond: boolean, detail?: string): void {
@@ -25,7 +25,7 @@ function check(name: string, cond: boolean, detail?: string): void {
     console.log(`  ✅ ${name}`)
   } else {
     failures++
-    console.log(`  ❌ ${name}${detail ? ` — ${detail}` : ''} — fix the function this rule names (verdictFromStatuses, filterCertificateToCheck, interpretGateVerdict, decodeGateVerdict, nextActions, composeChip, decode*Summary) in src/utils/healthCertCore.ts`)
+    console.log(`  ❌ ${name}${detail ? ` — ${detail}` : ''} — fix the function this rule names (verdictFromStatuses, filterCertificateToCheck, interpretGateVerdict, decodeGateVerdict, nextActions, composeChip, decode*Summary) in src/platform/health/healthCertCore.ts`)
   }
 }
 

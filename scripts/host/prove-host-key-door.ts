@@ -7,8 +7,8 @@ if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_D
 const f = await llmhostFixture()
 const rp = await runpodFixture()
 try {
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { vendorKey, saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { vendorKey, saveVendorKey } = await import('../../src/models/hosting/vendors/client.ts')
   saveVendorKey('runpod', rp.key)
   const road = createHostRoad({ apiBaseUrl: rp.baseUrl, sessionId: 'key-door' })
   let managed = false, removed = false, returned = false

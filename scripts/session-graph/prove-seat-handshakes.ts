@@ -78,8 +78,8 @@ if (process.platform === 'win32') {
   t.check('a present file that cannot execute is BROKEN, never ABSENT', x.state === 'broken', JSON.stringify(x))
 }
 
-const bridge = await import('../../src/services/crew/seatBridge.ts')
-const caps = await import('../../src/services/crew/capabilities.ts')
+const bridge = await import('../../src/crew/crewmates/seatBridge.ts')
+const caps = await import('../../src/crew/crewmates/capabilities.ts')
 const dir = join(scratch, 'store')
 
 
@@ -92,7 +92,7 @@ t.section('§2 — codex: the real app-server JSON-RPC initialize')
     t.check('the codex CLI is installed but its --version handshake failed — a broken install is never skipped', false, codex.reason)
   } else {
     const version = codex.version
-    const { codexSeatTransport } = await import('../../src/services/crew/adapters/codex.ts')
+    const { codexSeatTransport } = await import('../../src/crew/crewmates/adapters/codex.ts')
     const seat = await bridge.attachExternalSeat(codexSeatTransport({ cwd: scratch }), {
       displayName: 'Codex (live)',
       dir,

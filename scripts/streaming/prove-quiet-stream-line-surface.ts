@@ -10,7 +10,7 @@ process.env.MERCURY_FLUX_PROBE = '1'
 delete process.env.MERCURY_FLUX_PROBE_TEE
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
-const quietSurfaceFixHint = 'change LiveStreamingTail in src/components/LiveStreamingTail.tsx (its textSuppressed path, the phase snapshot and the settled ghost) so a suppressed surface paints no prose, ghost or thinking line and does not re-render per delta'
+const quietSurfaceFixHint = 'change LiveStreamingTail in src/screen/messages/LiveStreamingTail.tsx (its textSuppressed path, the phase snapshot and the settled ghost) so a suppressed surface paints no prose, ghost or thinking line and does not re-render per delta'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${quietSurfaceFixHint}` : ''}`)
   if (!ok) failures++
@@ -18,16 +18,16 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 
 const React = (await import('react')).default
-const { render, Box, Text } = await import(join(ROOT, 'src/ink.ts'))
-const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
-const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
-const { createStreamingTailStore } = await import(join(ROOT, 'src/utils/messages/streamingTailStore.ts'))
-const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+const { render, Box, Text } = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
+const { AppStateProvider } = await import(join(ROOT, 'src/screen/app-state/AppState.tsx'))
+const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/AppStateStore.ts'))
+const { createStreamingTailStore } = await import(join(ROOT, 'src/engine/message-shapes/streamingTailStore.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
-const { LiveStreamingTail } = await import(join(ROOT, 'src/components/LiveStreamingTail.tsx'))
-const focus = await import(join(ROOT, 'src/services/engine-connector/focusedConnector.ts'))
-const probe = await import(join(ROOT, 'src/utils/flux/fluxProbe.ts'))
-type EngineConnectorV1 = import('../../src/services/engine-connector/types.js').EngineConnectorV1
+const { LiveStreamingTail } = await import(join(ROOT, 'src/screen/messages/LiveStreamingTail.tsx'))
+const focus = await import(join(ROOT, 'src/engine/connector/focusedConnector.ts'))
+const probe = await import(join(ROOT, 'src/integrations/media-flux/fluxProbe.ts'))
+type EngineConnectorV1 = import('../../src/engine/connector/types.js').EngineConnectorV1
 type TailStore = ReturnType<typeof createStreamingTailStore>
 
 const gptSession = {

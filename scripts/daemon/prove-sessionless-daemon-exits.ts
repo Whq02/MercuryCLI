@@ -17,7 +17,7 @@ const KEEP = process.env.SESSIONLESS_KEEP === '1'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change: the sessionless-exit rule is decideSessionlessExit in src/daemon/sessionlessExit.ts (grace and beat constants there) and its beat in src/daemon/run/owner.ts; the daemon log tail named above shows what the daemon decided' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change: the sessionless-exit rule is decideSessionlessExit in src/daemon/control/sessionlessExit.ts (grace and beat constants there) and its beat in src/daemon/run/owner.ts; the daemon log tail named above shows what the daemon decided' : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
@@ -56,9 +56,9 @@ git(['add', 'README.md'])
 git(['commit', '-q', '-m', 'the probe commit'])
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
-const { daemonControlRpc, controlSockPath, daemonStatePath: daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const { isProcessAlive } = await import('../../src/utils/ownerWatch.ts')
+const { daemonControlRpc, controlSockPath, daemonStatePath: daemonStatePath } = await import('../../src/daemon/control/controlSocket.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
+const { isProcessAlive } = await import('../../src/daemon/control/ownerWatch.ts')
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 let hits = 0
@@ -191,7 +191,7 @@ try {
 
   section('§3 the decision: who holds a daemon with no session, who does not')
   try {
-    const m = await import('../../src/daemon/sessionlessExit.ts')
+    const m = await import('../../src/daemon/control/sessionlessExit.ts')
     const facts0 = { live: 0, birthsInFlight: 0, superseded: false, persist: false, foreground: false, scheduled: false, now: 1_000_000 }
     const never = m.decideSessionlessExit(m.initialSessionlessState(), facts0)
     check('a daemon that never hosted a session is held (never hosted)', !never.exit && never.hold === 'never hosted a session', JSON.stringify(never))
@@ -215,7 +215,7 @@ try {
     const fg = m.decideSessionlessExit(hosted.state, { ...facts0, foreground: true, now: 1_000_000 + m.SESSIONLESS_EXIT_GRACE_MS * 2 })
     check('a daemon on a terminal is ended there, never by this rule', !fg.exit && /terminal/.test(fg.hold), JSON.stringify(fg))
   } catch (e) {
-    check('the sessionless decision module exists (src/daemon/sessionlessExit.ts)', false, String(e).slice(0, 200))
+    check('the sessionless decision module exists (src/daemon/control/sessionlessExit.ts)', false, String(e).slice(0, 200))
   }
 } finally {
   await cleanup()

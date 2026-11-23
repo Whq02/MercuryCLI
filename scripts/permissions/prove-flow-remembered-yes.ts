@@ -11,19 +11,19 @@ const world = realpathSync(mkdtempSync(join(tmpdir(), 'flow-yes-')))
 process.env.MERCURY_CONFIG_DIR = join(world, 'home')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.chdir(world)
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { decisionOfAnswer } = await import('../../src/cli/headless/runnerAsks.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
-const { applyPermissionUpdates } = await import('../../src/utils/permissions/PermissionUpdate.ts')
-const { getSettingsFilePathForSource } = await import('../../src/utils/settings/settings.ts')
-const { permissionRuleValueToString } = await import('../../src/utils/permissions/permissionRuleParser.ts')
-const { checkWritePermissionForTool } = await import('../../src/utils/permissions/filesystem.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { decisionOfAnswer } = await import('../../src/daemon/runner/runnerAsks.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
+const { applyPermissionUpdates } = await import('../../src/permissions/rules/permissionUpdate.ts')
+const { getSettingsFilePathForSource } = await import('../../src/platform/settings/settings.ts')
+const { permissionRuleValueToString } = await import('../../src/permissions/rules/permissionRuleParser.ts')
+const { checkWritePermissionForTool } = await import('../../src/permissions/rules/filesystem.ts')
 
 let failures = 0
-const rememberedYesHint = 'change decisionOfAnswer (and createRunnerAsks) in src/cli/headless/runnerAsks.ts, which turns an answer and its rules into a decision and saved rule, or the Flow ask in decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts and its saved-rule handling in src/utils/permissions/PermissionUpdate.ts'
+const rememberedYesHint = 'change decisionOfAnswer (and createRunnerAsks) in src/daemon/runner/runnerAsks.ts, which turns an answer and its rules into a decision and saved rule, or the Flow ask in decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts and its saved-rule handling in src/permissions/rules/permissionUpdate.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + (detail === '' ? '' : detail + ' — ') + rememberedYesHint}`)
   if (!ok) failures++
@@ -52,7 +52,7 @@ function diskRules(): string[] {
   return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')).guardrails?.allow ?? [] : []
 }
 async function yes(h: ReturnType<typeof harness>, command: string, updates: any[] = []) {
-  await (await import('../../src/utils/permissions/decision/commandAnalysis.ts')).parseForSecurity(command)
+  await (await import('../../src/permissions/rules/decision/commandAnalysis.ts')).parseForSecurity(command)
   return decisionOfAnswer({ outcome: 'allow', rules: updates }, tool, { command }, h.context)
 }
 const exactRule = (command: string) => [{ type: 'addRules', destination: 'localSettings', behavior: 'allow', rules: [{ toolName: 'Bash', ruleContent: command }] }]
@@ -105,10 +105,10 @@ try {
   check('a literal star never silently becomes a wildcard allow', before === JSON.stringify(diskRules()) && h.rules().length === 0)
   decisionOfAnswer({ outcome: 'allow' }, { ...(tool as object), name: 'UnscopedProbe' } as never, { action: 'once' }, h.context)
   check('an unrepresentable input never becomes a tool-wide grant', before === JSON.stringify(diskRules()) && h.rules().length === 0)
-  const { createRunnerAsks } = await import('../../src/cli/headless/runnerAsks.ts')
-  const { createPeer } = await import('../../src/runner/wire/peer.ts')
-  const { addSessionHooks } = await import('../../src/utils/hooks/sessionHooks.ts')
-  const { getSessionId } = await import('../../src/bootstrap/state.ts')
+  const { createRunnerAsks } = await import('../../src/daemon/runner/runnerAsks.ts')
+  const { createPeer } = await import('../../src/daemon/runner-wire/peer.ts')
+  const { addSessionHooks } = await import('../../src/integrations/event-hooks/sessionHooks.ts')
+  const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
   const toHost = new PassThrough()
   const toRunner = new PassThrough()
   const runner = createPeer({ input: toRunner, output: toHost, side: 'runner', log() {} })

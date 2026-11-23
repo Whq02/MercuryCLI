@@ -28,22 +28,22 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n  ' + t + '\n' + '─'.repeat(76))
 }
 
-const geminiDialectHint = 'fix buildGeminiRequest in src/services/providers/gemini/geminiCodec.ts (or update the golden here if the wire change is intended)'
-const chatDialectHint = 'fix mapMessagesToZai in src/services/providers/zai/zaiCodec.ts (or update the golden here if the wire change is intended)'
-const ollamaDialectHint = 'fix ollamaChatBody or ollamaMessagesOf in src/services/providers/local/ollamaChatTransport.ts (or update the golden here if the wire change is intended)'
+const geminiDialectHint = 'fix buildGeminiRequest in src/models/roads/gemini/geminiCodec.ts (or update the golden here if the wire change is intended)'
+const chatDialectHint = 'fix mapMessagesToZai in src/models/roads/zai/zaiCodec.ts (or update the golden here if the wire change is intended)'
+const ollamaDialectHint = 'fix ollamaChatBody or ollamaMessagesOf in src/models/roads/local/ollamaChatTransport.ts (or update the golden here if the wire change is intended)'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 
-const { mapMessagesToZai, buildZaiChatRequest } = await import('../../src/services/providers/zai/zaiCodec.ts')
-const { userMessageToMessageParam, assistantMessageToMessageParam } = await import('../../src/services/providers/anthropic/messageParams.ts')
-const { healWalkableForWire } = await import('../../src/services/messages.ts')
-const { buildGeminiRequest } = await import('../../src/services/providers/gemini/geminiCodec.ts')
-const { ollamaChatBody, ollamaMessagesOf } = await import('../../src/services/providers/local/ollamaChatTransport.ts')
+const { mapMessagesToZai, buildZaiChatRequest } = await import('../../src/models/roads/zai/zaiCodec.ts')
+const { userMessageToMessageParam, assistantMessageToMessageParam } = await import('../../src/models/roads/anthropic/messageParams.ts')
+const { healWalkableForWire } = await import('../../src/engine/messages/messages.ts')
+const { buildGeminiRequest } = await import('../../src/models/roads/gemini/geminiCodec.ts')
+const { ollamaChatBody, ollamaMessagesOf } = await import('../../src/models/roads/local/ollamaChatTransport.ts')
 const { DIALECT_CONVERSATION, TWO_MODEL_COMPACTION, VIRTUAL_ROW, canonicalJson } = await import('./dialectFixture.ts')
-import type { Message } from '../../src/types/message.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 function bridgeRows(messages: Message[]): { role: 'user' | 'assistant'; content: unknown }[] {
   const healed = healWalkableForWire(messages as never)
@@ -99,7 +99,7 @@ section('OPENAI-COMPATIBLE CHAT — a virtual row (the family-lane wire truth, r
   const rows = bridgeRows(withVirtual)
   const body = mapMessagesToZai(undefined, rows as never)
   const wire = canonicalJson(body)
-  check('the shared request plan keeps a display-only virtual row off the chat wire', !wire.includes('a display-only row'), `fix the request plan that mapMessagesToZai in src/services/providers/zai/zaiCodec.ts shares so virtual rows are dropped; got ${wire.slice(0, 260)}`)
+  check('the shared request plan keeps a display-only virtual row off the chat wire', !wire.includes('a display-only row'), `fix the request plan that mapMessagesToZai in src/models/roads/zai/zaiCodec.ts shares so virtual rows are dropped; got ${wire.slice(0, 260)}`)
 }
 
 section('LOCAL (Ollama) — the /api/chat body over the fixture conversation')

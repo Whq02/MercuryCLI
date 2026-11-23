@@ -143,15 +143,15 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
   return new Response(JSON.stringify({ type: 'error', error: { type: 'not_found_error', message: `fixture: no list at ${url}` } }), { status: 404, headers: { 'content-type': 'application/json' } })
 }) as typeof fetch
 
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 const React = (await import('react')).default
-const { render } = await import('../../src/ink.ts')
-const { AppStoreContext, getDefaultAppState } = await import('../../src/state/AppState.tsx')
-const { createStore } = await import('../../src/state/store.ts')
+const { render } = await import('../../src/screen/themedRenderer.ts')
+const { AppStoreContext, getDefaultAppState } = await import('../../src/screen/app-state/AppState.tsx')
+const { createStore } = await import('../../src/platform/primitives/store.ts')
 const { call } = await import('../../src/commands/model/mercuryModel.tsx')
-const accounts = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
-const catalogue = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
+const accounts = await import('../../src/models/roads/moonshot/moonshotAccounts.ts')
+const catalogue = await import('../../src/models/roads/moonshot/moonshotCatalogue.ts')
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
 
 let failures = 0
 let checks = 0
@@ -248,7 +248,7 @@ const failedRead = async (): Promise<void> => {
 
 try {
   signIn()
-  check('the fixture sign-in resolves as a Kimi account', accounts.resolveMoonshotAccount()?.kind === 'kimi-oauth' && accounts.resolveMoonshotAccount()?.label === KIMI_LABEL, JSON.stringify(accounts.resolveMoonshotAccount()), 'resolveMoonshotAccount in src/services/providers/moonshot/moonshotAccounts.ts must resolve the written fixture tokens as a kimi-oauth account with the global label')
+  check('the fixture sign-in resolves as a Kimi account', accounts.resolveMoonshotAccount()?.kind === 'kimi-oauth' && accounts.resolveMoonshotAccount()?.label === KIMI_LABEL, JSON.stringify(accounts.resolveMoonshotAccount()), 'resolveMoonshotAccount in src/models/roads/moonshot/moonshotAccounts.ts must resolve the written fixture tokens as a kimi-oauth account with the global label')
 
   section('§1 a cold open with the list held: one request, the reading row, ↵ joins the read and keeps its own notice')
   {
@@ -257,10 +257,10 @@ try {
     const before = requests
     const cold = await mount(ALIAS, BANDS[0]!)
     await until(() => requests > before, 2000)
-    check('a cold open starts exactly one list request (whatever asked, one wire)', requests === before + 1, `requests ${requests - before}`, 'the picker open must start exactly one list request; look at the Moonshot refresh in src/commands/model/picker/roads.ts and refreshMoonshotCatalogue in src/services/providers/moonshot/moonshotCatalogue.ts')
+    check('a cold open starts exactly one list request (whatever asked, one wire)', requests === before + 1, `requests ${requests - before}`, 'the picker open must start exactly one list request; look at the Moonshot refresh in src/commands/model/picker/roads.ts and refreshMoonshotCatalogue in src/models/roads/moonshot/moonshotCatalogue.ts')
     check('the frame fits 178x51', fits(cold.frame(), 178, 51), '', 'a picker line is wider or taller than 178x51; read the frame written with --frames <dir> and fix the row that overflows in src/commands/model/picker')
     const reached = await cold.walkToMoonshot()
-    check('the cursor reaches the Moonshot block, on the reading row while the list is in flight', reached && focusOf(cold.frame()) === 'Moonshot — reading model list…', focusOf(cold.frame()), 'while the list request is held the Moonshot block must lead with the reading row; look at src/commands/model/picker/roads.ts and moonshotCatalogueRows in src/services/providers/moonshot/moonshotCatalogue.ts')
+    check('the cursor reaches the Moonshot block, on the reading row while the list is in flight', reached && focusOf(cold.frame()) === 'Moonshot — reading model list…', focusOf(cold.frame()), 'while the list request is held the Moonshot block must lead with the reading row; look at src/commands/model/picker/roads.ts and moonshotCatalogueRows in src/models/roads/moonshot/moonshotCatalogue.ts')
     file('held-178x51-reading', cold.frame())
     await cold.press('\r')
     await until(() => noticeOf(cold.frame()).includes('reading the model list'), 2000)
@@ -285,7 +285,7 @@ try {
     record(`${tag(band)} stale open · the heading "${headingOf(frame, MOONSHOT_TITLE)}" · rows ${[K3_NAME, K3_256K_NAME, ALIAS_NAME, FAST_NAME].filter(name => hasRow(frame, name)).join(',') || 'none'} · notice "${noticeOf(frame)}" · requests on open ${requests - before}`)
     check(`${tag(band)}: the open makes one list request although a list is cached (the other families' open law)`, requests === before + 1, `requests ${requests - before}`, 'opening the picker with a cached list must still make one list request; look at the Moonshot refresh in src/commands/model/picker/roads.ts')
     const planRows = [K3_NAME, K3_256K_NAME].filter(name => hasRow(frame, name))
-    check(`${tag(band)}: the Moonshot block is live on open: the plan's K3 rows paint around the current row, the retired list does not stand`, planRows.length >= (band.rows >= 40 ? 2 : 1) && hasRow(frame, ALIAS_NAME), `rows ${[K3_NAME, K3_256K_NAME, ALIAS_NAME, FAST_NAME].filter(name => hasRow(frame, name)).join(',') || 'none'}`, 'the re-read on open must replace the cached rows with the plan rows; look at src/commands/model/picker/roads.ts and moonshotCatalogueRows in src/services/providers/moonshot/moonshotCatalogue.ts')
+    check(`${tag(band)}: the Moonshot block is live on open: the plan's K3 rows paint around the current row, the retired list does not stand`, planRows.length >= (band.rows >= 40 ? 2 : 1) && hasRow(frame, ALIAS_NAME), `rows ${[K3_NAME, K3_256K_NAME, ALIAS_NAME, FAST_NAME].filter(name => hasRow(frame, name)).join(',') || 'none'}`, 'the re-read on open must replace the cached rows with the plan rows; look at src/commands/model/picker/roads.ts and moonshotCatalogueRows in src/models/roads/moonshot/moonshotCatalogue.ts')
     check(`${tag(band)}: the heading carries the live count beside the sign-in door`, /^[▾❯] MOONSHOT · Kimi login(?: · \S+)? · 4 live$/.test(headingOf(frame, MOONSHOT_TITLE)), headingOf(frame, MOONSHOT_TITLE), 'the Moonshot heading must read the sign-in door and the live count of the new list; the heading text is built in src/commands/model/picker')
     check(`${tag(band)}: the changed list paints the family's existing notice`, noticeOf(frame) === 'Moonshot — the live list changed; rows updated', noticeOf(frame), 'the notice is set where the picker applies a changed list, src/commands/model/picker/roads.ts')
     check(`${tag(band)}: the current mark stays on ${ALIAS} and the frame fits`, cellsOf(rowText(rowLine(frame, ALIAS_NAME))).includes('current') && fits(frame, band.columns, band.rows), rowText(rowLine(frame, ALIAS_NAME)), 'the current model row must keep its current mark after the list changes and every line must fit the band; read the frame written with --frames <dir>')
@@ -305,7 +305,7 @@ try {
     file(`unread-${tag(band)}-open`, frame)
     record(`${tag(band)} unread open · focus "${focusOf(frame)}" · the heading "${headingOf(frame, MOONSHOT_TITLE)}" · notice "${noticeOf(frame)}" · requests on open ${openRequests}`)
     check(`${tag(band)}: the cursor reaches the Moonshot block`, reached, focusOf(frame), 'the down key never reached a Moonshot row; check that the Moonshot block paints in src/commands/model/picker and read the frame written with --frames <dir>')
-    check(`${tag(band)}: the open reads the list although the last read failed (no wait for ↵)`, openRequests === 1, `requests ${openRequests}`, 'the open must re-read the list after a failed read; look at the Moonshot refresh in src/commands/model/picker/roads.ts and refreshMoonshotCatalogue in src/services/providers/moonshot/moonshotCatalogue.ts')
+    check(`${tag(band)}: the open reads the list although the last read failed (no wait for ↵)`, openRequests === 1, `requests ${openRequests}`, 'the open must re-read the list after a failed read; look at the Moonshot refresh in src/commands/model/picker/roads.ts and refreshMoonshotCatalogue in src/models/roads/moonshot/moonshotCatalogue.ts')
     check(`${tag(band)}: the block is live on open, not the unavailable row`, hasRow(frame, K3_NAME) && !focusOf(frame).startsWith('Moonshot — '), focusOf(frame), 'after the failed read the open must paint the new list rows, not the unavailable row; look at src/commands/model/picker/roads.ts')
     check(`${tag(band)}: the heading reads the sign-in door with the live count`, /^[▾❯] MOONSHOT · Kimi login(?: · \S+)? · 4 live$/.test(headingOf(frame, MOONSHOT_TITLE)), headingOf(frame, MOONSHOT_TITLE), 'the Moonshot heading must read the sign-in door and the live count after the open re-read; the heading text is built in src/commands/model/picker')
     check(`${tag(band)}: the frame fits`, fits(frame, band.columns, band.rows), '', 'a picker line is wider or taller than the band; read the frame written with --frames <dir>')
@@ -329,7 +329,7 @@ try {
     const dark = await mount(ALIAS, BANDS[0]!)
     await flush(300)
     const reached = await dark.walkToMoonshot()
-    check('traffic off: the open sends nothing and the row says the switch is on', requests === before && reached && focusOf(dark.frame()) === 'Moonshot — list unavailable' && dark.frame().includes('catalogue traffic is off'), `requests ${requests - before} · focus "${focusOf(dark.frame())}"`, 'with MERCURY_DISABLE_NONESSENTIAL_TRAFFIC set the open must send no request and the row must say traffic is off; the words come from src/services/providers/catalogueGate.ts')
+    check('traffic off: the open sends nothing and the row says the switch is on', requests === before && reached && focusOf(dark.frame()) === 'Moonshot — list unavailable' && dark.frame().includes('catalogue traffic is off'), `requests ${requests - before} · focus "${focusOf(dark.frame())}"`, 'with MERCURY_DISABLE_NONESSENTIAL_TRAFFIC set the open must send no request and the row must say traffic is off; the words come from src/models/roads/catalogueGate.ts')
     dark.unmount()
     delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
     accounts.writeMoonshotTokens(null)
@@ -337,7 +337,7 @@ try {
     const out = await mount(ALIAS, BANDS[0]!)
     await flush(300)
     const found = await out.walkToMoonshot()
-    check('signed out: the open sends nothing and the sign-in row leads the block', requests === before && found && focusOf(out.frame()).startsWith('Moonshot — sign in with Kimi'), `requests ${requests - before} · focus "${focusOf(out.frame())}"`, 'a signed-out open must send no request and lead the Moonshot block with the sign-in row; look at src/commands/model/picker/roads.ts and moonshotCatalogueRows in src/services/providers/moonshot/moonshotCatalogue.ts')
+    check('signed out: the open sends nothing and the sign-in row leads the block', requests === before && found && focusOf(out.frame()).startsWith('Moonshot — sign in with Kimi'), `requests ${requests - before} · focus "${focusOf(out.frame())}"`, 'a signed-out open must send no request and lead the Moonshot block with the sign-in row; look at src/commands/model/picker/roads.ts and moonshotCatalogueRows in src/models/roads/moonshot/moonshotCatalogue.ts')
     out.unmount()
   }
 

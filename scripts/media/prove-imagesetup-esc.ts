@@ -50,33 +50,33 @@ if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail.slice(0, 600)}` : ''} — fix the /imagesetup popup (esc, click-outside, ctrl+c, pull card) in imageSetupPopupRequest in src/commands/imagesetup/imagesetup.tsx, its rows in src/services/media/setup.ts, or the popup state in src/utils/cockpit/settingsPopup.ts` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail.slice(0, 600)}` : ''} — fix the /imagesetup popup (esc, click-outside, ctrl+c, pull card) in imageSetupPopupRequest in src/commands/imagesetup/imagesetup.tsx, its rows in src/integrations/media/setup.ts, or the popup state in src/screen/cockpit/settingsPopup.ts` : ''}`)
 }
 function keepFrame(name: string, m: Mounted): void {
   if (frameDir !== undefined) writeFileSync(join(frameDir, `${name}.txt`), m.lines().join('\n') + '\n')
 }
 
 const React = await import('react')
-const { App } = await import('../../src/components/App.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.js')
-const { Chat } = await import('../../src/screens/Chat.js')
-const route = await import('../../src/context/surfaceRoute.js')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.js')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.js')
+const { App } = await import('../../src/boot/App.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.js')
+const { Chat } = await import('../../src/screen/chat/Chat.js')
+const route = await import('../../src/screen/routes/surfaceRoute.js')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.js')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true, hasTrustDialogAccepted: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false, hasCompletedOnboarding: true, theme: 'dark' }))
-const pending = await import('../../src/input-core/pending-input.js')
-const helm = await import('../../src/utils/cockpit/helmFocus.js')
-const popup = await import('../../src/utils/cockpit/settingsPopup.js')
-const overlays = await import('../../src/context/overlayStack.js')
-const slot = await import('../../src/services/engine-connector/focusedConnector.js')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const { getCommands } = await import('../../src/commands.js')
-const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.js')
-const { readMediaCatalogue } = await import('../../src/services/media/catalogue.js')
-const { mediaRuntimeChoice, mediaRuntimeRowWords } = await import('../../src/services/media/setup.js')
+const pending = await import('../../src/screen/composer/input-core/pending-input.js')
+const helm = await import('../../src/screen/cockpit/helmFocus.js')
+const popup = await import('../../src/screen/cockpit/settingsPopup.js')
+const overlays = await import('../../src/screen/overlays/overlayStack.js')
+const slot = await import('../../src/engine/connector/focusedConnector.js')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+const { getCommands } = await import('../../src/commands/catalogue/commands.js')
+const { markDaemonHaltStanddown } = await import('../../src/daemon/control/daemonStanddown.js')
+const { readMediaCatalogue } = await import('../../src/integrations/media/catalogue.js')
+const { mediaRuntimeChoice, mediaRuntimeRowWords } = await import('../../src/integrations/media/setup.js')
 markDaemonHaltStanddown()
 const commands = await getCommands(PROJECT)
 slot.setFocusedSessionConnector(Object.assign(new NoSessionConnector(), { sessionId: () => SESSION }))
@@ -170,7 +170,7 @@ try {
   await press(m, KEY.esc, 250)
   check('§5 esc closes /config', await waitFor(() => !popup.isSettingsPopupOpen(), 1500))
   const { imageSetupPopupRequest } = await import('../../src/commands/imagesetup/imagesetup.js')
-  const { mediaRows, MediaSetupPaused } = await import('../../src/services/media/setup.js')
+  const { mediaRows, MediaSetupPaused } = await import('../../src/integrations/media/setup.js')
   const userModel = { ...catalogue.models[0]!, id: 'user-fixture', license: 'your own file' }
   const machine = { totalMemoryBytes: 32 * 1024 ** 3, usableMemoryBytes: 24 * 1024 ** 3 }
   let installed = false
@@ -181,7 +181,7 @@ try {
       const data = { ...catalogue, models: installed ? [userModel] : [] }
       return { root: proofHome, catalogue: data, rows: mediaRows(data, proofHome, machine, 64 * 1024 ** 3, () => true), config: {}, runtimeInstalled: true, runtime: mediaRuntimeChoice(data), freeBytes: 64 * 1024 ** 3, ...machine }
     },
-    pull: async (args: string[], report: (event: import('../../src/services/media/setup.js').MediaProgress) => void, signal?: AbortSignal) => {
+    pull: async (args: string[], report: (event: import('../../src/integrations/media/setup.js').MediaProgress) => void, signal?: AbortSignal) => {
       if (args[0] === 'inspect-model') { report({ event: 'done', model: { name: 'fixture.safetensors', bytes: 1234, remote: args[1]!.startsWith('https:') } }); return }
       if (args[0] !== 'add-model') throw new Error(`Unexpected setup command: ${args[0]}`)
       pulls++

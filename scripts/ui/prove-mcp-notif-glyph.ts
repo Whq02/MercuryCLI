@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const failHint = ' — restore the fail and warn entries of GLYPH (distinct, width 1) in src/utils/glyphs.ts'
+  const failHint = ' — restore the fail and warn entries of GLYPH (distinct, width 1) in src/screen/theme/glyphs.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : failHint}`)
 }
 function section(t: string): void {
@@ -19,7 +19,7 @@ console.log('============================================================')
 
 
 section('glyphs: fail=✕ and warn=▲ are DISTINCT (so error≠warning color-stripped) + width-1')
-const glyphs = (await import(join(root, 'src', 'utils', 'glyphs.ts'))) as {
+const glyphs = (await import(join(root, 'src', 'screen', 'theme', 'glyphs.ts'))) as {
   GLYPH: Record<string, string>
   displayWidth: (s: string) => number
 }

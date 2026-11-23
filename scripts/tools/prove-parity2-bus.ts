@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { entryToRecord } from '../../src/fabric/entryCodec.js'
-import { ordinalOf } from '../../src/fabric/ordinal.js'
+import { entryToRecord } from '../../src/sessions/fabric/entryCodec.js'
+import { ordinalOf } from '../../src/sessions/fabric/ordinal.js'
 let __ord = 0
 const __encRecordLine = (e: unknown): string =>
   JSON.stringify(
@@ -37,8 +37,8 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 {
-  failWhere = 'change the Stream class in src/utils/stream.ts (enqueue, done, the async iterator)'
-  const { Stream } = await import('../../src/utils/stream.ts')
+  failWhere = 'change the Stream class in src/platform/async/stream.ts (enqueue, done, the async iterator)'
+  const { Stream } = await import('../../src/platform/async/stream.ts')
   const stream = new Stream<number>()
   const N = 200_000
   for (let i = 0; i < N; i++) stream.enqueue(i)
@@ -69,8 +69,8 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 }
 
 {
-  failWhere = 'change drainPipedStdoutForExit in src/utils/gracefulShutdown.ts'
-  const { drainPipedStdoutForExit } = await import('../../src/utils/gracefulShutdown.ts')
+  failWhere = 'change drainPipedStdoutForExit in src/platform/processes/gracefulShutdown.ts'
+  const { drainPipedStdoutForExit } = await import('../../src/platform/processes/gracefulShutdown.ts')
   t('a TTY never waits', (await drainPipedStdoutForExit({ isTTY: true, writableLength: 5_000 })).drained)
   t('an empty pipe buffer is already drained', (await drainPipedStdoutForExit({ isTTY: false, writableLength: 0 })).drained)
   const shrinking = { isTTY: false, writableLength: 1_000, destroyed: false, writable: true }
@@ -93,8 +93,8 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   const stuckResult = await stuckWait
   t('a consumer whose pipe is gone ends the wait with the remainder counted', !stuckResult.drained && stuckResult.remainingBytes === 777)
 
-  failWhere = 'change observeStdoutPressure or drainPipedStdoutForExit in src/utils/gracefulShutdown.ts'
-  const { observeStdoutPressure } = await import('../../src/utils/gracefulShutdown.ts')
+  failWhere = 'change observeStdoutPressure or drainPipedStdoutForExit in src/platform/processes/gracefulShutdown.ts'
+  const { observeStdoutPressure } = await import('../../src/platform/processes/gracefulShutdown.ts')
   const blindStream = () => {
     const drains: Array<() => void> = []
     const stream = { isTTY: false, writableLength: 0, destroyed: false, writable: true, write: (_chunk: unknown) => false, on: (event: string, listener: () => void) => { if (event === 'drain') drains.push(listener) } }
@@ -122,8 +122,8 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   counted.stream.writableLength = 0
   t("a refused write whose counter was live is left to the counter (node's shape: a broken pipe empties the buffer and no drain event follows)", (await drainPipedStdoutForExit(counted.stream)).drained)
 
-  failWhere = 'change quiesceCleanupBeforeExit or EXIT_QUIESCENCE_MS in src/utils/gracefulShutdown.ts'
-  const { quiesceCleanupBeforeExit, EXIT_QUIESCENCE_MS } = await import('../../src/utils/gracefulShutdown.ts')
+  failWhere = 'change quiesceCleanupBeforeExit or EXIT_QUIESCENCE_MS in src/platform/processes/gracefulShutdown.ts'
+  const { quiesceCleanupBeforeExit, EXIT_QUIESCENCE_MS } = await import('../../src/platform/processes/gracefulShutdown.ts')
   t('the quiescence grace is bounded and small (a wedged cleanup cannot hold the exit)', EXIT_QUIESCENCE_MS > 0 && EXIT_QUIESCENCE_MS <= 1_000)
   const settledStart = Date.now()
   await quiesceCleanupBeforeExit(Promise.resolve())
@@ -142,12 +142,12 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   const TIMER_LEAD_MS = 2
   t('a wedged cleanup is abandoned at the grace, never held forever', wedgedMs >= 80 - TIMER_LEAD_MS && wedgedMs < 500)
 
-  failWhere = 'change gracefulShutdown or the stdout drain it awaits in src/utils/gracefulShutdown.ts; the child script is written by this file and its stderr is printed above'
+  failWhere = 'change gracefulShutdown or the stdout drain it awaits in src/platform/processes/gracefulShutdown.ts; the child script is written by this file and its stderr is printed above'
   const childScript = join(SCRATCH, 'child.ts')
   writeFileSync(
     childScript,
     `
-const { gracefulShutdown, setupGracefulShutdown } = await import(${JSON.stringify(join(process.cwd(), 'src/utils/gracefulShutdown.ts'))})
+const { gracefulShutdown, setupGracefulShutdown } = await import(${JSON.stringify(join(process.cwd(), 'src/platform/processes/gracefulShutdown.ts'))})
 setupGracefulShutdown()
 const line = JSON.stringify({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'x'.repeat(900) } } }) + '\\n'
 let refused = 0
@@ -204,10 +204,10 @@ await gracefulShutdown(0)
 
 {
   const { decideIdleRetirement, transcriptTextHasConversation, transcriptHasConversation, sweepIdleEmptyConcourseSessions, retiredNowLabel, concourseIdleRetireMs, DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES } =
-    await import('../../src/daemon/idleRetirement.ts')
-  failWhere = 'change decideIdleRetirement, transcriptTextHasConversation, transcriptHasConversation or sweepIdleEmptyConcourseSessions in src/daemon/idleRetirement.ts'
-  const { concourseWorkersPath, readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-  const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
+    await import('../../src/daemon/control/idleRetirement.ts')
+  failWhere = 'change decideIdleRetirement, transcriptTextHasConversation, transcriptHasConversation or sweepIdleEmptyConcourseSessions in src/daemon/control/idleRetirement.ts'
+  const { concourseWorkersPath, readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  const { workerTranscriptPath } = await import('../../src/screen/concourse-model/workerTranscript.ts')
 
   t('the default threshold is the operator\'s ten minutes', concourseIdleRetireMs() === DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES * 60_000 && DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES === 10)
 
@@ -256,8 +256,8 @@ await gracefulShutdown(0)
     transcriptHasConversation({ sessionId: 'sess-huge-first', workspaceId: hugeWs }),
   )
   {
-    const { QueuePart } = await import('../../src/utils/sessionStorage/writer/queue.ts')
-    const { historyHead } = await import('../../src/utils/sessionStorage/historyParts.ts')
+    const { QueuePart } = await import('../../src/sessions/transcripts/writer/queue.ts')
+    const { historyHead } = await import('../../src/sessions/transcripts/historyParts.ts')
     const foldedSid = '99999999-2222-4333-8444-555555555555'
     const foldedPath = workerTranscriptPath({ sessionId: foldedSid, workspaceId: hugeWs })
     const queue = new QueuePart()
@@ -321,8 +321,8 @@ await gracefulShutdown(0)
   const after = readSessionWorkers(daemonDir)
   const w1 = after['concourse-w1']!
   t('the sweep requests the stop with the typed retired fact beside the request', w1.stopRequestedAt !== undefined && w1.stopRequestedRetired?.reason === 'idle-empty' && w1.stopRequestedRetired.thresholdMs === T, JSON.stringify(w1))
-  failWhere = 'change sweepIdleEmptyConcourseSessions or retiredNowLabel in src/daemon/idleRetirement.ts, or completeRequestedStop reached through src/daemon/concourseWorkers.ts'
-  const { updateConcourseWorkers, completeRequestedStop } = await import('../../src/daemon/concourseWorkers.ts')
+  failWhere = 'change sweepIdleEmptyConcourseSessions or retiredNowLabel in src/daemon/control/idleRetirement.ts, or completeRequestedStop reached through src/daemon/concourse-workers/concourseWorkers.ts'
+  const { updateConcourseWorkers, completeRequestedStop } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   updateConcourseWorkers(workers => {
     const w = workers['concourse-w1']
     if (w) w.pid = 999_999
@@ -332,17 +332,17 @@ await gracefulShutdown(0)
   t("the record reads stopped on the runner's exit with the typed retired fact", completed && w1Done.stoppedAt !== undefined && w1Done.retired?.reason === 'idle-empty' && w1Done.retired.thresholdMs === T && /retired — empty and idle/.test(w1Done.stoppedBy ?? ''), JSON.stringify(w1Done))
   t('the worker with conversation, the young one and the paused one are untouched', after['concourse-w2']!.stoppedAt === undefined && after['concourse-w3']!.stoppedAt === undefined && after['concourse-w4']!.stoppedAt === undefined)
   t('the huge-first-message session survives the sweep (truncated-window class)', after['concourse-w5']!.stoppedAt === undefined)
-  t('the session list sentence derives from the fact', w1Done.retired !== undefined && retiredNowLabel(w1Done.retired) === `retired — empty and idle for ${(await import('../../src/utils/deadline.ts')).formatLimit(w1Done.retired.idleMs)}`)
+  t('the session list sentence derives from the fact', w1Done.retired !== undefined && retiredNowLabel(w1Done.retired) === `retired — empty and idle for ${(await import('../../src/platform/async/deadline.ts')).formatLimit(w1Done.retired.idleMs)}`)
   const again = sweepIdleEmptyConcourseSessions(roster, { dir: daemonDir })
   t('a second sweep is idempotent (a retired row refuses again)', again.length === 0 && killed.length === 1)
 
   const crewDir = join(SCRATCH, 'crew')
   mkdirSync(crewDir, { recursive: true })
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  failWhere = 'change buildConcourseSnapshot in src/services/concourse/concourseSnapshot.ts'
-  const { buildConcourseSnapshot } = await import('../../src/services/concourse/concourseSnapshot.ts')
-  const { projectIdentity } = await import('../../src/utils/bootCardFacts.ts')
+  failWhere = 'change buildConcourseSnapshot in src/screen/concourse-model/concourseSnapshot.ts'
+  const { buildConcourseSnapshot } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
+  const { projectIdentity } = await import('../../src/screen/boot-face/bootCardFacts.ts')
   const snapshot = await buildConcourseSnapshot({ recordsDir: daemonDir, crewDir, nowMs: Date.now(), project: projectIdentity(ws) })
   const rows = snapshot.groups.flatMap(g => g.rows.map(r => ({ group: g.id, ...r })))
   const retiredRow = rows.find(r => r.sessionId === 'sess-empty-idle')

@@ -9,8 +9,8 @@ import { join, resolve } from 'node:path'
 import { Client, StreamableHTTPClientTransport, UnauthorizedError, type OAuthClientMetadata, type OAuthClientProvider, type OAuthDiscoveryState, type StoredOAuthClientInformation, type StoredOAuthTokens } from '@modelcontextprotocol/client'
 import { connect } from '../../sdk/src/runner.ts'
 import { compatRoadFixture } from '../sdk/compatRoadFixture.ts'
-import { OUTSIDE_REPORT_RULE, outsideReportHeading } from '../../src/utils/messages/outsideReport.ts'
-import { getProjectDir } from '../../src/utils/sessionStorage/paths.ts'
+import { OUTSIDE_REPORT_RULE, outsideReportHeading } from '../../src/engine/message-shapes/outsideReport.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/paths.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const binary = process.env.MERCURY_PROOF_DIST ?? join(root, 'dist/mercury.mjs')

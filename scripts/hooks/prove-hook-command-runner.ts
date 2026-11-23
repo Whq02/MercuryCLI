@@ -2,7 +2,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { getCachedPowerShellPath } from '../../src/utils/shell/powershellDetection.ts'
+import { getCachedPowerShellPath } from '../../src/platform/shell/powershellDetection.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const root = mkdtempSync(join(tmpdir(), 'hook-command-runner-'))
@@ -16,20 +16,20 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_SHELL_PREFIX
 
 let failures = 0
-const runnerHint = 'to fix, change startCommandHook or winShHookCommand in src/utils/hooks/commandRunner.ts (the timeout, cancel, output bound, environment and spawn handling it does for a hook command), or the ending sentence in hookEndingSentence of src/rows/vocabulary.ts'
+const runnerHint = 'to fix, change startCommandHook or winShHookCommand in src/integrations/event-hooks/commandRunner.ts (the timeout, cancel, output bound, environment and spawn handling it does for a hook command), or the ending sentence in hookEndingSentence of src/engine/rows/vocabulary.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${runnerHint}` : ''}`)
 }
 const watchdog = setTimeout(() => {
-  console.log('FAIL — the command runner wedged past 90s: a hook command never settled; look at startCommandHook in src/utils/hooks/commandRunner.ts, and the last PASS line above names the block before it')
+  console.log('FAIL — the command runner wedged past 90s: a hook command never settled; look at startCommandHook in src/integrations/event-hooks/commandRunner.ts, and the last PASS line above names the block before it')
   process.exit(1)
 }, 90_000)
 watchdog.unref?.()
 
-const { startCommandHook, winShHookCommand, HOOK_OUTPUT_MAX_BYTES, HOOK_STREAM_SETTLE_GRACE_MS } = await import('../../src/utils/hooks/commandRunner.ts')
-const { withHookRunContext } = await import('../../src/utils/hooks/hookEvents.ts')
-const { hookEndingSentence } = await import('../../src/rows/vocabulary.ts')
+const { startCommandHook, winShHookCommand, HOOK_OUTPUT_MAX_BYTES, HOOK_STREAM_SETTLE_GRACE_MS } = await import('../../src/integrations/event-hooks/commandRunner.ts')
+const { withHookRunContext } = await import('../../src/integrations/event-hooks/hookEvents.ts')
+const { hookEndingSentence } = await import('../../src/engine/rows/vocabulary.ts')
 
 const base = { shell: 'bash' as const, name: 'probe', index: 0, payloadJson: '{"event":"turn.start"}', timeoutMs: 20_000, source: { kind: 'settings' as const }, cwd }
 const run = (over: Partial<Parameters<typeof startCommandHook>[0]> & { command: string }) => startCommandHook({ ...base, event: 'turn.start', ...over })

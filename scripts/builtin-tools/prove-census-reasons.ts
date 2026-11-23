@@ -15,13 +15,13 @@ delete process.env.CI
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  const fixHint = 'fix: censusGapLines and CENSUS_NO_REASON in src/services/capability/census.ts build each reason line; declare a missing gate or condition in the tool capability contract (declaredCapability in src/utils/capability/contract.ts)'
+  const fixHint = 'fix: censusGapLines and CENSUS_NO_REASON in src/permissions/capability-census/census.ts build each reason line; declare a missing gate or condition in the tool capability contract (declaredCapability in src/permissions/capability/contract.ts)'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${fixHint}` : ''}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { buildToolCensus, censusGapLines, CENSUS_NO_REASON } = await import('../../src/services/capability/census.ts')
+const { buildToolCensus, censusGapLines, CENSUS_NO_REASON } = await import('../../src/permissions/capability-census/census.ts')
 type Census = ReturnType<typeof buildToolCensus>
 
 console.log('── census reasons ──')
@@ -108,7 +108,7 @@ console.log('[3] the truths driven on this box')
 
 console.log('[4] /health prints the lines (the row, run here)')
 {
-  const { toolCapabilityFastChecks } = await import('../../src/services/health/sections/tool-capability-fast.ts')
+  const { toolCapabilityFastChecks } = await import('../../src/platform/health/sections/tool-capability-fast.ts')
   const row = await toolCapabilityFastChecks().find(entry => entry.id === 'capability-census')?.run()
   const lines = censusGapLines(buildToolCensus())
   const printed = (row?.detail ?? '').split('\n')
@@ -117,7 +117,7 @@ console.log('[4] /health prints the lines (the row, run here)')
   check('…and prints every line as the row’s detail', unlike === -1, printed[unlike] ?? '')
   const reasonless = lines.filter(g => g.reason === CENSUS_NO_REASON).flatMap(g => g.tools)
   check('…and a reasonless row warns the check', reasonless.length > 0 ? row?.status === 'warn' && row.evidence.includes(`NO REASON DECLARED: ${reasonless.join(', ')}`) : row?.status === 'ok' && !row.evidence.includes('NO REASON DECLARED'), row?.evidence)
-  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const enabled = Object.getOwnPropertyDescriptor(FileReadTool, 'isEnabled')
   Object.defineProperty(FileReadTool, 'isEnabled', { configurable: true, writable: true, enumerable: true, value: () => false })
   const gap = await toolCapabilityFastChecks().find(entry => entry.id === 'capability-census')?.run()
@@ -131,7 +131,7 @@ console.log('[4] /health prints the lines (the row, run here)')
 
 console.log('[5] a tool out with its flag left on says why, and "turned off" only of a flag that reads off (the live census, each state set here)')
 {
-  const desktop = await import('../../src/services/desktop/resolveDriver.ts')
+  const desktop = await import('../../src/integrations/desktop/resolveDriver.ts')
   const said: string[] = []
   const lineOf = (tool: string, vars: Record<string, string>): string => {
     const before = Object.keys(vars).map(name => [name, process.env[name]] as const)

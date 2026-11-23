@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/cli/run.ts src/cli/headless/runnerAsks.ts src/runner/wire/* src/services/mcp/client.ts scripts/mcp/_fixture-estate-server.mjs
+// gate-watch: src/daemon/runner/runHeadless.ts src/daemon/runner/runnerAsks.ts src/daemon/runner-wire/* src/integrations/mcp/client.ts scripts/mcp/_fixture-estate-server.mjs
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, rmSync, writeFileSync } from 'node:fs'
@@ -71,11 +71,11 @@ await guarded(async () => {
   await host.prompt('ask the server')
   const result = await host.waitFor('the tool result', row => row.type === 'tool_result', BOUND_MS)
   const waited = Date.now() - t0
-  check(`the tool result lands within the bound (${waited} ms of ${BOUND_MS})`, waited < BOUND_MS, `${waited} ms; a host that declares no elicitation must get cancel at once: see registerElicitationHandlersForClient in src/cli/headless/printTurn.ts and handleElicitation in src/cli/headless/runnerAsks.ts`)
-  check('the server got the cancel answer', resultText(result).includes('"action":"cancel"'), `${resultText(result).slice(0, 200)}; handleElicitation (src/cli/headless/runnerAsks.ts) must answer cancel when the host declared elicitation false`)
-  check('the host was never asked', host.elicitations.length === 0, `${j(host.elicitations)}; handleElicitation (src/cli/headless/runnerAsks.ts) must not send elicitation/request to a host that declared no elicitation`)
+  check(`the tool result lands within the bound (${waited} ms of ${BOUND_MS})`, waited < BOUND_MS, `${waited} ms; a host that declares no elicitation must get cancel at once: see registerElicitationHandlersForClient in src/daemon/runner/runnerTurn.ts and handleElicitation in src/daemon/runner/runnerAsks.ts`)
+  check('the server got the cancel answer', resultText(result).includes('"action":"cancel"'), `${resultText(result).slice(0, 200)}; handleElicitation (src/daemon/runner/runnerAsks.ts) must answer cancel when the host declared elicitation false`)
+  check('the host was never asked', host.elicitations.length === 0, `${j(host.elicitations)}; handleElicitation (src/daemon/runner/runnerAsks.ts) must not send elicitation/request to a host that declared no elicitation`)
   const outcome = await host.waitFor('the outcome', row => row.type === 'outcome', BOUND_MS)
-  check('the turn completes', outcome.status === 'completed', `${j(outcome)}; the turn must go on after the cancel answer, see src/cli/headless/printTurn.ts`)
+  check('the turn completes', outcome.status === 'completed', `${j(outcome)}; the turn must go on after the cancel answer, see src/daemon/runner/runnerTurn.ts`)
   await host.stop()
   await api.close()
   rmSync(scratch.home, { recursive: true, force: true })
@@ -91,10 +91,10 @@ await guarded(async () => {
   await host.initialize({ holds_asks: true, elicitation: true }, 90_000)
   await host.prompt('ask the server')
   const result = await host.waitFor('the tool result', row => row.type === 'tool_result', BOUND_MS)
-  check('the question reached the host once, naming the server, the message and the schema', host.elicitations.length === 1 && host.elicitations[0]!.params.server === 'estate' && host.elicitations[0]!.params.message === 'What is your favourite colour?' && typeof host.elicitations[0]!.params.schema === 'object', `${j(host.elicitations)}; the elicitation/request sent from handleElicitation (src/cli/headless/runnerAsks.ts) must carry server, message and schema`)
-  check("the host's answer reached the server: accept and the colour", resultText(result).includes('"action":"accept"') && resultText(result).includes('"colour":"blue"'), `${resultText(result).slice(0, 200)}; the host answer must be passed back to the MCP server by registerElicitationHandlersForClient in src/cli/headless/printTurn.ts`)
+  check('the question reached the host once, naming the server, the message and the schema', host.elicitations.length === 1 && host.elicitations[0]!.params.server === 'estate' && host.elicitations[0]!.params.message === 'What is your favourite colour?' && typeof host.elicitations[0]!.params.schema === 'object', `${j(host.elicitations)}; the elicitation/request sent from handleElicitation (src/daemon/runner/runnerAsks.ts) must carry server, message and schema`)
+  check("the host's answer reached the server: accept and the colour", resultText(result).includes('"action":"accept"') && resultText(result).includes('"colour":"blue"'), `${resultText(result).slice(0, 200)}; the host answer must be passed back to the MCP server by registerElicitationHandlersForClient in src/daemon/runner/runnerTurn.ts`)
   const outcome = await host.waitFor('the outcome', row => row.type === 'outcome', BOUND_MS)
-  check('the turn completes', outcome.status === 'completed', `${j(outcome)}; the turn must complete after the host answered the elicitation, see src/cli/headless/printTurn.ts`)
+  check('the turn completes', outcome.status === 'completed', `${j(outcome)}; the turn must complete after the host answered the elicitation, see src/daemon/runner/runnerTurn.ts`)
   await host.stop()
   await api.close()
   rmSync(scratch.home, { recursive: true, force: true })

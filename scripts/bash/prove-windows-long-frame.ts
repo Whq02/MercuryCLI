@@ -9,7 +9,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '0.0.0' }
 
 let failures = 0
-const longFrameHint = 'change msysArgvCarries, msysSourceLine, carriedByFile or protectBackslashRunsFromMsysArgv in src/utils/shell/msysArgv.ts, or the hand-over that buildExecCommand builds in src/utils/shell/bashProvider.ts'
+const longFrameHint = 'change msysArgvCarries, msysSourceLine, carriedByFile or protectBackslashRunsFromMsysArgv in src/platform/shell/msysArgv.ts, or the hand-over that buildExecCommand builds in src/platform/shell/bashProvider.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : `${detail ? ' · ' : ' — '}${longFrameHint}`}`)
@@ -20,7 +20,7 @@ console.log('============================================================')
 console.log(' A frame the MSYS2 runtime would cut or misread goes through a file')
 console.log('============================================================')
 
-const { carriedByFile, msysArgvCarries, msysSourceLine, protectBackslashRunsFromMsysArgv } = await import(join(ROOT, 'src/utils/shell/msysArgv.ts'))
+const { carriedByFile, msysArgvCarries, msysSourceLine, protectBackslashRunsFromMsysArgv } = await import(join(ROOT, 'src/platform/shell/msysArgv.ts'))
 const KEPT = 8186
 
 section('(1) which frames argv carries')
@@ -39,7 +39,7 @@ check('the file a command is carried by opens with the mark on a line of its own
 
 const scratch = mkdtempSync(join(tmpdir(), 'windows-long-frame-'))
 try {
-  const { windowsPathToPosixPath, posixPathToWindowsPath } = await import(join(ROOT, 'src/utils/windowsPaths.ts'))
+  const { windowsPathToPosixPath, posixPathToWindowsPath } = await import(join(ROOT, 'src/platform/files/windowsPaths.ts'))
   const windows = process.platform === 'win32'
   const inShell = (path: string): string => (windows ? windowsPathToPosixPath(path) : path)
 
@@ -47,7 +47,7 @@ try {
   let origin: 'shipped' | 'system' | 'engine' = 'system'
   let version = ''
   if (windows) {
-    const record = await (await import(join(ROOT, 'src/utils/shell/shellRecord.ts'))).systemShellRecord()
+    const record = await (await import(join(ROOT, 'src/platform/shell/shellRecord.ts'))).systemShellRecord()
     bash = record.path
     origin = record.origin
     version = record.version
@@ -133,9 +133,9 @@ try {
   } else if (origin === 'engine') {
     console.log('  [SKIP] the bundled engine serves here: it reads its command line by other rules and cuts nothing')
   } else {
-    const { createBashShellProvider } = await import(join(ROOT, 'src/utils/shell/bashProvider.ts'))
-    const { subprocessEnv, toolShellEnv } = await import(join(ROOT, 'src/utils/subprocessEnv.ts'))
-    const { withRoadPrograms } = await import(join(ROOT, 'src/utils/shell/windowsShellRoad.ts'))
+    const { createBashShellProvider } = await import(join(ROOT, 'src/platform/shell/bashProvider.ts'))
+    const { subprocessEnv, toolShellEnv } = await import(join(ROOT, 'src/platform/processes/subprocessEnv.ts'))
+    const { withRoadPrograms } = await import(join(ROOT, 'src/platform/shell/windowsShellRoad.ts'))
     const provider = await createBashShellProvider({ path: bash, dialect: 'bash', version, origin }, { skipSnapshot: true })
     const work = join(scratch, 'work')
     mkdirSync(work)

@@ -1,0 +1,130 @@
+import { flagEnv } from '../../../platform/substrate/flagRegistry.js'
+import { getApiFetch, getProxyFetchOptions } from '../../../platform/network/proxy.js'
+import { readStoredTavilyApiKey } from '../../../models/sign-in/account-ledger/providerSecrets.js'
+import { fetchWithProviderDeadline } from '../../../models/roads/fetchDeadline.js'
+import type { KeyedSearchIo, SearchKeySource } from './brave.js'
+import {
+  DEFAULT_MAX_RESULTS,
+  filterHitsByDomain,
+  normaliseHits,
+  searchFailure,
+  searchUserAgent,
+  type SearchHit,
+  type SearchOutcome,
+  type SearchRequest,
+} from './searchContract.js'
+
+const TAVILY_SEARCH_URL = 'https://api.tavily.com/search'
+const REQUEST_TIMEOUT_MS = 15_000
+const TAVILY_MAX_RESULTS = 20
+
+function tavilySearchUrl(): string {
+  return flagEnv('MERCURY_SEARCH_TAVILY_URL')?.trim() || TAVILY_SEARCH_URL
+}
+
+export function resolveTavilyApiKey(
+  env: Record<string, string | undefined> = hostEnv(),
+): { key: string; source: SearchKeySource } | undefined {
+  const envKey = env.TAVILY_API_KEY?.trim()
+  if (envKey) return { key: envKey, source: 'env' }
+  const stored = readStoredTavilyApiKey()
+  return stored ? { key: stored, source: 'stored' } : undefined
+}
+
+type TavilyDecode = { kind: 'results'; hits: SearchHit[] } | { kind: 'unrecognised'; reason: string }
+
+export function decodeTavilySearch(body: unknown): TavilyDecode {
+  if (typeof body !== 'object' || body === null) return { kind: 'unrecognised', reason: 'the body is not a JSON object' }
+  const o = body as Record<string, unknown>
+  if (!Array.isArray(o.results)) return { kind: 'unrecognised', reason: 'no results array in the body' }
+  const hits: SearchHit[] = []
+  for (const raw of o.results) {
+    if (typeof raw !== 'object' || raw === null) continue
+    const r = raw as Record<string, unknown>
+    if (typeof r.url !== 'string' || typeof r.title !== 'string') continue
+    hits.push({
+      title: r.title,
+      url: r.url,
+      snippet: typeof r.content === 'string' ? r.content : '',
+      source_type: 'tavily',
+    })
+  }
+  return { kind: 'results', hits }
+}
+
+export function tavilyRequestBodyFor(request: SearchRequest): Record<string, unknown> {
+  const allowed = (request.allowedDomains ?? []).filter(d => d.trim() !== '')
+  const blocked = (request.blockedDomains ?? []).filter(d => d.trim() !== '')
+  return {
+    query: request.query.trim(),
+    max_results: Math.min(TAVILY_MAX_RESULTS, Math.max(1, request.maxResults ?? DEFAULT_MAX_RESULTS)),
+    search_depth: 'basic',
+    include_answer: false,
+    include_raw_content: false,
+    ...(allowed.length > 0 ? { include_domains: allowed } : {}),
+    ...(blocked.length > 0 ? { exclude_domains: blocked } : {}),
+  }
+}
+
+import { liveSearchClock, noteRateLimited, secondsLeftLabel, serverSearchWaitMs, withSearchTurn } from './searchPacing.js'
+import { hostEnv } from '../../../platform/environment/hostEnv.js'
+
+const TAVILY_PACING = { intervalMs: 600, windowMs: 60_000, maxRequests: 100, why: 'https://docs.tavily.com/documentation/rate-limits — development keys 100/minute, production 1,000/minute; use the lower rate and honour Retry-After, never infer a wait from message wording.' }
+
+export async function tavilySearch(request: SearchRequest, io: KeyedSearchIo = {}): Promise<SearchOutcome> {
+  return withSearchTurn('tavily', TAVILY_PACING, io.clock ?? liveSearchClock, request.signal, async wait => {
+    if (request.signal?.aborted) return searchFailure('aborted', 'tavily', 'cancelled')
+    if (wait > 0) return searchFailure('rate-limited', 'tavily', `wait ${secondsLeftLabel(wait)}; no request made`)
+    return requestTavilySearch(request, io)
+  })
+}
+
+async function requestTavilySearch(request: SearchRequest, io: KeyedSearchIo): Promise<SearchOutcome> {
+  const key = resolveTavilyApiKey(io.env ?? hostEnv())
+  if (!key) return searchFailure('no-backend', 'tavily', 'no Tavily key (set TAVILY_API_KEY)')
+  const fetchImpl = io.fetchImpl ?? getApiFetch()
+  const proxyOptions = io.fetchImpl ? {} : getProxyFetchOptions()
+  let response: Response
+  try {
+    response = await fetchWithProviderDeadline(fetchImpl, 'Tavily', REQUEST_TIMEOUT_MS, tavilySearchUrl(), {
+      ...proxyOptions,
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        'user-agent': searchUserAgent(),
+        authorization: `Bearer ${key.key}`,
+      },
+      body: JSON.stringify(tavilyRequestBodyFor(request)),
+      ...(request.signal ? { signal: request.signal } : {}),
+    } as RequestInit)
+  } catch (error) {
+    if (request.signal?.aborted) return searchFailure('aborted', 'tavily', 'cancelled')
+    return searchFailure('network', 'tavily', error instanceof Error ? error.message : String(error))
+  }
+  const clock = io.clock ?? liveSearchClock
+  const wait = serverSearchWaitMs(response.headers, clock.now())
+  if (wait > 0 || [429, 432, 433].includes(response.status)) noteRateLimited('tavily', clock, wait)
+  if (response.status === 401 || response.status === 403) {
+    return searchFailure('key-refused', 'tavily', `HTTP ${response.status} — check the key at app.tavily.com and set TAVILY_API_KEY again`)
+  }
+  if (response.status === 429 || response.status === 432 || response.status === 433) {
+    return searchFailure('rate-limited', 'tavily', `HTTP ${response.status} — the plan's rate or monthly credits are spent`)
+  }
+  if (response.status >= 500) return searchFailure('network', 'tavily', `HTTP ${response.status}`)
+  if (response.status !== 200) return searchFailure('provider-refused', 'tavily', `HTTP ${response.status}`)
+  let body: unknown
+  try {
+    body = await response.json()
+  } catch (error) {
+    return searchFailure('parse-failed', 'tavily', `the body is not JSON (${error instanceof Error ? error.message : String(error)})`)
+  }
+  const decoded = decodeTavilySearch(body)
+  if (decoded.kind === 'unrecognised') return searchFailure('parse-failed', 'tavily', decoded.reason)
+  return {
+    ok: true,
+    via: 'tavily',
+    tier: 'keyed',
+    hits: normaliseHits(filterHitsByDomain(decoded.hits, request.allowedDomains, request.blockedDomains), request.maxResults ?? DEFAULT_MAX_RESULTS),
+  }
+}

@@ -18,7 +18,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}this drove the built dist/mercury.mjs (rebuild with bun run build.ts if src changed); the offer card is src/components/CapOfferCard.tsx and the failover lane sentence comes from src/services/capFailover.ts; the forensics lines below name the kept world dir` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}this drove the built dist/mercury.mjs (rebuild with bun run build.ts if src changed); the offer card is src/screen/composer/CapOfferCard.tsx and the failover lane sentence comes from src/models/roads/capFailover.ts; the forensics lines below name the kept world dir` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

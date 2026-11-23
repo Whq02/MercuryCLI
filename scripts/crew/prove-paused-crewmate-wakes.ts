@@ -102,7 +102,7 @@ try {
   await sleep(1_000)
   const started = frames.find(frame => frame.type === 'task' && frame.state === 'started' && frame.task_type === 'local_agent')
   const taskId = started?.task_id
-  tally.check('a real background crewmate streams and the lead\'s turn waits on it', launched && typeof taskId === 'string', `${JSON.stringify({ launched, taskId })} — the Crewmate launch (src/tools/AgentTool) must start a background local_agent task while the lead's turn waits on it; read the tails printed by the WAIT TIMEOUT above`)
+  tally.check('a real background crewmate streams and the lead\'s turn waits on it', launched && typeof taskId === 'string', `${JSON.stringify({ launched, taskId })} — the Crewmate launch (src/tools/crewmate) must start a background local_agent task while the lead's turn waits on it; read the tails printed by the WAIT TIMEOUT above`)
   if (typeof taskId !== 'string') throw new Error('no crewmate task id')
   console.log(`  ${clock()} p (session/pause_gate) while the crewmate streams`)
   const closed = await pauseGate(true)
@@ -110,7 +110,7 @@ try {
   const bash1 = toolCallRows('Bash')[0]
   await sleep(SETTLE_MS)
   const parked = await gateFacts()
-  tally.check('the crewmate\'s stream finishes and its Bash parks before it runs: no tool result, the facts read the gate closed with one parked', closed?.paused === true && bashAsked && toolResultRow(bash1?.call_id) === undefined && parked?.paused === true && (parked?.parked ?? 0) >= 1, `${JSON.stringify({ closed, bash: bash1?.call_id, result: toolResultRow(bash1?.call_id), parked })} — the pause gate (src/run-core/pauseGate.ts, verb session/pause_gate in src/runner/wire/sessionVerbs.ts) must park the crewmate's Bash before it runs and the session facts must count it as parked`)
+  tally.check('the crewmate\'s stream finishes and its Bash parks before it runs: no tool result, the facts read the gate closed with one parked', closed?.paused === true && bashAsked && toolResultRow(bash1?.call_id) === undefined && parked?.paused === true && (parked?.parked ?? 0) >= 1, `${JSON.stringify({ closed, bash: bash1?.call_id, result: toolResultRow(bash1?.call_id), parked })} — the pause gate (src/engine/loop/pauseGate.ts, verb session/pause_gate in src/daemon/runner-wire/sessionVerbs.ts) must park the crewmate's Bash before it runs and the session facts must count it as parked`)
 
   tally.section('A — WORDS TYPED AT THE PAUSED CREWMATE (agent/resume with a note, the crew view\'s road) wake that crewmate alone; the gate stays closed')
   console.log(`  ${clock()} agent/resume {agent_id, note} → the crewmate`)
@@ -119,31 +119,31 @@ try {
   const wokeA = await waitFor('the parked Bash never ran after the words', () => toolResultRow(bash1?.call_id) !== undefined, TURN_MS)
   const tookA = Date.now() - tA
   const gateA = await gateFacts()
-  tally.check('the runner accepted the words for the running crewmate (queued)', resumed.queued === true, `${JSON.stringify(resumed)} — the 'agent/resume' arm in src/cli/headless/runnerArms.ts must queue the note (queueOperatorMessage) for a crewmate that is still running`)
-  tally.check(`the words wake the paused crewmate: its parked Bash runs with the input its model asked for (took ${tookA}ms)`, wokeA && outputOf(bash1?.call_id).includes(WOKE), `${JSON.stringify({ result: toolResultRow(bash1?.call_id), gateA })} — a note queued for a paused crewmate must lift that crewmate's park in src/run-core/pauseGate.ts so its parked Bash runs with its original input`)
-  tally.check('the gate stays closed and nothing else is parked: the lift is the crewmate\'s alone', gateA?.paused === true && gateA.parked === 0, `${JSON.stringify(gateA)} — lifting one crewmate's park must not open the whole gate (src/run-core/pauseGate.ts keeps paused true, parked drops to 0)`)
+  tally.check('the runner accepted the words for the running crewmate (queued)', resumed.queued === true, `${JSON.stringify(resumed)} — the 'agent/resume' arm in src/daemon/runner/runnerArms.ts must queue the note (queueOperatorMessage) for a crewmate that is still running`)
+  tally.check(`the words wake the paused crewmate: its parked Bash runs with the input its model asked for (took ${tookA}ms)`, wokeA && outputOf(bash1?.call_id).includes(WOKE), `${JSON.stringify({ result: toolResultRow(bash1?.call_id), gateA })} — a note queued for a paused crewmate must lift that crewmate's park in src/engine/loop/pauseGate.ts so its parked Bash runs with its original input`)
+  tally.check('the gate stays closed and nothing else is parked: the lift is the crewmate\'s alone', gateA?.paused === true && gateA.parked === 0, `${JSON.stringify(gateA)} — lifting one crewmate's park must not open the whole gate (src/engine/loop/pauseGate.ts keeps paused true, parked drops to 0)`)
   if (!wokeA) throw new Error('the crewmate is deaf to the words — the later scenes need a crewmate that wakes')
 
   tally.section('B — p twice (open, then a fresh pause) parks the woken crewmate again at its next tool; a note addressed to it (queue/add type:note, the daemon\'s delivery) wakes it again')
   const carriedAcrossTheSeam = await waitFor('the woken crewmate never started its second model call', () => requestsOf(peerModel).length >= 2, TURN_MS)
-  tally.check('the lift carries across the model seam: the woken crewmate\'s second request streams under the closed gate', carriedAcrossTheSeam && (await gateFacts())?.paused === true, `${JSON.stringify({ peer: requestsOf(peerModel).length })} — the lift in src/run-core/pauseGate.ts must hold across the crewmate's next model call, and the gate must stay closed`)
+  tally.check('the lift carries across the model seam: the woken crewmate\'s second request streams under the closed gate', carriedAcrossTheSeam && (await gateFacts())?.paused === true, `${JSON.stringify({ peer: requestsOf(peerModel).length })} — the lift in src/engine/loop/pauseGate.ts must hold across the crewmate's next model call, and the gate must stay closed`)
   const opened = await pauseGate(false)
   const closedAgain = await pauseGate(true)
   const bashAskedAgain = await waitFor('the crewmate never asked for its second Bash', () => toolCallRows('Bash').length >= 2, TURN_MS)
   const bash2 = toolCallRows('Bash')[1]
   await sleep(SETTLE_MS)
   const parkedAgain = await gateFacts()
-  tally.check('a fresh pause after a reopen holds the crewmate again: its second Bash parks, the facts read it parked', opened?.paused === false && closedAgain?.paused === true && bashAskedAgain && toolResultRow(bash2?.call_id) === undefined && parkedAgain?.paused === true && (parkedAgain?.parked ?? 0) >= 1, `${JSON.stringify({ opened, closedAgain, result: toolResultRow(bash2?.call_id), parkedAgain })} — after session/pause_gate false then true, the gate in src/run-core/pauseGate.ts must park the woken crewmate again at its next tool`)
+  tally.check('a fresh pause after a reopen holds the crewmate again: its second Bash parks, the facts read it parked', opened?.paused === false && closedAgain?.paused === true && bashAskedAgain && toolResultRow(bash2?.call_id) === undefined && parkedAgain?.paused === true && (parkedAgain?.parked ?? 0) >= 1, `${JSON.stringify({ opened, closedAgain, result: toolResultRow(bash2?.call_id), parkedAgain })} — after session/pause_gate false then true, the gate in src/engine/loop/pauseGate.ts must park the woken crewmate again at its next tool`)
   console.log(`  ${clock()} queue/add {type:'note', to} → the crewmate`)
   submit({ type: 'note', to: taskId, content: NOTE_B })
   const tB = Date.now()
   const wokeB = await waitFor('the parked Bash never ran after the addressed note', () => toolResultRow(bash2?.call_id) !== undefined, TURN_MS)
   const tookB = Date.now() - tB
   const gateB = await gateFacts()
-  tally.check(`the addressed note wakes the paused crewmate: its parked Bash runs with the input its model asked for (took ${tookB}ms)`, wokeB && outputOf(bash2?.call_id).includes(WOKE_AGAIN), `${JSON.stringify({ result: toolResultRow(bash2?.call_id), gateB, queue })} — a note added through queue/add (type note, to the crewmate) must lift that crewmate's park in src/run-core/pauseGate.ts, as the agent/resume note did`)
-  tally.check('the gate stays closed after the note', gateB?.paused === true, `${JSON.stringify(gateB)} — an addressed note must lift only the crewmate's park, not reopen the gate in src/run-core/pauseGate.ts`)
+  tally.check(`the addressed note wakes the paused crewmate: its parked Bash runs with the input its model asked for (took ${tookB}ms)`, wokeB && outputOf(bash2?.call_id).includes(WOKE_AGAIN), `${JSON.stringify({ result: toolResultRow(bash2?.call_id), gateB, queue })} — a note added through queue/add (type note, to the crewmate) must lift that crewmate's park in src/engine/loop/pauseGate.ts, as the agent/resume note did`)
+  tally.check('the gate stays closed after the note', gateB?.paused === true, `${JSON.stringify(gateB)} — an addressed note must lift only the crewmate's park, not reopen the gate in src/engine/loop/pauseGate.ts`)
   const finished = await waitFor('the crewmate never finished', () => textLanded('LANE-DONE'), TURN_MS)
-  tally.check('the crewmate runs to its end under the closed gate', finished, `${JSON.stringify({ finished, peer: requestsOf(peerModel).length })} — once woken, the crewmate must run on to its final text without a further press; look at the park in src/run-core/pauseGate.ts`)
+  tally.check('the crewmate runs to its end under the closed gate', finished, `${JSON.stringify({ finished, peer: requestsOf(peerModel).length })} — once woken, the crewmate must run on to its final text without a further press; look at the park in src/engine/loop/pauseGate.ts`)
 
   tally.section('CONTROL — the operator\'s prompt to the chat opens the whole gate (round 1 kept)')
   const leadBefore = requestsOf(LEAD_MODEL).length
@@ -153,9 +153,9 @@ try {
   const answered = await waitFor('the prompt to main was never sent to the model', () => requestsOf(LEAD_MODEL).slice(leadBefore).some(request => lastUserOf(request).includes(CONTROL)), TURN_MS)
   const tookC = Date.now() - tC
   const gateC = await gateFacts()
-  tally.check(`the prompt to main is answered (its request issued, took ${tookC}ms) and the gate reads open`, answered && gateC?.paused === false && gateC.parked === 0, `${JSON.stringify({ answered, gateC, outcomes: outcomes().length })} — the operator's prompt to the chat must issue a model request and open the whole gate in src/run-core/pauseGate.ts`)
+  tally.check(`the prompt to main is answered (its request issued, took ${tookC}ms) and the gate reads open`, answered && gateC?.paused === false && gateC.parked === 0, `${JSON.stringify({ answered, gateC, outcomes: outcomes().length })} — the operator's prompt to the chat must issue a model request and open the whole gate in src/engine/loop/pauseGate.ts`)
   const carried = await waitFor('the words sent to the crewmate never reached a request of its own', () => [NOTE_A, NOTE_B].every(note => requestsOf(peerModel).some(request => JSON.stringify(request.body.messages ?? []).includes(note))), TURN_MS)
-  tally.check('both messages sent to the crewmate reach its own model requests (the typed words as guidance when its run ends, the note at its next request) — late, never dropped', carried, `${JSON.stringify(requestsOf(peerModel).map(lastUserOf).map(text => text.slice(0, 100)))} — the typed note (queueOperatorMessage, reached from the 'agent/resume' arm in src/cli/headless/runnerArms.ts) and the addressed note must each appear in one of the crewmate's own model requests`)
+  tally.check('both messages sent to the crewmate reach its own model requests (the typed words as guidance when its run ends, the note at its next request) — late, never dropped', carried, `${JSON.stringify(requestsOf(peerModel).map(lastUserOf).map(text => text.slice(0, 100)))} — the typed note (queueOperatorMessage, reached from the 'agent/resume' arm in src/daemon/runner/runnerArms.ts) and the addressed note must each appear in one of the crewmate's own model requests`)
   record('requests.json', JSON.stringify({ lead: requestsOf(LEAD_MODEL).map(lastUserOf), peer: requestsOf(peerModel).map(lastUserOf) }, null, 2))
 } catch (error) {
   tally.check('the scenes ran to their end', false, error instanceof Error ? error.message : String(error))

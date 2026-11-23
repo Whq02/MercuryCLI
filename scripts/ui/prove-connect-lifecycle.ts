@@ -8,10 +8,10 @@ pinSourceRef()
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 for (const name of ['GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MERCURY_GEMINI_OAUTH_CLIENT_ID', 'MERCURY_GEMINI_OAUTH_CLIENT_SECRET']) delete process.env[name]
 
-const geminiAccounts = await import('../../src/services/providers/gemini/geminiAccounts.js')
-const geminiLogin = await import('../../src/services/providers/gemini/geminiLogin.js')
-const hfLogin = await import('../../src/services/providers/huggingface/huggingfaceLogin.js')
-const kimiLogin = await import('../../src/services/providers/moonshot/moonshotLogin.js')
+const geminiAccounts = await import('../../src/models/roads/gemini/geminiAccounts.js')
+const geminiLogin = await import('../../src/models/roads/gemini/geminiLogin.js')
+const hfLogin = await import('../../src/models/roads/huggingface/huggingfaceLogin.js')
+const kimiLogin = await import('../../src/models/roads/moonshot/moonshotLogin.js')
 
 type Outcome = { ok: boolean; stored: boolean; receipt: string }
 const pending: Array<{ resolve: (outcome: Outcome) => void; reject: (error: Error) => void }> = []
@@ -28,23 +28,23 @@ const begin = () => {
     cancel: () => { cancelCount++; reject(new Error('fixture cancelled')) },
   }
 }
-mock.module('../../src/services/providers/gemini/geminiAccounts.js', () => ({
+mock.module('../../src/models/roads/gemini/geminiAccounts.js', () => ({
   ...geminiAccounts,
   beginGeminiBrowserConnect: begin,
   beginGeminiPlanBrowserConnect: begin,
 }))
-mock.module('../../src/services/providers/gemini/geminiLogin.js', () => ({ ...geminiLogin, storeGeminiApiKeyLogin: store }))
+mock.module('../../src/models/roads/gemini/geminiLogin.js', () => ({ ...geminiLogin, storeGeminiApiKeyLogin: store }))
 const failDevice = async () => { throw new Error('fixture sign-in failed') }
-mock.module('../../src/services/providers/huggingface/huggingfaceLogin.js', () => ({ ...hfLogin, storeHuggingfaceTokenLogin: store, runHuggingfaceDeviceLogin: failDevice }))
-mock.module('../../src/services/providers/moonshot/moonshotLogin.js', () => ({ ...kimiLogin, storeMoonshotApiKeyLogin: store, runKimiDeviceLogin: failDevice }))
-mock.module('../../src/utils/browser.js', () => ({ openBrowser: async () => true, openPath: async () => true }))
+mock.module('../../src/models/roads/huggingface/huggingfaceLogin.js', () => ({ ...hfLogin, storeHuggingfaceTokenLogin: store, runHuggingfaceDeviceLogin: failDevice }))
+mock.module('../../src/models/roads/moonshot/moonshotLogin.js', () => ({ ...kimiLogin, storeMoonshotApiKeyLogin: store, runKimiDeviceLogin: failDevice }))
+mock.module('../../src/platform/host-os/browser.js', () => ({ openBrowser: async () => true, openPath: async () => true }))
 
-const { GeminiConnect } = await import('../../src/components/GeminiConnect.js')
-const { HuggingfaceConnect } = await import('../../src/components/HuggingfaceConnect.js')
-const { KimiConnect } = await import('../../src/components/KimiConnect.js')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { PopupCompactContext } = await import('../../src/context/popupFormContext.js')
+const { GeminiConnect } = await import('../../src/models/sign-in/flow-cards/GeminiConnect.js')
+const { HuggingfaceConnect } = await import('../../src/models/sign-in/flow-cards/HuggingfaceConnect.js')
+const { KimiConnect } = await import('../../src/models/sign-in/flow-cards/KimiConnect.js')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { PopupCompactContext } = await import('../../src/screen/overlays/popupFormContext.js')
 
 async function mount(Component: typeof GeminiConnect, results: unknown[]) {
   return mountOffscreen(createElement(AppStateProvider, null,
@@ -87,7 +87,7 @@ for (const leg of ['plan', 'oauth'] as const) {
     await settle(150)
     if (leg === 'oauth') { await press(board, KEY.down); await press(board, KEY.down) }
     await press(board, KEY.enter)
-    assert(await waitFor(() => board.screen().includes('paste the redirected URL'), 2000), `src/components/GeminiConnect.tsx ${leg} browser connect did not paint 'paste the redirected URL': ${board.screen().slice(0, 140)}`)
+    assert(await waitFor(() => board.screen().includes('paste the redirected URL'), 2000), `src/models/sign-in/flow-cards/GeminiConnect.tsx ${leg} browser connect did not paint 'paste the redirected URL': ${board.screen().slice(0, 140)}`)
     await press(board, 'fixture-authorization-code')
     assert(!board.screen().includes('fixture-authorization-code'), `${leg}: redirect code masked`)
     await press(board, KEY.enter)

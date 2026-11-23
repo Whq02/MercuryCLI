@@ -2,8 +2,8 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash, generateKeyPairSync } from 'node:crypto'
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { keyIdOf, signStatement, type SigningStatementV1 } from '../../src/services/privateChannel/artifactSigning.js'
-import type { TrustedSigningKey } from '../../src/services/privateChannel/signingTrust.js'
+import { keyIdOf, signStatement, type SigningStatementV1 } from '../../src/platform/update-channel/artifactSigning.js'
+import type { TrustedSigningKey } from '../../src/platform/update-channel/signingTrust.js'
 // @ts-expect-error — the packager-side authority is plain .mjs (no types)
 import { readCompatFloor, releaseLayoutSection } from '../release/payloadContract.mjs'
 

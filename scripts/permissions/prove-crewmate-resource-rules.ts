@@ -8,25 +8,25 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.NODE_ENV
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-await import('../../src/services/providers/callModelRouter.ts')
-await import('../../src/services/messages.ts')
-const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.ts')
+await import('../../src/models/roads/callModelRouter.ts')
+await import('../../src/engine/messages/messages.ts')
+const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.ts')
 setCwdState(home)
 setOriginalCwd(home)
 setProjectRoot(home)
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { resolveAgentTools } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { composeAgentAppState } = await import('../../src/tools/AgentTool/agentPermissionPosture.ts')
-const { decodeAgentDocument } = await import('../../src/services/agents/codec.ts')
-const { parseAgentFromJson, getAgentDefinitionsWithOverrides, clearAgentDefinitionsCache } = await import('../../src/tools/AgentTool/loadAgentsDir.ts')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
-const { checkWritePermissionForTool } = await import('../../src/utils/permissions/filesystem.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { resolveAgentTools } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { composeAgentAppState } = await import('../../src/tools/crewmate/agentPermissionPosture.ts')
+const { decodeAgentDocument } = await import('../../src/crew/agents/codec.ts')
+const { parseAgentFromJson, getAgentDefinitionsWithOverrides, clearAgentDefinitionsCache } = await import('../../src/tools/crewmate/loadAgentsDir.ts')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
+const { checkWritePermissionForTool } = await import('../../src/permissions/rules/filesystem.ts')
 const fileWriteToolHasPermission = (_tool: unknown, input: { file_path: string }, context: ReturnType<typeof getEmptyToolPermissionContext>) => checkWritePermissionForTool({ name: 'Edit', getPath: (value: { file_path: string }) => value.file_path }, input, context)
 let failures = 0
 let checks = 0
-const resourceRulesFixHint = 'change the function this check exercises: tool toolbox in resolveAgentTools (src/tools/AgentTool/agentToolUtils.ts), the rule overlay in composeAgentAppState (src/tools/AgentTool/agentPermissionPosture.ts), Bash rules in bashToolHasPermission (src/tools/BashTool/bashPermissions.ts), Edit rules in checkWritePermissionForTool (src/utils/permissions/filesystem.ts), malformed-pattern diagnostics in decodeAgentDocument (src/services/agents/codec.ts), parseAgentFromJson and getAgentDefinitionsWithOverrides (src/tools/AgentTool/loadAgentsDir.ts)'
+const resourceRulesFixHint = 'change the function this check exercises: tool toolbox in resolveAgentTools (src/tools/crewmate/crewmateLifecycle.ts), the rule overlay in composeAgentAppState (src/tools/crewmate/agentPermissionPosture.ts), Bash rules in bashToolHasPermission (src/tools/shell/bashPermissions.ts), Edit rules in checkWritePermissionForTool (src/permissions/rules/filesystem.ts), malformed-pattern diagnostics in decodeAgentDocument (src/crew/agents/codec.ts), parseAgentFromJson and getAgentDefinitionsWithOverrides (src/tools/crewmate/loadAgentsDir.ts)'
 const check =(label: string, ok: boolean, detail?: unknown): void => {
   checks++
   if (!ok) failures++

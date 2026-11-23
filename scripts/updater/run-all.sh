@@ -2,12 +2,12 @@
 # gate-class: cpu
 # gate-env: MERCURY_UPDATER_NETWORK MERCURY_JOURNEY_DIST MERCURY_BRIDGE_CANDIDATE MERCURY_BRIDGE_SLUG MERCURY_BRIDGE_PREVIOUS MERCURY_BRIDGE_PREVIOUS_TAG
 # gate-watch: scripts/release/**
-# gate-watch: src/ink/termio/*
+# gate-watch: src/screen/renderer/termio/alternateScrollPolicy.ts src/screen/renderer/termio/ansi.ts src/screen/renderer/termio/csi.ts src/screen/renderer/termio/dec.ts src/screen/renderer/termio/display-types.ts src/screen/renderer/termio/displayParser.ts src/screen/renderer/termio/notifyPing.ts src/screen/renderer/termio/osc.ts
 # gate-watch: CONTRIBUTING.md
 # gate-watch: scripts/lib/captureDriver.ts
-# gate-watch: src/utils/processSweep.ts src/daemon/processSweepRun.ts src/daemon/processSweepPosix.ts src/daemon/processSweepWindows.ts
-# gate-watch: src/daemon/headlessRun.ts src/services/acp/childSession.ts src/services/host/jobs.ts src/services/projectServices/serviceManager.ts
-# gate-watch: src/components/Feedback.tsx docs/README.md docs/NIX.md nix/**
+# gate-watch: src/daemon/process-sweep/processSweep.ts src/daemon/process-sweep/processSweepRun.ts src/daemon/process-sweep/processSweepPosix.ts src/daemon/process-sweep/processSweepWindows.ts
+# gate-watch: src/daemon/runner-link/headlessRun.ts src/integrations/acp/childSession.ts src/models/hosting/jobs.ts src/tools/engines/project-services/serviceManager.ts
+# gate-watch: src/commands/feedback/BugReport.tsx docs/README.md docs/NIX.md nix/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

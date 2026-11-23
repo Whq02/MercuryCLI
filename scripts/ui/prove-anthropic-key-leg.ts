@@ -8,11 +8,11 @@ import { gridToPng } from './gridToPng.ts'
 const world = await accountsWorld()
 process.env.FORCE_COLOR = '0'
 const React = await import('react')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { ConsoleOAuthFlow } = await import('../../src/components/ConsoleOAuthFlow.tsx')
-const { BootLoginsScreen } = await import('../../src/components/BootLoginsScreen.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { ConsoleOAuthFlow } = await import('../../src/models/sign-in/flow-cards/SignInFlow.tsx')
+const { BootLoginsScreen } = await import('../../src/screen/boot-face/BootLoginsScreen.tsx')
 const { signedOutFacts } = await import('./face-logins-stills.ts')
 let done = 0
 let screen: Mounted | undefined

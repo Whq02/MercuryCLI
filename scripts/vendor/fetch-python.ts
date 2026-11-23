@@ -10,7 +10,7 @@ import {
   pythonPackPlatform,
   pythonPackSelectionFor,
   type PythonPackPlatform,
-} from '../../src/services/privateChannel/vendoredPython.ts'
+} from '../../src/platform/update-channel/vendoredPython.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const LOCK_PATH = join(ROOT, 'vendor', 'python.lock.json')

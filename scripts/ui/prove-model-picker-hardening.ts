@@ -25,17 +25,17 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
   process.env[base] = 'http://127.0.0.1:1'
 }
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 
 const React = (await import('react')).default
-const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent } = await import('../../src/ink.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.js')
-const { escapeFromOutsidePress } = await import('../../src/ink/recessLayer.js')
-const { ModalContext } = await import('../../src/context/modalContext.js')
-const pure = await import('../../src/utils/model/modelPickerGroups.js')
-const ledger = await import('../../src/utils/model/modelUseLedger.js')
-type ModelChoice = import('../../src/components/MercuryModelPicker.js').ModelChoice
+const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent } = await import('../../src/screen/themedRenderer.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.js')
+const { escapeFromOutsidePress } = await import('../../src/screen/renderer/recessLayer.js')
+const { ModalContext } = await import('../../src/screen/overlays/modalContext.js')
+const pure = await import('../../src/models/facts/modelPickerGroups.js')
+const ledger = await import('../../src/models/facts/modelUseLedger.js')
+type ModelChoice = import('../../src/commands/model/picker/MercuryModelPicker.js').ModelChoice
 
 const arg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)
@@ -45,11 +45,11 @@ const frameDir = arg('--frames')
 if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 
 let failures = 0
-const pickerSource = 'src/components/MercuryModelPicker.tsx (the picker\'s layout, key and pointer handling)'
+const pickerSource = 'src/commands/model/picker/MercuryModelPicker.tsx (the picker\'s layout, key and pointer handling)'
 const sectionWhere: Record<string, string> = {
-  '§3': `${pickerSource} and matchesPickerFilter / pickerReachTotal in src/utils/model/modelPickerGroups.ts`,
-  '§6': 'headingWords and pickerReachTotal in src/utils/model/modelPickerGroups.ts, then the heading paint in src/components/MercuryModelPicker.tsx',
-  '§7': 'recordModelUse, readModelUseLedger and modelUseLedgerPath in src/utils/model/modelUseLedger.ts, orderPickerGroups in src/utils/model/modelPickerGroups.ts',
+  '§3': `${pickerSource} and matchesPickerFilter / pickerReachTotal in src/models/facts/modelPickerGroups.ts`,
+  '§6': 'headingWords and pickerReachTotal in src/models/facts/modelPickerGroups.ts, then the heading paint in src/commands/model/picker/MercuryModelPicker.tsx',
+  '§7': 'recordModelUse, readModelUseLedger and modelUseLedgerPath in src/models/facts/modelUseLedger.ts, orderPickerGroups in src/models/facts/modelPickerGroups.ts',
 }
 let where = pickerSource
 function check(label: string, cond: boolean, detail = ''): void {
@@ -222,7 +222,7 @@ for (const [columns, height] of [[80, 24], [100, 30], [120, 40], [178, 51], [200
   else check(`${columns}x${height}: at the floor every model row is one line cut with the ellipsis`, lines.filter(l => /│ (?:│ | {2})(?:❯ )?[A-Za-z—]/.test(l) && !/[▾▸❯] [A-Z]/.test(l) && !/ · |╭|╰|context|effort|filter by|↑↓/.test(l)).every(l => l.includes('…')), lines.slice(3, 8).map(inner).join(' | '))
   if (columns >= 100) check(`${columns}x${height}: the longest OpenRouter id stands whole with its ctx`, /nvidia\/nemotron-3-ultra:free\s{2,}1M ctx/.test(nemotron), inner(nemotron))
   const sixty = lineWith(lines, ID60.slice(0, 12))
-  check(`${columns}x${height}: the sixty-character id keeps its start, is cut once at its end where its row cannot hold it, and its 1.31M ctx cell stands`, columns < 60 || (new RegExp(`\\s${ID60.slice(0, 12)}\\S*(?:…|${ID60.slice(-12)})\\s`).test(sixty) && !/\s…\S/.test(sixty) && (columns < 100 || sixty.includes('1.31M ctx'))), `${inner(sixty)}; the id cell is pickerIdText and pickerIdSpan in src/utils/model/modelPickerGroups.ts, drawn by idAndState in src/components/modelPicker/renderLine.tsx`)
+  check(`${columns}x${height}: the sixty-character id keeps its start, is cut once at its end where its row cannot hold it, and its 1.31M ctx cell stands`, columns < 60 || (new RegExp(`\\s${ID60.slice(0, 12)}\\S*(?:…|${ID60.slice(-12)})\\s`).test(sixty) && !/\s…\S/.test(sixty) && (columns < 100 || sixty.includes('1.31M ctx'))), `${inner(sixty)}; the id cell is pickerIdText and pickerIdSpan in src/models/facts/modelPickerGroups.ts, drawn by idAndState in src/screen/model-picker/renderLine.tsx`)
   const odd = lineWith(lines, 'x/y·z') || oddSeen
   check(`${columns}x${height}: an id holding · and │ paints in its cell without breaking the row (in the final frame or one the walk audited)`, columns < 60 || (odd !== '' && problems.length === 0 && auditBox('odd', [lines[0]!, ...lines.slice(1)], columns).length === 0), inner(odd))
   board.close()

@@ -22,26 +22,26 @@ const frames = [
   { type: 'response.completed', response: { id: 'fixture-response', usage: { input_tokens: 7, output_tokens: 5 } } },
 ]
 async function responses(root: string) {
-  const { ResponsesStreamFold } = await import(`${root}/src/services/providers/openai/openaiWire.ts`)
+  const { ResponsesStreamFold } = await import(`${root}/src/models/roads/openai/openaiWire.ts`)
   const fold = new ResponsesStreamFold()
   const events = JSON.parse(JSON.stringify(frames)).flatMap((frame: unknown) => fold.fold(frame))
   const items = fold.settledItems()
-  assert.equal(fold.finished, true, 'ResponsesStreamFold in src/services/providers/openai/openaiWire.ts did not finish after the response.completed frame; fix its fold method')
+  assert.equal(fold.finished, true, 'ResponsesStreamFold in src/models/roads/openai/openaiWire.ts did not finish after the response.completed frame; fix its fold method')
   assert.deepEqual(items, [
     { type: 'reasoning', id: 'fixture-reasoning', summary: [{ type: 'summary_text', text: 'fixture thought' }], encrypted_content: 'fixture-private' },
     { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'fixture answer' }], phase: 'commentary' },
     { type: 'function_call', call_id: 'fixture-call', name: 'Read', arguments: '{"file_path":"/fixture"}', id: 'fixture-item' },
-  ], 'ResponsesStreamFold.settledItems in src/services/providers/openai/openaiWire.ts must return reasoning, message and function_call items in stream order, as listed here')
+  ], 'ResponsesStreamFold.settledItems in src/models/roads/openai/openaiWire.ts must return reasoning, message and function_call items in stream order, as listed here')
   return { events, items }
 }
 async function anthropic(root: string) {
-  const { enableConfigs } = await import(`${root}/src/utils/config.ts`)
+  const { enableConfigs } = await import(`${root}/src/platform/settings/config.ts`)
   enableConfigs()
-  const state = await import(`${root}/src/bootstrap/state.ts`)
+  const state = await import(`${root}/src/boot/process-state/processState.ts`)
   state.setIsInteractive(false)
-  const { queryModelWithStreaming } = await import(`${root}/src/services/providers/anthropic/streamCore.ts`)
-  const { asSystemPrompt } = await import(`${root}/src/utils/systemPromptType.ts`)
-  const { getEmptyToolPermissionContext } = await import(`${root}/src/Tool.ts`)
+  const { queryModelWithStreaming } = await import(`${root}/src/models/roads/anthropic/streamCore.ts`)
+  const { asSystemPrompt } = await import(`${root}/src/engine/system-prompt/systemPromptType.ts`)
+  const { getEmptyToolPermissionContext } = await import(`${root}/src/tools/kit/tool.ts`)
   const usage = { input_tokens: 7, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 5 }
   const wireFrames = [
     { type: 'message_start', message: { id: 'fixture-anthropic-message', type: 'message', role: 'assistant', model: 'claude-sonnet-5', content: [], stop_reason: null, stop_sequence: null, usage } },
@@ -63,11 +63,11 @@ async function anthropic(root: string) {
   })) {
     if (item.type === 'assistant') rows.push(item.message.content)
   }
-  assert.deepEqual(rows, [[{ type: 'thinking', thinking: 'fixture thought', signature: 'fixture-signed-thinking' }], [{ type: 'text', text: 'fixture answer' }]], 'queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts must yield one assistant row for the signed thinking block and one for the text block, as listed here')
+  assert.deepEqual(rows, [[{ type: 'thinking', thinking: 'fixture thought', signature: 'fixture-signed-thinking' }], [{ type: 'text', text: 'fixture answer' }]], 'queryModelWithStreaming in src/models/roads/anthropic/streamCore.ts must yield one assistant row for the signed thinking block and one for the text block, as listed here')
   return rows
 }
 const old = { anthropic: await anthropic(base), openai: await responses(base) }
 const next = { anthropic: await anthropic(tip), openai: await responses(tip) }
-assert.equal(JSON.stringify(next), JSON.stringify(old), 'the tip folds the fixture stream differently from the base given as the first argument; compare src/services/providers/anthropic/streamCore.ts and src/services/providers/openai/openaiWire.ts against that base')
+assert.equal(JSON.stringify(next), JSON.stringify(old), 'the tip folds the fixture stream differently from the base given as the first argument; compare src/models/roads/anthropic/streamCore.ts and src/models/roads/openai/openaiWire.ts against that base')
 if (process.argv[3]) writeFileSync(process.argv[3], JSON.stringify({ base: process.argv[2] ? '71641f1bd' : 'tip', old, new: next }, null, 2) + '\n')
 console.log('PASS: Anthropic signed content blocks and Responses ordered reasoning, text and tool events are byte-identical to the selected base')

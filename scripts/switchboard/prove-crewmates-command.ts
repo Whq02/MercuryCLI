@@ -20,11 +20,11 @@ delete process.env.MERCURY_CONCOURSE_WORKER
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(HOME, [CWD])
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { builtinCommands, builtInCommandNames, findCommand, getCommandName } = await import('../../src/commands.ts')
-const { unknownCommandLine } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
-const words = await import('../../src/utils/cockpit/crewmateWords.ts')
+const { builtinCommands, builtInCommandNames, findCommand, getCommandName } = await import('../../src/commands/catalogue/commands.ts')
+const { unknownCommandLine } = await import('../../src/engine/user-input/processSlashCommand.tsx')
+const words = await import('../../src/screen/cockpit/crewmateWords.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/journal.ts src/mneme/sessionClose.ts src/mneme/ledger.ts src/mneme/paths.ts src/mneme/handoffAsk.ts src/mneme/entryPage.ts src/constants/prompts.ts
-// gate-watch: src/tools/JournalTool/** src/tools.ts src/constants/tools.ts src/utils/settings/types.ts
-// gate-watch: src/components/Settings/Config.tsx src/utils/settings/schemaOutput.ts
+// gate-watch: src/sessions/mneme/journal.ts src/sessions/mneme/sessionClose.ts src/sessions/mneme/ledger.ts src/sessions/mneme/paths.ts src/sessions/mneme/handoffAsk.ts src/sessions/mneme/entryPage.ts src/engine/system-prompt/defaultSystemPrompt.ts
+// gate-watch: src/tools/journal/** src/tools/kit/toolList.ts src/tools/kit/crewmateBarredTools.ts src/platform/settings/settingsSchema.ts
+// gate-watch: src/screen/settings/Config.tsx src/platform/settings/schemaOutput.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
@@ -20,21 +20,21 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 600)} — ` : ''}fix the journal in src/mneme/journal.ts (stageJournalEntry, appendJournalEntry, journalEnabled), the tool in src/tools/JournalTool/JournalTool.ts, or the memory.journal settings in src/utils/settings/types.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 600)} — ` : ''}fix the journal in src/sessions/mneme/journal.ts (stageJournalEntry, appendJournalEntry, journalEnabled), the tool in src/tools/journal/JournalTool.ts, or the memory.journal settings in src/platform/settings/settingsSchema.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { setProjectRoot, setOriginalCwd } = await import('../../src/bootstrap/state.js')
+const { setProjectRoot, setOriginalCwd } = await import('../../src/boot/process-state/processState.js')
 setOriginalCwd(project)
 setProjectRoot(project)
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
-const { mnemeProjectKey, projectRecordsDir, lineagePath } = await import('../../src/mneme/paths.js')
-const { runSessionClosers, _resetSessionClosersForTesting, sessionClosersCount, sessionCloseAsks } = await import('../../src/mneme/sessionClose.js')
-const { handoffAskText, HANDOFF_ASK } = await import('../../src/mneme/handoffAsk.js')
-const { openEntry, closeEntry, readLedger } = await import('../../src/mneme/ledger.js')
-const journal = await import('../../src/mneme/journal.js')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
+const { mnemeProjectKey, projectRecordsDir, lineagePath } = await import('../../src/sessions/mneme/paths.js')
+const { runSessionClosers, _resetSessionClosersForTesting, sessionClosersCount, sessionCloseAsks } = await import('../../src/sessions/mneme/sessionClose.js')
+const { handoffAskText, HANDOFF_ASK } = await import('../../src/sessions/mneme/handoffAsk.js')
+const { openEntry, closeEntry, readLedger } = await import('../../src/sessions/mneme/ledger.js')
+const journal = await import('../../src/sessions/mneme/journal.js')
 const {
   JOURNAL_ENTRY_CAP,
   _resetJournalForTesting,
@@ -52,11 +52,11 @@ const {
   stageJournalEntry,
   stagedJournalEntry,
 } = journal
-const { JournalTool, journalResultWords } = await import('../../src/tools/JournalTool/JournalTool.js')
-const { JOURNAL_TOOL_NAME } = await import('../../src/tools/JournalTool/prompt.js')
-const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/constants/tools.js')
-const { filterToolsForAgent } = await import('../../src/tools/AgentTool/agentToolUtils.js')
-const { getAllBaseTools } = await import('../../src/tools.js')
+const { JournalTool, journalResultWords } = await import('../../src/tools/journal/JournalTool.js')
+const { JOURNAL_TOOL_NAME } = await import('../../src/tools/journal/prompt.js')
+const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/tools/kit/crewmateBarredTools.js')
+const { filterToolsForAgent } = await import('../../src/tools/crewmate/crewmateLifecycle.js')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.js')
 
 const key = mnemeProjectKey()
 const realNow = Date.now
@@ -197,7 +197,7 @@ check('the prompt says what the entry carries, its length, its home and its read
 
 
 section('§8 the settings: the two keys, their defaults, the honesty line where the setting lives')
-const { generateSettingsJSONSchema } = await import('../../src/utils/settings/schemaOutput.js')
+const { generateSettingsJSONSchema } = await import('../../src/platform/settings/schemaOutput.js')
 const schema = JSON.parse(generateSettingsJSONSchema()) as { properties?: Record<string, { properties?: Record<string, { description?: string; type?: string }> }> }
 const memoryProps = schema.properties?.memory?.properties ?? {}
 check('memory.journal is a boolean in the schema', memoryProps.journal?.type === 'boolean')
@@ -207,9 +207,9 @@ check('memory.journalOnEntryPage states the honesty line', /travels to the engin
 
 section("§9 the entry page carries the journal's last entry only when memory.journalOnEntryPage is on")
 {
-  const { getSystemPrompt } = await import('../../src/constants/prompts.js')
-  const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.js')
-  const { setCwdState } = await import('../../src/bootstrap/state.js')
+  const { getSystemPrompt } = await import('../../src/engine/system-prompt/defaultSystemPrompt.js')
+  const { clearSystemPromptSections } = await import('../../src/engine/system-prompt/systemPromptSections.js')
+  const { setCwdState } = await import('../../src/boot/process-state/processState.js')
   const cwd = process.cwd()
   const oldEntry = process.env.MERCURY_ENTRYPOINT
   process.env.MERCURY_ENTRYPOINT = 'headless'

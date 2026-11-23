@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/BashTool/bashPermissions.ts src/tools/BashTool/readOnlyValidation.ts src/tools/BashTool/pathValidation.ts
-// gate-watch: src/tools/BashTool/bashCommandHelpers.ts src/utils/bash/commands.ts src/utils/bash/ParsedCommand.ts src/Tool.ts
+// gate-watch: src/tools/shell/bashPermissions.ts src/tools/shell/readOnlyValidation.ts src/tools/shell/pathValidation.ts
+// gate-watch: src/tools/shell/compoundCommandPermissions.ts src/platform/shell/bash/commands.ts src/platform/shell/bash/parsedCommand.ts src/tools/kit/tool.ts
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -24,13 +24,13 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
-const { checkReadOnlyConstraints } = await import('../../src/tools/BashTool/readOnlyValidation.js')
-const { checkPathConstraints } = await import('../../src/tools/BashTool/pathValidation.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.js')
+const { checkReadOnlyConstraints } = await import('../../src/tools/shell/readOnlyValidation.js')
+const { checkPathConstraints } = await import('../../src/tools/shell/pathValidation.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 
 let failures = 0
-const failureHint = 'to fix, read validateInputRedirections in src/tools/BashTool/pathValidation.ts (the read path check and its messages), then bashToolHasPermission in src/tools/BashTool/bashPermissions.ts and checkReadOnlyConstraints in src/tools/BashTool/readOnlyValidation.ts for the scout'
+const failureHint = 'to fix, read validateInputRedirections in src/tools/shell/pathValidation.ts (the read path check and its messages), then bashToolHasPermission in src/tools/shell/bashPermissions.ts and checkReadOnlyConstraints in src/tools/shell/readOnlyValidation.ts for the scout'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${failureHint}` : ''}`)

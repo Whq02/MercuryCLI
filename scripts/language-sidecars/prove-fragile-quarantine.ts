@@ -18,9 +18,9 @@ writeFileSync(join(DIR, 'not-a-grammar.wasm'), 'these bytes are no wasm at all')
 writeFileSync(join(DIR, 'package.json'), JSON.stringify({ type: 'commonjs' }, null, 2) + '\n')
 process.env.MERCURY_TREESITTER_VENDOR_DIR = DIR
 
-const facility = await import('../../src/utils/structure/grammarFacility.ts')
+const facility = await import('../../src/platform/grammars/grammarFacility.ts')
 const { loadGrammarEngine, _resetFragileProbeForTesting } = facility
-const { GRAMMAR_REGISTRY } = await import('../../src/utils/structure/grammarRegistry.ts')
+const { GRAMMAR_REGISTRY } = await import('../../src/platform/grammars/grammarRegistry.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = '', fixHint = ''): void => {
@@ -32,7 +32,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 
 const engine = await loadGrammarEngine()
 if (engine.state !== 'ok') {
-  console.error(`  [FAIL] engine unavailable: ${engine.note} — loadGrammarEngine in src/utils/structure/grammarFacility.ts must load tree-sitter.js and tree-sitter.wasm from the folder named by MERCURY_TREESITTER_VENDOR_DIR`)
+  console.error(`  [FAIL] engine unavailable: ${engine.note} — loadGrammarEngine in src/platform/grammars/grammarFacility.ts must load tree-sitter.js and tree-sitter.wasm from the folder named by MERCURY_TREESITTER_VENDOR_DIR`)
   process.exit(1)
 }
 
@@ -48,12 +48,12 @@ section('§1 THE QUARANTINE ARM')
     extensions: ['.probe'],
     fragile: { reason: 'synthetic fixture — the probe child must die' },
   } as never)
-  check('a dead probe child quarantines the grammar', isUnavailable(verdict), JSON.stringify(verdict).slice(0, 120), 'probeFragileGrammarOnce in src/utils/structure/grammarFacility.ts must answer state unavailable when the probe child dies on a fragile grammar')
+  check('a dead probe child quarantines the grammar', isUnavailable(verdict), JSON.stringify(verdict).slice(0, 120), 'probeFragileGrammarOnce in src/platform/grammars/grammarFacility.ts must answer state unavailable when the probe child dies on a fragile grammar')
   check(
     'the note names quarantine + the reason + the child death',
     isUnavailable(verdict) && /quarantined/.test(verdict.note) && /synthetic fixture/.test(verdict.note),
     isUnavailable(verdict) ? verdict.note.slice(0, 160) : '',
-    'the note built in probeFragileGrammarOnce (src/utils/structure/grammarFacility.ts) must say quarantined and carry the fragile reason',
+    'the note built in probeFragileGrammarOnce (src/platform/grammars/grammarFacility.ts) must say quarantined and carry the fragile reason',
   )
   check('the HOST survived the probe (this line printed)', true)
 }
@@ -67,7 +67,7 @@ section('§2 THE PASS ARM')
     extensions: ['.probejson'],
     fragile: { reason: 'synthetic fixture — the probe child survives' },
   } as never)
-  check('a surviving probe lets the grammar load in-host', !isUnavailable(loaded), JSON.stringify(loaded).slice(0, 80), 'probeFragileGrammarOnce in src/utils/structure/grammarFacility.ts must return no verdict when the probe child survives, so loadLanguage loads the grammar in-host')
+  check('a surviving probe lets the grammar load in-host', !isUnavailable(loaded), JSON.stringify(loaded).slice(0, 80), 'probeFragileGrammarOnce in src/platform/grammars/grammarFacility.ts must return no verdict when the probe child survives, so loadLanguage loads the grammar in-host')
 }
 
 section('§3 PROBE ONCE')
@@ -79,19 +79,19 @@ section('§3 PROBE ONCE')
   const t2 = Date.now()
   await engine.loadLanguage({ name: 'memo-probe', wasm: 'not-a-grammar.wasm', extensions: ['.m'], fragile: { reason: 'memo fixture' } } as never)
   const secondMs = Date.now() - t2
-  check('the second ask answers from the memo (no second child)', secondMs < Math.max(50, firstMs / 4), `first=${firstMs}ms second=${secondMs}ms`, 'probeFragileGrammarOnce in src/utils/structure/grammarFacility.ts must answer a repeat ask from fragileProbeVerdicts instead of spawning a second child')
+  check('the second ask answers from the memo (no second child)', secondMs < Math.max(50, firstMs / 4), `first=${firstMs}ms second=${secondMs}ms`, 'probeFragileGrammarOnce in src/platform/grammars/grammarFacility.ts must answer a repeat ask from fragileProbeVerdicts instead of spawning a second child')
 }
 
 section('§4 THE REGISTRY MARKING')
 {
   const swift = GRAMMAR_REGISTRY.find(g => g.name === 'swift')
-  check('swift is marked fragile with the engine-OOM reason', /OOM/.test(swift?.fragile?.reason ?? ''), swift?.fragile?.reason, 'the swift row of GRAMMAR_REGISTRY in src/utils/structure/grammarRegistry.ts must carry a fragile reason that names the engine OOM')
+  check('swift is marked fragile with the engine-OOM reason', /OOM/.test(swift?.fragile?.reason ?? ''), swift?.fragile?.reason, 'the swift row of GRAMMAR_REGISTRY in src/platform/grammars/grammarRegistry.ts must carry a fragile reason that names the engine OOM')
   const marked = GRAMMAR_REGISTRY.filter(g => g.fragile).map(g => g.name)
   const auditioned = GRAMMAR_REGISTRY.filter(g => g.name === 'swift' || g.patternOnly).map(g => g.name)
-  check('swift and every pattern-only row are marked, and no row the edit note or the outline reads beside swift (no blanket probing)', marked.join(',') === auditioned.join(',') && GRAMMAR_REGISTRY.filter(g => !g.patternOnly && g.fragile).length === 1, marked.join(','), 'in src/utils/structure/grammarRegistry.ts mark fragile only the swift row and the patternOnly rows, and no other row')
+  check('swift and every pattern-only row are marked, and no row the edit note or the outline reads beside swift (no blanket probing)', marked.join(',') === auditioned.join(',') && GRAMMAR_REGISTRY.filter(g => !g.patternOnly && g.fragile).length === 1, marked.join(','), 'in src/platform/grammars/grammarRegistry.ts mark fragile only the swift row and the patternOnly rows, and no other row')
   const t = Date.now()
   const json = await engine.loadLanguage(GRAMMAR_REGISTRY.find(g => g.name === 'json') as never)
-  check('an unmarked grammar loads without the probe', !isUnavailable(json) && Date.now() - t < 5000, '', 'the json row of GRAMMAR_REGISTRY (src/utils/structure/grammarRegistry.ts) must stay unmarked so loadLanguage in src/utils/structure/grammarFacility.ts loads it without the probe child')
+  check('an unmarked grammar loads without the probe', !isUnavailable(json) && Date.now() - t < 5000, '', 'the json row of GRAMMAR_REGISTRY (src/platform/grammars/grammarRegistry.ts) must stay unmarked so loadLanguage in src/platform/grammars/grammarFacility.ts loads it without the probe child')
 }
 
 section('§5 THE CURE: THE VENDORED SWIFT BLOB UNDER THE PRODUCT RUNTIME')

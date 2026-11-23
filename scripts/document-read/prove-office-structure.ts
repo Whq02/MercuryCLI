@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { zipSync, strToU8 } from 'fflate'
-import { renderDocumentTarget } from '../../src/tools/FileReadTool/readRichFormats.ts'
+import { renderDocumentTarget } from '../../src/tools/read/readRichFormats.ts'
 
 const root = mkdtempSync(join(tmpdir(), 'office-structure-'))
 const render = (ext: string, entries: Record<string, string>) => {
@@ -11,7 +11,7 @@ const render = (ext: string, entries: Record<string, string>) => {
   writeFileSync(path, zipSync(Object.fromEntries(Object.entries(entries).map(([k, v]) => [k, strToU8(v)]))))
   return renderDocumentTarget(path, ext)
 }
-const officeHint = (fixer: string, rendered: string) => `fix ${fixer} in src/tools/FileReadTool/readRichFormats.ts (renderDocumentTarget). Rendered output was: ${JSON.stringify(rendered)}`
+const officeHint = (fixer: string, rendered: string) => `fix ${fixer} in src/tools/read/readRichFormats.ts (renderDocumentTarget). Rendered output was: ${JSON.stringify(rendered)}`
 try {
   const docx = render('docx', {
     'word/document.xml': '<w:document><w:body><w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Research</w:t></w:r></w:p><w:p><w:pPr><w:numPr><w:ilvl w:val="0"/></w:numPr></w:pPr><w:r><w:t>Finding</w:t><w:footnoteReference w:id="1"/><w:commentReference w:id="2"/></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>Trial</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>42</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>',

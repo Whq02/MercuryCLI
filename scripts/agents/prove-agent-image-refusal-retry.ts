@@ -17,7 +17,7 @@ const section = (t: string, hint = ''): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the image-refusal retry prover exceeded 180s: a run in §2-§4 never settled; check the retry loop around refusalRetryRowOf in runAgent (src/tools/AgentTool/runAgent.ts) and the resume road (src/tools/AgentTool/resumeAgent.ts)')
+  console.log('\nTIMEOUT — the image-refusal retry prover exceeded 180s: a run in §2-§4 never settled; check the retry loop around refusalRetryRowOf in runAgent (src/tools/crewmate/runCrewmate.ts) and the resume road (src/tools/crewmate/resumeCrewmate.ts)')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -110,29 +110,29 @@ Object.assign(process.env, {
   MERCURY_LOCAL_PROBE_TARGETS: 'none',
 })
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
-const { resumeAgentBackground } = await import('../../src/tools/AgentTool/resumeAgent.ts')
-const { deriveAgentTerminalOutcome } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const leaf = await import('../../src/tools/AgentTool/refusalRetry.ts').catch(() => null)
+const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
+const { deriveAgentTerminalOutcome } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const leaf = await import('../../src/tools/crewmate/refusalRetry.ts').catch(() => null)
 const refusalRetryRowOf: (last: Message | undefined, retried: ReadonlySet<string>, model: string) => { refusalClass: string; row: Message & { isMeta?: boolean } } | null = leaf === null ? () => null : leaf.refusalRetryRowOf
 const imageRefusalRetryLine: (model: string, detail: string | undefined) => string = leaf === null ? () => '' : leaf.imageRefusalRetryLine
-const { mediaRefusalOf } = await import('../../src/utils/api/mediaRefusal.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/query.ts')
-const { getAgentTranscript } = await import('../../src/utils/sessionStorage/logs.ts')
-const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
-const { ResumeAgentTool } = await import('../../src/tools/ResumeAgentTool/ResumeAgentTool.ts')
-const { registerAsyncAgent, failAgentTask, registerAgentName } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { generateTaskId } = await import('../../src/Task.ts')
-await import('../../src/tasks.ts')
-type Message = import('../../src/types/message.ts').Message
-type AppState = import('../../src/state/AppStateStore.ts').AppState
+const { mediaRefusalOf } = await import('../../src/engine/request-parts/mediaRefusal.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { getAgentTranscript } = await import('../../src/sessions/transcripts/sessionListings.ts')
+const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+const { ResumeAgentTool } = await import('../../src/tools/resume-crewmate/ResumeAgentTool.ts')
+const { registerAsyncAgent, failAgentTask, registerAgentName } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
+await import('../../src/engine/tasks/tasks.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState
 
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
 const allowAll = (async (_tool: unknown, input: Record<string, unknown>) =>
@@ -221,7 +221,7 @@ const textOf = (row: Message | undefined): string => {
 }
 const isApiError = (row: Message | undefined): boolean => (row as { isApiErrorMessage?: boolean } | undefined)?.isApiErrorMessage === true
 
-section('§1 the retry row: a pure leaf, once per class', 'to fix: refusalRetryRowOf and imageRefusalRetryLine in src/tools/AgentTool/refusalRetry.ts (the stamp is read by mediaRefusalOf in src/utils/api/mediaRefusal.ts)')
+section('§1 the retry row: a pure leaf, once per class', 'to fix: refusalRetryRowOf and imageRefusalRetryLine in src/tools/crewmate/refusalRetry.ts (the stamp is read by mediaRefusalOf in src/engine/request-parts/mediaRefusal.ts)')
 {
   check('the retry row has one owner beside the run loop', leaf !== null)
   const stamped = { type: 'assistant', isApiErrorMessage: true, mediaRefusal: { blockTypes: ['image'], detail: 'images are not supported' }, message: { role: 'assistant', content: [{ type: 'text', text: 'API Error: refused' }] } } as unknown as Message
@@ -241,7 +241,7 @@ section('§1 the retry row: a pure leaf, once per class', 'to fix: refusalRetryR
   check('an unrecognised model id says "on its route"', imageRefusalRetryLine('no-such-model', undefined).startsWith('The model no-such-model on its route refused an image in the last request: '))
 }
 
-section('§2 the run: the refusal stands as a row, the run retries once from its transcript, the second request carries no image', 'to fix: the retry step of runAgent in src/tools/AgentTool/runAgent.ts (the call to refusalRetryRowOf) and the line in src/tools/AgentTool/refusalRetry.ts')
+section('§2 the run: the refusal stands as a row, the run retries once from its transcript, the second request carries no image', 'to fix: the retry step of runAgent in src/tools/crewmate/runCrewmate.ts (the call to refusalRetryRowOf) and the line in src/tools/crewmate/refusalRetry.ts')
 const storeA = makeStore()
 const idA = generateTaskId('local_agent')
 seen.length = 0
@@ -270,7 +270,7 @@ const a = await drive(storeA, idA, 1)
   check('the error row on disk keeps its stamp', record.includes('"mediaRefusal"'))
 }
 
-section('§3 once per class: a refusal of the retried request ends the run on its error row — no third request', 'to fix: the retriedRefusals bookkeeping around refusalRetryRowOf in runAgent (src/tools/AgentTool/runAgent.ts) and deriveAgentTerminalOutcome in src/tools/AgentTool/agentToolUtils.ts')
+section('§3 once per class: a refusal of the retried request ends the run on its error row — no third request', 'to fix: the retriedRefusals bookkeeping around refusalRetryRowOf in runAgent (src/tools/crewmate/runCrewmate.ts) and deriveAgentTerminalOutcome in src/tools/crewmate/crewmateLifecycle.ts')
 const storeB = makeStore()
 const idB = generateTaskId('local_agent')
 seen.length = 0
@@ -289,7 +289,7 @@ const b = await drive(storeB, idB, 2)
   check('the run ends failed, provider-declined, with the second refusal\'s words', outcome.status === 'failed' && outcome.reason === 'provider-declined' && outcome.error.includes('refused the retried request too'), JSON.stringify(outcome))
 }
 
-section('§4 the run that ended on the error stays resumable by message: the next line continues it from its transcript', 'to fix: ResumeAgentTool (src/tools/ResumeAgentTool/ResumeAgentTool.ts) and resumeAgentBackground (src/tools/AgentTool/resumeAgent.ts) must resume the failed agent from its transcript with the message')
+section('§4 the run that ended on the error stays resumable by message: the next line continues it from its transcript', 'to fix: ResumeAgentTool (src/tools/resume-crewmate/ResumeAgentTool.ts) and resumeAgentBackground (src/tools/crewmate/resumeCrewmate.ts) must resume the failed agent from its transcript with the message')
 {
   seen.length = 0
   refusals = 0

@@ -60,8 +60,8 @@ function trySymlinkLoop(a: string, b: string): boolean {
     throw error
   }
 }
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { resolveAgentCwd } = await import('../../src/tools/crewmate/call/cwd.ts')
 
 {
   const dir = join(scratch, 'cwd-loop')
@@ -256,8 +256,8 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
 }
 
 {
-  const { AsepriteTool } = await import('../../src/tools/AsepriteTool/AsepriteTool.ts')
-  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const { AsepriteTool } = await import('../../src/tools/aseprite/AsepriteTool.ts')
+  const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
   const work = join(scratch, 'aseprite-tree')
   mkdirSync(work, { recursive: true })
   const loopA = join(work, 'loop-a.aseprite')
@@ -285,8 +285,8 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
 }
 
 {
-  const { AstEditTool } = await import('../../src/tools/AstEditTool/AstEditTool.ts')
-  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const { AstEditTool } = await import('../../src/tools/ast-edit/AstEditTool.ts')
+  const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
   const work = join(scratch, 'ast-edit-fail')
   mkdirSync(work, { recursive: true })
   const ctx = {
@@ -308,8 +308,8 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
 }
 
 {
-  const { BlenderTool } = await import('../../src/tools/BlenderTool/BlenderTool.ts')
-  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const { BlenderTool } = await import('../../src/tools/blender/BlenderTool.ts')
+  const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
   const work = join(scratch, 'blender-tree')
   mkdirSync(work, { recursive: true })
   const loopA = join(work, 'loop-a.blend')
@@ -331,8 +331,8 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
 
 {
   const { chmodSync, writeFileSync } = await import('node:fs')
-  const { readShown } = await import('../../src/tools/BlenderTool/show.ts')
-  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const { readShown } = await import('../../src/tools/blender/show.ts')
+  const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
   const work = join(scratch, 'blender-show')
   mkdirSync(work, { recursive: true })
   const loopA = join(work, 'loop-a.png')
@@ -382,7 +382,7 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
 }
 
 {
-  const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
+  const { BrowserTool } = await import('../../src/tools/browser/BrowserTool.ts')
   const missingShot = join(scratch, 'missing-browser-shot.png')
   const block = BrowserTool.mapToolResultToToolResultBlockParam(
     { op: 'screenshot', result: `screenshot: ${missingShot}`, outcome: 'succeeded', imagePath: missingShot },
@@ -435,7 +435,7 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
 }
 
 {
-  const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
+  const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
   const missingShot = join(scratch, 'missing-computer-shot.png')
   const block = ComputerTool.mapToolResultToToolResultBlockParam(
     { action: 'screenshot', result: `screenshot: ${missingShot}`, outcome: 'succeeded', imagePath: missingShot },
@@ -450,7 +450,7 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
 }
 
 {
-  const { tableRefusal } = await import('../../src/tools/ComputerTool/computer/schema.ts')
+  const { tableRefusal } = await import('../../src/tools/computer/call/schema.ts')
   const work = join(scratch, 'computer-file-loop')
   mkdirSync(work, { recursive: true })
   const loopA = join(work, 'a')
@@ -474,7 +474,7 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
 }
 
 {
-  const { operatorIsTyping } = await import('../../src/tools/ComputerTool/operatorPause.ts')
+  const { operatorIsTyping } = await import('../../src/tools/computer/operatorPause.ts')
   const throwingDriver = {
     keyboardIdleMs: async () => {
       throw new Error('idle read failed')
@@ -493,7 +493,7 @@ const { resolveAgentCwd } = await import('../../src/tools/AgentTool/agent/cwd.ts
 }
 
 {
-  const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
+  const { EvalTool } = await import('../../src/tools/eval/EvalTool.ts')
   const missingShot = join(scratch, 'missing-eval-shot.png')
   const block = EvalTool.mapToolResultToToolResultBlockParam(
     {

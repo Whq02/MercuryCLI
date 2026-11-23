@@ -12,13 +12,13 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { startOverflowFixture } = await import('./overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const compact = await import('../../src/services/compact/compact.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const compact = await import('../../src/engine/compaction/foldConversation.ts')
 const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 let failures = 0
 let checks = 0
@@ -44,19 +44,19 @@ try {
     try {
       result = await compact.compactConversation(rows, context as never, cache, automatic)
     } catch (error) { refused = error instanceof Error ? error.message : String(error) }
-    check(`${label}: a refused first fold ends after one request`, fixture.captured.length - before === 1, `${fixture.captured.length - before} requests \u2014 a refusal on the first fold must end compactConversation (src/services/compact/compact.ts) after one request, with no retry`)
-    check(`${label}: the provider refusal is the one-line answer`, refused !== undefined && refused.includes('The model ended the response early (stop_reason: refusal)') && !refused.includes('\n'), `${refused} \u2014 the refusal must surface as the single line built in src/services/api/errors.ts, not wrapped or multi-line`)
-    check(`${label}: no summary or outcome note is installed`, result === undefined, `${result?.notes} \u2014 compactConversation (src/services/compact/compact.ts) must throw on a refused fold and return no summary or note`)
-    check(`${label}: no retry event is emitted`, !events.some(event => event.type === 'retry'), `${JSON.stringify(events)} \u2014 a refused fold must not emit a retry progress event from compactConversation (src/services/compact/compact.ts)`)
-    check(`${label}: the refused fold keeps history and read state`, JSON.stringify(rows) === original && readState.get('tags.ts')?.content === 'parser source', 'the refused fold changed the rows or the read-file state; compactConversation (src/services/compact/compact.ts) must change neither before a summary lands')
+    check(`${label}: a refused first fold ends after one request`, fixture.captured.length - before === 1, `${fixture.captured.length - before} requests \u2014 a refusal on the first fold must end compactConversation (src/engine/compaction/foldConversation.ts) after one request, with no retry`)
+    check(`${label}: the provider refusal is the one-line answer`, refused !== undefined && refused.includes('The model ended the response early (stop_reason: refusal)') && !refused.includes('\n'), `${refused} \u2014 the refusal must surface as the single line built in src/engine/requests/apiErrorRows.ts, not wrapped or multi-line`)
+    check(`${label}: no summary or outcome note is installed`, result === undefined, `${result?.notes} \u2014 compactConversation (src/engine/compaction/foldConversation.ts) must throw on a refused fold and return no summary or note`)
+    check(`${label}: no retry event is emitted`, !events.some(event => event.type === 'retry'), `${JSON.stringify(events)} \u2014 a refused fold must not emit a retry progress event from compactConversation (src/engine/compaction/foldConversation.ts)`)
+    check(`${label}: the refused fold keeps history and read state`, JSON.stringify(rows) === original && readState.get('tags.ts')?.content === 'parser source', 'the refused fold changed the rows or the read-file state; compactConversation (src/engine/compaction/foldConversation.ts) must change neither before a summary lands')
     rows.push(createUserMessage({ content: 'Continue with the CLI verification on this next message.' }))
     fixture.script([{ text: summary }])
     const nextBefore = fixture.captured.length
     const next = await compact.compactConversation(rows, context as never, cache, automatic)
-    check(`${label}: the next message makes a fresh request that lands`, fixture.captured.length - nextBefore === 1 && next.summaryMessages.length > 0, 'the message after a refusal must make one fresh request that lands; no refusal state may carry over in compactConversation (src/services/compact/compact.ts)')
-    check(`${label}: the fresh request carries the next message and original history`, JSON.stringify(fixture.captured.at(-1)?.body.messages).includes('Continue with the CLI verification on this next message.') && JSON.stringify(fixture.captured.at(-1)?.body.messages).includes('We edited tags.ts'), 'the fresh fold request must carry both the new user message and the original history; see compactConversation in src/services/compact/compact.ts')
-    check(`${label}: the accepted summary has no outcome note`, next.notes === undefined, `${next.notes} \u2014 an accepted summary after a refusal must carry no outcome note (src/services/compact/compact.ts)`)
-    check(`${label}: the request retains max effort`, (fixture.captured.at(-1)?.body.output_config as { effort?: string })?.effort === 'max', 'the fold request must keep the session effort max in output_config; check how compactConversation (src/services/compact/compact.ts) builds the request')
+    check(`${label}: the next message makes a fresh request that lands`, fixture.captured.length - nextBefore === 1 && next.summaryMessages.length > 0, 'the message after a refusal must make one fresh request that lands; no refusal state may carry over in compactConversation (src/engine/compaction/foldConversation.ts)')
+    check(`${label}: the fresh request carries the next message and original history`, JSON.stringify(fixture.captured.at(-1)?.body.messages).includes('Continue with the CLI verification on this next message.') && JSON.stringify(fixture.captured.at(-1)?.body.messages).includes('We edited tags.ts'), 'the fresh fold request must carry both the new user message and the original history; see compactConversation in src/engine/compaction/foldConversation.ts')
+    check(`${label}: the accepted summary has no outcome note`, next.notes === undefined, `${next.notes} \u2014 an accepted summary after a refusal must carry no outcome note (src/engine/compaction/foldConversation.ts)`)
+    check(`${label}: the request retains max effort`, (fixture.captured.at(-1)?.body.output_config as { effort?: string })?.effort === 'max', 'the fold request must keep the session effort max in output_config; check how compactConversation (src/engine/compaction/foldConversation.ts) builds the request')
   }
 } finally {
   await fixture.close()

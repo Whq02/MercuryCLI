@@ -7,13 +7,13 @@ import { captureEngineEntry, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const FACE_LINE_FAIL_HINT =
-  'to fix, change decideFaceNotice or takeFaceUpdateNotice in src/services/privateChannel/quietUpdateNotice.ts (what is announced and recorded as faceAnnounced) or the face line painting in src/components/BootSplashScreen.tsx (faceKeyMapHintOf); the frame is printed above'
+  'to fix, change decideFaceNotice or takeFaceUpdateNotice in src/platform/update-channel/quietUpdateNotice.ts (what is announced and recorded as faceAnnounced) or the face line painting in src/screen/boot-face/BootSplashScreen.tsx (faceKeyMapHintOf); the frame is printed above'
 const check = (label: string, cond: boolean, detail = ''): void => {
   recordCheck(label, cond, cond ? detail : detail ? `${FACE_LINE_FAIL_HINT}; ${detail}` : FACE_LINE_FAIL_HINT)
 }
 
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-const { faceKeyMapHintOf } = await import('../../src/components/BootSplashScreen.tsx')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
+const { faceKeyMapHintOf } = await import('../../src/screen/boot-face/BootSplashScreen.tsx')
 const HINT = keyHintLabel('⇧→ concourse')
 const FULL_HINT = faceKeyMapHintOf(HINT, true)
 const REFUSAL = /needs \d+ rows|this window is|needs at least|terminal too small|too small for|resize to continue/i

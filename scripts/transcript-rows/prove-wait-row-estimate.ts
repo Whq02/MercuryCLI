@@ -15,9 +15,9 @@ const KEEP = process.argv.includes('--keep')
 const scratch = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'wait-row-estimate-')))
 console.log(`build under proof: ${DIST}`)
 
-const { waitRow } = await import('../../src/rows/project.ts')
-const { WaitRowSchema } = await import('../../src/rows/vocabulary.ts')
-const { estimateRequestTokens, requestWaitToWire } = await import('../../src/services/providers/streamIdleBudget.ts')
+const { waitRow } = await import('../../src/engine/rows/project.ts')
+const { WaitRowSchema } = await import('../../src/engine/rows/vocabulary.ts')
+const { estimateRequestTokens, requestWaitToWire } = await import('../../src/models/roads/streamIdleBudget.ts')
 
 tally.section('§1 the first-byte wait row names its prompt figure as the send-time estimate')
 const scope = { sessionId: 'sess-1', turn: 1 }

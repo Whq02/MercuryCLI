@@ -7,20 +7,20 @@ import { FILE_TOOL_SPELLINGS } from '../identity/forbidden-file-tool.ts'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'retired-tool-rows-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 const React = (await import('react')).default
-const { renderToString } = await import('../../src/utils/staticRender.tsx')
-const { AssistantToolUseMessage } = await import('../../src/components/messages/AssistantToolUseMessage.js')
-const { findToolForRender } = await import('../../src/tools/MCPTool/absentToolShim.js')
-const { getAllBaseTools, getTools } = await import('../../src/tools.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { AssistantToolUseMessage } = await import('../../src/screen/messages/AssistantToolUseMessage.js')
+const { findToolForRender } = await import('../../src/tools/mcp/absentToolShim.js')
+const { getAllBaseTools, getTools } = await import('../../src/tools/kit/toolList.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
 function check(cond: boolean, label: string, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' [change findToolForRender in src/tools/MCPTool/absentToolShim.ts so a recorded name that left the roster still resolves, or AssistantToolUseMessage in src/components/messages/AssistantToolUseMessage.tsx so the row still draws the name and input]'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' [change findToolForRender in src/tools/mcp/absentToolShim.ts so a recorded name that left the roster still resolves, or AssistantToolUseMessage in src/screen/messages/AssistantToolUseMessage.tsx so the row still draws the name and input]'}`)
 }
 
 type OldRow = { id: string; name: string; spelling?: 'alias'; input: Record<string, unknown>; nameShape: RegExp; carries: string }

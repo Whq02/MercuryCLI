@@ -41,9 +41,9 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { readSessionFacts, sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { readSessionFacts, sessionFactsPath } = await import('../../src/engine/connector/seatProjections.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = '', fixHint = ''): void {
@@ -319,9 +319,9 @@ for (const run of RUNS) {
   const sessionId = live[0]?.sessionId
   const trueMode = sessionId !== undefined ? factsModeOf(await runnerTrueMode(home, sessionId)) : '(no session)'
   console.log(`  [TRUTH] ${run.id}: the runner's facts say=${trueMode} · records=${JSON.stringify(live.map(r => ({ short: r.runnerId, sessionId: r.sessionId, permissionMode: (r as { permissionMode?: string }).permissionMode ?? null })))}`)
-  check(`${run.id} L3 the runner's own facts agree with the band's last frame`, trueMode === lastWord, `facts=${trueMode} band=${lastWord}`, 'the band disagrees with the permissionMode the runner writes in its session facts (readSessionFacts in src/services/engine-connector/seatProjections.ts); make the band follow those facts')
+  check(`${run.id} L3 the runner's own facts agree with the band's last frame`, trueMode === lastWord, `facts=${trueMode} band=${lastWord}`, 'the band disagrees with the permissionMode the runner writes in its session facts (readSessionFacts in src/engine/connector/seatProjections.ts); make the band follow those facts')
   if (run.typedOverSaved !== undefined) {
-    check(`${run.id} L4 the runner holds the mode the launch typed, not the saved one (${run.born})`, trueMode === run.born, `facts=${trueMode}`, 'a mode typed with --mode must reach the runner over the saved guardrails.mode: routeBootJourney in src/main/interactiveLaunch.ts records that it was typed, bornSession.ts and hopIntoSession.ts in src/services/switchboard carry permissionModeTyped on sessionAdmit, and headlessPermissionArgv in src/daemon/headlessRun.ts spells --mode default for it')
+    check(`${run.id} L4 the runner holds the mode the launch typed, not the saved one (${run.born})`, trueMode === run.born, `facts=${trueMode}`, 'a mode typed with --mode must reach the runner over the saved guardrails.mode: routeBootJourney in src/boot/main/interactiveLaunch.ts records that it was typed, bornSession.ts and hopIntoSession.ts in src/daemon/switchboard carry permissionModeTyped on sessionAdmit, and headlessPermissionArgv in src/daemon/runner-link/headlessRun.ts spells --mode default for it')
   }
   for (const l of daemonLogLines(home)) console.log(`  [DAEMON] ${l}`)
   summary.push(`${run.id}: first=${firstWord} last=${lastWord} foreign=${foreign.length}`)

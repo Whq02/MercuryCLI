@@ -289,7 +289,7 @@ function dump(label: string, frame: string | undefined): void {
 }
 
 const flat = (s: string): string => s.replace(/\s+/g, ' ')
-const engineDriveWhere = ' · the shell engine road is in src/utils/shell/engineSession.ts (runEngineCommand, spawnSession); run this proof with DRIVE_KEEP=1 to print every frame'
+const engineDriveWhere = ' · the shell engine road is in src/platform/shell/engineSession.ts (runEngineCommand, spawnSession); run this proof with DRIVE_KEEP=1 to print every frame'
 
 async function leg(engine: Engine, port: number): Promise<void> {
   const contract: Engine = engine === 'brush' && lane.state === 'wired' ? 'brush' : 'system'
@@ -334,7 +334,7 @@ async function leg(engine: Engine, port: number): Promise<void> {
     check(`${engine}: call 2 reads the honest reset — no variable, no function, the directory kept`, r(2).text.includes('[none]') && r(2).text.includes('fn-missing') && r(2).text.includes(sub), JSON.stringify(r(2).text.slice(0, 160)) + engineDriveWhere)
   }
   check(`${engine}: the pipeline's rows reach the model`, /1:AlphA\s+2:betA\s+3:gAmmA/.test(flat(r(3).text)), JSON.stringify(r(3).text.slice(0, 120)) + engineDriveWhere)
-  check(`${engine}: the exit-1 command is an error result carrying its stderr text`, r(4).isError && /No such file/.test(r(4).text), `isError ${r(4).isError} ${JSON.stringify(r(4).text.slice(0, 160))} · a command that exits non-zero must come back to the model as an error result with its stderr: see mapResultToBlock in src/tools/BashTool/resultBlock.ts`)
+  check(`${engine}: the exit-1 command is an error result carrying its stderr text`, r(4).isError && /No such file/.test(r(4).text), `isError ${r(4).isError} ${JSON.stringify(r(4).text.slice(0, 160))} · a command that exits non-zero must come back to the model as an error result with its stderr: see mapResultToBlock in src/tools/shell/resultBlock.ts`)
   check(`${engine}: the timed-out command tells the model it timed out`, /timed out/i.test(r(5).text), JSON.stringify(r(5).text.slice(0, 200)) + engineDriveWhere)
   note(`${engine}: result 5 = ${JSON.stringify(r(5).text.trim().slice(0, 240))}`)
   const bgTurnMs = (fixture.stamps[6] ?? 0) - (fixture.stamps[5] ?? 0)

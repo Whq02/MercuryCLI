@@ -33,8 +33,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 type Call = { args: string[]; target: string; cwd?: string; timeoutMs?: number }
 const calls: Call[] = []
-const ripgrep = { ...(await import('../../src/utils/ripgrep.ts')) }
-mock.module('../../src/utils/ripgrep.js', () => ({
+const ripgrep = { ...(await import('../../src/platform/shell/ripgrep.ts')) }
+mock.module('../../src/platform/shell/ripgrep.js', () => ({
   ...ripgrep,
   ripGrepAnswer: async (args: string[], target: string, signal: AbortSignal, options: { cwd?: string; timeoutMs?: number } = {}) => {
     calls.push({ args, target, ...options })
@@ -42,14 +42,14 @@ mock.module('../../src/utils/ripgrep.js', () => ({
   },
 }))
 
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
+const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.ts')
 type Verdict = { behavior: string; message?: string; decisionReason?: unknown }
 const decide = async (input: Record<string, unknown>, cwd: string): Promise<Verdict> => (await runWithCwdOverride(cwd, () => decideToolPermission(GrepTool, input, context(getEmptyToolPermissionContext())))).decision as Verdict
 const validate = async (input: Record<string, unknown>): Promise<{ result: boolean; message?: string }> => (await GrepTool.validateInput!(input as never)) as { result: boolean; message?: string }
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
 
 const fixture = writeRankedFixture(project)
 type Permission = ReturnType<typeof getEmptyToolPermissionContext>
@@ -70,36 +70,36 @@ const filesOf = (pass: Call): string[] => (counts(pass) ? [] : [...pass.args.sli
 console.log('the mode, with the switch set: a description finds the implementing file through the tool')
 {
   const schema = zodToJsonSchema(GrepTool.inputSchema) as { properties: { output_mode: { enum: string[]; description: string } } }
-  check('the schema takes output_mode "ranked"', JSON.stringify(schema.properties.output_mode.enum) === '["content","files_with_matches","count","ranked"]' && GrepTool.inputSchema.safeParse({ pattern: 'x', output_mode: 'ranked' }).success, JSON.stringify(schema.properties.output_mode.enum) + ' — add ranked to the output_mode enum of the input schema in src/tools/GrepTool/GrepTool.ts')
+  check('the schema takes output_mode "ranked"', JSON.stringify(schema.properties.output_mode.enum) === '["content","files_with_matches","count","ranked"]' && GrepTool.inputSchema.safeParse({ pattern: 'x', output_mode: 'ranked' }).success, JSON.stringify(schema.properties.output_mode.enum) + ' — add ranked to the output_mode enum of the input schema in src/tools/grep/GrepTool.ts')
   check(
     'its clause says what the mode reads and returns',
     schema.properties.output_mode.description.endsWith('"count" tallies matches per file; "ranked" reads pattern as plain words, not a regex, and returns the files and line ranges that hold them most densely — the mode for finding where a behaviour is implemented before its names are known.'),
-    schema.properties.output_mode.description + ' — the output_mode description in src/tools/GrepTool/GrepTool.ts must end with the ranked clause')
+    schema.properties.output_mode.description + ' — the output_mode description in src/tools/grep/GrepTool.ts must end with the ranked clause')
   const description = await GrepTool.prompt({ tools: [] } as never)
   check(
     'the description gains one sentence',
     description ===
       'Searches file contents with ripgrep and returns the matching paths, lines or counts. PDFs and office, EPUB and RTF documents are searched as their extracted text, with page or section labels. With output_mode "ranked", pattern is plain words that describe a behaviour, and the answer is the few files and line ranges that hold those words most densely.',
-    description + ' — the prompt text in src/tools/GrepTool/prompt.ts must carry the ranked sentence')
+    description + ' — the prompt text in src/tools/grep/prompt.ts must carry the ranked sentence')
   const data = await call({})
   const text = said(data)
   const files = named(text)
-  check('the implementing file is the first of the files named, eight at most', files[0] === 'src/net/uploadQueue.ts' && files.length <= 8, files.join(' | ') + ' — the ranking in src/tools/GrepTool/rankedSearch.ts must put the densest file first and name eight files at most')
+  check('the implementing file is the first of the files named, eight at most', files[0] === 'src/net/uploadQueue.ts' && files.length <= 8, files.join(' | ') + ' — the ranking in src/tools/grep/rankedSearch.ts must put the densest file first and name eight files at most')
   const range = /^src\/net\/uploadQueue\.ts:(\d+)-(\d+)/.exec(text.split('\n')[1] ?? '')
-  check('with its line range, inside the function that retries', range !== null && Number(range[1]) >= fixture.signature && Number(range[2]) <= fixture.signature + 13 && Number(range[1]) <= fixture.failure && Number(range[2]) >= fixture.failure, text.split('\n')[1] + ' — the line range chosen in src/tools/GrepTool/rankedSearch.ts must sit inside the retrying function')
-  check('the answer opens by saying it ranked by words, how many files hold each and how many it searched', /^Ranked by words, not by meaning: 8 of 14 files holding retry \(6 files\), fail \(12\), upload \(6\), among 43 searched\.$/.test(text.split('\n')[0]!), text.split('\n')[0] + ' — the opening sentence of the answer comes from src/tools/GrepTool/rankedSearch.ts')
-  check('and closes by saying what a word ranking cannot find', text.endsWith('\nA file that says it in other words is not listed: add the names it may go by to pattern.'), text.split('\n').at(-1) + ' — the closing sentence of the answer comes from src/tools/GrepTool/rankedSearch.ts')
-  check('what the screen is given: a count of files and their rows, as a files listing has them', data.mode === undefined && data.numFiles === 8 && data.filenames[0] === 'src/net/uploadQueue.ts:31-38, 8' && GrepTool.outputSchema!.safeParse(data).success, JSON.stringify(data.filenames) + ' — the ranked branch of call in src/tools/GrepTool/GrepTool.ts must return numFiles and filenames rows without a mode')
+  check('with its line range, inside the function that retries', range !== null && Number(range[1]) >= fixture.signature && Number(range[2]) <= fixture.signature + 13 && Number(range[1]) <= fixture.failure && Number(range[2]) >= fixture.failure, text.split('\n')[1] + ' — the line range chosen in src/tools/grep/rankedSearch.ts must sit inside the retrying function')
+  check('the answer opens by saying it ranked by words, how many files hold each and how many it searched', /^Ranked by words, not by meaning: 8 of 14 files holding retry \(6 files\), fail \(12\), upload \(6\), among 43 searched\.$/.test(text.split('\n')[0]!), text.split('\n')[0] + ' — the opening sentence of the answer comes from src/tools/grep/rankedSearch.ts')
+  check('and closes by saying what a word ranking cannot find', text.endsWith('\nA file that says it in other words is not listed: add the names it may go by to pattern.'), text.split('\n').at(-1) + ' — the closing sentence of the answer comes from src/tools/grep/rankedSearch.ts')
+  check('what the screen is given: a count of files and their rows, as a files listing has them', data.mode === undefined && data.numFiles === 8 && data.filenames[0] === 'src/net/uploadQueue.ts:31-38, 8' && GrepTool.outputSchema!.safeParse(data).success, JSON.stringify(data.filenames) + ' — the ranked branch of call in src/tools/grep/GrepTool.ts must return numFiles and filenames rows without a mode')
   check('the same question gives the same bytes', (await ask({})) === text)
-  check('the folder may be named: the answer is the same', (await ask({ path: project })) === text, 'naming the searched folder as path must not change the ranked answer in src/tools/GrepTool/GrepTool.ts')
-  check('type narrows it as it narrows Grep', named(await ask({ type: 'md' })).join('|') === 'docs/CHANGELOG.md', 'the ranked branch in src/tools/GrepTool/GrepTool.ts must pass the type filter to ripgrep')
+  check('the folder may be named: the answer is the same', (await ask({ path: project })) === text, 'naming the searched folder as path must not change the ranked answer in src/tools/grep/GrepTool.ts')
+  check('type narrows it as it narrows Grep', named(await ask({ type: 'md' })).join('|') === 'docs/CHANGELOG.md', 'the ranked branch in src/tools/grep/GrepTool.ts must pass the type filter to ripgrep')
   const underSrc = named(await ask({ glob: 'src/**' }))
-  check('glob narrows it as it narrows Grep', underSrc[0] === 'src/net/uploadQueue.ts' && underSrc.every(file => file.startsWith('src/')), underSrc.join(' | ') + ' — the ranked branch in src/tools/GrepTool/GrepTool.ts must pass the glob filter to ripgrep')
-  check('one file may be the whole search', (await ask({ path: join(project, 'src/net/uploadQueue.ts') })).split('\n')[0] === 'Ranked by words, not by meaning: 1 of 1 file holding retry (1 file), fail (1), upload (1), among 1 searched.', 'a path naming one file must make that file the whole search in src/tools/GrepTool/GrepTool.ts and src/tools/GrepTool/rankedSearch.ts')
+  check('glob narrows it as it narrows Grep', underSrc[0] === 'src/net/uploadQueue.ts' && underSrc.every(file => file.startsWith('src/')), underSrc.join(' | ') + ' — the ranked branch in src/tools/grep/GrepTool.ts must pass the glob filter to ripgrep')
+  check('one file may be the whole search', (await ask({ path: join(project, 'src/net/uploadQueue.ts') })).split('\n')[0] === 'Ranked by words, not by meaning: 1 of 1 file holding retry (1 file), fail (1), upload (1), among 1 searched.', 'a path naming one file must make that file the whole search in src/tools/grep/GrepTool.ts and src/tools/grep/rankedSearch.ts')
   const nothing = await ask({ pattern: 'transmit the document again once the connection drops' })
-  check('nothing found is said with the files searched and the limit', nothing === 'No file among 43 searched holds transmit, docu, once, connection or drop. This ranks by words only: add the names the behaviour may go by.', nothing + ' — the nothing found sentence in src/tools/GrepTool/rankedSearch.ts')
+  check('nothing found is said with the files searched and the limit', nothing === 'No file among 43 searched holds transmit, docu, once, connection or drop. This ranks by words only: add the names the behaviour may go by.', nothing + ' — the nothing found sentence in src/tools/grep/rankedSearch.ts')
   const document = await validate({ pattern: 'retry', output_mode: 'ranked', path: 'manual.pdf' })
-  check('a document is not ranked, and the answer says how to search it', document.result === false && document.message === 'output_mode "ranked" ranks text files, and manual.pdf is a document: search its text with a pattern in another mode.', JSON.stringify(document) + ' — validateInput in src/tools/GrepTool/GrepTool.ts must refuse a document path in ranked mode with this sentence')
+  check('a document is not ranked, and the answer says how to search it', document.result === false && document.message === 'output_mode "ranked" ranks text files, and manual.pdf is a document: search its text with a pattern in another mode.', JSON.stringify(document) + ' — validateInput in src/tools/grep/GrepTool.ts must refuse a document path in ranked mode with this sentence')
 }
 
 console.log('the words are data, never syntax')
@@ -109,11 +109,11 @@ console.log('the words are data, never syntax')
   const text = await ask({ pattern: hostile })
   const words = ['file', 'pre', 'reboot']
   const counting = calls.filter(counts)
-  check('a pattern of flags, shell and regex syntax is counted as its three words, one pass each', counting.length === 3 && /holding file \(\d+ files\), pre \(0\), reboot \(0\), among 43 searched\.$/.test(text.split('\n')[0]!), `${counting.length} ${text.split('\n')[0]} — the word splitting in src/tools/GrepTool/rankedSearch.ts must keep letters and digits only and run one counting pass per word`)
+  check('a pattern of flags, shell and regex syntax is counted as its three words, one pass each', counting.length === 3 && /holding file \(\d+ files\), pre \(0\), reboot \(0\), among 43 searched\.$/.test(text.split('\n')[0]!), `${counting.length} ${text.split('\n')[0]} — the word splitting in src/tools/grep/rankedSearch.ts must keep letters and digits only and run one counting pass per word`)
   check(
     'every pass is fixed strings: -F, each word behind -e, letters and digits only, nothing of the pattern anywhere else',
     calls.length > 0 && calls.every(pass => pass.args.includes('-F') && !pass.args.includes('-P') && !pass.args.includes('--pcre2') && fixedStringsOf(pass.args).length > 0 && fixedStringsOf(pass.args).every(spelling => /^[A-Za-z0-9]+$/.test(spelling) && words.includes(spelling.toLowerCase())) && !pass.args.some(arg => /reboot|--pre|--files|rm -rf/.test(arg) && !/^[A-Za-z0-9]+$/.test(arg))),
-    JSON.stringify(calls.map(pass => pass.args)) + ' — every ripgrep pass built in src/tools/GrepTool/rankedSearch.ts must use -F with each word behind -e and nothing else from the pattern',
+    JSON.stringify(calls.map(pass => pass.args)) + ' — every ripgrep pass built in src/tools/grep/rankedSearch.ts must use -F with each word behind -e and nothing else from the pattern',
   )
   const refused: Array<[string, string, RegExp]> = [
     ['only glue words', 'where is the one that does this', /no word to count/],
@@ -130,7 +130,7 @@ console.log('the words are data, never syntax')
     } catch (error) {
       thrown = error instanceof Error ? error.message : String(error)
     }
-    check(`${label}: refused in a sentence at the door and inside the call, and no ripgrep is started`, verdict.result === false && expected.test(verdict.message ?? '') && thrown === verdict.message && calls.length === 0, JSON.stringify({ verdict, thrown, started: calls.length }) + ' — validateInput and call in src/tools/GrepTool/GrepTool.ts must refuse with one sentence from src/tools/GrepTool/rankedSearch.ts before starting ripgrep')
+    check(`${label}: refused in a sentence at the door and inside the call, and no ripgrep is started`, verdict.result === false && expected.test(verdict.message ?? '') && thrown === verdict.message && calls.length === 0, JSON.stringify({ verdict, thrown, started: calls.length }) + ' — validateInput and call in src/tools/grep/GrepTool.ts must refuse with one sentence from src/tools/grep/rankedSearch.ts before starting ripgrep')
   }
 }
 
@@ -140,18 +140,18 @@ console.log('it shows nothing Grep would not')
   mkdirSync(join(project, 'private'), { recursive: true })
   writeFileSync(join(project, 'private/keys.ts'), 'export const retryUploadFailed = 1\nexport const uploadRetry = "retry a failed upload"\nexport const failedUploadRetry = 2\n')
   const exposed = await ask({})
-  check('the control: a file dense with the words, with no rule on it, is named and moves the numbers', named(exposed).includes('private/keys.ts') && exposed.split('\n')[0] !== before.split('\n')[0], exposed.split('\n')[0] + ' — the control file was not ranked: check the ranked branch in src/tools/GrepTool/GrepTool.ts')
+  check('the control: a file dense with the words, with no rule on it, is named and moves the numbers', named(exposed).includes('private/keys.ts') && exposed.split('\n')[0] !== before.split('\n')[0], exposed.split('\n')[0] + ' — the control file was not ranked: check the ranked branch in src/tools/grep/GrepTool.ts')
   const callerGlobAt = (pass: Call): number => pass.args.findIndex((arg, index) => pass.args[index - 1] === '--glob' && !arg.startsWith('!'))
   const ruleGlobAt = (pass: Call): number => pass.args.findIndex((arg, index) => pass.args[index - 1] === '--iglob' && /private|keys\.ts/.test(arg))
   for (const [label, rule] of [['a rule relative to the folder', 'Read(private/**)'], ['a rule on the file name', 'Read(**/keys.ts)']] as const) {
     calls.length = 0
     const hidden = await ask({}, deny(rule))
-    check(`a denied path (${label}): never named, and every number is what it was before the file existed`, hidden === before, hidden + ' — the ranked branch in src/tools/GrepTool/GrepTool.ts must pass the deny rules to every ripgrep pass')
-    check(`a denied path (${label}): three counting passes and one line pass, and the line pass does not name the file`, calls.filter(counts).length === 3 && calls.filter(pass => !counts(pass)).length === 1 && !calls.some(pass => filesOf(pass).some(file => file.endsWith('keys.ts'))), JSON.stringify(calls.map(filesOf)) + ' — the passes built in src/tools/GrepTool/rankedSearch.ts must exclude denied paths')
+    check(`a denied path (${label}): never named, and every number is what it was before the file existed`, hidden === before, hidden + ' — the ranked branch in src/tools/grep/GrepTool.ts must pass the deny rules to every ripgrep pass')
+    check(`a denied path (${label}): three counting passes and one line pass, and the line pass does not name the file`, calls.filter(counts).length === 3 && calls.filter(pass => !counts(pass)).length === 1 && !calls.some(pass => filesOf(pass).some(file => file.endsWith('keys.ts'))), JSON.stringify(calls.map(filesOf)) + ' — the passes built in src/tools/grep/rankedSearch.ts must exclude denied paths')
     calls.length = 0
     const widened = await ask({ glob: 'private/**' }, deny(rule))
-    check(`a denied path (${label}): the caller's own glob cannot bring it back`, !widened.includes('keys.ts') && widened.startsWith('No file among 0 searched holds'), widened + ' — a caller glob must not override a deny rule in src/tools/GrepTool/GrepTool.ts')
-    check(`a denied path (${label}): its rule stands after the caller's glob in every pass, where ripgrep lets the last one win`, calls.length > 0 && calls.every(pass => callerGlobAt(pass) !== -1 && ruleGlobAt(pass) > callerGlobAt(pass)), JSON.stringify(calls[0]?.args.filter((arg, index, all) => all[index - 1] === '--glob' || all[index - 1] === '--iglob')) + ' — the deny rule globs must come after the caller glob in the ripgrep arguments built in src/tools/GrepTool/GrepTool.ts')
+    check(`a denied path (${label}): the caller's own glob cannot bring it back`, !widened.includes('keys.ts') && widened.startsWith('No file among 0 searched holds'), widened + ' — a caller glob must not override a deny rule in src/tools/grep/GrepTool.ts')
+    check(`a denied path (${label}): its rule stands after the caller's glob in every pass, where ripgrep lets the last one win`, calls.length > 0 && calls.every(pass => callerGlobAt(pass) !== -1 && ruleGlobAt(pass) > callerGlobAt(pass)), JSON.stringify(calls[0]?.args.filter((arg, index, all) => all[index - 1] === '--glob' || all[index - 1] === '--iglob')) + ' — the deny rule globs must come after the caller glob in the ripgrep arguments built in src/tools/grep/GrepTool.ts')
   }
   for (const [label, rule] of [
     ['relative', 'Read(private/**)'],
@@ -162,36 +162,36 @@ console.log('it shows nothing Grep would not')
   ] as const) {
     const listed = ((await runWithCwdOverride(project, () => GrepTool.call({ pattern: 'retry|retrie|fail|upload', '-i': true, output_mode: 'files_with_matches', head_limit: 0 } as never, context(deny(rule))))) as { data: Data }).data.filenames
     const ranked = named(await ask({}, deny(rule)))
-    check(`whatever the spelling of the rule (${label}): it names the file only if Grep's own listing names it, and every file it names is in that listing`, ranked.includes('private/keys.ts') === listed.includes('private/keys.ts') && ranked.every(file => listed.includes(file)), JSON.stringify({ ranked: ranked.includes('private/keys.ts'), grep: listed.includes('private/keys.ts') }) + ' — ranked mode in src/tools/GrepTool/GrepTool.ts must apply the same deny rule matching as files_with_matches')
+    check(`whatever the spelling of the rule (${label}): it names the file only if Grep's own listing names it, and every file it names is in that listing`, ranked.includes('private/keys.ts') === listed.includes('private/keys.ts') && ranked.every(file => listed.includes(file)), JSON.stringify({ ranked: ranked.includes('private/keys.ts'), grep: listed.includes('private/keys.ts') }) + ' — ranked mode in src/tools/grep/GrepTool.ts must apply the same deny rule matching as files_with_matches')
   }
   rmSync(join(project, 'private'), { recursive: true, force: true })
 
   writeFileSync(join(project, '.env'), 'UPLOAD_RETRY=retry a failed upload\nFAILED_UPLOADS=retry\n')
   const withEnv = await ask({})
-  check('a .env the user would be asked about: withheld in Grep\'s own sentence, never ranked, out of every number', withEnv === `${before}\n(Withheld: .env — Mercury asks before reading a .env file; search it by name (path or glob) to be asked.)`, withEnv + ' — the withheld sentence comes from src/tools/GrepTool/GrepTool.ts (envFilesWithheld); ranked mode must append it and leave the numbers unchanged')
+  check('a .env the user would be asked about: withheld in Grep\'s own sentence, never ranked, out of every number', withEnv === `${before}\n(Withheld: .env — Mercury asks before reading a .env file; search it by name (path or glob) to be asked.)`, withEnv + ' — the withheld sentence comes from src/tools/grep/GrepTool.ts (envFilesWithheld); ranked mode must append it and leave the numbers unchanged')
   const asked = await decide({ pattern: RANKED_FIXTURE_DESCRIPTION, output_mode: 'ranked', path: join(project, '.env') }, project)
   const askedFiles = await decide({ pattern: 'retry', output_mode: 'files_with_matches', path: join(project, '.env') }, project)
-  check('searched by name, the .env is asked about exactly as Grep asks', asked.behavior === 'ask' && asked.behavior === askedFiles.behavior && asked.message === askedFiles.message, JSON.stringify([asked.behavior, asked.message, askedFiles.message]) + ' — the permission check of GrepTool in src/tools/GrepTool/GrepTool.ts must treat ranked like files_with_matches')
+  check('searched by name, the .env is asked about exactly as Grep asks', asked.behavior === 'ask' && asked.behavior === askedFiles.behavior && asked.message === askedFiles.message, JSON.stringify([asked.behavior, asked.message, askedFiles.message]) + ' — the permission check of GrepTool in src/tools/grep/GrepTool.ts must treat ranked like files_with_matches')
   rmSync(join(project, '.env'))
 
   const wide = await ask({}, open, world)
   for (const name of ['.credentials.json', '.provider-secrets.json', 'fixture-auth.json']) writeFileSync(join(HOME, name), JSON.stringify({ note: 'retry a failed upload, retry the upload that failed' }) + '\n', { mode: 0o600 })
   calls.length = 0
   const withSecrets = await ask({}, open, world)
-  check('Mercury\'s own credential files under the folder searched: never named, and every number is what it was before they existed', withSecrets === wide && !withSecrets.includes('credentials') && !withSecrets.includes('auth.json'), withSecrets + ' — ranked mode in src/tools/GrepTool/GrepTool.ts must exclude the credential files as Grep does')
-  check('no pass names one of them', !calls.some(pass => filesOf(pass).some(file => file.startsWith(HOME))), JSON.stringify(calls.at(-1)?.args.slice(-6)) + ' — the passes built in src/tools/GrepTool/rankedSearch.ts must not list the config home')
+  check('Mercury\'s own credential files under the folder searched: never named, and every number is what it was before they existed', withSecrets === wide && !withSecrets.includes('credentials') && !withSecrets.includes('auth.json'), withSecrets + ' — ranked mode in src/tools/grep/GrepTool.ts must exclude the credential files as Grep does')
+  check('no pass names one of them', !calls.some(pass => filesOf(pass).some(file => file.startsWith(HOME))), JSON.stringify(calls.at(-1)?.args.slice(-6)) + ' — the passes built in src/tools/grep/rankedSearch.ts must not list the config home')
   const secret = await decide({ pattern: RANKED_FIXTURE_DESCRIPTION, output_mode: 'ranked', path: join(HOME, '.credentials.json') }, world)
   const secretFiles = await decide({ pattern: 'retry', output_mode: 'files_with_matches', path: join(HOME, '.credentials.json') }, world)
-  check('named as the path, a credential file is refused exactly as Grep refuses it', secret.behavior === 'deny' && secret.behavior === secretFiles.behavior && secret.message === secretFiles.message, JSON.stringify([secret.behavior, secret.message]) + ' — the permission check of GrepTool in src/tools/GrepTool/GrepTool.ts must treat ranked like files_with_matches')
+  check('named as the path, a credential file is refused exactly as Grep refuses it', secret.behavior === 'deny' && secret.behavior === secretFiles.behavior && secret.message === secretFiles.message, JSON.stringify([secret.behavior, secret.message]) + ' — the permission check of GrepTool in src/tools/grep/GrepTool.ts must treat ranked like files_with_matches')
 
   const outside = realpathSync(mkdtempSync(join(tmpdir(), 'grep-ranked-outside-')))
   writeFileSync(join(outside, 'note.ts'), 'export const retryUpload = "retry a failed upload"\n')
   const far = await decide({ pattern: RANKED_FIXTURE_DESCRIPTION, output_mode: 'ranked', path: outside }, project)
   const farFiles = await decide({ pattern: 'retry', output_mode: 'files_with_matches', path: outside }, project)
-  check('a path outside the working tree is judged exactly as Grep judges it: the same question in the same words', far.behavior === 'ask' && far.behavior === farFiles.behavior && far.message === farFiles.message && JSON.stringify(far.decisionReason) === JSON.stringify(farFiles.decisionReason), JSON.stringify([far.behavior, far.message, farFiles.behavior, farFiles.message]) + ' — the permission check of GrepTool in src/tools/GrepTool/GrepTool.ts must judge ranked paths as it judges files_with_matches')
+  check('a path outside the working tree is judged exactly as Grep judges it: the same question in the same words', far.behavior === 'ask' && far.behavior === farFiles.behavior && far.message === farFiles.message && JSON.stringify(far.decisionReason) === JSON.stringify(farFiles.decisionReason), JSON.stringify([far.behavior, far.message, farFiles.behavior, farFiles.message]) + ' — the permission check of GrepTool in src/tools/grep/GrepTool.ts must judge ranked paths as it judges files_with_matches')
   const inside = await decide({ pattern: RANKED_FIXTURE_DESCRIPTION, output_mode: 'ranked' }, project)
   const insideFiles = await decide({ pattern: 'retry', output_mode: 'files_with_matches' }, project)
-  check('and inside the working tree it is allowed as Grep is', inside.behavior === 'allow' && insideFiles.behavior === 'allow', JSON.stringify([inside.behavior, insideFiles.behavior]) + ' — the permission check of GrepTool in src/tools/GrepTool/GrepTool.ts must allow ranked inside the working tree')
+  check('and inside the working tree it is allowed as Grep is', inside.behavior === 'allow' && insideFiles.behavior === 'allow', JSON.stringify([inside.behavior, insideFiles.behavior]) + ' — the permission check of GrepTool in src/tools/grep/GrepTool.ts must allow ranked inside the working tree')
   rmSync(outside, { recursive: true, force: true })
 
   calls.length = 0
@@ -199,8 +199,8 @@ console.log('it shows nothing Grep would not')
   const counted = new Set<string>()
   for (const pass of calls.filter(counts)) for (const line of (await ripgrep.ripGrepAnswer(pass.args, pass.target, new AbortController().signal, { cwd: project })).lines) if (line.includes('\0')) counted.add(line.slice(0, line.indexOf('\0')))
   const reading = calls.filter(pass => !counts(pass))
-  check('one line pass, and it names only files the counting passes returned', reading.length === 1 && filesOf(reading[0]!).length <= 24 && filesOf(reading[0]!).every(file => counted.has(file)), JSON.stringify(reading.map(filesOf)) + ' — the line pass built in src/tools/GrepTool/rankedSearch.ts must name only files the counting passes returned, 24 at most')
-  check('every pass runs in the folder searched, as Grep does, so a rule is anchored where Grep anchors it', calls.every(pass => pass.cwd === project), JSON.stringify(calls.map(pass => pass.cwd)) + ' — every ripGrepAnswer call from src/tools/GrepTool/rankedSearch.ts must pass the searched folder as cwd')
+  check('one line pass, and it names only files the counting passes returned', reading.length === 1 && filesOf(reading[0]!).length <= 24 && filesOf(reading[0]!).every(file => counted.has(file)), JSON.stringify(reading.map(filesOf)) + ' — the line pass built in src/tools/grep/rankedSearch.ts must name only files the counting passes returned, 24 at most')
+  check('every pass runs in the folder searched, as Grep does, so a rule is anchored where Grep anchors it', calls.every(pass => pass.cwd === project), JSON.stringify(calls.map(pass => pass.cwd)) + ' — every ripGrepAnswer call from src/tools/grep/rankedSearch.ts must pass the searched folder as cwd')
 }
 
 rmSync(world, { recursive: true, force: true })

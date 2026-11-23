@@ -58,7 +58,7 @@ if (process.platform === 'win32') {
 
 section('§1 the cmake build timeout ends the driver AND its descendants')
 if (process.platform !== 'win32') {
-  hint = 'buildTarget in src/services/ide/cppBuild.ts must end the whole process tree of cmake on a timeout, not only the leader (see endProcessTree in src/utils/processGroup.ts)'
+  hint = 'buildTarget in src/integrations/ide/cppBuild.ts must end the whole process tree of cmake on a timeout, not only the leader (see endProcessTree in src/platform/processes/processGroup.ts)'
   const root = mkdtempSync(join(tmpdir(), 'teardown-tree-cmake-'))
   const shimDir = join(root, 'shim')
   mkdirSync(shimDir)
@@ -73,8 +73,8 @@ if (process.platform !== 'win32') {
   process.env.PATH = `${shimDir}:${savedPath ?? ''}`
   let grandchild = -1
   try {
-    const { buildTarget, _resetCppBuildForTesting } = await import('../../src/services/ide/cppBuild.ts')
-    const { _resetCppProjectForTesting } = await import('../../src/services/ide/cppProject.ts')
+    const { buildTarget, _resetCppBuildForTesting } = await import('../../src/integrations/ide/cppBuild.ts')
+    const { _resetCppProjectForTesting } = await import('../../src/integrations/ide/cppProject.ts')
     _resetCppProjectForTesting()
     _resetCppBuildForTesting()
     const run = await buildTarget({ from: ws, timeoutMs: 3_000 })
@@ -92,7 +92,7 @@ if (process.platform !== 'win32') {
 
 section('§2 the language-server stop ends the server AND its descendants')
 if (process.platform !== 'win32') {
-  hint = 'stop() of the client from createLSPClient in src/services/lsp/LSPClient.ts must end the server and its descendants'
+  hint = 'stop() of the client from createLSPClient in src/integrations/lsp/LSPClient.ts must end the server and its descendants'
   const root = mkdtempSync(join(tmpdir(), 'teardown-tree-lsp-'))
   const pidFile = join(root, 'grandchild.pid')
   const server = join(root, 'fixture-server.mjs')
@@ -128,7 +128,7 @@ if (process.platform !== 'win32') {
   )
   let grandchild = -1
   try {
-    const { createLSPClient } = await import('../../src/services/lsp/LSPClient.ts')
+    const { createLSPClient } = await import('../../src/integrations/lsp/LSPClient.ts')
     const client = createLSPClient('teardown-fixture')
     await client.start(process.execPath, [server, pidFile])
     const init = await client.initialize({ processId: process.pid, rootUri: null, capabilities: {} } as never)
@@ -148,8 +148,8 @@ if (process.platform !== 'win32') {
 
 section('§4 the win32 survivor half — the reap covers the acted set')
 {
-  hint = 'fix taskkillActedPids in src/utils/processGroup.ts'
-  const { taskkillActedPids } = await import('../../src/utils/processGroup.ts')
+  hint = 'fix taskkillActedPids in src/platform/processes/processGroup.ts'
+  const { taskkillActedPids } = await import('../../src/platform/processes/processGroup.ts')
   const transcript = [
     'SUCCESS: The process with PID 100 (child of PID 7) has been terminated.',
     'SUCCESS: The process with PID 101 (child of PID 100) has been terminated.',
@@ -162,8 +162,8 @@ section('§4 the win32 survivor half — the reap covers the acted set')
 
 section("§5 the shell engine's end ends the brush AND its descendants")
 if (process.platform !== 'win32') {
-  hint = 'endEngineSession in src/utils/shell/engineSession.ts must end the brush process and its descendants'
-  const { resolveShellEngine, runEngineCommand, endEngineSession, resetEngineSessionForTest } = await import('../../src/utils/shell/engineSession.ts')
+  hint = 'endEngineSession in src/platform/shell/engineSession.ts must end the brush process and its descendants'
+  const { resolveShellEngine, runEngineCommand, endEngineSession, resetEngineSessionForTest } = await import('../../src/platform/shell/engineSession.ts')
   const resolution = resolveShellEngine('brush')
   if (resolution.engine !== 'brush') {
     console.log(`  [SKIP — LOUD] no shell engine pack on this host (${resolution.reason}) — the engine leg runs where the pack is`)

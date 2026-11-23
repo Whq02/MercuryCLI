@@ -56,7 +56,7 @@ function capture(name: string, cfg: Record<string, unknown>, env: NodeJS.Process
   const payload = JSON.parse(readFileSync(out, 'utf8')) as Grid
   const lines = linesOf(payload)
   writeFileSync(join(OUT_DIR, `${name}.txt`), lines.map(l => l.trimEnd()).join('\n') + '\n')
-  check(`${name}: the scene painted ready (${payload.endReason ?? '?'})`, payload.endReason === 'ready', `${lines.slice(0, 6).join('\n')}\nthe scene never showed its ready text: open the frame in ${OUT_DIR} and look at what src/components/concourse/ConcourseLayout.tsx painted instead`)
+  check(`${name}: the scene painted ready (${payload.endReason ?? '?'})`, payload.endReason === 'ready', `${lines.slice(0, 6).join('\n')}\nthe scene never showed its ready text: open the frame in ${OUT_DIR} and look at what src/screen/concourse/ConcourseLayout.tsx painted instead`)
   return lines
 }
 
@@ -97,39 +97,39 @@ console.log('W — the wide board (160×48, no ask): no top panel; the two panes
   fixture.needsYou = []
   ;(fixture.counts as { needsYou: number }).needsYou = 0
   const lines = capture('board-wide-160x48', boardCfg(160, 48, 'STATUS & TITLE'), boardEnv(fixture, 'wide'), REPO)
-  check('W1 no critter rows on the board', critterRows(lines).length === 0, `${critterRows(lines).map(i => `row ${i}: ${lines[i]!.trim()}`).join(' | ')} — the board must not paint the critter; remove it from the top of the board in src/components/concourse/ConcourseLayout.tsx`)
-  check(`W2 no "MERCURY — ${LOCKUP}" title bar`, !lines.some(l => l.includes(LOCKUP)), `${lines.find(l => l.includes(LOCKUP))?.trim() ?? ''} — the board must not paint a title bar; remove it from src/components/concourse/ConcourseLayout.tsx`)
-  check('W3 no BOOT › CONCOURSE › FOCUSED CHAT breadcrumb', crumbRows(lines).length === 0, `${crumbRows(lines).join(' | ')} — the board must not paint a breadcrumb; remove it from src/components/concourse/ConcourseLayout.tsx`)
+  check('W1 no critter rows on the board', critterRows(lines).length === 0, `${critterRows(lines).map(i => `row ${i}: ${lines[i]!.trim()}`).join(' | ')} — the board must not paint the critter; remove it from the top of the board in src/screen/concourse/ConcourseLayout.tsx`)
+  check(`W2 no "MERCURY — ${LOCKUP}" title bar`, !lines.some(l => l.includes(LOCKUP)), `${lines.find(l => l.includes(LOCKUP))?.trim() ?? ''} — the board must not paint a title bar; remove it from src/screen/concourse/ConcourseLayout.tsx`)
+  check('W3 no BOOT › CONCOURSE › FOCUSED CHAT breadcrumb', crumbRows(lines).length === 0, `${crumbRows(lines).join(' | ')} — the board must not paint a breadcrumb; remove it from src/screen/concourse/ConcourseLayout.tsx`)
   check(
     'W4 the live view and the session list start on the first row (both top borders on row 0; the session header and SESSIONS on row 1)',
     panelTop(lines[0] ?? '') && ((lines[0] ?? '').match(/[╭┏]/g) ?? []).length === 2 && (lines[1] ?? '').includes('↵ enter session') && (lines[1] ?? '').includes('SESSIONS'),
-    `${lines.slice(0, 2).map(l => l.trimEnd()).join('\n')}\nrow 0 must hold both pane top borders and row 1 the session header and SESSIONS: nothing may sit above the panes in src/components/concourse/ConcourseLayout.tsx`,
+    `${lines.slice(0, 2).map(l => l.trimEnd()).join('\n')}\nrow 0 must hold both pane top borders and row 1 the session header and SESSIONS: nothing may sit above the panes in src/screen/concourse/ConcourseLayout.tsx`,
   )
   const status = lines.findIndex(l => l.includes('▚▛▀▜▞') && l.includes(' seats'))
   check(
     `W5 the status row ends on the seats and the operator's name ("${HANDLE}") is on no row of the board`,
     status >= 0 && status > lines.length - 6 && /seats │$/.test((lines[status] ?? '').trimEnd()) && !lines.some(l => handleRe.test(l)),
-    `status row ${status}: ${(lines[status] ?? '').trim()} — the status row must end on the seats cell (src/components/concourse/ConcourseStrips.tsx) and the operator name must appear on no row`,
+    `status row ${status}: ${(lines[status] ?? '').trim()} — the status row must end on the seats cell (src/screen/concourse/ConcourseStrips.tsx) and the operator name must appear on no row`,
   )
 }
 
 console.log('S — the board at 110×34 (the reference fixture, one ask): the panes start on the first row; the ask sits in the session list, the status row carries the project and the seats alone')
 {
   const lines = capture('board-stacked-110x34', boardCfg(110, 34, 'STATUS & TITLE'), boardEnv(referenceFixtureSnapshot(), 'stacked'), REPO)
-  check('S1 no critter rows, no title bar, no breadcrumb', critterRows(lines).length === 0 && !lines.some(l => l.includes(LOCKUP)) && crumbRows(lines).length === 0, `${lines.slice(0, 3).map(l => l.trimEnd()).join('\n')}\nthe board must paint no critter, title bar or breadcrumb: remove it from src/components/concourse/ConcourseLayout.tsx`)
-  check('S2 the panes start on the first row and the NEEDS YOU block sits below them, inside the session list', panelTop(lines[0] ?? '') && (lines[1] ?? '').includes('SESSIONS') && lines.findIndex(l => l.includes('NEEDS YOU')) > 1, `${lines.slice(0, 2).map(l => l.trimEnd()).join('\n')}\nthe panes must start on row 0 and NEEDS YOU must sit below them in the session list: see src/components/concourse/ConcourseLayout.tsx and src/components/concourse/NeedsYouRail.tsx`)
+  check('S1 no critter rows, no title bar, no breadcrumb', critterRows(lines).length === 0 && !lines.some(l => l.includes(LOCKUP)) && crumbRows(lines).length === 0, `${lines.slice(0, 3).map(l => l.trimEnd()).join('\n')}\nthe board must paint no critter, title bar or breadcrumb: remove it from src/screen/concourse/ConcourseLayout.tsx`)
+  check('S2 the panes start on the first row and the NEEDS YOU block sits below them, inside the session list', panelTop(lines[0] ?? '') && (lines[1] ?? '').includes('SESSIONS') && lines.findIndex(l => l.includes('NEEDS YOU')) > 1, `${lines.slice(0, 2).map(l => l.trimEnd()).join('\n')}\nthe panes must start on row 0 and NEEDS YOU must sit below them in the session list: see src/screen/concourse/ConcourseLayout.tsx and src/screen/concourse/NeedsYouRail.tsx`)
   const status = lines.find(l => l.includes('▚▛▀▜▞') && l.includes(' seats')) ?? ''
   check(
     'S3 the status row is the project chip and the seats, whole: no coordinator chip, no over-seat words, no name',
     /▚▛▀▜▞ │ Moodle ⌄\s+\d+\/\d+ seats │/.test(status) && !/coordinator|over the|live/.test(status) && !handleRe.test(status),
-    `${status.trim()} — the status row must be the project chip and the seats cell alone: see src/components/concourse/ConcourseStrips.tsx`,
+    `${status.trim()} — the status row must be the project chip and the seats cell alone: see src/screen/concourse/ConcourseStrips.tsx`,
   )
 }
 
 console.log('C — the compact board (96×30): it paints no top panel either')
 {
   const lines = capture('board-compact-96x30', boardCfg(96, 30, 'sessions · '), boardEnv(referenceFixtureSnapshot(), 'compact'), REPO)
-  check('C1 no critter rows, no title bar, no breadcrumb on the compact board', critterRows(lines).length === 0 && !lines.some(l => l.includes(LOCKUP)) && crumbRows(lines).length === 0, `${lines.slice(0, 3).map(l => l.trimEnd()).join('\n')}\nthe compact board must paint no critter, title bar or breadcrumb: remove it from src/components/concourse/CompactConcourse.tsx`)
+  check('C1 no critter rows, no title bar, no breadcrumb on the compact board', critterRows(lines).length === 0 && !lines.some(l => l.includes(LOCKUP)) && crumbRows(lines).length === 0, `${lines.slice(0, 3).map(l => l.trimEnd()).join('\n')}\nthe compact board must paint no critter, title bar or breadcrumb: remove it from src/screen/concourse/CompactConcourse.tsx`)
 }
 
 console.log('G — the guard: the chat screen keeps its header critter (160×48)')
@@ -139,7 +139,7 @@ console.log('G — the guard: the chat screen keeps its header critter (160×48)
   cleanupScenario('frame')
   const rows = critterRows(lines)
   const top = rows.find(r => r < 8 && rows.includes(r + 1) && rows.includes(r + 2))
-  check('G1 the chat header paints the critter: three stacked rows of its art at the top of the frame', top !== undefined, `${lines.slice(0, 8).map(l => l.trimEnd()).join('\n')}\nthe chat header must keep its critter: see PinnedCritterBerth in src/components/fullscreenLayout/frame.tsx`)
+  check('G1 the chat header paints the critter: three stacked rows of its art at the top of the frame', top !== undefined, `${lines.slice(0, 8).map(l => l.trimEnd()).join('\n')}\nthe chat header must keep its critter: see PinnedCritterBerth in src/screen/fullscreen-layout/frame.tsx`)
 }
 
 if (failures === 0) removeScratch(scratch)

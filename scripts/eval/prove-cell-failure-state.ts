@@ -3,10 +3,10 @@ import { check, cleanup, finish, loadEval, makeContext, section, setup, within }
 
 const { work } = setup()
 const { evalKernelManager } = await loadEval()
-const { transformJsCell } = await import('../../src/services/eval/jsCellTransform.ts')
-const { nestedCallsLine, stateAfterFailure } = await import('../../src/services/eval/kernelManager.ts')
+const { transformJsCell } = await import('../../src/tools/engines/eval-kernels/jsCellTransform.ts')
+const { nestedCallsLine, stateAfterFailure } = await import('../../src/tools/engines/eval-kernels/kernelManager.ts')
 
-const bridge: import('../../src/services/eval/kernelManager.js').BridgeServer = async frame => {
+const bridge: import('../../src/tools/engines/eval-kernels/kernelManager.js').BridgeServer = async frame => {
   if (frame.kind !== 'tool') return { ok: false, error: 'no such bridge kind in this prover' }
   const name = (frame.payload as { name?: string }).name ?? ''
   if (name === 'Refused') return { ok: false, error: 'the bridge refused this call' }
@@ -65,7 +65,7 @@ try {
   const survivedNote = s1.annotations.find(a => a.startsWith('bindings that survived'))
   check('S2 the result names the survivors, and the var never assigned before the throw as never bound', survivedNote === 'bindings that survived this failed cell: root, made; never bound (declared after the throw or uninitialised): hb, logs, never', JSON.stringify(s1.annotations))
   check('S3 …and the name declared after the throw as never bound', survivedNote !== undefined && /never bound.*never/.test(survivedNote), survivedNote ?? '')
-  const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
+  const { EvalTool } = await import('../../src/tools/eval/EvalTool.ts')
   const rendered = (outcome: typeof s1) => String(EvalTool.mapToolResultToToolResultBlockParam({ ...outcome, language: 'js' } as never, 'cell').content)
   const headlines = (text: string, headline: string) => text.split(headline).length - 1
   const frames = (text: string) => text.split('\n').filter(line => /^\s+at /.test(line))
@@ -122,8 +122,8 @@ try {
   check('A5 the plain call still raises (a denial must be handled)', a3.status === 'error' && (a3.error?.value ?? '').includes('the bridge refused this call'), JSON.stringify(a3.error))
 
   section('§B the real bridge with the real Bash tool: a command that ran is a value, a refusal a raise, the ledger keeps the exit code')
-  const { makeEvalBridgeServer } = await import('../../src/services/eval/evalBridge.js')
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const { makeEvalBridgeServer } = await import('../../src/tools/engines/eval-kernels/evalBridge.js')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
   const gate = (async (_tool: { name: string }, input: Record<string, unknown>) =>
     String(input.command ?? '').includes('never')
       ? { behavior: 'deny', message: 'Permission to use Bash was denied by the operator.' }
@@ -153,10 +153,10 @@ try {
   check('B6 the Python kernel reads the same value', b6.status === 'ok' && b6.resultRepr === "[1, True, '']", JSON.stringify(b6.error ?? b6.resultRepr))
   const b7 = await runBridged('owner-B', 'py', "tool.Bash(command='echo never')")
   check('B7 Python: a refused call raises with the words bare', b7.status === 'error' && (b7.error?.value ?? '').startsWith('Permission to use Bash was denied') && !(b7.error?.value ?? '').includes('<tool_use_error>'), JSON.stringify(b7.error))
-  const { runToolUse, toolUseError } = await import('../../src/services/tools/toolExecution.js')
-  const { formatError } = await import('../../src/utils/toolErrors.js')
-  const { ShellError } = await import('../../src/utils/errors.js')
-  const { createAssistantMessage } = await import('../../src/services/messages.js')
+  const { runToolUse, toolUseError } = await import('../../src/engine/tool-dispatch/toolExecution.js')
+  const { formatError } = await import('../../src/tools/kit/toolErrors.js')
+  const { ShellError } = await import('../../src/platform/errors/errors.js')
+  const { createAssistantMessage } = await import('../../src/engine/messages/messages.js')
   const transaction = async (command: string) => {
     const context = await makeContext({ tools: [BashTool] })
     const id = `toolu_b8_${Math.random().toString(36).slice(2, 8)}`

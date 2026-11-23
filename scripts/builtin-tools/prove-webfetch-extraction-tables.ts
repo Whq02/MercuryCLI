@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import axios from 'axios'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { WebFetchTool } = await import('../../src/tools/WebFetchTool/WebFetchTool.js')
-const { clearWebFetchCache } = await import('../../src/tools/WebFetchTool/utils.js')
+const { WebFetchTool } = await import('../../src/tools/web-fetch/WebFetchTool.js')
+const { clearWebFetchCache } = await import('../../src/tools/web-fetch/fetchContent.js')
 const page = `<!doctype html><html><head><title>Precedence</title></head><body>
 <nav><a href="/">Home</a><a href="/guide">Guide</a></nav>
 <main><article>
@@ -32,7 +32,7 @@ try {
   clearWebFetchCache()
   const context = { abortController: new AbortController(), options: { isNonInteractiveSession: true } } as never
   const result = await WebFetchTool.call({ url: 'https://fixture.example/precedence' }, context)
-  assert.ok('data' in result, 'WebFetchTool.call in src/tools/WebFetchTool/WebFetchTool.js must return a data payload for HTML table fixture')
+  assert.ok('data' in result, 'WebFetchTool.call in src/tools/web-fetch/WebFetchTool.js must return a data payload for HTML table fixture')
   const text = result.data.result
   const lines = text.split('\n')
   const row = lines.find(line => line.includes('Command line') && line.includes('Environment, file') && line.includes('--interval=10m'))

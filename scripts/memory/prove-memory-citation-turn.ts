@@ -3,9 +3,9 @@ import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runDoor, sceneRoot } from '../hooks/lib/runDoor.ts'
 import { handoffTurn } from '../lib/fixtureApi.ts'
-import { emptyDoc } from '../../src/mneme/mnemeTopicDocs.ts'
-import { writeDoc } from '../../src/mneme/mnemeLibrary.ts'
-import { readUsage } from '../../src/mneme/mnemeUsage.ts'
+import { emptyDoc } from '../../src/sessions/mneme/mnemeTopicDocs.ts'
+import { writeDoc } from '../../src/sessions/mneme/mnemeLibrary.ts'
+import { readUsage } from '../../src/sessions/mneme/mnemeUsage.ts'
 
 const paths = sceneRoot('citation-turn-')
 const library = join(paths.home, 'memory', 'library')
@@ -26,7 +26,7 @@ try {
   })
   assert.equal(result.code, 0, result.stderr)
   assert(result.rows.some(row => JSON.stringify(row).includes('[seq 1]')), 'runDoor output rows must include assistant citation [seq 1]')
-  assert(Date.parse(readUsage(library)['1']?.last ?? '') > Date.parse(old), `confirmCitedFacts in src/mneme/mnemeFootnotes.ts must refresh usage.last past ${old} (got ${readUsage(library)['1']?.last ?? 'missing'})`)
+  assert(Date.parse(readUsage(library)['1']?.last ?? '') > Date.parse(old), `confirmCitedFacts in src/sessions/mneme/mnemeFootnotes.ts must refresh usage.last past ${old} (got ${readUsage(library)['1']?.last ?? 'missing'})`)
   assert.equal(readUsage(library)['1']?.count, 0)
   console.log('PASS a real assistant answer confirms its citation without counting a memory open')
 } finally {

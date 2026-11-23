@@ -446,8 +446,8 @@ try {
     assert.deepEqual(executableOf(entry, { HOME: home, PATH: pathdir }, scratch, 'linux'), ['node', entry], 'a directory named node on PATH is not the runtime: the bare name is left to the spawn')
   })
   await check('row 9 the managed install resolves to its bundle on its vendored runtime, under a path with a space and a non-ASCII letter: the Windows layout driven on this host, the POSIX layout live', async () => {
-    const layout = await import('../../src/services/privateChannel/installLayout.ts')
-    const templates = await import('../../scripts/release/launcherTemplates.mjs')
+    const layout = await import('../../src/platform/update-channel/installLayout.ts')
+    const templates = await import('../release/launcherTemplates.mjs')
     const engines = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).engines.node
     const stub = `console.log(${JSON.stringify(JSON.stringify(sessionRow))});console.log(${JSON.stringify(JSON.stringify(outcome))})`
     const windows = join(scratch, 'win dows ü'); const profile = join(windows, 'Users', 'Dev'); const localAppData = join(profile, 'AppData', 'Local')

@@ -3,13 +3,13 @@
 # gate-env: MERCURY_PROOF_POISON_GUARD MERCURY_PYTHON
 # gate-watch: scripts/*/run-all.sh scripts/*/members.txt
 # gate-watch: scripts/lib/**
-# gate-watch: src/rows/* src/runner/wire/*
+# gate-watch: src/engine/rows/* src/daemon/runner-wire/*
 # gate-watch: bunfig.toml
 # gate-watch: scripts/verify/fast.ts scripts/verify/impact.ts scripts/verify/sliceCore.ts
 # gate-watch: scripts/verify/prove-impact-manifest.ts scripts/verify/prove-impact-run.ts scripts/verify/prove-slice-core.ts
-# gate-watch: src/tasks/LocalShellTask/killShellTasks.ts src/tasks/LocalShellTask/LocalShellTask.tsx src/tools/BashTool/BashTool.tsx
-# gate-watch: src/tools/BashTool/BashToolResultMessage.tsx src/tools/BashTool/UI.tsx src/utils/shell/utils.ts
-# gate-watch: src/cli/headless/*
+# gate-watch: src/engine/tasks/local-shell/killShellTasks.ts src/engine/tasks/local-shell/shellTask.tsx src/tools/shell/BashTool.tsx
+# gate-watch: src/tools/shell/BashToolResultMessage.tsx src/tools/shell/rows.tsx src/platform/shell/shellOutput.ts
+# gate-watch: src/daemon/runner/claimSession.ts src/daemon/runner/controlHandlers.ts src/daemon/runner/hostAskLiveness.ts src/daemon/runner/inputDoor.ts src/daemon/runner/mcpArms.ts src/daemon/runner/model.ts src/daemon/runner/parkRefusal.ts src/daemon/runner/projectQuery.ts src/daemon/runner/refusalEnvelope.ts src/daemon/runner/restartCarry.ts src/daemon/runner/resume.ts src/daemon/runner/resumeHydration.ts src/daemon/runner/runnerArms.ts src/daemon/runner/runnerAsks.ts src/daemon/runner/runnerDriver.ts src/daemon/runner/runnerMethods.ts src/daemon/runner/runnerPorts.ts src/daemon/runner/runnerRunEnd.ts src/daemon/runner/runnerTurn.ts src/daemon/runner/sendNow.ts src/daemon/runner/sessionFactsArm.ts src/daemon/runner/spawnSwitchLanding.ts src/daemon/runner/turnDriver.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

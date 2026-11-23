@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert'
-import type { Tool, ToolUseContext } from '../../../src/Tool.ts'
-import type { AssistantMessage, RefusedToolCall } from '../../../src/types/message.ts'
+import type { Tool, ToolUseContext } from '../../../src/tools/kit/tool.ts'
+import type { AssistantMessage, RefusedToolCall } from '../../../src/engine/message-shapes/message.ts'
 
 export async function assertRefusedCallResult(
   rows: AssistantMessage[],
@@ -24,8 +24,8 @@ export async function assertRefusedCallResult(
   assert.equal(row.refusedToolCalls?.[0], refusals[0])
   assert.equal(rows.some(message => message.message.content.some(content => content.type === 'text' && content.text.includes('the provider emitted a malformed tool call'))), false)
 
-  const { runToolUse } = await import('../../../src/services/tools/toolExecution.ts')
-  const { getDefaultAppState } = await import('../../../src/state/AppStateStore.ts')
+  const { runToolUse } = await import('../../../src/engine/tool-dispatch/toolExecution.ts')
+  const { getDefaultAppState } = await import('../../../src/screen/app-state/AppStateStore.ts')
   const { z } = await import('zod/v4')
   let executed = 0
   const tool = {

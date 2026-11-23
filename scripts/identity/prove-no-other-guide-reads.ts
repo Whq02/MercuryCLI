@@ -24,7 +24,7 @@ const ROWS: Row[] = [
     allow: [
       ['scripts/consistency-census/prove-census-comment-invariance.ts', 'a planted comment fixture proves comments never count'],
       ['scripts/dev-context/prove-root-guide.ts', "proves no second guide file sits beside this repository's AGENTS.md"],
-      ['src/services/instructions/adapters/claudeCode.ts', "the instruction engine's adapter for that tool names the project files it reads"],
+      ['src/sessions/instructions/adapters/claudeCode.ts', "the instruction engine's adapter for that tool names the project files it reads"],
       ['scripts/self-hosting/prove-format-claude-code.ts', "the adapter's proof builds its fixture projects from those names"],
       ['docs/COMPATIBILITY.md', 'the formats page names the project files Mercury reads'],
     ],
@@ -56,9 +56,9 @@ const ROWS: Row[] = [
     scope: WIDE,
     what: 'the project MCP file is .mercury/mcp.json; a root-level file under the other name is not read, written or named',
     allow: [
-      ['src/utils/permissions/filesystem.ts', "a protection naming another tool's executable config (never a read)"],
+      ['src/permissions/rules/filesystem.ts', "a protection naming another tool's executable config (never a read)"],
       ['scripts/core-runtime/prove-boot-mcp-independence.ts', 'names its --mcp fixture files <stub>.mcp.json — files handed on the command line, any name'],
-      ['src/daemon/sessionKit.ts', "a comment in the protocol lane's daemon door file (queue row posted)", 'pending'],
+      ['src/daemon/session-seat/sessionKit.ts', "a comment in the protocol lane's daemon door file (queue row posted)", 'pending'],
       ['scripts/permissions/prove-mercury-notes-write.ts', 'names the other file as a path it proves sensitive outside .mercury/ (never a read)'],
     ],
   },

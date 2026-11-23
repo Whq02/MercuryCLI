@@ -54,15 +54,15 @@ writeFileSync(
 )
 writeFileSync(join(HOME, '.sign-ins.json'), JSON.stringify({ version: 1, signIns: { anthropic: { at: Date.now() - 60_000, kind: 'oauth' } } }), { mode: 0o600 })
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { createAnthropicLoginMachine } = await import('../../src/components/mercury-ui/screens/anthropicLoginModel.js')
-const { getOauthAccountInfo, getClaudeAIOAuthTokens } = await import('../../src/utils/auth.js')
-const { signInLedgerEpoch, subscribeSignInEpoch } = await import('../../src/utils/accounts/signInLedger.js')
-const { anthropicCredentialPresence } = await import('../../src/services/providers/providerUsage.js')
-const { scanAccountScopes } = await import('../../src/utils/accounts/scopeScan.js')
-const { sessionAccountWords } = await import('../../src/services/accounts/sessionAccount.js')
-const { getUsageCredentialEpoch } = await import('../../src/services/anthropicLimits.js')
+const { createAnthropicLoginMachine } = await import('../../src/screen/widgets/faces/anthropicLoginModel.js')
+const { getOauthAccountInfo, getClaudeAIOAuthTokens } = await import('../../src/models/sign-in/credentials/auth.js')
+const { signInLedgerEpoch, subscribeSignInEpoch } = await import('../../src/models/sign-in/account-ledger/signInLedger.js')
+const { anthropicCredentialPresence } = await import('../../src/models/roads/providerUsage.js')
+const { scanAccountScopes } = await import('../../src/models/sign-in/account-ledger/scopeScan.js')
+const { sessionAccountWords } = await import('../../src/models/sign-in/accounts/sessionAccount.js')
+const { getUsageCredentialEpoch } = await import('../../src/models/roads/anthropic/anthropicLimits.js')
 
 let failures = 0
 let checks = 0
@@ -133,20 +133,20 @@ async function signIn(tokens: Tokens, over: Partial<NonNullable<Parameters<typeo
 const storedOnFile = (): { emailAddress?: string; accountUuid?: string } | undefined =>
   (JSON.parse(readFileSync(join(HOME, '.mercury.json'), 'utf8')) as { oauthAccount?: { emailAddress?: string; accountUuid?: string } }).oauthAccount
 
-section('§0 the receipt words and the roles read', 'loginSuccessReceipt in src/utils/accounts/loginReceipt.ts')
+section('§0 the receipt words and the roles read', 'loginSuccessReceipt in src/models/sign-in/account-ledger/loginReceipt.ts')
 {
-  const { loginSuccessReceipt } = await import('../../src/utils/accounts/loginReceipt.js')
+  const { loginSuccessReceipt } = await import('../../src/models/sign-in/account-ledger/loginReceipt.js')
   check('the transcript receipt names the account that signed in', loginSuccessReceipt(SECOND_EMAIL) === `Login successful — signed in as ${SECOND_EMAIL}`, loginSuccessReceipt(SECOND_EMAIL))
   check('with no account on file the receipt is the bare line', loginSuccessReceipt(null) === 'Login successful' && loginSuccessReceipt('') === 'Login successful')
 }
 
-section('§1 the estate before the switch: the first account is stored and signed in', 'getOauthAccountInfo in src/utils/auth.ts and anthropicCredentialPresence in src/services/providers/providerUsage.ts')
+section('§1 the estate before the switch: the first account is stored and signed in', 'getOauthAccountInfo in src/models/sign-in/credentials/auth.ts and anthropicCredentialPresence in src/models/roads/providerUsage.ts')
 check('the stored account is the first one', getOauthAccountInfo()?.emailAddress === FIRST_EMAIL && getOauthAccountInfo()?.accountUuid === FIRST_UUID)
 check('the presence names the first account', anthropicCredentialPresence().identity === FIRST_EMAIL, JSON.stringify(anthropicCredentialPresence()))
 const epochBefore = signInLedgerEpoch()
 const usageEpochBefore = getUsageCredentialEpoch()
 
-section('§2 a sign-in as the second account, driven through the real machine over the real stores', 'createAnthropicLoginMachine in src/components/mercury-ui/screens/anthropicLoginModel.ts, the stores in src/utils/auth.ts, signInLedgerEpoch in src/utils/accounts/signInLedger.ts and getUsageCredentialEpoch in src/services/anthropicLimits.ts')
+section('§2 a sign-in as the second account, driven through the real machine over the real stores', 'createAnthropicLoginMachine in src/screen/widgets/faces/anthropicLoginModel.ts, the stores in src/models/sign-in/credentials/auth.ts, signInLedgerEpoch in src/models/sign-in/account-ledger/signInLedger.ts and getUsageCredentialEpoch in src/models/roads/anthropic/anthropicLimits.ts')
 const seenAtWake: string[] = []
 const unsubscribe = subscribeSignInEpoch(() => {
   seenAtWake.push(getOauthAccountInfo()?.emailAddress ?? 'nobody')
@@ -164,7 +164,7 @@ check('the sign-in epoch moved exactly once for the landed credential', signInLe
 check('a surface woken by the sign-in epoch already reads the account that signed in', seenAtWake.length === 1 && seenAtWake[0] === SECOND_EMAIL, JSON.stringify(seenAtWake))
 check('the usage store saw the credential switch before the receipt was composed', getUsageCredentialEpoch() > usageEpochBefore, `${usageEpochBefore} → ${getUsageCredentialEpoch()}`)
 
-section('§2b the in-app sign-in reads the account\'s roles with the landed token, so /status keeps the organisation after a switch', 'the fetchRoles step of createAnthropicLoginMachine in src/components/mercury-ui/screens/anthropicLoginModel.ts')
+section('§2b the in-app sign-in reads the account\'s roles with the landed token, so /status keeps the organisation after a switch', 'the fetchRoles step of createAnthropicLoginMachine in src/screen/widgets/faces/anthropicLoginModel.ts')
 {
   const rolesSeen: string[] = []
   const roles = await signIn(tokensOf({ accessToken: 'fixture-roles-access-token-0004', profile: secondProfile, tokenAccount: { uuid: SECOND_UUID, emailAddress: SECOND_EMAIL, organizationUuid: 'org-second' } } as Partial<Tokens>), { fetchRoles: async (token: string) => { rolesSeen.push(token) } } as never)
@@ -175,19 +175,19 @@ section('§2b the in-app sign-in reads the account\'s roles with the landed toke
   check('a roles read the token is not entitled to is logged and the sign-in still lands', refused.flow === 'success' && refused.label === SECOND_EMAIL && logged.length === 1, JSON.stringify({ refused, logged: logged.map(String) }))
 }
 
-section('§3 every surface that names the account reads the sign-in, with no /accounts in between', 'anthropicCredentialPresence in src/services/providers/providerUsage.ts, scanAccountScopes in src/utils/accounts/scopeScan.ts and sessionAccountWords in src/services/accounts/sessionAccount.ts')
+section('§3 every surface that names the account reads the sign-in, with no /accounts in between', 'anthropicCredentialPresence in src/models/roads/providerUsage.ts, scanAccountScopes in src/models/sign-in/account-ledger/scopeScan.ts and sessionAccountWords in src/models/sign-in/accounts/sessionAccount.ts')
 check('the presence owner names the account that signed in', anthropicCredentialPresence().identity === SECOND_EMAIL, JSON.stringify(anthropicCredentialPresence()))
 check('the logins roster row reads the account that signed in from the scope file', scanAccountScopes()[0]?.email === SECOND_EMAIL && scanAccountScopes()[0]?.authed === true, JSON.stringify(scanAccountScopes()[0]))
 const chip = sessionAccountWords('claude-opus-5')
 check('the face chip names the account that signed in', chip.state === 'email' && chip.text === SECOND_EMAIL && chip.family === 'anthropic', JSON.stringify(chip))
 
-section('§4 a sign-in whose result carries no account names nobody, never the stored snapshot', 'the account step of createAnthropicLoginMachine in src/components/mercury-ui/screens/anthropicLoginModel.ts')
+section('§4 a sign-in whose result carries no account names nobody, never the stored snapshot', 'the account step of createAnthropicLoginMachine in src/screen/widgets/faces/anthropicLoginModel.ts')
 const bare = await signIn(tokensOf({ accessToken: 'fixture-third-access-token-0003' }))
 check('the machine settled on success', bare.flow === 'success', JSON.stringify(bare))
 check('the receipt carries no email rather than the earlier account', bare.label === null, String(bare.label))
 check('the stored account is left as it was', getOauthAccountInfo()?.emailAddress === SECOND_EMAIL, JSON.stringify(getOauthAccountInfo()))
 
-section('§5 a save that failed stores no account and names nobody', 'the saveTokens failure path of createAnthropicLoginMachine in src/components/mercury-ui/screens/anthropicLoginModel.ts')
+section('§5 a save that failed stores no account and names nobody', 'the saveTokens failure path of createAnthropicLoginMachine in src/screen/widgets/faces/anthropicLoginModel.ts')
 const refused = await signIn(
   tokensOf({ accessToken: 'fixture-fourth-access-token-0004', profile: { ...secondProfile, account: { ...secondProfile.account, uuid: 'uuid-fourth', email: 'fourth-account@fixture.example' } } } as Partial<Tokens>),
   { saveTokens: () => ({ success: false, warning: 'Failed to save credentials to secure storage' }) } as never,

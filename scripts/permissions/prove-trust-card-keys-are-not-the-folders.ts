@@ -41,16 +41,16 @@ const blocksOf = (rows: ReadonlyArray<readonly [string, string, string]>): Array
 writeFileSync(join(FOLDER, '.mercury', 'keybindings.json'), JSON.stringify({ bindings: blocksOf(DECLINING_KEYS) }))
 writeFileSync(join(HOME, 'keybindings.json'), JSON.stringify({ bindings: blocksOf([['Select', 'x', 'select:accept']]) }))
 
-const state = await import(join(SRC, 'bootstrap/state.ts'))
-const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
+const state = await import(join(SRC, 'boot/process-state/processState.ts'))
+const { setCwd } = await import(join(SRC, 'platform/shell/shellExec.ts'))
 setCwd(FOLDER)
 state.setOriginalCwd(FOLDER)
 state.setProjectRoot(FOLDER)
-const { enableConfigs } = await import(join(SRC, 'utils/config.ts'))
-const { resetTrustDialogAcceptedCacheForTesting, checkHasTrustDialogAccepted } = await import(join(SRC, 'utils/config/trust.ts'))
-const loader = await import(join(SRC, 'keybindings/loadUserBindings.ts'))
-const { parseBindings } = await import(join(SRC, 'keybindings/parser.ts'))
-const { DEFAULT_BINDINGS } = await import(join(SRC, 'keybindings/defaultBindings.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/settings/config.ts'))
+const { resetTrustDialogAcceptedCacheForTesting, checkHasTrustDialogAccepted } = await import(join(SRC, 'platform/config/trust.ts'))
+const loader = await import(join(SRC, 'screen/keys/loadUserBindings.ts'))
+const { parseBindings } = await import(join(SRC, 'screen/keys/parser.ts'))
+const { DEFAULT_BINDINGS } = await import(join(SRC, 'screen/keys/defaultBindings.ts'))
 enableConfigs()
 
 type Bound = { context: string; chord: unknown; action: string | null }

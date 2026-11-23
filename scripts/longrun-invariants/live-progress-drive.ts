@@ -43,7 +43,7 @@ const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 const PROVER_HOME = mkdtempSync(join(tmpdir(), 'live-drive-prover-'))
 process.env.MERCURY_CONFIG_DIR = PROVER_HOME
 const { seedFirstRun, FIXTURE_API_KEY } = await import('../lib/firstRunSeed.ts')
-const { CHATTY_BASH_SCRIPT, CHATTY_BASH_LINES, ONE_TOOL_SETTLED_TEXT } = await import('../../src/query/scriptedStream.ts')
+const { CHATTY_BASH_SCRIPT, CHATTY_BASH_LINES, ONE_TOOL_SETTLED_TEXT } = await import('../../src/engine/turn-entry/scriptedStream.ts')
 
 section('§1 the built runner — a real chatty bash command under the scripted model')
 const CHILD_HOME = mkdtempSync(join(tmpdir(), 'live-drive-child-home-'))
@@ -100,12 +100,12 @@ const outcome = frames.find(isOutcome)
 check('the turn settled with the scripted text (the full-output-at-settle world is intact)', outcome?.status === 'completed' && outcome.answer === ONE_TOOL_SETTLED_TEXT && frames.some(f => f?.type === 'tool_result' && String(f.output).includes(`chatty line ${CHATTY_BASH_LINES}`)), JSON.stringify(outcome).slice(0, 300))
 
 section('§2 the captured frames replayed through the real seat → store → row')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const seatMod = await import('../../src/daemon/sessionSeat.ts')
-const { daemonSessionConnectorFor } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const { getEphemeralProgressFrame } = await import('../../src/state/ephemeralProgressStore.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const seatMod = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { daemonSessionConnectorFor } = await import('../../src/engine/connector/daemonConnector.ts')
+const { getEphemeralProgressFrame } = await import('../../src/screen/app-state/ephemeralProgressStore.ts')
 
 const SHORT = 'concourse-w1'
 const SESSION = 'sess-live-drive'
@@ -134,10 +134,10 @@ check('THE STORE FILLS from the real wire bytes', filled?.data?.type === 'bash_p
 
 {
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { AssistantToolUseMessage } = await import('../../src/components/messages/AssistantToolUseMessage.js')
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { AssistantToolUseMessage } = await import('../../src/screen/messages/AssistantToolUseMessage.js')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
   const row = await renderToString(
     React.createElement(
       AppStateProvider as never,

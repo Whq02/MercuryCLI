@@ -14,9 +14,9 @@ const section = (t: string): void => {
 }
 
 
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { clearToolSchemaCache } = await import('../../src/models/roads/toolSchemaCache.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 type FakeTool = {
   name: string
@@ -63,15 +63,15 @@ clearToolSchemaCache()
 const schemas = await buildOnce()
 {
   console.log(`  · max simultaneously-pending prompt() builds: ${maxPending} (roster ${COUNT})`)
-  check('overlap observed: max pending prompt() builds > 1', maxPending > 1, `maxPending=${maxPending} — toolToAPISchema (src/services/messages/api.ts) must await tool.prompt() without a shared lock or sequential chain, so concurrent callers overlap`)
-  check('every roster entry produced a schema', schemas.length === COUNT, `got ${schemas.length} of ${COUNT} — toolToAPISchema (src/services/messages/api.ts) must return one schema per tool`)
+  check('overlap observed: max pending prompt() builds > 1', maxPending > 1, `maxPending=${maxPending} — toolToAPISchema (src/engine/messages/apiSystemAndToolSchema.ts) must await tool.prompt() without a shared lock or sequential chain, so concurrent callers overlap`)
+  check('every roster entry produced a schema', schemas.length === COUNT, `got ${schemas.length} of ${COUNT} — toolToAPISchema (src/engine/messages/apiSystemAndToolSchema.ts) must return one schema per tool`)
 }
 
 section('P3 · roster order preserved under reversed completion order')
 {
   const names = schemas.map(s => (s as { name?: string }).name)
   const expected = roster.map(t => t.name)
-  check('schema order IS roster order', JSON.stringify(names) === JSON.stringify(expected), `${JSON.stringify(names)} — each toolToAPISchema call must resolve to its own tool's schema whatever order the prompts finish in (src/services/messages/api.ts)`)
+  check('schema order IS roster order', JSON.stringify(names) === JSON.stringify(expected), `${JSON.stringify(names)} — each toolToAPISchema call must resolve to its own tool's schema whatever order the prompts finish in (src/engine/messages/apiSystemAndToolSchema.ts)`)
 }
 
 section('P4 · one prompt() per tool cold; zero warm')
@@ -79,12 +79,12 @@ section('P4 · one prompt() per tool cold; zero warm')
   check(
     'each tool prompted exactly once on the cold build (no stampede)',
     roster.every(t => t.promptCalls === 1),
-    `${JSON.stringify(roster.map(t => t.promptCalls))} — the cold build must call tool.prompt() once per tool: check the cache lookup and set around it in toolToAPISchema (src/services/messages/api.ts)`,
+    `${JSON.stringify(roster.map(t => t.promptCalls))} — the cold build must call tool.prompt() once per tool: check the cache lookup and set around it in toolToAPISchema (src/engine/messages/apiSystemAndToolSchema.ts)`,
   )
   const before = roster.map(t => t.promptCalls)
   const warm = await buildOnce()
-  check('a warm rebuild prompts zero times (the shared cache serves)', roster.every((t, i) => t.promptCalls === before[i]), `${JSON.stringify(roster.map(t => t.promptCalls))} — a second build must be served from getToolSchemaCache (src/utils/toolSchemaCache.ts) keyed in toolToAPISchema (src/services/messages/api.ts)`)
-  check('warm rebuild yields the same roster-ordered names', JSON.stringify(warm.map(s => (s as { name?: string }).name)) === JSON.stringify(roster.map(t => t.name)), `warm names: ${JSON.stringify(warm.map(s => (s as { name?: string }).name))} — the cached path of toolToAPISchema (src/services/messages/api.ts) must keep the tool name and roster order`)
+  check('a warm rebuild prompts zero times (the shared cache serves)', roster.every((t, i) => t.promptCalls === before[i]), `${JSON.stringify(roster.map(t => t.promptCalls))} — a second build must be served from getToolSchemaCache (src/models/roads/toolSchemaCache.ts) keyed in toolToAPISchema (src/engine/messages/apiSystemAndToolSchema.ts)`)
+  check('warm rebuild yields the same roster-ordered names', JSON.stringify(warm.map(s => (s as { name?: string }).name)) === JSON.stringify(roster.map(t => t.name)), `warm names: ${JSON.stringify(warm.map(s => (s as { name?: string }).name))} — the cached path of toolToAPISchema (src/engine/messages/apiSystemAndToolSchema.ts) must keep the tool name and roster order`)
 }
 
 console.log('\n' + '='.repeat(60))

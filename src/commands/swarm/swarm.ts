@@ -1,9 +1,9 @@
 import * as React from 'react'
-import type { LocalJSXCommandCall } from '../../types/command.js'
-import { PromptsPanel } from '../../components/prompts-panel/PromptsPanel.js'
-import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import { saveSwarmSwitch } from '../../utils/sessionStorage/logs.js'
-import { closeIdleSwarm, swarmMasterEnabled, swarmSessionEnabled, swarmStore } from '../../services/crewBoard/seam.js'
+import type { LocalJSXCommandCall } from '../catalogue/command.js'
+import { PromptsPanel } from '../../screen/prompts-panel/PromptsPanel.js'
+import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
+import { saveSwarmSwitch } from '../../sessions/transcripts/sessionListings.js'
+import { closeIdleSwarm, swarmMasterEnabled, swarmSessionEnabled, swarmStore } from '../../crew/board/seam.js'
 
 export function runSwarmCommand(raw: string): string {
   const op = raw.trim().toLowerCase()

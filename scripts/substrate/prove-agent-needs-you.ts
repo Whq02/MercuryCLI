@@ -3,12 +3,12 @@ import {
   agentNeedsYouEnabled,
   classifyAgentStateHeuristic,
   tempoForState,
-} from '../../src/services/agentStateHeuristic.js'
+} from '../../src/screen/attention/agentStateHeuristic.js'
 
 let failures = 0
 function check(label: string, cond: boolean): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ' — to fix: the gate and the wording rules are agentNeedsYouEnabled, classifyAgentStateHeuristic and tempoForState in src/services/agentStateHeuristic.ts; the verdict store is recordAgentStateVerdict, getAgentStateVerdict and clearAgentStateVerdict in src/services/agentNeedsYou.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ' — to fix: the gate and the wording rules are agentNeedsYouEnabled, classifyAgentStateHeuristic and tempoForState in src/screen/attention/agentStateHeuristic.ts; the verdict store is recordAgentStateVerdict, getAgentStateVerdict and clearAgentStateVerdict in src/screen/attention/agentNeedsYou.ts'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -84,7 +84,7 @@ delete process.env.MERCURY_AGENT_NEEDS_YOU
 
 section('Store lifecycle — record → read → CLEAR → gone')
 {
-  const store = await import('../../src/services/agentNeedsYou.js')
+  const store = await import('../../src/screen/attention/agentNeedsYou.js')
   const sid = 'prove-agent-needs-you-session'
   store.recordAgentStateVerdict(sid, {
     state: 'blocked',

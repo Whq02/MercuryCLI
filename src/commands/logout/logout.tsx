@@ -1,24 +1,24 @@
 import * as React from 'react'
-import { Text } from '../../ink.js'
-import { revokeOAuthToken } from '../../services/oauth/client.js'
-import { getClaudeAIOAuthTokens, removeApiKey } from '../../utils/auth.js'
-import { clearOAuthTokenCache } from '../../services/auth/oauthLifecycle.js'
-import { clearBetasCaches } from '../../utils/betas.js'
-import { saveGlobalConfig } from '../../utils/config/globalConfig.js'
-import { gracefulShutdownSync } from '../../utils/gracefulShutdown.js'
-import { logError } from '../../utils/log.js'
-import { credentialStoreLeftWords, deriveFamilySlotGroups, familiesRefusedIn, signOutEveryEngineCredential } from '../../services/providers/accountSlots.js'
-import { clearScopeIdentitySnapshot, forgetScopeIdentity } from '../../utils/accounts/accountIdentity.js'
-import { noteCredentialChange } from '../../utils/accounts/signInLedger.js'
-import { getMercuryHome } from '../../utils/envUtils.js'
-import { deleteCredentialStores } from '../../utils/secureStorage/index.js'
-import { clearToolSchemaCache } from '../../utils/toolSchemaCache.js'
-import { resetUserCache } from '../../utils/user.js'
-import { startTimeout } from '../../utils/timers.js'
+import { Text } from '../../screen/themedRenderer.js'
+import { revokeOAuthToken } from '../../models/sign-in/oauth/client.js'
+import { getClaudeAIOAuthTokens, removeApiKey } from '../../models/sign-in/credentials/auth.js'
+import { clearOAuthTokenCache } from '../../models/sign-in/lifecycle/oauthLifecycle.js'
+import { clearBetasCaches } from '../../models/roads/betas.js'
+import { saveGlobalConfig } from '../../platform/config/globalConfig.js'
+import { gracefulShutdownSync } from '../../platform/processes/gracefulShutdown.js'
+import { logError } from '../../platform/logs/errorLog.js'
+import { credentialStoreLeftWords, deriveFamilySlotGroups, familiesRefusedIn, signOutEveryEngineCredential } from '../../models/roads/accountSlots.js'
+import { clearScopeIdentitySnapshot, forgetScopeIdentity } from '../../models/sign-in/account-ledger/accountIdentity.js'
+import { noteCredentialChange } from '../../models/sign-in/account-ledger/signInLedger.js'
+import { getMercuryHome } from '../../platform/environment/envUtils.js'
+import { deleteCredentialStores } from '../../platform/secure-storage/index.js'
+import { clearToolSchemaCache } from '../../models/roads/toolSchemaCache.js'
+import { resetUserCache } from '../../platform/environment/user.js'
+import { startTimeout } from '../../platform/async/timers.js'
 
 export async function performLogout(options: { clearOnboarding?: boolean } = {}): Promise<string[]> {
   try {
-    const { resetLimitsForCredentialSwitch } = await import('../../services/anthropicLimits.js')
+    const { resetLimitsForCredentialSwitch } = await import('../../models/roads/anthropic/anthropicLimits.js')
     resetLimitsForCredentialSwitch()
   } catch (error) {
     logError(error)

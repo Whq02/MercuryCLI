@@ -8,7 +8,7 @@ const GOLDEN = join(import.meta.dir, 'command-analysis-corpus.json')
 const record = process.argv.includes('--record')
 
 const { pinnedCommandAnalysis, PARSE_ABORTED } = await import(
-  '../../src/utils/permissions/decision/commandAnalysis.ts'
+  '../../src/permissions/rules/decision/commandAnalysis.ts'
 )
 
 let failures = 0
@@ -43,7 +43,7 @@ section('(2) provider shape — every op present; effectful ops bound, not drive
     'classifyCommandName',
   ]
   for (const op of ops) {
-    check(`op ${op} bound`, typeof (pinnedCommandAnalysis as Record<string, unknown>)[op] === 'function', `pinnedCommandAnalysis in src/utils/permissions/decision/commandAnalysis.ts must bind ${op} as a function`)
+    check(`op ${op} bound`, typeof (pinnedCommandAnalysis as Record<string, unknown>)[op] === 'function', `pinnedCommandAnalysis in src/permissions/rules/decision/commandAnalysis.ts must bind ${op} as a function`)
   }
   const held = Object.keys(pinnedCommandAnalysis).sort().join(' ')
   const listed = [...ops].sort().join(' ')

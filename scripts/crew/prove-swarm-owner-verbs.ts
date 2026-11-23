@@ -3,30 +3,30 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { BoardEvent, BoardPrincipal } from '../../src/services/crewBoard/contracts.ts'
+import type { BoardEvent, BoardPrincipal } from '../../src/crew/board/contracts.ts'
 
 const suiteHome = process.env.MERCURY_CONFIG_DIR
 assert(suiteHome, 'run with a scratch MERCURY_CONFIG_DIR')
 const home = mkdtempSync(join(suiteHome, 'owner-verbs-home-'))
 process.env.MERCURY_CONFIG_DIR = home
-const { open } = await import('../../src/services/crewBoard/store.ts')
-const { CHANNEL_USAGE, parseChannelArgs } = await import('../../src/services/crew/channelCommand.ts')
+const { open } = await import('../../src/crew/board/store.ts')
+const { CHANNEL_USAGE, parseChannelArgs } = await import('../../src/crew/crewmates/channelCommand.ts')
 let checks = 0
 let where = ''
 const check = (label: string, value: unknown) => { assert(value, `${label} — ${where}`); console.log(`PASS ${label}`); checks++ }
 
 console.log('§1 the command grammar')
-where = 'change parseChannelArgs or CHANNEL_USAGE in src/services/crew/channelCommand.ts'
+where = 'change parseChannelArgs or CHANNEL_USAGE in src/crew/crewmates/channelCommand.ts'
 check('general carries its whole body and refuses blank text', parseChannelArgs('general', 'ship it  now\nplease')?.text === 'ship it  now\nplease' && parseChannelArgs('general', '   ') === null)
 check('team and whisper take the first token as the target, with an optional @ and quotes for a name with spaces', JSON.stringify(parseChannelArgs('team', '@engine the row is wrong')) === JSON.stringify({ target: 'engine', text: 'the row is wrong' }) && JSON.stringify(parseChannelArgs('whisper', '"lists judge" check row 4')) === JSON.stringify({ target: 'lists judge', text: 'check row 4' }))
 check('the body keeps its internal whitespace and newlines', parseChannelArgs('whisper', 'alpha  two  spaces\nand a line')?.text === 'two  spaces\nand a line')
 check('the body keeps its tail too: only the separator after the target is taken', parseChannelArgs('whisper', 'Alpha first\nsecond  \n')?.text === 'first\nsecond  \n' && parseChannelArgs('team', '  engine  two words ')?.text === 'two words ')
-const { applyMarkdown } = await import('../../src/utils/markdown.ts')
+const { applyMarkdown } = await import('../../src/screen/messages/markdownText.ts')
 const painted = (text: string): string => applyMarkdown(text, 'dark', null, 100).replace(/\x1b\[[0-9;]*m/g, '')
 check('a target without words, or words without a target, answers the usage line, and the placeholders survive the screen\'s markdown', parseChannelArgs('whisper', 'alpha') === null && parseChannelArgs('team', '') === null && painted(CHANNEL_USAGE.whisper) === 'usage: /whisper <name> <text>' && painted(CHANNEL_USAGE.team) === 'usage: /team <name> <text>' && painted(CHANNEL_USAGE.general) === 'usage: /general <text>')
 
 console.log('§2 the target matrix in the store')
-where = 'change postOwner in src/services/crewBoard/store/posting.ts (recipients, target resolution, refusals, retry key), enroll in src/services/crewBoard/store/enrollment.ts (reserved owner name), or boundary in src/services/crewBoard/store/reading.ts'
+where = 'change postOwner in src/crew/board/store/posting.ts (recipients, target resolution, refusals, retry key), enroll in src/crew/board/store/enrollment.ts (reserved owner name), or boundary in src/crew/board/store/reading.ts'
 {
   let now = 0
   const board = open(join(home, 'verbs.sqlite'), 'verbs', () => now)
@@ -97,17 +97,17 @@ where = 'change postOwner in src/services/crewBoard/store/posting.ts (recipients
 }
 
 console.log('§3 the seam and the command body without a focused session')
-where = 'change runChannelCommand in src/services/crew/channelCommand.ts (the verb body), swarmOwnerPost in src/services/crewBoard/seam.ts, builtinCommands in src/commands.ts (the three verbs), or promptBehindAuthWall in src/utils/messages/authWallHold.ts, whichever this check names'
+where = 'change runChannelCommand in src/crew/crewmates/channelCommand.ts (the verb body), swarmOwnerPost in src/crew/board/seam.ts, builtinCommands in src/commands/catalogue/commands.ts (the three verbs), or promptBehindAuthWall in src/engine/message-shapes/authWallHold.ts, whichever this check names'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(home); bootstrap.setCwdState(home); bootstrap.setProjectRoot(home)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
 updateSettingsForSource('userSettings', { swarm: { enabled: true } })
-const seam = await import('../../src/services/crewBoard/seam.ts')
+const seam = await import('../../src/crew/board/seam.ts')
 const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
-const { runChannelCommand } = await import('../../src/services/crew/channelCommand.ts')
+const { runChannelCommand } = await import('../../src/crew/crewmates/channelCommand.ts')
 runSwarmCommand('off')
 check('with swarm off for the session the verb answers the /swarm on door', (await runChannelCommand('general', 'hello')).type === 'text' && JSON.stringify(await runChannelCommand('general', 'hello')).includes('/swarm on'))
 runSwarmCommand('on')
@@ -125,19 +125,19 @@ await seam.latchSwarmAgent('beta', 'Beta', false, 'engine')
   check('bad grammar answers the usage line locally', usage.type === 'text' && painted(usage.value) === 'usage: /whisper <name> <text>')
 }
 {
-  const { builtinCommands, sessionSeatCommandTable, commandSeat } = await import('../../src/commands.ts')
+  const { builtinCommands, sessionSeatCommandTable, commandSeat } = await import('../../src/commands/catalogue/commands.ts')
   const verbs = builtinCommands().filter(c => ['general', 'team', 'whisper'].includes(c.name))
   check('the three verbs are screen-seat local commands with model invocation disabled, never served by the runner table', verbs.length === 3 && verbs.every(c => c.type === 'local' && commandSeat(c) === 'screen' && c.disableModelInvocation === true && c.supportsNonInteractive === false) && !sessionSeatCommandTable(builtinCommands()).some(c => ['general', 'team', 'whisper'].includes(c.name)))
 }
 {
-  const { createUserMessage, createAssistantAPIErrorMessage } = await import('../../src/utils/messages/factories.ts')
-  const { promptBehindAuthWall } = await import('../../src/utils/messages/authWallHold.ts')
+  const { createUserMessage, createAssistantAPIErrorMessage } = await import('../../src/engine/message-shapes/factories.ts')
+  const { promptBehindAuthWall } = await import('../../src/engine/message-shapes/authWallHold.ts')
   const notice = createUserMessage({ content: '<crew-board>{"name":"owner","kind":"ask","text":"hello there"}</crew-board>', isVirtual: true, origin: { kind: 'task-notification' } })
   const nudge = createUserMessage({ content: 'A board post is waiting.', isMeta: true })
   const wall = createAssistantAPIErrorMessage({ content: 'Sign in to continue.', error: 'authentication_failed' })
   const spoken = createUserMessage({ content: 'fix the parser row' })
   check('a board notice behind the auth wall is never restored into the composer: a virtual row is not the operator\'s words', promptBehindAuthWall([notice, nudge, wall]) === null && promptBehindAuthWall([spoken, notice, nudge, wall])?.text === 'fix the parser row')
-  const { createCommandInputMessage } = await import('../../src/utils/messages/systemMessages.ts')
+  const { createCommandInputMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
   const echo = createUserMessage({ content: '<command-message>whisper</command-message><command-name>/whisper</command-name><command-args>nosuch hi</command-args>' })
   const stdout = createCommandInputMessage('<local-command-stdout>Name one enrolled crewmate. Poster</local-command-stdout>')
   const jsxStdout = createUserMessage({ content: '<local-command-stdout>Swarm on for new crewmates</local-command-stdout>' })
@@ -145,7 +145,7 @@ await seam.latchSwarmAgent('beta', 'Beta', false, 'engine')
 }
 
 console.log('§4 the typed verb reaches the board from the real screen')
-where = 'the typed verb runs through runChannelCommand in src/services/crew/channelCommand.ts; the screen run is scripts/ui/vshot.py with the scenario from scripts/ui/renderScenarios.ts, so read the owner-verbs-<cols>.txt capture and the .tee.bin in the --captures directory'
+where = 'the typed verb runs through runChannelCommand in src/crew/crewmates/channelCommand.ts; the screen run is scripts/ui/vshot.py with the scenario from scripts/ui/renderScenarios.ts, so read the owner-verbs-<cols>.txt capture and the .tee.bin in the --captures directory'
 const { resolveCaptureDriver, vshotBudgetMs } = await import('../lib/captureDriver.ts')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') console.log(`[SKIP] §4 needs the POSIX PTY capture driver; this host has ${driver.kind}`)
@@ -154,8 +154,8 @@ else {
   const captures = arg('--captures') ?? join(suiteHome, 'owner-verbs-captures')
   mkdirSync(captures, { recursive: true })
   const { CONFIG_HOME, RUNTIME_CWD, SID, scenario, cleanupScenario } = await import('../ui/renderScenarios.ts')
-  const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
-  const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
+  const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const boardPath = join(getProjectDir(RUNTIME_CWD), SID, 'boards', 'wave', 'board.sqlite')
   writeFileSync(join(CONFIG_HOME, 'settings.json'), JSON.stringify({ swarm: { enabled: true } }))
   try {

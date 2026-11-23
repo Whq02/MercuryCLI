@@ -6,8 +6,8 @@ import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
 import stringWidth from 'string-width'
-import type { SeatStatusV1, SessionLiveV1 } from '../../src/services/engine-connector/seatLive.ts'
-import type { SampleRowV1, WorkRowV1 } from '../../src/services/engine-connector/types.ts'
+import type { SeatStatusV1, SessionLiveV1 } from '../../src/engine/connector/seatLive.ts'
+import type { SampleRowV1, WorkRowV1 } from '../../src/engine/connector/types.ts'
 
 const argument = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)
@@ -22,7 +22,7 @@ process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 
 let failures = 0
 let checks = 0
-const FIX_HINT = 'the words come from statusLine, waitingStatusWords, escBackHint, fitStatusLine and statusRowPlan in src/components/SwitchboardTagBar.tsx and withSampleWords in src/services/engine-connector/workCounts.ts; the sample roster is WorkPart in src/services/engine-connector/daemon/work.ts, and the row repaint is useFocusedSamples in src/components/tasks/useFocusedWork.ts'
+const FIX_HINT = 'the words come from statusLine, waitingStatusWords, escBackHint, fitStatusLine and statusRowPlan in src/screen/chat/SwitchboardTagBar.tsx and withSampleWords in src/engine/connector/workCounts.ts; the sample roster is WorkPart in src/engine/connector/daemon/work.ts, and the row repaint is useFocusedSamples in src/screen/tasks/useFocusedWork.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -34,21 +34,21 @@ const section = (title: string): void => {
 
 async function main(): Promise<void> {
   const src = (relative: string): string => join(ROOT, 'src', relative)
-  const { enableConfigs } = await import(src('utils/config.ts'))
+  const { enableConfigs } = await import(src('platform/settings/config.ts'))
   enableConfigs()
-  const counts = await import(src('services/engine-connector/workCounts.ts'))
-  const bar = await import(src('components/SwitchboardTagBar.tsx'))
-  const { keyHintLabel } = await import(src('components/mercury-ui/keyHintLabel.ts'))
+  const counts = await import(src('engine/connector/workCounts.ts'))
+  const bar = await import(src('screen/chat/SwitchboardTagBar.tsx'))
+  const { keyHintLabel } = await import(src('screen/widgets/keyHintLabel.ts'))
   const chordDelta = stringWidth(keyHintLabel('⇧← back')) - stringWidth('⇧← back')
-  const work = await import(src('components/tasks/useFocusedWork.ts'))
-  const { IDLE_LIVE } = await import(src('services/engine-connector/seatLive.ts'))
-  const { noSessionConnector } = await import(src('services/engine-connector/noSessionConnector.ts'))
-  const slot = await import(src('services/engine-connector/focusedConnector.ts'))
-  const ink = await import(src('ink.ts'))
-  const { default: StdinContext } = await import(src('ink/components/StdinContext.ts'))
-  const { AppStoreContext } = await import(src('state/AppState.tsx'))
-  const { createStore } = await import(src('state/store.ts'))
-  const { getDefaultAppState } = await import(src('state/AppStateStore.ts'))
+  const work = await import(src('screen/tasks/useFocusedWork.ts'))
+  const { IDLE_LIVE } = await import(src('engine/connector/seatLive.ts'))
+  const { noSessionConnector } = await import(src('engine/connector/noSessionConnector.ts'))
+  const slot = await import(src('engine/connector/focusedConnector.ts'))
+  const ink = await import(src('screen/themedRenderer.ts'))
+  const { default: StdinContext } = await import(src('screen/renderer/elements/StdinContext.ts'))
+  const { AppStoreContext } = await import(src('screen/app-state/AppState.tsx'))
+  const { createStore } = await import(src('platform/primitives/store.ts'))
+  const { getDefaultAppState } = await import(src('screen/app-state/AppStateStore.ts'))
   const React = (await import(Bun.resolveSync('react', join(ROOT, 'src')))).default
 
   const t0 = 1_700_000_000_000
@@ -106,7 +106,7 @@ async function main(): Promise<void> {
 
   section('S4 one truth: the seat projection the row reads')
   {
-    const { WorkPart } = await import(src('services/engine-connector/daemon/work.ts'))
+    const { WorkPart } = await import(src('engine/connector/daemon/work.ts'))
     const shown = [{ id: 'pricing', title: 'pricing table', version: 2, state: 'open', updatedAt: '2026-10-02T00:00:00.000Z', glyph: '⧉' }]
     let seatFacts: Record<string, unknown> | null = { samples: shown }
     const roster = new WorkPart({ facts: () => seatFacts as never, carrierGone: () => false })

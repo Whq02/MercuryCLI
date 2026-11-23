@@ -5,8 +5,8 @@ import { resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
-const { liveTurnStateOf } = await import('../../src/services/resume/conversationRecovery.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
+const { liveTurnStateOf } = await import('../../src/sessions/resume/conversationRecovery.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 
 let failures = 0
 let checks = 0
@@ -19,8 +19,8 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const foldHint = ' | change liveTurnStateOf in src/services/resume/conversationRecovery.ts so an in-flight turn hands its open prompt clock and a settled or cut record hands none'
-const startHint = ' | change LivePart.recomputeLive in src/services/engine-connector/daemon/live.ts so turnStartedAtMs is the facts value, else the fold value, else null, and never a fresh Date.now()'
+const foldHint = ' | change liveTurnStateOf in src/sessions/resume/conversationRecovery.ts so an in-flight turn hands its open prompt clock and a settled or cut record hands none'
+const startHint = ' | change LivePart.recomputeLive in src/engine/connector/daemon/live.ts so turnStartedAtMs is the facts value, else the fold value, else null, and never a fresh Date.now()'
 
 let seq = 0
 const uuid = (): string => `00000000-0000-4000-a000-${String(++seq).padStart(12, '0')}`
@@ -57,8 +57,8 @@ section('§1 the fold hands a start for an in-flight turn only')
 
 section("§2 the seat reads the roster's clock through the facts — never one it minted")
 {
-  const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
-  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const { LivePart } = await import('../../src/engine/connector/daemon/live.ts')
+  const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
   const liveWith = (over: Record<string, unknown> = {}): InstanceType<typeof LivePart> => new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, ...over } as never)
   const tailOf = (says: Record<string, unknown>): never => ({ schema: 1, sessionId: 'proof', atMs: 1, text: null, ...says }) as never
   const realNow = Date.now

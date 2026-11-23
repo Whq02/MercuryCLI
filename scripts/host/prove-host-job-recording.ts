@@ -25,8 +25,8 @@ const hf = await hfEndpointsFixture()
 const HF_KEY_AFTER = hf.key + '-after-a-new-sign-in'
 const CREDENTIAL_GONE = '00000000-0000-4000-8000-000000000000'
 
-type HostRecord = import('../../src/services/host/store.ts').HostRecord
-type Options = NonNullable<Parameters<typeof import('../../src/services/host/worker.ts').runHostJob>[2]>
+type HostRecord = import('../../src/models/hosting/store.ts').HostRecord
+type Options = NonNullable<Parameters<typeof import('../../src/models/hosting/worker.ts').runHostJob>[2]>
 
 const events: string[] = []
 const logs = new Map<string, number>()
@@ -98,9 +98,9 @@ function folded(lines: readonly string[]): string[] {
   return out
 }
 
-const store = { ...(await import('../../src/services/host/store.ts')) }
-const noticesOfTheProduct = { ...(await import('../../src/services/host/notices.ts')) }
-mock.module('../../src/services/host/store.ts', () => ({
+const store = { ...(await import('../../src/models/hosting/store.ts')) }
+const noticesOfTheProduct = { ...(await import('../../src/models/hosting/notices.ts')) }
+mock.module('../../src/models/hosting/store.ts', () => ({
   ...store,
   patchHostRecord: (id: string, patch: Partial<HostRecord>) => {
     if (scening) beforePatch?.(id, patch)
@@ -123,7 +123,7 @@ mock.module('../../src/services/host/store.ts', () => ({
     store.writeHostRecord(record)
   },
 }))
-mock.module('../../src/services/host/notices.ts', () => ({
+mock.module('../../src/models/hosting/notices.ts', () => ({
   ...noticesOfTheProduct,
   hostNotice: (record: HostRecord, kind: string, words: string) => {
     say(`notice ${kind} for ${mask(record.id)}: ${mask(words)}`)
@@ -148,15 +148,15 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   return toHuggingFace ? nativeFetch(new Request(hf.origin + url.pathname + url.search, request)) : nativeFetch(request)
 }, nativeFetch)
 
-const worker = await import('../../src/services/host/worker.ts')
-const { queueHostBank, queueHostSetup, queueHostWatch } = await import('../../src/services/host/jobs.ts')
-const { hostRecords } = await import('../../src/services/host/store.ts')
-const { hostRunner, closeHostTunnel } = await import('../../src/services/host/ssh.ts')
-const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
-const { saveVendorKey, vendorClient } = await import('../../src/services/host/vendors/client.ts')
-const { HuggingfaceClient } = await import('../../src/services/host/vendors/huggingface.ts')
-const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-const { getAuthConfigHomeDir } = await import('../../src/utils/envUtils.ts')
+const worker = await import('../../src/models/hosting/worker.ts')
+const { queueHostBank, queueHostSetup, queueHostWatch } = await import('../../src/models/hosting/jobs.ts')
+const { hostRecords } = await import('../../src/models/hosting/store.ts')
+const { hostRunner, closeHostTunnel } = await import('../../src/models/hosting/ssh.ts')
+const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
+const { saveVendorKey, vendorClient } = await import('../../src/models/hosting/vendors/client.ts')
+const { HuggingfaceClient } = await import('../../src/models/hosting/vendors/huggingface.ts')
+const { writeStoredHuggingfaceApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { getAuthConfigHomeDir } = await import('../../src/platform/environment/envUtils.ts')
 
 const ssh = fakeSshRunner(f.baseUrl, hostRunner)
 const noShell = { async run(): Promise<string> { throw new Error('a managed endpoint never uses SSH') }, tunnel(): never { throw new Error('a managed endpoint never tunnels') } }
@@ -490,7 +490,7 @@ if (process.argv.includes('--write')) {
   process.exit(0)
 }
 
-check(`the unit under the recording is the product's own ${UNIT} of src/services/host/worker.ts; two modules beside it are wrapped, each export calling the product's own and noting the call (store.ts: patchHostRecord, removeHostRecord, writeHostRecord; notices.ts: hostNotice)`, worker.runHostJob.name === UNIT)
+check(`the unit under the recording is the product's own ${UNIT} of src/models/hosting/worker.ts; two modules beside it are wrapped, each export calling the product's own and noting the call (store.ts: patchHostRecord, removeHostRecord, writeHostRecord; notices.ts: hostNotice)`, worker.runHostJob.name === UNIT)
 check('every request stayed on a loopback fixture', escaped.length === 0, escaped.join(', '))
 const recorded = existsSync(RECORDING) ? readFileSync(RECORDING, 'utf8') : null
 if (recorded === null) check(`the recording stands at ${RECORDING}`, false, `bun ${SELF} --write records it`)

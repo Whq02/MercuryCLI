@@ -13,20 +13,20 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.NODE_ENV = 'test'
 
-const state = await import('../../src/bootstrap/state.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
 state.setOriginalCwd(PROJECT)
 state.setSessionTrustAccepted(true)
 state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSettings'])
-const { parseSettingsFile, getSettingsWithErrors } = await import('../../src/utils/settings/settings.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { settingsFaultLine } = await import('../../src/utils/settings/validation.ts')
-const { untoldSettingsFaults, resetToldSettingsFaults } = await import('../../src/services/settings/faultNotices.ts')
+const { parseSettingsFile, getSettingsWithErrors } = await import('../../src/platform/settings/settings.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { settingsFaultLine } = await import('../../src/platform/settings/validation.ts')
+const { untoldSettingsFaults, resetToldSettingsFaults } = await import('../../src/platform/settings-faults/faultNotices.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
-  if (!ok) console.log('         change: for the held-settings and fault-grade checks see parseSettingsFile and getSettingsWithErrors in src/utils/settings/settings.ts; for the one-line fault wording see settingsFaultLine in src/utils/settings/validation.ts; for told-once behaviour see untoldSettingsFaults in src/services/settings/faultNotices.ts; the text after the dash is what was found')
+  if (!ok) console.log('         change: for the held-settings and fault-grade checks see parseSettingsFile and getSettingsWithErrors in src/platform/settings/settings.ts; for the one-line fault wording see settingsFaultLine in src/platform/settings/validation.ts; for told-once behaviour see untoldSettingsFaults in src/platform/settings-faults/faultNotices.ts; the text after the dash is what was found')
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v).slice(0, 300)

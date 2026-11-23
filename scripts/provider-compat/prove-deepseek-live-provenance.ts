@@ -27,11 +27,11 @@ for (const key of [
   delete process.env[key]
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 let failures = 0
-const deepseekProvenanceHint = 'fix the behaviour this check names in src/services/providers/deepseek/deepseekCatalogue.ts (refreshDeepseekCatalogue, deepseekCatalogueRows, cachedLiveIds), src/utils/model/pins/deepseekPins.ts (names and id grammar), src/services/providers/deepseek/deepseekAdapter.ts (router catalogue) or src/services/providers/openaicompat/compatWire.ts (buildDeepseekExtras, effort dial)'
+const deepseekProvenanceHint = 'fix the behaviour this check names in src/models/roads/deepseek/deepseekCatalogue.ts (refreshDeepseekCatalogue, deepseekCatalogueRows, cachedLiveIds), src/models/facts/pins/deepseekPins.ts (names and id grammar), src/models/roads/deepseek/deepseekAdapter.ts (router catalogue) or src/models/roads/openaicompat/compatWire.ts (buildDeepseekExtras, effort dial)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${deepseekProvenanceHint}` : ''}`)
@@ -43,13 +43,13 @@ function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 }
 
-const pins = await import('../../src/utils/model/pins/deepseekPins.ts')
-const catalogue = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts')
-const router = await import('../../src/services/providers/deepseek/deepseekAdapter.ts')
-const { keyLanePins, getModelOptions, DEEPSEEK_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
-const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
-const { writeStoredDeepseekApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-const wire = await import('../../src/services/providers/openaicompat/compatWire.ts')
+const pins = await import('../../src/models/facts/pins/deepseekPins.ts')
+const catalogue = await import('../../src/models/roads/deepseek/deepseekCatalogue.ts')
+const router = await import('../../src/models/roads/deepseek/deepseekAdapter.ts')
+const { keyLanePins, getModelOptions, DEEPSEEK_MODEL_GROUP } = await import('../../src/models/catalogue/modelOptions.ts')
+const { providerFrontierFact } = await import('../../src/models/catalogue/providerFrontier.ts')
+const { writeStoredDeepseekApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const wire = await import('../../src/models/roads/openaicompat/compatWire.ts')
 
 type LiveIds = (env?: NodeJS.ProcessEnv) => ReadonlySet<string>
 const liveIds = (catalogue as { cachedLiveIds?: LiveIds }).cachedLiveIds

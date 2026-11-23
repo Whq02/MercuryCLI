@@ -11,10 +11,10 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.BROWSER = '/usr/bin/true'
 delete process.env.MERCURY_HOME
 const load = (file: string): Promise<any> => import(join(root, file))
-const { enableConfigs } = await load('src/utils/config.ts'); enableConfigs()
-const { openrouterLaneProfile } = await load('src/services/providers/openrouter/openrouterCallModel.ts')
-const { openrouterResponsesTransport } = await load('src/services/providers/openrouter/openrouterResponsesTransport.ts')
-const { createUserMessage } = await load('src/services/messages.ts')
+const { enableConfigs } = await load('src/platform/settings/config.ts'); enableConfigs()
+const { openrouterLaneProfile } = await load('src/models/roads/openrouter/openrouterCallModel.ts')
+const { openrouterResponsesTransport } = await load('src/models/roads/openrouter/openrouterResponsesTransport.ts')
+const { createUserMessage } = await load('src/engine/messages/messages.ts')
 let failed=0
 const check=(label:string,yes:boolean,detail=''):void=>{if(!yes)failed++;console.log(`[${yes?'PASS':'FAIL'}] ${label}${!yes&&detail?' '+detail:''}`)}
 const captured:any[]=[]
@@ -30,13 +30,13 @@ try{
     const opt=options(model,false); const before=JSON.stringify(opt.request)
     const transport=openrouterLaneProfile.streamTransport(opt,[])
     if(transport!==undefined)for await(const _ of transport.events){}
-    else {const {streamCompatChat}=await load('src/services/providers/openaicompat/compatChatClient.ts'); for await(const _ of streamCompatChat(opt)){} }
+    else {const {streamCompatChat}=await load('src/models/roads/openaicompat/compatChatClient.ts'); for await(const _ of streamCompatChat(opt)){} }
     const body=captured.at(-1); const count=(JSON.stringify(body).match(/cache_control/g)??[]).length
     const allowed=model.startsWith('anthropic/')?4:model==='qwen/qwen3-coder-plus'?2:0
-    check(model+' chat receives exactly its documented breakpoints',count===allowed,'hint: the cache_control breakpoints per model family are placed in src/services/providers/openrouter/openrouterCache.ts; found '+count+', wanted '+allowed)
-    check(model+' chat retains the source request without mutation',JSON.stringify(opt.request)===before,'hint: the cache placement in src/services/providers/openrouter/openrouterCache.ts must copy the request, never edit the caller object')
+    check(model+' chat receives exactly its documented breakpoints',count===allowed,'hint: the cache_control breakpoints per model family are placed in src/models/roads/openrouter/openrouterCache.ts; found '+count+', wanted '+allowed)
+    check(model+' chat retains the source request without mutation',JSON.stringify(opt.request)===before,'hint: the cache placement in src/models/roads/openrouter/openrouterCache.ts must copy the request, never edit the caller object')
     const flatten=(c:any):string=>typeof c==='string'?c:c.map((p:any)=>p.text??'').join('')
-    check(model+' chat keeps system and conversation text unchanged',body.messages.map((m:any)=>flatten(m.content)).join('|')==='first systemlast system|tail','hint: src/services/providers/openrouter/openrouterCache.ts may add cache_control but must leave message text as it was')
+    check(model+' chat keeps system and conversation text unchanged',body.messages.map((m:any)=>flatten(m.content)).join('|')==='first systemlast system|tail','hint: src/models/roads/openrouter/openrouterCache.ts may add cache_control but must leave message text as it was')
   }
   console.log('\nrefusals and Responses road')
   {
@@ -48,21 +48,21 @@ try{
     ]
     const transport=openrouterLaneProfile.streamTransport(opt,[])
     if(transport!==undefined)for await(const _ of transport.events){}
-    else {const {streamCompatChat}=await load('src/services/providers/openaicompat/compatChatClient.ts'); for await(const _ of streamCompatChat(opt)){} }
+    else {const {streamCompatChat}=await load('src/models/roads/openaicompat/compatChatClient.ts'); for await(const _ of streamCompatChat(opt)){} }
     const body=captured.at(-1)
     const sysParts=Array.isArray(body?.messages?.[0]?.content)?body.messages[0].content:[]
     const userParts=Array.isArray(body?.messages?.[1]?.content)?body.messages[1].content:[]
-    check('empty text blocks never receive cache_control',sysParts[0]?.cache_control===undefined&&sysParts[1]?.cache_control?.type==='ephemeral','hint: the system-content marking in src/services/providers/openrouter/openrouterCache.ts must skip empty text parts and mark the last non-empty one')
-    check('tail breakpoint skips a trailing empty-content message to mark the last cacheable message',userParts[0]?.cache_control?.type==='ephemeral','hint: the tail-breakpoint choice in src/services/providers/openrouter/openrouterCache.ts must step back over a message with empty content')
+    check('empty text blocks never receive cache_control',sysParts[0]?.cache_control===undefined&&sysParts[1]?.cache_control?.type==='ephemeral','hint: the system-content marking in src/models/roads/openrouter/openrouterCache.ts must skip empty text parts and mark the last non-empty one')
+    check('tail breakpoint skips a trailing empty-content message to mark the last cacheable message',userParts[0]?.cache_control?.type==='ephemeral','hint: the tail-breakpoint choice in src/models/roads/openrouter/openrouterCache.ts must step back over a message with empty content')
   }
   for(const model of ['anthropic/claude-fable-5-1','qwen/qwen3-coder-plus','google/gemini-4-argon-high','openai/gpt-6-astra']){
     const opt=options(model,true); opt.request.messages[0].content='stable instructions'
     const transport=openrouterResponsesTransport(opt,[createUserMessage({content:'tail'})])
     for await(const _ of transport.events){}
     const body=captured.at(-1)
-    check(model+' Responses carries only the documented automatic control',model.startsWith('anthropic/')?JSON.stringify(body.cache_control)==='{"type":"ephemeral"}':body.cache_control===undefined,'hint: openrouterResponsesCache in src/services/providers/openrouter/openrouterCache.ts returns the top-level control for anthropic/ models only; body.cache_control was '+JSON.stringify(body.cache_control))
-    check(model+' Responses has no per-block cache_control',!JSON.stringify(body.input).includes('cache_control'),'hint: the Responses body built by src/services/providers/openrouter/openrouterResponsesTransport.ts must not carry cache_control inside input blocks')
-    check(model+' Responses keeps instructions and tool declarations',body.instructions==='stable instructions'&&body.tools.some((t:any)=>t.name==='Fixture')&&body.tools.some((t:any)=>t.type==='openrouter:tool_search'),'hint: openrouterResponsesTransport in src/services/providers/openrouter/openrouterResponsesTransport.ts must send the instructions text and both the Fixture tool and the tool_search tool')
+    check(model+' Responses carries only the documented automatic control',model.startsWith('anthropic/')?JSON.stringify(body.cache_control)==='{"type":"ephemeral"}':body.cache_control===undefined,'hint: openrouterResponsesCache in src/models/roads/openrouter/openrouterCache.ts returns the top-level control for anthropic/ models only; body.cache_control was '+JSON.stringify(body.cache_control))
+    check(model+' Responses has no per-block cache_control',!JSON.stringify(body.input).includes('cache_control'),'hint: the Responses body built by src/models/roads/openrouter/openrouterResponsesTransport.ts must not carry cache_control inside input blocks')
+    check(model+' Responses keeps instructions and tool declarations',body.instructions==='stable instructions'&&body.tools.some((t:any)=>t.name==='Fixture')&&body.tools.some((t:any)=>t.type==='openrouter:tool_search'),'hint: openrouterResponsesTransport in src/models/roads/openrouter/openrouterResponsesTransport.ts must send the instructions text and both the Fixture tool and the tool_search tool')
   }
 }finally{server.stop(true);rmSync(home,{recursive:true,force:true})}
 console.log(`${failed?'FAIL':'PASS'} openrouter-cache-policy: ${failed} failed`)

@@ -22,9 +22,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
-const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
-const { getOriginalCwd, setOriginalCwd, setCwdState } = await import('../../src/bootstrap/state.ts')
+const { getSystemPrompt } = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+const { clearSystemPromptSections } = await import('../../src/engine/system-prompt/systemPromptSections.ts')
+const { getOriginalCwd, setOriginalCwd, setCwdState } = await import('../../src/boot/process-state/processState.ts')
 
 const scratch = mkdtempSync(join(tmpdir(), 'switch-back-cwd-'))
 const cwd = process.cwd()
@@ -35,8 +35,8 @@ setCwdState(scratch)
 const A = 'claude-fable-5-1'
 const B = 'claude-opus-5'
 const movedCwd = mkdtempSync(join(tmpdir(), 'switch-back-added-'))
-const hintKeyedSections = ' | the head and env_info_simple sections are keyed on the model in getSystemPrompt in src/constants/prompts.ts (keyedSystemPromptSection in src/constants/systemPromptSections.ts); a model that returns must get the text it first sent'
-const hintPrefixRecord = ' | buildBoundPrefixRecordData and restoreBoundPrefixFromMessages in src/services/providers/anthropic/boundPrefixRecord.ts must carry and restore every kept entry'
+const hintKeyedSections = ' | the head and env_info_simple sections are keyed on the model in getSystemPrompt in src/engine/system-prompt/defaultSystemPrompt.ts (keyedSystemPromptSection in src/engine/system-prompt/systemPromptSections.ts); a model that returns must get the text it first sent'
+const hintPrefixRecord = ' | buildBoundPrefixRecordData and restoreBoundPrefixFromMessages in src/models/roads/anthropic/boundPrefixRecord.ts must carry and restore every kept entry'
 const text = (parts: string[]): string => parts.join('\n\n')
 const headOf = (prompt: string): string => prompt.split('\n\n')[0] ?? ''
 const envBlockOf = (prompt: string): string => {
@@ -62,10 +62,10 @@ try {
   check('B keeps its own block for its own return', text(await getSystemPrompt([], B, [])) === b, 'B prompt changed on its return' + hintKeyedSections)
 
   section('§3 the record carries every kept entry, and a new process restoring it serves each model the block it first sent')
-  const { planToolPayload, clearToolRosterLatches, clearToolRosterRestore } = await import('../../src/services/providers/toolEconomy.ts')
-  const { buildBoundPrefixRecordData, restoreBoundPrefixFromMessages, resetBoundPrefixEmitted, boundPrefixRecordToEmit } = await import('../../src/services/providers/anthropic/boundPrefixRecord.ts')
-  const { getSystemPromptSectionCache } = await import('../../src/bootstrap/state.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { planToolPayload, clearToolRosterLatches, clearToolRosterRestore } = await import('../../src/models/roads/toolEconomy.ts')
+  const { buildBoundPrefixRecordData, restoreBoundPrefixFromMessages, resetBoundPrefixEmitted, boundPrefixRecordToEmit } = await import('../../src/models/roads/anthropic/boundPrefixRecord.ts')
+  const { getSystemPromptSectionCache } = await import('../../src/boot/process-state/processState.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const owner = 'switch-back'
   const messages = [{ type: 'user', uuid: 'u-switch-back', message: { role: 'user', content: 'first' } }]
   await planToolPayload({ model: A, tools: [] as never, messages: messages as never, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], source: 'prove', latchKey: owner })
@@ -84,7 +84,7 @@ try {
   clearToolRosterLatches()
   clearToolRosterRestore()
   resetBoundPrefixEmitted()
-  check('a new process starts with an empty section cache', getSystemPromptSectionCache().size === 0, 'clearSystemPromptSections in src/constants/systemPromptSections.ts must empty the cache that getSystemPromptSectionCache in src/bootstrap/state.ts reads')
+  check('a new process starts with an empty section cache', getSystemPromptSectionCache().size === 0, 'clearSystemPromptSections in src/engine/system-prompt/systemPromptSections.ts must empty the cache that getSystemPromptSectionCache in src/boot/process-state/processState.ts reads')
   restoreBoundPrefixFromMessages([persisted])
   const a3 = text(await getSystemPrompt([], A, []))
   const b3 = text(await getSystemPrompt([], B, []))

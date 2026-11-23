@@ -17,19 +17,19 @@ plugin({
 })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const SRC = join(import.meta.dir, '../../src')
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { setCwd, getShellCwd, resolveShellCwd, exec } = await import('../../src/utils/Shell.js')
-const { getCwd, runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const { setOriginalCwd, setSessionTrustAccepted } = await import('../../src/bootstrap/state.js')
-const { isPathTrusted, resetTrustDialogAcceptedCacheForTesting } = await import('../../src/utils/config/trust.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
-const { powershellToolHasPermission } = await import('../../src/tools/PowerShellTool/powershellPermissions.js')
-const { checkReadOnlyConstraints, prepareBashReadOnly, preparedBashReadsOnly } = await import('../../src/tools/BashTool/readOnlyValidation.js')
-const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.js')
-const { pinnedCommandAnalysis } = await import('../../src/utils/permissions/decision/commandAnalysis.js')
-const { getCachedPowerShellPath } = await import('../../src/utils/shell/powershellDetection.js')
+const { setCwd, getShellCwd, resolveShellCwd, exec } = await import('../../src/platform/shell/shellExec.js')
+const { getCwd, runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
+const { setOriginalCwd, setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.js')
+const { isPathTrusted, resetTrustDialogAcceptedCacheForTesting } = await import('../../src/platform/config/trust.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.js')
+const { powershellToolHasPermission } = await import('../../src/tools/powershell/powershellPermissions.js')
+const { checkReadOnlyConstraints, prepareBashReadOnly, preparedBashReadsOnly } = await import('../../src/tools/shell/readOnlyValidation.js')
+const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.js')
+const { pinnedCommandAnalysis } = await import('../../src/permissions/rules/decision/commandAnalysis.js')
+const { getCachedPowerShellPath } = await import('../../src/platform/shell/powershellDetection.js')
 const realPowerShellParser = pinnedCommandAnalysis.parsePowerShellCommand
 if (await getCachedPowerShellPath() === null) {
   console.log('PowerShell permission checks use literal-command AST fixtures; native pwsh is unavailable.')
@@ -56,7 +56,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail?: unknown): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)} — fix the per-call cwd in src/utils/Shell.ts (exec, resolveShellCwd) for spawn checks, in src/tools/BashTool/bashPermissions.ts or src/tools/PowerShellTool/powershellPermissions.ts for permission checks, in src/tools/BashTool/readOnlyValidation.ts for read-only checks` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)} — fix the per-call cwd in src/platform/shell/shellExec.ts (exec, resolveShellCwd) for spawn checks, in src/tools/shell/bashPermissions.ts or src/tools/powershell/powershellPermissions.ts for permission checks, in src/tools/shell/readOnlyValidation.ts for read-only checks` : ''}`)
 }
 const permission = (deny: string[] = [], allow: string[] = []) => ({
   ...getEmptyToolPermissionContext(), alwaysDenyRules: { session: deny }, alwaysAllowRules: { session: allow },
@@ -113,7 +113,7 @@ try {
     check('a crewmate resolves relative cwd from its own starting folder', resolveShellCwd('../two') === other)
     await decide('Bash', { command: 'pwd', cwd: '../two' })
     check('a crewmate permission check does not move its shell or workspace', getShellCwd() === sub && getCwd() === sub)
-    const { execFileNoThrow } = await import('../../src/utils/execFileNoThrow.js')
+    const { execFileNoThrow } = await import('../../src/platform/processes/execFileNoThrow.js')
     const cwdProbe = ['-e', 'console.log(process.cwd())']
     const partial = (await execFileNoThrow(process.execPath, cwdProbe, { timeout: 20_000 })).stdout.trim()
     const optedOut = (await execFileNoThrow(process.execPath, cwdProbe, { timeout: 20_000, useCwd: false })).stdout.trim()
@@ -139,8 +139,8 @@ try {
   check('Bash spawn: a relative cwd starts from the starting folder, not the shell directory', relativeRun.out === sub && relativeRun.shell === resting, relativeRun)
   const missingRun = await run('pwd -P', { cwd: 'packages/none' })
   check('Bash spawn: a cwd that does not exist runs nothing', missingRun.code !== 0 && missingRun.out === '' && missingRun.stderr.includes('does not exist') && missingRun.shell === resting, missingRun)
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.js')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
   let appState = getDefaultAppState()
   const toolContext = {
     options: { tools: [], commands: [], mcpClients: [], mcpResources: {} },

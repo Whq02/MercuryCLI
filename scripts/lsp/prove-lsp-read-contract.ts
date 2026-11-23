@@ -6,7 +6,7 @@ const scratch = armScratch('lsp-read-contract')
 const project = writeProject(scratch, 'project', TS_PROBE_FILES)
 symlinkSync(join(REPO, 'node_modules'), join(project, 'node_modules'), 'dir')
 process.env.MERCURY_LSP_SIDECAR_ENTRY = TS_SIDECAR_ENTRY
-const available = await import('../../src/tools/LSPTool/LSPTool.ts')
+const available = await import('../../src/tools/lsp/lspTools.ts')
 if (!('LspReadTool' in available)) {
   check('LspRead answers through its own read-only tool', false)
   cleanup(scratch)

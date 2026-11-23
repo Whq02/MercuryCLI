@@ -28,21 +28,21 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 console.log('§1 the resolver and the sentence')
 {
-  const { resolveUnknownSlashName, unknownCommandLine } = await import('../../src/services/processUserInput/processSlashCommand.js')
+  const { resolveUnknownSlashName, unknownCommandLine } = await import('../../src/engine/user-input/processSlashCommand.js')
   const table = [
     { name: 'model', type: 'local', description: 'pick', aliases: [], isEnabled: true, isHidden: false, async call() {}, userFacingName: () => 'model' },
     { name: 'exit', type: 'local', description: 'leave', aliases: ['quit'], isEnabled: true, isHidden: false, async call() {}, userFacingName: () => 'exit' },
   ] as never[]
-  check('an unregistered name resolves ("/frobnicate")', resolveUnknownSlashName('/frobnicate', table) === 'frobnicate', 'fix resolveUnknownSlashName in src/services/processUserInput/processSlashCommand.tsx so a slash name absent from the table returns that name')
-  check('a registered name never resolves', resolveUnknownSlashName('/model', table) === undefined, 'fix resolveUnknownSlashName in src/services/processUserInput/processSlashCommand.tsx: a name findCommand matches must return undefined')
-  check('an alias never resolves', resolveUnknownSlashName('/quit', table) === undefined, 'fix resolveUnknownSlashName in src/services/processUserInput/processSlashCommand.tsx: an alias found by findCommand must return undefined')
-  check('the // escape never resolves (words to the session)', resolveUnknownSlashName('//frobnicate', table) === undefined, 'fix resolveUnknownSlashName in src/services/processUserInput/processSlashCommand.tsx: input starting with // must return undefined')
-  check('an existing path never resolves (/tmp is a prompt)', resolveUnknownSlashName('/tmp', table) === undefined, 'fix resolveUnknownSlashName in src/services/processUserInput/processSlashCommand.tsx: a slash word that isExistingPath must return undefined')
-  check('a non-name shape never resolves (/what?now)', resolveUnknownSlashName('/what?now', table) === undefined, 'fix looksLikeCommand in src/services/processUserInput/processSlashCommand.tsx: a name outside letters, digits, colon, underscore and dash must return undefined')
-  check('arguments ride the name ("/frobnicate now")', resolveUnknownSlashName('/frobnicate now', table) === 'frobnicate', 'fix resolveUnknownSlashName in src/services/processUserInput/processSlashCommand.tsx: the name is the text up to the first space')
+  check('an unregistered name resolves ("/frobnicate")', resolveUnknownSlashName('/frobnicate', table) === 'frobnicate', 'fix resolveUnknownSlashName in src/engine/user-input/processSlashCommand.tsx so a slash name absent from the table returns that name')
+  check('a registered name never resolves', resolveUnknownSlashName('/model', table) === undefined, 'fix resolveUnknownSlashName in src/engine/user-input/processSlashCommand.tsx: a name findCommand matches must return undefined')
+  check('an alias never resolves', resolveUnknownSlashName('/quit', table) === undefined, 'fix resolveUnknownSlashName in src/engine/user-input/processSlashCommand.tsx: an alias found by findCommand must return undefined')
+  check('the // escape never resolves (words to the session)', resolveUnknownSlashName('//frobnicate', table) === undefined, 'fix resolveUnknownSlashName in src/engine/user-input/processSlashCommand.tsx: input starting with // must return undefined')
+  check('an existing path never resolves (/tmp is a prompt)', resolveUnknownSlashName('/tmp', table) === undefined, 'fix resolveUnknownSlashName in src/engine/user-input/processSlashCommand.tsx: a slash word that isExistingPath must return undefined')
+  check('a non-name shape never resolves (/what?now)', resolveUnknownSlashName('/what?now', table) === undefined, 'fix looksLikeCommand in src/engine/user-input/processSlashCommand.tsx: a name outside letters, digits, colon, underscore and dash must return undefined')
+  check('arguments ride the name ("/frobnicate now")', resolveUnknownSlashName('/frobnicate now', table) === 'frobnicate', 'fix resolveUnknownSlashName in src/engine/user-input/processSlashCommand.tsx: the name is the text up to the first space')
   const line = unknownCommandLine('frobnicate', table)
-  check('the sentence is the SCREEN\'s: "Unknown command: /frobnicate … /help lists commands"', line.startsWith('Unknown command: /frobnicate') && line.includes('/help lists commands'), line.startsWith('Unknown command: /frobnicate') && line.includes('/help lists commands') ? line : `${line} — fix the returned sentence of unknownCommandLine in src/services/processUserInput/processSlashCommand.tsx`)
-  check('POISON: the sentence never wears the runner\'s skill spelling', !line.includes('Unknown skill'), 'fix unknownCommandLine in src/services/processUserInput/processSlashCommand.tsx so its sentence says Unknown command, never the skill spelling')
+  check('the sentence is the SCREEN\'s: "Unknown command: /frobnicate … /help lists commands"', line.startsWith('Unknown command: /frobnicate') && line.includes('/help lists commands'), line.startsWith('Unknown command: /frobnicate') && line.includes('/help lists commands') ? line : `${line} — fix the returned sentence of unknownCommandLine in src/engine/user-input/processSlashCommand.tsx`)
+  check('POISON: the sentence never wears the runner\'s skill spelling', !line.includes('Unknown skill'), 'fix unknownCommandLine in src/engine/user-input/processSlashCommand.tsx so its sentence says Unknown command, never the skill spelling')
 }
 
 console.log('§2 the drive: the daemon-hosted seat answers display-only')
@@ -146,8 +146,8 @@ if (sendRecs.length === sends.length) {
     process.exit(1)
   }
   const joined = (JSON.parse(res.stdout) as { screens: { rows: string[] }[] }).screens.map(s => s.rows.join('\n')).join('\n@@@\n')
-  check('the screen answers with its own sentence', /Unknown command: \/frobnicate/.test(joined), joined.split('\n').filter(r => /frobnicate/i.test(r)).map(r => r.trim().slice(0, 100)).join(' | ') + (/Unknown command: \/frobnicate/.test(joined) ? '' : ' — the screen did not paint the sentence: check the unknownName branch of src/screens/chat/submit/submitLine.ts (resolveUnknownSlashName, paintScreenCommandReceipt)'))
-  check("POISON: the runner's skill spelling never paints", !/Unknown skill/.test(joined), 'an Unknown skill line reached the screen: the slash line must be answered by the unknownName branch of src/screens/chat/submit/submitLine.ts before it reaches the runner')
+  check('the screen answers with its own sentence', /Unknown command: \/frobnicate/.test(joined), joined.split('\n').filter(r => /frobnicate/i.test(r)).map(r => r.trim().slice(0, 100)).join(' | ') + (/Unknown command: \/frobnicate/.test(joined) ? '' : ' — the screen did not paint the sentence: check the unknownName branch of src/screen/chat/submit/submitLine.ts (resolveUnknownSlashName, paintScreenCommandReceipt)'))
+  check("POISON: the runner's skill spelling never paints", !/Unknown skill/.test(joined), 'an Unknown skill line reached the screen: the slash line must be answered by the unknownName branch of src/screen/chat/submit/submitLine.ts before it reaches the runner')
   const projectsDir = join(configDir, 'projects')
   let transcriptBytes = ''
   if (existsSync(projectsDir)) {
@@ -158,8 +158,8 @@ if (sendRecs.length === sends.length) {
     }
   }
   check('the real turn persisted (the transcript exists)', transcriptBytes.includes('hello persisted turn'), 'no transcript .jsonl under the scratch config projects folder holds the first prompt: the drive did not submit it, so check the send ladder')
-  check('NO transcript byte carries the unknown line or either refusal spelling', !transcriptBytes.includes('frobnicate') && !transcriptBytes.includes('Unknown skill'), 'the unknown slash line was persisted: the unknownName branch of src/screens/chat/submit/submitLine.ts must return before the line is recorded')
-  check('the wire never saw the name', api.requests.every((r: { raw: string }) => !r.raw.includes('frobnicate')), 'the unknown slash name reached the API: the unknownName branch of src/screens/chat/submit/submitLine.ts must consume the line and not send it')
+  check('NO transcript byte carries the unknown line or either refusal spelling', !transcriptBytes.includes('frobnicate') && !transcriptBytes.includes('Unknown skill'), 'the unknown slash line was persisted: the unknownName branch of src/screen/chat/submit/submitLine.ts must return before the line is recorded')
+  check('the wire never saw the name', api.requests.every((r: { raw: string }) => !r.raw.includes('frobnicate')), 'the unknown slash name reached the API: the unknownName branch of src/screen/chat/submit/submitLine.ts must consume the line and not send it')
 }
 removeScratch(home)
 removeScratch(cwd)

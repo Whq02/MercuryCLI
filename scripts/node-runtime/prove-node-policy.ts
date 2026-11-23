@@ -7,7 +7,7 @@ import {
   evaluateNodeRuntime,
   nodeRefusalMessage,
   nodeRuntimeProjection,
-} from '../../src/utils/runtime/nodePolicy.js'
+} from '../../src/platform/node-runtime/nodePolicy.js'
 
 const REPO = join(import.meta.dir, '..', '..')
 let failures = 0
@@ -15,7 +15,7 @@ const check = (name: string, cond: boolean, detail?: string): void => {
   if (cond) console.log(`  [PASS] ${name}`)
   else {
     failures++
-    console.log(`  [FAIL] ${name}${detail ? ` — ${detail}` : ''} — change NODE_SUPPORT, evaluateNodeRuntime, nodeRefusalMessage or nodeRuntimeProjection in src/utils/runtime/nodePolicy.ts, or keep package.json engines.node, .node-version, the @types/node spec and bun.lock, and dist/manifest.json (rebuild) in line with NODE_SUPPORT.range`)
+    console.log(`  [FAIL] ${name}${detail ? ` — ${detail}` : ''} — change NODE_SUPPORT, evaluateNodeRuntime, nodeRefusalMessage or nodeRuntimeProjection in src/platform/node-runtime/nodePolicy.ts, or keep package.json engines.node, .node-version, the @types/node spec and bun.lock, and dist/manifest.json (rebuild) in line with NODE_SUPPORT.range`)
   }
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)

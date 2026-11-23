@@ -6,8 +6,8 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'sleep-tool-home-'))
 delete process.env.MERCURY_HOME
 
-const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/constants/tools.ts')
-const { SLEEP_TOOL_NAME } = await import('../../src/tools/SleepTool/prompt.ts')
+const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/tools/kit/crewmateBarredTools.ts')
+const { SLEEP_TOOL_NAME } = await import('../../src/tools/sleep/prompt.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -20,40 +20,40 @@ console.log(' Sleep tool — stamp-gated + interruptible contract')
 console.log('============================================================')
 
 check("a sub-agent's roster: Sleep is not in the deny set every agent loses",
-  !ALL_AGENT_DISALLOWED_TOOLS.has(SLEEP_TOOL_NAME), 'remove Sleep from CREWMATE_BARRED_TOOLS in src/constants/tools.ts')
+  !ALL_AGENT_DISALLOWED_TOOLS.has(SLEEP_TOOL_NAME), 'remove Sleep from CREWMATE_BARRED_TOOLS in src/tools/kit/crewmateBarredTools.ts')
 
 {
-  const { formatZodValidationError } = await import('../../src/utils/toolErrors.ts')
-  const { SleepTool } = await import('../../src/tools/SleepTool/SleepTool.tsx')
+  const { formatZodValidationError } = await import('../../src/tools/kit/toolErrors.ts')
+  const { SleepTool } = await import('../../src/tools/sleep/SleepTool.tsx')
   const refusal = (r: { success: boolean; error?: unknown }): string => (r.success ? '' : `${formatZodValidationError('Sleep', r.error as never).replace(/\n/g, ' ')}`)
   const above = SleepTool.inputSchema.safeParse({ seconds: 4000 })
-  check('a wait of 4000 s passes the schema — no round trip lost to a refusal', above.success === true, `${refusal(above)} — raise or remove the upper bound on seconds in the inputSchema of src/tools/SleepTool/SleepTool.tsx`)
+  check('a wait of 4000 s passes the schema — no round trip lost to a refusal', above.success === true, `${refusal(above)} — raise or remove the upper bound on seconds in the inputSchema of src/tools/sleep/SleepTool.tsx`)
   const negative = SleepTool.inputSchema.safeParse({ seconds: -5 })
-  check('a negative wait has no lawful reading and keeps its typed refusal', negative.success === false && refusal(negative).includes('must have a minimum of 0'), `${refusal(negative)} — restore the minimum of 0 on seconds in the inputSchema of src/tools/SleepTool/SleepTool.tsx`)
+  check('a negative wait has no lawful reading and keeps its typed refusal', negative.success === false && refusal(negative).includes('must have a minimum of 0'), `${refusal(negative)} — restore the minimum of 0 on seconds in the inputSchema of src/tools/sleep/SleepTool.tsx`)
   const abort = new AbortController()
   const context = { abortController: abort, getAppState: () => ({ tasks: {} }), agentId: undefined } as never
   setTimeout(() => abort.abort(), 60)
   const clamped = (await SleepTool.call({ seconds: 4000 }, context)) as { data: { message: string; slept_seconds: number; interrupted: boolean; clamped?: string } }
-  check('a wait above the ceiling runs clamped and its result says so in the ScheduleWakeup grammar', clamped.data.interrupted === true && clamped.data.clamped === 'seconds clamped to 3600 s (the maximum)', `${JSON.stringify(clamped.data)} — check the clamp clause SleepTool.call builds in src/tools/SleepTool/SleepTool.tsx`)
+  check('a wait above the ceiling runs clamped and its result says so in the ScheduleWakeup grammar', clamped.data.interrupted === true && clamped.data.clamped === 'seconds clamped to 3600 s (the maximum)', `${JSON.stringify(clamped.data)} — check the clamp clause SleepTool.call builds in src/tools/sleep/SleepTool.tsx`)
   const clampedText = (SleepTool.mapToolResultToToolResultBlockParam(clamped.data as never, 'toolu_s') as { content: string }).content
-  check('the tool result text carries the clause', clampedText.includes('"clamped":"seconds clamped to 3600 s (the maximum)"'), `${clampedText} — check mapToolResultToToolResultBlockParam in src/tools/SleepTool/SleepTool.tsx`)
+  check('the tool result text carries the clause', clampedText.includes('"clamped":"seconds clamped to 3600 s (the maximum)"'), `${clampedText} — check mapToolResultToToolResultBlockParam in src/tools/sleep/SleepTool.tsx`)
   const plainAbort = new AbortController()
   setTimeout(() => plainAbort.abort(), 60)
   const plain = (await SleepTool.call({ seconds: 30 }, { ...(context as object), abortController: plainAbort } as never)) as { data: Record<string, unknown> }
   const plainText = (SleepTool.mapToolResultToToolResultBlockParam(plain.data as never, 'toolu_t') as { content: string }).content
-  check('a wait at or below the ceiling carries no clamp field and no clause — byte for byte as before', !('clamped' in plain.data) && plainText === '{"message":"Sleep interrupted after 0s","slept_seconds":0,"interrupted":true}', `${plainText} — SleepTool in src/tools/SleepTool/SleepTool.tsx must add the clamped field only when the wait was clamped`)
+  check('a wait at or below the ceiling carries no clamp field and no clause — byte for byte as before', !('clamped' in plain.data) && plainText === '{"message":"Sleep interrupted after 0s","slept_seconds":0,"interrupted":true}', `${plainText} — SleepTool in src/tools/sleep/SleepTool.tsx must add the clamped field only when the wait was clamped`)
   const startedAt = Date.now()
   const zero = (await SleepTool.call({ seconds: 0 }, { ...(context as object), abortController: new AbortController() } as never)) as { data: { message: string; slept_seconds: number; interrupted: boolean; clamped?: string } }
   const elapsedMs = Date.now() - startedAt
   check('a wait of 0 s is never a no-op: it clamps up to the one-second floor, the timer really arms for 1 s, and the result says so',
     zero.data.interrupted === false && zero.data.slept_seconds === 1 && zero.data.message === 'Slept for 1s' && zero.data.clamped === 'seconds clamped to 1 s (the minimum)' && elapsedMs >= 950 && elapsedMs < 3000,
-    `${JSON.stringify(zero.data)} after ${elapsedMs} ms — check the one-second floor clamp in SleepTool.call, src/tools/SleepTool/SleepTool.tsx`)
+    `${JSON.stringify(zero.data)} after ${elapsedMs} ms — check the one-second floor clamp in SleepTool.call, src/tools/sleep/SleepTool.tsx`)
 }
 
 console.log('\n— new input for the active turn ends the wait at once —')
 {
-  const queue = await import('../../src/input-core/command-queue.ts')
-  const { SleepTool } = await import('../../src/tools/SleepTool/SleepTool.tsx')
+  const queue = await import('../../src/screen/composer/input-core/command-queue.ts')
+  const { SleepTool } = await import('../../src/tools/sleep/SleepTool.tsx')
   type SleepResult = { data: { message: string; slept_seconds: number; interrupted: boolean; clamped?: string } }
   const NEW_INPUT = 'new input arrived for this turn (it follows this result)'
   const rig = (abort: AbortController, agentId?: string): never => ({ abortController: abort, getAppState: () => ({ tasks: {} }), agentId }) as never
@@ -72,12 +72,12 @@ console.log('\n— new input for the active turn ends the wait at once —')
   const released = early ?? (await wait60)
   check('a prompt queued during a 60 s wait ends it within the moment it lands, typed as an interrupt with the new-input reason',
     early !== null && early.data.interrupted === true && early.data.message === `Sleep interrupted after 0s: ${NEW_INPUT}` && early.data.slept_seconds === 0 && elapsed60 < 1_000,
-    early === null ? `the wait was still open ${elapsed60} ms after the words landed; released by abort it read ${JSON.stringify(released.data)} — check watchForNewInput in src/utils/newInputWatch.ts` : `${JSON.stringify(early.data)} after ${elapsed60} ms — check watchForNewInput in src/utils/newInputWatch.ts and how SleepTool.call in src/tools/SleepTool/SleepTool.tsx uses it`)
+    early === null ? `the wait was still open ${elapsed60} ms after the words landed; released by abort it read ${JSON.stringify(released.data)} — check watchForNewInput in src/tools/sleep/newInputWatch.ts` : `${JSON.stringify(early.data)} after ${elapsed60} ms — check watchForNewInput in src/tools/sleep/newInputWatch.ts and how SleepTool.call in src/tools/sleep/SleepTool.tsx uses it`)
   const kept = queue.getDrainableCommands(false)
   check('the words stay queued for the drain, exactly once — the wait reads the queue and never takes from it',
-    kept.length === 1 && kept[0]?.value === 'stop and report what you have', `${JSON.stringify(kept.map(c => c.value))} — the wait must only read the queue (src/utils/newInputWatch.ts), never dequeue from src/input-core/command-queue.ts`)
+    kept.length === 1 && kept[0]?.value === 'stop and report what you have', `${JSON.stringify(kept.map(c => c.value))} — the wait must only read the queue (src/tools/sleep/newInputWatch.ts), never dequeue from src/screen/composer/input-core/command-queue.ts`)
   const text = (SleepTool.mapToolResultToToolResultBlockParam(released.data as never, 'toolu_n') as { content: string }).content
-  check('the tool result carries the reason in the interrupt grammar', text.includes(`"message":"Sleep interrupted after 0s: ${NEW_INPUT}"`) && text.includes('"interrupted":true'), `${text} — check mapToolResultToToolResultBlockParam in src/tools/SleepTool/SleepTool.tsx`)
+  check('the tool result carries the reason in the interrupt grammar', text.includes(`"message":"Sleep interrupted after 0s: ${NEW_INPUT}"`) && text.includes('"interrupted":true'), `${text} — check mapToolResultToToolResultBlockParam in src/tools/sleep/SleepTool.tsx`)
 
   queue.resetCommandQueue()
   const at3 = Date.now()
@@ -86,7 +86,7 @@ console.log('\n— new input for the active turn ends the wait at once —')
   const short = await wait3
   const elapsed3 = Date.now() - at3
   check('a 3 s wait steered at 100 ms does not run its full length',
-    short.data.interrupted === true && elapsed3 < 1_000, `the wait ran its full length: ${JSON.stringify(short.data)} after ${elapsed3} ms — check watchForNewInput in src/utils/newInputWatch.ts`)
+    short.data.interrupted === true && elapsed3 < 1_000, `the wait ran its full length: ${JSON.stringify(short.data)} after ${elapsed3} ms — check watchForNewInput in src/tools/sleep/newInputWatch.ts`)
 
   queue.resetCommandQueue()
   queue.enqueue(line('queued before the wait began'))
@@ -98,7 +98,7 @@ console.log('\n— new input for the active turn ends the wait at once —')
   if (entry === null) abortEntry.abort()
   const releasedEntry = entry ?? (await waitEntry)
   check('words already queued when the wait begins end it at entry', entry !== null && entry.data.interrupted === true && entry.data.message === `Sleep interrupted after 0s: ${NEW_INPUT}` && elapsedEntry < 500,
-    entry === null ? `the wait was still open ${elapsedEntry} ms after it began with the words already queued; released by abort it read ${JSON.stringify(releasedEntry.data)}` : `${JSON.stringify(entry.data)} after ${elapsedEntry} ms — watchForNewInput in src/utils/newInputWatch.ts must check the queue on entry`)
+    entry === null ? `the wait was still open ${elapsedEntry} ms after it began with the words already queued; released by abort it read ${JSON.stringify(releasedEntry.data)}` : `${JSON.stringify(entry.data)} after ${elapsedEntry} ms — watchForNewInput in src/tools/sleep/newInputWatch.ts must check the queue on entry`)
 
   queue.resetCommandQueue()
   queue.enqueue(line('for the next turn', { priority: 'later' }))
@@ -111,8 +111,8 @@ console.log('\n— new input for the active turn ends the wait at once —')
   const full = (await SleepTool.call({ seconds: 2 }, rig(new AbortController()))) as SleepResult
   const elapsedFull = Date.now() - atFull
   check('a later-band line, a slash command, another agent\'s line, a task notification, a bash line and a meta prompt do not end the wait: it runs its full length',
-    full.data.interrupted === false && full.data.message === 'Slept for 2s' && elapsedFull >= 1_950, `${JSON.stringify(full.data)} after ${elapsedFull} ms — only an operator prompt for this turn may end the wait, see watchForNewInput in src/utils/newInputWatch.ts`)
-  check('the drain would take the same view: none of those is an operator prompt for this turn', !queue.getDrainableCommands(false).some(c => c.mode === 'prompt' && queue.isOperatorLine(c) && !queue.isSlashCommand(c) && c.agentId === undefined), 'getDrainableCommands, isOperatorLine or isSlashCommand in src/input-core/command-queue.ts changed which lines the drain takes')
+    full.data.interrupted === false && full.data.message === 'Slept for 2s' && elapsedFull >= 1_950, `${JSON.stringify(full.data)} after ${elapsedFull} ms — only an operator prompt for this turn may end the wait, see watchForNewInput in src/tools/sleep/newInputWatch.ts`)
+  check('the drain would take the same view: none of those is an operator prompt for this turn', !queue.getDrainableCommands(false).some(c => c.mode === 'prompt' && queue.isOperatorLine(c) && !queue.isSlashCommand(c) && c.agentId === undefined), 'getDrainableCommands, isOperatorLine or isSlashCommand in src/screen/composer/input-core/command-queue.ts changed which lines the drain takes')
 
   queue.resetCommandQueue()
   queue.holdQueuedWordsForTurnEnd(true)
@@ -120,7 +120,7 @@ console.log('\n— new input for the active turn ends the wait at once —')
   const atHeld = Date.now()
   const held = (await SleepTool.call({ seconds: 1 }, rig(new AbortController()))) as SleepResult
   const elapsedHeld = Date.now() - atHeld
-  check('a line the queue holds for the turn boundary does not end the wait', held.data.interrupted === false && elapsedHeld >= 950, `${JSON.stringify(held.data)} after ${elapsedHeld} ms — a held line must not count as new input, see holdQueuedWordsForTurnEnd in src/input-core/command-queue.ts`)
+  check('a line the queue holds for the turn boundary does not end the wait', held.data.interrupted === false && elapsedHeld >= 950, `${JSON.stringify(held.data)} after ${elapsedHeld} ms — a held line must not count as new input, see holdQueuedWordsForTurnEnd in src/screen/composer/input-core/command-queue.ts`)
   queue.holdQueuedWordsForTurnEnd(false)
 
   queue.resetCommandQueue()
@@ -129,13 +129,13 @@ console.log('\n— new input for the active turn ends the wait at once —')
   setTimeout(() => queue.enqueue(line('the operator speaks to the chat')), 100)
   const sub = await subWait
   const elapsedSub = Date.now() - atSub
-  check("a sub-agent's wait never ends on the operator's words — they are for the chat's turn, not its own", sub.data.interrupted === false && elapsedSub >= 950, `${JSON.stringify(sub.data)} after ${elapsedSub} ms — watchForNewInput in src/utils/newInputWatch.ts must ignore operator words when agentId is set`)
+  check("a sub-agent's wait never ends on the operator's words — they are for the chat's turn, not its own", sub.data.interrupted === false && elapsedSub >= 950, `${JSON.stringify(sub.data)} after ${elapsedSub} ms — watchForNewInput in src/tools/sleep/newInputWatch.ts must ignore operator words when agentId is set`)
 
   queue.resetCommandQueue()
   const abortStill = new AbortController()
   setTimeout(() => abortStill.abort(), 60)
   const aborted = (await SleepTool.call({ seconds: 30 }, rig(abortStill))) as SleepResult
-  check('the abort road is unchanged, byte for byte', JSON.stringify(aborted.data) === '{"message":"Sleep interrupted after 0s","slept_seconds":0,"interrupted":true}', `${JSON.stringify(aborted.data)} — the abort path of SleepTool.call in src/tools/SleepTool/SleepTool.tsx must keep its old result`)
+  check('the abort road is unchanged, byte for byte', JSON.stringify(aborted.data) === '{"message":"Sleep interrupted after 0s","slept_seconds":0,"interrupted":true}', `${JSON.stringify(aborted.data)} — the abort path of SleepTool.call in src/tools/sleep/SleepTool.tsx must keep its old result`)
   queue.resetCommandQueue()
 }
 

@@ -6,7 +6,7 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
-const FIX_HINT = 'the typed end is decided by typedStreamEndOf, streamEndReceiptLine and createStreamIdleWatchdog in src/services/providers/streamIdleBudget.ts and applied in src/services/providers/openai/openaiCallModel/attempt.ts (T1-T4, T10), the Anthropic road behind routedCallModel in src/services/providers/callModelRouter.ts (T5-T7), and the first-byte budgets of streamOpenaiResponses, streamZaiChat and streamCompatChat under src/services/providers (T9, T11)'
+const FIX_HINT = 'the typed end is decided by typedStreamEndOf, streamEndReceiptLine and createStreamIdleWatchdog in src/models/roads/streamIdleBudget.ts and applied in src/models/roads/openai/call-model/attempt.ts (T1-T4, T10), the Anthropic road behind routedCallModel in src/models/roads/callModelRouter.ts (T5-T7), and the first-byte budgets of streamOpenaiResponses, streamZaiChat and streamCompatChat under src/models/roads (T9, T11)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -27,7 +27,7 @@ const BUDGET_MS = 1500
 const KEEPALIVE_SPAN_MS = BUDGET_MS * 2
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the typed-end prover exceeded 180s; the last section header printed above is the one that hung, a stream that never ended typed (see streamIdleBudget.ts in src/services/providers)')
+  console.log('\nTIMEOUT — the typed-end prover exceeded 180s; the last section header printed above is the one that hung, a stream that never ended typed (see streamIdleBudget.ts in src/models/roads)')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -169,14 +169,14 @@ console.log('============================================================')
 console.log(' the typed end — a turn ends on facts, on every road')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { isContinuableStreamFaultText } = await import('../../src/services/api/errors.ts')
-const budget = await import('../../src/services/providers/streamIdleBudget.ts')
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { isContinuableStreamFaultText } = await import('../../src/engine/requests/apiErrorRows.ts')
+const budget = await import('../../src/models/roads/streamIdleBudget.ts')
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 
 const textOf = (m: AssistantMessage | undefined): string => {
   const content = m?.message.content
@@ -336,9 +336,9 @@ section('T8 — the owner: the law table, the words, the watchdog')
 
 section('T9 — the first-byte budget on the three compat clients (a fetch that never answers)')
 {
-  const { streamOpenaiResponses } = await import('../../src/services/providers/openai/openaiClient.ts')
-  const { streamZaiChat } = await import('../../src/services/providers/zai/zaiClient.ts')
-  const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
+  const { streamOpenaiResponses } = await import('../../src/models/roads/openai/openaiClient.ts')
+  const { streamZaiChat } = await import('../../src/models/roads/zai/zaiClient.ts')
+  const { streamCompatChat } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
   const neverAnswers: typeof fetch = (_url, init) =>
     new Promise((_, reject) => {
       const signal = (init as { signal?: AbortSignal } | undefined)?.signal

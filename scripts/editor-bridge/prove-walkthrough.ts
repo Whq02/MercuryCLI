@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-const walkthroughFailHint = 'fix composeWalkthroughBody, createWalkthroughArtifact or createVisualJourneyArtifact in src/services/walkthrough/assembleWalkthrough.ts (the stored artifact is read by readReviewArtifactState in src/services/artifacts/reviewStore.ts, the journey by runJourney in src/services/journeys/runner.ts)'
+const walkthroughFailHint = 'fix composeWalkthroughBody, createWalkthroughArtifact or createVisualJourneyArtifact in src/sessions/walkthrough/assembleWalkthrough.ts (the stored artifact is read by readReviewArtifactState in src/sessions/artifact-reviews/reviewStore.ts, the journey by runJourney in src/tools/engines/journeys/runner.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${walkthroughFailHint}` : ''}`)
@@ -28,9 +28,9 @@ process.on('exit', () => {
 })
 
 const { composeWalkthroughBody, createWalkthroughArtifact, createVisualJourneyArtifact } =
-  await import('../../src/services/walkthrough/assembleWalkthrough.js')
-const { readReviewArtifactState } = await import('../../src/services/artifacts/reviewStore.js')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.js')
+  await import('../../src/sessions/walkthrough/assembleWalkthrough.js')
+const { readReviewArtifactState } = await import('../../src/sessions/artifact-reviews/reviewStore.js')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.js')
 
 const richInputs = {
   title: 'Ship the parser fix',
@@ -150,7 +150,7 @@ section('(5) the live mint')
 
 section('(6) the structured visual journey from a REAL journey record')
 {
-  const { runJourney } = await import('../../src/services/journeys/runner.js')
+  const { runJourney } = await import('../../src/tools/engines/journeys/runner.js')
   const probe = join(fixtures, 'probe.txt')
   writeFileSync(probe, 'the probe content\n')
   const owner = processMainOwner()

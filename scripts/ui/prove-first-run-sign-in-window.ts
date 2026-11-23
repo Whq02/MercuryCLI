@@ -15,14 +15,14 @@ for (const name of Object.keys(process.env)) {
   if (/API_KEY|AUTH_TOKEN|OAUTH_TOKEN|HF_TOKEN|MERCURY_MODEL|MERCURY_HOME|CURSOR_TRACE_ID|VSCODE_GIT_ASKPASS_MAIN|__CFBundleIdentifier|VisualStudioVersion|TERMINAL_EMULATOR/.test(name)) delete process.env[name]
 }
 const React = await import('react')
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-const { Onboarding } = await import('../../src/components/Onboarding.js')
-const { BootSplashScreen } = await import('../../src/components/BootSplashScreen.js')
-const { loginFamilyRows, SIGN_IN_LATER_ROW } = await import('../../src/components/loginFamilyRows.js')
-const { stringWidth } = await import('../../src/ink/stringWidth.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+const { Onboarding } = await import('../../src/boot/first-run/Onboarding.js')
+const { BootSplashScreen } = await import('../../src/screen/boot-face/BootSplashScreen.js')
+const { loginFamilyRows, SIGN_IN_LATER_ROW } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.js')
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.js')
 const h = React.createElement
 const options = [...loginFamilyRows({ engineLegs: true }), SIGN_IN_LATER_ROW]
 const framesAt = process.argv.indexOf('--frames')
@@ -31,7 +31,7 @@ if (frames) mkdirSync(frames, { recursive: true })
 let failures = 0
 function check(label: string, ok: boolean, detail = '') {
   if (!ok) failures++
-  const signInWindowHint = 'fix the first-run flow in src/components/Onboarding.tsx (theme, sign-in list, footer) or its rows in src/components/loginFamilyRows.ts (loginFamilyRows, SIGN_IN_LATER_ROW) so the cursor row, the closed frame and the later row fit the terminal size named in the label'
+  const signInWindowHint = 'fix the first-run flow in src/boot/first-run/Onboarding.tsx (theme, sign-in list, footer) or its rows in src/models/sign-in/flow-cards/loginFamilyRows.ts (loginFamilyRows, SIGN_IN_LATER_ROW) so the cursor row, the closed frame and the later row fit the terminal size named in the label'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${signInWindowHint}` : ''}`)
 }
 function Journey() {
@@ -39,7 +39,7 @@ function Journey() {
   return done ? h(BootSplashScreen) : h(Onboarding, { onDone: () => setDone(true) })
 }
 if (process.argv.includes('--pty-child')) {
-  const { render } = await import('../../src/ink.js')
+  const { render } = await import('../../src/screen/themedRenderer.js')
   await render(h(AppStateProvider as never, {} as never, h(KeybindingSetup as never, {} as never, h(Journey))))
   await new Promise(() => {})
 }

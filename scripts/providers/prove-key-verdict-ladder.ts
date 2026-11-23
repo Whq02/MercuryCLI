@@ -15,7 +15,7 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' — ' : '') + 'fix useApiKeyVerification in src/hooks/useApiKeyVerification.ts: the opening status, the reverify ladder (missing, helper error, quiet read, wire probe) and one stable object per status and error pair' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' — ' : '') + 'fix useApiKeyVerification in src/models/sign-in/credentials/useApiKeyVerification.ts: the opening status, the reverify ladder (missing, helper error, quiet read, wire probe) and one stable object per status and error pair' : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -32,8 +32,8 @@ const world = {
   helperWarmed: 0,
   wireCalls: 0,
 }
-const auth = await import('../../src/utils/auth.ts')
-mock.module('../../src/utils/auth.js', () => ({
+const auth = await import('../../src/models/sign-in/credentials/auth.ts')
+mock.module('../../src/models/sign-in/credentials/auth.js', () => ({
   ...auth,
   isAnthropicAuthEnabled: () => world.authEnabled,
   isClaudeAISubscriber: () => world.subscriber,
@@ -41,14 +41,14 @@ mock.module('../../src/utils/auth.js', () => ({
   getApiKeyFromApiKeyHelper: async () => { world.helperWarmed++; return null },
   getApiKeyHelperFailure: () => world.helperFailure,
 }))
-const anthropic = await import('../../src/services/providers/anthropic/index.ts')
-mock.module('../../src/services/providers/anthropic/index.js', () => ({
+const anthropic = await import('../../src/models/roads/anthropic/index.ts')
+mock.module('../../src/models/roads/anthropic/index.js', () => ({
   ...anthropic,
   verifyApiKey: async (key: string) => { world.wireCalls++; return world.wire(key) },
 }))
-const { useApiKeyVerification } = await import('../../src/hooks/useApiKeyVerification.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { useApiKeyVerification } = await import('../../src/models/sign-in/credentials/useApiKeyVerification.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 type Api = ReturnType<typeof useApiKeyVerification>
 
 const settle = async (): Promise<void> => {

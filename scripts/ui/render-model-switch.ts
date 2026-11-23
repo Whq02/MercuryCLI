@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { writeFileSync, readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { bigWordmarkRows } from '../../src/components/mercury-ui/assets.js'
+import { bigWordmarkRows } from '../../src/screen/widgets/assets.js'
 import { join } from 'node:path'
 import { CONFIG_HOME, scenario, cleanupScenario } from './renderScenarios.ts'
 import { gridToPng } from './gridToPng.ts'

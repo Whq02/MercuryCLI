@@ -13,13 +13,13 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('       fix: stop and restart behaviour is in src/services/projectServices/serviceManager.ts: decideServiceStrike decides strike or refuse, stopService clears the record and sets stopNote, restartService returns the restart failed error, and the start-token backfill runs after startService')
+  if (!cond) console.log('       fix: stop and restart behaviour is in src/tools/engines/project-services/serviceManager.ts: decideServiceStrike decides strike or refuse, stopService clears the record and sets stopNote, restartService returns the restart failed error, and the start-token backfill runs after startService')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const manager = await import('../../src/services/projectServices/serviceManager.ts')
+const manager = await import('../../src/tools/engines/project-services/serviceManager.ts')
 type Rec = Record<string, unknown>
 const { readRecord, servicesDir, startService, stopService, restartService } = manager as unknown as {
   readRecord: (cwd: string, name: string) => Rec | null
@@ -28,7 +28,7 @@ const { readRecord, servicesDir, startService, stopService, restartService } = m
   stopService: (cwd: string, name: string) => Promise<Rec>
   restartService: (cwd: string, name: string, sessionId: string) => Promise<Rec>
 }
-const { processStartProbeKind } = await import('../../src/utils/platform/processes.ts')
+const { processStartProbeKind } = await import('../../src/platform/host-os/processes.ts')
 const decideServiceStrike = (manager as Rec).decideServiceStrike as
   | ((facts: { pid: number | null; startToken: string | null; currentToken: string | null; ownedHandle?: boolean }) => string)
   | undefined

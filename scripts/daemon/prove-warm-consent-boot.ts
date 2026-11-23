@@ -39,8 +39,8 @@ writeFileSync(
 )
 writeFileSync(join(work, 'README.md'), '# warm consent boot fixture\n')
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
 
@@ -115,20 +115,20 @@ console.log(`  bundle ${DIST}\n  home ${home}\n  daemon dir ${daemonDir}`)
 try {
   section('the owned daemon self-warms at boot wearing the launch consent')
   bootDaemon(true)
-  check('the daemon answers ping', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), 'the daemon never answered ping in 60 s; read daemon.log in the daemon dir printed at the top, and the startup path of node dist/mercury.mjs daemon run (src/daemon/main.ts)')
-  check('the boot self-warm pre-spawned a runner', await untilAsync(() => logLines('warm runner pre-spawned').length >= 1, 40_000), `${daemonLog().split('\n').slice(-8).join(' | ')} (the boot self-warm in src/daemon/main.ts, which ensureWarmRunner runs with bypassConsent when MERCURY_DAEMON_SELF_WARM_CONSENT is 1, never logged warm runner pre-spawned)`)
+  check('the daemon answers ping', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), 'the daemon never answered ping in 60 s; read daemon.log in the daemon dir printed at the top, and the startup path of node dist/mercury.mjs daemon run (src/daemon/control/main.ts)')
+  check('the boot self-warm pre-spawned a runner', await untilAsync(() => logLines('warm runner pre-spawned').length >= 1, 40_000), `${daemonLog().split('\n').slice(-8).join(' | ')} (the boot self-warm in src/daemon/control/main.ts, which ensureWarmRunner runs with bypassConsent when MERCURY_DAEMON_SELF_WARM_CONSENT is 1, never logged warm runner pre-spawned)`)
 
   section("the screen's own arming carries the same consent: it KEEPS the boot-warmed runner")
   const warmReply = (await daemonControlRpc({ op: 'concourseWarm', workspaceDir: work, bypassConsent: true } as never, { timeoutMs: 15_000 })) as { ok?: boolean; state?: string; detail?: string }
-  check("the consented arming answers 'kept' (the fix: no consent-drift retirement, no second spawn)", warmReply.ok === true && warmReply.state === 'kept', `${JSON.stringify(warmReply)} (the concourseWarm arming with bypassConsent must keep the boot-warmed runner; see the consent drift branch in src/daemon/warmRunner.ts)`)
+  check("the consented arming answers 'kept' (the fix: no consent-drift retirement, no second spawn)", warmReply.ok === true && warmReply.state === 'kept', `${JSON.stringify(warmReply)} (the concourseWarm arming with bypassConsent must keep the boot-warmed runner; see the consent drift branch in src/daemon/runner-link/warmRunner.ts)`)
   await wait(1_000)
-  check('no warm runner was retired for consent drift (the throwaway is gone)', logLines('consent drift').length === 0, `${logLines('warm runner').slice(-6).join(' | ')} (a warm runner was retired for consent drift; fix the consent comparison in src/daemon/warmRunner.ts so the boot self-warm and the arming agree)`)
-  check('exactly ONE warm runner was pre-spawned across the boot (not two)', logLines('warm runner pre-spawned').length === 1, `${logLines('warm runner pre-spawned').join(' | ')} (the arming must not spawn a second warm runner; see src/daemon/warmRunner.ts and the pre-spawn log in src/daemon/main.ts)`)
+  check('no warm runner was retired for consent drift (the throwaway is gone)', logLines('consent drift').length === 0, `${logLines('warm runner').slice(-6).join(' | ')} (a warm runner was retired for consent drift; fix the consent comparison in src/daemon/runner-link/warmRunner.ts so the boot self-warm and the arming agree)`)
+  check('exactly ONE warm runner was pre-spawned across the boot (not two)', logLines('warm runner pre-spawned').length === 1, `${logLines('warm runner pre-spawned').join(' | ')} (the arming must not spawn a second warm runner; see src/daemon/runner-link/warmRunner.ts and the pre-spawn log in src/daemon/control/main.ts)`)
 
   section('the first admission CLAIMS the boot-warmed runner')
   const admit = (await daemonControlRpc({ op: 'sessionAdmit', workspaceDir: work, isolation: 'shared', bornBlank: true, bypassConsent: true, by: 'operator' } as never, { timeoutMs: 30_000 })) as { ok?: boolean; runnerId?: string; error?: string }
-  check('the admission is served', admit.ok === true, `${JSON.stringify(admit)} (the sessionAdmit op in src/daemon/controlServer.ts, served by src/daemon/concourseWorkers/admit.ts, refused the first admission)`)
-  check('the admission claimed the warm runner (no cold spawn for the first chat)', await untilAsync(() => logLines('warm claim acked').length >= 1, 20_000), `${logLines('warm').slice(-8).join(' | ')} (the first admission in src/daemon/concourseWorkers/admit.ts must claim the warm runner and log warm claim acked)`)
+  check('the admission is served', admit.ok === true, `${JSON.stringify(admit)} (the sessionAdmit op in src/daemon/control/controlServer.ts, served by src/daemon/concourse-workers/admit.ts, refused the first admission)`)
+  check('the admission claimed the warm runner (no cold spawn for the first chat)', await untilAsync(() => logLines('warm claim acked').length >= 1, 20_000), `${logLines('warm').slice(-8).join(' | ')} (the first admission in src/daemon/concourse-workers/admit.ts must claim the warm runner and log warm claim acked)`)
 } finally {
   clearTimeout(guard)
   await stopDaemon()

@@ -11,7 +11,7 @@ process.env.MERCURY_CONFIG_DIR = HOME
 
 let failures = 0
 const runResumeFailHint =
-  'fix the sidecar save and load in src/services/run/runSidecar.ts (saveRunSidecar, loadRunSidecar), the resume fold in src/services/run/runCoordinator.ts (reconcileOnResume, foldResumedRunForBoot, takeResumeFoldNotice) or the event reducer in src/services/run/runKernel.ts (reduceRunEvent), whichever the section named above exercises'
+  'fix the sidecar save and load in src/engine/run/runSidecar.ts (saveRunSidecar, loadRunSidecar), the resume fold in src/engine/run/runCoordinator.ts (reconcileOnResume, foldResumedRunForBoot, takeResumeFoldNotice) or the event reducer in src/engine/run/runKernel.ts (reduceRunEvent), whichever the section named above exercises'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? detail : detail ? `${detail} | ${runResumeFailHint}` : runResumeFailHint
@@ -22,10 +22,10 @@ function section(t: string): void {
 }
 
 async function main(): Promise<void> {
-  const ok = await import('../../src/utils/run/ownerKey.js')
-  const kernel = await import('../../src/services/run/runKernel.js')
-  const sidecar = await import('../../src/services/run/runSidecar.js')
-  const coordinator = await import('../../src/services/run/runCoordinator.js')
+  const ok = await import('../../src/engine/run-owner/ownerKey.js')
+  const kernel = await import('../../src/engine/run/runKernel.js')
+  const sidecar = await import('../../src/engine/run/runSidecar.js')
+  const coordinator = await import('../../src/engine/run/runCoordinator.js')
 
   const owner = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'resume-sess', lane: 'main' })
 

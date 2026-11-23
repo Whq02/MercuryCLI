@@ -13,7 +13,7 @@ const repoRoot = resolve(import.meta.dir, '..', '..')
 const anchorPath = join(repoRoot, 'scripts', 'builtin-tools', 'fixtures', 'results.json')
 
 const { runCorpus, stableProjection, anchorJson, cleanupBenchHomes } = await import(
-  '../../scripts/builtin-tools/bench-builtin-tools.ts'
+  './bench-builtin-tools.ts'
 )
 
 console.log('── builtin-tools capability benchmark gate ──')

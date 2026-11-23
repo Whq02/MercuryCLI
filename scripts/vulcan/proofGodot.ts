@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { resolveGodotExecutable } from '../../src/services/vulcan/portabilityHealth.ts'
+import { resolveGodotExecutable } from '../../src/integrations/vulcan/portabilityHealth.ts'
 
 type Probe = { status: number | null; stdout?: string; stderr?: string; signal?: string | null; error?: Error }
 export function godotPrerequisiteFailure(probe: Probe): string | null {

@@ -1,11 +1,11 @@
 import type { ChildProcess } from 'node:child_process'
-import type { LooseRow } from '../../rows/read.js'
-import type { PermissionRequestParams, SessionAppliedParams } from '../../runner/wire/methods.js'
-import type { HeldAsk, RunnerConnection } from '../runnerConnection.js'
-import type { DaemonBreaker } from '../../utils/daemonBreaker.js'
-import type { RunnerChildSpec } from '../headlessRun.js'
-import type { LongLivedRespawnConfig } from '../longLivedRespawn.js'
-import type { DispatchSource } from '../protocol.js'
+import type { LooseRow } from '../../engine/rows/read.js'
+import type { PermissionRequestParams, SessionAppliedParams } from '../runner-wire/methods.js'
+import type { HeldAsk, RunnerConnection } from '../runner-link/runnerConnection.js'
+import type { DaemonBreaker } from '../control/daemonBreaker.js'
+import type { RunnerChildSpec } from '../runner-link/headlessRun.js'
+import type { LongLivedRespawnConfig } from './longLivedRespawn.js'
+import type { DispatchSource } from '../control/protocol.js'
 
 type RosterState =
   | 'spawning'
@@ -77,7 +77,7 @@ export interface RosterOptions {
   onAsk?: (short: string, params: PermissionRequestParams) => HeldAsk
   onRow?: (short: string, row: LooseRow) => void
   onApplied?: (short: string, params: SessionAppliedParams) => void
-  onScheduleEdit?: (short: string, params: import('../../runner/wire/methods.js').ParamsOf<'schedule/edit'>) => import('../../runner/wire/methods.js').ResultOf<'schedule/edit'> | Promise<import('../../runner/wire/methods.js').ResultOf<'schedule/edit'>>
+  onScheduleEdit?: (short: string, params: import('../runner-wire/methods.js').ParamsOf<'schedule/edit'>) => import('../runner-wire/methods.js').ResultOf<'schedule/edit'> | Promise<import('../runner-wire/methods.js').ResultOf<'schedule/edit'>>
   onChildRelaunched?: (short: string, pid: number) => void
   onChildReady?: (short: string) => void
   onChildCrashed?: (short: string) => void

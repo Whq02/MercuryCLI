@@ -16,7 +16,7 @@ const ok = (cond: boolean, label: string) => {
   console.log(`${cond ? '  ✅' : '  ❌'} ${label}`)
   if (!cond) {
     failures++
-    console.log('     fix: defineStore (revision, recovery, quarantine and subscribeChanges behaviour) in src/substrate/fileStore.ts, or readStoreRecoveryEvents (the recovery ledger read) in src/substrate/storeRecovery.ts; the section number in the label names the case')
+    console.log('     fix: defineStore (revision, recovery, quarantine and subscribeChanges behaviour) in src/platform/substrate/fileStore.ts, or readStoreRecoveryEvents (the recovery ledger read) in src/platform/substrate/storeRecovery.ts; the section number in the label names the case')
   }
 }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
@@ -26,8 +26,8 @@ const home = join(tmp, 'home')
 mkdirSync(home, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home
 
-const { defineStore, _setEmitReadGateForProofs } = await import('../../src/substrate/fileStore.ts')
-const { readStoreRecoveryEvents } = await import('../../src/substrate/storeRecovery.ts')
+const { defineStore, _setEmitReadGateForProofs } = await import('../../src/platform/substrate/fileStore.ts')
+const { readStoreRecoveryEvents } = await import('../../src/platform/substrate/storeRecovery.ts')
 const BUN = process.execPath
 
 type Counter = { n: number }
@@ -272,7 +272,7 @@ const counterAt = (p: string) =>
     ),
     '§8 every surviving row carries a string time and a known kind',
   )
-  const { isDebugMode } = await import('../../src/utils/debug.ts')
+  const { isDebugMode } = await import('../../src/platform/logs/debugLog.ts')
   ok(isDebugMode() === false, '§8 this proof runs with debug OFF: the naming below is the normal record, not a debug line')
   const refused = events.filter(e => e.kind === 'refused')
   ok(

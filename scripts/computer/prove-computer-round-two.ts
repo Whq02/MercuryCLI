@@ -2,13 +2,13 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, ownerOf, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
-import type { DesktopDriver, DesktopTree } from '../../src/services/desktop/driver.ts'
+import type { DesktopDriver, DesktopTree } from '../../src/integrations/desktop/driver.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
-const { toOpenaiStrictToolSchema } = await import('../../src/utils/messages/toolSchemaDialect.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const session = await import('../../src/services/desktop/desktopSession.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
+const { toOpenaiStrictToolSchema } = await import('../../src/engine/message-shapes/toolSchemaDialect.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const session = await import('../../src/integrations/desktop/desktopSession.ts')
 const app = { identity: 'com.google.Chrome', name: 'Browser', pid: 123, windowId: 'front', title: 'Front', bounds: { x: 0, y: 0, width: 400, height: 300 } }
 const button = { role: 'AXButton', title: 'Save', frame: { x: 180, y: 150, width: 40, height: 20 } }
 let deep: object = button
@@ -34,9 +34,9 @@ section('closed provider schema and per-step validation')
 const schema = zodToJsonSchema(ComputerTool.inputSchema)
 const strict = toOpenaiStrictToolSchema(schema)
 check('Computer is strict-expressible, including steps', strict.strict, JSON.stringify(strict).slice(0, 200))
-const { mapToolsToOpenai } = await import('../../src/services/providers/openai/responsesBridge.ts')
-const { stripNullArgs } = await import('../../src/services/providers/openai/openaiWire.ts')
-const { declaredInputSchema } = await import('../../src/services/providers/local/schemaTyping.ts')
+const { mapToolsToOpenai } = await import('../../src/models/roads/openai/responsesBridge.ts')
+const { stripNullArgs } = await import('../../src/models/roads/openai/openaiWire.ts')
+const { declaredInputSchema } = await import('../../src/models/roads/local/schemaTyping.ts')
 const wire = mapToolsToOpenai([{ name: 'Computer', description: 'fixture', input_schema: schema } as never])
 check('the real Responses mapper sends Computer strict', wire[0]?.strict === true)
 const nullable = stripNullArgs({ action: 'sequence', steps: [{ action: 'key', key: 'Enter', target: null, capture: null, steps: null }, { action: 'wait', until: { name: 'Search', role: null, text: null }, depth: null }], target: null }, declaredInputSchema(ComputerTool))
@@ -107,7 +107,7 @@ check('outside-region action repeats the frame remedy', outside.outcome === 'fai
 const full = await withScreenshot(ComputerTool as never, context, 'round-two-full')
 context = full.context
 check('returning to full screenshot announces changed coordinates', full.result.includes('previous coordinates do not apply'), full.result)
-const { FakeDesktopDriver, FAKE_SCENE_DEFAULT } = await import('../../src/services/desktop/fakeDesktopDriver.ts')
+const { FakeDesktopDriver, FAKE_SCENE_DEFAULT } = await import('../../src/integrations/desktop/fakeDesktopDriver.ts')
 const display = { index: 0, id: 'scale-proof', originX: 0, originY: 0, width: 1920, height: 1080, scale: 1, primary: true }
 const plainDriver = new FakeDesktopDriver({ ...FAKE_SCENE_DEFAULT, displays: [display], noise: false }, null)
 const noisyDriver = new FakeDesktopDriver({ ...FAKE_SCENE_DEFAULT, displays: [display], noise: true }, null)
@@ -124,7 +124,7 @@ driver.capture = capture
 driver.displays = displays
 
 section('headless policy is a denial, with a remedy, not a new grant')
-const { getAskChannel, setAskChannel } = await import('../../src/bootstrap/state.ts')
+const { getAskChannel, setAskChannel } = await import('../../src/boot/process-state/processState.ts')
 const channel = getAskChannel()
 setAskChannel('none')
 const headless = toolContext({ interactive: false })
@@ -132,7 +132,7 @@ const validation = await ComputerTool.validateInput!({ action: 'screenshot' }, h
 check('valid headless syntax reaches the policy stage', validation.result, JSON.stringify(validation))
 const denied = await ComputerTool.checkPermissions({ action: 'screenshot' }, headless)
 check('policy stage denies headless reads with the interactive remedy', denied.behavior === 'deny' && denied.message.includes('open an interactive session'), JSON.stringify(denied))
-const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
+const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.ts')
 for (const mode of ['default', 'sovereign'] as const) {
   headless.getAppState().toolPermissionContext.mode = mode
   headless.getAppState().toolPermissionContext.isBypassPermissionsModeAvailable = true

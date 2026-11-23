@@ -63,10 +63,10 @@ console.log('\nw02-1 — Concourse snapshot reports unreadable parked, queued, a
   const r = runSubprocess(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const snap = await import(${JSON.stringify(join(SRC, 'services/concourse/concourseSnapshot.ts'))})
-    const paths = await import(${JSON.stringify(join(SRC, 'utils/sessionStorage/paths.ts'))})
-    const dispatches = await import(${JSON.stringify(join(SRC, 'daemon/concourseDispatch.ts'))})
-    const collisions = await import(${JSON.stringify(join(SRC, 'daemon/concourseWorkers/collisions.ts'))})
+    const snap = await import(${JSON.stringify(join(SRC, 'screen/concourse-model/concourseSnapshot.ts'))})
+    const paths = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/paths.ts'))})
+    const dispatches = await import(${JSON.stringify(join(SRC, 'daemon/concourse-workers/concourseDispatch.ts'))})
+    const collisions = await import(${JSON.stringify(join(SRC, 'daemon/concourse-workers/collisions.ts'))})
 
     const recordsDir = path.join(HOME, 'daemon')
     const crewDir = path.join(HOME, 'crew')
@@ -87,9 +87,9 @@ console.log('\nw02-1 — Concourse snapshot reports unreadable parked, queued, a
     try {
       const broken = await snap.buildConcourseSnapshot({ recordsDir, crewDir, draftDir, nowMs: 1_700_000_000_000 })
       out.brokenNotices = broken.sectionNotices ?? null
-      const { listPaneOf } = await import(${JSON.stringify(join(SRC, 'components/concourse/layout/listPane.tsx'))})
-      const { resolveMercuryTokens } = await import(${JSON.stringify(join(SRC, 'utils/mercuryTokens.ts'))})
-      const { getTheme } = await import(${JSON.stringify(join(SRC, 'utils/theme.ts'))})
+      const { listPaneOf } = await import(${JSON.stringify(join(SRC, 'screen/concourse/layout/listPane.tsx'))})
+      const { resolveMercuryTokens } = await import(${JSON.stringify(join(SRC, 'screen/theme/mercuryTokens.ts'))})
+      const { getTheme } = await import(${JSON.stringify(join(SRC, 'screen/theme/theme.ts'))})
       const node = listPaneOf({
         wide: true,
         rightWidth: 100,
@@ -135,8 +135,8 @@ console.log('\nw02-1 — Concourse snapshot reports unreadable parked, queued, a
       out.renderedText = texts.join('\\n')
 
       const React = await import('react')
-      const { ThemeProvider } = await import(${JSON.stringify(join(SRC, 'components/design-system/ThemeProvider.tsx'))})
-      const { switchboardGeometry } = await import(${JSON.stringify(join(SRC, 'components/concourse/ConcourseLayout.tsx'))})
+      const { ThemeProvider } = await import(${JSON.stringify(join(SRC, 'screen/theme/ThemeProvider.tsx'))})
+      const { switchboardGeometry } = await import(${JSON.stringify(join(SRC, 'screen/concourse/ConcourseLayout.tsx'))})
       const { mountOffscreen, waitFor } = await import(${JSON.stringify(join(HERE, '../lib/settingsPopupHarness.ts'))})
       const geo120 = switchboardGeometry(120, 36, 0, 0, 0, 1)
       const rightWidth = geo120.rightCols[1] - geo120.rightCols[0] + 1
@@ -227,8 +227,8 @@ console.log('\nw02-2 — olderChatsCensus reports unreadable transcript folder a
 {
   const r = runSubprocess(`
     const fs = await import('node:fs')
-    const snap = await import(${JSON.stringify(join(SRC, 'services/concourse/concourseSnapshot.ts'))})
-    const paths = await import(${JSON.stringify(join(SRC, 'utils/sessionStorage/paths.ts'))})
+    const snap = await import(${JSON.stringify(join(SRC, 'screen/concourse-model/concourseSnapshot.ts'))})
+    const paths = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/paths.ts'))})
 
     const missing = snap.olderChatsCensus(PROJECT, new Set(), 1_700_000_000_000)
     out.missingTotal = missing.total
@@ -264,9 +264,9 @@ else {
   const r = runSubprocess(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const wt = await import(${JSON.stringify(join(SRC, 'daemon/concourseWorktrees.ts'))})
-    const adm = await import(${JSON.stringify(join(SRC, 'daemon/concourseWorkers/admission.ts'))})
-    const warm = await import(${JSON.stringify(join(SRC, 'daemon/concourseWorkers/admitWarm.ts'))})
+    const wt = await import(${JSON.stringify(join(SRC, 'daemon/concourse-workers/concourseWorktrees.ts'))})
+    const adm = await import(${JSON.stringify(join(SRC, 'daemon/concourse-workers/admission.ts'))})
+    const warm = await import(${JSON.stringify(join(SRC, 'daemon/concourse-workers/admitWarm.ts'))})
 
     const plainDir = path.join(PROJECT, 'plain-dir')
     const gitDir = path.join(PROJECT, 'git-dir')
@@ -356,7 +356,7 @@ else {
 console.log('\nw02-4 — BootSettingsScreen applyOverrideRows reports read error instead of no established sessions')
 {
   const r = runSubprocess(`
-    const { settingsMenuModel } = await import(${JSON.stringify(join(SRC, 'components/bootSettings/menuModel.ts'))})
+    const { settingsMenuModel } = await import(${JSON.stringify(join(SRC, 'screen/boot-face/settings/menuModel.ts'))})
     const baseArgs = {
       backgroundLaunchOn: false,
       changed: 0,
@@ -407,12 +407,12 @@ console.log('\nw02-5 — unreadable/corrupt boot-env.json surfaces could not be 
   const r = runSubprocess(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const sm = await import(${JSON.stringify(join(SRC, 'substrate/startupMenu.ts'))})
-    const { settingsMenuModel } = await import(${JSON.stringify(join(SRC, 'components/bootSettings/menuModel.ts'))})
-    const snap = await import(${JSON.stringify(join(SRC, 'services/concourse/concourseSnapshot.ts'))})
-    const { renderToString } = await import(${JSON.stringify(join(SRC, 'utils/staticRender.tsx'))})
+    const sm = await import(${JSON.stringify(join(SRC, 'platform/substrate/startupMenu.ts'))})
+    const { settingsMenuModel } = await import(${JSON.stringify(join(SRC, 'screen/boot-face/settings/menuModel.ts'))})
+    const snap = await import(${JSON.stringify(join(SRC, 'screen/concourse-model/concourseSnapshot.ts'))})
+    const { renderToString } = await import(${JSON.stringify(join(SRC, 'screen/renderer/staticRender.tsx'))})
     const caching = await import(${JSON.stringify(join(SRC, 'commands/caching/caching.tsx'))})
-    const { ThemeProvider } = await import(${JSON.stringify(join(SRC, 'components/design-system/ThemeProvider.tsx'))})
+    const { ThemeProvider } = await import(${JSON.stringify(join(SRC, 'screen/theme/ThemeProvider.tsx'))})
     const React = await import('react')
 
     const bootPath = sm.bootEnvPath()
@@ -543,8 +543,8 @@ console.log('\nw02-6 — unreadable workspace config carries deltasReadError on 
 {
   const cleanRun = runSubprocess(`
     delete process.env.NODE_ENV
-    const cfg = await import(${JSON.stringify(join(SRC, 'utils/config.ts'))})
-    const sk = await import(${JSON.stringify(join(SRC, 'daemon/sessionKit.ts'))})
+    const cfg = await import(${JSON.stringify(join(SRC, 'platform/settings/config.ts'))})
+    const sk = await import(${JSON.stringify(join(SRC, 'daemon/session-seat/sessionKit.ts'))})
     cfg.enableConfigs()
     out.cleanDerivedErr = sk.deriveSessionKitForWorkspace(PROJECT).deltasReadError ?? null
     out.cleanMatErr = sk.materializedKitForWorkspace(PROJECT).deltasReadError ?? null
@@ -557,9 +557,9 @@ console.log('\nw02-6 — unreadable workspace config carries deltasReadError on 
       delete process.env.NODE_ENV
       const cfgPath = path.join(HOME, '.mercury.json')
       fs.writeFileSync(cfgPath, '{}', 'utf8')
-      const cfg = await import(${JSON.stringify(join(SRC, 'utils/config.ts'))})
-      const sk = await import(${JSON.stringify(join(SRC, 'daemon/sessionKit.ts'))})
-      const skOp = await import(${JSON.stringify(join(SRC, 'daemon/sessionKitOp.ts'))})
+      const cfg = await import(${JSON.stringify(join(SRC, 'platform/settings/config.ts'))})
+      const sk = await import(${JSON.stringify(join(SRC, 'daemon/session-seat/sessionKit.ts'))})
+      const skOp = await import(${JSON.stringify(join(SRC, 'daemon/session-seat/sessionKitOp.ts'))})
       fs.chmodSync(cfgPath, 0o000)
       try {
         try { cfg.enableConfigs() } catch {}
@@ -626,8 +626,8 @@ console.log('\nw02-7 — BootSaturnScreen box remove and pause/resume catch box-
   const r = runSubprocess(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const saturn = await import(${JSON.stringify(join(SRC, 'components/BootSaturnScreen.tsx'))})
-    const box = await import(${JSON.stringify(join(SRC, 'daemon/saturnBoxSchedules.ts'))})
+    const saturn = await import(${JSON.stringify(join(SRC, 'screen/boot-face/BootSaturnScreen.tsx'))})
+    const box = await import(${JSON.stringify(join(SRC, 'daemon/saturn/saturnBoxSchedules.ts'))})
 
     const dir = path.join(HOME, 'daemon-w02-7')
     fs.mkdirSync(dir, { recursive: true })

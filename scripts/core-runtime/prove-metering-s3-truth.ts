@@ -25,8 +25,8 @@ console.log('the metering S3 rows, each at its owner')
 section('§22 the compaction trace subtracts the true post figure')
 {
   const t = await import('./turnScenarios.ts')
-  const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
-  const trace = await import('../../src/utils/observability/invocationTrace.ts')
+  const { makeRequest } = await import('../../src/engine/loop/turn/makeRequest.ts')
+  const trace = await import('../../src/platform/observability/invocationTrace.ts')
   const freedByAFold = async (truePost: number | undefined): Promise<Array<number | undefined>> => {
     const landed = t.fixtures.folded()
     Object.assign(landed.compactionResult as object, { preCompactTokenCount: 900, postCompactTokenCount: 700, truePostCompactTokenCount: truePost })
@@ -51,18 +51,18 @@ section('§22 the compaction trace subtracts the true post figure')
   }
   const withTrueFigure = await freedByAFold(120)
   const withoutTrueFigure = await freedByAFold(undefined)
-  check('tokensFreed = pre − (truePostCompactTokenCount ?? postCompactTokenCount)', JSON.stringify(withTrueFigure) === '[780]' && JSON.stringify(withoutTrueFigure) === '[200]', `a fold of 900 tokens whose summary call used 700 and whose true post figure is 120 traced ${JSON.stringify(withTrueFigure)} (780 is right); the same fold with no true figure traced ${JSON.stringify(withoutTrueFigure)} (200 is right) — the auto-compact trace of src/run-core/turn/makeRequest.ts subtracts the true post figure and falls back to the call's own only when there is none`)
+  check('tokensFreed = pre − (truePostCompactTokenCount ?? postCompactTokenCount)', JSON.stringify(withTrueFigure) === '[780]' && JSON.stringify(withoutTrueFigure) === '[200]', `a fold of 900 tokens whose summary call used 700 and whose true post figure is 120 traced ${JSON.stringify(withTrueFigure)} (780 is right); the same fold with no true figure traced ${JSON.stringify(withoutTrueFigure)} (200 is right) — the auto-compact trace of src/engine/loop/turn/makeRequest.ts subtracts the true post figure and falls back to the call's own only when there is none`)
   check('…never pre − the summarisation call\'s own usage', withTrueFigure.length === 1 && withTrueFigure[0] !== 900 - 700, `with a true post figure of 120 the trace reads ${JSON.stringify(withTrueFigure)}: 200 is pre − the summary call's own 700`)
 }
 
 section('§23 the effort toast\'s glyph follows the applied tier')
 {
-  const { getEffortNotificationText } = await import('../../src/components/EffortIndicator.ts')
-  const figures = await import('../../src/constants/figures.ts')
+  const { getEffortNotificationText } = await import('../../src/screen/widgets/effortIndicator.ts')
+  const figures = await import('../../src/screen/theme/rowGlyphs.ts')
   const medium = getEffortNotificationText('medium', 'kimi-k3') ?? ''
-  check("medium on kimi-k3 (applied high, the step Kimi documents): the HIGH glyph beside the word high (the base paired the medium glyph with 'low')", medium.startsWith(`${figures.EFFORT_HIGH} effort: high`), 'getEffortNotificationText in src/components/EffortIndicator.ts must pick the glyph from the applied tier, not the requested one; got ' + medium)
+  check("medium on kimi-k3 (applied high, the step Kimi documents): the HIGH glyph beside the word high (the base paired the medium glyph with 'low')", medium.startsWith(`${figures.EFFORT_HIGH} effort: high`), 'getEffortNotificationText in src/screen/widgets/effortIndicator.ts must pick the glyph from the applied tier, not the requested one; got ' + medium)
   const xhigh = getEffortNotificationText('xhigh', 'glm-5.3') ?? ''
-  check('xhigh on glm-5.3 (applied high): the HIGH glyph beside the word high', xhigh.startsWith(`${figures.EFFORT_HIGH} effort: high`), 'getEffortNotificationText in src/components/EffortIndicator.ts must pick the glyph from the applied tier, not the requested one; got ' + xhigh)
+  check('xhigh on glm-5.3 (applied high): the HIGH glyph beside the word high', xhigh.startsWith(`${figures.EFFORT_HIGH} effort: high`), 'getEffortNotificationText in src/screen/widgets/effortIndicator.ts must pick the glyph from the applied tier, not the requested one; got ' + xhigh)
 }
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-metering-s3-truth${failures ? ` (${failures} failure(s))` : ''}`)

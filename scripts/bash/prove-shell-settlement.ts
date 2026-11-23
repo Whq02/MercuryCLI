@@ -16,21 +16,21 @@ process.on('exit', () => {
 })
 
 const ROOT = join(import.meta.dir, '..', '..')
-const { generateTaskId } = await import(join(ROOT, 'src/Task.ts'))
-const { TaskOutput } = await import(join(ROOT, 'src/utils/task/TaskOutput.ts'))
+const { generateTaskId } = await import(join(ROOT, 'src/engine/tasks/taskBase.ts'))
+const { TaskOutput } = await import(join(ROOT, 'src/engine/task-framework/taskOutput.ts'))
 const { wrapSpawn, HARD_CAP_MULTIPLIER } = await import(
-  join(ROOT, 'src/utils/ShellCommand.ts')
+  join(ROOT, 'src/platform/shell/shellProcess.ts')
 )
 const { killTask } = await import(
-  join(ROOT, 'src/tasks/LocalShellTask/killShellTasks.ts')
+  join(ROOT, 'src/engine/tasks/local-shell/killShellTasks.ts')
 )
 const { spawnShellTask } = await import(
-  join(ROOT, 'src/tasks/LocalShellTask/LocalShellTask.tsx')
+  join(ROOT, 'src/engine/tasks/local-shell/shellTask.tsx')
 )
 const { findTaskOutcome } = await import(
-  join(ROOT, 'src/tasks/taskOutcomeEnvelope.ts')
+  join(ROOT, 'src/engine/tasks/taskOutcomeEnvelope.ts')
 )
-const { getSessionId } = await import(join(ROOT, 'src/bootstrap/state.ts'))
+const { getSessionId } = await import(join(ROOT, 'src/boot/process-state/processState.ts'))
 
 let failures = 0
 function check(label: string, cond: boolean, detail = '', failHint = ''): void {
@@ -64,15 +64,15 @@ section('XC-3 — interrupted is Mercury-kill-derived, never exit-code-derived')
   const child = spawn('sh', ['-c', 'exit 137'])
   const cmd = wrapSpawn(child, new AbortController().signal, 60_000, new TaskOutput(generateTaskId('local_bash'), null))
   const result = await cmd.result
-  check('legal child exit(137) is NOT an interrupt', result.interrupted === false, `interrupted=${result.interrupted}`, 'wrapSpawn in src/utils/ShellCommand.ts must mark interrupted only when Mercury itself killed the command, never from the exit code')
-  check('legal child exit(137) keeps its code', result.code === 137, `code=${result.code}`, 'wrapSpawn in src/utils/ShellCommand.ts must pass the child exit code through unchanged')
+  check('legal child exit(137) is NOT an interrupt', result.interrupted === false, `interrupted=${result.interrupted}`, 'wrapSpawn in src/platform/shell/shellProcess.ts must mark interrupted only when Mercury itself killed the command, never from the exit code')
+  check('legal child exit(137) keeps its code', result.code === 137, `code=${result.code}`, 'wrapSpawn in src/platform/shell/shellProcess.ts must pass the child exit code through unchanged')
   cmd.cleanup()
 }
 {
   const child = spawn('sh', ['-c', 'exit 0'])
   const cmd = wrapSpawn(child, new AbortController().signal, 60_000, new TaskOutput(generateTaskId('local_bash'), null))
   const result = await cmd.result
-  check('clean exit sanity: code 0, not interrupted', result.code === 0 && result.interrupted === false, '', 'wrapSpawn in src/utils/ShellCommand.ts reported a clean exit as a nonzero code or an interrupt')
+  check('clean exit sanity: code 0, not interrupted', result.code === 0 && result.interrupted === false, '', 'wrapSpawn in src/platform/shell/shellProcess.ts reported a clean exit as a nonzero code or an interrupt')
   cmd.cleanup()
 }
 {
@@ -82,10 +82,10 @@ section('XC-3 — interrupted is Mercury-kill-derived, never exit-code-derived')
   cmd.kill()
   const result = await cmd.result
   const settleMs = Date.now() - t0
-  check('Mercury kill() IS an interrupt', result.interrupted === true, `interrupted=${result.interrupted}`, 'the kill() of wrapSpawn in src/utils/ShellCommand.ts must set interrupted on the result')
-  check('kill settles from the REAL exit (inside the 2s grace, not the fallback)', settleMs < 1_500, `settled in ${settleMs}ms`, 'wrapSpawn in src/utils/ShellCommand.ts must settle on the real process exit; KILL_GRACE_MS is the fallback after 2s')
-  check('kill result carries the kill code', result.code === 137, `code=${result.code}`, 'a killed command in src/utils/ShellCommand.ts must settle with code 137')
-  check("kill status is 'killed'", cmd.status === 'killed', `status=${cmd.status}`, 'kill() in src/utils/ShellCommand.ts must set status to killed')
+  check('Mercury kill() IS an interrupt', result.interrupted === true, `interrupted=${result.interrupted}`, 'the kill() of wrapSpawn in src/platform/shell/shellProcess.ts must set interrupted on the result')
+  check('kill settles from the REAL exit (inside the 2s grace, not the fallback)', settleMs < 1_500, `settled in ${settleMs}ms`, 'wrapSpawn in src/platform/shell/shellProcess.ts must settle on the real process exit; KILL_GRACE_MS is the fallback after 2s')
+  check('kill result carries the kill code', result.code === 137, `code=${result.code}`, 'a killed command in src/platform/shell/shellProcess.ts must settle with code 137')
+  check("kill status is 'killed'", cmd.status === 'killed', `status=${cmd.status}`, 'kill() in src/platform/shell/shellProcess.ts must set status to killed')
   cmd.cleanup()
 }
 {
@@ -95,7 +95,7 @@ section('XC-3 — interrupted is Mercury-kill-derived, never exit-code-derived')
   const cmd = wrapSpawn(child, aborted.signal, 60_000, new TaskOutput(generateTaskId('local_bash'), null))
   const t0 = Date.now()
   const result = await cmd.result
-  check('a signal already aborted at spawn kills the command at once', result.interrupted === true && result.code === 137 && Date.now() - t0 < 1_500, `interrupted=${result.interrupted} code=${result.code} after ${Date.now() - t0}ms`, 'wrapSpawn in src/utils/ShellCommand.ts must kill at once when the signal is already aborted')
+  check('a signal already aborted at spawn kills the command at once', result.interrupted === true && result.code === 137 && Date.now() - t0 < 1_500, `interrupted=${result.interrupted} code=${result.code} after ${Date.now() - t0}ms`, 'wrapSpawn in src/platform/shell/shellProcess.ts must kill at once when the signal is already aborted')
   cmd.cleanup()
 }
 
@@ -104,7 +104,7 @@ section('Drain law — bytes written before exit are in the result (pipe mode)')
   const child = spawn('sh', ['-c', 'printf "head\\n"; printf "tail-marker-%s" done; exit 0'])
   const cmd = wrapSpawn(child, new AbortController().signal, 60_000, new TaskOutput(generateTaskId('local_bash'), null))
   const result = await cmd.result
-  check('final pre-exit burst captured in result.stdout (exit precedes data callbacks — the owner drains one I/O tick)', result.stdout.includes('tail-marker-done'), JSON.stringify(result.stdout.slice(-80)), 'wrapSpawn in src/utils/ShellCommand.ts must drain output after the exit event before it settles the result')
+  check('final pre-exit burst captured in result.stdout (exit precedes data callbacks — the owner drains one I/O tick)', result.stdout.includes('tail-marker-done'), JSON.stringify(result.stdout.slice(-80)), 'wrapSpawn in src/platform/shell/shellProcess.ts must drain output after the exit event before it settles the result')
   cmd.cleanup()
 }
 
@@ -125,7 +125,7 @@ if (process.platform !== 'win32') {
   } catch {
     survivors = ''
   }
-  check('no process in the killed group survives (leader + backgrounded grandchild)', survivors === '', survivors ? `survivors: ${survivors}` : '', 'kill() in src/utils/ShellCommand.ts must signal the whole process group, not only the leader')
+  check('no process in the killed group survives (leader + backgrounded grandchild)', survivors === '', survivors ? `survivors: ${survivors}` : '', 'kill() in src/platform/shell/shellProcess.ts must signal the whole process group, not only the leader')
   cmd.cleanup()
 } else {
   console.log('  [SKIP] POSIX group-kill leg (win32 — the hosted windows-ui campaign proves taskkill /T)')
@@ -141,11 +141,11 @@ section('ST-2 — timeout auto-background re-arms the hard cap; operator backgro
   })
   const t0 = Date.now()
   const result = await Promise.race([cmd.result, sleep(150 * HARD_CAP_MULTIPLIER + 2_500).then(() => null)])
-  check('timeout converted to backgrounding first', backgrounded === true, '', 'the onTimeout callback of wrapSpawn in src/utils/ShellCommand.ts must hand a background function that returns true')
-  check('hard cap killed the backgrounded task (no immortal background task)', result !== null, result === null ? `still running ${Date.now() - t0}ms after timeout` : `settled in ${Date.now() - t0}ms`, 'backgrounding a timed-out command in src/utils/ShellCommand.ts must re-arm the hard cap of HARD_CAP_MULTIPLIER times the timeout')
+  check('timeout converted to backgrounding first', backgrounded === true, '', 'the onTimeout callback of wrapSpawn in src/platform/shell/shellProcess.ts must hand a background function that returns true')
+  check('hard cap killed the backgrounded task (no immortal background task)', result !== null, result === null ? `still running ${Date.now() - t0}ms after timeout` : `settled in ${Date.now() - t0}ms`, 'backgrounding a timed-out command in src/platform/shell/shellProcess.ts must re-arm the hard cap of HARD_CAP_MULTIPLIER times the timeout')
   if (result !== null) {
-    check('deadline kill is a POLICY stop, not a user interrupt', result.interrupted === false, `interrupted=${result.interrupted}`, 'the hard-cap kill in src/utils/ShellCommand.ts must not set interrupted')
-    check('deadline kill names the elapsed cap in stderr', result.stderr.includes('absolute deadline elapsed'), JSON.stringify(result.stderr.slice(0, 120)), 'the hard-cap kill message in src/utils/ShellCommand.ts must contain absolute deadline elapsed')
+    check('deadline kill is a POLICY stop, not a user interrupt', result.interrupted === false, `interrupted=${result.interrupted}`, 'the hard-cap kill in src/platform/shell/shellProcess.ts must not set interrupted')
+    check('deadline kill names the elapsed cap in stderr', result.stderr.includes('absolute deadline elapsed'), JSON.stringify(result.stderr.slice(0, 120)), 'the hard-cap kill message in src/platform/shell/shellProcess.ts must contain absolute deadline elapsed')
   }
   child.kill('SIGKILL')
   cmd.cleanup()
@@ -157,10 +157,10 @@ section('ST-2 — timeout auto-background re-arms the hard cap; operator backgro
   cmd.onTimeout?.(backgroundFn => {
     lateBackgroundAccepted = backgroundFn(generateTaskId('local_bash'))
   })
-  check('operator background accepted while running', cmd.background(generateTaskId('local_bash')) === true, '', 'background() of wrapSpawn in src/utils/ShellCommand.ts must return true while the command runs')
+  check('operator background accepted while running', cmd.background(generateTaskId('local_bash')) === true, '', 'background() of wrapSpawn in src/platform/shell/shellProcess.ts must return true while the command runs')
   await sleep(120 * HARD_CAP_MULTIPLIER + 800)
-  check('operator background tore down the foreground timer (timeout never fired)', lateBackgroundAccepted === null, `lateBackgroundAccepted=${lateBackgroundAccepted}`, 'background() in src/utils/ShellCommand.ts must clear the foreground timeout timer')
-  check('operator-backgrounded task has NO deadline (service semantics)', cmd.status === 'backgrounded', `status=${cmd.status}`, 'an operator-backgrounded command in src/utils/ShellCommand.ts must keep status backgrounded with no hard cap')
+  check('operator background tore down the foreground timer (timeout never fired)', lateBackgroundAccepted === null, `lateBackgroundAccepted=${lateBackgroundAccepted}`, 'background() in src/platform/shell/shellProcess.ts must clear the foreground timeout timer')
+  check('operator-backgrounded task has NO deadline (service semantics)', cmd.status === 'backgrounded', `status=${cmd.status}`, 'an operator-backgrounded command in src/platform/shell/shellProcess.ts must keep status backgrounded with no hard cap')
   child.kill('SIGKILL')
   await cmd.result
   cmd.cleanup()
@@ -171,7 +171,7 @@ section('ST-6 — no phantom background task for an already-exited process')
   const child = spawn('true')
   const cmd = wrapSpawn(child, new AbortController().signal, 60_000, new TaskOutput(generateTaskId('local_bash'), null))
   await cmd.result
-  check('owner contract: background() on an exited command returns false', cmd.background(generateTaskId('local_bash')) === false, '', 'background() in src/utils/ShellCommand.ts must return false once the command has exited')
+  check('owner contract: background() on an exited command returns false', cmd.background(generateTaskId('local_bash')) === false, '', 'background() in src/platform/shell/shellProcess.ts must return false once the command has exited')
   cmd.cleanup()
 }
 {
@@ -187,13 +187,13 @@ section('ST-6 — no phantom background task for an already-exited process')
     { abortController: new AbortController(), getAppState: () => state, setAppState } as any,
   )
   const task = state.tasks[handle.taskId]
-  check('task registered under the TaskOutput taskId', task !== undefined, '', 'spawnShellTask in src/tasks/LocalShellTask/LocalShellTask.tsx must register the task under the taskId of the shell command output')
-  check("phantom suppressed: settled status, not 'running'", task?.status === 'failed', `status=${task?.status}`, 'spawnShellTask in src/tasks/LocalShellTask/LocalShellTask.tsx must settle an already-exited command instead of registering it running')
-  check('settled from the REAL result (code 7 preserved)', task?.result?.code === 7, `code=${task?.result?.code}`, 'spawnShellTask in src/tasks/LocalShellTask/LocalShellTask.tsx must store the real command result on the settled task')
-  check('marked notified — no duplicate task notification', task?.notified === true, '', 'spawnShellTask in src/tasks/LocalShellTask/LocalShellTask.tsx must set notified on a task it settles at spawn')
-  check('shellCommand reference released', task?.shellCommand === null, '', 'spawnShellTask in src/tasks/LocalShellTask/LocalShellTask.tsx must set shellCommand to null on a settled task')
+  check('task registered under the TaskOutput taskId', task !== undefined, '', 'spawnShellTask in src/engine/tasks/local-shell/shellTask.tsx must register the task under the taskId of the shell command output')
+  check("phantom suppressed: settled status, not 'running'", task?.status === 'failed', `status=${task?.status}`, 'spawnShellTask in src/engine/tasks/local-shell/shellTask.tsx must settle an already-exited command instead of registering it running')
+  check('settled from the REAL result (code 7 preserved)', task?.result?.code === 7, `code=${task?.result?.code}`, 'spawnShellTask in src/engine/tasks/local-shell/shellTask.tsx must store the real command result on the settled task')
+  check('marked notified — no duplicate task notification', task?.notified === true, '', 'spawnShellTask in src/engine/tasks/local-shell/shellTask.tsx must set notified on a task it settles at spawn')
+  check('shellCommand reference released', task?.shellCommand === null, '', 'spawnShellTask in src/engine/tasks/local-shell/shellTask.tsx must set shellCommand to null on a settled task')
   const env = await awaitTaskOutcome(getSessionId(), handle.taskId)
-  check('envelope minted at the terminal transition (failed, exit 7)', env?.state === 'failed' && env?.exitCode === 7, JSON.stringify(env)?.slice(0, 100), 'the terminal transition of the task must mint an outcome envelope that findTaskOutcome in src/tasks/taskOutcomeEnvelope.ts can read')
+  check('envelope minted at the terminal transition (failed, exit 7)', env?.state === 'failed' && env?.exitCode === 7, JSON.stringify(env)?.slice(0, 100), 'the terminal transition of the task must mint an outcome envelope that findTaskOutcome in src/engine/tasks/taskOutcomeEnvelope.ts can read')
 }
 
 section('Kill settlement receipt — a stop request is not settlement')
@@ -210,17 +210,17 @@ section('Kill settlement receipt — a stop request is not settlement')
   )
   check('live task registered running', state.tasks[handle.taskId]?.status === 'running')
   const receipt = await killTask(handle.taskId, setAppState)
-  check("killTask receipt: settled with the real exit code and the stop's provenance", receipt.settled === true && (receipt as any).exitCode === 137 && (receipt as any).interrupted === true, JSON.stringify(receipt), 'killTask in src/tasks/LocalShellTask/killShellTasks.ts must resolve only after the real exit, with exitCode 137 and interrupted true')
-  check("task state flipped to 'killed'", state.tasks[handle.taskId]?.status === 'killed', `status=${state.tasks[handle.taskId]?.status}`, 'killTask in src/tasks/LocalShellTask/killShellTasks.ts must set the task status to killed')
+  check("killTask receipt: settled with the real exit code and the stop's provenance", receipt.settled === true && (receipt as any).exitCode === 137 && (receipt as any).interrupted === true, JSON.stringify(receipt), 'killTask in src/engine/tasks/local-shell/killShellTasks.ts must resolve only after the real exit, with exitCode 137 and interrupted true')
+  check("task state flipped to 'killed'", state.tasks[handle.taskId]?.status === 'killed', `status=${state.tasks[handle.taskId]?.status}`, 'killTask in src/engine/tasks/local-shell/killShellTasks.ts must set the task status to killed')
   const killedEnv = await awaitTaskOutcome(getSessionId(), handle.taskId)
-  check("killed task's envelope minted as 'stopped' with the real exit", killedEnv?.state === 'stopped' && killedEnv?.exitCode === 137, JSON.stringify(killedEnv)?.slice(0, 100), 'a killed task must mint an envelope with state stopped and the real exit code; findTaskOutcome is in src/tasks/taskOutcomeEnvelope.ts')
+  check("killed task's envelope minted as 'stopped' with the real exit", killedEnv?.state === 'stopped' && killedEnv?.exitCode === 137, JSON.stringify(killedEnv)?.slice(0, 100), 'a killed task must mint an envelope with state stopped and the real exit code; findTaskOutcome is in src/engine/tasks/taskOutcomeEnvelope.ts')
 }
 {
   let state: { tasks: Record<string, any> } = { tasks: {} }
   const receipt = await killTask('task-does-not-exist', (f: (prev: any) => any) => {
     state = f(state)
   })
-  check('killTask on a non-running task: honest not-running receipt', receipt.settled === true && (receipt as any).reason === 'not-running', JSON.stringify(receipt), 'killTask in src/tasks/LocalShellTask/killShellTasks.ts must return a settled not-running receipt for an unknown task id')
+  check('killTask on a non-running task: honest not-running receipt', receipt.settled === true && (receipt as any).reason === 'not-running', JSON.stringify(receipt), 'killTask in src/engine/tasks/local-shell/killShellTasks.ts must return a settled not-running receipt for an unknown task id')
 }
 
 {
@@ -233,7 +233,7 @@ section('Kill settlement receipt — a stop request is not settlement')
       'and was moved to the background with ID',
     ]
     const stale = pins.filter(p => !dist.includes(p))
-    check('dist carries the SM-B caller-layer literals', stale.length === 0, stale.length ? `missing from a CURRENT dist: ${stale.join(', ')}` : '', 'rebuild with bun run build.ts, or restore the missing literals in src/utils/ShellCommand.ts and src/tools/BashTool/resultBlock.ts')
+    check('dist carries the SM-B caller-layer literals', stale.length === 0, stale.length ? `missing from a CURRENT dist: ${stale.join(', ')}` : '', 'rebuild with bun run build.ts, or restore the missing literals in src/platform/shell/shellProcess.ts and src/tools/shell/resultBlock.ts')
   }
 }
 
@@ -246,7 +246,7 @@ section('ST-5 — decision parsing survives the pipe-mode spill (live)')
   out.spillToDisk()
   const tailView = await out.getStdout()
   const fullView = await out.getStdoutForDecision()
-  check('tail view (prompt-bound) does NOT carry the buried decision', !tailView.includes('st5-proof-'), 'tail view unexpectedly complete — spill semantics changed?', 'spillToDisk in src/utils/task/TaskOutput.ts must leave getStdout as the tail only')
+  check('tail view (prompt-bound) does NOT carry the buried decision', !tailView.includes('st5-proof-'), 'tail view unexpectedly complete — spill semantics changed?', 'spillToDisk in src/engine/task-framework/taskOutput.ts must leave getStdout as the tail only')
   check('getStdoutForDecision recovers the full JSON decision line', fullView.split('\n').some(l => {
     if (!l.trim().startsWith('{')) return false
     try {
@@ -254,7 +254,7 @@ section('ST-5 — decision parsing survives the pipe-mode spill (live)')
     } catch {
       return false
     }
-  }), `fullView ${fullView.length} chars`, 'getStdoutForDecision in src/utils/task/TaskOutput.ts must read the full output file after a spill')
+  }), `fullView ${fullView.length} chars`, 'getStdoutForDecision in src/engine/task-framework/taskOutput.ts must read the full output file after a spill')
   await out.deleteOutputFile()
 }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/AgentTool/agentPermissionPosture.ts src/tools/AgentTool/loadAgentsDir.ts src/tools/AgentTool/runAgent.ts
-// gate-watch: src/utils/permissions/decision/engine.ts src/services/agents/codec.ts src/types/permissions.ts
-// gate-watch: src/components/agents/studio/StudioEditor.tsx src/components/agents/studio/AgentStudio.tsx src/components/BootAgentsScreen.tsx
+// gate-watch: src/tools/crewmate/agentPermissionPosture.ts src/tools/crewmate/loadAgentsDir.ts src/tools/crewmate/runCrewmate.ts
+// gate-watch: src/permissions/rules/decision/engine.ts src/crew/agents/codec.ts src/permissions/rules/permissions.ts
+// gate-watch: src/screen/agents/studio/StudioEditor.tsx src/screen/agents/studio/AgentStudio.tsx src/screen/boot-face/BootAgentsScreen.tsx
 // gate-watch: scripts/lib/firstRunSeed.ts
 import { spawn, spawnSync } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
@@ -25,15 +25,15 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
-const CONSENT_COMPOSE_HINT = ' · fix composeAgentAppState or definitionModeWithinConsent in src/tools/AgentTool/agentPermissionPosture.ts so a definition word never exceeds the parent launch consent'
-const CONSENT_OFFER_HINT = ' · fix offeredDefinitionModes in src/tools/AgentTool/agentPermissionPosture.ts so sovereign is offered only under the launch consent'
-const CONSENT_ROUTE_HINT = ' · fix the permissionMode check in parseAgentsFromJson or parseAgentFromJson (src/tools/AgentTool/loadAgentsDir.ts) or decodeAgentDocument (src/services/agents/codec.ts) so both routes accept exactly PERMISSION_MODES and refuse other words alike'
+const CONSENT_COMPOSE_HINT = ' · fix composeAgentAppState or definitionModeWithinConsent in src/tools/crewmate/agentPermissionPosture.ts so a definition word never exceeds the parent launch consent'
+const CONSENT_OFFER_HINT = ' · fix offeredDefinitionModes in src/tools/crewmate/agentPermissionPosture.ts so sovereign is offered only under the launch consent'
+const CONSENT_ROUTE_HINT = ' · fix the permissionMode check in parseAgentsFromJson or parseAgentFromJson (src/tools/crewmate/loadAgentsDir.ts) or decodeAgentDocument (src/crew/agents/codec.ts) so both routes accept exactly PERMISSION_MODES and refuse other words alike'
 
-const { composeAgentAppState, definitionModeWithinConsent, offeredDefinitionModes } = await import('../../src/tools/AgentTool/agentPermissionPosture.ts')
-const { postureBypassesAsks } = await import('../../src/utils/permissions/decision/engine.ts')
-const { parseAgentFromJson, parseAgentsFromJson } = await import('../../src/tools/AgentTool/loadAgentsDir.ts')
-const { decodeAgentDocument } = await import('../../src/services/agents/codec.ts')
-const { PERMISSION_MODES } = await import('../../src/types/permissions.ts')
+const { composeAgentAppState, definitionModeWithinConsent, offeredDefinitionModes } = await import('../../src/tools/crewmate/agentPermissionPosture.ts')
+const { postureBypassesAsks } = await import('../../src/permissions/rules/decision/engine.ts')
+const { parseAgentFromJson, parseAgentsFromJson } = await import('../../src/tools/crewmate/loadAgentsDir.ts')
+const { decodeAgentDocument } = await import('../../src/crew/agents/codec.ts')
+const { PERMISSION_MODES } = await import('../../src/permissions/rules/permissions.ts')
 
 const UNKNOWN_WORDS = ['frobnicate', 'bubble', 'wibble', 'Default', 'SOVEREIGN']
 type Ctx = { mode: string; isBypassPermissionsModeAvailable: boolean }

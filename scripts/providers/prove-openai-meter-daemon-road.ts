@@ -8,19 +8,19 @@ import {
   forgetOpenaiLimitSource,
   openaiObservedUsage,
   recordOpenaiRateHeaders,
-} from '../../src/services/providers/openai/openaiLimitState.ts'
-import { openaiObservedWindowViews } from '../../src/services/providers/providerUsage.ts'
+} from '../../src/models/roads/openai/openaiLimitState.ts'
+import { openaiObservedWindowViews } from '../../src/models/roads/providerUsage.ts'
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — change adoptOpenaiObservedUsage, recordOpenaiRateHeaders or forgetOpenaiLimitSource in src/services/providers/openai/openaiLimitState.ts (the window views are openaiObservedWindowViews in src/services/providers/providerUsage.ts)' : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — change adoptOpenaiObservedUsage, recordOpenaiRateHeaders or forgetOpenaiLimitSource in src/models/roads/openai/openaiLimitState.ts (the window views are openaiObservedWindowViews in src/models/roads/providerUsage.ts)' : ''}`)
   if (!ok) failures = 1
 }
 
 {
   ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
-  const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const { publishSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
   __resetOpenaiLimitStateForTest()
   const plane = mkdtempSync(join(tmpdir(), 'openai-meter-road-'))
   const planeBefore = process.env.MERCURY_DAEMON_DIR

@@ -14,14 +14,14 @@ const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const { mkdtempSync } = await import('node:fs')
 const { tmpdir } = await import('node:os')
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'compact-row-home-'))
-const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
 
 const React = (await import('react')).default
-const { renderToString } = await import(join(ROOT, 'src/utils/staticRender.tsx'))
-const { Message } = await import(join(ROOT, 'src/components/Message.tsx'))
+const { renderToString } = await import(join(ROOT, 'src/screen/renderer/staticRender.tsx'))
+const { Message } = await import(join(ROOT, 'src/screen/messages/Message.tsx'))
 const { createCompactBoundaryMessage, createMicrocompactBoundaryMessage } = await import(
-  join(ROOT, 'src/utils/messages/systemMessages.ts')
+  join(ROOT, 'src/engine/message-shapes/systemMessages.ts')
 )
 
 const renderRow = async (msg: unknown): Promise<string> =>
@@ -58,9 +58,9 @@ section('§1 the row renders on BOTH paths — the fullscreen default included')
     check(
       'THE DEFECT PIN: the fullscreen (default) path paints the boundary row',
       fullscreen.includes('Conversation compacted'),
-      `${JSON.stringify(fullscreen.slice(0, 120))} — the compact_boundary branch in src/components/Message.tsx must render CompactBoundaryMessage (src/components/messages/CompactBoundaryMessage.tsx) when MERCURY_FULLSCREEN=1`,
+      `${JSON.stringify(fullscreen.slice(0, 120))} — the compact_boundary branch in src/screen/messages/Message.tsx must render CompactBoundaryMessage (src/screen/messages/CompactBoundaryMessage.tsx) when MERCURY_FULLSCREEN=1`,
     )
-    check('…with the history door named beside it', fullscreen.includes('for history'), 'CompactBoundaryMessage in src/components/messages/CompactBoundaryMessage.tsx must end the row with the history shortcut and the words for history')
+    check('…with the history door named beside it', fullscreen.includes('for history'), 'CompactBoundaryMessage in src/screen/messages/CompactBoundaryMessage.tsx must end the row with the history shortcut and the words for history')
   } finally {
     if (saved === undefined) delete process.env.MERCURY_FULLSCREEN
     else process.env.MERCURY_FULLSCREEN = saved
@@ -69,7 +69,7 @@ section('§1 the row renders on BOTH paths — the fullscreen default included')
   process.env.MERCURY_FULLSCREEN = '0'
   try {
     const inline = await renderRow(boundary)
-    check('the inline path keeps its row (unchanged)', inline.includes('Conversation compacted'), `${JSON.stringify(inline.slice(0, 120))} — the compact_boundary branch in src/components/Message.tsx must render CompactBoundaryMessage when MERCURY_FULLSCREEN=0`)
+    check('the inline path keeps its row (unchanged)', inline.includes('Conversation compacted'), `${JSON.stringify(inline.slice(0, 120))} — the compact_boundary branch in src/screen/messages/Message.tsx must render CompactBoundaryMessage when MERCURY_FULLSCREEN=0`)
   } finally {
     if (savedOff === undefined) delete process.env.MERCURY_FULLSCREEN
     else process.env.MERCURY_FULLSCREEN = savedOff
@@ -79,20 +79,20 @@ section('§1 the row renders on BOTH paths — the fullscreen default included')
 section("§2 the row speaks the fold's own facts")
 {
   const manual = await renderRow(createCompactBoundaryMessage('manual', 45_000))
-  check('a manual fold: the plain head plus the folded weight', manual.includes('Conversation compacted') && manual.includes('folded') && manual.includes('tokens of history'), `${JSON.stringify(manual.slice(0, 160))} — the head and the fold facts come from CompactBoundaryMessage in src/components/messages/CompactBoundaryMessage.tsx (words from foldReceiptWords)`)
+  check('a manual fold: the plain head plus the folded weight', manual.includes('Conversation compacted') && manual.includes('folded') && manual.includes('tokens of history'), `${JSON.stringify(manual.slice(0, 160))} — the head and the fold facts come from CompactBoundaryMessage in src/screen/messages/CompactBoundaryMessage.tsx (words from foldReceiptWords)`)
   const auto = await renderRow(createCompactBoundaryMessage('auto', 128_000))
-  check("the automatic threshold names itself ('Context compacted automatically')", auto.includes('Context compacted automatically'), `${JSON.stringify(auto.slice(0, 160))} — the auto head is chosen in CompactBoundaryMessage (src/components/messages/CompactBoundaryMessage.tsx) from compactMetadata.trigger`)
+  check("the automatic threshold names itself ('Context compacted automatically')", auto.includes('Context compacted automatically'), `${JSON.stringify(auto.slice(0, 160))} — the auto head is chosen in CompactBoundaryMessage (src/screen/messages/CompactBoundaryMessage.tsx) from compactMetadata.trigger`)
   const overflow = await renderRow(createCompactBoundaryMessage('overflow', 200_000))
-  check("an overflowed request names the recovery ('Context overflowed — folded and retried')", overflow.includes('Context overflowed'), `${JSON.stringify(overflow.slice(0, 160))} — the overflow head is chosen in CompactBoundaryMessage (src/components/messages/CompactBoundaryMessage.tsx) from compactMetadata.trigger`)
+  check("an overflowed request names the recovery ('Context overflowed — folded and retried')", overflow.includes('Context overflowed'), `${JSON.stringify(overflow.slice(0, 160))} — the overflow head is chosen in CompactBoundaryMessage (src/screen/messages/CompactBoundaryMessage.tsx) from compactMetadata.trigger`)
   const countless = await renderRow(createCompactBoundaryMessage('manual', 0))
-  check('an absent count does not speak (no fabricated number)', countless.includes('Conversation compacted') && !countless.includes('folded'), `${JSON.stringify(countless.slice(0, 160))} — CompactBoundaryMessage (src/components/messages/CompactBoundaryMessage.tsx) must add no fold facts when preTokens is 0`)
+  check('an absent count does not speak (no fabricated number)', countless.includes('Conversation compacted') && !countless.includes('folded'), `${JSON.stringify(countless.slice(0, 160))} — CompactBoundaryMessage (src/screen/messages/CompactBoundaryMessage.tsx) must add no fold facts when preTokens is 0`)
 }
 
 section('§3 the microcompact boundary keeps its deliberate null')
 {
   const micro = createMicrocompactBoundaryMessage('auto', 10_000, 4_000, [], [])
   const frame = await renderRow(micro)
-  check('a micro fold paints nothing (this row is the FULL fold marker)', frame.trim() === '', `${JSON.stringify(frame.slice(0, 80))} — the microcompact_boundary branch in src/components/Message.tsx must return null`)
+  check('a micro fold paints nothing (this row is the FULL fold marker)', frame.trim() === '', `${JSON.stringify(frame.slice(0, 80))} — the microcompact_boundary branch in src/screen/messages/Message.tsx must return null`)
 }
 
 console.log(failures === 0 ? '\nprove-compact-boundary-row: ALL LAWS HOLD' : `\nprove-compact-boundary-row: ${failures} FAILURE(S)`)

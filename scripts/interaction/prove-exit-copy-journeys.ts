@@ -7,13 +7,13 @@ import { CONFIG_HOME, scenario, cleanupScenario } from '../ui/renderScenarios.ts
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
-import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
+import { keyHintLabel } from '../../src/screen/widgets/keyHintLabel.ts'
 
 const CTRL_C = String.fromCharCode(3)
 const ESC = String.fromCharCode(27)
 
 let failures = 0
-const exitCopyHint = 'the ctrl+c exit notice text lives in src/components/PromptInput/ExitChordNotice.tsx; read the frame dump printed above this line if there is one, and the scenario named in this section in scripts/ui/renderScenarios.ts (a failed PTY journey: run scripts/ui/vshot.py on it)'
+const exitCopyHint = 'the ctrl+c exit notice text lives in src/screen/composer/ExitChordNotice.tsx; read the frame dump printed above this line if there is one, and the scenario named in this section in scripts/ui/renderScenarios.ts (a failed PTY journey: run scripts/ui/vshot.py on it)'
 const check = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? detail + ' · ' : ''}${exitCopyHint}` : ''}`)
   if (!ok) failures++

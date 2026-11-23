@@ -4,13 +4,13 @@ import { join } from 'node:path'
 import { accountsWorld, fixtureTurn, KEY, SUBSCRIPTION, until } from './anthropicAccountsFixture.ts'
 const world = await accountsWorld()
 try {
-  const { saveOAuthTokensIfNeeded } = await import('../../src/services/auth/oauthLifecycle.ts')
+  const { saveOAuthTokensIfNeeded } = await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')
   assert.equal(saveOAuthTokensIfNeeded(SUBSCRIPTION).success, true)
   await world.auth.saveApiKey(KEY)
   world.hold()
   const first = [fixtureTurn('crewmate alpha first', 'alpha'), fixtureTurn('crewmate beta first', 'beta')]
   await Promise.race([until(() => world.held() === 2, 'two pending requests'), Promise.all(first).then(answers => { throw new Error(`crewmates settled before release: ${JSON.stringify(answers.map(answer => answer.message.content))}`) })])
-  assert.ok(world.requests.filter(row => row.path === '/v1/messages').every(row => row.bearer === `Bearer ${SUBSCRIPTION.accessToken}`), 'src/services/api/client.ts in-flight crewmates did not authenticate with subscription bearer token')
+  assert.ok(world.requests.filter(row => row.path === '/v1/messages').every(row => row.bearer === `Bearer ${SUBSCRIPTION.accessToken}`), 'src/models/roads/anthropic/anthropicClientFactory.ts in-flight crewmates did not authenticate with subscription bearer token')
   const file = join(world.home, '.mercury.json')
   writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, 'utf8')), anthropicPreferredSource: 'api-key' }))
   await until(() => world.auth.readAnthropicPreferredSource() === 'api-key')
@@ -20,8 +20,8 @@ try {
   for (const answer of next) assert.equal(answer.isApiErrorMessage, undefined, 'next crewmate requests must agree on credential and auth headers after an external preference write')
   const newRequests = world.requests.filter(row => row.path === '/v1/messages').slice(2)
   assert.equal(newRequests.length, 2)
-  assert.ok(newRequests.every(row => row.key === KEY && row.bearer === undefined && !row.beta.includes('oauth-2025-04-20')), 'src/services/api/client.ts post-switch requests must use API key without subscription bearer or oauth beta header')
-  const { switchActiveSlot } = await import('../../src/services/providers/slotSwitch.ts')
+  assert.ok(newRequests.every(row => row.key === KEY && row.bearer === undefined && !row.beta.includes('oauth-2025-04-20')), 'src/models/roads/anthropic/anthropicClientFactory.ts post-switch requests must use API key without subscription bearer or oauth beta header')
+  const { switchActiveSlot } = await import('../../src/models/roads/slotSwitch.ts')
   assert.equal(switchActiveSlot('anthropic', { to: 'subscription' }).switched, true)
   assert.equal((await fixtureTurn('board switched back')).isApiErrorMessage, undefined)
   let refused = false

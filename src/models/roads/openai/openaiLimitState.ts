@@ -1,0 +1,266 @@
+import { passedOver } from '../../../platform/errors/passedOver.js'
+
+export type OpenaiLimitWindow =
+  | { state: 'limited'; resetsAtMs: number; observedAtMs: number }
+  | { state: 'clear' }
+
+export type OpenaiLimitSource = 'chatgpt-subscription' | 'api-key'
+
+const observedBySource: Record<OpenaiLimitSource, { resetsAtMs: number; observedAtMs: number } | null> = {
+  'chatgpt-subscription': null,
+  'api-key': null,
+}
+
+let observedVersion = 0
+const observedListeners = new Set<() => void>()
+function noteObservedChanged(): void {
+  observedVersion++
+  for (const listener of observedListeners) {
+    try {
+      listener()
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+}
+export function getOpenaiObservedVersion(): number {
+  return observedVersion
+}
+export function subscribeOpenaiObserved(listener: () => void): () => void {
+  observedListeners.add(listener)
+  return () => {
+    observedListeners.delete(listener)
+  }
+}
+
+export function recordOpenaiUsageLimit(
+  resetsAtMs: number | undefined,
+  source: OpenaiLimitSource,
+  now: () => number = Date.now,
+): void {
+  if (resetsAtMs === undefined || !Number.isFinite(resetsAtMs)) return
+  observedBySource[source] = { resetsAtMs, observedAtMs: now() }
+  noteObservedChanged()
+}
+
+export function openaiLimitWindow(source: OpenaiLimitSource, now: () => number = Date.now): OpenaiLimitWindow {
+  const observed = observedBySource[source]
+  if (observed === null || observed.resetsAtMs <= now()) return { state: 'clear' }
+  return { state: 'limited', resetsAtMs: observed.resetsAtMs, observedAtMs: observed.observedAtMs }
+}
+
+export function openaiObservedWall(source: OpenaiLimitSource): { resetsAtMs: number; observedAtMs: number } | null {
+  return observedBySource[source]
+}
+
+export function forgetOpenaiLimitSource(source: OpenaiLimitSource): void {
+  observedBySource[source] = null
+  if (source === 'chatgpt-subscription') {
+    observedUsage = {}
+    subscriptionRevision++
+  }
+  noteObservedChanged()
+}
+
+const identityBySource: Record<OpenaiLimitSource, string | null> = {
+  'chatgpt-subscription': null,
+  'api-key': null,
+}
+
+export function noteOpenaiSourceIdentity(source: OpenaiLimitSource, identity: string): boolean {
+  const held = identityBySource[source]
+  identityBySource[source] = identity
+  if (held === null || held === identity) return false
+  forgetOpenaiLimitSource(source)
+  return true
+}
+
+
+export interface OpenaiObservedWindow {
+  usedPct?: number
+  windowMinutes?: number
+  resetsAtMs?: number
+  observedAtMs: number
+  source?: 'headers' | 'endpoint'
+}
+
+export interface OpenaiObservedCredits {
+  hasCredits: boolean
+  unlimited: boolean
+  balance?: string
+  observedAtMs: number
+  source?: 'headers' | 'endpoint'
+}
+
+export interface OpenaiObservedUsage {
+  primary?: OpenaiObservedWindow
+  secondary?: OpenaiObservedWindow
+  credits?: OpenaiObservedCredits
+}
+
+let observedUsage: OpenaiObservedUsage = {}
+let subscriptionRevision = 0
+
+export function openaiSubscriptionRevision(): number {
+  return subscriptionRevision
+}
+
+export function decodeOpenaiCredits(raw: unknown, observedAtMs: number, source: 'headers' | 'endpoint'): OpenaiObservedCredits | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const o = raw as Record<string, unknown>
+  if (typeof o.has_credits !== 'boolean' || typeof o.unlimited !== 'boolean') return undefined
+  const balance = typeof o.balance === 'string' && /^\d+(?:\.\d+)?$/.test(o.balance.trim()) ? o.balance.trim() : undefined
+  return { hasCredits: o.has_credits, unlimited: o.unlimited, ...(balance !== undefined ? { balance } : {}), observedAtMs, source }
+}
+
+export function recordOpenaiUsageResponse(raw: unknown, observedAtMs: number): boolean {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false
+  const body = raw as Record<string, unknown>
+  if (!('credits' in body) && !('rate_limit' in body)) return false
+  const next: OpenaiObservedUsage = {}
+  const credits = decodeOpenaiCredits(body.credits, observedAtMs, 'endpoint')
+  if (credits !== undefined) next.credits = credits
+  const limits = body.rate_limit as Record<string, unknown> | null | undefined
+  for (const band of ['primary', 'secondary'] as const) {
+    const rawWindow = limits?.[`${band}_window`]
+    if (!rawWindow || typeof rawWindow !== 'object') continue
+    const w = rawWindow as Record<string, unknown>
+    if (typeof w.used_percent !== 'number' || !Number.isFinite(w.used_percent) || w.used_percent < 0 || w.used_percent > 100) continue
+    next[band] = {
+      usedPct: w.used_percent,
+      ...(typeof w.limit_window_seconds === 'number' && Number.isFinite(w.limit_window_seconds) && w.limit_window_seconds > 0 ? { windowMinutes: w.limit_window_seconds / 60 } : {}),
+      ...(typeof w.reset_at === 'number' && Number.isFinite(w.reset_at) && w.reset_at > 0 ? { resetsAtMs: w.reset_at * 1000 } : {}),
+      observedAtMs,
+      source: 'endpoint',
+    }
+  }
+  adoptOpenaiObservedUsage(next)
+  return true
+}
+
+function finiteOrUndefined(raw: string | null): number | undefined {
+  if (raw === null || raw.trim() === '') return undefined
+  const value = Number(raw)
+  return Number.isFinite(value) ? value : undefined
+}
+
+export function recordOpenaiRateHeaders(
+  headers: Headers | undefined,
+  now: () => number = Date.now,
+): void {
+  if (!headers || typeof headers.get !== 'function') return
+  try {
+    const next: OpenaiObservedUsage = {}
+    const observedAtMs = now()
+    for (const band of ['primary', 'secondary'] as const) {
+      const usedPct = finiteOrUndefined(headers.get(`x-codex-${band}-used-percent`))
+      if (usedPct === undefined || usedPct < 0 || usedPct > 100) continue
+      const windowMinutes = finiteOrUndefined(headers.get(`x-codex-${band}-window-minutes`))
+      const resetAfterSeconds = finiteOrUndefined(headers.get(`x-codex-${band}-reset-after-seconds`))
+      const resetAt = finiteOrUndefined(headers.get(`x-codex-${band}-reset-at`))
+      const resetsAtMs = resetAt !== undefined && resetAt > 0 ? resetAt * 1000
+        : resetAfterSeconds !== undefined && resetAfterSeconds >= 0 ? observedAtMs + resetAfterSeconds * 1000 : undefined
+      next[band] = {
+        usedPct,
+        ...(windowMinutes !== undefined && windowMinutes > 0 ? { windowMinutes } : {}),
+        ...(resetsAtMs !== undefined ? { resetsAtMs } : {}),
+        observedAtMs,
+        source: 'headers',
+      }
+    }
+    const bool = (raw: string | null): boolean | undefined => raw === '1' || raw?.toLowerCase() === 'true' ? true : raw === '0' || raw?.toLowerCase() === 'false' ? false : undefined
+    const credits = decodeOpenaiCredits({
+      has_credits: bool(headers.get('x-codex-credits-has-credits')),
+      unlimited: bool(headers.get('x-codex-credits-unlimited')),
+      balance: headers.get('x-codex-credits-balance'),
+    }, observedAtMs, 'headers')
+    if (credits !== undefined) next.credits = credits
+    adoptOpenaiObservedUsage(next)
+  } catch (error) {
+    passedOver(error)
+  }
+}
+
+export function openaiObservedUsage(): OpenaiObservedUsage {
+  return observedUsage
+}
+
+export function adoptOpenaiObservedUsage(
+  record: OpenaiObservedUsage | undefined,
+): void {
+  if (!record || typeof record !== 'object') return
+  try {
+    const next: OpenaiObservedUsage = { ...observedUsage }
+    let moved = false
+    for (const band of ['primary', 'secondary'] as const) {
+      const incoming = record[band]
+      if (!incoming || typeof incoming !== 'object') continue
+      const at = incoming.observedAtMs
+      if (typeof at !== 'number' || !Number.isFinite(at)) continue
+      const usedPct = incoming.usedPct
+      if (typeof usedPct !== 'number' || !Number.isFinite(usedPct) || usedPct < 0 || usedPct > 100) continue
+      const held = next[band]
+      if (held !== undefined && held.observedAtMs >= at) continue
+      next[band] = {
+        usedPct,
+        ...(typeof incoming.windowMinutes === 'number' && incoming.windowMinutes > 0
+          ? { windowMinutes: incoming.windowMinutes }
+          : {}),
+        ...(typeof incoming.resetsAtMs === 'number' && Number.isFinite(incoming.resetsAtMs)
+          ? { resetsAtMs: incoming.resetsAtMs }
+          : {}),
+        observedAtMs: at,
+        ...(incoming.source === 'endpoint' || incoming.source === 'headers' ? { source: incoming.source } : {}),
+      }
+      moved = true
+    }
+    const credit = record.credits
+    if (credit && typeof credit.observedAtMs === 'number' && Number.isFinite(credit.observedAtMs) &&
+        (next.credits === undefined || next.credits.observedAtMs < credit.observedAtMs)) {
+      const decoded = decodeOpenaiCredits({ has_credits: credit.hasCredits, unlimited: credit.unlimited, balance: credit.balance }, credit.observedAtMs, credit.source === 'endpoint' ? 'endpoint' : 'headers')
+      if (decoded !== undefined) {
+        next.credits = decoded
+        moved = true
+      }
+    }
+    if (moved) {
+      observedUsage = next
+      noteObservedChanged()
+    }
+  } catch (error) {
+    passedOver(error)
+  }
+}
+
+export function adoptOpenaiWindowFact(record: unknown): boolean {
+  if (record === null || typeof record !== 'object') return false
+  const { source, resetsAtMs, observedAtMs, state } = record as Record<string, unknown>
+  if (source !== 'chatgpt-subscription' && source !== 'api-key') return false
+  if (state !== undefined && state !== 'clear') return false
+  if (typeof resetsAtMs !== 'number' || !Number.isFinite(resetsAtMs) || (state === 'clear' ? resetsAtMs < 0 : resetsAtMs <= 0)) return false
+  if (typeof observedAtMs !== 'number' || !Number.isFinite(observedAtMs) || observedAtMs <= 0) return false
+  const held = observedBySource[source]
+  if (held !== null && held.observedAtMs >= observedAtMs) return false
+  recordOpenaiUsageLimit(state === 'clear' ? 0 : resetsAtMs, source, () => observedAtMs)
+  return true
+}
+
+export function openaiWindowClosedUntil(fact: { resetsAtMs?: unknown } | undefined, nowMs: number): number | undefined {
+  if (fact === undefined || typeof fact.resetsAtMs !== 'number' || !Number.isFinite(fact.resetsAtMs)) return undefined
+  return fact.resetsAtMs > nowMs ? fact.resetsAtMs : undefined
+}
+
+export function __resetOpenaiLimitStateForTest(): void {
+  observedBySource['chatgpt-subscription'] = null
+  observedBySource['api-key'] = null
+  identityBySource['chatgpt-subscription'] = null
+  identityBySource['api-key'] = null
+  observedUsage = {}
+  subscriptionRevision++
+}
+
+export function clearOpenaiUsageLimit(source: OpenaiLimitSource): void {
+  const held = observedBySource[source]
+  observedBySource[source] = { resetsAtMs: 0, observedAtMs: Math.max(Date.now(), (held?.observedAtMs ?? 0) + 1) }
+  noteObservedChanged()
+}

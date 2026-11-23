@@ -1,5 +1,5 @@
-import { PromptsPanel } from '../../components/prompts-panel/PromptsPanel.js'
-import type { LocalJSXCommandCall } from '../../types/command.js'
+import { PromptsPanel } from '../../screen/prompts-panel/PromptsPanel.js'
+import type { LocalJSXCommandCall } from '../catalogue/command.js'
 
 export const call: LocalJSXCommandCall = async onDone => {
   return (

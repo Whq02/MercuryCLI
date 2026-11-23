@@ -20,11 +20,11 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const pack = await import(join(ROOT, 'src/utils/shell/brushPack.ts'))
+const pack = await import(join(ROOT, 'src/platform/shell/brushPack.ts'))
 
 section('§1 the lock, the manifest decoder, and the pack checks')
 {
-  hint = 'fix vendor/brush.lock.json for a lock check, or checkBrushPackDir, readBrushPackManifest, brushPackPlatform and brushBinaryFor in src/utils/shell/brushPack.ts for a pack check'
+  hint = 'fix vendor/brush.lock.json for a lock check, or checkBrushPackDir, readBrushPackManifest, brushPackPlatform and brushBinaryFor in src/platform/shell/brushPack.ts for a pack check'
   const lock = JSON.parse(readFileSync(join(ROOT, 'vendor', 'brush.lock.json'), 'utf8'))
   check('the lock names brush and a version', lock.name === 'brush' && typeof lock.version === 'string', JSON.stringify(lock.version))
   check('the lock pins a tag that is an upstream release', typeof lock.tag === 'string' && lock.tag.length > 0)
@@ -88,12 +88,12 @@ section('§1 the lock, the manifest decoder, and the pack checks')
 
 section('§2 engine resolution, the env pin, and the honest degrade')
 {
-  hint = 'fix resolveShellEngine (or resetShellEngineResolution) in src/utils/shell/engineSession.ts, or windowsShellRoadActive in src/utils/shell/windowsShellRoad.ts for the Windows road rows'
-  const { resolveShellEngine } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+  hint = 'fix resolveShellEngine (or resetShellEngineResolution) in src/platform/shell/engineSession.ts, or windowsShellRoadActive in src/platform/shell/windowsShellRoad.ts for the Windows road rows'
+  const { resolveShellEngine } = await import(join(ROOT, 'src/platform/shell/engineSession.ts'))
   const vendored = pack.resolveBrushPackDir()
 
   delete process.env.MERCURY_SHELL_ENGINE
-  const { windowsShellRoadActive } = await import(join(ROOT, 'src/utils/shell/windowsShellRoad.ts'))
+  const { windowsShellRoadActive } = await import(join(ROOT, 'src/platform/shell/windowsShellRoad.ts'))
   const packPresent = vendored.state === 'ok'
   const hostDefault = resolveShellEngine()
   check(
@@ -104,7 +104,7 @@ section('§2 engine resolution, the env pin, and the honest degrade')
   check('the system setting stays system', resolveShellEngine('system').engine === 'system')
   type Resolved = { engine?: string; arm?: string; requested?: string; reason?: string }
   const onRoad = (env: Record<string, string>): Resolved => {
-    const script = `;(globalThis).MACRO = { VERSION: '0.0.0' }\nconst { resolveShellEngine } = await import(${JSON.stringify(join(ROOT, 'src/utils/shell/engineSession.ts'))})\nconsole.log(JSON.stringify(resolveShellEngine()))`
+    const script = `;(globalThis).MACRO = { VERSION: '0.0.0' }\nconst { resolveShellEngine } = await import(${JSON.stringify(join(ROOT, 'src/platform/shell/engineSession.ts'))})\nconsole.log(JSON.stringify(resolveShellEngine()))`
     const run = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, MERCURY_SHELL_ENGINE: undefined, MERCURY_GIT_BASH_PATH: undefined, MERCURY_WINDOWS_SHELL_ROAD: undefined, ...env } })
     try {
       return JSON.parse((run.stdout ?? '').trim().split('\n').pop() ?? '') as Resolved
@@ -135,7 +135,7 @@ section('§2 engine resolution, the env pin, and the honest degrade')
     process.env.MERCURY_SHELL_ENGINE = 'brush'
     check('the env pin brush arms even with the system setting', resolveShellEngine('system').engine === 'brush')
     delete process.env.MERCURY_SHELL_ENGINE
-    const { resetShellEngineResolution } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+    const { resetShellEngineResolution } = await import(join(ROOT, 'src/platform/shell/engineSession.ts'))
     const manifestPath = join(vendored.dir, '.vendor-manifest.json')
     const hidden = `${manifestPath}.hidden`
     renameSync(manifestPath, hidden)
@@ -158,8 +158,8 @@ section('§2 engine resolution, the env pin, and the honest degrade')
 
 section('§3 the flag registry row and the settings key')
 {
-  hint = 'fix the MERCURY_SHELL_ENGINE / MERCURY_SHELL_ENGINE_SESSIONS rows in FLAG_REGISTRY, or resolveEngineSessionCeiling in src/utils/shell/engineSession.ts'
-  const { FLAG_REGISTRY } = await import(join(ROOT, 'src/substrate/flagRegistry.ts'))
+  hint = 'fix the MERCURY_SHELL_ENGINE / MERCURY_SHELL_ENGINE_SESSIONS rows in FLAG_REGISTRY, or resolveEngineSessionCeiling in src/platform/shell/engineSession.ts'
+  const { FLAG_REGISTRY } = await import(join(ROOT, 'src/platform/substrate/flagRegistry.ts'))
   const row = (FLAG_REGISTRY as Array<{ env: string; kind: string; consumer: string }>).find(r => r.env === 'MERCURY_SHELL_ENGINE')
   check('MERCURY_SHELL_ENGINE is registered', row !== undefined)
   check('it is a value knob consumed by the engine session', row?.kind === 'value' && row?.consumer.includes('engineSession'), JSON.stringify(row))
@@ -167,7 +167,7 @@ section('§3 the flag registry row and the settings key')
 
   const ceilingRow = (FLAG_REGISTRY as Array<{ env: string; kind: string; consumer: string }>).find(r => r.env === 'MERCURY_SHELL_ENGINE_SESSIONS')
   check('MERCURY_SHELL_ENGINE_SESSIONS is registered as a value knob consumed by the engine session', ceilingRow?.kind === 'value' && (ceilingRow?.consumer.includes('engineSession') ?? false), JSON.stringify(ceilingRow))
-  const { ENGINE_SESSION_CEILING_DEFAULT, resolveEngineSessionCeiling } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+  const { ENGINE_SESSION_CEILING_DEFAULT, resolveEngineSessionCeiling } = await import(join(ROOT, 'src/platform/shell/engineSession.ts'))
   const savedPin = process.env.MERCURY_SHELL_ENGINE_SESSIONS
   delete process.env.MERCURY_SHELL_ENGINE_SESSIONS
   check('the ceiling defaults to 8 — the conversation plus seven crewmates', ENGINE_SESSION_CEILING_DEFAULT === 8 && resolveEngineSessionCeiling() === 8)
@@ -182,7 +182,7 @@ section('§3 the flag registry row and the settings key')
 
 section('§4 the built bundle: manifest record, health row, prompt sentence')
 {
-  hint = 'rebuild with bun run build.ts; if the bundle still lacks it, restore the wording in src/tools/BashTool/prompt.ts (prompt sentences) or src/services/health/sections/interface.ts (health row)'
+  hint = 'rebuild with bun run build.ts; if the bundle still lacks it, restore the wording in src/tools/shell/prompt.ts (prompt sentences) or src/platform/health/sections/interface.ts (health row)'
   const dist = join(ROOT, 'dist', 'mercury.mjs')
   const manifestPath = join(ROOT, 'dist', 'manifest.json')
   if (!existsSync(dist) || !existsSync(manifestPath)) {
@@ -207,8 +207,8 @@ section('§4 the built bundle: manifest record, health row, prompt sentence')
 
 section('§5 the loop script uses only builtins the Windows engine build has')
 {
-  hint = 'change loopScript in src/utils/shell/engineSession.ts so the loop uses only the allowed builtins'
-  const { loopScript } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+  hint = 'change loopScript in src/platform/shell/engineSession.ts so the loop uses only the allowed builtins'
+  const { loopScript } = await import(join(ROOT, 'src/platform/shell/engineSession.ts'))
   const script: string = loopScript()
   check('the loop names no exec', !/(^|[\s;|&(])exec(\s|$)/m.test(script))
   check('the loop opens no numbered descriptor beyond 0-2', !/[<>]&[3-9]/.test(script) && !/(^|\s)[3-9][<>]/.test(script))
@@ -250,9 +250,9 @@ section('§5 the loop script uses only builtins the Windows engine build has')
 
 section('§6 the directory a frame reports reaches the session in its native form')
 {
-  hint = 'fix recordedCwdToNative in src/utils/shell/engineSession.ts, or stripExtendedLengthPrefix / nativeCwdFromShellRecord in src/utils/windowsPaths.ts'
-  const { recordedCwdToNative } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
-  const { stripExtendedLengthPrefix, nativeCwdFromShellRecord } = await import(join(ROOT, 'src/utils/windowsPaths.ts'))
+  hint = 'fix recordedCwdToNative in src/platform/shell/engineSession.ts, or stripExtendedLengthPrefix / nativeCwdFromShellRecord in src/platform/files/windowsPaths.ts'
+  const { recordedCwdToNative } = await import(join(ROOT, 'src/platform/shell/engineSession.ts'))
+  const { stripExtendedLengthPrefix, nativeCwdFromShellRecord } = await import(join(ROOT, 'src/platform/files/windowsPaths.ts'))
   const ext = '\\\\?\\C:\\Users\\x\\AppData\\Local\\Temp\\brush-cwd-1'
   check('the extended-length prefix is stripped to the plain drive path', stripExtendedLengthPrefix(ext) === 'C:\\Users\\x\\AppData\\Local\\Temp\\brush-cwd-1', stripExtendedLengthPrefix(ext))
   check('…and the UNC form to the plain UNC path', stripExtendedLengthPrefix('\\\\?\\UNC\\server\\share\\dir') === '\\\\server\\share\\dir', stripExtendedLengthPrefix('\\\\?\\UNC\\server\\share\\dir'))

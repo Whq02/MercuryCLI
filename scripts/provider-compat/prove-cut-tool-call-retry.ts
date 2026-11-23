@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/run-core/turn-machine.ts src/services/providers/anthropic/streamCore.ts src/services/api/outputFit.ts src/query/transitions.ts scripts/compact/overflowFixture.ts
+// gate-watch: src/engine/loop/turn-machine.ts src/models/roads/anthropic/streamCore.ts src/engine/requests/outputFit.ts src/engine/turn-entry/transitions.ts scripts/compact/overflowFixture.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -18,7 +18,7 @@ let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  const where = 'to fix, see decideCutToolCallRecovery (re-exported by src/run-core/turn-machine.ts), cutToolCallOf in src/services/providers/anthropic/streamCore.ts, and toolCallRefusalNote and toolCallRefusalCorrection in src/services/providers/toolCallGate.ts'
+  const where = 'to fix, see decideCutToolCallRecovery (re-exported by src/engine/loop/turn-machine.ts), cutToolCallOf in src/models/roads/anthropic/streamCore.ts, and toolCallRefusalNote and toolCallRefusalCorrection in src/models/roads/toolCallGate.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${where}` : ''}`)
   if (!cond) failures++
 }
@@ -26,7 +26,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — cut tool call prover exceeded 180s; a loopback fixture call or a scripted model turn never finished, look at the P2 fixture (../compact/overflowFixture.ts) and the P3 query loop in src/query.ts')
+  console.log('\nTIMEOUT — cut tool call prover exceeded 180s; a loopback fixture call or a scripted model turn never finished, look at the P2 fixture (../compact/overflowFixture.ts) and the P3 query loop in src/engine/turnDoor.ts')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -42,21 +42,21 @@ const { startOverflowFixture } = await import('../compact/overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage, createAssistantAPIErrorMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const gate = await import('../../src/services/providers/toolCallGate.ts')
-const turnMachine = await import('../../src/run-core/turn-machine.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
-type RefusedToolCall = import('../../src/types/message.ts').RefusedToolCall
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage, createAssistantAPIErrorMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const gate = await import('../../src/models/roads/toolCallGate.ts')
+const turnMachine = await import('../../src/engine/loop/turn-machine.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getModelMaxOutputTokens } = await import('../../src/models/facts/capabilities.ts')
+type RefusedToolCall = import('../../src/engine/message-shapes/message.ts').RefusedToolCall
 type AnyMsg = Record<string, unknown> & { type?: string }
 
 section('P1 the decision')
@@ -314,7 +314,7 @@ section('refusals — bad numbers, a nameless cut, huge bytes, the model-facing 
       check(`a number that is not finite, or no limit at all, surfaces instead of a re-ask (${JSON.stringify(bad)})`, verdict.kind === 'surface', JSON.stringify(verdict))
     }
   }
-  const { cutToolCallOf } = await import('../../src/services/providers/anthropic/streamCore.ts')
+  const { cutToolCallOf } = await import('../../src/models/roads/anthropic/streamCore.ts')
   const nameless = cutToolCallOf({ type: 'tool_use', input: '{"command": "ls' })
   check('a cut call with no id and no name still refuses (empty id and name, the gate\'s own missing-id words follow)', nameless?.code === 'invalid-json' && nameless.id === '' && nameless.name === '', JSON.stringify(nameless))
   const huge = cutToolCallOf({ type: 'tool_use', id: 'toolu_big', name: 'Write', input: `{"content": "${'x'.repeat(5_000_000)}` })

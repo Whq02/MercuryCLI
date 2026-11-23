@@ -20,9 +20,9 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { useSelectState } = await import('../../src/components/CustomSelect/use-select-state.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { useSelectState } = await import('../../src/screen/select/use-select-state.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 type State = ReturnType<typeof useSelectState<string>>
 
 const heard: string[] = []
@@ -65,12 +65,12 @@ section('§1 THE SEED — the value comes from the default; focus starts on the 
 section('§2 ENTER — the focused option becomes the value and onChange hears it')
 {
   const list = await mount({ options: three })
-  check('no default means no value', state().value === undefined, `value ${String(state().value)} — useCommittedValue in src/components/CustomSelect/use-select-state.ts must start from defaultValue only`)
+  check('no default means no value', state().value === undefined, `value ${String(state().value)} — useCommittedValue in src/screen/select/use-select-state.ts must start from defaultValue only`)
   await drive(s => s.focusNextOption())
   await drive(s => s.selectFocusedOption())
-  check('the second option is committed and announced once', state().value === 'pears' && j(taken()) === j(['pears']), `${j([state().value, heard])} — selectFocusedOption in src/components/CustomSelect/use-select-state.ts must commit the focused value and call onChange once`)
+  check('the second option is committed and announced once', state().value === 'pears' && j(taken()) === j(['pears']), `${j([state().value, heard])} — selectFocusedOption in src/screen/select/use-select-state.ts must commit the focused value and call onChange once`)
   await drive(s => s.selectFocusedOption())
-  check('committing again announces again', j(taken()) === j(['pears']), `${j(heard)} — commit in useCommittedValue (src/components/CustomSelect/use-select-state.ts) must call onChange on every commit, even for the same value`)
+  check('committing again announces again', j(taken()) === j(['pears']), `${j(heard)} — commit in useCommittedValue (src/screen/select/use-select-state.ts) must call onChange on every commit, even for the same value`)
   list.close()
 }
 
@@ -78,8 +78,8 @@ section('§3 A CLICK — the exact value is committed whatever the focus holds')
 {
   const list = await mount({ options: three })
   await drive(s => s.selectValue('plums'))
-  check('the clicked value is the value and the announcement', state().value === 'plums' && j(taken()) === j(['plums']), `${j([state().value, heard])} — selectValue in src/components/CustomSelect/use-select-state.ts must commit the exact value given`)
-  check('focus did not move with the click (the component moves it itself)', state().focusedValue === 'apples', `${String(state().focusedValue)} — selectValue in src/components/CustomSelect/use-select-state.ts must not move focus`)
+  check('the clicked value is the value and the announcement', state().value === 'plums' && j(taken()) === j(['plums']), `${j([state().value, heard])} — selectValue in src/screen/select/use-select-state.ts must commit the exact value given`)
+  check('focus did not move with the click (the component moves it itself)', state().focusedValue === 'apples', `${String(state().focusedValue)} — selectValue in src/screen/select/use-select-state.ts must not move focus`)
   list.close()
 }
 
@@ -87,7 +87,7 @@ section('§4 NO FOCUS — an empty list commits nothing')
 {
   const list = await mount({ options: [] })
   await drive(s => s.selectFocusedOption())
-  check('with nothing focused the commit is a no-op', state().value === undefined && heard.length === 0, `${j([state().value, heard])} — selectFocusedOption in src/components/CustomSelect/use-select-state.ts must do nothing when no option is focused`)
+  check('with nothing focused the commit is a no-op', state().value === undefined && heard.length === 0, `${j([state().value, heard])} — selectFocusedOption in src/screen/select/use-select-state.ts must do nothing when no option is focused`)
   list.close()
 }
 

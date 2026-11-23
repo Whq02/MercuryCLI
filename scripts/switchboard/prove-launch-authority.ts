@@ -11,7 +11,7 @@ delete process.env.MERCURY_CONCOURSE_WORKER
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const failHint = cond ? '' : ' | to fix: the focus, blur, grant and revoke stamps are in src/daemon/concourseWorkers/focus.ts, the dead-seat heal in reconcileConcourseWorkers in src/daemon/concourseWorkers/settle.ts, the stamp pid reader in src/daemon/concourseWorkers/record.ts, and the refusal text and posture in evaluateLaunchAuthority in src/services/switchboard/launchAuthority.ts'
+  const failHint = cond ? '' : ' | to fix: the focus, blur, grant and revoke stamps are in src/daemon/concourse-workers/focus.ts, the dead-seat heal in reconcileConcourseWorkers in src/daemon/concourse-workers/settle.ts, the stamp pid reader in src/daemon/concourse-workers/record.ts, and the refusal text and posture in evaluateLaunchAuthority in src/daemon/switchboard/launchAuthority.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${failHint}`)
 }
 
@@ -24,8 +24,8 @@ const {
   revokeConcourseWorkflows,
   stampedTerminalPid,
   updateConcourseWorkers,
-} = await import('../../src/daemon/concourseWorkers.js')
-const { evaluateLaunchAuthority } = await import('../../src/services/switchboard/launchAuthority.js')
+} = await import('../../src/daemon/concourse-workers/concourseWorkers.js')
+const { evaluateLaunchAuthority } = await import('../../src/daemon/switchboard/launchAuthority.js')
 
 const refusalFor = (kind: 'subagents'): string =>
   `this session is backgrounded — ${kind} wait until the operator visits it, until it holds the crewmates-allowed tag (granted by choosing keep-and-background on leave, or the manual-start option), or until the operator turns on Crewmates while backgrounded (/config, or the boot menu's Agents section). Keep working on the task single-handed.`

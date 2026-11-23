@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
-import { getCommandSpec } from '../../src/utils/bash/registry.ts'
-import spec from '../../src/utils/bash/specs/srun.ts'
+import { getCommandSpec } from '../../src/platform/shell/bash/commandSpecs.ts'
+import spec from '../../src/platform/shell/bash/specs/srun.ts'
 
-const WHERE = 'the default export of src/utils/bash/specs/srun.ts'
+const WHERE = 'the default export of src/platform/shell/bash/specs/srun.ts'
 const RECORD = "{\"name\":\"srun\",\"description\":\"Run a command on SLURM cluster nodes\",\"options\":[{\"name\":[\"-n\",\"--ntasks\"],\"description\":\"Number of tasks to run\",\"args\":{\"name\":\"count\"}},{\"name\":[\"-N\",\"--nodes\"],\"description\":\"Number of nodes to allocate\",\"args\":{\"name\":\"count\"}}],\"args\":{\"name\":\"command\",\"isCommand\":true}}"
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -17,7 +17,7 @@ check('two options that each take a count, tasks before nodes, and an argument t
 console.log('§2 how the command registry serves it')
 {
   const served = await getCommandSpec('srun')
-  check('asking the registry for srun answers this very record', served === spec, `got ${JSON.stringify(served)}; getCommandSpec in src/utils/bash/registry.ts must find ${WHERE} by its name before it looks anywhere else`)
+  check('asking the registry for srun answers this very record', served === spec, `got ${JSON.stringify(served)}; getCommandSpec in src/platform/shell/bash/commandSpecs.ts must find ${WHERE} by its name before it looks anywhere else`)
   check('and again on a second asking', (await getCommandSpec('srun')) === spec)
 }
 

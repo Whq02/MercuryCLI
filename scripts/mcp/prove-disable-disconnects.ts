@@ -13,11 +13,11 @@ delete process.env.CI
 
 let failures = 0
 const disableHintFor = (name: string): string => {
-  if (name.startsWith('§1b ')) return 'a derived managed path must descend from getManagedFilePath in src/utils/settings/managedPath.ts; fix the function named in this label'
-  if (name.startsWith('§1c ')) return 'fix detectManagedSettingsWarnings in src/utils/healthDiagnostic.ts so it reads the policy file and reports what this check names'
-  if (name.startsWith('§1 ')) return 'fix managedRootCandidates in src/utils/settings/managedPath.ts so each platform has one Mercury-named root'
-  if (name.startsWith('§2c ')) return 'fix probeServer in src/cli/handlers/mcp.tsx (a disabled server must not be spawned, an enabled one must connect)'
-  if (name.startsWith('§2 ')) return 'fix connectToServer and clearServerCache in src/services/mcp/client.ts so disabling ends the server and its helper and drops the cache row'
+  if (name.startsWith('§1b ')) return 'a derived managed path must descend from getManagedFilePath in src/platform/settings/managedPath.ts; fix the function named in this label'
+  if (name.startsWith('§1c ')) return 'fix detectManagedSettingsWarnings in src/platform/health/healthDiagnostic.ts so it reads the policy file and reports what this check names'
+  if (name.startsWith('§1 ')) return 'fix managedRootCandidates in src/platform/settings/managedPath.ts so each platform has one Mercury-named root'
+  if (name.startsWith('§2c ')) return 'fix probeServer in src/commands/verbs/mcp.tsx (a disabled server must not be spawned, an enabled one must connect)'
+  if (name.startsWith('§2 ')) return 'fix connectToServer and clearServerCache in src/integrations/mcp/client.ts so disabling ends the server and its helper and drops the cache row'
   return 'look at the function this check names'
 }
 const t = (name: string, ok: boolean, detail = ''): void => {
@@ -36,7 +36,7 @@ const alive = (pid: number): boolean => {
 }
 const watchdog = setTimeout(() => {
   console.log('\nTIMEOUT — disable-disconnects prover exceeded 90s')
-  console.log('a connect, a clearServerCache or a probeServer call never returned; look at src/services/mcp/client.ts and src/cli/handlers/mcp.tsx')
+  console.log('a connect, a clearServerCache or a probeServer call never returned; look at src/integrations/mcp/client.ts and src/commands/verbs/mcp.tsx')
   process.exit(1)
 }, 90_000)
 watchdog.unref?.()
@@ -47,7 +47,7 @@ console.log('============================================================')
 
 section('§1 managed policy root — one Mercury spelling per platform')
 {
-  const { managedRootCandidates } = await import('../../src/utils/settings/managedPath.ts')
+  const { managedRootCandidates } = await import('../../src/platform/settings/managedPath.ts')
   for (const platform of ['macos', 'windows', 'linux'] as const) {
     const candidates = managedRootCandidates(platform)
     t(`§1 ${platform}: one Mercury-named spelling`, candidates.length === 1 && /mercury/i.test(candidates[0]!), candidates.join(' | '))
@@ -63,16 +63,16 @@ section('§1 managed policy root — one Mercury spelling per platform')
 
 section('§1b derived managed paths all live UNDER the managed root')
 {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const bootstrap = await import('../../src/bootstrap/state.ts')
+  const bootstrap = await import('../../src/boot/process-state/processState.ts')
   bootstrap.setIsInteractive(false)
   const { sep } = await import('node:path')
-  const { getManagedFilePath, getManagedSettingsDropInDir } = await import('../../src/utils/settings/managedPath.ts')
-  const { getSettingsFilePathForSource } = await import('../../src/utils/settings/settings.ts')
-  const { getEnterpriseMcpFilePath } = await import('../../src/services/mcp/config.ts')
-  const { getManagedRulesDir, getMemoryPath } = await import('../../src/utils/config/derived.ts')
-  const { getSkillsPath } = await import('../../src/skills/loadSkillsDir.ts')
+  const { getManagedFilePath, getManagedSettingsDropInDir } = await import('../../src/platform/settings/managedPath.ts')
+  const { getSettingsFilePathForSource } = await import('../../src/platform/settings/settings.ts')
+  const { getEnterpriseMcpFilePath } = await import('../../src/integrations/mcp/serverConfigs.ts')
+  const { getManagedRulesDir, getMemoryPath } = await import('../../src/platform/config/derived.ts')
+  const { getSkillsPath } = await import('../../src/integrations/skills/loadSkillsDir.ts')
   const root = getManagedFilePath()
   const doors: Array<[string, string | undefined]> = [
     ['getSettingsFilePathForSource(policySettings)', getSettingsFilePathForSource('policySettings' as never)],
@@ -89,11 +89,11 @@ section('§1b derived managed paths all live UNDER the managed root')
 
 section('§1c the health check reads the POLICY FILE and can warn (field F-2.1)')
 {
-  const { getManagedFilePath } = await import('../../src/utils/settings/managedPath.ts')
+  const { getManagedFilePath } = await import('../../src/platform/settings/managedPath.ts')
   const { getFsImplementation, setFsImplementation, setOriginalFsImplementation } = await import(
-    '../../src/utils/fsOperations.ts'
+    '../../src/platform/files/fsOperations.ts'
   )
-  const { detectManagedSettingsWarnings } = await import('../../src/utils/healthDiagnostic.ts')
+  const { detectManagedSettingsWarnings } = await import('../../src/platform/health/healthDiagnostic.ts')
   const root = getManagedFilePath()
   const policyFile = join(root, 'managed-settings.json')
   const realFs = getFsImplementation()
@@ -136,11 +136,11 @@ section('§1c the health check reads the POLICY FILE and can warn (field F-2.1)'
 
 section('§2 disable ends the whole server tree (the npx/worker shape)')
 if (process.platform !== 'win32') {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const bootstrap = await import('../../src/bootstrap/state.ts')
+  const bootstrap = await import('../../src/boot/process-state/processState.ts')
   bootstrap.setIsInteractive(false)
-  const mcp = await import('../../src/services/mcp/client.ts')
+  const mcp = await import('../../src/integrations/mcp/client.ts')
 
   const pidsFile = join(SCRATCH, 'spawner-pids')
   const config = {
@@ -176,8 +176,8 @@ if (process.platform !== 'win32') {
 
 section('§2c mcp list/get report disabled instead of probing it (field F-3.1)')
 {
-  const cfg = await import('../../src/services/mcp/config.ts')
-  const cli = await import('../../src/cli/handlers/mcp.tsx')
+  const cfg = await import('../../src/integrations/mcp/serverConfigs.ts')
+  const cli = await import('../../src/commands/verbs/mcp.tsx')
   const pidsFile = join(SCRATCH, 'cli-ghost-pids')
   const name = 'cli-ghost-probe'
   const serverConfig = {
@@ -196,7 +196,7 @@ section('§2c mcp list/get report disabled instead of probing it (field F-3.1)')
   const enabledOutcome = await cli.probeServer(name, { ...serverConfig, scope: 'local' } as never)
   t('§2c the re-enabled server connects (positive control)', enabledOutcome.outcome === 'connected', JSON.stringify(enabledOutcome))
   t('§2c the re-enabled server really spawned', existsSync(pidsFile))
-  const mcpClient = await import('../../src/services/mcp/client.ts')
+  const mcpClient = await import('../../src/integrations/mcp/client.ts')
   await mcpClient.clearServerCache(name, { ...serverConfig, scope: 'local' } as never)
   const [controlServerPid] = existsSync(pidsFile) ? readFileSync(pidsFile, 'utf8').split(':').map(Number) : []
   if (controlServerPid !== undefined && Number.isFinite(controlServerPid)) {

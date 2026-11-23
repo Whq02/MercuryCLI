@@ -10,10 +10,10 @@ const HOME = mkdtempSync(join(tmpdir(), 'away-summary-roster-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 delete process.env.MERCURY_HOME
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { buildAwayRecap, collectAwayWork } = await import('../../src/utils/cockpit/awaySummary.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { buildAwayRecap, collectAwayWork } = await import('../../src/screen/cockpit/awaySummary.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -33,16 +33,16 @@ const toolTurn = (when: string, name: string) => ({
 console.log('the away recap names every tool the roster carries: one transcript per catalogue tool, the recap line ends with that tool')
 try {
   const roster = getAllBaseTools()
-  check('the catalogue answers a roster', roster.length >= 25, `${roster.length} tools — getAllBaseTools in src/tools.ts returned too few; a tool was dropped from its list or gated off`)
+  check('the catalogue answers a roster', roster.length >= 25, `${roster.length} tools — getAllBaseTools in src/tools/kit/toolList.ts returned too few; a tool was dropped from its list or gated off`)
   const names = roster.map(tool => tool.name)
   for (const name of names) {
     const recap = buildAwayRecap([operatorTurn('2026-01-01T10:59:00.000Z'), toolTurn('2026-01-01T11:00:00.000Z', name)] as never, NOW)
-    check(`${name}: the recap line names it`, recap?.topTools === `${name}×1` && recap.line.endsWith(` · ${name}×1`), `${String(recap?.line)} — buildAwayRecap in src/utils/cockpit/awaySummary.ts must end the line with the tool name and its count`)
+    check(`${name}: the recap line names it`, recap?.topTools === `${name}×1` && recap.line.endsWith(` · ${name}×1`), `${String(recap?.line)} — buildAwayRecap in src/screen/cockpit/awaySummary.ts must end the line with the tool name and its count`)
   }
   const everyTool = [operatorTurn('2026-01-01T10:59:00.000Z'), ...names.map(name => toolTurn('2026-01-01T11:00:00.000Z', name))]
   const counted = new Map(collectAwayWork(everyTool as never).toolCounts)
   const missing = names.filter(name => counted.get(name) !== 1)
-  check('one transcript naming every roster tool once counts each of them once', missing.length === 0, `${missing.join(', ')} — collectAwayWork in src/utils/cockpit/awaySummary.ts must count every tool_use block by name`)
+  check('one transcript naming every roster tool once counts each of them once', missing.length === 0, `${missing.join(', ')} — collectAwayWork in src/screen/cockpit/awaySummary.ts must count every tool_use block by name`)
 } finally {
   rmSync(HOME, { recursive: true, force: true })
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/TestTool/* src/services/ide/projectRunners* src/services/ide/pythonTests* src/services/ide/pythonProject*
+// gate-watch: src/tools/test/* src/integrations/ide/projectRunners.ts src/integrations/ide/pythonTests.ts src/integrations/ide/pythonProject.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
@@ -12,15 +12,15 @@ process.env.MERCURY_PYTHON = process.env.MERCURY_PROOF_PYTEST_PYTHON || (process
 delete process.env.MERCURY_TESTS
 delete process.env.MERCURY_HOME
 
-const { probePytest } = await import('../../src/services/ide/pythonTests.ts')
-const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-type TestRunRecord = import('../../src/services/ide/pythonTests.ts').TestRunRecord
+const { probePytest } = await import('../../src/integrations/ide/pythonTests.ts')
+const { TestTool } = await import('../../src/tools/test/TestTool.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
+type TestRunRecord = import('../../src/integrations/ide/pythonTests.ts').TestRunRecord
 type ToolAnswer = { data: { outcome: string; result: string; record?: TestRunRecord }; effect: { outcome: string } }
 
 let failures = 0
 let checks = 0
-const TEST_PATH_FAIL_HINT = 'where to look: how the Test tool reads the path input (anchorOf and the op handlers) in src/tools/TestTool/TestTool.ts; runner discovery and runs in src/services/ide/projectRunners.ts; python lanes in src/services/ide/pythonTests.ts'
+const TEST_PATH_FAIL_HINT = 'where to look: how the Test tool reads the path input (anchorOf and the op handlers) in src/tools/test/TestTool.ts; runner discovery and runs in src/integrations/ide/projectRunners.ts; python lanes in src/integrations/ide/pythonTests.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -30,7 +30,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — test-path-project proof exceeded 300s; a Test tool call did not return: look at the last section printed above and at src/tools/TestTool/TestTool.ts')
+  console.log('\nTIMEOUT — test-path-project proof exceeded 300s; a Test tool call did not return: look at the last section printed above and at src/tools/test/TestTool.ts')
   process.exit(1)
 }, 300_000)
 guard.unref?.()

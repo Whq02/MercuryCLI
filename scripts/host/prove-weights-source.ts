@@ -10,7 +10,7 @@ import { runpodFixture, fakeSshRunner } from './runpodFixture.mjs'
 import { hfFixture } from './hfFixture.mjs'
 import { hfEndpointsFixture } from './hfEndpointsFixture.mjs'
 import { gridToPng } from '../ui/gridToPng.ts'
-import type { LlmHostQuestion } from '../../src/services/llmHost/index.ts'
+import type { LlmHostQuestion } from '../../src/models/llm-host/index.ts'
 
 pinSourceRef()
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
@@ -50,20 +50,20 @@ try {
   writeFileSync(recipesFile, JSON.stringify({ version: shipped.version, publishedAt: shipped.publishedAt, recipes: [recipe] }))
   process.env.MERCURY_HOST_RECIPES_FILE = recipesFile
   f.state.dialect = 'sglang'; f.state.window = 524288
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { hostRunner } = await import('../../src/services/host/ssh.ts')
-  const { runHostJob } = await import('../../src/services/host/worker.ts')
-  const { hostRecords, readHostRecord } = await import('../../src/services/host/store.ts')
-  const { queueHostSetup } = await import('../../src/services/host/jobs.ts')
-  const { saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
-  const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-  const { keptWeightsPath } = await import('../../src/services/host/keptWeights.ts')
-  const bank = await import('../../src/services/host/bank.ts')
-  const safe = await import('../../src/services/host/keepSafe.ts')
-  const volumes = await import('../../src/services/host/volumes.ts')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { hostRunner } = await import('../../src/models/hosting/ssh.ts')
+  const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+  const { hostRecords, readHostRecord } = await import('../../src/models/hosting/store.ts')
+  const { queueHostSetup } = await import('../../src/models/hosting/jobs.ts')
+  const { saveVendorKey } = await import('../../src/models/hosting/vendors/client.ts')
+  const { writeStoredHuggingfaceApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const { keptWeightsPath } = await import('../../src/models/hosting/keptWeights.ts')
+  const bank = await import('../../src/models/hosting/bank.ts')
+  const safe = await import('../../src/models/hosting/keepSafe.ts')
+  const volumes = await import('../../src/models/hosting/volumes.ts')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-  const sources = await import('../../src/services/host/weightsSource.ts')
+  const sources = await import('../../src/models/hosting/weightsSource.ts')
   saveVendorKey('runpod', rp.key)
   writeStoredHuggingfaceApiKey(endpoints.key)
   const folder = bank.rememberBankFolder(join(f.home, "model bank 'kept'"))
@@ -302,10 +302,10 @@ try {
   check('the rental the watch makes inherits the private repository and sets up from it', Boolean(rented) && rented.weightsSource?.kind === 'private-repo' && rented.jobState === 'ready' && privateDownloads.length === 2 && engineScript(from).includes('/private-weights'))
 
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
   let question: LlmHostQuestion | undefined
   const width = 120, height = 44
   mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width, height }, React.createElement(SettingsPopupSlot)))), width, height)

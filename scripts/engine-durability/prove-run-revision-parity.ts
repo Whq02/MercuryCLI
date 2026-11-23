@@ -7,9 +7,9 @@ import { checker, scratchRoot } from './harness.ts'
 const ROOT = scratchRoot('runrevision')
 const t = checker()
 
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const sidecar = await import('../../src/services/run/runSidecar.ts')
-const { emptyRunSnapshot } = await import('../../src/services/run/runKernel.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const sidecar = await import('../../src/engine/run/runSidecar.ts')
+const { emptyRunSnapshot } = await import('../../src/engine/run/runKernel.ts')
 
 const ownerA = makeOwnerKey({ workspace: ROOT, sessionId: 'keel-rev-a', lane: 'main' })
 const ownerB = makeOwnerKey({ workspace: ROOT, sessionId: 'keel-rev-b', lane: 'main' })
@@ -46,7 +46,7 @@ t.section('§1 — the revision is real and monotonic')
 
 t.section('§2 — the revision names the sidecar it was allocated for')
 {
-  const { getRunSnapshot } = await import('../../src/services/run/runCoordinator.ts')
+  const { getRunSnapshot } = await import('../../src/engine/run/runCoordinator.ts')
 
   const before = sidecar.runRevision(ownerA)
   const load = await sidecar.loadRunSidecar(ownerA)

@@ -1,0 +1,317 @@
+import { stat } from 'node:fs/promises'
+
+import { z } from 'zod/v4'
+
+import { buildTool, type ToolUseContext } from '../kit/tool.js'
+import { anchorPatchEnabled } from '../engines/change-transaction/anchorPatch.js'
+import { fileGeneration, recordSeenLines } from '../engines/change-transaction/seenLines.js'
+import { ownerFromToolUseContext } from '../../engine/run-owner/resolveOwner.js'
+import { structurePolyglotEnabled } from '../engines/structure/contracts.js'
+import { resolveGrammarEngineDir } from '../../platform/grammars/grammarFacility.js'
+import {
+  AST_BOUNDS,
+  astLanguageNames,
+  availableAstLanguages,
+  GRAMMAR_PACK_REMEDY,
+  isAstRefusal,
+  patternErrorText,
+  patternRefusedEverywhere,
+  renderMatch,
+  renderSearchTrailer,
+  resolveAstLanguage,
+  resolveAstScope,
+  searchAstPattern,
+  type AstMatch,
+} from '../engines/structure/astPatterns.js'
+import { getCwd } from '../../platform/files/cwd.js'
+import { isENOENT } from '../../platform/errors/errors.js'
+import { FILE_NOT_FOUND_CWD_NOTE, findSimilarFile, suggestPathUnderCwd } from '../../platform/files/file.js'
+import { controlCharacterPathRefusal, expandPath } from '../../platform/files/path.js'
+import { checkReadPermissionForTool, getResolvedWorkingDirPaths, matchingRuleForInput, ruleMatcherFor } from '../../permissions/rules/filesystem.js'
+import { mercurySecretPath } from '../../permissions/rules/protectedPaths.js'
+import { semanticNumber } from '../kit/semanticNumber.js'
+import { plural } from '../../platform/text/strings.js'
+import { AST_GLOB_FIELD, AST_PATH_FIELD, AST_PATTERN_FIELD, AST_SEARCH_TOOL_NAME, astLanguageField, getAstSearchDescription } from './prompt.js'
+import {
+  getToolUseSummary,
+  isResultTruncated,
+  renderToolResultMessage,
+  renderToolUseErrorMessage,
+  renderToolUseMessage,
+} from './rows.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+
+
+const inputSchema = z.strictObject({
+  pattern: z.string().describe(AST_PATTERN_FIELD),
+  path: z.string().optional().describe(AST_PATH_FIELD),
+  glob: z.string().optional().describe(AST_GLOB_FIELD),
+  lang: z.string().optional().describe(astLanguageField()),
+  mode: z
+    .enum(['matches', 'count'])
+    .optional()
+    .describe('Default "matches" (each match + captures); "count" tallies per file'),
+  limit: semanticNumber(z.number().optional()).describe(
+    `Max matches (default ${AST_BOUNDS.defaultLimit}, max ${AST_BOUNDS.maxLimit}; rest counted)`,
+  ),
+  offset: semanticNumber(z.number().optional()).describe('Matches skipped before limit (default 0)'),
+})
+
+type Input = z.infer<typeof inputSchema>
+
+type Output = {
+  mode: 'matches' | 'count'
+  pattern: string
+  scope: string
+  text: string
+  matchCount: number
+  fileCount: number
+  filesSearched: number
+  shown: number
+  offset: number
+  truncated: boolean
+  capped: boolean
+  parseFailures: number
+}
+
+const outputSchema = z.object({
+  mode: z.enum(['matches', 'count']),
+  pattern: z.string(),
+  scope: z.string(),
+  text: z.string(),
+  matchCount: z.number(),
+  fileCount: z.number(),
+  filesSearched: z.number(),
+  shown: z.number(),
+  offset: z.number(),
+  truncated: z.boolean(),
+  capped: z.boolean(),
+  parseFailures: z.number(),
+})
+
+function clampLimit(limit: number | undefined): number {
+  if (limit === undefined || !Number.isFinite(limit)) return AST_BOUNDS.defaultLimit
+  return Math.min(Math.max(Math.floor(limit), 1), AST_BOUNDS.maxLimit)
+}
+
+function countText(matches: AstMatch[], capped: boolean): { rows: string[]; files: number } {
+  const perFile = new Map<string, number>()
+  for (const m of matches) perFile.set(m.rel, (perFile.get(m.rel) ?? 0) + 1)
+  const rows = [...perFile.entries()].map(([rel, n]) => `${rel}: ${n}${capped ? '+' : ''}`)
+  return { rows, files: perFile.size }
+}
+
+export const AstSearchTool = buildTool({
+  shouldDefer: true,
+  name: AST_SEARCH_TOOL_NAME,
+  strict: true,
+  straightQuoteInputs: ['pattern', 'path', 'glob'],
+  maxResultSizeChars: 30_000,
+  searchHint: 'structural code search by syntax pattern with meta-variables across languages',
+  capability: {
+    intents: [
+      'find code by its syntax shape',
+      'find this code structure across languages',
+      'search for calls with a given argument shape',
+      'find a construct inside another construct',
+      'count occurrences of a code pattern per file',
+      'search python go rust or typescript structurally',
+    ],
+    units: ['source-reading', 'code-intelligence'],
+    class: 'observation',
+    cancellation: 'cooperative',
+    latency: 'fast',
+    gate: 'MERCURY_STRUCTURE_POLYGLOT',
+    conditions: ['the packaged tree-sitter grammar engine (dist/vendor/treesitter beside the bundle, or the workspace package)'],
+    proof: 'scripts/ast-tools/run-all.sh',
+  },
+  inputSchema,
+  outputSchema,
+  isEnabled() {
+    return structurePolyglotEnabled() && resolveGrammarEngineDir().state === 'ok'
+  },
+  isReadOnly: () => true,
+  isConcurrencySafe: () => true,
+  async checkPermissions(input, context): Promise<ReturnType<typeof checkReadPermissionForTool>> {
+    return checkReadPermissionForTool(AstSearchTool, input, context.getAppState().toolPermissionContext)
+  },
+  isSearchOrReadCommand: () => ({ isSearch: true, isRead: false }),
+  userFacingName: () => 'Structural search',
+  getToolUseSummary,
+  getActivityDescription(input: Partial<Input> | undefined): string {
+    return input?.pattern ? `Searching for the shape ${input.pattern}` : 'Searching structurally'
+  },
+  getPath(input: Partial<Input> | undefined): string {
+    return input?.path || getCwd()
+  },
+  async description(): Promise<string> {
+    return getAstSearchDescription()
+  },
+  async prompt(): Promise<string> {
+    return getAstSearchDescription()
+  },
+  async validateInput(input: Input) {
+    const pathRefusal = controlCharacterPathRefusal(input.path)
+    if (pathRefusal !== null) return { result: false as const, message: pathRefusal, errorCode: 1 }
+    if (input.pattern.trim() === '') {
+      return { result: false as const, message: 'pattern is empty — give a structural pattern such as "$FN($$$ARGS)".', errorCode: 1 }
+    }
+    if (input.lang !== undefined && input.lang.trim() !== '') {
+      const resolved = resolveAstLanguage(input.lang)
+      if (!resolved) {
+        return {
+          result: false as const,
+          message: `Unknown language "${input.lang}". Supported languages: ${astLanguageNames().join(', ')}. Omit lang to detect the language per file from its extension.`,
+          errorCode: 2,
+        }
+      }
+      if (!availableAstLanguages().some(l => l.name === resolved.name)) {
+        return {
+          result: false as const,
+          message: `lang "${input.lang}" routes to ${resolved.name}, but this build does not carry the ${resolved.name} grammar: ${GRAMMAR_PACK_REMEDY}. Languages this build carries: ${astLanguageNames().join(', ')}.`,
+          errorCode: 2,
+        }
+      }
+    }
+    if (input.offset !== undefined && (!Number.isFinite(input.offset) || input.offset < 0)) {
+      return { result: false as const, message: 'offset must be a non-negative number.', errorCode: 3 }
+    }
+    if (input.path !== undefined) {
+      const expanded = expandPath(input.path)
+      if (input.path.startsWith('\\\\') || input.path.startsWith('//')) {
+        return { result: true as const }
+      }
+      try {
+        await stat(expanded)
+      } catch (err) {
+        if (!isENOENT(err)) throw err
+        let suggestion: string | undefined
+        try {
+          suggestion = await suggestPathUnderCwd(expanded)
+        } catch {
+          suggestion = undefined
+        }
+        if (suggestion === undefined) suggestion = findSimilarFile(expanded)
+        return {
+          result: false as const,
+          message: `Path does not exist: ${input.path}. ${FILE_NOT_FOUND_CWD_NOTE} ${getCwd()}.${suggestion ? ` Did you mean ${suggestion}?` : ''}`,
+          errorCode: 4,
+        }
+      }
+    }
+    return { result: true as const }
+  },
+  async call(input: Input, context: ToolUseContext) {
+    const mode = input.mode ?? 'matches'
+    const permCtx = context.getAppState().toolPermissionContext
+    let denyRules = ruleMatcherFor(permCtx, 'read', 'deny')
+    if (denyRules !== null) denyRules = ruleMatcherFor(permCtx, 'read', 'deny', getResolvedWorkingDirPaths(getCwd()))
+    const scope = resolveAstScope({
+      ...(input.path !== undefined && { path: expandPath(input.path) }),
+      ...(input.glob !== undefined && { glob: input.glob }),
+      ...(input.lang !== undefined && { lang: input.lang }),
+      cwd: getCwd(),
+      trackLinks: denyRules !== null,
+      readable: (abs, throughLink) => mercurySecretPath(abs) === null && (denyRules !== null
+        ? denyRules(abs).length === 0 && (!throughLink || checkReadPermissionForTool(AstSearchTool, { path: abs }, permCtx).behavior !== 'deny')
+        : matchingRuleForInput(abs, permCtx, 'read', 'deny') === null),
+    })
+    if (isAstRefusal(scope)) throw new Error(scope.refused)
+    scope.display = input.path === undefined || input.path === '' ? '.' : input.path
+
+    const limit = clampLimit(input.limit)
+    const offset = input.offset === undefined ? 0 : Math.max(0, Math.floor(input.offset))
+    const result = await searchAstPattern(scope, {
+      pattern: input.pattern,
+      signal: context.abortController.signal,
+      matchCap: mode === 'count' ? AST_BOUNDS.matchCap : Math.min(AST_BOUNDS.matchCap, Math.max(offset + limit + 1, AST_BOUNDS.maxLimit * 2)),
+    })
+    if (isAstRefusal(result)) throw new Error(result.refused)
+    if (patternRefusedEverywhere(scope, result)) throw new Error(patternErrorText(input.pattern, result))
+
+    const trailer = renderSearchTrailer(scope, result)
+    const base = {
+      mode,
+      pattern: input.pattern,
+      scope: scope.display,
+      matchCount: result.matches.length,
+      fileCount: result.filesWithMatches,
+      filesSearched: result.filesParsed,
+      offset,
+      capped: result.capped,
+      parseFailures: result.parseFailures.length + (result.recovered?.length ?? 0),
+    }
+
+    if (scope.files.length === 0) {
+      const text = [
+        `Nothing searched: no files with a supported language ${scope.singleFile ? scope.display : `under ${scope.display}`}${scope.glob ? ` matching ${scope.glob}` : ''}${scope.lang ? ` in ${scope.lang.name}` : ''}.`,
+        ...trailer.slice(1),
+      ].join('\n')
+      return { data: { ...base, text, shown: 0, truncated: false } satisfies Output }
+    }
+
+    if (result.matches.length === 0) {
+      const text = [`No matches for ${JSON.stringify(input.pattern)}.`, ...trailer].join('\n')
+      return { data: { ...base, text, shown: 0, truncated: false } satisfies Output }
+    }
+
+    if (mode === 'count') {
+      const { rows, files } = countText(result.matches, result.capped)
+      const total = result.matches.length
+      const text = [
+        ...rows,
+        `${total}${result.capped ? '+' : ''} ${plural(total, 'match', 'matches')} across ${files} ${plural(files, 'file')}${result.capped ? ` (counting stopped at ${AST_BOUNDS.matchCap} — narrow the scope for an exact total)` : ''}.`,
+        ...trailer,
+      ].join('\n')
+      return { data: { ...base, text, shown: rows.length, truncated: result.capped } satisfies Output }
+    }
+
+    const window = result.matches.slice(offset, offset + limit)
+    const lines: string[] = []
+    for (const m of window) lines.push(...renderMatch(m))
+    const total = result.matches.length
+    const remaining = Math.max(0, total - offset - window.length)
+    const truncated = remaining > 0 || result.capped
+    if (window.length === 0) {
+      lines.push(`offset ${offset} is past the last match (${total}${result.capped ? '+' : ''} in total).`)
+    } else if (truncated) {
+      lines.push(
+        `Showing ${offset + 1}-${offset + window.length} of ${total}${result.capped ? '+' : ''} ${plural(total, 'match', 'matches')} in ${result.filesWithMatches} ${plural(result.filesWithMatches, 'file')} — ${remaining}${result.capped ? '+' : ''} more; pass offset: ${offset + window.length} for the next page.`,
+      )
+    } else {
+      lines.push(`${total} ${plural(total, 'match', 'matches')} in ${result.filesWithMatches} ${plural(result.filesWithMatches, 'file')}.`)
+    }
+    lines.push(...trailer)
+
+    if (anchorPatchEnabled()) {
+      try {
+        const owner = ownerFromToolUseContext(context)
+        const generations = new Map<string, string | null>()
+        for (const m of window) {
+          if (!generations.has(m.abs)) generations.set(m.abs, fileGeneration(m.abs))
+          const generation = generations.get(m.abs)
+          if (generation == null) continue
+          const shownLines = Math.min(m.endLine - m.startLine + 1, 4)
+          recordSeenLines(owner, m.abs, generation, m.startLine, shownLines)
+        }
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+
+    return {
+      data: { ...base, text: lines.join('\n'), shown: window.length, truncated } satisfies Output,
+    }
+  },
+  mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
+    return { tool_use_id: toolUseID, type: 'tool_result' as const, content: data.text }
+  },
+  extractSearchText(data: Output): string {
+    return data.text
+  },
+  isResultTruncated,
+  renderToolUseMessage,
+  renderToolResultMessage,
+  renderToolUseErrorMessage,
+})
+

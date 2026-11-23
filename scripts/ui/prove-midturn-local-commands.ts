@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { bootRunner, bound, childEnv, DIST, isOutcome, makeTally, transcriptFiles } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture } from '../lib/scriptedTurn.ts'
 import { mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
-import type { Message } from '../../src/types/message.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 const tally = makeTally('midturn-local-commands')
 if (!existsSync(DIST)) throw new Error(`build first: ${DIST}`)
@@ -17,15 +17,15 @@ const scratch = mkdtempSync(join(parent, 'midturn-local-commands-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'reader')
 process.env.MERCURY_TURN_RECEIPT = '1'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { readTranscriptChainSince } = await import('../../src/utils/sessionStorage/transcriptReader.ts')
-const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
-const { injectTurnReceipts } = await import('../../src/utils/cockpit/turnReceipt.ts')
+const { readTranscriptChainSince } = await import('../../src/sessions/transcripts/transcriptReader.ts')
+const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.ts')
+const { injectTurnReceipts } = await import('../../src/screen/cockpit/turnReceipt.ts')
 const React = await import('react')
-const { Box } = await import('../../src/ink.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { Message: MessageRow } = await import('../../src/components/Message.tsx')
-const { buildMessageLookups } = await import('../../src/services/messages/lookups.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { Box } = await import('../../src/screen/themedRenderer.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { Message: MessageRow } = await import('../../src/screen/messages/Message.tsx')
+const { buildMessageLookups } = await import('../../src/engine/messages/lookups.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
 async function deadline<T>(pending: Promise<T>): Promise<T> {

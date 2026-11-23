@@ -30,9 +30,9 @@ mock.module('node:child_process', () => ({
 
 type Asked = { op?: string; action?: string; sessionId?: string; title?: string }
 const asked: Asked[] = []
-const controlSocket = await import('../../src/daemon/controlSocket.js')
+const controlSocket = await import('../../src/daemon/control/controlSocket.js')
 const realRpc = controlSocket.daemonControlRpc
-mock.module('../../src/daemon/controlSocket.js', () => ({
+mock.module('../../src/daemon/control/controlSocket.js', () => ({
   ...controlSocket,
   daemonControlRpc: async (...args: Parameters<typeof realRpc>) => {
     const frame = args[0] as Asked
@@ -94,26 +94,26 @@ const strays = (): string => `${boardFiles().length} board file(s), ${transcript
 const j = (value: unknown): string => JSON.stringify(value)
 
 const React = await import('react')
-const { setIsInteractive } = await import('../../src/bootstrap/state.js')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.js')
 setIsInteractive(true)
-const { App } = await import('../../src/components/App.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.js')
-const { Chat } = await import('../../src/screens/Chat.js')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.js')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.js')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.js')
+const { App } = await import('../../src/boot/App.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.js')
+const { Chat } = await import('../../src/screen/chat/Chat.js')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.js')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.js')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true, hasTrustDialogAccepted: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false, hasCompletedOnboarding: true, theme: 'dark' }))
-const pending = await import('../../src/input-core/pending-input.js')
-const slot = await import('../../src/services/engine-connector/focusedConnector.js')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const { getCommands, commandSeat } = await import('../../src/commands.js')
-const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.js')
+const pending = await import('../../src/screen/composer/input-core/pending-input.js')
+const slot = await import('../../src/engine/connector/focusedConnector.js')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+const { getCommands, commandSeat } = await import('../../src/commands/catalogue/commands.js')
+const { markDaemonHaltStanddown } = await import('../../src/daemon/control/daemonStanddown.js')
 markDaemonHaltStanddown()
 
-type BoardViewSnapshot = import('../../src/services/crewBoard/contracts.js').BoardViewSnapshot
+type BoardViewSnapshot = import('../../src/crew/board/contracts.js').BoardViewSnapshot
 type Answer = { name: string; args: string; said: string | undefined; landed: boolean }
 const answers: Answer[] = []
 type DialogModule = { call: (onDone: (result?: string, options?: unknown) => void, context: unknown, args: string, name?: string) => Promise<unknown> }
@@ -202,7 +202,7 @@ await settle(300)
 section(`§0 the eight verbs are commands this screen runs, at ${COLS}x${ROWS}`)
 for (const { name } of TYPED) {
   const command = commands.find(candidate => candidate.name === name)
-  check(`/${name} is a command the screen runs, not the session`, command !== undefined && commandSeat(command) === 'screen', `type ${command?.type}`, 'the verb must be a local-jsx command, or a local command with seat screen, so commandSeat in src/commands.ts answers screen')
+  check(`/${name} is a command the screen runs, not the session`, command !== undefined && commandSeat(command) === 'screen', `type ${command?.type}`, 'the verb must be a local-jsx command, or a local command with seat screen, so commandSeat in src/commands/catalogue/commands.ts answers screen')
 }
 check('nothing of the window\'s own stands under the home before a line is typed', boardFiles().length === 0 && transcriptFiles().length === 0, strays(), 'the window itself must not open a board or write a transcript; look at what opens a board (swarmStore in runSwarmCommand, src/commands/swarm/swarm.ts) and at what ran at start-up')
 
@@ -214,15 +214,15 @@ await settle(200)
 for (const { line, name } of TYPED) {
   await send(m, line)
   const held = await waitFor(() => m.screen().includes(landingLine(name)) && pending.text() === '', 3000)
-  check(`${line}: the footer says "${landingLine(name)}" and the composer is taken`, held, `composer ${j(pending.text())}; footer ${j(m.lines().filter(row => row.includes('landing') || row.includes('chat is open') || row.includes('warm') || row.includes('enamed')).map(row => row.trim()))}`, 'a verb typed while a session lands must be held and the footer must read the landing line; see holdCommandForLanding and HELD_FOR_LANDING in src/screens/chat/submit/screenCommand.ts')
+  check(`${line}: the footer says "${landingLine(name)}" and the composer is taken`, held, `composer ${j(pending.text())}; footer ${j(m.lines().filter(row => row.includes('landing') || row.includes('chat is open') || row.includes('warm') || row.includes('enamed')).map(row => row.trim()))}`, 'a verb typed while a session lands must be held and the footer must read the landing line; see holdCommandForLanding and HELD_FOR_LANDING in src/screen/chat/submit/screenCommand.ts')
   pending.edit('')
   await settle(120)
 }
 await send(m, PROMPT)
-check('a plain line typed after them is held as it always was', await waitFor(() => m.screen().includes(LINE_HELD) && pending.text() === '', 3000), j(m.lines().filter(row => row.includes('landing')).map(row => row.trim())), 'a plain line typed while a session lands must be held with the landing notice; see holdForLanding in src/screens/chat/submit/sessionSend.ts')
+check('a plain line typed after them is held as it always was', await waitFor(() => m.screen().includes(LINE_HELD) && pending.text() === '', 3000), j(m.lines().filter(row => row.includes('landing')).map(row => row.trim())), 'a plain line typed while a session lands must be held with the landing notice; see holdForLanding in src/screen/chat/submit/sessionSend.ts')
 await settle(300)
-check('no verb was run while the session landed: the window answered none of them for itself', answers.length === 0, j(answers), 'a verb ran before the session landed; holdCommandForLanding in src/screens/chat/submit/screenCommand.ts must hold it while landingInFlight() is true and no session is focused')
-check('the session that is landing was handed nothing yet, no line, no post, no switch, no title', handed.length === 0 && posted.length === 0 && switched.length === 0 && asked.length === 0, j({ handed, posted, switched, asked }), 'something reached the landing session early; holdCommandForLanding in src/screens/chat/submit/screenCommand.ts and holdForLanding in src/screens/chat/submit/sessionSend.ts must hold every line until the session lands')
+check('no verb was run while the session landed: the window answered none of them for itself', answers.length === 0, j(answers), 'a verb ran before the session landed; holdCommandForLanding in src/screen/chat/submit/screenCommand.ts must hold it while landingInFlight() is true and no session is focused')
+check('the session that is landing was handed nothing yet, no line, no post, no switch, no title', handed.length === 0 && posted.length === 0 && switched.length === 0 && asked.length === 0, j({ handed, posted, switched, asked }), 'something reached the landing session early; holdCommandForLanding in src/screen/chat/submit/screenCommand.ts and holdForLanding in src/screen/chat/submit/sessionSend.ts must hold every line until the session lands')
 check('the window made no board file and no transcript file of its own', boardFiles().length === 0 && transcriptFiles().length === 0, strays(), 'the window must not open a board or write a transcript while a session lands; look at what a held verb runs (src/commands/swarm/swarm.ts and the other held verbs)')
 
 section('§2 the session lands: every line reaches it, in the order typed')
@@ -232,16 +232,16 @@ await landing
 await waitFor(() => handed.includes(PROMPT), 8000)
 await waitFor(() => posted.length >= 3 && answers.length >= TYPED.length, 3000)
 const said = (name: string): Answer | undefined => answers.find(answer => answer.name === name)
-check('the switch typed first is handed first, and the prompt typed last arrives last', handed[0] === '/swarm on' && handed[handed.length - 1] === PROMPT, j(handed), 'held lines must replay in typed order after the landing; see armForLanding in src/screens/chat/submit/submitLine.ts, which queues them in initialMessage and armedBehind')
+check('the switch typed first is handed first, and the prompt typed last arrives last', handed[0] === '/swarm on' && handed[handed.length - 1] === PROMPT, j(handed), 'held lines must replay in typed order after the landing; see armForLanding in src/screen/chat/submit/submitLine.ts, which queues them in initialMessage and armedBehind')
 check('/swarm on and /swarmchat main are sent to the landed session as words', j(handed) === j(['/swarm on', '/swarmchat main', PROMPT]), j(handed), 'the held /swarm on and /swarmchat main must reach the landed session connector through sendWords, as call does in src/commands/swarm/swarm.ts')
 check('the owner\'s /general line is posted to the landed session\'s board', posted.some(post => post.channel === 'general' && post.text === 'hello crew'), j(posted), 'a held /general line must be posted to the landed session through its postBoard on the general channel')
 check('…and /team and /whisper with their targets', posted.some(post => post.channel === 'team' && post.target === 'parser' && post.text === 'hello team') && posted.some(post => post.channel === 'whisper' && post.target === 'alpha' && post.text === 'hello alpha'), j(posted), 'a held /team or /whisper line must be posted to the landed session through postBoard with its channel, target and text')
 check('/rename titles the landed session by its id', asked.some(frame => frame.action === 'set-title' && frame.sessionId === SESSION && frame.title === 'Landing name') && said('rename')?.said === 'Renamed this session to Landing name', `${j(asked)} · ${j(said('rename'))}`, 'a held /rename must send a set-title control frame for the landed session id and answer Renamed this session to the name')
 check('/title answers for the landed session, not "No chat is open"', asked.some(frame => frame.action === 'set-title' && frame.sessionId === SESSION && frame.title === 'Landing title') && said('title')?.said === 'Titled this session "Landing title"', `${j(asked)} · ${j(said('title'))}`, 'a held /title must send a set-title control frame for the landed session id and answer Titled this session with the title')
 check('/crewmates on flips the landed session\'s switch, not "no chat is open"', j(switched) === j([{ kind: 'subagents', on: true }]) && said('crewmates')?.said?.includes('no chat is open') === false, `${j(switched)} · ${j(said('crewmates'))}`, 'a held /crewmates on must call setSpawnSwitch with subagents on the landed session once it lands, not answer that no chat is open')
-check('every verb ran once, after the landing, on the landed session', answers.length === TYPED.length && answers.every(answer => answer.landed) && NAMES.every(name => answers.filter(answer => answer.name === name).length === 1), j(answers.map(answer => `${answer.name}:${answer.landed}`)), 'each held verb must run exactly once, and only after the session landed (hasFocusedSession true); check holdCommandForLanding in src/screens/chat/submit/screenCommand.ts and the replay in armForLanding, src/screens/chat/submit/submitLine.ts')
-check('all eight verbs ran in the exact order typed, local channel verbs included', j(answers.map(answer => answer.name)) === j(NAMES), j(answers.map(answer => answer.name)), 'held verbs must replay in the order typed; armForLanding in src/screens/chat/submit/submitLine.ts appends each line to the queue in order')
-check('every board post and session line reached the session in the exact order typed', j(sequence) === j(['words:/swarm on', 'words:/swarmchat main', 'board:general:hello crew', 'board:team:hello team', 'board:whisper:hello alpha', `words:${PROMPT}`]), j(sequence), 'board posts and session lines must reach the landed session in typed order; see the replay of armForLanding in src/screens/chat/submit/submitLine.ts')
+check('every verb ran once, after the landing, on the landed session', answers.length === TYPED.length && answers.every(answer => answer.landed) && NAMES.every(name => answers.filter(answer => answer.name === name).length === 1), j(answers.map(answer => `${answer.name}:${answer.landed}`)), 'each held verb must run exactly once, and only after the session landed (hasFocusedSession true); check holdCommandForLanding in src/screen/chat/submit/screenCommand.ts and the replay in armForLanding, src/screen/chat/submit/submitLine.ts')
+check('all eight verbs ran in the exact order typed, local channel verbs included', j(answers.map(answer => answer.name)) === j(NAMES), j(answers.map(answer => answer.name)), 'held verbs must replay in the order typed; armForLanding in src/screen/chat/submit/submitLine.ts appends each line to the queue in order')
+check('every board post and session line reached the session in the exact order typed', j(sequence) === j(['words:/swarm on', 'words:/swarmchat main', 'board:general:hello crew', 'board:team:hello team', 'board:whisper:hello alpha', `words:${PROMPT}`]), j(sequence), 'board posts and session lines must reach the landed session in typed order; see the replay of armForLanding in src/screen/chat/submit/submitLine.ts')
 check('still no board file and no transcript file of the window\'s own', boardFiles().length === 0 && transcriptFiles().length === 0, strays(), 'the window must not open a board or write a transcript when a held verb replays; look at what the held verbs run (src/commands/swarm/swarm.ts and the other held verbs)')
 
 section('§2b a prompt typed between verbs while landing, and a focused session with no landing')
@@ -261,7 +261,7 @@ section('§2b a prompt typed between verbs while landing, and a focused session 
   landBetween()
   await betweenLanding
   await waitFor(() => sequence.length === 4 && answers.length === 3, 5000)
-  check('with a prompt typed between held verbs, every post, prompt and switch arrives in typed order', j(sequence) === j(['board:general:first rule', 'words:middle prompt', 'board:general:second rule', 'words:/swarm off']), j(sequence), 'a prompt typed between held verbs must replay in typed order with them; see armForLanding in src/screens/chat/submit/submitLine.ts')
+  check('with a prompt typed between held verbs, every post, prompt and switch arrives in typed order', j(sequence) === j(['board:general:first rule', 'words:middle prompt', 'board:general:second rule', 'words:/swarm off']), j(sequence), 'a prompt typed between held verbs must replay in typed order with them; see armForLanding in src/screen/chat/submit/submitLine.ts')
 
   sequence.length = 0
   answers.length = 0
@@ -270,7 +270,7 @@ section('§2b a prompt typed between verbs while landing, and a focused session 
   await settle(80)
   await send(m, '/general immediate post')
   await waitFor(() => sequence.length === 2 && answers.length === 2, 3000)
-  check('a focused session with no landing runs /swarm and /general immediately without holding', answers.every(answer => answer.landed) && j(sequence) === j(['words:/swarm on', 'board:general:immediate post']), j(sequence), 'with a focused session and no landing, holdCommandForLanding in src/screens/chat/submit/screenCommand.ts must return false so the verbs run at once')
+  check('a focused session with no landing runs /swarm and /general immediately without holding', answers.every(answer => answer.landed) && j(sequence) === j(['words:/swarm on', 'board:general:immediate post']), j(sequence), 'with a focused session and no landing, holdCommandForLanding in src/screen/chat/submit/screenCommand.ts must return false so the verbs run at once')
 }
 pending.edit('')
 await settle(200)
@@ -327,9 +327,9 @@ section('§4 a landing that fails: every held verb settles and a held prompt ret
   failLanding()
   await failed
   await waitFor(() => answers.length === TYPED.length && pending.text() === 'unsent prompt on failed landing', 6000)
-  check('when the landing fails, all eight held verbs settle in typed order with none dropped', j(answers.map(answer => answer.name)) === j(NAMES) && answers.every(answer => !answer.landed), j(answers), 'when the landing fails every held verb must still run, in typed order, with no session focused; see the replay of armForLanding in src/screens/chat/submit/submitLine.ts')
+  check('when the landing fails, all eight held verbs settle in typed order with none dropped', j(answers.map(answer => answer.name)) === j(NAMES) && answers.every(answer => !answer.landed), j(answers), 'when the landing fails every held verb must still run, in typed order, with no session focused; see the replay of armForLanding in src/screen/chat/submit/submitLine.ts')
   check('/swarm, /swarmchat, /title and /crewmates tell the user no chat is open', ['swarm', 'swarmchat', 'title', 'crewmates'].every(name => (answers.find(answer => answer.name === name)?.said ?? '').toLowerCase().includes('no chat is open')), j(answers), 'with no session after a failed landing these verbs must answer that no chat is open; check the commands for swarm, swarmchat, title and crewmates under src/commands')
-  check('a prompt held for the failed landing is restored to the composer rather than lost', pending.text() === 'unsent prompt on failed landing', j(pending.text()), 'a plain prompt held for a landing that fails must be put back in the composer; see armForLanding in src/screens/chat/submit/submitLine.ts and the initialMessage replay')
+  check('a prompt held for the failed landing is restored to the composer rather than lost', pending.text() === 'unsent prompt on failed landing', j(pending.text()), 'a plain prompt held for a landing that fails must be put back in the composer; see armForLanding in src/screen/chat/submit/submitLine.ts and the initialMessage replay')
 }
 pending.edit('')
 m.unmount()

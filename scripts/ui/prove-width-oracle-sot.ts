@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { charWidth, displayWidth, truncateToWidth } from '../../src/utils/glyphs.ts'
-import { stringWidth } from '../../src/ink/stringWidth.ts'
-import { truncateToWidth as rigorousTruncateToWidth } from '../../src/utils/truncate.ts'
+import { charWidth, displayWidth, truncateToWidth } from '../../src/screen/theme/glyphs.ts'
+import { stringWidth } from '../../src/screen/renderer/stringWidth.ts'
+import { truncateToWidth as rigorousTruncateToWidth } from '../../src/platform/text/truncate.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

@@ -10,15 +10,15 @@ process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR)
 delete process.env.MERCURY_HOME
 const src = (file: string) => pathToFileURL(join(root, 'src', file)).href
-const { enableConfigs } = await import(src('utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(src('platform/config/globalConfig.ts'))
 enableConfigs()
-const writer = await import(src('utils/sessionStorage/writer.ts'))
-const logs = await import(src('utils/sessionStorage/logs.ts'))
-const { loadTranscriptFile } = await import(src('utils/sessionStorage/loading.ts'))
-const { getSessionId } = await import(src('bootstrap/state.ts'))
+const writer = await import(src('sessions/transcripts/writer.ts'))
+const logs = await import(src('sessions/transcripts/sessionListings.ts'))
+const { loadTranscriptFile } = await import(src('sessions/transcripts/loading.ts'))
+const { getSessionId } = await import(src('boot/process-state/processState.ts'))
 const sessionId = getSessionId()
 const file = join(scratch, `${sessionId}.jsonl`)
-const metaOwnerWhere = 'fix reAppendSessionMetadata, restoreSessionMetadata, clearSessionMetadata or saveWorktreeState in src/utils/sessionStorage/logs.ts, or loadTranscriptFile in src/utils/sessionStorage/loading.ts'
+const metaOwnerWhere = 'fix reAppendSessionMetadata, restoreSessionMetadata, clearSessionMetadata or saveWorktreeState in src/sessions/transcripts/sessionListings.ts, or loadTranscriptFile in src/sessions/transcripts/loading.ts'
 try {
   writer.setSessionFileForTesting(file)
   await logs.saveCustomTitle(sessionId, 'operator title', file)

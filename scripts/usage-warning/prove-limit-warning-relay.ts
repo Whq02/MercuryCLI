@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-const RELAY_FAIL_HINT = 'change publishSessionFacts or readSessionFacts in src/services/engine-connector/seatProjections.ts, preferSessionLimitWarning in src/services/providers/limitWarning.ts, or usage() in src/services/engine-connector/noSessionConnector.ts, whichever this check names'
+const RELAY_FAIL_HINT = 'change publishSessionFacts or readSessionFacts in src/engine/connector/seatProjections.ts, preferSessionLimitWarning in src/models/roads/limitWarning.ts, or usage() in src/engine/connector/noSessionConnector.ts, whichever this check names'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
   const shown = ok ? '' : detail ? `${detail} | hint: ${RELAY_FAIL_HINT}` : RELAY_FAIL_HINT
@@ -38,11 +38,11 @@ console.log('============================================================')
 console.log(' limit-warning relay — the session answers its own line; the screen prefers it')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const projections = await import('../../src/services/engine-connector/seatProjections.ts')
-type Facts = import('../../src/services/engine-connector/seatProjections.ts').SessionFactsV1
+const projections = await import('../../src/engine/connector/seatProjections.ts')
+type Facts = import('../../src/engine/connector/seatProjections.ts').SessionFactsV1
 
 const ZERO_USAGE = {
   totalCostUSD: 0,
@@ -104,7 +104,7 @@ section('§1 — additive on the payload: with the field, without the field')
 
 section('§3 — the precedence law (pure, the owner’s)')
 {
-  const { preferSessionLimitWarning } = await import('../../src/services/providers/limitWarning.ts')
+  const { preferSessionLimitWarning } = await import('../../src/models/roads/limitWarning.ts')
   const session = { provider: 'openai', text: 'OpenAI: 78% of weekly window used' }
   const local = { provider: 'anthropic', text: 'Anthropic: 91% of the Fable limit used' }
   check('a runner fact wins over the screen’s own derivation', preferSessionLimitWarning(session, local) === session)
@@ -116,7 +116,7 @@ section('§3 — the precedence law (pure, the owner’s)')
 
 section('§5 — the resting slot carries no fact')
 {
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
   const resting = new NoSessionConnector()
   check('NoSessionConnector.usage() carries no limitWarning (absent, never null-as-silence)', !('limitWarning' in resting.usage()))
 }

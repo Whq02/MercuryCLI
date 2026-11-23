@@ -9,10 +9,10 @@ import { gridToPng } from '../ui/gridToPng.ts'
 import { join } from 'node:path'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
-const source = join(import.meta.dir, '../../src/services/host/tune.ts')
+const source = join(import.meta.dir, '../../src/models/hosting/tune.ts')
 assert.ok(existsSync(source), 'host tuning has a product entry point')
-const tune = await import('../../src/services/host/tune.ts')
-const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+const tune = await import('../../src/models/hosting/tune.ts')
+const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
 const glm = { ...HOST_RECIPES.find(row => row.id === 'glm53-flash-gguf-b300')!, weightsGb: 195 }
 let checks = 0
 const check = (name: string, truth: unknown) => { assert.ok(truth, name); console.log('PASS ' + name); checks++ }
@@ -61,25 +61,25 @@ const rp = await runpodFixture()
 let mounted: Mounted | undefined
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
 try {
-  const { exportHostRecipesJson } = await import('../../src/services/host/recipesFile.ts')
+  const { exportHostRecipesJson } = await import('../../src/models/hosting/recipesFile.ts')
   const recipesPath = join(f.home, 'tune-recipes.json')
   writeFileSync(recipesPath, exportHostRecipesJson(HOST_RECIPES.map(row => row.id === glm.id ? glm : row)))
   process.env.MERCURY_HOST_RECIPES_FILE = recipesPath
-  const { hostRunner, closeHostTunnel } = await import('../../src/services/host/ssh.ts')
-  const { readHostRecord } = await import('../../src/services/host/store.ts')
-  const { runHostJob } = await import('../../src/services/host/worker.ts')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-  const { getSettingsForSource, updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
-  const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
-  const { resolveLlamacppTotalSlots } = await import('../../src/services/providers/openaicompat/compatProbe.ts')
-  const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
+  const { hostRunner, closeHostTunnel } = await import('../../src/models/hosting/ssh.ts')
+  const { readHostRecord } = await import('../../src/models/hosting/store.ts')
+  const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const { getSettingsForSource, updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
+  const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
+  const { resolveLlamacppTotalSlots } = await import('../../src/models/roads/openaicompat/compatProbe.ts')
+  const { configuredCompatEndpoints } = await import('../../src/models/roads/openaicompat/compatAccounts.ts')
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
   const modelTitle = 'GLM-5.3-Flash'
   const prefsPath = join(f.home, 'host/preferences.json')
@@ -97,7 +97,7 @@ try {
   if (frames) mkdirSync(frames, { recursive: true })
   const images: Promise<unknown>[] = []
   for (const width of [120, 80]) {
-    const road: import('../../src/services/llmHost/index.ts').LlmHostRoad = async (ask, output, signal) => { const prefs = await tune.runTune(modelTitle, { recipes: HOST_RECIPES.map(row => row.id === glm.id ? glm : row), offers: [offer], signal }, ask, output); return { ok: Boolean(prefs), words: prefs ? 'Tune saved' : 'Tune unchanged' } }
+    const road: import('../../src/models/llm-host/index.ts').LlmHostRoad = async (ask, output, signal) => { const prefs = await tune.runTune(modelTitle, { recipes: HOST_RECIPES.map(row => row.id === glm.id ? glm : row), offers: [offer], signal }, ask, output); return { ok: Boolean(prefs), words: prefs ? 'Tune saved' : 'Tune unchanged' } }
     popup.openSettingsPopup(llmHostPopupRequest(road))
     mounted = await mountOffscreen(React.createElement(AppStateProvider, {}, React.createElement(ThemeProvider, {}, React.createElement(Box, { flexDirection: 'column', width, height: 44 }, React.createElement(SettingsPopupSlot)))), width, 44)
     const m = mounted

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/constants/tools/memory.ts src/tools/RecordConventionTool/RecordConventionTool.ts src/tools/RecordConventionTool/prompt.ts docs/MNEME.md
-// gate-watch: src/cli/headless/runnerAsks.ts
+// gate-watch: src/tools/kit/names/memory.ts src/tools/record-convention/RecordConventionTool.ts src/tools/record-convention/prompt.ts docs/MNEME.md
+// gate-watch: src/daemon/runner/runnerAsks.ts
 import { proofHome } from '../lib/hermetic.ts'
 
 void proofHome
@@ -10,13 +10,13 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
 }
 
-const { RETAIN_PROMPT } = await import('../../src/constants/tools/memory.ts')
-const { RECORD_CONVENTION_DESCRIPTION } = await import('../../src/tools/RecordConventionTool/prompt.ts')
-const { unansweredConventionNote, UNANSWERED_ASK, RecordConventionTool } = await import('../../src/tools/RecordConventionTool/RecordConventionTool.ts')
-const { settleUnansweredAsk } = await import('../../src/cli/headless/runnerAsks.ts')
+const { RETAIN_PROMPT } = await import('../../src/tools/kit/names/memory.ts')
+const { RECORD_CONVENTION_DESCRIPTION } = await import('../../src/tools/record-convention/prompt.ts')
+const { unansweredConventionNote, UNANSWERED_ASK, RecordConventionTool } = await import('../../src/tools/record-convention/RecordConventionTool.ts')
+const { settleUnansweredAsk } = await import('../../src/daemon/runner/runnerAsks.ts')
 
 console.log('\n§1 the pin field distinguishes a lasting rule from an ordinary fact')
-const { RetainTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
+const { RetainTool } = await import('../../src/tools/memory/MemoryTools.ts')
 const { z } = await import('zod/v4')
 const schema = z.toJSONSchema(RetainTool.inputSchema as never) as any
 const pinLine = schema.properties.items.items.properties.pin.description as string

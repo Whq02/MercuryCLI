@@ -1,19 +1,19 @@
 import * as React from 'react'
 import { useRef, useState } from 'react'
-import { useLoad } from '../../hooks/effects.js'
-import { Box, Text, useInput } from '../../ink.js'
-import { ContextVisualization } from '../../components/ContextVisualization.js'
-import { Wordmark } from '../../components/mercury-ui/assets.js'
-import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
+import { useLoad } from '../../screen/effects/effects.js'
+import { Box, Text, useInput } from '../../screen/themedRenderer.js'
+import { ContextVisualization } from './ContextVisualization.js'
+import { Wordmark } from '../../screen/widgets/assets.js'
+import { useMercuryTokens } from '../../screen/widgets/useMercuryTokens.js'
 import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
-} from '../../types/command.js'
-import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
-import { analyzeContextUsage } from '../../services/context/analyzeContext.js'
-import { errorMessage } from '../../utils/errors.js'
-import { renderToAnsiString, staticPrintColumns } from '../../utils/staticRender.js'
-import { buildContextInspectionPlan } from './context-noninteractive.js'
+} from '../catalogue/command.js'
+import { ownerFromToolUseContext } from '../../engine/run-owner/resolveOwner.js'
+import { analyzeContextUsage } from '../../engine/context-window/analyzeContext.js'
+import { errorMessage } from '../../platform/errors/errors.js'
+import { renderToAnsiString, staticPrintColumns } from '../../screen/renderer/staticRender.js'
+import { buildContextInspectionPlan } from './contextHeadless.js'
 
 export const CONTEXT_CARD_WORDS = {
   counting: 'counting the context window… · esc closes',

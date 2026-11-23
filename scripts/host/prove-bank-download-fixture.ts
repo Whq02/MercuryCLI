@@ -2,16 +2,16 @@ import assert from 'node:assert/strict'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { bankDownloadWords } from './bankDownloadFixture.ts'
-import type { HostRunner } from '../../src/services/host/ssh.ts'
+import type { HostRunner } from '../../src/models/hosting/ssh.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const home = join(process.env.MERCURY_CONFIG_DIR, "bank owner ' β")
 mkdirSync(home, { recursive: true })
 process.env.HOME = home
 if (process.platform === 'win32') process.env.USERPROFILE = home
-const { bankDownloadScript } = await import('../../src/services/host/bank.ts')
-const { runBoxScript } = await import('../../src/services/host/boxExecution.ts')
-const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+const { bankDownloadScript } = await import('../../src/models/hosting/bank.ts')
+const { runBoxScript } = await import('../../src/models/hosting/boxExecution.ts')
+const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
 const files = [{ path: 'shards/weights.bin', size: 3, sha256: 'a'.repeat(64) }, { path: 'config.json', size: 2, sha256: 'b'.repeat(64) }]
 const recipe = { ...HOST_RECIPES[0]!, model: 'fixture/download', include: '', weightsGb: 5 / 1e9, weightManifest: { model: 'fixture/download', include: '', revision: 'c'.repeat(40), files } }
 const signal = new AbortController().signal

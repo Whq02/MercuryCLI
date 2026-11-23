@@ -24,17 +24,17 @@ const section = (title: string, where: string): void => {
 }
 
 const React = (await import('react')).default
-const { render } = await import(join(ROOT, 'src/ink.ts'))
-const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
-const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
-const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+const { render } = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
+const { AppStateProvider } = await import(join(ROOT, 'src/screen/app-state/AppState.tsx'))
+const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/AppStateStore.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
-const { taskNoticeBlock } = await import(join(ROOT, 'src/utils/messages/noticeRows.ts'))
-const { UserAgentNotificationMessage } = await import(join(ROOT, 'src/components/messages/UserAgentNotificationMessage.tsx'))
-const { UserNoticeMessage } = await import(join(ROOT, 'src/components/messages/UserNoticeMessage.tsx'))
-const { MessageMetaProvider } = await import(join(ROOT, 'src/components/messages/TranscriptNameplate.tsx'))
-const { KeybindingSetup } = await import(join(ROOT, 'src/keybindings/KeybindingProviderSetup.tsx'))
-const { PromptInputHelpMenu } = await import(join(ROOT, 'src/components/PromptInput/PromptInputHelpMenu.tsx'))
+const { taskNoticeBlock } = await import(join(ROOT, 'src/engine/message-shapes/noticeRows.ts'))
+const { UserAgentNotificationMessage } = await import(join(ROOT, 'src/screen/messages/UserCrewmateNotificationMessage.tsx'))
+const { UserNoticeMessage } = await import(join(ROOT, 'src/screen/messages/UserNoticeMessage.tsx'))
+const { MessageMetaProvider } = await import(join(ROOT, 'src/screen/messages/TranscriptNameplate.tsx'))
+const { KeybindingSetup } = await import(join(ROOT, 'src/screen/keys/KeybindingProviderSetup.tsx'))
+const { PromptInputHelpMenu } = await import(join(ROOT, 'src/screen/composer/ComposerHelpMenu.tsx'))
 const h = React.createElement as (...args: unknown[]) => React.ReactElement
 const strip = (s: string): string => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
 const settle = (ms = 120): Promise<void> => new Promise(r => setTimeout(r, ms))
@@ -72,7 +72,7 @@ async function paint(node: React.ReactElement, band = { columns: 120, rows: 30 }
 
 section(
   '§1 background command done row: omit count unless the notice carries the output, other notices keep theirs',
-  'change taskNoticeBlock in src/utils/messages/noticeRows.ts and count handling in src/components/messages/UserNoticeMessage.tsx',
+  'change taskNoticeBlock in src/engine/message-shapes/noticeRows.ts and count handling in src/screen/messages/UserNoticeMessage.tsx',
 )
 {
   const bgNoResult = `<task-notification>
@@ -119,7 +119,7 @@ section(
 
 section(
   '§2 ? shortcuts list: shift + tab cycles the mode',
-  'change the mode row text in PromptInputHelpMenu in src/components/PromptInput/PromptInputHelpMenu.tsx',
+  'change the mode row text in PromptInputHelpMenu in src/screen/composer/ComposerHelpMenu.tsx',
 )
 {
   const help = await paint(h(PromptInputHelpMenu as never, { availableColumns: 120 }), { columns: 120, rows: 30 })
@@ -128,10 +128,10 @@ section(
 
 section(
   '§3 ? shortcuts list and composer footer agree on "! for shell mode"',
-  'change the ! row text in PromptInputHelpMenu in src/components/PromptInput/PromptInputHelpMenu.tsx and the bash-mode hint in src/components/PromptInput/PromptInputFooterLeftSide.tsx',
+  'change the ! row text in PromptInputHelpMenu in src/screen/composer/ComposerHelpMenu.tsx and the bash-mode hint in src/screen/composer/ComposerFooterLeftSide.tsx',
 )
 {
-  const { PromptInputFooterLeftSide } = await import(join(ROOT, 'src/components/PromptInput/PromptInputFooterLeftSide.tsx'))
+  const { PromptInputFooterLeftSide } = await import(join(ROOT, 'src/screen/composer/ComposerFooterLeftSide.tsx'))
   const help = await paint(h(PromptInputHelpMenu as never, { availableColumns: 120 }), { columns: 120, rows: 30 })
   check('? shortcuts list says "! for shell mode" and never "! for bash mode"', help.includes('! for shell mode') && !help.includes('! for bash mode'), help)
   const footer = await paint(

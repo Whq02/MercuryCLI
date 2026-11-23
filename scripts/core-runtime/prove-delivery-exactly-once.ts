@@ -19,17 +19,17 @@ for (const k of [
   delete process.env[k]
 }
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import(
-  '../../src/utils/messages/factories.ts'
+  '../../src/engine/message-shapes/factories.ts'
 )
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const queueStore = await import('../../src/input-core/command-queue.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const queueStore = await import('../../src/screen/composer/input-core/command-queue.ts')
 
 let failures = 0
 let checks = 0
@@ -42,7 +42,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — delivery-exactly-once prover exceeded 120s; a turn never finished, look at drainQueuedCommands in src/run-core/turn/afterTools.ts')
+  console.log('\nTIMEOUT — delivery-exactly-once prover exceeded 120s; a turn never finished, look at drainQueuedCommands in src/engine/loop/turn/afterTools.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
@@ -205,13 +205,13 @@ section('D1 — teardown at the queued_command yield: consumed, never re-drained
   check(
     'the drain yielded the queued_command attachment',
     sawAttachment,
-    'no queued_command attachment came out after the tool round; check drainQueuedCommands in src/run-core/turn/afterTools.ts',
+    'no queued_command attachment came out after the tool round; check drainQueuedCommands in src/engine/loop/turn/afterTools.ts',
   )
   const left = queueStore.getCommandQueue()
   check(
     'the yielded command is CONSUMED despite the teardown (exactly-once — a re-drain would deliver it twice)',
     left.length === 0,
-    `queue still holds ${left.length} command(s): ${JSON.stringify(left.map(c => c.value))}; drainQueuedCommands in src/run-core/turn/afterTools.ts must mark the command as draining (markDraining in src/input-core/command-queue.ts) so it is removed even when the generator is closed at the yield`,
+    `queue still holds ${left.length} command(s): ${JSON.stringify(left.map(c => c.value))}; drainQueuedCommands in src/engine/loop/turn/afterTools.ts must mark the command as draining (markDraining in src/screen/composer/input-core/command-queue.ts) so it is removed even when the generator is closed at the yield`,
   )
 }
 
@@ -227,14 +227,14 @@ section('D2 — the normal drain consumes once and the words fold in once')
     r = await gen.next()
   }
   const drained = yields.filter(isQueuedCommandAttachment)
-  check('exactly ONE queued_command attachment yielded', drained.length === 1, `${drained.length} attachments; drainQueuedCommands in src/run-core/turn/afterTools.ts must yield each queued command once`)
+  check('exactly ONE queued_command attachment yielded', drained.length === 1, `${drained.length} attachments; drainQueuedCommands in src/engine/loop/turn/afterTools.ts must yield each queued command once`)
   check(
     'the queue is empty after the turn',
     queueStore.getCommandQueue().length === 0,
-    'a drained command was left in the queue; check drainQueuedCommands in src/run-core/turn/afterTools.ts and markDraining in src/input-core/command-queue.ts',
+    'a drained command was left in the queue; check drainQueuedCommands in src/engine/loop/turn/afterTools.ts and markDraining in src/screen/composer/input-core/command-queue.ts',
   )
   const secondCall = JSON.stringify(calls[1]?.messages ?? [])
-  check('the steered words are in the NEXT model call (the legal boundary)', secondCall.includes('steer words D2'), 'the drained words did not reach calls[1]; check drainQueuedCommands in src/run-core/turn/afterTools.ts')
+  check('the steered words are in the NEXT model call (the legal boundary)', secondCall.includes('steer words D2'), 'the drained words did not reach calls[1]; check drainQueuedCommands in src/engine/loop/turn/afterTools.ts')
   const firstCall = JSON.stringify(calls[0]?.messages ?? [])
   check('…and not in the first (they arrived mid-turn)', !firstCall.includes('steer words D2'), 'the words were already in the first model call; the queue was drained before the first tool round settled')
 }
@@ -261,12 +261,12 @@ section('D3 — words sent mid-tool-round reach the very next model call')
   check(
     'the words are in the SECOND call (the next legal boundary — never later)',
     secondCall.includes('steer words D3'),
-    'the drain missed the first boundary after the round settled; check drainQueuedCommands in src/run-core/turn/afterTools.ts',
+    'the drain missed the first boundary after the round settled; check drainQueuedCommands in src/engine/loop/turn/afterTools.ts',
   )
   check(
     'the queue is empty after the turn',
     queueStore.getCommandQueue().length === 0,
-    'a drained command was left in the queue; check drainQueuedCommands in src/run-core/turn/afterTools.ts and markDraining in src/input-core/command-queue.ts',
+    'a drained command was left in the queue; check drainQueuedCommands in src/engine/loop/turn/afterTools.ts and markDraining in src/screen/composer/input-core/command-queue.ts',
   )
 }
 
@@ -282,7 +282,7 @@ section('D4 — teardown before any drain: the words stay queued (nothing was de
   check(
     'the undelivered command is STILL queued (it rides to the next boundary; consumed-without-delivery would lose it)',
     left.length === 1 && JSON.stringify(left[0]?.value ?? '').includes('steer words D4'),
-    `queue holds ${left.length}; a command is removed from the queue before it is yielded, check drainQueuedCommands in src/run-core/turn/afterTools.ts and markDraining in src/input-core/command-queue.ts`,
+    `queue holds ${left.length}; a command is removed from the queue before it is yielded, check drainQueuedCommands in src/engine/loop/turn/afterTools.ts and markDraining in src/screen/composer/input-core/command-queue.ts`,
   )
   queueStore.resetCommandQueue()
 }

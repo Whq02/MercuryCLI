@@ -8,10 +8,10 @@ import { join } from 'node:path'
 
 let failures = 0
 const diffSourceHints: Record<string, string> = {
-  '(1)': 'fix fetchGitDiffFor and fetchGitDiffHunksFor in src/utils/gitDiff.ts, or sourceGitSpec in src/components/diff/diffSources.ts',
-  '(2)': 'fix artifactDiffData in src/components/diff/diffSources.ts, or createReviewArtifact and reviseReviewArtifact in src/services/artifacts/reviewStore.ts',
-  '(3)': 'fix the review glue in src/components/diff/reviewLayer.ts (buildAnchorForHunk, ensureDiffArtifact, annotateHunk, reviewMarksForFile, buildReviewTurnMessage)',
-  '(4)': 'fix the diff actions in src/keybindings/schema.ts and the DiffDialog bindings in src/keybindings/defaultBindings.ts',
+  '(1)': 'fix fetchGitDiffFor and fetchGitDiffHunksFor in src/screen/diff/gitDiff.ts, or sourceGitSpec in src/screen/diff/diffSources.ts',
+  '(2)': 'fix artifactDiffData in src/screen/diff/diffSources.ts, or createReviewArtifact and reviseReviewArtifact in src/sessions/artifact-reviews/reviewStore.ts',
+  '(3)': 'fix the review glue in src/screen/diff/reviewLayer.ts (buildAnchorForHunk, ensureDiffArtifact, annotateHunk, reviewMarksForFile, buildReviewTurnMessage)',
+  '(4)': 'fix the diff actions in src/screen/keys/schema.ts and the DiffDialog bindings in src/screen/keys/defaultBindings.ts',
 }
 let diffSourceSection = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -59,7 +59,7 @@ section('(1) parameterized git fetchers — the right file set per source')
   git(['add', 'a.txt'])
   writeFileSync(join(repo, 'b.txt'), 'bravo unstaged\n')
 
-  const { fetchGitDiffFor, fetchGitDiffHunksFor } = await import('../../src/utils/gitDiff.js')
+  const { fetchGitDiffFor, fetchGitDiffHunksFor } = await import('../../src/screen/diff/gitDiff.js')
 
   const staged = await fetchGitDiffFor({ args: ['--cached'], cwd: repo })
   check('staged sees only a.txt', staged !== null && [...staged.perFileStats.keys()].join() === 'a.txt', JSON.stringify([...(staged?.perFileStats.keys() ?? [])]))
@@ -92,10 +92,10 @@ section('(1) parameterized git fetchers — the right file set per source')
   const laneDiff = await fetchGitDiffFor({ args: ['HEAD'], cwd: lane })
   check('lane worktree diff sees the lane dirt only', laneDiff !== null && [...laneDiff.perFileStats.keys()].join() === 'a.txt')
 
-  const { sourceGitSpec } = await import('../../src/components/diff/diffSources.js')
+  const { sourceGitSpec } = await import('../../src/screen/diff/diffSources.js')
   const branchSpec = sourceGitSpec({ type: 'branch', base: 'main', spec: { args: [`${mergeBase}...HEAD`] } })
   check('the branch source CARRIES its merge-base spec (never null)', branchSpec !== null && branchSpec.args[0]!.includes(mergeBase))
-  const deadExport = await import('../../src/components/diff/diffSources.js')
+  const deadExport = await import('../../src/screen/diff/diffSources.js')
   check('resolveBranchSpec dead code removed', !('resolveBranchSpec' in deadExport))
 
   writeFileSync(join(lane, 'lane-untracked.txt'), 'new in lane\n')
@@ -116,9 +116,9 @@ section('(1) parameterized git fetchers — the right file set per source')
 section('(2) artifact diff sources — stored bodies, never reparsed')
 {
   const { createReviewArtifact, reviseReviewArtifact } = await import(
-    '../../src/services/artifacts/reviewStore.js'
+    '../../src/sessions/artifact-reviews/reviewStore.js'
   )
-  const { artifactDiffData } = await import('../../src/components/diff/diffSources.js')
+  const { artifactDiffData } = await import('../../src/screen/diff/diffSources.js')
 
   const storedHunk = {
     oldStart: 1,
@@ -166,9 +166,9 @@ section('(2) artifact diff sources — stored bodies, never reparsed')
 section('(3) the review glue')
 {
   const { buildAnchorForHunk, diffDataToBodyFiles, ensureDiffArtifact, annotateHunk, reviewMarksForFile, buildReviewTurnMessage, _resetReviewLayerForTesting } =
-    await import('../../src/components/diff/reviewLayer.js')
-  const { readReviewArtifactState } = await import('../../src/services/artifacts/reviewStore.js')
-  const { contentDigest } = await import('../../src/utils/artifacts/anchors.js')
+    await import('../../src/screen/diff/reviewLayer.js')
+  const { readReviewArtifactState } = await import('../../src/sessions/artifact-reviews/reviewStore.js')
+  const { contentDigest } = await import('../../src/sessions/artifacts/anchors.js')
   _resetReviewLayerForTesting()
 
   const hunk = {
@@ -225,12 +225,12 @@ section('(3) the review glue')
 
 section('(4) keybinding tables')
 {
-  const { KEYBINDING_ACTIONS } = await import('../../src/keybindings/schema.js')
+  const { KEYBINDING_ACTIONS } = await import('../../src/screen/keys/schema.js')
   const actions = KEYBINDING_ACTIONS as readonly string[]
   for (const a of ['diff:annotate', 'diff:nextFinding', 'diff:resolveComments', 'diff:sendComments', 'diff:sendAllComments']) {
     check(`schema has ${a}`, actions.includes(a))
   }
-  const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.js')
+  const { DEFAULT_BINDINGS } = await import('../../src/screen/keys/defaultBindings.js')
   const diffCtx = (DEFAULT_BINDINGS as Array<{ context: string; bindings: Record<string, string> }>).find(
     b => b.context === 'DiffDialog',
   )

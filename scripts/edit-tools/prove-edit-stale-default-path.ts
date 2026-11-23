@@ -12,14 +12,14 @@ delete process.env.MERCURY_CHANGE_RECEIPTS
 delete process.env.MERCURY_EDIT_STALE_RECOVERY
 delete process.env.MERCURY_ANCHOR_PATCH
 
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
 const { rememberAnchoredSnapshot, _resetSnapshotRingForTesting } = await import(
-  '../../src/services/changeTransaction/snapshotRing.ts'
+  '../../src/tools/engines/change-transaction/snapshotRing.ts'
 )
-const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
+const { ownerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -102,16 +102,16 @@ section('§1 a pure line shift recovers through the real tool, offset named')
     { file_path: path, expected_anchor: staleAnchor, hunks: [{ lines: '7', replace: "  return 'after'" }] },
     ctx,
   )
-  check('the edit lands', outcome.ok === true, (outcome.ok === false ? outcome.error : '') + ' — a pure line shift must relocate the hunk; fix attemptStaleHunkRecovery in src/tools/FileEditTool/edit/fileFacts.ts and recoverStaleHunks in src/services/changeTransaction/stalePatchRecovery.ts')
+  check('the edit lands', outcome.ok === true, (outcome.ok === false ? outcome.error : '') + ' — a pure line shift must relocate the hunk; fix attemptStaleHunkRecovery in src/tools/edit/call/fileFacts.ts and recoverStaleHunks in src/tools/engines/change-transaction/stalePatchRecovery.ts')
   const after = readFileSync(path, 'utf8')
-  check('the replacement landed at the MOVED position (line 12)', after.split('\n')[11] === "  return 'after'", JSON.stringify(after.split('\n')[11]) + ' — the relocated hunk must apply at the shifted line; fix recoverStaleHunks in src/services/changeTransaction/stalePatchRecovery.ts')
-  check('the untouched shifted content survives', after.startsWith(banner) && after.includes('function target() {'), 'recovery must change only the hunk lines; see hunksEdit in src/tools/FileEditTool/edit/call.ts and recoverStaleHunks in src/services/changeTransaction/stalePatchRecovery.ts')
+  check('the replacement landed at the MOVED position (line 12)', after.split('\n')[11] === "  return 'after'", JSON.stringify(after.split('\n')[11]) + ' — the relocated hunk must apply at the shifted line; fix recoverStaleHunks in src/tools/engines/change-transaction/stalePatchRecovery.ts')
+  check('the untouched shifted content survives', after.startsWith(banner) && after.includes('function target() {'), 'recovery must change only the hunk lines; see hunksEdit in src/tools/edit/call/call.ts and recoverStaleHunks in src/tools/engines/change-transaction/stalePatchRecovery.ts')
   if (outcome.ok) {
     const note = String((outcome.data as { staleRecovery?: string }).staleRecovery ?? '')
-    check('the result carries the relocation notice with the line offset', /lines 7 → 12/.test(note), note + ' — the note must name the old and new line of each hunk; fix recoverStaleHunks in src/services/changeTransaction/stalePatchRecovery.ts')
-    check('the effect evidence names the recovery', /stale anchor recovered/.test(String((outcome.effect as { evidence?: string }).evidence ?? '')), 'the effect evidence must say "stale anchor recovered"; fix editedAnswer in src/tools/FileEditTool/edit/callParts.ts')
+    check('the result carries the relocation notice with the line offset', /lines 7 → 12/.test(note), note + ' — the note must name the old and new line of each hunk; fix recoverStaleHunks in src/tools/engines/change-transaction/stalePatchRecovery.ts')
+    check('the effect evidence names the recovery', /stale anchor recovered/.test(String((outcome.effect as { evidence?: string }).evidence ?? '')), 'the effect evidence must say "stale anchor recovered"; fix editedAnswer in src/tools/edit/call/callParts.ts')
     const wire = (FileEditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(outcome.data, 'tu-1')
-    check('the model-facing text states the relocation and the re-read guidance', /relocated/.test(String(wire.content)) && /re-read/.test(String(wire.content)), String(wire.content).slice(0, 160) + ' — the model-facing text must say the hunks were relocated and to re-read; fix mapToolResultToToolResultBlockParam in src/tools/FileEditTool/FileEditTool.ts')
+    check('the model-facing text states the relocation and the re-read guidance', /relocated/.test(String(wire.content)) && /re-read/.test(String(wire.content)), String(wire.content).slice(0, 160) + ' — the model-facing text must say the hunks were relocated and to re-read; fix mapToolResultToToolResultBlockParam in src/tools/edit/EditTool.ts')
   }
 }
 
@@ -129,9 +129,9 @@ section('§2 a change INSIDE the hunk window refuses typed, writing nothing')
     { file_path: path, expected_anchor: staleAnchor, hunks: [{ lines: '7', replace: "  return 'after'" }] },
     ctx,
   )
-  check('refused', outcome.ok === false, 'a change inside the hunk window must refuse, not relocate; fix recoverStaleHunks in src/services/changeTransaction/stalePatchRecovery.ts')
-  check('with the existing typed message and error code 11', outcome.ok === false && outcome.errorCode === 11 && /anchor/i.test(outcome.error), outcome.ok === false ? `${outcome.errorCode} ${outcome.error.slice(0, 80)} — a refused stale anchor must keep error code 11 and the anchor message from formatAnchorFailure in src/services/changeTransaction/snapshotAnchor.ts` : 'the edit did not refuse; see recoverStaleHunks in src/services/changeTransaction/stalePatchRecovery.ts')
-  check('nothing written', readFileSync(path, 'utf8') === v3, 'a refused edit must not write; see the throw before the write in src/tools/FileEditTool/edit/call.ts')
+  check('refused', outcome.ok === false, 'a change inside the hunk window must refuse, not relocate; fix recoverStaleHunks in src/tools/engines/change-transaction/stalePatchRecovery.ts')
+  check('with the existing typed message and error code 11', outcome.ok === false && outcome.errorCode === 11 && /anchor/i.test(outcome.error), outcome.ok === false ? `${outcome.errorCode} ${outcome.error.slice(0, 80)} — a refused stale anchor must keep error code 11 and the anchor message from formatAnchorFailure in src/tools/engines/change-transaction/snapshotAnchor.ts` : 'the edit did not refuse; see recoverStaleHunks in src/tools/engines/change-transaction/stalePatchRecovery.ts')
+  check('nothing written', readFileSync(path, 'utf8') === v3, 'a refused edit must not write; see the throw before the write in src/tools/edit/call/call.ts')
 }
 
 section('§3 two matching positions refuse rather than guess')
@@ -148,8 +148,8 @@ section('§3 two matching positions refuse rather than guess')
     { file_path: path, expected_anchor: staleAnchor, hunks: [{ lines: '7', replace: "  return 'after'" }] },
     ctx,
   )
-  check('ambiguity refuses', outcome.ok === false && outcome.errorCode === 11, 'two matching positions must refuse with error code 11; fix the unique-match rule in recoverStaleHunks (src/services/changeTransaction/stalePatchRecovery.ts)')
-  check('nothing written', readFileSync(path, 'utf8') === v4, 'a refused edit must not write; see the throw before the write in src/tools/FileEditTool/edit/call.ts')
+  check('ambiguity refuses', outcome.ok === false && outcome.errorCode === 11, 'two matching positions must refuse with error code 11; fix the unique-match rule in recoverStaleHunks (src/tools/engines/change-transaction/stalePatchRecovery.ts)')
+  check('nothing written', readFileSync(path, 'utf8') === v4, 'a refused edit must not write; see the throw before the write in src/tools/edit/call/call.ts')
 }
 
 section('§4 a ring miss refuses with today\'s message')
@@ -166,8 +166,8 @@ section('§4 a ring miss refuses with today\'s message')
     { file_path: path, expected_anchor: staleAnchor, hunks: [{ lines: '7', replace: 'x' }] },
     ctx,
   )
-  check('ring miss refuses with error code 11', outcome.ok === false && outcome.errorCode === 11, 'with no snapshot in the ring the stale anchor must refuse with code 11; see attemptStaleHunkRecovery in src/tools/FileEditTool/edit/fileFacts.ts')
-  check('nothing written', readFileSync(path, 'utf8') === v2, 'a refused edit must not write; see the throw before the write in src/tools/FileEditTool/edit/call.ts')
+  check('ring miss refuses with error code 11', outcome.ok === false && outcome.errorCode === 11, 'with no snapshot in the ring the stale anchor must refuse with code 11; see attemptStaleHunkRecovery in src/tools/edit/call/fileFacts.ts')
+  check('nothing written', readFileSync(path, 'utf8') === v2, 'a refused edit must not write; see the throw before the write in src/tools/edit/call/call.ts')
 }
 
 section('§5 the off arm is the pre-law surface exactly; validate agrees with call')
@@ -183,11 +183,11 @@ section('§5 the off arm is the pre-law surface exactly; validate agrees with ca
   const input = { file_path: path, expected_anchor: staleAnchor, hunks: [{ lines: '7', replace: "  return 'after'" }] }
   process.env.MERCURY_EDIT_STALE_RECOVERY = '0'
   const off = await editViaTool(input, ctx)
-  check('flag off: the recoverable case refuses (error code 11), nothing written', off.ok === false && off.errorCode === 11 && readFileSync(path, 'utf8') === v2, 'MERCURY_EDIT_STALE_RECOVERY=0 must restore the plain refusal; fix staleEditRecoveryEnabled in src/services/changeTransaction/stalePatchRecovery.ts')
+  check('flag off: the recoverable case refuses (error code 11), nothing written', off.ok === false && off.errorCode === 11 && readFileSync(path, 'utf8') === v2, 'MERCURY_EDIT_STALE_RECOVERY=0 must restore the plain refusal; fix staleEditRecoveryEnabled in src/tools/engines/change-transaction/stalePatchRecovery.ts')
   delete process.env.MERCURY_EDIT_STALE_RECOVERY
   const on = await editViaTool(input, ctx)
-  check('flag on: the same input recovers end to end', on.ok === true, (on.ok === false ? on.error : '') + ' — with the flag unset the recovery must run; fix staleEditRecoveryEnabled in src/services/changeTransaction/stalePatchRecovery.ts')
-  check('…with the shift applied at the moved line', readFileSync(path, 'utf8').split('\n')[7] === "  return 'after'", 'the recovered edit must apply at the shifted line; fix recoverStaleHunks in src/services/changeTransaction/stalePatchRecovery.ts')
+  check('flag on: the same input recovers end to end', on.ok === true, (on.ok === false ? on.error : '') + ' — with the flag unset the recovery must run; fix staleEditRecoveryEnabled in src/tools/engines/change-transaction/stalePatchRecovery.ts')
+  check('…with the shift applied at the moved line', readFileSync(path, 'utf8').split('\n')[7] === "  return 'after'", 'the recovered edit must apply at the shifted line; fix recoverStaleHunks in src/tools/engines/change-transaction/stalePatchRecovery.ts')
 }
 
 section('§6 the wiring, structural')

@@ -14,7 +14,7 @@ for (const name of ['MERCURY_HOME', 'MERCURY_SEATS', 'MERCURY_CRITTER', 'MERCURY
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok || !detail ? '' : ` — ${detail}`}${ok ? '' : ' — the /localsetup popup (src/commands/localsetup/localsetup.tsx, shown by src/components/SettingsPopupSlot.tsx) painted something other than this check expects; compare its rows, keys and footer with the constants at the top of this proof'}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok || !detail ? '' : ` — ${detail}`}${ok ? '' : ' — the /localsetup popup (src/commands/localsetup/localsetup.tsx, shown by src/screen/overlays/SettingsPopupSlot.tsx) painted something other than this check expects; compare its rows, keys and footer with the constants at the top of this proof'}`)
 }
 
 const COLS = 110
@@ -31,12 +31,12 @@ const PLACEHOLDER = 'author/model-GGUF'
 const EMPTY_BANK = 'No GGUF models in the Bank. Choose Hugging Face to pull one.'
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
-const config = await import('../../src/utils/config.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
+const config = await import('../../src/platform/settings/config.js')
 config.enableConfigs()
 const command = await import('../../src/commands/localsetup/localsetup.tsx')
 

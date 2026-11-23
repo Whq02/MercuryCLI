@@ -4,8 +4,8 @@ import { createHash, generateKeyPairSync } from 'node:crypto'
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { keyIdOf, verifySignatureBlock } from '../../src/services/privateChannel/artifactSigning.ts'
-import { archiveNameFor } from '../../src/services/privateChannel/releaseTarget.ts'
+import { keyIdOf, verifySignatureBlock } from '../../src/platform/update-channel/artifactSigning.ts'
+import { archiveNameFor } from '../../src/platform/update-channel/releaseTarget.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const TARGET = 'macos-arm64'

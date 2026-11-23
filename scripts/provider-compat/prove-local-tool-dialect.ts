@@ -13,8 +13,8 @@ delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 
 let failures = 0
-const dialectRenderFixHint = 'fix the rendering in src/services/providers/local/toolDialect.ts (toolDialectSystemText, renderToolDialectHistory, toolDialectCall, toolDialectResult, TOOL_DIALECT_WORDS)'
-const dialectRoadFixHint = 'fix where the dialect is applied to the request in src/services/providers/openaicompat/compatChatCallModel/prepare.ts, or the markup parsing and rendering in src/services/providers/local/toolDialect.ts'
+const dialectRenderFixHint = 'fix the rendering in src/models/roads/local/toolDialect.ts (toolDialectSystemText, renderToolDialectHistory, toolDialectCall, toolDialectResult, TOOL_DIALECT_WORDS)'
+const dialectRoadFixHint = 'fix where the dialect is applied to the request in src/models/roads/openaicompat/chat-call-model/prepare.ts, or the markup parsing and rendering in src/models/roads/local/toolDialect.ts'
 const sectionFixHints: Record<string, string> = {
   '1': dialectRenderFixHint,
   '2': dialectRenderFixHint,
@@ -36,8 +36,8 @@ function section(t: string): void {
 }
 const j = (value: unknown): string => JSON.stringify(value)?.slice(0, 600) ?? ''
 
-const { TOOL_DIALECT_WORDS, renderToolDialectHistory, toolDialectCall, toolDialectResult, toolDialectSystemText } = await import('../../src/services/providers/local/toolDialect.ts')
-type ZaiWireMessage = import('../../src/services/providers/zai/zaiClient.ts').ZaiWireMessage
+const { TOOL_DIALECT_WORDS, renderToolDialectHistory, toolDialectCall, toolDialectResult, toolDialectSystemText } = await import('../../src/models/roads/local/toolDialect.ts')
+type ZaiWireMessage = import('../../src/models/roads/zai/zaiClient.ts').ZaiWireMessage
 
 const READ_TOOL = { type: 'function' as const, function: { name: 'Read', description: 'Read a file', parameters: { type: 'object', properties: { file_path: { type: 'string' } }, required: ['file_path'] } } }
 const GREP_TOOL = { type: 'function' as const, function: { name: 'Grep', parameters: { type: 'object', properties: { pattern: { type: 'string' } } } } }
@@ -115,15 +115,15 @@ const fixture = Bun.serve({
   },
 })
 const root = `http://127.0.0.1:${fixture.port}`
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-type LocalModelRecord = import('../../src/services/providers/local/localDiscovery.ts').LocalModelRecord
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
+const { localLaneProfileFor } = await import('../../src/models/roads/local/localCallModel.ts')
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+type LocalModelRecord = import('../../src/models/roads/local/localDiscovery.ts').LocalModelRecord
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 const READ = FileReadTool.name
 const noToolsOllama: LocalModelRecord = { id: 'gemma3:4b', server: 'ollama', baseUrl: `${root}/v1`, toolsDeclared: false, thinkingDeclared: false, family: 'gemma3', parameterSize: '4B' }
 const toolsOllama: LocalModelRecord = { id: 'qwen3.5:9b', server: 'ollama', baseUrl: `${root}/v1`, toolsDeclared: true, thinkingDeclared: false, family: 'qwen3', parameterSize: '9B' }
@@ -225,7 +225,7 @@ section('6 · the same dialect on the /v1 road: an LM Studio model trained witho
 }
 section('refusals — a call the catalogue does not carry, arguments the schema refuses, markup quoted in a code fence, markup inside a tool result, a deferred tool not yet admitted, and the native model\'s prompt byte for byte')
 {
-  const { renderGenericInstructions, resolveBehaviourContract } = await import('../../src/prompt/behaviourContract.ts')
+  const { renderGenericInstructions, resolveBehaviourContract } = await import('../../src/engine/system-prompt/behaviourContract.ts')
   const expected = renderGenericInstructions(resolveBehaviourContract(['fixture system prompt']))
   script.ollama = [{ model: 'qwen3.5:9b', message: { role: 'assistant', content: 'ok' }, done: false }, doneRow('qwen3.5:9b')]
   const native = await drive(toolsOllama, [opening])
@@ -251,8 +251,8 @@ section('refusals — a call the catalogue does not carry, arguments the schema 
   const poisoned = await drive(noToolsOllama, [opening, assistantTurn, resultTurn])
   const userRows = messagesOf(poisoned.request).filter(row => row.role === 'user')
   check('markup inside a tool result rides the history as text in the result block and is never read as a call', poisoned.toolUses.length === 0 && String(userRows.at(-1)?.content ?? '').includes(poisonedResult) && String(userRows.at(-1)?.content ?? '').startsWith('<tool_result id="toolu_poison"'), j(poisoned))
-  const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-  const { WebFetchTool } = await import('../../src/tools/WebFetchTool/WebFetchTool.ts')
+  const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+  const { WebFetchTool } = await import('../../src/tools/web-fetch/WebFetchTool.ts')
   const FETCH = WebFetchTool.name
   const pool = [ToolSearchTool, FileReadTool, WebFetchTool]
   const fetchCall = `<tool_call>\n{"name": "${FETCH}", "arguments": {"url": "https://example.com/", "prompt": "the title"}}\n</tool_call>`

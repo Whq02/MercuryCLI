@@ -13,10 +13,10 @@ delete process.env.CI
 delete process.env.DEEPSEEK_API_KEY
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
-const saturn = await import('../../src/daemon/saturn.ts')
+const saturn = await import('../../src/daemon/saturn/saturn.ts')
 const {
   validateSaturnSubmission,
   applyConcourseScheduleOp,
@@ -27,9 +27,9 @@ const {
   SATURN_PROMPT_CAP,
 } = saturn
 const { updateConcourseWorkers, concourseWorkersPath } = await import(
-  '../../src/daemon/concourseWorkers.ts'
+  '../../src/daemon/concourse-workers/concourseWorkers.ts'
 )
-const { parseCronExpression, computeNextCronRun } = await import('../../src/utils/cron.ts')
+const { parseCronExpression, computeNextCronRun } = await import('../../src/daemon/saturn/cron.ts')
 
 let failures = 0
 let where = ''
@@ -96,7 +96,7 @@ const goodFire = { kind: 'fire', prompt: 'run the nightly audit' }
 const goodAt = { kind: 'at', atMs: Date.now() + 3_600_000 }
 
 console.log('§A0 validator poisons')
-where = 'validateSaturnSubmission in src/daemon/saturn.ts (it must refuse the listed malformed submission)'
+where = 'validateSaturnSubmission in src/daemon/saturn/saturn.ts (it must refuse the listed malformed submission)'
 {
   const cases: Array<[string, unknown]> = [
     ['non-object submission', 42],
@@ -137,7 +137,7 @@ where = 'validateSaturnSubmission in src/daemon/saturn.ts (it must refuse the li
 }
 
 console.log('§A1 the writer')
-where = 'applyConcourseScheduleOp in src/daemon/saturn.ts (the add, remove, pause and resume writer for the worker record)'
+where = 'applyConcourseScheduleOp in src/daemon/saturn/saturn.ts (the add, remove, pause and resume writer for the worker record)'
 {
   updateConcourseWorkers(workers => {
     for (const key of Object.keys(workers)) delete workers[key]
@@ -238,7 +238,7 @@ where = 'applyConcourseScheduleOp in src/daemon/saturn.ts (the add, remove, paus
 }
 
 console.log('§A2 next-fire math')
-where = 'saturnNextFireMs and describeWhen in src/daemon/saturn.ts, and the cron engine in src/utils/cron.ts'
+where = 'saturnNextFireMs and describeWhen in src/daemon/saturn/saturn.ts, and the cron engine in src/daemon/saturn/cron.ts'
 {
   const future = Date.now() + 1000
   check("'at' in the future answers atMs", saturnNextFireMs({ kind: 'at', atMs: future }, Date.now()) === future)
@@ -280,9 +280,9 @@ where = 'saturnNextFireMs and describeWhen in src/daemon/saturn.ts, and the cron
 }
 
 console.log('§P the preflight owner')
-where = 'deriveScheduleAccountForModel, scheduleAccountVerdict, readLiveAccountFacts and noCredentialRefusal in src/daemon/saturnAccount.ts'
+where = 'deriveScheduleAccountForModel, scheduleAccountVerdict, readLiveAccountFacts and noCredentialRefusal in src/daemon/saturn/saturnAccount.ts'
 {
-  const acct = await import('../../src/daemon/saturnAccount.ts')
+  const acct = await import('../../src/daemon/saturn/saturnAccount.ts')
   const { deriveScheduleAccountForModel, scheduleAccountVerdict, readLiveAccountFacts, noCredentialRefusal } = acct
 
   const real = deriveScheduleAccountForModel('deepseek-chat')
@@ -397,11 +397,11 @@ where = 'deriveScheduleAccountForModel, scheduleAccountVerdict, readLiveAccountF
 }
 
 console.log('§W the wire')
-where = 'applyConcourseScheduleOp and saturnFactsOf in src/daemon/saturn.ts, and the receipts in src/services/switchboard/sessionReceipts.ts'
+where = 'applyConcourseScheduleOp and saturnFactsOf in src/daemon/saturn/saturn.ts, and the receipts in src/daemon/switchboard/sessionReceipts.ts'
 {
   seedRecord()
-  const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')
-  const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+  const receipts = await import('../../src/daemon/switchboard/sessionReceipts.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
   const wAdd = applyConcourseScheduleOp(
     SESSION,
     { op: 'add', schedule: { when: { kind: 'every', cron: '0 9 * * *', spelling: 'every day 09:00' }, action: goodFire } },
@@ -442,12 +442,12 @@ where = 'applyConcourseScheduleOp and saturnFactsOf in src/daemon/saturn.ts, and
 }
 
 console.log('§F the ticker')
-where = 'tickSaturnOnce, saturnDueAtOf and saturnCatchupWindowMs in src/daemon/saturnTicker.ts'
+where = 'tickSaturnOnce, saturnDueAtOf and saturnCatchupWindowMs in src/daemon/saturn/saturnTicker.ts'
 {
-  const ticker = await import('../../src/daemon/saturnTicker.ts')
+  const ticker = await import('../../src/daemon/saturn/saturnTicker.ts')
   const { tickSaturnOnce, saturnDueAtOf, saturnCatchupWindowMs, DEFAULT_SATURN_CATCHUP_WINDOW_MS } = ticker
-  const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')
-  const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+  const receipts = await import('../../src/daemon/switchboard/sessionReceipts.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
   const home = getProjectDir('/scratch/repo')
   const scheduleRows = () => ((rawRecord().schedules ?? []) as Array<Record<string, unknown>>)
   const heldRows = () => ((rawRecord().heldFires ?? []) as Array<Record<string, unknown>>)
@@ -702,11 +702,11 @@ where = 'tickSaturnOnce, saturnDueAtOf and saturnCatchupWindowMs in src/daemon/s
 }
 
 console.log('§B the birth tier')
-where = 'makeSaturnBirthPort in src/daemon/saturnBirth.ts and the birth step of tickSaturnOnce in src/daemon/saturnTicker.ts'
+where = 'makeSaturnBirthPort in src/daemon/saturn/saturnBirth.ts and the birth step of tickSaturnOnce in src/daemon/saturn/saturnTicker.ts'
 {
-  const { makeSaturnBirthPort } = await import('../../src/daemon/saturnBirth.ts')
-  const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')
-  const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+  const { makeSaturnBirthPort } = await import('../../src/daemon/saturn/saturnBirth.ts')
+  const receipts = await import('../../src/daemon/switchboard/sessionReceipts.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
   type DispatchCall = Record<string, unknown>
   const dispatchCalls: DispatchCall[] = []
   const withdrawn: string[] = []
@@ -757,9 +757,9 @@ where = 'makeSaturnBirthPort in src/daemon/saturnBirth.ts and the birth step of 
 }
 
 console.log('§T the facts-borne road')
-where = 'src/services/saturn/sessionScheduleBridge.ts (submitSessionScheduleEdit, takePendingScheduleEdits, latchSessionScheduleRoster, the local wake sink) and onFactsAnswer in src/daemon/sessionSeat/facts.ts'
+where = 'src/daemon/saturn/sessionScheduleBridge.ts (submitSessionScheduleEdit, takePendingScheduleEdits, latchSessionScheduleRoster, the local wake sink) and onFactsAnswer in src/daemon/session-seat/facts.ts'
 {
-  const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
+  const bridge = await import('../../src/daemon/saturn/sessionScheduleBridge.ts')
   const {
     submitSessionScheduleEdit,
     takePendingScheduleEdits,
@@ -806,7 +806,7 @@ where = 'src/services/saturn/sessionScheduleBridge.ts (submitSessionScheduleEdit
   check('T5 the wake fired the prompt into the sink', wakes.length === 1 && wakes[0] === 'wake up and continue')
 
   seedRecord()
-  const seatMod = await import('../../src/daemon/sessionSeat.ts')
+  const seatMod = await import('../../src/daemon/session-seat/sessionSeat.ts')
   const { standInRunner } = await import('../lib/seatDoor.ts')
   const stand = standInRunner({ autoAnswer: null })
   const fixtureRoster = stand.roster({ list: () => [{ short: 'concourse-w1', busy: false }] })
@@ -849,8 +849,8 @@ where = 'src/services/saturn/sessionScheduleBridge.ts (submitSessionScheduleEdit
   delete process.env.MERCURY_WAKE_REASON
   check('T8 CR/LF runs collapse to single spaces in the header', applyWakeReason('p', 'a\r\nb\nc') === '[self-paced wake — why you woke: a b c]\n\np')
 
-  const { isSaturnDisabled } = await import('../../src/daemon/saturnTicker.ts')
-  const { isSaturnSchedulingEnabled } = await import('../../src/tools/ScheduleCronTool/prompt.ts')
+  const { isSaturnDisabled } = await import('../../src/daemon/saturn/saturnTicker.ts')
+  const { isSaturnSchedulingEnabled } = await import('../../src/tools/cron/prompt.ts')
   const flips: Array<string | undefined> = [undefined, '1', '0', 'true']
   let agree = true
   for (const v of flips) {
@@ -863,11 +863,11 @@ where = 'src/services/saturn/sessionScheduleBridge.ts (submitSessionScheduleEdit
 }
 
 console.log('§X the box tier')
-where = 'readBoxSchedules and boxScheduleProblem in src/daemon/saturnBoxSchedules.ts and tickSaturnOnce in src/daemon/saturnTicker.ts'
+where = 'readBoxSchedules and boxScheduleProblem in src/daemon/saturn/saturnBoxSchedules.ts and tickSaturnOnce in src/daemon/saturn/saturnTicker.ts'
 {
-  const boxMod = await import('../../src/daemon/saturnBoxSchedules.ts')
+  const boxMod = await import('../../src/daemon/saturn/saturnBoxSchedules.ts')
   const { readBoxSchedules, saturnBoxSchedulesPath, boxScheduleProblem } = boxMod
-  const ticker = await import('../../src/daemon/saturnTicker.ts')
+  const ticker = await import('../../src/daemon/saturn/saturnTicker.ts')
   const { writeFileSync: wfx, mkdirSync: mkx } = await import('node:fs')
   const acct = { family: 'anthropic', source: 'oauth' as const }
   const birthRow = (id: string, atMs: number, presence = 'headless') => ({

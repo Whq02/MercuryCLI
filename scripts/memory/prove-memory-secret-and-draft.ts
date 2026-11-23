@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts src/mneme/mnemeBuffer.ts src/mneme/mnemeSecretGuard.ts src/tools/MemoryTools/MemoryTools.ts src/constants/tools/memory.ts src/utils/detectSecrets.ts
+// gate-watch: src/sessions/mneme/memoryVerbs.ts src/sessions/mneme/mnemeCorrect.ts src/sessions/mneme/mnemeBuffer.ts src/sessions/mneme/mnemeSecretGuard.ts src/tools/memory/MemoryTools.ts src/tools/kit/names/memory.ts src/platform/secrets/detectSecrets.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { appendFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -12,19 +12,19 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.slice(0, 500)}` : ''} — fix the secret refusal and draft strike or replace in retainItems, correctMemory and readMemoryRecord in src/mneme/memoryVerbs.ts, secret kinds in detectSecrets in src/utils/detectSecrets.ts, the centre correction in correctFact in src/mneme/mnemeCorrect.ts, or the prompts in src/constants/tools/memory.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.slice(0, 500)}` : ''} — fix the secret refusal and draft strike or replace in retainItems, correctMemory and readMemoryRecord in src/sessions/mneme/memoryVerbs.ts, secret kinds in detectSecrets in src/platform/secrets/detectSecrets.ts, the centre correction in correctFact in src/sessions/mneme/mnemeCorrect.ts, or the prompts in src/tools/kit/names/memory.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { retainItems, correctMemory, readMemoryRecord, recallQuery, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.js')
-const { appendObservation, pendingRows, currentBufferPath } = await import('../../src/mneme/mnemeBuffer.js')
-const { correctFact } = await import('../../src/mneme/mnemeCorrect.js')
-const { maybeConsolidate, listTopicDocs } = await import('../../src/mneme/mnemeConsolidate.js')
-const { RetainTool, CorrectTool } = await import('../../src/tools/MemoryTools/MemoryTools.js')
-const { CORRECT_PROMPT, RETAIN_PROMPT } = await import('../../src/constants/tools/memory.js')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
+const { retainItems, correctMemory, readMemoryRecord, recallQuery, _resetMemoryVerbSessionStateForTesting } = await import('../../src/sessions/mneme/memoryVerbs.js')
+const { appendObservation, pendingRows, currentBufferPath } = await import('../../src/sessions/mneme/mnemeBuffer.js')
+const { correctFact } = await import('../../src/sessions/mneme/mnemeCorrect.js')
+const { maybeConsolidate, listTopicDocs } = await import('../../src/sessions/mneme/mnemeConsolidate.js')
+const { RetainTool, CorrectTool } = await import('../../src/tools/memory/MemoryTools.js')
+const { CORRECT_PROMPT, RETAIN_PROMPT } = await import('../../src/tools/kit/names/memory.js')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.js')
 
 const dir = mnemeLibraryDir()
 const libraryBytes = (): string => {
@@ -43,7 +43,7 @@ check('the reason never echoes the token', !why.includes(GITHUB) && !why.include
 const aws = retainItems([{ content: `the deploy user's access key id is ${AWS_ID}` }, { content: 'the deploy user is called deploy-bot' }], { session: 'secret-draft' }, dir)
 check('an AWS access key id is refused while the plain sibling in the same batch is stored', aws[0]?.status === 'refused' && aws[1]?.status === 'stored', JSON.stringify(aws).slice(0, 300))
 check('no library file holds either secret', !libraryBytes().includes('ghp_') && !libraryBytes().includes(AWS_ID), libraryBytes().slice(0, 200))
-const { detectSecrets } = await import('../../src/utils/detectSecrets.js')
+const { detectSecrets } = await import('../../src/platform/secrets/detectSecrets.js')
 const kinds = (text: string): string => detectSecrets(text).map(hit => hit.kind).join(',')
 check('an Anthropic key is reported only as anthropic-key, never also as an OpenAI key (F43A-C5-23)', kinds('key sk-ant-api03-LiveTestFake00000000000000000000') === 'anthropic-key', kinds('key sk-ant-api03-LiveTestFake00000000000000000000'))
 check('…while an OpenAI key, a short sk-ant- prefix and a text carrying both keep their kinds', kinds('key sk-proj-LiveTestFake0000000000000000000') === 'openai-key' && kinds('key sk-ant-LiveTestFake0000') === 'openai-key' && kinds('a sk-ant-api03-LiveTestFake00000000000000000000 and b sk-proj-LiveTestFake0000000000000000000') === 'anthropic-key,openai-key', [kinds('key sk-proj-LiveTestFake0000000000000000000'), kinds('key sk-ant-LiveTestFake0000')].join(' | '))

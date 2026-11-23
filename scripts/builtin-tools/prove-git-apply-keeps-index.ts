@@ -9,15 +9,15 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  const shown = [detail, 'fix preparePlan or applyPlan in src/services/gitGraph/plan.ts (how the plan stages and commits against the user index); the hunk ids come from gitDiff in src/services/gitGraph/observe.ts'].filter(Boolean).join(' — ')
+  const shown = [detail, 'fix preparePlan or applyPlan in src/platform/git-graph/plan.ts (how the plan stages and commits against the user index); the hunk ids come from gitDiff in src/platform/git-graph/observe.ts'].filter(Boolean).join(' — ')
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const { preparePlan, applyPlan, _resetGitPlanStoreForTesting } = await import('../../src/services/gitGraph/plan.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { preparePlan, applyPlan, _resetGitPlanStoreForTesting } = await import('../../src/platform/git-graph/plan.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 const owner = processMainOwner()
 const env = {
@@ -82,7 +82,7 @@ try {
     writeFileSync(join(root, 'hunky.txt'), lines.join('\n'))
     appendFileSync(join(root, 'other.txt'), 'other two\n')
     sh(['add', '--', 'other.txt'])
-    const { gitDiff } = await import('../../src/services/gitGraph/observe.ts')
+    const { gitDiff } = await import('../../src/platform/git-graph/observe.ts')
     const diff = gitDiff(root, { paths: ['hunky.txt'] })
     const ids = 'hunks' in diff ? diff.hunks.filter(h => h.file === 'hunky.txt').map(h => h.id) : []
     check('two hunks to choose from', ids.length === 2, JSON.stringify(diff).slice(0, 200))

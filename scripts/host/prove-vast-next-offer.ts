@@ -6,7 +6,7 @@ if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_D
 const f = await llmhostFixture()
 const vast = await vastFixture()
 try {
-  const module = await import(f.root + '/src/services/host/vendors/vast.ts')
+  const module = await import(f.root + '/src/models/hosting/vendors/vast.ts')
   const api = new module.VastClient(vast.key, vast.baseUrl)
   const signal = new AbortController().signal
   const offer = (await api.offers(signal)).find((row: any) => row.recipe.id === 'qwen38-27b-rtx-pro-6000')!

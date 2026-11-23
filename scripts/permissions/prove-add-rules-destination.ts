@@ -26,9 +26,9 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const j = (v: unknown): string => JSON.stringify(v)
 
 const effects: string[] = []
-const updateModule = await import('../../src/utils/permissions/PermissionUpdate.ts')
+const updateModule = await import('../../src/permissions/rules/permissionUpdate.ts')
 const { applyPermissionUpdate: realApply, persistPermissionUpdate: realPersist } = updateModule
-mock.module('../../src/utils/permissions/PermissionUpdate.js', () => ({
+mock.module('../../src/permissions/rules/permissionUpdate.js', () => ({
   ...updateModule,
   applyPermissionUpdate: (context: unknown, update: unknown) => {
     effects.push(`apply ${j(update)}`)
@@ -39,17 +39,17 @@ mock.module('../../src/utils/permissions/PermissionUpdate.js', () => ({
     return realPersist(update as never)
   },
 }))
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { AddPermissionRules } = await import('../../src/components/permissions/rules/AddPermissionRules.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { KeybindingProvider } = await import('../../src/keybindings/KeybindingContext.js')
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { AddPermissionRules } = await import('../../src/permissions/cards/rule-manager/AddPermissionRules.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { KeybindingProvider } = await import('../../src/screen/keys/KeybindingContext.js')
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 type Ctx = ReturnType<typeof getEmptyToolPermissionContext>
 type Rule = { source: string; ruleBehavior: string; ruleValue: { toolName: string; ruleContent?: string } }
 type Finding = { rule: Rule; shadowType: string }

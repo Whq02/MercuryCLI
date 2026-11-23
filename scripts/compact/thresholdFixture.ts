@@ -1,8 +1,8 @@
-import { roughTokenCountEstimationForMessages } from '../../src/services/tokenEstimation.ts'
-import { requestGaugeDigest } from '../../src/services/run/requestGauge.ts'
-import { tokenCountWithEstimation } from '../../src/services/context/tokens.ts'
-import { createUserMessage } from '../../src/services/messages.ts'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+import { roughTokenCountEstimationForMessages } from '../../src/models/facts/tokenEstimation.ts'
+import { requestGaugeDigest } from '../../src/engine/run/requestGauge.ts'
+import { tokenCountWithEstimation } from '../../src/engine/context-window/contextTokenCount.ts'
+import { createUserMessage } from '../../src/engine/messages/messages.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 
 const WORDS = ['const', 'function', 'return', 'await', 'import', 'export', 'messages', 'context', 'window', 'tokens', 'result', 'fold', 'gauge', 'request', 'summary', 'ladder', 'room', 'limit', 'line', 'read', 'if', 'for', 'of', 'string', 'number', '=>', '===', '&&', 'null', 'undefined']
 

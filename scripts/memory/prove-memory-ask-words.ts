@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/mneme/memoryPinIntent.ts src/mneme/memoryVerbs.ts src/mneme/mnemeBuffer.ts
+// gate-watch: src/tools/memory/MemoryTools.ts src/sessions/mneme/memoryPinIntent.ts src/sessions/mneme/memoryVerbs.ts src/sessions/mneme/mnemeBuffer.ts
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -19,14 +19,14 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (title: string): void => console.log(`\n${title}`)
 
-const { RetainTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
-const pinIntent = (await import('../../src/mneme/memoryPinIntent.ts')) as Record<string, unknown>
+const { RetainTool } = await import('../../src/tools/memory/MemoryTools.ts')
+const pinIntent = (await import('../../src/sessions/mneme/memoryPinIntent.ts')) as Record<string, unknown>
 const memoryAskRefusal = pinIntent.memoryAskRefusal as (messages: unknown[], agentId?: string) => string | null
 const asksForMemory = (pinIntent.asksForMemory ?? (() => false)) as (text: string) => boolean
-const { _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
-const { pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { _resetMemoryVerbSessionStateForTesting } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { pendingRows } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const dir = mnemeLibraryDir()
 
 let n = 0
@@ -95,9 +95,9 @@ try {
   for (const [words, verdict, why] of PHRASINGS) {
     const refusal = memoryAskRefusal([user(words)])
     const got: Verdict = refusal === null ? 'ask' : 'not an ask'
-    check(`${verdict === 'ask' ? 'asks     ' : 'no ask   '} "${words}" (${why})`, got === verdict, `the ask-word patterns in asksForMemory and memoryAskRefusal (src/mneme/memoryPinIntent.ts) read this phrasing the wrong way · refusal: ${refusal ?? 'allowed'}`)
+    check(`${verdict === 'ask' ? 'asks     ' : 'no ask   '} "${words}" (${why})`, got === verdict, `the ask-word patterns in asksForMemory and memoryAskRefusal (src/sessions/mneme/memoryPinIntent.ts) read this phrasing the wrong way · refusal: ${refusal ?? 'allowed'}`)
   }
-  check('the judge is one function on the message text (asksForMemory), shared by Retain and Correct', asksForMemory('Save to memory: x') && !asksForMemory('By the way, x'), 'asksForMemory in src/mneme/memoryPinIntent.ts must be true for Save to memory: x and false for By the way, x')
+  check('the judge is one function on the message text (asksForMemory), shared by Retain and Correct', asksForMemory('Save to memory: x') && !asksForMemory('By the way, x'), 'asksForMemory in src/sessions/mneme/memoryPinIntent.ts must be true for Save to memory: x and false for By the way, x')
 
   section('§2 more of the words people use, and their opposites')
   for (const words of [
@@ -115,7 +115,7 @@ try {
     "I'd like this remembered: the build box is called kestrel.",
     'this should be memorized: the db is heron',
     'keep remembering that the db is heron',
-  ]) check(`asks: "${words}"`, memoryAskRefusal([user(words)]) === null, `memoryAskRefusal in src/mneme/memoryPinIntent.ts must accept this wording · refusal: ${memoryAskRefusal([user(words)]) ?? ''}`)
+  ]) check(`asks: "${words}"`, memoryAskRefusal([user(words)]) === null, `memoryAskRefusal in src/sessions/mneme/memoryPinIntent.ts must accept this wording · refusal: ${memoryAskRefusal([user(words)]) ?? ''}`)
   for (const words of [
     "don't remember this: the db is heron",
     'forget it, the db is heron',
@@ -126,32 +126,32 @@ try {
     'he never remembers this, but the db is heron. What files are here?',
     'What files are here?',
     'By the way, the staging database is called osprey now, not heron. What files are in this folder?',
-  ]) check(`not an ask: "${words}"`, memoryAskRefusal([user(words)]) !== null, 'memoryAskRefusal in src/mneme/memoryPinIntent.ts must refuse this wording (negated, withdrawn or no ask) and returned null')
-  check('"no wait" before the ask does not withdraw it: the ask that follows stands', memoryAskRefusal([user('no wait, remember: the db is heron')]) === null, 'the withdrawal handling in memoryAskRefusal (src/mneme/memoryPinIntent.ts) must treat no wait as withdrawing only an ask that came before it, not the ask that follows it')
+  ]) check(`not an ask: "${words}"`, memoryAskRefusal([user(words)]) !== null, 'memoryAskRefusal in src/sessions/mneme/memoryPinIntent.ts must refuse this wording (negated, withdrawn or no ask) and returned null')
+  check('"no wait" before the ask does not withdraw it: the ask that follows stands', memoryAskRefusal([user('no wait, remember: the db is heron')]) === null, 'the withdrawal handling in memoryAskRefusal (src/sessions/mneme/memoryPinIntent.ts) must treat no wait as withdrawing only an ask that came before it, not the ask that follows it')
 
   section('§3 the refusal quotes the message the gate read, so the model cannot invent a cause')
   const byTheWay = 'By the way, the db is heron. What files are here?'
   check(
     'the refusal carries the message verbatim between the dashes, then the road words',
     memoryAskRefusal([user(byTheWay)]) === `Retain is refused: your latest message — "${byTheWay}" — does not ask to remember anything; say "remember: …" (or "note this down: …", "save to memory: …") for a memory.`,
-    `the refusal text is built in memoryAskRefusal (src/mneme/memoryPinIntent.ts); the wording must match exactly · got: ${memoryAskRefusal([user(byTheWay)]) ?? ''}`,
+    `the refusal text is built in memoryAskRefusal (src/sessions/mneme/memoryPinIntent.ts); the wording must match exactly · got: ${memoryAskRefusal([user(byTheWay)]) ?? ''}`,
   )
   const long = `By the way, ${'the build server is in the basement and '.repeat(6)}the db is heron.`
   const quoted = /— "([^"]*)" —/.exec(memoryAskRefusal([user(long)]) ?? '')?.[1] ?? ''
-  check('a long message is clipped to 120 characters, the last of them an ellipsis', quoted.length === 120 && quoted.endsWith('…') && long.startsWith(quoted.slice(0, 119)), `the quote clip in memoryAskRefusal (src/mneme/memoryPinIntent.ts) must cut to 120 characters ending in an ellipsis · ${quoted.length}: ${quoted}`)
+  check('a long message is clipped to 120 characters, the last of them an ellipsis', quoted.length === 120 && quoted.endsWith('…') && long.startsWith(quoted.slice(0, 119)), `the quote clip in memoryAskRefusal (src/sessions/mneme/memoryPinIntent.ts) must cut to 120 characters ending in an ellipsis · ${quoted.length}: ${quoted}`)
   const multiline = memoryAskRefusal([user('By the way,\nthe db is heron.\n\nWhat files are here?')]) ?? ''
-  check('a multi-line message is quoted on one line', multiline.includes('"By the way, the db is heron. What files are here?"'), `memoryAskRefusal (src/mneme/memoryPinIntent.ts) must collapse newlines in the quoted message · ${multiline}`)
+  check('a multi-line message is quoted on one line', multiline.includes('"By the way, the db is heron. What files are here?"'), `memoryAskRefusal (src/sessions/mneme/memoryPinIntent.ts) must collapse newlines in the quoted message · ${multiline}`)
   const silent = memoryAskRefusal([]) ?? ''
-  check('with no typed message the refusal says so instead of quoting nothing', silent.startsWith('Retain is refused: no typed message of yours precedes this call') && silent.endsWith('for a memory.'), `memoryAskRefusal (src/mneme/memoryPinIntent.ts) must give the no-typed-message wording when the message list is empty · ${silent}`)
+  check('with no typed message the refusal says so instead of quoting nothing', silent.startsWith('Retain is refused: no typed message of yours precedes this call') && silent.endsWith('for a memory.'), `memoryAskRefusal (src/sessions/mneme/memoryPinIntent.ts) must give the no-typed-message wording when the message list is empty · ${silent}`)
 
   section('§4 through the tool: the field case and its opposite')
   const kestrel = await retain('Save to memory: the build server is called kestrel', 'The build server is called kestrel.')
-  check('"Save to memory: the build server is called kestrel" stores the fact', kestrel.data.stored === 1 && pendingRows(dir).some(row => row.text === 'The build server is called kestrel.'), `RetainTool.call in src/tools/MemoryTools/MemoryTools.ts must store a fact the user asked to save · ${JSON.stringify(kestrel.data)}`)
+  check('"Save to memory: the build server is called kestrel" stores the fact', kestrel.data.stored === 1 && pendingRows(dir).some(row => row.text === 'The build server is called kestrel.'), `RetainTool.call in src/tools/memory/MemoryTools.ts must store a fact the user asked to save · ${JSON.stringify(kestrel.data)}`)
   const denied = await retain('Do not remember this: the db is heron. What files are here?', 'The db is heron.')
-  check('"Do not remember this: …" is refused whole, nothing stored', denied.data.stored === 0 && denied.data.refused === 1 && !pendingRows(dir).some(row => row.text === 'The db is heron.'), `RetainTool.call in src/tools/MemoryTools/MemoryTools.ts must refuse the whole call when memoryAskRefusal returns text · ${JSON.stringify(denied.data)}`)
-  check('…and the tool result quotes the message and names the road', denied.isError && denied.text.includes('your latest message — "Do not remember this: the db is heron. What files are here?" — does not ask to remember anything; say "remember: …"'), `the tool result must carry the memoryAskRefusal text (src/mneme/memoryPinIntent.ts) as an error through RetainTool in src/tools/MemoryTools/MemoryTools.ts · ${denied.text}`)
+  check('"Do not remember this: …" is refused whole, nothing stored', denied.data.stored === 0 && denied.data.refused === 1 && !pendingRows(dir).some(row => row.text === 'The db is heron.'), `RetainTool.call in src/tools/memory/MemoryTools.ts must refuse the whole call when memoryAskRefusal returns text · ${JSON.stringify(denied.data)}`)
+  check('…and the tool result quotes the message and names the road', denied.isError && denied.text.includes('your latest message — "Do not remember this: the db is heron. What files are here?" — does not ask to remember anything; say "remember: …"'), `the tool result must carry the memoryAskRefusal text (src/sessions/mneme/memoryPinIntent.ts) as an error through RetainTool in src/tools/memory/MemoryTools.ts · ${denied.text}`)
   const crew = await retain('Save to memory: the build server is called kestrel', 'The crewmate found the cache dir.', 'child-1')
-  check('a crewmate is refused always, whatever the words', crew.data.refused === 1 && (crew.data.outcomes[0]?.reason ?? '').startsWith('Retain is refused: a crewmate never writes memory'), `a crewmate call must be refused with CREWMATE_RETAIN_REFUSAL from src/mneme/memoryPinIntent.ts · ${JSON.stringify(crew.data)}`)
+  check('a crewmate is refused always, whatever the words', crew.data.refused === 1 && (crew.data.outcomes[0]?.reason ?? '').startsWith('Retain is refused: a crewmate never writes memory'), `a crewmate call must be refused with CREWMATE_RETAIN_REFUSAL from src/sessions/mneme/memoryPinIntent.ts · ${JSON.stringify(crew.data)}`)
 } finally {
   rmSync(home, { recursive: true, force: true })
 }

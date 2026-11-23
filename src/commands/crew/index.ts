@@ -1,16 +1,16 @@
-import type { Command } from '../../commands.js'
-import type { LocalCommandCall } from '../../types/command.js'
-import { crewDirectoryEnabled } from '../../services/crew/identity.js'
-import { passedOver } from '../../utils/passedOver.js'
+import type { Command } from '../catalogue/commands.js'
+import type { LocalCommandCall } from '../catalogue/command.js'
+import { crewDirectoryEnabled } from '../../crew/crewmates/identity.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
 
 const call: LocalCommandCall = async (args: string) => {
   const [verb, ...rest] = args.trim().split(/\s+/).filter(Boolean)
 
   if (verb === 'attach') {
     const kind = rest[0]
-    const { attachExternalSeat } = await import('../../services/crew/seatBridge.js')
+    const { attachExternalSeat } = await import('../../crew/crewmates/seatBridge.js')
     if (kind === 'codex') {
-      const { codexSeatTransport } = await import('../../services/crew/adapters/codex.js')
+      const { codexSeatTransport } = await import('../../crew/crewmates/adapters/codex.js')
       const seat = await attachExternalSeat(codexSeatTransport({}))
       return {
         type: 'text',
@@ -18,7 +18,7 @@ const call: LocalCommandCall = async (args: string) => {
       }
     }
     if (kind === 'opencode' || kind === 'goose') {
-      const { acpSeatTransport } = await import('../../services/crew/adapters/acpProfile.js')
+      const { acpSeatTransport } = await import('../../crew/crewmates/adapters/acpProfile.js')
       const display = kind === 'opencode' ? 'OpenCode' : 'goose'
       const seat = await attachExternalSeat(
         acpSeatTransport(kind, display, { command: [kind, 'acp'] }),
@@ -37,7 +37,7 @@ const call: LocalCommandCall = async (args: string) => {
   if (verb === 'detach') {
     const seatId = rest[0]
     if (!seatId) return { type: 'text', value: '/crew detach <seat-id>' }
-    const { detachExternalSeat } = await import('../../services/crew/seatBridge.js')
+    const { detachExternalSeat } = await import('../../crew/crewmates/seatBridge.js')
     const ok = await detachExternalSeat(seatId)
     return {
       type: 'text',
@@ -50,7 +50,7 @@ const call: LocalCommandCall = async (args: string) => {
   if (verb === 'cancel') {
     const seatId = rest[0]
     if (!seatId) return { type: 'text', value: '/crew cancel <seat-id>' }
-    const { cancelSeatTurn } = await import('../../services/crew/seatBridge.js')
+    const { cancelSeatTurn } = await import('../../crew/crewmates/seatBridge.js')
     const outcome = await cancelSeatTurn(seatId)
     return {
       type: 'text',
@@ -64,7 +64,7 @@ const call: LocalCommandCall = async (args: string) => {
   if (verb === 'renegotiate') {
     const seatId = rest[0]
     if (!seatId) return { type: 'text', value: '/crew renegotiate <seat-id>' }
-    const { renegotiateSeat } = await import('../../services/crew/seatBridge.js')
+    const { renegotiateSeat } = await import('../../crew/crewmates/seatBridge.js')
     try {
       const seat = await renegotiateSeat(seatId)
       return {
@@ -79,7 +79,7 @@ const call: LocalCommandCall = async (args: string) => {
   }
 
   if (verb === 'receipts') {
-    const { listDeliveryReceipts } = await import('../../services/crew/dispatch.js')
+    const { listDeliveryReceipts } = await import('../../crew/crewmates/dispatch.js')
     const receipts = await listDeliveryReceipts()
     if (receipts.length === 0) {
       return { type: 'text', value: 'no delivery receipts yet — dispatches record here' }
@@ -95,8 +95,8 @@ const call: LocalCommandCall = async (args: string) => {
   }
 
   if (verb === 'seats') {
-    const { listAttachedSeats } = await import('../../services/crew/seatBridge.js')
-    const { capabilitiesOf } = await import('../../services/crew/capabilities.js')
+    const { listAttachedSeats } = await import('../../crew/crewmates/seatBridge.js')
+    const { capabilitiesOf } = await import('../../crew/crewmates/capabilities.js')
     const seats = listAttachedSeats()
     if (seats.length === 0) {
       return { type: 'text', value: 'no attached external seats — /crew attach <codex|opencode|goose>' }
@@ -114,7 +114,7 @@ const call: LocalCommandCall = async (args: string) => {
 
   if (verb === 'activity') {
     const { cachedActivityFeed, activityRows, activityLineOf } = await import(
-      '../../services/crew/activity.js'
+      '../../crew/crewmates/activity.js'
     )
     const rows = activityRows(cachedActivityFeed())
     if (rows.length === 0) {
@@ -129,7 +129,7 @@ const call: LocalCommandCall = async (args: string) => {
     }
   }
 
-  const { resolveCrewSnapshot } = await import('../../services/crew/projection.js')
+  const { resolveCrewSnapshot } = await import('../../crew/crewmates/projection.js')
   const snap = await resolveCrewSnapshot()
   if (!snap || snap.members.length === 0) {
     return {
@@ -137,9 +137,9 @@ const call: LocalCommandCall = async (args: string) => {
       value: 'the crew directory is empty — it fills as this session and attached agents register',
     }
   }
-  const { targetPickerRows } = await import('../../services/crew/targetPicker.js')
+  const { targetPickerRows } = await import('../../crew/crewmates/targetPicker.js')
   const { listSessionDescriptors, renderSessionTitle } = await import(
-    '../../services/crew/descriptor.js'
+    '../../crew/crewmates/descriptor.js'
   )
   const picker = new Map(targetPickerRows(snap).map(r => [r.agentId as string, r]))
   const descriptors = await listSessionDescriptors().catch((error) => { passedOver(error); return [] })

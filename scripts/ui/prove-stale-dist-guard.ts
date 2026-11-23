@@ -72,10 +72,10 @@ function threeScenarios(name: string, buildTree: string | null, delta: string, e
 const all = (run: Run, word: string): boolean => run.verdicts.length === 3 && run.verdicts.every(v => v === word || v.startsWith(`${word} `))
 
 console.log('§1 a bundle built from another tree is refused for every scenario of the process, not only the first')
-const stale = threeScenarios('stale', BUILT_TREE, 'src/utils/effort.ts\\ndocs/ENGINES.md\\n')
+const stale = threeScenarios('stale', BUILT_TREE, 'src/models/effort/effort.ts\\ndocs/ENGINES.md\\n')
 check('the first scenario is refused', stale.verdicts[0]?.startsWith('refused ') === true, stale.verdicts[0] ?? stale.raw.slice(-400))
 check('the second and third scenarios are refused as well', all(stale, 'refused'), JSON.stringify(stale.verdicts.map(v => v.slice(0, 60))))
-check('every refusal names the built tree, the working tree and the build-input delta alone', stale.verdicts.length === 3 && stale.verdicts.every(v => v.includes(BUILT_TREE.slice(0, 12)) && v.includes(WORKING_TREE.slice(0, 12)) && v.includes('(build-input delta: src/utils/effort.ts)')), stale.verdicts[2] ?? '')
+check('every refusal names the built tree, the working tree and the build-input delta alone', stale.verdicts.length === 3 && stale.verdicts.every(v => v.includes(BUILT_TREE.slice(0, 12)) && v.includes(WORKING_TREE.slice(0, 12)) && v.includes('(build-input delta: src/models/effort/effort.ts)')), stale.verdicts[2] ?? '')
 check('the working tree is read once for the three scenarios', stale.treeReads === 1, `write-tree ran ${stale.treeReads} times`)
 
 console.log('§2 what the guard accepted before it still accepts, for every scenario')
@@ -84,16 +84,16 @@ check('a delta of docs, scripts and top-level pages renders all three', all(safe
 const ignores = threeScenarios('ignores', BUILT_TREE, '.gitignore\\nsrc/.gitignore\\n')
 check('a delta of ignore files alone renders all three: the build reads none of them', all(ignores, 'rendered'), JSON.stringify(ignores.verdicts.map(v => v.slice(0, 120))))
 const ignoresAndSource = threeScenarios('ignores-and-source', BUILT_TREE, '.gitignore\\nsrc/utils/effort.ts\\n')
-check('an ignore file beside a source file is refused, and the source alone is named', all(ignoresAndSource, 'refused') && ignoresAndSource.verdicts.every(v => v.includes('(build-input delta: src/utils/effort.ts)')), ignoresAndSource.verdicts[0] ?? ignoresAndSource.raw.slice(-300))
+check('an ignore file beside a source file is refused, and the source alone is named', all(ignoresAndSource, 'refused') && ignoresAndSource.verdicts.every(v => v.includes('(build-input delta: src/models/effort/effort.ts)')), ignoresAndSource.verdicts[0] ?? ignoresAndSource.raw.slice(-300))
 const same = threeScenarios('same', WORKING_TREE, '')
 check('a bundle built from the working tree renders all three', all(same, 'rendered'), JSON.stringify(same.verdicts.map(v => v.slice(0, 80))))
 const undeclared = threeScenarios('undeclared', null, '')
 check('a bundle that declares no tree renders all three and reads no tree', all(undeclared, 'rendered') && undeclared.treeReads === 0, `${JSON.stringify(undeclared.verdicts.map(v => v.slice(0, 80)))} · write-tree ran ${undeclared.treeReads} times`)
 
 console.log('§3 the two declared overrides bind a historical bundle for every scenario')
-const bound = threeScenarios('bound', BUILT_TREE, 'src/utils/effort.ts\\n', { MERCURY_STALE_DIST_OK: '1' })
+const bound = threeScenarios('bound', BUILT_TREE, 'src/models/effort/effort.ts\\n', { MERCURY_STALE_DIST_OK: '1' })
 check('MERCURY_STALE_DIST_OK=1 renders all three', all(bound, 'rendered'), JSON.stringify(bound.verdicts.map(v => v.slice(0, 80))))
-const prebuilt = threeScenarios('prebuilt', BUILT_TREE, 'src/utils/effort.ts\\n', { MERCURY_GATE_PREBUILT: '1' })
+const prebuilt = threeScenarios('prebuilt', BUILT_TREE, 'src/models/effort/effort.ts\\n', { MERCURY_GATE_PREBUILT: '1' })
 check('MERCURY_GATE_PREBUILT=1 renders all three', all(prebuilt, 'rendered'), JSON.stringify(prebuilt.verdicts.map(v => v.slice(0, 80))))
 
 rmSync(scratch, { recursive: true, force: true })

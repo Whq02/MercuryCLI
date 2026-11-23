@@ -14,7 +14,7 @@ if (!existsSync(DIST)) {
 console.log(`build under proof: ${DIST}`)
 const world = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'silence-once-')))
 const j = (value: unknown): string => (JSON.stringify(value) ?? '').slice(0, 700)
-const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
+const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/engine/requests/apiErrorRows.ts')
 
 const TASK = 'Say what calc.py holds.'
 const ANSWER = 'calc.py holds one function, add.'

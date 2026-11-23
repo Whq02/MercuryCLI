@@ -25,7 +25,7 @@ mkdirSync(process.env.MERCURY_TMPDIR, { recursive: true })
 
 let failures = 0
 let checks = 0
-const sleepFailHint = 'change SLEEP_TIMEOUT_WHY and where it is added to a timed-out command error, in src/tools/BashTool/BashTool.tsx'
+const sleepFailHint = 'change SLEEP_TIMEOUT_WHY and where it is added to a timed-out command error, in src/tools/shell/BashTool.tsx'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -33,9 +33,9 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { TaskStopTool } = await import('../../src/tools/TaskStopTool/TaskStopTool.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { TaskStopTool } = await import('../../src/tools/task-stop/TaskStopTool.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 
 let appState = getDefaultAppState()
 const toolContext = {

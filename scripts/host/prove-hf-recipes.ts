@@ -21,9 +21,9 @@ globalThis.fetch = Object.assign((input: RequestInfo | URL, init?: RequestInit) 
 }, originalFetch)
 const hf = await hfFixture()
 try {
-  const { searchHuggingFace, fetchHuggingFaceRepo, deriveHostRecipe, pickHuggingFaceModel, hfRowLabel, hfModelChat, derivedHfRecipe, derivedRecipeWords, forgetDerivedHfRecipes, chooseGgufQuant, HF_OFFLINE_WORDS, HF_PROOF_WORDS, HF_GATED_WORDS, HF_NOT_CHAT_WORDS } = await import('../../src/services/host/hfRecipes.ts')
-  const { hostRecipeSchema, currentHostRecipes, sessionHostRecipes, forgetSessionHostRecipes } = await import('../../src/services/host/recipesFile.ts')
-  const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+  const { searchHuggingFace, fetchHuggingFaceRepo, deriveHostRecipe, pickHuggingFaceModel, hfRowLabel, hfModelChat, derivedHfRecipe, derivedRecipeWords, forgetDerivedHfRecipes, chooseGgufQuant, HF_OFFLINE_WORDS, HF_PROOF_WORDS, HF_GATED_WORDS, HF_NOT_CHAT_WORDS } = await import('../../src/models/hosting/hfRecipes.ts')
+  const { hostRecipeSchema, currentHostRecipes, sessionHostRecipes, forgetSessionHostRecipes } = await import('../../src/models/hosting/recipesFile.ts')
+  const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
   const base = hf.baseUrl
   const shard = (part: number, total = 2) => ({ path: 'Q4_K_M/model-Q4_K_M-' + String(part).padStart(5, '0') + '-of-' + String(total).padStart(5, '0') + '.gguf', size: 10 })
   const single = { path: 'Q4_K_M/model-Q4_K_M.gguf', size: 10 }

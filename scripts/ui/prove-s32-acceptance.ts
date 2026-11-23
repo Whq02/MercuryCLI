@@ -23,9 +23,9 @@ import {
   canYankPop,
   yankPop,
   resetYankState,
-} from '../../src/utils/Cursor.js'
-import { resolveMotion } from '../../src/vim/motions.js'
-import { findTextObject } from '../../src/vim/textObjects.js'
+} from '../../src/screen/composer/vim/textCursor.js'
+import { resolveMotion } from '../../src/screen/composer/vim/motions.js'
+import { findTextObject } from '../../src/screen/composer/vim/textObjects.js'
 import {
   executeOperatorMotion,
   executeOperatorFind,
@@ -37,99 +37,99 @@ import {
   executeOperatorG,
   executeOperatorGg,
   type OperatorContext,
-} from '../../src/vim/operators.js'
-import { transition } from '../../src/vim/transitions.js'
-import type { CommandState, FindType, RecordedChange } from '../../src/vim/types.js'
-import { MAX_VIM_COUNT } from '../../src/vim/types.js'
+} from '../../src/screen/composer/vim/operators.js'
+import { transition } from '../../src/screen/composer/vim/transitions.js'
+import type { CommandState, FindType, RecordedChange } from '../../src/screen/composer/vim/vimState.js'
+import { MAX_VIM_COUNT } from '../../src/screen/composer/vim/vimState.js'
 import {
   formatFileSize,
   formatDuration,
   formatBarElapsed,
   formatRelativeTime,
   formatResetText,
-} from '../../src/utils/format.js'
-import { renderTruncatedContent, isOutputLineTruncated } from '../../src/utils/terminal.js'
-import { applyMarkdown, configureMarked } from '../../src/utils/markdown.js'
+} from '../../src/platform/text/format.js'
+import { renderTruncatedContent, isOutputLineTruncated } from '../../src/tools/kit/truncatedOutput.js'
+import { applyMarkdown, configureMarked } from '../../src/screen/messages/markdownText.js'
 import {
   getProjectDirsUpToHome,
   loadMarkdownFilesForSubdir,
   clearMarkdownFileCache,
-} from '../../src/utils/markdownConfigLoader.js'
-import { hashPastedText, storePastedText, retrievePastedText, cleanupOldPastes } from '../../src/utils/pasteStore.js'
-import { getTheme, lerpHex, themeColorToAnsi, THEME_NAMES, type Theme, type ThemeName } from '../../src/utils/theme.js'
-import { slowLogging, SLOW_OPERATION_THRESHOLD_MS } from '../../src/utils/slowOperations.js'
-import { isImageFilePath } from '../../src/utils/imagePaste.js'
-import { getMercuryHome } from '../../src/utils/envUtils.js'
-import { TEAL as MERCURY_TEAL, AMBER as MERCURY_AMBER, CRIMSON as MERCURY_CRIMSON } from '../../src/components/mercuryPalette.js'
+} from '../../src/platform/settings/markdownConfigLoader.js'
+import { hashPastedText, storePastedText, retrievePastedText, cleanupOldPastes } from '../../src/sessions/pasteStore.js'
+import { getTheme, lerpHex, themeColorToAnsi, THEME_NAMES, type Theme, type ThemeName } from '../../src/screen/theme/theme.js'
+import { slowLogging, SLOW_OPERATION_THRESHOLD_MS } from '../../src/platform/logs/slowOperations.js'
+import { isImageFilePath } from '../../src/screen/composer/imagePaste.js'
+import { getMercuryHome } from '../../src/platform/environment/envUtils.js'
+import { TEAL as MERCURY_TEAL, AMBER as MERCURY_AMBER, CRIMSON as MERCURY_CRIMSON } from '../../src/screen/theme/mercuryPalette.js'
 
 let failures = 0
 const S32_FAIL_HINTS: Record<string, string> = {
-  '1.': 'src/utils/Cursor.ts, MeasuredText constructor (NFC) and snapToGraphemeBoundary',
-  '2.': 'src/utils/Cursor.ts, Cursor.right and Cursor.left must hop a whole grapheme cluster',
-  '3.': 'src/utils/Cursor.ts, Cursor.up and Cursor.down column clamping',
-  '4.': 'src/utils/Cursor.ts, Cursor.startOfLine on a wrapped continuation line',
-  '5.': 'src/utils/Cursor.ts, Cursor.downLogicalLine column clamp and grapheme snap',
-  '6.': 'src/utils/Cursor.ts, Cursor.getViewportStartLine and getViewportCharEnd',
-  '7.': 'src/utils/Cursor.ts, Cursor.render mask handling of wrapped lines',
-  '8.': 'src/utils/Cursor.ts, Cursor.render ghost text at end of text',
-  '9.': 'src/utils/Cursor.ts, Cursor.render must not call the invert function for an empty cursorChar',
-  '10.': 'src/utils/Cursor.ts, Cursor.equals compares the document object as well as the offset',
-  '11.': 'src/utils/Cursor.ts, Cursor.findCharacter (t, T and over-count)',
-  '12.': 'src/utils/Cursor.ts, Cursor.deleteTokenBefore (chip and @-mention rules)',
-  '13.': 'src/utils/Cursor.ts, pushToKillRing append merging and resetKillAccumulation',
-  '14.': 'src/utils/Cursor.ts, pushToKillRing prepend accumulation order',
-  '15.': 'src/utils/Cursor.ts, kill ring capacity eviction and getKillRingItem index wrap',
-  '16.': 'src/utils/Cursor.ts, canYankPop, recordYank, yankPop and resetYankState',
-  '17.': 'src/utils/Cursor.ts, the kill ring must stay module-global',
-  '18.': 'src/vim/motions.ts, resolveMotion for w with a count past the end of text',
-  '19.': 'src/vim/operators.ts, executeOperatorMotion for change with motion w',
-  '20.': 'src/vim/operators.ts, executeOperatorMotion and executeLineOp for dj and dd, reached through src/vim/transitions.ts transition',
-  '21.': 'src/vim/operators.ts, executeOperatorMotion, executeOperatorG, executeOperatorGg, executeOperatorFind, executeOperatorTextObj and the changes recorded through ctx.recordChange',
-  '22.': 'src/vim/operators.ts, executePaste (linewise and characterwise caret placement)',
-  '23.': 'src/vim/operators.ts, executePaste must not call ctx.recordChange',
-  '24.': 'src/vim/transitions.ts, transition in the replace state with empty input',
-  '25.': 'src/vim/transitions.ts, transition count state and MAX_VIM_COUNT in src/vim/types.ts',
-  '26.': 'src/vim/operators.ts, executeIndent (two-space indent, outdent of tab or one space)',
-  '27.': 'src/vim/textObjects.ts, findTextObject for the w object (inner and around)',
-  '28.': 'src/vim/textObjects.ts, findTextObject for the quote object (pairing and newline limit)',
-  '29.': 'src/vim/textObjects.ts, findTextObject for the ( object and executeOperatorTextObj in src/vim/operators.ts',
-  '30.': 'src/vim/transitions.ts, transition with an unrecognised key in each waiting state',
-  '31.': 'src/vim/operators.ts, executeOperatorMotion range expansion over a pasted-text chip',
-  '32.': 'src/utils/format.ts, formatDuration rounding, carry, day cap and the hideTrailingZeros and mostSignificantOnly options',
-  '33.': 'src/utils/format.ts, formatFileSize unit boundaries',
-  '34.': 'src/utils/format.ts, formatBarElapsed',
-  '35.': 'src/utils/format.ts, formatRelativeTime with style narrow',
-  '37.': 'src/utils/terminal.ts, renderTruncatedContent fold threshold and hint line',
-  '38.': 'src/utils/terminal.ts, isOutputLineTruncated',
-  '39.': 'src/utils/markdown.ts, applyMarkdown table width budget and ellipsis clipping',
-  '40.': 'src/utils/markdown.ts, applyMarkdown loose list markers and ordered list numbering by depth',
-  '41.': 'src/utils/markdown.ts, applyMarkdown issue linkifier must emit no OSC 8 link without terminal support',
-  '42.': 'src/utils/markdown.ts, applyMarkdown must not render a tilde span as strikethrough',
-  '43.': 'src/utils/markdownConfigLoader.ts, getProjectDirsUpToHome submodule and sibling repository handling',
-  '44.': 'src/utils/markdownConfigLoader.ts, loadMarkdownFilesForSubdir must list a file reached through a symlinked home once',
-  '45.': 'src/utils/markdownConfigLoader.ts, loadMarkdownFilesForSubdir worktree fallback to the canonical copy',
-  '46.': 'src/utils/markdownConfigLoader.ts, loadMarkdownFilesForSubdir ordering of user and project entries',
-  '47.': 'src/utils/markdownConfigLoader.ts, loadMarkdownFilesForSubdir with a missing directory or an unreadable file (a run as root reads the file, so check the user)',
-  '48.': 'src/utils/markdownConfigLoader.ts, clearMarkdownFileCache must clear the memoized loadMarkdownFilesForSubdir',
-  '49.': 'src/utils/pasteStore.ts, hashPastedText, storePastedText and retrievePastedText',
-  '50.': 'src/utils/pasteStore.ts, cleanupOldPastes (only store files older than the cutoff, a missing directory tolerated)',
-  '51.': 'src/utils/pasteStore.ts, storePastedText file mode (0o600)',
-  '52.': 'src/utils/theme.ts, getTheme must return a non-empty string for every role and every theme name',
-  '53.': 'src/utils/theme.ts, getTheme and the MERCURY_WARM_INK=0 switch',
-  '54.': 'src/utils/theme.ts, getTheme role values (shimmer, dimmed diff and spine colours)',
-  '55.': 'src/utils/theme.ts, getTheme warm overlay must leave the subagent colour roles unchanged',
-  '56.': 'src/utils/theme.ts, themeColorToAnsi',
-  '57.': 'src/utils/theme.ts, lerpHex endpoints and zero padding',
-  '61.': 'src/utils/imagePaste.ts, isImageFilePath quoted and shell-escaped path handling',
-  '66/79.': 'src/services/messages/attachmentText.ts, normalizeAttachmentForAPI bound on hook rows (head and tail kept, an omitted-characters note)',
-  '73.': 'src/utils/Cursor.ts, Cursor.firstNonBlankInLine and firstNonBlankInLogicalLine',
-  '74.': 'src/utils/Cursor.ts, every Cursor movement and edit method must return selection 0',
-  '75.': 'src/vim/transitions.ts, transition for 0 after an operator (operatorCount state)',
-  '76.': 'src/utils/Cursor.ts, Cursor.nextWORD must stop at pasted-text chip boundaries',
-  '77.': 'src/vim/textObjects.ts, findTextObject on an empty document and executeOperatorTextObj in src/vim/operators.ts',
-  '78.': 'src/utils/markdown.ts, applyMarkdown table width budget inside a blockquote',
-  '81.': 'src/utils/slowOperations.ts, slowLogging must return one shared no-op value',
-  '84.': 'src/utils/format.ts, formatResetText with absent or unparseable input',
+  '1.': 'src/screen/composer/vim/textCursor.ts, MeasuredText constructor (NFC) and snapToGraphemeBoundary',
+  '2.': 'src/screen/composer/vim/textCursor.ts, Cursor.right and Cursor.left must hop a whole grapheme cluster',
+  '3.': 'src/screen/composer/vim/textCursor.ts, Cursor.up and Cursor.down column clamping',
+  '4.': 'src/screen/composer/vim/textCursor.ts, Cursor.startOfLine on a wrapped continuation line',
+  '5.': 'src/screen/composer/vim/textCursor.ts, Cursor.downLogicalLine column clamp and grapheme snap',
+  '6.': 'src/screen/composer/vim/textCursor.ts, Cursor.getViewportStartLine and getViewportCharEnd',
+  '7.': 'src/screen/composer/vim/textCursor.ts, Cursor.render mask handling of wrapped lines',
+  '8.': 'src/screen/composer/vim/textCursor.ts, Cursor.render ghost text at end of text',
+  '9.': 'src/screen/composer/vim/textCursor.ts, Cursor.render must not call the invert function for an empty cursorChar',
+  '10.': 'src/screen/composer/vim/textCursor.ts, Cursor.equals compares the document object as well as the offset',
+  '11.': 'src/screen/composer/vim/textCursor.ts, Cursor.findCharacter (t, T and over-count)',
+  '12.': 'src/screen/composer/vim/textCursor.ts, Cursor.deleteTokenBefore (chip and @-mention rules)',
+  '13.': 'src/screen/composer/vim/textCursor.ts, pushToKillRing append merging and resetKillAccumulation',
+  '14.': 'src/screen/composer/vim/textCursor.ts, pushToKillRing prepend accumulation order',
+  '15.': 'src/screen/composer/vim/textCursor.ts, kill ring capacity eviction and getKillRingItem index wrap',
+  '16.': 'src/screen/composer/vim/textCursor.ts, canYankPop, recordYank, yankPop and resetYankState',
+  '17.': 'src/screen/composer/vim/textCursor.ts, the kill ring must stay module-global',
+  '18.': 'src/screen/composer/vim/motions.ts, resolveMotion for w with a count past the end of text',
+  '19.': 'src/screen/composer/vim/operators.ts, executeOperatorMotion for change with motion w',
+  '20.': 'src/screen/composer/vim/operators.ts, executeOperatorMotion and executeLineOp for dj and dd, reached through src/screen/composer/vim/transitions.ts transition',
+  '21.': 'src/screen/composer/vim/operators.ts, executeOperatorMotion, executeOperatorG, executeOperatorGg, executeOperatorFind, executeOperatorTextObj and the changes recorded through ctx.recordChange',
+  '22.': 'src/screen/composer/vim/operators.ts, executePaste (linewise and characterwise caret placement)',
+  '23.': 'src/screen/composer/vim/operators.ts, executePaste must not call ctx.recordChange',
+  '24.': 'src/screen/composer/vim/transitions.ts, transition in the replace state with empty input',
+  '25.': 'src/screen/composer/vim/transitions.ts, transition count state and MAX_VIM_COUNT in src/screen/composer/vim/vimState.ts',
+  '26.': 'src/screen/composer/vim/operators.ts, executeIndent (two-space indent, outdent of tab or one space)',
+  '27.': 'src/screen/composer/vim/textObjects.ts, findTextObject for the w object (inner and around)',
+  '28.': 'src/screen/composer/vim/textObjects.ts, findTextObject for the quote object (pairing and newline limit)',
+  '29.': 'src/screen/composer/vim/textObjects.ts, findTextObject for the ( object and executeOperatorTextObj in src/screen/composer/vim/operators.ts',
+  '30.': 'src/screen/composer/vim/transitions.ts, transition with an unrecognised key in each waiting state',
+  '31.': 'src/screen/composer/vim/operators.ts, executeOperatorMotion range expansion over a pasted-text chip',
+  '32.': 'src/platform/text/format.ts, formatDuration rounding, carry, day cap and the hideTrailingZeros and mostSignificantOnly options',
+  '33.': 'src/platform/text/format.ts, formatFileSize unit boundaries',
+  '34.': 'src/platform/text/format.ts, formatBarElapsed',
+  '35.': 'src/platform/text/format.ts, formatRelativeTime with style narrow',
+  '37.': 'src/tools/kit/truncatedOutput.ts, renderTruncatedContent fold threshold and hint line',
+  '38.': 'src/tools/kit/truncatedOutput.ts, isOutputLineTruncated',
+  '39.': 'src/screen/messages/markdownText.ts, applyMarkdown table width budget and ellipsis clipping',
+  '40.': 'src/screen/messages/markdownText.ts, applyMarkdown loose list markers and ordered list numbering by depth',
+  '41.': 'src/screen/messages/markdownText.ts, applyMarkdown issue linkifier must emit no OSC 8 link without terminal support',
+  '42.': 'src/screen/messages/markdownText.ts, applyMarkdown must not render a tilde span as strikethrough',
+  '43.': 'src/platform/settings/markdownConfigLoader.ts, getProjectDirsUpToHome submodule and sibling repository handling',
+  '44.': 'src/platform/settings/markdownConfigLoader.ts, loadMarkdownFilesForSubdir must list a file reached through a symlinked home once',
+  '45.': 'src/platform/settings/markdownConfigLoader.ts, loadMarkdownFilesForSubdir worktree fallback to the canonical copy',
+  '46.': 'src/platform/settings/markdownConfigLoader.ts, loadMarkdownFilesForSubdir ordering of user and project entries',
+  '47.': 'src/platform/settings/markdownConfigLoader.ts, loadMarkdownFilesForSubdir with a missing directory or an unreadable file (a run as root reads the file, so check the user)',
+  '48.': 'src/platform/settings/markdownConfigLoader.ts, clearMarkdownFileCache must clear the memoized loadMarkdownFilesForSubdir',
+  '49.': 'src/sessions/pasteStore.ts, hashPastedText, storePastedText and retrievePastedText',
+  '50.': 'src/sessions/pasteStore.ts, cleanupOldPastes (only store files older than the cutoff, a missing directory tolerated)',
+  '51.': 'src/sessions/pasteStore.ts, storePastedText file mode (0o600)',
+  '52.': 'src/screen/theme/theme.ts, getTheme must return a non-empty string for every role and every theme name',
+  '53.': 'src/screen/theme/theme.ts, getTheme and the MERCURY_WARM_INK=0 switch',
+  '54.': 'src/screen/theme/theme.ts, getTheme role values (shimmer, dimmed diff and spine colours)',
+  '55.': 'src/screen/theme/theme.ts, getTheme warm overlay must leave the subagent colour roles unchanged',
+  '56.': 'src/screen/theme/theme.ts, themeColorToAnsi',
+  '57.': 'src/screen/theme/theme.ts, lerpHex endpoints and zero padding',
+  '61.': 'src/screen/composer/imagePaste.ts, isImageFilePath quoted and shell-escaped path handling',
+  '66/79.': 'src/engine/messages/attachmentText.ts, normalizeAttachmentForAPI bound on hook rows (head and tail kept, an omitted-characters note)',
+  '73.': 'src/screen/composer/vim/textCursor.ts, Cursor.firstNonBlankInLine and firstNonBlankInLogicalLine',
+  '74.': 'src/screen/composer/vim/textCursor.ts, every Cursor movement and edit method must return selection 0',
+  '75.': 'src/screen/composer/vim/transitions.ts, transition for 0 after an operator (operatorCount state)',
+  '76.': 'src/screen/composer/vim/textCursor.ts, Cursor.nextWORD must stop at pasted-text chip boundaries',
+  '77.': 'src/screen/composer/vim/textObjects.ts, findTextObject on an empty document and executeOperatorTextObj in src/screen/composer/vim/operators.ts',
+  '78.': 'src/screen/messages/markdownText.ts, applyMarkdown table width budget inside a blockquote',
+  '81.': 'src/platform/logs/slowOperations.ts, slowLogging must return one shared no-op value',
+  '84.': 'src/platform/text/format.ts, formatResetText with absent or unparseable input',
 }
 function failSuffix(name: string, ok: boolean, detail: string): string {
   if (ok) return ''
@@ -731,7 +731,7 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
   const probe = join(area, 'probe-walk.ts')
   writeFileSync(
     probe,
-    `const { getProjectDirsUpToHome } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/markdownConfigLoader.ts'))})\n` +
+    `const { getProjectDirsUpToHome } = await import(${JSON.stringify(join(import.meta.dir, '../../src/platform/settings/markdownConfigLoader.ts'))})\n` +
       `console.log(JSON.stringify(getProjectDirsUpToHome('skills', ${JSON.stringify(insideSub)})))\n`,
   )
   const dirsFromSub = JSON.parse(execSync(`${process.execPath} run ${probe}`, { cwd: parent, encoding: 'utf8' }).trim()) as string[]
@@ -741,7 +741,7 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
   const probeSib = join(area, 'probe-sib.ts')
   writeFileSync(
     probeSib,
-    `const { getProjectDirsUpToHome } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/markdownConfigLoader.ts'))})\n` +
+    `const { getProjectDirsUpToHome } = await import(${JSON.stringify(join(import.meta.dir, '../../src/platform/settings/markdownConfigLoader.ts'))})\n` +
       `console.log(JSON.stringify(getProjectDirsUpToHome('skills', ${JSON.stringify(sibling)})))\n`,
   )
   const dirsSibling = JSON.parse(execSync(`${process.execPath} run ${probeSib}`, { cwd: parent, encoding: 'utf8' }).trim()) as string[]
@@ -987,7 +987,7 @@ console.log('\n── clipboard, panel, pipeline (58–72) ──')
 
 
 
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.js')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.js')
 const hookWords = 'HOOK-HEAD' + 'x'.repeat(80_000) + 'HOOK-TAIL'
 pin('66/79. the hook context bound applies where the model reads a hook row: the context and the tool.after objection', (['context', 'block'] as const).every(outcome => {
   const projected = normalizeAttachmentForAPI({ type: 'hook', outcome, name: 'acceptance-bound', event: 'tool.after', words: hookWords })

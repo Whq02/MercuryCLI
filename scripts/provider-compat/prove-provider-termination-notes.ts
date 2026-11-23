@@ -97,18 +97,18 @@ globalThis.fetch = (async (url: unknown) => {
 }) as typeof fetch
 
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { compatChatCallModel } = await import(
-  '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+  '../../src/models/roads/openaicompat/compatChatCallModel.ts'
 )
 const { deepseekLaneProfile } = await import(
-  '../../src/services/providers/deepseek/deepseekCallModel.ts'
+  '../../src/models/roads/deepseek/deepseekCallModel.ts'
 )
-const { zaiCallModel } = await import('../../src/services/providers/zai/zaiCallModel.ts')
-import type { AssistantMessage } from '../../src/types/message.ts'
+const { zaiCallModel } = await import('../../src/models/roads/zai/zaiCallModel.ts')
+import type { AssistantMessage } from '../../src/engine/message-shapes/message.ts'
 import type { Options } from '../../src/types/options.ts'
 
 let failures = 0
@@ -170,7 +170,7 @@ function section(s: string): void {
 }
 
 section('§1 compat: insufficient_system_resource retries before the terminal fault tail')
-failHintWhere = 'to fix, change how the compat lane settles a finish reason in src/services/providers/openaicompat/compatChatCallModel/attemptSettle.ts and the retry and fault tail in src/services/providers/openaicompat/compatChatCallModel.ts'
+failHintWhere = 'to fix, change how the compat lane settles a finish reason in src/models/roads/openaicompat/chat-call-model/attemptSettle.ts and the retry and fault tail in src/models/roads/openaicompat/compatChatCallModel.ts'
 {
   wire.scenario = 'insufficient'
   const { settled, errors } = await drain(
@@ -185,7 +185,7 @@ failHintWhere = 'to fix, change how the compat lane settles a finish reason in s
 }
 
 section('§2 compat: content_filter settles a visible note')
-failHintWhere = 'to fix, change the termination note wording in src/services/providers/openaicompat/compatChatCallModel/attemptSettle.ts'
+failHintWhere = 'to fix, change the termination note wording in src/models/roads/openaicompat/chat-call-model/attemptSettle.ts'
 {
   wire.scenario = 'content-filter'
   const { settled } = await drain(
@@ -208,7 +208,7 @@ section("§3 compat: an unmapped finish word ('other') quotes the provider's raw
 }
 
 section('§4 compat: a plain stop settles clean (no note, no fault tail)')
-failHintWhere = 'to fix, stop a plain stop from producing a note or fault in src/services/providers/openaicompat/compatChatCallModel/attemptSettle.ts'
+failHintWhere = 'to fix, stop a plain stop from producing a note or fault in src/models/roads/openaicompat/chat-call-model/attemptSettle.ts'
 {
   wire.scenario = 'plain-stop'
   const { settled, errors } = await drain(
@@ -222,7 +222,7 @@ failHintWhere = 'to fix, stop a plain stop from producing a note or fault in src
 }
 
 section("§5 zai: finish 'sensitive' settles a visible note + the fault tail")
-failHintWhere = 'to fix, change the termination note and fault tail in src/services/providers/zai/zaiCallModel.ts'
+failHintWhere = 'to fix, change the termination note and fault tail in src/models/roads/zai/zaiCallModel.ts'
 {
   wire.scenario = 'zai-sensitive'
   const { settled, errors } = await drain(zaiCallModel(callParams('glm-4.7') as never))
@@ -234,7 +234,7 @@ failHintWhere = 'to fix, change the termination note and fault tail in src/servi
 }
 
 section('§6 zai: a plain stop settles clean')
-failHintWhere = 'to fix, stop a plain stop from producing a note or fault in src/services/providers/zai/zaiCallModel.ts'
+failHintWhere = 'to fix, stop a plain stop from producing a note or fault in src/models/roads/zai/zaiCallModel.ts'
 {
   wire.scenario = 'zai-stop'
   const { settled, errors } = await drain(zaiCallModel(callParams('glm-4.7') as never))

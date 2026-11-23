@@ -19,20 +19,20 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
-const hintWire = 'change deferralWireFormFor in src/services/providers/deferralWire.ts (the route comes from declaredRouteOf in src/services/providers/routeLaw.ts)'
-const hintRender = 'change ToolSearchTool.mapToolResultToToolResultBlockParam in src/tools/ToolSearchTool/ToolSearchTool.ts, or renderAdmissionRecordsAsText in src/services/providers/toolEconomy.ts'
-const hintGate = 'change isToolSearchEnabledOptimistic in src/services/messages/toolSearch.ts (ToolSearchTool.isEnabled in src/tools/ToolSearchTool/ToolSearchTool.ts calls it)'
-const hintPrompt = 'change getPrompt in src/tools/ToolSearchTool/prompt.ts (ToolSearchTool.prompt in src/tools/ToolSearchTool/ToolSearchTool.ts picks the form)'
+const hintWire = 'change deferralWireFormFor in src/models/roads/deferralWire.ts (the route comes from declaredRouteOf in src/models/roads/routeLaw.ts)'
+const hintRender = 'change ToolSearchTool.mapToolResultToToolResultBlockParam in src/tools/tool-search/ToolSearchTool.ts, or renderAdmissionRecordsAsText in src/models/roads/toolEconomy.ts'
+const hintGate = 'change isToolSearchEnabledOptimistic in src/engine/messages/toolSearch.ts (ToolSearchTool.isEnabled in src/tools/tool-search/ToolSearchTool.ts calls it)'
+const hintPrompt = 'change getPrompt in src/tools/tool-search/prompt.ts (ToolSearchTool.prompt in src/tools/tool-search/ToolSearchTool.ts picks the form)'
 
-const state = await import('../../src/bootstrap/state.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { getPrompt } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { isToolSearchEnabledOptimistic } = await import('../../src/services/messages/toolSearch.ts')
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
-const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
-const { renderAdmissionRecordsAsText } = await import('../../src/services/providers/toolEconomy.ts')
-const { getEngineModel } = await import('../../src/services/model/model.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { getPrompt } = await import('../../src/tools/tool-search/prompt.ts')
+const { isToolSearchEnabledOptimistic } = await import('../../src/engine/messages/toolSearch.ts')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
+const { deferralWireFormFor } = await import('../../src/models/roads/deferralWire.ts')
+const { renderAdmissionRecordsAsText } = await import('../../src/models/roads/toolEconomy.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 
 const output = {
   matches: ['WebFetch', 'Browser'],

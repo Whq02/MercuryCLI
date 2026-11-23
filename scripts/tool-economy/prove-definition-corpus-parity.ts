@@ -31,23 +31,23 @@ if (record) {
 }
 const base = record ? git('rev-parse', 'HEAD') : (recorded as Corpus).base
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const interpreters = await import('../../src/services/eval/interpreters.ts')
-mock.module('../../src/services/eval/interpreters.js', () => ({
+const interpreters = await import('../../src/tools/engines/eval-kernels/interpreters.ts')
+mock.module('../../src/tools/engines/eval-kernels/interpreters.js', () => ({
   ...interpreters,
   primeEvalAvailability: async () => [
     { language: 'py', available: true, interpreterPath: 'python3', version: 'Python 3.14.7' },
     { language: 'js', available: true, interpreterPath: 'node', version: 'v24.21.0' },
   ],
 }))
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { DebugTool } = await import('../../src/tools/debug/DebugTool.ts')
 const tools = getAllBaseTools().filter(tool => tool.name !== ComputerTool.name && tool.name !== DebugTool.name)
 const testIndex = tools.findIndex(tool => tool.name === 'Test')
 assert.notEqual(testIndex, -1, 'the corpus has its debugger insertion point')
@@ -60,7 +60,7 @@ assert.equal(new Set(tools.map(tool => tool.name)).size, 61, 'every definition h
 assert.ok(tools.some(tool => tool.name === 'Debug'), 'the corpus covers Debug even when no local adapter resolves')
 assert.ok(tools.some(tool => tool.name === 'CrewBoard'), 'the default-on board is present in the base catalogue')
 const permissionContext = getEmptyToolPermissionContext()
-const definitions: Array<import('../../src/types/wire.js').ApiTool & { description: string }> = []
+const definitions: Array<import('../../src/engine/message-shapes/wire.js').ApiTool & { description: string }> = []
 for (const tool of tools) {
   const definition = await toolToAPISchema(tool, {
     getToolPermissionContext: async () => permissionContext,
@@ -68,7 +68,7 @@ for (const tool of tools) {
     agents: [],
     model,
   })
-  assert.ok('description' in definition && typeof definition.description === 'string' && 'input_schema' in definition, `toolToAPISchema(${tool.name}) in src/utils/api.ts must emit string description and input_schema`)
+  assert.ok('description' in definition && typeof definition.description === 'string' && 'input_schema' in definition, `toolToAPISchema(${tool.name}) in src/engine/request-parts.ts must emit string description and input_schema`)
   definitions.push({ ...definition, description: definition.description })
 }
 const crewTool = tools.find(tool => tool.name === 'Crewmate')!
@@ -76,7 +76,7 @@ const crewPrompt = await crewTool.prompt({ getToolPermissionContext: async () =>
 const crewDefinition = definitions.find(definition => definition.name === 'Crewmate')! as { input_schema: { properties: { prompt: { description: string }; model: { description: string } } } }
 assert.match(crewDefinition.input_schema.properties.prompt.description, /objective, evidence, boundaries, acceptance criteria and whether to implement or research/)
 assert.match(crewDefinition.input_schema.properties.model.description, /never downgrade to obtain read-only scoping/)
-assert.ok(!crewPrompt.includes('Never hand the synthesis') && !crewPrompt.includes('## Model selection'), 'Crewmate prompt in src/tools/AgentTool/AgentTool.ts must omit legacy synthesis and Model selection sections')
+assert.ok(!crewPrompt.includes('Never hand the synthesis') && !crewPrompt.includes('## Model selection'), 'Crewmate prompt in src/tools/crewmate/CrewmateTool.ts must omit legacy synthesis and Model selection sections')
 const bashDefinition = definitions.find(definition => definition.name === 'Bash')!
 assert.ok(!bashDefinition.description.includes('Use `Test`') && !/\b(Glob|Grep|Read|Edit|Write|WebFetch|Browser|Service|TaskStop|ToolSearch)\b/.test(bashDefinition.description), 'Bash names no other tool')
 const debugDefinition = definitions.find(definition => definition.name === 'Debug')!
@@ -85,7 +85,7 @@ assert.ok(!/default 20/.test(debugManual), 'the depth default lives in the depth
 assert.ok(!/MERCURY_DAP_ADAPTERS|dap-adapters\.json/.test(debugManual), 'adapter registration is operator documentation, not model text')
 assert.equal((debugDefinition as { input_schema: { properties: { depth: { description: string } } } }).input_schema.properties.depth.description, 'stack: number of frames to return (default 20)')
 const computerDefinition = definitions.find(definition => definition.name === 'Computer')!
-assert.ok('description' in computerDefinition && typeof computerDefinition.description === 'string', 'Computer definition from src/tools/ComputerTool/ComputerTool.ts must carry a string description')
+assert.ok('description' in computerDefinition && typeof computerDefinition.description === 'string', 'Computer definition from src/tools/computer/ComputerTool.ts must carry a string description')
 assert.match(computerDefinition.description, /Coordinates are pixels of its last screenshot; refresh after frame changes\./)
 assert.ok(!computerDefinition.description.includes('not through Eval'), 'no Eval prohibition: tool.Computer works from a cell')
 const previousDefinitions = new Map((recorded ?? { definitions }).definitions.map(definition => [(definition as { name: string }).name, definition]))

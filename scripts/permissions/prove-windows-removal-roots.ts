@@ -1,17 +1,17 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { evaluateWards, REFUSAL_WARDS } from '../../src/utils/wards/wards.ts'
-import { getPlatform } from '../../src/utils/platform.ts'
-import { createPathChecker } from '../../src/tools/BashTool/pathValidation.ts'
-import { isDangerousRemovalPath } from '../../src/utils/permissions/pathValidation.ts'
-import { getEmptyToolPermissionContext } from '../../src/Tool.ts'
+import { evaluateWards, REFUSAL_WARDS } from '../../src/permissions/wards/wards.ts'
+import { getPlatform } from '../../src/platform/environment/platform.ts'
+import { createPathChecker } from '../../src/tools/shell/pathValidation.ts'
+import { isDangerousRemovalPath } from '../../src/permissions/rules/pathValidation.ts'
+import { getEmptyToolPermissionContext } from '../../src/tools/kit/tool.ts'
 
 let failures = 0
 let checks = 0
 function check(label: string, ok: boolean): void {
   checks++
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ' — change the no-root-recursive-delete ward in src/utils/wards/wards.ts, isDangerousRemovalPath in src/utils/permissions/pathValidation.ts, or createPathChecker in src/tools/BashTool/pathValidation.ts'}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ' — change the no-root-recursive-delete ward in src/permissions/wards/wards.ts, isDangerousRemovalPath in src/permissions/rules/pathValidation.ts, or createPathChecker in src/tools/shell/pathValidation.ts'}`)
 }
 const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')!
 const home = process.env.HOME

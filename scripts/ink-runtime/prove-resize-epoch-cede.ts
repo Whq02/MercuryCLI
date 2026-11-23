@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
-import type { Frame } from '../../src/ink/frame.js'
-import { FrameWriter } from '../../src/ink/frame-writer.js'
-import { optimizePatches as optimize } from '../../src/ink/patch-stream.js'
-import { writeDiffToTerminal } from '../../src/ink/session/delivery.js'
+import type { Frame } from '../../src/screen/renderer/frame.js'
+import { FrameWriter } from '../../src/screen/renderer/frame-writer.js'
+import { optimizePatches as optimize } from '../../src/screen/renderer/patch-stream.js'
+import { writeDiffToTerminal } from '../../src/screen/renderer/terminal-session/frameDelivery.js'
 import { AnsiEmulator } from './ansiEmulator.js'
 import { composeScene, makeContext, type FrameScene } from './frameHarness.js'
 
 let failures = 0
-const epochCedeHint = 'change the inline epoch handling (width or viewport break) in FrameWriter.render in src/ink/frame-writer.ts; the diff it returns must erase at most the park row on a width change, emit no ED bytes, and emit nothing for an unchanged follow-up frame'
+const epochCedeHint = 'change the inline epoch handling (width or viewport break) in FrameWriter.render in src/screen/renderer/frame-writer.ts; the diff it returns must erase at most the park row on a width change, emit no ED bytes, and emit nothing for an unchanged follow-up frame'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail + ' · ' : ''}${epochCedeHint}` : ''}`)
   if (!ok) failures++

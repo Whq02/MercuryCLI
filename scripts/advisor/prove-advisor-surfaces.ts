@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
-import type { DOMElement } from '../../src/ink/dom.js'
+import type { DOMElement } from '../../src/screen/renderer/dom.js'
 
 const HOME = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'advisor-surfaces-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -34,7 +34,7 @@ const frameDir = ((): string | null => {
 })()
 let failures = 0
 let checks = 0
-const surfacesFailureHint = 'section 1 reads the spend owner (src/services/providers/providerUsage/spend.ts: providerSessionSpend, advisorSessionSpend, advisorUsageLine); section 2 the /usage popup (src/components/Settings/Usage.tsx); section 3 the /submodels picker (src/components/SubModelPicker.tsx, src/services/model/subModelSlots.ts, src/commands/submodels/index.ts)'
+const surfacesFailureHint = 'section 1 reads the spend owner (src/models/roads/provider-usage/spend.ts: providerSessionSpend, advisorSessionSpend, advisorUsageLine); section 2 the /usage popup (src/screen/settings/Usage.tsx); section 3 the /submodels picker (src/commands/submodels/SubModelPicker.tsx, src/models/catalogue/subModelSlots.ts, src/commands/submodels/index.ts)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -50,31 +50,31 @@ async function stub(path: string, fixtureExports: () => Record<string, unknown>)
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...fixtureExports() }))
 }
-await stub('../../src/services/providers/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
-await stub('../../src/services/providers/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
-await stub('../../src/hooks/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
-await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
-await stub('../../src/services/providers/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
-await stub('../../src/services/providers/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined }))
-await stub('../../src/services/providers/local/localAccounts.js', () => ({ resolveLocalAccount: () => undefined }))
-await stub('../../src/components/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
+await stub('../../src/models/roads/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
+await stub('../../src/models/roads/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
+await stub('../../src/screen/model-picker/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
+await stub('../../src/screen/keys/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
+await stub('../../src/models/roads/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
+await stub('../../src/models/roads/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined }))
+await stub('../../src/models/roads/local/localAccounts.js', () => ({ resolveLocalAccount: () => undefined }))
+await stub('../../src/screen/keys/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
 
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const state = await import('../../src/bootstrap/state.ts')
-const tracker = await import('../../src/cost-tracker.ts')
-const workload = await import('../../src/utils/workloadContext.ts')
-const { calculateUSDCost } = await import('../../src/services/usage/modelCost.ts')
-const usageOwner = await import('../../src/services/providers/providerUsage.ts')
-const { Usage, ADVISOR_SPEND_LABEL, SCHEDULED_SPEND_LABEL } = await import('../../src/components/Settings/Usage.js')
-const { Box, render, flushPendingSyncWork, EventEmitter } = await import('../../src/ink.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { getGlobalConfig } = await import('../../src/utils/config.ts')
-const slots = await import('../../src/services/model/subModelSlots.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const tracker = await import('../../src/models/usage/sessionCost.ts')
+const workload = await import('../../src/models/roads/workloadContext.ts')
+const { calculateUSDCost } = await import('../../src/models/usage/modelCost.ts')
+const usageOwner = await import('../../src/models/roads/providerUsage.ts')
+const { Usage, ADVISOR_SPEND_LABEL, SCHEDULED_SPEND_LABEL } = await import('../../src/screen/settings/Usage.js')
+const { Box, render, flushPendingSyncWork, EventEmitter } = await import('../../src/screen/themedRenderer.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { getGlobalConfig } = await import('../../src/platform/settings/config.ts')
+const slots = await import('../../src/models/catalogue/subModelSlots.ts')
 
 const MODEL = 'claude-opus-4-8'
 const usageOf = (input: number, output: number, cacheRead = 0, cacheWrite = 0): Raw => ({ input_tokens: input, output_tokens: output, cache_read_input_tokens: cacheRead, cache_creation_input_tokens: cacheWrite })
@@ -195,7 +195,7 @@ const lastFrame = (output: string): string => {
 }
 const pickerFrames = new Map<string, string>()
 {
-  const { SubModelPicker } = await import('../../src/components/SubModelPicker.js')
+  const { SubModelPicker } = await import('../../src/commands/submodels/SubModelPicker.js')
   const mountPanel = async (columns: number, rows: number, initialModelId?: string) => {
     const stdin = Object.assign(new PassThrough(), { isTTY: true, isRaw: false, setRawMode() { return this }, ref() { return this }, unref() { return this } })
     const stdout = Object.assign(new PassThrough(), { columns, rows })

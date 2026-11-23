@@ -13,15 +13,15 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
-const HINT_SEED = 'fix the effort seed in buildConcourseSnapshot (newSession.seeds) in src/services/concourse/concourseSnapshot.ts'
-const HINT_DISPATCH = 'fix dispatchSeedInputs in src/services/concourse/concourseSnapshot.ts'
+const HINT_SEED = 'fix the effort seed in buildConcourseSnapshot (newSession.seeds) in src/screen/concourse-model/concourseSnapshot.ts'
+const HINT_DISPATCH = 'fix dispatchSeedInputs in src/screen/concourse-model/concourseSnapshot.ts'
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.js')
-const { getInitialEffortSetting } = await import('../../src/utils/effort.js')
-const { buildConcourseSnapshot, dispatchSeedInputs, writeConcourseSeedOverride } = await import('../../src/services/concourse/concourseSnapshot.js')
-const { getCwd } = await import('../../src/utils/cwd.js')
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.js')
+const { getInitialEffortSetting } = await import('../../src/models/effort/effort.js')
+const { buildConcourseSnapshot, dispatchSeedInputs, writeConcourseSeedOverride } = await import('../../src/screen/concourse-model/concourseSnapshot.js')
+const { getCwd } = await import('../../src/platform/files/cwd.js')
 
 const recordsDir = join(scratchHome, 'daemon')
 const crewDir = join(scratchHome, 'crew')
@@ -31,7 +31,7 @@ const seeds = async () => (await buildConcourseSnapshot({ recordsDir, crewDir, d
 
 console.log('S1 nothing saved: the strip seeds the daemon convention and calls it the default')
 {
-  check('no saved effort in the scratch home', getInitialEffortSetting() === undefined, '', 'the scratch home must hold no saved effort; getInitialEffortSetting is in src/utils/effort.ts')
+  check('no saved effort in the scratch home', getInitialEffortSetting() === undefined, '', 'the scratch home must hold no saved effort; getInitialEffortSetting is in src/models/effort/effort.ts')
   const s = await seeds()
   check("the seed reads 'high'", s.effortLevel === 'high', s.effortLevel, HINT_SEED)
   check('and it is the default', s.effortIsDefault === true, '', HINT_SEED)
@@ -41,8 +41,8 @@ console.log('S1 nothing saved: the strip seeds the daemon convention and calls i
 console.log('S2 the operator saved max: the strip seeds max, the dispatch carries it')
 {
   const written = updateSettingsForSource('userSettings', { engine: { effort: 'max' } })
-  check('the saved default lands on disk', written.error === null, String(written.error), 'updateSettingsForSource in src/utils/settings/settings.ts refused the engine.effort write to the scratch config home')
-  check('getInitialEffortSetting reads max back', getInitialEffortSetting() === 'max', '', 'fix getInitialEffortSetting in src/utils/effort.ts so it reads the saved engine.effort')
+  check('the saved default lands on disk', written.error === null, String(written.error), 'updateSettingsForSource in src/platform/settings/settings.ts refused the engine.effort write to the scratch config home')
+  check('getInitialEffortSetting reads max back', getInitialEffortSetting() === 'max', '', 'fix getInitialEffortSetting in src/models/effort/effort.ts so it reads the saved engine.effort')
   const s = await seeds()
   check("the seed reads the operator's saved default, 'max'", s.effortLevel === 'max', s.effortLevel, HINT_SEED)
   check('and max IS the default now (the chip has nothing to say)', s.effortIsDefault === true, '', HINT_SEED)

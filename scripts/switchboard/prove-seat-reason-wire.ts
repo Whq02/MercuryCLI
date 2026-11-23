@@ -4,11 +4,11 @@
 const {
   encodeDecisionReasonForWire,
   decodeDecisionReasonFromWire,
-} = await import('../../src/utils/permissions/decisionReasonWire.ts')
+} = await import('../../src/permissions/rules/decisionReasonWire.ts')
 type Reason = NonNullable<ReturnType<typeof decodeDecisionReasonFromWire>>
 
 let failures = 0
-const reasonWireHint = 'change encodeDecisionReasonForWire and decodeDecisionReasonFromWire in src/utils/permissions/decisionReasonWire.ts'
+const reasonWireHint = 'change encodeDecisionReasonForWire and decodeDecisionReasonFromWire in src/permissions/rules/decisionReasonWire.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? detail : `${detail ? `${detail} — ` : ''}${reasonWireHint}`

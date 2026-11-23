@@ -11,7 +11,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 
-const ledgerModule = await import('../../src/state/crewLedger.ts')
+const ledgerModule = await import('../../src/screen/app-state/crewLedger.ts')
 const { foldCrewLedger, sessionCrewRows, seenCrewOf, CREW_UNLISTED_STOP_WORDS } = ledgerModule
 const SID = 'session-air-8b'
 const sleeper = {
@@ -27,26 +27,26 @@ const sleeper = {
 console.log("the crew rail's rows leave with the runner when its daemon is gone (RELEASE-30-AIR R30A-04)")
 console.log('\n(1) the ledger fold')
 const seenRunning = seenCrewOf({}, { rows: [sleeper] }, SID)
-check('a hosted running crewmate is seen from the runner\'s roster', seenRunning.length === 1 && seenRunning[0]!.hosted && seenRunning[0]!.facts.running, JSON.stringify(seenRunning) + ' — seenCrewOf in src/state/crewLedger.ts is to return one hosted, running entry for a running agent row of the runner roster')
+check('a hosted running crewmate is seen from the runner\'s roster', seenRunning.length === 1 && seenRunning[0]!.hosted && seenRunning[0]!.facts.running, JSON.stringify(seenRunning) + ' — seenCrewOf in src/screen/app-state/crewLedger.ts is to return one hosted, running entry for a running agent row of the runner roster')
 const listed = foldCrewLedger({}, seenRunning, SID, true, 2_000)
-check('…and listed in the ledger', listed['agent-sleeper8b']?.listed === true, JSON.stringify(listed) + ' — foldCrewLedger in src/state/crewLedger.ts is to record an entry it is shown as listed')
+check('…and listed in the ledger', listed['agent-sleeper8b']?.listed === true, JSON.stringify(listed) + ' — foldCrewLedger in src/screen/app-state/crewLedger.ts is to record an entry it is shown as listed')
 
 const stillThere = foldCrewLedger(listed, [], SID, true, 3_000)
 const stillRows = sessionCrewRows(stillThere, [], SID, true, 3_000)
-check('a crewmate its live runner no longer lists settles as stopped, with the words, and stays until cleared (unchanged)', stillRows.length === 1 && stillRows[0]!.facts.state === 'stopped' && stillRows[0]!.facts.stopReason === CREW_UNLISTED_STOP_WORDS, JSON.stringify(stillRows) + ' — with the runner still live, foldCrewLedger and sessionCrewRows in src/state/crewLedger.ts are to keep a hosted row the roster no longer lists as stopped with CREW_UNLISTED_STOP_WORDS')
+check('a crewmate its live runner no longer lists settles as stopped, with the words, and stays until cleared (unchanged)', stillRows.length === 1 && stillRows[0]!.facts.state === 'stopped' && stillRows[0]!.facts.stopReason === CREW_UNLISTED_STOP_WORDS, JSON.stringify(stillRows) + ' — with the runner still live, foldCrewLedger and sessionCrewRows in src/screen/app-state/crewLedger.ts are to keep a hosted row the roster no longer lists as stopped with CREW_UNLISTED_STOP_WORDS')
 
 const gone = foldCrewLedger(listed, [], SID, true, 3_000, true)
 const goneRows = sessionCrewRows(gone, [], SID, true, 3_000, true)
-check('the runner gone with its daemon: the row leaves the ledger with the work — no stopped row remains', Object.keys(gone).length === 0 && goneRows.length === 0, JSON.stringify({ gone, goneRows }) + ' — with runnerGone set, foldCrewLedger in src/state/crewLedger.ts is to delete this session\'s hosted rows and sessionCrewRows is to skip them')
+check('the runner gone with its daemon: the row leaves the ledger with the work — no stopped row remains', Object.keys(gone).length === 0 && goneRows.length === 0, JSON.stringify({ gone, goneRows }) + ' — with runnerGone set, foldCrewLedger in src/screen/app-state/crewLedger.ts is to delete this session\'s hosted rows and sessionCrewRows is to skip them')
 const settledThenGone = foldCrewLedger(stillThere, [], SID, true, 4_000, true)
-check('a row already settled as unlisted leaves too when the runner is gone', Object.keys(settledThenGone).length === 0 && sessionCrewRows(settledThenGone, [], SID, true, 4_000, true).length === 0, JSON.stringify(settledThenGone) + ' — the runnerGone branch of foldCrewLedger in src/state/crewLedger.ts is to drop a hosted row whether or not it is still listed')
+check('a row already settled as unlisted leaves too when the runner is gone', Object.keys(settledThenGone).length === 0 && sessionCrewRows(settledThenGone, [], SID, true, 4_000, true).length === 0, JSON.stringify(settledThenGone) + ' — the runnerGone branch of foldCrewLedger in src/screen/app-state/crewLedger.ts is to drop a hosted row whether or not it is still listed')
 const other = foldCrewLedger({ ...listed, 'agent-elsewhere': { ...listed['agent-sleeper8b']!, facts: { ...listed['agent-sleeper8b']!.facts, id: 'agent-elsewhere', sessionId: 'another-session' } } }, [], SID, true, 3_000, true)
-check("another session's row is not this runner's to drop", other['agent-elsewhere'] !== undefined && other['agent-sleeper8b'] === undefined, JSON.stringify(Object.keys(other)) + ' — the runnerGone branch of foldCrewLedger in src/state/crewLedger.ts is to skip rows whose facts.sessionId is not the sessionId it is given')
-check('the rows read for the rail hide a hosted row while the runner is gone even before the fold lands', sessionCrewRows(listed, [], SID, true, 3_000, true).length === 0, 'sessionCrewRows in src/state/crewLedger.ts is to skip a hosted row when its runnerGone argument is true, without waiting for the fold')
+check("another session's row is not this runner's to drop", other['agent-elsewhere'] !== undefined && other['agent-sleeper8b'] === undefined, JSON.stringify(Object.keys(other)) + ' — the runnerGone branch of foldCrewLedger in src/screen/app-state/crewLedger.ts is to skip rows whose facts.sessionId is not the sessionId it is given')
+check('the rows read for the rail hide a hosted row while the runner is gone even before the fold lands', sessionCrewRows(listed, [], SID, true, 3_000, true).length === 0, 'sessionCrewRows in src/screen/app-state/crewLedger.ts is to skip a hosted row when its runnerGone argument is true, without waiting for the fold')
 
 console.log('\n(2) the connector says when the runner is gone')
 {
-  const { WorkPart } = await import('../../src/services/engine-connector/daemon/work.ts')
+  const { WorkPart } = await import('../../src/engine/connector/daemon/work.ts')
   let carrierGone = false
   const roster = new WorkPart({ facts: () => ({ work: [sleeper] }) as never, carrierGone: () => carrierGone })
   let wakes = 0
@@ -61,17 +61,17 @@ console.log('\n(2) the connector says when the runner is gone')
   carrierGone = false
   roster.refreshWork()
   const back = { gone: roster.workRoster().gone, wakes }
-  check('refreshWork reads the carrier-gone verdict into the roster snapshot (gone: true) and stamps it', live.gone === undefined && live.wakes === 1 && dead.gone === true && dead.wakes === 2 && again === 2 && back.gone === undefined && back.wakes === 3, JSON.stringify({ live, dead, again, back }) + ' — WorkPart.refreshWork in src/services/engine-connector/daemon/work.ts is to put needs.carrierGone() into the roster snapshot (gone: true, absent otherwise) and wake subscribers only when the snapshot stamp changes')
+  check('refreshWork reads the carrier-gone verdict into the roster snapshot (gone: true) and stamps it', live.gone === undefined && live.wakes === 1 && dead.gone === true && dead.wakes === 2 && again === 2 && back.gone === undefined && back.wakes === 3, JSON.stringify({ live, dead, again, back }) + ' — WorkPart.refreshWork in src/engine/connector/daemon/work.ts is to put needs.carrierGone() into the roster snapshot (gone: true, absent otherwise) and wake subscribers only when the snapshot stamp changes')
 }
 {
   const scratch = mkdtempSync(join(tmpdir(), 'crew-rail-leaves-'))
   const planeBefore = process.env.MERCURY_DAEMON_DIR
   process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
   mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-  const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
-  const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
-  await import('../../src/utils/ownerWatch.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+  const { publishSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
+  const { daemonStatePath } = await import('../../src/daemon/control/controlSocket.ts')
+  await import('../../src/daemon/control/ownerWatch.ts')
   const seat = new DaemonSessionConnector({ sessionId: SID, runnerId: 'runner-air-8b', title: 'the chat', projectLabel: 'proof', workspaceId: scratch, home: scratch })
   publishSessionFacts({
     schema: 1,
@@ -118,7 +118,7 @@ console.log('\n(2) the connector says when the runner is gone')
   check(
     'settleCarrierGone sets the verdict before it refreshes the work (the roster carries both at once)',
     before.rows === 1 && !before.gone && seen.length === 1 && seen[0]!.rows === 0 && seen[0]!.gone,
-    `${JSON.stringify({ before, seen, tickers: seconds.length })} — an attached window on a busy turn, its daemon's record read alive once and then gone at each second: the work listener is to wake once, on a roster that is empty and gone together; CarrierPart.settleCarrierGone in src/services/engine-connector/daemon/carrier.ts latches the verdict before it calls carrierWentAway, and carrierWentAway of daemonConnector.ts strips the facts before it refreshes the work`,
+    `${JSON.stringify({ before, seen, tickers: seconds.length })} — an attached window on a busy turn, its daemon's record read alive once and then gone at each second: the work listener is to wake once, on a roster that is empty and gone together; CarrierPart.settleCarrierGone in src/engine/connector/daemon/carrier.ts latches the verdict before it calls carrierWentAway, and carrierWentAway of daemonConnector.ts strips the facts before it refreshes the work`,
   )
   if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
   else process.env.MERCURY_DAEMON_DIR = planeBefore

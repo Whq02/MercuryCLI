@@ -14,13 +14,13 @@ for (const key of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}change repairArgumentsBySchema in src/services/providers/local/schemaTyping.ts or the call gate in src/services/providers/toolCallGate.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}change repairArgumentsBySchema in src/models/roads/local/schemaTyping.ts or the call gate in src/models/roads/toolCallGate.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const { repairArgumentsBySchema, typeTextBySchema, schemaPropertyType } = await import('../../src/services/providers/local/schemaTyping.ts')
+const { repairArgumentsBySchema, typeTextBySchema, schemaPropertyType } = await import('../../src/models/roads/local/schemaTyping.ts')
 
 section('1 · the shared typing: a string value is typed by the schema property it is declared under; anything else is left as it came')
 {
@@ -79,19 +79,19 @@ const fixture = Bun.serve({
 const root = `http://127.0.0.1:${fixture.port}`
 process.env.MERCURY_DEEPSEEK_API_BASE = root
 process.env.DEEPSEEK_API_KEY = 'sk-fixture-deepseek'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
-const { deepseekLaneProfile } = await import('../../src/services/providers/deepseek/deepseekCallModel.ts')
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { RetainTool, RecallTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
-type LocalModelRecord = import('../../src/services/providers/local/localDiscovery.ts').LocalModelRecord
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
-type CompatLaneProfile = import('../../src/services/providers/openaicompat/compatChatCallModel.ts').CompatLaneProfile
+const { localLaneProfileFor } = await import('../../src/models/roads/local/localCallModel.ts')
+const { deepseekLaneProfile } = await import('../../src/models/roads/deepseek/deepseekCallModel.ts')
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { RetainTool, RecallTool } = await import('../../src/tools/memory/MemoryTools.ts')
+type LocalModelRecord = import('../../src/models/roads/local/localDiscovery.ts').LocalModelRecord
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
+type CompatLaneProfile = import('../../src/models/roads/openaicompat/compatChatCallModel.ts').CompatLaneProfile
 const ollamaRecord: LocalModelRecord = { id: 'qwen3.5:9b', server: 'ollama', baseUrl: `${root}/v1`, toolsDeclared: true, thinkingDeclared: true, family: 'qwen3', parameterSize: '9B' }
 const READ = FileReadTool.name
 const RETAIN = RetainTool.name
@@ -175,7 +175,7 @@ const ITEMS = [{ content: 'Deploy target for this project: the blue rack in room
 
 section('2b · the stored call is the model\'s own: a schema default is applied at execution, never written into the tool_use row (a replayed row must re-ingest byte-identical on a local server)')
 {
-  const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
+  const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
   const EDIT = FileEditTool.name
   const sent = { file_path: '/tmp/add.js', old_string: 'return a + b', new_string: 'return Number(a) + Number(b)' }
   script.ollama = ollamaCall(EDIT, sent)

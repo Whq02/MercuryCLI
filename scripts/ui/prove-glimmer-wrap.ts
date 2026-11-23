@@ -13,17 +13,17 @@ let failures = 0
 let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — to fix: GlimmerMessage in src/components/Spinner/GlimmerMessage.tsx must paint the same letters and wrap at every glimmer position'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — to fix: GlimmerMessage in src/screen/spinner/ShimmerMessage.tsx must paint the same letters and wrap at every glimmer position'}`)
   if (!cond) failures++
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 const React = (await import('react')).default
-const { Box, Text } = await import('../../src/ink.js')
-const { renderToString } = await import('../../src/utils/staticRender.tsx')
-const { GlimmerMessage } = await import('../../src/components/Spinner/GlimmerMessage.js')
-const { stringWidth } = await import('../../src/ink/stringWidth.js')
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { GlimmerMessage } = await import('../../src/screen/spinner/ShimmerMessage.js')
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.js')
 
 const WRAP_VERB = 'Reading the complete fixture response and checking every part of it'
 const TALL_VERB = `${WRAP_VERB} against the recorded expectations before answering`

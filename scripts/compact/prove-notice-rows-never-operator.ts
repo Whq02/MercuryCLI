@@ -10,7 +10,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0
 let count = 0
-const NOTICE_ROWS_FAILURE_HINT = ' | change isOperatorTurn and countOperatorTurns in src/utils/messages/operatorTurns.ts, or selectOperatorMessages and operatorTextOf in src/utils/compact/operatorMessages.ts, so a task-notification row is never read as an operator message'
+const NOTICE_ROWS_FAILURE_HINT = ' | change isOperatorTurn and countOperatorTurns in src/engine/message-shapes/operatorTurns.ts, or selectOperatorMessages and operatorTextOf in src/engine/compaction-window/operatorMessages.ts, so a task-notification row is never read as an operator message'
 function check(label: string, cond: boolean, detail = ''): void {
   count++
   if (!cond) failures++
@@ -21,9 +21,9 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { isOperatorTurn, countOperatorTurns } = await import('../../src/utils/messages/operatorTurns.ts')
-const { selectOperatorMessages, operatorTextOf } = await import('../../src/utils/compact/operatorMessages.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { isOperatorTurn, countOperatorTurns } = await import('../../src/engine/message-shapes/operatorTurns.ts')
+const { selectOperatorMessages, operatorTextOf } = await import('../../src/engine/compaction-window/operatorMessages.ts')
 type AnyMsg = Parameters<typeof selectOperatorMessages>[0][number]
 
 const NOTICE = `<task-notification>\n<task-id>a1b2c3</task-id>\n<status>completed</status>\n<summary>Crewmate "builder" completed</summary>\n</task-notification>`
@@ -56,8 +56,8 @@ section('§2 the fold carries his words, never a notice, and the budget is his')
 
 section('§4 a carry written before the move is filtered on read: the first fold after the move re-admits his words only (the field row 2B-03)')
 {
-  const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-  const { OPERATOR_MESSAGES_ATTACHMENT_TYPE } = await import('../../src/utils/compact/operatorMessages.ts')
+  const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
+  const { OPERATOR_MESSAGES_ATTACHMENT_TYPE } = await import('../../src/engine/compaction-window/operatorMessages.ts')
   const assistant = (text: string): AnyMsg => createAssistantMessage({ content: text }) as unknown as AnyMsg
   const olderCarry = createAttachmentMessage({
     type: OPERATOR_MESSAGES_ATTACHMENT_TYPE,

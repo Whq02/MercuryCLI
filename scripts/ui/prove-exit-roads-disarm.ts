@@ -13,7 +13,7 @@ const check = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail && !ok ? ` — ${detail}` : ''}`)
 }
 const section = (t: string): void => console.log(`\n── ${t}`)
-const exitRoadHint = 'fix the signal handlers in src/utils/gracefulShutdown.ts or cleanupTerminalModes in src/utils/shutdownRestoration.ts so every exit road writes the terminal-mode resets'
+const exitRoadHint = 'fix the signal handlers in src/platform/processes/gracefulShutdown.ts or cleanupTerminalModes in src/screen/renderer/terminal-session/shutdownRestoration.ts so every exit road writes the terminal-mode resets'
 
 const disarmed = (r: HostReport, from: number, label: string): void => {
   const ev = modeEventsBetween(r, from, null)

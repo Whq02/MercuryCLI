@@ -8,10 +8,10 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { parseSettingsFile } = await import('../../src/utils/settings/settings.ts')
+const { parseSettingsFile } = await import('../../src/platform/settings/settings.ts')
 
 let failures = 0
-const WHERE = 'parseSettingsFile in src/utils/settings/settings.ts'
+const WHERE = 'parseSettingsFile in src/platform/settings/settings.ts'
 const check = (label: string, cond: boolean, detail = '', hint = `change ${WHERE} so that this case reads as the label says`): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ` — to fix: ${hint}`}`)
   if (!cond) failures++

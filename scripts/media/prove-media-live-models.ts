@@ -2,20 +2,20 @@ import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { Client, StdioClientTransport } from '../../src/utils/mcp/sdk.js'
+import { Client, StdioClientTransport } from '../../src/integrations/mcp-shapes/sdk.js'
 import { installLiveFixture, proofHome, removeProofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
-import type { LocalJSXCommandContext } from '../../src/types/command.js'
+import type { LocalJSXCommandContext } from '../../src/commands/catalogue/command.js'
 
 process.chdir(proofHome)
 Object.assign(globalThis, { MACRO: { VERSION: '1.0.0', IS_DEV: false } })
-const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.js')
+const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.js')
 setCwdState(proofHome)
 setOriginalCwd(proofHome)
 setProjectRoot(proofHome)
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.js')
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.js')
 const { imageSetupIo } = await import('../../src/commands/imagesetup/imagesetup.js')
-const { mediaPullPlan, pullMedia } = await import('../../src/services/media/setup.js')
-const { mediaConfigModule } = await import('../../src/services/media/settings.js')
+const { mediaPullPlan, pullMedia } = await import('../../src/integrations/media/setup.js')
+const { mediaConfigModule } = await import('../../src/integrations/media/settings.js')
 const io = imageSetupIo({ setAppState: () => { throw new Error('An already-enabled model install must not reconnect') } } as unknown as LocalJSXCommandContext)
 const client = new Client({ name: 'media-live-models-proof', version: '1.0.0' })
 const transport = new StdioClientTransport({ command: 'node', args: [serverPath], cwd: proofHome, env: { ...process.env, MEDIA_ROOT: root } as Record<string, string>, stderr: 'pipe' })

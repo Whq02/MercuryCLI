@@ -11,16 +11,16 @@ process.env.MERCURY_TX_AUTOCAPTURE = '1'
 process.env.MERCURY_CHANGE_RECEIPTS = '1'
 process.env.MERCURY_VERIFY_EVIDENCE = '1'
 
-export const tx = await import('../../src/services/ide/ideTransaction.js')
-export const capture = await import('../../src/services/ide/txAutoCapture.js')
-export const { TransactionTool } = await import('../../src/tools/TransactionTool/TransactionTool.js')
-export const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.js')
-export const ledger = await import('../../src/utils/verification/verificationState.js')
-export const { receiptsFor } = await import('../../src/services/changeTransaction/receipts.js')
-export const { projectHomeStore } = await import('../../src/utils/projectHomeStores.js')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const { enableConfigs } = await import('../../src/utils/config.js')
+export const tx = await import('../../src/integrations/ide/ideTransaction.js')
+export const capture = await import('../../src/integrations/ide/txAutoCapture.js')
+export const { TransactionTool } = await import('../../src/tools/transaction/TransactionTool.js')
+export const { observeToolTerminal } = await import('../../src/engine/run-owner/effectObserver.js')
+export const ledger = await import('../../src/platform/verification/verificationState.js')
+export const { receiptsFor } = await import('../../src/tools/engines/change-transaction/receipts.js')
+export const { projectHomeStore } = await import('../../src/platform/storage/projectHomeStores.js')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 
 let sequence = 0

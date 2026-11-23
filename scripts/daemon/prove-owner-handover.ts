@@ -16,7 +16,7 @@ const NODE = existsSync(VENDORED_NODE) ? VENDORED_NODE : process.execPath.includ
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}fix: the owner choice is nextLiveCockpitOwner in src/daemon/concourseWorkers/focus.ts, the reaper check is anotherLiveCockpitHoldsDaemon in src/daemon/ownedDaemon.ts, the hello facts are handshakeDaemon in src/daemon/handshake.ts, and the daemon record is readDaemonState in src/utils/daemonState.ts; the live checks read the daemon log kept in the scratch world`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}fix: the owner choice is nextLiveCockpitOwner in src/daemon/concourse-workers/focus.ts, the reaper check is anotherLiveCockpitHoldsDaemon in src/daemon/control/ownedDaemon.ts, the hello facts are handshakeDaemon in src/daemon/control/handshake.ts, and the daemon record is readDaemonState in src/daemon/control/daemonState.ts; the live checks read the daemon log kept in the scratch world`}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const wait = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
@@ -42,7 +42,7 @@ if (!existsSync(DIST)) {
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — prove-owner-handover exceeded 240s; the daemon never reached a step above (read daemon.log in the owner-handover-live scratch folder under the temp directory, and check the owner watch in src/utils/ownerWatch.ts)')
+  console.log('\n❌ TIMEOUT — prove-owner-handover exceeded 240s; the daemon never reached a step above (read daemon.log in the owner-handover-live scratch folder under the temp directory, and check the owner watch in src/daemon/control/ownerWatch.ts)')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -70,11 +70,11 @@ function done(): never {
   process.exit(failures === 0 ? 0 : 1)
 }
 
-const sup = await import('../../src/daemon/concourseWorkers.ts')
-const owned = await import('../../src/daemon/ownedDaemon.ts')
-const ownerWatch = await import('../../src/utils/ownerWatch.ts')
-const handshake = await import('../../src/daemon/handshake.ts')
-const controlSocket = await import('../../src/daemon/controlSocket.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const owned = await import('../../src/daemon/control/ownedDaemon.ts')
+const ownerWatch = await import('../../src/daemon/control/ownerWatch.ts')
+const handshake = await import('../../src/daemon/control/handshake.ts')
+const controlSocket = await import('../../src/daemon/control/controlSocket.ts')
 
 section('§A the pure decision: the oldest live cockpit wins; dead, parked and ended records are never candidates')
 {

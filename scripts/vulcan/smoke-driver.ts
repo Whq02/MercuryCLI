@@ -2,10 +2,10 @@
 
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { runWithCwdOverride } from '../../src/utils/cwd.js'
-import { applyVulcanInstall } from '../../src/services/vulcan/addonInstaller.js'
-import { VulcanClient } from '../../src/services/vulcan/vulcanClient.js'
-import { readVulcanInstanceToken, selectVulcanInstance } from '../../src/services/vulcan/instances.js'
+import { runWithCwdOverride } from '../../src/platform/files/cwd.js'
+import { applyVulcanInstall } from '../../src/integrations/vulcan/addonInstaller.js'
+import { VulcanClient } from '../../src/integrations/vulcan/vulcanClient.js'
+import { readVulcanInstanceToken, selectVulcanInstance } from '../../src/integrations/vulcan/instances.js'
 
 const [mode, proj] = process.argv.slice(2)
 if (!mode || !proj) {

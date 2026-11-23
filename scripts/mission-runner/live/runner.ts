@@ -8,7 +8,7 @@ import {
   evaluateMissionCompletion,
   parseReviewResult,
 } from './completion.js'
-import { getProjectDir } from '../../../src/utils/sessionStoragePortable.js'
+import { getProjectDir } from '../../../src/sessions/transcripts/sessionStoragePortable.js'
 import { CORPUS_SEED_ROOT, type HelixTask } from '../corpus/contracts.js'
 import { taskById } from '../corpus/tasks.js'
 import { gradeTask } from '../corpus/grade.js'

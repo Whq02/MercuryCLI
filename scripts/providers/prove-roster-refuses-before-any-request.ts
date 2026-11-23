@@ -16,7 +16,7 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${!cond ? ' | to fix: rosterRefusal in src/services/model/modelAllowlist.ts builds the sentence; modelRefusalBeforeAnyRequest and the dispatch in src/services/providers/callModelRouter.ts and resolveHeadlessModel in src/cli/headless/model.ts must refuse before any request' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${!cond ? ' | to fix: rosterRefusal in src/models/catalogue/modelAllowlist.ts builds the sentence; modelRefusalBeforeAnyRequest and the dispatch in src/models/roads/callModelRouter.ts and resolveHeadlessModel in src/daemon/runner/model.ts must refuse before any request' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -37,17 +37,17 @@ const server = Bun.serve({
 })
 process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${server.port}`
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const allow = await import('../../src/services/model/modelAllowlist.ts')
-const model = await import('../../src/services/model/model.ts')
-const router = await import('../../src/services/providers/callModelRouter.ts')
-const headless = await import('../../src/cli/headless/model.ts')
-const { resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
+const allow = await import('../../src/models/catalogue/modelAllowlist.ts')
+const model = await import('../../src/models/catalogue/engineModel.ts')
+const router = await import('../../src/models/roads/callModelRouter.ts')
+const headless = await import('../../src/daemon/runner/model.ts')
+const { resetComputedDefaultMemo } = await import('../../src/models/catalogue/computedDefault.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
 recordSignIn('anthropic', 'api-key')
 
 const OPUS = 'claude-opus-5-5'

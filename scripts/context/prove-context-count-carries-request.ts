@@ -39,20 +39,20 @@ const guard = setTimeout(() => {
 }, 180_000)
 guard.unref?.()
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 const projDir = mkdtempSync(join(tmpdir(), 'ctx-count-request-proj-'))
 bootstrap.setOriginalCwd(projDir)
 bootstrap.setProjectRoot(projDir)
 
-const { ask } = await import('../../src/rows/turn.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { collectContextData } = await import('../../src/commands/context/context-noninteractive.ts')
-const { getEngineModel } = await import('../../src/services/model/model.ts')
-const { countTokensWithAPI } = await import('../../src/services/tokenEstimation.ts')
-const { mcpContentNeedsTruncation, getMaxMcpOutputTokens } = await import('../../src/services/mcp/mcpValidation.ts')
+const { ask } = await import('../../src/engine/rows/turn.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+const { collectContextData } = await import('../../src/commands/context/contextHeadless.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
+const { countTokensWithAPI } = await import('../../src/models/facts/tokenEstimation.ts')
+const { mcpContentNeedsTruncation, getMaxMcpOutputTokens } = await import('../../src/integrations/mcp/mcpOutputTruncation.ts')
 
 type Body = { system?: unknown; tools?: unknown[]; messages?: Array<{ role: string; content: unknown }> }
 type Captured = { path: string; body: Body; raw: string }
@@ -93,7 +93,7 @@ const tool = {
 const api = await startFixtureApi([{ kind: 'text', text: 'THE TURN ANSWERED.' }])
 process.env.ANTHROPIC_BASE_URL = api.url
 const store = makeStore()
-const shared: import('../../src/types/message.ts').Message[] = []
+const shared: import('../../src/engine/message-shapes/message.ts').Message[] = []
 try {
   section('§1 one real turn through the engine, against the fixture API')
   const readCache = createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE)
@@ -113,13 +113,13 @@ try {
     mutableMessages: shared,
   })) out.push(msg as Record<string, unknown>)
   const turn = (api.messageRequests() as Captured[]).find(r => !r.path.includes('count_tokens'))
-  check('the turn settled with an outcome and one model request on the wire', out.at(-1)?.type === 'outcome' && turn !== undefined, `the ask() turn (src/rows/turn.ts) must end with an outcome after one model request to the fixture API · ${j({ last: out.at(-1)?.type, requests: api.messageRequests().length })}`)
+  check('the turn settled with an outcome and one model request on the wire', out.at(-1)?.type === 'outcome' && turn !== undefined, `the ask() turn (src/engine/rows/turn.ts) must end with an outcome after one model request to the fixture API · ${j({ last: out.at(-1)?.type, requests: api.messageRequests().length })}`)
   check('the turn carried a system block list and the tool', Array.isArray(turn?.body.system) && (turn?.body.system as unknown[]).length >= 2 && (turn?.body.tools ?? []).some(t => (t as { name?: string }).name === 'CountProbeTool'), `the turn request must carry at least two system blocks and the CountProbeTool in its tools · ${j({ system: (turn?.body.system as unknown[] | undefined)?.length, tools: turn?.body.tools?.length })}`)
-  check('the session array holds the turn (the write-back landed)', shared.length >= 2 && j(shared).includes('THE TURN ANSWERED.'), `${shared.length} rows; ask() must write the turn back into the mutableMessages array it is given (src/rows/turn.ts)`)
+  check('the session array holds the turn (the write-back landed)', shared.length >= 2 && j(shared).includes('THE TURN ANSWERED.'), `${shared.length} rows; ask() must write the turn back into the mutableMessages array it is given (src/engine/rows/turn.ts)`)
   check('the settled request-view anchor rides the real reply', shared.some(row => row.type === 'assistant' && row.contextGauge?.version === 1), `the settled assistant row must carry contextGauge version 1 · ${j(shared.map(row => row.type === 'assistant' ? { stop: row.message.stop_reason, gauge: row.contextGauge } : row.type))}`)
-  const { readRequestGauge, requestGaugeDigest } = await import('../../src/services/run/requestGauge.js')
+  const { readRequestGauge, requestGaugeDigest } = await import('../../src/engine/run/requestGauge.js')
   const liveGauge = readRequestGauge(shared)
-  check('the real settled transcript matches its request-view anchor', liveGauge?.source === 'usage', `readRequestGauge (src/services/run/requestGauge.ts) did not accept the anchor as source usage · ` + j({ liveGauge, rows: shared.map(row => ({ id: row.uuid, type: row.type, ...(row.type === 'attachment' ? { attachment: row.attachment.type } : {}) })), prefix: requestGaugeDigest(shared.slice(0, shared.findIndex(row => row.type === 'assistant'))) }))
+  check('the real settled transcript matches its request-view anchor', liveGauge?.source === 'usage', `readRequestGauge (src/engine/run/requestGauge.ts) did not accept the anchor as source usage · ` + j({ liveGauge, rows: shared.map(row => ({ id: row.uuid, type: row.type, ...(row.type === 'attachment' ? { attachment: row.attachment.type } : {}) })), prefix: requestGaugeDigest(shared.slice(0, shared.findIndex(row => row.type === 'assistant'))) }))
 
   section('§2 /context counts the request the next turn sends: the same system bytes, the same tools bytes')
   const before = api.messageRequests().length
@@ -134,32 +134,32 @@ try {
   const request = withSystem.find(r => (r.body.messages ?? []).length > 1)
   const prefix = withSystem.find(r => (r.body.messages ?? []).length === 1 && (r.body.messages ?? [])[0]?.content === 'hi')
   const placeholder = counts.find(r => r.body.system === undefined && (r.body.tools ?? []).length === 0 && (r.body.messages ?? []).length === 1 && (r.body.messages ?? [])[0]?.content === 'hi')
-  check('the analysis issued count requests, and exactly two of them carried a system prompt: the request and its prefix', counts.length > 2 && withSystem.length === 2 && request !== undefined && prefix !== undefined, `collectContextData (src/commands/context/context-noninteractive.ts) must count the request and its prefix with the system prompt and everything else without · ${j({ counts: counts.length, withSystem: withSystem.length })}`)
-  check('THE REQUEST COUNT CARRIES THE TURN\'S SYSTEM BLOCKS, BYTE-EQUAL (base: the count carried no system prompt at all)', request !== undefined && turn !== undefined && j(request.body.system) === j(turn.body.system), `the count request must send the same system blocks as the turn; fix the count in collectContextData (src/commands/context/context-noninteractive.ts) · ${j({ count: String(j(request?.body.system)).slice(0, 160), turn: String(j(turn?.body.system)).slice(0, 160) })}`)
-  check('…and the turn\'s tools array, byte-equal (the roster without ToolSearch, projected with the same pool)', request !== undefined && turn !== undefined && j(request.body.tools) === j(turn.body.tools), `the count request must send the same tools array as the turn; fix the count in collectContextData (src/commands/context/context-noninteractive.ts) · ${j({ count: String(j(request?.body.tools)).slice(0, 160), turn: String(j(turn?.body.tools)).slice(0, 160) })}`)
+  check('the analysis issued count requests, and exactly two of them carried a system prompt: the request and its prefix', counts.length > 2 && withSystem.length === 2 && request !== undefined && prefix !== undefined, `collectContextData (src/commands/context/contextHeadless.ts) must count the request and its prefix with the system prompt and everything else without · ${j({ counts: counts.length, withSystem: withSystem.length })}`)
+  check('THE REQUEST COUNT CARRIES THE TURN\'S SYSTEM BLOCKS, BYTE-EQUAL (base: the count carried no system prompt at all)', request !== undefined && turn !== undefined && j(request.body.system) === j(turn.body.system), `the count request must send the same system blocks as the turn; fix the count in collectContextData (src/commands/context/contextHeadless.ts) · ${j({ count: String(j(request?.body.system)).slice(0, 160), turn: String(j(turn?.body.system)).slice(0, 160) })}`)
+  check('…and the turn\'s tools array, byte-equal (the roster without ToolSearch, projected with the same pool)', request !== undefined && turn !== undefined && j(request.body.tools) === j(turn.body.tools), `the count request must send the same tools array as the turn; fix the count in collectContextData (src/commands/context/contextHeadless.ts) · ${j({ count: String(j(request?.body.tools)).slice(0, 160), turn: String(j(turn?.body.tools)).slice(0, 160) })}`)
   check('the prefix count carries the same system and tools around the counter\'s placeholder message', prefix !== undefined && request !== undefined && j(prefix.body.system) === j(request.body.system) && j(prefix.body.tools) === j(request.body.tools), `the prefix count must carry the request's system and tools around the single hi message · ${j(prefix?.body.messages)}`)
-  check('the placeholder count carries neither', placeholder !== undefined, 'no count request with no system, no tools and the single hi message was issued; collectContextData (src/commands/context/context-noninteractive.ts) must send that placeholder count')
+  check('the placeholder count carries neither', placeholder !== undefined, 'no count request with no system, no tools and the single hi message was issued; collectContextData (src/commands/context/contextHeadless.ts) must send that placeholder count')
   const conversation = request !== undefined && turn !== undefined && j(request.body.messages) === j(turn.body.messages)
   console.log(`  evidence: the count\'s messages ${conversation ? 'equal' : 'differ from'} the turn\'s wire messages (${request?.body.messages?.length ?? 0} vs ${turn?.body.messages?.length ?? 0} rows: the count runs after the turn and holds its answer too)`)
   const messagesRow = data.categories.find(c => c.name === 'Messages')?.tokens ?? 0
   const expected = request !== undefined && prefix !== undefined && placeholder !== undefined
     ? Math.max(0, countTokensFixtureFigure(request.raw) - countTokensFixtureFigure(prefix.raw) + countTokensFixtureFigure(placeholder.raw))
     : -1
-  check('THE MESSAGES ROW IS THE REQUEST COUNT MINUS ITS PREFIX PLUS THE PLACEHOLDER (the system prompt and the tools taken back out exactly)', expected >= 0 && messagesRow === expected, `the Messages category in collectContextData (src/commands/context/context-noninteractive.ts) must equal request count minus prefix count plus placeholder count (expected -1 means one of those three count requests is missing) · ${j({ messagesRow, expected })}`)
+  check('THE MESSAGES ROW IS THE REQUEST COUNT MINUS ITS PREFIX PLUS THE PLACEHOLDER (the system prompt and the tools taken back out exactly)', expected >= 0 && messagesRow === expected, `the Messages category in collectContextData (src/commands/context/contextHeadless.ts) must equal request count minus prefix count plus placeholder count (expected -1 means one of those three count requests is missing) · ${j({ messagesRow, expected })}`)
   const sections = counts.filter(r => r.body.system === undefined && (r.body.messages ?? []).length === 1 && (r.body.messages ?? [])[0]?.content !== 'hi')
   check('every per-section and per-tool count still carries no system prompt (they measure one part each)', sections.length > 0 && sections.every(r => r.body.system === undefined), `${sections.length} part counts; per-section and per-tool counts must be sent without a system prompt and at least one must exist`)
-  check('the System prompt row is still listed by section and counted', (data.systemPromptSections ?? []).length > 1 && data.categories.some(c => c.name === 'System prompt' && c.tokens > 0), `${(data.systemPromptSections ?? []).length} system prompt sections; collectContextData (src/commands/context/context-noninteractive.ts) must still list the sections and a System prompt category above zero tokens`)
+  check('the System prompt row is still listed by section and counted', (data.systemPromptSections ?? []).length > 1 && data.categories.some(c => c.name === 'System prompt' && c.tokens > 0), `${(data.systemPromptSections ?? []).length} system prompt sections; collectContextData (src/commands/context/contextHeadless.ts) must still list the sections and a System prompt category above zero tokens`)
 
   section('§3 the no-session counters carry no system prompt, deliberately')
   const beforeNoSession = api.messageRequests().length
   const big = 'x '.repeat(getMaxMcpOutputTokens() * 3)
   await mcpContentNeedsTruncation(big)
   const mcpCount = (api.messageRequests() as Captured[]).slice(beforeNoSession).find(r => r.path.includes('count_tokens'))
-  check('the MCP truncation gate counts its one message with no system prompt and no tools', mcpCount !== undefined && mcpCount.body.system === undefined && (mcpCount.body.tools ?? []).length === 0 && (mcpCount.body.messages ?? []).length === 1, `mcpContentNeedsTruncation (src/services/mcp/mcpValidation.ts) must count one message with no system prompt and no tools · ${j({ system: mcpCount?.body.system, tools: mcpCount?.body.tools?.length })}`)
+  check('the MCP truncation gate counts its one message with no system prompt and no tools', mcpCount !== undefined && mcpCount.body.system === undefined && (mcpCount.body.tools ?? []).length === 0 && (mcpCount.body.messages ?? []).length === 1, `mcpContentNeedsTruncation (src/integrations/mcp/mcpOutputTruncation.ts) must count one message with no system prompt and no tools · ${j({ system: mcpCount?.body.system, tools: mcpCount?.body.tools?.length })}`)
   const beforeString = api.messageRequests().length
   const stringCount = await countTokensWithAPI('a file body '.repeat(2000))
   const fileCount = (api.messageRequests() as Captured[]).slice(beforeString).find(r => r.path.includes('count_tokens'))
-  check('the file-read cap\'s string counter counts one user message with no system prompt', typeof stringCount === 'number' && fileCount !== undefined && fileCount.body.system === undefined && (fileCount.body.messages ?? []).length === 1, `countTokensWithAPI (src/services/tokenEstimation.ts) must return a number from one user message with no system prompt · ${j({ stringCount, system: fileCount?.body.system })}`)
+  check('the file-read cap\'s string counter counts one user message with no system prompt', typeof stringCount === 'number' && fileCount !== undefined && fileCount.body.system === undefined && (fileCount.body.messages ?? []).length === 1, `countTokensWithAPI (src/models/facts/tokenEstimation.ts) must return a number from one user message with no system prompt · ${j({ stringCount, system: fileCount?.body.system })}`)
 } finally {
   await api.close()
   rmSync(home, { recursive: true, force: true })

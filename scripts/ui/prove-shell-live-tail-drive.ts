@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/messages/UserBashInputMessage.tsx src/components/messages/TranscriptNameplate.tsx src/components/shell/ShellLiveTail.tsx src/components/shell/liveShellTail.ts
-// gate-watch: src/services/processUserInput/processBashCommand.tsx src/tools/BashTool/BashTool.tsx src/Tool.ts
-// gate-watch: src/tasks/LocalShellTask/LocalShellTask.tsx src/services/engine-connector/workRoster.ts src/components/messages/UserBashOutputMessage.tsx
-// gate-watch: src/components/Message.tsx src/utils/messages/normalize.ts src/types/message.ts src/services/engine-connector/daemonConnector.ts
+// gate-watch: src/screen/messages/UserBashInputMessage.tsx src/screen/messages/TranscriptNameplate.tsx src/screen/shell-output/ShellLiveTail.tsx src/screen/shell-output/liveShellTail.ts
+// gate-watch: src/engine/user-input/processBashCommand.tsx src/tools/shell/BashTool.tsx src/tools/kit/tool.ts
+// gate-watch: src/engine/tasks/local-shell/shellTask.tsx src/engine/connector/workRoster.ts src/screen/messages/UserBashOutputMessage.tsx
+// gate-watch: src/screen/messages/Message.tsx src/engine/message-shapes/normalize.ts src/engine/message-shapes/message.ts src/engine/connector/daemonConnector.ts
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { grabScreens, requireDist, runArtifactArena, sendStamp } from '../streaming/artifactArena.ts'
@@ -21,7 +21,7 @@ const recordBase = process.argv.includes('--record-base')
 const fixtures = join(import.meta.dir, 'fixtures', 'shell-live-tail')
 if (recordBase) mkdirSync(fixtures, { recursive: true })
 let failures = 0
-const liveTailFixHint = 'change shellLiveTailLines and shellLiveTailBudget in src/components/shell/liveShellTail.ts or the live row in src/components/shell/ShellLiveTail.tsx; rerun with --capture-dir to read the saved frames'
+const liveTailFixHint = 'change shellLiveTailLines and shellLiveTailBudget in src/screen/shell-output/liveShellTail.ts or the live row in src/screen/shell-output/ShellLiveTail.tsx; rerun with --capture-dir to read the saved frames'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail + '; ' : ''}${liveTailFixHint}` : ''}`)

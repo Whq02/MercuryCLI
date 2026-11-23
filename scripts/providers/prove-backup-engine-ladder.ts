@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/api/backupEngines.ts src/services/api/withRetry.ts src/services/api/errors.ts src/services/providers/callModelRouter.ts src/run-core/turn-machine.ts src/utils/settings/types.ts src/services/providers/openaicompat/compatChatCallModel.ts
+// gate-watch: src/engine/requests/backupEngines.ts src/engine/requests/withRetry.ts src/engine/requests/apiErrorRows.ts src/models/roads/callModelRouter.ts src/engine/loop/turn-machine.ts src/platform/settings/settingsSchema.ts src/models/roads/openaicompat/compatChatCallModel.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, writeFileSync } from 'node:fs'
@@ -55,25 +55,25 @@ const fixture = Bun.serve({
 process.env.MERCURY_DEEPSEEK_API_BASE = `http://127.0.0.1:${fixture.port}`
 process.env.DEEPSEEK_API_KEY = 'sk-fixture-deepseek'
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const ladderModule = (await import('../../src/services/api/backupEngines.ts').catch(() => null)) as Record<string, unknown> | null
-const { FallbackTriggeredError } = await import('../../src/services/api/withRetry.ts')
-const { getAssistantMessageFromError } = await import('../../src/services/api/errors.ts')
-const { APIError, APIConnectionError } = await import('../../src/utils/api/sdkErrors.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage } = await import('../../src/services/messages.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { query } = await import('../../src/query.ts')
+const ladderModule = (await import('../../src/engine/requests/backupEngines.ts').catch(() => null)) as Record<string, unknown> | null
+const { FallbackTriggeredError } = await import('../../src/engine/requests/withRetry.ts')
+const { getAssistantMessageFromError } = await import('../../src/engine/requests/apiErrorRows.ts')
+const { APIError, APIConnectionError } = await import('../../src/engine/request-parts/sdkErrors.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage } = await import('../../src/engine/messages/messages.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
 
 type Vote = { originalModel: string; fallbackModel: string; trigger: string }
 
-section('S1 · the ladder: the flag heads it, the setting follows, each engine once per turn, nothing with nothing configured', 'backupEngineLadder, engineLadderOf or backupEngineNoticeLine in src/services/api/backupEngines.ts')
-check('the ladder module exists (src/services/api/backupEngines.ts)', ladderModule !== null)
+section('S1 · the ladder: the flag heads it, the setting follows, each engine once per turn, nothing with nothing configured', 'backupEngineLadder, engineLadderOf or backupEngineNoticeLine in src/engine/requests/backupEngines.ts')
+check('the ladder module exists (src/engine/requests/backupEngines.ts)', ladderModule !== null)
 if (ladderModule !== null) {
   const backupEngineLadder = ladderModule.backupEngineLadder as (flag: string | undefined) => string[]
   const engineLadderOf = ladderModule.engineLadderOf as (turn: object, flag: string | undefined) => { next(current: string): string | undefined; take(engine: string): boolean }
@@ -92,7 +92,7 @@ if (ladderModule !== null) {
   check('the words name the cause', noticeLine({ originalModel: PRIMARY, fallbackModel: FLAGGED, trigger: 'sign-in' }).includes('refused the sign-in; this turn runs on') && noticeLine({ originalModel: PRIMARY, fallbackModel: FLAGGED, trigger: 'unreachable' }).includes('cannot be reached; this turn runs on') && noticeLine({ originalModel: PRIMARY, fallbackModel: FLAGGED, trigger: 'unknown-model' }).includes('is not a model its provider serves; this turn runs on') && noticeLine({ originalModel: PRIMARY, fallbackModel: FLAGGED, trigger: 'overloaded' }).includes('is overloaded; this turn runs on'))
 }
 
-section('S2 · the cause: typed facts on the message, the home lane stamps what only it knows', 'failoverCauseOf in src/services/api/backupEngines.ts, or the failover stamp getAssistantMessageFromError puts on the message in src/services/api/errors.ts')
+section('S2 · the cause: typed facts on the message, the home lane stamps what only it knows', 'failoverCauseOf in src/engine/requests/backupEngines.ts, or the failover stamp getAssistantMessageFromError puts on the message in src/engine/requests/apiErrorRows.ts')
 if (ladderModule !== null) {
   const failoverCauseOf = ladderModule.failoverCauseOf as (error: string | undefined, code: string | undefined, busy: boolean) => string | undefined
   check('a refused sign-in votes', failoverCauseOf('authentication_failed', 'api-invalid_api_key', false) === 'sign-in')
@@ -113,7 +113,7 @@ if (ladderModule !== null) {
   check('home lane: an overflow refusal is never a hop', stamp(apiError(400, 'invalid_request_error', 'prompt is too long: 250000 tokens > 200000 maximum')) === undefined)
 }
 
-section('S3 · the router: a lane that cannot answer votes the backup it was given; with no backup the error lands as today', 'routedCallModel in src/services/providers/callModelRouter.ts, or withBackupVote in src/services/api/backupEngines.ts')
+section('S3 · the router: a lane that cannot answer votes the backup it was given; with no backup the error lands as today', 'routedCallModel in src/models/roads/callModelRouter.ts, or withBackupVote in src/engine/requests/backupEngines.ts')
 const drive = async (model: string, fallbackModel?: string): Promise<{ vote: Vote | null; errors: string[]; texts: string[] }> => {
   const out = { vote: null as Vote | null, errors: [] as string[], texts: [] as string[] }
   try {
@@ -171,7 +171,7 @@ if (ladderModule !== null) {
   check('an error after content already settled is not a vote: the attempt stays what it was', thrown === null && items.length === 2, j({ thrown: String(thrown), items: items.length }))
 }
 
-section('S4 · the turn: two hops down the ladder, each announced with its cause, the third engine answers; nothing configured changes nothing', 'how the turn in src/run-core/turn/streamModel.ts uses engineLadderOf (src/services/api/backupEngines.ts) to hand each attempt the next engine and announce the hop, or the engine.backups setting in src/utils/settings/types.ts')
+section('S4 · the turn: two hops down the ladder, each announced with its cause, the third engine answers; nothing configured changes nothing', 'how the turn in src/engine/loop/turn/streamModel.ts uses engineLadderOf (src/engine/requests/backupEngines.ts) to hand each attempt the next engine and announce the hop, or the engine.backups setting in src/platform/settings/settingsSchema.ts')
 {
   type Call = { model: string; fallbackModel: string | undefined }
   const makeRun = (opts: { fallbackModel?: string; script: (call: Call, index: number) => unknown[] | Error }) => {
@@ -251,7 +251,7 @@ section('S4 · the turn: two hops down the ladder, each announced with its cause
   check('the context follows the engine that answered', (hops.ctx.options as { engineModel: string }).engineModel === SECOND)
 
   writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ engine: {} }))
-  ;(await import('../../src/utils/settings/settingsCache.ts')).resetSettingsCache()
+  ;(await import('../../src/platform/settings/settingsCache.ts')).resetSettingsCache()
   const bare = makeRun({
     script: call => [createAssistantAPIErrorMessage({ content: `API Error: ${call.model} refused the sign-in`, error: 'authentication_failed', failover: 'sign-in' } as never)],
   })
@@ -262,11 +262,11 @@ section('S4 · the turn: two hops down the ladder, each announced with its cause
   check('nothing configured: the ladder is empty', ladderEmpty === undefined || ladderEmpty.length === 0, j(ladderEmpty))
 }
 
-section('refusals · what the ladder and the vote must never do', 'backupEngineLadder or engineLadderOf in src/services/api/backupEngines.ts, or the router refusal path in src/services/providers/callModelRouter.ts')
+section('refusals · what the ladder and the vote must never do', 'backupEngineLadder or engineLadderOf in src/engine/requests/backupEngines.ts, or the router refusal path in src/models/roads/callModelRouter.ts')
 if (ladderModule !== null) {
   const backupEngineLadder = ladderModule.backupEngineLadder as (flag: string | undefined) => string[]
   const engineLadderOf = ladderModule.engineLadderOf as (turn: object, flag: string | undefined) => { next(current: string): string | undefined; take(engine: string): boolean }
-  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+  const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
   const withSetting = (backups: unknown): string[] => {
     writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ engine: { backups } }))
     resetSettingsCache()

@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const fsOps = await import('../../src/utils/fsOperations.ts')
+const fsOps = await import('../../src/platform/files/fsOperations.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = '', failHint = ''): void => {
@@ -71,9 +71,9 @@ if (process.platform === 'win32') {
   const local = fsOps.getPathsForPermissionCheck(LOCAL_LINK)
   fsOps.setOriginalFsImplementation()
 
-  check('the UNC target is in the resolution set, so the UNC ask still sees it', remote.includes(UNC), JSON.stringify(remote), 'getPathsForPermissionCheck in src/utils/fsOperations.ts must add a symlink target that is a UNC path to the returned set')
-  check('nothing on the share is touched while the set is built', remoteTouched.length === 0, JSON.stringify(remoteTouched), 'getPathsForPermissionCheck in src/utils/fsOperations.ts must return as soon as the target is UNC-like and make no filesystem call on the share')
-  check('a link to a local folder still resolves to its target', local.includes(LOCAL_LINK) && local.includes(PROJ), JSON.stringify(local), 'getPathsForPermissionCheck in src/utils/fsOperations.ts must still follow a symlink to a local folder and list the target')
+  check('the UNC target is in the resolution set, so the UNC ask still sees it', remote.includes(UNC), JSON.stringify(remote), 'getPathsForPermissionCheck in src/platform/files/fsOperations.ts must add a symlink target that is a UNC path to the returned set')
+  check('nothing on the share is touched while the set is built', remoteTouched.length === 0, JSON.stringify(remoteTouched), 'getPathsForPermissionCheck in src/platform/files/fsOperations.ts must return as soon as the target is UNC-like and make no filesystem call on the share')
+  check('a link to a local folder still resolves to its target', local.includes(LOCAL_LINK) && local.includes(PROJ), JSON.stringify(local), 'getPathsForPermissionCheck in src/platform/files/fsOperations.ts must still follow a symlink to a local folder and list the target')
 } else {
   const folder = join(PROJ, 'folder')
   const folderLink = join(PROJ, 'folder-link')
@@ -94,8 +94,8 @@ if (process.platform === 'win32') {
   const followed = fsOps.getPathsForPermissionCheck(folderLink)
   fsOps.setOriginalFsImplementation()
 
-  check('the walk follows a local link: the set holds the link and its target', followed.length === 2 && followed.includes(folderLink) && followed.includes(folder), JSON.stringify(followed), 'getPathsForPermissionCheck in src/utils/fsOperations.ts must return exactly the link and its target for a local symlink')
-  check('realpath is consulted once, on the link itself', realpathCalls.length === 1 && realpathCalls[0] === folderLink, JSON.stringify(realpathCalls), 'getPathsForPermissionCheck in src/utils/fsOperations.ts must call realpathSync once, on the input link, not on each hop')
+  check('the walk follows a local link: the set holds the link and its target', followed.length === 2 && followed.includes(folderLink) && followed.includes(folder), JSON.stringify(followed), 'getPathsForPermissionCheck in src/platform/files/fsOperations.ts must return exactly the link and its target for a local symlink')
+  check('realpath is consulted once, on the link itself', realpathCalls.length === 1 && realpathCalls[0] === folderLink, JSON.stringify(realpathCalls), 'getPathsForPermissionCheck in src/platform/files/fsOperations.ts must call realpathSync once, on the input link, not on each hop')
 }
 
 for (const dir of [PROJ, HOME]) {

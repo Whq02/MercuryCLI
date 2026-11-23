@@ -12,7 +12,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const helpRowsHint = 'the rows of the ? overlay are built in PromptInputHelpMenu in src/components/PromptInput/PromptInputHelpMenu.tsx: fix the row text or its column layout and clipping there'
+const helpRowsHint = 'the rows of the ? overlay are built in PromptInputHelpMenu in src/screen/composer/ComposerHelpMenu.tsx: fix the row text or its column layout and clipping there'
 
 function capture(cols: number, rows: number): string[] | null {
   const cfg = scenario('help', cols, rows)

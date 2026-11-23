@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/state/onChangeAppState.ts src/commands/model/persistModelChoice.ts src/bootstrap/state.ts
+// gate-watch: src/screen/app-state/onChangeAppState.ts src/commands/model/persistModelChoice.ts src/boot/process-state/processState.ts
 import '../lib/hermetic.ts'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -9,9 +9,9 @@ process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_MODEL
 
 const { proofHome } = await import('../lib/hermetic.ts')
-const { onChangeAppState } = await import('../../src/state/onChangeAppState.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { getEngineModelOverride, setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
+const { onChangeAppState } = await import('../../src/screen/app-state/onChangeAppState.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { getEngineModelOverride, setEngineModelOverride } = await import('../../src/boot/process-state/processState.ts')
 const { persistModelChoice } = await import('../../src/commands/model/persistModelChoice.ts')
 
 let failures = 0
@@ -39,18 +39,18 @@ section('§1 the model this process runs on may move without the saved default m
   writeFileSync(settingsPath, SAVED)
   setEngineModelOverride(undefined)
   change(null, 'glm-5.3')
-  check('the live model follows the state (the engine override reads the new model)', getEngineModelOverride() === 'glm-5.3', String(getEngineModelOverride()) + ' | onChangeAppState in src/state/onChangeAppState.ts must set the engine override from newState.engineModel')
-  check('settings.json is byte-identical — the saved default is still the user\'s own', readFileSync(settingsPath, 'utf8') === SAVED, readFileSync(settingsPath, 'utf8') + ' | onChangeAppState in src/state/onChangeAppState.ts must not write settings.json; only persistModelChoice in src/commands/model/persistModelChoice.ts saves the default')
+  check('the live model follows the state (the engine override reads the new model)', getEngineModelOverride() === 'glm-5.3', String(getEngineModelOverride()) + ' | onChangeAppState in src/screen/app-state/onChangeAppState.ts must set the engine override from newState.engineModel')
+  check('settings.json is byte-identical — the saved default is still the user\'s own', readFileSync(settingsPath, 'utf8') === SAVED, readFileSync(settingsPath, 'utf8') + ' | onChangeAppState in src/screen/app-state/onChangeAppState.ts must not write settings.json; only persistModelChoice in src/commands/model/persistModelChoice.ts saves the default')
   change('glm-5.3', 'claude-opus-5-5')
-  check('moving back leaves the file alone too', readFileSync(settingsPath, 'utf8') === SAVED && getEngineModelOverride() === 'claude-opus-5-5', readFileSync(settingsPath, 'utf8') + ' | onChangeAppState in src/state/onChangeAppState.ts must neither write settings.json nor skip the override update on a model change')
+  check('moving back leaves the file alone too', readFileSync(settingsPath, 'utf8') === SAVED && getEngineModelOverride() === 'claude-opus-5-5', readFileSync(settingsPath, 'utf8') + ' | onChangeAppState in src/screen/app-state/onChangeAppState.ts must neither write settings.json nor skip the override update on a model change')
 }
 
 section('§2 a state change to no model never clears a saved default')
 {
   writeFileSync(settingsPath, SAVED)
   change('claude-opus-5-5', null)
-  check('the live override is cleared', getEngineModelOverride() === undefined, String(getEngineModelOverride()) + ' | onChangeAppState in src/state/onChangeAppState.ts must clear the engine override when engineModel becomes null')
-  check('the saved default survives', storedModel() === 'claude-opus-5-5' && readFileSync(settingsPath, 'utf8') === SAVED, readFileSync(settingsPath, 'utf8') + ' | onChangeAppState in src/state/onChangeAppState.ts must not clear or rewrite the saved engine.model when engineModel becomes null')
+  check('the live override is cleared', getEngineModelOverride() === undefined, String(getEngineModelOverride()) + ' | onChangeAppState in src/screen/app-state/onChangeAppState.ts must clear the engine override when engineModel becomes null')
+  check('the saved default survives', storedModel() === 'claude-opus-5-5' && readFileSync(settingsPath, 'utf8') === SAVED, readFileSync(settingsPath, 'utf8') + ' | onChangeAppState in src/screen/app-state/onChangeAppState.ts must not clear or rewrite the saved engine.model when engineModel becomes null')
 }
 
 section('§3 the explicit pick is the one road that saves the default, and it says so')

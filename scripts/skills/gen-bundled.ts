@@ -6,7 +6,7 @@ import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-
 
 const ROOT = join(import.meta.dir, '..', '..')
 const ROW = {
-  assets: 'src/skills/bundled/**',
+  assets: 'src/integrations/skills/bundled/**',
   generator: 'bun scripts/skills/gen-bundled.ts',
   check: 'bun scripts/skills/gen-bundled.ts --check',
   sources: 'mercury-skills/**',
@@ -16,7 +16,7 @@ const ROW = {
 type Layout = { sourceRoot: string; dest: string }
 const DEFAULT_LAYOUT: Layout = {
   sourceRoot: join(ROOT, 'mercury-skills'),
-  dest: join(ROOT, 'src', 'skills', 'bundled'),
+  dest: join(ROOT, 'src', 'integrations', 'skills', 'bundled'),
 }
 
 export const GENERATED_MARKER = "export const GENERATED_BY = 'scripts/skills/gen-bundled.ts'"
@@ -154,7 +154,7 @@ export function renderSkill(name: string, layout: Layout = DEFAULT_LAYOUT, list:
   const Camel = camel(name)
   const registerTs =
     `${GENERATED_MARKER}\n` +
-    `import { parseFrontmatter } from '../../utils/frontmatterParser.js'\n` +
+    `import { parseFrontmatter } from '../../../platform/text/frontmatterParser.js'\n` +
     `import { registerBundledSkill } from '../bundledSkills.js'\n` +
     `import { SKILL_FILES, SKILL_MD } from './${name}Content.js'\n\n` +
     `const { frontmatter, content: SKILL_BODY } = parseFrontmatter(SKILL_MD)\n` +
@@ -202,7 +202,7 @@ function writeSkill(rendered: Rendered, layout: Layout = DEFAULT_LAYOUT): void {
   for (const file of [`${rendered.name}Content.ts`, `${rendered.name}.ts`]) {
     const p = join(layout.dest, file)
     if (existsSync(p) && !isGeneratedModule(p)) {
-      throw new Error(`${rendered.name}: src/skills/bundled/${file} exists without the generated marker — a hand-written module; rename the skill`)
+      throw new Error(`${rendered.name}: src/integrations/skills/bundled/${file} exists without the generated marker — a hand-written module; rename the skill`)
     }
   }
   const destDir = join(layout.dest, rendered.name)

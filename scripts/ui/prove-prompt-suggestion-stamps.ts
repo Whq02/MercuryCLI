@@ -14,20 +14,20 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  const failHint = ' — the suggestion and its stamps are in usePromptSuggestion in src/hooks/usePromptSuggestion.ts; the speculation surface (section 4) is in src/services/PromptSuggestion/speculation.ts'
+  const failHint = ' — the suggestion and its stamps are in usePromptSuggestion in src/screen/composer/usePromptSuggestion.ts; the speculation surface (section 4) is in src/screen/prompt-suggestion/speculation.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}${ok ? '' : failHint}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { usePromptSuggestion } = await import('../../src/hooks/usePromptSuggestion.js')
-const { abortSpeculation, handleSpeculationAccept, isSpeculationEnabled, startSpeculation } = await import('../../src/services/PromptSuggestion/speculation.js')
-const { AppStoreContext, IDLE_SPECULATION_STATE } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { usePromptSuggestion } = await import('../../src/screen/composer/usePromptSuggestion.js')
+const { abortSpeculation, handleSpeculationAccept, isSpeculationEnabled, startSpeculation } = await import('../../src/screen/prompt-suggestion/speculation.js')
+const { AppStoreContext, IDLE_SPECULATION_STATE } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 type Api = ReturnType<typeof usePromptSuggestion>
 type AppState = ReturnType<typeof getDefaultAppState>
 

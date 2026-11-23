@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/memory/MemoryCentreView.tsx src/components/memory/memoryCentreLayout.ts src/mneme/mnemeCorrect.ts src/mneme/mnemeBuffer.ts
+// gate-watch: src/screen/memory/MemoryCentreView.tsx src/screen/memory/memoryCentreLayout.ts src/sessions/mneme/mnemeCorrect.ts src/sessions/mneme/mnemeBuffer.ts
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -21,7 +21,7 @@ if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let checks = 0
 let failures = 0
-const PENDING_KEYS_FIX_HINT = 'change the code, not the check: the pending-row pin, correct and retire roads are in src/mneme/mnemeCorrect.ts (pinPendingRow, replacePendingRow, strikePendingRow); the pending store is src/mneme/mnemeBuffer.ts (pendingRows); the popup is opened by src/commands/memory/memory.tsx and its fact view, keys, footer and notes are drawn in src/components/memory/MemoryCentreView.tsx and src/components/memory/centre/views.tsx'
+const PENDING_KEYS_FIX_HINT = 'change the code, not the check: the pending-row pin, correct and retire roads are in src/sessions/mneme/mnemeCorrect.ts (pinPendingRow, replacePendingRow, strikePendingRow); the pending store is src/sessions/mneme/mnemeBuffer.ts (pendingRows); the popup is opened by src/commands/memory/memory.tsx and its fact view, keys, footer and notes are drawn in src/screen/memory/MemoryCentreView.tsx and src/screen/memory/centre/views.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
@@ -39,15 +39,15 @@ const PENDING = `The operator is writing this todo app (todo.py in m34-play) to 
 const CORRECTED = 'The operator is writing this todo app to learn Python with the zebrafinch runner, in the evenings'
 const SETTLED = 'The staging database for this project is called stagedb7.'
 
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(c => ({ ...c, prStatusFooterEnabled: false }))
-const { appendObservation, pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
-const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { pinPendingRow, replacePendingRow, strikePendingRow } = await import('../../src/mneme/mnemeCorrect.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { appendObservation, pendingRows } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { pinPendingRow, replacePendingRow, strikePendingRow } = await import('../../src/sessions/mneme/mnemeCorrect.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ memory: { journal: false } }))
 resetSettingsCache()
 const dir = mnemeLibraryDir()
@@ -75,16 +75,16 @@ section('§1 the pending-row roads: pin marks the row for its consolidation, ide
 
 const React = await import('react')
 const h = React.createElement
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const settingsStore = await import('../../src/utils/cockpit/settingsPopup.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const settingsStore = await import('../../src/screen/cockpit/settingsPopup.ts')
 const memoryCommand = await import('../../src/commands/memory/memory.tsx')
 
 function Harness({ columns }: { columns: number }): React.ReactNode {

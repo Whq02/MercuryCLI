@@ -27,10 +27,10 @@ function restore(...keys: string[]): void {
   }
 }
 
-const pyright = await import('../../src/services/lsp/pyrightLane.js')
-const ruff = await import('../../src/services/lsp/ruffLane.js')
-const { getMercuryLspServerSources } = await import('../../src/services/lsp/builtinServers.js')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
+const pyright = await import('../../src/integrations/lsp/pyrightLane.js')
+const ruff = await import('../../src/integrations/lsp/ruffLane.js')
+const { getMercuryLspServerSources } = await import('../../src/integrations/lsp/builtinServers.js')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.js')
 
 console.log('============================================================')
 console.log(' python lanes — gating · probes · config resolver · merge order')
@@ -43,15 +43,15 @@ section('(1) gating polarity')
   process.env.MERCURY_PYRIGHT_VENDOR_DIR = CACHE
   pyright._resetPyrightProbeCacheForTesting()
   const on = pyright.builtinPyrightServer()
-  check('bridge on + lane unset ⇒ mercury-pyright registers (cache present)', existsSync(CACHE) ? 'mercury-pyright' in on : Object.keys(on).length === 0, 'fix builtinPyrightServer / mercuryLspPythonEnabled in src/services/lsp/pyrightLane.ts; registered: ' + Object.keys(on).join(', '))
+  check('bridge on + lane unset ⇒ mercury-pyright registers (cache present)', existsSync(CACHE) ? 'mercury-pyright' in on : Object.keys(on).length === 0, 'fix builtinPyrightServer / mercuryLspPythonEnabled in src/integrations/lsp/pyrightLane.ts; registered: ' + Object.keys(on).join(', '))
 
   process.env.MERCURY_LSP_PYTHON = '0'
-  check('MERCURY_LSP_PYTHON=0 ⇒ pyright lane gone', Object.keys(pyright.builtinPyrightServer()).length === 0, 'builtinPyrightServer in src/services/lsp/pyrightLane.ts must return {} when mercuryLspPythonEnabled() is false')
-  check('MERCURY_LSP_PYTHON=0 ⇒ ruff lane gone', Object.keys(ruff.builtinRuffServer()).length === 0, 'builtinRuffServer in src/services/lsp/ruffLane.ts must return {} when the MERCURY_LSP_PYTHON gate is off')
+  check('MERCURY_LSP_PYTHON=0 ⇒ pyright lane gone', Object.keys(pyright.builtinPyrightServer()).length === 0, 'builtinPyrightServer in src/integrations/lsp/pyrightLane.ts must return {} when mercuryLspPythonEnabled() is false')
+  check('MERCURY_LSP_PYTHON=0 ⇒ ruff lane gone', Object.keys(ruff.builtinRuffServer()).length === 0, 'builtinRuffServer in src/integrations/lsp/ruffLane.ts must return {} when the MERCURY_LSP_PYTHON gate is off')
   delete process.env.MERCURY_LSP_PYTHON
 
   process.env.MERCURY_LSP = '0'
-  check('MERCURY_LSP=0 ⇒ pyright lane gone (master gate)', Object.keys(pyright.builtinPyrightServer()).length === 0, 'mercuryLspPythonEnabled in src/services/lsp/pyrightLane.ts must require mercuryLspEnabled()')
+  check('MERCURY_LSP=0 ⇒ pyright lane gone (master gate)', Object.keys(pyright.builtinPyrightServer()).length === 0, 'mercuryLspPythonEnabled in src/integrations/lsp/pyrightLane.ts must require mercuryLspEnabled()')
   delete process.env.MERCURY_LSP
 }
 
@@ -60,7 +60,7 @@ if (existsSync(CACHE)) {
   process.env.MERCURY_PYRIGHT_VENDOR_DIR = CACHE
   pyright._resetPyrightProbeCacheForTesting()
   const bundled = pyright.probeBuiltinPyright()
-  check(`cache tree probes as BUNDLED with the pinned version (vendor/pyright.lock.json: ${PINNED})`, bundled.available && bundled.source === 'bundled' && bundled.version === PINNED, JSON.stringify(bundled) + ' — fix probeBuiltinPyright in src/services/lsp/pyrightLane.ts, or re-fetch the vendor tree with bun run scripts/vendor/fetch-pyright.ts')
+  check(`cache tree probes as BUNDLED with the pinned version (vendor/pyright.lock.json: ${PINNED})`, bundled.available && bundled.source === 'bundled' && bundled.version === PINNED, JSON.stringify(bundled) + ' — fix probeBuiltinPyright in src/integrations/lsp/pyrightLane.ts, or re-fetch the vendor tree with bun run scripts/vendor/fetch-pyright.ts')
 
   const empty = mkdtempSync(join(tmpdir(), 'no-pyright-'))
   try {
@@ -70,7 +70,7 @@ if (existsSync(CACHE)) {
     check(
       'a BROKEN pin refuses by name (no silent fallback — S8 pin honesty)',
       !broken.available && (broken.reason ?? '').includes('MERCURY_PYRIGHT_VENDOR_DIR'),
-      JSON.stringify(broken) + ' — probeBuiltinPyright in src/services/lsp/pyrightLane.ts must refuse a bad MERCURY_PYRIGHT_VENDOR_DIR with a reason naming it',
+      JSON.stringify(broken) + ' — probeBuiltinPyright in src/integrations/lsp/pyrightLane.ts must refuse a bad MERCURY_PYRIGHT_VENDOR_DIR with a reason naming it',
     )
     delete process.env.MERCURY_PYRIGHT_VENDOR_DIR
     pyright._resetPyrightProbeCacheForTesting()
@@ -79,7 +79,7 @@ if (existsSync(CACHE)) {
       'unpinned + no vendor tree ⇒ PATH fallback or honest unavailable with remedy',
       (fallback.available && (fallback.source === 'path' || fallback.source === 'project-local')) ||
         (!fallback.available && (fallback.reason ?? '').includes('fetch-pyright')),
-      JSON.stringify(fallback) + ' — probeBuiltinPyright in src/services/lsp/pyrightLane.ts must fall back to PATH or give a reason naming fetch-pyright',
+      JSON.stringify(fallback) + ' — probeBuiltinPyright in src/integrations/lsp/pyrightLane.ts must fall back to PATH or give a reason naming fetch-pyright',
     )
   } finally {
     rmSync(empty, { recursive: true, force: true })
@@ -94,11 +94,11 @@ if (existsSync(CACHE)) {
 section('(3) the LIVE python-section configuration resolver')
 {
   process.env.MERCURY_PYTHON = '/usr/bin/python3'
-  const { _resetPythonProjectForTesting } = await import('../../src/services/ide/pythonProject.js')
+  const { _resetPythonProjectForTesting } = await import('../../src/integrations/ide/pythonProject.js')
   _resetPythonProjectForTesting()
   const python = pyright.pyrightWorkspaceConfiguration('python') as { pythonPath?: string }
-  check('python section answers the SHARED selected interpreter', python?.pythonPath === '/usr/bin/python3', JSON.stringify(python) + ' — fix pyrightWorkspaceConfiguration in src/services/lsp/pyrightLane.ts (the python section must return the selectPythonInterpreter command)')
-  check('other sections defer (null) to project config files', pyright.pyrightWorkspaceConfiguration('python.analysis') === null, 'pyrightWorkspaceConfiguration in src/services/lsp/pyrightLane.ts must return null for every section except python')
+  check('python section answers the SHARED selected interpreter', python?.pythonPath === '/usr/bin/python3', JSON.stringify(python) + ' — fix pyrightWorkspaceConfiguration in src/integrations/lsp/pyrightLane.ts (the python section must return the selectPythonInterpreter command)')
+  check('other sections defer (null) to project config files', pyright.pyrightWorkspaceConfiguration('python.analysis') === null, 'pyrightWorkspaceConfiguration in src/integrations/lsp/pyrightLane.ts must return null for every section except python')
   restore('MERCURY_PYTHON')
   _resetPythonProjectForTesting()
 }
@@ -114,23 +114,23 @@ section('(4) ruff probe honesty + version floor (PATH-controlled shims)')
     process.env.PATH = shims
     ruff._resetRuffProbeCacheForTesting()
     const absent = ruff.probeRuff()
-    check('no ruff ⇒ honest unavailable naming the install remedy', !absent.available && (absent.reason ?? '').includes('install'), JSON.stringify(absent) + ' — probeRuff in src/services/lsp/ruffLane.ts must give a reason naming the install remedy')
+    check('no ruff ⇒ honest unavailable naming the install remedy', !absent.available && (absent.reason ?? '').includes('install'), JSON.stringify(absent) + ' — probeRuff in src/integrations/lsp/ruffLane.ts must give a reason naming the install remedy')
 
     mkShim('0.4.0')
     ruff._resetRuffProbeCacheForTesting()
     const old = await ruff.primeRuffProbe()
-    check('pre-server ruff (0.4.0) ⇒ refused with the version floor', !old.available && (old.reason ?? '').includes('0.5.3'), JSON.stringify(old) + ' — primeRuffProbe in src/services/lsp/ruffLane.ts must refuse a ruff older than 0.5.3 and name that floor')
+    check('pre-server ruff (0.4.0) ⇒ refused with the version floor', !old.available && (old.reason ?? '').includes('0.5.3'), JSON.stringify(old) + ' — primeRuffProbe in src/integrations/lsp/ruffLane.ts must refuse a ruff older than 0.5.3 and name that floor')
 
     mkShim('0.8.1')
     ruff._resetRuffProbeCacheForTesting()
     const first = ruff.probeRuff()
-    check('a present ruff answers at once — present, version probing (never a synchronous version spawn)', first.available && first.probing === true && first.version === undefined, JSON.stringify(first) + ' — probeRuff in src/services/lsp/ruffLane.ts must answer available with probing true and no synchronous version spawn')
+    check('a present ruff answers at once — present, version probing (never a synchronous version spawn)', first.available && first.probing === true && first.version === undefined, JSON.stringify(first) + ' — probeRuff in src/integrations/lsp/ruffLane.ts must answer available with probing true and no synchronous version spawn')
     const good = await ruff.primeRuffProbe()
-    check('modern ruff (0.8.1) ⇒ available with version once settled', good.available && good.version === '0.8.1' && good.probing === undefined, JSON.stringify(good) + ' — primeRuffProbe in src/services/lsp/ruffLane.ts must settle with the parsed version and clear probing')
+    check('modern ruff (0.8.1) ⇒ available with version once settled', good.available && good.version === '0.8.1' && good.probing === undefined, JSON.stringify(good) + ' — primeRuffProbe in src/integrations/lsp/ruffLane.ts must settle with the parsed version and clear probing')
 
     const cfg = ruff.builtinRuffServer()
     const row = cfg['mercury-ruff']
-    check('ruff lane config: `ruff server` claiming .py', row !== undefined && row.args?.join(' ') === 'server' && '.py' in row.extensionToLanguage, 'fix builtinRuffServer in src/services/lsp/ruffLane.ts; row: ' + JSON.stringify(row ?? null).slice(0, 140))
+    check('ruff lane config: `ruff server` claiming .py', row !== undefined && row.args?.join(' ') === 'server' && '.py' in row.extensionToLanguage, 'fix builtinRuffServer in src/integrations/lsp/ruffLane.ts; row: ' + JSON.stringify(row ?? null).slice(0, 140))
   } finally {
     process.env.PATH = savedPath
     ruff._resetRuffProbeCacheForTesting()
@@ -152,8 +152,8 @@ section('(5) the deliberate .py multi-provider merge order')
     const names = Object.keys(sources.builtin)
     const iPyright = names.indexOf('mercury-pyright')
     const iRuff = names.indexOf('mercury-ruff')
-    check('both python lanes register', iPyright !== -1 && iRuff !== -1, 'getMercuryLspServerSources in src/services/lsp/builtinServers.ts must include builtinPyrightServer and builtinRuffServer; registered: ' + names.join(', '))
-    check('pyright registers BEFORE ruff (semantic ownership of .py)', iPyright !== -1 && iRuff !== -1 && iPyright < iRuff, 'in getMercuryLspServerSources (src/services/lsp/builtinServers.ts) spread builtinPyrightServer() before builtinRuffServer(); order: ' + names.join(', '))
+    check('both python lanes register', iPyright !== -1 && iRuff !== -1, 'getMercuryLspServerSources in src/integrations/lsp/builtinServers.ts must include builtinPyrightServer and builtinRuffServer; registered: ' + names.join(', '))
+    check('pyright registers BEFORE ruff (semantic ownership of .py)', iPyright !== -1 && iRuff !== -1 && iPyright < iRuff, 'in getMercuryLspServerSources (src/integrations/lsp/builtinServers.ts) spread builtinPyrightServer() before builtinRuffServer(); order: ' + names.join(', '))
   } finally {
     process.env.PATH = savedPath
     restore('MERCURY_PYRIGHT_VENDOR_DIR')

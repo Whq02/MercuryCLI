@@ -50,7 +50,7 @@ const api = await startFixtureApi([
   { kind: 'text', text: 'slack 2' },
   { kind: 'text', text: 'slack 3' },
 ])
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — live battery exceeded 300s; the scratch daemon.log under the concourse-live temp folder shows the check that was still waiting')
@@ -111,7 +111,7 @@ check(
   'the daemon started by node dist/mercury.mjs daemon run never answered ping on its control socket; rebuild with bun run build.ts and read the scratch daemon.log',
 )
 
-const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/warmRunner.ts')
+const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/runner-link/warmRunner.ts')
 const ADMISSION_ANSWER_MS = WARM_BOOT_ALLOWANCE_MS
 type AdmitReply = {
   ok: boolean
@@ -151,18 +151,18 @@ for (let i = 0; i < 4; i++) {
   if (r.ok && r.workerId && r.sessionId && r.pid !== undefined) {
     admitted.push({ workerId: r.workerId, sessionId: r.sessionId, pid: r.pid })
   } else {
-    check(`admission ${i + 1} succeeded`, false, JSON.stringify(r) + ' | the concourseAdmit op in src/daemon/controlServer.ts refused or timed out; the reply error and the scratch daemon.log name the reason')
+    check(`admission ${i + 1} succeeded`, false, JSON.stringify(r) + ' | the concourseAdmit op in src/daemon/control/controlServer.ts refused or timed out; the reply error and the scratch daemon.log name the reason')
   }
 }
 {
-  const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+  const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const recs = Object.values(readSessionWorkers(daemonDir)).filter(
     r => r.endedAt === undefined && r.worktreePath !== undefined,
   )
   check(
     'the two isolated sessions carved DISTINCT live worktrees in the one repository',
     recs.length === 2 && new Set(recs.map(r => r.worktreePath)).size === 2 && recs.every(r => r.workspaceId === recs[0]!.workspaceId),
-    JSON.stringify(recs.map(r => r.worktreePath)) + ' | a worktree-isolated admission must record its own live worktreePath in the session-worker records (src/daemon/concourseWorkers.ts)',
+    JSON.stringify(recs.map(r => r.worktreePath)) + ' | a worktree-isolated admission must record its own live worktreePath in the session-worker records (src/daemon/concourse-workers/concourseWorkers.ts)',
   )
   check(
     '…each a REAL linked worktree on disk',
@@ -176,7 +176,7 @@ const aliased = await admit(aliasPath)
 check(
   'a symlink-aliased workspace COLLIDES through the alias (RR-01 live) — the git offer answers it',
   aliased.ok === false && aliased.refusal === 'no-repository' && /git offer/.test(aliased.error ?? ''),
-  JSON.stringify(aliased) + ' | admitting a symlink alias of an occupied workspace must refuse with refusal no-repository and the git offer in the error; see src/daemon/concourseWorkers/admission.ts',
+  JSON.stringify(aliased) + ' | admitting a symlink alias of an occupied workspace must refuse with refusal no-repository and the git offer in the error; see src/daemon/concourse-workers/admission.ts',
 )
 type DispatchReply = AdmitReply & { state?: string; clientMessageId?: string }
 const dispatched = (await daemonControlRpc({
@@ -188,7 +188,7 @@ const dispatched = (await daemonControlRpc({
 check(
   'the fifth session enters via concourseDispatch (prompt-to-session)',
   dispatched.ok === true && dispatched.state === 'working' && !!dispatched.workerId,
-  JSON.stringify(dispatched) + ' | the concourseDispatch op (src/daemon/concourseDispatch.ts) must start a worker and answer state working',
+  JSON.stringify(dispatched) + ' | the concourseDispatch op (src/daemon/concourse-workers/concourseDispatch.ts) must start a worker and answer state working',
 )
 check(
   'five workers are simultaneously LIVE on the daemon summary',
@@ -217,9 +217,9 @@ const sixth = await admit(workspaces[5]!)
 check(
   'the SIXTH request refuses (runtime-ceiling) before any worker use',
   sixth.ok === false && sixth.refusal === 'runtime-ceiling' && /every seat is taken/.test(sixth.error ?? ''),
-  JSON.stringify(sixth) + ' | a sixth admission must refuse with refusal runtime-ceiling and the every-seat-is-taken error; see src/daemon/concourseWorkers/admission.ts',
+  JSON.stringify(sixth) + ' | a sixth admission must refuse with refusal runtime-ceiling and the every-seat-is-taken error; see src/daemon/concourse-workers/admission.ts',
 )
-check('refusals spawned nothing (still five)', (await listed()).length === 5, 'a refused admission must not start a worker; see src/daemon/concourseWorkers/admission.ts')
+check('refusals spawned nothing (still five)', (await listed()).length === 5, 'a refused admission must not start a worker; see src/daemon/concourse-workers/admission.ts')
 
 console.log('\n§3 — the dispatched prompt reaches the provider boundary')
 check(
@@ -283,11 +283,11 @@ check(
   'a released worker must stay stopped; the daemon must not respawn it',
 )
 {
-  const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+  const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const isoLive = Object.values(readSessionWorkers(daemonDir)).find(
     r => r.endedAt === undefined && r.worktreePath !== undefined,
   )
-  check('an isolated worker is still live for the reap leg', isoLive !== undefined, 'a worktree-isolated worker must still be live with an unended record in src/daemon/concourseWorkers.ts')
+  check('an isolated worker is still live for the reap leg', isoLive !== undefined, 'a worktree-isolated worker must still be live with an unended record in src/daemon/concourse-workers/concourseWorkers.ts')
   if (isoLive) {
     const wtPath = isoLive.worktreePath!
     const rel2 = (await daemonControlRpc({ op: 'concourseRelease', runnerId: isoLive.runnerId } as never)) as ReleaseReply

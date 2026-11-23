@@ -1,0 +1,110 @@
+
+import type { AgentId } from '../../sessions/transcripts/ids.js'
+import type { AssistantMessage, NormalizedAssistantMessage, NormalizedUserMessage } from '../../engine/message-shapes/message.js'
+
+
+export type BashProgress = {
+  type: 'bash_progress'
+  output: string
+  fullOutput: string
+  elapsedTimeSeconds: number
+  totalLines: number
+  totalBytes?: number
+  taskId?: string
+  timeoutMs?: number
+  budgetMs?: number
+}
+
+type TestProgress = {
+  type: 'test_progress'
+  line: string
+  elapsedTimeSeconds: number
+}
+
+export type PowerShellProgress = {
+  type: 'powershell_progress'
+  output: string
+  fullOutput: string
+  elapsedTimeSeconds: number
+  totalLines: number
+  totalBytes: number
+  taskId?: string
+  timeoutMs?: number
+  budgetMs?: number
+}
+
+export type ShellProgress = BashProgress | PowerShellProgress
+
+
+export type AgentToolProgress = {
+  type: 'agent_progress'
+  message: AssistantMessage | NormalizedUserMessage
+  prompt: string
+  agentId: AgentId
+}
+
+export type SkillToolProgress = {
+  type: 'skill_progress'
+  message: NormalizedAssistantMessage | NormalizedUserMessage
+  prompt: string
+  agentId: AgentId
+}
+
+
+export type MCPProgress = {
+  type: 'mcp_progress'
+  status: 'started' | 'completed' | 'failed' | 'progress'
+  serverName: string
+  toolName: string
+  elapsedTimeMs?: number
+  progress?: number
+  total?: number
+  progressMessage?: string
+}
+
+
+export type WebSearchProgress =
+  | {
+      type: 'query_update'
+      query: string
+    }
+  | {
+      type: 'search_results_received'
+      resultCount: number
+      query: string
+    }
+
+
+export type EvalToolProgress =
+  | {
+      type: 'eval_progress'
+      kind: 'output'
+      stream: 'stdout' | 'stderr'
+      tail: string
+      language: string
+      title?: string
+    }
+  | {
+      type: 'eval_progress'
+      kind: 'running'
+      elapsedSeconds: number
+      budgetMs?: number
+      tail?: string
+      language?: string
+      title?: string
+    }
+  | {
+      type: 'eval_progress'
+      kind: 'nested'
+      message: AssistantMessage | NormalizedUserMessage
+    }
+
+export type ToolProgressData =
+  | BashProgress
+  | PowerShellProgress
+  | TestProgress
+  | AgentToolProgress
+  | SkillToolProgress
+  | MCPProgress
+  | WebSearchProgress
+  | EvalToolProgress

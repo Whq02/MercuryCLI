@@ -9,9 +9,9 @@ import { checker, scratchRoot, guardWrite } from './harness.ts'
 const ROOT = scratchRoot('sourcetruth')
 const t = checker()
 
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const sidecar = await import('../../src/services/run/runSidecar.ts')
-const currentWork = await import('../../src/services/workbench/currentWork.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const sidecar = await import('../../src/engine/run/runSidecar.ts')
+const currentWork = await import('../../src/screen/workbench/currentWork.ts')
 
 t.section('§1 — an unreadable sidecar is not reported as "no run"')
 const unreadableOwner = makeOwnerKey({ workspace: ROOT, sessionId: 'keel-unreadable', lane: 'main' })
@@ -43,11 +43,11 @@ t.section('§3–§5 — unreadable workbench sources are not rendered as empty'
   mkdirSync(workspace, { recursive: true })
   writeFileSync(guardWrite(ROOT, join(ROOT, 'review-artifacts')), 'not a directory')
 
-  const bootstrap = await import('../../src/bootstrap/state.ts')
+  const bootstrap = await import('../../src/boot/process-state/processState.ts')
   bootstrap.setOriginalCwd(workspace)
   bootstrap.setCwdState(workspace)
 
-  const projection = await import('../../src/services/workbench/projection.ts')
+  const projection = await import('../../src/screen/workbench/projection.ts')
   projection._resetWorkbenchForTesting()
   const snap = (await projection.resolveWorkbenchSnapshot()) as
     | (Record<string, unknown> & { artifactHeads?: unknown[]; lanes?: unknown[] })

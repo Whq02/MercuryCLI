@@ -6,16 +6,16 @@ const ROOT = join(import.meta.dir, '..', '..')
 const SRC = join(ROOT, 'src')
 
 const SOT = new Set<string>([
-  'src/components/mercuryPalette.ts',
-  'src/components/mercury-ui/sessionAccent.ts',
+  'src/screen/theme/mercuryPalette.ts',
+  'src/screen/widgets/sessionAccent.ts',
 ])
 
 const EXEMPT_DIRS: string[] = []
 
 const ALLOW: Record<string, string> = {
-  'src/utils/cockpit/critterData.ts': 'critter art-data hues (sibling to sessionAccent CRITTERS); EYE_BG annotated == IVORY',
+  'src/screen/cockpit/critterData.ts': 'critter art-data hues (sibling to sessionAccent CRITTERS); EYE_BG annotated == IVORY',
   'src/commands/insights.ts': 'CSS hex inside a generated HTML report string — not a TUI token',
-  'src/services/samples/docTheme.ts': 'the samples page is a browser document: its CSS variables and canvas fills are hex inside the generated HTML string — not a TUI token',
+  'src/integrations/samples/docTheme.ts': 'the samples page is a browser document: its CSS variables and canvas fills are hex inside the generated HTML string — not a TUI token',
 }
 
 const HEX = /['"]#[0-9a-fA-F]{6}['"]/
@@ -61,7 +61,7 @@ for (const abs of files) {
   if (SOT.has(rel)) continue
   if (EXEMPT_DIRS.some(d => rel.startsWith(d))) continue
   if (
-    rel.startsWith('src/skills/bundled/') &&
+    rel.startsWith('src/integrations/skills/bundled/') &&
     rel.endsWith('Content.ts') &&
     readFileSync(abs, 'utf8').includes(`import skillMd from './${basename(rel, 'Content.ts')}/SKILL.md'`)
   )
@@ -76,24 +76,24 @@ for (const abs of files) {
   if (n > 0) offenders.push(`${rel} (${n} literal${n === 1 ? '' : 's'})`)
 }
 
-check('the SoT pair is present (guard is anchored to real files)', SOT.size === 2, SOT.size === 2 ? '' : 'the SOT set at the top of scripts/ui/prove-no-new-hex.ts must name exactly src/components/mercuryPalette.ts and src/components/mercury-ui/sessionAccent.ts')
+check('the SoT pair is present (guard is anchored to real files)', SOT.size === 2, SOT.size === 2 ? '' : 'the SOT set at the top of scripts/ui/prove-no-new-hex.ts must name exactly src/screen/theme/mercuryPalette.ts and src/screen/widgets/sessionAccent.ts')
 check(
   'no NEW quoted hex literal in a live src file (outside SoT/specimen/allowlist)',
   offenders.length === 0,
-  offenders.length ? `offenders:\n      - ${offenders.join('\n      - ')}\n    change: replace each quoted hex literal in those files with a token from src/components/mercuryPalette.ts or src/components/mercury-ui/sessionAccent.ts` : 'clean',
+  offenders.length ? `offenders:\n      - ${offenders.join('\n      - ')}\n    change: replace each quoted hex literal in those files with a token from src/screen/theme/mercuryPalette.ts or src/screen/widgets/sessionAccent.ts` : 'clean',
 )
 
 section('scan: named chalk colours (UX-6 — the hex ratchet blind spot)')
 const CHALK_NAMED = /chalk(?:\.\w+)*\.(cyan|magenta|yellow|red|green|blue|white|black|gray|grey|cyanBright|magentaBright|yellowBright|redBright|greenBright|blueBright)\b/
 const CHALK_ALLOW: Record<string, number> = {
-  'src/main/cli.ts': 1,
-  'src/main/mcpConfigs.ts': 1,
-  'src/setup.ts': 9,
-  'src/ink/colorize.ts': 15,
+  'src/boot/main/cli.ts': 1,
+  'src/boot/main/mcpConfigs.ts': 1,
+  'src/boot/sessionSetup.ts': 9,
+  'src/screen/renderer/colorize.ts': 15,
   'src/utils/teleport.tsx': 6,
-  'src/utils/auth.ts': 6,
-  'src/services/worktree.ts': 1,
-  'src/utils/hyperlink.ts': 1,
+  'src/models/sign-in/credentials/auth.ts': 6,
+  'src/platform/git/worktree/worktree.ts': 1,
+  'src/platform/text/hyperlink.ts': 1,
 }
 const chalkOffenders: string[] = []
 for (const abs of files) {
@@ -109,7 +109,7 @@ for (const abs of files) {
 check(
   'no NEW named chalk colour outside the frozen allowlist',
   chalkOffenders.length === 0,
-  chalkOffenders.length ? `offenders:\n      - ${chalkOffenders.join('\n      - ')}\n    change: replace each named chalk colour in those files with a palette token (src/components/mercuryPalette.ts); the frozen budgets are CHALK_ALLOW in scripts/ui/prove-no-new-hex.ts and may only fall` : 'clean',
+  chalkOffenders.length ? `offenders:\n      - ${chalkOffenders.join('\n      - ')}\n    change: replace each named chalk colour in those files with a palette token (src/screen/theme/mercuryPalette.ts); the frozen budgets are CHALK_ALLOW in scripts/ui/prove-no-new-hex.ts and may only fall` : 'clean',
 )
 
 section('self-test: the matcher catches a quoted literal but not an issue ref')

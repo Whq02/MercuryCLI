@@ -11,10 +11,10 @@ const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}wouldLoseAuthState and its authStateLosses rules in src/utils/config/globalConfig.ts decide what counts as a loss against the cached config` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}wouldLoseAuthState and its authStateLosses rules in src/platform/config/globalConfig.ts decide what counts as a loss against the cached config` : ''}`)
 }
 
-const config = await import(join(SRC, 'utils/config/globalConfig.ts'))
+const config = await import(join(SRC, 'platform/config/globalConfig.ts'))
 const wouldLose = config._wouldLoseAuthStateForTesting as (fresh: { oauthAccount?: unknown; hasCompletedOnboarding?: boolean }) => boolean
 const setCache = config._setGlobalConfigCacheForTesting as (c: Record<string, unknown> | null) => void
 const account = { accountUuid: 'acct-1', emailAddress: 'op@example.test', organizationUuid: 'org-1' }

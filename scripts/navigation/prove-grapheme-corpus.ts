@@ -9,9 +9,9 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const { stringWidth } = await import('../../src/ink/stringWidth.js')
-const { default: wrapText } = await import('../../src/ink/wrap-text.js')
-const { widestLine } = await import('../../src/ink/widest-line.js')
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.js')
+const { default: wrapText } = await import('../../src/screen/renderer/wrap-text.js')
+const { widestLine } = await import('../../src/screen/renderer/widest-line.js')
 
 const CORPUS: Array<[name: string, text: string, cells: number]> = [
   ['ascii baseline', 'mercury', 7],
@@ -34,7 +34,7 @@ console.log('UI-087 — the shared grapheme/cell corpus (the ONE width owner)')
 console.log('─'.repeat(76))
 for (const [name, text, cells] of CORPUS) {
   const got = stringWidth(text)
-  check(`${name} = ${cells} cell(s)`, got === cells, `got ${got} — change stringWidth in src/ink/stringWidth.ts so this text measures ${cells} cells`)
+  check(`${name} = ${cells} cell(s)`, got === cells, `got ${got} — change stringWidth in src/screen/renderer/stringWidth.ts so this text measures ${cells} cells`)
 }
 
 console.log('\n' + '─'.repeat(76))
@@ -48,12 +48,12 @@ for (const cols of [60, 80, 120]) {
   check(
     `wrap @${cols}: no produced line exceeds the column budget (widest ${widest})`,
     widest <= cols,
-    `widest=${widest} of ${lines.length} lines — change wrapText in src/ink/wrap-text.ts (or widestLine in src/ink/widest-line.ts) so no line exceeds ${cols} columns`,
+    `widest=${widest} of ${lines.length} lines — change wrapText in src/screen/renderer/wrap-text.ts (or widestLine in src/screen/renderer/widest-line.ts) so no line exceeds ${cols} columns`,
   )
   check(
     `wrap @${cols}: nothing vanished (joined content width is preserved through the pipeline)`,
     stringWidth(lines.join('')) >= stringWidth(HOSTILE_LINE) * 4 - lines.length * 2,
-    `joined width ${stringWidth(lines.join(''))} of ${lines.length} lines — change wrapText in src/ink/wrap-text.ts so wrapping drops no content`,
+    `joined width ${stringWidth(lines.join(''))} of ${lines.length} lines — change wrapText in src/screen/renderer/wrap-text.ts so wrapping drops no content`,
   )
 }
 

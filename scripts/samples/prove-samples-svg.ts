@@ -1,9 +1,9 @@
-import { sanitizeSvg, normalizeSampleDoc, renderSampleDoc } from '../../src/services/samples/renderDoc.js'
+import { sanitizeSvg, normalizeSampleDoc, renderSampleDoc } from '../../src/integrations/samples/renderDoc.js'
 
 let failures = 0
 let checks = 0
 const SVG_FIX_HINT =
-  'what to change: sanitizeSvg in src/services/samples/renderDoc.ts (H, U and S1 to S4 checks: it must strip handlers, scripts and active references and keep safe markup, once and without recursion); for S5, the figure part in renderSampleDoc in the same file; P1 is a fixture check, so fix the fixture in this script'
+  'what to change: sanitizeSvg in src/integrations/samples/renderDoc.ts (H, U and S1 to S4 checks: it must strip handlers, scripts and active references and keep safe markup, once and without recursion); for S5, the figure part in renderSampleDoc in the same file; P1 is a fixture check, so fix the fixture in this script'
 function check(name: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++

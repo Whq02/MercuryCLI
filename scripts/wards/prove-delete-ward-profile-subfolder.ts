@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/wards/wards* src/guards/wardsGuard*
+// gate-watch: src/permissions/wards/wards.ts src/permissions/wards/wardsRefusals.ts src/permissions/wards/wardsShellRead.ts src/permissions/guards/wardsGuard.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
 let checks = 0
-const profileFailHint = 'change the no-home-recursive-delete rule in AUTONOMOUS_WARDS (src/utils/wards/wards.ts) for a delete that is not denied, or what the rule should leave to the card, and deleteWardActive in src/guards/wardsGuard.ts for the MERCURY_SPAWNED_BY checks'
+const profileFailHint = 'change the no-home-recursive-delete rule in AUTONOMOUS_WARDS (src/permissions/wards/wards.ts) for a delete that is not denied, or what the rule should leave to the card, and deleteWardActive in src/permissions/guards/wardsGuard.ts for the MERCURY_SPAWNED_BY checks'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -23,11 +23,11 @@ function restorePlatform(): void {
   if (platformDescriptor) Object.defineProperty(process, 'platform', platformDescriptor)
 }
 
-type PendingToolCall = import('../../src/utils/wards/wards.js').PendingToolCall
-type WardVerdict = import('../../src/utils/wards/wards.js').WardVerdict
-const { AUTONOMOUS_WARDS, evaluateWards } = await import('../../src/utils/wards/wards.js')
-const { deleteWardActive } = await import('../../src/guards/wardsGuard.js')
-const { deleteFlagEnv, setFlagEnv } = await import('../../src/substrate/flagRegistry.js')
+type PendingToolCall = import('../../src/permissions/wards/wards.js').PendingToolCall
+type WardVerdict = import('../../src/permissions/wards/wards.js').WardVerdict
+const { AUTONOMOUS_WARDS, evaluateWards } = await import('../../src/permissions/wards/wards.js')
+const { deleteWardActive } = await import('../../src/permissions/guards/wardsGuard.js')
+const { deleteFlagEnv, setFlagEnv } = await import('../../src/platform/substrate/flagRegistry.js')
 
 const bash = (command: string, resolvePath?: PendingToolCall['resolvePath']): PendingToolCall => ({
   toolName: 'Bash',

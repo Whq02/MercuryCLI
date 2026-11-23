@@ -3,29 +3,29 @@ import '../lib/hermetic.ts'
 import { FAKE_BIN, FAKE_SCRIPT, GIB, LINUX_NO_GPU, LINUX_OLD_DRIVER, MAC_16, MAC_32, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, QWEN_9B_REPO, RTX_4090, fakeExists, fakeWorld } from './fixtures/world.ts'
 import { FAKE_LIBJPEG_WARNING } from './fixtures/fake-tensorfold.ts'
 import { WIN_NO_LLAMA, cannedAdapterExec } from './fixtures/tstates.ts'
-import { isAdapterEntry } from '../../src/services/tensorfold/adapter/identity.ts'
+import { isAdapterEntry } from '../../src/models/tensorfold/adapter/identity.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const engine = await import('../../src/services/tensorfold/engine.ts')
-const fit = await import('../../src/services/tensorfold/fit.ts')
-const install = await import('../../src/services/tensorfold/install.ts')
-const refusal = await import('../../src/services/tensorfold/refusal.ts')
-const serve = await import('../../src/services/tensorfold/serve.ts')
-const starting = await import('../../src/services/tensorfold/starting.ts')
-const pull = await import('../../src/services/tensorfold/pull.ts')
+const engine = await import('../../src/models/tensorfold/engine.ts')
+const fit = await import('../../src/models/tensorfold/fit.ts')
+const install = await import('../../src/models/tensorfold/install.ts')
+const refusal = await import('../../src/models/tensorfold/refusal.ts')
+const serve = await import('../../src/models/tensorfold/serve.ts')
+const starting = await import('../../src/models/tensorfold/starting.ts')
+const pull = await import('../../src/models/tensorfold/pull.ts')
 const scene = await import('../../src/commands/tensorfold/scene.ts')
 
 let failures = 0
 const SECTION_WHERE: Array<[string, string]> = [
-  ['the engine:', 'findTensorFoldEngine and the parsers in src/services/tensorfold/engine.ts'],
-  ['the machine truth', 'readTensorFoldMachineTruth in src/services/tensorfold/fit.ts'],
-  ['install plans', 'tensorFoldInstallPlan and installRuns in src/services/tensorfold/install.ts'],
-  ['fit:', 'tensorFoldLadder and its helpers in src/services/tensorfold/fit.ts'],
-  ['short names', 'src/services/tensorfold/starting.ts and pullCommandLines in src/services/tensorfold/pull.ts'],
-  ['will run', 'tensorFoldWillRun and tensorFoldServiceSpec in src/services/tensorfold/serve.ts'],
-  ['the refusal reader', 'readTensorFoldRefusal in src/services/tensorfold/refusal.ts and refusedActOf in src/commands/tensorfold/scene.ts'],
-  ['the feed lines', 'FEED and pullActOf in src/commands/tensorfold/scene.ts and readHubRepo in src/services/tensorfold/pull.ts'],
+  ['the engine:', 'findTensorFoldEngine and the parsers in src/models/tensorfold/engine.ts'],
+  ['the machine truth', 'readTensorFoldMachineTruth in src/models/tensorfold/fit.ts'],
+  ['install plans', 'tensorFoldInstallPlan and installRuns in src/models/tensorfold/install.ts'],
+  ['fit:', 'tensorFoldLadder and its helpers in src/models/tensorfold/fit.ts'],
+  ['short names', 'src/models/tensorfold/starting.ts and pullCommandLines in src/models/tensorfold/pull.ts'],
+  ['will run', 'tensorFoldWillRun and tensorFoldServiceSpec in src/models/tensorfold/serve.ts'],
+  ['the refusal reader', 'readTensorFoldRefusal in src/models/tensorfold/refusal.ts and refusedActOf in src/commands/tensorfold/scene.ts'],
+  ['the feed lines', 'FEED and pullActOf in src/commands/tensorfold/scene.ts and readHubRepo in src/models/tensorfold/pull.ts'],
 ]
 let whereNow = ''
 function check(label: string, cond: boolean, detail = ''): void {

@@ -12,7 +12,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    what to change: make the headless road match this label in src/services/blender/headlessRunner.ts (runBlenderHeadlessOp, probeBlenderHeadlessRuntime, formatHeadlessWindowRefusal) or src/tools/BlenderTool/BlenderTool.ts (call, checkPermissions, validateInput)')
+  if (!cond) console.log('    what to change: make the headless road match this label in src/integrations/blender/headlessRunner.ts (runBlenderHeadlessOp, probeBlenderHeadlessRuntime, formatHeadlessWindowRefusal) or src/tools/blender/BlenderTool.ts (call, checkPermissions, validateInput)')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -60,15 +60,15 @@ function pidAlive(pid: number): boolean {
   }
 }
 
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const { BlenderTool } = await import('../../src/tools/BlenderTool/BlenderTool.js')
-const proto = (await import('../../src/utils/blender/bridgeProtocol.js')) as Record<string, unknown>
-const { resetBlenderBridgeClientForTest } = await import('../../src/services/blender/bridgeClient.js')
-const { _resetBlenderBridgeContextCacheForTesting } = await import('../../src/utils/blender/bridgeGates.js')
-const installer = await import('../../src/services/blender/bridgeInstaller.js')
-const { readBlenderBridgeToken } = await import('../../src/services/blender/bridgeToken.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
+const { BlenderTool } = await import('../../src/tools/blender/BlenderTool.js')
+const proto = (await import('../../src/integrations/blender-protocol/bridgeProtocol.js')) as Record<string, unknown>
+const { resetBlenderBridgeClientForTest } = await import('../../src/integrations/blender/bridgeClient.js')
+const { _resetBlenderBridgeContextCacheForTesting } = await import('../../src/integrations/blender-protocol/bridgeGates.js')
+const installer = await import('../../src/integrations/blender/bridgeInstaller.js')
+const { readBlenderBridgeToken } = await import('../../src/integrations/blender/bridgeToken.js')
 const { startFakeBlenderBridge } = await import('./fake-bridge.js')
-const { getBlenderToolDescription: getBlenderToolDescriptionForScript } = await import('../../src/tools/BlenderTool/prompt.js')
+const { getBlenderToolDescription: getBlenderToolDescriptionForScript } = await import('../../src/tools/blender/prompt.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'blender-headless-proof-'))
 const work = path.join(scratch, 'studio')
@@ -455,7 +455,7 @@ section('§6 · --disable-autoexec explicit on every headless op (a free read op
 
 section('§7 · blender_status with no window (B-2, B-3): binary + source, versions, modules, API notes, one start per binary kept')
 {
-  const { getBlenderToolDescription } = await import('../../src/tools/BlenderTool/prompt.js')
+  const { getBlenderToolDescription } = await import('../../src/tools/blender/prompt.js')
   const fixture5 = createFakeBlenderFixture(path.join(scratch, 'bin5'), { version: '5.3.0', name: 'blender5' })
   const fixture4 = createFakeBlenderFixture(path.join(scratch, 'bin4'), { version: '4.5.13', name: 'blender4' })
   const userScripts = path.join(scratch, 'user-scripts')
@@ -527,7 +527,7 @@ section('§7 · blender_status with no window (B-2, B-3): binary + source, versi
   check('when unlocated, names MERCURY_BLENDER_BIN', sMissing.includes('MERCURY_BLENDER_BIN'))
   check('the tool prompt gains nothing from B-3', getBlenderToolDescription() === descBefore && !descBefore.includes('channelbags'))
 
-  const { probeBlenderVersion } = await import('../../src/utils/blender/blenderProject.js')
+  const { probeBlenderVersion } = await import('../../src/integrations/blender-protocol/blenderProject.js')
   const keptVersion = probeBlenderVersion(fixture5.bin).version
   const startsBeforeUpgrade = fixture5.invocations().length
   const upgraded = createFakeBlenderFixture(path.join(scratch, 'bin54'), { version: '5.4.0', name: 'blender54' })

@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { humanizeUsageError } = await import('../../src/components/Settings/Usage.js')
+const { humanizeUsageError } = await import('../../src/screen/settings/Usage.js')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — change humanizeUsageError in src/components/Settings/usage/lines.tsx so this error body maps to the line the check expects' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — change humanizeUsageError in src/screen/settings/usage/lines.tsx so this error body maps to the line the check expects' : ''}`)
 }
 
 console.log('============================================================')

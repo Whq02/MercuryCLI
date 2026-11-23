@@ -1,14 +1,14 @@
 #!/usr/bin/env bun
-import type { SessionFactsV1 } from '../../src/services/engine-connector/seatProjections.ts'
+import type { SessionFactsV1 } from '../../src/engine/connector/seatProjections.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { AdmissionPart } = await import('../../src/services/engine-connector/daemon/admission.ts')
+const { AdmissionPart } = await import('../../src/engine/connector/daemon/admission.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  const hint = 'change the AdmissionPart method this check calls (awaiting, factsArrive, runnerShown, awaitAdmission, sendDelivered, runnerLive, parksAgain, parked) in src/services/engine-connector/daemon/admission.ts until this holds'
+  const hint = 'change the AdmissionPart method this check calls (awaiting, factsArrive, runnerShown, awaitAdmission, sendDelivered, runnerLive, parksAgain, parked) in src/engine/connector/daemon/admission.ts until this holds'
   const shown = !ok ? [detail, hint].filter(Boolean).join(' — ') : ''
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }

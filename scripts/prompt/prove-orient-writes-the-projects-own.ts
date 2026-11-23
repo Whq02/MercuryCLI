@@ -8,9 +8,9 @@ import { join } from 'node:path'
 process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_BARE
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getOriginalCwd, setOriginalCwd, setCwdState } = await import('../../src/bootstrap/state.ts')
+const { getOriginalCwd, setOriginalCwd, setCwdState } = await import('../../src/boot/process-state/processState.ts')
 const orient = (await import('../../src/commands/orient/orient.ts')).default
 
 let failures = 0

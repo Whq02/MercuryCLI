@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
-import { ACTION_GRAPH } from '../../src/keybindings/actionGraph.ts'
-import { DEFAULT_BINDINGS } from '../../src/keybindings/defaultBindings.ts'
-import { parseBindings } from '../../src/keybindings/parser.ts'
-import { getBindingDisplayText, resolveKey } from '../../src/keybindings/resolver.ts'
-import type { Key } from '../../src/ink/events/input-event.ts'
-import type { KeybindingContextName } from '../../src/keybindings/types.ts'
+import { ACTION_GRAPH } from '../../src/screen/keys/actionGraph.ts'
+import { DEFAULT_BINDINGS } from '../../src/screen/keys/defaultBindings.ts'
+import { parseBindings } from '../../src/screen/keys/parser.ts'
+import { getBindingDisplayText, resolveKey } from '../../src/screen/keys/resolver.ts'
+import type { Key } from '../../src/screen/renderer/events/input-event.ts'
+import type { KeybindingContextName } from '../../src/screen/keys/types.ts'
 
 let failures = 0
 let where = ''
@@ -43,14 +43,14 @@ console.log('============================================================')
 console.log(' selection lists and the settings list: Home, End and the mouse wheel')
 console.log('============================================================')
 
-section('controls: the rows that stood before this pin still stand', 'restore the binding in the Select or Scroll block of src/keybindings/defaultBindings.ts')
+section('controls: the rows that stood before this pin still stand', 'restore the binding in the Select or Scroll block of src/screen/keys/defaultBindings.ts')
 check('down in a Select list moves to the next row', action('downArrow', '', ['Select']) === 'select:next', action('downArrow', '', ['Select']))
 check('the wheel in the Scroll context scrolls the transcript', action('wheelUp', '', ['Scroll']) === 'scroll:lineUp', action('wheelUp', '', ['Scroll']))
 check('bare home in the Scroll context stays unbound', action('home', '', ['Scroll']) === 'none', action('home', '', ['Scroll']))
 check('ctrl+home in the Scroll context jumps the transcript to the top', action('home', '', ['Scroll'], true) === 'scroll:top', action('home', '', ['Scroll'], true))
 
 for (const context of ['Select', 'Settings'] as const) {
-  section(`the ${context} context`, `bind the key in the ${context} block of src/keybindings/defaultBindings.ts (SELECT_LIST_KEYS holds the shared wheel, ctrl+p/ctrl+n and home/end rows)`)
+  section(`the ${context} context`, `bind the key in the ${context} block of src/screen/keys/defaultBindings.ts (SELECT_LIST_KEYS holds the shared wheel, ctrl+p/ctrl+n and home/end rows)`)
   const home = action('home', '', [context])
   const end = action('end', '', [context])
   const up = action('wheelUp', '', [context])
@@ -67,7 +67,7 @@ for (const context of ['Select', 'Settings'] as const) {
     bindings.some(b => b.context === context && b.action === 'select:first') && bindings.some(b => b.context === context && b.action === 'select:last'))
 }
 
-section('the action graph names the two edge moves for both list contexts', 'add or correct the select:first and select:last rows of ACTION_GRAPH in src/keybindings/actionGraph.ts')
+section('the action graph names the two edge moves for both list contexts', 'add or correct the select:first and select:last rows of ACTION_GRAPH in src/screen/keys/actionGraph.ts')
 for (const id of ['select:first', 'select:last']) {
   const meta = graph[id]
   check(`${id} exists in the graph`, meta !== undefined)
@@ -75,9 +75,9 @@ for (const id of ['select:first', 'select:last']) {
   check(`${id} carries a description`, (meta?.description ?? '').trim().length >= 8, meta?.description)
 }
 
-section('the navigation reducer: first and last land on the enabled edges and move the window', 'fix createNavigationState or the focus-first-option and focus-last-option cases of reduceNavigation in src/components/CustomSelect/use-select-navigation.ts')
+section('the navigation reducer: first and last land on the enabled edges and move the window', 'fix createNavigationState or the focus-first-option and focus-last-option cases of reduceNavigation in src/screen/select/useSelectNavigation.ts')
 {
-  const nav = await import('../../src/components/CustomSelect/use-select-navigation.ts')
+  const nav = await import('../../src/screen/select/useSelectNavigation.ts')
   const reduce = (nav as Record<string, unknown>).reduceNavigation as
     | ((state: unknown, action: { type: string }) => { focusedValue: unknown; visibleFromIndex: number; visibleToIndex: number })
     | undefined
@@ -112,13 +112,13 @@ section('the navigation reducer: first and last land on the enabled edges and mo
   }
 }
 
-section('the select hook consumes the edge moves; the transcript scroller yields the wheel to a list on top', 'fix wheelYieldsToTopOverlay (its WHEEL_OWNING_OVERLAYS set) or shouldClearSelectionOnKey in src/components/ScrollKeybindingHandler.tsx, or decodeNavKey in src/components/mercury-ui/navSemantics.ts')
+section('the select hook consumes the edge moves; the transcript scroller yields the wheel to a list on top', 'fix wheelYieldsToTopOverlay (its WHEEL_OWNING_OVERLAYS set) or shouldClearSelectionOnKey in src/screen/scroll-keys/ScrollKeybindingHandler.tsx, or decodeNavKey in src/screen/widgets/navSemantics.ts')
 {
-  const scroller = await import('../../src/components/ScrollKeybindingHandler.tsx')
+  const scroller = await import('../../src/screen/scroll-keys/ScrollKeybindingHandler.tsx')
   const yields = (scroller as Record<string, unknown>).wheelYieldsToTopOverlay as (() => boolean) | undefined
   check('the scroller exposes its wheel-yield rule', typeof yields === 'function')
   if (yields) {
-    const stack = await import('../../src/context/overlayStack.ts')
+    const stack = await import('../../src/screen/overlays/overlayStack.ts')
     stack.resetOverlayStackForTests()
     check('no overlay ⇒ the transcript keeps the wheel', !yields())
     const dialog = stack.pushOverlay({ id: 'settings', modal: true })
@@ -143,7 +143,7 @@ section('the select hook consumes the edge moves; the transcript scroller yields
     stack.popOverlay(dialog)
     stack.resetOverlayStackForTests()
   }
-  const { decodeNavKey } = await import('../../src/components/mercury-ui/navSemantics.ts')
+  const { decodeNavKey } = await import('../../src/screen/widgets/navSemantics.ts')
   check('the raw-grammar lists (the model picker) read the wheel as a row move on the vertical axis',
     decodeNavKey('', keyOf('wheelUp'), { orientation: 'vertical' }) === 'movePrevious' && decodeNavKey('', keyOf('wheelDown'), { orientation: 'vertical' }) === 'moveNext')
   check('a horizontal control (the effort strip) gives the wheel no meaning',

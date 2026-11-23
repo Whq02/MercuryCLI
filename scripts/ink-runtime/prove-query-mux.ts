@@ -4,15 +4,15 @@ import {
   parseMultipleKeypresses,
   type KeyParseState,
   type ParsedInput,
-} from '../../src/ink/input/input-decoder.js'
+} from '../../src/screen/renderer/input/input-decoder.js'
 import {
   da1,
   decrqm,
   TerminalQuerier,
   xtversion,
-} from '../../src/ink/session/querier.js'
+} from '../../src/screen/renderer/terminal-session/terminalQuerier.js'
 
-const queryMuxFixHint = 'fix TerminalQuerier.send, flush or onResponse in src/ink/session/querier.ts, or response routing in parseMultipleKeypresses in src/ink/input/input-decoder.ts'
+const queryMuxFixHint = 'fix TerminalQuerier.send, flush or onResponse in src/screen/renderer/terminal-session/terminalQuerier.ts, or response routing in parseMultipleKeypresses in src/screen/renderer/input/input-decoder.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) {

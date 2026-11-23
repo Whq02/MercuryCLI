@@ -1,0 +1,285 @@
+import * as React from 'react'
+import { useSyncExternalStore } from 'react'
+import { usePublish } from '../effects/effects.js'
+import { Box, Text } from '../themedRenderer.js'
+import {
+  getHelmCursor,
+  getHelmFocus,
+  getHelmVitalsVersion,
+  helmRowSig,
+  publishHelmRows,
+  subscribeHelmFocus,
+} from '../cockpit/helmFocus.js'
+import { getLiveContextUsage, getLiveContextUsageVersion, subscribeLiveContextUsage } from '../cockpit-gauges/index.js'
+import { ctxForecastEnabled, ctxGrowthHistory, estimateTurnsToCompact } from '../cockpit-gauges/ctxForecast.js'
+import { windowSourceUsages } from '../../models/roads/providerUsage.js'
+import { usagePollTtlMs } from '../../models/roads/usageFreshness.js'
+import { useProviderUsageOnShow } from '../model-picker/useProviderUsageOnShow.js'
+import { getUsageRecordVersion, subscribeUsageRecord } from '../../models/roads/anthropic/anthropicLimits.js'
+import { getFocusedSessionConnector, subscribeThroughFocused } from '../../engine/connector/focusedConnector.js'
+import { focusedSessionIdOrNull, useFocusedWorkRoster } from '../tasks/useFocusedWork.js'
+import { healthCertSnapshot } from '../../platform/health/healthCertSnapshot.js'
+import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
+import { useSessionAccent } from '../widgets/sessionAccent.js'
+import { GLYPH, SPARK } from '../theme/glyphs.js'
+import { requestCommandDispatch, requestHelmRowActivationByLabel, setHelmCursor } from '../cockpit/helmFocus.js'
+import { usageActivityBins } from '../cockpit/usageActivity.js'
+import { InteractiveRow } from '../widgets/InteractiveRow.js'
+import { RailPanel } from '../widgets/RailPanel.js'
+import { fitPointerRows } from '../cockpit-gauges/helmLanesModel.js'
+import { Sparkline, UsageMeter, useNowTick } from '../widgets/components.js'
+import { CURSOR_NUDGE_MS, ValueGlow } from '../widgets/LiveGlyphs.js'
+import { useTerminalSize } from './useTerminalSize.js'
+import { fluxMark } from '../../integrations/media-flux/fluxProbe.js'
+import { buildVitalsModel, type VitalsInput, type VitalsRowSpec, type VitalsSectionSpec } from '../cockpit-gauges/helmVitalsModel.js'
+
+const subscribeFocusedRailModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
+const getFocusedRailModel = (): string => getFocusedSessionConnector().modelFacts().main
+
+function VitalsRow({
+  label,
+  index,
+  selected,
+  width,
+  children,
+}: {
+  label: string
+  index: number
+  selected: boolean
+  width: number
+  children: React.ReactNode
+}): React.ReactNode {
+  return (
+    <InteractiveRow
+      id={`helm:vitals:${label}`}
+      selected={selected}
+      onSelect={() => setHelmCursor('vitals', index)}
+      onActivate={() => requestHelmRowActivationByLabel('vitals', label)}
+      width={width}
+      height={1}
+    >
+      {children}
+    </InteractiveRow>
+  )
+}
+
+function EmptyHint({
+  text,
+  width,
+  selected = false,
+  label,
+  index,
+}: {
+  text: string
+  width: number
+  selected?: boolean
+  label?: string
+  index?: number
+}): React.ReactNode {
+  const tok = useMercuryTokens()
+  const { accent } = useSessionAccent()
+  const body = (
+    <Text wrap="truncate-end">
+      <Text color={accent}>{selected ? `${GLYPH.prompt} ` : '  '}</Text>
+      <Text color={tok.textMuted}>{text}</Text>
+    </Text>
+  )
+  if (label !== undefined && index !== undefined) {
+    return (
+      <VitalsRow label={label} index={index} selected={selected} width={width}>
+        {body}
+      </VitalsRow>
+    )
+  }
+  return <Box width={width}>{body}</Box>
+}
+
+export const HelmVitalsRail = React.memo(HelmVitalsRailImpl)
+
+function HelmVitalsRailImpl({ width, availRows }: { width: number; availRows?: number }): React.ReactNode {
+  fluxMark('render:rail-vitals')
+  const tok = useMercuryTokens()
+  useSyncExternalStore(subscribeHelmFocus, getHelmVitalsVersion, getHelmVitalsVersion)
+  const focused = getHelmFocus() === 'vitals'
+  const cur = getHelmCursor('vitals')
+  const { accent } = useSessionAccent()
+  const sessionModel = useSyncExternalStore(subscribeFocusedRailModel, getFocusedRailModel, getFocusedRailModel)
+  useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
+  useProviderUsageOnShow(true, sessionModel)
+  const { primary: usage, others: otherUsages } = windowSourceUsages({ model: sessionModel })
+  const workRoster = useFocusedWorkRoster()
+  const { rows: termRows } = useTerminalSize()
+  const now = useNowTick(Math.min(30_000, usagePollTtlMs()))
+  const readNow = Date.now()
+  useSyncExternalStore(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion)
+  const ctx = getLiveContextUsage()
+
+  const input: VitalsInput = {
+    width,
+    availRows,
+    termRows,
+    sessionModel,
+    usage,
+    otherUsages,
+    workRoster,
+    focusedSessionId: focusedSessionIdOrNull(),
+    ctx,
+    ctxTurns: ctx.window > 0 && ctxForecastEnabled() ? estimateTurnsToCompact(ctx.usedPct, ctx.compactAtPct) : null,
+    ctxGrowth: ctx.window > 0 ? ctxGrowthHistory() : [],
+    activity: usageActivityBins(now),
+    cert: healthCertSnapshot(),
+    now,
+    readNow,
+    tok,
+  }
+  const model = buildVitalsModel(input)
+
+  const rowsSig = model.rows.map(helmRowSig).join('|')
+  usePublish(() => {
+    publishHelmRows('vitals', model.rows)
+  }, [rowsSig])
+
+  const isOn = (i: number): boolean => focused && cur === i
+  const caret = (i: number): React.ReactNode => <Text color={accent}>{isOn(i) ? `${GLYPH.prompt} ` : '  '}</Text>
+  const rowW = model.rowW
+  let index = 0
+  const paintRow = (spec: VitalsRowSpec): React.ReactNode => {
+    const row = 'row' in spec ? spec.row : undefined
+    const i = row !== undefined ? index++ : -1
+    const selectable = (body: React.ReactNode): React.ReactNode =>
+      row === undefined ? (
+        <Box key={spec.key} width={rowW}>{body}</Box>
+      ) : (
+        <VitalsRow key={spec.key} label={row.label} index={i} selected={isOn(i)} width={rowW}>
+          {body}
+        </VitalsRow>
+      )
+    switch (spec.kind) {
+      case 'text':
+        return spec.fixed ? (
+          <Box key={spec.key} width={rowW} height={1}>
+            <Text color={spec.color}>{spec.text}</Text>
+          </Box>
+        ) : (
+          <Box key={spec.key} width={rowW}>
+            <Text wrap="truncate-end">
+              <Text color={spec.color}>{spec.text}</Text>
+            </Text>
+          </Box>
+        )
+      case 'empty':
+        return row === undefined ? (
+          <EmptyHint key={spec.key} text={spec.text} width={rowW} />
+        ) : (
+          <EmptyHint key={spec.key} text={spec.text} width={rowW} selected={isOn(i)} label={row.label} index={i} />
+        )
+      case 'meter':
+        return selectable(
+          <Text wrap="truncate-end">
+            {caret(i)}
+            <UsageMeter compact window={spec.window} state="live" value={spec.value} resetIn={spec.resetIn} />
+          </Text>,
+        )
+      case 'spend':
+        return selectable(
+          <Text wrap="truncate-end">
+            {caret(i)}
+            <Text color={tok.textMuted}>{'spend '}</Text>
+            <Text color={tok.textSecondary}>{spec.value}</Text>
+          </Text>,
+        )
+      case 'ctx':
+        return selectable(
+          <Text wrap="truncate-end">
+            {caret(i)}
+            <Text color={tok.textMuted}>{'ctx '}</Text>
+            {spec.pct != null ? (
+              <ValueGlow value={spec.pct} color={spec.color}>{spec.pctLabel}</ValueGlow>
+            ) : (
+              <Text color={tok.textMuted}>{'—'}</Text>
+            )}
+            <Text color={spec.tailColor}>{spec.tail}</Text>
+          </Text>,
+        )
+      case 'spark':
+        return (
+          <Box key={spec.key} width={rowW}>
+            <Text wrap="truncate-end">
+              <Text color={tok.textMuted}>{spec.label}</Text>
+              <Sparkline values={spec.values} />
+            </Text>
+          </Box>
+        )
+      case 'health':
+        return selectable(
+          <Text wrap="truncate-end">
+            {caret(i)}
+            {spec.verdict !== null ? (
+              <Text>
+                <Text color={tok.textMuted}>health </Text>
+                {spec.verdict === 'certified' ? (
+                  <Text color={tok.success}>{GLYPH.check} certified</Text>
+                ) : spec.verdict === 'caution' ? (
+                  <Text color={tok.warning}>{GLYPH.warn} caution</Text>
+                ) : (
+                  <Text color={tok.failure}>{GLYPH.fail} fault</Text>
+                )}
+                <Text color={spec.stale ? tok.warning : tok.textMuted}>{` · ${spec.age}${spec.stale ? ' stale' : ''}`}</Text>
+              </Text>
+            ) : (
+              <Text color={tok.textMuted}>{`${GLYPH.read} no cert · /health`}</Text>
+            )}
+          </Text>,
+        )
+      case 'healthAlert':
+        return (
+          <Box key={spec.key} width={rowW}>
+            <Text wrap="truncate-end">
+              <Text color={tok.textMuted}>{'  '}</Text>
+              {spec.fault ? <Text color={tok.failure}>{`${GLYPH.fail} ${spec.text}`}</Text> : <Text color={tok.textMuted}>{spec.text}</Text>}
+            </Text>
+          </Box>
+        )
+    }
+  }
+  const paintSection = (s: VitalsSectionSpec): React.ReactNode => (
+    <RailPanel
+      key={s.key}
+      glyph={s.key === 'usage' ? SPARK[5] : s.glyph}
+      label={s.label}
+      count={s.count}
+      width={width}
+      headerAction={{ id: `helm:panel:${s.key}`, run: () => requestCommandDispatch(s.open) }}
+    >
+      {s.rows.map(paintRow)}
+    </RailPanel>
+  )
+
+  return (
+    <Box flexDirection="column" width={width}>
+      <Box width={width} height={1} flexShrink={0}>
+        <Text wrap="truncate-end">
+          <ValueGlow value={focused} color={focused ? accent : tok.textMuted} ms={CURSOR_NUDGE_MS}>
+            {focused ? <Text bold>{`${GLYPH.prompt} `}</Text> : '  '}
+          </ValueGlow>
+          {focused ? (
+            <>
+              <Text color={accent} bold>{'vitals'}</Text>
+              <Text color={tok.textMuted}>{' · ↑↓ ↵ tab esc'}</Text>
+            </>
+          ) : (
+            <Text color={tok.textMuted}>{'vitals'}</Text>
+          )}
+        </Text>
+      </Box>
+      {model.sections.map(paintSection)}
+      {model.pointer !== null
+        ? fitPointerRows(model.pointer, width, availRows !== undefined ? availRows - model.paintedRows : Infinity).map((line, idx) => (
+            <Box key={idx} width={width} height={1} flexShrink={0}>
+              <Text wrap="truncate-end" color={tok.textMuted}>{line}</Text>
+            </Box>
+          ))
+        : null}
+    </Box>
+  )
+}

@@ -1,0 +1,226 @@
+import { chmodSync, closeSync, copyFileSync, fsyncSync, mkdirSync, openSync, readFileSync, unlinkSync, writeSync } from 'node:fs'
+import { join } from 'node:path'
+
+import {
+  DurablePublishError,
+  durableAtomicPublishSync,
+  durableTempName,
+  fsyncEnabled,
+  renameWithWin32RetrySync,
+} from '../substrate/durablePublish.js'
+import { logForDebugging } from '../logs/debugLog.js'
+import { getAuthConfigHomeDir } from '../environment/envUtils.js'
+import { getErrnoCode } from '../errors/errors.js'
+import { safeParseJSON } from '../storage/json.js'
+import type { CredentialStoreUnread, PreparedWrite, SecureStorage, SecureStorageData } from './types.js'
+import { passedOver } from '../errors/passedOver.js'
+
+
+const CREDENTIALS_FILENAME = '.credentials.json'
+
+export function credentialsPath(): string {
+  return join(getAuthConfigHomeDir(), CREDENTIALS_FILENAME)
+}
+
+function parseData(raw: string): SecureStorageData | null {
+  const parsed = safeParseJSON(raw)
+  return typeof parsed === 'object' && parsed !== null ? (parsed as SecureStorageData) : null
+}
+
+function noteUnreadable(error: unknown): void {
+  const code = getErrnoCode(error)
+  if (code === 'ENOENT' || code === 'ENOTDIR') return
+  logForDebugging(
+    `credential store: ${credentialsPath()} exists but could not be read (${code ?? 'unknown'}): ${
+      error instanceof Error ? error.message : String(error)
+    }`,
+    { level: 'error' },
+  )
+}
+
+type StoreProbe =
+  | { state: 'absent' }
+  | { state: 'ok' }
+  | { state: 'unparseable' }
+  | { state: 'unreadable'; code: string; message: string }
+
+function probeStore(path: string): StoreProbe {
+  let raw: string
+  try {
+    raw = readFileSync(path, 'utf8')
+  } catch (error) {
+    const code = getErrnoCode(error)
+    if (code === 'ENOENT' || code === 'ENOTDIR') return { state: 'absent' }
+    return {
+      state: 'unreadable',
+      code: code ?? 'EUNKNOWN',
+      message: error instanceof Error ? error.message : String(error),
+    }
+  }
+  return parseData(raw) === null ? { state: 'unparseable' } : { state: 'ok' }
+}
+
+function unreadWords(path: string, code: string): string {
+  return `The credential store at ${path} exists but could not be read (${code}); nothing was written.`
+}
+
+export function credentialStoreUnread(): CredentialStoreUnread | null {
+  const path = credentialsPath()
+  const probe = probeStore(path)
+  return probe.state === 'unreadable'
+    ? { warning: unreadWords(path, probe.code), code: probe.code, message: probe.message }
+    : null
+}
+
+function quarantineUnparseable(path: string): void {
+  const copy = `${path}.corrupt.${Date.now()}`
+  try {
+    copyFileSync(path, copy)
+    try {
+      chmodSync(copy, 0o600)
+    } catch (error) {
+      passedOver(error)
+    }
+    logForDebugging(`credential store: unparseable bytes at ${path} quarantined to ${copy} before the rewrite`, {
+      level: 'error',
+    })
+  } catch (error) {
+    logForDebugging(`credential store: quarantine of ${path} failed: ${String(error)}`, { level: 'error' })
+  }
+}
+
+export const plainTextStorage: SecureStorage = {
+  name: 'plaintext',
+
+  read(): SecureStorageData | null {
+    try {
+      return parseData(readFileSync(credentialsPath(), 'utf8'))
+    } catch (error) {
+      noteUnreadable(error)
+      return null
+    }
+  },
+
+  async readAsync(): Promise<SecureStorageData | null> {
+    try {
+      return parseData(readFileSync(credentialsPath(), 'utf8'))
+    } catch (error) {
+      noteUnreadable(error)
+      return null
+    }
+  },
+
+  update(data: SecureStorageData): { success: boolean; warning?: string; code?: string } {
+    try {
+      try {
+        mkdirSync(getAuthConfigHomeDir())
+      } catch (error) {
+        if ((error as { code?: string }).code !== 'EEXIST') throw error
+      }
+      const path = credentialsPath()
+      const probe = probeStore(path)
+      if (probe.state === 'unreadable') {
+        logForDebugging(
+          `credential store: refusing to replace ${path} — it exists but could not be read (${probe.code}): ${probe.message}`,
+          { level: 'error' },
+        )
+        return {
+          success: false,
+          warning: unreadWords(path, probe.code),
+          code: probe.code,
+        }
+      }
+      if (probe.state === 'unparseable') {
+        quarantineUnparseable(path)
+      }
+      if (process.platform === 'win32' && probe.state !== 'absent') {
+        try {
+          chmodSync(path, 0o600)
+        } catch (error) {
+          passedOver(error)
+        }
+      }
+      durableAtomicPublishSync(path, JSON.stringify(data), { mode: 0o600 })
+      try {
+        chmodSync(path, 0o600)
+      } catch (error) {
+        passedOver(error)
+      }
+      return { success: true, warning: 'Credentials are stored in plaintext on disk' }
+    } catch (error) {
+      const code = error instanceof DurablePublishError ? error.fsCode : getErrnoCode(error)
+      logForDebugging(
+        `credential store: write refused${code ? ` (${code})` : ''}: ${error instanceof Error ? error.message : String(error)}`,
+        { level: 'error' },
+      )
+      return { success: false, ...(code ? { code } : {}) }
+    }
+  },
+
+  delete(): boolean {
+    try {
+      unlinkSync(credentialsPath())
+      return true
+    } catch (error) {
+      return (error as { code?: string }).code === 'ENOENT'
+    }
+  },
+
+  unread: credentialStoreUnread,
+
+  prepare(data: SecureStorageData): PreparedWrite {
+    const path = credentialsPath()
+    const temporary = durableTempName(path)
+    const discard = (): void => {
+      try {
+        unlinkSync(temporary)
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+    const refused = (error: unknown): { code?: string } => {
+      const code = getErrnoCode(error)
+      return code ? { code } : {}
+    }
+    let descriptor: number | null = null
+    try {
+      if (process.platform === 'win32') {
+        try {
+          chmodSync(path, 0o600)
+        } catch (error) {
+          passedOver(error)
+        }
+      }
+      descriptor = openSync(temporary, 'wx', 0o600)
+      const bytes = Buffer.from(JSON.stringify(data), 'utf8')
+      let written = 0
+      while (written < bytes.length) written += writeSync(descriptor, bytes, written, bytes.length - written)
+      if (fsyncEnabled()) fsyncSync(descriptor)
+      closeSync(descriptor)
+      descriptor = null
+    } catch (error) {
+      if (descriptor !== null) {
+        try {
+          closeSync(descriptor)
+        } catch (error) {
+          passedOver(error)
+        }
+      }
+      discard()
+      return { ok: false, ...refused(error) }
+    }
+    return {
+      ok: true,
+      commit(): { success: boolean; code?: string } {
+        try {
+          renameWithWin32RetrySync(temporary, path)
+          return { success: true }
+        } catch (error) {
+          discard()
+          return { success: false, ...refused(error) }
+        }
+      },
+      discard,
+    }
+  },
+}

@@ -14,13 +14,13 @@ const {
   renderDirectoryTarget,
   renderUrlDelegation,
   DIRECTORY_ENTRY_CAP,
-} = await import('../../src/tools/FileReadTool/readTarget.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+} = await import('../../src/tools/read/readTarget.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
-const readTargetHint = 'fix classifyReadTarget, renderDirectoryTarget or renderUrlDelegation in src/tools/FileReadTool/readTarget.ts'
-const readToolHint = 'fix call, prompt or description of FileReadTool in src/tools/FileReadTool/FileReadTool.ts, and the MERCURY_READ_TARGETS switch it reads'
+const readTargetHint = 'fix classifyReadTarget, renderDirectoryTarget or renderUrlDelegation in src/tools/read/readTarget.ts'
+const readToolHint = 'fix call, prompt or description of FileReadTool in src/tools/read/ReadTool.ts, and the MERCURY_READ_TARGETS switch it reads'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const failHint = /^[FM]/.test(label) ? readToolHint : readTargetHint
@@ -30,7 +30,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — front-door proof exceeded 90s; a FileReadTool.call in src/tools/FileReadTool/FileReadTool.ts did not return')
+  console.log('\nTIMEOUT — front-door proof exceeded 90s; a FileReadTool.call in src/tools/read/ReadTool.ts did not return')
   process.exit(1)
 }, 90_000)
 guard.unref?.()

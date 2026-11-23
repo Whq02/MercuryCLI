@@ -30,7 +30,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
 }
-const COMPACT_SRC = 'src/components/Settings/usage/compact.tsx'
+const COMPACT_SRC = 'src/screen/settings/usage/compact.tsx'
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
@@ -43,7 +43,7 @@ const ids = ['anthropic', 'openai', 'gemini', 'moonshot', 'huggingface', 'deepse
 const spend = { inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }
 const families = () => ids.map(id => ({ id, available: false, credentialed: false, credentialLabel: `${id} fixture key` }))
 const owner = (id: string) => ({ provider: id, sourceKind: 'none', windows: [], figures: [], absence: undefined })
-await stub('../../src/services/providers/providerUsage.js', () => ({
+await stub('../../src/models/roads/providerUsage.js', () => ({
   providerFamilyPresences: families,
   providerSessionSpend: () => spend,
   providerUsageView: () => ({ entries: [], activeEntry: undefined, sessionSpend: spend, limits: { kind: 'none' } }),
@@ -54,37 +54,37 @@ await stub('../../src/services/providers/providerUsage.js', () => ({
   anthropicPoolWindowViews: () => [],
   openaiObservedWindowViews: () => [],
 }))
-await stub('../../src/utils/auth.js', () => ({ isClaudeAISubscriber: () => false }))
-await stub('../../src/services/model/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))
-await stub('../../src/services/wallet/wallet.js', () => ({ walletEntries: () => [], activeWalletEntry: () => undefined }))
-await stub('../../src/services/providers/usageFreshness.js', () => ({ usageSourceWords: () => 'endpoint-fed · read 0 s ago' }))
-await stub('../../src/services/providers/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
-await stub('../../src/services/providers/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
-await stub('../../src/services/providers/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
-await stub('../../src/services/providers/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined }))
-await stub('../../src/services/providers/local/localAccounts.js', () => ({ resolveLocalAccount: () => undefined }))
-await stub('../../src/cost-tracker.js', () => ({ formatLaneSpend: () => '$0.00' }))
+await stub('../../src/models/sign-in/credentials/auth.js', () => ({ isClaudeAISubscriber: () => false }))
+await stub('../../src/models/catalogue/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))
+await stub('../../src/models/wallet/wallet.js', () => ({ walletEntries: () => [], activeWalletEntry: () => undefined }))
+await stub('../../src/models/roads/usageFreshness.js', () => ({ usageSourceWords: () => 'endpoint-fed · read 0 s ago' }))
+await stub('../../src/models/roads/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
+await stub('../../src/models/roads/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
+await stub('../../src/models/roads/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
+await stub('../../src/models/roads/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined }))
+await stub('../../src/models/roads/local/localAccounts.js', () => ({ resolveLocalAccount: () => undefined }))
+await stub('../../src/models/usage/sessionCost.js', () => ({ formatLaneSpend: () => '$0.00' }))
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const setting = await import('../../src/services/jev/jevSetting.js')
-const status = await import('../../src/services/jev/jevStatus.js')
-const keyOwner = await import('../../src/services/jev/jevKey.js')
-const ledger = await import('../../src/services/jev/jevLedger.js')
-const contract = await import('../../src/services/jev/jevContract.js')
-const reader = await import('../../src/services/jev/jevSessionFacts.js')
-const slot = await import('../../src/services/engine-connector/focusedConnector.js')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const { CREDITS_UNREPORTED_WORDS } = await import('../../src/services/providers/providerUsage.js')
-const usage = await import('../../src/components/Settings/Usage.js')
+const setting = await import('../../src/models/jev/jevSetting.js')
+const status = await import('../../src/models/jev/jevStatus.js')
+const keyOwner = await import('../../src/models/jev/jevKey.js')
+const ledger = await import('../../src/models/jev/jevLedger.js')
+const contract = await import('../../src/models/jev/jevContract.js')
+const reader = await import('../../src/models/jev/jevSessionFacts.js')
+const slot = await import('../../src/engine/connector/focusedConnector.js')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+const { CREDITS_UNREPORTED_WORDS } = await import('../../src/models/roads/providerUsage.js')
+const usage = await import('../../src/screen/settings/Usage.js')
 const { call: usageCall } = await import('../../src/commands/usage/usage.js')
 
 const ZERO_USAGE = {
@@ -159,7 +159,7 @@ section('§1 the row\'s words, when it is offered, and the body\'s rows')
   check('a call recorded this session offers the row even with no key for this home', usage.jevUsageRowShown(used, { present: false }), 'jevUsageRowShown in ' + COMPACT_SRC + ' must be true when the session facts record a call, key or no key')
   check('an attempt that never answered offers the row too (its charge may be unconfirmed)', usage.jevUsageRowShown({ state: 'reported', facts: { ...used.facts, calls: 0, attempts: 1 } }, { present: false }), 'jevUsageRowShown in ' + COMPACT_SRC + ' must be true when attempts is above zero even with zero calls')
   check('a key for this home offers the row with no chat open', usage.jevUsageRowShown({ state: 'no-session' }, { present: true, source: 'stored' }), 'jevUsageRowShown in ' + COMPACT_SRC + ' must be true when a key is present, even with no chat open')
-  check('the credits words are the provider-usage owner\'s spelling', CREDITS_UNREPORTED_WORDS === 'not reported by the provider' && off.endsWith(CREDITS_UNREPORTED_WORDS), 'CREDITS_UNREPORTED_WORDS in src/services/providers/providerUsage/shared.ts must read not reported by the provider, and jevUsageRow in ' + COMPACT_SRC + ' must end with it; got ' + off)
+  check('the credits words are the provider-usage owner\'s spelling', CREDITS_UNREPORTED_WORDS === 'not reported by the provider' && off.endsWith(CREDITS_UNREPORTED_WORDS), 'CREDITS_UNREPORTED_WORDS in src/models/roads/provider-usage/shared.ts must read not reported by the provider, and jevUsageRow in ' + COMPACT_SRC + ' must end with it; got ' + off)
   check('the headword is the status resolver\'s, as the runner answered it', off.includes(` · ${status.JEV_STATUS_HEADWORDS[status.jevStatus().kind]} · `), 'jevUsageRow in ' + COMPACT_SRC + ' must carry the headword from JEV_STATUS_HEADWORDS for the current jevStatus kind; got ' + off)
   check('the row fits the popup\'s 146-cell body', stringWidth(off) <= 146, 'shorten the row jevUsageRow builds in ' + COMPACT_SRC + ' to fit 146 cells; width ' + String(stringWidth(off)))
 }
@@ -179,7 +179,7 @@ section('§2 /usage at 178x51 with the switch on, a key stored and spend on the 
   const expected = usage.jevUsageRow()
   check('on, keyed, spent: the row is offered — a key for this home and calls on the count', usage.jevUsageRowShown(), 'jevUsageRowShown in ' + COMPACT_SRC + ' must be true with the switch on, a stored key and calls on the ledger')
   check('on, keyed, spent: the row says what Jev is, the session\'s spend against the allowance as its runner answered it, the calls with the unconfirmed one, and ready — never "official"', expected === `Jev · second-opinion evaluator · ${contract.jevUsdLabel(ledger.jevLedgerSnapshot().spendUsd)} of a $20.00 allowance · 2 calls (1 unconfirmed) · ready · credits: ${CREDITS_UNREPORTED_WORDS}` && !expected.includes('official'), 'change jevUsageRow in ' + COMPACT_SRC + ' to the spend, 2 calls (1 unconfirmed), ready and credits wording, without the word official; got ' + expected)
-  check('the reader hands the surfaces the runner\'s row, never a local snapshot', reader.jevSessionFacts().state === 'reported' && JSON.stringify(reader.jevSessionFacts()) === JSON.stringify({ state: 'reported', facts: reader.jevFactsOf(ledger.jevLedgerSnapshot(), status.jevStatus()) }), 'jevSessionFacts in src/services/jev/jevSessionFacts.ts must return the reported state with the facts jevFactsOf builds from the runner, not a local snapshot')
+  check('the reader hands the surfaces the runner\'s row, never a local snapshot', reader.jevSessionFacts().state === 'reported' && JSON.stringify(reader.jevSessionFacts()) === JSON.stringify({ state: 'reported', facts: reader.jevFactsOf(ledger.jevLedgerSnapshot(), status.jevStatus()) }), 'jevSessionFacts in src/models/jev/jevSessionFacts.ts must return the reported state with the facts jevFactsOf builds from the runner, not a local snapshot')
   const m = await openUsage()
   const lines = keepFrame('usage-jev-row-178x51', 'the /usage popup (150x29) at 178x51 on the absent-provider fixture with Jev on, a key stored and spend on the ledger: the Jev row above the more row', m)
   const jev = jevLineOf(lines)

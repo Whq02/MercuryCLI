@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/ripgrep.ts src/services/privateChannel/artifactVerify.ts src/services/privateChannel/installLayout.ts
+// gate-watch: src/platform/shell/ripgrep.ts src/platform/update-channel/artifactVerify.ts src/platform/update-channel/installLayout.ts
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { verifyPayloadDir } from '../../src/services/privateChannel/artifactVerify.js'
-import { payloadDigestOf } from '../../src/services/privateChannel/installLayout.js'
+import { verifyPayloadDir } from '../../src/platform/update-channel/artifactVerify.js'
+import { payloadDigestOf } from '../../src/platform/update-channel/installLayout.js'
 import {
   buildSignedPayloadWithLinkerSignedRg,
   codesignFlags,
@@ -15,7 +15,7 @@ import {
 } from '../lib/signedRipgrepPayload.ts'
 
 let failures = 0
-const REPAIR_FIX_HINT = 'to fix, change prepareSignedCopy in src/utils/ripgrep.ts so the re-signed rg is a copy outside the payload, or verifyPayloadDir in src/services/privateChannel/artifactVerify.ts for a wrong verdict'
+const REPAIR_FIX_HINT = 'to fix, change prepareSignedCopy in src/platform/shell/ripgrep.ts so the re-signed rg is a copy outside the payload, or verifyPayloadDir in src/platform/update-channel/artifactVerify.ts for a wrong verdict'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  ${ok ? '✓' : '✗'} ${label}${ok ? '' : ` — ${REPAIR_FIX_HINT}${detail ? ` — ${detail.slice(0, 500)}` : ''}`}`)
   if (!ok) failures++
@@ -32,7 +32,7 @@ const HOME = join(SCRATCH, 'home')
 process.env.MERCURY_CONFIG_DIR = HOME
 delete process.env.MERCURY_HOME
 
-const ripgrep = await import('../../src/utils/ripgrep.ts')
+const ripgrep = await import('../../src/platform/shell/ripgrep.ts')
 const prepareSignedCopy = (ripgrep as { prepareSignedCopy?: (source: string) => Promise<string | null> }).prepareSignedCopy
 
 try {

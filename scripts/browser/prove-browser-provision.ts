@@ -16,14 +16,14 @@ const CACHE = mkdtempSync(join(tmpdir(), 'mercury-provision-'))
 process.env.MERCURY_BROWSER_CACHE_DIR = CACHE
 process.env.MERCURY_BROWSER ??= '1'
 
-const { listManagedBrowsers } = await import('../../src/services/browser/browserResolver.ts')
+const { listManagedBrowsers } = await import('../../src/integrations/browser/browserResolver.ts')
 const {
   INSTALL_PLAN_TTL_MS,
   clearPersistedInstallPlan,
   persistInstallPlan,
   planBrowserInstall,
   readPersistedInstallPlan,
-} = await import('../../src/services/browser/browserInstall.ts')
+} = await import('../../src/integrations/browser/browserInstall.ts')
 const { call: browserCommand } = await import('../../src/commands/browser/browserCommand.ts')
 type CommandCtx = Parameters<typeof browserCommand>[1]
 const ctx = {} as CommandCtx
@@ -43,11 +43,11 @@ console.log('§1 cache layout round trip (every BrowserPlatform)')
   check(
     `every platform's entry resolves (${platforms.length} platforms)`,
     found.length === platforms.length,
-    `found ${found.length}: ${found.map(f => f.buildId).join(', ')} — listManagedBrowsers in src/services/browser/browserResolver.ts must find the cache entry of every BrowserPlatform`,
+    `found ${found.length}: ${found.map(f => f.buildId).join(', ')} — listManagedBrowsers in src/integrations/browser/browserResolver.ts must find the cache entry of every BrowserPlatform`,
   )
   for (const [buildId, exe] of wanted) {
     const row = found.find(f => f.buildId === buildId)
-    check(`${buildId} resolves to the package-derived executable`, row?.executablePath === exe, `${row?.executablePath ?? '(missing)'} — listManagedBrowsers in src/services/browser/browserResolver.ts must return the path computeExecutablePath gives for this build`)
+    check(`${buildId} resolves to the package-derived executable`, row?.executablePath === exe, `${row?.executablePath ?? '(missing)'} — listManagedBrowsers in src/integrations/browser/browserResolver.ts must return the path computeExecutablePath gives for this build`)
   }
   const armExe = computeExecutablePath({
     browser: CftBrowser.CHROME,
@@ -57,26 +57,26 @@ console.log('§1 cache layout round trip (every BrowserPlatform)')
   })
   mkdirSync(join(armExe, '..'), { recursive: true })
   writeFileSync(armExe, '#!/bin/sh\nexit 0\n')
-  check('the post-153 linux-arm64 layout is found', armExe.includes('chrome-linux-arm64') && listManagedBrowsers().some(f => f.buildId === '153.0.8001.5'), `${armExe} — listManagedBrowsers in src/services/browser/browserResolver.ts must find the chrome-linux-arm64 layout`)
+  check('the post-153 linux-arm64 layout is found', armExe.includes('chrome-linux-arm64') && listManagedBrowsers().some(f => f.buildId === '153.0.8001.5'), `${armExe} — listManagedBrowsers in src/integrations/browser/browserResolver.ts must find the chrome-linux-arm64 layout`)
 }
 
 console.log('§2 plan persistence across the process boundary')
 {
   clearPersistedInstallPlan()
-  check('no plan recorded reads as null', readPersistedInstallPlan() === null, 'readPersistedInstallPlan in src/services/browser/browserInstall.ts must return null when no plan file exists')
+  check('no plan recorded reads as null', readPersistedInstallPlan() === null, 'readPersistedInstallPlan in src/integrations/browser/browserInstall.ts must return null when no plan file exists')
   persistInstallPlan('151.0.7100.0')
   const fresh = readPersistedInstallPlan()
-  check('a persisted plan survives (the file IS the cross-process token)', fresh?.buildId === '151.0.7100.0' && fresh.expired === false, `${JSON.stringify(fresh)} — persistInstallPlan and readPersistedInstallPlan in src/services/browser/browserInstall.ts must round-trip a fresh plan`)
+  check('a persisted plan survives (the file IS the cross-process token)', fresh?.buildId === '151.0.7100.0' && fresh.expired === false, `${JSON.stringify(fresh)} — persistInstallPlan and readPersistedInstallPlan in src/integrations/browser/browserInstall.ts must round-trip a fresh plan`)
   writeFileSync(join(CACHE, '.install-plan.json'), JSON.stringify({ buildId: '151.0.7100.0', plannedAt: Date.now() - INSTALL_PLAN_TTL_MS - 1000 }))
-  check('an aged plan reads as EXPIRED (distinct from absent)', readPersistedInstallPlan()?.expired === true, 'readPersistedInstallPlan in src/services/browser/browserInstall.ts must report expired: true for a plan older than INSTALL_PLAN_TTL_MS')
+  check('an aged plan reads as EXPIRED (distinct from absent)', readPersistedInstallPlan()?.expired === true, 'readPersistedInstallPlan in src/integrations/browser/browserInstall.ts must report expired: true for a plan older than INSTALL_PLAN_TTL_MS')
   clearPersistedInstallPlan()
-  check('clear consumes the token', readPersistedInstallPlan() === null, 'clearPersistedInstallPlan in src/services/browser/browserInstall.ts must remove the plan file')
+  check('clear consumes the token', readPersistedInstallPlan() === null, 'clearPersistedInstallPlan in src/integrations/browser/browserInstall.ts must remove the plan file')
 }
 
 console.log('§3 pinned plans need no network; bad tokens refuse by name')
 {
   const plan = await planBrowserInstall('142.0.7444.99')
-  check('a pinned buildId plans WITHOUT the network and names itself', plan.buildId === '142.0.7444.99' && plan.consentLine.includes('142.0.7444.99') && plan.consentLine.includes('pinned'), `${plan.consentLine} — planBrowserInstall in src/services/browser/browserInstall.ts must plan a pinned buildId without the network and name it in the consent line`)
+  check('a pinned buildId plans WITHOUT the network and names itself', plan.buildId === '142.0.7444.99' && plan.consentLine.includes('142.0.7444.99') && plan.consentLine.includes('pinned'), `${plan.consentLine} — planBrowserInstall in src/integrations/browser/browserInstall.ts must plan a pinned buildId without the network and name it in the consent line`)
   const bogus = await browserCommand('install not-a-build', ctx)
   check('/browser install with an unrecognized token refuses by name', bogus.type === 'text' && bogus.value.includes("'not-a-build'"), `${bogus.type === 'text' ? bogus.value : bogus.type} — the install subcommand in src/commands/browser/browserCommand.ts must refuse an unrecognized token and quote it`)
   const pinned = await browserCommand('install 142.0.7444.99', ctx)

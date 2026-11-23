@@ -4,14 +4,14 @@ import assert from 'node:assert/strict'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_DESKTOP_DRIVER = 'fake'
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { normalizeToolSchemaFor } = await import('../../src/utils/normalizeToolSchema.ts')
-const { compileJsonSchema } = await import('../../src/services/schema/jsonSchemaEngine.ts')
-const { mapToolsToOpenai } = await import('../../src/services/providers/openai/responsesBridge.ts')
-const { codeAssistSchema } = await import('../../src/services/providers/gemini/geminiCodec.ts')
-const { mapToolsToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { normalizeToolSchemaFor } = await import('../../src/integrations/mcp/normalizeToolSchema.ts')
+const { compileJsonSchema } = await import('../../src/platform/json-schema/jsonSchemaEngine.ts')
+const { mapToolsToOpenai } = await import('../../src/models/roads/openai/responsesBridge.ts')
+const { codeAssistSchema } = await import('../../src/models/roads/gemini/geminiCodec.ts')
+const { mapToolsToZai } = await import('../../src/models/roads/zai/zaiCodec.ts')
 const { toolContext } = await import('./computerToolKit.ts')
 
 const actions = ['screenshot', 'click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll', 'type', 'key', 'hold', 'wait', 'cursor', 'displays', 'frontmost', 'tree', 'find', 'read', 'focusApp', 'file', 'fill', 'fields']
@@ -32,7 +32,7 @@ for (const [lane, model] of [
   assert.equal(step.additionalProperties, false)
   for (const key of Object.keys(step.properties).filter(key => key !== 'action')) assert.deepEqual(stripDescriptions(step.properties[key]), stripDescriptions(schema.properties[key]), `${lane}: ${key} keeps its type and bounds`)
   const schemaJson = JSON.stringify(schema)
-  assert.doesNotMatch(schemaJson, /"\$(ref|defs)"/, `${lane ?? 'gemini'}: ComputerTool schema in src/tools/ComputerTool/ComputerTool.ts must inline definitions without $ref/$defs`)
+  assert.doesNotMatch(schemaJson, /"\$(ref|defs)"/, `${lane ?? 'gemini'}: ComputerTool schema in src/tools/computer/ComputerTool.ts must inline definitions without $ref/$defs`)
   assert.equal(normalizeToolSchemaFor(lane, schema).schema, schema)
   const compiled = compileJsonSchema(schema)
   assert.ok(compiled.ok, compiled.ok ? '' : compiled.error)
@@ -41,7 +41,7 @@ for (const [lane, model] of [
   assert.notEqual(compiled.check({ action: 'sequence', steps: [{ action: 'click', steps: [] }] }).length, 0)
   assert.notEqual(compiled.check({ action: 'sequence', steps: [{ action: 'click', x: 'bad' }] }).length, 0)
   const schemaBytes = Buffer.byteLength(schemaJson)
-  assert.ok(schemaBytes <= 8150, `${lane ?? 'gemini'}: ComputerTool schema size ${schemaBytes}B exceeds 8150B budget in src/tools/ComputerTool/ComputerTool.ts`)
+  assert.ok(schemaBytes <= 8150, `${lane ?? 'gemini'}: ComputerTool schema size ${schemaBytes}B exceeds 8150B budget in src/tools/computer/ComputerTool.ts`)
   assert.deepEqual((mapToolsToZai([definition])[0]!.function.parameters as any).properties.steps.items.properties.action.enum, actions)
   const responses = mapToolsToOpenai([definition])[0]!.parameters as any
   const responseSteps = responses.properties.steps

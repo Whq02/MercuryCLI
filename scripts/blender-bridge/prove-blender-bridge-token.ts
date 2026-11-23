@@ -9,16 +9,16 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
-const TOKEN_SRC = 'src/services/blender/bridgeToken.ts'
-const HOME_SRC = 'resolveBlenderAddonHome in src/services/blender/addonHome.ts'
+const TOKEN_SRC = 'src/integrations/blender/bridgeToken.ts'
+const HOME_SRC = 'resolveBlenderAddonHome in src/integrations/blender/addonHome.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
 delete process.env.MERCURY_BLENDER_BRIDGE_TOKEN
 delete process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR
-const { ensureBlenderBridgeToken, readBlenderBridgeToken, blenderBridgeTokenPath } = await import('../../src/services/blender/bridgeToken.js')
-const { resolveBlenderAddonHome, blenderVersionDir, BLENDER_ADDON_MODULE } = await import('../../src/services/blender/addonHome.js')
+const { ensureBlenderBridgeToken, readBlenderBridgeToken, blenderBridgeTokenPath } = await import('../../src/integrations/blender/bridgeToken.js')
+const { resolveBlenderAddonHome, blenderVersionDir, BLENDER_ADDON_MODULE } = await import('../../src/integrations/blender/addonHome.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'blender-bridge-token-'))
 const addonHome = path.join(scratch, 'scripts', 'addons')
@@ -81,9 +81,9 @@ section('4. the addon-home ladder — every arm through its seam')
   check('BLENDER_USER_RESOURCES ⇒ <it>/scripts/addons',
     resourcesArm.home?.path === path.join('/custom/resources', 'scripts', 'addons') && resourcesArm.home?.source === 'blender-user-resources', '', `${HOME_SRC} should resolve BLENDER_USER_RESOURCES plus scripts/addons with source blender-user-resources`)
 
-  check("versionDir: '5.2.1' ⇒ '5.2'", blenderVersionDir('5.2.1') === '5.2', '', 'blenderVersionDir in src/services/blender/addonHome.ts should keep the major and minor parts of a version')
-  check("versionDir: '4.5' ⇒ '4.5'", blenderVersionDir('4.5') === '4.5', '', 'blenderVersionDir in src/services/blender/addonHome.ts should keep a two part version as it is')
-  check("versionDir: garbage ⇒ undefined", blenderVersionDir('nightly') === undefined, '', 'blenderVersionDir in src/services/blender/addonHome.ts should return undefined for a string that is not a version number')
+  check("versionDir: '5.2.1' ⇒ '5.2'", blenderVersionDir('5.2.1') === '5.2', '', 'blenderVersionDir in src/integrations/blender/addonHome.ts should keep the major and minor parts of a version')
+  check("versionDir: '4.5' ⇒ '4.5'", blenderVersionDir('4.5') === '4.5', '', 'blenderVersionDir in src/integrations/blender/addonHome.ts should keep a two part version as it is')
+  check("versionDir: garbage ⇒ undefined", blenderVersionDir('nightly') === undefined, '', 'blenderVersionDir in src/integrations/blender/addonHome.ts should return undefined for a string that is not a version number')
   const mac = resolveBlenderAddonHome({ env: {}, platform: 'darwin', home: '/Users/op', version: '5.2.1' })
   check('darwin default: ~/Library/Application Support/Blender/5.2/scripts/addons',
     mac.home?.path === path.join('/Users/op', 'Library', 'Application Support', 'Blender', '5.2', 'scripts', 'addons') && mac.home?.source === 'default', '', `${HOME_SRC} should resolve the macOS default under Library/Application Support/Blender/<major.minor>/scripts/addons`)

@@ -31,13 +31,13 @@ const SONNET = 'claude-sonnet-5-5'
 const HAIKU = 'claude-haiku-5-5'
 const CLOCK = String.raw`\d{2}:\d{2} \S+`
 
-const factories = await import('../../src/utils/messages/factories.js')
+const factories = await import('../../src/engine/message-shapes/factories.js')
 const { persistModelChoice } = await import('../../src/commands/model/persistModelChoice.js')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
 const { applyOnSeat } = await import('../../src/commands/model/picker/apply.js')
-const { bindSeatVerbs } = await import('../../src/cli/headless/boot/bindSeatVerbs.js')
-const { enableConfigs } = await import('../../src/utils/config.js')
-const { setSessionPersistenceDisabled } = await import('../../src/bootstrap/state.js')
+const { bindSeatVerbs } = await import('../../src/daemon/runner/boot/bindSeatVerbs.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
+const { setSessionPersistenceDisabled } = await import('../../src/boot/process-state/processState.js')
 enableConfigs()
 setSessionPersistenceDisabled(true)
 
@@ -50,7 +50,7 @@ function writeSettings(model?: string): void {
 try {
   section('§1 modelSwitchStdoutText names the replaced default when it differs from the session model')
   {
-    const fix = 'update ModelSwitchFacts and modelSwitchStdoutText in src/utils/messages/factories.ts'
+    const fix = 'update ModelSwitchFacts and modelSwitchStdoutText in src/engine/message-shapes/factories.ts'
     const factsDiff = {
       previousModel: SONNET,
       previousDisplay: 'Sonnet 5.5',
@@ -133,7 +133,7 @@ try {
 
   section('§3 picker applyOnSeat → setModel → bindSeatVerbs end-to-end')
   {
-    const fix = 'forward choice.replacedDefault from src/commands/model/picker/apply.ts through setModel and bindSeatVerbs (src/cli/headless/boot/bindSeatVerbs.ts)'
+    const fix = 'forward choice.replacedDefault from src/commands/model/picker/apply.ts through setModel and bindSeatVerbs (src/daemon/runner/boot/bindSeatVerbs.ts)'
     async function runPickerPick(savedBefore: string, sessionModel: string, picked: string): Promise<{ forwarded: string | undefined; row: string }> {
       writeSettings(savedBefore)
       let forwarded: string | undefined

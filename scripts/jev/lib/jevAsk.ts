@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { JevAnswer, JevQuestion, JevRoad, JevUsage, JevWireFailure } from '../../../src/services/jev/jevContract.js'
-import type { JevEvalInput } from '../../../src/tools/JevEvalTool/jevEvalSchema.js'
+import type { JevAnswer, JevQuestion, JevRoad, JevUsage, JevWireFailure } from '../../../src/models/jev/jevContract.js'
+import type { JevEvalInput } from '../../../src/tools/jev-eval/jevEvalSchema.js'
 
 const ROOT = join(import.meta.dir, '..', '..', '..')
 
@@ -25,14 +25,14 @@ function packageVersion(): string {
 
 if (!('MACRO' in globalThis)) (globalThis as Record<string, unknown>).MACRO = { VERSION: packageVersion() }
 
-const config = await import('../../../src/utils/config.js')
-const contract = await import('../../../src/services/jev/jevContract.js')
-const client = await import('../../../src/services/jev/jevClient.js')
-const keys = await import('../../../src/services/jev/jevKey.js')
-const ledger = await import('../../../src/services/jev/jevLedger.js')
-const setting = await import('../../../src/services/jev/jevSetting.js')
-const status = await import('../../../src/services/jev/jevStatus.js')
-const assembly = await import('../../../src/tools/JevEvalTool/jevEvalRequest.js')
+const config = await import('../../../src/platform/settings/config.js')
+const contract = await import('../../../src/models/jev/jevContract.js')
+const client = await import('../../../src/models/jev/jevClient.js')
+const keys = await import('../../../src/models/jev/jevKey.js')
+const ledger = await import('../../../src/models/jev/jevLedger.js')
+const setting = await import('../../../src/models/jev/jevSetting.js')
+const status = await import('../../../src/models/jev/jevStatus.js')
+const assembly = await import('../../../src/tools/jev-eval/jevEvalRequest.js')
 
 config.enableConfigs()
 

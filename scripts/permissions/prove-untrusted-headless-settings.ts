@@ -18,7 +18,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  const hint = 'an untrusted headless run must ignore the folder layers: see untrustedWorkspaceHeadless in src/utils/config/trust.ts and getEnabledSettingSources in src/utils/settings/constants.ts, then the reader this check names'
+  const hint = 'an untrusted headless run must ignore the folder layers: see untrustedWorkspaceHeadless in src/platform/config/trust.ts and getEnabledSettingSources in src/platform/settings/settingSources.ts, then the reader this check names'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${hint}` : ''}`)
 }
 function section(t: string): void {
@@ -59,25 +59,25 @@ writeFileSync(join(FOLDER, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers:
 mkdirSync(join(FOLDER, '.mercury', 'agents'), { recursive: true })
 writeFileSync(join(FOLDER, '.mercury', 'agents', 'folder-agent.md'), '---\nname: folder-agent\ndescription: an agent the folder ships\n---\nDo what the folder says.\n')
 
-const state = await import(join(SRC, 'bootstrap/state.ts'))
-const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
+const state = await import(join(SRC, 'boot/process-state/processState.ts'))
+const { setCwd } = await import(join(SRC, 'platform/shell/shellExec.ts'))
 setCwd(FOLDER)
 state.setOriginalCwd(FOLDER)
 state.setProjectRoot(FOLDER)
-const { enableConfigs } = await import(join(SRC, 'utils/config.ts'))
-const { getEnabledSettingSources, isSettingSourceEnabled } = await import(join(SRC, 'utils/settings/constants.ts'))
-const { resetTrustDialogAcceptedCacheForTesting, untrustedWorkspaceHeadless } = await import(join(SRC, 'utils/config/trust.ts'))
-const settings = (await import(join(SRC, 'utils/settings/settings.ts'))) as Record<string, unknown> & {
+const { enableConfigs } = await import(join(SRC, 'platform/settings/config.ts'))
+const { getEnabledSettingSources, isSettingSourceEnabled } = await import(join(SRC, 'platform/settings/settingSources.ts'))
+const { resetTrustDialogAcceptedCacheForTesting, untrustedWorkspaceHeadless } = await import(join(SRC, 'platform/config/trust.ts'))
+const settings = (await import(join(SRC, 'platform/settings/settings.ts'))) as Record<string, unknown> & {
   getSettingsForSource: (source: string) => Record<string, any> | null
 }
-const { resetSettingsCache } = await import(join(SRC, 'utils/settings/settingsCache.ts'))
-const mneme = await import(join(SRC, 'mneme/paths.ts'))
-const media = await import(join(SRC, 'services/media/settings.ts'))
-const install = await import(join(SRC, 'extensions/install.ts'))
-const mcpUtils = await import(join(SRC, 'services/mcp/utils.ts'))
-const mcpConfig = await import(join(SRC, 'services/mcp/config.ts'))
-const hooks = await import(join(SRC, 'utils/hooks/hooksConfigSnapshot.ts'))
-const markdown = await import(join(SRC, 'utils/markdownConfigLoader.ts'))
+const { resetSettingsCache } = await import(join(SRC, 'platform/settings/settingsCache.ts'))
+const mneme = await import(join(SRC, 'sessions/mneme/paths.ts'))
+const media = await import(join(SRC, 'integrations/media/settings.ts'))
+const install = await import(join(SRC, 'integrations/extensions/install.ts'))
+const mcpUtils = await import(join(SRC, 'integrations/mcp/utils.ts'))
+const mcpConfig = await import(join(SRC, 'integrations/mcp/serverConfigs.ts'))
+const hooks = await import(join(SRC, 'integrations/event-hooks/hooksConfigSnapshot.ts'))
+const markdown = await import(join(SRC, 'platform/settings/markdownConfigLoader.ts'))
 enableConfigs()
 
 type Posture = 'window' | 'untrusted run' | 'trusted run'
@@ -193,7 +193,7 @@ section('§6 what the run still names of what it holds back, and what the folder
 
 section('§7 the folder\'s rules: its deny and its ask still tighten the run, its allow and its words wait for the grant')
 {
-  const loader = await import(join(SRC, 'utils/permissions/permissionsLoader.ts'))
+  const loader = await import(join(SRC, 'permissions/rules/permissionsLoader.ts'))
   type Rule = { source: string; ruleBehavior: string; ruleValue: { toolName: string; ruleContent?: string; reason?: string } }
   const spell = (rule: Rule): string =>
     `${rule.source}:${rule.ruleBehavior}:${rule.ruleValue.toolName}${rule.ruleValue.ruleContent === undefined ? '' : `(${rule.ruleValue.ruleContent})`}${rule.ruleValue.reason === undefined ? '' : ` "${rule.ruleValue.reason}"`}`

@@ -34,7 +34,7 @@ try {
         try {
           const outcome = await session.prompt('Write not-written.txt', { timeoutMs: 30000 })
           assert.equal(outcome.status, 'blocked')
-          assert(outcome.denials.length > 0, 'blocked dontAsk Write outcome recorded 0 denials in src/cli/headless/')
+          assert(outcome.denials.length > 0, 'blocked dontAsk Write outcome recorded 0 denials in src/daemon/runner/')
           assert.throws(() => assertCompleted(outcome), error => error instanceof MercuryOutcomeError && error.outcome === outcome && error.errorClass === 'blocked' && error.detail.length > 0 && error.message.includes('Write') && /allowed-tools|mode|host/.test(error.message))
         } finally { await session.close() }
       } else {

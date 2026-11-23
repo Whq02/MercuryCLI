@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import { join } from 'node:path'
 
 const root = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const schemas = await import(join(root, 'utils/mcp/types.ts'))
-const schemaWhere = ' | change the schema in src/utils/mcp/types.ts'
+const schemas = await import(join(root, 'integrations/mcp-shapes/mcpServerRecords.ts'))
+const schemaWhere = ' | change the schema in src/integrations/mcp-shapes/mcpServerRecords.ts'
 assert.deepEqual(schemas.ConfigScopeSchema().options, ['local', 'user', 'project', 'dynamic', 'enterprise', 'claudeai', 'managed'], 'ConfigScopeSchema options differ from the expected scopes' + schemaWhere)
 assert.deepEqual(schemas.TransportSchema().options, ['stdio', 'sse', 'http', 'ws'], 'TransportSchema options differ from the expected transports' + schemaWhere)
 assert.equal(schemas.McpServerConfigSchema(), schemas.McpServerConfigSchema(), 'McpServerConfigSchema must return the same singleton on every call' + schemaWhere)

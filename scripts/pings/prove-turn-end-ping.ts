@@ -9,7 +9,7 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { DIST, nodeBinPath, requireDist } from '../streaming/artifactArena.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
-import { PING_MESSAGE } from '../../src/hooks/useTurnEndPing.ts'
+import { PING_MESSAGE } from '../../src/screen/chat/useTurnEndPing.ts'
 
 const VSHOT = join(import.meta.dir, '..', 'ui', 'vshot.py')
 const API_KEY = 'fixture-key-000'
@@ -87,7 +87,7 @@ function pingsIn(text: string): Pings {
   return { osc9, bell }
 }
 const words = (p: Pings): string => `osc9=${p.osc9} bell=${p.bell}`
-const PING_SRC = 'change useTurnEndPing (its fire timer, isUserAtScreen, pingEnabled) in src/hooks/useTurnEndPing.ts, or the emitter postTerminalNotification in src/ink/termio/notifyPing.ts'
+const PING_SRC = 'change useTurnEndPing (its fire timer, isUserAtScreen, pingEnabled) in src/screen/chat/useTurnEndPing.ts, or the emitter postTerminalNotification in src/screen/renderer/termio/notifyPing.ts'
 const DRIVE_SRC = 'read the [driver] and [wire] lines above; the leg did not reach its last screen text, so fix the boot or turn path it stalled in before the ping counts mean anything'
 
 type Payload = { grid: { c: string }[][]; marks?: Array<{ label: string; atTick: number; grid: { c: string }[][] }>; endReason?: string; sendReceipts?: Array<{ atTick: number; ts: number }> }
@@ -289,13 +289,13 @@ if (wants('A')) {
   check('A: nothing pings between the first turn end and the second (not twice for one turn)', quiet.osc9 === 0 && quiet.bell === 0, `${words(quiet)} · ${PING_SRC}; one ping per lastCompletedAt only`)
   const t2 = window(d, 'end-2', 'after-2')
   check('A: the second turn end pings once more (one per finished turn)', t2.osc9 === 1 && t2.bell === 0, `${words(t2)} · ${PING_SRC}`)
-  check('A: the proof wrote view.ping: false after the second ping (the switch flipped mid-session)', switchedOff, 'the second turn end never produced a second OSC 9 in the tee, so the settings.json write never ran; fix the ping emission in src/hooks/useTurnEndPing.ts or the leg A turns')
+  check('A: the proof wrote view.ping: false after the second ping (the switch flipped mid-session)', switchedOff, 'the second turn end never produced a second OSC 9 in the tee, so the settings.json write never ran; fix the ping emission in src/screen/chat/useTurnEndPing.ts or the leg A turns')
   const t3 = window(d, 'end-3', 'after-3')
-  check('A: with view.ping false the third turn end pings NOTHING — read at fire time, no restart', t3.osc9 === 0 && t3.bell === 0, `${words(t3)} · pingEnabled in src/hooks/useTurnEndPing.ts must read getInitialSettings().view.ping inside fire, not once at mount`)
+  check('A: with view.ping false the third turn end pings NOTHING — read at fire time, no restart', t3.osc9 === 0 && t3.bell === 0, `${words(t3)} · pingEnabled in src/screen/chat/useTurnEndPing.ts must read getInitialSettings().view.ping inside fire, not once at mount`)
   const before = pingsIn(bytesBetween(d.frames, 0, d.markTick('end-1') - 5))
   check('A: nothing pinged before the first turn ended (no boot ping, no submit ping)', before.osc9 === 0 && before.bell === 0, `${words(before)} · ${PING_SRC}; useTurnEndPing must stay silent while lastCompletedAt is null`)
   const payloadText = bytesBetween(d.frames, 0, 1 << 30)
-  check('A: the OSC 9 payload carries the ping words', new RegExp(`\\]9;\\r?\\n\\r?\\n${PING_MESSAGE}\\x07`).test(payloadText), 'the tee has no OSC 9 frame holding PING_MESSAGE; fix buildOsc9Notification in src/ink/termio/notifyPing.ts or PING_MESSAGE in src/hooks/useTurnEndPing.ts')
+  check('A: the OSC 9 payload carries the ping words', new RegExp(`\\]9;\\r?\\n\\r?\\n${PING_MESSAGE}\\x07`).test(payloadText), 'the tee has no OSC 9 frame holding PING_MESSAGE; fix buildOsc9Notification in src/screen/renderer/termio/notifyPing.ts or PING_MESSAGE in src/screen/chat/useTurnEndPing.ts')
   if (failures === 0) d.discard()
   else console.log(`  [forensics] world kept: ${d.world}`)
 }
@@ -319,7 +319,7 @@ if (wants('C')) {
   const d = await drive('c', textTurns, [...opening(), ...turn(P1, FOCUS_IN, F1, '1', 45)], F1, 'iTerm.app', 400)
   check('C: the drive completed', d.status === 0 && d.final.some(r => r.includes(F1)), `status=${d.status} end=${d.endReason} · ${DRIVE_SRC}`)
   const t1 = window(d, 'end-1', 'after-1')
-  check('C: nine seconds after the turn end, focused: no ping of either kind', t1.osc9 === 0 && t1.bell === 0, `${words(t1)} · isUserAtScreen in src/hooks/useTurnEndPing.ts must return true when getTerminalFocusState() is focused`)
+  check('C: nine seconds after the turn end, focused: no ping of either kind', t1.osc9 === 0 && t1.bell === 0, `${words(t1)} · isUserAtScreen in src/screen/chat/useTurnEndPing.ts must return true when getTerminalFocusState() is focused`)
   if (failures === before) d.discard()
   else console.log(`  [forensics] world kept: ${d.world}`)
 }
@@ -349,7 +349,7 @@ if (wants('D')) {
   const later = windowAfter(d, 'end-1', 4000, 10000)
   check('D: between four and ten seconds the ping fires exactly once (no input in the window)', later.osc9 === 1 && later.bell === 0, `${words(later)} · later-1 at +${(d.markTick('later-1') - d.markTick('end-1')) * WALL_TICK_MS} ms · ${PING_SRC}; the startTimeout in useTurnEndPing must fire once after the threshold`)
   const held = window(d, 'end-2', 'after-2')
-  check('D: a key pressed inside the window after the second turn end holds the ping — nothing fires in eleven seconds', held.osc9 === 0 && held.bell === 0, `${words(held)} · fire in src/hooks/useTurnEndPing.ts must see a recent interaction (hasRecentInteraction, getLastInteractionTime) and skip the ping`)
+  check('D: a key pressed inside the window after the second turn end holds the ping — nothing fires in eleven seconds', held.osc9 === 0 && held.bell === 0, `${words(held)} · fire in src/screen/chat/useTurnEndPing.ts must see a recent interaction (hasRecentInteraction, getLastInteractionTime) and skip the ping`)
   if (failures === before) d.discard()
   else console.log(`  [forensics] world kept: ${d.world}`)
 }
@@ -431,7 +431,7 @@ if (wants('F')) {
   const out = Buffer.concat(chunks).toString('latin1')
   check('F: the run answered', status === 0 && out.includes('Headless, as asked.'), `status=${status} tail=${out.slice(-200)}`)
   const p = pingsIn(out)
-  check('F: no OSC 9 and no bell byte anywhere in the run output', p.osc9 === 0 && p.bell === 0, `${words(p)} · the headless run wrote a ping; the ping must only come from the useTurnEndPing hook in src/hooks/useTurnEndPing.ts, never from a headless path`)
+  check('F: no OSC 9 and no bell byte anywhere in the run output', p.osc9 === 0 && p.bell === 0, `${words(p)} · the headless run wrote a ping; the ping must only come from the useTurnEndPing hook in src/screen/chat/useTurnEndPing.ts, never from a headless path`)
   if (failures === before) rmSync(w.world, { recursive: true, force: true })
   else console.log(`  [forensics] world kept: ${w.world}`)
 }

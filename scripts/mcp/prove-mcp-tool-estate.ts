@@ -17,12 +17,12 @@ let failures = 0
 let checks = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
   checks++
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix the MCP tool path in src/services/mcp/client.ts (connectToServer, fetchToolsForClient) or tool-name projection in wireSafeMcpToolName in src/utils/mcp/mcpStringUtils.ts` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix the MCP tool path in src/integrations/mcp/client.ts (connectToServer, fetchToolsForClient) or tool-name projection in wireSafeMcpToolName in src/integrations/mcp-shapes/mcpToolNames.ts` : ''}`)
   if (!ok) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — mcp tool estate prover exceeded 120s; a connect or tool call to scripts/mcp/_fixture-estate-server.mjs never settled, look at connectToServer and fetchToolsForClient in src/services/mcp/client.ts')
+  console.log('\nTIMEOUT — mcp tool estate prover exceeded 120s; a connect or tool call to scripts/mcp/_fixture-estate-server.mjs never settled, look at connectToServer and fetchToolsForClient in src/integrations/mcp/client.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
@@ -30,21 +30,21 @@ watchdog.unref?.()
 const FIXTURE = join(import.meta.dir, '_fixture-estate-server.mjs')
 const SERVER = 'estate-fixture'
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const mcp = await import('../../src/services/mcp/client.ts')
-const { runTools } = await import('../../src/services/tools/toolOrchestration.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { toolToAPISchema, getEmptyToolPermissionContext } = await import('../../src/services/messages/api.ts').then(async api => ({
+const mcp = await import('../../src/integrations/mcp/client.ts')
+const { runTools } = await import('../../src/engine/tool-dispatch/toolOrchestration.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { toolToAPISchema, getEmptyToolPermissionContext } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts').then(async api => ({
   toolToAPISchema: api.toolToAPISchema,
-  getEmptyToolPermissionContext: (await import('../../src/Tool.ts')).getEmptyToolPermissionContext,
+  getEmptyToolPermissionContext: (await import('../../src/tools/kit/tool.ts')).getEmptyToolPermissionContext,
 }))
 type AnyMsg = Record<string, unknown> & { type?: string }
-type Tool = import('../../src/Tool.ts').Tool
+type Tool = import('../../src/tools/kit/tool.ts').Tool
 
 const stdioConfig = (name: string) =>
   ({ type: 'stdio', command: process.execPath, args: [FIXTURE], env: {}, scope: 'local', name }) as never
@@ -151,8 +151,8 @@ t('a schema beyond the former size bound keeps every field instead of becoming p
 const fullDefinition = await toolToAPISchema(awkward, { getToolPermissionContext: async () => getEmptyToolPermissionContext(), tools, agents: [], model: 'claude-sonnet-5' })
 t('the model wire keeps the complete MCP description and schema', fullDefinition.description === prompt && JSON.stringify(fullDefinition.input_schema) === JSON.stringify(wireSchema))
 {
-  const { APIError } = await import('../../src/utils/api/sdkErrors.js')
-  const { getAssistantMessageFromError } = await import('../../src/services/api/errors.ts')
+  const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
+  const { getAssistantMessageFromError } = await import('../../src/engine/requests/apiErrorRows.ts')
   const providerWords = 'tools.3.custom.input_schema: the JSON schema is too large for this request'
   const refused = new APIError(400, { type: 'error', error: { type: 'invalid_request_error', message: providerWords } }, undefined, undefined as never)
   const row = getAssistantMessageFromError(refused, 'claude-sonnet-5') as unknown as { message: { content: Array<{ type?: string; text?: string }> } }
@@ -175,7 +175,7 @@ t('projected names stay unique', new Set(projected).size === projected.length)
 const longTool = byServerName.get('a_tool_whose_name_is_deliberately_far_too_long_for_the_openai_wire_grammar')!
 t('the over-long tool keeps its server prefix and its real name in mcpInfo', longTool.name.startsWith(`mcp__${SERVER}__`) && (longTool as { mcpInfo?: { toolName: string } }).mcpInfo?.toolName === 'a_tool_whose_name_is_deliberately_far_too_long_for_the_openai_wire_grammar', longTool.name)
 {
-  const { wireSafeMcpToolName, buildMcpToolName, getToolNameForPermissionCheck, WIRE_TOOL_NAME_MAX, mcpInfoFromString } = await import('../../src/utils/mcp/mcpStringUtils.ts')
+  const { wireSafeMcpToolName, buildMcpToolName, getToolNameForPermissionCheck, WIRE_TOOL_NAME_MAX, mcpInfoFromString } = await import('../../src/integrations/mcp-shapes/mcpToolNames.ts')
   const LONG = 'a_tool_whose_name_is_deliberately_far_too_long_for_the_openai_wire_grammar'
   t('wireSafeMcpToolName: a clean fitting name is unchanged and a lossy name stays distinct', wireSafeMcpToolName(SERVER, 'plain_echo') === buildMcpToolName(SERVER, 'plain_echo') && wireSafeMcpToolName(SERVER, 'plain.echo') !== wireSafeMcpToolName(SERVER, 'plain_echo'))
   const shortened = wireSafeMcpToolName(SERVER, LONG)

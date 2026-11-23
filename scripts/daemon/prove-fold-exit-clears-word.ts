@@ -20,7 +20,7 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change: the fold status a seat publishes and a cockpit reads, withFoldStatus in src/services/compact/compact.ts, foldRowVisible and FOLD_EXIT_LINGER_MS in src/services/compact/foldStatus.ts, and the live phase and fold read of DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change: the fold status a seat publishes and a cockpit reads, withFoldStatus in src/engine/compaction/foldConversation.ts, foldRowVisible and FOLD_EXIT_LINGER_MS in src/engine/compaction/foldStatus.ts, and the live phase and fold read of DaemonSessionConnector in src/engine/connector/daemonConnector.ts' : ''}`)
 }
 function fence(label: string, detail: string): void {
   console.log(`  [FENCE] ${label} — ${detail}`)
@@ -40,20 +40,20 @@ const until = async (cond: () => boolean, ms = 3000): Promise<boolean> => {
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the fold-exit word proof exceeded 90s; the last section printed above is the step that did not finish, read its until() wait and the seat row handling of onSeatRow in src/daemon/sessionSeat.ts')
+  console.log('\n❌ TIMEOUT — the fold-exit word proof exceeded 90s; the last section printed above is the step that did not finish, read its until() wait and the seat row handling of onSeatRow in src/daemon/session-seat/sessionSeat.ts')
   process.exit(1)
 }, 90_000)
 guard.unref?.()
 
-const { createTurnDriver } = await import('../../src/cli/headless/turnDriver.ts')
-const { withFoldStatus } = await import('../../src/services/compact/compact.ts')
-const { isTurnOpenRow, isOutcomeRow } = await import('../../src/daemon/longLivedRespawn.ts')
-const { compactionClearedRow, compactionRow, heartbeatRow, waitRow, partialRowsOf, itemRowsOf, stepRow, turnStartedRow, turnWaitingRow, outcomeRow, sessionRow } = await import('../../src/rows/project.ts')
-const { onSeatRow } = await import('../../src/daemon/sessionSeat.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { publishSessionFacts, publishSessionTail, readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const { FOLD_EXIT_LINGER_MS, FOLD_ROW_HEAD, foldRowVisible } = await import('../../src/services/compact/foldStatus.ts')
+const { createTurnDriver } = await import('../../src/daemon/runner/turnDriver.ts')
+const { withFoldStatus } = await import('../../src/engine/compaction/foldConversation.ts')
+const { isTurnOpenRow, isOutcomeRow } = await import('../../src/daemon/roster/longLivedRespawn.ts')
+const { compactionClearedRow, compactionRow, heartbeatRow, waitRow, partialRowsOf, itemRowsOf, stepRow, turnStartedRow, turnWaitingRow, outcomeRow, sessionRow } = await import('../../src/engine/rows/project.ts')
+const { onSeatRow } = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { publishSessionFacts, publishSessionTail, readSessionTail } = await import('../../src/engine/connector/seatProjections.ts')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+const { FOLD_EXIT_LINGER_MS, FOLD_ROW_HEAD, foldRowVisible } = await import('../../src/engine/compaction/foldStatus.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 
 type Frame = Record<string, unknown>
@@ -422,7 +422,7 @@ section("P8 an older daemon's tail (the word standing over an exited record): th
 section('P7 the header paints the phase (structural): the word beside the logo is the phase and nothing else')
 {
   const { openStatusPart } = await import('../ui/chatScenarios.ts')
-  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
   const status = await openStatusPart('fold-exit-status', { keepHome: true })
   const dress = async (phase: 'compacting' | 'thinking' | 'responding'): Promise<string> => {
     await status.plant({ seatLive: { ...IDLE_LIVE, inFlight: true, phase } })

@@ -7,9 +7,9 @@ import { join } from 'node:path'
 let failures = 0
 let sectionHint = ''
 const SECTION_HINTS: Record<string, string> = {
-  '§2': 'look at DebugTool.checkPermissions in src/tools/DebugTool/DebugTool.ts: its verdict must not read MERCURY_MODEL or any model family',
-  '§3': 'look at the approval message built in DebugTool.checkPermissions in src/tools/DebugTool/DebugTool.ts: it must name the operation and no model family',
-  '§4': 'look at isDapToolCatalogEnabled in src/services/dap/client/adapters.ts and mercuryLspCppEnabled in src/services/lsp/clangdLane.ts: they must depend on MERCURY_DAP, MERCURY_LSP_CPP and adapters only, never on MERCURY_MODEL',
+  '§2': 'look at DebugTool.checkPermissions in src/tools/debug/DebugTool.ts: its verdict must not read MERCURY_MODEL or any model family',
+  '§3': 'look at the approval message built in DebugTool.checkPermissions in src/tools/debug/DebugTool.ts: it must name the operation and no model family',
+  '§4': 'look at isDapToolCatalogEnabled in src/integrations/debugger/client/adapters.ts and mercuryLspCppEnabled in src/integrations/lsp/clangdLane.ts: they must depend on MERCURY_DAP, MERCURY_LSP_CPP and adapters only, never on MERCURY_MODEL',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -49,9 +49,9 @@ async function main(): Promise<void> {
   console.log('============================================================')
 
 
-  const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
-  const { isDapToolCatalogEnabled } = await import('../../src/services/dap/dapClient.js')
-  const { mercuryLspCppEnabled } = await import('../../src/services/lsp/clangdLane.js')
+  const { DebugTool } = await import('../../src/tools/debug/DebugTool.js')
+  const { isDapToolCatalogEnabled } = await import('../../src/integrations/debugger/dapClient.js')
+  const { mercuryLspCppEnabled } = await import('../../src/integrations/lsp/clangdLane.js')
 
   section('§2 consent verdicts are family-blind — byte-identical across plants')
   {

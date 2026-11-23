@@ -25,7 +25,7 @@ for (const k of [
   delete process.env[k]
 }
 
-const realQueryModule = await import('../../src/query.ts')
+const realQueryModule = await import('../../src/engine/turnDoor.ts')
 const realQueryEvents = realQueryModule.queryEvents
 
 type ScriptedDeps = Record<string, unknown> | null
@@ -36,34 +36,34 @@ async function* forwardingQueryEvents(params: Record<string, unknown>): AsyncGen
   return yield* realQueryEvents(withDeps as never)
 }
 
-mock.module('../../src/query.ts', () => ({
+mock.module('../../src/engine/turnDoor.ts', () => ({
   ...realQueryModule,
   queryEvents: forwardingQueryEvents,
 }))
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { Conversation } = await import('../../src/rows/turn.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const settingsRoad = await import('../../src/utils/settings/settings.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { Conversation } = await import('../../src/engine/rows/turn.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const settingsRoad = await import('../../src/platform/settings/settings.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — change the loop guard in src/services/tools/loopGuard.ts (recordToolCall, closeRound, isLoopGuardStopEnabled and the turns.loopGuard setting), or how the headless turn settles its outcome in src/rows/turn/modelRows.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — change the loop guard in src/engine/tool-dispatch/loopGuard.ts (recordToolCall, closeRound, isLoopGuardStopEnabled and the turns.loopGuard setting), or how the headless turn settles its outcome in src/engine/rows/turn/modelRows.ts'}`)
   if (!cond) failures++
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — loop-guard headless prover exceeded 120s; a scripted turn never settled, look at src/services/tools/loopGuard.ts and src/rows/turn/modelRows.ts')
+  console.log('\nTIMEOUT — loop-guard headless prover exceeded 120s; a scripted turn never settled, look at src/engine/tool-dispatch/loopGuard.ts and src/engine/rows/turn/modelRows.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()

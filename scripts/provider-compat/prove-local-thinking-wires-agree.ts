@@ -13,15 +13,15 @@ delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 
 let failures = 0
-const thinkingWireFixHint = 'make /v1 and /api/chat agree: compare localThinkingOff and buildLocalExtras in src/services/providers/openaicompat/compatWire.ts with ollamaThinkingValue and localModelAcceptsEffort in src/services/providers/local/localCallModel.ts, and the stamp in src/services/providers/openaicompat/compatChatCallModel/attempt.ts and src/utils/effortStamp.ts'
+const thinkingWireFixHint = 'make /v1 and /api/chat agree: compare localThinkingOff and buildLocalExtras in src/models/roads/openaicompat/compatWire.ts with ollamaThinkingValue and localModelAcceptsEffort in src/models/roads/local/localCallModel.ts, and the stamp in src/models/roads/openaicompat/chat-call-model/attempt.ts and src/models/effort/effortStamp.ts'
 const sectionFixHints: Record<string, string> = {
-  '1': 'the record shape or road is wrong: check localModelAcceptsEffort in src/services/providers/local/localCallModel.ts and ollamaChatUrl in src/services/providers/local/ollamaChatTransport.ts',
+  '1': 'the record shape or road is wrong: check localModelAcceptsEffort in src/models/roads/local/localCallModel.ts and ollamaChatUrl in src/models/roads/local/ollamaChatTransport.ts',
   '2': thinkingWireFixHint,
   '3': thinkingWireFixHint,
   '4': thinkingWireFixHint,
   '5': thinkingWireFixHint,
   '6': thinkingWireFixHint,
-  '7': 'a wire leaked the other spelling or a request bypassed /api/chat: check buildLocalExtras in src/services/providers/openaicompat/compatWire.ts and the Ollama dispatch in src/services/providers/openaicompat/compatChatCallModel',
+  '7': 'a wire leaked the other spelling or a request bypassed /api/chat: check buildLocalExtras in src/models/roads/openaicompat/compatWire.ts and the Ollama dispatch in src/models/roads/openaicompat/chat-call-model',
 }
 let sectionFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -59,15 +59,15 @@ const fixture = Bun.serve({
 })
 const root = `http://127.0.0.1:${fixture.port}`
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { localLaneProfileFor, localModelAcceptsEffort, ollamaThinkingValue } = await import('../../src/services/providers/local/localCallModel.ts')
-const { buildLocalExtras, localThinkingOff } = await import('../../src/services/providers/openaicompat/compatWire.ts')
-const { ollamaChatUrl } = await import('../../src/services/providers/local/ollamaChatTransport.ts')
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { EFFORT_STAMP_THINKING_OFF, EFFORT_STAMP_THINKING_ON, EFFORT_STAMP_UNSUPPORTED } = await import('../../src/utils/effortStamp.ts')
-type LocalModelRecord = import('../../src/services/providers/local/localDiscovery.ts').LocalModelRecord
-type EffortStamp = import('../../src/utils/effortStamp.ts').EffortStampV1
+const { localLaneProfileFor, localModelAcceptsEffort, ollamaThinkingValue } = await import('../../src/models/roads/local/localCallModel.ts')
+const { buildLocalExtras, localThinkingOff } = await import('../../src/models/roads/openaicompat/compatWire.ts')
+const { ollamaChatUrl } = await import('../../src/models/roads/local/ollamaChatTransport.ts')
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { EFFORT_STAMP_THINKING_OFF, EFFORT_STAMP_THINKING_ON, EFFORT_STAMP_UNSUPPORTED } = await import('../../src/models/effort/effortStamp.ts')
+type LocalModelRecord = import('../../src/models/roads/local/localDiscovery.ts').LocalModelRecord
+type EffortStamp = import('../../src/models/effort/effortStamp.ts').EffortStampV1
 
 const base = { server: 'ollama', baseUrl: `${root}/v1`, toolsDeclared: true, family: 'qwen3', parameterSize: '27B' } as const
 const legacy: LocalModelRecord = { ...base, id: 'legacy:27b', thinkingDeclared: true }

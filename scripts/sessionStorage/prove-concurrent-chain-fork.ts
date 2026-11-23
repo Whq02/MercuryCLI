@@ -7,10 +7,10 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'chainfork-home-'))
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { recordTranscript, flushSessionStorage } = await import(
-  join(ROOT, 'src/utils/sessionStorage/writer.ts')
+  join(ROOT, 'src/sessions/transcripts/writer.ts')
 )
-const { createUserMessage } = await import(join(ROOT, 'src/services/messages.ts'))
-const { getSessionId } = await import(join(ROOT, 'src/bootstrap/state.ts'))
+const { createUserMessage } = await import(join(ROOT, 'src/engine/messages/messages.ts'))
+const { getSessionId } = await import(join(ROOT, 'src/boot/process-state/processState.ts'))
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -42,7 +42,7 @@ const walk = (dir: string): void => {
 }
 walk(home)
 const sessionFile = files.find(f => f.includes(getSessionId()))
-check('the session file stands', sessionFile !== undefined, `${files.join(', ')}; recordTranscript and flushSessionStorage in src/utils/sessionStorage/writer.ts should leave a .jsonl for getSessionId() under the config home`)
+check('the session file stands', sessionFile !== undefined, `${files.join(', ')}; recordTranscript and flushSessionStorage in src/sessions/transcripts/writer.ts should leave a .jsonl for getSessionId() under the config home`)
 
 const parents = new Map<string, string | null>()
 if (sessionFile) {
@@ -66,12 +66,12 @@ if (sessionFile) {
 const seedUuid = (seed as { uuid: string }).uuid
 const firstUuid = (first as { uuid: string }).uuid
 const secondUuid = (second as { uuid: string }).uuid
-check('all three turns are recorded', parents.has(seedUuid) && parents.has(firstUuid) && parents.has(secondUuid), `${parents.size} records; every message passed to recordTranscript in src/utils/sessionStorage/writer.ts must land as a row in the session file`)
-check('the first overlapping turn chains onto the seed', parents.get(firstUuid) === seedUuid, `parent=${parents.get(firstUuid)}; the first turn after the seed should take the seed as parent, see recordTranscript in src/utils/sessionStorage/writer.ts`)
+check('all three turns are recorded', parents.has(seedUuid) && parents.has(firstUuid) && parents.has(secondUuid), `${parents.size} records; every message passed to recordTranscript in src/sessions/transcripts/writer.ts must land as a row in the session file`)
+check('the first overlapping turn chains onto the seed', parents.get(firstUuid) === seedUuid, `parent=${parents.get(firstUuid)}; the first turn after the seed should take the seed as parent, see recordTranscript in src/sessions/transcripts/writer.ts`)
 check(
   'THE LAW: the second overlapping turn chains onto the FIRST — linear, never a fork onto the shared stale leaf',
   parents.get(secondUuid) === firstUuid,
-  `second.parent=${parents.get(secondUuid)} (a fork points it at the seed ${seedUuid.slice(0, 8)}…); the starting parent of an overlapping recordTranscript call must come from the live chain leaf when the write runs, see preferLiveLeaf and currentSessionChainLeaf in src/utils/sessionStorage/writer.ts`,
+  `second.parent=${parents.get(secondUuid)} (a fork points it at the seed ${seedUuid.slice(0, 8)}…); the starting parent of an overlapping recordTranscript call must come from the live chain leaf when the write runs, see preferLiveLeaf and currentSessionChainLeaf in src/sessions/transcripts/writer.ts`,
 )
 
 const third = createUserMessage({ content: 'a later sequential turn' })
@@ -85,7 +85,7 @@ await flushSessionStorage()
   check(
     'a sequential turn chains onto the newest leaf as ever',
     line !== undefined && line.includes(secondUuid),
-    `${line?.slice(0, 160) ?? 'missing'}; a later recordTranscript call should chain onto the newest leaf, see recordTranscript in src/utils/sessionStorage/writer.ts`,
+    `${line?.slice(0, 160) ?? 'missing'}; a later recordTranscript call should chain onto the newest leaf, see recordTranscript in src/sessions/transcripts/writer.ts`,
   )
 }
 

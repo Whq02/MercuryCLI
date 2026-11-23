@@ -16,7 +16,7 @@ let passes = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (ok) passes++
   else failures++
-  const planSigninHint = 'fix the Google sign-in code the check label names, in src/services/providers/gemini/ (geminiAccounts.ts for the sign-in and stored grant, geminiPlanAccess.ts, geminiLogin.ts for the receipt, geminiCatalogue.ts for the roster, geminiCallModel.ts for the chat road), or the fixture servers at the top of this file'
+  const planSigninHint = 'fix the Google sign-in code the check label names, in src/models/roads/gemini/ (geminiAccounts.ts for the sign-in and stored grant, geminiPlanAccess.ts, geminiLogin.ts for the receipt, geminiCatalogue.ts for the roster, geminiCallModel.ts for the chat road), or the fixture servers at the top of this file'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${planSigninHint}`}`)
 }
 const within = <T,>(promise: Promise<T>, ms = 4000): Promise<T | 'timed-out'> =>
@@ -253,16 +253,16 @@ process.env.MERCURY_GOOGLE_USERINFO_BASE = googleBase
 process.env.MERCURY_ANTIGRAVITY_CODE_ASSIST_BASE = assistBase
 process.env.MERCURY_ANTIGRAVITY_MANIFEST_BASE = 'https://example.invalid'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const accounts = await import('../../src/services/providers/gemini/geminiAccounts.ts')
-const access = await import('../../src/services/providers/gemini/geminiPlanAccess.ts')
-const contract = await import('../../src/services/providers/gemini/antigravityClientContract.ts')
-const login = await import('../../src/services/providers/gemini/geminiLogin.ts')
-const catalogue = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const callModel = await import('../../src/services/providers/gemini/geminiCallModel.ts')
-const guide = await import('../../src/components/geminiConnectGuide.ts')
-const slots = await import('../../src/services/providers/accountSlots.ts')
+const accounts = await import('../../src/models/roads/gemini/geminiAccounts.ts')
+const access = await import('../../src/models/roads/gemini/geminiPlanAccess.ts')
+const contract = await import('../../src/models/roads/gemini/antigravityClientContract.ts')
+const login = await import('../../src/models/roads/gemini/geminiLogin.ts')
+const catalogue = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const callModel = await import('../../src/models/roads/gemini/geminiCallModel.ts')
+const guide = await import('../../src/models/sign-in/gemini-connect/geminiConnectGuide.ts')
+const slots = await import('../../src/models/roads/accountSlots.ts')
 const sleep = async (): Promise<void> => {}
 
 async function signIn(): Promise<{ flow: 'resolved' | 'rejected' | 'timed-out'; error?: string }> {
@@ -339,28 +339,28 @@ try {
   check('the -disabled row Google serves is listed under the Google sign-in with its state said and is not selectable; it is no chat row (not in the availability ids, not a live-listed id, not counted)', snapshot?.models.find(m => m.id === 'gemini-4-helium-disabled')?.disabled === true && helium !== undefined && helium.label === 'Gemini 4 Helium' && helium.unavailable === "withheld from Google AI Pro today — Google's roster names it gemini-4-helium-disabled (Gemini 4 Helium) and answers 404 to the id; antigravity.google/docs/models says which plans include it; not offered as runnable" && !availability.ids.includes('gemini-4-helium-disabled') && !catalogue.cachedLiveIds().has('gemini-4-helium-disabled') && catalogue.geminiGenerateModels(snapshot).length === 8, JSON.stringify({ helium, ids: availability.ids }))
   console.log('── a bare id whose roster names only effort rows rides the row of the session\'s effort (the public client\'s collapse table): low → -low, medium → -medium, high/max/xhigh/none → -high; the status row says the ride ──')
   check('the effort row law: the bare id resolves per effort, an unknown or absent effort takes high, a missing tier falls to the nearest present, an exact row or a non-Gemini id never resolves', catalogue.geminiPlanWireModel('gemini-4-neon', 'low') === 'gemini-4-neon-low' && catalogue.geminiPlanWireModel('gemini-4-neon', 'medium') === 'gemini-4-neon-medium' && catalogue.geminiPlanWireModel('gemini-4-neon', 'high') === 'gemini-4-neon-high' && catalogue.geminiPlanWireModel('gemini-4-neon', 'max') === 'gemini-4-neon-high' && catalogue.geminiPlanWireModel('gemini-4-neon', 'xhigh') === 'gemini-4-neon-high' && catalogue.geminiPlanWireModel('gemini-4-neon', undefined) === 'gemini-4-neon-high' && catalogue.geminiPlanWireModel('gemini-4-neon', 'minimal') === 'gemini-4-neon-low' && catalogue.geminiPlanWireModel('gemini-3.5-flash', 'high') === 'gemini-3.5-flash-low' && catalogue.geminiPlanWireModel('gemini-4-argon', 'low') === 'gemini-4-argon' && catalogue.geminiPlanWireModel('gemini-4-neon-high', 'low') === 'gemini-4-neon-high' && catalogue.geminiPlanWireModel('claude-sonnet-4-6', 'low') === 'claude-sonnet-4-6' && catalogue.geminiPlanWireModel('gemini-4-helium', 'high') === 'gemini-4-helium')
-  const { resolveDisplayedSessionModel } = await import('../../src/hooks/useDisplayedSessionModel.ts')
+  const { resolveDisplayedSessionModel } = await import('../../src/screen/model-picker/useDisplayedSessionModel.ts')
   check('the status row says the ride beside the chosen id, and keeps the queued-switch grammar', resolveDisplayedSessionModel('gemini-4-neon', null, catalogue.geminiPlanRideWords('gemini-4-neon', 'medium')).compact === 'gemini-4-neon ▸ gemini-4-neon-medium' && resolveDisplayedSessionModel('gemini-4-neon', { setting: 'gemini-3.5-flash-low' }, 'gemini-4-neon-high').label === 'gemini-4-neon ▸ gemini-4-neon-high → gemini-3.5-flash-low (queued)' && resolveDisplayedSessionModel('gemini-4-argon', null, catalogue.geminiPlanRideWords('gemini-4-argon', 'high')).compact === 'gemini-4-argon', JSON.stringify(resolveDisplayedSessionModel('gemini-4-neon', null, catalogue.geminiPlanRideWords('gemini-4-neon', 'medium'))))
   check('the 404 words for the bare id name the disabled roster row with its state; a bare id with effort siblings on the roster names them', callModel.geminiPlanModelMissingWords('gemini-4-helium', 404, undefined).includes("Google serves no model 'gemini-4-helium' to this Google sign-in (HTTP 404) · the roster names gemini-4-helium-disabled (Gemini 4 Helium): withheld from Google AI Pro today, antigravity.google/docs/models says which plans include it · /model lists the roster") && callModel.geminiPlanModelMissingWords('gemini-3.5-flash', 404, undefined).includes('the roster names gemini-3.5-flash-low — /model picks one') && !callModel.geminiPlanModelMissingWords('gemini-9-nope', 404, undefined).includes('the roster names'), callModel.geminiPlanModelMissingWords('gemini-4-helium', 404, undefined))
 
   console.log('── the roster beyond Gemini: google/<id> rides this sign-in, never the vendor\'s lane; the flags are the capabilities ──')
-  const { declaredRouteOf, canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
+  const { declaredRouteOf, canonicalWireModelId } = await import('../../src/models/roads/routeLaw.ts')
   const wire = canonicalWireModelId('google/claude-sonnet-4-6')
   check('google/claude-sonnet-4-6 routes to the Gemini family and rides the wire as Google\'s own id; the bare claude-sonnet-4-6 stays the Anthropic lane while the roster is cached', declaredRouteOf('google/claude-sonnet-4-6') === 'gemini' && declaredRouteOf('claude-sonnet-4-6') === 'anthropic' && declaredRouteOf('gpt-oss-120b-medium') === 'openai' && declaredRouteOf('google/gpt-oss-120b-medium') === 'gemini' && wire.ok && wire.wireId === 'claude-sonnet-4-6', JSON.stringify({ wire, claude: declaredRouteOf('claude-sonnet-4-6') }))
   const nested = canonicalWireModelId('google/google/claude-sonnet-4-6')
   check('a re-prefixed id is refused before any wire', !nested.ok && nested.reason.includes('nests the google/ namespace'), JSON.stringify(nested))
   check('the stated facts of a google/ row: the window, the output ceiling, the thinking dial only where the roster says so', catalogue.geminiContextWindowFor('google/claude-sonnet-4-6')?.window === 200000 && catalogue.geminiOutputTokenLimitFor('google/claude-sonnet-4-6') === 64000 && catalogue.geminiEffortVocabularyFor('google/claude-sonnet-4-6').length === 0 && catalogue.geminiEffortVocabularyFor('google/claude-opus-4-6-thinking').length > 0 && catalogue.geminiEffortVocabularyFor('google/gpt-oss-120b-medium').length > 0)
-  const { modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
+  const { modelReceivesImageBlocks } = await import('../../src/models/facts/capabilities.ts')
   check('images ride only where the roster flags them', modelReceivesImageBlocks('gemini-4-argon') === true && modelReceivesImageBlocks('gemini-3.5-flash-low') === false && modelReceivesImageBlocks('google/claude-sonnet-4-6') === false)
-  const engine = await import('../../src/services/crew/engineDispatch.ts')
+  const engine = await import('../../src/crew/crewmates/engineDispatch.ts')
   const dispatched = await engine.resolveEngineDispatch('google/claude-sonnet-4-6').catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }))
   check('a crewmate named onto google/claude-sonnet-4-6 dispatches on the Gemini backend with the roster\'s display name', 'backend' in dispatched && dispatched.backend === 'gemini' && dispatched.model === 'google/claude-sonnet-4-6' && dispatched.displayLabel === 'Claude Sonnet 4.6', JSON.stringify(dispatched))
-  const { geminiValidatesSignatures, buildGeminiRequest, GEMINI_SKIP_SIGNATURE_VALIDATION } = await import('../../src/services/providers/gemini/geminiCodec.ts')
+  const { geminiValidatesSignatures, buildGeminiRequest, GEMINI_SKIP_SIGNATURE_VALIDATION } = await import('../../src/models/roads/gemini/geminiCodec.ts')
   const lostRecord = buildGeminiRequest({ model: 'claude-sonnet-4-6', messages: [{ role: 'user', content: 'x' }, { role: 'assistant', content: '', tool_calls: [{ id: 'c1', type: 'function', function: { name: 'Bash', arguments: '{}' } }] }, { role: 'tool', tool_call_id: 'c1', content: 'ok' }] } as never, [])
   const geminiLost = buildGeminiRequest({ model: 'gemini-4-argon', messages: [{ role: 'user', content: 'x' }, { role: 'assistant', content: '', tool_calls: [{ id: 'c1', type: 'function', function: { name: 'Bash', arguments: '{}' } }] }, { role: 'tool', tool_call_id: 'c1', content: 'ok' }] } as never, [])
   check('the signed-parts law per model: the signature placeholder is Gemini 3\'s contract — a Claude history that lost its record sends none, a Gemini one sends it', geminiValidatesSignatures('claude-sonnet-4-6') === false && geminiValidatesSignatures('gemini-4-argon') === true && lostRecord.contents[1]?.parts[0]?.thoughtSignature === undefined && geminiLost.contents[1]?.parts[0]?.thoughtSignature === GEMINI_SKIP_SIGNATURE_VALIDATION)
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const { z } = await import('zod')
   const { randomUUID } = await import('node:crypto')
   const bashTool = { name: 'Bash', prompt: async () => 'Runs a command.', inputSchema: z.object({ command: z.string() }), inputJSONSchema: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'] } }
@@ -374,7 +374,7 @@ try {
   const neonHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
   const neonGen = ((neonHit?.body?.request as Record<string, unknown>)?.generationConfig ?? {}) as Record<string, unknown>
   check('through the road at effort medium, /model gemini-4-neon rides gemini-4-neon-medium: the wire model is the effort row, the thinking level and the row\'s own ceiling ride, the answer lands', neonHit?.body?.model === 'gemini-4-neon-medium' && JSON.stringify(neonGen.thinkingConfig) === JSON.stringify({ thinkingLevel: 'MEDIUM' }) && neonGen.maxOutputTokens === 65536 && neonReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ model: neonHit?.body?.model, gen: neonGen }))
-  const engineNeon = await (await import('../../src/services/crew/engineDispatch.ts')).resolveEngineDispatch('gemini-4-neon').catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }))
+  const engineNeon = await (await import('../../src/crew/crewmates/engineDispatch.ts')).resolveEngineDispatch('gemini-4-neon').catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }))
   check('a crewmate named onto the bare id dispatches on the Gemini backend with the high row (no effort of its own)', 'backend' in engineNeon && engineNeon.backend === 'gemini' && engineNeon.model === 'gemini-4-neon-high', JSON.stringify(engineNeon))
   console.log('── the roster is re-read: on the TTL before a chat (never only at sign-in), and once on a bare id\'s 404 — a row that appeared meanwhile is taken, else the kin words ──')
   catalogue.__resetGeminiCatalogueForTest()
@@ -404,7 +404,7 @@ try {
   const longHistory: unknown[] = [{ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content: 'Work the lane.' } }]
   const recordedTurn = (index: number, name: string, input: Record<string, unknown>): unknown => {
     const content = [{ type: 'tool_use', id: `call_${index}`, name, input }]
-    const { mapMessagesToZai } = require('../../src/services/providers/zai/zaiCodec.ts') as typeof import('../../src/services/providers/zai/zaiCodec.ts')
+    const { mapMessagesToZai } = require('../../src/models/roads/zai/zaiCodec.ts') as typeof import('../../src/models/roads/zai/zaiCodec.ts')
     const projection = JSON.stringify(mapMessagesToZai(undefined, [{ role: 'assistant', content }] as never)[0])
     return { type: 'assistant', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'assistant', content, model: 'gemini-4-neon-high' }, geminiProviderTurn: { model: 'gemini-4-neon-high', parts: [{ functionCall: { id: `call_${index}`, name, args: input }, thoughtSignature: `sig-${index}` }], calls: [{ id: `call_${index}`, name, nativeId: `call_${index}` }], projection } }
   }
@@ -469,12 +469,12 @@ try {
   check('…and its words still carry Google\'s own sentence', errorWordsOf(overflowed).includes('The input token count exceeds the maximum number of tokens allowed 1048576.'), errorWordsOf(overflowed).slice(0, 300))
   assist.overflowRefusals = 0
   {
-    const { query } = await import('../../src/query.ts')
-    const { productionDeps } = await import('../../src/query/deps.ts')
-    const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-    const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-    const { createUserMessage } = await import('../../src/services/messages.ts')
-    ;(await import('../../src/bootstrap/state.ts')).setIsInteractive(false)
+    const { query } = await import('../../src/engine/turnDoor.ts')
+    const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
+    const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+    const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+    const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+    ;(await import('../../src/boot/process-state/processState.ts')).setIsInteractive(false)
     const turnModel = 'gemini-4-neon-high'
     const ask = 'operator ask: land the change and run its checks'
     const rounds = (count: number, pad: number, askPad = pad): unknown[] => {
@@ -580,7 +580,7 @@ try {
   const argonHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
   const argonGen = ((argonHit?.body?.request as Record<string, unknown>)?.generationConfig ?? {}) as Record<string, unknown>
   check('a Gemini row on the same wire keeps its own shape: used_claude false, the thinking level, and the output ceiling is the roster\'s own (a caller\'s larger ask is clamped to it)', argonHit?.body?.model === 'gemini-4-argon' && (argonHit.body.request as Record<string, Record<string, string>>).labels.used_claude === 'false' && JSON.stringify(argonGen.thinkingConfig) === JSON.stringify({ thinkingLevel: 'MEDIUM' }) && argonGen.maxOutputTokens === 65536, JSON.stringify({ labels: (argonHit?.body?.request as Record<string, unknown>)?.labels, gen: argonGen }))
-  const { streamGeminiContent: streamPlain } = await import('../../src/services/providers/gemini/geminiClient.ts')
+  const { streamGeminiContent: streamPlain } = await import('../../src/models/roads/gemini/geminiClient.ts')
   const planAuth = await accounts.resolveGeminiRequestAuth({ sourceKind: 'plan' })
   for await (const _event of streamPlain({ apiKey: planAuth!.headers.authorization!.slice(7), url: `${assistBase}/v1internal:streamGenerateContent?alt=sse`, request: { model: 'gemini-3.5-flash-low', messages: [{ role: 'user', content: 'hi' }] } as never, messages: [], plan: { ...callModel.nextGeminiPlanEnvelope('project-fixture-123', 'gemini-3.5-flash-low'), bases: [assistBase], userAgent: planAuth!.headers['user-agent']! }, onTurn: () => {} })) void _event
   const noAskHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
@@ -589,7 +589,7 @@ try {
   const roadHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
   check('through the road a Gemini row gets the roster\'s own ceiling as its output ceiling — room to finish, never more than Google states', (((roadHit?.body?.request as Record<string, unknown>)?.generationConfig ?? {}) as Record<string, unknown>).maxOutputTokens === 65536, JSON.stringify((roadHit?.body?.request as Record<string, unknown>)?.generationConfig))
   check('the 404 for a roster id Google does not serve names the id as the user spelled it', callModel.geminiPlanModelMissingWords('google/gpt-oss-120b-medium', 404, undefined).includes("Google serves no model 'google/gpt-oss-120b-medium' to this Google sign-in (HTTP 404)"))
-  const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
+  const { usageForProvider } = await import('../../src/models/roads/providerUsage.ts')
   const owner = usageForProvider('gemini')
   const tierFigure = owner.figures?.find(f => f.key === 'plan-tier')
   const quotaFigure = owner.figures?.find(f => f.key === 'plan-quota:gemini-4-argon')
@@ -603,7 +603,7 @@ try {
     assist.roster = { ...saved, 'gemini-4-argon-low': { displayName: 'Gemini 4 Argon', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536, quotaInfo: { remainingFraction: 0.91, resetTime: '2026-10-15T00:00:00Z' } }, 'gemini-4-argon-high': { displayName: 'Gemini 4 Argon', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536, quotaInfo: { remainingFraction: 0.42, resetTime: '2026-10-15T00:00:00Z' } }, 'gemini-3.8-flash-high': { displayName: 'Gemini 3.8 Flash', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536, quotaInfo: { remainingFraction: 0.77, resetTime: '2026-10-15T00:00:00Z' } }, 'claude-opus-4-6-thinking': { ...saved['claude-opus-4-6-thinking'], quotaInfo: { remainingFraction: 0.99, resetTime: '2026-10-15T00:00:00Z' } }, ...wide }
     delete assist.roster['gemini-4-argon']
     await catalogue.refreshGeminiCatalogue('plan', { force: true })
-    const { geminiPlanQuotaView, geminiLaneModelsByLastUse, geminiPlanQuotaFoldWords, geminiPlanUsageFigures } = await import('../../src/services/providers/providerUsage.ts')
+    const { geminiPlanQuotaView, geminiLaneModelsByLastUse, geminiPlanQuotaFoldWords, geminiPlanUsageFigures } = await import('../../src/models/roads/providerUsage.ts')
     const figures = geminiPlanUsageFigures(accounts.geminiPlanFacts()!)
     const quotaFigures = figures.filter(f => f.key.startsWith('plan-quota:'))
     check('the fixture roster carries 27 quota rows (the owner\'s 27-line slot)', quotaFigures.length === 27, String(quotaFigures.length))
@@ -615,7 +615,7 @@ try {
     check('the fold line counts the rest and says what ↵ does', geminiPlanQuotaFoldWords(24, false) === '24 other roster models — ↵ lists them' && geminiPlanQuotaFoldWords(24, true) === '24 other roster models — ↵ folds them' && geminiPlanQuotaFoldWords(1, false) === '1 other roster model — ↵ lists them')
     const noSession = geminiPlanQuotaView(figures, { usedModels: [] })
     check('with no session model and nothing used, every row folds and nothing is called active', noSession.active === undefined && noSession.used.length === 0 && noSession.others.length === 27)
-    const { geminiPlanActiveQuotaWords } = await import('../../src/components/Settings/usageLine.ts')
+    const { geminiPlanActiveQuotaWords } = await import('../../src/screen/settings/usageLine.ts')
     check('the popup header and the /logins row carry the active row\'s quota in one spelling', geminiPlanActiveQuotaWords(figures, { model: 'gemini-4-argon', effort: 'high', usedModels }) === 'gemini-4-argon-high 42% left' && geminiPlanActiveQuotaWords(figures, { usedModels: [] }) === undefined)
     const rowWithQuota = guide.geminiPlanRowLabel({ oauthConnected: false, planConnected: true, planTier: 'Google AI Pro', planActiveQuota: 'gemini-4-argon-high 42% left', active: 'plan' })
     check('the /logins row names the tier and the active row\'s quota; an inactive plan row carries no figure', rowWithQuota === 'Sign in with Google — connected (Google AI Pro) · gemini-4-argon-high 42% left · ↵ signs in again' && guide.geminiPlanRowLabel({ oauthConnected: false, keySource: 'stored', planConnected: true, planTier: 'Google AI Pro', planActiveQuota: 'gemini-4-argon-high 42% left', active: 'api-key' }) === 'Sign in with Google — connected (Google AI Pro), not active · ↵ makes it active', rowWithQuota)
@@ -624,7 +624,7 @@ try {
   }
 
   console.log('── the wire: the envelope, the User-Agent, the stream unwrapped, signed parts kept ──')
-  const { streamGeminiContent } = await import('../../src/services/providers/gemini/geminiClient.ts')
+  const { streamGeminiContent } = await import('../../src/models/roads/gemini/geminiClient.ts')
   const auth = await accounts.resolveGeminiRequestAuth({ sourceKind: 'plan' })
   check('the request auth carries the bearer, the Antigravity User-Agent, the project and the two bases', auth?.plan?.projectId === 'project-fixture-123' && auth.headers['user-agent'] === contract.antigravityUserAgent() && auth.plan.bases.length === 1 && auth.plan.bases[0] === assistBase, JSON.stringify(auth?.plan))
   const envelope = callModel.nextGeminiPlanEnvelope('project-fixture-123')
@@ -646,7 +646,7 @@ try {
   check('tools ride as parameters with the keys the Code Assist proto refuses stripped, and the function calling mode VALIDATED', declaration.parameters !== undefined && declaration.parametersJsonSchema === undefined && !JSON.stringify(declaration.parameters).includes('$schema') && JSON.stringify(declaration.parameters).includes('pattern') && (inner.toolConfig as Record<string, Record<string, unknown>>)?.functionCallingConfig?.mode === 'VALIDATED', JSON.stringify(declaration))
 
   console.log('── the schema grammar: every real tool definition rides the plan wire inside Google\'s Schema grammar; the fixture refuses anything outside it in Google\'s words ──')
-  const { codeAssistSchema, GEMINI_SCHEMA_GRAMMAR } = await import('../../src/services/providers/gemini/geminiCodec.ts')
+  const { codeAssistSchema, GEMINI_SCHEMA_GRAMMAR } = await import('../../src/models/roads/gemini/geminiCodec.ts')
   const corpus = JSON.parse(readFileSync(new URL('../tool-economy/fixtures/definition-corpus.json', import.meta.url), 'utf8')) as { definitions: Array<{ name: string; description: string; input_schema: Record<string, unknown> }> }
   check('the recorded corpus: 61 definitions including Document and CrewBoard, kept byte-identical to the live tools by the parity proof', corpus.definitions.length === 61 && corpus.definitions.some(d => d.name === 'CrewBoard') && ['Bash', 'Debug', 'Document'].every(name => corpus.definitions.some(d => d.name === name)) && JSON.stringify(corpus.definitions).includes('"const"') && JSON.stringify(corpus.definitions).includes('"exclusiveMinimum"'))
   const rawViolations: string[] = []
@@ -678,7 +678,7 @@ try {
   check('the fixture refuses an unreduced declaration in Google\'s words, naming the keyword and the proto path — the guard is real', rawRefusal.status === 400 && rawRefusalBody.error.status === 'INVALID_ARGUMENT' && rawRefusalBody.error.message.includes(`Invalid JSON payload received. Unknown name "const" at 'request.tools[0].function_declarations[0].parameters.properties[0].value': Cannot find field.`) && rawRefusalBody.error.message.includes(`Unknown name "exclusiveMinimum" at 'request.tools[0].function_declarations[0].parameters.properties[1].value'`), JSON.stringify(rawRefusalBody))
 
   console.log('── the schema law per row: a Claude or GPT-OSS row on Code Assist takes the subset Google\'s own client sends for it, validated as draft 2020-12 behind Code Assist ──')
-  const { CODE_ASSIST_SUBSET_GRAMMAR, codeAssistGrammarFor } = await import('../../src/services/providers/gemini/geminiCodec.ts')
+  const { CODE_ASSIST_SUBSET_GRAMMAR, codeAssistGrammarFor } = await import('../../src/models/roads/gemini/geminiCodec.ts')
   check('the grammar is chosen by the wire id: a gemini-* id takes Google\'s Schema grammar, any other vendor\'s id the Code Assist subset (type, title, description, enum, items, properties, required, oneOf, default — anyOf is spelled oneOf, the shape the Anthropic side behind Code Assist accepts)', codeAssistGrammarFor('gemini-4-argon') === GEMINI_SCHEMA_GRAMMAR && codeAssistGrammarFor('claude-opus-4-6-thinking') === CODE_ASSIST_SUBSET_GRAMMAR && codeAssistGrammarFor('gpt-oss-120b-medium') === CODE_ASSIST_SUBSET_GRAMMAR && [...CODE_ASSIST_SUBSET_GRAMMAR].join(',') === 'type,title,description,enum,items,properties,required,oneOf,default')
   const captured = { type: 'object', properties: { readiness: { type: 'array', items: { anyOf: [{ type: 'object', properties: { kind: { type: 'string', enum: ['log'] }, regex: { type: 'string' } }, required: ['kind', 'regex'] }, { type: 'object', properties: { kind: { type: 'string', enum: ['tcp'] }, port: { type: 'integer' } }, required: ['kind', 'port'] }] } } } }
   const capturedRefusal = anthropicSchemaRefusal({ request: { tools: [{ functionDeclarations: [{ name: 'Probe', parameters: captured }] }] } })
@@ -699,7 +699,7 @@ try {
     }
   }
   claudeDeclarations.forEach(d => collectKeys(d.parameters))
-  const { ECONOMY_DEFERRED } = await import('../../src/tools/ToolSearchTool/prompt.ts')
+  const { ECONOMY_DEFERRED } = await import('../../src/tools/tool-search/prompt.ts')
   const heldForToolSearch = corpus.definitions.filter(d => !claudeDeclarations.some(sent => sent.name === d.name)).map(d => d.name)
   check(`the real definitions ride to a Claude row (${claudeDeclarations.length} of ${corpus.definitions.length} — the ${ECONOMY_DEFERRED.size} economy-deferred tools wait in the roster ToolSearch carries, so the road's assembly sends ToolSearch) and both gates accept them — the proto grammar and the draft-2020-12 validation behind Code Assist; the answer lands`, claudeCorpusHit?.body?.model === 'claude-opus-4-6-thinking' && claudeDeclarations.length === corpus.definitions.length - ECONOMY_DEFERRED.size && heldForToolSearch.length === ECONOMY_DEFERRED.size && heldForToolSearch.every(name => ECONOMY_DEFERRED.has(name)) && claudeDeclarations.some(sent => sent.name === 'ToolSearch') && anthropicSchemaRefusal(claudeCorpusHit.body) === undefined && claudeCorpusReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage) && !claudeCorpusReplies.some(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ model: claudeCorpusHit?.body?.model, declarations: claudeDeclarations.length, held: heldForToolSearch, refusal: anthropicSchemaRefusal(claudeCorpusHit?.body)?.slice(0, 200), replies: claudeCorpusReplies.map(m => [m.type, (m as { isApiErrorMessage?: boolean }).isApiErrorMessage, String(JSON.stringify((m as { message?: unknown }).message ?? m)).slice(0, 160)]) }))
   check('on the Claude row every declaration stays inside the subset: no anyOf, no minimum/maximum/minItems/maxItems/minLength/maxLength/pattern/format/additionalProperties/nullable/example on the wire; Service\'s readiness rides as items.oneOf', [...claudeKeys].every(key => CODE_ASSIST_SUBSET_GRAMMAR.has(key)) && !claudeKeys.has('anyOf') && Array.isArray((((claudeDeclarations.find(d => d.name === 'Service')?.parameters as Record<string, unknown>)?.properties as Record<string, Record<string, Record<string, unknown>>>)?.readiness?.items as Record<string, unknown>)?.oneOf), [...claudeKeys].filter(key => !CODE_ASSIST_SUBSET_GRAMMAR.has(key)).join(','))

@@ -11,7 +11,7 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 let checks = 0
-const POOL_GATE_FAIL_HINT = 'to fix, change which pool a window claim binds in src/services/anthropicLimits.ts (windowClaimBindsModel, anthropicLimitVerdict) or how the dispatch gate reads it in src/services/providers/providerUsability.ts (resolveProviderUsability, delegationDispatchBlocker)'
+const POOL_GATE_FAIL_HINT = 'to fix, change which pool a window claim binds in src/models/roads/anthropic/anthropicLimits.ts (windowClaimBindsModel, anthropicLimitVerdict) or how the dispatch gate reads it in src/models/roads/providerUsability.ts (resolveProviderUsability, delegationDispatchBlocker)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -21,10 +21,10 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const limits = await import('../../src/services/anthropicLimits.ts')
-const mock = await import('../../src/services/mockRateLimits.ts')
-const usability = await import('../../src/services/providers/providerUsability.ts')
-type Reads = import('../../src/services/providers/providerUsability.ts').ProviderUsabilityReads
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+const mock = await import('../../src/models/roads/anthropic/mockRateLimits.ts')
+const usability = await import('../../src/models/roads/providerUsability.ts')
+type Reads = import('../../src/models/roads/providerUsability.ts').ProviderUsabilityReads
 
 const OWNER = 'anthropic:oauth:primary:00000000-0000-4000-8000-0000000000cc'
 const ACCOUNT = 'cal@example.com'

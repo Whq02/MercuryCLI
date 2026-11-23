@@ -2,28 +2,28 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
-import type { ContextFillView } from '../../src/services/context/contextFill.ts'
+import type { ContextFillView } from '../../src/engine/context-window/contextFill.ts'
 
 assert.ok(process.env.MERCURY_CONFIG_DIR, 'prove-seat-context-receipt requires a scratch MERCURY_CONFIG_DIR; run via bin/proof or set scratch home')
 delete process.env.MERCURY_HOME
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 globalThis.fetch = Object.assign(async () => { throw new Error('Context receipt proof has no network') }, globalThis.fetch)
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const model = 'compat/pod-current/openai/gpt-oss-120b'
 saveGlobalConfig(config => ({ ...config, compatProvider: { 'pod-current': { baseUrl: 'http://127.0.0.1:1/v1', models: ['openai/gpt-oss-120b'] } } }))
-const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
-const { rememberCompatCatalogue } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
+const { configuredCompatEndpoints } = await import('../../src/models/roads/openaicompat/compatAccounts.ts')
+const { rememberCompatCatalogue } = await import('../../src/models/roads/openaicompat/compatCatalogue.ts')
 rememberCompatCatalogue(configuredCompatEndpoints()[0]!, { models: ['openai/gpt-oss-120b'], contextWindows: { 'openai/gpt-oss-120b': 131072 }, dialect: 'vllm' })
-const { contextFillView } = await import('../../src/services/context/contextFill.ts')
-const { calculateTokenWarningState } = await import('../../src/services/compact/autoCompact.ts')
-const { sessionFactsToWire, sessionFactsFromWire } = await import('../../src/services/engine-connector/seatWire.ts')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
+const { contextFillView } = await import('../../src/engine/context-window/contextFill.ts')
+const { calculateTokenWarningState } = await import('../../src/engine/compaction/autoFold.ts')
+const { sessionFactsToWire, sessionFactsFromWire } = await import('../../src/engine/connector/seatWire.ts')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
 const React = await import('react')
-const { Text } = await import('../../src/ink.ts')
-const hooks = await import('../../src/hooks/useDisplayedSessionModel.ts') as Record<string, unknown>
+const { Text } = await import('../../src/screen/themedRenderer.ts')
+const hooks = await import('../../src/screen/model-picker/useDisplayedSessionModel.ts') as Record<string, unknown>
 const message = { type: 'assistant', uuid: 'response', message: { id: 'response', role: 'assistant', model, content: [{ type: 'text', text: 'x'.repeat(400000) }], usage: { input_tokens: 70038, output_tokens: 581, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }, stop_reason: 'end_turn' } }
 const fill = contextFillView([message] as never, model)
 const context = { model, ...fill }

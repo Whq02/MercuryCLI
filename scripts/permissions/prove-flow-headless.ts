@@ -8,13 +8,13 @@ const original = process.cwd()
 const world = realpathSync(mkdtempSync(join(tmpdir(), 'flow-headless-')))
 process.env.MERCURY_CONFIG_DIR = join(world, 'home')
 process.chdir(world)
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
-const { createRuleOnlyAsks } = await import('../../src/cli/headless/runnerAsks.ts')
-const { HEADLESS_PERMISSION_MODES } = await import('../../src/daemon/headlessRun.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
+const { createRuleOnlyAsks } = await import('../../src/daemon/runner/runnerAsks.ts')
+const { HEADLESS_PERMISSION_MODES } = await import('../../src/daemon/runner-link/headlessRun.ts')
 let failures = 0
-const flowHeadlessHint = 'change the Flow decision in src/utils/permissions/flowPolicy.ts (decideUnderFlow, reached through decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts), or the headless host in src/cli/headless/runnerAsks.ts (createRuleOnlyAsks) and the mode list HEADLESS_PERMISSION_MODES in src/daemon/headlessRun.ts, so this command gets the verdict the label states'
+const flowHeadlessHint = 'change the Flow decision in src/permissions/rules/flowPolicy.ts (decideUnderFlow, reached through decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts), or the headless host in src/daemon/runner/runnerAsks.ts (createRuleOnlyAsks) and the mode list HEADLESS_PERMISSION_MODES in src/daemon/runner-link/headlessRun.ts, so this command gets the verdict the label states'
 function check(label: string, ok: boolean, detail = '') {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + (detail ? detail + ' — ' : '') + flowHeadlessHint}`)
   if (!ok) failures++

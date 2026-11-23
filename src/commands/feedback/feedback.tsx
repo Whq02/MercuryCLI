@@ -1,10 +1,10 @@
 import * as React from 'react'
-import { Feedback } from '../../components/Feedback.js'
-import type { Message } from '../../types/message.js'
+import { Feedback } from './BugReport.js'
+import type { Message } from '../../engine/message-shapes/message.js'
 import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
-} from '../../types/command.js'
+} from '../catalogue/command.js'
 import type { IssueKind } from './issueForms.js'
 
 export type FeedbackBackgroundTasks = {

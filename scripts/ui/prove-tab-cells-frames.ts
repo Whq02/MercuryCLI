@@ -11,23 +11,23 @@ process.env.FORCE_COLOR = '3'
 process.env.MERCURY_FULLSCREEN = '1'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0', ISSUES_EXPLAINER: '', PACKAGE_URL: '', README_URL: '', IS_DEV: false, MERCURY_DEMO: false }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 
-const { render, Box, Text, RawAnsi, flushPendingSyncWork } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { useTheme } = await import('../../src/components/design-system/ThemeProvider.js')
-const { HighlightedCode } = await import('../../src/components/HighlightedCode.js')
-const { PermissionDialog } = await import('../../src/components/permissions/PermissionDialog.js')
-const { PermissionPrompt } = await import('../../src/components/permissions/PermissionPrompt.js')
-const { ConsentFileEditDiff } = await import('../../src/components/permissions/ConsentFileEditDiff.js')
-const { consentBodyBudget, consentContentWidth, diffPaintWidth } = await import('../../src/components/permissions/consentBodyBudget.js')
-const { expectColorFile } = await import('../../src/components/StructuredDiff/colorDiff.js')
-const { stringWidth } = await import('../../src/ink/stringWidth.js')
-const { expandTabs } = await import('../../src/ink/tabstops.js')
-const { railPlanAt, HELM_BOTH_RAILS_MIN } = await import('../../src/utils/helmGeometry.js')
+const { render, Box, Text, RawAnsi, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { useTheme } = await import('../../src/screen/theme/ThemeProvider.js')
+const { HighlightedCode } = await import('../../src/screen/highlighted-code/HighlightedCode.js')
+const { PermissionDialog } = await import('../../src/permissions/cards/PermissionDialog.js')
+const { PermissionPrompt } = await import('../../src/permissions/cards/PermissionPrompt.js')
+const { ConsentFileEditDiff } = await import('../../src/permissions/cards/ConsentFileEditDiff.js')
+const { consentBodyBudget, consentContentWidth, diffPaintWidth } = await import('../../src/permissions/cards/consentBodyBudget.js')
+const { expectColorFile } = await import('../../src/screen/structured-diff/colorDiff.js')
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.js')
+const { expandTabs } = await import('../../src/screen/renderer/tabstops.js')
+const { railPlanAt, HELM_BOTH_RAILS_MIN } = await import('../../src/screen/fullscreen-layout/helmGeometry.js')
 
 let failures = 0
 let checks = 0
@@ -41,9 +41,9 @@ const arg = (name: string): string | undefined => {
   return index < 0 ? undefined : process.argv[index + 1]
 }
 const squash = (text: string): string => text.replace(/\s+/g, '')
-const boxHint = 'the label names the surface that paints the box: fix src/components/StructuredDiff/colorDiff.ts for the file road, src/components/HighlightedCode.tsx for the text view, src/components/permissions/ConsentFileEditDiff.tsx for the consent card'
-const tabHint = 'wrapping or tab expansion lost characters: check expandTabs in src/ink/tabstops.ts and the surface the label names (src/components/StructuredDiff/colorDiff.ts for the file road, src/components/HighlightedCode.tsx for the text view)'
-const cardHint = 'change ConsentFileEditDiff in src/components/permissions/ConsentFileEditDiff.tsx, or consentBodyBudget and diffPaintWidth in src/components/permissions/consentBodyBudget.ts'
+const boxHint = 'the label names the surface that paints the box: fix src/screen/structured-diff/colorDiff.ts for the file road, src/screen/highlighted-code/HighlightedCode.tsx for the text view, src/permissions/cards/ConsentFileEditDiff.tsx for the consent card'
+const tabHint = 'wrapping or tab expansion lost characters: check expandTabs in src/screen/renderer/tabstops.ts and the surface the label names (src/screen/structured-diff/colorDiff.ts for the file road, src/screen/highlighted-code/HighlightedCode.tsx for the text view)'
+const cardHint = 'change ConsentFileEditDiff in src/permissions/cards/ConsentFileEditDiff.tsx, or consentBodyBudget and diffPaintWidth in src/permissions/cards/consentBodyBudget.ts'
 const frameDir = arg('--frames')
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 const file = (name: string, plain: string[], raw?: string[]): void => {
@@ -181,7 +181,7 @@ for (const [columns, rows] of [[178, 51], [220, 51]] as const) {
     const budget = consentBodyBudget(rows)
     const paintWidth = diffPaintWidth(consentContentWidth(columns) - 4, [{ oldStart: 1, oldLines: names.length + 1, newStart: 1, newLines: names.length + 1, lines: [] }])
     const straddling = [...held, ...folded].filter(line => stringWidth(line) <= paintWidth && stringWidth(expandTabs(line)) > paintWidth).length
-    check(`${label}: the fixture straddles the wrap at the card's paint width (${paintWidth}): changed rows measured within it raw and beyond it expanded`, straddling >= 12, `${straddling} straddling rows. change the fixture rows in this file, or diffPaintWidth in src/components/permissions/consentBodyBudget.ts if its width moved`)
+    check(`${label}: the fixture straddles the wrap at the card's paint width (${paintWidth}): changed rows measured within it raw and beyond it expanded`, straddling >= 12, `${straddling} straddling rows. change the fixture rows in this file, or diffPaintWidth in src/permissions/cards/consentBodyBudget.ts if its width moved`)
     let plain: string[] = []
     let raw: string[] = []
     try {

@@ -87,14 +87,14 @@ const unstated = await engine('unstated', 'unstated')
 const engines = [refuses, honours, unstated]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = engines.map(one => `tensorfold=${one.root}`).join(',')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { pickAndProve } = await import('../../src/services/localSetup/setupProve.ts')
-const { effortStampLine } = await import('../../src/utils/effortStamp.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { localLaneProfileFor } = await import('../../src/models/roads/local/localCallModel.ts')
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { pickAndProve } = await import('../../src/models/local-setup/setupProve.ts')
+const { effortStampLine } = await import('../../src/models/effort/effortStamp.ts')
 type Record_ = NonNullable<ReturnType<typeof localRecordFor>>
 
 await refreshLocalDiscovery({ force: true })
@@ -134,14 +134,14 @@ async function verify(one: Engine): Promise<{ ok: boolean; words: string; body: 
 
 const withoutModel = (body: Record<string, unknown> | undefined): string => JSON.stringify({ ...body, model: 'm' })
 
-section("§1 /v1/models as 1.2.5 writes it: the engine's own statement of its thinking switch rides the record; 1.2.2 states none", 'fix the capabilities.thinking_switch read in src/services/providers/local/localDiscovery.ts (the thinkingSwitch field of the local record)')
+section("§1 /v1/models as 1.2.5 writes it: the engine's own statement of its thinking switch rides the record; 1.2.2 states none", 'fix the capabilities.thinking_switch read in src/models/roads/local/localDiscovery.ts (the thinkingSwitch field of the local record)')
 {
   check('a model whose template cannot honour thinking off (capabilities.thinking_switch false, thinking_applicable true) is read as such', recordOf(refuses)?.server === 'tensorfold' && recordOf(refuses)?.thinkingDeclared === true && recordOf(refuses)?.thinkingSwitch === false, JSON.stringify(recordOf(refuses)))
   check('a model whose template has the switch is read as such', recordOf(honours)?.thinkingDeclared === true && recordOf(honours)?.thinkingSwitch === true, JSON.stringify(recordOf(honours)))
   check('an engine that states no capabilities (1.2.2) leaves the field absent', recordOf(unstated)?.thinkingDeclared === true && recordOf(unstated) !== undefined && !('thinkingSwitch' in recordOf(unstated)!), JSON.stringify(recordOf(unstated)))
 }
 
-section('§2 a turn with thinking off: the off word rides only where the engine has not ruled it out', 'fix the request extras built from record.thinkingSwitch in src/services/providers/local/localCallModel.ts (buildLocalExtras, tensorFoldRefusesEffort), or the wire body in src/services/providers/openaicompat/compatWire.ts')
+section('§2 a turn with thinking off: the off word rides only where the engine has not ruled it out', 'fix the request extras built from record.thinkingSwitch in src/models/roads/local/localCallModel.ts (buildLocalExtras, tensorFoldRefusesEffort), or the wire body in src/models/roads/openaicompat/compatWire.ts')
 {
   const refused = await turn(refuses, false, 'high')
   check('no switch: the body carries no reasoning_effort and no thinking budget, and the reply arrives (1.2.5 answers the off word with HTTP 400)', refused.body !== undefined && !('reasoning_effort' in refused.body) && !('thinking_budget' in refused.body) && !('chat_template_kwargs' in refused.body) && refused.said === 'ready' && refused.error === '', JSON.stringify({ body: refused.body, said: refused.said, error: refused.error }))
@@ -159,7 +159,7 @@ section('§2 a turn with thinking off: the off word rides only where the engine 
   check('an engine that states nothing: the dial at low sends none, as with the switch', legacyLow.body?.reasoning_effort === 'none' && withoutModel(legacyLow.body) === withoutModel(honouredLow.body), JSON.stringify(legacyLow.body))
 }
 
-section("§3 the serve road's verify step (a short reply with thinking off) passes on all three", 'fix proveRequestOf and pickAndProve in src/services/localSetup/setupProve.ts (the off fields must ride only when record.thinkingSwitch is not false)')
+section("§3 the serve road's verify step (a short reply with thinking off) passes on all three", 'fix proveRequestOf and pickAndProve in src/models/local-setup/setupProve.ts (the off fields must ride only when record.thinkingSwitch is not false)')
 {
   const refused = await verify(refuses)
   check('no switch: the verify request carries neither off field and the reply proves the server', refused.ok && refused.words.startsWith('ready · local/no-switch · 32k window (served) · reply in ') && refused.body !== undefined && !('reasoning_effort' in refused.body) && !('chat_template_kwargs' in refused.body), JSON.stringify(refused))

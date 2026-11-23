@@ -19,7 +19,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const SRC = join(ROOT, 'src')
 for (const key of ['MERCURY_SPAWNED_BY', 'MERCURY_WARDS', 'MERCURY_SKIP_PERMISSIONS']) delete process.env[key]
 
-const { AUTONOMOUS_WARDS, REFUSAL_WARDS, evaluateWards } = await import(join(SRC, 'utils/wards/wards.ts'))
+const { AUTONOMOUS_WARDS, REFUSAL_WARDS, evaluateWards } = await import(join(SRC, 'permissions/wards/wards.ts'))
 const { judgeGrowth } = await import(join(ROOT, 'scripts/lib/linearGrowth.ts'))
 type Work = Partial<Record<'characters' | 'steps' | 'regexEvaluations', number>>
 
@@ -39,37 +39,37 @@ section('§1 a line of n delete verbs with nothing to delete: each verb is walke
 {
   const sizes = [1_000, 2_000, 4_000, 8_000]
   const read = sizes.map(size => ({ size, ...reading(`${words(size)}; ls`) }))
-  check('none of the lines is refused', read.every(row => !row.refused), 'a delete ward in src/utils/wards/wards.ts (no-root-recursive-delete, no-home-recursive-delete) refused a line with nothing to delete')
+  check('none of the lines is refused', read.every(row => !row.refused), 'a delete ward in src/permissions/wards/wards.ts (no-root-recursive-delete, no-home-recursive-delete) refused a line with nothing to delete')
   const grown = read.slice(1).map((row, at) => row.work.steps - read[at]!.work.steps)
   const perVerb = grown[0]! / (sizes[1]! - sizes[0]!)
-  check('the walk counts every verb: the steps grow with the verbs', perVerb >= 1 && Number.isInteger(perVerb), `steps ${read.map(row => row.work.steps).join(', ')}; evaluateWards in src/utils/wards/wards.ts must count one step per verb it walks`)
-  check('they grow by the same count a verb at every size', grown.every((growth, at) => growth === perVerb * (sizes[at + 1]! - sizes[at]!)), `growth ${grown.join(', ')} for ${perVerb} a verb; the delete wards in src/utils/wards/wards.ts must walk each verb once`)
-  check('the pattern is tried the same number of times whatever the count of verbs', read.every(row => row.work.regexEvaluations === read[0]!.work.regexEvaluations), `${read.map(row => row.work.regexEvaluations).join(', ')}; the delete wards in src/utils/wards/wards.ts must try the pattern once a segment, not once a verb`)
+  check('the walk counts every verb: the steps grow with the verbs', perVerb >= 1 && Number.isInteger(perVerb), `steps ${read.map(row => row.work.steps).join(', ')}; evaluateWards in src/permissions/wards/wards.ts must count one step per verb it walks`)
+  check('they grow by the same count a verb at every size', grown.every((growth, at) => growth === perVerb * (sizes[at + 1]! - sizes[at]!)), `growth ${grown.join(', ')} for ${perVerb} a verb; the delete wards in src/permissions/wards/wards.ts must walk each verb once`)
+  check('the pattern is tried the same number of times whatever the count of verbs', read.every(row => row.work.regexEvaluations === read[0]!.work.regexEvaluations), `${read.map(row => row.work.regexEvaluations).join(', ')}; the delete wards in src/permissions/wards/wards.ts must try the pattern once a segment, not once a verb`)
   const characters = judgeGrowth(read.map(row => ({ size: row.size, ms: row.work.characters })), { slackMs: 0 })
-  check('the characters read grow no faster than the line', characters.linear, `${characters.summary}; the delete wards in src/utils/wards/wards.ts must read each character once`)
+  check('the characters read grow no faster than the line', characters.linear, `${characters.summary}; the delete wards in src/permissions/wards/wards.ts must read each character once`)
   const steps = judgeGrowth(read.map(row => ({ size: row.size, ms: row.work.steps })), { slackMs: 0 })
-  check('the steps grow no faster than the line', steps.linear, `${steps.summary}; the delete wards in src/utils/wards/wards.ts must walk the verbs once, not rescan from each`)
+  check('the steps grow no faster than the line', steps.linear, `${steps.summary}; the delete wards in src/permissions/wards/wards.ts must walk the verbs once, not rescan from each`)
 }
 
 section('§2 the same verbs in n segments: one try a segment')
 {
   const sizes = [500, 1_000, 2_000]
   const read = sizes.map(size => ({ size, ...reading(`${'rm x; '.repeat(size)}ls`) }))
-  check('none is refused', read.every(row => !row.refused), 'a delete ward in src/utils/wards/wards.ts refused a line of harmless deletes')
+  check('none is refused', read.every(row => !row.refused), 'a delete ward in src/permissions/wards/wards.ts refused a line of harmless deletes')
   const tries = judgeGrowth(read.map(row => ({ size: row.size, ms: row.work.regexEvaluations })), { slackMs: 0 })
-  check('the tries grow with the segments and no faster', tries.linear && read[2]!.work.regexEvaluations > read[0]!.work.regexEvaluations, `${tries.summary}; evaluateWards in src/utils/wards/wards.ts must try the pattern once a segment`)
+  check('the tries grow with the segments and no faster', tries.linear && read[2]!.work.regexEvaluations > read[0]!.work.regexEvaluations, `${tries.summary}; evaluateWards in src/permissions/wards/wards.ts must try the pattern once a segment`)
 }
 
 section('§3 what the wards refuse stays refused at every size')
 {
   for (const size of [1, 1_000, 50_000]) {
-    check(`${size} verbs, then a delete of the home in its own segment`, reading(`${words(size)}; rm -rf ~`).refused, 'the delete wards (src/utils/wards/wards.ts, src/utils/wards/wardsRefusals.ts) must still refuse a delete of the home however many verbs come before it')
-    check(`${size} verbs in the segment that ends in the home: the first verb decides`, reading(`rm${' rm'.repeat(size)} -rf ~`).refused, 'the delete wards (src/utils/wards/wards.ts, src/utils/wards/wardsRefusals.ts) must refuse when the first verb of the segment decides it')
-    check(`${size} verbs, then a delete of the root after a pipe`, reading(`${words(size)} | rm -rf /`).refused, 'the delete wards (src/utils/wards/wards.ts, src/utils/wards/wardsRefusals.ts) must still refuse a delete of the root after a pipe')
-    check(`${size} verbs and a delete inside a scratch folder stays clear`, !reading(`${words(size)}; rm -rf /tmp/x`).refused, 'the delete wards (src/utils/wards/wards.ts, src/utils/wards/wardsRefusals.ts) must not refuse a delete inside a scratch folder')
+    check(`${size} verbs, then a delete of the home in its own segment`, reading(`${words(size)}; rm -rf ~`).refused, 'the delete wards (src/permissions/wards/wards.ts, src/permissions/wards/wardsRefusals.ts) must still refuse a delete of the home however many verbs come before it')
+    check(`${size} verbs in the segment that ends in the home: the first verb decides`, reading(`rm${' rm'.repeat(size)} -rf ~`).refused, 'the delete wards (src/permissions/wards/wards.ts, src/permissions/wards/wardsRefusals.ts) must refuse when the first verb of the segment decides it')
+    check(`${size} verbs, then a delete of the root after a pipe`, reading(`${words(size)} | rm -rf /`).refused, 'the delete wards (src/permissions/wards/wards.ts, src/permissions/wards/wardsRefusals.ts) must still refuse a delete of the root after a pipe')
+    check(`${size} verbs and a delete inside a scratch folder stays clear`, !reading(`${words(size)}; rm -rf /tmp/x`).refused, 'the delete wards (src/permissions/wards/wards.ts, src/permissions/wards/wardsRefusals.ts) must not refuse a delete inside a scratch folder')
   }
-  check('a delete verb later in a segment whose first verb has no target still decides nothing wrong: a flag and a root behind the first verb refuse', reading('rm a b c; echo rm -rf ~').refused, 'the delete wards (src/utils/wards/wards.ts, src/utils/wards/wardsRefusals.ts) must refuse a recursive delete of the home in a later segment')
-  check('a segment whose only root stands before its verbs is clear, as before', !reading('ls ~ rm rm rm').refused, 'the delete wards (src/utils/wards/wards.ts, src/utils/wards/wardsRefusals.ts) must not treat a home path before the verbs as the target of a delete')
+  check('a delete verb later in a segment whose first verb has no target still decides nothing wrong: a flag and a root behind the first verb refuse', reading('rm a b c; echo rm -rf ~').refused, 'the delete wards (src/permissions/wards/wards.ts, src/permissions/wards/wardsRefusals.ts) must refuse a recursive delete of the home in a later segment')
+  check('a segment whose only root stands before its verbs is clear, as before', !reading('ls ~ rm rm rm').refused, 'the delete wards (src/permissions/wards/wards.ts, src/permissions/wards/wardsRefusals.ts) must not treat a home path before the verbs as the target of a delete')
 }
 
 console.log('\n' + '='.repeat(60))

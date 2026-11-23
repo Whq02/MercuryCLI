@@ -17,9 +17,9 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { carryRunnerAcrossRestart } = await import('../../src/cli/headless/restartCarry.ts')
-const lr = await import('../../src/tasks/LocalAgentTask/launchReceipts.ts')
-const queue = await import('../../src/input-core/command-queue.ts')
+const { carryRunnerAcrossRestart } = await import('../../src/daemon/runner/restartCarry.ts')
+const lr = await import('../../src/engine/tasks/local-agent/launchReceipts.ts')
+const queue = await import('../../src/screen/composer/input-core/command-queue.ts')
 
 type Msg = Record<string, unknown>
 type Launch = { toolUseId: string; agentId: string; description: string }

@@ -2,17 +2,17 @@ import { execSync, spawn } from 'node:child_process'
 import { writeFileSync, mkdirSync, mkdtempSync, existsSync, readFileSync, readdirSync, rmdirSync, rmSync, utimesSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { REJECT_MESSAGE } from '../../src/utils/messages/rejectionText.ts'
-import { HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
+import { REJECT_MESSAGE } from '../../src/engine/message-shapes/rejectionText.ts'
+import { HELM_HOME_MIN_COLS } from '../../src/screen/fullscreen-layout/helmGeometry.ts'
 import {
   STREAM_FAULT_RECOVERY_NUDGE,
   streamFaultAfterPartialText,
   streamFaultNoticeLine,
-} from '../../src/services/api/errors.ts'
-import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
-import { entryToRecord } from '../../src/fabric/entryCodec.ts'
-import { ordinalOf } from '../../src/fabric/ordinal.ts'
-import { saveBootDefaultsProfile } from '../../src/substrate/startupMenu.ts'
+} from '../../src/engine/requests/apiErrorRows.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
+import { entryToRecord } from '../../src/sessions/fabric/entryCodec.ts'
+import { ordinalOf } from '../../src/sessions/fabric/ordinal.ts'
+import { saveBootDefaultsProfile } from '../../src/platform/substrate/startupMenu.ts'
 import { referenceFixtureSnapshot } from '../notifications/concourseReferenceSeed.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
@@ -308,7 +308,7 @@ const TOOL_USE_GLOB = {
 }
 const TOOL_RESULT_GLOB = {
   content: [{ type: 'tool_result', tool_use_id: 'toolu_glob1', content: [{ type: 'text', text: 'GlobTool.ts\nprompt.ts' }] }],
-  toolUseResult: { durationMs: 12, numFiles: 2, filenames: ['src/tools/GlobTool/GlobTool.ts', 'src/tools/GlobTool/prompt.ts'], truncated: false },
+  toolUseResult: { durationMs: 12, numFiles: 2, filenames: ['src/tools/glob/GlobTool.ts', 'src/tools/glob/prompt.ts'], truncated: false },
 }
 
 const TOOL_USE_EDIT_ERR = {

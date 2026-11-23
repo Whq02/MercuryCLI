@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/BashTool/readOnlyValidation.ts src/utils/shell/readOnlyCommandValidation.ts src/tools/BashTool/bashPermissions.ts
+// gate-watch: src/tools/shell/readOnlyValidation.ts src/permissions/rules/shell-commands/readOnlyCommandValidation.ts src/tools/shell/bashPermissions.ts
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -24,14 +24,14 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { checkReadOnlyConstraints, cutPart, describeBashNotReadOnly, notReadOnlyClause } = await import('../../src/tools/BashTool/readOnlyValidation.js')
+const { checkReadOnlyConstraints, cutPart, describeBashNotReadOnly, notReadOnlyClause } = await import('../../src/tools/shell/readOnlyValidation.js')
 
 type Fixture = { verdicts: string[]; rows: Array<[string, number, number, number, number]> }
 const SAME = -1
 const OWN_TEXT = '"\u0001"'
 
 let failures = 0
-const corpusHint = 'a moved reading means checkReadOnlyConstraints or describeBashNotReadOnly in src/tools/BashTool/readOnlyValidation.ts changed; fix it, or if the change is intended re-record scripts/permissions/fixtures/readonly-corpus.json with --record <corpus.json> (a missing corpus is recorded the same way)'
+const corpusHint = 'a moved reading means checkReadOnlyConstraints or describeBashNotReadOnly in src/tools/shell/readOnlyValidation.ts changed; fix it, or if the change is intended re-record scripts/permissions/fixtures/readonly-corpus.json with --record <corpus.json> (a missing corpus is recorded the same way)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${corpusHint}` : ''}`)

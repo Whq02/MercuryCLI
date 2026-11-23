@@ -15,21 +15,21 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}${ok ? '' : ' — to fix: the row component in src/components/messages/UserLocalCommandOutputMessage.tsx (stream parsing, cloud-launch lead, no-content line); the fold line comes from earlierReleasesLine in src/utils/releaseNotes.ts'}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}${ok ? '' : ' — to fix: the row component in src/screen/messages/UserLocalCommandOutputMessage.tsx (stream parsing, cloud-launch lead, no-content line); the fold line comes from earlierReleasesLine in src/boot/releaseNotes.ts'}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { UserLocalCommandOutputMessage } = await import('../../src/components/messages/UserLocalCommandOutputMessage.js')
-const { earlierReleasesLine } = await import('../../src/utils/releaseNotes.js')
-const { ctrlOToExpand } = await import('../../src/utils/ctrlOToExpand.js')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { UserLocalCommandOutputMessage } = await import('../../src/screen/messages/UserLocalCommandOutputMessage.js')
+const { earlierReleasesLine } = await import('../../src/boot/releaseNotes.js')
+const { ctrlOToExpand } = await import('../../src/screen/messages/ctrlOToExpandHint.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 
 const settle = async (): Promise<void> => {
   for (let index = 0; index < 6; index++) {

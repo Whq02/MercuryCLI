@@ -2,13 +2,13 @@ import { writeFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, ownerOf, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
-import type { DesktopDriver } from '../../src/services/desktop/driver.ts'
+import type { DesktopDriver } from '../../src/integrations/desktop/driver.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const session = await import('../../src/services/desktop/desktopSession.ts')
-const claim = await import('../../src/services/desktop/desktopClaim.ts')
-const { acquirePidLock, releasePidLock } = await import('../../src/substrate/pidLock.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const session = await import('../../src/integrations/desktop/desktopSession.ts')
+const claim = await import('../../src/integrations/desktop/desktopClaim.ts')
+const { acquirePidLock, releasePidLock } = await import('../../src/platform/substrate/pidLock.ts')
 const scratch = scratchDir('fast-road')
 const app = { identity: 'com.example.Editor', name: 'Editor', pid: 123, windowId: 'editor', title: 'Document', bounds: { x: 0, y: 0, width: 400, height: 300 } }
 const scene = join(scratch, 'scene.json')
@@ -72,7 +72,7 @@ section('stable settle ends at a product mark and keeps only the final image')
 const originalCapture = driver.capture.bind(driver)
 const stableFrame = await originalCapture(0, context.abortController.signal)
 if (!stableFrame.ok) throw new Error(stableFrame.error.note)
-const { FakeDesktopDriver, FAKE_SCENE_DEFAULT } = await import('../../src/services/desktop/fakeDesktopDriver.ts')
+const { FakeDesktopDriver, FAKE_SCENE_DEFAULT } = await import('../../src/integrations/desktop/fakeDesktopDriver.ts')
 const displayList = await driver.displays()
 if (!displayList.ok) throw new Error(displayList.error.note)
 const animatedDriver = new FakeDesktopDriver({ ...FAKE_SCENE_DEFAULT, displays: displayList.value.displays, lines: ['A different frame'], noise: true }, null)
@@ -127,8 +127,8 @@ driver.accessibilityTree = originalTree
 
 section('a url wait reads the address the browser shows, with or without its scheme, and the state line agrees')
 {
-  const { waitConditionPassed } = await import('../../src/tools/ComputerTool/waitCondition.ts')
-  const { shownAddress, treeObservation } = await import('../../src/tools/ComputerTool/fastRoad.ts')
+  const { waitConditionPassed } = await import('../../src/tools/computer/waitCondition.ts')
+  const { shownAddress, treeObservation } = await import('../../src/tools/computer/fastRoad.ts')
   const chrome = { identity: 'com.google.Chrome', name: 'Google Chrome', pid: 9, title: 'Slider - Google Chrome', bounds: { x: 0, y: 0, width: 900, height: 600 } }
   const omnibox = (value: string) => ({ elements: [{ depth: 1, role: 'AXTextField', title: 'Address and search bar', value, frame: { x: 10, y: 10, width: 500, height: 24 } }], truncated: false, reason: null })
   const shown = (value: string, url: string) => waitConditionPassed({ url }, chrome as never, omnibox(value) as never)
@@ -294,7 +294,7 @@ check('wait-until refuses a window change during the read', movedWait.outcome ==
 driver.accessibilityTree = originalTree
 driver.frontmostApplication = originalFront
 
-const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
+const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.ts')
 context = toolContext()
 context.getAppState().toolPermissionContext.mode = 'sovereign'
 context.getAppState().toolPermissionContext.isBypassPermissionsModeAvailable = true

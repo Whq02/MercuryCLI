@@ -50,15 +50,15 @@ Object.assign(process.env, {
 })
 process.chdir(work)
 
-const { __setBurstCrHostForTest } = await import('../../src/ink/input/input-decoder.ts')
+const { __setBurstCrHostForTest } = await import('../../src/screen/renderer/input/input-decoder.ts')
 const React = await import('react')
-const { App } = await import('../../src/components/App.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.js')
-const { Chat } = await import('../../src/screens/Chat.js')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.js')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.js')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.js')
+const { App } = await import('../../src/boot/App.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.js')
+const { Chat } = await import('../../src/screen/chat/Chat.js')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.js')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.js')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 saveCurrentProjectConfig(cfg => ({
   ...cfg,
@@ -71,12 +71,12 @@ saveGlobalConfig(cfg => ({
   hasCompletedOnboarding: true,
   theme: 'dark',
 }))
-const pending = await import('../../src/input-core/pending-input.js')
-const slot = await import('../../src/services/engine-connector/focusedConnector.js')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const { getCommands } = await import('../../src/commands.js')
-const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.js')
-const { expandPastedTextRefs } = await import('../../src/history.js')
+const pending = await import('../../src/screen/composer/input-core/pending-input.js')
+const slot = await import('../../src/engine/connector/focusedConnector.js')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+const { getCommands } = await import('../../src/commands/catalogue/commands.js')
+const { markDaemonHaltStanddown } = await import('../../src/daemon/control/daemonStanddown.js')
+const { expandPastedTextRefs } = await import('../../src/sessions/promptHistory.js')
 markDaemonHaltStanddown()
 const commands = await getCommands(work)
 
@@ -99,7 +99,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
   if (!ok || !label.startsWith('  split ')) {
-    console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}paste and typing must reach the composer in order: see the paste and burst handling in src/ink/input/input-decoder.ts and expandPastedTextRefs in src/history.ts` : ''}`)
+    console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}paste and typing must reach the composer in order: see the paste and burst handling in src/screen/renderer/input/input-decoder.ts and expandPastedTextRefs in src/sessions/promptHistory.ts` : ''}`)
   }
 }
 

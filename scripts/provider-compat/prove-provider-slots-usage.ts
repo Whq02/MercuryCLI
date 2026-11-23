@@ -14,29 +14,29 @@ delete process.env.DEEPSEEK_API_KEY
 delete process.env.MERCURY_COMPAT_API_KEY
 delete process.env.MERCURY_COMPAT_BASE_URL
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 const { deriveFamilySlotGroups, executeSlotRemoval } = await import(
-  '../../src/services/providers/accountSlots.ts'
+  '../../src/models/roads/accountSlots.ts'
 )
-const { activeSourceUsage } = await import('../../src/services/providers/providerUsage.ts')
+const { activeSourceUsage } = await import('../../src/models/roads/providerUsage.ts')
 const { decodeDeepseekBalance } = await import(
-  '../../src/services/providers/deepseek/deepseekUsageState.ts'
+  '../../src/models/roads/deepseek/deepseekUsageState.ts'
 )
 const { decodeMoonshotBalance, moonshotBalanceUrl } = await import(
-  '../../src/services/providers/moonshot/moonshotUsageState.ts'
+  '../../src/models/roads/moonshot/moonshotUsageState.ts'
 )
 const { moonshotLaneProfile } = await import(
-  '../../src/services/providers/moonshot/moonshotCallModel.ts'
+  '../../src/models/roads/moonshot/moonshotCallModel.ts'
 )
 const { deepseekLaneProfile } = await import(
-  '../../src/services/providers/deepseek/deepseekCallModel.ts'
+  '../../src/models/roads/deepseek/deepseekCallModel.ts'
 )
 const { compatSlotLaneProfile } = await import(
-  '../../src/services/providers/openaicompat/compatCallModel.ts'
+  '../../src/models/roads/openaicompat/compatCallModel.ts'
 )
-const { usageSectionPlan } = await import('../../src/components/Settings/Usage.tsx')
+const { usageSectionPlan } = await import('../../src/screen/settings/Usage.tsx')
 
 let failures = 0
 let failHint = ''
@@ -73,7 +73,7 @@ const providers = [
 
 section('1 · /accounts slots for the key-lane families')
 {
-  failHint = 'fix deriveFamilySlotGroups in src/services/providers/accountSlots.ts (slot ids, active/shadowed state, masked identity) or executeSlotRemoval in src/services/providers/accountSlots/removal.ts'
+  failHint = 'fix deriveFamilySlotGroups in src/models/roads/accountSlots.ts (slot ids, active/shadowed state, masked identity) or executeSlotRemoval in src/models/roads/account-slots/removal.ts'
   const groups = deriveFamilySlotGroups(providers, {
     moonshotEnvKey: () => 'sk-moon-env-0123456789',
     moonshotStoredKey: () => 'sk-moon-stored-987654321',
@@ -157,7 +157,7 @@ section('1 · /accounts slots for the key-lane families')
 
 section('2 · active-source usage shapes for the new lanes')
 {
-  failHint = 'fix activeSourceUsage in src/services/providers/providerUsage.ts (shape, source kind, windows or balance for this lane)'
+  failHint = 'fix activeSourceUsage in src/models/roads/providerUsage.ts (shape, source kind, windows or balance for this lane)'
   const spend = () => ({ inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 })
   const moonshot = activeSourceUsage({
     model: 'kimi-k3',
@@ -258,7 +258,7 @@ section('2 · active-source usage shapes for the new lanes')
 
 section('3 · the documented balance decode')
 {
-  failHint = 'fix decodeDeepseekBalance in src/services/providers/deepseek/deepseekUsageState.ts, or decodeMoonshotBalance and moonshotBalanceUrl in src/services/providers/moonshot/moonshotUsageState.ts'
+  failHint = 'fix decodeDeepseekBalance in src/models/roads/deepseek/deepseekUsageState.ts, or decodeMoonshotBalance and moonshotBalanceUrl in src/models/roads/moonshot/moonshotUsageState.ts'
   const decoded = decodeDeepseekBalance(
     {
       is_available: true,
@@ -315,7 +315,7 @@ section('3 · the documented balance decode')
 
 section('4 · /usage sections per family')
 {
-  failHint = 'fix usageSectionPlan in src/components/Settings/usage/plan.ts (section title or connect route for the family)'
+  failHint = 'fix usageSectionPlan in src/screen/settings/usage/plan.ts (section title or connect route for the family)'
   const plan = usageSectionPlan([
     { id: 'moonshot', available: true, credentialed: false },
     { id: 'deepseek', available: true, credentialed: true, credentialLabel: 'DeepSeek API key (stored, auth-scoped)' },
@@ -336,7 +336,7 @@ section('4 · /usage sections per family')
 
 section('5 · reasoning-history contracts (documented per model, wired per lane)')
 {
-  failHint = 'fix keepsReasoningHistory in the lane profile: src/services/providers/moonshot/moonshotCallModel.ts, deepseek/deepseekCallModel.ts or openaicompat/compatCallModel.ts under src/services/providers'
+  failHint = 'fix keepsReasoningHistory in the lane profile: src/models/roads/moonshot/moonshotCallModel.ts, deepseek/deepseekCallModel.ts or openaicompat/compatCallModel.ts under src/models/roads'
   check('kimi-k3 returns reasoning history', moonshotLaneProfile.keepsReasoningHistory?.('kimi-k3') === true)
   check('kimi-k2.7-code returns reasoning history (doc-mandatory)', moonshotLaneProfile.keepsReasoningHistory?.('kimi-k2.7-code') === true)
   check('kimi-k2.7-code-highspeed matches its base model', moonshotLaneProfile.keepsReasoningHistory?.('kimi-k2.7-code-highspeed') === true)

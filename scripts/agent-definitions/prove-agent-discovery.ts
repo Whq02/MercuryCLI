@@ -8,11 +8,11 @@ mkdirSync(home, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
 
-const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.js')
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/boot/process-state/processState.js')
 trustTheProofFolder(true)
 const { getAgentDefinitionsWithOverrides, clearAgentDefinitionsCache } =
-  await import('../../src/tools/AgentTool/loadAgentsDir.js')
-const { revisionDigest } = await import('../../src/services/agents/contracts.js')
+  await import('../../src/tools/crewmate/loadAgentsDir.js')
+const { revisionDigest } = await import('../../src/crew/agents/contracts.js')
 const { readFileSync } = await import('node:fs')
 
 let failures = 0
@@ -21,7 +21,7 @@ function check(name: string, cond: boolean, detail?: string): void {
   else {
     failures++
     console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`)
-    console.error('    fix: agent discovery, precedence, memory tools and the standing rule are read in getAgentDefinitionsWithOverrides and parseAgentsFromJson in src/tools/AgentTool/loadAgentsDir.ts; the revision digest is revisionDigest in src/services/agents/contracts.ts')
+    console.error('    fix: agent discovery, precedence, memory tools and the standing rule are read in getAgentDefinitionsWithOverrides and parseAgentsFromJson in src/tools/crewmate/loadAgentsDir.ts; the revision digest is revisionDigest in src/crew/agents/contracts.ts')
   }
 }
 
@@ -90,7 +90,7 @@ writeFileSync(
   '---\nname: foundry-frobnicated\ndescription: "carries a made-up key"\nfrobnicate: "Verify before you claim."\n---\n\nYou verify.\n',
 )
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 clearAgentDefinitionsCache()
 const result = await getAgentDefinitionsWithOverrides(sub)
@@ -167,7 +167,7 @@ console.log('D9: the standing rule loads under its one name; any other key is un
   check('a file with a made-up key loads the same way: present, no standing rule, the key not on the definition', active.has('foundry-frobnicated') && rule('foundry-frobnicated') === undefined && !('frobnicate' in (active.get('foundry-frobnicated') as object)))
   const loaded = active.get('foundry-ruled-old') as Record<string, unknown> | undefined
   check('the definition carries no key of its own for the other spelling', loaded !== undefined && !Object.keys(loaded).some(k => /criticalSystemReminder/i.test(k)))
-  const { parseAgentsFromJson } = await import('../../src/tools/AgentTool/loadAgentsDir.js')
+  const { parseAgentsFromJson } = await import('../../src/tools/crewmate/loadAgentsDir.js')
   const viaJson = parseAgentsFromJson({
     'json-new': { description: 'd', prompt: 'p', standingRule: 'new key' },
     'json-old': { description: 'd', prompt: 'p', criticalSystemReminder_EXPERIMENTAL: 'old key' },
@@ -192,7 +192,7 @@ console.log('D10: the memory field grants the memory verbs, never a tool beyond 
   const named = ['Retain', 'Recall', 'Correct'].filter(verb => prompt.includes(verb))
   check("the memory prompt names only verbs the agent has", named.length === 3 && named.every(verb => quiet.includes(verb)), `${named.join(',')} vs tools ${quiet.join(',')}`)
   check('the memory prompt says the agent shares the project memory', prompt.includes("You share this project's memory"))
-  const { parseAgentsFromJson: parseJsonAgents } = await import('../../src/tools/AgentTool/loadAgentsDir.js')
+  const { parseAgentsFromJson: parseJsonAgents } = await import('../../src/tools/crewmate/loadAgentsDir.js')
   const viaJsonMemory = parseJsonAgents({ 'json-reader': { description: 'd', prompt: 'p', tools: ['Read'], memory: 'project' } })
   check('the JSON route grants the same four verbs', (viaJsonMemory[0]?.tools ?? []).join(',') === 'Read,Retain,Recall,Reflect,Correct', String(viaJsonMemory[0]?.tools))
 }

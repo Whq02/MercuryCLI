@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { endProcessTree } from '../../src/utils/processGroup.ts'
+import { endProcessTree } from '../../src/platform/processes/processGroup.ts'
 import { quote, runDoor, sceneRoot } from '../hooks/lib/runDoor.ts'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import { slashed } from '../lib/platformPath.ts'
@@ -15,7 +15,7 @@ let failures = 0
 {
   const { mkdtempSync, writeFileSync, statSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
-  const { shellParentGuardEntry } = await import('../../src/utils/shell/parentGuard.ts')
+  const { shellParentGuardEntry } = await import('../../src/platform/shell/parentGuard.ts')
   const built = join(import.meta.dir, '../../dist')
   const stage = mkdtempSync(join(tmpdir(), 'shell-parent-guard-entry-'))
   try {
@@ -27,7 +27,7 @@ let failures = 0
     if (existsSync(join(built, 'shell-parent-guard.mjs'))) {
       const guardBytes = statSync(join(built, 'shell-parent-guard.mjs')).size
       assert.ok(guardBytes > 0 && guardBytes < 64 * 1024, `the built guard bundle is small (${guardBytes} bytes): a tool shell's start must not pay the product bundle's boot`)
-      assert.equal(shellParentGuardEntry(join(built, 'mercury.mjs')), join(built, 'shell-parent-guard.mjs'), 'shellParentGuardEntry in src/utils/shell/parentGuard.ts must return the shell-parent-guard.mjs beside the built mercury.mjs; check its bundle-beside lookup, and that build.ts still emits shell-parent-guard.mjs')
+      assert.equal(shellParentGuardEntry(join(built, 'mercury.mjs')), join(built, 'shell-parent-guard.mjs'), 'shellParentGuardEntry in src/platform/shell/parentGuard.ts must return the shell-parent-guard.mjs beside the built mercury.mjs; check its bundle-beside lookup, and that build.ts still emits shell-parent-guard.mjs')
     }
     console.log('PASS the shell parent guard boots from its own small bundle beside the product bundle, from the product bundle when that is all there is, and from the cli entrypoint in a source run')
   } catch (error) {
@@ -60,7 +60,7 @@ for (const mode of ['plain', 'foreground', 'background'] as const) {
         await sleep(100)
         rows = shellTreeRows(pid)
       }
-      assert.equal(rows.length, 0, `${mode} ${signal}: the shell's tree survived parent exit ${result.code} by ${REAP_BUDGET_MS} ms: ${shellTreeWords(rows)}; the parent guard in src/utils/shell/parentGuard.ts (spawnOwnedShell, runShellParentGuard) must end the shell tree when its owning process dies`)
+      assert.equal(rows.length, 0, `${mode} ${signal}: the shell's tree survived parent exit ${result.code} by ${REAP_BUDGET_MS} ms: ${shellTreeWords(rows)}; the parent guard in src/platform/shell/parentGuard.ts (spawnOwnedShell, runShellParentGuard) must end the shell tree when its owning process dies`)
       console.log(`PASS ${mode} shell reaped after parent ${signal}`)
     } catch (error) {
       failures++

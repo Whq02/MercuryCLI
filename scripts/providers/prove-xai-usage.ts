@@ -6,16 +6,16 @@ import { rmSync } from 'node:fs'
 import { xaiUsageFixture, XAI_FIXTURE_NOW, XAI_FIXTURE_API_KEY, XAI_FIXTURE_MANAGEMENT_KEY, XAI_FIXTURE_SUBSCRIPTION_TOKEN } from './lib/xai-usage-fixture.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const state = await import('../../src/services/providers/xai/xaiUsageState.ts')
-const owner = await import('../../src/services/providers/providerUsage.ts')
-const { usageStaleAfterMs } = await import('../../src/services/providers/usageFreshness.ts')
-const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const state = await import('../../src/models/roads/xai/xaiUsageState.ts')
+const owner = await import('../../src/models/roads/providerUsage.ts')
+const { usageStaleAfterMs } = await import('../../src/models/roads/usageFreshness.ts')
+const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
 const fixture = xaiUsageFixture()
 Object.assign(process.env, fixture.env)
 const io = { env: process.env, now: () => XAI_FIXTURE_NOW }
 let checks = 0
-const check = (label: string, value: unknown): void => { assert.ok(value, `${label}; fix the xAI usage read in src/services/providers/xai/xaiUsageState.ts or its owner src/services/providers/providerUsage.ts (refreshProviderUsage, usageForProvider); the subscription pool checks also read src/services/providers/xai/xaiOauth.ts`); checks++; console.log(`[PASS] ${label}`) }
+const check = (label: string, value: unknown): void => { assert.ok(value, `${label}; fix the xAI usage read in src/models/roads/xai/xaiUsageState.ts or its owner src/models/roads/providerUsage.ts (refreshProviderUsage, usageForProvider); the subscription pool checks also read src/models/roads/xai/xaiOauth.ts`); checks++; console.log(`[PASS] ${label}`) }
 try {
   delete process.env.XAI_MANAGEMENT_API_KEY
   await owner.refreshProviderUsage('xai', io)
@@ -80,8 +80,8 @@ try {
   check('network errors carry no key bytes', error.state === 'failed' && !JSON.stringify(error).includes(XAI_FIXTURE_API_KEY) && !JSON.stringify(error).includes(XAI_FIXTURE_MANAGEMENT_KEY))
   check('zero, owed balance, decimal mistakes and unsafe integers have distinct honest decodes', state.decodeXaiPrepaidBalance({ total: { val: '0' } }) === 0 && state.decodeXaiPrepaidBalance({ total: { val: '125' } }) === -1.25 && state.decodeXaiPrepaidBalance({ total: { val: '1.25' } }) === undefined && state.decodeXaiPrepaidBalance({ total: { val: '9007199254740993' } }) === undefined)
   check('empty documented series means zero, malformed series is never zero', state.decodeXaiUsageSeries({ timeSeries: [], limitReached: false })?.usd === 0 && state.decodeXaiUsageSeries({}) === undefined)
-  const oauth = await import('../../src/services/providers/xai/xaiOauth.ts')
-  const { resolveXaiAccount } = await import('../../src/services/providers/xai/xaiAccounts.ts')
+  const oauth = await import('../../src/models/roads/xai/xaiOauth.ts')
+  const { resolveXaiAccount } = await import('../../src/models/roads/xai/xaiAccounts.ts')
   await owner.refreshProviderUsage('xai', { ...io, force: true })
   const keyView = JSON.stringify(owner.usageForProvider('xai'))
   check('the key road view before the subscription section is the observed team record', owner.usageForProvider('xai').figures?.[0]?.value === 'USD 21.00')

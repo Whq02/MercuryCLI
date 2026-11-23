@@ -4,10 +4,10 @@ import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import { z } from 'zod/v4'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'ANTHROPIC_BASE_URL']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_BUSY_RETRY_SCALE = '0.2'
@@ -55,25 +55,25 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
 } })
 process.env.MERCURY_GROQ_API_BASE = `http://127.0.0.1:${server.port}/openai/v1`
 let count = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, name + ' - fix the Groq wire body or reply decode in src/services/providers/groq/groqCallModel.ts, the model rows in src/services/providers/groq/groqCatalogue.ts, rate meters in src/services/providers/groq/groqUsageState.ts, or the key login in src/services/providers/groq/groqLogin.ts; the fixture server in this script shows what each mode sends'); count++; console.log(`[PASS] ${name}`) }
+const check = (name: string, value: unknown): void => { assert.ok(value, name + ' - fix the Groq wire body or reply decode in src/models/roads/groq/groqCallModel.ts, the model rows in src/models/roads/groq/groqCatalogue.ts, rate meters in src/models/roads/groq/groqUsageState.ts, or the key login in src/models/roads/groq/groqLogin.ts; the fixture server in this script shows what each mode sends'); count++; console.log(`[PASS] ${name}`) }
 try {
-  const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
+  const { classifyModelRoute } = await import('../../src/models/roads/routeLaw.ts')
   check('Groq qualified ids are declared before any inference request', classifyModelRoute('groq/openai/gpt-oss-120b').route === 'groq')
-  const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
-  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-  const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
-  const { refreshGroqCatalogue, __resetGroqCatalogueForTest, groqCatalogueRows, groqCatalogueSourceWords } = await import(new URL('../../src/services/providers/groq/groqCatalogue.ts', import.meta.url).href)
-  const { buildGroqExtras, groqCallModel } = await import(new URL('../../src/services/providers/groq/groqCallModel.ts', import.meta.url).href)
-  const { storeGroqApiKeyLogin } = await import(new URL('../../src/services/providers/groq/groqLogin.ts', import.meta.url).href)
-  const { groqObservedLimits } = await import(new URL('../../src/services/providers/groq/groqUsageState.ts', import.meta.url).href)
-  const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
-  const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-  const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
-  const { keyLaneListState, keyLanePins } = await import('../../src/services/model/modelOptions.ts')
-  const { readStoredGroqApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-  const { liveModelsReference, knownModelsReference } = await import('../../src/services/resources/adapters/models.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+  const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+  const { resolvePrimaryAgentBackend } = await import('../../src/models/roads/primaryBackend.ts')
+  const { refreshGroqCatalogue, __resetGroqCatalogueForTest, groqCatalogueRows, groqCatalogueSourceWords } = await import(new URL('../../src/models/roads/groq/groqCatalogue.ts', import.meta.url).href)
+  const { buildGroqExtras, groqCallModel } = await import(new URL('../../src/models/roads/groq/groqCallModel.ts', import.meta.url).href)
+  const { storeGroqApiKeyLogin } = await import(new URL('../../src/models/roads/groq/groqLogin.ts', import.meta.url).href)
+  const { groqObservedLimits } = await import(new URL('../../src/models/roads/groq/groqUsageState.ts', import.meta.url).href)
+  const { usageForProvider } = await import('../../src/models/roads/providerUsage.ts')
+  const { laneBillingState } = await import('../../src/models/roads/laneBillingState.ts')
+  const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
+  const { keyLaneListState, keyLanePins } = await import('../../src/models/catalogue/modelOptions.ts')
+  const { readStoredGroqApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const { liveModelsReference, knownModelsReference } = await import('../../src/integrations/resources/adapters/models.ts')
   const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
   function params(model = 'groq/openai/gpt-oss-120b', effortValue = 'max', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
     return { messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: thinking ? { type: 'enabled', budgetTokens: 4096 } : { type: 'disabled' }, signal: new AbortController().signal,

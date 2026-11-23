@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 ;(globalThis as any).MACRO = { VERSION: 'proof' }
-const { searxngSearch, resetSearxngSession } = await import('../../src/services/search/searxng.js')
-const { resetSearchPacing } = await import('../../src/services/search/searchPacing.js')
-const { SEARXNG_INSTANCES, configuredSearxngInstances } = await import('../../src/services/search/searxngInstances.js')
-const { performWebSearch, searchDoorFact } = await import('../../src/services/search/searchDoor.js')
+const { searxngSearch, resetSearxngSession } = await import('../../src/tools/engines/web-search/searxng.js')
+const { resetSearchPacing } = await import('../../src/tools/engines/web-search/searchPacing.js')
+const { SEARXNG_INSTANCES, configuredSearxngInstances } = await import('../../src/tools/engines/web-search/searxngInstances.js')
+const { performWebSearch, searchDoorFact } = await import('../../src/tools/engines/web-search/searchDoor.js')
 const originalInstances = process.env.MERCURY_SEARCH_SEARXNG_INSTANCES
 delete process.env.MERCURY_SEARCH_SEARXNG_INSTANCES
 let now = 100_000
@@ -56,7 +56,7 @@ try {
   const entry = { url: instances[1]!.url, terms: 'https://example.invalid/terms', apiAllowed: true, checked: '2026-10-13' }
   for (const raw of ['not-json', '{}', JSON.stringify([{ ...entry, apiAllowed: false }]), JSON.stringify([{ ...entry, url: 'http://example.invalid/' }]), JSON.stringify([{ ...entry, url: 'https://user:secret@example.invalid/' }]), JSON.stringify([{ ...entry, url: 'https://example.invalid/?q=query' }]), JSON.stringify([{ ...entry, checked: '' }])]) {
     assert.equal(configuredSearxngInstances(raw).instances.length, 0)
-    assert.ok(configuredSearxngInstances(raw).error, `configuredSearxngInstances in src/services/search/searxngInstances.js must reject malformed config input`)
+    assert.ok(configuredSearxngInstances(raw).error, `configuredSearxngInstances in src/tools/engines/web-search/searxngInstances.js must reject malformed config input`)
   }
   assert.equal(configuredSearxngInstances(JSON.stringify([entry, entry])).instances.length, 1)
   resetSearchPacing(); resetSearxngSession()

@@ -1,0 +1,96 @@
+import { flagEnv } from '../../platform/substrate/flagRegistry.js'
+import { seatCeilingFacts, stampedSeats, type SeatCeilingSource } from '../../daemon/switchboard-capacity/capacityCheck.js'
+import { governorCeilings, setGovernorCeilings, type CeilingProvenance, type GovernorCeilings } from './governor.js'
+import type { EffortValue } from '../../models/effort/effort.js'
+import type { SeatNarrowing } from './seatWords.js'
+import { hostEnv } from '../../platform/environment/hostEnv.js'
+
+interface CeilingFacts {
+  seats: number
+  seatSource: SeatCeilingSource | 'inherited'
+  delegationBand: 1 | 2 | 3 | null
+  profileId: string | null
+  operatorLanes: number | null
+}
+
+export function composeGovernorCeilings(facts: CeilingFacts): GovernorCeilings {
+  const seats = Math.max(1, Math.floor(facts.seats))
+  const operator = facts.operatorLanes !== null && facts.operatorLanes >= 1 ? Math.floor(facts.operatorLanes) : Infinity
+  const cap = (n: number): number => Math.max(1, Math.min(n, operator))
+  const delegation = facts.delegationBand === 1 ? 1 : facts.delegationBand === 2 ? 2 : seats
+  return { modelLanes: cap(seats), delegationLanes: cap(Math.min(delegation, seats)) }
+}
+
+export function composeProvenance(facts: CeilingFacts, composed: GovernorCeilings): CeilingProvenance {
+  const seats = Math.max(1, Math.floor(facts.seats))
+  let narrowing: SeatNarrowing = null
+  if (composed.delegationLanes < seats) {
+    if ((facts.delegationBand === 1 || facts.delegationBand === 2) && facts.delegationBand <= composed.delegationLanes) {
+      narrowing = { by: 'profile', band: facts.delegationBand, profileId: facts.profileId ?? 'the active profile' }
+    } else if (facts.operatorLanes !== null && facts.operatorLanes >= 1) {
+      narrowing = { by: 'operator', lanes: Math.floor(facts.operatorLanes) }
+    } else if (facts.delegationBand === 1 || facts.delegationBand === 2) {
+      narrowing = { by: 'profile', band: facts.delegationBand, profileId: facts.profileId ?? 'the active profile' }
+    }
+  }
+  return { seats, seatSource: facts.seatSource, narrowing }
+}
+
+function liveDelegationBand(): { band: 1 | 2 | 3 | null; profileId: string | null } {
+  return { band: null, profileId: null }
+}
+
+export function operatorLanesFromEnv(env: NodeJS.ProcessEnv = hostEnv()): number | null {
+  const raw = flagEnv('MERCURY_MODEL_LANES', env) ?? ''
+  const n = Number.parseInt(raw, 10)
+  return Number.isFinite(n) && n >= 1 ? n : null
+}
+
+export function inheritedSeatsFromEnv(env: NodeJS.ProcessEnv = hostEnv()): number | null {
+  const raw = flagEnv('MERCURY_SEATS', env) ?? ''
+  const n = Number.parseInt(raw, 10)
+  return Number.isFinite(n) && n >= 1 ? n : null
+}
+
+function seatsForProcess(): { seats: number; source: SeatCeilingSource | 'inherited' } {
+  const facts = seatCeilingFacts()
+  if (facts.source === 'operator') return { seats: facts.seats, source: 'operator' }
+  const inherited = stampedSeats()
+  if (inherited !== null) return { seats: inherited, source: 'inherited' }
+  return { seats: facts.seats, source: facts.source }
+}
+
+let lastApplied: string | null = null
+
+export function liveCeilingFacts(model: string | null | undefined, sessionEffortValue?: EffortValue): CeilingFacts {
+  void model
+  void sessionEffortValue
+  const seats = seatsForProcess()
+  const band = liveDelegationBand()
+  return {
+    seats: seats.seats,
+    seatSource: seats.source,
+    delegationBand: band.band,
+    profileId: band.profileId,
+    operatorLanes: operatorLanesFromEnv(),
+  }
+}
+
+export function refreshGovernorCeilings(
+  model: string | null | undefined,
+  sessionEffortValue?: EffortValue,
+): GovernorCeilings {
+  const facts = liveCeilingFacts(model, sessionEffortValue)
+  const composed = composeGovernorCeilings(facts)
+  const provenance = composeProvenance(facts, composed)
+  const key = `${composed.modelLanes}:${composed.delegationLanes}:${provenance.seatSource}:${JSON.stringify(provenance.narrowing)}`
+  if (key !== lastApplied) {
+    lastApplied = key
+    setGovernorCeilings(composed, provenance)
+  }
+  return governorCeilings()
+}
+
+export function _resetComposeCeilingsForTesting(): void {
+  lastApplied = null
+}

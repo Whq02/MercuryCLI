@@ -18,12 +18,12 @@ const home = pinScratchHome('tensorfold-t-frames')
 
 const React = await import('react')
 const h = React.createElement
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { Box } = await import('../../src/ink.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.tsx')
+const { Box } = await import('../../src/screen/themedRenderer.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.tsx')
 const { pickerFactsOf } = await import('../../src/commands/tensorfold/pickerFacts.ts')
 const { gridToPng } = await import('../ui/gridToPng.ts')
 const { tStates } = await import('./fixtures/tstates.ts')
@@ -31,7 +31,7 @@ type Facts = import('./fixtures/tstates.ts').Facts
 type TState = import('./fixtures/tstates.ts').TState
 
 let failures = 0
-const FAIL_HINT = 'fix the tensorfold view in src/components/MercuryModelPicker.tsx or pickerFactsOf in src/commands/tensorfold/pickerFacts.ts, or the expected words in EXPECT and the state in scripts/tensorfold/fixtures/tstates.ts if the new wording is intended'
+const FAIL_HINT = 'fix the tensorfold view in src/commands/model/picker/MercuryModelPicker.tsx or pickerFactsOf in src/commands/tensorfold/pickerFacts.ts, or the expected words in EXPECT and the state in scripts/tensorfold/fixtures/tstates.ts if the new wording is intended'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${FAIL_HINT}${detail ? ` | ${detail.slice(0, 700)}` : ''}` : ''}`)

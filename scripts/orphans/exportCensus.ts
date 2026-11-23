@@ -33,8 +33,8 @@ export type ExportClass =
   | 'candidate'
 
 export const KEPT_CLASSES: Record<Exclude<ExportClass, 'read' | 'candidate'>, string> = {
-  entrypoint: 'the bundle roots (src/entrypoints/*, src/main.tsx, every module build.ts bundles on its own): a spawned or exposed surface, never an orphan',
-  'rows-surface': 'src/rows/*: the row vocabulary the SDK generator reads and the sdk package re-publishes',
+  entrypoint: 'the bundle roots (src/entrypoints/*, src/boot/main.tsx, every module build.ts bundles on its own): a spawned or exposed surface, never an orphan',
+  'rows-surface': 'src/engine/rows/*: the row vocabulary the SDK generator reads and the sdk package re-publishes',
   'declaration-file': 'a .d.ts: its export keywords decide module-versus-global scope, never a surface to trim',
   generated: 'a generated file: it moves only through its generator',
   fixture: 'test data under a fixtures folder: a proof input, not product surface',
@@ -1203,8 +1203,8 @@ export function treeOptions(root = GRAPH_ROOT): CensusOptions {
   const readers = code.filter(f => !outside(f))
   const subjects = tracked.filter(f => (f.startsWith('src/') || f.startsWith('scripts/')) && CODE_FILE.test(f))
   const bundled = new Set(readBuildEntrypoints().map(p => slash(relative(root, p))))
-  const entrypoints = tracked.filter(f => f.startsWith('src/entrypoints/') || f === 'src/main.tsx' || f === 'build.ts' || bundled.has(f))
-  const rowsSurface = tracked.filter(f => f.startsWith('src/rows/'))
+  const entrypoints = tracked.filter(f => f.startsWith('src/entrypoints/') || f === 'src/boot/main.tsx' || f === 'build.ts' || bundled.has(f))
+  const rowsSurface = tracked.filter(f => f.startsWith('src/engine/rows/'))
   const generated: string[] = []
   const generators = new Set<string>()
   const mapPath = join(root, 'scripts', 'gate', 'generated-assets.tsv')
@@ -1228,17 +1228,17 @@ export function treeOptions(root = GRAPH_ROOT): CensusOptions {
   const generatedSet = (f: string): boolean => matchesAny(f, generated)
   const pinSources = tracked.filter(f => (f.startsWith('scripts/') || f.startsWith('.github/') || f === 'build.ts' || f === 'package.json' || f.startsWith('sdk/')) && TEXT_PIN_FILE.test(f) && !generatedSet(f))
   const stubMap = readStubMap()
-  const bundledPath = join(root, 'src/extensions/bundled/content.generated.ts')
+  const bundledPath = join(root, 'src/integrations/extensions/bundled/content.generated.ts')
   if (existsSync(bundledPath)) {
     const text = readFileSync(bundledPath, 'utf8')
     const source = parseFile(bundledPath, text)
     const declaration = source.statements.flatMap(statement => ts.isVariableStatement(statement) ? [...statement.declarationList.declarations] : []).find(declaration => ts.isIdentifier(declaration.name) && declaration.name.text === 'bundledPayloads')
     if (!declaration?.initializer) throw new Error('Bundled extension payload declaration missing')
     const payloads = JSON.parse(declaration.initializer.getText(source)) as Record<string, Record<string, string>>
-    for (const manifest of tracked.filter(f => /^src\/extensions\/bundled\/[^/]+\/mercury-extension\.json$/.test(f))) {
-      const name = manifest.split('/')[3]!
-      for (const source of tracked.filter(f => f.startsWith('src/extensions/bundled/shared/') && CODE_FILE.test(f))) {
-        const delivered = source.slice('src/extensions/bundled/'.length)
+    for (const manifest of tracked.filter(f => /^src\/integrations\/extensions\/bundled\/[^/]+\/mercury-extension\.json$/.test(f))) {
+      const name = manifest.split('/')[4]!
+      for (const source of tracked.filter(f => f.startsWith('src/integrations/extensions/bundled/shared/') && CODE_FILE.test(f))) {
+        const delivered = source.slice('src/integrations/extensions/bundled/'.length)
         if (payloads[name]?.[delivered] === readFileSync(join(root, source), 'utf8')) stubMap[join(root, dirname(manifest), delivered)] = join(root, source)
       }
     }

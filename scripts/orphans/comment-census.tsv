@@ -13,7 +13,7 @@ kept-file	sdk-py/src/mercury_cli_sdk/sync.py	4
 kept-file	sdk-py/src/mercury_cli_sdk/testing.py	5
 excepted	native/	7	137
 excepted	scripts/field-tasks/field-kit/task/	1	2
-excepted	src/extensions/bundled/mercury-media/server/	0	0
+excepted	src/integrations/extensions/bundled/mercury-media/server/	0	0
 excepted	vendor/	0	0
 excepted-file	native/voice/Cargo.toml	2
 excepted-file	native/voice/build.rs	3

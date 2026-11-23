@@ -169,7 +169,7 @@ const plainName = (key: string): RegExp => new RegExp('(?<![\\w$./\'"-])' + key 
 const moduleName = (name: string): RegExp => new RegExp('(?<![\\w$-])' + name + '(?![\\w$-])')
 const RELEASE_SETTINGS_LINES: Readonly<Record<string, string>> = {
   'docs/releases/1.0.0-beta.21.md': '  one stretch is asked once to continue past it; with loopGuardStopEnabled',
-  'src/constants/changelogArchive.ts': '- Added a loop guard: a tool call repeated with identical arguments and an identical result is reminded at the third, fifth and eighth repeat, a cycle of up to five calls repeated five times is named, and a reply that chants one stretch is asked once to continue past it; with loopGuardStopEnabled true in settings the second detection of the same cycle ends the turn as loop_stopped (by default nothing is ended)',
+  'src/commands/update-notes/changelogArchive.ts': '- Added a loop guard: a tool call repeated with identical arguments and an identical result is reminded at the third, fifth and eighth repeat, a cycle of up to five calls repeated five times is named, and a reply that chants one stretch is asked once to continue past it; with loopGuardStopEnabled true in settings the second detection of the same cycle ends the turn as loop_stopped (by default nothing is ended)',
 }
 const SETTINGS_KEY_RULES = [...RETIRED_SETTINGS_ROOTS, ...RETIRED_SETTINGS_GENERIC_ROOTS, ...RETIRED_SETTINGS_FIELDS].map(key => ({
   key,
@@ -185,7 +185,7 @@ const SETTINGS_MODULE_RULES = RETIRED_SETTINGS_MODULES.map(name => ({ name, re: 
 function settingsViolation(path: string, line: string): string | null {
   if (!SETTINGS_SCOPE.test(path) || allowed(path, 'settings')) return null
   if (RELEASE_SETTINGS_LINES[path] === line) return null
-  const prose = /\.md$/.test(path) || path === 'src/constants/changelogArchive.ts'
+  const prose = /\.md$/.test(path) || path === 'src/commands/update-notes/changelogArchive.ts'
   for (const place of RETIRED_POLICY_PLACES) if (line.includes(place)) return `settings:${place}`
   for (const { name, re } of SETTINGS_MODULE_RULES) if (re.test(line)) return `settings:${name}`
   for (const rule of SETTINGS_KEY_RULES) {
@@ -202,52 +202,52 @@ const crumbSpacedRe = new RegExp(J('main', '[ ]', 'repl'), 'i')
 const isCommentLine = (line: string): boolean => /^\s*(\/\/|\*|\/\*)/.test(line)
 
 const ALLOW: Array<[string, string, string]> = [
-  ['src/services/ide/pythonTests.ts', 'run-short', 'pytest selects its own modules'],
-  ['src/tools/BashTool/readOnlyValidation.ts', 'run-short', 'shell utility argument grammars'],
-  ['src/utils/permissions/runtimeProtection.ts', 'run-short', 'ps -p names the process whose parent pid is read'],
-  ['src/services/tensorfold/adapter/serve.ts', 'run-short', 'ps -p names the llama-server child whose memory and image are read'],
-  ['src/tools/PowerShellTool/readOnlyValidation.ts', 'run-short', 'shell utility argument grammars'],
-  ['src/utils/shell/readOnlyCommandValidation.ts', 'run-short', 'git and language-tool argument grammars'],
-  ['src/utils/bash/ast.ts', 'run-short', 'the shell wait builtin argument grammar'],
-  ['src/utils/permissions/flowLaw.ts', 'run-short', "the Flow law reads a shell command's own flag grammar"],
-  ['src/utils/wards/wardsRefusals.ts', 'run-short', "the refusal list reads a shell command's own flag grammar"],
-  ['src/utils/permissions/decision/commandAnalysis/', 'run-short', 'the shell reading peels a wrapper by its own flag grammar'],
-  ['src/services/remoteFiles/prelude.ts', 'run-short', 'the shell test for a named pipe on the remote machine'],
+  ['src/integrations/ide/pythonTests.ts', 'run-short', 'pytest selects its own modules'],
+  ['src/tools/shell/readOnlyValidation.ts', 'run-short', 'shell utility argument grammars'],
+  ['src/permissions/rules/runtimeProtection.ts', 'run-short', 'ps -p names the process whose parent pid is read'],
+  ['src/models/tensorfold/adapter/serve.ts', 'run-short', 'ps -p names the llama-server child whose memory and image are read'],
+  ['src/tools/powershell/readOnlyValidation.ts', 'run-short', 'shell utility argument grammars'],
+  ['src/permissions/rules/shell-commands/readOnlyCommandValidation.ts', 'run-short', 'git and language-tool argument grammars'],
+  ['src/platform/shell/bash/ast.ts', 'run-short', 'the shell wait builtin argument grammar'],
+  ['src/permissions/rules/flowLaw.ts', 'run-short', "the Flow law reads a shell command's own flag grammar"],
+  ['src/permissions/wards/wardsRefusals.ts', 'run-short', "the refusal list reads a shell command's own flag grammar"],
+  ['src/permissions/rules/decision/command-analysis/', 'run-short', 'the shell reading peels a wrapper by its own flag grammar'],
+  ['src/platform/remote-files/prelude.ts', 'run-short', 'the shell test for a named pipe on the remote machine'],
   ['scripts/permissions/prove-flow-leftover-ask.ts', 'option-run-words', "git init's own --bare flag on the fixture remote"],
-  ['src/utils/bash/specs/pyright.ts', 'run-short', 'pyright project selection'],
-  ['src/tools/BashTool/pathValidation.ts', 'run-short', 'pyright project selection (the path-check grammar)'],
+  ['src/platform/shell/bash/specs/pyright.ts', 'run-short', 'pyright project selection'],
+  ['src/tools/shell/pathValidation.ts', 'run-short', 'pyright project selection (the path-check grammar)'],
   ['docs/MCP-SERVER.md', 'words', "ChatGPT's own name for its hosted apps, quoted with its links"],
-  ['src/tools/AgentTool/reviewerPolicy.ts', 'run-short', 'mktemp scratch selection'],
-  ['src/utils/processGroup.ts', 'run-short', 'POSIX process inspection'],
-  ['src/daemon/processSweepPosix.ts', 'run-short', 'POSIX process inspection'],
-  ['src/utils/ownerWatch.ts', 'run-short', 'POSIX process inspection'],
-  ['src/daemon/runnerScript.ts', 'run-short', 'POSIX process inspection (ps -p reads the runner command line)'],
-  ['src/services/host/ssh.ts', 'run-short', "ssh's port flag"],
-  ['src/services/host/vendors/lambda.ts', 'run-short', "mkdir -p in the vendor's cloud-init runcmd"],
-  ['src/services/host/vendors/verda.ts', 'run-short', "mkdir -p in the vendor's startup script"],
-  ['src/extensions/bundled/', 'run-short', 'POSIX process inspection in the Craft adapters (ps -p, lsof -p); the generated payload mirrors them'],
+  ['src/tools/crewmate/reviewerPolicy.ts', 'run-short', 'mktemp scratch selection'],
+  ['src/platform/processes/processGroup.ts', 'run-short', 'POSIX process inspection'],
+  ['src/daemon/process-sweep/processSweepPosix.ts', 'run-short', 'POSIX process inspection'],
+  ['src/daemon/control/ownerWatch.ts', 'run-short', 'POSIX process inspection'],
+  ['src/daemon/runner-link/runnerScript.ts', 'run-short', 'POSIX process inspection (ps -p reads the runner command line)'],
+  ['src/models/hosting/ssh.ts', 'run-short', "ssh's port flag"],
+  ['src/models/hosting/vendors/lambda.ts', 'run-short', "mkdir -p in the vendor's cloud-init runcmd"],
+  ['src/models/hosting/vendors/verda.ts', 'run-short', "mkdir -p in the vendor's startup script"],
+  ['src/integrations/extensions/bundled/', 'run-short', 'POSIX process inspection in the Craft adapters (ps -p, lsof -p); the generated payload mirrors them'],
   ['scripts/interview/baselines/', 'enter-glyph', 'frozen journey capture records keep their recorded bytes by design'],
   ['scripts/visual-contract/baselines/', 'enter-glyph', 'frozen capture records of earlier screens — diff anchors, deliberately never regenerated'],
   ['assets/vulcan/', 'words', "Godot's editor addon API (EditorPlugin, plugin.cfg, plugin.gd) — the engine's own vocabulary"],
-  ['src/services/vulcan/', 'words', "Godot's editor addon API — the engine's own vocabulary"],
-  ['src/utils/vulcan/', 'words', "Godot's editor addon API — the engine's own vocabulary (generated op table)"],
+  ['src/integrations/vulcan/', 'words', "Godot's editor addon API — the engine's own vocabulary"],
+  ['src/integrations/vulcan-optable/', 'words', "Godot's editor addon API — the engine's own vocabulary (generated op table)"],
   ['scripts/vulcan/', 'words', "Godot's editor addon API — the engine's own vocabulary"],
-  ['src/services/lsp/godotLane.ts', 'words', "Godot's editor addon API"],
-  ['src/services/ide/pythonTests.ts', 'words', "pytest's own vocabulary for its add-ons"],
+  ['src/integrations/lsp/godotLane.ts', 'words', "Godot's editor addon API"],
+  ['src/integrations/ide/pythonTests.ts', 'words', "pytest's own vocabulary for its add-ons"],
   ['BUILD-NOTES.md', 'words', "Bun's build API vocabulary (the build's module-resolution hook)"],
   ['scripts/gate/gate-ledger.jsonl', 'words,retired', 'an append-only record of past gate runs'],
   ['scripts/project-intel/fixtures/', 'words', 'fixture repositories exercise ordinary English'],
   ['scripts/search/fixtures/', 'words', "captured third-party search-result pages — the outside world's own text, replayed verbatim"],
   ['scripts/search/prove-websearch-doors.ts', 'words', 'names the needles it refuses in its negative user-agent checks'],
   ['scripts/search/lib/bundle-for-node.ts', 'words', "Bun's build API vocabulary (the bundling hook)"],
-  ['src/services/browser/session/stealth.ts', 'words', "the DOM's own names (navigator.plugins, Plugin) the stealth init reads and reshapes — the browser's vocabulary, not Mercury's"],
+  ['src/integrations/browser/session/stealth.ts', 'words', "the DOM's own names (navigator.plugins, Plugin) the stealth init reads and reshapes — the browser's vocabulary, not Mercury's"],
   ['scripts/browser/prove-browser-stealth.ts', 'words', "the DOM's own names (navigator.plugins, Plugin) the detection checks read — the browser's vocabulary, not Mercury's"],
   ['scripts/browser/prove-browser-prepared-once.ts', 'words', "the DOM's own name (navigator.plugins) among the five readings a frame is held to its page on — the browser's vocabulary, not Mercury's"],
   ['scripts/browser/prove-browser-marked-names.ts', 'words', "the DOM's own names (navigator.plugins, Plugin, PluginArray) of the functions the stealth init marks, read beside Chrome's own — the browser's vocabulary, not Mercury's"],
-  ['src/constants/changelogArchive.ts', 'retired', 'a published record keeps its lines'],
+  ['src/commands/update-notes/changelogArchive.ts', 'retired', 'a published record keeps its lines'],
   ['docs/releases/', 'retired', 'published release pages keep their lines'],
   ['docs/COMPATIBILITY.md', 'other-tool-home', "the page names another tool's project folder among the files Mercury reads in a project; that tool's home folder is never read"],
-  ['src/services/instructions/adapters/claudeCode.ts', 'other-tool-home', "the instruction engine's adapter for that tool names the project folder it reads; that tool's home folder is never read"],
+  ['src/sessions/instructions/adapters/claudeCode.ts', 'other-tool-home', "the instruction engine's adapter for that tool names the project folder it reads; that tool's home folder is never read"],
   ['scripts/identity/prove-retired-keys-unknown.ts', 'retired,settings', 'the retired settings keys it proves unknown — a forbidden-words list under scripts/identity'],
   ['scripts/settings/prove-global-config-read-as-written.ts', 'config-migration-set,settings', 'names the retired config keys and the migration modules it proves gone'],
   ['scripts/computer/prove-computer-readiness.ts', 'settings', "the desktop scene file's own permissions record, not a settings key"],
@@ -286,7 +286,7 @@ const ALLOW: Array<[string, string, string]> = [
   ['scripts/identity/prove-unknown-command-answer.ts', 'health-word', 'names the word it proves unknown'],
   ['scripts/command-catalogue/prove-beta-journey-matrix.ts', 'health-word', 'names the word it proves is no surface'],
   ['scripts/ui/prove-old-transcript-rows.ts', 'screen-chat-word', "an older transcript's absent tool name — the row it proves paints by name"],
-  ['src/utils/knownAgentClis.ts', 'other-tool-env-names', "the peer table: another tool's session-token spellings struck from Mercury's children, one data row per known tool"],
+  ['src/platform/environment/knownAgentClis.ts', 'other-tool-env-names', "the peer table: another tool's session-token spellings struck from Mercury's children, one data row per known tool"],
   ['scripts/health/prove-foreign-harness-inversion.ts', 'other-tool-env-names', 'pins the peer table row by row'],
   ['scripts/mission-runner/live/runner.ts', 'other-tool-env-names', "an external agent CLI's own effort contract, set only when the runner drives that CLI"],
   ['scripts/model-policy/prove-model-policy-surfaces.ts', 'other-tool-env-names', 'names the spelling it proves absent'],
@@ -307,11 +307,11 @@ function allowed(path: string, rule: string): boolean {
 
 const XAI_CLIENT_REFERENCES = new Set([
   'mercury-skills/provider-apis/references/live-sources.md',
-  'src/skills/bundled/provider-apis/references/live-sources.md',
+  'src/integrations/skills/bundled/provider-apis/references/live-sources.md',
   'scripts/providers/fixtures/xai-subscription-contract.json',
 ])
 const RELEASE_RUN_LINES: Readonly<Record<string, string>> = {
-  'src/constants/changelogArchive.ts': '- Fixed mercury -p /usage (and the other screen-only commands) printing nothing instead of saying they need the interactive session',
+  'src/commands/update-notes/changelogArchive.ts': '- Fixed mercury -p /usage (and the other screen-only commands) printing nothing instead of saying they need the interactive session',
   'docs/releases/1.0.0-beta.26.md': '- Fixed mercury -p /usage (and the other screen-only commands) printing',
 }
 
@@ -443,9 +443,9 @@ function main(): void {
     check('the run words are enforced on every owned surface', runHomes.every(path => runInputs.every(content => scan([{ path, content }]).some(hit => hit.rule.startsWith('words:run-')))), 'every path in runHomes must trip a run-* WORDS row; check RUN_SCOPE and the ALLOW table in scripts/gate/prove-vocabulary-seal.ts')
     check('the script estate is outside the run-word scope', runInputs.every(content => scan([{ path: 'scripts/run-fixture.ts', content }]).length === 0), 'RUN_SCOPE in scripts/gate/prove-vocabulary-seal.ts must not cover scripts/')
     check('run words and other programs remain distinct', scan([{ path: 'src/run-fixture.ts', content: 'mercury run --format rows --input rows --partial --sovereign --allow-sovereign --mode flow' }, { path: 'bench/run-fixture.ts', content: "spawnSync('ps', ['-p', pid])" }, { path: '.github/run-fixture.yml', content: 'mkdir -p output' }]).length === 0, 'the run-short carve-outs in scan() of scripts/gate/prove-vocabulary-seal.ts must keep ps -p and mkdir -p quiet and the run-* rows must not match mercury run flags')
-    check('the argv reader has no run-word exemption', scan([{ path: 'src/cli/runArgs.ts', content: '--print' }]).length === 1, 'remove any src/cli/runArgs.ts row for the run rules from the ALLOW table in scripts/gate/prove-vocabulary-seal.ts')
+    check('the argv reader has no run-word exemption', scan([{ path: 'src/daemon/runner/runArgs.ts', content: '--print' }]).length === 1, 'remove any src/daemon/runner/runArgs.ts row for the run rules from the ALLOW table in scripts/gate/prove-vocabulary-seal.ts')
     check('the two published release lines keep their recorded bytes', Object.entries(RELEASE_RUN_LINES).every(([path, content]) => scan([{ path, content }]).length === 0), 'RELEASE_RUN_LINES in scripts/gate/prove-vocabulary-seal.ts must match the published line exactly; restore it')
-    check('release records and foreign commands do not exempt new run spellings', scan([{ path: 'docs/releases/fixture.md', content: 'mercury -p' }, { path: 'src/constants/changelog.ts', content: 'mercury -p' }, { path: '.github/fixture.yml', content: 'mkdir -p out && mercury -p hello' }]).length === 3, 'only the exact RELEASE_RUN_LINES lines may be exempt in scan() of scripts/gate/prove-vocabulary-seal.ts')
+    check('release records and foreign commands do not exempt new run spellings', scan([{ path: 'docs/releases/fixture.md', content: 'mercury -p' }, { path: 'src/commands/update-notes/changelog.ts', content: 'mercury -p' }, { path: '.github/fixture.yml', content: 'mkdir -p out && mercury -p hello' }]).length === 3, 'only the exact RELEASE_RUN_LINES lines may be exempt in scan() of scripts/gate/prove-vocabulary-seal.ts')
 
     const crumb = 'esc ' + J('main', ' ', 'RE', 'PL')
     const crumbRule = (hits: Violation[]): Violation[] => hits.filter(v => v.rule === 'focused-chat')
@@ -453,7 +453,7 @@ function main(): void {
     check('§3 self-test: the crumb phrase trips as screen text', crumbRule(crumbHits).length === 1, JSON.stringify(crumbHits) + ' — fix crumbUpperRe/crumbSpacedRe or the focused-chat rule in scan() of scripts/gate/prove-vocabulary-seal.ts')
     const crumbComment = scan([{ path: 'src/components/x.tsx', content: '// the ' + crumb + ' route' }])
     check('§3 self-test: a comment outside the concourse stays silent under the crumb rule', crumbRule(crumbComment).length === 0, JSON.stringify(crumbComment) + ' — the focused-chat rule in scan() must skip comment lines outside CONCOURSE_HOME (scripts/gate/prove-vocabulary-seal.ts)')
-    const crumbConcourse = scan([{ path: 'src/components/concourse/x.tsx', content: '// the ' + crumb + ' route' }])
+    const crumbConcourse = scan([{ path: 'src/screen/concourse/x.tsx', content: '// the ' + crumb + ' route' }])
     check('§3 self-test: the concourse holds the rule on every line', crumbRule(crumbConcourse).length === 1, JSON.stringify(crumbConcourse) + ' — the focused-chat rule in scan() must hold on every line under CONCOURSE_HOME (scripts/gate/prove-vocabulary-seal.ts)')
     check('§3 self-test: the screen word itself trips on every line, comments included', [crumbHits, crumbComment, crumbConcourse].every(hits => hits.some(v => v.rule === 'retired:screen-chat-word')), 'the screen-chat-word row of RETIRED in scripts/gate/prove-vocabulary-seal.ts must trip on every line')
     const routeId = scan([{ path: 'src/components/x.tsx', content: "const id = '" + J('main-re', 'pl') + "'" }])
@@ -472,7 +472,7 @@ function main(): void {
     check('§4 self-test: a distinct former root trips as a JSON key unless it lives on as a leaf name under a group', RETIRED_SETTINGS_ROOTS.every(key => settingsHits('scripts/settings/fixture.json', `  "${key}": true,`).length === (SETTINGS_LEAF_NAMES.has(key) ? 0 : 1)), 'fix settingsViolation() and SETTINGS_LEAF_NAMES in scripts/gate/prove-vocabulary-seal.ts')
     check('§4 self-test: every former adoption field trips in a settings file', RETIRED_SETTINGS_FIELDS.every(key => settingsHits('scripts/settings/fixture.json', `  "${key}": true,`).length === 1), 'fix settingsViolation() and RETIRED_SETTINGS_FIELDS in scripts/gate/prove-vocabulary-seal.ts')
     check('§4 self-test: every retired module name trips in src', RETIRED_SETTINGS_MODULES.every(name => settingsHits('src/x.ts', `import { x } from './migrations/${name}.js'`).length === 1), 'fix settingsViolation() and RETIRED_SETTINGS_MODULES in scripts/gate/prove-vocabulary-seal.ts')
-    check('§4 self-test: the two former policy places trip in src', RETIRED_POLICY_PLACES.every(place => settingsHits('src/utils/settings/mdm/x.ts', `const DOMAIN = '${place}'`).length === 1), 'fix settingsViolation() and RETIRED_POLICY_PLACES in scripts/gate/prove-vocabulary-seal.ts')
+    check('§4 self-test: the two former policy places trip in src', RETIRED_POLICY_PLACES.every(place => settingsHits('src/platform/settings/mdm/x.ts', `const DOMAIN = '${place}'`).length === 1), 'fix settingsViolation() and RETIRED_POLICY_PLACES in scripts/gate/prove-vocabulary-seal.ts')
     const quiet: Array<[string, string]> = [
       ['src/x.ts', "const prefersReducedMotion = useAppState(state => state.settings.view?.reducedMotion === true)"],
       ['src/x.ts', "const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().engine?.effort"],
@@ -480,7 +480,7 @@ function main(): void {
       ['src/x.ts', "const shell = manifest.shellEngine as { vendored?: boolean }"],
       ['src/x.ts', "body: JSON.stringify({ model: tag, stream: true })"],
       ['src/x.ts', "const id = `agent:${agentId}`; const row = `model:${modelId}`; env: subprocessEnv()"],
-      ['src/x.ts', "import { localServerSettingsOf } from '../../services/localServer/localServerKnobs.js'"],
+      ['src/x.ts', "import { localServerSettingsOf } from '../../models/local-server/localServerKnobs.js'"],
       ['src/x.ts', "updateSettingsForSource('userSettings', { guardrails: { allow: rules }, events: { hooks }, extensions: { exclusive: true }, local: { server: { keepAlive: '30m' } } })"],
       ['src/x.ts', "const centred = settings.view?.modelPicker?.centred ?? settings.view?." + J('sessions', 'Bar') + "; const m = getInitialSettings().engine?.model"],
       ['scripts/settings/settings-schema.json', '        "' + J('sessions', 'Bar') + '": {'],
@@ -643,7 +643,7 @@ function main(): void {
       'autopilots are not this word; a general-purpose-ish phrase is not the type; mercury-generalist',
       'PushNotifications in the plural are another word; sendOSNotifications too',
       'the daemon is the helper; a stewardship word is not the verb',
-      "OpenRouter · openrouter/auto · callModelRouter.ts · SurfaceRouter.tsx · the Hugging Face router · https://router.huggingface.co/v1 · src/services/providers/openrouter/openrouterAccounts.ts · the wheel router · ProviderAdapter · ProviderSnapshot",
+      "OpenRouter · openrouter/auto · callModelRouter.ts · SurfaceRouter.tsx · the Hugging Face router · https://router.huggingface.co/v1 · src/models/roads/openrouter/openrouterAccounts.ts · the wheel router · ProviderAdapter · ProviderSnapshot",
       'Both an auth token and an API key are configured; the extensions check their manifests; git init --quiet; i--; mercury image > file',
       'mercury roster; mercury bridge install; --log-file out.log; --crew alpha --seat bravo; MERCURY_MEMORY_OBSERVE=1',
       "type: 'hook_error_during_execution'; api_ms: 12; steps: 3; session/set_mode; permission/request; the stream-fault row; { type: 'callback' }; the SDK of the provider; sdkErrors.ts; the MCP SDK",
@@ -652,7 +652,7 @@ function main(): void {
       "projectLocalPath(root, 'settings.json'); daemon.json; readDaemonState(); the supervision policy; a supervised child; MERCURY_ANTHROPIC_OAUTH_BASE; isLoopbackOauthOrigin(url); MERCURY_ANTHROPIC_CONNECTORS; anthropicLimits.ts; mcp/anthropicConnectors.js; /^(ANTHROPIC_|CLAUDE_|OPENAI_)/.test(name); CLAUDE_ID; CLAUDE_EMAIL; UNKNOWN_CLAUDE_ID",
     ]
     check('§5 self-test: kept identifiers, ordinary English and other programs stay quiet', quiet.every(content => retiredHits('src/x.ts', content).length === 0), quiet.filter(content => retiredHits('src/x.ts', content).length > 0).join(' | ') + ' — a RETIRED row in scripts/gate/prove-vocabulary-seal.ts matches a kept identifier; narrow it')
-    check('§5 self-test: a published record and a forbidden-words list keep their lines', retiredHits('src/constants/changelogArchive.ts', trips[1]![1]).length === 0 && retiredHits('docs/releases/1.0.0-beta.9.md', trips[1]![1]).length === 0 && retiredHits('scripts/identity/prove-retired-keys-unknown.ts', trips[1]![1]).length === 0, 'restore the ALLOW rows for the changelog archive, docs/releases and the identity proof in scripts/gate/prove-vocabulary-seal.ts')
+    check('§5 self-test: a published record and a forbidden-words list keep their lines', retiredHits('src/commands/update-notes/changelogArchive.ts', trips[1]![1]).length === 0 && retiredHits('docs/releases/1.0.0-beta.9.md', trips[1]![1]).length === 0 && retiredHits('scripts/identity/prove-retired-keys-unknown.ts', trips[1]![1]).length === 0, 'restore the ALLOW rows for the changelog archive, docs/releases and the identity proof in scripts/gate/prove-vocabulary-seal.ts')
     check('§5 self-test: a label-scoped exemption excuses its own word and no other', retiredHits('scripts/effort/prove-effort-persistence.ts', trips[1]![1]).length === 0 && retiredHits('scripts/effort/prove-effort-persistence.ts', trips[0]![1]).length === 1, 'the ALLOW row for scripts/effort/prove-effort-persistence.ts must name only its own retired label (scripts/gate/prove-vocabulary-seal.ts)')
     check('§5 self-test: the one stored sidecar fixture keeps its type word and nothing beside it', retiredHits('scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', trips[33]![1]).length === 0 && retiredHits('scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', trips[32]![1]).length === 1, 'the ALLOW row for scripts/sessionStorage/prove-old-transcript-kinds-parse.ts must name only its own label (scripts/gate/prove-vocabulary-seal.ts)')
   }

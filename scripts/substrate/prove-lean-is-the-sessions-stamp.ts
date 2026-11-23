@@ -9,9 +9,9 @@ const at = process.argv.indexOf('--dist')
 const dist = resolve(at >= 0 ? process.argv[at + 1]! : join(import.meta.dir, '../../dist/mercury.mjs'))
 const KEY = 'fixture-key-lean-stamp'
 const ASK = 'printenv MERCURY_BARE || echo the-flag-is-unset'
-const RUN_HINT = 'the run did not finish with done: check dist is built and that src/entrypoints/cli.tsx and the Bash tool answer under mercury run --lean. '
-const SCRUB_HINT = 'the flag stamped by --lean in src/entrypoints/cli.tsx must be scrubbed from a shell child by sessionEnvStamps and scrubSessionEnvStamps in src/substrate/envStamps.ts, and named in the notice from src/tools/shared/sessionEnvNotice.ts. '
-const KEEP_HINT = 'an operator-set MERCURY_BARE must stay inherited and unnamed: see sessionEnvStamps in src/substrate/envStamps.ts. '
+const RUN_HINT = 'the run did not finish with done: check dist is built and that src/boot/entrypoints/cli.tsx and the Bash tool answer under mercury run --lean. '
+const SCRUB_HINT = 'the flag stamped by --lean in src/boot/entrypoints/cli.tsx must be scrubbed from a shell child by sessionEnvStamps and scrubSessionEnvStamps in src/platform/substrate/envStamps.ts, and named in the notice from src/tools/kit/sessionEnvNotice.ts. '
+const KEEP_HINT = 'an operator-set MERCURY_BARE must stay inherited and unnamed: see sessionEnvStamps in src/platform/substrate/envStamps.ts. '
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {

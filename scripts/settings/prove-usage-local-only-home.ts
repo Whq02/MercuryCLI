@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/cli/handlers/usage.ts src/components/Settings/usageLine.ts src/services/providers/local/localAccounts.ts src/services/providers/local/localAdapter.ts
+// gate-watch: src/commands/verbs/usage.ts src/screen/settings/usageLine.ts src/models/roads/local/localAccounts.ts src/models/roads/local/localAdapter.ts
 import { spawn, spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -13,9 +13,9 @@ const MODELS = ['qwen3.5:9b', 'nemotron-3.5-bolt:74b-a9b']
 
 if (scenario !== null) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const { composeUsageReading } = await import('../../src/cli/handlers/usage.ts')
+  const { composeUsageReading } = await import('../../src/commands/verbs/usage.ts')
   const reading = await composeUsageReading(Date.UTC(2026, 9, 16, 12))
   process.stdout.write(`\n${JSON.stringify(reading)}\n`)
   process.exit(0)

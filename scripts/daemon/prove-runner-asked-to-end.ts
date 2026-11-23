@@ -2,7 +2,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
-import { RUNNER_ASK_BOUND_MS, TaskRoster, decideRunnerEnd } from '../../src/daemon/roster.ts'
+import { RUNNER_ASK_BOUND_MS, TaskRoster, decideRunnerEnd } from '../../src/daemon/roster/roster.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 import { childEnv, scratchWorld, seedScratchHome, startScriptedFixture } from '../lib/scratchSeat.ts'
 import { describeSeat, seatRuntime } from '../lib/seatLauncher.ts'

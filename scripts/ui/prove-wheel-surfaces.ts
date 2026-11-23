@@ -2,9 +2,9 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, pinSourceRef, type Mounted } from '../lib/settingsPopupHarness.js'
-import type { BoardViewSnapshot } from '../../src/services/crewBoard/contracts.js'
-import type { ScrollBoxHandle } from '../../src/ink/components/ScrollBox.js'
-import type { SessionListing } from '../../src/types/logs.js'
+import type { BoardViewSnapshot } from '../../src/crew/board/contracts.js'
+import type { ScrollBoxHandle } from '../../src/screen/renderer/elements/ScrollBox.js'
+import type { SessionListing } from '../../src/sessions/transcripts/transcriptEntries.js'
 
 pinSourceRef()
 const home = pinScratchHome('wheel-surfaces')
@@ -13,28 +13,28 @@ process.env.MERCURY_OPERATOR = 'operator'
 process.env.MERCURY_REDUCED_MOTION = '1'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const React = await import('react')
-const { Box, Text } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.js')
-const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.js')
-const { PromptsPanel } = await import('../../src/components/prompts-panel/PromptsPanel.js')
-const { CrewChatPanel } = await import('../../src/components/prompts-panel/CrewChatPanel.js')
-const { CrewView } = await import('../../src/components/mercury-ui/screens/CrewView.js')
-const { addSavedPrompt } = await import('../../src/utils/savedPrompts/savedPromptsStore.js')
-const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.js')
-const { LogSelector } = await import('../../src/components/LogSelector.js')
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-const popup = await import('../../src/utils/cockpit/settingsPopup.js')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.js')
+const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.js')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.js')
+const { PromptsPanel } = await import('../../src/screen/prompts-panel/PromptsPanel.js')
+const { CrewChatPanel } = await import('../../src/screen/prompts-panel/CrewChatPanel.js')
+const { CrewView } = await import('../../src/screen/widgets/faces/CrewView.js')
+const { addSavedPrompt } = await import('../../src/sessions/saved-prompts/savedPromptsStore.js')
+const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.js')
+const { LogSelector } = await import('../../src/screen/session-chooser/SessionBrowser.js')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const popup = await import('../../src/screen/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
-const { default: ScrollBox } = await import('../../src/ink/components/ScrollBox.js')
-const { ScrollKeybindingHandler } = await import('../../src/components/ScrollKeybindingHandler.js')
-const { Messages } = await import('../../src/components/Messages.js')
-const { default: TextInput } = await import('../../src/components/TextInput.js')
-const { useElevatedSurface } = await import('../../src/components/mercury-ui/useElevatedSurface.js')
+const { default: ScrollBox } = await import('../../src/screen/renderer/elements/ScrollBox.js')
+const { ScrollKeybindingHandler } = await import('../../src/screen/scroll-keys/ScrollKeybindingHandler.js')
+const { Messages } = await import('../../src/screen/messages/Messages.js')
+const { default: TextInput } = await import('../../src/screen/composer/text-input/TextInput.js')
+const { useElevatedSurface } = await import('../../src/screen/widgets/useElevatedSurface.js')
 
 const UP = '\x1b[A'
 const DOWN = '\x1b[B'
@@ -67,7 +67,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — make the wheel act on this surface as the check says; scrolled bodies take their wheel step in src/components/ScrollKeybindingHandler.tsx, and a selection list handles the wheel in the component named in the label' : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — make the wheel act on this surface as the check says; scrolled bodies take their wheel step in src/screen/scroll-keys/ScrollKeybindingHandler.tsx, and a selection list handles the wheel in the component named in the label' : ''}`)
 }
 let mounted: Mounted | undefined
 let scene = 0
@@ -145,7 +145,7 @@ try {
   check('/config: the wheel selects the same row as one arrow', shot(m) === configExpected, m.screen())
   popup.closeSettingsPopup()
 
-  const { Usage } = await import('../../src/components/Settings/Usage.js')
+  const { Usage } = await import('../../src/screen/settings/Usage.js')
   m = await open(h(Usage, { width: 120, rowBudget: 20 }))
   const usageBefore = shot(m)
   m.push(DOWN)

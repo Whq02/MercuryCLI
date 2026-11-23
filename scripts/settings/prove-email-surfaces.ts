@@ -88,7 +88,7 @@ let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
   console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
-  if (!pass) console.log('       change: the surface named in the label must show the credential\'s own email (never the config record); by surface see logins in src/components/BootLoginsScreen.tsx, face chip in sessionAccountWords in src/services/accounts/sessionAccount.ts, usage popup and card via anthropicCredentialPresence and anthropicSignInEmail in src/services/providers/providerUsage.ts, /accounts board in scopeSlotTail in src/services/providers/accountSlots.ts, auth status in authStatus in src/cli/handlers/auth.ts, seat wire in src/services/engine-connector/seatWire.ts; the text after the dash is what was found')
+  if (!pass) console.log('       change: the surface named in the label must show the credential\'s own email (never the config record); by surface see logins in src/screen/boot-face/BootLoginsScreen.tsx, face chip in sessionAccountWords in src/models/sign-in/accounts/sessionAccount.ts, usage popup and card via anthropicCredentialPresence and anthropicSignInEmail in src/models/roads/providerUsage.ts, /accounts board in scopeSlotTail in src/models/roads/accountSlots.ts, auth status in authStatus in src/commands/verbs/auth.ts, seat wire in src/engine/connector/seatWire.ts; the text after the dash is what was found')
 }
 function section(title: string): void {
   console.log(`\n── ${title}`)
@@ -98,7 +98,7 @@ async function stub(relative: string, overrides: Record<string, unknown>): Promi
   const actual = await import(target)
   mock.module(target, () => ({ ...actual, ...overrides }))
 }
-await stub('src/utils/proxy.ts', { getApiFetch: () => globalThis.fetch, getProxyFetchOptions: () => ({}) })
+await stub('src/platform/network/proxy.ts', { getApiFetch: () => globalThis.fetch, getProxyFetchOptions: () => ({}) })
 
 const CREDENTIALS = join(HOME, '.credentials.json')
 type Fixture = { profile?: string; receipt?: string; record?: string; envKey?: boolean }
@@ -122,13 +122,13 @@ function writeFixture(fixture: Fixture): void {
   else delete process.env.ANTHROPIC_API_KEY
 }
 writeFixture({ profile: PROFILE_EMAIL, receipt: PROFILE_EMAIL, record: RECORD_EMAIL })
-const config = await import(join(ROOT, 'src/utils/config.ts'))
+const config = await import(join(ROOT, 'src/platform/settings/config.ts'))
 config.enableConfigs()
-const auth = { ...(await import(join(ROOT, 'src/utils/auth.ts'))), ...(await import(join(ROOT, 'src/services/auth/oauthLifecycle.ts'))) }
-const ledger = await import(join(ROOT, 'src/utils/accounts/signInLedger.ts'))
-const wallet = await import(join(ROOT, 'src/services/wallet/wallet.ts'))
-const limits = await import(join(ROOT, 'src/services/anthropicLimits.ts'))
-const identityCache = await import(join(ROOT, 'src/utils/accounts/accountIdentity.ts'))
+const auth = { ...(await import(join(ROOT, 'src/models/sign-in/credentials/auth.ts'))), ...(await import(join(ROOT, 'src/models/sign-in/lifecycle/oauthLifecycle.ts'))) }
+const ledger = await import(join(ROOT, 'src/models/sign-in/account-ledger/signInLedger.ts'))
+const wallet = await import(join(ROOT, 'src/models/wallet/wallet.ts'))
+const limits = await import(join(ROOT, 'src/models/roads/anthropic/anthropicLimits.ts'))
+const identityCache = await import(join(ROOT, 'src/models/sign-in/account-ledger/accountIdentity.ts'))
 function settleFixture(fixture: Fixture): void {
   writeFixture(fixture)
   config.saveGlobalConfig(current => ({
@@ -144,10 +144,10 @@ function settleFixture(fixture: Fixture): void {
 }
 settleFixture({ profile: PROFILE_EMAIL, receipt: PROFILE_EMAIL, record: RECORD_EMAIL })
 
-await stub('src/keybindings/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
-await stub('src/hooks/useExitOnCtrlCD.ts', { useExitOnCtrlCD: () => undefined })
-await stub('src/context/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
-await stub('src/services/health/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
+await stub('src/screen/keys/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
+await stub('src/screen/keys/useExitChord.ts', { useExitOnCtrlCD: () => undefined })
+await stub('src/screen/notifications/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
+await stub('src/platform/health/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
 const connector = {
   modelFacts: () => ({ main: MODEL, effective: MODEL }),
   subscribeModel: () => () => {},
@@ -155,22 +155,22 @@ const connector = {
   subscribeRecords: () => () => {},
   usage: () => ({ totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }),
 }
-await stub('src/services/engine-connector/focusedConnector.ts', {
+await stub('src/engine/connector/focusedConnector.ts', {
   getFocusedSessionConnector: () => connector,
   subscribeThroughFocused: (subscribe: (connection: typeof connector, listener: () => void) => () => void) => (listener: () => void) => subscribe(connector, listener),
   hasFocusedSession: () => false,
   landingInFlight: () => false,
   subscribeFocusedSessionConnector: () => () => {},
 })
-await stub('src/components/tasks/useFocusedWork.ts', {
+await stub('src/screen/tasks/useFocusedWork.ts', {
   useFocusedWorkRows: () => [],
   useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }),
   focusedSessionIdOrNull: () => null,
 })
-await stub('src/state/vitalsBus.ts', { useVitals: () => ({ trace: null }) })
+await stub('src/screen/app-state/vitalsBus.ts', { useVitals: () => ({ trace: null }) })
 
-const ink = await import(join(ROOT, 'src/ink.ts'))
-const { default: StdinContext } = await import(join(ROOT, 'src/ink/components/StdinContext.ts'))
+const ink = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
+const { default: StdinContext } = await import(join(ROOT, 'src/screen/renderer/elements/StdinContext.ts'))
 const settle = async (): Promise<void> => {
   for (let index = 0; index < 8; index++) {
     ink.flushPendingSyncWork()
@@ -229,15 +229,15 @@ const lineAfter = (frame: string, needle: string): string => {
   return at < 0 ? '' : (lines[at + 1] ?? '')
 }
 
-const logins = await import(join(ROOT, 'src/components/BootLoginsScreen.tsx'))
-const { BootSplashScreen } = await import(join(ROOT, 'src/components/BootSplashScreen.tsx'))
-const { HelmVitalsRail } = await import(join(ROOT, 'src/components/HelmVitalsRail.tsx'))
-const { railPlanAt } = await import(join(ROOT, 'src/utils/helmGeometry.ts'))
-const { settingsPopupGeometry } = await import(join(ROOT, 'src/components/SettingsPopupSlot.tsx'))
-const popupStore = await import(join(ROOT, 'src/utils/cockpit/settingsPopup.ts'))
+const logins = await import(join(ROOT, 'src/screen/boot-face/BootLoginsScreen.tsx'))
+const { BootSplashScreen } = await import(join(ROOT, 'src/screen/boot-face/BootSplashScreen.tsx'))
+const { HelmVitalsRail } = await import(join(ROOT, 'src/screen/fullscreen-layout/HelmVitalsRail.tsx'))
+const { railPlanAt } = await import(join(ROOT, 'src/screen/fullscreen-layout/helmGeometry.ts'))
+const { settingsPopupGeometry } = await import(join(ROOT, 'src/screen/overlays/SettingsPopupSlot.tsx'))
+const popupStore = await import(join(ROOT, 'src/screen/cockpit/settingsPopup.ts'))
 const usageCommand = await import(join(ROOT, 'src/commands/usage/usage.tsx'))
-const usage = await import(join(ROOT, 'src/services/providers/providerUsage.ts'))
-const session = await import(join(ROOT, 'src/services/accounts/sessionAccount.ts'))
+const usage = await import(join(ROOT, 'src/models/roads/providerUsage.ts'))
+const session = await import(join(ROOT, 'src/models/sign-in/accounts/sessionAccount.ts'))
 
 type Surfaces = { logins: string; face: string; popup: string; card: string }
 async function paintSurfaces(size: { columns: number; rows: number }, tag: string): Promise<Surfaces> {
@@ -370,14 +370,14 @@ section('§6 no wire probe at paint time; the loopback fixture saw only the usag
 }
 
 
-type ScopeRead = import('../../src/utils/accounts/accountIdentity.ts').ScopeIdentityState
+type ScopeRead = import('../../src/models/sign-in/account-ledger/accountIdentity.ts').ScopeIdentityState
 let probe: (dir: string) => Promise<ScopeRead> = () => new Promise<ScopeRead>(() => {})
-await stub('src/utils/accounts/accountIdentity.ts', { resolveLiveScopeIdentity: (dir: string) => probe(dir) })
-const slots = await import(join(ROOT, 'src/services/providers/accountSlots.ts'))
-const status = await import(join(ROOT, 'src/components/status.tsx'))
-const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
-const { AccountView } = await import(join(ROOT, 'src/components/mercury-ui/parity/AccountView.tsx'))
-const { ModalContext } = await import(join(ROOT, 'src/context/modalContext.tsx'))
+await stub('src/models/sign-in/account-ledger/accountIdentity.ts', { resolveLiveScopeIdentity: (dir: string) => probe(dir) })
+const slots = await import(join(ROOT, 'src/models/roads/accountSlots.ts'))
+const status = await import(join(ROOT, 'src/commands/verbs/status.tsx'))
+const { AppStateProvider } = await import(join(ROOT, 'src/screen/app-state/AppState.tsx'))
+const { AccountView } = await import(join(ROOT, 'src/screen/widgets/parity/AccountView.tsx'))
+const { ModalContext } = await import(join(ROOT, 'src/screen/overlays/modalContext.tsx'))
 const boardRow = (frame: string): string => frame.split('\n').find(line => /\bclaude\s+OAuth\b/.test(line)) ?? ''
 async function paintBoard(size: { columns: number; rows: number }, tag: string, read?: ScopeRead): Promise<string> {
   probe = read === undefined ? () => new Promise<ScopeRead>(() => {}) : async () => read
@@ -458,9 +458,9 @@ section('§9 auth status names the credential\'s own email; the JSON shape is th
   const RUNNER = join(HOME, 'auth-status-runner.ts')
   writeFileSync(RUNNER, [
     ";(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }",
-    `const { enableConfigs } = await import(${JSON.stringify(join(ROOT, 'src/utils/config.ts'))})`,
+    `const { enableConfigs } = await import(${JSON.stringify(join(ROOT, 'src/platform/settings/config.ts'))})`,
     'enableConfigs()',
-    `const { authStatus } = await import(${JSON.stringify(join(ROOT, 'src/cli/handlers/auth.ts'))})`,
+    `const { authStatus } = await import(${JSON.stringify(join(ROOT, 'src/commands/verbs/auth.ts'))})`,
     'await authStatus({ json: true })',
   ].join('\n') + '\n')
   const authStatusJson = (): { status: number; json: Record<string, unknown> | null; stdout: string; stderr: string } => {
@@ -499,11 +499,11 @@ section('§9 auth status names the credential\'s own email; the JSON shape is th
   check('auth status --json for the key: authMethod api_key, apiKeySource named, no email key', key.json?.authMethod === 'api_key' && key.json?.apiKeySource === 'ANTHROPIC_API_KEY' && !('email' in (key.json ?? {})), JSON.stringify(key.json))
 }
 
-type SeatIdentity = import('../../src/services/engine-connector/types.ts').SeatIdentityV1
+type SeatIdentity = import('../../src/engine/connector/types.ts').SeatIdentityV1
 section('§10 the seat facts a hosted session answers carry the credential\'s own email; the wire, the daemon\'s seat and the cockpit\'s connector relay it untouched')
 {
   const { liveFactsOf, withLiveRunner } = await import('../lib/builtProduct.ts')
-  const billing = await import(join(ROOT, 'src/utils/billing.ts'))
+  const billing = await import(join(ROOT, 'src/models/usage/billing.ts'))
   const ownIdentity = (): SeatIdentity => ({ firstPartyApi: auth.is1PApiCustomer(), consoleBilling: billing.hasConsoleBillingAccess(), claudeAiBilling: billing.hasClaudeAiBillingAccess(), accountEmail: usage.anthropicSignInEmail() ?? null })
   const identityOf = (): Promise<SeatIdentity | string> =>
     withLiveRunner(liveFactsOf, { env: { MERCURY_CONFIG_DIR: HOME, MERCURY_AUTH_SCOPE_DIR: HOME, ...(process.env.ANTHROPIC_API_KEY === undefined ? {} : { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY }) } }).then(
@@ -516,7 +516,7 @@ section('§10 the seat facts a hosted session answers carry the credential\'s ow
   check('the runner\'s session_facts arm composes the identity block the seat wire carries', typeof identity !== 'string' && JSON.stringify(Object.keys(identity).sort()) === JSON.stringify(['accountEmail', 'claudeAiBilling', 'consoleBilling', 'firstPartyApi']), JSON.stringify(identity))
   check('the seat facts\' identity.accountEmail is the credential\'s own email, never the config record', typeof identity !== 'string' && identity.accountEmail === PROFILE_EMAIL, JSON.stringify(identity))
   check('the other identity facts stand (a subscriber: not a first-party API customer, claude.ai billing)', typeof identity !== 'string' && identity.firstPartyApi === false && identity.claudeAiBilling === true && identity.consoleBilling === false, typeof identity === 'string' ? identity : JSON.stringify(identity))
-  const seatWire = await import(join(ROOT, 'src/services/engine-connector/seatWire.ts'))
+  const seatWire = await import(join(ROOT, 'src/engine/connector/seatWire.ts'))
   const zeroUsage = { totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }
   const answerWith = (who: SeatIdentity | string): Record<string, unknown> => ({
     model: { effective: MODEL, setting: null },
@@ -537,11 +537,11 @@ section('§10 the seat facts a hosted session answers carry the credential\'s ow
   const DAEMON_DIR = join(HOME, 'daemon')
   mkdirSync(DAEMON_DIR, { recursive: true })
   process.env.MERCURY_DAEMON_DIR = DAEMON_DIR
-  const seat = await import(join(ROOT, 'src/daemon/sessionSeat.ts'))
-  const workers = await import(join(ROOT, 'src/daemon/concourseWorkers.ts'))
-  const projections = await import(join(ROOT, 'src/services/engine-connector/seatProjections.ts'))
-  const { DaemonSessionConnector } = await import(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'))
-  const { NoSessionConnector } = await import(join(ROOT, 'src/services/engine-connector/noSessionConnector.ts'))
+  const seat = await import(join(ROOT, 'src/daemon/session-seat/sessionSeat.ts'))
+  const workers = await import(join(ROOT, 'src/daemon/concourse-workers/concourseWorkers.ts'))
+  const projections = await import(join(ROOT, 'src/engine/connector/seatProjections.ts'))
+  const { DaemonSessionConnector } = await import(join(ROOT, 'src/engine/connector/daemonConnector.ts'))
+  const { NoSessionConnector } = await import(join(ROOT, 'src/engine/connector/noSessionConnector.ts'))
   const SESSION = 'aaaaaaaa-bbbb-4ccc-8ddd-seatemail001'
   const SHORT = 'concourse-se1'
   workers.updateConcourseWorkers(workers => {

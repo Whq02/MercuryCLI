@@ -28,9 +28,9 @@ type Door = { acceptInput: (input: object) => Promise<unknown> }
 
 const order: string[] = []
 let queuedAtDoor = -1
-const queue = (await import(at('src/utils/messageQueueManager.ts'))) as { getCommandQueue: () => Queued[] }
+const queue = (await import(at('src/daemon/runner/messageQueueManager.ts'))) as { getCommandQueue: () => Queued[] }
 const queued = (): Queued[] => queue.getCommandQueue()
-mock.module(at('src/cli/headless/inputDoor.ts'), () => ({
+mock.module(at('src/daemon/runner/inputDoor.ts'), () => ({
   acceptInput: async (input: { kind: string }) => {
     order.push(`door:${input.kind}`)
     queuedAtDoor = queued().length
@@ -39,11 +39,11 @@ mock.module(at('src/cli/headless/inputDoor.ts'), () => ({
   acceptInputRow: async () => ({ accepted: true }),
 }))
 
-const { watchMode } = (await import(at('src/cli/headless/boot/watchMode.ts'))) as { watchMode: Step }
-const { bindInputDoor } = (await import(at('src/cli/headless/boot/bindInputDoor.ts'))) as { bindInputDoor: Step }
-const { notifyPermissionModeChanged } = (await import(at('src/utils/sessionState.ts'))) as { notifyPermissionModeChanged: (mode: string) => void }
-const posture = (await import(at('src/utils/cockpit/runtimePosture.ts'))) as { markSessionNonInteractive: (mode?: string) => void; getRuntimePostureSection: () => string | null }
-const { setAskChannel } = (await import(at('src/bootstrap/state.ts'))) as { setAskChannel: (channel: string) => void }
+const { watchMode } = (await import(at('src/daemon/runner/boot/watchMode.ts'))) as { watchMode: Step }
+const { bindInputDoor } = (await import(at('src/daemon/runner/boot/bindInputDoor.ts'))) as { bindInputDoor: Step }
+const { notifyPermissionModeChanged } = (await import(at('src/permissions/rules/permissionModeListener.ts'))) as { notifyPermissionModeChanged: (mode: string) => void }
+const posture = (await import(at('src/screen/cockpit/runtimePosture.ts'))) as { markSessionNonInteractive: (mode?: string) => void; getRuntimePostureSection: () => string | null }
+const { setAskChannel } = (await import(at('src/boot/process-state/processState.ts'))) as { setAskChannel: (channel: string) => void }
 
 type Wait = { at: number; run: () => void; unrefs: number; live: boolean }
 let clock = 0

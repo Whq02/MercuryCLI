@@ -15,13 +15,13 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_HOME
 for (const name of Object.keys(process.env)) if (/API_KEY|AUTH_TOKEN|OAUTH_TOKEN|HF_TOKEN|MERCURY_MODEL/.test(name)) delete process.env[name]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const secrets = await import('../../src/utils/accounts/providerSecrets.js')
-const { composeSignInView, summarizeSignInView } = await import('../../src/daemon/signInView.js')
-const { collectLoginsScreenFacts, loginsCatalogue, loginsRowStateOf } = await import('../../src/components/BootLoginsScreen.js')
-const { computedDefault } = await import('../../src/services/model/computedDefault.js')
-const { refreshDeepseekCatalogue } = await import('../../src/services/providers/deepseek/deepseekCatalogue.js')
+const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.js')
+const { composeSignInView, summarizeSignInView } = await import('../../src/daemon/session-seat/signInView.js')
+const { collectLoginsScreenFacts, loginsCatalogue, loginsRowStateOf } = await import('../../src/screen/boot-face/BootLoginsScreen.js')
+const { computedDefault } = await import('../../src/models/catalogue/computedDefault.js')
+const { refreshDeepseekCatalogue } = await import('../../src/models/roads/deepseek/deepseekCatalogue.js')
 let status = 200
 let requests = 0
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch() {
@@ -33,11 +33,11 @@ let failures = 0
 function check(label: string, ok: boolean, detail = '') {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
-  if (!ok) console.log('    fix: the refusal is recorded by refreshDeepseekCatalogue in src/services/providers/deepseek/deepseekCatalogue.ts and shown by composeSignInView and summarizeSignInView in src/daemon/signInView.ts, loginsRowStateOf in src/components/BootLoginsScreen.tsx, computedDefault in src/services/model/computedDefault.ts and authStatus in src/cli/handlers/auth.ts; the daemon and health checks need a fresh dist/mercury.mjs (bun run build.ts)')
+  if (!ok) console.log('    fix: the refusal is recorded by refreshDeepseekCatalogue in src/models/roads/deepseek/deepseekCatalogue.ts and shown by composeSignInView and summarizeSignInView in src/daemon/session-seat/signInView.ts, loginsRowStateOf in src/screen/boot-face/BootLoginsScreen.tsx, computedDefault in src/models/catalogue/computedDefault.ts and authStatus in src/commands/verbs/auth.ts; the daemon and health checks need a fresh dist/mercury.mjs (bun run build.ts)')
 }
 const view = () => composeSignInView({ refresh: true })
 const chip = () => loginsRowStateOf(loginsCatalogue().find(row => row.familyId === 'deepseek')!, collectLoginsScreenFacts()).chip
-const cli = () => spawnSync(process.execPath, ['-e', `globalThis.MACRO={VERSION:'1.0.0'};const c=await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/config.ts'))});c.enableConfigs();const a=await import(${JSON.stringify(join(import.meta.dir, '../../src/cli/handlers/auth.ts'))});await a.authStatus({json:true});`], { env: { ...process.env, MERCURY_MODEL: 'deepseek-chat' }, encoding: 'utf8', timeout: 30000 })
+const cli = () => spawnSync(process.execPath, ['-e', `globalThis.MACRO={VERSION:'1.0.0'};const c=await import(${JSON.stringify(join(import.meta.dir, '../../src/platform/settings/config.ts'))});c.enableConfigs();const a=await import(${JSON.stringify(join(import.meta.dir, '../../src/commands/verbs/auth.ts'))});await a.authStatus({json:true});`], { env: { ...process.env, MERCURY_MODEL: 'deepseek-chat' }, encoding: 'utf8', timeout: 30000 })
 try {
   secrets.writeStoredZaiApiKey('fixture-zai-working-key')
   secrets.writeStoredDeepseekApiKey('fixture-deepseek-stored-key')
@@ -60,7 +60,7 @@ try {
   daemon.stderr.on('data', chunk => { daemonLog += String(chunk) })
   daemon.stdout.on('data', chunk => { daemonLog += String(chunk) })
   const ended = new Promise<void>(resolve => daemon.once('exit', () => resolve()))
-  const { daemonControlRpc } = await import('../../src/daemon/controlSocket.js')
+  const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.js')
   const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
   try {
     const deadline = Date.now() + 30000

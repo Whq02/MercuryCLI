@@ -6,12 +6,12 @@ import sharp from 'sharp'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_BARE = '1'
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { mediaDecoderMissing, mediaFileFormat } = await import('../../src/services/voice/fileTranscript.ts')
-const { createImageMetadataText } = await import('../../src/utils/imageResizer.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { mediaDecoderMissing, mediaFileFormat } = await import('../../src/integrations/voice/fileTranscript.ts')
+const { createImageMetadataText } = await import('../../src/platform/images/imageResizer.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 const dir = mkdtempSync(join(tmpdir(), 'extensionless-images-'))
 const context = () => ({ options: { engineModel: 'claude-sonnet-5-5' }, readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), messages: [], getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) })
@@ -33,7 +33,7 @@ try {
       assert.equal(cropped.newMessages?.length ?? 0, 0)
       assert.match(cropped.data.file.caption ?? '', /This image is the crop/)
       const mapped = FileReadTool.mapToolResultToToolResultBlockParam(cropped.data, 'image-proof')
-      assert(Array.isArray(mapped.content) && mapped.content.some(block => block.type === 'image'), `FileReadTool.mapToolResultToToolResultBlockParam(${format}) did not emit an image block in src/tools/FileReadTool/FileReadTool.ts`)
+      assert(Array.isArray(mapped.content) && mapped.content.some(block => block.type === 'image'), `FileReadTool.mapToolResultToToolResultBlockParam(${format}) did not emit an image block in src/tools/read/ReadTool.ts`)
     })
   }
   for (const text of ['ordinary text', 'GIF is not an image', '']) {

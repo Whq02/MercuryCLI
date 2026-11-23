@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import ComposeBuffer, { lastComposeCounts } from '../../src/ink/compose-buffer.js'
+import ComposeBuffer, { lastComposeCounts } from '../../src/screen/renderer/compose-buffer.js'
 import {
   cellAt,
   CharPool,
@@ -9,7 +9,7 @@ import {
   HyperlinkPool,
   type Screen,
   StylePool,
-} from '../../src/ink/cell-grid.js'
+} from '../../src/screen/renderer/cell-grid.js'
 
 const RECORDING = join(import.meta.dirname, 'compose-buffer-recording.json')
 const WRITE = process.argv.includes('--write')
@@ -219,7 +219,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 console.log('prove-compose-buffer-recording — ComposeBuffer recording')
-check('two runs in one process produce identical recordings', first === second, 'ComposeBuffer in src/ink/compose-buffer.ts keeps state between scenes (a pool, cache or reset path) that changes the second run; make reset and get start each scene clean')
+check('two runs in one process produce identical recordings', first === second, 'ComposeBuffer in src/screen/renderer/compose-buffer.ts keeps state between scenes (a pool, cache or reset path) that changes the second run; make reset and get start each scene clean')
 
 if (WRITE) {
   if (failures === 0) {
@@ -237,7 +237,7 @@ if (WRITE) {
       const b = first.split('\n')
       for (let i = 0; i < Math.max(a.length, b.length); i++) {
         if (a[i] !== b[i]) {
-          detail = `first diff line ${i + 1}: stored=${a[i]} vs now=${b[i]}; if the change in src/ink/compose-buffer.ts is unintended, fix it there, and if intended, re-record with this script and --write and commit scripts/ink-runtime/compose-buffer-recording.json`
+          detail = `first diff line ${i + 1}: stored=${a[i]} vs now=${b[i]}; if the change in src/screen/renderer/compose-buffer.ts is unintended, fix it there, and if intended, re-record with this script and --write and commit scripts/ink-runtime/compose-buffer-recording.json`
           break
         }
       }

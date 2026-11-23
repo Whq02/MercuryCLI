@@ -6,7 +6,7 @@ import { join } from 'node:path'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: watchDirectory in src/utils/watchRoot.ts, which must pass changes to onChange, call onGone once when the watched root is deleted on Windows (never on POSIX), and leave the error event to the caller on POSIX'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: watchDirectory in src/platform/processes/watchRoot.ts, which must pass changes to onChange, call onGone once when the watched root is deleted on Windows (never on POSIX), and leave the error event to the caller on POSIX'}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))
 
@@ -15,7 +15,7 @@ console.log(' a recursive directory watcher whose root is deleted')
 console.log('============================================================')
 
 
-const { watchDirectory } = await import('../../src/utils/watchRoot.ts')
+const { watchDirectory } = await import('../../src/platform/processes/watchRoot.ts')
 check('watchRoot exports watchDirectory', typeof watchDirectory === 'function')
 
 if (process.platform !== 'win32') {

@@ -16,14 +16,14 @@ let failures = 0
 const check = (name: string, ok: unknown) => { console.log((ok ? 'PASS ' : 'FAIL ') + name); if (!ok) failures++ }
 try {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { UserTextMessage } = await import('../../src/components/messages/UserTextMessage.tsx')
-  const watches = await import('../../src/tools/MonitorTool/watchReceipts.ts')
-  const { getCommandQueue, resetCommandQueue } = await import('../../src/utils/messageQueueManager.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { UserTextMessage } = await import('../../src/screen/messages/UserTextMessage.tsx')
+  const watches = await import('../../src/tools/monitor/watchReceipts.ts')
+  const { getCommandQueue, resetCommandQueue } = await import('../../src/daemon/runner/messageQueueManager.ts')
   const { restartSessionOnInstalledBuild } = await import('../../src/commands/restart/restart.ts')
-  const { readSelfHostedLiveness } = await import('../../src/services/providers/openaicompat/compatProbe.ts')
-  const { loginsActionFor } = await import('../../src/services/concourse/workerModels.ts')
+  const { readSelfHostedLiveness } = await import('../../src/models/roads/openaicompat/compatProbe.ts')
+  const { loginsActionFor } = await import('../../src/screen/concourse-model/workerModels.ts')
   const { hostReadyWords } = await import('../../src/commands/llmhost/words.ts')
   const installed = 'abcdef123456'
   const runtime = join(f.home, 'runtime/current')
@@ -43,7 +43,7 @@ try {
     { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: shell.toolUseId, content: 'Running in the background (ID: shell-fixture). Output: build.output' }] } },
   ] as never, new Set(), 'update')
   const shellLine = String(getCommandQueue()[0]?.value ?? '')
-  assert.ok(shellLine.includes('shell-fixture'), `src/tools/MonitorTool/watchReceipts.ts reconciled shell notice missing 'shell-fixture': ${shellLine.slice(0, 140)}`)
+  assert.ok(shellLine.includes('shell-fixture'), `src/tools/monitor/watchReceipts.ts reconciled shell notice missing 'shell-fixture': ${shellLine.slice(0, 140)}`)
   const idle = await readSelfHostedLiveness({ baseUrl: 'http://127.0.0.1:30000/v1', dialect: 'llamacpp' }, 'llamacpp', 2, { fetchImpl: (async () => Response.json(Array.from({ length: 4 }, (_, id) => ({ id, is_processing: id !== 2 })))) as typeof fetch })
   assert.equal(idle.state, 'dead')
   const lines = [
@@ -70,7 +70,7 @@ try {
     for (const [name, text] of lines) {
       const m = await mountOffscreen(React.createElement(ThemeProvider, {}, React.createElement(Box, { width: cols, height: 24, flexDirection: 'column' }, React.createElement(UserTextMessage, { addMargin: false, param: { type: 'text', text }, verbose: true, notice: true }))), cols, 24)
       try {
-        assert.ok(await waitFor(() => m.screen().trim().length > 0, 5000), `src/components/messages/UserTextMessage.tsx ${name} at ${cols} cols rendered empty frame after 5000ms`)
+        assert.ok(await waitFor(() => m.screen().trim().length > 0, 5000), `src/screen/messages/UserTextMessage.tsx ${name} at ${cols} cols rendered empty frame after 5000ms`)
         check(cols + ': ' + name + ' renders without losing its final words', !m.screen().includes('RENDER ERROR') && m.screen().replace(/\s+/g, ' ').includes(text.replace(/<[^>]+>/g, '').trim().slice(-16).replace(/\]$/, '').replace(/\s+/g, ' ')))
         if (frames) {
           writeFileSync(join(frames, name + '-' + cols + '.txt'), m.screen())

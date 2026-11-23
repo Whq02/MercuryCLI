@@ -12,21 +12,21 @@ process.env.MERCURY_CHANGESET_DIR = csHome
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const where = 'fix applyPreview in src/services/structure/transform.ts or runVerbatimTextCommit in src/services/changeTransaction/changeSetCommit.ts, which commits a Structure apply'
+  const where = 'fix applyPreview in src/tools/engines/structure/transform.ts or runVerbatimTextCommit in src/tools/engines/change-transaction/changeSetCommit.ts, which commits a Structure apply'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${[detail, where].filter(Boolean).join(' | ')}` : ''}`)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — migration proof exceeded 120s; a Structure apply never returned, look at applyPreview in src/services/structure/transform.ts and runVerbatimTextCommit in src/services/changeTransaction/changeSetCommit.ts')
+  console.log('\nTIMEOUT — migration proof exceeded 120s; a Structure apply never returned, look at applyPreview in src/tools/engines/structure/transform.ts and runVerbatimTextCommit in src/tools/engines/change-transaction/changeSetCommit.ts')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
 
 
 console.log('── §2 a real Structure apply commits THROUGH the core ──')
-const { runStructureQuery } = await import('../../src/services/structure/query.ts')
-const { buildPreview, applyPreview } = await import('../../src/services/structure/transform.ts')
-const { listJournalOperations } = await import('../../src/substrate/operationJournal.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { runStructureQuery } = await import('../../src/tools/engines/structure/query.ts')
+const { buildPreview, applyPreview } = await import('../../src/tools/engines/structure/transform.ts')
+const { listJournalOperations } = await import('../../src/platform/substrate/operationJournal.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 const owner = processMainOwner()
 const fixture = mkdtempSync(join(tmpdir(), 'fulcrum-mig-fix-'))

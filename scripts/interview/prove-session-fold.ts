@@ -8,7 +8,7 @@ import {
   foldInterview,
   rebuildInterview,
   type InterviewEvent,
-} from '../../src/services/interview/contracts.ts'
+} from '../../src/tools/engines/interview/contracts.ts'
 
 const t = checker()
 

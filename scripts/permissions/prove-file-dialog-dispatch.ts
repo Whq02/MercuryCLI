@@ -16,7 +16,7 @@ process.env.NODE_ENV = 'test'
 process.chdir(PROJ)
 
 let failures = 0
-const fileDialogHint = 'change the dialog hook useFilePermissionDialog in src/components/permissions/FilePermissionDialog/useFilePermissionDialog.ts (options, input modes, the confirm:cycleMode chord, onChange dispatch) or, for the symlink and card checks, FilePermissionDialog in src/components/permissions/FilePermissionDialog/FilePermissionDialog.tsx'
+const fileDialogHint = 'change the dialog hook useFilePermissionDialog in src/permissions/cards/file-dialog/useFilePermissionDialog.ts (options, input modes, the confirm:cycleMode chord, onChange dispatch) or, for the symlink and card checks, FilePermissionDialog in src/permissions/cards/file-dialog/FilePermissionDialog.tsx'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + fileDialogHint + (detail ? ' — ' + detail : '')}`)
   if (!ok) failures++
@@ -24,15 +24,15 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { useFilePermissionDialog } = await import('../../src/components/permissions/FilePermissionDialog/useFilePermissionDialog.js')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { KeybindingProvider } = await import('../../src/keybindings/KeybindingContext.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { useFilePermissionDialog } = await import('../../src/permissions/cards/file-dialog/useFilePermissionDialog.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { KeybindingProvider } = await import('../../src/screen/keys/KeybindingContext.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 type Dialog = ReturnType<typeof useFilePermissionDialog<{ file_path: string; parsed?: boolean }>>
 type Registration = { action: string; context: string; handler: () => void }
 
@@ -152,12 +152,12 @@ check('the chord does nothing when no session option exists', j(taken()) === j([
 read.close()
 
 section('§5 READ SYMLINKS — the same target and workspace escape row as edits')
-const { FilePermissionDialog } = await import('../../src/components/permissions/FilePermissionDialog/FilePermissionDialog.tsx')
+const { FilePermissionDialog } = await import('../../src/permissions/cards/file-dialog/FilePermissionDialog.tsx')
 const { mountOffscreen, waitFor } = await import('../lib/settingsPopupHarness.ts')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { Text } = await import('../../src/ink.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { Text } = await import('../../src/screen/themedRenderer.js')
 const inside = join(PROJ, 'target.txt')
 const outside = join(HOME, 'target.txt')
 writeFileSync(inside, 'inside')

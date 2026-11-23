@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 
 let failures = 0
-const splitFailHint = 'change getGlobPreambleCommand (src/utils/shell/globPreamble.ts) or where buildExecCommand puts the preamble in the frame (createBashShellProvider in src/utils/shell/bashProvider.ts)'
+const splitFailHint = 'change getGlobPreambleCommand (src/platform/shell/globPreamble.ts) or where buildExecCommand puts the preamble in the frame (createBashShellProvider in src/platform/shell/bashProvider.ts)'
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : `${detail ? ' · ' : ' — '}${splitFailHint}`}`)
   if (!ok) failures = 1
@@ -22,13 +22,13 @@ delete process.env.MERCURY_SHELL_PREFIX
 delete process.env.MERCURY_SHELL_ENGINE
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { resolveBashPackDir } = await import('../../src/utils/shell/bashPack.ts')
-const { resolveBrushPackDir } = await import('../../src/utils/shell/brushPack.ts')
-const { getGlobPreambleCommand } = await import('../../src/utils/shell/globPreamble.ts')
-const { createBashShellProvider } = await import('../../src/utils/shell/bashProvider.ts')
-const { createEngineCommandProvider } = await import('../../src/utils/shell/engineSession.ts')
-const { systemShellRecord } = await import('../../src/utils/shell/shellRecord.ts')
-const { exec, setCwd } = await import('../../src/utils/Shell.ts')
+const { resolveBashPackDir } = await import('../../src/platform/shell/bashPack.ts')
+const { resolveBrushPackDir } = await import('../../src/platform/shell/brushPack.ts')
+const { getGlobPreambleCommand } = await import('../../src/platform/shell/globPreamble.ts')
+const { createBashShellProvider } = await import('../../src/platform/shell/bashProvider.ts')
+const { createEngineCommandProvider } = await import('../../src/platform/shell/engineSession.ts')
+const { systemShellRecord } = await import('../../src/platform/shell/shellRecord.ts')
+const { exec, setCwd } = await import('../../src/platform/shell/shellExec.ts')
 setCwd(scratch)
 
 const singleQuoted = (text: string): string => `'${text.replace(/'/g, "'\\''")}'`

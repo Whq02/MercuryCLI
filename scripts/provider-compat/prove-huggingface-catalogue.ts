@@ -16,10 +16,10 @@ process.env.MERCURY_HUGGINGFACE_HUB_BASE = 'https://hub.fixture.example'
 process.env.MERCURY_HUGGINGFACE_API_BASE = 'https://router.fixture.example/v1'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const catalogue = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.ts')
+const catalogue = await import('../../src/models/roads/huggingface/huggingfaceCatalogue.ts')
 const {
   decodeHuggingfaceModel,
   refreshHuggingfaceCatalogue,
@@ -35,34 +35,34 @@ const {
   HUGGINGFACE_MODEL_GROUP,
   __resetHuggingfaceCatalogueForTest,
 } = catalogue
-const { isCatalogueDoorRow, isProviderActionRow } = await import('../../src/services/model/modelOptions.ts')
+const { isCatalogueDoorRow, isProviderActionRow } = await import('../../src/models/catalogue/modelOptions.ts')
 const { HUGGINGFACE_DISPLAY_PINS, splitHuggingfaceSlug, huggingfaceDisplayPin } = await import(
-  '../../src/utils/model/pins/huggingfacePins.ts'
+  '../../src/models/facts/pins/huggingfacePins.ts'
 )
 const { writeHuggingfaceTokens, huggingfaceChatCompletionsUrl } = await import(
-  '../../src/services/providers/huggingface/huggingfaceAccounts.ts'
+  '../../src/models/roads/huggingface/huggingfaceAccounts.ts'
 )
-const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
+const { writeStoredHuggingfaceApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
 const { resolveContextWindow, modelSupportsEffort, modelSupportsMaxEffort } = await import(
-  '../../src/utils/model/capabilities.ts'
+  '../../src/models/facts/capabilities.ts'
 )
-const { huggingfaceLaneProfile } = await import('../../src/services/providers/huggingface/huggingfaceCallModel.ts')
-const { buildHuggingfaceExtras } = await import('../../src/services/providers/openaicompat/compatWire.ts')
+const { huggingfaceLaneProfile } = await import('../../src/models/roads/huggingface/huggingfaceCallModel.ts')
+const { buildHuggingfaceExtras } = await import('../../src/models/roads/openaicompat/compatWire.ts')
 const { streamCompatChat, mapCompatHttpFailure } = await import(
-  '../../src/services/providers/openaicompat/compatChatClient.ts'
+  '../../src/models/roads/openaicompat/compatChatClient.ts'
 )
-type CompatStreamEvent = import('../../src/services/providers/openaicompat/compatChatClient.ts').CompatStreamEvent
-const usageState = await import('../../src/services/providers/huggingface/huggingfaceUsageState.ts')
+type CompatStreamEvent = import('../../src/models/roads/openaicompat/compatChatClient.ts').CompatStreamEvent
+const usageState = await import('../../src/models/roads/huggingface/huggingfaceUsageState.ts')
 const { recordHuggingfaceRateHeaders, huggingfaceLimitWindow, huggingfaceObservedRate, parseRateLimitHeader, __resetHuggingfaceUsageStateForTest } = usageState
-const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
+const { providerFrontierFact } = await import('../../src/models/catalogue/providerFrontier.ts')
 
 let failures = 0
 const SECTION_HINTS: Record<string, string> = {
-  '1': 'change decodeHuggingfaceModel in src/services/providers/huggingface/huggingfaceCatalogue.ts',
-  '2': 'change refreshHuggingfaceCatalogue or the huggingfaceLive* readers in src/services/providers/huggingface/huggingfaceCatalogue.ts',
-  '3': 'change resolveContextWindow in src/utils/model/capabilities.ts or the pins in src/utils/model/pins/huggingfacePins.ts',
-  '4': 'change getHuggingfaceAvailability, getHuggingfaceModelOptions or getHuggingfaceFullModelOptions in src/services/providers/huggingface/huggingfaceCatalogue.ts',
-  '5': 'change huggingfaceLaneProfile in src/services/providers/huggingface/huggingfaceCallModel.ts, buildHuggingfaceExtras in src/services/providers/openaicompat/compatWire.ts, streamCompatChat or mapCompatHttpFailure in src/services/providers/openaicompat/compatChatClient.ts, or src/services/providers/huggingface/huggingfaceUsageState.ts',
+  '1': 'change decodeHuggingfaceModel in src/models/roads/huggingface/huggingfaceCatalogue.ts',
+  '2': 'change refreshHuggingfaceCatalogue or the huggingfaceLive* readers in src/models/roads/huggingface/huggingfaceCatalogue.ts',
+  '3': 'change resolveContextWindow in src/models/facts/capabilities.ts or the pins in src/models/facts/pins/huggingfacePins.ts',
+  '4': 'change getHuggingfaceAvailability, getHuggingfaceModelOptions or getHuggingfaceFullModelOptions in src/models/roads/huggingface/huggingfaceCatalogue.ts',
+  '5': 'change huggingfaceLaneProfile in src/models/roads/huggingface/huggingfaceCallModel.ts, buildHuggingfaceExtras in src/models/roads/openaicompat/compatWire.ts, streamCompatChat or mapCompatHttpFailure in src/models/roads/openaicompat/compatChatClient.ts, or src/models/roads/huggingface/huggingfaceUsageState.ts',
 }
 let sectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {

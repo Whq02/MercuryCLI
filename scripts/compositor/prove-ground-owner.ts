@@ -7,7 +7,7 @@ const BUN = process.execPath
 
 let failures = 0
 function check(name: string, ok: boolean, detail = ''): void {
-  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok ? '' : `${detail ? ` — ${detail}` : ''} — change the terminal-ground owner in src/utils/cockpit/oasisBg.ts (syncOasisBgToTheme, noteOriginalGroundReply, exitOasisBg), or for the C5c and C7 splash rows assets/splash/mercury-splash.mjs`}`)
+  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok ? '' : `${detail ? ` — ${detail}` : ''} — change the terminal-ground owner in src/screen/cockpit/oasisBg.ts (syncOasisBgToTheme, noteOriginalGroundReply, exitOasisBg), or for the C5c and C7 splash rows assets/splash/mercury-splash.mjs`}`)
   if (!ok) failures++
 }
 
@@ -21,8 +21,8 @@ function inProc(snippet: string, env: Record<string, string | undefined> = {}): 
     process.env.TERM = 'xterm-256color'
     const out = []
     const w = (s) => out.push(s)
-    const mod = await import(${JSON.stringify(join(REPO, 'src/utils/cockpit/oasisBg.ts'))})
-    const warm = await import(${JSON.stringify(join(REPO, 'src/utils/cockpit/warmBackground.ts'))})
+    const mod = await import(${JSON.stringify(join(REPO, 'src/screen/cockpit/oasisBg.ts'))})
+    const warm = await import(${JSON.stringify(join(REPO, 'src/screen/cockpit/warmBackground.ts'))})
     ${snippet}
     console.log('%%%' + JSON.stringify(result) + '%%%')
   `

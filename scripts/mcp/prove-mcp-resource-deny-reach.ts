@@ -1,13 +1,13 @@
-import { getEmptyToolPermissionContext, type ToolUseContext } from '../../src/Tool.js'
-import { ListMcpResourcesTool } from '../../src/tools/ListMcpResourcesTool/ListMcpResourcesTool.js'
-import { ReadMcpResourceTool } from '../../src/tools/ReadMcpResourceTool/ReadMcpResourceTool.js'
-import { hasPermissionsToUseTool } from '../../src/utils/permissions/permissions.js'
-import { getDefaultAppState } from '../../src/state/AppStateStore.js'
-import { fetchResourcesForClient, pruneStaleMcpResourceTools, reconnectMcpServerImpl, supplementaryToolsForMcpClient } from '../../src/services/mcp/client.js'
-import { tellMcpToolsTheClient } from '../../src/services/mcp/client/forTools.js'
-import { dropMcpServerFromAppState } from '../../src/services/mcp/kitDial.js'
-import type { ConnectedMCPServer, MCPServerConnection, ScopedMcpServerConfig } from '../../src/utils/mcp/types.js'
-import type { AssistantMessage } from '../../src/types/message.js'
+import { getEmptyToolPermissionContext, type ToolUseContext } from '../../src/tools/kit/tool.js'
+import { ListMcpResourcesTool } from '../../src/tools/list-mcp-resources/ListMcpResourcesTool.js'
+import { ReadMcpResourceTool } from '../../src/tools/read-mcp-resource/ReadMcpResourceTool.js'
+import { hasPermissionsToUseTool } from '../../src/permissions/rules/permissionDoor.js'
+import { getDefaultAppState } from '../../src/screen/app-state/AppStateStore.js'
+import { fetchResourcesForClient, pruneStaleMcpResourceTools, reconnectMcpServerImpl, supplementaryToolsForMcpClient } from '../../src/integrations/mcp/client.js'
+import { tellMcpToolsTheClient } from '../../src/integrations/mcp/client/forTools.js'
+import { dropMcpServerFromAppState } from '../../src/integrations/mcp/kitDial.js'
+import type { ConnectedMCPServer, MCPServerConnection, ScopedMcpServerConfig } from '../../src/integrations/mcp-shapes/mcpServerRecords.js'
+import type { AssistantMessage } from '../../src/engine/message-shapes/message.js'
 
 tellMcpToolsTheClient({
   ensureConnectedClient: async client => client as ConnectedMCPServer,

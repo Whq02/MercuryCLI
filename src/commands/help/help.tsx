@@ -1,5 +1,5 @@
-import { HelpV2 } from '../../components/HelpV2/HelpV2.js';
-import type { LocalJSXCommandCall } from '../../types/command.js';
+import { HelpV2 } from '../../screen/help/HelpV2.js';
+import type { LocalJSXCommandCall } from '../catalogue/command.js';
 export const call: LocalJSXCommandCall = async (onDone, {
   options: {
     commands

@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { PLATFORM_PACKAGES_PATH, platformKey, ripgrepPackageFor } from '../../src/services/privateChannel/releaseTarget.ts'
-import { imagePackPackages, imagePackPlatform } from '../../src/utils/imageProcessor/imagePackArm.ts'
+import { PLATFORM_PACKAGES_PATH, platformKey, ripgrepPackageFor } from '../../src/platform/update-channel/releaseTarget.ts'
+import { imagePackPackages, imagePackPlatform } from '../../src/platform/images/imagePackArm.ts'
 
 export function platformPackagesFor(platform: string, arch: string): string[] {
   return [ripgrepPackageFor(platform, arch), ...imagePackPackages(imagePackPlatform(platform, arch))]

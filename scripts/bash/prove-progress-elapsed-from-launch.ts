@@ -28,13 +28,13 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const where = /elapsed|row/.test(label) ? 'the bash_progress row in src/tools/BashTool/BashTool.tsx must compute elapsedTimeSeconds from launchedAt (the launch of the command), not from the end of the quiet window' : 'BashTool.call in src/tools/BashTool/BashTool.tsx did not run the five-second loop as expected; run the command by hand and read its result'
+  const where = /elapsed|row/.test(label) ? 'the bash_progress row in src/tools/shell/BashTool.tsx must compute elapsedTimeSeconds from launchedAt (the launch of the command), not from the end of the quiet window' : 'BashTool.call in src/tools/shell/BashTool.tsx did not run the five-second loop as expected; run the command by hand and read its result'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}to fix: ${where}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 
 let appState = getDefaultAppState()
 const toolContext = {

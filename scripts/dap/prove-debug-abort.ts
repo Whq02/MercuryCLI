@@ -13,12 +13,12 @@ process.env.HOME = scratch
 process.env.USERPROFILE = scratch
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ fixture: { command: process.execPath, args: [join(import.meta.dir, 'mock-dap-terminal.mjs')] } })
-const { DebugTool } = await import(join(SRC, 'tools/DebugTool/DebugTool.ts'))
-const { getDapSession, removeDapSession, _dapSessionCountForTesting } = await import(join(SRC, 'services/dap/dapClient.ts'))
-const { processMainOwner } = await import(join(SRC, 'utils/run/resolveOwner.ts'))
+const { DebugTool } = await import(join(SRC, 'tools/debug/DebugTool.ts'))
+const { getDapSession, removeDapSession, _dapSessionCountForTesting } = await import(join(SRC, 'integrations/debugger/dapClient.ts'))
+const { processMainOwner } = await import(join(SRC, 'engine/run-owner/resolveOwner.ts'))
 const owner = processMainOwner()
 let failures = 0
-const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' ' + (detail ? detail + ' — ' : '') + 'the abort signal must reach the session wait or request: see DebugTool.call in src/tools/DebugTool/DebugTool.ts (context.abortController), withOperation in src/services/dap/dapClient.ts and waitForDap in src/services/dap/dapCancellation.ts; the timeoutMs schema checks are on DebugTool.inputSchema in src/tools/DebugTool/DebugTool.ts' : ''}`) }
+const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' ' + (detail ? detail + ' — ' : '') + 'the abort signal must reach the session wait or request: see DebugTool.call in src/tools/debug/DebugTool.ts (context.abortController), withOperation in src/integrations/debugger/dapClient.ts and waitForDap in src/integrations/debugger/dapCancellation.ts; the timeoutMs schema checks are on DebugTool.inputSchema in src/tools/debug/DebugTool.ts' : ''}`) }
 const call = (input: any, abortController = new AbortController()) => DebugTool.call(input, { owner, abortController } as never)
 const until = async (test: () => boolean) => { const end = Date.now() + 2000; while (!test() && Date.now() < end) await Bun.sleep(10); return test() }
 const settledWithin = async (promise: Promise<any>, ms: number) => { let timer: ReturnType<typeof setTimeout>; try { return await Promise.race([promise, new Promise<undefined>(resolve => { timer = setTimeout(() => resolve(undefined), ms) })]) } finally { clearTimeout(timer!) } }

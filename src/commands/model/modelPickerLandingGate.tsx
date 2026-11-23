@@ -1,9 +1,9 @@
 import * as React from 'react'
-import { useTimer } from '../../hooks/effects.js'
-import { FAINT } from '../../components/mercuryPalette.js'
-import { Text } from '../../ink.js'
-import { landingInFlight, subscribeFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { useTimer } from '../../screen/effects/effects.js'
+import { FAINT } from '../../screen/theme/mercuryPalette.js'
+import { Text } from '../../screen/themedRenderer.js'
+import { landingInFlight, subscribeFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
+import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
 
 export const MODEL_PICKER_LANDING_WORDS = 'the session is still landing — the model picker opens when it has'
 export const MODEL_PICKER_LANDING_CEILING_MS = 4_000

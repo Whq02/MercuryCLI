@@ -11,7 +11,7 @@ import {
   readConcourseSessionDraftState,
   writeConcourseDraft,
   writeConcourseSessionDraft,
-} from '../../src/services/concourse/concourseSnapshot.ts'
+} from '../../src/screen/concourse-model/concourseSnapshot.ts'
 
 const t = checker()
 const dir = realpathSync(mkdtempSync(join(tmpdir(), 'session-drafts-')))

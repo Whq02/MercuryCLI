@@ -11,13 +11,13 @@ for (const name of Object.keys(process.env)) {
 }
 Object.assign(process.env, { MERCURY_CONFIG_DIR: home, MERCURY_AUTH_SCOPE_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_EVOLUTION_LEDGER: '0', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key' })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const slots = await import('../../src/services/providers/accountSlots.js')
-const logins = await import('../../src/components/BootLoginsScreen.js')
+const slots = await import('../../src/models/roads/accountSlots.js')
+const logins = await import('../../src/screen/boot-face/BootLoginsScreen.js')
 
 let failures = 0
-const EXPIRED_SIGNIN_HINT = 'to fix, change the expiry handling in deriveFamilySlotGroups (src/services/providers/accountSlots.ts), slotSigninState (src/services/providers/accountSlots/signin.ts), or loginsFamilyCounts, loginsRowStateOf and loginsDetailLines (src/components/bootLogins/facts.ts)'
+const EXPIRED_SIGNIN_HINT = 'to fix, change the expiry handling in deriveFamilySlotGroups (src/models/roads/accountSlots.ts), slotSigninState (src/models/roads/account-slots/signin.ts), or loginsFamilyCounts, loginsRowStateOf and loginsDetailLines (src/screen/boot-face/logins/facts.ts)'
 const check = (label: string, ok: boolean, detail = '') => {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${EXPIRED_SIGNIN_HINT}` : ''}`)

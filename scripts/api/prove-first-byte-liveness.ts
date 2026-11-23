@@ -111,15 +111,15 @@ Object.assign(process.env, {
   MERCURY_MAX_RETRIES: '1',
 })
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-const idle = await import('../../src/services/providers/streamIdleBudget.ts')
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
-type SystemAPIErrorMessage = import('../../src/types/message.ts').SystemAPIErrorMessage
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const idle = await import('../../src/models/roads/streamIdleBudget.ts')
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
+type SystemAPIErrorMessage = import('../../src/engine/message-shapes/message.ts').SystemAPIErrorMessage
 
 const warmHistory = (): unknown[] => {
   const earlier = createAssistantMessage({ content: [{ type: 'text', text: 'an earlier reply' }] } as never) as AssistantMessage
@@ -175,13 +175,13 @@ section(`L1 · headers and message_start at once, then only ping events for ${TH
   plans.push('think')
   seen.length = 0
   const o = await drive()
-  check('the reply arrived whole after the long think and the turn settled end_turn', o.threw === undefined && o.errors.length === 0 && o.last?.message.stop_reason === 'end_turn' && replyText(o.last) === 'the answer after the long think', `threw=${String(o.threw)} errors=${o.errors.join('|').slice(0, 200)} text=${replyText(o.last)} — a ping-only stream must not trip the first-byte or idle budget: check the first-byte wait and retry handling in src/services/providers/anthropic/streamCore/passRetries.ts and the budgets in src/services/providers/streamIdleBudget.ts`)
-  check('exactly one request reached the edge: no reissue, no fallback', seen.join(',') === 'think', `${seen.join(',')} — a live stream was reissued; look for the first-byte timer in src/services/providers/anthropic/streamCore/passRetries.ts that should clear once headers land`)
-  check('no retry notice of any kind — the first-byte line never fired on a live stream', o.notices.length === 0, `${noticeWords(o.notices).slice(0, 300)} — a retry notice fired on a live stream; the first-byte timer in src/services/providers/anthropic/streamCore/passRetries.ts must stop once headers arrive`)
-  check(`the edge sent pings for the whole think (${pingsSent[0] ?? 0} pings over ${THINK_MS} ms) and the turn lasted at least that long`, (pingsSent[0] ?? 0) >= THINK_BUDGETS * (IDLE_MS / PING_EVERY_MS) * 0.9 && o.wallMs >= THINK_MS, `${o.wallMs.toFixed(0)} ms — the turn ended before the think finished or too few pings were sent; the stream was cut early, see the idle budget in src/services/providers/streamIdleBudget.ts`)
+  check('the reply arrived whole after the long think and the turn settled end_turn', o.threw === undefined && o.errors.length === 0 && o.last?.message.stop_reason === 'end_turn' && replyText(o.last) === 'the answer after the long think', `threw=${String(o.threw)} errors=${o.errors.join('|').slice(0, 200)} text=${replyText(o.last)} — a ping-only stream must not trip the first-byte or idle budget: check the first-byte wait and retry handling in src/models/roads/anthropic/stream-core/passRetries.ts and the budgets in src/models/roads/streamIdleBudget.ts`)
+  check('exactly one request reached the edge: no reissue, no fallback', seen.join(',') === 'think', `${seen.join(',')} — a live stream was reissued; look for the first-byte timer in src/models/roads/anthropic/stream-core/passRetries.ts that should clear once headers land`)
+  check('no retry notice of any kind — the first-byte line never fired on a live stream', o.notices.length === 0, `${noticeWords(o.notices).slice(0, 300)} — a retry notice fired on a live stream; the first-byte timer in src/models/roads/anthropic/stream-core/passRetries.ts must stop once headers arrive`)
+  check(`the edge sent pings for the whole think (${pingsSent[0] ?? 0} pings over ${THINK_MS} ms) and the turn lasted at least that long`, (pingsSent[0] ?? 0) >= THINK_BUDGETS * (IDLE_MS / PING_EVERY_MS) * 0.9 && o.wallMs >= THINK_MS, `${o.wallMs.toFixed(0)} ms — the turn ended before the think finished or too few pings were sent; the stream was cut early, see the idle budget in src/models/roads/streamIdleBudget.ts`)
   const firstByteWaits = o.waits.filter(w => (w as { kind?: string } | null)?.kind === 'first-byte')
   const cleared = o.waits.some(w => w === null)
-  check('the status row promised the first-byte budget once and cleared it when the headers landed', firstByteWaits.length === 1 && cleared, `${JSON.stringify(o.waits).slice(0, 200)} — expected one first-byte wait then a null clear via onWait; see the wait set and clear in src/services/providers/anthropic/streamCore/passRetries.ts`)
+  check('the status row promised the first-byte budget once and cleared it when the headers landed', firstByteWaits.length === 1 && cleared, `${JSON.stringify(o.waits).slice(0, 200)} — expected one first-byte wait then a null clear via onWait; see the wait set and clear in src/models/roads/anthropic/stream-core/passRetries.ts`)
 }
 
 section('L2 · the edge accepts the request and never answers: the typed first-byte line fires once at the budget with its existing words, the retry is answered')
@@ -190,20 +190,20 @@ section('L2 · the edge accepts the request and never answers: the typed first-b
   seen.length = 0
   const o = await drive()
   const line = idle.firstByteTimeoutLine({ kind: 'first-byte', cold: false, promptTokens: 1, model: 'Sonnet 5', budgetMs: IDLE_MS, sinceMs: 0, attempt: 1 })
-  check('the turn settled on the retry', o.threw === undefined && o.last?.message.stop_reason === 'end_turn', `threw=${String(o.threw)} — the retry after a first-byte timeout did not complete; see src/services/providers/anthropic/streamCore/passRetries.ts`)
-  check('two requests: the one that never answered, then the one that did', seen.join(',') === 'no-headers,full', `${seen.join(',')} — expected one silent request then one retry; see the first-byte retry in src/services/providers/anthropic/streamCore/passRetries.ts`)
-  check(`exactly one notice, the typed line as it stands: ${JSON.stringify(line)}`, o.notices.length === 1 && noticeWords(o.notices) === line, `${noticeWords(o.notices).slice(0, 300)} — the notice must be the text firstByteTimeoutLine returns in src/services/providers/streamIdleBudget.ts`)
-  check('the notice carries no HTTP status: a transport wait, not a provider answer', o.notices[0]?.errorDetail?.status === undefined || o.notices[0]?.errorDetail?.status === null, `${JSON.stringify(o.notices[0]?.errorDetail ?? null).slice(0, 200)} — the first-byte notice must not carry an HTTP status; see where passRetries.ts in src/services/providers/anthropic/streamCore builds the notice error`)
-  check('the budget fired at its number, not long after', o.wallMs >= IDLE_MS && o.wallMs < IDLE_MS * 4, `${o.wallMs.toFixed(0)} ms — the first-byte deadline should be MERCURY_STREAM_IDLE_TIMEOUT_MS (${IDLE_MS} ms) for this fixture; see src/services/providers/streamIdleBudget.ts`)
+  check('the turn settled on the retry', o.threw === undefined && o.last?.message.stop_reason === 'end_turn', `threw=${String(o.threw)} — the retry after a first-byte timeout did not complete; see src/models/roads/anthropic/stream-core/passRetries.ts`)
+  check('two requests: the one that never answered, then the one that did', seen.join(',') === 'no-headers,full', `${seen.join(',')} — expected one silent request then one retry; see the first-byte retry in src/models/roads/anthropic/stream-core/passRetries.ts`)
+  check(`exactly one notice, the typed line as it stands: ${JSON.stringify(line)}`, o.notices.length === 1 && noticeWords(o.notices) === line, `${noticeWords(o.notices).slice(0, 300)} — the notice must be the text firstByteTimeoutLine returns in src/models/roads/streamIdleBudget.ts`)
+  check('the notice carries no HTTP status: a transport wait, not a provider answer', o.notices[0]?.errorDetail?.status === undefined || o.notices[0]?.errorDetail?.status === null, `${JSON.stringify(o.notices[0]?.errorDetail ?? null).slice(0, 200)} — the first-byte notice must not carry an HTTP status; see where passRetries.ts in src/models/roads/anthropic/stream-core builds the notice error`)
+  check('the budget fired at its number, not long after', o.wallMs >= IDLE_MS && o.wallMs < IDLE_MS * 4, `${o.wallMs.toFixed(0)} ms — the first-byte deadline should be MERCURY_STREAM_IDLE_TIMEOUT_MS (${IDLE_MS} ms) for this fixture; see src/models/roads/streamIdleBudget.ts`)
   const retryWait = o.notices[0] !== undefined ? idle.retryNoticeWait(o.notices[0]) : null
-  check('the status row reads the wait as a first-byte timeout', retryWait !== null && retryWait.reason === 'a first-byte timeout', retryWait !== null ? retryWait.reason + ' — retryNoticeWait in src/services/providers/streamIdleBudget.ts should map a first-byte notice to a first-byte timeout' : 'no notice')
+  check('the status row reads the wait as a first-byte timeout', retryWait !== null && retryWait.reason === 'a first-byte timeout', retryWait !== null ? retryWait.reason + ' — retryNoticeWait in src/models/roads/streamIdleBudget.ts should map a first-byte notice to a first-byte timeout' : 'no notice')
 }
 
 section('L3 · an early connect timeout before a long first-byte budget logs the elapsed time (never the whole 6m 42s budget) and no "undefined" status')
 {
   const coldWait = { kind: 'first-byte' as const, cold: true, promptTokens: 35_000, model: 'Sonnet 5.5', budgetMs: 402_000, sinceMs: 0, attempt: 1 }
-  check('firstByteTimeoutLine with an explicit elapsedMs prints the time that passed (30 s), not the whole budget (6m 42s)', idle.firstByteTimeoutLine(coldWait, 30_000) === 'no first byte from Sonnet 5.5 after 30 s (a 35k-token prompt ingesting uncached)', `${idle.firstByteTimeoutLine(coldWait, 30_000)} — firstByteTimeoutLine in src/services/providers/streamIdleBudget.ts must use elapsedMs when given`)
-  check('firstByteTimeoutLine without elapsedMs keeps budgetMs unchanged', idle.firstByteTimeoutLine(coldWait) === 'no first byte from Sonnet 5.5 after 6m 42s (a 35k-token prompt ingesting uncached)', `${idle.firstByteTimeoutLine(coldWait)} — firstByteTimeoutLine in src/services/providers/streamIdleBudget.ts must fall back to budgetMs`)
+  check('firstByteTimeoutLine with an explicit elapsedMs prints the time that passed (30 s), not the whole budget (6m 42s)', idle.firstByteTimeoutLine(coldWait, 30_000) === 'no first byte from Sonnet 5.5 after 30 s (a 35k-token prompt ingesting uncached)', `${idle.firstByteTimeoutLine(coldWait, 30_000)} — firstByteTimeoutLine in src/models/roads/streamIdleBudget.ts must use elapsedMs when given`)
+  check('firstByteTimeoutLine without elapsedMs keeps budgetMs unchanged', idle.firstByteTimeoutLine(coldWait) === 'no first byte from Sonnet 5.5 after 6m 42s (a 35k-token prompt ingesting uncached)', `${idle.firstByteTimeoutLine(coldWait)} — firstByteTimeoutLine in src/models/roads/streamIdleBudget.ts must fall back to budgetMs`)
 
   const debugLines = (): string[] => {
     const dir = join(configHome, 'debug')
@@ -230,11 +230,11 @@ section('L3 · an early connect timeout before a long first-byte budget logs the
     const added = debugLines().slice(linesBefore)
     const firedLine = added.find(line => line.includes('first-byte budget fired:')) ?? ''
     const apiErrLine = added.find(line => line.includes('API error (attempt 1):')) ?? ''
-    check('the turn settled on the retry after the early connect timeout', o.threw === undefined && o.last?.message.stop_reason === 'end_turn', `threw=${String(o.threw)} — an early connect timeout was not retried; see src/services/providers/anthropic/streamCore/passRetries.ts`)
-    check('first-byte budget fired debug line prints elapsed time (1 s), never the unreached 2m budget', firedLine.includes('after 1 s (') && !firedLine.includes('after 2m'), `${firedLine} — the debug line is logged in src/services/providers/anthropic/streamCore/passRetries.ts and should pass elapsed time to firstByteTimeoutLine`)
-    check('API error debug line omits undefined when the error carries no HTTP status', apiErrLine.includes('API error (attempt 1): no first byte from') && apiErrLine.includes('after 1 s (') && !apiErrLine.includes('undefined'), `${apiErrLine} — the API error debug line must omit an undefined status; see src/services/providers/anthropic/streamCore/passRetries.ts`)
+    check('the turn settled on the retry after the early connect timeout', o.threw === undefined && o.last?.message.stop_reason === 'end_turn', `threw=${String(o.threw)} — an early connect timeout was not retried; see src/models/roads/anthropic/stream-core/passRetries.ts`)
+    check('first-byte budget fired debug line prints elapsed time (1 s), never the unreached 2m budget', firedLine.includes('after 1 s (') && !firedLine.includes('after 2m'), `${firedLine} — the debug line is logged in src/models/roads/anthropic/stream-core/passRetries.ts and should pass elapsed time to firstByteTimeoutLine`)
+    check('API error debug line omits undefined when the error carries no HTTP status', apiErrLine.includes('API error (attempt 1): no first byte from') && apiErrLine.includes('after 1 s (') && !apiErrLine.includes('undefined'), `${apiErrLine} — the API error debug line must omit an undefined status; see src/models/roads/anthropic/stream-core/passRetries.ts`)
     const underlyingMessage = (o.notices[0]?.error as { cause?: { message?: string } } | undefined)?.cause?.message ?? noticeWords(o.notices)
-    check('the underlying timeout error carries the elapsed time (1 s), not the whole 2m budget', o.notices.length === 1 && underlyingMessage.includes('after 1 s (') && !underlyingMessage.includes('after 2m'), `${underlyingMessage} — the timeout error built in src/services/providers/anthropic/streamCore/passRetries.ts must carry elapsed time, not the whole budget`)
+    check('the underlying timeout error carries the elapsed time (1 s), not the whole 2m budget', o.notices.length === 1 && underlyingMessage.includes('after 1 s (') && !underlyingMessage.includes('after 2m'), `${underlyingMessage} — the timeout error built in src/models/roads/anthropic/stream-core/passRetries.ts must carry elapsed time, not the whole budget`)
   } finally {
     if (prevIdle === undefined) delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
     else process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = prevIdle

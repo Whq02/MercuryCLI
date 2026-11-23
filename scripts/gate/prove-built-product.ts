@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import { connect } from 'node:net'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
-import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
+import { FLAG_REGISTRY } from '../../src/platform/substrate/flagRegistry.ts'
 import { builtCli, fixtureCli, withLiveRunner } from '../lib/builtProduct.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 

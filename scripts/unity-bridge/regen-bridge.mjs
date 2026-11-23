@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const bridgeRoot = join(repo, 'assets', 'unity', 'bridge')
-const outPath = join(repo, 'src', 'services', 'unity', 'bridgeFiles.generated.ts')
+const outPath = join(repo, 'src', 'integrations', 'unity', 'bridgeFiles.generated.ts')
 const ROW = {
   assets: relative(repo, outPath),
   generator: 'node scripts/unity-bridge/regen-bridge.mjs',

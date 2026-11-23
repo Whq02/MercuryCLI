@@ -19,12 +19,12 @@ console.log('============================================================')
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-section('the carousel: default → implement → APOLLO → flow|sovereign|default', 'getNextPermissionMode in src/utils/permissions/getNextPermissionMode.ts')
+section('the carousel: default → implement → APOLLO → flow|sovereign|default', 'getNextPermissionMode in src/permissions/rules/getNextPermissionMode.ts')
 let carouselLoadable = true
 try {
   const { getNextPermissionMode } = (await import(
-    '../../src/utils/permissions/getNextPermissionMode.js'
-  )) as typeof import('../../src/utils/permissions/getNextPermissionMode.js')
+    '../../src/permissions/rules/getNextPermissionMode.js'
+  )) as typeof import('../../src/permissions/rules/getNextPermissionMode.js')
   const ctx = (mode: string, bypass = false) =>
     ({ mode, isBypassPermissionsModeAvailable: bypass }) as never
   check("default → implement", getNextPermissionMode(ctx('default')) === 'implement')
@@ -42,14 +42,14 @@ try {
   console.log(`  [info] carousel not loadable under bun-run (${String(e).split('\n')[0]}) — structural assertions`)
 }
 
-section("the vocabulary: 'apollo' joins the mode lists; seal + title from the ONE config", 'src/types/permissions.ts (mode lists), src/utils/permissions/PermissionMode.ts (title, symbol, colour) and src/utils/glyphs.ts (GLYPH.modeApollo)')
+section("the vocabulary: 'apollo' joins the mode lists; seal + title from the ONE config", 'src/permissions/rules/permissions.ts (mode lists), src/permissions/rules/permissionMode.ts (title, symbol, colour) and src/screen/theme/glyphs.ts (GLYPH.modeApollo)')
 try {
-  const types = (await import('../../src/types/permissions.js')) as typeof import('../../src/types/permissions.js')
+  const types = (await import('../../src/permissions/rules/permissions.js')) as typeof import('../../src/permissions/rules/permissions.js')
   check("PERMISSION_MODES includes 'apollo' (user-addressable)", (types.PERMISSION_MODES as readonly string[]).includes('apollo'))
   check("INTERNAL_PERMISSION_MODES includes 'apollo'", (types.INTERNAL_PERMISSION_MODES as readonly string[]).includes('apollo'))
   check("'apollo' is NOT an external mode (projection only)", !(types.EXTERNAL_PERMISSION_MODES as readonly string[]).includes('apollo'))
-  const pm = (await import('../../src/utils/permissions/PermissionMode.js')) as typeof import('../../src/utils/permissions/PermissionMode.js')
-  const glyphs = (await import('../../src/utils/glyphs.js')) as typeof import('../../src/utils/glyphs.js')
+  const pm = (await import('../../src/permissions/rules/permissionMode.js')) as typeof import('../../src/permissions/rules/permissionMode.js')
+  const glyphs = (await import('../../src/screen/theme/glyphs.js')) as typeof import('../../src/screen/theme/glyphs.js')
   check("permissionModeFromString('apollo') === 'apollo'", pm.permissionModeFromString('apollo') === 'apollo')
   check("title is 'Apollo Mode'", pm.permissionModeTitle('apollo') === 'Apollo Mode')
   check('the seal is ◇ (U+25C7), read from GLYPH.modeApollo', pm.permissionModeSymbol('apollo') === glyphs.GLYPH.modeApollo && glyphs.GLYPH.modeApollo === '◇')
@@ -59,14 +59,14 @@ try {
   check('vocabulary modules loadable', false, String(e).split('\n')[0])
 }
 
-section("the pack: mode-apollo composes ONLY while the mode is 'apollo'", 'getApolloModeSections in src/prompt/apolloMode.ts')
+section("the pack: mode-apollo composes ONLY while the mode is 'apollo'", 'getApolloModeSections in src/engine/system-prompt/apolloMode.ts')
 try {
-  const pack = (await import('../../src/prompt/apolloMode.js')) as typeof import('../../src/prompt/apolloMode.js')
+  const pack = (await import('../../src/engine/system-prompt/apolloMode.js')) as typeof import('../../src/engine/system-prompt/apolloMode.js')
   const on = pack.getApolloModeSections('apollo')
   check('apollo ⇒ exactly one section', on.length === 1)
   const text = on[0] ?? ''
   check('the section is the Apollo interview appendix', text.startsWith('# Apollo Mode'))
-  const { getApolloPreflightQuestions } = (await import('../../src/utils/settings/settings.js')) as typeof import('../../src/utils/settings/settings.js')
+  const { getApolloPreflightQuestions } = (await import('../../src/platform/settings/settings.js')) as typeof import('../../src/platform/settings/settings.js')
   check(`the poll budget rides the setting (${getApolloPreflightQuestions()})`, text.includes(`Budget: ${getApolloPreflightQuestions()} polls`))
   check('the pack names the four-option + automatic-E shape', /FOUR options \(A–D\)/.test(text) && /E is where the user types/.test(text))
   check('the pack names the spec home under .mercury/apollo', /\.mercury[\/\\]apollo/.test(text))
@@ -88,9 +88,9 @@ try {
   check('apolloMode.ts loadable', false, String(e).split('\n')[0])
 }
 
-section('the poll letters: A–D + E = custom, one owner, ordinal-channel display', 'apolloIndexLabel and apolloCustomIndexLabel in src/tools/AskUserQuestionTool/apolloLetters.ts')
+section('the poll letters: A–D + E = custom, one owner, ordinal-channel display', 'apolloIndexLabel and apolloCustomIndexLabel in src/tools/ask-question/apolloLetters.ts')
 try {
-  const letters = (await import('../../src/tools/AskUserQuestionTool/apolloLetters.js')) as typeof import('../../src/tools/AskUserQuestionTool/apolloLetters.js')
+  const letters = (await import('../../src/tools/ask-question/apolloLetters.js')) as typeof import('../../src/tools/ask-question/apolloLetters.js')
   check('apolloIndexLabel letters A–D by index', letters.apolloIndexLabel(0) === 'A.' && letters.apolloIndexLabel(1) === 'B.' && letters.apolloIndexLabel(2) === 'C.' && letters.apolloIndexLabel(3) === 'D.')
   check('index past the cap yields undefined (numeric prefix shows)', letters.apolloIndexLabel(4) === undefined)
   check("the custom option's ordinal is 'E.' (E is a stable identity)", letters.apolloCustomIndexLabel() === 'E.')
@@ -98,17 +98,17 @@ try {
   check('apolloLetters.ts loadable', false, String(e).split('\n')[0])
 }
 
-section('the setting: apollo.preflightQuestions, default 7', 'getApolloPreflightQuestions in src/utils/settings/settings.ts')
+section('the setting: apollo.preflightQuestions, default 7', 'getApolloPreflightQuestions in src/platform/settings/settings.ts')
 try {
-  const settings = (await import('../../src/utils/settings/settings.js')) as typeof import('../../src/utils/settings/settings.js')
+  const settings = (await import('../../src/platform/settings/settings.js')) as typeof import('../../src/platform/settings/settings.js')
   check('getApolloPreflightQuestions() defaults to 7', settings.getApolloPreflightQuestions() === 7)
 } catch (e) {
   check('settings module loadable', false, String(e).split('\n')[0])
 }
 
-section('ApolloReview: apollo-only, ask-on-clean, guarded handoff to flow|implement', 'src/tools/ApolloReviewTool/ApolloReviewTool.tsx')
+section('ApolloReview: apollo-only, ask-on-clean, guarded handoff to flow|implement', 'src/tools/apollo-review/ApolloReviewTool.tsx')
 try {
-  const { ApolloReviewTool } = (await import('../../src/tools/ApolloReviewTool/ApolloReviewTool.js')) as typeof import('../../src/tools/ApolloReviewTool/ApolloReviewTool.js')
+  const { ApolloReviewTool } = (await import('../../src/tools/apollo-review/ApolloReviewTool.js')) as typeof import('../../src/tools/apollo-review/ApolloReviewTool.js')
   const mkContext = (mode: string) => {
     let state = {
       toolPermissionContext: {
@@ -187,7 +187,7 @@ try {
   check('the held wire speaks the discuss grammar (drafts held, resume the interview, review afresh)', /drafts held/.test(holdWire.content) && /Resume the interview/.test(holdWire.content) && /review afresh/.test(holdWire.content))
   check("the held wire carries the user's refine note verbatim", /the save system/.test(holdWire.content))
 
-  const { isDeferredTool } = (await import('../../src/tools/ToolSearchTool/prompt.js')) as typeof import('../../src/tools/ToolSearchTool/prompt.js')
+  const { isDeferredTool } = (await import('../../src/tools/tool-search/prompt.js')) as typeof import('../../src/tools/tool-search/prompt.js')
   check('ApolloReview is listed deferred in apollo too (never a mode-driven roster change)', isDeferredTool(ApolloReviewTool as never, 'apollo') === true)
   check(
     'ApolloReview stays deferred outside apollo (and for mode-less callers)',
@@ -197,13 +197,13 @@ try {
   console.log(`  [info] tool not loadable/drivable under bun-run (${String(e).split('\n')[0]}) — structural assertions`)
 }
 
-section('the runner accepts Apollo for every host', 'resolvePermissionModeTransition in src/cli/headless/controlHandlers.ts')
+section('the runner accepts Apollo for every host', 'resolvePermissionModeTransition in src/daemon/runner/controlHandlers.ts')
 {
   const priorMarker = process.env.MERCURY_CONCOURSE_WORKER
   try {
     const { resolvePermissionModeTransition } = (await import(
-      '../../src/cli/headless/controlHandlers.js'
-    )) as typeof import('../../src/cli/headless/controlHandlers.js')
+      '../../src/daemon/runner/controlHandlers.js'
+    )) as typeof import('../../src/daemon/runner/controlHandlers.js')
     const baseContext = {
       mode: 'default',
       additionalWorkingDirectories: new Map(),
@@ -254,10 +254,10 @@ section('the runner accepts Apollo for every host', 'resolvePermissionModeTransi
 
 }
 
-section("the seat's initial posture: a carried 'apollo' crosses the admission; the env road keeps the strict list", 'seatInitialPermissionMode in src/daemon/concourseWorkers.ts and getHeadlessPermissionMode in src/daemon/headlessRun.ts')
+section("the seat's initial posture: a carried 'apollo' crosses the admission; the env road keeps the strict list", 'seatInitialPermissionMode in src/daemon/concourse-workers/concourseWorkers.ts and getHeadlessPermissionMode in src/daemon/runner-link/headlessRun.ts')
 {
-  const { seatInitialPermissionMode } = (await import('../../src/daemon/concourseWorkers.js')) as typeof import('../../src/daemon/concourseWorkers.js')
-  const { getHeadlessPermissionMode, headlessPermissionArgv, HEADLESS_PERMISSION_MODES } = (await import('../../src/daemon/headlessRun.js')) as typeof import('../../src/daemon/headlessRun.js')
+  const { seatInitialPermissionMode } = (await import('../../src/daemon/concourse-workers/concourseWorkers.js')) as typeof import('../../src/daemon/concourse-workers/concourseWorkers.js')
+  const { getHeadlessPermissionMode, headlessPermissionArgv, HEADLESS_PERMISSION_MODES } = (await import('../../src/daemon/runner-link/headlessRun.js')) as typeof import('../../src/daemon/runner-link/headlessRun.js')
   const headless = HEADLESS_PERMISSION_MODES as readonly string[]
   check("a carried 'apollo' crosses the admission as apollo", seatInitialPermissionMode('apollo' as never) === 'apollo')
   check("a carried headless posture crosses as itself ('flow', 'implement')", seatInitialPermissionMode('flow' as never) === 'flow' && seatInitialPermissionMode('implement' as never) === 'implement')

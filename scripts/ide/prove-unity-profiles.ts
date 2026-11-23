@@ -8,7 +8,7 @@ import * as path from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — change discoverLaunchProfiles in src/services/ide/launchProfiles.ts (profiles and args), unityTestResultsPath in src/utils/unity/unityProject.ts, or unityHeadlessRefusal in src/tools/LaunchTool/LaunchTool.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — change discoverLaunchProfiles in src/integrations/ide/launchProfiles.ts (profiles and args), unityTestResultsPath in src/integrations/unity-protocol/unityProject.ts, or unityHeadlessRefusal in src/tools/launch/LaunchTool.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -19,11 +19,11 @@ console.log(' unity headless launch profiles (MERCURY_UNITY) — proof')
 console.log('============================================================')
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(path.join(tmpdir(), 'unity-profiles-home-'))
-const { discoverLaunchProfiles } = await import('../../src/services/ide/launchProfiles.js')
+const { discoverLaunchProfiles } = await import('../../src/integrations/ide/launchProfiles.js')
 const { UNITY_LICENSE_DISCLAIMER, unityTestResultsPath } = await import(
-  '../../src/utils/unity/unityProject.js'
+  '../../src/integrations/unity-protocol/unityProject.js'
 )
-const { unityHeadlessRefusal } = await import('../../src/tools/LaunchTool/LaunchTool.js')
+const { unityHeadlessRefusal } = await import('../../src/tools/launch/LaunchTool.js')
 
 const savedEnv = { ...process.env }
 function restore(): void {
@@ -114,7 +114,7 @@ section('§2 · the three shapes (doc-law pinned)')
 
 section('§3 · results-XML convention')
 {
-  const { PROJECT_HOME_STORES } = await import('../../src/utils/projectHomeStores.js')
+  const { PROJECT_HOME_STORES } = await import('../../src/platform/storage/projectHomeStores.js')
   const insideProject = (root: string, p: string): boolean => {
     const full = path.resolve(p)
     const top = path.resolve(root)

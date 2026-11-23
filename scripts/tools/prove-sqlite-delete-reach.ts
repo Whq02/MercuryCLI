@@ -5,8 +5,8 @@ import { readViewMcp } from './readViewMcp.js'
 
 const home = isolatedHome(import.meta.filename)
 const kit = await readViewKit(home)
-const { FileWriteTool } = await import(`${kit.src}/tools/FileWriteTool/FileWriteTool.ts`)
-const { previewSqliteDeletion } = await import(`${kit.src}/tools/FileWriteTool/structuredTargets.ts`)
+const { FileWriteTool } = await import(`${kit.src}/tools/write/WriteTool.ts`)
+const { previewSqliteDeletion } = await import(`${kit.src}/tools/write/structuredTargets.ts`)
 const file = join(home, 'reach.sqlite')
 const seed = new Database(file)
 seed.run(`PRAGMA foreign_keys=ON;
@@ -30,8 +30,8 @@ CREATE TABLE spoke_a(hub INTEGER REFERENCES hub(id) ON DELETE CASCADE); CREATE T
 CREATE TABLE spoke_c(hub INTEGER REFERENCES hub(id) ON DELETE SET DEFAULT); CREATE TABLE spoke_d(hub INTEGER REFERENCES hub(id) ON DELETE CASCADE);
 CREATE TABLE spoke_e(hub INTEGER REFERENCES hub(id) ON DELETE CASCADE);`)
 seed.close()
-const reachHint = ' | change sqliteDeletionReach in src/tools/FileWriteTool/structuredTargets.ts'
-const answerHint = ' | change the delete branch of mapToolResultToToolResultBlockParam in src/tools/FileWriteTool/FileWriteTool.ts and the deletion in src/tools/FileWriteTool/structuredTargets.ts'
+const reachHint = ' | change sqliteDeletionReach in src/tools/write/structuredTargets.ts'
+const answerHint = ' | change the delete branch of mapToolResultToToolResultBlockParam in src/tools/write/WriteTool.ts and the deletion in src/tools/write/structuredTargets.ts'
 const NOTE = 'Not checkpointed: a rewind will not restore this row.'
 const stored = (sql: string): string => { const db = new Database(file, { readonly: true }); try { return JSON.stringify(db.query(sql).values()) } finally { db.close() } }
 const reach = (target: string): string => { try { return String(previewSqliteDeletion(`${file}:${target}#delete`).reach) } catch (error) { return String(error) } }

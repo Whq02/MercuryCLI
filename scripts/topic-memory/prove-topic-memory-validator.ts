@@ -5,16 +5,16 @@ import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { appendObservation, readBuffer } = await import('../../src/mneme/mnemeBuffer.ts')
-const { maybeConsolidate, validateDraft } = await import('../../src/mneme/mnemeConsolidate.ts')
-import type { AssignedRow, MnemeDraft } from '../../src/mneme/mnemeConsolidate.ts'
+const { appendObservation, readBuffer } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { maybeConsolidate, validateDraft } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+import type { AssignedRow, MnemeDraft } from '../../src/sessions/mneme/mnemeConsolidate.ts'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) {
     failures++
-    console.log('    change validateDraft (the refusal rules) or maybeConsolidate (it must leave CURRENT unchanged on a refusal) in src/mneme/mnemeConsolidate.ts; the reason after the dash is what the validator returned')
+    console.log('    change validateDraft (the refusal rules) or maybeConsolidate (it must leave CURRENT unchanged on a refusal) in src/sessions/mneme/mnemeConsolidate.ts; the reason after the dash is what the validator returned')
   }
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

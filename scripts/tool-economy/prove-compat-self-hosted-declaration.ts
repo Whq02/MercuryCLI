@@ -31,7 +31,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0
 let checks = 0
-const declarationFailHint = 'the wire form per dialect is chosen by deferralWireFormFor in src/services/providers/deferralWire.ts; the admission record text is admissionRecordText in src/services/providers/toolEconomy.ts; the deferred-tools delta comes from getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts; the request itself is built behind routedCallModel in src/services/providers/callModelRouter.ts; the shipped recipes are HOST_RECIPES in src/services/host/recipes.ts'
+const declarationFailHint = 'the wire form per dialect is chosen by deferralWireFormFor in src/models/roads/deferralWire.ts; the admission record text is admissionRecordText in src/models/roads/toolEconomy.ts; the deferred-tools delta comes from getDeferredToolsDeltaAttachment in src/engine/attachments/toolAndServerDeltas.ts; the request itself is built behind routedCallModel in src/models/roads/callModelRouter.ts; the shipped recipes are HOST_RECIPES in src/models/hosting/recipes.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -41,7 +41,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the self-hosted declaration proof exceeded 180s; a turn through routedCallModel (src/services/providers/callModelRouter.ts) against a fixture engine did not settle, so read the last section line printed above')
+  console.log('\nTIMEOUT — the self-hosted declaration proof exceeded 180s; a turn through routedCallModel (src/models/roads/callModelRouter.ts) against a fixture engine did not settle, so read the last section line printed above')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -141,27 +141,27 @@ writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ compatProvider: {
   answers: { baseUrl: base('chat-completions'), dialect: 'responses' },
 } }) + '\n')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 resetSettingsCache()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { assembleToolPool } = await import('../../src/tools.ts')
-const { MCPTool } = await import('../../src/tools/MCPTool/MCPTool.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { getDeferredToolsDeltaAttachment } = await import('../../src/services/attachments/deltas.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
-const { clearToolRosterLatches, admissionRecordText } = await import('../../src/services/providers/toolEconomy.ts')
-const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Tools = import('../../src/Tool.ts').Tools
-type Message = import('../../src/types/message.ts').Message
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
+const { MCPTool } = await import('../../src/tools/mcp/MCPTool.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/tool-search/prompt.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { getDeferredToolsDeltaAttachment } = await import('../../src/engine/attachments/toolAndServerDeltas.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { deferralWireFormFor } = await import('../../src/models/roads/deferralWire.ts')
+const { clearToolRosterLatches, admissionRecordText } = await import('../../src/models/roads/toolEconomy.ts')
+const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Tools = import('../../src/tools/kit/tool.ts').Tools
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const permissionContext = getEmptyToolPermissionContext()
 const mcpTools: Tool[] = buildFixtureMcpTools<Tool>(MCPTool)

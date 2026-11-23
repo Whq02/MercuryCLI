@@ -1,20 +1,20 @@
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import type { SearchClock } from '../../src/services/search/searchPacing.js'
-import type { SearchOutcome } from '../../src/services/search/searchContract.js'
+import type { SearchClock } from '../../src/tools/engines/web-search/searchPacing.js'
+import type { SearchOutcome } from '../../src/tools/engines/web-search/searchContract.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: 'proof', PACKAGE_URL: 'https://example.invalid' }
 const root = resolve(process.argv[2] ?? resolve(dirname(fileURLToPath(import.meta.url)), '../..'))
-const { keylessSearch } = await import(pathToFileURL(resolve(root, 'src/services/search/duckduckgo.ts')).href)
-const pacing = await import(pathToFileURL(resolve(root, 'src/services/search/searchPacing.ts')).href)
-const { braveSearch } = await import(pathToFileURL(resolve(root, 'src/services/search/brave.ts')).href)
-const { performWebSearch } = await import(pathToFileURL(resolve(root, 'src/services/search/searchDoor.ts')).href)
-const { DUCKDUCKGO_TERMS, DUCKDUCKGO_OFF_DOORS } = await import(pathToFileURL(resolve(root, 'src/services/search/searchSetting.ts')).href)
+const { keylessSearch } = await import(pathToFileURL(resolve(root, 'src/tools/engines/web-search/duckduckgo.ts')).href)
+const pacing = await import(pathToFileURL(resolve(root, 'src/tools/engines/web-search/searchPacing.ts')).href)
+const { braveSearch } = await import(pathToFileURL(resolve(root, 'src/tools/engines/web-search/brave.ts')).href)
+const { performWebSearch } = await import(pathToFileURL(resolve(root, 'src/tools/engines/web-search/searchDoor.ts')).href)
+const { DUCKDUCKGO_TERMS, DUCKDUCKGO_OFF_DOORS } = await import(pathToFileURL(resolve(root, 'src/tools/engines/web-search/searchSetting.ts')).href)
 let checks = 0, failures = 0
 function check(label: string, condition: boolean, detail?: unknown): void {
   checks++
   if (!condition) failures++
-  console.log(`${condition ? 'PASS' : 'FAIL'} ${label}${!condition && detail !== undefined ? `: ${JSON.stringify(detail)}` : ''}${condition ? '' : ' | fix the cool-down and queueing in src/services/search/searchPacing.ts (withSearchTurn, coolDownRemainingMs, noteRateLimited) and their use in src/services/search/duckduckgo.ts (keylessSearch), brave.ts (braveSearch) or searchDoor.ts (performWebSearch)'}`)
+  console.log(`${condition ? 'PASS' : 'FAIL'} ${label}${!condition && detail !== undefined ? `: ${JSON.stringify(detail)}` : ''}${condition ? '' : ' | fix the cool-down and queueing in src/tools/engines/web-search/searchPacing.ts (withSearchTurn, coolDownRemainingMs, noteRateLimited) and their use in src/tools/engines/web-search/duckduckgo.ts (keylessSearch), brave.ts (braveSearch) or searchDoor.ts (performWebSearch)'}`)
 }
 const page = '<div id="links"><div class="result results_links"><a class="result__a" href="https://example.invalid/result">Fixture result</a><div class="result__snippet">Fixture excerpt</div></div></div>'
 const message = (answer: SearchOutcome): string => answer.ok ? '' : answer.message

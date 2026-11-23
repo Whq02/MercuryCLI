@@ -10,24 +10,24 @@ process.env.MERCURY_BOOT_PREFLIGHT = '0'
 for (const name of ['TERM', 'TERM_PROGRAM', 'TERM_PROGRAM_VERSION', 'COLORTERM', 'WT_SESSION', 'MSYSTEM', 'ConEmuANSI', 'TMUX', 'KITTY_WINDOW_ID', 'ZED_TERM', 'VTE_VERSION', 'MERCURY_FORCE_SYNC_OUTPUT']) delete process.env[name]
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.ts')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { ModalContext } = await import('../../src/context/modalContext.tsx')
-const { PopupFrameContext } = await import('../../src/components/PopupGutter.tsx')
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { Box } = await import('../../src/screen/themedRenderer.ts')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { ModalContext } = await import('../../src/screen/overlays/modalContext.tsx')
+const { PopupFrameContext } = await import('../../src/screen/overlays/PopupGutter.tsx')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 const { MercuryHealthCertificate, healthPopupShape } = await import('../../src/commands/health/HealthCertificate.tsx')
-const { BootHealthScreen } = await import('../../src/components/BootHealthScreen.tsx')
-const { renderToString } = await import('../../src/utils/staticRender.tsx')
-const { interfaceChecks } = await import('../../src/services/health/sections/interface.ts')
-const { runHealthReport } = await import('../../src/services/health/healthReport.ts')
-const { filterCertificateToCheck, summarizeCert } = await import('../../src/utils/healthCertCore.ts')
+const { BootHealthScreen } = await import('../../src/screen/boot-face/BootHealthScreen.tsx')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { interfaceChecks } = await import('../../src/platform/health/sections/interface.ts')
+const { runHealthReport } = await import('../../src/platform/health/healthReport.ts')
+const { filterCertificateToCheck, summarizeCert } = await import('../../src/platform/health/healthCertCore.ts')
 enableConfigs()
 const h = React.createElement
 
-const ROW = 'the status of the iface-terminal row in src/services/health/sections/interface.ts must be warn when win32-first-class-host is the only required row the profile misses, and fail when it misses another required row'
-const WORDS = 'the evidence, detail and fix of the iface-terminal row in src/services/health/sections/interface.ts must stay as the profile gives them'
+const ROW = 'the status of the iface-terminal row in src/platform/health/sections/interface.ts must be warn when win32-first-class-host is the only required row the profile misses, and fail when it misses another required row'
+const WORDS = 'the evidence, detail and fix of the iface-terminal row in src/platform/health/sections/interface.ts must stay as the profile gives them'
 const REMEDY = 'Mercury looks right in Windows Terminal (stable) or the VS Code integrated terminal — PowerShell 7 preferred. You can continue here knowingly; the screen will not be the complete design.'
 
 let checks = 0

@@ -13,7 +13,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) {
     failures++
-    console.log('         change: the read seam in src/utils/config/globalConfig.ts (getGlobalConfig, getGlobalConfigFieldDrops) must drop a field that fails its declared shape and name it; for the typed readers see isCustomApiKeyApproved in src/utils/auth.ts, getTheme in src/utils/theme.ts, hasAnthropicConnectorEverConnected in src/services/mcp/anthropicConnectors.ts; for the config-fields row see runHealthReport in src/services/health/healthReport.ts')
+    console.log('         change: the read seam in src/platform/config/globalConfig.ts (getGlobalConfig, getGlobalConfigFieldDrops) must drop a field that fails its declared shape and name it; for the typed readers see isCustomApiKeyApproved in src/models/sign-in/credentials/auth.ts, getTheme in src/screen/theme/theme.ts, hasAnthropicConnectorEverConnected in src/integrations/mcp/anthropicConnectors.ts; for the config-fields row see runHealthReport in src/platform/health/healthReport.ts')
   }
 }
 const section = (t: string): void => {
@@ -33,8 +33,8 @@ const seeded = JSON.stringify({
 })
 writeFileSync(file, seeded)
 
-const { enableConfigs, getGlobalConfig, getGlobalConfigFieldDrops, readGlobalConfigAgain } = await import('../../src/utils/config/globalConfig.ts')
-const { DEFAULT_THEME_SETTING } = await import('../../src/utils/systemTheme.ts')
+const { enableConfigs, getGlobalConfig, getGlobalConfigFieldDrops, readGlobalConfigAgain } = await import('../../src/platform/config/globalConfig.ts')
+const { DEFAULT_THEME_SETTING } = await import('../../src/screen/theme/systemTheme.ts')
 enableConfigs()
 const cfg = getGlobalConfig() as Record<string, unknown>
 const keyResponses = cfg.customApiKeyResponses as Record<string, unknown>
@@ -58,7 +58,7 @@ check('the stringly boolean names the text it found', byField.get('autoCompactEn
 check('null is named as null', byField.get('concourseEnabled')?.found === 'null', JSON.stringify(byField.get('concourseEnabled')))
 
 section('§3 the readers read a typed value and never throw')
-const { isCustomApiKeyApproved } = await import('../../src/utils/auth.ts')
+const { isCustomApiKeyApproved } = await import('../../src/models/sign-in/credentials/auth.ts')
 let approvedOutcome = 'returned'
 let approved: unknown = null
 try {
@@ -68,7 +68,7 @@ try {
 }
 check('a malformed customApiKeyResponses.approved is read as "not approved", never a crash', approvedOutcome === 'returned' && approved === false, approvedOutcome)
 
-const { getTheme } = await import('../../src/utils/theme.ts')
+const { getTheme } = await import('../../src/screen/theme/theme.ts')
 let themeOutcome = 'returned'
 try {
   getTheme({ not: 'a theme' } as never)
@@ -77,7 +77,7 @@ try {
 }
 check('the theme reader stays tolerant of a malformed value on its own', themeOutcome === 'returned', themeOutcome)
 
-const { hasAnthropicConnectorEverConnected } = await import('../../src/services/mcp/anthropicConnectors.ts')
+const { hasAnthropicConnectorEverConnected } = await import('../../src/integrations/mcp/anthropicConnectors.ts')
 let everOutcome = 'returned'
 let ever: unknown = null
 try {
@@ -91,7 +91,7 @@ section('§4 the file is left as it was')
 check('the read never rewrites the file', readFileSync(file, 'utf8') === seeded)
 
 section('§5 /health names the ignored fields on one row, and a clean file reads ok')
-const report = await import('../../src/services/health/healthReport.ts')
+const report = await import('../../src/platform/health/healthReport.ts')
 const row = async (): Promise<{ status: string; evidence: string; fix?: string } | null> => {
   const cert = await report.runHealthReport({ depth: 'fast' })
   const r = cert.sections.flatMap(s => s.checks).find(c => c.id === 'config-fields')

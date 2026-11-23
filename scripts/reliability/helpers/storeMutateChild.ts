@@ -1,4 +1,4 @@
-import { defineStore } from '../../../src/substrate/fileStore.ts'
+import { defineStore } from '../../../src/platform/substrate/fileStore.ts'
 
 const path = process.env.RELIA_STORE
 if (!path) throw new Error('RELIA_STORE required')

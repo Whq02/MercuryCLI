@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { HOST_RECIPES, type HostRecipe } from '../../src/services/host/recipes.ts'
-import { exportHostRecipesJson } from '../../src/services/host/recipesFile.ts'
+import { HOST_RECIPES, type HostRecipe } from '../../src/models/hosting/recipes.ts'
+import { exportHostRecipesJson } from '../../src/models/hosting/recipesFile.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const shipped = JSON.parse(exportHostRecipesJson()).recipes as HostRecipe[]

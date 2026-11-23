@@ -8,15 +8,15 @@ const check = (name: string, ok: boolean, detail?: string): void => {
   } else {
     failures++
     console.error(`  RED ${name}${detail ? ` — ${detail}` : ''}`)
-    console.error('      to fix: a typed capital letter is decoded by interpretKey in src/ink/input/interpreter.ts (it must set name and shift), and the binding match is matchesKeystroke in src/keybindings/match.ts with parseKeystroke in src/keybindings/parser.ts')
+    console.error('      to fix: a typed capital letter is decoded by interpretKey in src/screen/renderer/input/interpreter.ts (it must set name and shift), and the binding match is matchesKeystroke in src/screen/keys/match.ts with parseKeystroke in src/screen/keys/parser.ts')
   }
 }
 
 console.log('§1 PD-1 — the confirm chord disarms while a feedback field owns focus')
 {
-  const { interpretKey } = await import('../../src/ink/input/interpreter.ts')
-  const { matchesKeystroke } = await import('../../src/keybindings/match.ts')
-  const { parseKeystroke } = await import('../../src/keybindings/parser.ts')
+  const { interpretKey } = await import('../../src/screen/renderer/input/interpreter.ts')
+  const { matchesKeystroke } = await import('../../src/screen/keys/match.ts')
+  const { parseKeystroke } = await import('../../src/screen/keys/parser.ts')
   const parsed = interpretKey('N')
   check("the decoder names a typed 'N' as shift+n (shift synthesised from case)", parsed.name === 'n' && parsed.shift === true)
   const key = { ctrl: false, meta: false, shift: true, super: false } as unknown as Parameters<typeof matchesKeystroke>[1]

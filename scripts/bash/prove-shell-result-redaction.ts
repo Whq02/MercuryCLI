@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/BashTool/BashTool.tsx src/utils/shell/utils.ts src/utils/redactSecrets.ts src/state/AppStateStore.ts
+// gate-watch: src/tools/shell/BashTool.tsx src/platform/shell/shellOutput.ts src/platform/secrets/redactSecrets.ts src/screen/app-state/AppStateStore.ts
 import { plugin } from 'bun'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -39,8 +39,8 @@ writeFileSync(join(PROJECT, '.env'), `DB_PASSWORD=${PLANTED_PASSWORD}\nexport AP
 writeFileSync(join(PROJECT, 'auth.ts'), "const token = form.password\nconst apiKey = process.env.OPENAI_API_KEY\n")
 
 let failures = 0
-const REDACTION_FIX = 'change the result redaction in BashTool in src/tools/BashTool/BashTool.tsx (it applies createShellResultRedactor to the result, the thrown text and the persisted copy) and the redactor in src/utils/redactSecrets.ts'
-const REDACTOR_FIX = 'change createShellResultRedactor in src/utils/redactSecrets.ts (the shapes it replaces and the ones it leaves)'
+const REDACTION_FIX = 'change the result redaction in BashTool in src/tools/shell/BashTool.tsx (it applies createShellResultRedactor to the result, the thrown text and the persisted copy) and the redactor in src/platform/secrets/redactSecrets.ts'
+const REDACTOR_FIX = 'change createShellResultRedactor in src/platform/secrets/redactSecrets.ts (the shapes it replaces and the ones it leaves)'
 let redactionFix = REDACTION_FIX
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
@@ -53,9 +53,9 @@ const section = (t: string): void => {
 }
 const MARKER = '[redacted]'
 
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createShellResultRedactor } = await import('../../src/utils/redactSecrets.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createShellResultRedactor } = await import('../../src/platform/secrets/redactSecrets.ts')
 
 let appState = getDefaultAppState()
 const toolContext = {

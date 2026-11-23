@@ -28,12 +28,12 @@ process.env.FORCE_COLOR = '3'
 const mod = async <T>(rel: string): Promise<T> => (await import(join(ROOT, rel))) as T
 const reactModule = await mod<{ default?: typeof import('react') } & typeof import('react')>('node_modules/react/index.js')
 const React = reactModule.default ?? reactModule
-const { default: Ink } = await mod<typeof import('../../src/ink/ink.tsx')>('src/ink/ink.tsx')
-const { SpinnerAnimationRow } = await mod<typeof import('../../src/components/Spinner/SpinnerAnimationRow.tsx')>('src/components/Spinner/SpinnerAnimationRow.tsx')
-const { enableConfigs } = await mod<typeof import('../../src/utils/config.ts')>('src/utils/config.ts')
-const { default: instances } = await mod<typeof import('../../src/ink/instances.ts')>('src/ink/instances.ts')
-const focusedSlot = await mod<typeof import('../../src/services/engine-connector/focusedConnector.ts')>('src/services/engine-connector/focusedConnector.ts')
-const { noSessionConnector } = await mod<typeof import('../../src/services/engine-connector/noSessionConnector.ts')>('src/services/engine-connector/noSessionConnector.ts')
+const { default: Ink } = await mod<typeof import('../../src/screen/renderer/screenInstance.tsx')>('src/screen/renderer/screenInstance.tsx')
+const { SpinnerAnimationRow } = await mod<typeof import('../../src/screen/spinner/SpinnerAnimationRow.tsx')>('src/screen/spinner/SpinnerAnimationRow.tsx')
+const { enableConfigs } = await mod<typeof import('../../src/platform/settings/config.ts')>('src/platform/settings/config.ts')
+const { default: instances } = await mod<typeof import('../../src/screen/renderer/instances.ts')>('src/screen/renderer/instances.ts')
+const focusedSlot = await mod<typeof import('../../src/engine/connector/focusedConnector.ts')>('src/engine/connector/focusedConnector.ts')
+const { noSessionConnector } = await mod<typeof import('../../src/engine/connector/noSessionConnector.ts')>('src/engine/connector/noSessionConnector.ts')
 enableConfigs()
 focusedSlot.setFocusedSessionConnector(noSessionConnector())
 const h = React.createElement
@@ -103,9 +103,9 @@ async function mountAndSample(reducedMotion: boolean, samplesMs: number[], respo
 
 console.log('the working strip paints no thinking label at any moment of a think: the verb, the clock and the count are the row')
 const [quiet] = await mountAndSample(true, [400])
-check('a reduced-motion think paints no thinking label', quiet === null, `label ink ${quiet}; SpinnerAnimationRow in src/components/Spinner/SpinnerAnimationRow.tsx must not paint the thinking label when reducedMotion is on`)
+check('a reduced-motion think paints no thinking label', quiet === null, `label ink ${quiet}; SpinnerAnimationRow in src/screen/spinner/SpinnerAnimationRow.tsx must not paint the thinking label when reducedMotion is on`)
 const [early, late1, late2] = await mountAndSample(false, [400, 3_900, 4_250], 3_600)
-check('a think that begins 3.6 s into the turn paints no thinking label at 0.4 s, 3.9 s or 4.25 s', early === null && late1 === null && late2 === null, `early ${early} · 3.9 s ${late1} · 4.25 s ${late2}; SpinnerAnimationRow in src/components/Spinner/SpinnerAnimationRow.tsx must not paint or shimmer the thinking label in thinking mode`)
+check('a think that begins 3.6 s into the turn paints no thinking label at 0.4 s, 3.9 s or 4.25 s', early === null && late1 === null && late2 === null, `early ${early} · 3.9 s ${late1} · 4.25 s ${late2}; SpinnerAnimationRow in src/screen/spinner/SpinnerAnimationRow.tsx must not paint or shimmer the thinking label in thinking mode`)
 
 console.log(failures === 0 ? '\n✅ thinking shimmer quiet GREEN — no phase word on the strip' : `\n❌ thinking shimmer quiet RED — ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

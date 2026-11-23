@@ -22,8 +22,8 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { whichSync } = await import('../../src/utils/which.js')
-const { resolveJsDebugServer, jsDebugSourceLabel } = await import('../../src/services/dap/dapClient.js')
+const { whichSync } = await import('../../src/platform/processes/which.js')
+const { resolveJsDebugServer, jsDebugSourceLabel } = await import('../../src/integrations/debugger/dapClient.js')
 
 console.log('============================================================')
 console.log(' the Node/TS debug loop — live drill (tool-door, this box)')
@@ -85,9 +85,9 @@ const previousCwd = process.cwd()
 process.chdir(project)
 console.log(`  project: ${project}`)
 
-const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
-const { TestTool } = await import('../../src/tools/TestTool/TestTool.js')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+const { DebugTool } = await import('../../src/tools/debug/DebugTool.js')
+const { TestTool } = await import('../../src/tools/test/TestTool.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
 const callDebug = async (input: Record<string, unknown>): Promise<string> =>
   ((await runWithCwdOverride(project, () => DebugTool.call(input as never, {} as never))) as {
     data: { result: string }

@@ -4,14 +4,14 @@
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' · fix kvGeometryOf, kvCacheBytes and slidingLayerMask in src/services/localServer/localServerMemory.ts, fitLocalWindow in src/services/localServer/localWindowFit.ts, or the GGUF array reading in parseGgufHeader in src/services/host/ggufHeader.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' · fix kvGeometryOf, kvCacheBytes and slidingLayerMask in src/models/local-server/localServerMemory.ts, fitLocalWindow in src/models/local-server/localWindowFit.ts, or the GGUF array reading in parseGgufHeader in src/models/hosting/ggufHeader.ts'}`)
 }
 const GIB = 1024 ** 3
 
-const { kvGeometryOf, kvCacheBytes, slidingLayerMask } = await import('../../src/services/localServer/localServerMemory.ts')
-const { fitLocalWindow } = await import('../../src/services/localServer/localWindowFit.ts')
+const { kvGeometryOf, kvCacheBytes, slidingLayerMask } = await import('../../src/models/local-server/localServerMemory.ts')
+const { fitLocalWindow } = await import('../../src/models/local-server/localWindowFit.ts')
 const { FAKE_OLLAMA_MODEL_INFO } = await import('./fixtures/fake-ollama.ts')
-const { parseGgufHeader } = await import('../../src/services/host/ggufHeader.ts')
+const { parseGgufHeader } = await import('../../src/models/hosting/ggufHeader.ts')
 const { ggufHeaderBytes } = await import('../host/hfFixture.mjs')
 
 const GEMMA4_31B_MODEL_INFO: Record<string, unknown> = {"gemma4.attention.head_count": 32, "gemma4.attention.head_count_kv": [16, 16, 16, 16, 16, 4, 16, 16, 16, 16, 16, 4, 16, 16, 16, 16, 16, 4, 16, 16, 16, 16, 16, 4, 16, 16, 16, 16, 16, 4, 16, 16, 16, 16, 16, 4, 16, 16, 16, 16, 16, 4, 16, 16, 16, 16, 16, 4, 16, 16, 16, 16, 16, 4, 16, 16, 16, 16, 16, 4], "gemma4.attention.key_length": 512, "gemma4.attention.key_length_swa": 256, "gemma4.attention.layer_norm_rms_epsilon": 1e-06, "gemma4.attention.shared_kv_layers": 0, "gemma4.attention.sliding_window": 1024, "gemma4.attention.sliding_window_pattern": [true, true, true, true, true, false, true, true, true, true, true, false, true, true, true, true, true, false, true, true, true, true, true, false, true, true, true, true, true, false, true, true, true, true, true, false, true, true, true, true, true, false, true, true, true, true, true, false, true, true, true, true, true, false, true, true, true, true, true, false], "gemma4.attention.value_length": 512, "gemma4.attention.value_length_swa": 256, "gemma4.block_count": 60, "gemma4.context_length": 262144, "gemma4.embedding_length": 5376, "general.architecture": "gemma4", "general.parameter_count": 31273089132}

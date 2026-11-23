@@ -20,7 +20,7 @@ const frames: string[] = []
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  const where = 'change the one this check names: the dialog reducer and rows in src/components/LocalSetupDialog.tsx, the command in src/commands/localsetup/localsetup.tsx, words in src/commands/localsetup/words.ts, the picker offer row in src/components/MercuryModelPicker.tsx, configProviderRows in src/components/Settings/config/configRowFacts.ts, saturnVerdictSentence in src/components/BootSaturnScreen.tsx, the usage popup in src/commands/usage/usage.tsx'
+  const where = 'change the one this check names: the dialog reducer and rows in src/commands/localsetup/LocalSetupDialog.tsx, the command in src/commands/localsetup/localsetup.tsx, words in src/commands/localsetup/words.ts, the picker offer row in src/commands/model/picker/MercuryModelPicker.tsx, configProviderRows in src/screen/settings/config/configRowFacts.ts, saturnVerdictSentence in src/screen/boot-face/BootSaturnScreen.tsx, the usage popup in src/commands/usage/usage.tsx'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` — ${detail ? detail + ' · ' : ''}${where}`}`)
 }
 
@@ -127,7 +127,7 @@ async function* fixtureRoad(consent: Consent): AsyncGenerator<Record<string, unk
   const ready = { model: MODEL, wireId: 'qwen3.5:9b', server: 'ollama', settled: 'applied', saved: '', ok: true, firstLine: 'ready', window: 131072, timings: { totalMs: 41_000, loadMs: 9_800, evalTokens: 14 }, words: `ready · ${MODEL} · 128k window · reply in 41 s` }
   yield { type: 'done', summary: { ran, skipped, failed: [], notDone: [], reason: 'finished', model: MODEL, ready, words: `ready · ${MODEL}` } }
 }
-mock.module('../../src/services/localSetup/ggufRoad.js', () => ({ runLocalSetupRoad: fixtureRoad }))
+mock.module('../../src/models/local-setup/ggufRoad.js', () => ({ runLocalSetupRoad: fixtureRoad }))
 
 let localServer = false
 const ids = ['anthropic', 'openai', 'gemini', 'moonshot', 'huggingface', 'deepseek', 'zai', 'openrouter', 'openai-compat', 'local']
@@ -139,7 +139,7 @@ async function stub(path: string, fixture: () => Record<string, unknown>): Promi
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...fixture() }))
 }
-await stub('../../src/services/providers/providerUsage.js', () => ({
+await stub('../../src/models/roads/providerUsage.js', () => ({
   providerFamilyPresences: families,
   providerSessionSpend: () => spend,
   providerUsageView: (id: string) => ({ entries: [], activeEntry: undefined, sessionSpend: spend, limits: { kind: 'none' } }),
@@ -151,39 +151,39 @@ await stub('../../src/services/providers/providerUsage.js', () => ({
   openaiObservedWindowViews: () => [],
   activeSourceUsage: () => ({ provider: 'local', sourceKind: 'keyless', label: 'Local models usage', shape: 'none', windows: [], pools: [], spend, tier: 'fixture · no metering' }),
 }))
-await stub('../../src/utils/auth.js', () => ({ isClaudeAISubscriber: () => false }))
-await stub('../../src/services/model/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))
-await stub('../../src/services/wallet/wallet.js', () => ({ walletEntries: () => [], activeWalletEntry: () => undefined }))
-await stub('../../src/services/providers/usageFreshness.js', () => ({ usageSourceWords: () => 'endpoint-fed · read 0 s ago' }))
-await stub('../../src/services/providers/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
-await stub('../../src/services/providers/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
-await stub('../../src/hooks/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
-await stub('../../src/services/providers/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
-await stub('../../src/services/providers/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: snapshot, refreshLocalDiscovery: async () => snapshot() ?? { servers: [], probedAtMs: 0, targetCount: 0 } }))
-await stub('../../src/services/providers/local/localAccounts.js', () => ({ resolveLocalAccount: () => (localServer ? { kind: 'keyless', keySource: 'none' } : undefined) }))
-await stub('../../src/cost-tracker.js', () => ({ formatLaneSpend: () => '$0.00' }))
-await stub('../../src/components/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
+await stub('../../src/models/sign-in/credentials/auth.js', () => ({ isClaudeAISubscriber: () => false }))
+await stub('../../src/models/catalogue/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))
+await stub('../../src/models/wallet/wallet.js', () => ({ walletEntries: () => [], activeWalletEntry: () => undefined }))
+await stub('../../src/models/roads/usageFreshness.js', () => ({ usageSourceWords: () => 'endpoint-fed · read 0 s ago' }))
+await stub('../../src/models/roads/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
+await stub('../../src/models/roads/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
+await stub('../../src/screen/model-picker/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
+await stub('../../src/models/roads/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
+await stub('../../src/models/roads/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: snapshot, refreshLocalDiscovery: async () => snapshot() ?? { servers: [], probedAtMs: 0, targetCount: 0 } }))
+await stub('../../src/models/roads/local/localAccounts.js', () => ({ resolveLocalAccount: () => (localServer ? { kind: 'keyless', keySource: 'none' } : undefined) }))
+await stub('../../src/models/usage/sessionCost.js', () => ({ formatLaneSpend: () => '$0.00' }))
+await stub('../../src/screen/keys/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
-const config = await import('../../src/utils/config.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
+const config = await import('../../src/platform/settings/config.js')
 config.enableConfigs()
 const words = await import('../../src/commands/localsetup/words.ts').catch(() => null)
 const registration = await import('../../src/commands/localsetup/index.ts').catch(() => null)
 const command = await import('../../src/commands/localsetup/localsetup.tsx').catch(() => null)
-const dialog = await import('../../src/components/LocalSetupDialog.tsx').catch(() => null)
-const { configProviderRows } = await import('../../src/components/Settings/Config.js')
-const { saturnVerdictSentence } = await import('../../src/components/BootSaturnScreen.js')
+const dialog = await import('../../src/commands/localsetup/LocalSetupDialog.tsx').catch(() => null)
+const { configProviderRows } = await import('../../src/screen/settings/Config.js')
+const { saturnVerdictSentence } = await import('../../src/screen/boot-face/BootSaturnScreen.js')
 const { call: usageCall } = await import('../../src/commands/usage/usage.js')
-const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.js')
-const { LOCAL_MODEL_GROUP } = await import('../../src/services/providers/local/localCatalogue.js')
-const { ANTHROPIC_MODEL_GROUP } = await import('../../src/services/model/modelOptions.js')
+const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.js')
+const { LOCAL_MODEL_GROUP } = await import('../../src/models/roads/local/localCatalogue.js')
+const { ANTHROPIC_MODEL_GROUP } = await import('../../src/models/catalogue/modelOptions.js')
 
 const wrap = (element: unknown, cols: number, rows: number) => React.createElement(AppStateProvider as never, {}, React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: cols, height: rows }, element as never)))
 const keep = (name: string, m: Mounted, cols: number, rows: number): void => {

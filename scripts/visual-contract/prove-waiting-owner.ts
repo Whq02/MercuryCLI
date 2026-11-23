@@ -7,8 +7,8 @@ import * as React from 'react'
 import {
   _seedToolStartStamp,
   RunningToolElapsed,
-} from '../../src/components/messages/AssistantToolUseMessage.tsx'
-import { renderToString } from '../../src/utils/staticRender.tsx'
+} from '../../src/screen/messages/AssistantToolUseMessage.tsx'
+import { renderToString } from '../../src/screen/renderer/staticRender.tsx'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()

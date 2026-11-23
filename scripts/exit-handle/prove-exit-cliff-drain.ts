@@ -12,7 +12,7 @@ delete process.env.MERCURY_EXIT_CLIFF_DRAIN
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const where = 'change drainNamedSeams, drainExitCliffSeams, registerExitCliffSeam or EXIT_CLIFF_DRAIN_MS in src/utils/exitCliffDrain.ts (the transcript-writer seam registers in src/utils/sessionStorage/writer.ts)'
+  const where = 'change drainNamedSeams, drainExitCliffSeams, registerExitCliffSeam or EXIT_CLIFF_DRAIN_MS in src/platform/processes/exitCliffDrain.ts (the transcript-writer seam registers in src/sessions/transcripts/writer.ts)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${where}` : ''}`)
 }
 function section(t: string): void {
@@ -31,14 +31,14 @@ const never = (): Promise<never> => new Promise(() => {})
 const TIMER_LEAD_MS = 2
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — exit-cliff drain proof exceeded 120s; a seam settle in drainNamedSeams or drainExitCliffSeams (src/utils/exitCliffDrain.ts) never returned, or the writer flush seam in src/utils/sessionStorage/writer.ts is wedged')
+  console.log('\n❌ TIMEOUT — exit-cliff drain proof exceeded 120s; a seam settle in drainNamedSeams or drainExitCliffSeams (src/platform/processes/exitCliffDrain.ts) never returned, or the writer flush seam in src/sessions/transcripts/writer.ts is wedged')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
 
-const drain = await import('../../src/utils/exitCliffDrain.ts')
+const drain = await import('../../src/platform/processes/exitCliffDrain.ts')
 const { drainNamedSeams, drainExitCliffSeams, registerExitCliffSeam, listExitCliffSeams, EXIT_CLIFF_DRAIN_MS } = drain
-type Seam = import('../../src/utils/exitCliffDrain.ts').ExitCliffSeam
+type Seam = import('../../src/platform/processes/exitCliffDrain.ts').ExitCliffSeam
 
 section('§1 — the drain owner: bounded, never-throw, phased, by name')
 check(
@@ -190,7 +190,7 @@ check(
 
 section('§2 — the product seam registers with its phase; a Project exists only once asked for')
 {
-  const writer = await import('../../src/utils/sessionStorage/writer.ts')
+  const writer = await import('../../src/sessions/transcripts/writer.ts')
   check('the writer never instantiates at a peek', writer.peekProject() === null)
   writer.getProject()
   check('a Project exists once asked for (getProject) — the seam settles its flush', writer.peekProject() !== null)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/statusNotices/statusNoticeDefinitions.tsx src/components/Settings/Config.tsx src/mneme/mnemeFrontPage.ts src/mneme/mnemeUsage.ts
-// gate-watch: src/components/Messages.tsx src/components/CrewmateTranscript.tsx src/components/memory/MemoryCentreView.tsx src/commands/memory/memory.tsx src/components/SettingsPopupSlot.tsx
+// gate-watch: src/screen/status-notices/statusNoticeDefinitions.tsx src/screen/settings/Config.tsx src/sessions/mneme/mnemeFrontPage.ts src/sessions/mneme/mnemeUsage.ts
+// gate-watch: src/screen/messages/Messages.tsx src/screen/chat/CrewmateTranscript.tsx src/screen/memory/MemoryCentreView.tsx src/commands/memory/memory.tsx src/screen/overlays/SettingsPopupSlot.tsx
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -26,17 +26,17 @@ function save(name: string, lines: string[]): void {
   if (FRAMES) writeFileSync(join(FRAMES, name), lines.join('\n') + '\n')
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { appendObservation } = await import('../../src/mneme/mnemeBuffer.js')
-const { maybeConsolidate, listTopicDocs } = await import('../../src/mneme/mnemeConsolidate.js')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
-const { pinFact, formatTextSize } = await import('../../src/mneme/mnemeUsage.js')
-const { readPinnedStatus } = await import('../../src/mneme/mnemeFrontPage.js')
-const { getActiveNotices, pinnedOverLimitLine } = await import('../../src/components/statusNotices/statusNoticeDefinitions.js')
-const { getGlobalConfig } = await import('../../src/utils/config.js')
+const { appendObservation } = await import('../../src/sessions/mneme/mnemeBuffer.js')
+const { maybeConsolidate, listTopicDocs } = await import('../../src/sessions/mneme/mnemeConsolidate.js')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.js')
+const { pinFact, formatTextSize } = await import('../../src/sessions/mneme/mnemeUsage.js')
+const { readPinnedStatus } = await import('../../src/sessions/mneme/mnemeFrontPage.js')
+const { getActiveNotices, pinnedOverLimitLine } = await import('../../src/screen/status-notices/statusNoticeDefinitions.js')
+const { getGlobalConfig } = await import('../../src/platform/settings/config.js')
 
-section('§1 a library whose pinned shelf is over its text limit', 'maybeConsolidate in src/mneme/mnemeConsolidate.ts, pinFact in src/mneme/mnemeUsage.ts, readPinnedStatus in src/mneme/mnemeFrontPage.ts')
+section('§1 a library whose pinned shelf is over its text limit', 'maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts, pinFact in src/sessions/mneme/mnemeUsage.ts, readPinnedStatus in src/sessions/mneme/mnemeFrontPage.ts')
 const dir = mnemeLibraryDir()
 const RULES = ['deploys', 'commits', 'reviews', 'suites', 'worktrees', 'releases', 'docs', 'frames', 'keys', 'lanes', 'folds', 'censuses', 'drives', 'briefs', 'pages', 'notes', 'rows', 'seals', 'gates', 'pools', 'homes', 'walls', 'relogs']
 for (const word of RULES) {
@@ -48,7 +48,7 @@ maybeConsolidate({ force: true, dir })
 const status = readPinnedStatus(dir)
 check('the shelf is over its limit with every rule loaded', status !== null && status.over && status.loaded.length === RULES.length, JSON.stringify(status && { pinned: status.pinned, used: status.used, limit: status.limit }))
 
-section('§2 the calm start-of-session line, as the notice strip paints it', 'the pinned-over-limit notice (getActiveNotices) and pinnedOverLimitLine in src/components/statusNotices/statusNoticeDefinitions.tsx, formatTextSize in src/mneme/mnemeUsage.ts')
+section('§2 the calm start-of-session line, as the notice strip paints it', 'the pinned-over-limit notice (getActiveNotices) and pinnedOverLimitLine in src/screen/status-notices/statusNoticeDefinitions.tsx, formatTextSize in src/sessions/mneme/mnemeUsage.ts')
 const notices = getActiveNotices({ config: getGlobalConfig(), memoryFiles: [] })
 const notice = notices.find(n => n.id === 'pinned-over-limit')
 check('the pinned-over-limit notice is active', notice !== undefined, notices.map(n => n.id).join(','))
@@ -58,8 +58,8 @@ check('the words carry the count, the fill, the limit, that all are loaded, and 
   words === `Pinned memory: ${RULES.length} rules, ${formatTextSize(status?.used ?? 0)} of the ${formatTextSize(status?.limit ?? 0)} limit — all still loaded. Trim in /memory or raise the limit in /config.`, words)
 if (notice) {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.js')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
+  const { Box } = await import('../../src/screen/themedRenderer.js')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
   for (const [cols, rows] of [[80, 6], [100, 6], [120, 6], [178, 6]] as const) {
     const element = React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: cols, paddingLeft: 1 }, notice.render({ config: getGlobalConfig(), memoryFiles: [] })))
     const m: Mounted = await mountOffscreen(element, cols, rows)
@@ -74,16 +74,16 @@ if (notice) {
   }
 }
 
-section('§3 the /config popup: the Pinned memory limit row, where it sits and how it reads', 'the Pinned memory limit row in src/components/Settings/Config.tsx, configPopupRequest in src/commands/config/config.tsx, src/components/SettingsPopupSlot.tsx')
+section('§3 the /config popup: the Pinned memory limit row, where it sits and how it reads', 'the Pinned memory limit row in src/screen/settings/Config.tsx, configPopupRequest in src/commands/config/config.tsx, src/screen/overlays/SettingsPopupSlot.tsx')
 {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.js')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-  const store = await import('../../src/utils/cockpit/settingsPopup.js')
+  const { Box } = await import('../../src/screen/themedRenderer.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+  const store = await import('../../src/screen/cockpit/settingsPopup.js')
   const { configPopupRequest } = await import('../../src/commands/config/config.js')
-  const { CONFIG_POPUP_HINT, CONFIG_ROW_MARK } = await import('../../src/components/Settings/Config.js')
+  const { CONFIG_POPUP_HINT, CONFIG_ROW_MARK } = await import('../../src/screen/settings/Config.js')
   for (const [COLS, ROWS] of [[178, 51], [120, 40]] as const) {
     const element = React.createElement(
       AppStateProvider as never,
@@ -116,13 +116,13 @@ section('§3 the /config popup: the Pinned memory limit row, where it sits and h
   }
 }
 
-section("§4 the line paints in the person's chat and never in a crewmate's chat view", 'the suppressNotices prop of Messages in src/components/Messages.tsx, and the crewmate mount in src/components/CrewmateTranscript.tsx that passes it')
+section("§4 the line paints in the person's chat and never in a crewmate's chat view", 'the suppressNotices prop of Messages in src/screen/messages/Messages.tsx, and the crewmate mount in src/screen/chat/CrewmateTranscript.tsx that passes it')
 {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.js')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-  const { Messages } = await import('../../src/components/Messages.js')
+  const { Box } = await import('../../src/screen/themedRenderer.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+  const { Messages } = await import('../../src/screen/messages/Messages.js')
   const mountMessages = async (suppressNotices: boolean): Promise<string[]> => {
     const props = {
       messages: [],
@@ -165,11 +165,11 @@ section("§4 the line paints in the person's chat and never in a crewmate's chat
 
 async function mountMemoryPopup(): Promise<{ m: Mounted; close: () => void }> {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.js')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-  const store = await import('../../src/utils/cockpit/settingsPopup.js')
+  const { Box } = await import('../../src/screen/themedRenderer.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+  const store = await import('../../src/screen/cockpit/settingsPopup.js')
   const { memoryPopupRequest } = await import('../../src/commands/memory/memory.js')
   const element = React.createElement(
     AppStateProvider as never,
@@ -181,9 +181,9 @@ async function mountMemoryPopup(): Promise<{ m: Mounted; close: () => void }> {
   return { m, close: () => store.closeSettingsPopup() }
 }
 
-section('§5 /memory lists the pinned rules — size, the asked mark, ↵ opens a rule and u unpins it there — so "trim in /memory" is a real instruction', 'src/components/memory/MemoryCentreView.tsx (pinned rules row, list and rule view), memoryPopupRequest in src/commands/memory/memory.tsx, pinFact and readPins in src/mneme/mnemeUsage.ts')
+section('§5 /memory lists the pinned rules — size, the asked mark, ↵ opens a rule and u unpins it there — so "trim in /memory" is a real instruction', 'src/screen/memory/MemoryCentreView.tsx (pinned rules row, list and rule view), memoryPopupRequest in src/commands/memory/memory.tsx, pinFact and readPins in src/sessions/mneme/mnemeUsage.ts')
 {
-  const { readPins } = await import('../../src/mneme/mnemeUsage.js')
+  const { readPins } = await import('../../src/sessions/mneme/mnemeUsage.js')
   const pinsBefore = readPins(dir).length
   const { m, close } = await mountMemoryPopup()
   const overview = await waitFor(() => m.lines().some(l => l.includes('pinned rules')) && m.lines().some(l => l.includes('Mercury · memory')), 6000)
@@ -242,9 +242,9 @@ section('§5 /memory lists the pinned rules — size, the asked mark, ↵ opens 
   maybeConsolidate({ force: true, dir })
 }
 
-section('§5b /memory lists the topics — one row per index line, as the model reads it; ↵ opens the page', 'src/components/memory/MemoryCentreView.tsx (topics row, list and page view), memoryPopupRequest in src/commands/memory/memory.tsx, the index in src/mneme/mnemeFrontPage.ts')
+section('§5b /memory lists the topics — one row per index line, as the model reads it; ↵ opens the page', 'src/screen/memory/MemoryCentreView.tsx (topics row, list and page view), memoryPopupRequest in src/commands/memory/memory.tsx, the index in src/sessions/mneme/mnemeFrontPage.ts')
 {
-  const { readFrontPage } = await import('../../src/mneme/mnemeFrontPage.js')
+  const { readFrontPage } = await import('../../src/sessions/mneme/mnemeFrontPage.js')
   const page = readFrontPage(dir) ?? ''
   const indexText = page.slice(page.indexOf('## Index'), page.indexOf('## Pinned'))
   const index = indexText.split('\n').filter(l => l.startsWith('- '))
@@ -285,9 +285,9 @@ section('§5b /memory lists the topics — one row per index line, as the model 
   m.unmount()
 }
 
-section('§6 the line is a start-of-session reading: what changes mid-session paints nothing new', 'the pinned-over-limit notice in getActiveNotices in src/components/statusNotices/statusNoticeDefinitions.tsx, readPinnedStatus and pinnedStatusPath in src/mneme/mnemeFrontPage.ts')
+section('§6 the line is a start-of-session reading: what changes mid-session paints nothing new', 'the pinned-over-limit notice in getActiveNotices in src/screen/status-notices/statusNoticeDefinitions.tsx, readPinnedStatus and pinnedStatusPath in src/sessions/mneme/mnemeFrontPage.ts')
 {
-  const { pinnedStatusPath } = await import('../../src/mneme/mnemeFrontPage.js')
+  const { pinnedStatusPath } = await import('../../src/sessions/mneme/mnemeFrontPage.js')
   const under = { ...status!, over: false, used: 100, pinned: 1 }
   writeFileSync(pinnedStatusPath(dir), JSON.stringify(under))
   check('the status on disk now reads under the limit', readPinnedStatus(dir)?.over === false)

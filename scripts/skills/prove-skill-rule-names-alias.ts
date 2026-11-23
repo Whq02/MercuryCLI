@@ -15,12 +15,12 @@ process.chdir(project)
 process.on('exit', () => rmSync(scratch, { recursive: true, force: true }))
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { registerBundledSkill } = await import(join(SRC, 'skills/bundledSkills.ts'))
-const { registerLoopSkill } = await import(join(SRC, 'skills/bundled/loop.ts'))
-const { getSkillToolCommands } = await import(join(SRC, 'commands.ts'))
-const { SkillTool } = await import(join(SRC, 'tools/SkillTool/SkillTool.ts'))
-const { getEmptyToolPermissionContext } = await import(join(SRC, 'Tool.ts'))
-type ToolUseContext = import('../../src/Tool.ts').ToolUseContext
+const { registerBundledSkill } = await import(join(SRC, 'integrations/skills/bundledSkills.ts'))
+const { registerLoopSkill } = await import(join(SRC, 'integrations/skills/bundled/loop.ts'))
+const { getSkillToolCommands } = await import(join(SRC, 'commands/catalogue/commands.ts'))
+const { SkillTool } = await import(join(SRC, 'tools/skill/SkillTool.ts'))
+const { getEmptyToolPermissionContext } = await import(join(SRC, 'tools/kit/tool.ts'))
+type ToolUseContext = import('../../src/tools/kit/tool.ts').ToolUseContext
 
 registerLoopSkill()
 registerBundledSkill({
@@ -32,7 +32,7 @@ registerBundledSkill({
 const commands = await getSkillToolCommands(project)
 
 let failures = 0
-const aliasFailureHint = 'a Skill rule must name the skill under its canonical name and every alias, deny before allow: fix the names list and ruleMatchesSkill in checkPermissions in src/tools/SkillTool/SkillTool.ts (alias registration is in src/skills/bundledSkills.ts)'
+const aliasFailureHint = 'a Skill rule must name the skill under its canonical name and every alias, deny before allow: fix the names list and ruleMatchesSkill in checkPermissions in src/tools/skill/SkillTool.ts (alias registration is in src/integrations/skills/bundledSkills.ts)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${aliasFailureHint}` : ''}`)
   if (!ok) failures++

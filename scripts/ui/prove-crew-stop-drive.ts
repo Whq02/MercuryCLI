@@ -174,7 +174,7 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
   const runningRow = rowOf(running, target)
   check(`${tag}: the row is live before the chord (running, or idle while the crewmate waits on its inbox)`, runningRow !== undefined && /\brunning\b|\bidle\b|◐|Sleeping/.test(runningRow), runningRow ?? '(no row)')
   const armed = marks['armed'] ?? ''
-  check(`${tag}: the first x arms the chord and names the row`, armed.includes(`x again within 2 s stops ${target}`) || flat(armed).includes('x again within 2 s stops'), `${flat(armed).slice(0, 200)} — the armed line comes from crewStopHint in src/components/mercury-ui/screens/crewStopChord.ts; check that it is painted after the first x`)
+  check(`${tag}: the first x arms the chord and names the row`, armed.includes(`x again within 2 s stops ${target}`) || flat(armed).includes('x again within 2 s stops'), `${flat(armed).slice(0, 200)} — the armed line comes from crewStopHint in src/screen/widgets/faces/crewStopChord.ts; check that it is painted after the first x`)
   const after = marks['crew-after'] ?? ''
   const afterRow = rowOf(after, target)
   check(`${tag}: after x x the row reads stopped, never running`, afterRow !== undefined && /\bstopped\b/.test(afterRow) && !/\brunning\b/.test(afterRow), afterRow ?? '(no row)')
@@ -183,12 +183,12 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
     const stoppedView = marks['stopped-view'] ?? ''
     const stoppedFlat = flat(stoppedView)
     check(`${tag}: after the stop and the pop-up's close the view stays on the stopped crewmate — its card reads stopped, the composer still addresses it`, !stoppedView.includes('Crewmates') && stoppedFlat.includes(`◉ ${target}`) && stoppedFlat.includes('stopped') && stoppedFlat.includes(`message ${target}`), stoppedFlat.slice(0, 300))
-    check(`${tag}: the footer says what the keys do on a stopped crewmate — ↵ resumes it with your line, esc goes back to Mercury Lead — never ↵ sends to / esc interrupts`, stoppedFlat.includes(`↵ resumes ${target} with your line`) && stoppedFlat.includes('esc back to Mercury Lead') && !stoppedFlat.includes(`↵ sends to ${target}`) && !stoppedFlat.includes(`esc interrupts ${target}`), `${stoppedFlat.slice(-400)} — the footer clause comes from crewmateSendClause in src/utils/cockpit/crewmateWords.ts`)
+    check(`${tag}: the footer says what the keys do on a stopped crewmate — ↵ resumes it with your line, esc goes back to Mercury Lead — never ↵ sends to / esc interrupts`, stoppedFlat.includes(`↵ resumes ${target} with your line`) && stoppedFlat.includes('esc back to Mercury Lead') && !stoppedFlat.includes(`↵ sends to ${target}`) && !stoppedFlat.includes(`esc interrupts ${target}`), `${stoppedFlat.slice(-400)} — the footer clause comes from crewmateSendClause in src/screen/cockpit/crewmateWords.ts`)
     const stoppedRail = stoppedView.split('\n').find(line => new RegExp(`[◉◐·] ${target.slice(0, 8)}[^\\n]*· stopped`).test(line))
     check(`${tag}: the stopped crewmate keeps its CREW row, reading stopped, while it is viewed`, stoppedRail !== undefined, stoppedView.split('\n').filter(line => line.includes(target.slice(0, 8))).map(flat).join(' | ').slice(0, 200) || '(no row)')
   }
   check(`${tag}: no refusal is painted under the rows`, !after.includes('was refused'), flat(after).slice(0, 200))
-  check(`${tag}: the daemon relayed exactly one stop to the runner (the chord fired once, the connector sent it once)`, records.daemonStops.length === 1, `daemon lines ${records.daemonStops.length} — the chord must fire pressCrewStop once (src/components/mercury-ui/screens/crewStopChord.ts) and the connector send one stop-agent (src/services/engine-connector/daemonConnector.ts)`)
+  check(`${tag}: the daemon relayed exactly one stop to the runner (the chord fired once, the connector sent it once)`, records.daemonStops.length === 1, `daemon lines ${records.daemonStops.length} — the chord must fire pressCrewStop once (src/screen/widgets/faces/crewStopChord.ts) and the connector send one stop-agent (src/engine/connector/daemonConnector.ts)`)
   const later = marks['crew-later'] ?? ''
   const laterRow = rowOf(later, target)
   check(`${tag}: the row never returns to running`, laterRow === undefined || !/\brunning\b/.test(laterRow), laterRow ?? '(row gone)')

@@ -19,14 +19,14 @@ process.env.MERCURY_BUSY_RETRY_SCALE = '0.001'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — hint: change ResponsesStreamFold and bareStreamErrorCount in src/services/providers/openai/openaiWire.ts (bare stream error folding), streamFaultAfterPartialText and streamFaultNoticeLine in src/services/api/errors.ts (fault words), or toBridgeMessages in src/services/providers/openai/openaiCallModel/bridgeMessages.ts (section 3)' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — hint: change ResponsesStreamFold and bareStreamErrorCount in src/models/roads/openai/openaiWire.ts (bare stream error folding), streamFaultAfterPartialText and streamFaultNoticeLine in src/engine/requests/apiErrorRows.ts (fault words), or toBridgeMessages in src/models/roads/openai/call-model/bridgeMessages.ts (section 3)' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const wire = await import('../../src/services/providers/openai/openaiWire.ts')
-const errors = await import('../../src/services/api/errors.ts')
+const wire = await import('../../src/models/roads/openai/openaiWire.ts')
+const errors = await import('../../src/engine/requests/apiErrorRows.ts')
 
 section('§1 the fold: a bare error waits for the end; a reason, when the stream states one, wins')
 {
@@ -140,14 +140,14 @@ const address = server.address()
 const base = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}`
 Object.assign(process.env, { MERCURY_OPENAI_API_BASE: `${base}/openai/v1`, OPENAI_API_KEY: 'fixture-openai-key' })
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 type Drive = { yielded: Array<Record<string, unknown>>; thrown: string | null }
 async function drive(earlier: unknown[] = []): Promise<Drive> {
@@ -227,7 +227,7 @@ try {
   check('the session count advances for every bare event, including the seven failed attempts', wire.bareStreamErrorCount() === countBefore + 9, `${countBefore} → ${wire.bareStreamErrorCount()}`)
 
   section('§3 the model boundary: a reasoning replay recorded under another model stays off the request, said once; the same model keeps its record')
-  const call = await import('../../src/services/providers/openai/openaiCallModel.ts')
+  const call = await import('../../src/models/roads/openai/openaiCallModel.ts')
   const recordedRow = (model: string, id: string): Record<string, unknown> => ({
     type: 'assistant',
     uuid: `${id}-uuid`,

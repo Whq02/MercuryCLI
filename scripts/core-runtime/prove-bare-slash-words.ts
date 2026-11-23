@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { randomUUID } from 'node:crypto'
-import type { Message, UserMessage } from '../../src/types/message.js'
+import type { Message, UserMessage } from '../../src/engine/message-shapes/message.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-bare-slash-')))
@@ -21,7 +21,7 @@ let checks = 0
 function check(label: string, condition: boolean, detail = ''): void {
   checks++
   if (!condition) failures++
-  const where = ' (fix how processUserInput in src/services/processUserInput/processUserInput.ts treats a bare slash or an unknown command name; parseSlashCommand is in src/utils/slashCommandParsing.ts)'
+  const where = ' (fix how processUserInput in src/engine/user-input/processUserInput.ts treats a bare slash or an unknown command name; parseSlashCommand is in src/commands/catalogue/slashCommandParsing.ts)'
   console.log(`  [${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail ? ` — ${detail}` : ''}${condition ? '' : where}`)
 }
 function section(t: string): void {
@@ -31,13 +31,13 @@ const HELP_SENTENCE = 'Commands are in the form'
 const CAVEAT_TAG = '<local-command-caveat>'
 
 try {
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const { setOriginalCwd, setCwdState } = await import('../../src/bootstrap/state.ts')
+  const { setOriginalCwd, setCwdState } = await import('../../src/boot/process-state/processState.ts')
   setOriginalCwd(cwd)
   setCwdState(cwd)
-  const { processUserInput } = await import('../../src/services/processUserInput/processUserInput.ts')
-  const { builtinCommands, sessionSeatCommandTable } = await import('../../src/commands.ts')
+  const { processUserInput } = await import('../../src/engine/user-input/processUserInput.ts')
+  const { builtinCommands, sessionSeatCommandTable } = await import('../../src/commands/catalogue/commands.ts')
   const table = sessionSeatCommandTable([...builtinCommands()])
   const appState: Record<string, unknown> = {
     toolPermissionContext: { mode: 'default', additionalWorkingDirectories: new Map(), alwaysAllowRules: {}, alwaysDenyRules: {} },

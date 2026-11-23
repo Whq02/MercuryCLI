@@ -27,10 +27,10 @@ const fixture = await startScriptedFixture(req => req.step === 0 && req.ask.incl
   ? [{ type: 'tool_use', name: 'Bash', input: { command, description: 'wait for the fixture to finish its work' } }]
   : [{ type: 'text', text: 'the turn finished without interruption' }])
 process.env.ANTHROPIC_BASE_URL = fixture.base
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { isProcessAlive } = await import('../../src/utils/ownerWatch.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/control/protocol.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { isProcessAlive } = await import('../../src/daemon/control/ownerWatch.ts')
 const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const until = async (predicate: () => boolean | Promise<boolean>, ms = 30_000): Promise<boolean> => {
   const deadline = Date.now() + ms
@@ -41,7 +41,7 @@ const until = async (predicate: () => boolean | Promise<boolean>, ms = 30_000): 
   return predicate()
 }
 let failures = 0
-const check = (label: string, ok: boolean, detail: unknown = '', hint = 'the helper logs are written to the world folder printed at the end; the restart verb is in src/daemon/handshake.ts and its arm-and-wait decision in restartWhenIdle in src/daemon/run/restart.ts'): void => {
+const check = (label: string, ok: boolean, detail: unknown = '', hint = 'the helper logs are written to the world folder printed at the end; the restart verb is in src/daemon/control/handshake.ts and its arm-and-wait decision in restartWhenIdle in src/daemon/run/restart.ts'): void => {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)} — ${hint}`}`)
 }

@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import React from 'react'
-import Ink from '../../src/ink/ink.tsx'
-import Text from '../../src/ink/components/Text.tsx'
-import { AlternateScreen } from '../../src/ink/components/AlternateScreen.tsx'
-import useInput from '../../src/ink/hooks/use-input.ts'
-import instances from '../../src/ink/instances.ts'
+import Ink from '../../src/screen/renderer/screenInstance.tsx'
+import Text from '../../src/screen/renderer/elements/Text.tsx'
+import { AlternateScreen } from '../../src/screen/renderer/elements/AlternateScreen.tsx'
+import useInput from '../../src/screen/renderer/bindings/use-input.ts'
+import instances from '../../src/screen/renderer/instances.ts'
 import { AnsiEmulator } from './ansiEmulator.ts'
 
 class Output extends EventEmitter {
@@ -54,7 +54,7 @@ const timeout = setTimeout(() => { console.error('FAIL the width probe never for
 await repainted
 clearTimeout(timeout)
 assert.equal(redraws, 1)
-assert.ok(frames >= 1, `width probe cleanup paint emitted frames=${frames}, expected >=1; check src/ink/ink.tsx`)
+assert.ok(frames >= 1, `width probe cleanup paint emitted frames=${frames}, expected >=1; check src/screen/renderer/screenInstance.tsx`)
 assert.equal(ink.isAltScreenActive, true, 'FAIL the boot road arms raw mode inside the alternate screen')
 const queryAt = stdout.writes.findIndex(value => value.includes('\x1b[6n'))
 const queryWrite = stdout.writes[queryAt]
@@ -72,9 +72,9 @@ for (const sample of queryWrite.matchAll(/\x1b7([\s\S]*?)\x1b8/g)) {
 }
 for (let row = 1; row <= 8; row++) assert.equal(cells.rowText(row), '')
 const lastClear = stdout.writes.findLastIndex(value => value.includes('\x1b[2J'))
-assert.ok(lastClear >= 0, `alternate screen cleanup paint never emitted CSI 2J clear (writes=${stdout.writes.length}); check src/ink/ink.tsx`)
+assert.ok(lastClear >= 0, `alternate screen cleanup paint never emitted CSI 2J clear (writes=${stdout.writes.length}); check src/screen/renderer/screenInstance.tsx`)
 for (const write of stdout.writes.slice(lastClear)) cells.feed(write.replaceAll('\x1b[6n', '').replaceAll('\x1b[c', ''))
-assert.ok(cells.rowText(0).includes('probe paint complete'), `row 0 missing scene text after cleanup paint (row0=${JSON.stringify(cells.rowText(0).slice(0, 80))}); check src/ink/session/widthProbe.ts`)
+assert.ok(cells.rowText(0).includes('probe paint complete'), `row 0 missing scene text after cleanup paint (row0=${JSON.stringify(cells.rowText(0).slice(0, 80))}); check src/screen/renderer/terminal-session/widthProbe.ts`)
 for (let row = 1; row <= 8; row++) assert.equal(cells.rowText(row), '')
 console.log('PASS all eight sample rows are blank after the actual input owner forces one cleanup repaint on the alternate screen')
 console.log('PASS unanswered capability queries cannot leave the samples on screen')

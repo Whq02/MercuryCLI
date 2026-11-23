@@ -1,17 +1,17 @@
 import * as React from 'react'
-import { Box, Text } from '../../ink.js'
+import { Box, Text } from '../../screen/themedRenderer.js'
 import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
-} from '../../types/command.js'
-import { formatDuration } from '../../utils/format.js'
-import { plural } from '../../utils/stringUtils.js'
-import { renderToString } from '../../utils/staticRender.js'
-import { GLYPH } from '../../utils/glyphs.js'
-import { MISSION_CONDITION_MAX_LENGTH, isMissionClearKeyword } from '../../guards/mission.js'
-import type { MissionCardFactV1 } from '../../services/engine-connector/types.js'
-import { passedOver } from '../../utils/passedOver.js'
-import { startTimeout, stopTimeout } from '../../utils/timers.js'
+} from '../catalogue/command.js'
+import { formatDuration } from '../../platform/text/format.js'
+import { plural } from '../../platform/text/strings.js'
+import { renderToString } from '../../screen/renderer/staticRender.js'
+import { GLYPH } from '../../screen/theme/glyphs.js'
+import { MISSION_CONDITION_MAX_LENGTH, isMissionClearKeyword } from '../../permissions/guards/mission.js'
+import type { MissionCardFactV1 } from '../../engine/connector/types.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
 
 
 type MissionView = Pick<MissionCardFactV1, 'goal' | 'state' | 'nextStep' | 'iterations' | 'setAt' | 'outcome'>
@@ -55,12 +55,12 @@ type SessionMissionCardRead =
   | { state: 'unreadable'; words: string }
 
 async function sessionMissionCard(): Promise<SessionMissionCardRead> {
-  const { getFocusedSessionConnector } = await import('../../services/engine-connector/focusedConnector.js')
+  const { getFocusedSessionConnector } = await import('../../engine/connector/focusedConnector.js')
   const connector = getFocusedSessionConnector()
   const fact = connector.workRoster().missionCard
   if (fact !== undefined && fact !== null) return { state: 'ok', card: fact }
   try {
-    const { inspectMissionCard, missionCardUnreadWords } = await import('../../utils/mission/missionCard.js')
+    const { inspectMissionCard, missionCardUnreadWords } = await import('../../sessions/mission-card/missionCard.js')
     const read = inspectMissionCard(connector.sessionId(), connector.workspace().originalCwd)
     if (read.state === 'unreadable') {
       passedOver(read.error)
@@ -82,7 +82,7 @@ const FACT_WAIT_MS = 4000
 const OLDER_RUNNER_LINE = 'the session took the line, but its runner did not take the mission: that runner predates session-owned missions — /restart restarts this chat on the installed build, then set the mission again'
 
 async function missionFactArrives(expected: (card: MissionCardFactV1 | null | undefined) => boolean): Promise<boolean> {
-  const { getFocusedSessionConnector } = await import('../../services/engine-connector/focusedConnector.js')
+  const { getFocusedSessionConnector } = await import('../../engine/connector/focusedConnector.js')
   const connector = getFocusedSessionConnector()
   if (expected(connector.workRoster().missionCard)) return true
   return new Promise(resolve => {
@@ -106,7 +106,7 @@ export async function call(
   args: string,
 ): Promise<React.ReactNode> {
   const arg = args.trim()
-  const { getFocusedSessionConnector, hasFocusedSession } = await import('../../services/engine-connector/focusedConnector.js')
+  const { getFocusedSessionConnector, hasFocusedSession } = await import('../../engine/connector/focusedConnector.js')
   const hosted = hasFocusedSession()
 
   if (arg === '') {

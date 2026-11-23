@@ -10,12 +10,12 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const ROOT = join(import.meta.dir, '..', '..')
-const RESOLVER = join(ROOT, 'src', 'services', 'dap', 'debugpyResolver.ts')
-const { PYCACHE_KEYS_KEPT } = await import('../../src/services/dap/debugpyResolver.ts')
+const RESOLVER = join(ROOT, 'src', 'integrations', 'debugger', 'debugpyResolver.ts')
+const { PYCACHE_KEYS_KEPT } = await import('../../src/integrations/debugger/debugpyResolver.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  const hint = 'pycachePrefix and pythonSpawnEnv in src/services/dap/debugpyResolver.ts own the key directory under <cache>/pycache (own key kept, the PYCACHE_KEYS_KEPT most recently used keys survive, the key in use is touched on every resolution)'
+  const hint = 'pycachePrefix and pythonSpawnEnv in src/integrations/debugger/debugpyResolver.ts own the key directory under <cache>/pycache (own key kept, the PYCACHE_KEYS_KEPT most recently used keys survive, the key in use is touched on every resolution)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + '; ' : ''}${hint}` : ''}`)
   if (!cond) failures++
 }

@@ -3,8 +3,8 @@ import { mock } from 'bun:test'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createTurnDriver, type TurnDriverPorts } from '../../src/cli/headless/turnDriver.ts'
-import type { QueuedCommand } from '../../src/types/textInputTypes.ts'
+import { createTurnDriver, type TurnDriverPorts } from '../../src/daemon/runner/turnDriver.ts'
+import type { QueuedCommand } from '../../src/screen/composer/input-core/textInput.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const home = mkdtempSync(join(tmpdir(), 'final-close-handoff-'))
@@ -17,13 +17,13 @@ process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_BARE
 try {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const state = await import('../../src/bootstrap/state.ts')
-  const lineage = await import('../../src/mneme/lineageSession.ts')
-  const ask = await import('../../src/mneme/handoffAsk.ts')
-  const exit = await import('../../src/mneme/exitHandoff.ts')
-  const { saveCacheSafeParams } = await import('../../src/services/agents/forkedAgent.ts')
+  const state = await import('../../src/boot/process-state/processState.ts')
+  const lineage = await import('../../src/sessions/mneme/lineageSession.ts')
+  const ask = await import('../../src/sessions/mneme/handoffAsk.ts')
+  const exit = await import('../../src/sessions/mneme/exitHandoff.ts')
+  const { saveCacheSafeParams } = await import('../../src/crew/agents/forkedAgent.ts')
   const params = { systemPrompt: [] as never, userContext: {}, systemContext: {}, toolUseContext: {} as never, forkContextMessages: [] }
   async function scenario(oneShot: boolean, status = 'completed'): Promise<void> {
     state.switchSession(crypto.randomUUID())
@@ -72,21 +72,21 @@ try {
   const MODEL = 'claude-opus-4-8'
   const STEP_USD = 0.01
   const NOTE_USD = 0.02
-  const realQueryEvents = (await import('../../src/query.ts')).queryEvents
-  const realQuery = { ...(await import('../../src/query.ts')) }
+  const realQueryEvents = (await import('../../src/engine/turnDoor.ts')).queryEvents
+  const realQuery = { ...(await import('../../src/engine/turnDoor.ts')) }
   let scripted: Record<string, unknown> | null = null
-  mock.module('../../src/query.ts', () => ({
+  mock.module('../../src/engine/turnDoor.ts', () => ({
     ...realQuery,
     queryEvents: async function* (given: Record<string, unknown>): AsyncGenerator<unknown, unknown> {
       return yield* realQueryEvents((scripted === null ? given : { ...given, deps: scripted }) as never)
     },
   }))
-  const tracker = await import('../../src/cost-tracker.ts')
-  const { EMPTY_USAGE } = await import('../../src/utils/api/emptyUsage.ts')
-  const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-  const realFork = { ...(await import('../../src/services/agents/forkedAgent.ts')) }
+  const tracker = await import('../../src/models/usage/sessionCost.ts')
+  const { EMPTY_USAGE } = await import('../../src/engine/request-parts/emptyUsage.ts')
+  const { createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
+  const realFork = { ...(await import('../../src/crew/agents/forkedAgent.ts')) }
   let notes = 0
-  mock.module('../../src/services/agents/forkedAgent.ts', () => ({
+  mock.module('../../src/crew/agents/forkedAgent.ts', () => ({
     ...realFork,
     runForkedAgent: async () => {
       notes++
@@ -95,10 +95,10 @@ try {
       return { messages: [createAssistantMessage({ content: `The session read the close row's totals and left them standing; note ${notes} for the next session.` })], terminal: { reason: 'completed' }, totalUsage: usage }
     },
   }))
-  const { Conversation } = await import('../../src/rows/turn.ts')
-  const { printDriverPorts } = await import('../../src/cli/headless/printDriver.ts')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+  const { Conversation } = await import('../../src/engine/rows/turn.ts')
+  const { printDriverPorts } = await import('../../src/daemon/runner/runnerDriver.ts')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
   state.setIsInteractive(false)
   type Row = { type?: string; cost_usd?: number; usage?: { input_tokens?: number }; models?: Record<string, { cost_usd?: number; input_tokens?: number }> }
   const turnRows = async (): Promise<Row[]> => {

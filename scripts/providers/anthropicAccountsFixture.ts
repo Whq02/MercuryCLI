@@ -73,10 +73,10 @@ export async function accountsWorld() {
     assert.equal(new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url).origin, base, 'fixture must not reach another origin')
     return fetch(input, init)
   }) as typeof fetch
-  const config = await import('../../src/utils/config/globalConfig.ts')
+  const config = await import('../../src/platform/config/globalConfig.ts')
   config.enableConfigs()
   config.getGlobalConfig()
-  const auth = await import('../../src/utils/auth.ts')
+  const auth = await import('../../src/models/sign-in/credentials/auth.ts')
   return {
     home, base, requests, config, auth,
     onMessage: (handler: typeof messageHandler) => { messageHandler = handler },
@@ -90,11 +90,11 @@ export async function accountsWorld() {
 }
 
 export async function fixtureTurn(label = 'fixture turn', agentId?: string) {
-  const { routedCallModelSettled } = await import('../../src/services/providers/callModelRouter.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { asAgentId } = await import('../../src/types/ids.ts')
+  const { routedCallModelSettled } = await import('../../src/models/roads/callModelRouter.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
   return routedCallModelSettled({
     messages: [createUserMessage({ content: label })], systemPrompt: asSystemPrompt(['Answer briefly.']),
     thinkingConfig: { type: 'disabled' }, tools: [], signal: new AbortController().signal,

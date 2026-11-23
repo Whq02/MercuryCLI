@@ -1,22 +1,22 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import type { Message } from '../../src/types/message.ts'
-import type { CompatCallModelParams, CompatLaneProfile } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
+import type { CompatCallModelParams, CompatLaneProfile } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_BUSY_RETRY_SCALE = '0.001'
 process.env.OPENAI_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:1/v1'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.ts')
-const { xaiResponsesTransport } = await import('../../src/services/providers/xai/xaiResponsesTransport.ts')
-const { streamOpenrouterResponses } = await import('../../src/services/providers/openrouter/openrouterResponsesTransport.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { deepseekLaneProfile } = await import('../../src/services/providers/deepseek/deepseekCallModel.ts')
-const { moonshotLaneProfile } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { openaiCallModel } = await import('../../src/models/roads/openai/openaiCallModel.ts')
+const { xaiResponsesTransport } = await import('../../src/models/roads/xai/xaiResponsesTransport.ts')
+const { streamOpenrouterResponses } = await import('../../src/models/roads/openrouter/openrouterResponsesTransport.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { deepseekLaneProfile } = await import('../../src/models/roads/deepseek/deepseekCallModel.ts')
+const { moonshotLaneProfile } = await import('../../src/models/roads/moonshot/moonshotCallModel.ts')
 
 let failures = 0
 function check(label: string, value: boolean, detail = ''): void {
@@ -77,13 +77,13 @@ try {
         const completed = assistants.some(item => item.message.content.some((block: any) => block.text === 'completed fixture answer'))
         const tools = assistants.flatMap(item => item.message.content).filter((block: any) => block.type === 'tool_use')
         const expected = scenario === 'recover' ? 2 : scenario === 'exhaust' || scenario === 'resources' ? 7 : 1
-        check(`${road.name} ${scenario} ${afterContent ? 'after content' : 'before content'}: ${expected} requests`, hits === expected, `${hits} requests — the retry count of a failed stream is wrong; see src/services/providers/openaicompat/compatChatCallModel/attemptSettle.ts, src/services/providers/busyRetry.ts and src/services/providers/temporaryStreamError.ts`)
-        if (scenario === 'recover') check(`${road.name} recovers without a terminal error row`, completed && !assistants.some(item => item.isApiErrorMessage), JSON.stringify(assistants.map(item => item.message.content)) + ' — a temporary stream failure must be retried and end with the completed reply; see src/services/providers/openaicompat/compatChatCallModel/attemptSettle.ts')
-        if (scenario === 'tools' || scenario === 'unknown-tools') check(`${road.name} keeps its tool call exactly once and continues`, tools.length === 1 && items.some(item => item.type === 'stream_event' && item.event?.type === 'message_delta' && item.event.delta.stop_reason === 'tool_use'), JSON.stringify(assistants.map(item => item.message)) + ' — a tool call seen before the failure must be kept once and end as tool_use; see src/services/providers/openaicompat/compatChatCallModel/attemptSettle.ts')
-        check(`${road.name} yields every settled block at most once`, new Set(assistants.map(item => item.uuid)).size === assistants.length, 'a settled assistant message was yielded twice; see src/services/providers/openaicompat/compatChatCallModel/attemptSettle.ts')
+        check(`${road.name} ${scenario} ${afterContent ? 'after content' : 'before content'}: ${expected} requests`, hits === expected, `${hits} requests — the retry count of a failed stream is wrong; see src/models/roads/openaicompat/chat-call-model/attemptSettle.ts, src/models/roads/busyRetry.ts and src/models/roads/temporaryStreamError.ts`)
+        if (scenario === 'recover') check(`${road.name} recovers without a terminal error row`, completed && !assistants.some(item => item.isApiErrorMessage), JSON.stringify(assistants.map(item => item.message.content)) + ' — a temporary stream failure must be retried and end with the completed reply; see src/models/roads/openaicompat/chat-call-model/attemptSettle.ts')
+        if (scenario === 'tools' || scenario === 'unknown-tools') check(`${road.name} keeps its tool call exactly once and continues`, tools.length === 1 && items.some(item => item.type === 'stream_event' && item.event?.type === 'message_delta' && item.event.delta.stop_reason === 'tool_use'), JSON.stringify(assistants.map(item => item.message)) + ' — a tool call seen before the failure must be kept once and end as tool_use; see src/models/roads/openaicompat/chat-call-model/attemptSettle.ts')
+        check(`${road.name} yields every settled block at most once`, new Set(assistants.map(item => item.uuid)).size === assistants.length, 'a settled assistant message was yielded twice; see src/models/roads/openaicompat/chat-call-model/attemptSettle.ts')
         if (scenario === 'recover' && afterContent) {
-          check(`${road.name} keeps the interrupted text once beside the completed reply`, assistants.flatMap(item => item.message.content).filter((block: any) => block.text === 'partial fixture answer').length === 1, 'the interrupted text must appear exactly once beside the completed reply; see src/services/providers/openaicompat/compatChatCallModel/attemptSettle.ts')
-          if (!road.responses) check(`${road.name} yields both attempts with their final usage already attached`, assistants.filter(item => !item.isApiErrorMessage).reduce((sum, item) => sum + item.message.usage.input_tokens, 0) === 10, 'input tokens of both attempts must sum to 10 (5 each); see usage handling in src/services/providers/openaicompat/compatChatCallModel/attemptSettle.ts')
+          check(`${road.name} keeps the interrupted text once beside the completed reply`, assistants.flatMap(item => item.message.content).filter((block: any) => block.text === 'partial fixture answer').length === 1, 'the interrupted text must appear exactly once beside the completed reply; see src/models/roads/openaicompat/chat-call-model/attemptSettle.ts')
+          if (!road.responses) check(`${road.name} yields both attempts with their final usage already attached`, assistants.filter(item => !item.isApiErrorMessage).reduce((sum, item) => sum + item.message.usage.input_tokens, 0) === 10, 'input tokens of both attempts must sum to 10 (5 each); see usage handling in src/models/roads/openaicompat/chat-call-model/attemptSettle.ts')
         }
       }
     }

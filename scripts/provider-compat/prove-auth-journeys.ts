@@ -164,64 +164,64 @@ globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
 }) as typeof fetch
 
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 const { PROVIDER_ID_SPACES, declaredRouteOf, providerDisplayName } = await import(
-  '../../src/services/providers/routeLaw.ts'
+  '../../src/models/roads/routeLaw.ts'
 )
 const { compatChatCallModel, compatDispatchModelId, compatFaultToTypedError } = await import(
-  '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+  '../../src/models/roads/openaicompat/compatChatCallModel.ts'
 )
-const { moonshotLaneProfile } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
-const { deepseekLaneProfile } = await import('../../src/services/providers/deepseek/deepseekCallModel.ts')
-const { xaiLaneProfile } = await import('../../src/services/providers/xai/xaiCallModel.ts')
-const { metaLaneProfile } = await import('../../src/services/providers/meta/metaCallModel.ts')
-const { mistralLaneProfile } = await import('../../src/services/providers/mistral/mistralCallModel.ts')
-const { nousLaneProfile } = await import('../../src/services/providers/nous/nousCallModel.ts')
-const { openrouterLaneProfile } = await import('../../src/services/providers/openrouter/openrouterCallModel.ts')
-const { geminiLaneProfile } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
-const { huggingfaceLaneProfile } = await import('../../src/services/providers/huggingface/huggingfaceCallModel.ts')
-const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
-const { compatSlotLaneProfile } = await import('../../src/services/providers/openaicompat/compatCallModel.ts')
-const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-const { streamOpenaiResponses } = await import('../../src/services/providers/openai/openaiClient.ts')
-const { streamZaiChat } = await import('../../src/services/providers/zai/zaiClient.ts')
-const { openaiFaultToTypedError } = await import('../../src/services/providers/openai/openaiCallModel.ts')
+const { moonshotLaneProfile } = await import('../../src/models/roads/moonshot/moonshotCallModel.ts')
+const { deepseekLaneProfile } = await import('../../src/models/roads/deepseek/deepseekCallModel.ts')
+const { xaiLaneProfile } = await import('../../src/models/roads/xai/xaiCallModel.ts')
+const { metaLaneProfile } = await import('../../src/models/roads/meta/metaCallModel.ts')
+const { mistralLaneProfile } = await import('../../src/models/roads/mistral/mistralCallModel.ts')
+const { nousLaneProfile } = await import('../../src/models/roads/nous/nousCallModel.ts')
+const { openrouterLaneProfile } = await import('../../src/models/roads/openrouter/openrouterCallModel.ts')
+const { geminiLaneProfile } = await import('../../src/models/roads/gemini/geminiCallModel.ts')
+const { huggingfaceLaneProfile } = await import('../../src/models/roads/huggingface/huggingfaceCallModel.ts')
+const { localLaneProfileFor } = await import('../../src/models/roads/local/localCallModel.ts')
+const { compatSlotLaneProfile } = await import('../../src/models/roads/openaicompat/compatCallModel.ts')
+const { streamCompatChat } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+const { streamOpenaiResponses } = await import('../../src/models/roads/openai/openaiClient.ts')
+const { streamZaiChat } = await import('../../src/models/roads/zai/zaiClient.ts')
+const { openaiFaultToTypedError } = await import('../../src/models/roads/openai/openaiCallModel.ts')
 const { openrouterLimitWindow, openrouterObservedKeyUsage, __resetOpenrouterUsageStateForTest } =
-  await import('../../src/services/providers/openrouter/openrouterUsageState.ts')
+  await import('../../src/models/roads/openrouter/openrouterUsageState.ts')
 const { geminiLimitWindow, __resetGeminiUsageStateForTest } = await import(
-  '../../src/services/providers/gemini/geminiUsageState.ts'
+  '../../src/models/roads/gemini/geminiUsageState.ts'
 )
 const { huggingfaceLimitWindow, __resetHuggingfaceUsageStateForTest } = await import(
-  '../../src/services/providers/huggingface/huggingfaceUsageState.ts'
+  '../../src/models/roads/huggingface/huggingfaceUsageState.ts'
 )
-const geminiAccounts = await import('../../src/services/providers/gemini/geminiAccounts.ts')
-const openaiAccounts = await import('../../src/services/providers/openai/openaiAccounts.ts')
-const moonshotAccounts = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
-const huggingfaceAccounts = await import('../../src/services/providers/huggingface/huggingfaceAccounts.ts')
-const openrouterAccounts = await import('../../src/services/providers/openrouter/openrouterAccounts.ts')
-const providerSecrets = await import('../../src/utils/accounts/providerSecrets.ts')
-const { scanAccountScopes } = await import('../../src/utils/accounts/scopeScan.ts')
-const envUtils = await import('../../src/utils/envUtils.ts')
+const geminiAccounts = await import('../../src/models/roads/gemini/geminiAccounts.ts')
+const openaiAccounts = await import('../../src/models/roads/openai/openaiAccounts.ts')
+const moonshotAccounts = await import('../../src/models/roads/moonshot/moonshotAccounts.ts')
+const huggingfaceAccounts = await import('../../src/models/roads/huggingface/huggingfaceAccounts.ts')
+const openrouterAccounts = await import('../../src/models/roads/openrouter/openrouterAccounts.ts')
+const providerSecrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { scanAccountScopes } = await import('../../src/models/sign-in/account-ledger/scopeScan.ts')
+const envUtils = await import('../../src/platform/environment/envUtils.ts')
 const { deriveFamilySlotGroups, executeSlotRemoval, maskedKeyTail } = await import(
-  '../../src/services/providers/accountSlots.ts'
+  '../../src/models/roads/accountSlots.ts'
 )
 const { providerSessionSpend, activeSourceUsage } = await import(
-  '../../src/services/providers/providerUsage.ts'
+  '../../src/models/roads/providerUsage.ts'
 )
-const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { addToTotalSessionCost } = await import('../../src/cost-tracker.ts')
-const { getModelUsage, getUsageForModel } = await import('../../src/bootstrap/state.ts')
+const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
+const { addToTotalSessionCost } = await import('../../src/models/usage/sessionCost.ts')
+const { getModelUsage, getUsageForModel } = await import('../../src/boot/process-state/processState.ts')
 const { previewForSelection, reconfirmTransitionPlan } = await import(
-  '../../src/services/providers/transitionPreview.ts'
+  '../../src/models/roads/transitionPreview.ts'
 )
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errors.ts')
-import type { Options } from '../../src/services/providers/anthropic/streamCore.ts'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
-import type { ProviderSnapshot } from '../../src/services/providers/modelRegistry.ts'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { API_ERROR_MESSAGE_PREFIX } = await import('../../src/engine/requests/apiErrorRows.ts')
+import type { Options } from '../../src/models/roads/anthropic/streamCore.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
+import type { ProviderSnapshot } from '../../src/models/roads/modelRegistry.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
 
 
 let failures = 0
@@ -283,7 +283,7 @@ function messageText(m: AssistantMessage): string {
 section('S1 · the family roster derives from the route law (never hand-copied)')
 
 const FAMILIES = ['anthropic', ...PROVIDER_ID_SPACES.map(space => space.route)] as const
-check('the route law declares twenty-four families including Anthropic', FAMILIES.length === 24, 'PROVIDER_ID_SPACES in src/services/providers/routeLaw.ts must list the 23 routes beside anthropic; got ' + FAMILIES.length)
+check('the route law declares twenty-four families including Anthropic', FAMILIES.length === 24, 'PROVIDER_ID_SPACES in src/models/roads/routeLaw.ts must list the 23 routes beside anthropic; got ' + FAMILIES.length)
 check(
   'every family has a display name of its own (no fallthrough spelling)',
   FAMILIES.every(f => providerDisplayName(f) !== f || f === 'local'),
@@ -316,9 +316,9 @@ const FAMILY_MODEL: Record<string, string> = {
   fireworks: 'fireworks/gpt-oss-120b',
   qwen: 'qwen3.8-max',
 }
-check('the journey matrix covers every declared family', FAMILIES.every(f => FAMILY_MODEL[f] !== undefined), 'add a model id to FAMILY_MODEL in this file for each route declared in src/services/providers/routeLaw.ts; missing ' + FAMILIES.filter(f => FAMILY_MODEL[f] === undefined).join(','))
+check('the journey matrix covers every declared family', FAMILIES.every(f => FAMILY_MODEL[f] !== undefined), 'add a model id to FAMILY_MODEL in this file for each route declared in src/models/roads/routeLaw.ts; missing ' + FAMILIES.filter(f => FAMILY_MODEL[f] === undefined).join(','))
 for (const f of FAMILIES) {
-  check(`route re-derivation: '${FAMILY_MODEL[f]}' → ${f}`, declaredRouteOf(FAMILY_MODEL[f]) === f, `declaredRouteOf in src/services/providers/routeLaw.ts answered ${String(declaredRouteOf(FAMILY_MODEL[f]))}; fix the route law or the FAMILY_MODEL id in this file`)
+  check(`route re-derivation: '${FAMILY_MODEL[f]}' → ${f}`, declaredRouteOf(FAMILY_MODEL[f]) === f, `declaredRouteOf in src/models/roads/routeLaw.ts answered ${String(declaredRouteOf(FAMILY_MODEL[f]))}; fix the route law or the FAMILY_MODEL id in this file`)
 }
 
 section('S2 · the session ledger partitions by the routing law (no spend bleed)')
@@ -334,14 +334,14 @@ section('S2 · the session ledger partitions by the routing law (no spend bleed)
     check(
       `spend partition: ${f} counts exactly its own model`,
       spend.models === 1 && spend.inputTokens === 100,
-      `models=${spend.models} input=${spend.inputTokens}; providerSessionSpend in src/services/providers/providerUsage.ts must count only the models routed to ${f}`,
+      `models=${spend.models} input=${spend.inputTokens}; providerSessionSpend in src/models/roads/providerUsage.ts must count only the models routed to ${f}`,
     )
   }
   const ledgerRoutes = Object.keys(getModelUsage()).map(id => declaredRouteOf(id) ?? 'unrecognised')
   check(
     'every ledger key routes to exactly one family (qualified ids persist qualified)',
     FAMILIES.every(f => ledgerRoutes.filter(r => r === f).length === 1),
-    'compatDispatchModelId in src/services/providers/openaicompat/compatChatCallModel.ts must persist ids that declaredRouteOf (src/services/providers/routeLaw.ts) routes back to their family; ledger routes: ' + ledgerRoutes.join(','),
+    'compatDispatchModelId in src/models/roads/openaicompat/compatChatCallModel.ts must persist ids that declaredRouteOf (src/models/roads/routeLaw.ts) routes back to their family; ledger routes: ' + ledgerRoutes.join(','),
   )
 }
 
@@ -379,9 +379,9 @@ for (const [lane, { profile }] of Object.entries(laneProfiles)) {
   check(
     `${lane}: absent credential → ONE honest refusal naming the attach route`,
     errors.length === 1 && text.includes(ATTACH_ROUTE_WORDS[lane]!) && text.startsWith(API_ERROR_MESSAGE_PREFIX),
-    'compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts must yield one error naming ' + ATTACH_ROUTE_WORDS[lane] + ' when the lane profile resolves no credential; got ' + errors.length + ' error(s): ' + text.slice(0, 140),
+    'compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts must yield one error naming ' + ATTACH_ROUTE_WORDS[lane] + ' when the lane profile resolves no credential; got ' + errors.length + ' error(s): ' + text.slice(0, 140),
   )
-  check(`${lane}: the refusal never touches the wire`, wire.chatHits === 0, `hits=${wire.chatHits}; compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts must refuse before any request when no credential resolves`)
+  check(`${lane}: the refusal never touches the wire`, wire.chatHits === 0, `hits=${wire.chatHits}; compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts must refuse before any request when no credential resolves`)
 }
 {
   wire.chatHits = 0
@@ -392,9 +392,9 @@ for (const [lane, { profile }] of Object.entries(laneProfiles)) {
   check(
     'openai-compat: unconfigured slot → the refusal names MERCURY_COMPAT_BASE_URL',
     errors.length === 1 && text.includes(ATTACH_ROUTE_WORDS['openai-compat']!),
-    'compatSlotLaneProfile (src/services/providers/openaicompat/compatCallModel.ts) with no base URL must make compatChatCallModel yield one error naming MERCURY_COMPAT_BASE_URL; got ' + errors.length + ' error(s): ' + text.slice(0, 140),
+    'compatSlotLaneProfile (src/models/roads/openaicompat/compatCallModel.ts) with no base URL must make compatChatCallModel yield one error naming MERCURY_COMPAT_BASE_URL; got ' + errors.length + ' error(s): ' + text.slice(0, 140),
   )
-  check('openai-compat: no wire hit', wire.chatHits === 0, `hits=${wire.chatHits}; compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts must refuse an unconfigured slot before any request`)
+  check('openai-compat: no wire hit', wire.chatHits === 0, `hits=${wire.chatHits}; compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts must refuse an unconfigured slot before any request`)
 }
 
 section('S4 · J4/J5/J6 fault matrix — EVERY compat-lane family, same scenarios, equal outcomes')
@@ -504,23 +504,23 @@ for (const row of MATRIX) {
     check(
       `${row.family}: 401 → ONE typed authentication_failed refusal`,
       errors.length === 1 && errors[0]!.error === 'authentication_failed',
-      `errors=${errors.length} error=${errors[0]?.error}; compatFaultToTypedError in src/services/providers/openaicompat/compatChatCallModel.ts must map HTTP 401 to authentication_failed`,
+      `errors=${errors.length} error=${errors[0]?.error}; compatFaultToTypedError in src/models/roads/openaicompat/compatChatCallModel.ts must map HTTP 401 to authentication_failed`,
     )
-    check(`${row.family}: 401 is not retried (hits=1)`, wire.chatHits === 1, `hits=${wire.chatHits}; the 401 fault must be non-retryable in src/services/providers/openaicompat/compatChatCallModel.ts`)
+    check(`${row.family}: 401 is not retried (hits=1)`, wire.chatHits === 1, `hits=${wire.chatHits}; the 401 fault must be non-retryable in src/models/roads/openaicompat/compatChatCallModel.ts`)
     check(
       `${row.family}: the key value never appears in the refusal`,
       !text.includes(SECRET_MARKER),
-      'the refusal built in src/services/providers/openaicompat/compatChatCallModel.ts must not echo the key or the provider body; got ' + text.slice(0, 140),
+      'the refusal built in src/models/roads/openaicompat/compatChatCallModel.ts must not echo the key or the provider body; got ' + text.slice(0, 140),
     )
     check(
       `${row.family}: the wire saw the family's credential${row.bearer === undefined ? ' (keyless dispatch)' : ''}`,
       wire.lastAuth === row.bearer,
-      `auth=${wire.lastAuth ?? '(none)'}; the ${row.family} lane profile must send the credential it resolves as the bearer through compatChatCallModel (src/services/providers/openaicompat/compatChatCallModel.ts)`,
+      `auth=${wire.lastAuth ?? '(none)'}; the ${row.family} lane profile must send the credential it resolves as the bearer through compatChatCallModel (src/models/roads/openaicompat/compatChatCallModel.ts)`,
     )
     check(
       `${row.family}: the wire model id is the vendor spelling`,
       wire.lastBody?.model === row.wireModel,
-      `wire=${String(wire.lastBody?.model)}; the ${row.family} lane profile must send the vendor spelling of the model id (compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts)`,
+      `wire=${String(wire.lastBody?.model)}; the ${row.family} lane profile must send the vendor spelling of the model id (compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts)`,
     )
   }
 
@@ -533,11 +533,11 @@ for (const row of MATRIX) {
     check(
       `${row.family}: 429 with a one-second ask → the ask is waited for the one retry MERCURY_MAX_RETRIES=1 allows, then typed rate_limit`,
       errors.length === 1 && errors[0]!.error === 'rate_limit' && wire.chatHits === 2,
-      `errors=${errors.length} error=${errors[0]?.error} hits=${wire.chatHits}; compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts must honour retry-after for one retry, then map HTTP 429 to rate_limit`,
+      `errors=${errors.length} error=${errors[0]?.error} hits=${wire.chatHits}; compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts must honour retry-after for one retry, then map HTTP 429 to rate_limit`,
     )
-    if (row.family === 'openrouter') check('openrouter: the 429 retry-after landed as a real limit window', openrouterLimitWindow().state === 'limited', 'the 429 must be recorded in src/services/providers/openrouter/openrouterUsageState.ts; openrouterLimitWindow state is ' + openrouterLimitWindow().state)
-    if (row.family === 'gemini') check('gemini: the 429 retry-after landed as a real limit window', geminiLimitWindow().state === 'limited', 'the 429 must be recorded in src/services/providers/gemini/geminiUsageState.ts; geminiLimitWindow state is ' + geminiLimitWindow().state)
-    if (row.family === 'huggingface') check('huggingface: the 429 landed as a limit window', huggingfaceLimitWindow().state === 'limited', 'the 429 must be recorded in src/services/providers/huggingface/huggingfaceUsageState.ts; huggingfaceLimitWindow state is ' + huggingfaceLimitWindow().state)
+    if (row.family === 'openrouter') check('openrouter: the 429 retry-after landed as a real limit window', openrouterLimitWindow().state === 'limited', 'the 429 must be recorded in src/models/roads/openrouter/openrouterUsageState.ts; openrouterLimitWindow state is ' + openrouterLimitWindow().state)
+    if (row.family === 'gemini') check('gemini: the 429 retry-after landed as a real limit window', geminiLimitWindow().state === 'limited', 'the 429 must be recorded in src/models/roads/gemini/geminiUsageState.ts; geminiLimitWindow state is ' + geminiLimitWindow().state)
+    if (row.family === 'huggingface') check('huggingface: the 429 landed as a limit window', huggingfaceLimitWindow().state === 'limited', 'the 429 must be recorded in src/models/roads/huggingface/huggingfaceUsageState.ts; huggingfaceLimitWindow state is ' + huggingfaceLimitWindow().state)
   }
 
   wire.scenario = 'http-500'
@@ -547,7 +547,7 @@ for (const row of MATRIX) {
     check(
       `${row.family}: 500 → typed server_error after exactly one retry`,
       errors.length === 1 && errors[0]!.error === 'server_error' && wire.chatHits === 2,
-      `errors=${errors.length} error=${errors[0]?.error} hits=${wire.chatHits}; compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts must retry a 500 once, then map it to server_error`,
+      `errors=${errors.length} error=${errors[0]?.error} hits=${wire.chatHits}; compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts must retry a 500 once, then map it to server_error`,
     )
   }
 
@@ -558,7 +558,7 @@ for (const row of MATRIX) {
     check(
       `${row.family}: malformed SSE JSON → ONE typed fault, no retry`,
       errors.length === 1 && errors[0]!.error === 'server_error' && wire.chatHits === 1,
-      `errors=${errors.length} hits=${wire.chatHits}; streamCompatChat (src/services/providers/openaicompat/compatChatClient.ts) must fault on malformed SSE JSON and compatChatCallModel must not retry it`,
+      `errors=${errors.length} hits=${wire.chatHits}; streamCompatChat (src/models/roads/openaicompat/compatChatClient.ts) must fault on malformed SSE JSON and compatChatCallModel must not retry it`,
     )
   }
 
@@ -570,7 +570,7 @@ for (const row of MATRIX) {
     check(
       `${row.family}: truncated stream → partial text settles AND a typed fault follows`,
       settledText.includes('partial answer') && errors.length === 1 && errors[0]!.error === 'server_error',
-      `text='${settledText.slice(0, 30)}' errors=${errors.length}; compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts must settle the partial text and then yield a server_error for a stream that ends without finish`,
+      `text='${settledText.slice(0, 30)}' errors=${errors.length}; compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts must settle the partial text and then yield a server_error for a stream that ends without finish`,
     )
   }
 
@@ -589,14 +589,14 @@ for (const row of MATRIX) {
     check(
       `${row.family}: happy turn settles with no error message`,
       errors.length === 0 && settled.length > 0 && wire.chatHits === 1,
-      `errors=${errors.length} settled=${settled.length} hits=${wire.chatHits}; the happy stream must settle through compatChatCallModel (src/services/providers/openaicompat/compatChatCallModel.ts) with one request`,
+      `errors=${errors.length} settled=${settled.length} hits=${wire.chatHits}; the happy stream must settle through compatChatCallModel (src/models/roads/openaicompat/compatChatCallModel.ts) with one request`,
     )
     check(
       `${row.family}: usage joins the ledger under the persisted id (inclusive wire → disjoint ledger)`,
       (after?.inputTokens ?? 0) - before.input === 5 &&
         (after?.cacheReadInputTokens ?? 0) - before.cached === 2 &&
         (after?.outputTokens ?? 0) - before.output === 3,
-      `Δinput=${(after?.inputTokens ?? 0) - before.input} Δcached=${(after?.cacheReadInputTokens ?? 0) - before.cached}; expected input 5, cached 2, output 3 (prompt 7 minus cached 2); compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts must record usage under compatDispatchModelId with cached tokens split out`,
+      `Δinput=${(after?.inputTokens ?? 0) - before.input} Δcached=${(after?.cacheReadInputTokens ?? 0) - before.cached}; expected input 5, cached 2, output 3 (prompt 7 minus cached 2); compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts must record usage under compatDispatchModelId with cached tokens split out`,
     )
   }
 }
@@ -604,7 +604,7 @@ for (const row of MATRIX) {
 check(
   'openrouter: the polled key-usage truth was observed through the response seam',
   openrouterObservedKeyUsage().usage !== null,
-  'the key-usage answer must be stored by src/services/providers/openrouter/openrouterUsageState.ts (read by openrouterObservedKeyUsage)',
+  'the key-usage answer must be stored by src/models/roads/openrouter/openrouterUsageState.ts (read by openrouterObservedKeyUsage)',
 )
 
 {
@@ -623,12 +623,12 @@ check(
   check(
     'transport: a pre-HTTP failure (DNS/refused class) is a typed server_error, never a throw',
     errors.length === 1 && errors[0]!.error === 'server_error',
-    `errors=${errors.length} error=${errors[0]?.error}; compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts must turn a thrown fetch into a typed server_error`,
+    `errors=${errors.length} error=${errors[0]?.error}; compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts must turn a thrown fetch into a typed server_error`,
   )
   check(
     'the unpinned-URL guard fired on both bounded attempts (fails loud, never open)',
     wire.unpinned.length === 2,
-    `unpinned=${wire.unpinned.length}; compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts must retry a thrown fetch exactly once`,
+    `unpinned=${wire.unpinned.length}; compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts must retry a thrown fetch exactly once`,
   )
   wire.unpinned = []
 }
@@ -678,13 +678,13 @@ function jsonFetch(
   check(
     'gemini: concurrent refreshes collapse to ONE token POST (never a double-refresh)',
     counter.posts === 1 && a?.accessToken === 'at-new' && b?.accessToken === 'at-new',
-    `posts=${counter.posts}; currentGeminiTokens in src/services/providers/gemini/geminiAccounts.ts must share one in-flight refresh`,
+    `posts=${counter.posts}; currentGeminiTokens in src/models/roads/gemini/geminiAccounts.ts must share one in-flight refresh`,
   )
   const third = await geminiAccounts.currentGeminiTokens({ fetchImpl })
   check(
     'gemini: a fresh set answers from disk with zero further network',
     counter.posts === 1 && third?.accessToken === 'at-new',
-    `posts=${counter.posts}; currentGeminiTokens in src/services/providers/gemini/geminiAccounts.ts must return unexpired stored tokens without a request`,
+    `posts=${counter.posts}; currentGeminiTokens in src/models/roads/gemini/geminiAccounts.ts must return unexpired stored tokens without a request`,
   )
 }
 
@@ -704,15 +704,15 @@ function jsonFetch(
   check(
     'gemini: invalid_grant drops the tokens (the honest signed-out state)',
     result === undefined && !geminiAccounts.geminiOauthConnected(),
-    'currentGeminiTokens in src/services/providers/gemini/geminiAccounts.ts must clear the stored tokens on an invalid_grant answer',
+    'currentGeminiTokens in src/models/roads/gemini/geminiAccounts.ts must clear the stored tokens on an invalid_grant answer',
   )
   check(
     'gemini: the operator client config SURVIVES the drop (infrastructure, not a credential)',
     geminiAccounts.geminiOauthClientConfig()?.clientId === 'client-fixture',
-    'the token drop in src/services/providers/gemini/geminiAccounts.ts must leave the operator client config in place',
+    'the token drop in src/models/roads/gemini/geminiAccounts.ts must leave the operator client config in place',
   )
   const auth = await geminiAccounts.resolveGeminiRequestAuth({ fetchImpl, env: { ...process.env, GEMINI_API_KEY: undefined, GOOGLE_API_KEY: undefined } as NodeJS.ProcessEnv })
-  check('gemini: the next resolution refuses honestly (undefined, no zombie token)', auth === undefined, 'resolveGeminiRequestAuth in src/services/providers/gemini/geminiAccounts.ts must answer undefined once the tokens are dropped')
+  check('gemini: the next resolution refuses honestly (undefined, no zombie token)', auth === undefined, 'resolveGeminiRequestAuth in src/models/roads/gemini/geminiAccounts.ts must answer undefined once the tokens are dropped')
 }
 
 {
@@ -731,7 +731,7 @@ function jsonFetch(
   check(
     'gemini: a transient 5xx keeps the stored tokens (attempt-and-map, never a drop)',
     result?.accessToken === 'at-stale' && geminiAccounts.geminiOauthConnected(),
-    'currentGeminiTokens in src/services/providers/gemini/geminiAccounts.ts must return the stored tokens and keep them when the refresh answers HTTP 5xx',
+    'currentGeminiTokens in src/models/roads/gemini/geminiAccounts.ts must return the stored tokens and keep them when the refresh answers HTTP 5xx',
   )
 }
 
@@ -764,12 +764,12 @@ function jsonFetch(
   check(
     'openai: concurrent refreshes collapse to ONE token POST; the rotation is adopted',
     counter.posts === 1 && a?.refreshToken === 'rt-2' && b?.refreshToken === 'rt-2',
-    `posts=${counter.posts}; currentSubscriptionTokens in src/services/providers/openai/openaiAccounts.ts must share one in-flight refresh and adopt the rotated token`,
+    `posts=${counter.posts}; currentSubscriptionTokens in src/models/roads/openai/openaiAccounts.ts must share one in-flight refresh and adopt the rotated token`,
   )
   const file = JSON.parse(readFileSync(openaiAccounts.openaiAuthPathForDisplay(), 'utf8')) as {
     tokens?: { refreshToken?: string }
   }
-  check('openai: the rotated refresh token is persisted', file.tokens?.refreshToken === 'rt-2', 'currentSubscriptionTokens in src/services/providers/openai/openaiAccounts.ts must write the rotated refresh token to the auth file; got ' + String(file.tokens?.refreshToken))
+  check('openai: the rotated refresh token is persisted', file.tokens?.refreshToken === 'rt-2', 'currentSubscriptionTokens in src/models/roads/openai/openaiAccounts.ts must write the rotated refresh token to the auth file; got ' + String(file.tokens?.refreshToken))
 }
 
 {
@@ -793,7 +793,7 @@ function jsonFetch(
   check(
     'openai: invalid_grant refuses — no zombie set returned',
     result === undefined && counter.posts === 1,
-    `posts=${counter.posts}; currentSubscriptionTokens in src/services/providers/openai/openaiAccounts.ts must return undefined after one refresh POST answered invalid_grant`,
+    `posts=${counter.posts}; currentSubscriptionTokens in src/models/roads/openai/openaiAccounts.ts must return undefined after one refresh POST answered invalid_grant`,
   )
   const blanked = JSON.parse(readFileSync(openaiAccounts.openaiAuthPathForDisplay(), 'utf8')) as {
     preferredSource?: string
@@ -804,20 +804,20 @@ function jsonFetch(
     blanked.tokens?.refreshToken === '' &&
       blanked.tokens?.accessToken === 'at-old' &&
       blanked.preferredSource === 'chatgpt-subscription',
-    'src/services/providers/openai/openaiAccounts.ts must blank only the refreshToken after invalid_grant; got ' + JSON.stringify(blanked),
+    'src/models/roads/openai/openaiAccounts.ts must blank only the refreshToken after invalid_grant; got ' + JSON.stringify(blanked),
   )
   check(
     'openai: the subscription reads disconnected (the honest signed-out state the /logins refusal reports)',
     openaiAccounts.subscriptionConnected() === false &&
       openaiAccounts.openaiSubscriptionRef() === undefined,
-    'subscriptionConnected and openaiSubscriptionRef in src/services/providers/openai/openaiAccounts.ts must read signed out once the refresh token is blanked',
+    'subscriptionConnected and openaiSubscriptionRef in src/models/roads/openai/openaiAccounts.ts must read signed out once the refresh token is blanked',
   )
   const again = await openaiAccounts.currentSubscriptionTokens({ fetchImpl })
   const requestAuth = await openaiAccounts.resolveOpenaiRequestAuth({ fetchImpl })
   check(
     'openai: told once — the next resolution refuses with ZERO further wire POSTs',
     again === undefined && requestAuth === undefined && counter.posts === 1,
-    `posts=${counter.posts}; currentSubscriptionTokens and resolveOpenaiRequestAuth in src/services/providers/openai/openaiAccounts.ts must not post again after the blanked refresh token`,
+    `posts=${counter.posts}; currentSubscriptionTokens and resolveOpenaiRequestAuth in src/models/roads/openai/openaiAccounts.ts must not post again after the blanked refresh token`,
   )
   writeFileSync(
     openaiAccounts.openaiAuthPathForDisplay(),
@@ -830,7 +830,7 @@ function jsonFetch(
   check(
     'openai: a resurrected dead token is never re-presented (the known-dead set)',
     resurrected === undefined && counter.posts === 1,
-    `posts=${counter.posts}; currentSubscriptionTokens in src/services/providers/openai/openaiAccounts.ts must remember refresh tokens already refused and never present them again`,
+    `posts=${counter.posts}; currentSubscriptionTokens in src/models/roads/openai/openaiAccounts.ts must remember refresh tokens already refused and never present them again`,
   )
 }
 
@@ -863,7 +863,7 @@ function jsonFetch(
     adopted?.refreshToken === 'rt-newlogin' &&
       onDisk.tokens?.refreshToken === 'rt-newlogin' &&
       openaiAccounts.subscriptionConnected() === true,
-    'currentSubscriptionTokens in src/services/providers/openai/openaiAccounts.ts must re-read the auth file after an invalid_grant and keep a newer login; disk holds ' + String(onDisk.tokens?.refreshToken),
+    'currentSubscriptionTokens in src/models/roads/openai/openaiAccounts.ts must re-read the auth file after an invalid_grant and keep a newer login; disk holds ' + String(onDisk.tokens?.refreshToken),
   )
 }
 
@@ -896,7 +896,7 @@ for (const [faultLabel, faultResponse] of [
   check(
     `openai: ${faultLabel} keeps the stored set on disk (stale returned, attempt-and-map)`,
     kept?.accessToken === 'at-stale' && diskAfterFault.tokens?.refreshToken === 'rt-1' && counter.posts === 1,
-    `posts=${counter.posts}; currentSubscriptionTokens in src/services/providers/openai/openaiAccounts.ts must keep the stored set unless the answer is HTTP 400 with invalid_grant`,
+    `posts=${counter.posts}; currentSubscriptionTokens in src/models/roads/openai/openaiAccounts.ts must keep the stored set unless the answer is HTTP 400 with invalid_grant`,
   )
   arm = 'recover'
   openaiAccounts.__resetOpenaiAccountsForTest()
@@ -904,7 +904,7 @@ for (const [faultLabel, faultResponse] of [
   check(
     `openai: after ${faultLabel} the next call RETRIES and adopts the rotation`,
     recovered?.refreshToken === 'rt-2' && counter.posts === 2,
-    `posts=${counter.posts}; currentSubscriptionTokens in src/services/providers/openai/openaiAccounts.ts must retry the refresh on the next call after a transient fault`,
+    `posts=${counter.posts}; currentSubscriptionTokens in src/models/roads/openai/openaiAccounts.ts must retry the refresh on the next call after a transient fault`,
   )
 }
 
@@ -1044,7 +1044,7 @@ for (const [faultLabel, faultResponse] of [
   check(
     'moonshot: a refused refresh drops the stored tokens',
     result === undefined && moonshotAccounts.moonshotStoredTokens() === undefined,
-    'refreshMoonshotTokens in src/services/providers/moonshot/moonshotAccounts.ts must clear the stored tokens when the refresh is refused with invalid_grant',
+    'refreshMoonshotTokens in src/models/roads/moonshot/moonshotAccounts.ts must clear the stored tokens when the refresh is refused with invalid_grant',
   )
 }
 
@@ -1062,7 +1062,7 @@ for (const [faultLabel, faultResponse] of [
   check(
     'huggingface: a refused refresh drops the stored tokens',
     result === undefined && huggingfaceAccounts.huggingfaceStoredTokens() === undefined,
-    'refreshHuggingfaceTokens in src/services/providers/huggingface/huggingfaceAccounts.ts must clear the stored tokens when the refresh is refused with invalid_grant',
+    'refreshHuggingfaceTokens in src/models/roads/huggingface/huggingfaceAccounts.ts must clear the stored tokens when the refresh is refused with invalid_grant',
   )
   huggingfaceAccounts.__resetHuggingfaceAccountsForTest()
   huggingfaceAccounts.writeHuggingfaceTokens({ accessToken: 'hf_at2', refreshToken: 'hf_rt2' })
@@ -1079,7 +1079,7 @@ for (const [faultLabel, faultResponse] of [
   check(
     'huggingface: a transport failure keeps the stored tokens (no false sign-out)',
     kept === undefined && huggingfaceAccounts.huggingfaceStoredTokens()?.accessToken === 'hf_at2',
-    'refreshHuggingfaceTokens in src/services/providers/huggingface/huggingfaceAccounts.ts must keep the stored tokens when the request throws',
+    'refreshHuggingfaceTokens in src/models/roads/huggingface/huggingfaceAccounts.ts must keep the stored tokens when the request throws',
   )
   huggingfaceAccounts.writeHuggingfaceTokens(null)
 }
@@ -1107,13 +1107,13 @@ for (const [faultLabel, faultResponse] of [
   check(
     'huggingface: expired oauth + transport-failed refresh + a paste ⇒ the dispatch REFUSES (never the unreported paste)',
     cred === undefined,
-    'resolveHuggingfaceDispatchCredential in src/services/providers/huggingface/huggingfaceAccounts.ts must refuse, not fall to the pasted key, while the OAuth refresh fails on transport',
+    'resolveHuggingfaceDispatchCredential in src/models/roads/huggingface/huggingfaceAccounts.ts must refuse, not fall to the pasted key, while the OAuth refresh fails on transport',
   )
   check(
     'huggingface: the surfaces still report the OAuth identity and its store survived the transient fault',
     huggingfaceAccounts.resolveHuggingfaceAccount(hfEnv)?.kind === 'oauth' &&
       huggingfaceAccounts.huggingfaceStoredTokens()?.refreshToken === 'hf_rt_live',
-    'resolveHuggingfaceAccount and the token store in src/services/providers/huggingface/huggingfaceAccounts.ts must keep the OAuth identity through a transport fault',
+    'resolveHuggingfaceAccount and the token store in src/models/roads/huggingface/huggingfaceAccounts.ts must keep the OAuth identity through a transport fault',
   )
   const refusedIo = {
     fetchImpl: jsonFetch(() => ({ status: 400, body: { error: 'invalid_grant' } }), { posts: 0 }),
@@ -1124,12 +1124,12 @@ for (const [faultLabel, faultResponse] of [
     'huggingface: a REFUSED refresh drops the store and the dispatch falls to the paste',
     cred2?.apiKey === laneKey('hfpaste', 'BBBB') &&
       huggingfaceAccounts.huggingfaceStoredTokens() === undefined,
-    'resolveHuggingfaceDispatchCredential in src/services/providers/huggingface/huggingfaceAccounts.ts must drop the store on a refused refresh and answer the pasted key',
+    'resolveHuggingfaceDispatchCredential in src/models/roads/huggingface/huggingfaceAccounts.ts must drop the store on a refused refresh and answer the pasted key',
   )
   check(
     'huggingface: the surfaces move WITH the drop (one truth on both sides)',
     huggingfaceAccounts.resolveHuggingfaceAccount(hfEnv)?.keySource === 'stored',
-    'resolveHuggingfaceAccount in src/services/providers/huggingface/huggingfaceAccounts.ts must report the stored paste once the OAuth tokens are dropped',
+    'resolveHuggingfaceAccount in src/models/roads/huggingface/huggingfaceAccounts.ts must report the stored paste once the OAuth tokens are dropped',
   )
   providerSecrets.writeStoredHuggingfaceApiKey(null)
 }
@@ -1184,7 +1184,7 @@ const slotReads = {
   check(
     'slots: NO slot field ever carries a key body (masked tails only)',
     !serialized.includes(SECRET_MARKER),
-    'deriveFamilySlotGroups in src/services/providers/accountSlots.ts must expose only maskedKeyTail output, never a key body',
+    'deriveFamilySlotGroups in src/models/roads/accountSlots.ts must expose only maskedKeyTail output, never a key body',
   )
   check(
     'slots: every seeded family shows its stored-key slot',
@@ -1210,13 +1210,13 @@ const slotReads = {
   check(
     'removal: an env pin is refused honestly (the shell owns it)',
     envRemoval.mutated === false && envRemoval.note.includes('unset it in your shell'),
-    'executeSlotRemoval in src/services/providers/accountSlots.ts must refuse an env-key slot with a note saying to unset it in the shell; got ' + JSON.stringify(envRemoval),
+    'executeSlotRemoval in src/models/roads/accountSlots.ts must refuse an env-key slot with a note saying to unset it in the shell; got ' + JSON.stringify(envRemoval),
   )
   const storedRemoval = executeSlotRemoval(storedSlot!)
   check(
     'removal: the stored key clears through its OWNING store',
     storedRemoval.mutated === true && providerSecrets.readStoredMoonshotApiKey() === undefined,
-    'executeSlotRemoval in src/services/providers/accountSlots.ts must clear the stored Moonshot key through src/utils/accounts/providerSecrets.ts; got ' + JSON.stringify(storedRemoval),
+    'executeSlotRemoval in src/models/roads/accountSlots.ts must clear the stored Moonshot key through src/models/sign-in/account-ledger/providerSecrets.ts; got ' + JSON.stringify(storedRemoval),
   )
   const oauthSlot = flat.find(s => s.id === 'moonshot:oauth')
   check(
@@ -1242,7 +1242,7 @@ for (const [name, path] of [
     mode = statSync(path).mode & 0o777
   } catch {
   }
-  check(`hygiene: ${name} is mode 600`, mode === 0o600, `mode=${mode.toString(8)}; the writer of ${name} (the account module or src/utils/accounts/providerSecrets.ts) must create it with mode 0o600`)
+  check(`hygiene: ${name} is mode 600`, mode === 0o600, `mode=${mode.toString(8)}; the writer of ${name} (the account module or src/models/sign-in/account-ledger/providerSecrets.ts) must create it with mode 0o600`)
 }
 check("hygiene: maskedKeyTail refuses short values (nothing to mask ⇒ '')", maskedKeyTail('short') === '')
 
@@ -1445,9 +1445,9 @@ section('S9 · J6 — the deadline family covers every transport (compat · open
   }
   const idleFault = (events: { fault?: { kind: string; code: string; retryable: boolean } }[]) =>
     events.some(e => e.fault?.kind === 'timeout' && e.fault.code === 'idle-timeout' && e.fault.retryable)
-  check('deadline: the compat transport has the idle watchdog (typed, retryable)', idleFault(compatEvents), 'streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts must yield a stream-fault timeout idle-timeout, retryable, when idleTimeoutMs passes without a chunk; got ' + JSON.stringify(compatEvents))
-  check('deadline: the openai transport has the idle watchdog (typed, retryable)', idleFault(openaiEvents), 'streamOpenaiResponses in src/services/providers/openai/openaiClient.ts must yield a stream-fault timeout idle-timeout, retryable, when idleTimeoutMs passes without a chunk; got ' + JSON.stringify(openaiEvents))
-  check('deadline: the zai transport has the idle watchdog (typed, retryable)', idleFault(zaiEvents), 'streamZaiChat in src/services/providers/zai/zaiClient.ts must yield a stream-fault timeout idle-timeout, retryable, when idleTimeoutMs passes without a chunk; got ' + JSON.stringify(zaiEvents))
+  check('deadline: the compat transport has the idle watchdog (typed, retryable)', idleFault(compatEvents), 'streamCompatChat in src/models/roads/openaicompat/compatChatClient.ts must yield a stream-fault timeout idle-timeout, retryable, when idleTimeoutMs passes without a chunk; got ' + JSON.stringify(compatEvents))
+  check('deadline: the openai transport has the idle watchdog (typed, retryable)', idleFault(openaiEvents), 'streamOpenaiResponses in src/models/roads/openai/openaiClient.ts must yield a stream-fault timeout idle-timeout, retryable, when idleTimeoutMs passes without a chunk; got ' + JSON.stringify(openaiEvents))
+  check('deadline: the zai transport has the idle watchdog (typed, retryable)', idleFault(zaiEvents), 'streamZaiChat in src/models/roads/zai/zaiClient.ts must yield a stream-fault timeout idle-timeout, retryable, when idleTimeoutMs passes without a chunk; got ' + JSON.stringify(zaiEvents))
 
   check(
     "vocabulary: 401 is authentication_failed on BOTH mappers (the same 401, the same word)",

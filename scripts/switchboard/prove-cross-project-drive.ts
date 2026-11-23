@@ -33,8 +33,8 @@ const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { BOOT_FACE_READY, paintsBootFaceReady } = await import('../lib/bootFace.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { workerTranscriptPath } = await import('../../src/screen/concourse-model/workerTranscript.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -80,7 +80,7 @@ seedFirstRun(TEMPLATE, [CWD, OTHER])
   utimesSync(file, at, at)
 }
 
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
 const FACE_WAIT: Send = { awaitPattern: BOOT_FACE_READY }
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSIONS'
@@ -259,11 +259,11 @@ console.log('D1 — X and Y born in P (Y focused); pick Q: Y ★ from P, "1 runn
   const carried = markText(c, 'q-board-carried')
   const handedBack = markText(c, 'q-board-handed-back')
   check('D1 the pick landed Q\'s board', isBoard(carried), `${firstRows(carried)} \u2014 the \u2303g project pick did not land on the board; look at the pick-project handling that opens the board, and at dist/mercury.mjs being current`)
-  check(`D1 the focused chat (Y, of P) rides Q's board with the star (the glyph leads; the row names its home)`, carried.split('\n').some(l => l.includes('✦') && l.includes('proj-p')), `${rowsWith(carried, '✦')} \u2014 the focused chat of the other project should ride this board as a carry-over row; the rows are built in src/services/concourse/concourseSnapshot.ts`)
-  check(`D1 P's other session is a LINE, not a row: "1 ${LINE_P}" under ${GROUP} (its "${DOOR}" rides the NOW column, which a 120-column list does not paint)`, carried.includes(GROUP) && lineRe(1, CWD).test(carried), `${rowsWith(carried, 'running in')} \u2014 the OTHER PROJECTS group and its running-in line are built in src/services/concourse/concourseSnapshot.ts (elsewhere, doorRows)`)
-  check('D1 Q\'s old chat is a parked row of Q (the current project\'s chats)', carried.includes('PARKED') && carried.split('\n').some(l => l.includes('an old chat i') && l.includes(basename(OTHER))), `${rowsWith(carried, 'an old chat')} \u2014 the old chat of the current project should be a PARKED row with its project named; see the paused and parked grouping in src/services/concourse/concourseSnapshot.ts`)
-  check('D1 after n births Z in Q, Y is HANDED BACK — no star on Q\'s board, no notice', isBoard(handedBack) && !handedBack.includes('✦') && !/NEEDS YOU · [1-9]/.test(handedBack), `${rowsWith(handedBack, '✦')} \u2014 birthing a session in this project should hand the carried chat back silently; look at the focused-session carry-over in src/services/concourse/concourseSnapshot.ts`)
-  check(`D1 P's line now counts both: "2 ${LINE_P}"`, lineRe(2, CWD).test(handedBack), `${rowsWith(handedBack, 'running in')} \u2014 the line counts running sessions of the other project; see elsewhereLine and projectActivity in src/services/concourse/concourseSnapshot.ts`)
+  check(`D1 the focused chat (Y, of P) rides Q's board with the star (the glyph leads; the row names its home)`, carried.split('\n').some(l => l.includes('✦') && l.includes('proj-p')), `${rowsWith(carried, '✦')} \u2014 the focused chat of the other project should ride this board as a carry-over row; the rows are built in src/screen/concourse-model/concourseSnapshot.ts`)
+  check(`D1 P's other session is a LINE, not a row: "1 ${LINE_P}" under ${GROUP} (its "${DOOR}" rides the NOW column, which a 120-column list does not paint)`, carried.includes(GROUP) && lineRe(1, CWD).test(carried), `${rowsWith(carried, 'running in')} \u2014 the OTHER PROJECTS group and its running-in line are built in src/screen/concourse-model/concourseSnapshot.ts (elsewhere, doorRows)`)
+  check('D1 Q\'s old chat is a parked row of Q (the current project\'s chats)', carried.includes('PARKED') && carried.split('\n').some(l => l.includes('an old chat i') && l.includes(basename(OTHER))), `${rowsWith(carried, 'an old chat')} \u2014 the old chat of the current project should be a PARKED row with its project named; see the paused and parked grouping in src/screen/concourse-model/concourseSnapshot.ts`)
+  check('D1 after n births Z in Q, Y is HANDED BACK — no star on Q\'s board, no notice', isBoard(handedBack) && !handedBack.includes('✦') && !/NEEDS YOU · [1-9]/.test(handedBack), `${rowsWith(handedBack, '✦')} \u2014 birthing a session in this project should hand the carried chat back silently; look at the focused-session carry-over in src/screen/concourse-model/concourseSnapshot.ts`)
+  check(`D1 P's line now counts both: "2 ${LINE_P}"`, lineRe(2, CWD).test(handedBack), `${rowsWith(handedBack, 'running in')} \u2014 the line counts running sessions of the other project; see elsewhereLine and projectActivity in src/screen/concourse-model/concourseSnapshot.ts`)
   const live = liveRecords(home)
   const homes = Object.values(live).map(r => r.workspaceId)
   check('D1 three sessions live — two in P, one in Q — and none paused, parked, stopped, retired or released by any switch', Object.keys(live).length === 3 && homes.filter(w => w === CWD).length === 2 && homes.filter(w => w === OTHER).length === 1 && Object.values(live).every(r => r.pausedAt === undefined && r.stoppedAt === undefined && r.retired === undefined), `${JSON.stringify(homes.map(w => basename(w)))} \u2014 a project switch must not pause, park, stop, retire or release a live session; read the live worker records in the daemon directory of the scratch home`)
@@ -301,10 +301,10 @@ console.log('D2 — ↵ on P\'s line switches the view to P (X, Y plain; Z ★ f
   const qBoard = markText(c, 'q-board')
   const pBoard = markText(c, 'p-board-via-door')
   const face = markText(c, 'face')
-  check(`D2 Q's board carried P's line ("2 ${LINE_P}") for the door`, isBoard(qBoard) && lineRe(2, CWD).test(qBoard), `${rowsWith(qBoard, 'running in')} \u2014 the line for the other project should count both of its sessions; see elsewhereLine in src/services/concourse/concourseSnapshot.ts`)
-  check('D2 ↵ on the line switched the VIEW to P: the board (no chat opened by the door)', isBoard(pBoard) && !isChat(pBoard), `${firstRows(pBoard)} \u2014 pressing enter on the OTHER PROJECTS line should switch the view to that project (a switch-project door in src/services/concourse/concourseSnapshot.ts) without opening a chat`)
-  check(`D2 P's sessions are plain live rows now (no line for P, no star on them); Z (focused, of Q) is the star (glyph + home)`, !lineRe(null, CWD).test(pBoard) && pBoard.split('\n').some(l => l.includes('✦') && l.includes('proj-q')), `${rowsWith(pBoard, '✦')} \u2014 after the switch the other project's sessions are plain rows and the focused chat is the carry-over; see src/services/concourse/concourseSnapshot.ts`)
-  check('D2 Q has no line (its one session is on this board as the star — the line counts what you do not see)', !lineRe(null, OTHER).test(pBoard), 'the focused session is excluded from the elsewhere count (excludeSessionId in src/services/concourse/concourseSnapshot.ts), so no line should name this project')
+  check(`D2 Q's board carried P's line ("2 ${LINE_P}") for the door`, isBoard(qBoard) && lineRe(2, CWD).test(qBoard), `${rowsWith(qBoard, 'running in')} \u2014 the line for the other project should count both of its sessions; see elsewhereLine in src/screen/concourse-model/concourseSnapshot.ts`)
+  check('D2 ↵ on the line switched the VIEW to P: the board (no chat opened by the door)', isBoard(pBoard) && !isChat(pBoard), `${firstRows(pBoard)} \u2014 pressing enter on the OTHER PROJECTS line should switch the view to that project (a switch-project door in src/screen/concourse-model/concourseSnapshot.ts) without opening a chat`)
+  check(`D2 P's sessions are plain live rows now (no line for P, no star on them); Z (focused, of Q) is the star (glyph + home)`, !lineRe(null, CWD).test(pBoard) && pBoard.split('\n').some(l => l.includes('✦') && l.includes('proj-q')), `${rowsWith(pBoard, '✦')} \u2014 after the switch the other project's sessions are plain rows and the focused chat is the carry-over; see src/screen/concourse-model/concourseSnapshot.ts`)
+  check('D2 Q has no line (its one session is on this board as the star — the line counts what you do not see)', !lineRe(null, OTHER).test(pBoard), 'the focused session is excluded from the elsewhere count (excludeSessionId in src/screen/concourse-model/concourseSnapshot.ts), so no line should name this project')
   check('D2 ⇧← is the face for proj-p with no running count (the running count is the board\'s line, never the face\'s)', isFace(face) && face.includes(`Dir: ${basename(CWD)}`) && !face.includes(' running'), `${rowsWith(face, 'Dir:')} \u2014 the running count belongs to the board line only; look at the boot face rows in src/screens and src/components for a running suffix that leaked in`)
   reapHome(home)
 }
@@ -329,7 +329,7 @@ console.log('D4 — --chat: no OTHER PROJECTS group, no door, no running suffix 
   const landing = markText(c, 'landing')
   const face = markText(c, 'face')
   check('D4 the landing is the boot menu (L15: no session born at boot); ↵ New Session births the chat; ⇧← is the face directly', isChatWorldFace(landing) && !landing.includes(COMPOSER) && isChat(markText(c, 'chat')) && isChatWorldFace(face), `${firstRows(landing)} \u2014 with --chat the landing should be the boot menu and the new session should open the chat; see the boot flags in docs/SESSIONS.md`)
-  check('D4 nothing of this lane paints in the plain world: no group, no door, no running suffix', !c.text.includes(GROUP) && !c.text.includes(DOOR) && !face.includes(' running') && !landing.includes(' running') && !markText(c, 'chat').includes(GROUP), 'with --chat there is no board world, so OTHER PROJECTS, the switch door and the running suffix must not paint; the group is only added in src/services/concourse/concourseSnapshot.ts')
+  check('D4 nothing of this lane paints in the plain world: no group, no door, no running suffix', !c.text.includes(GROUP) && !c.text.includes(DOOR) && !face.includes(' running') && !landing.includes(' running') && !markText(c, 'chat').includes(GROUP), 'with --chat there is no board world, so OTHER PROJECTS, the switch door and the running suffix must not paint; the group is only added in src/screen/concourse-model/concourseSnapshot.ts')
   reapHome(home)
 }
 

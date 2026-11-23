@@ -35,10 +35,10 @@ process.env.MERCURY_CONFIG_DIR = scratchHome
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_OPENAI_AUTH_BASE = 'https://fixture.invalid/oauth'
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 
-const limits = await import('../../src/services/anthropicLimits.js')
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.js')
 
 const WINDOWS = {
   five_hour: { utilization: 42, resets_at: new Date(Date.now() + 3600_000).toISOString() },
@@ -53,15 +53,15 @@ const windowsPainted = (): boolean => {
 section('§1 one reset call empties every usage feeder and bumps the epoch')
 {
   limits.foldUtilizationFromEndpoint(WINDOWS)
-  check('seed: endpoint windows painted', windowsPainted(), 'foldUtilizationFromEndpoint in src/services/anthropicLimits.ts did not fill rawUtilization for the five_hour and seven_day windows')
+  check('seed: endpoint windows painted', windowsPainted(), 'foldUtilizationFromEndpoint in src/models/roads/anthropic/anthropicLimits.ts did not fill rawUtilization for the five_hour and seven_day windows')
   const epochBefore = limits.getUsageCredentialEpoch()
   limits.resetLimitsForCredentialSwitch()
-  check('reset: windows emptied', !windowsPainted(), 'resetLimitsForCredentialSwitch in src/services/anthropicLimits.ts must clear rawUtilization and endpointUtilization')
-  check('reset: epoch bumped by one', limits.getUsageCredentialEpoch() === epochBefore + 1, 'resetLimitsForCredentialSwitch in src/services/anthropicLimits.ts must increment usageCredentialEpoch exactly once per call')
+  check('reset: windows emptied', !windowsPainted(), 'resetLimitsForCredentialSwitch in src/models/roads/anthropic/anthropicLimits.ts must clear rawUtilization and endpointUtilization')
+  check('reset: epoch bumped by one', limits.getUsageCredentialEpoch() === epochBefore + 1, 'resetLimitsForCredentialSwitch in src/models/roads/anthropic/anthropicLimits.ts must increment usageCredentialEpoch exactly once per call')
   check(
     'reset: the limits singleton settles to default',
     limits.currentLimits.status === 'allowed' && limits.currentLimits.resetsAt === undefined,
-    'resetLimitsForCredentialSwitch in src/services/anthropicLimits.ts must emit DEFAULT_LIMITS through emitStatusChange when currentLimits differs',
+    'resetLimitsForCredentialSwitch in src/models/roads/anthropic/anthropicLimits.ts must emit DEFAULT_LIMITS through emitStatusChange when currentLimits differs',
   )
 }
 
@@ -70,24 +70,24 @@ section('§2 an observation from a departed epoch folds nowhere; a current one l
   const issued = limits.getUsageCredentialEpoch()
   limits.resetLimitsForCredentialSwitch()
   limits.foldUtilizationFromEndpoint(WINDOWS, issued)
-  check('stale fold refused: windows stay empty', !windowsPainted(), 'foldUtilizationFromEndpoint in src/services/anthropicLimits.ts must return early when issuedEpoch differs from usageCredentialEpoch')
+  check('stale fold refused: windows stay empty', !windowsPainted(), 'foldUtilizationFromEndpoint in src/models/roads/anthropic/anthropicLimits.ts must return early when issuedEpoch differs from usageCredentialEpoch')
   const fresh = limits.getUsageCredentialEpoch()
   limits.foldUtilizationFromEndpoint(WINDOWS, fresh)
-  check('current-epoch fold lands: windows painted', windowsPainted(), 'foldUtilizationFromEndpoint in src/services/anthropicLimits.ts must fold when issuedEpoch equals usageCredentialEpoch')
+  check('current-epoch fold lands: windows painted', windowsPainted(), 'foldUtilizationFromEndpoint in src/models/roads/anthropic/anthropicLimits.ts must fold when issuedEpoch equals usageCredentialEpoch')
   const epochless = limits.getUsageCredentialEpoch()
   limits.resetLimitsForCredentialSwitch()
   limits.foldUtilizationFromEndpoint(WINDOWS)
   check(
     'an epoch-less fold still lands (only STALE-tagged observations refuse)',
     windowsPainted() && limits.getUsageCredentialEpoch() === epochless + 1,
-    'foldUtilizationFromEndpoint in src/services/anthropicLimits.ts must fold when issuedEpoch is undefined; only a defined, stale epoch may refuse',
+    'foldUtilizationFromEndpoint in src/models/roads/anthropic/anthropicLimits.ts must fold when issuedEpoch is undefined; only a defined, stale epoch may refuse',
   )
 }
 
 section('§3 a DIFFERENT account signing in resets; a same-account refresh never does')
 {
-  const { saveGlobalConfig } = await import('../../src/utils/config.js')
-  const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.js')
+  const { saveGlobalConfig } = await import('../../src/platform/settings/config.js')
+  const { storeOAuthAccountInfo } = await import('../../src/models/sign-in/oauth/client.js')
   saveGlobalConfig(current => ({
     ...current,
     oauthAccount: { accountUuid: 'acct-A', emailAddress: 'a@fixture.invalid' },
@@ -98,20 +98,20 @@ section('§3 a DIFFERENT account signing in resets; a same-account refresh never
     accountUuid: 'acct-A',
     emailAddress: 'a-renamed@fixture.invalid',
   } as never)
-  check('same account, changed field: windows survive', windowsPainted(), 'storeOAuthAccountInfo in src/services/oauth/refresh.ts must call resetLimitsForCredentialSwitch only when existing.accountUuid differs from info.accountUuid')
-  check('same account: epoch unchanged', limits.getUsageCredentialEpoch() === epochBefore, 'storeOAuthAccountInfo in src/services/oauth/refresh.ts must not reset the limits when the accountUuid is unchanged')
+  check('same account, changed field: windows survive', windowsPainted(), 'storeOAuthAccountInfo in src/models/sign-in/oauth/refresh.ts must call resetLimitsForCredentialSwitch only when existing.accountUuid differs from info.accountUuid')
+  check('same account: epoch unchanged', limits.getUsageCredentialEpoch() === epochBefore, 'storeOAuthAccountInfo in src/models/sign-in/oauth/refresh.ts must not reset the limits when the accountUuid is unchanged')
   storeOAuthAccountInfo({
     accountUuid: 'acct-B',
     emailAddress: 'b@fixture.invalid',
   } as never)
-  check('different account: windows emptied', !windowsPainted(), 'storeOAuthAccountInfo in src/services/oauth/refresh.ts must call resetLimitsForCredentialSwitch when the accountUuid changes')
-  check('different account: epoch bumped', limits.getUsageCredentialEpoch() === epochBefore + 1, 'storeOAuthAccountInfo in src/services/oauth/refresh.ts must reset the limits exactly once when the accountUuid changes')
+  check('different account: windows emptied', !windowsPainted(), 'storeOAuthAccountInfo in src/models/sign-in/oauth/refresh.ts must call resetLimitsForCredentialSwitch when the accountUuid changes')
+  check('different account: epoch bumped', limits.getUsageCredentialEpoch() === epochBefore + 1, 'storeOAuthAccountInfo in src/models/sign-in/oauth/refresh.ts must reset the limits exactly once when the accountUuid changes')
 }
 
 section('§4 performLogout empties the usage truth (reset lands before any faulting leg)')
 {
   limits.foldUtilizationFromEndpoint(WINDOWS)
-  check('seed: windows painted again', windowsPainted(), 'foldUtilizationFromEndpoint in src/services/anthropicLimits.ts did not fill rawUtilization')
+  check('seed: windows painted again', windowsPainted(), 'foldUtilizationFromEndpoint in src/models/roads/anthropic/anthropicLimits.ts did not fill rawUtilization')
   const { performLogout } = await import('../../src/commands/logout/logout.js')
   try {
     await performLogout()

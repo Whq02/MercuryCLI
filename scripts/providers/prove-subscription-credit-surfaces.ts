@@ -2,7 +2,7 @@
 import React from 'react'
 import { mock } from 'bun:test'
 import { tally, usagePlanWorld } from './lib/usage-plan-world.ts'
-import type { ActiveSourceUsage } from '../../src/services/providers/providerUsage.js'
+import type { ActiveSourceUsage } from '../../src/models/roads/providerUsage.js'
 
 const { check, finish } = tally()
 const world = await usagePlanWorld()
@@ -16,7 +16,7 @@ try {
   const family = { id: 'openai', available: true, credentialed: true, credentialLabel: 'ChatGPT Pro' }
   const slot = { family: 'openai', id: 'openai:subscription', name: 'chatgpt', kind: 'subscription', kindLabel: 'subscription', identity: 'ChatGPT Pro', active: true, envPinned: false, signedIn: true, removal: { route: 'openai-subscription' } }
   const originalUsage = world.owner.usageForProvider
-  mock.module(world.path('src/services/providers/providerUsage.ts'), () => ({
+  mock.module(world.path('src/models/roads/providerUsage.ts'), () => ({
     ...world.owner,
     usageForProvider: (id: string) => id === 'openai' ? view : originalUsage(id as never),
     activeSourceUsage: () => view,
@@ -26,17 +26,17 @@ try {
     openaiObservedWindowViews: () => view.windows,
     refreshProviderUsage: async () => {},
   }))
-  const slots = await import(world.path('src/services/providers/accountSlots.ts'))
-  mock.module(world.path('src/services/providers/accountSlots.ts'), () => ({ ...slots, deriveFamilySlotGroups: () => [{ family, slots: [slot] }] }))
-  const catalogue = await import(world.path('src/services/providers/catalogueOnDemand.ts'))
-  mock.module(world.path('src/services/providers/catalogueOnDemand.ts'), () => ({ ...catalogue, readCatalogueIfPending: async () => {} }))
-  const hook = await import(world.path('src/hooks/useProviderUsageOnShow.ts'))
-  mock.module(world.path('src/hooks/useProviderUsageOnShow.ts'), () => ({ ...hook, useProviderUsageOnShow: () => {} }))
-  const { Usage } = await import(world.path('src/components/Settings/Usage.tsx'))
-  const { AccountView } = await import(world.path('src/components/mercury-ui/parity/AccountView.tsx'))
-  const { AppStateProvider } = await import(world.path('src/state/AppState.tsx'))
-  const { HelmVitalsRail } = await import(world.path('src/components/HelmVitalsRail.tsx'))
-  const { railPlanAt } = await import(world.path('src/utils/helmGeometry.ts'))
+  const slots = await import(world.path('src/models/roads/accountSlots.ts'))
+  mock.module(world.path('src/models/roads/accountSlots.ts'), () => ({ ...slots, deriveFamilySlotGroups: () => [{ family, slots: [slot] }] }))
+  const catalogue = await import(world.path('src/models/roads/catalogueOnDemand.ts'))
+  mock.module(world.path('src/models/roads/catalogueOnDemand.ts'), () => ({ ...catalogue, readCatalogueIfPending: async () => {} }))
+  const hook = await import(world.path('src/screen/model-picker/useProviderUsageOnShow.ts'))
+  mock.module(world.path('src/screen/model-picker/useProviderUsageOnShow.ts'), () => ({ ...hook, useProviderUsageOnShow: () => {} }))
+  const { Usage } = await import(world.path('src/screen/settings/Usage.tsx'))
+  const { AccountView } = await import(world.path('src/screen/widgets/parity/AccountView.tsx'))
+  const { AppStateProvider } = await import(world.path('src/screen/app-state/AppState.tsx'))
+  const { HelmVitalsRail } = await import(world.path('src/screen/fullscreen-layout/HelmVitalsRail.tsx'))
+  const { railPlanAt } = await import(world.path('src/screen/fullscreen-layout/helmGeometry.ts'))
   for (const columns of [80, 120]) {
     const at = { columns, rows: 70 }
     for (const [name, node] of [
@@ -46,26 +46,26 @@ try {
       const board = await world.mount(node, at)
       const frame = board.frame()
       world.save(`credits-${name}`, frame, at)
-      check(`${name} at ${columns}: the subscription balance is visible`, frame.includes('62,500'), 'The reported credits display must be painted: Usage uses UsageCredits in src/components/Settings/usage/lines.tsx, accounts uses the credits row in src/components/mercury-ui/parity/accountRows.tsx, both through usageCreditsLine.\n' + frame)
-      if (name === 'usage') check(`usage at ${columns}: the balance belongs to the account, not the absent key`, frame.indexOf('62,500') < frame.indexOf('API key'), 'The credits line must come before the API key block in the Usage tab: check the order of rows in src/components/Settings/usage/plan.ts and lines.tsx.\n' + frame)
-      check(`${name} at ${columns}: the frame fits`, world.inBounds(frame, at) && !frame.includes('RENDER ERROR'), 'The frame must stay inside the terminal size and render without a RENDER ERROR: fix the width or row budget handling of the component named in this label (src/components/Settings/Usage.tsx or src/components/mercury-ui/parity/AccountView.tsx).\n' + frame)
+      check(`${name} at ${columns}: the subscription balance is visible`, frame.includes('62,500'), 'The reported credits display must be painted: Usage uses UsageCredits in src/screen/settings/usage/lines.tsx, accounts uses the credits row in src/screen/widgets/parity/accountRows.tsx, both through usageCreditsLine.\n' + frame)
+      if (name === 'usage') check(`usage at ${columns}: the balance belongs to the account, not the absent key`, frame.indexOf('62,500') < frame.indexOf('API key'), 'The credits line must come before the API key block in the Usage tab: check the order of rows in src/screen/settings/usage/plan.ts and lines.tsx.\n' + frame)
+      check(`${name} at ${columns}: the frame fits`, world.inBounds(frame, at) && !frame.includes('RENDER ERROR'), 'The frame must stay inside the terminal size and render without a RENDER ERROR: fix the width or row budget handling of the component named in this label (src/screen/settings/Usage.tsx or src/screen/widgets/parity/AccountView.tsx).\n' + frame)
       board.close()
     }
     const board = await world.mount(React.createElement(HelmVitalsRail, { width: 30, availRows: 65 }), at)
     world.save('credits-rail-source', board.frame(), at)
-    check(`rail source at ${columns}: the compact balance follows the subscription window`, board.frame().includes('credits 62.5k'), 'The rail must show the compact credits of the active subscription window: see creditsOf in src/services/cockpit/helmVitalsModel.ts.\n' + board.frame())
+    check(`rail source at ${columns}: the compact balance follows the subscription window`, board.frame().includes('credits 62.5k'), 'The rail must show the compact credits of the active subscription window: see creditsOf in src/screen/cockpit-gauges/helmVitalsModel.ts.\n' + board.frame())
     check(`rail at ${columns}: host visibility follows its existing layout`, typeof railPlanAt(columns, true).vitals === 'boolean')
     board.close()
   }
   slot.active = false
   Object.assign(slot, { credits: view.credits })
   const inactive = await world.mount(React.createElement(AppStateProvider, { children: React.createElement(AccountView, { onClose() {} }) }), { columns: 80, rows: 70 })
-  check('an inactive sign-in with its own credits keeps them on its row', inactive.frame().includes('62,500'), 'A slot with its own credits must show them on its row: see the credits lookup in src/components/mercury-ui/parity/accountRows.tsx.\n' + inactive.frame())
+  check('an inactive sign-in with its own credits keeps them on its row', inactive.frame().includes('62,500'), 'A slot with its own credits must show them on its row: see the credits lookup in src/screen/widgets/parity/accountRows.tsx.\n' + inactive.frame())
   inactive.close()
   view.credits = { state: 'unreported', reason: 'not stated on this reply yet', compact: 'not stated yet' }
   view.windows = []
   const board = await world.mount(React.createElement(Usage, { width: 76, rowBudget: 60 }), { columns: 80, rows: 70 })
-  check('the subscription without a figure says why instead of zero', board.frame().includes('credits: not stated on this reply yet') && !board.frame().includes('62,500'), 'An unreported credits state must print its reason after credits: and never the old figure: see usageCreditsLine and UsageCredits in src/components/Settings/usage/lines.tsx.\n' + board.frame())
+  check('the subscription without a figure says why instead of zero', board.frame().includes('credits: not stated on this reply yet') && !board.frame().includes('62,500'), 'An unreported credits state must print its reason after credits: and never the old figure: see usageCreditsLine and UsageCredits in src/screen/settings/usage/lines.tsx.\n' + board.frame())
   world.save('credits-usage-unreported', board.frame(), { columns: 80, rows: 70 })
   board.close()
 
@@ -124,13 +124,13 @@ try {
         const usageBoard = await world.mount(React.createElement(Usage, { width: columns - 4, rowBudget: 60 }), at)
         world.save(`carry-${name}-usage`, usageBoard.frame(), at)
         const usageFrame = usageBoard.frame().replace(/\s+/g, ' ')
-        check(`${name}: the /usage tab at ${columns} says what carries the requests after its reached sentence`, usageFrame.includes(tab) && (view.limited === undefined || usageFrame.includes(view.carry!.display)) && world.inBounds(usageBoard.frame(), at) && !usageBoard.frame().includes('RENDER ERROR'), 'The /usage tab must print the reached sentence with its carry words: see fullWindowLine and carryTail in src/components/Settings/usage/lines.tsx.\n' + usageBoard.frame())
+        check(`${name}: the /usage tab at ${columns} says what carries the requests after its reached sentence`, usageFrame.includes(tab) && (view.limited === undefined || usageFrame.includes(view.carry!.display)) && world.inBounds(usageBoard.frame(), at) && !usageBoard.frame().includes('RENDER ERROR'), 'The /usage tab must print the reached sentence with its carry words: see fullWindowLine and carryTail in src/screen/settings/usage/lines.tsx.\n' + usageBoard.frame())
         usageBoard.close()
       }
       const railBoard = await world.mount(React.createElement(HelmVitalsRail, { width: 30, availRows: 65 }), at)
       world.save(`carry-${name}-rail`, railBoard.frame(), at)
       const railFlat = railBoard.frame().split('\n').map(line => line.replace(/[│╭╮╰╯─]/g, '').trim()).join(' ').replace(/\s+/g, ' ')
-      check(`${name}: the rail at ${columns} paints the compact carry words under its reached line`, rail.every(words => railFlat.includes(words)) && railFlat.indexOf(rail[rail.length - 1]!) >= railFlat.indexOf(rail[0]!) && !railBoard.frame().includes('RENDER ERROR'), 'The rail must paint the compact carry words (usageCarryWords) under its reached line, in order: see the carry block in src/services/cockpit/helmVitalsModel.ts.\n' + railBoard.frame())
+      check(`${name}: the rail at ${columns} paints the compact carry words under its reached line`, rail.every(words => railFlat.includes(words)) && railFlat.indexOf(rail[rail.length - 1]!) >= railFlat.indexOf(rail[0]!) && !railBoard.frame().includes('RENDER ERROR'), 'The rail must paint the compact carry words (usageCarryWords) under its reached line, in order: see the carry block in src/screen/cockpit-gauges/helmVitalsModel.ts.\n' + railBoard.frame())
       railBoard.close()
     }
   }

@@ -50,13 +50,13 @@ for (const file of tsFiles(join(ROOT, 'src'))) {
     }
   })
 }
-check(`every fs-event watcher root routes through resolveWatchRoot (${sites} sites, ${pollingSites} polling-exempt)`, offenders.length === 0, offenders.join(' · '), 'wrap the watch root of each listed file:line in resolveWatchRoot (src/utils/watchRoot.ts) before it reaches the watcher call')
+check(`every fs-event watcher root routes through resolveWatchRoot (${sites} sites, ${pollingSites} polling-exempt)`, offenders.length === 0, offenders.join(' · '), 'wrap the watch root of each listed file:line in resolveWatchRoot (src/platform/processes/watchRoot.ts) before it reaches the watcher call')
 check('census saw a realistic population (anti-rot: the grep still matches)', sites >= 10, `sites=${sites}`, 'the census regex in this script no longer matches the watcher call shapes under src/; update the pattern here')
 
 {
-  const { resolveWatchRoot } = await import('../../src/utils/watchRoot.ts')
+  const { resolveWatchRoot } = await import('../../src/platform/processes/watchRoot.ts')
   const posixIn = '/tmp/some/root'
-  check('POSIX identity is untouched (symlink contract preserved)', resolveWatchRoot(posixIn) === posixIn, '', 'resolveWatchRoot in src/utils/watchRoot.ts must return a POSIX path unchanged')
+  check('POSIX identity is untouched (symlink contract preserved)', resolveWatchRoot(posixIn) === posixIn, '', 'resolveWatchRoot in src/platform/processes/watchRoot.ts must return a POSIX path unchanged')
   const desc = Object.getOwnPropertyDescriptor(process, 'platform')!
   Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
   try {
@@ -67,7 +67,7 @@ check('census saw a realistic population (anti-rot: the grep still matches)', si
       } catch {
         threw = true
       }
-      check(`win32 arm never throws for ${JSON.stringify(p)}`, !threw, '', 'resolveWatchRoot in src/utils/watchRoot.ts threw on this win32 path; make it return the input instead of throwing')
+      check(`win32 arm never throws for ${JSON.stringify(p)}`, !threw, '', 'resolveWatchRoot in src/platform/processes/watchRoot.ts threw on this win32 path; make it return the input instead of throwing')
     }
   } finally {
     Object.defineProperty(process, 'platform', desc)

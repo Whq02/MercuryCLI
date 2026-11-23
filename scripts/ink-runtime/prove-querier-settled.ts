@@ -2,14 +2,14 @@
 (globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const querierFixHint = 'fix TerminalQuerier.settled, whenSettled or terminalQuerySettleMs in src/ink/session/querier.ts (the flag row is in the flag registry (FLAG_REGISTRY))'
+const querierFixHint = 'fix TerminalQuerier.settled, whenSettled or terminalQuerySettleMs in src/screen/renderer/terminal-session/terminalQuerier.ts (the flag row is in the flag registry (FLAG_REGISTRY))'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${querierFixHint}` : ''}`)
 }
 
-const { TerminalQuerier, terminalQuerierFor, terminalQuerySettleMs, xtversion, kittyKeyboard } = await import('../../src/ink/session/querier.ts')
-const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
+const { TerminalQuerier, terminalQuerierFor, terminalQuerySettleMs, xtversion, kittyKeyboard } = await import('../../src/screen/renderer/terminal-session/terminalQuerier.ts')
+const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
 
 function makeQuerier(): { querier: InstanceType<typeof TerminalQuerier>; stdout: NodeJS.WriteStream } {
   const stdout = { write: () => true } as unknown as NodeJS.WriteStream
@@ -94,7 +94,7 @@ console.log('\n the deadline reads the product\'s own flag')
   if (saved === undefined) delete process.env.MERCURY_TERMINAL_QUERY_SETTLE_MS
   else process.env.MERCURY_TERMINAL_QUERY_SETTLE_MS = saved
   const row = FLAG_REGISTRY.find(r => r.env === 'MERCURY_TERMINAL_QUERY_SETTLE_MS')
-  check('the flag is registered as a value row read by the querier', row?.kind === 'value' && row.consumer === 'src/ink/session/querier.ts', JSON.stringify(row))
+  check('the flag is registered as a value row read by the querier', row?.kind === 'value' && row.consumer === 'src/screen/renderer/terminal-session/terminalQuerier.ts', JSON.stringify(row))
 }
 
 

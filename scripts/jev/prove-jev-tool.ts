@@ -11,7 +11,7 @@ for (const key of ['TYPESAFE_API_KEY', 'NODE_ENV', 'https_proxy', 'HTTPS_PROXY',
 
 let failures = 0
 let checks = 0
-const jevToolHint = 'by section, fix src/tools/JevEvalTool/JevEvalTool.ts (the tool flags, the input schema, the size refusal and call) for sections 1, 2 and 4, jevEvalRequest.ts (assembleJevEvalRequest) for section 3, JevEvalTool.ts and jevEvalResult.ts (jevEvalCall, jevEvalCell, jevEvalProbability) for sections 5 and 6, prompt.ts for section 7, all in that folder'
+const jevToolHint = 'by section, fix src/tools/jev-eval/JevEvalTool.ts (the tool flags, the input schema, the size refusal and call) for sections 1, 2 and 4, jevEvalRequest.ts (assembleJevEvalRequest) for section 3, JevEvalTool.ts and jevEvalResult.ts (jevEvalCall, jevEvalCell, jevEvalProbability) for sections 5 and 6, prompt.ts for section 7, all in that folder'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -28,20 +28,20 @@ const { startJevStandin } = await import('./lib/jevStandin.ts')
 const standin = await startJevStandin()
 process.env.MERCURY_JEV_BASE = standin.base
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setJevEnabled } = await import('../../src/services/jev/jevSetting.ts')
-const { storeJevApiKey } = await import('../../src/services/jev/jevKey.ts')
-const { resetJevLedger, jevLedgerSnapshot } = await import('../../src/services/jev/jevLedger.ts')
-const { JEV_MAX_CHOICE_OPTIONS, JEV_MAX_SCORE_LEVELS, JEV_MIN_SCORE_LEVELS, JEV_STATUS_KINDS, JEV_TOOL_NAME } = await import('../../src/services/jev/jevContract.ts')
-const { JEV_STATUS_HEADWORDS } = await import('../../src/services/jev/jevStatus.ts')
-const { validateToolCapability } = await import('../../src/utils/capability/contract.ts')
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
-const { JevEvalTool, jevEvalCall, jevEvalEnabled } = await import('../../src/tools/JevEvalTool/JevEvalTool.ts')
-const { JEV_EVAL_ESCAPE_MEANS, JEV_EVAL_ESCAPE_OPTION, JEV_EVAL_FORBIDDEN_FIELDS } = await import('../../src/tools/JevEvalTool/constants.ts')
-const { assembleJevEvalRequest, jevEvalTokenEstimate } = await import('../../src/tools/JevEvalTool/jevEvalRequest.ts')
-const { jevEvalCell, jevEvalProbability } = await import('../../src/tools/JevEvalTool/jevEvalResult.ts')
-const { JEV_EVAL_DESCRIPTION, JEV_EVAL_PROMPT, JEV_EVAL_SEARCH_HINT } = await import('../../src/tools/JevEvalTool/prompt.ts')
+const { setJevEnabled } = await import('../../src/models/jev/jevSetting.ts')
+const { storeJevApiKey } = await import('../../src/models/jev/jevKey.ts')
+const { resetJevLedger, jevLedgerSnapshot } = await import('../../src/models/jev/jevLedger.ts')
+const { JEV_MAX_CHOICE_OPTIONS, JEV_MAX_SCORE_LEVELS, JEV_MIN_SCORE_LEVELS, JEV_STATUS_KINDS, JEV_TOOL_NAME } = await import('../../src/models/jev/jevContract.ts')
+const { JEV_STATUS_HEADWORDS } = await import('../../src/models/jev/jevStatus.ts')
+const { validateToolCapability } = await import('../../src/permissions/capability/contract.ts')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
+const { JevEvalTool, jevEvalCall, jevEvalEnabled } = await import('../../src/tools/jev-eval/JevEvalTool.ts')
+const { JEV_EVAL_ESCAPE_MEANS, JEV_EVAL_ESCAPE_OPTION, JEV_EVAL_FORBIDDEN_FIELDS } = await import('../../src/tools/jev-eval/constants.ts')
+const { assembleJevEvalRequest, jevEvalTokenEstimate } = await import('../../src/tools/jev-eval/jevEvalRequest.ts')
+const { jevEvalCell, jevEvalProbability } = await import('../../src/tools/jev-eval/jevEvalResult.ts')
+const { JEV_EVAL_DESCRIPTION, JEV_EVAL_PROMPT, JEV_EVAL_SEARCH_HINT } = await import('../../src/tools/jev-eval/prompt.ts')
 
 setJevEnabled(true)
 storeJevApiKey(PROOF_KEY)
@@ -64,7 +64,7 @@ check('the name is JevEval, the owner\'s name in house spelling', JevEvalTool.na
 check('enabled with the switch on and a key stored', jevEvalEnabled() === true && JevEvalTool.isEnabled() === true)
 check('read-only and concurrency-safe', JevEvalTool.isReadOnly({} as never) === true && JevEvalTool.isConcurrencySafe({} as never) === true)
 check('deferred, announced with its line (the model sees it at the fork by name and purpose)', JevEvalTool.shouldDefer === true)
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const permissionVerdict = await JevEvalTool.checkPermissions(valid() as never, { getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) } as never)
 check('the search hint is 3..10 words', JEV_EVAL_SEARCH_HINT.trim().split(/\s+/).length >= 3 && JEV_EVAL_SEARCH_HINT.trim().split(/\s+/).length <= 10, JEV_EVAL_SEARCH_HINT)
 check('the capability declaration is valid and names its condition and proof', validateToolCapability(JevEvalTool.capability).ok && (JevEvalTool.capability?.conditions?.length ?? 0) > 0 && JevEvalTool.capability?.proof === 'scripts/jev/run-all.sh')

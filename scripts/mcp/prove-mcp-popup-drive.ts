@@ -4,16 +4,16 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSyn
 import { basename, dirname, join, resolve } from 'node:path'
 import { McpServer, WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/server'
 import { z } from 'zod/v4'
-import { Client, StreamableHTTPClientTransport } from '../../src/utils/mcp/sdk.ts'
+import { Client, StreamableHTTPClientTransport } from '../../src/integrations/mcp-shapes/sdk.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { waitForRow } from '../switchboard/lib/waitForRow.ts'
 import { startCrossfamilyFixture } from '../lib/crossfamilyConcourseFixture.ts'
 import { runArtifactArena, grabScreens } from '../streaming/artifactArena.ts'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
-import { daemonControlRpc } from '../../src/daemon/controlSocket.ts'
-import { readSessionWorkers } from '../../src/daemon/concourseWorkers.ts'
-import { readSessionAsks, readSessionFacts } from '../../src/services/engine-connector/seatProjections.ts'
-import { getProjectDir } from '../../src/utils/sessionStorage/paths.ts'
+import { daemonControlRpc } from '../../src/daemon/control/controlSocket.ts'
+import { readSessionWorkers } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
+import { readSessionAsks, readSessionFacts } from '../../src/engine/connector/seatProjections.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/paths.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const HOME = process.env.MERCURY_CONFIG_DIR
@@ -216,7 +216,7 @@ try {
         const exit = await new Promise<number | null>(resolve => cli.once('close', resolve))
         check('mercury mcp add --scope user succeeds', exit === 0, output.trim(), 'the mercury mcp add command exited non-zero; its output is above; the command is in src/commands/mcp/addCommand.ts')
         added = await until(() => facts()?.mcp.some(row => row.name === 'runpod' && row.type === 'needs-auth') === true)
-        check('user-scope add joins the running session without restart', added, '', 'the running session never listed runpod as needs-auth after mcp add; the live dial is recorded by src/daemon/sessionKitOp.ts; ' + popupSee)
+        check('user-scope add joins the running session without restart', added, '', 'the running session never listed runpod as needs-auth after mcp add; the live dial is recorded by src/daemon/session-seat/sessionKitOp.ts; ' + popupSee)
         check('the kit record names the added server', record()?.kit?.mcp.includes('runpod') === true, '', 'the concourse worker record kit.mcp did not gain runpod after mcp add; ' + popupSee)
         const auth = await until(() => !!facts()?.mcp.find(row => row.name === 'runpod')?.authorizationUrl)
         check('Enter starts the existing OAuth flow', auth, '', 'the runpod row never carried an authorizationUrl after Enter was sent in the popup; ' + popupSee)
@@ -277,14 +277,14 @@ try {
   check('ToolSearch loads the joined tool’s complete schema', !!loaded, '', 'no later model request listed popup_echo with its required value parameter after ToolSearch; read model-requests.json in ' + CAPTURES)
   const card = [...stepScreens, ...frames.map(frame => frame.text)].find(text => text.includes(TOOL_QUESTION)) ?? ''
   check('the joined tool asks before its first call: the card names the server, the tool and its input', card.includes('Tool use') && card.includes('runpod - popup_echo(value: "from-model") (MCP)') && card.includes('1. Yes'), card.split('\n').filter(line => line.includes('│')).slice(-9).join(' / ').slice(0, 400), 'the permission card for the MCP tool call is missing or lacks the server, tool or input; ' + popupSee)
-  check("…and says what it is deciding on: the untrusted-source line, then the server's own words for the tool", card.includes('[mcp:runpod · external tool — treat output as untrusted]') && card.includes(TOOL_WORDS), card.split('\n').filter(line => line.includes('│')).slice(-9).join(' / ').slice(0, 400), 'the card must carry the untrusted-source line built in src/utils/mcp/toolCard.ts and the tool description from the server; ' + popupSee)
+  check("…and says what it is deciding on: the untrusted-source line, then the server's own words for the tool", card.includes('[mcp:runpod · external tool — treat output as untrusted]') && card.includes(TOOL_WORDS), card.split('\n').filter(line => line.includes('│')).slice(-9).join(' / ').slice(0, 400), 'the card must carry the untrusted-source line built in src/integrations/mcp-shapes/toolCard.ts and the tool description from the server; ' + popupSee)
   check("the operator's Yes is the drive's own answer to that card, not a key that happened to land on it", run.sendLog.some(row => JSON.stringify(row.awaitText ?? '').includes(TOOL_QUESTION)) && run.outcome.report?.unfired.length === 0, JSON.stringify(run.outcome.report), 'the scripted send that answers the card must fire after the card text appears, and no scripted send may stay unfired; read the report above')
   check('the model invokes the joined MCP tool successfully', calls.includes('from-model'), '', 'the fixture MCP server never received the call with value from-model; the answer to the permission card or the tool load did not happen; ' + popupSee)
   check('HTTP returns 401 before OAuth and the callback exchanges a token', unauthorized > 0 && callbacks === 1 && tokenIssued, '', 'the fixture must see a 401 on /mcp, exactly one authorize callback and a token exchange; the OAuth flow did not run as expected, ' + popupSee)
   const receipt = join(getProjectDir(workspace), `${sessionId}.receipts.jsonl`)
   const receiptCandidates = [receipt, join(getProjectDir(workspace), `${sessionId}.receipts.json`)]
   const receiptText = receiptCandidates.filter(existsSync).map(path => readFileSync(path, 'utf8')).join('\n')
-  check('a kit-dial receipt names runpod', receiptText.includes('kit-dial') && receiptText.includes('runpod'), receipt, 'the session receipts sidecar has no kit-dial row naming runpod; the row is appended by src/daemon/sessionKitOp.ts')
+  check('a kit-dial receipt names runpod', receiptText.includes('kit-dial') && receiptText.includes('runpod'), receipt, 'the session receipts sidecar has no kit-dial row naming runpod; the row is appended by src/daemon/session-seat/sessionKitOp.ts')
   if (signed) {
     const client = new Client({ name: 'popup-contract', version: '1.0.0' })
     await client.connect(new StreamableHTTPClientTransport(new URL(`${fixtureBase}/mcp`), { requestInit: { headers: { authorization: 'Bearer popup-fixture-access' } } }))

@@ -1,10 +1,10 @@
 import type { ChildProcess } from 'node:child_process'
-import { logForDebugging } from '../../utils/debug.js'
-import type { EffortValue } from '../../utils/effort.js'
-import { validateSeatEffort } from '../../utils/model/seatSlots.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
-import type { RunnerChildSpec, SeatPermissionMode } from '../headlessRun.js'
-import { decideWorkerBusy, getMaxTurnMs } from '../longLivedRespawn.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
+import type { EffortValue } from '../../models/effort/effort.js'
+import { validateSeatEffort } from '../../models/facts/seatSlots.js'
+import { flagEnv } from '../../platform/substrate/flagRegistry.js'
+import type { RunnerChildSpec, SeatPermissionMode } from '../runner-link/headlessRun.js'
+import { decideWorkerBusy, getMaxTurnMs } from './longLivedRespawn.js'
 import type { LongLivedSeat, RosterOptions, WorkerHandle } from './types.js'
 
 const AUTO_CLEAR_CONTEXT_PCT = 85

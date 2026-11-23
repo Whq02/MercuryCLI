@@ -18,14 +18,14 @@ delete process.env.MERCURY_SESSION_KIT
 let failures = 0
 const kitDialsWhere = (name: string): string => {
   const c = name.charAt(0)
-  if (c === 'B' || c === 'H') return 'change setProcessSessionKit, completeProcessSessionKit or applyProcessSessionKitEdit in src/services/mcp/sessionKitPin.ts, or kitMembership in src/services/mcp/membership.ts'
-  if (c === 'E') return 'change kitDialCandidates, kitEditMcpDelta or dropMcpServerFromAppState in src/services/mcp/kitDial.ts'
-  if (c === 'C') return 'change setSessionKitDial in src/daemon/sessionSeat/kit.ts, onSeatIdle in src/daemon/sessionSeat/edges.ts or onSeatSpawned in src/daemon/sessionSeat/lifecycle.ts'
-  if (c === 'G') return 'change setKit in src/services/engine-connector/noSessionConnector.ts'
-  if (c === 'F') return 'change validateSessionKit or applyKitEdit in src/daemon/sessionKit.ts, kitDropsCommand in src/skills/kitGovernance.ts, or completeSessionKitFromRoster in src/services/mcp/kitCompletion.ts'
+  if (c === 'B' || c === 'H') return 'change setProcessSessionKit, completeProcessSessionKit or applyProcessSessionKitEdit in src/integrations/mcp/sessionKitPin.ts, or kitMembership in src/integrations/mcp/membership.ts'
+  if (c === 'E') return 'change kitDialCandidates, kitEditMcpDelta or dropMcpServerFromAppState in src/integrations/mcp/kitDial.ts'
+  if (c === 'C') return 'change setSessionKitDial in src/daemon/session-seat/kit.ts, onSeatIdle in src/daemon/session-seat/edges.ts or onSeatSpawned in src/daemon/session-seat/lifecycle.ts'
+  if (c === 'G') return 'change setKit in src/engine/connector/noSessionConnector.ts'
+  if (c === 'F') return 'change validateSessionKit or applyKitEdit in src/daemon/session-seat/sessionKit.ts, kitDropsCommand in src/integrations/skills/kitGovernance.ts, or completeSessionKitFromRoster in src/integrations/mcp/kitCompletion.ts'
   if (c === 'A') return 'change mcpRosterLine, MCP_EMPTY_ROSTER_LINE or kitDialLine in src/commands/mcp/route.ts'
-  if (c === 'S') return 'change offSkillNamesOf in src/skills/kitGovernance.ts or skillsRosterOf in src/services/engine-connector/rosterTerms.ts'
-  if (c === 'D') return 'change setSessionKitDial in src/daemon/sessionSeat/kit.ts or the menu store in src/services/mcp/kitStore.ts so a dial never writes config or a sibling record'
+  if (c === 'S') return 'change offSkillNamesOf in src/integrations/skills/kitGovernance.ts or skillsRosterOf in src/engine/connector/rosterTerms.ts'
+  if (c === 'D') return 'change setSessionKitDial in src/daemon/session-seat/kit.ts or the menu store in src/integrations/mcp/kitStore.ts so a dial never writes config or a sibling record'
   return ''
 }
 const t = (name: string, ok: boolean, detail = ''): void => {
@@ -47,13 +47,13 @@ console.log('============================================================')
 console.log(' KIT-DIALS — the session owns its dials')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
-const pin = await import('../../src/services/mcp/sessionKitPin.ts')
-const kit = await import('../../src/daemon/sessionKit.ts')
-const dial = await import('../../src/services/mcp/kitDial.ts')
-const membership = await import('../../src/services/mcp/membership.ts')
+const pin = await import('../../src/integrations/mcp/sessionKitPin.ts')
+const kit = await import('../../src/daemon/session-seat/sessionKit.ts')
+const dial = await import('../../src/integrations/mcp/kitDial.ts')
+const membership = await import('../../src/integrations/mcp/membership.ts')
 
 const homeSnapshot = (): Record<string, string> => {
   const home = process.env.MERCURY_CONFIG_DIR!
@@ -160,11 +160,11 @@ section('§E the delta (a dial is a delta, never a heal)')
 
 section('§C the seat dial: idle forwards whole, busy parks honest, the beat drains')
 {
-  const seat = await import('../../src/daemon/sessionSeat.ts')
-  const { readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-  const { readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
-  const { sessionKitToWire } = await import('../../src/services/engine-connector/seatWire.ts')
-  const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+  const seat = await import('../../src/daemon/session-seat/sessionSeat.ts')
+  const { readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  const { readSessionReceipts } = await import('../../src/daemon/switchboard/sessionReceipts.ts')
+  const { sessionKitToWire } = await import('../../src/engine/connector/seatWire.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
   const DAEMON_DIR = process.env.MERCURY_DAEMON_DIR!
   const SID = '22222222-3333-4444-8555-777777777777'
   updateConcourseWorkers(workers => {
@@ -227,7 +227,7 @@ section('§C the seat dial: idle forwards whole, busy parks honest, the beat dra
   channelUp = true
   const rows = readSessionReceipts(getProjectDir(PROJECT), SID).filter(r => r.kind === 'kit-dial')
   t('C8 the sidecar carries the kit-dial rows with the asker and the dial words', rows.length >= 3 && rows.some(r => r.by === 'agent-a') && rows.every(r => typeof (r.details as { dials?: unknown } | undefined)?.dials === 'string'))
-  const { setMcpServerEnabledForWorkspace } = await import('../../src/services/mcp/kitStore.ts')
+  const { setMcpServerEnabledForWorkspace } = await import('../../src/integrations/mcp/kitStore.ts')
   setMcpServerEnabledForWorkspace(PROJECT, 'menuoff', false)
   const SID2 = '22222222-3333-4444-8555-888888888888'
   updateConcourseWorkers(workers => {
@@ -252,15 +252,15 @@ section('§C the seat dial: idle forwards whole, busy parks honest, the beat dra
 
 section('§G setKit rides the connector, honest end to end')
 {
-  const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
   const refused = await noSessionConnector().setKit({ mcp: [{ name: 'x', on: false }] } as never)
   t('G4 the resting slot refuses with the one no-chat sentence', refused.outcome === 'refused' && /no chat is open/.test(refused.detail ?? ''))
 }
 
 section('§F skillsOff: the lying dial is dead (born-later off is expressible)')
 {
-  const govern = await import('../../src/skills/kitGovernance.ts')
-  const completion = await import('../../src/services/mcp/kitCompletion.ts')
+  const govern = await import('../../src/integrations/skills/kitGovernance.ts')
+  const completion = await import('../../src/integrations/mcp/kitCompletion.ts')
   const v1 = kit.validateSessionKit({ schema: 1, mcp: [], skills: ['a'], invocable: [], skillsOff: ['b'] })
   t('F1a the validator accepts and preserves skillsOff', v1.ok === true && deepEq((v1 as { kit: { skillsOff?: string[] } }).kit.skillsOff, ['b']))
   const v2 = kit.validateSessionKit({ schema: 1, mcp: [], skills: [], invocable: [], skillsOff: [] })
@@ -300,8 +300,8 @@ section('§A the screen dial rides the connector')
 
 section('§S the skills dial: session rows, off rows listed, tri-state words')
 {
-  const govern = await import('../../src/skills/kitGovernance.ts')
-  const terms = await import('../../src/services/engine-connector/rosterTerms.ts')
+  const govern = await import('../../src/integrations/skills/kitGovernance.ts')
+  const terms = await import('../../src/engine/connector/rosterTerms.ts')
   govern._resetKitGovernanceForTesting()
   govern.noteBootSkillRoster(['ns:seen', 'ns:offed'])
   const resolved = { schema: 1, mcp: [], skills: ['ns:seen'], invocable: [], skillsOff: ['late:born'] } as never
@@ -324,9 +324,9 @@ section('§S the skills dial: session rows, off rows listed, tri-state words')
 
 section('§D a dial never writes config/menu/sibling; a menu edit never reaches a live session')
 {
-  const seat = await import('../../src/daemon/sessionSeat.ts')
-  const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-  const { setMcpServerEnabledForWorkspace, kitDeltasForWorkspace } = await import('../../src/services/mcp/kitStore.ts')
+  const seat = await import('../../src/daemon/session-seat/sessionSeat.ts')
+  const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  const { setMcpServerEnabledForWorkspace, kitDeltasForWorkspace } = await import('../../src/integrations/mcp/kitStore.ts')
   const DAEMON_DIR = process.env.MERCURY_DAEMON_DIR!
   const SID = '22222222-3333-4444-8555-777777777777'
   const configShot = (): Record<string, string> => {

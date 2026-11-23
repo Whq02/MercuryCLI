@@ -22,9 +22,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const wait = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
-const proj = await import('../../src/services/engine-connector/seatProjections.ts')
-const tiles = await import('../../src/components/concourse/liveTiles.ts')
-const layout = await import('../../src/components/concourse/ConcourseLayout.tsx')
+const proj = await import('../../src/engine/connector/seatProjections.ts')
+const tiles = await import('../../src/screen/concourse/liveTiles.ts')
+const layout = await import('../../src/screen/concourse/ConcourseLayout.tsx')
 
 const SID = '00000000-0000-4000-8000-0000000000c1'
 const baseAnswer = {
@@ -51,7 +51,7 @@ const running = [
 const publish = (work: typeof running | [], atMs = Date.now()): void =>
   proj.publishSessionFacts({ schema: 1, sessionId: SID, atMs, pendingModel: null, busy: false, ...baseAnswer, work: work as never })
 
-failWhere = 'fix workChipTextOf in src/components/concourse/liveTiles.ts'
+failWhere = 'fix workChipTextOf in src/screen/concourse/liveTiles.ts'
 console.log('— K1 the derive —')
 {
   check('K1 the chip text speaks the board vocabulary', tiles.workChipTextOf({ work: running as never }) === '2 crewmates · 1 shell · 1 ask running', tiles.workChipTextOf({ work: running as never }) ?? 'null')
@@ -60,7 +60,7 @@ console.log('— K1 the derive —')
   check('K1 a settled-only roster has NO chip', tiles.workChipTextOf({ work: [running[3]!] as never }) === null)
 }
 
-failWhere = 'fix LiveTileStore or workChipStoreDeps in src/components/concourse/liveTiles.ts, or publishSessionFacts and retireSeatProjections in src/services/engine-connector/seatProjections.ts'
+failWhere = 'fix LiveTileStore or workChipStoreDeps in src/screen/concourse/liveTiles.ts, or publishSessionFacts and retireSeatProjections in src/engine/connector/seatProjections.ts'
 console.log('— K2/K3 the feed —')
 {
   let now = Date.now()
@@ -105,7 +105,7 @@ console.log('— K2/K3 the feed —')
   unsub()
 }
 
-failWhere = 'fix switchboardGeometry or ROW_PEEK_DESIRED_ROWS in src/components/concourse/ConcourseLayout.tsx'
+failWhere = 'fix switchboardGeometry or ROW_PEEK_DESIRED_ROWS in src/screen/concourse/ConcourseLayout.tsx'
 console.log('— K4 the geometry —')
 {
   const wide = layout.switchboardGeometry(120, 40, 0, 3, 1, 1, 1)
@@ -119,7 +119,7 @@ console.log('— K4 the geometry —')
   check('K4 the chip row comes out of the list window, never out of the live view beside it (the manager keeps its full column)', wide.listContentRows === none.listContentRows - 1 && wide.listBand[1] === none.listBand[1] && wide.mirrorBand[1] === none.mirrorBand[1])
 }
 
-failWhere = 'fix LiveTileStore.readTile in src/components/concourse/liveTiles.ts (a session never registered must read still)'
+failWhere = 'fix LiveTileStore.readTile in src/screen/concourse/liveTiles.ts (a session never registered must read still)'
 console.log('— K5 registration gates —')
 {
   const store = new tiles.LiveTileStore({ ...tiles.workChipStoreDeps(), armMachinery: false })

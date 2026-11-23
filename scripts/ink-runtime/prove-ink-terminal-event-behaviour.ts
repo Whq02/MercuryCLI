@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
-import { Event } from '../../src/ink/events/event.ts'
-import { TerminalEvent, type EventTarget } from '../../src/ink/events/terminal-event.ts'
+import { Event } from '../../src/screen/renderer/events/event.ts'
+import { TerminalEvent, type EventTarget } from '../../src/screen/renderer/events/terminal-event.ts'
 
-const WHERE = 'TerminalEvent in src/ink/events/terminal-event.ts'
+const WHERE = 'TerminalEvent in src/screen/renderer/events/terminal-event.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

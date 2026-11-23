@@ -7,10 +7,10 @@ import { fileURLToPath } from 'node:url'
 
 let failures = 0
 const faultHints: Array<[string, string]> = [
-  ['changeSetPlan-', 'change planChangeSet in src/services/changeTransaction/changeSetPlan.ts to refuse (code io or destination) on an unreadable path and plan a truly missing destination directory'],
-  ['changeSetCommit-', 'change runTextChangeSetCommit or recoverChangeSetJournal in src/services/changeTransaction/changeSetCommit.ts so an unreadable target is never treated as absent'],
-  ['concourseSnapshot-', 'change readHarnessGround in src/services/concourse/concourseSnapshot.ts to answer the current folder with a reason, and no throw, when the draft is corrupt or unreadable'],
-  ['launchControls-', 'change newSession in src/components/concourse/route/launchControls.ts to start the session in the answered ground and note the unread repo choice once'],
+  ['changeSetPlan-', 'change planChangeSet in src/tools/engines/change-transaction/changeSetPlan.ts to refuse (code io or destination) on an unreadable path and plan a truly missing destination directory'],
+  ['changeSetCommit-', 'change runTextChangeSetCommit or recoverChangeSetJournal in src/tools/engines/change-transaction/changeSetCommit.ts so an unreadable target is never treated as absent'],
+  ['concourseSnapshot-', 'change readHarnessGround in src/screen/concourse-model/concourseSnapshot.ts to answer the current folder with a reason, and no throw, when the draft is corrupt or unreadable'],
+  ['launchControls-', 'change newSession in src/screen/concourse/route/launchControls.ts to start the session in the answered ground and note the unread repo choice once'],
 ]
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -69,8 +69,8 @@ if (!POSIX_MODES) {
   skip('changeSetPlan-unreadable-paths', 'needs non-root POSIX chmod')
 } else {
   const r = runSub(`
-    const { planChangeSet } = await import(${JSON.stringify(join(SRC, 'services/changeTransaction/changeSetPlan.ts'))})
-    const { mintFileAnchor } = await import(${JSON.stringify(join(SRC, 'services/changeTransaction/snapshotAnchor.ts'))})
+    const { planChangeSet } = await import(${JSON.stringify(join(SRC, 'tools/engines/change-transaction/changeSetPlan.ts'))})
+    const { mintFileAnchor } = await import(${JSON.stringify(join(SRC, 'tools/engines/change-transaction/snapshotAnchor.ts'))})
     const srcFile = path.join(PROJECT, 'src.txt')
     fs.writeFileSync(srcFile, 'hello\\n')
     const anchor = mintFileAnchor('hello\\n')
@@ -124,8 +124,8 @@ if (!POSIX_MODES) {
   skip('changeSetCommit-unreadable-target', 'needs non-root POSIX chmod')
 } else {
   const r = runSub(`
-    const { runTextChangeSetCommit, recoverChangeSetJournal, TEXT_CHANGE_SET_KIND } = await import(${JSON.stringify(join(SRC, 'services/changeTransaction/changeSetCommit.ts'))})
-    const { sha256Hex } = await import(${JSON.stringify(join(SRC, 'utils/hash.ts'))})
+    const { runTextChangeSetCommit, recoverChangeSetJournal, TEXT_CHANGE_SET_KIND } = await import(${JSON.stringify(join(SRC, 'tools/engines/change-transaction/changeSetCommit.ts'))})
+    const { sha256Hex } = await import(${JSON.stringify(join(SRC, 'platform/primitives/hash.ts'))})
     const journalDir = path.join(PROJECT, 'journal')
     const bundleRoot = path.join(PROJECT, 'bundles')
 
@@ -162,7 +162,7 @@ if (!POSIX_MODES) {
     const delBundleRoot = path.join(PROJECT, 'del-bundles')
     fs.mkdirSync(delJournalDir, { recursive: true })
     fs.mkdirSync(delBundleRoot, { recursive: true })
-    const { journalOperationPath } = await import(${JSON.stringify(join(SRC, 'substrate/operationJournal.ts'))})
+    const { journalOperationPath } = await import(${JSON.stringify(join(SRC, 'platform/substrate/operationJournal.ts'))})
     const opId = 'delete-unreadable'
     fs.writeFileSync(journalOperationPath(delJournalDir, opId), JSON.stringify({
       schema: 1,
@@ -209,7 +209,7 @@ if (!POSIX_MODES) {
   skip('concourseSnapshot-readHarnessGround', 'needs non-root POSIX chmod')
 } else {
   const r = runSub(`
-    const snapMod = await import(${JSON.stringify(join(SRC, 'services/concourse/concourseSnapshot.ts'))})
+    const snapMod = await import(${JSON.stringify(join(SRC, 'screen/concourse-model/concourseSnapshot.ts'))})
     const draftDir = path.join(PROJECT, 'drafts')
     fs.mkdirSync(draftDir, { recursive: true })
     out.cwd = process.cwd()
@@ -248,16 +248,16 @@ console.log('\nlaunchControls — the new session is born where it can be and it
 {
   const r = runSub(`
     const { mock } = await import('bun:test')
-    const snapPath = ${JSON.stringify(join(SRC, 'services/concourse/concourseSnapshot.ts'))}
-    const realSnap = await import(${JSON.stringify(join(SRC, 'services/concourse/concourseSnapshot.ts'))})
+    const snapPath = ${JSON.stringify(join(SRC, 'screen/concourse-model/concourseSnapshot.ts'))}
+    const realSnap = await import(${JSON.stringify(join(SRC, 'screen/concourse-model/concourseSnapshot.ts'))})
     mock.module(snapPath, () => ({ ...realSnap, readHarnessGround: async () => ({ ground: '/work/elsewhere', unread: 'EACCES: permission denied' }) }))
-    mock.module(${JSON.stringify(join(SRC, 'services/switchboard/bornSession.ts'))}, () => ({
+    mock.module(${JSON.stringify(join(SRC, 'daemon/switchboard/bornSession.ts'))}, () => ({
       bornSession: async ({ workspaceDir }) => {
         out.bornIn = workspaceDir
         return { ok: true, title: 'Session one', sessionId: 's-1' }
       },
     }))
-    const { newSession } = await import(${JSON.stringify(join(SRC, 'components/concourse/route/launchControls.ts'))})
+    const { newSession } = await import(${JSON.stringify(join(SRC, 'screen/concourse/route/launchControls.ts'))})
     const notes = []
     newSession({
       noteControl: (control, state) => { notes.push({ control, ...state }) },

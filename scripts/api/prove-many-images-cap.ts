@@ -34,7 +34,7 @@ const note = (label: string): void => console.log(`  [NOTE] ${label}`)
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const j = (v: unknown): string => JSON.stringify(v)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the many-images cap prover exceeded 240s; a send through routedCallModel (src/services/providers/callModelRouter.ts) or the overflow fixture (scripts/compact/overflowFixture.ts) did not finish')
+  console.log('\nTIMEOUT — the many-images cap prover exceeded 240s; a send through routedCallModel (src/models/roads/callModelRouter.ts) or the overflow fixture (scripts/compact/overflowFixture.ts) did not finish')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()
@@ -43,17 +43,17 @@ const { startOverflowFixture } = await import('../compact/overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const limitsMod = await import('../../src/constants/apiLimits.ts')
-const errorsMod = await import('../../src/services/api/errors.ts')
-const { APIError } = await import('../../src/utils/api/sdkErrors.js')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const limitsMod = await import('../../src/models/roads/mediaLimits.ts')
+const errorsMod = await import('../../src/engine/requests/apiErrorRows.ts')
+const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const sharp = (await import('sharp')).default
 
 type AnyMsg = Record<string, unknown> & { type?: string; uuid?: string }
@@ -181,8 +181,8 @@ const wireMessages = (body: Record<string, unknown> | null): unknown[] => (Array
 
 section('§1 the wolf-fence: the many-images bound lives in the resizer and applies from an image\'s first send, never from the count')
 {
-  capHint = 'change requestImageSidePx in src/utils/imageResizer.ts or the many-images table ANTHROPIC_IMAGE_LIMITS in src/constants/apiLimits.ts'
-  const resizerMod = await import('../../src/utils/imageResizer.ts')
+  capHint = 'change requestImageSidePx in src/platform/images/imageResizer.ts or the many-images table ANTHROPIC_IMAGE_LIMITS in src/models/roads/mediaLimits.ts'
+  const resizerMod = await import('../../src/platform/images/imageResizer.ts')
   const generic = limitsMod.GENERIC_IMAGE_LIMITS
   check('the Anthropic family applies its many-images bound from the first send at any count; the generic family, with no documented native tier behind it, keeps the count rule', RULE?.fromFirstSend === true && generic.manyImages?.fromFirstSend === false && resizerMod.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS, 1) === CAP && resizerMod.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS, THRESHOLD + 1) === CAP && resizerMod.requestImageSidePx(generic, 1) === 8000 && resizerMod.requestImageSidePx(generic, THRESHOLD + 1) === 2000)
   check('the Anthropic table: 3000 px per side for a request with more than 20 images (the vision page, read 2026-11-02), above every tier\'s native long edge', RULE !== null && THRESHOLD === 20 && CAP === 3000 && CAP > limitsMod.ANTHROPIC_IMAGE_LIMITS.nativeLongEdgePx.highResolution, j(RULE))
@@ -190,7 +190,7 @@ section('§1 the wolf-fence: the many-images bound lives in the resizer and appl
 
 section('§2 the wire: twenty images, then twenty-one — the twenty-first image changes nothing before it')
 {
-  capHint = 'the request is sized in src/utils/imageResizer.ts (requestImageSidePx) and sent through routedCallModel in src/services/providers/callModelRouter.ts; the rows before the new image must stay byte-identical'
+  capHint = 'the request is sized in src/platform/images/imageResizer.ts (requestImageSidePx) and sent through routedCallModel in src/models/roads/callModelRouter.ts; the rows before the new image must stay byte-identical'
   const twenty = Array.from({ length: THRESHOLD }, (_, index) => (index === 5 ? wide : small))
   const rowsTwenty = history(twenty, { thinkingAfter: 3 })
   fixture.script(() => ({ text: 'seen' }))
@@ -228,7 +228,7 @@ section('§2 the wire: twenty images, then twenty-one — the twenty-first image
 
 section('§3 an image above the native long edge and within the bound rides as it is at any count: the API does its own downscale')
 {
-  capHint = 'an image within the bound must not be resized; see requestImageSidePx in src/utils/imageResizer.ts and the many-images table in src/constants/apiLimits.ts'
+  capHint = 'an image within the bound must not be resized; see requestImageSidePx in src/platform/images/imageResizer.ts and the many-images table in src/models/roads/mediaLimits.ts'
   const images = Array.from({ length: THRESHOLD + 1 }, (_, index) => (index === 5 ? retina : small))
   fixture.script(() => ({ text: 'seen' }))
   const run = await send(MODEL, history(images))
@@ -239,7 +239,7 @@ section('§3 an image above the native long edge and within the bound rides as i
 
 section('§4 the per-side ceiling at composition: an image over 8000 px in a short request is sized to the bound, never refused')
 {
-  capHint = 'an image over the single-image ceiling must be sized to the bound; see requestImageSidePx in src/utils/imageResizer.ts'
+  capHint = 'an image over the single-image ceiling must be sized to the bound; see requestImageSidePx in src/platform/images/imageResizer.ts'
   fixture.script(() => ({ text: 'seen' }))
   const run = await send(MODEL, history([small, huge, small]))
   const seen = run.body === null ? [] : wireImages(run.body)
@@ -249,8 +249,8 @@ section('§4 the per-side ceiling at composition: an image over 8000 px in a sho
 
 section('§5 the refusal words name the limit the provider stated; that conversation, and only that conversation, fits to it at its next send')
 {
-  capHint = 'the refusal text comes from getAssistantMessageFromError and the media-size classifiers in src/services/api/errors.ts; the stated limit is read by statedManyImageLimit and manyImageLimitStatedIn in src/utils/imageResizer.ts'
-  const resizerMod = await import('../../src/utils/imageResizer.ts')
+  capHint = 'the refusal text comes from getAssistantMessageFromError and the media-size classifiers in src/engine/requests/apiErrorRows.ts; the stated limit is read by statedManyImageLimit and manyImageLimitStatedIn in src/platform/images/imageResizer.ts'
+  const resizerMod = await import('../../src/platform/images/imageResizer.ts')
   const manyImageSentence = 'messages.11.content.1.image.source.base64.data: image dimensions exceed max allowed size for many-image requests: 2500x1400 pixels > 2000x2000 pixels'
   const manyImageSentenceAtBound = 'messages.11.content.1.image.source.base64.data: image dimensions exceed max allowed size for many-image requests: 3500x1960 pixels > 3000x3000 pixels'
   const manyImageSentenceBare = 'messages.1.content.43.image.source.base64.data: At least one of the image dimensions exceed max allowed size for many-image requests: 2000 pixels'

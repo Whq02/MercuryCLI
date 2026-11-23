@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/ink.ts src/ink/frame.ts src/ink/root.ts src/ink/instances.ts src/ink/ink.tsx
+// gate-watch: src/screen/themedRenderer.ts src/screen/renderer/frame.ts src/screen/renderer/root.ts src/screen/renderer/instances.ts src/screen/renderer/screenInstance.tsx
 import { spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
@@ -45,9 +45,9 @@ const screen = (): NodeJS.WriteStream => {
   stream.resume()
   return stream
 }
-const door = await import('../../src/ink.ts')
-const root = await import('../../src/ink/root.ts')
-const instances = (await import('../../src/ink/instances.ts')).default
+const door = await import('../../src/screen/themedRenderer.ts')
+const root = await import('../../src/screen/renderer/root.ts')
+const instances = (await import('../../src/screen/renderer/instances.ts')).default
 const line = (text: string) => React.createElement(door.Text, null, text)
 const quiet = () => ({ stdin: stdinStub(), patchConsole: false, exitOnCtrlC: false })
 const engineOn = (stream: NodeJS.WriteStream): Engine | undefined => instances.get(stream) as unknown as Engine | undefined
@@ -81,7 +81,7 @@ if (process.argv.includes('--process-defaults')) {
 }
 
 let failures = 0
-const pinsFailHint = 'change the code the section title names: src/ink.ts (render, createRoot, re-exports), src/ink/root.ts (renderSync, render, createRoot) or src/ink/frame.ts (emptyFrame and the frame types); change this file only if the pinned behaviour was meant to change'
+const pinsFailHint = 'change the code the section title names: src/screen/themedRenderer.ts (render, createRoot, re-exports), src/screen/renderer/root.ts (renderSync, render, createRoot) or src/screen/renderer/frame.ts (emptyFrame and the frame types); change this file only if the pinned behaviour was meant to change'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' · ' : '') + pinsFailHint : ''}`)
   if (!ok) failures++
@@ -123,45 +123,45 @@ const settleTick = async (start: () => Promise<unknown>): Promise<number> => {
 
 const DOOR: Array<[from: string, values: string[], types: string[]]> = [
   ['', ['render', 'createRoot'], ['Instance', 'RenderOptions', 'Root']],
-  ['./ink/reconciler.js', ['flushPendingSyncWork'], []],
-  ['./utils/color.js', ['color'], []],
-  ['./components/design-system/ThemeProvider.js', ['ThemeProvider', 'usePreviewTheme', 'useTheme', 'useThemeSetting'], []],
-  ['./components/design-system/ThemedBox.js', ['Box=default'], ['BoxProps=Props']],
-  ['./components/design-system/ThemedText.js', ['Text=default'], ['TextProps=Props']],
-  ['./ink/Ansi.js', ['Ansi'], []],
-  ['./ink/components/Box.js', ['BaseBox=default'], ['BaseBoxProps=Props']],
-  ['./ink/components/Text.js', ['BaseText=default'], ['BaseTextProps=Props']],
-  ['./ink/components/Button.js', ['Button=default'], ['ButtonState', 'ButtonProps=Props']],
-  ['./ink/components/Link.js', ['Link=default'], ['LinkProps=Props']],
-  ['./ink/components/MotionParkContext.js', ['MotionParkContext'], []],
-  ['./ink/components/Newline.js', ['Newline=default'], ['NewlineProps=Props']],
-  ['./ink/components/NoSelect.js', ['NoSelect'], []],
-  ['./ink/components/RawAnsi.js', ['RawAnsi'], []],
-  ['./ink/components/Spacer.js', ['Spacer=default'], []],
-  ['./ink/components/AppContext.js', [], ['AppProps=Props']],
-  ['./ink/components/StdinContext.js', [], ['StdinProps=Props']],
-  ['./ink/events/click-event.js', ['ClickEvent'], []],
-  ['./ink/events/emitter.js', ['EventEmitter'], []],
-  ['./ink/events/event.js', ['Event'], []],
-  ['./ink/events/input-event.js', ['InputEvent'], ['Key']],
-  ['./ink/events/terminal-focus-event.js', ['TerminalFocusEvent'], ['TerminalFocusEventType']],
-  ['./ink/focus.js', ['FocusManager'], []],
-  ['./ink/colorize.js', ['paletteCollapsed', 'truecolorActive'], []],
-  ['./ink/measure-element.js', ['measureElement=default', 'elementScreenLeft', 'elementScreenTop'], []],
-  ['./ink/termio/osc.js', ['supportsTabStatus'], []],
-  ['./ink/wrap-text.js', ['wrapText=default'], []],
-  ['./ink/dom.js', [], ['DOMElement']],
-  ['./ink/frame.js', [], ['FlickerReason']],
-  ['./ink/hooks/use-animation-frame.js', ['useAnimationFrame'], []],
-  ['./ink/hooks/use-animation-value.js', ['useAnimationValue'], []],
-  ['./ink/hooks/use-app.js', ['useApp=default'], []],
-  ['./ink/hooks/use-input.js', ['useInput=default'], []],
-  ['./ink/hooks/use-interval.js', ['useAnimationTimer', 'useInterval'], []],
-  ['./ink/hooks/use-selection.js', ['useSelection'], []],
-  ['./ink/hooks/use-stdin.js', ['useStdin=default'], []],
-  ['./ink/hooks/use-terminal-focus.js', ['useTerminalFocus'], []],
-  ['./ink/hooks/use-terminal-title.js', ['useTerminalTitle'], []],
-  ['./ink/hooks/use-terminal-viewport.js', ['useTerminalViewport'], []],
+  ['./renderer/reconciler.js', ['flushPendingSyncWork'], []],
+  ['./theme/color.js', ['color'], []],
+  ['./theme/ThemeProvider.js', ['ThemeProvider', 'usePreviewTheme', 'useTheme', 'useThemeSetting'], []],
+  ['./theme/ThemedBox.js', ['Box=default'], ['BoxProps=Props']],
+  ['./theme/ThemedText.js', ['Text=default'], ['TextProps=Props']],
+  ['./renderer/Ansi.js', ['Ansi'], []],
+  ['./renderer/elements/Box.js', ['BaseBox=default'], ['BaseBoxProps=Props']],
+  ['./renderer/elements/Text.js', ['BaseText=default'], ['BaseTextProps=Props']],
+  ['./renderer/elements/Button.js', ['Button=default'], ['ButtonState', 'ButtonProps=Props']],
+  ['./renderer/elements/Link.js', ['Link=default'], ['LinkProps=Props']],
+  ['./renderer/elements/MotionParkContext.js', ['MotionParkContext'], []],
+  ['./renderer/elements/Newline.js', ['Newline=default'], ['NewlineProps=Props']],
+  ['./renderer/elements/NoSelect.js', ['NoSelect'], []],
+  ['./renderer/elements/RawAnsi.js', ['RawAnsi'], []],
+  ['./renderer/elements/Spacer.js', ['Spacer=default'], []],
+  ['./renderer/elements/AppContext.js', [], ['AppProps=Props']],
+  ['./renderer/elements/StdinContext.js', [], ['StdinProps=Props']],
+  ['./renderer/events/click-event.js', ['ClickEvent'], []],
+  ['./renderer/events/emitter.js', ['EventEmitter'], []],
+  ['./renderer/events/event.js', ['Event'], []],
+  ['./renderer/events/input-event.js', ['InputEvent'], ['Key']],
+  ['./renderer/events/terminal-focus-event.js', ['TerminalFocusEvent'], ['TerminalFocusEventType']],
+  ['./renderer/focus.js', ['FocusManager'], []],
+  ['./renderer/colorize.js', ['paletteCollapsed', 'truecolorActive'], []],
+  ['./renderer/measure-element.js', ['measureElement=default', 'elementScreenLeft', 'elementScreenTop'], []],
+  ['./renderer/termio/osc.js', ['supportsTabStatus'], []],
+  ['./renderer/wrap-text.js', ['wrapText=default'], []],
+  ['./renderer/dom.js', [], ['DOMElement']],
+  ['./renderer/frame.js', [], ['FlickerReason']],
+  ['./renderer/bindings/use-animation-frame.js', ['useAnimationFrame'], []],
+  ['./renderer/bindings/use-animation-value.js', ['useAnimationValue'], []],
+  ['./renderer/bindings/use-app.js', ['useApp=default'], []],
+  ['./renderer/bindings/use-input.js', ['useInput=default'], []],
+  ['./renderer/bindings/use-interval.js', ['useAnimationTimer', 'useInterval'], []],
+  ['./renderer/bindings/use-selection.js', ['useSelection'], []],
+  ['./renderer/bindings/use-stdin.js', ['useStdin=default'], []],
+  ['./renderer/bindings/use-terminal-focus.js', ['useTerminalFocus'], []],
+  ['./renderer/bindings/use-terminal-title.js', ['useTerminalTitle'], []],
+  ['./renderer/bindings/use-terminal-viewport.js', ['useTerminalViewport'], []],
 ]
 const doorRows = DOOR.flatMap(([from, values, types]) =>
   [...values.map(v => ['value', v] as const), ...types.map(t => ['type', t] as const)].map(([kind, spec]) => {
@@ -267,8 +267,8 @@ section('§3 timing: the bare render and createRoot wait one microtask before mo
 
 section('§4 emptyFrame: a zero-row screen of the given columns, the raw viewport, a visible cursor at home, fresh objects every call')
 {
-  const frame = await import('../../src/ink/frame.ts')
-  const { CharPool, HyperlinkPool, StylePool } = await import('../../src/ink/cell-grid.ts')
+  const frame = await import('../../src/screen/renderer/frame.ts')
+  const { CharPool, HyperlinkPool, StylePool } = await import('../../src/screen/renderer/cell-grid.ts')
   check('the frame module\'s only run-time export is emptyFrame', same(Object.keys(frame), ['emptyFrame']), Object.keys(frame).join(' '))
   const styles = new StylePool()
   const chars = new CharPool()
@@ -419,13 +419,13 @@ section('§9 the type contract: frame vocabulary, mount types and door types are
   mkdirSync(dir, { recursive: true })
   symlinkSync(join(ROOT, 'node_modules'), join(dir, 'node_modules'))
   const head = `import type { ReactNode } from 'react'
-import type { Diff, FlickerReason, FlickerRecord, Frame, FrameEvent, FramePhases, Patch, emptyFrame } from '${SRC}/ink/frame.ts'
-import type { CharPool, HyperlinkPool, Screen, StylePool } from '${SRC}/ink/cell-grid.ts'
-import type { ScrollHint } from '${SRC}/ink/compose-walk.ts'
-import type { Cursor } from '${SRC}/ink/cursor.js'
-import type { Instance, RenderOptions, Root, createRoot, renderSync } from '${SRC}/ink/root.ts'
-import type render from '${SRC}/ink/root.ts'
-import type * as door from '${SRC}/ink.ts'
+import type { Diff, FlickerReason, FlickerRecord, Frame, FrameEvent, FramePhases, Patch, emptyFrame } from '${SRC}/screen/renderer/frame.ts'
+import type { CharPool, HyperlinkPool, Screen, StylePool } from '${SRC}/screen/renderer/cell-grid.ts'
+import type { ScrollHint } from '${SRC}/screen/renderer/compose-walk.ts'
+import type { Cursor } from '${SRC}/screen/renderer/cursor.js'
+import type { Instance, RenderOptions, Root, createRoot, renderSync } from '${SRC}/screen/renderer/root.ts'
+import type render from '${SRC}/screen/renderer/root.ts'
+import type * as door from '${SRC}/screen/themedRenderer.ts'
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false
 type Expect<T extends true> = T
 type IsAny<T> = 0 extends 1 & T ? true : false
@@ -501,7 +501,7 @@ export type Pins = [
     return unit ? [...program.getSyntacticDiagnostics(unit), ...program.getSemanticDiagnostics(unit)] : []
   }
   const pinNotes = told(pinsFile)
-  check('all 22 type pins hold (frame vocabulary, the mount types, the door\'s types)', pinNotes.length === 0, pinNotes.map(d => ts.flattenDiagnosticMessageText(d.messageText, ' ')).slice(0, 3).join(' | ') + ' (the first three type errors; fix the exported type named in them in src/ink/frame.ts or src/ink/root.ts)')
+  check('all 22 type pins hold (frame vocabulary, the mount types, the door\'s types)', pinNotes.length === 0, pinNotes.map(d => ts.flattenDiagnosticMessageText(d.messageText, ' ')).slice(0, 3).join(' | ') + ' (the first three type errors; fix the exported type named in them in src/screen/renderer/frame.ts or src/screen/renderer/root.ts)')
   const teethNotes = told(teethFile)
   const caughtLines = new Set(teethNotes.map(d => (d.file ? d.file.getLineAndCharacterOfPosition(d.start ?? 0).line : -1)))
   check(`each of the ${planted.length} planted faults is caught on its own line (a dropped reason, kind, field rename, readonly, optional phases, pool, door, required stdout)`, teethNotes.length === planted.length && caughtLines.size === planted.length && teethNotes.every(d => d.code === 2344), `${teethNotes.length} notes: ${teethNotes.map(d => d.code).join(',')} (a planted fault passed or failed on the wrong line, so a pin in this file is too loose; tighten the Equal pin in the pins text of section 9)`)

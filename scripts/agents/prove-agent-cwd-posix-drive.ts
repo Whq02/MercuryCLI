@@ -28,12 +28,12 @@ git(repo, 'init', '-q', '-b', 'main')
 git(repo, 'add', '-A')
 git(repo, 'commit', '-q', '-m', 'first')
 
-const state = await import('../../src/bootstrap/state.ts')
-const config = await import('../../src/utils/config/globalConfig.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { AgentTool, agentCwdQuestion, resolveAgentCwd } = await import('../../src/tools/AgentTool/AgentTool.tsx')
-const { createAgentWorktree, preflightWorktreeCapability } = await import('../../src/services/worktree.ts')
-const { getCwd } = await import('../../src/utils/cwd.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const config = await import('../../src/platform/config/globalConfig.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { AgentTool, agentCwdQuestion, resolveAgentCwd } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { createAgentWorktree, preflightWorktreeCapability } = await import('../../src/platform/git/worktree/worktree.ts')
+const { getCwd } = await import('../../src/platform/files/cwd.ts')
 
 process.chdir(work)
 state.setOriginalCwd(work)
@@ -45,7 +45,7 @@ const sessionFolder = getCwd()
 
 let failed = 0
 let passed = 0
-const cwdChangeHint = ' — change: resolveAgentCwd or agentCwdQuestion in src/tools/AgentTool/agent/cwd.ts, or AgentTool.checkPermissions (a worktree check: preflightWorktreeCapability or createAgentWorktree in src/services/worktree.ts) must give what this check names'
+const cwdChangeHint = ' — change: resolveAgentCwd or agentCwdQuestion in src/tools/crewmate/call/cwd.ts, or AgentTool.checkPermissions (a worktree check: preflightWorktreeCapability or createAgentWorktree in src/platform/git/worktree/worktree.ts) must give what this check names'
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? cwdChangeHint : ''}`)

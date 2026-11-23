@@ -5,15 +5,15 @@ const home = mkdtempSync(join(tmpdir(), 'windows-command-warnings-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-await import('../../src/services/providers/callModelRouter.ts')
-await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getDestructiveCommandWarning } = await import('../../src/utils/shell/destructiveCommandWarning.ts')
-const { powershellToolHasPermission } = await import('../../src/tools/PowerShellTool/powershellPermissions.ts')
-const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
-const { getSimpleCommandPrefix, getFirstWordPrefix } = await import('../../src/tools/BashTool/bashPermissions.ts')
+await import('../../src/models/roads/callModelRouter.ts')
+await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getDestructiveCommandWarning } = await import('../../src/permissions/rules/shell-commands/destructiveCommandWarning.ts')
+const { powershellToolHasPermission } = await import('../../src/tools/powershell/powershellPermissions.ts')
+const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.ts')
+const { getSimpleCommandPrefix, getFirstWordPrefix } = await import('../../src/tools/shell/bashPermissions.ts')
 const commands = [
   'vssadmin delete shadows /all', 'wbadmin delete backup', 'reg delete HKCU\\Software\\Fixture /f', 'reg delete HKLM\\Software\\Fixture',
   'diskpart', 'format D:', 'format.com D:', 'cipher /w:D:', 'cipher /w:C', 'icacls sample /grant Everyone:F',
@@ -31,10 +31,10 @@ const check = (label: string, ok: boolean, value?: unknown) => {
   checks++
   if (!ok) failures++
   const warningsWhere = /wildcard/.test(label)
-    ? 'fix getSimpleCommandPrefix or getFirstWordPrefix in src/tools/BashTool/bashPermissions.ts so a warned command gets no prefix'
+    ? 'fix getSimpleCommandPrefix or getFirstWordPrefix in src/tools/shell/bashPermissions.ts so a warned command gets no prefix'
     : /^(default|implement|sovereign):/.test(label)
-      ? 'fix decideToolPermission in src/utils/permissions/decision/engine.ts or powershellToolHasPermission in src/tools/PowerShellTool/powershellPermissions.ts'
-      : 'fix the warning patterns in getDestructiveCommandWarning, src/utils/shell/destructiveCommandWarning.ts'
+      ? 'fix decideToolPermission in src/permissions/rules/decision/engine.ts or powershellToolHasPermission in src/tools/powershell/powershellPermissions.ts'
+      : 'fix the warning patterns in getDestructiveCommandWarning, src/permissions/rules/shell-commands/destructiveCommandWarning.ts'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${value === undefined ? '' : ` — ${JSON.stringify(value)}`}${ok ? '' : ` (${warningsWhere})`}`)
 }
 async function decide(command: string, mode: 'default' | 'implement' | 'sovereign', deny = false) {

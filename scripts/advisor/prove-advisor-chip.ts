@@ -62,32 +62,32 @@ class Input extends EventEmitter {
 }
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { MercuryFrame } = await import('../../src/components/MercuryFrame.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, registerRouteSurface, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { MercuryFrame } = await import('../../src/screen/frame-chips/MercuryFrame.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, registerRouteSurface, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
 registerRouteSurface('concourse', { render: () => null })
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocus.ts')
-const { default: instances } = await import('../../src/ink/instances.ts')
-const advisor = await import('../../src/services/advisor/index.ts')
-const storage = await import('../../src/utils/sessionStorage.ts')
-type AppState = import('../../src/state/AppState.tsx').AppState
-type AdvisorFacts = import('../../src/services/engine-connector/types.ts').AdvisorFactsV1
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+const { resetHelmFocusForTest } = await import('../../src/screen/cockpit/helmFocus.ts')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+const advisor = await import('../../src/models/advisor/index.ts')
+const storage = await import('../../src/sessions/transcripts/sessionStorage.ts')
+type AppState = import('../../src/screen/app-state/AppState.tsx').AppState
+type AdvisorFacts = import('../../src/engine/connector/types.ts').AdvisorFactsV1
 const h = React.createElement
 const MODEL = 'claude-opus-4-8'
 const leadModel = 'claude-fable-5-1'
 
 section("§0 the words: 'advisor · every N minutes' while the chat is effectively on; 'advisor · off in settings' when the chat is on but the settings are off; nothing when the chat's switch is off or the runner has not spoken")
 {
-  chipWhere = 'fix advisorChipWords in src/services/advisor/advisorSettings.ts so the chip words follow the facts this check names'
+  chipWhere = 'fix advisorChipWords in src/models/advisor/advisorSettings.ts so the chip words follow the facts this check names'
   const on: AdvisorFacts = { on: true, chat: true, settings: true, minutes: 10, model: MODEL }
   check('on · every 10 minutes', advisor.advisorChipWords(on) === 'advisor · every 10 minutes', j(advisor.advisorChipWords(on)))
   check('one minute reads singular', advisor.advisorChipWords({ ...on, minutes: 1 }) === 'advisor · every 1 minute')
@@ -99,7 +99,7 @@ section("§0 the words: 'advisor · every N minutes' while the chat is effective
 
 section("§1 the runner's own facts: advisorFacts() reads the effective test, the chat's switch, the settings, the minutes and the model, and rides the session facts answer under `advisor`")
 {
-  chipWhere = 'fix advisorFacts in src/services/advisor/advisorSettings.ts (or the connector that carries it: src/services/engine-connector/daemonConnector.ts, src/services/engine-connector/noSessionConnector.ts) so the facts match the expected object shown above'
+  chipWhere = 'fix advisorFacts in src/models/advisor/advisorSettings.ts (or the connector that carries it: src/engine/connector/daemonConnector.ts, src/engine/connector/noSessionConnector.ts) so the facts match the expected object shown above'
   enableConfigs()
   const fresh = advisor.advisorFacts()
   check('a fresh runner: off, chat off, settings off, ten minutes, no model', j(fresh) === j({ on: false, chat: false, settings: false, minutes: 10, model: null }), j(fresh))
@@ -119,8 +119,8 @@ section("§1 the runner's own facts: advisorFacts() reads the effective test, th
   advisor.setAdvisorMinutes(10)
   saveGlobalConfig(c => { const next = { ...c.subModels }; delete next.advisor; return { ...c, subModels: Object.keys(next).length > 0 ? next : undefined } })
   check("the session facts answer carries `advisor: advisorFacts()` beside the pause gate, so the screen reads THIS chat's state through its connector", j(liveAdvisor) === j({ ...on, on: false, chat: false }) && j(liveAdvised) === j(on), j({ liveAdvisor, liveAdvised }))
-  const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const { publishSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
   const planeBefore = process.env.MERCURY_DAEMON_DIR
   process.env.MERCURY_DAEMON_DIR = join(home, 'advisor-plane')
   const hostedAdvisor = (sessionId: string, facts: Record<string, unknown> | null): AdvisorFacts | null => {
@@ -135,7 +135,7 @@ section("§1 the runner's own facts: advisorFacts() reads the effective test, th
 
 section("§2 the inline chat's statusline, rendered from source (the one surface that paints the frame's chips since the cockpit's sessions box left): the chip stands after the vitals while the chat is on, says off in settings when the settings are off, and is absent when the chat is off")
 {
-  chipWhere = 'fix how src/components/MercuryFrame.tsx paints the advisor chip on the status row from the focused connector advisorFacts() (the shown value is the status row as rendered)'
+  chipWhere = 'fix how src/screen/frame-chips/MercuryFrame.tsx paints the advisor chip on the status row from the focused connector advisorFacts() (the shown value is the status row as rendered)'
   process.env.MERCURY_FULLSCREEN = '0'
   let facts: AdvisorFacts | null = null
   const listeners = new Set<() => void>()

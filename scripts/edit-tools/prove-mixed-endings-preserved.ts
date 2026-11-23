@@ -8,8 +8,8 @@ process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { readFileSyncWithMetadata } = await import('../../src/utils/fileRead.ts')
-const fileMod = await import('../../src/utils/file.ts')
+const { readFileSyncWithMetadata } = await import('../../src/platform/files/syncFileRead.ts')
+const fileMod = await import('../../src/platform/files/file.ts')
 const { writeTextContent } = fileMod
 
 let failures = 0
@@ -20,7 +20,7 @@ const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
     if (hint) console.log(`    what to change: ${hint}`)
   }
 }
-const WRITE_HINT = 'fix preserveUntouchedLineEndings in src/utils/file.ts (and writeTextContent there), or the rawContent and lineEndings read by readFileSyncWithMetadata in src/utils/fileRead.ts'
+const WRITE_HINT = 'fix preserveUntouchedLineEndings in src/platform/files/file.ts (and writeTextContent there), or the rawContent and lineEndings read by readFileSyncWithMetadata in src/platform/files/syncFileRead.ts'
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
 type Preserve = (raw: string, updated: string, majority: 'LF' | 'CRLF') => string
@@ -58,7 +58,7 @@ section('§1 THE WRITE FLOW (the card repro)')
 
 section('§2 THE RECONCILIATION UNIT')
 {
-  check('preserveUntouchedLineEndings exists on the write module', typeof preserve === 'function', '', 'export preserveUntouchedLineEndings from src/utils/file.ts')
+  check('preserveUntouchedLineEndings exists on the write module', typeof preserve === 'function', '', 'export preserveUntouchedLineEndings from src/platform/files/file.ts')
   if (preserve) {
     const raw = 'top\r\nkeep-lf\nmid\r\nbottom\r\n'
     const updated = 'top\nkeep-lf\nmid-CHANGED\nbottom\n'

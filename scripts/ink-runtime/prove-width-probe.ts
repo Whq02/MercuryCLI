@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
-import { INITIAL_STATE, parseMultipleKeypresses, type ParsedInput } from '../../src/ink/input/input-decoder.ts'
-import { InputEvent } from '../../src/ink/events/input-event.ts'
-import { interpretResponse } from '../../src/ink/input/interpreter.ts'
-import { TerminalQuerier, decrqm, kittyKeyboard, xtversion } from '../../src/ink/session/querier.ts'
+import { INITIAL_STATE, parseMultipleKeypresses, type ParsedInput } from '../../src/screen/renderer/input/input-decoder.ts'
+import { InputEvent } from '../../src/screen/renderer/events/input-event.ts'
+import { interpretResponse } from '../../src/screen/renderer/input/interpreter.ts'
+import { TerminalQuerier, decrqm, kittyKeyboard, xtversion } from '../../src/screen/renderer/terminal-session/terminalQuerier.ts'
 
 function typed(atoms: ParsedInput[]): string {
   return atoms.flatMap(atom => atom.kind === 'key' ? [new InputEvent(atom).input] : []).join('')
@@ -15,7 +15,7 @@ assert.equal(f3?.kind, 'key')
 assert.equal(f3?.kind === 'key' && f3.shift, true)
 console.log('PASS late CPR is not input and the row-1 modified F3 key remains a key')
 
-const { queueTerminalWidthProbe, readTerminalWidthMeasurements, WIDTH_PROBE_SAMPLES } = await import('../../src/ink/session/widthProbe.ts')
+const { queueTerminalWidthProbe, readTerminalWidthMeasurements, WIDTH_PROBE_SAMPLES } = await import('../../src/screen/renderer/terminal-session/widthProbe.ts')
 let written = ''
 const stdout = { isTTY: true, rows: 40, columns: 120, write: (s: string) => { written += s; return true } } as unknown as NodeJS.WriteStream
 let inlineWritten = ''
@@ -44,17 +44,17 @@ const version = querier.send(xtversion())
 const sync = querier.send(decrqm(2026))
 const keyboard = querier.send(kittyKeyboard())
 const finish = queueTerminalWidthProbe(querier, stdout, () => { redraws++ }, true)
-assert.ok(finish, 'queueTerminalWidthProbe returned null on alternate screen; check src/ink/session/widthProbe.ts')
+assert.ok(finish, 'queueTerminalWidthProbe returned null on alternate screen; check src/screen/renderer/terminal-session/widthProbe.ts')
 assert.deepEqual(decode('\x1b[1;2R')[0], f3)
 assert.equal(interpretResponse('\x1b[52;5R'), null)
 assert.equal(typed(decode('\x1b[52;5R')), '')
 console.log('PASS row-1 F3 stays a key inside the window and an unwritten row is ignored')
 const batch = querier.flush()
-assert.ok(written.startsWith('\x1b[>0q\x1b[?2026$p\x1b[?u'), `width probe batch missing leading capability queries (head=${JSON.stringify(written.slice(0, 40))}); check src/ink/session/widthProbe.ts`)
+assert.ok(written.startsWith('\x1b[>0q\x1b[?2026$p\x1b[?u'), `width probe batch missing leading capability queries (head=${JSON.stringify(written.slice(0, 40))}); check src/screen/renderer/terminal-session/widthProbe.ts`)
 assert.equal((written.match(/\x1b\[6n/g) ?? []).length, 8)
 assert.equal((written.match(/\x1b\[c/g) ?? []).length, 1)
 assert.equal(written.includes('\x1b[?6n'), false)
-assert.ok(written.endsWith('\x1b[c'), `width probe batch missing trailing DA1 fence (tail=${JSON.stringify(written.slice(-20))}); check src/ink/session/widthProbe.ts`)
+assert.ok(written.endsWith('\x1b[c'), `width probe batch missing trailing DA1 fence (tail=${JSON.stringify(written.slice(-20))}); check src/screen/renderer/terminal-session/widthProbe.ts`)
 console.log('PASS all eight samples ride one DA1-fenced batch alongside the upgrades')
 
 const widths = [1, 4, 5, 2, 1, 0, 1, 2]
@@ -92,7 +92,7 @@ const silentOut = { isTTY: true, rows: 40, columns: 120, write: () => true } as 
 const silent = new TerminalQuerier(silentOut)
 let silentRedraws = 0
 const closeSilent = queueTerminalWidthProbe(silent, silentOut, () => { silentRedraws++ }, true)
-assert.ok(closeSilent, 'queueTerminalWidthProbe returned null for silent alternate-screen querier; check src/ink/session/widthProbe.ts')
+assert.ok(closeSilent, 'queueTerminalWidthProbe returned null for silent alternate-screen querier; check src/screen/renderer/terminal-session/widthProbe.ts')
 void silent.flush()
 await new Promise(resolve => setTimeout(resolve, 300))
 assert.equal(silentRedraws, 1)

@@ -52,7 +52,7 @@ for (const [cols, rows] of sizes) {
     process.env.MERCURY_CONFIG_DIR = world.home
     process.env.MERCURY_CREDENTIAL_STORE = 'file'
     process.env.MERCURY_DAEMON_DIR = world.env.MERCURY_DAEMON_DIR
-    const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+    const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
     const cwdBefore = process.cwd()
     const tmpBefore = process.env.TMPDIR
     try {

@@ -45,22 +45,22 @@ for (const name of Object.keys(process.env)) {
 const React = await import('react')
 const h = React.createElement
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { default: reconciler } = await import('../../src/ink/reconciler.js')
-const { disposeKeybindingWatcher } = await import('../../src/keybindings/loadUserBindings.js')
-const { Box } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { BootAgentsScreen } = await import('../../src/components/BootAgentsScreen.tsx')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
+const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { BootAgentsScreen } = await import('../../src/screen/boot-face/BootAgentsScreen.tsx')
 
-type AgentDefinition = import('../../src/types/agent.js').AgentDefinition
-type AgentDefinitionsResult = import('../../src/types/agent.js').AgentDefinitionsResult
+type AgentDefinition = import('../../src/crew/agents/agentDefinition.js').AgentDefinition
+type AgentDefinitionsResult = import('../../src/crew/agents/agentDefinition.js').AgentDefinitionsResult
 
 class FakeStdout extends EventEmitter {
   isTTY = true

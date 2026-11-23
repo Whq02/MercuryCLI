@@ -1,0 +1,466 @@
+
+import * as net from 'node:net'
+import * as path from 'node:path'
+import { findGodotProjectRoot } from '../lsp/godotLane.js'
+import { vulcanEnabled } from './vulcanGates.js'
+import {
+  formatUnreadableVulcanInstance,
+  parseVulcanInstance,
+  readVulcanInstanceToken,
+  sameVulcanInstance,
+  scanVulcanInstances,
+  selectVulcanInstance,
+  vulcanInstanceDir,
+  type VulcanInstance,
+} from './instances.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../platform/async/timers.js'
+
+const INSTANCE_HINT = 'is that Godot instance still running with the addon loaded? op:"vulcan_status" lists the instances Mercury can see; name the one you mean with args.instance'
+
+interface VulcanError {
+  code: string
+  message: string
+  hint?: string
+}
+export type VulcanResult = ({ ok: true; result: unknown } | { ok: false; error: VulcanError }) & { instance?: VulcanInstance; via?: VulcanInstance }
+interface VulcanEvent {
+  event: string
+  data: unknown
+  at: number
+  instance?: VulcanInstance
+  via?: VulcanInstance
+}
+
+const MAX_LINE_BYTES = 8 * 1024 * 1024
+const MAX_EVENTS = 500
+const HEARTBEAT_MS = 10_000
+const PONG_TIMEOUT_MS = 5_000
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
+const BACKOFF_START_MS = 1_000
+const BACKOFF_CAP_MS = 60_000
+const CONNECT_TIMEOUT_MS = 3_000
+const HELLO_TIMEOUT_MS = 5_000
+
+function err(code: string, message: string, hint?: string): VulcanResult {
+  return { ok: false, error: { code, message, ...(hint ? { hint } : {}) } }
+}
+
+interface Pending {
+  resolve: (r: VulcanResult) => void
+  timer: NodeJS.Timeout
+  op: string
+}
+
+export class VulcanClient {
+  readonly port: number
+  private readonly token: string
+  readonly expectedInstance: VulcanInstance | undefined
+  reachedInstance: VulcanInstance | undefined
+  socket: net.Socket | null = null
+  state: 'disconnected' | 'connecting' | 'ready' = 'disconnected'
+  private closed = false
+  private buf = ''
+  private nextId = 1
+  pending = new Map<number, Pending>()
+  queue: Array<{ op: string; args: Record<string, unknown> | undefined; timeoutMs: number; resolve: (r: VulcanResult) => void; queueTimer: NodeJS.Timeout | null }> = []
+  helloTimer: NodeJS.Timeout | null = null
+  events: VulcanEvent[] = []
+  private heartbeat: NodeJS.Timeout | null = null
+  private pongTimer: NodeJS.Timeout | null = null
+  backoffMs: number
+  backoffUntil = 0
+  helloError: VulcanError | null = null
+  private readonly heartbeatMs: number
+  private readonly pongTimeoutMs: number
+  readonly backoffStartMs: number
+  private readonly backoffCapMs: number
+  private readonly connectTimeoutMs: number
+  private readonly helloTimeoutMs: number
+
+  constructor(opts: {
+    port: number
+    token: string
+    instance?: VulcanInstance
+    heartbeatMs?: number
+    pongTimeoutMs?: number
+    backoffStartMs?: number
+    backoffCapMs?: number
+    connectTimeoutMs?: number
+    helloTimeoutMs?: number
+  }) {
+    this.port = opts.port
+    this.token = opts.token
+    this.expectedInstance = opts.instance
+    this.heartbeatMs = opts.heartbeatMs ?? HEARTBEAT_MS
+    this.pongTimeoutMs = opts.pongTimeoutMs ?? PONG_TIMEOUT_MS
+    this.backoffStartMs = opts.backoffStartMs ?? BACKOFF_START_MS
+    this.backoffCapMs = opts.backoffCapMs ?? BACKOFF_CAP_MS
+    this.connectTimeoutMs = opts.connectTimeoutMs ?? CONNECT_TIMEOUT_MS
+    this.helloTimeoutMs = opts.helloTimeoutMs ?? HELLO_TIMEOUT_MS
+    this.backoffMs = this.backoffStartMs
+  }
+
+  status(): 'disconnected' | 'connecting' | 'ready' {
+    return this.state
+  }
+
+  backoffRemainingMs(now: number = Date.now()): number {
+    return Math.max(0, this.backoffUntil - now)
+  }
+
+  nextDelayMs(): number {
+    return this.backoffMs
+  }
+
+  drainEvents(): VulcanEvent[] {
+    const out = this.events
+    this.events = []
+    return out
+  }
+
+  async request(
+    op: string,
+    args?: Record<string, unknown>,
+    timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS,
+  ): Promise<VulcanResult> {
+    if (this.closed) return err('CLIENT_CLOSED', 'the VULCAN client was closed')
+    if (this.state === 'ready') return this.send(op, args, timeoutMs)
+    const remaining = this.backoffRemainingMs()
+    if (remaining > 0) {
+      return err(
+        'EDITOR_UNREACHABLE',
+        `the mercury_vulcan addon is not answering on 127.0.0.1:${this.port}`,
+        `${INSTANCE_HINT}; addon installed + enabled? (vulcan_install) — retrying in ${Math.ceil(remaining / 1000)}s`,
+      )
+    }
+    return new Promise<VulcanResult>(resolve => {
+      const entry = {
+        op,
+        args,
+        timeoutMs,
+        resolve,
+        queueTimer: null as NodeJS.Timeout | null,
+      }
+      entry.queueTimer = startTimeout(() => {
+        const i = this.queue.indexOf(entry)
+        if (i >= 0) this.queue.splice(i, 1)
+        resolve(
+          err(
+            'REQUEST_TIMEOUT',
+            `${op} timed out after ${timeoutMs}ms waiting for the VULCAN connection`,
+            `${INSTANCE_HINT}; op:"vulcan_status" to probe`,
+          ),
+        )
+      }, timeoutMs)
+      entry.queueTimer.unref?.()
+      this.queue.push(entry)
+      if (this.state === 'disconnected') this.connect()
+    })
+  }
+
+  close(): void {
+    this.closed = true
+    this.teardown(err('CLIENT_CLOSED', 'the VULCAN client was closed'))
+  }
+
+
+  private connect(): void {
+    this.state = 'connecting'
+    this.helloError = null
+    const socket = net.connect({ host: '127.0.0.1', port: this.port })
+    this.socket = socket
+    socket.setNoDelay(true)
+    const connectTimer = startTimeout(() => socket.destroy(new Error('connect timeout')), this.connectTimeoutMs)
+    connectTimer.unref?.()
+    this.helloTimer = startTimeout(() => {
+      if (this.state === 'connecting') socket.destroy(new Error('handshake timeout'))
+    }, this.helloTimeoutMs)
+    this.helloTimer.unref?.()
+
+    socket.once('connect', () => {
+      stopTimeout(connectTimer)
+      socket.write(JSON.stringify({ op: 'hello', token: this.token, role: 'client', version: 1, ...(this.expectedInstance ? { instance: this.expectedInstance.id } : {}) }) + '\n')
+    })
+    socket.on('data', chunk => {
+      this.onData(chunk.toString('utf8'))
+    })
+    const fail = () => {
+      if (this.socket !== socket) return
+      stopTimeout(connectTimer)
+      if (this.helloTimer) {
+        stopTimeout(this.helloTimer)
+        this.helloTimer = null
+      }
+      this.onConnectionDown()
+    }
+    socket.once('error', fail)
+    socket.once('close', fail)
+  }
+
+  private onData(text: string): void {
+    this.buf += text
+    if (Buffer.byteLength(this.buf, 'utf8') > (this.state === 'connecting' ? 16 * 1024 : MAX_LINE_BYTES)) {
+      this.socket?.destroy(new Error('oversized frame'))
+      return
+    }
+    let idx: number
+    while ((idx = this.buf.indexOf('\n')) >= 0) {
+      const line = this.buf.slice(0, idx).trim()
+      this.buf = this.buf.slice(idx + 1)
+      if (!line) continue
+      let frame: Record<string, unknown>
+      try {
+        frame = JSON.parse(line) as Record<string, unknown>
+      } catch {
+        if (this.state === 'connecting') {
+          this.socket?.destroy(new Error('unparseable handshake payload — not a VULCAN server?'))
+          return
+        }
+        continue
+      }
+      if (!frame || typeof frame !== 'object' || Array.isArray(frame)) {
+        this.socket?.destroy(new Error('invalid frame'))
+        return
+      }
+      this.onFrame(frame)
+    }
+  }
+
+  private onFrame(frame: Record<string, unknown>): void {
+    return onFrameOf.call(this, frame)
+  }
+
+  send(
+    op: string,
+    args: Record<string, unknown> | undefined,
+    timeoutMs: number,
+  ): Promise<VulcanResult> {
+    const socket = this.socket
+    if (!socket || this.state !== 'ready') {
+      return Promise.resolve(err('CONNECTION_LOST', `connection lost before ${op} was sent`))
+    }
+    const id = this.nextId++
+    let line: string
+    try { line = JSON.stringify({ id, op, ...(args && Object.keys(args).length ? { args } : {}) }) + '\n' }
+    catch { return Promise.resolve(err('BAD_REQUEST', 'request arguments are not JSON serializable')) }
+    if (Buffer.byteLength(line, 'utf8') > MAX_LINE_BYTES) return Promise.resolve(err('LINE_TOO_LONG', 'request frame exceeded 8 MB'))
+    return new Promise<VulcanResult>(resolve => {
+      const timer = startTimeout(() => {
+        this.pending.delete(id)
+        resolve({
+          ...err('REQUEST_TIMEOUT', `${op} did not answer within ${timeoutMs}ms`, 'the instance may be busy; retry, or op:"vulcan_status" to probe'),
+          ...(this.reachedInstance ? { instance: this.reachedInstance } : {}),
+        })
+      }, timeoutMs)
+      timer.unref?.()
+      this.pending.set(id, { resolve, timer, op })
+      socket.write(line)
+    })
+  }
+
+  armHeartbeat(): void {
+    this.clearHeartbeat()
+    this.heartbeat = startInterval(() => {
+      const socket = this.socket
+      if (!socket || this.state !== 'ready') return
+      const id = this.nextId++
+      const timer = startTimeout(() => {
+        this.pending.delete(id)
+        socket.destroy(new Error('missed pong'))
+      }, this.pongTimeoutMs)
+      timer.unref?.()
+      this.pending.set(id, { resolve: () => stopTimeout(timer), timer, op: 'ping' })
+      socket.write(JSON.stringify({ id, op: 'ping' }) + '\n')
+    }, this.heartbeatMs)
+    this.heartbeat.unref?.()
+  }
+
+  private clearHeartbeat(): void {
+    if (this.heartbeat) stopInterval(this.heartbeat)
+    if (this.pongTimer) stopTimeout(this.pongTimer)
+    this.heartbeat = null
+    this.pongTimer = null
+  }
+
+  private onConnectionDown(): void {
+    if (this.closed) return
+    const wasConnecting = this.state === 'connecting'
+    const reason: VulcanResult = wasConnecting
+      ? this.helloError
+        ? { ok: false, error: this.helloError }
+        : err(
+            'HANDSHAKE_CLOSED',
+            `could not establish the VULCAN handshake on 127.0.0.1:${this.port}`,
+            `${INSTANCE_HINT}; addon installed + enabled? (vulcan_install)`,
+          )
+      : err('CONNECTION_LOST', 'the editor connection dropped mid-flight', 'retry — the client reconnects on the next call')
+    this.teardown(reason)
+    this.backoffUntil = Date.now() + this.backoffMs
+    this.backoffMs = Math.min(this.backoffMs * 2, this.backoffCapMs)
+  }
+
+  private teardown(reason: VulcanResult): void {
+    if (this.reachedInstance) reason = { ...reason, instance: this.reachedInstance }
+    this.reachedInstance = undefined
+    this.clearHeartbeat()
+    const socket = this.socket
+    this.socket = null
+    this.state = 'disconnected'
+    this.buf = ''
+    if (socket) {
+      socket.removeAllListeners()
+      socket.destroy()
+    }
+    for (const [, p] of this.pending) {
+      stopTimeout(p.timer)
+      p.resolve(reason)
+    }
+    this.pending.clear()
+    for (const q of this.queue.splice(0)) {
+      if (q.queueTimer) stopTimeout(q.queueTimer)
+      q.resolve(reason)
+    }
+  }
+}
+
+function onFrameOf(this: VulcanClient, frame: Record<string, unknown>): void {
+  if (this.state === 'connecting') {
+    if (this.helloTimer) {
+      stopTimeout(this.helloTimer)
+      this.helloTimer = null
+    }
+    if (frame.ok === true) {
+      const reached = parseVulcanInstance(frame.instance)
+      if (!reached || reached.port !== this.port || (this.expectedInstance && !sameVulcanInstance(reached, this.expectedInstance))) {
+        this.helloError = { code: 'INSTANCE_MISMATCH', message: 'the hello did not identify the selected Godot instance; no operation was sent' }
+        this.socket?.destroy()
+        return
+      }
+      this.reachedInstance = reached ?? undefined
+      this.state = 'ready'
+      this.backoffMs = this.backoffStartMs
+      this.backoffUntil = 0
+      this.armHeartbeat()
+      const queued = this.queue.splice(0)
+      for (const q of queued) {
+        if (q.queueTimer) stopTimeout(q.queueTimer)
+        void this.send(q.op, q.args, q.timeoutMs).then(q.resolve)
+      }
+    } else {
+      const e = (frame as { error?: VulcanError }).error
+      this.helloError = e ?? { code: 'AUTH_FAILED', message: 'handshake refused' }
+    }
+    return
+  }
+  if (typeof frame.id === 'number' && this.pending.has(frame.id)) {
+    const p = this.pending.get(frame.id)!
+    this.pending.delete(frame.id)
+    stopTimeout(p.timer)
+    const actual = parseVulcanInstance(frame.instance)
+    const via = parseVulcanInstance(frame.via)
+    const expected = this.expectedInstance ?? this.reachedInstance
+    if (!expected || !actual || (!sameVulcanInstance(actual, expected) && (!via || !sameVulcanInstance(via, expected)))) {
+      p.resolve(err('INSTANCE_MISMATCH', 'the response did not identify the selected Godot instance'))
+      this.socket?.destroy()
+      return
+    }
+    const identity = { ...(actual ? { instance: actual } : {}), ...(via ? { via } : {}) }
+    if (frame.ok === true) p.resolve({ ok: true, result: (frame as { result?: unknown }).result, ...identity })
+    else {
+      const e = (frame as { error?: VulcanError }).error
+      p.resolve({
+        ok: false,
+        error: e ?? { code: 'BAD_FRAME', message: 'error frame without error body' },
+        ...identity,
+      })
+    }
+    return
+  }
+  if (typeof frame.event === 'string') {
+    const instance = parseVulcanInstance(frame.instance)
+    const via = parseVulcanInstance(frame.via)
+    this.events.push({ event: frame.event, data: (frame as { data?: unknown }).data, at: Date.now(), ...(instance ? { instance } : {}), ...(via ? { via } : {}) })
+    if (this.events.length > MAX_EVENTS) this.events.splice(0, this.events.length - MAX_EVENTS)
+  }
+}
+
+const clients = new Map<string, VulcanClient>()
+
+function clientFor(instance: VulcanInstance): VulcanClient {
+  const key = JSON.stringify(instance)
+  const existing = clients.get(key)
+  if (existing) return existing
+  const client = new VulcanClient({ port: instance.port, token: readVulcanInstanceToken(instance), instance })
+  if (clients.size >= 64) {
+    const oldest = clients.keys().next().value
+    if (oldest !== undefined) { clients.get(oldest)?.close(); clients.delete(oldest) }
+  }
+  clients.set(key, client)
+  return client
+}
+
+type VulcanClientResolution =
+  | { ok: true; client: VulcanClient }
+  | { ok: false; reason: 'disabled' | 'no-project' | 'not-found' | 'ambiguous' | 'bad-selector' | 'unreadable'; message: string }
+
+function selectorIdOf(selector: unknown): string | undefined {
+  if (typeof selector === 'string' && /^[a-f0-9]{32}$/.test(selector)) return selector
+  if (selector && typeof selector === 'object' && !Array.isArray(selector)) {
+    const id = (selector as Record<string, unknown>).id
+    if (typeof id === 'string' && /^[a-f0-9]{32}$/.test(id)) return id
+  }
+  return undefined
+}
+
+export function resolveVulcanClient(projectRoot?: string, selector?: unknown): VulcanClientResolution {
+  if (!vulcanEnabled()) return { ok: false, reason: 'disabled', message: 'VULCAN is disabled' }
+  const root = projectRoot ?? findGodotProjectRoot()
+  if (!root) return { ok: false, reason: 'no-project', message: 'no project.godot found' }
+  const selected = selectVulcanInstance(root, selector)
+  if (!selected.ok) {
+    if (selected.error.code === 'INSTANCE_NOT_FOUND') {
+      const scan = scanVulcanInstances(root)
+      if (scan.unreadable.length > 0) {
+        const wanted = selectorIdOf(selector)
+        const hit = (wanted ? scan.unreadable.find(u => path.basename(u.path) === wanted) : undefined) ?? scan.unreadable[0]!
+        return { ok: false, reason: 'unreadable', message: formatUnreadableVulcanInstance(hit.path, hit.error) }
+      }
+      return { ok: false, reason: 'not-found', message: selected.error.message }
+    }
+    return {
+      ok: false,
+      reason: selected.error.code === 'INSTANCE_AMBIGUOUS' ? 'ambiguous' : 'bad-selector',
+      message: selected.error.message,
+    }
+  }
+  try {
+    return { ok: true, client: clientFor(selected.instance) }
+  } catch (error) {
+    passedOver(error)
+    const instPath = vulcanInstanceDir(selected.instance.projectRoot, selected.instance.id)
+    const msg = error instanceof Error ? error.message : String(error)
+    return { ok: false, reason: 'unreadable', message: formatUnreadableVulcanInstance(instPath, msg) }
+  }
+}
+
+export function getVulcanClient(projectRoot?: string, selector?: unknown): VulcanClient | null {
+  const resolved = resolveVulcanClient(projectRoot, selector)
+  return resolved.ok ? resolved.client : null
+}
+
+export async function requestVulcanInstance(root: string, op: string, args: Record<string, unknown> = {}, timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS): Promise<VulcanResult> {
+  const selected = selectVulcanInstance(root, args.instance, op.startsWith('engine_') ? ['headless-worker', 'native-worker'] : ['agent-editor'])
+  if (!selected.ok) return selected
+  try {
+    const { instance: _selector, ...wireArgs } = args
+    return await clientFor(selected.instance).request(op, wireArgs, timeoutMs)
+  } catch {
+    return err('INSTANCE_CREDENTIALS', 'the selected instance credentials are unavailable or not private')
+  }
+}
+
+export function resetVulcanClientForTest(): void {
+  for (const client of clients.values()) client.close()
+  clients.clear()
+}

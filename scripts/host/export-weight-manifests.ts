@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { HOST_RECIPES } from '../../src/services/host/recipes.ts'
+import { HOST_RECIPES } from '../../src/models/hosting/recipes.ts'
 
 type TreeFile = { type: string; path: string; size: number; oid: string; lfs?: { oid: string } }
 type Manifest = { model: string; include: string; revision: string; readAt: string; source: string; files: { path: string; size: number; sha256?: string; git?: string }[] }

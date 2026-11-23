@@ -10,8 +10,8 @@ import {
   rowLabel,
   rowProject,
   type SessionPickerFacts,
-} from '../../src/components/mercury-ui/screens/sessionPickerModel.js'
-import type { SessionListing } from '../../src/types/logs.js'
+} from '../../src/screen/widgets/faces/sessionPickerModel.js'
+import type { SessionListing } from '../../src/sessions/transcripts/transcriptEntries.js'
 
 const t = checker()
 

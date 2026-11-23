@@ -1,9 +1,9 @@
-import { flagEnv } from '../../substrate/flagRegistry.js'
-import type { EffortLevel } from '../../utils/effortLadder.js'
-import { parseUserSpecifiedModel, type ModelSetting } from '../../services/model/model.js'
-import { displayConfigHome, getMercuryHome } from '../../utils/envUtils.js'
-import { compatModelEndpoint } from '../../services/providers/openaicompat/compatAccounts.js'
-import { getInitialSettings, getSettingsWriteFilePathForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
+import { flagEnv } from '../../platform/substrate/flagRegistry.js'
+import type { EffortLevel } from '../../models/effort/effortLadder.js'
+import { parseUserSpecifiedModel, type ModelSetting } from '../../models/catalogue/engineModel.js'
+import { displayConfigHome, getMercuryHome } from '../../platform/environment/envUtils.js'
+import { compatModelEndpoint } from '../../models/roads/openaicompat/compatAccounts.js'
+import { getInitialSettings, getSettingsWriteFilePathForSource, updateSettingsForSource } from '../../platform/settings/settings.js'
 
 type ModelChoiceOutcome = 'saved' | 'session' | 'overridden' | 'refused' | 'cleared' | 'unchanged'
 

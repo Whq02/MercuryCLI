@@ -30,13 +30,13 @@ for (const name of Object.keys(process.env)) {
   if ((name.startsWith('MERCURY_') && !['MERCURY_CONFIG_DIR', 'MERCURY_CREDENTIAL_STORE', 'MERCURY_DESKTOP_DRIVER'].includes(name)) || name === 'NODE_COMPILE_CACHE' || name === 'NODE_PATH' || name === 'MHOME') delete process.env[name]
 }
 
-const stamps = await import('../../src/substrate/envStamps.ts')
+const stamps = await import('../../src/platform/substrate/envStamps.ts')
 const { sessionEnvStamps, scrubSessionEnvStamps, stampSpawnReceipt, spawnSelfStamped, recordOwnEnvWrite, resetOwnEnvWritesForTesting, LAUNCHER_STAMPS, COMPILE_CACHE_ENV } = stamps
 
 tally.section('§1 the config home a daemon stamped, the cache lever and the launchers\' scratch are the session\'s own')
 const home = join(scratch, 'home')
 const pack = join(scratch, 'pack', 'node_modules')
-const { getMercuryHome } = await import('../../src/utils/envUtils.ts')
+const { getMercuryHome } = await import('../../src/platform/environment/envUtils.ts')
 const proofHome = process.env.MERCURY_CONFIG_DIR
 const pinHome = (dir: string | undefined): void => {
   if (dir === undefined) delete process.env.MERCURY_CONFIG_DIR
@@ -104,7 +104,7 @@ writeFileSync(dumper, `import { writeFileSync } from 'node:fs'\nimport { join } 
 const savedHome = process.env.MERCURY_CONFIG_DIR
 process.env.MERCURY_CONFIG_DIR = ownedHome
 getMercuryHome.cache.clear()
-const { spawnOwnedDaemon } = await import('../../src/daemon/ownedDaemon.ts')
+const { spawnOwnedDaemon } = await import('../../src/daemon/control/ownedDaemon.ts')
 const waitFor = async (path: string, ms: number): Promise<boolean> => {
   const until = Date.now() + ms
   while (Date.now() < until) {

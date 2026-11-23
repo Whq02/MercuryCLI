@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/daemon/concourseWorkers.ts src/daemon/warmRunner.ts src/utils/projectStoreIdentity.ts src/utils/directoryIdentity.ts
-// gate-watch: src/services/concourse/projectActivity.ts src/utils/bootCardFacts.ts src/utils/config/globalConfig.ts scripts/lib/seatDoor.ts
+// gate-watch: src/daemon/concourse-workers/concourseWorkers.ts src/daemon/runner-link/warmRunner.ts src/platform/storage/projectStoreIdentity.ts src/daemon/control/directoryIdentity.ts
+// gate-watch: src/screen/concourse-model/projectActivity.ts src/screen/boot-face/bootCardFacts.ts src/platform/config/globalConfig.ts scripts/lib/seatDoor.ts
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -17,13 +17,13 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_WARM_RUNNER
 writeFileSync(join(HOME, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: 'sk-ant-oat01-fixture', refreshToken: 'sk-ant-ort01-fixture', expiresAt: Date.now() + 3600_000, scopes: ['user:inference'], subscriptionType: 'max' } }))
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
-const workers = await import('../../src/daemon/concourseWorkers.ts')
-const warm = await import('../../src/daemon/warmRunner.ts')
-const { projectActivity } = await import('../../src/services/concourse/projectActivity.ts')
-const { projectIdentity } = await import('../../src/utils/bootCardFacts.ts')
+const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const warm = await import('../../src/daemon/runner-link/warmRunner.ts')
+const { projectActivity } = await import('../../src/screen/concourse-model/projectActivity.ts')
+const { projectIdentity } = await import('../../src/screen/boot-face/bootCardFacts.ts')
 const { standInRunner } = await import('../lib/seatDoor.ts')
 type Spec = ReturnType<typeof workers.buildConcourseWorkerSpec>
 class Roster {
@@ -52,10 +52,10 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   const hint = label.startsWith('C')
-    ? 'change: ensureWarmRunner or claimWarmRunner in src/daemon/warmRunner.ts must key the pool on canonicalWorkspaceId (src/daemon/concourseWorkers/admission.ts)'
+    ? 'change: ensureWarmRunner or claimWarmRunner in src/daemon/runner-link/warmRunner.ts must key the pool on canonicalWorkspaceId (src/daemon/concourse-workers/admission.ts)'
     : label.startsWith('B')
-      ? 'change: the workspace id projection of stored worker records (readSessionWorkers and listConcourseWorkers, src/daemon/concourseWorkers/settle.ts) or projectActivity in src/services/concourse/projectActivity.ts'
-      : 'change: canonicalWorkspaceId in src/daemon/concourseWorkers/admission.ts'
+      ? 'change: the workspace id projection of stored worker records (readSessionWorkers and listConcourseWorkers, src/daemon/concourse-workers/settle.ts) or projectActivity in src/screen/concourse-model/projectActivity.ts'
+      : 'change: canonicalWorkspaceId in src/daemon/concourse-workers/admission.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${[detail, hint].filter(Boolean).join(' | ')}` : ''}`)
 }
 const roster = new Roster()

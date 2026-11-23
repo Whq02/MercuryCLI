@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { Message } from '../../src/types/message.js'
+import type { Message } from '../../src/engine/message-shapes/message.js'
 
 export const thought = 'private reasoning must never leave this record'
 export const longResult = 'R'.repeat(10_000)
@@ -12,14 +12,14 @@ export async function exportFixture(extra = '') {
   const scratch = mkdtempSync(join(tmpdir(), 'export-proof-'))
   process.env.MERCURY_CONFIG_DIR = scratch
   process.env.MERCURY_CREDENTIAL_STORE = 'file'
-  const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.js')
+  const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.js')
   for (const key of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[key]
   process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
-  const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-  const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
+  const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+  const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.js')
   const base = noSessionConnector()
   setFocusedSessionConnector({
     ...base,

@@ -10,15 +10,15 @@ process.env.MERCURY_MCP_STDIO_MESSAGE_MB = '2'
 process.env.MERCURY_MCP_OUTPUT_TOKENS = '1000000'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { connectToServer, callMCPToolWithUrlElicitationRetry, clearServerCache, mcpStdioMaxMessageBytes, DEFAULT_MCP_STDIO_MESSAGE_MB } = await import('../../src/services/mcp/client.ts')
+const { connectToServer, callMCPToolWithUrlElicitationRetry, clearServerCache, mcpStdioMaxMessageBytes, DEFAULT_MCP_STDIO_MESSAGE_MB } = await import('../../src/integrations/mcp/client.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | change the stdio message limit (mcpStdioMaxMessageBytes, connectToServer, callMCPToolWithUrlElicitationRetry) in src/services/mcp/client.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | change the stdio message limit (mcpStdioMaxMessageBytes, connectToServer, callMCPToolWithUrlElicitationRetry) in src/integrations/mcp/client.ts'}`)
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — stdio message limit prover exceeded 90s; look for a hang in connectToServer or the call path in src/services/mcp/client.ts')
+  console.log('\nTIMEOUT — stdio message limit prover exceeded 90s; look for a hang in connectToServer or the call path in src/integrations/mcp/client.ts')
   process.exit(1)
 }, 90_000)
 watchdog.unref?.()
@@ -46,8 +46,8 @@ rl.on('line', line => {
   send({ jsonrpc: '2.0', id: m.id, error: { code: -32601, message: 'Method not found' } })
 })
 `
-const config: import('../../src/utils/mcp/types.ts').ScopedMcpServerConfig = { type: 'stdio', scope: 'dynamic', command: process.execPath, args: ['-e', script] }
-const call = (connection: import('../../src/utils/mcp/types.ts').MCPServerConnection, mb: number) =>
+const config: import('../../src/integrations/mcp-shapes/mcpServerRecords.ts').ScopedMcpServerConfig = { type: 'stdio', scope: 'dynamic', command: process.execPath, args: ['-e', script] }
+const call = (connection: import('../../src/integrations/mcp-shapes/mcpServerRecords.ts').MCPServerConnection, mb: number) =>
   callMCPToolWithUrlElicitationRetry({ client: connection, tool: 'echo', args: { mb }, signal: new AbortController().signal })
     .then(result => ({ ok: true as const, length: JSON.stringify(result.content).length }), (error: Error) => ({ ok: false as const, message: error.message }))
 

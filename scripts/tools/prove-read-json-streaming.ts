@@ -20,14 +20,14 @@ if (!given) {
   process.env.MERCURY_BARE = '1'
   mkdirSync(join(given, 'tmp'), { recursive: true })
   const src = process.env.PROVE_SRC ?? resolve(dirname(script), '../../src')
-  const { setCwdState, setOriginalCwd } = await import(`${src}/bootstrap/state.ts`)
+  const { setCwdState, setOriginalCwd } = await import(`${src}/boot/process-state/processState.ts`)
   setCwdState(given); setOriginalCwd(given)
-  const { FileReadTool } = await import(`${src}/tools/FileReadTool/FileReadTool.ts`)
-  const { getEmptyToolPermissionContext } = await import(`${src}/Tool.ts`)
-  const { createFileStateCacheWithSizeLimit } = await import(`${src}/utils/fileStateCache.ts`)
-  const { runJsonQuery } = await import(`${src}/tools/FileReadTool/jsonQueryRuntime.ts`)
+  const { FileReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
+  const { getEmptyToolPermissionContext } = await import(`${src}/tools/kit/tool.ts`)
+  const { createFileStateCacheWithSizeLimit } = await import(`${src}/platform/files/fileStateCache.ts`)
+  const { runJsonQuery } = await import(`${src}/tools/read/jsonQueryRuntime.ts`)
   let passed = 0, failed = 0
-  const streamFixHint = ' | fix: the source-lines bracket and the page answer are built in src/tools/FileReadTool/readJson.ts (readJson); the streaming engine run, byte counts and memory bound are runJsonQuery in src/tools/FileReadTool/jsonQueryRuntime.ts'
+  const streamFixHint = ' | fix: the source-lines bracket and the page answer are built in src/tools/read/readJson.ts (readJson); the streaming engine run, byte counts and memory bound are runJsonQuery in src/tools/read/jsonQueryRuntime.ts'
   const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${detail.slice(0, 1000)}${streamFixHint}`}`) }
   const context = () => ({ messages: [], readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) })
   const read = async (file_path: string, maxTokens?: number) => {

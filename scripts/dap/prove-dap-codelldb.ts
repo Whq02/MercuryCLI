@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { CanUseToolFn, ToolUseContext } from '../../src/Tool.js'
-import type { AssistantMessage } from '../../src/types/message.js'
+import type { CanUseToolFn, ToolUseContext } from '../../src/tools/kit/tool.js'
+import type { AssistantMessage } from '../../src/engine/message-shapes/message.js'
 
 const scratch = mkdtempSync(join(tmpdir(), 'dap-codelldb-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
@@ -16,19 +16,19 @@ const savedPath = process.env.PATH
 const savedFetch = globalThis.fetch
 let failures = 0
 function check(label: string, passed: boolean): void {
-  console.log(`${passed ? 'PASS' : 'FAIL'} ${label}${passed ? '' : ' — change: adapter lookup and the install hint are resolveAdapter and dormantBuiltinAdapterHints in src/services/dap/dapClient.ts; the pinned download plan and install are optionalAdapterPlan and installOptionalAdapter in src/services/dap/optionalAdapters.ts; the consent step is provisionDebugAdapter in src/services/dap/adapterInstallConsent.ts; the adapter named for a Cargo binary comes from DebugTool.checkPermissions in src/tools/DebugTool/DebugTool.ts'}`)
+  console.log(`${passed ? 'PASS' : 'FAIL'} ${label}${passed ? '' : ' — change: adapter lookup and the install hint are resolveAdapter and dormantBuiltinAdapterHints in src/integrations/debugger/dapClient.ts; the pinned download plan and install are optionalAdapterPlan and installOptionalAdapter in src/integrations/debugger/optionalAdapters.ts; the consent step is provisionDebugAdapter in src/integrations/debugger/adapterInstallConsent.ts; the adapter named for a Cargo binary comes from DebugTool.checkPermissions in src/tools/debug/DebugTool.ts'}`)
   if (!passed) failures++
 }
 try {
   const bin = join(scratch, 'bin')
   mkdirSync(bin)
   process.env.PATH = bin
-  const { resolveAdapter, dormantBuiltinAdapterHints } = await import('../../src/services/dap/dapClient.js')
-  const { optionalAdapterPlan, installOptionalAdapter, installedOptionalAdapter } = await import('../../src/services/dap/optionalAdapters.js')
-  const { provisionDebugAdapter } = await import('../../src/services/dap/adapterInstallConsent.js')
-  const { installPermission } = await import('../../src/extensions/installConsent.js')
-  const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
-  const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+  const { resolveAdapter, dormantBuiltinAdapterHints } = await import('../../src/integrations/debugger/dapClient.js')
+  const { optionalAdapterPlan, installOptionalAdapter, installedOptionalAdapter } = await import('../../src/integrations/debugger/optionalAdapters.js')
+  const { provisionDebugAdapter } = await import('../../src/integrations/debugger/adapterInstallConsent.js')
+  const { installPermission } = await import('../../src/integrations/extensions/installConsent.js')
+  const { DebugTool } = await import('../../src/tools/debug/DebugTool.js')
+  const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
   const inferred = async (program: string) => {
     const result = await DebugTool.checkPermissions({ op: 'launch', program } as never, {} as never)
     return 'message' in result ? result.message : ''
@@ -68,7 +68,7 @@ try {
   context.options.isNonInteractiveSession = false
   await provisionDebugAdapter('codelldb', DebugTool, { op: 'launch', adapter: 'codelldb', program }, context, deny, {} as AssistantMessage)
   check('refused consent never fetches', asks === 1 && fetches === 0 && !existsSync(plan.destination))
-  await assert.rejects(() => installOptionalAdapter(plan, { authorize: async () => true }), /Size or SHA-256 mismatch/, 'installOptionalAdapter in src/services/dap/optionalAdapters.ts must reject a download whose size or SHA-256 does not match the plan with a Size or SHA-256 mismatch error')
+  await assert.rejects(() => installOptionalAdapter(plan, { authorize: async () => true }), /Size or SHA-256 mismatch/, 'installOptionalAdapter in src/integrations/debugger/optionalAdapters.ts must reject a download whose size or SHA-256 does not match the plan with a Size or SHA-256 mismatch error')
   check('corrupt download never publishes a directory', !existsSync(plan.destination) && installedOptionalAdapter('codelldb') === null)
 } finally {
   process.env.PATH = savedPath

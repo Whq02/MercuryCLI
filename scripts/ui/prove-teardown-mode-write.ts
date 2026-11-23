@@ -52,24 +52,24 @@ const sink = (): Writable => new Writable({ write(_c, _e, cb) { cb() } })
 
 section('§1 streamTakesWrites — the one predicate, pure')
 {
-  const { streamTakesWrites } = await import('../../src/ink/session/delivery.js')
-  check('a stream with no verdict flags takes writes', streamTakesWrites({}), 'streamTakesWrites in src/ink/session/delivery.ts must return true when no destroyed, writableEnded or writable:false flag is set')
-  check('a live Writable takes writes', streamTakesWrites(sink()), 'streamTakesWrites in src/ink/session/delivery.ts must return true for a live Writable')
-  check('destroyed ⇒ no', !streamTakesWrites({ destroyed: true }), 'streamTakesWrites in src/ink/session/delivery.ts must return false when destroyed is true')
-  check('ended ⇒ no', !streamTakesWrites({ writableEnded: true }), 'streamTakesWrites in src/ink/session/delivery.ts must return false when writableEnded is true')
-  check('unwritable ⇒ no', !streamTakesWrites({ writable: false }), 'streamTakesWrites in src/ink/session/delivery.ts must return false when writable is false')
+  const { streamTakesWrites } = await import('../../src/screen/renderer/terminal-session/frameDelivery.js')
+  check('a stream with no verdict flags takes writes', streamTakesWrites({}), 'streamTakesWrites in src/screen/renderer/terminal-session/frameDelivery.ts must return true when no destroyed, writableEnded or writable:false flag is set')
+  check('a live Writable takes writes', streamTakesWrites(sink()), 'streamTakesWrites in src/screen/renderer/terminal-session/frameDelivery.ts must return true for a live Writable')
+  check('destroyed ⇒ no', !streamTakesWrites({ destroyed: true }), 'streamTakesWrites in src/screen/renderer/terminal-session/frameDelivery.ts must return false when destroyed is true')
+  check('ended ⇒ no', !streamTakesWrites({ writableEnded: true }), 'streamTakesWrites in src/screen/renderer/terminal-session/frameDelivery.ts must return false when writableEnded is true')
+  check('unwritable ⇒ no', !streamTakesWrites({ writable: false }), 'streamTakesWrites in src/screen/renderer/terminal-session/frameDelivery.ts must return false when writable is false')
   const ended = sink()
   ended.end()
-  check('a Writable after end() ⇒ no', !streamTakesWrites(ended), 'streamTakesWrites in src/ink/session/delivery.ts must return false for a Writable after end() (writableEnded)')
+  check('a Writable after end() ⇒ no', !streamTakesWrites(ended), 'streamTakesWrites in src/screen/renderer/terminal-session/frameDelivery.ts must return false for a Writable after end() (writableEnded)')
   const destroyed = sink()
   destroyed.destroy()
-  check('a Writable after destroy() ⇒ no', !streamTakesWrites(destroyed), 'streamTakesWrites in src/ink/session/delivery.ts must return false for a Writable after destroy()')
+  check('a Writable after destroy() ⇒ no', !streamTakesWrites(destroyed), 'streamTakesWrites in src/screen/renderer/terminal-session/frameDelivery.ts must return false for a Writable after destroy()')
 }
 
 const React = await import('react')
-const { render, Text, useInput } = await import('../../src/ink.js')
-const instances = (await import('../../src/ink/instances.js')).default
-const { EBP, EFE } = await import('../../src/ink/termio/dec.js')
+const { render, Text, useInput } = await import('../../src/screen/themedRenderer.js')
+const instances = (await import('../../src/screen/renderer/instances.js')).default
+const { EBP, EFE } = await import('../../src/screen/renderer/termio/dec.js')
 const h = React.createElement as (...a: unknown[]) => React.ReactElement
 const isModeWrite = (w: string): boolean => w.includes(EBP) || w.includes(EFE)
 function Listener(): React.ReactNode {
@@ -89,20 +89,20 @@ section('§2 the reassert against a torn-down stdout, live')
   const { stdout, spy } = fakeTty()
   await mount(stdout, fakeStdin())
   const ink = instances.get(stdout)
-  check('the runtime registers the instance under its stdout', ink !== undefined, 'render in src/ink/root.ts must register the Ink instance in the instances map keyed by the stdout it was given')
-  check('the raw-mode arm wrote the mode bytes at mount (the harness sees mode writes)', spy.writes.some(isModeWrite), 'the raw-mode arm at mount must write the EBP/EFE mode bytes (built in src/ink/root/screen-session.ts) to stdout; if this fails the harness cannot see mode writes and every later check here is void')
+  check('the runtime registers the instance under its stdout', ink !== undefined, 'render in src/screen/renderer/root.ts must register the Ink instance in the instances map keyed by the stdout it was given')
+  check('the raw-mode arm wrote the mode bytes at mount (the harness sees mode writes)', spy.writes.some(isModeWrite), 'the raw-mode arm at mount must write the EBP/EFE mode bytes (built in src/screen/renderer/root/screen-session.ts) to stdout; if this fails the harness cannot see mode writes and every later check here is void')
   if (ink) {
     spy.writes.length = 0
     ink.reassertTerminalModes()
     await settle(20)
-    check('control: a healthy stdout takes the reassert', spy.writes.some(isModeWrite), 'reassertTerminalModes in src/ink/ink/alt-screen.ts must write the mode bytes to a healthy TTY stdout')
+    check('control: a healthy stdout takes the reassert', spy.writes.some(isModeWrite), 'reassertTerminalModes in src/screen/renderer/instance/alt-screen.ts must write the mode bytes to a healthy TTY stdout')
 
     Object.defineProperty(stdout, 'destroyed', { value: true, configurable: true })
     spy.writes.length = 0
     ink.reassertTerminalModes()
     ink.reassertTerminalModes(true)
     await settle(20)
-    check('a destroyed stdout takes no mode bytes (the plain and the alt-re-entry arms)', !spy.writes.some(isModeWrite), `${spy.writes.filter(isModeWrite).length} mode writes; reassertTerminalModes in src/ink/ink/alt-screen.ts must write nothing once streamTakesWrites(stdout) is false`)
+    check('a destroyed stdout takes no mode bytes (the plain and the alt-re-entry arms)', !spy.writes.some(isModeWrite), `${spy.writes.filter(isModeWrite).length} mode writes; reassertTerminalModes in src/screen/renderer/instance/alt-screen.ts must write nothing once streamTakesWrites(stdout) is false`)
 
     Object.defineProperty(stdout, 'destroyed', { value: false, configurable: true })
     Object.defineProperty(stdout, 'writable', { value: false, configurable: true })
@@ -115,7 +115,7 @@ section('§2 the reassert against a torn-down stdout, live')
     spy.writes.length = 0
     ink.reassertTerminalModes()
     await settle(20)
-    check('the same stdout, writable again, takes the reassert (the guard reads the stream, never a latch)', spy.writes.some(isModeWrite), 'reassertTerminalModes in src/ink/ink/alt-screen.ts must ask streamTakesWrites on every call, not remember an earlier refusal')
+    check('the same stdout, writable again, takes the reassert (the guard reads the stream, never a latch)', spy.writes.some(isModeWrite), 'reassertTerminalModes in src/screen/renderer/instance/alt-screen.ts must ask streamTakesWrites on every call, not remember an earlier refusal')
     check('no stream error was raised', spy.errors.length === 0, spy.errors.join(' | '))
   }
 }
@@ -147,7 +147,7 @@ section('§4 the built artifact under a PTY that hangs up after the quiet spell'
   check('dist/mercury.mjs is built (this leg drives the artifact)', existsSync(BIN))
   check('a capture driver is available', driver.kind !== 'unavailable', driver.kind === 'unavailable' ? driver.reason : '')
   if (existsSync(BIN) && driver.kind !== 'unavailable') {
-    const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.js')
+    const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.js')
     const { encodeSeedTranscript } = await import('../lib/seedTranscript.js')
     const { seedFirstRun } = await import('../lib/firstRunSeed.js')
     const SID = '00000000-aaaa-bbbb-cccc-e10e10e10e10'

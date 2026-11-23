@@ -10,9 +10,9 @@ process.env.MERCURY_CONFIG_DIR = join(root, 'home')
 process.env.MERCURY_BARE = '1'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const src = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { FileReadTool } = await import(`${src}/tools/FileReadTool/FileReadTool.ts`)
-const { getEmptyToolPermissionContext } = await import(`${src}/Tool.ts`)
-const { createFileStateCacheWithSizeLimit } = await import(`${src}/utils/fileStateCache.ts`)
+const { FileReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
+const { getEmptyToolPermissionContext } = await import(`${src}/tools/kit/tool.ts`)
+const { createFileStateCacheWithSizeLimit } = await import(`${src}/platform/files/fileStateCache.ts`)
 const context = (model: string) => ({ options: { engineModel: model }, readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), messages: [], getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) })
 async function read(input: object, model = 'glm-5.3') {
   const ctx = context(model)
@@ -29,13 +29,13 @@ try {
     assert.match(r.data.file.content, /--- page 1 ---/)
     assert.match(r.data.file.content, /Mercury\t42/)
     assert.equal(r.data.file.numLines, 4)
-    assert.ok(!r.newMessages?.some((m: any) => JSON.stringify(m).includes('"type":"document"')), `FileReadTool(${model}) with offset/limit unexpectedly attached raw PDF document block in src/tools/FileReadTool/FileReadTool.ts`)
+    assert.ok(!r.newMessages?.some((m: any) => JSON.stringify(m).includes('"type":"document"')), `FileReadTool(${model}) with offset/limit unexpectedly attached raw PDF document block in src/tools/read/ReadTool.ts`)
   }
   const selected = await read({ file_path: path, pages: '200' })
   assert.match(selected.data.file.content, /--- page 200 ---\nResearch page 200/)
   const tail = await read({ file_path: path, offset: -2 })
   assert.match(tail.data.file.content, /Research page 200/)
-  const { extractPdfText, parsePdfText } = await import(`${src}/utils/pdfText.ts`)
+  const { extractPdfText, parsePdfText } = await import(`${src}/tools/kit/pdfText.ts`)
   const a = await extractPdfText(path)
   const b = await extractPdfText(path)
   assert.deepEqual(a, b)

@@ -8,19 +8,19 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  const fixHint = 'fix: step execution, cleanup and settling are in runJourney and cancelJourney in src/services/journeys/runner.ts; the description and step schema are in src/tools/JourneyTool/JourneyTool.ts'
+  const fixHint = 'fix: step execution, cleanup and settling are in runJourney and cancelJourney in src/tools/engines/journeys/runner.ts; the description and step schema are in src/tools/journey/JourneyTool.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${fixHint}` : ''}`)
 }
 
 const { runJourney, cancelJourney, _resetJourneysForTesting } = await import(
-  '../../src/services/journeys/runner.ts'
+  '../../src/tools/engines/journeys/runner.ts'
 )
-const { getExecution } = await import('../../src/utils/primitives/executionPlane.ts')
+const { getExecution } = await import('../../src/engine/execution-plane/executionPlane.ts')
 const { evidenceFor, _resetEvidencePlaneForTesting } = await import(
-  '../../src/services/primitives/evidencePlane.ts'
+  '../../src/engine/runtime-kernel/evidencePlane.ts'
 )
-const { resolveResource } = await import('../../src/services/resources/registry.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { resolveResource } = await import('../../src/integrations/resources/registry.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 const owner = processMainOwner()
 const root = mkdtempSync(join(tmpdir(), 'builtin-tools-journeys-'))
@@ -60,8 +60,8 @@ const START_STEP = {
 
 try {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const { JourneyTool } = await import('../../src/tools/JourneyTool/JourneyTool.ts')
-  const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+  const { JourneyTool } = await import('../../src/tools/journey/JourneyTool.ts')
+  const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
   const words = await JourneyTool.prompt()
   const fields = (zodToJsonSchema(JourneyTool.inputSchema) as any).properties
   check('the description names evidence and first-failure behavior without repeating the step schema', words.includes('per-step evidence, cleanup outcome and a verdict') && words.includes('first failure skips remaining steps') && !/op:"|service\.start \{|Inspect/.test(words) && Buffer.byteLength(words) <= 250)

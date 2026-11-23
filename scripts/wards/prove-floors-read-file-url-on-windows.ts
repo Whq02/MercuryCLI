@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
-const FILE_URL_FAIL_HINT = 'fix: how src/utils/permissions/shellProtectedPaths.ts reads a file: URL naming a Windows drive path in shellMercurySecretPath (reads), shellCredentialWritePath (writes) and shellSelfProtectionReason (runtime files)'
+const FILE_URL_FAIL_HINT = 'fix: how src/permissions/rules/shellProtectedPaths.ts reads a file: URL naming a Windows drive path in shellMercurySecretPath (reads), shellCredentialWritePath (writes) and shellSelfProtectionReason (runtime files)'
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -33,9 +33,9 @@ process.env.MERCURY_CONFIG_DIR = STORE
 process.env.MERCURY_DAEMON_DIR = `${STORE}\\daemon`
 for (const key of ['MERCURY_HOME', 'MERCURY_WARDS', 'MERCURY_SPAWNED_BY', 'MERCURY_SKIP_PERMISSIONS']) delete process.env[key]
 
-const { getPlatform } = await import(join(SRC, 'utils/platform.ts'))
+const { getPlatform } = await import(join(SRC, 'platform/environment/platform.ts'))
 getPlatform.cache.set(undefined, 'windows')
-const floors = await import(join(SRC, 'utils/permissions/shellProtectedPaths.ts'))
+const floors = await import(join(SRC, 'permissions/rules/shellProtectedPaths.ts'))
 
 const readRefusal = (command: string): Promise<string | null> => floors.shellMercurySecretPath(command, false, PROJECT)
 const writeRefusal = (command: string): Promise<string | null> => floors.shellCredentialWritePath(command, false, PROJECT)

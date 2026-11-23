@@ -9,7 +9,7 @@ import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
 import stringWidth from 'string-width'
-import type { DOMElement, DOMNode } from '../../src/ink/dom.js'
+import type { DOMElement, DOMNode } from '../../src/screen/renderer/dom.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const name of Object.keys(process.env)) {
@@ -51,24 +51,24 @@ process.env.MERCURY_HUGGINGFACE_HUB_BASE = base
 process.env.MERCURY_HUGGINGFACE_API_BASE = `${base}/v1`
 process.env.MERCURY_GEMINI_API_BASE = `${base}/v1beta`
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 
 async function stub(path: string, fixture: () => Record<string, unknown>): Promise<void> {
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...fixture() }))
 }
-await stub('../../src/services/model/computedDefault.js', () => ({ recentSignIns: () => ['gemini', 'huggingface', 'anthropic', 'openai', 'moonshot', 'deepseek', 'zai', 'openrouter', 'openai-compat', 'local'].map(family => ({ family })) }))
-await stub('../../src/services/providers/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'absent', ids: [], reason: 'fixture' }) }))
-await stub('../../src/services/providers/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'catalogue not read in this proof' }) }))
-await stub('../../src/hooks/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
-await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
-await stub('../../src/services/providers/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined, refreshLocalDiscovery: async () => undefined }))
-await stub('../../src/components/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
-await stub('../../src/components/Settings/Settings.js', () => ({ nextSettingsOpen: (() => { let n = 0; return () => ++n })() }))
+await stub('../../src/models/catalogue/computedDefault.js', () => ({ recentSignIns: () => ['gemini', 'huggingface', 'anthropic', 'openai', 'moonshot', 'deepseek', 'zai', 'openrouter', 'openai-compat', 'local'].map(family => ({ family })) }))
+await stub('../../src/models/roads/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'absent', ids: [], reason: 'fixture' }) }))
+await stub('../../src/models/roads/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'catalogue not read in this proof' }) }))
+await stub('../../src/screen/model-picker/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
+await stub('../../src/screen/keys/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
+await stub('../../src/models/roads/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined, refreshLocalDiscovery: async () => undefined }))
+await stub('../../src/screen/keys/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
+await stub('../../src/screen/settings/Settings.js', () => ({ nextSettingsOpen: (() => { let n = 0; return () => ++n })() }))
 
-const geminiAccounts = await import('../../src/services/providers/gemini/geminiAccounts.js')
+const geminiAccounts = await import('../../src/models/roads/gemini/geminiAccounts.js')
 writeFileSync(
   geminiAccounts.geminiAuthPathForDisplay(),
   JSON.stringify({
@@ -79,20 +79,20 @@ writeFileSync(
   }) + '\n',
   { mode: 0o600 },
 )
-const hfAccounts = await import('../../src/services/providers/huggingface/huggingfaceAccounts.js')
+const hfAccounts = await import('../../src/models/roads/huggingface/huggingfaceAccounts.js')
 hfAccounts.writeHuggingfaceTokens(
   { accessToken: HF_ACCESS_TOKEN, refreshToken: 'hf_oauth_fixture_refresh', accessTokenExpiresAtMs: Date.now() + 8 * 3_600_000, scope: 'openid profile inference-api' },
   { username: 'fixture-user', fullName: 'Fixture User', observedAtMs: Date.now() },
 )
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.js')
 recordSignIn('gemini', 'oauth')
 recordSignIn('huggingface', 'oauth')
 
-const owner = await import('../../src/services/providers/providerUsage.js')
-const { JEV_USAGE_LABEL, Usage } = await import('../../src/components/Settings/Usage.js')
-const { Box, render, flushPendingSyncWork, EventEmitter } = await import('../../src/ink.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { default: squashText } = await import('../../src/ink/squash-text-nodes.js')
+const owner = await import('../../src/models/roads/providerUsage.js')
+const { JEV_USAGE_LABEL, Usage } = await import('../../src/screen/settings/Usage.js')
+const { Box, render, flushPendingSyncWork, EventEmitter } = await import('../../src/screen/themedRenderer.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { default: squashText } = await import('../../src/screen/renderer/squash-text-nodes.js')
 
 let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
@@ -141,9 +141,9 @@ section('§1 the owner before the tab: the Google sign-in and the Hugging Face s
 {
   const gm = owner.usageForProvider('gemini')
   const hf = owner.usageForProvider('huggingface')
-  check("gemini: the Google sign-in is the active source with the 'Google sign-in' tier and the one credits spelling", gm.sourceKind === 'oauth' && gm.tier === 'Google sign-in' && owner.usageCreditsLine(gm.credits) === `credits: ${owner.CREDITS_UNREPORTED_WORDS}`, JSON.stringify({ kind: gm.sourceKind, tier: gm.tier }) + ' — fix usageForProvider and usageCreditsLine in src/services/providers/providerUsage.ts so the Google sign-in is the oauth source with tier Google sign-in and the one credits spelling')
-  check("huggingface: the sign-in is the active source, unread — 'Hugging Face sign-in' — with the one credits spelling and no plan yet", hf.sourceKind === 'oauth' && hf.tier === 'Hugging Face sign-in' && owner.usageCreditsLine(hf.credits) === `credits: ${owner.CREDITS_UNREPORTED_WORDS}` && hf.figures === undefined, JSON.stringify({ kind: hf.sourceKind, tier: hf.tier, figures: hf.figures }) + ' — fix usageForProvider in src/services/providers/providerUsage.ts (the Hugging Face view is huggingfaceUsageView in src/services/providers/providerUsage/huggingface.ts) so the unread sign-in is oauth, tier Hugging Face sign-in, with no figures')
-  check('no road has been asked before a meter is shown', hits.length === 0, JSON.stringify(hits) + ' — usageForProvider in src/services/providers/providerUsage.ts must not call any road before the Usage tab is mounted')
+  check("gemini: the Google sign-in is the active source with the 'Google sign-in' tier and the one credits spelling", gm.sourceKind === 'oauth' && gm.tier === 'Google sign-in' && owner.usageCreditsLine(gm.credits) === `credits: ${owner.CREDITS_UNREPORTED_WORDS}`, JSON.stringify({ kind: gm.sourceKind, tier: gm.tier }) + ' — fix usageForProvider and usageCreditsLine in src/models/roads/providerUsage.ts so the Google sign-in is the oauth source with tier Google sign-in and the one credits spelling')
+  check("huggingface: the sign-in is the active source, unread — 'Hugging Face sign-in' — with the one credits spelling and no plan yet", hf.sourceKind === 'oauth' && hf.tier === 'Hugging Face sign-in' && owner.usageCreditsLine(hf.credits) === `credits: ${owner.CREDITS_UNREPORTED_WORDS}` && hf.figures === undefined, JSON.stringify({ kind: hf.sourceKind, tier: hf.tier, figures: hf.figures }) + ' — fix usageForProvider in src/models/roads/providerUsage.ts (the Hugging Face view is huggingfaceUsageView in src/models/roads/provider-usage/huggingface.ts) so the unread sign-in is oauth, tier Hugging Face sign-in, with no figures')
+  check('no road has been asked before a meter is shown', hits.length === 0, JSON.stringify(hits) + ' — usageForProvider in src/models/roads/providerUsage.ts must not call any road before the Usage tab is mounted')
 }
 
 const periodEnd = new Date(WHOAMI.user.periodEnd * 1000).toLocaleDateString()
@@ -154,27 +154,27 @@ for (const [width, columns] of [[80, 80], [120, 120]] as const) {
   const frame = board.frame()
   const runs = board.runs()
   const lines = frame.split('\n')
-  check(`${columns}: every provider mounts without an error`, !frame.includes('RENDER ERROR'), 'a provider section threw while painting; read the RENDER ERROR text in the frame and fix the section in src/components/Settings/usage/sections.tsx')
-  check(`${columns}: every painted line fits the body width`, lines.every(line => stringWidth(line) <= width), String(Math.max(...lines.map(line => stringWidth(line)))) + ' is the widest line; wrap or shorten the row that overflows in src/components/Settings/usage/lines.tsx')
+  check(`${columns}: every provider mounts without an error`, !frame.includes('RENDER ERROR'), 'a provider section threw while painting; read the RENDER ERROR text in the frame and fix the section in src/screen/settings/usage/sections.tsx')
+  check(`${columns}: every painted line fits the body width`, lines.every(line => stringWidth(line) <= width), String(Math.max(...lines.map(line => stringWidth(line)))) + ' is the widest line; wrap or shorten the row that overflows in src/screen/settings/usage/lines.tsx')
   const geminiAt = runs.indexOf('Gemini usage')
   const hfAt = runs.indexOf('Hugging Face usage')
-  check(`${columns}: the two signed-in families lead the board, the session's family first`, geminiAt >= 0 && hfAt >= 0 && geminiAt < 2 && geminiAt !== hfAt, `${geminiAt} ${hfAt} — the signed-in families must lead the board; fix orderUsageSections in src/components/Settings/usage/plan.ts`)
+  check(`${columns}: the two signed-in families lead the board, the session's family first`, geminiAt >= 0 && hfAt >= 0 && geminiAt < 2 && geminiAt !== hfAt, `${geminiAt} ${hfAt} — the signed-in families must lead the board; fix orderUsageSections in src/screen/settings/usage/plan.ts`)
   const geminiEnd = runs.findIndex((run, index) => index > geminiAt && /^[A-Z][A-Za-z. ]+ usage$/.test(run))
   const geminiRuns = runs.slice(geminiAt, geminiEnd === -1 ? undefined : geminiEnd)
   const googleSlot = geminiRuns.indexOf('Google account') + 1
-  check(`${columns}: the Gemini section carries its credits line right under its identity line, and the Google account slot carries none of its own`, geminiRuns[1] === 'Google account (OAuth)' && geminiRuns[2] === `credits: ${owner.CREDITS_UNREPORTED_WORDS}` && googleSlot > 0 && geminiRuns[googleSlot] === 'Google account (OAuth)' && !geminiRuns[googleSlot + 1]?.startsWith('This session') && geminiRuns[googleSlot + 1] !== `credits: ${owner.CREDITS_UNREPORTED_WORDS}`, JSON.stringify(geminiRuns.slice(0, 3).concat(geminiRuns.slice(googleSlot, googleSlot + 3))) + ' — the credits line belongs right under the identity line and nowhere in the slot; fix the credits line in src/components/Settings/usage/lines.tsx')
-  check(`${columns}: the Gemini absence line names what Google states (nothing) and the view`, geminiRuns.some(run => run.includes('no usage endpoint, no quota headers on its replies') && run.includes('Quotas page') && run.includes('Google AI Studio')), geminiRuns.join(' | ') + ' — the absence line is the words in src/services/providers/gemini/geminiUsageState.ts; restore them there or paint them in src/components/Settings/usage/sections.tsx')
-  check(`${columns}: the key slot of the Gemini section is absent and carries no credits line of its own`, geminiRuns.filter(run => run === `credits: ${owner.CREDITS_UNREPORTED_WORDS}`).length === 1, geminiRuns.join(' | ') + ' — the Gemini section must paint exactly one credits line, under its identity line; fix src/components/Settings/usage/lines.tsx')
+  check(`${columns}: the Gemini section carries its credits line right under its identity line, and the Google account slot carries none of its own`, geminiRuns[1] === 'Google account (OAuth)' && geminiRuns[2] === `credits: ${owner.CREDITS_UNREPORTED_WORDS}` && googleSlot > 0 && geminiRuns[googleSlot] === 'Google account (OAuth)' && !geminiRuns[googleSlot + 1]?.startsWith('This session') && geminiRuns[googleSlot + 1] !== `credits: ${owner.CREDITS_UNREPORTED_WORDS}`, JSON.stringify(geminiRuns.slice(0, 3).concat(geminiRuns.slice(googleSlot, googleSlot + 3))) + ' — the credits line belongs right under the identity line and nowhere in the slot; fix the credits line in src/screen/settings/usage/lines.tsx')
+  check(`${columns}: the Gemini absence line names what Google states (nothing) and the view`, geminiRuns.some(run => run.includes('no usage endpoint, no quota headers on its replies') && run.includes('Quotas page') && run.includes('Google AI Studio')), geminiRuns.join(' | ') + ' — the absence line is the words in src/models/roads/gemini/geminiUsageState.ts; restore them there or paint them in src/screen/settings/usage/sections.tsx')
+  check(`${columns}: the key slot of the Gemini section is absent and carries no credits line of its own`, geminiRuns.filter(run => run === `credits: ${owner.CREDITS_UNREPORTED_WORDS}`).length === 1, geminiRuns.join(' | ') + ' — the Gemini section must paint exactly one credits line, under its identity line; fix src/screen/settings/usage/lines.tsx')
   const nextHeading = runs.findIndex((run, index) => index > hfAt && /^[A-Z][A-Za-z. ]+ usage$/.test(run))
   const hfRuns = runs.slice(hfAt, nextHeading === -1 ? undefined : nextHeading)
   const signIn = hfRuns.indexOf('Hugging Face account (fixture-user)')
-  check(`${columns}: the Hugging Face section carries its credits line right under its identity line, and the sign-in slot carries none of its own`, hfRuns[1] === 'Signed in as fixture-user' && hfRuns[2] === `credits: ${owner.CREDITS_UNREPORTED_WORDS}` && signIn >= 0 && !hfRuns[signIn + 1]?.startsWith('This session') && hfRuns[signIn + 1] !== `credits: ${owner.CREDITS_UNREPORTED_WORDS}`, JSON.stringify(hfRuns.slice(0, 3).concat(hfRuns.slice(signIn, signIn + 3))) + ' — the credits line belongs right under the identity line and nowhere in the sign-in slot; fix the credits line in src/components/Settings/usage/lines.tsx')
+  check(`${columns}: the Hugging Face section carries its credits line right under its identity line, and the sign-in slot carries none of its own`, hfRuns[1] === 'Signed in as fixture-user' && hfRuns[2] === `credits: ${owner.CREDITS_UNREPORTED_WORDS}` && signIn >= 0 && !hfRuns[signIn + 1]?.startsWith('This session') && hfRuns[signIn + 1] !== `credits: ${owner.CREDITS_UNREPORTED_WORDS}`, JSON.stringify(hfRuns.slice(0, 3).concat(hfRuns.slice(signIn, signIn + 3))) + ' — the credits line belongs right under the identity line and nowhere in the sign-in slot; fix the credits line in src/screen/settings/usage/lines.tsx')
   const planRow = hfRuns.find(run => run.startsWith('PRO plan'))
-  check(`${columns}: the plan row is the Hub's stated plan with the period end and the read's feed + age`, planRow !== undefined && expectedPlanRow.test(planRow), (planRow ?? hfRuns.join(' | ')) + ' — the plan row is built by huggingfacePlanFigures in src/services/providers/providerUsage/huggingface.ts and painted by src/components/Settings/usage/lines.tsx')
-  check(`${columns}: the Hugging Face billing line names what whoami-v2 states, what it does not, and the billing page`, hfRuns.some(run => run.startsWith('Billing: no spend or credit API is documented') && run.includes('whoami-v2') && run.includes('not the credits used or left') && run.includes('huggingface.co/settings/billing')), hfRuns.join(' | ') + ' — the billing words live in src/services/providers/huggingface/huggingfaceUsageState.ts; restore them there')
-  check(`${columns}: exactly two credits lines on the board — one per OAuth sign-in — and never a stated balance`, runs.filter(run => run === `credits: ${owner.CREDITS_UNREPORTED_WORDS}`).length === 2 && !runs.some(run => /USD \d/.test(run)), runs.join(' | ') + ' — only the Gemini and Hugging Face OAuth sign-ins may paint a credits line, and none may state a balance; fix src/components/Settings/usage/lines.tsx')
+  check(`${columns}: the plan row is the Hub's stated plan with the period end and the read's feed + age`, planRow !== undefined && expectedPlanRow.test(planRow), (planRow ?? hfRuns.join(' | ')) + ' — the plan row is built by huggingfacePlanFigures in src/models/roads/provider-usage/huggingface.ts and painted by src/screen/settings/usage/lines.tsx')
+  check(`${columns}: the Hugging Face billing line names what whoami-v2 states, what it does not, and the billing page`, hfRuns.some(run => run.startsWith('Billing: no spend or credit API is documented') && run.includes('whoami-v2') && run.includes('not the credits used or left') && run.includes('huggingface.co/settings/billing')), hfRuns.join(' | ') + ' — the billing words live in src/models/roads/huggingface/huggingfaceUsageState.ts; restore them there')
+  check(`${columns}: exactly two credits lines on the board — one per OAuth sign-in — and never a stated balance`, runs.filter(run => run === `credits: ${owner.CREDITS_UNREPORTED_WORDS}`).length === 2 && !runs.some(run => /USD \d/.test(run)), runs.join(' | ') + ' — only the Gemini and Hugging Face OAuth sign-ins may paint a credits line, and none may state a balance; fix src/screen/settings/usage/lines.tsx')
   const wrapped = lines.filter(line => !line.startsWith(JEV_USAGE_LABEL)).join('\n').replace(/\s+/g, ' ')
-  check(`${columns}: the frame itself shows both credits lines and the plan row (wrapped, never truncated; the JEV row keeps its own credits line apart)`, wrapped.split(`credits: ${owner.CREDITS_UNREPORTED_WORDS}`).length === 3 && wrapped.includes('PRO plan · payment method on file'), frame + ' — the credits lines and the plan row must wrap, never truncate; fix the Text wrap in src/components/Settings/usage/lines.tsx')
+  check(`${columns}: the frame itself shows both credits lines and the plan row (wrapped, never truncated; the JEV row keeps its own credits line apart)`, wrapped.split(`credits: ${owner.CREDITS_UNREPORTED_WORDS}`).length === 3 && wrapped.includes('PRO plan · payment method on file'), frame + ' — the credits lines and the plan row must wrap, never truncate; fix the Text wrap in src/screen/settings/usage/lines.tsx')
   if (frameDir !== undefined) writeFileSync(join(frameDir, `usage-oauth-credits-${columns}.txt`), frame + '\n')
   board.close()
 }
@@ -183,10 +183,10 @@ section('§3 the reader behind the words: one loopback read, the stored bearer, 
 {
   const whoami = hits.filter(hit => hit.path === '/api/whoami-v2')
   check('the Hub was asked whoami-v2 exactly once across both mounts (the second mount served the observation inside the floor)', whoami.length === 1, JSON.stringify(hits) + ' — the Hugging Face whoami-v2 read must serve the second mount from its observation inside the floor instead of asking again')
-  check('the ask carried the stored sign-in token as its bearer', whoami[0]?.method === 'GET' && whoami[0]?.bearer === `Bearer ${HF_ACCESS_TOKEN}`, JSON.stringify(whoami) + ' — the whoami-v2 read must send the stored sign-in token as its bearer; see src/services/providers/huggingface/huggingfaceAccounts.ts')
-  check('no request reached the Gemini base or any other road', hits.every(hit => hit.path === '/api/whoami-v2'), JSON.stringify(hits) + ' — a usage read must ask only the Hub whoami-v2 road; find the extra request in src/services/providers/providerUsage.ts and src/services/providers/gemini/geminiUsageState.ts')
+  check('the ask carried the stored sign-in token as its bearer', whoami[0]?.method === 'GET' && whoami[0]?.bearer === `Bearer ${HF_ACCESS_TOKEN}`, JSON.stringify(whoami) + ' — the whoami-v2 read must send the stored sign-in token as its bearer; see src/models/roads/huggingface/huggingfaceAccounts.ts')
+  check('no request reached the Gemini base or any other road', hits.every(hit => hit.path === '/api/whoami-v2'), JSON.stringify(hits) + ' — a usage read must ask only the Hub whoami-v2 road; find the extra request in src/models/roads/providerUsage.ts and src/models/roads/gemini/geminiUsageState.ts')
   const hf = owner.usageForProvider('huggingface')
-  check("after the read the tier is the stated plan — 'Hugging Face PRO' — and the plan figure carries the Hub's period end", hf.tier === 'Hugging Face PRO' && hf.figures?.find(f => f.key === 'plan')?.resetsAtMs === WHOAMI.user.periodEnd * 1000, JSON.stringify({ tier: hf.tier, figures: hf.figures }) + ' — after the whoami-v2 read the tier and the plan figure must come from the stated plan; fix src/services/providers/providerUsage/huggingface.ts')
+  check("after the read the tier is the stated plan — 'Hugging Face PRO' — and the plan figure carries the Hub's period end", hf.tier === 'Hugging Face PRO' && hf.figures?.find(f => f.key === 'plan')?.resetsAtMs === WHOAMI.user.periodEnd * 1000, JSON.stringify({ tier: hf.tier, figures: hf.figures }) + ' — after the whoami-v2 read the tier and the plan figure must come from the stated plan; fix src/models/roads/provider-usage/huggingface.ts')
 }
 
 server.close()

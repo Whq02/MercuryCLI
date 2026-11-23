@@ -12,7 +12,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${detail ? detail + ' — ' : ''}change the reference-file extraction in src/skills/bundledSkills.ts (extractedSkillDir, extractSkillFiles, ownProcessFolder) so a skill folder is made whole, never overwritten, never followed through a link`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${detail ? detail + ' — ' : ''}change the reference-file extraction in src/integrations/skills/bundledSkills.ts (extractedSkillDir, extractSkillFiles, ownProcessFolder) so a skill folder is made whole, never overwritten, never followed through a link`}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 
@@ -49,8 +49,8 @@ const foreignFolder = (name: string, files: Record<string, string> = { 'foreign.
 const untouched = (dir: string, files: Record<string, string> = { 'foreign.txt': 'foreign sentinel\n' }): boolean => walk(dir).join(' ') === Object.keys(files).sort().join(' ') && Object.entries(files).every(([rel, text]) => readFileSync(join(dir, rel), 'utf8') === text) && readdirSync(dir).length === new Set(Object.keys(files).map(rel => rel.split('/')[0])).size
 
 try {
-  const { registerBundledSkill, getBundledSkills, getBundledSkillExtractDir } = await import('../../src/skills/bundledSkills.ts')
-  const { getBundledSkillsRoot } = await import('../../src/utils/permissions/filesystem.ts')
+  const { registerBundledSkill, getBundledSkills, getBundledSkillExtractDir } = await import('../../src/integrations/skills/bundledSkills.ts')
+  const { getBundledSkillsRoot } = await import('../../src/permissions/rules/filesystem.ts')
   const root = getBundledSkillsRoot()
   const fixtures = ['kept-fixture', 'kept-one-gone', 'kept-edited', 'kept-file-link', 'kept-tick', 'kept-empty-planted', 'kept-link-planted', 'kept-inner-link', 'kept-inner-twin', 'kept-inner-file', 'kept-skill-link', 'kept-obstacle', 'kept-above']
   for (const name of fixtures) registerBundledSkill({ name, description: 'a fixture skill with reference files', files: FILES, getPromptForCommand: async args => [{ type: 'text', text: `# ${name}\n\n${args}` }] })

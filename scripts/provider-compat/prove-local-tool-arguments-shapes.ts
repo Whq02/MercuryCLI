@@ -12,10 +12,10 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0
 const SECTION_HINTS: Record<string, string> = {
-  '1': 'change the tool_calls settling in streamOllamaChat in src/services/providers/local/ollamaChatTransport.ts',
-  '2': 'change the tool-call argument assembly in streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts',
-  '3': 'change the malformed-call settling in streamOllamaChat (src/services/providers/local/ollamaChatTransport.ts) or streamCompatChat (src/services/providers/openaicompat/compatChatClient.ts)',
-  '4': 'change the empty-arguments settling in streamOllamaChat (src/services/providers/local/ollamaChatTransport.ts) or streamCompatChat (src/services/providers/openaicompat/compatChatClient.ts)',
+  '1': 'change the tool_calls settling in streamOllamaChat in src/models/roads/local/ollamaChatTransport.ts',
+  '2': 'change the tool-call argument assembly in streamCompatChat in src/models/roads/openaicompat/compatChatClient.ts',
+  '3': 'change the malformed-call settling in streamOllamaChat (src/models/roads/local/ollamaChatTransport.ts) or streamCompatChat (src/models/roads/openaicompat/compatChatClient.ts)',
+  '4': 'change the empty-arguments settling in streamOllamaChat (src/models/roads/local/ollamaChatTransport.ts) or streamCompatChat (src/models/roads/openaicompat/compatChatClient.ts)',
 }
 let sectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -28,10 +28,10 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const { streamOllamaChat } = await import('../../src/services/providers/local/ollamaChatTransport.ts')
-const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-type CompatStreamEvent = import('../../src/services/providers/openaicompat/compatChatClient.ts').CompatStreamEvent
-type CompatCompletedToolCall = import('../../src/services/providers/openaicompat/compatChatClient.ts').CompatCompletedToolCall
+const { streamOllamaChat } = await import('../../src/models/roads/local/ollamaChatTransport.ts')
+const { streamCompatChat } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+type CompatStreamEvent = import('../../src/models/roads/openaicompat/compatChatClient.ts').CompatStreamEvent
+type CompatCompletedToolCall = import('../../src/models/roads/openaicompat/compatChatClient.ts').CompatCompletedToolCall
 
 const ARGS = { file_path: '/tmp/a.ts', offset: 12 }
 const request = { model: 'qwen3.5:9b', messages: [{ role: 'user' as const, content: 'read it' }], tools: [{ type: 'function' as const, function: { name: 'Read', parameters: { type: 'object' } } }] }

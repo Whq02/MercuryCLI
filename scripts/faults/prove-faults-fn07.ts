@@ -26,7 +26,7 @@ function threwOf(fn: () => unknown): Error | null {
 
 {
   console.log('\nmnemeLibrary-writeLibraryMeta-unreadable')
-  const { readLibraryMeta, writeLibraryMeta, libraryMetaPath } = await import('../../src/mneme/mnemeLibrary.ts')
+  const { readLibraryMeta, writeLibraryMeta, libraryMetaPath } = await import('../../src/sessions/mneme/mnemeLibrary.ts')
   const dir = makeScratch('libmeta')
   try {
     const fresh = readLibraryMeta(dir)
@@ -57,7 +57,7 @@ function threwOf(fn: () => unknown): Error | null {
 
 {
   console.log('\nmnemeMaintenance-appendReceipt-unreadable')
-  const { readMaintenanceReceipts, runDueMaintenance } = await import('../../src/mneme/mnemeMaintenance.ts')
+  const { readMaintenanceReceipts, runDueMaintenance } = await import('../../src/sessions/mneme/mnemeMaintenance.ts')
   const dir = makeScratch('maint-receipts')
   try {
     check('absent maintenance.jsonl returns empty list', readMaintenanceReceipts(dir).length === 0)
@@ -80,7 +80,7 @@ function threwOf(fn: () => unknown): Error | null {
 
 {
   console.log('\nmnemeUsage-pinWriters-unreadable')
-  const { readPins, pinFact, unpinFact, movePin, pinsPath } = await import('../../src/mneme/mnemeUsage.ts')
+  const { readPins, pinFact, unpinFact, movePin, pinsPath } = await import('../../src/sessions/mneme/mnemeUsage.ts')
   const dir = makeScratch('pins')
   try {
     check('absent pins.json returns empty list', readPins(dir).length === 0)
@@ -111,7 +111,7 @@ function threwOf(fn: () => unknown): Error | null {
 
 {
   console.log('\nmnemeUsage-bumpUsage-unreadable')
-  const { readUsage, bumpUsage, usagePath } = await import('../../src/mneme/mnemeUsage.ts')
+  const { readUsage, bumpUsage, usagePath } = await import('../../src/sessions/mneme/mnemeUsage.ts')
   const dir = makeScratch('usage')
   try {
     check('absent usage.json returns empty map', Object.keys(readUsage(dir)).length === 0)
@@ -142,16 +142,16 @@ function threwOf(fn: () => unknown): Error | null {
 {
   console.log('\nmercuryRequests-run-sidecar-throw')
   const { mock } = await import('bun:test')
-  const realSidecar = await import('../../src/services/run/runSidecar.ts')
+  const realSidecar = await import('../../src/engine/run/runSidecar.ts')
   let sidecarMode: 'absent' | 'throw' = 'absent'
-  mock.module('../../src/services/run/runSidecar.ts', () => ({
+  mock.module('../../src/engine/run/runSidecar.ts', () => ({
     ...realSidecar,
     loadRunSidecar: async () => {
       if (sidecarMode === 'throw') throw new Error('sidecar EIO')
       return { state: 'absent' as const }
     },
   }))
-  const { mercuryRequests } = await import('../../src/services/acp/acpServer/mercuryRequests.ts')
+  const { mercuryRequests } = await import('../../src/integrations/acp/server/mercuryRequests.ts')
   const handlers = new Map<string, (ctx: { params: unknown }) => unknown>()
   const app = {
     onRequest(name: string, _parse: unknown, handler: (ctx: { params: unknown }) => unknown) {
@@ -173,9 +173,9 @@ function threwOf(fn: () => unknown): Error | null {
   console.log('\nResumeConversation-load-failure')
   const { mock } = await import('bun:test')
   const React = await import('react')
-  const realLogs = await import('../../src/utils/sessionStorage/logs.ts')
+  const realLogs = await import('../../src/sessions/transcripts/sessionListings.ts')
   let loadMode: 'empty' | 'throw' = 'throw'
-  mock.module('../../src/utils/sessionStorage/logs.ts', () => ({
+  mock.module('../../src/sessions/transcripts/sessionListings.ts', () => ({
     ...realLogs,
     listRepoSessionsProgressive: async () => {
       if (loadMode === 'throw') throw new Error('sessions dir unreadable')
@@ -184,7 +184,7 @@ function threwOf(fn: () => unknown): Error | null {
   }))
   const { mountPart } = await import('../ui/chatScenarios.ts')
   const { waitFor } = await import('../lib/settingsPopupHarness.ts')
-  const { ResumeConversation } = await import('../../src/screens/ResumeConversation.tsx')
+  const { ResumeConversation } = await import('../../src/screen/chat/ResumeSession.tsx')
   const mounted = await mountPart(() => null, {
     draw: () => React.createElement(ResumeConversation, { commands: [], worktreePaths: [], initialTools: [] }),
   })
@@ -224,8 +224,8 @@ function threwOf(fn: () => unknown): Error | null {
   }))
   const { mountPart } = await import('../ui/chatScenarios.ts')
   const { waitFor } = await import('../lib/settingsPopupHarness.ts')
-  const { restoreWorktreeSession } = await import('../../src/services/worktree.ts')
-  const { useChatDialogs } = await import('../../src/screens/chat/useChatDialogs.tsx')
+  const { restoreWorktreeSession } = await import('../../src/platform/git/worktree/worktree.ts')
+  const { useChatDialogs } = await import('../../src/screen/chat/useChatDialogs.tsx')
   restoreWorktreeSession(null)
   const notes: Array<{ key?: string; text?: string; color?: string }> = []
   const mounted = await mountPart(store =>
@@ -254,8 +254,8 @@ function threwOf(fn: () => unknown): Error | null {
   console.log('\nuseChatSubmit-armed-failure')
   const { mountPart } = await import('../ui/chatScenarios.ts')
   const { settle, waitFor } = await import('../lib/settingsPopupHarness.ts')
-  const { useChatSubmit } = await import('../../src/screens/chat/useChatSubmit.ts')
-  const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
+  const { useChatSubmit } = await import('../../src/screen/chat/useChatSubmit.ts')
+  const { createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
   const notes: Array<{ key?: string; text?: string; color?: string }> = []
   const mounted = await mountPart(store =>
     useChatSubmit({

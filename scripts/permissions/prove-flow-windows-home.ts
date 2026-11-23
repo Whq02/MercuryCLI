@@ -21,9 +21,9 @@ const kit = await openKit('flow-windows-home')
 const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
 try {
   Object.defineProperty(process, 'platform', { ...platform, value: 'win32' })
-  const { getPlatform } = await import('../../src/utils/platform.ts')
+  const { getPlatform } = await import('../../src/platform/environment/platform.ts')
   getPlatform.cache.set(undefined, 'windows')
-  const { setOriginalCwd, setCwdState } = await import('../../src/bootstrap/state.ts')
+  const { setOriginalCwd, setCwdState } = await import('../../src/boot/process-state/processState.ts')
   setOriginalCwd('C:\\src\\project')
   setCwdState('C:\\src\\project')
   for (const [command, words] of [
@@ -33,7 +33,7 @@ try {
     for (const road of ROADS) {
       const outcome = await kit.decide(command, { road })
       const ok = road === 'prompt-less' ? refusedWith(outcome, words) : asksWith(outcome, words) && outcome.wrapper.decidedBy === 'flowLaw'
-      check(`${road}: ${command} → ${words}`, ok, `${j(outcome.decision)}; change scanReading and tildePath in src/utils/permissions/flowLaw.ts`)
+      check(`${road}: ${command} → ${words}`, ok, `${j(outcome.decision)}; change scanReading and tildePath in src/permissions/rules/flowLaw.ts`)
     }
   }
 } finally {

@@ -21,16 +21,16 @@ async function main(): Promise<void> {
 
   section('1. mutation truth comes from EFFECTS, never apply:true intent')
   {
-    const ok = await import('../../src/utils/run/ownerKey.js')
-    const v = await import('../../src/utils/verification/verificationState.js')
-    const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.js')
+    const ok = await import('../../src/engine/run-owner/ownerKey.js')
+    const v = await import('../../src/platform/verification/verificationState.js')
+    const { observeToolTerminal } = await import('../../src/engine/run-owner/effectObserver.js')
     const owner = ok.makeOwnerKey({ workspace: tmp, sessionId: 'ide-txn', lane: 'main' })
     v._resetVerificationStateForTesting()
     check(
       'apply:true INPUT no longer classifies as a mutation',
       v.isMutationToolCall('LSP', { operation: 'rename', apply: true }) === false,
       '',
-      'isMutationToolCall in src/utils/verification/verificationState.ts must not classify an LSP call as a mutation from its apply input',
+      'isMutationToolCall in src/platform/verification/verificationState.ts must not classify an LSP call as a mutation from its apply input',
     )
     observeToolTerminal({
       owner,
@@ -53,7 +53,7 @@ async function main(): Promise<void> {
       'a FAILED apply records zero mutations',
       v.verificationSummary(tmp, { skipDigest: true, owner }).mutationsSinceEvidence === 0,
       '',
-      'observeToolTerminal in src/utils/run/effectObserver.ts must not count an effect with outcome failed as a mutation',
+      'observeToolTerminal in src/engine/run-owner/effectObserver.ts must not count an effect with outcome failed as a mutation',
     )
     observeToolTerminal({
       owner,
@@ -76,7 +76,7 @@ async function main(): Promise<void> {
       'a no-change observation records zero mutations',
       v.verificationSummary(tmp, { skipDigest: true, owner }).mutationsSinceEvidence === 0,
       '',
-      'observeToolTerminal in src/utils/run/effectObserver.ts must not count an effect with outcome no-change as a mutation',
+      'observeToolTerminal in src/engine/run-owner/effectObserver.ts must not count an effect with outcome no-change as a mutation',
     )
     observeToolTerminal({
       owner,
@@ -99,7 +99,7 @@ async function main(): Promise<void> {
       'a SUCCEEDED multi-file apply records exactly one mutation',
       v.verificationSummary(tmp, { skipDigest: true, owner }).mutationsSinceEvidence === 1,
       '',
-      'observeToolTerminal in src/utils/run/effectObserver.ts must count one mutation for a succeeded effect, whatever the number of changed paths',
+      'observeToolTerminal in src/engine/run-owner/effectObserver.ts must count one mutation for a succeeded effect, whatever the number of changed paths',
     )
     v._resetVerificationStateForTesting()
   }
@@ -107,9 +107,9 @@ async function main(): Promise<void> {
 
   section('3. the push-lane quiet-window barrier (live, no real server)')
   {
-    const { awaitDiagnosticStabilization } = await import('../../src/tools/LSPTool/mercuryOps.js')
+    const { awaitDiagnosticStabilization } = await import('../../src/tools/lsp/mercuryOps.js')
     const { registerPendingLSPDiagnostic, _publishListenerCountForTesting } = await import(
-      '../../src/services/lsp/LSPDiagnosticRegistry.js'
+      '../../src/integrations/lsp/LSPDiagnosticRegistry.js'
     )
     const fakeManager = {
       getServerForFile: () => ({ name: 'fake', generation: 1, capabilities: {} }),
@@ -140,27 +140,27 @@ async function main(): Promise<void> {
       'push publication → FRESH with honest counts',
       outcome.state === 'fresh' && outcome.errors === 1 && outcome.warnings === 1,
       JSON.stringify(outcome),
-      'awaitDiagnosticStabilization in src/tools/LSPTool/mercuryOps/afterWrite.ts must settle fresh with the published error and warning counts once the quiet window passes',
+      'awaitDiagnosticStabilization in src/tools/lsp/mercury-ops/afterWrite.ts must settle fresh with the published error and warning counts once the quiet window passes',
     )
-    check('the barrier unsubscribes (no leak)', _publishListenerCountForTesting() === before, '', 'awaitDiagnosticStabilization in src/tools/LSPTool/mercuryOps/afterWrite.ts must remove its publish listener when it settles')
+    check('the barrier unsubscribes (no leak)', _publishListenerCountForTesting() === before, '', 'awaitDiagnosticStabilization in src/tools/lsp/mercury-ops/afterWrite.ts must remove its publish listener when it settles')
     const silent = await awaitDiagnosticStabilization(fakeManager, '/tmp/push-lane/other.py', {
       deadlineMs: 300,
       quietWindowMs: 100,
     })
-    check('push silence → timed-out (never a fabricated clean)', silent.state === 'timed-out', '', 'awaitDiagnosticStabilization in src/tools/LSPTool/mercuryOps/afterWrite.ts must return timed-out when no diagnostics are published before the deadline; got ' + JSON.stringify(silent))
+    check('push silence → timed-out (never a fabricated clean)', silent.state === 'timed-out', '', 'awaitDiagnosticStabilization in src/tools/lsp/mercury-ops/afterWrite.ts must return timed-out when no diagnostics are published before the deadline; got ' + JSON.stringify(silent))
     for (const [awaited, sibling] of [['/tmp/push-lane/a.ts', '/tmp/push-lane/a.tsx'], ['/tmp/push-lane/x.py', '/tmp/push-lane/x.pyi'], ['/tmp/push-lane/b.ts', '/tmp/push-lane/sub/b.ts']]) {
       const waiting = awaitDiagnosticStabilization(fakeManager, awaited, { deadlineMs: 400, quietWindowMs: 100 })
       setTimeout(() => registerPendingLSPDiagnostic({ serverName: 'fake', files: [{ uri: `file://${sibling}`, diagnostics: [{ severity: 'Error', message: 'not yours' }] } as never] }), 50)
       const outcome = await waiting
-      check(`a publish for ${sibling} does not settle the wait on ${awaited} (timed-out, not fresh)`, outcome.state === 'timed-out', JSON.stringify(outcome), 'awaitDiagnosticStabilization in src/tools/LSPTool/mercuryOps/afterWrite.ts must match a published uri to the awaited file exactly, not by a shared prefix or a different path')
+      check(`a publish for ${sibling} does not settle the wait on ${awaited} (timed-out, not fresh)`, outcome.state === 'timed-out', JSON.stringify(outcome), 'awaitDiagnosticStabilization in src/tools/lsp/mercury-ops/afterWrite.ts must match a published uri to the awaited file exactly, not by a shared prefix or a different path')
     }
     {
       const waiting = awaitDiagnosticStabilization(fakeManager, '/tmp/push-lane/c.ts', { deadlineMs: 1_500, quietWindowMs: 100 })
       setTimeout(() => registerPendingLSPDiagnostic({ serverName: 'fake', files: [{ uri: 'file:///tmp/push-lane/c.ts', diagnostics: [] } as never] }), 50)
       const outcome = await waiting
-      check('control: a publish for the file itself (a clean one) still settles fresh with zero counts', outcome.state === 'fresh' && outcome.total === 0, JSON.stringify(outcome), 'awaitDiagnosticStabilization in src/tools/LSPTool/mercuryOps/afterWrite.ts must settle fresh with total 0 when the awaited file publishes an empty list')
+      check('control: a publish for the file itself (a clean one) still settles fresh with zero counts', outcome.state === 'fresh' && outcome.total === 0, JSON.stringify(outcome), 'awaitDiagnosticStabilization in src/tools/lsp/mercury-ops/afterWrite.ts must settle fresh with total 0 when the awaited file publishes an empty list')
     }
-    check('no manager server → unsupported', (await awaitDiagnosticStabilization({ getServerForFile: () => undefined } as never, '/x')).state === 'unsupported', '', 'awaitDiagnosticStabilization in src/tools/LSPTool/mercuryOps/afterWrite.ts must return unsupported when getServerForFile finds no server')
+    check('no manager server → unsupported', (await awaitDiagnosticStabilization({ getServerForFile: () => undefined } as never, '/x')).state === 'unsupported', '', 'awaitDiagnosticStabilization in src/tools/lsp/mercury-ops/afterWrite.ts must return unsupported when getServerForFile finds no server')
   }
 
   rmSync(tmp, { recursive: true, force: true })

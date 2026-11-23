@@ -22,9 +22,9 @@ const check = (name: string, ok: boolean, detail = ''): void => {
 }
 
 console.log('§1 the pure geometry and legends of the compact concourse')
-where = 'change the function or constant this check names in src/components/concourse/compactBoard.ts (compactConcourseGeometry, compactFrameTop, the COMPACT_* legends, compactSteerable) or, for the s split check, splitActiveOf in src/components/concourse/splitView.ts, or update the expectation if the design changed'
+where = 'change the function or constant this check names in src/screen/concourse/compactBoard.ts (compactConcourseGeometry, compactFrameTop, the COMPACT_* legends, compactSteerable) or, for the s split check, splitActiveOf in src/screen/concourse/splitView.ts, or update the expectation if the design changed'
 {
-  const board = await import('../../src/components/concourse/compactBoard.ts')
+  const board = await import('../../src/screen/concourse/compactBoard.ts')
   check('60 columns and 16 rows and up stack two frames; under 60 columns or 16 rows the board stands alone', board.compactConcourseProfileOf(60, 16) === 'split' && board.compactConcourseProfileOf(59, 40) === 'single' && board.compactConcourseProfileOf(80, 15) === 'single' && board.compactConcourseProfileOf(80) === 'split' && board.compactConcourseProfileOf(50) === 'single')
   const g21 = board.compactConcourseGeometry(80, 21, { sessionCount: 2, newSessionDoor: true, composerBand: 1 })
   check('80×21: the live frame stacks on top across the width (rows 0–13), the list frame below it (rows 14–20)', g21.live.x0 === 0 && g21.live.x1 === 79 && g21.live.inner === 78 && g21.live.y0 === 0 && g21.live.y1 === 13 && g21.list.x0 === 0 && g21.list.x1 === 79 && g21.list.y0 === 14 && g21.list.y1 === 20)
@@ -62,14 +62,14 @@ where = 'change the function or constant this check names in src/components/conc
   const win = board.compactListWindow(6, 5, 4)
   check('a long list windows around the selection with one more-row', win.moreRow === 1 && win.end - win.start === 3 && win.start <= 5 && 5 < win.end && win.above + win.below === 3)
   check('the door composer’s note and rest hint are the approved words', board.COMPACT_DOOR_NOTE === 'start a new chat to message here' && board.COMPACT_DOOR_REST_HINT === 'type a message' && board.COMPACT_DOOR_NOTE_MS >= 3000)
-  const split = await import('../../src/components/concourse/splitView.ts')
+  const split = await import('../../src/screen/concourse/splitView.ts')
   check('the s split never composes under the compact decision', !split.splitActiveOf({ on: true, cols: 130, rows: 24, plainWorld: false, compact: true }) && split.splitActiveOf({ on: true, cols: 130, rows: 24, plainWorld: false, compact: false }))
 }
 
 console.log('§2 the screen: the compact decision is the size latch; two focus targets; the letter verbs')
-where = 'declare the missing compact:* control in CONCOURSE_CONTROLS in src/components/concourse/controlManifest.ts'
+where = 'declare the missing compact:* control in CONCOURSE_CONTROLS in src/screen/concourse/controlManifest.ts'
 {
-  const manifest = await import('../../src/components/concourse/controlManifest.ts')
+  const manifest = await import('../../src/screen/concourse/controlManifest.ts')
   check('the compact controls are declared', ['compact:row', 'compact:steer', 'compact:list-title', 'compact:live-title', 'compact:new-session', 'compact:stop'].every(id => manifest.CONCOURSE_CONTROLS.some(c => c.id === id)))
 }
 
@@ -85,7 +85,7 @@ if (!existsSync(BIN)) {
   process.exit(1)
 }
 console.log(`§3 the drive — ${BIN}`)
-where = 'compare the printed frame above with what src/components/concourse/CompactConcourse.tsx paints (frame titles, composer, foot legends) and its geometry in src/components/concourse/compactBoard.ts; rebuild with `bun run build.ts` if dist is stale'
+where = 'compare the printed frame above with what src/screen/concourse/CompactConcourse.tsx paints (frame titles, composer, foot legends) and its geometry in src/screen/concourse/compactBoard.ts; rebuild with `bun run build.ts` if dist is stale'
 const OUT_DIR = process.env.CONCOURSE_COMPACT_CAPTURE_DIR ?? join(tmpdir(), `concourse-compact-${process.pid}`)
 mkdirSync(OUT_DIR, { recursive: true })
 const scratch = join(OUT_DIR, 'home')
@@ -95,7 +95,7 @@ process.env.MERCURY_HOME = ''
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { referenceFixtureSnapshot } = await import('../notifications/concourseReferenceSeed.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
+const { workerTranscriptPath } = await import('../../src/screen/concourse-model/workerTranscript.ts')
 seedFirstRun(scratch, [REPO])
 {
   const cfgPath = join(scratch, '.mercury.json')

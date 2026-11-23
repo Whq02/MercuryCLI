@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/main.tsx src/services/privateChannel/installLayout.ts src/boot/launchGraph.ts
+// gate-watch: src/boot/main.tsx src/platform/update-channel/installLayout.ts src/boot/launchGraph.ts
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { firstPtyVisibility, requireDist, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'
@@ -91,7 +91,7 @@ try {
   check(
     'managed: the start wrote the stable launcher into ~/.local/bin, carrying the managed marker',
     existsSync(managed.launcher) && readFileSync(managed.launcher, 'utf8').includes(SHIM_MARKER),
-    existsSync(managed.launcher) ? 'the boot launcher step must still write the launcher with the mercury-managed-shim marker (SHIM_MARKER_FAMILY in src/services/privateChannel/installLayout.ts); the file lacks the marker' : `the boot launcher step must write the launcher when a managed install exists; nothing at ${managed.launcher}`,
+    existsSync(managed.launcher) ? 'the boot launcher step must still write the launcher with the mercury-managed-shim marker (SHIM_MARKER_FAMILY in src/platform/update-channel/installLayout.ts); the file lacks the marker' : `the boot launcher step must write the launcher when a managed install exists; nothing at ${managed.launcher}`,
   )
 } finally {
   managed.run.cleanup()

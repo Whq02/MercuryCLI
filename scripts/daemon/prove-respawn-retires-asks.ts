@@ -50,13 +50,13 @@ console.log('============================================================')
 console.log(" a parked permission ask dies with the runner that raised it: a respawn or an exit retires it typed, and a late answer is refused, never written into a child that never asked")
 console.log('============================================================')
 
-const asks = await import('../../src/daemon/permissionAsks.ts')
-const seat = await import('../../src/daemon/sessionSeat.ts')
-const { concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
-const obligations = await import('../../src/services/crew/obligations.ts')
+const asks = await import('../../src/daemon/session-seat/permissionAsks.ts')
+const seat = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { concourseWorkersPath } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const obligations = await import('../../src/crew/crewmates/obligations.ts')
 
 type Presence = 'attached' | 'absent' | 'unknown'
-type Answer = import('../../src/runner/wire/methods.ts').PermissionAnswer
+type Answer = import('../../src/daemon/runner-wire/methods.ts').PermissionAnswer
 const record = (short: string): Record<string, unknown> => ({
   runnerId: short,
   sessionId: `sess-${short}`,
@@ -100,41 +100,41 @@ check('its needs-you row is open', await until(async () => (await rowFor(idOf('r
 
 section("§2 the worker respawns — the ask dies with the runner that raised it")
 seat.onSeatSpawned('concourse-w1', roster as never, daemonDir)
-check('red on the base: the parked ask is gone after the respawn', !parked(idOf('respawn')), j(asks.listPendingPermissionAsks()) + ' — onSeatSpawned in src/daemon/sessionSeat/lifecycle.ts must call retireWorkerAsks (src/daemon/permissionAsks.ts) for that worker')
+check('red on the base: the parked ask is gone after the respawn', !parked(idOf('respawn')), j(asks.listPendingPermissionAsks()) + ' — onSeatSpawned in src/daemon/session-seat/lifecycle.ts must call retireWorkerAsks (src/daemon/session-seat/permissionAsks.ts) for that worker')
 const row = await (async () => {
   await until(async () => (await rowFor(idOf('respawn')))?.status === 'withdrawn', 5_000)
   return rowFor(idOf('respawn'))
 })()
-check('red on the base: its needs-you row reads withdrawn by the daemon, naming the restart', row?.status === 'withdrawn' && /runner restarted before this ask was answered/.test(row.settlement?.by ?? ''), j(row) + ' — retireWorkerAsks in src/daemon/permissionAsks.ts must withdraw the ask\'s needs-you row with the RUNNER_RESTARTED_ASK_CAUSE text')
+check('red on the base: its needs-you row reads withdrawn by the daemon, naming the restart', row?.status === 'withdrawn' && /runner restarted before this ask was answered/.test(row.settlement?.by ?? ''), j(row) + ' — retireWorkerAsks in src/daemon/session-seat/permissionAsks.ts must withdraw the ask\'s needs-you row with the RUNNER_RESTARTED_ASK_CAUSE text')
 
 section("§3 the operator's late answer is refused typed — never written into the new child")
 const late = asks.answerPermissionAsk(idOf('respawn'), true, 'operator')
-check("red on the base: the answer is refused (the base reports 'applied' while nothing runs)", late.outcome === 'refused', j(late) + ' — answerPermissionAsk in src/daemon/permissionAsks.ts must refuse an ask retired by a respawn')
-check('red on the base: the refusal names the restart', /runner restarted before this ask was answered/.test(late.detail ?? ''), j(late) + ' — answerPermissionAsk in src/daemon/permissionAsks.ts must return the retirement cause (RUNNER_RESTARTED_ASK_CAUSE) as the refusal detail')
+check("red on the base: the answer is refused (the base reports 'applied' while nothing runs)", late.outcome === 'refused', j(late) + ' — answerPermissionAsk in src/daemon/session-seat/permissionAsks.ts must refuse an ask retired by a respawn')
+check('red on the base: the refusal names the restart', /runner restarted before this ask was answered/.test(late.detail ?? ''), j(late) + ' — answerPermissionAsk in src/daemon/session-seat/permissionAsks.ts must return the retirement cause (RUNNER_RESTARTED_ASK_CAUSE) as the refusal detail')
 await tick()
-check('red on the base: no allow reached the dead runner\'s request — the respawned child hears nothing of it', answered('respawn')?.outcome !== 'allow', j(answered('respawn')) + ' — a retired ask in src/daemon/permissionAsks.ts must never resolve its held answer with the late allow')
+check('red on the base: no allow reached the dead runner\'s request — the respawned child hears nothing of it', answered('respawn')?.outcome !== 'allow', j(answered('respawn')) + ' — a retired ask in src/daemon/session-seat/permissionAsks.ts must never resolve its held answer with the late allow')
 
 section("§4 a worker that ends retires its asks the same way")
 ask('concourse-w2', 'ended', 'Bash')
 check('the ask is parked for the second worker', parked(idOf('ended')))
 seat.onSeatSettled('concourse-w2')
-check('red on the base: the parked ask is gone after the exit', !parked(idOf('ended')), 'onSeatSettled in src/daemon/sessionSeat/lifecycle.ts must call retireWorkerAsks (src/daemon/permissionAsks.ts) for that worker')
+check('red on the base: the parked ask is gone after the exit', !parked(idOf('ended')), 'onSeatSettled in src/daemon/session-seat/lifecycle.ts must call retireWorkerAsks (src/daemon/session-seat/permissionAsks.ts) for that worker')
 const ended = asks.answerPermissionAsk(idOf('ended'), false, 'operator')
-check('red on the base: the late answer is refused naming the exit', ended.outcome === 'refused' && /runner ended before this ask was answered/.test(ended.detail ?? ''), j(ended) + ' — answerPermissionAsk in src/daemon/permissionAsks.ts must refuse with RUNNER_ENDED_ASK_CAUSE after onSeatSettled')
+check('red on the base: the late answer is refused naming the exit', ended.outcome === 'refused' && /runner ended before this ask was answered/.test(ended.detail ?? ''), j(ended) + ' — answerPermissionAsk in src/daemon/session-seat/permissionAsks.ts must refuse with RUNNER_ENDED_ASK_CAUSE after onSeatSettled')
 check('red on the base: its needs-you row reads withdrawn naming the exit', await until(async () => {
   const r = await rowFor(idOf('ended'))
   return r?.status === 'withdrawn' && /runner ended before this ask was answered/.test(r.settlement?.by ?? '')
-}, 5_000), 'retireWorkerAsks in src/daemon/permissionAsks.ts must withdraw the needs-you row with RUNNER_ENDED_ASK_CAUSE')
+}, 5_000), 'retireWorkerAsks in src/daemon/session-seat/permissionAsks.ts must withdraw the needs-you row with RUNNER_ENDED_ASK_CAUSE')
 
 section("§5 another worker's ask is untouched by the respawn")
 ask('concourse-w1', 'stays', 'Bash')
 ask('concourse-w2', 'other', 'Bash')
 seat.onSeatSpawned('concourse-w1', roster as never, daemonDir)
-check("the respawned worker's ask is retired", !parked(idOf('stays')), 'onSeatSpawned in src/daemon/sessionSeat/lifecycle.ts must retire this worker\'s parked asks')
-check("the other worker's ask still parks", parked(idOf('other')), 'retireWorkerAsks in src/daemon/permissionAsks.ts must retire only the asks whose workerId matches the respawned worker')
+check("the respawned worker's ask is retired", !parked(idOf('stays')), 'onSeatSpawned in src/daemon/session-seat/lifecycle.ts must retire this worker\'s parked asks')
+check("the other worker's ask still parks", parked(idOf('other')), 'retireWorkerAsks in src/daemon/session-seat/permissionAsks.ts must retire only the asks whose workerId matches the respawned worker')
 const other = asks.answerPermissionAsk(idOf('other'), false, 'operator')
 await tick()
-check("...and the operator's answer still lands there — the runner's request resolves deny", other.outcome === 'applied' && answered('other')?.outcome === 'deny', j({ other, answer: answered('other') }) + ' — answerPermissionAsk in src/daemon/permissionAsks.ts must still apply a deny to an ask that retireWorkerAsks did not retire')
+check("...and the operator's answer still lands there — the runner's request resolves deny", other.outcome === 'applied' && answered('other')?.outcome === 'deny', j({ other, answer: answered('other') }) + ' — answerPermissionAsk in src/daemon/session-seat/permissionAsks.ts must still apply a deny to an ask that retireWorkerAsks did not retire')
 
 console.log('\n' + '═'.repeat(76))
 if (failures > 0) {

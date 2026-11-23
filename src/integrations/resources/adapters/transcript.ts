@@ -1,0 +1,232 @@
+import { historyLines } from '../../../sessions/transcripts/historyParts.js'
+
+import { existsSync, readdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { boundedTextView, type ResourceAdapter, type ResourceChild, type ResourceContext } from '../contracts.js'
+import { parseOwnerKey } from '../../../engine/execution-plane/owner.js'
+import { projectIntelEnabled } from '../../../sessions/project-intel-pins/contracts.js'
+import { readAgentTranscript, transcriptEndWords } from '../../../crew/crewmates/agentTranscriptReader.js'
+import { recordToEntry } from '../../../sessions/fabric/entryCodec.js'
+import { validateRecord } from '../../../sessions/fabric/validate.js'
+import { effortStampLine, isEffortStamp } from '../../../models/effort/effortStamp.js'
+import { replyAddressLine, replyMarksOf } from '../../../engine/message-shapes/replyAddress.js'
+import { collapseAndSlice } from '../../../platform/text/strings.js'
+import { agentStatusWord } from './agent.js'
+import { passedOver } from '../../../platform/errors/passedOver.js'
+
+function registryStatusOf(ctx: ResourceContext, taskId: string): string | null {
+  if (!ctx.getAppState) return null
+  try {
+    const state = ctx.getAppState() as { tasks?: Record<string, { status?: unknown }> } | null
+    const status = state?.tasks?.[taskId]?.status
+    return typeof status === 'string' ? status : null
+  } catch (error) {
+    passedOver(error)
+    return null
+  }
+}
+
+const SID_RE = /^[0-9a-f-]{8,64}$/i
+const STEM_RE = /^[A-Za-z0-9._-]{1,80}$/
+const MAX_ROWS = 2000
+const SAMPLE = 140
+
+function transcriptPathFor(sessionId: string): string {
+  const { getTranscriptPathForSession } =
+    require('../../../sessions/transcripts/paths.js') as typeof import('../../../sessions/transcripts/paths.js')
+  return getTranscriptPathForSession(sessionId)
+}
+
+function entryOfLine(parsed: Record<string, unknown>): Record<string, unknown> | null {
+  if (typeof parsed.schemaVersion !== 'number' || typeof parsed.payload !== 'object' || parsed.payload === null) return parsed
+  const validated = validateRecord(parsed)
+  if (!validated.ok) return null
+  const kind = validated.record.payload.kind
+  if (kind !== 'output' && kind !== 'input') return null
+  return recordToEntry(validated.record)
+}
+
+export function jsonlConciseRows(file: string): string[] {
+  const rows: string[] = []
+  let endedWithNewline = false
+  for (const bytes of historyLines(file)) {
+    endedWithNewline = bytes.at(-1) === 10
+    const line = bytes.toString('utf8')
+    if (rows.length >= MAX_ROWS) {
+      rows.push(`… capped at ${MAX_ROWS} rows`)
+      break
+    }
+    if (!line.trim().startsWith('{')) continue
+    let parsed: Record<string, unknown>
+    try {
+      parsed = JSON.parse(line) as Record<string, unknown>
+    } catch (error) {
+      passedOver(error)
+      continue
+    }
+    const entry = entryOfLine(parsed)
+    if (entry === null) continue
+    const type = entry.type
+    if (type !== 'user' && type !== 'assistant') continue
+    const message = entry.message as Record<string, unknown> | undefined
+    const content = message?.content
+    const effortSuffix = type === 'assistant' ? ` · ${effortStampLine(isEffortStamp(entry.effort) ? entry.effort : undefined)}` : ''
+    const address = type === 'assistant' ? replyAddressLine(replyMarksOf(entry)) : null
+    let effortShown = false
+    const withEffort = (row: string): string => {
+      if (effortShown || effortSuffix === '') return row
+      effortShown = true
+      return `${row}${effortSuffix}${address === null ? '' : ` · ${address}`}`
+    }
+    if (typeof content === 'string') {
+      if (content.trim()) rows.push(withEffort(`${type}: ${collapseAndSlice(content, SAMPLE)}`))
+      continue
+    }
+    if (!Array.isArray(content)) continue
+    for (const block of content as Array<Record<string, unknown>>) {
+      if (block.type === 'text' && typeof block.text === 'string' && block.text.trim()) {
+        rows.push(withEffort(`${type}: ${collapseAndSlice(block.text, SAMPLE)}`))
+      } else if (block.type === 'tool_use' && typeof block.name === 'string') {
+        const input = (block.input ?? {}) as Record<string, unknown>
+        const target =
+          typeof input.file_path === 'string'
+            ? input.file_path
+            : typeof input.pattern === 'string'
+              ? `/${input.pattern}/`
+              : typeof input.command === 'string'
+                ? collapseAndSlice(input.command, SAMPLE).slice(0, 60)
+                : ''
+        rows.push(withEffort(`${type}: → ${block.name}${target ? ` ${target}` : ''}`))
+      } else if (block.type === 'tool_result') {
+        const raw = block.content
+        const text =
+          typeof raw === 'string'
+            ? raw
+            : Array.isArray(raw)
+              ? (raw as Array<{ type?: string; text?: string }>)
+                  .map(b => (typeof b.text === 'string' ? b.text : ''))
+                  .join(' ')
+              : ''
+        if (text.trim()) rows.push(`tool: ${collapseAndSlice(text, SAMPLE)}`)
+      }
+    }
+  }
+  if (endedWithNewline && rows.length >= MAX_ROWS && rows.at(-1) !== `… capped at ${MAX_ROWS} rows`) rows.push(`… capped at ${MAX_ROWS} rows`)
+  return rows
+}
+
+async function sessionRows(sessionId: string): Promise<{ rows: string[]; source: string } | null> {
+  const file = transcriptPathFor(sessionId)
+  if (!file || !existsSync(file)) return null
+  const rows = jsonlConciseRows(file)
+  return rows.length > 0 ? { rows, source: 'transcript JSONL' } : null
+}
+
+export const transcriptAdapter: ResourceAdapter = {
+  kind: 'transcript',
+  describe: 'bounded concise transcript views (session/<sid> · agent/<sid>/<stem>)',
+  async resolve(ref, ctx) {
+    if (!projectIntelEnabled()) {
+      return { state: 'unavailable', note: 'project intelligence is disabled (MERCURY_PROJECT_INTEL=0)' }
+    }
+    const parts = ref.id.split('/')
+    const sub = parts[0]
+
+    if (sub === 'session') {
+      const sid = parts[1] ?? ''
+      if (!SID_RE.test(sid)) {
+        return { state: 'absent', note: `bad session id '${sid}' — mercury://transcript/session/<session-uuid>` }
+      }
+      const result = await sessionRows(sid)
+      if (!result) {
+        return { state: 'absent', note: `no transcript found for session '${sid}' (unknown sid, or nothing recorded)` }
+      }
+      const view = boundedTextView(result.rows.join('\n'), ref.selectors, 100)
+      return {
+        state: 'ok',
+        resource: {
+          ref: `mercury://transcript/session/${sid}`,
+          kind: 'transcript',
+          title: `session ${sid.slice(0, 8)} — concise transcript`,
+          summary: `${result.rows.length} row(s) · source: ${result.source}`,
+          mutable: true,
+          text: view.text,
+          page: view.page,
+        },
+      }
+    }
+
+    if (sub === 'agent') {
+      const sid = parts[1] ?? ''
+      const stem = parts.slice(2).join('/')
+      if (!SID_RE.test(sid) || !STEM_RE.test(stem)) {
+        return { state: 'absent', note: 'bad agent transcript ref — mercury://transcript/agent/<session-uuid>/<agent-file-stem>' }
+      }
+      const sessionFile = transcriptPathFor(sid)
+      if (!sessionFile) {
+        return { state: 'unavailable', note: 'session storage paths unavailable in this process' }
+      }
+      const agentFile = join(dirname(sessionFile), sid, 'subagents', `${stem}.jsonl`)
+      if (!existsSync(agentFile)) {
+        return { state: 'absent', note: `no crewmate transcript '${stem}' under session '${sid.slice(0, 8)}'` }
+      }
+      const rows = jsonlConciseRows(agentFile)
+      const view = boundedTextView(rows.join('\n'), ref.selectors, 100)
+      const registryStatus = stem.startsWith('agent-') ? registryStatusOf(ctx, stem.slice('agent-'.length)) : null
+      const status = registryStatus !== null ? agentStatusWord(registryStatus) : transcriptEndWords((await readAgentTranscript(agentFile))?.end)
+      return {
+        state: 'ok',
+        resource: {
+          ref: `mercury://transcript/agent/${sid}/${stem}`,
+          kind: 'transcript',
+          title: `crewmate ${stem} — concise transcript`,
+          summary: `${rows.length} row(s) · ${status}`,
+          mutable: false,
+          text: view.text,
+          page: view.page,
+        },
+      }
+    }
+
+    return {
+      state: 'absent',
+      note: `unknown transcript form '${ref.id}' — use session/<sid> or agent/<sid>/<stem>`,
+    }
+  },
+  async list(ctx) {
+    const children: ResourceChild[] = []
+    if (!projectIntelEnabled()) return children
+    const sid = parseOwnerKey(ctx.owner).sessionId
+    if (!sid || sid.startsWith('@')) return children
+    children.push({
+      ref: `mercury://transcript/session/${sid}`,
+      title: `session ${sid.slice(0, 8)}`,
+      summary: 'this session (concise rows)',
+    })
+    const sessionFile = transcriptPathFor(sid)
+    const subagentsDir = join(dirname(sessionFile), sid, 'subagents')
+    if (existsSync(subagentsDir)) {
+      let entries: string[]
+      try {
+        entries = readdirSync(subagentsDir)
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException | null)?.code
+        if (code === 'ENOENT' || code === 'ENOTDIR') {
+          passedOver(error)
+          return children
+        }
+        throw error
+      }
+      for (const f of entries.sort()) {
+        if (!f.endsWith('.jsonl')) continue
+        const stem = f.slice(0, -6)
+        children.push({
+          ref: `mercury://transcript/agent/${sid}/${stem}`,
+          title: stem,
+          summary: 'crewmate execution',
+        })
+      }
+    }
+    return children
+  },
+}

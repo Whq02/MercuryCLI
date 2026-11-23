@@ -7,7 +7,7 @@ import { mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
-import { stringWidth } from '../../src/ink/stringWidth.ts'
+import { stringWidth } from '../../src/screen/renderer/stringWidth.ts'
 
 const t = checker()
 

@@ -11,7 +11,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0
 let checks = 0
-const toolSearchFixHint = 'change src/tools/ToolSearchTool/ToolSearchTool.ts (runSearch, selectMissText, noMatchText, searchToolsWithKeywords, mapToolResultToToolResultBlockParam) until the result matches this label'
+const toolSearchFixHint = 'change src/tools/tool-search/ToolSearchTool.ts (runSearch, selectMissText, noMatchText, searchToolsWithKeywords, mapToolResultToToolResultBlockParam) until the result matches this label'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -22,16 +22,16 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { assembleToolPool } = await import('../../src/tools.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Message = import('../../src/types/message.ts').Message
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const MODEL = 'claude-sonnet-5-5'
 const permissionContext = getEmptyToolPermissionContext()
@@ -102,9 +102,9 @@ section('§4 the roads that do not move')
 section('§5 swarm words find the launcher and the board on the real roster')
 {
   const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
-  const { getAllBaseTools } = await import('../../src/tools.ts')
-  const { isDeferredToolFor } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-  const { searchToolsWithKeywords } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
+  const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+  const { isDeferredToolFor } = await import('../../src/tools/tool-search/prompt.ts')
+  const { searchToolsWithKeywords } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
   runSwarmCommand('on')
   const tools = getAllBaseTools()
   for (const model of ['claude-fable-5-1', 'gemini-4-argon']) {

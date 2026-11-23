@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { getPlatform, type Platform } from '../../src/utils/platform.js'
+import { getPlatform, type Platform } from '../../src/platform/environment/platform.js'
 
 type Stand = { name: string; node: NodeJS.Platform; house: Platform }
 
@@ -55,13 +55,13 @@ import {
   toNativeSeparators,
   toPosixSeparators,
   win32ToPosixPath,
-} from '../../src/utils/platform/paths.js'
+} from '../../src/platform/host-os/paths.js'
 import {
   nativeCwdFromShellRecord,
   posixPathToWindowsPath,
   stripExtendedLengthPrefix,
   windowsPathToPosixPath,
-} from '../../src/utils/windowsPaths.js'
+} from '../../src/platform/files/windowsPaths.js'
 
 const PATHS: Row[] = [
   {
@@ -508,7 +508,7 @@ import {
   vendoredNodeRelativePath,
   vendorPlatformTag,
   venvPythonPath,
-} from '../../src/utils/platform/programs.js'
+} from '../../src/platform/host-os/programs.js'
 
 function withProgramFixture<T>(run: (dir: string) => T): T {
   const dir = p02MkdtempSync(p02Path.join(p02Tmpdir(), 'mercury-p02-'))
@@ -800,7 +800,7 @@ import {
   shimShellOption,
   terminalEditorSpawnSpec,
   toolShellEnvKey,
-} from '../../src/utils/platform/spawn.js'
+} from '../../src/platform/host-os/spawn.js'
 const SPAWN: Row[] = [
   {
     name: 'spawn.commandShellOption',
@@ -1008,7 +1008,7 @@ import {
   supportsGracefulSigterm,
   syncStartTokenSupported,
   wasEndedByProcessTreeKill,
-} from '../../src/utils/platform/processes.js'
+} from '../../src/platform/host-os/processes.js'
 const PROCESSES: Row[] = [
   {
     name: 'childGetsOwnProcessGroup',
@@ -1153,7 +1153,7 @@ const PROCESSES: Row[] = [
 import { chmodSync, constants as fsConstants, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { rememberedPlatform } from '../../src/utils/platform/host.js'
+import { rememberedPlatform } from '../../src/platform/host-os/host.js'
 import {
   appendNoFollowFlags,
   boundedProjectTempName,
@@ -1180,7 +1180,7 @@ import {
   userConfigRoot,
   userHomeDir,
   xdgAndRoamingConfigRoots,
-} from '../../src/utils/platform/files.js'
+} from '../../src/platform/host-os/files.js'
 
 const FILES: Row[] = [
   {
@@ -1624,7 +1624,7 @@ import {
   isWindowsTerminalHost,
   terminalSupportsJobControl,
   terminalTitleTransport,
-} from '../../src/utils/platform/terminal.js'
+} from '../../src/platform/host-os/terminal.js'
 const TERMINAL: Row[] = [
   {
     name: 'terminal.terminalSupportsJobControl',
@@ -1680,7 +1680,7 @@ const TERMINAL: Row[] = [
   },
 ]
 
-import { desktopOpenPathCommand, desktopOpenUrlCommand } from '../../src/utils/platform/desktop.js'
+import { desktopOpenPathCommand, desktopOpenUrlCommand } from '../../src/platform/host-os/desktop.js'
 
 const DESKTOP: Row[] = [
   {
@@ -1709,7 +1709,7 @@ import {
   tensorFoldMachineSupportKind,
   tensorFoldRuntimeDisplayPath,
   tensorFoldSupportsLanBrowse,
-} from '../../src/utils/platform/tensorfold.js'
+} from '../../src/platform/host-os/tensorfold.js'
 import {
   asepriteSteamInstallCandidates,
   asepriteWindowsInstallCandidates,
@@ -1724,7 +1724,7 @@ import {
   ollamaWindowsExeCandidate,
   unityEditorExecutablePath,
   unityHubEditorRoots,
-} from '../../src/utils/platform/vendors.js'
+} from '../../src/platform/host-os/vendors.js'
 import {
   accessDeniedErrorHint,
   brushPackRemedyWords,
@@ -1745,7 +1745,7 @@ import {
   selectPlatformRemedy,
   supportedTerminalHintSuffix,
   systemBashLabel,
-} from '../../src/utils/platform/words.js'
+} from '../../src/platform/host-os/words.js'
 
 const normSlash = (value: string): string => value.replaceAll('\\', '/')
 
@@ -1978,8 +1978,8 @@ import {
   remembersFailedLoginRun,
   snapshotAliasPipelineFilter,
   snapshotPathNeedsShellProbe,
-} from '../../src/utils/platform/loginShell.js'
-import { isCmdDriveSwitchCd, readWorldUsesWindowsForms, shellFolderComparisonKey } from '../../src/utils/platform/commandForms.js'
+} from '../../src/platform/host-os/loginShell.js'
+import { isCmdDriveSwitchCd, readWorldUsesWindowsForms, shellFolderComparisonKey } from '../../src/platform/host-os/commandForms.js'
 import {
   wardEnvHomePath,
   wardExpandMsysDrivePrefix,
@@ -1992,8 +1992,8 @@ import {
   wardUsesWindowsDeletePatterns,
   wardWindowsHomeEnv,
   wardWordIsWindowsShaped,
-} from '../../src/utils/platform/wards.js'
-import { hostEnv as row8HostEnv } from '../../src/utils/hostEnv.js'
+} from '../../src/platform/host-os/wards.js'
+import { hostEnv as row8HostEnv } from '../../src/platform/environment/hostEnv.js'
 
 const ROW8_NODE_PLATFORMS: readonly NodeJS.Platform[] = ['win32', 'darwin', 'linux']
 const ROW8_GIVEN_PLATFORMS: ReadonlyArray<string | undefined> = [undefined, 'windows', 'macos', 'linux']
@@ -2252,7 +2252,7 @@ for (const row of ROWS) {
     const want = row.old ? await standIn(stand, row.old) : row.recorded && stand.name in row.recorded ? show(row.recorded[stand.name]) : undefined
     const ok = got === want
     if (!ok) failed++
-    const against = want === undefined ? 'the row holds neither the old code nor a recorded answer' : `${row.old ? 'the old code' : 'the recording'} answers ${want}; to fix, change the function this row names (rows named paths.* are in src/utils/platform/paths.ts) so it answers as expected, or add the row old or recorded answer; if the new answer is intended, run this file with --record and paste the printed recorded line into the row`
+    const against = want === undefined ? 'the row holds neither the old code nor a recorded answer' : `${row.old ? 'the old code' : 'the recording'} answers ${want}; to fix, change the function this row names (rows named paths.* are in src/platform/host-os/paths.ts) so it answers as expected, or add the row old or recorded answer; if the new answer is intended, run this file with --record and paste the printed recorded line into the row`
     console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${row.name} · ${stand.name}${ok ? '' : ` — the function answers ${got}, ${against}`}`)
   }
   if (record) console.log(`${row.name}\n    recorded: ${JSON.stringify(recording)},`)

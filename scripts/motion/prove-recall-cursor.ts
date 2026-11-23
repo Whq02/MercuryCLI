@@ -3,8 +3,8 @@
 import { grabScreens, runArtifactArena } from '../streaming/artifactArena.ts'
 
 let failures = 0
-const recallApplyHint = 'fix applyEntry (where it calls setCursorOffset) in src/hooks/useArrowKeyHistory.tsx'
-const recallWalkHint = 'fix onHistoryUp in src/hooks/useArrowKeyHistory.tsx'
+const recallApplyHint = 'fix applyEntry (where it calls setCursorOffset) in src/screen/composer/useArrowKeyHistory.tsx'
+const recallWalkHint = 'fix onHistoryUp in src/screen/composer/useArrowKeyHistory.tsx'
 function check(name: string, ok: boolean, detail = ''): void {
   console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)
   if (!ok) failures++

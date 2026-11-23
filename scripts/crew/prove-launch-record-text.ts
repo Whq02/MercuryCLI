@@ -8,16 +8,16 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const receipts = await import('../../src/tasks/LocalAgentTask/launchReceipts.ts')
+const receipts = await import('../../src/engine/tasks/local-agent/launchReceipts.ts')
 const { backgroundLaunchReceipts, restartStopSummary, stoppedRecordFor } = receipts
-type Message = import('../../src/types/message.ts').Message
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 let failures = 0
 let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — strip control bytes, line breaks and length in restartStopSummary, backgroundLaunchReceipts and stoppedRecordFor in src/tasks/LocalAgentTask/launchReceipts.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — strip control bytes, line breaks and length in restartStopSummary, backgroundLaunchReceipts and stoppedRecordFor in src/engine/tasks/local-agent/launchReceipts.ts'}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

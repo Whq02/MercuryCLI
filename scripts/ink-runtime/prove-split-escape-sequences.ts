@@ -5,9 +5,9 @@ import {
   type ParsedInput,
   type ParsedKey,
   parseMultipleKeypresses,
-} from '../../src/ink/input/input-decoder.js'
-import { openPlainCursorWindow } from '../../src/ink/input/interpreter.js'
-import { InputEvent } from '../../src/ink/events/input-event.js'
+} from '../../src/screen/renderer/input/input-decoder.js'
+import { openPlainCursorWindow } from '../../src/screen/renderer/input/interpreter.js'
+import { InputEvent } from '../../src/screen/renderer/events/input-event.js'
 
 console.log('============================================================')
 console.log(' split escape sequences — the stray `4` law')
@@ -95,7 +95,7 @@ let failures = 0
 let checks = 0
 const seen = new Map<string, number>()
 
-const splitFixHint = 'fix how parseMultipleKeypresses in src/ink/input/input-decoder.ts keeps a split escape sequence pending across reads and the 50 ms flush'
+const splitFixHint = 'fix how parseMultipleKeypresses in src/screen/renderer/input/input-decoder.ts keeps a split escape sequence pending across reads and the 50 ms flush'
 function fail(label: string, detail: string): void {
   failures++
   const n = (seen.get(label) ?? 0) + 1

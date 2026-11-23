@@ -10,25 +10,25 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_EFFORT_LEVEL
 process.env.NODE_ENV = 'test'
 
-const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.js')
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/boot/process-state/processState.js')
 trustTheProofFolder(true)
-await import('../../src/tools/AgentTool/AgentTool.js')
+await import('../../src/tools/crewmate/CrewmateTool.js')
 const { resolveAgentEstate, resolveEffectiveAgentRuntime } = await import(
-  '../../src/services/agents/resolver.js'
+  '../../src/crew/agents/resolver.js'
 )
 const { setAgentDisabled, setAgentOverride } = await import(
-  '../../src/services/agents/overrides.js'
+  '../../src/crew/agents/overrides.js'
 )
 const { clearAgentDefinitionsCache, getAgentDefinitionsWithOverrides } =
-  await import('../../src/tools/AgentTool/loadAgentsDir.js')
-const { resolveEffortTruth } = await import('../../src/utils/effort.js')
+  await import('../../src/tools/crewmate/loadAgentsDir.js')
+const { resolveEffortTruth } = await import('../../src/models/effort/effort.js')
 
 let failures = 0
 function check(name: string, cond: boolean, detail?: string): void {
   if (cond) console.log(`  ✓ ${name}`)
   else {
     failures++
-    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — to fix, change resolveEffectiveAgentRuntime or resolveAgentEstate in src/services/agents/resolver.ts, setAgentOverride or setAgentDisabled in src/services/agents/overrides.ts, getAgentDefinitionsWithOverrides in src/tools/AgentTool/loadAgentsDir.ts, resolveEffortTruth in src/utils/effort.ts, or resolveAgentEffort in src/tools/AgentTool/runAgent.ts, whichever this check's section names`)
+    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — to fix, change resolveEffectiveAgentRuntime or resolveAgentEstate in src/crew/agents/resolver.ts, setAgentOverride or setAgentDisabled in src/crew/agents/overrides.ts, getAgentDefinitionsWithOverrides in src/tools/crewmate/loadAgentsDir.ts, resolveEffortTruth in src/models/effort/effort.ts, or resolveAgentEffort in src/tools/crewmate/runCrewmate.ts, whichever this check's section names`)
   }
 }
 
@@ -192,7 +192,7 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
 
 {
   console.log('E7: the agent-scoped state dispatches the resolved effort (FN-018 rank 2)')
-  const { resolveAgentEffort } = await import('../../src/tools/AgentTool/runAgent.js')
+  const { resolveAgentEffort } = await import('../../src/tools/crewmate/runCrewmate.js')
   check('pin wins on a non-exact-tools run', resolveAgentEffort({ effortOverride: 'max', useExactTools: false, definitionEffort: 'low', defaultEffort: 'medium' }) === 'max')
   check('an exact-tools run ignores the pin (the definition rules)', resolveAgentEffort({ effortOverride: 'max', useExactTools: true, definitionEffort: 'low', defaultEffort: 'medium' }) === 'low')
   check('no pin ⇒ the definition over the configured default', resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: 'xhigh', defaultEffort: 'low' }) === 'xhigh')
@@ -204,7 +204,7 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
   const dispatched = await t.runScripted({ appState: { effortValue: 'low', effort: 'max' }, script: [t.fixtures.yields(t.fixtures.says('done.'))] })
   const sent = dispatched.requests[0]?.options.effortValue
   const announced = dispatched.events.find(event => event.kind === 'model_call_started')?.effort
-  check('dispatch reads appState.effortValue (the key the scoped state now carries)', sent === 'low' && announced === 'low', `a run whose app state holds effortValue low (and a stray effort key max) sent ${String(sent)} to the model and announced ${String(announced)}: the model call of src/run-core/turn/streamModel.ts must carry the effortValue key of the context's app state`)
+  check('dispatch reads appState.effortValue (the key the scoped state now carries)', sent === 'low' && announced === 'low', `a run whose app state holds effortValue low (and a stray effort key max) sent ${String(sent)} to the model and announced ${String(announced)}: the model call of src/engine/loop/turn/streamModel.ts must carry the effortValue key of the context's app state`)
 }
 
 rmSync(scratch, { recursive: true, force: true })

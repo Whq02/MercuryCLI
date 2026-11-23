@@ -5,9 +5,9 @@ import { join } from 'node:path'
 import { isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { FLAG_REGISTRY, flagEnabled, flagEnv, flagSpellings } = await import('../../src/substrate/flagRegistry.ts')
-const { LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS, assertSingleRole } = await import('../../src/utils/workerRole.ts')
-const { scrubDaemonRoleEnv } = await import('../../src/daemon/headlessRun.ts')
+const { FLAG_REGISTRY, flagEnabled, flagEnv, flagSpellings } = await import('../../src/platform/substrate/flagRegistry.ts')
+const { LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS, assertSingleRole } = await import('../../src/daemon/concourse-workers/workerRole.ts')
+const { scrubDaemonRoleEnv } = await import('../../src/daemon/runner-link/headlessRun.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
@@ -165,21 +165,21 @@ check(
   'in each listed file (flag @ file) read the switch through flagEnabled instead of comparing its value with the string 0',
 )
 const OFF_RULE_READERS: Array<[env: string, file: string, reader: string]> = [
-  ['MERCURY_CRITTER_GAZE', 'utils/cockpit/critterGaze.ts', 'critterGazeEnabled'],
-  ['MERCURY_CRITTER_IDLE', 'utils/cockpit/critterIdle.ts', 'critterIdleEnabled'],
-  ['MERCURY_LIVE_GLYPHS', 'utils/cockpit/liveGlyphs.ts', 'liveGlyphsEnabled'],
-  ['MERCURY_TURN_RECEIPT', 'utils/cockpit/turnReceipt.ts', 'isTurnReceiptEnabled'],
-  ['MERCURY_CTX_FORECAST', 'services/cockpit/ctxForecast.ts', 'ctxForecastEnabled'],
-  ['MERCURY_RUNTIME_POSTURE', 'utils/cockpit/runtimePosture.ts', 'runtimePostureEnabled'],
-  ['MERCURY_LSP', 'services/lsp/mercuryLsp.ts', 'mercuryLspEnabled'],
-  ['MERCURY_MC_DIGEST', 'services/compact/microCompactDigest.ts', 'isMicroCompactDigestEnabled'],
-  ['MERCURY_RESUME_SNAPSHOT', 'utils/sessionStorage/resumeSnapshot.ts', 'resumeSnapshotEnabled'],
-  ['MERCURY_SPAWN_LEDGER', 'daemon/spawnLedger.ts', 'isSpawnLedgerEnabled'],
-  ['MERCURY_SPAWN_AUDIT', 'daemon/spawnLedger.ts', 'isSpawnAuditEnabled'],
-  ['MERCURY_HEALTH_FIX', 'utils/healthFix.ts', 'healthFixEnabled'],
-  ['MERCURY_BOOT_PREFLIGHT', 'services/health/healthPreflight.ts', 'mercuryBootPreflightEnabled'],
-  ['MERCURY_AGENT_NEEDS_YOU', 'services/agentStateHeuristic.ts', 'agentNeedsYouEnabled'],
-  ['MERCURY_COORDINATION_MCP', 'services/mcp/mercuryServer.ts', 'isMercuryServerEnabled'],
+  ['MERCURY_CRITTER_GAZE', 'screen/cockpit/critterGaze.ts', 'critterGazeEnabled'],
+  ['MERCURY_CRITTER_IDLE', 'screen/cockpit/critterIdle.ts', 'critterIdleEnabled'],
+  ['MERCURY_LIVE_GLYPHS', 'screen/cockpit/liveGlyphs.ts', 'liveGlyphsEnabled'],
+  ['MERCURY_TURN_RECEIPT', 'screen/cockpit/turnReceipt.ts', 'isTurnReceiptEnabled'],
+  ['MERCURY_CTX_FORECAST', 'screen/cockpit-gauges/ctxForecast.ts', 'ctxForecastEnabled'],
+  ['MERCURY_RUNTIME_POSTURE', 'screen/cockpit/runtimePosture.ts', 'runtimePostureEnabled'],
+  ['MERCURY_LSP', 'integrations/lsp/mercuryLsp.ts', 'mercuryLspEnabled'],
+  ['MERCURY_MC_DIGEST', 'engine/compaction/pruneDigest.ts', 'isMicroCompactDigestEnabled'],
+  ['MERCURY_RESUME_SNAPSHOT', 'sessions/transcripts/resumeSnapshot.ts', 'resumeSnapshotEnabled'],
+  ['MERCURY_SPAWN_LEDGER', 'daemon/roster/spawnLedger.ts', 'isSpawnLedgerEnabled'],
+  ['MERCURY_SPAWN_AUDIT', 'daemon/roster/spawnLedger.ts', 'isSpawnAuditEnabled'],
+  ['MERCURY_HEALTH_FIX', 'platform/health/healthFix.ts', 'healthFixEnabled'],
+  ['MERCURY_BOOT_PREFLIGHT', 'platform/health/healthPreflight.ts', 'mercuryBootPreflightEnabled'],
+  ['MERCURY_AGENT_NEEDS_YOU', 'screen/attention/agentStateHeuristic.ts', 'agentNeedsYouEnabled'],
+  ['MERCURY_COORDINATION_MCP', 'integrations/mcp/mercuryServer.ts', 'isMercuryServerEnabled'],
 ]
 for (const [env, file, reader] of OFF_RULE_READERS) {
   const held = process.env[env]
@@ -384,7 +384,7 @@ section('§7 swept-spelling totality — swept spellings never ride a registry r
   check('no registry reader takes a swept literal', directHits.length === 0, directHits.slice(0, 4).join(' · '), 'a swept spelling is passed to a registry reader in src: remove that call and use a raw process.env read instead')
   const sameFive = (s: Set<string>): boolean =>
     s.size === SWEPT_SPELLINGS.size && [...s].every(v => SWEPT_SPELLINGS.has(v))
-  check('workerRole sweeps exactly the five swept spellings (breadth never silently shrinks)', sameFive(new Set(RETIRED_SEAT_ENV_VARS)), '', 'RETIRED_SEAT_ENV_VARS in src/utils/workerRole.ts must list exactly the five swept spellings')
+  check('workerRole sweeps exactly the five swept spellings (breadth never silently shrinks)', sameFive(new Set(RETIRED_SEAT_ENV_VARS)), '', 'RETIRED_SEAT_ENV_VARS in src/daemon/concourse-workers/workerRole.ts must list exactly the five swept spellings')
   {
     const allRoleVars = [...LIVE_ROLE_ENV_VARS.flatMap(flagSpellings), ...RETIRED_SEAT_ENV_VARS]
     const saved = new Map(allRoleVars.map(k => [k, process.env[k]]))
@@ -419,7 +419,7 @@ section('§7 swept-spelling totality — swept spellings never ride a registry r
         'assertSingleRole accepts a single live or retired role and throws when two roles are set together',
         roleOk,
         roleOk ? '' : JSON.stringify({ singleLive, singleRetired, livePlusRetired, twoRetired }),
-        'assertSingleRole in src/utils/workerRole.ts must count live and retired role variables together and name both in its error',
+        'assertSingleRole in src/daemon/concourse-workers/workerRole.ts must count live and retired role variables together and name both in its error',
       )
     } finally {
       for (const [k, v] of saved) {
@@ -442,7 +442,7 @@ section('§7 swept-spelling totality — swept spellings never ride a registry r
       'scrubDaemonRoleEnv clears every live role spelling and all five retired spellings while leaving other env keys',
       scrubOk,
       scrubOk ? '' : JSON.stringify({ removed, remaining: Object.keys(fakeEnv) }),
-      'scrubDaemonRoleEnv in src/daemon/headlessRun.ts must delete every live and retired role spelling and return them',
+      'scrubDaemonRoleEnv in src/daemon/runner-link/headlessRun.ts must delete every live and retired role spelling and return them',
     )
   }
   const READER_CALL = '(?:flagEnv|flagEnabled|flagSpellings|flagPair|stampFlagOnEnv|setFlagEnv|deleteFlagEnv)'

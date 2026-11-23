@@ -7,12 +7,12 @@ import { readImports, staticPairs } from '../lib/importCycle.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const SELF = 'scripts/builtin-tools/prove-kinds-on-every-entry.ts'
-const LAUNCHER = 'src/entrypoints/cli.tsx'
-const RESOLVER = 'src/services/resources/registry.ts'
-const TABLE = 'src/services/resources/kinds.ts'
-const FOLDER = 'src/services/resources/adapters/'
-const TOOL_LIST = 'src/tools.ts'
-const OWNER = 'src/utils/run/resolveOwner.ts'
+const LAUNCHER = 'src/boot/entrypoints/cli.tsx'
+const RESOLVER = 'src/integrations/resources/registry.ts'
+const TABLE = 'src/integrations/resources/kinds.ts'
+const FOLDER = 'src/integrations/resources/adapters/'
+const TOOL_LIST = 'src/tools/kit/toolList.ts'
+const OWNER = 'src/engine/run-owner/resolveOwner.ts'
 const NO_KIND = 'zz-no-such-kind'
 const NO_RECORD = 'zz-no-such-record'
 const POOL = 6
@@ -20,16 +20,16 @@ const HELD_TURNS = 12
 const DOORS = ['resolveResource', 'resourceAdapterKinds', 'listResourceKind'] as const
 type Door = (typeof DOORS)[number]
 const ALSO: Array<[string, string]> = [
-  ['src/cli/run.ts', 'the headless runner'],
-  ['src/entrypoints/mcp.ts', 'the MCP server'],
-  ['src/services/crewBoard/implementation.ts', 'the crew board bundle'],
-  ['src/entrypoints/shellParentGuard.ts', 'the shell parent guard bundle'],
-  ['src/entrypoints/tensorfoldAdapter.ts', 'the TensorFold adapter bundle'],
-  ['src/services/privateChannel/verifyArtifactStandalone.ts', 'the artifact verifier bundle'],
+  ['src/daemon/runner/runHeadless.ts', 'the headless runner'],
+  ['src/integrations/mcp/mcpServer.ts', 'the MCP server'],
+  ['src/crew/board/implementation.ts', 'the crew board bundle'],
+  ['src/boot/entrypoints/shellParentGuard.ts', 'the shell parent guard bundle'],
+  ['src/boot/entrypoints/tensorfoldAdapter.ts', 'the TensorFold adapter bundle'],
+  ['src/platform/update-channel/verifyArtifactStandalone.ts', 'the artifact verifier bundle'],
 ]
 const ROWS: Array<[string, string, string]> = [
-  ['resource-plane-fast', 'src/services/health/sections/coding-loop-fast.ts', 'codingLoopFastChecks'],
-  ['primitive-resources', 'src/services/health/sections/architecture-fast.ts', 'architectureFastChecks'],
+  ['resource-plane-fast', 'src/platform/health/sections/coding-loop-fast.ts', 'codingLoopFastChecks'],
+  ['primitive-resources', 'src/platform/health/sections/architecture-fast.ts', 'architectureFastChecks'],
 ]
 
 interface Answer {
@@ -62,8 +62,8 @@ if (process.argv[2] === '--child') {
   const scan = JSON.parse(process.argv[6]!) as string[]
   const load = process.argv.slice(7)
   for (const file of load) await import(join(ROOT, file))
-  const registry = (await import(join(ROOT, RESOLVER))) as typeof import('../../src/services/resources/registry.ts')
-  const { processMainOwner } = (await import(join(ROOT, OWNER))) as typeof import('../../src/utils/run/resolveOwner.ts')
+  const registry = (await import(join(ROOT, RESOLVER))) as typeof import('../../src/integrations/resources/registry.ts')
+  const { processMainOwner } = (await import(join(ROOT, OWNER))) as typeof import('../../src/engine/run-owner/resolveOwner.ts')
   const context = { owner: processMainOwner(), cwd: process.cwd() }
   const ask = async (kind: string): Promise<Answer> => {
     const answer = await registry.resolveResource(`mercury://${kind}/${NO_RECORD}`, context)
@@ -107,8 +107,8 @@ if (process.argv[2] === '--held') {
     },
   })
   const threw = (error: unknown): string => `threw: ${error instanceof Error ? error.message : String(error)}`.split(ROOT).join('')
-  const registry = (await import(join(ROOT, RESOLVER))) as typeof import('../../src/services/resources/registry.ts')
-  const { processMainOwner } = (await import(join(ROOT, OWNER))) as typeof import('../../src/utils/run/resolveOwner.ts')
+  const registry = (await import(join(ROOT, RESOLVER))) as typeof import('../../src/integrations/resources/registry.ts')
+  const { processMainOwner } = (await import(join(ROOT, OWNER))) as typeof import('../../src/engine/run-owner/resolveOwner.ts')
   const context = { owner: processMainOwner(), cwd: process.cwd() }
   type Row = { id: string; run: (args: { signal: AbortSignal }) => unknown }
   const specs: Array<{ id: string; run: Row['run'] | undefined }> = []

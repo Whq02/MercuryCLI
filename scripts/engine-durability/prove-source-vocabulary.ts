@@ -21,7 +21,7 @@ const {
   sourceUnavailable,
   valueOr,
   wasObserved,
-} = await import('../../src/substrate/sourceState.ts')
+} = await import('../../src/platform/substrate/sourceState.ts')
 
 const errWith = (code: string): NodeJS.ErrnoException =>
   Object.assign(new Error(`${code} induced`), { code })
@@ -116,9 +116,9 @@ t.section('§2 — the fold and the flattening seam')
 
 t.section('§3 — a source that read once degrades to STALE, not to nothing')
 {
-  const bootstrap = await import('../../src/bootstrap/state.ts')
+  const bootstrap = await import('../../src/boot/process-state/processState.ts')
   bootstrap.setIsInteractive(false)
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
 
   const workspace = join(ROOT, 'workspace')
@@ -126,8 +126,8 @@ t.section('§3 — a source that read once degrades to STALE, not to nothing')
   bootstrap.setOriginalCwd(workspace)
   bootstrap.setCwdState(workspace)
 
-  const store = await import('../../src/services/artifacts/reviewStore.ts')
-  const projection = await import('../../src/services/workbench/projection.ts')
+  const store = await import('../../src/sessions/artifact-reviews/reviewStore.ts')
+  const projection = await import('../../src/screen/workbench/projection.ts')
   const artifactsRoot = guardWrite(ROOT, store.reviewArtifactsRoot())
 
   const made = store.createReviewArtifact({

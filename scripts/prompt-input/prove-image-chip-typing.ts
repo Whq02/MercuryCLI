@@ -54,23 +54,23 @@ try {
     })
     let payload: Capture | undefined
     try { payload = JSON.parse(readFileSync(out, 'utf8')) as Capture } catch {}
-    check(`${band.cols}x${band.rows} the real clipboard-paste drive completes`, result.status === 0 && payload !== undefined, `rc ${result.status} ${(result.stderr ?? '').slice(-300)}`, 'the vshot drive (scripts/ui/vshot.py) did not finish or wrote no capture: read the stderr above, re-run with --frames <dir>, and check that an awaited text such as [Image #1] ever appeared; the fixture clipboard image is read by src/utils/imagePaste.ts')
+    check(`${band.cols}x${band.rows} the real clipboard-paste drive completes`, result.status === 0 && payload !== undefined, `rc ${result.status} ${(result.stderr ?? '').slice(-300)}`, 'the vshot drive (scripts/ui/vshot.py) did not finish or wrote no capture: read the stderr above, re-run with --frames <dir>, and check that an awaited text such as [Image #1] ever appeared; the fixture clipboard image is read by src/screen/composer/imagePaste.ts')
     for (const word of ['i', 'it', 'its']) {
       const mark = payload?.marks?.find(value => value.label === word)
       const rows = rowsOf(mark?.grid ?? [])
       const y = rows.findLastIndex(row => row.includes('│❯'))
       const row = rows[y] ?? ''
       const expected = `[Image #1] ${word}`
-      check(`${band.cols} columns, ${word}: letters remain in typed order`, row.includes(expected), row, 'typed letters must land after the chip in order; look at how typed text is spliced around a chip in spliceInputRange (src/utils/inputRange.ts) and the chip offsets in src/utils/Cursor.ts')
+      check(`${band.cols} columns, ${word}: letters remain in typed order`, row.includes(expected), row, 'typed letters must land after the chip in order; look at how typed text is spliced around a chip in spliceInputRange (src/screen/composer/text-input/inputRange.ts) and the chip offsets in src/screen/composer/vim/textCursor.ts')
       const end = row.indexOf(expected) + expected.length
       const x = stringWidth(row.slice(0, end))
-      check(`${band.cols} columns, ${word}: the cursor is after the last letter`, row.includes(expected) && mark?.cursor?.x === x && mark.cursor.y === y, `expected ${x},${y}; observed ${JSON.stringify(mark?.cursor)}`, 'the cursor must sit after the last typed letter, past the chip; look at the chip-aware cursor moves in src/utils/Cursor.ts (chipEndingAt, chipStartingAt)')
+      check(`${band.cols} columns, ${word}: the cursor is after the last letter`, row.includes(expected) && mark?.cursor?.x === x && mark.cursor.y === y, `expected ${x},${y}; observed ${JSON.stringify(mark?.cursor)}`, 'the cursor must sit after the last typed letter, past the chip; look at the chip-aware cursor moves in src/screen/composer/vim/textCursor.ts (chipEndingAt, chipStartingAt)')
       if (frameDir !== undefined) writeFileSync(join(frameDir, `${band.cols}x${band.rows}-${word}.txt`), rows.join('\n') + `\ncursor ${JSON.stringify(mark?.cursor)}\n`)
     }
     const burst = payload?.marks?.find(value => value.label === 'burst')
     const burstRows = rowsOf(burst?.grid ?? [])
     const burstRow = burstRows.findLast(row => row.includes('│❯')) ?? ''
-    check(`${band.cols} columns: a same-event word also stays in order`, /\[Image #2\] ?it\s*│$/.test(burstRow), burstRow, 'two letters typed in one input event must keep their order after the chip; look at spliceInputRange (src/utils/inputRange.ts) and how src/hooks/textInput/keys.ts applies a multi-character event')
+    check(`${band.cols} columns: a same-event word also stays in order`, /\[Image #2\] ?it\s*│$/.test(burstRow), burstRow, 'two letters typed in one input event must keep their order after the chip; look at spliceInputRange (src/screen/composer/text-input/inputRange.ts) and how src/screen/composer/text-input/keys.ts applies a multi-character event')
     if (frameDir !== undefined) writeFileSync(join(frameDir, `${band.cols}x${band.rows}-burst.txt`), burstRows.join('\n') + `\ncursor ${JSON.stringify(burst?.cursor)}\n`)
     cleanupScenario('resume-2turn')
   }

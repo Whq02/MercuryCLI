@@ -10,9 +10,9 @@ import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 import { seedScratchHome, startScriptedFixture } from '../lib/scriptedTurn.ts'
 import { referenceFixtureSnapshot } from '../notifications/concourseReferenceSeed.ts'
-import { entryToRecord } from '../../src/fabric/entryCodec.ts'
-import { ordinalOf } from '../../src/fabric/ordinal.ts'
-import type { Entry } from '../../src/types/logs.ts'
+import { entryToRecord } from '../../src/sessions/fabric/entryCodec.ts'
+import { ordinalOf } from '../../src/sessions/fabric/ordinal.ts'
+import type { Entry } from '../../src/sessions/transcripts/transcriptEntries.ts'
 
 const tally = makeTally('prove-large-session-history')
 const home = realpathSync(mkdtempSync(join(tmpdir(), 'long-history-')))
@@ -24,9 +24,9 @@ const finalAsk = 'Answer on the same runner.'
 const sleepAsk = 'Hold this tool.'
 seedScratchHome(home, cwd)
 process.env.MERCURY_CONFIG_DIR = home
-const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
-const { emptyFoldState, applyTranscriptEntry } = await import('../../src/utils/sessionStorage/fold.ts')
-const { writeResumeSnapshot } = await import('../../src/utils/sessionStorage/resumeSnapshot.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
+const { emptyFoldState, applyTranscriptEntry } = await import('../../src/sessions/transcripts/fold.ts')
+const { writeResumeSnapshot } = await import('../../src/sessions/transcripts/resumeSnapshot.ts')
 
 function generateHistory(): void {
   const project = getProjectDir(cwd)

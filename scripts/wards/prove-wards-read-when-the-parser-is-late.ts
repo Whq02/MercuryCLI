@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/wards/wards* src/utils/permissions/decision/commandAnalysis*
+// gate-watch: src/permissions/wards/wards.ts src/permissions/wards/wardsRefusals.ts src/permissions/wards/wardsShellRead.ts src/permissions/rules/decision/commandAnalysis.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mock } from 'bun:test'
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -14,8 +14,8 @@ process.env.MERCURY_SPAWNED_BY = 'proof:ward-late-parser#1'
 delete process.env.NODE_ENV
 
 let lateParserCalls = 0
-const realParser = await import('../../src/utils/bash/parser.js')
-mock.module('../../src/utils/bash/parser.js', () => ({
+const realParser = await import('../../src/platform/shell/bash/parser.js')
+mock.module('../../src/platform/shell/bash/parser.js', () => ({
   ...realParser,
   parseCommandRaw: () => {
     lateParserCalls++
@@ -23,8 +23,8 @@ mock.module('../../src/utils/bash/parser.js', () => ({
   },
 }))
 
-const { setHomeSpellings } = await import('../../src/utils/wards/wards.js')
-const { refusalOfShellCommand } = await import('../../src/utils/wards/wardsRefusals.js')
+const { setHomeSpellings } = await import('../../src/permissions/wards/wards.js')
+const { refusalOfShellCommand } = await import('../../src/permissions/wards/wardsRefusals.js')
 
 const savedHome = process.env.HOME
 const savedProfile = process.env.USERPROFILE

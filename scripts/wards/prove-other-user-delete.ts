@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/wards/wards* src/guards/wardsGuard* scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts
+// gate-watch: src/permissions/wards/wards.ts src/permissions/wards/wardsRefusals.ts src/permissions/wards/wardsShellRead.ts src/permissions/guards/wardsGuard.ts scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
@@ -11,13 +11,13 @@ import { seedFirstRun } from '../lib/firstRunSeed.ts'
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 let checks = 0
-const FIX_OTHER_USER_WARD = 'the rule no-other-user-delete in REFUSAL_WARDS (src/utils/wards/wards.ts) decides these rows, and src/guards/wardsGuard.ts runs it before the permission check; fix the rule or the guard, not this proof'
+const FIX_OTHER_USER_WARD = 'the rule no-other-user-delete in REFUSAL_WARDS (src/permissions/wards/wards.ts) decides these rows, and src/permissions/guards/wardsGuard.ts runs it before the permission check; fix the rule or the guard, not this proof'
 function check(label: string, cond: boolean, detail = '', fix = FIX_OTHER_USER_WARD): void {
   checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${!cond && fix ? ` — to fix: ${fix}` : ''}`)
 }
-const FIX_HEADLESS_RUN = 'run bun run build.ts so dist/mercury.mjs carries the current guard, then read the tool_result row above: the ward in src/utils/wards/wards.ts must refuse the call before any permission ask in src/guards/wardsGuard.ts'
+const FIX_HEADLESS_RUN = 'run bun run build.ts so dist/mercury.mjs carries the current guard, then read the tool_result row above: the ward in src/permissions/wards/wards.ts must refuse the call before any permission ask in src/permissions/guards/wardsGuard.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -31,12 +31,12 @@ function restorePlatform(): void {
   if (platformDescriptor) Object.defineProperty(process, 'platform', platformDescriptor)
 }
 
-type PendingToolCall = import('../../src/utils/wards/wards.js').PendingToolCall
-type WardVerdict = import('../../src/utils/wards/wards.js').WardVerdict
-const { REFUSAL_WARDS, buildWardDenial, evaluateWards, setHomeSpellings } = await import('../../src/utils/wards/wards.js')
-const { WARDS_HOOK_ID, registerWardsGuard, resetWardsEngagedSessionsForTest } = await import('../../src/guards/wardsGuard.js')
-const { judgeToolCall } = await import('../../src/guards/guards.js')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+type PendingToolCall = import('../../src/permissions/wards/wards.js').PendingToolCall
+type WardVerdict = import('../../src/permissions/wards/wards.js').WardVerdict
+const { REFUSAL_WARDS, buildWardDenial, evaluateWards, setHomeSpellings } = await import('../../src/permissions/wards/wards.js')
+const { WARDS_HOOK_ID, registerWardsGuard, resetWardsEngagedSessionsForTest } = await import('../../src/permissions/guards/wardsGuard.js')
+const { judgeToolCall } = await import('../../src/permissions/guards/guards.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
 
 const RULE = 'no-other-user-delete'
 const CLOSING = 'Do not rephrase the command to evade this rule — surface the refusal to the operator instead.'
@@ -296,8 +296,8 @@ for (const posture of ['default', 'allowed', 'sovereign'] as const) {
     check(`${posture}: the delete inside sh -c "…" is refused by the same ward (the inline shell is a command, not data)`, refusedByWard(shellResult), String(shellResult?.output ?? '(no result row)').slice(0, 300), FIX_HEADLESS_RUN)
     check(`${posture}: the delete split over a backslash continuation is refused by the same ward (F37W-5B-13's shape)`, refusedByWard(splitResult), String(splitResult?.output ?? '(no result row)').slice(0, 300), FIX_HEADLESS_RUN)
     check(`${posture}: none of the refused commands ran (no escape mark)`, !existsSync(escaped) && !existsSync(escapedShell) && !existsSync(escapedSplit), [escaped, escapedShell, escapedSplit].filter(existsSync).join(', '), FIX_HEADLESS_RUN)
-    if (withMark) check(`${posture}: the next Bash call ran (the ward refused one call, not the session)`, markResult?.status === 'ok' && existsSync(ran), String(markResult?.output ?? '(no result row)').slice(0, 200), 'a ward refusal must end only that call: check how src/guards/wardsGuard.ts returns the refusal, and run bun run build.ts first')
-    check(`${posture}: the run ends completed with exit 0 — a ward refusal is not an unanswered ask`, code === 0 && outcome?.status === 'completed', `${code} ${outcome?.status} ${stderr.slice(-300)}`, 'the stderr tail above names why the run failed; a ward refusal in src/guards/wardsGuard.ts must not end the run, and run bun run build.ts first')
+    if (withMark) check(`${posture}: the next Bash call ran (the ward refused one call, not the session)`, markResult?.status === 'ok' && existsSync(ran), String(markResult?.output ?? '(no result row)').slice(0, 200), 'a ward refusal must end only that call: check how src/permissions/guards/wardsGuard.ts returns the refusal, and run bun run build.ts first')
+    check(`${posture}: the run ends completed with exit 0 — a ward refusal is not an unanswered ask`, code === 0 && outcome?.status === 'completed', `${code} ${outcome?.status} ${stderr.slice(-300)}`, 'the stderr tail above names why the run failed; a ward refusal in src/permissions/guards/wardsGuard.ts must not end the run, and run bun run build.ts first')
   } finally {
     await api.close()
     rmSync(home, { recursive: true, force: true })

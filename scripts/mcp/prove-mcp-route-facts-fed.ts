@@ -21,10 +21,10 @@ let failures = 0
 function routeFixHint(label: string): string {
   if (label.startsWith('§1')) return 'fix mcpRouteArm in src/commands/mcp/route.ts'
   if (label.startsWith('§2')) return 'fix mcpRosterLine or MCP_EMPTY_ROSTER_LINE in src/commands/mcp/route.ts'
-  if (label.startsWith('§4')) return 'fix the /mcp command in src/commands/mcp/mcp.tsx so the popup paints the focused session roster (mcpRoster of the connector in src/services/engine-connector/focusedConnector.ts)'
+  if (label.startsWith('§4')) return 'fix the /mcp command in src/commands/mcp/mcp.tsx so the popup paints the focused session roster (mcpRoster of the connector in src/engine/connector/focusedConnector.ts)'
   if (label.startsWith('§5 the popup')) return 'fix mcpServerState in src/commands/mcp/McpPopup.tsx'
   if (label.startsWith('§5 the face line') || label.startsWith('§5 …')) return 'fix mcpRosterLine in src/commands/mcp/route.ts'
-  if (label.startsWith('§5')) return 'fix mcpRosterEntriesOf in src/services/engine-connector/rosterTerms.ts'
+  if (label.startsWith('§5')) return 'fix mcpRosterEntriesOf in src/engine/connector/rosterTerms.ts'
   if (label.startsWith('§6 every')) return 'fix mcpRosterRowsFailedFirst in src/commands/mcp/route.ts'
   return 'fix mcpRosterLine in src/commands/mcp/route.ts'
 }
@@ -66,12 +66,12 @@ section('§2 the roster line')
 section('§4 the focused roster is painted through the composer')
 {
   const React = await import('react')
-  const { App } = await import('../../src/components/App.js')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { App } = await import('../../src/boot/App.js')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   const { mountOffscreen, waitFor } = await import('../lib/settingsPopupHarness.ts')
   const mod = await import('../../src/commands/mcp/mcp.tsx')
-  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const slot = await import('../../src/engine/connector/focusedConnector.ts')
   enableConfigs()
   const screenClients = [{ name: 'cockpit-a', type: 'connected' }, { name: 'cockpit-b', type: 'pending' }]
   for (const [label, roster, clients] of [
@@ -101,7 +101,7 @@ section('§4 the focused roster is painted through the composer')
 
 section("§5 the row speaks the deadline's honest reason (the panel's own words)")
 {
-  const { mcpRosterEntriesOf } = await import(join(ROOT, 'src/services/engine-connector/rosterTerms.ts'))
+  const { mcpRosterEntriesOf } = await import(join(ROOT, 'src/engine/connector/rosterTerms.ts'))
   const REASON = 'MCP server "frozen" (stdio) did not answer in 30s — retry from /mcp'
   const failed = { type: 'failed', name: 'frozen', config: { type: 'stdio', command: 'x', scope: 'project' }, error: REASON }
   const connected = { type: 'connected', name: 'docs', config: { type: 'stdio', command: 'y', scope: 'project' }, client: {}, capabilities: null }

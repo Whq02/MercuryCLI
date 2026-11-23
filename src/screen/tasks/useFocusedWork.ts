@@ -1,0 +1,160 @@
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
+import {
+  getFocusedSessionConnector,
+  hasFocusedSession,
+  subscribeThroughFocused,
+} from '../../engine/connector/focusedConnector.js'
+import { runnerRecordAlive, workRowRuns } from '../../engine/connector/workCounts.js'
+import { readSessionWorkers } from '../../daemon/concourse-workers/concourseWorkers.js'
+import type { MissionRowV1, SampleRowV1, WorkRosterV1, WorkRowV1 } from '../../engine/connector/types.js'
+import { useAppState, useAppStateStore, type AppState } from '../app-state/AppState.js'
+import { getVitals, subscribeVitals, type SessionGlanceSnapshot } from '../app-state/vitalsBus.js'
+import { stringWidth } from '../renderer/stringWidth.js'
+import type { EngineCarrierKind } from '../../engine/connector/types.js'
+import { projectWorkRoster } from '../../engine/connector/workRoster.js'
+import { pidAlive } from '../../platform/processes/pidAlive.js'
+
+const subscribeFocusedWork = subscribeThroughFocused((connector, listener) =>
+  connector.subscribeWork(listener),
+)
+
+export function useFocusedWorkRoster(): WorkRosterV1 {
+  return useSyncExternalStore(
+    subscribeFocusedWork,
+    () => getFocusedSessionConnector().workRoster(),
+    () => getFocusedSessionConnector().workRoster(),
+  )
+}
+
+export function useFocusedMission(): readonly MissionRowV1[] {
+  return useFocusedWorkRoster().mission
+}
+
+const focusedSamplesStamp = (): string => JSON.stringify(getFocusedSessionConnector().workRoster().samples ?? [])
+
+export function useFocusedSamples(): readonly SampleRowV1[] {
+  const stamp = useSyncExternalStore(subscribeFocusedWork, focusedSamplesStamp, focusedSamplesStamp)
+  return useMemo(() => JSON.parse(stamp) as SampleRowV1[], [stamp])
+}
+
+export function focusedWorkRows(
+  tasks: AppState['tasks'] | undefined,
+  roster: WorkRosterV1,
+): WorkRowV1[] {
+  const rows = projectWorkRoster(tasks ?? {})
+  const seen = new Set(rows.map(r => r.id))
+  for (const row of roster.rows) {
+    if (seen.has(row.id)) continue
+    seen.add(row.id)
+    rows.push(row)
+  }
+  return rows
+}
+
+export function useFocusedWorkRows(): readonly WorkRowV1[] {
+  const tasks = useAppState((s: AppState) => s.tasks)
+  const roster = useFocusedWorkRoster()
+  return useMemo(() => focusedWorkRows(tasks, roster), [tasks, roster])
+}
+
+
+export type FocusedRunnerPresence = 'blank' | 'live' | 'dormant'
+
+export function focusedRunnerPresence(): FocusedRunnerPresence {
+  if (!hasFocusedSession()) return 'blank'
+  const sessionId = getFocusedSessionConnector().sessionId()
+  const live = Object.values(readSessionWorkers()).some(
+    rec => rec.sessionId === sessionId && runnerRecordAlive(rec, pidAlive),
+  )
+  return live ? 'live' : 'dormant'
+}
+
+export function focusedSessionIdOrNull(): string | null {
+  return hasFocusedSession() ? getFocusedSessionConnector().sessionId() : null
+}
+export type CompactWorkCounts = Readonly<{
+  sessionsOn: number | null
+  agentsHere: number | null
+  monitorsHere: number | null
+  samples?: number
+}>
+
+export function compactWorkCounts(input: {
+  sessions: SessionGlanceSnapshot
+  focusedSessionId: string | null
+  carrier: EngineCarrierKind
+  roster: WorkRosterV1
+  tasks?: AppState['tasks']
+}): CompactWorkCounts {
+  const activeSessions = input.sessions.state === 'known'
+    ? new Set(input.sessions.rows.filter(row => row.live && !row.paused && !row.parked && !row.stopped).map(row => row.sessionId))
+    : null
+  if (input.focusedSessionId !== null && input.carrier === 'in-process') activeSessions?.add(input.focusedSessionId)
+  const sessionsOn = activeSessions?.size ?? null
+  const samples = input.roster.samples?.length ?? 0
+  if (input.focusedSessionId === null) return { sessionsOn, agentsHere: 0, monitorsHere: 0, samples: 0 }
+  if (input.carrier === 'daemon') {
+    const focused = input.sessions.state === 'known' ? input.sessions.rows.find(row => row.sessionId === input.focusedSessionId) : undefined
+    if (focused !== undefined && activeSessions !== null && !activeSessions.has(input.focusedSessionId)) return { sessionsOn, agentsHere: 0, monitorsHere: 0, samples }
+    if (focused === undefined || input.roster.reported === false) return { sessionsOn, agentsHere: null, monitorsHere: null, samples }
+  }
+  const rows = focusedWorkRows(input.carrier === 'in-process' ? input.tasks : undefined, input.roster)
+  const byId = new Map<string, WorkRowV1>()
+  for (const row of rows) if (!byId.has(row.id)) byId.set(row.id, row)
+  const agents = new Set<string>()
+  const monitors = new Set<string>()
+  const topAgents = new Map<string, WorkRowV1>()
+  for (const row of byId.values()) {
+    if (row.kind === 'agent') topAgents.set(row.agentId ?? row.id, row)
+    if (row.kind === 'monitor' && workRowRuns(row)) monitors.add(row.id)
+  }
+  for (const [id, row] of topAgents) {
+    if (workRowRuns(row) && row.paused === undefined && row.pausedBy === undefined) agents.add(id)
+  }
+  return { sessionsOn, agentsHere: agents.size, monitorsHere: monitors.size, samples }
+}
+
+export function compactWorkSummaryText(counts: CompactWorkCounts, columns: number): string {
+  const parts = [
+    { value: counts.sessionsOn, noun: 'session', scope: 'on', short: 'S' },
+    { value: counts.monitorsHere, noun: 'monitor', scope: 'here', short: 'M' },
+    { value: counts.agentsHere, noun: 'crewmate', scope: 'here', short: 'C' },
+  ]
+  const available = parts.filter(part => part.value !== null)
+  const unavailable = available.length !== parts.length
+  const words = available.map(part => `${part.value} ${part.noun}${part.value === 1 ? '' : 's'} ${part.scope}`)
+  if (unavailable) words.push('counts unavailable')
+  const samples = counts.samples ?? 0
+  if (samples > 0) words.push(`${samples} sample${samples === 1 ? '' : 's'}`)
+  const full = words.join(' · ')
+  if (stringWidth(full) <= columns) return full
+  const fields = available.map(part => `${part.short}:${part.value}`)
+  while (fields.length > 0) {
+    const text = fields.join(' · ') + (unavailable || fields.length < parts.length ? ' …' : '')
+    if (stringWidth(text) <= columns) return text
+    fields.pop()
+  }
+  return columns > 0 ? '…' : ''
+}
+
+export function useCompactWorkCounts(): CompactWorkCounts {
+  const store = useAppStateStore()
+  const subscribe = useCallback((listener: () => void) => {
+    const work = subscribeFocusedWork(listener)
+    const vitals = subscribeVitals(listener, true)
+    const local = store.subscribe(listener)
+    return () => { work(); vitals(); local() }
+  }, [store])
+  const snapshot = useCallback(() => {
+    const connector = getFocusedSessionConnector()
+    return JSON.stringify(compactWorkCounts({
+      sessions: getVitals().sessions,
+      focusedSessionId: hasFocusedSession() ? connector.sessionId() : null,
+      carrier: connector.carrier,
+      roster: connector.workRoster(),
+      tasks: store.getState().tasks,
+    }))
+  }, [store])
+  const value = useSyncExternalStore(subscribe, snapshot, snapshot)
+  return useMemo(() => JSON.parse(value) as CompactWorkCounts, [value])
+}

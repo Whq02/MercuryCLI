@@ -49,27 +49,27 @@ console.log('============================================================')
 console.log(' /model — the frontier family\'s generations: the family row and its previous generation beside it')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 section('the rows: the alias row and the previous generation\'s literal row are adjacent, named, undescribed')
 {
-  const { getModelOptions } = await import('../../src/services/model/modelOptions.ts')
-  const { FAMILY_GENERATIONS, previousGenerationKeys } = await import('../../src/utils/model/configs.ts')
-  const { getModelStrings } = await import('../../src/utils/model/modelStrings.ts')
-  const { renderModelName } = await import('../../src/services/model/model.ts')
+  const { getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
+  const { FAMILY_GENERATIONS, previousGenerationKeys } = await import('../../src/models/facts/builtInModelTable.ts')
+  const { getModelStrings } = await import('../../src/models/facts/pinnedModelIds.ts')
+  const { renderModelName } = await import('../../src/models/catalogue/engineModel.ts')
   const strings = getModelStrings()
   const newestId = strings[FAMILY_GENERATIONS.fable[0]]
   const previousId = strings[previousGenerationKeys('fable')[0]!]
   const rows = getModelOptions({ anthropicCredentialed: () => true })
   const family = rows.findIndex(o => o.value === newestId)
   const member = rows.findIndex(o => o.value === previousId)
-  check('the family full-id row is present', family >= 0, 'getModelOptions in src/services/model/modelOptions.ts must list a row whose value is the newest fable id from FAMILY_GENERATIONS in src/utils/model/configs.ts')
-  check("the previous generation's literal row is present", member >= 0, 'getModelOptions in src/services/model/modelOptions.ts must list a row for the previous fable generation (previousGenerationKeys in src/utils/model/configs.ts)')
-  check('the previous row sits immediately after the family row', member === family + 1, `put the previous generation row directly after the family row in getModelOptions (src/services/model/modelOptions.ts); family index / previous index: ${family} / ${member}`)
-  check("the one display owner labels them through the table ('Fable 5.2' / 'Fable 5.1')", rows[family]?.label === renderModelName(newestId) && rows[family]?.label === 'Fable 5.2' && rows[member]?.label === renderModelName(previousId) && rows[member]?.label === 'Fable 5.1', `row labels must come from renderModelName (src/services/model/model.ts) and its generation table; got ${rows[family]?.label} / ${rows[member]?.label}`)
-  check('both rows carry an empty description (the neutrality ruling)', rows[family]?.description === '' && rows[member]?.description === '', `both rows must have description '' in getModelOptions (src/services/model/modelOptions.ts); got '${rows[family]?.description}' / '${rows[member]?.description}'`)
-  check('neither row is refused for a credentialed account', rows[family]?.unavailable === undefined && rows[member]?.unavailable === undefined, `getModelOptions (src/services/model/modelOptions.ts) must not mark these rows unavailable when anthropicCredentialed is true; got ${JSON.stringify(rows[family]?.unavailable)} / ${JSON.stringify(rows[member]?.unavailable)}`)
+  check('the family full-id row is present', family >= 0, 'getModelOptions in src/models/catalogue/modelOptions.ts must list a row whose value is the newest fable id from FAMILY_GENERATIONS in src/models/facts/builtInModelTable.ts')
+  check("the previous generation's literal row is present", member >= 0, 'getModelOptions in src/models/catalogue/modelOptions.ts must list a row for the previous fable generation (previousGenerationKeys in src/models/facts/builtInModelTable.ts)')
+  check('the previous row sits immediately after the family row', member === family + 1, `put the previous generation row directly after the family row in getModelOptions (src/models/catalogue/modelOptions.ts); family index / previous index: ${family} / ${member}`)
+  check("the one display owner labels them through the table ('Fable 5.2' / 'Fable 5.1')", rows[family]?.label === renderModelName(newestId) && rows[family]?.label === 'Fable 5.2' && rows[member]?.label === renderModelName(previousId) && rows[member]?.label === 'Fable 5.1', `row labels must come from renderModelName (src/models/catalogue/engineModel.ts) and its generation table; got ${rows[family]?.label} / ${rows[member]?.label}`)
+  check('both rows carry an empty description (the neutrality ruling)', rows[family]?.description === '' && rows[member]?.description === '', `both rows must have description '' in getModelOptions (src/models/catalogue/modelOptions.ts); got '${rows[family]?.description}' / '${rows[member]?.description}'`)
+  check('neither row is refused for a credentialed account', rows[family]?.unavailable === undefined && rows[member]?.unavailable === undefined, `getModelOptions (src/models/catalogue/modelOptions.ts) must not mark these rows unavailable when anthropicCredentialed is true; got ${JSON.stringify(rows[family]?.unavailable)} / ${JSON.stringify(rows[member]?.unavailable)}`)
 }
 
 section('THE SCREEN: picker → inline set → reopened, three moments of one run (120x40)')
@@ -85,7 +85,7 @@ if (driver.kind !== 'posix-pty') {
   writeFileSync(join(home, '.credentials.json'), FIXTURE_CREDS)
   const grid = join(SCRATCH, 'frontier-members-120x40.json')
   const cfgPath = join(SCRATCH, 'vshot.json')
-  const { getModelOptions } = await import('../../src/services/model/modelOptions.ts')
+  const { getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
   if (!getModelOptions({ anthropicCredentialed: () => true }).some(row => row.group === undefined)) throw new Error('The Anthropic section is absent from the catalogue')
   writeFileSync(
     cfgPath,
@@ -163,8 +163,8 @@ if (driver.kind !== 'posix-pty') {
       const ls = lines(picker.grid)
       const n = newestRow(ls)
       const p = previousRow(ls)
-      check('picker: the family row and the previous row are both painted', n >= 0 && p >= 0, `the picker must paint both Fable rows with a name column; check getModelOptions (src/services/model/modelOptions.ts) and the picker under src/commands/model/picker; family row / previous row line index: ${n} / ${p}`)
-      check('picker: the previous row sits directly under the family row', p === n + 1, `the picker must draw the previous row on the line right under the family row; row order comes from getModelOptions (src/services/model/modelOptions.ts); family row / previous row line index: ${n} / ${p}`)
+      check('picker: the family row and the previous row are both painted', n >= 0 && p >= 0, `the picker must paint both Fable rows with a name column; check getModelOptions (src/models/catalogue/modelOptions.ts) and the picker under src/commands/model/picker; family row / previous row line index: ${n} / ${p}`)
+      check('picker: the previous row sits directly under the family row', p === n + 1, `the picker must draw the previous row on the line right under the family row; row order comes from getModelOptions (src/models/catalogue/modelOptions.ts); family row / previous row line index: ${n} / ${p}`)
       check("picker: neither row reads 'current' yet (the state column is calm)", !/\bcurrent\b/.test(ls[n] ?? '') && !/\bcurrent\b/.test(ls[p] ?? '') && /\bFable 5\.2 {2,}claude-fable-5-2 {2,}/.test(ls[n] ?? ''), `before any /model set neither row may show current, and the family row must read name then id; got ${(ls[n] ?? '').trim()} | ${(ls[p] ?? '').trim()}`)
       check('picker: the newest row carries its 1M ctx column', /1M ctx/.test(ls[n] ?? ''), `the newest Fable row must show its 1M ctx column in the picker; got ${(ls[n] ?? '').trim()}`)
     }
@@ -181,7 +181,7 @@ if (driver.kind !== 'posix-pty') {
       const paneStart = Math.max(0, (ls.find(l => l.includes('╭')) ?? '').indexOf('╭'))
       const under = (ls[n + 1] ?? '').slice(paneStart).replace(/[╭╮╰╯─│┃┏┓┗┛━\s]/g, '')
       check('reopened: no description line under the selected newest row (a blank, then the previous row)', n >= 0 && under === '' && (p === n + 1 || p === n + 2), `remove the description line under the selected newest row in the picker (src/commands/model/picker) and keep getModelOptions descriptions empty; line under it, family / previous index: "${(ls[n + 1] ?? '').trim()}" ${n} / ${p}`)
-      check('reopened: both moments belong to one product run (the picker header is back)', ls.join('\n').includes('Mercury · model') && reopened.atTick > (picker?.atTick ?? 0), 'the reopened frame must carry the Mercury · model header (MODEL_PICKER_TITLE in src/utils/model/modelPickerGroups.ts) and come after the picker frame')
+      check('reopened: both moments belong to one product run (the picker header is back)', ls.join('\n').includes('Mercury · model') && reopened.atTick > (picker?.atTick ?? 0), 'the reopened frame must carry the Mercury · model header (MODEL_PICKER_TITLE in src/models/facts/modelPickerGroups.ts) and come after the picker frame')
     }
   } else {
     check('the capture wrote its grid', false, 'vshot.py wrote no grid file; run scripts/ui/vshot.py by hand with the config and read its stderr')

@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-const WHERE = 'src/ink/warn.ts'
+const WHERE = 'src/screen/renderer/warn.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
@@ -14,8 +14,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 const CHILD = `
-const warn = await import(${JSON.stringify(join(ROOT, 'src', 'ink', 'warn.ts'))})
-const { flushDebugLogs } = await import(${JSON.stringify(join(ROOT, 'src', 'utils', 'debug.ts'))})
+const warn = await import(${JSON.stringify(join(ROOT, 'src', 'screen', 'renderer', 'warn.ts'))})
+const { flushDebugLogs } = await import(${JSON.stringify(join(ROOT, 'src', 'platform', 'logs', 'debugLog.ts'))})
 const answers = []
 answers.push(warn.ifNotInteger(undefined, 'absent'))
 answers.push(warn.ifNotInteger(3, 'whole'))

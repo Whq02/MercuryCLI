@@ -91,10 +91,10 @@ seedFirstRun(home, [work])
   writeFileSync(join(home, 'settings.json'), '{}\n')
 }
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { readSessionAsks } = await import('../../src/services/engine-connector/seatProjections.ts')
-const obligations = await import('../../src/services/crew/obligations.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { readSessionAsks } = await import('../../src/engine/connector/seatProjections.ts')
+const obligations = await import('../../src/crew/crewmates/obligations.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 
 type Route = 'classifier' | 'seat-1' | 'seat-done' | 'side'
 interface Hit {
@@ -291,7 +291,7 @@ try {
   const asksOf = (): ReturnType<typeof readSessionAsks> => readSessionAsks(sid, daemonDir)
   const openAsks = async (): Promise<number> => (await obligations.openObligations({ scope: 'switchboard' })).filter(o => o.sessionId === sid && (o.ref ?? '').startsWith('permission:')).length
 
-  check('P2 the seat asked and the daemon PARKED it: one ask on the seat', await untilAsync(() => (asksOf()?.asks.length ?? 0) === 1, 90_000), `asks: ${JSON.stringify(asksOf())} · hits: ${hits.map(h => h.route).join(',')} — the seat must park exactly one permission ask in the daemon (readSessionAsks in src/services/engine-connector/seatProjections.ts reads it); read ${logPath}`)
+  check('P2 the seat asked and the daemon PARKED it: one ask on the seat', await untilAsync(() => (asksOf()?.asks.length ?? 0) === 1, 90_000), `asks: ${JSON.stringify(asksOf())} · hits: ${hits.map(h => h.route).join(',')} — the seat must park exactly one permission ask in the daemon (readSessionAsks in src/engine/connector/seatProjections.ts reads it); read ${logPath}`)
   const parked = asksOf()?.asks[0]
   check("P2 the parked ask is the seat's writing command — the engine's own ask, no verdict and none of a verdict's words", parked?.toolName === 'Bash' && String((parked.input as { command?: unknown }).command ?? '').includes(PROBE_COMMIT) && (parked.decisionReasonDetail as { type?: string } | undefined)?.type !== 'classifier' && !JSON.stringify(parked).includes(BLOCK_REASON), JSON.stringify(parked) + ' — the parked ask must be the Bash writing command as the engine asked it, with no classifier verdict attached')
   check('P2 the needs-you row was minted for the session', await untilAsync(async () => (await openAsks()) === 1, 15_000), 'a parked permission ask must mint one needs-you obligation (scope switchboard, ref permission:) for the session; read ' + logPath)

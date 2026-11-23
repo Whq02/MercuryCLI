@@ -170,7 +170,7 @@ section('L1 — the GPT leg ran and the switch applied on the real binary')
   const gptCalls = wire.filter(c => c.kind === 'openai')
   check('the Responses fixture served the GPT turn', gptCalls.length >= 1, `openai calls=${gptCalls.length} vshot status=${res.status} hits=${wire.map(c => `${c.kind}:${c.url ?? ''}`).join('|') || 'NONE'} — the binary never reached the OpenAI Responses fixture; check MERCURY_OPENAI_API_BASE in childEnv and the fixture log under ${RUN_HOME}`)
   check('the switch send fired on its await, not its deadline (the GPT reply painted)', (receipts[2]?.atTick ?? 999) < 120, `switch-sent at tick ${receipts[2]?.atTick} — the GPT reply text never painted, so the send waited for its deadline; read the grid in ${out}`)
-  check('the confirm fired on its await (the preview card painted and settled)', (receipts[3]?.atTick ?? 999) < 180, `confirm at tick ${receipts[3]?.atTick} — the Model switch preview card (src/components/TransitionPreviewCard.tsx) never painted after /model claude-opus-5; read the grid in ${out}`)
+  check('the confirm fired on its await (the preview card painted and settled)', (receipts[3]?.atTick ?? 999) < 180, `confirm at tick ${receipts[3]?.atTick} — the Model switch preview card (src/commands/model/TransitionPreviewCard.tsx) never painted after /model claude-opus-5; read the grid in ${out}`)
   check("the think ask fired on its await (the status row rested on 'ready · Opus 5 ·' — the switch applied)", (receipts[4]?.atTick ?? 999) < 250, `think-sent at tick ${receipts[4]?.atTick} — the status row never rested on ready · Opus 5 · after the confirm, so the switch did not apply; read the grid in ${out}`)
   check('the esc was sent after the ask', escAt > thinkAt && thinkAt > 0, `think ${thinkAt} esc ${escAt} — a send receipt is missing; the vshot run in ${out} ended before the think ask and the esc were sent (vshot status=${res.status})`)
 }
@@ -194,7 +194,7 @@ section('L3 — THE TEAR-DOWN: the fixture sees the connection drop within a sec
 {
   const closed = wire.find(c => c.kind === 'anthropic-closed')
   const lag = closed !== undefined && escAt > 0 ? closed.at - escAt : Number.NaN
-  check(`the connection dropped (the client aborted the stream — never the fixture's own ceiling)`, closed !== undefined && closed.why === 'client-dropped', `${JSON.stringify(closed ?? null)} — the esc did not abort the open stream; the client must drop the connection (see escRungOf in src/input-core/interruptArity.ts and the abort path of the interrupted turn)`)
+  check(`the connection dropped (the client aborted the stream — never the fixture's own ceiling)`, closed !== undefined && closed.why === 'client-dropped', `${JSON.stringify(closed ?? null)} — the esc did not abort the open stream; the client must drop the connection (see escRungOf in src/screen/composer/input-core/interruptArity.ts and the abort path of the interrupted turn)`)
   check(`the drop landed within ${TEARDOWN_BUDGET_MS} ms of the esc (measured ${Number.isFinite(lag) ? `${lag} ms` : 'never'})`, Number.isFinite(lag) && lag >= 0 && lag <= TEARDOWN_BUDGET_MS, `esc ${escAt} closed ${closed?.at} — the teardown after the esc is slower than ${TEARDOWN_BUDGET_MS} ms or never happened; the request must be aborted on the esc, not on a timeout`)
   if (Number.isFinite(lag)) console.log(`  [info] esc → connection drop: ${lag} ms`)
 }
@@ -203,10 +203,10 @@ section('L4 — THE ROW TELLS THE TRUTH after the interrupt')
 {
   const before = markGrids.get('esc-sent') ?? ''
   const status = before.split('\n').find(line => line.includes('esc interrupts')) ?? ''
-  check('the live status row shows Opus 5 and high effort with the esc hint, without a phase or ready label', status.includes('Opus 5 · high') && status.includes('esc interrupts · ⇧← back') && !/thinking|ready ·/.test(status), `${status} — the status row at the esc must show the model, effort and esc hint without a phase label; see statusLine in src/components/SwitchboardTagBar.tsx and escRungHint in src/input-core/interruptArity.ts`)
+  check('the live status row shows Opus 5 and high effort with the esc hint, without a phase or ready label', status.includes('Opus 5 · high') && status.includes('esc interrupts · ⇧← back') && !/thinking|ready ·/.test(status), `${status} — the status row at the esc must show the model, effort and esc hint without a phase label; see statusLine in src/screen/chat/SwitchboardTagBar.tsx and escRungHint in src/screen/composer/input-core/interruptArity.ts`)
   check('the interruption painted (⨯ Interrupted)', /Interrupted/.test(gridText), `${gridText.split('\n').slice(-12).join('\n')}\n — no Interrupted line painted after the esc; the interrupted turn must write its notice into the transcript`)
   check('the composer returned', /│❯\s/.test(gridText) && / for a new line/.test(gridText), `${gridText.split('\n').slice(-8).join('\n')}\n — the composer did not come back after the interrupt; read the last rows above`)
-  check("the status row reads ready — no 'interrupting' left standing", /ready · [^\n]*← back/.test(gridText) && !/interrupting —/.test(gridText), `${gridText.split('\n').slice(-8).join('\n')}\n — the interrupting label stayed on the status row; its source is statusLine in src/components/SwitchboardTagBar.tsx (s.interrupting must clear once the turn ends)`)
+  check("the status row reads ready — no 'interrupting' left standing", /ready · [^\n]*← back/.test(gridText) && !/interrupting —/.test(gridText), `${gridText.split('\n').slice(-8).join('\n')}\n — the interrupting label stayed on the status row; its source is statusLine in src/screen/chat/SwitchboardTagBar.tsx (s.interrupting must clear once the turn ends)`)
   check("no 'thinking' stands over a stream that ended", !/thinking for|· thinking/.test(gridText), `${gridText.split('\n').slice(-8).join('\n')}\n — a thinking label still stands after the stream ended; the status row must drop it once the turn is interrupted`)
 }
 

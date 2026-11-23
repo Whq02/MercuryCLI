@@ -28,7 +28,7 @@ const DOWN = `${ESC}[B`
 const RIGHT = `${ESC}[C`
 
 let failures = 0
-const FAIL_HINT = 'to fix: the theme roster is in src/utils/theme.ts (THEME_NAMES, isMonochromeTheme, getTheme) and the colour stripping in src/ink/colorize.ts (setMonochromeTheme, colorize, colorDepthWhy); a failure in the built-product sections (§3 to §5) reads dist/mercury.mjs, so rebuild with bun run build.ts and read the frames with --frames <dir>'
+const FAIL_HINT = 'to fix: the theme roster is in src/screen/theme/theme.ts (THEME_NAMES, isMonochromeTheme, getTheme) and the colour stripping in src/screen/renderer/colorize.ts (setMonochromeTheme, colorize, colorDepthWhy); a failure in the built-product sections (§3 to §5) reads dist/mercury.mjs, so rebuild with bun run build.ts and read the frames with --frames <dir>'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 500) : ''}${!cond ? ' | ' + FAIL_HINT : ''}`)
@@ -39,10 +39,10 @@ function section(title: string): void {
 
 console.log('prove-theme-black-and-white — the no-colour rendering as a chosen appearance')
 
-const themeMod = await import('../../src/utils/theme.ts')
-const colorize = await import('../../src/ink/colorize.ts')
-const tokensMod = await import('../../src/utils/mercuryTokens.ts')
-const systemMod = await import('../../src/utils/systemTheme.ts')
+const themeMod = await import('../../src/screen/theme/theme.ts')
+const colorize = await import('../../src/screen/renderer/colorize.ts')
+const tokensMod = await import('../../src/screen/theme/mercuryTokens.ts')
+const systemMod = await import('../../src/screen/theme/systemTheme.ts')
 const chalk = (await import('chalk')).default
 
 section('§1 the roster: Black and white is the third appearance, reachable and pinnable, never the default')
@@ -57,7 +57,7 @@ section('§1 the roster: Black and white is the third appearance, reachable and 
   const tokens = tokensMod.resolveMercuryTokens('mono', '#DD4444')
   check('the semantic tokens resolve completely', tokensMod.listUnresolvedTokenRoles(tokens).length === 0, tokensMod.listUnresolvedTokenRoles(tokens).join(','))
   check('it is not a dark family: no painted canvas', !tokensMod.isDarkThemeFamily('mono') && tokens.canvas === undefined)
-  const oasis = await import('../../src/utils/cockpit/oasisBg.ts')
+  const oasis = await import('../../src/screen/cockpit/oasisBg.ts')
   delete process.env.MERCURY_OASIS_BG
   process.env.TERM = 'xterm-256color'
   check('the ground owner never paints OSC 11 under it (the terminal keeps its own ground)', oasis.oasisBgEnabled(true, 'mono') === false)

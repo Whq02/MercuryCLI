@@ -7,12 +7,12 @@ import { join, sep } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { resolveShellEngine, runEngineCommand, resetEngineSessionForTest } = await import(
-  join(ROOT, 'src/utils/shell/engineSession.ts')
+  join(ROOT, 'src/platform/shell/engineSession.ts')
 )
-const { getCwd } = await import(join(ROOT, 'src/utils/cwd.ts'))
-const state = await import(join(ROOT, 'src/bootstrap/state.ts'))
-const { quote } = await import(join(ROOT, 'src/utils/bash/shellQuote.ts'))
-const { stripExtendedLengthPrefix } = await import(join(ROOT, 'src/utils/windowsPaths.ts'))
+const { getCwd } = await import(join(ROOT, 'src/platform/files/cwd.ts'))
+const state = await import(join(ROOT, 'src/boot/process-state/processState.ts'))
+const { quote } = await import(join(ROOT, 'src/platform/shell/bash/shellQuote.ts'))
+const { stripExtendedLengthPrefix } = await import(join(ROOT, 'src/platform/files/windowsPaths.ts'))
 const os = await import('node:os')
 const fs = await import('node:fs')
 const sameDir = (a: string, b: string): boolean => {
@@ -52,7 +52,7 @@ const pidOf = (result: Result): number => Number(/pid=(\d+)/.exec(result.stdout)
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const failureHint = 'to fix, change runEngineCommand, endEngineSession, endEngineSessionFor or resolveEngineSessionCeiling in src/utils/shell/engineSession.ts (the section heading above names the behaviour)'
+  const failureHint = 'to fix, change runEngineCommand, endEngineSession, endEngineSessionFor or resolveEngineSessionCeiling in src/platform/shell/engineSession.ts (the section heading above names the behaviour)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${failureHint}` : ''}`)
 }
 function section(t: string): void {
@@ -181,8 +181,8 @@ section('§5 large output rides back within the tool budget')
 section('§6 the session ends on request: the switch road and the exit cleanup end the live brush')
 {
   resetEngineSessionForTest()
-  const { endEngineSession } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
-  const { runCleanupFunctions } = await import(join(ROOT, 'src/utils/cleanupRegistry.ts'))
+  const { endEngineSession } = await import(join(ROOT, 'src/platform/shell/engineSession.ts'))
+  const { runCleanupFunctions } = await import(join(ROOT, 'src/platform/processes/cleanupRegistry.ts'))
   const first = await run('echo "pid=$$"')
   const firstPid = Number(/pid=(\d+)/.exec(first.stdout)?.[1] ?? -1)
   check('the session answers with its own pid', firstPid > 1 && alive(firstPid), JSON.stringify(first.stdout.slice(0, 40)))
@@ -198,7 +198,7 @@ section('§6 the session ends on request: the switch road and the exit cleanup e
 section('§10 two owners: a shell each — side by side, isolated, reset and ended apart')
 {
   resetEngineSessionForTest()
-  const { endEngineSession, endEngineSessionFor, engineChildForTest } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+  const { endEngineSession, endEngineSessionFor, engineChildForTest } = await import(join(ROOT, 'src/platform/shell/engineSession.ts'))
   const order: string[] = []
   const a = run('sleep 2; echo A', 30_000, 'owner-a').then(r => {
     order.push('a')
@@ -240,7 +240,7 @@ section('§10 two owners: a shell each — side by side, isolated, reset and end
 section('§11 the ceiling on engine sessions: nine owners against 8 — the ninth waits and gets a session when an agent ends; a ceiling of 1 leaves none for agents')
 {
   resetEngineSessionForTest()
-  const { endEngineSessionFor, engineChildForTest, engineWaitingOwnersForTest, resolveEngineSessionCeiling } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+  const { endEngineSessionFor, engineChildForTest, engineWaitingOwnersForTest, resolveEngineSessionCeiling } = await import(join(ROOT, 'src/platform/shell/engineSession.ts'))
   const pause = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 20))
   const savedPin = process.env.MERCURY_SHELL_ENGINE_SESSIONS
   process.env.MERCURY_SHELL_ENGINE_SESSIONS = '8'
@@ -312,7 +312,7 @@ section('§7 an engine that ends during its start refuses the command at once, w
 section('§8 an engine that dies between commands: the pipe error is heard, the loss is said')
 {
   resetEngineSessionForTest()
-  const { engineChildForTest } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+  const { engineChildForTest } = await import(join(ROOT, 'src/platform/shell/engineSession.ts'))
   await run('DEAD_MARK=set; echo ready')
   const child = engineChildForTest()
   check('the live engine is reachable through the seam', child !== null && typeof child?.pid === 'number')
@@ -380,7 +380,7 @@ if (process.platform === 'win32') {
   console.log('  [SKIP] this section runs off Windows: its login home is a POSIX home, a ~/.profile the engine reads at login')
 } else {
   const started = startedAtLogin('reads_back() { echo carried-by-the-engine; }\nholds_a_here_document() {\n  cat <<EOF\nfrom a here-document\nEOF\n}\n', 'echo started; reads_back')
-  const captureFix = 'the function loop of buildCaptureScript in src/utils/bash/ShellSnapshot.ts must run SNAPSHOT_READS_BACK of src/utils/shell/shellRecord.ts for the engine, so that only a definition the engine reads back is kept'
+  const captureFix = 'the function loop of buildCaptureScript in src/platform/shell/bash/shellSnapshot.ts must run SNAPSHOT_READS_BACK of src/platform/shell/shellRecord.ts for the engine, so that only a definition the engine reads back is kept'
   check('the session starts and runs its first command', started.code === 0 && started.stdout.includes('started'), `${JSON.stringify(started)}; ${captureFix}`)
   check('the function the engine reads back is carried into the session', started.stdout.includes('carried-by-the-engine'), `${JSON.stringify(started.stdout)}; ${captureFix}`)
 }
@@ -411,7 +411,7 @@ if (process.platform === 'win32') {
     'done',
   ].join('\n')
   const started = startedAtLogin(profile, asked)
-  const aliasFix = "the alias line of buildCaptureScript in src/utils/bash/ShellSnapshot.ts must print the engine's aliases through SNAPSHOT_READS_BACK_ALIASES of src/utils/shell/shellRecord.ts, so that only an alias the engine reads back is written"
+  const aliasFix = "the alias line of buildCaptureScript in src/platform/shell/bash/shellSnapshot.ts must print the engine's aliases through SNAPSHOT_READS_BACK_ALIASES of src/platform/shell/shellRecord.ts, so that only an alias the engine reads back is written"
   check('the session starts and runs its first command', started.code === 0 && started.stdout.includes('started'), `${JSON.stringify(started)}; ${aliasFix}`)
   check('a plain alias is carried and expands', started.stdout.includes('plain-alias'), `${JSON.stringify(started.stdout)}; ${aliasFix}`)
   check("an alias whose value holds a single quote, double quotes, $'…', a newline or a trailing space is carried as the login file wrote it", ['single', 'double', 'ansi', 'newline', 'trailing'].every(name => started.stdout.includes(`${name} as-written`)), `${JSON.stringify(started.stdout)}; ${aliasFix}`)
@@ -423,7 +423,7 @@ if (process.platform === 'win32') {
   console.log('  [SKIP] this section runs off Windows: its login home is a POSIX home, a ~/.profile the engine reads at login')
 } else {
   const started = startedAtLogin(String.raw`carried_past_the_trap() { echo carried-past-the-trap; }` + '\n' + String.raw`trap 'echo "it'\''s a trap"' DEBUG` + '\n', 'echo started; carried_past_the_trap')
-  const trapFix = 'buildCaptureScript in src/utils/bash/ShellSnapshot.ts must clear the DEBUG trap for the engine once the login file is read, before it prints the exports and writes the snapshot'
+  const trapFix = 'buildCaptureScript in src/platform/shell/bash/shellSnapshot.ts must clear the DEBUG trap for the engine once the login file is read, before it prints the exports and writes the snapshot'
   check('the session starts and runs its first command', started.code === 0 && started.stdout.includes('started'), `${JSON.stringify(started)}; ${trapFix}`)
   check('the function the login file defines is carried into the session', started.stdout.includes('carried-past-the-trap'), `${JSON.stringify(started.stdout)}; ${trapFix}`)
 }
@@ -433,7 +433,7 @@ if (process.platform === 'win32') {
   console.log('  [SKIP] this section runs off Windows: its login home is a POSIX home, a ~/.profile the engine reads at login')
 } else {
   const started = startedAtLogin(String.raw`awk() { command awk "$@"; echo "it's awk"; }` + '\n', 'echo started')
-  check('the session starts and runs its first command', started.code === 0 && started.stdout.includes('started'), `${JSON.stringify(started)}; getSnapshot in src/utils/shell/engineSession.ts must hand the engine its login snapshot only after a fresh engine has read it back`)
+  check('the session starts and runs its first command', started.code === 0 && started.stdout.includes('started'), `${JSON.stringify(started)}; getSnapshot in src/platform/shell/engineSession.ts must hand the engine its login snapshot only after a fresh engine has read it back`)
 }
 
 resetEngineSessionForTest()

@@ -13,15 +13,15 @@ delete process.env.ANTHROPIC_API_KEY
 delete process.env.ANTHROPIC_AUTH_TOKEN
 delete process.env.NODE_ENV
 
-const budget = await import('../../src/services/api/recoveryBudget.js')
-const retry = await import('../../src/services/api/withRetry.js')
-const errors = await import('../../src/services/api/errors.js')
-const { APIError } = await import('../../src/utils/api/sdkErrors.js')
-const auth = { ...(await import('../../src/utils/auth.js')), ...(await import('../../src/services/auth/oauthLifecycle.js')) }
-const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/constants/oauth.js')
+const budget = await import('../../src/engine/requests/recoveryBudget.js')
+const retry = await import('../../src/engine/requests/withRetry.js')
+const errors = await import('../../src/engine/requests/apiErrorRows.js')
+const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.js')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.js')) }
+const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/models/sign-in/oauth/oauth.js')
 
 let failures = 0
-const FIX_HINT = 'W1-W2: providerWaitIsWindow, providerAskedWaitMs and isSpentUsageWindowAnswer in src/services/api/recoveryBudget.ts; W3-W4: isRetryableError in src/services/api/withRetry.ts; W5-W6: getAssistantMessageFromError in src/services/api/errors.ts'
+const FIX_HINT = 'W1-W2: providerWaitIsWindow, providerAskedWaitMs and isSpentUsageWindowAnswer in src/engine/requests/recoveryBudget.ts; W3-W4: isRetryableError in src/engine/requests/withRetry.ts; W5-W6: getAssistantMessageFromError in src/engine/requests/apiErrorRows.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}to fix: ${FIX_HINT}` : ''}`)
@@ -127,7 +127,7 @@ section('W6 — the sign-in wall names the remedy without an address, whether co
   const closedText = textOf(closedRow)
   check('with the config closed the wall row composes: the one line, no account suffix', closedRow !== undefined && closedRow.error === 'authentication_failed' && closedText.includes('Anthropic sign-in expired') && !closedText.includes('· account'), closedThrow || closedText)
   writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, '.mercury.json'), JSON.stringify({ oauthAccount: { accountUuid: 'fixture-account', emailAddress: 'fixture@example.invalid', organizationUuid: 'fixture-organization' } }))
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
   const openRow = errors.getAssistantMessageFromError(revoked(), 'claude-opus-5')
   const openText = textOf(openRow)

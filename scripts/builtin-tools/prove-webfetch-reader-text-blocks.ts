@@ -4,12 +4,12 @@ export {}
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail.slice(0, 400) + '; ' : '') + 'the reading and its road notices are built by applyPromptToMarkdown in src/tools/WebFetchTool/utils.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail.slice(0, 400) + '; ' : '') + 'the reading and its road notices are built by applyPromptToMarkdown in src/tools/web-fetch/fetchContent.ts' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { applyPromptToMarkdown } = await import('../../src/tools/WebFetchTool/utils.ts')
+const { applyPromptToMarkdown } = await import('../../src/tools/web-fetch/fetchContent.ts')
 
 const sig = new AbortController().signal
 const reply = (content: unknown[]) => ({ message: { content } })

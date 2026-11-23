@@ -5,13 +5,13 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker, scratchRoot } from '../engine-durability/harness.ts'
-import type { ConcourseAdmitResult } from '../../src/daemon/concourseWorkers.ts'
+import type { ConcourseAdmitResult } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 
 const t = checker()
 const root = scratchRoot('concourse-dispatch')
 const dir = join(root, 'daemon')
 const { makeConcourseDispatchHandler, readConcourseDispatches, concourseDispatchesPath } = await import(
-  '../../src/daemon/concourseDispatch.js'
+  '../../src/daemon/concourse-workers/concourseDispatch.js'
 )
 
 let admits = 0
@@ -82,7 +82,7 @@ t.section('§4 — content hygiene (shape-only digests)')
 t.section('§5 — the delivery valve + redirect')
 {
   const { writeFileSync, mkdirSync } = await import('node:fs')
-  const { pauseConcourseWorker, resumeConcourseWorker } = await import('../../src/daemon/concourseWorkers.ts')
+  const { pauseConcourseWorker, resumeConcourseWorker } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   mkdirSync(dir, { recursive: true })
   writeFileSync(
     join(dir, 'concourse-workers.json'),

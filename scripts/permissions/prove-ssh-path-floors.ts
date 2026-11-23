@@ -20,18 +20,18 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS'])
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(PROJ)
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { enableConfigs } = await import('../../src/utils/config.ts')
-const { setOriginalCwd, setCwdState, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
-const { checkReadPermissionForTool, checkWritePermissionForTool } = await import('../../src/utils/permissions/filesystem.ts')
-const { noteResolvedAuthority } = await import('../../src/utils/remoteFiles/target.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
+const { setOriginalCwd, setCwdState, setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
+const { checkReadPermissionForTool, checkWritePermissionForTool } = await import('../../src/permissions/rules/filesystem.ts')
+const { noteResolvedAuthority } = await import('../../src/platform/remote-file-target/target.ts')
 setSessionTrustAccepted(true)
 enableConfigs()
 setOriginalCwd(PROJ)
 setCwdState(PROJ)
 
-type Ctx = import('../../src/Tool.ts').ToolPermissionContext
+type Ctx = import('../../src/tools/kit/tool.ts').ToolPermissionContext
 type Decision = { behavior: string; message?: string; decisionReason?: { type?: string } }
 
 let failures = 0
@@ -39,7 +39,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const hint = 'fix how an ssh:// path that names this machine meets the credential, runtime and protected-path floors in checkReadPermissionForTool and checkWritePermissionForTool in src/utils/permissions/filesystem.ts, or decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts (section 7)'
+  const hint = 'fix how an ssh:// path that names this machine meets the credential, runtime and protected-path floors in checkReadPermissionForTool and checkWritePermissionForTool in src/permissions/rules/filesystem.ts, or decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts (section 7)'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail.slice(0, 600) + ' — ' : ''}${hint}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)

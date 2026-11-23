@@ -13,21 +13,21 @@ delete process.env.MERCURY_EFFORT_LEVEL
 import { z } from 'zod/v4'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 const projDir = mkdtempSync(join(tmpdir(), 'qe-laws-proj-'))
 bootstrap.setOriginalCwd(projDir)
 bootstrap.setProjectRoot(projDir)
 
-const { ask } = await import('../../src/rows/turn.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { ask } = await import('../../src/engine/rows/turn.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import(
-  '../../src/utils/fileStateCache.ts'
+  '../../src/platform/files/fileStateCache.ts'
 )
 
 let failures = 0
-const turnLawsFailHint = 'to fix, change the row stream, limits or write-back of ask() in src/rows/turn.ts, which this proof drives'
+const turnLawsFailHint = 'to fix, change the row stream, limits or write-back of ask() in src/engine/rows/turn.ts, which this proof drives'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${turnLawsFailHint}` : ''}`)
@@ -38,7 +38,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the turn laws proof exceeded 180s; an ask() call in src/rows/turn.ts never settled, so find the section printed last above and look at the fixture API it was waiting on')
+  console.log('\n❌ TIMEOUT — the turn laws proof exceeded 180s; an ask() call in src/engine/rows/turn.ts never settled, so find the section printed last above and look at the fixture API it was waiting on')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -99,7 +99,7 @@ async function runAsk(opts: {
   maxTime?: { limitMs: number; at: number }
   onRow?: (row: SdkMsg) => void
   abortAfterFirstRequest?: boolean
-  mutableMessages?: import('../../src/types/message.ts').Message[]
+  mutableMessages?: import('../../src/engine/message-shapes/message.ts').Message[]
 }): Promise<{ api: FixtureApi; out: SdkMsg[]; cacheWrittenBack: unknown }> {
   const api = await startFixtureApi(opts.turns)
   process.env.ANTHROPIC_BASE_URL = api.url
@@ -173,7 +173,7 @@ section('Q1 — row order · stop word capture · usage accumulation · last-TEX
 
 section('Q7 — the seat’s memory: ONE shared array across ask() calls carries the conversation (the amnesia concession)')
 {
-  type Msg = import('../../src/types/message.ts').Message
+  type Msg = import('../../src/engine/message-shapes/message.ts').Message
   const shared: Msg[] = []
   const first = await runAsk({
     turns: [{ kind: 'text', text: 'THE FIRST ANSWER.' }],

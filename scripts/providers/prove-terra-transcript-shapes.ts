@@ -4,8 +4,8 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
-import type { AssistantMessage, Message } from '../../src/types/message.js'
-import type { Tool } from '../../src/Tool.js'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.js'
+import type { Tool } from '../../src/tools/kit/tool.js'
 
 const home = mkdtempSync(join(tmpdir(), 'terra-shapes-'))
 process.env.MERCURY_CONFIG_DIR = home
@@ -52,19 +52,19 @@ process.env.MERCURY_OPENAI_API_BASE = base
 process.env.MERCURY_OPENAI_CHATGPT_BASE = base
 process.env.MERCURY_OPENAI_AUTH_BASE = base
 
-const { openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.js')
-const { ResponsesStreamFold, mapOpenaiHttpFailure } = await import('../../src/services/providers/openai/openaiWire.js')
-const { streamOpenaiResponses } = await import('../../src/services/providers/openai/openaiClient.js')
-const { buildOpenaiResponsesRequest, decodeOpenaiTurnRecord } = await import('../../src/services/providers/openai/responsesBridge.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { createUserMessage } = await import('../../src/services/messages.js')
+const { openaiCallModel } = await import('../../src/models/roads/openai/openaiCallModel.js')
+const { ResponsesStreamFold, mapOpenaiHttpFailure } = await import('../../src/models/roads/openai/openaiWire.js')
+const { streamOpenaiResponses } = await import('../../src/models/roads/openai/openaiClient.js')
+const { buildOpenaiResponsesRequest, decodeOpenaiTurnRecord } = await import('../../src/models/roads/openai/responsesBridge.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { createUserMessage } = await import('../../src/engine/messages/messages.js')
 const tool = { name: 'Echo', inputSchema: z.object({ value: z.string(), optional: z.string().optional() }), prompt: async () => 'Echo the fixture value.', isEnabled: () => true, isReadOnly: () => true, isConcurrencySafe: () => true } as unknown as Tool
 const options = { model, effortValue: 'max', querySource: 'sdk', ownerKey: 'terra-shapes', getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], mcpTools: [], isNonInteractiveSession: true, hasAppendSystemPrompt: false } as never
 async function turn(messages: Message[]): Promise<AssistantMessage[]> {
   const settled: AssistantMessage[] = []
   for await (const event of openaiCallModel({ messages, systemPrompt: ['Use the fixture tool.'] as never, tools: [tool], thinkingConfig: { type: 'enabled', budgetTokens: 4096 }, signal: new AbortController().signal, options })) if (event.type === 'assistant') settled.push(event)
-  assert.ok(settled.length > 0, `src/services/providers/openai/openaiCallModel.ts ${model} turn produced 0 assistant messages`)
-  assert.ok(settled.every(row => !row.isApiErrorMessage), `src/services/providers/openai/openaiCallModel.ts ${model} turn returned API error: ${JSON.stringify(settled.map(r => r.error))}`)
+  assert.ok(settled.length > 0, `src/models/roads/openai/openaiCallModel.ts ${model} turn produced 0 assistant messages`)
+  assert.ok(settled.every(row => !row.isApiErrorMessage), `src/models/roads/openai/openaiCallModel.ts ${model} turn returned API error: ${JSON.stringify(settled.map(r => r.error))}`)
   return settled
 }
 try {
@@ -102,8 +102,8 @@ try {
   const request = buildOpenaiResponsesRequest({ model, messages: [{ role: 'user', content: 'Fixture.' }], reasoningEffort: 'max' })
   const cut = []
   for await (const event of streamOpenaiResponses({ baseUrl: base, headers: {}, request, fetchImpl: (async () => new Response(sse({ type: 'response.output_item.done', item: message }), { headers: { 'content-type': 'text/event-stream' } })) as typeof fetch })) cut.push(event)
-  assert.ok(cut.some(e => e.type === 'stream-fault' && e.fault.code === 'no-terminal-event'), `src/services/providers/openai/openaiClient.ts truncated stream missing no-terminal-event fault: ${JSON.stringify(cut).slice(0, 140)}`)
-  assert.ok(!cut.some(e => e.type === 'finish'), `src/services/providers/openai/openaiClient.ts truncated stream unexpectedly emitted finish: ${JSON.stringify(cut).slice(0, 140)}`)
+  assert.ok(cut.some(e => e.type === 'stream-fault' && e.fault.code === 'no-terminal-event'), `src/models/roads/openai/openaiClient.ts truncated stream missing no-terminal-event fault: ${JSON.stringify(cut).slice(0, 140)}`)
+  assert.ok(!cut.some(e => e.type === 'finish'), `src/models/roads/openai/openaiClient.ts truncated stream unexpectedly emitted finish: ${JSON.stringify(cut).slice(0, 140)}`)
   console.log('PASS Terra transcript shapes: reasoning replay, null optionals, ordered tool pairing, disjoint usage, max effort, stable prefix, stop reasons, Retry-After and missing terminal')
 } finally {
   server.closeAllConnections()

@@ -4,7 +4,7 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 let checks = 0
-const FIX_HINT = 'change the schema memo in toolToAPISchema (src/services/messages/api.ts) or the conversation snapshots in src/utils/toolSchemaCache.ts'
+const FIX_HINT = 'change the schema memo in toolToAPISchema (src/engine/messages/apiSystemAndToolSchema.ts) or the conversation snapshots in src/models/roads/toolSchemaCache.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -14,9 +14,9 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { clearToolSchemaCache, clearConversationToolSchemas } = await import('../../src/utils/toolSchemaCache.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { clearToolSchemaCache, clearConversationToolSchemas } = await import('../../src/models/roads/toolSchemaCache.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 function countingSchema(marker: string): { schema: Record<string, unknown>; walks: () => number } {
   let walks = 0

@@ -12,7 +12,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { mapWithConcurrency, discoveryPoolWidth } = await import('../../src/utils/concurrency.ts')
+const { mapWithConcurrency, discoveryPoolWidth } = await import('../../src/platform/async/concurrency.ts')
 
 console.log('§1 the pool bounds the fan-out and keeps the order')
 {
@@ -26,8 +26,8 @@ console.log('§1 the pool bounds the fan-out and keeps the order')
     inFlight--
     return i * 2
   })
-  check('in-flight work never exceeded the width (and the pool did run wide)', peak <= 4 && peak >= 2, `peak=${peak} | fix: mapWithConcurrency in src/utils/concurrency.ts must run at most limit workers and more than one`)
-  check('results land in input order', out.length === 200 && out.every((v, i) => v === i * 2), 'fix: mapWithConcurrency in src/utils/concurrency.ts must store each result at its input index')
+  check('in-flight work never exceeded the width (and the pool did run wide)', peak <= 4 && peak >= 2, `peak=${peak} | fix: mapWithConcurrency in src/platform/async/concurrency.ts must run at most limit workers and more than one`)
+  check('results land in input order', out.length === 200 && out.every((v, i) => v === i * 2), 'fix: mapWithConcurrency in src/platform/async/concurrency.ts must store each result at its input index')
   const statted = await mapWithConcurrency(['a', 'missing', 'c'], 4, async file => {
     try {
       if (file === 'missing') throw new Error('ENOENT')
@@ -36,7 +36,7 @@ console.log('§1 the pool bounds the fan-out and keeps the order')
       return { file, mtimeMs: 0 }
     }
   })
-  check('a caught per-item failure yields its fallback in place', statted[0]?.mtimeMs === 5 && statted[1]?.mtimeMs === 0 && statted[2]?.file === 'c', j(statted) + ' | fix: mapWithConcurrency in src/utils/concurrency.ts must keep a mapper fallback at its own index')
+  check('a caught per-item failure yields its fallback in place', statted[0]?.mtimeMs === 5 && statted[1]?.mtimeMs === 0 && statted[2]?.file === 'c', j(statted) + ' | fix: mapWithConcurrency in src/platform/async/concurrency.ts must keep a mapper fallback at its own index')
   let rejected = false
   try {
     await mapWithConcurrency([1, 2, 3], 2, async i => {
@@ -46,20 +46,20 @@ console.log('§1 the pool bounds the fan-out and keeps the order')
   } catch {
     rejected = true
   }
-  check('an UNCAUGHT throw rejects the whole map (why the catch must stay inside the mapper)', rejected, 'fix: mapWithConcurrency in src/utils/concurrency.ts must reject when a mapper throws')
+  check('an UNCAUGHT throw rejects the whole map (why the catch must stay inside the mapper)', rejected, 'fix: mapWithConcurrency in src/platform/async/concurrency.ts must reject when a mapper throws')
 }
 
 console.log('\n§2 the width has one owner')
 {
   const width = discoveryPoolWidth()
-  check('the width is an integer in [1, 4]', Number.isInteger(width) && width >= 1 && width <= 4, String(width) + ' | fix: discoveryPoolWidth in src/utils/concurrency.ts must return an integer from 1 to 4')
+  check('the width is an integer in [1, 4]', Number.isInteger(width) && width >= 1 && width <= 4, String(width) + ' | fix: discoveryPoolWidth in src/platform/async/concurrency.ts must return an integer from 1 to 4')
 }
 
 
 console.log('\n§4 the tool over a scratch tree')
 {
-  const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'grep-fanout-')))
   const hits: string[] = []
   for (let i = 0; i < 30; i++) {
@@ -76,11 +76,11 @@ console.log('\n§4 the tool over a scratch tree')
     data: { mode: string; numFiles: number; filenames: string[]; appliedLimit?: number; incomplete?: string }
   }
   const listed = result.data.filenames.map(f => f.split(/[\\/]/).pop() ?? f)
-  check('files_with_matches lists every hit file exactly once', result.data.numFiles === hits.length && listed.length === hits.length && new Set(listed).size === hits.length, j({ numFiles: result.data.numFiles, listed: listed.length }) + ' | fix: the files_with_matches walk in src/tools/GrepTool/GrepTool.ts (GrepTool.call) must list each hit file once')
-  check('…none missed, none invented', hits.every(h => listed.includes(h)) && listed.every(l => hits.includes(l)), j(listed.filter(l => !hits.includes(l))) + ' | fix: GrepTool.call in src/tools/GrepTool/GrepTool.ts must list every matching file and no other')
-  check('the walk finished (no incomplete note)', result.data.incomplete === undefined, String(result.data.incomplete) + ' | fix: GrepTool.call in src/tools/GrepTool/GrepTool.ts must finish the walk and set no incomplete note')
+  check('files_with_matches lists every hit file exactly once', result.data.numFiles === hits.length && listed.length === hits.length && new Set(listed).size === hits.length, j({ numFiles: result.data.numFiles, listed: listed.length }) + ' | fix: the files_with_matches walk in src/tools/grep/GrepTool.ts (GrepTool.call) must list each hit file once')
+  check('…none missed, none invented', hits.every(h => listed.includes(h)) && listed.every(l => hits.includes(l)), j(listed.filter(l => !hits.includes(l))) + ' | fix: GrepTool.call in src/tools/grep/GrepTool.ts must list every matching file and no other')
+  check('the walk finished (no incomplete note)', result.data.incomplete === undefined, String(result.data.incomplete) + ' | fix: GrepTool.call in src/tools/grep/GrepTool.ts must finish the walk and set no incomplete note')
   const paged = (await GrepTool.call({ pattern: 'needle', path: dir, head_limit: 5 } as never, context)) as { data: { numFiles: number; filenames: string[]; appliedLimit?: number } }
-  check('pagination applies after the walk: five of the sorted hits, the limit reported', paged.data.numFiles === 5 && paged.data.filenames.length === 5 && paged.data.appliedLimit === 5, j(paged.data) + ' | fix: head_limit in GrepTool.call in src/tools/GrepTool/GrepTool.ts must cut to five after the walk and report appliedLimit')
+  check('pagination applies after the walk: five of the sorted hits, the limit reported', paged.data.numFiles === 5 && paged.data.filenames.length === 5 && paged.data.appliedLimit === 5, j(paged.data) + ' | fix: head_limit in GrepTool.call in src/tools/grep/GrepTool.ts must cut to five after the walk and report appliedLimit')
   rmSync(dir, { recursive: true, force: true })
 }
 

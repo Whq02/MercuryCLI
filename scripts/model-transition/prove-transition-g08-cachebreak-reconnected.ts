@@ -9,13 +9,13 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ctm-g08-config-'))
 process.env.MERCURY_HOME = mkdtempSync(join(tmpdir(), 'ctm-g08-home-'))
 
 
-const det = await import('../../src/services/api/promptCacheBreakDetection.ts')
-const { buildModelCallReference } = await import('../../src/run-core/call-reference.ts')
+const det = await import('../../src/engine/requests/promptCacheBreakDetection.ts')
+const { buildModelCallReference } = await import('../../src/engine/loop/call-reference.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' | fix recordPromptState or checkResponseForCacheBreak in src/services/api/promptCacheBreakDetection.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' | fix recordPromptState or checkResponseForCacheBreak in src/engine/requests/promptCacheBreakDetection.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -31,7 +31,7 @@ section('§A the wiring is live on all three lanes (+ the reference carrier)')
   check(
     'the turn machine carries the frozen reference to the lanes (callReference)',
     called.requests.length === 1 && typeof handed === 'object' && handed !== null && Object.isFrozen(handed) && JSON.stringify(handed) === JSON.stringify(owed) && announced === handed,
-    `the model call (streamModel, src/run-core/turn/streamModel.ts) must hand the lane, as options.callReference, the frozen buildModelCallReference({ model, effort, maxOutputTokensOverride, tools }) of the call it announces; the lane received ${JSON.stringify(handed)}, the call was announced with ${JSON.stringify(announced)}, and the owner builds ${JSON.stringify(owed)}`,
+    `the model call (streamModel, src/engine/loop/turn/streamModel.ts) must hand the lane, as options.callReference, the frozen buildModelCallReference({ model, effort, maxOutputTokensOverride, tools }) of the call it announces; the lane received ${JSON.stringify(handed)}, the call was announced with ${JSON.stringify(announced)}, and the owner builds ${JSON.stringify(owed)}`,
   )
 }
 

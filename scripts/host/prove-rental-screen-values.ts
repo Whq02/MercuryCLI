@@ -3,7 +3,7 @@ import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture } from './runpodFixture.mjs'
 import { hfEndpointsFixture } from './hfEndpointsFixture.mjs'
 import { KEY, mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
-import type { LlmHostQuestion, LlmHostRoad } from '../../src/services/llmHost/index.ts'
+import type { LlmHostQuestion, LlmHostRoad } from '../../src/models/llm-host/index.ts'
 
 assert.ok(process.env.MERCURY_CONFIG_DIR, 'prove-rental-screen-values requires a scratch MERCURY_CONFIG_DIR; run via bin/proof or set scratch home')
 const f = await llmhostFixture()
@@ -19,8 +19,8 @@ let mounted: Awaited<ReturnType<typeof mountOffscreen>> | undefined
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log((ok ? 'PASS ' : 'FAIL ') + label + (!ok ? '\n' + detail : '')) }
 try {
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const secrets = await import('../../src/utils/accounts/providerSecrets.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
   secrets.writeStoredRunpodApiKey(rp.key)
   secrets.writeStoredHuggingfaceApiKey('fixture-rejected-screen')
   const questions: LlmHostQuestion[] = []
@@ -35,9 +35,9 @@ try {
   check('F44R-06/08: model facts are not preceded by unrelated account failures', model.found.startsWith('QUALITY') && !model.found.includes('Hugging Face:'), model.found)
   check('F44R-08: a Runpod confirmation carries no unrelated vendor failure', Boolean(confirm) && !JSON.stringify(confirm).includes('vendor-error:huggingface') && !confirm.found.includes('Hugging Face:'), JSON.stringify(confirm))
   const React = await import('react')
-  const { LlmHostDialog } = await import('../../src/components/LlmHostDialog.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
+  const { LlmHostDialog } = await import('../../src/commands/llmhost/LlmHostDialog.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
   let settle: (() => void) | undefined
   const loading: LlmHostRoad = async () => { await new Promise<void>(resolve => { settle = resolve }); return { ok: true, words: 'done' } }
   const mount = async (road: LlmHostRoad) => mountOffscreen(React.createElement(AppStateProvider, { children: React.createElement(ThemeProvider, {}, React.createElement(LlmHostDialog, { width: 120, rowBudget: 20, road })) }), 120, 20)

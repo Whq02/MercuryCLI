@@ -55,14 +55,14 @@ const h = React.createElement
 type Rpc = Record<string, unknown>
 let rpcCalls: Rpc[] = []
 
-const realEnsure = await import('../../src/services/switchboard/ensureDaemon.ts')
-mock.module('../../src/services/switchboard/ensureDaemon.ts', () => ({
+const realEnsure = await import('../../src/daemon/switchboard/ensureDaemon.ts')
+mock.module('../../src/daemon/switchboard/ensureDaemon.ts', () => ({
   ...realEnsure,
   ensureOwnedDaemon: async () => true,
 }))
 
-const realControl = await import('../../src/daemon/controlSocket.ts')
-mock.module('../../src/daemon/controlSocket.ts', () => ({
+const realControl = await import('../../src/daemon/control/controlSocket.ts')
+mock.module('../../src/daemon/control/controlSocket.ts', () => ({
   ...realControl,
   daemonControlRpc: async (req: Rpc) => {
     rpcCalls.push(req)
@@ -70,30 +70,30 @@ mock.module('../../src/daemon/controlSocket.ts', () => ({
   },
 }))
 
-const realActivity = await import('../../src/services/concourse/projectActivity.ts')
-mock.module('../../src/services/concourse/projectActivity.ts', () => ({
+const realActivity = await import('../../src/screen/concourse-model/projectActivity.ts')
+mock.module('../../src/screen/concourse-model/projectActivity.ts', () => ({
   ...realActivity,
   runningByProjectKey: async () => new Map<string, number>(),
 }))
 
-const { enableConfigs, setPathTrusted } = await import('../../src/utils/config.ts')
+const { enableConfigs, setPathTrusted } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 for (const d of [freshDir, otherDir, fitsDir, longDir, ownDir]) setPathTrusted(d)
 
-const bootstrapState = await import('../../src/bootstrap/state.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
-const surfaceRoute = await import('../../src/context/surfaceRoute.ts')
-const focusedSlot = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { default: reconciler } = await import('../../src/ink/reconciler.js')
-const { disposeKeybindingWatcher } = await import('../../src/keybindings/loadUserBindings.js')
-const { Box } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { BootSplashScreen } = await import('../../src/components/BootSplashScreen.tsx')
+const bootstrapState = await import('../../src/boot/process-state/processState.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
+const surfaceRoute = await import('../../src/screen/routes/surfaceRoute.ts')
+const focusedSlot = await import('../../src/engine/connector/focusedConnector.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
+const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { BootSplashScreen } = await import('../../src/screen/boot-face/BootSplashScreen.tsx')
 
 const SID_OTHER = '00000000-0000-4000-8000-000000000401'
 const SID_FITS = '00000000-0000-4000-8000-000000000402'
@@ -305,11 +305,11 @@ function check(label: string, cond: boolean, fixWhere: string, detail = ''): voi
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${fixWhere}` : ''}`)
 }
 
-const FIX_WORDS = `the Continue Last Session row must read "${WORDS}" in its muted detail when the daemon's record of the session it would continue carries the focus or attach stamp of another live terminal: continueOpenElsewhere in src/components/bootSplash/rowActions.ts, the state BootSplashScreen mounts with in src/components/BootSplashScreen.tsx, and continueDetail in src/components/bootSplash/face.tsx`
-const FIX_FIT = `continueDetail in src/components/bootSplash/face.tsx must put "${WORDS}" beside "in <folder>" when both fit the full card's detail, and in its place when they do not and on the compact face, whose frame grows with its widest row`
-const FIX_FIRST = 'BootSplashScreen in src/components/BootSplashScreen.tsx must read continueOpenElsewhere (src/components/bootSplash/rowActions.ts) in the state it mounts with, so the row is whole on the first paint and nothing on the face moves after it'
-const FIX_QUIET = 'continueOpenElsewhere in src/components/bootSplash/rowActions.ts must answer true only for a record that has not ended and whose focus or attach stamp names a live terminal other than this one'
-const FIX_ENTER = 'Enter on the row must go on joining the live runner through focusResumedSession in src/services/switchboard/hopIntoSession.ts (hopIntoBoardSession): no sessionAdmit, one focus by this terminal'
+const FIX_WORDS = `the Continue Last Session row must read "${WORDS}" in its muted detail when the daemon's record of the session it would continue carries the focus or attach stamp of another live terminal: continueOpenElsewhere in src/screen/boot-face/splash/rowActions.ts, the state BootSplashScreen mounts with in src/screen/boot-face/BootSplashScreen.tsx, and continueDetail in src/screen/boot-face/splash/face.tsx`
+const FIX_FIT = `continueDetail in src/screen/boot-face/splash/face.tsx must put "${WORDS}" beside "in <folder>" when both fit the full card's detail, and in its place when they do not and on the compact face, whose frame grows with its widest row`
+const FIX_FIRST = 'BootSplashScreen in src/screen/boot-face/BootSplashScreen.tsx must read continueOpenElsewhere (src/screen/boot-face/splash/rowActions.ts) in the state it mounts with, so the row is whole on the first paint and nothing on the face moves after it'
+const FIX_QUIET = 'continueOpenElsewhere in src/screen/boot-face/splash/rowActions.ts must answer true only for a record that has not ended and whose focus or attach stamp names a live terminal other than this one'
+const FIX_ENTER = 'Enter on the row must go on joining the live runner through focusResumedSession in src/daemon/switchboard/hopIntoSession.ts (hopIntoBoardSession): no sessionAdmit, one focus by this terminal'
 
 seedSession(otherDir, SID_OTHER, 'other trusted prompt')
 seedSession(fitsDir, SID_FITS, 'a folder whose name still fits')

@@ -18,11 +18,11 @@ delete process.env.NODE_ENV
 let failures = 0
 let where = ''
 const WHERES: Record<string, string> = {
-  '§1': 'openaiSubscriptionPresence in src/services/providers/openai/openaiAccounts.ts must read a grant with no refresh token as expired',
-  '§2': 'the openai:subscription slot built in src/services/providers/accountSlots/openai.ts (deriveFamilySlotGroups) and executeSlotRemoval in src/services/providers/accountSlots/removal.ts',
-  '§3': 'getGptSeatAvailability in src/services/providers/openai/openaiCatalogue.ts must answer auth-expired for an expired sign-in',
-  '§4': 'resolveProviderUsability in src/services/providers/providerUsability.ts must carry the expired-sign-in sentence as the openai blocker',
-  '§5': 'the openai:subscription slot built in src/services/providers/accountSlots/openai.ts must not mark a live sign-in expired nor invent a slot for an empty store',
+  '§1': 'openaiSubscriptionPresence in src/models/roads/openai/openaiAccounts.ts must read a grant with no refresh token as expired',
+  '§2': 'the openai:subscription slot built in src/models/roads/account-slots/openai.ts (deriveFamilySlotGroups) and executeSlotRemoval in src/models/roads/account-slots/removal.ts',
+  '§3': 'getGptSeatAvailability in src/models/roads/openai/openaiCatalogue.ts must answer auth-expired for an expired sign-in',
+  '§4': 'resolveProviderUsability in src/models/roads/providerUsability.ts must carry the expired-sign-in sentence as the openai blocker',
+  '§5': 'the openai:subscription slot built in src/models/roads/account-slots/openai.ts must not mark a live sign-in expired nor invent a slot for an empty store',
 }
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
@@ -46,10 +46,10 @@ const DEAD = {
   email: 'operator@example.com',
 }
 
-const { openaiSubscriptionPresence } = await import('../../src/services/providers/openai/openaiAccounts.ts')
-const { getGptSeatAvailability } = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')
-const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
+const { openaiSubscriptionPresence } = await import('../../src/models/roads/openai/openaiAccounts.ts')
+const { getGptSeatAvailability } = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/models/roads/accountSlots.ts')
+const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
 
 section('§1 the presence owner')
 {

@@ -3,14 +3,14 @@ import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 
-let m: typeof import('../../src/services/attention/relations.ts') | null = null
+let m: typeof import('../../src/screen/attention/relations.ts') | null = null
 try {
-  m = await import('../../src/services/attention/relations.ts')
+  m = await import('../../src/screen/attention/relations.ts')
 } catch {
   m = null
 }
 if (!m) {
-  t.check('src/services/attention/relations.ts loads', false, 'module absent')
+  t.check('src/screen/attention/relations.ts loads', false, 'module absent')
   t.finish('prove-relations')
 }
 const mod = m!

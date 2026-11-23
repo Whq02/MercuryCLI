@@ -6,7 +6,7 @@ import {
   killCapability,
   restoreCapability,
   listCapabilityKills,
-} from '../../src/utils/permissions/capabilityGate.js'
+} from '../../src/permissions/rules/capabilityGate.js'
 import { parseKillToken, scopeLabel } from '../../src/commands/kill/shared.js'
 import { kill, unkill } from '../../src/commands/kill/index.js'
 
@@ -34,11 +34,11 @@ check('scopeLabel(*) = "all agents"', scopeLabel(ALL_AGENTS) === 'all agents', '
 section('the ALL_AGENTS correctness: a bare kill MUST enforce for every agent')
 const T = '__proof_kill_all__'
 killCapability(ALL_AGENTS, T)
-check('killCapability(*, T) ⇒ isCapabilityKilled(T, "scout") TRUE (the * key)', isCapabilityKilled(T, 'scout') === true, '', 'fix killCapability and isCapabilityKilled in src/utils/permissions/capabilityGate.ts so the ALL_AGENTS key applies to every agent')
-check('… also enforces for a different agent', isCapabilityKilled(T, 'someother') === true, '', 'fix isCapabilityKilled in src/utils/permissions/capabilityGate.ts to consult the ALL_AGENTS key')
-check('listCapabilityKills shows T under the * key', (listCapabilityKills()[ALL_AGENTS] || []).includes(T), '', 'fix listCapabilityKills in src/utils/permissions/capabilityGate.ts')
+check('killCapability(*, T) ⇒ isCapabilityKilled(T, "scout") TRUE (the * key)', isCapabilityKilled(T, 'scout') === true, '', 'fix killCapability and isCapabilityKilled in src/permissions/rules/capabilityGate.ts so the ALL_AGENTS key applies to every agent')
+check('… also enforces for a different agent', isCapabilityKilled(T, 'someother') === true, '', 'fix isCapabilityKilled in src/permissions/rules/capabilityGate.ts to consult the ALL_AGENTS key')
+check('listCapabilityKills shows T under the * key', (listCapabilityKills()[ALL_AGENTS] || []).includes(T), '', 'fix listCapabilityKills in src/permissions/rules/capabilityGate.ts')
 restoreCapability(ALL_AGENTS, T)
-check('restoreCapability(*, T) ⇒ no longer killed', isCapabilityKilled(T, 'scout') === false, '', 'fix restoreCapability in src/utils/permissions/capabilityGate.ts')
+check('restoreCapability(*, T) ⇒ no longer killed', isCapabilityKilled(T, 'scout') === false, '', 'fix restoreCapability in src/permissions/rules/capabilityGate.ts')
 
 section('end-to-end: the actual /kill + /unkill command handlers mutate + enforce')
 const km = (await import('../../src/commands/kill/kill.js')) as { call: (a: string, c: unknown) => Promise<{ type: string; value: string }> }

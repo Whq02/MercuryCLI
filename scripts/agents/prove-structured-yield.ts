@@ -14,13 +14,13 @@ const section = (t: string, hint = ''): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-await import('../../src/tools/AgentTool/AgentTool.tsx')
-const { finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { finalizeAgentTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 const { getSchemaBoundStructuredOutputTool, SchemaMismatchError, STRUCTURED_OUTPUT_TOOL_NAME } = await import(
-  '../../src/tools/SyntheticOutputTool/structuredOutputTool.ts'
+  '../../src/tools/structured-output/structuredOutputTool.ts'
 )
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-type Message = import('../../src/types/message.ts').Message
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const SCHEMA = {
   type: 'object',
@@ -73,7 +73,7 @@ function transcript(finalRound: 'valid' | 'invalid-errored' | 'none'): Message[]
   ]
 }
 
-section('§A the ONE validation owner — the bound tool', 'to fix: getSchemaBoundStructuredOutputTool and SchemaMismatchError in src/tools/SyntheticOutputTool/structuredOutputTool.ts')
+section('§A the ONE validation owner — the bound tool', 'to fix: getSchemaBoundStructuredOutputTool and SchemaMismatchError in src/tools/structured-output/structuredOutputTool.ts')
 {
   const bound = getSchemaBoundStructuredOutputTool(SCHEMA)
   check('a valid schema binds to a live tool', bound.tool !== undefined && bound.error === undefined)
@@ -89,7 +89,7 @@ section('§A the ONE validation owner — the bound tool', 'to fix: getSchemaBou
   check('binding is identity-cached (same schema object ⇒ same result)', getSchemaBoundStructuredOutputTool(SCHEMA) === bound)
 }
 
-section('§B the capture', 'to fix: finalizeAgentTool in src/tools/AgentTool/agentToolUtils.ts (the structured capture, FAILED_STRUCTURED_YIELD)')
+section('§B the capture', 'to fix: finalizeAgentTool in src/tools/crewmate/crewmateLifecycle.ts (the structured capture, FAILED_STRUCTURED_YIELD)')
 {
   const spec = { structuredSpec: { mode: 'permissive' as const, source: 'dispatch' as const } }
   const valid = finalizeAgentTool(transcript('valid'), 'a1', { ...META, ...spec })
@@ -99,7 +99,7 @@ section('§B the capture', 'to fix: finalizeAgentTool in src/tools/AgentTool/age
   check('an errored round records the typed miss (no data)', errored.structured?.data === undefined && (errored.structured?.error ?? '').includes('schema validation'), JSON.stringify(errored.structured))
 }
 
-section('§C the modes', 'to fix: finalizeAgentTool in src/tools/AgentTool/agentToolUtils.ts (the strict and permissive handling of structuredSpec, NO_STRUCTURED_YIELD)')
+section('§C the modes', 'to fix: finalizeAgentTool in src/tools/crewmate/crewmateLifecycle.ts (the strict and permissive handling of structuredSpec, NO_STRUCTURED_YIELD)')
 {
   const strict = { structuredSpec: { mode: 'strict' as const, source: 'agent-definition' as const } }
   const missing = finalizeAgentTool(transcript('none'), 'a3', { ...META, ...strict })

@@ -6,10 +6,10 @@ process.env.FORCE_COLOR = '3'
 
 const React = await import('react')
 const h = React.createElement
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { default: instances } = await import('../../src/ink/instances.ts')
-const { Box, Text } = await import('../../src/ink.ts')
-const { AlternateScreen } = await import('../../src/ink/components/AlternateScreen.tsx')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { AlternateScreen } = await import('../../src/screen/renderer/elements/AlternateScreen.tsx')
 
 const COLS = 60
 const ROWS = 14
@@ -22,7 +22,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
   if (!ok) {
     failures = 1
-    console.log('      fix: the blank-or-ink verdict of a click (cellIsBlank) comes from pointerOnBlank in src/ink/ink/pointer.ts and is delivered by dispatchClick in src/ink/geometry/hit.ts; the values in the detail are ink, blank or unheard for the clicked cells')
+    console.log('      fix: the blank-or-ink verdict of a click (cellIsBlank) comes from pointerOnBlank in src/screen/renderer/instance/pointer.ts and is delivered by dispatchClick in src/screen/renderer/geometry/hitTest.ts; the values in the detail are ink, blank or unheard for the clicked cells')
   }
 }
 

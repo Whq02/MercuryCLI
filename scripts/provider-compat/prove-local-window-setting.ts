@@ -13,19 +13,19 @@ delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 
 let failures = 0
-const windowFixHint = 'fix the window choice and setting in src/services/providers/local/localWindow.ts (chooseLocalWindow, doubledRequestWindow, parseLocalWindowSetting, decideLocalWindow)'
+const windowFixHint = 'fix the window choice and setting in src/models/roads/local/localWindow.ts (chooseLocalWindow, doubledRequestWindow, parseLocalWindowSetting, decideLocalWindow)'
 const sectionFixHints: Record<string, string> = {
   '1': windowFixHint,
   '2': windowFixHint,
-  '3': `${windowFixHint}, or localGuardWindow in src/services/providers/local/localCallModel.ts`,
-  '4': 'fix ollamaChatBody or ollamaMessagesOf in src/services/providers/local/ollamaChatTransport.ts (the batch size is chooseLocalBatch in src/services/providers/local/localWindow.ts)',
-  '5': 'fix streamOllamaChat in src/services/providers/local/ollamaChatTransport.ts',
-  '6': 'fix the Ollama profile in src/services/providers/local/localCallModel.ts (localLaneProfileFor) or src/services/providers/openaicompat/compatChatCallModel.ts',
-  '7': 'fix the error-row class in streamOllamaChat (src/services/providers/local/ollamaChatTransport.ts) or compatFaultToTypedError and the retry in src/services/providers/openaicompat/compatChatCallModel.ts',
-  '8': 'fix ensureServedWindow in src/services/providers/local/localDiscovery.ts',
-  '9': 'fix localModelWindowRow in src/components/Settings/Config.tsx',
-  '10': 'fix the room words in src/services/providers/local/localWindow.ts (localWindowRoomWords, localWindowChoiceLine, localWindowRefusalSpan) or localModelWindowRow in src/components/Settings/Config.tsx',
-  '11': `${windowFixHint}, or the num_ctx the request carries in src/services/providers/local/localCallModel.ts`,
+  '3': `${windowFixHint}, or localGuardWindow in src/models/roads/local/localCallModel.ts`,
+  '4': 'fix ollamaChatBody or ollamaMessagesOf in src/models/roads/local/ollamaChatTransport.ts (the batch size is chooseLocalBatch in src/models/roads/local/localWindow.ts)',
+  '5': 'fix streamOllamaChat in src/models/roads/local/ollamaChatTransport.ts',
+  '6': 'fix the Ollama profile in src/models/roads/local/localCallModel.ts (localLaneProfileFor) or src/models/roads/openaicompat/compatChatCallModel.ts',
+  '7': 'fix the error-row class in streamOllamaChat (src/models/roads/local/ollamaChatTransport.ts) or compatFaultToTypedError and the retry in src/models/roads/openaicompat/compatChatCallModel.ts',
+  '8': 'fix ensureServedWindow in src/models/roads/local/localDiscovery.ts',
+  '9': 'fix localModelWindowRow in src/screen/settings/Config.tsx',
+  '10': 'fix the room words in src/models/roads/local/localWindow.ts (localWindowRoomWords, localWindowChoiceLine, localWindowRefusalSpan) or localModelWindowRow in src/screen/settings/Config.tsx',
+  '11': `${windowFixHint}, or the num_ctx the request carries in src/models/roads/local/localCallModel.ts`,
 }
 let sectionFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -121,15 +121,15 @@ const lmstudio = await serve((req, body, res) => {
 }, lmHits)
 
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root},lmstudio=${lmstudio.root}`
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const w = await import('../../src/services/providers/local/localWindow.ts')
-const { refreshLocalDiscovery, ensureServedWindow, __resetLocalDiscoveryForTest } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { localLaneProfileFor, localGuardWindow } = await import('../../src/services/providers/local/localCallModel.ts')
-const { streamOllamaChat, ollamaChatBody, ollamaMessagesOf } = await import('../../src/services/providers/local/ollamaChatTransport.ts')
-const { localModelWindowRow } = await import('../../src/components/Settings/Config.tsx')
-type CompatStreamEvent = import('../../src/services/providers/openaicompat/compatChatClient.ts').CompatStreamEvent
+const w = await import('../../src/models/roads/local/localWindow.ts')
+const { refreshLocalDiscovery, ensureServedWindow, __resetLocalDiscoveryForTest } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { localLaneProfileFor, localGuardWindow } = await import('../../src/models/roads/local/localCallModel.ts')
+const { streamOllamaChat, ollamaChatBody, ollamaMessagesOf } = await import('../../src/models/roads/local/ollamaChatTransport.ts')
+const { localModelWindowRow } = await import('../../src/screen/settings/Config.tsx')
+type CompatStreamEvent = import('../../src/models/roads/openaicompat/compatChatClient.ts').CompatStreamEvent
 await refreshLocalDiscovery({ force: true })
 const qwen = localRecordFor(`local/${OLLAMA_MODEL}`)!
 const gemma = localRecordFor(`local/${LM_MODEL}`)!
@@ -235,7 +235,7 @@ section('5 · the NDJSON stream decodes to the compat events: served model, thin
 
 section('6 · the runtime road: the Ollama profile streams /api/chat through the shared compat runtime — the settlement is byte-identical downstream')
 {
-  const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
+  const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
   w.__resetLocalWindowsForTest()
   w.decideLocalWindow(qwen, 5_000, undefined)
   const before = ollamaHits.length
@@ -258,7 +258,7 @@ section('6 · the runtime road: the Ollama profile streams /api/chat through the
 
 section('7 · an Ollama NDJSON error row carries its own HTTP class, and the shared runtime spends its one retry before returning that class')
 {
-  const { compatFaultToTypedError } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
+  const { compatFaultToTypedError } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
   async function faultFor(error: unknown): Promise<{ status?: number; retryable: boolean; code: string; kind: string } | undefined> {
     ollamaState.errorRows = [error]
     let fault: { status?: number; retryable: boolean; code: string; kind: string } | undefined
@@ -279,10 +279,10 @@ section('7 · an Ollama NDJSON error row carries its own HTTP class, and the sha
   const statusField = await faultFor({ status: 503, message: 'temporarily unavailable' })
   check('a numeric status field supplies the same class map', statusField?.status === 503 && statusField.retryable && compatFaultToTypedError(statusField as never) === 'server_error', j(statusField))
 
-  const { Conversation } = await import('../../src/rows/turn.ts')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-  const bootstrap = await import('../../src/bootstrap/state.ts')
+  const { Conversation } = await import('../../src/engine/rows/turn.ts')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+  const bootstrap = await import('../../src/boot/process-state/processState.ts')
   bootstrap.setIsInteractive(false)
   bootstrap.setAskChannel('none')
   bootstrap.setSessionPersistenceDisabled(true)
@@ -355,8 +355,8 @@ section('9 · the /config row (pure): the value words per kind and the n/a outsi
 
 section("10 · the small-machine warning on the two pick surfaces (red on the base): on an 8 GiB darwin box a pick that fits but leaves little room is said once, in the picker's bracket and the /config row's note, with the smaller rung; auto, server, a roomy pick and a refused pick read as before")
 {
-  const memory = await import('../../src/services/localServer/localServerMemory.ts')
-  const truthModule = await import('../../src/services/localServer/localServerTruth.ts')
+  const memory = await import('../../src/models/local-server/localServerMemory.ts')
+  const truthModule = await import('../../src/models/local-server/localServerTruth.ts')
   const GIB = 1024 ** 3
   const kvHeads = (blocks: number): number[] => Array.from({ length: blocks }, (_, i) => ((i + 1) % 4 === 0 ? 4 : 0))
   const geometry = memory.kvGeometryOf({ 'general.architecture': 'qwen35', 'qwen35.attention.head_count': 16, 'qwen35.attention.head_count_kv': kvHeads(32), 'qwen35.attention.key_length': 256, 'qwen35.attention.value_length': 256, 'qwen35.block_count': 32, 'qwen35.context_length': 262144, 'qwen35.embedding_length': 4096, 'qwen35.full_attention_interval': 4 })!
@@ -403,8 +403,8 @@ section("10 · the small-machine warning on the two pick surfaces (red on the ba
 
 section("11 · a Modelfile's num_ctx is the window under auto (red on the base: 131072, the automatic ceiling over a 256k fit): the tag's own 32768 rides the request, the rows say the same figure, and /config still overrides it")
 {
-  const memory = await import('../../src/services/localServer/localServerMemory.ts')
-  const truthModule = await import('../../src/services/localServer/localServerTruth.ts')
+  const memory = await import('../../src/models/local-server/localServerMemory.ts')
+  const truthModule = await import('../../src/models/local-server/localServerTruth.ts')
   const TAG = 'qwen3.8-27b-32k:latest'
   const GIB = 1024 ** 3
   const kvHeads = (blocks: number): number[] => Array.from({ length: blocks }, (_, i) => ((i + 1) % 4 === 0 ? 4 : 0))
@@ -441,7 +441,7 @@ section("11 · a Modelfile's num_ctx is the window under auto (red on the base: 
   check("auto resolves to 32768 · set · 32k · the Modelfile's num_ctx", choice.window === 32768 && choice.reason === 'set' && choice.words === "32k · the Modelfile's num_ctx", j({ window: choice.window, reason: choice.reason, words: choice.words }))
   check('with the machine unread it is the same 32768 (never the automatic ceiling)', w.chooseLocalWindow(tag, 62_000, undefined, null).window === 32768 && w.chooseLocalWindow(tag, 62_000, undefined, null).reason === 'set')
   check("the rows say the figure the request will carry: /config auto → 32k (the Modelfile's num_ctx) · the picker [auto → 32k set]", localModelWindowRow(tag, 'local').valueText === `auto → 32k (the Modelfile's num_ctx) · num_ctx on every request · ${TAG}` && w.localWindowChoiceLine(tag, { wide: true }) === 'window · 32k num_ctx · [auto → 32k set] · server · 32k · 64k · 128k · max · number · ctrl+w cycles', `${localModelWindowRow(tag, 'local').valueText} || ${w.localWindowChoiceLine(tag, { wide: true })}`)
-  const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
+  const { localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
   const sendTag = async (): Promise<{ numCtx: number | undefined; errors: number }> => {
     const before = tagHits.length
     let errors = 0

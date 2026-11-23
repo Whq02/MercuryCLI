@@ -112,7 +112,7 @@ const pads = (): string[] => {
   }
   return found
 }
-const { getEmptyToolPermissionContext } = (await import(join(ROOT, 'src/Tool.ts'))) as { getEmptyToolPermissionContext: () => Record<string, unknown> }
+const { getEmptyToolPermissionContext } = (await import(join(ROOT, 'src/tools/kit/tool.ts'))) as { getEmptyToolPermissionContext: () => Record<string, unknown> }
 const stagings = (): string[] => pads().map(pad => join(pad, 'browser-uploads')).filter(folder => existsSync(folder))
 const stagedSets = (): number => stagings().reduce((sets, folder) => sets + readdirSync(folder).length, 0)
 const nap = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))

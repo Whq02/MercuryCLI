@@ -16,12 +16,12 @@ function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { Box } = await import('../../src/ink.ts')
-const { AskUserQuestionTool } = await import('../../src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { Box } = await import('../../src/screen/themedRenderer.ts')
+const { AskUserQuestionTool } = await import('../../src/tools/ask-question/AskUserQuestionTool.tsx')
 
 const h = React.createElement
 const ROAD = { id: 'road', question: 'Which road should it take?', header: 'Road', multiSelect: false, options: [{ label: 'North', description: 'Over the pass.' }, { label: 'South', description: 'Along the coast.' }] }
@@ -53,29 +53,29 @@ section('the operator asks to talk a question through: the row says what he pres
 {
   const asked = await outputOf({ questions: [ROAD], outcome: { kind: 'discussion-requested', questionId: 'road' } })
   const rows = await rowsOf(asked)
-  check('under the header stands the question with the card\'s own words for the choice', under(rows).length === 1 && under(rows)[0] === `· ${ROAD.question} → ${WORDS}`, 'Fix renderToolResultMessage in src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx so a discussion-requested question reads with the Chat about this label. Rows: ' + JSON.stringify(rows))
-  check('what the model reads is what it read, to the byte', wireOf(asked) === `The user wants to DISCUSS the question ${JSON.stringify(ROAD.question)} before answering. Talk it through with them; the interview session and its drafts are preserved and will resume at this question.`, 'Fix the discussion-requested case in the answer text built in src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx (near line 159) so the model text matches byte for byte. Got: ' + String(wireOf(asked)))
+  check('under the header stands the question with the card\'s own words for the choice', under(rows).length === 1 && under(rows)[0] === `· ${ROAD.question} → ${WORDS}`, 'Fix renderToolResultMessage in src/tools/ask-question/AskUserQuestionTool.tsx so a discussion-requested question reads with the Chat about this label. Rows: ' + JSON.stringify(rows))
+  check('what the model reads is what it read, to the byte', wireOf(asked) === `The user wants to DISCUSS the question ${JSON.stringify(ROAD.question)} before answering. Talk it through with them; the interview session and its drafts are preserved and will resume at this question.`, 'Fix the discussion-requested case in the answer text built in src/tools/ask-question/AskUserQuestionTool.tsx (near line 159) so the model text matches byte for byte. Got: ' + String(wireOf(asked)))
   const byText = await outputOf({ questions: [{ ...ROAD, id: undefined }], outcome: { kind: 'discussion-requested', questionId: ROAD.question } })
-  check('a question named by its text reads the same', under(await rowsOf(byText))[0] === `· ${ROAD.question} → ${WORDS}`, 'Fix renderToolResultMessage in src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx so a questionId that is the question text matches the question like an id does. Rows: ' + JSON.stringify(await rowsOf(byText)))
+  check('a question named by its text reads the same', under(await rowsOf(byText))[0] === `· ${ROAD.question} → ${WORDS}`, 'Fix renderToolResultMessage in src/tools/ask-question/AskUserQuestionTool.tsx so a questionId that is the question text matches the question like an id does. Rows: ' + JSON.stringify(await rowsOf(byText)))
 }
 
 section('two questions, the first answered, the second to be talked through: both rows, in the questions\' order')
 {
   const mixed = await outputOf({ questions: [COLOUR, ROAD], answers: { colour: 'Green' }, outcome: { kind: 'discussion-requested', questionId: 'road' } })
   const rows = under(await rowsOf(mixed))
-  check('the answer given stands first, the talk asked second', rows.length === 2 && rows[0] === `· ${COLOUR.question} → Green` && rows[1] === `· ${ROAD.question} → ${WORDS}`, 'Fix renderToolResultMessage in src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx so an answered question and a discussed one both show, in the questions order. Rows: ' + JSON.stringify(rows))
-  check('the model still reads the answers so far behind the request', String(wireOf(mixed)).includes(`DISCUSS the question ${JSON.stringify(ROAD.question)}`) && String(wireOf(mixed)).includes('Answers so far:') && String(wireOf(mixed)).includes('"Green"'), 'Fix the discussion-requested case in the answer text built in src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx so it keeps the Answers so far block. Got: ' + String(wireOf(mixed)))
+  check('the answer given stands first, the talk asked second', rows.length === 2 && rows[0] === `· ${COLOUR.question} → Green` && rows[1] === `· ${ROAD.question} → ${WORDS}`, 'Fix renderToolResultMessage in src/tools/ask-question/AskUserQuestionTool.tsx so an answered question and a discussed one both show, in the questions order. Rows: ' + JSON.stringify(rows))
+  check('the model still reads the answers so far behind the request', String(wireOf(mixed)).includes(`DISCUSS the question ${JSON.stringify(ROAD.question)}`) && String(wireOf(mixed)).includes('Answers so far:') && String(wireOf(mixed)).includes('"Green"'), 'Fix the discussion-requested case in the answer text built in src/tools/ask-question/AskUserQuestionTool.tsx so it keeps the Answers so far block. Got: ' + String(wireOf(mixed)))
   const first = await outputOf({ questions: [ROAD, COLOUR], answers: { colour: 'Blue' }, outcome: { kind: 'discussion-requested', questionId: 'road' } })
   const firstRows = under(await rowsOf(first))
-  check('a talk asked on the first of two keeps the questions\' order', firstRows.length === 2 && firstRows[0] === `· ${ROAD.question} → ${WORDS}` && firstRows[1] === `· ${COLOUR.question} → Blue`, 'Fix renderToolResultMessage in src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx so rows follow the questions order, not the order of answers. Rows: ' + JSON.stringify(firstRows))
+  check('a talk asked on the first of two keeps the questions\' order', firstRows.length === 2 && firstRows[0] === `· ${ROAD.question} → ${WORDS}` && firstRows[1] === `· ${COLOUR.question} → Blue`, 'Fix renderToolResultMessage in src/tools/ask-question/AskUserQuestionTool.tsx so rows follow the questions order, not the order of answers. Rows: ' + JSON.stringify(firstRows))
 }
 
 section('answers submitted read as before')
 {
   const answered = await outputOf({ questions: [COLOUR, ROAD], answers: { colour: 'Green', road: 'North' }, outcome: { kind: 'answers-submitted' } })
   const rows = under(await rowsOf(answered))
-  check('each question with its answer, no other word', rows.length === 2 && rows[0] === `· ${COLOUR.question} → Green` && rows[1] === `· ${ROAD.question} → North` && !rows.some(row => row.includes(WORDS)), 'Fix renderToolResultMessage in src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx so an answers-submitted outcome shows only the answers and never the Chat about this label. Rows: ' + JSON.stringify(rows))
-  check('and the model reads the answers as before', String(wireOf(answered)).startsWith('User has answered your questions:') && String(wireOf(answered)).includes('"North"'), 'Fix the answers-submitted text built in src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx (near line 196), which must start with User has answered your questions and list each answer. Got: ' + String(wireOf(answered)))
+  check('each question with its answer, no other word', rows.length === 2 && rows[0] === `· ${COLOUR.question} → Green` && rows[1] === `· ${ROAD.question} → North` && !rows.some(row => row.includes(WORDS)), 'Fix renderToolResultMessage in src/tools/ask-question/AskUserQuestionTool.tsx so an answers-submitted outcome shows only the answers and never the Chat about this label. Rows: ' + JSON.stringify(rows))
+  check('and the model reads the answers as before', String(wireOf(answered)).startsWith('User has answered your questions:') && String(wireOf(answered)).includes('"North"'), 'Fix the answers-submitted text built in src/tools/ask-question/AskUserQuestionTool.tsx (near line 196), which must start with User has answered your questions and list each answer. Got: ' + String(wireOf(answered)))
 }
 
 await releaseScratchHome(home)

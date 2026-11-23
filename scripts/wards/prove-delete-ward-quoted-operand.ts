@@ -34,11 +34,11 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_SPAWNED_BY = 'proof:delete-ward-quoted#1'
 delete process.env.NODE_ENV
 
-type PendingToolCall = import('../../src/utils/wards/wards.js').PendingToolCall
-const { AUTONOMOUS_WARDS, REFUSAL_WARDS, evaluateWards } = await import('../../src/utils/wards/wards.js')
-const { deleteWardActive, makeTargetResolver } = await import('../../src/guards/wardsGuard.js')
+type PendingToolCall = import('../../src/permissions/wards/wards.js').PendingToolCall
+const { AUTONOMOUS_WARDS, REFUSAL_WARDS, evaluateWards } = await import('../../src/permissions/wards/wards.js')
+const { deleteWardActive, makeTargetResolver } = await import('../../src/permissions/guards/wardsGuard.js')
 
-const QUOTED_FAIL_HINT = 'fix: the no-home-recursive-delete rule (AUTONOMOUS_WARDS) and the no-root-recursive-delete rule (REFUSAL_WARDS) in src/utils/wards/wards.ts, and makeTargetResolver in src/guards/wardsGuard.ts for in-project paths'
+const QUOTED_FAIL_HINT = 'fix: the no-home-recursive-delete rule (AUTONOMOUS_WARDS) and the no-root-recursive-delete rule (REFUSAL_WARDS) in src/permissions/wards/wards.ts, and makeTargetResolver in src/permissions/guards/wardsGuard.ts for in-project paths'
 let failures = 0
 let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {

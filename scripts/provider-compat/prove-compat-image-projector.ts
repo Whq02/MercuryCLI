@@ -10,11 +10,11 @@ const { toolContext } = await import('../computer/computerToolKit.ts')
 const f = await llmhostFixture({ model: 'Fixture/Vision' })
 const state = f.state as typeof f.state & { vision?: boolean; inputModalities?: string[] }
 state.dialect = 'llamacpp'
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { compatModelEndpoint } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
-const { inspectCompatServer } = await import('../../src/services/providers/openaicompat/compatProbe.ts')
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { clearImageRefusal } = await import('../../src/services/desktop/desktopSession.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { compatModelEndpoint } = await import('../../src/models/roads/openaicompat/compatAccounts.ts')
+const { inspectCompatServer } = await import('../../src/models/roads/openaicompat/compatProbe.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { clearImageRefusal } = await import('../../src/integrations/desktop/desktopSession.ts')
 const model = `compat/pod-fixture/${f.model}`
 const configure = (dialect: string): void => {
   writeFileSync(join(f.home, 'settings.json'), JSON.stringify({ compatProvider: { 'pod-fixture': { baseUrl: f.baseUrl, dialect, models: [f.model] } } }))
@@ -47,11 +47,11 @@ try {
   assert.match(JSON.stringify(unseen.map(row => row.message.content)), /Image content was not sent.*without its vision projector/)
   const continued = await f.run(model, [...unseenHistory, ...unseen, f.createUserMessage({ content: 'continue with text only' })])
   assert.doesNotMatch(JSON.stringify(continued.map(row => row.message.content)), /Image content was not sent/, 'old unsupported images do not repeat the notice on every text turn')
-  const { createAssistantMessage } = await import('../../src/services/messages.ts')
+  const { createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
   const imageResult = [f.createUserMessage({ content: 'read a picture' }), createAssistantMessage({ content: [{ type: 'tool_use', id: 'image-result', name: 'FixtureEcho', input: { text: 'picture' } }] as never }), f.createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'image-result', content: image()[0]!.message.content }] as never })]
   const unseenResult = await f.run(model, imageResult)
   assert.match(JSON.stringify(unseenResult.map(row => row.message.content)), /Image content was not sent.*without its vision projector/)
-  assert.ok(f.captures.at(-1)!.body.messages.some((row: any) => row.role === 'tool' && row.tool_call_id === 'image-result'), 'compat wire messages in src/services/providers/openaicompat/ must retain paired tool_result for image-result')
+  assert.ok(f.captures.at(-1)!.body.messages.some((row: any) => row.role === 'tool' && row.tool_call_id === 'image-result'), 'compat wire messages in src/models/roads/openaicompat/ must retain paired tool_result for image-result')
   state.vision = true
   assert.equal(errors(await f.run(model, image())), '')
   assert.equal(hasImage(), true, 'same endpoint gains a projector without a model switch or Computer call')

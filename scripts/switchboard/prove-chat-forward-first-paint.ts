@@ -23,9 +23,9 @@ console.log(' the chat-forward boot paints first, and a refusal speaks')
 console.log('============================================================')
 
 
-section('§1 withLanding — the gate is armed BEFORE the first await', 'change withLanding or landingInFlight in src/services/engine-connector/focusedConnector.ts')
+section('§1 withLanding — the gate is armed BEFORE the first await', 'change withLanding or landingInFlight in src/engine/connector/focusedConnector.ts')
 {
-  const { withLanding, landingInFlight } = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const { withLanding, landingInFlight } = await import('../../src/engine/connector/focusedConnector.ts')
   check('no landing at rest', landingInFlight() === false)
   let release: (v: string) => void = () => {}
   const pending = new Promise<string>(r => {
@@ -43,9 +43,9 @@ section('§1 withLanding — the gate is armed BEFORE the first await', 'change 
 }
 
 
-section('§4 a refused birth reaches the screen (the seat-receipt seam)', 'change mintImmediateReceipt or subscribeSeatReceipts in src/utils/model/seatReceipts.ts')
+section('§4 a refused birth reaches the screen (the seat-receipt seam)', 'change mintImmediateReceipt or subscribeSeatReceipts in src/models/facts/seatReceipts.ts')
 {
-  const receipts = await import('../../src/utils/model/seatReceipts.ts')
+  const receipts = await import('../../src/models/facts/seatReceipts.ts')
   receipts.mintImmediateReceipt('▲ the first receipt', 'warning')
   receipts.mintImmediateReceipt('▲ the second receipt', 'warning')
   const seen: Array<{ text: string; level: string }> = []

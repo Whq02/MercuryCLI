@@ -26,10 +26,10 @@ const runner = hostRunner({
 })
 try {
   await runner.initialize()
-  const { hostNotice, deliverHostNotices } = await import('../../src/services/host/notices.ts')
-  const { getCommandQueue, resetCommandQueue } = await import('../../src/utils/messageQueueManager.ts')
-  const { isHeldNotice } = await import('../../src/input-core/command-queue.ts')
-  const { taskNoticeBlock } = await import('../../src/utils/messages/noticeRows.ts')
+  const { hostNotice, deliverHostNotices } = await import('../../src/models/hosting/notices.ts')
+  const { getCommandQueue, resetCommandQueue } = await import('../../src/daemon/runner/messageQueueManager.ts')
+  const { isHeldNotice } = await import('../../src/screen/composer/input-core/command-queue.ts')
+  const { taskNoticeBlock } = await import('../../src/engine/message-shapes/noticeRows.ts')
   const record = { id: 'notice-pod', generation: 'notice-generation', sessionId, name: 'notice pod', recipe: 'fixture', price: 1, startedAt: new Date().toISOString(), status: 'RUNNING' }
   const ready = 'HOST-READY-BEFORE-FIRST-PROMPT · model is ready · /model compat/fixture/model'
   hostNotice(record, 'ready', ready)

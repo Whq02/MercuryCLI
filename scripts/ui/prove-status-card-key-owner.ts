@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { WorkRowV1 } from '../../src/services/engine-connector/types.ts'
+import type { WorkRowV1 } from '../../src/engine/connector/types.ts'
 import { pinSourceRef, pinScratchHome, mountOffscreen, waitFor, releaseScratchHome } from '../lib/settingsPopupHarness.ts'
 import { settledFrame } from './popupFrameSettle.ts'
 
@@ -18,20 +18,20 @@ const frames = frameAt < 0 ? undefined : process.argv[frameAt + 1]
 if (frames) mkdirSync(frames, { recursive: true })
 const React = await import('react')
 const h = React.createElement
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { Select } = await import('../../src/components/CustomSelect/select.tsx')
-const { FocusedSessionStatusRow, escBackHint } = await import('../../src/components/SwitchboardTagBar.tsx')
-const { crewmateStatusRightHint } = await import('../../src/utils/cockpit/crewmateWords.ts')
-const { PromptInputFooterLeftSide } = await import('../../src/components/PromptInput/PromptInputFooterLeftSide.tsx')
-const { CompactWorkSummary } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
-const { useHoldsEscape } = await import('../../src/hooks/useEscapeOwned.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
-const focused = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { Select } = await import('../../src/screen/select/Select.tsx')
+const { FocusedSessionStatusRow, escBackHint } = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
+const { crewmateStatusRightHint } = await import('../../src/screen/cockpit/crewmateWords.ts')
+const { PromptInputFooterLeftSide } = await import('../../src/screen/composer/ComposerFooterLeftSide.tsx')
+const { CompactWorkSummary } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
+const { useHoldsEscape } = await import('../../src/screen/keys/useEscapeOwned.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
+const focused = await import('../../src/engine/connector/focusedConnector.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 let checks = 0
 let failures = 0
@@ -44,13 +44,13 @@ const status = { title: 'a chat', projectLabel: 'fixture', interrupting: false, 
 const live = { ...IDLE_LIVE, inFlight: true, phase: 'thinking' as const }
 for (const [name, state] of [['running', status], ['interrupting', { ...status, interrupting: true }], ['hard stopping', { ...status, hardStopping: true }]] as const) {
   const hint = Reflect.apply(escBackHint, undefined, [live, state, true, true, true]) as string
-  check(`${name}: a card leaves the status row no Escape action`, !/\besc\b/.test(hint), `${hint} — escBackHint in src/components/SwitchboardTagBar.tsx must drop the esc clause when its escapeOwned argument is true`)
-  check(`${name}: other hint clauses are unchanged`, hint === escBackHint(live, state, true, true).split(' · ').filter(part => !part.startsWith('esc ')).join(' · '), `${hint} — with escapeOwned true escBackHint in src/components/SwitchboardTagBar.tsx must remove only the esc clause and keep the others`)
+  check(`${name}: a card leaves the status row no Escape action`, !/\besc\b/.test(hint), `${hint} — escBackHint in src/screen/chat/SwitchboardTagBar.tsx must drop the esc clause when its escapeOwned argument is true`)
+  check(`${name}: other hint clauses are unchanged`, hint === escBackHint(live, state, true, true).split(' · ').filter(part => !part.startsWith('esc ')).join(' · '), `${hint} — with escapeOwned true escBackHint in src/screen/chat/SwitchboardTagBar.tsx must remove only the esc clause and keep the others`)
 }
 for (const pinned of [false, true]) for (const running of [false, true]) {
   const hint = Reflect.apply(crewmateStatusRightHint, undefined, [pinned, running, true]) as string
-  check(`crewmate pinned=${pinned} running=${running}: no Escape action under a card`, !/\besc\b/.test(hint), `${hint} — crewmateStatusRightHint in src/utils/cockpit/crewmateWords.ts must drop the esc clause when its escapeOwned argument is true`)
-  check(`crewmate pinned=${pinned} running=${running}: other hint clauses are unchanged`, hint === crewmateStatusRightHint(pinned, running).split(' · ').filter(part => !part.startsWith('esc ')).join(' · '), `${hint} — with escapeOwned true crewmateStatusRightHint in src/utils/cockpit/crewmateWords.ts must remove only the esc clause`)
+  check(`crewmate pinned=${pinned} running=${running}: no Escape action under a card`, !/\besc\b/.test(hint), `${hint} — crewmateStatusRightHint in src/screen/cockpit/crewmateWords.ts must drop the esc clause when its escapeOwned argument is true`)
+  check(`crewmate pinned=${pinned} running=${running}: other hint clauses are unchanged`, hint === crewmateStatusRightHint(pinned, running).split(' · ').filter(part => !part.startsWith('esc ')).join(' · '), `${hint} — with escapeOwned true crewmateStatusRightHint in src/screen/cockpit/crewmateWords.ts must remove only the esc clause`)
 }
 let roster: { rows: WorkRowV1[]; mission: never[]; samples: never[] } = { rows: [], mission: [], samples: [] }
 const project = join(home, 'fixture')

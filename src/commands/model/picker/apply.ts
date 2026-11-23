@@ -1,7 +1,7 @@
-import { crossProviderNote, providerFamilyOfSetting, settleModelSelection, type SeatReceiptState } from '../../../services/model/modelTransition.js'
-import { previewForSelection, transitionPlanSummary } from '../../../services/providers/transitionPreview.js'
+import { crossProviderNote, providerFamilyOfSetting, settleModelSelection, type SeatReceiptState } from '../../../models/catalogue/modelTransition.js'
+import { previewForSelection, transitionPlanSummary } from '../../../models/roads/transitionPreview.js'
 import { persistModelChoice } from '../persistModelChoice.js'
-import type { EngineConnectorV1 } from '../../../services/engine-connector/types.js'
+import type { EngineConnectorV1 } from '../../../engine/connector/types.js'
 import { noteModelUse } from './rows.js'
 import type { PickRoad, PickContext } from './select.js'
 

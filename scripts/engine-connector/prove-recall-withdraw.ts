@@ -25,9 +25,9 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { DaemonSessionConnector, RECALL_TAKEN_LINE, RECALL_UNKNOWN_LINE } = await import(join(SRC, 'services/engine-connector/daemonConnector.ts'))
-const { NoSessionConnector, NO_CHAT_OPEN } = await import(join(SRC, 'services/engine-connector/noSessionConnector.ts'))
-const { createUserMessage } = await import(join(SRC, 'utils/messages/factories.ts'))
+const { DaemonSessionConnector, RECALL_TAKEN_LINE, RECALL_UNKNOWN_LINE } = await import(join(SRC, 'engine/connector/daemonConnector.ts'))
+const { NoSessionConnector, NO_CHAT_OPEN } = await import(join(SRC, 'engine/connector/noSessionConnector.ts'))
+const { createUserMessage } = await import(join(SRC, 'engine/message-shapes/factories.ts'))
 
 type Reply = Record<string, unknown>
 type Send = {
@@ -73,9 +73,9 @@ const painted = (): string => JSON.stringify(connector.records())
 section('C9 the resting slot')
 {
   const rest = new NoSessionConnector()
-  check('nothing to recall', rest.recallableSend() === null, 'NoSessionConnector.recallableSend in src/services/engine-connector/noSessionConnector.ts must return null')
+  check('nothing to recall', rest.recallableSend() === null, 'NoSessionConnector.recallableSend in src/engine/connector/noSessionConnector.ts must return null')
   const r = await rest.withdrawSend()
-  check('a withdraw refuses with the no-chat sentence', r.withdrawn === false && r.reason === 'refused' && r.detail === NO_CHAT_OPEN, `${j(r)} — NoSessionConnector.withdrawSend in src/services/engine-connector/noSessionConnector.ts must return withdrawn:false, reason:'refused', detail:NO_CHAT_OPEN`)
+  check('a withdraw refuses with the no-chat sentence', r.withdrawn === false && r.reason === 'refused' && r.detail === NO_CHAT_OPEN, `${j(r)} — NoSessionConnector.withdrawSend in src/engine/connector/noSessionConnector.ts must return withdrawn:false, reason:'refused', detail:NO_CHAT_OPEN`)
 }
 
 

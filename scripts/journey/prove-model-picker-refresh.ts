@@ -19,15 +19,15 @@ process.env.MERCURY_LIVE_CLOCK = '0'
 process.env.MERCURY_CRITTER_IDLE = '0'
 process.env.BROWSER = '/usr/bin/true'
 for (const key of ['CI', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'HF_TOKEN', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 const React = await import('react')
-const { render } = await import('../../src/ink.ts')
-const { AppStoreContext, getDefaultAppState } = await import('../../src/state/AppState.tsx')
-const { createStore } = await import('../../src/state/store.ts')
+const { render } = await import('../../src/screen/themedRenderer.ts')
+const { AppStoreContext, getDefaultAppState } = await import('../../src/screen/app-state/AppState.tsx')
+const { createStore } = await import('../../src/platform/primitives/store.ts')
 const { call } = await import('../../src/commands/model/mercuryModel.tsx')
-const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
+const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const { catalogueEpoch } = await import('../../src/models/roads/catalogueEpoch.ts')
 const stripAnsi = (await import('strip-ansi')).default
 const flush = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 150))
 const settle = async (seen: () => string, ok: (frame: string) => boolean, ms = 3000): Promise<void> => {
@@ -47,7 +47,7 @@ const newPage = { data: [row('gpt-6-astra', 'GPT-6 Astra', 1), row('gpt-5.6-sol'
 const response = (page: unknown): Response => new Response(JSON.stringify(page), { headers: { 'content-type': 'application/json' } })
 await catalogue.refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: (async () => response(oldPage)) as typeof fetch })
 const primed = catalogue.getCachedOpenaiCatalogue('api-key')
-check('the cache is primed within its freshness span', primed !== null && Date.now() - primed.fetchedAtMs < 1000, '', 'refreshOpenaiCatalogue in src/services/providers/openai/openaiCatalogue.ts must store fetchedAtMs on a forced refresh')
+check('the cache is primed within its freshness span', primed !== null && Date.now() - primed.fetchedAtMs < 1000, '', 'refreshOpenaiCatalogue in src/models/roads/openai/openaiCatalogue.ts must store fetchedAtMs on a forced refresh')
 let requests = 0
 let answer: ((response: Response) => void) | undefined
 const realFetch = globalThis.fetch
@@ -67,7 +67,7 @@ const fetchFixture = (async (url: string | URL | Request, init?: RequestInit) =>
   return new Promise<Response>(resolve => { answer = resolve })
 }) as typeof fetch
 globalThis.fetch = fetchFixture
-const { anthropicDoors } = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
+const { anthropicDoors } = await import('../../src/models/roads/anthropic/anthropicCatalogue.ts')
 const credentialedRoads = (): string[] => ['gpt', ...anthropicDoors().map(door => `anthropic:${door.door}`)]
 const ledgerSince = (from: number): { words: string; oncePerRoad: boolean } => {
   const counts = new Map<string, number>()
@@ -94,18 +94,18 @@ try {
   await settle(first.seen, frame => frame.includes('GPT-5.6 Terra') && frame.includes('GPT-5.6 Sol'))
   check('the open paints the cached rows without waiting for the request (the request is still held)', first.seen().includes('GPT-5.6 Terra') && first.seen().includes('GPT-5.6 Sol') && answer !== undefined, `requests ${requests}`, 'the picker in src/commands/model/picker/roads.ts must paint getCachedOpenaiCatalogue rows at once and start refreshOpenaiCatalogue in the background; answer stays undefined when no GPT request was started')
   check('the open starts one background refresh despite the primed cache', requests === 1, `requests ${requests}`, 'the open in src/commands/model/picker/roads.ts must start exactly one forced refreshOpenaiCatalogue even when the cache is fresh')
-  check('each signed-in Anthropic door read its own list once on the same open, counted apart from the GPT refresh', doorRequests === anthropicDoors().length && doorRequests >= 1, `doors ${anthropicDoors().length} door requests ${doorRequests}`, 'each door from anthropicDoors in src/services/providers/anthropic/anthropicCatalogue.ts must be listed once per open')
+  check('each signed-in Anthropic door read its own list once on the same open, counted apart from the GPT refresh', doorRequests === anthropicDoors().length && doorRequests >= 1, `doors ${anthropicDoors().length} door requests ${doorRequests}`, 'each door from anthropicDoors in src/models/roads/anthropic/anthropicCatalogue.ts must be listed once per open')
   const firstOpen = ledgerSince(0)
-  check('one open makes exactly one list request per credentialed road, the ledger naming each road once (three roads, three requests, never one road three times)', firstOpen.oncePerRoad && ledger.length === credentialedRoads().length, `ledger: ${firstOpen.words} · roads: ${credentialedRoads().join(', ')}`, 'the open must request each credentialed road once; see the picker refresh in src/commands/model/picker/roads.ts and anthropicDoors in src/services/providers/anthropic/anthropicCatalogue.ts')
+  check('one open makes exactly one list request per credentialed road, the ledger naming each road once (three roads, three requests, never one road three times)', firstOpen.oncePerRoad && ledger.length === credentialedRoads().length, `ledger: ${firstOpen.words} · roads: ${credentialedRoads().join(', ')}`, 'the open must request each credentialed road once; see the picker refresh in src/commands/model/picker/roads.ts and anthropicDoors in src/models/roads/anthropic/anthropicCatalogue.ts')
   first.rerender()
   await flush()
   check('a re-render does not start another refresh', requests === 1, `requests ${requests}`, 'the refresh in src/commands/model/picker/roads.ts must run once per open, not on every render')
   check('a re-render adds nothing to the ledger of any road', ledger.length === credentialedRoads().length, `ledger: ${ledgerSince(0).words}`, 'a re-render must not trigger any list request; check the refresh effect in src/commands/model/picker/roads.ts')
   const action = catalogue.refreshOpenaiCatalogue('api-key', { force: true })
   const duplicate = catalogue.refreshOpenaiCatalogue('api-key', { force: true })
-  check('the action row shares the in-flight request', action === duplicate, '', 'refreshOpenaiCatalogue in src/services/providers/openai/openaiCatalogue.ts must return the same in-flight promise for a second forced call')
+  check('the action row shares the in-flight request', action === duplicate, '', 'refreshOpenaiCatalogue in src/models/roads/openai/openaiCatalogue.ts must return the same in-flight promise for a second forced call')
   await flush()
-  check('open and action together make one request', requests === 1, `requests ${requests}`, 'refreshOpenaiCatalogue in src/services/providers/openai/openaiCatalogue.ts must join a request already in flight')
+  check('open and action together make one request', requests === 1, `requests ${requests}`, 'refreshOpenaiCatalogue in src/models/roads/openai/openaiCatalogue.ts must join a request already in flight')
   first.clear()
   answer!(response(newPage))
   await action
@@ -127,7 +127,7 @@ try {
   answer!(response(newPage))
   await unchanged
   await flush()
-  check('an unchanged list does not bump the catalogue epoch', catalogueEpoch() === before, `${before} -> ${catalogueEpoch()}`, 'refreshOpenaiCatalogue in src/services/providers/openai/openaiCatalogue.ts must call bumpCatalogueEpoch only when the rows changed')
+  check('an unchanged list does not bump the catalogue epoch', catalogueEpoch() === before, `${before} -> ${catalogueEpoch()}`, 'refreshOpenaiCatalogue in src/models/roads/openai/openaiCatalogue.ts must call bumpCatalogueEpoch only when the rows changed')
   check('an unchanged list does not repaint or show a notice', second.seen() === '', second.seen(), 'the picker in src/commands/model/picker/roads.ts must repaint and set the notice only when the rows changed')
   second.unmount()
 
@@ -137,14 +137,14 @@ try {
   answer!(new Response('fixture unavailable', { status: 503 }))
   await failed
   await flush()
-  check('a failed background read retains the last usable rows', catalogue.getCachedOpenaiCatalogue('api-key')?.models.some(model => model.id === 'gpt-6-astra') === true, '', 'refreshOpenaiCatalogue in src/services/providers/openai/openaiCatalogue.ts must keep the cached rows when the request fails')
+  check('a failed background read retains the last usable rows', catalogue.getCachedOpenaiCatalogue('api-key')?.models.some(model => model.id === 'gpt-6-astra') === true, '', 'refreshOpenaiCatalogue in src/models/roads/openai/openaiCatalogue.ts must keep the cached rows when the request fails')
   check('a failed read does not claim a changed list', !third.seen().includes('GPT — the live list changed'), '', 'the notice in src/commands/model/picker/roads.ts must not be set when the refresh failed')
   third.unmount()
 
   process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
   const count = requests
   const dark = await mount()
-  check('traffic-off makes no request and does not discard the cache', requests === count && catalogue.getCachedOpenaiCatalogue('api-key')?.models.some(model => model.id === 'gpt-6-astra') === true, `requests ${count} -> ${requests}`, 'with MERCURY_DISABLE_NONESSENTIAL_TRAFFIC set the open must send no list request; see src/commands/model/picker/roads.ts and src/services/providers/openai/openaiCatalogue.ts')
+  check('traffic-off makes no request and does not discard the cache', requests === count && catalogue.getCachedOpenaiCatalogue('api-key')?.models.some(model => model.id === 'gpt-6-astra') === true, `requests ${count} -> ${requests}`, 'with MERCURY_DISABLE_NONESSENTIAL_TRAFFIC set the open must send no list request; see src/commands/model/picker/roads.ts and src/models/roads/openai/openaiCatalogue.ts')
   dark.unmount()
   delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
 
@@ -167,12 +167,12 @@ try {
   answer!(response({ data: [...newPage.data].reverse() }))
   await reorder
   await flush()
-  check('wire reordering with the same priorities is unchanged on screen', catalogueEpoch() === beforeOrder && reordered.seen() === '', `${beforeOrder} -> ${catalogueEpoch()}; output ${JSON.stringify(reordered.seen())}`, 'the change check in src/services/providers/openai/openaiCatalogue.ts must compare rows by priority, not by wire order')
+  check('wire reordering with the same priorities is unchanged on screen', catalogueEpoch() === beforeOrder && reordered.seen() === '', `${beforeOrder} -> ${catalogueEpoch()}; output ${JSON.stringify(reordered.seen())}`, 'the change check in src/models/roads/openai/openaiCatalogue.ts must compare rows by priority, not by wire order')
   reordered.unmount()
 
   delete process.env.ANTHROPIC_API_KEY
-  const { saveApiKey } = await import('../../src/utils/auth.ts')
-  const { slotSeatView, switchActiveSlot } = await import('../../src/services/providers/slotSwitch.ts')
+  const { saveApiKey } = await import('../../src/models/sign-in/credentials/auth.ts')
+  const { slotSeatView, switchActiveSlot } = await import('../../src/models/roads/slotSwitch.ts')
   await saveApiKey('proof-managed-slot-key')
   const anthropic = await mount('claude-fable-5-1')
   const background = catalogue.refreshOpenaiCatalogue('api-key', { force: true })
@@ -180,12 +180,12 @@ try {
   await background
   await flush()
   const seatBefore = slotSeatView('anthropic').active
-  check('the fixture has an Anthropic pair and its row is focused', slotSeatView('anthropic').other !== undefined && anthropic.seen().includes('fable'), '', 'saveApiKey in src/utils/auth.ts must give Anthropic a second slot, and the picker must open on the claude-fable-5-1 row')
+  check('the fixture has an Anthropic pair and its row is focused', slotSeatView('anthropic').other !== undefined && anthropic.seen().includes('fable'), '', 'saveApiKey in src/models/sign-in/credentials/auth.ts must give Anthropic a second slot, and the picker must open on the claude-fable-5-1 row')
   const beforeSlot = requests
   switchActiveSlot('anthropic')
   await flush()
-  check('the Anthropic slot flip through the one owner switches that family while the picker stands (the bare s went with the typed-letter ruling)', slotSeatView('anthropic').active !== seatBefore, '', 'switchActiveSlot in src/services/providers/slotSwitch.ts must flip the active Anthropic slot')
-  check('switching an Anthropic slot does not refresh OpenAI', requests === beforeSlot, `requests ${beforeSlot} -> ${requests}`, 'switchActiveSlot in src/services/providers/slotSwitch.ts and the picker in src/commands/model/picker/roads.ts must not refresh the OpenAI list on an Anthropic flip')
+  check('the Anthropic slot flip through the one owner switches that family while the picker stands (the bare s went with the typed-letter ruling)', slotSeatView('anthropic').active !== seatBefore, '', 'switchActiveSlot in src/models/roads/slotSwitch.ts must flip the active Anthropic slot')
+  check('switching an Anthropic slot does not refresh OpenAI', requests === beforeSlot, `requests ${beforeSlot} -> ${requests}`, 'switchActiveSlot in src/models/roads/slotSwitch.ts and the picker in src/commands/model/picker/roads.ts must not refresh the OpenAI list on an Anthropic flip')
   if (requests !== beforeSlot) {
     const extra = catalogue.refreshOpenaiCatalogue('api-key', { force: true })
     answer!(response(newPage))
@@ -205,7 +205,7 @@ try {
   const coldSlot = await mount()
   coldSlot.clear()
   await flush()
-  check('the next open on a cold OpenAI slot starts one request (the slot flips on the Logins screen; the picker has no slot key)', slotSeatView('openai').active === 'subscription' && requests === beforeOpenaiSlot + 1, `active ${slotSeatView('openai').active} · requests ${beforeOpenaiSlot} -> ${requests}`, 'switchActiveSlot in src/services/providers/slotSwitch.ts must make subscription active, and the next open in src/commands/model/picker/roads.ts must start one request')
+  check('the next open on a cold OpenAI slot starts one request (the slot flips on the Logins screen; the picker has no slot key)', slotSeatView('openai').active === 'subscription' && requests === beforeOpenaiSlot + 1, `active ${slotSeatView('openai').active} · requests ${beforeOpenaiSlot} -> ${requests}`, 'switchActiveSlot in src/models/roads/slotSwitch.ts must make subscription active, and the next open in src/commands/model/picker/roads.ts must start one request')
   const newSlot = catalogue.refreshOpenaiCatalogue('chatgpt-subscription', { force: true })
   await flush()
   answer!(response(newPage))

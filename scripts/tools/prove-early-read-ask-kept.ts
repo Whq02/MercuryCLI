@@ -14,17 +14,17 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 for (const key of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_SCRIPTED_STREAM', 'NODE_ENV']) delete process.env[key]
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { decisionOfAnswer } = await import('../../src/cli/headless/runnerAsks.ts')
-const { CANCEL_MESSAGE, REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX } = await import('../../src/utils/messages/rejectionText.ts')
-const { INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/utils/messages/turnCut.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { decisionOfAnswer } = await import('../../src/daemon/runner/runnerAsks.ts')
+const { CANCEL_MESSAGE, REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX } = await import('../../src/engine/message-shapes/rejectionText.ts')
+const { INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/engine/message-shapes/turnCut.ts')
 
 let failures = 0
 let checks = 0

@@ -13,10 +13,10 @@ if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 delete process.env.CI
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
-const saturn = await import('../../src/daemon/saturn.ts')
+const saturn = await import('../../src/daemon/saturn/saturn.ts')
 const {
   applyConcourseScheduleOp,
   dropSaturnSelfWakes,
@@ -27,19 +27,19 @@ const {
   saturnWakeGlanceOf,
   saturnWakeGlanceWords,
 } = saturn
-const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
-const { tickSaturnOnce } = await import('../../src/daemon/saturnTicker.ts')
-const { liveFactsForSessionFire } = await import('../../src/daemon/saturnAccount.ts')
-const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
-const { ScheduleWakeupTool } = await import('../../src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts')
-const { wakeDelaySpelling } = await import('../../src/utils/messages/noticeRows.ts')
-const board = await import('../../src/components/BootSaturnScreen.tsx')
-const { cronToHuman } = await import('../../src/utils/cron.ts')
+const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { tickSaturnOnce } = await import('../../src/daemon/saturn/saturnTicker.ts')
+const { liveFactsForSessionFire } = await import('../../src/daemon/saturn/saturnAccount.ts')
+const receipts = await import('../../src/daemon/switchboard/sessionReceipts.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+const bridge = await import('../../src/daemon/saturn/sessionScheduleBridge.ts')
+const { ScheduleWakeupTool } = await import('../../src/tools/schedule-wakeup/ScheduleWakeupTool.ts')
+const { wakeDelaySpelling } = await import('../../src/engine/message-shapes/noticeRows.ts')
+const board = await import('../../src/screen/boot-face/BootSaturnScreen.tsx')
+const { cronToHuman } = await import('../../src/daemon/saturn/cron.ts')
 
-type Schedule = import('../../src/daemon/saturn.ts').SaturnScheduleV1
-type Held = import('../../src/daemon/saturn.ts').HeldFireV1
+type Schedule = import('../../src/daemon/saturn/saturn.ts').SaturnScheduleV1
+type Held = import('../../src/daemon/saturn/saturn.ts').HeldFireV1
 
 let failures = 0
 let where = ''
@@ -110,7 +110,7 @@ function boardRowValue(schedule: Schedule, held: Held[], parked: boolean): strin
 }
 
 console.log('§A what stands — one derivation, the rail and the board agree')
-where = 'src/daemon/saturn.ts (the schedule facts it derives) and the board in src/components/BootSaturnScreen.tsx'
+where = 'src/daemon/saturn/saturn.ts (the schedule facts it derives) and the board in src/screen/boot-face/BootSaturnScreen.tsx'
 {
   const wake = selfWake('aaaa1111', NOW - 26 * 60 * MIN)
   const held = [heldFor(wake, 'parked-queued')]
@@ -149,7 +149,7 @@ where = 'src/daemon/saturn.ts (the schedule facts it derives) and the board in s
 }
 
 console.log('§B the self-wake rule: the model, a one-shot, a fire, a wake spelling')
-where = 'src/daemon/saturn.ts (the self-wake rule over createdBy, when and action) and wakeDelaySpelling in src/utils/messages/noticeRows.ts'
+where = 'src/daemon/saturn/saturn.ts (the self-wake rule over createdBy, when and action) and wakeDelaySpelling in src/engine/message-shapes/noticeRows.ts'
 {
   check('B1 the tool-shaped row is a self-wake', isSaturnSelfWake(selfWake('aaaa1111', NOW + MIN)))
   check("B2 an operator's one-shot is not (createdBy 'operator:…')", !isSaturnSelfWake(operatorOneShot('bbbb2222', NOW + MIN)))
@@ -203,7 +203,7 @@ where = 'src/daemon/saturn.ts (the self-wake rule over createdBy, when and actio
 }
 
 console.log('§C the drop: the self-wake and its held fire leave, everything else stands')
-where = 'dropSaturnSelfWakes in src/daemon/saturn.ts'
+where = 'dropSaturnSelfWakes in src/daemon/saturn/saturn.ts'
 {
   const wake = selfWake('aaaa1111', NOW - 26 * 60 * MIN)
   const op = operatorOneShot('bbbb2222', NOW + 20 * MIN)
@@ -239,7 +239,7 @@ where = 'dropSaturnSelfWakes in src/daemon/saturn.ts'
 }
 
 console.log("§D the ticker: parking preserves pending and held self-wakes; stopping cancels them")
-where = 'tickSaturnOnce in src/daemon/saturnTicker.ts (its handling of parked and stopped records)'
+where = 'tickSaturnOnce in src/daemon/saturn/saturnTicker.ts (its handling of parked and stopped records)'
 {
   type Delivered = { clientMessageId: string; prompt: string; parked: boolean; sessionId: string }
   const delivered: Delivered[] = []

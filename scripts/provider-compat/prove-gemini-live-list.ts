@@ -19,19 +19,19 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) 
 const base = `http://127.0.0.1:${server.port}/v1beta`
 process.env.MERCURY_GEMINI_API_BASE = base
 process.env.MERCURY_GEMINI_OAUTH_TOKEN_BASE = 'http://127.0.0.1:1/token'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const accounts = await import('../../src/services/providers/gemini/geminiAccounts.ts')
-const catalogue = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const { geminiCallModel } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
-const { geminiPricePin } = await import('../../src/utils/model/pins/geminiPins.ts')
-const { getModelMaxOutputTokens, resolveContextWindow, effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const accounts = await import('../../src/models/roads/gemini/geminiAccounts.ts')
+const catalogue = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const { geminiCallModel } = await import('../../src/models/roads/gemini/geminiCallModel.ts')
+const { geminiPricePin } = await import('../../src/models/facts/pins/geminiPins.ts')
+const { getModelMaxOutputTokens, resolveContextWindow, effortVocabularyFor } = await import('../../src/models/facts/capabilities.ts')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 let failures = 0
 let checks = 0
-function check(label: string, yes: boolean) { checks++; if (!yes) failures++; console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${yes ? '' : ' | change refreshGeminiCatalogue, getGeminiModelOptions or geminiMakesNoChat in src/services/providers/gemini/geminiCatalogue.ts (list, rows, credential header), geminiCallModel in src/services/providers/gemini/geminiCallModel.ts (dispatch, wire, signatures, usage), resolveContextWindow or getModelMaxOutputTokens in src/utils/model/capabilities.ts, or the OAuth client config in src/services/providers/gemini/geminiAccounts.ts'}`) }
+function check(label: string, yes: boolean) { checks++; if (!yes) failures++; console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${yes ? '' : ' | change refreshGeminiCatalogue, getGeminiModelOptions or geminiMakesNoChat in src/models/roads/gemini/geminiCatalogue.ts (list, rows, credential header), geminiCallModel in src/models/roads/gemini/geminiCallModel.ts (dispatch, wire, signatures, usage), resolveContextWindow or getModelMaxOutputTokens in src/models/facts/capabilities.ts, or the OAuth client config in src/models/roads/gemini/geminiAccounts.ts'}`) }
 const model = 'gemini-fixture-next'
 try {
   const suppliedEnv = { MERCURY_GEMINI_API_BASE: base, GEMINI_API_KEY: 'fixture-explicit-env-key' }

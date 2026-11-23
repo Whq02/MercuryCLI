@@ -12,8 +12,8 @@ delete process.env.MERCURY_GEMINI_OAUTH_CLIENT_ID
 delete process.env.MERCURY_GEMINI_OAUTH_CLIENT_SECRET
 
 const ROOT = join(import.meta.dir, '..', '..')
-const guide = await import('../../src/components/geminiConnectGuide.ts')
-const accounts = await import('../../src/services/providers/gemini/geminiAccounts.ts')
+const guide = await import('../../src/models/sign-in/gemini-connect/geminiConnectGuide.ts')
+const accounts = await import('../../src/models/roads/gemini/geminiAccounts.ts')
 
 let checks = 0
 let failures = 0
@@ -29,14 +29,14 @@ const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 type Page = { address: string; observedAt: string; source: string }
 const dated = (page: Page | undefined): boolean =>
   page !== undefined && /^https:\/\//.test(page.address) && /^\d{4}-\d{2}-\d{2}$/.test(page.observedAt) && page.source.length > 10
-const ggStepsFix = 'change GEMINI_GOOGLE_ACCOUNT_STEPS in src/components/geminiConnectGuide.ts'
-const ggRowsFix = 'change geminiConnectRows and its row constants in src/components/geminiConnectGuide.ts'
-const ggReturnFix = 'change geminiGuideReturnStep in src/components/geminiConnectGuide.ts, or the access_denied words in geminiOauthErrorRemedy in src/services/providers/gemini/geminiAccounts.ts'
-const ggPaneFix = 'change geminiGuidePaneLines, geminiGuideOpenWords or geminiGuideHint in src/components/geminiConnectGuide.ts'
-const ggKeyLegFix = 'change geminiKeyLegLines or GEMINI_KEY_BILLING_NOTE in src/components/geminiConnectGuide.ts'
-const ggDocsFix = 'make the step titles in docs/ENGINES.md match GEMINI_GOOGLE_ACCOUNT_STEPS in src/components/geminiConnectGuide.ts, in step order'
-const ggCardFix = 'change the card in src/components/GeminiConnect.tsx or the notes in src/components/geminiConnectGuide.ts'
-const ggBootFix = 'change loginsPickPaneLines or keyPromptPaneLines in src/components/bootLogins/pickLines.ts so every line fits the boot frame'
+const ggStepsFix = 'change GEMINI_GOOGLE_ACCOUNT_STEPS in src/models/sign-in/gemini-connect/geminiConnectGuide.ts'
+const ggRowsFix = 'change geminiConnectRows and its row constants in src/models/sign-in/gemini-connect/geminiConnectGuide.ts'
+const ggReturnFix = 'change geminiGuideReturnStep in src/models/sign-in/gemini-connect/geminiConnectGuide.ts, or the access_denied words in geminiOauthErrorRemedy in src/models/roads/gemini/geminiAccounts.ts'
+const ggPaneFix = 'change geminiGuidePaneLines, geminiGuideOpenWords or geminiGuideHint in src/models/sign-in/gemini-connect/geminiConnectGuide.ts'
+const ggKeyLegFix = 'change geminiKeyLegLines or GEMINI_KEY_BILLING_NOTE in src/models/sign-in/gemini-connect/geminiConnectGuide.ts'
+const ggDocsFix = 'make the step titles in docs/ENGINES.md match GEMINI_GOOGLE_ACCOUNT_STEPS in src/models/sign-in/gemini-connect/geminiConnectGuide.ts, in step order'
+const ggCardFix = 'change the card in src/models/sign-in/flow-cards/GeminiConnect.tsx or the notes in src/models/sign-in/gemini-connect/geminiConnectGuide.ts'
+const ggBootFix = 'change loginsPickPaneLines or keyPromptPaneLines in src/screen/boot-face/logins/pickLines.ts so every line fits the boot frame'
 
 section('§1 the six steps and their dated pages')
 const steps = guide.GEMINI_GOOGLE_ACCOUNT_STEPS
@@ -50,9 +50,9 @@ check("every step page is Google's Console or its Auth Platform", hosts.every(h 
 check('step 1 is the project page, step 2 the enable-API flow for the Generative Language API', steps[0]!.page!.address === 'https://console.cloud.google.com/projectcreate' && steps[1]!.page!.address === 'https://console.cloud.google.com/flows/enableapi?apiid=generativelanguage.googleapis.com', '', ggStepsFix)
 check('step 3 is the Audience page, step 4 the clients page', steps[2]!.page!.address.endsWith('/auth/audience') && steps[3]!.page!.address.endsWith('/auth/clients'), '', ggStepsFix)
 check('step 2 says the enable-API page can create the project too', steps[1]!.detail.includes('it can create one too'), '', ggStepsFix)
-check("the API key page is AI Studio's key page, dated", dated(guide.GEMINI_API_KEY_PAGE) && guide.GEMINI_API_KEY_PAGE.address === 'https://aistudio.google.com/apikey', '', 'change GEMINI_API_KEY_PAGE in src/components/geminiConnectGuide.ts')
+check("the API key page is AI Studio's key page, dated", dated(guide.GEMINI_API_KEY_PAGE) && guide.GEMINI_API_KEY_PAGE.address === 'https://aistudio.google.com/apikey', '', 'change GEMINI_API_KEY_PAGE in src/models/sign-in/gemini-connect/geminiConnectGuide.ts')
 const pages = guide.geminiGuidePages()
-check('the release-day list carries every page once: the key page, four step pages, the overview page', pages.length === 6 && new Set(pages.map(p => p.address)).size === 6 && pages[0] === guide.GEMINI_API_KEY_PAGE, '', 'change geminiGuidePages in src/components/geminiConnectGuide.ts')
+check('the release-day list carries every page once: the key page, four step pages, the overview page', pages.length === 6 && new Set(pages.map(p => p.address)).size === 6 && pages[0] === guide.GEMINI_API_KEY_PAGE, '', 'change geminiGuidePages in src/models/sign-in/gemini-connect/geminiConnectGuide.ts')
 check('step 3 says why the test user is needed and names the Get started road', steps[2]!.detail.includes('Google lets an unpublished app sign in only its listed test users') && steps[2]!.detail.includes('External') && steps[2]!.detail.includes('Test users') && steps[2]!.detail.includes('Get started'), '', ggStepsFix)
 check('step 4 asks for a Desktop app client', steps[3]!.detail.includes('Desktop app'), '', ggStepsFix)
 check('step 5 says the id is kept for good and the secret is optional', steps[4]!.detail.includes('kept for good') && steps[4]!.detail.includes('optional'), '', ggStepsFix)
@@ -76,12 +76,12 @@ const connected = guide.geminiConnectRows({ clientSource: 'stored', oauthConnect
 check('a connected Google account reads connected and signs in again from step 6', connected[2]!.label === 'Google account — connected · ↵ signs in again (step 6)' && connected.length === 4, connected[2]!.label + ' — ' + ggRowsFix)
 const planConnected = guide.geminiConnectRows({ oauthConnected: false, planConnected: true, planTier: 'Google AI Pro', active: 'plan' })
 check('a connected Google sign-in names its tier and signs in again from its row', planConnected[0]!.label === 'Sign in with Google — connected (Google AI Pro) · ↵ signs in again', planConnected[0]!.label + ' — ' + ggRowsFix)
-check("the card title and note say what Sign in with Google rides and what a key or an own client bills", guide.GEMINI_CONNECT_TITLE === 'Connect Google Gemini' && guide.GEMINI_CONNECT_INTRO === "Sign in with Google runs Gemini on your plan's quota through Google's own Antigravity client (free, AI Pro or AI Ultra). An API key or your own OAuth client bills a Cloud project instead.", '', 'change GEMINI_CONNECT_TITLE or GEMINI_CONNECT_INTRO in src/components/geminiConnectGuide.ts')
-check('the Sign in with Google leg names Google\'s own client and the plan it rides', guide.geminiPlanLegLines('opened')[0]!.text === 'Sign in with Google' && guide.GEMINI_PLAN_LEG_DETAIL.includes("Google's own Antigravity client") && guide.GEMINI_PLAN_LEG_DETAIL.includes('no Cloud project') && guide.geminiPlanLegLines('opened')[2]!.text === 'opened in your browser', '', 'change geminiPlanLegLines or GEMINI_PLAN_LEG_DETAIL in src/components/geminiConnectGuide.ts')
+check("the card title and note say what Sign in with Google rides and what a key or an own client bills", guide.GEMINI_CONNECT_TITLE === 'Connect Google Gemini' && guide.GEMINI_CONNECT_INTRO === "Sign in with Google runs Gemini on your plan's quota through Google's own Antigravity client (free, AI Pro or AI Ultra). An API key or your own OAuth client bills a Cloud project instead.", '', 'change GEMINI_CONNECT_TITLE or GEMINI_CONNECT_INTRO in src/models/sign-in/gemini-connect/geminiConnectGuide.ts')
+check('the Sign in with Google leg names Google\'s own client and the plan it rides', guide.geminiPlanLegLines('opened')[0]!.text === 'Sign in with Google' && guide.GEMINI_PLAN_LEG_DETAIL.includes("Google's own Antigravity client") && guide.GEMINI_PLAN_LEG_DETAIL.includes('no Cloud project') && guide.geminiPlanLegLines('opened')[2]!.text === 'opened in your browser', '', 'change geminiPlanLegLines or GEMINI_PLAN_LEG_DETAIL in src/models/sign-in/gemini-connect/geminiConnectGuide.ts')
 
 section('§3 the opening step and the return after a refusal')
-check('no client: the walk starts at step 1', guide.geminiGuideOpeningStep({ oauthConnected: false }) === 1, '', 'change geminiGuideOpeningStep in src/components/geminiConnectGuide.ts')
-check('a stored client id opens at step 6; an environment one too', guide.geminiGuideOpeningStep({ clientSource: 'stored', oauthConnected: false }) === 6 && guide.geminiGuideOpeningStep({ clientSource: 'env', oauthConnected: true }) === 6, '', 'change geminiGuideOpeningStep in src/components/geminiConnectGuide.ts')
+check('no client: the walk starts at step 1', guide.geminiGuideOpeningStep({ oauthConnected: false }) === 1, '', 'change geminiGuideOpeningStep in src/models/sign-in/gemini-connect/geminiConnectGuide.ts')
+check('a stored client id opens at step 6; an environment one too', guide.geminiGuideOpeningStep({ clientSource: 'stored', oauthConnected: false }) === 6 && guide.geminiGuideOpeningStep({ clientSource: 'env', oauthConnected: true }) === 6, '', 'change geminiGuideOpeningStep in src/models/sign-in/gemini-connect/geminiConnectGuide.ts')
 const denied = accounts.geminiOauthErrorRemedy('access_denied', 'fixture')
 check("Google's access_denied refusal, in today's words, returns the card to step 3", guide.geminiGuideReturnStep(denied) === 3 && denied.includes('your OAuth app is in testing mode and this Google account is not one of its test users'), denied + ' — ' + ggReturnFix)
 const internal = accounts.geminiOauthErrorRemedy('org_internal')
@@ -121,17 +121,17 @@ check('every step title is in docs/ENGINES.md', steps.every(s => docs.includes(s
 check('the titles read in step order', titleAt.every(at => at >= 0) && titleAt.every((at, i) => i === 0 || at > titleAt[i - 1]!), titleAt.join(',') + ' — ' + ggDocsFix)
 
 section('§8 each screen carries its own note and nothing is displaced')
-const { keyPageLine } = await import('../../src/components/loginFamilyRows.ts')
-const { loginsPickPaneLines, keyPromptPaneLines } = await import('../../src/components/BootLoginsScreen.tsx')
-const { wrapPlain } = await import('../../src/components/BootHealthScreen.tsx')
+const { keyPageLine } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.ts')
+const { loginsPickPaneLines, keyPromptPaneLines } = await import('../../src/screen/boot-face/BootLoginsScreen.tsx')
+const { wrapPlain } = await import('../../src/screen/boot-face/BootHealthScreen.tsx')
 const flatWords = (text: string): string => text.replace(/\s+/g, ' ').trim()
 check('the key note is one short billing sentence with no OAuth words', guide.GEMINI_KEY_BILLING_NOTE === 'Cloud project: free Flash ~20/day, Pro 0; pay for more.' && guide.GEMINI_KEY_BILLING_NOTE.length <= 58 && opened.filter(l => l.text === guide.GEMINI_KEY_BILLING_NOTE).length === 1 && !opened.some(l => /OAuth|consumer|Pro\/Ultra/.test(l.text)), '', ggKeyLegFix)
-check('the Google-account note fits two lines at 100 columns; the compact choice gets one short note', wrapPlain(guide.GEMINI_CONNECT_INTRO, 96).length <= 2 && guide.GEMINI_CONNECT_COMPACT_INTRO === "Google sign-in: your plan's quota; a key: a Cloud project." && guide.GEMINI_CONNECT_COMPACT_INTRO.length <= 58, '', 'change GEMINI_CONNECT_INTRO or GEMINI_CONNECT_COMPACT_INTRO in src/components/geminiConnectGuide.ts')
-check('the /logins page line is one line, not a second disclosure', keyPageLine('gemini') === 'API key: aistudio.google.com/apikey — create a key, paste it here.', '', 'change keyPageLine in src/components/loginFamilyRows.ts')
+check('the Google-account note fits two lines at 100 columns; the compact choice gets one short note', wrapPlain(guide.GEMINI_CONNECT_INTRO, 96).length <= 2 && guide.GEMINI_CONNECT_COMPACT_INTRO === "Google sign-in: your plan's quota; a key: a Cloud project." && guide.GEMINI_CONNECT_COMPACT_INTRO.length <= 58, '', 'change GEMINI_CONNECT_INTRO or GEMINI_CONNECT_COMPACT_INTRO in src/models/sign-in/gemini-connect/geminiConnectGuide.ts')
+check('the /logins page line is one line, not a second disclosure', keyPageLine('gemini') === 'API key: aistudio.google.com/apikey — create a key, paste it here.', '', 'change keyPageLine in src/models/sign-in/flow-cards/loginFamilyRows.ts')
 check('the boot Sign in with Google, key and Google-account selections carry their own notes', flatWords(loginsPickPaneLines('gemini', 0).join(' ')).includes(guide.GEMINI_CONNECT_INTRO) && flatWords(loginsPickPaneLines('gemini', 1).join(' ')).includes(guide.GEMINI_KEY_BILLING_NOTE) && flatWords(loginsPickPaneLines('gemini', 2).join(' ')).includes(guide.GEMINI_CONNECT_INTRO), '', ggBootFix)
 const { createElement } = await import('react')
-const { GeminiConnect } = await import('../../src/components/GeminiConnect.tsx')
-const { PopupCompactContext } = await import('../../src/context/popupFormContext.ts')
+const { GeminiConnect } = await import('../../src/models/sign-in/flow-cards/GeminiConnect.tsx')
+const { PopupCompactContext } = await import('../../src/screen/overlays/popupFormContext.ts')
 const { mountOffscreen, waitFor } = await import('../lib/settingsPopupHarness.ts')
 const framesAt = process.argv.indexOf('--frames')
 const frames = framesAt >= 0 ? process.argv[framesAt + 1] : undefined

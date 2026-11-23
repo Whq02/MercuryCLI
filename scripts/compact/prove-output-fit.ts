@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/api/outputFit.ts src/services/api/withRetry.ts src/services/providers/anthropic/streamCore.ts src/services/providers/zai/zaiCallModel.ts src/services/providers/gemini/geminiCallModel.ts src/services/providers/openaicompat/compatChatCallModel.ts
+// gate-watch: src/engine/requests/outputFit.ts src/engine/requests/withRetry.ts src/models/roads/anthropic/streamCore.ts src/models/roads/zai/zaiCallModel.ts src/models/roads/gemini/geminiCallModel.ts src/models/roads/openaicompat/compatChatCallModel.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -17,7 +17,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — output fit prover exceeded 180s; a routedCallModel call (src/services/providers/callModelRouter.ts) to the loopback fixture never finished, so check the last route named in the checks above')
+  console.log('\nTIMEOUT — output fit prover exceeded 180s; a routedCallModel call (src/models/roads/callModelRouter.ts) to the loopback fixture never finished, so check the last route named in the checks above')
   process.exit(1)
 }, 180_000)
 watchdog.unref?.()
@@ -44,48 +44,48 @@ console.log(' S2 the prompt measure: the usage anchor plus the tail; a fresh con
 console.log(' S3 the request bytes over the loopback: Anthropic, Z.AI, Gemini, a compat lane with an override, the Responses road (no cap, before and after)')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const fitModule = await import('../../src/services/api/outputFit.ts').catch(() => null)
+const fitModule = await import('../../src/engine/requests/outputFit.ts').catch(() => null)
 const HEADWAY = 1_000
 const FLOOR = 3_000
-const { messageContextFill } = await import('../../src/services/context/tokens.ts')
-const { getContextWindowForModel, getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
-const { getMaxOutputTokensForModel } = await import('../../src/services/providers/anthropic/streamCore.ts')
+const { messageContextFill } = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { getContextWindowForModel, getModelMaxOutputTokens } = await import('../../src/models/facts/capabilities.ts')
+const { getMaxOutputTokensForModel } = await import('../../src/models/roads/anthropic/streamCore.ts')
 const ZAI_DOCUMENTED_OUTPUT_CEILING = 131_072
-const { geminiOutputTokenLimitFor, refreshGeminiCatalogue } = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { geminiOutputTokenLimitFor, refreshGeminiCatalogue } = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
 
 section('S1 the arithmetic')
-check('the output fit module exists (src/services/api/outputFit.ts)', fitModule !== null, 'src/services/api/outputFit.ts failed to import or is missing; restore it with fitOutputTokens and promptRoomOf exported')
+check('the output fit module exists (src/engine/requests/outputFit.ts)', fitModule !== null, 'src/engine/requests/outputFit.ts failed to import or is missing; restore it with fitOutputTokens and promptRoomOf exported')
 if (fitModule !== null) {
   const { fitOutputTokens, OUTPUT_FIT_HEADWAY_TOKENS, OUTPUT_FIT_FLOOR_TOKENS } = fitModule
-  check(`the headway is ${OUTPUT_FIT_HEADWAY_TOKENS} tokens and the floor ${OUTPUT_FIT_FLOOR_TOKENS}`, OUTPUT_FIT_HEADWAY_TOKENS === 1_000 && OUTPUT_FIT_FLOOR_TOKENS === 3_000, `headway=${OUTPUT_FIT_HEADWAY_TOKENS} floor=${OUTPUT_FIT_FLOOR_TOKENS}; change OUTPUT_FIT_HEADWAY_TOKENS and OUTPUT_FIT_FLOOR_TOKENS in src/services/api/outputFit.ts, or update this proof if the constants were meant to move`)
+  check(`the headway is ${OUTPUT_FIT_HEADWAY_TOKENS} tokens and the floor ${OUTPUT_FIT_FLOOR_TOKENS}`, OUTPUT_FIT_HEADWAY_TOKENS === 1_000 && OUTPUT_FIT_FLOOR_TOKENS === 3_000, `headway=${OUTPUT_FIT_HEADWAY_TOKENS} floor=${OUTPUT_FIT_FLOOR_TOKENS}; change OUTPUT_FIT_HEADWAY_TOKENS and OUTPUT_FIT_FLOOR_TOKENS in src/engine/requests/outputFit.ts, or update this proof if the constants were meant to move`)
   const fits = fitOutputTokens({ asked: 64_000, window: 200_000, promptTokens: 100_000 })
-  check('an ask the window holds goes out untouched', fits.tokens === 64_000 && !fits.clamped && fits.room === 99_000, `${JSON.stringify(fits)}; fitOutputTokens in src/services/api/outputFit.ts must leave an ask alone when window minus prompt minus headway holds it`)
+  check('an ask the window holds goes out untouched', fits.tokens === 64_000 && !fits.clamped && fits.room === 99_000, `${JSON.stringify(fits)}; fitOutputTokens in src/engine/requests/outputFit.ts must leave an ask alone when window minus prompt minus headway holds it`)
   const edge = fitOutputTokens({ asked: 64_000, window: 200_000, promptTokens: 135_000 })
-  check('an ask exactly at the room goes out untouched', edge.tokens === 64_000 && !edge.clamped, `${JSON.stringify(edge)}; fitOutputTokens in src/services/api/outputFit.ts must not clamp an ask exactly equal to the room`)
+  check('an ask exactly at the room goes out untouched', edge.tokens === 64_000 && !edge.clamped, `${JSON.stringify(edge)}; fitOutputTokens in src/engine/requests/outputFit.ts must not clamp an ask exactly equal to the room`)
   const over = fitOutputTokens({ asked: 64_000, window: 200_000, promptTokens: 150_000 })
-  check('an ask over the room is fitted to the room (window − prompt − headway)', over.tokens === 49_000 && over.clamped && over.asked === 64_000, `${JSON.stringify(over)}; fitOutputTokens in src/services/api/outputFit.ts must fit an over-room ask to window minus prompt minus headway`)
+  check('an ask over the room is fitted to the room (window − prompt − headway)', over.tokens === 49_000 && over.clamped && over.asked === 64_000, `${JSON.stringify(over)}; fitOutputTokens in src/engine/requests/outputFit.ts must fit an over-room ask to window minus prompt minus headway`)
   const floor = fitOutputTokens({ asked: 64_000, window: 200_000, promptTokens: 198_500 })
-  check('a room under the floor sends the floor, never less (the wire answers the overflow, the ladder folds)', floor.tokens === 3_000 && floor.clamped, `${JSON.stringify(floor)}; fitOutputTokens in src/services/api/outputFit.ts must never return less than OUTPUT_FIT_FLOOR_TOKENS for an ask above it`)
+  check('a room under the floor sends the floor, never less (the wire answers the overflow, the ladder folds)', floor.tokens === 3_000 && floor.clamped, `${JSON.stringify(floor)}; fitOutputTokens in src/engine/requests/outputFit.ts must never return less than OUTPUT_FIT_FLOOR_TOKENS for an ask above it`)
   const budget = fitOutputTokens({ asked: 64_000, window: 200_000, promptTokens: 190_000, least: 32_001 })
-  check('the thinking budget is never cut by the fit: least beats the room and the floor', budget.tokens === 32_001 && budget.clamped, `${JSON.stringify(budget)}; fitOutputTokens in src/services/api/outputFit.ts must honour the least argument over both the room and the floor`)
+  check('the thinking budget is never cut by the fit: least beats the room and the floor', budget.tokens === 32_001 && budget.clamped, `${JSON.stringify(budget)}; fitOutputTokens in src/engine/requests/outputFit.ts must honour the least argument over both the room and the floor`)
   const small = fitOutputTokens({ asked: 100, window: 200_000, promptTokens: 1_000 })
-  check('a small explicit ask is never raised', small.tokens === 100 && !small.clamped, `${JSON.stringify(small)}; fitOutputTokens in src/services/api/outputFit.ts must never raise a small ask`)
+  check('a small explicit ask is never raised', small.tokens === 100 && !small.clamped, `${JSON.stringify(small)}; fitOutputTokens in src/engine/requests/outputFit.ts must never raise a small ask`)
   const smallOver = fitOutputTokens({ asked: 2_000, window: 200_000, promptTokens: 199_500 })
-  check('a small ask under the floor is never raised to it', smallOver.tokens === 2_000 && !smallOver.clamped, `${JSON.stringify(smallOver)}; fitOutputTokens in src/services/api/outputFit.ts must not raise an ask below the floor up to it`)
+  check('a small ask under the floor is never raised to it', smallOver.tokens === 2_000 && !smallOver.clamped, `${JSON.stringify(smallOver)}; fitOutputTokens in src/engine/requests/outputFit.ts must not raise an ask below the floor up to it`)
   const noWindow = fitOutputTokens({ asked: 64_000, window: 0, promptTokens: 150_000 })
-  check('an unknown window changes nothing', noWindow.tokens === 64_000 && !noWindow.clamped, `${JSON.stringify(noWindow)}; fitOutputTokens in src/services/api/outputFit.ts must pass the ask through when the window is 0`)
+  check('an unknown window changes nothing', noWindow.tokens === 64_000 && !noWindow.clamped, `${JSON.stringify(noWindow)}; fitOutputTokens in src/engine/requests/outputFit.ts must pass the ask through when the window is 0`)
   const noPrompt = fitOutputTokens({ asked: 64_000, window: 200_000, promptTokens: 0 })
-  check('an unknown prompt size changes nothing', noPrompt.tokens === 64_000 && !noPrompt.clamped, `${JSON.stringify(noPrompt)}; fitOutputTokens in src/services/api/outputFit.ts must pass the ask through when promptTokens is 0`)
+  check('an unknown prompt size changes nothing', noPrompt.tokens === 64_000 && !noPrompt.clamped, `${JSON.stringify(noPrompt)}; fitOutputTokens in src/engine/requests/outputFit.ts must pass the ask through when promptTokens is 0`)
 }
 
 const settledReply = (model: string, inputTokens: number, text = 'an earlier reply'): unknown => ({
@@ -117,14 +117,14 @@ if (fitModule !== null) {
   const anchored = conversation(model, window - 40_000) as never
   const measured = promptRoomOf(anchored, model, ['system', []])
   const fill = messageContextFill(anchored, model)
-  check(`a settled reply's usage anchors the measure (${fill.tokens} by usage, window ${window})`, fill.source === 'usage' && measured.promptTokens === fill.tokens && measured.promptTokens > window - 40_000 && measured.window === window, `${JSON.stringify(measured)}; promptRoomOf in src/services/api/outputFit.ts must anchor on the settled reply usage the way messageContextFill (src/services/context/tokens.ts) does`)
+  check(`a settled reply's usage anchors the measure (${fill.tokens} by usage, window ${window})`, fill.source === 'usage' && measured.promptTokens === fill.tokens && measured.promptTokens > window - 40_000 && measured.window === window, `${JSON.stringify(measured)}; promptRoomOf in src/engine/requests/outputFit.ts must anchor on the settled reply usage the way messageContextFill (src/engine/context-window/contextTokenCount.ts) does`)
   const fresh = [createUserMessage({ content: 'a fresh ask' })] as never
   const bare = promptRoomOf(fresh, model, '')
   const withFixed = promptRoomOf(fresh, model, 'x'.repeat(40_000))
-  check('a fresh conversation adds the fixed material (system prompt + tools) to the estimate', withFixed.promptTokens - bare.promptTokens === 10_000, `${bare.promptTokens} → ${withFixed.promptTokens}; promptRoomOf in src/services/api/outputFit.ts must add the estimate of the fixed material (system prompt and tools) when no usage anchor exists`)
+  check('a fresh conversation adds the fixed material (system prompt + tools) to the estimate', withFixed.promptTokens - bare.promptTokens === 10_000, `${bare.promptTokens} → ${withFixed.promptTokens}; promptRoomOf in src/engine/requests/outputFit.ts must add the estimate of the fixed material (system prompt and tools) when no usage anchor exists`)
   const foreign = conversation('gpt-5.6-sol', window - 40_000) as never
   const fenced = promptRoomOf(foreign, model, '')
-  check('an anchor stamped by another family is fenced: the measure falls to the estimate', fenced.promptTokens < 10_000, `${JSON.stringify(fenced)}; promptRoomOf in src/services/api/outputFit.ts must ignore a usage anchor stamped by another model family`)
+  check('an anchor stamped by another family is fenced: the measure falls to the estimate', fenced.promptTokens < 10_000, `${JSON.stringify(fenced)}; promptRoomOf in src/engine/requests/outputFit.ts must ignore a usage anchor stamped by another model family`)
 }
 
 section('S3 the request bytes over the loopback')
@@ -178,15 +178,15 @@ const expectedFit = (model: string, messages: unknown[], asked: number): { token
   const window = getContextWindowForModel(model)
   const asked = getMaxOutputTokensForModel(model)
   const plain = await call(model, [createUserMessage({ content: 'fixture ask' })])
-  check(`anthropic: a small conversation sends the model's own output ceiling (${asked})`, capOf(plain.body) === asked, `${JSON.stringify(capOf(plain.body))} errors=${plain.errors.length}; a small Anthropic conversation must send getMaxOutputTokensForModel (src/services/providers/anthropic/streamCore.ts) unfitted`)
+  check(`anthropic: a small conversation sends the model's own output ceiling (${asked})`, capOf(plain.body) === asked, `${JSON.stringify(capOf(plain.body))} errors=${plain.errors.length}; a small Anthropic conversation must send getMaxOutputTokensForModel (src/models/roads/anthropic/streamCore.ts) unfitted`)
   const near = conversation(model, window - 40_000)
   const want = expectedFit(model, near, asked)
   const fitted = await call(model, near)
-  check(`anthropic: a conversation ${window - 40_000} tokens in sends max_tokens fitted to the room (${want.tokens})`, capOf(fitted.body) === want.tokens && want.tokens < asked, `${JSON.stringify(capOf(fitted.body))} errors=${fitted.errors.length}; the Anthropic request must apply fitOutputTokens (src/services/api/outputFit.ts) before sending max_tokens`)
+  check(`anthropic: a conversation ${window - 40_000} tokens in sends max_tokens fitted to the room (${want.tokens})`, capOf(fitted.body) === want.tokens && want.tokens < asked, `${JSON.stringify(capOf(fitted.body))} errors=${fitted.errors.length}; the Anthropic request must apply fitOutputTokens (src/engine/requests/outputFit.ts) before sending max_tokens`)
   const full = await call(model, conversation(model, window - 2_000))
-  check('anthropic: a conversation with no room sends the floor, never less', capOf(full.body) === FLOOR, `${JSON.stringify(capOf(full.body))}; the Anthropic request must send OUTPUT_FIT_FLOOR_TOKENS from fitOutputTokens (src/services/api/outputFit.ts) when no room is left`)
+  check('anthropic: a conversation with no room sends the floor, never less', capOf(full.body) === FLOOR, `${JSON.stringify(capOf(full.body))}; the Anthropic request must send OUTPUT_FIT_FLOOR_TOKENS from fitOutputTokens (src/engine/requests/outputFit.ts) when no room is left`)
   const asked100 = await call(model, conversation(model, window - 2_000), { maxOutputTokensOverride: 100 })
-  check('anthropic: an explicit small ask rides untouched', capOf(asked100.body) === 100, `${JSON.stringify(capOf(asked100.body))}; maxOutputTokensOverride must reach the request unraised, and fitOutputTokens (src/services/api/outputFit.ts) must not lift a small ask`)
+  check('anthropic: an explicit small ask rides untouched', capOf(asked100.body) === 100, `${JSON.stringify(capOf(asked100.body))}; maxOutputTokensOverride must reach the request unraised, and fitOutputTokens (src/engine/requests/outputFit.ts) must not lift a small ask`)
 }
 {
   const model = 'glm-5.2'
@@ -196,7 +196,7 @@ const expectedFit = (model: string, messages: unknown[], asked: number): { token
   const near = conversation(model, window - 40_000)
   const want = expectedFit(model, near, ZAI_DOCUMENTED_OUTPUT_CEILING)
   const fitted = await call(model, near)
-  check(`zai: a conversation ${window - 40_000} tokens in sends max_tokens fitted to the room (${want.tokens})`, capOf(fitted.body) === want.tokens && want.tokens < ZAI_DOCUMENTED_OUTPUT_CEILING, `${JSON.stringify(capOf(fitted.body))} errors=${fitted.errors.length}; the Z.AI request (src/services/providers/zai/zaiCallModel.ts) must apply fitOutputTokens from src/services/api/outputFit.ts`)
+  check(`zai: a conversation ${window - 40_000} tokens in sends max_tokens fitted to the room (${want.tokens})`, capOf(fitted.body) === want.tokens && want.tokens < ZAI_DOCUMENTED_OUTPUT_CEILING, `${JSON.stringify(capOf(fitted.body))} errors=${fitted.errors.length}; the Z.AI request (src/models/roads/zai/zaiCallModel.ts) must apply fitOutputTokens from src/engine/requests/outputFit.ts`)
 }
 {
   const model = 'gemini-3-pro'
@@ -220,7 +220,7 @@ const expectedFit = (model: string, messages: unknown[], asked: number): { token
   const near = conversation(model, window - 40_000)
   const want = expectedFit(model, near, 60_000)
   const fitted = await call(model, near, { maxOutputTokensOverride: 60_000 })
-  check(`gemini (key road): an override of 60000 on a conversation ${window - 40_000} tokens in sends maxOutputTokens fitted to the room (${want.tokens})`, capOf(fitted.body) === want.tokens && want.tokens < 60_000, `${JSON.stringify(capOf(fitted.body))} errors=${fitted.errors.length}; the Gemini request (src/services/providers/gemini/geminiCallModel.ts) must apply fitOutputTokens from src/services/api/outputFit.ts to an override`)
+  check(`gemini (key road): an override of 60000 on a conversation ${window - 40_000} tokens in sends maxOutputTokens fitted to the room (${want.tokens})`, capOf(fitted.body) === want.tokens && want.tokens < 60_000, `${JSON.stringify(capOf(fitted.body))} errors=${fitted.errors.length}; the Gemini request (src/models/roads/gemini/geminiCallModel.ts) must apply fitOutputTokens from src/engine/requests/outputFit.ts to an override`)
 }
 {
   const model = 'deepseek-v4-pro'
@@ -230,7 +230,7 @@ const expectedFit = (model: string, messages: unknown[], asked: number): { token
   const near = conversation(model, window - 20_000)
   const want = expectedFit(model, near, 60_000)
   const fitted = await call(model, near, { maxOutputTokensOverride: 60_000 })
-  check(`compat (deepseek): an override of 60000 on a conversation ${window - 20_000} tokens in is fitted to the room (${want.tokens})`, capOf(fitted.body) === want.tokens && want.tokens < 60_000, `${JSON.stringify(capOf(fitted.body))} errors=${fitted.errors.length}; the compat request (src/services/providers/openaicompat/compatChatCallModel.ts) must apply fitOutputTokens from src/services/api/outputFit.ts to an override`)
+  check(`compat (deepseek): an override of 60000 on a conversation ${window - 20_000} tokens in is fitted to the room (${want.tokens})`, capOf(fitted.body) === want.tokens && want.tokens < 60_000, `${JSON.stringify(capOf(fitted.body))} errors=${fitted.errors.length}; the compat request (src/models/roads/openaicompat/compatChatCallModel.ts) must apply fitOutputTokens from src/engine/requests/outputFit.ts to an override`)
   const asked100 = await call(model, [createUserMessage({ content: 'fixture ask' })], { maxOutputTokensOverride: 100 })
   check('compat (deepseek): a small override rides untouched', capOf(asked100.body) === 100, JSON.stringify(capOf(asked100.body)))
   const upper = getModelMaxOutputTokens(model).upperLimit
@@ -249,18 +249,18 @@ if (fitModule !== null) {
   const { fitOutputTokens } = fitModule
   for (const asked of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
     const fit = fitOutputTokens({ asked, window: 200_000, promptTokens: 150_000 })
-    check(`an ask that is not a positive number rides untouched (${asked})`, Object.is(fit.tokens, asked) && !fit.clamped, `${JSON.stringify(fit)}; fitOutputTokens in src/services/api/outputFit.ts must pass a non-positive or non-finite ask through unchanged`)
+    check(`an ask that is not a positive number rides untouched (${asked})`, Object.is(fit.tokens, asked) && !fit.clamped, `${JSON.stringify(fit)}; fitOutputTokens in src/engine/requests/outputFit.ts must pass a non-positive or non-finite ask through unchanged`)
   }
   for (const promptTokens of [Number.NaN, -10, Number.POSITIVE_INFINITY]) {
     const fit = fitOutputTokens({ asked: 64_000, window: 200_000, promptTokens })
-    check(`a prompt measure that is not a positive number changes nothing (${promptTokens})`, fit.tokens === 64_000 && !fit.clamped, `${JSON.stringify(fit)}; fitOutputTokens in src/services/api/outputFit.ts must ignore a promptTokens that is not a positive finite number`)
+    check(`a prompt measure that is not a positive number changes nothing (${promptTokens})`, fit.tokens === 64_000 && !fit.clamped, `${JSON.stringify(fit)}; fitOutputTokens in src/engine/requests/outputFit.ts must ignore a promptTokens that is not a positive finite number`)
   }
   const beyond = fitOutputTokens({ asked: 64_000, window: 200_000, promptTokens: 400_000 })
-  check('a prompt already past the window sends the floor, never a negative or zero cap', beyond.tokens === FLOOR && beyond.clamped, `${JSON.stringify(beyond)}; fitOutputTokens in src/services/api/outputFit.ts must return the floor when the prompt is past the window`)
+  check('a prompt already past the window sends the floor, never a negative or zero cap', beyond.tokens === FLOOR && beyond.clamped, `${JSON.stringify(beyond)}; fitOutputTokens in src/engine/requests/outputFit.ts must return the floor when the prompt is past the window`)
   const budgetBeyond = fitOutputTokens({ asked: 64_000, window: 200_000, promptTokens: 400_000, least: 32_001 })
-  check('…and a thinking budget past the room stands whole (the wire answers the overflow; thinking is never cut)', budgetBeyond.tokens === 32_001, `${JSON.stringify(budgetBeyond)}; fitOutputTokens in src/services/api/outputFit.ts must return least whole even when the prompt is past the window`)
+  check('…and a thinking budget past the room stands whole (the wire answers the overflow; thinking is never cut)', budgetBeyond.tokens === 32_001, `${JSON.stringify(budgetBeyond)}; fitOutputTokens in src/engine/requests/outputFit.ts must return least whole even when the prompt is past the window`)
   const leastAboveAsk = fitOutputTokens({ asked: 8_000, window: 200_000, promptTokens: 199_000, least: 32_001 })
-  check('the least never raises the cap above what was asked', leastAboveAsk.tokens === 8_000, `${JSON.stringify(leastAboveAsk)}; fitOutputTokens in src/services/api/outputFit.ts must cap the result at the ask even when least is higher`)
+  check('the least never raises the cap above what was asked', leastAboveAsk.tokens === 8_000, `${JSON.stringify(leastAboveAsk)}; fitOutputTokens in src/engine/requests/outputFit.ts must cap the result at the ask even when least is higher`)
   const model = 'claude-opus-4-8'
   const budgeted = await call(model, conversation(model, getContextWindowForModel(model) - 2_000), { thinkingConfig: { type: 'enabled', budgetTokens: 10_000 } } as never)
   check('the control for thinking: a budget model near the window keeps budget_tokens below max_tokens by the base\'s own law', budgeted.body !== null && (typeof budgeted.body.thinking !== 'object' || budgeted.body.thinking === null || !('budget_tokens' in (budgeted.body.thinking as Record<string, unknown>)) || ((budgeted.body.thinking as { budget_tokens: number }).budget_tokens < (budgeted.body.max_tokens as number))), JSON.stringify({ thinking: budgeted.body?.thinking, max_tokens: budgeted.body?.max_tokens }))

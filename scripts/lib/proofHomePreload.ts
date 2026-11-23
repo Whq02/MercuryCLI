@@ -61,9 +61,9 @@ if (!import.meta.main && !isBuildEntry && !isProductEntry) {
   if (!(process.env.BUN_OPTIONS || '').includes(preloadFlag)) {
     process.env.BUN_OPTIONS = process.env.BUN_OPTIONS ? `${process.env.BUN_OPTIONS} ${preloadFlag}` : preloadFlag
   }
-  const bootDoors = resolve(root, 'src', 'services', 'boot', 'registerDoors.ts')
+  const bootDoors = resolve(root, 'src', 'boot', 'doors', 'registerDoors.ts')
   if (existsSync(bootDoors)) {
-    const { registerBootDoors } = await import('../../src/services/boot/registerDoors.ts')
+    const { registerBootDoors } = await import('../../src/boot/doors/registerDoors.ts')
     registerBootDoors()
   }
 }

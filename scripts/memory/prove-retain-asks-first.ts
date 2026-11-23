@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/mneme/memoryPinIntent.ts src/mneme/memoryVerbs.ts src/constants/tools/memory.ts docs/MNEME.md
+// gate-watch: src/tools/memory/MemoryTools.ts src/sessions/mneme/memoryPinIntent.ts src/sessions/mneme/memoryVerbs.ts src/tools/kit/names/memory.ts docs/MNEME.md
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -19,18 +19,18 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (title: string): void => console.log(`\n${title}`)
 
-const { RetainTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
-const { RETAIN_PROMPT } = await import('../../src/constants/tools/memory.ts')
-const pinIntentModule = await import('../../src/mneme/memoryPinIntent.ts') as Record<string, unknown>
+const { RetainTool } = await import('../../src/tools/memory/MemoryTools.ts')
+const { RETAIN_PROMPT } = await import('../../src/tools/kit/names/memory.ts')
+const pinIntentModule = await import('../../src/sessions/mneme/memoryPinIntent.ts') as Record<string, unknown>
 const retainAskRefusal = (pinIntentModule.retainAskRefusal ?? (() => 'absent on this base')) as (latest: string | undefined) => string
 const CREWMATE_RETAIN_REFUSAL = (pinIntentModule.CREWMATE_RETAIN_REFUSAL ?? 'absent on this base') as string
 const memoryAskRefusal = (pinIntentModule.memoryAskRefusal ?? (() => 'absent on this base')) as (messages: unknown[], agentId?: string) => string | null
-const { _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
-const { pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
-const { readPins } = await import('../../src/mneme/mnemeUsage.ts')
-const { listTopicDocs } = await import('../../src/mneme/mnemeLibrary.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { _resetMemoryVerbSessionStateForTesting } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { pendingRows } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { readPins } = await import('../../src/sessions/mneme/mnemeUsage.ts')
+const { listTopicDocs } = await import('../../src/sessions/mneme/mnemeLibrary.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const dir = mnemeLibraryDir()
 
 let n = 0

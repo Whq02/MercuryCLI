@@ -41,9 +41,9 @@ if (res.status !== 0) {
   rmSync(gridPath, { force: true })
   const rows = rowsOf(grid)
   const band = rows.find(row => /flow on \(shift\+tab to cycle\)|sovereign mode on/.test(row)) ?? ''
-  check('mercury --mode flow with the Sovereign mode row saved (MERCURY_SKIP_PERMISSIONS=1) opens in Flow: the band reads "flow on"', /flow on \(shift\+tab to cycle\)/.test(band), `a typed --mode must win over the saved Sovereign row; fix resolveSessionPermissionMode in src/utils/permissions/permissionSetup.ts (the band is drawn in src/components/MercuryFrame.tsx). Saw: ${band || rows.filter(r => r.trim() !== '').slice(-6).join(' | ')}`)
-  check('…and never the crimson sovereign band', !/sovereign mode on/.test(band), `the saved Sovereign row overrode the typed --mode; fix resolveSessionPermissionMode in src/utils/permissions/permissionSetup.ts so the launch flag outranks saved settings. Saw: ${band}`)
-  check('the composer is on screen (the session opened, no consent card in the way)', flat(grid).includes('Type a prompt'), `the session did not open to the composer, so a consent card or another screen is in the way; the saved sovereignConsentSeen setting should skip it (src/components/SovereignModeDialog.tsx). Saw: ${rows.filter(r => r.trim() !== '').slice(-6).join(' | ')}`)
+  check('mercury --mode flow with the Sovereign mode row saved (MERCURY_SKIP_PERMISSIONS=1) opens in Flow: the band reads "flow on"', /flow on \(shift\+tab to cycle\)/.test(band), `a typed --mode must win over the saved Sovereign row; fix resolveSessionPermissionMode in src/permissions/rules/permissionSetup.ts (the band is drawn in src/screen/frame-chips/MercuryFrame.tsx). Saw: ${band || rows.filter(r => r.trim() !== '').slice(-6).join(' | ')}`)
+  check('…and never the crimson sovereign band', !/sovereign mode on/.test(band), `the saved Sovereign row overrode the typed --mode; fix resolveSessionPermissionMode in src/permissions/rules/permissionSetup.ts so the launch flag outranks saved settings. Saw: ${band}`)
+  check('the composer is on screen (the session opened, no consent card in the way)', flat(grid).includes('Type a prompt'), `the session did not open to the composer, so a consent card or another screen is in the way; the saved sovereignConsentSeen setting should skip it (src/boot/first-run/SovereignModeDialog.tsx). Saw: ${rows.filter(r => r.trim() !== '').slice(-6).join(' | ')}`)
 }
 cleanupScenario('mode-band-auto')
 

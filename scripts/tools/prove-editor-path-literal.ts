@@ -35,14 +35,14 @@ process.env.STANDIN_NOTE = 'two words'
 delete process.env.VISUAL
 process.chdir(work)
 
-const instances = (await import('../../src/ink/instances.ts')).default
+const instances = (await import('../../src/screen/renderer/instances.ts')).default
 const renderer = new Proxy({}, { get: (_target, name) => (name === 'awaitTerminalQueries' ? async () => undefined : () => undefined) })
 instances.set(process.stdout, renderer as never)
-const handback = await import('../../src/utils/terminalHandback.ts')
+const handback = await import('../../src/platform/shell/terminalHandback.ts')
 handback.setTerminalHandbackAddonForTest(null)
 handback.setTerminalHandbackDescriptorForTest('none')
-const { getExternalEditor } = await import('../../src/utils/editor.ts')
-const editorModule = (await import('../../src/utils/promptEditor.ts')) as {
+const { getExternalEditor } = await import('../../src/platform/editor/externalEditor.ts')
+const editorModule = (await import('../../src/screen/composer/promptEditor.ts')) as {
   editFileInEditor: (path: string) => Promise<{ content: string | null; error?: string }>
   editorCommandLine?: (executable: string, args: readonly string[], filePath: string, platform?: NodeJS.Platform) => string
 }
@@ -74,25 +74,25 @@ try {
       const path = join(work, name)
       writeFileSync(path, `body of ${label}\n`)
       const opened = await open('standin-editor', path)
-      check(`${label}: the editor receives that path and nothing else`, j(opened.argv) === j([path]) && opened.content === `body of ${label}\n`, `change editFileInEditor in src/utils/promptEditor.ts so the path reaches the editor as one literal argument and is never run by a shell · argv ${j(opened.argv)} · content ${j(opened.content)} · error ${opened.error ?? 'none'}`)
+      check(`${label}: the editor receives that path and nothing else`, j(opened.argv) === j([path]) && opened.content === `body of ${label}\n`, `change editFileInEditor in src/screen/composer/promptEditor.ts so the path reaches the editor as one literal argument and is never run by a shell · argv ${j(opened.argv)} · content ${j(opened.content)} · error ${opened.error ?? 'none'}`)
     }
     const left = readdirSync(work).filter(entry => /^M\d$/.test(entry))
-    check('no file name ran a command (no marker file was made beside the notes)', left.length === 0, `change editFileInEditor in src/utils/promptEditor.ts so a file name is quoted and runs no command · made: ${left.join(', ')}`)
+    check('no file name ran a command (no marker file was made beside the notes)', left.length === 0, `change editFileInEditor in src/screen/composer/promptEditor.ts so a file name is quoted and runs no command · made: ${left.join(', ')}`)
 
     console.log("\n§2 the editor setting is read as before: its arguments, a variable in it and a wrapper with no #! line")
     const plain = join(work, 'plain note.md')
     writeFileSync(plain, 'plain\n')
     const withArguments = await open('standin-editor --wait --profile work', plain)
-    check('an editor with arguments receives them before the path', j(withArguments.argv) === j(['--wait', '--profile', 'work', plain]), `change editFileInEditor in src/utils/promptEditor.ts to pass the editor setting's arguments before the path · ${j(withArguments.argv)}`)
+    check('an editor with arguments receives them before the path', j(withArguments.argv) === j(['--wait', '--profile', 'work', plain]), `change editFileInEditor in src/screen/composer/promptEditor.ts to pass the editor setting's arguments before the path · ${j(withArguments.argv)}`)
     const withVariable = await open('standin-editor --note $STANDIN_NOTE', plain)
-    check("a variable in the setting's arguments is still expanded by the shell, as one argument", j(withVariable.argv) === j(['--note', 'two words', plain]), `change editFileInEditor in src/utils/promptEditor.ts to leave the setting's own text to the shell so a variable expands · ${j(withVariable.argv)}`)
+    check("a variable in the setting's arguments is still expanded by the shell, as one argument", j(withVariable.argv) === j(['--note', 'two words', plain]), `change editFileInEditor in src/screen/composer/promptEditor.ts to leave the setting's own text to the shell so a variable expands · ${j(withVariable.argv)}`)
     const wrapped = await open('wrapper-editor', plain)
-    check('a wrapper script without a #! line still runs and hands the path on', j(wrapped.argv) === j(['--wrapped', plain]) && wrapped.content === 'plain\n', `change editFileInEditor in src/utils/promptEditor.ts so a wrapper script without a #! line still runs · ${j(wrapped.argv)} · ${wrapped.error ?? 'no error'}`)
+    check('a wrapper script without a #! line still runs and hands the path on', j(wrapped.argv) === j(['--wrapped', plain]) && wrapped.content === 'plain\n', `change editFileInEditor in src/screen/composer/promptEditor.ts so a wrapper script without a #! line still runs · ${j(wrapped.argv)} · ${wrapped.error ?? 'no error'}`)
   }
 
   console.log("\n§3 the command line is the parent's, byte for byte, up to the path's own quoting")
   const build = editorModule.editorCommandLine
-  check('the hand-off builds its line in one place', typeof build === 'function', 'export editorCommandLine from src/utils/promptEditor.ts and build the hand-off line there')
+  check('the hand-off builds its line in one place', typeof build === 'function', 'export editorCommandLine from src/screen/composer/promptEditor.ts and build the hand-off line there')
   if (typeof build === 'function') {
     const parentLine = (executable: string, args: string[], path: string): string => [`"${executable}"`, ...args.map(arg => `"${arg}"`), `"${path}"`].join(' ')
     const settings: Array<[string, string, string[]]> = [
@@ -105,11 +105,11 @@ try {
       const parent = parentLine(executable, args, path)
       for (const platform of ['darwin', 'linux'] as const) {
         const line = build(executable, args, path, platform)
-        check(`${label} on ${platform}: everything before the path is the parent's bytes and the path is single-quoted`, line === `${parent.slice(0, parent.length - path.length - 2)}'${path}'`, `change editorCommandLine in src/utils/promptEditor.ts · ${line} · parent ${parent}`)
+        check(`${label} on ${platform}: everything before the path is the parent's bytes and the path is single-quoted`, line === `${parent.slice(0, parent.length - path.length - 2)}'${path}'`, `change editorCommandLine in src/screen/composer/promptEditor.ts · ${line} · parent ${parent}`)
       }
-      check(`${label} on win32: everything before the path is the parent's bytes and the path uses the child-only variable`, build(executable, args, path, 'win32') === `${parent.slice(0, parent.length - path.length - 2)}"%MERCURY_EDITOR_FILE%"`, `change the win32 branch of editorCommandLine in src/utils/promptEditor.ts · ${build(executable, args, path, 'win32')}`)
+      check(`${label} on win32: everything before the path is the parent's bytes and the path uses the child-only variable`, build(executable, args, path, 'win32') === `${parent.slice(0, parent.length - path.length - 2)}"%MERCURY_EDITOR_FILE%"`, `change the win32 branch of editorCommandLine in src/screen/composer/promptEditor.ts · ${build(executable, args, path, 'win32')}`)
     }
-    check("a single quote in the path closes, escapes and reopens the quoting", build('vim', [], "/tmp/it's.md", 'linux') === `"vim" '/tmp/it'\\''s.md'`, `change the single-quote escaping in editorCommandLine in src/utils/promptEditor.ts · ${build('vim', [], "/tmp/it's.md", 'linux')}`)
+    check("a single quote in the path closes, escapes and reopens the quoting", build('vim', [], "/tmp/it's.md", 'linux') === `"vim" '/tmp/it'\\''s.md'`, `change the single-quote escaping in editorCommandLine in src/screen/composer/promptEditor.ts · ${build('vim', [], "/tmp/it's.md", 'linux')}`)
   }
 } finally {
   process.chdir(REPO)

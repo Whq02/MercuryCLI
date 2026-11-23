@@ -2,22 +2,22 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { Message } from '../../src/types/message.js'
-import type { AdvisorContext } from '../../src/services/advisor/advisorContext.js'
+import type { Message } from '../../src/engine/message-shapes/message.js'
+import type { AdvisorContext } from '../../src/models/advisor/advisorContext.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const home = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'advisor-evidence-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.js')
-const advisor = await import('../../src/services/advisor/index.js')
-const { ADVISOR_INCOMPLETE_EVIDENCE_RULE, advisorTranscriptTail, clipAdvisorText, serializeAdvisorInput } = await import('../../src/services/advisor/advisorProjection.js')
-const { DIGEST_INPUT_STRING_CLIP } = await import('../../src/services/advisor/advisorNote.js')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.js')
+const advisor = await import('../../src/models/advisor/index.js')
+const { ADVISOR_INCOMPLETE_EVIDENCE_RULE, advisorTranscriptTail, clipAdvisorText, serializeAdvisorInput } = await import('../../src/models/advisor/advisorProjection.js')
+const { DIGEST_INPUT_STRING_CLIP } = await import('../../src/models/advisor/advisorNote.js')
 let checks = 0
 function check(label: string, condition: unknown): void {
-  assert.ok(condition, `${label}; the advisor's input projection and prompt are in src/services/advisor/ (advisorProjection.ts clipping and ADVISOR_INCOMPLETE_EVIDENCE_RULE, advisorNote.ts renderAgentDigest and composeAdvisorNote, advisorContext.ts renderAdvisorFoldTranscript); change the one this check names`)
+  assert.ok(condition, `${label}; the advisor's input projection and prompt are in src/models/advisor/ (advisorProjection.ts clipping and ADVISOR_INCOMPLETE_EVIDENCE_RULE, advisorNote.ts renderAgentDigest and composeAdvisorNote, advisorContext.ts renderAdvisorFoldTranscript); change the one this check names`)
   checks++
   console.log(`PASS ${label}`)
 }

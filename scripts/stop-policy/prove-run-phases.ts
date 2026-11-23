@@ -19,8 +19,8 @@ function section(t: string): void {
 }
 
 async function main(): Promise<void> {
-  const state = await import('../../src/bootstrap/state.js')
-  const phases = await import('../../src/utils/runPhases.js')
+  const state = await import('../../src/boot/process-state/processState.js')
+  const phases = await import('../../src/platform/logs/runPhases.js')
 
   state.setIsInteractive(false)
 
@@ -97,7 +97,7 @@ async function main(): Promise<void> {
   for (const leg of legs) {
     const mark = leg.pass ? '[PASS]' : '[FAIL]'
     if (!leg.pass) red++
-    console.log(`  ${mark} ${leg.label}${!leg.pass ? ` — change noteRunPhase or runPhaseReport in src/utils/runPhases.ts${leg.detail ? `: ${leg.detail}` : ''}` : ''}`)
+    console.log(`  ${mark} ${leg.label}${!leg.pass ? ` — change noteRunPhase or runPhaseReport in src/platform/logs/runPhases.ts${leg.detail ? `: ${leg.detail}` : ''}` : ''}`)
   }
   console.log(
     `\n${legs.length} legs: ${legs.length - red} green, ${red} red — 3.5.3 print phases ${red === 0 ? 'HOLD' : 'BROKEN'}`,

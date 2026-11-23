@@ -17,7 +17,7 @@ echo "# audit-fix regression guards (audit-r2)"
 echo "############################################################"
 
 
-res=$("$bun" -e "import('$root/src/utils/effort.js').then(m=>console.log(m.parseEffortValue('  high ')==='high'?'OK':'BAD')).catch(e=>console.log('LOADERR'));" 2>&1 | tail -1)
+res=$("$bun" -e "import('$root/src/models/effort/effort.js').then(m=>console.log(m.parseEffortValue('  high ')==='high'?'OK':'BAD')).catch(e=>console.log('LOADERR'));" 2>&1 | tail -1)
 [ "$res" = "OK" ] && ok "parseEffortValue('  high ') === 'high' (behavioral)" || { [ "$res" = "LOADERR" ] && ok "effort behavioral skipped (unloadable)" || no "effort trim behavioral: $res"; }
 drive_members audit-fixes 'scripts/audit-fixes/$name' "$here/members.txt" || fail=1
 

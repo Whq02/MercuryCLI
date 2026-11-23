@@ -11,18 +11,18 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
-const FIX_PER_LINE_CUT = ' | fix: each source line must be cut on its own, not the text as a whole; see wrapWithSoftWrap and styleTruncatedLines in src/ink/compose-walk.ts (painting), makeTextMeasureFunc in src/ink/dom.ts (row count) and truncateParts in src/ink/wrap-text.ts (the cut)'
-const FIX_SINGLE_LINE_CUT = ' | fix: a one-line text must keep the plain truncateParts cut in src/ink/wrap-text.ts, and no extra row may be reserved by makeTextMeasureFunc in src/ink/dom.ts'
+const FIX_PER_LINE_CUT = ' | fix: each source line must be cut on its own, not the text as a whole; see wrapWithSoftWrap and styleTruncatedLines in src/screen/renderer/compose-walk.ts (painting), makeTextMeasureFunc in src/screen/renderer/dom.ts (row count) and truncateParts in src/screen/renderer/wrap-text.ts (the cut)'
+const FIX_SINGLE_LINE_CUT = ' | fix: a one-line text must keep the plain truncateParts cut in src/screen/renderer/wrap-text.ts, and no extra row may be reserved by makeTextMeasureFunc in src/screen/renderer/dom.ts'
 
 const { mkdtempSync } = await import('node:fs')
 const { tmpdir } = await import('node:os')
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'trunc-line-home-'))
-const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
 
 const React = (await import('react')).default
-const { renderToString } = await import(join(ROOT, 'src/utils/staticRender.tsx'))
-const { Box, Text } = await import(join(ROOT, 'src/ink.ts'))
+const { renderToString } = await import(join(ROOT, 'src/screen/renderer/staticRender.tsx'))
+const { Box, Text } = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
 
 const lines = (s: string): string[] => s.split('\n').map(l => l.replace(/\s+$/, ''))
 const DRAFT = 'abcdefghijklmnop\nsecond line\nthird'

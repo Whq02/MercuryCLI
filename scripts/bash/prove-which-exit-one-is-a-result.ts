@@ -32,9 +32,9 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { interpretCommandResult } = await import('../../src/tools/BashTool/commandSemantics.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { interpretCommandResult } = await import('../../src/tools/shell/commandSemantics.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 
 let appState = getDefaultAppState()
 const toolContext = {
@@ -66,18 +66,18 @@ async function drive(command: string): Promise<Drive> {
 
 section('§1 which: exit 1 is a labelled result, not an error')
 const which = await drive('which sh mercury-no-such-tool-0x')
-check('the call settles as a result (no ShellError thrown)', which.ok, which.ok ? '' : `${which.error.slice(0, 200)} — exit 1 of which must be read as a result: add it to the table in interpretCommandResult in src/tools/BashTool/commandSemantics.ts`)
+check('the call settles as a result (no ShellError thrown)', which.ok, which.ok ? '' : `${which.error.slice(0, 200)} — exit 1 of which must be read as a result: add it to the table in interpretCommandResult in src/tools/shell/commandSemantics.ts`)
 if (which.ok) {
-  check('the exit code is 1', which.out.code === 1, `${String(which.out.code)} — the result code is set by BashTool.call in src/tools/BashTool/BashTool.tsx`)
+  check('the exit code is 1', which.out.code === 1, `${String(which.out.code)} — the result code is set by BashTool.call in src/tools/shell/BashTool.tsx`)
   check('the output lists the found name (a missing name is printed by some which builds and not others)', which.out.stdout.includes('/sh'), JSON.stringify(which.out.stdout))
-  check('the result ends with the label `a name was not found (exit code 1)`', which.content.endsWith('a name was not found (exit code 1)'), `${JSON.stringify(which.content.slice(-120))} — the label comes from interpretCommandResult in src/tools/BashTool/commandSemantics.ts`)
-  check('the result carries no `Exited with code` line', !which.content.includes('Exited with code'), `${JSON.stringify(which.content.slice(-200))} — a which exit 1 is a result, so no exit line is printed; see interpretCommandResult in src/tools/BashTool/commandSemantics.ts`)
-  check('the interpretation on the result is the label', which.out.returnCodeInterpretation === 'a name was not found' && which.out.exitNote === 'a name was not found (exit code 1)', `${JSON.stringify([which.out.returnCodeInterpretation, which.out.exitNote])} — returnCodeInterpretation and exitNote are set from interpretCommandResult in src/tools/BashTool/commandSemantics.ts`)
+  check('the result ends with the label `a name was not found (exit code 1)`', which.content.endsWith('a name was not found (exit code 1)'), `${JSON.stringify(which.content.slice(-120))} — the label comes from interpretCommandResult in src/tools/shell/commandSemantics.ts`)
+  check('the result carries no `Exited with code` line', !which.content.includes('Exited with code'), `${JSON.stringify(which.content.slice(-200))} — a which exit 1 is a result, so no exit line is printed; see interpretCommandResult in src/tools/shell/commandSemantics.ts`)
+  check('the interpretation on the result is the label', which.out.returnCodeInterpretation === 'a name was not found' && which.out.exitNote === 'a name was not found (exit code 1)', `${JSON.stringify([which.out.returnCodeInterpretation, which.out.exitNote])} — returnCodeInterpretation and exitNote are set from interpretCommandResult in src/tools/shell/commandSemantics.ts`)
 }
 
 section('§2 command -v: exit 1 is a labelled result too')
 const commandV = await drive('command -v mercury-no-such-tool-0x')
-check('the call settles as a result (no ShellError thrown)', commandV.ok, commandV.ok ? '' : `${commandV.error.slice(0, 200)} — exit 1 of command -v must be read as a result in interpretCommandResult in src/tools/BashTool/commandSemantics.ts`)
+check('the call settles as a result (no ShellError thrown)', commandV.ok, commandV.ok ? '' : `${commandV.error.slice(0, 200)} — exit 1 of command -v must be read as a result in interpretCommandResult in src/tools/shell/commandSemantics.ts`)
 if (commandV.ok) {
   check('the exit code is 1', commandV.out.code === 1, String(commandV.out.code))
   check('the result ends with the label `a name was not found (exit code 1)`', commandV.content.endsWith('a name was not found (exit code 1)'), JSON.stringify(commandV.content.slice(-120)))
@@ -87,15 +87,15 @@ check('command -V reads the same way', commandVBig.ok && commandVBig.content.end
 
 section("§3 the bench's shape: a list whose LAST command is which, after a successful ls")
 const listed = await drive('ls -la; which timeout-no-such-0x gtimeout-no-such-0x sh 2>&1')
-check('the whole list is a result, status ok', listed.ok, listed.ok ? '' : `${listed.error.slice(0, 200)} — the exit code of a list is its last command; interpretCommandResult in src/tools/BashTool/commandSemantics.ts must read the last command, which`)
+check('the whole list is a result, status ok', listed.ok, listed.ok ? '' : `${listed.error.slice(0, 200)} — the exit code of a list is its last command; interpretCommandResult in src/tools/shell/commandSemantics.ts must read the last command, which`)
 if (listed.ok) {
   check('the listing and the which lines are both in the output, the label last', listed.content.includes('total ') && listed.content.includes('/sh') && listed.content.endsWith('a name was not found (exit code 1)'), JSON.stringify(listed.content.slice(-160)))
 }
 
 section('§4 exit 2 and above stay errors; other words are untouched')
 const two = await drive('which() { return 2; }; which x')
-check('a which that exits 2 is still an error ending `Exited with code 2`', !two.ok && /Exited with code 2/.test(two.ok ? '' : two.error), `${two.ok ? JSON.stringify(two.content.slice(0, 120)) : two.error.slice(0, 120)} — only exit 1 of which is a result; interpretCommandResult in src/tools/BashTool/commandSemantics.ts must leave exit 2 an error`)
-check('the table reads which exit 2 as an error', interpretCommandResult('which foo', 2, '', '').isError === true, 'interpretCommandResult in src/tools/BashTool/commandSemantics.ts must treat which exit 2 as an error')
+check('a which that exits 2 is still an error ending `Exited with code 2`', !two.ok && /Exited with code 2/.test(two.ok ? '' : two.error), `${two.ok ? JSON.stringify(two.content.slice(0, 120)) : two.error.slice(0, 120)} — only exit 1 of which is a result; interpretCommandResult in src/tools/shell/commandSemantics.ts must leave exit 2 an error`)
+check('the table reads which exit 2 as an error', interpretCommandResult('which foo', 2, '', '').isError === true, 'interpretCommandResult in src/tools/shell/commandSemantics.ts must treat which exit 2 as an error')
 check('the table reads which exit 1 as a result with the label', JSON.stringify(interpretCommandResult('which foo', 1, '', '')) === JSON.stringify({ isError: false, message: 'a name was not found' }))
 check('the table reads command -v exit 1 as a result with the label', JSON.stringify(interpretCommandResult('command -v foo', 1, '', '')) === JSON.stringify({ isError: false, message: 'a name was not found' }))
 check('the table reads command -V exit 1 the same way', interpretCommandResult('command -V foo', 1, '', '').isError === false)
@@ -103,7 +103,7 @@ check('a bare `command foo` (no -v) keeps the default reading: exit 1 is an erro
 check('which through env and assignments is still which', interpretCommandResult('FOO=1 env -i which foo', 1, '', '').isError === false)
 check('grep exit 1 keeps its own label', JSON.stringify(interpretCommandResult('grep x y', 1, '', '')) === JSON.stringify({ isError: false, message: 'no matches found' }))
 const plainFail = await drive('cat /mercury-no-such-file-0x')
-check('an ordinary non-zero exit is still an error ending `Exited with code 1`', !plainFail.ok && /Exited with code 1/.test(plainFail.ok ? '' : plainFail.error), `${plainFail.ok ? 'settled as a result' : plainFail.error.slice(-80)} — only the lookup commands in the table in src/tools/BashTool/commandSemantics.ts may read exit 1 as a result`)
+check('an ordinary non-zero exit is still an error ending `Exited with code 1`', !plainFail.ok && /Exited with code 1/.test(plainFail.ok ? '' : plainFail.error), `${plainFail.ok ? 'settled as a result' : plainFail.error.slice(-80)} — only the lookup commands in the table in src/tools/shell/commandSemantics.ts may read exit 1 as a result`)
 
 for (const dir of [SCRATCH, proofHome]) {
   try {

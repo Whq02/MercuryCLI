@@ -13,18 +13,18 @@ delete process.env.MERCURY_DAEMON_PERSIST
 delete process.env.MERCURY_DAEMON_OWNER_PID
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const workers = await import('../../src/daemon/concourseWorkers.ts')
-const saturn = await import('../../src/daemon/saturn.ts')
-const { tickSaturnOnce, saturnDueAtOf } = await import('../../src/daemon/saturnTicker.ts')
-const { SESSIONLESS_EXIT_GRACE_MS } = await import('../../src/daemon/sessionlessExit.ts')
+const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const saturn = await import('../../src/daemon/saturn/saturn.ts')
+const { tickSaturnOnce, saturnDueAtOf } = await import('../../src/daemon/saturn/saturnTicker.ts')
+const { SESSIONLESS_EXIT_GRACE_MS } = await import('../../src/daemon/control/sessionlessExit.ts')
 const { makeSessionlessBeat } = await import('../../src/daemon/run/owner.ts')
 const { makeDaemonRunState } = await import('../../src/daemon/run/state.ts')
-const { DaemonBreaker } = await import('../../src/utils/daemonBreaker.ts')
-const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
-const { ScheduleWakeupTool } = await import('../../src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts')
-const { CronCreateTool } = await import('../../src/tools/ScheduleCronTool/CronCreateTool.ts')
+const { DaemonBreaker } = await import('../../src/daemon/control/daemonBreaker.ts')
+const bridge = await import('../../src/daemon/saturn/sessionScheduleBridge.ts')
+const { ScheduleWakeupTool } = await import('../../src/tools/schedule-wakeup/ScheduleWakeupTool.ts')
+const { CronCreateTool } = await import('../../src/tools/cron/CronCreateTool.ts')
 const NOW = Date.parse('2026-10-25T12:00:00Z')
 const SESSION = 'parked-wake-fixture'
 const SHORT = 'concourse-w1'
@@ -35,7 +35,7 @@ let now = NOW
 let failures = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)} — fix by what the label names: the tool's schedule edit and applyConcourseScheduleOp in src/daemon/saturn.ts, the wake firing in tickSaturnOnce in src/daemon/saturnTicker.ts, the park in parkConcourseSession in src/daemon/concourseWorkers/park.ts, the daemon's hold or exit in makeSessionlessBeat in src/daemon/run/owner.ts` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)} — fix by what the label names: the tool's schedule edit and applyConcourseScheduleOp in src/daemon/saturn/saturn.ts, the wake firing in tickSaturnOnce in src/daemon/saturn/saturnTicker.ts, the park in parkConcourseSession in src/daemon/concourse-workers/park.ts, the daemon's hold or exit in makeSessionlessBeat in src/daemon/run/owner.ts` : ''}`)
 }
 const record = () => workers.readSessionWorkers()[SHORT]!
 const verdict = (superseded = false): { exit: boolean; hold: string } => {

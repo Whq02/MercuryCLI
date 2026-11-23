@@ -7,7 +7,7 @@ import { runpodFixture, fakeSshRunner, liveCatalogue } from './runpodFixture.mjs
 import { vastFixture } from './vastFixture.mjs'
 import { lambdaFixture } from './lambdaFixture.mjs'
 import { gridToPng } from '../ui/gridToPng.ts'
-import type { LlmHostQuestion, LlmHostRoad } from '../../src/services/llmHost/index.ts'
+import type { LlmHostQuestion, LlmHostRoad } from '../../src/models/llm-host/index.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 pinSourceRef()
@@ -34,17 +34,17 @@ let ssh: ReturnType<typeof fakeSshRunner> | undefined
 let checks = 0
 try {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { hostRunner } = await import('../../src/services/host/ssh.ts')
-  const { saveVendorKey, vendorKey } = await import('../../src/services/host/vendors/client.ts')
-  const { writeHostRecord, hostRecords } = await import('../../src/services/host/store.ts')
-  const { currentHostRecipes } = await import('../../src/services/host/recipesFile.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { hostRunner } = await import('../../src/models/hosting/ssh.ts')
+  const { saveVendorKey, vendorKey } = await import('../../src/models/hosting/vendors/client.ts')
+  const { writeHostRecord, hostRecords } = await import('../../src/models/hosting/store.ts')
+  const { currentHostRecipes } = await import('../../src/models/hosting/recipesFile.ts')
   const recipes = currentHostRecipes()
   const unlinkedRecipe = recipes.find(recipe => recipe.id === 'glm53-flash-gguf-b300')!
   const gpu = liveCatalogue.gpus.find((row: any) => row.id === 'NVIDIA B300 SXM6 AC')!
@@ -63,7 +63,7 @@ try {
   let width = 120, height = 40
   const screen = () => mounted?.screen() ?? ''
   const normal = () => screen().replace(/[│\s]+/g, ' ')
-  const check = (name: string, truth: unknown) => { assert.ok(truth, name + ' (change the first-screen rows in llmHostPopupRequest in src/commands/llmhost/llmhost.tsx or the road in createHostRoad in src/services/host/index.ts so this holds)\n' + screen()); checks++; console.log('PASS ' + name) }
+  const check = (name: string, truth: unknown) => { assert.ok(truth, name + ' (change the first-screen rows in llmHostPopupRequest in src/commands/llmhost/llmhost.tsx or the road in createHostRoad in src/models/hosting/index.ts so this holds)\n' + screen()); checks++; console.log('PASS ' + name) }
   const step = async (name: string) => assert.ok(await waitFor(() => question?.step === name && screen().includes(question.title.slice(0, 28)), 15000), 'question reaches ' + name + '\n' + screen())
   const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''
   const rowText = (row: NonNullable<LlmHostQuestion['rows']>[number]) => row.label.replace(/^─[^\n]*\n/, '').split('\n')[0]!.split(' · ')[0]!.trim()

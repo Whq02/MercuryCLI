@@ -22,14 +22,14 @@ assert.equal(homedir(), process.env.RUN_WAKE_PROOF_HOME, 'the proof loads the pr
 const root = mkdtempSync(join(scratch, 'run-wake-ends-'))
 const source = join(dirname(DIST), '..', 'src')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const boot = await import(join(source, 'bootstrap/state.ts'))
+const boot = await import(join(source, 'boot/process-state/processState.ts'))
 boot.setOriginalCwd(root); boot.setCwdState(root); boot.setProjectRoot(root)
-const { enableConfigs } = await import(join(source, 'utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(source, 'platform/config/globalConfig.ts'))
 enableConfigs()
-const { updateSettingsForSource } = await import(join(source, 'utils/settings/settings.ts'))
+const { updateSettingsForSource } = await import(join(source, 'platform/settings/settings.ts'))
 updateSettingsForSource('userSettings', { swarm: { enabled: true } })
-const seam = await import(join(source, 'services/crewBoard/seam.ts'))
-const { flushSessionStorage } = await import(join(source, 'utils/sessionStorage/writer.ts'))
+const seam = await import(join(source, 'crew/board/seam.ts'))
+const { flushSessionStorage } = await import(join(source, 'sessions/transcripts/writer.ts'))
 const { runSwarmCommand } = await import(join(source, 'commands/swarm/swarm.ts'))
 const { query: startTurn } = await import(join(source, 'query.ts'))
 const swarmOnText = runSwarmCommand('on')
@@ -49,7 +49,7 @@ async function park(id: string, status = 'completed'): Promise<void> {
   seam.settleSwarmAgent(id)
   seam.mirrorSwarmNotice(id, `completed ${id}`, `${id} completed`, 'completed')
 }
-const trigger = (): void => { const posted = store().post(seam.swarmPrincipal('poster')!, { clientOpId: `trigger-${++serial}`, kind: 'result', text: `TRIGGER-${serial}` }); assert(posted.ok, `poster trigger post failed in src/services/crewBoard/store.ts: ${JSON.stringify(posted)}`) }
+const trigger = (): void => { const posted = store().post(seam.swarmPrincipal('poster')!, { clientOpId: `trigger-${++serial}`, kind: 'result', text: `TRIGGER-${serial}` }); assert(posted.ok, `poster trigger post failed in src/crew/board/store.ts: ${JSON.stringify(posted)}`) }
 type Resume = (args: { agentId: string; onAdmitted?: () => void }) => Promise<unknown>
 const admit: Resume = async args => { args.onAdmitted?.() }
 
@@ -146,7 +146,7 @@ try {
 
   tally.section('a wake that waits behind a pause or a stopped seat keeps no run alive')
   {
-    const { operatorPauseGate } = await import(join(source, 'run-core/pauseGate.ts'))
+    const { operatorPauseGate } = await import(join(source, 'engine/loop/pauseGate.ts'))
     const started: string[] = []
     const watcher = seam.watchSwarmResumes(() => context, async () => ({ behavior: 'allow', updatedInput: {} }), () => true, (async args => { started.push(args.agentId); args.onAdmitted?.() }) as Resume)
     await park('paused'); await park('stopped', 'killed')

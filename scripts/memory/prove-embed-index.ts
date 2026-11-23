@@ -11,7 +11,7 @@ process.env.NODE_ENV = 'test'
 process.chdir(ROOT)
 
 let failures = 0
-const EMBED_INDEX_FIX_HINT = 'change the code, not the check: the derived embedding file, its rebuild, freshness, search, append and idle unload are in src/mneme/mnemeIndex.ts (rebuildEmbedIndex, ensureEmbedIndex, embedIndexFreshness, searchEmbedIndex, appendFactToEmbedIndex, embedIndexEngineStatus); the pack and model seeding are src/mneme/embedPack.ts and src/mneme/embedModels.ts'
+const EMBED_INDEX_FIX_HINT = 'change the code, not the check: the derived embedding file, its rebuild, freshness, search, append and idle unload are in src/sessions/mneme/mnemeIndex.ts (rebuildEmbedIndex, ensureEmbedIndex, embedIndexFreshness, searchEmbedIndex, appendFactToEmbedIndex, embedIndexEngineStatus); the pack and model seeding are src/sessions/mneme/embedPack.ts and src/sessions/mneme/embedModels.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${!cond ? ` — to fix: ${EMBED_INDEX_FIX_HINT}` : ''}`)
   if (!cond) failures++
@@ -22,11 +22,11 @@ const finish = (): never => {
   process.exit(failures > 0 ? 1 : 0)
 }
 
-const { seedEmbedPackDirForTest, embedPackDirFor, EMBED_PACK_MANIFEST_FILE } = await import('../../src/mneme/embedPack.js')
-const { seedEmbedModelForTest } = await import('../../src/mneme/embedModels.js')
-const { voicePackPlatform } = await import('../../src/utils/voice/voicePack.js')
-const idx = await import('../../src/mneme/mnemeIndex.js')
-const docs = await import('../../src/mneme/mnemeTopicDocs.js')
+const { seedEmbedPackDirForTest, embedPackDirFor, EMBED_PACK_MANIFEST_FILE } = await import('../../src/sessions/mneme/embedPack.js')
+const { seedEmbedModelForTest } = await import('../../src/sessions/mneme/embedModels.js')
+const { voicePackPlatform } = await import('../../src/integrations/voice-pack/voicePack.js')
+const idx = await import('../../src/sessions/mneme/mnemeIndex.js')
+const docs = await import('../../src/sessions/mneme/mnemeTopicDocs.js')
 
 const PACK_DIR = embedPackDirFor(ROOT, voicePackPlatform())
 if (!existsSync(join(PACK_DIR, EMBED_PACK_MANIFEST_FILE))) {

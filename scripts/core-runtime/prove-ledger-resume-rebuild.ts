@@ -17,7 +17,7 @@ delete process.env.MERCURY_TRANSCRIPT_READER
 delete process.env.MERCURY_RESUME_SNAPSHOT
 
 let failures = 0
-const RESUME_HINT = 'change restoreCostStateForSession in src/cost-tracker.ts so a resume rebuilds the ledger from the raw transcript records priced by calculateUSDCost (src/services/usage/modelCost.ts)'
+const RESUME_HINT = 'change restoreCostStateForSession in src/models/usage/sessionCost.ts so a resume rebuilds the ledger from the raw transcript records priced by calculateUSDCost (src/models/usage/modelCost.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const failText = [detail, RESUME_HINT].filter(Boolean).join(' — ')
@@ -29,17 +29,17 @@ function section(t: string): void {
 const near = (a: number, b: number): boolean => Math.abs(a - b) < 1e-9
 const money = (n: number): string => `$${n.toFixed(6)}`
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const state = await import('../../src/bootstrap/state.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
 state.setIsInteractive(false)
-const tracker = await import('../../src/cost-tracker.ts')
-const { saveCurrentProjectConfig, getCurrentProjectConfig } = await import('../../src/utils/config.ts')
-const { calculateUSDCost } = await import('../../src/services/usage/modelCost.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
-const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
-const { SYNTHETIC_MODEL } = await import('../../src/utils/messages/factories.ts')
+const tracker = await import('../../src/models/usage/sessionCost.ts')
+const { saveCurrentProjectConfig, getCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
+const { calculateUSDCost } = await import('../../src/models/usage/modelCost.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+const { loadTranscriptFile } = await import('../../src/sessions/transcripts/loading.ts')
+const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+const { SYNTHETIC_MODEL } = await import('../../src/engine/message-shapes/factories.ts')
 
 const FABLE = 'claude-fable-5-1'
 const SONNET = 'claude-sonnet-5'

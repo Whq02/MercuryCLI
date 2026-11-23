@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict'
 import { parse } from 'yaml'
-import { WHISPER_ADDON_EXPORTS } from '../../src/services/voice/whisperPack.ts'
+import { WHISPER_ADDON_EXPORTS } from '../../src/integrations/voice/whisperPack.ts'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { bundledVendorPacks, checkBundledVendorPacks, vendorPackTreeDigest } from '../release/payloadContract.mjs'
-import { RELEASE_TARGETS, buildPlatformOf } from '../../src/services/privateChannel/releaseTarget.ts'
-import { voiceCargoTriple, voicePackPlatform } from '../../src/utils/voice/voicePack.ts'
+import { RELEASE_TARGETS, buildPlatformOf } from '../../src/platform/update-channel/releaseTarget.ts'
+import { voiceCargoTriple, voicePackPlatform } from '../../src/integrations/voice-pack/voicePack.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'whisper-archives-'))

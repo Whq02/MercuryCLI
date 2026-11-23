@@ -32,15 +32,15 @@ const INSTANT = 'Tue Nov 10 11:59:11 2026'
 const rows = [{ short: 'concourse-w1', pid: 11 }, { short: 'done-3', pid: 13, outcome: { ok: true } }]
 const immediates: Array<() => void> = []
 
-const workers = await import('../../src/daemon/concourseWorkers.ts')
-const daemonHome = await import('../../src/daemon/daemonHome.ts')
-const idleRetirement = await import('../../src/daemon/idleRetirement.ts')
-const ownerWatch = await import('../../src/utils/ownerWatch.ts')
-const sweepRun = await import('../../src/daemon/processSweepRun.ts')
-const saturnTicker = await import('../../src/daemon/saturnTicker.ts')
-const warmRunner = await import('../../src/daemon/warmRunner.ts')
-const debug = await import('../../src/utils/debug.ts')
-mock.module('../../src/daemon/concourseWorkers.ts', () => ({
+const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const daemonHome = await import('../../src/daemon/control/daemonHome.ts')
+const idleRetirement = await import('../../src/daemon/control/idleRetirement.ts')
+const ownerWatch = await import('../../src/daemon/control/ownerWatch.ts')
+const sweepRun = await import('../../src/daemon/process-sweep/processSweepRun.ts')
+const saturnTicker = await import('../../src/daemon/saturn/saturnTicker.ts')
+const warmRunner = await import('../../src/daemon/runner-link/warmRunner.ts')
+const debug = await import('../../src/platform/logs/debugLog.ts')
+mock.module('../../src/daemon/concourse-workers/concourseWorkers.ts', () => ({
   ...workers,
   concourseWorkersPath: () => '/the/home/daemon/concourse-workers.json',
   readSessionWorkersSnapshot: () => ({ state: 'known', workers: { 'concourse-w1': { pid: 11, procStart: INSTANT, parkedAt: 3 } } }),
@@ -49,17 +49,17 @@ mock.module('../../src/daemon/concourseWorkers.ts', () => ({
     return { settled: [], live: [], newbornsReleased: [], parked: [] }
   },
 }))
-mock.module('../../src/daemon/daemonHome.ts', () => ({ ...daemonHome, daemonHomeStands: () => true }))
-mock.module('../../src/daemon/idleRetirement.ts', () => ({ ...idleRetirement, sweepIdleEmptyConcourseSessions: () => (note('retire the idle empty sessions'), []) }))
-mock.module('../../src/utils/ownerWatch.ts', () => ({ ...ownerWatch, isProcessAlive: () => false }))
-mock.module('../../src/daemon/processSweepRun.ts', () => ({ ...sweepRun, recordProcessCensusAtBoot: async () => (note('take the boot census'), { entries: [] }) }))
-mock.module('../../src/daemon/saturnTicker.ts', () => ({ ...saturnTicker, fileMoveStamp: (path: string) => (note(`stamp of ${basename(path)}`), 'stamp-1') }))
-mock.module('../../src/daemon/warmRunner.ts', () => ({ ...warmRunner, sweepIdleWarmRunners: (doors: unknown) => (note(`sweep the idle warm runners${doors === WARM_DOORS ? '' : ' through other doors'}`), 0), warmRunnerShorts: () => [] }))
-mock.module('../../src/utils/debug.ts', () => ({ ...debug, logForDebugging: () => {} }))
+mock.module('../../src/daemon/control/daemonHome.ts', () => ({ ...daemonHome, daemonHomeStands: () => true }))
+mock.module('../../src/daemon/control/idleRetirement.ts', () => ({ ...idleRetirement, sweepIdleEmptyConcourseSessions: () => (note('retire the idle empty sessions'), []) }))
+mock.module('../../src/daemon/control/ownerWatch.ts', () => ({ ...ownerWatch, isProcessAlive: () => false }))
+mock.module('../../src/daemon/process-sweep/processSweepRun.ts', () => ({ ...sweepRun, recordProcessCensusAtBoot: async () => (note('take the boot census'), { entries: [] }) }))
+mock.module('../../src/daemon/saturn/saturnTicker.ts', () => ({ ...saturnTicker, fileMoveStamp: (path: string) => (note(`stamp of ${basename(path)}`), 'stamp-1') }))
+mock.module('../../src/daemon/runner-link/warmRunner.ts', () => ({ ...warmRunner, sweepIdleWarmRunners: (doors: unknown) => (note(`sweep the idle warm runners${doors === WARM_DOORS ? '' : ' through other doors'}`), 0), warmRunnerShorts: () => [] }))
+mock.module('../../src/platform/logs/debugLog.ts', () => ({ ...debug, logForDebugging: () => {} }))
 
 const part = await import('../../src/daemon/run/sweep.ts')
 const { makeDaemonRunState } = await import('../../src/daemon/run/state.ts')
-const { DaemonBreaker } = await import('../../src/utils/daemonBreaker.ts')
+const { DaemonBreaker } = await import('../../src/daemon/control/daemonBreaker.ts')
 
 const state = makeDaemonRunState({ dir: home, bootBuildTree: 'aaaaaaaaaaaa', foreground: false, breaker: new DaemonBreaker(), maxInflight: 1, controlEnabled: true })
 state.currentOwnerPid = 4242

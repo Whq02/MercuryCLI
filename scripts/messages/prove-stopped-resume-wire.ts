@@ -2,16 +2,16 @@ import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import('../../src/services/messages.ts')
-const { requestConversationPlan } = await import('../../src/services/messages/apiPlan.ts')
-const { addCacheBreakpoints } = await import('../../src/services/providers/anthropic/cacheAndUsage.ts')
-const { mapMessagesToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
-const { mapMessagesToOpenaiInput } = await import('../../src/services/providers/openai/responsesBridge.ts')
-const { buildGeminiRequest } = await import('../../src/services/providers/gemini/geminiCodec.ts')
-const { entryToRecord, recordToEntry } = await import('../../src/fabric/entryCodec.ts')
-import type { Message } from '../../src/types/message.ts'
+const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import('../../src/engine/messages/messages.ts')
+const { requestConversationPlan } = await import('../../src/engine/messages/apiPlan.ts')
+const { addCacheBreakpoints } = await import('../../src/models/roads/anthropic/cacheAndUsage.ts')
+const { mapMessagesToZai } = await import('../../src/models/roads/zai/zaiCodec.ts')
+const { mapMessagesToOpenaiInput } = await import('../../src/models/roads/openai/responsesBridge.ts')
+const { buildGeminiRequest } = await import('../../src/models/roads/gemini/geminiCodec.ts')
+const { entryToRecord, recordToEntry } = await import('../../src/sessions/fabric/entryCodec.ts')
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 const assistant = createAssistantMessage({ content: [
   { type: 'thinking', thinking: 'inspect first', signature: 'signed-fixture' },
@@ -40,26 +40,26 @@ const check = (name: string, ok: boolean, hint = ''): void => { console.log(`${o
 for (const geometry of ['anthropic', 'family'] as const) {
   const plan = requestConversationPlan(restored, [], geometry).messages
   const userRows = geometry === 'anthropic' ? 2 : 3
-  check(`${geometry}: TaskStop and both ResumeCrewmate messages share one trailing user row`, plan.filter(message => message.type === 'user').length === userRows && plan.length === userRows + 1, 'requestConversationPlan (src/services/messages/apiPlan.ts) must merge the stop and resume user rows into one trailing user row')
+  check(`${geometry}: TaskStop and both ResumeCrewmate messages share one trailing user row`, plan.filter(message => message.type === 'user').length === userRows && plan.length === userRows + 1, 'requestConversationPlan (src/engine/messages/apiPlan.ts) must merge the stop and resume user rows into one trailing user row')
   const last = JSON.stringify(plan.slice(2).map(message => message.message.content))
-  check(`${geometry}: the interruption, result and both resume requests survive in order`, last.indexOf('source contents') !== -1 && last.indexOf('Request interrupted') !== -1 && last.indexOf('resume the edit') !== -1 && last.indexOf('do as the lead said') !== -1 && last.indexOf('source contents') < last.indexOf('Request interrupted') && last.indexOf('Request interrupted') < last.indexOf('resume the edit') && last.indexOf('resume the edit') < last.indexOf('do as the lead said'), 'requestConversationPlan (src/services/messages/apiPlan.ts) must keep the tool result, interruption and both resume requests, in that order')
-  check(`${geometry}: the assistant and its signed thinking are unchanged`, JSON.stringify(plan.find(message => message.type === 'assistant')?.message.content) === JSON.stringify(assistant.message.content), 'requestConversationPlan (src/services/messages/apiPlan.ts) must pass the assistant content, signed thinking included, through unchanged')
+  check(`${geometry}: the interruption, result and both resume requests survive in order`, last.indexOf('source contents') !== -1 && last.indexOf('Request interrupted') !== -1 && last.indexOf('resume the edit') !== -1 && last.indexOf('do as the lead said') !== -1 && last.indexOf('source contents') < last.indexOf('Request interrupted') && last.indexOf('Request interrupted') < last.indexOf('resume the edit') && last.indexOf('resume the edit') < last.indexOf('do as the lead said'), 'requestConversationPlan (src/engine/messages/apiPlan.ts) must keep the tool result, interruption and both resume requests, in that order')
+  check(`${geometry}: the assistant and its signed thinking are unchanged`, JSON.stringify(plan.find(message => message.type === 'assistant')?.message.content) === JSON.stringify(assistant.message.content), 'requestConversationPlan (src/engine/messages/apiPlan.ts) must pass the assistant content, signed thinking included, through unchanged')
   if (geometry === 'anthropic') {
     const wire = addCacheBreakpoints(plan, true)
-    check('Anthropic request alternates roles and has no invented assistant stop', wire.map(row => row.role).join(',') === 'user,assistant,user', 'roles were ' + wire.map(row => row.role).join(',') + '; check addCacheBreakpoints (src/services/providers/anthropic/cacheAndUsage.ts) and requestConversationPlan (src/services/messages/apiPlan.ts)')
+    check('Anthropic request alternates roles and has no invented assistant stop', wire.map(row => row.role).join(',') === 'user,assistant,user', 'roles were ' + wire.map(row => row.role).join(',') + '; check addCacheBreakpoints (src/models/roads/anthropic/cacheAndUsage.ts) and requestConversationPlan (src/engine/messages/apiPlan.ts)')
   } else {
-    check('family replay keeps results separate from the resumed user text', Array.isArray(plan[2]?.message.content) && plan[2].message.content.every(block => block.type === 'tool_result') && Array.isArray(plan[3]?.message.content) && plan[3].message.content.every(block => block.type === 'text'), 'requestConversationPlan (src/services/messages/apiPlan.ts) with the family geometry must keep tool_result blocks in their own user row before the resumed text row')
+    check('family replay keeps results separate from the resumed user text', Array.isArray(plan[2]?.message.content) && plan[2].message.content.every(block => block.type === 'tool_result') && Array.isArray(plan[3]?.message.content) && plan[3].message.content.every(block => block.type === 'text'), 'requestConversationPlan (src/engine/messages/apiPlan.ts) with the family geometry must keep tool_result blocks in their own user row before the resumed text row')
     const chat = mapMessagesToZai(undefined, plan.map(message => message.message))
-    check('compatible replay preserves tool/result identity with one following user row', chat.map(row => row.role).join(',') === 'user,assistant,tool,user' && chat[2]?.role === 'tool' && chat[2].tool_call_id === 'call-read', 'roles were ' + chat.map(row => row.role).join(',') + '; check mapMessagesToZai (src/services/providers/zai/zaiCodec.ts)')
+    check('compatible replay preserves tool/result identity with one following user row', chat.map(row => row.role).join(',') === 'user,assistant,tool,user' && chat[2]?.role === 'tool' && chat[2].tool_call_id === 'call-read', 'roles were ' + chat.map(row => row.role).join(',') + '; check mapMessagesToZai (src/models/roads/zai/zaiCodec.ts)')
     const openai = mapMessagesToOpenaiInput(plan.map(message => message.message))
-    check('Responses replay carries one final user message and the tool output', openai.filter(item => item.type === 'message' && item.role === 'user').length === 2 && openai.some(item => item.type === 'function_call_output' && item.call_id === 'call-read'), 'check mapMessagesToOpenaiInput (src/services/providers/openai/responsesBridge.ts)')
+    check('Responses replay carries one final user message and the tool output', openai.filter(item => item.type === 'message' && item.role === 'user').length === 2 && openai.some(item => item.type === 'function_call_output' && item.call_id === 'call-read'), 'check mapMessagesToOpenaiInput (src/models/roads/openai/responsesBridge.ts)')
     const gemini = buildGeminiRequest({ model: 'gemini-4-argon', messages: chat as never }, plan)
-    check('Gemini replay alternates without changing the stop/resume text', gemini.contents.map(row => row.role).join(',') === 'user,model,user' && JSON.stringify(gemini.contents.at(-1)).includes('do as the lead said'), 'roles were ' + gemini.contents.map(row => row.role).join(',') + '; check buildGeminiRequest (src/services/providers/gemini/geminiCodec.ts)')
+    check('Gemini replay alternates without changing the stop/resume text', gemini.contents.map(row => row.role).join(',') === 'user,model,user' && JSON.stringify(gemini.contents.at(-1)).includes('do as the lead said'), 'roles were ' + gemini.contents.map(row => row.role).join(',') + '; check buildGeminiRequest (src/models/roads/gemini/geminiCodec.ts)')
   }
   const twice = requestConversationPlan(plan, [], geometry).messages
-  check(`${geometry}: preparing the request twice changes no content`, JSON.stringify(twice.map(m => m.message.content)) === JSON.stringify(plan.map(m => m.message.content)), 'requestConversationPlan (src/services/messages/apiPlan.ts) must give the same content when run on its own output')
+  check(`${geometry}: preparing the request twice changes no content`, JSON.stringify(twice.map(m => m.message.content)) === JSON.stringify(plan.map(m => m.message.content)), 'requestConversationPlan (src/engine/messages/apiPlan.ts) must give the same content when run on its own output')
   const continued = requestConversationPlan([...restored, createAssistantMessage({ content: 'resumed answer' }), createUserMessage({ content: 'next task' })], [], geometry).messages
-  check(`${geometry}: the merged resume prefix stays identical on the next request`, JSON.stringify(continued.slice(0, plan.length).map(m => m.message.content)) === JSON.stringify(plan.map(m => m.message.content)), 'requestConversationPlan (src/services/messages/apiPlan.ts) must keep the merged resume rows unchanged when later turns are appended')
+  check(`${geometry}: the merged resume prefix stays identical on the next request`, JSON.stringify(continued.slice(0, plan.length).map(m => m.message.content)) === JSON.stringify(plan.map(m => m.message.content)), 'requestConversationPlan (src/engine/messages/apiPlan.ts) must keep the merged resume rows unchanged when later turns are appended')
 }
-check('the transcript remains separate audit records', JSON.stringify(restored) === before && restored.length === 7, 'requestConversationPlan (src/services/messages/apiPlan.ts) must not mutate the stored rows it is given')
+check('the transcript remains separate audit records', JSON.stringify(restored) === before && restored.length === 7, 'requestConversationPlan (src/engine/messages/apiPlan.ts) must not mutate the stored rows it is given')
 assert.equal(failures, 0, failures + ' check(s) failed; read the FAIL lines above for the file and function to fix')

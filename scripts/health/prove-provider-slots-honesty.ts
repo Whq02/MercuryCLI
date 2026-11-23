@@ -10,7 +10,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'provider-slots-hone
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'MERCURY_COMPAT_BASE_URL', 'MERCURY_COMPAT_API_KEY', 'MERCURY_LOCAL_BASE_URL']) delete process.env[key]
-const slotsRowHint = ' | change the provider-slots row in authChecks (src/services/health/sections/auth.ts) or the catalogue in buildProviderSnapshot (src/services/providers/modelRegistry.ts)'
+const slotsRowHint = ' | change the provider-slots row in authChecks (src/platform/health/sections/auth.ts) or the catalogue in buildProviderSnapshot (src/models/roads/modelRegistry.ts)'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -21,10 +21,10 @@ console.log('============================================================')
 console.log(' Provider slots — honest-unavailable acceptance law')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { authChecks } = await import('../../src/services/health/sections/auth.ts')
-const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
+const { authChecks } = await import('../../src/platform/health/sections/auth.ts')
+const { buildProviderSnapshot } = await import('../../src/models/roads/modelRegistry.ts')
 const slots = await (await authChecks()).find(row => row.id === 'provider-slots')?.run()
 const snap = buildProviderSnapshot()
 const unavailable = snap.providers.filter(p => p.id !== 'anthropic' && !p.available).map(p => p.reason ?? '')
@@ -42,12 +42,12 @@ const authIds = (await authChecks()).map(row => row.id).filter(id => id.startsWi
 check(
   'AUTH rows enumerate the catalogue (buildProviderSnapshot inside providerAuthChecks)',
   authIds.length === snap.providers.length && authIds.length > 5,
-  `${authIds.length} auth rows, ${snap.providers.length} providers | providerAuthChecks in src/services/health/sections/auth.ts must emit one auth-<provider id> row per provider of buildProviderSnapshot`,
+  `${authIds.length} auth rows, ${snap.providers.length} providers | providerAuthChecks in src/platform/health/sections/auth.ts must emit one auth-<provider id> row per provider of buildProviderSnapshot`,
 )
 check(
   'AUTH row ids derive from the enumerated provider id (never a literal row list)',
   JSON.stringify(authIds) === JSON.stringify(snap.providers.map(p => `auth-${p.id}`)),
-  authIds.join(' ') + ' | providerAuthChecks in src/services/health/sections/auth.ts must derive each row id from the provider id',
+  authIds.join(' ') + ' | providerAuthChecks in src/platform/health/sections/auth.ts must derive each row id from the provider id',
 )
 process.env.ZAI_API_KEY = 'fixture-zai-key'
 process.env.MERCURY_ZAI_API_BASE = 'http://127.0.0.1:9'
@@ -56,12 +56,12 @@ delete process.env.ZAI_API_KEY
 check(
   'the no-network-probe law is stated on present credentials',
   credentialed?.status === 'ok' && credentialed.evidence.endsWith('(present — validity untested: no network probe by design)'),
-  credentialed?.evidence + ' | the auth-<provider> row in providerAuthChecks (src/services/health/sections/auth.ts) must end its ok evidence with the no-network-probe words',
+  credentialed?.evidence + ' | the auth-<provider> row in providerAuthChecks (src/platform/health/sections/auth.ts) must end its ok evidence with the no-network-probe words',
 )
 
 {
   const { mock } = await import('bun:test')
-  const registryPath = join(ROOT, 'src', 'services', 'providers', 'modelRegistry.ts')
+  const registryPath = join(ROOT, 'src', 'models', 'roads', 'modelRegistry.ts')
   const registry = { ...(await import(registryPath)) }
   const honest = registry.buildProviderSnapshot()
   const seated = async (seat: 'gpt' | 'glm', provider: string): Promise<{ status: string; evidence: string; fix?: string } | undefined> => {

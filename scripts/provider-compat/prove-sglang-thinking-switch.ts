@@ -25,21 +25,21 @@ const fixture = await startEngineRules('sglang', { model, reasoningParser: 'deep
 writeFileSync(resolve(home, 'settings.json'), JSON.stringify({ compatProvider: { pod: { baseUrl: fixture.baseUrl, dialect: 'sglang', models: [model] } } }))
 let failures = 0
 let checks = 0
-let failHintWhere = 'to fix, change the SGLang thinking switch in buildHostedExtras and buildLocalExtras in src/services/providers/openaicompat/compatWire.ts'
+let failHintWhere = 'to fix, change the SGLang thinking switch in buildHostedExtras and buildLocalExtras in src/models/roads/openaicompat/compatWire.ts'
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)} — ${failHintWhere}`}`)
 }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { buildHostedExtras, buildLocalExtras } = await import('../../src/services/providers/openaicompat/compatWire.ts')
-const { compatModelEfforts } = await import('../../src/services/providers/openaicompat/compatEffort.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { buildHostedExtras, buildLocalExtras } = await import('../../src/models/roads/openaicompat/compatWire.ts')
+const { compatModelEfforts } = await import('../../src/models/roads/openaicompat/compatEffort.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
 
 type Extras = { reasoning_effort?: string; chat_template_kwargs?: { clear_thinking?: boolean; thinking?: boolean; reasoning_effort?: string } }
@@ -60,13 +60,13 @@ try {
   const offWithWord = hosted(false, 'high')
   check('thinking off beside an effort word still resolves to chat mode on the engine', offWithWord.chat_template_kwargs?.thinking === false && deepseekV4ThinkingMode({ ...offWithWord }) === 'chat' && legal(offWithWord), offWithWord)
   const local = buildLocalExtras({ wireModel: model, effortValue: undefined, thinkingEnabled: true, maxOutputTokensOverride: undefined, server: 'sglang', acceptsEffort: true }) as Extras
-  failHintWhere = 'to fix, change the SGLang thinking switch in buildHostedExtras and buildLocalExtras in src/services/providers/openaicompat/compatWire.ts'
+  failHintWhere = 'to fix, change the SGLang thinking switch in buildHostedExtras and buildLocalExtras in src/models/roads/openaicompat/compatWire.ts'
   check('the local SGLang builder carries the same switch', local.chat_template_kwargs?.thinking === true && local.chat_template_kwargs?.clear_thinking === false, local)
   check('vLLM and llama.cpp builders carry no thinking key', hosted(true, undefined, 'vllm').chat_template_kwargs === undefined && hosted(true, 'max', 'llamacpp').chat_template_kwargs?.thinking === undefined && hosted(true, 'max', 'llamacpp').chat_template_kwargs?.reasoning_effort === 'max', { vllm: hosted(true, undefined, 'vllm'), llamacpp: hosted(true, 'max', 'llamacpp') })
   failHintWhere = 'to fix, the fixture law in scripts/provider-compat/fixtures/engineRules.mjs (deepseekV4ThinkingMode) no longer matches the engine law printed above'
   check('the fixture law itself: no switch and no word is chat, a word alone is thinking, none alone is chat, thinking false outranks a word', deepseekV4ThinkingMode({}) === 'chat' && deepseekV4ThinkingMode({ reasoning_effort: 'low' }) === 'thinking' && deepseekV4ThinkingMode({ reasoning_effort: 'none' }) === 'chat' && deepseekV4ThinkingMode({ reasoning_effort: 'high', chat_template_kwargs: { thinking: false } }) === 'chat' && deepseekV4ThinkingMode({ chat_template_kwargs: { thinking: true } }) === 'thinking')
 
-  failHintWhere = 'to fix, change compatModelEfforts in src/services/providers/openaicompat/compatEffort.ts for the vocabulary check, or the request path through routedCallModel (src/services/providers/callModelRouter.ts) and the thinking extras in src/services/providers/openaicompat/compatWire.ts for the engine-mode checks'
+  failHintWhere = 'to fix, change compatModelEfforts in src/models/roads/openaicompat/compatEffort.ts for the vocabulary check, or the request path through routedCallModel (src/models/roads/callModelRouter.ts) and the thinking extras in src/models/roads/openaicompat/compatWire.ts for the engine-mode checks'
   const id = `compat/pod/${model}`
   check('the pod model keeps the recipe vocabulary low, high, max', JSON.stringify(compatModelEfforts(id)) === JSON.stringify(vocabulary), compatModelEfforts(id))
   const route = async (thinking: boolean, effortValue: string | undefined, owner: string) => {

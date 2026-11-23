@@ -55,18 +55,18 @@ process.env.MERCURY_OPENROUTER_API_BASE = 'https://fixture.invalid/api/v1'
 process.env.MERCURY_GEMINI_API_BASE = 'https://fixture.invalid/v1beta'
 process.env.MERCURY_ZAI_API_BASE = 'https://fixture.invalid/zai'
 
-const { enableConfigs } = await import('../../src/utils/config.js')
-const { noteCredentialChange } = await import('../../src/utils/accounts/signInLedger.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
+const { noteCredentialChange } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
 enableConfigs()
 
-const discovery = await import('../../src/services/providers/providerDiscovery.js')
-const providerUsage = await import('../../src/services/providers/providerUsage.js')
-const usageTab = await import('../../src/components/Settings/Usage.js')
-const usability = await import('../../src/services/providers/providerUsability.js')
-const openaiLimits = await import('../../src/services/providers/openai/openaiLimitState.js')
-const claudeLimits = await import('../../src/services/anthropicLimits.js')
-const quota = await import('../../src/services/cockpit/quota.js')
-import type { ProviderFamilyId } from '../../src/services/providers/providerAdapter.js'
+const discovery = await import('../../src/models/roads/providerDiscovery.js')
+const providerUsage = await import('../../src/models/roads/providerUsage.js')
+const usageTab = await import('../../src/screen/settings/Usage.js')
+const usability = await import('../../src/models/roads/providerUsability.js')
+const openaiLimits = await import('../../src/models/roads/openai/openaiLimitState.js')
+const claudeLimits = await import('../../src/models/roads/anthropic/anthropicLimits.js')
+const quota = await import('../../src/screen/cockpit-gauges/quota.js')
+import type { ProviderFamilyId } from '../../src/models/roads/providerAdapter.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
 
@@ -161,33 +161,33 @@ function assertState(
   whyNotNames: string,
 ): void {
   const { row, sectionRow, asu, use } = facts
-  check(`${name}: family row exists in the presence enumeration`, row !== undefined, 'add the family to providerFamilyPresences in src/services/providers/providerUsage.ts')
-  check(`${name}: a /usage section mounts for the family`, sectionRow !== undefined, 'usageSectionPlan in src/components/Settings/usage/plan.ts returned no section for this family; mount one')
+  check(`${name}: family row exists in the presence enumeration`, row !== undefined, 'add the family to providerFamilyPresences in src/models/roads/providerUsage.ts')
+  check(`${name}: a /usage section mounts for the family`, sectionRow !== undefined, 'usageSectionPlan in src/screen/settings/usage/plan.ts returned no section for this family; mount one')
   if (!row || !sectionRow) return
   check(
     `${name}: tab gate (presences.credentialed) reads ${connected}`,
     row.credentialed === connected,
-    `credentialed=${row.credentialed}; fix providerFamilyPresences in src/services/providers/providerUsage.ts so the family reads credentialed only while signed in`,
+    `credentialed=${row.credentialed}; fix providerFamilyPresences in src/models/roads/providerUsage.ts so the family reads credentialed only while signed in`,
   )
   check(
     `${name}: rail/deck source (activeSourceUsage) agrees`,
     (asu.sourceKind !== 'none') === connected,
-    `sourceKind=${asu.sourceKind}; fix activeSourceUsage in src/services/providers/providerUsage.ts so it agrees with the presence gate`,
+    `sourceKind=${asu.sourceKind}; fix activeSourceUsage in src/models/roads/providerUsage.ts so it agrees with the presence gate`,
   )
   check(
     `${name}: usability credential axis agrees`,
     (use.credential !== 'none') === connected,
-    `credential=${use.credential}; fix resolveProviderUsability in src/services/providers/providerUsability.ts so its credential axis agrees with the presence gate`,
+    `credential=${use.credential}; fix resolveProviderUsability in src/models/roads/providerUsability.ts so its credential axis agrees with the presence gate`,
   )
   if (connected) {
-    check(`${name}: a connected lane carries NO why-not`, asu.whyNot === undefined, `whyNot=${asu.whyNot}; activeSourceUsage in src/services/providers/providerUsage.ts must leave whyNot unset for a connected family`)
+    check(`${name}: a connected lane carries NO why-not`, asu.whyNot === undefined, `whyNot=${asu.whyNot}; activeSourceUsage in src/models/roads/providerUsage.ts must leave whyNot unset for a connected family`)
   } else {
     check(
       `${name}: the signed-out why-not names the family's connect home`,
       typeof asu.whyNot === 'string' && asu.whyNot.includes(whyNotNames),
-      `whyNot=${asu.whyNot}; activeSourceUsage in src/services/providers/providerUsage.ts must name ${whyNotNames} when the family is signed out`,
+      `whyNot=${asu.whyNot}; activeSourceUsage in src/models/roads/providerUsage.ts must name ${whyNotNames} when the family is signed out`,
     )
-    check(`${name}: a signed-out lane renders NO windows`, asu.windows.length === 0, 'activeSourceUsage in src/services/providers/providerUsage.ts must return no windows for a signed-out family')
+    check(`${name}: a signed-out lane renders NO windows`, asu.windows.length === 0, 'activeSourceUsage in src/models/roads/providerUsage.ts must return no windows for a signed-out family')
   }
 }
 
@@ -234,7 +234,7 @@ section('§2 the operator frame cannot recur — sign-in lands after the boot pr
   discovery.__resetProviderDiscoveryForTest()
   openaiLimits.__resetOpenaiLimitStateForTest()
   const boot = surfaceFacts('openai', 'gpt-5.6-sol')
-  check('frame: boot state reads not-connected everywhere', boot.row?.credentialed === false && boot.asu.sourceKind === 'none', 'with no credential the presence gate and activeSourceUsage (src/services/providers/providerUsage.ts) must both read not-connected')
+  check('frame: boot state reads not-connected everywhere', boot.row?.credentialed === false && boot.asu.sourceKind === 'none', 'with no credential the presence gate and activeSourceUsage (src/models/roads/providerUsage.ts) must both read not-connected')
 
   writeFileSync(
     join(scratchHome, '.openai-auth.json'),
@@ -263,32 +263,32 @@ section('§2 the operator frame cannot recur — sign-in lands after the boot pr
   check(
     'frame: the tab gate reads the sign-in with NO discovery reset (the stale-cache class is dead)',
     after.row?.credentialed === true,
-    `credentialed=${after.row?.credentialed}; the sign-in must reach providerFamilyPresences (src/services/providers/providerUsage.ts) through noteCredentialChange without a discovery reset`,
+    `credentialed=${after.row?.credentialed}; the sign-in must reach providerFamilyPresences (src/models/roads/providerUsage.ts) through noteCredentialChange without a discovery reset`,
   )
-  check('frame: the rail source is the subscription lane', after.asu.sourceKind === 'subscription-oauth', `sourceKind=${after.asu.sourceKind}; fix activeSourceUsage in src/services/providers/providerUsage.ts`)
+  check('frame: the rail source is the subscription lane', after.asu.sourceKind === 'subscription-oauth', `sourceKind=${after.asu.sourceKind}; fix activeSourceUsage in src/models/roads/providerUsage.ts`)
   check(
     'frame: the rail renders the observed weekly band',
     after.asu.windows.some(w => w.key === 'wk' && w.usedPct === 0),
-    `windows=${JSON.stringify(after.asu.windows)}; fix openaiObservedWindowViews in src/services/providers/providerUsage.ts or recordOpenaiRateHeaders in src/services/providers/openai/openaiLimitState.ts`,
+    `windows=${JSON.stringify(after.asu.windows)}; fix openaiObservedWindowViews in src/models/roads/providerUsage.ts or recordOpenaiRateHeaders in src/models/roads/openai/openaiLimitState.ts`,
   )
   check(
     'frame: the tab reads the SAME bands through the same view fn',
     JSON.stringify(providerUsage.openaiObservedWindowViews()) === JSON.stringify(after.asu.windows),
-    'activeSourceUsage and openaiObservedWindowViews in src/services/providers/providerUsage.ts must serve the same windows',
+    'activeSourceUsage and openaiObservedWindowViews in src/models/roads/providerUsage.ts must serve the same windows',
   )
   check(
     'frame: the INVARIANT — no surface says not-connected while windows render',
     after.row?.credentialed === true && after.use.credential !== 'none' && after.asu.windows.length > 0,
     `credentialed=${after.row?.credentialed} credential=${after.use.credential} windows=${after.asu.windows.length}; the presence gate (providerUsage.ts), resolveProviderUsability (providerUsability.ts) and activeSourceUsage must agree`,
   )
-  check('frame: the tier fact names the ChatGPT plan', after.asu.tier === 'ChatGPT Plus', `tier=${after.asu.tier}; activeSourceUsage in src/services/providers/providerUsage.ts must name the ChatGPT plan from the stored planType`)
+  check('frame: the tier fact names the ChatGPT plan', after.asu.tier === 'ChatGPT Plus', `tier=${after.asu.tier}; activeSourceUsage in src/models/roads/providerUsage.ts must name the ChatGPT plan from the stored planType`)
 
   rmSync(join(scratchHome, '.openai-auth.json'))
   noteCredentialChange()
   const out = surfaceFacts('openai', 'gpt-5.6-sol')
-  check('frame: sign-out empties the tab gate', out.row?.credentialed === false, 'after noteCredentialChange the presence gate in providerFamilyPresences (src/services/providers/providerUsage.ts) must re-read the removed sign-in')
-  check('frame: sign-out empties the rail windows', out.asu.sourceKind === 'none' && out.asu.windows.length === 0, 'activeSourceUsage in src/services/providers/providerUsage.ts must drop observed windows once signed out')
-  check('frame: sign-out restores the honest why-not', typeof out.asu.whyNot === 'string', 'activeSourceUsage in src/services/providers/providerUsage.ts must set whyNot once signed out')
+  check('frame: sign-out empties the tab gate', out.row?.credentialed === false, 'after noteCredentialChange the presence gate in providerFamilyPresences (src/models/roads/providerUsage.ts) must re-read the removed sign-in')
+  check('frame: sign-out empties the rail windows', out.asu.sourceKind === 'none' && out.asu.windows.length === 0, 'activeSourceUsage in src/models/roads/providerUsage.ts must drop observed windows once signed out')
+  check('frame: sign-out restores the honest why-not', typeof out.asu.whyNot === 'string', 'activeSourceUsage in src/models/roads/providerUsage.ts must set whyNot once signed out')
   openaiLimits.__resetOpenaiLimitStateForTest()
 }
 
@@ -301,26 +301,26 @@ section('§3 one window decode per family — shared view fns + the anthropic en
     seven_day: { utilization: 62, resets_at: resetIso },
   })
   const windows = quota.quotaWindows()
-  check('fold: 5h round-trips to 37%', windows.fiveHour.state === 'live' && windows.fiveHour.usedPct === 37, `${JSON.stringify(windows.fiveHour)}; fix foldUtilizationFromEndpoint in src/services/anthropicLimits.ts or quotaWindows in src/services/cockpit/quota.ts`)
-  check('fold: 7d round-trips to 62%', windows.sevenDay.state === 'live' && windows.sevenDay.usedPct === 62, `${JSON.stringify(windows.sevenDay)}; fix foldUtilizationFromEndpoint in src/services/anthropicLimits.ts or quotaWindows in src/services/cockpit/quota.ts`)
-  check('fold: resets round-trip to the ISO instant (ms)', windows.fiveHour.resetsAtMs === Date.parse(resetIso), `resetsAtMs=${windows.fiveHour.resetsAtMs}; foldUtilizationFromEndpoint in src/services/anthropicLimits.ts must keep the ISO reset instant in ms`)
+  check('fold: 5h round-trips to 37%', windows.fiveHour.state === 'live' && windows.fiveHour.usedPct === 37, `${JSON.stringify(windows.fiveHour)}; fix foldUtilizationFromEndpoint in src/models/roads/anthropic/anthropicLimits.ts or quotaWindows in src/screen/cockpit-gauges/quota.ts`)
+  check('fold: 7d round-trips to 62%', windows.sevenDay.state === 'live' && windows.sevenDay.usedPct === 62, `${JSON.stringify(windows.sevenDay)}; fix foldUtilizationFromEndpoint in src/models/roads/anthropic/anthropicLimits.ts or quotaWindows in src/screen/cockpit-gauges/quota.ts`)
+  check('fold: resets round-trip to the ISO instant (ms)', windows.fiveHour.resetsAtMs === Date.parse(resetIso), `resetsAtMs=${windows.fiveHour.resetsAtMs}; foldUtilizationFromEndpoint in src/models/roads/anthropic/anthropicLimits.ts must keep the ISO reset instant in ms`)
   const anthView = providerUsage.anthropicWindowViews()
   check(
     'fold: the owner view (rail read) serves the folded windows',
     anthView.some(w => w.key === '5h' && w.usedPct === 37) && anthView.some(w => w.key === '7d' && w.usedPct === 62),
-    'anthropicWindowViews in src/services/providers/providerUsage.ts must serve the windows folded from the endpoint',
+    'anthropicWindowViews in src/models/roads/providerUsage.ts must serve the windows folded from the endpoint',
   )
 
   claudeLimits.__setRawUtilizationForTest({
     five_hour: { utilization: 0.5, resets_at: Math.floor(Date.parse(resetIso) / 1000) },
   })
   const merged = quota.quotaWindows()
-  check('fold: a live header wins its window (5h=50%)', merged.fiveHour.usedPct === 50, `got ${merged.fiveHour.usedPct}; quotaWindows in src/services/cockpit/quota.ts must prefer a live header window over the endpoint record`)
-  check('fold: the endpoint still fills the absent window (7d=62%)', merged.sevenDay.usedPct === 62, `got ${merged.sevenDay.usedPct}; quotaWindows in src/services/cockpit/quota.ts must fill an absent window from the endpoint record`)
+  check('fold: a live header wins its window (5h=50%)', merged.fiveHour.usedPct === 50, `got ${merged.fiveHour.usedPct}; quotaWindows in src/screen/cockpit-gauges/quota.ts must prefer a live header window over the endpoint record`)
+  check('fold: the endpoint still fills the absent window (7d=62%)', merged.sevenDay.usedPct === 62, `got ${merged.sevenDay.usedPct}; quotaWindows in src/screen/cockpit-gauges/quota.ts must fill an absent window from the endpoint record`)
 
   process.env.MERCURY_USAGE_SEED = '7d=90'
   const withSeed = quota.quotaWindows()
-  check('fold: the endpoint observation beats the render seed (7d stays 62%)', withSeed.sevenDay.usedPct === 62, `got ${withSeed.sevenDay.usedPct}; quotaWindows in src/services/cockpit/quota.ts must rank the endpoint record above the MERCURY_USAGE_SEED seed`)
+  check('fold: the endpoint observation beats the render seed (7d stays 62%)', withSeed.sevenDay.usedPct === 62, `got ${withSeed.sevenDay.usedPct}; quotaWindows in src/screen/cockpit-gauges/quota.ts must rank the endpoint record above the MERCURY_USAGE_SEED seed`)
   delete process.env.MERCURY_USAGE_SEED
 
   claudeLimits.__setRawUtilizationForTest({})
@@ -329,21 +329,21 @@ section('§3 one window decode per family — shared view fns + the anthropic en
     seven_day: { utilization: Number.NaN, resets_at: resetIso },
   })
   const cleared = quota.quotaWindows()
-  check('fold: an unusable observation clears its endpoint record (nothing fabricated)', cleared.sevenDay.state === 'unavailable' && cleared.fiveHour.state === 'unavailable', `five=${cleared.fiveHour.state} seven=${cleared.sevenDay.state}; foldUtilizationFromEndpoint in src/services/anthropicLimits.ts must clear the record for a null or NaN utilization`)
+  check('fold: an unusable observation clears its endpoint record (nothing fabricated)', cleared.sevenDay.state === 'unavailable' && cleared.fiveHour.state === 'unavailable', `five=${cleared.fiveHour.state} seven=${cleared.sevenDay.state}; foldUtilizationFromEndpoint in src/models/roads/anthropic/anthropicLimits.ts must clear the record for a null or NaN utilization`)
 
   const recorded = JSON.parse(readFileSync(join(ROOT, 'scripts/providers/fixtures/anthropic-oauth-usage.json'), 'utf8')) as { body: Record<string, unknown> }
   claudeLimits.foldUtilizationFromEndpoint({ ...recorded.body, five_hour: { utilization: 12, resets_at: resetIso } } as never)
   const extra = claudeLimits.getEndpointExtraUsage()
-  check('fold: the recorded answer lands its extra-usage block in the same record (stated, turned off, endpoint-fed)', extra !== null && extra.stated && !extra.enabled && extra.source === 'endpoint', `${JSON.stringify(extra)}; foldUtilizationFromEndpoint in src/services/anthropicLimits.ts must store the extra-usage block of the recorded answer`)
-  check('fold: the owner reads it as the subscription credits line', providerUsage.anthropicExtraUsageCredits().reason === 'extra usage off', `reason=${providerUsage.anthropicExtraUsageCredits().reason}; fix anthropicExtraUsageCredits in src/services/providers/providerUsage.ts`)
+  check('fold: the recorded answer lands its extra-usage block in the same record (stated, turned off, endpoint-fed)', extra !== null && extra.stated && !extra.enabled && extra.source === 'endpoint', `${JSON.stringify(extra)}; foldUtilizationFromEndpoint in src/models/roads/anthropic/anthropicLimits.ts must store the extra-usage block of the recorded answer`)
+  check('fold: the owner reads it as the subscription credits line', providerUsage.anthropicExtraUsageCredits().reason === 'extra usage off', `reason=${providerUsage.anthropicExtraUsageCredits().reason}; fix anthropicExtraUsageCredits in src/models/roads/providerUsage.ts`)
   claudeLimits.resetLimitsForCredentialSwitch()
   const afterSwitch = quota.quotaWindows()
   check(
     'fold: a credential switch empties header AND endpoint records',
     afterSwitch.fiveHour.state === 'unavailable' && afterSwitch.sevenDay.state === 'unavailable',
-    'resetLimitsForCredentialSwitch in src/services/anthropicLimits.ts must clear the header and endpoint records',
+    'resetLimitsForCredentialSwitch in src/models/roads/anthropic/anthropicLimits.ts must clear the header and endpoint records',
   )
-  check('fold: …and the extra-usage record with them', claudeLimits.getEndpointExtraUsage() === null, 'resetLimitsForCredentialSwitch in src/services/anthropicLimits.ts must also clear the extra-usage record')
+  check('fold: …and the extra-usage record with them', claudeLimits.getEndpointExtraUsage() === null, 'resetLimitsForCredentialSwitch in src/models/roads/anthropic/anthropicLimits.ts must also clear the extra-usage record')
 
   claudeLimits.foldUtilizationFromEndpoint({ ...recorded.body, five_hour: { utilization: 44, resets_at: resetIso } } as never)
   claudeLimits.extractQuotaStatusFromHeaders(new Headers({}))
@@ -351,9 +351,9 @@ section('§3 one window decode per family — shared view fns + the anthropic en
   check(
     'fold: a closed subscriber gate empties the endpoint record with the header record (C8)',
     afterGate.fiveHour.state === 'unavailable',
-    'extractQuotaStatusFromHeaders in src/services/anthropicLimits.ts must clear the endpoint record when the subscriber gate closes',
+    'extractQuotaStatusFromHeaders in src/models/roads/anthropic/anthropicLimits.ts must clear the endpoint record when the subscriber gate closes',
   )
-  check('fold: …and the extra-usage record with them (C8)', claudeLimits.getEndpointExtraUsage() === null, 'extractQuotaStatusFromHeaders in src/services/anthropicLimits.ts must also clear the extra-usage record when the gate closes')
+  check('fold: …and the extra-usage record with them (C8)', claudeLimits.getEndpointExtraUsage() === null, 'extractQuotaStatusFromHeaders in src/models/roads/anthropic/anthropicLimits.ts must also clear the extra-usage record when the gate closes')
 }
 
 

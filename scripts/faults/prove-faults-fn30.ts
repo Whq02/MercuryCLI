@@ -7,12 +7,12 @@ import { fileURLToPath } from 'node:url'
 const HERE = dirname(fileURLToPath(import.meta.url))
 let failures = 0
 const AREA_FIX_HINTS: Record<string, string> = {
-  crashReport: 'fix listCrashReports or unnoticedCrashReports in src/utils/crashReport.ts so an unreadable report dir is answered as the check expects',
-  editorExtensionPackage: 'fix installedEditorExtensions in src/utils/editorExtensionPackage.ts so an unreadable extensions dir throws',
-  envUtils: 'fix ensurePrivateConfigHome in src/utils/envUtils.ts so an unreadable parent throws',
-  errorLogSink: 'fix the error log writer in src/utils/errorLogSink.ts so a failed stat does not stop the line being appended',
-  file: 'fix getFileModificationTimeAsync or writeFileAndFlushAtomically in src/utils/file.ts',
-  fileHistory: 'fix fileHistoryRestore in src/services/changeTransaction/fileHistory.ts so a failed stat refuses the restore with kind restore-failed',
+  crashReport: 'fix listCrashReports or unnoticedCrashReports in src/platform/logs/crashReport.ts so an unreadable report dir is answered as the check expects',
+  editorExtensionPackage: 'fix installedEditorExtensions in src/commands/verbs/editorExtensionPackage.ts so an unreadable extensions dir throws',
+  envUtils: 'fix ensurePrivateConfigHome in src/platform/environment/envUtils.ts so an unreadable parent throws',
+  errorLogSink: 'fix the error log writer in src/platform/logs/errorLogSink.ts so a failed stat does not stop the line being appended',
+  file: 'fix getFileModificationTimeAsync or writeFileAndFlushAtomically in src/platform/files/file.ts',
+  fileHistory: 'fix fileHistoryRestore in src/tools/engines/change-transaction/fileHistory.ts so a failed stat refuses the restore with kind restore-failed',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -38,7 +38,7 @@ const cleanupTasks: Array<() => void> = []
 
 try {
   {
-    const crashReport = await import('../../src/utils/crashReport.js')
+    const crashReport = await import('../../src/platform/logs/crashReport.js')
     const dir = crashReport.crashReportDir()
     check('crashReport.listCrashReports absent dir returns empty', crashReport.listCrashReports().length === 0)
     check('crashReport.unnoticedCrashReports absent dir returns empty', crashReport.unnoticedCrashReports().length === 0)
@@ -70,7 +70,7 @@ try {
   }
 
   {
-    const extPkg = await import('../../src/utils/editorExtensionPackage.js')
+    const extPkg = await import('../../src/commands/verbs/editorExtensionPackage.js')
     check('editorExtensionPackage absent home returns empty', extPkg.installedEditorExtensions(join(scratch, 'no-such-home')).length === 0)
     if (!POSIX_MODES) {
       skip('editorExtensionPackage unreadable extensions dir', 'needs non-root POSIX')
@@ -92,7 +92,7 @@ try {
   }
 
   {
-    const envUtils = await import('../../src/utils/envUtils.js')
+    const envUtils = await import('../../src/platform/environment/envUtils.js')
     if (!POSIX_MODES) {
       skip('envUtils.ensurePrivateConfigHome unreadable parent throws', 'needs non-root POSIX')
     } else {
@@ -116,9 +116,9 @@ try {
     }
   }
   {
-    const errorLogSink = await import('../../src/utils/errorLogSink.js')
-    const logMod = await import('../../src/utils/log.js')
-    const fsOps = await import('../../src/utils/fsOperations.js')
+    const errorLogSink = await import('../../src/platform/logs/errorLogSink.js')
+    const logMod = await import('../../src/platform/logs/errorLog.js')
+    const fsOps = await import('../../src/platform/files/fsOperations.js')
     errorLogSink.initializeErrorLogSink()
     errorLogSink.resetErrorLogSinkForTest()
     const baseFs = fsOps.getFsImplementation()
@@ -142,7 +142,7 @@ try {
     check('errorLogSink: a stat that fails does not close the error log; the line is written, as before', appendCalls > 0, `appendCalls=${appendCalls}`)
   }
   {
-    const fileMod = await import('../../src/utils/file.js')
+    const fileMod = await import('../../src/platform/files/file.js')
     const presentFile = join(scratch, 'present.txt')
     writeFileSync(presentFile, 'hello\n')
     const presentMtime = await fileMod.getFileModificationTimeAsync(presentFile)
@@ -175,7 +175,7 @@ try {
           ...realFs,
           readlinkSync: () => { throw Object.assign(new Error('EIO readlink'), { code: 'EIO' }) },
         }))
-        const fileMod = await import(${JSON.stringify(join(HERE, '../../src/utils/file.ts'))})
+        const fileMod = await import(${JSON.stringify(join(HERE, '../../src/platform/files/file.ts'))})
         let code = null
         try {
           fileMod.writeFileAndFlushAtomically(${JSON.stringify(linkFile)}, 'replaced')
@@ -222,12 +222,12 @@ try {
       process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(fhHome)}
       delete process.env.MERCURY_HOME
       delete process.env.NODE_ENV
-      const { enableConfigs } = await import(${JSON.stringify(join(HERE, '../../src/utils/config/globalConfig.ts'))})
+      const { enableConfigs } = await import(${JSON.stringify(join(HERE, '../../src/platform/config/globalConfig.ts'))})
       enableConfigs()
-      const bootstrap = await import(${JSON.stringify(join(HERE, '../../src/bootstrap/state.ts'))})
+      const bootstrap = await import(${JSON.stringify(join(HERE, '../../src/boot/process-state/processState.ts'))})
       bootstrap.setIsInteractive(true)
       bootstrap.setOriginalCwd(${JSON.stringify(fhCwd)})
-      const fh = await import(${JSON.stringify(join(HERE, '../../src/services/changeTransaction/fileHistory.ts'))})
+      const fh = await import(${JSON.stringify(join(HERE, '../../src/tools/engines/change-transaction/fileHistory.ts'))})
       const target = join(${JSON.stringify(fhCwd)}, 'secret.txt')
       fsSync.writeFileSync(target, 'after\\n', { mode: 0o600 })
       const backupName = 'aaaaaaaaaaaaaaaa@v1'

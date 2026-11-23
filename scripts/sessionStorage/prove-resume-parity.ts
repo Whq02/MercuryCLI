@@ -25,9 +25,9 @@ if (mode === '--compare') {
   const next = JSON.parse(readFileSync(resolve(process.argv[4]!), 'utf8'))
   check('resume parity corpus cardinality', old.sessions.length === next.sessions.length && old.projects.length === next.projects.length, 'The two capture files hold a different number of sessions or projects; capture both from the same corpus directory with this script and --capture.')
   for (let index = 0; index < old.sessions.length; index++) {
-    check(`resume parity session ${index + 1} entry order, content, facts, leaves and snapshots`, isDeepStrictEqual(old.sessions[index], next.sessions[index]), 'A resume read changed between the two captures; diff the two capture files for this session and look at loadTranscriptFile in src/utils/sessionStorage/loading.ts and the resume loaders it feeds.')
+    check(`resume parity session ${index + 1} entry order, content, facts, leaves and snapshots`, isDeepStrictEqual(old.sessions[index], next.sessions[index]), 'A resume read changed between the two captures; diff the two capture files for this session and look at loadTranscriptFile in src/sessions/transcripts/loading.ts and the resume loaders it feeds.')
   }
-  check('resume parity project listing rows, labels and order', isDeepStrictEqual(old.projects, next.projects), 'The project listing rows differ between the captures; diff the projects arrays and look at sessionFilesLite and enrichSessionListings in src/utils/sessionStorage/logs.ts.')
+  check('resume parity project listing rows, labels and order', isDeepStrictEqual(old.projects, next.projects), 'The project listing rows differ between the captures; diff the projects arrays and look at sessionFilesLite and enrichSessionListings in src/sessions/transcripts/sessionListings.ts.')
   const changed = structuredClone(old.sessions)
   changed[0].entries[0].digest = 'changed'
   check('resume parity detects a changed entry digest', !isDeepStrictEqual(old.sessions, changed), 'The comparison did not notice a changed entry digest; the comparison in this script is broken, so fix it here before trusting any parity result.')
@@ -42,17 +42,17 @@ if (mode === '--compare') {
   process.env.MERCURY_CREDENTIAL_STORE = 'file'
   process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
   process.chdir(cwd)
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
-  const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.js')
-  const { buildConversationChain } = await import('../../src/utils/sessionStorage/chain.js')
-  const { sessionFilesLite, enrichSessionListings, listingsOfSessionFile, lastSession } = await import('../../src/utils/sessionStorage/logs.js')
-  const { _resetTranscriptReaderForTesting } = await import('../../src/utils/sessionStorage/transcriptReader.js')
-  const { switchSession } = await import('../../src/bootstrap/state.js')
-  const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.js')
-  const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.js')
-  const { loadInitialMessages } = await import('../../src/cli/headless/resume.js')
-  const { loadConversationForResume } = await import('../../src/services/resume/conversationRecovery.js')
+  const { loadTranscriptFile } = await import('../../src/sessions/transcripts/loading.js')
+  const { buildConversationChain } = await import('../../src/sessions/transcripts/chain.js')
+  const { sessionFilesLite, enrichSessionListings, listingsOfSessionFile, lastSession } = await import('../../src/sessions/transcripts/sessionListings.js')
+  const { _resetTranscriptReaderForTesting } = await import('../../src/sessions/transcripts/transcriptReader.js')
+  const { switchSession } = await import('../../src/boot/process-state/processState.js')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/paths.js')
+  const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.js')
+  const { loadInitialMessages } = await import('../../src/daemon/runner/resume.js')
+  const { loadConversationForResume } = await import('../../src/sessions/resume/conversationRecovery.js')
   const resumeDigest = (result: any, persisted: Set<string>): string => {
     if (result === null) return digest(null)
     const minted = new Map<string, string>()
@@ -100,8 +100,8 @@ if (mode === '--compare') {
       const path = join(project, `${sessionId}.jsonl`)
       writeFileSync(path, entries.map(entry => encodeTranscriptLine(path, entry).line).join(''))
       const fold = await loadTranscriptFile(path)
-      check('resume parity synthetic entries remain byte-equivalent', snap([...fold.messages.values()]) === snap(entries.slice(0, 2)), 'loadTranscriptFile in src/utils/sessionStorage/loading.ts returns messages that differ from the lines encodeTranscriptLine wrote (src/utils/sessionStorage/vnext.ts); compare the encode and decode paths.')
-      check('resume parity synthetic leaf and metadata', fold.leafUuids.has(entries[1]!.uuid as never) && fold.customTitles.get(sessionId) === 'saved title' && fold.tags.get(sessionId) === 'saved tag' && fold.worktreeStates.get(sessionId) === null, 'loadTranscriptFile in src/utils/sessionStorage/loading.ts lost the leaf, custom title, tag or worktree state of the synthetic session; check which of the four folds is missing.')
+      check('resume parity synthetic entries remain byte-equivalent', snap([...fold.messages.values()]) === snap(entries.slice(0, 2)), 'loadTranscriptFile in src/sessions/transcripts/loading.ts returns messages that differ from the lines encodeTranscriptLine wrote (src/sessions/transcripts/vnext.ts); compare the encode and decode paths.')
+      check('resume parity synthetic leaf and metadata', fold.leafUuids.has(entries[1]!.uuid as never) && fold.customTitles.get(sessionId) === 'saved title' && fold.tags.get(sessionId) === 'saved tag' && fold.worktreeStates.get(sessionId) === null, 'loadTranscriptFile in src/sessions/transcripts/loading.ts lost the leaf, custom title, tag or worktree state of the synthetic session; check which of the four folds is missing.')
     }
     const projectsRoot = join(home, 'projects')
     const sessions: unknown[] = []
@@ -120,7 +120,7 @@ if (mode === '--compare') {
         const before = digest(readFileSync(path).toString('utf8'))
         const fold = await loadTranscriptFile(path)
         const warm = await loadTranscriptFile(path)
-        check(`resume parity warm read ${sessions.length + 1}`, snap(warm) === snap(fold), 'A second loadTranscriptFile of the same file differs from the first; look at the cache in src/utils/sessionStorage/transcriptReader.ts.')
+        check(`resume parity warm read ${sessions.length + 1}`, snap(warm) === snap(fold), 'A second loadTranscriptFile of the same file differs from the first; look at the cache in src/sessions/transcripts/transcriptReader.ts.')
         const entries = [...fold.messages].map(([id, row]) => ({ id, type: row.type, digest: snap(row) }))
         const chains = [...fold.leafUuids].map(id => ({ id, rows: buildConversationChain(fold.messages, fold.messages.get(id)!).map(row => ({ id: row.uuid, type: row.type, digest: snap(row) })) }))
         const allLeaves = await listingsOfSessionFile(path)

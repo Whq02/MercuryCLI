@@ -13,21 +13,21 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — most checks here exercise the exports of src/tasks/LocalAgentTask/launchReceipts.ts (lr): read the function this label names there'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — most checks here exercise the exports of src/engine/tasks/local-agent/launchReceipts.ts (lr): read the function this label names there'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const ROOT = join(import.meta.dir, '..', '..')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const lr = await import('../../src/tasks/LocalAgentTask/launchReceipts.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const queue = await import('../../src/input-core/command-queue.ts')
-const { readTailWindow, AGENT_TAIL_READ_CAP_BYTES } = await import('../../src/services/resources/adapters/agent.ts')
-type Message = import('../../src/types/message.ts').Message
-type AppState = import('../../src/state/AppStateStore.ts').AppState
+const lr = await import('../../src/engine/tasks/local-agent/launchReceipts.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const queue = await import('../../src/screen/composer/input-core/command-queue.ts')
+const { readTailWindow, AGENT_TAIL_READ_CAP_BYTES } = await import('../../src/integrations/resources/adapters/agent.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState
 
 let n = 0
 const stamp = (): string => new Date(1_700_000_000_000 + ++n * 1000).toISOString()
@@ -178,11 +178,11 @@ check('the cap is half a megabyte', AGENT_TAIL_READ_CAP_BYTES === 512 * 1024)
 
 
 section('R8 · the address — the receipt\'s id routes, the name routes, a dead address says why')
-await import('../../src/tasks.ts')
-const { toAgentId } = await import('../../src/types/ids.ts')
-const { generateTaskId } = await import('../../src/Task.ts')
-const { registerAsyncAgent, enqueueAgentNotification } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
-const { SendMessageTool } = await import('../../src/tools/SendMessageTool/SendMessageTool.ts')
+await import('../../src/engine/tasks/tasks.ts')
+const { toAgentId } = await import('../../src/sessions/transcripts/ids.ts')
+const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
+const { registerAsyncAgent, enqueueAgentNotification } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+const { SendMessageTool } = await import('../../src/tools/send-message/SendMessageTool.ts')
 const FAKE_DEF = { agentType: 'mercury-crew', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
 type SendAnswer = { data: { success: boolean; message: string } }
 function makeStore(): { get: () => AppState; set: (u: (prev: AppState) => AppState) => void } {
@@ -225,7 +225,7 @@ function makeCtx(store: ReturnType<typeof makeStore>): never {
 }
 
 section("R8b · a queued-guidance resume re-registers the id — the old run's notice never latches the resumed run's row")
-const { completeAgentTask } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+const { completeAgentTask } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
 for (const ordering of ['old-first', 'resumed-first'] as const) {
   queue.resetCommandQueue()
   const store = makeStore()
@@ -279,8 +279,8 @@ for (const ordering of ['old-first', 'resumed-first'] as const) {
 
 section('R8c · a named launch: the foreground road registers the name, the handover receipt names it, both eviction roads prune it')
 {
-  const { applyTaskOffsetsAndEvictions } = await import('../../src/utils/task/framework.ts')
-  const taskModule = (await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')) as { registerAgentName?: (name: string, agentId: string, set: unknown) => void }
+  const { applyTaskOffsetsAndEvictions } = await import('../../src/engine/task-framework/taskRegistry.ts')
+  const taskModule = (await import('../../src/engine/tasks/local-agent/crewmateTask.js')) as { registerAgentName?: (name: string, agentId: string, set: unknown) => void }
   const registerAgentName = taskModule.registerAgentName
   check("the alias helper is the task module's own export", typeof registerAgentName === 'function')
   const store = makeStore()
@@ -302,16 +302,16 @@ section('R8c · a named launch: the foreground road registers the name, the hand
 
 section("R8d · a resume reads the live owner right before it registers")
 {
-  const resumeModule = (await import('../../src/tools/AgentTool/resumeAgent.ts')) as {
+  const resumeModule = (await import('../../src/tools/crewmate/resumeCrewmate.ts')) as {
     resumeAgentBackground: Function
     liveAgentOwner?: (agentId: string, tasks: unknown) => { kind: string; words: string } | null
   }
-  const { completeAgentTask, failAgentTask, killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
-  const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
-  const { asAgentId } = await import('../../src/types/ids.ts')
-  const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-  const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
-  const { getSessionId } = await import('../../src/bootstrap/state.ts')
+  const { completeAgentTask, failAgentTask, killAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+  const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+  const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
+  const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+  const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
+  const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
   const { mkdirSync } = await import('node:fs')
   const { dirname } = await import('node:path')
   let ordinal = 0
@@ -365,11 +365,11 @@ section("R8d · a resume reads the live owner right before it registers")
 
 section('R8e · every non-terminal row has a live owner; the exit card counts what is alive, by kind, and names where to see it')
 {
-  const fw = await import('../../src/utils/task/framework.ts')
-  const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.ts')
-  const { workRowRuns } = await import('../../src/services/engine-connector/workCounts.ts')
-  const { registerMainSessionTask } = await import('../../src/tasks/LocalMainSessionTask.ts')
-  const { killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+  const fw = await import('../../src/engine/task-framework/taskRegistry.ts')
+  const { projectWorkRoster } = await import('../../src/engine/connector/workRoster.ts')
+  const { workRowRuns } = await import('../../src/engine/connector/workCounts.ts')
+  const { registerMainSessionTask } = await import('../../src/engine/tasks/mainSessionTask.ts')
+  const { killAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
   const store = makeStore()
   const crewAgents = (): number => projectWorkRoster(store.get().tasks ?? {}).filter(r => workRowRuns(r) && (r.kind === 'agent' || r.kind === 'named')).length
   const shellId = generateTaskId('local_bash')
@@ -401,10 +401,10 @@ section('R8e · every non-terminal row has a live owner; the exit card counts wh
 
 section("R8f · the interrupt receipt counts what the crew view lists: a settled agent is not counted")
 {
-  const crew = (await import('../../src/services/engine-connector/crewFacts.ts')) as { crewStillRunningLine: Function }
-  const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.ts')
-  const { workCounts, workRowRuns } = await import('../../src/services/engine-connector/workCounts.ts')
-  const { completeAgentTask } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+  const crew = (await import('../../src/engine/connector/crewFacts.ts')) as { crewStillRunningLine: Function }
+  const { projectWorkRoster } = await import('../../src/engine/connector/workRoster.ts')
+  const { workCounts, workRowRuns } = await import('../../src/engine/connector/workCounts.ts')
+  const { completeAgentTask } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
   const store = makeStore()
   const settled = generateTaskId('local_agent')
   registerAsyncAgent({ agentId: settled, description: 'settled during the fold', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never })
@@ -418,8 +418,8 @@ section("R8f · the interrupt receipt counts what the crew view lists: a settled
   const both = crew.crewStillRunningLine({ ...counts, agents: 2 }) as string | null
   check('…and crewmates keep their words and the crew-view door', both !== null && /2 crewmates still running/.test(both) && /crew view \(\/crewmates\)/.test(both), String(both))
   check('…nothing running, no line', crew.crewStillRunningLine({ agents: 0, shells: 0, asks: 0 }) === null)
-  const { drainRows } = await import('../../src/utils/sdkEventQueue.ts')
-  const { failAgentTask } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+  const { drainRows } = await import('../../src/daemon/runner/sdkEventQueue.ts')
+  const { failAgentTask } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
   drainRows()
   const done = generateTaskId('local_agent')
   registerAsyncAgent({ agentId: done, description: 'settles', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never, toolUseId: 'toolu_settles' })
@@ -444,19 +444,19 @@ section("R8f · the interrupt receipt counts what the crew view lists: a settled
 }
 
 section('R9 · one status per agent — the inspection verbs read one fact, on the registry or on disk')
-const { agentAdapter } = await import('../../src/services/resources/adapters/agent.ts')
-const { transcriptAdapter } = await import('../../src/services/resources/adapters/transcript.ts')
-const { parseMercuryRef } = await import('../../src/services/resources/contracts.ts')
-const { getAgentTranscriptPath, getTranscriptPathForSession } = await import('../../src/utils/sessionStorage/paths.ts')
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
-const { asAgentId } = await import('../../src/types/ids.ts')
-const { getTaskOutputPath } = await import('../../src/utils/task/diskOutput.ts')
+const { agentAdapter } = await import('../../src/integrations/resources/adapters/agent.ts')
+const { transcriptAdapter } = await import('../../src/integrations/resources/adapters/transcript.ts')
+const { parseMercuryRef } = await import('../../src/integrations/resources/contracts.ts')
+const { getAgentTranscriptPath, getTranscriptPathForSession } = await import('../../src/sessions/transcripts/paths.ts')
+const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
+const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
+const { getTaskOutputPath } = await import('../../src/engine/task-framework/diskOutput.ts')
 const { mkdirSync } = await import('node:fs')
 const { dirname } = await import('node:path')
-const { INTERRUPT_MESSAGE } = await import('../../src/utils/messages/rejectionText.ts')
+const { INTERRUPT_MESSAGE } = await import('../../src/engine/message-shapes/rejectionText.ts')
 type Resolved = { state: string; note?: string; resource?: { summary?: string; text?: string; structured?: Record<string, unknown> } }
-const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
+const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
 let rowSeq = 0
 const recordWriter = { sessionId: 'launch-receipts-proof' as never, nextOrdinal: () => ordinalOf(++rowSeq), observedAt: '2026-06-19T12:00:00.000Z', source: { channel: 'sdk' } as const }
 const row = (type: 'user' | 'assistant', content: unknown, extra: Record<string, unknown> = {}): string =>
@@ -514,7 +514,7 @@ const EXPECTED: Record<keyof typeof transcripts, RegExp> = {
   const stubRow = { getAppState: () => ({ tasks: { [stubbed]: { id: stubbed, type: 'local_agent', status: 'running', description: 'foliage', startTime: Date.now(), outputFile: stub } } }), owner: '@proof', cwd: scratch } as never
   const stubReport = (await agentAdapter.resolve(parseMercuryRef(`mercury://agent/${stubbed}?child=report`)!, stubRow)) as Resolved
   check('an empty .output stub beside a real transcript: the report reads the transcript (1 tool call), never 0 entries', /1 tool call\(s\)/.test(stubReport.resource?.summary ?? '') && !/0 entries/.test(stubReport.resource?.summary ?? ''), stubReport.resource?.summary ?? stubReport.note)
-  const { taskNotFoundWords } = await import('../../src/tasks/stopTask.ts')
+  const { taskNotFoundWords } = await import('../../src/engine/tasks/stopTask.ts')
   const evicted = generateTaskId('local_agent')
   writeTranscript(evicted, [...transcripts.stopped])
   const words = await taskNotFoundWords(evicted)
@@ -523,9 +523,9 @@ const EXPECTED: Record<keyof typeof transcripts, RegExp> = {
 }
 
 section('R10 · a death is delivered once — the typed cause, what landed, never a second notice')
-const { runAsyncAgentLifecycle } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { streamFaultAfterPartialText, STREAM_FAULT_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
+const { runAsyncAgentLifecycle } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { streamFaultAfterPartialText, STREAM_FAULT_RECOVERY_NUDGE } = await import('../../src/engine/requests/apiErrorRows.ts')
 const META = { prompt: 'plant the foliage', resolvedAgentModel: 'gpt-5.6-sol', isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true }
 const FAULT = streamFaultAfterPartialText('OpenAI', 'read-failed', 'terminated')
 async function deathOf(name: string, writes: string[]): Promise<{ record: { status?: string; error?: string; notified?: boolean } | undefined; notes: string[]; id: string }> {
@@ -580,7 +580,7 @@ async function deathOf(name: string, writes: string[]): Promise<{ record: { stat
 
 section('R11 · the hand-back — every exit that is not a clean finish carries the partial text, the files, the tool count, the cause and the way back')
 {
-  const { AbortError, DeadlineExceededError } = await import('../../src/utils/errors.ts')
+  const { AbortError, DeadlineExceededError } = await import('../../src/platform/errors/errors.ts')
   type Exit = { name: string; thrown: () => Error; cause: RegExp; status: 'failed' | 'killed' }
   const exits: Exit[] = [
     { name: 'budget-cut', thrown: () => Object.assign(new Error('the provider refused 3 times in a row (HTTP 429, busy) — the 5m retry budget is spent and the crewmate stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECOVERY_BUDGET_MINUTES'), { recoveryBudgetSpent: true, resumeAfterMs: 0 }), cause: /the provider refused/, status: 'failed' },
@@ -639,17 +639,17 @@ section('R12 · durability — every row an agent yields is on its transcript fi
     "const [road, home, root, agentId] = process.argv.slice(2) as [string, string, string, string]",
     "process.env.MERCURY_CONFIG_DIR = home",
     "process.env.MERCURY_CREDENTIAL_STORE = 'file'",
-    "const { enableConfigs } = await import(root + '/src/utils/config.ts')",
+    "const { enableConfigs } = await import(root + '/src/platform/settings/config.ts')",
     "enableConfigs()",
-    "const storage = await import(root + '/src/utils/sessionStorage.ts')",
-    "const { asAgentId } = await import(root + '/src/types/ids.ts')",
+    "const storage = await import(root + '/src/sessions/transcripts/sessionStorage.ts')",
+    "const { asAgentId } = await import(root + '/src/sessions/transcripts/ids.ts')",
     "const path = storage.getAgentTranscriptPath(asAgentId(agentId))",
     "storage.registerAgentTranscriptDestination(agentId, path)",
     "writeFileSync(home + '/agent-path.txt', path)",
     "const row = (uuid: string, parentUuid: string | null, text: string) => ({ type: 'user', uuid, parentUuid, isSidechain: true, timestamp: new Date().toISOString(), message: { role: 'user', content: text } })",
     "const rows = [row('00000000-0000-4000-8000-0000000000c1', null, 'one'), row('00000000-0000-4000-8000-0000000000c2', '00000000-0000-4000-8000-0000000000c1', 'two'), row('00000000-0000-4000-8000-0000000000c3', '00000000-0000-4000-8000-0000000000c2', 'three')]",
     "if (road === 'durable') {",
-    "  const runner = await import(root + '/src/tools/AgentTool/runAgent.ts')",
+    "  const runner = await import(root + '/src/tools/crewmate/runCrewmate.ts')",
     "  let parent: string | null = null",
     "  for (const r of rows) { await runner.landAgentTranscriptRows([r as never], agentId, parent as never); parent = r.uuid }",
     "} else {",
@@ -679,19 +679,19 @@ section('R12 · durability — every row an agent yields is on its transcript fi
 
 section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a receipt row; never on a kill, a stop, a hand resume, a live owner, or a second time')
 {
-  const lifecycle = (await import('../../src/tools/AgentTool/agentToolUtils.ts')) as {
+  const lifecycle = (await import('../../src/tools/crewmate/crewmateLifecycle.ts')) as {
     recoveryBudgetCutOf?: (error: unknown) => string | null
     armBudgetCutResume?: (args: Record<string, unknown>) => unknown
     automaticResumePending?: (taskId: string) => boolean
   }
-  const { AbortError } = await import('../../src/utils/errors.ts')
+  const { AbortError } = await import('../../src/platform/errors/errors.ts')
   const budgetCut = () => Object.assign(new Error('the provider refused 3 times in a row (HTTP 429, busy) — the 5m retry budget is spent and the crewmate stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECOVERY_BUDGET_MINUTES'), { recoveryBudgetSpent: true, resumeAfterMs: 0 })
   check('the lifecycle reads a budget cut from the runner\'s own words', typeof lifecycle.recoveryBudgetCutOf === 'function' && lifecycle.recoveryBudgetCutOf?.(budgetCut()) !== null && lifecycle.recoveryBudgetCutOf?.(new Error('the provider closed the stream')) === null && lifecycle.recoveryBudgetCutOf?.(new AbortError()) === null)
   check('the arm and its pending read are the lifecycle\'s own exports', typeof lifecycle.armBudgetCutResume === 'function' && typeof lifecycle.automaticResumePending === 'function')
   if (typeof lifecycle.armBudgetCutResume === 'function' && typeof lifecycle.automaticResumePending === 'function') {
     const arm = lifecycle.armBudgetCutResume
     const pending = lifecycle.automaticResumePending
-    const { completeAgentTask, failAgentTask, killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+    const { completeAgentTask, failAgentTask, killAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
     const settle = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
     const receipts = (): string[] => queue.getCommandQueue().filter(c => c.mode === 'task-notification').map(c => String(c.value ?? '')).filter(v => /<status>resumed<\/status>/.test(v))
     {
@@ -741,7 +741,7 @@ section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a
       completeAgentTask({ agentId: byHand }, store.set as never)
     }
     {
-      const { cancelAutomaticResume } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+      const { cancelAutomaticResume } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
       for (const kind of ['budget-cut', 'stop'] as const) {
         queue.resetCommandQueue()
         const store = makeStore()
@@ -768,7 +768,7 @@ section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a
 
 section('R14 · nothing load-bearing on the partial shapes: an old notice paints as before, a resume receipt settles no launch, the envelope keeps its keys, an old transcript reads unchanged')
 {
-  const painter = (await import('../../src/components/messages/UserAgentNotificationMessage.tsx')) as { partialResultOf?: (text: string) => string | null }
+  const painter = (await import('../../src/screen/messages/UserCrewmateNotificationMessage.tsx')) as { partialResultOf?: (text: string) => string | null }
   check("the card's partial decision is a pure export", typeof painter.partialResultOf === 'function')
   if (typeof painter.partialResultOf === 'function') {
     const oldFailed = '<task-notification>\n<task-id>a1</task-id>\n<status>failed</status>\n<summary>Agent "x" failed: boom</summary>\n</task-notification>'
@@ -786,17 +786,17 @@ section('R14 · nothing load-bearing on the partial shapes: an old notice paints
   const orphansWithEnd = lr.orphanedBackgroundLaunches([launchMsg, receiptsMsg, endedRow], new Set())
   check('a resume receipt row settles no launch (a restart during the resumed run still writes the death notice)', orphansWithResumed.some(o => o.agentId === 'agent-one'), JSON.stringify(orphansWithResumed.map(o => o.agentId)))
   check("…while the run's own terminal notice does settle it", !orphansWithEnd.some(o => o.agentId === 'agent-one'))
-  const { buildAgentResultEnvelope } = await import('../../src/services/agentResults/normalize.ts')
+  const { buildAgentResultEnvelope } = await import('../../src/crew/agent-results/normalize.ts')
   const failedEnvelope = await buildAgentResultEnvelope({ agentId: generateTaskId('local_agent'), agentType: 'mercury-crew', status: 'failed', finalText: 'three piers so far', usage: { totalTokens: 1, toolUseCount: 1, durationMs: 1 } })
   const completedEnvelope = await buildAgentResultEnvelope({ agentId: generateTaskId('local_agent'), agentType: 'mercury-crew', status: 'completed', finalText: 'four piers', usage: { totalTokens: 1, toolUseCount: 1, durationMs: 1 } })
   check('the envelope of a non-clean exit carries exactly the keys a finished one carries', JSON.stringify(Object.keys(failedEnvelope).sort()) === JSON.stringify(Object.keys(completedEnvelope).sort()), Object.keys(failedEnvelope).join(','))
   {
-    const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
-    const { getAgentTranscript } = await import('../../src/utils/sessionStorage/logs.ts')
-    const { asAgentId } = await import('../../src/types/ids.ts')
-    const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-    const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
-    const { getSessionId } = await import('../../src/bootstrap/state.ts')
+    const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+    const { getAgentTranscript } = await import('../../src/sessions/transcripts/sessionListings.ts')
+    const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
+    const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+    const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
+    const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
     const { mkdirSync } = await import('node:fs')
     const { dirname } = await import('node:path')
     const old = generateTaskId('local_agent')
@@ -817,15 +817,15 @@ section('R14 · nothing load-bearing on the partial shapes: an old notice paints
 
 section("R15 · a project-defined agent resumed under another directory's override keeps its kind and its tool restriction — the definitions are the session's, never the resumer's")
 {
-  const { clearAgentDefinitionsCache } = await import('../../src/tools/AgentTool/loadAgentsDir.ts')
-  const { getCwdState, setCwdState, getSessionId, setSessionTrustAccepted: trustTheProject } = await import('../../src/bootstrap/state.ts')
-  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-  const { resumeAgentBackground } = await import('../../src/tools/AgentTool/resumeAgent.ts')
-  const { killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
-  const { getAgentTranscriptPath, readAgentMetadata, writeAgentMetadata } = await import('../../src/utils/sessionStorage/paths.ts')
-  const { asAgentId } = await import('../../src/types/ids.ts')
-  const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-  const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
+  const { clearAgentDefinitionsCache } = await import('../../src/tools/crewmate/loadAgentsDir.ts')
+  const { getCwdState, setCwdState, getSessionId, setSessionTrustAccepted: trustTheProject } = await import('../../src/boot/process-state/processState.ts')
+  const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
+  const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
+  const { killAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+  const { getAgentTranscriptPath, readAgentMetadata, writeAgentMetadata } = await import('../../src/sessions/transcripts/paths.ts')
+  const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
+  const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+  const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
   const { mkdirSync, realpathSync } = await import('node:fs')
   const { dirname } = await import('node:path')
   const project = realpathSync(mkdtempSync(join(tmpdir(), 'launch-receipts-project-')))

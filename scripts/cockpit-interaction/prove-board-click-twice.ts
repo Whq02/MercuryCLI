@@ -28,7 +28,7 @@ const MULTI_CLICK_WINDOW_MS = 500
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const fixHint = 'fix: rebuild with bun run build.ts if dist is stale; read daemon.log in the world named on the [forensics] line; the board rows are drawn in src/components/concourse/layout/listPane.tsx and the daemon ops (ping, concourseDispatch) are served through src/daemon/controlSocket.ts'
+  const fixHint = 'fix: rebuild with bun run build.ts if dist is stale; read daemon.log in the world named on the [forensics] line; the board rows are drawn in src/screen/concourse/layout/listPane.tsx and the daemon ops (ping, concourseDispatch) are served through src/daemon/control/controlSocket.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${fixHint}` : ''}`)
 }
 
@@ -80,7 +80,7 @@ const spawnDaemonWithHome = (configHome: string): void => {
   })
 }
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 const untilChanged = async (dir: string, pred: () => Promise<boolean>, ms: number): Promise<boolean> => {
   const settled = async (): Promise<boolean> => {
     try {
@@ -103,7 +103,7 @@ const untilChanged = async (dir: string, pred: () => Promise<boolean>, ms: numbe
   }
   return settled()
 }
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 const { vshotBudgetMs } = await import('../lib/captureDriver.ts')
 
 console.log('the session board: a click selects a row, a second click on the selected row enters it — also when the second click lands inside the terminal’s double-click window (the built product in a PTY)')

@@ -7,17 +7,17 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { assembleToolPool } = await import('../../src/tools.ts')
-const { getDenyRuleForTool, toolAlwaysAllowedRule, getAskRuleForTool } = await import('../../src/utils/permissions/decision/rules.ts')
-const { wholeToolDenyRulesCovering } = await import('../../src/utils/permissions/ruleReason.ts')
-const { resolveAgentTools, filterToolsForAgent } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { restrictScoutTools } = await import('../../src/tools/AgentTool/scoutPolicy.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
+const { getDenyRuleForTool, toolAlwaysAllowedRule, getAskRuleForTool } = await import('../../src/permissions/rules/decision/rules.ts')
+const { wholeToolDenyRulesCovering } = await import('../../src/permissions/rules/ruleReason.ts')
+const { resolveAgentTools, filterToolsForAgent } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { restrictScoutTools } = await import('../../src/tools/crewmate/scoutPolicy.ts')
 let failures = 0
 let checks = 0
-const resumeRulesHint = 'to fix, make ResumeCrewmate follow the SendMessage rules in the function this check exercises: assembleToolPool in src/tools.ts, getDenyRuleForTool, toolAlwaysAllowedRule and getAskRuleForTool in src/utils/permissions/decision/rules.ts, wholeToolDenyRulesCovering in src/utils/permissions/ruleReason.ts, resolveAgentTools and filterToolsForAgent in src/tools/AgentTool/agentToolUtils.ts, restrictScoutTools in src/tools/AgentTool/scoutPolicy.ts'
+const resumeRulesHint = 'to fix, make ResumeCrewmate follow the SendMessage rules in the function this check exercises: assembleToolPool in src/tools/kit/toolList.ts, getDenyRuleForTool, toolAlwaysAllowedRule and getAskRuleForTool in src/permissions/rules/decision/rules.ts, wholeToolDenyRulesCovering in src/permissions/rules/ruleReason.ts, resolveAgentTools and filterToolsForAgent in src/tools/crewmate/crewmateLifecycle.ts, restrictScoutTools in src/tools/crewmate/scoutPolicy.ts'
 const check = (label: string, yes: boolean) => { checks++; if (!yes) failures++; console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${yes ? '' : ` — ${resumeRulesHint}`}`) }
 const base = getEmptyToolPermissionContext()
 const pool = assembleToolPool(base, [])

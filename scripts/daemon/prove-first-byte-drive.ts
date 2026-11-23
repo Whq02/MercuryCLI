@@ -15,7 +15,7 @@ if (!existsSync(DIST)) {
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}fix: the first-byte budget and the typed wait row live in src/services/providers/streamIdleBudget.ts (firstByteBudgetMs, the no-first-byte words), the dispatch refusals in src/daemon/controlServer.ts; the daemon log and fixture captures sit in the world path printed as [forensics] below`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}fix: the first-byte budget and the typed wait row live in src/models/roads/streamIdleBudget.ts (firstByteBudgetMs, the no-first-byte words), the dispatch refusals in src/daemon/control/controlServer.ts; the daemon log and fixture captures sit in the world path printed as [forensics] below`}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number, everyMs = 100): Promise<boolean> => {
@@ -51,9 +51,9 @@ process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(configDir, [work])
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const { decodeRequestWait } = await import('../../src/services/providers/streamIdleBudget.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
+const { decodeRequestWait } = await import('../../src/models/roads/streamIdleBudget.ts')
 
 type Capture = { kind: string; at: number; arm?: string; model?: string; status?: number; nth?: number }
 type Rec = { runnerId: string; sessionId: string; modelKey?: string }

@@ -50,8 +50,8 @@ process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(configDir, [work, folder])
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const sup = await import('../../src/daemon/concourseWorkers.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 type Rec = { runnerId: string; sessionId: string; pid?: number; parkedAt?: number; parkedBy?: string; parkReason?: string; parkRequestedAt?: number; stoppedAt?: number; crash?: { at: number; reason: string; respawning: boolean }; lastDeliveryAt?: number; lastTurnSettledAt?: number; endedAt?: number }
 type Workers = { workers: Record<string, Rec> }
@@ -126,7 +126,7 @@ const cleanup = async (): Promise<void> => {
 
 console.log('mercury daemon stop parks the sessions it ends (RELEASE-29-AIR R29A-05b): the record carries the operator\'s mark, the next boot reads parked, never crashed')
 try {
-  check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), `the daemon never answered ping in 60s; read ${daemonLogPath} and the startup in src/daemon/main.ts`)
+  check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), `the daemon never answered ping in 60s; read ${daemonLogPath} and the startup in src/daemon/control/main.ts`)
   const opensBefore = wire().filter(c => c.kind === 'anthropic-open').length
   const dispatched = (await daemonControlRpc({
     op: 'concourseDispatch',
@@ -143,7 +143,7 @@ try {
   await sleep(400)
   const before = readRec(sid)
   const pid = before?.pid
-  check('the record is live and mid-turn before the stop', before !== undefined && alive(pid) && sup.turnInFlightOf(before as never) && before.parkedAt === undefined && before.crash === undefined, `the record must show a live runner mid-turn (turnInFlightOf in src/daemon/concourseWorkers.ts) before the stop; ${JSON.stringify(before)}`)
+  check('the record is live and mid-turn before the stop', before !== undefined && alive(pid) && sup.turnInFlightOf(before as never) && before.parkedAt === undefined && before.crash === undefined, `the record must show a live runner mid-turn (turnInFlightOf in src/daemon/concourse-workers/concourseWorkers.ts) before the stop; ${JSON.stringify(before)}`)
 
   const stopAt = Date.now()
   const reply = (await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)) as { ok?: boolean; op?: string; reaped?: number; workers?: Array<{ pid?: number }> }
@@ -161,8 +161,8 @@ try {
   writeFileSync(join(nextBoot, 'concourse-workers.json'), JSON.stringify(snapshot))
   const nextReceipt = sup.reconcileConcourseWorkers(new Set<string>(), nextBoot)
   const nextRec = Object.values((JSON.parse(readFileSync(join(nextBoot, 'concourse-workers.json'), 'utf8')) as Workers).workers).find(w => w.sessionId === sid)
-  check("the next daemon's reconcile over the parked record with its pid dead settles nothing as crashed (red on the base: 'crashed — found dead with its daemon')", !nextReceipt.settled.includes(after?.runnerId ?? '?') && nextRec?.crash === undefined && nextRec?.parkedAt !== undefined, `fix reconcileConcourseWorkers in src/daemon/concourseWorkers.ts so a parked record with a dead pid is not settled as a crash; ${JSON.stringify({ receipt: nextReceipt, rec: nextRec })}`)
-  check("a resume of the parked session reads 'relaunch', never 'crash' — no restart carry, no relaunched crewmate", sup.runnerRestartReasonOf((nextRec ?? {}) as never) === 'relaunch', `fix runnerRestartReasonOf in src/daemon/concourseWorkers.ts so a parked record reads relaunch; got ${sup.runnerRestartReasonOf((nextRec ?? {}) as never)}`)
+  check("the next daemon's reconcile over the parked record with its pid dead settles nothing as crashed (red on the base: 'crashed — found dead with its daemon')", !nextReceipt.settled.includes(after?.runnerId ?? '?') && nextRec?.crash === undefined && nextRec?.parkedAt !== undefined, `fix reconcileConcourseWorkers in src/daemon/concourse-workers/concourseWorkers.ts so a parked record with a dead pid is not settled as a crash; ${JSON.stringify({ receipt: nextReceipt, rec: nextRec })}`)
+  check("a resume of the parked session reads 'relaunch', never 'crash' — no restart carry, no relaunched crewmate", sup.runnerRestartReasonOf((nextRec ?? {}) as never) === 'relaunch', `fix runnerRestartReasonOf in src/daemon/concourse-workers/concourseWorkers.ts so a parked record reads relaunch; got ${sup.runnerRestartReasonOf((nextRec ?? {}) as never)}`)
 
   const bareShape = structuredClone(snapshot)
   for (const w of Object.values(bareShape.workers)) {
@@ -173,7 +173,7 @@ try {
   }
   writeFileSync(join(bare, 'concourse-workers.json'), JSON.stringify(bareShape))
   const bareReceipt = sup.reconcileConcourseWorkers(new Set<string>(), bare)
-  check("control: the same record with the stop's mark stripped is what the reconcile calls a crash — a daemon killed from outside still reads crash", bareReceipt.settled.includes(after?.runnerId ?? '?'), `reconcileConcourseWorkers in src/daemon/concourseWorkers.ts must still settle a dead record with no park mark as a crash; ${JSON.stringify(bareReceipt)}`)
+  check("control: the same record with the stop's mark stripped is what the reconcile calls a crash — a daemon killed from outside still reads crash", bareReceipt.settled.includes(after?.runnerId ?? '?'), `reconcileConcourseWorkers in src/daemon/concourse-workers/concourseWorkers.ts must still settle a dead record with no park mark as a crash; ${JSON.stringify(bareReceipt)}`)
 } finally {
   await cleanup()
 }

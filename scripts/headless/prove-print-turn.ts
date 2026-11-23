@@ -8,7 +8,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const at = (rel: string): string => join(ROOT, rel)
 
 let failures = 0
-const turnFixHint = 'change the turn road in src/cli/headless/printTurn.ts (runPrintTurn, assembleTurnTools, registerPerTurnHandlers, registerElicitationHandlersForClient) until the label reads true'
+const turnFixHint = 'change the turn road in src/daemon/runner/runnerTurn.ts (runPrintTurn, assembleTurnTools, registerPerTurnHandlers, registerElicitationHandlersForClient) until the label reads true'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${turnFixHint}` : ''}`)
@@ -18,7 +18,7 @@ const j = (value: unknown): string => JSON.stringify(value)
 const UNSETTLED = Symbol('unsettled')
 const within = <T,>(work: Promise<T> | T, ms = 3_000): Promise<T | typeof UNSETTLED> => Promise.race([Promise.resolve(work), new Promise<typeof UNSETTLED>(done => setTimeout(() => done(UNSETTLED), ms))])
 setTimeout(() => {
-  console.log('  [FAIL] the proof ended within its two minutes — a turn never settled; look at the last section printed above and at runPrintTurn in src/cli/headless/printTurn.ts')
+  console.log('  [FAIL] the proof ended within its two minutes — a turn never settled; look at the last section printed above and at runPrintTurn in src/daemon/runner/runnerTurn.ts')
   process.exit(1)
 }, 120_000).unref()
 
@@ -47,20 +47,20 @@ async function spied(rel: string, wanted: string[]): Promise<Record<string, (...
   return real
 }
 
-await spied('src/rows/turn.ts', ['ask', 'sessionFactsOf'])
-await spied('src/utils/workloadContext.ts', ['runWithWorkload'])
-await spied('src/services/advisor/index.ts', ['advisorMainRound'])
-await spied('src/utils/messageQueueManager.ts', ['holdQueuedWordsForTurnEnd'])
-await spied('src/substrate/startupMenu.ts', ['applyLiveBootMenuEnv'])
-await spied('src/services/agentResults/summaryRoom.ts', ['fitCompletionCommands'])
-await spied('src/services/providers/toolEconomy.ts', ['clearToolRosterLatches', 'clearToolRosterRestore'])
-await spied('src/services/providers/lawfulPrefixChange.ts', ['declareLawfulPrefixChange'])
-await spied('src/services/mcp/elicitationHandler.ts', ['withElicitationEntered'])
-const realTools = await spied('src/tools.ts', ['getTools', 'mcpToolPartition', 'toolsWithheldByDeny'])
+await spied('src/engine/rows/turn.ts', ['ask', 'sessionFactsOf'])
+await spied('src/models/roads/workloadContext.ts', ['runWithWorkload'])
+await spied('src/models/advisor/index.ts', ['advisorMainRound'])
+await spied('src/daemon/runner/messageQueueManager.ts', ['holdQueuedWordsForTurnEnd'])
+await spied('src/platform/substrate/startupMenu.ts', ['applyLiveBootMenuEnv'])
+await spied('src/crew/agent-results/summaryRoom.ts', ['fitCompletionCommands'])
+await spied('src/models/roads/toolEconomy.ts', ['clearToolRosterLatches', 'clearToolRosterRestore'])
+await spied('src/models/roads/lawfulPrefixChange.ts', ['declareLawfulPrefixChange'])
+await spied('src/integrations/mcp/elicitationHandler.ts', ['withElicitationEntered'])
+const realTools = await spied('src/tools/kit/toolList.ts', ['getTools', 'mcpToolPartition', 'toolsWithheldByDeny'])
 
-const turn = await import('../../src/cli/headless/printTurn.ts')
-const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
+const turn = await import('../../src/daemon/runner/runnerTurn.ts')
+const { createRunnerState } = await import('../../src/daemon/runner/runnerPorts.ts')
+const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 
 type Ports = Parameters<typeof turn.runPrintTurn>[4]
 type Asked = Record<string, unknown> & { during: { inFlight: unknown; currentTurn: unknown; inside: boolean; anchor: unknown } }
@@ -272,7 +272,7 @@ section('§4 a turn of notices alone')
 {
   const s = scene({ localCommandInput: () => false })
   const hostNotice = { value: '<task-notification><task-id>host-notice-1</task-id><status>completed</status></task-notification>', mode: 'task-notification' }
-  const { isHostNotice } = await import('../../src/input-core/command-queue.ts')
+  const { isHostNotice } = await import('../../src/screen/composer/input-core/command-queue.ts')
   if (isHostNotice(hostNotice as never)) {
     const ended = await run(s, hostNotice as never)
     check('a turn whose members are all host notices announces and records them and asks the engine nothing', ended === 'ended' && s.asked.length === 0 && !s.live.turnReachedModel && said('port:recordHostNoticeRows').length === 1 && s.live.turnsRun === 0, j(names()))

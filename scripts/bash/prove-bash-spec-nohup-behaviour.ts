@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
-import { getCommandSpec } from '../../src/utils/bash/registry.ts'
-import spec from '../../src/utils/bash/specs/nohup.ts'
+import { getCommandSpec } from '../../src/platform/shell/bash/commandSpecs.ts'
+import spec from '../../src/platform/shell/bash/specs/nohup.ts'
 
-const WHERE = 'the default export of src/utils/bash/specs/nohup.ts'
+const WHERE = 'the default export of src/platform/shell/bash/specs/nohup.ts'
 const RECORD = "{\"name\":\"nohup\",\"description\":\"Keep a command running after the terminal hangs up\",\"args\":{\"name\":\"command\",\"description\":\"The command nohup wraps\",\"isCommand\":true}}"
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -17,7 +17,7 @@ check('its one argument is itself a command', JSON.stringify(spec.args) === JSON
 console.log('§2 how the command registry serves it')
 {
   const served = await getCommandSpec('nohup')
-  check('asking the registry for nohup answers this very record', served === spec, `got ${JSON.stringify(served)}; getCommandSpec in src/utils/bash/registry.ts must find ${WHERE} by its name before it looks anywhere else`)
+  check('asking the registry for nohup answers this very record', served === spec, `got ${JSON.stringify(served)}; getCommandSpec in src/platform/shell/bash/commandSpecs.ts must find ${WHERE} by its name before it looks anywhere else`)
   check('and again on a second asking', (await getCommandSpec('nohup')) === spec)
 }
 

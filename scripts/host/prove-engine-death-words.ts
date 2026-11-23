@@ -8,8 +8,8 @@ if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_D
 pinSourceRef()
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 const scratch = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR, 'engine-death-'))
-const { waitHostEngine, engineDeathWords, engineDeathAfterReady } = await import('../../src/services/host/ssh.ts')
-const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+const { waitHostEngine, engineDeathWords, engineDeathAfterReady } = await import('../../src/models/hosting/ssh.ts')
+const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
 
 const glm = HOST_RECIPES.find(row => row.id === 'glm53-flash-gguf-b300')!
 const recipe = { ...glm, id: 'fixture-death', model: 'Cypherfox/GLM-5.3-Flash-dealignai-orcarouter-merge', weightFile: 'glm5.3-Flash-combined-iq4_xs.gguf' }
@@ -126,7 +126,7 @@ try {
   console.log('PASS after a Resume the cause comes from the current engine’s lines, not the generation before')
   console.log('ENGINE DEATH WORDS GREEN — the poll command ran in a real shell against a fixture of the owner’s log; no network, no GPU')
 } catch (error) {
-  console.error('what to change: the notice words and the poll of a dead engine in src/services/host/ssh.ts (engineDeathWords, engineDeathAfterReady, waitHostEngine); the assertion above names the case and the words that were produced')
+  console.error('what to change: the notice words and the poll of a dead engine in src/models/hosting/ssh.ts (engineDeathWords, engineDeathAfterReady, waitHostEngine); the assertion above names the case and the words that were produced')
   throw error
 } finally {
   rmSync(scratch, { recursive: true, force: true })

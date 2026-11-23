@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url'
 const ROOT = join(import.meta.dir, '..', '..')
 const distAt = process.argv.indexOf('--dist')
 const DIST = distAt !== -1 ? process.argv[distAt + 1]! : join(ROOT, 'dist', 'mercury.mjs')
-const { GRAMMAR_REGISTRY } = await import('../../src/utils/structure/grammarRegistry.ts')
+const { GRAMMAR_REGISTRY } = await import('../../src/platform/grammars/grammarRegistry.ts')
 const { LANGUAGE_FIXTURES } = await import('../ast-tools/lib/fixtures.ts')
 
 let failures = 0
@@ -95,13 +95,13 @@ section('§1 — the rows: a grammar is held when V8\'s optimising tier costs it
   const measured = GRAMMAR_REGISTRY.filter(g => MEASURED_OPTIMISER_COST_MB[g.name] !== undefined)
   check('every registry row has its measured optimiser cost here', measured.length === GRAMMAR_REGISTRY.length, GRAMMAR_REGISTRY.filter(g => MEASURED_OPTIMISER_COST_MB[g.name] === undefined).map(g => g.name).join(',') + ' · add a measured cost for each listed grammar to MEASURED_OPTIMISER_COST_MB in this script (run it with --measure for the numbers)')
   const above = measured.filter(g => MEASURED_OPTIMISER_COST_MB[g.name]! >= OPTIMISER_COST_HELD_AT_MB).map(g => g.name).sort()
-  check(`the held rows are exactly the rows measured at ${OPTIMISER_COST_HELD_AT_MB} MB or more`, JSON.stringify(held) === JSON.stringify(above), `held ${held.join(',')} · measured above ${above.join(',')} · set or clear baseline: true on the differing rows of GRAMMAR_REGISTRY in src/utils/structure/grammarRegistry.ts, or correct MEASURED_OPTIMISER_COST_MB in this script`)
+  check(`the held rows are exactly the rows measured at ${OPTIMISER_COST_HELD_AT_MB} MB or more`, JSON.stringify(held) === JSON.stringify(above), `held ${held.join(',')} · measured above ${above.join(',')} · set or clear baseline: true on the differing rows of GRAMMAR_REGISTRY in src/platform/grammars/grammarRegistry.ts, or correct MEASURED_OPTIMISER_COST_MB in this script`)
   const costs = Object.values(MEASURED_OPTIMISER_COST_MB).sort((a, b) => a - b)
   const below = Math.max(...costs.filter(c => c < OPTIMISER_COST_HELD_AT_MB))
   const over = Math.min(...costs.filter(c => c >= OPTIMISER_COST_HELD_AT_MB))
   check('the threshold sits in a gap of the measured costs (nothing between 291 and 421 among these rows)', below === 291 && over === 421, `${below} · ${over} · the measured costs moved: update the gap named in this check and OPTIMISER_COST_HELD_AT_MB in this script`)
   const free = ['typescript', 'tsx', 'javascript', 'python', 'go', 'rust', 'java', 'json', 'c', 'cpp', 'c-sharp', 'css']
-  check('the common languages and the heavy ones under the threshold keep the optimising tier', free.every(n => GRAMMAR_REGISTRY.find(g => g.name === n)?.baseline !== true), free.filter(n => GRAMMAR_REGISTRY.find(g => g.name === n)?.baseline === true).join(',') + ' · remove baseline: true from the listed rows of GRAMMAR_REGISTRY in src/utils/structure/grammarRegistry.ts')
+  check('the common languages and the heavy ones under the threshold keep the optimising tier', free.every(n => GRAMMAR_REGISTRY.find(g => g.name === n)?.baseline !== true), free.filter(n => GRAMMAR_REGISTRY.find(g => g.name === n)?.baseline === true).join(',') + ' · remove baseline: true from the listed rows of GRAMMAR_REGISTRY in src/platform/grammars/grammarRegistry.ts')
   const lock = JSON.parse(readFileSync(join(ROOT, 'vendor', 'grammars.lock.json'), 'utf8')) as { grammars: Array<{ wasm: string; optimiserCostMb?: number }> }
   const lockRows = lock.grammars.map(l => ({ lock: l, row: GRAMMAR_REGISTRY.find(g => g.wasm === l.wasm) }))
   check('every lock row carries the measured cost of its grammar, the number this proof holds', lockRows.every(r => r.row !== undefined && r.lock.optimiserCostMb === MEASURED_OPTIMISER_COST_MB[r.row.name]), lockRows.filter(r => r.row === undefined || r.lock.optimiserCostMb !== MEASURED_OPTIMISER_COST_MB[r.row.name]).map(r => `${r.lock.wasm}=${r.lock.optimiserCostMb}`).join(',') + ' · make optimiserCostMb of each listed row in vendor/grammars.lock.json equal MEASURED_OPTIMISER_COST_MB in this script')
@@ -147,7 +147,7 @@ const corpusSample = (name: string): string | undefined => {
   const first = Object.values(CORPUS[name] ?? {})[0]
   return first ? `${first.join('\n')}\n` : undefined
 }
-const tieringUrl = pathToFileURL(join(ROOT, 'src', 'utils', 'structure', 'wasmTiering.ts')).href
+const tieringUrl = pathToFileURL(join(ROOT, 'src', 'platform', 'grammars', 'wasmTiering.ts')).href
 if (NODE) {
   mkdirSync(engineDir)
   for (const f of ['tree-sitter.js', 'tree-sitter.wasm']) copyFileSync(join(vscodeWasm, f), join(engineDir, f))
@@ -219,7 +219,7 @@ if (process.argv.includes('--measure')) {
       const held = sustained(g, 'held')
       const cost = free && held ? free.peakMb - held.peakMb : NaN
       console.log(`  ${g.name.padEnd(12)} free ${String(free?.peakMb ?? '?').padStart(5)} MB · held ${String(held?.peakMb ?? '?').padStart(5)} MB · optimiser cost ${String(cost).padStart(5)} MB · recorded ${String(MEASURED_OPTIMISER_COST_MB[g.name] ?? '?').padStart(5)} MB · ${g.baseline ? 'HELD' : 'free'}`)
-      check(`${g.name}: the row's switch agrees with this reading (${cost} MB against the ${OPTIMISER_COST_HELD_AT_MB} MB threshold)`, Number.isFinite(cost) && cost >= OPTIMISER_COST_HELD_AT_MB === g.baseline, `${cost} MB, baseline ${g.baseline} · set or clear baseline: true on the ${g.name} row of GRAMMAR_REGISTRY in src/utils/structure/grammarRegistry.ts, and update MEASURED_OPTIMISER_COST_MB in this script`)
+      check(`${g.name}: the row's switch agrees with this reading (${cost} MB against the ${OPTIMISER_COST_HELD_AT_MB} MB threshold)`, Number.isFinite(cost) && cost >= OPTIMISER_COST_HELD_AT_MB === g.baseline, `${cost} MB, baseline ${g.baseline} · set or clear baseline: true on the ${g.name} row of GRAMMAR_REGISTRY in src/platform/grammars/grammarRegistry.ts, and update MEASURED_OPTIMISER_COST_MB in this script`)
     }
   }
   rmSync(scratch, { recursive: true, force: true })
@@ -330,25 +330,25 @@ console.log(JSON.stringify(out))
   } catch {
     out = {}
   }
-  check('the child that reads V8\'s tiering state ran', run.status === 0 && out.before !== undefined, `${run.status} ${(run.stderr ?? '').slice(-300)} · the readback child (readback.mjs, written by this script) must run under node with --allow-natives-syntax and import src/utils/structure/wasmTiering.ts`)
+  check('the child that reads V8\'s tiering state ran', run.status === 0 && out.before !== undefined, `${run.status} ${(run.stderr ?? '').slice(-300)} · the readback child (readback.mjs, written by this script) must run under node with --allow-natives-syntax and import src/platform/grammars/wasmTiering.ts`)
   check('before any hold a fresh wasm function reaches the optimising tier (the reading has teeth)', out.before === true, 'a fresh wasm function never reached the optimising tier before any hold, so the readback proves nothing: the machine may be too slow for tiersUp in the readback child')
-  check('inside a hold a fresh wasm function stays at baseline', out.insideOne === false, 'withOptimisingTierHeld in src/utils/structure/wasmTiering.ts did not keep the optimising tier off inside the hold')
-  check('after the hold the optimising tier is back', out.afterOne === true, 'withOptimisingTierHeld in src/utils/structure/wasmTiering.ts did not put the optimising tier back when the hold ended')
+  check('inside a hold a fresh wasm function stays at baseline', out.insideOne === false, 'withOptimisingTierHeld in src/platform/grammars/wasmTiering.ts did not keep the optimising tier off inside the hold')
+  check('after the hold the optimising tier is back', out.afterOne === true, 'withOptimisingTierHeld in src/platform/grammars/wasmTiering.ts did not put the optimising tier back when the hold ended')
   check('a hold inside a hold: held inside the inner one, and STILL held after the inner one ends', out.nested?.inner === false && out.nested?.stillHeldAfterInner === false, JSON.stringify(out.nested))
-  check('and back when the outermost ends', out.afterNested === true, 'withOptimisingTierHeld in src/utils/structure/wasmTiering.ts did not put the tier back when the outermost nested hold ended')
-  check('five hundred holds back to back leave the optimising tier on', out.afterBackToBack === true, 'withOptimisingTierHeld in src/utils/structure/wasmTiering.ts lost the tier after many holds in a row: its hold count or flag restore drifts')
-  check('a parse that throws puts it back', out.afterThrow === true, 'withOptimisingTierHeld in src/utils/structure/wasmTiering.ts must restore the tier in a finally when the body throws')
-  check('a throw inside an inner hold leaves the outer hold standing, and the outermost end puts it back', out.nestedThrow?.stillHeldAfterInnerThrow === false && out.afterNestedThrow === true, `${JSON.stringify(out.nestedThrow)} · withOptimisingTierHeld in src/utils/structure/wasmTiering.ts must keep the outer hold standing when an inner body throws, and restore at the outermost end`)
-  check('the held body\'s value comes back', out.value === 42, 'withOptimisingTierHeld in src/utils/structure/wasmTiering.ts must return the value of its body')
-  check('the two flags are the pair that holds at runtime', JSON.stringify(out.flags) === JSON.stringify(['--no-wasm-tier-up', '--no-wasm-dynamic-tiering']), `${JSON.stringify(out.flags)} · HELD_TIER_NODE_FLAGS in src/utils/structure/wasmTiering.ts must be exactly these two flags`)
+  check('and back when the outermost ends', out.afterNested === true, 'withOptimisingTierHeld in src/platform/grammars/wasmTiering.ts did not put the tier back when the outermost nested hold ended')
+  check('five hundred holds back to back leave the optimising tier on', out.afterBackToBack === true, 'withOptimisingTierHeld in src/platform/grammars/wasmTiering.ts lost the tier after many holds in a row: its hold count or flag restore drifts')
+  check('a parse that throws puts it back', out.afterThrow === true, 'withOptimisingTierHeld in src/platform/grammars/wasmTiering.ts must restore the tier in a finally when the body throws')
+  check('a throw inside an inner hold leaves the outer hold standing, and the outermost end puts it back', out.nestedThrow?.stillHeldAfterInnerThrow === false && out.afterNestedThrow === true, `${JSON.stringify(out.nestedThrow)} · withOptimisingTierHeld in src/platform/grammars/wasmTiering.ts must keep the outer hold standing when an inner body throws, and restore at the outermost end`)
+  check('the held body\'s value comes back', out.value === 42, 'withOptimisingTierHeld in src/platform/grammars/wasmTiering.ts must return the value of its body')
+  check('the two flags are the pair that holds at runtime', JSON.stringify(out.flags) === JSON.stringify(['--no-wasm-tier-up', '--no-wasm-dynamic-tiering']), `${JSON.stringify(out.flags)} · HELD_TIER_NODE_FLAGS in src/platform/grammars/wasmTiering.ts must be exactly these two flags`)
   const h = out.holdable ?? {}
-  check('held on plain node', h.plain === true, 'optimisingTierCanBeHeld in src/utils/structure/wasmTiering.ts must allow a hold on plain node')
-  check('never held under another engine than V8 (bun, or no v8 at all)', h.bun === false && h.noV8 === false, `${JSON.stringify(h)} · optimisingTierCanBeHeld in src/utils/structure/wasmTiering.ts must refuse a hold under bun or without a v8 version`)
-  check('never held when the user started node with tiering flags of his own', h.userLiftoff === false && h.userTierUp === false && h.userDynamic === false, `${JSON.stringify(h)} · optimisingTierCanBeHeld in src/utils/structure/wasmTiering.ts must refuse a hold when the user passed tiering flags in execArgv or NODE_OPTIONS`)
-  check('other node flags do not turn the hold off', h.otherFlags === true, 'optimisingTierCanBeHeld in src/utils/structure/wasmTiering.ts must ignore node flags that are not tiering flags')
-  check('the one switch releases every grammar', h.released === false, 'optimisingTierCanBeHeld in src/utils/structure/wasmTiering.ts must refuse a hold once the runtime is released (MERCURY_GRAMMAR_BASELINE=0)')
+  check('held on plain node', h.plain === true, 'optimisingTierCanBeHeld in src/platform/grammars/wasmTiering.ts must allow a hold on plain node')
+  check('never held under another engine than V8 (bun, or no v8 at all)', h.bun === false && h.noV8 === false, `${JSON.stringify(h)} · optimisingTierCanBeHeld in src/platform/grammars/wasmTiering.ts must refuse a hold under bun or without a v8 version`)
+  check('never held when the user started node with tiering flags of his own', h.userLiftoff === false && h.userTierUp === false && h.userDynamic === false, `${JSON.stringify(h)} · optimisingTierCanBeHeld in src/platform/grammars/wasmTiering.ts must refuse a hold when the user passed tiering flags in execArgv or NODE_OPTIONS`)
+  check('other node flags do not turn the hold off', h.otherFlags === true, 'optimisingTierCanBeHeld in src/platform/grammars/wasmTiering.ts must ignore node flags that are not tiering flags')
+  check('the one switch releases every grammar', h.released === false, 'optimisingTierCanBeHeld in src/platform/grammars/wasmTiering.ts must refuse a hold once the runtime is released (MERCURY_GRAMMAR_BASELINE=0)')
   const firstHeld = heldGrammars[0]
-  check(`after a grammar was parsed held and free in that child (${firstHeld?.name}) the optimising tier is on`, firstHeld !== undefined && out.trees?.[firstHeld.name]?.heldEqualsFree === true && out.afterGrammars === true, `${JSON.stringify(out.trees)} · a held parse must give the same tree as a free parse and the tier must be back after it, see withOptimisingTierHeld in src/utils/structure/wasmTiering.ts`)
+  check(`after a grammar was parsed held and free in that child (${firstHeld?.name}) the optimising tier is on`, firstHeld !== undefined && out.trees?.[firstHeld.name]?.heldEqualsFree === true && out.afterGrammars === true, `${JSON.stringify(out.trees)} · a held parse must give the same tree as a free parse and the tier must be back after it, see withOptimisingTierHeld in src/platform/grammars/wasmTiering.ts`)
   writeFileSync(
     join(scratch, 'trees.mjs'),
     `import { createRequire } from 'node:module'
@@ -378,7 +378,7 @@ console.log(JSON.stringify({ clean: !held.startsWith('ERROR'), heldEqualsFree: h
 process.exit(0)
 `,
   )
-  check(`the held grammars this checkout carries: ${heldGrammars.map(g => g.name).join(', ')}`, heldGrammars.length >= 2, `${heldGrammars.length} · fewer than two baseline: true rows of GRAMMAR_REGISTRY (src/utils/structure/grammarRegistry.ts) have their wasm and a sample here: fetch the grammar packs with bun run setup`)
+  check(`the held grammars this checkout carries: ${heldGrammars.map(g => g.name).join(', ')}`, heldGrammars.length >= 2, `${heldGrammars.length} · fewer than two baseline: true rows of GRAMMAR_REGISTRY (src/platform/grammars/grammarRegistry.ts) have their wasm and a sample here: fetch the grammar packs with bun run setup`)
   for (const g of heldGrammars) {
     const child = spawnSync(NODE, [join(scratch, 'trees.mjs'), engineDir, g.wasm, g.sample], { encoding: 'utf8', timeout: 180_000, env: process.env })
     let t: { clean?: boolean; heldEqualsFree?: boolean; freeStable?: boolean; nodes?: number } = {}
@@ -387,14 +387,14 @@ process.exit(0)
     } catch {
       t = {}
     }
-    check(`${g.name}: the tree parsed held is the tree parsed free, node for node, and clean`, t.clean === true && t.heldEqualsFree === true && t.freeStable === true && (t.nodes ?? 0) > 10, `${child.status} ${JSON.stringify(t)} ${(child.stderr ?? '').slice(-200)} · the tree parsed under withOptimisingTierHeld (src/utils/structure/wasmTiering.ts) differs from the free tree, or the parse had errors`)
+    check(`${g.name}: the tree parsed held is the tree parsed free, node for node, and clean`, t.clean === true && t.heldEqualsFree === true && t.freeStable === true && (t.nodes ?? 0) > 10, `${child.status} ${JSON.stringify(t)} ${(child.stderr ?? '').slice(-200)} · the tree parsed under withOptimisingTierHeld (src/platform/grammars/wasmTiering.ts) differs from the free tree, or the parse had errors`)
   }
   for (const g of heldGrammars) {
     const reading = sustained(g, 'held')
     check(
       `${g.name}: under sustained parsing with the hold the process stays within 150 MB of its size after the load${reading ? ` (${reading.afterLoadMb} MB to ${reading.peakMb} MB)` : ''}`,
       reading !== null && reading.peakMb - reading.afterLoadMb < 150,
-      `${JSON.stringify(reading)} · the hold in withOptimisingTierHeld (src/utils/structure/wasmTiering.ts) did not keep resident memory down for this grammar`,
+      `${JSON.stringify(reading)} · the hold in withOptimisingTierHeld (src/platform/grammars/wasmTiering.ts) did not keep resident memory down for this grammar`,
     )
   }
 }
@@ -640,7 +640,7 @@ end module tides${i}
   check(
     `the process's resident memory stays within 500 MB of where it stood before the Swift searches (${before} MB to ${after} MB)`,
     before > 0 && after > 0 && after - before < 500,
-    `${before} MB before, ${after} MB after · Swift parses grew the server process: the hold in src/utils/structure/grammarFacility.ts and src/utils/structure/wasmTiering.ts is not keeping the optimiser off`,
+    `${before} MB before, ${after} MB after · Swift parses grew the server process: the hold in src/platform/grammars/grammarFacility.ts and src/platform/grammars/wasmTiering.ts is not keeping the optimiser off`,
   )
   if (fortranCarried) {
     const beforeFortran = residentMb(a.pid)
@@ -652,7 +652,7 @@ end module tides${i}
     check(
       `and the process's resident memory stays within 500 MB of where it stood before the Fortran searches (${beforeFortran} MB to ${afterFortran} MB)`,
       beforeFortran > 0 && afterFortran > 0 && afterFortran - beforeFortran < 500,
-      `${beforeFortran} MB before, ${afterFortran} MB after · Fortran parses grew the server process: the hold in src/utils/structure/grammarFacility.ts and src/utils/structure/wasmTiering.ts is not keeping the optimiser off`,
+      `${beforeFortran} MB before, ${afterFortran} MB after · Fortran parses grew the server process: the hold in src/platform/grammars/grammarFacility.ts and src/platform/grammars/wasmTiering.ts is not keeping the optimiser off`,
     )
   }
   const tsAfter = [await a.search('console.log($X)', 'ts'), await a.search('console.log($X)', 'ts'), await a.search('console.log($X)', 'ts')]
@@ -661,32 +661,32 @@ end module tides${i}
   check(
     `a TypeScript search after the held parses is no slower than before them (${fastestBefore} ms, then ${fastestAfter} ms)`,
     tsAfter.every(r => r.matches === EXPECTED) && fastestAfter <= fastestBefore * 1.5 + 150,
-    `${fastestBefore} ms before, ${fastestAfter} ms after · a free grammar must keep its optimising tier after held parses: the tier is not put back, see withOptimisingTierHeld in src/utils/structure/wasmTiering.ts`,
+    `${fastestBefore} ms before, ${fastestAfter} ms after · a free grammar must keep its optimising tier after held parses: the tier is not put back, see withOptimisingTierHeld in src/platform/grammars/wasmTiering.ts`,
   )
-  check('a free grammar parsed first: no warm-up was needed', warmLines(a.stderr()) === 0, `${warmLines(a.stderr())} · the shared runtime was warmed for a free grammar, see the warm-up in src/utils/structure/grammarFacility.ts`)
+  check('a free grammar parsed first: no warm-up was needed', warmLines(a.stderr()) === 0, `${warmLines(a.stderr())} · the shared runtime was warmed for a free grammar, see the warm-up in src/platform/grammars/grammarFacility.ts`)
   await a.close()
 
   section('§4 — the warm-up: once a process, only when a held grammar is the first to parse')
   const b = await serve(project)
   const first = await b.search('print($X)', 'one')
   check('a held grammar parsed first finds its matches', first.matches === STEPS * 3, `${first.matches} · the AstSearch on the Swift file under a held grammar found the wrong number of matches`)
-  check('and the shared runtime was warmed once, by the first free grammar of the registry', warmLines(b.stderr()) === 1 && b.stderr().includes(`${WARM_LINE} python before the first held parse`), b.stderr().split('\n').filter(l => l.includes('grammar engine')).join(' | ').slice(0, 300) + ' · the warm-up in src/utils/structure/grammarFacility.ts must run once, with the first free grammar of the registry (python), before the first held parse')
+  check('and the shared runtime was warmed once, by the first free grammar of the registry', warmLines(b.stderr()) === 1 && b.stderr().includes(`${WARM_LINE} python before the first held parse`), b.stderr().split('\n').filter(l => l.includes('grammar engine')).join(' | ').slice(0, 300) + ' · the warm-up in src/platform/grammars/grammarFacility.ts must run once, with the first free grammar of the registry (python), before the first held parse')
   await b.search('print($X)', 'one')
   await b.search('console.log($X)', 'ts')
   await b.search('print($X)', 'one')
-  check('later parses, held or free, do not warm again', warmLines(b.stderr()) === 1, `${warmLines(b.stderr())} · the warm-up in src/utils/structure/grammarFacility.ts must run once per process and not again`)
+  check('later parses, held or free, do not warm again', warmLines(b.stderr()) === 1, `${warmLines(b.stderr())} · the warm-up in src/platform/grammars/grammarFacility.ts must run once per process and not again`)
   await b.close()
 
   section('§5 — off, cleanly: the one switch, and a node line that carries tiering flags of the user\'s own')
   const c = await serve(project, { MERCURY_GRAMMAR_BASELINE: '0' })
   const released = await c.search('print($X)', 'one')
   check('with MERCURY_GRAMMAR_BASELINE=0 the search answers the same', released.matches === STEPS * 3, `${released.matches} · the search under MERCURY_GRAMMAR_BASELINE=0 found the wrong number of matches`)
-  check('and nothing is held: no warm-up', warmLines(c.stderr()) === 0, `${warmLines(c.stderr())} · MERCURY_GRAMMAR_BASELINE=0 must turn the hold and its warm-up off, see src/utils/structure/grammarFacility.ts`)
+  check('and nothing is held: no warm-up', warmLines(c.stderr()) === 0, `${warmLines(c.stderr())} · MERCURY_GRAMMAR_BASELINE=0 must turn the hold and its warm-up off, see src/platform/grammars/grammarFacility.ts`)
   await c.close()
   const d = await serve(project, {}, ['--no-wasm-tier-up'])
   const own = await d.search('print($X)', 'one')
   check('with a tiering flag on the node line the search answers the same', own.matches === STEPS * 3, `${own.matches} · the search under a user tiering flag found the wrong number of matches`)
-  check('and Mercury leaves the user\'s flags alone: no warm-up, no hold', warmLines(d.stderr()) === 0, `${warmLines(d.stderr())} · a user tiering flag on the node line must switch the hold and its warm-up off, see optimisingTierCanBeHeld in src/utils/structure/wasmTiering.ts`)
+  check('and Mercury leaves the user\'s flags alone: no warm-up, no hold', warmLines(d.stderr()) === 0, `${warmLines(d.stderr())} · a user tiering flag on the node line must switch the hold and its warm-up off, see optimisingTierCanBeHeld in src/platform/grammars/wasmTiering.ts`)
   await d.close()
 }
 

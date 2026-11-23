@@ -33,18 +33,18 @@ const script = {
 const spawned: Spawned[] = []
 const said: string[] = []
 
-const handover = await import('../../src/daemon/handover.ts')
-const daemonBuild = await import('../../src/daemon/daemonBuild.ts')
-const ownerWatch = await import('../../src/utils/ownerWatch.ts')
-const auth = await import('../../src/utils/auth.ts')
+const handover = await import('../../src/daemon/control/handover.ts')
+const daemonBuild = await import('../../src/daemon/control/daemonBuild.ts')
+const ownerWatch = await import('../../src/daemon/control/ownerWatch.ts')
+const auth = await import('../../src/models/sign-in/credentials/auth.ts')
 const childProcess = await import('node:child_process')
-const { currentVersion } = await import('../../src/daemon/controlSocket.ts')
-const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
-const { STORED_TOKEN_SCRUB_VARS } = await import('../../src/utils/subprocessEnv.ts')
-mock.module('../../src/daemon/handover.ts', () => ({ ...handover, deployedRuntime: () => script.deployed }))
-mock.module('../../src/daemon/daemonBuild.ts', () => ({ ...daemonBuild, selfScriptPath: () => script.own, resolveScriptPath: (path: string | undefined) => path ?? '', nodeForBuild: (dir: string) => `${dir}/node` }))
-mock.module('../../src/utils/ownerWatch.ts', () => ({ ...ownerWatch, isProcessAlive: (pid: number) => script.alive(pid) }))
-mock.module('../../src/utils/auth.ts', () => ({ ...auth, hasStoredOAuthToken: () => script.stored }))
+const { currentVersion } = await import('../../src/daemon/control/controlSocket.ts')
+const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/control/protocol.ts')
+const { STORED_TOKEN_SCRUB_VARS } = await import('../../src/platform/processes/subprocessEnv.ts')
+mock.module('../../src/daemon/control/handover.ts', () => ({ ...handover, deployedRuntime: () => script.deployed }))
+mock.module('../../src/daemon/control/daemonBuild.ts', () => ({ ...daemonBuild, selfScriptPath: () => script.own, resolveScriptPath: (path: string | undefined) => path ?? '', nodeForBuild: (dir: string) => `${dir}/node` }))
+mock.module('../../src/daemon/control/ownerWatch.ts', () => ({ ...ownerWatch, isProcessAlive: (pid: number) => script.alive(pid) }))
+mock.module('../../src/models/sign-in/credentials/auth.ts', () => ({ ...auth, hasStoredOAuthToken: () => script.stored }))
 mock.module('node:child_process', () => ({
   ...childProcess,
   spawn: (node: string, args: string[], options: Spawned['options']) => {
@@ -55,7 +55,7 @@ mock.module('node:child_process', () => ({
 
 const restart = await import('../../src/daemon/run/restart.ts')
 const { makeDaemonRunState } = await import('../../src/daemon/run/state.ts')
-const { DaemonBreaker } = await import('../../src/utils/daemonBreaker.ts')
+const { DaemonBreaker } = await import('../../src/daemon/control/daemonBreaker.ts')
 
 const counts = { live: 0, liveSessions: 0, read: 0, asked: 0 }
 const shutdowns: string[] = []

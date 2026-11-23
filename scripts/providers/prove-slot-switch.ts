@@ -18,14 +18,14 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
-  if (!ok && !detail) console.log('    what to change: switchActiveSlot or slotSeatView in src/services/providers/slotSwitch.ts (the receipt text, the refusal or the wall view this label names), or the reads and writes this section passes in')
+  if (!ok && !detail) console.log('    what to change: switchActiveSlot or slotSeatView in src/models/roads/slotSwitch.ts (the receipt text, the refusal or the wall view this label names), or the reads and writes this section passes in')
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { slotSeatView, switchActiveSlot } = await import('../../src/services/providers/slotSwitch.ts')
-type Reads = import('../../src/services/providers/slotSwitch.ts').SlotSwitchReads
+const { slotSeatView, switchActiveSlot } = await import('../../src/models/roads/slotSwitch.ts')
+type Reads = import('../../src/models/roads/slotSwitch.ts').SlotSwitchReads
 
 section('§A openai — the pair flips; refusals are typed')
 {
@@ -202,11 +202,11 @@ section("§C2 an unobservable wall is UNKNOWN, never invented headroom (FN-016 R
 section('§D mid-session — the seat is read at turn start; a flip moves the resolver now')
 {
   const { writePreferredOpenaiSource, resolveOpenaiAccount } = await import(
-    '../../src/services/providers/openai/openaiAccounts.ts'
+    '../../src/models/roads/openai/openaiAccounts.ts'
   )
   process.env.OPENAI_API_KEY = 'sk-proof-openai-key-000000'
   writePreferredOpenaiSource('api-key')
-  check('a written preference is the very next resolution (no restart, no cache)', resolveOpenaiAccount()?.kind === 'api-key', 'writePreferredOpenaiSource and resolveOpenaiAccount in src/services/providers/openai/openaiAccounts.ts must make a written preference the very next resolution, with no cache between them')
+  check('a written preference is the very next resolution (no restart, no cache)', resolveOpenaiAccount()?.kind === 'api-key', 'writePreferredOpenaiSource and resolveOpenaiAccount in src/models/roads/openai/openaiAccounts.ts must make a written preference the very next resolution, with no cache between them')
   writePreferredOpenaiSource(null)
   delete process.env.OPENAI_API_KEY
 }

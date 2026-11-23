@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands/memory/memory.tsx src/components/memory/MemoryCentreView.tsx src/components/memory/memoryCentreLayout.ts src/mneme/mnemeConsolidate.ts src/mneme/mnemeMaintenance.ts src/services/engine-connector/focusedConnector.ts
+// gate-watch: src/commands/memory/memory.tsx src/screen/memory/MemoryCentreView.tsx src/screen/memory/memoryCentreLayout.ts src/sessions/mneme/mnemeConsolidate.ts src/sessions/mneme/mnemeMaintenance.ts src/engine/connector/focusedConnector.ts
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -21,7 +21,7 @@ if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let checks = 0
 let failures = 0
-const COUNTS_FIX_HINT = 'maintenanceRow and the lineage rows in src/components/memory/memoryCentreLayout.ts, the overview and lineage table in src/components/memory/MemoryCentreView.tsx, runDueMaintenance in src/mneme/mnemeMaintenance.ts (first run in an empty project), the stats text in call in src/commands/memory/memory.tsx, the ledger rows in src/mneme/ledger.ts'
+const COUNTS_FIX_HINT = 'maintenanceRow and the lineage rows in src/screen/memory/memoryCentreLayout.ts, the overview and lineage table in src/screen/memory/MemoryCentreView.tsx, runDueMaintenance in src/sessions/mneme/mnemeMaintenance.ts (first run in an empty project), the stats text in call in src/commands/memory/memory.tsx, the ledger rows in src/sessions/mneme/ledger.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
@@ -35,7 +35,7 @@ const save = (name: string, lines: string[]): void => {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const layout = await import('../../src/components/memory/memoryCentreLayout.ts')
+const layout = await import('../../src/screen/memory/memoryCentreLayout.ts')
 
 section('§0 the layout: the maintenance row dates its newest run')
 {
@@ -45,15 +45,15 @@ section('§0 the layout: the maintenance row dates its newest run')
   check('no run yet reads a dash and no run yet', none.newest === '—' && none.detail === 'no run yet' && none.count === 'none', j(none))
 }
 
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(c => ({ ...c, prStatusFooterEnabled: false }))
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ memory: { journal: false } }))
 resetSettingsCache()
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { runDueMaintenance, readMaintenanceReceipts } = await import('../../src/mneme/mnemeMaintenance.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { runDueMaintenance, readMaintenanceReceipts } = await import('../../src/sessions/mneme/mnemeMaintenance.ts')
 const dir = mnemeLibraryDir()
 
 section('§1 the first forced maintenance run in a project with no memory folder yet does its tidy-up and says so')
@@ -74,11 +74,11 @@ section('§2 /memory stats pluralises')
   check('no "(s)" or "(ies)" on the user\'s screen', !/\(s\)|\(ies\)/.test(text) && /buffer: 0 rows/.test(text) && /0 topic pages · 0 live facts · 0 in history/.test(text), text)
 }
 
-const { openEntry, closeEntry, readLedger } = await import('../../src/mneme/ledger.ts')
-const { mnemeProjectKey } = await import('../../src/mneme/paths.ts')
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
-const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+const { openEntry, closeEntry, readLedger } = await import('../../src/sessions/mneme/ledger.ts')
+const { mnemeProjectKey } = await import('../../src/sessions/mneme/paths.ts')
+const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
+const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
 const key = mnemeProjectKey()
 const HOSTED = '7d2b4c1e-0f3a-4b8c-9d6e-aa11bb22cc33'
 check('the hosted chat\'s id is not this process\'s bootstrap id', HOSTED !== String(getSessionId()))
@@ -91,16 +91,16 @@ setFocusedSessionConnector(new Proxy(resting, { get: (target, prop) => (prop ===
 
 const React = await import('react')
 const h = React.createElement
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const settingsStore = await import('../../src/utils/cockpit/settingsPopup.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const settingsStore = await import('../../src/screen/cockpit/settingsPopup.ts')
 const memoryCommand = await import('../../src/commands/memory/memory.tsx')
 
 function Harness({ columns }: { columns: number }): React.ReactNode {

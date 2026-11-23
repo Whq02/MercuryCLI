@@ -2,7 +2,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
-import type { DOMElement } from '../../src/ink.js'
+import type { DOMElement } from '../../src/screen/themedRenderer.js'
 
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
@@ -15,22 +15,22 @@ const frameDir = ((): string | undefined => {
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let failures = 0
-const SHORT_HOST_WHERE = 'the popup size and compact fold come from settingsPopupGeometry in src/components/SettingsPopupSlot.tsx, the hint and header words from src/utils/cockpit/settingsPopup.ts, and the /config rows from src/components/Settings/Config.tsx'
+const SHORT_HOST_WHERE = 'the popup size and compact fold come from settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx, the hint and header words from src/screen/cockpit/settingsPopup.ts, and the /config rows from src/screen/settings/Config.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${ok ? '' : `${detail ? ' | ' : ' — '}${SHORT_HOST_WHERE}`}`)
 }
 
 const React = await import('react')
-const { Box, Text } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const slot = await import('../../src/components/SettingsPopupSlot.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const slot = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
-const { CONFIG_POPUP_HINT, CONFIG_ROW_MARK, CONFIG_SEARCH_PLACEHOLDER } = await import('../../src/components/Settings/Config.js')
+const { CONFIG_POPUP_HINT, CONFIG_ROW_MARK, CONFIG_SEARCH_PLACEHOLDER } = await import('../../src/screen/settings/Config.js')
 const { SETTINGS_POPUP_COMPACT_PAGE_HINT } = store
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 type Scene = { columns: number; rows: number; bottom: number }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/providers/local/schemaTyping.ts src/services/providers/toolCallGate.ts src/services/tools/toolExecution.ts src/services/providers/openaicompat/compatChatCallModel.ts src/services/providers/openai/openaiCallModel.ts src/services/providers/zai/zaiCallModel.ts
+// gate-watch: src/models/roads/local/schemaTyping.ts src/models/roads/toolCallGate.ts src/engine/tool-dispatch/toolExecution.ts src/models/roads/openaicompat/compatChatCallModel.ts src/models/roads/openai/openaiCallModel.ts src/models/roads/zai/zaiCallModel.ts
 import { z } from 'zod/v4'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -7,7 +7,7 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 let checks = 0
-const REPAIR_FAIL_HINT = 'to fix, change the typing walker repairArgumentsBySchema in src/services/providers/local/schemaTyping.ts, the gate (gateToolCall, repairToolInput) in src/services/providers/toolCallGate.ts, or the executor road (runToolUse) in src/services/tools/toolExecution.ts'
+const REPAIR_FAIL_HINT = 'to fix, change the typing walker repairArgumentsBySchema in src/models/roads/local/schemaTyping.ts, the gate (gateToolCall, repairToolInput) in src/models/roads/toolCallGate.ts, or the executor road (runToolUse) in src/engine/tool-dispatch/toolExecution.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -17,11 +17,11 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { repairArgumentsBySchema } = await import('../../src/services/providers/local/schemaTyping.ts')
-const { gateToolCall, repairToolInput } = await import('../../src/services/providers/toolCallGate.ts')
-const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { repairArgumentsBySchema } = await import('../../src/models/roads/local/schemaTyping.ts')
+const { gateToolCall, repairToolInput } = await import('../../src/models/roads/toolCallGate.ts')
+const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 type Schema = Record<string, unknown>

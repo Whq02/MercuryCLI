@@ -26,13 +26,13 @@ if (RESPAWNED === undefined) {
 delete process.env.MERCURY_HOME
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { shellSelfProtectionReason } = await import(`${SRC}/utils/permissions/shellProtectedPaths.ts`)
+const { shellSelfProtectionReason } = await import(`${SRC}/permissions/rules/shellProtectedPaths.ts`)
 const project = join(RESPAWNED, 'project')
 const reason = (command: string): Promise<string | null> => shellSelfProtectionReason(command, false, project)
 
 let failures = 0
 let checks = 0
-const KILL_GUARD_FAIL_HINT = 'to fix: shellSelfProtectionReason in src/utils/permissions/shellProtectedPaths.ts decides; the kill and pkill rules (which words are operands, which are a redirect target, and the image refusal text) are runtimeProcessRefusal and operandsBeforeRedirect in src/utils/permissions/runtimeProtection.ts'
+const KILL_GUARD_FAIL_HINT = 'to fix: shellSelfProtectionReason in src/permissions/rules/shellProtectedPaths.ts decides; the kill and pkill rules (which words are operands, which are a redirect target, and the image refusal text) are runtimeProcessRefusal and operandsBeforeRedirect in src/permissions/rules/runtimeProtection.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks += 1
   if (!ok) failures += 1

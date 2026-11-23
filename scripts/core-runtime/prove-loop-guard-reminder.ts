@@ -24,32 +24,32 @@ for (const k of [
   delete process.env[k]
 }
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import(
-  '../../src/utils/messages/factories.ts'
+  '../../src/engine/message-shapes/factories.ts'
 )
-const { normalizeMessagesForAPI } = await import('../../src/services/messages/apiView.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const queueStore = await import('../../src/input-core/command-queue.ts')
+const { normalizeMessagesForAPI } = await import('../../src/engine/messages/apiView.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const queueStore = await import('../../src/screen/composer/input-core/command-queue.ts')
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — change the loop guard in src/services/tools/loopGuard.ts (recordToolCall counts the repeats, closeRound decides the reminder and its wording), not this check'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — change the loop guard in src/engine/tool-dispatch/loopGuard.ts (recordToolCall counts the repeats, closeRound decides the reminder and its wording), not this check'}`)
   if (!cond) failures++
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — loop-guard reminder prover exceeded 120s; a scripted turn never settled, look at src/services/tools/loopGuard.ts and the section printed last')
+  console.log('\nTIMEOUT — loop-guard reminder prover exceeded 120s; a scripted turn never settled, look at src/engine/tool-dispatch/loopGuard.ts and the section printed last')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()

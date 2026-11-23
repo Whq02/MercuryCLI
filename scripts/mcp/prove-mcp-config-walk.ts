@@ -10,18 +10,18 @@ process.env.MERCURY_CONFIG_DIR = CONFIG_DIR
 const PROJ = mkdtempSync(join(tmpdir(), 'mcp-walk-proj-'))
 
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } =
-  await import('../../src/utils/config.ts')
+  await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(PROJ)
 bootstrap.setProjectRoot(PROJ)
-const { setCwd } = await import('../../src/utils/Shell.ts')
+const { setCwd } = await import('../../src/platform/shell/shellExec.ts')
 await setCwd(PROJ)
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | change the scope walk getMercuryMcpConfigs in src/services/mcp/config.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | change the scope walk getMercuryMcpConfigs in src/integrations/mcp/serverConfigs.ts'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -29,7 +29,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — mcp config walk exceeded 60s; look for a hang in getMercuryMcpConfigs in src/services/mcp/config.ts')
+  console.log('\n❌ TIMEOUT — mcp config walk exceeded 60s; look for a hang in getMercuryMcpConfigs in src/integrations/mcp/serverConfigs.ts')
   process.exit(1)
 }, 60_000)
 guard.unref?.()
@@ -71,7 +71,7 @@ saveCurrentProjectConfig(current => ({
   mcpServers: { dup: stdio('local-dup-cmd') } as never,
 }))
 
-const { getMercuryMcpConfigs: walkUntrusted } = await import('../../src/services/mcp/config.ts')
+const { getMercuryMcpConfigs: walkUntrusted } = await import('../../src/integrations/mcp/serverConfigs.ts')
 
 console.log('============================================================')
 console.log(' getMercuryMcpConfigs — the io precedence walk')
@@ -84,7 +84,7 @@ section('W2a — FC-144: no trust record, no project server, approval or not')
 }
 saveCurrentProjectConfig(current => ({ ...current, hasTrustDialogAccepted: true }))
 
-const { getMercuryMcpConfigs } = await import('../../src/services/mcp/config.ts')
+const { getMercuryMcpConfigs } = await import('../../src/integrations/mcp/serverConfigs.ts')
 
 section('W1–W5 — the hermetic walk (trusted workspace)')
 {

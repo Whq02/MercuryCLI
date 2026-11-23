@@ -28,8 +28,8 @@ writeFileSync(
 )
 process.env.MERCURY_DAP_ADAPTERS_FILE = adaptersFile
 
-const { createDapSession, removeDapSession } = await import('../../src/services/dap/dapClient.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { createDapSession, removeDapSession } = await import('../../src/integrations/debugger/dapClient.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 const program = path.join(scratch, 'probe.nvb')
 writeFileSync(program, 'x')
 
@@ -57,15 +57,15 @@ check(
   "the failure names the TRANSPORT: 'adapter never opened 127.0.0.1:<port>'",
   /adapter never opened 127\.0\.0\.1:\d+/.test(outcome),
   outcome.slice(0, 160),
-  'the tcp dial in src/services/dap/client/wire.ts must throw adapter never opened <host>:<port> when the adapter never listens',
+  'the tcp dial in src/integrations/debugger/client/wire.ts must throw adapter never opened <host>:<port> when the adapter never listens',
 )
 check(
   'the generic protocol timeout never wins the race',
   !/initialize timed out/.test(outcome),
   outcome.slice(0, 120),
-  'the tcp dial deadline in src/services/dap/client/wire.ts must fire before the generic request timeout',
+  'the tcp dial deadline in src/integrations/debugger/client/wire.ts must fire before the generic request timeout',
 )
-check(`the transport verdict lands inside the request window (${elapsed}ms < 8000ms)`, elapsed < 8000, String(elapsed), 'shorten the tcp dial deadline in src/services/dap/client/wire.ts or the start path in src/services/dap/client/start.ts so the transport verdict lands inside 8000ms')
+check(`the transport verdict lands inside the request window (${elapsed}ms < 8000ms)`, elapsed < 8000, String(elapsed), 'shorten the tcp dial deadline in src/integrations/debugger/client/wire.ts or the start path in src/integrations/debugger/client/start.ts so the transport verdict lands inside 8000ms')
 
 console.log(failures === 0 ? '\nprove-dap-tcp-honesty: all green' : `\nprove-dap-tcp-honesty: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

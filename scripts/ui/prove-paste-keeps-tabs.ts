@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/PromptInput/useComposerAttachments.ts src/input-core/composer-document.ts src/utils/pasteStore.ts
+// gate-watch: src/screen/composer/useComposerAttachments.ts src/screen/composer/input-core/composer-document.ts src/sessions/pasteStore.ts
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor } from '../lib/settingsPopupHarness.ts'
@@ -26,31 +26,31 @@ function section(title: string): void {
   console.log(`\n${title}`)
 }
 
-const document = await import('../../src/input-core/composer-document.ts')
+const document = await import('../../src/screen/composer/input-core/composer-document.ts')
 section('§1 the rules: the line rule keeps tabs, the composer rule expands them')
 {
   const raw = 'TAB1\tcolB\r\nTAB2\tcolB\r\nTAB3\tcolB'
   const lines = (document as Record<string, unknown>).normalizePastedLines as ((raw: string) => string) | undefined
-  check('the line rule folds CRLF and keeps every tab', lines !== undefined && lines(raw) === 'TAB1\tcolB\nTAB2\tcolB\nTAB3\tcolB', lines === undefined ? 'no line rule' : JSON.stringify(lines(raw)), 'normalizePastedLines in src/input-core/composer-document.ts must be exported, fold CRLF to LF and leave tabs alone')
-  check('the composer rule still expands tabs for the text field', document.normalizePastedInput(raw) === 'TAB1    colB\nTAB2    colB\nTAB3    colB', JSON.stringify(document.normalizePastedInput(raw)), 'normalizePastedInput in src/input-core/composer-document.ts must apply normalizePastedLines and then expand each tab to four spaces')
+  check('the line rule folds CRLF and keeps every tab', lines !== undefined && lines(raw) === 'TAB1\tcolB\nTAB2\tcolB\nTAB3\tcolB', lines === undefined ? 'no line rule' : JSON.stringify(lines(raw)), 'normalizePastedLines in src/screen/composer/input-core/composer-document.ts must be exported, fold CRLF to LF and leave tabs alone')
+  check('the composer rule still expands tabs for the text field', document.normalizePastedInput(raw) === 'TAB1    colB\nTAB2    colB\nTAB3    colB', JSON.stringify(document.normalizePastedInput(raw)), 'normalizePastedInput in src/screen/composer/input-core/composer-document.ts must apply normalizePastedLines and then expand each tab to four spaces')
 }
 
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(c => ({ ...c, prStatusFooterEnabled: false }))
 const React = await import('react')
 const h = React.createElement
-const { Box, Text, ThemeProvider } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const pending = await import('../../src/input-core/pending-input.ts')
+const { Box, Text, ThemeProvider } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
 
 function Harness({ columns }: { columns: number }): React.ReactNode {
   const [vimMode, setVimMode] = React.useState<'INSERT' | 'NORMAL'>('INSERT')
@@ -89,17 +89,17 @@ section('§2 the composer at 120x40: a pasted chip keeps the bytes the model rea
   const pasted = 'TAB1\tcolB\r\nTAB2\tcolB\r\nTAB3\tcolB\r\nTAB4\tcolB'
   m.push(`\x1b[200~${pasted}\x1b[201~`)
   const chip = await waitFor(() => /Pasted text #\d+ \+\d+ lines/.test(m.screen()), 8000)
-  check('four pasted lines become a chip in the composer', chip, m.lines().filter(l => l.includes('Pasted') || l.includes('TAB')).join(' | '), 'handleTextPaste in src/components/PromptInput/useComposerAttachments.ts must turn a paste over the line cap into a Pasted text chip')
+  check('four pasted lines become a chip in the composer', chip, m.lines().filter(l => l.includes('Pasted') || l.includes('TAB')).join(' | '), 'handleTextPaste in src/screen/composer/useComposerAttachments.ts must turn a paste over the line cap into a Pasted text chip')
   const store = join(HOME, 'paste-cache')
   const stored = await waitFor(() => existsSync(store) && readdirSync(store).some(name => name.endsWith('.txt')), 6000)
-  check('the paste store holds the chip', stored, existsSync(store) ? readdirSync(store).join(',') : 'no store', 'the chip content must be written as a .txt file under paste-cache in the config home by src/utils/pasteStore.ts, called from handleTextPaste in src/components/PromptInput/useComposerAttachments.ts')
+  check('the paste store holds the chip', stored, existsSync(store) ? readdirSync(store).join(',') : 'no store', 'the chip content must be written as a .txt file under paste-cache in the config home by src/sessions/pasteStore.ts, called from handleTextPaste in src/screen/composer/useComposerAttachments.ts')
   const files = stored ? readdirSync(store).filter(name => name.endsWith('.txt')) : []
   const content = files.length > 0 ? readFileSync(join(store, files[0]!), 'utf8') : ''
-  check('the stored content keeps every tab and folds CRLF to LF: byte for byte what was pasted', content === 'TAB1\tcolB\nTAB2\tcolB\nTAB3\tcolB\nTAB4\tcolB', JSON.stringify(content), 'handleTextPaste in src/components/PromptInput/useComposerAttachments.ts must store the text from normalizePastedLines (tabs kept), not the tab-expanded text')
+  check('the stored content keeps every tab and folds CRLF to LF: byte for byte what was pasted', content === 'TAB1\tcolB\nTAB2\tcolB\nTAB3\tcolB\nTAB4\tcolB', JSON.stringify(content), 'handleTextPaste in src/screen/composer/useComposerAttachments.ts must store the text from normalizePastedLines (tabs kept), not the tab-expanded text')
   const held = pending.pastedContents()
   const first = Object.values(held)[0] as { content?: string } | undefined
-  check('the composer’s own record of the paste carries the tabs too', first?.content === 'TAB1\tcolB\nTAB2\tcolB\nTAB3\tcolB\nTAB4\tcolB', JSON.stringify(first?.content), 'the PastedContent entry built in handleTextPaste in src/components/PromptInput/useComposerAttachments.ts must carry the exact text with tabs')
-  check('the composer text shows the chip reference, never four spaces', !m.screen().includes('TAB1    colB'), m.lines().filter(l => l.includes('TAB1')).join(' | '), 'the composer must show the chip reference for a long paste (handleTextPaste in src/components/PromptInput/useComposerAttachments.ts), not the expanded text')
+  check('the composer’s own record of the paste carries the tabs too', first?.content === 'TAB1\tcolB\nTAB2\tcolB\nTAB3\tcolB\nTAB4\tcolB', JSON.stringify(first?.content), 'the PastedContent entry built in handleTextPaste in src/screen/composer/useComposerAttachments.ts must carry the exact text with tabs')
+  check('the composer text shows the chip reference, never four spaces', !m.screen().includes('TAB1    colB'), m.lines().filter(l => l.includes('TAB1')).join(' | '), 'the composer must show the chip reference for a long paste (handleTextPaste in src/screen/composer/useComposerAttachments.ts), not the expanded text')
   m.unmount()
   resetOverlayStackForTests()
 }
@@ -120,11 +120,11 @@ for (const [label, payload, composedForm] of [['a Latin letter and its combining
   await settle(200)
   m.push(`\x1b[200~${payload}\x1b[201~`)
   const pasted = await waitFor(() => pending.text() === `ab${composedForm}XY`, 4000)
-  check(`${label}: the pasted draft is stored in NFC`, pasted, JSON.stringify(pending.text()), 'a bracketed paste into the composer must be normalized to NFC before it is written to the draft; look at handleTextPaste in src/components/PromptInput/useComposerAttachments.ts and normalizePastedLines in src/input-core/composer-document.ts')
+  check(`${label}: the pasted draft is stored in NFC`, pasted, JSON.stringify(pending.text()), 'a bracketed paste into the composer must be normalized to NFC before it is written to the draft; look at handleTextPaste in src/screen/composer/useComposerAttachments.ts and normalizePastedLines in src/screen/composer/input-core/composer-document.ts')
   await settle(200)
   m.push('Z')
   const typed = await waitFor(() => pending.text().includes('Z'), 4000)
-  check(`${label}: the letter typed after the paste follows the pasted text`, typed && pending.text() === `ab${composedForm}ZXY`, JSON.stringify(pending.text()), 'after a paste the caret must land after the pasted text; look at the cursor offset set in handleTextPaste in src/components/PromptInput/useComposerAttachments.ts')
+  check(`${label}: the letter typed after the paste follows the pasted text`, typed && pending.text() === `ab${composedForm}ZXY`, JSON.stringify(pending.text()), 'after a paste the caret must land after the pasted text; look at the cursor offset set in handleTextPaste in src/screen/composer/useComposerAttachments.ts')
   m.unmount()
   resetOverlayStackForTests()
 }
@@ -139,7 +139,7 @@ for (const payload of ['first line\nsecond\tcol2\tcol3\nthird', 'first\n\tsecond
   await waitFor(() => m.screen().includes('transcript row'), 8000)
   await settle(300)
   m.push(payload)
-  check('an unbracketed paste expands tabs rather than dropping them and remains inline', await waitFor(() => pending.text() === payload.replaceAll('\t', '    '), 4000), JSON.stringify(pending.text()), 'an unbracketed multiline paste must reach the draft inline with tabs expanded to four spaces; look at handleTextPaste in src/components/PromptInput/useComposerAttachments.ts')
+  check('an unbracketed paste expands tabs rather than dropping them and remains inline', await waitFor(() => pending.text() === payload.replaceAll('\t', '    '), 4000), JSON.stringify(pending.text()), 'an unbracketed multiline paste must reach the draft inline with tabs expanded to four spaces; look at handleTextPaste in src/screen/composer/useComposerAttachments.ts')
   m.unmount()
   resetOverlayStackForTests()
 }

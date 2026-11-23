@@ -17,15 +17,15 @@ delete process.env.MERCURY_CRITTER
 mkdirSync(HOME, { recursive: true })
 
 const React = (await import('react')).default
-const { render } = await import(join(ROOT, 'src/ink.ts'))
-const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
-const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
-const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+const { render } = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
+const { AppStateProvider } = await import(join(ROOT, 'src/screen/app-state/AppState.tsx'))
+const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/AppStateStore.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
-const { noSessionConnector } = await import(join(ROOT, 'src/services/engine-connector/noSessionConnector.ts'))
-const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import(join(ROOT, 'src/services/engine-connector/focusedConnector.ts'))
-const tracker = await import(join(ROOT, 'src/cost-tracker.ts'))
-const { DeckPane } = await import(join(ROOT, 'src/components/DeckPane.tsx'))
+const { noSessionConnector } = await import(join(ROOT, 'src/engine/connector/noSessionConnector.ts'))
+const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import(join(ROOT, 'src/engine/connector/focusedConnector.ts'))
+const tracker = await import(join(ROOT, 'src/models/usage/sessionCost.ts'))
+const { DeckPane } = await import(join(ROOT, 'src/screen/deck-pane/DeckPane.tsx'))
 const h = React.createElement
 
 let failures = 0
@@ -72,12 +72,12 @@ const diffOf = (frame: string): string => /(?:diff\s+)?\+(\d+)\s*\/\s*-(\d+)/.ex
 
 section('§1 the ground: the cockpit process edited nothing; the focused session\'s runner reports +42/-7')
 focusOnRunner()
-check('the cockpit\'s own ledger is empty (nothing was edited in this process)', tracker.getTotalLinesAdded() === 0 && tracker.getTotalLinesRemoved() === 0, `the process ledger reads +${tracker.getTotalLinesAdded()}/-${tracker.getTotalLinesRemoved()}; the proof setup must not edit lines in this process (src/cost-tracker.ts counts them)`)
+check('the cockpit\'s own ledger is empty (nothing was edited in this process)', tracker.getTotalLinesAdded() === 0 && tracker.getTotalLinesRemoved() === 0, `the process ledger reads +${tracker.getTotalLinesAdded()}/-${tracker.getTotalLinesRemoved()}; the proof setup must not edit lines in this process (src/models/usage/sessionCost.ts counts them)`)
 
 section('§2 the deck pane paints the session\'s own diff and spend')
 {
   const frame = await paint(h(DeckPane as never, {}), 140, 40)
-  check('RED ON THE BASE: the deck pane\'s diff chip reads the runner\'s +42/-7, never the cockpit process\'s +0/-0', diffOf(frame) === '42/7', diffOf(frame) + ' · ' + (frame.split('\n').find(l => /\+\d+\/-\d+/.test(l))?.trim() ?? frame.slice(0, 200)) + ' · the chip must read getFocusedSessionConnector().usage() totalLinesAdded and totalLinesRemoved in src/components/DeckPane.tsx, not the cost-tracker line counts of this process')
+  check('RED ON THE BASE: the deck pane\'s diff chip reads the runner\'s +42/-7, never the cockpit process\'s +0/-0', diffOf(frame) === '42/7', diffOf(frame) + ' · ' + (frame.split('\n').find(l => /\+\d+\/-\d+/.test(l))?.trim() ?? frame.slice(0, 200)) + ' · the chip must read getFocusedSessionConnector().usage() totalLinesAdded and totalLinesRemoved in src/screen/deck-pane/DeckPane.tsx, not the cost-tracker line counts of this process')
 }
 
 

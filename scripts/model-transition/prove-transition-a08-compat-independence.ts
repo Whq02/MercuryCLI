@@ -12,17 +12,17 @@ delete process.env.MERCURY_INSTRUCTION_PROFILE
 delete process.env.MERCURY_EFFORT_LEVEL
 
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const model = await import('../../src/services/model/model.ts')
-const caps = await import('../../src/utils/model/capabilities.ts')
-const effort = await import('../../src/utils/effort.ts')
-const router = await import('../../src/services/providers/callModelRouter.ts')
-const profile = await import('../../src/services/instructions/profile.ts')
+const model = await import('../../src/models/catalogue/engineModel.ts')
+const caps = await import('../../src/models/facts/capabilities.ts')
+const effort = await import('../../src/models/effort/effort.ts')
+const router = await import('../../src/models/roads/callModelRouter.ts')
+const profile = await import('../../src/sessions/instructions/profile.ts')
 
 let failures = 0
-const failureWhere = 'resolveRequestedInstructionProfile and setSessionInstructionProfile in src/services/instructions/profile.ts must only change the instruction profile; keep the model getters in src/services/model/model.ts, the capabilities in src/utils/model/capabilities.ts, resolveEffortTruth in src/utils/effort.ts and classifyModelRoute in src/services/providers/callModelRouter.ts from reading the profile'
+const failureWhere = 'resolveRequestedInstructionProfile and setSessionInstructionProfile in src/sessions/instructions/profile.ts must only change the instruction profile; keep the model getters in src/models/catalogue/engineModel.ts, the capabilities in src/models/facts/capabilities.ts, resolveEffortTruth in src/models/effort/effort.ts and classifyModelRoute in src/models/roads/callModelRouter.ts from reading the profile'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + failureWhere : ''}`)

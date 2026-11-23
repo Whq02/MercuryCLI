@@ -30,21 +30,21 @@ const { startOverflowFixture } = await import('./overflowFixture.ts')
 type Captured = import('./overflowFixture.ts').Captured
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { refreshGeminiCatalogue } = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
-const { getAutoCompactThreshold, getBlockingLimit } = await import('../../src/services/compact/autoCompact.ts')
-const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
-const { requestGaugeDigest } = await import('../../src/services/run/requestGauge.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { compactConversation, buildPostCompactMessages, PROSE_SKIPPED_KEY } = await import('../../src/services/compact/compact.ts')
-const { loadTranscriptFromFile } = await import('../../src/utils/sessionStorage/logs.ts')
-type Message = import('../../src/types/message.ts').Message
+const { refreshGeminiCatalogue } = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
+const { getAutoCompactThreshold, getBlockingLimit } = await import('../../src/engine/compaction/autoFold.ts')
+const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { requestGaugeDigest } = await import('../../src/engine/run/requestGauge.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+const { compactConversation, buildPostCompactMessages, PROSE_SKIPPED_KEY } = await import('../../src/engine/compaction/foldConversation.ts')
+const { loadTranscriptFromFile } = await import('../../src/sessions/transcripts/sessionListings.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const SHAPE_PATH = join(import.meta.dir, 'fixtures', 'argon-seat-shape-2026-10-17.json')
 const shape = JSON.parse(readFileSync(SHAPE_PATH, 'utf8')) as { model: string; window: number; rows: Array<Record<string, unknown>> }
@@ -177,27 +177,27 @@ async function replay(label: string, messages: Message[]): Promise<void> {
   const gauge = tokenCountWithEstimation(messages, MODEL)
   const overTheLimit = gauge > getBlockingLimit(MODEL)
   record(`${label}: ${messages.length} messages; the gauge reads ${gauge.toLocaleString('en-US')} tokens on a ${WINDOW.toLocaleString('en-US')}-token window (fold threshold ${getAutoCompactThreshold(MODEL).toLocaleString('en-US')}, blocking limit ${getBlockingLimit(MODEL).toLocaleString('en-US')}) — ${overTheLimit ? 'over the blocking limit: rung 1 pre-fits the summariser\'s input' : 'under the blocking limit: the whole conversation is sent first, rung 2 halves it when the model answers nothing'}`)
-  check(`${label}: the window resolved from the catalogue`, getContextWindowForModel(MODEL) === WINDOW, `${String(getContextWindowForModel(MODEL))} — make getContextWindowForModel in src/utils/model/capabilities.ts return the catalogue window for this model, or fix the fixture window in fixtures/argon-seat-shape-2026-10-17.json`)
-  check(`${label}: the conversation stands between the fold threshold and the window, as the dead seat did`, gauge > 950_000 && gauge < WINDOW, `${String(gauge)} — the gauge must read between 950,000 and the window; check tokenCountWithEstimation in src/services/context/tokens.ts and the shape rows in fixtures/argon-seat-shape-2026-10-17.json`)
+  check(`${label}: the window resolved from the catalogue`, getContextWindowForModel(MODEL) === WINDOW, `${String(getContextWindowForModel(MODEL))} — make getContextWindowForModel in src/models/facts/capabilities.ts return the catalogue window for this model, or fix the fixture window in fixtures/argon-seat-shape-2026-10-17.json`)
+  check(`${label}: the conversation stands between the fold threshold and the window, as the dead seat did`, gauge > 950_000 && gauge < WINDOW, `${String(gauge)} — the gauge must read between 950,000 and the window; check tokenCountWithEstimation in src/engine/context-window/contextTokenCount.ts and the shape rows in fixtures/argon-seat-shape-2026-10-17.json`)
   for (const road of ['auto', 'manual'] as const) {
     const before = fixture.captured.length
     const run = await fold(messages, road)
     const requests = fixture.captured.slice(before)
     record(`${label} · ${road} road: ${run.landed ? 'LANDED' : `FAILED (${run.error ?? ''})`} after ${run.sent.length} summariser request(s) counted ${run.sent.map(n => n.toLocaleString('en-US')).join(', ')} tokens by the provider's density; ${run.ms} ms${run.landed ? `; context ${run.pre?.toLocaleString('en-US')} → ${run.post?.toLocaleString('en-US')} tokens, ${run.kept} messages kept verbatim` : ''}`)
-    check(`${label} · ${road}: the fold landed (red on the base: "Failed to generate a conversation summary." after one request over the window)`, run.landed, `${run.error ?? ''} — the fold did not land; read the retry ladder in src/services/compact/compact/ladder.ts (summarizeWithPtlRetry) and the input fit in src/services/compact/compact/summariserFit.ts`)
+    check(`${label} · ${road}: the fold landed (red on the base: "Failed to generate a conversation summary." after one request over the window)`, run.landed, `${run.error ?? ''} — the fold did not land; read the retry ladder in src/engine/compaction/fold/ladder.ts (summarizeWithPtlRetry) and the input fit in src/engine/compaction/fold/summariserFit.ts`)
     const wire = JSON.stringify(requests[0]?.body ?? {})
     const firstCall = firstToolUseId(messages)
     const lastCall = lastToolUseId(messages)
     if (overTheLimit) {
-      check(`${label} · ${road}: rung 1 landed it in ONE summariser request`, run.sent.length === 1, `${String(run.sent.length)} — over the blocking limit the input must be pre-fitted to one request; fix prefitSummariserInput in src/services/compact/compact/summariserFit.ts`)
-      check(`${label} · ${road}: that request fitted the window by the provider's own count`, run.sent.every(n => n <= Math.floor(WINDOW * 0.95)), `${run.sent.join(',')} — each request must stay within 95% of the window; fix the budget in summariserFitFor in src/services/compact/compact/summariserFit.ts`)
-      check(`${label} · ${road}: the request carried the operator's ask and the oldest round (nothing dropped unsummarised) and left out the newest round (the kept tail split off before the send)`, wire.includes(operatorAsk(messages)) && (firstCall === null || wire.includes(firstCall)) && (lastCall === null || !wire.includes(lastCall)), `first ${firstCall} ${wire.includes(firstCall ?? '')} · last ${lastCall} ${wire.includes(lastCall ?? '')} — the first request must hold the operator ask and oldest round and exclude the newest round; check the split in src/services/compact/compact/foldSummary.ts (summariseForFold)`)
+      check(`${label} · ${road}: rung 1 landed it in ONE summariser request`, run.sent.length === 1, `${String(run.sent.length)} — over the blocking limit the input must be pre-fitted to one request; fix prefitSummariserInput in src/engine/compaction/fold/summariserFit.ts`)
+      check(`${label} · ${road}: that request fitted the window by the provider's own count`, run.sent.every(n => n <= Math.floor(WINDOW * 0.95)), `${run.sent.join(',')} — each request must stay within 95% of the window; fix the budget in summariserFitFor in src/engine/compaction/fold/summariserFit.ts`)
+      check(`${label} · ${road}: the request carried the operator's ask and the oldest round (nothing dropped unsummarised) and left out the newest round (the kept tail split off before the send)`, wire.includes(operatorAsk(messages)) && (firstCall === null || wire.includes(firstCall)) && (lastCall === null || !wire.includes(lastCall)), `first ${firstCall} ${wire.includes(firstCall ?? '')} · last ${lastCall} ${wire.includes(lastCall ?? '')} — the first request must hold the operator ask and oldest round and exclude the newest round; check the split in src/engine/compaction/fold/foldSummary.ts (summariseForFold)`)
     } else {
-      check(`${label} · ${road}: the first request was the whole conversation, the newest round included (the gauge read it under the limit, so nothing was shaped before the send)`, wire.includes(operatorAsk(messages)) && (firstCall === null || wire.includes(firstCall)) && (lastCall === null || wire.includes(lastCall)), `first ${firstCall} ${wire.includes(firstCall ?? '')} · last ${lastCall} ${wire.includes(lastCall ?? '')} — under the blocking limit the whole conversation must go in the first request; check src/services/compact/compact/foldSummary.ts (summariseForFold) and summariserFit.ts`)
-      check(`${label} · ${road}: the model answered nothing to it (over the window by the provider's own count), and rung 2 landed the fold on halved input within three requests`, run.sent.length >= 2 && run.sent.length <= 3 && (run.sent[0] ?? 0) > Math.floor(WINDOW * 0.95) && run.sent.slice(1).every(n => n <= Math.floor(WINDOW * 0.95)), `${run.sent.join(',')} — an empty answer must retry on half the input, at most three requests, each within 95% of the window; fix summarizeWithPtlRetry in src/services/compact/compact/ladder.ts`)
+      check(`${label} · ${road}: the first request was the whole conversation, the newest round included (the gauge read it under the limit, so nothing was shaped before the send)`, wire.includes(operatorAsk(messages)) && (firstCall === null || wire.includes(firstCall)) && (lastCall === null || wire.includes(lastCall)), `first ${firstCall} ${wire.includes(firstCall ?? '')} · last ${lastCall} ${wire.includes(lastCall ?? '')} — under the blocking limit the whole conversation must go in the first request; check src/engine/compaction/fold/foldSummary.ts (summariseForFold) and summariserFit.ts`)
+      check(`${label} · ${road}: the model answered nothing to it (over the window by the provider's own count), and rung 2 landed the fold on halved input within three requests`, run.sent.length >= 2 && run.sent.length <= 3 && (run.sent[0] ?? 0) > Math.floor(WINDOW * 0.95) && run.sent.slice(1).every(n => n <= Math.floor(WINDOW * 0.95)), `${run.sent.join(',')} — an empty answer must retry on half the input, at most three requests, each within 95% of the window; fix summarizeWithPtlRetry in src/engine/compaction/fold/ladder.ts`)
     }
-    check(`${label} · ${road}: the prose summary was written by the model (no skipped-prose line)`, run.landed && !(run.summaryText ?? '').includes(PROSE_SKIPPED_KEY) && (run.notes ?? []).length === 0, `${JSON.stringify(run.notes)} — the summary must come from the model with no skipped-prose note; check proseSkippedNote in src/services/compact/compact/ladder.ts and where compactConversation (src/services/compact/compact.ts) sets it`)
-    check(`${label} · ${road}: the post-fold context is under the fold threshold with a verbatim tail kept`, run.landed && (run.post ?? Infinity) < getAutoCompactThreshold(MODEL) && (run.kept ?? 0) > 0, `${run.post} / ${run.kept} — the post-fold tokens must fall under getAutoCompactThreshold with a kept tail; check the landing limit in compactConversation (src/services/compact/compact.ts)`)
+    check(`${label} · ${road}: the prose summary was written by the model (no skipped-prose line)`, run.landed && !(run.summaryText ?? '').includes(PROSE_SKIPPED_KEY) && (run.notes ?? []).length === 0, `${JSON.stringify(run.notes)} — the summary must come from the model with no skipped-prose note; check proseSkippedNote in src/engine/compaction/fold/ladder.ts and where compactConversation (src/engine/compaction/foldConversation.ts) sets it`)
+    check(`${label} · ${road}: the post-fold context is under the fold threshold with a verbatim tail kept`, run.landed && (run.post ?? Infinity) < getAutoCompactThreshold(MODEL) && (run.kept ?? 0) > 0, `${run.post} / ${run.kept} — the post-fold tokens must fall under getAutoCompactThreshold with a kept tail; check the landing limit in compactConversation (src/engine/compaction/foldConversation.ts)`)
   }
 }
 
@@ -232,18 +232,18 @@ section('F3 the landed fold is a usable context: boundary, operator messages, su
     try {
       return await compactConversation(messages, context as never, cache, true, undefined, true, { isRecompaction: false, turnsSincePreviousCompact: -1, autoCompactThreshold: getAutoCompactThreshold(MODEL) }, undefined, MODEL)
     } catch (error) {
-      check('the fold landed', false, `${error instanceof Error ? error.message : String(error)} — compactConversation in src/services/compact/compact.ts threw on the shape fixture; see the fold-landed checks of F1 above`)
+      check('the fold landed', false, `${error instanceof Error ? error.message : String(error)} — compactConversation in src/engine/compaction/foldConversation.ts threw on the shape fixture; see the fold-landed checks of F1 above`)
       return null
     }
   })()
   const post = run === null ? [] : buildPostCompactMessages(run)
   const kinds = post.map(row => (row.type === 'system' ? `system:${(row as { subtype?: string }).subtype ?? ''}` : row.type === 'attachment' ? `attachment:${(row as { attachment: { type: string } }).attachment.type}` : row.type))
-  check('the post-fold context opens on the compact boundary', kinds[0] === 'system:compact_boundary', `${kinds.slice(0, 4).join(' · ')} — buildPostCompactMessages in src/services/compact/compact/result.ts must put the compact boundary first`)
-  check('the operator messages block rides verbatim', kinds.includes('attachment:compact_operator_messages'), `${kinds.join(' · ').slice(0, 300)} — buildPostCompactMessages in src/services/compact/compact/result.ts must carry the operator messages attachment`)
-  check('the summary row follows and carries the model\'s prose', post.some(row => row.type === 'user' && (row as { isCompactSummary?: boolean }).isCompactSummary === true && String((row as { message: { content: unknown } }).message.content).includes('Where Work Stands')), 'no summary row with isCompactSummary carries the model prose; check buildPostCompactMessages in src/services/compact/compact/result.ts and the summary row built in src/services/compact/compact.ts')
+  check('the post-fold context opens on the compact boundary', kinds[0] === 'system:compact_boundary', `${kinds.slice(0, 4).join(' · ')} — buildPostCompactMessages in src/engine/compaction/fold/foldResult.ts must put the compact boundary first`)
+  check('the operator messages block rides verbatim', kinds.includes('attachment:compact_operator_messages'), `${kinds.join(' · ').slice(0, 300)} — buildPostCompactMessages in src/engine/compaction/fold/foldResult.ts must carry the operator messages attachment`)
+  check('the summary row follows and carries the model\'s prose', post.some(row => row.type === 'user' && (row as { isCompactSummary?: boolean }).isCompactSummary === true && String((row as { message: { content: unknown } }).message.content).includes('Where Work Stands')), 'no summary row with isCompactSummary carries the model prose; check buildPostCompactMessages in src/engine/compaction/fold/foldResult.ts and the summary row built in src/engine/compaction/foldConversation.ts')
   const kept = run?.messagesToKeep ?? []
   const keptLast = kept.at(-1)
-  check('the kept tail follows the summary and closes on a tool result', kept.length > 0 && keptLast?.type === 'user' && post.indexOf(keptLast) > post.findIndex(row => row.type === 'user' && (row as { isCompactSummary?: boolean }).isCompactSummary === true), `${kept.length} kept · last ${keptLast?.type} — the kept tail must come after the summary row and end on a tool result; check buildPostCompactMessages in src/services/compact/compact/result.ts`)
+  check('the kept tail follows the summary and closes on a tool result', kept.length > 0 && keptLast?.type === 'user' && post.indexOf(keptLast) > post.findIndex(row => row.type === 'user' && (row as { isCompactSummary?: boolean }).isCompactSummary === true), `${kept.length} kept · last ${keptLast?.type} — the kept tail must come after the summary row and end on a tool result; check buildPostCompactMessages in src/engine/compaction/fold/foldResult.ts`)
 }
 
 await fixture.close()

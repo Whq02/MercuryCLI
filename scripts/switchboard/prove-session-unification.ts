@@ -39,10 +39,10 @@ const KEEP = process.env.MERCURY_UNIFY_KEEP === '1'
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudgetMs, vshotBudgetScale } = await import('../lib/captureDriver.ts')
 const PACE = vshotBudgetScale()
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { readSessionWorkers, workerPidAlive } = await import('../../src/daemon/concourseWorkers.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+const { readSessionWorkers, workerPidAlive } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

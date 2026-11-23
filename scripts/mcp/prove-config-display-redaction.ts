@@ -26,7 +26,7 @@ const args = ['-e', 'process.exit(0)', 'ARG_FIXTURE=visible-arg']
 let failures = 0
 function check(label: string, good: boolean, detail = ''): void {
   if (!good) failures++
-  console.log(`${good ? 'PASS' : 'FAIL'} ${label}${!good ? ` — change what the mcp add, get, list and import commands print in src/cli/handlers/mcp.tsx, or describeUrlRedacted and describeEnvRedacted in src/utils/redactHeaders.ts, to match this check${detail ? `; ${detail}` : ''}` : ''}`)
+  console.log(`${good ? 'PASS' : 'FAIL'} ${label}${!good ? ` — change what the mcp add, get, list and import commands print in src/commands/verbs/mcp.tsx, or describeUrlRedacted and describeEnvRedacted in src/commands/mcp/redactHeaders.ts, to match this check${detail ? `; ${detail}` : ''}` : ''}`)
 }
 function unwrapped(frame: string): string {
   return frame.split('\n').map(line => line.replace(/^\s*│ ?| ?│\s*$/g, '').trim()).join('')
@@ -45,7 +45,7 @@ function cli(...argv: string[]): string {
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   const output = result.stdout + result.stderr
-  if (result.status !== 0) throw new Error(`mcp ${argv[0]} exited ${result.status}: ${result.error ?? output} (the built dist/mercury.mjs ran the mcp command; rebuild with bun run build.ts if it is stale, else look at src/cli/handlers/mcp.tsx)`)
+  if (result.status !== 0) throw new Error(`mcp ${argv[0]} exited ${result.status}: ${result.error ?? output} (the built dist/mercury.mjs ran the mcp command; rebuild with bun run build.ts if it is stale, else look at src/commands/verbs/mcp.tsx)`)
   return output
 }
 
@@ -63,12 +63,12 @@ try {
   for (const type of ['ws', 'claudeai-proxy']) {
     safe(`mcp import ${type}`, cli('import', `display-${type}`, JSON.stringify({ type, url, ...(type === 'claudeai-proxy' ? { id: 'display-proxy' } : {}) }), '--scope', 'user'))
   }
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { setMcpServerEnabled } = await import('../../src/services/mcp/config.ts')
+  const { setMcpServerEnabled } = await import('../../src/integrations/mcp/serverConfigs.ts')
   const names = ['display-stdio', 'display-http', 'display-sse', 'display-userinfo', 'display-ws', 'display-claudeai-proxy']
   for (const name of names) setMcpServerEnabled(name, false)
-  const { getGlobalMercuryFile } = await import('../../src/utils/env.ts')
+  const { getGlobalMercuryFile } = await import('../../src/platform/environment/env.ts')
   const before = readFileSync(getGlobalMercuryFile(), 'utf8')
   const stored = JSON.parse(before).mcpServers
   check('stored env keeps its original values', stored['display-stdio'].env.FIXTURE_ENV === envValue && stored['display-stdio'].env.PLAIN === 'ordinary' && stored['display-stdio'].env.EMPTY === '')
@@ -96,7 +96,7 @@ try {
   check('mcp list keeps stdio args', listed.includes(args.join(' ')), listed)
 
   check('get/list never rewrite the stored server configs', JSON.stringify(JSON.parse(readFileSync(getGlobalMercuryFile(), 'utf8')).mcpServers) === JSON.stringify(stored))
-  const { describeUrlRedacted, describeEnvRedacted } = await import('../../src/utils/redactHeaders.ts')
+  const { describeUrlRedacted, describeEnvRedacted } = await import('../../src/commands/mcp/redactHeaders.ts')
   check('the shared redaction owner covers URLs and env', typeof describeUrlRedacted === 'function' && typeof describeEnvRedacted === 'function')
   if (typeof describeUrlRedacted === 'function' && typeof describeEnvRedacted === 'function') {
     const cases = [

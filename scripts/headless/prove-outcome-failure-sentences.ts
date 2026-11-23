@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const ROOT = join(import.meta.dir, '..', '..')
-const vocabulary = (await import(join(ROOT, 'src/rows/vocabulary.ts'))) as Record<string, unknown>
+const vocabulary = (await import(join(ROOT, 'src/engine/rows/vocabulary.ts'))) as Record<string, unknown>
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -15,7 +15,7 @@ console.log('§1 every terminal reason the query loop can end on has a whole sen
 const sentences = (vocabulary.TERMINAL_FAILURE_SENTENCES ?? {}) as Record<string, unknown>
 for (const reason of ['image_error', 'prompt_too_long', 'blocking_limit', 'rapid_refill_breaker']) {
   const sentence = sentences[reason]
-  check(`${reason}: the sentence says what failed, not only that the turn failed`, typeof sentence === 'string' && sentence.length > 'The turn failed'.length + 12, `${JSON.stringify(sentence)} — add or lengthen the whole sentence for ${reason} in TERMINAL_FAILURE_SENTENCES in src/rows/vocabulary.ts`)
+  check(`${reason}: the sentence says what failed, not only that the turn failed`, typeof sentence === 'string' && sentence.length > 'The turn failed'.length + 12, `${JSON.stringify(sentence)} — add or lengthen the whole sentence for ${reason} in TERMINAL_FAILURE_SENTENCES in src/engine/rows/vocabulary.ts`)
 }
 
 
@@ -24,7 +24,7 @@ const statusOfTerminal = vocabulary.statusOfTerminal as (t: { reason: string }, 
 const expected: Record<string, string> = { image_error: 'image', prompt_too_long: 'context_overflow', blocking_limit: 'context_limit', rapid_refill_breaker: 'refill_breaker' }
 for (const [reason, errorClass] of Object.entries(expected)) {
   const settled = statusOfTerminal({ reason }, null)
-  check(`${reason} → failed / ${errorClass}`, settled.status === 'failed' && settled.errorClass === errorClass, `${JSON.stringify(settled)} — ${reason} must settle as failed with error class ${errorClass}; change statusOfTerminal in src/rows/vocabulary.ts`)
+  check(`${reason} → failed / ${errorClass}`, settled.status === 'failed' && settled.errorClass === errorClass, `${JSON.stringify(settled)} — ${reason} must settle as failed with error class ${errorClass}; change statusOfTerminal in src/engine/rows/vocabulary.ts`)
 }
 
 console.log(failures === 0 ? 'PASS: every terminal failure reaches the outcome row as a sentence' : `FAIL: ${failures} check(s) failed`)

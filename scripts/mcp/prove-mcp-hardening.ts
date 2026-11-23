@@ -9,18 +9,18 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'mcp-hard-home-'))
 import { z } from 'zod/v4'
 import { Client } from '@modelcontextprotocol/client'
 import { McpServer } from '@modelcontextprotocol/server'
-import { urlElicitationVerdict } from '../../src/utils/mcp/toolPolicy.js'
-import { registerElicitationHandler, type ElicitationRequestEvent } from '../../src/services/mcp/elicitationHandler.js'
-import { createLinkedTransportPair } from '../../src/services/mcp/InProcessTransport.js'
-import { createMercuryServer } from '../../src/services/mcp/mercuryServer.js'
-import { summarizeMcpAuthCurrency } from '../../src/services/mcp/auth.js'
+import { urlElicitationVerdict } from '../../src/integrations/mcp-shapes/toolPolicy.js'
+import { registerElicitationHandler, type ElicitationRequestEvent } from '../../src/integrations/mcp/elicitationHandler.js'
+import { createLinkedTransportPair } from '../../src/integrations/mcp/InProcessTransport.js'
+import { createMercuryServer } from '../../src/integrations/mcp/mercuryServer.js'
+import { summarizeMcpAuthCurrency } from '../../src/integrations/mcp/auth.js'
 import {
   isEnumSchema,
   getEnumValues,
   isMultiSelectEnumSchema,
   getMultiSelectValues,
-} from '../../src/services/mcp/elicitationValidation.js'
-import type { AppState } from '../../src/state/AppState.js'
+} from '../../src/integrations/mcp/elicitationValidation.js'
+import type { AppState } from '../../src/screen/app-state/AppState.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -40,18 +40,18 @@ section('(1) urlElicitationVerdict — the SEP-1036 policy matrix')
 {
   delete process.env.MERCURY_MCP_MAX_RISK
   const open = urlElicitationVerdict('anysrv')
-  check('no policy ⇒ card (never refused), posture says unclamped', !open.refuse && open.posture.includes('high'), 'urlElicitationVerdict in src/utils/mcp/toolPolicy.ts must not refuse without MERCURY_MCP_MAX_RISK and must name the high ceiling in posture')
+  check('no policy ⇒ card (never refused), posture says unclamped', !open.refuse && open.posture.includes('high'), 'urlElicitationVerdict in src/integrations/mcp-shapes/toolPolicy.ts must not refuse without MERCURY_MCP_MAX_RISK and must name the high ceiling in posture')
 
   process.env.MERCURY_MCP_MAX_RISK = 'sketchy:low'
-  check('per-server low clamp ⇒ REFUSED', urlElicitationVerdict('sketchy').refuse, 'urlElicitationVerdict in src/utils/mcp/toolPolicy.ts must refuse a server clamped low by a server:low entry in MERCURY_MCP_MAX_RISK')
-  check('other servers unaffected by the per-server clamp', !urlElicitationVerdict('trusted-srv').refuse, 'urlElicitationVerdict in src/utils/mcp/toolPolicy.ts must apply a server:low clamp only to the named server')
+  check('per-server low clamp ⇒ REFUSED', urlElicitationVerdict('sketchy').refuse, 'urlElicitationVerdict in src/integrations/mcp-shapes/toolPolicy.ts must refuse a server clamped low by a server:low entry in MERCURY_MCP_MAX_RISK')
+  check('other servers unaffected by the per-server clamp', !urlElicitationVerdict('trusted-srv').refuse, 'urlElicitationVerdict in src/integrations/mcp-shapes/toolPolicy.ts must apply a server:low clamp only to the named server')
 
   process.env.MERCURY_MCP_MAX_RISK = 'low'
-  check('global low ⇒ every server refused', urlElicitationVerdict('anysrv').refuse, 'urlElicitationVerdict in src/utils/mcp/toolPolicy.ts must refuse every server when MERCURY_MCP_MAX_RISK is low')
+  check('global low ⇒ every server refused', urlElicitationVerdict('anysrv').refuse, 'urlElicitationVerdict in src/integrations/mcp-shapes/toolPolicy.ts must refuse every server when MERCURY_MCP_MAX_RISK is low')
 
   process.env.MERCURY_MCP_MAX_RISK = 'medium'
   const med = urlElicitationVerdict('anysrv')
-  check('medium ⇒ card with the ceiling in the posture', !med.refuse && med.posture.includes('medium'), 'urlElicitationVerdict in src/utils/mcp/toolPolicy.ts must allow a card at medium and name the medium ceiling in posture')
+  check('medium ⇒ card with the ceiling in the posture', !med.refuse && med.posture.includes('medium'), 'urlElicitationVerdict in src/integrations/mcp-shapes/toolPolicy.ts must allow a card at medium and name the medium ceiling in posture')
   delete process.env.MERCURY_MCP_MAX_RISK
 }
 
@@ -89,8 +89,8 @@ await (async () => {
       url: 'https://evil.example/phish',
       elicitationId: 'e-1',
     })
-    check('clamped server: auto-declined', result.action === 'decline', `action=${result.action} (registerElicitationHandler in src/services/mcp/elicitationHandler.ts must answer decline when urlElicitationVerdict refuses)`)
-    check('clamped server: NO dialog ever queued', store.box.state.elicitation.queue.length === 0, 'registerElicitationHandler in src/services/mcp/elicitationHandler.ts must not queue an elicitation event for a refused server')
+    check('clamped server: auto-declined', result.action === 'decline', `action=${result.action} (registerElicitationHandler in src/integrations/mcp/elicitationHandler.ts must answer decline when urlElicitationVerdict refuses)`)
+    check('clamped server: NO dialog ever queued', store.box.state.elicitation.queue.length === 0, 'registerElicitationHandler in src/integrations/mcp/elicitationHandler.ts must not queue an elicitation event for a refused server')
     await server.close()
   }
 
@@ -107,11 +107,11 @@ await (async () => {
       await new Promise(r => setTimeout(r, 10))
     }
     const ev = store.box.state.elicitation.queue[0]
-    check('unclamped server: dialog queued', !!ev, 'registerElicitationHandler in src/services/mcp/elicitationHandler.ts must queue a url elicitation event for an unclamped server')
-    check('queued event carries the risk posture', !!ev && typeof ev.riskPosture === 'string' && ev.riskPosture.includes('ceiling'), 'registerElicitationHandler in src/services/mcp/elicitationHandler.ts must set riskPosture from urlElicitationVerdict on the queued event')
+    check('unclamped server: dialog queued', !!ev, 'registerElicitationHandler in src/integrations/mcp/elicitationHandler.ts must queue a url elicitation event for an unclamped server')
+    check('queued event carries the risk posture', !!ev && typeof ev.riskPosture === 'string' && ev.riskPosture.includes('ceiling'), 'registerElicitationHandler in src/integrations/mcp/elicitationHandler.ts must set riskPosture from urlElicitationVerdict on the queued event')
     ev?.respond({ action: 'cancel' })
     const result = await pending
-    check('operator cancel round-trips to the server', result.action === 'cancel', `action=${result.action} (the respond callback of the queued event in src/services/mcp/elicitationHandler.ts must return the operator action to the server)`)
+    check('operator cancel round-trips to the server', result.action === 'cancel', `action=${result.action} (the respond callback of the queued event in src/integrations/mcp/elicitationHandler.ts must return the operator action to the server)`)
     await server.close()
   }
 })()
@@ -147,25 +147,25 @@ await (async () => {
   } catch (e) {
     badErr = String(e)
   }
-  check('violating structuredContent surfaces as an error', badErr.length > 0, 'call succeeded silently (the MCP client must validate structuredContent against the declared outputSchema; look at the @modelcontextprotocol/client callTool path and any Mercury wrapper in src/services/mcp/client.ts)')
+  check('violating structuredContent surfaces as an error', badErr.length > 0, 'call succeeded silently (the MCP client must validate structuredContent against the declared outputSchema; look at the @modelcontextprotocol/client callTool path and any Mercury wrapper in src/integrations/mcp/client.ts)')
 
   const good = await client.callTool({ name: 'good_shape', arguments: {} })
   check(
     'conforming structuredContent passes with the shape intact',
     !good.isError && (good.structuredContent as { n?: number })?.n === 42,
-    'a conforming structuredContent must pass through the MCP client unchanged; look at the callTool path in src/services/mcp/client.ts',
+    'a conforming structuredContent must pass through the MCP client unchanged; look at the callTool path in src/integrations/mcp/client.ts',
   )
   await server.close()
 
-  const { loggedHeadersOf } = await import('../../src/services/mcp/client.js')
-  const { getMCPUserAgent } = await import('../../src/utils/http.js')
+  const { loggedHeadersOf } = await import('../../src/integrations/mcp/client.js')
+  const { getMCPUserAgent } = await import('../../src/models/roads/requestHeaders.js')
   const logged = loggedHeadersOf({ 'User-Agent': getMCPUserAgent(), Authorization: 'Bearer tok-1', 'X-API-Key': 'key-2', Cookie: 'sid=3', 'Proxy-Authorization': 'Basic 4', 'X-Custom-Token': 'tok-5' })
   const overridden = loggedHeadersOf({ 'User-Agent': 'fixture-secret', 'user-agent': 'fixture-secret-two' })
-  check('configured User-Agent values are redacted too, regardless of case', Object.values(overridden).every(value => value === '[REDACTED]'), `${JSON.stringify(overridden)} (loggedHeadersOf in src/services/mcp/client.ts must redact a configured User-Agent in any case)`)
+  check('configured User-Agent values are redacted too, regardless of case', Object.values(overridden).every(value => value === '[REDACTED]'), `${JSON.stringify(overridden)} (loggedHeadersOf in src/integrations/mcp/client.ts must redact a configured User-Agent in any case)`)
   check(
     'no credential header VALUE reaches the MCP log: every configured or helper-supplied header is logged by name with its value redacted, whatever its name; only our own User-Agent stays readable (F43A-C7-18)',
     logged['User-Agent'] === getMCPUserAgent() && Object.entries(logged).filter(([key]) => key !== 'User-Agent').every(([, value]) => value === '[REDACTED]') && Object.keys(logged).length === 6,
-    `${JSON.stringify(logged)} (loggedHeadersOf in src/services/mcp/client.ts must log every header by name with value [REDACTED], except the User-Agent from getMCPUserAgent in src/utils/http.ts)`,
+    `${JSON.stringify(logged)} (loggedHeadersOf in src/integrations/mcp/client.ts must log every header by name with value [REDACTED], except the User-Agent from getMCPUserAgent in src/models/roads/requestHeaders.ts)`,
   )
 })()
 
@@ -178,12 +178,12 @@ await (async () => {
   const { tools } = await client.listTools()
   const byName = new Map(tools.map(t => [t.name, t]))
   for (const verb of ['lease_release', 'lease_list']) {
-    check(`${verb} declares outputSchema`, byName.get(verb)?.outputSchema !== undefined, `the ${verb} tool registered by createMercuryServer in src/services/mcp/mercuryServer.ts must declare an outputSchema`)
+    check(`${verb} declares outputSchema`, byName.get(verb)?.outputSchema !== undefined, `the ${verb} tool registered by createMercuryServer in src/integrations/mcp/mercuryServer.ts must declare an outputSchema`)
   }
-  check('the server serves the project lease verbs and render_tui, and no crew verb', ['lease_take', 'lease_release', 'lease_list', 'render_tui'].every(v => byName.has(v)) && !byName.has('lease_claim') && !byName.has('brief') && !byName.has('coord_say'), `${[...byName.keys()].join(',')} (createMercuryServer in src/services/mcp/mercuryServer.ts must register exactly lease_take, lease_release, lease_list and render_tui, with no crew verb)`)
+  check('the server serves the project lease verbs and render_tui, and no crew verb', ['lease_take', 'lease_release', 'lease_list', 'render_tui'].every(v => byName.has(v)) && !byName.has('lease_claim') && !byName.has('brief') && !byName.has('coord_say'), `${[...byName.keys()].join(',')} (createMercuryServer in src/integrations/mcp/mercuryServer.ts must register exactly lease_take, lease_release, lease_list and render_tui, with no crew verb)`)
   const r = await client.callTool({ name: 'lease_list', arguments: {} })
   const sc = r.structuredContent as { ok?: boolean; reason?: string } | undefined
-  check('lease_list answers structured {ok:true, leases:[]} on a fresh project', !!sc && sc.ok === true && Array.isArray(sc.leases) && sc.leases.length === 0, `${JSON.stringify(sc)} (the lease_list tool in src/services/mcp/mercuryServer.ts must return structuredContent {ok:true, leases:[]} when no lease is held)`)
+  check('lease_list answers structured {ok:true, leases:[]} on a fresh project', !!sc && sc.ok === true && Array.isArray(sc.leases) && sc.leases.length === 0, `${JSON.stringify(sc)} (the lease_list tool in src/integrations/mcp/mercuryServer.ts must return structuredContent {ok:true, leases:[]} when no lease is held)`)
   await close()
 })()
 
@@ -193,18 +193,18 @@ section('(5) health `mcp` currency — auth summary + protocol-rev seam')
   check(
     'empty store ⇒ zero tokens, honest zeros',
     auth !== null && auth.tokens === 0 && auth.expired === 0 && auth.expiringSoon === 0,
-    `${JSON.stringify(auth)} (summarizeMcpAuthCurrency in src/services/mcp/auth.ts must return zero tokens, expired and expiringSoon for an empty store)`,
+    `${JSON.stringify(auth)} (summarizeMcpAuthCurrency in src/integrations/mcp/auth.ts must return zero tokens, expired and expiringSoon for an empty store)`,
   )
-  ;(await import('../../src/utils/config.ts')).enableConfigs()
-  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
-  const { publishMcpConnections } = await import('../../src/services/cockpit/mcpGauge.ts')
-  const { describeMcpProtocolCurrency } = await import('../../src/services/mcp/protocolRevision.ts')
+  ;(await import('../../src/platform/settings/config.ts')).enableConfigs()
+  const { runtimeChecks } = await import('../../src/platform/health/sections/runtime.ts')
+  const { publishMcpConnections } = await import('../../src/screen/cockpit-gauges/mcpGauge.ts')
+  const { describeMcpProtocolCurrency } = await import('../../src/integrations/mcp/protocolRevision.ts')
   publishMcpConnections([{ name: 'fixture-srv', type: 'pending' } as never])
   const mcpSays = await runtimeChecks().find(row => row.id === 'mcp')?.run()
   publishMcpConnections([])
   const currency = describeMcpProtocolCurrency()
-  check('health mcp check reads the protocol-revision line from its owner', mcpSays?.evidence.startsWith('1 server(s): fixture-srv (starting) · policy ') === true && mcpSays.evidence.includes(` · ${currency.line} · `) && (!currency.behind || mcpSays.status === 'warn'), `${mcpSays?.evidence} (the mcp row of runtimeChecks in src/services/health/sections/runtime.ts must build its evidence from the connections, the policy and describeMcpProtocolCurrency in src/services/mcp/protocolRevision.ts)`)
-  check('health mcp check carries the auth-currency line', auth !== null && auth.tokens === 0 && mcpSays?.evidence.endsWith(' · no oauth tokens') === true, `${mcpSays?.evidence} (the mcp row of runtimeChecks in src/services/health/sections/runtime.ts must end its evidence with the summarizeMcpAuthCurrency line)`)
+  check('health mcp check reads the protocol-revision line from its owner', mcpSays?.evidence.startsWith('1 server(s): fixture-srv (starting) · policy ') === true && mcpSays.evidence.includes(` · ${currency.line} · `) && (!currency.behind || mcpSays.status === 'warn'), `${mcpSays?.evidence} (the mcp row of runtimeChecks in src/platform/health/sections/runtime.ts must build its evidence from the connections, the policy and describeMcpProtocolCurrency in src/integrations/mcp/protocolRevision.ts)`)
+  check('health mcp check carries the auth-currency line', auth !== null && auth.tokens === 0 && mcpSays?.evidence.endsWith(' · no oauth tokens') === true, `${mcpSays?.evidence} (the mcp row of runtimeChecks in src/platform/health/sections/runtime.ts must end its evidence with the summarizeMcpAuthCurrency line)`)
 }
 
 
@@ -219,17 +219,17 @@ section('(7) SEP-1330 elicitation enum shapes')
     ],
   }
   const untitled = { type: 'string' as const, enum: ['a', 'b'] }
-  check('titled single-select recognized', isEnumSchema(titled as never), 'isEnumSchema in src/services/mcp/elicitationValidation.ts must accept a oneOf of const/title entries')
-  check('untitled single-select recognized', isEnumSchema(untitled as never), 'isEnumSchema in src/services/mcp/elicitationValidation.ts must accept a string schema with enum')
-  check('titled values extracted', JSON.stringify(getEnumValues(titled as never)) === '["r","g"]', 'getEnumValues in src/services/mcp/elicitationValidation.ts must return the const values of a oneOf schema')
+  check('titled single-select recognized', isEnumSchema(titled as never), 'isEnumSchema in src/integrations/mcp/elicitationValidation.ts must accept a oneOf of const/title entries')
+  check('untitled single-select recognized', isEnumSchema(untitled as never), 'isEnumSchema in src/integrations/mcp/elicitationValidation.ts must accept a string schema with enum')
+  check('titled values extracted', JSON.stringify(getEnumValues(titled as never)) === '["r","g"]', 'getEnumValues in src/integrations/mcp/elicitationValidation.ts must return the const values of a oneOf schema')
   const multi = {
     type: 'array' as const,
     items: { type: 'string' as const, enum: ['x', 'y', 'z'] },
   }
   if (isMultiSelectEnumSchema(multi as never)) {
-    check('multi-select values extracted', JSON.stringify(getMultiSelectValues(multi as never)) === '["x","y","z"]', 'getMultiSelectValues in src/services/mcp/elicitationValidation.ts must return the items enum values')
+    check('multi-select values extracted', JSON.stringify(getMultiSelectValues(multi as never)) === '["x","y","z"]', 'getMultiSelectValues in src/integrations/mcp/elicitationValidation.ts must return the items enum values')
   } else {
-    check('multi-select enum recognized', false, 'isMultiSelectEnumSchema in src/services/mcp/elicitationValidation.ts returned false for an array schema whose items carry an enum')
+    check('multi-select enum recognized', false, 'isMultiSelectEnumSchema in src/integrations/mcp/elicitationValidation.ts returned false for an array schema whose items carry an enum')
   }
 }
 

@@ -1,0 +1,433 @@
+import { z } from 'zod/v4'
+import { buildTool, type ToolUseContext } from '../kit/tool.js'
+import { startedCommandVerdict } from '../shell/bashPermissions.js'
+import { startedProgramIsShell } from '../shell/denyRuleReach.js'
+import { evalCodePermission } from '../../permissions/rules/shellProtectedPaths.js'
+import { shellCommandText } from '../../permissions/rules/decision/commandAnalysis.js'
+import { noteServiceInput, serviceInputAsSent, serviceInputKey, serviceInputSoFar } from '../../permissions/rules/serviceInputHistory.js'
+import {
+  describeCondition,
+  servicesEnabled,
+  type ReadinessCondition,
+  type ServiceInputMode,
+  type ServiceRecord,
+} from '../engines/project-services/contracts.js'
+import { readableTerminalLines } from '../engines/project-services/terminalText.js'
+import {
+  awaitOutput,
+  evaluateReadiness,
+  logEnd,
+  readLogs,
+  readRecord,
+  reconcileAllStrict,
+  reconcileRecord,
+  reconcileRecordStrict,
+  restartService,
+  sendInput,
+  startService,
+  stopService,
+  waitForReady,
+} from '../engines/project-services/serviceManager.js'
+import { startedCommandText } from '../../platform/shell/bash/ast.js'
+import { scriptSentToProgram } from '../../permissions/wards/wardsShellRead.js'
+import { getCwd } from '../../platform/files/cwd.js'
+import { getOriginalCwd, getSessionId } from '../../boot/process-state/processState.js'
+import type { OwnerKey } from '../../engine/run-owner/ownerKey.js'
+import { ownerFromToolUseContext } from '../../engine/run-owner/resolveOwner.js'
+import { lazySchema } from '../../platform/primitives/lazySchema.js'
+import { semanticNumber } from '../kit/semanticNumber.js'
+import { clampWait } from '../kit/waitCeiling.js'
+import {
+  renderToolResultMessage,
+  renderToolUseErrorMessage,
+  renderToolUseMessage,
+} from './rows.js'
+
+export const SERVICE_TOOL_NAME = 'Service' as const
+
+const OPS = ['start', 'list', 'describe', 'wait', 'logs', 'input', 'stop', 'restart'] as const
+
+const WAIT_DEFAULT_MS = 30_000
+const WAIT_MIN_MS = 100
+const WAIT_MAX_MS = 300_000
+const INPUT_WAIT_DEFAULT_MS = 500
+const INPUT_WAIT_MIN_MS = 100
+const INPUT_WAIT_MAX_MS = 30_000
+
+const readinessSchema = () =>
+  z.union([
+    z.strictObject({ kind: z.literal('log'), regex: z.string() }),
+    z.strictObject({ kind: z.literal('tcp'), host: z.string().optional(), port: z.number().int().min(1).max(65535) }),
+    z.strictObject({
+      kind: z.literal('http'),
+      url: z.string(),
+      method: z.string().optional(),
+      status: z.number().int().optional(),
+      bodyRegex: z.string().optional(),
+    }),
+    z.strictObject({ kind: z.literal('file'), path: z.string(), contentRegex: z.string().optional() }),
+    z.strictObject({ kind: z.literal('stable'), ms: z.number().int().min(100).max(60_000) }),
+  ])
+
+const inputSchema = lazySchema(() =>
+  z.strictObject({
+    op: z.enum(OPS).describe('restart reuses saved start spec'),
+    name: z.string().optional().describe('Project service name (all ops except list)'),
+    command: z.string().optional().describe('start: executable (argv[0], no shell)'),
+    args: z.array(z.string()).optional().describe('start: argv'),
+    cwd: z.string().optional().describe('start: working directory (default session cwd)'),
+    env: z.record(z.string(), z.string()).optional().describe('start: extra env vars'),
+    readiness: z.array(readinessSchema()).max(8).optional().describe('start: readiness conditions — log regex · tcp port (host 127.0.0.1) · http url (GET, status 200) · file path · stable ms (the process alive that long).'),
+    readinessMode: z.enum(['all', 'any']).optional().describe('start: default "all"'),
+    restart: z.enum(['never', 'on-failure']).optional().describe('start: default "never" (on-failure uses bounded backoff; stop suppresses)'),
+    lifecycle: z.enum(['session', 'project']).optional().describe('start: "session" (default, ends with session) or "project" (survives; any project session can stop)'),
+    pty: z.boolean().optional().describe('start: pseudo-terminal (screen bytes logged; input sends keystrokes; default false uses pipes)'),
+    mode: z.enum(['write', 'submit', 'eof']).optional().describe('input: write sends raw bytes; submit adds Enter (default); eof closes stdin'),
+    timeoutMs: semanticNumber(z.number().int().min(0).optional()).describe(`wait: ms deadline (default ${WAIT_DEFAULT_MS}, ${WAIT_MIN_MS}–${WAIT_MAX_MS}); input: reply wait in ms (default ${INPUT_WAIT_DEFAULT_MS}, ${INPUT_WAIT_MIN_MS}–${INPUT_WAIT_MAX_MS}); clamped outside bounds`),
+    cursor: semanticNumber(z.number().int().min(0).optional()).describe('logs: byte cursor from prior read (omit for tail)'),
+    limitLines: semanticNumber(z.number().int().min(1).max(1000).optional()).describe('logs/input: max lines (default 100)'),
+    filterRegex: z.string().optional().describe('logs: line regex filter'),
+    text: z.string().optional().describe('input: stdin text (spawning session only)'),
+  }),
+)
+type SchemaType = ReturnType<typeof inputSchema>
+export type Input = z.infer<SchemaType>
+export type Output = {
+  op: Input['op']
+  result: string
+  state?: string
+  name?: string
+}
+
+function describeRecord(r: ServiceRecord): string {
+  const lines = [
+    `${r.spec.name} — ${r.state}${r.pid ? ` (pid ${r.pid})` : ''}`,
+    `  command: ${r.spec.command} ${r.spec.args.join(' ')}`,
+    `  cwd: ${r.spec.cwd}`,
+    `  lifecycle: ${r.spec.lifecycle} · restart: ${r.spec.restart} · restarts so far: ${r.restartCount}${r.spec.pty === true ? ' · pseudo-terminal' : ''}`,
+    ...(r.startedAt ? [`  started: ${new Date(r.startedAt).toISOString()}`] : []),
+    ...(r.stoppedAt ? [`  stopped: ${new Date(r.stoppedAt).toISOString()}${r.lastExitCode !== null ? ` (exit ${r.lastExitCode})` : ''}`] : []),
+    `  log: ${r.logFile}`,
+    `  ref: mercury://service/${r.spec.name}`,
+  ]
+  if (r.spec.readiness.length > 0) {
+    lines.push(`  readiness (${r.spec.readinessMode}):`)
+    for (const c of r.spec.readiness) lines.push(`    · ${describeCondition(c)}`)
+  }
+  return lines.join('\n')
+}
+
+async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<Output> {
+  const cwd = getCwd()
+  const project = getOriginalCwd()
+  const need = (field: string): never => {
+    throw new Error(`${input.op} needs ${field}`)
+  }
+  switch (input.op) {
+    case 'start': {
+      if (!input.name) need('name')
+      if (!input.command) need('command')
+      const result = await startService({
+        sessionId,
+        owner,
+        spec: {
+          name: input.name!,
+          command: input.command!,
+          args: input.args ?? [],
+          cwd: input.cwd ?? cwd,
+          project,
+          ...(input.env ? { env: input.env } : {}),
+          readiness: (input.readiness ?? []) as ReadinessCondition[],
+          readinessMode: input.readinessMode ?? 'all',
+          restart: input.restart ?? 'never',
+          lifecycle: input.lifecycle ?? 'session',
+          ...(input.pty === true ? { pty: true } : {}),
+        },
+      })
+      if ('error' in result) return { op: 'start', result: result.error, state: 'failed', name: input.name }
+      const hint =
+        result.record.spec.readiness.length > 0
+          ? `\nop:"wait" blocks until readiness; op:"logs" follows output.`
+          : `\nop:"logs" follows output; no readiness conditions were declared.`
+      return {
+        op: 'start',
+        result: describeRecord(result.record) + hint,
+        state: result.record.state,
+        name: input.name,
+      }
+    }
+    case 'list': {
+      const listed = reconcileAllStrict(project)
+      if (!listed.ok) return { op: 'list', result: listed.error, state: 'failed' }
+      const { records, unreadable } = listed
+      if (records.length === 0 && unreadable.length === 0) {
+        return { op: 'list', result: 'no services in this project (start one with op:"start")' }
+      }
+      const lines = [
+        ...records.map(r => `${r.spec.name} — ${r.state}${r.pid ? ` (pid ${r.pid})` : ''}${r.restartCount ? ` · ${r.restartCount} restart(s)` : ''} · mercury://service/${r.spec.name}`),
+        ...unreadable.map(u => `not read: ${u.name} (${u.error})`),
+      ]
+      return { op: 'list', result: lines.join('\n') }
+    }
+    case 'describe': {
+      if (!input.name) need('name')
+      const loaded = reconcileRecordStrict(project, input.name!)
+      if (!loaded.ok) return { op: 'describe', result: loaded.error, state: 'failed', name: input.name }
+      const record = loaded.record
+      if (!record) return { op: 'describe', result: `no service '${input.name}' in this project`, state: 'absent' }
+      const { ready, statuses } = await evaluateReadiness(project, record)
+      const readinessLines =
+        statuses.length > 0
+          ? '\nreadiness now:' + statuses.map(s => `\n  ${s.met ? '✓' : '·'} ${s.detail}`).join('')
+          : ''
+      return {
+        op: 'describe',
+        result: describeRecord(record) + readinessLines + (ready && record.state === 'starting' ? '\n(conditions met — op:"wait" promotes to ready)' : ''),
+        state: record.state,
+        name: input.name,
+      }
+    }
+    case 'wait': {
+      if (!input.name) need('name')
+      const wait = clampWait('timeoutMs', input.timeoutMs ?? WAIT_DEFAULT_MS, WAIT_MIN_MS, WAIT_MAX_MS, 'ms')
+      const said = wait.clause === null ? '' : `\n${wait.clause}`
+      const outcome = await waitForReady(project, input.name!, wait.value)
+      if (outcome.error !== undefined) return { op: 'wait', result: `${outcome.error}${said}`, state: 'failed', name: input.name }
+      if (!outcome.record) return { op: 'wait', result: `no service '${input.name}' in this project${said}`, state: 'absent' }
+      if (outcome.ready) {
+        return { op: 'wait', result: `service '${input.name}' is READY\n${describeRecord(outcome.record)}${said}`, state: outcome.record.state, name: input.name }
+      }
+      const unmet = outcome.statuses.filter(s => !s.met)
+      return {
+        op: 'wait',
+        result:
+          `service '${input.name}' did NOT become ready (state ${outcome.record.state}) — unmet condition(s):\n` +
+          unmet.map(s => `  · ${s.detail}`).join('\n') +
+          (outcome.record.state === 'failed' ? `\nThe process exited (${outcome.record.lastExitCode ?? '?'}) — op:"logs" shows why.` : '') +
+          said,
+        state: outcome.record.state,
+        name: input.name,
+      }
+    }
+    case 'logs': {
+      if (!input.name) need('name')
+      const logs = await readLogs(project, input.name!, {
+        cursor: input.cursor,
+        limitLines: input.limitLines,
+        filterRegex: input.filterRegex,
+        tail: input.cursor === undefined,
+      })
+      if ('error' in logs) return { op: 'logs', result: logs.error, name: input.name }
+      const record = reconcileRecord(project, input.name!)
+      const lines = record?.spec.pty === true ? readableTerminalLines(logs.lines) : logs.lines
+      return {
+        op: 'logs',
+        result:
+          (lines.length > 0 ? lines.join('\n') : '(no log lines in this window)') +
+          `\n[cursor: ${logs.nextCursor}${logs.eof ? ' — end of log' : ' — more available: pass cursor'} · ${logs.totalBytes} bytes total]`,
+        name: input.name,
+      }
+    }
+    case 'input': {
+      if (!input.name) need('name')
+      const mode: ServiceInputMode = input.mode ?? 'submit'
+      if (input.text === undefined && mode !== 'eof') need('text')
+      const cursor = logEnd(project, input.name!)
+      const sent = sendInput(project, input.name!, input.text ?? '', sessionId, mode)
+      if ('error' in sent) return { op: 'input', result: sent.error, name: input.name }
+      if (mode !== 'eof') noteServiceInput(serviceInputKey(project, input.name!), runOf(readRecord(project, input.name!)), input.text ?? '', mode !== 'write')
+      const where = sent.pty ? 'terminal' : 'stdin'
+      const ack = mode === 'eof' ? `sent end of input to '${input.name}' ${where}` : `${mode === 'write' ? 'wrote' : 'submitted'} ${input.text!.length} chars to '${input.name}' ${where}${mode === 'submit' ? ' with Enter' : ''}`
+      const wait = clampWait('timeoutMs', input.timeoutMs ?? INPUT_WAIT_DEFAULT_MS, INPUT_WAIT_MIN_MS, INPUT_WAIT_MAX_MS, 'ms')
+      const said = wait.clause === null ? '' : `\n${wait.clause}`
+      const answered = await awaitOutput(project, input.name!, cursor, wait.value)
+      const logs = await readLogs(project, input.name!, { cursor, limitLines: input.limitLines })
+      const record = answered.record
+      const exit = record !== null && record.pid === null && record.lastExitCode !== null ? ` (exit ${record.lastExitCode})` : ''
+      const state = record === null ? 'absent' : `${record.state}${exit}`
+      if ('error' in logs) return { op: 'input', result: `${ack}\n${logs.error}\n[${state}]${said}`, name: input.name }
+      const lines = sent.pty ? readableTerminalLines(logs.lines) : logs.lines
+      return {
+        op: 'input',
+        result:
+          `${ack}\n` +
+          (lines.length > 0 ? lines.join('\n') : `(nothing printed within ${wait.value} ms)`) +
+          `\n[cursor: ${logs.nextCursor}${logs.eof ? '' : ' — more available: pass cursor to op:"logs"'} · ${logs.totalBytes} bytes total · ${state}]${said}`,
+        name: input.name,
+      }
+    }
+    case 'stop': {
+      if (!input.name) need('name')
+      const result = await stopService(project, input.name!)
+      if ('error' in result) return { op: 'stop', result: result.error, name: input.name }
+      const note = result.note ?? result.record.stopNote
+      return {
+        op: 'stop',
+        result: note
+          ? `${note}\n(auto-restart suppressed)`
+          : `service '${input.name}' stopped (explicit — auto-restart suppressed)${result.record.lastExitCode !== null ? ` · exit ${result.record.lastExitCode}` : ''}`,
+        state: result.record.state,
+        name: input.name,
+      }
+    }
+    case 'restart': {
+      if (!input.name) need('name')
+      const result = await restartService(project, input.name!, sessionId, owner)
+      if ('error' in result) return { op: 'restart', result: result.error, name: input.name }
+      return {
+        op: 'restart',
+        result: `service '${input.name}' restarted (restart #${result.record.restartCount})\n${describeRecord(result.record)}`,
+        state: result.record.state,
+        name: input.name,
+      }
+    }
+  }
+}
+
+const MUTATING_OPS = new Set<Input['op']>(['start', 'stop', 'restart', 'input'])
+
+function shellTextOf(input: unknown): string | undefined {
+  const call = (input ?? {}) as { op?: unknown; name?: unknown; command?: unknown; args?: unknown; text?: unknown; mode?: unknown }
+  if (call.op !== 'input') return startedCommandText(call.command, call.args)
+  if (typeof call.name !== 'string' || typeof call.text !== 'string' || call.mode === 'eof') return undefined
+  const record = readRecord(getOriginalCwd(), call.name)
+  return record === null ? undefined : scriptSentToProgram([record.spec.command, ...(Array.isArray(record.spec.args) ? record.spec.args : [])], serviceInputSoFar(serviceInputKey(getOriginalCwd(), call.name), call.text, runOf(record)))
+}
+
+function runOf(record: { pid: number | null; startedAt: number | null } | null): string {
+  return `${record?.pid ?? ''}:${record?.startedAt ?? ''}`
+}
+
+function startedUnderEnvironment(started: string, env: Record<string, string> | undefined): string[] {
+  const entries = Object.entries(env ?? {})
+  if (entries.length === 0) return []
+  const readings = [`${entries.map(([name, value]) => `${name}=${shellCommandText([value])}`).join(' ')} ${started}`]
+  const home = env?.HOME
+  if (home !== undefined && home !== '') {
+    const moved = started.replace(/(^|[\s'"=:(])~(?=$|[/\s'"])/g, (_, before: string) => `${before}${home}`).replace(/\$\{HOME\}|\$HOME\b/g, home)
+    if (moved !== started) readings.push(moved)
+  }
+  return readings
+}
+
+export const ServiceTool = buildTool({
+  shouldDefer: true,
+  name: SERVICE_TOOL_NAME,
+  shellCommandOf: shellTextOf,
+  searchHint: 'manage long-running project processes, their readiness, logs and input',
+  searchKeywords: ['services', 'start', 'observe', 'wait', 'stop', 'long-lived', 'web servers', 'watch builds', 'local APIs'],
+  maxResultSizeChars: 100_000,
+  strict: true,
+  straightQuoteInputs: ['command', 'cwd'],
+  isEnabled() {
+    return servicesEnabled()
+  },
+  async description() {
+    return 'Run and observe named long-lived project processes with readiness + cursored logs'
+  },
+  async prompt() {
+    return 'Manage named long-running project processes and their readiness, logs and input. Returns current state and cursored output from one ordered stdout/stderr log; wait reports readiness or unmet conditions.'
+  },
+  userFacingName() {
+    return 'Service'
+  },
+  getToolUseSummary(input?: Partial<Input>) {
+    if (!input?.op) return null
+    return `${input.op}${input.name ? ` ${input.name}` : ''}`
+  },
+  isReadOnly(input: Input) {
+    return !MUTATING_OPS.has(input.op)
+  },
+  isConcurrencySafe(input: Input) {
+    return !MUTATING_OPS.has(input.op)
+  },
+  async checkPermissions(input: Input, context: ToolUseContext) {
+    if (input.op === 'start' || input.op === 'restart') {
+      const own = {
+        behavior: 'ask' as const,
+        message: `Service ${input.op}: ${input.name ?? '?'}${input.command ? ` — ${input.command} ${(input.args ?? []).join(' ')}` : ''}`,
+      }
+      const started = input.op === 'start' ? startedCommandText(input.command, input.args) : undefined
+      if (started === undefined) return own
+      const readings = [started, ...startedUnderEnvironment(started, input.env)]
+      return startedCommandVerdict(readings.map(command => (input.cwd === undefined ? { command } : { command, cwd: input.cwd })), context, own)
+    }
+    if (input.op === 'input') {
+      const own = {
+        behavior: 'ask' as const,
+        message: `Service input → ${input.name ?? '?'}: ${input.mode === 'eof' ? '(end of input)' : (input.text?.slice(0, 80) ?? '')}`,
+      }
+      if (input.mode === 'eof' || input.text === undefined || input.text.trim() === '') return own
+      const record = input.name === undefined ? null : readRecord(getOriginalCwd(), input.name)
+      const folder = record?.spec.cwd
+      const shell = record === null || startedProgramIsShell(record.spec.command, record.spec.args)
+      const code = shell ? null : await evalCodePermission(input.text, folder ?? getCwd())
+      if (code !== null) return code
+      const sent = input.name === undefined ? input.text : await serviceInputAsSent(serviceInputKey(getOriginalCwd(), input.name), input.text, runOf(record))
+      const readings = [...new Set([input.text, sent])].flatMap(text => [text, ...startedUnderEnvironment(text, record?.spec.env)])
+      return startedCommandVerdict(readings.map(command => (folder === undefined ? { command } : { command, cwd: folder })), context, own, shell)
+    }
+    return { behavior: 'allow' as const, updatedInput: input }
+  },
+  async validateInput(input: Input) {
+    if (input.op !== 'list' && !input.name) {
+      return { result: false as const, message: `${input.op} requires name`, errorCode: 1 }
+    }
+    if (input.op === 'start' && !input.command) {
+      return { result: false as const, message: 'start requires command', errorCode: 1 }
+    }
+    if (input.op === 'input' && input.text === undefined && input.mode !== 'eof') {
+      return { result: false as const, message: 'input requires text', errorCode: 1 }
+    }
+    return { result: true as const }
+  },
+  get inputSchema(): SchemaType {
+    return inputSchema()
+  },
+  renderToolUseMessage,
+  renderToolUseErrorMessage,
+  renderToolResultMessage,
+  extractSearchText({ result }) {
+    return result
+  },
+  async call(input: Input, context: ToolUseContext) {
+    const startedAt = Date.now()
+    const sessionId = String(getSessionId())
+    let output: Output
+    try {
+      output = await runOp(input, sessionId, ownerFromToolUseContext(context))
+    } catch (err) {
+      output = { op: input.op, result: `${input.op} failed: ${(err as Error).message}` }
+    }
+    const failed =
+      /^(start|wait|stop|restart|input) (failed|needs)/.test(output.result) ||
+      output.state === 'failed' ||
+      output.state === 'absent' ||
+      /did NOT become ready|already .* — stop or restart|no service '/.test(output.result)
+    return {
+      data: output,
+      effect: {
+        outcome: MUTATING_OPS.has(input.op)
+          ? failed
+            ? ('failed' as const)
+            : ('succeeded' as const)
+          : failed
+            ? ('no-change' as const)
+            : ('succeeded' as const),
+        operation: `service.${input.op}`,
+        changedPaths: [],
+        evidence: output.result.split('\n')[0]?.slice(0, 160) ?? '',
+        startedAt,
+        completedAt: Date.now(),
+        ...(output.name ? { details: { name: output.name, state: output.state } } : {}),
+      },
+    }
+  },
+  mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
+    return {
+      tool_use_id: toolUseId,
+      type: 'tool_result' as const,
+      content: output.result,
+    }
+  },
+})

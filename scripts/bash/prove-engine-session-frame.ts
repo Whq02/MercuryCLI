@@ -7,8 +7,8 @@ import { join, resolve } from 'node:path'
 if (process.argv.includes('--drive')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   const engine = process.argv[process.argv.indexOf('--drive') + 1]!
-  const { runEngineCommand, endEngineSession } = await import('../../src/utils/shell/engineSession.ts')
-  const { setCwd } = await import('../../src/utils/Shell.ts')
+  const { runEngineCommand, endEngineSession } = await import('../../src/platform/shell/engineSession.ts')
+  const { setCwd } = await import('../../src/platform/shell/shellExec.ts')
   setCwd(homedir())
   const run = async (command: string): Promise<{ code: number; text: string }> => {
     const result = await runEngineCommand(engine, command, { timeout: 30_000, signal: new AbortController().signal, cwd: homedir() }).result
@@ -68,11 +68,11 @@ try {
   const first = (written[1] ?? '').replace(/\\x0a/g, '\n').replace(/\\\\/g, '\\')
   const sourceAt = first.search(/^source .*shell-snapshots\/snapshot-/m)
   const preambleAt = first.search(/^shopt -u extglob/m)
-  check('the session is started with a snapshot: the stand-in engine took the login capture and the first frame sources it', sourceAt !== -1, JSON.stringify(first.slice(0, 300)) + ' · the first frame of the session must hold a source line for the snapshot: see the seeds built in spawnSession in src/utils/shell/engineSession.ts')
-  check('under a prefix the first frame carries the preamble too', preambleAt !== -1, JSON.stringify(first.slice(0, 300)) + ' · the first frame must hold the glob preamble (shopt -u extglob): see the seeds built in spawnSession in src/utils/shell/engineSession.ts')
-  check('the snapshot comes before the preamble in the frame the session road writes', sourceAt !== -1 && preambleAt !== -1 && sourceAt < preambleAt, JSON.stringify(first.slice(0, 300)) + ' · spawnSession in src/utils/shell/engineSession.ts must push the snapshot source line into seeds before the glob preamble')
-  check('so an option the user\'s file switched on is off when a command runs: extglob reads off though ~/.profile set it', drove?.extglob.text === 'extglob-off', told + ' · the glob preamble must reach the session after the snapshot: see spawnSession in src/utils/shell/engineSession.ts')
-  check('and what the snapshot carries is there: the function of ~/.profile runs', drove?.carried.text === 'fn-from-profile', told + ' · the snapshot source line must reach the session: see spawnSession in src/utils/shell/engineSession.ts')
+  check('the session is started with a snapshot: the stand-in engine took the login capture and the first frame sources it', sourceAt !== -1, JSON.stringify(first.slice(0, 300)) + ' · the first frame of the session must hold a source line for the snapshot: see the seeds built in spawnSession in src/platform/shell/engineSession.ts')
+  check('under a prefix the first frame carries the preamble too', preambleAt !== -1, JSON.stringify(first.slice(0, 300)) + ' · the first frame must hold the glob preamble (shopt -u extglob): see the seeds built in spawnSession in src/platform/shell/engineSession.ts')
+  check('the snapshot comes before the preamble in the frame the session road writes', sourceAt !== -1 && preambleAt !== -1 && sourceAt < preambleAt, JSON.stringify(first.slice(0, 300)) + ' · spawnSession in src/platform/shell/engineSession.ts must push the snapshot source line into seeds before the glob preamble')
+  check('so an option the user\'s file switched on is off when a command runs: extglob reads off though ~/.profile set it', drove?.extglob.text === 'extglob-off', told + ' · the glob preamble must reach the session after the snapshot: see spawnSession in src/platform/shell/engineSession.ts')
+  check('and what the snapshot carries is there: the function of ~/.profile runs', drove?.carried.text === 'fn-from-profile', told + ' · the snapshot source line must reach the session: see spawnSession in src/platform/shell/engineSession.ts')
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

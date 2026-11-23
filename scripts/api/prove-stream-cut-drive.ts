@@ -20,7 +20,7 @@ const PROBE_KEY = 'proof-key-ci-gate-not-a-real-key'
 const FIXTURE = join(HERE, 'streamCutFixture.mjs')
 const j = (v: unknown): string => JSON.stringify(v)
 
-const cutHint = 'the reissue after a cut stream is built in src/services/providers/anthropic/streamCore/reissueRows.ts; the wire plan is in scripts/api/streamCutFixture.mjs and the debug log is the --log-file the run wrote'
+const cutHint = 'the reissue after a cut stream is built in src/models/roads/anthropic/stream-core/reissueRows.ts; the wire plan is in scripts/api/streamCutFixture.mjs and the debug log is the --log-file the run wrote'
 let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {

@@ -7,7 +7,7 @@ import { join } from 'node:path'
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}to fix: the anchor-patch path from the provider wire to ChangeSetTool: parseAnchorPatch in src/services/changeTransaction/anchorPatch.ts, src/tools/ChangeSetTool/ChangeSetTool.ts, or the call route in src/services/providers/callModelRouter.ts` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}to fix: the anchor-patch path from the provider wire to ChangeSetTool: parseAnchorPatch in src/tools/engines/change-transaction/anchorPatch.ts, src/tools/change-set/ChangeSetTool.ts, or the call route in src/models/roads/callModelRouter.ts` : ''}`)
 }
 
 delete process.env.NODE_ENV
@@ -179,15 +179,15 @@ console.log('============================================================')
 console.log(' the patch dialect on every OpenAI-compatible call shape')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { parseAnchorPatch } = await import('../../src/services/changeTransaction/anchorPatch.ts')
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { parseAnchorPatch } = await import('../../src/tools/engines/change-transaction/anchorPatch.ts')
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 
 const CATALOG = [ChangeSetTool, FileReadTool] as never
 

@@ -21,14 +21,14 @@ console.log('— BOOT ORDER (the day-one bug): module init precedes the latch �
   const prevHome = process.env.MERCURY_CONFIG_DIR
   process.env.MERCURY_CONFIG_DIR = home
   try {
-    const accent = await import('../../src/components/mercury-ui/sessionAccent.ts')
+    const accent = await import('../../src/screen/widgets/sessionAccent.ts')
     const early = accent.getSessionCritterKey()
-    const cfg = await import('../../src/utils/config.ts')
+    const cfg = await import('../../src/platform/settings/config.ts')
     cfg.enableConfigs()
     const late = accent.getSessionCritterKey()
-    const { DEFAULT_CRITTER_KEY } = await import('../../src/utils/cockpit/critterData.ts')
-    t('pre-latch read serves the default (never throws)', early === DEFAULT_CRITTER_KEY, early, 'change currentKey in src/components/mercury-ui/sessionAccent.ts so a read before enableConfigs() in src/utils/config.ts returns DEFAULT_CRITTER_KEY (src/utils/cockpit/critterData.ts) without throwing')
-    t('post-latch read locks the persisted critter', late === 'jellyfish', late, 'change currentKey in src/components/mercury-ui/sessionAccent.ts to read getGlobalConfig().defaultCritter once enableConfigs() has run, and not to keep the default from the earlier read in activeKey')
+    const { DEFAULT_CRITTER_KEY } = await import('../../src/screen/cockpit/critterData.ts')
+    t('pre-latch read serves the default (never throws)', early === DEFAULT_CRITTER_KEY, early, 'change currentKey in src/screen/widgets/sessionAccent.ts so a read before enableConfigs() in src/platform/settings/config.ts returns DEFAULT_CRITTER_KEY (src/screen/cockpit/critterData.ts) without throwing')
+    t('post-latch read locks the persisted critter', late === 'jellyfish', late, 'change currentKey in src/screen/widgets/sessionAccent.ts to read getGlobalConfig().defaultCritter once enableConfigs() has run, and not to keep the default from the earlier read in activeKey')
   } finally {
     if (prevHome === undefined) delete process.env.MERCURY_CONFIG_DIR
     else process.env.MERCURY_CONFIG_DIR = prevHome
@@ -51,9 +51,9 @@ console.log('— a SAVED defaultCritter the pool does not know resolves to the D
       writeFileSync(
         probe,
         [
-          `import { getSessionCritterKey } from ${JSON.stringify(join(ROOT, 'src/components/mercury-ui/sessionAccent.ts'))}`,
-          `import { enableConfigs } from ${JSON.stringify(join(ROOT, 'src/utils/config.ts'))}`,
-          `import { critterDefForKey } from ${JSON.stringify(join(ROOT, 'src/utils/cockpit/critterData.ts'))}`,
+          `import { getSessionCritterKey } from ${JSON.stringify(join(ROOT, 'src/screen/widgets/sessionAccent.ts'))}`,
+          `import { enableConfigs } from ${JSON.stringify(join(ROOT, 'src/platform/settings/config.ts'))}`,
+          `import { critterDefForKey } from ${JSON.stringify(join(ROOT, 'src/screen/cockpit/critterData.ts'))}`,
           'enableConfigs()',
           'const key = getSessionCritterKey()',
           'console.log(JSON.stringify({ key, shape: critterDefForKey(key).name }))',
@@ -70,13 +70,13 @@ console.log('— a SAVED defaultCritter the pool does not know resolves to the D
         shape = parsed.shape ?? ''
       } catch {
       }
-      t(`saved '${legacy}' resolves the TINT key to the pool default at read`, key === 'crab', key || r.stderr.slice(0, 200), 'change poolKeyOr in src/components/mercury-ui/sessionAccent.ts so a saved defaultCritter outside the pool resolves to DEFAULT_CRITTER_KEY; an empty value means the probe script failed, so read the stderr shown')
-      t(`saved '${legacy}' resolves the SHAPE to the pool default def`, shape === 'crab', shape, 'change resolvePoolKey or critterDefForKey in src/utils/cockpit/critterData.ts so an unknown key returns the DEFAULT_CRITTER_KEY def')
+      t(`saved '${legacy}' resolves the TINT key to the pool default at read`, key === 'crab', key || r.stderr.slice(0, 200), 'change poolKeyOr in src/screen/widgets/sessionAccent.ts so a saved defaultCritter outside the pool resolves to DEFAULT_CRITTER_KEY; an empty value means the probe script failed, so read the stderr shown')
+      t(`saved '${legacy}' resolves the SHAPE to the pool default def`, shape === 'crab', shape, 'change resolvePoolKey or critterDefForKey in src/screen/cockpit/critterData.ts so an unknown key returns the DEFAULT_CRITTER_KEY def')
       t(
         `the stored value still says '${legacy}' — read-side only, never rewritten`,
         readFileSync(cfgPath, 'utf8') === before,
         readFileSync(cfgPath, 'utf8'),
-        'the read path (currentKey in src/components/mercury-ui/sessionAccent.ts) must not write defaultCritter back; look for a saveGlobalConfig call on the read path')
+        'the read path (currentKey in src/screen/widgets/sessionAccent.ts) must not write defaultCritter back; look for a saveGlobalConfig call on the read path')
     } finally {
       rmSync(home, { recursive: true, force: true })
     }
@@ -85,10 +85,10 @@ console.log('— a SAVED defaultCritter the pool does not know resolves to the D
 
 console.log('— the default critter is the crab —')
 {
-  const { DEFAULT_CRITTER_KEY } = await import('../../src/utils/cockpit/critterData.ts')
-  const { ALL_CRITTERS } = await import('../../src/components/mercury-ui/sessionAccent.ts')
-  t('DEFAULT_CRITTER_KEY is crab', DEFAULT_CRITTER_KEY === 'crab', DEFAULT_CRITTER_KEY, 'set DEFAULT_CRITTER_KEY back to crab in src/utils/cockpit/critterData.ts')
-  t('the crab is a real creature in the pool', ALL_CRITTERS.some(c => c.key === 'crab'), '', 'add a crab entry to ALL_CRITTERS in src/components/mercury-ui/sessionAccent.ts (listed from the CRITTERS table in the same file)')
+  const { DEFAULT_CRITTER_KEY } = await import('../../src/screen/cockpit/critterData.ts')
+  const { ALL_CRITTERS } = await import('../../src/screen/widgets/sessionAccent.ts')
+  t('DEFAULT_CRITTER_KEY is crab', DEFAULT_CRITTER_KEY === 'crab', DEFAULT_CRITTER_KEY, 'set DEFAULT_CRITTER_KEY back to crab in src/screen/cockpit/critterData.ts')
+  t('the crab is a real creature in the pool', ALL_CRITTERS.some(c => c.key === 'crab'), '', 'add a crab entry to ALL_CRITTERS in src/screen/widgets/sessionAccent.ts (listed from the CRITTERS table in the same file)')
 }
 
 

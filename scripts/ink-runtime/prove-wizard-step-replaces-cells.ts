@@ -35,14 +35,14 @@ for (const key of Object.keys(process.env)) {
   if (/^(ANTHROPIC_AUTH_TOKEN|ANTHROPIC_API_KEY|MERCURY_OAUTH_TOKEN|MERCURY_API_KEY_FILE_DESCRIPTOR|OPENAI_API_KEY|ZAI_API_KEY|OPENROUTER_API_KEY|GOOGLE_API_KEY|GEMINI_API_KEY|MOONSHOT_API_KEY|DEEPSEEK_API_KEY|HF_TOKEN|XAI_API_KEY|MODEL_API_KEY|MERCURY_COMPAT_BASE_URL|MERCURY_LOCAL_BASE_URL|TERM_PROGRAM|TERM_PROGRAM_VERSION|WT_SESSION|CURSOR_TRACE_ID|VSCODE_GIT_ASKPASS_MAIN|__CFBundleIdentifier|VisualStudioVersion|TERMINAL_EMULATOR|TMUX|MERCURY_FULLSCREEN)$/.test(key)) delete process.env[key]
 }
 
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-const { disposeKeybindingWatcher } = await import('../../src/keybindings/loadUserBindings.js')
-const { Onboarding } = await import('../../src/components/Onboarding.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
+const { Onboarding } = await import('../../src/boot/first-run/Onboarding.js')
 
 const COLS = 80
 const ROWS = 24
@@ -52,8 +52,8 @@ const WIDTH_PROBE_WRITE = /\x1b7.*\x1b\[6n/s
 
 let checks = 0
 let failures = 0
-const wizardPaintHint = 'the step did not appear within 20 s: look at the step flow in src/components/Onboarding.tsx (the key this walk sends: Enter for step 1 to 2, s for step 2 to 3)'
-const wizardGlassHint = 'the bytes the renderer wrote leave cells of the earlier step on the glass: fix the repaint that follows a step change in src/ink/ink.tsx and src/ink/frame-writer.ts (FrameWriter.render); the idle road is the same repaint after a gap over 30 s'
+const wizardPaintHint = 'the step did not appear within 20 s: look at the step flow in src/boot/first-run/Onboarding.tsx (the key this walk sends: Enter for step 1 to 2, s for step 2 to 3)'
+const wizardGlassHint = 'the bytes the renderer wrote leave cells of the earlier step on the glass: fix the repaint that follows a step change in src/screen/renderer/screenInstance.tsx and src/screen/renderer/frame-writer.ts (FrameWriter.render); the idle road is the same repaint after a gap over 30 s'
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++

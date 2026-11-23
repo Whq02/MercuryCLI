@@ -52,7 +52,7 @@ if (ROAD === 'javascript') process.env.MERCURY_IMAGE_PROCESSOR = 'javascript'
 const { scenario, writeSyntheticSession, SID } = await import('../ui/renderScenarios.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { resolveCaptureDriver, vshotBudgetMs } = await import('../lib/captureDriver.ts')
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 const sharp = (await import('sharp')).default
 
 let failures = 0
@@ -93,7 +93,7 @@ const runCapture = (cfgPath: string, env: Record<string, string>, timeoutMs: num
   })
 
 if (ROAD === 'obligation') {
-  const { upsertObligation } = await import('../../src/services/crew/obligations.ts')
+  const { upsertObligation } = await import('../../src/crew/crewmates/obligations.ts')
   console.log(`\n── ${TAG} ──`)
   const jpeg = join(SCRATCH, 'shot.jpeg')
   const svg = Buffer.from(
@@ -163,7 +163,7 @@ if (ROAD === 'obligation') {
   check('the capture ran whole', res.status === 0 && payload !== null, `vshot exit ${res.status}: ${(res.stderr ?? '').slice(-400)}; scripts/ui/vshot.py must exit 0 and write grid.json, read its stderr above`)
   const markRows = (label: string): string[] => rowsOf((payload?.marks ?? []).find(m => m.label === label)?.grid ?? [])
   const composer = (rows: string[]): string => rows.filter(r => r.includes('│❯')).join(' | ')
-  check('the JPEG attached from disk (the chip landed)', composer(markRows('chip')).includes('[Image #1]'), `${composer(markRows('chip'))}; the pasted file path must attach as an image chip, see src/components/PromptInput/useComposerAttachments.ts`)
+  check('the JPEG attached from disk (the chip landed)', composer(markRows('chip')).includes('[Image #1]'), `${composer(markRows('chip'))}; the pasted file path must attach as an image chip, see src/screen/composer/useComposerAttachments.ts`)
   const ledgerPath = join(DAEMON_DIR, 'concourse-dispatches.json')
   await untilAsync(() => existsSync(ledgerPath) && /obl-answer:/.test(readFileSync(ledgerPath, 'utf8')), 30_000)
   let count = 0
@@ -179,7 +179,7 @@ if (ROAD === 'obligation') {
     oblState = 'unreadable'
   }
   console.log(`  ${TAG}: the obligation-answer dispatch is '${oblState}', contentImageBlocks=${count}`)
-  check('the pasted image rode the obligation answer to the daemon (contentImageBlocks >= 1)', count >= 1, `contentImageBlocks=${count} on a '${oblState}' dispatch; the obligation answer must carry its image blocks into the dispatch record, see src/daemon/concourseDispatch.ts`)
+  check('the pasted image rode the obligation answer to the daemon (contentImageBlocks >= 1)', count >= 1, `contentImageBlocks=${count} on a '${oblState}' dispatch; the obligation answer must carry its image blocks into the dispatch record, see src/daemon/concourse-workers/concourseDispatch.ts`)
   const requests = api.messageRequests()
   const wireImages = requests.flatMap(r => {
     const body = r.body as { messages?: { content?: unknown }[] }
@@ -190,7 +190,7 @@ if (ROAD === 'obligation') {
     check(
       'the provider request carried the image block',
       wireImages.length >= 1 && wireImages.every(b => (b as { source?: { type?: string } }).source?.type === 'base64'),
-      `${requests.length} requests, ${wireImages.length} image blocks; the image must reach the provider request as a base64 block, see src/daemon/concourseDispatch.ts`,
+      `${requests.length} requests, ${wireImages.length} image blocks; the image must reach the provider request as a base64 block, see src/daemon/concourse-workers/concourseDispatch.ts`,
     )
   } else {
     console.log(`  ${TAG}: no provider request landed in the window — the ledger count is the wire witness`)
@@ -291,18 +291,18 @@ const finalRows = payload ? rowsOf(payload.grid) : []
 const everywhere = [...(payload?.marks ?? []).flatMap(m => rowsOf(m.grid)), ...finalRows].join('\n')
 const composer = (rows: string[]): string => rows.filter(r => r.includes('│❯')).join(' | ')
 
-check('the first paste lands as [Image #1]', composer(markRows('chip1')).includes('[Image #1]'), `${composer(markRows('chip1'))}; the clipboard image paste must add an [Image #1] chip, see src/components/PromptInput/useComposerAttachments.ts and src/utils/imagePaste.ts`)
-check('the composer says what was attached and what it was shrunk to', /\[Image #1\] attached — 9000x3000 shrunk to 3000x\d+ · [\d.]+(MB|KB)/.test(everywhere), [...everywhere.matchAll(/\[Image #1\] attached[^\n]*/g)].map(m => m[0]).join(' | ') + '; the attached notice is built in src/components/PromptInput/useComposerAttachments.ts and must say the original and shrunk sizes')
-check('the second paste keeps both chips', /\[Image #1\].*\[Image #2\]/.test(composer(markRows('chip2'))), `${composer(markRows('chip2'))}; a second paste must add [Image #2] beside [Image #1], see src/components/PromptInput/useComposerAttachments.ts`)
-check('a focus regain with an image on the clipboard tells the chord', /clipboard holds an image — \S+ attaches it/.test(markRows('hint').join('\n')), `${markRows('hint').filter(r => /clipboard/.test(r)).join(' | ')}; the focus-regain notice is built in src/hooks/useClipboardImageHint.ts`)
-check('Enter never meets the 1MB frame wall', !/request exceeds \d+MB/.test(everywhere), 'the control frame cap in src/daemon/controlServer.ts refused the send; the pasted image must be shrunk before it is sent')
+check('the first paste lands as [Image #1]', composer(markRows('chip1')).includes('[Image #1]'), `${composer(markRows('chip1'))}; the clipboard image paste must add an [Image #1] chip, see src/screen/composer/useComposerAttachments.ts and src/screen/composer/imagePaste.ts`)
+check('the composer says what was attached and what it was shrunk to', /\[Image #1\] attached — 9000x3000 shrunk to 3000x\d+ · [\d.]+(MB|KB)/.test(everywhere), [...everywhere.matchAll(/\[Image #1\] attached[^\n]*/g)].map(m => m[0]).join(' | ') + '; the attached notice is built in src/screen/composer/useComposerAttachments.ts and must say the original and shrunk sizes')
+check('the second paste keeps both chips', /\[Image #1\].*\[Image #2\]/.test(composer(markRows('chip2'))), `${composer(markRows('chip2'))}; a second paste must add [Image #2] beside [Image #1], see src/screen/composer/useComposerAttachments.ts`)
+check('a focus regain with an image on the clipboard tells the chord', /clipboard holds an image — \S+ attaches it/.test(markRows('hint').join('\n')), `${markRows('hint').filter(r => /clipboard/.test(r)).join(' | ')}; the focus-regain notice is built in src/screen/composer/useClipboardImageHint.ts`)
+check('Enter never meets the 1MB frame wall', !/request exceeds \d+MB/.test(everywhere), 'the control frame cap in src/daemon/control/controlServer.ts refused the send; the pasted image must be shrunk before it is sent')
 check('Enter sends the message (the composer clears, the turn runs)', !composer(markRows('reply')).includes('[Image #1]'), `${composer(markRows('reply'))}; Enter must send the message and clear the composer`)
 const replied = markRows('reply').join('\n').includes('Seen both.') || finalRows.join('\n').includes('Seen both.')
 console.log(`  ${TAG}: the fixture's reply ${replied ? 'painted' : 'had not painted by the reply mark\'s deadline'} (${(markRows('reply').find(r => /spend|ingesting|thinking/.test(r)) ?? '').trim().slice(0, 120)})`)
 const store = join(HOME, 'image-cache')
 const sessions = existsSync(store) ? readdirSync(store) : []
 const files = sessions.flatMap(s => readdirSync(join(store, s)).map(f => `${s}/${f}`))
-check('each paste is its own file in the session\'s image store', files.some(f => /\/1\.(png|jpeg)$/.test(f)) && files.some(f => /\/2\.(png|jpeg)$/.test(f)), `${files.join(', ')}; each paste must be saved as N.png or N.jpeg under image-cache in the config home, see src/utils/imageStore.ts`)
+check('each paste is its own file in the session\'s image store', files.some(f => /\/1\.(png|jpeg)$/.test(f)) && files.some(f => /\/2\.(png|jpeg)$/.test(f)), `${files.join(', ')}; each paste must be saved as N.png or N.jpeg under image-cache in the config home, see src/platform/images/imageStore.ts`)
 for (const f of files) {
   try {
     const bytes = readFileSync(join(store, f))

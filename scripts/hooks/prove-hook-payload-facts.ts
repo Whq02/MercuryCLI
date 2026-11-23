@@ -14,7 +14,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 
 let failures = 0
-const payloadHint = 'to fix, change the payload fields of the event this label names in hookEventTable and hookPayloadSchema of src/utils/hooks/contract.ts, or how buildHookPayload in src/utils/hooks/fire.ts fills them; for the run door check also rebuild dist with bun run build.ts'
+const payloadHint = 'to fix, change the payload fields of the event this label names in hookEventTable and hookPayloadSchema of src/integrations/event-hooks/contract.ts, or how buildHookPayload in src/integrations/event-hooks/fire.ts fills them; for the run door check also rebuild dist with bun run build.ts'
 const check = (label: string, good: boolean, detail = ''): void => {
   if (!good) failures++
   console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good ? ` — ${detail ? `${detail} | ` : ''}${payloadHint}` : ''}`)
@@ -24,8 +24,8 @@ if (!existsSync(dist)) {
   process.exit(1)
 }
 
-const C = await import('../../src/utils/hooks/contract.ts')
-const { buildHookPayload } = await import('../../src/utils/hooks/fire.ts')
+const C = await import('../../src/integrations/event-hooks/contract.ts')
+const { buildHookPayload } = await import('../../src/integrations/event-hooks/fire.ts')
 
 console.log('§1 the contract: tool.after carries the call wall time; every payload carries the crewmate identity fields')
 {

@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
-const FOLD_OWNER_FIX_HINT = 'FoldStatusRow in src/components/FoldStatusRow.tsx (rendered from src/components/Messages.tsx with the conversationId) must paint the fold row only when conversationId is the focused session, and a crewmate, export or other transcript must paint none; FOLD_ROW_HEAD and beginFoldStatus are in src/services/compact/foldStatus.ts'
+const FOLD_OWNER_FIX_HINT = 'FoldStatusRow in src/screen/messages/FoldStatusRow.tsx (rendered from src/screen/messages/Messages.tsx with the conversationId) must paint the fold row only when conversationId is the focused session, and a crewmate, export or other transcript must paint none; FOLD_ROW_HEAD and beginFoldStatus are in src/engine/compaction/foldStatus.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` | fix: ${FOLD_OWNER_FIX_HINT}`}`)
   if (!ok) failures++
@@ -18,19 +18,19 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpd
 process.env.MERCURY_OPERATOR = 'sam'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_HOME
-const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
 
 const React = (await import('react')).default
-const { renderToString } = await import(join(ROOT, 'src/utils/staticRender.tsx'))
-const { Messages } = await import(join(ROOT, 'src/components/Messages.tsx'))
-const { CrewmatePlateContext } = await import(join(ROOT, 'src/components/messages/TranscriptNameplate.tsx'))
-const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
-const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
-const slot = await import(join(ROOT, 'src/services/engine-connector/focusedConnector.ts'))
-const { noSessionConnector } = await import(join(ROOT, 'src/services/engine-connector/noSessionConnector.ts'))
-const { IDLE_LIVE } = await import(join(ROOT, 'src/services/engine-connector/seatLive.ts'))
-const { beginFoldStatus, FOLD_ROW_HEAD } = await import(join(ROOT, 'src/services/compact/foldStatus.ts'))
+const { renderToString } = await import(join(ROOT, 'src/screen/renderer/staticRender.tsx'))
+const { Messages } = await import(join(ROOT, 'src/screen/messages/Messages.tsx'))
+const { CrewmatePlateContext } = await import(join(ROOT, 'src/screen/messages/TranscriptNameplate.tsx'))
+const { AppStateProvider } = await import(join(ROOT, 'src/screen/app-state/AppState.tsx'))
+const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/AppStateStore.ts'))
+const slot = await import(join(ROOT, 'src/engine/connector/focusedConnector.ts'))
+const { noSessionConnector } = await import(join(ROOT, 'src/engine/connector/noSessionConnector.ts'))
+const { IDLE_LIVE } = await import(join(ROOT, 'src/engine/connector/seatLive.ts'))
+const { beginFoldStatus, FOLD_ROW_HEAD } = await import(join(ROOT, 'src/engine/compaction/foldStatus.ts'))
 
 const T0 = 1_760_000_000_000
 const iso = (at: number): string => new Date(at).toISOString()

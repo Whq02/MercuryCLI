@@ -18,7 +18,7 @@ const handed = join(world, 'daemon')
 mkdirSync(handed, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = join(world, 'home')
 process.env.MERCURY_DAEMON_DIR = handed
-const { controlSockPath } = (await import('../../src/daemon/controlSocket.ts')) as { controlSockPath: () => string }
+const { controlSockPath } = (await import('../../src/daemon/control/controlSocket.ts')) as { controlSockPath: () => string }
 
 console.log('============================================================')
 console.log(' prove-quit-reaps-the-tree calls no daemon but its own')
@@ -54,7 +54,7 @@ await new Promise<void>(resolve => door.close(() => resolve()))
 check(
   'run with a daemon folder handed in by its environment, where a daemon stands and answers, the proof never calls that daemon',
   calls.length === 0,
-  `the stand-in at ${handed} was called ${calls.length} time(s): ${calls.join(', ')} · scripts/daemon/prove-quit-reaps-the-tree.ts must set MERCURY_DAEMON_DIR to its own scratch folder before it imports src/daemon/controlSocket.ts, so it never reaches a daemon the environment hands in`,
+  `the stand-in at ${handed} was called ${calls.length} time(s): ${calls.join(', ')} · scripts/daemon/prove-quit-reaps-the-tree.ts must set MERCURY_DAEMON_DIR to its own scratch folder before it imports src/daemon/control/controlSocket.ts, so it never reaches a daemon the environment hands in`,
 )
 check(
   'and it reads there what it reads alone',

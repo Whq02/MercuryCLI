@@ -7,7 +7,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  ${ok ? '✓' : '✗'} ${label}${detail ? ` — ${detail}` : ''}`)
   if (!ok) {
     failures++
-    console.log('      fix: the behaviour named in this label lives in src/daemon/spawnLedger.ts (recordSpawn, recordSpawnExit, assertSpawnCwd, spawnedByStamp, recordBashAudit, spawnLedgerPath, bashAuditPath)')
+    console.log('      fix: the behaviour named in this label lives in src/daemon/roster/spawnLedger.ts (recordSpawn, recordSpawnExit, assertSpawnCwd, spawnedByStamp, recordBashAudit, spawnLedgerPath, bashAuditPath)')
   }
 }
 
@@ -17,7 +17,7 @@ delete process.env.MERCURY_SPAWN_LEDGER
 delete process.env.MERCURY_SPAWN_AUDIT
 delete process.env.MERCURY_SPAWNED_BY
 
-const led = await import('../../src/daemon/spawnLedger.ts')
+const led = await import('../../src/daemon/roster/spawnLedger.ts')
 
 console.log('— unit: ledger writes —')
 led.recordSpawn({ kind: 'headless', id: 'proof-1', cwd: home })

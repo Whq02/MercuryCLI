@@ -1,16 +1,16 @@
 import { type Command as CommanderCommand } from 'commander'
-import { cliError, cliOk } from '../../cli/exit.js'
-import { addMcpConfig } from '../../services/mcp/config.js'
-import { readClientSecret, saveMcpClientSecret } from '../../services/mcp/auth.js'
-import { McpServerConfigSchema, type McpServerConfig } from '../../utils/mcp/types.js'
+import { cliError, cliOk } from '../verbs/exit.js'
+import { addMcpConfig } from '../../integrations/mcp/serverConfigs.js'
+import { readClientSecret, saveMcpClientSecret } from '../../integrations/mcp/auth.js'
+import { McpServerConfigSchema, type McpServerConfig } from '../../integrations/mcp-shapes/mcpServerRecords.js'
 import {
   describeMcpConfigFilePath,
   ensureConfigScope,
   ensureTransport,
   parseHeaders,
-} from '../../services/mcp/utils.js'
-import { binaryName } from '../../utils/config/derived.js'
-import { describeHeadersRedacted, describeUrlRedacted } from '../../utils/redactHeaders.js'
+} from '../../integrations/mcp/utils.js'
+import { binaryName } from '../../platform/config/derived.js'
+import { describeHeadersRedacted, describeUrlRedacted } from './redactHeaders.js'
 
 function parseEnvAssignments(pairs: string[]): Record<string, string> {
   const env: Record<string, string> = {}

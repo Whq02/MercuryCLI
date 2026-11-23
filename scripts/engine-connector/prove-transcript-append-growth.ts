@@ -14,8 +14,8 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+const { publishSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 
 type Seam = {
@@ -70,7 +70,7 @@ async function appendPass(label: string, turns: number): Promise<{ ms: number; o
   const ms = performance.now() - t0
   const after = conn.transcriptPart.rawRecords.length
   const ok = after === before + 1 && conn.transcriptPart.rawRecords[0] === first
-  check(`${label}: the append landed as one row (${before} → ${after}) and the first row kept its object`, ok, `rows ${before} → ${after}; fix the merge in the tick in src/services/engine-connector/daemon/transcript.ts (mergeRecordsContentKeyed) so an append adds one row and keeps the earlier row objects`)
+  check(`${label}: the append landed as one row (${before} → ${after}) and the first row kept its object`, ok, `rows ${before} → ${after}; fix the merge in the tick in src/engine/connector/daemon/transcript.ts (mergeRecordsContentKeyed) so an append adds one row and keeps the earlier row objects`)
   const load = lastLoadRow(sessionId)
   conn.detach()
   return { ms, ok, load, cadences }
@@ -84,19 +84,19 @@ const tookAppendRoad = (pass: { load: LoadRow | null }, seeded: number): boolean
 check(
   '§1 the 6-row append took the append road (the merge started at the previous length, only the tail deserialised)',
   tookAppendRoad(small, 6),
-  `${JSON.stringify(small.load)} — the last load trace row must show prevLen 6, since 6, rawLen 7, rewound false; fix the tick in src/services/engine-connector/daemon/transcript.ts (readTranscriptChainSince cursor)`,
+  `${JSON.stringify(small.load)} — the last load trace row must show prevLen 6, since 6, rawLen 7, rewound false; fix the tick in src/engine/connector/daemon/transcript.ts (readTranscriptChainSince cursor)`,
 )
 check(
   '§1 the 2,400-row append took the append road too — never the chain',
   tookAppendRoad(large, 2400),
-  `${JSON.stringify(large.load)} — the last load trace row must show prevLen 2400, since 2400, rawLen 2401, rewound false; fix the tick in src/services/engine-connector/daemon/transcript.ts (readTranscriptChainSince cursor)`,
+  `${JSON.stringify(large.load)} — the last load trace row must show prevLen 2400, since 2400, rawLen 2401, rewound false; fix the tick in src/engine/connector/daemon/transcript.ts (readTranscriptChainSince cursor)`,
 )
 
-check('§2 at rest the transcript heartbeat is its idle floor (2 s) behind a live watch', large.cadences.transcript === 2000, `${JSON.stringify(large.cadences)} — the idle floor is IDLE_TRANSCRIPT_FLOOR_MS in src/services/engine-connector/daemon/transcript.ts`)
+check('§2 at rest the transcript heartbeat is its idle floor (2 s) behind a live watch', large.cadences.transcript === 2000, `${JSON.stringify(large.cadences)} — the idle floor is IDLE_TRANSCRIPT_FLOOR_MS in src/engine/connector/daemon/transcript.ts`)
 check(
   '§2 at rest the projection feeds heartbeat at their idle floor (10 s)',
   large.cadences.facts === 10_000 && large.cadences.asks === 10_000 && large.cadences.tail === 10_000 && large.cadences.progress === 10_000,
-  `${JSON.stringify(large.cadences)} — the idle floor is IDLE_PROJECTION_FLOOR_MS in src/services/engine-connector/daemonConnector.ts`,
+  `${JSON.stringify(large.cadences)} — the idle floor is IDLE_PROJECTION_FLOOR_MS in src/engine/connector/daemonConnector.ts`,
 )
 {
   const home = mkdtempSync(join(tmpdir(), 'append-growth-turn-'))
@@ -116,15 +116,15 @@ check(
   check(
     '§2 a turn in flight puts every feed at the full heartbeat (400 ms)',
     busy.transcript === 400 && busy.facts === 400 && busy.asks === 400 && busy.tail === 400 && busy.progress === 400,
-    `${JSON.stringify(busy)} — each feed must use HEARTBEAT_MS while turnInFlight; see syncFeedCadence in src/services/engine-connector/daemonConnector.ts`,
+    `${JSON.stringify(busy)} — each feed must use HEARTBEAT_MS while turnInFlight; see syncFeedCadence in src/engine/connector/daemonConnector.ts`,
   )
   runnerSays(false, saidAt + 1)
   await feedReads(10_000)
   const idle = conn.feedCadencesForProofs()
-  check('§2 the turn settling returns every feed to its floor', idle.transcript === 2000 && idle.facts === 10_000, `${JSON.stringify(idle)} — a settled turn must return the feeds to their idle floor; see syncFeedCadence in src/services/engine-connector/daemonConnector.ts`)
+  check('§2 the turn settling returns every feed to its floor', idle.transcript === 2000 && idle.facts === 10_000, `${JSON.stringify(idle)} — a settled turn must return the feeds to their idle floor; see syncFeedCadence in src/engine/connector/daemonConnector.ts`)
   conn.detach()
   const gone = conn.feedCadencesForProofs()
-  check('§2 detach stops every heartbeat', gone.transcript === 0 && gone.facts === 0 && gone.asks === 0 && gone.tail === 0 && gone.progress === 0, `${JSON.stringify(gone)} — detach in src/services/engine-connector/daemonConnector.ts must stop every feed heartbeat`)
+  check('§2 detach stops every heartbeat', gone.transcript === 0 && gone.facts === 0 && gone.asks === 0 && gone.tail === 0 && gone.progress === 0, `${JSON.stringify(gone)} — detach in src/engine/connector/daemonConnector.ts must stop every feed heartbeat`)
 }
 {
   const home = mkdtempSync(join(tmpdir(), 'append-growth-absent-'))
@@ -134,11 +134,11 @@ check(
   await conn.attach()
   const afterAttach = loadsFor()
   for (let i = 0; i < 5; i++) await conn.transcriptPart.tickOnce()
-  check('§3 an absent transcript is read once (the attach) and gated on every heartbeat after', afterAttach === 1 && loadsFor() === 1, `loads after attach=${afterAttach} after 5 ticks=${loadsFor()}; the tick in src/services/engine-connector/daemon/transcript.ts must skip the read while the file is absent`)
+  check('§3 an absent transcript is read once (the attach) and gated on every heartbeat after', afterAttach === 1 && loadsFor() === 1, `loads after attach=${afterAttach} after 5 ticks=${loadsFor()}; the tick in src/engine/connector/daemon/transcript.ts must skip the read while the file is absent`)
   const lines = transcriptLines(sessionId, home, 1, 40)
   writeFileSync(join(home, `${sessionId}.jsonl`), lines.join('\n') + '\n')
   await conn.transcriptPart.tickOnce()
-  check('§3 the file appearing is read on the next pass', loadsFor() === 2 && conn.transcriptPart.rawRecords.length === 3, `loads=${loadsFor()} rows=${conn.transcriptPart.rawRecords.length}; the tick in src/services/engine-connector/daemon/transcript.ts must read the file once it exists`)
+  check('§3 the file appearing is read on the next pass', loadsFor() === 2 && conn.transcriptPart.rawRecords.length === 3, `loads=${loadsFor()} rows=${conn.transcriptPart.rawRecords.length}; the tick in src/engine/connector/daemon/transcript.ts must read the file once it exists`)
   conn.detach()
 }
 {
@@ -148,7 +148,7 @@ check(
   await conn.attach()
   await sleep(20)
   const c = conn.feedCadencesForProofs()
-  check('§2 a transcript whose directory does not exist keeps the full heartbeat (no watch can arm)', c.transcript === 400, `${JSON.stringify(c)} — with no watch armed the transcript heartbeat must stay at HEARTBEAT_MS; see armTranscriptWatcher in src/services/engine-connector/daemon/transcript.ts`)
+  check('§2 a transcript whose directory does not exist keeps the full heartbeat (no watch can arm)', c.transcript === 400, `${JSON.stringify(c)} — with no watch armed the transcript heartbeat must stay at HEARTBEAT_MS; see armTranscriptWatcher in src/engine/connector/daemon/transcript.ts`)
   conn.detach()
 }
 

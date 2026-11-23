@@ -42,15 +42,15 @@ axios.defaults.adapter = async (config: { url?: string }) => {
   throw error
 }
 
-const { plainTextStorage } = await import(join(SRC, 'utils/secureStorage/plainTextStorage.ts'))
-const { clearAuthScope } = await import(join(SRC, 'utils/envUtils.ts'))
-const { lockSync } = await import(join(SRC, 'utils/lockfile.ts'))
-const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
+const { plainTextStorage } = await import(join(SRC, 'platform/secure-storage/plainTextStorage.ts'))
+const { clearAuthScope } = await import(join(SRC, 'platform/environment/envUtils.ts'))
+const { lockSync } = await import(join(SRC, 'platform/storage/lockfile.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/config/globalConfig.ts'))
 enableConfigs()
-const auth = { ...(await import(join(SRC, 'utils/auth.ts'))), ...(await import(join(SRC, 'services/auth/oauthLifecycle.ts'))) }
-const sealedRecord = await import(join(SRC, 'utils/secureStorage/sealedRecord.ts'))
-const sealedFile = await import(join(SRC, 'utils/secureStorage/sealedFileStorage.ts'))
-const starts = await import(join(SRC, 'utils/secureStorage/sealedStoreStart.ts'))
+const auth = { ...(await import(join(SRC, 'models/sign-in/credentials/auth.ts'))), ...(await import(join(SRC, 'models/sign-in/lifecycle/oauthLifecycle.ts'))) }
+const sealedRecord = await import(join(SRC, 'platform/secure-storage/sealedRecord.ts'))
+const sealedFile = await import(join(SRC, 'platform/secure-storage/sealedFileStorage.ts'))
+const starts = await import(join(SRC, 'platform/secure-storage/sealedStoreStart.ts'))
 
 type Answer = { ok: true; bytes: Buffer } | { ok: false; why: string; final: boolean }
 type Stored = Record<string, unknown>
@@ -63,7 +63,7 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   total++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — change startSealedStore in src/utils/secureStorage/sealedStoreStart.ts (its use of the refresh lock from src/utils/lockfile.ts) or the sealed store in src/utils/secureStorage/sealedFileStorage.ts / sealedRecord.ts so this holds' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — change startSealedStore in src/platform/secure-storage/sealedStoreStart.ts (its use of the refresh lock from src/platform/storage/lockfile.ts) or the sealed store in src/platform/secure-storage/sealedFileStorage.ts / sealedRecord.ts so this holds' : ''}`)
 }
 const skip = (label: string, why: string): void => {
   console.log(`  [SKIP] ${label} — ${why}`)

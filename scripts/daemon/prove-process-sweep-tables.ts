@@ -3,13 +3,13 @@ import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-const owner = join(import.meta.dir, '../../src/utils/processSweep.ts')
-const posix = join(import.meta.dir, '../../src/daemon/processSweepPosix.ts')
+const owner = join(import.meta.dir, '../../src/daemon/process-sweep/processSweep.ts')
+const posix = join(import.meta.dir, '../../src/daemon/process-sweep/processSweepPosix.ts')
 assert.ok(existsSync(owner) && existsSync(posix), 'Mercury composes process facts from its own records and one POSIX table reader')
-const { composeProcessSweepFacts, classifyMercuryProcess, readProcessSweepCensus, processSweepCounts, PROCESS_SWEEP_WORDS, processNamesMercury, tokenBinding }: typeof import('../../src/utils/processSweep.ts') = await import(owner)
-const { parsePosixProcessTable, parseProcessStartToken, parsePidColumn, probePosixTerminal, collectPosixProcessTable }: typeof import('../../src/daemon/processSweepPosix.ts') = await import(posix)
-const { healthProcessesReport }: typeof import('../../src/cli/healthProcesses.ts') = await import(join(import.meta.dir, '../../src/cli/healthProcesses.ts'))
-import type { ProcessSweepObservation, ProcessSweepRecords, ProcessSweepTable } from '../../src/utils/processSweep.ts'
+const { composeProcessSweepFacts, classifyMercuryProcess, readProcessSweepCensus, processSweepCounts, PROCESS_SWEEP_WORDS, processNamesMercury, tokenBinding }: typeof import('../../src/daemon/process-sweep/processSweep.ts') = await import(owner)
+const { parsePosixProcessTable, parseProcessStartToken, parsePidColumn, probePosixTerminal, collectPosixProcessTable }: typeof import('../../src/daemon/process-sweep/processSweepPosix.ts') = await import(posix)
+const { healthProcessesReport }: typeof import('../../src/commands/verbs/healthProcesses.ts') = await import(join(import.meta.dir, '../../src/commands/verbs/healthProcesses.ts'))
+import type { ProcessSweepObservation, ProcessSweepRecords, ProcessSweepTable } from '../../src/daemon/process-sweep/processSweep.ts'
 
 let checks = 0
 const check = (label: string, run: () => void | Promise<void>): Promise<void> => Promise.resolve(run()).then(() => {
@@ -31,11 +31,11 @@ await check('the birth token parses in the C and the en_GB spellings and refuses
   const c = parseProcessStartToken('Sun Sep 20 04:14:19 2026')
   const gb = parseProcessStartToken('Sun 20 Sep 04:14:19 2026')
   assert.equal(c, gb)
-  assert.ok(Number.isFinite(c) && c > 0, `src/daemon/processSweepPosix.ts parseProcessStartToken(C) expected positive epoch ms, got ${c}`)
+  assert.ok(Number.isFinite(c) && c > 0, `src/daemon/process-sweep/processSweepPosix.ts parseProcessStartToken(C) expected positive epoch ms, got ${c}`)
   const garbageToken = parseProcessStartToken('garbage')
-  assert.ok(Number.isNaN(garbageToken), `src/daemon/processSweepPosix.ts parseProcessStartToken('garbage') expected NaN, got ${garbageToken}`)
+  assert.ok(Number.isNaN(garbageToken), `src/daemon/process-sweep/processSweepPosix.ts parseProcessStartToken('garbage') expected NaN, got ${garbageToken}`)
   const emptyToken = parseProcessStartToken('')
-  assert.ok(Number.isNaN(emptyToken), `src/daemon/processSweepPosix.ts parseProcessStartToken('') expected NaN, got ${emptyToken}`)
+  assert.ok(Number.isNaN(emptyToken), `src/daemon/process-sweep/processSweepPosix.ts parseProcessStartToken('') expected NaN, got ${emptyToken}`)
 })
 
 await check('a birth token carries no zone: inside the repeated hour of a clock change it reads as the first pass, never later than the process began; outside a change, and in a zone without one, it reads exactly', () => {
@@ -229,7 +229,7 @@ await check('the darwin read stands: the command name column is the executable, 
 })
 
 await check('the kernel link is read from the process table\'s own platform when none is named, and a pid with no link answers null', async () => {
-  const { linuxExecutableLink }: typeof import('../../src/daemon/processSweepPosix.ts') = await import(posix)
+  const { linuxExecutableLink }: typeof import('../../src/daemon/process-sweep/processSweepPosix.ts') = await import(posix)
   const link = linuxExecutableLink(process.pid)
   if (process.platform === 'linux') assert.ok(typeof link === 'string' && link !== '', 'a linux reader names its own binary')
   else assert.equal(link, null)
@@ -534,7 +534,7 @@ await check('/health words and the JSON report carry the approved sentences', ()
   const report = healthProcessesReport(census, false)
   assert.equal(report.row, 'Mercury processes')
   assert.equal(report.lines.length, counts.stale + counts['cannot-end'])
-  assert.ok(report.lines.every(line => /^pid \d+ · .+ · .+ · .+$/.test(line)), `src/cli/healthProcesses.ts healthProcessesReport line format mismatch: ${report.lines.join(' | ').slice(0, 160)}`)
+  assert.ok(report.lines.every(line => /^pid \d+ · .+ · .+ · .+$/.test(line)), `src/commands/verbs/healthProcesses.ts healthProcessesReport line format mismatch: ${report.lines.join(' | ').slice(0, 160)}`)
   assert.equal(report.result, undefined)
 })
 
@@ -590,7 +590,7 @@ await check('a runner record without a birth token binds nothing: the process ca
 console.log('§ the ending ladder over injected ports in a scratch home')
 const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = require('node:fs') as typeof import('node:fs')
 const { tmpdir } = require('node:os') as typeof import('node:os')
-const { endStaleProcesses, readMercuryProcesses, recordProcessCensusAtBoot }: typeof import('../../src/daemon/processSweepRun.ts') = await import(join(import.meta.dir, '../../src/daemon/processSweepRun.ts'))
+const { endStaleProcesses, readMercuryProcesses, recordProcessCensusAtBoot }: typeof import('../../src/daemon/process-sweep/processSweepRun.ts') = await import(join(import.meta.dir, '../../src/daemon/process-sweep/processSweepRun.ts'))
 const SCRATCH = mkdtempSync(join(tmpdir(), 'orphan-sweep-ladder-'))
 const home = join(SCRATCH, 'home')
 const daemonDir = join(home, 'daemon')
@@ -666,7 +666,7 @@ await check('a daemon that confirmed the end but has not left within the wait is
 })
 
 await check('a target already gone before anything was sent is not counted among the ended', () => {
-  const { processSweepOutcomeLine }: typeof import('../../src/daemon/processSweepRun.ts') = require(join(import.meta.dir, '../../src/daemon/processSweepRun.ts'))
+  const { processSweepOutcomeLine }: typeof import('../../src/daemon/process-sweep/processSweepRun.ts') = require(join(import.meta.dir, '../../src/daemon/process-sweep/processSweepRun.ts'))
   const entry = { process: { pid: 1, ppid: 1, exe: '', args: [], startedAtMs: 0, user: '', terminal: null }, platform: 'darwin' as const, kind: 'window' as const, startToken: null, registrationId: null, classification: 'stale' as const, reason: '', state: '' }
   const line = processSweepOutcomeLine({ readAt: 0, platform: 'darwin', complete: true, entries: [], memory: {}, endings: [
     { entry, outcome: 'ended', road: 'none', reason: 'already gone before anything was sent', at: 0 },
@@ -681,7 +681,7 @@ await check('a released runner the daemon killed but that survived goes on to th
   const ending = await ladder(port, 4003)
   assert.equal(ending.outcome, 'survived')
   assert.deepEqual(port.signals, ['4003:SIGTERM', '4003:SIGKILL'])
-  assert.ok(ending.reason.startsWith(PROCESS_SWEEP_WORDS.unkillable), `src/daemon/processSweepRun.ts survivor reason expected prefix '${PROCESS_SWEEP_WORDS.unkillable}', got '${ending.reason}'`)
+  assert.ok(ending.reason.startsWith(PROCESS_SWEEP_WORDS.unkillable), `src/daemon/process-sweep/processSweepRun.ts survivor reason expected prefix '${PROCESS_SWEEP_WORDS.unkillable}', got '${ending.reason}'`)
 })
 
 await check('a process that leaves on the termination signal is never sent the kill signal', async () => {

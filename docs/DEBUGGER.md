@@ -159,5 +159,5 @@ a spawn and the certificate never names a probe still in flight.
 `MERCURY_DAP_ADAPTERS`, `MERCURY_DAP_ADAPTERS_FILE`,
 `MERCURY_JS_DEBUG_DAP`, `MERCURY_DEBUGPY_VENDOR_DIR` and `MERCURY_PYTHON_VENDOR_DIR` tune the
 adapter table and the vendored payload roots, all registered rows of the in-code
-registry (`src/substrate/flagRegistry.ts`; rendered on demand to an
+registry (`src/platform/substrate/flagRegistry.ts`; rendered on demand to an
 untracked path).

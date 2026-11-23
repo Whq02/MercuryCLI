@@ -22,12 +22,12 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS', 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(project)
 
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit, cacheKeys } = await import('../../src/utils/fileStateCache.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
-const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
-const { closeRemoteConnections } = await import('../../src/services/remoteFiles/connection.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit, cacheKeys } = await import('../../src/platform/files/fileStateCache.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
+const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
+const { closeRemoteConnections } = await import('../../src/platform/remote-files/connection.ts')
 setSessionTrustAccepted(true)
 enableConfigs()
 setOriginalCwd(project)
@@ -36,13 +36,13 @@ setCwdState(project)
 const PORT = 27064
 const FIXTURES = join(import.meta.dir, '..', 'tools', 'fixtures', 'read-formats')
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 420 seconds; look at the last check printed above, then at the remote read path in src/tools/FileReadTool/FileReadTool.ts and src/services/remoteFiles/')
+  console.log('  [FAIL] the proof did not finish within 420 seconds; look at the last check printed above, then at the remote read path in src/tools/read/ReadTool.ts and src/platform/remote-files/')
   process.exit(1)
 }, 420_000)
 watchdog.unref()
 let failures = 0
 let checks = 0
-const REMOTE_READ_FIX = 'a read of ssh://box/... must answer what the same local read answers: fix the remote branch of FileReadTool.call in src/tools/FileReadTool/FileReadTool.ts or the remote file layer in src/services/remoteFiles/'
+const REMOTE_READ_FIX = 'a read of ssh://box/... must answer what the same local read answers: fix the remote branch of FileReadTool.call in src/tools/read/ReadTool.ts or the remote file layer in src/platform/remote-files/'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++

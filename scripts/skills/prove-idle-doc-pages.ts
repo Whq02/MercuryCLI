@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { bundledDocPagesPacked } from '../../src/skills/bundled/mercuryDocsPages.ts'
+import { bundledDocPagesPacked } from '../../src/integrations/skills/bundled/mercuryDocsPages.ts'
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -18,9 +18,9 @@ import { writeHeapSnapshot } from 'node:v8'
 import { writeFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
-import { enableConfigs } from ${JSON.stringify(join(root, 'src/utils/config.ts'))}
-import { registerMercuryDocsSkill, mercuryDocPages, mercuryDocsPrompt } from ${JSON.stringify(join(root, 'src/skills/bundled/mercuryDocs.ts'))}
-import { getBundledSkills, getBundledSkillExtractDir } from ${JSON.stringify(join(root, 'src/skills/bundledSkills.ts'))}
+import { enableConfigs } from ${JSON.stringify(join(root, 'src/platform/settings/config.ts'))}
+import { registerMercuryDocsSkill, mercuryDocPages, mercuryDocsPrompt } from ${JSON.stringify(join(root, 'src/integrations/skills/bundled/mercuryDocs.ts'))}
+import { getBundledSkills, getBundledSkillExtractDir } from ${JSON.stringify(join(root, 'src/integrations/skills/bundledSkills.ts'))}
 enableConfigs()
 registerMercuryDocsSkill()
 const command = getBundledSkills().find(c => c.name === 'mercury-docs')!
@@ -43,7 +43,7 @@ writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'result.json'), JSON.stringi
         const path = [base, ...['.ts', '.tsx', '.js', '.json'].flatMap(ext => [base + ext, join(base, 'index' + ext)])].find(path => statSync(path, { throwIfNoEntry: false })?.isFile())
         return path ? { path } : undefined
       })
-      build.onResolve({ filter: /^color-diff-napi$/ }, () => ({ path: join(root, 'src/native-ts/color-diff/index.ts') }))
+      build.onResolve({ filter: /^color-diff-napi$/ }, () => ({ path: join(root, 'src/platform/native/color-diff/index.ts') }))
       build.onResolve({ filter: /\.node$/ }, args => ({ path: args.path, external: true }))
       build.onResolve({ filter: /^jsonc-parser$/ }, () => ({ path: join(root, 'node_modules/jsonc-parser/lib/esm/main.js') }))
     } }],
@@ -86,8 +86,8 @@ writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'result.json'), JSON.stringi
   }
   assert.equal(result.result.length, 1)
   assert.equal(result.result[0].type, 'text')
-  assert.ok(result.result[0].text.endsWith(result.prompt), `src/skills/bundled/mercuryDocs.ts getPromptForCommand output did not end with mercuryDocsPrompt: tail=${result.result[0].text.slice(-120)}`)
-  assert.ok(result.result[0].text.startsWith('Base directory for this skill: '), `src/skills/bundled/mercuryDocs.ts getPromptForCommand output missing 'Base directory for this skill: ' prefix: head=${result.result[0].text.slice(0, 120)}`)
+  assert.ok(result.result[0].text.endsWith(result.prompt), `src/integrations/skills/bundled/mercuryDocs.ts getPromptForCommand output did not end with mercuryDocsPrompt: tail=${result.result[0].text.slice(-120)}`)
+  assert.ok(result.result[0].text.startsWith('Base directory for this skill: '), `src/integrations/skills/bundled/mercuryDocs.ts getPromptForCommand output missing 'Base directory for this skill: ' prefix: head=${result.result[0].text.slice(0, 120)}`)
   console.log('PASS: no idle pages; first use preserves every page, prompt and extraction')
 } finally {
   rmSync(scratch, { recursive: true, force: true })

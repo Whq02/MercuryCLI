@@ -13,7 +13,7 @@ const scratch = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'crew-iden
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 mkdirSync(join(scratch, 'home'), { recursive: true })
 
-const identity = await import('../../src/services/crew/identity.ts')
+const identity = await import('../../src/crew/crewmates/identity.ts')
 const dir = join(scratch, 'crew-store')
 
 t.section('§1 — mint + resolve: bindings route, display text never routes')

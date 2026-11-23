@@ -15,14 +15,14 @@ import { join, relative, sep } from 'node:path'
 if (homedir() !== process.env.DRV_HOME) throw new Error('the home folder is ' + homedir() + ', not the scratch home of this proof')
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const repo = ${JSON.stringify(repo)}
-const { enableConfigs } = await import(join(repo, 'src/utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(repo, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
-const { getEmptyToolPermissionContext } = await import(join(repo, 'src/Tool.ts'))
-const { getInstructionFiles } = await import(join(repo, 'src/services/instructions/engine.ts'))
-const { conventionsForProfile } = await import(join(repo, 'src/services/instructions/compositionOrder.ts'))
-const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/services/attachments/nestedMemory.ts'))
-const { createFileStateCacheWithSizeLimit } = await import(join(repo, 'src/utils/fileStateCache.ts'))
-const { getFsImplementation } = await import(join(repo, 'src/utils/fsOperations.ts'))
+const { getEmptyToolPermissionContext } = await import(join(repo, 'src/tools/kit/tool.ts'))
+const { getInstructionFiles } = await import(join(repo, 'src/sessions/instructions/instructionFiles.ts'))
+const { conventionsForProfile } = await import(join(repo, 'src/sessions/instructions/compositionOrder.ts'))
+const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/engine/attachments/nestedInstructions.ts'))
+const { createFileStateCacheWithSizeLimit } = await import(join(repo, 'src/platform/files/fileStateCache.ts'))
+const { getFsImplementation } = await import(join(repo, 'src/platform/files/fsOperations.ts'))
 const plan = JSON.parse(process.env.DRV_PLAN ?? '{}')
 const probe = join(process.cwd(), 'a-folder-that-does-not-stand')
 const names = [...new Set(conventionsForProfile('auto').filter((c: any) => c.belowHome).flatMap((c: any) => [...c.projectDirFiles(probe), ...c.projectRulesDirs(probe), ...(c.localDirFiles?.(probe) ?? [])]).map((path: string) => relative(probe, path).split(sep)[0]))]
@@ -46,7 +46,7 @@ type Drive = { names: string[]; log: string[]; atStart: number; files: string[];
 
 let passed = 0
 let failed = 0
-const otherToolsHint = 'change the lookups of other tools files in getInstructionFiles (src/services/instructions/engine.ts) and getNestedMemoryAttachmentsForFile (src/services/attachments/nestedMemory.ts), or the conventions from conventionsForProfile (src/services/instructions/compositionOrder.ts);'
+const otherToolsHint = 'change the lookups of other tools files in getInstructionFiles (src/sessions/instructions/instructionFiles.ts) and getNestedMemoryAttachmentsForFile (src/engine/attachments/nestedInstructions.ts), or the conventions from conventionsForProfile (src/sessions/instructions/compositionOrder.ts);'
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${otherToolsHint} ${detail.slice(0, 900)}` : ''}`)

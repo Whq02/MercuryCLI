@@ -6,7 +6,7 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
-const HEAL_FAIL_HINT = 'to fix, change the heal, peek or refusal words in src/services/api/clientContractLearned.ts (clientContractHealOf, clientContractStory, peekClientContract), the presented number in src/constants/oauth.ts (describeAnthropicClientContract), the health row in src/services/health/healthReport.ts (clientContractCheck), or the side query in src/services/api/sideQuery.ts, whichever this check names'
+const HEAL_FAIL_HINT = 'to fix, change the heal, peek or refusal words in src/engine/requests/clientContractLearned.ts (clientContractHealOf, clientContractStory, peekClientContract), the presented number in src/models/sign-in/oauth/oauth.ts (describeAnthropicClientContract), the health row in src/platform/health/healthReport.ts (clientContractCheck), or the side query in src/engine/requests/sideRequest.ts, whichever this check names'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
@@ -119,22 +119,22 @@ const APPROVED_KEY_CONFIG = JSON.stringify({ customApiKeyResponses: { approved: 
 writeFileSync(join(scratchRoot, '.mercury.json'), APPROVED_KEY_CONFIG)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const envUtils = await import('../../src/utils/envUtils.js')
-const { setIsInteractive } = await import('../../src/bootstrap/state.js')
-const oauth = await import('../../src/constants/oauth.js')
-const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { createUserMessage } = await import('../../src/services/messages.js')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
-const auth = { ...(await import('../../src/utils/auth.js')), ...(await import('../../src/services/auth/oauthLifecycle.js')) }
-const lawful = await import('../../src/services/providers/lawfulPrefixChange.js')
-const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.js')
-const health = await import('../../src/services/health/healthReport.js')
-const ledger = await import('../../src/services/providers/anthropic/prefixLedger.js')
-const { getAttributionHeader } = await import('../../src/constants/system.js')
-const { sideQuery } = await import('../../src/services/api/sideQuery.js')
+const envUtils = await import('../../src/platform/environment/envUtils.js')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.js')
+const oauth = await import('../../src/models/sign-in/oauth/oauth.js')
+const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { createUserMessage } = await import('../../src/engine/messages/messages.js')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.js')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.js')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.js')) }
+const lawful = await import('../../src/models/roads/lawfulPrefixChange.js')
+const { processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.js')
+const health = await import('../../src/platform/health/healthReport.js')
+const ledger = await import('../../src/models/roads/anthropic/prefixLedger.js')
+const { getAttributionHeader } = await import('../../src/models/roads/attributionHeader.js')
+const { sideQuery } = await import('../../src/engine/requests/sideRequest.js')
 
 const CONTRACT = oauth.ANTHROPIC_CLIENT_CONTRACT_VERSION
 const NEWER = bump(CONTRACT, 9)
@@ -145,10 +145,10 @@ const ANSWERED_FLOOR = bump(CONTRACT, -50)
 const MODEL = 'claude-opus-5-5'
 const OWNER = String(processOwnerForLane(null))
 
-type LearnedModule = typeof import('../../src/services/api/clientContractLearned.js')
+type LearnedModule = typeof import('../../src/engine/requests/clientContractLearned.js')
 let learnedModule: LearnedModule | null = null
 try {
-  learnedModule = await import('../../src/services/api/clientContractLearned.js')
+  learnedModule = await import('../../src/engine/requests/clientContractLearned.js')
 } catch {}
 
 setIsInteractive(true)
@@ -258,7 +258,7 @@ const sentences = (text: string): number => (text.match(/[.!?](?=\s|$)/g) ?? [])
 console.log('client-contract heal: the door\'s too-old refusal heals itself from the npm registry, once, and says what happened')
 
 section('§1 the heal — a 400 too-old reads the registry once, retries once on the learned number, persists it')
-check('the learned-contract module exists', learnedModule !== null, learnedModule === null ? 'src/services/api/clientContractLearned.js is absent' : '')
+check('the learned-contract module exists', learnedModule !== null, learnedModule === null ? 'src/engine/requests/clientContractLearned.js is absent' : '')
 {
   const home = freshHome('heal')
   lawful.resetLawfulPrefixChanges()
@@ -740,7 +740,7 @@ section('§11 the side query heals the same refusal — one read, one retry on t
 
 section('§12 the exit cliff — a run that leaves mid-read cancels the daily peek, releases its claim and records nothing')
 {
-  const { listExitCliffSeams } = await import('../../src/utils/exitCliffDrain.js')
+  const { listExitCliffSeams } = await import('../../src/platform/processes/exitCliffDrain.js')
   const seams = listExitCliffSeams().filter(seam => seam.name === 'client-contract-peek')
   check('a started peek has registered the exit-cliff seam client-contract-peek once, in phase 2', seams.length === 1 && seams[0]?.phase === 2, JSON.stringify(listExitCliffSeams().map(seam => [seam.name, seam.phase])))
   const home = freshHome('exit-cliff')

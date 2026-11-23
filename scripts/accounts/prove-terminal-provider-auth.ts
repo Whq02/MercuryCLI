@@ -13,7 +13,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/constants/credentialEnvSpellings.ts`)
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/models/sign-in/credentials/credentialEnvSpellings.ts`)
 for (const key of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[key]
 for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_/.test(key)) delete process.env[key]
 
@@ -73,17 +73,17 @@ globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   return nativeFetch(input, init)
 }) as typeof fetch
 
-const { enableConfigs } = await import(`${root}/src/utils/config.ts`)
+const { enableConfigs } = await import(`${root}/src/platform/settings/config.ts`)
 enableConfigs()
-const { resetSettingsCache } = await import(`${root}/src/utils/settings/settingsCache.ts`)
-const secrets = await import(`${root}/src/utils/accounts/providerSecrets.ts`)
-const providerAuth = existsSync(`${root}/src/cli/handlers/providerAuth.ts`)
-  ? await import(`${root}/src/cli/handlers/providerAuth.ts`)
+const { resetSettingsCache } = await import(`${root}/src/platform/settings/settingsCache.ts`)
+const secrets = await import(`${root}/src/models/sign-in/account-ledger/providerSecrets.ts`)
+const providerAuth = existsSync(`${root}/src/commands/verbs/providerAuth.ts`)
+  ? await import(`${root}/src/commands/verbs/providerAuth.ts`)
   : undefined
 
 let checks = 0
 let failures = 0
-const failureHint = 'change the matching handler in src/cli/handlers/providerAuth.ts (providerAuthLogin, providerAuthList, providerAuthStatus, providerAuthLogout); refusal checks also read src/services/providers/openrouter/openrouterUsageState.ts, src/cli/handlers/auth.ts (authStatus) and loginsRowStateOf in src/components/BootLoginsScreen.tsx; key storage is src/utils/accounts/providerSecrets.ts'
+const failureHint = 'change the matching handler in src/commands/verbs/providerAuth.ts (providerAuthLogin, providerAuthList, providerAuthStatus, providerAuthLogout); refusal checks also read src/models/roads/openrouter/openrouterUsageState.ts, src/commands/verbs/auth.ts (authStatus) and loginsRowStateOf in src/screen/boot-face/BootLoginsScreen.tsx; key storage is src/models/sign-in/account-ledger/providerSecrets.ts'
 function check(name: string, pass: unknown, detail = '') {
   checks++
   if (!pass) failures++
@@ -130,12 +130,12 @@ try {
   check('mercury auth logout deepseek removes only the DeepSeek credential while keeping other families signed in', dsLogout?.ok === true && secrets.readStoredDeepseekApiKey() === undefined && secrets.readStoredCompatApiKey('east') === 'sk-compat-east-key')
 
   console.log('one truth for a stored key the service refused: auth list, auth status, auth status <family> and the logins row agree')
-  const keyProbe = await import(`${root}/src/services/providers/openrouter/openrouterUsageState.ts`)
-  const logins = await import(`${root}/src/components/BootLoginsScreen.tsx`)
+  const keyProbe = await import(`${root}/src/models/roads/openrouter/openrouterUsageState.ts`)
+  const logins = await import(`${root}/src/screen/boot-face/BootLoginsScreen.tsx`)
   const loginsRow = () => logins.loginsRowStateOf(logins.loginsCatalogue().find((row: { familyId: string }) => row.familyId === 'openrouter')!, logins.collectLoginsScreenFacts())
   const wholeStatus = (): { providers?: Array<{ id: string; present: boolean; status?: string; refused?: { status: number } }> } | null => {
     const { spawnSync } = require('node:child_process') as typeof import('node:child_process')
-    const r = spawnSync(process.execPath, ['-e', `globalThis.MACRO={VERSION:'1.0.0'};const c=await import(${JSON.stringify(`${root}/src/utils/config.ts`)});c.enableConfigs();const a=await import(${JSON.stringify(`${root}/src/cli/handlers/auth.ts`)});await a.authStatus({json:true});`], { env: { ...process.env }, encoding: 'utf8', timeout: 60000 })
+    const r = spawnSync(process.execPath, ['-e', `globalThis.MACRO={VERSION:'1.0.0'};const c=await import(${JSON.stringify(`${root}/src/platform/settings/config.ts`)});c.enableConfigs();const a=await import(${JSON.stringify(`${root}/src/commands/verbs/auth.ts`)});await a.authStatus({json:true});`], { env: { ...process.env }, encoding: 'utf8', timeout: 60000 })
     try { return JSON.parse(r.stdout) } catch { return null }
   }
   const listRow = async (json: boolean) => { outBuf = ''; const r = await providerAuth?.providerAuthList({ json }, io()); return json ? { code: r?.code, row: (JSON.parse(outBuf).families as Array<{ id: string; signedIn: boolean; source: string; refused?: string }>).find(f => f.id === 'openrouter') } : { code: r?.code, line: outBuf.split('\n').find(l => l.startsWith('openrouter:')) } }

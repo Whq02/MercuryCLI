@@ -21,7 +21,7 @@ function skip(reason: string, remedy: string): void {
 }
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — proof exceeded 300s; a debug adapter launch, stop or disconnect did not answer, so check the adapter start and DAP request path in src/services/dap/dapClient.ts and the DebugTool op that was running')
+  console.log('\nTIMEOUT — proof exceeded 300s; a debug adapter launch, stop or disconnect did not answer, so check the adapter start and DAP request path in src/integrations/debugger/dapClient.ts and the DebugTool op that was running')
   process.exit(1)
 }, 300_000)
 guard.unref?.()
@@ -39,11 +39,11 @@ if (!process.env.MERCURY_DEBUGPY_VENDOR_DIR) {
   if (root) process.env.MERCURY_DEBUGPY_VENDOR_DIR = root
 }
 
-const { whichSync } = await import('../../src/utils/which.js')
-const dap = await import('../../src/services/dap/dapClient.js')
-const resolver = await import('../../src/services/dap/debugpyResolver.js')
-const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+const { whichSync } = await import('../../src/platform/processes/which.js')
+const dap = await import('../../src/integrations/debugger/dapClient.js')
+const resolver = await import('../../src/integrations/debugger/debugpyResolver.js')
+const { DebugTool } = await import('../../src/tools/debug/DebugTool.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
 
 type CallOut = { data: { result: string; outcome: string; debuggee?: string } }
 const callIn = async (cwd: string, input: Record<string, unknown>): Promise<CallOut> => {
@@ -110,19 +110,19 @@ section('(A) js-debug — a Uint8Array patched in place; data/instruction breakp
       const before = await call({ op: 'readMemory', memoryReference, count: 4 })
       check('readMemory shows the original bytes', /01 02 03 04/.test(before.data.result), before.data.result)
       const patched = await call({ op: 'writeMemory', memoryReference, data: b64([40, 2]) })
-      check('writeMemory reports 2 bytes written', /2 bytes written/.test(patched.data.result) && patched.data.outcome === 'succeeded', `${patched.data.outcome}: ${patched.data.result}; the writeMemory op in src/tools/DebugTool/DebugTool.ts must send the DAP writeMemory request to js-debug and report the byte count`)
+      check('writeMemory reports 2 bytes written', /2 bytes written/.test(patched.data.result) && patched.data.outcome === 'succeeded', `${patched.data.outcome}: ${patched.data.result}; the writeMemory op in src/tools/debug/DebugTool.ts must send the DAP writeMemory request to js-debug and report the byte count`)
       const after = await call({ op: 'readMemory', memoryReference, count: 4 })
       check('readMemory reads the patched bytes back', /28 02 03 04/.test(after.data.result), after.data.result)
     }
     const dataRefusal = await call({ op: 'dataBreakpoints', dataBreakpoints: [{ name: 'bytes', variablesReference: localRef }] })
-    check('dataBreakpoints refuses naming supportsDataBreakpoints', /does not support dataBreakpoints \(capability supportsDataBreakpoints not advertised\)/.test(dataRefusal.data.result) && dataRefusal.data.outcome === 'no-change', `${dataRefusal.data.outcome}: ${dataRefusal.data.result}; the dataBreakpoints op in src/tools/DebugTool/DebugTool.ts must refuse with outcome no-change and this capability message when the adapter does not advertise it`)
+    check('dataBreakpoints refuses naming supportsDataBreakpoints', /does not support dataBreakpoints \(capability supportsDataBreakpoints not advertised\)/.test(dataRefusal.data.result) && dataRefusal.data.outcome === 'no-change', `${dataRefusal.data.outcome}: ${dataRefusal.data.result}; the dataBreakpoints op in src/tools/debug/DebugTool.ts must refuse with outcome no-change and this capability message when the adapter does not advertise it`)
     const instructionRefusal = await call({ op: 'instructionBreakpoints', instructionBreakpoints: [{ instructionReference: '0x1' }] })
-    check('instructionBreakpoints refuses naming supportsInstructionBreakpoints', /does not support instructionBreakpoints \(capability supportsInstructionBreakpoints not advertised\)/.test(instructionRefusal.data.result) && instructionRefusal.data.outcome === 'no-change', `${instructionRefusal.data.outcome}: ${instructionRefusal.data.result}; the instructionBreakpoints op in src/tools/DebugTool/DebugTool.ts must refuse with outcome no-change and this capability message when the adapter does not advertise it`)
+    check('instructionBreakpoints refuses naming supportsInstructionBreakpoints', /does not support instructionBreakpoints \(capability supportsInstructionBreakpoints not advertised\)/.test(instructionRefusal.data.result) && instructionRefusal.data.outcome === 'no-change', `${instructionRefusal.data.outcome}: ${instructionRefusal.data.result}; the instructionBreakpoints op in src/tools/debug/DebugTool.ts must refuse with outcome no-change and this capability message when the adapter does not advertise it`)
     const cont = await call({ op: 'continue' })
     await new Promise(res => setTimeout(res, 300))
     const output = await call({ op: 'output' })
     const combined = `${cont.data.result}\n${output.data.result}`
-    check('fold 46aj: the program ends without a reported failure after the patched bytes (total: 42)', cont.data.debuggee === 'terminated' && cont.data.outcome === 'succeeded' && /^continue: debuggee (?:ended \(no non-zero exit code reported\)|exited \(code 0\))$/m.test(cont.data.result) && /total: 42/.test(combined), `${combined.slice(0, 300)}; the continue op in src/tools/DebugTool/DebugTool.ts must report the debuggee ended cleanly once the patched bytes are written`)
+    check('fold 46aj: the program ends without a reported failure after the patched bytes (total: 42)', cont.data.debuggee === 'terminated' && cont.data.outcome === 'succeeded' && /^continue: debuggee (?:ended \(no non-zero exit code reported\)|exited \(code 0\))$/m.test(cont.data.result) && /total: 42/.test(combined), `${combined.slice(0, 300)}; the continue op in src/tools/debug/DebugTool.ts must report the debuggee ended cleanly once the patched bytes are written`)
     const disc = await call({ op: 'disconnect' })
     check('disconnect reaps the js-debug tree', /disconnected/.test(disc.data.result))
     check('session registry back at baseline', dap._dapSessionCountForTesting() === baseline, `${dap._dapSessionCountForTesting()} vs ${baseline}`)
@@ -158,7 +158,7 @@ section('(B) debugpy — the three ops answer the typed refusal on a live Python
     ]
     for (const c of cases) {
       const out = await call(c.input)
-      check(`${c.label} ⇒ refusal names ${c.capability}`, out.data.result.includes(`adapter 'python' does not support ${c.label} (capability ${c.capability} not advertised)`) && out.data.outcome === 'no-change', `${out.data.outcome}: ${out.data.result}; the ${c.label} op in src/tools/DebugTool/DebugTool.ts must refuse with outcome no-change and this capability message for the python adapter`)
+      check(`${c.label} ⇒ refusal names ${c.capability}`, out.data.result.includes(`adapter 'python' does not support ${c.label} (capability ${c.capability} not advertised)`) && out.data.outcome === 'no-change', `${out.data.outcome}: ${out.data.result}; the ${c.label} op in src/tools/debug/DebugTool.ts must refuse with outcome no-change and this capability message for the python adapter`)
     }
     const cont = await call({ op: 'continue' })
     check('fold 46aj: the program still runs to a reported code-zero exit', cont.data.debuggee === 'terminated' && cont.data.outcome === 'succeeded' && cont.data.result.split('\n')[0] === 'continue: debuggee exited (code 0)', cont.data.result.split('\n')[0])

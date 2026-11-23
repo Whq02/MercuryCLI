@@ -93,7 +93,7 @@ try {
   }
   const all = Buffer.concat(frames.map(f => f.bytes)).toString('latin1')
   const altEnterAt = all.indexOf('\x1b[?1049h')
-  check('G1 the walk enters the alternate screen (the station host)', altEnterAt >= 0, 'no ESC[?1049h was written during the walk; make the first-run station host enter the alternate screen (src/ink/components/AlternateScreen.tsx writes the entry)')
+  check('G1 the walk enters the alternate screen (the station host)', altEnterAt >= 0, 'no ESC[?1049h was written during the walk; make the first-run station host enter the alternate screen (src/screen/renderer/elements/AlternateScreen.tsx writes the entry)')
   check(
     'G1 not one walk byte on the main screen before the alt entry (scrollback purity)',
     altEnterAt >= 0 && !all.slice(0, altEnterAt).includes(NEEDLE),

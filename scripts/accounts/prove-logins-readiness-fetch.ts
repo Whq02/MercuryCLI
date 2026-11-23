@@ -38,12 +38,12 @@ process.env.MERCURY_OPENAI_API_BASE = `${base}/openai/v1`
 process.env.ANTHROPIC_BASE_URL = `${base}/anthropic`
 process.env.MERCURY_GEMINI_API_BASE = `${base}/gemini/v1beta`
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? ' — hint: change resolveProviderUsability in src/services/providers/providerUsability.ts (passive read asks nothing, fetchCatalogues true fetches once) or the catalogue cache it reads under src/services/providers/' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? ' — hint: change resolveProviderUsability in src/models/roads/providerUsability.ts (passive read asks nothing, fetchCatalogues true fetches once) or the catalogue cache it reads under src/models/roads/' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -58,12 +58,12 @@ const waitFor = async (predicate: () => boolean, timeoutMs = 3_000): Promise<boo
 }
 const count = (path: string): number => hits.filter(h => h === `GET ${path}`).length
 
-const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
-const openaiCatalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const geminiCatalogue = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const anthropicCatalogue = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
-const { getModelOptions } = await import('../../src/services/model/modelOptions.ts')
+const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
+const { catalogueEpoch } = await import('../../src/models/roads/catalogueEpoch.ts')
+const openaiCatalogue = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const geminiCatalogue = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const anthropicCatalogue = await import('../../src/models/roads/anthropic/anthropicCatalogue.ts')
+const { getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
 const PENDING = 'live catalogue not fetched yet — retry shortly'
 
 section('§1 a ChatGPT/OpenAI sign-in on a Claude seat: the passive read asks nothing and says not fetched; the card\'s read fetches once; the row flips')

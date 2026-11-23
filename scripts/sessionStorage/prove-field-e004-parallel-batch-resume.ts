@@ -11,12 +11,12 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'parallel-batch-home
 const scratch = mkdtempSync(join(tmpdir(), 'parallel-batch-'))
 process.chdir(scratch)
 
-const { encodeTranscriptLine } = await import(join(ROOT, 'src/utils/sessionStorage/vnext.ts'))
-const { loadConversationForResume } = await import(join(ROOT, 'src/services/resume/conversationRecovery.ts'))
-const { loadTranscriptFile, pruneRecordBranchesBeforeParse } = await import(join(ROOT, 'src/utils/sessionStorage/loading.ts'))
-const { buildConversationChain } = await import(join(ROOT, 'src/utils/sessionStorage/chain.ts'))
-const { _resetTranscriptReaderForTesting } = await import(join(ROOT, 'src/utils/sessionStorage/transcriptReader.ts'))
-const { SKIP_PRECOMPACT_THRESHOLD } = await import(join(ROOT, 'src/utils/sessionStoragePortable.ts'))
+const { encodeTranscriptLine } = await import(join(ROOT, 'src/sessions/transcripts/vnext.ts'))
+const { loadConversationForResume } = await import(join(ROOT, 'src/sessions/resume/conversationRecovery.ts'))
+const { loadTranscriptFile, pruneRecordBranchesBeforeParse } = await import(join(ROOT, 'src/sessions/transcripts/loading.ts'))
+const { buildConversationChain } = await import(join(ROOT, 'src/sessions/transcripts/chain.ts'))
+const { _resetTranscriptReaderForTesting } = await import(join(ROOT, 'src/sessions/transcripts/transcriptReader.ts'))
+const { SKIP_PRECOMPACT_THRESHOLD } = await import(join(ROOT, 'src/sessions/transcripts/sessionStoragePortable.ts'))
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -98,45 +98,45 @@ section('§A the on-disk shape a parallel batch has (the writer\'s own parent la
   const chain = buildConversationChain(full.messages, leaf)
   const walk = new Set<string>()
   for (let cur: typeof leaf | undefined = leaf; cur !== undefined; cur = cur.parentUuid ? full.messages.get(cur.parentUuid) : undefined) walk.add(cur.uuid)
-  check('on the single-parent walk every tool_use is an ancestor of the leaf and only the LAST tool_result is', tools.every(t => walk.has(t.asst)) && results.filter(r => walk.has(r.uuid)).length === 1 && walk.has(results[2]!.uuid), 'the fixture rows no longer have the writer parent shape; check the rows built above or encodeTranscriptLine in src/utils/sessionStorage/vnext.ts')
-  check('the full load\'s chain builder recovers all three results (the <5MB road)', results.every(r => chain.some(m => m.uuid === r.uuid)) && !deadUuids.some(u => chain.some(m => m.uuid === u)), 'buildConversationChain in src/utils/sessionStorage/chain.ts must recover every result of the batch and no dead row')
-  check('…and a tool_result under a batch assistant whose id that assistant never issued (the chain builder keys by parent alone)', chain.some(m => m.uuid === stray), 'buildConversationChain in src/utils/sessionStorage/chain.ts no longer keys results by parent alone; the pruner must keep matching it')
+  check('on the single-parent walk every tool_use is an ancestor of the leaf and only the LAST tool_result is', tools.every(t => walk.has(t.asst)) && results.filter(r => walk.has(r.uuid)).length === 1 && walk.has(results[2]!.uuid), 'the fixture rows no longer have the writer parent shape; check the rows built above or encodeTranscriptLine in src/sessions/transcripts/vnext.ts')
+  check('the full load\'s chain builder recovers all three results (the <5MB road)', results.every(r => chain.some(m => m.uuid === r.uuid)) && !deadUuids.some(u => chain.some(m => m.uuid === u)), 'buildConversationChain in src/sessions/transcripts/chain.ts must recover every result of the batch and no dead row')
+  check('…and a tool_result under a batch assistant whose id that assistant never issued (the chain builder keys by parent alone)', chain.some(m => m.uuid === stray), 'buildConversationChain in src/sessions/transcripts/chain.ts no longer keys results by parent alone; the pruner must keep matching it')
 }
 
 section('§B the pruner keeps what the chain builder recovers, and nothing dead')
 {
   const pruned = pruneRecordBranchesBeforeParse(raw)
   const prunedText = pruned.toString('utf8')
-  check('the buffer was pruned (the dead branch and nothing live is gone)', pruned.length < raw.length && liveUuids.every(u => prunedText.includes(u)), `pruneRecordBranchesBeforeParse in src/utils/sessionStorage/branchSelection.ts must drop the dead branch and keep every live row; pruned/raw ${pruned.length}/${raw.length}`)
-  check('THE FIELD DEFECT: the two off-chain tool results of the batch survive the prune', results.every(r => prunedText.includes(r.uuid)), `pruneRecordBranchesBeforeParse in src/utils/sessionStorage/branchSelection.ts must keep every tool_result of a parallel batch; dropped ${results.filter(r => !prunedText.includes(r.uuid)).map(r => r.uuid).join(',')}`)
-  check('the pruner keeps what the chain builder keeps: the stray tool_result under a kept assistant survives too (the chain builder\'s rule, not a stricter one)', prunedText.includes(stray), 'pruneRecordBranchesBeforeParse in src/utils/sessionStorage/branchSelection.ts must keep a result under a kept assistant, as buildConversationChain does')
-  check('the rewound branch is still pruned whole (its prompt, its assistant, its fat result)', !deadUuids.some(u => prunedText.includes(u)), `pruneRecordBranchesBeforeParse in src/utils/sessionStorage/branchSelection.ts must drop the whole rewound branch; still present ${deadUuids.filter(u => prunedText.includes(u)).join(',')}`)
+  check('the buffer was pruned (the dead branch and nothing live is gone)', pruned.length < raw.length && liveUuids.every(u => prunedText.includes(u)), `pruneRecordBranchesBeforeParse in src/sessions/transcripts/branchSelection.ts must drop the dead branch and keep every live row; pruned/raw ${pruned.length}/${raw.length}`)
+  check('THE FIELD DEFECT: the two off-chain tool results of the batch survive the prune', results.every(r => prunedText.includes(r.uuid)), `pruneRecordBranchesBeforeParse in src/sessions/transcripts/branchSelection.ts must keep every tool_result of a parallel batch; dropped ${results.filter(r => !prunedText.includes(r.uuid)).map(r => r.uuid).join(',')}`)
+  check('the pruner keeps what the chain builder keeps: the stray tool_result under a kept assistant survives too (the chain builder\'s rule, not a stricter one)', prunedText.includes(stray), 'pruneRecordBranchesBeforeParse in src/sessions/transcripts/branchSelection.ts must keep a result under a kept assistant, as buildConversationChain does')
+  check('the rewound branch is still pruned whole (its prompt, its assistant, its fat result)', !deadUuids.some(u => prunedText.includes(u)), `pruneRecordBranchesBeforeParse in src/sessions/transcripts/branchSelection.ts must drop the whole rewound branch; still present ${deadUuids.filter(u => prunedText.includes(u)).join(',')}`)
 }
 
 section('§C the resume road (the one the headless --resume and the chat take) rebuilds the conversation with EVERY result of the batch')
 {
   _resetTranscriptReaderForTesting()
   const loaded = await loadConversationForResume(sessionId, path)
-  check('the session resumes (a cold read, as a fresh process makes it)', loaded !== null, 'loadConversationForResume in src/services/resume/conversationRecovery.ts returned null for the fixture session')
+  check('the session resumes (a cold read, as a fresh process makes it)', loaded !== null, 'loadConversationForResume in src/sessions/resume/conversationRecovery.ts returned null for the fixture session')
   const messages = (loaded?.messages ?? []) as Array<{ uuid?: string; type?: string; message?: { content?: unknown } }>
   const toolResults = messages.flatMap(m => (m.type === 'user' && Array.isArray(m.message?.content) ? (m.message!.content as Array<{ type?: string; tool_use_id?: string }>).filter(b => b.type === 'tool_result').map(b => b.tool_use_id) : []))
-  check('all three tool results are in the rebuilt conversation (base: one — the last ancestor only)', tools.every(t => toolResults.includes(t.call)) && toolResults.filter(id => id !== 'toolu_nobody_issued').length === 3, `loadConversationForResume in src/services/resume/conversationRecovery.ts must rebuild every result of the batch; tool_results on resume: ${toolResults.length} (${toolResults.join(',')})`)
+  check('all three tool results are in the rebuilt conversation (base: one — the last ancestor only)', tools.every(t => toolResults.includes(t.call)) && toolResults.filter(id => id !== 'toolu_nobody_issued').length === 3, `loadConversationForResume in src/sessions/resume/conversationRecovery.ts must rebuild every result of the batch; tool_results on resume: ${toolResults.length} (${toolResults.join(',')})`)
   const toolUses = messages.flatMap(m => (m.type === 'assistant' && Array.isArray(m.message?.content) ? (m.message!.content as Array<{ type?: string; id?: string }>).filter(b => b.type === 'tool_use').map(b => b.id) : []))
-  check('the API\'s rule holds: every tool_use of the turn has its tool_result (the stray result is the wire\'s to strip, as it always was)', toolUses.length === 3 && toolUses.every(id => toolResults.includes(id as string)), 'loadConversationForResume in src/services/resume/conversationRecovery.ts left a tool_use without its tool_result')
+  check('the API\'s rule holds: every tool_use of the turn has its tool_result (the stray result is the wire\'s to strip, as it always was)', toolUses.length === 3 && toolUses.every(id => toolResults.includes(id as string)), 'loadConversationForResume in src/sessions/resume/conversationRecovery.ts left a tool_use without its tool_result')
   const order = messages.map(m => m.uuid)
   const lastUse = Math.max(...tools.map(t => order.indexOf(t.asst)))
   const firstResult = Math.min(...results.map(r => order.indexOf(r.uuid)))
-  check('the three results follow the three tool_uses as one contiguous batch', firstResult > lastUse && results.every(r => order.indexOf(r.uuid) > lastUse) && order.indexOf(a2) > Math.max(...results.map(r => order.indexOf(r.uuid))), 'loadConversationForResume in src/services/resume/conversationRecovery.ts must order the three results right after the three tool_uses')
-  check('no dead row reaches the conversation and the live tail is intact', !deadUuids.some(u => order.includes(u)) && order[order.length - 1] === a3, 'loadConversationForResume in src/services/resume/conversationRecovery.ts must drop the rewound branch and end at the live leaf')
+  check('the three results follow the three tool_uses as one contiguous batch', firstResult > lastUse && results.every(r => order.indexOf(r.uuid) > lastUse) && order.indexOf(a2) > Math.max(...results.map(r => order.indexOf(r.uuid))), 'loadConversationForResume in src/sessions/resume/conversationRecovery.ts must order the three results right after the three tool_uses')
+  check('no dead row reaches the conversation and the live tail is intact', !deadUuids.some(u => order.includes(u)) && order[order.length - 1] === a3, 'loadConversationForResume in src/sessions/resume/conversationRecovery.ts must drop the rewound branch and end at the live leaf')
   _resetTranscriptReaderForTesting()
   const full = await loadTranscriptFile(path, { keepAllLeaves: true })
   const fullChain = buildConversationChain(full.messages, full.messages.get(a3 as never)!).map(m => m.uuid)
-  check('the pruned resume equals the full-load chain, uuid for uuid — the stray result included', JSON.stringify(fullChain) === JSON.stringify(order) && order.includes(stray), `the pruned resume (loadConversationForResume in src/services/resume/conversationRecovery.ts) must match buildConversationChain on the full load; full=${fullChain.length} pruned=${order.length}`)
+  check('the pruned resume equals the full-load chain, uuid for uuid — the stray result included', JSON.stringify(fullChain) === JSON.stringify(order) && order.includes(stray), `the pruned resume (loadConversationForResume in src/sessions/resume/conversationRecovery.ts) must match buildConversationChain on the full load; full=${fullChain.length} pruned=${order.length}`)
 }
 
 section('§D the on-disk shape is untouched')
 {
-  check('the session file is byte-identical after the resume (the reader fixed nothing on disk)', sha(readFileSync(path)) === rawHash, 'something in the resume road (loadConversationForResume in src/services/resume/conversationRecovery.ts) wrote to the session file; the reader must not rewrite it')
+  check('the session file is byte-identical after the resume (the reader fixed nothing on disk)', sha(readFileSync(path)) === rawHash, 'something in the resume road (loadConversationForResume in src/sessions/resume/conversationRecovery.ts) wrote to the session file; the reader must not rewrite it')
 }
 
 section('§E a compacted session loads the same chain on both roads — the compact boundary row (divider + compactMetadata) heads it past 5 MB too')
@@ -164,8 +164,8 @@ section('§E a compacted session loads the same chain on both roads — the comp
   const big = await chainOf(bigFile, 3 * FAT)
   check(`the big file crosses the big-file gate (${readFileSync(bigFile).length} > ${SKIP_PRECOMPACT_THRESHOLD})`, readFileSync(bigFile).length > SKIP_PRECOMPACT_THRESHOLD, 'the fixture is below SKIP_PRECOMPACT_THRESHOLD; raise the bytes passed to chainOf for the big file')
   const boundaryAt = small.indexOf(`compact_boundary:${ids.boundary}`)
-  check('the full read carries the compact boundary row in the chain', boundaryAt > 0, `loadTranscriptFile in src/utils/sessionStorage/loading.ts must keep the compact_boundary row in the chain; ${small.join(' ')}`)
-  check('the big-file road hands back that chain from the boundary row on — the row itself first (base: the boundary line was reset away and never appended)', JSON.stringify(big) === JSON.stringify(small.slice(boundaryAt)), `the big-file road of loadTranscriptFile in src/utils/sessionStorage/loading.ts must start the chain at the compact boundary row; big=${big.join(' ')}`)
+  check('the full read carries the compact boundary row in the chain', boundaryAt > 0, `loadTranscriptFile in src/sessions/transcripts/loading.ts must keep the compact_boundary row in the chain; ${small.join(' ')}`)
+  check('the big-file road hands back that chain from the boundary row on — the row itself first (base: the boundary line was reset away and never appended)', JSON.stringify(big) === JSON.stringify(small.slice(boundaryAt)), `the big-file road of loadTranscriptFile in src/sessions/transcripts/loading.ts must start the chain at the compact boundary row; big=${big.join(' ')}`)
 }
 
 console.log(failures === 0 ? '\n ✅ PARALLEL BATCH RESUME PROVEN' : `\n ❌ ${failures} FAILED`)

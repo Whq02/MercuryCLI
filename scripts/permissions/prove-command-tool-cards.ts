@@ -20,37 +20,37 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — change the permission card that src/components/permissions/PermissionRequest.tsx draws for this tool, or its decision in src/utils/permissions/decision/wrapper.ts (the tool is under src/tools/ and is named in the section above) — ${detail.replaceAll(PROJECT, '<project>').slice(0, 900)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — change the permission card that src/permissions/cards/PermissionRequest.tsx draws for this tool, or its decision in src/permissions/rules/decision/wrapper.ts (the tool is under src/tools/ and is named in the section above) — ${detail.replaceAll(PROJECT, '<project>').slice(0, 900)}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
 
-const state = await import('../../src/bootstrap/state.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
 state.setOriginalCwd(PROJECT)
 state.setCwdState(PROJECT)
 state.setProjectRoot(PROJECT)
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 state.setSessionTrustAccepted(true)
 state.setIsInteractive(true)
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { Box } = await import('../../src/ink.ts')
-const { PermissionRequest } = await import('../../src/components/permissions/PermissionRequest.tsx')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { MonitorTool } = await import('../../src/tools/MonitorTool/MonitorTool.ts')
-const { ServiceTool } = await import('../../src/tools/ServiceTool/ServiceTool.ts')
-const { JourneyTool } = await import('../../src/tools/JourneyTool/JourneyTool.ts')
-const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
-const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
-const { LaunchTool } = await import('../../src/tools/LaunchTool/LaunchTool.ts')
-const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
-const { servicesDir } = await import('../../src/services/projectServices/serviceManager.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { Box } = await import('../../src/screen/themedRenderer.ts')
+const { PermissionRequest } = await import('../../src/permissions/cards/PermissionRequest.tsx')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { MonitorTool } = await import('../../src/tools/monitor/MonitorTool.ts')
+const { ServiceTool } = await import('../../src/tools/service/ServiceTool.ts')
+const { JourneyTool } = await import('../../src/tools/journey/JourneyTool.ts')
+const { DebugTool } = await import('../../src/tools/debug/DebugTool.ts')
+const { EvalTool } = await import('../../src/tools/eval/EvalTool.ts')
+const { LaunchTool } = await import('../../src/tools/launch/LaunchTool.ts')
+const { TestTool } = await import('../../src/tools/test/TestTool.ts')
+const { servicesDir } = await import('../../src/tools/engines/project-services/serviceManager.ts')
 
 const h = React.createElement
 type AnyTool = { name: string; description: (input: never, options: never) => Promise<string> }

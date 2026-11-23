@@ -14,20 +14,20 @@ delete process.env.MERCURY_CHANGE_RECEIPTS
 const FIXTURES = mkdtempSync(join(tmpdir(), 'edit-ledger-fixture-'))
 process.chdir(FIXTURES)
 
-const ledger = await import('../../src/services/changeTransaction/editOutcomeLedger.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
-const plan = await import('../../src/services/changeTransaction/changeSetPlan.ts')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
+const ledger = await import('../../src/tools/engines/change-transaction/editOutcomeLedger.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.ts')
+const plan = await import('../../src/tools/engines/change-transaction/changeSetPlan.ts')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}to fix: the edit-outcome counters in src/services/changeTransaction/editOutcomeLedger.ts, or the refusal-code readers in src/services/changeTransaction/changeSetPlan.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}to fix: the edit-outcome counters in src/tools/engines/change-transaction/editOutcomeLedger.ts, or the refusal-code readers in src/tools/engines/change-transaction/changeSetPlan.ts` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — ledger proof exceeded 90s; a ChangeSetTool call (src/tools/ChangeSetTool/ChangeSetTool.ts) did not return, and the last section printed above is where it stopped')
+  console.log('\nTIMEOUT — ledger proof exceeded 90s; a ChangeSetTool call (src/tools/change-set/ChangeSetTool.ts) did not return, and the last section printed above is where it stopped')
   process.exit(1)
 }, 90_000)
 guard.unref?.()
@@ -90,8 +90,8 @@ section('§3 the off arm removes the counters entirely')
 section('§4 the ChangeSet chokepoint through the REAL tool')
 {
   ledger._resetEditOutcomeLedgerForTesting()
-  const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const target = join(FIXTURES, 'target.txt')
   writeFileSync(target, 'line one\nline two\nline three\n')
   const readFileState = new Map<string, unknown>()
@@ -113,14 +113,14 @@ section('§4 the ChangeSet chokepoint through the REAL tool')
     null,
     parent,
   )
-  const owner = (await import('../../src/utils/run/resolveOwner.ts')).ownerFromToolUseContext(ctx as never)
+  const owner = (await import('../../src/engine/run-owner/resolveOwner.ts')).ownerFromToolUseContext(ctx as never)
   const afterRefusal = ledger.editOutcomeRows(owner)
   check(
     "the refused apply counted its TYPED code under (model-chokepoint, changeset)",
     afterRefusal.length === 1 && afterRefusal[0]!.model === 'model-chokepoint' && afterRefusal[0]!.surface === 'changeset' && afterRefusal[0]!.outcome !== 'failed' && afterRefusal[0]!.count === 1,
     JSON.stringify(afterRefusal),
   )
-  const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
+  const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
   const content = readFileSync(target, 'utf8')
   readFileState.set(target, { content, timestamp: Date.now() + 60_000, offset: undefined, limit: undefined })
   await (ChangeSetTool as { call: Function }).call(
@@ -155,7 +155,7 @@ section('§6 the wiring, structural')
 {
   const ledgerRow = getFlagSpec('MERCURY_EDIT_LEDGER')
   check('the display-tier flag row stands with its off arm', ledgerRow !== undefined && ledgerRow.off.includes('counters are removed entirely'))
-  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
+  const { runtimeChecks } = await import('../../src/platform/health/sections/runtime.ts')
   const ledgerFlag = process.env.MERCURY_EDIT_LEDGER
   process.env.MERCURY_EDIT_LEDGER = '0'
   const listedOff = runtimeChecks().some(row => row.id === 'edit-outcomes')

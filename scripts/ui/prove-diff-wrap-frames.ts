@@ -9,28 +9,28 @@ import stripAnsi from 'strip-ansi'
 
 process.env.FORCE_COLOR = '3'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 let highlightingOff = false
-const settingsModule = await import('../../src/hooks/useSettings.js')
-mock.module('../../src/hooks/useSettings.js', () => ({
+const settingsModule = await import('../../src/screen/settings/useSettings.js')
+mock.module('../../src/screen/settings/useSettings.js', () => ({
   ...settingsModule,
   useSettings: () => ({ view: { syntaxOff: highlightingOff } }),
   useSettingsMaybe: () => undefined,
 }))
 
-const { render, Box, flushPendingSyncWork } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { FileEditToolUpdatedMessage } = await import('../../src/components/FileEditToolUpdatedMessage.js')
-const { stringWidth } = await import('../../src/ink/stringWidth.js')
-const { expandTabs } = await import('../../src/ink/tabstops.js')
-const { railPlanAt, HELM_BOTH_RAILS_MIN } = await import('../../src/utils/helmGeometry.js')
-import type { StructuredPatchHunk } from '../../src/utils/diff.js'
+const { render, Box, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { FileEditToolUpdatedMessage } = await import('../../src/tools/edit/EditUpdatedMessage.js')
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.js')
+const { expandTabs } = await import('../../src/screen/renderer/tabstops.js')
+const { railPlanAt, HELM_BOTH_RAILS_MIN } = await import('../../src/screen/fullscreen-layout/helmGeometry.js')
+import type { StructuredPatchHunk } from '../../src/platform/text/diff.js'
 
 let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}${pass ? '' : ' — the wrap and band paint of the diff box is in src/components/FileEditToolUpdatedMessage.tsx and src/components/StructuredDiffList.tsx'}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}${pass ? '' : ' — the wrap and band paint of the diff box is in src/tools/edit/EditUpdatedMessage.tsx and src/screen/structured-diff/StructuredDiffList.tsx'}`)
 }
 const arg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)

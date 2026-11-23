@@ -2,8 +2,8 @@
 import { createWriteStream, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { entryToRecord } from '../../src/fabric/entryCodec.ts'
-import { ordinalOf } from '../../src/fabric/ordinal.ts'
+import { entryToRecord } from '../../src/sessions/fabric/entryCodec.ts'
+import { ordinalOf } from '../../src/sessions/fabric/ordinal.ts'
 
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0

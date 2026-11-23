@@ -6,9 +6,9 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { isOutcome, isSessionRow, type LooseRow } from '../../src/rows/read.ts'
-import { RUNNER_PROTOCOL } from '../../src/runner/wire/methods.ts'
-import { createPeer } from '../../src/runner/wire/peer.ts'
+import { isOutcome, isSessionRow, type LooseRow } from '../../src/engine/rows/read.ts'
+import { RUNNER_PROTOCOL } from '../../src/daemon/runner-wire/methods.ts'
+import { createPeer } from '../../src/daemon/runner-wire/peer.ts'
 import { startFixtureApi, type FixtureApi } from '../lib/fixtureApi.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -37,28 +37,28 @@ guard.unref?.()
 
 section('§1 — the capture gate: the seat runner captures under the interactive law')
 {
-  const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { setIsInteractive, getIsNonInteractiveSession } = await import('../../src/bootstrap/state.ts')
-  const { fileHistoryEnabled } = await import('../../src/services/changeTransaction/fileHistory.ts')
+  const { setIsInteractive, getIsNonInteractiveSession } = await import('../../src/boot/process-state/processState.ts')
+  const { fileHistoryEnabled } = await import('../../src/tools/engines/change-transaction/fileHistory.ts')
 
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: true }))
   setIsInteractive(false)
-  check('the run posture reads non-interactive (the premise)', getIsNonInteractiveSession(), 'setIsInteractive(false) must make getIsNonInteractiveSession() in src/bootstrap/state.ts return true')
-  check('a plain run process without the worker stamp captures nothing: capture OFF (control)', fileHistoryEnabled() === false, 'fileCheckpointSource in src/services/changeTransaction/fileHistory.ts must return headless for a non-interactive process that is not a session runner')
+  check('the run posture reads non-interactive (the premise)', getIsNonInteractiveSession(), 'setIsInteractive(false) must make getIsNonInteractiveSession() in src/boot/process-state/processState.ts return true')
+  check('a plain run process without the worker stamp captures nothing: capture OFF (control)', fileHistoryEnabled() === false, 'fileCheckpointSource in src/tools/engines/change-transaction/fileHistory.ts must return headless for a non-interactive process that is not a session runner')
 
   process.env.MERCURY_CONCOURSE_WORKER = '1'
-  check('THE FIX: the seat runner (worker stamp under run) captures — the audit red', fileHistoryEnabled() === true, 'fileCheckpointSource in src/services/changeTransaction/fileHistory.ts must return seat when isSessionRunnerProcess() is true')
+  check('THE FIX: the seat runner (worker stamp under run) captures — the audit red', fileHistoryEnabled() === true, 'fileCheckpointSource in src/tools/engines/change-transaction/fileHistory.ts must return seat when isSessionRunnerProcess() is true')
 
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: false }))
-  check("the operator's Settings off-switch reaches the seat runner", fileHistoryEnabled() === false, 'fileCheckpointSource in src/services/changeTransaction/fileHistory.ts must return setting when fileCheckpointingEnabled is false')
+  check("the operator's Settings off-switch reaches the seat runner", fileHistoryEnabled() === false, 'fileCheckpointSource in src/tools/engines/change-transaction/fileHistory.ts must return setting when fileCheckpointingEnabled is false')
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: true }))
   delete process.env.MERCURY_CONCOURSE_WORKER
 
   setIsInteractive(true)
-  check('an interactive process is unchanged (on)', fileHistoryEnabled() === true, 'fileCheckpointSource in src/services/changeTransaction/fileHistory.ts must return interactive when the session is interactive')
+  check('an interactive process is unchanged (on)', fileHistoryEnabled() === true, 'fileCheckpointSource in src/tools/engines/change-transaction/fileHistory.ts must return interactive when the session is interactive')
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: false }))
-  check('…and its off-switch still holds', fileHistoryEnabled() === false, 'fileCheckpointSource in src/services/changeTransaction/fileHistory.ts must return setting when fileCheckpointingEnabled is false')
+  check('…and its off-switch still holds', fileHistoryEnabled() === false, 'fileCheckpointSource in src/tools/engines/change-transaction/fileHistory.ts must return setting when fileCheckpointingEnabled is false')
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: true }))
 }
 
@@ -192,16 +192,16 @@ async function driveRunner(opts: { stamp: boolean; label: string }): Promise<voi
     return null
   })()
   if (opts.stamp) {
-    check('§2 a backup blob exists under <home>/file-history/<sid>/ (the pre-edit bytes)', blobs.length >= 1, `dir=${blobDir} blobs=${j(blobs)}; fileHistoryTrackEdit in src/services/changeTransaction/fileHistory.ts must back up the file before the Write in the seat runner`)
+    check('§2 a backup blob exists under <home>/file-history/<sid>/ (the pre-edit bytes)', blobs.length >= 1, `dir=${blobDir} blobs=${j(blobs)}; fileHistoryTrackEdit in src/tools/engines/change-transaction/fileHistory.ts must back up the file before the Write in the seat runner`)
     const preEdit = blobs.map(b => readFileSync(join(blobDir, b), 'utf8'))
-    check('§2 the blob holds the PRE-EDIT bytes (ZERO), never the post-edit content', preEdit.includes('ZERO\n'), j(preEdit) + '; fileHistoryTrackEdit in src/services/changeTransaction/fileHistory.ts must copy the file before the edit lands')
-    check('§2 the transcript carries a file-history-snapshot row (resume rehydrates it)', snapshotRows.length >= 1, (transcript ?? 'no transcript found') + '; fileHistoryMakeSnapshot in src/services/changeTransaction/fileHistory.ts must run for the turn and src/utils/sessionStorage/writer.ts must write the row')
+    check('§2 the blob holds the PRE-EDIT bytes (ZERO), never the post-edit content', preEdit.includes('ZERO\n'), j(preEdit) + '; fileHistoryTrackEdit in src/tools/engines/change-transaction/fileHistory.ts must copy the file before the edit lands')
+    check('§2 the transcript carries a file-history-snapshot row (resume rehydrates it)', snapshotRows.length >= 1, (transcript ?? 'no transcript found') + '; fileHistoryMakeSnapshot in src/tools/engines/change-transaction/fileHistory.ts must run for the turn and src/sessions/transcripts/writer.ts must write the row')
     const keyed = snapshotRows.some(l => userUuid !== null && l.includes(userUuid))
-    check("§2 the snapshot is keyed by the turn's own user message (the restore point /rewind names)", keyed, `userUuid=${userUuid} rows=${snapshotRows.map(r => r.slice(0, 160)).join(' | ')}; the snapshot messageId written by src/utils/sessionStorage/writer.ts must be the turn's user message uuid`)
-    check('§2 the snapshot tracks note.txt', snapshotRows.some(l => l.includes('note.txt')), snapshotRows.map(r => r.slice(0, 200)).join(' | ') + '; fileHistoryTrackEdit in src/services/changeTransaction/fileHistory.ts must record the edited file in the snapshot')
+    check("§2 the snapshot is keyed by the turn's own user message (the restore point /rewind names)", keyed, `userUuid=${userUuid} rows=${snapshotRows.map(r => r.slice(0, 160)).join(' | ')}; the snapshot messageId written by src/sessions/transcripts/writer.ts must be the turn's user message uuid`)
+    check('§2 the snapshot tracks note.txt', snapshotRows.some(l => l.includes('note.txt')), snapshotRows.map(r => r.slice(0, 200)).join(' | ') + '; fileHistoryTrackEdit in src/tools/engines/change-transaction/fileHistory.ts must record the edited file in the snapshot')
   } else {
-    check('§3 CONTROL — the plain run captured no blob (an unstamped run keeps its hands off)', blobs.length === 0, j(blobs) + '; fileCheckpointSource in src/services/changeTransaction/fileHistory.ts must return headless for a plain runner without the worker stamp')
-    check('§3 CONTROL — and wrote no snapshot row', snapshotRows.length === 0, String(snapshotRows.length) + ' snapshot rows; fileCheckpointSource in src/services/changeTransaction/fileHistory.ts must return headless for a plain runner without the worker stamp')
+    check('§3 CONTROL — the plain run captured no blob (an unstamped run keeps its hands off)', blobs.length === 0, j(blobs) + '; fileCheckpointSource in src/tools/engines/change-transaction/fileHistory.ts must return headless for a plain runner without the worker stamp')
+    check('§3 CONTROL — and wrote no snapshot row', snapshotRows.length === 0, String(snapshotRows.length) + ' snapshot rows; fileCheckpointSource in src/tools/engines/change-transaction/fileHistory.ts must return headless for a plain runner without the worker stamp')
   }
 }
 

@@ -13,13 +13,13 @@ const DIST_VENDOR = path.join(ROOT, 'dist', 'vendor', 'debugpy')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — fix src/services/ide/launchProfiles.ts (discoverLaunchProfiles, parseEnvFile, expandVsCodeVar) or src/tools/LaunchTool/LaunchTool.ts${detail ? `; ${detail}` : ''}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — fix src/integrations/ide/launchProfiles.ts (discoverLaunchProfiles, parseEnvFile, expandVsCodeVar) or src/tools/launch/LaunchTool.ts${detail ? `; ${detail}` : ''}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — launch env/tasks proof exceeded 240s; it waits on LaunchTool run and debug calls (src/tools/LaunchTool/LaunchTool.ts) and the vendored debugpy adapter in dist/vendor/debugpy')
+  console.log('\nTIMEOUT — launch env/tasks proof exceeded 240s; it waits on LaunchTool run and debug calls (src/tools/launch/LaunchTool.ts) and the vendored debugpy adapter in dist/vendor/debugpy')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -97,10 +97,10 @@ writeFileSync(
 process.env.PROOF_WHO = 'proof-owner'
 process.env.MERCURY_PYTHON = SYS_PY
 process.chdir(proj)
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const launch = await import('../../src/services/ide/launchProfiles.js')
-const { _resetPythonProjectForTesting } = await import('../../src/services/ide/pythonProject.js')
+const launch = await import('../../src/integrations/ide/launchProfiles.js')
+const { _resetPythonProjectForTesting } = await import('../../src/integrations/ide/pythonProject.js')
 _resetPythonProjectForTesting()
 
 try {
@@ -126,9 +126,9 @@ try {
     failures++
   } else {
     process.env.MERCURY_DEBUGPY_VENDOR_DIR = DIST_VENDOR
-    const resolver = await import('../../src/services/dap/debugpyResolver.js')
+    const resolver = await import('../../src/integrations/debugger/debugpyResolver.js')
     resolver._resetDebugpyResolverForTesting()
-    const { LaunchTool } = await import('../../src/tools/LaunchTool/LaunchTool.js')
+    const { LaunchTool } = await import('../../src/tools/launch/LaunchTool.js')
     const ctx = { getAppState: () => ({}) } as never
     const inspect = (await LaunchTool.call({ op: 'inspect', profile: wins!.id } as never, ctx)) as { data: { result: string } }
     check('B1 inspect lists the env keys and their source, and never prints a value', inspect.data.result.includes('env: MODE, FROM_FILE, SINGLE, EXPORTED, MULTI, GREETING — launch.json env over .env') && !inspect.data.result.includes('quoted value') && !inspect.data.result.includes('proof-owner'), inspect.data.result)
@@ -136,9 +136,9 @@ try {
     check('B2 op:"run" reaches the program with launch.json env over .env over the shell', run.data.outcome === 'succeeded' && run.data.result.includes('MODE=launch GREETING=hi proof-owner FROM_FILE=quoted value EXPORTED=1'), run.data.result.split('\n').slice(0, 4).join(' | '))
     const dbg = (await LaunchTool.call({ op: 'debug', profile: wins!.id, file: path.join(proj, 'hello.py'), lines: [3] } as never, ctx)) as { data: { result: string } }
     check('B3 op:"debug" stops at the breakpoint with the same environment', dbg.data.result.includes('stopped — reason breakpoint'), dbg.data.result.split('\n')[0])
-    const dap = await import('../../src/services/dap/dapClient.js')
-    const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.js')
-    const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.js')
+    const dap = await import('../../src/integrations/debugger/dapClient.js')
+    const { ownerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.js')
+    const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.js')
     const owner = ownerFromToolUseContext(ctx)
     const session = dap.getDapSession(owner, 'main')
     const stopped = session?.treeStopped() ?? null
@@ -176,7 +176,7 @@ try {
   check('C8 the task changes the profile id (a different task is a different launch)', withTask !== undefined && byLabel('plain') !== undefined && withTask.id !== byLabel('plain')!.id)
 
   if (existsSync(path.join(DIST_VENDOR, 'debugpy', 'adapter', '__main__.py')) && existsSync(SYS_PY)) {
-    const { LaunchTool } = await import('../../src/tools/LaunchTool/LaunchTool.js')
+    const { LaunchTool } = await import('../../src/tools/launch/LaunchTool.js')
     const ctx = { getAppState: () => ({}) } as never
     const inspect = (await LaunchTool.call({ op: 'inspect', profile: withTask!.id } as never, ctx)) as { data: { result: string } }
     check('C9 inspect names the task, its argv and the exit gate', inspect.data.result.includes("preLaunchTask: 'build-marker' runs first as node -e") && inspect.data.result.includes('a non-zero exit stops the launch'), inspect.data.result)
@@ -196,7 +196,7 @@ try {
     check('C13 a failing task stops the launch with its name, exit code and tail — the program never ran', failing.data.outcome === 'failed' && failing.data.result.startsWith("preLaunchTask 'failing' failed (exit 3)") && failing.data.result.includes('the build broke') && !failing.data.result.includes('MODE='), failing.data.result.split('\n').slice(0, 3).join(' | '))
     const chain = (await LaunchTool.call({ op: 'debug', profile: byLabel('with chain')!.id } as never, ctx)) as { data: { result: string; outcome: string } }
     check('C14 op:"debug" with a refused task is refused by name, never silently launched without it', chain.data.outcome === 'failed' && chain.data.result.startsWith("preLaunchTask 'chain' cannot be run by Mercury: task 'chain' has dependsOn") && !chain.data.result.includes('then launch again'), chain.data.result)
-    const dap = await import('../../src/services/dap/dapClient.js')
+    const dap = await import('../../src/integrations/debugger/dapClient.js')
     check('C15 no session was left behind by the refused launches', dap._dapSessionCountForTesting() === 0)
   } else {
     console.log('  [SKIP — LOUD] the task run legs need the vendored debugpy and the system python (see B).')
@@ -208,7 +208,7 @@ try {
   check('D1 the module config is a profile: module hello_mod, program shown as -m hello_mod, args and env carried', mod?.debug?.module === 'hello_mod' && mod?.debug?.program === '-m hello_mod' && JSON.stringify(mod?.debug?.args) === JSON.stringify(['--who', 'module-arg']) && mod?.debug?.env?.MODE === 'module', JSON.stringify(mod?.debug))
   check('D2 the module config is no longer skipped; a python config with neither program nor module is skipped by name', !d3.skipped.some(s => s.name === 'module run') && d3.skipped.some(s => s.name === 'nothing to run' && s.reason === 'no program path or module'), JSON.stringify(d3.skipped))
   if (existsSync(path.join(DIST_VENDOR, 'debugpy', 'adapter', '__main__.py')) && existsSync(SYS_PY) && mod) {
-    const { LaunchTool } = await import('../../src/tools/LaunchTool/LaunchTool.js')
+    const { LaunchTool } = await import('../../src/tools/launch/LaunchTool.js')
     const ctx = { getAppState: () => ({}) } as never
     const inspect = (await LaunchTool.call({ op: 'inspect', profile: mod.id } as never, ctx)) as { data: { result: string } }
     check('D3 inspect spells the module launch', inspect.data.result.includes('debug/run → python: -m hello_mod --who module-arg'), inspect.data.result)
@@ -216,9 +216,9 @@ try {
     check('D4 op:"run" runs python -m hello_mod with its args and env through the same interpreter', run.data.outcome === 'succeeded' && run.data.result.includes('MODULE __main__ who=module-arg MODE=module'), run.data.result.split('\n').slice(0, 4).join(' | '))
     const dbg = (await LaunchTool.call({ op: 'debug', profile: mod.id, file: path.join(proj, 'hello_mod.py'), lines: [3] } as never, ctx)) as { data: { result: string } }
     check('D5 op:"debug" stops at a breakpoint inside the module', dbg.data.result.includes('stopped — reason breakpoint'), dbg.data.result.split('\n')[0])
-    const dap = await import('../../src/services/dap/dapClient.js')
-    const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.js')
-    const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.js')
+    const dap = await import('../../src/integrations/debugger/dapClient.js')
+    const { ownerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.js')
+    const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.js')
     await disposeOwner(ownerFromToolUseContext(ctx))
     check('D6 the sessions are reaped', dap._dapSessionCountForTesting() === 0)
   } else {
@@ -238,7 +238,7 @@ try {
   if (py === undefined) {
     check('E7 the attach profile exists for the tool legs', false, 'no attach profile on this tree')
   } else {
-    const { LaunchTool } = await import('../../src/tools/LaunchTool/LaunchTool.js')
+    const { LaunchTool } = await import('../../src/tools/launch/LaunchTool.js')
     const ctx = { getAppState: () => ({}) } as never
     const inspect = (await LaunchTool.call({ op: 'inspect', profile: py.id } as never, ctx)) as { data: { result: string } }
     check('E7 inspect names the Debug attach call', inspect.data.result.includes('attach → python: port 5678 on localhost') && inspect.data.result.includes('Debug {"op":"attach","adapter":"python","port":5678,"host":"localhost"}'), inspect.data.result)
@@ -248,7 +248,7 @@ try {
     check('E9 op:"run" on an attach profile says there is nothing to run and names the call with the pid', run.data.outcome === 'no-change' && run.data.result.includes('nothing to run') && run.data.result.includes('"pid":4242'), run.data.result)
     const perm = await LaunchTool.checkPermissions({ op: 'debug', profile: py.id } as never, { getAppState: () => ({}) } as never)
     check('E10 the refusal rides free of a permission ask (nothing executes)', perm.behavior === 'allow', JSON.stringify(perm))
-    const dap = await import('../../src/services/dap/dapClient.js')
+    const dap = await import('../../src/integrations/debugger/dapClient.js')
     check('E11 no session was created', dap._dapSessionCountForTesting() === 0)
     const list = (await LaunchTool.call({ op: 'list' } as never, ctx)) as { data: { result: string } }
     check('E12 attach profiles appear in the list and the launch-json skips keep their reasons', list.data.result.includes('attach py') && list.data.result.includes('attach listen:'), list.data.result.split('\n').filter(l => l.includes('attach')).join(' | '))

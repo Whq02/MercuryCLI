@@ -36,11 +36,11 @@ CREATE TABLE lonely(id INTEGER PRIMARY KEY, name TEXT); INSERT INTO lonely VALUE
     console.log(`CARD ${table}\n${card}\nAFTER ${table}\n${after}`)
     const flat = after.replace(/\s+/g, ' ')
     if (reaches) {
-      check('the card says what else may change, under the row and above the question', card.includes(REACH) && card.includes('the one shown') && card.indexOf('the one shown') < card.indexOf(REACH) && card.indexOf(REACH) < card.indexOf('Delete this row?'), `${card}\n-- the permission card must show the reach line between the row and the question: sqliteDeletionReach in src/tools/FileWriteTool/structuredTargets.ts, layout in src/tools/FileWriteTool/SqliteDeletePermissionRequest.tsx`)
-      check('the result line counts the other rows that changed', flat.includes('Deleted one SQLite row') && flat.includes('4 other rows changed with it'), `${after}\n-- the delete result must count the other rows changed: the sqlite delete branch in src/tools/FileWriteTool/structuredTargets.ts and the result line in src/tools/FileWriteTool/UI.tsx`)
+      check('the card says what else may change, under the row and above the question', card.includes(REACH) && card.includes('the one shown') && card.indexOf('the one shown') < card.indexOf(REACH) && card.indexOf(REACH) < card.indexOf('Delete this row?'), `${card}\n-- the permission card must show the reach line between the row and the question: sqliteDeletionReach in src/tools/write/structuredTargets.ts, layout in src/tools/write/SqliteDeletePermissionRequest.tsx`)
+      check('the result line counts the other rows that changed', flat.includes('Deleted one SQLite row') && flat.includes('4 other rows changed with it'), `${after}\n-- the delete result must count the other rows changed: the sqlite delete branch in src/tools/write/structuredTargets.ts and the result line in src/tools/write/rows.tsx`)
     } else {
-      check('a row nothing hangs from has no such line on its card', card.includes('the one shown') && card.includes('Delete this row?') && !card.includes('Other rows'), `${card}\n-- a table with no foreign keys or triggers must get an empty reach: sqliteDeletionReach in src/tools/FileWriteTool/structuredTargets.ts`)
-      check('its result line counts nothing', flat.includes('Deleted one SQLite row') && !flat.includes('other row'), `${after}\n-- the result line must not count other rows when none changed: src/tools/FileWriteTool/UI.tsx and the sqlite delete branch in src/tools/FileWriteTool/structuredTargets.ts`)
+      check('a row nothing hangs from has no such line on its card', card.includes('the one shown') && card.includes('Delete this row?') && !card.includes('Other rows'), `${card}\n-- a table with no foreign keys or triggers must get an empty reach: sqliteDeletionReach in src/tools/write/structuredTargets.ts`)
+      check('its result line counts nothing', flat.includes('Deleted one SQLite row') && !flat.includes('other row'), `${after}\n-- the result line must not count other rows when none changed: src/tools/write/rows.tsx and the sqlite delete branch in src/tools/write/structuredTargets.ts`)
     }
   } finally { run.cleanup() }
 }

@@ -12,7 +12,7 @@ const t = checker()
 const SEED = 20260807
 
 const { listJournalOperations, recoverJournalDir, runJournaledOperation } = await import(
-  '../../src/substrate/operationJournal.ts'
+  '../../src/platform/substrate/operationJournal.ts'
 )
 
 let serial = 0

@@ -20,13 +20,13 @@ const VSHOT = join(dirname(SELF), 'vshot.py')
 
 if (process.env.ONBOARDING_RENDER_CHILD) {
   const React = await import('react')
-  const { render } = (await import('../../src/ink.js')) as {
+  const { render } = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
   }
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-  const { Onboarding } = await import('../../src/components/Onboarding.js')
-  const { addBootNote } = await import('../../src/substrate/bootNotes.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+  const { Onboarding } = await import('../../src/boot/first-run/Onboarding.js')
+  const { addBootNote } = await import('../../src/platform/substrate/bootNotes.js')
   addBootNote('info', 'runtime abc1234 · repo main def5678 — refresh: scripts/ops/deploy-runtime.sh')
   const h = React.createElement
   void render(
@@ -125,7 +125,7 @@ if (process.env.ONBOARDING_RENDER_CHILD) {
 
   {
     const { addBootNote, bootNotes, collectLauncherNotes, launcherNotesPath, _resetBootNotesForTesting } =
-      await import('../../src/substrate/bootNotes.js')
+      await import('../../src/platform/substrate/bootNotes.js')
     const home = mkdtempSync(join(tmpdir(), 'bootnotes-'))
     try {
       const file = launcherNotesPath(home)
@@ -148,7 +148,7 @@ if (process.env.ONBOARDING_RENDER_CHILD) {
     }
   }
 
-  const { loginFamilyRows, SIGN_IN_LATER_ROW } = await import('../../src/components/loginFamilyRows.ts')
+  const { loginFamilyRows, SIGN_IN_LATER_ROW } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.ts')
   const FAMILY_ROWS = loginFamilyRows({ engineLegs: true })
 
   const enterOnTheme: Send = { requireAwait: true, awaitText: 'Choose your theme', awaitSettleTicks: 3, data: '\r' }

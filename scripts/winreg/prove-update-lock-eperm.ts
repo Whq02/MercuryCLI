@@ -2,9 +2,9 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { LayoutRoots } from '../../src/services/privateChannel/installLayout.js'
+import type { LayoutRoots } from '../../src/platform/update-channel/installLayout.js'
 
-const { acquireUpdateLock, releaseUpdateLock, sweepUpdaterResidue } = await import('../../src/services/privateChannel/installLayout.ts')
+const { acquireUpdateLock, releaseUpdateLock, sweepUpdaterResidue } = await import('../../src/platform/update-channel/installLayout.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = '', failHint = ''): void => {
@@ -40,20 +40,20 @@ console.log('============================================================')
 
 holdLock(PRIVILEGED)
 const privileged = acquireUpdateLock(roots)
-check('a lock whose holder answers EPERM stays held', privileged.state === 'held' && privileged.byPid === PRIVILEGED, JSON.stringify(privileged), 'pidAlive in src/services/privateChannel/installLayout.ts must treat an EPERM answer from process.kill(pid, 0) as alive, so acquireUpdateLock returns held')
-check("the privileged holder's lock is left in place", existsSync(join(lockDir, 'pid')) && readFileSync(join(lockDir, 'pid'), 'utf8').trim() === String(PRIVILEGED), '', 'acquireUpdateLock in src/services/privateChannel/installLayout.ts must not remove or rewrite the pid file of a holder that is alive')
+check('a lock whose holder answers EPERM stays held', privileged.state === 'held' && privileged.byPid === PRIVILEGED, JSON.stringify(privileged), 'pidAlive in src/platform/update-channel/installLayout.ts must treat an EPERM answer from process.kill(pid, 0) as alive, so acquireUpdateLock returns held')
+check("the privileged holder's lock is left in place", existsSync(join(lockDir, 'pid')) && readFileSync(join(lockDir, 'pid'), 'utf8').trim() === String(PRIVILEGED), '', 'acquireUpdateLock in src/platform/update-channel/installLayout.ts must not remove or rewrite the pid file of a holder that is alive')
 rmSync(lockDir, { recursive: true, force: true })
 
 holdLock(DEAD)
 const dead = acquireUpdateLock(roots)
-check('a lock whose holder is gone is taken over as before', dead.state === 'acquired', JSON.stringify(dead), 'acquireUpdateLock in src/services/privateChannel/installLayout.ts must remove the lock of a holder whose probe answers ESRCH and take it')
+check('a lock whose holder is gone is taken over as before', dead.state === 'acquired', JSON.stringify(dead), 'acquireUpdateLock in src/platform/update-channel/installLayout.ts must remove the lock of a holder whose probe answers ESRCH and take it')
 releaseUpdateLock(roots)
 
 mkdirSync(join(roots.versionsDir, `.download-${PRIVILEGED}`), { recursive: true })
 mkdirSync(join(roots.versionsDir, `.download-${DEAD}`), { recursive: true })
 sweepUpdaterResidue(roots)
-check("a download in flight under a privileged updater survives the sweep", existsSync(join(roots.versionsDir, `.download-${PRIVILEGED}`)), '', 'sweepUpdaterResidue in src/services/privateChannel/installLayout.ts must skip an entry whose pid pidAlive reports alive, EPERM included')
-check("a dead updater's download is swept as before", !existsSync(join(roots.versionsDir, `.download-${DEAD}`)), '', 'sweepUpdaterResidue in src/services/privateChannel/installLayout.ts must remove a .download entry whose pid is dead')
+check("a download in flight under a privileged updater survives the sweep", existsSync(join(roots.versionsDir, `.download-${PRIVILEGED}`)), '', 'sweepUpdaterResidue in src/platform/update-channel/installLayout.ts must skip an entry whose pid pidAlive reports alive, EPERM included')
+check("a dead updater's download is swept as before", !existsSync(join(roots.versionsDir, `.download-${DEAD}`)), '', 'sweepUpdaterResidue in src/platform/update-channel/installLayout.ts must remove a .download entry whose pid is dead')
 
 process.kill = realKill as typeof process.kill
 try {

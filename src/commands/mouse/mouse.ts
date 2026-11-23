@@ -1,9 +1,9 @@
-import instances from '../../ink/instances.js'
+import instances from '../../screen/renderer/instances.js'
 import type {
   LocalCommandResult,
   LocalJSXCommandContext,
-} from '../../types/command.js'
-import { saveGlobalConfig } from '../../utils/config.js'
+} from '../catalogue/command.js'
+import { saveGlobalConfig } from '../../platform/settings/config.js'
 
 
 export const call = async (

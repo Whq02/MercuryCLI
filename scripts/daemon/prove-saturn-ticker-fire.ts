@@ -47,10 +47,10 @@ for (const k of [
 
 seedFirstRun(home, [work])
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
 
 const SCHEDULED_PROMPT = 'SATURN-TICKER-PROMPT-7319: confirm the scheduled fire landed.'
 const SCHEDULED_REPLY = 'SATURN-TICKER-REPLY-7319: scheduled fire received.'

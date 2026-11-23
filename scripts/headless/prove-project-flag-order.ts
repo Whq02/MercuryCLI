@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/main.tsx src/entrypoints/cli.tsx src/entrypoints/projectRoot.ts src/utils/gracefulShutdown.ts src/cli/headless/refusalEnvelope.ts
+// gate-watch: src/boot/main.tsx src/boot/entrypoints/cli.tsx src/boot/entrypoints/projectRoot.ts src/platform/processes/gracefulShutdown.ts src/daemon/runner/refusalEnvelope.ts
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -75,10 +75,10 @@ for (const args of [
   const r = await run(args)
   const outcome = outcomeOf(r.stdout)
   const label = args.join(' ').replace(project, '<dir>')
-  check(`${label}: exit 2`, r.code === 2, `a late --project must be refused as a usage error with exit 2, not a crash with exit 1; check the --project option in src/main/rootOptions.ts · ${r.code} · ${(r.stdout + r.stderr).trim().slice(0, 200)}`)
-  check(`${label}: the refused outcome row carries the remedy`, outcome?.status === 'refused' && (outcome.error?.message ?? '').includes('--project goes before the command word') && (outcome.error?.message ?? '').includes(REMEDY), `the refused outcome row must carry the remedy text thrown by the --project option in src/main/rootOptions.ts · ${outcome?.error?.message ?? r.stdout.slice(0, 200)}`)
-  check(`${label}: the old sentence is gone`, !(r.stdout + r.stderr).includes(OLD_WORDS), 'the retired sentence still prints; replace it with the --project remedy in src/main/rootOptions.ts')
-  check(`${label}: no crash card and no crash report`, !(r.stdout + r.stderr).includes(CARD) && crashFiles().length === 0, `a late --project must be refused before boot, with no crash card and no crash report; check the --project option in src/main/rootOptions.ts · ${crashFiles().join(',')} ${r.stderr.slice(0, 200)}`)
+  check(`${label}: exit 2`, r.code === 2, `a late --project must be refused as a usage error with exit 2, not a crash with exit 1; check the --project option in src/boot/main/rootOptions.ts · ${r.code} · ${(r.stdout + r.stderr).trim().slice(0, 200)}`)
+  check(`${label}: the refused outcome row carries the remedy`, outcome?.status === 'refused' && (outcome.error?.message ?? '').includes('--project goes before the command word') && (outcome.error?.message ?? '').includes(REMEDY), `the refused outcome row must carry the remedy text thrown by the --project option in src/boot/main/rootOptions.ts · ${outcome?.error?.message ?? r.stdout.slice(0, 200)}`)
+  check(`${label}: the old sentence is gone`, !(r.stdout + r.stderr).includes(OLD_WORDS), 'the retired sentence still prints; replace it with the --project remedy in src/boot/main/rootOptions.ts')
+  check(`${label}: no crash card and no crash report`, !(r.stdout + r.stderr).includes(CARD) && crashFiles().length === 0, `a late --project must be refused before boot, with no crash card and no crash report; check the --project option in src/boot/main/rootOptions.ts · ${crashFiles().join(',')} ${r.stderr.slice(0, 200)}`)
 }
 
 console.log('§2 --project after the run verb, on the plain road (the shape that wrote a boot crash report on the base): one stderr line with the remedy, exit 2, no card, no report, no stack')
@@ -90,29 +90,29 @@ for (const args of [
   const r = await run(args)
   const label = args.join(' ').replace(project, '<dir>')
   const lines = r.stderr.split('\n').filter(l => l.trim().length > 0)
-  check(`${label}: exit 2 (a usage error, never 1)`, r.code === 2, `a late --project must exit 2, never 1; check the --project option in src/main/rootOptions.ts · ${r.code} · ${(r.stdout + r.stderr).trim().slice(0, 200)}`)
-  check(`${label}: one line on stderr, naming the remedy`, lines.length === 1 && lines[0]!.includes('--project goes before the command word') && lines[0]!.includes(REMEDY), `stderr must be exactly one line holding the remedy text from the --project option in src/main/rootOptions.ts · ${r.stderr.slice(0, 300)}`)
-  check(`${label}: no crash card, no stack frame, no crash report`, !r.stderr.includes(CARD) && !/^\s+at /m.test(r.stderr) && crashFiles().length === 0, `a late --project must be refused with no crash card, no stack frame and no crash report; check the --project option in src/main/rootOptions.ts · ${crashFiles().join(',')} ${r.stderr.slice(0, 300)}`)
-  check(`${label}: the old sentence is gone`, !(r.stdout + r.stderr).includes(OLD_WORDS), 'the retired sentence still prints; replace it with the --project remedy in src/main/rootOptions.ts')
+  check(`${label}: exit 2 (a usage error, never 1)`, r.code === 2, `a late --project must exit 2, never 1; check the --project option in src/boot/main/rootOptions.ts · ${r.code} · ${(r.stdout + r.stderr).trim().slice(0, 200)}`)
+  check(`${label}: one line on stderr, naming the remedy`, lines.length === 1 && lines[0]!.includes('--project goes before the command word') && lines[0]!.includes(REMEDY), `stderr must be exactly one line holding the remedy text from the --project option in src/boot/main/rootOptions.ts · ${r.stderr.slice(0, 300)}`)
+  check(`${label}: no crash card, no stack frame, no crash report`, !r.stderr.includes(CARD) && !/^\s+at /m.test(r.stderr) && crashFiles().length === 0, `a late --project must be refused with no crash card, no stack frame and no crash report; check the --project option in src/boot/main/rootOptions.ts · ${crashFiles().join(',')} ${r.stderr.slice(0, 300)}`)
+  check(`${label}: the old sentence is gone`, !(r.stdout + r.stderr).includes(OLD_WORDS), 'the retired sentence still prints; replace it with the --project remedy in src/boot/main/rootOptions.ts')
 }
 
 console.log('§3 a folder with a space is quoted in the remedy')
 {
   const spaced = mkdtempSync(join(tmpdir(), 'project order spaced-'))
   const r = await run(['run', '--project', spaced, 'hi'])
-  check('the remedy quotes the folder', r.code === 2 && r.stderr.includes(`--project ${JSON.stringify(spaced)} run`), `a folder with whitespace must be JSON-quoted in the remedy; check the --project option in src/main/rootOptions.ts · ${r.stderr.slice(0, 300)}`)
+  check('the remedy quotes the folder', r.code === 2 && r.stderr.includes(`--project ${JSON.stringify(spaced)} run`), `a folder with whitespace must be JSON-quoted in the remedy; check the --project option in src/boot/main/rootOptions.ts · ${r.stderr.slice(0, 300)}`)
   rmSync(spaced, { recursive: true, force: true })
 }
 
 console.log('§4 the right order still works, and the help text says the law in plain words')
 {
   const r = await run(['--project', project, '--help'])
-  check('mercury --project <dir> --help exits 0 (the folder flag first is accepted)', r.code === 0 && !r.stderr.includes('--project goes before'), `the folder flag before the command word must be accepted; check the --project option in src/main/rootOptions.ts · ${r.code} · ${r.stderr.slice(0, 200)}`)
+  check('mercury --project <dir> --help exits 0 (the folder flag first is accepted)', r.code === 0 && !r.stderr.includes('--project goes before'), `the folder flag before the command word must be accepted; check the --project option in src/boot/main/rootOptions.ts · ${r.code} · ${r.stderr.slice(0, 200)}`)
   const helpLine = r.stdout.split('\n').map(l => l.trim()).filter(l => l.startsWith('--project'))
   const joined = r.stdout.replace(/\s+/g, ' ')
-  check('the --project help line says to pass it before the command word, with the example', helpLine.length === 1 && joined.includes('Pass it before the command word') && joined.includes('mercury --project <dir> run'), `the help text of the --project option in src/main/rootOptions.ts must say to pass it before the command word, with the mercury --project <dir> run example · ${helpLine.join(' | ') || r.stdout.slice(0, 200)}`)
-  check('the old sentence is not in the help', !joined.includes(OLD_WORDS), 'the retired sentence is in the help; reword the --project help in src/main/rootOptions.ts')
-  check('no crash report was written by any road above', crashFiles().length === 0, `a crash report was written by one of the runs above; the run printed before this check names the road, and the --project option in src/main/rootOptions.ts is where the late flag is refused · ${crashFiles().join(',')}`)
+  check('the --project help line says to pass it before the command word, with the example', helpLine.length === 1 && joined.includes('Pass it before the command word') && joined.includes('mercury --project <dir> run'), `the help text of the --project option in src/boot/main/rootOptions.ts must say to pass it before the command word, with the mercury --project <dir> run example · ${helpLine.join(' | ') || r.stdout.slice(0, 200)}`)
+  check('the old sentence is not in the help', !joined.includes(OLD_WORDS), 'the retired sentence is in the help; reword the --project help in src/boot/main/rootOptions.ts')
+  check('no crash report was written by any road above', crashFiles().length === 0, `a crash report was written by one of the runs above; the run printed before this check names the road, and the --project option in src/boot/main/rootOptions.ts is where the late flag is refused · ${crashFiles().join(',')}`)
 }
 
 for (const dir of [home, cwd, project]) rmSync(dir, { recursive: true, force: true })

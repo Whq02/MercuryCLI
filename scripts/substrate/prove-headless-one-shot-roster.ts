@@ -15,17 +15,17 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const state = await import('../../src/bootstrap/state.ts')
-const { cronToolsMountable, isSaturnSchedulingEnabled } = await import('../../src/tools/ScheduleCronTool/prompt.ts')
-const { isScheduleWakeupEnabled } = await import('../../src/tools/ScheduleWakeupTool/prompt.ts')
-const { getTools } = await import('../../src/tools.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const { cronToolsMountable, isSaturnSchedulingEnabled } = await import('../../src/tools/cron/prompt.ts')
+const { isScheduleWakeupEnabled } = await import('../../src/tools/schedule-wakeup/prompt.ts')
+const { getTools } = await import('../../src/tools/kit/toolList.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 const SCHEDULING = ['CronCreate', 'CronDelete', 'CronList', 'ScheduleWakeup']
-const cronGate = 'cronToolsMountable in src/tools/ScheduleCronTool/prompt.ts'
-const wakeGate = 'isScheduleWakeupEnabled in src/tools/ScheduleWakeupTool/prompt.ts'
-const oneShotFlag = 'setHeadlessOneShot and getIsSessionOneShotHeadless in src/bootstrap/state.ts'
-const rosterFn = 'getTools in src/tools.ts'
+const cronGate = 'cronToolsMountable in src/tools/cron/prompt.ts'
+const wakeGate = 'isScheduleWakeupEnabled in src/tools/schedule-wakeup/prompt.ts'
+const oneShotFlag = 'setHeadlessOneShot and getIsSessionOneShotHeadless in src/boot/process-state/processState.ts'
+const rosterFn = 'getTools in src/tools/kit/toolList.ts'
 const rosterNames = (): string[] =>
   getTools({ ...getEmptyToolPermissionContext(), mode: 'default' } as never)
     .map(t => t.name)
@@ -35,7 +35,7 @@ section('§1 the default posture mounts the scheduling tools (interactive · str
 const defaultRoster = rosterNames()
 {
   check('the one-shot flag defaults to false', state.getIsSessionOneShotHeadless() === false, String(state.getIsSessionOneShotHeadless()), oneShotFlag + ' must start the flag false')
-  check('the master gate is on (stamped build, no kill switch — SATURN gate, S6b)', isSaturnSchedulingEnabled() === true, String(isSaturnSchedulingEnabled()), 'isSaturnSchedulingEnabled in src/tools/ScheduleCronTool/prompt.ts must read true with MERCURY_SATURN_DISABLE unset')
+  check('the master gate is on (stamped build, no kill switch — SATURN gate, S6b)', isSaturnSchedulingEnabled() === true, String(isSaturnSchedulingEnabled()), 'isSaturnSchedulingEnabled in src/tools/cron/prompt.ts must read true with MERCURY_SATURN_DISABLE unset')
   check('cronToolsMountable() reads true', cronToolsMountable() === true, '', cronGate + ' must read true in the default posture')
   check('isScheduleWakeupEnabled() reads true', isScheduleWakeupEnabled() === true, '', wakeGate + ' must read true in the default posture')
   check(

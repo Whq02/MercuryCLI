@@ -18,18 +18,18 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const hosts = await import('../../src/services/providers/local/tensorfoldHosts.ts')
-const inventory = await import('../../src/services/tensorfold/inventory.ts')
-const serve = await import('../../src/services/tensorfold/serve.ts')
-const engine = await import('../../src/services/tensorfold/engine.ts')
-const fit = await import('../../src/services/tensorfold/fit.ts')
-const starting = await import('../../src/services/tensorfold/starting.ts')
-const models = await import('../../src/services/tensorfold/adapter/models.ts')
+const hosts = await import('../../src/models/roads/local/tensorfoldHosts.ts')
+const inventory = await import('../../src/models/tensorfold/inventory.ts')
+const serve = await import('../../src/models/tensorfold/serve.ts')
+const engine = await import('../../src/models/tensorfold/engine.ts')
+const fit = await import('../../src/models/tensorfold/fit.ts')
+const starting = await import('../../src/models/tensorfold/starting.ts')
+const models = await import('../../src/models/tensorfold/adapter/models.ts')
 
 let failures = 0
-const LAST_WINDOW_WHERE = 'change the remembered-window rule: rowOfCheckpoint in src/services/tensorfold/inventory.ts (which window a row stands at), startTensorFold in src/services/tensorfold/serve.ts (what a start remembers), rememberTensorFoldWindow and rememberedTensorFoldWindow in src/services/providers/local/tensorfoldHosts.ts (the stored window)'
+const LAST_WINDOW_WHERE = 'change the remembered-window rule: rowOfCheckpoint in src/models/tensorfold/inventory.ts (which window a row stands at), startTensorFold in src/models/tensorfold/serve.ts (what a start remembers), rememberTensorFoldWindow and rememberedTensorFoldWindow in src/models/roads/local/tensorfoldHosts.ts (the stored window)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${LAST_WINDOW_WHERE}${detail ? ` | ${detail.slice(0, 900)}` : ''}` : ''}`)

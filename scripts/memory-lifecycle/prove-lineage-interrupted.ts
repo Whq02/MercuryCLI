@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/ledger.ts src/mneme/lineageSession.ts src/mneme/entryPage.ts src/mneme/types.ts src/utils/sessionStorage/paths.ts src/utils/sessionStorage/vnext.ts src/utils/sessionStorage/transcriptReader.ts src/fabric/transcriptDecode.ts src/utils/ownerWatch.ts src/utils/processSweep.ts
+// gate-watch: src/sessions/mneme/ledger.ts src/sessions/mneme/lineageSession.ts src/sessions/mneme/entryPage.ts src/sessions/mneme/types.ts src/sessions/transcripts/paths.ts src/sessions/transcripts/vnext.ts src/sessions/transcripts/transcriptReader.ts src/sessions/fabric/transcriptDecode.ts src/daemon/control/ownerWatch.ts src/daemon/process-sweep/processSweep.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -27,22 +27,22 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const rowHint = 'change reconcileInterruptedEntries in src/mneme/ledger.ts (called from noteSessionEngine in src/mneme/lineageSession.ts) so the row ends as the check says: '
-const pageHint = 'change composeEntryPage in src/mneme/entryPage.ts so the page reads as the check says: '
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
-const ledger = await import('../../src/mneme/ledger.ts')
-const lineage = await import('../../src/mneme/lineageSession.ts')
-const { composeEntryPage, stampLocal } = await import('../../src/mneme/entryPage.ts')
-const { mnemeProjectKey, lineagePath } = await import('../../src/mneme/paths.ts')
-const { getTranscriptPathForSession } = await import('../../src/utils/sessionStorage/paths.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { mnemeEnabled } = await import('../../src/mneme/mnemeGates.ts')
-const { getProcessStartToken } = await import('../../src/utils/ownerWatch.ts')
-const { parseProcessStartToken } = await import('../../src/utils/processSweep.ts')
+const rowHint = 'change reconcileInterruptedEntries in src/sessions/mneme/ledger.ts (called from noteSessionEngine in src/sessions/mneme/lineageSession.ts) so the row ends as the check says: '
+const pageHint = 'change composeEntryPage in src/sessions/mneme/entryPage.ts so the page reads as the check says: '
+const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
+const ledger = await import('../../src/sessions/mneme/ledger.ts')
+const lineage = await import('../../src/sessions/mneme/lineageSession.ts')
+const { composeEntryPage, stampLocal } = await import('../../src/sessions/mneme/entryPage.ts')
+const { mnemeProjectKey, lineagePath } = await import('../../src/sessions/mneme/paths.ts')
+const { getTranscriptPathForSession } = await import('../../src/sessions/transcripts/paths.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+const { mnemeEnabled } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { getProcessStartToken } = await import('../../src/daemon/control/ownerWatch.ts')
+const { parseProcessStartToken } = await import('../../src/daemon/process-sweep/processSweep.ts')
 
 const projectKey = mnemeProjectKey()
 const me = String(getSessionId())
-check('the mneme is on and this session joins the lineage (the scratch home\'s defaults)', mnemeEnabled() && lineage.lineageJoined(), 'mnemeEnabled in src/mneme/mnemeGates.ts and lineageJoined in src/mneme/lineageSession.ts must both be true under the scratch home defaults')
+check('the mneme is on and this session joins the lineage (the scratch home\'s defaults)', mnemeEnabled() && lineage.lineageJoined(), 'mnemeEnabled in src/sessions/mneme/mnemeGates.ts and lineageJoined in src/sessions/mneme/lineageSession.ts must both be true under the scratch home defaults')
 
 type Row = Record<string, unknown>
 const ids = {
@@ -61,7 +61,7 @@ writeFileSync(
   OPENER,
   [
     ";(globalThis).MACRO = { VERSION: '1.0.0' }",
-    `const { openEntry } = await import(${JSON.stringify(resolve(import.meta.dir, '../../src/mneme/ledger.ts'))})`,
+    `const { openEntry } = await import(${JSON.stringify(resolve(import.meta.dir, '../../src/sessions/mneme/ledger.ts'))})`,
     'const [projectKey, sessionId, stay] = process.argv.slice(2)',
     "openEntry(projectKey, { sessionId, model: 'proof-model' })",
     "console.log('opened')",
@@ -111,8 +111,8 @@ section('§1 the Windows loop\'s shape (F37W-2B-15 / F37W-4D-05): one session ki
     assistantTool('a1', 'u1', CUT_AT),
   ])
   const before = lastRowOf(ids.killed)
-  check('before the next start the killed row is open: endedAt null, outcome null', before?.endedAt === null && before?.outcome === null, `openEntry in src/mneme/ledger.ts should write a new row open (endedAt null, outcome null); ${JSON.stringify(before)}`)
-  check('the row carries the process that opened it: its pid (not ours) and the time it claimed the row', typeof before?.pid === 'number' && before.pid !== process.pid && typeof before?.pidAt === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(before.pidAt), `openEntry in src/mneme/ledger.ts should stamp the opening process pid and the claim time pidAt; ${JSON.stringify(before)}`)
+  check('before the next start the killed row is open: endedAt null, outcome null', before?.endedAt === null && before?.outcome === null, `openEntry in src/sessions/mneme/ledger.ts should write a new row open (endedAt null, outcome null); ${JSON.stringify(before)}`)
+  check('the row carries the process that opened it: its pid (not ours) and the time it claimed the row', typeof before?.pid === 'number' && before.pid !== process.pid && typeof before?.pidAt === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(before.pidAt), `openEntry in src/sessions/mneme/ledger.ts should stamp the opening process pid and the claim time pidAt; ${JSON.stringify(before)}`)
 
   lineage.noteSessionEngine('proof-model')
   const after = lastRowOf(ids.killed)
@@ -121,7 +121,7 @@ section('§1 the Windows loop\'s shape (F37W-2B-15 / F37W-4D-05): one session ki
   check('the reconciled row keeps its ordinal, start, engines, pid and (no) handoff', after?.ordinal === 1 && after?.startedAt === before?.startedAt && JSON.stringify(after?.engines) === JSON.stringify(before?.engines) && after?.handoff === null && after?.pid === before?.pid, rowHint + JSON.stringify(after))
   check('the ledger appends, never rewrites: the open row still stands above the reconciled one', rowsOf().filter(r => r.sessionId === ids.killed).length === 2, rowHint + 'append the reconciled row, never rewrite the open one')
   const mine = ledger.ledgerEntryOf(projectKey, me)
-  check('this session opened its own row (ordinal 2, open) stamped with this process', mine?.ordinal === 2 && mine.endedAt === null && mine.pid === process.pid && typeof mine.pidAt === 'string', `noteSessionEngine in src/mneme/lineageSession.ts should open this sessions row through openEntry in src/mneme/ledger.ts with this process pid; ${JSON.stringify(mine)}`)
+  check('this session opened its own row (ordinal 2, open) stamped with this process', mine?.ordinal === 2 && mine.endedAt === null && mine.pid === process.pid && typeof mine.pidAt === 'string', `noteSessionEngine in src/sessions/mneme/lineageSession.ts should open this sessions row through openEntry in src/sessions/mneme/ledger.ts with this process pid; ${JSON.stringify(mine)}`)
 
   const page = composeEntryPage(projectKey, me) ?? ''
   check('the page keeps the count words: "1 session before it (1 of them ended without closing its entry)"', page.includes('Session 2 of this work; 1 session before it (1 of them ended without closing its entry).'), pageHint + page)
@@ -185,7 +185,7 @@ section('§4 a LIVE second session is never reconciled: a session started by han
     assistantTool('a1', 'u1', CUT_AT),
   ])
   const opened = lastRowOf(ids.live)
-  check('the live row carries the child\'s pid and claim time, and the daemon knows no worker for it', opened?.pid === child.pid && typeof opened?.pidAt === 'string' && ledger.liveSessions(projectKey).length === 0, `openEntry in src/mneme/ledger.ts should stamp the opening child pid and pidAt; ${JSON.stringify(opened)}`)
+  check('the live row carries the child\'s pid and claim time, and the daemon knows no worker for it', opened?.pid === child.pid && typeof opened?.pidAt === 'string' && ledger.liveSessions(projectKey).length === 0, `openEntry in src/sessions/mneme/ledger.ts should stamp the opening child pid and pidAt; ${JSON.stringify(opened)}`)
 
   lineage.noteSessionEngine('proof-model')
   const stillOpen = lastRowOf(ids.live)
@@ -223,8 +223,8 @@ section('§4b the pid claim is read against the process start the kernel reports
     }
   }
   const tokens = { de: withLocale('de_DE.UTF-8', () => getProcessStartToken(process.pid)), gb: withLocale('en_GB.UTF-8', () => getProcessStartToken(process.pid)), c: withLocale('C', () => getProcessStartToken(process.pid)) }
-  check('the start token of one pid reads the same under de_DE, en_GB and C, in the pinned form (weekday, month, day)', typeof tokens.c === 'string' && PINNED.test(tokens.c) && tokens.de === tokens.c && tokens.gb === tokens.c, `change getProcessStartToken in src/utils/ownerWatch.ts so it pins one locale and returns the same token form under every LC_ALL; ${JSON.stringify(tokens)}`)
-  check('the pinned form parses to this process\'s start: at or before the moment it began running, never after', typeof tokens.c === 'string' && Number.isFinite(parseProcessStartToken(tokens.c)) && parseProcessStartToken(tokens.c) <= performance.timeOrigin && parseProcessStartToken(tokens.c) > performance.timeOrigin - 60_000, `change parseProcessStartToken in src/utils/processSweep.ts so the pinned token parses to the process start time; ${tokens.c} vs ${new Date(performance.timeOrigin).toISOString()}`)
+  check('the start token of one pid reads the same under de_DE, en_GB and C, in the pinned form (weekday, month, day)', typeof tokens.c === 'string' && PINNED.test(tokens.c) && tokens.de === tokens.c && tokens.gb === tokens.c, `change getProcessStartToken in src/daemon/control/ownerWatch.ts so it pins one locale and returns the same token form under every LC_ALL; ${JSON.stringify(tokens)}`)
+  check('the pinned form parses to this process\'s start: at or before the moment it began running, never after', typeof tokens.c === 'string' && Number.isFinite(parseProcessStartToken(tokens.c)) && parseProcessStartToken(tokens.c) <= performance.timeOrigin && parseProcessStartToken(tokens.c) > performance.timeOrigin - 60_000, `change parseProcessStartToken in src/daemon/process-sweep/processSweep.ts so the pinned token parses to the process start time; ${tokens.c} vs ${new Date(performance.timeOrigin).toISOString()}`)
 
   const child = await openFromLiveProcess(ids.live, { ...process.env, LC_ALL: 'en_GB.UTF-8', LANG: 'en_GB.UTF-8' })
   writeTranscript(ids.live, [
@@ -261,7 +261,7 @@ section('§5 an older store (rows with no pid) is reconciled only when the trans
   appendFileSync(lineagePath(projectKey), `${oldRow(1, ids.oldDead, new Date(bootAt - 7_200_000).toISOString())}\n${oldRow(2, ids.oldRecent, new Date(bootAt + 30_000).toISOString())}\n`)
   writeTranscript(ids.oldDead, [user('u1', null, new Date(bootAt - 3_660_000).toISOString(), 'count'), assistantTool('a1', 'u1', beforeBoot)])
   writeTranscript(ids.oldRecent, [user('u1', null, new Date(Date.parse(sinceBoot) - 5_000).toISOString(), 'count'), assistantTool('a1', 'u1', sinceBoot)])
-  check('the two older rows read as open rows without a pid', lastRowOf(ids.oldDead)?.pid === undefined && lastRowOf(ids.oldRecent)?.pid === undefined && ledger.readLedger(projectKey).length === 2, 'the fixture rows written by oldRow should read back through readLedger in src/mneme/ledger.ts as two open rows without pid')
+  check('the two older rows read as open rows without a pid', lastRowOf(ids.oldDead)?.pid === undefined && lastRowOf(ids.oldRecent)?.pid === undefined && ledger.readLedger(projectKey).length === 2, 'the fixture rows written by oldRow should read back through readLedger in src/sessions/mneme/ledger.ts as two open rows without pid')
 
   lineage.noteSessionEngine('proof-model')
   const dead = lastRowOf(ids.oldDead)

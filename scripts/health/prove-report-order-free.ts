@@ -19,7 +19,7 @@ interface Run {
 }
 
 const ROTATE = 11
-const FOLDER = 'src/services/health/sections'
+const FOLDER = 'src/platform/health/sections'
 const PLANTED = 'op-planted.json'
 
 if (process.argv[2] === '--child') {
@@ -28,18 +28,18 @@ if (process.argv[2] === '--child') {
   const depth = process.argv[4] as Depth
   const planted = process.argv[6] === PLANTED
   if (planted) {
-    const { changeSetJournalDir } = await import('../../src/services/changeTransaction/changeSetContracts.ts')
+    const { changeSetJournalDir } = await import('../../src/tools/engines/change-transaction/changeSetContracts.ts')
     mkdirSync(changeSetJournalDir(), { recursive: true })
     writeFileSync(join(changeSetJournalDir(), PLANTED), 'not an operation')
   }
-  const sweep = await import('../../src/daemon/processSweepRun.ts')
+  const sweep = await import('../../src/daemon/process-sweep/processSweepRun.ts')
   const { readMercuryProcesses } = sweep
-  mock.module('../../src/daemon/processSweepRun.ts', () => ({
+  mock.module('../../src/daemon/process-sweep/processSweepRun.ts', () => ({
     ...sweep,
     readMercuryProcesses: () => readMercuryProcesses({ collect: async () => ({ complete: true, observations: [] }) }),
   }))
-  const { HEALTH_SECTIONS } = await import('../../src/services/health/sections.ts')
-  const { runHealthReport } = await import('../../src/services/health/healthReport.ts')
+  const { HEALTH_SECTIONS } = await import('../../src/platform/health/sections.ts')
+  const { runHealthReport } = await import('../../src/platform/health/healthReport.ts')
   const inOrder = [...HEALTH_SECTIONS]
   const ordered = mode === 'reversed' ? [...inOrder].reverse() : mode === 'rotated' ? [...inOrder.slice(ROTATE), ...inOrder.slice(0, ROTATE)] : inOrder
   const called: string[] = []
@@ -160,9 +160,9 @@ for (const depth of ['fast', 'deep'] as const) {
   const [first, second, reversed, rotated] = settledRuns as [Awaited<ReturnType<typeof runOrder>>, Awaited<ReturnType<typeof runOrder>>, Awaited<ReturnType<typeof runOrder>>, Awaited<ReturnType<typeof runOrder>>]
   const runs = [first, second, reversed, rotated]
   const silent = runs.filter(entry => entry.run === null).map(entry => entry.why)
-  check(`four ${depth} reports ran`, silent.length === 0, [...silent, 'the child process of this file (run with --child) died before it wrote its report: read its last output above, and look at runHealthReport in src/services/health/healthReport.ts and the section list in src/services/health/sections.ts that the child loads'])
+  check(`four ${depth} reports ran`, silent.length === 0, [...silent, 'the child process of this file (run with --child) died before it wrote its report: read its last output above, and look at runHealthReport in src/platform/health/healthReport.ts and the section list in src/platform/health/sections.ts that the child loads'])
   if (first.run === null || second.run === null || reversed.run === null || rotated.run === null) continue
-  const ran = runs.flatMap(entry => (entry.run !== null && entry.run.called.join(' ') !== entry.run.handed.join(' ') ? [`the ${entry.run.mode} run handed the report ${entry.run.handed.length} sections (${entry.run.handed[0]} first) and the report called ${entry.run.called.length} of them (${entry.run.called[0] ?? 'none'} first): runHealthReport of src/services/health/healthReport.ts takes the list of sections as its second argument and runs that list in the order handed`] : []))
+  const ran = runs.flatMap(entry => (entry.run !== null && entry.run.called.join(' ') !== entry.run.handed.join(' ') ? [`the ${entry.run.mode} run handed the report ${entry.run.handed.length} sections (${entry.run.handed[0]} first) and the report called ${entry.run.called.length} of them (${entry.run.called[0] ?? 'none'} first): runHealthReport of src/platform/health/healthReport.ts takes the list of sections as its second argument and runs that list in the order handed`] : []))
   check(`the report ran the list it was handed, in the order handed (${first.run.handed[0]} first, ${reversed.run.handed[0]} first, ${rotated.run.handed[0]} first)`, ran.length === 0, ran)
 
   const control = differences({ run: first.run, places: first.places }, { run: second.run, places: second.places })

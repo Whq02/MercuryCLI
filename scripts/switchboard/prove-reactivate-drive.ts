@@ -33,12 +33,12 @@ const SWITCH_MODEL = process.env.MERCURY_REACTIVATE_DRIVE_MODEL ?? 'claude-opus-
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}rerun with MERCURY_REACTIVATE_CAPTURE_DIR=<dir> to write every frame the drive painted to <dir>/<id>.txt, then change the park/reactivate road in src/daemon/concourseWorkers/reactivate.ts (reactivateConcourseSession) or the board's parked marks in src/services/concourse/concourseSnapshot.ts`
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}rerun with MERCURY_REACTIVATE_CAPTURE_DIR=<dir> to write every frame the drive painted to <dir>/<id>.txt, then change the park/reactivate road in src/daemon/concourse-workers/reactivate.ts (reactivateConcourseSession) or the board's parked marks in src/screen/concourse-model/concourseSnapshot.ts`
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
@@ -50,7 +50,7 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [CWD])
 
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
 const gFace = (data: string, extra: Send = {}): Send => g('↑↓', data, { awaitPattern: BOOT_FACE_READY, ...extra })
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSIONS'

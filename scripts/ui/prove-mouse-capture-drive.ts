@@ -27,7 +27,7 @@ if (!existsSync(BIN)) {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 
 let failures = 0
@@ -171,7 +171,7 @@ console.log('M1 — mouseCapture: false boots the face and the chat with no mous
   printFrame('m1 (the chat, capture off)', c.lines)
   check('M1 the chat is on screen', c.text.includes(COMPOSER), c.tail.slice(-200), 'the capture never reached the composer; read the printed frame above and the capture tail, and check that dist/mercury.mjs was rebuilt')
   check('M1 the wire carries bytes', c.wire.length > 0, `${c.wire.length} bytes`, 'the PTY tee file held no output; check that scripts/ui/vshot.py ran and wrote VSHOT_TEE')
-  check('M1 zero mouse-tracking DECSET bytes on the wire (1000 · 1002 · 1003 · 1006)', setsOn(c.wire).length === 0, setsOn(c.wire).join(' '), 'mouse tracking was armed with mouseCapture false; check isMouseCaptureEnabled in src/utils/config/derived.ts and the places that call setMouseTrackingEnabled')
+  check('M1 zero mouse-tracking DECSET bytes on the wire (1000 · 1002 · 1003 · 1006)', setsOn(c.wire).length === 0, setsOn(c.wire).join(' '), 'mouse tracking was armed with mouseCapture false; check isMouseCaptureEnabled in src/platform/config/derived.ts and the places that call setMouseTrackingEnabled')
   check('M1 the cockpit paints no chip: the status row under the view carries the model, the state words, the folder and the way back, and no row says mouse', !c.text.includes(CHIP) && !c.lines.some(l => /\bmouse\b/.test(l)) && c.lines.some(l => /ready · \S.* · \S.*(?:⇧|shift\+)← back/.test(l)), c.lines.filter(l => /mouse|← back/.test(l)).join(' | ').slice(0, 200), 'the status row must carry the ready state words and the way back and no mouse chip; remove the chip from the cockpit status row')
 }
 
@@ -180,7 +180,7 @@ console.log('\nM2 — the same boot without the key arms tracking (the control)'
   const c = await capture({ id: 'm2-default', home: freshHome('default', null), sends: INTO_THE_CHAT, ready: COMPOSER })
   printFrame('m2 (the chat, the default)', c.lines)
   check('M2 the chat is on screen', c.text.includes(COMPOSER), c.tail.slice(-200), 'the capture never reached the composer; read the printed frame above and the capture tail, and check that dist/mercury.mjs was rebuilt')
-  check('M2 every mouse-tracking DECSET rides the wire', setsOn(c.wire).length === MOUSE_SETS.length, setsOn(c.wire).join(' '), 'with no mouseCapture key the default must arm all four tracking modes; check isMouseCaptureEnabled in src/utils/config/derived.ts and setMouseTrackingEnabled')
+  check('M2 every mouse-tracking DECSET rides the wire', setsOn(c.wire).length === MOUSE_SETS.length, setsOn(c.wire).join(' '), 'with no mouseCapture key the default must arm all four tracking modes; check isMouseCaptureEnabled in src/platform/config/derived.ts and setMouseTrackingEnabled')
   check('M2 no chip on the cockpit either', !c.text.includes(CHIP), '', 'the mouse off chip text must not paint on the cockpit; remove it from the screen that prints it')
 }
 

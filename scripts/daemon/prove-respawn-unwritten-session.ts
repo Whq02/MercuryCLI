@@ -19,8 +19,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const section = (title: string): void => console.log(`\n${title}`)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const headless = await import('../../src/daemon/headlessRun.ts')
-const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
+const headless = await import('../../src/daemon/runner-link/headlessRun.ts')
+const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 section('§3 a respawn never rides --resume onto a conversation nobody wrote (the receipt: "No conversation found for session id" ×3, each counted as a crash)')
 {
@@ -28,22 +28,22 @@ section('§3 a respawn never rides --resume onto a conversation nobody wrote (th
   const sessionId = '90555e9a-3846-4405-9e48-ca69a8c175af'
   const spec = buildConcourseWorkerSpec({ runnerId: 'concourse-w64', sessionId, workspaceId, modelKey: 'claude-fable-5', cwd: join(workspaceId, '.wt', 'concourse-w64') })
   const first = headless.buildRunnerInvocation(spec)
-  check('the first boot pins --session-id', first.argv.includes('--session-id') && first.argv.includes(sessionId) && !first.argv.includes('--resume'), `${first.argv.join(' ')} (fix buildRunnerInvocation in src/daemon/headlessRun.ts so a first boot pins --session-id)`)
+  check('the first boot pins --session-id', first.argv.includes('--session-id') && first.argv.includes(sessionId) && !first.argv.includes('--resume'), `${first.argv.join(' ')} (fix buildRunnerInvocation in src/daemon/runner-link/headlessRun.ts so a first boot pins --session-id)`)
   const unwritten = headless.buildRunnerInvocation(spec, { respawn: true })
-  check('a respawn before any transcript exists boots the SAME id with --session-id, never --resume', unwritten.argv.includes('--session-id') && unwritten.argv.includes(sessionId) && !unwritten.argv.includes('--resume'), `${unwritten.argv.join(' ')} (fix buildRunnerInvocation and identityArgvOf in src/daemon/headlessRun.ts so a respawn with no transcript swaps --resume for --session-id)`)
+  check('a respawn before any transcript exists boots the SAME id with --session-id, never --resume', unwritten.argv.includes('--session-id') && unwritten.argv.includes(sessionId) && !unwritten.argv.includes('--resume'), `${unwritten.argv.join(' ')} (fix buildRunnerInvocation and identityArgvOf in src/daemon/runner-link/headlessRun.ts so a respawn with no transcript swaps --resume for --session-id)`)
   const home = String(unwritten.env.MERCURY_SESSION_HOME)
   mkdirSync(home, { recursive: true })
   writeFileSync(join(home, `${sessionId}.jsonl`), `${j({ type: 'user', uuid: `${sessionId}-u1`, sessionId, message: { role: 'user', content: 'a turn' } })}\n`)
   const written = headless.buildRunnerInvocation(spec, { respawn: true })
-  check('once the transcript exists the respawn rides --resume of the same durable session', written.argv.includes('--resume') && written.argv.includes(sessionId) && !written.argv.includes('--session-id'), `${written.argv.join(' ')} (fix buildRunnerInvocation in src/daemon/headlessRun.ts so a respawn keeps --resume once the transcript file exists in runnerSessionHome)`)
+  check('once the transcript exists the respawn rides --resume of the same durable session', written.argv.includes('--resume') && written.argv.includes(sessionId) && !written.argv.includes('--session-id'), `${written.argv.join(' ')} (fix buildRunnerInvocation in src/daemon/runner-link/headlessRun.ts so a respawn keeps --resume once the transcript file exists in runnerSessionHome)`)
   const readmitted = buildConcourseWorkerSpec({ runnerId: 'concourse-w65', sessionId: '11111111-2222-4333-8444-555555555555', workspaceId, modelKey: 'claude-fable-5', resume: true })
   const readmit = headless.buildRunnerInvocation(readmitted)
-  check('a re-admission (resume: true) of a record whose transcript was never written boots --session-id too', readmit.argv.includes('--session-id') && !readmit.argv.includes('--resume'), `${readmit.argv.join(' ')} (fix buildRunnerInvocation and identityArgvOf in src/daemon/headlessRun.ts so resume: true with no transcript boots --session-id)`)
+  check('a re-admission (resume: true) of a record whose transcript was never written boots --session-id too', readmit.argv.includes('--session-id') && !readmit.argv.includes('--resume'), `${readmit.argv.join(' ')} (fix buildRunnerInvocation and identityArgvOf in src/daemon/runner-link/headlessRun.ts so resume: true with no transcript boots --session-id)`)
   const identityArgvOf = (headless as Partial<typeof headless>).identityArgvOf
-  check('identityArgvOf keeps the rest of the argv in place around the swapped flag', identityArgvOf !== undefined && j(identityArgvOf({ cwd: workspaceId, extraEnv: { MERCURY_SESSION_HOME: home } }, ['--resume', 'nobody-wrote-me', '--brief-add', 'x'], () => false)) === j(['--session-id', 'nobody-wrote-me', '--brief-add', 'x']), 'identityArgvOf in src/daemon/headlessRun.ts must be exported and swap only the --resume flag, leaving the other argv in place')
-  check('identityArgvOf leaves an argv without --resume untouched', identityArgvOf !== undefined && j(identityArgvOf({ cwd: workspaceId }, ['--session-id', 'x'], () => false)) === j(['--session-id', 'x']), 'identityArgvOf in src/daemon/headlessRun.ts must be exported and return an argv without --resume unchanged')
+  check('identityArgvOf keeps the rest of the argv in place around the swapped flag', identityArgvOf !== undefined && j(identityArgvOf({ cwd: workspaceId, extraEnv: { MERCURY_SESSION_HOME: home } }, ['--resume', 'nobody-wrote-me', '--brief-add', 'x'], () => false)) === j(['--session-id', 'nobody-wrote-me', '--brief-add', 'x']), 'identityArgvOf in src/daemon/runner-link/headlessRun.ts must be exported and swap only the --resume flag, leaving the other argv in place')
+  check('identityArgvOf leaves an argv without --resume untouched', identityArgvOf !== undefined && j(identityArgvOf({ cwd: workspaceId }, ['--session-id', 'x'], () => false)) === j(['--session-id', 'x']), 'identityArgvOf in src/daemon/runner-link/headlessRun.ts must be exported and return an argv without --resume unchanged')
   const runnerSessionHome = (headless as Partial<typeof headless>).runnerSessionHome
-  check('the transcript is looked up in the pinned session home (the workspace project dir), not the carved worktree cwd', runnerSessionHome !== undefined && runnerSessionHome(spec) === home && home !== join(workspaceId, '.wt', 'concourse-w64'), `${j({ home, got: runnerSessionHome?.(spec) })} (fix runnerSessionHome in src/daemon/headlessRun.ts so it returns the pinned MERCURY_SESSION_HOME, not the worktree cwd)`)
+  check('the transcript is looked up in the pinned session home (the workspace project dir), not the carved worktree cwd', runnerSessionHome !== undefined && runnerSessionHome(spec) === home && home !== join(workspaceId, '.wt', 'concourse-w64'), `${j({ home, got: runnerSessionHome?.(spec) })} (fix runnerSessionHome in src/daemon/runner-link/headlessRun.ts so it returns the pinned MERCURY_SESSION_HOME, not the worktree cwd)`)
   rmSync(workspaceId, { recursive: true, force: true })
 }
 

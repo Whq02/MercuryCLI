@@ -24,7 +24,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 async function runPidAlive(): Promise<void> {
   console.log('\npidAlive — EPERM means alive, ESRCH means dead')
-  const { pidAlive } = await import('../../src/utils/pidAlive.ts')
+  const { pidAlive } = await import('../../src/platform/processes/pidAlive.ts')
   const origKill = process.kill
   try {
     process.kill = ((_pid: number, _sig?: string | number) => {
@@ -43,7 +43,7 @@ async function runPidAlive(): Promise<void> {
 
 async function runLocalJsxCommandError(): Promise<void> {
   console.log('\nprocessSlashCommand — local-jsx load failure reports stderr and commandError')
-  const { processSlashCommand } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
+  const { processSlashCommand } = await import('../../src/engine/user-input/processSlashCommand.tsx')
   const brokenCommand = {
     type: 'local-jsx' as const,
     name: 'broken-jsx-proof',
@@ -69,7 +69,7 @@ async function runLocalJsxCommandError(): Promise<void> {
 async function runProjectBoundary(): Promise<void> {
   console.log('\nprojectBoundary — gitInitRefusal does not refuse a small markerless folder for an unreadable subfolder')
   if (!POSIX_MODES) return
-  const { gitInitRefusal } = await import('../../src/utils/projectBoundary.ts')
+  const { gitInitRefusal } = await import('../../src/platform/files/projectBoundary.ts')
   const folder = join(SCRATCH, 'markerless-unreadable')
   const locked = join(folder, 'locked')
   const readable = join(SCRATCH, 'markerless-readable')
@@ -93,7 +93,7 @@ async function runProjectBoundary(): Promise<void> {
 async function runPromptDraft(): Promise<void> {
   console.log('\npromptDraft — draftPasteHashes throws when drafts dir exists and is unreadable')
   if (!POSIX_MODES) return
-  const { draftPasteHashes } = await import('../../src/utils/promptDraft.ts')
+  const { draftPasteHashes } = await import('../../src/screen/composer/input-core/promptDraft.ts')
   const draftsDir = join(HOME, 'drafts')
   rmSync(draftsDir, { recursive: true, force: true })
   check('draftPasteHashes returns empty set when drafts dir is absent', draftPasteHashes().size === 0)
@@ -113,8 +113,8 @@ async function runPromptDraft(): Promise<void> {
 
 async function runPromptEditor(): Promise<void> {
   console.log('\npromptEditor — statSync/read failure returns EditorResult.error instead of silent null')
-  const instances = (await import('../../src/ink/instances.ts')).default
-  const { editFileInEditor } = await import('../../src/utils/promptEditor.ts')
+  const instances = (await import('../../src/screen/renderer/instances.ts')).default
+  const { editFileInEditor } = await import('../../src/screen/composer/promptEditor.ts')
   const prevEditor = process.env.EDITOR
   const prevVisual = process.env.VISUAL
   const fakeInstance = {
@@ -158,7 +158,7 @@ async function runPromptEditor(): Promise<void> {
 async function runProofHomeGuard(): Promise<void> {
   console.log('\nproofHomeGuard — unreadable parent dir refuses instead of failing open')
   if (!POSIX_MODES) return
-  const { accountStoreHome, refuseProofWriteIntoAccountStore } = await import('../../src/utils/proofHomeGuard.ts')
+  const { accountStoreHome, refuseProofWriteIntoAccountStore } = await import('../../src/models/roads/proofHomeGuard.ts')
   const lockedDir = join(SCRATCH, 'locked-proof-home')
   mkdirSync(lockedDir, { recursive: true })
   const linkPath = join(lockedDir, 'to-account')
@@ -197,8 +197,8 @@ async function runProofHomeGuard(): Promise<void> {
 async function runSavedPromptsStore(): Promise<void> {
   console.log('\nsavedPromptsStore — failed legacy rename returns legacy path so prompts stay readable')
   if (!POSIX_MODES) return
-  const { savedPromptsPath, savedPromptsRoot, listSavedPrompts } = await import('../../src/utils/savedPrompts/savedPromptsStore.ts')
-  const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.ts')
+  const { savedPromptsPath, savedPromptsRoot, listSavedPrompts } = await import('../../src/sessions/saved-prompts/savedPromptsStore.ts')
+  const { sanitizePath } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
   const project = '/Users/example/dev/legacy-saved-prompts-proj'
   const root = savedPromptsRoot()
   mkdirSync(root, { recursive: true })
@@ -224,8 +224,8 @@ async function runSavedPromptsStore(): Promise<void> {
 async function runScratchLeases(): Promise<void> {
   console.log('\nscratchLeases — unreadable or corrupt registry refuses without overwriting existing leases')
   if (!POSIX_MODES) return
-  const { registerScratchLease, releaseScratchLease, listScratchLeftovers } = await import('../../src/utils/scratchLeases.ts')
-  const { getProjectTempDir } = await import('../../src/utils/permissions/filesystem.ts')
+  const { registerScratchLease, releaseScratchLease, listScratchLeftovers } = await import('../../src/platform/files/scratchLeases.ts')
+  const { getProjectTempDir } = await import('../../src/permissions/rules/filesystem.ts')
   const dir = getProjectTempDir()
   mkdirSync(dir, { recursive: true })
   const regPath = join(dir, 'scratch-leases.json')
@@ -293,8 +293,8 @@ async function runScratchLeases(): Promise<void> {
 async function runSessionEnvironment(): Promise<void> {
   console.log('\nsessionEnvironment — unreadable fragments folder is not cached as absent')
   if (!POSIX_MODES || process.platform === 'win32') return
-  const { getSessionId } = await import('../../src/bootstrap/state.ts')
-  const { getSessionEnvironmentScript, invalidateSessionEnvCache } = await import('../../src/utils/sessionEnvironment.ts')
+  const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
+  const { getSessionEnvironmentScript, invalidateSessionEnvCache } = await import('../../src/platform/environment/sessionEnvironment.ts')
   const dir = join(HOME, 'session-env', getSessionId())
   mkdirSync(dir, { recursive: true })
   const hookFile = join(dir, 'session-start-hook-0.sh')
@@ -322,7 +322,7 @@ async function runClearedSessions(): Promise<void> {
   console.log('\nclearedSessions — unreadable or corrupt map is never overwritten by markSessionCleared')
   if (!POSIX_MODES) return
   const { markSessionCleared, unmarkSessionCleared, resetClearedSessionsMemo } = await import(
-    '../../src/utils/sessionStorage/clearedSessions.ts'
+    '../../src/sessions/transcripts/clearedSessions.ts'
   )
   const filePath = join(HOME, 'cleared-sessions.json')
   const original = JSON.stringify({ 'kept-session-1': 1700000000000 }, null, 2) + '\n'
@@ -352,7 +352,7 @@ async function runClearedSessions(): Promise<void> {
   )
   rmSync(filePath, { force: true })
   resetClearedSessionsMemo()
-  const { isSessionCleared } = await import('../../src/utils/sessionStorage/clearedSessions.ts')
+  const { isSessionCleared } = await import('../../src/sessions/transcripts/clearedSessions.ts')
   markSessionCleared('normal-session-1')
   check('normal markSessionCleared and unmarkSessionCleared still round-trip', isSessionCleared('normal-session-1') === true)
   unmarkSessionCleared('normal-session-1')
@@ -363,7 +363,7 @@ async function runClearedSessions(): Promise<void> {
 
 async function runSessionFlip(): Promise<void> {
   console.log('\nsessionFlip — failure returns a note carrying the error instead of silent false')
-  const { flipToSession } = await import('../../src/services/engine-connector/sessionFlip.ts')
+  const { flipToSession } = await import('../../src/engine/connector/sessionFlip.ts')
   const projectsDir = join(HOME, 'projects')
   const projDir = join(projectsDir, 'flip-proof-proj')
   mkdirSync(projDir, { recursive: true })
@@ -402,9 +402,9 @@ async function runSessionFlip(): Promise<void> {
 async function runAgentTranscript(): Promise<void> {
   console.log('\nsessionStorage/loading + logs — getAgentTranscript throws on unreadable transcript instead of null')
   if (!POSIX_MODES) return
-  const { asAgentId } = await import('../../src/types/ids.ts')
-  const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
-  const { getAgentTranscript } = await import('../../src/utils/sessionStorage/logs.ts')
+  const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
+  const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+  const { getAgentTranscript } = await import('../../src/sessions/transcripts/sessionListings.ts')
   const missingId = asAgentId('fn33-missing-agent')
   check('getAgentTranscript returns null when transcript is absent', (await getAgentTranscript(missingId)) === null)
 

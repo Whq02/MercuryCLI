@@ -14,12 +14,12 @@ writeFileSync(join(project, 'package.json'), '{"name":"fixture","scripts":{"test
 writeFileSync(join(project, 'todo.json'), '[]\n')
 process.env.MERCURY_CONFIG_DIR = join(world, 'home')
 process.chdir(project)
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
 let failures = 0
 function check(label: string, ok: boolean, detail = '') {
-  const failHint = ' — change bashToolHasPermission in src/tools/BashTool/bashPermissions.ts (how a pipeline or compound command is split and decided) or decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts; the Flow asks come from src/utils/permissions/flowLaw.ts'
+  const failHint = ' — change bashToolHasPermission in src/tools/shell/bashPermissions.ts (how a pipeline or compound command is split and decided) or decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts; the Flow asks come from src/permissions/rules/flowLaw.ts'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + detail + failHint}`)
   if (!ok) failures++
 }

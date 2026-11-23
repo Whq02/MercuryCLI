@@ -14,15 +14,15 @@ process.env.BROWSER = '/usr/bin/true'
 delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.NODE_ENV
 
-const ledger = (await import('../../src/services/changeTransaction/seenLines.ts')) as typeof import('../../src/services/changeTransaction/seenLines.ts') & { rebuildSeenLinesFromTranscript?: (owner: unknown, messages: readonly unknown[]) => { files: number; lines: number } }
-const { processMainOwner, processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const ledger = (await import('../../src/tools/engines/change-transaction/seenLines.ts')) as typeof import('../../src/tools/engines/change-transaction/seenLines.ts') & { rebuildSeenLinesFromTranscript?: (owner: unknown, messages: readonly unknown[]) => { files: number; lines: number } }
+const { processMainOwner, processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
 let count = 0
-const restartLedgerHint = 'fix rebuildSeenLinesFromTranscript, wholeFileSeen or seenLinesOf in src/services/changeTransaction/seenLines.ts, or the unread refusal of validateInput in src/tools/FileEditTool/FileEditTool.ts'
+const restartLedgerHint = 'fix rebuildSeenLinesFromTranscript, wholeFileSeen or seenLinesOf in src/tools/engines/change-transaction/seenLines.ts, or the unread refusal of validateInput in src/tools/edit/EditTool.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   count++
   if (!cond) failures++

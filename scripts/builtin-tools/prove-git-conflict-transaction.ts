@@ -13,13 +13,13 @@ if (!process.argv.includes('--child')) {
 } else {
   if (homedir() !== process.env.GIT_PROOF_HOME) throw new Error('wrong proof home before product imports')
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const { readConflictRegions, prepareResolution, applyResolution, resolutionPreview, storedResolution } = await import('../../src/services/gitGraph/conflictRegions.ts')
-  const { _setBeforeRenameHookForProofs } = await import('../../src/services/changeTransaction/changeSetCommit.ts')
-  const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-  const { renderToolUseMessage } = await import('../../src/tools/GitTool/UI.tsx')
-  const { GitTool } = await import('../../src/tools/GitTool/GitTool.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+  const { readConflictRegions, prepareResolution, applyResolution, resolutionPreview, storedResolution } = await import('../../src/platform/git-graph/conflictRegions.ts')
+  const { _setBeforeRenameHookForProofs } = await import('../../src/tools/engines/change-transaction/changeSetCommit.ts')
+  const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+  const { renderToolUseMessage } = await import('../../src/tools/git/rows.tsx')
+  const { GitTool } = await import('../../src/tools/git/GitTool.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
   console.log(`Git schema: ${JSON.stringify(zodToJsonSchema(GitTool.inputSchema)).length} characters; base 4167`)
 
   const world = gitFixture('git-conflict-transaction-')
@@ -32,10 +32,10 @@ if (!process.argv.includes('--child')) {
     checks++
     if (!ok) failures++
     const hint = label.includes('card')
-      ? 'renderToolUseMessage in src/tools/GitTool/UI.tsx must show the exact escaped replacement bytes and file:line ranges of the resolution preview'
+      ? 'renderToolUseMessage in src/tools/git/rows.tsx must show the exact escaped replacement bytes and file:line ranges of the resolution preview'
       : /schema|whole-file|permission mode/.test(label)
-        ? 'the Git tool input schema and validateInput in src/tools/GitTool/GitTool.ts decide this'
-        : 'prepareResolution and applyResolution in src/services/gitGraph/conflictRegions.ts (the write goes through src/services/changeTransaction/changeSetCommit.ts) must keep every file and the index unchanged unless the whole plan lands'
+        ? 'the Git tool input schema and validateInput in src/tools/git/GitTool.ts decide this'
+        : 'prepareResolution and applyResolution in src/platform/git-graph/conflictRegions.ts (the write goes through src/tools/engines/change-transaction/changeSetCommit.ts) must keep every file and the index unchanged unless the whole plan lands'
     console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}to fix: ${hint}` : ''}`)
   }
   try {

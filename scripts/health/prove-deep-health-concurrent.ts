@@ -56,7 +56,7 @@ function notOk(cert: HealthCert | null): HealthCheck[] {
 }
 
 const machineTag = `${process.platform === 'win32' ? 'win' : process.platform}-${process.arch}`
-const bundledApps = join(repoRoot, 'src', 'extensions', 'bundled')
+const bundledApps = join(repoRoot, 'src', 'integrations', 'extensions', 'bundled')
 const trueHere = new Map<string, { why: string; says: string }>()
 if (!existsSync(join(repoRoot, 'vendor', 'bash', machineTag))) {
   trueHere.set('shell', { why: `this checkout holds no vendor/bash/${machineTag}`, says: 'no bash pack for' })
@@ -120,14 +120,14 @@ async function main(): Promise<void> {
         check(
           `full run ${idx + 1} exits 0`,
           r.status === 0,
-          `rc=${r.status} verdict=${r.cert?.verdict ?? 'none'} journey=${jl?.status}:${jl?.evidence ?? ''} stderr=${r.stderr.slice(0, 120)} — run node dist/mercury.mjs health --json --deep and read the journey-loop check; fix probeJourneyLoop in src/services/health/healthDeepProbes.ts so concurrent runs stay isolated`,
+          `rc=${r.status} verdict=${r.cert?.verdict ?? 'none'} journey=${jl?.status}:${jl?.evidence ?? ''} stderr=${r.stderr.slice(0, 120)} — run node dist/mercury.mjs health --json --deep and read the journey-loop check; fix probeJourneyLoop in src/platform/health/healthDeepProbes.ts so concurrent runs stay isolated`,
         )
         const cautions = notOk(r.cert)
         check(
           `full run ${idx + 1} ${certifiedHere}`,
           r.cert?.verdict === (cautions.length === 0 ? 'certified' : 'caution') &&
             cautions.every(c => c.status === 'warn' && trueHere.has(c.id) && String(c.evidence).includes(trueHere.get(c.id)!.says)),
-          `verdict=${r.cert?.verdict ?? 'none'} · not ok: ${cautions.map(c => `${c.id} ${c.status}: ${c.evidence ?? ''}`).join(' | ') || 'none read'} — a check named here that is true of this machine joins trueHere in scripts/health/prove-deep-health-concurrent.ts with the fact that makes it true; any other is a fault of that check in src/services/health, or the JSON did not parse; read the cert from node dist/mercury.mjs health --json --deep`,
+          `verdict=${r.cert?.verdict ?? 'none'} · not ok: ${cautions.map(c => `${c.id} ${c.status}: ${c.evidence ?? ''}`).join(' | ') || 'none read'} — a check named here that is true of this machine joins trueHere in scripts/health/prove-deep-health-concurrent.ts with the fact that makes it true; any other is a fault of that check in src/platform/health, or the JSON did not parse; read the cert from node dist/mercury.mjs health --json --deep`,
         )
         check(
           `full run ${idx + 1} journey-loop is ok with full pipeline evidence`,
@@ -135,7 +135,7 @@ async function main(): Promise<void> {
             jl.probe === 'functional' &&
             String(jl.evidence).includes('service→readiness→http→log→stop all passed') &&
             String(jl.evidence).includes('failure leg honest'),
-          `${jl?.status}: ${jl?.evidence ?? 'missing'} — the journey-loop evidence must name the whole pipeline and a honest failure leg; see probeJourneyLoop in src/services/health/healthDeepProbes.ts`,
+          `${jl?.status}: ${jl?.evidence ?? 'missing'} — the journey-loop evidence must name the whole pipeline and a honest failure leg; see probeJourneyLoop in src/platform/health/healthDeepProbes.ts`,
         )
       }
     }
@@ -155,23 +155,23 @@ async function main(): Promise<void> {
         check(
           `journey-only run ${idx + 1} exits 0 and ends certified`,
           r.status === 0 && r.cert?.verdict === 'certified' && jl?.status === 'ok',
-          `rc=${r.status} verdict=${r.cert?.verdict ?? 'none'} journey=${jl?.status}:${jl?.evidence ?? ''} — run node dist/mercury.mjs health --json --deep --only journey-loop; fix probeJourneyLoop in src/services/health/healthDeepProbes.ts`,
+          `rc=${r.status} verdict=${r.cert?.verdict ?? 'none'} journey=${jl?.status}:${jl?.evidence ?? ''} — run node dist/mercury.mjs health --json --deep --only journey-loop; fix probeJourneyLoop in src/platform/health/healthDeepProbes.ts`,
         )
       }
     }
 
     if (!process.env.MERCURY_PROOF_DIST) {
       console.log('\n§3 concurrent in-process probeJourneyLoop calls stay isolated and clean up')
-      const { probeJourneyLoop } = await import('../../src/services/health/healthDeepProbes.js')
-      const { ownerLifecycleCounts } = await import('../../src/utils/run/ownerLifecycle.js')
-      const { liveServiceChildren } = await import('../../src/services/projectServices/serviceManager.js')
+      const { probeJourneyLoop } = await import('../../src/platform/health/healthDeepProbes.js')
+      const { ownerLifecycleCounts } = await import('../../src/engine/run-owner/ownerLifecycle.js')
+      const { liveServiceChildren } = await import('../../src/tools/engines/project-services/serviceManager.js')
       const [a, b] = await Promise.all([probeJourneyLoop(), probeJourneyLoop()])
-      check('in-process call 1 ok', a.status === 'ok', `${a.status}: ${a.evidence} — fix probeJourneyLoop in src/services/health/healthDeepProbes.ts`)
-      check('in-process call 2 ok', b.status === 'ok', `${b.status}: ${b.evidence} — fix probeJourneyLoop in src/services/health/healthDeepProbes.ts`)
+      check('in-process call 1 ok', a.status === 'ok', `${a.status}: ${a.evidence} — fix probeJourneyLoop in src/platform/health/healthDeepProbes.ts`)
+      check('in-process call 2 ok', b.status === 'ok', `${b.status}: ${b.evidence} — fix probeJourneyLoop in src/platform/health/healthDeepProbes.ts`)
       const journeysLeft = ownerLifecycleCounts().stores['journeys'] ?? 0
-      check('in-process calls dispose both journey owners', journeysLeft === 0, `journeys=${journeysLeft} — probeJourneyLoop in src/services/health/healthDeepProbes.ts must dispose its journey owner; see ownerLifecycleCounts in src/utils/run/ownerLifecycle.ts`)
+      check('in-process calls dispose both journey owners', journeysLeft === 0, `journeys=${journeysLeft} — probeJourneyLoop in src/platform/health/healthDeepProbes.ts must dispose its journey owner; see ownerLifecycleCounts in src/engine/run-owner/ownerLifecycle.ts`)
       const children = liveServiceChildren()
-      check('in-process calls leave no live fixture child processes', children.length === 0, `${JSON.stringify(children)} — probeJourneyLoop in src/services/health/healthDeepProbes.ts must stop its fixture service; see liveServiceChildren in src/services/projectServices/serviceManager.ts`)
+      check('in-process calls leave no live fixture child processes', children.length === 0, `${JSON.stringify(children)} — probeJourneyLoop in src/platform/health/healthDeepProbes.ts must stop its fixture service; see liveServiceChildren in src/tools/engines/project-services/serviceManager.ts`)
     }
   } finally {
     rmSync(scratch, { recursive: true, force: true })

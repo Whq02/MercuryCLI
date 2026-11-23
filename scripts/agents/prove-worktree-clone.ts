@@ -14,18 +14,18 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change cloneIntoWorktree and the clone roads (clonefile, cp, file walk) in src/utils/worktreeClone.ts, or the dependency-folder placement in src/services/worktree.ts (createAgentWorktree, createWorktreeForSession, prepareWorktreeFiles)' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change cloneIntoWorktree and the clone roads (clonefile, cp, file walk) in src/platform/git/worktree/worktreeClone.ts, or the dependency-folder placement in src/platform/git/worktree/worktree.ts (createAgentWorktree, createWorktreeForSession, prepareWorktreeFiles)' : ''}`)
   if (!cond) failures++
 }
 const skip = (label: string): void => console.log(`  [SKIP] ${label}`)
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const state = await import('../../src/bootstrap/state.ts')
-const config = await import('../../src/utils/config/globalConfig.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { createAgentWorktree, createWorktreeForSession, keepWorktree, prepareWorktreeFiles, readWorktreeDelta } = await import('../../src/services/worktree.ts')
-const cloneModule = await import('../../src/utils/worktreeClone.ts').catch(() => null)
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const config = await import('../../src/platform/config/globalConfig.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { createAgentWorktree, createWorktreeForSession, keepWorktree, prepareWorktreeFiles, readWorktreeDelta } = await import('../../src/platform/git/worktree/worktree.ts')
+const cloneModule = await import('../../src/platform/git/worktree/worktreeClone.ts').catch(() => null)
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-clone-')))
 const links = accountLinks(scratch)

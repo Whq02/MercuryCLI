@@ -29,7 +29,7 @@ const files = sources(SRC)
 const publish: string[] = []
 const lock: string[] = []
 const rawProperLockfile: string[] = []
-const LOCK_OWNER = 'src/utils/lockfile.ts'
+const LOCK_OWNER = 'src/platform/storage/lockfile.ts'
 
 for (const f of files) {
   const text = readFileSync(join(REPO, f), 'utf8')

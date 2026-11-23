@@ -9,11 +9,11 @@ f.state.dialect = 'llamacpp'
 f.state.window = 131072
 f.state.slots = 4
 let checks = 0
-const prebuiltTuneHint = 'Fix the launch script, the process-identity guard and the retune or rollback in startHostEngine, restartHostScript and readHostEngine (src/services/host/ssh.ts); a prebuilt llama-server must be kept as the bare command and a source-built one at its build path.'
+const prebuiltTuneHint = 'Fix the launch script, the process-identity guard and the retune or rollback in startHostEngine, restartHostScript and readHostEngine (src/models/hosting/ssh.ts); a prebuilt llama-server must be kept as the bare command and a source-built one at its build path.'
 const check = (name: string, truth: unknown) => { assert.ok(truth, name + '\n' + prebuiltTuneHint); checks++; console.log('PASS ' + name) }
 try {
-  const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
-  const { hostRunner, startHostEngine, restartHostScript, readHostEngine } = await import('../../src/services/host/ssh.ts')
+  const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
+  const { hostRunner, startHostEngine, restartHostScript, readHostEngine } = await import('../../src/models/hosting/ssh.ts')
   const recipe = HOST_RECIPES.find(row => row.id === 'glm53-flash-gguf-b300')!
   const signal = new AbortController().signal
   const target = { host: '127.0.0.1', port: 2222, user: 'root' }

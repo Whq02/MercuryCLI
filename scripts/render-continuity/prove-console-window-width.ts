@@ -6,18 +6,18 @@ process.env.TERM = 'xterm-256color'
 
 const React = await import('react')
 const h = React.createElement
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { default: instances } = await import('../../src/ink/instances.ts')
-const { Box, Text } = await import('../../src/ink.ts')
-const { AlternateScreen } = await import('../../src/ink/components/AlternateScreen.tsx')
-const { syncOutputCapabilityNow, upgradeSyncOutputSupport } = await import('../../src/ink/session/capabilities.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { AlternateScreen } = await import('../../src/screen/renderer/elements/AlternateScreen.tsx')
+const { syncOutputCapabilityNow, upgradeSyncOutputSupport } = await import('../../src/screen/renderer/terminal-session/capabilities.ts')
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
   if (!ok) {
     failures = 1
-    console.log('      fix: the settled-resize path in src/ink/ink/resize.ts (applySettledResize, fitConsoleBufferToWindow, consoleBufferOutlivesWindow) decides when a Windows console re-enters the alternate screen; the sync-output capability it reads is syncOutputCapabilityNow in src/ink/session/capabilities.ts')
+    console.log('      fix: the settled-resize path in src/screen/renderer/instance/resize.ts (applySettledResize, fitConsoleBufferToWindow, consoleBufferOutlivesWindow) decides when a Windows console re-enters the alternate screen; the sync-output capability it reads is syncOutputCapabilityNow in src/screen/renderer/terminal-session/capabilities.ts')
   }
 }
 

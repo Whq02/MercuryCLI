@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/hooks/useVimInput.ts src/vim/operators.ts
+// gate-watch: src/screen/composer/vim/useVimInput.ts src/screen/composer/vim/operators.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -21,13 +21,13 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const React = await import('react')
-const { render, Text } = await import('../../src/ink.js')
-const { default: useInput } = await import('../../src/ink/hooks/use-input.js')
-const { useVimInput } = await import('../../src/hooks/useVimInput.js')
-const { getSessionVimPersistentState } = await import('../../src/vim/types.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { render, Text } = await import('../../src/screen/themedRenderer.js')
+const { default: useInput } = await import('../../src/screen/renderer/bindings/use-input.js')
+const { useVimInput } = await import('../../src/screen/composer/vim/useVimInput.js')
+const { getSessionVimPersistentState } = await import('../../src/screen/composer/vim/vimState.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 const seen = { value: '', offset: 0, mode: 'INSERT' as string }
@@ -69,40 +69,40 @@ await settle()
 console.log('§1 a dot with nothing recorded changes nothing')
 await type('\u001b')
 await type('.')
-check('an empty draft in NORMAL stays empty after a dot', seen.value === '' && seen.mode === 'NORMAL', 'replayLastChange in src/hooks/useVimInput.ts must return when no change is recorded; seen ' + JSON.stringify(seen))
+check('an empty draft in NORMAL stays empty after a dot', seen.value === '' && seen.mode === 'NORMAL', 'replayLastChange in src/screen/composer/vim/useVimInput.ts must return when no change is recorded; seen ' + JSON.stringify(seen))
 
 console.log('§2 a recorded insert replays at the cursor')
 await type('i')
 await type('abc')
 await type('\u001b')
-check('escape leaves NORMAL with the cursor one left of the end', seen.value === 'abc' && seen.offset === 2 && seen.mode === 'NORMAL', 'see enterNormalMode in src/hooks/useVimInput.ts (cursor steps left, mode becomes NORMAL); seen ' + JSON.stringify(seen))
+check('escape leaves NORMAL with the cursor one left of the end', seen.value === 'abc' && seen.offset === 2 && seen.mode === 'NORMAL', 'see enterNormalMode in src/screen/composer/vim/useVimInput.ts (cursor steps left, mode becomes NORMAL); seen ' + JSON.stringify(seen))
 await type('.')
-check('the dot re-inserts the recorded text at the cursor and moves past it', seen.value === 'ababcc' && seen.offset === 5, 'enterNormalMode in src/hooks/useVimInput.ts must record the typed insert as lastChange, and the replay must insert it at the cursor; seen ' + JSON.stringify(seen))
+check('the dot re-inserts the recorded text at the cursor and moves past it', seen.value === 'ababcc' && seen.offset === 5, 'enterNormalMode in src/screen/composer/vim/useVimInput.ts must record the typed insert as lastChange, and the replay must insert it at the cursor; seen ' + JSON.stringify(seen))
 
 console.log('§3 a recorded x replays, and a replay records nothing')
 await type('x')
-check('x deletes the character under the cursor', seen.value === 'ababc', 'see executeX in src/vim/operators.ts; seen ' + JSON.stringify(seen))
+check('x deletes the character under the cursor', seen.value === 'ababc', 'see executeX in src/screen/composer/vim/operators.ts; seen ' + JSON.stringify(seen))
 await type('.')
-check('the dot deletes again', seen.value === 'abab', 'x must record its change through recordChange in src/hooks/useVimInput.ts and replayLastChange must replay it; seen ' + JSON.stringify(seen))
+check('the dot deletes again', seen.value === 'abab', 'x must record its change through recordChange in src/screen/composer/vim/useVimInput.ts and replayLastChange must replay it; seen ' + JSON.stringify(seen))
 await type('.')
-check('a second dot still replays the x (the replay recorded nothing new)', seen.value === 'aba', 'recordChange in src/hooks/useVimInput.ts must skip recording while replayingRef is set; seen ' + JSON.stringify(seen))
+check('a second dot still replays the x (the replay recorded nothing new)', seen.value === 'aba', 'recordChange in src/screen/composer/vim/useVimInput.ts must skip recording while replayingRef is set; seen ' + JSON.stringify(seen))
 
 console.log('§4 a recorded operator over a motion replays')
 await type('0')
 await type('d')
 await type('w')
-check('dw at the start deletes the word', seen.value === '', 'see executeOperatorMotion in src/vim/operators.ts; seen ' + JSON.stringify(seen))
+check('dw at the start deletes the word', seen.value === '', 'see executeOperatorMotion in src/screen/composer/vim/operators.ts; seen ' + JSON.stringify(seen))
 await type('i')
 await type('one two three four')
 await type('\u001b')
 await type('0')
 await type('d')
 await type('w')
-check('dw at the start of the new draft deletes its first word', seen.value === 'two three four', 'see executeOperatorMotion in src/vim/operators.ts; seen ' + JSON.stringify(seen))
+check('dw at the start of the new draft deletes its first word', seen.value === 'two three four', 'see executeOperatorMotion in src/screen/composer/vim/operators.ts; seen ' + JSON.stringify(seen))
 await type('.')
-check('the dot replays dw at the cursor', seen.value === 'three four', 'the operator change must be recorded via recordChange and replayed by replayLastChange, both in src/hooks/useVimInput.ts; seen ' + JSON.stringify(seen))
+check('the dot replays dw at the cursor', seen.value === 'three four', 'the operator change must be recorded via recordChange and replayed by replayLastChange, both in src/screen/composer/vim/useVimInput.ts; seen ' + JSON.stringify(seen))
 await type('.')
-check('and once more', seen.value === 'four', 'the replayed dw must leave lastChange in place (replayLastChange in src/hooks/useVimInput.ts); seen ' + JSON.stringify(seen))
+check('and once more', seen.value === 'four', 'the replayed dw must leave lastChange in place (replayLastChange in src/screen/composer/vim/useVimInput.ts); seen ' + JSON.stringify(seen))
 
 instance.unmount()
 rmSync(SCRATCH, { recursive: true, force: true })

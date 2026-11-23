@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { localFixture } from '../voice/localFixture.ts'
-import { encodeWav, readWav } from '../../src/services/voice/wav.ts'
+import { encodeWav, readWav } from '../../src/integrations/voice/wav.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const root = mkdtempSync(join(tmpdir(), 'media-read-'))
@@ -13,12 +13,12 @@ process.env.MERCURY_BARE = '1'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const fixture = localFixture(join(root, 'whisper'), 'The lighthouse guides seven ships.')
 Object.assign(process.env, fixture.env)
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { mediaFileFormat, mediaDecoderMissing, extractMediaTranscript } = await import('../../src/services/voice/fileTranscript.ts')
-const { getToolResultsDir } = await import('../../src/utils/toolResultStorage.ts')
-const { localDecodesInFlight } = await import('../../src/services/voice/transcribe.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { mediaFileFormat, mediaDecoderMissing, extractMediaTranscript } = await import('../../src/integrations/voice/fileTranscript.ts')
+const { getToolResultsDir } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
+const { localDecodesInFlight } = await import('../../src/integrations/voice/transcribe.ts')
 const context = { options: { engineModel: 'glm-5.3' }, readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), messages: [], getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }
 async function read(input: object) {
   const valid = await FileReadTool.validateInput(input as never, context as never)
@@ -32,7 +32,7 @@ const originalPath = process.env.PATH
 try {
   const source = fileURLToPath(new URL('../voice/fixtures/on-device-take.wav', import.meta.url))
   const wav = readWav(readFileSync(source))
-  assert.ok(wav.ok, `readWav rejected voice fixture on-device-take.wav in src/services/voice/wav.ts`)
+  assert.ok(wav.ok, `readWav rejected voice fixture on-device-take.wav in src/integrations/voice/wav.ts`)
   const wavSeconds = wav.header.dataBytes / 32000
   assert.ok(wavSeconds < 10, `fixture WAV duration ${wavSeconds.toFixed(2)}s >= 10s in scripts/voice/fixtures/on-device-take.wav`)
   const path = join(root, 'speech.wav')

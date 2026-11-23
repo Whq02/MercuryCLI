@@ -34,7 +34,7 @@ function skip(label: string, why: string): void {
 }
 
 {
-  const { assessDeployedAssets } = await import('../../src/utils/healthDeployedAssets.ts')
+  const { assessDeployedAssets } = await import('../../src/platform/health/healthDeployedAssets.ts')
   const label = 'healthDeployedAssets: unreadable deployed file throws instead of reporting drift'
   if (!POSIX_MODES) skip(label, 'needs non-root POSIX chmod')
   else {
@@ -59,8 +59,8 @@ function skip(label: string, why: string): void {
 }
 
 {
-  const fsOps = await import('../../src/utils/fsOperations.ts')
-  const { detectManagedSettingsWarnings, managedPolicyPath, managedPolicyPresent } = await import('../../src/utils/healthDiagnostic.ts')
+  const fsOps = await import('../../src/platform/files/fsOperations.ts')
+  const { detectManagedSettingsWarnings, managedPolicyPath, managedPolicyPresent } = await import('../../src/platform/health/healthDiagnostic.ts')
   const real = fsOps.getFsImplementation()
   const policyPath = managedPolicyPath()
   try {
@@ -96,8 +96,8 @@ function skip(label: string, why: string): void {
 }
 
 {
-  const { gateVerdictPath } = await import('../../src/services/health/healthReport.ts')
-  const { _resetBootPreflightForTesting, runAndRecordPreflight } = await import('../../src/services/health/healthPreflight.ts')
+  const { gateVerdictPath } = await import('../../src/platform/health/healthReport.ts')
+  const { _resetBootPreflightForTesting, runAndRecordPreflight } = await import('../../src/platform/health/healthPreflight.ts')
   const prevState = process.env.MERCURY_HEALTH_STATE_DIR
   const stateDir = join(SCRATCH, 'hp-state')
   mkdirSync(stateDir, { recursive: true })
@@ -138,7 +138,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
 }
 
 {
-  const { homeRepositoryCheck } = await import('../../src/services/health/healthReport.ts')
+  const { homeRepositoryCheck } = await import('../../src/platform/health/healthReport.ts')
   if (!POSIX_MODES) {
     skip('healthReport: unreadable home dir throws in homeRepositoryCheck', 'needs non-root POSIX chmod')
     skip('healthReport: unreadable user folder throws on .git stat in homeRepositoryCheck', 'needs non-root POSIX chmod')
@@ -183,8 +183,8 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
 
   const rDefault = runIsolated(`
     const { mock } = await import('bun:test')
-    mock.module(${JSON.stringify(join(SRC, 'services/model/model.ts'))}, () => ({ getUserSpecifiedModelSetting: () => { throw new Error('routing boom') } }))
-    const { unresolvedDefaultRow } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
+    mock.module(${JSON.stringify(join(SRC, 'models/catalogue/engineModel.ts'))}, () => ({ getUserSpecifiedModelSetting: () => { throw new Error('routing boom') } }))
+    const { unresolvedDefaultRow } = await import(${JSON.stringify(join(SRC, 'platform/health/healthReport.ts'))})
     try {
       out.val = unresolvedDefaultRow()
     } catch (e) {
@@ -195,13 +195,13 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
 
   const rTf = runIsolated(`
     const { mock } = await import('bun:test')
-    mock.module(${JSON.stringify(join(SRC, 'services/providers/local/tensorfoldHealth.ts'))}, () => ({
+    mock.module(${JSON.stringify(join(SRC, 'models/roads/local/tensorfoldHealth.ts'))}, () => ({
       TENSORFOLD_HEALTH_LABEL: 'TensorFold',
       TENSORFOLD_SUPPORT_LABEL: 'support',
       HELPER_HEALTH_LABEL: 'Helper model',
       readTensorFoldHealth: async () => { throw new Error('tf read boom') },
     }))
-    const { tensorFoldHealthChecks } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
+    const { tensorFoldHealthChecks } = await import(${JSON.stringify(join(SRC, 'platform/health/healthReport.ts'))})
     const specs = await tensorFoldHealthChecks()
     out.count = specs.length
     out.id = specs[0]?.id ?? null
@@ -217,11 +217,11 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
 
   const rSkills = runIsolated(`
     const { mock } = await import('bun:test')
-    mock.module(${JSON.stringify(join(SRC, 'skills/loadSkillsDir.ts'))}, () => ({
+    mock.module(${JSON.stringify(join(SRC, 'integrations/skills/loadSkillsDir.ts'))}, () => ({
       getSkillDirCommands: async () => { throw new Error('skills boom') },
       getSkillLoadRefusals: () => [],
     }))
-    const { skillsRefusedEvidence } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
+    const { skillsRefusedEvidence } = await import(${JSON.stringify(join(SRC, 'platform/health/healthReport.ts'))})
     try {
       out.val = await skillsRefusedEvidence('/tmp')
     } catch (e) {
@@ -242,7 +242,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
     chmodSync(roTmp, 0o500)
     try {
       const r = runIsolated(`
-        const { getImageFromClipboard } = await import(${JSON.stringify(join(SRC, 'utils/imagePaste.ts'))})
+        const { getImageFromClipboard } = await import(${JSON.stringify(join(SRC, 'screen/composer/imagePaste.ts'))})
         try {
           out.val = await getImageFromClipboard()
         } catch (e) {
@@ -274,7 +274,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
         return realReaddir(p, ...rest)
       },
     }))
-    const { cleanupOldImageCaches } = await import(${JSON.stringify(join(SRC, 'utils/imageStore.ts'))})
+    const { cleanupOldImageCaches } = await import(${JSON.stringify(join(SRC, 'platform/images/imageStore.ts'))})
     await cleanupOldImageCaches(new Date(Date.now() - 86400_000))
     out.stillExists = fs.existsSync(cacheDir)
   `)
@@ -299,7 +299,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
         return realStat(p, ...rest)
       },
     }))
-    const { cleanupOldImageCaches } = await import(${JSON.stringify(join(SRC, 'utils/imageStore.ts'))})
+    const { cleanupOldImageCaches } = await import(${JSON.stringify(join(SRC, 'platform/images/imageStore.ts'))})
     await cleanupOldImageCaches(new Date(Date.now() - 86400_000))
     out.stillExists = fs.existsSync(cacheDir)
   `)
@@ -307,7 +307,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
 }
 
 {
-  const { addItemToJSONCArray } = await import('../../src/utils/json.ts')
+  const { addItemToJSONCArray } = await import('../../src/platform/storage/json.ts')
   let calls = 0
   const item = {
     toJSON() {
@@ -326,7 +326,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
 }
 
 {
-  const { classifyHarnessHome } = await import('../../src/utils/knownAgentClis.ts')
+  const { classifyHarnessHome } = await import('../../src/platform/environment/knownAgentClis.ts')
   if (!POSIX_MODES) {
     skip('knownAgentClis: unreadable daemon log rejects instead of reporting clean', 'needs non-root POSIX chmod')
     skip('knownAgentClis: unreadable daemon roster rejects instead of reporting clean', 'needs non-root POSIX chmod')
@@ -371,7 +371,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
         return realReaddir(p, ...rest)
       },
     }))
-    const { listSessionsImpl } = await import(${JSON.stringify(join(SRC, 'utils/listSessionsImpl.ts'))})
+    const { listSessionsImpl } = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/listSessions.ts'))})
     try {
       out.val = await listSessionsImpl()
     } catch (e) {
@@ -395,7 +395,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
         return realStat(p, ...rest)
       },
     }))
-    const { listSessionsImpl } = await import(${JSON.stringify(join(SRC, 'utils/listSessionsImpl.ts'))})
+    const { listSessionsImpl } = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/listSessions.ts'))})
     try {
       out.val = await listSessionsImpl()
     } catch (e) {
@@ -423,10 +423,10 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
         return realStat(p, ...rest)
       },
     }))
-    mock.module(${JSON.stringify(join(SRC, 'utils/getWorktreePathsPortable.ts'))}, () => ({
+    mock.module(${JSON.stringify(join(SRC, 'platform/git/worktree/worktreePathsPortable.ts'))}, () => ({
       getWorktreePathsPortable: async () => [projDir, wtDir],
     }))
-    const { listSessionsImpl } = await import(${JSON.stringify(join(SRC, 'utils/listSessionsImpl.ts'))})
+    const { listSessionsImpl } = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/listSessions.ts'))})
     try {
       out.val = await listSessionsImpl({ dir: projDir })
     } catch (e) {
@@ -439,12 +439,12 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
 {
   const rMcp = runIsolated(`
     const { mock } = await import('bun:test')
-    const te = await import(${JSON.stringify(join(SRC, 'services/tokenEstimation.ts'))})
-    mock.module(${JSON.stringify(join(SRC, 'services/tokenEstimation.ts'))}, () => ({
+    const te = await import(${JSON.stringify(join(SRC, 'models/facts/tokenEstimation.ts'))})
+    mock.module(${JSON.stringify(join(SRC, 'models/facts/tokenEstimation.ts'))}, () => ({
       ...te,
       countMessagesTokensWithAPI: async () => { throw new Error('token count api down') },
     }))
-    const { mcpContentNeedsTruncation } = await import(${JSON.stringify(join(SRC, 'services/mcp/mcpValidation.ts'))})
+    const { mcpContentNeedsTruncation } = await import(${JSON.stringify(join(SRC, 'integrations/mcp/mcpOutputTruncation.ts'))})
     const huge = 'x'.repeat(200_000)
     out.needs = await mcpContentNeedsTruncation(huge)
   `)
@@ -461,7 +461,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
     process.env.HOME = fakeHome
     process.env.USERPROFILE = fakeHome
     const blockedWs = path.join(fakeHome, 'blocked-ws')
-    mock.module(${JSON.stringify(join(SRC, 'daemon/concourseWorkers.ts'))}, () => ({
+    mock.module(${JSON.stringify(join(SRC, 'daemon/concourse-workers/concourseWorkers.ts'))}, () => ({
       readSessionWorkers: () => ({ r1: { runnerId: 'r1', workspaceId: blockedWs, pid: process.pid } }),
     }))
     const realRealpathSync = fs.realpathSync
@@ -472,7 +472,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
         return realRealpathSync(p, ...rest)
       },
     }))
-    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
+    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'platform/health/healthReport.ts'))})
     out.res = await homeRepositoryCheck()
   `)
   const evWs = String((rWs.res as { evidence?: string })?.evidence ?? '')
@@ -490,10 +490,10 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
     fs.mkdirSync(path.join(fakeHome, '.git', 'objects'), { recursive: true })
     process.env.HOME = fakeHome
     process.env.USERPROFILE = fakeHome
-    mock.module(${JSON.stringify(join(SRC, 'daemon/concourseWorkers.ts'))}, () => ({
+    mock.module(${JSON.stringify(join(SRC, 'daemon/concourse-workers/concourseWorkers.ts'))}, () => ({
       readSessionWorkers: () => { throw new Error('workers file corrupt') },
     }))
-    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
+    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'platform/health/healthReport.ts'))})
     out.res = await homeRepositoryCheck()
   `)
   const evWorkers = String((rWorkers.res as { evidence?: string })?.evidence ?? '')
@@ -520,7 +520,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
         return realStatSync(p, ...rest)
       },
     }))
-    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
+    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'platform/health/healthReport.ts'))})
     out.res = await homeRepositoryCheck()
   `)
   const evLock = String((rLock.res as { evidence?: string })?.evidence ?? '')
@@ -547,7 +547,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
         return realReaddirSync(p, ...rest)
       },
     }))
-    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
+    const { homeRepositoryCheck } = await import(${JSON.stringify(join(SRC, 'platform/health/healthReport.ts'))})
     out.res = await homeRepositoryCheck()
   `)
   const evObj = String((rObj.res as { evidence?: string })?.evidence ?? '')
@@ -579,7 +579,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
         return realExecFile(cmd, args, opts, cb)
       },
     }))
-    const { projectEstateCheck } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
+    const { projectEstateCheck } = await import(${JSON.stringify(join(SRC, 'platform/health/healthReport.ts'))})
     out.res = await projectEstateCheck()
   `)
   const fixEstate = String((rEstate.res as { fix?: string })?.fix ?? '')
@@ -593,12 +593,12 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
 {
   const rLogo = runIsolated(`
     const { mock } = await import('bun:test')
-    const router = await import(${JSON.stringify(join(SRC, 'services/providers/callModelRouter.ts'))})
-    mock.module(${JSON.stringify(join(SRC, 'services/providers/callModelRouter.ts'))}, () => ({
+    const router = await import(${JSON.stringify(join(SRC, 'models/roads/callModelRouter.ts'))})
+    mock.module(${JSON.stringify(join(SRC, 'models/roads/callModelRouter.ts'))}, () => ({
       ...router,
       declaredRouteOf: () => { throw new Error('route lookup failed') },
     }))
-    const { getLogoDisplayData } = await import(${JSON.stringify(join(SRC, 'components/logoV2Utils.ts'))})
+    const { getLogoDisplayData } = await import(${JSON.stringify(join(SRC, 'boot/first-run/logoDisplayData.ts'))})
     out.data = getLogoDisplayData()
   `)
   const billing = String((rLogo.data as { billingType?: string })?.billingType ?? '')

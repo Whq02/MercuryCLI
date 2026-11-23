@@ -1,8 +1,8 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
-import { generateMediaTestImage } from '../../src/services/media/generation.js'
-import { MEDIA_SERVER_NAME } from '../../src/services/media/settings.js'
+import { generateMediaTestImage } from '../../src/integrations/media/generation.js'
+import { MEDIA_SERVER_NAME } from '../../src/integrations/media/settings.js'
 import { proofHome, removeProofHome } from './fixture.ts'
 
 try {

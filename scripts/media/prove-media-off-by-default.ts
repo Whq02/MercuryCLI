@@ -1,12 +1,12 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { installFixture, proofHome, removeProofHome, root, serverPath } from './fixture.ts'
-import { computeActiveSet, publishActiveSet } from '../../src/extensions/active.js'
-import { clearExtensionMcpServerCache, getExtensionMcpServers } from '../../src/extensions/load/servers.js'
-import { noteWords } from '../../src/components/extensions/rowWords.js'
-import { readSwitch, setSwitch } from '../../src/extensions/install.js'
-import { updateSettingsForSource } from '../../src/utils/settings/settings.js'
-import { MEDIA_EXTENSION_ID, MEDIA_SERVER_NAME, mediaHealth } from '../../src/services/media/settings.js'
+import { computeActiveSet, publishActiveSet } from '../../src/integrations/extensions/active.js'
+import { clearExtensionMcpServerCache, getExtensionMcpServers } from '../../src/integrations/extensions/load/servers.js'
+import { noteWords } from '../../src/screen/extensions/rowWords.js'
+import { readSwitch, setSwitch } from '../../src/integrations/extensions/install.js'
+import { updateSettingsForSource } from '../../src/platform/settings/settings.js'
+import { MEDIA_EXTENSION_ID, MEDIA_SERVER_NAME, mediaHealth } from '../../src/integrations/media/settings.js'
 
 try {
   const read = () => { const set = computeActiveSet({ cwd: proofHome, sessionPaths: [] }); publishActiveSet(set); clearExtensionMcpServerCache(); return set }

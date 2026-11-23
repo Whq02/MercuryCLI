@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
-import { open } from '../../src/services/crewBoard/store.ts'
-import type { BoardPost, BoardStore } from '../../src/services/crewBoard/contracts.ts'
+import { open } from '../../src/crew/board/store.ts'
+import type { BoardPost, BoardStore } from '../../src/crew/board/contracts.ts'
 
 const home = process.env.MERCURY_CONFIG_DIR
 assert(home, 'run with a scratch MERCURY_CONFIG_DIR')
 let checks = 0
-const where = 'change read, boundary and presented in src/services/crewBoard/store/reading.ts (what counts as seen, skippedSeen, the packet a read hands over), or open in src/services/crewBoard/store.ts for the seen state that must survive reopening'
+const where = 'change read, boundary and presented in src/crew/board/store/reading.ts (what counts as seen, skippedSeen, the packet a read hands over), or open in src/crew/board/store.ts for the seen state that must survive reopening'
 const check = (label: string, value: unknown) => { assert(value, `${label} \u2014 ${where}`); console.log(`PASS ${label}`); checks++ }
 const boards: BoardStore[] = []
 let request = 0

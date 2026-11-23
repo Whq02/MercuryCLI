@@ -7,11 +7,11 @@ const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  const failHint = ok ? '' : ' | to fix: the turn-open predicate is seatTurnOpen in src/daemon/sessionSeat/state.ts (exported by src/daemon/sessionSeat.ts); the set_model hold-until-turn-end answer and the session/applied notification follow the wire contract in src/runner/wire/sessionVerbs.ts, with the verb handled by the runner behind it'
+  const failHint = ok ? '' : ' | to fix: the turn-open predicate is seatTurnOpen in src/daemon/session-seat/state.ts (exported by src/daemon/session-seat/sessionSeat.ts); the set_model hold-until-turn-end answer and the session/applied notification follow the wire contract in src/daemon/runner-wire/sessionVerbs.ts, with the verb handled by the runner behind it'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${failHint}`)
 }
 
-const seat = await import(join(SRC, 'daemon/sessionSeat.ts'))
+const seat = await import(join(SRC, 'daemon/session-seat/sessionSeat.ts'))
 const open = seat.seatTurnOpen as ((row: { outcome?: string; busy?: boolean; turnActive?: boolean } | undefined) => boolean) | undefined
 
 console.log('T1 the turn-open predicate')
@@ -28,7 +28,7 @@ check('an unknown seat is not busy', open?.(undefined) === false)
 console.log('T3 the runner defers the breadcrumbs to the turn boundary (source pins)')
 {
   const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
-  const { parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
+  const { parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.ts')
   const NAMED = 'Sonnet 5'
   const NEXT_MODEL = String(parseUserSpecifiedModel(NAMED))
   const SPOKEN = 'the quiet sonnet'

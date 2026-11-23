@@ -10,17 +10,17 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 let failures = 0
 const check = (label: string, good: boolean) => {
-  console.log(`${good ? 'PASS' : 'FAIL'} ${label}${good ? '' : ' — to fix, look at normalizeAttachmentForAPI in src/services/messages/attachmentText.ts, recordTranscript in src/utils/sessionStorage/writer.ts, and loadTranscriptFile in src/utils/sessionStorage/loading.ts'}`)
+  console.log(`${good ? 'PASS' : 'FAIL'} ${label}${good ? '' : ' — to fix, look at normalizeAttachmentForAPI in src/engine/messages/attachmentText.ts, recordTranscript in src/sessions/transcripts/writer.ts, and loadTranscriptFile in src/sessions/transcripts/loading.ts'}`)
   if (!good) failures++
 }
 try {
-  const { enableConfigs } = await import(`${root}/src/utils/config/globalConfig.ts`)
+  const { enableConfigs } = await import(`${root}/src/platform/config/globalConfig.ts`)
   enableConfigs()
-  const writer = await import(`${root}/src/utils/sessionStorage/writer.ts`)
-  const { loadTranscriptFile } = await import(`${root}/src/utils/sessionStorage/loading.ts`)
-  const { createAttachmentMessage } = await import(`${root}/src/services/attachments/orchestrator.ts`)
-  const { createUserMessage } = await import(`${root}/src/utils/messages/factories.ts`)
-  const { normalizeAttachmentForAPI } = await import(`${root}/src/services/messages/attachmentText.ts`)
+  const writer = await import(`${root}/src/sessions/transcripts/writer.ts`)
+  const { loadTranscriptFile } = await import(`${root}/src/sessions/transcripts/loading.ts`)
+  const { createAttachmentMessage } = await import(`${root}/src/engine/attachments/turnAttachments.ts`)
+  const { createUserMessage } = await import(`${root}/src/engine/message-shapes/factories.ts`)
+  const { normalizeAttachmentForAPI } = await import(`${root}/src/engine/messages/attachmentText.ts`)
   const receipt = { type: 'dynamic_skill', skillDir: '/proof/skills', displayPath: 'skills', skillNames: ['proof-skill'], capsuleReceipt: 'proof-digest' }
   check('the fixture is genuinely wire-silent before persistence', normalizeAttachmentForAPI(receipt).length === 0)
   const transcript = join(scratch, 'receipt.jsonl')

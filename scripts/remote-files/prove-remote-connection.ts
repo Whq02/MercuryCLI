@@ -10,13 +10,13 @@ const HOME = underScratchHome(import.meta.path)
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { closeRemoteConnections, remoteRun, RemoteConnectionError, resolveRemoteAuthority } = await import('../../src/services/remoteFiles/connection.ts')
-const { remotePrelude, remoteQuote } = await import('../../src/services/remoteFiles/prelude.ts')
-const { resolvedAuthority, RemotePathError } = await import('../../src/utils/remoteFiles/target.ts')
+const { closeRemoteConnections, remoteRun, RemoteConnectionError, resolveRemoteAuthority } = await import('../../src/platform/remote-files/connection.ts')
+const { remotePrelude, remoteQuote } = await import('../../src/platform/remote-files/prelude.ts')
+const { resolvedAuthority, RemotePathError } = await import('../../src/platform/remote-file-target/target.ts')
 
 const PORT = 27061
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 420 seconds; a request never got its reply, so read remoteRun in src/services/remoteFiles/connection.ts and the shell script from remotePrelude in src/services/remoteFiles/prelude.ts')
+  console.log('  [FAIL] the proof did not finish within 420 seconds; a request never got its reply, so read remoteRun in src/platform/remote-files/connection.ts and the shell script from remotePrelude in src/platform/remote-files/prelude.ts')
   process.exit(1)
 }, 420_000)
 watchdog.unref()
@@ -25,7 +25,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — to fix, change remoteRun or resolveRemoteAuthority in src/services/remoteFiles/connection.ts, the remote shell script in remotePrelude in src/services/remoteFiles/prelude.ts, or the path refusals (RemotePathError) in src/utils/remoteFiles/target.ts, whichever the label names${detail ? `; ${detail.slice(0, 500)}` : ''}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — to fix, change remoteRun or resolveRemoteAuthority in src/platform/remote-files/connection.ts, the remote shell script in remotePrelude in src/platform/remote-files/prelude.ts, or the path refusals (RemotePathError) in src/platform/remote-file-target/target.ts, whichever the label names${detail ? `; ${detail.slice(0, 500)}` : ''}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 const pause = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))

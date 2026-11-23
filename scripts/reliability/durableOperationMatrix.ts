@@ -64,7 +64,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'W3 (closed, Slice 2): damaged store + mutate — quarantined + ledgered before any republish; last-good resume when the runtime holds a witness',
     ],
     failureClass: ['FC5-corrupt-store-empty-overwrite', 'FC8-subscriber-revision-blind'],
-    source: ['src/substrate/fileStore.ts:80', 'src/substrate/fileStore.ts:519'],
+    source: ['src/platform/substrate/fileStore.ts:80', 'src/platform/substrate/fileStore.ts:519'],
   },
   {
     id: 'filestore-subscribe',
@@ -86,7 +86,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'W2 (bounded): watcher goes deaf — delivery waits for the floor tick; the catch-up emission then proves what was missed',
     ],
     failureClass: ['FC8-subscriber-revision-blind'],
-    source: ['src/substrate/fileStore.ts:317', 'src/substrate/fileStore.ts:420'],
+    source: ['src/platform/substrate/fileStore.ts:317', 'src/platform/substrate/fileStore.ts:420'],
   },
   {
     id: 'task-outcome-envelope',
@@ -110,7 +110,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'W1: crash between the terminal state flip and the publish — the outcome exists only in the transcript notification (the pre-envelope status quo, never worse)',
     ],
     failureClass: ['FC3-runrecord-surface-split'],
-    source: ['src/tasks/taskOutcomeEnvelope.ts:118'],
+    source: ['src/engine/tasks/taskOutcomeEnvelope.ts:118'],
   },
   {
     id: 'task-create',
@@ -132,7 +132,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'W1: after publish, before the caller records the returned id — retry duplicates the task (caller-level)',
     ],
     failureClass: ['FC6-task-epoch-resurrection'],
-    source: ['src/utils/tasks.ts:287'],
+    source: ['src/engine/task-framework/tasks.ts:287'],
   },
   {
     id: 'task-delete',
@@ -158,7 +158,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'W2: mid reference sweep — dangling dependency edges',
     ],
     failureClass: ['FC6-task-epoch-resurrection'],
-    source: ['src/utils/tasks.ts:387'],
+    source: ['src/engine/task-framework/tasks.ts:387'],
   },
   {
     id: 'task-reset',
@@ -180,7 +180,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'W1 (closed, Slice 4a): exit mid-unlink — surviving bodies are epoch-dead; the sweep GCs them',
     ],
     failureClass: ['FC6-task-epoch-resurrection'],
-    source: ['src/utils/tasks.ts:150'],
+    source: ['src/engine/task-framework/tasks.ts:150'],
   },
   {
     id: 'run-sidecar-save',
@@ -202,7 +202,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'W2 (bounded): crash between tmp write and rename — orphan swept on next publish/boot',
     ],
     failureClass: ['FC2-sidecar-temp-collision'],
-    source: ['src/services/run/runSidecar.ts:39', 'src/services/run/runCoordinator.ts:101'],
+    source: ['src/engine/run/runSidecar.ts:39', 'src/engine/run/runCoordinator.ts:101'],
   },
   {
     id: 'run-reconcile-resume',
@@ -223,7 +223,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'W1: exit mid-reconcile — re-runs idempotently next resume (events re-fold)',
     ],
     failureClass: ['FC2-sidecar-temp-collision'],
-    source: ['src/services/run/runCoordinator.ts:323'],
+    source: ['src/engine/run/runCoordinator.ts:323'],
   },
   {
     id: 'store-prompt-drafts',
@@ -242,7 +242,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     recovery: 'single-record atomic through the durable kernel (Slice 1+2: fsync barriers · `_rev` · quarantine guard · revision-aware subscriptions).',
     interruptionWindows: ['W1: kernel windows (see filestore-write — W2/W3 closed)'],
     failureClass: ['FC5-corrupt-store-empty-overwrite', 'FC8-subscriber-revision-blind'],
-    source: ['src/utils/promptDraft.ts'],
+    source: ['src/screen/composer/input-core/promptDraft.ts'],
   },
   {
     id: 'lifecycle-startup-sweeps',
@@ -263,7 +263,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'W1: exit mid-sweep — next boot converges (per-sweep; the orchestrator itself is idempotent)',
     ],
     failureClass: ['FC6-task-epoch-resurrection'],
-    source: ['src/substrate/recoveryOrchestrator.ts', 'src/chatLauncher.tsx'],
+    source: ['src/platform/substrate/recoveryOrchestrator.ts', 'src/boot/chatLauncher.tsx'],
   },
   {
     id: 'text-change-set',
@@ -298,9 +298,9 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     ],
     failureClass: ['FC9-changeset-partial-commit'],
     source: [
-      'src/services/changeTransaction/changeSetCommit.ts',
-      'src/services/changeTransaction/changeSetPlan.ts',
-      'src/substrate/operationJournal.ts',
+      'src/platform/substrate/operationJournal.ts',
+      'src/tools/engines/change-transaction/changeSetCommit.ts',
+      'src/tools/engines/change-transaction/changeSetPlan.ts',
     ],
   },
   {
@@ -322,7 +322,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'W1: exit between run flush and owner disposal — benign (resume reconciles)',
     ],
     failureClass: ['FC6-task-epoch-resurrection'],
-    source: ['src/utils/run/ownerLifecycle.ts'],
+    source: ['src/engine/run-owner/ownerLifecycle.ts'],
   },
   {
     id: 'store-interview-sessions',
@@ -348,7 +348,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       '2. die during the mutate — the FileStore lane recovers (FC5 quarantine, last-good resume); the retained generation retries on the next drain',
     ],
     failureClass: ['FC5-corrupt-store-empty-overwrite', 'FC8-subscriber-revision-blind'],
-    source: ['src/services/interview/store.ts', 'src/services/interview/contracts.ts'],
+    source: ['src/tools/engines/interview/store.ts', 'src/tools/engines/interview/contracts.ts'],
   },
 ] as const
 

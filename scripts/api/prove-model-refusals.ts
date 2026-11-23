@@ -14,10 +14,10 @@ process.env.MERCURY_ANTHROPIC_OAUTH_BASE = 'http://127.0.0.1:1'
 for (const key of ['NODE_ENV', 'CI', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR', 'MERCURY_API_KEY_FILE_DESCRIPTOR']) delete process.env[key]
 writeFileSync(join(home, '.mercury.json'), JSON.stringify({ customApiKeyResponses: { approved: ['proof-key-ci-gate-not-a-real-key'.slice(-20)], rejected: [] } }))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const refusals = await import('../../src/services/providers/anthropic/modelRefusal.js')
-const { APIError } = await import('../../src/utils/api/sdkErrors.js')
+const refusals = await import('../../src/models/roads/anthropic/modelRefusal.js')
+const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
 const MODEL = 'claude-opus-5-5'
 const DOOR = 'Claude subscription (max)'
 const WIRE = '2.1.280 does not support this model; version 2.1.290 or newer is required. Run claude update.'
@@ -27,13 +27,13 @@ const facts = {
 }
 let checks = 0
 function check(label: string, value: unknown): void {
-  assert(value, `${label} — the refusal rules live in src/services/providers/anthropic/modelRefusal.ts (classifyModelRefusal, noteModelRefusal, modelRefusalWords) and the chat sentence in getAssistantMessageFromError, src/services/api/errors.ts; the clear after a successful request is in src/services/providers/anthropic/streamCore/settleCall.ts`)
+  assert(value, `${label} — the refusal rules live in src/models/roads/anthropic/modelRefusal.ts (classifyModelRefusal, noteModelRefusal, modelRefusalWords) and the chat sentence in getAssistantMessageFromError, src/engine/requests/apiErrorRows.ts; the clear after a successful request is in src/models/roads/anthropic/stream-core/settleCall.ts`)
   checks++
   console.log(`PASS ${label}`)
 }
 
-const { getAssistantMessageFromError, clientContractGateLine, API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errors.js')
-const { setIsInteractive } = await import('../../src/bootstrap/state.js')
+const { getAssistantMessageFromError, clientContractGateLine, API_ERROR_MESSAGE_PREFIX } = await import('../../src/engine/requests/apiErrorRows.js')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.js')
 setIsInteractive(true)
 const errorFor = (status: number, type: string, message: string) =>
   new APIError(status, { type: 'error', error: { type, message } }, undefined, undefined as never)
@@ -103,7 +103,7 @@ check('a model-specific 403 is not called a sign-in failure', getAssistantMessag
 check('a key-scoped model 403 paints the model refusal rather than asking for sign-in', textOf(getAssistantMessageFromError(errorFor(403, 'permission_error', `This API key is not allowed to use ${MODEL}`), MODEL)) === `${API_ERROR_MESSAGE_PREFIX} (403): Opus 5.5 is not served on Anthropic API key (the endpoint answered 403) — pick a listed model with /model.`)
 check('revoked credentials keep their exact row', textOf(getAssistantMessageFromError(errorFor(401, 'authentication_error', 'OAuth access token has been revoked'), MODEL)) === `${API_ERROR_MESSAGE_PREFIX}: Anthropic sign-in expired — switch providers (/model) or reconnect (/logins anthropic)`)
 check('tool pairing keeps its exact row', textOf(getAssistantMessageFromError(errorFor(400, 'invalid_request_error', '`tool_use` ids were found without `tool_result` blocks immediately after'), MODEL)) === `${API_ERROR_MESSAGE_PREFIX} (400): a tool-use concurrency problem left a tool use without its result. Run /rewind to recover from an earlier point.`)
-const auth = { ...(await import('../../src/utils/auth.js')), ...(await import('../../src/services/auth/oauthLifecycle.js')) }
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.js')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.js')) }
 delete process.env.ANTHROPIC_API_KEY
 writeFileSync(join(home, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-access', refreshToken: 'fixture-refresh', expiresAt: Date.now() + 3_600_000, scopes: ['user:inference'], subscriptionType: 'max', rateLimitTier: null } }))
 auth.clearOAuthTokenCache()
@@ -163,10 +163,10 @@ check('reads and writes bound the persisted set to its newest dozen records', re
 check('a successful publish leaves no temporary record', readdirSync(storedDirectory).every(name => name.endsWith('.json')))
 for (const refusal of refusals.standingModelRefusals()) refusals.clearModelRefusal(refusal.id, refusal.door)
 
-const { queryModelWithStreaming, queryModelWithoutStreaming } = await import('../../src/services/providers/anthropic/streamCore.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { createUserMessage } = await import('../../src/services/messages.js')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
+const { queryModelWithStreaming, queryModelWithoutStreaming } = await import('../../src/models/roads/anthropic/streamCore.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { createUserMessage } = await import('../../src/engine/messages/messages.js')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.js')
 const successFetch = (async () => {
   const event = (type: string, body: unknown): string => `event: ${type}\ndata: ${JSON.stringify(body)}\n\n`
   return new Response([
@@ -217,7 +217,7 @@ auth.clearOAuthTokenCache()
 check('with no current door the seam stands aside for the not-signed-in reason', refusals.activeModelRefusalDoor() === undefined && pickerRows.every(row => refusals.modelRefusalWords(row.id) === undefined))
 writeFileSync(credentialFile, credentialBytes)
 auth.clearOAuthTokenCache()
-const scopes = await import('../../src/utils/envUtils.js')
+const scopes = await import('../../src/platform/environment/envUtils.js')
 const otherHome = mkdtempSync(join(home, 'other-auth-'))
 scopes.setAuthScope(otherHome)
 auth.clearOAuthTokenCache()

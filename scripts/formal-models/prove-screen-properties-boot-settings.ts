@@ -44,7 +44,7 @@ const { mock } = await import('bun:test')
 const React = await import('react')
 const h = React.createElement
 
-type BootCardFacts = ReturnType<typeof import('../../src/utils/bootCardFacts.ts').scanBootCardFacts>
+type BootCardFacts = ReturnType<typeof import('../../src/screen/boot-face/bootCardFacts.ts').scanBootCardFacts>
 
 let activeFacts: BootCardFacts = {
   cwdProject: null,
@@ -58,14 +58,14 @@ let bornCalls: Array<{ workspaceDir?: string }> = []
 let resumedCalls: Array<{ sessionId: string; fullPath?: string }> = []
 let faultForceNew = false
 
-const realBootFacts = await import('../../src/utils/bootCardFacts.ts')
-mock.module('../../src/utils/bootCardFacts.ts', () => ({
+const realBootFacts = await import('../../src/screen/boot-face/bootCardFacts.ts')
+mock.module('../../src/screen/boot-face/bootCardFacts.ts', () => ({
   ...realBootFacts,
   scanBootCardFacts: () => activeFacts,
 }))
 
-const realBorn = await import('../../src/services/switchboard/bornSession.ts')
-mock.module('../../src/services/switchboard/bornSession.ts', () => ({
+const realBorn = await import('../../src/daemon/switchboard/bornSession.ts')
+mock.module('../../src/daemon/switchboard/bornSession.ts', () => ({
   ...realBorn,
   bornSession: async (opts: { workspaceDir?: string } = {}) => {
     bornCalls.push(opts)
@@ -73,8 +73,8 @@ mock.module('../../src/services/switchboard/bornSession.ts', () => ({
   },
 }))
 
-const realHop = await import('../../src/services/switchboard/hopIntoSession.ts')
-mock.module('../../src/services/switchboard/hopIntoSession.ts', () => ({
+const realHop = await import('../../src/daemon/switchboard/hopIntoSession.ts')
+mock.module('../../src/daemon/switchboard/hopIntoSession.ts', () => ({
   ...realHop,
   focusResumedSession: async (sessionId: string, fullPath?: string) => {
     if (faultForceNew) {
@@ -86,32 +86,32 @@ mock.module('../../src/services/switchboard/hopIntoSession.ts', () => ({
   },
 }))
 
-const realWorkers = await import('../../src/daemon/concourseWorkers.ts')
-mock.module('../../src/daemon/concourseWorkers.ts', () => ({
+const realWorkers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+mock.module('../../src/daemon/concourse-workers/concourseWorkers.ts', () => ({
   ...realWorkers,
   countLiveConcourseWorkers: () => 0,
 }))
 
-const realActivity = await import('../../src/services/concourse/projectActivity.ts')
-mock.module('../../src/services/concourse/projectActivity.ts', () => ({
+const realActivity = await import('../../src/screen/concourse-model/projectActivity.ts')
+mock.module('../../src/screen/concourse-model/projectActivity.ts', () => ({
   ...realActivity,
   runningByProjectKey: async () => new Map<string, number>(),
 }))
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const surfaceRoute = await import('../../src/context/surfaceRoute.ts')
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { default: reconciler } = await import('../../src/ink/reconciler.js')
-const { disposeKeybindingWatcher } = await import('../../src/keybindings/loadUserBindings.js')
-const { Box } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { BootSplashScreen } = await import('../../src/components/BootSplashScreen.tsx')
+const surfaceRoute = await import('../../src/screen/routes/surfaceRoute.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
+const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { BootSplashScreen } = await import('../../src/screen/boot-face/BootSplashScreen.tsx')
 
 class FakeStdout extends EventEmitter {
   isTTY = true
@@ -551,13 +551,13 @@ try {
       )
       return settleFrame()
     }
-    const hint = 'set initialId to "concourse" when returning from concourse in src/components/BootSplashScreen.tsx'
+    const hint = 'set initialId to "concourse" when returning from concourse in src/screen/boot-face/BootSplashScreen.tsx'
     for (const history of ['none', 'cross'] as const) {
       const { frame: initial } = await mountBootFace({ history, concourseLive: true, compact: false })
       t.check(`history=${history}: fresh boot selects New Session`, focusedRowLabels(initial)[0] === 'New Session', `got ${JSON.stringify(focusedRowLabels(initial))}`)
       let frame = await sendKey(KEYS.down)
       if (history === 'cross') {
-        t.check(`history=${history}: down lands on Continue Last Session, the row of another project`, focusedRowLabels(frame)[0] === 'Continue Last Session', `got ${JSON.stringify(focusedRowLabels(frame))} — the continue row of another project is choosable in src/components/bootSplash/rowActions.ts`)
+        t.check(`history=${history}: down lands on Continue Last Session, the row of another project`, focusedRowLabels(frame)[0] === 'Continue Last Session', `got ${JSON.stringify(focusedRowLabels(frame))} — the continue row of another project is choosable in src/screen/boot-face/splash/rowActions.ts`)
         frame = await sendKey(KEYS.down)
       }
       t.check(`history=${history}: down lands on Logins/Keys`, focusedRowLabels(frame)[0] === 'Logins/Keys', `got ${JSON.stringify(focusedRowLabels(frame))}`)
@@ -597,7 +597,7 @@ try {
     t.check(
       'strip cycle (Shift+Left from chat through concourse) keeps selection on New Session',
       stripOnNew,
-      stripOnNew ? '' : `cycled=${JSON.stringify(cycled)} route=${surfaceRoute.currentSurfaceRoute().kind} got ${JSON.stringify(focusedRowLabels(stripFrame))} — check tr.verb === "RETURN" in src/components/BootSplashScreen.tsx`,
+      stripOnNew ? '' : `cycled=${JSON.stringify(cycled)} route=${surfaceRoute.currentSurfaceRoute().kind} got ${JSON.stringify(focusedRowLabels(stripFrame))} — check tr.verb === "RETURN" in src/screen/boot-face/BootSplashScreen.tsx`,
     )
   }
 } finally {

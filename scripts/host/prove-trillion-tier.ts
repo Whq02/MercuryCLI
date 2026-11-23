@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict'
-import { heavyWeights } from '../../src/services/host/costs.ts'
+import { heavyWeights } from '../../src/models/hosting/costs.ts'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { trillionKimiFixture, proveKimiReplay } from './trillionKimiFixture.ts'
 import { runpodFixture, fakeSshRunner } from './runpodFixture.mjs'
-import type { HostRecord } from '../../src/services/host/store.ts'
+import type { HostRecord } from '../../src/models/hosting/store.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 let checks = 0
-const trillionWhere = 'look in src/services/host (recipes.ts and recipesFile.ts for the rows, runpod.ts for the client and cluster create, cluster.ts for cluster setup and terminate, costs.ts for the price words, ssh.ts for the engine launch, index.ts createHostRoad for the road); if assets/host/recipes.json differs, regenerate it from exportHostRecipesJson; the fixtures are scripts/host/runpodFixture.mjs and scripts/host/trillionKimiFixture.ts'
+const trillionWhere = 'look in src/models/hosting (recipes.ts and recipesFile.ts for the rows, runpod.ts for the client and cluster create, cluster.ts for cluster setup and terminate, costs.ts for the price words, ssh.ts for the engine launch, index.ts createHostRoad for the road); if assets/host/recipes.json differs, regenerate it from exportHostRecipesJson; the fixtures are scripts/host/runpodFixture.mjs and scripts/host/trillionKimiFixture.ts'
 const check = (name: string, truth: unknown, detail = '') => { assert.ok(truth, name + (detail ? ': ' + detail : '') + ' · ' + trillionWhere); checks++; console.log('PASS ' + name) }
 const f = await trillionKimiFixture()
 const rp = await runpodFixture()
@@ -20,21 +20,21 @@ globalThis.fetch = Object.assign(async (input: any, init?: RequestInit) => {
   fetches.push({ path: url.pathname, method: init?.method, keepalive: init?.keepalive })
   return realFetch(input, init)
 }, { preconnect: realFetch.preconnect }) as typeof fetch
-const { hostRunner, closeHostTunnel, startHostEngine } = await import('../../src/services/host/ssh.ts')
+const { hostRunner, closeHostTunnel, startHostEngine } = await import('../../src/models/hosting/ssh.ts')
 const ssh = fakeSshRunner(f.baseUrl, hostRunner)
 const ids = new Set<string>()
 try {
   if (!process.argv.includes('--kimi-only')) {
-    const { HOST_RECIPES, recipeFits } = await import('../../src/services/host/recipes.ts')
-    const { exportHostRecipesJson, currentHostRecipes } = await import('../../src/services/host/recipesFile.ts')
-    const { RunpodClient, RunpodHttpError, cents, clusterCreateRefusal } = await import('../../src/services/host/runpod.ts')
-    const { createHostRoad } = await import('../../src/services/host/index.ts')
-    const { createHostResource, hostClusterRecord, listHostResources, getHostResource, hostShape, startHostCluster, terminateHostResource } = await import('../../src/services/host/cluster.ts')
-    const { hostPriceLines, hostStorageWords } = await import('../../src/services/host/costs.ts')
-    const { runHostJob } = await import('../../src/services/host/worker.ts')
-    const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-    const { hostDirectory, readHostRecord, removeHostRecord, patchHostRecord } = await import('../../src/services/host/store.ts')
-    const { queueHostSetup, queueHostWatch } = await import('../../src/services/host/jobs.ts')
+    const { HOST_RECIPES, recipeFits } = await import('../../src/models/hosting/recipes.ts')
+    const { exportHostRecipesJson, currentHostRecipes } = await import('../../src/models/hosting/recipesFile.ts')
+    const { RunpodClient, RunpodHttpError, cents, clusterCreateRefusal } = await import('../../src/models/hosting/runpod.ts')
+    const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+    const { createHostResource, hostClusterRecord, listHostResources, getHostResource, hostShape, startHostCluster, terminateHostResource } = await import('../../src/models/hosting/cluster.ts')
+    const { hostPriceLines, hostStorageWords } = await import('../../src/models/hosting/costs.ts')
+    const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+    const { writeStoredRunpodApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+    const { hostDirectory, readHostRecord, removeHostRecord, patchHostRecord } = await import('../../src/models/hosting/store.ts')
+    const { queueHostSetup, queueHostWatch } = await import('../../src/models/hosting/jobs.ts')
     const bootstrapFixture = await runpodFixture()
     try {
       const bootstrapApi = new RunpodClient(bootstrapFixture.key, bootstrapFixture.baseUrl)

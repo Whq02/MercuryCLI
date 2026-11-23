@@ -5,7 +5,7 @@ import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 const scratch = mkdtempSync(join(tmpdir(), 'service-successor-'))
-const { startService, stopService, readRecord, servicesDir, liveServiceChildren } = await import('../../src/services/projectServices/serviceManager.js')
+const { startService, stopService, readRecord, servicesDir, liveServiceChildren } = await import('../../src/tools/engines/project-services/serviceManager.js')
 const spec = (marker: string) => ({
   name: 'slot', command: process.execPath, args: ['-e', `process.title = ${JSON.stringify(marker)}; setInterval(() => {}, 1000)`], cwd: scratch,
   readiness: [], readinessMode: 'all' as const, restart: 'never' as const, lifecycle: 'session' as const,
@@ -32,7 +32,7 @@ try {
   const stopped = await stopService(scratch, 'slot')
   check('stopping the name stops the successor, and its record reads stopped with no pid', 'record' in stopped && stopped.record.state === 'stopped' && stopped.record.pid === null && readRecord(scratch, 'slot')?.state === 'stopped')
   const crash = await startService({ sessionId: 'successor-proof', spec: { ...spec('third'), args: ['-e', 'setTimeout(() => process.exit(3), 150)'] } })
-  assert.ok('record' in crash, `src/services/projectServices/serviceManager.ts startService(third) expected record, got ${JSON.stringify(crash).slice(0, 140)}`)
+  assert.ok('record' in crash, `src/tools/engines/project-services/serviceManager.ts startService(third) expected record, got ${JSON.stringify(crash).slice(0, 140)}`)
   await sleep(900)
   const crashed = readRecord(scratch, 'slot')
   check("a child that exits on its own still writes its own record: failed with its exit code (the guard keys on the record's start, not on a cleared pid)", crashed?.state === 'failed' && crashed.lastExitCode === 3 && crashed.pid === null, JSON.stringify({ state: crashed?.state, lastExitCode: crashed?.lastExitCode }))

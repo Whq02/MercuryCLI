@@ -4,9 +4,9 @@ import {
   clearDeliveredDiagnosticsForFile,
   registerPendingLSPDiagnostic,
   resetAllLSPDiagnosticState,
-} from '../../src/services/lsp/LSPDiagnosticRegistry.js'
+} from '../../src/integrations/lsp/LSPDiagnosticRegistry.js'
 
-import { registerLSPNotificationHandlers } from '../../src/services/lsp/passiveFeedback.js'
+import { registerLSPNotificationHandlers } from '../../src/integrations/lsp/publishedDiagnostics.js'
 let failures = 0
 function check(name: string, ok: boolean, detail?: string, hint?: string): void {
   if (ok) console.log(`  ok  ${name}`)
@@ -41,19 +41,19 @@ function deliveredCount(): number {
 resetAllLSPDiagnosticState()
 
 push()
-check('first delivery lands', deliveredCount() === 1, undefined, 'registerPendingLSPDiagnostic and checkForLSPDiagnostics in src/services/lsp/LSPDiagnosticRegistry.ts must deliver the first publish of a diagnostic')
+check('first delivery lands', deliveredCount() === 1, undefined, 'registerPendingLSPDiagnostic and checkForLSPDiagnostics in src/integrations/lsp/LSPDiagnosticRegistry.ts must deliver the first publish of a diagnostic')
 push()
-check('identical re-push is cross-turn deduped (baseline behavior)', deliveredCount() === 0, undefined, 'checkForLSPDiagnostics in src/services/lsp/LSPDiagnosticRegistry.ts must drop a diagnostic it already delivered (its dedup step)')
+check('identical re-push is cross-turn deduped (baseline behavior)', deliveredCount() === 0, undefined, 'checkForLSPDiagnostics in src/integrations/lsp/LSPDiagnosticRegistry.ts must drop a diagnostic it already delivered (its dedup step)')
 
 clearDeliveredDiagnosticsForFile(`file://${FILE}`)
 push()
-check('clear via file:// form re-arms delivery (the audit fix)', deliveredCount() === 1, undefined, 'clearDeliveredDiagnosticsForFile in src/services/lsp/LSPDiagnosticRegistry.ts must strip the file:// prefix and clear the delivered key for that path')
+check('clear via file:// form re-arms delivery (the audit fix)', deliveredCount() === 1, undefined, 'clearDeliveredDiagnosticsForFile in src/integrations/lsp/LSPDiagnosticRegistry.ts must strip the file:// prefix and clear the delivered key for that path')
 
 push()
-check('deduped again before plain clear', deliveredCount() === 0, undefined, 'checkForLSPDiagnostics in src/services/lsp/LSPDiagnosticRegistry.ts must record what it delivered so an identical re-push is deduped again')
+check('deduped again before plain clear', deliveredCount() === 0, undefined, 'checkForLSPDiagnostics in src/integrations/lsp/LSPDiagnosticRegistry.ts must record what it delivered so an identical re-push is deduped again')
 clearDeliveredDiagnosticsForFile(FILE)
 push()
-check('clear via plain path re-arms delivery', deliveredCount() === 1, undefined, 'clearDeliveredDiagnosticsForFile in src/services/lsp/LSPDiagnosticRegistry.ts must clear the delivered key for a plain path')
+check('clear via plain path re-arms delivery', deliveredCount() === 1, undefined, 'clearDeliveredDiagnosticsForFile in src/integrations/lsp/LSPDiagnosticRegistry.ts must clear the delivered key for a plain path')
 
 resetAllLSPDiagnosticState()
 
@@ -61,7 +61,7 @@ let publish: (params: unknown) => void = () => {}
 registerLSPNotificationHandlers({ getAllServers: () => new Map([['fake', { onNotification: (_method: string, handler: (params: unknown) => void) => { publish = handler } }]]) } as never)
 publish({ uri: FILE, diagnostics: [{ ...diag, severity: 1 }] })
 publish({ uri: FILE, diagnostics: [] })
-check('a clean publish supersedes an undelivered error from the same server and file', deliveredCount() === 0, undefined, 'registerPendingLSPDiagnostic in src/services/lsp/LSPDiagnosticRegistry.ts must remove a pending entry for the same server and uri when a later publish arrives (registered by registerLSPNotificationHandlers in src/services/lsp/passiveFeedback.ts)')
+check('a clean publish supersedes an undelivered error from the same server and file', deliveredCount() === 0, undefined, 'registerPendingLSPDiagnostic in src/integrations/lsp/LSPDiagnosticRegistry.ts must remove a pending entry for the same server and uri when a later publish arrives (registered by registerLSPNotificationHandlers in src/integrations/lsp/publishedDiagnostics.ts)')
 resetAllLSPDiagnosticState()
 
 if (failures > 0) {

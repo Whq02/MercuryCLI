@@ -17,7 +17,7 @@ t.check(
 t.section('CS-27 — disposition visibility is prover-pinned')
 let dispatch: Record<string, unknown> | null = null
 try {
-  dispatch = (await import('../../src/services/crew/dispatch.ts')) as Record<string, unknown>
+  dispatch = (await import('../../src/crew/crewmates/dispatch.ts')) as Record<string, unknown>
 } catch {
   dispatch = null
 }

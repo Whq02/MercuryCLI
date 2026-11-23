@@ -1,0 +1,310 @@
+
+import { readdir } from 'node:fs/promises'
+import { join } from 'node:path'
+import { mapWithConcurrency } from '../async/concurrency.js'
+import { logForDebugging } from '../logs/debugLog.js'
+import { getMercuryHome } from '../environment/envUtils.js'
+import { cleanupOrphanDurableTemps } from './durablePublish.js'
+import type { JournalRecoverySummary } from './operationJournal.js'
+import { readStoreRecoveryEvents } from './storeRecovery.js'
+import { passedOver } from '../errors/passedOver.js'
+
+const SWEEP_DIR_CAP = 128
+const TASK_LIST_CAP = 64
+
+const RECENT_QUARANTINE_WINDOW_MS = 24 * 60 * 60_000
+
+export type BootRecoveryScope = 'session' | 'daemon'
+export type BootRecoveryPhase = 'pending' | 'running' | 'done'
+
+export interface BootRecoveryReport {
+  schema: 1
+  scope: BootRecoveryScope
+  startedAt: string
+  durationMs: number
+  orphanTemps: { dirsSwept: number; removed: number }
+  runJournal: JournalRecoverySummary | null
+  changeSetJournal: JournalRecoverySummary | null
+  deadEpochTasks: { listsChecked: number; removed: number }
+  daemonRecords: { state: 'live' | 'clean' | 'reconciled'; cleaned: string[] } | null
+  quarantine: { total: number; recent: number }
+  errors: string[]
+  notes: string[]
+}
+
+export interface BootRecoveryState {
+  phase: BootRecoveryPhase
+  report: BootRecoveryReport | null
+}
+
+let state: BootRecoveryState = { phase: 'pending', report: null }
+let inflight: Promise<BootRecoveryReport> | null = null
+const listeners = new Set<() => void>()
+
+function setState(next: BootRecoveryState): void {
+  state = next
+  for (const l of listeners) {
+    try {
+      l()
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+}
+
+export function getBootRecovery(): BootRecoveryState {
+  return state
+}
+
+export function subscribeBootRecovery(cb: () => void): () => void {
+  listeners.add(cb)
+  return () => listeners.delete(cb)
+}
+
+export function bootRecoveryStatusLine(
+  s: BootRecoveryState,
+): { text: string; tone: 'ok' | 'warn' | 'neutral' } | null {
+  if (s.phase === 'running') {
+    return { text: 'reconciling durable state (journal scan in flight)…', tone: 'neutral' }
+  }
+  if (s.phase !== 'done' || !s.report) return null
+  const r = s.report
+  const journalWork =
+    (r.runJournal ? r.runJournal.rolledForward.length + r.runJournal.compensated.length : 0) +
+    (r.changeSetJournal
+      ? r.changeSetJournal.rolledForward.length + r.changeSetJournal.compensated.length
+      : 0)
+  const unrecoverable =
+    (r.runJournal?.unrecoverable.length ?? 0) +
+    (r.changeSetJournal?.unrecoverable.length ?? 0)
+  const parts: string[] = []
+  if (journalWork > 0) parts.push(`${journalWork} interrupted op(s) reconciled`)
+  if (r.orphanTemps.removed > 0) parts.push(`${r.orphanTemps.removed} orphan temp(s) swept`)
+  if (r.deadEpochTasks.removed > 0) parts.push(`${r.deadEpochTasks.removed} dead task file(s) reclaimed`)
+  if (r.daemonRecords?.state === 'reconciled' && r.daemonRecords.cleaned.length > 0) {
+    parts.push(`${r.daemonRecords.cleaned.length} stale daemon record(s) reconciled`)
+  }
+  if (unrecoverable > 0) parts.push(`${unrecoverable} op(s) NEED ATTENTION (journal preserved)`)
+  if (r.errors.length > 0) parts.push(`${r.errors.length} recovery error(s)`)
+  if (parts.length === 0) return null
+  return {
+    text: `boot recovery: ${parts.join(' · ')}`,
+    tone: unrecoverable > 0 || r.errors.length > 0 ? 'warn' : 'ok',
+  }
+}
+
+async function collectSweepDirs(
+  scope: BootRecoveryScope,
+  errors: string[],
+  notes: string[],
+): Promise<string[]> {
+  const dirs: string[] = []
+  let candidates = 0
+  const push = (d: string) => {
+    candidates++
+    if (dirs.length < SWEEP_DIR_CAP) dirs.push(d)
+  }
+  const home = getMercuryHome()
+  push(home)
+  push(join(home, 'recovery'))
+  try {
+    const { changeSetJournalDir } = await import(
+      '../../tools/engines/change-transaction/changeSetContracts.js'
+    )
+    push(changeSetJournalDir())
+  } catch (error) {
+    passedOver(error)
+  }
+  const tasksRoot = join(home, 'tasks')
+  try {
+    for (const name of await readdir(tasksRoot)) {
+      if (!name.startsWith('.')) push(join(tasksRoot, name))
+    }
+  } catch (error) {
+    passedOver(error)
+  }
+  try {
+    const { daemonDir } = await import('../../daemon/control/controlSocket.js')
+    const daemon = daemonDir()
+    push(daemon)
+    push(join(daemon, 'journal'))
+    push(join(daemon, 'outcomes'))
+    const handoffRoot = join(daemon, 'handoff')
+    try {
+      for (const name of await readdir(handoffRoot)) {
+        if (!name.startsWith('.')) push(join(handoffRoot, name))
+      }
+    } catch (error) {
+      passedOver(error)
+    }
+  } catch (e) {
+    errors.push(`daemon-home sweep skipped: ${e instanceof Error ? e.message : String(e)}`)
+  }
+  if (candidates > SWEEP_DIR_CAP) {
+    notes.push(
+      `orphan sweep bounded to ${SWEEP_DIR_CAP}/${candidates} dirs this boot — coverage is partial`,
+    )
+  }
+  void scope
+  return dirs
+}
+
+async function sweepOrphanTemps(
+  scope: BootRecoveryScope,
+  errors: string[],
+  notes: string[],
+): Promise<{ dirsSwept: number; removed: number }> {
+  const dirs = await collectSweepDirs(scope, errors, notes)
+  const removedPerDir = await Promise.all(dirs.map(dir => cleanupOrphanDurableTemps(dir)))
+  const removed = removedPerDir.reduce((sum, r) => sum + r.length, 0)
+  return { dirsSwept: dirs.length, removed }
+}
+
+async function sweepTaskEpochs(
+  errors: string[],
+  notes: string[],
+): Promise<{ listsChecked: number; removed: number }> {
+  const out = { listsChecked: 0, removed: 0 }
+  const tasksRoot = join(getMercuryHome(), 'tasks')
+  let lists: string[]
+  try {
+    lists = (await readdir(tasksRoot)).filter(n => !n.startsWith('.'))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return out
+    throw error
+  }
+  const { readTaskEpoch, sweepDeadEpochTasks } = await import('../../engine/task-framework/tasks.js')
+  const epochChecks = await mapWithConcurrency(lists, 8, async list => {
+    try {
+      return (await readTaskEpoch(list)) > 0
+    } catch (error) {
+      passedOver(error)
+      return false
+    }
+  })
+  const epochBearing: string[] = lists.filter((_, i) => epochChecks[i] === true)
+  let toSweep = epochBearing
+  if (epochBearing.length > TASK_LIST_CAP) {
+    notes.push(
+      `dead-epoch GC bounded to ${TASK_LIST_CAP}/${epochBearing.length} epoch-bearing lists this boot`,
+    )
+    toSweep = epochBearing.slice(0, TASK_LIST_CAP)
+  }
+  for (const list of toSweep) {
+    try {
+      out.removed += await sweepDeadEpochTasks(list)
+      out.listsChecked++
+    } catch (e) {
+      errors.push(`dead-epoch GC failed for "${list}": ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+  return out
+}
+
+export async function runBootRecovery(opts: {
+  scope: BootRecoveryScope
+  sessionId?: string
+  projectDir?: string
+}): Promise<BootRecoveryReport> {
+  if (inflight) return inflight
+  inflight = (async (): Promise<BootRecoveryReport> => {
+    const startedMs = Date.now()
+    const errors: string[] = []
+    const notes: string[] = []
+    const report: BootRecoveryReport = {
+      schema: 1,
+      scope: opts.scope,
+      startedAt: new Date(startedMs).toISOString(),
+      durationMs: 0,
+      orphanTemps: { dirsSwept: 0, removed: 0 },
+      runJournal: null,
+      changeSetJournal: null,
+      deadEpochTasks: { listsChecked: 0, removed: 0 },
+      daemonRecords: null,
+      quarantine: { total: 0, recent: 0 },
+      errors,
+      notes,
+    }
+    setState({ phase: 'running', report: null })
+
+    try {
+      report.orphanTemps = await sweepOrphanTemps(opts.scope, errors, notes)
+    } catch (e) {
+      errors.push(`orphan sweep failed: ${e instanceof Error ? e.message : String(e)}`)
+    }
+
+    const describe = (reason: unknown): string => (reason instanceof Error ? reason.message : String(reason))
+    const [changeSetSettled] = await Promise.allSettled([
+      import('../../tools/engines/change-transaction/changeSetCommit.js').then(m => m.recoverChangeSetJournal()),
+    ])
+    if (changeSetSettled.status === 'fulfilled') report.changeSetJournal = changeSetSettled.value
+    else errors.push(`change-set journal recovery failed: ${describe(changeSetSettled.reason)}`)
+
+    try {
+      report.deadEpochTasks = await sweepTaskEpochs(errors, notes)
+    } catch (e) {
+      errors.push(`dead-epoch GC failed: ${e instanceof Error ? e.message : String(e)}`)
+    }
+
+    try {
+      const { reconcileDaemonRecords } = await import('../../daemon/control/reconcileRecords.js')
+      const rec = await reconcileDaemonRecords({ projectDir: opts.projectDir })
+      report.daemonRecords = { state: rec.state, cleaned: rec.cleaned }
+    } catch (e) {
+      errors.push(
+        `daemon-records reconcile failed: ${e instanceof Error ? e.message : String(e)}`,
+      )
+    }
+
+    try {
+      const events = await readStoreRecoveryEvents()
+      report.quarantine.total = events.length
+      const cutoff = startedMs - RECENT_QUARANTINE_WINDOW_MS
+      report.quarantine.recent = events.filter(e => {
+        const t = Date.parse(e.ts)
+        return Number.isFinite(t) && t >= cutoff
+      }).length
+    } catch (error) {
+      errors.push(`store-recovery ledger read failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
+
+    report.durationMs = Date.now() - startedMs
+    setState({ phase: 'done', report })
+    const line = bootRecoveryStatusLine(state)
+    if (line) logForDebugging(`[recovery] ${line.text} (${report.durationMs}ms)`)
+    return report
+  })()
+  return inflight
+}
+
+export async function countOrphanDurableTemps(): Promise<{ dirs: number; stale: number }> {
+  const { stat } = await import('node:fs/promises')
+  const { isDurableTempName } = await import('./durablePublish.js')
+  const dirs = await collectSweepDirs('session', [], [])
+  let stale = 0
+  const cutoff = Date.now() - 10 * 60_000
+  for (const dir of dirs) {
+    let names: string[]
+    try {
+      names = await readdir(dir)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
+      throw error
+    }
+    for (const name of names) {
+      if (!isDurableTempName(name)) continue
+      try {
+        if ((await stat(join(dir, name))).mtimeMs < cutoff) stale++
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
+        throw error
+      }
+    }
+  }
+  return { dirs: dirs.length, stale }
+}
+
+export function _resetBootRecoveryForTests(): void {
+  inflight = null
+  state = { phase: 'pending', report: null }
+}

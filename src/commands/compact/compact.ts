@@ -1,5 +1,5 @@
-import { APIUserAbortError } from '../../utils/api/sdkErrors.js'
-import { getLastCacheSafeParams } from '../../services/agents/forkedAgent.js'
+import { APIUserAbortError } from '../../engine/request-parts/sdkErrors.js'
+import { getLastCacheSafeParams } from '../../crew/agents/forkedAgent.js'
 import {
   compactConversation,
   buildPostCompactMessages,
@@ -16,27 +16,27 @@ import {
   projectManualFold,
   withFoldStatus,
   ERROR_MESSAGE_USER_ABORT,
-} from '../../services/compact/compact.js'
-import { manualCompactDisplayText, shouldEnrichForLiveDisplay } from '../../services/compact/manualReceipt.js'
-import { foldModelFor, getAutoCompactThreshold } from '../../services/compact/autoCompact.js'
-import { awaitContextWindowSource } from '../../services/context/contextWindowWarmup.js'
-import { tokenCountWithEstimation } from '../../services/context/tokens.js'
-import { logForDebugging } from '../../utils/debug.js'
-import { suppressCompactWarning } from '../../services/compact/compactWarningState.js'
-import { runPostCompactCleanup } from '../../services/compact/postCompactCleanup.js'
-import { shouldUseSessionMemoryCompaction, trySessionMemoryCompaction } from '../../services/compact/sessionMemoryCompact.js'
-import { setLastSummarizedMessageId } from '../../services/SessionMemory/sessionMemoryUtils.js'
-import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
-import type { Message, UserMessage } from '../../types/message.js'
-import { getMessagesAfterCompactBoundary } from '../../services/messages.js'
-import { buildEffectiveSystemPrompt } from '../../utils/systemPrompt.js'
-import { fetchSystemPromptParts } from '../../services/agents/queryContext.js'
-import type { CacheSafeParams } from '../../services/agents/forkedAgent.js'
-import { isAbortError, errorMessage, hasExactErrorMessage } from '../../utils/errors.js'
-import { logError } from '../../utils/log.js'
-import { getUserContext } from '../../context.js'
+} from '../../engine/compaction/foldConversation.js'
+import { manualCompactDisplayText, shouldEnrichForLiveDisplay } from '../../engine/compaction/manualReceipt.js'
+import { foldModelFor, getAutoCompactThreshold } from '../../engine/compaction/autoFold.js'
+import { awaitContextWindowSource } from '../../engine/context-window/contextWindowWarmup.js'
+import { tokenCountWithEstimation } from '../../engine/context-window/contextTokenCount.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
+import { suppressCompactWarning } from '../../engine/compaction/foldWarningSuppression.js'
+import { runPostCompactCleanup } from '../../engine/compaction/postFoldCleanup.js'
+import { shouldUseSessionMemoryCompaction, trySessionMemoryCompaction } from '../../engine/compaction/sessionNotesFold.js'
+import { setLastSummarizedMessageId } from '../../sessions/session-memory/extractionState.js'
+import type { LocalCommandResult, LocalJSXCommandContext } from '../catalogue/command.js'
+import type { Message, UserMessage } from '../../engine/message-shapes/message.js'
+import { getMessagesAfterCompactBoundary } from '../../engine/messages/messages.js'
+import { buildEffectiveSystemPrompt } from '../../engine/system-prompt/systemPrompt.js'
+import { fetchSystemPromptParts } from '../../engine/system-prompt/systemPromptParts.js'
+import type { CacheSafeParams } from '../../crew/agents/forkedAgent.js'
+import { isAbortError, errorMessage, hasExactErrorMessage } from '../../platform/errors/errors.js'
+import { logError } from '../../platform/logs/errorLog.js'
+import { getUserContext } from '../../engine/requestContext.js'
 
-export { NOTHING_TO_COMPACT_KEY, nothingToCompactLine } from '../../services/compact/compact.js'
+export { NOTHING_TO_COMPACT_KEY, nothingToCompactLine } from '../../engine/compaction/foldConversation.js'
 
 function enrichSummaryForLiveDisplay(
   result: CompactionResult,

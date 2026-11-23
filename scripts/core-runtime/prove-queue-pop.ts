@@ -10,7 +10,7 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_DAEMON_DIR = join(HOME, 'daemon')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const q = await import('../../src/input-core/command-queue.ts')
+const q = await import('../../src/screen/composer/input-core/command-queue.ts')
 type Cmd = Parameters<typeof q.enqueue>[0]
 
 let failures = 0
@@ -18,7 +18,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  const queuePopHint = 'fix popById and the queue-operation journal row in src/input-core/command-queue.ts so this law holds (the drain and dequeue paths in the same file record what was taken)'
+  const queuePopHint = 'fix popById and the queue-operation journal row in src/screen/composer/input-core/command-queue.ts so this law holds (the drain and dequeue paths in the same file record what was taken)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${queuePopHint}`}`)
 }
 function section(t: string): void {
@@ -108,8 +108,8 @@ section('P6 the journal: one queue-operation row, operation pop, carrying the wo
   q.resetCommandQueue()
   q.enqueue(cmd(9, 'the words the journal keeps'))
   q.popById(String(uuid(9)))
-  const { recordTranscript } = await import('../../src/utils/sessionStorage.ts')
-  const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
+  const { recordTranscript } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+  const { createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
   await recordTranscript([createUserMessage({ content: 'a real message materializes the file' })])
   const rows: Array<{ operation?: string; content?: string }> = []
   const deadline = Date.now() + 3000

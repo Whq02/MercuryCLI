@@ -6,8 +6,8 @@ import { ADMITTED, check, childEnv, DIST, endLeg, FACE_READY, finish, printFrame
 import { captureEngineEntry, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { handoffTurn } from '../lib/fixtureApi.ts'
 import { untilAsync } from '../lib/untilAsync.ts'
-import { readSessionWorkers } from '../../src/daemon/concourseWorkers.ts'
-import { open } from '../../src/services/crewBoard/store.ts'
+import { readSessionWorkers } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
+import { open } from '../../src/crew/board/store.ts'
 
 type Cell = { c: string }
 type Grid = Cell[][]
@@ -199,7 +199,7 @@ const live = await capture('live', leg, ['--chat'], [
 stopDaemon(leg)
 
 section('§1 the scene: a hosted window, the swarm on, three posts addressed to the lead at three times, a finished job, then /compact')
-check('the capture ran every send (engine exit 0) and the three posts were written to the board', live.status === 0 && posted === 3, `exit ${live.status} · ${posted} posted · ${live.log.slice(-500)}; ${SCENE}; a post that did not land means boardOf found no board.sqlite for the session or open/post in src/services/crewBoard/store.ts refused it`)
+check('the capture ran every send (engine exit 0) and the three posts were written to the board', live.status === 0 && posted === 3, `exit ${live.status} · ${posted} posted · ${live.log.slice(-500)}; ${SCENE}; a post that did not land means boardOf found no board.sqlite for the session or open/post in src/crew/board/store.ts refused it`)
 const woken = live.marks.get('woken') ?? []
 const job = live.marks.get('job') ?? []
 const folded = live.marks.get('folded') ?? []

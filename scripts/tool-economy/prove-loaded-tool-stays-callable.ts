@@ -18,7 +18,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the loaded-tool proof exceeded 240s; a drive of query in src/query.ts or a compaction (compactConversation in src/services/compact/compact.ts) never finished against the fixture server in this proof')
+  console.log('\nTIMEOUT — the loaded-tool proof exceeded 240s; a drive of query in src/engine/turnDoor.ts or a compaction (compactConversation in src/engine/compaction/foldConversation.ts) never finished against the fixture server in this proof')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()
@@ -257,27 +257,27 @@ Object.assign(process.env, {
   MOONSHOT_API_KEY: 'fixture-moonshot-key',
 })
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/query.ts')
-const { productionDeps } = await import('../../src/query/deps.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
-const { compactConversation, buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
-const { buildTool } = await import('../../src/Tool.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
-const probe = await import('../../src/services/providers/deferralProbe.ts')
-const wire = await import('../../src/services/providers/deferralWire.ts')
-const { __resetOpenaiCatalogueForTest } = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const { recordTranscript, settleTranscriptMessage, flushSessionStorage } = await import('../../src/utils/sessionStorage/writer.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Message = import('../../src/types/message.ts').Message
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
+const { compactConversation, buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { buildTool } = await import('../../src/tools/kit/tool.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/tool-search/prompt.ts')
+const { clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.ts')
+const probe = await import('../../src/models/roads/deferralProbe.ts')
+const wire = await import('../../src/models/roads/deferralWire.ts')
+const { __resetOpenaiCatalogueForTest } = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const { recordTranscript, settleTranscriptMessage, flushSessionStorage } = await import('../../src/sessions/transcripts/writer.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 function fixtureTool(name: string, opts: { defer?: boolean; params: string[]; result: string; hint?: string }): Tool {
   const shape: Record<string, z.ZodTypeAny> = {}
@@ -408,9 +408,9 @@ interface Road {
 }
 let ids = 0
 const callId = (prefix: string): string => `${prefix}_${++ids}`
-const hintLoop = 'the request loop is query in src/query.ts; a throw or a different request count means the loaded-tool path changed there'
-const hintWire = 'which definitions reach the wire follows deferralWireFormFor in src/services/providers/deferralWire.ts and the deferral marks in src/services/providers/toolEconomy.ts'
-const hintFold = 'the fold is compactConversation and buildPostCompactMessages in src/services/compact/compact.ts; the admitted tools must cross it'
+const hintLoop = 'the request loop is query in src/engine/turnDoor.ts; a throw or a different request count means the loaded-tool path changed there'
+const hintWire = 'which definitions reach the wire follows deferralWireFormFor in src/models/roads/deferralWire.ts and the deferral marks in src/models/roads/toolEconomy.ts'
+const hintFold = 'the fold is compactConversation and buildPostCompactMessages in src/engine/compaction/foldConversation.ts; the admitted tools must cross it'
 const clientFetch = (prefix: string) => (call: Call): Turn[] => [
   { calls: [{ id: callId(`${prefix}_search`), name: TOOL_SEARCH_TOOL_NAME, args: { query: `select:${COMPUTER}` } }] },
   { calls: [call] },
@@ -464,7 +464,7 @@ for (const road of roads) {
     probe.recordGatewayProbe(probe.openaiGatewayProbeKey(`127.0.0.1:${port}`), { verdict: 'openai-native', evidence: 'http 200: fixture pass-through', status: 200, probedAt: new Date().toISOString() })
   }
   const verdict = wire.deferralWireFormFor(road.model)
-  check(`the wire form reads ${road.form}`, verdict.form === road.form, `${verdict.form}/${verdict.why} | change deferralWireFormFor in src/services/providers/deferralWire.ts`)
+  check(`the wire form reads ${road.form}`, verdict.form === road.form, `${verdict.form}/${verdict.why} | change deferralWireFormFor in src/models/roads/deferralWire.ts`)
   const ctx = makeCtx(road.model)
   const idPrefix = road.dialect === 'anthropic' ? 'toolu' : 'call'
 
@@ -602,7 +602,7 @@ if (only.length === 0 || only.includes('writer')) {
   }
   const mine = [...Array(TICKS + 1).keys()].map(n => `00000000-0000-4000-a000-${String(100000000000 + n)}`)
   const lost = mine.filter(uuid => withRecord.get(uuid) !== true)
-  check(`${TICKS + 1} assistant rows on disk, each with its turn record (the loaded definition and the calls), at every settle timing from 0 to ${TICKS} microtasks after the record`, mine.every(uuid => withRecord.has(uuid)) && lost.length === 0, `on disk=${mine.filter(uuid => withRecord.has(uuid)).length} lost=${lost.length} (${lost.map(uuid => mine.indexOf(uuid)).join(',')}); a settlement that lands ahead of its record is dropped: see recordTranscript and settleTranscriptMessage in src/utils/sessionStorage/writer.ts`)
+  check(`${TICKS + 1} assistant rows on disk, each with its turn record (the loaded definition and the calls), at every settle timing from 0 to ${TICKS} microtasks after the record`, mine.every(uuid => withRecord.has(uuid)) && lost.length === 0, `on disk=${mine.filter(uuid => withRecord.has(uuid)).length} lost=${lost.length} (${lost.map(uuid => mine.indexOf(uuid)).join(',')}); a settlement that lands ahead of its record is dropped: see recordTranscript and settleTranscriptMessage in src/sessions/transcripts/writer.ts`)
 }
 
 server.close()

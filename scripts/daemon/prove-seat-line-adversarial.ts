@@ -5,13 +5,13 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'seatline-adv-home-'))
 
-const { onSeatRow } = await import('../../src/daemon/sessionSeat.ts')
-const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { onSeatRow } = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { readSessionTail } = await import('../../src/engine/connector/seatProjections.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — to fix: onSeatRow in src/daemon/sessionSeat/rows.ts must decide by the row type, never by words inside the row; the tail it publishes is read by readSessionTail in src/services/engine-connector/seatProjections.ts' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — to fix: onSeatRow in src/daemon/session-seat/rows.ts must decide by the row type, never by words inside the row; the tail it publishes is read by readSessionTail in src/engine/connector/seatProjections.ts' : ''}`)
   if (!ok) failures++
 }
 

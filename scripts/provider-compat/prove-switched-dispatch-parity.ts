@@ -17,7 +17,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — switched dispatch parity prover exceeded 120s; a drive of queryEvents (src/query.ts) never finished, so find which drive stalled (captured requests reached the fixture server or not)')
+  console.log('\nTIMEOUT — switched dispatch parity prover exceeded 120s; a drive of queryEvents (src/engine/turnDoor.ts) never finished, so find which drive stalled (captured requests reached the fixture server or not)')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -80,19 +80,19 @@ console.log('============================================================')
 console.log(' switched dispatch parity — the ENGINE seam, headers included')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { queryEvents } = await import('../../src/query.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import(
-  '../../src/services/messages.ts'
+  '../../src/engine/messages/messages.ts'
 )
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-type Message = import('../../src/types/message.ts').Message
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const BASH = BashTool.name
 
@@ -211,7 +211,7 @@ const switched = await drive(switchedHistory())
 const fresh = await drive(freshHistory())
 
 section('§A dispatch fires post-switch — the engine seam AND the wire')
-failHint = 'a history carrying a /model switch must still dispatch through queryEvents in src/query.ts and send its request to the wire'
+failHint = 'a history carrying a /model switch must still dispatch through queryEvents in src/engine/turnDoor.ts and send its request to the wire'
 check('the switched drive threw nothing', switched.threw === undefined, String(switched.threw))
 check(
   'the engine DISPATCHED: model_call_started emitted on the switched run',
@@ -295,7 +295,7 @@ if (switched.request && fresh.request) {
 }
 
 section('§D both drives settle — no engine-side park on either path')
-failHint = 'queryEvents in src/query.ts must end both drives with reason completed and run_started first, run_terminal last'
+failHint = 'queryEvents in src/engine/turnDoor.ts must end both drives with reason completed and run_started first, run_terminal last'
 check('switched terminal: completed', switched.terminal.reason === 'completed', JSON.stringify(switched.terminal))
 check('fresh terminal: completed', fresh.terminal.reason === 'completed', JSON.stringify(fresh.terminal))
 check(

@@ -13,7 +13,7 @@ import { createSplashCore } from '../../assets/splash/splash-core.mjs'
 
 const REFUSAL = /needs \d+ rows|this window is|needs at least|terminal too small|too small for|resize to continue/i
 const CONCOURSE_HINT = '⇧→ concourse'
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
 const CONCOURSE_HINT_HOST = keyHintLabel(CONCOURSE_HINT)
 const HINT_ROW = '↵ start · ↑↓ choose'
 const LIVE_HINT_ROW = '>_ · ↵ · ↑↓'
@@ -118,8 +118,8 @@ console.log('§0 the composer against the approved grids')
   check('80×21: the splash hero keeps the banner, the rule and the blank on the rows the card view paints them', hero.length === 7 && hero.slice(0, 6).join('\n') === card.slice(0, 6).join('\n') && hero[1]!.includes('██▄██'), composerFix + hero.join('\n'))
   check('80×21: the ready line stands where the frame top composes in beneath the banner', hero[6] === ' '.repeat(36) + '>_  ·  ↵' && card[6] === topBorder(64, 8), `${composerFix}${hero[6]} / ${card[6]}`)
   const asset = readFileSync(join(ROOT, 'assets/splash/mercury-splash.mjs'), 'utf8')
-  const { LAYOUT_BREAKPOINTS } = await import('../../src/hooks/useLayoutTier.ts')
-  check('the launcher splash mirrors the cockpit gate the size latch reads', asset.includes(`const COMPACT_HOST_COLS = ${LAYOUT_BREAKPOINTS.cockpitMin}\n`) && asset.includes(`const COMPACT_HOST_ROWS = ${LAYOUT_BREAKPOINTS.cockpitMinRows}\n`) && asset.includes('const compactHost = (c, r) => CINEMATIC && !(c >= COMPACT_HOST_COLS && r >= COMPACT_HOST_ROWS)'), 'set COMPACT_HOST_COLS and COMPACT_HOST_ROWS and compactHost in assets/splash/mercury-splash.mjs to match LAYOUT_BREAKPOINTS.cockpitMin and cockpitMinRows in src/hooks/useLayoutTier.ts')
+  const { LAYOUT_BREAKPOINTS } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+  check('the launcher splash mirrors the cockpit gate the size latch reads', asset.includes(`const COMPACT_HOST_COLS = ${LAYOUT_BREAKPOINTS.cockpitMin}\n`) && asset.includes(`const COMPACT_HOST_ROWS = ${LAYOUT_BREAKPOINTS.cockpitMinRows}\n`) && asset.includes('const compactHost = (c, r) => CINEMATIC && !(c >= COMPACT_HOST_COLS && r >= COMPACT_HOST_ROWS)'), 'set COMPACT_HOST_COLS and COMPACT_HOST_ROWS and compactHost in assets/splash/mercury-splash.mjs to match LAYOUT_BREAKPOINTS.cockpitMin and cockpitMinRows in src/screen/fullscreen-layout/useLayoutTier.ts')
 }
 
 const sizes: Array<[number, number]> = process.argv.includes('--size')
@@ -162,18 +162,18 @@ for (const [cols, rows] of sizes) {
     writeFileSync(join(scratch, `${tag}-boot.txt`), boot.join('\n') + '\n')
     printFrame(`${cols}x${rows} Boot`, boot)
     printFrame(`${cols}x${rows} settled after ↵`, chat)
-    check(`${cols}x${rows}: the drive completed and the face painted its ready hint`, status === 0 && joined(boot).includes(FACE_READY), `the capture drive of the built bundle did not reach the Boot face ready line (rebuild dist with bun run build.ts; the face is src/components/bootSplash/face.tsx); drive output tail: ${stderr.slice(-600)}`)
-    check(`${cols}x${rows}: no refusal words on the face`, boot.length > 0 && !REFUSAL.test(joined(boot)), 'the Boot face printed a too-small refusal or nothing at this size; the compact face is src/components/bootSplash/face.tsx calling composeCompactFace in assets/splash/splash-core.mjs; see the printed Boot frame above')
+    check(`${cols}x${rows}: the drive completed and the face painted its ready hint`, status === 0 && joined(boot).includes(FACE_READY), `the capture drive of the built bundle did not reach the Boot face ready line (rebuild dist with bun run build.ts; the face is src/screen/boot-face/splash/face.tsx); drive output tail: ${stderr.slice(-600)}`)
+    check(`${cols}x${rows}: no refusal words on the face`, boot.length > 0 && !REFUSAL.test(joined(boot)), 'the Boot face printed a too-small refusal or nothing at this size; the compact face is src/screen/boot-face/splash/face.tsx calling composeCompactFace in assets/splash/splash-core.mjs; see the printed Boot frame above')
     const carets = boot.filter(l => l.includes('❯'))
-    check(`${cols}x${rows}: one row carries the caret and it is New Session`, carets.length === 1 && carets[0]!.includes('New Session'), `the Boot face must show one caret row on New Session (src/components/bootSplash/face.tsx, composeCompactFace in assets/splash/splash-core.mjs); caret rows: ${carets.join(' | ')}`)
-    check(`${cols}x${rows}: ↵ started a session`, joined(chat).includes(CHAT_READY), 'pressing Enter on the Boot face did not open a session showing the prompt line; see the printed settled frame above and the Boot face in src/components/bootSplash/face.tsx')
+    check(`${cols}x${rows}: one row carries the caret and it is New Session`, carets.length === 1 && carets[0]!.includes('New Session'), `the Boot face must show one caret row on New Session (src/screen/boot-face/splash/face.tsx, composeCompactFace in assets/splash/splash-core.mjs); caret rows: ${carets.join(' | ')}`)
+    check(`${cols}x${rows}: ↵ started a session`, joined(chat).includes(CHAT_READY), 'pressing Enter on the Boot face did not open a session showing the prompt line; see the printed settled frame above and the Boot face in src/screen/boot-face/splash/face.tsx')
     check(`${cols}x${rows}: the grid has the exact physical dimensions`, payload !== null && payload.grid.length === rows && payload.grid.every(line => line.length === cols), 'the capture grid file was missing or its size differs from the asked size; the drive did not finish, see the stderr tail printed by the first check of this size')
     check(`${cols}x${rows}: the cursor stays in bounds`, payload?.cursor !== undefined && payload.cursor.x >= 0 && payload.cursor.x < cols && payload.cursor.y >= 0 && payload.cursor.y < rows, 'the final cursor was missing or outside the window; the Boot or chat view parked the cursor off screen, or the drive did not finish')
     check(`${cols}x${rows}: the drive stayed on loopback`, nonLoopback(netlines(leg.netlog)).length === 0, 'the drive reached a non-loopback host; keep the session on the mock server of startLeg. Hosts: ' + nonLoopback(netlines(leg.netlog)).join(' | '))
     const compact = cols < 100 || rows < 26
     if (compact) {
       check(`${cols}x${rows}: the concourse key-map sits bottom-right`, bottomRight(boot, cols, rows), `the last row must hold the concourse key-map flush right (composeCompactFace in assets/splash/splash-core.mjs); last row: ${boot[rows - 1] ?? ''}`)
-      check(`${cols}x${rows}: the ready hint row is on the face`, boot.some(l => l.includes(LIVE_HINT_ROW)), 'the compact Boot face lost its ready hint row; check the hint segments src/components/bootSplash/face.tsx passes to composeCompactFace in assets/splash/splash-core.mjs')
+      check(`${cols}x${rows}: the ready hint row is on the face`, boot.some(l => l.includes(LIVE_HINT_ROW)), 'the compact Boot face lost its ready hint row; check the hint segments src/screen/boot-face/splash/face.tsx passes to composeCompactFace in assets/splash/splash-core.mjs')
     }
     if (cols === 80 && rows === 21) {
       check('80x21: the banner and rule stand above the centred card', boot.some(l => l.includes('██▄██')) && boot.some(l => l.includes('(>_)') && l.includes('■')), 'the 80x21 compact face should show the banner and rule above the card (composeCompactFace in assets/splash/splash-core.mjs); top rows: ' + boot.slice(0, 8).join(' | '))
@@ -189,7 +189,7 @@ for (const [cols, rows] of sizes) {
       check('40x10: the banner gives way and the 37-wide frame keeps all rows and the caret on screen', !boot.some(l => l.includes('██▄██')) && boot[0] === topBorder(37, 1) && boot.some(liveInFrameHint) && boot.some(l => l.includes('❯ New Session')), 'the 40x10 compact frame is wrong in the live face; fix composeCompactFace in assets/splash/splash-core.mjs. Boot frame is printed above')
     }
     if (!compact) {
-      check(`${cols}x${rows}: the full-size face is untouched (its own ready line, its key-map at the left, no compact frame)`, paintsBootFaceReady(joined(boot)) && (boot[rows - 1] ?? '').startsWith('  ' + CONCOURSE_HINT_HOST) && !boot.some(liveInFrameHint), 'the full-size Boot face (100x26 and up) must not use the compact frame or lose its left-aligned key-map; check the size gate in src/components/bootSplash/face.tsx. Boot frame is printed above')
+      check(`${cols}x${rows}: the full-size face is untouched (its own ready line, its key-map at the left, no compact frame)`, paintsBootFaceReady(joined(boot)) && (boot[rows - 1] ?? '').startsWith('  ' + CONCOURSE_HINT_HOST) && !boot.some(liveInFrameHint), 'the full-size Boot face (100x26 and up) must not use the compact frame or lose its left-aligned key-map; check the size gate in src/screen/boot-face/splash/face.tsx. Boot frame is printed above')
     }
   } finally {
     await endLeg(leg)

@@ -127,8 +127,8 @@ function masker(): (value: unknown) => unknown {
   return value => walk(value, undefined, [])
 }
 
-const { query } = await import('../../src/query.ts')
-const { productionDeps } = await import('../../src/query/deps.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
 
 let tape: Tape | undefined
 
@@ -208,24 +208,24 @@ function startTurn(params: Row): AsyncGenerator<unknown, unknown> {
   })()
 }
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(CWD)
 bootstrap.setCwdState(CWD)
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setPathTrusted } = await import('../../src/utils/config/trust.ts')
+const { setPathTrusted } = await import('../../src/platform/config/trust.ts')
 setPathTrusted(CWD)
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
-const { hookAnswerSchema } = await import('../../src/utils/hooks/contract.ts')
-const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import('../../src/constants/tools/syntheticOutput.ts')
-const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
-const { runForkedAgent } = await import('../../src/services/agents/forkedAgent.ts')
-const { runCrewmateHook } = await import('../../src/services/hooks/crewmateRunner.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { hookAnswerSchema } = await import('../../src/integrations/event-hooks/contract.ts')
+const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import('../../src/tools/kit/names/syntheticOutput.ts')
+const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { runForkedAgent } = await import('../../src/crew/agents/forkedAgent.ts')
+const { runCrewmateHook } = await import('../../src/integrations/event-hook-runners/crewmateRunner.ts')
 
 const MODEL = 'claude-opus-4-8'
 const ECHO = 'EchoTool'

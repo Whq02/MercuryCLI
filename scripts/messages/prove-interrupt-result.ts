@@ -15,13 +15,13 @@ import {
   turnCutResultText,
   turnCutWhy,
   unwrapToolUseError,
-} from '../../src/utils/messages/rejectionText.ts'
-import { createUserInterruptionMessage } from '../../src/utils/messages/factories.ts'
-import { buildMessageLookups } from '../../src/services/messages/lookups.ts'
-import { normalizeMessages } from '../../src/utils/messages/normalize.ts'
-import { isNotEmptyMessage } from '../../src/utils/messages/text.ts'
-import { createAssistantMessage, createUserMessage } from '../../src/services/messages.ts'
-import type { Message } from '../../src/types/message.ts'
+} from '../../src/engine/message-shapes/rejectionText.ts'
+import { createUserInterruptionMessage } from '../../src/engine/message-shapes/factories.ts'
+import { buildMessageLookups } from '../../src/engine/messages/lookups.ts'
+import { normalizeMessages } from '../../src/engine/message-shapes/normalize.ts'
+import { isNotEmptyMessage } from '../../src/engine/message-shapes/text.ts'
+import { createAssistantMessage, createUserMessage } from '../../src/engine/messages/messages.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 const IDLE = turnCutOf({ code: 'DEADLINE_EXCEEDED' })
 const STORED_PARENT_STOP = '[Request cut off: the workflow that ran this crewmate stopped]'
@@ -29,10 +29,10 @@ const STORED_PARENT_STOP = '[Request cut off: the workflow that ran this crewmat
 let checks = 0
 let failures = 0
 const INTERRUPT_FIX_HINT_BY_SECTION: Record<string, string> = {
-  A: 'change turnCutResultText for the operator cut in src/utils/messages/turnCut.ts',
-  B: 'change turnCutResultText, turnCutLine or turnCutOfText in src/utils/messages/turnCut.ts, or createUserInterruptionMessage in src/utils/messages/factories.ts',
-  C: 'change isDenialResultText or unwrapToolUseError in src/utils/messages/rejectionText.ts, turnCutOfText or isTurnCutText in src/utils/messages/turnCut.ts, isNotEmptyMessage in src/utils/messages/text.ts, or buildMessageLookups in src/services/messages/lookups.ts',
-  D: 'change readAgentTranscript in src/services/crew/agentTranscriptReader.ts, or the cut-line functions in src/utils/messages/turnCut.ts',
+  A: 'change turnCutResultText for the operator cut in src/engine/message-shapes/turnCut.ts',
+  B: 'change turnCutResultText, turnCutLine or turnCutOfText in src/engine/message-shapes/turnCut.ts, or createUserInterruptionMessage in src/engine/message-shapes/factories.ts',
+  C: 'change isDenialResultText or unwrapToolUseError in src/engine/message-shapes/rejectionText.ts, turnCutOfText or isTurnCutText in src/engine/message-shapes/turnCut.ts, isNotEmptyMessage in src/engine/message-shapes/text.ts, or buildMessageLookups in src/engine/messages/lookups.ts',
+  D: 'change readAgentTranscript in src/crew/crewmates/agentTranscriptReader.ts, or the cut-line functions in src/engine/message-shapes/turnCut.ts',
   E: '',
 }
 let interruptFixHint = ''
@@ -131,9 +131,9 @@ section('C the census: every reader that recognised an interrupt result still do
 
 section('D the crewmate transcript reader, and the cut lines a stored transcript may hold')
 {
-  const { readAgentTranscript } = await import('../../src/services/crew/agentTranscriptReader.ts')
-  const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-  const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
+  const { readAgentTranscript } = await import('../../src/crew/crewmates/agentTranscriptReader.ts')
+  const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+  const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
   const dir = mkdtempSync(join(tmpdir(), 'interrupt-result-'))
   let seq = 0
   const writer = { sessionId: 'interrupt-result-proof' as never, nextOrdinal: () => ordinalOf(++seq), observedAt: '2026-01-01T00:00:00.000Z', source: { channel: 'sdk' } as const }
@@ -203,7 +203,7 @@ section('E the runtime check over every recogniser of the interrupt text')
   check(
     'the turn machine still settles a call cut mid-stream through turnCutResultText(turnCutOf(reason)), in words every recogniser reads as a stop',
     wrote.join(' / ') === owed.join(' / ') && wrote[0] === result && wrote.every(isDenialResultText),
-    `modelReply (src/run-core/turn/modelReply.ts) must settle a tool call the abort cut with turnCutResultText(turnCutOf(the abort's reason)); for no reason, a steer, a deadline and an Error it wrote ${JSON.stringify(wrote)}, and the owner says ${JSON.stringify(owed)}`,
+    `modelReply (src/engine/loop/turn/modelReply.ts) must settle a tool call the abort cut with turnCutResultText(turnCutOf(the abort's reason)); for no reason, a steer, a deadline and an Error it wrote ${JSON.stringify(wrote)}, and the owner says ${JSON.stringify(owed)}`,
   )
   const cutMidTool = await t.runScripted({
     tools: [{ name: 'SlowTool', result: 'finished during the abort', onCall: rig => rig.abortController.abort() }],
@@ -222,7 +222,7 @@ section('E the runtime check over every recogniser of the interrupt text')
   check(
     'the facts come from turnCutResultText and nowhere else',
     PARTIAL.test(result) && cutMidTool.terminal.reason === 'aborted_tools' && minted.length > 0 && minted.every(text => text === result),
-    `a run the operator cuts, in the stream or in the tools, must say what may have happened only in the owner's result text, word for word: the steps under src/run-core/turn/ write no such sentence of their own; of ${said.length} strings in the two runs' events these name the facts and are not the owner's text: ${JSON.stringify(minted.filter(text => text !== result))}${minted.length === 0 ? ' (and none names them at all)' : ''}`,
+    `a run the operator cuts, in the stream or in the tools, must say what may have happened only in the owner's result text, word for word: the steps under src/engine/loop/turn/ write no such sentence of their own; of ${said.length} strings in the two runs' events these name the facts and are not the owner's text: ${JSON.stringify(minted.filter(text => text !== result))}${minted.length === 0 ? ' (and none names them at all)' : ''}`,
   )
 }
 

@@ -10,10 +10,10 @@ process.env.MERCURY_CONFIG_DIR = join(root, 'home')
 process.env.MERCURY_BARE = '1'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_DESKTOP_PACK_DIR = resolve(import.meta.dir, '../../vendor/desktop', `${process.platform}-${process.arch}`)
-const { resolveOcrEngine, ocrInstallHint } = await import('../../src/services/ocr.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { resolveOcrEngine, ocrInstallHint } = await import('../../src/tools/kit/ocr.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const ctx = (model: string) => ({ options: { engineModel: model }, readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), messages: [], getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }) as never
 try {
   for (const platform of ['win32', 'linux', 'darwin']) {
@@ -26,7 +26,7 @@ try {
   assert.equal(windows.name, 'Windows OCR')
   console.log('PASS Windows/Linux OCR resolution and missing-engine hints; real Windows/Linux OCR not run')
   if (process.platform === 'darwin') {
-    const { getImageProcessor } = await import('../../src/utils/imageProcessor/imageProcessor.ts')
+    const { getImageProcessor } = await import('../../src/platform/images/imageProcessor.ts')
     const sharp = await getImageProcessor()
     const svg = Buffer.from('<svg width="1200" height="240"><rect width="1200" height="240" fill="white"/><text x="40" y="120" font-size="64" font-family="Helvetica" fill="black">MERCURY RESEARCH 42</text></svg>')
     const png = await sharp(svg).png().toBuffer()
@@ -59,7 +59,7 @@ try {
     process.env.PATH = `${renderer}:${process.env.PATH}`
     const pageVision = await FileReadTool.call({ file_path: pdfPath, pages: '1' }, ctx('claude-sonnet-5-5'))
     const pageVisionJson = JSON.stringify(pageVision.newMessages)
-    assert.ok(pageVisionJson.includes('MERCURY RESEARCH 42'), `FileReadTool(pages: '1') newMessages omitted OCR text MERCURY RESEARCH 42 in src/tools/FileReadTool/FileReadTool.ts: ${pageVisionJson.slice(0, 200)}`)
+    assert.ok(pageVisionJson.includes('MERCURY RESEARCH 42'), `FileReadTool(pages: '1') newMessages omitted OCR text MERCURY RESEARCH 42 in src/tools/read/ReadTool.ts: ${pageVisionJson.slice(0, 200)}`)
     console.log('PASS real macOS Vision OCR: PNG, explicit OCR on a vision model and scanned PDF')
   }
 } finally { rmSync(root, { recursive: true, force: true }) }

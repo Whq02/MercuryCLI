@@ -19,13 +19,13 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : writeTargetFixHint}`)
 }
-const writeTargetFixHint = ' | fix: the directory refusal is in validateInput in src/tools/FileWriteTool/FileWriteTool.ts (the isDirectory branch); the edit matcher in section 3 is findActualString in src/utils/fileEditUtils.ts'
+const writeTargetFixHint = ' | fix: the directory refusal is in validateInput in src/tools/write/WriteTool.ts (the isDirectory branch); the edit matcher in section 3 is findActualString in src/tools/edit/call/editMatching.ts'
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { findActualString } = await import('../../src/utils/fileEditUtils.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { findActualString } = await import('../../src/tools/edit/call/editMatching.ts')
 
 const appState = getDefaultAppState()
 const context = { getAppState: () => appState, abortController: new AbortController(), options: { tools: [] } } as never

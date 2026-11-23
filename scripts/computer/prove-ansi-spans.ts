@@ -1,16 +1,16 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/ansiSpans.ts
+// gate-watch: src/integrations/desktop/ansiSpans.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}${ok ? '' : ' — change parseAnsi (or DEFAULT_BG) in src/utils/ansiSpans.ts so this row parses as the label says'}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}${ok ? '' : ' — change parseAnsi (or DEFAULT_BG) in src/integrations/desktop/ansiSpans.ts so this row parses as the label says'}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { DEFAULT_BG, parseAnsi } = await import('../../src/utils/ansiSpans.ts')
+const { DEFAULT_BG, parseAnsi } = await import('../../src/integrations/desktop/ansiSpans.ts')
 const E = '\u001b['
 const FG = { r: 229, g: 229, b: 229 }
 

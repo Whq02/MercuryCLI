@@ -13,31 +13,31 @@ delete process.env.MERCURY_CHANGE_RECEIPTS
 if (process.argv.includes('--print-schema-keys')) {
   const gateArg = process.argv.find(a => a.startsWith('--gate='))
   if (gateArg) process.env.MERCURY_EDIT_HUNKS = gateArg.slice('--gate='.length)
-  const { FileEditTool: tool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
+  const { FileEditTool: tool } = await import('../../src/tools/edit/EditTool.ts')
   const shape = (tool as { inputSchema: { shape?: Record<string, unknown> } }).inputSchema.shape ?? {}
   console.log(JSON.stringify(Object.keys(shape)))
   process.exit(0)
 }
 
 const { planHunks, applyHunks, countLines } = await import(
-  '../../src/services/changeTransaction/hunks.ts'
+  '../../src/tools/engines/change-transaction/hunks.ts'
 )
 const { mintFileAnchor, mintRangeAnchor } = await import(
-  '../../src/services/changeTransaction/snapshotAnchor.ts'
+  '../../src/tools/engines/change-transaction/snapshotAnchor.ts'
 )
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}to fix: planHunks and applyHunks in src/services/changeTransaction/hunks.ts, or the hunks input of validateInput and call in src/tools/FileEditTool/FileEditTool.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}to fix: planHunks and applyHunks in src/tools/engines/change-transaction/hunks.ts, or the hunks input of validateInput and call in src/tools/edit/EditTool.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — hunks proof exceeded 90s; an Edit call (src/tools/FileEditTool/FileEditTool.ts) or a child process did not return, and the last section printed above is where it stopped')
+  console.log('\nTIMEOUT — hunks proof exceeded 90s; an Edit call (src/tools/edit/EditTool.ts) or a child process did not return, and the last section printed above is where it stopped')
   process.exit(1)
 }, 90_000)
 guard.unref?.()

@@ -25,15 +25,15 @@ function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 
-const injectHint = 'change injectTurnReceipts in src/utils/cockpit/turnReceipt.ts (where rows and the receipt are placed)'
-const foldHint = 'change foldedTurnReceipts in src/utils/cockpit/turnReceipt.ts (what a fold carries), or injectTurnReceipts there for how the boundary paints'
-const rowHint = 'change src/components/messages/TurnReceiptRow.tsx (the words the receipt row paints)'
-const actionHint = 'change isNavigableMessage, copyTextOf or MESSAGE_ACTIONS in src/components/messageActions.tsx'
-const frameHint = 'the frame is the built dist/mercury.mjs painting a resumed session: rebuild it with bun run build.ts, then compare with the unit checks above (injectTurnReceipts in src/utils/cockpit/turnReceipt.ts, TurnReceiptRow in src/components/messages/TurnReceiptRow.tsx)'
+const injectHint = 'change injectTurnReceipts in src/screen/cockpit/turnReceipt.ts (where rows and the receipt are placed)'
+const foldHint = 'change foldedTurnReceipts in src/screen/cockpit/turnReceipt.ts (what a fold carries), or injectTurnReceipts there for how the boundary paints'
+const rowHint = 'change src/screen/messages/TurnReceiptRow.tsx (the words the receipt row paints)'
+const actionHint = 'change isNavigableMessage, copyTextOf or MESSAGE_ACTIONS in src/screen/messages/messageActions.tsx'
+const frameHint = 'the frame is the built dist/mercury.mjs painting a resumed session: rebuild it with bun run build.ts, then compare with the unit checks above (injectTurnReceipts in src/screen/cockpit/turnReceipt.ts, TurnReceiptRow in src/screen/messages/TurnReceiptRow.tsx)'
 process.env.MERCURY_TURN_RECEIPT = '1'
-const receiptModule = await import('../../src/utils/cockpit/turnReceipt.ts')
+const receiptModule = await import('../../src/screen/cockpit/turnReceipt.ts')
 const { injectTurnReceipts, foldedTurnReceipts, hasActivity, isTurnBoundary } = receiptModule
-const { isNavigableMessage, copyTextOf, MESSAGE_ACTIONS } = await import('../../src/components/messageActions.tsx')
+const { isNavigableMessage, copyTextOf, MESSAGE_ACTIONS } = await import('../../src/screen/messages/messageActions.tsx')
 type Row = Record<string, unknown>
 const prompt = (text: string, uuid: string): Row => ({ type: 'user', uuid, message: { role: 'user', content: text } })
 const toolUse = (name: string, uuid: string): Row => ({ type: 'assistant', uuid, message: { role: 'assistant', content: [{ type: 'tool_use', id: `t-${uuid}`, name, input: {} }] } })
@@ -61,12 +61,12 @@ section('the board event makes one durable row, not the tool result')
   const home = process.env.MERCURY_CONFIG_DIR
   if (!home) throw new Error('use a scratch MERCURY_CONFIG_DIR')
   const scratch = mkdtempSync(join(home, 'lead-row-'))
-  const { buildTool } = await import('../../src/Tool.ts')
-  const { open } = await import('../../src/services/crewBoard/store.ts')
-  const { tool } = await import('../../src/services/crewBoard/implementation.ts')
-  const { partyFeed } = await import('../../src/services/crewBoard/party.ts')
-  const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-  const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
+  const { buildTool } = await import('../../src/tools/kit/tool.ts')
+  const { open } = await import('../../src/crew/board/store.ts')
+  const { tool } = await import('../../src/crew/board/implementation.ts')
+  const { partyFeed } = await import('../../src/crew/board/party.ts')
+  const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+  const reader = await import('../../src/sessions/transcripts/transcriptReader.ts')
   const sessionId = '00000000-0000-4000-8000-000000000001'
   const board = open(join(scratch, 'board.sqlite'), sessionId)
   const principal = { author: { sessionId, agentId: 'main', executionId: 'lead-turn' }, name: 'main' }
@@ -95,7 +95,7 @@ section('the board event makes one durable row, not the tool result')
     party.check()
     await Promise.resolve()
     const own = rows.find(row => row.subtype === 'crew_chat')
-    check('the CrewBoard post supplies its event id; the feed stamps lead and main at the call boundary', (result.data as { ok?: boolean; eventId?: string }).ok === true && own?.uuid === (result.data as { eventId?: string }).eventId && own?.authorRole === 'lead' && own?.name === 'main' && own?.turnId === 'p1' && rows[2] === own, JSON.stringify(own) + '. change partyFeed in src/services/crewBoard/party.ts (the row it records at the call boundary) or the post op in src/services/crewBoard/implementation.ts (the event id it returns)')
+    check('the CrewBoard post supplies its event id; the feed stamps lead and main at the call boundary', (result.data as { ok?: boolean; eventId?: string }).ok === true && own?.uuid === (result.data as { eventId?: string }).eventId && own?.authorRole === 'lead' && own?.name === 'main' && own?.turnId === 'p1' && rows[2] === own, JSON.stringify(own) + '. change partyFeed in src/crew/board/party.ts (the row it records at the call boundary) or the post op in src/crew/board/implementation.ts (the event id it returns)')
     const live = await reader.readTranscriptChainSince(transcript, null)
     record({ type: 'user', uuid: 'result', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't-call', content: JSON.stringify(result.data) }] } })
     const incoming: string[] = []
@@ -115,11 +115,11 @@ section('the board event makes one durable row, not the tool result')
     const expected = ['p1', 'call', own?.uuid, 'result', ...incoming, 'done', 'receipt:p1']
     for (const [label, chain] of [['live', streamed], ['reattach', reattached], ['cold resume', cold]] as const) {
       const painted = inject([...chain.rows] as Row[])
-      check(`${label}: the lead row stands once at its boundary and the two incoming rows stand where they landed, before the reply`, JSON.stringify(shape(painted)) === JSON.stringify(expected) && plain(painted), JSON.stringify(shape(painted)) + '. ' + injectHint + ', or the transcript chain reader in src/utils/sessionStorage/transcriptReader.ts if only one of live, reattach and cold resume fails')
+      check(`${label}: the lead row stands once at its boundary and the two incoming rows stand where they landed, before the reply`, JSON.stringify(shape(painted)) === JSON.stringify(expected) && plain(painted), JSON.stringify(shape(painted)) + '. ' + injectHint + ', or the transcript chain reader in src/sessions/transcripts/transcriptReader.ts if only one of live, reattach and cold resume fails')
     }
     party.check()
     await Promise.resolve()
-    check('the persisted cursor prevents a second copy of the lead row', rows.filter(row => row.uuid === own?.uuid).length === 1 && board.screenCursor() === board.view().snapshot, 'change partyFeed in src/services/crewBoard/party.ts so the screen cursor is marked once the lead row is recorded')
+    check('the persisted cursor prevents a second copy of the lead row', rows.filter(row => row.uuid === own?.uuid).length === 1 && board.screenCursor() === board.view().snapshot, 'change partyFeed in src/crew/board/party.ts so the screen cursor is marked once the lead row is recorded')
   } finally {
     board.close()
     rmSync(scratch, { recursive: true, force: true })
@@ -129,8 +129,8 @@ section('the board event makes one durable row, not the tool result')
 section('words')
 
 section('a board row is never a turn boundary')
-check('a crew_chat row is not a boundary', !isTurnBoundary(chat('c0', 1, 'alpha', 'x', 'p1') as never), 'change isTurnBoundary in src/utils/cockpit/turnReceipt.ts so a crew_chat row never starts a turn')
-check('a virtual user row (the off-state Crewboard notice) is not a boundary either', !isTurnBoundary({ type: 'user', isVirtual: true, message: { role: 'user', content: '<crew-board>{}</crew-board>' } } as never), 'change isTurnBoundary in src/utils/cockpit/turnReceipt.ts so a virtual user row never starts a turn')
+check('a crew_chat row is not a boundary', !isTurnBoundary(chat('c0', 1, 'alpha', 'x', 'p1') as never), 'change isTurnBoundary in src/screen/cockpit/turnReceipt.ts so a crew_chat row never starts a turn')
+check('a virtual user row (the off-state Crewboard notice) is not a boundary either', !isTurnBoundary({ type: 'user', isVirtual: true, message: { role: 'user', content: '<crew-board>{}</crew-board>' } } as never), 'change isTurnBoundary in src/screen/cockpit/turnReceipt.ts so a virtual user row never starts a turn')
 const split = inject([prompt('go', 'p1'), toolUse('Bash', 'a1'), chat('c1', 1, 'alpha', 'one', 'p1'), toolUse('Bash', 'a2'), reply('done', 'a3'), prompt('next', 'p2')])
 check('two shell commands around an admitted row stay one turn: the row between them, one receipt of 2 commands', JSON.stringify(shape(split)) === '["p1","a1","c1","a2","a3","receipt:p1","p2"]' && receiptOf(split, 'p1')?.counts.commands === 2 && plain(split), JSON.stringify(shape(split)) + '. ' + injectHint)
 
@@ -170,14 +170,14 @@ check('while the wake turn runs, its admitted row stays on screen after the repl
 
 section('MERCURY_TURN_RECEIPT=0 keeps every row in place')
 process.env.MERCURY_TURN_RECEIPT = '0'
-check('the injector returns its input untouched: admitted rows stay expanded in place', injectTurnReceipts(many as never, TEMP_ROOT) === (many as never), 'change injectTurnReceipts in src/utils/cockpit/turnReceipt.ts to return its input array itself when MERCURY_TURN_RECEIPT is 0')
+check('the injector returns its input untouched: admitted rows stay expanded in place', injectTurnReceipts(many as never, TEMP_ROOT) === (many as never), 'change injectTurnReceipts in src/screen/cockpit/turnReceipt.ts to return its input array itself when MERCURY_TURN_RECEIPT is 0')
 process.env.MERCURY_TURN_RECEIPT = '1'
 
 section('a board row folds with its turn: the fold retains no row, and nothing a boundary carried paints after the summary')
 const kept = many.slice(9)
 const carried = foldedTurnReceipts(many as never, kept as never, 'sum', TEMP_ROOT)
 check('a fully folded turn retains no receipt and no receipt carries board rows', carried.every(receipt => !('board' in receipt) && !('boardMessages' in receipt.counts)) && !carried.some(receipt => receipt.beforeUuid === 'sum'), JSON.stringify(carried) + '. ' + foldHint)
-check('the module has no row retainer and no retained-row injector', !('retainedChatRows' in receiptModule) && !('injectRetainedChatRows' in receiptModule), 'remove the retainedChatRows or injectRetainedChatRows export from src/utils/cockpit/turnReceipt.ts')
+check('the module has no row retainer and no retained-row injector', !('retainedChatRows' in receiptModule) && !('injectRetainedChatRows' in receiptModule), 'remove the retainedChatRows or injectRetainedChatRows export from src/screen/cockpit/turnReceipt.ts')
 const boundary = (receipts: unknown, uuid = 'cb', carriedRows: Record<string, unknown> = {}): Row => ({ type: 'system', subtype: 'compact_boundary', uuid, compactMetadata: { work: { receipts, recap: { turns: 1, toolCounts: [], files: [], toolFailures: 0, failedToolUseIds: [] }, ...carriedRows } } })
 const summary: Row = { type: 'user', uuid: 'sum', isCompactSummary: true, isVisibleInTranscriptOnly: true, message: { role: 'user', content: 'The summary.' } }
 const leadCarry = foldedTurnReceipts(leadTurn as never, [] as never, 'sum', TEMP_ROOT)
@@ -209,11 +209,11 @@ check('enter does not address it', !MESSAGE_ACTIONS.some(action => action.key ==
 check('copy takes nothing from it', copyTextOf(receiptRow as never) === '', actionHint)
 
 section('the painted words')
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { render, Box, flushPendingSyncWork } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { TurnReceiptRow } = await import('../../src/components/messages/TurnReceiptRow.js')
+const { render, Box, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { TurnReceiptRow } = await import('../../src/screen/messages/TurnReceiptRow.js')
 async function paint(message: Row, columns = 120): Promise<string[]> {
   const stdin = Object.assign(new NodeEventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } }) as unknown as NodeJS.ReadStream
   const stream = new PassThrough()
@@ -247,11 +247,11 @@ else if (driver.kind !== 'posix-pty') console.log(`  [SKIP] the frames need the 
 else {
   const home = process.env.MERCURY_CONFIG_DIR
   if (!home) throw new Error('the frames need a scratch MERCURY_CONFIG_DIR')
-  const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
-  const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-  const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
+  const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+  const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
   const { gridToPng } = await import('./gridToPng.ts')
-  const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+  const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const { seedFirstRun, FIXTURE_API_KEY } = await import('../lib/firstRunSeed.ts')
   const { startFixtureApi } = await import('../lib/fixtureApi.ts')
   const api = await startFixtureApi([])
@@ -294,7 +294,7 @@ else {
   const NOTICE = '@main The notice arrived.'
   const WAKE_POST = '@main The wake arrived.'
   const WAKE_REPLY = 'The wake reply.'
-  const { BOARD_PACKET_RULE } = await import('../../src/services/crewBoard/contracts.ts')
+  const { BOARD_PACKET_RULE } = await import('../../src/crew/board/contracts.ts')
   const fixture = (leg: 'idle' | 'cursor' | 'notice' | 'wake') => {
     const rows = leg === 'wake' ? [
       base({ parentUuid: null, type: 'user', uuid: P3, message: { role: 'user', content: 'say hello' }, timestamp: '2026-06-19T12:00:09.000Z' }),

@@ -127,7 +127,7 @@ async function drive(): Promise<void> {
     process.exit(1)
   }
   process.chdir(REPO)
-  const { boundTools, withoutCacheControl } = await import('../../src/services/providers/anthropic/prefixLedger.ts')
+  const { boundTools, withoutCacheControl } = await import('../../src/models/roads/anthropic/prefixLedger.ts')
 
   const RUN_HOME = path.join(realpathSync(tmpdir()), `mercury-prefix-frozen-${process.pid}`)
   const CWD = path.join(RUN_HOME, 'fixture-repo')

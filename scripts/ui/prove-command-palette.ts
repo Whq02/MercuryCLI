@@ -3,8 +3,8 @@ import { execSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { fuzzySearch } from '../../src/utils/fuzzyMatch.ts'
-import { DEFAULT_BINDINGS } from '../../src/keybindings/defaultBindings.ts'
+import { fuzzySearch } from '../../src/platform/text/fuzzyMatch.ts'
+import { DEFAULT_BINDINGS } from '../../src/screen/keys/defaultBindings.ts'
 import { formsMissing, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
 let failures = 0
@@ -24,18 +24,18 @@ console.log('============================================================')
 section('1. fuzzy ranking ranks (pure fuzzySearch — the palette engine)')
 const names = ['color', 'compact', 'config', 'copy', 'context', 'control', 'cockpit', 'help', 'mission', 'deck']
 const co = fuzzySearch(names, 'co', 10)
-check('"co" returns matches', co.length > 0, `${co.length} hits`, 'change fuzzySearch in src/utils/fuzzyMatch.ts')
-check('every "co" hit actually contains the needle letters in order', co.every(r => /c.*o/i.test(r.path)), '', 'change fuzzySearch in src/utils/fuzzyMatch.ts so it returns only names containing the query letters in order')
-check('non-matching names are rejected (help/mission absent for "co")', !co.some(r => r.path === 'help' || r.path === 'mission'), '', 'change fuzzySearch in src/utils/fuzzyMatch.ts so it rejects names that lack the query letters')
+check('"co" returns matches', co.length > 0, `${co.length} hits`, 'change fuzzySearch in src/platform/text/fuzzyMatch.ts')
+check('every "co" hit actually contains the needle letters in order', co.every(r => /c.*o/i.test(r.path)), '', 'change fuzzySearch in src/platform/text/fuzzyMatch.ts so it returns only names containing the query letters in order')
+check('non-matching names are rejected (help/mission absent for "co")', !co.some(r => r.path === 'help' || r.path === 'mission'), '', 'change fuzzySearch in src/platform/text/fuzzyMatch.ts so it rejects names that lack the query letters')
 const ckpt = fuzzySearch(names, 'ckpt', 10)
-check('subsequence query "ckpt" finds "cockpit" (true fuzzy, not substring)', ckpt.some(r => r.path === 'cockpit'), '', 'change fuzzySearch in src/utils/fuzzyMatch.ts so a subsequence query matches')
+check('subsequence query "ckpt" finds "cockpit" (true fuzzy, not substring)', ckpt.some(r => r.path === 'cockpit'), '', 'change fuzzySearch in src/platform/text/fuzzyMatch.ts so a subsequence query matches')
 const empty = fuzzySearch(names, 'zzzq', 10)
-check('a no-match query returns empty (honest, no false hits)', empty.length === 0, '', 'change fuzzySearch in src/utils/fuzzyMatch.ts so a query with no match returns no hits')
+check('a no-match query returns empty (honest, no false hits)', empty.length === 0, '', 'change fuzzySearch in src/platform/text/fuzzyMatch.ts so a query with no match returns no hits')
 
 section('2. keybinding: action + FLAG-GATED ctrl+x p binding')
-check("ctrl+x p binds app:commandPalette", DEFAULT_BINDINGS.find(block => block.context === 'Global')?.bindings['ctrl+x p'] === 'app:commandPalette', '', 'bind ctrl+x p to app:commandPalette in the Global block of DEFAULT_BINDINGS in src/keybindings/defaultBindings.ts')
+check("ctrl+x p binds app:commandPalette", DEFAULT_BINDINGS.find(block => block.context === 'Global')?.bindings['ctrl+x p'] === 'app:commandPalette', '', 'bind ctrl+x p to app:commandPalette in the Global block of DEFAULT_BINDINGS in src/screen/keys/defaultBindings.ts')
 const unbound = formsMissing(shippedKeyForms(), 'Global', 'ctrl+x p', 'app:commandPalette')
-check('the ctrl+x p binding is present unconditionally (Global binds it on every shipped form: four platforms, five switch settings)', unbound.length === 0, unbound.join(' · '), 'bind ctrl+x p to app:commandPalette in the Global block of src/keybindings/defaultBindings.ts for each form listed')
+check('the ctrl+x p binding is present unconditionally (Global binds it on every shipped form: four platforms, five switch settings)', unbound.length === 0, unbound.join(' · '), 'bind ctrl+x p to app:commandPalette in the Global block of src/screen/keys/defaultBindings.ts for each form listed')
 
 
 section('5. it SHIPS in dist (never DCE-folded)')
@@ -45,9 +45,9 @@ if (!existsSync(dist)) {
 } else {
   const grep = (s: string) =>
     execSync(`grep -c ${JSON.stringify(s)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'
-  check('dist carries the palette header literal ("— command palette" via view prop)', grep('command palette'), '', 'the header text lives in src/components/MercuryCommandPalette.tsx; check it is not dropped from the build')
-  check('dist carries the empty-query placeholder', grep('fuzzy by name or what it does'), '', 'the placeholder lives in src/components/MercuryCommandPalette.tsx; check it is not dropped from the build')
-  check("dist carries the 'app:commandPalette' action", grep('app:commandPalette'), '', 'the action is bound in src/keybindings/defaultBindings.ts; check it is not dropped from the build')
+  check('dist carries the palette header literal ("— command palette" via view prop)', grep('command palette'), '', 'the header text lives in src/screen/composer/MercuryCommandPalette.tsx; check it is not dropped from the build')
+  check('dist carries the empty-query placeholder', grep('fuzzy by name or what it does'), '', 'the placeholder lives in src/screen/composer/MercuryCommandPalette.tsx; check it is not dropped from the build')
+  check("dist carries the 'app:commandPalette' action", grep('app:commandPalette'), '', 'the action is bound in src/screen/keys/defaultBindings.ts; check it is not dropped from the build')
 }
 
 console.log('\n' + '='.repeat(60))

@@ -15,25 +15,25 @@ process.env.MERCURY_REDUCED_MOTION = '1'
 process.env.BROWSER = '/usr/bin/true'
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { BackgroundTasksDialog } = await import('../../src/components/tasks/BackgroundTasksDialog.tsx')
-const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
-const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
-const { useLayoutChrome } = await import('../../src/context/layoutChromeContext.tsx')
-const { useTerminalSize, useRealTerminalSize } = await import('../../src/hooks/useTerminalSize.ts')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { BackgroundTasksDialog } = await import('../../src/screen/tasks/BackgroundTasksDialog.tsx')
+const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
+const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
+const { useLayoutChrome } = await import('../../src/screen/fullscreen-layout/layoutChromeContext.tsx')
+const { useTerminalSize, useRealTerminalSize } = await import('../../src/screen/fullscreen-layout/useTerminalSize.ts')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const { default: instances } = await import('../../src/ink/instances.ts')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
 const h = React.createElement
 let failures = 0
 let checks = 0
@@ -47,7 +47,7 @@ async function until(label: string, predicate: () => boolean): Promise<void> {
   const timer = setTimeout(() => { expired = true }, 5000)
   while (!predicate() && !expired) await new Promise<void>(resolve => setImmediate(resolve))
   clearTimeout(timer)
-  check(label, predicate(), '', 'the condition did not hold within 5 seconds; read the behaviour it names in this script Harness and in the components it mounts (src/components/PromptInput/PromptInput.tsx, src/components/tasks/CompactWorkSummary.tsx, src/components/FullscreenLayout.tsx)')
+  check(label, predicate(), '', 'the condition did not hold within 5 seconds; read the behaviour it names in this script Harness and in the components it mounts (src/screen/composer/Composer.tsx, src/screen/tasks/CompactWorkSummary.tsx, src/screen/fullscreen-layout/FullscreenLayout.tsx)')
 }
 class Output extends EventEmitter {
   isTTY = true
@@ -85,8 +85,8 @@ for (const editorMode of ['emacs', 'vim'] as const) {
   let frames = 0
   const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false, onFrame: () => { frames++ } })
   instances.set(stdout as never, ink)
-  const scrollRef = React.createRef<import('../../src/ink/components/ScrollBox.tsx').ScrollBoxHandle>()
-  const insertRef = { current: null } as React.MutableRefObject<import('../../src/components/PromptInput/PromptInput.tsx').PromptInputProps['insertTextRef']['current']>
+  const scrollRef = React.createRef<import('../../src/screen/renderer/elements/ScrollBox.tsx').ScrollBoxHandle>()
+  const insertRef = { current: null } as React.MutableRefObject<import('../../src/screen/composer/Composer.tsx').PromptInputProps['insertTextRef']['current']>
   const sent: string[] = []
   let control: ReturnType<typeof useCompactWorkControls>['controls'] | null = null
   let physical = { columns: 0, rows: 0 }
@@ -146,36 +146,36 @@ for (const editorMode of ['emacs', 'vim'] as const) {
     await until(`${editorMode}: the held draft is painted in the editor`, () => ink.lastFrameText().includes('❯ alpha beta'))
     for (const [columns, rows, expectedCompact] of [[80, 24, true], [120, 24, true], [60, 16, true], [40, 10, true], [1, 1, true], [1, 40, true], [200, 1, true], [2, 2, true], [99, 26, true], [100, 26, false], [97, 26, false], [96, 26, true], [99, 26, true], [100, 26, false], [100, 25, true], [120, 40, false], [80, 24, true]] as const) {
       await resize(columns, rows)
-      check(`${editorMode}: the renderer uses the settled latch at ${columns}x${rows}`, compact === expectedCompact, '', 'the compact or full chrome choice at this size comes from layoutChromeLive in src/hooks/useLayoutTier.ts; check its column and row thresholds and its latch')
-      check(`${editorMode}: resize preserves the actual transcript handle`, scrollRef.current === handle && transcriptMounts === 1, '', 'a resize must not remount the transcript; check how src/components/FullscreenLayout.tsx keeps the scrollable subtree across compact and full layouts')
-      check(`${editorMode}: draft and middle cursor survive ${columns}x${rows}`, pending.text() === 'alpha beta' && insertRef.current?.cursorOffset === 5, '', 'a resize must keep the draft in src/input-core/pending-input.ts and the cursor in src/components/PromptInput/PromptInput.tsx')
-      check(`${editorMode}: local allocation is bounded by the physical terminal`, local.columns > 0 && local.columns <= columns && local.rows >= 0 && local.rows <= rows, '', 'useTerminalSize in src/hooks/useTerminalSize.ts must never report more columns or rows than useRealTerminalSize')
+      check(`${editorMode}: the renderer uses the settled latch at ${columns}x${rows}`, compact === expectedCompact, '', 'the compact or full chrome choice at this size comes from layoutChromeLive in src/screen/fullscreen-layout/useLayoutTier.ts; check its column and row thresholds and its latch')
+      check(`${editorMode}: resize preserves the actual transcript handle`, scrollRef.current === handle && transcriptMounts === 1, '', 'a resize must not remount the transcript; check how src/screen/fullscreen-layout/FullscreenLayout.tsx keeps the scrollable subtree across compact and full layouts')
+      check(`${editorMode}: draft and middle cursor survive ${columns}x${rows}`, pending.text() === 'alpha beta' && insertRef.current?.cursorOffset === 5, '', 'a resize must keep the draft in src/screen/composer/input-core/pending-input.ts and the cursor in src/screen/composer/Composer.tsx')
+      check(`${editorMode}: local allocation is bounded by the physical terminal`, local.columns > 0 && local.columns <= columns && local.rows >= 0 && local.rows <= rows, '', 'useTerminalSize in src/screen/fullscreen-layout/useTerminalSize.ts must never report more columns or rows than useRealTerminalSize')
     }
     const beforeStorm = frames
     for (let i = 0; i < 100; i++) { stdout.columns = i % 2 === 0 ? 99 : 120; stdout.rows = 24; stdout.emit('resize') }
     await resize(83, 24)
-    check(`${editorMode}: a hundred resize events coalesce instead of repainting every event`, frames - beforeStorm <= 6, `${frames - beforeStorm} composed frames`, 'resize events must be coalesced before painting; look at the resize handling in src/ink/ink.tsx and useRealTerminalSize in src/hooks/useTerminalSize.ts')
-    check(`${editorMode}: the storm preserves mounted state and draft`, transcriptMounts === 1 && scrollRef.current === handle && pending.text() === 'alpha beta', '', 'a burst of resize events must not remount the transcript or lose the draft; check src/components/FullscreenLayout.tsx and src/input-core/pending-input.ts')
+    check(`${editorMode}: a hundred resize events coalesce instead of repainting every event`, frames - beforeStorm <= 6, `${frames - beforeStorm} composed frames`, 'resize events must be coalesced before painting; look at the resize handling in src/screen/renderer/screenInstance.tsx and useRealTerminalSize in src/screen/fullscreen-layout/useTerminalSize.ts')
+    check(`${editorMode}: the storm preserves mounted state and draft`, transcriptMounts === 1 && scrollRef.current === handle && pending.text() === 'alpha beta', '', 'a burst of resize events must not remount the transcript or lose the draft; check src/screen/fullscreen-layout/FullscreenLayout.tsx and src/screen/composer/input-core/pending-input.ts')
     await resize(120, 40)
     const beforeBoundaryStorm = frames
     for (const columns of [101, 99, 97, 96, 97, 100]) { stdout.columns = columns; stdout.rows = 26; stdout.emit('resize') }
     await resize(120, 40)
-    check(`${editorMode}: a boundary-crossing resize burst preserves full composition and state`, frames - beforeBoundaryStorm <= 6 && !compact && transcriptMounts === 1 && scrollRef.current === handle && pending.text() === 'alpha beta', '', 'a resize burst across the compact boundary must settle on full composition without remounting the transcript; check layoutChromeLive in src/hooks/useLayoutTier.ts and src/components/FullscreenLayout.tsx')
+    check(`${editorMode}: a boundary-crossing resize burst preserves full composition and state`, frames - beforeBoundaryStorm <= 6 && !compact && transcriptMounts === 1 && scrollRef.current === handle && pending.text() === 'alpha beta', '', 'a resize burst across the compact boundary must settle on full composition without remounting the transcript; check layoutChromeLive in src/screen/fullscreen-layout/useLayoutTier.ts and src/screen/fullscreen-layout/FullscreenLayout.tsx')
     await resize(80, 24)
     stdin.push('\u0014')
     await until(`${editorMode}: visible summary can own focus`, () => control?.read() === 'summary')
     await resize(1, 1)
-    check(`${editorMode}: removing the summary row returns focus to the editor`, control?.read() === 'composer', '', 'useCompactWorkControls in src/components/tasks/CompactWorkSummary.tsx must return focus to the composer when the summary row is no longer visible')
+    check(`${editorMode}: removing the summary row returns focus to the editor`, control?.read() === 'composer', '', 'useCompactWorkControls in src/screen/tasks/CompactWorkSummary.tsx must return focus to the composer when the summary row is no longer visible')
     stdin.push('\u0014')
-    check(`${editorMode}: an invisible summary cannot take keys`, control?.read() === 'composer' && pending.text() === 'alpha beta', '', 'useCompactWorkControls in src/components/tasks/CompactWorkSummary.tsx must refuse focus while the summary row is not visible')
+    check(`${editorMode}: an invisible summary cannot take keys`, control?.read() === 'composer' && pending.text() === 'alpha beta', '', 'useCompactWorkControls in src/screen/tasks/CompactWorkSummary.tsx must refuse focus while the summary row is not visible')
     await resize(80, 24)
     handle.scrollTo(40)
     await until(`${editorMode}: transcript scrolls away before opening detail`, () => handle.getScrollTop() === 40 && !handle.isSticky())
     stdin.push('\u0014\r')
     await until(`${editorMode}: same-chunk focus and Enter open detail without submitting`, () => control?.read() === 'detail' && ink.lastFrameText().includes('Session statistics'))
-    check(`${editorMode}: detail did not submit or repin`, sent.length === 0 && pending.text() === 'alpha beta' && !handle.isSticky(), '', 'opening the detail with the summary key then Enter in one chunk must not submit the draft or repin the transcript; check src/components/PromptInput/PromptInput.tsx and src/components/tasks/CompactWorkSummary.tsx')
+    check(`${editorMode}: detail did not submit or repin`, sent.length === 0 && pending.text() === 'alpha beta' && !handle.isSticky(), '', 'opening the detail with the summary key then Enter in one chunk must not submit the draft or repin the transcript; check src/screen/composer/Composer.tsx and src/screen/tasks/CompactWorkSummary.tsx')
     await resize(1, 1)
-    check(`${editorMode}: detail retains semantic ownership without a body row`, control?.read() === 'detail', '', 'useCompactWorkControls in src/components/tasks/CompactWorkSummary.tsx must keep focus on the detail dialog when the terminal shrinks')
+    check(`${editorMode}: detail retains semantic ownership without a body row`, control?.read() === 'detail', '', 'useCompactWorkControls in src/screen/tasks/CompactWorkSummary.tsx must keep focus on the detail dialog when the terminal shrinks')
     stdin.push('\u001b[27uZ')
     await until(`${editorMode}: first text after tiny detail closes lands once at the retained cursor`, () => pending.text() === 'alphaZ beta')
     await resize(80, 24)
@@ -183,7 +183,7 @@ for (const editorMode of ['emacs', 'vim'] as const) {
     await until(`${editorMode}: summary type-to-edit handles all atoms in the same chunk`, () => pending.text() === 'alphaZxy beta')
     stdin.push('\u0014\u001b[200~\r\nA\tB\u001b[201~')
     await until(`${editorMode}: the real paste path finishes and paints`, () => (pending.text().includes('Pasted text') || pending.text().includes('A    B')) && (ink.lastFrameText().includes('Pasted text') || ink.lastFrameText().includes('A    B')) && !ink.lastFrameText().includes('pasting text'))
-    check(`${editorMode}: paste never submitted`, sent.length === 0, '', 'a bracketed paste must be inserted by src/components/PromptInput/PromptInput.tsx without calling onSubmit')
+    check(`${editorMode}: paste never submitted`, sent.length === 0, '', 'a bracketed paste must be inserted by src/screen/composer/Composer.tsx without calling onSubmit')
     const pasted = pending.text()
     stdin.push('\u001f')
     await until(`${editorMode}: undo restores the pre-paste document`, () => pending.text() === 'alphaZxy beta' && ink.lastFrameText().includes('❯ alphaZxy beta'))
@@ -237,7 +237,7 @@ for (const editorMode of ['emacs', 'vim'] as const) {
     await until(`${editorMode}: final draft is current`, () => ink.lastFrameText().includes('send once'))
     stdin.push('\r\r')
     await until(`${editorMode}: ordinary composer Enter submits`, () => sent.length > 0)
-    check(`${editorMode}: repeated Enter in one dispatch sends once`, sent.length === 1 && sent[0] === 'send once', JSON.stringify(sent), 'two Enter keys in one dispatch must call onSubmit once; check the submit path in src/components/PromptInput/PromptInput.tsx and pending.clearForSubmit in src/input-core/pending-input.ts')
+    check(`${editorMode}: repeated Enter in one dispatch sends once`, sent.length === 1 && sent[0] === 'send once', JSON.stringify(sent), 'two Enter keys in one dispatch must call onSubmit once; check the submit path in src/screen/composer/Composer.tsx and pending.clearForSubmit in src/screen/composer/input-core/pending-input.ts')
   } finally {
     console.log(`${editorMode} final frame\n${ink.lastFrameText()}`)
     ink.unmount()

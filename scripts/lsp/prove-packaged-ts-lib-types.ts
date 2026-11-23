@@ -4,10 +4,10 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, w
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { createFrameReader, createFrameWriter, type JsonRpcMessage } from '../../src/services/lsp/sidecarFraming.ts'
+import { createFrameReader, createFrameWriter, type JsonRpcMessage } from '../../src/integrations/lsp/sidecarFraming.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const ENTRY = join(ROOT, 'src', 'services', 'lsp', 'tsSidecar', 'entry.ts')
+const ENTRY = join(ROOT, 'src', 'integrations', 'lsp', 'ts-sidecar', 'entry.ts')
 const VENDOR = join(ROOT, 'dist', 'vendor', 'typescript')
 const COMPILER = join(VENDOR, 'typescript.js')
 if (!existsSync(COMPILER)) {

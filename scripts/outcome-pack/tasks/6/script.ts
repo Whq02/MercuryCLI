@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
-import { daemonControlRpc } from '../../../../src/daemon/controlSocket.ts'
-import type { DaemonRequest } from '../../../../src/daemon/protocol.ts'
+import { daemonControlRpc } from '../../../../src/daemon/control/controlSocket.ts'
+import type { DaemonRequest } from '../../../../src/daemon/control/protocol.ts'
 import { endProcessGroup, spawnInOwnGroup } from '../../../lib/processGroup.ts'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -21,7 +21,7 @@ function transcript(dir: string, sessionId: string): string | null {
   return null
 }
 function retained(path: string, result: string): string[] {
-  const source = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../src/utils/sessionStorage/transcriptReader.ts')
+  const source = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../src/sessions/transcripts/transcriptReader.ts')
   const program = `globalThis.MACRO={VERSION:'1.0.0'};const {readTranscriptChainSince}=await import(${JSON.stringify(source)});const chain=await readTranscriptChainSince(${JSON.stringify(path)},null);console.log(JSON.stringify(chain.rows.filter(r=>r.type==='assistant'&&Array.isArray(r.message?.content)&&r.message.content.some(b=>b.type==='text'&&b.text===${JSON.stringify(result)})).map(r=>r.uuid)))`
   const read = spawnSync(process.execPath, ['-e', program], { encoding: 'utf8', timeout: 10000 })
   if (read.status !== 0) throw new Error(`replay reader failed: ${read.stderr}`)

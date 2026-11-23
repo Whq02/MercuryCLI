@@ -11,7 +11,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 const { getUsername, KEYCHAIN_FALLBACK_USERNAME } = await import(
-  '../../src/utils/secureStorage/macOsKeychainHelpers.ts'
+  '../../src/platform/secure-storage/macOsKeychainHelpers.ts'
 )
 
 console.log('keychain username — the ladder and the product-spelled fallback')

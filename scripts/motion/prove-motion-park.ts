@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { grabScreens, runArtifactArena } from '../streaming/artifactArena.ts'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
-import { SHIMMER_GREETING_MS } from '../../src/utils/cockpit/greetingShimmer.ts'
+import { SHIMMER_GREETING_MS } from '../../src/screen/cockpit/greetingShimmer.ts'
 
 let failures = 0
 const MOTION_PARK_FAIL_HINT =

@@ -10,10 +10,10 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
 import { connect } from '../../sdk/src/runner.ts'
 import { compatRoadFixture } from '../sdk/compatRoadFixture.ts'
-import { outsideReportText, outsideReportHeading, OUTSIDE_REPORT_RULE } from '../../src/utils/messages/outsideReport.ts'
-import { InputRowSchema } from '../../src/rows/vocabulary.ts'
-import { getProjectDir } from '../../src/utils/sessionStorage/paths.ts'
-import { buildConcoursePromptRow } from '../../src/daemon/concourseDispatch.ts'
+import { outsideReportText, outsideReportHeading, OUTSIDE_REPORT_RULE } from '../../src/engine/message-shapes/outsideReport.ts'
+import { InputRowSchema } from '../../src/engine/rows/vocabulary.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/paths.ts'
+import { buildConcoursePromptRow } from '../../src/daemon/concourse-workers/concourseDispatch.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const binary = process.env.MERCURY_PROOF_DIST ?? join(root, 'dist/mercury.mjs')

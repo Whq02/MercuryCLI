@@ -193,7 +193,7 @@ const KNOWN_GAPS: Array<[string, RegExp]> = [
 const knownGapOf = (command: string): string | null => KNOWN_GAPS.find(([, re]) => re.test(command))?.[0] ?? null
 
 
-const { checkReadOnlyConstraints } = await import('../../src/tools/BashTool/readOnlyValidation.ts')
+const { checkReadOnlyConstraints } = await import('../../src/tools/shell/readOnlyValidation.ts')
 
 interface CensusRow {
   command: string
@@ -254,7 +254,7 @@ for (const sample of samples) {
     row.detail = problems.join('; ') + (gap && problems.length > 0 ? ` [${gap}]` : '')
     const label = `${executable ? 'execution' : 'parse'} parity: ${JSON.stringify(sample.command.length > 70 ? sample.command.slice(0, 67) + '…' : sample.command)}`
     if (row.verdict === 'known-gap') console.log(`  [SKIP] ${label} — known gap: ${row.detail}`)
-    else check(label, row.verdict === 'same', `${row.detail}; run this command under bash and the vendored brush engine and make the engine answer as bash does (engine wiring is in src/utils/shell/engineSession.ts), or if the gap is upstream add its pattern to KNOWN_GAPS in this file`)
+    else check(label, row.verdict === 'same', `${row.detail}; run this command under bash and the vendored brush engine and make the engine answer as bash does (engine wiring is in src/platform/shell/engineSession.ts), or if the gap is upstream add its pattern to KNOWN_GAPS in this file`)
   }
   rows.push(row)
 }

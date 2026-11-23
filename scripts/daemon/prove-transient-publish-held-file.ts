@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const { publishTransientInDaemonHome } = await import(join(ROOT, 'src/daemon/daemonHome.ts'))
+const { publishTransientInDaemonHome } = await import(join(ROOT, 'src/daemon/control/daemonHome.ts'))
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = '', hint = ''): void => {
@@ -43,9 +43,9 @@ if (process.platform !== 'win32') {
     const held = await hold(target, 250)
     const outcome = attempt(target)
     await held.released
-    check('a brief hold (250ms) is ridden out: the projection is published', outcome === 'published', outcome, 'fix publishTransientInDaemonHome in src/daemon/daemonHome.ts: it must retry the rename while a reader holds the file and then return published')
-    check('…the reader-side file now carries the new bytes', readFileSync(target, 'utf8') === 'new\n', JSON.stringify(readFileSync(target, 'utf8')), 'fix publishTransientInDaemonHome in src/daemon/daemonHome.ts: the target must carry the new contents once it returns published')
-    check('…and no temp file is left beside it', readdirSync(scratch).filter(name => name.startsWith('brief.json.')).length === 0, JSON.stringify(readdirSync(scratch)), 'fix publishTransientInDaemonHome in src/daemon/daemonHome.ts: it must remove its temp file after publishing')
+    check('a brief hold (250ms) is ridden out: the projection is published', outcome === 'published', outcome, 'fix publishTransientInDaemonHome in src/daemon/control/daemonHome.ts: it must retry the rename while a reader holds the file and then return published')
+    check('…the reader-side file now carries the new bytes', readFileSync(target, 'utf8') === 'new\n', JSON.stringify(readFileSync(target, 'utf8')), 'fix publishTransientInDaemonHome in src/daemon/control/daemonHome.ts: the target must carry the new contents once it returns published')
+    check('…and no temp file is left beside it', readdirSync(scratch).filter(name => name.startsWith('brief.json.')).length === 0, JSON.stringify(readdirSync(scratch)), 'fix publishTransientInDaemonHome in src/daemon/control/daemonHome.ts: it must remove its temp file after publishing')
   }
   {
     const target = join(scratch, 'long.json')
@@ -55,7 +55,7 @@ if (process.platform !== 'win32') {
     const outcome = attempt(target)
     const ms = Date.now() - t0
     await held.released
-    check('a hold past the retry budget still ends in bounded time with the transient code (the daemon loop is never held hostage)', /^threw (EPERM|EACCES|EBUSY)$/.test(outcome) && ms < 2_000, `${outcome} after ${ms}ms`, 'fix the retry budget in publishTransientInDaemonHome in src/daemon/daemonHome.ts: past it, it must throw the transient code (EPERM, EACCES or EBUSY) in under 2000ms')
+    check('a hold past the retry budget still ends in bounded time with the transient code (the daemon loop is never held hostage)', /^threw (EPERM|EACCES|EBUSY)$/.test(outcome) && ms < 2_000, `${outcome} after ${ms}ms`, 'fix the retry budget in publishTransientInDaemonHome in src/daemon/control/daemonHome.ts: past it, it must throw the transient code (EPERM, EACCES or EBUSY) in under 2000ms')
   }
   rmSync(scratch, { recursive: true, force: true })
 }

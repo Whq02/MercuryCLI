@@ -1,9 +1,9 @@
 import {
   ADVISOR_COMMAND,
   advisorChatLine,
-} from '../../services/advisor/advisorSettings.js'
-import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
-import { saveAdvisorSwitch } from '../../utils/sessionStorage.js'
+} from '../../models/advisor/advisorSettings.js'
+import type { LocalCommandResult, LocalJSXCommandContext } from '../catalogue/command.js'
+import { saveAdvisorSwitch } from '../../sessions/transcripts/sessionStorage.js'
 
 export const ADVISE_USAGE = `usage: ${ADVISOR_COMMAND} on|off — turns the advisor on or off for this chat; ${ADVISOR_COMMAND} alone says the state`
 

@@ -14,14 +14,14 @@ process.env.MERCURY_SAMPLES = '1'
 let failures = 0
 let currentSectionLetter = ''
 const sectionWhere: Record<string, string> = {
-  R: 'renderSampleDoc and normalizeSampleDoc in src/services/samples/renderDoc.ts, DOC_STYLE and DOC_SCRIPT in src/services/samples/docTheme.ts; if the page change is intended, regenerate scripts/samples/fixtures/samples-doc-reference.json',
-  N: 'normalizeSampleDoc, diffTones and renderSampleDoc in src/services/samples/renderDoc.ts',
-  F: 'specOf and SAMPLE_DOC_REFUSAL in src/services/samples/bridge.ts, and the refusal messages thrown by normalizeSampleDoc in src/services/samples/renderDoc.ts',
-  E: 'the escaping in renderSampleDoc and sanitizeSvg in src/services/samples/renderDoc.ts',
-  D: 'the id assignment in renderSampleDoc in src/services/samples/renderDoc.ts',
-  C: 'the colour tokens in DOC_STYLE in src/services/samples/docTheme.ts',
-  T: 'SAMPLE_PROMPT_LINES in src/tools/EvalTool/prompt.ts and the prompt built by src/tools/EvalTool/EvalTool.ts',
-  B: 'handleSampleCall, keepSample and specOf in src/services/samples/bridge.ts, and the version files kept by src/services/samples/store.ts',
+  R: 'renderSampleDoc and normalizeSampleDoc in src/integrations/samples/renderDoc.ts, DOC_STYLE and DOC_SCRIPT in src/integrations/samples/docTheme.ts; if the page change is intended, regenerate scripts/samples/fixtures/samples-doc-reference.json',
+  N: 'normalizeSampleDoc, diffTones and renderSampleDoc in src/integrations/samples/renderDoc.ts',
+  F: 'specOf and SAMPLE_DOC_REFUSAL in src/integrations/samples/bridge.ts, and the refusal messages thrown by normalizeSampleDoc in src/integrations/samples/renderDoc.ts',
+  E: 'the escaping in renderSampleDoc and sanitizeSvg in src/integrations/samples/renderDoc.ts',
+  D: 'the id assignment in renderSampleDoc in src/integrations/samples/renderDoc.ts',
+  C: 'the colour tokens in DOC_STYLE in src/integrations/samples/docTheme.ts',
+  T: 'SAMPLE_PROMPT_LINES in src/tools/eval/prompt.ts and the prompt built by src/tools/eval/EvalTool.ts',
+  B: 'handleSampleCall, keepSample and specOf in src/integrations/samples/bridge.ts, and the version files kept by src/integrations/samples/store.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -52,32 +52,32 @@ async function rejected(p: Promise<unknown>): Promise<string> {
 const sha = (s: string): string => createHash('sha256').update(s).digest('hex')
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — samples doc proof exceeded 120s; a await in handleSampleCall or closeSampleListener (src/services/samples/bridge.ts, src/services/samples/listener.ts) did not settle')
+  console.log('\n❌ TIMEOUT — samples doc proof exceeded 120s; a await in handleSampleCall or closeSampleListener (src/integrations/samples/bridge.ts, src/integrations/samples/listener.ts) did not settle')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
 
-type Renderer = typeof import('../../src/services/samples/renderDoc.ts')
-type Theme = typeof import('../../src/services/samples/docTheme.ts')
+type Renderer = typeof import('../../src/integrations/samples/renderDoc.ts')
+type Theme = typeof import('../../src/integrations/samples/docTheme.ts')
 let renderer: Renderer
 let theme: Theme
 try {
-  renderer = await import('../../src/services/samples/renderDoc.ts')
-  theme = await import('../../src/services/samples/docTheme.ts')
+  renderer = await import('../../src/integrations/samples/renderDoc.ts')
+  theme = await import('../../src/integrations/samples/docTheme.ts')
 } catch (error) {
-  console.log(`  [FAIL] the renderer exists (src/services/samples/renderDoc.ts) — ${error instanceof Error ? error.message : String(error)}`)
+  console.log(`  [FAIL] the renderer exists (src/integrations/samples/renderDoc.ts) — ${error instanceof Error ? error.message : String(error)}`)
   console.log('\n❌ samples doc: the product has no doc road')
   process.exit(1)
 }
 const { normalizeSampleDoc, renderSampleDoc, sanitizeSvg, diffTones } = renderer
-const bridge = await import('../../src/services/samples/bridge.ts')
+const bridge = await import('../../src/integrations/samples/bridge.ts')
 const { handleSampleCall, keepSample, specOf, SAMPLE_DOC_REFUSAL } = bridge
-const { SAMPLE_HTML_CAP_BYTES } = await import('../../src/utils/samples/contracts.ts')
-const store = await import('../../src/services/samples/store.ts')
-const listener = await import('../../src/services/samples/listener.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
-const { SAMPLE_PROMPT_LINES } = await import('../../src/tools/EvalTool/prompt.ts')
+const { SAMPLE_HTML_CAP_BYTES } = await import('../../src/integrations/sample-contracts/contracts.ts')
+const store = await import('../../src/integrations/samples/store.ts')
+const listener = await import('../../src/integrations/samples/listener.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.ts')
+const { SAMPLE_PROMPT_LINES } = await import('../../src/tools/eval/prompt.ts')
 
 interface Fixture {
   styleSha256: string
@@ -304,7 +304,7 @@ check('C5 the terminal window: phosphor, dim, red, yellow and cyan on near-black
 check('C6 the tokens are the site\'s: the page ground, the deep well, the hairline, the accent and the bone', dark.bg === '#090d16' && dark['bg-deep'] === '#050910' && dark['panel-line'] === '#232d44' && dark['slot-line'] === '#3b496a' && dark.accent === '#a4b4da' && dark.cream === '#ede8dd' && light.bg === '#ece2cc' && light.text === '#241c15')
 
 section('T the words a model sees')
-const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
+const { EvalTool } = await import('../../src/tools/eval/EvalTool.ts')
 const promptOn = await (EvalTool as { prompt: () => Promise<string> }).prompt()
 check('T1 with samples on the prompt carries the doc block: the sample line, the nine kinds, the closing rule', promptOn.includes(SAMPLE_PROMPT_LINES.join('\n')) && SAMPLE_PROMPT_LINES.length === 12 && promptOn.includes('sample({name, title?, doc, ask?})') && /1\. `\{ kind: "verdict"/.test(promptOn) && /9\. `\{ kind: "question"/.test(promptOn) && promptOn.includes('Write the parts, not the page: no HTML, no styles.'))
 check('T2 the first sentence is the owner\'s rule, unchanged: only when asked, never unasked, never to decorate', SAMPLE_PROMPT_LINES[0] === '- `sample({name, title?, doc, ask?})` — keep a page as a sample: a versioned page the operator opens in the browser and marks up; returns `{id, title, version, url}` and the result lists it. ONLY when the operator asked to see something (a page, a design, a mockup, a report to look at, "show me") — never unasked, never to decorate an answer; pass the operator\'s words as `ask`. The same name publishes the next version.')

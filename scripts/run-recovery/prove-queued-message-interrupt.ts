@@ -48,9 +48,9 @@ seedFirstRun(configDir, [work])
   cfg.switchboardCapacity = { askedAt: 0, allowed: true, recommendedSeats: 8 }
   writeFileSync(cfgPath, `${JSON.stringify(cfg, null, 2)}\n`)
 }
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/warmRunner.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/runner-link/warmRunner.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 const projectDir = paths.getProjectDir(work)
 
 const TYPED = 'two of the agents failed, recover their work in the meantime'
@@ -65,7 +65,7 @@ const wire = (): Capture[] =>
     .map(l => JSON.parse(l) as Capture)
 
 type Row = { type?: string; uuid?: string; timestamp?: string; message?: { role?: string; content?: unknown }; attachment?: { type?: string; source_uuid?: string; prompt?: unknown } }
-const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
+const reader = await import('../../src/sessions/transcripts/transcriptReader.ts')
 const transcriptRows = async (sid: string): Promise<Row[]> => {
   const p = join(projectDir, `${sid}.jsonl`)
   if (!existsSync(p)) return []
@@ -182,7 +182,7 @@ try {
   const granted = (await daemonControlRpc({ op: 'sessionControl', action: 'grant-workflows', sessionId: sid, by: 'queued-drive' } as never)) as { ok?: boolean; outcome?: string }
   check('the session holds the crewmates-allowed tag', granted.ok === true && (granted.outcome === undefined || granted.outcome === 'applied' || granted.outcome === 'noop'), `${JSON.stringify(granted)} · the sessionControl grant-workflows action was refused; read the daemon.log in the kept world folder`)
 
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
   const list = (await daemonControlRpc({ op: 'list', proto: 1 } as never)) as { jobs?: Array<{ sessionId: string; short: string }> }
   const entry = (list.jobs ?? []).find(j => j.sessionId === sid)
   const conn = new DaemonSessionConnector({ sessionId: sid, runnerId: entry?.short ?? 'w', title: 'queued interrupt', projectLabel: 'scratch', workspaceId: work, home: projectDir })
@@ -206,48 +206,48 @@ try {
   check('the ask delivered into the opened session', run.ok === true && run.sessionId === sid, `${JSON.stringify(run)} · a concourseDispatch with targetSessionId must return the opened session id; read daemon.log in the kept world folder`)
   check('Q1 the seat\'s stream is held alive by the fixture (the parent waits on it)', await untilAsync(() => wire().some(c => c.kind === 'held-alive' && c.arm === ARM), 45_000), `${JSON.stringify(wire().map(c => c.kind))} · the fixture arm held-alive in scripts/run-recovery/throttle-fixture-server.ts was never requested; the run prompt did not reach the fixture, read daemon.log in the kept world folder`)
   check('Q1 the parent is busy in its wait', await untilAsync(() => readFacts(sid)?.busy === true, 10_000), 'session-facts/<sid>.json in the daemon folder never showed busy true; read daemon.log in the kept world folder for the turn start')
-  check("Q1 the chat's own connector reads the turn in flight (its facts feed heard the busy edge, well inside the idle floor)", await untilAsync(() => conn.turnActive(), 5_000), `${JSON.stringify(conn.live())} · turnActive() in src/services/engine-connector/daemonConnector.ts did not follow the facts feed busy edge`)
+  check("Q1 the chat's own connector reads the turn in flight (its facts feed heard the busy edge, well inside the idle floor)", await untilAsync(() => conn.turnActive(), 5_000), `${JSON.stringify(conn.live())} · turnActive() in src/engine/connector/daemonConnector.ts did not follow the facts feed busy edge`)
   await sleep(1_500)
 
   const sentAtMs = Date.now()
   const receipt = await conn.sendWords(TYPED)
   const sendId = conn.recallableSend()?.clientMessageId ?? null
-  check('Q2 the send was accepted under the running turn', receipt.state === 'accepted', `${JSON.stringify(receipt)} · sendWords in src/services/engine-connector/daemonConnector.ts (its delivery part under engine-connector/daemon/delivery.ts) must accept a send made under a running turn`)
-  check('Q2 the send has one identity (a uuid)', sendId !== null && /^[0-9a-f-]{36}$/.test(sendId), `${String(sendId)} · recallableSend() in src/services/engine-connector/daemonConnector.ts must carry the accepted send as a uuid clientMessageId`)
+  check('Q2 the send was accepted under the running turn', receipt.state === 'accepted', `${JSON.stringify(receipt)} · sendWords in src/engine/connector/daemonConnector.ts (its delivery part under engine-connector/daemon/delivery.ts) must accept a send made under a running turn`)
+  check('Q2 the send has one identity (a uuid)', sendId !== null && /^[0-9a-f-]{36}$/.test(sendId), `${String(sendId)} · recallableSend() in src/engine/connector/daemonConnector.ts must carry the accepted send as a uuid clientMessageId`)
   const echoed = (await painted()).filter(carriesWords)
-  check('Q2 the typed words paint at once, once (the chat\'s own echo, or already the drained row — never both)', echoed.length === 1, `${JSON.stringify(echoed.map(r => [r.type, r.uuid, r.queued]))} · the connector records() must paint the typed words exactly once, as the echo or as the drained row, never both or neither (src/services/engine-connector/daemonConnector.ts)`)
+  check('Q2 the typed words paint at once, once (the chat\'s own echo, or already the drained row — never both)', echoed.length === 1, `${JSON.stringify(echoed.map(r => [r.type, r.uuid, r.queued]))} · the connector records() must paint the typed words exactly once, as the echo or as the drained row, never both or neither (src/engine/connector/daemonConnector.ts)`)
   const delivered = await untilAsync(async () => (await transcriptRows(sid)).some(r => isDrainedRow(r, sendId)), 15_000, 50)
   const deliveredAtMs = Date.now()
-  check('Q2 the words drained into the LIVE turn within seconds of the send — no esc needed', delivered && deliveredAtMs - sentAtMs < 15_000, `${delivered} after ${deliveredAtMs - sentAtMs} ms · the queued command must drain into the live turn as a queued_command attachment row (src/run-core/attachment-drain.ts, src/run-core/turn/afterTools.ts)`)
+  check('Q2 the words drained into the LIVE turn within seconds of the send — no esc needed', delivered && deliveredAtMs - sentAtMs < 15_000, `${delivered} after ${deliveredAtMs - sentAtMs} ms · the queued command must drain into the live turn as a queued_command attachment row (src/engine/loop/attachment-drain.ts, src/engine/loop/turn/afterTools.ts)`)
   const REPLY = /parent done|fixture answers/
   check('Q2 the reply to them landed inside the same turn', await untilAsync(async () => {
     const rows = await transcriptRows(sid)
     const at = rows.findIndex(r => isDrainedRow(r, sendId))
     return at >= 0 && rows.slice(at + 1).some(r => r.type === 'assistant' && REPLY.test(textOf(r)))
-  }, 30_000, 50), 'no assistant reply after the drained row within 30 s; the drained words must be answered inside the same turn (src/run-core/turn/afterTools.ts), read the transcript jsonl in the kept world folder')
+  }, 30_000, 50), 'no assistant reply after the drained row within 30 s; the drained words must be answered inside the same turn (src/engine/loop/turn/afterTools.ts), read the transcript jsonl in the kept world folder')
   {
     const rows = await transcriptRows(sid)
     const drained = rows.filter(r => isDrainedRow(r, sendId))
-    check('Q2 exactly ONE row carries the words: the drained row under the send\'s own identity and clock', drained.length === 1 && rows.filter(carriesWords).length === 1 && Math.abs(Date.parse(drained[0]?.timestamp ?? '') - sentAtMs) <= 2_000, `${drained.length} drained · ${rows.filter(carriesWords).length} carrying · row=${drained[0]?.timestamp} sent=${new Date(sentAtMs).toISOString()} · the drained attachment must be the only row with the words, keyed by the send id (src/run-core/attachment-drain.ts)`)
-    check('Q2 the Crewmate receipt the model read says the seat went to the background because the operator sent a message', rows.some(r => r.type === 'user' && resultTextOf(r).includes(RECEIPT_WORDS)), rows.filter(r => r.type === 'user' && resultTextOf(r) !== '').map(r => resultTextOf(r).slice(0, 160)).join(' | ') + ' · the Crewmate tool result must carry the background receipt words from src/tasks/LocalAgentTask/launchReceipts.ts')
+    check('Q2 exactly ONE row carries the words: the drained row under the send\'s own identity and clock', drained.length === 1 && rows.filter(carriesWords).length === 1 && Math.abs(Date.parse(drained[0]?.timestamp ?? '') - sentAtMs) <= 2_000, `${drained.length} drained · ${rows.filter(carriesWords).length} carrying · row=${drained[0]?.timestamp} sent=${new Date(sentAtMs).toISOString()} · the drained attachment must be the only row with the words, keyed by the send id (src/engine/loop/attachment-drain.ts)`)
+    check('Q2 the Crewmate receipt the model read says the seat went to the background because the operator sent a message', rows.some(r => r.type === 'user' && resultTextOf(r).includes(RECEIPT_WORDS)), rows.filter(r => r.type === 'user' && resultTextOf(r) !== '').map(r => resultTextOf(r).slice(0, 160)).join(' | ') + ' · the Crewmate tool result must carry the background receipt words from src/engine/tasks/local-agent/launchReceipts.ts')
   }
   check('Q2 the turn still runs: parked on the seat it handed to the background', readFacts(sid)?.busy === true && conn.turnActive(), `${JSON.stringify(conn.live())} · the turn ended after the queued words drained though it should stay parked on the background seat; read daemon.log in the kept world folder`)
   const pressedAt = Date.now()
 
-  check('Q3 esc through the connector\'s own door', conn.interrupt() === true, 'interrupt() in src/services/engine-connector/daemonConnector.ts returned false: the connector saw no turn in flight (live().inFlight)')
+  check('Q3 esc through the connector\'s own door', conn.interrupt() === true, 'interrupt() in src/engine/connector/daemonConnector.ts returned false: the connector saw no turn in flight (live().inFlight)')
   const ended = await untilAsync(() => readFacts(sid)?.busy === false, 15_000, 50)
   const endedAt = Date.now()
-  check('Q3 the parked turn ended within seconds of esc (never minutes)', ended && endedAt - pressedAt < 15_000, `${ended} after ${endedAt - pressedAt} ms · the sessionControl interrupt sent by interrupt() in src/services/engine-connector/daemonConnector.ts did not end the parked turn; read daemon.log in the kept world folder`)
+  check('Q3 the parked turn ended within seconds of esc (never minutes)', ended && endedAt - pressedAt < 15_000, `${ended} after ${endedAt - pressedAt} ms · the sessionControl interrupt sent by interrupt() in src/engine/connector/daemonConnector.ts did not end the parked turn; read daemon.log in the kept world folder`)
   await sleep(1_500)
   const rows = await transcriptRows(sid)
   const userRows = rows.filter(r => r.type === 'user' && textOf(r).includes(TYPED))
   const drainedRows = rows.filter(r => isDrainedRow(r, sendId))
-  check('Q3 the words were not delivered again: still ONE drained row, no user row twin', drainedRows.length === 1 && userRows.length === 0 && rows.filter(carriesWords).length === 1, `${userRows.length} user rows; ${drainedRows.length} drained rows · the esc re-delivered the queued words; look at src/run-core/attachment-drain.ts and the interrupt path in src/services/engine-connector/daemonConnector.ts`)
+  check('Q3 the words were not delivered again: still ONE drained row, no user row twin', drainedRows.length === 1 && userRows.length === 0 && rows.filter(carriesWords).length === 1, `${userRows.length} user rows; ${drainedRows.length} drained rows · the esc re-delivered the queued words; look at src/engine/loop/attachment-drain.ts and the interrupt path in src/engine/connector/daemonConnector.ts`)
   check('Q3 no row of the words was written after the press', rows.filter(carriesWords).every(r => Date.parse(r.timestamp ?? '') <= pressedAt), `${JSON.stringify(rows.filter(carriesWords).map(r => [r.type, r.timestamp]))} · a row with the words was written after esc; the interrupt must not re-queue them`)
 
   const stamps = rows.map(r => Date.parse(r.timestamp ?? '')).filter(t => !Number.isNaN(t))
   const disorder = stamps.findIndex((t, i) => i > 0 && t < stamps[i - 1]! - 1_000)
-  check('Q4 the transcript is in time order', disorder === -1, `row ${disorder} earlier than its predecessor · the drained row must carry the send clock; see src/run-core/attachment-drain.ts and the transcript jsonl in the kept world folder`)
+  check('Q4 the transcript is in time order', disorder === -1, `row ${disorder} earlier than its predecessor · the drained row must carry the send clock; see src/engine/loop/attachment-drain.ts and the transcript jsonl in the kept world folder`)
 
   await painted()
   await sleep(500)
@@ -255,10 +255,10 @@ try {
   console.log(`    the chat's painted rows: ${chat.map((r, i) => `${i}:${r.type}${r.queued ? '(queued)' : ''}[${String(r.uuid ?? '').slice(0, 8)}] ${(textOf(r) || promptOf(r)).slice(0, 40).replace(/\n/g, ' ')}`).join(' | ')}`)
   const typedRows = chat.map((r, i) => ({ r, i })).filter(({ r }) => carriesWords(r))
   const replyAt = chat.findIndex((r, i) => r.type === 'assistant' && REPLY.test(textOf(r)) && i > (typedRows[0]?.i ?? -1))
-  check('Q5 the chat paints the typed words once, un-queued (the drained row took the echo\'s place)', typedRows.length === 1 && typedRows[0]?.r.queued !== true && typedRows[0]?.r.type === 'attachment', `${JSON.stringify(typedRows.map(({ r, i }) => [i, r.type, r.uuid, r.queued]))} · records() in src/services/engine-connector/daemonConnector.ts must replace the queued echo with the drained attachment row`)
-  check('Q5 …followed by the reply: nothing of them trails under later records', replyAt > (typedRows[0]?.i ?? -1) && !chat.slice(replyAt + 1).some(carriesWords), `typed@${typedRows[0]?.i} reply@${replyAt} last=${chat.length - 1} · the typed words must sit before the reply in records() (src/services/engine-connector/daemonConnector.ts)`)
+  check('Q5 the chat paints the typed words once, un-queued (the drained row took the echo\'s place)', typedRows.length === 1 && typedRows[0]?.r.queued !== true && typedRows[0]?.r.type === 'attachment', `${JSON.stringify(typedRows.map(({ r, i }) => [i, r.type, r.uuid, r.queued]))} · records() in src/engine/connector/daemonConnector.ts must replace the queued echo with the drained attachment row`)
+  check('Q5 …followed by the reply: nothing of them trails under later records', replyAt > (typedRows[0]?.i ?? -1) && !chat.slice(replyAt + 1).some(carriesWords), `typed@${typedRows[0]?.i} reply@${replyAt} last=${chat.length - 1} · the typed words must sit before the reply in records() (src/engine/connector/daemonConnector.ts)`)
   const receipts = chat.map((r, i) => ({ r, i })).filter(({ r }) => r.type === 'system' && textOf(r).includes('still running'))
-  check('Q5 the interrupt\'s own receipt painted at most once, after the delivered words (the press came after the delivery)', receipts.length <= 1 && (receipts.length === 0 || receipts[0]!.i > (typedRows[0]?.i ?? -1)), `${JSON.stringify(receipts.map(({ i }) => i))} · the interrupt receipt row must paint at most once and after the delivered words in records() (src/services/engine-connector/daemonConnector.ts)`)
+  check('Q5 the interrupt\'s own receipt painted at most once, after the delivered words (the press came after the delivery)', receipts.length <= 1 && (receipts.length === 0 || receipts[0]!.i > (typedRows[0]?.i ?? -1)), `${JSON.stringify(receipts.map(({ i }) => i))} · the interrupt receipt row must paint at most once and after the delivered words in records() (src/engine/connector/daemonConnector.ts)`)
   conn.detach()
 } finally {
   await cleanup()

@@ -10,7 +10,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -30,8 +30,8 @@ const {
   modelSupportsAdaptiveThinking,
   modelSupportsForcedToolChoice,
   modelThinkingAlwaysOn,
-} = await import('../../src/utils/model/capabilities.ts')
-const { sideQueryThinkingParam } = await import('../../src/services/api/sideQuery.ts')
+} = await import('../../src/models/facts/capabilities.ts')
+const { sideQueryThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
 const {
   getContextWindowForModel,
   getMaxSupportedEffortLevel,
@@ -39,13 +39,13 @@ const {
   modelSupportsEffort,
   modelSupportsMaxEffort,
   modelSupportsXHighEffort,
-} = await import('../../src/utils/model/capabilities.ts')
-const { getCanonicalName, parseUserSpecifiedModel, renderModelName } = await import('../../src/services/model/model.ts')
-const { classOfModel } = await import('../../src/services/providers/modelRegistry.ts')
-const seatSlots = await import('../../src/utils/model/seatSlots.ts')
-const { getLaunchDefaultEffort } = await import('../../src/utils/effort.ts')
-const { AGENT_DISPATCH_MODELS, MODEL_ALIASES } = await import('../../src/utils/model/aliases.ts')
-const { foldLegacyWorkerModelKey } = await import('../../src/services/concourse/workerModels.ts')
+} = await import('../../src/models/facts/capabilities.ts')
+const { getCanonicalName, parseUserSpecifiedModel, renderModelName } = await import('../../src/models/catalogue/engineModel.ts')
+const { classOfModel } = await import('../../src/models/roads/modelRegistry.ts')
+const seatSlots = await import('../../src/models/facts/seatSlots.ts')
+const { getLaunchDefaultEffort } = await import('../../src/models/effort/effort.ts')
+const { AGENT_DISPATCH_MODELS, MODEL_ALIASES } = await import('../../src/models/facts/aliases.ts')
+const { foldLegacyWorkerModelKey } = await import('../../src/screen/concourse-model/workerModels.ts')
 
 let failures = 0
 let sectionFix = ''
@@ -62,7 +62,7 @@ const repoRoot = join(import.meta.dir, '..', '..')
 const src = (rel: string): string => readFileSync(join(repoRoot, rel), 'utf-8')
 const show = (v: unknown): string => JSON.stringify(v)
 
-section('§1 forced tool_choice folds to auto exactly where the model rejects it', 'fix modelSupportsForcedToolChoice and foldToolChoiceForModel in src/utils/model/capabilities.ts so the rejecting models fold tool and any to auto and the accepting ones pass the choice through')
+section('§1 forced tool_choice folds to auto exactly where the model rejects it', 'fix modelSupportsForcedToolChoice and foldToolChoiceForModel in src/models/facts/capabilities.ts so the rejecting models fold tool and any to auto and the accepting ones pass the choice through')
 {
   const rejecting = ['claude-fable-5-2', 'claude-fable-5-2[1m]', 'claude-mythos-5-2', 'claude-fable-5-1', 'claude-fable-5-1[1m]', 'claude-mythos-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-sonnet-5-5[1m]']
   const accepting = [
@@ -110,7 +110,7 @@ section('§1 forced tool_choice folds to auto exactly where the model rejects it
   check('the fold never mutates the input object', show(forcedTool) === show({ type: 'tool', name: 'classify_result' }))
 }
 
-section('§2 thinking is always on for the frontier family; the disable is omitted there', 'fix modelThinkingAlwaysOn and modelSupportsAdaptiveThinking in src/utils/model/capabilities.ts, or sideQueryThinkingParam in src/services/api/sideQuery.ts')
+section('§2 thinking is always on for the frontier family; the disable is omitted there', 'fix modelThinkingAlwaysOn and modelSupportsAdaptiveThinking in src/models/facts/capabilities.ts, or sideQueryThinkingParam in src/engine/requests/sideRequest.ts')
 {
   const alwaysOn = ['claude-fable-5', 'claude-fable-5[1m]', 'claude-fable-5-1', 'claude-fable-5-1[1m]', 'claude-mythos-5', 'claude-mythos-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-sonnet-5-5[1m]']
   const notAlwaysOn = ['claude-opus-5', 'claude-sonnet-5', 'claude-opus-4-8', 'claude-opus-4-6', 'claude-haiku-4-5', 'openrouter/anthropic/claude-fable-5-1', 'openrouter/anthropic/claude-sonnet-5-5']
@@ -154,7 +154,7 @@ section('§2 thinking is always on for the frontier family; the disable is omitt
 }
 
 
-section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family word resolves to the generation table\'s newest, which is Fable 5.2', 'fix getCanonicalName in src/utils/model/modelNames.ts, parseUserSpecifiedModel and renderModelName in src/services/model/model.ts, the fable51 row in src/utils/model/configs.ts, the effort functions in src/utils/model/capabilities.ts, or foldLegacyWorkerModelKey in src/services/concourse/workerModels.ts')
+section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family word resolves to the generation table\'s newest, which is Fable 5.2', 'fix getCanonicalName in src/models/facts/modelNames.ts, parseUserSpecifiedModel and renderModelName in src/models/catalogue/engineModel.ts, the fable51 row in src/models/facts/builtInModelTable.ts, the effort functions in src/models/facts/capabilities.ts, or foldLegacyWorkerModelKey in src/screen/concourse-model/workerModels.ts')
 {
   const ID = 'claude-fable-5-1'
   const FAMILY = 'claude-fable-5'
@@ -185,7 +185,7 @@ section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family
   check("a crew record's legacy keys: fable51 stays on this member, the family word lands on the newest row", foldLegacyWorkerModelKey('fable51') === ID && foldLegacyWorkerModelKey('fable') === 'claude-fable-5-2', `${foldLegacyWorkerModelKey('fable51')} / ${foldLegacyWorkerModelKey('fable')}`)
 }
 
-section('§5 Claude Sonnet 5.5 answers both laws as recorded on the wire: the disabled shape and a forced choice are refused, the omitted parameter and auto are served', 'if a fixture leg fails, the recording scripts/model-registry/fixtures/sonnet-55-wire-probe.json no longer matches the wire, so re-record it; if a law check fails, fix modelThinkingAlwaysOn and modelSupportsForcedToolChoice in src/utils/model/capabilities.ts or sideQueryThinkingParam in src/services/api/sideQuery.ts')
+section('§5 Claude Sonnet 5.5 answers both laws as recorded on the wire: the disabled shape and a forced choice are refused, the omitted parameter and auto are served', 'if a fixture leg fails, the recording scripts/model-registry/fixtures/sonnet-55-wire-probe.json no longer matches the wire, so re-record it; if a law check fails, fix modelThinkingAlwaysOn and modelSupportsForcedToolChoice in src/models/facts/capabilities.ts or sideQueryThinkingParam in src/engine/requests/sideRequest.ts')
 {
   type Leg = { leg: string; request: Record<string, unknown>; response: { status: number; stop_reason?: string; content?: Array<{ type: string; name?: string }>; error_body?: { error?: { type?: string; message?: string } } } }
   const fixture = JSON.parse(src('scripts/model-registry/fixtures/sonnet-55-wire-probe.json')) as { model: string; legs: Leg[] }

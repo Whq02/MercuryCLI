@@ -1,8 +1,8 @@
-import { ExtensionsBoard, type ExtensionsRoute } from '../../components/extensions/ExtensionsBoard.js'
-import { noteReloaded, reloadExtensions, setExtensionsPending } from '../../extensions/boot.js'
-import { extensionsStateFrom } from '../../hooks/useExtensions.js'
-import type { LocalJSXCommandCall } from '../../types/command.js'
-import { createSystemMessage } from '../../utils/messages/systemMessages.js'
+import { ExtensionsBoard, type ExtensionsRoute } from '../../screen/extensions/ExtensionsBoard.js'
+import { noteReloaded, reloadExtensions, setExtensionsPending } from '../../integrations/extensions/boot.js'
+import { extensionsStateFrom } from '../../screen/extensions/useExtensions.js'
+import type { LocalJSXCommandCall } from '../catalogue/command.js'
+import { createSystemMessage } from '../../engine/message-shapes/systemMessages.js'
 
 function parseRoute(args: string): ExtensionsRoute | { kind: 'reload' } {
   const trimmed = args.trim()

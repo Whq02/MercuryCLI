@@ -18,10 +18,10 @@ const check = (cond: boolean, msg: string, detail = ''): void => {
 }
 
 const { measureEffectiveProjectInstructionLines, measuredGuideName, PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD } =
-  await import(join(repo, 'src/services/instructions/effectiveSize.js'))
+  await import(join(repo, 'src/sessions/instructions/effectiveSize.js'))
 
 console.log('the threshold is the ruled bar')
-check(PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD === 400, 'threshold = 400 effective lines', 'set PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD back to 400 in src/services/instructions/effectiveSize.ts')
+check(PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD === 400, 'threshold = 400 effective lines', 'set PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD back to 400 in src/sessions/instructions/effectiveSize.ts')
 
 console.log('scope: project estate only')
 const mk = (path: string, type: string, lines: number, parent?: string) => ({
@@ -36,7 +36,7 @@ check(
     mk('/p/AGENTS.md', 'Project', 600, '/p/MERCURY.md'),
   ] as never) === 603,
   'entry + import = 603 (the pointer costs what it pulls in)',
-  'fix measureEffectiveProjectInstructionLines in src/services/instructions/effectiveSize.ts so an imported file (parent set) counts its lines on top of the entry',
+  'fix measureEffectiveProjectInstructionLines in src/sessions/instructions/effectiveSize.ts so an imported file (parent set) counts its lines on top of the entry',
 )
 check(
   measureEffectiveProjectInstructionLines([
@@ -45,23 +45,23 @@ check(
     mk('/p/MERCURY.local.md', 'Local', 7),
   ] as never) === 7,
   'user scope and rules files stay outside; MERCURY.local.md counts',
-  'fix measureEffectiveProjectInstructionLines in src/services/instructions/effectiveSize.ts to count only Project and Local entries, not User scope or rules files',
+  'fix measureEffectiveProjectInstructionLines in src/sessions/instructions/effectiveSize.ts to count only Project and Local entries, not User scope or rules files',
 )
 
 console.log('the guide the measure names')
 const guideOf: (files: unknown) => string = typeof measuredGuideName === 'function' ? measuredGuideName : () => 'MERCURY.md'
-check(guideOf([mk('/p/MERCURY.md', 'Project', 3), mk('/p/AGENTS.md', 'Project', 600, '/p/MERCURY.md')]) === 'MERCURY.md', 'a MERCURY.md pointer at AGENTS.md: the guide is MERCURY.md', 'fix measuredGuideName in src/services/instructions/effectiveSize.ts')
-check(guideOf([mk('/p/AGENTS.md', 'Project', 600)]) === 'AGENTS.md', 'an AGENTS.md-only estate: the guide is AGENTS.md', 'fix measuredGuideName in src/services/instructions/effectiveSize.ts')
-check(guideOf([mk('/home/.mercury/MERCURY.md', 'User', 500), mk('/p/MERCURY.local.md', 'Local', 7)]) === 'MERCURY.local.md', 'a local-only estate names the local file: it is all that loads', 'fix measuredGuideName in src/services/instructions/effectiveSize.ts')
-check(guideOf([mk('/p/MERCURY.local.md', 'Local', 7), mk('/p/AGENTS.md', 'Project', 600)]) === 'AGENTS.md', 'a personal layer beside an AGENTS.md guide: the guide is AGENTS.md', 'fix measuredGuideName in src/services/instructions/effectiveSize.ts')
+check(guideOf([mk('/p/MERCURY.md', 'Project', 3), mk('/p/AGENTS.md', 'Project', 600, '/p/MERCURY.md')]) === 'MERCURY.md', 'a MERCURY.md pointer at AGENTS.md: the guide is MERCURY.md', 'fix measuredGuideName in src/sessions/instructions/effectiveSize.ts')
+check(guideOf([mk('/p/AGENTS.md', 'Project', 600)]) === 'AGENTS.md', 'an AGENTS.md-only estate: the guide is AGENTS.md', 'fix measuredGuideName in src/sessions/instructions/effectiveSize.ts')
+check(guideOf([mk('/home/.mercury/MERCURY.md', 'User', 500), mk('/p/MERCURY.local.md', 'Local', 7)]) === 'MERCURY.local.md', 'a local-only estate names the local file: it is all that loads', 'fix measuredGuideName in src/sessions/instructions/effectiveSize.ts')
+check(guideOf([mk('/p/MERCURY.local.md', 'Local', 7), mk('/p/AGENTS.md', 'Project', 600)]) === 'AGENTS.md', 'a personal layer beside an AGENTS.md guide: the guide is AGENTS.md', 'fix measuredGuideName in src/sessions/instructions/effectiveSize.ts')
 
 const driverSrc = `
-import { enableConfigs } from ${at('src/utils/config/globalConfig.js')}
+import { enableConfigs } from ${at('src/platform/config/globalConfig.js')}
 enableConfigs()
-const { getInstructionFiles } = await import(${at('src/services/instructions/engine.js')})
+const { getInstructionFiles } = await import(${at('src/sessions/instructions/instructionFiles.js')})
 const { measureEffectiveProjectInstructionLines, measuredGuideName, PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD } =
-  await import(${at('src/services/instructions/effectiveSize.js')})
-const chip = await import(${at('src/components/mercury-ui/TrimChip.js')})
+  await import(${at('src/sessions/instructions/effectiveSize.js')})
+const chip = await import(${at('src/screen/widgets/TrimChip.js')})
 const files = await getInstructionFiles()
 const lines = measureEffectiveProjectInstructionLines(files)
 const guide = typeof measuredGuideName === 'function' ? measuredGuideName(files) : 'MERCURY.md'
@@ -91,7 +91,7 @@ function drive(cwd: string): Drive {
   })
   rmSync(home, { recursive: true, force: true })
   if (run.status !== 0) {
-    console.error(`  [FAIL] driver exited ${run.status}: ${String(run.stderr).slice(0, 600)} (the driver imports src/utils/config/globalConfig.ts, src/services/instructions/engine.ts, effectiveSize.ts and src/components/mercury-ui/TrimChip.tsx; the stderr names the one that broke)`)
+    console.error(`  [FAIL] driver exited ${run.status}: ${String(run.stderr).slice(0, 600)} (the driver imports src/platform/config/globalConfig.ts, src/sessions/instructions/instructionFiles.ts, effectiveSize.ts and src/screen/widgets/TrimChip.tsx; the stderr names the one that broke)`)
     process.exit(1)
   }
   const lines = String(run.stdout).trim().split('\n')
@@ -110,9 +110,9 @@ writeFileSync(
   Array.from({ length: 600 }, (_, i) => `guide line ${i}`).join('\n') + '\n',
 )
 const armed = drive(armFix)
-check(armed.lines === 603, 'effective lines = 603 through the real walk', JSON.stringify(armed) + '; check getInstructionFiles in src/services/instructions/engine.ts and measureEffectiveProjectInstructionLines in effectiveSize.ts')
-check(armed.armed === true, 'the chip arms past the bar', 'lines=' + armed.lines + '; the driver arms when the measure exceeds PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD in src/services/instructions/effectiveSize.ts')
-check(armed.text === 'trim mercury.md to optimise performance and reduce context bloat', 'the chip names mercury.md, the guide it measured', armed.text + '; check trimChipText in src/components/mercury-ui/TrimChip.tsx and measuredGuideName in effectiveSize.ts')
+check(armed.lines === 603, 'effective lines = 603 through the real walk', JSON.stringify(armed) + '; check getInstructionFiles in src/sessions/instructions/instructionFiles.ts and measureEffectiveProjectInstructionLines in effectiveSize.ts')
+check(armed.armed === true, 'the chip arms past the bar', 'lines=' + armed.lines + '; the driver arms when the measure exceeds PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD in src/sessions/instructions/effectiveSize.ts')
+check(armed.text === 'trim mercury.md to optimise performance and reduce context bloat', 'the chip names mercury.md, the guide it measured', armed.text + '; check trimChipText in src/screen/widgets/TrimChip.tsx and measuredGuideName in effectiveSize.ts')
 
 console.log('real engine: a project whose only guide is a 600-line AGENTS.md ARMS and the chip names that guide')
 const sharedFix = mkdtempSync(join(tmpdir(), 'effsize-shared-'))
@@ -122,9 +122,9 @@ writeFileSync(
   Array.from({ length: 600 }, (_, i) => `guide line ${i}`).join('\n') + '\n',
 )
 const shared = drive(sharedFix)
-check(shared.lines === 600, 'effective lines = 600 through the real walk', JSON.stringify(shared) + '; check getInstructionFiles in src/services/instructions/engine.ts and measureEffectiveProjectInstructionLines in effectiveSize.ts')
-check(shared.armed === true, 'the chip arms past the bar', 'lines=' + shared.lines + '; the driver arms when the measure exceeds PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD in src/services/instructions/effectiveSize.ts')
-check(shared.text === 'trim agents.md to optimise performance and reduce context bloat', 'the chip names agents.md, the guide it measured', shared.text + '; check trimChipText in src/components/mercury-ui/TrimChip.tsx and measuredGuideName in effectiveSize.ts')
+check(shared.lines === 600, 'effective lines = 600 through the real walk', JSON.stringify(shared) + '; check getInstructionFiles in src/sessions/instructions/instructionFiles.ts and measureEffectiveProjectInstructionLines in effectiveSize.ts')
+check(shared.armed === true, 'the chip arms past the bar', 'lines=' + shared.lines + '; the driver arms when the measure exceeds PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD in src/sessions/instructions/effectiveSize.ts')
+check(shared.text === 'trim agents.md to optimise performance and reduce context bloat', 'the chip names agents.md, the guide it measured', shared.text + '; check trimChipText in src/screen/widgets/TrimChip.tsx and measuredGuideName in effectiveSize.ts')
 
 console.log('real engine: a personal MERCURY.local.md beside a 600-line AGENTS.md guide: both load, the chip names the guide')
 const personalFix = mkdtempSync(join(tmpdir(), 'effsize-personal-'))
@@ -135,9 +135,9 @@ writeFileSync(
   Array.from({ length: 600 }, (_, i) => `guide line ${i}`).join('\n') + '\n',
 )
 const personal = drive(personalFix)
-check(personal.lines === 603, 'effective lines = 603: the guide and the personal layer both load', JSON.stringify(personal) + '; check getInstructionFiles in src/services/instructions/engine.ts and measureEffectiveProjectInstructionLines in effectiveSize.ts')
-check(personal.armed === true, 'the chip arms past the bar', 'lines=' + personal.lines + '; the driver arms when the measure exceeds PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD in src/services/instructions/effectiveSize.ts')
-check(personal.text === 'trim agents.md to optimise performance and reduce context bloat', 'the chip names agents.md, the guide it measured', personal.text + '; check trimChipText in src/components/mercury-ui/TrimChip.tsx and measuredGuideName in effectiveSize.ts')
+check(personal.lines === 603, 'effective lines = 603: the guide and the personal layer both load', JSON.stringify(personal) + '; check getInstructionFiles in src/sessions/instructions/instructionFiles.ts and measureEffectiveProjectInstructionLines in effectiveSize.ts')
+check(personal.armed === true, 'the chip arms past the bar', 'lines=' + personal.lines + '; the driver arms when the measure exceeds PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD in src/sessions/instructions/effectiveSize.ts')
+check(personal.text === 'trim agents.md to optimise performance and reduce context bloat', 'the chip names agents.md, the guide it measured', personal.text + '; check trimChipText in src/screen/widgets/TrimChip.tsx and measuredGuideName in effectiveSize.ts')
 
 console.log('real engine: 399 effective lines do NOT arm')
 const calmFix = mkdtempSync(join(tmpdir(), 'effsize-calm-'))
@@ -147,8 +147,8 @@ writeFileSync(
   Array.from({ length: 399 }, (_, i) => `entry line ${i}`).join('\n') + '\n',
 )
 const calm = drive(calmFix)
-check(calm.lines === 399, 'effective lines = 399', JSON.stringify(calm) + '; check getInstructionFiles in src/services/instructions/engine.ts and measureEffectiveProjectInstructionLines in effectiveSize.ts')
-check(calm.armed === false, 'the chip stays down at 399', 'lines=' + calm.lines + '; the bar is a strict greater-than against PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD in src/services/instructions/effectiveSize.ts')
+check(calm.lines === 399, 'effective lines = 399', JSON.stringify(calm) + '; check getInstructionFiles in src/sessions/instructions/instructionFiles.ts and measureEffectiveProjectInstructionLines in effectiveSize.ts')
+check(calm.armed === false, 'the chip stays down at 399', 'lines=' + calm.lines + '; the bar is a strict greater-than against PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD in src/sessions/instructions/effectiveSize.ts')
 
 console.log('real engine: rules files do not count toward the entry bar')
 const rulesFix = mkdtempSync(join(tmpdir(), 'effsize-rules-'))
@@ -160,8 +160,8 @@ writeFileSync(
   Array.from({ length: 600 }, (_, i) => `rule line ${i}`).join('\n') + '\n',
 )
 const rules = drive(rulesFix)
-check(rules.lines === 1, 'a 600-line rules file leaves the measure at 1', JSON.stringify(rules) + '; measureEffectiveProjectInstructionLines in src/services/instructions/effectiveSize.ts must skip rules files')
-check(rules.armed === false, 'rules weight never arms the mercury.md chip', 'lines=' + rules.lines + '; measureEffectiveProjectInstructionLines in src/services/instructions/effectiveSize.ts must skip rules files')
+check(rules.lines === 1, 'a 600-line rules file leaves the measure at 1', JSON.stringify(rules) + '; measureEffectiveProjectInstructionLines in src/sessions/instructions/effectiveSize.ts must skip rules files')
+check(rules.armed === false, 'rules weight never arms the mercury.md chip', 'lines=' + rules.lines + '; measureEffectiveProjectInstructionLines in src/sessions/instructions/effectiveSize.ts must skip rules files')
 
 for (const dir of [armFix, sharedFix, personalFix, calmFix, rulesFix, driverDir]) rmSync(dir, { recursive: true, force: true })
 console.log(failures === 0 ? '\nALL EFFECTIVE-SIZE LAWS HOLD' : `\n${failures} FAILURES`)

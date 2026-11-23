@@ -1,6 +1,6 @@
 
 import * as path from 'node:path'
-import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
+import { getFlagSpec } from '../../src/platform/substrate/flagRegistry.ts'
 
 const repo = path.resolve(import.meta.dir, '../..')
 
@@ -17,10 +17,10 @@ function check(name: string, ok: boolean, detail?: string): void {
 {
   const globals = globalThis as Record<string, unknown>
   if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
-  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
-  const { probeBuiltinTsServer } = await import('../../src/services/lsp/builtinServers.ts')
+  const { runtimeChecks } = await import('../../src/platform/health/sections/runtime.ts')
+  const { probeBuiltinTsServer } = await import('../../src/integrations/lsp/builtinServers.ts')
   const lspRow = runtimeChecks().find(row => row.id === 'lsp')
-  check("health list: check id 'lsp' present", lspRow?.label === 'IDE-hands (LspRead)', 'runtimeChecks() in src/services/health/sections/runtime.ts must list a row with id lsp labelled IDE-hands (LspRead)')
+  check("health list: check id 'lsp' present", lspRow?.label === 'IDE-hands (LspRead)', 'runtimeChecks() in src/platform/health/sections/runtime.ts must list a row with id lsp labelled IDE-hands (LspRead)')
   const lspFlag = process.env.MERCURY_LSP
   delete process.env.MERCURY_LSP
   const armedSays = await lspRow?.run()
@@ -28,7 +28,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   check(
     'health list: uses the SAME probe as boot (probeBuiltinTsServer)',
     armedSays !== undefined && armedSays.status !== 'off' && (tsProbe.typescriptPath ? armedSays.evidence.includes('typescript@') : armedSays.evidence.includes('no workspace typescript') || armedSays.evidence.includes(tsProbe.reason ?? '\0')),
-    armedSays?.evidence + ' | the lsp row in src/services/health/sections/runtime.ts must report the probeBuiltinTsServer result (src/services/lsp/builtinServers.ts) and not read off while MERCURY_LSP is unset',
+    armedSays?.evidence + ' | the lsp row in src/platform/health/sections/runtime.ts must report the probeBuiltinTsServer result (src/integrations/lsp/builtinServers.ts) and not read off while MERCURY_LSP is unset',
   )
   process.env.MERCURY_LSP = '0'
   const offSays = await lspRow?.run()
@@ -37,15 +37,15 @@ function check(name: string, ok: boolean, detail?: string): void {
   check(
     "health list: off state names the registered flag as it was set (flagAsSet('MERCURY_LSP'))",
     offSays?.status === 'off' && offSays.evidence === 'MERCURY_LSP=0 — IDE-hands bridge disabled by flag',
-    offSays?.evidence + ' | with MERCURY_LSP=0 the lsp row in src/services/health/sections/runtime.ts must report off with exactly this evidence text',
+    offSays?.evidence + ' | with MERCURY_LSP=0 the lsp row in src/platform/health/sections/runtime.ts must report off with exactly this evidence text',
   )
 }
 
 
 {
   const { createHash } = await import('node:crypto')
-  const { LSP_DESCRIPTIONS, LSP_TOOL_NAMES } = await import('../../src/constants/tools/lsp.ts')
-  const { truncateToLines } = await import('../../src/utils/stringUtils.ts')
+  const { LSP_DESCRIPTIONS, LSP_TOOL_NAMES } = await import('../../src/tools/kit/names/lsp.ts')
+  const { truncateToLines } = await import('../../src/platform/text/strings.ts')
   const CARD_SHA256: Record<string, string> = {
     LspRead: 'e8dcb24e66b983fc4569db7a0f4ba8cfa2fda359c3bb20a60c87ee20a9d5ab0a',
     LspRename: '7ce7e31decab00a564947aca7518da973b200dc5398b82d97a8e5023aaad7350',
@@ -57,7 +57,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   }
   for (const name of LSP_TOOL_NAMES) {
     const card = truncateToLines(LSP_DESCRIPTIONS[name], 3)
-    check(`${name}: the text the Fallback permission card prints (its description cut to three lines) matches the pinned card`, createHash('sha256').update(card).digest('hex') === CARD_SHA256[name], card.slice(0, 120) + ' | the first three lines of LSP_DESCRIPTIONS[' + name + '] in src/constants/tools/lsp.ts changed; restore them, or update CARD_SHA256 here if the change is intended')
+    check(`${name}: the text the Fallback permission card prints (its description cut to three lines) matches the pinned card`, createHash('sha256').update(card).digest('hex') === CARD_SHA256[name], card.slice(0, 120) + ' | the first three lines of LSP_DESCRIPTIONS[' + name + '] in src/tools/kit/names/lsp.ts changed; restore them, or update CARD_SHA256 here if the change is intended')
   }
 }
 
@@ -71,9 +71,9 @@ function check(name: string, ok: boolean, detail?: string): void {
 }
 
 {
-  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
-  const clang = await import('../../src/services/lsp/clangdLane.ts')
-  const { probeGodotLane } = await import('../../src/services/lsp/godotLane.ts')
+  const { runtimeChecks } = await import('../../src/platform/health/sections/runtime.ts')
+  const clang = await import('../../src/integrations/lsp/clangdLane.ts')
+  const { probeGodotLane } = await import('../../src/integrations/lsp/godotLane.ts')
   const lspFlag = process.env.MERCURY_LSP
   delete process.env.MERCURY_LSP
   const says = await runtimeChecks().find(row => row.id === 'lsp')?.run()
@@ -85,17 +85,17 @@ function check(name: string, ok: boolean, detail?: string): void {
   check(
     'health list: lsp check reads the lane probes (clangd + godot)',
     says?.evidence.includes(cppWords) === true && says.evidence.includes(godotWords),
-    `${says?.evidence} · wanted: ${cppWords} · ${godotWords} | the lsp row in src/services/health/sections/runtime.ts must include the clangd and godot lane words`,
+    `${says?.evidence} · wanted: ${cppWords} · ${godotWords} | the lsp row in src/platform/health/sections/runtime.ts must include the clangd and godot lane words`,
   )
   check(
     'health list: godot evidence probes editor reachability',
     godot.enabled && godot.projectRoot ? /godot editor (NOT )?listening :\d+/.test(says?.evidence ?? '') : says?.evidence.includes(godotWords) === true,
-    says?.evidence + ' | the lsp row in src/services/health/sections/runtime.ts must say whether the godot editor is listening on its port',
+    says?.evidence + ' | the lsp row in src/platform/health/sections/runtime.ts must say whether the godot editor is listening on its port',
   )
   const net = await import('node:net')
   const { mkdtempSync, rmSync, writeFileSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
-  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
   const game = mkdtempSync(path.join(tmpdir(), 'lsp-godot-project-'))
   writeFileSync(path.join(game, 'project.godot'), 'config_version=5\n')
   const editor = net.createServer()
@@ -119,7 +119,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   check(
     'health list: in a Godot project with the lane armed the row asks the port: listening while something listens there, and NOT listening, with the way to open the editor, once nothing does',
     listening?.evidence.includes(`godot editor listening :${port}`) === true && dark?.evidence.includes(`godot editor NOT listening :${port} — open the project in the Godot editor`) === true,
-    `${listening?.evidence} | ${dark?.evidence} | the lsp row in src/services/health/sections/runtime.ts must probe the godot editor port and say listening or NOT listening`,
+    `${listening?.evidence} | ${dark?.evidence} | the lsp row in src/platform/health/sections/runtime.ts must probe the godot editor port and say listening or NOT listening`,
   )
 }
 

@@ -2,13 +2,13 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { SCENARIOS, fixtures, openRig, runScripted, type Scenario } from './turnScenarios.ts'
 
-const { runEventCore } = await import('../../src/run-core/turn-machine.ts')
-const governor = await import('../../src/services/capacity/governor.ts')
-const trace = await import('../../src/utils/observability/invocationTrace.ts')
+const { runEventCore } = await import('../../src/engine/loop/turn-machine.ts')
+const governor = await import('../../src/crew/capacity/governor.ts')
+const trace = await import('../../src/platform/observability/invocationTrace.ts')
 
-const STREAM_FILE = 'src/run-core/turn/streamModel.ts'
-const EARLY_FILE = 'src/services/tools/earlyStarts.ts'
-const GATE_FILE = 'src/services/tools/toolExecution.ts'
+const STREAM_FILE = 'src/engine/loop/turn/streamModel.ts'
+const EARLY_FILE = 'src/engine/tool-dispatch/earlyStarts.ts'
+const GATE_FILE = 'src/engine/tool-dispatch/toolExecution.ts'
 const SETTLE_MS = 5
 const STOP_BUDGET_MS = 8_000
 const LISTENER_BUDGET_MS = 400

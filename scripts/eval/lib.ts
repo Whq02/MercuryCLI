@@ -41,11 +41,11 @@ export function cleanup(): void {
   }
 }
 
-export async function loadEval(): Promise<typeof import('../../src/services/eval/kernelManager.js')> {
-  return import('../../src/services/eval/kernelManager.js')
+export async function loadEval(): Promise<typeof import('../../src/tools/engines/eval-kernels/kernelManager.js')> {
+  return import('../../src/tools/engines/eval-kernels/kernelManager.js')
 }
 
-export function refusingBridge(): import('../../src/services/eval/kernelManager.js').BridgeServer {
+export function refusingBridge(): import('../../src/tools/engines/eval-kernels/kernelManager.js').BridgeServer {
   return async () => ({ ok: false, error: 'no bridge in this prover' })
 }
 
@@ -53,8 +53,8 @@ export async function makeContext(options?: {
   mode?: string
   tools?: unknown[]
   abortController?: AbortController
-}): Promise<import('../../src/Tool.js').ToolUseContext> {
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+}): Promise<import('../../src/tools/kit/tool.js').ToolUseContext> {
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
   const permissionContext = { ...getEmptyToolPermissionContext(), mode: (options?.mode ?? 'default') as never }
   const appState = { toolPermissionContext: permissionContext, sessionHooks: new Map() } as never
   return {

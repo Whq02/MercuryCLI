@@ -7,17 +7,17 @@ const scratch = mkdtempSync(join(tmpdir(), 'task-stop-own-'))
 process.env.MERCURY_CONFIG_DIR = scratch
 delete process.env.MERCURY_HOME
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
-const { TaskStopTool } = await import('../../src/tools/TaskStopTool/TaskStopTool.ts')
-const { filterToolsForAgent } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { spawnShellTask } = await import('../../src/tasks/LocalShellTask/LocalShellTask.tsx')
-const { wrapSpawn } = await import('../../src/utils/ShellCommand.ts')
-const { TaskOutput } = await import('../../src/utils/task/TaskOutput.ts')
-const { generateTaskId } = await import('../../src/Task.ts')
-const { endProcessTree } = await import('../../src/utils/processGroup.ts')
+const { TaskStopTool } = await import('../../src/tools/task-stop/TaskStopTool.ts')
+const { filterToolsForAgent } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { spawnShellTask } = await import('../../src/engine/tasks/local-shell/shellTask.tsx')
+const { wrapSpawn } = await import('../../src/platform/shell/shellProcess.ts')
+const { TaskOutput } = await import('../../src/engine/task-framework/taskOutput.ts')
+const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
+const { endProcessTree } = await import('../../src/platform/processes/processGroup.ts')
 let state: any = { tasks: {} }
 const context: any = { agentId: 'child-a', abortController: new AbortController(), getAppState: () => state, setAppState: (f: any) => { state = f(state) } }
 let failures = 0
-function check(name: string, ok: boolean, detail?: unknown) { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${!ok ? ` ${JSON.stringify(detail)} — see TaskStopTool (validateInput, call, childStopRefusal) in src/tools/TaskStopTool/TaskStopTool.ts and filterToolsForAgent in src/tools/AgentTool/agentToolUtils.ts` : ''}`); if (!ok) failures++ }
+function check(name: string, ok: boolean, detail?: unknown) { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${!ok ? ` ${JSON.stringify(detail)} — see TaskStopTool (validateInput, call, childStopRefusal) in src/tools/task-stop/TaskStopTool.ts and filterToolsForAgent in src/tools/crewmate/crewmateLifecycle.ts` : ''}`); if (!ok) failures++ }
 const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] })
 try {
   const shell = wrapSpawn(child, new AbortController().signal, 60_000, new TaskOutput(generateTaskId('local_bash'), null))

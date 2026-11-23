@@ -13,13 +13,13 @@ process.env.NODE_ENV = 'test'
 for (const key of ['MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'MERCURY_DISABLE_1M_CONTEXT']) delete process.env[key]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { GPT_DISPLAY_PINS, gptDisplayPin } = await import('../../src/utils/model/pins/gptPins.js')
-const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
-const { computedDefault, resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.js')
-const { openaiSessionDefault } = await import('../../src/services/model/providerFrontier.js')
-const { getModelOptions } = await import('../../src/services/model/modelOptions.js')
-const { resolveModelPricing } = await import('../../src/services/usage/modelCost.js')
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
+const { GPT_DISPLAY_PINS, gptDisplayPin } = await import('../../src/models/facts/pins/gptPins.js')
+const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.js')
+const { computedDefault, resetComputedDefaultMemo } = await import('../../src/models/catalogue/computedDefault.js')
+const { openaiSessionDefault } = await import('../../src/models/catalogue/providerFrontier.js')
+const { getModelOptions } = await import('../../src/models/catalogue/modelOptions.js')
+const { resolveModelPricing } = await import('../../src/models/usage/modelCost.js')
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.js')
 
 const sol = 'gpt-6.2-sol'
 const astra = 'gpt-6.2-astra'
@@ -121,7 +121,7 @@ try {
     const got = await startsOn(['gpt-5.4-nano', 'gpt-5.4-mini'])
     assert.equal(got.setting, 'gpt-5.4-mini')
     const row = getModelOptions().find(option => option.value === 'gpt-5.4-nano')
-    assert.ok(row, 'src/utils/model/modelOptions.ts getModelOptions missing deprecated gpt-5.4-nano row')
+    assert.ok(row, 'src/models/facts/modelOptions.ts getModelOptions missing deprecated gpt-5.4-nano row')
     assert.equal(row.unavailable, undefined)
   })
   await check('the reason line is true of the row it stands on: the recorded release and that row\'s own date, on Sol, on Astra and on GPT-5.5 alike, and the word frontier is on none', async () => {

@@ -12,11 +12,11 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
 for (const name of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'MERCURY_USAGE_SEED']) delete process.env[name]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const owner = await import('../../src/services/providers/providerUsage.ts')
-const state = await import('../../src/services/providers/openai/openaiLimitState.ts')
-const accounts = await import('../../src/services/providers/openai/openaiAccounts.ts')
+const owner = await import('../../src/models/roads/providerUsage.ts')
+const state = await import('../../src/models/roads/openai/openaiLimitState.ts')
+const accounts = await import('../../src/models/roads/openai/openaiAccounts.ts')
 const fixture = JSON.parse(readFileSync(join(import.meta.dir, 'fixtures/openai-chatgpt-usage.json'), 'utf8'))
 const captured = fixture.body.rate_limit.primary_window
 let now = (captured.reset_at - captured.reset_after_seconds) * 1000
@@ -49,7 +49,7 @@ const view = () => owner.usageForProvider('openai')
 const check = (name: string, test: () => void) => {
   try { test() } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
-    throw new Error(`${reason}\nFAIL ${name}: change the credits reading in src/services/providers/providerUsage.ts (usageForProvider, refreshProviderUsage, usageCreditsLine) or the observed balance in src/services/providers/openai/openaiLimitState.ts (recordOpenaiRateHeaders, forgetOpenaiLimitSource), or the sign-out in src/services/providers/openai/openaiAccounts.ts (disconnectOpenaiSubscription)`, { cause: error })
+    throw new Error(`${reason}\nFAIL ${name}: change the credits reading in src/models/roads/providerUsage.ts (usageForProvider, refreshProviderUsage, usageCreditsLine) or the observed balance in src/models/roads/openai/openaiLimitState.ts (recordOpenaiRateHeaders, forgetOpenaiLimitSource), or the sign-out in src/models/roads/openai/openaiAccounts.ts (disconnectOpenaiSubscription)`, { cause: error })
   }
   console.log(`PASS ${name}`)
 }
@@ -70,7 +70,7 @@ try {
   })
   await owner.refreshProviderUsage('openai', io)
   check('showing a fresh meter again spends no request', () => assert.equal(calls, 1))
-  const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
+  const { deriveFamilySlotGroups } = await import('../../src/models/roads/accountSlots.ts')
   process.env.OPENAI_API_KEY = 'fixture-api-key'
   accounts.writePreferredOpenaiSource('api-key')
   const subscriptionSlot = deriveFamilySlotGroups().flatMap(group => group.slots).find(slot => slot.id === 'openai:subscription')

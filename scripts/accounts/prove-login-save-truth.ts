@@ -8,7 +8,7 @@ process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 delete process.env.MERCURY_HOME
 
-const { createAnthropicLoginMachine } = await import('../../src/components/mercury-ui/screens/anthropicLoginModel.ts')
+const { createAnthropicLoginMachine } = await import('../../src/screen/widgets/faces/anthropicLoginModel.ts')
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
@@ -87,25 +87,25 @@ async function drive(save: () => SaveResult): Promise<{
 
 {
   const r = await drive(() => ({ success: false, warning: 'Failed to save credentials to secure storage' }))
-  t('§1 a failed save lands the error flow, never success', r.final.name === 'error' && !r.flows.includes('success'), `flows: ${r.flows.join('→')}; succeed in src/components/mercury-ui/screens/anthropicLoginModel.ts must throw to the error flow when saveTokens answers success false`)
-  t('§1 …recording nothing', r.recorded === 0, `recorded ${r.recorded}; succeed in src/components/mercury-ui/screens/anthropicLoginModel.ts must call deps.recordSignIn only after the save succeeds`)
-  t('§1 …announcing nothing', r.notified === 0, `notified ${r.notified}; succeed in src/components/mercury-ui/screens/anthropicLoginModel.ts must call deps.notify only after the save succeeds`)
-  t('§1 …storing no account and naming nobody', r.stored === 0 && r.label === null, `stored ${r.stored}, label ${String(r.label)}; succeed in src/components/mercury-ui/screens/anthropicLoginModel.ts must call deps.storeAccount and set accountLabel only after the save succeeds`)
-  t('§1 …and the error names the storage refusal', (r.final.message ?? '').includes('secure storage'), `${r.final.message ?? ''}; the error flow's message in succeed (src/components/mercury-ui/screens/anthropicLoginModel.ts) must carry the save's warning`)
+  t('§1 a failed save lands the error flow, never success', r.final.name === 'error' && !r.flows.includes('success'), `flows: ${r.flows.join('→')}; succeed in src/screen/widgets/faces/anthropicLoginModel.ts must throw to the error flow when saveTokens answers success false`)
+  t('§1 …recording nothing', r.recorded === 0, `recorded ${r.recorded}; succeed in src/screen/widgets/faces/anthropicLoginModel.ts must call deps.recordSignIn only after the save succeeds`)
+  t('§1 …announcing nothing', r.notified === 0, `notified ${r.notified}; succeed in src/screen/widgets/faces/anthropicLoginModel.ts must call deps.notify only after the save succeeds`)
+  t('§1 …storing no account and naming nobody', r.stored === 0 && r.label === null, `stored ${r.stored}, label ${String(r.label)}; succeed in src/screen/widgets/faces/anthropicLoginModel.ts must call deps.storeAccount and set accountLabel only after the save succeeds`)
+  t('§1 …and the error names the storage refusal', (r.final.message ?? '').includes('secure storage'), `${r.final.message ?? ''}; the error flow's message in succeed (src/screen/widgets/faces/anthropicLoginModel.ts) must carry the save's warning`)
 }
 
 {
   const r = await drive(() => ({ success: true, warning: 'saved to the plaintext fallback — the keychain refused' }))
-  t('§2 a degraded save still succeeds', r.final.name === 'success', `flow ${r.final.name}; succeed in src/components/mercury-ui/screens/anthropicLoginModel.ts must treat success true with a warning as a success`)
-  t('§2 …with the warning on the flow', (r.final.warning ?? '').includes('plaintext fallback'), `${JSON.stringify(r.final)}; succeed in src/components/mercury-ui/screens/anthropicLoginModel.ts must pass saved.warning into the success flow`)
-  t('§2 …and records + notifies', r.recorded === 1 && r.notified === 1, `recorded ${r.recorded}, notified ${r.notified}; succeed in src/components/mercury-ui/screens/anthropicLoginModel.ts must call deps.recordSignIn and deps.notify once on a degraded save`)
+  t('§2 a degraded save still succeeds', r.final.name === 'success', `flow ${r.final.name}; succeed in src/screen/widgets/faces/anthropicLoginModel.ts must treat success true with a warning as a success`)
+  t('§2 …with the warning on the flow', (r.final.warning ?? '').includes('plaintext fallback'), `${JSON.stringify(r.final)}; succeed in src/screen/widgets/faces/anthropicLoginModel.ts must pass saved.warning into the success flow`)
+  t('§2 …and records + notifies', r.recorded === 1 && r.notified === 1, `recorded ${r.recorded}, notified ${r.notified}; succeed in src/screen/widgets/faces/anthropicLoginModel.ts must call deps.recordSignIn and deps.notify once on a degraded save`)
 }
 
 {
   const r = await drive(() => ({ success: true }))
-  t('§3 a clean save succeeds with no warning', r.final.name === 'success' && r.final.warning === undefined, `${JSON.stringify(r.final)}; succeed in src/components/mercury-ui/screens/anthropicLoginModel.ts must add no warning to a clean save`)
-  t('§3 …and records + notifies exactly once', r.recorded === 1 && r.notified === 1, `recorded ${r.recorded}, notified ${r.notified}; succeed in src/components/mercury-ui/screens/anthropicLoginModel.ts must call deps.recordSignIn and deps.notify once`)
-  t('§3 …storing the account the sign-in landed once and naming it on the pane', r.stored === 1 && r.label === 'operator@example.test', `stored ${r.stored}, label ${String(r.label)}; succeed in src/components/mercury-ui/screens/anthropicLoginModel.ts must call deps.storeAccount once and set accountLabel from the token account email`)
+  t('§3 a clean save succeeds with no warning', r.final.name === 'success' && r.final.warning === undefined, `${JSON.stringify(r.final)}; succeed in src/screen/widgets/faces/anthropicLoginModel.ts must add no warning to a clean save`)
+  t('§3 …and records + notifies exactly once', r.recorded === 1 && r.notified === 1, `recorded ${r.recorded}, notified ${r.notified}; succeed in src/screen/widgets/faces/anthropicLoginModel.ts must call deps.recordSignIn and deps.notify once`)
+  t('§3 …storing the account the sign-in landed once and naming it on the pane', r.stored === 1 && r.label === 'operator@example.test', `stored ${r.stored}, label ${String(r.label)}; succeed in src/screen/widgets/faces/anthropicLoginModel.ts must call deps.storeAccount once and set accountLabel from the token account email`)
 }
 
 

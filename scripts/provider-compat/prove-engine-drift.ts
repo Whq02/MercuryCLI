@@ -21,15 +21,15 @@ let checks = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  const engineDriftHint = 'change inspectCompatServer, resolveLlamacppTotalSlots or readSelfHostedLiveness in src/services/providers/openaicompat/compatProbe.ts, or readCompatPrefillSpeed in src/services/providers/openaicompat/compatPrefill.ts (a check that only reads the fixture itself points at scripts/provider-compat/fixtures/engineRules.mjs)'
+  const engineDriftHint = 'change inspectCompatServer, resolveLlamacppTotalSlots or readSelfHostedLiveness in src/models/roads/openaicompat/compatProbe.ts, or readCompatPrefillSpeed in src/models/roads/openaicompat/compatPrefill.ts (a check that only reads the fixture itself points at scripts/provider-compat/fixtures/engineRules.mjs)'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)} | ${engineDriftHint}`}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { inspectCompatServer } = await import('../../src/services/providers/openaicompat/compatProbe.ts')
-const { readCompatPrefillSpeed } = await import('../../src/services/providers/openaicompat/compatPrefill.ts')
-const { resolveLlamacppTotalSlots, readSelfHostedLiveness, invalidateLlamacppTotalSlots } = await import('../../src/services/providers/openaicompat/compatProbe.ts')
+const { inspectCompatServer } = await import('../../src/models/roads/openaicompat/compatProbe.ts')
+const { readCompatPrefillSpeed } = await import('../../src/models/roads/openaicompat/compatPrefill.ts')
+const { resolveLlamacppTotalSlots, readSelfHostedLiveness, invalidateLlamacppTotalSlots } = await import('../../src/models/roads/openaicompat/compatProbe.ts')
 
 const current = await startEngineRules('sglang')
 const legacy = await startEngineRules('sglang', { legacyOnly: true })

@@ -12,9 +12,9 @@ delete process.env.WT_SESSION
 delete process.env.TERM_PROGRAM
 process.env.MERCURY_REDUCED_MOTION = '1'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { Box, Text } = await import('../../src/ink.js')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
 
 const COLS = 110
 const ROWS = 32
@@ -24,7 +24,7 @@ const WIDTH_PROBE_WRITE = /\x1b7.*\x1b\[6n/s
 
 let checks = 0
 let failures = 0
-const railFixHint = 'fix: the Ink renderer class in src/ink/ink.tsx (how it writes a changed frame to stdout; a write must never print past the last column or carry CR or LF); the slipped-glass checks use scripts/ink-runtime/ansiEmulator.ts'
+const railFixHint = 'fix: the Ink renderer class in src/screen/renderer/screenInstance.tsx (how it writes a changed frame to stdout; a write must never print past the last column or carry CR or LF); the slipped-glass checks use scripts/ink-runtime/ansiEmulator.ts'
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
@@ -118,7 +118,7 @@ for (const [index, step] of turn.entries()) {
     return frame.includes(step.asked ? 'read ledger.py and' : 'no prompts sent yet') &&
       (step.spinner === null ? !frame.includes('Zero drag…') : frame.includes(step.spinner))
   }, 10_000)
-  if (!painted) throw new Error(`frame ${index} did not paint within 10s; the Cockpit frame never reached Ink lastFrameText, look at render and lastFrameText in src/ink/ink.tsx`)
+  if (!painted) throw new Error(`frame ${index} did not paint within 10s; the Cockpit frame never reached Ink lastFrameText, look at render and lastFrameText in src/screen/renderer/screenInstance.tsx`)
   const writes = stdout.writes.slice(mark)
   mark = stdout.writes.length
   if (index === 1) slipped.feed(`\x1b[${ROWS};1H\n`)

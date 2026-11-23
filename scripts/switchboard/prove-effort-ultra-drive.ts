@@ -41,9 +41,9 @@ const TURN = 'hello effort ultra'
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFixture.ts')
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const projections = await import('../../src/services/engine-connector/seatProjections.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
+const projections = await import('../../src/engine/connector/seatProjections.ts')
 
 const fixture = await startCrossfamilyFixture({
   port: Number(process.env.EFFORT_ULTRA_PORT ?? '0'),

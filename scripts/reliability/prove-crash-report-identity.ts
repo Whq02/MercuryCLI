@@ -10,16 +10,16 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + 'fix the crash report writer or readers in src/utils/crashReport.ts (persistCrashReport, failingComponentOf, listCrashReports, unnoticedCrashReports, markCrashReportsNoticed); for the health row or resume offer checks, fix the crash-reports row of the health runtime section or the crash-resume dialog it feeds' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + 'fix the crash report writer or readers in src/platform/logs/crashReport.ts (persistCrashReport, failingComponentOf, listCrashReports, unnoticedCrashReports, markCrashReportsNoticed); for the health row or resume offer checks, fix the crash-reports row of the health runtime section or the crash-resume dialog it feeds' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const crash = await import('../../src/utils/crashReport.ts')
+const crash = await import('../../src/platform/logs/crashReport.ts')
 
 section('§1 identity fields ride every record')
 {
-  const stack = 'at BrokenCard (src/components/BrokenCard.tsx:12:3)\nat Messages (src/components/Messages.tsx:1:1)'
+  const stack = 'at BrokenCard (src/components/BrokenCard.tsx:12:3)\nat Messages (src/screen/messages/Messages.tsx:1:1)'
   crash.persistCrashReport(new Error('the fixture detonation'), { componentStack: stack }, 'app-root')
   const path = crash.lastCrashReportPath()
   check('the report landed and latched', path !== null)
@@ -67,8 +67,8 @@ section('§4 the boot-notice latch')
 
 section('§5 the wiring (structural)')
 {
-  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
-  const crashOwner = await import('../../src/utils/crashReport.ts')
+  const { runtimeChecks } = await import('../../src/platform/health/sections/runtime.ts')
+  const crashOwner = await import('../../src/platform/logs/crashReport.ts')
   const crashSays = await runtimeChecks().find(row => row.id === 'crash-reports')?.run()
   const recent = crashOwner.listCrashReports(3)
   check("health's RUNTIME section carries the crash-reports row", crashSays !== undefined && (recent.length === 0 ? crashSays.status === 'ok' && crashSays.evidence === 'none recorded' : crashSays.status === 'info' && crashSays.evidence.startsWith(`${recent.length} recent · newest: ${recent[0]!.at} ${recent[0]!.origin}`) && crashSays.evidence.endsWith(crashOwner.crashReportDirDisplay())), crashSays?.evidence)
@@ -109,7 +109,7 @@ section('§6 session + project ride the read boundary (FN-013 CRASH-03)')
 
 section('§7 the re-entry offer and the display latch (structural)')
 {
-  const { runtimeChecks: runtimeRows } = await import('../../src/services/health/sections/runtime.ts')
+  const { runtimeChecks: runtimeRows } = await import('../../src/platform/health/sections/runtime.ts')
   writeFileSync(
     join(crash.crashReportDir(), `crash-${Date.now() + 500}-app-root.json`),
     JSON.stringify({ origin: 'app-root', at: '2026-09-02T05:00:00.000Z', message: 'located fixture', component: 'LocatedCard', sessionId: '00000000-cccc-dddd-eeee-000000000c04', cwd: '/tmp/project-q' }),

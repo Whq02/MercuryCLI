@@ -11,7 +11,7 @@ delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
 let failures = 0
-const localPaceFailureHint = 'change the pace store, the size-class defaults, the promise or the probe doors in src/services/providers/localLiveness.ts, the wait words and wire form in src/services/providers/streamIdleBudget.ts, or statusLine in src/components/SwitchboardTagBar.tsx, whichever this label names'
+const localPaceFailureHint = 'change the pace store, the size-class defaults, the promise or the probe doors in src/models/roads/localLiveness.ts, the wait words and wire form in src/models/roads/streamIdleBudget.ts, or statusLine in src/screen/chat/SwitchboardTagBar.tsx, whichever this label names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${localPaceFailureHint}` : ''}`)
@@ -24,9 +24,9 @@ console.log('============================================================')
 console.log(' local ingest pace — the promise is measured, not guessed')
 console.log('============================================================')
 
-let pace: typeof import('../../src/services/providers/localLiveness.js') | null = null
+let pace: typeof import('../../src/models/roads/localLiveness.js') | null = null
 try {
-  pace = await import('../../src/services/providers/localLiveness.js')
+  pace = await import('../../src/models/roads/localLiveness.js')
 } catch (error) {
   pace = null
   check('the local road has a pace store of its own', false, error instanceof Error ? error.message : String(error))
@@ -94,13 +94,13 @@ if (pace !== null) {
     check('LM Studio: a loaded instance ⇒ loaded', pace.localLoadedFromAnswer('lmstudio', 'qwen3.5-27b', 200, { models: [{ key: 'qwen3.5-27b', loaded_instances: [{}] }] }) === true && pace.localLoadedFromAnswer('lmstudio', 'qwen3.5-27b', 200, { models: [{ key: 'qwen3.5-27b', loaded_instances: [] }] }) === false)
     check('llama.cpp: /health 200 ⇒ loaded, 503 ⇒ loading', pace.localLoadedFromAnswer('llamacpp', 'x', 200, { status: 'ok' }) === true && pace.localLoadedFromAnswer('llamacpp', 'x', 503, {}) === false)
     check('the loading words read the size off /api/tags in GB', pace.localSizeGbFromTags({ models: [{ name: 'qwen3.5:27b', size: 17_200_000_000 }] }, 'qwen3.5:27b') === 17.2 && pace.localSizeGbFromTags({ models: [] }, 'qwen3.5:27b') === undefined)
-    const words = await import('../../src/services/providers/streamIdleBudget.js')
+    const words = await import('../../src/models/roads/streamIdleBudget.js')
     check('the loading line', words.requestWaitLine({ kind: 'first-byte', cold: true, promptTokens: 65_000, model: 'qwen3.5:27b', budgetMs: 812_500, sinceMs: 0, attempt: 1, promise: true, phase: 'loading', sizeGb: 17.2 } as never) === 'loading qwen3.5:27b (17.2 GB)')
     const wire = words.requestWaitToWire({ kind: 'silence', model: 'qwen3.5:27b', silentMs: 900_000, sinceMs: 5, answered: true })
     check('the silence wait rides the wire snake_case and decodes back', wire.silent_ms === 900_000 && wire.since_ms === 5 && JSON.stringify(words.decodeRequestWait(words.requestWaitFromWire(wire))) === JSON.stringify({ kind: 'silence', model: 'qwen3.5:27b', silentMs: 900_000, sinceMs: 5, answered: true }), JSON.stringify(wire))
     const promised = words.requestWaitToWire({ kind: 'first-byte', cold: true, promptTokens: 65_000, model: 'qwen3.5:27b', budgetMs: 812_500, sinceMs: 0, attempt: 1, promise: true, checkedMs: 406_000 })
     check('a promised first-byte wait keeps its promise and its check across the wire', promised.checked_ms === 406_000 && (words.decodeRequestWait(words.requestWaitFromWire(promised)) as { promise?: boolean; checkedMs?: number }).promise === true && (words.decodeRequestWait(words.requestWaitFromWire(promised)) as { checkedMs?: number }).checkedMs === 406_000)
-    const { statusLine } = await import('../../src/components/SwitchboardTagBar.tsx')
+    const { statusLine } = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
     const live = { inFlight: true, phase: 'replying' } as never
     const seat = (wait: unknown, quietMs: number) => ({ title: 't', projectLabel: 'p', interrupting: false, hardStopping: false, wait, quietMs, watchdogMs: 900_000, phaseMs: null, toolBudgetMs: null, stuck: false }) as never
     check('the status row never says the budget is up on a promise', !statusLine(live, seat({ kind: 'first-byte', cold: true, promptTokens: 65_000, model: 'qwen3.5:27b', budgetMs: 406_000, sinceMs: 0, attempt: 1, promise: true }, 420_000)).includes('the budget is up') && statusLine(live, seat({ kind: 'first-byte', cold: true, promptTokens: 65_000, model: 'Opus 5', budgetMs: 198_000, sinceMs: 0, attempt: 1 }, 420_000)).includes('the budget is up'))

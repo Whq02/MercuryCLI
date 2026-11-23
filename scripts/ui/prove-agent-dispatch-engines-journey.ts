@@ -7,7 +7,7 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 let failures = 0
-const enginesJourneyFailHint = 'to fix, change the /logins zai save in storeZaiApiKeyLogin (receipt text, models-list proof, key file) in src/services/providers/zai/zaiLogin.ts or the key prompt in src/components/ZaiConnect.tsx; rebuild with bun run build.ts if dist/mercury.mjs is stale'
+const enginesJourneyFailHint = 'to fix, change the /logins zai save in storeZaiApiKeyLogin (receipt text, models-list proof, key file) in src/models/roads/zai/zaiLogin.ts or the key prompt in src/models/sign-in/flow-cards/ZaiConnect.tsx; rebuild with bun run build.ts if dist/mercury.mjs is stale'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${enginesJourneyFailHint}` : ''}`)

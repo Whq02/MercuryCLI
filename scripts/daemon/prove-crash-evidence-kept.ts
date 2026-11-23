@@ -6,7 +6,7 @@ import { PassThrough } from 'node:stream'
 import type { ChildProcess } from 'node:child_process'
 import { mock } from 'bun:test'
 import { SCRATCH_ROOT, makeTally, sleep } from './dupline-world.ts'
-import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
+import type { RunnerChildSpec } from '../../src/daemon/runner-link/headlessRun.ts'
 
 const tally = makeTally('prove-crash-evidence-kept')
 const scratch = mkdtempSync(join(SCRATCH_ROOT, 'crash-evidence-'))
@@ -36,13 +36,13 @@ process.stderr.write = ((chunk: string | Uint8Array): boolean => {
   return true
 }) as typeof process.stderr.write
 
-const realChildren = await import('../../src/daemon/headlessRun.ts')
+const realChildren = await import('../../src/daemon/runner-link/headlessRun.ts')
 const realSpawn = realChildren.spawnRunnerChild
 type FakeChild = EventEmitter & { pid: number; stdin: PassThrough; stdout: PassThrough; stderr: PassThrough; kill: () => boolean }
 const FAKE_PID = 2_147_483_001
 const fakes: FakeChild[] = []
 let realFixture: string | null = null
-mock.module('../../src/daemon/headlessRun.ts', () => ({
+mock.module('../../src/daemon/runner-link/headlessRun.ts', () => ({
   ...realChildren,
   spawnRunnerChild: (spec: RunnerChildSpec, opts?: { respawn?: boolean }) => {
     const fake = fakes.shift()
@@ -57,12 +57,12 @@ mock.module('../../src/daemon/headlessRun.ts', () => ({
     }
   },
 }))
-const { TaskRoster } = await import('../../src/daemon/roster.ts')
-const daemon = await import('../../src/daemon/longLivedRespawn.ts')
-const { parseRow } = await import('../../src/rows/read.ts')
+const { TaskRoster } = await import('../../src/daemon/roster/roster.ts')
+const daemon = await import('../../src/daemon/roster/longLivedRespawn.ts')
+const { parseRow } = await import('../../src/engine/rows/read.ts')
 const rowLine = (row: unknown): string => `${JSON.stringify({ jsonrpc: '2.0', method: 'row', params: row })}\n`
-const concourse = await import('../../src/daemon/concourseWorkers.ts')
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const concourse = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 3 } }))
 

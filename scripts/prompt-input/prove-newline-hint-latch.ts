@@ -21,13 +21,13 @@ console.log('============================================================')
 console.log(' newline hint — follows the extended-keys latch')
 console.log('============================================================')
 
-const caps = await import('../../src/ink/session/capabilities.ts')
-const { getNewlineInstructions } = await import('../../src/components/PromptInput/utils.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const caps = await import('../../src/screen/renderer/terminal-session/capabilities.ts')
+const { getNewlineInstructions } = await import('../../src/screen/composer/composerConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
-const hintLatchState = ' | extendedKeysSupportedNow and upgradeExtendedKeysSupport in src/ink/session/capabilities.ts own the latch'
-const hintNewlineText = ' | getNewlineInstructions in src/components/PromptInput/utils.ts must pick its text from extendedKeysSupportedNow()'
+const hintLatchState = ' | extendedKeysSupportedNow and upgradeExtendedKeysSupport in src/screen/renderer/terminal-session/capabilities.ts own the latch'
+const hintNewlineText = ' | getNewlineInstructions in src/screen/composer/composerConfig.ts must pick its text from extendedKeysSupportedNow()'
 
 check('this world declares no extended keys (the sniff list is silent)', caps.extendedKeysSupportedNow() === false, 'the latch started up; the env set at the top of this file (TERM_PROGRAM, TERM, TMUX, WT_SESSION) must leave the sniff list silent' + hintLatchState)
 check('latch down ⇒ the backslash form', getNewlineInstructions() === 'backslash (\\) + ↵ for a new line', getNewlineInstructions() + hintNewlineText)

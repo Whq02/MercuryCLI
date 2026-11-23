@@ -11,12 +11,12 @@ const root = scratchRoot('cairn-task-stall')
 const t = checker()
 
 const { acquirePidLockWithRetry, PidLockBusyError, probePidLock } = await import(
-  '../../src/substrate/pidLock.ts'
+  '../../src/platform/substrate/pidLock.ts'
 )
 
 const CHILD_SRC = `
 ;(globalThis).MACRO = { VERSION: '1.0.0' }
-const { acquirePidLock } = await import(${JSON.stringify(join(import.meta.dir, '..', '..', 'src', 'substrate', 'pidLock.ts'))})
+const { acquirePidLock } = await import(${JSON.stringify(join(import.meta.dir, '..', '..', 'src', 'platform', 'substrate', 'pidLock.ts'))})
 const [, , lockPath, readyPath] = process.argv
 const got = await acquirePidLock(lockPath, 'stall-child', { liveness: 'assume-alive' })
 if (!got.held) process.exit(2)
@@ -106,7 +106,7 @@ t.section('§3 — legacy artifacts stay inert')
 
 t.section('§4 — the migrated task operations work end-to-end')
 {
-  const tasks = await import('../../src/utils/tasks.ts')
+  const tasks = await import('../../src/engine/task-framework/tasks.ts')
   const id = await tasks.createTask('cairn-stall-proof', {
     subject: 'stall proof task',
     description: 'created under the pid-liveness mutex',

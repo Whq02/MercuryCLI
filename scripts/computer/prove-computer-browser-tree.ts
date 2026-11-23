@@ -3,8 +3,8 @@ import { dirname, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { check, finish, scratchDir, section, sourceText } from './computerProofKit.ts'
 
-const { DESKTOP_ADDON_EXPORTS } = await import('../../src/services/desktop/pack.ts')
-const { resolveNativeDesktopDriver, resetNativeDesktopDriverForTest } = await import('../../src/services/desktop/nativeDriver.ts')
+const { DESKTOP_ADDON_EXPORTS } = await import('../../src/integrations/desktop/pack.ts')
+const { resolveNativeDesktopDriver, resetNativeDesktopDriverForTest } = await import('../../src/integrations/desktop/nativeDriver.ts')
 const scratch = scratchDir('browser-tree')
 const trace = join(scratch, 'trace.jsonl')
 const addon = join(scratch, 'fixture.cjs')

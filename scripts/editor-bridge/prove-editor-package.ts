@@ -6,7 +6,7 @@ import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 const { installedEditorExtensions, locateBridgeVsix, MERCURY_IDE_EXTENSION_ID, BRIDGE_VSIX_NAME } = await import(
-  '../../src/utils/editorExtensionPackage.ts'
+  '../../src/commands/verbs/editorExtensionPackage.ts'
 )
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-editor-package-'))

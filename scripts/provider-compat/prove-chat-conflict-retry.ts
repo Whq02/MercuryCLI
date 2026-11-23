@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 for (const status of [409, 408, 429]) {
   const result = await turn(attempt => attempt === 1 ? Response.json({ error: { message: 'Try again' } }, { status }) : answer())
   assert.equal(result.requests.length, 2, String(status))
-  assert(result.events.some(e => e.type === 'assistant' && !e.isApiErrorMessage), `compat chat retry after HTTP ${status} in src/services/providers/openaicompat/compatChatCallModel.ts must yield a non-error assistant reply`)
+  assert(result.events.some(e => e.type === 'assistant' && !e.isApiErrorMessage), `compat chat retry after HTTP ${status} in src/models/roads/openaicompat/compatChatCallModel.ts must yield a non-error assistant reply`)
   assert.deepEqual(result.requests[0], result.requests[1])
 }
 for (const code of ['rate_limit_exceeded', 'RESOURCE_EXHAUSTED']) {

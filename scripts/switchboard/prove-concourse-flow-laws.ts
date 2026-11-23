@@ -10,24 +10,24 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — change: git offers in src/components/concourse/GitOfferCard.tsx (deriveGitOffer) and src/daemon/permissionAsks.ts (mintGitInitAsk, answerPermissionAsk), their obligation rows in src/services/crew/obligations.ts, the ground and held dispatch in src/services/concourse/concourseSnapshot.ts, the m door in src/components/concourse/controlManifest.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — change: git offers in src/screen/concourse/GitOfferCard.tsx (deriveGitOffer) and src/daemon/session-seat/permissionAsks.ts (mintGitInitAsk, answerPermissionAsk), their obligation rows in src/crew/crewmates/obligations.ts, the ground and held dispatch in src/screen/concourse-model/concourseSnapshot.ts, the m door in src/screen/concourse/controlManifest.ts'}`)
 }
 
-const { deriveGitOffer } = await import('../../src/components/concourse/GitOfferCard.js')
+const { deriveGitOffer } = await import('../../src/screen/concourse/GitOfferCard.js')
 const { mintGitInitAsk, answerPermissionAsk, listPendingPermissionAsks } = await import(
-  '../../src/daemon/permissionAsks.js'
+  '../../src/daemon/session-seat/permissionAsks.js'
 )
-const { openObligations } = await import('../../src/services/crew/obligations.js')
-const { isPathTrusted, setPathTrusted } = await import('../../src/utils/config.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { openObligations } = await import('../../src/crew/crewmates/obligations.js')
+const { isPathTrusted, setPathTrusted } = await import('../../src/platform/settings/config.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 const { dispatchSeedInputs, resolveHarnessGround, writeConcourseHeldDispatch, readConcourseHeldDispatch, writeConcourseSeedOverride } = await import(
-  '../../src/services/concourse/concourseSnapshot.js'
+  '../../src/screen/concourse-model/concourseSnapshot.js'
 )
 const { CONCOURSE_CONTROLS, CONCOURSE_REGION_KEYS } = await import(
-  '../../src/components/concourse/controlManifest.js'
+  '../../src/screen/concourse/controlManifest.js'
 )
-const { getCwd } = await import('../../src/utils/cwd.js')
+const { getCwd } = await import('../../src/platform/files/cwd.js')
 
 console.log('G1 deriveGitOffer')
 {
@@ -84,7 +84,7 @@ console.log('G4 the deny leg')
 
 console.log('G5 an answer for a git offer the daemon does not hold')
 {
-  const { upsertObligation, obligationOf } = await import('../../src/services/crew/obligations.js')
+  const { upsertObligation, obligationOf } = await import('../../src/crew/crewmates/obligations.js')
   const statusSoon = async (obligationId: string, want: string): Promise<string> => {
     let status = 'unknown'
     for (let i = 0; i < 40; i++) {
@@ -127,7 +127,7 @@ console.log('G5 an answer for a git offer the daemon does not hold')
 
 console.log('G6 a settlement never takes the row of an offer raised again for the same folder')
 {
-  const { upsertObligation, obligationOf } = await import('../../src/services/crew/obligations.js')
+  const { upsertObligation, obligationOf } = await import('../../src/crew/crewmates/obligations.js')
   const openFor = async (requestId: string): Promise<Awaited<ReturnType<typeof openObligations>>> =>
     (await openObligations({ scope: 'switchboard' })).filter(r => r.ref === `permission:${requestId}`)
   const openSoon = async (requestId: string): Promise<boolean> => {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/subprocessEnv.ts src/substrate/envStamps.ts src/utils/Shell.ts src/utils/hooks/commandRunner.ts src/services/mcp/client.ts docs/HOOKS.md
+// gate-watch: src/platform/processes/subprocessEnv.ts src/platform/substrate/envStamps.ts src/platform/shell/shellExec.ts src/integrations/event-hooks/commandRunner.ts src/integrations/mcp/client.ts docs/HOOKS.md
 import { plugin } from 'bun'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -31,7 +31,7 @@ if (!(process.env.SHELL ?? '').includes('bash') && existsSync('/bin/bash')) proc
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix subprocessEnv in src/utils/subprocessEnv.ts (its callers are src/utils/Shell.ts for Bash, startCommandHook in src/utils/hooks/commandRunner.ts for hooks, connectToServer in src/services/mcp/client.ts for MCP), or the wording in docs/HOOKS.md for the docs checks` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix subprocessEnv in src/platform/processes/subprocessEnv.ts (its callers are src/platform/shell/shellExec.ts for Bash, startCommandHook in src/integrations/event-hooks/commandRunner.ts for hooks, connectToServer in src/integrations/mcp/client.ts for MCP), or the wording in docs/HOOKS.md for the docs checks` : ''}`)
 }
 const storeToken = 'm46-store-token-not-for-children'
 writeFileSync(join(home, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: storeToken, refreshToken: 'fixture-refresh', expiresAt: Date.now() + 3600_000, scopes: ['user:inference'] } }))
@@ -48,10 +48,10 @@ const readEnv = (path: string): Record<string, string> => Object.fromEntries(rea
 }))
 
 try {
-  const { plainTextStorage } = await import('../../src/utils/secureStorage/plainTextStorage.ts')
+  const { plainTextStorage } = await import('../../src/platform/secure-storage/plainTextStorage.ts')
   check('the scratch credential store carries the known token', plainTextStorage.read()?.claudeAiOauth?.accessToken === storeToken)
 
-  const { exec, setCwd } = await import('../../src/utils/Shell.ts')
+  const { exec, setCwd } = await import('../../src/platform/shell/shellExec.ts')
   setCwd(cwd)
   const bashDump = join(root, 'bash-env.txt')
   const bash = await exec(`env > ${JSON.stringify(bashDump)}`, new AbortController().signal, 'bash', { timeout: 20_000, shouldAutoBackground: false })
@@ -59,14 +59,14 @@ try {
   check('the Bash child runs', bashResult.code === 0, String(bashResult.code))
   environments.set('Bash', readEnv(bashDump))
 
-  const { startCommandHook } = await import('../../src/utils/hooks/commandRunner.ts')
+  const { startCommandHook } = await import('../../src/integrations/event-hooks/commandRunner.ts')
   const hookDump = join(root, 'hook-env.txt')
   const hook = await startCommandHook({ command: `env > ${JSON.stringify(hookDump)}`, shell: 'bash', name: 'environment', event: 'turn.start', index: 0, payloadJson: '{}', timeoutMs: 20_000, source: { kind: 'settings' }, cwd })
   const hookResult = await hook.result
   check('the hook child runs', hookResult.kind === 'exited' && hookResult.code === 0, JSON.stringify(hookResult))
   environments.set('hook', readEnv(hookDump))
 
-  const { connectToServer, clearServerCache } = await import('../../src/services/mcp/client.ts')
+  const { connectToServer, clearServerCache } = await import('../../src/integrations/mcp/client.ts')
   const mcpDump = join(root, 'mcp-env.json')
   const config = { type: 'stdio' as const, command: process.execPath, args: [join(import.meta.dir, '_fixture-child-environment.mjs')], env: { M46_ENV_DUMP: mcpDump }, scope: 'local' as const }
   const connection = await connectToServer('environment_fixture', config)

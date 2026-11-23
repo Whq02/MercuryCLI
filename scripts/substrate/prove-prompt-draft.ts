@@ -12,12 +12,12 @@ const {
   deleteDraft,
   readDraftSync,
   cancelPendingDraftSave,
-} = await import('../../src/utils/promptDraft.js')
+} = await import('../../src/screen/composer/input-core/promptDraft.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — change: the draft store in src/utils/promptDraft.ts (saveDraftDebounced, flushDraftSaves, readDraftSync, deleteDraft, cancelPendingDraftSave) for the behaviour this label names'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — change: the draft store in src/screen/composer/input-core/promptDraft.ts (saveDraftDebounced, flushDraftSaves, readDraftSync, deleteDraft, cancelPendingDraftSave) for the behaviour this label names'}`)
 }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 const S1 = 'aaaaaaaa-0000-4000-8000-000000000001'

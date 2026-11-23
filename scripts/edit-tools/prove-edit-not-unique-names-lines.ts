@@ -17,17 +17,17 @@ delete process.env.MERCURY_EDIT_STALE_RECOVERY
 delete process.env.MERCURY_EDIT_LEDGER
 delete process.env.NODE_ENV
 
-const { _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
-const { editOutcomeRows } = await import('../../src/services/changeTransaction/editOutcomeLedger.ts')
-const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
-const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
+const { editOutcomeRows } = await import('../../src/tools/engines/change-transaction/editOutcomeLedger.ts')
+const { ownerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
 let checks = 0
-const NOT_UNIQUE_FAIL_HINT = 'to fix, change the not-unique refusal text in src/tools/FileEditTool/editResult.ts, the read law refusal in src/tools/FileEditTool/edit/readKnowledge.ts, or for the ledger checks the error-code recording in src/services/tools/toolExecution.ts and src/services/changeTransaction/editOutcomeLedger.ts'
+const NOT_UNIQUE_FAIL_HINT = 'to fix, change the not-unique refusal text in src/tools/edit/editResult.ts, the read law refusal in src/tools/edit/call/readKnowledge.ts, or for the ledger checks the error-code recording in src/engine/tool-dispatch/toolExecution.ts and src/tools/engines/change-transaction/editOutcomeLedger.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -38,7 +38,7 @@ function section(t: string): void {
 }
 const guard = setTimeout(() => {
   console.log('\nTIMEOUT — the not-unique proof exceeded 120s')
-  console.log('an Edit or Read call never returned; find the section that printed last and look at src/tools/FileEditTool/FileEditTool.ts')
+  console.log('an Edit or Read call never returned; find the section that printed last and look at src/tools/edit/EditTool.ts')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

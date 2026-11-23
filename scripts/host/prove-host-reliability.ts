@@ -4,10 +4,10 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { captureHostQuestion, captureHostNotice } from './hostLinkFrames.ts'
-import type { LlmHostQuestion } from '../../src/services/llmHost/index.ts'
+import type { LlmHostQuestion } from '../../src/models/llm-host/index.ts'
 
-type Reliability = typeof import('../../src/services/host/reliability.ts')
-const reliabilityPath = fileURLToPath(new URL('../../src/services/host/reliability.ts', import.meta.url))
+type Reliability = typeof import('../../src/models/hosting/reliability.ts')
+const reliabilityPath = fileURLToPath(new URL('../../src/models/hosting/reliability.ts', import.meta.url))
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 
 process.env.MERCURY_RECONNECT_SCALE = '0.01'
@@ -37,13 +37,13 @@ const vast = await vastFixture()
 const runpod = await runpodFixture()
 const lambda = await lambdaFixture()
 let checks = 0
-const check = (name: string, truth: unknown, detail = ''): void => { assert.ok(truth, name + (detail ? '\n' + detail : '') + '\nwhat to change: the behaviour this check names, in src/services/host/reliability.ts (hostMachineOf, noteHostLink, hostMachineTrouble, the hostLink*Words) for sections 1 to 4; in src/services/host/worker.ts, src/services/host/door.ts or src/services/host/ssh.ts (sshArguments, localKeyPath) for sections 5 and 6'); checks++; console.log('PASS ' + name) }
+const check = (name: string, truth: unknown, detail = ''): void => { assert.ok(truth, name + (detail ? '\n' + detail : '') + '\nwhat to change: the behaviour this check names, in src/models/hosting/reliability.ts (hostMachineOf, noteHostLink, hostMachineTrouble, the hostLink*Words) for sections 1 to 4; in src/models/hosting/worker.ts, src/models/hosting/door.ts or src/models/hosting/ssh.ts (sshArguments, localKeyPath) for sections 5 and 6'); checks++; console.log('PASS ' + name) }
 const signal = new AbortController().signal
 const closers: (() => void | Promise<unknown>)[] = []
 try {
-  const { hostMachineOf, noteHostLink, readHostLinkObservation, hostLinkObservations, hostMachineTrouble, hostRentalWords, hostLinkAttemptWords, hostLinkRecoveredWords, hostLinkLossWords }: Reliability = await import(f.root + '/src/services/host/reliability.ts')
-  const { vendorClient }: typeof import('../../src/services/host/vendors/client.ts') = await import(f.root + '/src/services/host/vendors/client.ts')
-  const { hostDirectory }: typeof import('../../src/services/host/store.ts') = await import(f.root + '/src/services/host/store.ts')
+  const { hostMachineOf, noteHostLink, readHostLinkObservation, hostLinkObservations, hostMachineTrouble, hostRentalWords, hostLinkAttemptWords, hostLinkRecoveredWords, hostLinkLossWords }: Reliability = await import(f.root + '/src/models/hosting/reliability.ts')
+  const { vendorClient }: typeof import('../../src/models/hosting/vendors/client.ts') = await import(f.root + '/src/models/hosting/vendors/client.ts')
+  const { hostDirectory }: typeof import('../../src/models/hosting/store.ts') = await import(f.root + '/src/models/hosting/store.ts')
   const byPrice = (a: { price: number }, b: { price: number }): number => a.price - b.price
 
   console.log('§1 which vendors name the machine behind an offer — read through the real clients from fixture answers')
@@ -123,12 +123,12 @@ try {
 
   console.log('§5 the worker and the door — the lane’s red-to-green check through the real keep-alive loop')
   {
-    const { hostRunner, closeHostTunnel }: typeof import('../../src/services/host/ssh.ts') = await import(f.root + '/src/services/host/ssh.ts')
-    const { runHostJob }: typeof import('../../src/services/host/worker.ts') = await import(f.root + '/src/services/host/worker.ts')
-    const { queueHostSetup }: typeof import('../../src/services/host/jobs.ts') = await import(f.root + '/src/services/host/jobs.ts')
-    const { readHostRecord }: typeof import('../../src/services/host/store.ts') = await import(f.root + '/src/services/host/store.ts')
-    const { saveVendorKey }: typeof import('../../src/services/host/vendors/client.ts') = await import(f.root + '/src/services/host/vendors/client.ts')
-    const { runModelDoor, modelTitle }: typeof import('../../src/services/host/door.ts') = await import(f.root + '/src/services/host/door.ts')
+    const { hostRunner, closeHostTunnel }: typeof import('../../src/models/hosting/ssh.ts') = await import(f.root + '/src/models/hosting/ssh.ts')
+    const { runHostJob }: typeof import('../../src/models/hosting/worker.ts') = await import(f.root + '/src/models/hosting/worker.ts')
+    const { queueHostSetup }: typeof import('../../src/models/hosting/jobs.ts') = await import(f.root + '/src/models/hosting/jobs.ts')
+    const { readHostRecord }: typeof import('../../src/models/hosting/store.ts') = await import(f.root + '/src/models/hosting/store.ts')
+    const { saveVendorKey }: typeof import('../../src/models/hosting/vendors/client.ts') = await import(f.root + '/src/models/hosting/vendors/client.ts')
+    const { runModelDoor, modelTitle }: typeof import('../../src/models/hosting/door.ts') = await import(f.root + '/src/models/hosting/door.ts')
     saveVendorKey('vast', vast.key)
     const ssh = fakeSshRunner(f.baseUrl, hostRunner)
     closers.push(() => ssh.close())
@@ -193,11 +193,11 @@ try {
       initialModel: modelTitle(offerA.recipe), offers: async () => undefined, pods: async () => [], records: () => [], road: async () => ({ ok: false, words: 'unused' }), vendors: [vastApi as never],
     })
     await captureHostQuestion(modelPlan!, 'machine-link-history')
-    const { createHostRoad } = await import('../../src/services/host/index.ts')
-    const { rentDoorVendor } = await import('../../src/services/host/door.ts')
-    const { queueHostWatch } = await import('../../src/services/host/jobs.ts')
-    const { hostRecords } = await import('../../src/services/host/store.ts')
-    let queued: import('../../src/services/host/store.ts').HostRecord | undefined
+    const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+    const { rentDoorVendor } = await import('../../src/models/hosting/door.ts')
+    const { queueHostWatch } = await import('../../src/models/hosting/jobs.ts')
+    const { hostRecords } = await import('../../src/models/hosting/store.ts')
+    let queued: import('../../src/models/hosting/store.ts').HostRecord | undefined
     const rentalRoad = createHostRoad({ rental: { client: vastApi, offer: offerB }, vendorApiBaseUrls: { vast: vast.baseUrl }, runner, sessionId: 'identity-session', startJob: record => { queued = record } })
     await rentDoorVendor(rentalRoad, vastApi, offerB, async question => {
       if (question.step === 'rent-confirm') return 'rent'
@@ -218,7 +218,7 @@ try {
 
   console.log('§6 every SSH step reads one known_hosts file whatever the config home is spelled')
   {
-    const { sshArguments, localKeyPath }: typeof import('../../src/services/host/ssh.ts') = await import(f.root + '/src/services/host/ssh.ts')
+    const { sshArguments, localKeyPath }: typeof import('../../src/models/hosting/ssh.ts') = await import(f.root + '/src/models/hosting/ssh.ts')
     const { homedir } = await import('node:os')
     const knownHostsValue = (): string => sshArguments({ host: 'rented.example' }).find(arg => arg.startsWith('UserKnownHostsFile='))!.slice('UserKnownHostsFile='.length)
     check('a plain home passes the known_hosts path bare', knownHostsValue() === join(hostDirectory(), 'known_hosts'), knownHostsValue())

@@ -3,8 +3,8 @@ import { check, decide, fillBash, finish, note, said, section, shown, type Rules
 
 const MODES = ['default', 'implement', 'apollo', 'dontAsk', 'flow', 'sovereign'] as const
 type Mode = (typeof MODES)[number]
-const monitorFixHint = 'fix MonitorTool checkPermissions in src/tools/MonitorTool/MonitorTool.ts, which must give a Monitor call the verdict shellCommandHasPermission in src/tools/BashTool/bashPermissions.ts gives the same command'
-const wholeToolFixHint = 'fix decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts, which must honour a rule written for the Monitor tool'
+const monitorFixHint = 'fix MonitorTool checkPermissions in src/tools/monitor/MonitorTool.ts, which must give a Monitor call the verdict shellCommandHasPermission in src/tools/shell/bashPermissions.ts gives the same command'
+const wholeToolFixHint = 'fix decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts, which must honour a rule written for the Monitor tool'
 const monitor = (command: string, mode: Mode, rules: Rules = {}) => decide('Monitor', { command: fillBash(command), description: 'watch' }, mode, rules)
 const bash = (command: string, mode: Mode, rules: Rules = {}) => decide('Bash', { command: fillBash(command) }, mode, rules)
 
@@ -67,7 +67,7 @@ for (const command of ['git status', 'cat notes.txt', 'tail -n 5 notes.txt']) {
 {
   const allowed = await monitor('npm test', 'default', { allow: ['Bash(npm test *)'] })
   check('default · an allow rule written for Bash allows the same command through Monitor', allowed.behavior === 'allow', `${said(allowed)} · ${monitorFixHint}`)
-  check('the allowed call keeps the watch as it was asked for', allowed.updatedInput?.command === 'npm test' && allowed.updatedInput?.description === 'watch', `${JSON.stringify(allowed.updatedInput)} · fix the updatedInput that MonitorTool checkPermissions in src/tools/MonitorTool/MonitorTool.ts returns on an allow`)
+  check('the allowed call keeps the watch as it was asked for', allowed.updatedInput?.command === 'npm test' && allowed.updatedInput?.description === 'watch', `${JSON.stringify(allowed.updatedInput)} · fix the updatedInput that MonitorTool checkPermissions in src/tools/monitor/MonitorTool.ts returns on an allow`)
   const asked = await monitor('npm test', 'default', { ask: ['Bash(npm test *)'] })
   check('default · an ask rule written for Bash asks through Monitor and names the rule', asked.behavior === 'ask' && String(asked.message).includes('Bash(npm test *)'), `${said(asked)} · ${monitorFixHint}`)
   const wholeDeny = await monitor('git status', 'default', { deny: ['Bash'] })

@@ -23,21 +23,21 @@ const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
 const tick = (): Promise<void> => new Promise(r => setTimeout(r, 5))
 
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const state = await import('../../src/bootstrap/state.ts')
-const { addToTotalSessionCost } = await import('../../src/cost-tracker.ts')
-const { sessionModelSpendRows } = await import('../../src/services/engine-connector/modelSpendFacts.ts')
-const wire = await import('../../src/services/engine-connector/seatWire.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { geminiLaneModelsByLastUse, geminiPlanQuotaUnreportedWords, geminiPlanQuotaView } = await import('../../src/services/providers/gemini/geminiPlanQuota.ts')
-const { sessionSpendByModel } = await import('../../src/services/providers/providerUsage.ts')
-type UsageFacts = import('../../src/services/engine-connector/types.ts').UsageFactsV1
-type Connector = import('../../src/services/engine-connector/types.ts').EngineConnectorV1
-type Figure = import('../../src/services/providers/providerUsage.ts').UsageFigureView
+const state = await import('../../src/boot/process-state/processState.ts')
+const { addToTotalSessionCost } = await import('../../src/models/usage/sessionCost.ts')
+const { sessionModelSpendRows } = await import('../../src/engine/connector/modelSpendFacts.ts')
+const wire = await import('../../src/engine/connector/seatWire.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+const { geminiLaneModelsByLastUse, geminiPlanQuotaUnreportedWords, geminiPlanQuotaView } = await import('../../src/models/roads/gemini/geminiPlanQuota.ts')
+const { sessionSpendByModel } = await import('../../src/models/roads/providerUsage.ts')
+type UsageFacts = import('../../src/engine/connector/types.ts').UsageFactsV1
+type Connector = import('../../src/engine/connector/types.ts').EngineConnectorV1
+type Figure = import('../../src/models/roads/providerUsage.ts').UsageFigureView
 
 const FABLE = 'claude-fable-5-1'
 const ARGON = 'gemini-4-argon-high'
@@ -85,28 +85,28 @@ addToTotalSessionCost(0, usage(142_000_000, 900_000), ARGON)
 await tick()
 addToTotalSessionCost(0, usage(5_000, 200), FLASH)
 const runnerRows = sessionModelSpendRows()
-check("the runner's rows carry the session's model and the two gemini-lane models its crewmates used", j(runnerRows.map(r => r.model)) === j([FABLE, ARGON, FLASH]), `${j(runnerRows.map(r => r.model))}; change sessionModelSpendRows in src/services/engine-connector/modelSpendFacts.ts so it returns one row per model the session spent on, in first-spend order`)
-check('every row carries when the model was last used, later rows later', runnerRows.every(r => typeof r.lastUsedAtMs === 'number') && (runnerRows[1]!.lastUsedAtMs ?? 0) > (runnerRows[0]!.lastUsedAtMs ?? 0) && (runnerRows[2]!.lastUsedAtMs ?? 0) > (runnerRows[1]!.lastUsedAtMs ?? 0), `${j(runnerRows.map(r => r.lastUsedAtMs))}; sessionModelSpendRows in src/services/engine-connector/modelSpendFacts.ts must copy each model record lastUsedAtMs onto its row`)
+check("the runner's rows carry the session's model and the two gemini-lane models its crewmates used", j(runnerRows.map(r => r.model)) === j([FABLE, ARGON, FLASH]), `${j(runnerRows.map(r => r.model))}; change sessionModelSpendRows in src/engine/connector/modelSpendFacts.ts so it returns one row per model the session spent on, in first-spend order`)
+check('every row carries when the model was last used, later rows later', runnerRows.every(r => typeof r.lastUsedAtMs === 'number') && (runnerRows[1]!.lastUsedAtMs ?? 0) > (runnerRows[0]!.lastUsedAtMs ?? 0) && (runnerRows[2]!.lastUsedAtMs ?? 0) > (runnerRows[1]!.lastUsedAtMs ?? 0), `${j(runnerRows.map(r => r.lastUsedAtMs))}; sessionModelSpendRows in src/engine/connector/modelSpendFacts.ts must copy each model record lastUsedAtMs onto its row`)
 const answer = { model: { effective: FABLE, setting: null }, usage: { ...zeroUsage(), modelSpend: runnerRows }, identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }, skills: [], mcp: [], permissionMode: 'default', workspace: { cwd: '/tmp', originalCwd: '/tmp', projectRoot: '/tmp' }, queue: [] }
 const onWire = wire.sessionFactsToWire(answer as never) as { usage: { model_spend?: Array<Record<string, unknown>> } }
-check('the stamp rides the wire in the feed\'s spelling', (onWire.usage.model_spend ?? []).every(r => typeof r.last_used_at_ms === 'number' && !('lastUsedAtMs' in r)), `${j(onWire.usage.model_spend?.[1])}; sessionFactsToWire in src/services/engine-connector/seatWire.ts must write last_used_at_ms for each model_spend row`)
+check('the stamp rides the wire in the feed\'s spelling', (onWire.usage.model_spend ?? []).every(r => typeof r.last_used_at_ms === 'number' && !('lastUsedAtMs' in r)), `${j(onWire.usage.model_spend?.[1])}; sessionFactsToWire in src/engine/connector/seatWire.ts must write last_used_at_ms for each model_spend row`)
 const back = wire.sessionFactsFromWire(onWire)
-check('the seat reads the rows back whole, the stamp included', back !== null && j(back.usage.modelSpend) === j(runnerRows), `${j(back?.usage.modelSpend?.[1])}; sessionFactsFromWire in src/services/engine-connector/seatWire.ts must read last_used_at_ms back into lastUsedAtMs`)
+check('the seat reads the rows back whole, the stamp included', back !== null && j(back.usage.modelSpend) === j(runnerRows), `${j(back?.usage.modelSpend?.[1])}; sessionFactsFromWire in src/engine/connector/seatWire.ts must read last_used_at_ms back into lastUsedAtMs`)
 state.resetCostState()
-check("the face's own ledger is empty — a hosted session's face spends nothing", Object.keys(state.getModelUsage()).length === 0, `the face ledger still holds ${j(Object.keys(state.getModelUsage()))} after state.resetCostState() in src/bootstrap/state.ts`)
+check("the face's own ledger is empty — a hosted session's face spends nothing", Object.keys(state.getModelUsage()).length === 0, `the face ledger still holds ${j(Object.keys(state.getModelUsage()))} after state.resetCostState() in src/boot/process-state/processState.ts`)
 focus(back!.usage)
 const totals = sessionSpendByModel(back!.usage, 'gemini').map(entry => entry.model)
-check('the token totals on the same section name the Argon model (the owner\'s 142M input tokens)', j(totals) === j([ARGON, FLASH]) && sessionSpendByModel(back!.usage, 'gemini').find(e => e.model === ARGON)?.spend.inputTokens === 142_000_000, `${j(totals)}; check sessionSpendByModel in src/services/providers/providerUsage/spend.ts against the focused connector usage rows`)
+check('the token totals on the same section name the Argon model (the owner\'s 142M input tokens)', j(totals) === j([ARGON, FLASH]) && sessionSpendByModel(back!.usage, 'gemini').find(e => e.model === ARGON)?.spend.inputTokens === 142_000_000, `${j(totals)}; check sessionSpendByModel in src/models/roads/provider-usage/spend.ts against the focused connector usage rows`)
 const used = geminiLaneModelsByLastUse()
-check("the slot's used models come from the same facts, last use first — the crewmate's Argon row among them, the Fable row left out", j(used) === j([FLASH, ARGON]), `${j(used)}; geminiLaneModelsByLastUse in src/services/providers/gemini/geminiPlanQuota.ts must read the focused session facts and keep gemini models only, last use first`)
+check("the slot's used models come from the same facts, last use first — the crewmate's Argon row among them, the Fable row left out", j(used) === j([FLASH, ARGON]), `${j(used)}; geminiLaneModelsByLastUse in src/models/roads/gemini/geminiPlanQuota.ts must read the focused session facts and keep gemini models only, last use first`)
 const view = geminiPlanQuotaView(FIGURES, { model: FABLE, effort: 'max', usedModels: used })
-check("under the tier: no active row (a Fable session), the two used rows with their quota and reset, 25 folded — never '27 other roster models' over a session that spent on Argon", view.active === undefined && j(view.used.map(f => [f.key, f.value, f.resetsAtMs])) === j([['plan-quota:gemini-3.8-flash-high', '77%', RESET], [`plan-quota:${ARGON}`, '42%', RESET]]) && view.others.length === 25, `${j({ active: view.active?.key, used: view.used.map(f => f.key), others: view.others.length })}; geminiPlanQuotaView in src/services/providers/gemini/geminiPlanQuota.ts must list the used models with quota and fold the rest into others`)
+check("under the tier: no active row (a Fable session), the two used rows with their quota and reset, 25 folded — never '27 other roster models' over a session that spent on Argon", view.active === undefined && j(view.used.map(f => [f.key, f.value, f.resetsAtMs])) === j([['plan-quota:gemini-3.8-flash-high', '77%', RESET], [`plan-quota:${ARGON}`, '42%', RESET]]) && view.others.length === 25, `${j({ active: view.active?.key, used: view.used.map(f => f.key), others: view.others.length })}; geminiPlanQuotaView in src/models/roads/gemini/geminiPlanQuota.ts must list the used models with quota and fold the rest into others`)
 
 section('§1b Google reports quota for some models and none for one: the used model Google does not report says so in one phrase instead of vanishing (F36A-14)')
 {
   const partial = FIGURES.filter(figure => figure.key !== 'plan-quota:gemini-3.8-flash-high')
   const partialView = geminiPlanQuotaView(partial, { model: FABLE, effort: 'max', usedModels: used })
-  check('the Argon row keeps its quota and reset; the Flash row is not silently dropped — it is named as unreported', j(partialView.used.map(f => f.key)) === j([`plan-quota:${ARGON}`]) && j(partialView.unreported) === j([{ model: FLASH, active: false }]), `${j({ used: partialView.used.map(f => f.key), unreported: partialView.unreported })}; geminiPlanQuotaView in src/services/providers/gemini/geminiPlanQuota.ts must put a used model with no quota figure into unreported`)
+  check('the Argon row keeps its quota and reset; the Flash row is not silently dropped — it is named as unreported', j(partialView.used.map(f => f.key)) === j([`plan-quota:${ARGON}`]) && j(partialView.unreported) === j([{ model: FLASH, active: false }]), `${j({ used: partialView.used.map(f => f.key), unreported: partialView.unreported })}; geminiPlanQuotaView in src/models/roads/gemini/geminiPlanQuota.ts must put a used model with no quota figure into unreported`)
   check('the one phrase', geminiPlanQuotaUnreportedWords(FLASH) === 'gemini-3.8-flash: no quota reported for this model', geminiPlanQuotaUnreportedWords(FLASH))
   check('the full roster reports nothing as unreported', j(view.unreported) === j([]), j(view.unreported))
   const argonSession = geminiPlanQuotaView(partial, { model: FLASH, effort: 'high', usedModels: [ARGON] })
@@ -121,7 +121,7 @@ section('§2 an older runner publishes no rows: the slot falls to the face\'s ow
 focus(zeroUsage())
 state.resetCostState()
 addToTotalSessionCost(0, usage(10, 1), 'gemini-4-argon')
-check('with no rows on the facts the face\'s own ledger serves', j(geminiLaneModelsByLastUse()) === j(['gemini-4-argon']), `${j(geminiLaneModelsByLastUse())}; geminiLaneModelsByLastUse in src/services/providers/gemini/geminiPlanQuota.ts must fall back to the face ledger when the focused facts carry no model rows`)
+check('with no rows on the facts the face\'s own ledger serves', j(geminiLaneModelsByLastUse()) === j(['gemini-4-argon']), `${j(geminiLaneModelsByLastUse())}; geminiLaneModelsByLastUse in src/models/roads/gemini/geminiPlanQuota.ts must fall back to the face ledger when the focused facts carry no model rows`)
 
 section('§3 no chat open: the plain world\'s own ledger, in last-use order, the other lanes\' models left out')
 releaseFocusedSessionConnector()
@@ -133,16 +133,16 @@ await tick()
 addToTotalSessionCost(0, usage(10, 1), 'google/claude-opus-4-6-thinking')
 await tick()
 addToTotalSessionCost(0, usage(10, 1), 'gemini-4-argon')
-check('the gemini-lane models come in order of last use', j(geminiLaneModelsByLastUse()) === j(['gemini-4-argon', 'google/claude-opus-4-6-thinking', FLASH]), `${j(geminiLaneModelsByLastUse())}; geminiLaneModelsByLastUse in src/services/providers/gemini/geminiPlanQuota.ts must sort the ledger by lastUsedAtMs, newest first, and drop non-gemini-lane models`)
+check('the gemini-lane models come in order of last use', j(geminiLaneModelsByLastUse()) === j(['gemini-4-argon', 'google/claude-opus-4-6-thinking', FLASH]), `${j(geminiLaneModelsByLastUse())}; geminiLaneModelsByLastUse in src/models/roads/gemini/geminiPlanQuota.ts must sort the ledger by lastUsedAtMs, newest first, and drop non-gemini-lane models`)
 const seeded = { 'claude-opus-4-8': { lastUsedAtMs: 50 }, [FLASH]: { lastUsedAtMs: 30 }, 'google/claude-opus-4-6-thinking': { lastUsedAtMs: 20 }, 'gemini-4-argon': { lastUsedAtMs: 10 } }
-check('a ledger handed in reads as before', j(geminiLaneModelsByLastUse(seeded)) === j([FLASH, 'google/claude-opus-4-6-thinking', 'gemini-4-argon']), `${j(geminiLaneModelsByLastUse(seeded))}; geminiLaneModelsByLastUse in src/services/providers/gemini/geminiPlanQuota.ts must use the ledger argument it is handed`)
+check('a ledger handed in reads as before', j(geminiLaneModelsByLastUse(seeded)) === j([FLASH, 'google/claude-opus-4-6-thinking', 'gemini-4-argon']), `${j(geminiLaneModelsByLastUse(seeded))}; geminiLaneModelsByLastUse in src/models/roads/gemini/geminiPlanQuota.ts must use the ledger argument it is handed`)
 state.resetCostState()
 
 section('§4 Gemini plan quota meter: used % matches Anthropic/xAI direction, and unknown is never 0% or 100%')
 {
-  const planQuotaMod = await import('../../src/services/providers/gemini/geminiPlanQuota.ts') as Record<string, unknown>
+  const planQuotaMod = await import('../../src/models/roads/gemini/geminiPlanQuota.ts') as Record<string, unknown>
   const meterOf = planQuotaMod.geminiPlanQuotaMeter as ((figure: Figure) => { title: string; window: { usedPct?: number; resetsAtMs?: number; source?: string } } | null) | undefined
-  check('geminiPlanQuotaMeter is exported for Gemini usage rows', typeof meterOf === 'function', 'export geminiPlanQuotaMeter from src/services/providers/gemini/geminiPlanQuota.ts')
+  check('geminiPlanQuotaMeter is exported for Gemini usage rows', typeof meterOf === 'function', 'export geminiPlanQuotaMeter from src/models/roads/gemini/geminiPlanQuota.ts')
   if (typeof meterOf === 'function') {
     const fullLeft = meterOf(quotaFigure('gemini-4-neon-xhigh', 100))
     check('100% left maps to 0% used with stripped title and preserved reset', fullLeft !== null && fullLeft.title === 'gemini-4-neon-xhigh' && fullLeft.window.usedPct === 0 && fullLeft.window.resetsAtMs === RESET, j(fullLeft))
@@ -155,8 +155,8 @@ section('§4 Gemini plan quota meter: used % matches Anthropic/xAI direction, an
       check(`unknown or invalid value ${JSON.stringify(bad)} draws no meter (never 0% or 100%)`, none === null, j(none))
     }
   }
-  const { fetchGeminiPlanRoster } = await import('../../src/services/providers/gemini/geminiPlanAccess.ts')
-  const { geminiPlanRosterModels } = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
+  const { fetchGeminiPlanRoster } = await import('../../src/models/roads/gemini/geminiPlanAccess.ts')
+  const { geminiPlanRosterModels } = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
   const server = Bun.serve({
     hostname: '127.0.0.1',
     port: 0,
@@ -195,13 +195,13 @@ section('§4 Gemini plan quota meter: used % matches Anthropic/xAI direction, an
       }]
     })
     const keys = builtFigures.map(f => f.key)
-    check('loopback fetchAvailableModels omits models whose remainingFraction is absent, null, or string (never invents 0% or 100%)', j(keys) === j(['plan-quota:gemini-4-neon-xhigh', 'plan-quota:gemini-4-carbon-high']), `${j(keys)}; fetchGeminiPlanRoster in src/services/providers/gemini/geminiPlanAccess.ts must keep a quota only when remainingFraction is a number`)
+    check('loopback fetchAvailableModels omits models whose remainingFraction is absent, null, or string (never invents 0% or 100%)', j(keys) === j(['plan-quota:gemini-4-neon-xhigh', 'plan-quota:gemini-4-carbon-high']), `${j(keys)}; fetchGeminiPlanRoster in src/models/roads/gemini/geminiPlanAccess.ts must keep a quota only when remainingFraction is a number`)
     const liveView = geminiPlanQuotaView(builtFigures, {
       model: 'gemini-4-neon',
       effort: 'xhigh',
       usedModels: ['gemini-4-carbon-high', 'gemini-4-absent-high', 'gemini-4-null-high', 'gemini-4-string-high'],
     })
-    check('unreported models (absent/null/string remainingFraction) are listed as unreported with no meter', j(liveView.unreported.map(u => u.model)) === j(['gemini-4-absent-high', 'gemini-4-null-high', 'gemini-4-string-high']), `${j(liveView.unreported)}; geminiPlanQuotaView in src/services/providers/gemini/geminiPlanQuota.ts must list every used model without a quota figure as unreported`)
+    check('unreported models (absent/null/string remainingFraction) are listed as unreported with no meter', j(liveView.unreported.map(u => u.model)) === j(['gemini-4-absent-high', 'gemini-4-null-high', 'gemini-4-string-high']), `${j(liveView.unreported)}; geminiPlanQuotaView in src/models/roads/gemini/geminiPlanQuota.ts must list every used model without a quota figure as unreported`)
     const neonMeter = typeof meterOf === 'function' && liveView.active ? meterOf(liveView.active) : null
     const carbonMeter = typeof meterOf === 'function' && liveView.used[0] ? meterOf(liveView.used[0]) : null
     check('loopback model answering remainingFraction=1 draws 0% used; remainingFraction=0.79 draws 21% used', neonMeter?.window.usedPct === 0 && carbonMeter?.window.usedPct === 21, j({ neonMeter, carbonMeter }))

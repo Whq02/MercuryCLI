@@ -1,0 +1,459 @@
+import { useRef, useState } from 'react'
+import { useClaim } from '../../effects/effects.js'
+import { OAuthService } from '../../../models/sign-in/oauth/index.js'
+import {
+  accountInfoFromTokens,
+  createAndStoreApiKey,
+  fetchAndStoreUserRoles,
+  shouldUseClaudeAIAuth,
+  storeOAuthAccountInfo,
+} from '../../../models/sign-in/oauth/client.js'
+import {
+  awaitStoredOAuthDaemonRestart,
+  daemonRestartFailedNotice,
+} from '../../../models/sign-in/oauth/refresh.js'
+import type { OAuthTokens } from '../../../models/sign-in/oauth-shapes/types.js'
+import { PROFILE_SCOPE } from '../../../models/sign-in/oauth/oauth.js'
+import { loginShadowWarning } from '../../../models/sign-in/credentials/auth.js'
+import { saveOAuthTokensIfNeeded, validateForceLoginOrg } from '../../../models/sign-in/lifecycle/oauthLifecycle.js'
+import type { AccountInfo } from '../../../platform/settings/config.js'
+import { getInitialSettings } from '../../../platform/settings/settings.js'
+import { recordSignIn as recordSignInLedger, type SignInKind } from '../../../models/sign-in/account-ledger/signInLedger.js'
+import { setClipboard } from '../../renderer/termio/osc.js'
+import { logError } from '../../../platform/logs/errorLog.js'
+import { getAuthScope } from '../../../platform/environment/envUtils.js'
+import { afterMicrotask, startTimeout, stopTimeout, type TimerHandle } from '../../../platform/async/timers.js'
+
+
+const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60
+export const PASTE_PROMPT_DELAY_MS = 3000
+export const NO_CODE_DELAY_MS = 30_000
+export const COPY_ACK_MS = 2000
+export const RETRY_DELAY_MS = 1000
+export const TOKEN_FINISH_MS = 500
+
+export const BROWSER_OPENED_WORDS = 'A browser window has been opened — finish signing in there.'
+export const BROWSER_DID_NOT_OPEN_WORDS = 'The browser did not open. Press c to copy the sign-in URL and open it yourself; the code goes in the field below.'
+export const NO_CODE_ARRIVED_WORDS = 'No code arrived from the browser yet. If no window opened, press c to copy the sign-in URL and open it yourself; the code goes in the field below.'
+
+export type AnthropicFlowState =
+  | { name: 'idle' }
+  | { name: 'ready'; loginWithClaudeAi: boolean }
+  | { name: 'waiting'; url: string; loginWithClaudeAi: boolean; forcedMethod: string | null }
+  | { name: 'creating-key' }
+  | { name: 'success'; token?: string; warning?: string }
+  | { name: 'error'; message: string; retry?: AnthropicFlowState }
+  | { name: 'about-to-retry'; target: AnthropicFlowState }
+
+export interface AnthropicLoginSnapshot {
+  flow: AnthropicFlowState
+  pastePromptUp: boolean
+  noCodeYet: boolean
+  browserOpened: boolean | null
+  copied: boolean
+  shadowWarning: string | null
+  accountLabel: string | null
+}
+
+export function waitingHeadline(snap: Pick<AnthropicLoginSnapshot, 'noCodeYet' | 'browserOpened'>): { words: string; warns: boolean } {
+  if (snap.browserOpened === false) return { words: BROWSER_DID_NOT_OPEN_WORDS, warns: true }
+  if (snap.noCodeYet) return { words: NO_CODE_ARRIVED_WORDS, warns: true }
+  return { words: BROWSER_OPENED_WORDS, warns: false }
+}
+
+export const MANUAL_CODE_ERROR =
+  'That is not the full code — copy the complete authorization code (it contains a # separator).'
+
+export const MINT_NO_KEY_ERROR = 'the server accepted the API key request but returned no key'
+
+export const EXCHANGE_RETRY_ERROR = 'The token exchange failed — try again.'
+
+export function parseManualAuthCode(
+  raw: string,
+): { ok: true; authorizationCode: string; state: string } | { ok: false; message: string } {
+  const trimmed = raw.trim()
+  const [authorizationCode, stateHalf] = trimmed.split('#')
+  if (!authorizationCode || !stateHalf) return { ok: false, message: MANUAL_CODE_ERROR }
+  return { ok: true, authorizationCode, state: stateHalf }
+}
+
+export function sslHint(error: unknown): string | null {
+  const text = String((error as { message?: string })?.message ?? error)
+  if (/SSL|certificate|CERT|TLS|self[- ]signed/i.test(text)) {
+    return 'The token exchange failed on a TLS/SSL error — a corporate proxy or TLS interception layer is likely rewriting certificates. Configure NODE_EXTRA_CA_CERTS with your organisation root certificate and retry.'
+  }
+  return null
+}
+
+export function exchangeFailureMessage(error: unknown): string {
+  return (
+    sslHint(error) ??
+    (/exchange/i.test(String(error))
+      ? EXCHANGE_RETRY_ERROR
+      : String((error as Error).message ?? error))
+  )
+}
+
+export const LOGIN_SUCCESS_NOTICE = {
+  key: 'login-success',
+  text: 'Signed in',
+  priority: 'immediate',
+  timeoutMs: 4000,
+} as const
+
+export interface AnthropicOAuthServiceLike {
+  startOAuthFlow(
+    urlCallback: (url: string, manualUrl?: string) => void,
+    options: {
+      loginWithClaudeAi: boolean
+      inferenceOnly?: boolean
+      expiresIn?: number
+      orgUUID?: string
+      loginMethod?: string
+      onBrowserOpen?: (opened: boolean) => void
+    },
+  ): Promise<OAuthTokens>
+  handleManualAuthCodeInput(input: { authorizationCode: string; state: string }): void
+  cleanup(): void
+}
+
+export interface AnthropicLoginDeps {
+  createService: () => AnthropicOAuthServiceLike
+  saveTokens: (tokens: OAuthTokens) => { success: boolean; warning?: string }
+  usesClaudeAiAuth: (scopes: string[]) => boolean
+  mintApiKey: (accessToken: string) => Promise<unknown>
+  validateOrg: () => Promise<unknown>
+  storeAccount: (account: AccountInfo) => void
+  awaitDaemonRestart?: () => Promise<string | null>
+  fetchRoles?: typeof fetchAndStoreUserRoles
+  shadowWarning: () => string | null
+  recordSignIn: (kind: SignInKind) => void
+  settings: () => { credentials?: { signInRoute?: 'claudeai' | 'console' | null; organisation?: string | null } }
+  notify?: (notice: typeof LOGIN_SUCCESS_NOTICE) => void
+  clipboard: (text: string) => Promise<string | null>
+  writeStdout: (sequence: string) => void
+  log: (error: unknown) => void
+  setTimer: (fn: () => void, ms: number) => TimerHandle
+  clearTimer: (handle: TimerHandle) => void
+}
+
+function liveDeps(): AnthropicLoginDeps {
+  return {
+    createService: () => new OAuthService(),
+    saveTokens: tokens => saveOAuthTokensIfNeeded(tokens),
+    usesClaudeAiAuth: scopes => shouldUseClaudeAIAuth(scopes),
+    mintApiKey: accessToken => createAndStoreApiKey(accessToken),
+    validateOrg: () => validateForceLoginOrg(),
+    storeAccount: account => storeOAuthAccountInfo(account),
+    awaitDaemonRestart: () => awaitStoredOAuthDaemonRestart(),
+    fetchRoles: fetchAndStoreUserRoles,
+    shadowWarning: () => loginShadowWarning(),
+    recordSignIn: kind => recordSignInLedger('anthropic', kind),
+    settings: () => getInitialSettings(),
+    clipboard: text => setClipboard(text),
+    writeStdout: sequence => process.stdout.write(sequence),
+    log: error => logError(error),
+    setTimer: (fn, ms) => startTimeout(fn, ms),
+    clearTimer: handle => stopTimeout(handle),
+  }
+}
+
+export interface AnthropicLoginMachineOptions {
+  mode?: 'login' | 'setup-token'
+  forceLoginMethod?: 'claudeai' | 'console'
+  onDone: () => void
+}
+
+export interface AnthropicLoginMachine {
+  snapshot(): AnthropicLoginSnapshot
+  wake(): void
+  start(loginWithClaudeAi: boolean): void
+  submitCode(raw: string): boolean
+  retry(): void
+  copyUrl(): void
+  reset(): void
+  dispose(): void
+}
+
+export function createAnthropicLoginMachine(
+  options: AnthropicLoginMachineOptions,
+  onChange: (snapshot: AnthropicLoginSnapshot) => void,
+  injected?: Partial<AnthropicLoginDeps>,
+): AnthropicLoginMachine {
+  const deps: AnthropicLoginDeps = { ...liveDeps(), ...injected }
+  const setupToken = options.mode === 'setup-token'
+  const settingsForced = deps.settings().credentials?.signInRoute ?? null
+  const forcedMethod = options.forceLoginMethod ?? settingsForced ?? null
+  const forcedOrg = deps.settings().credentials?.organisation ?? null
+
+  let flow: AnthropicFlowState = setupToken
+    ? { name: 'ready', loginWithClaudeAi: true }
+    : forcedMethod !== null
+      ? { name: 'ready', loginWithClaudeAi: forcedMethod === 'claudeai' }
+      : { name: 'idle' }
+  let pastePromptUp = false
+  let noCodeYet = false
+  let browserOpened: boolean | null = null
+  let copied = false
+  let shadowWarning: string | null = null
+  let accountLabel: string | null = null
+  let service: AnthropicOAuthServiceLike | null = null
+  let started = false
+  let disposed = false
+  let generation = 0
+  let rolesRequest: AbortController | null = null
+  const timers = new Set<TimerHandle>()
+
+  const snapshot = (): AnthropicLoginSnapshot => ({ flow, pastePromptUp, noCodeYet, browserOpened, copied, shadowWarning, accountLabel })
+  const publish = (): void => {
+    if (!disposed) onChange(snapshot())
+  }
+  const arm = (fn: () => void, ms: number): void => {
+    const handle = deps.setTimer(() => {
+      timers.delete(handle)
+      if (!disposed) fn()
+    }, ms)
+    timers.add(handle)
+  }
+
+  const setFlow = (next: AnthropicFlowState): void => {
+    if (disposed) return
+    flow = next
+    if (next.name === 'idle') started = false
+    publish()
+    if (next.name === 'ready' && !started) {
+      started = true
+      const loginWithClaudeAi = next.loginWithClaudeAi
+      arm(() => startFlow(loginWithClaudeAi), 0)
+    }
+    if (next.name === 'about-to-retry') {
+      const target = next.target
+      arm(() => {
+        if (target.name === 'ready') started = false
+        setFlow(target)
+      }, RETRY_DELAY_MS)
+    }
+  }
+
+  const succeed = async (tokens: OAuthTokens, gen: number): Promise<void> => {
+    if (disposed || gen !== generation) return
+    if (setupToken) {
+      const token = (tokens as { accessToken?: string }).accessToken
+      setFlow({ name: 'success', ...(token !== undefined ? { token } : {}) })
+      arm(() => options.onDone(), TOKEN_FINISH_MS)
+      return
+    }
+    try {
+      const saved = deps.saveTokens(tokens)
+      if (!saved.success) {
+        throw new Error(saved.warning ?? 'the credential could not be saved to secure storage')
+      }
+      const saveWarning = saved.warning
+      const landed = accountInfoFromTokens(tokens)
+      const subscription = deps.usesClaudeAiAuth(tokens.scopes)
+      if (subscription && landed !== undefined) deps.storeAccount(landed)
+      const fetchRoles = deps.fetchRoles
+      if (subscription && landed !== undefined && fetchRoles !== undefined && tokens.scopes.includes(PROFILE_SCOPE)) {
+        rolesRequest?.abort()
+        const request = new AbortController()
+        rolesRequest = request
+        const origin = { account: landed, authScope: getAuthScope(), isCurrent: () => !disposed && gen === generation, signal: request.signal }
+        void afterMicrotask(() => origin.isCurrent() && !request.signal.aborted ? fetchRoles(tokens.accessToken, origin) : undefined)
+          .catch(error => deps.log(error))
+          .finally(() => { if (rolesRequest === request) rolesRequest = null })
+      }
+      if (!deps.usesClaudeAiAuth(tokens.scopes)) {
+        setFlow({ name: 'creating-key' })
+        const minted = await deps.mintApiKey(tokens.accessToken)
+        if (!minted) throw new Error(MINT_NO_KEY_ERROR)
+      }
+      if (forcedOrg) {
+        const validation = await deps.validateOrg()
+        if (validation && (validation as { valid?: boolean }).valid === false) {
+          throw new Error(
+            (validation as { reason?: string }).reason ??
+              'the configured organisation is not valid for this account',
+          )
+        }
+      }
+      if (disposed || gen !== generation) return
+      const daemonRestartError =
+        subscription && landed !== undefined && deps.awaitDaemonRestart !== undefined
+          ? await deps.awaitDaemonRestart()
+          : null
+      if (disposed || gen !== generation) return
+      const daemonWarning =
+        daemonRestartError !== null ? daemonRestartFailedNotice(daemonRestartError) : undefined
+      const warning =
+        [saveWarning, daemonWarning].filter((item): item is string => item !== undefined).join('\n') || undefined
+      deps.recordSignIn(deps.usesClaudeAiAuth(tokens.scopes) ? 'oauth' : 'api-key')
+      deps.notify?.(LOGIN_SUCCESS_NOTICE)
+      shadowWarning = deps.shadowWarning()
+      accountLabel = landed?.emailAddress ?? null
+      setFlow({ name: 'success', ...(warning !== undefined ? { warning } : {}) })
+    } catch (error) {
+      if (disposed || gen !== generation) return
+      setFlow({ name: 'error', message: String((error as Error).message ?? error), retry: { name: 'ready', loginWithClaudeAi: deps.usesClaudeAiAuth(tokens.scopes) } })
+    }
+  }
+
+  const startFlow = (loginWithClaudeAi: boolean): void => {
+    const gen = generation
+    const created = deps.createService()
+    service = created
+    noCodeYet = false
+    browserOpened = null
+    created
+      .startOAuthFlow(
+        (autoUrl, manualUrl) => {
+          if (gen !== generation) return
+          setFlow({ name: 'waiting', url: manualUrl || autoUrl, loginWithClaudeAi, forcedMethod })
+          pastePromptUp = false
+          publish()
+          arm(() => {
+            pastePromptUp = true
+            publish()
+          }, PASTE_PROMPT_DELAY_MS)
+          arm(() => {
+            if (gen !== generation || flow.name !== 'waiting') return
+            noCodeYet = true
+            publish()
+          }, NO_CODE_DELAY_MS)
+        },
+        {
+          loginWithClaudeAi,
+          ...(setupToken ? { inferenceOnly: true, expiresIn: ONE_YEAR_SECONDS } : {}),
+          ...(forcedOrg ? { orgUUID: forcedOrg } : {}),
+          ...(forcedMethod ? { loginMethod: forcedMethod } : {}),
+          onBrowserOpen: opened => {
+            if (gen !== generation) return
+            browserOpened = opened
+            publish()
+          },
+        },
+      )
+      .then(tokens => {
+        if (gen !== generation) return
+        void succeed(tokens, gen)
+      })
+      .catch(error => {
+        if (gen !== generation) return
+        deps.log(error)
+        setFlow({
+          name: 'error',
+          message: exchangeFailureMessage(error),
+          retry: { name: 'ready', loginWithClaudeAi },
+        })
+      })
+  }
+
+  return {
+    snapshot,
+    wake(): void {
+      if (flow.name === 'ready' && !started) {
+        started = true
+        const loginWithClaudeAi = flow.loginWithClaudeAi
+        arm(() => startFlow(loginWithClaudeAi), 0)
+      }
+    },
+    start(loginWithClaudeAi: boolean): void {
+      started = false
+      setFlow({ name: 'ready', loginWithClaudeAi })
+    },
+    submitCode(raw: string): boolean {
+      if (flow.name !== 'waiting') return false
+      const parsed = parseManualAuthCode(raw)
+      if (!parsed.ok) {
+        setFlow({ name: 'error', message: parsed.message, retry: flow })
+        return false
+      }
+      service?.handleManualAuthCodeInput({ authorizationCode: parsed.authorizationCode, state: parsed.state })
+      return true
+    },
+    retry(): void {
+      if (flow.name !== 'error' || flow.retry === undefined) return
+      setFlow({ name: 'about-to-retry', target: flow.retry })
+    },
+    copyUrl(): void {
+      if (flow.name !== 'waiting') return
+      void deps.clipboard(flow.url).then(sequence => {
+        if (sequence) deps.writeStdout(sequence)
+        copied = true
+        publish()
+        arm(() => {
+          copied = false
+          publish()
+        }, COPY_ACK_MS)
+      })
+    },
+    reset(): void {
+      generation += 1
+      rolesRequest?.abort()
+      rolesRequest = null
+      for (const handle of timers) deps.clearTimer(handle)
+      timers.clear()
+      service?.cleanup()
+      service = null
+      started = false
+      flow = { name: 'idle' }
+      pastePromptUp = false
+      noCodeYet = false
+      browserOpened = null
+      copied = false
+      shadowWarning = null
+      accountLabel = null
+      publish()
+    },
+    dispose(): void {
+      disposed = true
+      generation += 1
+      rolesRequest?.abort()
+      rolesRequest = null
+      for (const handle of timers) deps.clearTimer(handle)
+      timers.clear()
+      service?.cleanup()
+    },
+  }
+}
+
+export function useAnthropicLoginModel(
+  options: AnthropicLoginMachineOptions,
+  deps?: Partial<AnthropicLoginDeps>,
+): AnthropicLoginSnapshot & {
+  start: (loginWithClaudeAi: boolean) => void
+  submitCode: (raw: string) => boolean
+  retry: () => void
+  copyUrl: () => void
+  reset: () => void
+} {
+  const optionsRef = useRef(options)
+  optionsRef.current = options
+  const machineRef = useRef<AnthropicLoginMachine | null>(null)
+  const [snap, setSnap] = useState<AnthropicLoginSnapshot | null>(null)
+  if (machineRef.current === null) {
+    machineRef.current = createAnthropicLoginMachine(
+      {
+        ...(options.mode !== undefined ? { mode: options.mode } : {}),
+        ...(options.forceLoginMethod !== undefined ? { forceLoginMethod: options.forceLoginMethod } : {}),
+        onDone: () => optionsRef.current.onDone(),
+      },
+      next => setSnap(next),
+      deps,
+    )
+  }
+  useClaim(() => {
+    machineRef.current?.wake()
+    return () => {
+      machineRef.current?.dispose()
+    }
+  }, [])
+  const machine = machineRef.current
+  return {
+    ...(snap ?? machine.snapshot()),
+    start: loginWithClaudeAi => machine.start(loginWithClaudeAi),
+    submitCode: raw => machine.submitCode(raw),
+    retry: () => machine.retry(),
+    copyUrl: () => machine.copyUrl(),
+    reset: () => machine.reset(),
+  }
+}

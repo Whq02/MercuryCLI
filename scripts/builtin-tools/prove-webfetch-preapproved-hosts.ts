@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/WebFetchTool/preapproved.ts
+// gate-watch: src/tools/web-fetch/preapproved.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -18,11 +18,11 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const preapprovedHint = 'edit PREAPPROVED_HOSTS or isPreapprovedHost in src/tools/WebFetchTool/preapproved.ts'
+const preapprovedHint = 'edit PREAPPROVED_HOSTS or isPreapprovedHost in src/tools/web-fetch/preapproved.ts'
 
 console.log('WebFetch reaches no model vendor\'s site without the user\'s word')
 
-const { PREAPPROVED_HOSTS, isPreapprovedHost } = await import('../../src/tools/WebFetchTool/preapproved.ts')
+const { PREAPPROVED_HOSTS, isPreapprovedHost } = await import('../../src/tools/web-fetch/preapproved.ts')
 
 const VENDOR_HOSTS = ['platform.claude.com', 'docs.claude.com', 'api.anthropic.com', 'platform.openai.com', 'docs.x.ai', 'ai.google.dev', 'api-docs.deepseek.com', 'platform.moonshot.ai', 'openrouter.ai']
 const VENDOR_ORGS = ['github.com/anthropics', 'github.com/openai', 'github.com/xai-org', 'github.com/google-gemini']

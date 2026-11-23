@@ -14,7 +14,7 @@ if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  const fix = 'hint: make the hook named in the label accept a placeholder input without throwing, in that tool under src/tools; the seam is safeSearchOrReadClassification in src/Tool.ts, the collapse walk is collapseReadSearchGroups in src/components/messages/collapseReadSearch.ts, the row boundary is RowErrorBoundary in src/components'
+  const fix = 'hint: make the hook named in the label accept a placeholder input without throwing, in that tool under src/tools; the seam is safeSearchOrReadClassification in src/tools/kit/tool.ts, the collapse walk is collapseReadSearchGroups in src/screen/messages/collapseReadSearch.ts, the row boundary is RowErrorBoundary in src/components'
   const shown = ok ? detail : detail ? `${detail} | ${fix}` : fix
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${shown ? ` — ${shown}` : ''}`)
   if (!ok) failures = 1
@@ -39,12 +39,12 @@ const PLACEHOLDERS: Array<[string, unknown]> = [
   ['[] (array)', []],
 ]
 
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { PowerShellTool } = await import('../../src/tools/PowerShellTool/PowerShellTool.tsx')
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { GlobTool } = await import('../../src/tools/GlobTool/GlobTool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { safeSearchOrReadClassification, stringInputField, buildTool } = await import('../../src/Tool.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { PowerShellTool } = await import('../../src/tools/powershell/PowerShellTool.tsx')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
+const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { safeSearchOrReadClassification, stringInputField, buildTool } = await import('../../src/tools/kit/tool.ts')
 const { z } = await import('zod/v4')
 
 console.log('── 1. classifier matrix ──')
@@ -76,7 +76,7 @@ for (const tool of [BashTool, PowerShellTool, GrepTool, GlobTool, FileReadTool])
 
 console.log('── 2. collapse walk ──')
 {
-  const { collapseReadSearchGroups, getToolSearchOrReadInfo } = await import('../../src/components/messages/collapseReadSearch.ts')
+  const { collapseReadSearchGroups, getToolSearchOrReadInfo } = await import('../../src/screen/messages/collapseReadSearch.ts')
   const tools = [BashTool, GrepTool, FileReadTool] as never
   let n = 0
   const uuid = () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`
@@ -136,7 +136,7 @@ console.log('── 3. the seam ──')
   t('a tool without a classifier reads as undefined', safeSearchOrReadClassification(plain as never, { command: 'ls' }) === undefined)
   t('an absent tool reads as undefined', safeSearchOrReadClassification(undefined, { command: 'ls' }) === undefined)
   t('a real classifier still answers through the seam', safeSearchOrReadClassification(GrepTool as never, {})?.isSearch === true)
-  const { collapseReadSearchGroups } = await import('../../src/components/messages/collapseReadSearch.ts')
+  const { collapseReadSearchGroups } = await import('../../src/screen/messages/collapseReadSearch.ts')
   const row = {
     type: 'assistant', uuid: '00000000-0000-4000-8000-00000000ffff', timestamp: new Date().toISOString(),
     message: { id: 'mx', role: 'assistant', type: 'message', model: 'x', stop_reason: 'tool_use', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 }, content: [{ type: 'tool_use', id: 'tx', name: 'ThrowingClassifier', input: {} }] },
@@ -148,11 +148,11 @@ console.log('── 3. the seam ──')
 console.log('── 4. class sweep ──')
 {
   try {
-    const cfg = await import('../../src/utils/config.ts')
+    const cfg = await import('../../src/platform/settings/config.ts')
     ;(cfg as { enableConfigs?: () => void }).enableConfigs?.()
   } catch {
   }
-  const { getAllBaseTools } = await import('../../src/tools.ts')
+  const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
   const tools = getAllBaseTools()
   t('the registry resolved a real catalogue', tools.length > 20, `${tools.length} tools`)
   const HOOKS = ['isSearchOrReadCommand', 'getToolUseSummary', 'getActivityDescription', 'userFacingName'] as const
@@ -177,9 +177,9 @@ console.log('── 4. class sweep ──')
 console.log('── 6. per-row boundary ──')
 {
   const React = await import('react')
-  const { default: Ink } = await import('../../src/ink/ink.js')
-  const { Box, Text } = await import('../../src/ink.js')
-  const { RowErrorBoundary } = await import('../../src/components/RowErrorBoundary.js')
+  const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+  const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+  const { RowErrorBoundary } = await import('../../src/screen/messages/RowErrorBoundary.js')
   class FakeStdout extends EventEmitter {
     isTTY = true
     columns = 260

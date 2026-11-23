@@ -6,9 +6,9 @@ import { join } from 'node:path'
 const home = mkdtempSync(join(tmpdir(), 'lifecycle-'))
 process.env.MERCURY_CONFIG_DIR = home
 
-const { pushOverlay, popOverlay, anyOverlayActive, resetOverlayStackForTests } = await import('../../src/context/overlayStack.js')
-const { subscribeUiClock, uiClockStatsForProofs } = await import('../../src/utils/cockpit/uiClock.js')
-const { saveDraftDebounced, cancelPendingDraftSave, flushDraftSaves } = await import('../../src/utils/promptDraft.js')
+const { pushOverlay, popOverlay, anyOverlayActive, resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.js')
+const { subscribeUiClock, uiClockStatsForProofs } = await import('../../src/screen/cockpit/uiClock.js')
+const { saveDraftDebounced, cancelPendingDraftSave, flushDraftSaves } = await import('../../src/screen/composer/input-core/promptDraft.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -35,7 +35,7 @@ mark('§1')
   }
   for (let i = 0; i < tokens.length; i += 2) popOverlay(tokens[i]!)
   for (let i = 1; i < tokens.length; i += 2) popOverlay(tokens[i]!)
-  check('§1 overlay stack empty after 40 interleaved lifecycles', !anyOverlayActive(), anyOverlayActive() ? 'an overlay stayed active after every token was popped; check popOverlay in src/context/overlayStack.ts removes the entry for its token' : '')
+  check('§1 overlay stack empty after 40 interleaved lifecycles', !anyOverlayActive(), anyOverlayActive() ? 'an overlay stayed active after every token was popped; check popOverlay in src/screen/overlays/overlayStack.ts removes the entry for its token' : '')
 }
 
 mark('§2')
@@ -45,7 +45,7 @@ mark('§2')
     for (const u of unsubs) u()
   }
   const stats = uiClockStatsForProofs()
-  check('§2 zero clock buckets after 30 mixed rounds', Object.keys(stats).length === 0, `${JSON.stringify(stats)}${Object.keys(stats).length === 0 ? '' : ' (a clock bucket survived its unsubscribes; check the unsubscribe returned by subscribeUiClock in src/utils/cockpit/uiClock.ts deletes an emptied bucket)'}`)
+  check('§2 zero clock buckets after 30 mixed rounds', Object.keys(stats).length === 0, `${JSON.stringify(stats)}${Object.keys(stats).length === 0 ? '' : ' (a clock bucket survived its unsubscribes; check the unsubscribe returned by subscribeUiClock in src/screen/cockpit/uiClock.ts deletes an emptied bucket)'}`)
 }
 
 

@@ -115,7 +115,7 @@ if (launcherDir !== null) {
   roads.push({ name: 'Git for Windows launcher first', path: [launcherDir, ...others].join(delimiter) })
 }
 
-const { computeWorkingTreeSha } = await import('../../src/services/health/healthReport.ts')
+const { computeWorkingTreeSha } = await import('../../src/platform/health/healthReport.ts')
 
 section('§1 a read that finishes returns the tree git itself writes and leaves no store behind')
 {
@@ -143,9 +143,9 @@ for (const road of roads) {
     const sha = await settled
     return { inAdd, sha, left: storesIn(dir) }
   })
-  check(`[${road.name}] the read was inside git add when the check gave up`, outcome.inAdd, 'the fixture never reached git add within 60s (no gate-tree-* store with index and index.lock appeared); check that git runs on PATH and that computeWorkingTreeSha in src/services/health/healthReport.ts creates its store under the TMPDIR')
-  check(`[${road.name}] the tree read answers null once the check gives up`, outcome.sha === null, `${String(outcome.sha)}; computeWorkingTreeSha in src/services/health/healthReport.ts must return null when its signal aborts`)
-  check(`[${road.name}] no gate-tree-* store is left when the read returns`, outcome.left.length === 0, `${outcome.left.join(',')}; computeWorkingTreeSha in src/services/health/healthReport.ts must remove its gate-tree-* temp store after an abort during git add`)
+  check(`[${road.name}] the read was inside git add when the check gave up`, outcome.inAdd, 'the fixture never reached git add within 60s (no gate-tree-* store with index and index.lock appeared); check that git runs on PATH and that computeWorkingTreeSha in src/platform/health/healthReport.ts creates its store under the TMPDIR')
+  check(`[${road.name}] the tree read answers null once the check gives up`, outcome.sha === null, `${String(outcome.sha)}; computeWorkingTreeSha in src/platform/health/healthReport.ts must return null when its signal aborts`)
+  check(`[${road.name}] no gate-tree-* store is left when the read returns`, outcome.left.length === 0, `${outcome.left.join(',')}; computeWorkingTreeSha in src/platform/health/healthReport.ts must remove its gate-tree-* temp store after an abort during git add`)
 }
 
 section('§3 a store something still holds after the check gave up is waited out, not abandoned')
@@ -159,7 +159,7 @@ section('§3 a store something still holds after the check gave up is waited out
   controller.abort(new Error('check timed out after 10000ms'))
   await settled
   const left = storesIn(dir)
-  check('no gate-tree-* store is left when the read returns', left.length === 0, `${left.join(',')}; computeWorkingTreeSha in src/services/health/healthReport.ts must wait out a process still holding the store, then remove it`)
+  check('no gate-tree-* store is left when the read returns', left.length === 0, `${left.join(',')}; computeWorkingTreeSha in src/platform/health/healthReport.ts must wait out a process still holding the store, then remove it`)
   await finished(holder)
 }
 
@@ -173,16 +173,16 @@ section('§4 an exit right after the checks gave up, or while reads still run, l
     { label: '[a process still holding the store] a read the check gave up on', dir: join(world, 'exit-pinned'), path: hostPath, pinned: true, giveUp: true },
   ]
   const planFile = join(world, 'plan.json')
-  writeFileSync(planFile, JSON.stringify({ module: join(ROOT, 'src', 'services', 'health', 'healthReport.ts'), repo, hold: holdScript, jobs }))
+  writeFileSync(planFile, JSON.stringify({ module: join(ROOT, 'src', 'platform', 'health', 'healthReport.ts'), repo, hold: holdScript, jobs }))
   const run = spawn(process.execPath, [exitScript, planFile], { cwd: ROOT, env: { ...process.env }, stdio: ['ignore', 'ignore', 'pipe'], timeout: 180_000 })
   let err = ''
   run.stderr!.on('data', (chunk: Buffer) => (err += chunk.toString('utf8')))
   const code = await new Promise<number | null>(resolve => run.on('close', resolve))
-  check('the child exited by itself', code === 0, `exit ${code}: ${err.slice(-300)}; the child (exit-with-reads.js) must finish by itself, so computeWorkingTreeSha in src/services/health/healthReport.ts must not keep the process alive after an abort`)
+  check('the child exited by itself', code === 0, `exit ${code}: ${err.slice(-300)}; the child (exit-with-reads.js) must finish by itself, so computeWorkingTreeSha in src/platform/health/healthReport.ts must not keep the process alive after an abort`)
   for (const job of jobs) {
     await until(() => existsSync(job.dir) && storesIn(job.dir).length === 0, 15_000)
     const left = existsSync(job.dir) ? storesIn(job.dir) : ['(never started)']
-    check(`${job.label}: its gate-tree-* store is gone after the exit`, left.length === 0, `${left.join(',')}; computeWorkingTreeSha in src/services/health/healthReport.ts must remove its gate-tree-* store when the process exits (check the exit and abort cleanup there)`)
+    check(`${job.label}: its gate-tree-* store is gone after the exit`, left.length === 0, `${left.join(',')}; computeWorkingTreeSha in src/platform/health/healthReport.ts must remove its gate-tree-* store when the process exits (check the exit and abort cleanup there)`)
   }
 }
 

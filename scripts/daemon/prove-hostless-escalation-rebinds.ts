@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { mock } from 'bun:test'
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'hostless-escalation-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -17,7 +17,7 @@ mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}change endRunnersLeftWithoutHost in src/daemon/concourseWorkers/park.ts so it signals a runner or a process under it only while its pid still carries the birth the record or listing read` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}change endRunnersLeftWithoutHost in src/daemon/concourse-workers/park.ts so it signals a runner or a process under it only while its pid still carries the birth the record or listing read` : ''}`)
 }
 const j = (value: unknown): string => JSON.stringify(value)
 
@@ -49,9 +49,9 @@ let memberBirth: string | null = null
 let memberProbes = 0
 let memberProbesAtAsk = -1
 
-const ownerWatch = await import('../../src/utils/ownerWatch.ts')
+const ownerWatch = await import('../../src/daemon/control/ownerWatch.ts')
 const real = { isProcessAlive: ownerWatch.isProcessAlive, getProcessStartTokenAsync: ownerWatch.getProcessStartTokenAsync }
-mock.module('../../src/utils/ownerWatch.ts', () => ({
+mock.module('../../src/daemon/control/ownerWatch.ts', () => ({
   ...ownerWatch,
   isProcessAlive: (pid: number) => (pid === STAND_IN_PID ? alive : pid === MEMBER_PID ? memberAlive : real.isProcessAlive(pid)),
   getProcessStartTokenAsync: async (pid: number, like?: string | null) => {
@@ -61,7 +61,7 @@ mock.module('../../src/utils/ownerWatch.ts', () => ({
   },
 }))
 let treeListings: number[] = []
-mock.module('../../src/daemon/processTree.ts', () => ({
+mock.module('../../src/daemon/process-sweep/processTree.ts', () => ({
   readProcessTreeUnder: async (pid: number) => {
     treeListings.push(pid)
     if (member === 'this process stands in its tree') return null
@@ -75,8 +75,8 @@ mock.module('../../src/daemon/processTree.ts', () => ({
     return memberBirth
   },
 }))
-const processGroup = await import('../../src/utils/processGroup.ts')
-mock.module('../../src/utils/processGroup.ts', () => ({
+const processGroup = await import('../../src/platform/processes/processGroup.ts')
+mock.module('../../src/platform/processes/processGroup.ts', () => ({
   ...processGroup,
   endProcessTree: async (pid: number, signal: string) => {
     if (pid !== STAND_IN_PID && pid !== MEMBER_PID && pid !== process.pid) throw new Error(`this proof signals no real process, and was asked to end ${pid}`)
@@ -99,7 +99,7 @@ mock.module('../../src/utils/processGroup.ts', () => ({
     return { ended: alive ? 0 : 1, survivors: [...(alive ? [pid] : []), ...(memberAlive ? [MEMBER_PID] : [])] }
   },
 }))
-const sup = await import('../../src/daemon/concourseWorkers.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 const dir = process.env.MERCURY_DAEMON_DIR!
 const now = Date.now()
 

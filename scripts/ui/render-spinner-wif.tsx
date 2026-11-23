@@ -21,14 +21,14 @@ const CONFIG_HOME = resolveProofHome([process.cwd()])
 
 if (process.env.WIF_RENDER_CHILD) {
   const React = await import('react')
-  const { render } = (await import('../../src/ink.js')) as {
+  const { render } = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
   }
   const { SpinnerAnimationRow } = await import(
-    '../../src/components/Spinner/SpinnerAnimationRow.js'
+    '../../src/screen/spinner/SpinnerAnimationRow.js'
   )
   const { publishContextUsage } = await import(
-    '../../src/services/cockpit/contextUsageLive.js'
+    '../../src/screen/cockpit-gauges/contextUsageLive.js'
   )
   publishContextUsage(63, 200_000)
 
@@ -63,14 +63,14 @@ if (process.env.WIF_RENDER_CHILD) {
   setTimeout(() => process.exit(0), 1500)
 } else if (process.env.OTPS_RENDER_CHILD) {
   const React = await import('react')
-  const { render } = (await import('../../src/ink.js')) as {
+  const { render } = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
   }
   const { SpinnerAnimationRow } = await import(
-    '../../src/components/Spinner/SpinnerAnimationRow.js'
+    '../../src/screen/spinner/SpinnerAnimationRow.js'
   )
   const { publishContextUsage } = await import(
-    '../../src/services/cockpit/contextUsageLive.js'
+    '../../src/screen/cockpit-gauges/contextUsageLive.js'
   )
   publishContextUsage(50, 200_000)
   const cols = Number(process.env.WIF_COLS || '120')

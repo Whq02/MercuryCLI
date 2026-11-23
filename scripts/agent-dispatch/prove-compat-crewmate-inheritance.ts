@@ -20,23 +20,23 @@ writeFileSync(join(f.home, 'settings.json'), JSON.stringify({ compatProvider: {
   first: { baseUrl: f.baseUrl, dialect: 'vllm', models: ['Wrong/First'] },
   parent: { baseUrl: f.baseUrl, dialect: 'vllm', models: [f.model] },
 } }))
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 resetSettingsCache()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 bootstrap.setOriginalCwd(f.home)
 bootstrap.setCwdState(f.home)
 const model = `compat/parent/${f.model}`
 bootstrap.setEngineModelOverride('compat/first/Wrong/First')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/query.ts')
-const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getAgentModel } = await import('../../src/services/model/agent.ts')
-const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
-const { flushSessionStorage, readAgentMetadata } = await import('../../src/utils/sessionStorage.ts')
-await import('../../src/tasks.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getAgentModel } = await import('../../src/models/catalogue/agentModel.ts')
+const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
+const { flushSessionStorage, readAgentMetadata } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+await import('../../src/engine/tasks/tasks.ts')
 const previousCwd = process.cwd()
 process.chdir(f.home)
 let state: any = getDefaultAppState()
@@ -57,7 +57,7 @@ const crewmate = async (prompt: string, opts: { model?: string; effort: string }
 }
 let checks = 0
 let failures = 0
-const inheritanceHint = 'change how a crewmate inherits the parent model and effort: getAgentModel in src/services/model/agent.ts, resolveEngineDispatch in src/services/crew/engineDispatch.ts, and the model, effort and thinking handling in runAgent in src/tools/AgentTool/runAgent.ts'
+const inheritanceHint = 'change how a crewmate inherits the parent model and effort: getAgentModel in src/models/catalogue/agentModel.ts, resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts, and the model, effort and thinking handling in runAgent in src/tools/crewmate/runCrewmate.ts'
 const check = (label: string, truth: unknown, detail?: unknown) => { checks++; if (!truth) failures++; console.log(`${truth ? 'PASS' : 'FAIL'} ${label}${!truth ? ' — ' + (detail !== undefined ? JSON.stringify(detail) + '; ' : '') + inheritanceHint : ''}`) }
 try {
   const resolved = await resolveEngineDispatch(getAgentModel(undefined, model, 'compat'))

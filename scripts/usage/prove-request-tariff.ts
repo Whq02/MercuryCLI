@@ -12,13 +12,13 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 globalThis.fetch = (() => { throw new Error('network forbidden') }) as typeof fetch
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { deepseekLaneProfile } = await import('../../src/services/providers/deepseek/deepseekCallModel.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { resetCostState, getTotalCost } = await import('../../src/cost-tracker.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { rollupSessionUsage } = await import('../../src/services/usage/usageRollup.ts')
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { deepseekLaneProfile } = await import('../../src/models/roads/deepseek/deepseekCallModel.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { resetCostState, getTotalCost } = await import('../../src/models/usage/sessionCost.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+const { rollupSessionUsage } = await import('../../src/models/usage/usageRollup.ts')
 const realNow = Date.now
 const sid = '55555555-5555-4555-8555-555555555555'
 const start = Date.parse('2026-10-23T05:59:59Z')

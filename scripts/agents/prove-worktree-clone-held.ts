@@ -13,7 +13,7 @@ const ROOT = realpathSync(join(import.meta.dir, '..', '..'))
 process.chdir(ROOT)
 
 let failures = 0
-const heldHint = 'what to change: the folders and files a Read deny rule names must stay links to the checkout and the rest be cloned or copied, in heldBackUnder, cloneCheckoutDirectories, linkCheckoutDirectories and prepareWorktreeFiles of src/services/worktree.ts (set-aside delete in src/utils/worktreeClone.ts); the rule match is checkReadPermissionForTool in src/utils/permissions/filesystem.ts'
+const heldHint = 'what to change: the folders and files a Read deny rule names must stay links to the checkout and the rest be cloned or copied, in heldBackUnder, cloneCheckoutDirectories, linkCheckoutDirectories and prepareWorktreeFiles of src/platform/git/worktree/worktree.ts (set-aside delete in src/platform/git/worktree/worktreeClone.ts); the rule match is checkReadPermissionForTool in src/permissions/rules/filesystem.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail : '') + ' | ' + heldHint : ''}`)
   if (!cond) failures++
@@ -22,15 +22,15 @@ const skip = (label: string): void => console.log(`  [SKIP] ${label}`)
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
-const state = await import('../../src/bootstrap/state.ts')
-const config = await import('../../src/utils/config/globalConfig.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { applyPermissionRulesToPermissionContext } = await import('../../src/utils/permissions/permissions.ts')
-const { loadAllPermissionRulesFromDisk } = await import('../../src/utils/permissions/permissionsLoader.ts')
-const { checkReadPermissionForTool } = await import('../../src/utils/permissions/filesystem.ts')
-const worktree = await import('../../src/services/worktree.ts')
-const { discardSetAside, setWorktreeAside } = await import('../../src/utils/worktreeClone.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const config = await import('../../src/platform/config/globalConfig.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { applyPermissionRulesToPermissionContext } = await import('../../src/permissions/rules/permissionDoor.ts')
+const { loadAllPermissionRulesFromDisk } = await import('../../src/permissions/rules/permissionsLoader.ts')
+const { checkReadPermissionForTool } = await import('../../src/permissions/rules/filesystem.ts')
+const worktree = await import('../../src/platform/git/worktree/worktree.ts')
+const { discardSetAside, setWorktreeAside } = await import('../../src/platform/git/worktree/worktreeClone.ts')
 type Made = { worktreePath: string; worktreeBranch?: string; gitRoot?: string; prepareFailure?: string; ready?: Promise<void> }
 const make = (slug: string, options: Record<string, unknown> = {}): Promise<Made> => (worktree.createAgentWorktree as (slug: string, options: unknown) => Promise<Made>)(slug, options)
 

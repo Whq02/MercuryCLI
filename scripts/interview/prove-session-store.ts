@@ -11,8 +11,8 @@ const scratch = mkdtempSync(join(tmpdir(), 'interview-store-'))
 process.env.MERCURY_CONFIG_DIR = scratch
 
 const t = checker()
-const store = await import('../../src/services/interview/store.ts')
-const { rebuildInterview } = await import('../../src/services/interview/contracts.ts')
+const store = await import('../../src/tools/engines/interview/store.ts')
+const { rebuildInterview } = await import('../../src/tools/engines/interview/contracts.ts')
 
 try {
   t.section('§1 — stable reference + duplicate no-op')

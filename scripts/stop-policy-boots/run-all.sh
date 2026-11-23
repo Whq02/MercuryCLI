@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/services/run/**
-# gate-watch: src/services/providers/zai/zaiCallModel*
+# gate-watch: src/engine/run/**
+# gate-watch: src/models/roads/zai/zaiCallModel.ts
 # gate-watch: scripts/stop-policy/*
-# gate-watch: src/run-core/turn/**
+# gate-watch: src/engine/loop/turn/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

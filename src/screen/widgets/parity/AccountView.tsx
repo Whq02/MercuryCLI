@@ -1,0 +1,306 @@
+import { homedir } from 'node:os'
+import * as React from 'react'
+import { useRef, useState } from 'react'
+import { Box, Text } from '../../themedRenderer.js'
+import { useLoad } from '../../effects/effects.js'
+import { useTerminalSize } from '../../fullscreen-layout/useTerminalSize.js'
+import { getGlobalConfig } from '../../../platform/settings/config.js'
+import { getMercuryHome } from '../../../platform/environment/envUtils.js'
+import { forgetScopeIdentity, resolveLiveScopeIdentity } from '../../../models/sign-in/account-ledger/accountIdentity.js'
+import { AMBER, FAINT, IVORY, SECOND } from '../../theme/mercuryPalette.js'
+import {
+  CommandCenter,
+  KeyValueGrid,
+  SectionHeader,
+  StateBadge,
+} from '../components.js'
+import { GLYPH } from '../../theme/glyphs.js'
+import {
+  resolveProviderUsability,
+  type ProviderId,
+  type ProviderUsability,
+} from '../../../models/roads/providerUsability.js'
+import {
+  deriveFamilySlotGroups,
+  executeSlotRemoval,
+  familyDisplayName,
+  familyRouteWords,
+  familySigninCeiling,
+  familySigninSummary,
+  mainLoopIdentity,
+  type AccountSlot,
+  type SlotIdentities,
+} from '../../../models/roads/accountSlots.js'
+import { refreshProviderUsage } from '../../../models/roads/providerUsage.js'
+import { useAppState } from '../../app-state/AppState.js'
+import { getEngineModel, renderModelName } from '../../../models/catalogue/engineModel.js'
+import { useFocusedServedModel } from '../../model-picker/useDisplayedSessionModel.js'
+import { useSessionAccent } from '../sessionAccent.js'
+import { useInteractiveList } from '../useInteractiveList.js'
+import { renderAccountRow, rowKey, type BoardRow } from './accountRows.js'
+import { passedOver } from '../../../platform/errors/passedOver.js'
+
+function usabilityFor(familyId: string): ProviderUsability | undefined {
+  const map = resolveProviderUsability()
+  return (map as Partial<Record<string, ProviderUsability>>)[familyId as ProviderId]
+}
+
+
+function familyRouteNote(id: string): string {
+  return `${familyDisplayName(id)} — ${familyRouteWords(id)}`
+}
+
+const MAX_ROWS_SHOWN = 8
+
+const REMOVAL_CONFIRM_WINDOW_MS = 8_000
+
+function tildify(p: string, home: string): string {
+  return p.startsWith(home) ? `~${p.slice(home.length)}` || '~' : p
+}
+
+type Identities = SlotIdentities
+
+export function AccountView({
+  onClose,
+}: {
+  onClose: (value?: string, options?: { nextInput?: string; submitNextInput?: boolean }) => void
+}): React.ReactNode {
+  const accent = useSessionAccent().accent
+  const home = homedir()
+  const tailWidth = Math.max(24, useTerminalSize().columns - 36)
+  const [version, setVersion] = useState(0)
+  const [identities, setIdentities] = useState<Identities>({})
+  const armedRemovalRef = useRef<{ id: string; at: number } | null>(null)
+
+  useLoad(signal => {
+    void import('../../../models/roads/providerDiscovery.js')
+      .then(m => m.refreshProviderDiscovery('local'))
+      .then(() => {
+        if (!signal.aborted) setVersion(v => v + 1)
+      })
+      .catch(passedOver)
+  }, [])
+
+  void version
+  const groups = deriveFamilySlotGroups()
+  const scopeSlots = groups.flatMap(group => group.slots.filter(slot => slot.scope !== undefined))
+  const [, setUsageVersion] = useState(0)
+  const usageFamiliesKey = groups.filter(group => group.slots.some(slot => slot.active && slot.signedIn)).map(group => group.family.id).join('|')
+  useLoad(signal => {
+    for (const group of groups) {
+      if (!group.slots.some(slot => slot.active && slot.signedIn)) continue
+      void refreshProviderUsage(group.family.id, { reason: 'open' }).then(() => {
+        if (!signal.aborted) setUsageVersion(value => value + 1)
+      })
+    }
+  }, [usageFamiliesKey])
+
+  const scopeDirsKey = scopeSlots.map(slot => slot.id).join('|')
+  useLoad(signal => {
+    for (const slot of scopeSlots) {
+      if (slot.scope!.foreignHarness) continue
+      setIdentities(prev => (prev[slot.id] ? prev : { ...prev, [slot.id]: { state: 'checking' } }))
+      void resolveLiveScopeIdentity(slot.id).then(v => {
+        if (!signal.aborted) setIdentities(prev => ({ ...prev, [slot.id]: v }))
+      })
+    }
+  }, [scopeDirsKey, version])
+
+  const acct = getGlobalConfig().oauthAccount
+  const servedModel = useFocusedServedModel()
+  const sessionModel = useAppState(state => state.engineModelForSession ?? state.engineModel)
+  const engineModel = servedModel ?? sessionModel ?? getEngineModel()
+
+  const rerouteToLogins = (family: string, why: string): string => {
+    onClose(why, { nextInput: `/logins ${family}`, submitNextInput: true })
+    return why
+  }
+
+  const listRows: BoardRow[] = groups.flatMap((group): BoardRow[] =>
+    group.slots.length > 0
+      ? group.slots.map((slot): BoardRow => ({ type: 'slot', slot }))
+      : [{ type: 'absent', family: group.family }],
+  )
+
+  const activateScopeSlot = (slot: AccountSlot): string => {
+    const s = slot.scope!
+    if (s.foreignHarness) {
+      return "another tool's credential scope — Mercury never bills through it; run under your Mercury home (no config-dir pin) to sign in"
+    }
+    if (s.isCurrent) return rerouteToLogins('anthropic', `opening Logins for the ${s.name} sign-in`)
+    return `this login belongs to ${s.name} — run mercury there (MERCURY_CONFIG_DIR=${s.dir}) and /logins; ⌫ here signs it out`
+  }
+
+  const activateSlot = (slot: AccountSlot): string => {
+    if (slot.scope) return activateScopeSlot(slot)
+    if (slot.family === 'openai') {
+      return rerouteToLogins('openai', 'opening Logins for the OpenAI sign-in')
+    }
+    if (slot.envPinned) {
+      return `${slot.identity} — the shell owns this pin; Mercury reads it, never edits it`
+    }
+    switch (slot.removal.route) {
+      case 'anthropic-managed-key':
+        return 'the /logins managed key — ⌫ removes it (config + keychain)'
+      case 'settings':
+      case 'owner':
+        return slot.removal.note
+      default:
+        return familyRouteNote(slot.family)
+    }
+  }
+
+  const { selectedIndex: sel, note, hints, rowProps } = useInteractiveList({
+    rows: listRows,
+    rowId: rowKey,
+    idNamespace: 'accounts',
+    onClose,
+    active: true,
+    actions: [
+      {
+        key: 'return',
+        hint: 'opens Logins to sign in / re-login',
+        run: row => {
+          if (!row) return 'no accounts found — r rescans'
+          if (row.type === 'absent') return familyRouteNote(row.family.id)
+          return activateSlot(row.slot)
+        },
+      },
+      {
+        key: 'r',
+        hint: 'rescan',
+        run: () => {
+          forgetScopeIdentity()
+          setVersion(v => v + 1)
+          setIdentities({})
+          return 'rescanned accounts (identities re-verify live)'
+        },
+      },
+      {
+        key: 'backspace',
+        hint: 'remove slot (⌫ twice)',
+        run: row => {
+          if (!row) return 'no accounts found — r rescans'
+          if (row.type === 'absent') {
+            return `nothing to remove — ${familyDisplayName(row.family.id)} has no login · ${familyRouteWords(row.family.id)}`
+          }
+          const removable =
+            row.slot.removal.route !== 'excluded' &&
+            row.slot.removal.route !== 'owner' &&
+            row.slot.removal.route !== 'settings' &&
+            row.slot.removal.route !== 'env'
+          const id = rowKey(row)
+          const armed = armedRemovalRef.current
+          const stillArmed = armed !== null && armed.id === id && Date.now() - armed.at <= REMOVAL_CONFIRM_WINDOW_MS
+          if (removable && !stillArmed) {
+            armedRemovalRef.current = { id, at: Date.now() }
+            const what = row.slot.identity || row.slot.kindLabel
+            return `⌫ again removes ${familyDisplayName(row.slot.family)} · ${what} (signs it out and drops the stored credential) — any other row keeps it`
+          }
+          armedRemovalRef.current = null
+          const outcome = executeSlotRemoval(row.slot)
+          if (outcome.mutated) {
+            setIdentities(prev => {
+              const next = { ...prev }
+              delete next[row.slot.id]
+              return next
+            })
+            setVersion(v => v + 1)
+          }
+          return outcome.note
+        },
+      },
+    ],
+  })
+
+  const billingSlot = scopeSlots.find(slot => slot.scope!.isCurrent)
+  const mainLoop = mainLoopIdentity({
+    model: engineModel,
+    presences: groups.map(group => group.family),
+    currentScopeIdentity: billingSlot ? identities[billingSlot.id] : undefined,
+    currentScopeClaudeFamily: billingSlot?.scope?.foreignHarness ?? false,
+  })
+  const mainLoopText = `${mainLoop.family} · ${renderModelName(engineModel)} · ${mainLoop.text}`
+  const orgText =
+    mainLoop.route === 'anthropic' && mainLoop.basis === 'verified-live' && acct?.organizationName
+      ? `${acct.organizationName} (snapshot)`
+      : undefined
+
+  const renderRow = (row: BoardRow, index: number): React.ReactNode => renderAccountRow(row, index, { sel, identities, accent, groups, rowProps, tailWidth })
+
+  let cursor = 0
+  const groupViews = groups.map(group => {
+    const start = cursor
+    const count = Math.max(1, group.slots.length)
+    cursor += count
+    return { group, start }
+  })
+
+  return (
+    <CommandCenter view="accounts" onClose={onClose} captureInput={false} footer={`↑↓ move · ${hints ?? ''}`}>
+      <Box marginTop={1}>
+        <Text>
+          <StateBadge state="excluded" label="tokens never shown" />
+          <Text color={FAINT}> · identity is live-verified from each slot's OWN credential (snapshots only as labeled offline fallback) · a key or token counts by presence</Text>
+        </Text>
+      </Box>
+
+      <SectionHeader>This session</SectionHeader>
+      <KeyValueGrid
+        keyWidth={10}
+        rows={[
+          { k: 'scope', v: tildify(getMercuryHome(), home), tone: IVORY, fit: 'middle' as const },
+          { k: 'main loop', v: mainLoopText, tone: IVORY, fit: 'end' as const },
+          ...(orgText !== undefined ? [{ k: 'org', v: orgText, tone: SECOND, fit: 'end' as const }] : []),
+        ]}
+      />
+
+      {groupViews.map(({ group, start }) => {
+        const signedIn = familySigninSummary(group.slots, identities).signedIn
+        const rowsOfGroup: BoardRow[] =
+          group.slots.length > 0
+            ? group.slots.map((slot): BoardRow => ({ type: 'slot', slot }))
+            : [{ type: 'absent', family: group.family }]
+        const localSel = Math.min(Math.max(0, sel - start), rowsOfGroup.length - 1)
+        const winStart =
+          rowsOfGroup.length > MAX_ROWS_SHOWN
+            ? Math.max(0, Math.min(localSel - MAX_ROWS_SHOWN + 1, rowsOfGroup.length - MAX_ROWS_SHOWN))
+            : 0
+        const shown = rowsOfGroup.slice(winStart, winStart + MAX_ROWS_SHOWN)
+        const hiddenAbove = winStart
+        const hiddenBelow = Math.max(0, rowsOfGroup.length - winStart - shown.length)
+        const ceiling = familySigninCeiling(group.family.id)
+        const health = usabilityFor(group.family.id)
+        const healthLine =
+          health === undefined || (health.usable && (require('../../../models/roads/capFailover.js') as typeof import('../../../models/roads/capFailover.js')).observedFamilyWindow(group.family.id).state !== 'warning')
+            ? null
+            : health.usable
+              ? 'usage window warning — /usage shows the reset'
+              : (health.blockers[0] ?? 'not ready')
+        return (
+          <React.Fragment key={group.family.id}>
+            <SectionHeader {...(ceiling === undefined ? { count: signedIn } : {})}>{`${familyDisplayName(group.family.id)} accounts`}</SectionHeader>
+            {healthLine !== null ? (
+              <Box paddingLeft={2}>
+                <Text color={AMBER}>{`${GLYPH.warn} ${healthLine}`}</Text>
+              </Box>
+            ) : null}
+            {hiddenAbove > 0 ? <Text color={FAINT}>{`  ↑ +${hiddenAbove} above`}</Text> : null}
+            {shown.map((row, i) => renderRow(row, start + winStart + i))}
+            {hiddenBelow > 0 ? <Text color={FAINT}>{`  ↓ +${hiddenBelow} below — ↓ reaches them`}</Text> : null}
+          </React.Fragment>
+        )
+      })}
+
+      <Box marginTop={1}>
+        <Text color={FAINT}>/logout signs out of everything, every provider · /logins adds accounts</Text>
+      </Box>
+
+      {note ? (
+        <Box marginTop={1}>
+          <Text color={IVORY} wrap="truncate-end">{note}</Text>
+        </Box>
+      ) : null}
+    </CommandCenter>
+  )
+}

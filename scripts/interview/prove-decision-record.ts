@@ -12,13 +12,13 @@ process.env.MERCURY_CONFIG_DIR = scratch
 process.env.NODE_ENV = 'test'
 
 const t = checker()
-const { rebuildInterview } = await import('../../src/services/interview/contracts.ts')
+const { rebuildInterview } = await import('../../src/tools/engines/interview/contracts.ts')
 const {
   buildDecisionRecord,
   persistDecisionRecord,
   latestDecisionRecordSync,
-} = await import('../../src/services/interview/decisionRecord.ts')
-import type { InterviewEvent } from '../../src/services/interview/contracts.ts'
+} = await import('../../src/tools/engines/interview/decisionRecord.ts')
+import type { InterviewEvent } from '../../src/tools/engines/interview/contracts.ts'
 
 let n = 0
 const ev = <K extends InterviewEvent['kind']>(

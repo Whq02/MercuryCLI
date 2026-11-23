@@ -439,27 +439,27 @@ async function landLeg(dialect: Dialect): Promise<void> {
   check(
     `${tag}: the running card's rows read the record — both names, the served model, tokens > 0`,
     [SEAT_ONE, SEAT_TWO].every(name => running.split('\n').some((line, at, lines) => line.includes('△ crewmate') && line.includes(name) && (lines[at + 1] ?? '').includes(servedModel) && /\brunning\b/.test(lines[at + 1] ?? '') && nonZeroTokens(lines[at + 1] ?? ''))),
-    'each seat needs a line with the crewmate glyph and its name, then a next line with the model, running and a non-zero token figure; the running card is drawn by src/tools/AgentTool/UI.tsx, see the running frame dump below',
+    'each seat needs a line with the crewmate glyph and its name, then a next line with the model, running and a non-zero token figure; the running card is drawn by src/tools/crewmate/rows.tsx, see the running frame dump below',
   )
   check(
     `${tag}: the CREW lane rows carry the token figure while they run (the word where the row has room), the names whole`,
     (flat(running).match(/◐ (?:reef-survey|tide-gauges) · \d[\d.,]*k?(?: context)?\b/g) ?? []).length >= 2,
     'both CREW lane rows must read the glyph, the seat name and a token figure; see the running frame dump below',
   )
-  check(`${tag}: the usage attribution line counts the crew`, /crewmates \d[\d.,]*k? spent/.test(flat(running)), 'the line comes from crewUsageLine in src/services/engine-connector/crewFacts.ts and needs at least one seat with a token figure; see the running frame dump below')
+  check(`${tag}: the usage attribution line counts the crew`, /crewmates \d[\d.,]*k? spent/.test(flat(running)), 'the line comes from crewUsageLine in src/engine/connector/crewFacts.ts and needs at least one seat with a token figure; see the running frame dump below')
   const crewRunning = crewPopup(marks['crew-running'] ?? '')
   check(
     `${tag}: the Crew view while running — both rows, the served model, the running glyph with the seat's live phase, tokens > 0, the count label`,
     agentRow(crewRunning, SEAT_ONE, servedModel, /◐/, /Sleeping for \d+s|\brunning\b/) && agentRow(crewRunning, SEAT_TWO, servedModel, /◐/, /Sleeping for \d+s|\brunning\b/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('crew · 2 running') && crewRunning.includes('Crewmates (2)'),
-    'the Crew view is src/components/mercury-ui/screens/CrewView.tsx and its count label is crewCountLabel in src/services/engine-connector/crewFacts.ts; see the crew-running frame dump below',
+    'the Crew view is src/screen/widgets/faces/CrewView.tsx and its count label is crewCountLabel in src/engine/connector/crewFacts.ts; see the crew-running frame dump below',
   )
   const landed = marks['landed'] ?? ''
-  check(`${tag}: the card landed both (its landed header) and no seat is still running`, landed.includes('crewmates finished') && !/\bstopped\b/.test(landed), 'the landed header is built in src/tools/AgentTool/UI.tsx; see the landed frame dump below')
+  check(`${tag}: the card landed both (its landed header) and no seat is still running`, landed.includes('crewmates finished') && !/\bstopped\b/.test(landed), 'the landed header is built in src/tools/crewmate/rows.tsx; see the landed frame dump below')
   const crewLanded = crewPopup(marks['crew-landed'] ?? '')
   check(
     `${tag}: the Crew view after landing — landed twice, the tokens kept, never the runner's word`,
     agentRow(crewLanded, SEAT_ONE, /\blanded\b/) && agentRow(crewLanded, SEAT_TWO, /\blanded\b/) && rowTokens(crewLanded, SEAT_ONE) && rowTokens(crewLanded, SEAT_TWO) && !crewLanded.includes('completed') && crewLanded.includes('crew · 0 running') && crewLanded.includes('Crewmates (2)'),
-    'landed rows must say landed with tokens kept and never completed; the view is src/components/mercury-ui/screens/CrewView.tsx, count label crewCountLabel in src/services/engine-connector/crewFacts.ts; see the crew-landed frame dump below',
+    'landed rows must say landed with tokens kept and never completed; the view is src/screen/widgets/faces/CrewView.tsx, count label crewCountLabel in src/engine/connector/crewFacts.ts; see the crew-landed frame dump below',
   )
   const card = marks['card'] ?? ''
   const viewed = [SEAT_ONE, SEAT_TWO].find(name => card.includes(`viewing ${name}`))
@@ -511,16 +511,16 @@ async function stopLeg(dialect: Dialect): Promise<void> {
   const running = marks['running'] ?? ''
   check(`${tag}: both seats were running with tokens when the Esc fired`, rowTokens(running, SEAT_ONE) && rowTokens(running, SEAT_TWO), 'a seat row lacked a non-zero token figure before the Esc; see the running frame dump below')
   const interrupted = marks['interrupted'] ?? ''
-  check(`${tag}: the esc is the turn's alone — the receipt counts the crew still running and names the crew view door`, /2 crewmates still running — open the crew view \(\/crewmates\)/.test(flat(interrupted)) && !interrupted.includes('killed'), 'the receipt line is crewStillRunningLine in src/services/engine-connector/crewFacts.ts; see the interrupted frame dump below')
+  check(`${tag}: the esc is the turn's alone — the receipt counts the crew still running and names the crew view door`, /2 crewmates still running — open the crew view \(\/crewmates\)/.test(flat(interrupted)) && !interrupted.includes('killed'), 'the receipt line is crewStillRunningLine in src/engine/connector/crewFacts.ts; see the interrupted frame dump below')
   const crewRunning = crewPopup(marks['crew-running'] ?? '')
-  check(`${tag}: the Crew view after the esc — both seats run on with their tokens kept`, agentRow(crewRunning, SEAT_ONE, /◐/) && agentRow(crewRunning, SEAT_TWO, /◐/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('crew · 2 running') && crewRunning.includes('Crewmates (2)'), 'the Esc must stop only the turn: the Crew view src/components/mercury-ui/screens/CrewView.tsx still lists both seats running; see the crew-running frame dump below')
+  check(`${tag}: the Crew view after the esc — both seats run on with their tokens kept`, agentRow(crewRunning, SEAT_ONE, /◐/) && agentRow(crewRunning, SEAT_TWO, /◐/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('crew · 2 running') && crewRunning.includes('Crewmates (2)'), 'the Esc must stop only the turn: the Crew view src/screen/widgets/faces/CrewView.tsx still lists both seats running; see the crew-running frame dump below')
   const selected = crewRunning.match(new RegExp(`▸\\s+\\S\\s+(${SEAT_ONE}|${SEAT_TWO})\\b`))?.[1]
-  check(`${tag}: the Crew view's selected row names one seat — the one x twice will stop`, selected === SEAT_ONE || selected === SEAT_TWO, flat(crewRunning).slice(0, 240) + ' · the selected row marker is drawn by src/components/mercury-ui/screens/CrewView.tsx')
+  check(`${tag}: the Crew view's selected row names one seat — the one x twice will stop`, selected === SEAT_ONE || selected === SEAT_TWO, flat(crewRunning).slice(0, 240) + ' · the selected row marker is drawn by src/screen/widgets/faces/CrewView.tsx')
   const stopped = selected ?? SEAT_TWO
   const other = stopped === SEAT_ONE ? SEAT_TWO : SEAT_ONE
   const crewStopped = marks['crew-stopped'] ?? ''
-  check(`${tag}: x twice on the selected row stops that one seat (${stopped}) through the runner — the receipt names the stop, never killed`, flat(crewStopped).includes(`[Crewmate] ${stopped} · stopped ·`) && !crewStopped.includes('killed'), 'pressing x twice in src/components/mercury-ui/screens/CrewView.tsx must end in a stopped receipt for the selected seat; see the crew-stopped frame dump below')
-  check(`${tag}: the other seat (${other}) is never stopped — it runs on, or lands by its own door once its tracked sibling ends (the Sleep redirect), never stopped, never killed`, (agentRow(crewStopped, other, /◐|\blanded\b/) || flat(crewStopped).includes(`[Crewmate] ${other} · completed ·`)) && !flat(crewStopped).includes(`[Crewmate] ${other} · stopped ·`) && !new RegExp(`"${other}" was stopped`).test(flat(crewStopped)), 'the x-twice stop in src/components/mercury-ui/screens/CrewView.tsx must stop only the selected seat; see the crew-stopped frame dump below')
+  check(`${tag}: x twice on the selected row stops that one seat (${stopped}) through the runner — the receipt names the stop, never killed`, flat(crewStopped).includes(`[Crewmate] ${stopped} · stopped ·`) && !crewStopped.includes('killed'), 'pressing x twice in src/screen/widgets/faces/CrewView.tsx must end in a stopped receipt for the selected seat; see the crew-stopped frame dump below')
+  check(`${tag}: the other seat (${other}) is never stopped — it runs on, or lands by its own door once its tracked sibling ends (the Sleep redirect), never stopped, never killed`, (agentRow(crewStopped, other, /◐|\blanded\b/) || flat(crewStopped).includes(`[Crewmate] ${other} · completed ·`)) && !flat(crewStopped).includes(`[Crewmate] ${other} · stopped ·`) && !new RegExp(`"${other}" was stopped`).test(flat(crewStopped)), 'the x-twice stop in src/screen/widgets/faces/CrewView.tsx must stop only the selected seat; see the crew-stopped frame dump below')
   check(`${tag}: the stopped seat (${stopped}) never settled its turn (its Sleep was interrupted — no seat-ack of its own on the wire)`, fixture.hits.every(h => !(h.route === 'seat-ack' && h.seat === stopped)), 'the stop must interrupt the seat Sleep before it answers; hits: ' + fixture.hits.map(h => `${h.route}:${h.seat}`).join(','))
   const wantLane = dialect === 'anthropic' ? 'messages' : 'responses'
   check(`${tag}: every crew turn rode the family's own wire`, fixture.hits.filter(h => h.route !== 'side').every(h => h.lane === wantLane && (dialect === 'anthropic' || h.model === GPT_ID)), fixture.hits.map(h => `${h.route}:${h.lane}:${h.model}`).join(',') + ' · a crew turn went out on the other family wire or a different model id than the session model')

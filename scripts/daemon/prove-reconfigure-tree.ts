@@ -3,13 +3,13 @@ import { mock } from 'bun:test'
 import { pinSourceRef } from '../lib/settingsPopupHarness.js'
 
 pinSourceRef()
-const processGroup = await import('../../src/utils/processGroup.js')
+const processGroup = await import('../../src/platform/processes/processGroup.js')
 const strikes: Array<{ child: unknown; signal: unknown }> = []
-mock.module('../../src/utils/processGroup.js', () => ({
+mock.module('../../src/platform/processes/processGroup.js', () => ({
   ...processGroup,
   killProcessGroup: (child: unknown, signal: unknown) => { strikes.push({ child, signal }) },
 }))
-const { TaskRoster } = await import('../../src/daemon/roster.js')
+const { TaskRoster } = await import('../../src/daemon/roster/roster.js')
 let directKills = 0
 const child = { pid: 43210, kill: () => { directKills++; return true } }
 const handle = {

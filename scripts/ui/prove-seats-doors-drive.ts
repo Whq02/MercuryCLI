@@ -24,7 +24,7 @@ if (driver.kind !== 'posix-pty') {
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const seatsDoorsWhere = 'to fix: the Boot Menu row text (reading, inputs, doors line) is in src/utils/switchboard/capacityCheck.ts, its arrow and backspace commits in src/components/bootSettings/commits.ts, the /seats verb and its confirmations in src/commands/seats/applySeats.ts; a capture or send failure is a build or vshot problem, so rebuild dist (bun run build.ts) and read the frames dumped below'
+  const seatsDoorsWhere = 'to fix: the Boot Menu row text (reading, inputs, doors line) is in src/daemon/switchboard-capacity/capacityCheck.ts, its arrow and backspace commits in src/screen/boot-face/settings/commits.ts, the /seats verb and its confirmations in src/commands/seats/applySeats.ts; a capture or send failure is a build or vshot problem, so rebuild dist (bun run build.ts) and read the frames dumped below'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail || !cond ? ` — ${detail}${!cond ? `${detail ? ' · ' : ''}${seatsDoorsWhere}` : ''}` : ''}`)
 }
 
@@ -187,9 +187,9 @@ const DOWN = '\x1b[B'
 const RIGHT = '\x1b[C'
 const BACKSPACE = '\x7f'
 const ESC = '\x1b'
-const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.ts')
-const { withJevRow } = await import('../../src/components/BootSettingsScreen.tsx')
-const { settingsEditors } = await import('../../src/components/bootSettings/menuModel.ts')
+const { STARTUP_MENU } = await import('../../src/platform/substrate/startupMenu.ts')
+const { withJevRow } = await import('../../src/screen/boot-face/BootSettingsScreen.tsx')
+const { settingsEditors } = await import('../../src/screen/boot-face/settings/menuModel.ts')
 const TO_SEATS = DOWN.repeat(settingsEditors.length + withJevRow(STARTUP_MENU).length)
 let cap: Capture | null = null
 try {

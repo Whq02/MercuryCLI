@@ -44,9 +44,9 @@ async function main(): Promise<void> {
   })
   delete process.env.MERCURY_DAP
 
-  const { createDapSession, removeDapSession, getDapSession } = await import(join(SRC, 'services/dap/dapClient.ts'))
-  const { makeOwnerKey } = await import(join(SRC, 'utils/run/ownerKey.ts'))
-  const { DebugTool } = await import(join(SRC, 'tools/DebugTool/DebugTool.ts'))
+  const { createDapSession, removeDapSession, getDapSession } = await import(join(SRC, 'integrations/debugger/dapClient.ts'))
+  const { makeOwnerKey } = await import(join(SRC, 'engine/run-owner/ownerKey.ts'))
+  const { DebugTool } = await import(join(SRC, 'tools/debug/DebugTool.ts'))
   const OWNER = makeOwnerKey({ workspace: '/tmp/w', sessionId: 'dap-detach-proof', lane: 'main' })
 
   console.log('============================================================')
@@ -58,12 +58,12 @@ async function main(): Promise<void> {
     process.env.MOCK_DAP_TERMINATE_CAP = '1'
     const trace = armTrace()
     const session = await createDapSession({ owner: OWNER, id: 'l1', adapterKey: 'mock', program: '/tmp/demo.py', cwd: process.cwd() })
-    check('startMode records launch', session.startMode === 'launch', String(session.startMode) + ' — DapSession.startMode is set in src/services/dap/client/start.ts')
+    check('startMode records launch', session.startMode === 'launch', String(session.startMode) + ' — DapSession.startMode is set in src/integrations/debugger/client/start.ts')
     check('the adapter advertised supportTerminateDebuggee', session.capabilities?.supportTerminateDebuggee === true, 'the mock adapter scripts/dap/mock-dap-adapter.mjs must advertise supportTerminateDebuggee when MOCK_DAP_TERMINATE_CAP is 1')
     await removeDapSession(OWNER, 'l1')
     const body = disconnectOf(trace)
-    check('the disconnect went out', body !== undefined, 'removeDapSession in src/services/dap/dapClient.ts must send a disconnect request before it ends the adapter')
-    check('terminateDebuggee is true for the launched program', body?.arguments.terminateDebuggee === true, JSON.stringify(body?.arguments) + ' — disconnectArguments in src/services/dap/client/life.ts must set terminateDebuggee to true for a launched session')
+    check('the disconnect went out', body !== undefined, 'removeDapSession in src/integrations/debugger/dapClient.ts must send a disconnect request before it ends the adapter')
+    check('terminateDebuggee is true for the launched program', body?.arguments.terminateDebuggee === true, JSON.stringify(body?.arguments) + ' — disconnectArguments in src/integrations/debugger/client/life.ts must set terminateDebuggee to true for a launched session')
   }
 
   section('L2 an attach session leaves its target running (cap advertised)')
@@ -71,12 +71,12 @@ async function main(): Promise<void> {
     process.env.MOCK_DAP_TERMINATE_CAP = '1'
     const trace = armTrace()
     const session = await createDapSession({ owner: OWNER, id: 'l2', adapterKey: 'mock', program: 'pid:4242', cwd: process.cwd(), mode: 'attach', pid: 4242 })
-    check('startMode records attach', session.startMode === 'attach', String(session.startMode) + ' — DapSession.startMode is set in src/services/dap/client/start.ts')
+    check('startMode records attach', session.startMode === 'attach', String(session.startMode) + ' — DapSession.startMode is set in src/integrations/debugger/client/start.ts')
     const start = readTrace(trace).find(row => row.command === 'attach')
-    check('the start request was attach with the pid', start !== undefined && start.arguments.pid === 4242, JSON.stringify(start?.arguments) + ' — the start request is chosen in src/services/dap/client/start.ts')
+    check('the start request was attach with the pid', start !== undefined && start.arguments.pid === 4242, JSON.stringify(start?.arguments) + ' — the start request is chosen in src/integrations/debugger/client/start.ts')
     await removeDapSession(OWNER, 'l2')
     const body = disconnectOf(trace)
-    check('terminateDebuggee is false for the attached target', body?.arguments.terminateDebuggee === false, JSON.stringify(body?.arguments) + ' — disconnectArguments in src/services/dap/client/life.ts must set terminateDebuggee to false when startMode is attach')
+    check('terminateDebuggee is false for the attached target', body?.arguments.terminateDebuggee === false, JSON.stringify(body?.arguments) + ' — disconnectArguments in src/integrations/debugger/client/life.ts must set terminateDebuggee to false when startMode is attach')
   }
 
   section("L3 an adapter row whose startRequest is 'attach' detaches too")
@@ -84,10 +84,10 @@ async function main(): Promise<void> {
     process.env.MOCK_DAP_TERMINATE_CAP = '1'
     const trace = armTrace()
     const session = await createDapSession({ owner: OWNER, id: 'l3', adapterKey: 'mockattachrow', program: '/tmp/demo.py', cwd: process.cwd() })
-    check('startMode records attach from the row', session.startMode === 'attach', String(session.startMode) + ' — an adapter row with startRequest attach must set startMode to attach in src/services/dap/client/start.ts')
+    check('startMode records attach from the row', session.startMode === 'attach', String(session.startMode) + ' — an adapter row with startRequest attach must set startMode to attach in src/integrations/debugger/client/start.ts')
     await removeDapSession(OWNER, 'l3')
     const body = disconnectOf(trace)
-    check('terminateDebuggee is false for the row-attached target', body?.arguments.terminateDebuggee === false, JSON.stringify(body?.arguments) + ' — disconnectArguments in src/services/dap/client/life.ts reads session.startMode')
+    check('terminateDebuggee is false for the row-attached target', body?.arguments.terminateDebuggee === false, JSON.stringify(body?.arguments) + ' — disconnectArguments in src/integrations/debugger/client/life.ts reads session.startMode')
   }
 
   section('L4 no advertised capability ⇒ no terminateDebuggee attribute, either mode')
@@ -98,13 +98,13 @@ async function main(): Promise<void> {
     check('the default mock surface does not advertise the cap', launched.capabilities?.supportTerminateDebuggee === undefined, 'the default surface of scripts/dap/mock-dap-adapter.mjs must not advertise supportTerminateDebuggee when MOCK_DAP_TERMINATE_CAP is unset')
     await removeDapSession(OWNER, 'l4a')
     const launchBody = disconnectOf(launchTrace)
-    check('launched: the disconnect went out', launchBody !== undefined, 'removeDapSession in src/services/dap/dapClient.ts must send a disconnect request')
-    check('launched: no terminateDebuggee key', launchBody !== undefined && !('terminateDebuggee' in launchBody.arguments), JSON.stringify(launchBody?.arguments) + ' — disconnectArguments in src/services/dap/client/life.ts must return no arguments when the cap is not advertised')
+    check('launched: the disconnect went out', launchBody !== undefined, 'removeDapSession in src/integrations/debugger/dapClient.ts must send a disconnect request')
+    check('launched: no terminateDebuggee key', launchBody !== undefined && !('terminateDebuggee' in launchBody.arguments), JSON.stringify(launchBody?.arguments) + ' — disconnectArguments in src/integrations/debugger/client/life.ts must return no arguments when the cap is not advertised')
     const attachTrace = armTrace()
     await createDapSession({ owner: OWNER, id: 'l4b', adapterKey: 'mock', program: 'pid:7', cwd: process.cwd(), mode: 'attach', pid: 7 })
     await removeDapSession(OWNER, 'l4b')
     const attachBody = disconnectOf(attachTrace)
-    check('attached: no terminateDebuggee key', attachBody !== undefined && !('terminateDebuggee' in attachBody.arguments), JSON.stringify(attachBody?.arguments) + ' — disconnectArguments in src/services/dap/client/life.ts must return no arguments when the cap is not advertised')
+    check('attached: no terminateDebuggee key', attachBody !== undefined && !('terminateDebuggee' in attachBody.arguments), JSON.stringify(attachBody?.arguments) + ' — disconnectArguments in src/integrations/debugger/client/life.ts must return no arguments when the cap is not advertised')
   }
 
   section('L5 the Debug tool receipt names the detach')
@@ -115,23 +115,23 @@ async function main(): Promise<void> {
       { op: 'attach', adapter: 'mock', pid: 4242, file: '/tmp/demo.py', lines: [3] } as never,
       {} as never,
     )) as { data: { result: string } }
-    check('the tool attached and saw the first stop', /attached to/.test(attached.data.result) && /stopped/.test(attached.data.result), attached.data.result.split('\n')[0] + ' — the attach op of src/tools/DebugTool/DebugTool.ts')
+    check('the tool attached and saw the first stop', /attached to/.test(attached.data.result) && /stopped/.test(attached.data.result), attached.data.result.split('\n')[0] + ' — the attach op of src/tools/debug/DebugTool.ts')
     const detach = (await DebugTool.call({ op: 'disconnect' } as never, {} as never)) as {
       data: { result: string; debuggee?: string }
     }
-    check('the receipt says detached, target running', detach.data.result.includes('detached') && detach.data.result.includes('keeps running'), detach.data.result + ' — the disconnect receipt is worded in src/tools/DebugTool/debug/control.ts')
-    check('the structured debuggee word is running, not terminated', detach.data.debuggee === 'running', String(detach.data.debuggee) + ' — the disconnect result in src/tools/DebugTool/debug/control.ts must set debuggee to running after a detach')
+    check('the receipt says detached, target running', detach.data.result.includes('detached') && detach.data.result.includes('keeps running'), detach.data.result + ' — the disconnect receipt is worded in src/tools/debug/ops/control.ts')
+    check('the structured debuggee word is running, not terminated', detach.data.debuggee === 'running', String(detach.data.debuggee) + ' — the disconnect result in src/tools/debug/ops/control.ts must set debuggee to running after a detach')
     armTrace()
     const launched = (await DebugTool.call(
       { op: 'launch', adapter: 'mock', program: '/tmp/demo.py', file: '/tmp/demo.py', lines: [3] } as never,
       {} as never,
     )) as { data: { result: string } }
-    check('the tool launched', /launched/.test(launched.data.result), launched.data.result.split('\n')[0] + ' — the launch op of src/tools/DebugTool/DebugTool.ts')
+    check('the tool launched', /launched/.test(launched.data.result), launched.data.result.split('\n')[0] + ' — the launch op of src/tools/debug/DebugTool.ts')
     const ended = (await DebugTool.call({ op: 'disconnect' } as never, {} as never)) as {
       data: { result: string; debuggee?: string }
     }
-    check('a launched program is reported terminated on disconnect', ended.data.result.includes('debuggee terminated') && ended.data.debuggee === 'terminated', ended.data.result + ' — the disconnect receipt is worded in src/tools/DebugTool/debug/control.ts')
-    check('no session survives the proof', getDapSession(OWNER, 'l1') === undefined && getDapSession(OWNER, 'l4b') === undefined, 'a session from the earlier sections was not removed by removeDapSession in src/services/dap/dapClient.ts')
+    check('a launched program is reported terminated on disconnect', ended.data.result.includes('debuggee terminated') && ended.data.debuggee === 'terminated', ended.data.result + ' — the disconnect receipt is worded in src/tools/debug/ops/control.ts')
+    check('no session survives the proof', getDapSession(OWNER, 'l1') === undefined && getDapSession(OWNER, 'l4b') === undefined, 'a session from the earlier sections was not removed by removeDapSession in src/integrations/debugger/dapClient.ts')
   }
 
   rmSync(scratch, { recursive: true, force: true })

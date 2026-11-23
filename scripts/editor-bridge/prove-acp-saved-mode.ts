@@ -16,19 +16,19 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_HOME
-const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+const { setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
 setOriginalCwd(project)
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
-const { asSessionId } = await import('../../src/types/ids.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
+const { asSessionId } = await import('../../src/sessions/transcripts/ids.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 const closeFlow = (closed: boolean): void => {
   mkdirSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true })
   writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), JSON.stringify(closed ? { guardrails: { disableFlowMode: true } } : {}))
   resetSettingsCache()
 }
-const { runAcpServer } = await import('../../src/services/acp/acpServer.ts')
+const { runAcpServer } = await import('../../src/integrations/acp/acpServer.ts')
 const storage = getProjectDir(project)
 mkdirSync(storage, { recursive: true })
 const fixture = join(scratch, 'child.mjs')
@@ -58,14 +58,14 @@ let failures = 0
 function check(label: string, actual: unknown, expected: unknown): void {
   const ok = JSON.stringify(actual) === JSON.stringify(expected)
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}: expected=${JSON.stringify(expected)} actual=${JSON.stringify(actual)}${ok ? '' : ' — look at the session/load, session/set_mode and session/set_config_option handlers in src/services/acp/acpServer/sessionRequests.ts and at readSavedMode and setSessionMode in src/services/acp/acpServer/modes.ts'}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}: expected=${JSON.stringify(expected)} actual=${JSON.stringify(actual)}${ok ? '' : ' — look at the session/load, session/set_mode and session/set_config_option handlers in src/integrations/acp/server/sessionRequests.ts and at readSavedMode and setSessionMode in src/integrations/acp/server/modes.ts'}`)
 }
 async function deadline<T>(label: string, work: Promise<T>): Promise<T> {
   let alarm: ReturnType<typeof setTimeout> | undefined
   try {
     return await Promise.race([
       work,
-      new Promise<never>((_, reject) => { alarm = setTimeout(() => reject(new Error(`${label} did not settle within 60s — the ACP request handler in src/services/acp/acpServer/sessionRequests.ts (or the stand-in child above) never answered`)), 60_000) }),
+      new Promise<never>((_, reject) => { alarm = setTimeout(() => reject(new Error(`${label} did not settle within 60s — the ACP request handler in src/integrations/acp/server/sessionRequests.ts (or the stand-in child above) never answered`)), 60_000) }),
     ])
   } finally {
     clearTimeout(alarm)
@@ -75,7 +75,7 @@ async function bootMode(sessionId: string): Promise<string> {
   const path = join(project, `${sessionId}.boot.json`)
   const until = Date.now() + 60_000
   while (!existsSync(path)) {
-    if (Date.now() >= until) throw new Error('child boot receipt did not arrive within 60s — session/new or session/load in src/services/acp/acpServer/sessionRequests.ts did not start the stand-in child with --session-id or --resume')
+    if (Date.now() >= until) throw new Error('child boot receipt did not arrive within 60s — session/new or session/load in src/integrations/acp/server/sessionRequests.ts did not start the stand-in child with --session-id or --resume')
     await new Promise(resolve => setTimeout(resolve, 10))
   }
   return (JSON.parse(readFileSync(path, 'utf8')) as { mode: string }).mode

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { waitForConnectorRecords } from '../../src/services/switchboard/hopIntoSession.ts'
+import { waitForConnectorRecords } from '../../src/daemon/switchboard/hopIntoSession.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

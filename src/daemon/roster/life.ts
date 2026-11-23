@@ -1,18 +1,18 @@
 import type { ChildProcess } from 'node:child_process'
-import { logForDebugging } from '../../utils/debug.js'
-import { recordSpawnExit } from '../spawnLedger.js'
-import { flagPair } from '../../substrate/flagRegistry.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
+import { recordSpawnExit } from './spawnLedger.js'
+import { flagPair } from '../../platform/substrate/flagRegistry.js'
 import {
   decideRespawn,
   keepStderrTail,
   lastStderrLine,
   DEFAULT_HEALTHY_RESET_MS,
-} from '../longLivedRespawn.js'
-import { GLYPH } from '../../utils/glyphs.js'
+} from './longLivedRespawn.js'
+import { GLYPH } from '../../screen/theme/glyphs.js'
 import type { LongLivedSeat, RosterOptions, WorkerHandle } from './types.js'
-import { passedOver } from '../../utils/passedOver.js'
-import { errorMessage } from '../../utils/errors.js'
-import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+import { errorMessage } from '../../platform/errors/errors.js'
+import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
 
 const EXIT_DRAIN_BACKSTOP_MS = 2_000
 
@@ -46,7 +46,7 @@ export class LifePart {
 
   completeIntentionalStop(short: string): void {
     if (!short.startsWith('concourse-w')) return
-    void import('../concourseWorkers.js')
+    void import('../concourse-workers/concourseWorkers.js')
       .then(async sup => {
         sup.completeRequestedStop(short)
         await sup.completeFencedRetirement(short)
@@ -70,7 +70,7 @@ export class LifePart {
         ll.connection = undefined
       }
       if (ll.turnActive && short.startsWith('concourse-w')) {
-        void import('../concourseWorkers.js')
+        void import('../concourse-workers/concourseWorkers.js')
           .then(sup => sup.markConcourseWorkerTurnSettled(short))
           .catch(passedOver)
       }
@@ -99,7 +99,7 @@ export class LifePart {
         const reason =
           detail ??
           `crashed mid-run (${exitWords})${keptText ? ` — ${keptText}` : ''}${respawning ? ' · resumed — the interrupted ask needs a re-send' : ''}`
-        void import('../concourseWorkers.js')
+        void import('../concourse-workers/concourseWorkers.js')
           .then(sup => sup.markConcourseWorkerCrash(short, { reason, respawning }))
           .catch(passedOver)
       }

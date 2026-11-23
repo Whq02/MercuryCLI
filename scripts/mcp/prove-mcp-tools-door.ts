@@ -20,7 +20,7 @@ let checks = 0
 function check(label: string, cond: unknown, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail.slice(0, 400)}${detail ? ' ' : ''}[change src/services/mcp/toolsAnswer.ts for the answer bound and marks (sections 1-3), listSessionMcpTools in src/daemon/sessionSeat.ts for the seat relay (section 4), mcpTools in src/services/engine-connector/daemonConnector.ts or noSessionConnector.ts for the popup words (section 5)]` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail.slice(0, 400)}${detail ? ' ' : ''}[change src/integrations/mcp/toolsAnswer.ts for the answer bound and marks (sections 1-3), listSessionMcpTools in src/daemon/session-seat/sessionSeat.ts for the seat relay (section 4), mcpTools in src/engine/connector/daemonConnector.ts or noSessionConnector.ts for the popup words (section 5)]` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -37,22 +37,22 @@ function plainData(value: unknown): boolean {
 }
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the mcp tools door proof exceeded 120s; a relay in listSessionMcpTools (src/daemon/sessionSeat.ts) or a stand-in runner request never settled, look at the last section printed above')
+  console.log('\nTIMEOUT — the mcp tools door proof exceeded 120s; a relay in listSessionMcpTools (src/daemon/session-seat/sessionSeat.ts) or a stand-in runner request never settled, look at the last section printed above')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
 
-type AnswerModule = typeof import('../../src/services/mcp/toolsAnswer.ts')
-const answers = (await import('../../src/services/mcp/toolsAnswer.ts').catch(() => null)) as AnswerModule | null
-const { checkResult } = await import('../../src/runner/wire/methods.ts')
-const seat = await import('../../src/daemon/sessionSeat.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const { NoSessionConnector, NO_CHAT_OPEN } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { olderDaemonRefusalLine } = await import('../../src/daemon/controlSocket.ts')
-const { verbBornAt } = await import('../../src/daemon/protocol.ts')
+type AnswerModule = typeof import('../../src/integrations/mcp/toolsAnswer.ts')
+const answers = (await import('../../src/integrations/mcp/toolsAnswer.ts').catch(() => null)) as AnswerModule | null
+const { checkResult } = await import('../../src/daemon/runner-wire/methods.ts')
+const seat = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+const { NoSessionConnector, NO_CHAT_OPEN } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { olderDaemonRefusalLine } = await import('../../src/daemon/control/controlSocket.ts')
+const { verbBornAt } = await import('../../src/daemon/control/protocol.ts')
 const { standInRunner } = await import('../lib/seatDoor.ts')
-const { RPC_METHOD_NOT_FOUND } = await import('../../src/runner/wire/errors.ts')
+const { RPC_METHOD_NOT_FOUND } = await import('../../src/daemon/runner-wire/errors.ts')
 
 type Facts = { name: string; registeredAs: string; description: string; inputSchema: Record<string, unknown>; loading: 'deferred' | 'listed' | 'held' }
 const schemaOf = (fields: number, pad: number): Record<string, unknown> => ({
@@ -73,7 +73,7 @@ const fixtureFacts: Facts[] = [
   { name: 'purge_queue', registeredAs: 'mcp__runpod__purge_queue', description: 'Remove pending jobs.', inputSchema: { type: 'object', properties: { endpointId: { type: 'string' } } }, loading: 'listed' },
 ]
 if (answers === null) {
-  check('src/services/mcp/toolsAnswer.ts builds the answer (the bound and its marks)', false, 'absent — the runner arm hands the whole list to the wire whatever its size, and an unlisted server answers an empty list')
+  check('src/integrations/mcp/toolsAnswer.ts builds the answer (the bound and its marks)', false, 'absent — the runner arm hands the whole list to the wire whatever its size, and an unlisted server answers an empty list')
 } else {
   const { mcpToolsAnswerOf, mcpToolsUnlistedAnswer, mcpToolsFromWire, mcpToolsOfReply, MCP_TOOLS_ANSWER_BYTES, MCP_TOOL_DESCRIPTION_CHARS } = answers
   const small = mcpToolsAnswerOf('runpod', fixtureFacts)

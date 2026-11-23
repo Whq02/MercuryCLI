@@ -11,8 +11,8 @@ delete process.env.MERCURY_HOME
 process.on('exit', () => rmSync(home, { recursive: true, force: true }))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const commands = await import('../../src/utils/powershell/dangerousCmdlets.js')
-const { COMMON_ALIASES } = await import('../../src/utils/powershell/parser.js')
+const commands = await import('../../src/platform/shell/powershell/dangerousCmdlets.js')
+const { COMMON_ALIASES } = await import('../../src/platform/shell/powershell/parser.js')
 
 const expectedFiles = 'invoke-command start-job start-threadjob register-scheduledjob'.split(' ')
 const expectedBlocks = 'invoke-command invoke-expression start-job start-threadjob register-scheduledjob register-engineevent register-objectevent register-wmievent new-pssession enter-pssession'.split(' ')
@@ -64,11 +64,11 @@ console.log(`PASS: four ordered command collections, ${expectedNever.length} exc
 if (Bun.which('pwsh') === null) {
   console.log('[SKIP] real PowerShell command elements: pwsh is not on PATH')
 } else {
-  const { pinnedCommandAnalysis: p, getAllCommands } = await import('../../src/utils/permissions/decision/commandAnalysis.js')
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { pinnedCommandAnalysis: p, getAllCommands } = await import('../../src/permissions/rules/decision/commandAnalysis.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-  const { powershellToolCheckPermission, powershellToolHasPermission } = await import('../../src/tools/PowerShellTool/powershellPermissions.js')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+  const { powershellToolCheckPermission, powershellToolHasPermission } = await import('../../src/tools/powershell/powershellPermissions.js')
   let failures = 0
   async function check(label: string, run: () => void | Promise<void>): Promise<void> {
     try {
@@ -155,7 +155,7 @@ if (Bun.which('pwsh') === null) {
   await check('the command-analysis provider exposes a pipeline stage to its allow rule', async () => {
     const parsed = await parse('Get-Content a | Test-Fixture b')
     const stage = getAllCommands(parsed).find(c => c.name === 'Test-Fixture')
-    ok(stage, 'expected getAllCommands to expose the Test-Fixture pipeline stage — fix PowerShell pipeline extraction in src/utils/permissions/decision/commandAnalysis.ts')
+    ok(stage, 'expected getAllCommands to expose the Test-Fixture pipeline stage — fix PowerShell pipeline extraction in src/permissions/rules/decision/commandAnalysis.ts')
     equal(powershellToolCheckPermission({ command: stage.text }, permission()).behavior, 'passthrough')
     equal(powershellToolCheckPermission({ command: stage.text }, permission(['PowerShell(Test-Fixture *)'])).behavior, 'allow')
   })

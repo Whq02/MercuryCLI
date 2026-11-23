@@ -16,9 +16,9 @@ const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.ts')
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/boot/process-state/processState.ts')
 trustTheProofFolder(true)
-const { renderAgentLine } = await import('../../src/cli/handlers/agents.ts')
+const { renderAgentLine } = await import('../../src/commands/verbs/agents.ts')
 
 section('§1 THE STAMP DRIVES THE LINE')
 {
@@ -33,7 +33,7 @@ section('§1 THE STAMP DRIVES THE LINE')
     'an overridden model discloses override: user',
     line.includes('haiku') && line.includes('override: user'),
     line,
-    'fix renderAgentLine in src/cli/handlers/agents.ts so a definition with an operatorOverride prints its model and the clause override: user',
+    'fix renderAgentLine in src/commands/verbs/agents.ts so a definition with an operatorOverride prints its model and the clause override: user',
   )
 }
 
@@ -42,7 +42,7 @@ section('§2 NO OVERRIDE, NO CLAUSE (control)')
   const line = renderAgentLine({
     definition: { agentType: 'plain-agent', model: 'opus' },
   } as never)
-  check('a plain definition renders without the clause', !line.includes('override'), line, 'fix renderAgentLine in src/cli/handlers/agents.ts so the override clause prints only when the definition carries an operatorOverride')
+  check('a plain definition renders without the clause', !line.includes('override'), line, 'fix renderAgentLine in src/commands/verbs/agents.ts so the override clause prints only when the definition carries an operatorOverride')
 }
 
 section('§3 THE DRIVEN ESTATE')
@@ -59,26 +59,26 @@ section('§3 THE DRIVEN ESTATE')
   )
   process.chdir(PROJ)
   const { getAgentDefinitionsWithOverrides } = (await import(
-    '../../src/tools/AgentTool/loadAgentsDir.ts'
+    '../../src/tools/crewmate/loadAgentsDir.ts'
   )) as unknown as {
     getAgentDefinitionsWithOverrides: (cwd: string) => Promise<{ activeAgents: Array<Record<string, unknown>> }>
   }
   const { activeAgents } = await getAgentDefinitionsWithOverrides(PROJ)
   const probe = activeAgents.find(a => a.agentType === 'zzprobe')
-  check('the fixture agent loads', probe !== undefined, '', 'fix getAgentDefinitionsWithOverrides in src/tools/AgentTool/loadAgentsDir.ts so it loads .mercury/agents/zzprobe.md from the project')
+  check('the fixture agent loads', probe !== undefined, '', 'fix getAgentDefinitionsWithOverrides in src/tools/crewmate/loadAgentsDir.ts so it loads .mercury/agents/zzprobe.md from the project')
   check(
     'the override applied (model haiku) with provenance stamped',
     probe?.model === 'haiku' &&
       (probe?.operatorOverride as { from?: string } | undefined)?.from === 'user',
     JSON.stringify({ model: probe?.model, operatorOverride: probe?.operatorOverride }),
-    'fix getAgentDefinitionsWithOverrides in src/tools/AgentTool/loadAgentsDir.ts so the model in agent-overrides.json replaces the file model and the definition gets operatorOverride.from user',
+    'fix getAgentDefinitionsWithOverrides in src/tools/crewmate/loadAgentsDir.ts so the model in agent-overrides.json replaces the file model and the definition gets operatorOverride.from user',
   )
   const line = renderAgentLine({ definition: probe } as never)
   check(
     'the driven definition renders the provenance beside the overridden model',
     line.includes('haiku') && line.includes('override: user'),
     line,
-    'fix renderAgentLine in src/cli/handlers/agents.ts to print the operatorOverride that getAgentDefinitionsWithOverrides stamped on the definition',
+    'fix renderAgentLine in src/commands/verbs/agents.ts to print the operatorOverride that getAgentDefinitionsWithOverrides stamped on the definition',
   )
 }
 

@@ -8,7 +8,7 @@ import type { Recording } from './turnScenarios.ts'
 const SELF = 'scripts/core-runtime/prove-turn-recording.ts'
 const SCENARIO_FILE = 'scripts/core-runtime/turnScenarios.ts'
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 const processFacts = (): Record<string, string> => ({
   ...Object.fromEntries(Object.entries(process.env).map(([name, value]) => [`the name ${name}`, String(value)])),
   'the session': String(bootstrap.getSessionId()),
@@ -108,7 +108,7 @@ for (const [index, scenario] of scenarios.entries()) {
   check(
     `${scenario.name}: ${scenario.transitions.length === 0 ? 'no handover' : scenario.transitions.join(' → ')}, then ${scenario.terminal} (${events.length} events)`,
     JSON.stringify(recording.transitions) === JSON.stringify(scenario.transitions) && reasonOf(recording.terminal) === scenario.terminal && ordered && announced,
-    `it handed over ${JSON.stringify(recording.transitions)} and ended ${JSON.stringify(recording.terminal)}; events numbered in order: ${ordered}; the last event announces the terminal: ${announced} — a turn that should behave so is a fault in src/run-core/; a turn that should now behave otherwise is said in the scenario's row of ${SCENARIO_FILE}`,
+    `it handed over ${JSON.stringify(recording.transitions)} and ended ${JSON.stringify(recording.terminal)}; events numbered in order: ${ordered}; the last event announces the terminal: ${announced} — a turn that should behave so is a fault in src/engine/loop/; a turn that should now behave otherwise is said in the scenario's row of ${SCENARIO_FILE}`,
   )
 }
 

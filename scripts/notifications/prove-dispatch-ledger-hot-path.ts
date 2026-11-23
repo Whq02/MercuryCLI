@@ -5,7 +5,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker, scratchRoot } from '../engine-durability/harness.ts'
-import type { ConcourseAdmitResult } from '../../src/daemon/concourseWorkers.ts'
+import type { ConcourseAdmitResult } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 
 const t = checker()
 const root = scratchRoot('dispatch-ledger-hot-path')
@@ -27,9 +27,9 @@ JSON.stringify = function (value: unknown, replacer?: never, space?: never) {
 } as unknown as typeof JSON.stringify
 
 const { makeConcourseDispatchHandler, readConcourseDispatches, concourseDispatchesPath, flushDeferredDispatchPublishes } = await import(
-  '../../src/daemon/concourseDispatch.js'
+  '../../src/daemon/concourse-workers/concourseDispatch.js'
 )
-const { durableAtomicPublishSync } = await import('../../src/substrate/durablePublish.js')
+const { durableAtomicPublishSync } = await import('../../src/platform/substrate/durablePublish.js')
 
 type Row = { state?: string; stateRevision?: number; deliveredAt?: number; title?: string }
 const disk = (id: string): Row | undefined => {

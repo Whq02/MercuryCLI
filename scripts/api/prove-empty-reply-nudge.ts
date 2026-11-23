@@ -12,16 +12,16 @@ for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOK
   delete process.env[k]
 }
 
-const { runEventCore, decideEmptyReplyRecovery } = await import('../../src/run-core/turn-machine.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { runEventCore, decideEmptyReplyRecovery } = await import('../../src/engine/loop/turn-machine.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { emptyReplyNote, markEmptyReply } = await import('../../src/services/providers/emptyReply.ts')
-const errors = (await import('../../src/services/api/errors.ts')) as Record<string, unknown>
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { emptyReplyNote, markEmptyReply } = await import('../../src/models/roads/emptyReply.ts')
+const errors = (await import('../../src/engine/requests/apiErrorRows.ts')) as Record<string, unknown>
 
 const EMPTY_NUDGE = errors.EMPTY_REPLY_RECOVERY_NUDGE as string | undefined
 const isNudgeText = errors.isEmptyReplyRecoveryNudgeText as ((text: string) => boolean) | undefined
@@ -33,8 +33,8 @@ const RETRY_WORDS = 'asked the model for its answer (retry 1 of 1)'
 const SPENT_WORDS = 'already asked for its answer once; the turn ends here'
 const OLD_WORDS = 'sending the same request again'
 const MODEL = 'claude-opus-4-8'
-const WHERE_NUDGE = 'EMPTY_REPLY_RECOVERY_NUDGE and its classifiers live in src/services/api/errors.ts'
-const WHERE_RETRY = 'the empty_reply_retry rule in src/run-core/turn/noToolReply.ts (decideEmptyReplyRecovery picks retry or surface)'
+const WHERE_NUDGE = 'EMPTY_REPLY_RECOVERY_NUDGE and its classifiers live in src/engine/requests/apiErrorRows.ts'
+const WHERE_RETRY = 'the empty_reply_retry rule in src/engine/loop/turn/noToolReply.ts (decideEmptyReplyRecovery picks retry or surface)'
 
 let failures = 0
 let checks = 0
@@ -233,19 +233,19 @@ section('N0 — the nudge line is owned beside the fault marker: one bracketed s
   check('it says the previous reply was empty', typeof EMPTY_NUDGE === 'string' && /previous reply/i.test(EMPTY_NUDGE) && /empty/i.test(EMPTY_NUDGE), 'the wording must say the previous reply was empty: ' + WHERE_NUDGE)
   check('the classifier accepts the wording and nothing else', isNudgeText !== undefined && EMPTY_NUDGE !== undefined && isNudgeText(EMPTY_NUDGE) && !isNudgeText(ASK) && !isNudgeText(String(errors.STREAM_FAULT_RECOVERY_NUDGE)), 'isEmptyReplyRecoveryNudgeText missing or wrong — it must accept only the nudge constant: ' + WHERE_NUDGE)
   const t = await import('../core-runtime/turnScenarios.ts')
-  const { NO_TOOL_RULES, readReply } = await import('../../src/run-core/turn/noToolReply.ts')
+  const { NO_TOOL_RULES, readReply } = await import('../../src/engine/loop/turn/noToolReply.ts')
   const planted = await t.plantReply({ script: [t.fixtures.yields(t.fixtures.empty('empty'))] })
   const retried = await t.drain(NO_TOOL_RULES.find(entry => entry.name === 'empty_reply_retry')!.decide(planted.run as never, planted.iter as never, readReply(planted.iter as never)))
   planted.close()
   const handedRows = (retried.decision as { next?: { messages?: AnyMsg[] } } | undefined)?.next?.messages ?? []
   const added = handedRows.slice((planted.iter.messagesForQuery as unknown[]).length)
   check('the turn machine composes the nudge as an isMeta user message through the constant', t.reasonOf(retried.decision) === 'hand_over empty_reply_retry' && added[0]?.type === 'user' && added[0]?.isMeta === true && (added[0]?.message as { content?: unknown } | undefined)?.content === EMPTY_NUDGE, `${t.reasonOf(retried.decision)} · ${JSON.stringify(added[0])} — after an empty reply the rule hands over with one user row, isMeta true, whose content is the constant`)
-  check('the pure decision is unchanged: one retry, then surface', decideEmptyReplyRecovery({ recoveryCount: 0 }).kind === 'continue' && decideEmptyReplyRecovery({ recoveryCount: 1 }).kind === 'surface', 'decideEmptyReplyRecovery (src/run-core/turn-machine.ts) must continue at recoveryCount 0 and surface at 1')
+  check('the pure decision is unchanged: one retry, then surface', decideEmptyReplyRecovery({ recoveryCount: 0 }).kind === 'continue' && decideEmptyReplyRecovery({ recoveryCount: 1 }).kind === 'surface', 'decideEmptyReplyRecovery (src/engine/loop/turn-machine.ts) must continue at recoveryCount 0 and surface at 1')
 }
 
 section('N2 — no thinking-only wording: an empty-marked reply never rides beside a thinking block on either route')
 {
-  check('no second wording is exported (dead text is refused)', errors.THINKING_ONLY_REPLY_RECOVERY_NUDGE === undefined, 'delete THINKING_ONLY_REPLY_RECOVERY_NUDGE from src/services/api/errors.ts; the one EMPTY_REPLY_RECOVERY_NUDGE wording serves every empty reply')
+  check('no second wording is exported (dead text is refused)', errors.THINKING_ONLY_REPLY_RECOVERY_NUDGE === undefined, 'delete THINKING_ONLY_REPLY_RECOVERY_NUDGE from src/engine/requests/apiErrorRows.ts; the one EMPTY_REPLY_RECOVERY_NUDGE wording serves every empty reply')
 }
 
 section('N1 — an empty first reply: the retry carries the nudge as the last user turn, once, and the transcript records one empty_reply_retry')
@@ -270,9 +270,9 @@ section('N1 — an empty first reply: the retry carries the nudge as the last us
 
 section('N3 — a request already carrying the nudge is left alone')
 {
-  check('endsWithEmptyReplyRecoveryNudge is exported from errors.ts', typeof carriesNudge === 'function', 'not exported — export endsWithEmptyReplyRecoveryNudge from src/services/api/errors.ts')
+  check('endsWithEmptyReplyRecoveryNudge is exported from errors.ts', typeof carriesNudge === 'function', 'not exported — export endsWithEmptyReplyRecoveryNudge from src/engine/requests/apiErrorRows.ts')
   const seed = [createUserMessage({ content: ASK }), createUserMessage({ content: EMPTY_NUDGE ?? '', isMeta: true })]
-  check('the predicate sees the nudge at the tail', carriesNudge !== undefined && carriesNudge(seed) === true && carriesNudge([createUserMessage({ content: ASK })]) === false, 'endsWithEmptyReplyRecoveryNudge in src/services/api/errors.ts must be true only when the last message is the nudge')
+  check('the predicate sees the nudge at the tail', carriesNudge !== undefined && carriesNudge(seed) === true && carriesNudge([createUserMessage({ content: ASK })]) === false, 'endsWithEmptyReplyRecoveryNudge in src/engine/requests/apiErrorRows.ts must be true only when the last message is the nudge')
   const r = await run([[emptyTurn('empty')], [textTurn(ANSWER)]], seed)
   check('two model calls (the retry still happens)', r.calls.length === 2, String(r.calls.length) + ' — ' + WHERE_RETRY + ' must still retry once when the request already carries the nudge')
   check('the retry carries the nudge exactly once — not appended twice', nudgeCount(r.calls[1]?.messages ?? []) === 1, `count=${nudgeCount(r.calls[1]?.messages ?? [])} — ${WHERE_RETRY} must skip appending when endsWithEmptyReplyRecoveryNudge is true`)

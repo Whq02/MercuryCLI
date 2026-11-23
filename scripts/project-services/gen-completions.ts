@@ -12,7 +12,7 @@ const ROW = {
   assets: 'assets/completions/mercury.bash assets/completions/_mercury assets/completions/mercury.fish',
   generator: 'bun run build.ts && bun scripts/project-services/gen-completions.ts',
   check: 'bun scripts/project-services/gen-completions.ts --check',
-  sources: 'src/main.tsx src/main/** src/commands/mcp/addCommand.ts',
+  sources: 'src/boot/main.tsx src/boot/main/** src/commands/mcp/addCommand.ts',
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 

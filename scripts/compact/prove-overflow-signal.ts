@@ -40,25 +40,25 @@ console.log('============================================================')
 console.log(' context-overflow signal — ten families, one typed verdict')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const signalMod = await import('../../src/services/api/overflowSignal.ts')
+const signalMod = await import('../../src/engine/requests/overflowSignal.ts')
 const { classifyOverflowFault, overflowSignalOf, estimateOverflowSignal, overflowGapTokens, overflowNumbersClause } = signalMod
-const { mapCompatHttpFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-const { mapOpenaiHttpFailure } = await import('../../src/services/providers/openai/openaiWire.ts')
-const { mapZaiHttpFailure } = await import('../../src/services/providers/zai/zaiClient.ts')
-const { getAssistantMessageFromError, PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
-const { APIError } = await import('../../src/utils/api/sdkErrors.js')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { truncateHeadForPTLRetry } = await import('../../src/services/compact/compact.ts')
+const { mapCompatHttpFailure } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+const { mapOpenaiHttpFailure } = await import('../../src/models/roads/openai/openaiWire.ts')
+const { mapZaiHttpFailure } = await import('../../src/models/roads/zai/zaiClient.ts')
+const { getAssistantMessageFromError, PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/engine/requests/apiErrorRows.ts')
+const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { truncateHeadForPTLRetry } = await import('../../src/engine/compaction/foldConversation.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
-type Sig = import('../../src/services/api/overflowSignal.ts').OverflowSignal
+type Sig = import('../../src/engine/requests/overflowSignal.ts').OverflowSignal
 
 const families = Object.keys(OVERFLOW_WIRE_SHAPES)
 
@@ -71,7 +71,7 @@ for (const family of families) {
     const err = new APIError(shape.status, shape.body as never, undefined, undefined as never)
     const minted = getAssistantMessageFromError(err, 'claude-opus-4-8')
     signal = overflowSignalOf(minted)
-    check(`${family}: the minted message keeps the stable content key`, JSON.stringify(minted.message.content).includes(PROMPT_TOO_LONG_ERROR_MESSAGE), 'getAssistantMessageFromError (src/services/api/errors.ts) must keep PROMPT_TOO_LONG_ERROR_MESSAGE in the minted content for the anthropic overflow')
+    check(`${family}: the minted message keeps the stable content key`, JSON.stringify(minted.message.content).includes(PROMPT_TOO_LONG_ERROR_MESSAGE), 'getAssistantMessageFromError (src/engine/requests/apiErrorRows.ts) must keep PROMPT_TOO_LONG_ERROR_MESSAGE in the minted content for the anthropic overflow')
   } else if (family === 'openai') {
     const fault = mapOpenaiHttpFailure(shape.status, shape.body)
     code = fault.code
@@ -85,28 +85,28 @@ for (const family of families) {
     code = fault.code
     signal = classifyOverflowFault({ family: family as never, status: fault.status, code: fault.code, message: fault.message })
   }
-  check(`${family}: classified as an overflow (${shape.expect.shape})`, signal !== null && signal.shape === shape.expect.shape, `code=${code} got=${JSON.stringify(signal)} \u2014 classifyOverflowFault in src/services/api/overflowSignal.ts (or this family's own failure mapping) must recognise the shape in OVERFLOW_WIRE_SHAPES (scripts/compact/overflowFixture.ts)`)
-  check(`${family}: source provider · family ${family}`, signal?.source === 'provider' && signal.family === family, `${JSON.stringify(signal)} \u2014 classifyOverflowFault (src/services/api/overflowSignal.ts) must stamp source provider and the family it was given`)
+  check(`${family}: classified as an overflow (${shape.expect.shape})`, signal !== null && signal.shape === shape.expect.shape, `code=${code} got=${JSON.stringify(signal)} \u2014 classifyOverflowFault in src/engine/requests/overflowSignal.ts (or this family's own failure mapping) must recognise the shape in OVERFLOW_WIRE_SHAPES (scripts/compact/overflowFixture.ts)`)
+  check(`${family}: source provider · family ${family}`, signal?.source === 'provider' && signal.family === family, `${JSON.stringify(signal)} \u2014 classifyOverflowFault (src/engine/requests/overflowSignal.ts) must stamp source provider and the family it was given`)
   if (shape.expect.actual !== undefined) {
-    check(`${family}: the actual count rides (${shape.expect.actual})`, signal?.actualTokens === shape.expect.actual, `${signal?.actualTokens} \u2014 the actual-token count must be read from the wire sentence in src/services/api/overflowSignal.ts`)
+    check(`${family}: the actual count rides (${shape.expect.actual})`, signal?.actualTokens === shape.expect.actual, `${signal?.actualTokens} \u2014 the actual-token count must be read from the wire sentence in src/engine/requests/overflowSignal.ts`)
   } else {
-    check(`${family}: no actual count fabricated`, signal?.actualTokens === undefined, `${signal?.actualTokens} \u2014 classifyOverflowFault (src/services/api/overflowSignal.ts) must not invent a count the wire did not state`)
+    check(`${family}: no actual count fabricated`, signal?.actualTokens === undefined, `${signal?.actualTokens} \u2014 classifyOverflowFault (src/engine/requests/overflowSignal.ts) must not invent a count the wire did not state`)
   }
   if (shape.expect.limit !== undefined) {
-    check(`${family}: the window rides (${shape.expect.limit})`, signal?.limitTokens === shape.expect.limit, `${signal?.limitTokens} \u2014 the window must be read from the wire sentence in src/services/api/overflowSignal.ts`)
+    check(`${family}: the window rides (${shape.expect.limit})`, signal?.limitTokens === shape.expect.limit, `${signal?.limitTokens} \u2014 the window must be read from the wire sentence in src/engine/requests/overflowSignal.ts`)
   } else {
-    check(`${family}: no window fabricated`, signal?.limitTokens === undefined, `${signal?.limitTokens} \u2014 classifyOverflowFault (src/services/api/overflowSignal.ts) must not invent a window the wire did not state`)
+    check(`${family}: no window fabricated`, signal?.limitTokens === undefined, `${signal?.limitTokens} \u2014 classifyOverflowFault (src/engine/requests/overflowSignal.ts) must not invent a window the wire did not state`)
   }
-  check(`${family}: the wire's own sentence rides detail, bounded`, typeof signal?.detail === 'string' && signal.detail.length > 0 && signal.detail.length <= 240, `detail=${JSON.stringify(signal?.detail)} \u2014 classifyOverflowFault (src/services/api/overflowSignal.ts) must carry the wire sentence in detail, at most 240 characters`)
+  check(`${family}: the wire's own sentence rides detail, bounded`, typeof signal?.detail === 'string' && signal.detail.length > 0 && signal.detail.length <= 240, `detail=${JSON.stringify(signal?.detail)} \u2014 classifyOverflowFault (src/engine/requests/overflowSignal.ts) must carry the wire sentence in detail, at most 240 characters`)
 }
 {
   const fault = mapOpenaiHttpFailure(400, { error: { message: "This model's maximum context length is 128000 tokens. However, your messages resulted in 135000 tokens. Please reduce the length of the messages.", type: 'invalid_request_error', param: 'messages', code: 'context_length_exceeded' } })
   const signal = classifyOverflowFault({ family: 'openai', status: fault.status, code: fault.code, message: fault.message })
-  check('openai (chat sentence): code word + numbers', signal?.shape === 'context-length-exceeded' && signal.actualTokens === 135_000 && signal.limitTokens === 128_000, `${JSON.stringify(signal)} \u2014 the openai chat sentence parse lives in classifyOverflowFault (src/services/api/overflowSignal.ts)`)
+  check('openai (chat sentence): code word + numbers', signal?.shape === 'context-length-exceeded' && signal.actualTokens === 135_000 && signal.limitTokens === 128_000, `${JSON.stringify(signal)} \u2014 the openai chat sentence parse lives in classifyOverflowFault (src/engine/requests/overflowSignal.ts)`)
   const metaBody = { error: { message: "You passed 1200064 input tokens and requested 1 output tokens. However, the model's context length is only 1048576 tokens, resulting in a maximum input length of 1048575 tokens. Please reduce the length of the input prompt", type: 'invalid_request_error', code: null, param: null } }
   const metaFault = mapCompatHttpFailure(400, metaBody)
   const metaSignal = classifyOverflowFault({ family: 'meta', status: metaFault.status, code: metaFault.code, message: metaFault.message })
-  check('Meta documented null-code 400: input count against the stated maximum input budget', metaSignal?.shape === 'context-length-exceeded' && metaSignal.family === 'meta' && metaSignal.actualTokens === 1_200_064 && metaSignal.limitTokens === 1_048_575 && overflowGapTokens(metaSignal) === 151_489, `${JSON.stringify(metaSignal)} \u2014 the Meta null-code 400 sentence is classified in classifyOverflowFault (src/services/api/overflowSignal.ts); the gap is overflowGapTokens there`)
+  check('Meta documented null-code 400: input count against the stated maximum input budget', metaSignal?.shape === 'context-length-exceeded' && metaSignal.family === 'meta' && metaSignal.actualTokens === 1_200_064 && metaSignal.limitTokens === 1_048_575 && overflowGapTokens(metaSignal) === 151_489, `${JSON.stringify(metaSignal)} \u2014 the Meta null-code 400 sentence is classified in classifyOverflowFault (src/engine/requests/overflowSignal.ts); the gap is overflowGapTokens there`)
   for (const status of [401, 402, 403, 429, 500, 503]) {
     check(`Meta overflow words on HTTP ${status} never override the status`, classifyOverflowFault({ family: 'meta', status, message: metaBody.error.message }) === null)
   }
@@ -115,22 +115,22 @@ for (const family of families) {
     'A maximum input length of 1048575 tokens is available; unsupported parameter: top_p',
     'Please reduce the length of the input prompt',
     metaBody.error.message.replace('Please reduce the length of the input prompt', 'Unsupported parameter: tools'),
-  ]) check('partial input-budget words do not turn an unrelated 400 into overflow', classifyOverflowFault({ family: 'meta', status: 400, message }) === null, `${message} \u2014 classifyOverflowFault (src/services/api/overflowSignal.ts) must need the full input-budget sentence before it calls a 400 an overflow`)
+  ]) check('partial input-budget words do not turn an unrelated 400 into overflow', classifyOverflowFault({ family: 'meta', status: 400, message }) === null, `${message} \u2014 classifyOverflowFault (src/engine/requests/overflowSignal.ts) must need the full input-budget sentence before it calls a 400 an overflow`)
   const err413 = new APIError(413, { type: 'error', error: { type: 'request_too_large', message: 'Request entity too large' } } as never, undefined, undefined as never)
   const minted413 = getAssistantMessageFromError(err413, 'claude-opus-4-8')
-  check('anthropic 413: the body cap is its own overflow shape', overflowSignalOf(minted413)?.shape === 'request-too-large', `${JSON.stringify(overflowSignalOf(minted413))} \u2014 getAssistantMessageFromError (src/services/api/errors.ts) must stamp a 413 as request-too-large`)
+  check('anthropic 413: the body cap is its own overflow shape', overflowSignalOf(minted413)?.shape === 'request-too-large', `${JSON.stringify(overflowSignalOf(minted413))} \u2014 getAssistantMessageFromError (src/engine/requests/apiErrorRows.ts) must stamp a 413 as request-too-large`)
   const zaiFinish = classifyOverflowFault({ family: 'zai', code: 'finish:model_context_window_exceeded', message: 'stream terminated by the provider: model_context_window_exceeded' })
-  check('zai finish reason model_context_window_exceeded → context-window-exceeded', zaiFinish?.shape === 'context-window-exceeded' && zaiFinish.family === 'zai', `${JSON.stringify(zaiFinish)} \u2014 classifyOverflowFault (src/services/api/overflowSignal.ts) must map the zai finish code model_context_window_exceeded`)
+  check('zai finish reason model_context_window_exceeded → context-window-exceeded', zaiFinish?.shape === 'context-window-exceeded' && zaiFinish.family === 'zai', `${JSON.stringify(zaiFinish)} \u2014 classifyOverflowFault (src/engine/requests/overflowSignal.ts) must map the zai finish code model_context_window_exceeded`)
   const lm = mapCompatHttpFailure(400, { error: 'Trying to keep the first 4097 tokens when context the overflows. However, the model is loaded with context length of only 4096 tokens, which is not enough. Try to load the model with a larger context length, or provide a shorter input.' })
   const lmSig = classifyOverflowFault({ family: 'local', status: lm.status, code: lm.code, message: lm.message })
-  check('local (LM Studio sentence): context-size with the loaded window', lmSig?.shape === 'context-size' && lmSig.limitTokens === 4096, `${JSON.stringify(lmSig)} \u2014 the LM Studio sentence is read by classifyOverflowFault (src/services/api/overflowSignal.ts) for family local`)
+  check('local (LM Studio sentence): context-size with the loaded window', lmSig?.shape === 'context-size' && lmSig.limitTokens === 4096, `${JSON.stringify(lmSig)} \u2014 the LM Studio sentence is read by classifyOverflowFault (src/engine/requests/overflowSignal.ts) for family local`)
   const ol = mapCompatHttpFailure(400, { error: 'the prompt is longer than the context length currently available to the model; shorten the prompt, adjust the context length in settings, or use a model with a longer context length' })
   const olSig = classifyOverflowFault({ family: 'local', status: ol.status, code: ol.code, message: ol.message })
-  check('local (Ollama truncate:false sentence, HTTP 400): context-size, no numbers fabricated (the base classifies nothing here)', olSig?.shape === 'context-size' && olSig.source === 'provider' && olSig.actualTokens === undefined && olSig.limitTokens === undefined, `${JSON.stringify(olSig)} \u2014 the Ollama sentence must classify as context-size without numbers in classifyOverflowFault (src/services/api/overflowSignal.ts)`)
+  check('local (Ollama truncate:false sentence, HTTP 400): context-size, no numbers fabricated (the base classifies nothing here)', olSig?.shape === 'context-size' && olSig.source === 'provider' && olSig.actualTokens === undefined && olSig.limitTokens === undefined, `${JSON.stringify(olSig)} \u2014 the Ollama sentence must classify as context-size without numbers in classifyOverflowFault (src/engine/requests/overflowSignal.ts)`)
   const gw = new APIError(400, { error: { message: "This model's maximum context length is 65536 tokens. However, you requested 70000 tokens (69000 in the messages, 1000 in the completion)." } } as never, undefined, undefined as never)
   const mintedGw = getAssistantMessageFromError(gw, 'stranger/gateway-model')
   const gwSig = overflowSignalOf(mintedGw)
-  check('home-lane gateway stranger: the generic tail stamps the compat sentence (family unknown)', gwSig?.shape === 'context-length-exceeded' && gwSig.family === 'unknown' && gwSig.actualTokens === 70_000, `${JSON.stringify(gwSig)} \u2014 the generic tail of getAssistantMessageFromError (src/services/api/errors.ts) must stamp the compat sentence with family unknown`)
+  check('home-lane gateway stranger: the generic tail stamps the compat sentence (family unknown)', gwSig?.shape === 'context-length-exceeded' && gwSig.family === 'unknown' && gwSig.actualTokens === 70_000, `${JSON.stringify(gwSig)} \u2014 the generic tail of getAssistantMessageFromError (src/engine/requests/apiErrorRows.ts) must stamp the compat sentence with family unknown`)
 }
 
 section('S2 poison controls — refusals that mention tokens or context and are NOT overflows')
@@ -149,10 +149,10 @@ section('S2 poison controls — refusals that mention tokens or context and are 
   ]
   for (const p of poisons) {
     const sig = classifyOverflowFault({ family: p.family as never, status: p.status, code: p.code, message: p.message })
-    check(`${p.label} → null`, sig === null, `${JSON.stringify(sig)} \u2014 classifyOverflowFault (src/services/api/overflowSignal.ts) must not call this refusal an overflow`)
+    check(`${p.label} → null`, sig === null, `${JSON.stringify(sig)} \u2014 classifyOverflowFault (src/engine/requests/overflowSignal.ts) must not call this refusal an overflow`)
   }
   const rate = new APIError(429, { type: 'error', error: { type: 'rate_limit_error', message: 'This request would exceed your organization\'s rate limit of 400,000 input tokens per minute' } } as never, undefined, undefined as never)
-  check('anthropic 429 input-tokens-per-minute: minted without a stamp', overflowSignalOf(getAssistantMessageFromError(rate, 'claude-opus-4-8')) === null, 'getAssistantMessageFromError (src/services/api/errors.ts) must not stamp an input-tokens-per-minute rate limit as an overflow')
+  check('anthropic 429 input-tokens-per-minute: minted without a stamp', overflowSignalOf(getAssistantMessageFromError(rate, 'claude-opus-4-8')) === null, 'getAssistantMessageFromError (src/engine/requests/apiErrorRows.ts) must not stamp an input-tokens-per-minute rate limit as an overflow')
 }
 
 section('S3 the stamp at the REAL runtime seams — every lane over the loopback')
@@ -198,11 +198,11 @@ for (const { lane, model, dialect } of OVERFLOW_LANES) {
   const before = fixture.captured.length
   const r = await callLane(model)
   const reached = fixture.captured.length > before
-  check(`${lane}: the routed call reached the ${dialect} wire`, reached, `captured=${fixture.captured.length - before} \u2014 routedCallModel (src/services/providers/callModelRouter.ts) must send this lane's model to its dialect wire; check OVERFLOW_LANES in scripts/compact/overflowFixture.ts`)
+  check(`${lane}: the routed call reached the ${dialect} wire`, reached, `captured=${fixture.captured.length - before} \u2014 routedCallModel (src/models/roads/callModelRouter.ts) must send this lane's model to its dialect wire; check OVERFLOW_LANES in scripts/compact/overflowFixture.ts`)
   const stamped = r.errors.map(m => overflowSignalOf(m as never)).find(s => s !== null) ?? null
   check(`${lane}: the runtime's API-error message carries the signal`, stamped !== null, JSON.stringify(r.errors.map(m => ({ text: JSON.stringify(m.message).slice(0, 160), sig: (m as { overflowSignal?: unknown }).overflowSignal }))))
-  check(`${lane}: family + shape on the stamp`, stamped?.family === lane && stamped.shape === shape.expect.shape, `${JSON.stringify(stamped)} \u2014 the runtime stamp must carry this lane's family and shape from classifyOverflowFault (src/services/api/overflowSignal.ts)`)
-  if (shape.expect.actual !== undefined) check(`${lane}: numbers on the stamp`, stamped?.actualTokens === shape.expect.actual && stamped.limitTokens === shape.expect.limit, `${JSON.stringify(stamped)} \u2014 the runtime stamp must carry the numbers parsed by classifyOverflowFault (src/services/api/overflowSignal.ts)`)
+  check(`${lane}: family + shape on the stamp`, stamped?.family === lane && stamped.shape === shape.expect.shape, `${JSON.stringify(stamped)} \u2014 the runtime stamp must carry this lane's family and shape from classifyOverflowFault (src/engine/requests/overflowSignal.ts)`)
+  if (shape.expect.actual !== undefined) check(`${lane}: numbers on the stamp`, stamped?.actualTokens === shape.expect.actual && stamped.limitTokens === shape.expect.limit, `${JSON.stringify(stamped)} \u2014 the runtime stamp must carry the numbers parsed by classifyOverflowFault (src/engine/requests/overflowSignal.ts)`)
   const poison = NON_OVERFLOW_400[dialect]!
   fixture.script([{ error: { status: poison.status, body: poison.body } }])
   const p = await callLane(model)
@@ -233,7 +233,7 @@ section('S4 the readers — the stamp is the one field consumers read')
   check('the gap: actual − limit when both are known', overflowGapTokens(sig) === 7_000 && overflowGapTokens(est) === 3_000)
   check('the gap: undefined when a number is missing', overflowGapTokens({ source: 'provider', family: 'openai', shape: 'context-length-exceeded' }) === undefined)
   check('the gap: undefined when the request was not over', overflowGapTokens({ source: 'provider', family: 'openai', shape: 'context-length-exceeded', actualTokens: 10, limitTokens: 20 }) === undefined)
-  check('the numbers clause: both → "N tokens > M"', overflowNumbersClause(sig) === '135,000 tokens > 128,000', `${overflowNumbersClause(sig)} \u2014 overflowNumbersClause in src/services/api/overflowSignal.ts must print both numbers as N tokens > M`)
+  check('the numbers clause: both → "N tokens > M"', overflowNumbersClause(sig) === '135,000 tokens > 128,000', `${overflowNumbersClause(sig)} \u2014 overflowNumbersClause in src/engine/requests/overflowSignal.ts must print both numbers as N tokens > M`)
   check('the numbers clause: limit only → "over the M-token window"', overflowNumbersClause({ source: 'provider', family: 'moonshot', shape: 'token-limit', limitTokens: 262_144 }) === 'over the 262,144-token window')
   check('the numbers clause: none → undefined', overflowNumbersClause({ source: 'provider', family: 'openai', shape: 'context-length-exceeded' }) === undefined)
 }
@@ -251,16 +251,16 @@ section('S5 the fold\'s own retry reads every family — truncation by a stamped
     overflow: { source: 'provider', family: 'openrouter', shape: 'context-length-exceeded', actualTokens: 1250, limitTokens: 1000 },
   })
   const truncated = truncateHeadForPTLRetry(messages as never, stamped)
-  check('a stamped signal drives the truncation (fewer messages survive)', truncated !== null && truncated.length < messages.length, `${truncated?.length}/${messages.length} \u2014 truncateHeadForPTLRetry (src/services/compact/compact.ts) must drop head rounds using the stamped gap`)
+  check('a stamped signal drives the truncation (fewer messages survive)', truncated !== null && truncated.length < messages.length, `${truncated?.length}/${messages.length} \u2014 truncateHeadForPTLRetry (src/engine/compaction/foldConversation.ts) must drop head rounds using the stamped gap`)
   const home = createAssistantAPIErrorMessage({ content: `${PROMPT_TOO_LONG_ERROR_MESSAGE}: 1250 tokens > 1000 maximum`, error: 'invalid_request', errorDetails: 'prompt is too long: 1250 tokens > 1000 maximum' })
   const truncatedHome = truncateHeadForPTLRetry(messages as never, home)
-  check('…by exactly the drop the home content key would make', truncated !== null && truncatedHome !== null && truncated.length === truncatedHome.length, `${truncated?.length} vs ${truncatedHome?.length} \u2014 truncateHeadForPTLRetry (src/services/compact/compact.ts) must drop the same rounds for a stamped gap as for the home content key`)
+  check('…by exactly the drop the home content key would make', truncated !== null && truncatedHome !== null && truncated.length === truncatedHome.length, `${truncated?.length} vs ${truncatedHome?.length} \u2014 truncateHeadForPTLRetry (src/engine/compaction/foldConversation.ts) must drop the same rounds for a stamped gap as for the home content key`)
   const unknownGap = createAssistantAPIErrorMessage({ content: 'API Error: OpenAI stream failed (openai-context_length_exceeded) — Your input exceeds the context window of this model.', error: 'invalid_request', overflow: { source: 'provider', family: 'openai', shape: 'context-length-exceeded' } })
   const truncatedUnknown = truncateHeadForPTLRetry(messages as never, unknownGap)
   check(
     'an unknown gap falls to the proportional drop (the head round is gone)',
     truncatedUnknown !== null && !truncatedUnknown.includes(messages[0] as never) && truncatedUnknown.length <= messages.length,
-    `${truncatedUnknown?.length} \u2014 with no known gap truncateHeadForPTLRetry (src/services/compact/compact.ts) must fall back to a proportional drop that removes the head round`,
+    `${truncatedUnknown?.length} \u2014 with no known gap truncateHeadForPTLRetry (src/engine/compaction/foldConversation.ts) must fall back to a proportional drop that removes the head round`,
   )
 }
 

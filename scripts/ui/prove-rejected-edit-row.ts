@@ -17,20 +17,20 @@ process.chdir(PROJ)
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  const rejectedRowWhere = 'to fix: the headline, the ten-line preview with its count, (no content) and the dimmed diff are all painted by src/components/FileEditToolUseRejectedMessage.tsx'
+  const rejectedRowWhere = 'to fix: the headline, the ten-line preview with its count, (no content) and the dimmed diff are all painted by src/tools/write/FileEditToolUseRejectedMessage.tsx'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' · ' : '') + rejectedRowWhere : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { FileEditToolUseRejectedMessage } = await import('../../src/components/FileEditToolUseRejectedMessage.js')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { FileEditToolUseRejectedMessage } = await import('../../src/tools/write/FileEditToolUseRejectedMessage.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 
 const settle = async (): Promise<void> => {
   for (let index = 0; index < 6; index++) {

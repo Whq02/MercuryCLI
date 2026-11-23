@@ -30,7 +30,7 @@ try {
   code = failed.status ?? 1
   out = `${failed.stdout ?? ''}${failed.stderr ?? ''}`
 }
-check('gen-contract --check: the doc section, the skill reference and the bundled copy are byte-identical to the schemas', code === 0, 'run bun scripts/extensions/gen-contract.ts to regenerate docs/EXTENSIONS.md and the CONTRACT.md copies from src/extensions/manifest.ts, then commit them; ' + out.trim().slice(0, 300))
+check('gen-contract --check: the doc section, the skill reference and the bundled copy are byte-identical to the schemas', code === 0, 'run bun scripts/extensions/gen-contract.ts to regenerate docs/EXTENSIONS.md and the CONTRACT.md copies from src/integrations/extensions/manifest.ts, then commit them; ' + out.trim().slice(0, 300))
 
 const template = readFileSync(join(ROOT, 'docs', 'templates', 'extension-source-README.md'), 'utf8')
 const skillTemplate = readFileSync(join(ROOT, 'mercury-skills', 'extension-maker', 'references', 'README-template.md'), 'utf8')
@@ -51,7 +51,7 @@ try {
   bundledCode = failed.status ?? 1
   bundledOut = `${failed.stdout ?? ''}${failed.stderr ?? ''}`
 }
-check('gen-bundled --check extension-maker: the bundled SKILL.md and references mirror the mercury-skills source', bundledCode === 0, 'run bun scripts/skills/gen-bundled.ts extension-maker to rewrite src/skills/bundled/extension-maker from mercury-skills/extension-maker; ' + bundledOut.trim().slice(0, 300))
+check('gen-bundled --check extension-maker: the bundled SKILL.md and references mirror the mercury-skills source', bundledCode === 0, 'run bun scripts/skills/gen-bundled.ts extension-maker to rewrite src/integrations/skills/bundled/extension-maker from mercury-skills/extension-maker; ' + bundledOut.trim().slice(0, 300))
 
 const description = /description:\s*(.+)/.exec(skillSource)?.[1] ?? ''
 check('the skill carries a non-empty description', description.trim().length > 20, 'give mercury-skills/extension-maker/SKILL.md a description: line of more than 20 characters; read: ' + description)
@@ -60,8 +60,8 @@ check('the skill speaks no retired word', !new RegExp(J('plug', 'in'), 'i').test
 check('the skill states the two operator-act rules', /never add a source/i.test(skillSource) && /never approve/i.test(skillSource), 'mercury-skills/extension-maker/SKILL.md must say the agent never adds a source and never approves an extension')
 
 {
-  const { contributionsHash } = await import('../../src/extensions/manifest.ts')
-  const { MANIFEST_FILE } = await import('../../src/extensions/paths.ts')
+  const { contributionsHash } = await import('../../src/integrations/extensions/manifest.ts')
+  const { MANIFEST_FILE } = await import('../../src/integrations/extensions/paths.ts')
   const root = mkdtempSync(join(tmpdir(), 'contract-hash-'))
   try {
     const put = (rel: string, text: string): void => {

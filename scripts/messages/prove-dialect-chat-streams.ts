@@ -4,13 +4,13 @@ import { fileURLToPath } from 'node:url'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const root = resolve(process.argv[2] ?? fileURLToPath(new URL('../..', import.meta.url)))
-const { streamCompatChat } = await import(`${root}/src/services/providers/openaicompat/compatChatClient.ts`)
-const { streamGeminiContent } = await import(`${root}/src/services/providers/gemini/geminiClient.ts`)
-const { streamOllamaChat } = await import(`${root}/src/services/providers/local/ollamaChatTransport.ts`)
-const { assembleZaiTurn } = await import(`${root}/src/services/providers/zai/zaiCodec.ts`)
+const { streamCompatChat } = await import(`${root}/src/models/roads/openaicompat/compatChatClient.ts`)
+const { streamGeminiContent } = await import(`${root}/src/models/roads/gemini/geminiClient.ts`)
+const { streamOllamaChat } = await import(`${root}/src/models/roads/local/ollamaChatTransport.ts`)
+const { assembleZaiTurn } = await import(`${root}/src/models/roads/zai/zaiCodec.ts`)
 
-const CHAT_STREAM_FIX_HINT = 'the stream event shape or the settled turn changed: streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts, streamGeminiContent in src/services/providers/gemini/geminiClient.ts, streamOllamaChat in src/services/providers/local/ollamaChatTransport.ts, assembleZaiTurn in src/services/providers/zai/zaiCodec.ts; compare the printed diff with the fixture and restore the byte-pinned output'
-const CHAT_CALL_FIX_HINT = 'compat tool fragments must emit the same blocks as Anthropic: compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts against queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts'
+const CHAT_STREAM_FIX_HINT = 'the stream event shape or the settled turn changed: streamCompatChat in src/models/roads/openaicompat/compatChatClient.ts, streamGeminiContent in src/models/roads/gemini/geminiClient.ts, streamOllamaChat in src/models/roads/local/ollamaChatTransport.ts, assembleZaiTurn in src/models/roads/zai/zaiCodec.ts; compare the printed diff with the fixture and restore the byte-pinned output'
+const CHAT_CALL_FIX_HINT = 'compat tool fragments must emit the same blocks as Anthropic: compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts against queryModelWithStreaming in src/models/roads/anthropic/streamCore.ts'
 const request = { model: 'fixture-model', messages: [{ role: 'user', content: 'fixture input' }] }
 const sse = (chunks: unknown[]) => new Response(chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } })
 const fetchOf = (response: Response) => (async (url: unknown) => {
@@ -94,12 +94,12 @@ assert.deepEqual(await assembleZaiTurn(asEvents(ollamaEvents)), expectedTurn, `l
 console.log('PASS: local stream events and settled content are byte-pinned')
 
 const { z } = await import('zod/v4')
-const { compatChatCallModel } = await import(root + '/src/services/providers/openaicompat/compatChatCallModel.ts')
-const { queryModelWithStreaming } = await import(root + '/src/services/providers/anthropic/streamCore.ts')
-const { getEmptyToolPermissionContext } = await import(root + '/src/Tool.ts')
-const { createUserMessage } = await import(root + '/src/services/messages.ts')
-const { asSystemPrompt } = await import(root + '/src/utils/systemPromptType.ts')
-const { enableConfigs } = await import(root + '/src/utils/config/globalConfig.ts')
+const { compatChatCallModel } = await import(root + '/src/models/roads/openaicompat/compatChatCallModel.ts')
+const { queryModelWithStreaming } = await import(root + '/src/models/roads/anthropic/streamCore.ts')
+const { getEmptyToolPermissionContext } = await import(root + '/src/tools/kit/tool.ts')
+const { createUserMessage } = await import(root + '/src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import(root + '/src/engine/system-prompt/systemPromptType.ts')
+const { enableConfigs } = await import(root + '/src/platform/config/globalConfig.ts')
 enableConfigs()
 process.env.ANTHROPIC_API_KEY = 'fixture-api-key'
 const tool = { name: 'Read', prompt: async () => 'Read the fixture.', inputSchema: z.object({ file_path: z.string() }), inputJSONSchema: { type: 'object', properties: { file_path: { type: 'string' } }, required: ['file_path'] }, isEnabled: () => true, isReadOnly: () => true, isConcurrencySafe: () => true }

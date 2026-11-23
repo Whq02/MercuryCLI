@@ -2,8 +2,8 @@ import { existsSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-const MODULE = 'src/substrate/flagRegistry.ts'
-const ROWS = 'src/substrate/flags'
+const MODULE = 'src/platform/substrate/flagRegistry.ts'
+const ROWS = 'src/platform/substrate/flags'
 
 export function isFlagRegistryFile(rel: string): boolean {
   const path = rel.replaceAll('\\', '/')

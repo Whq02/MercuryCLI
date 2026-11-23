@@ -15,18 +15,18 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/config/globalConfig.ts'))
 enableConfigs()
-const { setAuthScope } = await import(join(SRC, 'utils/envUtils.ts'))
-const auth = { ...(await import(join(SRC, 'utils/auth.ts'))), ...(await import(join(SRC, 'services/auth/oauthLifecycle.ts'))) }
-const redaction = await import(join(SRC, 'utils/redactSecrets.ts'))
+const { setAuthScope } = await import(join(SRC, 'platform/environment/envUtils.ts'))
+const auth = { ...(await import(join(SRC, 'models/sign-in/credentials/auth.ts'))), ...(await import(join(SRC, 'models/sign-in/lifecycle/oauthLifecycle.ts'))) }
+const redaction = await import(join(SRC, 'platform/secrets/redactSecrets.ts'))
 
 let total = 0
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   total++
   if (!ok) failures++
-  const fixHint = 'fix src/utils/redactSecrets.ts: sessionSecretValues and credentialStringsIn decide which stored strings are secrets (the STORED_WORDS_NOT_SECRET paths are left out), createSecretRedactor replaces them'
+  const fixHint = 'fix src/platform/secrets/redactSecrets.ts: sessionSecretValues and credentialStringsIn decide which stored strings are secrets (the STORED_WORDS_NOT_SECRET paths are left out), createSecretRedactor replaces them'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${fixHint}` : ''}`)
 }
 const section = (title: string): void => {

@@ -27,7 +27,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (cond) console.log(`  ✓ ${label}`)
   else {
     failures++
-    const failHint = 'the row words and clock are modelSwitchStdoutText, createModelSwitchBreadcrumbs and switchClockWords in src/utils/messages/factories.ts; the saved-default write and restore are persistModelChoice in src/commands/model/persistModelChoice.ts'
+    const failHint = 'the row words and clock are modelSwitchStdoutText, createModelSwitchBreadcrumbs and switchClockWords in src/engine/message-shapes/factories.ts; the saved-default write and restore are persistModelChoice in src/commands/model/persistModelChoice.ts'
     console.log(`  ✗ ${label}\n      ${detail ? `${detail}\n      ` : ''}${failHint}`)
   }
 }
@@ -49,7 +49,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 
 section('§1 the row\'s words, the restore of a refused save, and the cockpit writing the default before the door')
 {
-  const factories = (await import('../../src/utils/messages/factories.ts')) as typeof import('../../src/utils/messages/factories.ts') & { modelSwitchStdoutText?: (display: string, facts?: { previousModel: string; previousDisplay: string; savedAsDefault: boolean }) => string }
+  const factories = (await import('../../src/engine/message-shapes/factories.ts')) as typeof import('../../src/engine/message-shapes/factories.ts') & { modelSwitchStdoutText?: (display: string, facts?: { previousModel: string; previousDisplay: string; savedAsDefault: boolean }) => string }
   const words = factories.modelSwitchStdoutText
   check('the switch row has a words owner (RED on the base: absent)', typeof words === 'function')
   check('without the switch facts the row keeps its shipped shape (the recorded goldens stand)', words?.('Sonnet 5.5') === 'Model now: Sonnet 5.5', words?.('Sonnet 5.5'))
@@ -66,7 +66,7 @@ section('§1 the row\'s words, the restore of a refused save, and the cockpit wr
 
   writeFileSync(join(pureHome, 'settings.json'), JSON.stringify({ engine: { model: FABLE } }))
   const { persistModelChoice } = await import('../../src/commands/model/persistModelChoice.ts')
-  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+  const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
   resetSettingsCache()
   const choice = persistModelChoice(SONNET) as { outcome: string; sentence: string; restore?: () => void }
   const written = JSON.parse(readFileSync(join(pureHome, 'settings.json'), 'utf8')) as { engine?: { model?: string } }

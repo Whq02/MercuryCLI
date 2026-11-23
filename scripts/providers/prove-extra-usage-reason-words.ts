@@ -1,7 +1,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { anthropicExtraUsageCredits, anthropicExtraUsageCarry } = await import('../../src/services/providers/providerUsage.ts')
+const { anthropicExtraUsageCredits, anthropicExtraUsageCarry } = await import('../../src/models/roads/providerUsage.ts')
 let failures = 0
-const EXTRA_USAGE_HINT = 'to fix, change the extra-usage reason wording in anthropicExtraUsageCredits and anthropicExtraUsageCarry in src/services/providers/providerUsage.ts'
+const EXTRA_USAGE_HINT = 'to fix, change the extra-usage reason wording in anthropicExtraUsageCredits and anthropicExtraUsageCarry in src/models/roads/providerUsage.ts'
 function check(label: string, ok: boolean, detail: string): void {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail} | ${EXTRA_USAGE_HINT}`}`)

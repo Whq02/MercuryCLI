@@ -51,7 +51,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    fix: the door that answered is chosen in src/tools/WebSearchTool/WebSearchTool.ts (vendored WebSearch) or src/tools/WebSearchTool/ProviderSearchTool.ts (native); keyless scraping lives in src/services/search/duckduckgo.ts and cool-down, cache and pacing in src/services/search/searchPacing.ts; read the section title above this line to pick the file')
+  if (!cond) console.log('    fix: the door that answered is chosen in src/tools/web-search/WebSearchTool.ts (vendored WebSearch) or src/tools/web-search/ProviderSearchTool.ts (native); keyless scraping lives in src/tools/engines/web-search/duckduckgo.ts and cool-down, cache and pacing in src/tools/engines/web-search/searchPacing.ts; read the section title above this line to pick the file')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -59,7 +59,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — websearch doors prover exceeded 240s; the last section printed above was still waiting on a search call or on the dist/mercury.mjs headless run in section 13, so check src/tools/WebSearchTool/WebSearchTool.ts and the search fixture in scripts/search/lib/searchFixture.ts')
+  console.log('\nTIMEOUT — websearch doors prover exceeded 240s; the last section printed above was still waiting on a search call or on the dist/mercury.mjs headless run in section 13, so check src/tools/web-search/WebSearchTool.ts and the search fixture in scripts/search/lib/searchFixture.ts')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -70,16 +70,16 @@ const PORT = fixture.port
 Object.assign(process.env, fixture.env)
 process.env.MERCURY_SEARCH_KEYLESS = '1'
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
-const { WebSearchTool } = await import('../../src/tools/WebSearchTool/WebSearchTool.js')
-const { ProviderSearchTool } = await import('../../src/tools/WebSearchTool/ProviderSearchTool.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const secrets = await import('../../src/utils/accounts/providerSecrets.js')
-const pacing = await import('../../src/services/search/searchPacing.js')
-const { keylessSearch } = await import('../../src/services/search/duckduckgo.js')
-const { KEYED_DOOR_REMEDY } = await import('../../src/services/search/searchContract.js')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
+const { WebSearchTool } = await import('../../src/tools/web-search/WebSearchTool.js')
+const { ProviderSearchTool } = await import('../../src/tools/web-search/ProviderSearchTool.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.js')
+const pacing = await import('../../src/tools/engines/web-search/searchPacing.js')
+const { keylessSearch } = await import('../../src/tools/engines/web-search/duckduckgo.js')
+const { KEYED_DOOR_REMEDY } = await import('../../src/tools/engines/web-search/searchContract.js')
 
 function seedHome(model: string): void {
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { model } }))
@@ -190,7 +190,7 @@ section('§2 NATIVE-OPENAI + THE REGISTRATION CENSUS — the anthropic spy sees 
   seedHome('claude-opus-4-8')
   check('an anthropic home lists BOTH tools', WebSearchTool.isEnabled() === true && ProviderSearchTool.isEnabled() === true)
   seedHome(NEMOTRON)
-  const { getEngineModel } = await import('../../src/services/model/model.js')
+  const { getEngineModel } = await import('../../src/models/catalogue/engineModel.js')
   check('a nemotron home lists the vendored tool ALONE', WebSearchTool.isEnabled() === true && ProviderSearchTool.isEnabled() === false, `mainModel=${getEngineModel()}`)
   seedHome('local/qwen3-coder')
   check('a local home lists the vendored tool ALONE', ProviderSearchTool.isEnabled() === false, `mainModel=${getEngineModel()}`)
@@ -360,7 +360,7 @@ section('§8 KEY AT REST — the stored key: mode 600 in the engines\' store, re
   const mode = statSync(path).mode & 0o777
   check('the store file is mode 600', mode === 0o600, mode.toString(8))
   check('the stored value reads back through its own reader only', secrets.readStoredBraveSearchApiKey() === 'stored-brave-key-123')
-  const { resolveBraveSearchApiKey } = await import('../../src/services/search/brave.js')
+  const { resolveBraveSearchApiKey } = await import('../../src/tools/engines/web-search/brave.js')
   check("the resolver answers source 'stored'", resolveBraveSearchApiKey({})?.source === 'stored')
   check("…and an env pin WINS", resolveBraveSearchApiKey({ BRAVE_API_KEY: 'env-wins' })?.key === 'env-wins')
   const run = await runTool(NEMOTRON, { query: QUERY })
@@ -374,7 +374,7 @@ section('§8 KEY AT REST — the stored key: mode 600 in the engines\' store, re
 
 section('§9 THE WEBFETCH ROAD — no policy service is asked before a fetch, on any family')
 {
-  const { getURLMarkdownContent, clearWebFetchCache } = await import('../../src/tools/WebFetchTool/utils.js')
+  const { getURLMarkdownContent, clearWebFetchCache } = await import('../../src/tools/web-fetch/fetchContent.js')
   const fetchDuring = async (url: string): Promise<{ error?: Error; anthropic: number }> => {
     const before = fixture.hitsOn('anthropic').length
     let error: Error | undefined
@@ -393,7 +393,7 @@ section('§9 THE WEBFETCH ROAD — no policy service is asked before a fetch, on
   clearWebFetchCache()
   const firstParty = await fetchDuring(`https://127.0.0.1:${PORT}/fetch-me/two`)
   check('an anthropic-routed fetch touches ZERO anthropic hosts too (no policy dial exists)', firstParty.anthropic === 0, j(fixture.hitsOn('anthropic').map(h => h.path)))
-  const { getWebFetchUserAgent } = await import('../../src/utils/http.js')
+  const { getWebFetchUserAgent } = await import('../../src/models/roads/requestHeaders.js')
   const webFetchUa = getWebFetchUserAgent()
   check('the WebFetch agent names Mercury and the public contact without session identity',
     webFetchUa === `Mercury/${MACRO.VERSION} (+https://mercury-cli.ai; https://github.com/Whq02/MercuryCLI/issues)`, webFetchUa)

@@ -9,13 +9,13 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_BOOT_PREFLIGHT = '0'
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.ts')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { ModalContext } = await import('../../src/context/modalContext.tsx')
-const { PopupFrameContext } = await import('../../src/components/PopupGutter.tsx')
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { Box } = await import('../../src/screen/themedRenderer.ts')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { ModalContext } = await import('../../src/screen/overlays/modalContext.tsx')
+const { PopupFrameContext } = await import('../../src/screen/overlays/PopupGutter.tsx')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 const { MercuryHealthCertificate, healthPopupShape } = await import('../../src/commands/health/HealthCertificate.tsx')
 enableConfigs()
 const h = React.createElement
@@ -144,7 +144,7 @@ async function renderPane(cols: number, rows: number, cert: ReturnType<typeof ma
 }
 
 const FIX_WRAP =
-  'wrap each NEXT action in src/commands/health/healthCertificate/healthCertificateView.tsx onto as many lines as it needs without truncate-end, aligning continuation lines under the first line text after the status mark, and count wrapped NEXT lines in src/commands/health/HealthCertificate.tsx'
+  'wrap each NEXT action in src/commands/health/certificate/healthCertificateView.tsx onto as many lines as it needs without truncate-end, aligning continuation lines under the first line text after the status mark, and count wrapped NEXT lines in src/commands/health/HealthCertificate.tsx'
 
 try {
   for (const [cols, rows] of [[120, 36], [80, 24]] as const) {
@@ -209,7 +209,7 @@ try {
         `${cols}x${rows}: headline and counts stay on their own rows`,
         longHeadAt === shortHeadAt && longHeadAt >= 0 && longCountsAt === shortCountsAt && longCountsAt >= 0,
         `head ${longHeadAt}/${shortHeadAt}, counts ${longCountsAt}/${shortCountsAt}`,
-        'keep the headline and counts rows unchanged in src/commands/health/healthCertificate/healthCertificateView.tsx',
+        'keep the headline and counts rows unchanged in src/commands/health/certificate/healthCertificateView.tsx',
       )
       check(
         `${cols}x${rows}: rows below NEXT are pushed down by exactly the wrapped lines added (+${addedLines})`,

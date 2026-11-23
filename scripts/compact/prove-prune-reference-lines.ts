@@ -2,10 +2,10 @@
 import assert from 'node:assert/strict'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { projectTimeBasedMicrocompact } = await import('../../src/services/compact/microCompact.ts')
-const { digestClearedToolResult } = await import('../../src/services/compact/microCompactDigest.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { getTimeBasedMCConfig } = await import('../../src/services/compact/timeBasedMCConfig.ts')
+const { projectTimeBasedMicrocompact } = await import('../../src/engine/compaction/pruneToolResults.ts')
+const { digestClearedToolResult } = await import('../../src/engine/compaction/pruneDigest.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getTimeBasedMCConfig } = await import('../../src/engine/compaction/timeBasedPruneConfig.ts')
 
 for (const text of [
   'body\n'.repeat(10000),

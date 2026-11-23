@@ -49,10 +49,10 @@ for (const name of Object.keys(process.env)) {
 const React = await import('react')
 const h = React.createElement
 
-const { __setBurstCrHostForTest } = await import('../../src/ink/input/input-decoder.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { __setBurstCrHostForTest } = await import('../../src/screen/renderer/input/input-decoder.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { registerBootDoors } = await import('../../src/services/boot/registerDoors.ts')
+const { registerBootDoors } = await import('../../src/boot/doors/registerDoors.ts')
 registerBootDoors()
 saveCurrentProjectConfig(cfg => ({
   ...cfg,
@@ -66,26 +66,26 @@ saveGlobalConfig(cfg => ({
   theme: 'dark',
 }))
 
-const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.ts')
+const { markDaemonHaltStanddown } = await import('../../src/daemon/control/daemonStanddown.ts')
 markDaemonHaltStanddown()
 
-const pending = await import('../../src/input-core/pending-input.ts')
-const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { expandPastedTextRefs } = await import('../../src/history.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.tsx')
-const { Chat } = await import('../../src/screens/Chat.tsx')
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { default: reconciler } = await import('../../src/ink/reconciler.js')
-const { disposeKeybindingWatcher } = await import('../../src/keybindings/loadUserBindings.js')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const slot = await import('../../src/engine/connector/focusedConnector.ts')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { expandPastedTextRefs } = await import('../../src/sessions/promptHistory.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.tsx')
+const { Chat } = await import('../../src/screen/chat/Chat.tsx')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
+const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
 
-type Message = import('../../src/types/message.js').Message
+type Message = import('../../src/engine/message-shapes/message.js').Message
 type Paste = { id: number; type: 'text' | 'image'; content: string }
 
 class FakeStdout extends EventEmitter {

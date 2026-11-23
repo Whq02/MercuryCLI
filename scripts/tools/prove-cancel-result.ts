@@ -9,26 +9,26 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 import { z } from 'zod/v4'
 
-const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
-const { runTools } = await import('../../src/services/tools/toolOrchestration.ts')
-const { subscribeToolStart, subscribeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { CANCEL_MESSAGE, isDenialResultText, isInterruptedResultText, turnCutOf, turnCutResultText } = await import('../../src/utils/messages/rejectionText.ts')
-const { DeadlineExceededError } = await import('../../src/utils/deadline.ts')
+const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
+const { runTools } = await import('../../src/engine/tool-dispatch/toolOrchestration.ts')
+const { subscribeToolStart, subscribeToolTerminal } = await import('../../src/engine/run-owner/effectObserver.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { CANCEL_MESSAGE, isDenialResultText, isInterruptedResultText, turnCutOf, turnCutResultText } = await import('../../src/engine/message-shapes/rejectionText.ts')
+const { DeadlineExceededError } = await import('../../src/platform/async/deadline.ts')
 const STALL = new DeadlineExceededError('crewmate fixture (a0)', 3_000, 9_000, 2)
 const STALL_WORDS = `Cut off by a no-progress timeout (the provider went quiet): ${STALL.message}`
-const { buildMessageLookups } = await import('../../src/services/messages/lookups.ts')
-const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
-const { createAssistantMessage } = await import('../../src/services/messages.ts')
+const { buildMessageLookups } = await import('../../src/engine/messages/lookups.ts')
+const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.ts')
+const { createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
 
 let checks = 0
 let failures = 0
 const FIX_IN: Record<string, string> = {
-  A: 'change the abandon road of runToolUse in src/services/tools/toolExecution.ts (the catch that settles a started call as the interrupt result) or runTools in src/services/tools/toolOrchestration.ts (the sibling queued behind it); the words come from src/utils/messages/turnCut.ts',
-  B: 'change the catch of runToolUse in src/services/tools/toolExecution.ts that builds the cut text with turnCutResultText(turnCutOf(signal.reason), tool.name); the words live in src/utils/messages/turnCut.ts',
-  C: 'change the never-started doors of runToolUse in src/services/tools/toolExecution.ts (interruptResultUpdate) or CANCEL_MESSAGE in src/utils/messages/rejectionText.ts',
-  E: 'change the catch of runToolUse in src/services/tools/toolExecution.ts that tells a turn-signal AbortError (settles as the cut) from a tool-own AbortError (stays an error)',
-  F: 'change where runToolUse in src/services/tools/toolExecution.ts fires the tool.after hook for a cut call (ok false, cut true, the cut words as the error)',
+  A: 'change the abandon road of runToolUse in src/engine/tool-dispatch/toolExecution.ts (the catch that settles a started call as the interrupt result) or runTools in src/engine/tool-dispatch/toolOrchestration.ts (the sibling queued behind it); the words come from src/engine/message-shapes/turnCut.ts',
+  B: 'change the catch of runToolUse in src/engine/tool-dispatch/toolExecution.ts that builds the cut text with turnCutResultText(turnCutOf(signal.reason), tool.name); the words live in src/engine/message-shapes/turnCut.ts',
+  C: 'change the never-started doors of runToolUse in src/engine/tool-dispatch/toolExecution.ts (interruptResultUpdate) or CANCEL_MESSAGE in src/engine/message-shapes/rejectionText.ts',
+  E: 'change the catch of runToolUse in src/engine/tool-dispatch/toolExecution.ts that tells a turn-signal AbortError (settles as the cut) from a tool-own AbortError (stays an error)',
+  F: 'change where runToolUse in src/engine/tool-dispatch/toolExecution.ts fires the tool.after hook for a cut call (ok false, cut true, the cut words as the error)',
 }
 let fixIn = ''
 function check(label: string, ok: boolean, detail = ''): void {
@@ -43,7 +43,7 @@ function section(title: string): void {
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the cancel-result proof exceeded 60s; a run that never ended is stuck in runToolUse (src/services/tools/toolExecution.ts) or runTools (src/services/tools/toolOrchestration.ts): look at the last section printed above')
+  console.log('\nTIMEOUT — the cancel-result proof exceeded 60s; a run that never ended is stuck in runToolUse (src/engine/tool-dispatch/toolExecution.ts) or runTools (src/engine/tool-dispatch/toolOrchestration.ts): look at the last section printed above')
   process.exit(1)
 }, 60_000)
 guard.unref?.()
@@ -302,8 +302,8 @@ section("E a started call that answers the interrupt with a bare AbortError sett
 
 section("F a cut is a failure for hooks: tool.after fires once for a cut call on both roads, ok false, cut true, the cut's words as the error")
 {
-  const { addSessionHooks } = await import('../../src/utils/hooks/sessionHooks.ts')
-  const { getSessionId, setIsInteractive } = await import('../../src/bootstrap/state.ts')
+  const { addSessionHooks } = await import('../../src/integrations/event-hooks/sessionHooks.ts')
+  const { getSessionId, setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
   setIsInteractive(false)
   const hookDir = mkdtempSync(join(tmpdir(), 'cancel-result-hooks-'))
   const recorder = (name: string): string => join(hookDir, `${name}.jsonl`)

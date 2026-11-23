@@ -38,25 +38,25 @@ function check(label: string, ok: boolean, detail = '', fixHint = ''): void {
 
 const React = await import('react')
 const h = React.createElement
-const { InkInstanceContext } = await import('../../src/ink/components/InkInstanceContext.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.tsx')
-const { Chat } = await import('../../src/screens/Chat.tsx')
-const route = await import('../../src/context/surfaceRoute.ts')
-const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/hooks/useLayoutTier.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { InkInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.tsx')
+const { Chat } = await import('../../src/screen/chat/Chat.tsx')
+const route = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true, hasTrustDialogAccepted: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false, hasCompletedOnboarding: true, theme: 'dark' }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { getCommands } = await import('../../src/commands.ts')
-const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-type Message = import('../../src/types/message.ts').Message
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const slot = await import('../../src/engine/connector/focusedConnector.ts')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { getCommands } = await import('../../src/commands/catalogue/commands.ts')
+const { markDaemonHaltStanddown } = await import('../../src/daemon/control/daemonStanddown.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 type InkInstance = NonNullable<React.ContextType<typeof InkInstanceContext>>
 type InkInternal = {
   scheduler?: { state: () => string }
@@ -182,7 +182,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
     }
     const internal = inkTap as unknown as InkInternal | undefined
     throw new Error(
-      `screen never settled for ${label} within ${ceilingMs}ms (look at the frame printed below and at the restore code in src/screens/chat/useChatScroll.ts; top=${topMarkFrom(lastFrame) ?? 'none'}, seq=${frameSeq}, scheduler=${internal?.scheduler?.state() ?? 'unknown'}, listeners=${internal?.frameListeners?.size ?? -1}/${baseListeners})\n${lastFrame}`,
+      `screen never settled for ${label} within ${ceilingMs}ms (look at the frame printed below and at the restore code in src/screen/chat/useChatScroll.ts; top=${topMarkFrom(lastFrame) ?? 'none'}, seq=${frameSeq}, scheduler=${internal?.scheduler?.state() ?? 'unknown'}, listeners=${internal?.frameListeners?.size ?? -1}/${baseListeners})\n${lastFrame}`,
     )
   }
 
@@ -207,7 +207,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
 
   try {
     await waitScreenSettled(`${tag} initial mount`, frame => frame.includes('TAIL-END') && frame.includes('Type a prompt'))
-    check(`${tag}: chat mounted at the tail`, m.screen().includes('TAIL-END') && m.screen().includes('Type a prompt'), topMark(m) ?? 'none', 'the 40 history rows should mount pinned to the tail with the prompt visible; see the mount in src/screens/Chat.tsx and useChatScrollPin in src/screens/chat/useChatScroll.ts')
+    check(`${tag}: chat mounted at the tail`, m.screen().includes('TAIL-END') && m.screen().includes('Type a prompt'), topMark(m) ?? 'none', 'the 40 history rows should mount pinned to the tail with the prompt visible; see the mount in src/screen/chat/Chat.tsx and useChatScrollPin in src/screen/chat/useChatScroll.ts')
 
     const leaveTail = async (): Promise<string | undefined> => {
       if (m.screen().includes('detailed transcript')) {
@@ -230,7 +230,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
     }
 
     const offMark = await leaveTail()
-    check(`${tag}: wheel leaves the tail with the jump pill shown`, offMark !== undefined && m.screen().includes(PILL) && !m.screen().includes('TAIL-END'), `${offMark}`, 'two wheel-up events must scroll off the tail and show the back-to-the-bottom pill; see the scroll box in src/components/fullscreenLayout/panes.tsx and onScroll in src/screens/chat/useChatScroll.ts')
+    check(`${tag}: wheel leaves the tail with the jump pill shown`, offMark !== undefined && m.screen().includes(PILL) && !m.screen().includes('TAIL-END'), `${offMark}`, 'two wheel-up events must scroll off the tail and show the back-to-the-bottom pill; see the scroll box in src/screen/fullscreen-layout/panes.tsx and onScroll in src/screen/chat/useChatScroll.ts')
 
     let firstEnterFrame = ''
     const stopEnterWatch = inkTap!.subscribeFrame(() => {
@@ -250,7 +250,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
         markRank(firstEnterMark) > 120 &&
         Math.abs(markRank(firstEnterMark) - markRank(settledEnterMark)) <= 2,
       `first=${firstEnterMark} settled=${settledEnterMark} tail=${firstEnterFrame.includes('TAIL-END')}`,
-      'the first frame after ctrl+o must already hold the restored scroll position; fix the flip restore (captureScrollForFlip and the useMeasure effect) in src/screens/chat/useChatScroll.ts',
+      'the first frame after ctrl+o must already hold the restored scroll position; fix the flip restore (captureScrollForFlip and the useMeasure effect) in src/screen/chat/useChatScroll.ts',
     )
 
     let firstExitFrame = ''
@@ -270,9 +270,9 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
         markRank(firstExitMark) > 120 &&
         Math.abs(markRank(firstExitMark) - markRank(topMark(m))) <= 2,
       `first=${firstExitMark} settled=${topMark(m)} tail=${firstExitFrame.includes('TAIL-END')}`,
-      'the first frame after leaving the detailed transcript must already hold the restored scroll position; fix the flip restore (captureScrollForFlip and the useMeasure effect) in src/screens/chat/useChatScroll.ts',
+      'the first frame after leaving the detailed transcript must already hold the restored scroll position; fix the flip restore (captureScrollForFlip and the useMeasure effect) in src/screen/chat/useChatScroll.ts',
     )
-    check(`${tag}: an uninterrupted flip round-trip still preserves the row`, topMark(m) === offMark && m.screen().includes(PILL), `${offMark} -> ${topMark(m)}`, 'a ctrl+o round trip must return to the same top row with the pill shown; fix the flip restore (captureScrollForFlip and the useMeasure effect) in src/screens/chat/useChatScroll.ts')
+    check(`${tag}: an uninterrupted flip round-trip still preserves the row`, topMark(m) === offMark && m.screen().includes(PILL), `${offMark} -> ${topMark(m)}`, 'a ctrl+o round trip must return to the same top row with the pill shown; fix the flip restore (captureScrollForFlip and the useMeasure effect) in src/screen/chat/useChatScroll.ts')
 
     m.push(CTRL_O)
     const refDetail = await waitScreenSettled(`${tag} reference enter detail`, frame => frame.includes('detailed transcript'))
@@ -300,7 +300,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
       `${tag}: a buffered ctrl+o + PageUp chunk is not overwritten back to the pre-flip gap`,
       markRank(afterChunkPageUp) < markRank(beforeChunk) - 10,
       `expected < ${beforeChunk}, got ${afterChunkPageUp}`,
-      'a PageUp that arrives with ctrl+o must win over the restore; scrollRestoreRef must be cleared on user scroll (onScroll in src/screens/chat/useChatScroll.ts)',
+      'a PageUp that arrives with ctrl+o must win over the restore; scrollRestoreRef must be cleared on user scroll (onScroll in src/screen/chat/useChatScroll.ts)',
     )
 
     const beforeBurst = await leaveTail()
@@ -315,7 +315,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
       `${tag}: PageUp inside the restore frames is not overwritten back to the pre-flip gap`,
       afterFramePageUp === settledPageUpMark && markRank(afterFramePageUp) < markRank(beforeBurst) - 10,
       `expected ${settledPageUpMark} (< ${beforeBurst}), got ${afterFramePageUp}`,
-      'a PageUp that lands between restore frames must win over the restore; scrollRestoreRef must be cleared on user scroll (onScroll in src/screens/chat/useChatScroll.ts)',
+      'a PageUp that lands between restore frames must win over the restore; scrollRestoreRef must be cleared on user scroll (onScroll in src/screen/chat/useChatScroll.ts)',
     )
 
     await runOnFirstRestoreFrame(
@@ -328,7 +328,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
       `${tag}: Alt+Down inside the restore frames pins to the tail instead of being pulled back off it`,
       m.screen().includes('TAIL-END') && !m.screen().includes(PILL),
       `top=${topMark(m)} pill=${m.screen().includes(PILL)}`,
-      'an Alt+Down that lands between restore frames must pin to the tail and cancel the restore; see the restore frames in src/screens/chat/useChatScroll.ts (useMeasure effect, scrollRestoreRef)',
+      'an Alt+Down that lands between restore frames must pin to the tail and cancel the restore; see the restore frames in src/screen/chat/useChatScroll.ts (useMeasure effect, scrollRestoreRef)',
     )
 
     await leaveTail()
@@ -342,7 +342,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
       `${tag}: detailed transcript g inside the restore frames stays at the top of the slice`,
       settledTopMark !== undefined && topMark(m) === settledTopMark && markRank(topMark(m)) < markRank(settledPageUpMark),
       `expected ${settledTopMark}, got ${topMark(m)}`,
-      'a g that lands between restore frames must win over the restore; scrollRestoreRef must be cleared on user scroll (onScroll in src/screens/chat/useChatScroll.ts)',
+      'a g that lands between restore frames must win over the restore; scrollRestoreRef must be cleared on user scroll (onScroll in src/screen/chat/useChatScroll.ts)',
     )
 
     m.push(CTRL_O)
@@ -361,7 +361,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
       `${tag}: repinToBottom inside the restore frames keeps the view pinned on the new tail`,
       m.screen().includes(humanTail) && !m.screen().includes(PILL),
       `top=${topMark(m)} humanTail=${m.screen().includes(humanTail)} pill=${m.screen().includes(PILL)}`,
-      'a human turn appended between restore frames must repin to the new tail; repinToBottom in src/screens/chat/useChatScroll.ts must clear scrollRestoreRef and scroll to the bottom',
+      'a human turn appended between restore frames must repin to the new tail; repinToBottom in src/screen/chat/useChatScroll.ts must clear scrollRestoreRef and scroll to the bottom',
     )
   } finally {
     m.unmount()

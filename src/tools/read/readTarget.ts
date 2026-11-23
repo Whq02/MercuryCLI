@@ -1,0 +1,130 @@
+
+import { readdirSync, statSync, type Dirent } from 'node:fs'
+import { basename, join } from 'node:path'
+import { isEnvDefinedFalsy } from '../../platform/environment/envUtils.js'
+import { getPathsForPermissionCheck } from '../../platform/files/fsOperations.js'
+import { mercurySecretPath } from '../../permissions/rules/protectedPaths.js'
+import { resolveResource } from '../../integrations/resources/registry.js'
+import type { ResourceContext } from '../../integrations/resources/contracts.js'
+import { flagEnv } from '../../platform/substrate/flagRegistry.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+
+export function readTargetsEnabled(): boolean {
+  return !isEnvDefinedFalsy(flagEnv('MERCURY_READ_TARGETS'))
+}
+
+type ReadTargetKind = 'file' | 'directory' | 'resource' | 'url'
+
+interface ReadTarget {
+  kind: ReadTargetKind
+  raw: string
+}
+
+export function classifyReadTarget(raw: string): ReadTarget {
+  const s = raw.trim()
+  if (s.startsWith('mercury://')) return { kind: 'resource', raw }
+  if (/^https?:\/\//i.test(s)) return { kind: 'url', raw }
+  return { kind: 'file', raw }
+}
+
+export function isDirectoryTarget(fullPath: string): boolean {
+  try {
+    return statSync(fullPath).isDirectory()
+  } catch (error) {
+    passedOver(error)
+    return false
+  }
+}
+
+interface RenderedTarget {
+  content: string
+  numLines: number
+}
+
+export const DIRECTORY_ENTRY_CAP = 200
+
+export function renderDirectoryTarget(fullPath: string, denied?: (file: string) => boolean): RenderedTarget {
+  const refused = (e: Dirent): boolean => {
+    const entry = join(fullPath, e.name)
+    if (mercurySecretPath(entry) !== null) return true
+    if (denied === undefined) return false
+    return e.isSymbolicLink() ? getPathsForPermissionCheck(entry).some(form => denied(form)) : denied(entry)
+  }
+  let names: string[]
+  try {
+    const entries = readdirSync(fullPath, { withFileTypes: true }).filter(e => !refused(e))
+    names = entries
+      .map(e => (e.isDirectory() ? `${e.name}/` : e.name))
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+  } catch (err) {
+    return renderDirectoryUnavailable(basename(fullPath), err instanceof Error ? err.message : String(err))
+  }
+  return renderDirectoryNames(fullPath, names)
+}
+
+export function renderDirectoryUnavailable(name: string, msg: string): RenderedTarget {
+  return { content: `(target: directory · owner: Read · state: unavailable)\n${name}: ${msg}`, numLines: 2 }
+}
+
+export function renderDirectoryNames(fullPath: string, names: readonly string[]): RenderedTarget {
+  const shown = names.slice(0, DIRECTORY_ENTRY_CAP)
+  const omitted = names.length - shown.length
+  const lines = [
+    `(target: directory · owner: Read · entries: ${shown.length} shown of ${names.length})`,
+    ...shown,
+  ]
+  if (omitted > 0) {
+    lines.push(
+      `… ${omitted} more entries omitted — next action: narrow with Glob(pattern: "${fullPath}/<pattern>")`,
+    )
+  }
+  return { content: lines.join('\n'), numLines: lines.length }
+}
+
+export async function renderResourceTarget(
+  ref: string,
+  ctx: ResourceContext,
+): Promise<RenderedTarget> {
+  const result = await resolveResource(ref, ctx)
+  if (result.state !== 'ok') {
+    const note = 'note' in result && result.note ? result.note : ''
+    const lines = [
+      `(target: resource · owner: resources · state: ${result.state})`,
+      `${ref}: ${result.state}${note ? ` — ${note}` : ''}`,
+    ]
+    return { content: lines.join('\n'), numLines: lines.length }
+  }
+  const r = result.resource
+  const lines: string[] = [
+    `(target: resource · owner: resources · state: ok · kind: ${r.kind})`,
+    `${r.title}${r.version ? ` [v ${r.version}]` : ''}`,
+    r.summary,
+  ]
+  if (r.children?.length) {
+    lines.push('', `children (${r.children.length}):`)
+    for (const c of r.children) {
+      lines.push(`  ${c.ref} — ${c.title} (${c.summary})`)
+    }
+  }
+  if (r.text) lines.push('', r.text)
+  if (r.page) {
+    lines.push(
+      '',
+      `[page: cursor ${r.page.cursor}${r.page.total !== undefined ? ` of ${r.page.total} lines` : ''}${r.page.hasMore ? ' — more available' : ' — end'}]`,
+    )
+  }
+  return { content: lines.join('\n'), numLines: lines.length }
+}
+
+export function renderUrlDelegation(url: string): RenderedTarget {
+  const lines = [
+    '(target: url · owner: WebFetch · state: delegated)',
+    `This target is an http(s) document — it is served by the WebFetch owner (URL consent stays there).`,
+    `Next action: call WebFetch with url: ${url.trim()} and a prompt describing what to extract.`,
+  ]
+  return { content: lines.join('\n'), numLines: lines.length }
+}
+
+export function readTargetPromptLines(): string {
+  return "A directory path returns a bounded listing. A mercury:// reference reads a session record; mercury://seat is this seat's own: the model, effort and posture this turn runs on."
+}

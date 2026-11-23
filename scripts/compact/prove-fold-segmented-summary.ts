@@ -8,7 +8,7 @@ assert.ok(process.env.MERCURY_CONFIG_DIR, 'a scratch MERCURY_CONFIG_DIR is requi
 const f = await llmhostFixture()
 f.state.dialect = 'vllm'
 writeFileSync(join(f.home, 'settings.json'), JSON.stringify({ compatProvider: { segmented: { baseUrl: f.baseUrl, dialect: 'vllm', models: [f.model] } } }))
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 resetSettingsCache()
 const originalFetch = globalThis.fetch
 let plan: 'split-text' | 'trailing-thought' | 'cut' = 'split-text'
@@ -29,14 +29,14 @@ globalThis.fetch = Object.assign(async (input: RequestInfo | URL, init?: Request
 }, originalFetch)
 const previousCwd = process.cwd()
 process.chdir(f.home)
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 bootstrap.setOriginalCwd(f.home)
 bootstrap.setCwdState(f.home)
-const { compactConversation } = await import('../../src/services/compact/compact.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+const { compactConversation } = await import('../../src/engine/compaction/foldConversation.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const model = `compat/segmented/${f.model}`
 const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], readFileState: createFileStateCacheWithSizeLimit(100), options: { tools: [], commands: [], mcpClients: [], engineModel: model, thinkingConfig: { type: 'enabled', budgetTokens: 4096 }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
@@ -51,14 +51,14 @@ try {
     const before = f.captures.length
     const result = await compactConversation(messages, context, cache as never, true)
     const summary = JSON.stringify(result.summaryMessages)
-    check(`${mode}: every summary text block survives instead of only the last assistant block`, summary.includes(first) && (mode !== 'split-text' || summary.includes(last)), `compactConversation in src/services/compact/compact.ts must keep every text block of the summary reply · ${summary.slice(0, 300)}`)
-    check(`${mode}: the complete summary needs one request, not a no-text retry`, f.captures.length === before + 1, `compactConversation in src/services/compact/compact.ts sent ${f.captures.length - before} requests, expected 1: it must not retry for text when the summary already has text`)
-    check(`${mode}: reasoning never appears as summary prose`, !summary.includes(thought), 'compactConversation in src/services/compact/compact.ts must leave reasoning content out of the summary messages')
-    check(`${mode}: the summariser keeps max effort`, f.captures.slice(before).every(row => row.body.reasoning_effort === 'max'), 'the summary request built by compactConversation in src/services/compact/compact.ts must carry the session effort (max) as reasoning_effort')
+    check(`${mode}: every summary text block survives instead of only the last assistant block`, summary.includes(first) && (mode !== 'split-text' || summary.includes(last)), `compactConversation in src/engine/compaction/foldConversation.ts must keep every text block of the summary reply · ${summary.slice(0, 300)}`)
+    check(`${mode}: the complete summary needs one request, not a no-text retry`, f.captures.length === before + 1, `compactConversation in src/engine/compaction/foldConversation.ts sent ${f.captures.length - before} requests, expected 1: it must not retry for text when the summary already has text`)
+    check(`${mode}: reasoning never appears as summary prose`, !summary.includes(thought), 'compactConversation in src/engine/compaction/foldConversation.ts must leave reasoning content out of the summary messages')
+    check(`${mode}: the summariser keeps max effort`, f.captures.slice(before).every(row => row.body.reasoning_effort === 'max'), 'the summary request built by compactConversation in src/engine/compaction/foldConversation.ts must carry the session effort (max) as reasoning_effort')
   }
   plan = 'cut'
   const cut = await compactConversation(messages, context, cache as never, true).then(value => ({ result: value }), error => ({ error: String(error) }))
-  check('a fault after partial text still refuses the fold instead of accepting that text', 'error' in cut && !('result' in cut), { hint: 'compactConversation in src/services/compact/compact.ts must throw when the summary stream is cut after partial text, not accept the partial text', cut })
+  check('a fault after partial text still refuses the fold instead of accepting that text', 'error' in cut && !('result' in cut), { hint: 'compactConversation in src/engine/compaction/foldConversation.ts must throw when the summary stream is cut after partial text, not accept the partial text', cut })
 } finally {
   globalThis.fetch = originalFetch
   process.chdir(previousCwd)

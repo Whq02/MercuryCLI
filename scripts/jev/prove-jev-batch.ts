@@ -15,7 +15,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    fix: change the input schema or jevEvalCall in src/tools/JevEvalTool/JevEvalTool.ts, the wording in src/tools/JevEvalTool/prompt.ts, or the ledger in src/services/jev/jevLedger.ts, whichever the failed label names; the printed value above is what the code returned')
+  if (!cond) console.log('    fix: change the input schema or jevEvalCall in src/tools/jev-eval/JevEvalTool.ts, the wording in src/tools/jev-eval/prompt.ts, or the ledger in src/models/jev/jevLedger.ts, whichever the failed label names; the printed value above is what the code returned')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -29,17 +29,17 @@ const { startJevStandin } = await import('./lib/jevStandin.ts')
 const standin = await startJevStandin()
 process.env.MERCURY_JEV_BASE = standin.base
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setJevEnabled, setJevPacePerMinute } = await import('../../src/services/jev/jevSetting.ts')
-const { storeJevApiKey } = await import('../../src/services/jev/jevKey.ts')
-const { jevLedgerSnapshot, noteJevAttempt, resetJevLedger } = await import('../../src/services/jev/jevLedger.ts')
-const { JEV_SUBAGENT_CALL_BUDGET, JEV_TOOL_NAME } = await import('../../src/services/jev/jevContract.ts')
-const { runWithAgentContext } = await import('../../src/utils/agentContext.ts')
-const { formatZodValidationError } = await import('../../src/utils/toolErrors.ts')
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
-const { JevEvalTool, jevEvalCall } = await import('../../src/tools/JevEvalTool/JevEvalTool.ts')
-const { JEV_EVAL_PROMPT } = await import('../../src/tools/JevEvalTool/prompt.ts')
+const { setJevEnabled, setJevPacePerMinute } = await import('../../src/models/jev/jevSetting.ts')
+const { storeJevApiKey } = await import('../../src/models/jev/jevKey.ts')
+const { jevLedgerSnapshot, noteJevAttempt, resetJevLedger } = await import('../../src/models/jev/jevLedger.ts')
+const { JEV_SUBAGENT_CALL_BUDGET, JEV_TOOL_NAME } = await import('../../src/models/jev/jevContract.ts')
+const { runWithAgentContext } = await import('../../src/crew/agents/agentContext.ts')
+const { formatZodValidationError } = await import('../../src/tools/kit/toolErrors.ts')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
+const { JevEvalTool, jevEvalCall } = await import('../../src/tools/jev-eval/JevEvalTool.ts')
+const { JEV_EVAL_PROMPT } = await import('../../src/tools/jev-eval/prompt.ts')
 
 setJevEnabled(true)
 storeJevApiKey(PROOF_KEY)

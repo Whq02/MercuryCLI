@@ -11,16 +11,16 @@ if (process.argv[2] === '--start') {
   const answer = process.argv[3]
   if (process.argv[4] === 'tty') Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
   const cwd = process.cwd()
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const state = await import('../../src/bootstrap/state.ts')
+  const state = await import('../../src/boot/process-state/processState.ts')
   state.setCwdState(cwd)
   state.setOriginalCwd(cwd)
   state.setProjectRoot(cwd)
-  const { showSetupScreens } = await import('../../src/interactiveHelpers.tsx')
-  const { TerminalProfileCard } = await import('../../src/components/TerminalProfileCard.tsx')
-  const { Onboarding } = await import('../../src/components/Onboarding.tsx')
-  const { TrustDialog } = await import('../../src/components/TrustDialog/TrustDialog.tsx')
+  const { showSetupScreens } = await import('../../src/boot/setupScreens.tsx')
+  const { TerminalProfileCard } = await import('../../src/boot/first-run/TerminalProfileCard.tsx')
+  const { Onboarding } = await import('../../src/boot/first-run/Onboarding.tsx')
+  const { TrustDialog } = await import('../../src/screen/trust-dialog/TrustDialog.tsx')
   const answerScreen = (node: React.ReactNode): boolean => {
     if (Array.isArray(node)) return node.some(answerScreen)
     if (!React.isValidElement(node)) return false
@@ -66,10 +66,10 @@ const section = (title: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 
-const KIND = 'resolveTerminalProfile in src/ink/session/terminalProfile.ts must return a kind made of the profile version, how the window names itself (TERM, WT_SESSION, TERM_PROGRAM, MSYSTEM) and the ids of the required rows it misses, and of nothing a later reading of the same window can change'
-const FLOW = 'showSetupScreens in src/interactiveHelpers.tsx must skip the terminal check when terminalChecksContinued in the global config holds the kind of the profile, and add the kind there after Continue anyway while the window still reads unsupported'
+const KIND = 'resolveTerminalProfile in src/screen/renderer/terminal-session/terminalProfile.ts must return a kind made of the profile version, how the window names itself (TERM, WT_SESSION, TERM_PROGRAM, MSYSTEM) and the ids of the required rows it misses, and of nothing a later reading of the same window can change'
+const FLOW = 'showSetupScreens in src/boot/setupScreens.tsx must skip the terminal check when terminalChecksContinued in the global config holds the kind of the profile, and add the kind there after Continue anyway while the window still reads unsupported'
 
-const { resolveTerminalProfile, TERMINAL_PROFILE_VERSION } = await import('../../src/ink/session/terminalProfile.ts')
+const { resolveTerminalProfile, TERMINAL_PROFILE_VERSION } = await import('../../src/screen/renderer/terminal-session/terminalProfile.ts')
 const kindOf = (probe: Parameters<typeof resolveTerminalProfile>[0]): string => String((resolveTerminalProfile(probe) as { kind?: unknown }).kind)
 const THIS_VERSION = `v${TERMINAL_PROFILE_VERSION}, `
 

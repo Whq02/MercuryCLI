@@ -42,12 +42,12 @@ try {
   const text = (name: string): string => (result.marks[name] ?? []).join('\n')
   const count = (name: string): number => text(name).split(fact).length - 1
   check('the cockpit completed every gesture', result.status === 0 && result.endReason === 'ready' && Object.keys(result.marks).length === 6, `gesture script did not finish (see the printed frames; the drive is in scripts/computer/computerDriveKit.ts) ${result.status} ${result.endReason} ${result.stderr.slice(-300)}`)
-  check('private thinking paints no default row', !text('default').includes('thinking…') && count('default') === 0, 'a turn whose thinking blocks came back empty must show no thinking row and no withheld note until clicked; see WITHHELD_THINKING_WORDS in src/components/messages/thinkingGrammar.tsx.')
-  check('clicking the answer discloses one fact for the whole turn', count('clicked') === 1, 'one click on the answer must show the withheld note once for the turn, found ' + count('clicked') + '; see src/components/messages/thinkingGrammar.tsx.')
-  check('clicking again closes the fact', count('closed') === 0, 'the second click must hide the withheld note, found ' + count('closed') + '; see src/components/messages/thinkingGrammar.tsx.')
-  check('ctrl+o discloses one fact for the whole turn', count('transcript') === 1, 'ctrl+o must show the withheld note once for the turn, found ' + count('transcript') + '; see src/components/messages/thinkingGrammar.tsx.')
-  check('returned thinking keeps its collapsed cue', /thinking….*(?:⌄|to expand)/.test(text('visible-default')) && !text('visible-default').includes('Visible reasoning body.'), 'a turn with returned thinking must show the thinking cue collapsed and hide the body; see ThinkingLabel in src/components/messages/thinkingGrammar.tsx.')
-  check('returned thinking still opens on click', text('visible-clicked').includes('Visible reasoning body.'), 'clicking the thinking cue must open the returned thinking body; see src/components/messages/thinkingGrammar.tsx.')
+  check('private thinking paints no default row', !text('default').includes('thinking…') && count('default') === 0, 'a turn whose thinking blocks came back empty must show no thinking row and no withheld note until clicked; see WITHHELD_THINKING_WORDS in src/screen/messages/thinkingGrammar.tsx.')
+  check('clicking the answer discloses one fact for the whole turn', count('clicked') === 1, 'one click on the answer must show the withheld note once for the turn, found ' + count('clicked') + '; see src/screen/messages/thinkingGrammar.tsx.')
+  check('clicking again closes the fact', count('closed') === 0, 'the second click must hide the withheld note, found ' + count('closed') + '; see src/screen/messages/thinkingGrammar.tsx.')
+  check('ctrl+o discloses one fact for the whole turn', count('transcript') === 1, 'ctrl+o must show the withheld note once for the turn, found ' + count('transcript') + '; see src/screen/messages/thinkingGrammar.tsx.')
+  check('returned thinking keeps its collapsed cue', /thinking….*(?:⌄|to expand)/.test(text('visible-default')) && !text('visible-default').includes('Visible reasoning body.'), 'a turn with returned thinking must show the thinking cue collapsed and hide the body; see ThinkingLabel in src/screen/messages/thinkingGrammar.tsx.')
+  check('returned thinking still opens on click', text('visible-clicked').includes('Visible reasoning body.'), 'clicking the thinking cue must open the returned thinking body; see src/screen/messages/thinkingGrammar.tsx.')
 } finally {
   await endLeg(leg)
   rmSync(scratch, { recursive: true, force: true })

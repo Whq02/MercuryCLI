@@ -22,7 +22,7 @@ if (driver.kind !== 'posix-pty') {
 }
 
 let failures = 0
-const TRUTH_HINT = 'where to look: the seat agents and the messages sent to them come from the agent tools under src/tools/AgentTool and src/tools/ResumeAgentTool; this drive checks what the screen and the transcript say about each seat, so compare the detail above with the seat named in the label; rebuild dist with bun run build.ts after a source change'
+const TRUTH_HINT = 'where to look: the seat agents and the messages sent to them come from the agent tools under src/tools/crewmate and src/tools/resume-crewmate; this drive checks what the screen and the transcript say about each seat, so compare the detail above with the seat named in the label; rebuild dist with bun run build.ts after a source change'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ` — ${TRUTH_HINT}` : ''}`)

@@ -1,4 +1,4 @@
-import { ALL_AGENTS, listCapabilityKills } from '../../utils/permissions/capabilityGate.js'
+import { ALL_AGENTS, listCapabilityKills } from '../../permissions/rules/capabilityGate.js'
 
 export function parseKillToken(token: string): { agentType: string; toolName: string } {
   const trimmed = (token ?? '').trim()

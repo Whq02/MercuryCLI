@@ -22,19 +22,19 @@ if (process.env.MERCURY_CONFIG_DIR !== HOME) throw new Error('the scratch config
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'admission-drill-daemon-'))
 process.env.MERCURY_CREW_DIR = mkdtempSync(join(tmpdir(), 'admission-drill-crew-'))
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { assembleToolPool } = await import('../../src/tools.ts')
-const { isDeferredTool, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
-type Message = import('../../src/types/message.ts').Message
+const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
+const { isDeferredTool, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/tool-search/prompt.ts')
+const { deferralWireFormFor } = await import('../../src/models/roads/deferralWire.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 process.env.MERCURY_MODEL = model
 const permissionContext = getEmptyToolPermissionContext()

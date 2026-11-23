@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker, waitUntil } from '../engine-durability/harness.ts'
-import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/models/facts/builtInModelTable.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
@@ -15,10 +15,10 @@ const t = checker()
 
 const repoRoot = join(import.meta.dirname, '..', '..')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
-await import('../../src/tools/AgentTool/AgentTool.js')
+await import('../../src/tools/crewmate/CrewmateTool.js')
 
 const {
   advancedFieldSeed,
@@ -30,10 +30,10 @@ const {
   guidedNext,
   guidedSeedFor,
   studioDestinationPath,
-} = await import('../../src/components/agents/studio/studioEditorModel.js')
-const { decodeAgentDocument } = await import('../../src/services/agents/codec.js')
-const { AgentStoreError } = await import('../../src/services/agents/store.js')
-const { revisionDigest } = await import('../../src/services/agents/contracts.js')
+} = await import('../../src/screen/agents/studio/studioEditorModel.js')
+const { decodeAgentDocument } = await import('../../src/crew/agents/codec.js')
+const { AgentStoreError } = await import('../../src/crew/agents/store.js')
+const { revisionDigest } = await import('../../src/crew/agents/contracts.js')
 
 t.section('§1 — IDENTITY BOTH DIRECTIONS (the extraction law)')
 {
@@ -320,11 +320,11 @@ let existing: never[] = []
 t.section('§3 — THE FACE SKIN (BootAgentsScreen: the real mount · route silence · the composer tiers)')
 {
 
-  const routeStore = await import('../../src/context/surfaceRoute.js')
+  const routeStore = await import('../../src/screen/routes/surfaceRoute.js')
   const versionBefore = routeStore.surfaceRouteVersion()
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { BootAgentsScreen } = await import('../../src/components/BootAgentsScreen.js')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { BootAgentsScreen } = await import('../../src/screen/boot-face/BootAgentsScreen.js')
   const mkAgent = (over: Record<string, unknown>): unknown => ({
     agentType: 'x',
     whenToUse: 'x',
@@ -371,7 +371,7 @@ t.section('§4 — TWO SKINS, ONE MODEL (the face consumes the machine; no secon
 t.section("§5 — THE BOOT MENU DOOR, BOTH HOSTS (Agents lives inside Boot Menu; the 'agents' wire word)")
 {
   const { assembleCardRows } = await import('../../assets/splash/splash-core.mjs')
-  const { settingsEditors } = await import('../../src/components/bootSettings/menuModel.js')
+  const { settingsEditors } = await import('../../src/screen/boot-face/settings/menuModel.js')
   const rowsOf = (facts: Record<string, unknown>): Array<{ key: string; icon: string; label: string; ctx: string }> =>
     assembleCardRows(facts) as never
   const BASE = { cwdBase: 'proj', continueTarget: null, menuAvailable: true }
@@ -392,7 +392,7 @@ t.section("§5 — THE BOOT MENU DOOR, BOTH HOSTS (Agents lives inside Boot Menu
     JSON.stringify(editor),
   )
   t.check('menuAvailable: false drops Boot Menu (so the Agents editor rides the same fit law)', !rowsOf({ ...FULL, menuAvailable: false }).map(r => r.key).includes('menu'))
-  const { decideSplashReceipt, consumeFaceDoorDeepLink } = await import('../../src/substrate/splashHandover.js')
+  const { decideSplashReceipt, consumeFaceDoorDeepLink } = await import('../../src/platform/substrate/splashHandover.js')
   const now = 1_700_000_000_000
   const fresh = decideSplashReceipt(JSON.stringify({ version: 1, ts: now, action: 'agents' }), now, () => true)
   t.check("the 'agents' receipt applies with nothing to chdir or splice", fresh.reason === 'applied' && fresh.apply === null)
@@ -402,9 +402,9 @@ t.section("§5 — THE BOOT MENU DOOR, BOTH HOSTS (Agents lives inside Boot Menu
 
 t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly provider-neutral · sign-in routing)')
 {
-  const { agentModelPickOutcome, getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.js')
-  const { ANTHROPIC_MODEL_GROUP, isProviderActionRow } = await import('../../src/services/model/modelOptions.js')
-  const fixture: import('../../src/services/model/modelOptions.ts').ModelOption[] = [
+  const { agentModelPickOutcome, getAgentModelPickerRows } = await import('../../src/models/catalogue/agentModelPicker.js')
+  const { ANTHROPIC_MODEL_GROUP, isProviderActionRow } = await import('../../src/models/catalogue/modelOptions.js')
+  const fixture: import('../../src/models/catalogue/modelOptions.ts').ModelOption[] = [
     { value: '__mercury_anthropic_connect__', label: 'Claude — sign in', description: '↵ runs /logins anthropic' },
     { value: 'fable', label: 'Fable', description: '' },
     { value: 'claude-opus-4-8[1m]', label: 'Opus 4.8 (1M)', description: '' },
@@ -470,8 +470,8 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
   t.check('picking a connect row routes to sign-in', agentModelPickOutcome(rows.find(r => r.value === '__mercury_connect__:zai')!).kind === 'needs-sign-in')
 
   {
-    const { getAgentModel } = await import('../../src/services/model/agent.js')
-    const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.js')
+    const { getAgentModel } = await import('../../src/models/catalogue/agentModel.js')
+    const { classifyModelRoute } = await import('../../src/models/roads/routeLaw.js')
     const PARENT = DEFAULT_OPUS
     t.check(
       'every offered model row dispatches deterministically',
@@ -494,7 +494,7 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
 t.section('§7 — THE FRONTIER PASS (the authoring guidance · the availability truth · the field totality)')
 {
 
-  const { agentModelAvailabilityNote, getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.js')
+  const { agentModelAvailabilityNote, getAgentModelPickerRows } = await import('../../src/models/catalogue/agentModelPicker.js')
   const rows = getAgentModelPickerRows([
     { value: 'fable', label: 'Fable', description: '' },
     { value: 'claude-opus-4-6', label: 'Opus 4.6', description: '', unavailable: 'not signed in — /logins anthropic' },
@@ -506,7 +506,7 @@ t.section('§7 — THE FRONTIER PASS (the authoring guidance · the availability
   t.check('an id the catalogue does not know wears nothing (unknown ≠ unavailable)', agentModelAvailabilityNote('compat/mystery', rows) === null)
   t.check("a saved 1M variant of an unavailable model wears its row's reason (the rider folded onto the row)", agentModelAvailabilityNote('claude-opus-4-6[1m]', rows) === 'not signed in — /logins anthropic' && agentModelAvailabilityNote('claude-opus-4-6', rows) === 'not signed in — /logins anthropic')
   {
-    const { decodeAgentDocument: decode } = await import('../../src/services/agents/codec.js')
+    const { decodeAgentDocument: decode } = await import('../../src/crew/agents/codec.js')
     const heldRaw = '---\nname: held-agent\ndescription: A held agent for the born-held drive.\nmodel: gpt-6.2\n---\nYou are the held agent, saved while your provider is signed out today.\n'
     const heldDoc = decode(heldRaw, '/x/held-agent.md')
     const heldV = computeStudioValidation({ doc: heldDoc, existingAgents: [], base: undefined, mode: 'create' })
@@ -545,8 +545,8 @@ t.section('§7 — THE FRONTIER PASS (the authoring guidance · the availability
     heldMachine.dispose()
   }
 
-  const { FIELD_ROWS: fieldRows } = await import('../../src/components/agents/studio/studioEditorModel.js')
-  const { KNOWN_AGENT_KEYS } = await import('../../src/services/agents/contracts.js')
+  const { FIELD_ROWS: fieldRows } = await import('../../src/screen/agents/studio/studioEditorModel.js')
+  const { KNOWN_AGENT_KEYS } = await import('../../src/crew/agents/contracts.js')
   const preserved = new Set(['mcpServers', 'hooks', 'specVersion'])
   const formKeys = new Set(fieldRows.map(r => r.id).filter(id => id !== 'body'))
   const contractKeys = new Set(KNOWN_AGENT_KEYS.filter(k => !preserved.has(k)))
@@ -564,10 +564,10 @@ t.section('§8 — THE SIGN-IN WALK, DRIVEN (AGENTVERIFY A3: the face swap on a 
   const { PassThrough } = await import('node:stream')
   const stripAnsi = (await import('strip-ansi')).default
   const React = (await import('react')).default
-  const { render } = await import('../../src/ink.js')
-  const { BootAgentsScreen, agentFormRowIds } = await import('../../src/components/BootAgentsScreen.js')
-  const { getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.js')
-  const { keyConnectValue } = await import('../../src/services/model/modelOptions.js')
+  const { render } = await import('../../src/screen/themedRenderer.js')
+  const { BootAgentsScreen, agentFormRowIds } = await import('../../src/screen/boot-face/BootAgentsScreen.js')
+  const { getAgentModelPickerRows } = await import('../../src/models/catalogue/agentModelPicker.js')
+  const { keyConnectValue } = await import('../../src/models/catalogue/modelOptions.js')
 
   const priorZaiKey = process.env.ZAI_API_KEY
   delete process.env.ZAI_API_KEY
@@ -688,16 +688,16 @@ t.section('§8 — THE SIGN-IN WALK, DRIVEN (AGENTVERIFY A3: the face swap on a 
 
 t.section('§9 — THE BUILT-IN MODEL DIAL (AGENTDIALS C1: the override round-trip · dispatch wears it · inherit clears · the face walk)')
 {
-  const { setAgentOverride, userOverridesPath } = await import('../../src/services/agents/overrides.js')
+  const { setAgentOverride, userOverridesPath } = await import('../../src/crew/agents/overrides.js')
   const { clearAgentDefinitionsCache, getAgentDefinitionsWithOverrides } = await import(
-    '../../src/tools/AgentTool/loadAgentsDir.js'
+    '../../src/tools/crewmate/loadAgentsDir.js'
   )
-  const { buildStudioRows } = await import('../../src/components/agents/studio/studioData.js')
-  const { getAgentModel } = await import('../../src/services/model/agent.js')
-  const { parseUserSpecifiedModel } = await import('../../src/services/model/model.js')
-  const { resolveEffectiveAgentRuntime } = await import('../../src/services/agents/resolver.js')
-  const { agentFaceDetailLines, BootAgentsScreen } = await import('../../src/components/BootAgentsScreen.js')
-  const { getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.js')
+  const { buildStudioRows } = await import('../../src/screen/agents/studio/studioData.js')
+  const { getAgentModel } = await import('../../src/models/catalogue/agentModel.js')
+  const { parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.js')
+  const { resolveEffectiveAgentRuntime } = await import('../../src/crew/agents/resolver.js')
+  const { agentFaceDetailLines, BootAgentsScreen } = await import('../../src/screen/boot-face/BootAgentsScreen.js')
+  const { getAgentModelPickerRows } = await import('../../src/models/catalogue/agentModelPicker.js')
 
   const walkCwd = mkdtempSync(join(tmpdir(), 'agent-dial-walk-'))
 
@@ -737,7 +737,7 @@ t.section('§9 — THE BUILT-IN MODEL DIAL (AGENTDIALS C1: the override round-tr
     const { PassThrough } = await import('node:stream')
     const stripAnsi = (await import('strip-ansi')).default
     const React = (await import('react')).default
-    const { render } = await import('../../src/ink.js')
+    const { render } = await import('../../src/screen/themedRenderer.js')
     const ESC = String.fromCharCode(27)
     const DOWN = `${ESC}[B`
     let output = ''
@@ -880,15 +880,15 @@ for (const stop of ['abort', 'dispose'] as const) {
 
 t.section('§10 — BOOT AGENTS EFFORT TRUTH (launch flag > saved default > model default; unknown says session alone)')
 {
-  const { agentsFaceBase, formFace, listFace } = await import('../../src/components/bootAgents/menuModel.js')
-  const { agentFaceDetailLines, agentFormRowIds } = await import('../../src/components/bootAgents/face.js')
-  const { buildStudioRows } = await import('../../src/components/agents/studio/studioData.js')
-  const { resolveEffectiveAgentRuntime } = await import('../../src/services/agents/resolver.js')
-  const { _resetBootBirthFactsForTesting, setBootBirthFacts } = await import('../../src/services/switchboard/bootBirthFacts.js')
-  const { resolveEffortTruth, unpinAllLaunchEffort } = await import('../../src/utils/effort.js')
-  const { updateSettingsForSource } = await import('../../src/utils/settings/settings.js')
+  const { agentsFaceBase, formFace, listFace } = await import('../../src/screen/boot-face/agents/menuModel.js')
+  const { agentFaceDetailLines, agentFormRowIds } = await import('../../src/screen/boot-face/agents/face.js')
+  const { buildStudioRows } = await import('../../src/screen/agents/studio/studioData.js')
+  const { resolveEffectiveAgentRuntime } = await import('../../src/crew/agents/resolver.js')
+  const { _resetBootBirthFactsForTesting, setBootBirthFacts } = await import('../../src/daemon/switchboard/bootBirthFacts.js')
+  const { resolveEffortTruth, unpinAllLaunchEffort } = await import('../../src/models/effort/effort.js')
+  const { updateSettingsForSource } = await import('../../src/platform/settings/settings.js')
 
-  const EFFORT_FIX = 'resolve boot session effort from bootBirthFacts().effort ?? getInitialEffortSetting() in src/components/bootAgents/menuModel.ts and src/components/BootAgentsScreen.tsx, and omit unknown figure in src/components/bootAgents/face.ts'
+  const EFFORT_FIX = 'resolve boot session effort from bootBirthFacts().effort ?? getInitialEffortSetting() in src/screen/boot-face/agents/menuModel.ts and src/screen/boot-face/BootAgentsScreen.tsx, and omit unknown figure in src/screen/boot-face/agents/face.ts'
 
   const crew = {
     agentType: 'mercury-crew',

@@ -18,16 +18,16 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${[detail, hint].filter(Boolean).join('; ')}` : ''}`)
 }
 let hint = ''
-const LINK_HINT = 'initTaskOutputAsSymlink in src/utils/task/diskOutput.ts decides what the named output file is (a symlink, a link to the transcript, or the plain empty file when linking is refused); change it there'
+const LINK_HINT = 'initTaskOutputAsSymlink in src/engine/task-framework/diskOutput.ts decides what the named output file is (a symlink, a link to the transcript, or the plain empty file when linking is refused); change it there'
 const HINTS: Record<string, string> = {
-  A0: 'registerAsyncAgent in src/tasks/LocalAgentTask/LocalAgentTask.tsx and initTaskOutputAsSymlink in src/utils/task/diskOutput.ts must leave only the one empty named file and no transcript until a row lands; the unknown-id answers come from stopTask (src/tasks/stopTask.ts) and SendMessageTool (src/tools/SendMessageTool/SendMessageTool.ts)',
-  A1: 'the named file comes from initTaskOutputAsSymlink in src/utils/task/diskOutput.ts, the delta from getTaskOutputDelta there, the tail window from readTailWindow in src/services/resources/adapters/agent.ts, and the completion notice from enqueueAgentNotification in src/tasks/LocalAgentTask/LocalAgentTask.tsx; change the one this check names',
+  A0: 'registerAsyncAgent in src/engine/tasks/local-agent/crewmateTask.tsx and initTaskOutputAsSymlink in src/engine/task-framework/diskOutput.ts must leave only the one empty named file and no transcript until a row lands; the unknown-id answers come from stopTask (src/engine/tasks/stopTask.ts) and SendMessageTool (src/tools/send-message/SendMessageTool.ts)',
+  A1: 'the named file comes from initTaskOutputAsSymlink in src/engine/task-framework/diskOutput.ts, the delta from getTaskOutputDelta there, the tail window from readTailWindow in src/integrations/resources/adapters/agent.ts, and the completion notice from enqueueAgentNotification in src/engine/tasks/local-agent/crewmateTask.tsx; change the one this check names',
   A2: LINK_HINT,
   A3: LINK_HINT,
   A4: LINK_HINT,
   A5: LINK_HINT,
   A6: LINK_HINT,
-  A7: 'readTailWindow in src/services/resources/adapters/agent.ts must read sealed parts and the live head as historyLines (src/utils/sessionStorage/historyParts.ts) does, and report cut and total over the whole logical transcript; the sealing itself is in recordSidechainTranscript (src/utils/sessionStorage.ts)',
+  A7: 'readTailWindow in src/integrations/resources/adapters/agent.ts must read sealed parts and the live head as historyLines (src/sessions/transcripts/historyParts.ts) does, and report cut and total over the whole logical transcript; the sealing itself is in recordSidechainTranscript (src/sessions/transcripts/sessionStorage.ts)',
 }
 function section(t: string): void {
   hint = HINTS[t.split(' ')[0]!] ?? ''
@@ -35,23 +35,23 @@ function section(t: string): void {
 }
 const WINDOWS = process.platform === 'win32'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-await import('../../src/tasks.ts')
-const { generateTaskId } = await import('../../src/Task.ts')
-const { registerAsyncAgent, completeAgentTask, enqueueAgentNotification } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const queue = await import('../../src/input-core/command-queue.ts')
-const diskOutput = await import('../../src/utils/task/diskOutput.ts')
+await import('../../src/engine/tasks/tasks.ts')
+const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
+const { registerAsyncAgent, completeAgentTask, enqueueAgentNotification } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const queue = await import('../../src/screen/composer/input-core/command-queue.ts')
+const diskOutput = await import('../../src/engine/task-framework/diskOutput.ts')
 const { getTaskOutputPath, getTaskOutputDelta, initTaskOutputAsSymlink } = diskOutput
-const { getAgentTranscriptPath, recordSidechainTranscript, flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
+const { getAgentTranscriptPath, recordSidechainTranscript, flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 const { randomUUID } = await import('node:crypto')
-const { historyHead, historyLines } = await import('../../src/utils/sessionStorage/historyParts.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { readTailWindow } = await import('../../src/services/resources/adapters/agent.ts')
-const { SendMessageTool } = await import('../../src/tools/SendMessageTool/SendMessageTool.ts')
-const { stopTask } = await import('../../src/tasks/stopTask.ts')
-type AppState = import('../../src/state/AppStateStore.ts').AppState
+const { historyHead, historyLines } = await import('../../src/sessions/transcripts/historyParts.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { readTailWindow } = await import('../../src/integrations/resources/adapters/agent.ts')
+const { SendMessageTool } = await import('../../src/tools/send-message/SendMessageTool.ts')
+const { stopTask } = await import('../../src/engine/tasks/stopTask.ts')
+type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState
 type SendAnswer = { data: { success: boolean; message: string } }
 
 const FAKE_DEF = { agentType: 'mercury-crew', source: 'built-in', whenToUse: '', systemPrompt: '' } as never

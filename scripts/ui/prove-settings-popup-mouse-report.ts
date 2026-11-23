@@ -2,8 +2,8 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
-import type { ParsedInput, ParsedKey } from '../../src/ink/input/input-decoder.js'
-import type { DOMElement } from '../../src/ink.js'
+import type { ParsedInput, ParsedKey } from '../../src/screen/renderer/input/input-decoder.js'
+import type { DOMElement } from '../../src/screen/themedRenderer.js'
 
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
@@ -17,9 +17,9 @@ if (frameDir) mkdirSync(frameDir, { recursive: true })
 let failures = 0
 let reportSectionTitle = ''
 function mouseReportHint(): string {
-  if (reportSectionTitle.startsWith('§1')) return 'change parseMultipleKeypresses in src/ink/input/input-decoder.ts so a lone ESC held in the scanner still decodes the mouse report as a mouse atom'
-  if (reportSectionTitle.startsWith('§2')) return 'change interpretKey in src/ink/input/interpreter.ts or the text projection in src/ink/events/input-event.ts so a report-shaped key projects no text'
-  return 'change how the popup text box takes keys (src/components/Settings/Config.tsx for /config, src/components/MercuryFilesMenu.tsx for the files popup) so a report behind a lone ESC is never typed, and the popup slot (src/components/SettingsPopupSlot.tsx or src/components/FilesMenuSlot.tsx) for the click outside'
+  if (reportSectionTitle.startsWith('§1')) return 'change parseMultipleKeypresses in src/screen/renderer/input/input-decoder.ts so a lone ESC held in the scanner still decodes the mouse report as a mouse atom'
+  if (reportSectionTitle.startsWith('§2')) return 'change interpretKey in src/screen/renderer/input/interpreter.ts or the text projection in src/screen/renderer/events/input-event.ts so a report-shaped key projects no text'
+  return 'change how the popup text box takes keys (src/screen/settings/Config.tsx for /config, src/screen/fullscreen-layout/MercuryFilesMenu.tsx for the files popup) so a report behind a lone ESC is never typed, and the popup slot (src/screen/overlays/SettingsPopupSlot.tsx or src/screen/fullscreen-layout/FilesMenuSlot.tsx) for the click outside'
 }
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
@@ -36,9 +36,9 @@ const MOTION = '\x1b[<35;147;11M'
 const PRESS = '\x1b[<0;147;11M'
 const RELEASE = '\x1b[<0;147;11m'
 
-const { INITIAL_STATE, parseMultipleKeypresses } = await import('../../src/ink/input/input-decoder.js')
-const { createPasteKey, interpretKey } = await import('../../src/ink/input/interpreter.js')
-const { InputEvent } = await import('../../src/ink/events/input-event.js')
+const { INITIAL_STATE, parseMultipleKeypresses } = await import('../../src/screen/renderer/input/input-decoder.js')
+const { createPasteKey, interpretKey } = await import('../../src/screen/renderer/input/interpreter.js')
+const { InputEvent } = await import('../../src/screen/renderer/events/input-event.js')
 
 type Feed = string | null
 function drive(feeds: Feed[]): ParsedInput[] {
@@ -122,14 +122,14 @@ section('§2 the projection: no nameless key shaped like a report ever hands tex
 }
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.js')
-const { AppStateProvider, useAppStateStore } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider, useAppStateStore } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
-const { CONFIG_POPUP_HINT, CONFIG_SEARCH_PLACEHOLDER } = await import('../../src/components/Settings/Config.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { CONFIG_POPUP_HINT, CONFIG_SEARCH_PLACEHOLDER } = await import('../../src/screen/settings/Config.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 const COLS = 178
@@ -239,9 +239,9 @@ section('§5 /config in list mode: a report behind a lone ESC never seeds the se
   await settle(40)
 }
 
-const { FilesMenuSlot } = await import('../../src/components/FilesMenuSlot.js')
-const files = await import('../../src/utils/cockpit/filesMenu.js')
-const { FILES_MENU_FILTER_PLACEHOLDER, FILES_MENU_HINT } = await import('../../src/components/MercuryFilesMenu.js')
+const { FilesMenuSlot } = await import('../../src/screen/fullscreen-layout/FilesMenuSlot.js')
+const files = await import('../../src/screen/cockpit/filesMenu.js')
+const { FILES_MENU_FILTER_PLACEHOLDER, FILES_MENU_HINT } = await import('../../src/screen/fullscreen-layout/MercuryFilesMenu.js')
 
 section('§6 the files popup, its filter focused: the same road on another popup with a text box')
 {

@@ -10,7 +10,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
   if (!cond) {
     failures++
-    console.log(`    where to look: src/tools/GrepTool/GrepTool.ts, relativizeContentLines and respellRoot for how each content line is spelled, capContentMatches and paginate for the per-file cap and the page window; compare the printed answer with the expected lines above`)
+    console.log(`    where to look: src/tools/grep/GrepTool.ts, relativizeContentLines and respellRoot for how each content line is spelled, capContentMatches and paginate for the per-file cap and the page window; compare the printed answer with the expected lines above`)
   }
 }
 const j = (v: unknown): string => JSON.stringify(v)
@@ -19,9 +19,9 @@ console.log('============================================================')
 console.log(' Grep content mode — a context line carries the file text unchanged and the path spelled the way its match line is')
 console.log('============================================================')
 
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
 
 const base = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'grep-context-')))
 const dir = join(base, 'work')
@@ -201,8 +201,8 @@ try {
   const denseCount = await search(dir, { pattern: 'DENSE', output_mode: 'count' })
   const denseList = await search(dir, { pattern: 'DENSE' })
   check('the per-file cap never changes count or filenames mode', denseCount.data.numMatches === 301 && denseList.data.numFiles === 2)
-  const { checkSeenLines, fileGeneration } = await import('../../src/services/changeTransaction/seenLines.ts')
-  const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
+  const { checkSeenLines, fileGeneration } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
+  const { ownerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
   const unseen = join(dir, 'unseen.txt')
   writeFileSync(unseen, Array.from({ length: 100 }, (_, i) => `UNSEEN ${i + 1}`).join('\n'))
   await search(dir, { pattern: 'UNSEEN', output_mode: 'content' })

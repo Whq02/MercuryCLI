@@ -2,12 +2,12 @@
 import { EventEmitter } from 'node:events'
 import { Readable } from 'node:stream'
 
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { default: instances } = await import('../../src/ink/instances.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  const lentHint = 'fix suspendStdin and resumeStdin in src/ink/ink/stdin.ts (the read hold on the lent console)'
+  const lentHint = 'fix suspendStdin and resumeStdin in src/screen/renderer/instance/stdin.ts (the read hold on the lent console)'
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail} | ` : ''}${lentHint}` : ''}`)
   if (!ok) failures = 1
 }

@@ -1,26 +1,26 @@
 import { useRef, useState } from 'react'
 import type { UUID } from 'crypto'
 import * as React from 'react'
-import { Box, Text } from '../../ink.js'
-import { LogSelector } from '../../components/LogSelector.js'
-import { MessageResponse } from '../../components/MessageResponse.js'
-import { Spinner } from '../../components/Spinner.js'
-import { SessionManagerView } from '../../components/mercury-ui/screens/SessionManagerView.js'
-import { useIsInsideModal } from '../../context/modalContext.js'
-import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import { useLoad, useTimer } from '../../hooks/effects.js'
-import type { ResumeEntrypoint } from '../../commands.js'
-import type { LocalJSXCommandCall, LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js'
-import type { SessionListing } from '../../types/logs.js'
-import { getOriginalCwd } from '../../bootstrap/state.js'
-import { conversationIdHere } from '../../services/engine-connector/focusedConnector.js'
-import { getWorktreePathsPortable } from '../../utils/getWorktreePathsPortable.js'
-import { checkCrossProjectResume } from '../../utils/crossProjectResume.js'
-import { filterResumableSessions } from '../../utils/sessionResumeFilter.js'
-import { setClipboard } from '../../ink/termio/osc.js'
-import { validateUuid } from '../../utils/uuid.js'
-import { errorMessage } from '../../utils/errors.js'
-import { logError } from '../../utils/log.js'
+import { Box, Text } from '../../screen/themedRenderer.js'
+import { LogSelector } from '../../screen/session-chooser/SessionBrowser.js'
+import { MessageResponse } from '../../tools/kit/MessageResponse.js'
+import { Spinner } from '../../screen/spinner/Spinner.js'
+import { SessionManagerView } from '../../screen/widgets/faces/SessionManagerView.js'
+import { useIsInsideModal } from '../../screen/overlays/modalContext.js'
+import { useTerminalSize } from '../../screen/fullscreen-layout/useTerminalSize.js'
+import { useLoad, useTimer } from '../../screen/effects/effects.js'
+import type { ResumeEntrypoint } from '../catalogue/commands.js'
+import type { LocalJSXCommandCall, LocalJSXCommandContext, LocalJSXCommandOnDone } from '../catalogue/command.js'
+import type { SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
+import { getOriginalCwd } from '../../boot/process-state/processState.js'
+import { conversationIdHere } from '../../engine/connector/focusedConnector.js'
+import { getWorktreePathsPortable } from '../../platform/git/worktree/worktreePathsPortable.js'
+import { checkCrossProjectResume } from '../../screen/session-chooser/crossProjectResume.js'
+import { filterResumableSessions } from '../../screen/session-chooser/sessionResumeFilter.js'
+import { setClipboard } from '../../screen/renderer/termio/osc.js'
+import { validateUuid } from '../../platform/primitives/uuid.js'
+import { errorMessage } from '../../platform/errors/errors.js'
+import { logError } from '../../platform/logs/errorLog.js'
 import {
   lastSession,
   sessionIdOfListing,
@@ -30,8 +30,8 @@ import {
   fillSessionListing,
   listRepoSessions,
   searchSessionsByCustomTitle,
-} from '../../utils/sessionStorage.js'
-import { startTimeout, stopTimeout } from '../../utils/timers.js'
+} from '../../sessions/transcripts/sessionStorage.js'
+import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
 
 export async function crossProjectResumeNotice(
   command: string,

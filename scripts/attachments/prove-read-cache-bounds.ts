@@ -1,15 +1,15 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/fileStateCache.ts
+// gate-watch: src/platform/files/fileStateCache.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + [detail, 'to fix, look at FileStateCache, cacheKeys and cloneFileStateCache in src/utils/fileStateCache.ts'].filter(Boolean).join('. ') : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + [detail, 'to fix, look at FileStateCache, cacheKeys and cloneFileStateCache in src/platform/files/fileStateCache.ts'].filter(Boolean).join('. ') : ''}`)
   if (!ok) failures++
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { cacheKeys, cloneFileStateCache, createFileStateCacheWithSizeLimit, FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+const { cacheKeys, cloneFileStateCache, createFileStateCacheWithSizeLimit, FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
 const state = (content: string) => ({ content, timestamp: 1, offset: undefined, limit: undefined })
 
 console.log('keys are normalised paths; recency orders them')

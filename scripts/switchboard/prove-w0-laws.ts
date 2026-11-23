@@ -17,11 +17,11 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 
-const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.js')
-const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.js')
-const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.js')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.js')
-const { consumeSessionHomePin } = await import('../../src/utils/sessionStorage/sessionHomePin.js')
+const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourse-workers/concourseWorkers.js')
+const { buildRunnerInvocation } = await import('../../src/daemon/runner-link/headlessRun.js')
+const { workerTranscriptPath } = await import('../../src/screen/concourse-model/workerTranscript.js')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.js')
+const { consumeSessionHomePin } = await import('../../src/sessions/transcripts/sessionHomePin.js')
 
 const workspaceId = mkdtempSync(join(tmpdir(), 'switchboard-w0-ws-'))
 const sessionId = '550e8400-e29b-41d4-a716-446655440000'
@@ -33,7 +33,7 @@ const spec = buildConcourseWorkerSpec({
   cwd: join(workspaceId, '.wt', 'concourse-w1'),
 })
 
-failWhere = 'fix buildRunnerInvocation in src/daemon/headlessRun.ts (pin, --session-id and --resume argv), or workerTranscriptPath in src/services/concourse/workerTranscript.ts if the reader path differs'
+failWhere = 'fix buildRunnerInvocation in src/daemon/runner-link/headlessRun.ts (pin, --session-id and --resume argv), or workerTranscriptPath in src/screen/concourse-model/workerTranscript.ts if the reader path differs'
 console.log('LAW 1 — one transcript home:')
 const inv = buildRunnerInvocation(spec)
 const pin = inv.env.MERCURY_SESSION_HOME
@@ -58,14 +58,14 @@ check(
   respawn.argv.includes('--resume') && respawn.argv.includes(sessionId),
 )
 
-failWhere = 'fix consumeSessionHomePin in src/utils/sessionStorage/sessionHomePin.ts (it must read the pin once and scrub MERCURY_SESSION_HOME)'
+failWhere = 'fix consumeSessionHomePin in src/sessions/transcripts/sessionHomePin.ts (it must read the pin once and scrub MERCURY_SESSION_HOME)'
 console.log('LAW 1b — consume-once boot read:')
 process.env.MERCURY_SESSION_HOME = '/tmp/switchboard-w0-pin-probe'
 check('consume returns the pin', consumeSessionHomePin() === '/tmp/switchboard-w0-pin-probe')
 check('env scrubbed after consume', process.env.MERCURY_SESSION_HOME === undefined)
 check('second consume is null (plain boot)', consumeSessionHomePin() === null)
 
-failWhere = 'fix buildRunnerInvocation in src/daemon/headlessRun.ts (a concourse worker argv must carry no --crew, --seat or --seat-id and must pin --session-id)'
+failWhere = 'fix buildRunnerInvocation in src/daemon/runner-link/headlessRun.ts (a concourse worker argv must carry no --crew, --seat or --seat-id and must pin --session-id)'
 console.log('LAW 2 — identity sever:')
 for (const flag of ['--crew', '--seat', '--seat-id']) {
   check(`concourse argv carries no ${flag}`, !inv.argv.includes(flag))
@@ -74,12 +74,12 @@ check(
   'concourse argv still pins the session id',
   inv.argv.includes('--session-id') && inv.argv.includes(sessionId),
 )
-failWhere = 'fix buildRunnerInvocation in src/daemon/headlessRun.ts (the child env must stamp MERCURY_CONCOURSE_WORKER=1)'
+failWhere = 'fix buildRunnerInvocation in src/daemon/runner-link/headlessRun.ts (the child env must stamp MERCURY_CONCOURSE_WORKER=1)'
 console.log('LAW 3 — capacity role intact:')
 check('MERCURY_CONCOURSE_WORKER stamps 1 on the child env', inv.env.MERCURY_CONCOURSE_WORKER === '1')
 
-const { updateConcourseWorkers, attachYieldConcourseSession, detachRespawnConcourseSession, grantConcourseWorkflows, revokeConcourseWorkflows, sessionOwnedByLiveWorker, stopConcourseSession, readSessionWorkers } = await import('../../src/daemon/concourseWorkers.js')
-const { evaluateLaunchAuthority } = await import('../../src/services/switchboard/launchAuthority.js')
+const { updateConcourseWorkers, attachYieldConcourseSession, detachRespawnConcourseSession, grantConcourseWorkflows, revokeConcourseWorkflows, sessionOwnedByLiveWorker, stopConcourseSession, readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.js')
+const { evaluateLaunchAuthority } = await import('../../src/daemon/switchboard/launchAuthority.js')
 
 const recDir = mkdtempSync(join(tmpdir(), 'switchboard-w2-records-'))
 const sid2 = '550e8400-e29b-41d4-a716-446655440001'
@@ -105,7 +105,7 @@ updateConcourseWorkers(ws => {
   }
 }, recDir)
 
-failWhere = 'fix attachYieldConcourseSession or detachRespawnConcourseSession in src/daemon/concourseWorkers.ts'
+failWhere = 'fix attachYieldConcourseSession or detachRespawnConcourseSession in src/daemon/concourse-workers/concourseWorkers.ts'
 console.log('LAW 4 — attach/detach handover:')
 const att = attachYieldConcourseSession(sid2, 'operator', rosterStub, recDir)
 check('attach on a settled turn applies', att.outcome === 'applied')
@@ -117,7 +117,7 @@ check('detach respawns the SAME worker short', det.outcome === 'applied' && det.
 check('detached session no longer attached-owned', sessionOwnedByLiveWorker(sid2, recDir) === null || sessionOwnedByLiveWorker(sid2, recDir) === 'concourse-w1')
 check('detach on unattached is a noop', detachRespawnConcourseSession(sid2, 'operator', rosterStub, recDir).outcome === 'noop')
 
-failWhere = 'fix stopConcourseSession or attachYieldConcourseSession in src/daemon/concourseWorkers.ts (a refused kill must refuse with no-kill-channel and leave the record untouched)'
+failWhere = 'fix stopConcourseSession or attachYieldConcourseSession in src/daemon/concourse-workers/concourseWorkers.ts (a refused kill must refuse with no-kill-channel and leave the record untouched)'
 console.log('LAW 4b — no kill, no recorded death (the unverified-teardown class):')
 {
   const sid4 = '550e8400-e29b-41d4-a716-446655440004'
@@ -150,7 +150,7 @@ console.log('LAW 4b — no kill, no recorded death (the unverified-teardown clas
   check('stop of an already-dead child applies honestly without a roster', stopDead.outcome === 'applied')
 }
 
-failWhere = 'fix grantConcourseWorkflows or revokeConcourseWorkflows in src/daemon/concourseWorkers.ts (only one session may hold the tag)'
+failWhere = 'fix grantConcourseWorkflows or revokeConcourseWorkflows in src/daemon/concourse-workers/concourseWorkers.ts (only one session may hold the tag)'
 console.log('LAW 5 — the ONE crewmates-allowed tag:')
 check('grant applies', grantConcourseWorkflows(sid2, 'operator', recDir).outcome === 'applied')
 const second = grantConcourseWorkflows(sid3, 'operator', recDir)
@@ -158,7 +158,7 @@ check('second grant refused in plain words (cap-one)', second.outcome === 'refus
 check('revoke applies', revokeConcourseWorkflows(sid2, 'operator', recDir).outcome === 'applied')
 check('grant after revoke applies elsewhere', grantConcourseWorkflows(sid3, 'operator', recDir).outcome === 'applied')
 
-failWhere = 'fix evaluateLaunchAuthority in src/services/switchboard/launchAuthority.ts'
+failWhere = 'fix evaluateLaunchAuthority in src/daemon/switchboard/launchAuthority.ts'
 console.log('LAW 6 — the launch-authority valve:')
 check('interactive process (no role env) may launch', evaluateLaunchAuthority('subagents', { roleEnvOn: false }).allowed === true)
 delete process.env.MERCURY_CONCOURSE_WORKER
@@ -169,7 +169,7 @@ check('background child WITH the tag may launch', evaluateLaunchAuthority('subag
 const refusal = evaluateLaunchAuthority('subagents', { roleEnvOn: true, dir: recDir, sessionId: sid2 })
 check('refusal names the wait-until-visited law', refusal.allowed === false && refusal.reason.includes('backgrounded'))
 
-failWhere = 'fix holdWorkerAsk or answerPermissionAsk in src/daemon/permissionAsks.ts, or the runner argv and capabilities from buildRunnerInvocation in src/daemon/headlessRun.ts'
+failWhere = 'fix holdWorkerAsk or answerPermissionAsk in src/daemon/session-seat/permissionAsks.ts, or the runner argv and capabilities from buildRunnerInvocation in src/daemon/runner-link/headlessRun.ts'
 console.log('LAW 7 — the ask-wire (Q2):')
 check(
   'the spawn serves the runner door and the daemon holds its asks',
@@ -177,9 +177,9 @@ check(
 )
 check('the respawn keeps the door', respawn.argv[1] === 'runner' && respawn.capabilities.holds_asks === true)
 const { holdWorkerAsk, answerPermissionAsk, listPendingPermissionAsks } = await import(
-  '../../src/daemon/permissionAsks.js'
+  '../../src/daemon/session-seat/permissionAsks.js'
 )
-type Answer = import('../../src/runner/wire/methods.js').PermissionAnswer
+type Answer = import('../../src/daemon/runner-wire/methods.js').PermissionAnswer
 const allowHeld = holdWorkerAsk('concourse-w1', { kind: 'tool', tool_use_id: 'tu-allow-1', tool_name: 'Bash', input: { command: 'echo hi' } }, recDir, 60_000, () => 'attached')
 const allowId = listPendingPermissionAsks().at(-1)?.requestId ?? ''
 const denyHeld = holdWorkerAsk('concourse-w1', { kind: 'tool', tool_use_id: 'tu-deny-1', tool_name: 'Write', input: { file_path: '/x' } }, recDir, 60_000, () => 'attached')
@@ -206,7 +206,7 @@ check(
   answerPermissionAsk(allowId, true, 'operator').outcome === 'refused',
 )
 
-failWhere = 'fix focusDaemonSession in src/services/engine-connector/daemonConnector.ts or the focused slot in src/services/engine-connector/focusedConnector.ts (the window must only read the transcript, never write it)'
+failWhere = 'fix focusDaemonSession in src/engine/connector/daemonConnector.ts or the focused slot in src/engine/connector/focusedConnector.ts (the window must only read the transcript, never write it)'
 console.log('WINDOW LAW — a window paints the view lane, never writes:')
 {
   const { readFileSync, writeFileSync, appendFileSync, readdirSync, mkdirSync, statSync } = await import('node:fs')
@@ -215,7 +215,7 @@ console.log('WINDOW LAW — a window paints the view lane, never writes:')
   mkdirSync(windowDir, { recursive: true })
   const fsid = 'aaaaaaaa-1111-4222-8333-444444444444'
   const fpath = join(windowDir, `${fsid}.jsonl`)
-  const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.js')
+  const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.js')
   const line = (uuid: string, parentUuid: string | null, role: 'user' | 'assistant', text: string, ts: string): string =>
     encodeTranscriptLine(fpath, {
       type: role,
@@ -248,8 +248,8 @@ console.log('WINDOW LAW — a window paints the view lane, never writes:')
     )
   const bytesBefore = readFileSync(fpath)
   const treeBefore = snapshotTree()
-  const seat = await import('../../src/services/engine-connector/daemonConnector.js')
-  const slot = await import('../../src/services/engine-connector/focusedConnector.js')
+  const seat = await import('../../src/engine/connector/daemonConnector.js')
+  const slot = await import('../../src/engine/connector/focusedConnector.js')
   const focusedLens: number[] = []
   const subscribeFocusedRecords = slot.subscribeThroughFocused((c, l) => c.subscribeRecords(l))
   const unsubscribe = subscribeFocusedRecords(() => {
@@ -292,11 +292,11 @@ console.log('WINDOW LAW — a window paints the view lane, never writes:')
 }
 
 
-failWhere = 'fix the cancel handler in src/hooks/useCancelRequest.ts or the keys wiring in src/screens/chat/ChatKeys.tsx (focusedTurnActive must follow the seat in-flight state)'
+failWhere = 'fix the cancel handler in src/screen/chat/interruptKeys.ts or the keys wiring in src/screen/chat/ChatKeys.tsx (focusedTurnActive must follow the seat in-flight state)'
 console.log("\n§ the cancel handler and the focused turn, read off the mounted keys of the chat screen")
 {
   const { openKeysPart } = await import('../ui/chatScenarios.ts')
-  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.js')
+  const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.js')
   const keys = await openKeysPart('switchboard-w0-keys', { keepHome: true })
   await keys.plant({ seatLive: { ...IDLE_LIVE, inFlight: true } })
   const inFlight = keys.handed.cancel?.focusedTurnActive

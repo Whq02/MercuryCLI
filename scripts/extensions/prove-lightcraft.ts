@@ -8,16 +8,16 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { computeActiveSet, publishActiveSet } from '../../src/extensions/active.js'
-import { clearExtensionCommandCaches, getExtensionSkills } from '../../src/extensions/load/commands.js'
+import { computeActiveSet, publishActiveSet } from '../../src/integrations/extensions/active.js'
+import { clearExtensionCommandCaches, getExtensionSkills } from '../../src/integrations/extensions/load/commands.js'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const root = resolve(import.meta.dir, '../..')
-const extension = join(root, 'src/extensions/bundled/lightcraft')
+const extension = join(root, 'src/integrations/extensions/bundled/lightcraft')
 const scratch = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR || tmpdir(), 'lightcraft-unit-'))
 const delivered = join(scratch, 'delivered')
 cpSync(extension, delivered, { recursive: true })
-cpSync(join(root, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
+cpSync(join(root, 'src/integrations/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
 const { adapter, endpointPort, verifyListener, readLibrary, privateEnvironment } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
 const { planInstall } = await import(pathToFileURL(join(delivered, 'shared/install.mjs')).href)
 let passed = 0
@@ -27,10 +27,10 @@ try {
   const activeSet = computeActiveSet({ cwd: scratch, sessionPaths: [extension] })
   const manifest = activeSet.active.find(ext => ext.manifest.name === 'lightcraft')?.manifest
   check('only skills and stdio app contributions', () => {
-    assert.ok(manifest, 'src/extensions/bundled/lightcraft/mercury-extension.json missing from activeSet')
+    assert.ok(manifest, 'src/integrations/extensions/bundled/lightcraft/mercury-extension.json missing from activeSet')
     assert.deepEqual(Object.keys(manifest.contributes ?? {}).sort(), ['servers', 'skills'])
     const app = manifest.contributes?.servers?.app
-    assert.ok(app && 'command' in app, `src/extensions/bundled/lightcraft/mercury-extension.json app server must be stdio, got ${JSON.stringify(app)}`)
+    assert.ok(app && 'command' in app, `src/integrations/extensions/bundled/lightcraft/mercury-extension.json app server must be stdio, got ${JSON.stringify(app)}`)
     assert.equal(app.command, '${MERCURY_NODE}')
     assert.deepEqual(app.args, ['${MERCURY_EXTENSION_ROOT}/server/bridge.mjs'])
     assert.equal(manifest.needs?.binaries, undefined)
@@ -43,7 +43,7 @@ try {
       for (const payload of Object.values(pin.platforms) as Array<{ archive: string; url: string; sha256: string; bytes: number }>) {
         assert.equal(payload.url, `${pin.repository}/releases/download/${pin.tag}/${payload.archive}`)
         assert.match(payload.sha256, /^[a-f0-9]{64}$/)
-        assert.ok(payload.bytes > 0, `src/extensions/bundled/lightcraft/server/install.mjs pin ${payload.archive} bytes expected >0, got ${payload.bytes}`)
+        assert.ok(payload.bytes > 0, `src/integrations/extensions/bundled/lightcraft/server/install.mjs pin ${payload.archive} bytes expected >0, got ${payload.bytes}`)
       }
     }
     assert.equal(adapter.pins[0].platforms['darwin-arm64'].sha256, 'b70f46cac01390154c9adfa06822e6691b95fc270c507b0ed220a00dc588bb1e')
@@ -83,7 +83,7 @@ try {
     assert.deepEqual(adapter.upstream(args).args, ['mcp', '--connect', '127.0.0.1:7980'])
     assert.deepEqual(adapter.upstream({ ...args, input: { ...args.input, mode: 'headless' } }).args, ['mcp', '--library', join(scratch, 'library')])
     assert.throws(() => adapter.upstream({ ...args, input: {} }), /absolute path/)
-    assert.ok(!adapter.upstream(args).args.includes('--compact'), `src/extensions/bundled/lightcraft/server/install.mjs upstream args unexpectedly included --compact`)
+    assert.ok(!adapter.upstream(args).args.includes('--compact'), `src/integrations/extensions/bundled/lightcraft/server/install.mjs upstream args unexpectedly included --compact`)
   })
   await checkAsync('wrong listener sends zero bytes, including read-only probes', async () => {
     let bytes = 0
@@ -139,7 +139,7 @@ try {
     publishActiveSet(computeActiveSet({ cwd: scratch, sessionPaths: [extension] }))
     clearExtensionCommandCaches()
     const skill = getExtensionSkills().find(row => row.name === 'lightcraft:lightcraft')
-    assert.ok(skill && skill.type === 'prompt', `src/extensions/load/commands.ts missing prompt skill lightcraft:lightcraft, got ${skill?.type}`)
+    assert.ok(skill && skill.type === 'prompt', `src/integrations/extensions/load/commands.ts missing prompt skill lightcraft:lightcraft, got ${skill?.type}`)
     assert.equal(skill.argumentHint, '[library and task]')
     assert.match(skill.description, /importing, developing, cropping or exporting photos in a LightCraft library/)
     assert.match(skill.description, /Not for video editing, layered PhotoCraft documents or Apple Photos management/)
@@ -154,7 +154,7 @@ try {
   })
   await checkAsync('the skill keeps the library, selection, window and persistence truths at the pin without the onboarding the server carries', async () => {
     const loaded = getExtensionSkills().find(row => row.name === 'lightcraft:lightcraft')
-    assert.ok(loaded && loaded.type === 'prompt', `src/extensions/load/commands.ts missing prompt skill lightcraft:lightcraft, got ${loaded?.type}`)
+    assert.ok(loaded && loaded.type === 'prompt', `src/integrations/extensions/load/commands.ts missing prompt skill lightcraft:lightcraft, got ${loaded?.type}`)
     const prompt = await loaded.getPromptForCommand('')
     const skill = prompt.map(part => part.type === 'text' ? part.text : '').join('\n')
     assert.ok(Buffer.byteLength(skill) <= 3400, `skill is ${Buffer.byteLength(skill)} bytes`)

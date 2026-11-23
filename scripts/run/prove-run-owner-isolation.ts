@@ -8,7 +8,7 @@ import { join } from 'node:path'
 
 let failures = 0
 const OWNER_ISOLATION_FIX_HINT =
-  'what to change: sections 0 and 1 read makeOwnerKey and ownerEquals in src/utils/run/ownerKey.ts and the owner-keyed state in src/utils/verification/verificationState.ts; section 3 reads disposeOwner and ownerLifecycleCounts in src/utils/run/ownerLifecycle.ts, whose disposers must empty every owner-keyed store (verificationState.ts, src/services/cockpit/ctxForecast.ts, src/services/cockpit/contextUsageLive.ts)'
+  'what to change: sections 0 and 1 read makeOwnerKey and ownerEquals in src/engine/run-owner/ownerKey.ts and the owner-keyed state in src/platform/verification/verificationState.ts; section 3 reads disposeOwner and ownerLifecycleCounts in src/engine/run-owner/ownerLifecycle.ts, whose disposers must empty every owner-keyed store (verificationState.ts, src/screen/cockpit-gauges/ctxForecast.ts, src/screen/cockpit-gauges/contextUsageLive.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
@@ -24,7 +24,7 @@ async function main(): Promise<void> {
 
   section('0. the canonical owner key')
   {
-    const ok = await import('../../src/utils/run/ownerKey.js')
+    const ok = await import('../../src/engine/run-owner/ownerKey.js')
     const id = {
       workspace: '/tmp/w s|pipe',
       sessionId: 'sess|A',
@@ -47,8 +47,8 @@ async function main(): Promise<void> {
 
   section('1. verification state is owner-addressed')
   {
-    const ok = await import('../../src/utils/run/ownerKey.js')
-    const v = await import('../../src/utils/verification/verificationState.js')
+    const ok = await import('../../src/engine/run-owner/ownerKey.js')
+    const v = await import('../../src/platform/verification/verificationState.js')
     const a = ok.makeOwnerKey({ workspace: tmp, sessionId: 'sess-A', lane: 'main' })
     const b = ok.makeOwnerKey({ workspace: tmp, sessionId: 'sess-B', lane: 'main' })
     v._resetVerificationStateForTesting()
@@ -84,11 +84,11 @@ async function main(): Promise<void> {
 
   section('3. owner lifecycle: 400 create/dispose cycles return to baseline')
   {
-    const ok = await import('../../src/utils/run/ownerKey.js')
-    const lifecycle = await import('../../src/utils/run/ownerLifecycle.js')
-    const v = await import('../../src/utils/verification/verificationState.js')
-    const fc = await import('../../src/services/cockpit/ctxForecast.js')
-    const live = await import('../../src/services/cockpit/contextUsageLive.js')
+    const ok = await import('../../src/engine/run-owner/ownerKey.js')
+    const lifecycle = await import('../../src/engine/run-owner/ownerLifecycle.js')
+    const v = await import('../../src/platform/verification/verificationState.js')
+    const fc = await import('../../src/screen/cockpit-gauges/ctxForecast.js')
+    const live = await import('../../src/screen/cockpit-gauges/contextUsageLive.js')
     v._resetVerificationStateForTesting()
     fc.resetCtxForecastForTest()
     for (let i = 0; i < 400; i++) {

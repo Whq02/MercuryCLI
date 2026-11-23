@@ -4,7 +4,7 @@ import { join, relative } from 'node:path'
 
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const repo = join(import.meta.dir, '../..')
-const { conventionsForProfile } = await import(join(repo, 'src/services/instructions/compositionOrder.ts'))
+const { conventionsForProfile } = await import(join(repo, 'src/sessions/instructions/compositionOrder.ts'))
 const VARIABLE = 'COPILOT_CUSTOM_INSTRUCTIONS_DIRS'
 
 let passed = 0

@@ -35,11 +35,11 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver, vshotBudgetMs } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 
 let failures = 0
-const fixWhere = 'the footer and receipt words come from src/services/switchboard/hopIntoSession.ts (the held-runner and no-live-runner sentences) and the refusal from src/daemon/concourseDispatch.ts; rebuild dist/mercury.mjs with bun run build.ts before rerunning'
+const fixWhere = 'the footer and receipt words come from src/daemon/switchboard/hopIntoSession.ts (the held-runner and no-live-runner sentences) and the refusal from src/daemon/concourse-workers/concourseDispatch.ts; rebuild dist/mercury.mjs with bun run build.ts before rerunning'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = !cond ? `${detail ? `${detail} — ` : ''}fix: ${fixWhere}` : detail

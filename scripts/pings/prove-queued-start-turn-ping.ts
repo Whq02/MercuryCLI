@@ -24,13 +24,13 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.TERM_PROGRAM = 'iTerm.app'
 delete process.env.TMUX
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { updateLastInteractionTime, flushInteractionTime } = await import('../../src/bootstrap/state.ts')
-const { Box, Text, render } = await import('../../src/ink.ts')
-const { TerminalWriteProvider } = await import('../../src/ink/terminalWrite.ts')
-const { useTurnEndPing, PING_MESSAGE } = await import('../../src/hooks/useTurnEndPing.ts')
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+const { updateLastInteractionTime, flushInteractionTime } = await import('../../src/boot/process-state/processState.ts')
+const { Box, Text, render } = await import('../../src/screen/themedRenderer.ts')
+const { TerminalWriteProvider } = await import('../../src/screen/renderer/terminalWrite.ts')
+const { useTurnEndPing, PING_MESSAGE } = await import('../../src/screen/chat/useTurnEndPing.ts')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
 const {
   readSessionWorkersSnapshot,
   readSessionWorkers,
@@ -38,22 +38,22 @@ const {
   concourseTranscriptPath,
   reviveConcourseWorker,
   reactivateConcourseSession,
-} = await import('../../src/daemon/concourseWorkers.ts')
-const { hasSeatLive, IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+} = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { hasSeatLive, IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
 const {
   getFocusedSessionConnector,
   setFocusedSessionConnector,
   subscribeFocusedSessionConnector,
   subscribeThroughFocused,
-} = await import('../../src/services/engine-connector/focusedConnector.ts')
+} = await import('../../src/engine/connector/focusedConnector.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-import type { SessionFactsV1 } from '../../src/services/engine-connector/seatProjections.ts'
+import type { SessionFactsV1 } from '../../src/engine/connector/seatProjections.ts'
 
 const { vshotBudgetMs } = await import('../lib/captureDriver.ts')
 
 let failures = 0
 let checks = 0
-const QUEUED_PING_FIX = 'fix the turn-completion path this check exercises: DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts, the worker stamps read in src/daemon/concourseWorkers.ts, or the ping hook useTurnEndPing in src/hooks/useTurnEndPing.ts'
+const QUEUED_PING_FIX = 'fix the turn-completion path this check exercises: DaemonSessionConnector in src/engine/connector/daemonConnector.ts, the worker stamps read in src/daemon/concourse-workers/concourseWorkers.ts, or the ping hook useTurnEndPing in src/screen/chat/useTurnEndPing.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
@@ -153,7 +153,7 @@ const osc9Count = (): number => writes.filter(w => w.includes(']9;') && w.includ
 
 const switchResetsTipWhenLoading = await (async (): Promise<boolean> => {
   const { openStatusPart } = await import('../ui/chatScenarios.ts')
-  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
   const status = await openStatusPart('queued-ping-turn-end', { keepHome: true })
   const busy = { ...IDLE_LIVE, inFlight: true, phase: 'thinking' as const }
   await status.plant({ seatLive: busy })

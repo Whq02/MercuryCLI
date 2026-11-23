@@ -16,7 +16,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + '; ' : ''}fix the tool pool or sub-agent filter this label names: assembleToolPool and getAllBaseTools in src/tools.ts, filterToolsForAgent in src/tools/AgentTool/agentToolUtils.ts, the JEV switches in src/services/jev/jevSetting.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + '; ' : ''}fix the tool pool or sub-agent filter this label names: assembleToolPool and getAllBaseTools in src/tools/kit/toolList.ts, filterToolsForAgent in src/tools/crewmate/crewmateLifecycle.ts, the JEV switches in src/models/jev/jevSetting.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -26,19 +26,19 @@ const PROOF_KEY = 'proof-key-jev-not-a-real-key-0004'
 const CEILING_PATH = join(import.meta.dir, 'fixtures', 'roster-ceiling.json')
 
 writeFileSync(join(HOME, '.mercury.json'), JSON.stringify({ hasCompletedOnboarding: true, numStartups: 3 }))
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setJevEnabled, setJevSubagents, readJevSettings } = await import('../../src/services/jev/jevSetting.ts')
-const { runWithAgentContext } = await import('../../src/utils/agentContext.ts')
-const { storeJevApiKey } = await import('../../src/services/jev/jevKey.ts')
-const { resetJevLedger } = await import('../../src/services/jev/jevLedger.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
-const { ALL_AGENT_DISALLOWED_TOOLS, assembleToolPool, getAllBaseTools } = await import('../../src/tools.ts')
-const { JEV_TOOL_NAME } = await import('../../src/services/jev/jevContract.ts')
-const { JevEvalTool } = await import('../../src/tools/JevEvalTool/JevEvalTool.ts')
-const { JEV_EVAL_PROMPT } = await import('../../src/tools/JevEvalTool/prompt.ts')
-const { filterToolsForAgent } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+const { setJevEnabled, setJevSubagents, readJevSettings } = await import('../../src/models/jev/jevSetting.ts')
+const { runWithAgentContext } = await import('../../src/crew/agents/agentContext.ts')
+const { storeJevApiKey } = await import('../../src/models/jev/jevKey.ts')
+const { resetJevLedger } = await import('../../src/models/jev/jevLedger.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
+const { ALL_AGENT_DISALLOWED_TOOLS, assembleToolPool, getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { JEV_TOOL_NAME } = await import('../../src/models/jev/jevContract.ts')
+const { JevEvalTool } = await import('../../src/tools/jev-eval/JevEvalTool.ts')
+const { JEV_EVAL_PROMPT } = await import('../../src/tools/jev-eval/prompt.ts')
+const { filterToolsForAgent } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 
 const ctx = { ...getEmptyToolPermissionContext(), mode: 'default' } as never
 type Row = { name: string; searchHint: string | undefined; shouldDefer: boolean | undefined; alwaysLoad: boolean | undefined; readOnly: boolean | null; input_schema: unknown }

@@ -3,14 +3,14 @@ import { join } from 'node:path'
 import { inProcessServerConfig, seatInProcessServer } from '../lib/mcpInProcess.ts'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const mcp = await import(join(SRC, 'services/mcp/client.ts'))
+const mcp = await import(join(SRC, 'integrations/mcp/client.ts'))
 const { callMCPToolWithUrlElicitationRetry } = mcp
-const { wireSafeMcpToolName } = await import(join(SRC, 'utils/mcp/mcpStringUtils.ts'))
+const { wireSafeMcpToolName } = await import(join(SRC, 'integrations/mcp-shapes/mcpToolNames.ts'))
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const fixHint = 'fix the toolUseId scan over parentMessage content and the progressSink in callMCPToolWithUrlElicitationRetry, src/services/mcp/client.ts'
+  const fixHint = 'fix the toolUseId scan over parentMessage content and the progressSink in callMCPToolWithUrlElicitationRetry, src/integrations/mcp/client.ts'
   const shown = cond ? detail : detail ? `${detail}; ${fixHint}` : fixHint
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }

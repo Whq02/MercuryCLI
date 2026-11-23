@@ -3,15 +3,15 @@ import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, writ
 import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { Database } from 'bun:sqlite'
-import { open } from '../../src/services/crewBoard/store.ts'
-import { chatKindColor, chatNameColor, chatRows } from '../../src/services/crewBoard/chat.ts'
-import { resolveMercuryTokens } from '../../src/utils/mercuryTokens.ts'
-import { TERRA } from '../../src/components/mercuryPalette.ts'
+import { open } from '../../src/crew/board/store.ts'
+import { chatKindColor, chatNameColor, chatRows } from '../../src/crew/board/chat.ts'
+import { resolveMercuryTokens } from '../../src/screen/theme/mercuryTokens.ts'
+import { TERRA } from '../../src/screen/theme/mercuryPalette.ts'
 import { gridToPng } from '../ui/gridToPng.ts'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
-import { readSessionWorkers } from '../../src/daemon/concourseWorkers.ts'
-import { boardSeatName, type BoardViewSnapshot } from '../../src/services/crewBoard/contracts.ts'
-import { displayWidth } from '../../src/utils/glyphs.ts'
+import { readSessionWorkers } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
+import { boardSeatName, type BoardViewSnapshot } from '../../src/crew/board/contracts.ts'
+import { displayWidth } from '../../src/screen/theme/glyphs.ts'
 
 assert(process.env.MERCURY_CONFIG_DIR, 'run with a scratch MERCURY_CONFIG_DIR')
 const THREE_LINES = 'Three lines:\nthe header row,\nthe footer row.'
@@ -21,7 +21,7 @@ const palette = resolveMercuryTokens('dark', TERRA)
 assert.equal(chatNameColor('main', palette), palette.agentAccents[0]!.color)
 for (const name of ['Alpha', 'Beta', 'swarm-parser']) {
   assert.equal(chatNameColor(name, palette), chatNameColor(name, palette))
-  assert(palette.agentAccents.some(accent => accent.color === chatNameColor(name, palette)), `src/services/crewBoard/chat.ts chatNameColor(${name}) returned ${chatNameColor(name, palette)}, not in theme agentAccents`)
+  assert(palette.agentAccents.some(accent => accent.color === chatNameColor(name, palette)), `src/crew/board/chat.ts chatNameColor(${name}) returned ${chatNameColor(name, palette)}, not in theme agentAccents`)
   assert.notEqual(chatNameColor(name, palette), chatNameColor('main', palette))
 }
 assert.equal(new Set(['ask', 'answer', 'result', 'blocker', 'correction', 'notice'].map(kind => chatKindColor(kind, palette))).size, 6)
@@ -35,18 +35,18 @@ assert.equal(new Set(['ask', 'answer', 'result', 'blocker', 'correction', 'notic
   try {
     for (const seat of [main, captain, member]) board.enroll(seat)
     const beforePost = board.post(captain, { clientOpId: 'before', kind: 'result', text: 'The list is ready.' })
-    assert(beforePost.ok, `src/services/crewBoard/store.ts board.post(before) failed: ${JSON.stringify(beforePost).slice(0, 140)}`)
+    assert(beforePost.ok, `src/crew/board/store.ts board.post(before) failed: ${JSON.stringify(beforePost).slice(0, 140)}`)
     const before = board.view()
     const assigned = board.assignCaptain(main, 'lists', 'judge')
-    assert(assigned.ok, `src/services/crewBoard/store.ts assignCaptain(lists, judge) failed: ${JSON.stringify(assigned).slice(0, 140)}`)
+    assert(assigned.ok, `src/crew/board/store.ts assignCaptain(lists, judge) failed: ${JSON.stringify(assigned).slice(0, 140)}`)
     assert.equal(width(board.view()), width(before), 'appointment alone never widens the Workbench name column')
     const posted = board.post(captain, { clientOpId: 'after', kind: 'result', text: 'The reviewed list is ready.' })
-    assert(posted.ok, `src/services/crewBoard/store.ts board.post(after) failed: ${JSON.stringify(posted).slice(0, 140)}`)
+    assert(posted.ok, `src/crew/board/store.ts board.post(after) failed: ${JSON.stringify(posted).slice(0, 140)}`)
     const after = board.view()
     assert.equal(after.events.find(event => event.eventId === posted.eventId)?.captain, true)
     assert.equal(boardSeatName(board.captain('lists')!), 'captain lists-judge', 'roster and party labels keep the captain role')
     const judgeRows = chatRows(after).filter(row => row.name.includes('lists-judge'))
-    assert(judgeRows.every(row => row.name === 'lists-judge'), `src/services/crewBoard/chat.ts chatRows kept prefix in captain name: ${judgeRows.map(r => r.name).join(', ')}`)
+    assert(judgeRows.every(row => row.name === 'lists-judge'), `src/crew/board/chat.ts chatRows kept prefix in captain name: ${judgeRows.map(r => r.name).join(', ')}`)
     assert.equal(width(after), width(before), 'a captain post keeps the baseline name-column width')
     const previous = board.view().events.find(event => event.clientOpId === 'before')!
     assert.equal(width(board.view(previous.seq + 1)), width(before), 'earlier pages use the same plain-name inventory')
@@ -62,7 +62,7 @@ const fixture = arg('--fixture')
 const captures = arg('--captures') ?? join(process.env.MERCURY_CONFIG_DIR, 'captures')
 mkdirSync(captures, { recursive: true })
 const { CONFIG_HOME, RUNTIME_CWD, SID, scenario, cleanupScenario, encodeFixtureTranscript } = await import('../ui/renderScenarios.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
 const projects = getProjectDir(RUNTIME_CWD)
 const path = join(projects, SID, 'boards', 'wave', 'board.sqlite')
 mkdirSync(join(projects, SID, 'boards', 'wave'), { recursive: true })
@@ -78,38 +78,38 @@ if (fixture) {
   const b = { author: { sessionId: SID, agentId: 'beta', executionId: 'run' }, name: 'Beta', team: 'view' }
   board.enroll(a); board.enroll(b)
   const question = board.post(a, { clientOpId: 'q', kind: 'ask', text: '@view does the parser include the footer?' })
-  assert(question.ok, `src/services/crewBoard/store.ts board.post(q) failed: ${JSON.stringify(question).slice(0, 140)}`)
+  assert(question.ok, `src/crew/board/store.ts board.post(q) failed: ${JSON.stringify(question).slice(0, 140)}`)
   const wrong = board.post(b, { clientOpId: 'a', kind: 'answer', replyTo: question.eventId, text: 'Four rows.' })
-  assert(wrong.ok, `src/services/crewBoard/store.ts board.post(a) failed: ${JSON.stringify(wrong).slice(0, 140)}`)
+  assert(wrong.ok, `src/crew/board/store.ts board.post(a) failed: ${JSON.stringify(wrong).slice(0, 140)}`)
   const corrPost = board.post(b, { clientOpId: 'c', kind: 'correction', corrects: wrong.eventId, text: '@Alpha five rows including the footer.' })
-  assert(corrPost.ok, `src/services/crewBoard/store.ts board.post(c) failed: ${JSON.stringify(corrPost).slice(0, 140)}`)
+  assert(corrPost.ok, `src/crew/board/store.ts board.post(c) failed: ${JSON.stringify(corrPost).slice(0, 140)}`)
   const mirrorPost = board.post(a, { clientOpId: 'message:mirror', kind: 'message', text: 'The shared message.', to: ['Beta'] })
-  assert(mirrorPost.ok, `src/services/crewBoard/store.ts board.post(message:mirror) failed: ${JSON.stringify(mirrorPost).slice(0, 140)}`)
+  assert(mirrorPost.ok, `src/crew/board/store.ts board.post(message:mirror) failed: ${JSON.stringify(mirrorPost).slice(0, 140)}`)
   const threePost = board.post(a, { clientOpId: 'three', kind: 'result', replyTo: question.eventId, text: THREE_LINES })
-  assert(threePost.ok, `src/services/crewBoard/store.ts board.post(three) failed: ${JSON.stringify(threePost).slice(0, 140)}`)
+  assert(threePost.ok, `src/crew/board/store.ts board.post(three) failed: ${JSON.stringify(threePost).slice(0, 140)}`)
   const longPost = board.post(b, { clientOpId: 'long', kind: 'result', replyTo: question.eventId, text: LONG_POST })
-  assert(longPost.ok, `src/services/crewBoard/store.ts board.post(long) failed: ${JSON.stringify(longPost).slice(0, 140)}`)
+  assert(longPost.ok, `src/crew/board/store.ts board.post(long) failed: ${JSON.stringify(longPost).slice(0, 140)}`)
   const view = board.view()
   assert.deepEqual(board.view(undefined, undefined, 'view').names, view.names, 'name column uses the whole wave in every channel')
   assert.deepEqual(board.view(3).names, view.names, 'name column uses the whole wave on earlier pages')
-  assert(view.duplicateMinutes?.includes('2026-10-01T10:01'), `src/services/crewBoard/store.ts duplicateMinutes missing 2026-10-01T10:01: ${JSON.stringify(view.duplicateMinutes)}`)
+  assert(view.duplicateMinutes?.includes('2026-10-01T10:01'), `src/crew/board/store.ts duplicateMinutes missing 2026-10-01T10:01: ${JSON.stringify(view.duplicateMinutes)}`)
   const traffic = [{ key: 'crew:mirror', at: new Date(now).toISOString(), agent: 'Beta', dir: 'to' as const, via: 'message' as const, text: 'The shared message.' }]
   assert.equal(chatRows(view, traffic).filter(row => row.text === 'The shared message.').length, 1)
   const viewRows = chatRows(view, [], 'view')
-  assert(viewRows.every(row => row.team === 'view'), `src/services/crewBoard/chat.ts team filter 'view' leaked non-view row: ${viewRows.map(r => r.team).join(', ')}`)
+  assert(viewRows.every(row => row.team === 'view'), `src/crew/board/chat.ts team filter 'view' leaked non-view row: ${viewRows.map(r => r.team).join(', ')}`)
   const allRows = chatRows(view)
-  assert(allRows.some(row => row.team === 'engine') && allRows.some(row => row.team === 'view'), `src/services/crewBoard/chat.ts merged timeline missing engine/view teams: ${allRows.map(r => r.team).join(', ')}`)
+  assert(allRows.some(row => row.team === 'engine') && allRows.some(row => row.team === 'view'), `src/crew/board/chat.ts merged timeline missing engine/view teams: ${allRows.map(r => r.team).join(', ')}`)
   const wrongRow = allRows.find(row => row.id === wrong.eventId)!
-  assert(wrongRow.kind.includes('→ correction'), `src/services/crewBoard/chat.ts corrected row kind missing '→ correction': ${wrongRow.kind}`)
+  assert(wrongRow.kind.includes('→ correction'), `src/crew/board/chat.ts corrected row kind missing '→ correction': ${wrongRow.kind}`)
   if (arg('--leg') === 'history') for (let i = 0; i < 33; i++) {
     const rev = board.post(b, { clientOpId: `history-${i}`, kind: 'correction', corrects: wrong.eventId, text: `Count revision ${i}.` })
-    assert(rev.ok, `src/services/crewBoard/store.ts board.post(history-${i}) failed: ${JSON.stringify(rev).slice(0, 140)}`)
+    assert(rev.ok, `src/crew/board/store.ts board.post(history-${i}) failed: ${JSON.stringify(rev).slice(0, 140)}`)
   }
   board.close()
 }
 const saved = open(path, SID, Date.now, true)
 const corpus = saved.view()
-assert(corpus.events.length > 0, `src/services/crewBoard/store.ts reopened board had 0 events at ${path}`)
+assert(corpus.events.length > 0, `src/crew/board/store.ts reopened board had 0 events at ${path}`)
 saved.close()
 console.log(`PASS chat projection: ${corpus.events.length} corpus posts, public team filters and a single merged timeline`)
 const settings = join(CONFIG_HOME, 'settings.json')
@@ -145,7 +145,7 @@ try {
       const seat = { author: { sessionId: SID, agentId: 'tail', executionId: 'run' }, name: 'Tail', team: 'view' }
       writer.enroll(seat)
       const tailPost = writer.post(seat, { clientOpId: 'tail', kind: 'result', text: arrival })
-      assert(tailPost.ok, `src/services/crewBoard/store.ts writer.post(tail) failed: ${JSON.stringify(tailPost).slice(0, 140)}`)
+      assert(tailPost.ok, `src/crew/board/store.ts writer.post(tail) failed: ${JSON.stringify(tailPost).slice(0, 140)}`)
       writer.close()
     }, 100) : undefined
     let stderr = ''

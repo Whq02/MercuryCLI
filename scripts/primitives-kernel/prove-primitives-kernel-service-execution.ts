@@ -15,13 +15,13 @@ const {
   startService,
   stopService,
   waitForReady,
-} = await import('../../src/services/projectServices/serviceManager.ts')
+} = await import('../../src/tools/engines/project-services/serviceManager.ts')
 const {
   serviceExecutionDrift,
   serviceExecutionId,
   serviceExecutionOwner,
-} = await import('../../src/services/projectServices/executionProjection.ts')
-const P = await import('../../src/services/primitives/index.ts')
+} = await import('../../src/tools/engines/project-services/executionProjection.ts')
+const P = await import('../../src/engine/runtime-kernel/index.ts')
 
 let pass = 0
 let fail = 0
@@ -32,7 +32,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   } else {
     fail++
     console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
-    console.log('       fix: the service record is written in src/services/projectServices/serviceManager.ts (startService, restartService, stopService, reconcileRecord) and mirrored into the execution plane by projectServiceExecution in src/services/projectServices/executionProjection.ts; make the two agree there (serviceExecutionDrift compares them)')
+    console.log('       fix: the service record is written in src/tools/engines/project-services/serviceManager.ts (startService, restartService, stopService, reconcileRecord) and mirrored into the execution plane by projectServiceExecution in src/tools/engines/project-services/executionProjection.ts; make the two agree there (serviceExecutionDrift compares them)')
   }
 }
 

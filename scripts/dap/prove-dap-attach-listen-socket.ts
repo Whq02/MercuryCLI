@@ -22,10 +22,10 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (title: string): void => {
   sectionHint = title.startsWith('§0')
-    ? 'change: listenerAttachTarget in src/services/dap/client/listener.ts'
+    ? 'change: listenerAttachTarget in src/integrations/debugger/client/listener.ts'
     : title.startsWith('§4')
-      ? 'change: the python attach road through the vendored debugpy (src/services/dap/debugpyResolver.ts, src/services/dap/client/listener.ts, start.ts)'
-      : 'change: the listener dial in src/services/dap/client/start.ts and the refusal line in listenerRefusedLine, src/services/dap/client/listener.ts'
+      ? 'change: the python attach road through the vendored debugpy (src/integrations/debugger/debugpyResolver.ts, src/integrations/debugger/client/listener.ts, start.ts)'
+      : 'change: the listener dial in src/integrations/debugger/client/start.ts and the refusal line in listenerRefusedLine, src/integrations/debugger/client/listener.ts'
   console.log(`\n${title}`)
 }
 
@@ -70,10 +70,10 @@ writeFileSync(
 )
 process.env.MERCURY_DAP_ADAPTERS_FILE = adaptersFile
 
-const dapClient = await import('../../src/services/dap/dapClient.ts')
+const dapClient = await import('../../src/integrations/debugger/dapClient.ts')
 const { createDapSession, removeDapSession } = dapClient
 const listenerAttachTarget: typeof dapClient.listenerAttachTarget = (dapClient as Partial<typeof dapClient>).listenerAttachTarget ?? (() => null)
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 const owner = processMainOwner()
 
 type Frame = Record<string, unknown>
@@ -196,7 +196,7 @@ section('§2 nothing listens at the port: the attach refuses at once in one plai
   check('no adapter of our own was started', !existsSync(marker))
   check(`the line names the dial: nothing is listening at 127.0.0.1:${port} (ECONNREFUSED)`, new RegExp(`^nothing is listening at 127\\.0\\.0\\.1:${port} \\(ECONNREFUSED\\)`).test(outcome.error ?? ''), (outcome.error ?? '').slice(0, 200))
   check('…and says what to do: start the program with its debug listener on that port first, then attach again', /start the program with its debug listener on 127\.0\.0\.1:\d+ first, then attach again$/.test(outcome.error ?? ''), (outcome.error ?? '').slice(0, 220))
-  const pythonLine = (await import('../../src/services/dap/dapClient.ts')).listenerRefusedLine?.({ host: '127.0.0.1', port: 5679 }, 'ECONNREFUSED', 'python')
+  const pythonLine = (await import('../../src/integrations/debugger/dapClient.ts')).listenerRefusedLine?.({ host: '127.0.0.1', port: 5679 }, 'ECONNREFUSED', 'python')
   check('for the python row the line carries the debugpy start command', pythonLine === 'nothing is listening at 127.0.0.1:5679 (ECONNREFUSED) — start the program with its listener first — python -m debugpy --listen 127.0.0.1:5679 --wait-for-client <script> — then attach again', pythonLine ?? 'undefined')
   rmSync(marker, { force: true })
 }
@@ -255,7 +255,7 @@ section('§4 the live leg — a real debugpy --listen program through the vendor
     console.log(`  [SKIP] no interpreter can import the vendored debugpy here (vendor root: ${vendorRoot ?? 'absent'}; tried python3, python) — the live leg needs one`)
   } else {
     process.env.MERCURY_DEBUGPY_VENDOR_DIR = vendorRoot
-    const { _resetDebugpyResolverForTesting } = await import('../../src/services/dap/debugpyResolver.ts')
+    const { _resetDebugpyResolverForTesting } = await import('../../src/integrations/debugger/debugpyResolver.ts')
     _resetDebugpyResolverForTesting()
     const program = path.join(scratch, 'waits.py')
     writeFileSync(program, 'import time\nn = 0\nwhile True:\n    n += 1\n    time.sleep(0.05)\n')
@@ -290,7 +290,7 @@ section('§4 the live leg — a real debugpy --listen program through the vendor
       await removeDapSession(owner, 'live-2')
     }
     if (debuggee.exitCode === null) {
-      const { endProcessTree } = await import('../../src/utils/processGroup.ts')
+      const { endProcessTree } = await import('../../src/platform/processes/processGroup.ts')
       const ended = new Promise<void>(done => debuggee!.once('exit', () => done()))
       await endProcessTree(debuggee, 'SIGKILL')
       await Promise.race([ended, new Promise<void>(done => setTimeout(done, 5_000))])

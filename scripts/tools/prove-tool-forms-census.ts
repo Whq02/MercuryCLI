@@ -21,10 +21,10 @@ const t = (name: string, ok: boolean, detail = '', fix = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail.length > 600 ? `${detail.slice(0, 600)}…` : detail}` : ''}${!ok && fix ? ` — to fix: ${fix}` : ''}`)
   if (!ok) failures++
 }
-const STRICT_FORM_FIX = 'the strict tool form changed; check toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts, which mapToolsToOpenai in src/services/providers/openai/responsesBridge.ts calls'
-const STRIP_NULLS_FIX = 'null stripping changed; check stripNullArgs in src/services/providers/openai/openaiWire.ts, which gateToolCall in src/services/providers/toolCallGate.ts calls'
-const GATE_FIX = 'the gate refused or changed a call it should admit; check gateToolCall in src/services/providers/toolCallGate.ts and stripNullArgs in src/services/providers/openai/openaiWire.ts'
-const STRUCTURED_FIX = 'check toOpenaiStrictSchema and stripExplicitNulls in src/utils/messages/structuredOutputDialect.ts, which this section expects unchanged'
+const STRICT_FORM_FIX = 'the strict tool form changed; check toOpenaiStrictToolSchema in src/engine/message-shapes/toolSchemaDialect.ts, which mapToolsToOpenai in src/models/roads/openai/responsesBridge.ts calls'
+const STRIP_NULLS_FIX = 'null stripping changed; check stripNullArgs in src/models/roads/openai/openaiWire.ts, which gateToolCall in src/models/roads/toolCallGate.ts calls'
+const GATE_FIX = 'the gate refused or changed a call it should admit; check gateToolCall in src/models/roads/toolCallGate.ts and stripNullArgs in src/models/roads/openai/openaiWire.ts'
+const STRUCTURED_FIX = 'check toOpenaiStrictSchema and stripExplicitNulls in src/engine/message-shapes/structuredOutputDialect.ts, which this section expects unchanged'
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 const watchdog = setTimeout(() => {
   console.log('\nTIMEOUT — tool forms census exceeded 240s; the last section line printed above names the step that hung')
@@ -32,23 +32,23 @@ const watchdog = setTimeout(() => {
 }, 240_000)
 watchdog.unref?.()
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { declaredInputSchema } = await import('../../src/services/providers/local/schemaTyping.ts')
-const { normalizeToolSchemaFor } = await import('../../src/utils/normalizeToolSchema.ts')
-const { mapToolsToOpenai } = await import('../../src/services/providers/openai/responsesBridge.ts')
-const { stripNullArgs } = await import('../../src/services/providers/openai/openaiWire.ts')
-const { gateToolCall } = await import('../../src/services/providers/toolCallGate.ts')
-const { toOpenaiStrictSchema, stripExplicitNulls } = await import('../../src/utils/messages/structuredOutputDialect.ts')
-type ToolDialect = typeof import('../../src/utils/messages/toolSchemaDialect.ts')
-const dialect: Partial<ToolDialect> = await import('../../src/utils/messages/toolSchemaDialect.ts').catch(() => ({}))
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { declaredInputSchema } = await import('../../src/models/roads/local/schemaTyping.ts')
+const { normalizeToolSchemaFor } = await import('../../src/integrations/mcp/normalizeToolSchema.ts')
+const { mapToolsToOpenai } = await import('../../src/models/roads/openai/responsesBridge.ts')
+const { stripNullArgs } = await import('../../src/models/roads/openai/openaiWire.ts')
+const { gateToolCall } = await import('../../src/models/roads/toolCallGate.ts')
+const { toOpenaiStrictSchema, stripExplicitNulls } = await import('../../src/engine/message-shapes/structuredOutputDialect.ts')
+type ToolDialect = typeof import('../../src/engine/message-shapes/toolSchemaDialect.ts')
+const dialect: Partial<ToolDialect> = await import('../../src/engine/message-shapes/toolSchemaDialect.ts').catch(() => ({}))
 const toOpenaiStrictToolSchema: ToolDialect['toOpenaiStrictToolSchema'] = dialect.toOpenaiStrictToolSchema ?? (() => ({ strict: false, reason: 'the tool dialect module is absent on this tree' }))
 const strictFormAdmitsNull: ToolDialect['strictFormAdmitsNull'] = dialect.strictFormAdmitsNull ?? (() => false)
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 
 type Node = Record<string, unknown>
 type AnyTool = {
@@ -146,8 +146,8 @@ for (const fixture of fixtures) {
 }
 
 section(`§1 the roster: ${catalogued} tools in the scratch catalogue, ${roster.size - catalogued - fixtures.length} more reached through their modules, ${fixtures.length} MCP-shaped fixtures`)
-t('the catalogue is the real one (more than 40 tools)', catalogued > 40, String(catalogued), 'getAllBaseTools in src/tools.ts returned too few tools; check the tool catalogue it assembles')
-for (const core of ['Read', 'Edit', 'Write', 'Bash', 'Glob', 'Grep', 'ChangeSet', 'WebFetch', 'Crewmate', 'AskUserQuestion']) t(`roster carries ${core}`, roster.has(core), '', 'the tool is missing from getAllBaseTools in src/tools.ts, or its module under src/tools no longer exports it by that name')
+t('the catalogue is the real one (more than 40 tools)', catalogued > 40, String(catalogued), 'getAllBaseTools in src/tools/kit/toolList.ts returned too few tools; check the tool catalogue it assembles')
+for (const core of ['Read', 'Edit', 'Write', 'Bash', 'Glob', 'Grep', 'ChangeSet', 'WebFetch', 'Crewmate', 'AskUserQuestion']) t(`roster carries ${core}`, roster.has(core), '', 'the tool is missing from getAllBaseTools in src/tools/kit/toolList.ts, or its module under src/tools no longer exports it by that name')
 
 const PUBLISHED_FORMATS = new Set(['date-time', 'time', 'date', 'duration', 'email', 'hostname', 'ipv4', 'ipv6', 'uuid'])
 const PUBLISHED_TYPES = new Set(['string', 'number', 'boolean', 'integer', 'object', 'array', 'null'])
@@ -448,7 +448,7 @@ for (const [name, tool] of roster) {
   try {
     original = originalFor(tool)
   } catch (error) {
-    t(`${name}: a declared schema exists`, false, String(error), 'declaredInputSchema in src/services/providers/local/schemaTyping.ts could not read this tool schema; check the tool inputSchema or inputJSONSchema under src/tools')
+    t(`${name}: a declared schema exists`, false, String(error), 'declaredInputSchema in src/models/roads/local/schemaTyping.ts could not read this tool schema; check the tool inputSchema or inputJSONSchema under src/tools')
     continue
   }
   const [wire] = mapToolsToOpenai([{ name, input_schema: original }]) as unknown as Node[]
@@ -517,7 +517,7 @@ t('one bad schema never sinks its neighbours: a free-form tool beside Read leave
   t('Bash strict form drops the root $schema pointer the model never reads', !('$schema' in bash), '', STRICT_FORM_FIX)
   const original = originalFor(roster.get('Read')!)
   mapToolsToOpenai([{ name: 'Read', input_schema: original }])
-  t('the converter never mutates the tool\'s own schema (Read still has one required key)', JSON.stringify(original.required) === '["file_path"]' && !JSON.stringify((original.properties as Node).pages).includes('null'), '', 'mapToolsToOpenai in src/services/providers/openai/responsesBridge.ts or toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts mutated the schema it was given; copy before editing')
+  t('the converter never mutates the tool\'s own schema (Read still has one required key)', JSON.stringify(original.required) === '["file_path"]' && !JSON.stringify((original.properties as Node).pages).includes('null'), '', 'mapToolsToOpenai in src/models/roads/openai/responsesBridge.ts or toOpenaiStrictToolSchema in src/engine/message-shapes/toolSchemaDialect.ts mutated the schema it was given; copy before editing')
 }
 
 section('§3 the strict form keeps every optional answerable with null and every required one required')
@@ -711,7 +711,7 @@ section('§6 the structured-output converter is untouched')
   t('toOpenaiStrictSchema still spells optional as a type union and closes the object', JSON.stringify(strict) === JSON.stringify({ type: 'object', properties: { a: { type: 'string' }, b: { type: ['number', 'null'] } }, required: ['a', 'b'], additionalProperties: false }), JSON.stringify(strict), STRUCTURED_FIX)
   t('toOpenaiStrictSchema is idempotent', JSON.stringify(toOpenaiStrictSchema(strict)) === JSON.stringify(strict), '', STRUCTURED_FIX)
   t('stripExplicitNulls still drops every null key recursively and keeps array nulls', JSON.stringify(stripExplicitNulls({ a: null, b: { c: null, d: [null, 1] } })) === JSON.stringify({ b: { d: [null, 1] } }), '', STRUCTURED_FIX)
-  t('the tool dialect is a sibling, not a rewrite: the two converters differ on a constrained optional (anyOf spelling vs type union)', JSON.stringify(toOpenaiStrictToolSchema({ type: 'object', properties: { n: { type: 'integer', minimum: 0 } } })) !== JSON.stringify(toOpenaiStrictSchema({ type: 'object', properties: { n: { type: 'integer', minimum: 0 } } })), '', STRICT_FORM_FIX + '; it must stay a sibling of toOpenaiStrictSchema in src/utils/messages/structuredOutputDialect.ts')
+  t('the tool dialect is a sibling, not a rewrite: the two converters differ on a constrained optional (anyOf spelling vs type union)', JSON.stringify(toOpenaiStrictToolSchema({ type: 'object', properties: { n: { type: 'integer', minimum: 0 } } })) !== JSON.stringify(toOpenaiStrictSchema({ type: 'object', properties: { n: { type: 'integer', minimum: 0 } } })), '', STRICT_FORM_FIX + '; it must stay a sibling of toOpenaiStrictSchema in src/engine/message-shapes/structuredOutputDialect.ts')
 }
 
 section('§7 the census table (tool · strict or not · why · all-blanks verdict)')

@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { mkdtempSync, readSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { reclaimTerminalAfterChild } from '../../src/utils/terminalHandback.ts'
+import { reclaimTerminalAfterChild } from '../../src/platform/shell/terminalHandback.ts'
 
 const out = (line: string): void => void process.stdout.write(`${line}\r\n`)
 

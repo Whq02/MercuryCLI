@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-env: MERCURY_TILES_DRIVE_SIZE
 # gate-watch: scripts/switchboard/** scripts/switchboard-5/**
-# gate-watch: src/services/switchboard/attachedSession.ts
+# gate-watch: src/daemon/switchboard/attachedSession.ts
 # gate-watch: scripts/lib/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

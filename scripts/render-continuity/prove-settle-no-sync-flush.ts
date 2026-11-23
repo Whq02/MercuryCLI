@@ -5,22 +5,22 @@ import { Readable, Writable } from 'node:stream'
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  const settleHint = 'change the store subscription that flushes in src/components/LiveStreamingTail.tsx, or how the settle updates the tail store in handleMessageFromStream (src/utils/messages/streaming.ts) and src/utils/messages/streamingTailStore.ts: a delta flushes synchronously, the settle clears the tail with no flush and keeps the text for readSettled'
+  const settleHint = 'change the store subscription that flushes in src/screen/messages/LiveStreamingTail.tsx, or how the settle updates the tail store in handleMessageFromStream (src/screen/messages-list/streamToScreen.ts) and src/engine/message-shapes/streamingTailStore.ts: a delta flushes synchronously, the settle clears the tail with no flush and keeps the text for readSettled'
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail} | ` : ''}${settleHint}` : ''}`)
   if (!ok) failures = 1
 }
 
 
 const React = (await import('react')).default
-const { render } = await import('../../src/ink.ts')
-const { default: reconciler } = await import('../../src/ink/reconciler.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createStreamingTailStore } = await import('../../src/utils/messages/streamingTailStore.ts')
-const { handleMessageFromStream } = await import('../../src/utils/messages/streaming.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { render } = await import('../../src/screen/themedRenderer.ts')
+const { default: reconciler } = await import('../../src/screen/renderer/reconciler.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createStreamingTailStore } = await import('../../src/engine/message-shapes/streamingTailStore.ts')
+const { handleMessageFromStream } = await import('../../src/screen/messages-list/streamToScreen.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { LiveStreamingTail } = await import('../../src/components/LiveStreamingTail.tsx')
+const { LiveStreamingTail } = await import('../../src/screen/messages/LiveStreamingTail.tsx')
 
 let flushes = 0
 const flushSyncWork = reconciler.flushSyncWork.bind(reconciler)

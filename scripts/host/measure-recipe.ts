@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { parseArgs } from 'node:util'
 import packageJson from '../../package.json'
-import { HOST_RECIPES, type HostRecipe } from '../../src/services/host/recipes.ts'
-import { streamCompatChat, type CompatCompletedToolCall, type CompatUsage, type CompatTool } from '../../src/services/providers/openaicompat/compatChatClient.ts'
-import { buildHostedExtras } from '../../src/services/providers/openaicompat/compatWire.ts'
-import { mapMessagesToZai } from '../../src/services/providers/zai/zaiCodec.ts'
-import type { MessageParam, ContentBlockParam } from '../../src/types/wire.ts'
+import { HOST_RECIPES, type HostRecipe } from '../../src/models/hosting/recipes.ts'
+import { streamCompatChat, type CompatCompletedToolCall, type CompatUsage, type CompatTool } from '../../src/models/roads/openaicompat/compatChatClient.ts'
+import { buildHostedExtras } from '../../src/models/roads/openaicompat/compatWire.ts'
+import { mapMessagesToZai } from '../../src/models/roads/zai/zaiCodec.ts'
+import type { MessageParam, ContentBlockParam } from '../../src/engine/message-shapes/wire.ts'
 
 if (typeof MACRO === 'undefined') (globalThis as Record<string, unknown>).MACRO = { VERSION: packageJson.version }
 

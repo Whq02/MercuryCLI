@@ -17,7 +17,7 @@ let count = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   count++
   if (!ok) failures++
-  const rosterHint = ' | fix the roster replay in planToolPayload in src/services/providers/toolEconomy.ts, restoreBoundPrefixFromMessages in src/services/providers/anthropic/boundPrefixRecord.ts, or the recorded definition in toolToAPISchema in src/services/messages/api.ts'
+  const rosterHint = ' | fix the roster replay in planToolPayload in src/models/roads/toolEconomy.ts, restoreBoundPrefixFromMessages in src/models/roads/anthropic/boundPrefixRecord.ts, or the recorded definition in toolToAPISchema in src/engine/messages/apiSystemAndToolSchema.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail.slice(0, 400)}` : ''}${rosterHint}` : ''}`)
 }
 const section = (t: string): void => {
@@ -25,22 +25,22 @@ const section = (t: string): void => {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const economy = await import('../../src/services/providers/toolEconomy.ts')
-const { restoreBoundPrefixFromMessages } = await import('../../src/services/providers/anthropic/boundPrefixRecord.ts')
-const ledger = await import('../../src/services/providers/anthropic/prefixLedger.ts')
-const { prefixLedgerPath } = await import('../../src/services/providers/anthropic/prefixRecordStore.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Message = import('../../src/types/message.ts').Message
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const economy = await import('../../src/models/roads/toolEconomy.ts')
+const { restoreBoundPrefixFromMessages } = await import('../../src/models/roads/anthropic/boundPrefixRecord.ts')
+const ledger = await import('../../src/models/roads/anthropic/prefixLedger.ts')
+const { prefixLedgerPath } = await import('../../src/models/roads/anthropic/prefixRecordStore.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { clearToolSchemaCache } = await import('../../src/models/roads/toolSchemaCache.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const tool = (name: string, over: Record<string, unknown> = {}): Tool => ({ name, searchHint: `${name.toLowerCase()} fixture`, description: async () => name, prompt: async () => name, inputSchema: { parse: (v: unknown) => v, safeParse: (v: unknown) => ({ success: true, data: v }) } as never, inputJSONSchema: { type: 'object', properties: { text: { type: 'string' } } }, call: async () => ({ data: null }), ...over } as unknown as Tool)
 const RETIRED = 'RetiredDispatch'

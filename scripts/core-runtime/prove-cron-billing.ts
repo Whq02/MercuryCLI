@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
-import type { DOMElement } from '../../src/ink/dom.js'
+import type { DOMElement } from '../../src/screen/renderer/dom.js'
 
 const HOME = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'cron-billing-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -36,13 +36,13 @@ let failures = 0
 let checks = 0
 let sectionHead = ''
 const sectionFix = (): string => {
-  if (sectionHead.startsWith('§0')) return 'WORKLOAD_CRON in src/utils/workloadContext.ts and canBatchWith (exported by src/cli/headless/turnDriver.ts)'
-  if (sectionHead.startsWith('§1b')) return 'requeueUndeliveredLines in src/cli/headless/restartCarry.ts'
-  if (sectionHead.startsWith('§1')) return 'saturnQueueStamp in src/utils/messages/noticeRows.ts'
-  if (sectionHead.startsWith('§2')) return 'getWorkloadUsage and getWorkloadUnpricedTurns in src/bootstrap/state.ts, and runWithWorkload in src/utils/workloadContext.ts'
-  if (sectionHead.startsWith('§3b')) return 'the Usage component in src/components/Settings/Usage.tsx'
-  if (sectionHead.startsWith('§3')) return 'scheduledSessionSpend, scheduledUsageLine and providerSessionSpend in src/services/providers/providerUsage/spend.ts, and modelUsageRows in src/rows/project.ts'
-  if (sectionHead.startsWith('§4')) return 'restoreCostStateForSession in src/cost-tracker.ts and the transcript writer in src/utils/sessionStorage/writer.ts'
+  if (sectionHead.startsWith('§0')) return 'WORKLOAD_CRON in src/models/roads/workloadContext.ts and canBatchWith (exported by src/daemon/runner/turnDriver.ts)'
+  if (sectionHead.startsWith('§1b')) return 'requeueUndeliveredLines in src/daemon/runner/restartCarry.ts'
+  if (sectionHead.startsWith('§1')) return 'saturnQueueStamp in src/engine/message-shapes/noticeRows.ts'
+  if (sectionHead.startsWith('§2')) return 'getWorkloadUsage and getWorkloadUnpricedTurns in src/boot/process-state/processState.ts, and runWithWorkload in src/models/roads/workloadContext.ts'
+  if (sectionHead.startsWith('§3b')) return 'the Usage component in src/screen/settings/Usage.tsx'
+  if (sectionHead.startsWith('§3')) return 'scheduledSessionSpend, scheduledUsageLine and providerSessionSpend in src/models/roads/provider-usage/spend.ts, and modelUsageRows in src/engine/rows/project.ts'
+  if (sectionHead.startsWith('§4')) return 'restoreCostStateForSession in src/models/usage/sessionCost.ts and the transcript writer in src/sessions/transcripts/writer.ts'
   return 'the code this section names'
 }
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -62,38 +62,38 @@ async function stub(path: string, fixtureExports: () => Record<string, unknown>)
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...fixtureExports() }))
 }
-await stub('../../src/services/providers/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
-await stub('../../src/services/providers/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
-await stub('../../src/hooks/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
-await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
-await stub('../../src/services/providers/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
-await stub('../../src/services/providers/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined }))
-await stub('../../src/services/providers/local/localAccounts.js', () => ({ resolveLocalAccount: () => undefined }))
-await stub('../../src/components/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
+await stub('../../src/models/roads/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
+await stub('../../src/models/roads/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
+await stub('../../src/screen/model-picker/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
+await stub('../../src/screen/keys/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
+await stub('../../src/models/roads/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
+await stub('../../src/models/roads/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined }))
+await stub('../../src/models/roads/local/localAccounts.js', () => ({ resolveLocalAccount: () => undefined }))
+await stub('../../src/screen/keys/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
 
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const state = await import('../../src/bootstrap/state.ts')
-const tracker = await import('../../src/cost-tracker.ts')
-const workload = await import('../../src/utils/workloadContext.ts')
-const rows = await import('../../src/utils/messages/noticeRows.ts')
-const driver = await import('../../src/cli/headless/turnDriver.ts')
-const queue = await import('../../src/input-core/command-queue.ts')
-const { requeueUndeliveredLines } = await import('../../src/cli/headless/restartCarry.ts')
-const { queueLogRows } = await import('../../src/tasks/LocalAgentTask/launchReceipts.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-const { recordTranscript, recordSidechainTranscript, flushSessionStorage } = await import('../../src/utils/sessionStorage/writer.ts')
-const { getTranscriptPath, getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
-const { recordToEntry } = await import('../../src/fabric/entryCodec.ts')
-const { calculateUSDCost, modelPricingBasis } = await import('../../src/services/usage/modelCost.ts')
-const usageOwner = await import('../../src/services/providers/providerUsage.ts')
-const { Usage } = await import('../../src/components/Settings/Usage.js')
-const { Box, Text, render, flushPendingSyncWork, EventEmitter } = await import('../../src/ink.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
+const state = await import('../../src/boot/process-state/processState.ts')
+const tracker = await import('../../src/models/usage/sessionCost.ts')
+const workload = await import('../../src/models/roads/workloadContext.ts')
+const rows = await import('../../src/engine/message-shapes/noticeRows.ts')
+const driver = await import('../../src/daemon/runner/turnDriver.ts')
+const queue = await import('../../src/screen/composer/input-core/command-queue.ts')
+const { requeueUndeliveredLines } = await import('../../src/daemon/runner/restartCarry.ts')
+const { queueLogRows } = await import('../../src/engine/tasks/local-agent/launchReceipts.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { recordTranscript, recordSidechainTranscript, flushSessionStorage } = await import('../../src/sessions/transcripts/writer.ts')
+const { getTranscriptPath, getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+const { recordToEntry } = await import('../../src/sessions/fabric/entryCodec.ts')
+const { calculateUSDCost, modelPricingBasis } = await import('../../src/models/usage/modelCost.ts')
+const usageOwner = await import('../../src/models/roads/providerUsage.ts')
+const { Usage } = await import('../../src/screen/settings/Usage.js')
+const { Box, Text, render, flushPendingSyncWork, EventEmitter } = await import('../../src/screen/themedRenderer.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
 
 const loose = (module: unknown): Record<string, (...args: never[]) => unknown> => module as Record<string, (...args: never[]) => unknown>
 const ledger = loose(state)
@@ -223,8 +223,8 @@ section("§3 THE SURFACES (red on the base): the usage popup and the usage card 
   check("the popup's owner derivation: a provider's session spend carries its scheduled share (red on the base: no share on the spend)", scheduled !== undefined && scheduled.inputTokens === 1_500 && scheduled.outputTokens === 60 && scheduled.models === 1, j(anthropic))
   const cardLine = (ownerLoose.scheduledUsageLine as (() => string | null) | undefined)?.()
   check("the card's attribution line — 'scheduled 1.6k spent · $… + 1 unpriced turn'", typeof cardLine === 'string' && cardLine.startsWith('scheduled 1.6k spent · $') && cardLine.endsWith('+ 1 unpriced turn'), j(cardLine))
-  const project = await import('../../src/rows/project.ts')
-  const { OutcomeRowSchema } = await import('../../src/rows/vocabulary.ts')
+  const project = await import('../../src/engine/rows/project.ts')
+  const { OutcomeRowSchema } = await import('../../src/engine/rows/vocabulary.ts')
   const modelRows = project.modelUsageRows((ledger.getModelUsage as () => Record<string, never>)())
   const modelRow = modelRows[MODEL]
   check("the outcome row's per-model shape: the ledger's model row maps to input/cached/cache-write/output tokens, cost and web searches and the row's cost is the scheduled turn's plus the session's own (red on the base: no row projection)", modelRow !== undefined && modelRow.input_tokens === 1_800 && modelRow.cached_input_tokens === 400 && modelRow.cache_write_input_tokens === 100 && modelRow.output_tokens === 80 && typeof modelRow.cost_usd === 'number' && Math.abs(modelRow.cost_usd - (scheduledCost + ownCost)) < 1e-9 && modelRow.web_searches === 0, j(modelRows))
@@ -328,8 +328,8 @@ if (frameDir !== null) {
     index.push(`${file} — the /usage popup's Anthropic API-key slot: the session line, the scheduled row beneath it`)
     console.log(`  wrote ${file}`)
   }
-  const { railPanelInnerWidth } = await import('../../src/components/mercury-ui/RailPanel.js')
-  const { railPlanAt } = await import('../../src/utils/helmGeometry.ts')
+  const { railPanelInnerWidth } = await import('../../src/screen/widgets/RailPanel.js')
+  const { railPlanAt } = await import('../../src/screen/fullscreen-layout/helmGeometry.ts')
   const cardLine = (ownerLoose.scheduledUsageLine as (() => string | null) | undefined)?.() ?? null
   const view = usageOwner.windowSourceUsages({ model: MODEL, reads: {} }).primary
   for (const [columns, rowCount] of SIZES) {

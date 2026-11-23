@@ -66,20 +66,20 @@ delete process.env.MERCURY_LSP
 delete process.env.MERCURY_LSP_PYTHON
 process.chdir(proj)
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { createLSPServerManager } = await import('../../src/services/lsp/LSPServerManager.js')
-const { registerLSPNotificationHandlers } = await import('../../src/services/lsp/passiveFeedback.js')
-const { subscribeLSPDiagnosticPublish } = await import('../../src/services/lsp/LSPDiagnosticRegistry.js')
-const { awaitDiagnosticStabilization } = await import('../../src/tools/LSPTool/mercuryOps.js')
-const tx = await import('../../src/services/ide/ideTransaction.js')
-const tests = await import('../../src/services/ide/pythonTests.js')
-const dap = await import('../../src/services/dap/dapClient.js')
-const resolver = await import('../../src/services/dap/debugpyResolver.js')
-const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.js')
-const { receiptsFor } = await import('../../src/services/changeTransaction/receipts.js')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
-const { _resetPythonProjectForTesting } = await import('../../src/services/ide/pythonProject.js')
+const { createLSPServerManager } = await import('../../src/integrations/lsp/LSPServerManager.js')
+const { registerLSPNotificationHandlers } = await import('../../src/integrations/lsp/publishedDiagnostics.js')
+const { subscribeLSPDiagnosticPublish } = await import('../../src/integrations/lsp/LSPDiagnosticRegistry.js')
+const { awaitDiagnosticStabilization } = await import('../../src/tools/lsp/mercuryOps.js')
+const tx = await import('../../src/integrations/ide/ideTransaction.js')
+const tests = await import('../../src/integrations/ide/pythonTests.js')
+const dap = await import('../../src/integrations/debugger/dapClient.js')
+const resolver = await import('../../src/integrations/debugger/debugpyResolver.js')
+const { observeToolTerminal } = await import('../../src/engine/run-owner/effectObserver.js')
+const { receiptsFor } = await import('../../src/tools/engines/change-transaction/receipts.js')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.js')
+const { _resetPythonProjectForTesting } = await import('../../src/integrations/ide/pythonProject.js')
 _resetPythonProjectForTesting()
 resolver._resetDebugpyResolverForTesting()
 
@@ -107,7 +107,7 @@ try {
         .find(d => /str.*not assignable|Type "str"/i.test(d.message))
       if (!hit) await new Promise(r => setTimeout(r, 150))
     }
-    check('the return-type defect is diagnosed', hit !== undefined, `${JSON.stringify(published.at(-1)).slice(0, 160)}; hint: pyright published no str-return diagnostic for shop.py, so check the pyright launch in src/services/lsp and the publish forwarding in src/services/lsp/passiveFeedback.ts and LSPDiagnosticRegistry.ts`)
+    check('the return-type defect is diagnosed', hit !== undefined, `${JSON.stringify(published.at(-1)).slice(0, 160)}; hint: pyright published no str-return diagnostic for shop.py, so check the pyright launch in src/integrations/lsp and the publish forwarding in src/integrations/lsp/publishedDiagnostics.ts and LSPDiagnosticRegistry.ts`)
     const noted = await tx.noteStep({
       id: record.id,
       owner,
@@ -116,7 +116,7 @@ try {
       refs: [`mercury://file/${shopPy}`],
       from: proj,
     })
-    check('diagnose step noted with a resolvable file ref', noted.state === 'ok', `${JSON.stringify(noted).slice(0, 200)}; hint: noteStep in src/services/ide/ideTransaction.ts refused the diagnose step`)
+    check('diagnose step noted with a resolvable file ref', noted.state === 'ok', `${JSON.stringify(noted).slice(0, 200)}; hint: noteStep in src/integrations/ide/ideTransaction.ts refused the diagnose step`)
   }
 
   section('2 · inspect — hover truth through the live manager')
@@ -126,7 +126,7 @@ try {
       textDocument: { uri: pathToFileURL(shopPy).href },
       position: { line: 0, character: 6 },
     })
-    check('hover shows the declared signature', JSON.stringify(hover?.contents ?? '').includes('-> int'), `${JSON.stringify(hover?.contents).slice(0, 120)}; hint: pyright hover through manager.sendRequest in src/services/lsp/LSPServerManager.ts did not return the declared signature`)
+    check('hover shows the declared signature', JSON.stringify(hover?.contents ?? '').includes('-> int'), `${JSON.stringify(hover?.contents).slice(0, 120)}; hint: pyright hover through manager.sendRequest in src/integrations/lsp/LSPServerManager.ts did not return the declared signature`)
     await tx.noteStep({ id: record.id, owner, kind: 'context', summary: 'order_total declared (price: int, qty: int) -> int', from: proj })
   }
 
@@ -151,9 +151,9 @@ try {
         completedAt: Date.now(),
       },
     } as never)
-    await (await import('../../src/services/ide/txAutoCapture.js'))._drainTxAutoCaptureForTesting()
+    await (await import('../../src/integrations/ide/txAutoCapture.js'))._drainTxAutoCaptureForTesting()
     const receipt = receiptsFor(owner).at(-1)
-    check('the receipt minted', receipt !== undefined, 'hint: observeToolTerminal in src/utils/run/effectObserver.ts recorded no receipt for the Edit effect; check receiptsFor in src/services/changeTransaction/receipts.ts and the capture in src/services/ide/txAutoCapture.ts')
+    check('the receipt minted', receipt !== undefined, 'hint: observeToolTerminal in src/engine/run-owner/effectObserver.ts recorded no receipt for the Edit effect; check receiptsFor in src/tools/engines/change-transaction/receipts.ts and the capture in src/integrations/ide/txAutoCapture.ts')
     const noted = await tx.noteStep({
       id: record.id,
       owner,
@@ -162,16 +162,16 @@ try {
       refs: [`mercury://receipt/${receipt?.id}`],
       from: proj,
     })
-    check('apply step carries the resolvable receipt ref', noted.state === 'ok', `${JSON.stringify(noted).slice(0, 200)}; hint: noteStep in src/services/ide/ideTransaction.ts refused the apply step with a mercury://receipt ref`)
+    check('apply step carries the resolvable receipt ref', noted.state === 'ok', `${JSON.stringify(noted).slice(0, 200)}; hint: noteStep in src/integrations/ide/ideTransaction.ts refused the apply step with a mercury://receipt ref`)
   }
 
   section('4 · stabilize — the post-apply diagnostics barrier')
   {
     await manager.changeAndSaveFile(shopPy, readFileSync(shopPy, 'utf8'))
     const verdict = await awaitDiagnosticStabilization(manager, shopPy)
-    check('the barrier lands with an HONEST verdict (never fabricated clean)', ['fresh', 'unchanged', 'unsupported', 'timed-out'].includes(verdict.state), `${JSON.stringify(verdict)}; hint: awaitDiagnosticStabilization in src/tools/LSPTool/mercuryOps/afterWrite.ts returned a state outside the four honest answers`)
+    check('the barrier lands with an HONEST verdict (never fabricated clean)', ['fresh', 'unchanged', 'unsupported', 'timed-out'].includes(verdict.state), `${JSON.stringify(verdict)}; hint: awaitDiagnosticStabilization in src/tools/lsp/mercury-ops/afterWrite.ts returned a state outside the four honest answers`)
     const errors = 'errors' in verdict ? verdict.errors : undefined
-    check('a resolved-clean state never reports residual errors', errors === undefined || errors === 0, `${JSON.stringify(verdict)}; hint: awaitDiagnosticStabilization in src/tools/LSPTool/mercuryOps/afterWrite.ts reported errors on a resolved-clean state`)
+    check('a resolved-clean state never reports residual errors', errors === undefined || errors === 0, `${JSON.stringify(verdict)}; hint: awaitDiagnosticStabilization in src/tools/lsp/mercury-ops/afterWrite.ts reported errors on a resolved-clean state`)
     await tx.noteStep({
       id: record.id,
       owner,
@@ -185,7 +185,7 @@ try {
   section('5 · test — the REAL structured run goes green')
   {
     const run = await tests.runPythonTests({ from: proj, framework: 'unittest', selectionLabel: 'all' })
-    check('the suite is green after the fix', run.state === 'ok' && run.record.counts.passed === 1 && run.record.counts.failed === 0, `${JSON.stringify(run).slice(0, 140)}; hint: runPythonTests in src/services/ide/pythonTests.ts did not report one passed unittest after the fix`)
+    check('the suite is green after the fix', run.state === 'ok' && run.record.counts.passed === 1 && run.record.counts.failed === 0, `${JSON.stringify(run).slice(0, 140)}; hint: runPythonTests in src/integrations/ide/pythonTests.ts did not report one passed unittest after the fix`)
     if (run.state === 'ok') {
       const noted = await tx.noteStep({
         id: record.id,
@@ -195,14 +195,14 @@ try {
         refs: [`mercury://test/run/${run.record.id}`],
         from: proj,
       })
-      check('test step carries the durable run ref', noted.state === 'ok', `${JSON.stringify(noted).slice(0, 200)}; hint: noteStep in src/services/ide/ideTransaction.ts refused the test step with a mercury://test/run ref`)
+      check('test step carries the durable run ref', noted.state === 'ok', `${JSON.stringify(noted).slice(0, 200)}; hint: noteStep in src/integrations/ide/ideTransaction.ts refused the test step with a mercury://test/run ref`)
     }
   }
 
   section('6 · debug — runtime truth on the BUNDLED debugpy')
   {
     const shim = tests.buildDebugTestShim('tests.test_shop.TestShop.test_total', { from: proj, framework: 'unittest' })
-    check('the debug shim builds', !('state' in shim), `${JSON.stringify(shim).slice(0, 200)}; hint: buildDebugTestShim in src/services/ide/pythonTests.ts returned a refusal for tests.test_shop.TestShop.test_total`)
+    check('the debug shim builds', !('state' in shim), `${JSON.stringify(shim).slice(0, 200)}; hint: buildDebugTestShim in src/integrations/ide/pythonTests.ts returned a refusal for tests.test_shop.TestShop.test_total`)
     if (!('state' in shim)) {
       const testFile = path.join(proj, 'tests', 'test_shop.py')
       const session = await dap.createDapSession({
@@ -214,7 +214,7 @@ try {
         breakpoints: new Map([[testFile, [9]]]),
       })
       const stop = await session.waitForStopOutcome(20_000)
-      check('stopped inside the test', stop.state === 'stopped', `${JSON.stringify(stop).slice(0, 200)}; hint: the debugpy session from createDapSession in src/services/dap/dapClient.ts never stopped at the breakpoint in tests/test_shop.py; check src/services/dap/debugpyResolver.ts`)
+      check('stopped inside the test', stop.state === 'stopped', `${JSON.stringify(stop).slice(0, 200)}; hint: the debugpy session from createDapSession in src/integrations/debugger/dapClient.ts never stopped at the breakpoint in tests/test_shop.py; check src/integrations/debugger/debugpyResolver.ts`)
       if (stop.state === 'stopped') {
         const threadId = stop.info.threadId ?? 1
         const stack = await session.request('stackTrace', { threadId, startFrame: 0, levels: 3 })
@@ -233,10 +233,10 @@ try {
   section('7 · prove — the mechanical gate closes the loop')
   {
     const done = await tx.finishTransaction({ id: record.id, owner, verdict: 'completed', from: proj })
-    check('the transaction completes through the gate', done.state === 'ok' && done.record.verdict === 'completed', `${JSON.stringify(done).slice(0, 200)}; hint: finishTransaction in src/services/ide/ideTransaction.ts did not complete; read the gate reason above and the steps noted earlier`)
-    const { resolveResource } = await import('../../src/services/resources/registry.js')
+    check('the transaction completes through the gate', done.state === 'ok' && done.record.verdict === 'completed', `${JSON.stringify(done).slice(0, 200)}; hint: finishTransaction in src/integrations/ide/ideTransaction.ts did not complete; read the gate reason above and the steps noted earlier`)
+    const { resolveResource } = await import('../../src/integrations/resources/registry.js')
     const res = await resolveResource(`mercury://ide/transaction/${record.id}`, { owner, cwd: proj })
-    check('the durable proof record resolves', res.state === 'ok', `${JSON.stringify(res).slice(0, 200)}; hint: resolveResource in src/services/resources/registry.ts did not resolve mercury://ide/transaction/<id> for the finished transaction`)
+    check('the durable proof record resolves', res.state === 'ok', `${JSON.stringify(res).slice(0, 200)}; hint: resolveResource in src/integrations/resources/registry.ts did not resolve mercury://ide/transaction/<id> for the finished transaction`)
   }
 } finally {
   unsubscribe()

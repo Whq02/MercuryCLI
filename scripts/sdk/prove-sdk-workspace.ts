@@ -68,9 +68,9 @@ for (const language of ['ts', 'py']) {
           const outcome = await session.prompt('Change saved.txt')
           assert.equal(outcome.status, 'completed'); assert.equal(readFileSync(join(c.cwd, 'saved.txt'), 'utf8'), 'changed\n')
           assert.equal(typeof session.lastPromptId, 'string')
-          const facts = await session.facts(); assert.equal(facts.file_checkpoints?.capture, true); assert.equal(facts.file_checkpoints?.source, 'initialize'); assert(facts.file_checkpoints?.restorable.includes(session.lastPromptId!), `facts.file_checkpoints.restorable omitted lastPromptId ${session.lastPromptId} in src/cli/headless/`)
+          const facts = await session.facts(); assert.equal(facts.file_checkpoints?.capture, true); assert.equal(facts.file_checkpoints?.source, 'initialize'); assert(facts.file_checkpoints?.restorable.includes(session.lastPromptId!), `facts.file_checkpoints.restorable omitted lastPromptId ${session.lastPromptId} in src/daemon/runner/`)
           const args = { user_message_id: session.lastPromptId!, mode: 'both' as const }
-          const dry = await session.rewind({ ...args, dry_run: true }); assert(dry.code?.files_changed.length, `dry-run rewind reported no changed files in src/cli/headless/: ${JSON.stringify(dry)}`); assert.equal(readFileSync(join(c.cwd, 'saved.txt'), 'utf8'), 'changed\n')
+          const dry = await session.rewind({ ...args, dry_run: true }); assert(dry.code?.files_changed.length, `dry-run rewind reported no changed files in src/daemon/runner/: ${JSON.stringify(dry)}`); assert.equal(readFileSync(join(c.cwd, 'saved.txt'), 'utf8'), 'changed\n')
           const restored = await session.rewind(args); assert.equal(restored.outcome, 'applied'); assert.equal(readFileSync(join(c.cwd, 'saved.txt'), 'utf8'), 'original\n')
         } finally { await session.close() }
       } else if (scenario === 'roster') {

@@ -16,20 +16,20 @@ const argValue = (name: string): string | undefined => {
 const ROOT = resolve(argValue('--root') ?? resolve(import.meta.dir, '..', '..'))
 const OUT_DIR = resolve(argValue('--out') ?? join(ROOT, 'sdk', 'src'))
 const PY_OUT = resolve(argValue('--python-out') ?? (argValue('--out') ? join(OUT_DIR, 'python') : join(ROOT, 'sdk-py', 'src', 'mercury_cli_sdk')))
-const WIRE = 'src/runner/wire/methods.ts'
-const ERRORS = 'src/runner/wire/errors.ts'
-const RESULT_SOURCES = [RESULT_SCHEMA_SOURCES.projections, 'src/services/engine-connector/types.ts', RESULT_SCHEMA_SOURCES.encoders, RESULT_SCHEMA_SOURCES.protocol, RESULT_SCHEMA_SOURCES.arms, 'scripts/sdk/result-schemas.ts']
-const VOCABULARY = 'src/rows/vocabulary.ts'
-const PERMISSIONS = 'src/types/permissions.ts'
-const EFFORT = 'src/utils/effortLadder.ts'
-const MAIN = 'src/main.tsx'
-const MAIN_SOURCES = [MAIN, 'src/main/rootOptions.ts', 'src/main/cli.ts', 'src/main/sessionDoors.ts', 'src/main/subcommands.ts']
+const WIRE = 'src/daemon/runner-wire/methods.ts'
+const ERRORS = 'src/daemon/runner-wire/errors.ts'
+const RESULT_SOURCES = [RESULT_SCHEMA_SOURCES.projections, 'src/engine/connector/types.ts', RESULT_SCHEMA_SOURCES.encoders, RESULT_SCHEMA_SOURCES.protocol, RESULT_SCHEMA_SOURCES.arms, 'scripts/sdk/result-schemas.ts']
+const VOCABULARY = 'src/engine/rows/vocabulary.ts'
+const PERMISSIONS = 'src/permissions/rules/permissions.ts'
+const EFFORT = 'src/models/effort/effortLadder.ts'
+const MAIN = 'src/boot/main.tsx'
+const MAIN_SOURCES = [MAIN, 'src/boot/main/rootOptions.ts', 'src/boot/main/cli.ts', 'src/boot/main/sessionDoors.ts', 'src/boot/main/subcommands.ts']
 const GENERATOR = 'scripts/sdk/generate.ts'
 const ROW = {
   assets: 'sdk/src/rows.ts sdk/src/door.ts sdk/src/wire.ts sdk-py/src/mercury_cli_sdk/generated.py sdk/README.md sdk-py/README.md',
   generator: `bun ${GENERATOR}`,
   check: 'bun scripts/sdk/prove-rows-drift.ts',
-  sources: `${RESULT_SOURCES.join(' ')} ${VOCABULARY} ${PERMISSIONS} ${EFFORT} ${MAIN_SOURCES.join(' ')} ${WIRE} ${ERRORS} src/utils/permissions/PermissionMode.ts src/utils/permissions/PermissionUpdateSchema.ts src/types/message.ts src/utils/deadline.ts src/utils/lazySchema.ts src/utils/glyphs.ts src/ink/stringWidth.ts src/ink/wrap-text.ts src/ink/wrapAnsi.ts src/utils/intl.ts src/utils/sliceAnsi.ts src/utils/truncate.ts`,
+  sources: `${RESULT_SOURCES.join(' ')} ${VOCABULARY} ${PERMISSIONS} ${EFFORT} ${MAIN_SOURCES.join(' ')} ${WIRE} ${ERRORS} src/permissions/rules/permissionMode.ts src/permissions/rules/PermissionUpdateSchema.ts src/engine/message-shapes/message.ts src/platform/async/deadline.ts src/platform/primitives/lazySchema.ts src/screen/theme/glyphs.ts src/screen/renderer/stringWidth.ts src/screen/renderer/wrap-text.ts src/screen/renderer/wrapAnsi.ts src/platform/text/textSegments.ts src/platform/text/sliceAnsi.ts src/platform/text/truncate.ts`,
 }
 if (argv.includes('--register')) {
   const { registerGeneratedAsset } = (await import(join(ROOT, 'scripts/lib/generated-assets-map.mjs'))) as { registerGeneratedAsset: (row: typeof ROW) => { action: string; line: string } }

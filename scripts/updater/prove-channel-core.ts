@@ -19,12 +19,12 @@ import {
   selectBridgePrevious,
   selectRelease,
   type ChannelRelease,
-} from '../../src/services/privateChannel/channelCore.js'
+} from '../../src/platform/update-channel/channelCore.js'
 
 import { createHash } from 'node:crypto'
 
 let failures = 0
-const channelCoreFixHint = 'fix the function this check exercises in src/services/privateChannel/channelCore.ts (parsePrivateTag, comparePrivateVersions, assetNameFor, selectRelease, selectBridgePrevious, lookupChecksum, judgeExtractedLayout, describePayload, projectReleases, resolveChannelRepo or rateLimitResetMinutes, as the check name says)'
+const channelCoreFixHint = 'fix the function this check exercises in src/platform/update-channel/channelCore.ts (parsePrivateTag, comparePrivateVersions, assetNameFor, selectRelease, selectBridgePrevious, lookupChecksum, judgeExtractedLayout, describePayload, projectReleases, resolveChannelRepo or rateLimitResetMinutes, as the check name says)'
 const check = (name: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}${channelCoreFixHint}`}`)
   if (!cond) failures++

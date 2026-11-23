@@ -2,7 +2,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
-import type { DOMElement } from '../../src/ink.js'
+import type { DOMElement } from '../../src/screen/themedRenderer.js'
 
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
@@ -23,15 +23,15 @@ function section(title: string): void {
 }
 
 const React = await import('react')
-const { Box, Text } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const slot = await import('../../src/components/SettingsPopupSlot.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const slot = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
-const { CONFIG_POPUP_HINT, CONFIG_POPUP_WIDTH } = await import('../../src/components/Settings/Config.js')
-const { railPlanAt } = await import('../../src/utils/helmGeometry.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { CONFIG_POPUP_HINT, CONFIG_POPUP_WIDTH } = await import('../../src/screen/settings/Config.js')
+const { railPlanAt } = await import('../../src/screen/fullscreen-layout/helmGeometry.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 type Scene = { columns: number; rows: number; panel: number }
@@ -170,7 +170,7 @@ async function open(scene: Scene, request: ReturnType<typeof configPopupRequest>
   const hintHead = request.hint.slice(0, 12)
   const popupUp = await waitFor(() => m.screen().includes(title) && m.screen().includes(hintHead), 4000)
   const popupStill = popupUp && (await holdsStill(m, 2, 2000))
-  check(`${sceneLabel(scene)}: the popup painted its title and its hint row and held still before the frame was read`, popupStill, popupStill ? '' : popupUp ? 'the popup kept changing for 2 s' : `after 4 s: title ${m.screen().includes(title) ? 'on screen' : 'absent'}, hint ${m.screen().includes(hintHead) ? 'on screen' : 'absent'}`, 'the popup did not paint after openSettingsPopup; check SettingsPopupSlot in src/components/SettingsPopupSlot.tsx (its host measurement and what it renders) and that the request carries the view title and hint')
+  check(`${sceneLabel(scene)}: the popup painted its title and its hint row and held still before the frame was read`, popupStill, popupStill ? '' : popupUp ? 'the popup kept changing for 2 s' : `after 4 s: title ${m.screen().includes(title) ? 'on screen' : 'absent'}, hint ${m.screen().includes(hintHead) ? 'on screen' : 'absent'}`, 'the popup did not paint after openSettingsPopup; check SettingsPopupSlot in src/screen/overlays/SettingsPopupSlot.tsx (its host measurement and what it renders) and that the request carries the view title and hint')
   const after = m.lines()
   return { m, before, after, paint: painted(before, after) }
 }
@@ -194,18 +194,18 @@ function untouched(before: string[], after: string[], from: number, to: number, 
 function judge(label: string, scene: Scene, paint: Painted | null, before: string[], after: string[], requested: number): void {
   const centre = centreOf(scene)
   const want = Math.min(requested, centre.innerWidth - 2)
-  check(`${label}: the popup painted`, paint !== null, '', 'the screen did not change after openSettingsPopup; check that SettingsPopupSlot in src/components/SettingsPopupSlot.tsx renders a placement for the host (settingsPopupHost, settingsPopupGeometry)')
+  check(`${label}: the popup painted`, paint !== null, '', 'the screen did not change after openSettingsPopup; check that SettingsPopupSlot in src/screen/overlays/SettingsPopupSlot.tsx renders a placement for the host (settingsPopupHost, settingsPopupGeometry)')
   if (paint === null) return
   const width = paint.right - paint.left + 1
-  check(`${label}: the framed host's top border stays above the opaque top gutter (the gutter never rises above the pane's first interior row)`, paint.top - 1 >= 1 && untouched(before, after, centre.innerLeft, centre.innerRight, 0, 0), `border row 0, gutter row ${paint.top - 1}, popup frame row ${paint.top}`, 'the popup reached the host border row; the top of the placement comes from settingsPopupGeometry and the host band (settingsPopupHost) in src/components/SettingsPopupSlot.tsx')
-  check(`${label}: the painted right edge never passes the centre column's inner edge (${centre.innerRight})`, paint.right <= centre.innerRight, `painted ${paint.left}..${paint.right}`, 'the popup runs past the centre column; clamp the width to the host columns in settingsPopupGeometry in src/components/SettingsPopupSlot.tsx')
-  check(`${label}: the painted left edge never passes the centre column's inner edge (${centre.innerLeft})`, paint.left >= centre.innerLeft, `painted ${paint.left}..${paint.right}`, 'the popup starts left of the centre column; the left comes from the host left that settingsPopupHost measures and settingsPopupGeometry uses, in src/components/SettingsPopupSlot.tsx')
-  check(`${label}: the popup is ${want} wide (the request ${requested} clamped to the centre's ${centre.innerWidth}) and centred in the column`, width === want && paint.left === centre.innerLeft + Math.floor((centre.innerWidth - want) / 2), `${width} wide at ${paint.left}`, 'the width or the left of the placement differs from the expected one; see settingsPopupGeometry in src/components/SettingsPopupSlot.tsx')
-  check(`${label}: no row is wider than its frame (every row keeps its two border cells at the frame's edges)`, paint.ragged.length === 0, `ragged rows ${JSON.stringify(paint.ragged)}: ${JSON.stringify(paint.ragged.map(y => (after[y] ?? '').slice(paint.left, paint.right + 1)))}`, 'a popup row is wider or narrower than its frame; compare the width given to the popup body with the frame width in settingsPopupGeometry (inner is width minus 4) in src/components/SettingsPopupSlot.tsx')
+  check(`${label}: the framed host's top border stays above the opaque top gutter (the gutter never rises above the pane's first interior row)`, paint.top - 1 >= 1 && untouched(before, after, centre.innerLeft, centre.innerRight, 0, 0), `border row 0, gutter row ${paint.top - 1}, popup frame row ${paint.top}`, 'the popup reached the host border row; the top of the placement comes from settingsPopupGeometry and the host band (settingsPopupHost) in src/screen/overlays/SettingsPopupSlot.tsx')
+  check(`${label}: the painted right edge never passes the centre column's inner edge (${centre.innerRight})`, paint.right <= centre.innerRight, `painted ${paint.left}..${paint.right}`, 'the popup runs past the centre column; clamp the width to the host columns in settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx')
+  check(`${label}: the painted left edge never passes the centre column's inner edge (${centre.innerLeft})`, paint.left >= centre.innerLeft, `painted ${paint.left}..${paint.right}`, 'the popup starts left of the centre column; the left comes from the host left that settingsPopupHost measures and settingsPopupGeometry uses, in src/screen/overlays/SettingsPopupSlot.tsx')
+  check(`${label}: the popup is ${want} wide (the request ${requested} clamped to the centre's ${centre.innerWidth}) and centred in the column`, width === want && paint.left === centre.innerLeft + Math.floor((centre.innerWidth - want) / 2), `${width} wide at ${paint.left}`, 'the width or the left of the placement differs from the expected one; see settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx')
+  check(`${label}: no row is wider than its frame (every row keeps its two border cells at the frame's edges)`, paint.ragged.length === 0, `ragged rows ${JSON.stringify(paint.ragged)}: ${JSON.stringify(paint.ragged.map(y => (after[y] ?? '').slice(paint.left, paint.right + 1)))}`, 'a popup row is wider or narrower than its frame; compare the width given to the popup body with the frame width in settingsPopupGeometry (inner is width minus 4) in src/screen/overlays/SettingsPopupSlot.tsx')
   const plan = railPlanAt(scene.columns, true)
-  check(`${label}: the right rail's column is untouched beside the popup`, untouched(before, after, scene.columns - plan.vitalsW, scene.columns - 1, paint.top, paint.bottom), '', 'the popup painted over the right rail; the popup must stay inside the host columns that settingsPopupGeometry receives from settingsPopupHost in src/components/SettingsPopupSlot.tsx')
-  check(`${label}: the lanes rail and the panel are untouched beside the popup`, untouched(before, after, 0, centre.left - 1, paint.top, paint.bottom), '', 'the popup painted over the lanes rail or the panel; its left must start at the host left that settingsPopupHost measures in src/components/SettingsPopupSlot.tsx')
-  check(`${label}: the frame closes on both corners`, paint.rows[0]!.startsWith('╭') && paint.rows[0]!.endsWith('╮') && paint.rows.at(-1)!.startsWith('╰') && paint.rows.at(-1)!.endsWith('╯'), '', 'the frame lost a corner; the popup was cut by the host or its width was miscomputed in settingsPopupGeometry in src/components/SettingsPopupSlot.tsx')
+  check(`${label}: the right rail's column is untouched beside the popup`, untouched(before, after, scene.columns - plan.vitalsW, scene.columns - 1, paint.top, paint.bottom), '', 'the popup painted over the right rail; the popup must stay inside the host columns that settingsPopupGeometry receives from settingsPopupHost in src/screen/overlays/SettingsPopupSlot.tsx')
+  check(`${label}: the lanes rail and the panel are untouched beside the popup`, untouched(before, after, 0, centre.left - 1, paint.top, paint.bottom), '', 'the popup painted over the lanes rail or the panel; its left must start at the host left that settingsPopupHost measures in src/screen/overlays/SettingsPopupSlot.tsx')
+  check(`${label}: the frame closes on both corners`, paint.rows[0]!.startsWith('╭') && paint.rows[0]!.endsWith('╮') && paint.rows.at(-1)!.startsWith('╰') && paint.rows.at(-1)!.endsWith('╯'), '', 'the frame lost a corner; the popup was cut by the host or its width was miscomputed in settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx')
 }
 
 const context = { messages: [], options: {} } as never
@@ -219,7 +219,7 @@ section('§1 178×51, both rails and a health panel on the left: /config fits th
   const { m, before, after, paint } = await open(scene, configPopupRequest(context))
   judge('178×51 + panel', scene, paint, before, after, CONFIG_POPUP_WIDTH)
   const guide = paint === null ? [] : paint.rows.slice(-3, -1).map(row => row.slice(1, -1).trim())
-  check('178×51 + panel: the key guide, its mouse clause clamped to "esc closes", still outruns the 70-wide frame and wraps to two body rows at a separator — "↑↓ select … · / search" then "esc closes" whole — never a row wider than the frame, never a split label', paint !== null && !after.some(line => line.includes(CONFIG_POPUP_HINT)) && guide[0] === '↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search' && guide[1] === 'esc closes', paint === null ? 'none' : guide.join(' | '), 'the /config key guide differs from the expected two rows; see CONFIG_POPUP_HINT in src/components/Settings/config/configLayout.ts and how the popup in src/components/Settings/Config.tsx wraps it to the frame width')
+  check('178×51 + panel: the key guide, its mouse clause clamped to "esc closes", still outruns the 70-wide frame and wraps to two body rows at a separator — "↑↓ select … · / search" then "esc closes" whole — never a row wider than the frame, never a split label', paint !== null && !after.some(line => line.includes(CONFIG_POPUP_HINT)) && guide[0] === '↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search' && guide[1] === 'esc closes', paint === null ? 'none' : guide.join(' | '), 'the /config key guide differs from the expected two rows; see CONFIG_POPUP_HINT in src/screen/settings/config/configLayout.ts and how the popup in src/screen/settings/Config.tsx wraps it to the frame width')
   frame('config-beside-panel-178x51', after)
   await close(m, 'config')
 }
@@ -229,8 +229,8 @@ section('§2 178×51, both rails, no panel: /config keeps its 110 columns at col
   const scene: Scene = { columns: 178, rows: 51, panel: 0 }
   const { m, before, after, paint } = await open(scene, configPopupRequest(context))
   judge('178×51', scene, paint, before, after, CONFIG_POPUP_WIDTH)
-  check('178×51: the hint row is whole at the page\'s width', paint !== null && paint.rows.at(-2)!.includes(CONFIG_POPUP_HINT), paint === null ? 'none' : paint.rows.at(-2), 'the hint row is cut or wrapped at the full 110 width; CONFIG_POPUP_HINT is in src/components/Settings/config/configLayout.ts and the popup in src/components/Settings/Config.tsx renders it')
-  check('178×51: the popup still stands at column 34, 110 wide, as the page draws it', paint !== null && paint.left === 34 && paint.right === 143, paint === null ? 'none' : `${paint.left}..${paint.right}`, 'the popup moved off column 34 or lost its 110 width; see settingsPopupGeometry in src/components/SettingsPopupSlot.tsx')
+  check('178×51: the hint row is whole at the page\'s width', paint !== null && paint.rows.at(-2)!.includes(CONFIG_POPUP_HINT), paint === null ? 'none' : paint.rows.at(-2), 'the hint row is cut or wrapped at the full 110 width; CONFIG_POPUP_HINT is in src/screen/settings/config/configLayout.ts and the popup in src/screen/settings/Config.tsx renders it')
+  check('178×51: the popup still stands at column 34, 110 wide, as the page draws it', paint !== null && paint.left === 34 && paint.right === 143, paint === null ? 'none' : `${paint.left}..${paint.right}`, 'the popup moved off column 34 or lost its 110 width; see settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx')
   frame('config-rails-178x51', after)
   await close(m, 'config')
 }
@@ -263,7 +263,7 @@ section('§4 178×51, both rails: a 150-column request (the usage popup\'s) fits
   }
   const { m, before, after, paint } = await open(scene, request as never)
   judge('178×51 usage-wide', scene, paint, before, after, 150)
-  check('178×51 usage-wide: the hint is the request\'s, whole', paint !== null && paint.rows.at(-2)!.includes(HINT), paint === null ? 'none' : paint.rows.at(-2), 'the request hint was cut or replaced in the popup frame; see how src/components/Settings renders request.hint inside the popup shell')
+  check('178×51 usage-wide: the hint is the request\'s, whole', paint !== null && paint.rows.at(-2)!.includes(HINT), paint === null ? 'none' : paint.rows.at(-2), 'the request hint was cut or replaced in the popup frame; see how src/screen/settings renders request.hint inside the popup shell')
   frame('usage-rails-178x51', after)
   await close(m, 'usage')
 }
@@ -271,14 +271,14 @@ section('§4 178×51, both rails: a 150-column request (the usage popup\'s) fits
 section('§5 the geometry, pure, and the layout wiring')
 {
   const g = slot.settingsPopupGeometry({ width: 110, rows: 44 }, 116, 51, 31)
-  check('a 116-column host at column 31: width 110, left 34, inner 106', g.width === 110 && g.left === 34 && g.inner === 106, JSON.stringify(g), 'change settingsPopupGeometry in src/components/SettingsPopupSlot.tsx')
+  check('a 116-column host at column 31: width 110, left 34, inner 106', g.width === 110 && g.left === 34 && g.inner === 106, JSON.stringify(g), 'change settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx')
   const wide = slot.settingsPopupGeometry({ width: 150, rows: 29 }, 116, 51, 31)
-  check('a 150-column request in a 116-column host leaves gutters: 114 at column 32, inner 110', wide.width === 114 && wide.left === 32 && wide.inner === 110, JSON.stringify(wide), 'change settingsPopupGeometry in src/components/SettingsPopupSlot.tsx')
+  check('a 150-column request in a 116-column host leaves gutters: 114 at column 32, inner 110', wide.width === 114 && wide.left === 32 && wide.inner === 110, JSON.stringify(wide), 'change settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx')
   const narrow = slot.settingsPopupGeometry({ width: 110, rows: 44 }, 100, 51, 25)
-  check('a 100-column host at column 25 leaves gutters: 98 at column 26', narrow.width === 98 && narrow.left === 26, JSON.stringify(narrow), 'change settingsPopupGeometry in src/components/SettingsPopupSlot.tsx')
+  check('a 100-column host at column 25 leaves gutters: 98 at column 26', narrow.width === 98 && narrow.left === 26, JSON.stringify(narrow), 'change settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx')
   const whole = slot.settingsPopupGeometry({ width: 110, rows: 44 }, 178, 51)
-  check('no host: the terminal is the host, left 34 as before', whole.width === 110 && whole.left === 34 && whole.top === 4, JSON.stringify(whole), 'change settingsPopupGeometry in src/components/SettingsPopupSlot.tsx (the no-host path)')
-  check('the rows stay the terminal\'s: 44 from row 4 at 51 rows', g.rows === 44 && g.top === 4 && g.rowBudget === 37, JSON.stringify(g), 'change settingsPopupGeometry in src/components/SettingsPopupSlot.tsx (rows, top, rowBudget)')
+  check('no host: the terminal is the host, left 34 as before', whole.width === 110 && whole.left === 34 && whole.top === 4, JSON.stringify(whole), 'change settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx (the no-host path)')
+  check('the rows stay the terminal\'s: 44 from row 4 at 51 rows', g.rows === 44 && g.top === 4 && g.rowBudget === 37, JSON.stringify(g), 'change settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx (rows, top, rowBudget)')
 }
 
 await releaseScratchHome(HOME)

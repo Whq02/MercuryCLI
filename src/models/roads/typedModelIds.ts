@@ -1,0 +1,426 @@
+import { formatAge } from '../../platform/health/healthCertCore.js'
+import type { AnthropicDoorState } from './anthropic/anthropicCatalogue.js'
+import { hostEnv } from '../../platform/environment/hostEnv.js'
+
+export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'orcarouter' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'
+
+export interface TypedIdVerdict {
+  rows: Array<{ id: string; served: boolean }>
+  served: string[]
+  notServed: string[]
+}
+
+export function judgeTypedIds(
+  typed: readonly string[],
+  listed: readonly string[],
+  current?: (id: string) => string,
+): TypedIdVerdict {
+  const key = (id: string): string => (current ? current(id) : id).trim().toLowerCase()
+  const served = new Set(listed.map(key))
+  const rows = typed.map(id => ({ id, served: served.has(key(id)) }))
+  return {
+    rows,
+    served: rows.filter(row => row.served).map(row => row.id),
+    notServed: rows.filter(row => !row.served).map(row => row.id),
+  }
+}
+
+export type ModelListSource =
+  | { kind: 'list'; ids: string[]; fetchedAtMs: number }
+  | { kind: 'unread'; lastError?: string; lastAttemptAtMs?: number }
+  | { kind: 'no-credential' }
+  | { kind: 'unreadable'; reason: string }
+
+export interface ModelListFact {
+  family: ModelListFamily
+  name: string
+  source?: string
+  typed: string[]
+  list: ModelListSource
+  current?: (id: string) => string
+}
+
+export type ModelListsStatus = 'ok' | 'warn' | 'unknown' | 'info'
+
+export interface ModelListsRow {
+  status: ModelListsStatus
+  evidence: string
+  detail: string
+  fix?: string
+}
+
+export const MODEL_LISTS_FIX = 'pick from the live rows in /model — a typed id the list lacks is refused before the wire; /bug reports the stale ids'
+export const MODEL_LISTS_READ_HINT = '/model or a chat naming the family reads it'
+export const MODEL_LISTS_UNREAD_EVIDENCE = `no list read in this process — ${MODEL_LISTS_READ_HINT}; the release-day check reads every list`
+
+const NOT_JUDGED = (n: number): string => `${n} typed ${n === 1 ? 'id' : 'ids'} not judged`
+
+export function modelListFamilyLines(fact: ModelListFact, nowMs: number): string[] {
+  const head = `${fact.name} · ${fact.source ?? 'no credential'}`
+  const list = fact.list
+  switch (list.kind) {
+    case 'list': {
+      const verdict = judgeTypedIds(fact.typed, list.ids, fact.current)
+      const line = `${head} · served ${verdict.served.length} · not served ${verdict.notServed.length} · list from ${formatAge(nowMs - list.fetchedAtMs)}`
+      return verdict.notServed.length === 0 ? [line] : [line, `${fact.name} not served: ${verdict.notServed.join(' · ')}`]
+    }
+    case 'unread':
+      return [
+        list.lastError !== undefined
+          ? `${head} · the last list read failed${list.lastAttemptAtMs !== undefined ? ` ${formatAge(nowMs - list.lastAttemptAtMs)}` : ''} (${list.lastError}) · ${NOT_JUDGED(fact.typed.length)}`
+          : `${head} · no list read in this process — ${MODEL_LISTS_READ_HINT} · ${NOT_JUDGED(fact.typed.length)}`,
+      ]
+    case 'no-credential':
+      return [`${fact.name} · no credential · ${NOT_JUDGED(fact.typed.length)}`]
+    case 'unreadable':
+      return [`${head} · the cached list could not be read (${list.reason}) · ${NOT_JUDGED(fact.typed.length)}`]
+  }
+}
+
+export function composeModelListsRow(facts: readonly ModelListFact[], nowMs: number): ModelListsRow {
+  let served = 0
+  let notServed = 0
+  let listsRead = 0
+  let unread = 0
+  let unreadable = 0
+  const readable = facts.length
+  const lacking: string[] = []
+  const lines: string[] = []
+  for (const fact of facts) {
+    lines.push(...modelListFamilyLines(fact, nowMs))
+    if (fact.list.kind === 'list') {
+      listsRead++
+      const verdict = judgeTypedIds(fact.typed, fact.list.ids, fact.current)
+      served += verdict.served.length
+      notServed += verdict.notServed.length
+      if (verdict.notServed.length > 0) lacking.push(fact.name)
+    } else if (fact.list.kind === 'unread') unread++
+    else if (fact.list.kind === 'unreadable') unreadable++
+  }
+  const tally = `lists read ${listsRead} of ${readable}`
+  const detail = lines.join('\n')
+  if (notServed > 0) {
+    return {
+      status: 'warn',
+      evidence: `served ${served} · not served ${notServed} (${lacking.join(', ')}) · ${tally}`,
+      detail,
+      fix: MODEL_LISTS_FIX,
+    }
+  }
+  if (listsRead > 0) return { status: 'ok', evidence: `served ${served} · not served 0 · ${tally}`, detail }
+  if (unreadable > 0) return { status: 'unknown', evidence: `a cached list could not be read · ${tally}`, detail }
+  if (unread > 0) return { status: 'info', evidence: `${MODEL_LISTS_UNREAD_EVIDENCE} · ${tally}`, detail }
+  return { status: 'info', evidence: `no credential for a family with a live list · ${tally}`, detail }
+}
+
+function cachedListSource(snapshot: { models: ReadonlyArray<{ id: string }>; fetchedAtMs: number; lastError?: string; lastAttemptAtMs?: number } | null): ModelListSource {
+  if (snapshot === null) return { kind: 'unread' }
+  if (snapshot.models.length > 0 || (snapshot.fetchedAtMs > 0 && snapshot.lastError === undefined)) {
+    return { kind: 'list', ids: snapshot.models.map(model => model.id), fetchedAtMs: snapshot.fetchedAtMs }
+  }
+  return {
+    kind: 'unread',
+    ...(snapshot.lastError !== undefined ? { lastError: snapshot.lastError } : {}),
+    ...(snapshot.lastAttemptAtMs !== undefined ? { lastAttemptAtMs: snapshot.lastAttemptAtMs } : {}),
+  }
+}
+
+function guarded(family: ModelListFamily, name: string, typed: () => string[], read: () => ModelListFact): ModelListFact {
+  try {
+    return read()
+  } catch (error) {
+    let ids: string[] = []
+    try {
+      ids = typed()
+    } catch {
+      ids = []
+    }
+    return { family, name, typed: ids, list: { kind: 'unreadable', reason: error instanceof Error ? error.message : String(error) } }
+  }
+}
+
+function anthropicTypedIds(): string[] {
+  const model = require('../catalogue/engineModel.js') as typeof import('../catalogue/engineModel.js')
+  return [
+    ...new Set(
+      [model.getDefaultFableModel(), model.getDefaultOpusModel(), model.getDefaultSonnetModel(), model.getDefaultHaikuModel()].map(id =>
+        model.normalizeModelStringForAPI(id),
+      ),
+    ),
+  ]
+}
+
+function anthropicListSource(env: NodeJS.ProcessEnv): ModelListSource {
+  const { anthropicCatalogueDoorStates, anthropicLiveUnion } =
+    require('./anthropic/anthropicCatalogue.js') as typeof import('./anthropic/anthropicCatalogue.js')
+  const doors = anthropicCatalogueDoorStates(env)
+  if (doors.length === 0) return { kind: 'no-credential' }
+  const ready = doors.filter((door): door is Extract<AnthropicDoorState, { state: 'ready' }> => door.state === 'ready')
+  if (ready.length > 0) {
+    return {
+      kind: 'list',
+      ids: anthropicLiveUnion(env).map(row => row.id),
+      fetchedAtMs: Math.max(...ready.map(door => door.fetchedAtMs)),
+    }
+  }
+  const failed = doors.find((door): door is Extract<AnthropicDoorState, { state: 'error' }> => door.state === 'error')
+  if (failed !== undefined) {
+    return { kind: 'unread', lastError: `${failed.label}: ${failed.lastError}`, lastAttemptAtMs: failed.lastAttemptAtMs }
+  }
+  return { kind: 'unread' }
+}
+
+function anthropicFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  return guarded('anthropic', name, anthropicTypedIds, () => {
+    const { anthropicCredentialPresence } = require('./providerUsage.js') as typeof import('./providerUsage.js')
+    const presence = anthropicCredentialPresence()
+    const list = anthropicListSource(env)
+    return {
+      family: 'anthropic',
+      name,
+      ...(presence.credentialed && list.kind !== 'no-credential' ? { source: presence.credentialLabel ?? 'Anthropic credential' } : {}),
+      typed: anthropicTypedIds(),
+      list,
+    }
+  })
+}
+
+function openaiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('../facts/pins/gptPins.js') as typeof import('../facts/pins/gptPins.js')).GPT_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('openai', name, typed, () => {
+    const { resolveOpenaiAccount } = require('./openai/openaiAccounts.js') as typeof import('./openai/openaiAccounts.js')
+    const { getCachedOpenaiCatalogue } = require('./openai/openaiCatalogue.js') as typeof import('./openai/openaiCatalogue.js')
+    const account = resolveOpenaiAccount(env)
+    if (!account) return { family: 'openai', name, typed: typed(), list: { kind: 'no-credential' } }
+    return { family: 'openai', name, source: account.label, typed: typed(), list: cachedListSource(getCachedOpenaiCatalogue(account.kind, env)) }
+  })
+}
+
+function geminiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('../facts/pins/geminiPins.js') as typeof import('../facts/pins/geminiPins.js')).GEMINI_PRICE_PINS.map(pin => pin.id)
+  return guarded('gemini', name, typed, () => {
+    const { resolveGeminiAccount } = require('./gemini/geminiAccounts.js') as typeof import('./gemini/geminiAccounts.js')
+    const { getCachedGeminiCatalogue } = require('./gemini/geminiCatalogue.js') as typeof import('./gemini/geminiCatalogue.js')
+    const account = resolveGeminiAccount(env)
+    if (!account) return { family: 'gemini', name, typed: typed(), list: { kind: 'no-credential' } }
+    const sourceKind = account.kind
+    return { family: 'gemini', name, source: account.label, typed: typed(), list: cachedListSource(getCachedGeminiCatalogue(sourceKind, env)) }
+  })
+}
+
+function metaFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('../facts/pins/metaPins.js') as typeof import('../facts/pins/metaPins.js')).META_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('meta', name, typed, () => {
+    const { resolveMetaAccount } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
+    const { getCachedMetaCatalogue } = require('./meta/metaCatalogue.js') as typeof import('./meta/metaCatalogue.js')
+    const account = resolveMetaAccount(env)
+    return { family: 'meta', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedMetaCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+
+function mistralFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('../facts/pins/mistralPins.js') as typeof import('../facts/pins/mistralPins.js')).MISTRAL_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('mistral', name, typed, () => {
+    const { resolveMistralAccount } = require('./mistral/mistralAccounts.js') as typeof import('./mistral/mistralAccounts.js')
+    const { getCachedMistralCatalogue } = require('./mistral/mistralCatalogue.js') as typeof import('./mistral/mistralCatalogue.js')
+    const account = resolveMistralAccount(env)
+    return { family: 'mistral', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedMistralCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+
+function deepseekFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const pins = (): typeof import('../facts/pins/deepseekPins.js') => require('../facts/pins/deepseekPins.js') as typeof import('../facts/pins/deepseekPins.js')
+  const typed = (): string[] => pins().DEEPSEEK_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('deepseek', name, typed, () => {
+    const { resolveDeepseekAccount } = require('./deepseek/deepseekAccounts.js') as typeof import('./deepseek/deepseekAccounts.js')
+    const { getCachedDeepseekCatalogue } = require('./deepseek/deepseekCatalogue.js') as typeof import('./deepseek/deepseekCatalogue.js')
+    const current = (id: string): string => pins().deepseekCurrentModelId(id.trim().toLowerCase())
+    const account = resolveDeepseekAccount(env)
+    if (!account) return { family: 'deepseek', name, typed: typed(), list: { kind: 'no-credential' }, current }
+    return { family: 'deepseek', name, source: account.label, typed: typed(), list: cachedListSource(getCachedDeepseekCatalogue(env)), current }
+  })
+}
+
+function xaiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('../facts/pins/xaiPins.js') as typeof import('../facts/pins/xaiPins.js')).XAI_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('xai', name, typed, () => {
+    const { resolveXaiAccount } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
+    const { getCachedXaiCatalogue } = require('./xai/xaiCatalogue.js') as typeof import('./xai/xaiCatalogue.js')
+    const account = resolveXaiAccount(env)
+    return { family: 'xai', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedXaiCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+
+function huggingfaceFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] =>
+    (require('../facts/pins/huggingfacePins.js') as typeof import('../facts/pins/huggingfacePins.js')).HUGGINGFACE_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('huggingface', name, typed, () => {
+    const { resolveHuggingfaceAccount } = require('./huggingface/huggingfaceAccounts.js') as typeof import('./huggingface/huggingfaceAccounts.js')
+    const { getCachedHuggingfaceCatalogue } = require('./huggingface/huggingfaceCatalogue.js') as typeof import('./huggingface/huggingfaceCatalogue.js')
+    const account = resolveHuggingfaceAccount(env)
+    if (!account) return { family: 'huggingface', name, typed: typed(), list: { kind: 'no-credential' } }
+    return { family: 'huggingface', name, source: account.label, typed: typed(), list: cachedListSource(getCachedHuggingfaceCatalogue(env)) }
+  })
+}
+
+function zaiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => [...(require('../facts/pins/glmPins.js') as typeof import('../facts/pins/glmPins.js')).GLM_STATIC_FLOOR_IDS]
+  return guarded('zai', name, typed, () => {
+    const { resolveZaiDispatch } = require('./providerDiscovery.js') as typeof import('./providerDiscovery.js')
+    const { getCachedZaiCatalogue } = require('./zai/zaiCatalogue.js') as typeof import('./zai/zaiCatalogue.js')
+    const dispatch = resolveZaiDispatch(env)
+    if (!dispatch) return { family: 'zai', name, typed: typed(), list: { kind: 'no-credential' } }
+    return {
+      family: 'zai',
+      name,
+      source: dispatch.plan === 'coding' ? `GLM Coding Plan key (${dispatch.source})` : `Z.AI API key (${dispatch.source})`,
+      typed: typed(),
+      list: cachedListSource(getCachedZaiCatalogue(env)),
+    }
+  })
+}
+
+function moonshotFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('../facts/pins/kimiPins.js') as typeof import('../facts/pins/kimiPins.js')).KIMI_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('moonshot', name, typed, () => {
+    const { resolveMoonshotAccount } = require('./moonshot/moonshotAccounts.js') as typeof import('./moonshot/moonshotAccounts.js')
+    const { getCachedMoonshotCatalogue } = require('./moonshot/moonshotCatalogue.js') as typeof import('./moonshot/moonshotCatalogue.js')
+    const account = resolveMoonshotAccount(env)
+    if (!account) return { family: 'moonshot', name, typed: typed(), list: { kind: 'no-credential' } }
+    return { family: 'moonshot', name, source: account.label, typed: typed(), list: cachedListSource(getCachedMoonshotCatalogue(env)) }
+  })
+}
+
+function nousFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => [...(require('./nous/nousCatalogue.js') as typeof import('./nous/nousCatalogue.js')).NOUS_PORTAL_RECOMMENDED]
+  return guarded('nous', name, typed, () => {
+    const { resolveNousAccount } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
+    const { getCachedNousCatalogue } = require('./nous/nousCatalogue.js') as typeof import('./nous/nousCatalogue.js')
+    const account = resolveNousAccount(env)
+    if (!account) return { family: 'nous', name, typed: typed(), list: { kind: 'no-credential' } }
+    return { family: 'nous', name, source: account.label, typed: typed(), list: cachedListSource(getCachedNousCatalogue(env)) }
+  })
+}
+
+function zenFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('../facts/pins/zenPins.js') as typeof import('../facts/pins/zenPins.js')).ZEN_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('zen', name, typed, () => {
+    const { resolveZenAccount } = require('./zen/zenAccounts.js') as typeof import('./zen/zenAccounts.js')
+    const { getCachedZenCatalogue } = require('./zen/zenCatalogue.js') as typeof import('./zen/zenCatalogue.js')
+    const account = resolveZenAccount(env)
+    return { family: 'zen', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedZenCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+
+function minimaxFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('../facts/pins/minimaxPins.js') as typeof import('../facts/pins/minimaxPins.js')).MINIMAX_DISPLAY_PINS.map(pin => pin.wireId)
+  return guarded('minimax', name, typed, () => {
+    const { resolveMinimaxAccount } = require('./minimax/minimaxAccounts.js') as typeof import('./minimax/minimaxAccounts.js')
+    const { getCachedMinimaxCatalogue } = require('./minimax/minimaxCatalogue.js') as typeof import('./minimax/minimaxCatalogue.js')
+    const account = resolveMinimaxAccount(env)
+    return { family: 'minimax', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedMinimaxCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+
+function togetherFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('../facts/pins/togetherPins.js') as typeof import('../facts/pins/togetherPins.js')).TOGETHER_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('together', name, typed, () => {
+    const { resolveTogetherAccount } = require('./together/togetherAccounts.js') as typeof import('./together/togetherAccounts.js')
+    const { getCachedTogetherCatalogue } = require('./together/togetherCatalogue.js') as typeof import('./together/togetherCatalogue.js')
+    const account = resolveTogetherAccount(env)
+    return { family: 'together', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedTogetherCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+
+function cohereFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('../facts/pins/coherePins.js') as typeof import('../facts/pins/coherePins.js')).COHERE_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('cohere', name, typed, () => {
+    const { resolveCohereAccount } = require('./cohere/cohereAccounts.js') as typeof import('./cohere/cohereAccounts.js')
+    const { getCachedCohereCatalogue } = require('./cohere/cohereCatalogue.js') as typeof import('./cohere/cohereCatalogue.js')
+    const account = resolveCohereAccount(env)
+    return { family: 'cohere', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedCohereCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+
+function groqFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('../facts/pins/groqPins.js') as typeof import('../facts/pins/groqPins.js')).GROQ_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('groq', name, typed, () => {
+    const { resolveGroqAccount } = require('./groq/groqAccounts.js') as typeof import('./groq/groqAccounts.js')
+    const { getCachedGroqCatalogue } = require('./groq/groqCatalogue.js') as typeof import('./groq/groqCatalogue.js')
+    const account = resolveGroqAccount(env)
+    return { family: 'groq', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedGroqCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+function meliousFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => []
+  return guarded('melious', name, typed, () => {
+    const { resolveMeliousAccount } = require('./melious/meliousAccounts.js') as typeof import('./melious/meliousAccounts.js')
+    const { getCachedMeliousCatalogue } = require('./melious/meliousCatalogue.js') as typeof import('./melious/meliousCatalogue.js')
+    const account = resolveMeliousAccount(env)
+    return { family: 'melious', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedMeliousCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+function orcarouterFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('./orcarouter/orcarouterCatalogue.js') as typeof import('./orcarouter/orcarouterCatalogue.js')).ORCAROUTER_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('orcarouter', name, typed, () => {
+    const { resolveOrcarouterAccount } = require('./orcarouter/orcarouterAccounts.js') as typeof import('./orcarouter/orcarouterAccounts.js')
+    const { getCachedOrcarouterCatalogue } = require('./orcarouter/orcarouterCatalogue.js') as typeof import('./orcarouter/orcarouterCatalogue.js')
+    const account = resolveOrcarouterAccount(env)
+    return { family: 'orcarouter', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedOrcarouterCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+function cerebrasFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('../facts/pins/cerebrasPins.js') as typeof import('../facts/pins/cerebrasPins.js')).CEREBRAS_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('cerebras', name, typed, () => {
+    const { resolveCerebrasAccount } = require('./cerebras/cerebrasAccounts.js') as typeof import('./cerebras/cerebrasAccounts.js')
+    const { getCachedCerebrasCatalogue } = require('./cerebras/cerebrasCatalogue.js') as typeof import('./cerebras/cerebrasCatalogue.js')
+    const account = resolveCerebrasAccount(env)
+    return { family: 'cerebras', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedCerebrasCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+function fireworksFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('../facts/pins/fireworksPins.js') as typeof import('../facts/pins/fireworksPins.js')).FIREWORKS_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('fireworks', name, typed, () => {
+    const { resolveFireworksAccount } = require('./fireworks/fireworksAccounts.js') as typeof import('./fireworks/fireworksAccounts.js')
+    const { getCachedFireworksCatalogue } = require('./fireworks/fireworksCatalogue.js') as typeof import('./fireworks/fireworksCatalogue.js')
+    const account = resolveFireworksAccount(env)
+    return { family: 'fireworks', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedFireworksCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+function qwenFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('../facts/pins/qwenPins.js') as typeof import('../facts/pins/qwenPins.js')).qwenPinsFor('pay-as-you-go').map(pin => pin.id)
+  return guarded('qwen', name, typed, () => {
+    const { resolveQwenAccount } = require('./qwen/qwenAccounts.js') as typeof import('./qwen/qwenAccounts.js')
+    const { getCachedQwenCatalogue } = require('./qwen/qwenCatalogue.js') as typeof import('./qwen/qwenCatalogue.js')
+    const account = resolveQwenAccount(env)
+    return { family: 'qwen', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedQwenCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+
+export function readModelListFacts(env: NodeJS.ProcessEnv = hostEnv()): ModelListFact[] {
+  const { providerDisplayName } = require('./routeLaw.js') as typeof import('./routeLaw.js')
+  const name = (family: ModelListFamily): string => providerDisplayName(family)
+  return [
+    anthropicFact(name('anthropic'), env),
+    openaiFact(name('openai'), env),
+    zaiFact(name('zai'), env),
+    moonshotFact(name('moonshot'), env),
+    deepseekFact(name('deepseek'), env),
+    xaiFact(name('xai'), env),
+    metaFact(name('meta'), env),
+    geminiFact(name('gemini'), env),
+    huggingfaceFact(name('huggingface'), env),
+    mistralFact(name('mistral'), env),
+    nousFact(name('nous'), env),
+    zenFact(name('zen'), env),
+    minimaxFact(name('minimax'), env),
+    togetherFact(name('together'), env),
+    cohereFact(name('cohere'), env),
+    groqFact(name('groq'), env),
+    meliousFact(name('melious'), env),
+    orcarouterFact(name('orcarouter'), env),
+    cerebrasFact(name('cerebras'), env),
+    fireworksFact(name('fireworks'), env),
+    qwenFact(name('qwen'), env),
+  ]
+}

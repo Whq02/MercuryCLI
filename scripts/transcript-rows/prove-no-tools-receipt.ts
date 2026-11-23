@@ -4,21 +4,21 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import type { Message, TurnReceiptMessage } from '../../src/types/message.ts'
+import type { Message, TurnReceiptMessage } from '../../src/engine/message-shapes/message.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'no-tools-receipt-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_TMPDIR = home
 delete process.env.MERCURY_TURN_RECEIPT
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { renderToString } = await import('../../src/utils/staticRender.tsx')
-const { TurnReceiptRow } = await import('../../src/components/messages/TurnReceiptRow.tsx')
-const { composeTranscript } = await import('../../src/components/Messages.tsx')
-const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
-const { isNotEmptyMessage } = await import('../../src/utils/messages/text.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { NO_TOOLS_RAN_WORDS, hasActivity, formatContextDelta, promptTokensOf } = await import('../../src/utils/cockpit/turnReceipt.ts')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { TurnReceiptRow } = await import('../../src/screen/messages/TurnReceiptRow.tsx')
+const { composeTranscript } = await import('../../src/screen/messages/Messages.tsx')
+const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.ts')
+const { isNotEmptyMessage } = await import('../../src/engine/message-shapes/text.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { NO_TOOLS_RAN_WORDS, hasActivity, formatContextDelta, promptTokensOf } = await import('../../src/screen/cockpit/turnReceipt.ts')
 
 const timestamp = new Date().toISOString()
 const usageOf = (prompt: number, cached = 0) => ({ input_tokens: prompt - cached, cache_read_input_tokens: cached, cache_creation_input_tokens: 0, output_tokens: 40 })
@@ -33,7 +33,7 @@ const toolRound = (name: string, prompt?: number): Message[] => {
 const CLAIM = 'All 23 tests pass across 2 test files. Verified with pnpm vitest run — exit code 0, 5ms total runtime.'
 
 let failures = 0
-const RECEIPT_FIX_HINT = 'change injectTurnReceipts, walkTurnReceipts, promptTokensOf or formatContextDelta in src/utils/cockpit/turnReceipt.ts (receipt rows and counts), TurnReceiptRow in src/components/messages/TurnReceiptRow.tsx (painted words), or foldedTurnReceipts for the fold cases'
+const RECEIPT_FIX_HINT = 'change injectTurnReceipts, walkTurnReceipts, promptTokensOf or formatContextDelta in src/screen/cockpit/turnReceipt.ts (receipt rows and counts), TurnReceiptRow in src/screen/messages/TurnReceiptRow.tsx (painted words), or foldedTurnReceipts for the fold cases'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `: ${detail ? `${detail} | ` : ''}${RECEIPT_FIX_HINT}` : ''}`)
@@ -71,7 +71,7 @@ try {
   check('the no-tools receipt stands before the next prompt row', firstReceiptAt > 0 && secondPromptAt > firstReceiptAt, `${firstReceiptAt} ${secondPromptAt}`)
 
   console.log('§3b what is not a real reply: the resume sentinel and an error row')
-  const { NO_RESPONSE_REQUESTED } = await import('../../src/utils/messages/rejectionText.ts')
+  const { NO_RESPONSE_REQUESTED } = await import('../../src/engine/message-shapes/rejectionText.ts')
   const sentinelRow = { type: 'assistant', uuid: randomUUID(), timestamp, message: { id: randomUUID(), role: 'assistant', content: [{ type: 'text', text: NO_RESPONSE_REQUESTED }] } } as Message
   check('a resumed session whose last prompt got only the synthetic "No response requested." row carries no receipt (nothing replied)', receiptsOf([createUserMessage({ content: 'an unanswered prompt' }), sentinelRow]).length === 0)
   const errorRow = { type: 'assistant', uuid: randomUUID(), timestamp, isApiErrorMessage: true, message: { id: randomUUID(), role: 'assistant', content: [{ type: 'text', text: 'The request failed: the provider refused.' }] } } as Message
@@ -106,8 +106,8 @@ try {
   check('a zero-tool turn paints the no-tools words AND the delta: "∙ no tools ran this turn · ctx +1.2k"', secondPainted === `∙ ${NO_TOOLS_RAN_WORDS} · ctx +1.2k`, secondPainted)
   const thirdPainted = deltaReceipts[2] ? await paint(deltaReceipts[2]) : ''
   check('no usage → the no-tools words alone', thirdPainted === `∙ ${NO_TOOLS_RAN_WORDS}`, thirdPainted)
-  const { createCompactBoundaryMessage } = await import('../../src/services/messages.ts')
-  const { annotateBoundaryWithPreservedSegment, buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
+  const { createCompactBoundaryMessage } = await import('../../src/engine/messages/messages.ts')
+  const { annotateBoundaryWithPreservedSegment, buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
   const keptPrompt = createUserMessage({ content: 'the kept prompt' })
   const keptReply = reply('the kept reply', 60000)
   const boundary = createCompactBoundaryMessage('auto', 80_000)

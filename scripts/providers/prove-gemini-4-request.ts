@@ -16,27 +16,27 @@ process.env.MERCURY_ANTIGRAVITY_MANIFEST_BASE = 'https://manifest.fixture.invali
 for (const name of ['GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MERCURY_GEMINI_OAUTH_CLIENT_ID', 'MERCURY_GEMINI_OAUTH_CLIENT_SECRET', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_EFFORT_LEVEL']) delete process.env[name]
 const key = 'AIzaFixtureGeminiFourRequest000000000000'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { geminiCallModel, __resetGeminiPlanWireForTest } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
-const catalogue = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const capabilities = await import('../../src/utils/model/capabilities.ts')
-const effort = await import('../../src/utils/effort.ts')
-const { geminiPlanQuotaView } = await import('../../src/services/providers/gemini/geminiPlanQuota.ts')
-const { resolveDisplayedSessionModel } = await import('../../src/hooks/useDisplayedSessionModel.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { IMAGE_ELIDED_TEXT } = await import('../../src/utils/messages/imageRequestFit.ts')
-const modelCost = await import('../../src/services/usage/modelCost.ts')
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+const { geminiCallModel, __resetGeminiPlanWireForTest } = await import('../../src/models/roads/gemini/geminiCallModel.ts')
+const catalogue = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const capabilities = await import('../../src/models/facts/capabilities.ts')
+const effort = await import('../../src/models/effort/effort.ts')
+const { geminiPlanQuotaView } = await import('../../src/models/roads/gemini/geminiPlanQuota.ts')
+const { resolveDisplayedSessionModel } = await import('../../src/screen/model-picker/useDisplayedSessionModel.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { IMAGE_ELIDED_TEXT } = await import('../../src/engine/message-shapes/imageRequestFit.ts')
+const modelCost = await import('../../src/models/usage/modelCost.ts')
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
 
 let passes = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (ok) passes++
   else failures++
-  const gemini4FixHint = ' (fix the request body in geminiCallModel in src/services/providers/gemini/geminiCallModel.ts, the roster and effort rows in src/services/providers/gemini/geminiCatalogue.ts, the window, ceiling and effort words in src/utils/model/capabilities.ts and src/utils/effort.ts, or the price rows in src/services/usage/modelCost.ts, whichever the label names)'
+  const gemini4FixHint = ' (fix the request body in geminiCallModel in src/models/roads/gemini/geminiCallModel.ts, the roster and effort rows in src/models/roads/gemini/geminiCatalogue.ts, the window, ceiling and effort words in src/models/facts/capabilities.ts and src/models/effort/effort.ts, or the price rows in src/models/usage/modelCost.ts, whichever the label names)'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : gemini4FixHint}`)
 }
 const j = (value: unknown): string => JSON.stringify(value)
@@ -140,12 +140,12 @@ async function sweep(model: string): Promise<Record<string, Sent>> {
 }
 const SEGMENT = 65_536
 const cutAfterThinking: Step = request => [{ candidates: [{ content: { role: 'model', parts: [{ text: '', thoughtSignature: 'sig-cut' }] }, finishReason: Number(request.generationConfig?.maxOutputTokens ?? SEGMENT) > SEGMENT ? 'CONTINUATION' : 'MAX_TOKENS' }], usageMetadata: { promptTokenCount: 60, candidatesTokenCount: 0, thoughtsTokenCount: SEGMENT } }]
-const { query } = await import('../../src/query.ts')
-const { productionDeps } = await import('../../src/query/deps.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-;(await import('../../src/bootstrap/state.ts')).setIsInteractive(false)
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+;(await import('../../src/boot/process-state/processState.ts')).setIsInteractive(false)
 type Turn = { notices: string[]; answers: string[]; terminal: string; requests: Array<Record<string, any>> }
 async function runTurn(model: string, prompt: string, steps: Step[]): Promise<Turn> {
   let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }

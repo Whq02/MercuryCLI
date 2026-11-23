@@ -4,8 +4,8 @@ import { rmSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
 import { proofHome } from '../lib/hermetic.ts'
-import type { Message } from '../../src/types/message.ts'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
@@ -19,27 +19,27 @@ process.env.MERCURY_ZAI_API_BASE = GENERAL_BASE
 process.env.MERCURY_ZAI_CODING_API_BASE = CODING_BASE
 for (const key of ['ZAI_API_KEY', 'ZAI_KEY_PLAN', 'MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_MAX_RETRIES', 'NODE_ENV']) delete process.env[key]
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { writeStoredZaiApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-const accounts = await import('../../src/services/providers/zai/zaiAccounts.ts')
-const discovery = await import('../../src/services/providers/providerDiscovery.ts')
-const { zaiApiBase } = await import('../../src/services/providers/zai/zaiClient.ts')
-const cat = await import('../../src/services/providers/zai/zaiCatalogue.ts')
-const { zaiCallModel } = await import('../../src/services/providers/zai/zaiCallModel.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { readSignInRefusal } = await import('../../src/services/providers/signInRefusal.ts')
-const keyPlan = await import('../../src/services/providers/zai/zaiKeyPlan.ts').catch(() => null)
+const { writeStoredZaiApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const accounts = await import('../../src/models/roads/zai/zaiAccounts.ts')
+const discovery = await import('../../src/models/roads/providerDiscovery.ts')
+const { zaiApiBase } = await import('../../src/models/roads/zai/zaiClient.ts')
+const cat = await import('../../src/models/roads/zai/zaiCatalogue.ts')
+const { zaiCallModel } = await import('../../src/models/roads/zai/zaiCallModel.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { readSignInRefusal } = await import('../../src/models/roads/signInRefusal.ts')
+const keyPlan = await import('../../src/models/roads/zai/zaiKeyPlan.ts').catch(() => null)
 
 let failures = 0
 let count = 0
 const SECTION_FIX: Record<string, string> = {
-  '§1': 'change resolveZaiDispatch in src/services/providers/zai/zaiAccounts.ts and in src/services/providers/providerDiscovery.ts, zaiKeyPlanUnknownWord in src/services/providers/zai/zaiKeyPlan.ts or zaiApiBase in src/services/providers/zai/zaiClient.ts',
-  '§2': 'change refreshZaiCatalogue in src/services/providers/zai/zaiCatalogue.ts (the general-then-Coding-Plan models read and the plan it learns)',
-  '§3': 'change zaiCallModel in src/services/providers/zai/zaiCallModel.ts, the plan learning in zaiCatalogue.ts and zaiAccounts.ts beside it, or the refusal record in src/services/providers/signInRefusal.ts',
+  '§1': 'change resolveZaiDispatch in src/models/roads/zai/zaiAccounts.ts and in src/models/roads/providerDiscovery.ts, zaiKeyPlanUnknownWord in src/models/roads/zai/zaiKeyPlan.ts or zaiApiBase in src/models/roads/zai/zaiClient.ts',
+  '§2': 'change refreshZaiCatalogue in src/models/roads/zai/zaiCatalogue.ts (the general-then-Coding-Plan models read and the plan it learns)',
+  '§3': 'change zaiCallModel in src/models/roads/zai/zaiCallModel.ts, the plan learning in zaiCatalogue.ts and zaiAccounts.ts beside it, or the refusal record in src/models/roads/signInRefusal.ts',
 }
 let sectionKey = ''
 const check = (name: string, ok: unknown, detail = ''): void => {

@@ -50,7 +50,7 @@ check('the boot goes on to its end after the stop: the daemon says its control s
 check(
   'the stop is taken once the way out is bound: the daemon leaves by control:shutdown, exit 0',
   leaving > up && left === '= d1 left: code 0 signal null',
-  `${left || 'the daemon was not seen to leave'}${unreached.length > 0 ? ` (${unreached.join(' | ')})` : ''} — the stop was acknowledged and then lost: a stop asked before the way out is bound is kept in the state (askedToLeave) by the first value of requestShutdown in src/daemon/main.ts and taken by bindWayOut of src/daemon/run/shutdown.ts where the boot binds the way out; put both back`,
+  `${left || 'the daemon was not seen to leave'}${unreached.length > 0 ? ` (${unreached.join(' | ')})` : ''} — the stop was acknowledged and then lost: a stop asked before the way out is bound is kept in the state (askedToLeave) by the first value of requestShutdown in src/daemon/control/main.ts and taken by bindWayOut of src/daemon/run/shutdown.ts where the boot binds the way out; put both back`,
 )
 check('every wait of the scenario was reached and nothing was left running', unreached.length === 0 && ran.status === 0, unreached.join(' | ') || `the harness exit ${ran.status}`)
 

@@ -10,8 +10,8 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
-const SESSION_SRC = 'buildBlenderBridgeIdeSession in src/services/ide/blenderBridgeSession.ts'
-const READY_SRC = 'blenderBridgeReadinessRecords in src/services/ide/blenderBridgeSession.ts'
+const SESSION_SRC = 'buildBlenderBridgeIdeSession in src/integrations/ide/blenderBridgeSession.ts'
+const READY_SRC = 'blenderBridgeReadinessRecords in src/integrations/ide/blenderBridgeSession.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -36,15 +36,15 @@ function resetEnv(): void {
 }
 resetEnv()
 
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
 const {
   buildBlenderBridgeIdeSession,
   blenderBridgeReadinessRecords,
   BLENDER_LANES_ARM_SURFACE,
-} = await import('../../src/services/ide/blenderBridgeSession.js')
-const { resetBlenderBridgeClientForTest } = await import('../../src/services/blender/bridgeClient.js')
-const installer = await import('../../src/services/blender/bridgeInstaller.js')
-const { readBlenderBridgeToken } = await import('../../src/services/blender/bridgeToken.js')
+} = await import('../../src/integrations/ide/blenderBridgeSession.js')
+const { resetBlenderBridgeClientForTest } = await import('../../src/integrations/blender/bridgeClient.js')
+const installer = await import('../../src/integrations/blender/bridgeInstaller.js')
+const { readBlenderBridgeToken } = await import('../../src/integrations/blender/bridgeToken.js')
 const { startFakeBlenderBridge } = await import('./fake-bridge.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'blender-bridge-session-'))

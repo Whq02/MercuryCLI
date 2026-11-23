@@ -7,33 +7,33 @@ const ROOT = join(import.meta.dir, '..', '..')
 const REGISTRY = flagRegistryFiles()[0]!
 
 const JOIN_ALLOWLIST: Record<string, string> = {
-  'src/utils/projectConfig.ts': 'THE seam — the home names live here',
-  'src/utils/worktree/delta.ts':
+  'src/platform/settings/projectConfig.ts': 'THE seam — the home names live here',
+  'src/platform/git/worktree/delta.ts':
     'classifier vocabulary — MERCURY_EPHEMERAL_PREFIXES names the cache-clock debris path; a classifier row, never a write path',
-  'src/utils/envUtils.ts': 'THE config-home resolver + label derivation',
-  'src/entrypoints/cli.tsx':
+  'src/platform/environment/envUtils.ts': 'THE config-home resolver + label derivation',
+  'src/boot/entrypoints/cli.tsx':
     'pre-import compile-cache arm — mirrors the LAUNCHER config-home rungs with builtin-only imports before any src module can load; the seam is unreachable here by construction',
-  'src/utils/permissions/filesystem.ts': 'guard vocabulary — DANGEROUS_DIRECTORIES + scope tuples NAME the home',
-  'src/utils/proofHomeGuard.ts': 'guard vocabulary — the account home is the forbidden proof-write boundary, never a write destination or the configurable scratch home',
-  'src/utils/verification/verificationState.ts': 'tree-digest exclusion names the project home',
-  'src/skills/loadSkillsDir.ts': 'managed-policy dir joins; project paths ride the seam',
-  'src/utils/config/derived.ts': 'managed-policy dir join + user-scope file names',
-  'src/services/privateChannel/installLayout.ts':
+  'src/permissions/rules/filesystem.ts': 'guard vocabulary — DANGEROUS_DIRECTORIES + scope tuples NAME the home',
+  'src/models/roads/proofHomeGuard.ts': 'guard vocabulary — the account home is the forbidden proof-write boundary, never a write destination or the configurable scratch home',
+  'src/platform/verification/verificationState.ts': 'tree-digest exclusion names the project home',
+  'src/integrations/skills/loadSkillsDir.ts': 'managed-policy dir joins; project paths ride the seam',
+  'src/platform/config/derived.ts': 'managed-policy dir join + user-scope file names',
+  'src/platform/update-channel/installLayout.ts':
     'the PowerShell entry text written to disk — resolves the config home when neither MERCURY_CONFIG_DIR nor MERCURY_HOME is set, mirroring the LAUNCHER rungs; no src module can load there',
 }
 
 const PROSE_ALLOWLIST: Record<string, string> = {
-  'src/constants/prompts.ts':
+  'src/engine/system-prompt/defaultSystemPrompt.ts':
     'the .mercury parcel doctrine — operator-ruled instruction prose names the project-local working directory',
- 'src/tools/EnterWorktreeTool/prompt.ts': 'truthful naming of the worktree store under the project-local home',
-  'src/services/privateChannel/installLayout.ts': 'the stable shim BODY carries the full home chain (the D-1 runtime mirror)',
+ 'src/tools/enter-worktree/prompt.ts': 'truthful naming of the worktree store under the project-local home',
+  'src/platform/update-channel/installLayout.ts': 'the stable shim BODY carries the full home chain (the D-1 runtime mirror)',
   [REGISTRY]: 'registry off:/summary prose names the sticky store truthfully (F9)',
 }
 
 const PROSE_CENSUS: Record<string, number> = {
-  'src/services/tips/tipRegistry.ts': 1,
-  'src/skills/bundled/skillify.ts': 1,
-  'src/utils/settings/types.ts': 2,
+  'src/screen/tips/tipRegistry.ts': 1,
+  'src/integrations/skills/bundled/skillify.ts': 1,
+  'src/platform/settings/settingsSchema.ts': 2,
 }
 
 let failures = 0

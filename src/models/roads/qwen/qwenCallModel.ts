@@ -1,0 +1,115 @@
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
+import { normalizeModelStringForAPI } from '../../catalogue/engineModel.js'
+import { createAssistantAPIErrorMessage } from '../../../engine/messages/messages.js'
+import { API_ERROR_MESSAGE_PREFIX } from '../../../engine/requests/apiErrorRows.js'
+import { readCatalogueIfPending } from '../catalogueOnDemand.js'
+import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
+import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
+import type { LaneExtrasArgs } from '../openaicompat/compatWire.js'
+import { toolDeclarationRowInResult } from '../zai/zaiCodec.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
+import { QWEN_BASE_OVERRIDE_ENV, QWEN_CONSOLES, QWEN_ENV_KEY, qwenBoundBase, qwenBoundConsole, qwenChatCompletionsUrl, qwenConsolePage, qwenConsoleWords, qwenEndpointWhere, rememberQwenBoundBase, resolveQwenAccount, resolveQwenCredential } from './qwenAccounts.js'
+import { getCachedQwenCatalogue, newestQwenModel, qwenListedModel, qwenModelFacts, qwenPinScope, qwenWireId } from './qwenCatalogue.js'
+import { isQwenTextModelId, qwenDisplayPin, qwenPinsFor, qwenPreservesThinking, qwenWireEffort } from '../../facts/pins/qwenPins.js'
+import { operatorModelFacts } from '../../catalogue/modelOverrides.js'
+import { hostEnv } from '../../../platform/environment/hostEnv.js'
+
+const QWEN_KEY_PAGE = 'qwencloud.com (API Keys) or modelstudio.alibabacloud.com (API-KEY)'
+
+export function buildQwenExtras(args: LaneExtrasArgs): Record<string, unknown> {
+  const facts = qwenModelFacts(args.wireModel)
+  const thinks = facts.thinking === 'hybrid' && args.thinkingEnabled
+  const budget = thinks ? operatorModelFacts(args.wireModel)?.thinkingBudget : undefined
+  const effort = thinks && budget === undefined && facts.efforts.length > 0 && args.effortValue !== undefined ? qwenWireEffort(args.wireModel, args.effortValue) : undefined
+  return {
+    stream_options: { include_usage: true },
+    ...(facts.thinking === 'hybrid' ? { enable_thinking: args.thinkingEnabled } : {}),
+    ...(facts.preservesThinking ? { preserve_thinking: true } : {}),
+    ...(budget !== undefined ? { thinking_budget: budget } : {}),
+    ...(effort !== undefined ? { reasoning_effort: effort } : {}),
+    ...(args.maxOutputTokensOverride !== undefined ? { max_tokens: args.maxOutputTokensOverride } : {}),
+  }
+}
+
+function qwenWrongRegionRemedy(boundBase: string | undefined): string {
+  const where = boundBase ? `${qwenEndpointWhere(boundBase)} refused the key` : `The ${QWEN_CONSOLES} endpoint refused the key`
+  return `${where} — a ${QWEN_CONSOLES} key answers only the region and plan it was minted in; /logins qwen re-binds the key to its endpoint, or ${QWEN_BASE_OVERRIDE_ENV} names the endpoint it was minted for. A 403 "Access to model denied" means the service or the model is not activated for the account — ${qwenBoundConsole() === 'Model Studio' ? 'the Model Studio console (Model Gallery)' : "the account's console"} activates it.`
+}
+
+function qwenLaneProfile(): CompatLaneProfile {
+  let boundRequestUrl: string | undefined
+  return {
+  lane: 'qwen', providerLabel: 'Qwen',
+  resolveCredential: async () => {
+    const credential = await resolveQwenCredential()
+    boundRequestUrl = credential?.requestUrl
+    return credential ? { apiKey: credential.apiKey, requestUrl: credential.requestUrl } : undefined
+  },
+  recoverCredential: async () => {
+    if (!configuredProviderKeyCommand('qwen')) return null
+    const base = boundRequestUrl?.replace(/\/chat\/completions$/, '')
+    const fresh = recoverProviderKeyCommand('qwen')
+    if (!fresh) return undefined
+    if (base !== undefined) rememberQwenBoundBase(fresh, base)
+    return { apiKey: fresh, requestUrl: boundRequestUrl ?? qwenChatCompletionsUrl() }
+  },
+  get credentialHint(): string {
+    const failure = providerKeyCommandFailure('qwen')
+    return failure ? `the configured ${failure.message} — no ${QWEN_CONSOLES} API key detected.` : `no ${QWEN_CONSOLES} API key detected — /logins qwen stores one (made at ${QWEN_KEY_PAGE}; a Coding Plan key is sk-sp-…); ${QWEN_ENV_KEY} works too.`
+  },
+  get authRemedy(): string {
+    return qwenWrongRegionRemedy(qwenBoundBase())
+  },
+  get billingRemedy(): string {
+    const origin = qwenBoundConsole()
+    return `the ${qwenConsoleWords(origin)} balance or plan quota is spent — top up or wait for the plan window at ${qwenConsolePage(origin)}, then retry; /model picks another model meanwhile.`
+  },
+  requestUrl: () => qwenChatCompletionsUrl(),
+  wireModelId: model => qwenWireId(model),
+  keepsReasoningHistory: model => qwenPreservesThinking(model),
+  buildExtras: buildQwenExtras,
+  toolDeclarationRow: toolDeclarationRowInResult,
+  }
+}
+
+export function qwenLiveProofState(): { at: number; model: string } | null {
+  return compatLaneLiveProofState('qwen')
+}
+
+export async function* qwenCallModel(params: CallModelParams): CallModelStream {
+  if (params.signal.aborted) return
+  const account = resolveQwenAccount()
+  const profile = qwenLaneProfile()
+  if (!account) {
+    yield* compatChatCallModel(profile, params)
+    return
+  }
+  await readCatalogueIfPending('qwen', { signal: params.signal })
+  if (params.signal.aborted) return
+  const snapshot = getCachedQwenCatalogue()
+  const asked = normalizeModelStringForAPI(params.options.model)
+  const chosen = asked.trim().toLowerCase() === 'qwen' ? newestQwenModel() : asked
+  const pin = chosen === undefined ? undefined : qwenDisplayPin(chosen)
+  const model = chosen === undefined ? undefined : qwenListedModel(snapshot, chosen)?.id ?? qwenWireId(chosen)
+  const scope = qwenPinScope(hostEnv(), snapshot)
+  let refusal: string | undefined
+  const credentialRefused = snapshot?.lastError?.includes('refused the credential') === true
+  if (credentialRefused) refusal = `${snapshot!.lastError} — /logins qwen re-binds the key.`
+  else if (!model || !chosen) refusal = "Qwen cannot resolve 'qwen' until the account's list serves a text model; /model refreshes the list."
+  else if (!isQwenTextModelId(chosen)) refusal = `Qwen model '${chosen}' is not on the text road; the speech, image, video, embedding and rerank lines are not supported here.`
+  else if (scope !== 'coding-plan' && snapshot && snapshot.models.length > 0 && !qwenListedModel(snapshot, chosen) && !pin) {
+    refusal = modelNotOfferedByCatalogue(model, account.label, snapshot.models.map(row => row.id))
+  } else if (scope !== 'coding-plan' && snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length === 0 && !pin) {
+    refusal = modelNotOfferedByCatalogue(model, account.label, qwenPinsFor(scope).map(row => row.id))
+  }
+  if (refusal) {
+    yield createAssistantAPIErrorMessage({ content: `${API_ERROR_MESSAGE_PREFIX}: ${refusal}`, error: credentialRefused ? 'authentication_failed' : 'invalid_request' })
+    return
+  }
+  const notes = snapshot?.lastError || !snapshot?.models.length
+    ? [`Qwen model list unavailable — the named id '${model}' is sent for ${qwenConsoleWords(qwenBoundConsole())} to decide.`]
+    : scope === 'pay-as-you-go' && !qwenListedModel(snapshot, chosen!) ? [`'${model}' is a pinned Model Studio id the endpoint's list does not name — sent for ${qwenConsoleWords(qwenBoundConsole())} to decide.`] : undefined
+  yield* compatChatCallModel({
+    ...profile, ...(notes ? { leadingNotes: notes } : {}), wireModelId: () => model!,
+  }, { ...params, options: { ...params.options, model: model! } })
+}

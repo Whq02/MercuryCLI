@@ -8,12 +8,12 @@ delete process.env.NODE_ENV
 delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
 delete process.env.MERCURY_SILENT_AFTER_HEADERS_MS
 
-const { PROVIDER_ID_SPACES, FIRST_PARTY_ID_MARK, classifyModelRoute } = await import('../../src/services/providers/idSpaces.js')
-const { currentPatience, patienceWords } = await import('../../src/services/providers/patience.js')
-const idle = await import('../../src/services/providers/streamIdleBudget.js')
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.js')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
-const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
+const { PROVIDER_ID_SPACES, FIRST_PARTY_ID_MARK, classifyModelRoute } = await import('../../src/models/roads/idSpaces.js')
+const { currentPatience, patienceWords } = await import('../../src/models/roads/patience.js')
+const idle = await import('../../src/models/roads/streamIdleBudget.js')
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.js')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
+const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.js')
 const firstParty = classifyModelRoute(`${FIRST_PARTY_ID_MARK}fixture`, {})
 if (firstParty.kind !== 'route') throw new Error('the declared first-party id space must route')
 const routes = [...new Set([firstParty.route, ...PROVIDER_ID_SPACES.map(space => space.route)])]
@@ -23,7 +23,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail === '' ? '' : ` — ${String(detail)}`}${ok ? '' : ' — budgets and the watchdog are in src/services/providers/streamIdleBudget.ts, the modes in src/services/providers/patience.ts, the flag words in FLAG_REGISTRY'}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail === '' ? '' : ` — ${String(detail)}`}${ok ? '' : ' — budgets and the watchdog are in src/models/roads/streamIdleBudget.ts, the modes in src/models/roads/patience.ts, the flag words in FLAG_REGISTRY'}`)
 }
 function setPatience(value: unknown): void {
   const { error } = updateSettingsForSource('userSettings', { patience: value } as never)

@@ -27,10 +27,10 @@ console.log('============================================================')
 tally.section('§1 the executor race, pure: a call that ignores the abort is abandoned within the grace and the interrupt result lands once')
 {
   const { z } = await import('zod/v4')
-  const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
-  const { subscribeToolStart, subscribeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { isInterruptedResultText, turnCutOf, turnCutResultText } = await import('../../src/utils/messages/rejectionText.ts')
+  const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
+  const { subscribeToolStart, subscribeToolTerminal } = await import('../../src/engine/run-owner/effectObserver.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { isInterruptedResultText, turnCutOf, turnCutResultText } = await import('../../src/engine/message-shapes/rejectionText.ts')
   const starts: unknown[] = []
   const terminals: Array<{ ok: boolean }> = []
   subscribeToolStart(e => starts.push(e))
@@ -143,7 +143,7 @@ if (!existsSync(DIST)) {
 } else if (process.platform === 'win32') {
   console.log('  [SKIP] SIGSTOP/SIGCONT are POSIX — the frozen-browser leg has nothing to drive on win32; §1 above still ran')
 } else {
-  const { resolveBrowser } = await import('../../src/services/browser/browserResolver.ts')
+  const { resolveBrowser } = await import('../../src/integrations/browser/browserResolver.ts')
   const resolution = resolveBrowser()
   if (resolution.state !== 'ok') {
     console.log(`  [SKIP] no drivable browser on this machine — ${resolution.note}; §1 above still ran`)

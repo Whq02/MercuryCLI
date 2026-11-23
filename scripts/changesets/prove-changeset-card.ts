@@ -12,7 +12,7 @@ const { scenario, cleanupScenario } = await import('../ui/renderScenarios.ts')
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${!ok ? ` — ${detail ? `${detail}; ` : ''}the changeset card text is drawn by src/components/InlineChangeView.tsx (state word, counts, ctrl+o expansion, diff cards, plan line) and its next-action text comes from src/tools/ChangeSetTool/ChangeSetTool.ts; the fixture is the changeset-card scenario in scripts/ui/renderScenarios.ts` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${!ok ? ` — ${detail ? `${detail}; ` : ''}the changeset card text is drawn by src/tools/kit/InlineChangeView.tsx (state word, counts, ctrl+o expansion, diff cards, plan line) and its next-action text comes from src/tools/change-set/ChangeSetTool.ts; the fixture is the changeset-card scenario in scripts/ui/renderScenarios.ts` : ''}`)
   if (!ok) failures = 1
 }
 

@@ -21,7 +21,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('      fix: the Z.ai quota reader in src/services/providers/zai/zaiUsageState.ts (raw-then-Bearer auth form, last-failure note, tier) or the refresh door refreshProviderUsage in src/services/providers/providerUsage.ts (cadence floor, single-flight, windows and reader note on the view)')
+  if (!cond) console.log('      fix: the Z.ai quota reader in src/models/roads/zai/zaiUsageState.ts (raw-then-Bearer auth form, last-failure note, tier) or the refresh door refreshProviderUsage in src/models/roads/providerUsage.ts (cadence floor, single-flight, windows and reader note on the view)')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -88,14 +88,14 @@ const sinceWire = (from: number) => wire.slice(from).map(r => `${r.path} ${r.aut
 
 try {
   section('§0 the reader exists and the door has a Z.ai case')
-  const readerPresent = existsSync(join(ROOT, 'src/services/providers/zai/zaiUsageState.ts'))
-  check('the Z.ai quota reader exists (src/services/providers/zai/zaiUsageState.ts)', readerPresent, 'no such module on this tree')
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const readerPresent = existsSync(join(ROOT, 'src/models/roads/zai/zaiUsageState.ts'))
+  check('the Z.ai quota reader exists (src/models/roads/zai/zaiUsageState.ts)', readerPresent, 'no such module on this tree')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const secrets = await import('../../src/utils/accounts/providerSecrets.ts')
-  const owner = await import('../../src/services/providers/providerUsage.ts')
-  const records = await import('../../src/services/anthropicLimits.ts')
-  const fresh = await import('../../src/services/providers/usageFreshness.ts')
+  const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const owner = await import('../../src/models/roads/providerUsage.ts')
+  const records = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+  const fresh = await import('../../src/models/roads/usageFreshness.ts')
   secrets.writeStoredZaiApiKey(KEY, 'coding')
   const before = wire.length
   const versionBefore = records.getUsageRecordVersion()
@@ -107,7 +107,7 @@ try {
   check("the tier is the wire's level in the product's spelling", first.tier === 'GLM Coding Pro', first.tier)
   check('a confirmed answer raises the usage record signal (the rail repaints at once)', records.getUsageRecordVersion() > versionBefore)
   if (!readerPresent) throw new Error('base tree: no reader')
-  const reader = await import(join(ROOT, 'src/services/providers/zai/zaiUsageState.ts')) as typeof import('../../src/services/providers/zai/zaiUsageState.ts')
+  const reader = await import(join(ROOT, 'src/models/roads/zai/zaiUsageState.ts')) as typeof import('../../src/models/roads/zai/zaiUsageState.ts')
 
   section('§1 the header law: the RAW key first, with the vendor headers')
   {
@@ -253,7 +253,7 @@ try {
 } catch (error) {
   if (!(error instanceof Error && error.message === 'base tree: no reader')) {
     failures++
-    console.log(`  [FAIL] the proof ran to its end — ${error instanceof Error ? error.stack ?? error.message : String(error)} — the proof threw before its last check: read the stack above and fix the module it names (src/services/providers/zai/zaiUsageState.ts or src/services/providers/providerUsage.ts)`)
+    console.log(`  [FAIL] the proof ran to its end — ${error instanceof Error ? error.stack ?? error.message : String(error)} — the proof threw before its last check: read the stack above and fix the module it names (src/models/roads/zai/zaiUsageState.ts or src/models/roads/providerUsage.ts)`)
   }
 } finally {
   server.stop(true)

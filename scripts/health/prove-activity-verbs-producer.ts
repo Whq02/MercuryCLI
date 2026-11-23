@@ -10,7 +10,7 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const verbsFixHint = 'fix noteHeadlessActivity and getHeadlessActivity in src/utils/activityLedger.ts for the ledger, or the activity row of src/services/health/sections/crew/boot.ts for the artifact; rebuild dist/mercury.mjs with bun run build.ts'
+const verbsFixHint = 'fix noteHeadlessActivity and getHeadlessActivity in src/platform/logs/activityLedger.ts for the ledger, or the activity row of src/platform/health/sections/crew/boot.ts for the artifact; rebuild dist/mercury.mjs with bun run build.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond ? (detail ? ' · ' : ' — ') + verbsFixHint : ''}`)
   if (!cond) failures++
@@ -19,9 +19,9 @@ const ROOT = join(import.meta.dir, '..', '..')
 
 console.log('§1 the ledger folds the verb kind')
 {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
-  const ledger = await import('../../src/utils/activityLedger.ts')
+  const ledger = await import('../../src/platform/logs/activityLedger.ts')
   ledger.noteHeadlessActivity('verb:health')
   ledger.noteHeadlessActivity('verb:health')
   ledger.noteHeadlessActivity('verb:mcp:list')

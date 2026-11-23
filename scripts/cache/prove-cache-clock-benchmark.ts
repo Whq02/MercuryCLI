@@ -1,14 +1,14 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
+import { getFlagSpec } from '../../src/platform/substrate/flagRegistry.ts'
 import { corpusSha256, runBenchmark, type Corpus } from './bench-sim.ts'
 
 const root = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const fixHint = 'fix: the committed evidence is scripts/cache/fixtures/corpus.json and verdict.json, regenerated with bench-sim.ts --write in scripts/cache; the policy under test is src/utils/cache/cacheClock.ts and the MERCURY_CACHE_CLOCK row is in FLAG_REGISTRY'
+  const fixHint = 'fix: the committed evidence is scripts/cache/fixtures/corpus.json and verdict.json, regenerated with bench-sim.ts --write in scripts/cache; the policy under test is src/platform/cache-clock/cacheClock.ts and the MERCURY_CACHE_CLOCK row is in FLAG_REGISTRY'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${fixHint}` : ''}`)
 }
 function section(t: string): void {

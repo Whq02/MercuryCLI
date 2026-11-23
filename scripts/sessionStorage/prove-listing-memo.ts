@@ -18,9 +18,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { getProjectsDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const logs = await import('../../src/utils/sessionStorage/logs.ts')
-type SessionPage = import('../../src/utils/sessionStorage/logs.ts').SessionPage
+const { getProjectsDir } = await import('../../src/sessions/transcripts/paths.ts')
+const logs = await import('../../src/sessions/transcripts/sessionListings.ts')
+type SessionPage = import('../../src/sessions/transcripts/sessionListings.ts').SessionPage
 
 const projectsDir = getProjectsDir()
 const P = 6
@@ -45,16 +45,16 @@ const progressive = (): Promise<SessionPage> => logs.listSessionsAcrossProjectsP
 section('L1 single-flight — concurrent callers share ONE sweep')
 {
   const [a, b, c] = await Promise.all([progressive(), progressive(), progressive()])
-  check('three concurrent listings ran exactly one sweep (two callers joined it)', census.sweeps === 1 && census.joined === 2, `${JSON.stringify(census)}; fix listSessionsAcrossProjectsProgressive in src/utils/sessionStorage/logs.ts so concurrent callers join one sweep`)
-  check(`every caller got the whole estate (${S} rows), the same rows`, a.allStatLogs.length === S && ids(a) === ids(b) && ids(b) === ids(c), `${a.allStatLogs.length}; fix listSessionsAcrossProjectsProgressive in src/utils/sessionStorage/logs.ts so every joined caller gets all rows`)
-  check('each caller holds its own row objects (fresh objects, exactly as a fresh sweep handed them)', a.allStatLogs[0] !== b.allStatLogs[0] && a.allStatLogs[0]!.sessionId === b.allStatLogs[0]!.sessionId, 'fix listSessionsAcrossProjectsProgressive in src/utils/sessionStorage/logs.ts to hand each caller its own copy of the rows')
+  check('three concurrent listings ran exactly one sweep (two callers joined it)', census.sweeps === 1 && census.joined === 2, `${JSON.stringify(census)}; fix listSessionsAcrossProjectsProgressive in src/sessions/transcripts/sessionListings.ts so concurrent callers join one sweep`)
+  check(`every caller got the whole estate (${S} rows), the same rows`, a.allStatLogs.length === S && ids(a) === ids(b) && ids(b) === ids(c), `${a.allStatLogs.length}; fix listSessionsAcrossProjectsProgressive in src/sessions/transcripts/sessionListings.ts so every joined caller gets all rows`)
+  check('each caller holds its own row objects (fresh objects, exactly as a fresh sweep handed them)', a.allStatLogs[0] !== b.allStatLogs[0] && a.allStatLogs[0]!.sessionId === b.allStatLogs[0]!.sessionId, 'fix listSessionsAcrossProjectsProgressive in src/sessions/transcripts/sessionListings.ts to hand each caller its own copy of the rows')
 }
 
 section('L2 the memo serves — unchanged truth inside the TTL')
 {
   const before = { ...census }
   for (let i = 0; i < 5; i++) await progressive()
-  check('five sequential listings ran no sweep — all served from the memo', census.sweeps === before.sweeps && census.served === before.served + 5, `${JSON.stringify(census)}; fix the memo check in listSessionsAcrossProjectsProgressive in src/utils/sessionStorage/logs.ts so an unchanged estate is served without a sweep`)
+  check('five sequential listings ran no sweep — all served from the memo', census.sweeps === before.sweeps && census.served === before.served + 5, `${JSON.stringify(census)}; fix the memo check in listSessionsAcrossProjectsProgressive in src/sessions/transcripts/sessionListings.ts so an unchanged estate is served without a sweep`)
   console.log(`  BEFORE (by construction of the replaced loader): every listing = ${P} readdirs + ${S} stats + the newest rows' head+tail reads · AFTER: 1 readdir + ${P} directory stats validate the memo; 0 sweeps`)
 }
 
@@ -64,28 +64,28 @@ section('L3 the truth moves — a birth or a removal in ANY process is seen on t
   const bornId = uuidAt(2, 99)
   writeFileSync(join(projectsDir, 'proj-2', `${bornId}.jsonl`), userRow(bornId, 'born'))
   const r = await progressive()
-  check('a session file born in a project directory makes the next listing sweep again', census.sweeps === sweepsBefore + 1, `${JSON.stringify(census)}; fix the memo validation in src/utils/sessionStorage/logs.ts so a new file in a project directory forces a sweep`)
-  check('…and the newborn is in the rows', r.allStatLogs.some(l => l.sessionId === bornId) && r.allStatLogs.length === S + 1, `${r.allStatLogs.length}; fix listSessionsAcrossProjectsProgressive in src/utils/sessionStorage/logs.ts to include the newborn session`)
+  check('a session file born in a project directory makes the next listing sweep again', census.sweeps === sweepsBefore + 1, `${JSON.stringify(census)}; fix the memo validation in src/sessions/transcripts/sessionListings.ts so a new file in a project directory forces a sweep`)
+  check('…and the newborn is in the rows', r.allStatLogs.some(l => l.sessionId === bornId) && r.allStatLogs.length === S + 1, `${r.allStatLogs.length}; fix listSessionsAcrossProjectsProgressive in src/sessions/transcripts/sessionListings.ts to include the newborn session`)
   await progressive()
-  check('the listing after that is served again (the new truth memoized)', census.sweeps === sweepsBefore + 1, `${JSON.stringify(census)}; fix listSessionsAcrossProjectsProgressive in src/utils/sessionStorage/logs.ts to memoize the sweep it just ran`)
+  check('the listing after that is served again (the new truth memoized)', census.sweeps === sweepsBefore + 1, `${JSON.stringify(census)}; fix listSessionsAcrossProjectsProgressive in src/sessions/transcripts/sessionListings.ts to memoize the sweep it just ran`)
   rmSync(join(projectsDir, 'proj-2', `${bornId}.jsonl`))
   const r2 = await progressive()
-  check('a removal is seen the same way', census.sweeps === sweepsBefore + 2 && !r2.allStatLogs.some(l => l.sessionId === bornId) && r2.allStatLogs.length === S, `${r2.allStatLogs.length}; fix the memo validation in src/utils/sessionStorage/logs.ts so a removed session file forces a sweep`)
+  check('a removal is seen the same way', census.sweeps === sweepsBefore + 2 && !r2.allStatLogs.some(l => l.sessionId === bornId) && r2.allStatLogs.length === S, `${r2.allStatLogs.length}; fix the memo validation in src/sessions/transcripts/sessionListings.ts so a removed session file forces a sweep`)
 }
 
 section("L4 this process's own title save invalidates")
 {
   const sweepsBefore = census.sweeps
   await progressive()
-  check('served before the invalidation', census.sweeps === sweepsBefore, `${JSON.stringify(census)}; fix listSessionsAcrossProjectsProgressive in src/utils/sessionStorage/logs.ts to serve from the memo`)
+  check('served before the invalidation', census.sweeps === sweepsBefore, `${JSON.stringify(census)}; fix listSessionsAcrossProjectsProgressive in src/sessions/transcripts/sessionListings.ts to serve from the memo`)
   logs.invalidateSessionListingMemo()
   await progressive()
-  check('the listing after invalidateSessionListingMemo sweeps again', census.sweeps === sweepsBefore + 1, `${JSON.stringify(census)}; fix invalidateSessionListingMemo in src/utils/sessionStorage/logs.ts to drop the memo`)
+  check('the listing after invalidateSessionListingMemo sweeps again', census.sweeps === sweepsBefore + 1, `${JSON.stringify(census)}; fix invalidateSessionListingMemo in src/sessions/transcripts/sessionListings.ts to drop the memo`)
   const id = uuidAt(0, 0)
   const beforeSave = census.sweeps
   await logs.saveCustomTitle(id as never, 'renamed', join(projectsDir, 'proj-0', `${id}.jsonl`))
   const afterSave = await progressive()
-  check('saveCustomTitle calls the invalidation right after its append', census.sweeps === beforeSave + 1 && afterSave.logs.some(row => row.sessionId === id && row.customTitle === 'renamed'), `${JSON.stringify(census)}; fix saveCustomTitle in src/utils/sessionStorage/logs.ts to call invalidateSessionListingMemo after its append`)
+  check('saveCustomTitle calls the invalidation right after its append', census.sweeps === beforeSave + 1 && afterSave.logs.some(row => row.sessionId === id && row.customTitle === 'renamed'), `${JSON.stringify(census)}; fix saveCustomTitle in src/sessions/transcripts/sessionListings.ts to call invalidateSessionListingMemo after its append`)
 }
 
 section('L5 the public door rides the memo; callers get fresh rows')
@@ -94,12 +94,12 @@ section('L5 the public door rides the memo; callers get fresh rows')
   const servedBefore = census.served
   const all = await logs.listSessionsAcrossProjects()
   const again = await logs.listSessionsAcrossProjects()
-  check('listSessionsAcrossProjects (the rail, /resume, /sessiontab) is served by the memo', census.sweeps === sweepsBefore && census.served === servedBefore + 2, `${JSON.stringify(census)}; fix listSessionsAcrossProjects in src/utils/sessionStorage/logs.ts to read through the memo`)
-  check('the two answers agree row for row', all.length > 0 && all.length === again.length && all.every((l, i) => l.sessionId === again[i]!.sessionId && l.modified.getTime() === again[i]!.modified.getTime()), `${all.length}; fix listSessionsAcrossProjects in src/utils/sessionStorage/logs.ts so repeated listings return the same rows`)
+  check('listSessionsAcrossProjects (the rail, /resume, /sessiontab) is served by the memo', census.sweeps === sweepsBefore && census.served === servedBefore + 2, `${JSON.stringify(census)}; fix listSessionsAcrossProjects in src/sessions/transcripts/sessionListings.ts to read through the memo`)
+  check('the two answers agree row for row', all.length > 0 && all.length === again.length && all.every((l, i) => l.sessionId === again[i]!.sessionId && l.modified.getTime() === again[i]!.modified.getTime()), `${all.length}; fix listSessionsAcrossProjects in src/sessions/transcripts/sessionListings.ts so repeated listings return the same rows`)
   if (all.length > 0) {
     all[0]!.value = 999
     const third = await logs.listSessionsAcrossProjects()
-    check('a caller mutating its rows never reaches the memo (fresh objects per listing)', third[0]!.value !== 999, `${String(third[0]!.value)}; fix listSessionsAcrossProjects in src/utils/sessionStorage/logs.ts to return copies of the memoized rows`)
+    check('a caller mutating its rows never reaches the memo (fresh objects per listing)', third[0]!.value !== 999, `${String(third[0]!.value)}; fix listSessionsAcrossProjects in src/sessions/transcripts/sessionListings.ts to return copies of the memoized rows`)
   }
 }
 

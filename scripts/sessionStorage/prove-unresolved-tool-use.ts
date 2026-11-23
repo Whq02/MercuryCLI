@@ -12,17 +12,17 @@ delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 
-const vnext = await import(join(SRC, 'utils/sessionStorage/vnext.ts'))
-const logs = await import(join(SRC, 'utils/sessionStorage/logs.ts'))
-const paths = await import(join(SRC, 'utils/sessionStorage/paths.ts'))
-const state = await import(join(SRC, 'bootstrap/state.ts'))
+const vnext = await import(join(SRC, 'sessions/transcripts/vnext.ts'))
+const logs = await import(join(SRC, 'sessions/transcripts/sessionListings.ts'))
+const paths = await import(join(SRC, 'sessions/transcripts/paths.ts'))
+const state = await import(join(SRC, 'boot/process-state/processState.ts'))
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const W = 'findUnresolvedToolUse in src/utils/sessionStorage/logs.ts'
+const W = 'findUnresolvedToolUse in src/sessions/transcripts/sessionListings.ts'
 const SID = '00000000-bbbb-4000-8000-00000000beef'
 let n = 0
 const uid = (): string => `00000000-0000-4000-8000-${String(100000000000 + ++n).slice(1)}`
@@ -31,7 +31,7 @@ const projectDir = paths.getProjectDir(SCRATCH)
 mkdirSync(projectDir, { recursive: true })
 state.switchSession(SID, projectDir)
 const file = paths.getTranscriptPath()
-check('the transcript path follows the switched session', file === join(projectDir, `${SID}.jsonl`), `${file}; getTranscriptPath in src/utils/sessionStorage/paths.ts should follow the session set by switchSession`)
+check('the transcript path follows the switched session', file === join(projectDir, `${SID}.jsonl`), `${file}; getTranscriptPath in src/sessions/transcripts/paths.ts should follow the session set by switchSession`)
 let i = 0
 let parent: string | null = null
 const row = (entry: Record<string, unknown>): string => {

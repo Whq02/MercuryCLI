@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/Settings/Config.tsx src/utils/thinking.ts src/utils/model/capabilities.ts
+// gate-watch: src/screen/settings/Config.tsx src/models/effort/thinking.ts src/models/facts/capabilities.ts
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -12,25 +12,25 @@ const ASSET = {
   sources: [
     'scripts/ui/prove-config-thinking-row.ts',
     'scripts/lib/settingsPopupHarness.ts',
-    'src/components/Settings/Config.tsx',
-    'src/components/Settings/config/**',
-    'src/components/SettingsPopupSlot.tsx',
-    'src/components/Settings/Settings.tsx',
-    'src/components/FullscreenLayout.tsx',
+    'src/screen/settings/Config.tsx',
+    'src/screen/settings/config/**',
+    'src/screen/overlays/SettingsPopupSlot.tsx',
+    'src/screen/settings/Settings.tsx',
+    'src/screen/fullscreen-layout/FullscreenLayout.tsx',
     'src/components/fullscreenLayout/**',
     'src/commands/config/config.tsx',
-    'src/utils/config.ts',
-    'src/utils/settings/settingsCache.ts',
-    'src/utils/thinking.ts',
-    'src/ink.ts',
-    'src/components/App.tsx',
-    'src/state/AppStateStore.ts',
-    'src/keybindings/KeybindingProviderSetup.tsx',
-    'src/components/PromptInput/PromptInput.tsx',
-    'src/hooks/useLayoutTier.ts',
-    'src/context/surfaceRoute.ts',
-    'src/context/overlayStack.ts',
-    'src/utils/cockpit/settingsPopup.ts',
+    'src/platform/settings/config.ts',
+    'src/platform/settings/settingsCache.ts',
+    'src/models/effort/thinking.ts',
+    'src/screen/themedRenderer.ts',
+    'src/boot/App.tsx',
+    'src/screen/app-state/AppStateStore.ts',
+    'src/screen/keys/KeybindingProviderSetup.tsx',
+    'src/screen/composer/Composer.tsx',
+    'src/screen/fullscreen-layout/useLayoutTier.ts',
+    'src/screen/routes/surfaceRoute.ts',
+    'src/screen/overlays/overlayStack.ts',
+    'src/screen/cockpit/settingsPopup.ts',
   ],
 }
 if (registerOnlyRequested(ASSET)) process.exit(0)
@@ -58,7 +58,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${ok ? '' : ' | fix the Thinking row in src/components/Settings/config/configRowsEngine.tsx (engine.reasoning write, keys), its applicability in src/components/Settings/config/configRowFacts.ts (thinkingRowApplicability) or the default in src/utils/thinking.ts (shouldEnableThinkingByDefault); a stored frame mismatch is refreshed with bun scripts/ui/prove-config-thinking-row.ts --write'}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${ok ? '' : ' | fix the Thinking row in src/screen/settings/config/configRowsEngine.tsx (engine.reasoning write, keys), its applicability in src/screen/settings/config/configRowFacts.ts (thinkingRowApplicability) or the default in src/models/effort/thinking.ts (shouldEnableThinkingByDefault); a stored frame mismatch is refreshed with bun scripts/ui/prove-config-thinking-row.ts --write'}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -78,40 +78,40 @@ const SONNET = 'claude-sonnet-5-5'
 const OPUS = 'claude-opus-5-5'
 const EFFORT_NOTE = 'Sonnet 5.5 keeps thinking on at xhigh and max effort, Opus 5.5 at every effort'
 writeFileSync(settingsPath, JSON.stringify({ engine: { model: HAIKU } }))
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(c => ({ ...c, prStatusFooterEnabled: false }))
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 const engineOf = (): Record<string, unknown> => ((existsSync(settingsPath) ? (JSON.parse(readFileSync(settingsPath, 'utf8')) as Record<string, unknown>).engine : undefined) as Record<string, unknown> | undefined) ?? {}
-const { shouldEnableThinkingByDefault } = await import('../../src/utils/thinking.ts')
+const { shouldEnableThinkingByDefault } = await import('../../src/models/effort/thinking.ts')
 
 section('§1 the row and the engine agree on what an absent key means')
 {
   resetSettingsCache()
   check('with no engine.reasoning key the engine thinks (the default-on rule)', shouldEnableThinkingByDefault() === true)
-  const config = await import('../../src/components/Settings/Config.tsx')
+  const config = await import('../../src/screen/settings/Config.tsx')
   check('a model that takes the control: the row applies', config.thinkingRowApplicability(HAIKU).applies === true)
   check('Sonnet 5.5 takes the control (off stops its thinking before an answer up to high effort), its [1m] twin with it', config.thinkingRowApplicability(SONNET).applies === true && config.thinkingRowApplicability(`${SONNET}[1m]`).applies === true, JSON.stringify(config.thinkingRowApplicability(SONNET)))
   const always = config.thinkingRowApplicability(OPUS)
   check('a model whose thinking is always on says so in the row', always.applies === false && always.naText === 'n/a — Opus 5.5 keeps thinking on', JSON.stringify(always))
   check('Fable 5.2 and Mythos 5.2 keep that answer', ['claude-fable-5-2', 'claude-mythos-5-2'].every(model => config.thinkingRowApplicability(model).applies === false))
-  const { modelThinkingAlwaysOn } = await import('../../src/utils/model/capabilities.ts')
+  const { modelThinkingAlwaysOn } = await import('../../src/models/facts/capabilities.ts')
   check('the wire law every other reader asks keeps its answer for Sonnet 5.5', modelThinkingAlwaysOn(SONNET) && modelThinkingAlwaysOn(OPUS))
 }
 
 const React = await import('react')
 const h = React.createElement
-const { Box, Text, ThemeProvider } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const settingsStore = await import('../../src/utils/cockpit/settingsPopup.ts')
+const { Box, Text, ThemeProvider } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const settingsStore = await import('../../src/screen/cockpit/settingsPopup.ts')
 const config = await import('../../src/commands/config/config.tsx')
 
 function Harness({ columns }: { columns: number }): React.ReactNode {

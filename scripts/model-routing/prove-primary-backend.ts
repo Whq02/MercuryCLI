@@ -45,14 +45,14 @@ delete process.env.HF_TOKEN
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const { resolvePrimaryAgentBackend, describeAgentRuntimeRef, APEX_BACKEND_CONTRACT_VERSION } =
-  await import('../../src/services/providers/primaryBackend.js')
-const { classifyModelRoute, declaredRouteOf } = await import('../../src/services/providers/callModelRouter.js')
-const { collectReadiness } = await import('../../src/services/health/readiness.js')
-const { mapOpenaiHttpFailure } = await import('../../src/services/providers/openai/openaiWire.js')
-const { providerWaitWords } = await import('../../src/services/api/recoveryBudget.js')
+  await import('../../src/models/roads/primaryBackend.js')
+const { classifyModelRoute, declaredRouteOf } = await import('../../src/models/roads/callModelRouter.js')
+const { collectReadiness } = await import('../../src/platform/health/readiness.js')
+const { mapOpenaiHttpFailure } = await import('../../src/models/roads/openai/openaiWire.js')
+const { providerWaitWords } = await import('../../src/engine/requests/recoveryBudget.js')
 
 section('1 · routing agreement across id shapes')
-proofWhereToLook = 'fix the id-prefix to provider mapping: declaredRouteOf in src/services/providers/routeLaw.ts, resolvePrimaryAgentBackend in src/services/providers/primaryBackend.ts'
+proofWhereToLook = 'fix the id-prefix to provider mapping: declaredRouteOf in src/models/roads/routeLaw.ts, resolvePrimaryAgentBackend in src/models/roads/primaryBackend.ts'
 {
   const cases: Array<[string, string]> = [
     ['gpt-5.6-sol', 'openai'],
@@ -86,7 +86,7 @@ proofWhereToLook = 'fix the id-prefix to provider mapping: declaredRouteOf in sr
 }
 
 section('2 · typed refs are total')
-proofWhereToLook = 'fix describeAgentRuntimeRef (family, backend, route, provider of the ref) in src/services/providers/primaryBackend.ts'
+proofWhereToLook = 'fix describeAgentRuntimeRef (family, backend, route, provider of the ref) in src/models/roads/primaryBackend.ts'
 {
   const sol = describeAgentRuntimeRef('gpt-5.6-sol')
   check(
@@ -123,7 +123,7 @@ proofWhereToLook = 'fix describeAgentRuntimeRef (family, backend, route, provide
 }
 
 section('3 · readiness honesty')
-proofWhereToLook = 'fix the readiness() receipt of that backend (state, reason, detail) in src/services/providers/primaryBackend.ts'
+proofWhereToLook = 'fix the readiness() receipt of that backend (state, reason, detail) in src/models/roads/primaryBackend.ts'
 {
   check('anthropic ready by construction', resolvePrimaryAgentBackend('claude-opus-4-8').readiness().state === 'ready')
 
@@ -163,7 +163,7 @@ proofWhereToLook = 'fix the readiness() receipt of that backend (state, reason, 
 }
 
 section('4 · the /health rows PROJECT the backend receipts')
-proofWhereToLook = 'fix backendRecords (the engine:backend rows built from each backend readiness receipt) in src/services/health/readiness.ts'
+proofWhereToLook = 'fix backendRecords (the engine:backend rows built from each backend readiness receipt) in src/platform/health/readiness.ts'
 {
   const report = collectReadiness()
   const openaiRow = report.records.find(r => r.id === 'engine:backend:openai-responses')
@@ -219,7 +219,7 @@ proofWhereToLook = 'fix backendRecords (the engine:backend rows built from each 
 }
 
 section('5 · A7 — usage-limit honesty (typed facts, no invented resets)')
-proofWhereToLook = 'fix mapOpenaiHttpFailure (429 kind, retryAfterMs, message) in src/services/providers/openai/openaiWire.ts'
+proofWhereToLook = 'fix mapOpenaiHttpFailure (429 kind, retryAfterMs, message) in src/models/roads/openai/openaiWire.ts'
 {
   const fault = mapOpenaiHttpFailure(
     429,

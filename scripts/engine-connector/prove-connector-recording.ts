@@ -9,7 +9,7 @@ import { LISTENER_KINDS, type Recording } from './connectorScenarios.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const SCENARIOS = join(ROOT, 'scripts', 'engine-connector', 'connectorScenarios.ts')
-const CONNECTOR = join(ROOT, 'src', 'services', 'engine-connector', 'daemonConnector.ts')
+const CONNECTOR = join(ROOT, 'src', 'engine', 'connector', 'daemonConnector.ts')
 const SELF = 'scripts/engine-connector/prove-connector-recording.ts'
 
 const RECORDED: Readonly<Record<string, { whole: string; events: string }>> = {

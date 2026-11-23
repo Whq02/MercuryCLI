@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/JevEvalTool/jevEvalRequest.ts src/tools/JevEvalTool/jevEvalEvidence.ts src/tools/JevEvalTool/jevEvalResult.ts
+// gate-watch: src/tools/jev-eval/jevEvalRequest.ts src/tools/jev-eval/jevEvalEvidence.ts src/tools/jev-eval/jevEvalResult.ts
 import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -13,7 +13,7 @@ for (const key of ['TYPESAFE_API_KEY', 'NODE_ENV', 'MERCURY_API_UNIX_SOCKET']) d
 let failures = 0
 let checks = 0
 const preExecutionFailHint =
-  'fix the request assembly in src/tools/JevEvalTool/jevEvalRequest.ts (assembleJevEvalRequest), the evidence handling in src/tools/JevEvalTool/jevEvalEvidence.ts, or the refusal wording in src/tools/JevEvalTool/jevEvalResult.ts (jevEvalRefusedText), whichever this check names'
+  'fix the request assembly in src/tools/jev-eval/jevEvalRequest.ts (assembleJevEvalRequest), the evidence handling in src/tools/jev-eval/jevEvalEvidence.ts, or the refusal wording in src/tools/jev-eval/jevEvalResult.ts (jevEvalRefusedText), whichever this check names'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -23,8 +23,8 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { assembleJevEvalRequest } = await import('../../src/tools/JevEvalTool/jevEvalRequest.ts')
-const { jevEvalRefusedText } = await import('../../src/tools/JevEvalTool/jevEvalResult.ts')
+const { assembleJevEvalRequest } = await import('../../src/tools/jev-eval/jevEvalRequest.ts')
+const { jevEvalRefusedText } = await import('../../src/tools/jev-eval/jevEvalResult.ts')
 type Input = Parameters<typeof assembleJevEvalRequest>[0]
 type Question = Input['questions'][number]
 

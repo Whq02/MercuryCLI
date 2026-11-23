@@ -21,23 +21,23 @@ async function runScene(args: SceneArgs): Promise<void> {
     process.stdout.write(`SCENE ${JSON.stringify(value)}\n`)
   }
   if (args.project !== undefined) {
-    const state = await import('../../src/bootstrap/state.ts')
+    const state = await import('../../src/boot/process-state/processState.ts')
     state.setOriginalCwd(args.project)
     state.setCwdState(args.project)
     state.setProjectRoot(args.project)
-    const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+    const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
     enableConfigs()
   }
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const context = { readFileState: new Map(), userModified: false, updateFileHistoryState: () => {}, dynamicSkillDirTriggers: new Set<string>(), nestedMemoryAttachmentTriggers: new Set<string>(), abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }
   if (args.road === 'registry') {
-    const { resolveResource } = await import('../../src/services/resources/registry.ts')
-    const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+    const { resolveResource } = await import('../../src/integrations/resources/registry.ts')
+    const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
     const result = (await resolveResource(args.path!, { cwd: args.project!, owner: processMainOwner() })) as { state: string; note?: string }
     return say({ state: result.state, shown: result.note ?? '' })
   }
   if (args.road === 'query') {
-    const { projectQuery } = await import('../../src/cli/headless/projectQuery.ts')
+    const { projectQuery } = await import('../../src/daemon/runner/projectQuery.ts')
     try {
       const result = (await projectQuery({ op: 'resource', ref: args.path! } as never, getEmptyToolPermissionContext())) as { state?: string; note?: string }
       return say({ state: result.state, shown: result.note ?? '' })
@@ -46,12 +46,12 @@ async function runScene(args: SceneArgs): Promise<void> {
     }
   }
   if (args.road === 'inspect') {
-    const { InspectTool } = await import('../../src/tools/InspectTool/InspectTool.ts')
+    const { InspectTool } = await import('../../src/tools/inspect/InspectTool.ts')
     const inspect = InspectTool as unknown as { call: Function }
     const out = await inspect.call({ ref: args.path! }, context)
     return say({ state: out.data.state, shown: String(out.data.result ?? '') })
   }
-  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const tool = FileReadTool as unknown as { validateInput: Function; call: Function; mapToolResultToToolResultBlockParam: Function }
   const input = { file_path: args.path!, ...(args.offset !== undefined ? { offset: args.offset } : {}), ...(args.limit !== undefined ? { limit: args.limit } : {}) }
   if (args.direct !== true) {
@@ -81,7 +81,7 @@ const RUNAWAY_BYTES = 1024 * MIB
 
 let failures = 0
 let count = 0
-const FAILURE_HINT = 'to fix: the refusal sentence is built in src/utils/regularFile.ts and raised by the Read checks in src/tools/FileReadTool/read/validate.ts; a reference goes through resolveResource in src/services/resources/registry.ts; rerun with --keep to inspect the world'
+const FAILURE_HINT = 'to fix: the refusal sentence is built in src/tools/read/regularFile.ts and raised by the Read checks in src/tools/read/call/validate.ts; a reference goes through resolveResource in src/integrations/resources/registry.ts; rerun with --keep to inspect the world'
 function check(label: string, cond: boolean, detail = ''): void {
   count++
   if (!cond) failures++

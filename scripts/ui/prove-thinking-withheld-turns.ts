@@ -1,14 +1,14 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { RenderableMessage } from '../../src/types/message.ts'
+import type { RenderableMessage } from '../../src/engine/message-shapes/message.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'withheld-turns-'))
 process.env.MERCURY_CONFIG_DIR = home
-const { withheldThinkingDisclosure } = await import('../../src/components/messages/withheldThinkingDisclosure.ts')
+const { withheldThinkingDisclosure } = await import('../../src/screen/messages/withheldThinkingDisclosure.ts')
 let failures = 0
 const check = (label: string, ok: boolean): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ' - to fix: withheldThinkingDisclosure in src/components/messages/withheldThinkingDisclosure.ts must return the byRow and hidden sets this check describes'}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ' - to fix: withheldThinkingDisclosure in src/screen/messages/withheldThinkingDisclosure.ts must return the byRow and hidden sets this check describes'}`)
   if (!ok) failures++
 }
 const row = (uuid: string, type: string, content: unknown[]): RenderableMessage => ({ uuid, type, message: { content } }) as RenderableMessage

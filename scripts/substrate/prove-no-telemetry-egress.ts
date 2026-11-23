@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { binaryName } from '../../src/utils/config.js'
+import { binaryName } from '../../src/platform/settings/config.js'
 
 const ROOT = process.cwd()
 let fail = 0

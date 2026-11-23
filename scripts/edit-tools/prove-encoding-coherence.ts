@@ -16,17 +16,17 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => {
   encodingFixHint = t.startsWith('§1')
-    ? 'fix readFileInRange in src/utils/readFileInRange.ts so it decodes by the byte-order mark'
+    ? 'fix readFileInRange in src/platform/files/readFileInRange.ts so it decodes by the byte-order mark'
     : t.startsWith('§2')
-      ? 'fix mintFileAnchor, checkAnchor or normalizeForAnchor in src/services/changeTransaction/snapshotAnchor.ts, or the content readFileSyncWithMetadata in src/utils/fileRead.ts returns, so the Read-side and edit-side anchors agree'
-      : 'fix writeTextContent in src/utils/file.ts so it writes the byte-order mark only when keepBom is set and never twice'
+      ? 'fix mintFileAnchor, checkAnchor or normalizeForAnchor in src/tools/engines/change-transaction/snapshotAnchor.ts, or the content readFileSyncWithMetadata in src/platform/files/syncFileRead.ts returns, so the Read-side and edit-side anchors agree'
+      : 'fix writeTextContent in src/platform/files/file.ts so it writes the byte-order mark only when keepBom is set and never twice'
   console.log('\n' + '─'.repeat(72) + '\n' + t)
 }
 
-const { readFileInRange } = await import('../../src/utils/readFileInRange.ts')
-const { readFileSyncWithMetadata } = await import('../../src/utils/fileRead.ts')
-const { mintFileAnchor, checkAnchor, normalizeForAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
-const { writeTextContent } = await import('../../src/utils/file.ts')
+const { readFileInRange } = await import('../../src/platform/files/readFileInRange.ts')
+const { readFileSyncWithMetadata } = await import('../../src/platform/files/syncFileRead.ts')
+const { mintFileAnchor, checkAnchor, normalizeForAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
+const { writeTextContent } = await import('../../src/platform/files/file.ts')
 
 const BOM8 = Buffer.from([0xef, 0xbb, 0xbf])
 const text = 'héllo\r\nwörld — line two\r\nthird'

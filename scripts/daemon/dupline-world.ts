@@ -6,7 +6,7 @@ import { join, relative } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { hostRunner, type HostedRunner } from '../lib/runnerHost.ts'
 import type { Frame } from '../lib/rows.ts'
-import type { Capabilities, PermissionAnswer, PermissionRequestParams } from '../../src/runner/wire/methods.ts'
+import type { Capabilities, PermissionAnswer, PermissionRequestParams } from '../../src/daemon/runner-wire/methods.ts'
 
 export const REPO = join(import.meta.dir, '..', '..')
 export const argAfter = (flag: string): string | undefined => {

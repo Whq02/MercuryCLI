@@ -17,7 +17,7 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' | where to look: decodeZaiQuota, zaiQuotaVerdict and zaiQuotaFailureWords in src/services/providers/zai/zaiUsageState.ts, zaiQuotaWindowViews, zaiQuotaFigures and usageForProvider in src/services/providers/providerUsage.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' | where to look: decodeZaiQuota, zaiQuotaVerdict and zaiQuotaFailureWords in src/models/roads/zai/zaiUsageState.ts, zaiQuotaWindowViews, zaiQuotaFigures and usageForProvider in src/models/roads/providerUsage.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -28,7 +28,7 @@ function finish(): never {
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
-const READER = 'src/services/providers/zai/zaiUsageState.ts'
+const READER = 'src/models/roads/zai/zaiUsageState.ts'
 const NOW = 1_790_000_000_000
 
 const PRO_CAPTURE = {
@@ -69,10 +69,10 @@ const readerPresent = existsSync(join(ROOT, READER))
 check(`the Z.ai quota reader exists (${READER})`, readerPresent, 'no such module on this tree: no Z.ai usage reader, the rail and /usage can print no window for GLM')
 if (!readerPresent) finish()
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const reader = await import(join(ROOT, READER)) as typeof import('../../src/services/providers/zai/zaiUsageState.ts')
-const owner = await import('../../src/services/providers/providerUsage.ts')
+const reader = await import(join(ROOT, READER)) as typeof import('../../src/models/roads/zai/zaiUsageState.ts')
+const owner = await import('../../src/models/roads/providerUsage.ts')
 
 section('§1 the Pro capture (the TOKENS_LIMIT spelling): two credit windows and the tool-call quota')
 {

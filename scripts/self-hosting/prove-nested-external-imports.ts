@@ -10,7 +10,7 @@ delete process.env.NODE_ENV
 delete process.env.MERCURY_BARE
 
 let failures = 0
-const nestedExternalFailHint = 'fix getInstructionFilesForNestedDirectory in src/services/instructions/engine.ts so a nested guide reads hasExternalIncludesApproved: an outside import is dropped with an external-import-blocked diagnostic without approval and composes with it'
+const nestedExternalFailHint = 'fix getInstructionFilesForNestedDirectory in src/sessions/instructions/instructionFiles.ts so a nested guide reads hasExternalIncludesApproved: an outside import is dropped with an external-import-blocked diagnostic without approval and composes with it'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${nestedExternalFailHint}`}`)
@@ -29,10 +29,10 @@ writeFileSync(join(nested, 'MERCURY.md'), `# Core package rules\n\nNESTED-MARKER
 seedFirstRun(process.env.MERCURY_CONFIG_DIR, [project])
 process.chdir(project)
 
-const globalConfig = await import('../../src/utils/config/globalConfig.js')
+const globalConfig = await import('../../src/platform/config/globalConfig.js')
 globalConfig.enableConfigs()
-const projectConfig = await import('../../src/utils/config/projectConfig.js')
-const engine = await import('../../src/services/instructions/engine.js')
+const projectConfig = await import('../../src/platform/config/projectConfig.js')
+const engine = await import('../../src/sessions/instructions/instructionFiles.js')
 type Diagnostic = { kind: string; path?: string }
 
 console.log('a nested instruction file honours the external-includes approval')

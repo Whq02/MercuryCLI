@@ -18,29 +18,29 @@ for (const key of [
 }
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
-const pins = await import('../../src/utils/model/pins/gptPins.js')
-const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
-const capabilities = await import('../../src/utils/model/capabilities.js')
-const effort = await import('../../src/utils/effort.js')
-const cost = await import('../../src/services/usage/modelCost.js')
-const model = await import('../../src/services/model/model.js')
-const { getContextWindowForModel } = await import('../../src/utils/context.js')
-const { providerFrontierFact, providerLightFact } = await import('../../src/services/model/providerFrontier.js')
-const { getModelOptions, OPENAI_MODEL_GROUP } = await import('../../src/services/model/modelOptions.js')
-const { ResponsesStreamFold } = await import('../../src/services/providers/openai/openaiWire.js')
-const { streamOneOpenaiAttempt } = await import('../../src/services/providers/openai/openaiCallModel.js')
-const { getAutoCompactThreshold } = await import('../../src/services/compact/autoCompact.js')
-const { imageLimitsForModel } = await import('../../src/utils/imageResizer.js')
-const { nativeSearchFamilyOf } = await import('../../src/services/search/searchDoor.js')
-const { computedDefault, resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.js')
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
-import type { OpenaiStreamEvent } from '../../src/services/providers/openai/openaiWire.ts'
+const pins = await import('../../src/models/facts/pins/gptPins.js')
+const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.js')
+const capabilities = await import('../../src/models/facts/capabilities.js')
+const effort = await import('../../src/models/effort/effort.js')
+const cost = await import('../../src/models/usage/modelCost.js')
+const model = await import('../../src/models/catalogue/engineModel.js')
+const { getContextWindowForModel } = await import('../../src/engine/compaction-window/contextFill.js')
+const { providerFrontierFact, providerLightFact } = await import('../../src/models/catalogue/providerFrontier.js')
+const { getModelOptions, OPENAI_MODEL_GROUP } = await import('../../src/models/catalogue/modelOptions.js')
+const { ResponsesStreamFold } = await import('../../src/models/roads/openai/openaiWire.js')
+const { streamOneOpenaiAttempt } = await import('../../src/models/roads/openai/openaiCallModel.js')
+const { getAutoCompactThreshold } = await import('../../src/engine/compaction/autoFold.js')
+const { imageLimitsForModel } = await import('../../src/platform/images/imageResizer.js')
+const { nativeSearchFamilyOf } = await import('../../src/tools/engines/web-search/searchDoor.js')
+const { computedDefault, resetComputedDefaultMemo } = await import('../../src/models/catalogue/computedDefault.js')
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.js')
+import type { OpenaiStreamEvent } from '../../src/models/roads/openai/openaiWire.ts'
 
 let failures = 0
 const ASTRA_ROW_FIX_HINT_BY_SECTION: Record<string, string> = {
-  '1': 'fix the gpt-6-astra row in GPT_DISPLAY_PINS in src/utils/model/pins/gptPins.ts (or the 5.6 and 6 rows it names); the price, output, window, name and frontier checks read it through src/services/usage/modelCost.ts, src/utils/model/capabilities.ts, src/services/model/model.ts and src/services/model/providerFrontier.ts',
-  '2': 'fix the live-list handling in src/services/providers/openai/openaiCatalogue.ts (evaluateGptCandidate, resolveGptReasoningProfile), the effort words in src/utils/effort.ts and src/utils/model/capabilities.ts, the row in getModelOptions in src/services/model/modelOptions.ts, or computedDefault in src/services/model/computedDefault.ts',
-  '3': 'fix ResponsesStreamFold in src/services/providers/openai/openaiWire.ts or streamOneOpenaiAttempt in src/services/providers/openai/openaiCallModel/attempt.ts, or the price in calculateUSDCost in src/services/usage/modelCost.ts',
+  '1': 'fix the gpt-6-astra row in GPT_DISPLAY_PINS in src/models/facts/pins/gptPins.ts (or the 5.6 and 6 rows it names); the price, output, window, name and frontier checks read it through src/models/usage/modelCost.ts, src/models/facts/capabilities.ts, src/models/catalogue/engineModel.ts and src/models/catalogue/providerFrontier.ts',
+  '2': 'fix the live-list handling in src/models/roads/openai/openaiCatalogue.ts (evaluateGptCandidate, resolveGptReasoningProfile), the effort words in src/models/effort/effort.ts and src/models/facts/capabilities.ts, the row in getModelOptions in src/models/catalogue/modelOptions.ts, or computedDefault in src/models/catalogue/computedDefault.ts',
+  '3': 'fix ResponsesStreamFold in src/models/roads/openai/openaiWire.ts or streamOneOpenaiAttempt in src/models/roads/openai/call-model/attempt.ts, or the price in calculateUSDCost in src/models/usage/modelCost.ts',
 }
 let astraRowFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {

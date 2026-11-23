@@ -11,7 +11,7 @@ const root = scratchRoot('cairn-model-filestore')
 const t = checker()
 const SEED = 20260807
 
-const { defineStore } = await import('../../src/substrate/fileStore.ts')
+const { defineStore } = await import('../../src/platform/substrate/fileStore.ts')
 
 let storeSerial = 0
 interface Box {

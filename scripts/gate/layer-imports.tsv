@@ -1,5 +1,5 @@
-src/utils/cockpit/critterData.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
-src/utils/cockpit/oasisBg.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
-src/utils/mercuryTokens.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
-src/utils/theme.ts	src/components/mercury-ui/sessionAccent.ts	load	its path is the hex exemption of src/utils/wards/wards.ts
-src/utils/theme.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
+src/screen/cockpit/critterData.ts	src/screen/theme/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
+src/screen/cockpit/oasisBg.ts	src/screen/theme/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
+src/screen/theme/mercuryTokens.ts	src/screen/theme/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
+src/screen/theme/theme.ts	src/screen/theme/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
+src/screen/theme/theme.ts	src/screen/widgets/sessionAccent.ts	load	its path is the hex exemption of src/utils/wards/wards.ts

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-import { ADAPTER_FLAG } from '../../../src/services/tensorfold/adapter/identity.ts'
-import { runTensorFoldAdapter } from '../../../src/services/tensorfold/adapter/main.ts'
+import { ADAPTER_FLAG } from '../../../src/models/tensorfold/adapter/identity.ts'
+import { runTensorFoldAdapter } from '../../../src/models/tensorfold/adapter/main.ts'
 
 const ramBytes = Number(process.env.FAKE_ADAPTER_RAM_BYTES)
 if (!(ramBytes > 0)) {

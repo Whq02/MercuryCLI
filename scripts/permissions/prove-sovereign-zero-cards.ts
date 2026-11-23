@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
-import { getPlatform } from '../../src/utils/platform.js'
+import { getPlatform } from '../../src/platform/environment/platform.js'
 (globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_DESKTOP_DRIVER = 'fake'
 process.env.BROWSER = '/usr/bin/true'
@@ -15,15 +15,15 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 let checks = 0
 const zeroCardsWhereBySection: Record<string, string> = {
-  '§0': 'fix postureBypassesAsks in src/utils/permissions/decision/engine.ts',
-  '§1': 'under sovereign the decideToolPermission stages in src/utils/permissions/decision/engine.ts must allow every ask (the wrapper is src/utils/permissions/decision/wrapper.ts)',
-  '§2': 'under sovereign the share-path ask must be allowed by the engine in src/utils/permissions/decision/engine.ts, and in default mode the tool must still ask with the SMB/WebDAV sentence',
-  '§3': 'fix resolveComputerAccess in src/substrate/startupMenu.ts, or the ask stages of decideToolPermission in src/utils/permissions/decision/engine.ts',
-  '§4': 'fix resolveHookPermissionDecision in src/services/tools/toolHooks.ts',
-  '§5': 'fix createRunnerAsks in src/cli/headless/runnerAsks.ts, or AsksPart in src/services/engine-connector/daemon/asks.ts',
-  '§6': 'fix resolveSessionPermissionMode or validateModeEntry in src/utils/permissions/permissionSetup.ts',
-  '§7': 'a command a tool starts must get the Bash decision under sovereign; fix decideToolPermission in src/utils/permissions/decision/engine.ts and the tool named in the label',
-  '§8': 'under sovereign a command the Bash layer cannot follow must be allowed or refused, never asked; fix decideToolPermission in src/utils/permissions/decision/engine.ts or src/tools/BashTool/bashPermissions.ts',
+  '§0': 'fix postureBypassesAsks in src/permissions/rules/decision/engine.ts',
+  '§1': 'under sovereign the decideToolPermission stages in src/permissions/rules/decision/engine.ts must allow every ask (the wrapper is src/permissions/rules/decision/wrapper.ts)',
+  '§2': 'under sovereign the share-path ask must be allowed by the engine in src/permissions/rules/decision/engine.ts, and in default mode the tool must still ask with the SMB/WebDAV sentence',
+  '§3': 'fix resolveComputerAccess in src/platform/substrate/startupMenu.ts, or the ask stages of decideToolPermission in src/permissions/rules/decision/engine.ts',
+  '§4': 'fix resolveHookPermissionDecision in src/engine/tool-dispatch/toolHooks.ts',
+  '§5': 'fix createRunnerAsks in src/daemon/runner/runnerAsks.ts, or AsksPart in src/engine/connector/daemon/asks.ts',
+  '§6': 'fix resolveSessionPermissionMode or validateModeEntry in src/permissions/rules/permissionSetup.ts',
+  '§7': 'a command a tool starts must get the Bash decision under sovereign; fix decideToolPermission in src/permissions/rules/decision/engine.ts and the tool named in the label',
+  '§8': 'under sovereign a command the Bash layer cannot follow must be allowed or refused, never asked; fix decideToolPermission in src/permissions/rules/decision/engine.ts or src/tools/shell/bashPermissions.ts',
 }
 let zeroCardsWhere = ''
 function check(label: string, ok: boolean, detail = ''): void {
@@ -37,27 +37,27 @@ const section = (title: string): void => {
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { decideToolPermission, postureBypassesAsks } = await import('../../src/utils/permissions/decision/engine.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { hasPermissionsToUseTool } = await import('../../src/utils/permissions/permissions.ts')
-const { resolveHookPermissionDecision } = await import('../../src/services/tools/toolHooks.ts')
-const { resolveComputerAccess, COMPUTER_ACCESS_VALUES } = await import('../../src/substrate/startupMenu.ts')
-const { resolveSessionPermissionMode, validateModeEntry } = await import('../../src/utils/permissions/permissionSetup.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { GlobTool } = await import('../../src/tools/GlobTool/GlobTool.ts')
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { PowerShellTool } = await import('../../src/tools/PowerShellTool/PowerShellTool.tsx')
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const desktop = await import('../../src/services/desktop/desktopSession.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { decideToolPermission, postureBypassesAsks } = await import('../../src/permissions/rules/decision/engine.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { hasPermissionsToUseTool } = await import('../../src/permissions/rules/permissionDoor.ts')
+const { resolveHookPermissionDecision } = await import('../../src/engine/tool-dispatch/toolHooks.ts')
+const { resolveComputerAccess, COMPUTER_ACCESS_VALUES } = await import('../../src/platform/substrate/startupMenu.ts')
+const { resolveSessionPermissionMode, validateModeEntry } = await import('../../src/permissions/rules/permissionSetup.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
+const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { PowerShellTool } = await import('../../src/tools/powershell/PowerShellTool.tsx')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const desktop = await import('../../src/integrations/desktop/desktopSession.ts')
 const { toolContext, withScreenshot, ownerOf } = await import('../computer/computerToolKit.ts')
-const { createRunnerAsks } = await import('../../src/cli/headless/runnerAsks.ts')
-const { createPeer } = await import('../../src/runner/wire/peer.ts')
+const { createRunnerAsks } = await import('../../src/daemon/runner/runnerAsks.ts')
+const { createPeer } = await import('../../src/daemon/runner-wire/peer.ts')
 const { z } = await import('zod/v4')
 
 type Mode = 'default' | 'sovereign'
@@ -126,12 +126,12 @@ section('§1 the roads that already stand down: every plain ask verdict is ALLOW
   check('a deny rule still refuses under sovereign (a refusal is not a card)', denied.decision.behavior === 'deny' && denied.trace.decidedBy === 'toolDenyRule')
   const wrapped = await decideToolPermissionWithModes(stubTool('Stub', { behavior: 'ask', message: 'ask', decisionReason: { type: 'other', reason: 'x' } }), { op: 'x' }, contextOf('sovereign'), assistant, 'toolu_wrapped')
   check('the mode wrapper adds no ask of its own under sovereign (its floors are Flow\'s)', wrapped.decision.behavior === 'allow' && wrapped.wrapper.decidedBy === 'engine', JSON.stringify(wrapped.wrapper))
-  const lateRules = await import('../../src/utils/permissions/lateAllowRules.ts').catch(() => null)
+  const lateRules = await import('../../src/permissions/rules/lateAllowRules.ts').catch(() => null)
   lateRules?.noteAllowRulesOfSettingsChange({ ...getEmptyToolPermissionContext() } as never, { ...getEmptyToolPermissionContext(), alwaysAllowRules: { localSettings: ['Stub'] } } as never)
   const arrived = await decideToolPermissionWithModes(stubTool('Stub', { behavior: 'ask', message: 'ask', decisionReason: { type: 'other', reason: 'x' } }), { op: 'x' }, contextOf('sovereign', { allow: ['Stub'] }), assistant, 'toolu_arrived')
   check('an allow rule that arrived by a settings change while the session runs raises no ask under sovereign (Flow alone reads the rules of the session\'s start)', arrived.decision.behavior === 'allow' && arrived.wrapper.decidedBy === 'engine', JSON.stringify(arrived.wrapper))
   lateRules?.forgetLateAllowRules()
-  const estate = (await import('../../src/utils/permissions/filesystem.ts')) as { noteComposedInstructionImports?: (paths: string[]) => void }
+  const estate = (await import('../../src/permissions/rules/filesystem.ts')) as { noteComposedInstructionImports?: (paths: string[]) => void }
   const imported = join(ROOT, 'docs', 'zero-cards-imported.md')
   estate.noteComposedInstructionImports?.([imported])
   const steering = await decide(FileWriteTool, { file_path: imported, content: 'x' }, contextOf('sovereign'))
@@ -325,8 +325,8 @@ section('§5 the hosted runner and the daemon-hosted cockpit (E): the runner par
     const plane = mkdtempSync(join(tmpdir(), 'zero-cards-cockpit-'))
     const planeBefore = process.env.MERCURY_DAEMON_DIR
     process.env.MERCURY_DAEMON_DIR = plane
-    const { AsksPart } = await import('../../src/services/engine-connector/daemon/asks.ts')
-    const { publishSessionAsks } = await import('../../src/services/engine-connector/seatProjections.ts')
+    const { AsksPart } = await import('../../src/engine/connector/daemon/asks.ts')
+    const { publishSessionAsks } = await import('../../src/engine/connector/seatProjections.ts')
     const sessionId = 'zero-cards-cockpit'
     const cockpit = new AsksPart({
       record: () => ({ sessionId }),
@@ -369,7 +369,7 @@ section('§6 the arming of sovereign is untouched: the launch flag or the Boot M
 
 section('§7 a command a tool starts gets the Bash decision: under sovereign that is an allowance or a refusal, never a card')
 {
-  const { MonitorTool } = await import('../../src/tools/MonitorTool/MonitorTool.ts')
+  const { MonitorTool } = await import('../../src/tools/monitor/MonitorTool.ts')
   const watch = (command: string) => ({ command, description: 'watch' })
   for (const command of ['echo x > notes.txt', 'rm -rf build', 'npm install left-pad', 'git push origin main', 'cat $FILE', 'ls *.txt']) {
     const outside = await decide(MonitorTool, watch(command), contextOf('default'))
@@ -385,9 +385,9 @@ section('§7 a command a tool starts gets the Bash decision: under sovereign tha
     const store = await decide(tool, name === 'Bash' ? { command: 'printf x > ~/.ssh/config' } : watch('printf x > ~/.ssh/config'), contextOf('sovereign'))
     check(`${name} printf x > ~/.ssh/config: a write to a credential store is refused under sovereign, as the Write tool refuses it (no card)`, store.decision.behavior === 'deny' && (store.decision.message ?? '').includes('is a protected system or credential path'), JSON.stringify(store.decision))
   }
-  const { ServiceTool } = await import('../../src/tools/ServiceTool/ServiceTool.ts')
-  const { JourneyTool } = await import('../../src/tools/JourneyTool/JourneyTool.ts')
-  const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
+  const { ServiceTool } = await import('../../src/tools/service/ServiceTool.ts')
+  const { JourneyTool } = await import('../../src/tools/journey/JourneyTool.ts')
+  const { DebugTool } = await import('../../src/tools/debug/DebugTool.ts')
   const started: Array<[string, unknown, (argv: string[]) => Record<string, unknown>]> = [
     ['Service start', ServiceTool, argv => ({ op: 'start', name: 'probe', command: argv[0], args: argv.slice(1) })],
     ['Journey command.run', JourneyTool, argv => ({ op: 'run', objective: 'probe', steps: [{ kind: 'command.run', command: argv[0], args: argv.slice(1) }] })],
@@ -414,8 +414,8 @@ section('§7 a command a tool starts gets the Bash decision: under sovereign tha
     check(`Service input of ${text}: with deny rules in force, allowed or refused under sovereign (${ruled.decision.behavior}), no card`, ruled.decision.behavior === 'allow' || ruled.decision.behavior === 'deny', JSON.stringify(ruled.decision).slice(0, 300))
   }
   {
-    const history = await import('../../src/utils/permissions/serviceInputHistory.ts').catch(() => null)
-    const { getOriginalCwd } = await import('../../src/bootstrap/state.ts')
+    const history = await import('../../src/permissions/rules/serviceInputHistory.ts').catch(() => null)
+    const { getOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
     history?.noteServiceInput(history.serviceInputKey(getOriginalCwd(), 'zero-cards-service'), ':', 'cd scripts && export N=1', true)
     for (const text of ['ls', 'cat $N', 'rm -rf build']) {
       const input = { op: 'input', name: 'zero-cards-service', text }

@@ -12,7 +12,7 @@ import type {
   LayoutOverflow,
   LayoutPositionType,
   LayoutWrap,
-} from '../../src/ink/layout/node.js'
+} from '../../src/screen/renderer/layout/node.js'
 
 type Counters = { visited: number; measured: number; cacheHits: number; live: number }
 export type Engine = { create: () => LayoutNode; counters: () => Counters; trace: string; open: string | null }

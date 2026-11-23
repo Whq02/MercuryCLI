@@ -55,18 +55,18 @@ const neighbour = <T>(what: string, answer: T): Promise<T> => {
 const timers: Array<{ ms: number; run: () => void; unref: boolean }> = []
 
 const promises = await import('fs/promises')
-const controlSocket = await import('../../src/daemon/controlSocket.ts')
-const daemonHome = await import('../../src/daemon/daemonHome.ts')
-const handover = await import('../../src/daemon/handover.ts')
-const ownerWatch = await import('../../src/utils/ownerWatch.ts')
-const planeRecords = await import('../../src/daemon/planeRecords.ts')
-const status = await import('../../src/daemon/status.ts')
+const controlSocket = await import('../../src/daemon/control/controlSocket.ts')
+const daemonHome = await import('../../src/daemon/control/daemonHome.ts')
+const handover = await import('../../src/daemon/control/handover.ts')
+const ownerWatch = await import('../../src/daemon/control/ownerWatch.ts')
+const planeRecords = await import('../../src/daemon/control/planeRecords.ts')
+const status = await import('../../src/daemon/control/status.ts')
 const restart = await import('../../src/daemon/run/restart.ts')
-const debug = await import('../../src/utils/debug.ts')
+const debug = await import('../../src/platform/logs/debugLog.ts')
 mock.module('fs/promises', () => ({ ...promises, unlink: (path: string) => neighbour(`unlink ${basename(path)}`, undefined) }))
-mock.module('../../src/daemon/controlSocket.ts', () => ({ ...controlSocket, acquireDaemonLock: () => neighbour('take the daemon lock', script.lock) }))
-mock.module('../../src/daemon/daemonHome.ts', () => ({ ...daemonHome, daemonHomeStands: () => script.homeStands }))
-mock.module('../../src/daemon/handover.ts', () => ({
+mock.module('../../src/daemon/control/controlSocket.ts', () => ({ ...controlSocket, acquireDaemonLock: () => neighbour('take the daemon lock', script.lock) }))
+mock.module('../../src/daemon/control/daemonHome.ts', () => ({ ...daemonHome, daemonHomeStands: () => script.homeStands }))
+mock.module('../../src/daemon/control/handover.ts', () => ({
   ...handover,
   forwardFrame: (sock: string, line: string, ms: number) => {
     const asked = JSON.parse(line) as { op: string; reapWorkers?: boolean; forwarded?: boolean; clientBuildTree?: string }
@@ -74,21 +74,21 @@ mock.module('../../src/daemon/handover.ts', () => ({
     return neighbour(what, asked.op === 'hello' ? script.hello : { ok: true, op: 'shutdown' })
   },
 }))
-mock.module('../../src/utils/ownerWatch.ts', () => ({ ...ownerWatch, isProcessAlive: (pid: number) => script.alive.has(pid) }))
-mock.module('../../src/daemon/planeRecords.ts', () => ({
+mock.module('../../src/daemon/control/ownerWatch.ts', () => ({ ...ownerWatch, isProcessAlive: (pid: number) => script.alive.has(pid) }))
+mock.module('../../src/daemon/control/planeRecords.ts', () => ({
   ...planeRecords,
   lockHeldByLivePidSync: () => {
     note('read who holds the daemon lock')
     return script.lockHolder
   },
 }))
-mock.module('../../src/daemon/status.ts', () => ({ ...status, helperPidSocketsOnDisk: () => script.sockets }))
+mock.module('../../src/daemon/control/status.ts', () => ({ ...status, helperPidSocketsOnDisk: () => script.sockets }))
 mock.module('../../src/daemon/run/restart.ts', () => ({ ...restart, successorRuntime: () => (script.otherBuild ? { buildTree: 'cccccccccccc', script: '/other/mercury.mjs', version: '1.0.0', layout: 'source' } : null) }))
-mock.module('../../src/utils/debug.ts', () => ({ ...debug, logForDebugging: (line: string) => note(`debug: ${line}`) }))
+mock.module('../../src/platform/logs/debugLog.ts', () => ({ ...debug, logForDebugging: (line: string) => note(`debug: ${line}`) }))
 
 const part = await import('../../src/daemon/run/handover.ts')
 const { makeDaemonRunState } = await import('../../src/daemon/run/state.ts')
-const { DaemonBreaker } = await import('../../src/utils/daemonBreaker.ts')
+const { DaemonBreaker } = await import('../../src/daemon/control/daemonBreaker.ts')
 
 type State = ReturnType<typeof makeDaemonRunState>
 const OURS = 'aaaaaaaaaaaa'

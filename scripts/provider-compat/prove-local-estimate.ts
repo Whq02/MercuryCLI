@@ -16,11 +16,11 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 let failures = 0
 let checks = 0
 const SECTION_HINTS: Record<string, string> = {
-  '§0': 'the fixture world did not load as described: check the fixture Ollama in this file and discovery in src/services/providers/local/localDiscovery.ts',
-  '§1': 'change localToolWireOf or localPreComposeEstimate in src/services/providers/local/localCallModel.ts so the estimate weighs the tools the request sends',
-  '§2': 'change localLaneProfileFor (requestFitRefusal), localGuardWindow or LOCAL_FIT_TOLERANCE in src/services/providers/local/localCallModel.ts, or the window setting in src/services/providers/local/localWindow.ts',
-  '§3': 'change chooseLocalWindow or doubledRequestWindow in src/services/providers/local/localWindow.ts so an unread machine gets the automatic ceiling or the stated window',
-  '§4': 'change composeLocalWarm in src/services/providers/local/localWarm.ts or localToolWireGuess in src/services/providers/local/localCallModel.ts so the warm follows the turn',
+  '§0': 'the fixture world did not load as described: check the fixture Ollama in this file and discovery in src/models/roads/local/localDiscovery.ts',
+  '§1': 'change localToolWireOf or localPreComposeEstimate in src/models/roads/local/localCallModel.ts so the estimate weighs the tools the request sends',
+  '§2': 'change localLaneProfileFor (requestFitRefusal), localGuardWindow or LOCAL_FIT_TOLERANCE in src/models/roads/local/localCallModel.ts, or the window setting in src/models/roads/local/localWindow.ts',
+  '§3': 'change chooseLocalWindow or doubledRequestWindow in src/models/roads/local/localWindow.ts so an unread machine gets the automatic ceiling or the stated window',
+  '§4': 'change composeLocalWarm in src/models/roads/local/localWarm.ts or localToolWireGuess in src/models/roads/local/localCallModel.ts so the warm follows the turn',
 }
 let sectionHint = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -107,31 +107,31 @@ const ollama = await ollamaFixture()
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
 process.env.MERCURY_MODEL = PERSISTED
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { assembleToolPool } = await import('../../src/tools.ts')
-const { MCPTool } = await import('../../src/tools/MCPTool/MCPTool.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { refreshLocalDiscovery, __resetLocalDiscoveryForTest } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { getDeferredToolsDeltaAttachment } = await import('../../src/services/attachments/deltas.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
-const { overflowSignalOf } = await import('../../src/services/api/overflowSignal.ts')
-const callModel = await import('../../src/services/providers/local/localCallModel.ts')
-const w = await import('../../src/services/providers/local/localWindow.ts')
-const warm = await import('../../src/services/providers/local/localWarm.ts')
-const { __pinLocalServerTruthForTest, __resetLocalServerTruthForTest } = await import('../../src/services/localServer/localServerTruth.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Tools = import('../../src/Tool.ts').Tools
-type Message = import('../../src/types/message.ts').Message
-type LocalParams = import('../../src/services/providers/openaicompat/compatChatCallModel.ts').CompatCallModelParams
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
+const { MCPTool } = await import('../../src/tools/mcp/MCPTool.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { refreshLocalDiscovery, __resetLocalDiscoveryForTest } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/tool-search/prompt.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { getDeferredToolsDeltaAttachment } = await import('../../src/engine/attachments/toolAndServerDeltas.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.ts')
+const { overflowSignalOf } = await import('../../src/engine/requests/overflowSignal.ts')
+const callModel = await import('../../src/models/roads/local/localCallModel.ts')
+const w = await import('../../src/models/roads/local/localWindow.ts')
+const warm = await import('../../src/models/roads/local/localWarm.ts')
+const { __pinLocalServerTruthForTest, __resetLocalServerTruthForTest } = await import('../../src/models/local-server/localServerTruth.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Tools = import('../../src/tools/kit/tool.ts').Tools
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type LocalParams = import('../../src/models/roads/openaicompat/compatChatCallModel.ts').CompatCallModelParams
 type ToolWire = { schemas: number; schemaBytes: number; named: number }
 type Tip = {
   localToolWireOf?: (params: LocalParams) => Promise<ToolWire>
@@ -232,7 +232,7 @@ let beforeAfter = ''
   const real = realOf(sent.chat)
   fixedBytes = sent.chat?.bytes ?? 0
   const wire = onTip ? await tip.localToolWireOf!(params) : undefined
-  check('the pre-compose tool cost is only the captured schema bytes', wire !== undefined && estimate === (await import('../../src/services/tokenEstimation.ts')).estimateRequestTokens({ messages: params.messages, system: params.systemPrompt }, PERSISTED) + Math.ceil(wire.schemaBytes / WIRE_BYTES_PER_TOKEN))
+  check('the pre-compose tool cost is only the captured schema bytes', wire !== undefined && estimate === (await import('../../src/models/facts/tokenEstimation.ts')).estimateRequestTokens({ messages: params.messages, system: params.systemPrompt }, PERSISTED) + Math.ceil(wire.schemaBytes / WIRE_BYTES_PER_TOKEN))
   beforeAfter = `estimate ${fmt(estimate)} tokens · the request on the wire ${fmt(fixedBytes)} bytes = ${fmt(real)} tokens at ${WIRE_BYTES_PER_TOKEN} bytes/token · ${wireSchemas(sent.chat)} schemas + ${deferredNames.length} names on the wire`
   console.log(`  ${beforeAfter}`)
   check('the fresh request rode /api/chat and settled', sent.chat !== undefined && sent.error === undefined && sent.texts.some(t => t.includes('pong')), sent.errorText ?? 'no chat')

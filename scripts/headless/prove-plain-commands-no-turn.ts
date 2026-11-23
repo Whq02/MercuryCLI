@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/entrypoints/cli.tsx src/main.tsx scripts/release/launcherTemplates.mjs
+// gate-watch: src/boot/entrypoints/cli.tsx src/boot/main.tsx scripts/release/launcherTemplates.mjs
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -75,19 +75,19 @@ const printing: Array<{ road: string[]; same: string[] }> = [
 for (const { road, same } of printing) {
   const spelled = `mercury ${road.join(' ')}`
   const [typed, flagged] = await Promise.all([mercury(road), mercury(same)])
-  check(`${spelled} makes no model request`, typed.requests === 0, `${brief(typed)} — the version and help verbs must print and exit before any turn starts; see registerHelpVerbs in src/main/subcommands.ts`)
-  check(`${spelled} leaves no session behind (nothing under projects/)`, typed.sessions.length === 0, `${brief(typed)} — the version and help verbs must exit before a session is opened; see registerHelpVerbs in src/main/subcommands.ts`)
-  check(`${spelled} exits 0 with nothing on stderr`, typed.code === 0 && typed.err === '', `${brief(typed)} — the verb must exit 0 and write nothing to stderr; see registerHelpVerbs in src/main/subcommands.ts`)
-  check(`${spelled} prints what mercury ${same.join(' ')} prints, byte for byte`, typed.out.length > 0 && typed.out === flagged.out, `${brief(typed)} ≠ ${brief(flagged)} — the help verb must print the same page as the --help flag; see registerHelpVerbs in src/main/subcommands.ts`)
+  check(`${spelled} makes no model request`, typed.requests === 0, `${brief(typed)} — the version and help verbs must print and exit before any turn starts; see registerHelpVerbs in src/boot/main/subcommands.ts`)
+  check(`${spelled} leaves no session behind (nothing under projects/)`, typed.sessions.length === 0, `${brief(typed)} — the version and help verbs must exit before a session is opened; see registerHelpVerbs in src/boot/main/subcommands.ts`)
+  check(`${spelled} exits 0 with nothing on stderr`, typed.code === 0 && typed.err === '', `${brief(typed)} — the verb must exit 0 and write nothing to stderr; see registerHelpVerbs in src/boot/main/subcommands.ts`)
+  check(`${spelled} prints what mercury ${same.join(' ')} prints, byte for byte`, typed.out.length > 0 && typed.out === flagged.out, `${brief(typed)} ≠ ${brief(flagged)} — the help verb must print the same page as the --help flag; see registerHelpVerbs in src/boot/main/subcommands.ts`)
 }
 const version = await mercury(['version'])
-check('mercury version prints the one version line', /^Mercury \d+\.\d+\.\d+\S*\n$/.test(version.out), `${brief(version)} — the version verb must print the one line the --version flag prints; see exitWithVersionLine used by registerHelpVerbs in src/main/subcommands.ts`)
+check('mercury version prints the one version line', /^Mercury \d+\.\d+\.\d+\S*\n$/.test(version.out), `${brief(version)} — the version verb must print the one line the --version flag prints; see exitWithVersionLine used by registerHelpVerbs in src/boot/main/subcommands.ts`)
 
 console.log('§2 help names an unknown command in one line and exits as every usage error does')
 const unknown = await mercury(['help', 'frobnicate-verb'])
-check('mercury help frobnicate-verb makes no model request and leaves no session', unknown.requests === 0 && unknown.sessions.length === 0, `${brief(unknown)} — an unknown help word must fail before any turn or session; see the help verb in registerHelpVerbs in src/main/subcommands.ts`)
-check('…exits 2 (a usage error), nothing on stdout', unknown.code === 2 && unknown.out === '', `${brief(unknown)} — the help verb must refuse an unknown word through failCli with exit 2; see registerHelpVerbs in src/main/subcommands.ts`)
-check('…one stderr line naming the word and pointing at --help', unknown.err === 'unknown command: frobnicate-verb — mercury --help lists every command\n', `${brief(unknown)} — change the failCli line in the help verb in registerHelpVerbs in src/main/subcommands.ts`)
+check('mercury help frobnicate-verb makes no model request and leaves no session', unknown.requests === 0 && unknown.sessions.length === 0, `${brief(unknown)} — an unknown help word must fail before any turn or session; see the help verb in registerHelpVerbs in src/boot/main/subcommands.ts`)
+check('…exits 2 (a usage error), nothing on stdout', unknown.code === 2 && unknown.out === '', `${brief(unknown)} — the help verb must refuse an unknown word through failCli with exit 2; see registerHelpVerbs in src/boot/main/subcommands.ts`)
+check('…one stderr line naming the word and pointing at --help', unknown.err === 'unknown command: frobnicate-verb — mercury --help lists every command\n', `${brief(unknown)} — change the failCli line in the help verb in registerHelpVerbs in src/boot/main/subcommands.ts`)
 
 console.log('§3 the help page lists both verbs and the launchers boot them straight')
 const page = await mercury(['--help'])

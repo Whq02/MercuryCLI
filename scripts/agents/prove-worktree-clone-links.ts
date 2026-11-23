@@ -13,7 +13,7 @@ const ROOT = realpathSync(join(import.meta.dir, '..', '..'))
 process.chdir(ROOT)
 
 let failures = 0
-const cloneLinksHint = 'to fix, change how the cloned node_modules is built and its links rewritten: cloneIntoWorktree and linkTargetInCopy in src/utils/worktreeClone.ts, called by cloneCheckoutDirectories in src/services/worktree.ts'
+const cloneLinksHint = 'to fix, change how the cloned node_modules is built and its links rewritten: cloneIntoWorktree and linkTargetInCopy in src/platform/git/worktree/worktreeClone.ts, called by cloneCheckoutDirectories in src/platform/git/worktree/worktree.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + cloneLinksHint : ''}`)
   if (!cond) failures++
@@ -21,9 +21,9 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const skip = (label: string): void => console.log(`  [SKIP] ${label}`)
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const state = await import('../../src/bootstrap/state.ts')
-const config = await import('../../src/utils/config/globalConfig.ts')
-const { createAgentWorktree, unlockAgentWorktree } = await import('../../src/services/worktree.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const config = await import('../../src/platform/config/globalConfig.ts')
+const { createAgentWorktree, unlockAgentWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-clone-links-')))
 const cloneRoad = cloneRoadExpected(scratch)

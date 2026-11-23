@@ -12,13 +12,13 @@ process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
 delete process.env.NODE_ENV
 for (const key of ['MERCURY_HOME', 'MERCURY_WHISPER_PACK_DIR', 'MERCURY_WHISPER_MODEL', 'MERCURY_VOICE_DEBUG_WAV_DIR', 'MERCURY_VOICE_BOUND_MS']) delete process.env[key]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const models = await import('../../src/services/voice/whisperModels.js')
-const pack = await import('../../src/services/voice/whisperPack.js')
-const transcribe = await import('../../src/services/voice/transcribe.js')
-const session = await import('../../src/services/voice/voiceSession.js')
-const pending = await import('../../src/input-core/pending-input.js')
+const models = await import('../../src/integrations/voice/whisperModels.js')
+const pack = await import('../../src/integrations/voice/whisperPack.js')
+const transcribe = await import('../../src/integrations/voice/transcribe.js')
+const session = await import('../../src/integrations/voice/voiceSession.js')
+const pending = await import('../../src/screen/composer/input-core/pending-input.js')
 const { call } = await import('../../src/commands/voice/voice.js')
 const model = models.whisperDefaultModel()
 const modelPath = join(ROOT, 'vendor/whisper-models', model.file)
@@ -48,14 +48,14 @@ const command = async (arg: string): Promise<string> => {
   return text
 }
 const persisted = (): boolean => {
-  const code = `globalThis.MACRO = { VERSION: '1.0.0' }; const c = await import(${JSON.stringify(join(ROOT, 'src/utils/config.js'))}); c.enableConfigs(); console.log('VOICE_STATE=' + String(c.getGlobalConfig().voiceInputEnabled === true))`
+  const code = `globalThis.MACRO = { VERSION: '1.0.0' }; const c = await import(${JSON.stringify(join(ROOT, 'src/platform/settings/config.js'))}); c.enableConfigs(); console.log('VOICE_STATE=' + String(c.getGlobalConfig().voiceInputEnabled === true))`
   const child = spawnSync(process.execPath, ['-e', code], { cwd: ROOT, env: process.env, encoding: 'utf8' })
   assert.equal(child.status, 0, child.stderr)
   return child.stdout.includes('VOICE_STATE=true')
 }
 const idle = async (): Promise<void> => {
   await new Promise<void>((done, reject) => {
-    const timer = setTimeout(() => { unsubscribe(); reject(new Error('voice did not settle; the voice phase must return to idle after a take, fix the phase handling in src/services/voice/voiceSession.ts')) }, 90_000)
+    const timer = setTimeout(() => { unsubscribe(); reject(new Error('voice did not settle; the voice phase must return to idle after a take, fix the phase handling in src/integrations/voice/voiceSession.ts')) }, 90_000)
     const unsubscribe = session.subscribeVoice(() => {
       if (session.voiceSnapshot().phase === 'idle') { clearTimeout(timer); unsubscribe(); done() }
     })
@@ -165,7 +165,7 @@ try {
   assert.doesNotMatch(words.join('\n'), /API key|\/logins|openai|gemini/i, 'voice words have no cloud door')
   console.log('prove-voice-on-off: green — first on, verified fixture download, real decode, restart persistence, off, absent pack, load failure, download failures, no cloud words')
 } catch (error) {
-  console.error('prove-voice-on-off failed; the assertion above names the step. The /voice on, off and capture answers come from call in src/commands/voice/voice.ts, the on and off state and phases from src/services/voice/voiceSession.ts, the model download from src/services/voice/transcribe.ts and src/services/voice/whisperModels.ts, and the pack load from src/services/voice/whisperPack.ts')
+  console.error('prove-voice-on-off failed; the assertion above names the step. The /voice on, off and capture answers come from call in src/commands/voice/voice.ts, the on and off state and phases from src/integrations/voice/voiceSession.ts, the model download from src/integrations/voice/transcribe.ts and src/integrations/voice/whisperModels.ts, and the pack load from src/integrations/voice/whisperPack.ts')
   throw error
 } finally {
   globalThis.fetch = originalFetch

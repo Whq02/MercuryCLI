@@ -23,9 +23,9 @@ delete process.env.MERCURY_DAEMON_DIR
 delete process.env.MERCURY_DELIVERY_ARTIFACT
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const lifecycle = await import('../../src/substrate/stateLifecycle.ts')
-const housekeeping = await import('../../src/services/backgroundHousekeeping.ts')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
+const lifecycle = await import('../../src/platform/substrate/stateLifecycle.ts')
+const housekeeping = await import('../../src/platform/housekeeping/backgroundHousekeeping.ts')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
 
 let failures = 0
 let sectionHint = ''
@@ -55,7 +55,7 @@ const tasksRoot = join(HOME, 'tasks')
 const crewRoot = join(HOME, 'crew')
 
 section('§1 COLLECTOR CLASSES')
-sectionHint = 'the class that owns this item in LIFECYCLE_MANIFEST, or runLifecyclePass, in src/substrate/stateLifecycle.ts'
+sectionHint = 'the class that owns this item in LIFECYCLE_MANIFEST, or runLifecyclePass, in src/platform/substrate/stateLifecycle.ts'
 {
   await lifecycle._resetLifecycleForProofs()
 
@@ -92,7 +92,7 @@ sectionHint = 'the class that owns this item in LIFECYCLE_MANIFEST, or runLifecy
   backdate(oldSkeleton, 10 * DAY)
   backdate(fullDir, 10 * DAY)
 
-  const { getMercuryTempDir } = await import('../../src/utils/permissions/filesystem.ts')
+  const { getMercuryTempDir } = await import('../../src/permissions/rules/filesystem.ts')
   const queryCopies = join(getMercuryTempDir(), 'json-queries')
   const remoteCopies = join(getMercuryTempDir(), 'remote-files')
   const copyOf = (root: string, name: string): string => {
@@ -126,7 +126,7 @@ sectionHint = 'the class that owns this item in LIFECYCLE_MANIFEST, or runLifecy
 }
 
 section('§2 BUDGET + CURSOR (G08)')
-sectionHint = 'the removal budget and the persisted cursor (.lifecycle-cursor.json) in runLifecyclePass, src/substrate/stateLifecycle.ts'
+sectionHint = 'the removal budget and the persisted cursor (.lifecycle-cursor.json) in runLifecyclePass, src/platform/substrate/stateLifecycle.ts'
 {
   await lifecycle._resetLifecycleForProofs()
   const snapOld2 = join(snapshots, 'snapshot-bash-0001-cccccc.sh')
@@ -153,7 +153,7 @@ sectionHint = 'the removal budget and the persisted cursor (.lifecycle-cursor.js
 }
 
 section('§3 THE SENTINEL LAW (G07)')
-sectionHint = 'runCleanupCycleStep in src/services/backgroundHousekeeping.ts must return cycle-failed when a removal fails (runLifecyclePass in src/substrate/stateLifecycle.ts counts cycleFailures) and only a cycle-complete cycle may stamp .last-cleanup'
+sectionHint = 'runCleanupCycleStep in src/platform/housekeeping/backgroundHousekeeping.ts must return cycle-failed when a removal fails (runLifecyclePass in src/platform/substrate/stateLifecycle.ts counts cycleFailures) and only a cycle-complete cycle may stamp .last-cleanup'
 {
   await lifecycle._resetLifecycleForProofs()
   housekeeping._resetHousekeepingCycleForTesting()
@@ -214,7 +214,7 @@ sectionHint = 'runCleanupCycleStep in src/services/backgroundHousekeeping.ts mus
 }
 
 section('§4 RECURRING RE-ARM (G09)')
-sectionHint = 'startCleanupCycleLoop and its armNextCycle re-arm in src/services/backgroundHousekeeping.ts'
+sectionHint = 'startCleanupCycleLoop and its armNextCycle re-arm in src/platform/housekeeping/backgroundHousekeeping.ts'
 {
   await lifecycle._resetLifecycleForProofs()
   housekeeping._resetHousekeepingCycleForTesting()
@@ -271,10 +271,10 @@ sectionHint = 'startCleanupCycleLoop and its armNextCycle re-arm in src/services
 }
 
 section('§5 HEADLESS MINT GATE (BM-17)')
-sectionHint = 'headlessMintAllowed in src/guards/runStopAdapter.ts'
+sectionHint = 'headlessMintAllowed in src/permissions/guards/runStopAdapter.ts'
 {
-  const { headlessMintAllowed } = await import('../../src/guards/runStopAdapter.ts')
-  const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+  const { headlessMintAllowed } = await import('../../src/permissions/guards/runStopAdapter.ts')
+  const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
   setIsInteractive(false)
   check('non-interactive + default-on flag ⇒ NO mint', headlessMintAllowed(undefined) === false)
   check('non-interactive + explicit truthy ⇒ mints (review mode)', headlessMintAllowed('1') === true)
@@ -284,15 +284,15 @@ sectionHint = 'headlessMintAllowed in src/guards/runStopAdapter.ts'
 }
 
 section('§6 DRAFTS NO-OP (the _rev 616 pathology)')
-sectionHint = 'saveDraftDebounced and saveScopedDoc in src/utils/promptDraft.ts must skip the write when the content is unchanged'
+sectionHint = 'saveDraftDebounced and saveScopedDoc in src/screen/composer/input-core/promptDraft.ts must skip the write when the content is unchanged'
 {
-  const drafts = await import('../../src/utils/promptDraft.ts')
+  const drafts = await import('../../src/screen/composer/input-core/promptDraft.ts')
   const sid = '11111111-2222-4333-8444-555555555555'
   const draft = { text: 'hello', cursorOffset: 5, mode: 'prompt', pastedContents: {} }
   drafts.saveDraftDebounced(sid, draft)
   await drafts.flushDraftSaves()
   const { createHash } = await import('node:crypto')
-  const { getCwd } = await import('../../src/utils/cwd.ts')
+  const { getCwd } = await import('../../src/platform/files/cwd.ts')
   const draftFile = join(HOME, 'drafts', `${createHash('sha256').update(getCwd()).digest('hex').slice(0, 16)}.json`)
   const revOf = (): number =>
     (JSON.parse(readFileSync(draftFile, 'utf8')) as { _rev?: { revision?: number } })._rev?.revision ?? -1
@@ -324,9 +324,9 @@ sectionHint = 'saveDraftDebounced and saveScopedDoc in src/utils/promptDraft.ts 
 
 
 section('§8 PROVISIONAL SESSION RECONCILE')
-sectionHint = 'reconcileProvisionalSession in src/utils/provisionalSessionReconcile.ts'
+sectionHint = 'reconcileProvisionalSession in src/daemon/runner/provisionalSessionReconcile.ts'
 {
-  const { reconcileProvisionalSession } = await import('../../src/utils/provisionalSessionReconcile.ts')
+  const { reconcileProvisionalSession } = await import('../../src/daemon/runner/provisionalSessionReconcile.ts')
   const provisionalId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
   const realId = 'ffffffff-0000-4111-8222-333333333333'
   const envDir = join(HOME, 'session-env', provisionalId)
@@ -335,7 +335,7 @@ sectionHint = 'reconcileProvisionalSession in src/utils/provisionalSessionReconc
   await reconcileProvisionalSession(provisionalId, realId)
   check('transcript-less boot id: session-env removed on switch', !existsSync(envDir))
 
-  const { getTranscriptPathForSession } = await import('../../src/utils/sessionStorage.ts')
+  const { getTranscriptPathForSession } = await import('../../src/sessions/transcripts/sessionStorage.ts')
   const realTranscript = getTranscriptPathForSession(realId)
   mkdirSync(join(realTranscript, '..'), { recursive: true })
   writeFileSync(realTranscript, '{}\n')
@@ -351,10 +351,10 @@ sectionHint = 'reconcileProvisionalSession in src/utils/provisionalSessionReconc
 }
 
 section('§9 WIRING')
-sectionHint = 'the lifecycle-collection row in src/services/health/sections/crew/scratch.ts, the MERCURY_DELIVERY_ARTIFACT summary in FLAG_REGISTRY, or scripts/substrate/gen-lifecycle-manifest.ts (run it with bun to see its error)'
+sectionHint = 'the lifecycle-collection row in src/platform/health/sections/crew/scratch.ts, the MERCURY_DELIVERY_ARTIFACT summary in FLAG_REGISTRY, or scripts/substrate/gen-lifecycle-manifest.ts (run it with bun to see its error)'
 {
-  const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
-  const { getLifecycleHealth: lifecycleNow } = await import('../../src/substrate/stateLifecycle.ts')
+  const { crewChecks } = await import('../../src/platform/health/sections/crew.ts')
+  const { getLifecycleHealth: lifecycleNow } = await import('../../src/platform/substrate/stateLifecycle.ts')
   const lifecycleSays = await crewChecks().find(row => row.id === 'lifecycle-collection')?.run()
   const lastPass = lifecycleNow()
   check(

@@ -10,7 +10,7 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SEATS', 'MERCURY_CRITTER']) delete p
 
 let checks = 0
 let failures = 0
-const heldKeysHint = 'to fix, look at useKeysHeldUntilFirstPaint in src/components/permissions/hooks.ts (keys typed before the first frame must be held, Esc excepted) and its use in src/components/permissions/PermissionRequest.tsx'
+const heldKeysHint = 'to fix, look at useKeysHeldUntilFirstPaint in src/permissions/cards/cardArrival.ts (keys typed before the first frame must be held, Esc excepted) and its use in src/permissions/cards/PermissionRequest.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
@@ -20,16 +20,16 @@ function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
 
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { PermissionRequest } = await import('../../src/components/permissions/PermissionRequest.tsx')
-const { InkInstanceContext } = await import('../../src/ink/components/InkInstanceContext.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { registerComposerSeeder } = await import('../../src/utils/cockpit/composerSeed.ts')
-const { _resetInterviewForProofs } = await import('../../src/services/interview/store.ts')
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { PermissionRequest } = await import('../../src/permissions/cards/PermissionRequest.tsx')
+const { InkInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { registerComposerSeeder } = await import('../../src/screen/cockpit/composerSeed.ts')
+const { _resetInterviewForProofs } = await import('../../src/tools/engines/interview/store.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 const h = React.createElement

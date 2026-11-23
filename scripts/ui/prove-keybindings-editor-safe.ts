@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands/keybindings/keybindings.ts src/utils/editor.ts src/utils/promptEditor.ts src/utils/process.ts src/utils/gracefulShutdown.ts src/ink/ink.tsx src/ink/components/App.tsx
+// gate-watch: src/commands/keybindings/keybindings.ts src/platform/editor/externalEditor.ts src/screen/composer/promptEditor.ts src/platform/processes/process.ts src/platform/processes/gracefulShutdown.ts src/screen/renderer/screenInstance.tsx src/screen/renderer/elements/App.tsx
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { grabScreens, nodeBinPath, requireDist, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'
@@ -13,8 +13,8 @@ const TOAST_BUDGET = 61
 
 let failures = 0
 function failureWhere(label: string): string {
-  if (/stdin|hangup|terminal gone|re-armed|seam raised|fresh reader/.test(label)) return ' — to fix: the stdin hand-back after an editor child in src/utils/promptEditor.ts and src/ink/ink/stdin.ts (suspendStdin and the stdin recovery lines)'
-  if (/editor|receipt|refusal/.test(label)) return ' — to fix: the refusal and receipt wording in src/utils/editor.ts (editorRefusalLine) and src/commands/keybindings/keybindings.ts'
+  if (/stdin|hangup|terminal gone|re-armed|seam raised|fresh reader/.test(label)) return ' — to fix: the stdin hand-back after an editor child in src/screen/composer/promptEditor.ts and src/screen/renderer/instance/stdin.ts (suspendStdin and the stdin recovery lines)'
+  if (/editor|receipt|refusal/.test(label)) return ' — to fix: the refusal and receipt wording in src/platform/editor/externalEditor.ts (editorRefusalLine) and src/commands/keybindings/keybindings.ts'
   return ' — to fix: the /keybindings command in src/commands/keybindings/keybindings.ts, or run the drive again with the built bundle (bun run build.ts)'
 }
 function check(label: string, cond: boolean, detail = ''): void {

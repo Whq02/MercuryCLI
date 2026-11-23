@@ -5,9 +5,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const verdictHint = ' | change cppCompileDbVerdict in src/services/ide/cppProjectProfile.ts (walk order: root compile_commands.json, build/, compile_flags.txt, .clangd; absent remedy comes from compileDbRemedy in src/services/lsp/clangdLane.ts)'
-const profileHint = ' | change buildCppProjectProfile, parseCMakePresets or findCppProjectRoot in src/services/ide/cppProjectProfile.ts'
-const buildOpsHint = ' | change the build op in src/services/ide/cppBuild.ts (listCMakePresets, configurePreset, configureConventional, buildTarget, clean)'
+const verdictHint = ' | change cppCompileDbVerdict in src/integrations/ide/cppProjectProfile.ts (walk order: root compile_commands.json, build/, compile_flags.txt, .clangd; absent remedy comes from compileDbRemedy in src/integrations/lsp/clangdLane.ts)'
+const profileHint = ' | change buildCppProjectProfile, parseCMakePresets or findCppProjectRoot in src/integrations/ide/cppProjectProfile.ts'
+const buildOpsHint = ' | change the build op in src/integrations/ide/cppBuild.ts (listCMakePresets, configurePreset, configureConventional, buildTarget, clean)'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -24,9 +24,9 @@ const guard = setTimeout(() => {
 }, 480_000)
 guard.unref?.()
 
-const cppProject = await import('../../src/services/ide/cppProject.js')
-const cppBuild = await import('../../src/services/ide/cppBuild.js')
-const { probeCompileDb, compileDbRemedy } = await import('../../src/services/lsp/clangdLane.js')
+const cppProject = await import('../../src/integrations/ide/cppProject.js')
+const cppBuild = await import('../../src/integrations/ide/cppBuild.js')
+const { probeCompileDb, compileDbRemedy } = await import('../../src/integrations/lsp/clangdLane.js')
 
 const {
   buildCppProjectProfile,
@@ -135,10 +135,10 @@ section('(2) profile evidence — presets, configs, build dirs; ONE walk impleme
 
     writeFileSync(join(ws, 'CMakePresets.json'), '{ not json')
     const broken = parseCMakePresets(ws)
-    check('malformed CMakePresets.json ⇒ typed presetsError', broken.presetsError !== undefined && broken.presets.length === 0, String(broken.presetsError) + ' | change parseCMakePresets in src/services/ide/cppProjectProfile.ts')
+    check('malformed CMakePresets.json ⇒ typed presetsError', broken.presetsError !== undefined && broken.presets.length === 0, String(broken.presetsError) + ' | change parseCMakePresets in src/integrations/ide/cppProjectProfile.ts')
     _resetCppProjectForTesting()
     const listing = listCMakePresets(ws)
-    check('listCMakePresets surfaces the parse error as state error', listing.state === 'error' && listing.detail.includes('did not parse'), listing.detail + ' | change listCMakePresets in src/services/ide/cppBuild.ts')
+    check('listCMakePresets surfaces the parse error as state error', listing.state === 'error' && listing.detail.includes('did not parse'), listing.detail + ' | change listCMakePresets in src/integrations/ide/cppBuild.ts')
   } finally {
     rmSync(ws, { recursive: true, force: true })
   }
@@ -191,7 +191,7 @@ section('(3) build ops — typed refusals (deterministic, cmake-independent orde
 
 section('(4) build ops — real cmake fixture (machine-dependent)')
 {
-  const { whichSync } = await import('../../src/utils/which.js')
+  const { whichSync } = await import('../../src/platform/processes/which.js')
   const cmake = whichSync('cmake')
   if (!cmake) {
     console.log('  [SKIP — LOUD] cmake is not on PATH on this machine: the real configure/build/clean')
@@ -210,9 +210,9 @@ section('(4) build ops — real cmake fixture (machine-dependent)')
 
       const conf = await configureConventional(ws)
       check('configureConventional exits 0 (typed run)', conf.ok && conf.exitCode === 0 && conf.argv.length >= 4, conf.detail + buildOpsHint)
-      check('…argv is the documented remedy verbatim', conf.argv.slice(1).join(' ') === '-B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON', conf.argv.join(' ') + ' | change configureConventional argv in src/services/ide/cppBuild.ts')
-      check('…produces build/compile_commands.json', conf.compileDb === join(ws, 'build', 'compile_commands.json'), String(conf.compileDb) + ' | change configureConventional compileDb in src/services/ide/cppBuild.ts')
-      check('…which probeCompileDb (the clangd walk) then FINDS', conf.compileDbVisibleToClangd === true && probeCompileDb(ws).compileDb === conf.compileDb, JSON.stringify(probeCompileDb(ws)) + ' | change probeCompileDb in src/services/lsp/clangdLane.ts or compileDbVisibleToClangd in src/services/ide/cppBuild.ts')
+      check('…argv is the documented remedy verbatim', conf.argv.slice(1).join(' ') === '-B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON', conf.argv.join(' ') + ' | change configureConventional argv in src/integrations/ide/cppBuild.ts')
+      check('…produces build/compile_commands.json', conf.compileDb === join(ws, 'build', 'compile_commands.json'), String(conf.compileDb) + ' | change configureConventional compileDb in src/integrations/ide/cppBuild.ts')
+      check('…which probeCompileDb (the clangd walk) then FINDS', conf.compileDbVisibleToClangd === true && probeCompileDb(ws).compileDb === conf.compileDb, JSON.stringify(probeCompileDb(ws)) + ' | change probeCompileDb in src/integrations/lsp/clangdLane.ts or compileDbVisibleToClangd in src/integrations/ide/cppBuild.ts')
       check('…duration + bounded tail recorded', conf.durationMs > 0 && conf.outputTail.length > 0 && conf.outputTail.length <= 40, 'durationMs=' + conf.durationMs + ' outputTail lines=' + conf.outputTail.length + ' (must be 1 to 40)' + buildOpsHint)
 
       _resetCppProjectForTesting()

@@ -11,12 +11,12 @@ const {
   headlessPermissionArgv,
   HEADLESS_PERMISSION_MODES,
   HEADLESS_PERMISSION_MODE_DEFAULT,
-} = await import('../../src/daemon/headlessRun.js')
-const { PERMISSION_MODES } = await import('../../src/types/permissions.js')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
+} = await import('../../src/daemon/runner-link/headlessRun.js')
+const { PERMISSION_MODES } = await import('../../src/permissions/rules/permissions.js')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.js')
 
 let failures = 0
-const WHERE_TO_LOOK = 'fix the posture words in src/daemon/headlessRun.ts (getHeadlessPermissionMode, headlessPermissionArgv, buildRunnerInvocation, HEADLESS_PERMISSION_MODES) or the MERCURY_DAEMON_PERMISSION_MODE entry in FLAG_REGISTRY'
+const WHERE_TO_LOOK = 'fix the posture words in src/daemon/runner-link/headlessRun.ts (getHeadlessPermissionMode, headlessPermissionArgv, buildRunnerInvocation, HEADLESS_PERMISSION_MODES) or the MERCURY_DAEMON_PERMISSION_MODE entry in FLAG_REGISTRY'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ` (${WHERE_TO_LOOK})`}`)
   if (!cond) failures++
@@ -143,7 +143,7 @@ section('cross-checks against the real CLI + the one-shot seam')
   }
   check(
     'MERCURY_DAEMON_PERMISSION_MODE registered → headlessRun consumer',
-    getFlagSpec('MERCURY_DAEMON_PERMISSION_MODE')?.consumer.includes('src/daemon/headlessRun.ts') === true,
+    getFlagSpec('MERCURY_DAEMON_PERMISSION_MODE')?.consumer.includes('src/daemon/runner-link/headlessRun.ts') === true,
   )
 }
 

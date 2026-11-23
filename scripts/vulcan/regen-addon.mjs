@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const addonRoot = join(repo, 'assets', 'vulcan', 'addon')
-const outPath = join(repo, 'src', 'services', 'vulcan', 'addonFiles.generated.ts')
+const outPath = join(repo, 'src', 'integrations', 'vulcan', 'addonFiles.generated.ts')
 const ROW = {
   assets: relative(repo, outPath),
   generator: 'node scripts/vulcan/regen-addon.mjs',

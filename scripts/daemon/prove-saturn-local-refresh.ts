@@ -13,11 +13,11 @@ delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { tickSaturnOnce } = await import('../../src/daemon/saturnTicker.ts')
-const { liveFactsForSessionFire, deriveScheduleAccountForModel } = await import('../../src/daemon/saturnAccount.ts')
-const { saturnBoxSchedulesPath, readBoxSchedules } = await import('../../src/daemon/saturnBoxSchedules.ts')
+const { tickSaturnOnce } = await import('../../src/daemon/saturn/saturnTicker.ts')
+const { liveFactsForSessionFire, deriveScheduleAccountForModel } = await import('../../src/daemon/saturn/saturnAccount.ts')
+const { saturnBoxSchedulesPath, readBoxSchedules } = await import('../../src/daemon/saturn/saturnBoxSchedules.ts')
 const tally = makeTally('prove-saturn-local-refresh')
 let probes = 0
 const server = createServer((req, res) => {

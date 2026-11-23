@@ -1,0 +1,53 @@
+import type { BoardModule, BoardSeat, BoardViewSnapshot } from './contracts.js'
+import type { MercuryThemeTokens } from '../../screen/theme/mercuryTokens.js'
+
+type Traffic = NonNullable<Parameters<BoardModule['view']>[0]['traffic']>
+type ChatRow = { id: string; at: string; name: string; colorName: string; slot?: number; team?: string; kind: string; text: string; thread: string; parent?: string; reply: boolean; traffic: boolean }
+
+export function chatSeatSlot(seats: readonly BoardSeat[] | undefined, agent: string): number | undefined {
+  const order = (seats ?? []).filter(seat => seat.agent !== 'main')
+  const byId = order.findIndex(seat => seat.agent === agent)
+  const at = byId >= 0 ? byId : order.findIndex(seat => seat.name === agent)
+  return at < 0 ? undefined : at + 1
+}
+
+export function chatRows(snapshot: BoardViewSnapshot, traffic: Traffic = [], team?: string, thread?: string): ChatRow[] {
+  const board = snapshot.events.map(event => ({ id: event.eventId, at: event.createdAt, name: event.authorName ?? event.author.agentId, colorName: event.authorName ?? event.author.agentId, slot: chatSeatSlot(snapshot.seats, event.author.agentId), team: event.team, kind: snapshot.events.some(correction => correction.corrects === event.eventId) ? `${event.kind} → correction` : event.kind, text: event.text, thread: event.threadId, parent: event.corrects ?? event.replyTo, reply: event.replyTo !== undefined || event.corrects !== undefined, traffic: event.kind === 'message' || event.kind === 'notice' }))
+  const mirrored = new Set(snapshot.events.map(event => event.clientOpId.replace(/^(message|resume):/, 'crew:')))
+  const extra: ChatRow[] = traffic.filter(row => !mirrored.has(row.key) && !snapshot.events.some(event => (event.authorName === row.agent || event.author.agentId === row.agent) && event.text === row.text)).map(row => ({
+    id: row.key, at: row.at, name: row.dir === 'to' ? 'main' : row.agent, colorName: row.dir === 'to' ? 'main' : row.agent, ...(row.dir === 'to' ? {} : { slot: chatSeatSlot(snapshot.seats, row.agent) }),
+    team: snapshot.events.find(event => event.authorName === row.agent || event.author.agentId === row.agent)?.team,
+    kind: row.via === 'launch' ? 'brief' : row.via === 'reply' ? 'notice' : 'message',
+    text: row.text, thread: row.key, reply: false, traffic: true,
+  }))
+  const rows = [...board, ...extra].filter(row => (team === undefined || row.team === team) && (thread === undefined || row.thread === thread)).sort((a, b) => a.at.localeCompare(b.at))
+  const threads = new Map<string, ChatRow[]>()
+  for (const row of rows) {
+    const group = threads.get(row.thread) ?? []
+    group.push(row)
+    threads.set(row.thread, group)
+  }
+  return [...threads.values()].sort((a, b) => a.at(-1)!.at.localeCompare(b.at(-1)!.at)).flatMap(group => {
+    const placed = new Set<string>()
+    const visit = (row: ChatRow): ChatRow[] => {
+      if (placed.has(row.id)) return []
+      placed.add(row.id)
+      return [row, ...group.filter(child => child.parent === row.id).flatMap(visit)]
+    }
+    return [...group.filter(row => !group.some(parent => parent.id === row.parent)).flatMap(visit), ...group.flatMap(visit)]
+  })
+}
+
+export function chatNameColor(name: string, tokens: MercuryThemeTokens, slot?: number): string {
+  if (name === 'main') return tokens.agentAccents[0]?.color ?? tokens.accent
+  const accents = tokens.agentAccents.slice(1)
+  if (slot !== undefined && slot >= 1 && slot <= accents.length) return accents[slot - 1]!.color
+  let hash = 2166136261
+  for (const char of name) hash = Math.imul(hash ^ char.codePointAt(0)!, 16777619) >>> 0
+  return accents[hash % accents.length]?.color ?? tokens.accentSoft
+}
+
+export function chatKindColor(kind: string, tokens: MercuryThemeTokens): string {
+  const colors: Record<string, string> = { ask: tokens.infoText, answer: tokens.success, result: tokens.accentSoft, blocker: tokens.failureText, correction: tokens.warning, notice: tokens.textSecondary }
+  return colors[kind.split(' ')[0]!] ?? tokens.textSecondary
+}

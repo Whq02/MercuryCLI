@@ -6,14 +6,14 @@ import { join } from 'node:path'
 process.env.NODE_ENV = 'test'
 let failures = 0
 const globLinkPrefixHint =
-  'fix resolveRelativePatternPrefix in src/utils/globPrefix.ts: a static prefix that realpath-resolves elsewhere moves into searchDir and the pattern is trimmed, any other prefix returns the input unchanged'
+  'fix resolveRelativePatternPrefix in src/tools/glob/globPrefix.ts: a static prefix that realpath-resolves elsewhere moves into searchDir and the pattern is trimmed, any other prefix returns the input unchanged'
 const check = (label: string, cond: boolean, detail = ''): void => {
   const shown = cond ? detail : detail ? detail + ' — ' + globLinkPrefixHint : globLinkPrefixHint
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
   if (!cond) failures++
 }
 
-const { resolveRelativePatternPrefix } = await import('../../src/utils/globPrefix.ts')
+const { resolveRelativePatternPrefix } = await import('../../src/tools/glob/globPrefix.ts')
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'glob-link-')))
 mkdirSync(join(root, 'junc-target'))

@@ -25,7 +25,7 @@ const closed = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: () => new Resp
 const port = closed.port!
 closed.stop(true)
 let failures = 0
-const check = (name: string, ok: unknown) => { console.log((ok ? 'PASS ' : 'FAIL ') + name + (ok ? '' : ' — change the row labels in namedCompatModelOptions (src/services/providers/openaicompat/compatCatalogue.ts), the picker in src/commands/model/mercuryModel.tsx, or for the Terminate checks the /llmhost popup in src/commands/llmhost/llmhost.tsx')); if (!ok) failures++ }
+const check = (name: string, ok: unknown) => { console.log((ok ? 'PASS ' : 'FAIL ') + name + (ok ? '' : ' — change the row labels in namedCompatModelOptions (src/models/roads/openaicompat/compatCatalogue.ts), the picker in src/commands/model/mercuryModel.tsx, or for the Terminate checks the /llmhost popup in src/commands/llmhost/llmhost.tsx')); if (!ok) failures++ }
 const realFetch = globalThis.fetch
 let attempts = 0
 globalThis.fetch = (async (input: any, init?: RequestInit) => {
@@ -36,19 +36,19 @@ globalThis.fetch = (async (input: any, init?: RequestInit) => {
 }) as typeof fetch
 try {
   const React = await import('react')
-  const { Text } = await import('../../src/ink.ts')
-  const { AppStoreContext, getDefaultAppState } = await import('../../src/state/AppState.tsx')
-  const { createStore } = await import('../../src/state/store.ts')
+  const { Text } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStoreContext, getDefaultAppState } = await import('../../src/screen/app-state/AppState.tsx')
+  const { createStore } = await import('../../src/platform/primitives/store.ts')
   const { call } = await import('../../src/commands/model/mercuryModel.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
-  const { configuredCompatEndpoints, isCompatEndpointCredentialed } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
-  const { cachedCompatCatalogue, namedCompatModelOptions, refreshCompatCatalogues } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
-  const { writeStoredCompatApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { writeHostRecord, readHostRecord } = await import('../../src/services/host/store.ts')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
+  const { configuredCompatEndpoints, isCompatEndpointCredentialed } = await import('../../src/models/roads/openaicompat/compatAccounts.ts')
+  const { cachedCompatCatalogue, namedCompatModelOptions, refreshCompatCatalogues } = await import('../../src/models/roads/openaicompat/compatCatalogue.ts')
+  const { writeStoredCompatApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { writeHostRecord, readHostRecord } = await import('../../src/models/hosting/store.ts')
   const { runpodFixture } = await import('../host/runpodFixture.mjs')
-  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
   const configured = updateSettingsForSource('userSettings', { compatProvider: {
     ghost: { baseUrl: 'http://127.0.0.1:' + port + '/v1', label: 'Ghost GLM' },
     locked: { baseUrl: f.baseUrl, label: 'Locked GLM', keyCommand: 'printf ""' },
@@ -103,11 +103,11 @@ try {
   const rp = await runpodFixture()
   writeStoredRunpodApiKey(rp.key)
   try {
-    const { Box } = await import('../../src/ink.ts')
-    const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-    const { openSettingsPopup, closeSettingsPopup } = await import('../../src/utils/cockpit/settingsPopup.ts')
+    const { Box } = await import('../../src/screen/themedRenderer.ts')
+    const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+    const { openSettingsPopup, closeSettingsPopup } = await import('../../src/screen/cockpit/settingsPopup.ts')
     const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-    const { getSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+    const { getSettingsForSource } = await import('../../src/platform/settings/settings.ts')
     for (const cols of [120, 80]) {
       const podId = 'fixture-owned-' + cols
       const pod = { ...JSON.parse(readFileSync(new URL('../host/fixtures/pod-get-running.json', import.meta.url), 'utf8')), id: podId, name: 'Fixture GLM', cost: 2, status: 'RUNNING', startedAt: new Date(Date.now() - 3600_000).toISOString() }

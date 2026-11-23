@@ -23,7 +23,7 @@ const RULES: Array<{ test: (f: string, mechanism: string) => boolean; cls: strin
     why: 'the typed executor itself',
   },
   {
-    test: (f, m) => m === 'exec-string' && (f.startsWith('src/extensions/bundled/') || /^scripts\/extensions\/prove-[^/]*-drive\.ts$/.test(f)),
+    test: (f, m) => m === 'exec-string' && (f.startsWith('src/integrations/extensions/bundled/') || /^scripts\/extensions\/prove-[^/]*-drive\.ts$/.test(f)),
     cls: 'fixed-tool-argv',
     why: 'exec here is promisify(execFile): a program and its argv array, no shell parses a line',
   },
@@ -73,7 +73,7 @@ const RULES: Array<{ test: (f: string, mechanism: string) => boolean; cls: strin
     why: 'IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile',
   },
   {
-    test: f => f === 'src/services/dap/debugpyResolver.ts',
+    test: f => f === 'src/integrations/debugger/debugpyResolver.ts',
     cls: 'platform-owner',
     why: 'the documented darwin system-python fallback candidate (the pyexpat class) — a candidate list entry, not a temp/exec decision',
   },
@@ -130,7 +130,7 @@ export function shellstringCensus(root = DEFAULT_ROOT): {
       if (!/\.(ts|tsx|mjs)$/.test(name)) continue
       const rel = relative(root, full)
       if (rel.startsWith('scripts/consistency-census/gen-') || rel === 'scripts/consistency-census/prove-census-comment-invariance.ts') continue
-      if (rel === 'src/extensions/bundled/content.generated.ts') continue
+      if (rel === 'src/integrations/extensions/bundled/content.generated.ts') continue
       const lines = codeOnlyLines(rel, readFileSync(full, 'utf8'))
       for (const text of lines) {
         const push = (mechanism: Hit['mechanism']): void => {

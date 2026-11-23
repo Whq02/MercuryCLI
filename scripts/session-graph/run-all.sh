@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/attention/** src/services/attention/relations.ts
-# gate-watch: src/services/workbench/** src/services/acp/**
-# gate-watch: src/utils/artifacts/**
+# gate-watch: src/screen/attention/actions.ts src/screen/attention/contracts.ts src/screen/attention/relations.ts src/screen/attention/statusFeed.ts src/screen/attention/store.ts src/screen/attention/viewModel.ts src/screen/attention/relations.ts
+# gate-watch: src/screen/workbench/** src/integrations/acp/**
+# gate-watch: src/sessions/artifacts/**
 # gate-watch: scripts/streaming/artifactArena.ts
 # gate-watch: scripts/ui/render-tui.ts
-# gate-watch: src/components/prompts-panel/PromptsPanel.tsx
-# gate-watch: src/components/prompts-panel/rows.ts
-# gate-watch: src/daemon/controlServer.ts
-# gate-watch: src/services/resources/registry.ts
-# gate-watch: src/components/messages/AttachmentMessage.tsx
-# gate-watch: src/components/mercury-ui/screens/CrewView.tsx
-# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/services/messages/attachmentText.ts
-# gate-watch: src/utils/tasks.ts
-# gate-watch: src/rows/* src/runner/wire/*
+# gate-watch: src/screen/prompts-panel/PromptsPanel.tsx
+# gate-watch: src/screen/prompts-panel/rows.ts
+# gate-watch: src/daemon/control/controlServer.ts
+# gate-watch: src/integrations/resources/registry.ts
+# gate-watch: src/screen/messages/AttachmentMessage.tsx
+# gate-watch: src/screen/widgets/faces/CrewView.tsx
+# gate-watch: src/tools/send-message/SendMessageTool.ts src/engine/messages/attachmentText.ts
+# gate-watch: src/engine/task-framework/tasks.ts
+# gate-watch: src/engine/rows/* src/daemon/runner-wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

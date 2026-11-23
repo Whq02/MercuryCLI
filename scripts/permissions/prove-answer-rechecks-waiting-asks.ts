@@ -22,28 +22,28 @@ process.env.MERCURY_CONFIG_DIR = configDir
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.chdir(projectDir)
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.ts')
+const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.ts')
 setOriginalCwd(projectDir)
 setProjectRoot(projectDir)
 setCwdState(projectDir)
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createRunnerAsks } = await import('../../src/cli/headless/runnerAsks.ts')
-const { createPeer } = await import('../../src/runner/wire/peer.ts')
-const { RunnerConnection } = await import('../../src/daemon/runnerConnection.ts')
-const { holdWorkerAsk, answerPermissionAsk, listPendingPermissionAsks } = await import('../../src/daemon/permissionAsks.ts')
-const { daemonDir } = await import('../../src/daemon/controlSocket.ts')
-const { concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
-const { AsksPart } = await import('../../src/services/engine-connector/daemon/asks.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createRunnerAsks } = await import('../../src/daemon/runner/runnerAsks.ts')
+const { createPeer } = await import('../../src/daemon/runner-wire/peer.ts')
+const { RunnerConnection } = await import('../../src/daemon/runner-link/runnerConnection.ts')
+const { holdWorkerAsk, answerPermissionAsk, listPendingPermissionAsks } = await import('../../src/daemon/session-seat/permissionAsks.ts')
+const { daemonDir } = await import('../../src/daemon/control/controlSocket.ts')
+const { concourseWorkersPath } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { AsksPart } = await import('../../src/engine/connector/daemon/asks.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
 
 let failures = 0
 const HINT =
-  'change decisionOfAnswer and createHostCanUseTool in src/cli/headless/runnerAsks.ts so an allow answer that changes the mode or adds a rule rechecks waiting asks via recheckPendingPermissionRequests, and wire AsksPart in src/services/engine-connector/daemon/asks.ts so recheckPermission and answerThroughDaemon refresh asks'
+  'change decisionOfAnswer and createHostCanUseTool in src/daemon/runner/runnerAsks.ts so an allow answer that changes the mode or adds a rule rechecks waiting asks via recheckPendingPermissionRequests, and wire AsksPart in src/engine/connector/daemon/asks.ts so recheckPermission and answerThroughDaemon refresh asks'
 
 function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail} — ` : ''}${HINT}`}`)

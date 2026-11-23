@@ -4,12 +4,12 @@ import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { checker } = await import('../engine-durability/harness.ts')
-const pill = (await import('../../src/tasks/pillLabel.ts')) as Record<string, unknown> & { getPillLabel: (tasks: unknown[]) => string }
+const pill = (await import('../../src/engine/tasks/pillLabel.ts')) as Record<string, unknown> & { getPillLabel: (tasks: unknown[]) => string }
 const base = checker()
 const t = {
   ...base,
   check: (name: string, cond: boolean, detail?: string): void =>
-    base.check(name, cond, cond ? detail : `${detail ? `${detail} — ` : ''}change getPillLabel in src/tasks/pillLabel.ts (or this expectation if the label wording was meant to change)`),
+    base.check(name, cond, cond ? detail : `${detail ? `${detail} — ` : ''}change getPillLabel in src/engine/tasks/pillLabel.ts (or this expectation if the label wording was meant to change)`),
 }
 const label = (tasks: unknown[]): string => pill.getPillLabel(tasks)
 

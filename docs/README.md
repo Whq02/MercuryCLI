@@ -63,7 +63,7 @@ reply to the clipboard (`/copy`).
 - [DURABILITY.md](DURABILITY.md): atomic publication, operation journals, recovery, watchdogs and loop-stop outcomes.
 - [TERMINAL-RUNTIME.md](TERMINAL-RUNTIME.md): how the built product boots, where deployed copies live, how updates land, and how a broken boot recovers.
 - [TERMINAL-PROFILE.md](TERMINAL-PROFILE.md): terminal requirements, capability detection, input decoding, ping and motion controls.
-- [COMPATIBILITY.md](COMPATIBILITY.md): Mercury keeps configuration in its `.mercury` homes, reads `MERCURY_*` switches from `src/substrate/flagRegistry.ts`, and ships six platform archives.
+- [COMPATIBILITY.md](COMPATIBILITY.md): Mercury keeps configuration in its `.mercury` homes, reads `MERCURY_*` switches from `src/platform/substrate/flagRegistry.ts`, and ships six platform archives.
 
 ## Creative tools
 
@@ -87,5 +87,5 @@ reply to the clipboard (`/copy`).
   full release history.
 
 The capability switches and their defaults live in
-`src/substrate/flagRegistry.ts`. Inventories render on demand to untracked
+`src/platform/substrate/flagRegistry.ts`. Inventories render on demand to untracked
 paths; generated sections are refreshed by their generators.

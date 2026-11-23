@@ -16,14 +16,14 @@ for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOK
   delete process.env[k]
 }
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 
 let failures = 0
 let checks = 0
@@ -36,7 +36,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — early-tool-start prover exceeded 180s; a scripted stream or an early call never settled, look at EarlyStarts in src/services/tools/earlyStarts.ts and the section whose marks printed last')
+  console.log('\nTIMEOUT — early-tool-start prover exceeded 180s; a scripted stream or an early call never settled, look at EarlyStarts in src/engine/tool-dispatch/earlyStarts.ts and the section whose marks printed last')
   process.exit(1)
 }, 180_000)
 watchdog.unref?.()
@@ -274,15 +274,15 @@ let control: Run
   safeTools = true
   early = await runScript([{ calls: [GREP], waitFor: 0 }], 'a')
   const [id] = early.ids
-  check('the Grep started during the stream: after its block, before the stream ended', startOf(early, 'Grep', id!) > at(early, `stream:block:${id}`) && startOf(early, 'Grep', id!) < at(early, 'stream:end'), early.marks.join(' ') + ' — EarlyStarts.offer in src/services/tools/earlyStarts.ts (called from src/run-core/turn/makeRequest.ts) must start a safe read-only call as its block settles')
-  check('the turn completed with two model calls and one settlement', early.terminal.reason === 'completed' && early.requests.length === 2 && resultsOf(early).size === 1, JSON.stringify(early.terminal) + ' — the early road in src/services/tools/earlyStarts.ts must hand its result to the settled round once, with no second run')
+  check('the Grep started during the stream: after its block, before the stream ended', startOf(early, 'Grep', id!) > at(early, `stream:block:${id}`) && startOf(early, 'Grep', id!) < at(early, 'stream:end'), early.marks.join(' ') + ' — EarlyStarts.offer in src/engine/tool-dispatch/earlyStarts.ts (called from src/engine/loop/turn/makeRequest.ts) must start a safe read-only call as its block settles')
+  check('the turn completed with two model calls and one settlement', early.terminal.reason === 'completed' && early.requests.length === 2 && resultsOf(early).size === 1, JSON.stringify(early.terminal) + ' — the early road in src/engine/tool-dispatch/earlyStarts.ts must hand its result to the settled round once, with no second run')
   safeTools = false
   control = await runScript([{ calls: [GREP], waitFor: 0 }], 'a')
   const [controlId] = control.ids
-  check('the control: the unsafe twin started only after the stream ended', startOf(control, 'Grep', controlId!) > at(control, 'stream:end'), control.marks.join(' ') + ' — a tool that is not concurrency-safe must wait for the settled round (runTools in src/services/tools/toolOrchestration.ts); EarlyStarts.offer in src/services/tools/earlyStarts.ts must not admit it')
-  check('the two transcripts are byte-identical (timestamps, uuids and the environment capsule rows aside): the same rows in the same order', normalise(early) === normalise(control), firstDifference(normalise(early), normalise(control)) + ' — the early road must yield the same rows in the same order as the settled road; compare EarlyStarts in src/services/tools/earlyStarts.ts with runTools in src/services/tools/toolOrchestration.ts')
-  check('the tool outputs are byte-identical', resultsOf(early).get(id!) === resultsOf(control).get(controlId!) && resultsOf(early).get(id!) === 'Grep answered {"pattern":"needle","path":"/tmp/early-start-tree"}', `${resultsOf(early).get(id!)} vs ${resultsOf(control).get(controlId!)} — the early road in src/services/tools/earlyStarts.ts must carry the tool's own output unchanged`)
-  check('the second request carries the result after the whole reply, and the two roads send the same request', normaliseRows(early.requests[1]).indexOf('and that is the reply') < normaliseRows(early.requests[1]).indexOf('Grep answered') && normaliseRows(control.requests[1]) === normaliseRows(early.requests[1]), firstDifference(normaliseRows(early.requests[1]), normaliseRows(control.requests[1])) + ' — the early road must put the tool result after the whole reply in the next request, as the settled road does (src/services/tools/earlyStarts.ts, src/services/tools/toolOrchestration.ts)')
+  check('the control: the unsafe twin started only after the stream ended', startOf(control, 'Grep', controlId!) > at(control, 'stream:end'), control.marks.join(' ') + ' — a tool that is not concurrency-safe must wait for the settled round (runTools in src/engine/tool-dispatch/toolOrchestration.ts); EarlyStarts.offer in src/engine/tool-dispatch/earlyStarts.ts must not admit it')
+  check('the two transcripts are byte-identical (timestamps, uuids and the environment capsule rows aside): the same rows in the same order', normalise(early) === normalise(control), firstDifference(normalise(early), normalise(control)) + ' — the early road must yield the same rows in the same order as the settled road; compare EarlyStarts in src/engine/tool-dispatch/earlyStarts.ts with runTools in src/engine/tool-dispatch/toolOrchestration.ts')
+  check('the tool outputs are byte-identical', resultsOf(early).get(id!) === resultsOf(control).get(controlId!) && resultsOf(early).get(id!) === 'Grep answered {"pattern":"needle","path":"/tmp/early-start-tree"}', `${resultsOf(early).get(id!)} vs ${resultsOf(control).get(controlId!)} — the early road in src/engine/tool-dispatch/earlyStarts.ts must carry the tool's own output unchanged`)
+  check('the second request carries the result after the whole reply, and the two roads send the same request', normaliseRows(early.requests[1]).indexOf('and that is the reply') < normaliseRows(early.requests[1]).indexOf('Grep answered') && normaliseRows(control.requests[1]) === normaliseRows(early.requests[1]), firstDifference(normaliseRows(early.requests[1]), normaliseRows(control.requests[1])) + ' — the early road must put the tool result after the whole reply in the next request, as the settled road does (src/engine/tool-dispatch/earlyStarts.ts, src/engine/tool-dispatch/toolOrchestration.ts)')
   safeTools = true
 }
 
@@ -291,9 +291,9 @@ section('B — nothing unsafe starts early: [Read a, Bash, Grep] — the Read st
   const run = await runScript([{ calls: [READ_A, BASH, GREP], waitFor: 0 }], 'b')
   const [read, bash, grep] = run.ids
   const end = at(run, 'stream:end')
-  check('the Read started before the stream ended', startOf(run, 'Read', read!) < end && startOf(run, 'Read', read!) > 0, run.marks.join(' ') + ' — EarlyStarts.offer in src/services/tools/earlyStarts.ts must start a read-only call as its block settles')
-  check('the Bash started after the stream ended', startOf(run, 'Bash', bash!) > end, run.marks.join(' ') + ' — EarlyStarts.offer in src/services/tools/earlyStarts.ts must admit only free or read-only claims; a write-capable call must wait for the settled round')
-  check('the Grep behind the Bash started after the stream ended, and after the Bash ended', startOf(run, 'Grep', grep!) > end && startOf(run, 'Grep', grep!) > at(run, `tool:end:Bash:${bash}`), run.marks.join(' ') + ' — EarlyStarts.offer in src/services/tools/earlyStarts.ts must check claimsCompatible against every earlier claim, so a call behind a held unsafe claim waits')
+  check('the Read started before the stream ended', startOf(run, 'Read', read!) < end && startOf(run, 'Read', read!) > 0, run.marks.join(' ') + ' — EarlyStarts.offer in src/engine/tool-dispatch/earlyStarts.ts must start a read-only call as its block settles')
+  check('the Bash started after the stream ended', startOf(run, 'Bash', bash!) > end, run.marks.join(' ') + ' — EarlyStarts.offer in src/engine/tool-dispatch/earlyStarts.ts must admit only free or read-only claims; a write-capable call must wait for the settled round')
+  check('the Grep behind the Bash started after the stream ended, and after the Bash ended', startOf(run, 'Grep', grep!) > end && startOf(run, 'Grep', grep!) > at(run, `tool:end:Bash:${bash}`), run.marks.join(' ') + ' — EarlyStarts.offer in src/engine/tool-dispatch/earlyStarts.ts must check claimsCompatible against every earlier claim, so a call behind a held unsafe claim waits')
   check('three settlements, one per call', resultsOf(run).size === 3 && run.ids.every(id => resultsOf(run).has(id)))
 }
 
@@ -301,8 +301,8 @@ section('B2 — a crewmate launch is declared safe and read-only, and still wait
 {
   const run = await runScript([{ calls: [CREWMATE, GREP], waitFor: 1 }], 'b2')
   const [crew, grep] = run.ids
-  check('the Grep beside it started during the stream', startOf(run, 'Grep', grep!) < at(run, 'stream:end') && startOf(run, 'Grep', grep!) > 0, run.marks.join(' ') + ' — EarlyStarts.offer in src/services/tools/earlyStarts.ts must start the Grep beside a refused crewmate launch')
-  check('the crewmate launch started only after the stream ended', startOf(run, 'Crewmate', crew!) > at(run, 'stream:end'), run.marks.join(' ') + ' — EarlyStarts.offer in src/services/tools/earlyStarts.ts must refuse a call whose tool is AGENT_TOOL_NAME (launchesCrewmate)')
+  check('the Grep beside it started during the stream', startOf(run, 'Grep', grep!) < at(run, 'stream:end') && startOf(run, 'Grep', grep!) > 0, run.marks.join(' ') + ' — EarlyStarts.offer in src/engine/tool-dispatch/earlyStarts.ts must start the Grep beside a refused crewmate launch')
+  check('the crewmate launch started only after the stream ended', startOf(run, 'Crewmate', crew!) > at(run, 'stream:end'), run.marks.join(' ') + ' — EarlyStarts.offer in src/engine/tool-dispatch/earlyStarts.ts must refuse a call whose tool is AGENT_TOOL_NAME (launchesCrewmate)')
   check('both settled once', resultsOf(run).size === 2)
 }
 
@@ -310,11 +310,11 @@ section('C — a reader beside a writer: a Read of another file starts early tho
 {
   const beside = await runScript([{ calls: [EDIT_A, READ_B], waitFor: 1 }], 'c1')
   const [edit, readB] = beside.ids
-  check('the Read of b.ts started during the stream', startOf(beside, 'Read', readB!) < at(beside, 'stream:end'), beside.marks.join(' ') + ' — claimsCompatible in src/services/tools/toolBatching.ts must let a read of another path start beside a held write claim')
-  check('the Edit of a.ts started only after the stream ended', startOf(beside, 'Edit', edit!) > at(beside, 'stream:end'), beside.marks.join(' ') + ' — EarlyStarts.offer in src/services/tools/earlyStarts.ts must keep a write call for the settled round')
+  check('the Read of b.ts started during the stream', startOf(beside, 'Read', readB!) < at(beside, 'stream:end'), beside.marks.join(' ') + ' — claimsCompatible in src/engine/tool-dispatch/toolBatching.ts must let a read of another path start beside a held write claim')
+  check('the Edit of a.ts started only after the stream ended', startOf(beside, 'Edit', edit!) > at(beside, 'stream:end'), beside.marks.join(' ') + ' — EarlyStarts.offer in src/engine/tool-dispatch/earlyStarts.ts must keep a write call for the settled round')
   const same = await runScript([{ calls: [EDIT_A, READ_A], waitFor: 1 }], 'c2')
   const [edit2, readA] = same.ids
-  check('the Read of a.ts (the edited file) started only after the stream ended, and after the Edit ended', startOf(same, 'Read', readA!) > at(same, 'stream:end') && startOf(same, 'Read', readA!) > at(same, `tool:end:Edit:${edit2}`), same.marks.join(' ') + ' — claimsCompatible in src/services/tools/toolBatching.ts, as used by EarlyStarts.offer in src/services/tools/earlyStarts.ts, must refuse a read of a path an earlier claim writes')
+  check('the Read of a.ts (the edited file) started only after the stream ended, and after the Edit ended', startOf(same, 'Read', readA!) > at(same, 'stream:end') && startOf(same, 'Read', readA!) > at(same, `tool:end:Edit:${edit2}`), same.marks.join(' ') + ' — claimsCompatible in src/engine/tool-dispatch/toolBatching.ts, as used by EarlyStarts.offer in src/engine/tool-dispatch/earlyStarts.ts, must refuse a read of a path an earlier claim writes')
 }
 
 section('D — an interrupt mid-stream cancels what it always cancelled: the early call is told to stop, the stream\'s announced calls settle synthetically, and the transcript is the control\'s')
@@ -323,15 +323,15 @@ section('D — an interrupt mid-stream cancels what it always cancelled: the ear
   safeTools = true
   const cut = await runScript([{ calls: [GREP], waitFor: 0, abortDuringPause: true }], 'd')
   const [id] = cut.ids
-  check('the early call had started before the interrupt', startOf(cut, 'Grep', id!) < at(cut, 'stream:abort'), cut.marks.join(' ') + ' — EarlyStarts.offer in src/services/tools/earlyStarts.ts must have started the call during the stream')
-  check('the early call observed the interrupt and ended', cut.marks.includes(`tool:aborted:Grep:${id}`), cut.marks.join(' ') + ' — an early call runs under a child of the turn\'s abort controller (childAbortController in src/services/tools/earlyStarts.ts); the interrupt must reach it')
-  check('the run ended as an aborted stream', cut.terminal.reason === 'aborted_streaming', JSON.stringify(cut.terminal) + ' — an interrupted stream must end with reason aborted_streaming (src/run-core/turn/modelReply.ts)')
+  check('the early call had started before the interrupt', startOf(cut, 'Grep', id!) < at(cut, 'stream:abort'), cut.marks.join(' ') + ' — EarlyStarts.offer in src/engine/tool-dispatch/earlyStarts.ts must have started the call during the stream')
+  check('the early call observed the interrupt and ended', cut.marks.includes(`tool:aborted:Grep:${id}`), cut.marks.join(' ') + ' — an early call runs under a child of the turn\'s abort controller (childAbortController in src/engine/tool-dispatch/earlyStarts.ts); the interrupt must reach it')
+  check('the run ended as an aborted stream', cut.terminal.reason === 'aborted_streaming', JSON.stringify(cut.terminal) + ' — an interrupted stream must end with reason aborted_streaming (src/engine/loop/turn/modelReply.ts)')
   const synthetic = cut.yields.filter(m => m.type === 'user' && JSON.stringify(m).includes(id!) && JSON.stringify(m).includes('"is_error":true'))
-  check('the announced call settled synthetically, once, as an error', synthetic.length === 1 && !JSON.stringify(cut.yields).includes('Grep answered'), JSON.stringify(cut.yields).slice(0, 600) + ' — an interrupt must settle the announced call once as an error and drop the early call\'s real output (EarlyStarts in src/services/tools/earlyStarts.ts)')
+  check('the announced call settled synthetically, once, as an error', synthetic.length === 1 && !JSON.stringify(cut.yields).includes('Grep answered'), JSON.stringify(cut.yields).slice(0, 600) + ' — an interrupt must settle the announced call once as an error and drop the early call\'s real output (EarlyStarts in src/engine/tool-dispatch/earlyStarts.ts)')
   safeTools = false
   const cutControl = await runScript([{ calls: [GREP], waitFor: 0, abortDuringPause: true }], 'd')
-  check('the control (the unsafe twin) never started and ended the same way', startOf(cutControl, 'Grep', cutControl.ids[0]!) === -1 && cutControl.terminal.reason === 'aborted_streaming', cutControl.marks.join(' ') + ' — a call that is not concurrency-safe must not start in the stream, and the turn must still end with aborted_streaming (src/run-core/turn/modelReply.ts)')
-  check('the interrupted transcripts are byte-identical (timestamps, uuids and the environment capsule rows aside)', normalise(cut) === normalise(cutControl), firstDifference(normalise(cut), normalise(cutControl)) + ' — an interrupted early call must leave the same rows as the settled road; compare EarlyStarts in src/services/tools/earlyStarts.ts with runTools in src/services/tools/toolOrchestration.ts')
+  check('the control (the unsafe twin) never started and ended the same way', startOf(cutControl, 'Grep', cutControl.ids[0]!) === -1 && cutControl.terminal.reason === 'aborted_streaming', cutControl.marks.join(' ') + ' — a call that is not concurrency-safe must not start in the stream, and the turn must still end with aborted_streaming (src/engine/loop/turn/modelReply.ts)')
+  check('the interrupted transcripts are byte-identical (timestamps, uuids and the environment capsule rows aside)', normalise(cut) === normalise(cutControl), firstDifference(normalise(cut), normalise(cutControl)) + ' — an interrupted early call must leave the same rows as the settled road; compare EarlyStarts in src/engine/tool-dispatch/earlyStarts.ts with runTools in src/engine/tool-dispatch/toolOrchestration.ts')
   callDelayMs = 0
   safeTools = true
 }
@@ -340,13 +340,13 @@ section('E — the loop guard still counts the early-started calls as the round\
 {
   const run = await runScript([{ calls: [GREP], waitFor: 0 }, { calls: [GREP], waitFor: 0 }, { calls: [GREP], waitFor: 0 }], 'e')
   const starts = run.ids.map(id => startOf(run, 'Grep', id))
-  check('every one of the three started during its own stream', starts.every(s => s > 0) && run.marks.filter(m => m === 'stream:end').length === 3, run.marks.join(' ') + ' — EarlyStarts in src/services/tools/earlyStarts.ts must start each safe call in its own round\'s stream')
-  check('the third identical call draws the reminder in the request after it', JSON.stringify(run.requests[3]).includes('this is the third identical tool call') && !JSON.stringify(run.requests[2]).includes('third identical tool call'), JSON.stringify(run.requests[3]).slice(-300) + ' — early-started calls must still be recorded with recordToolCall/openRoundCall in src/services/tools/loopGuard.ts so the third identical call draws its reminder')
+  check('every one of the three started during its own stream', starts.every(s => s > 0) && run.marks.filter(m => m === 'stream:end').length === 3, run.marks.join(' ') + ' — EarlyStarts in src/engine/tool-dispatch/earlyStarts.ts must start each safe call in its own round\'s stream')
+  check('the third identical call draws the reminder in the request after it', JSON.stringify(run.requests[3]).includes('this is the third identical tool call') && !JSON.stringify(run.requests[2]).includes('third identical tool call'), JSON.stringify(run.requests[3]).slice(-300) + ' — early-started calls must still be recorded with recordToolCall/openRoundCall in src/engine/tool-dispatch/loopGuard.ts so the third identical call draws its reminder')
 }
 
 section('F — a retry resets the early starts: a started call is stopped, taken no more, and the round is a new one')
 {
-  const { EarlyStarts } = await import('../../src/services/tools/earlyStarts.ts')
+  const { EarlyStarts } = await import('../../src/engine/tool-dispatch/earlyStarts.ts')
   const rig = makeCtx()
   const earlyStarts = new EarlyStarts(rig.ctx as never, allowAll as never)
   const parent = createAssistantMessage({ content: [{ type: 'tool_use', id: 'tu_f_1', name: 'Grep', input: GREP.input }] as never })
@@ -356,10 +356,10 @@ section('F — a retry resets the early starts: a started call is stopped, taken
   await earlyStarts.ready()
   const before = earlyStarts.roundID
   await new Promise(resolve => setTimeout(resolve, 50))
-  check('the offered safe call started', marks.includes('tool:start:Grep:tu_f_1'), marks.join(' ') + ' — EarlyStarts.offer in src/services/tools/earlyStarts.ts must start a safe call')
+  check('the offered safe call started', marks.includes('tool:start:Grep:tu_f_1'), marks.join(' ') + ' — EarlyStarts.offer in src/engine/tool-dispatch/earlyStarts.ts must start a safe call')
   earlyStarts.reset()
   await new Promise(resolve => setTimeout(resolve, 50))
-  check('after the reset the call was told to stop, nothing can be taken, and the round id moved', marks.includes('tool:aborted:Grep:tu_f_1') && earlyStarts.take('tu_f_1') === undefined && earlyStarts.roundID !== before, marks.join(' ') + ' — EarlyStarts.reset in src/services/tools/earlyStarts.ts must abort started calls, clear them so take returns undefined, and assign a new roundID')
+  check('after the reset the call was told to stop, nothing can be taken, and the round id moved', marks.includes('tool:aborted:Grep:tu_f_1') && earlyStarts.take('tu_f_1') === undefined && earlyStarts.roundID !== before, marks.join(' ') + ' — EarlyStarts.reset in src/engine/tool-dispatch/earlyStarts.ts must abort started calls, clear them so take returns undefined, and assign a new roundID')
   callDelayMs = 0
 }
 
@@ -405,9 +405,9 @@ section('refusals — an abandoned stream (provider throw after a settled tool_u
     step = await gen.next()
   }
   await new Promise(resolve => setTimeout(resolve, 30))
-  check('abandoned stream: the early call started before the throw and was aborted when the stream failed', marks.includes('tool:start:Grep:tu_err_1') && marks.includes('tool:aborted:Grep:tu_err_1'), marks.join(' ') + ' — a stream that throws after a settled tool_use block must abort the early call; look at EarlyStarts in src/services/tools/earlyStarts.ts and its caller src/run-core/turn/makeRequest.ts')
+  check('abandoned stream: the early call started before the throw and was aborted when the stream failed', marks.includes('tool:start:Grep:tu_err_1') && marks.includes('tool:aborted:Grep:tu_err_1'), marks.join(' ') + ' — a stream that throws after a settled tool_use block must abort the early call; look at EarlyStarts in src/engine/tool-dispatch/earlyStarts.ts and its caller src/engine/loop/turn/makeRequest.ts')
   const errSettlements = errYields.filter(m => m.type === 'user' && JSON.stringify(m).includes('tu_err_1'))
-  check('abandoned stream: the announced call settled synthetically once as an error and never leaked its real output', step.value.reason === 'model_error' && errSettlements.length === 1 && !JSON.stringify(errYields).includes('Grep answered'), JSON.stringify(step.value) + ' — after a model_error the announced call must settle once as a synthetic error and never leak the early call\'s output (src/query.ts, src/services/tools/earlyStarts.ts)')
+  check('abandoned stream: the announced call settled synthetically once as an error and never leaked its real output', step.value.reason === 'model_error' && errSettlements.length === 1 && !JSON.stringify(errYields).includes('Grep answered'), JSON.stringify(step.value) + ' — after a model_error the announced call must settle once as a synthetic error and never leak the early call\'s output (src/engine/turnDoor.ts, src/engine/tool-dispatch/earlyStarts.ts)')
   callDelayMs = 0
 
   marks.length = 0
@@ -463,10 +463,10 @@ section('refusals — an abandoned stream (provider throw after a settled tool_u
   }
     const retryUserRows = retryYields.filter(m => m.type === 'user')
     const retryUserText = JSON.stringify(retryUserRows)
-    check('mid-stream fallback: the first attempt\'s early call is retracted and never settled in the user tool_result rows; only the retry\'s call settles once', !retryUserText.includes('tu_retry_1') && retryUserText.includes('tu_retry_2') && marks.filter(m => m === 'tool:start:Grep:tu_retry_1').length === 1 && marks.filter(m => m === 'tool:start:Grep:tu_retry_2').length === 1, marks.join(' ') + ' — on onStreamingFallback the first attempt\'s early call must be retracted with EarlyStarts.reset (src/services/tools/earlyStarts.ts) and only the retry\'s call settled')
+    check('mid-stream fallback: the first attempt\'s early call is retracted and never settled in the user tool_result rows; only the retry\'s call settles once', !retryUserText.includes('tu_retry_1') && retryUserText.includes('tu_retry_2') && marks.filter(m => m === 'tool:start:Grep:tu_retry_1').length === 1 && marks.filter(m => m === 'tool:start:Grep:tu_retry_2').length === 1, marks.join(' ') + ' — on onStreamingFallback the first attempt\'s early call must be retracted with EarlyStarts.reset (src/engine/tool-dispatch/earlyStarts.ts) and only the retry\'s call settled')
 
-  const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
   const askInput = { file_path: '/etc/hosts' }
   const askParent = createAssistantMessage({ content: [{ type: 'tool_use', id: 'tu_mode_1', name: 'Read', input: askInput }] as never })
   const modeVerdict = async (mode: 'default' | 'implement' | 'sovereign') => {
@@ -487,7 +487,7 @@ section('refusals — an abandoned stream (provider throw after a settled tool_u
   const plainVerdict = await modeVerdict('default')
   const implementVerdict = await modeVerdict('implement')
   const sovereignVerdict = await modeVerdict('sovereign')
-  check('permission modes on an early-eligible Read under an ask rule: plain and implement ask, sovereign allows without asking', plainVerdict === 'ask' && implementVerdict === 'ask' && sovereignVerdict === 'allow', `plain=${plainVerdict} implement=${implementVerdict} sovereign=${sovereignVerdict} — decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts must ask in default and implement modes under an always-ask rule and allow in sovereign`)
+  check('permission modes on an early-eligible Read under an ask rule: plain and implement ask, sovereign allows without asking', plainVerdict === 'ask' && implementVerdict === 'ask' && sovereignVerdict === 'allow', `plain=${plainVerdict} implement=${implementVerdict} sovereign=${sovereignVerdict} — decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts must ask in default and implement modes under an always-ask rule and allow in sovereign`)
 }
 
 console.log('\n' + '='.repeat(76))

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/concurrentSessions.ts
+// gate-watch: src/sessions/transcripts/concurrentSessions.ts
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker, scratchRoot } from '../engine-durability/harness.ts'
@@ -10,9 +10,9 @@ const root = scratchRoot('session-registry')
 delete process.env.MERCURY_HOME
 process.env.MERCURY_ENTRYPOINT = 'cli'
 
-const { getMercuryHome } = await import('../../src/utils/envUtils.ts')
-const { countConcurrentSessions, registerSession, updateSessionBridgeId, updateSessionName } = await import('../../src/utils/concurrentSessions.ts')
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
+const { getMercuryHome } = await import('../../src/platform/environment/envUtils.ts')
+const { countConcurrentSessions, registerSession, updateSessionBridgeId, updateSessionName } = await import('../../src/sessions/transcripts/concurrentSessions.ts')
+const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 const dir = join(getMercuryHome(), 'sessions')
 const own = join(dir, `${process.pid}.json`)
 const record = (): Record<string, unknown> => JSON.parse(readFileSync(own, 'utf8')) as Record<string, unknown>

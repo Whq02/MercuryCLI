@@ -23,12 +23,12 @@ if (!process.argv.includes('--child')) {
 } else {
   if (homedir() !== process.env.AST_PROOF_HOME) throw new Error('wrong proof home before product imports')
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const { AstEditTool } = await import('../../src/tools/AstEditTool/AstEditTool.ts')
-  const { AstSearchTool } = await import('../../src/tools/AstSearchTool/AstSearchTool.ts')
-  const { digestOf, rewritePlanToken } = await import('../../src/services/structure/astPatterns.ts')
-  const { gateToolCall } = await import('../../src/services/providers/toolCallGate.ts')
-  const { _setBeforeRenameHookForProofs } = await import('../../src/services/changeTransaction/changeSetCommit.ts')
-  const { getToolUseSummary, renderToolUseMessage } = await import('../../src/tools/AstEditTool/UI.tsx')
+  const { AstEditTool } = await import('../../src/tools/ast-edit/AstEditTool.ts')
+  const { AstSearchTool } = await import('../../src/tools/ast-search/AstSearchTool.ts')
+  const { digestOf, rewritePlanToken } = await import('../../src/tools/engines/structure/astPatterns.ts')
+  const { gateToolCall } = await import('../../src/models/roads/toolCallGate.ts')
+  const { _setBeforeRenameHookForProofs } = await import('../../src/tools/engines/change-transaction/changeSetCommit.ts')
+  const { getToolUseSummary, renderToolUseMessage } = await import('../../src/tools/ast-edit/rows.tsx')
   const { drive, enterRoot, makeContext } = await import('./lib/harness.ts')
 
   const world = gitFixture('ast-edit-batch-')
@@ -60,7 +60,7 @@ if (!process.argv.includes('--child')) {
         ['non-empty rewrite alongside rules', { rewrite: 'bar($X)', rules: [{ pattern: 'a()', rewrite: 'b()' }] }],
       ] as Array<[string, Record<string, unknown>]>) {
         const res = await drive(AstEditTool, bad, prover)
-        check(`form validation (${label}): exact exclusive-forms sentence`, res.isError && res.text.includes(EXCLUSIVE), `${res.text} — the input check in src/tools/AstEditTool/AstEditTool.ts must refuse this form with the exclusive-forms sentence`)
+        check(`form validation (${label}): exact exclusive-forms sentence`, res.isError && res.text.includes(EXCLUSIVE), `${res.text} — the input check in src/tools/ast-edit/AstEditTool.ts must refuse this form with the exclusive-forms sentence`)
       }
     }
 
@@ -83,7 +83,7 @@ if (!process.argv.includes('--child')) {
           !preview.text.includes('Rules:') &&
           !preview.text.includes('Rule attribution') &&
           preview.data?.plan === expectedToken,
-        `${preview.data?.plan} vs ${expectedToken}\n${preview.text.slice(0, 300)} — the single-rule dry run in src/tools/AstEditTool/AstEditTool.ts must keep its header, diff and plan token (rewritePlanToken in src/services/structure/astPatterns.ts)`,
+        `${preview.data?.plan} vs ${expectedToken}\n${preview.text.slice(0, 300)} — the single-rule dry run in src/tools/ast-edit/AstEditTool.ts must keep its header, diff and plan token (rewritePlanToken in src/tools/engines/structure/astPatterns.ts)`,
       )
       const applied = await drive(
         AstEditTool,
@@ -95,7 +95,7 @@ if (!process.argv.includes('--child')) {
         !applied.isError &&
           applied.asks[0]?.message === 'Rewrite 2 matches of "oldCall($X)" in 2 files (a.ts, b.ts)? One decision covers every file; a denied file means zero writes.' &&
           /^Applied 2 structural rewrites in 2 files \(re-read verified\):\n  a\.ts — 1 rewrite \(anchor: fa:[0-9a-f]{12}\)\n  b\.ts — 1 rewrite \(anchor: fa:[0-9a-f]{12}\)$/.test(applied.text),
-        `${applied.text} — the single-rule ask message and applied receipt in src/tools/AstEditTool/AstEditTool.ts must keep their wording`,
+        `${applied.text} — the single-rule ask message and applied receipt in src/tools/ast-edit/AstEditTool.ts must keep their wording`,
       )
       const gatedDelete = gateToolCall([AstEditTool] as never, {
         id: 'del-1',
@@ -103,7 +103,7 @@ if (!process.argv.includes('--child')) {
         argumentsRaw: JSON.stringify({ pattern: 'export const a = newCall(1)', rewrite: '', rules: [], path: 'single/a.ts', glob: '', lang: '', apply: false, plan: '' }),
         malformed: false,
       })
-      check('keepEmptyInputs keeps rewrite "" through the tool-call gate while dropping blank rules []', gatedDelete.ok && gatedDelete.input.rewrite === '' && !('rules' in gatedDelete.input), 'gateToolCall in src/services/providers/toolCallGate.ts must keep an empty rewrite string for AstEdit while dropping an empty rules array')
+      check('keepEmptyInputs keeps rewrite "" through the tool-call gate while dropping blank rules []', gatedDelete.ok && gatedDelete.input.rewrite === '' && !('rules' in gatedDelete.input), 'gateToolCall in src/models/roads/toolCallGate.ts must keep an empty rewrite string for AstEdit while dropping an empty rules array')
     }
 
     {
@@ -134,7 +134,7 @@ if (!process.argv.includes('--child')) {
           dryFwd.text.includes('--- a/two.ts') &&
           world.get('sim/one.ts') === origOne &&
           world.get('sim/two.ts') === origTwo,
-        `${dryFwd.text.slice(0, 400)} — a batch dry run in src/tools/AstEditTool/AstEditTool.ts must return per-file previews, write nothing and ask nothing`,
+        `${dryFwd.text.slice(0, 400)} — a batch dry run in src/tools/ast-edit/AstEditTool.ts must return per-file previews, write nothing and ask nothing`,
       )
       check(
         'B03: preview explains per-rule counts, rule attribution and unmatched rules',
@@ -143,7 +143,7 @@ if (!process.argv.includes('--child')) {
           dryFwd.text.includes('[rule 0]') &&
           dryFwd.text.includes('[rule 1]') &&
           dryFwd.text.includes('Coalesced edits: none.'),
-        `${dryFwd.text.slice(0, 500)} — the batch preview in src/tools/AstEditTool/AstEditTool.ts must report unmatched rules, rule attribution and coalesced edits`,
+        `${dryFwd.text.slice(0, 500)} — the batch preview in src/tools/ast-edit/AstEditTool.ts must report unmatched rules, rule attribution and coalesced edits`,
       )
 
       const rulesReversed = [...rulesForward].reverse()
@@ -154,7 +154,7 @@ if (!process.argv.includes('--child')) {
           dryRev.data?.plan !== dryFwd.data?.plan &&
           dryRev.text.includes('+const a = beta(1)\n+const b = gamma(2)') &&
           dryFwd.text.includes('+const a = beta(1)\n+const b = gamma(2)'),
-        `${dryFwd.data?.plan} vs ${dryRev.data?.plan} — batch rewriting in src/services/structure/astPatterns/batchRewrite.ts must apply every rule to the original text and mint a plan token that depends on rule order`,
+        `${dryFwd.data?.plan} vs ${dryRev.data?.plan} — batch rewriting in src/tools/engines/structure/ast-patterns/batchRewrite.ts must apply every rule to the original text and mint a plan token that depends on rule order`,
       )
 
       world.put('sim/two.ts', origTwo.replace('swapRight(30)', 'swapRight(99)'))
@@ -170,7 +170,7 @@ if (!process.argv.includes('--child')) {
           staleEqualCount.text.includes('does not match the current dry run') &&
           world.get('sim/one.ts') === origOne &&
           world.get('sim/two.ts').includes('swapRight(99)'),
-        `${staleEqualCount.text.slice(0, 300)} — the plan check in src/tools/AstEditTool/AstEditTool.ts must refuse a plan whose file bytes changed, even when the match count is equal`,
+        `${staleEqualCount.text.slice(0, 300)} — the plan check in src/tools/ast-edit/AstEditTool.ts must refuse a plan whose file bytes changed, even when the match count is equal`,
       )
       world.put('sim/two.ts', origTwo)
 
@@ -187,7 +187,7 @@ if (!process.argv.includes('--child')) {
       check(
         'B01: changing even an unmatched rule invalidates the old batch plan',
         staleRuleChange.isError && staleRuleChange.text.includes('does not match the current dry run'),
-        `${staleRuleChange.text.slice(0, 240)} — the plan token (rewritePlanToken in src/services/structure/astPatterns.ts) must cover every rule, including one that matched nothing`,
+        `${staleRuleChange.text.slice(0, 240)} — the plan token (rewritePlanToken in src/tools/engines/structure/astPatterns.ts) must cover every rule, including one that matched nothing`,
       )
 
       const staleScopeChange = await drive(
@@ -198,7 +198,7 @@ if (!process.argv.includes('--child')) {
       check(
         'B01: changing the selected scope invalidates the old batch plan even when the same files match',
         staleScopeChange.isError && staleScopeChange.text.includes('does not match the current dry run'),
-        `${staleScopeChange.text.slice(0, 240)} — the plan token (rewritePlanToken in src/services/structure/astPatterns.ts) must change when the path or glob scope changes`,
+        `${staleScopeChange.text.slice(0, 240)} — the plan token (rewritePlanToken in src/tools/engines/structure/astPatterns.ts) must change when the path or glob scope changes`,
       )
 
       const applied = await drive(
@@ -214,7 +214,7 @@ if (!process.argv.includes('--child')) {
           applied.data?.matchCount === 7 &&
           world.get('sim/one.ts') === 'const a = beta(1)\nconst b = gamma(2)\nconst eq1 = Object.is(x, x)\nconst eq2 = x == y\n' &&
           world.get('sim/two.ts') === 'const c = swapRight(10, 20)\nconst d = swapLeft(30)\nconst keep = kept()\n',
-        `${applied.text}\n---\n${world.get('sim/one.ts')}\n---\n${world.get('sim/two.ts')} — the batch apply in src/services/structure/astPatterns/batchRewrite.ts must land all rules at once with one ask`,
+        `${applied.text}\n---\n${world.get('sim/one.ts')}\n---\n${world.get('sim/two.ts')} — the batch apply in src/tools/engines/structure/ast-patterns/batchRewrite.ts must land all rules at once with one ask`,
       )
       check(
         'M06 + B03: applied receipt reports aggregate and per-file counts, contributing rules and unmatched rules',
@@ -222,7 +222,7 @@ if (!process.argv.includes('--child')) {
           applied.text.includes('one.ts — 4 rewrites (rules 0, 1, 2, 3)') &&
           applied.text.includes('two.ts — 3 rewrites (rules 4, 5, 6)') &&
           applied.text.includes('Matched nothing: rule 7.'),
-        `${applied.text} — the applied receipt in src/tools/AstEditTool/AstEditTool.ts must list the aggregate count, per-file counts with contributing rules, and unmatched rules`,
+        `${applied.text} — the applied receipt in src/tools/ast-edit/AstEditTool.ts must list the aggregate count, per-file counts with contributing rules, and unmatched rules`,
       )
     }
 
@@ -242,13 +242,13 @@ if (!process.argv.includes('--child')) {
           dry.data?.matchCount === 2 &&
           dry.text.includes('Coalesced edits (1): c.ts:1:11 [rules 0, 1].') &&
           dry.text.includes('1:11 [rules 0+1]'),
-        `${dry.text} — equivalent edits from different rules must coalesce in src/services/structure/astPatterns/batchRewrite.ts and be named in the preview`,
+        `${dry.text} — equivalent edits from different rules must coalesce in src/tools/engines/structure/ast-patterns/batchRewrite.ts and be named in the preview`,
       )
       const app = await drive(AstEditTool, { rules: coalesceRules, path: 'coalesce', apply: true, plan: dry.data?.plan }, prover)
       check(
         'M04: coalesced apply writes the shared span once cleanly',
         !app.isError && world.get('coalesce/c.ts') === 'const x = modern(1, true)\nconst y = modern(2, true)\n',
-        `${app.text} — coalesced apply in src/services/structure/astPatterns/batchRewrite.ts must write a shared span once; file now: ${world.get('coalesce/c.ts')}`,
+        `${app.text} — coalesced apply in src/tools/engines/structure/ast-patterns/batchRewrite.ts must write a shared span once; file now: ${world.get('coalesce/c.ts')}`,
       )
 
       const divergentSameSpan = await drive(
@@ -266,7 +266,7 @@ if (!process.argv.includes('--child')) {
         'M04: divergent same-span overlap is refused before preview naming file, both rule indices and locations',
         divergentSameSpan.isError &&
           divergentSameSpan.text.includes('Overlapping rewrites in c.ts: rule 0 ("modern(1, true)") at 1:11 and rule 1 ("modern($X, true)") at 1:11 touch the same source span with different replacements.'),
-        `${divergentSameSpan.text} — the overlap refusal in src/services/structure/astPatterns/batchRewrite.ts must name the file, both rule indices and both locations`,
+        `${divergentSameSpan.text} — the overlap refusal in src/tools/engines/structure/ast-patterns/batchRewrite.ts must name the file, both rule indices and both locations`,
       )
 
       world.put('coalesce/nested.ts', 'const z = outer(inner(1))\n')
@@ -286,7 +286,7 @@ if (!process.argv.includes('--child')) {
         nestedOverlap.isError &&
           nestedOverlap.text.includes('Overlapping rewrites in nested.ts: rule 0 ("outer($X)") at 1:11 and rule 1 ("inner($Y)") at 1:17 touch the same source span with different replacements.') &&
           world.get('coalesce/nested.ts') === 'const z = outer(inner(1))\n',
-        `${nestedOverlap.text} — the overlap refusal in src/services/structure/astPatterns/batchRewrite.ts must cover nested spans and leave the file untouched`,
+        `${nestedOverlap.text} — the overlap refusal in src/tools/engines/structure/ast-patterns/batchRewrite.ts must cover nested spans and leave the file untouched`,
       )
     }
 
@@ -304,7 +304,7 @@ if (!process.argv.includes('--child')) {
         ['syntax-invalid pattern in rule 1', [{ pattern: 'tap($X)', rewrite: 'hit($X)' }, { pattern: ')((broken', rewrite: 'x' }], 'Rule 1: The pattern ")((broken" did not parse'],
       ] as Array<[string, Array<{ pattern: string; rewrite: string }>, string]>) {
         const bad = await drive(AstEditTool, { rules, path: 'mixed' }, prover)
-        check(`M05 (${label}): identifies the invalid rule`, bad.isError && bad.text.includes(expected), `${bad.text} — rule validation in src/services/structure/astPatterns/batchRewrite.ts must name the invalid rule by index with this reason: ${expected}`)
+        check(`M05 (${label}): identifies the invalid rule`, bad.isError && bad.text.includes(expected), `${bad.text} — rule validation in src/tools/engines/structure/ast-patterns/batchRewrite.ts must name the invalid rule by index with this reason: ${expected}`)
       }
 
       const crossLang = await drive(
@@ -324,7 +324,7 @@ if (!process.argv.includes('--child')) {
           crossLang.data?.matchCount === 2 &&
           crossLang.text.includes('Not searched: 2 typescript files (rule 1: the pattern does not parse as typescript') &&
           crossLang.text.includes('Searched recovered tree: broken.ts (typescript;'),
-        `${crossLang.text} — the mixed-language batch in src/services/structure/astPatterns/batchRewrite.ts must attribute language skips per rule and report recovered trees`,
+        `${crossLang.text} — the mixed-language batch in src/tools/engines/structure/ast-patterns/batchRewrite.ts must attribute language skips per rule and report recovered trees`,
       )
     }
 
@@ -356,7 +356,7 @@ if (!process.argv.includes('--child')) {
           failed.text.includes('every touched file was restored to its original bytes and VERIFIED by reread') &&
           world.get('txn/a.ts') === origA &&
           world.get('txn/b.ts') === origB,
-        `${failed.text} — the batch commit in src/services/changeTransaction/changeSetCommit.ts must restore and re-read every touched file when one member fails`,
+        `${failed.text} — the batch commit in src/tools/engines/change-transaction/changeSetCommit.ts must restore and re-read every touched file when one member fails`,
       )
 
       const cancelled = await makeContext(tools, { allow: ['AstEdit'] })
@@ -365,7 +365,7 @@ if (!process.argv.includes('--child')) {
       check(
         'B02: cancellation before commit writes no prefix',
         cancelRes.isError && world.get('txn/a.ts') === origA && world.get('txn/b.ts') === origB,
-        `${cancelRes.text} — an aborted AstEdit apply in src/tools/AstEditTool/AstEditTool.ts must write nothing`,
+        `${cancelRes.text} — an aborted AstEdit apply in src/tools/ast-edit/AstEditTool.ts must write nothing`,
       )
     }
 
@@ -382,15 +382,15 @@ if (!process.argv.includes('--child')) {
           bigDry.data?.matchCount === 60 &&
           bigDry.text.includes('across 60 rules') &&
           bigDry.text.includes('more diff lines in big.ts)'),
-        `${bigDry.text.slice(-300)} — the batch dry run in src/tools/AstEditTool/AstEditTool.ts must accept 60 rules and bound long per-file diffs with a more-lines note`,
+        `${bigDry.text.slice(-300)} — the batch dry run in src/tools/ast-edit/AstEditTool.ts must accept 60 rules and bound long per-file diffs with a more-lines note`,
       )
       const summary = getToolUseSummary({ rules: sixtyRules, apply: false })
       const msg = renderToolUseMessage({ rules: sixtyRules, path: 'scale', apply: false }, { verbose: false })
-      check('UI summary and card render batch rules cleanly', typeof summary === 'string' && summary.includes('60 rules') && msg !== null, `${String(summary)} — getToolUseSummary and renderToolUseMessage in src/tools/AstEditTool/UI.tsx must handle a rules array`)
+      check('UI summary and card render batch rules cleanly', typeof summary === 'string' && summary.includes('60 rules') && msg !== null, `${String(summary)} — getToolUseSummary and renderToolUseMessage in src/tools/ast-edit/rows.tsx must handle a rules array`)
 
-      const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
-      const { toOpenaiStrictToolSchema } = await import('../../src/utils/messages/toolSchemaDialect.ts')
-      const { stripNullArgs } = await import('../../src/services/providers/openai/openaiWire.ts')
+      const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
+      const { toOpenaiStrictToolSchema } = await import('../../src/engine/message-shapes/toolSchemaDialect.ts')
+      const { stripNullArgs } = await import('../../src/models/roads/openai/openaiWire.ts')
       const desc = await AstEditTool.description()
       const canonical = zodToJsonSchema(AstEditTool.inputSchema)
       const strictForm = toOpenaiStrictToolSchema(canonical)
@@ -400,7 +400,7 @@ if (!process.argv.includes('--child')) {
       check(
         'AstEdit stays strict on provider strict dialect and carries exact ruled description',
         strictForm.strict === true && desc.length === 451 && 'rules' in (canonical.properties as Record<string, unknown>),
-        `${JSON.stringify(strictForm)} — the AstEdit input schema and description in src/tools/AstEditTool/AstEditTool.ts must stay strict-dialect compatible; the description length is pinned to 451 here`,
+        `${JSON.stringify(strictForm)} — the AstEdit input schema and description in src/tools/ast-edit/AstEditTool.ts must stay strict-dialect compatible; the description length is pinned to 451 here`,
       )
       const stripped = stripNullArgs(
         { pattern: null, rewrite: null, rules: [{ pattern: 'a()', rewrite: 'b()' }], path: null, glob: null, lang: null, apply: null, plan: null },
@@ -409,7 +409,7 @@ if (!process.argv.includes('--child')) {
       check(
         'strict-wire null placeholders strip cleanly to the batch call',
         JSON.stringify(stripped) === JSON.stringify({ rules: [{ pattern: 'a()', rewrite: 'b()' }] }),
-        `${JSON.stringify(stripped)} — stripNullArgs in src/services/providers/openai/openaiWire.ts must drop null placeholders against the AstEdit schema`,
+        `${JSON.stringify(stripped)} — stripNullArgs in src/models/roads/openai/openaiWire.ts must drop null placeholders against the AstEdit schema`,
       )
     }
   } finally {

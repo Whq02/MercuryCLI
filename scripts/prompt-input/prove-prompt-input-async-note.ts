@@ -17,18 +17,18 @@ mkdirSync(home, { recursive: true })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const React = await import('react')
-const { Box, Text } = await import('../../src/ink.ts')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { useInteractiveList } = await import('../../src/components/mercury-ui/useInteractiveList.ts')
-const { InteractiveRow } = await import('../../src/components/mercury-ui/InteractiveRow.tsx')
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { useInteractiveList } = await import('../../src/screen/widgets/useInteractiveList.ts')
+const { InteractiveRow } = await import('../../src/screen/widgets/InteractiveRow.tsx')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const h = React.createElement
 
 let failures = 0
-const asyncNoteWhere = 'fix the pending note and the close handling of async actions in useInteractiveList in src/components/mercury-ui/useInteractiveList.ts'
+const asyncNoteWhere = 'fix the pending note and the close handling of async actions in useInteractiveList in src/screen/widgets/useInteractiveList.ts'
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail}; ` : ''}${asyncNoteWhere}` : ''}`)
   if (!ok) failures = 1

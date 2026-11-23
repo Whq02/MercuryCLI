@@ -40,9 +40,9 @@ import { join } from 'node:path'
 if (homedir() !== process.env.DRV_HOME) throw new Error('the home folder is ' + homedir() + ', not the scratch home of this proof')
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const repo = ${JSON.stringify(repo)}
-const { getPlatform } = await import(join(repo, 'src/utils/platform.ts'))
-const { getFsImplementation, setFsImplementation } = await import(join(repo, 'src/utils/fsOperations.ts'))
-const { matchesInstructionExcludes, clearExcludeResolutionMemo } = await import(join(repo, 'src/services/instructions/discovery.ts'))
+const { getPlatform } = await import(join(repo, 'src/platform/environment/platform.ts'))
+const { getFsImplementation, setFsImplementation } = await import(join(repo, 'src/platform/files/fsOperations.ts'))
+const { matchesInstructionExcludes, clearExcludeResolutionMemo } = await import(join(repo, 'src/sessions/instructions/discovery.ts'))
 const plan = JSON.parse(process.env.DRV_PLAN ?? '{}')
 const real = getFsImplementation()
 const asked: string[] = []
@@ -70,7 +70,7 @@ writeFileSync(process.argv[2]!, JSON.stringify(read))
 
 let passed = 0
 let failed = 0
-const excludeHint = 'change how matchesInstructionExcludes in src/services/instructions/discovery.ts resolves links in an exclude pattern per platform;'
+const excludeHint = 'change how matchesInstructionExcludes in src/sessions/instructions/discovery.ts resolves links in an exclude pattern per platform;'
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${excludeHint} ${detail.slice(0, 700)}` : ''}`)

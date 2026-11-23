@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
-import { defineStore } from '../../src/substrate/fileStore.ts'
+import { defineStore } from '../../src/platform/substrate/fileStore.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'keel-groupcommit-'))
 const guard = (p: string): string => {
@@ -15,7 +15,7 @@ const guard = (p: string): string => {
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  const where = label.startsWith('6') ? 'createTask in src/utils/tasks.ts' : 'the mutate method of defineStore in src/substrate/fileStore.ts'
+  const where = label.startsWith('6') ? 'createTask in src/engine/task-framework/tasks.ts' : 'the mutate method of defineStore in src/platform/substrate/fileStore.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` · change ${where}`}`)
 }
 
@@ -130,7 +130,7 @@ const N = 24
 
 {
   process.env.MERCURY_CONFIG_DIR = guard(join(SCRATCH, 'cfg'))
-  const tasks = await import('../../src/utils/tasks.ts')
+  const tasks = await import('../../src/engine/task-framework/tasks.ts')
   const list = 'keel-group-commit'
   const N = 16
   const ids = await Promise.all(

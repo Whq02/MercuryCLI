@@ -30,7 +30,7 @@ try {
   {
     const sqliteMod = 'bun:sqlite'
     const { Database } = (await import(sqliteMod)) as { Database: new (path: string) => { exec(sql: string): void; close(): void } }
-    const { renderSqliteTarget } = await import('../../src/tools/FileReadTool/readRichFormats.js')
+    const { renderSqliteTarget } = await import('../../src/tools/read/readRichFormats.js')
     const dbPath = join(scratch, 'faulty.sqlite')
     const db = new Database(dbPath)
     db.exec('CREATE TABLE good (id INTEGER PRIMARY KEY, name TEXT); INSERT INTO good VALUES (1, "ok");')
@@ -53,14 +53,14 @@ try {
     const childSrc = `
       import { mock } from 'bun:test'
       globalThis.MACRO = { VERSION: '1.0.0' }
-      const statePath = ${JSON.stringify(join(SRC, 'bootstrap/state.ts'))}
+      const statePath = ${JSON.stringify(join(SRC, 'boot/process-state/processState.ts'))}
       const realState = await import(statePath)
       mock.module(statePath, () => ({
         ...realState,
         getSessionId: () => { throw new Error('session-id-boom') },
       }))
-      const { stagedJournalEntry } = await import(${JSON.stringify(join(SRC, 'mneme/journal.ts'))})
-      const { JournalTool } = await import(${JSON.stringify(join(SRC, 'tools/JournalTool/JournalTool.ts'))})
+      const { stagedJournalEntry } = await import(${JSON.stringify(join(SRC, 'sessions/mneme/journal.ts'))})
+      const { JournalTool } = await import(${JSON.stringify(join(SRC, 'tools/journal/JournalTool.ts'))})
       let threw = null
       try {
         await JournalTool.call({ entry: 'Finished task cleanly.' }, {} as never, {} as never, {} as never)
@@ -85,10 +85,10 @@ try {
     const childSrc = `
       import { mock } from 'bun:test'
       globalThis.MACRO = { VERSION: '1.0.0' }
-      const pdfTextPath = ${JSON.stringify(join(SRC, 'utils/pdfText.ts'))}
-      const pdfPath = ${JSON.stringify(join(SRC, 'utils/pdf.ts'))}
-      const resizerPath = ${JSON.stringify(join(SRC, 'utils/imageResizer.ts'))}
-      const capsPath = ${JSON.stringify(join(SRC, 'utils/model/capabilities.ts'))}
+      const pdfTextPath = ${JSON.stringify(join(SRC, 'tools/kit/pdfText.ts'))}
+      const pdfPath = ${JSON.stringify(join(SRC, 'tools/kit/pdf.ts'))}
+      const resizerPath = ${JSON.stringify(join(SRC, 'platform/images/imageResizer.ts'))}
+      const capsPath = ${JSON.stringify(join(SRC, 'models/facts/capabilities.ts'))}
       const realPdf = await import(pdfPath)
       const realResizer = await import(resizerPath)
       const realCaps = await import(capsPath)
@@ -110,7 +110,7 @@ try {
         ...realCaps,
         resolveModelCapabilities: () => ({ media: { images: true, pdf: true } }),
       }))
-      const { readPdfLane } = await import(${JSON.stringify(join(SRC, 'tools/FileReadTool/read/pdfLane.ts'))})
+      const { readPdfLane } = await import(${JSON.stringify(join(SRC, 'tools/read/call/pdfLane.ts'))})
       let threw = null
       let returned = null
       try {
@@ -130,7 +130,7 @@ try {
 
   console.log('\n4. FileWriteTool/structuredTargets.ts: non-ENOENT stat failure is not reported as absent')
   if (POSIX_MODES) {
-    const { parseStructuredWriteTarget, structuredTargetRefusal } = await import('../../src/tools/FileWriteTool/structuredTargets.js')
+    const { parseStructuredWriteTarget, structuredTargetRefusal } = await import('../../src/tools/write/structuredTargets.js')
     const lockedDir = join(scratch, 'locked-structured')
     mkdirSync(lockedDir, { recursive: true })
     const dbInLocked = join(lockedDir, 'data.sqlite')
@@ -151,7 +151,7 @@ try {
 
   console.log('\n5. GitTool/GitTool.ts: non-ENOENT stat failure on cwd is not reported as missing')
   if (POSIX_MODES) {
-    const { GitTool } = await import('../../src/tools/GitTool/GitTool.js')
+    const { GitTool } = await import('../../src/tools/git/GitTool.js')
     const lockedDir = join(scratch, 'locked-git')
     mkdirSync(lockedDir, { recursive: true })
     const repoInLocked = join(lockedDir, 'repo')
@@ -169,7 +169,7 @@ try {
 
   console.log('\n6. JevEvalTool/jevEvalEvidence.ts: non-ENOENT stat failure says could not be read, not does not exist')
   if (POSIX_MODES) {
-    const { expandJevEvalEvidence } = await import('../../src/tools/JevEvalTool/jevEvalEvidence.js')
+    const { expandJevEvalEvidence } = await import('../../src/tools/jev-eval/jevEvalEvidence.js')
     const lockedDir = join(scratch, 'locked-jev')
     mkdirSync(lockedDir, { recursive: true })
     const fileInLocked = join(lockedDir, 'notes.txt')
@@ -192,7 +192,7 @@ try {
     const childSrc = `
       import { mock } from 'bun:test'
       globalThis.MACRO = { VERSION: '1.0.0' }
-      const mgrPath = ${JSON.stringify(join(SRC, 'services/lsp/manager.ts'))}
+      const mgrPath = ${JSON.stringify(join(SRC, 'integrations/lsp/serverManagerLifecycle.ts'))}
       const realMgr = await import(mgrPath)
       let sent = 0
       const fakeManager = {
@@ -206,7 +206,7 @@ try {
         getInitializationStatus: () => ({ status: 'initialized' }),
         getLspServerManager: () => fakeManager,
       }))
-      const { LspReadTool } = await import(${JSON.stringify(join(SRC, 'tools/LSPTool/LSPTool.ts'))})
+      const { LspReadTool } = await import(${JSON.stringify(join(SRC, 'tools/lsp/lspTools.ts'))})
       const ctx = { abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: {} }), options: { tools: [] } } as never
       const res = await LspReadTool.call({ operation: 'documentSymbol', filePath: ${JSON.stringify(sampleTs)} } as never, ctx, null as never, undefined as never)
       process.stdout.write('\\n' + JSON.stringify({ outcome: res.data.outcome, result: res.data.result, sent }))
@@ -221,7 +221,7 @@ try {
 
   console.log('\n8. LSPTool/mercuryOps.ts: a failed revalidateOpenDocuments does not fail the operation, as before')
   {
-    const { runMercuryLspOp } = await import('../../src/tools/LSPTool/mercuryOps.js')
+    const { runMercuryLspOp } = await import('../../src/tools/lsp/mercuryOps.js')
     let threw: string | null = null
     try {
       await runMercuryLspOp({
@@ -252,7 +252,7 @@ try {
 
   console.log('\n9. LSPTool/mercuryOps/pathRename.ts: source EACCES, claimant start failure, and sync failure refuse cleanly')
   {
-    const { opPathRename } = await import('../../src/tools/LSPTool/mercuryOps/pathRename.js')
+    const { opPathRename } = await import('../../src/tools/lsp/mercury-ops/pathRename.js')
     const baseCtx = { abortController: new AbortController(), readFileState: new Map(), getAppState: () => ({ toolPermissionContext: {} }) } as never
     if (POSIX_MODES) {
       const lockedDir = join(scratch, 'locked-rename')
@@ -316,7 +316,7 @@ try {
 
   console.log('\n10. LSPTool/mercuryOps/pathRenameFanOut.ts: an unreadable directory does not stop the move, as before')
   if (POSIX_MODES) {
-    const { pathRenameClaimants } = await import('../../src/tools/LSPTool/mercuryOps/pathRenameFanOut.js')
+    const { pathRenameClaimants } = await import('../../src/tools/lsp/mercury-ops/pathRenameFanOut.js')
     const unreadableDir = join(scratch, 'unreadable-pkg')
     mkdirSync(unreadableDir, { recursive: true })
     writeFileSync(join(unreadableDir, 'index.ts'), 'export const x = 1\n')

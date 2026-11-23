@@ -5,9 +5,9 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'live-counter-home-'))
 
-const { onSeatRow } = await import('../../src/daemon/sessionSeat.ts')
-const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { onSeatRow } = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { readSessionTail } = await import('../../src/engine/connector/seatProjections.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = '', hint = ''): void => {
@@ -34,7 +34,7 @@ updateConcourseWorkers(workers => {
   } as never
 }, dir)
 const roster = { door: () => undefined, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
-const { partialRowsOf, itemRowsOf, stepRow } = await import('../../src/rows/project.ts')
+const { partialRowsOf, itemRowsOf, stepRow } = await import('../../src/engine/rows/project.ts')
 const scope = { session_id: sid, turn: 1 }
 const stamp = (o: Record<string, unknown>): Record<string, unknown> => ({ seq: 1, timestamp: 't', ...o })
 const feed = (lines: Array<Record<string, unknown>>): void => {
@@ -55,53 +55,53 @@ ev('msg_lc', { type: 'content_block_delta', index: 0, delta: { type: 'thinking_d
 await cadence()
 {
   const t = tail()
-  check(`C1 a reasoning delta raises the count by its length (${THINK.length})`, t?.turnChars === THINK.length, JSON.stringify(t), 'src/daemon/sessionSeat/stream.ts must add a thinking delta length to seat.turnChars')
-  check('C1 the tail text stays clear — a think streams no words', t?.text === null, JSON.stringify(t), 'src/daemon/sessionSeat/stream.ts must not put thinking words in the seat tail text')
+  check(`C1 a reasoning delta raises the count by its length (${THINK.length})`, t?.turnChars === THINK.length, JSON.stringify(t), 'src/daemon/session-seat/stream.ts must add a thinking delta length to seat.turnChars')
+  check('C1 the tail text stays clear — a think streams no words', t?.text === null, JSON.stringify(t), 'src/daemon/session-seat/stream.ts must not put thinking words in the seat tail text')
 }
 ev('msg_lc', { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: '' } })
 await cadence()
-check('C3 an empty reasoning delta leaves the count where it was', tail()?.turnChars === THINK.length, JSON.stringify(tail()), 'src/daemon/sessionSeat/stream.ts must add nothing to seat.turnChars for an empty reasoning delta')
+check('C3 an empty reasoning delta leaves the count where it was', tail()?.turnChars === THINK.length, JSON.stringify(tail()), 'src/daemon/session-seat/stream.ts must add nothing to seat.turnChars for an empty reasoning delta')
 ev('msg_lc', { type: 'content_block_start', index: 1, content_block: { type: 'text', text: '' } })
 ev('msg_lc', { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: PROSE } })
 await cadence()
 {
   const t = tail()
-  check(`C2 a text delta adds to the same count (${THINK.length + PROSE.length}) and carries its words`, t?.turnChars === THINK.length + PROSE.length && t?.text === PROSE, JSON.stringify(t), 'src/daemon/sessionSeat/stream.ts must add a text delta length to seat.turnChars and keep its words as the tail text')
+  check(`C2 a text delta adds to the same count (${THINK.length + PROSE.length}) and carries its words`, t?.turnChars === THINK.length + PROSE.length && t?.text === PROSE, JSON.stringify(t), 'src/daemon/session-seat/stream.ts must add a text delta length to seat.turnChars and keep its words as the tail text')
 }
 
 let expected = THINK.length + PROSE.length
 for (const type of ['tool_use', 'server_tool_use', 'mcp_tool_use']) {
   ev('msg_lc', { type: 'content_block_start', index: 2, content_block: { type, id: 'call_input', name: 'Write', input: {} } })
-  check(`${type}: an empty input seed adds no characters`, tail()?.turnChars === expected, JSON.stringify(tail()), 'src/daemon/sessionSeat/stream.ts must not count the empty input of a tool block start')
+  check(`${type}: an empty input seed adds no characters`, tail()?.turnChars === expected, JSON.stringify(tail()), 'src/daemon/session-seat/stream.ts must not count the empty input of a tool block start')
   const parts = ['{"content":"', 'the tool input '.repeat(500), '"}']
   for (const partial_json of parts) {
     ev('msg_lc', { type: 'content_block_delta', index: 2, delta: { type: 'input_json_delta', partial_json } })
     expected += partial_json.length
   }
   await cadence()
-  check(`${type}: every input fragment adds its length to the same count`, tail()?.turnChars === expected, JSON.stringify(tail()), 'src/daemon/sessionSeat/stream.ts must add each input_json_delta partial_json length to seat.turnChars')
-  check(`${type}: input never appears as assistant prose (the tail keeps the streamed words)`, tail()?.text === PROSE, JSON.stringify(tail()?.text), 'src/daemon/sessionSeat/stream.ts must keep tool input out of the seat tail text')
+  check(`${type}: every input fragment adds its length to the same count`, tail()?.turnChars === expected, JSON.stringify(tail()), 'src/daemon/session-seat/stream.ts must add each input_json_delta partial_json length to seat.turnChars')
+  check(`${type}: input never appears as assistant prose (the tail keeps the streamed words)`, tail()?.text === PROSE, JSON.stringify(tail()?.text), 'src/daemon/session-seat/stream.ts must keep tool input out of the seat tail text')
 }
 for (const input of [{ content: 'already supplied' }]) {
   ev('msg_lc', { type: 'content_block_start', index: 3, content_block: { type: 'tool_use', id: 'call_seed', name: 'Write', input } })
   expected += JSON.stringify(input).length
-  check('nonempty input on the block start counts once', tail()?.turnChars === expected, JSON.stringify(tail()), 'src/daemon/sessionSeat/stream.ts must count a nonempty tool input on the block start once, by its JSON length')
+  check('nonempty input on the block start counts once', tail()?.turnChars === expected, JSON.stringify(tail()), 'src/daemon/session-seat/stream.ts must count a nonempty tool input on the block start once, by its JSON length')
 }
 for (const partial_json of ['', null, 7]) {
   ev('msg_lc', { type: 'content_block_delta', index: 3, delta: { type: 'input_json_delta', partial_json } })
 }
 await cadence()
-check('empty and malformed input fragments change no count', tail()?.turnChars === expected, JSON.stringify(tail()), 'src/daemon/sessionSeat/stream.ts must ignore an empty or non-string partial_json')
+check('empty and malformed input fragments change no count', tail()?.turnChars === expected, JSON.stringify(tail()), 'src/daemon/session-seat/stream.ts must ignore an empty or non-string partial_json')
 feed(itemRowsOf(scope, 'msg_lc', [{ type: 'tool_use', id: 'call_input', name: 'Write', input: { content: 'the tool input' } }]) as never)
-check('the settled tool call does not count its input a second time', tail()?.turnChars === expected, JSON.stringify(tail()), 'src/daemon/sessionSeat/rows.ts and stream.ts must not add the settled tool_use item input to seat.turnChars')
+check('the settled tool call does not count its input a second time', tail()?.turnChars === expected, JSON.stringify(tail()), 'src/daemon/session-seat/rows.ts and stream.ts must not add the settled tool_use item input to seat.turnChars')
 feed([stepRow(scope, { messageId: 'msg_lc', model: 'm', stopReason: 'tool_use', usage: USAGE }) as never])
-check('the step does not reset the in-flight turn', tail()?.turnChars === expected, JSON.stringify(tail()), 'src/daemon/sessionSeat/rows.ts must not reset seat.turnChars on a step row')
+check('the step does not reset the in-flight turn', tail()?.turnChars === expected, JSON.stringify(tail()), 'src/daemon/session-seat/rows.ts must not reset seat.turnChars on a step row')
 feed([{ type: 'outcome', session_id: sid, turn: 1, schema: 1, turn_id: 't-lc', status: 'completed', steps: 1, wall_ms: 1, usage: { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }, models: [], denials: [] }])
-check('the outcome clears the full count', (tail()?.turnChars ?? 0) === 0, JSON.stringify(tail()), 'src/daemon/sessionSeat/rows.ts must reset seat.turnChars to 0 on an outcome row')
+check('the outcome clears the full count', (tail()?.turnChars ?? 0) === 0, JSON.stringify(tail()), 'src/daemon/session-seat/rows.ts must reset seat.turnChars to 0 on an outcome row')
 
 {
-  const { StreamChantWatch } = await import('../../src/services/tools/chantGuard.ts')
-  const { requestWaitLine } = await import('../../src/services/providers/streamIdleBudget.ts')
+  const { StreamChantWatch } = await import('../../src/engine/tool-dispatch/chantGuard.ts')
+  const { requestWaitLine } = await import('../../src/models/roads/streamIdleBudget.ts')
   const watch = new StreamChantWatch()
   const repeated = 'A recurring output line with no useful progress in the current task.\n'
   ev('msg_loop', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } })
@@ -112,15 +112,15 @@ check('the outcome clears the full count', (tail()?.turnChars ?? 0) === 0, JSON.
     ev('msg_loop', event)
   }
   await cadence()
-  check('the streamed loop reaches the seat counter before the reader cuts it', cut && (tail()?.turnChars ?? 0) >= 7900, `cut=${cut} ${JSON.stringify(tail())}`, 'StreamChantWatch.feed in src/services/tools/chantGuard.ts must cut the repeated text, and src/daemon/sessionSeat/stream.ts must count every delta before the cut')
+  check('the streamed loop reaches the seat counter before the reader cuts it', cut && (tail()?.turnChars ?? 0) >= 7900, `cut=${cut} ${JSON.stringify(tail())}`, 'StreamChantWatch.feed in src/engine/tool-dispatch/chantGuard.ts must cut the repeated text, and src/daemon/session-seat/stream.ts must count every delta before the cut')
   feed([{ type: 'retracted', message_id: 'msg_loop' }])
-  check('the cut retracts the poisoned live tail without ending the seat', tail()?.text === null && tail()?.withdrawn === 'msg_loop', JSON.stringify(tail()), 'src/daemon/sessionSeat/rows.ts must handle a retracted row by clearing the tail text and setting withdrawn to the message id')
+  check('the cut retracts the poisoned live tail without ending the seat', tail()?.text === null && tail()?.withdrawn === 'msg_loop', JSON.stringify(tail()), 'src/daemon/session-seat/rows.ts must handle a retracted row by clearing the tail text and setting withdrawn to the message id')
   const row = requestWaitLine({ kind: 'retry', attempt: 1, of: 1, reason: 'the reply repeated itself', delayMs: 0, sinceMs: Date.now() })
-  check('the retry uses the existing row vocabulary', row === 'retrying — attempt 1 of 1 after the reply repeated itself', row, 'requestWaitLine in src/services/providers/streamIdleBudget.ts must keep the retry line wording')
+  check('the retry uses the existing row vocabulary', row === 'retrying — attempt 1 of 1 after the reply repeated itself', row, 'requestWaitLine in src/models/roads/streamIdleBudget.ts must keep the retry line wording')
   ev('msg_retry', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } })
   ev('msg_retry', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'A fresh answer.' } })
   await cadence()
-  check('the retry owns the tail, with none of the repeated bytes', tail()?.text === 'A fresh answer.' && tail()?.withdrawn === undefined, JSON.stringify(tail()), 'src/daemon/sessionSeat/stream.ts must let a new message replace the withdrawn tail and clear withdrawn')
+  check('the retry owns the tail, with none of the repeated bytes', tail()?.text === 'A fresh answer.' && tail()?.withdrawn === undefined, JSON.stringify(tail()), 'src/daemon/session-seat/stream.ts must let a new message replace the withdrawn tail and clear withdrawn')
 }
 
 console.log(failures === 0 ? '\n✅ seat live counter GREEN' : `\n❌ seat live counter RED — ${failures} failure(s)`)

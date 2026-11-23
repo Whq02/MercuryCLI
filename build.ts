@@ -8,7 +8,7 @@ const ROOT = import.meta.dir;
 const SRC = resolve(ROOT, 'src');
 const OUT = resolve(ROOT, process.env.MERCURY_BUILD_OUTDIR ?? 'dist');
 
-const { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget, platformKey, releaseTargetFor, ripgrepPackageFor } = await import('./src/services/privateChannel/releaseTarget.ts');
+const { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget, platformKey, releaseTargetFor, ripgrepPackageFor } = await import('./src/platform/update-channel/releaseTarget.ts');
 const { resolvePlatformPackage } = await import('./scripts/vendor/platformPackages.ts');
 const targetFlag = process.argv.indexOf('--target');
 const TARGET_ARG = targetFlag === -1 ? null : (process.argv[targetFlag + 1] ?? '');
@@ -43,7 +43,7 @@ const resolveBuildTime = (): string => {
 };
 
 const STUB_MAP: Record<string, string> = {
-  'color-diff-napi': resolve(SRC, 'native-ts/color-diff/index.ts'),
+  'color-diff-napi': resolve(SRC, 'platform/native/color-diff/index.ts'),
 };
 
 const PKG_JSON = JSON.parse(readFileSync('./package.json', 'utf8')) as { version: string; engines?: { node?: string }; repository?: { url?: string } };
@@ -52,9 +52,9 @@ const NODE_SUPPORTED_RANGE = PKG_JSON.engines?.node;
 if (!NODE_SUPPORTED_RANGE) throw new Error('package.json engines.node missing — the manifest cannot record the supported Node range');
 const REPO_URL = (PKG_JSON.repository?.url ?? '').replace(/^git\+/, '').replace(/\.git$/, '');
 if (!REPO_URL.startsWith('https://github.com/')) throw new Error('package.json repository.url missing or unrecognized — MACRO.PACKAGE_URL cannot be derived');
-const { bundledDocPagesPacked } = await import('./src/skills/bundled/mercuryDocsPages.ts');
+const { bundledDocPagesPacked } = await import('./src/integrations/skills/bundled/mercuryDocsPages.ts');
 const DOC_PAGES_PACKED = bundledDocPagesPacked();
-const { buildMercuryChangelog } = await import('./src/constants/changelog.ts');
+const { buildMercuryChangelog } = await import('./src/commands/update-notes/changelog.ts');
 const CHANGELOG_PACKED = gzipSync(Buffer.from(buildMercuryChangelog(ROOT), 'utf8')).toString('base64');
 
 const MACRO = {
@@ -126,7 +126,7 @@ try {
 }
 
 const boardResult = await Bun.build({
-  entrypoints: [resolve(SRC, 'services/crewBoard/implementation.ts')],
+  entrypoints: [resolve(SRC, 'crew/board/implementation.ts')],
   outdir: OUT,
   naming: 'crew-board.mjs',
   target: 'node',
@@ -136,7 +136,7 @@ const boardResult = await Bun.build({
 if (!boardResult.success) throw new Error(`Crew board build failed: ${boardResult.logs.join('\n')}`);
 
 const guardResult = await Bun.build({
-  entrypoints: [resolve(SRC, 'entrypoints/shellParentGuard.ts')],
+  entrypoints: [resolve(SRC, 'boot/entrypoints/shellParentGuard.ts')],
   outdir: OUT,
   naming: 'shell-parent-guard.mjs',
   target: 'node',
@@ -146,7 +146,7 @@ const guardResult = await Bun.build({
 if (!guardResult.success) throw new Error(`Shell parent guard build failed: ${guardResult.logs.join('\n')}`);
 
 const adapterResult = await Bun.build({
-  entrypoints: [resolve(SRC, 'entrypoints/tensorfoldAdapter.ts')],
+  entrypoints: [resolve(SRC, 'boot/entrypoints/tensorfoldAdapter.ts')],
   outdir: OUT,
   naming: 'tensorfold-adapter.mjs',
   target: 'node',
@@ -161,7 +161,7 @@ const adapterResult = await Bun.build({
 if (!adapterResult.success) throw new Error(`TensorFold adapter build failed: ${adapterResult.logs.join('\n')}`);
 
 const result = await Bun.build({
-  entrypoints: [resolve(ROOT, 'src/entrypoints/cli.tsx')],
+  entrypoints: [resolve(ROOT, 'src/boot/entrypoints/cli.tsx')],
   outdir: OUT,
   naming: 'mercury.mjs',
   target: 'node',
@@ -280,7 +280,7 @@ rmSync(resolve(OUT, '.build-tree'), { force: true });
     for (const name of readdirSync(dir)) {
       const full = resolve(dir, name);
       if (statSync(full).isDirectory()) {
-        if (full === resolve(SRC, 'skills', 'bundled')) continue;
+        if (full === resolve(SRC, 'integrations', 'skills', 'bundled')) continue;
         walk(full);
       } else if (/\.(?:ts|tsx|mts|js|mjs)$/.test(name) && !/\.test\./.test(name)) {
         sources.push(full);
@@ -537,7 +537,7 @@ let jsDebugMeta: { version: string; tarball: string; sha512: string } | null = n
   }
 }
 
-const { RUNTIME_PACK_PATH: nodeRelPath, nodePackPlatform, runtimeBinaryFor } = await import('./src/services/privateChannel/vendoredRuntime.ts');
+const { RUNTIME_PACK_PATH: nodeRelPath, nodePackPlatform, runtimeBinaryFor } = await import('./src/platform/update-channel/vendoredRuntime.ts');
 let nodeVendored = false;
 let nodeMeta: { version: string; platform: string; license: string; archiveSha256: string; binary: string; binarySha256: string } | null = null;
 {
@@ -595,7 +595,7 @@ let nodeMeta: { version: string; platform: string; license: string; archiveSha25
   }
 }
 
-const { PYTHON_PACK_PATH: pythonRelPath, pythonPackPlatform, pythonBinaryFor } = await import('./src/services/privateChannel/vendoredPython.ts');
+const { PYTHON_PACK_PATH: pythonRelPath, pythonPackPlatform, pythonBinaryFor } = await import('./src/platform/update-channel/vendoredPython.ts');
 let pythonVendored = false;
 let pythonMeta: { version: string; release: string; platform: string; license: string; archiveSha256: string; binary: string; binarySha256: string } | null = null;
 {
@@ -654,7 +654,7 @@ let pythonMeta: { version: string; release: string; platform: string; license: s
   }
 }
 
-const { VOICE_PACK_PATH: voiceRelPath, VOICE_NATIVE_PATH: voiceNativePath, voicePackPlatform, checkVoicePackDir, voiceSourceTreeDigest } = await import('./src/utils/voice/voicePack.ts');
+const { VOICE_PACK_PATH: voiceRelPath, VOICE_NATIVE_PATH: voiceNativePath, voicePackPlatform, checkVoicePackDir, voiceSourceTreeDigest } = await import('./src/integrations/voice-pack/voicePack.ts');
 let voiceVendored = false;
 let voiceMeta: { version: string; platform: string; addon: string; addonSha256: string; crates: number } | null = null;
 {
@@ -695,7 +695,7 @@ let voiceMeta: { version: string; platform: string; addon: string; addonSha256: 
   }
 }
 
-const { BRUSH_PACK_PATH: brushRelPath, brushLockKindFor, brushPackPlatform, brushPrepareCommand, checkBrushPackDir } = await import('./src/utils/shell/brushPack.ts');
+const { BRUSH_PACK_PATH: brushRelPath, brushLockKindFor, brushPackPlatform, brushPrepareCommand, checkBrushPackDir } = await import('./src/platform/shell/brushPack.ts');
 let brushVendored = false;
 let brushMeta: { source: string; version: string; platform: string; target: string; binary: string; binarySha256: string; license: string } | null = null;
 {
@@ -758,7 +758,7 @@ let brushMeta: { source: string; version: string; platform: string; target: stri
   }
 }
 
-const { BASH_PACK_PATH: bashRelPath, bashMsys2LockMismatch, bashPackIsFetched, bashPackPlatform, bashPatchesDigest, bashPrepareCommand, checkBashPackDir } = await import('./src/utils/shell/bashPack.ts');
+const { BASH_PACK_PATH: bashRelPath, bashMsys2LockMismatch, bashPackIsFetched, bashPackPlatform, bashPatchesDigest, bashPrepareCommand, checkBashPackDir } = await import('./src/platform/shell/bashPack.ts');
 let bashVendored = false;
 let bashOwed = false;
 let bashFetched = false;
@@ -845,8 +845,8 @@ let bashMeta: ({ version: string; bashVersion: string; platform: string; target:
   }
 }
 
-const { WHISPER_PACK_PATH: whisperRelPath, WHISPER_NATIVE_PATH: whisperNativePath, checkWhisperPackDir, whisperPackDirFor, whisperSourceTreeDigest } = await import('./src/services/voice/whisperPack.ts');
-const { whisperDefaultModel } = await import('./src/services/voice/whisperModels.ts');
+const { WHISPER_PACK_PATH: whisperRelPath, WHISPER_NATIVE_PATH: whisperNativePath, checkWhisperPackDir, whisperPackDirFor, whisperSourceTreeDigest } = await import('./src/integrations/voice/whisperPack.ts');
+const { whisperDefaultModel } = await import('./src/integrations/voice/whisperModels.ts');
 let whisperVendored = false;
 let whisperMeta: { version: string; platform: string; addon: string; addonSha256: string; crates: number; engine: { name: string; version: string }; cpuFloor: string; gpu: string } | null = null;
 {
@@ -890,7 +890,7 @@ let whisperMeta: { version: string; platform: string; addon: string; addonSha256
   }
 }
 
-const { DESKTOP_PACK_PATH: desktopRelPath, DESKTOP_NATIVE_PATH: desktopNativePath, checkDesktopPackDir, desktopPackDirFor, desktopSourceTreeDigest } = await import('./src/services/desktop/pack.ts');
+const { DESKTOP_PACK_PATH: desktopRelPath, DESKTOP_NATIVE_PATH: desktopNativePath, checkDesktopPackDir, desktopPackDirFor, desktopSourceTreeDigest } = await import('./src/integrations/desktop/pack.ts');
 let desktopVendored = false;
 let desktopMeta: { version: string; platform: string; addon: string; addonSha256: string; crates: number } | null = null;
 {
@@ -931,8 +931,8 @@ let desktopMeta: { version: string; platform: string; addon: string; addonSha256
   }
 }
 
-const { EMBED_PACK_PATH: embedRelPath, EMBED_NATIVE_PATH: embedNativePath, checkEmbedPackDir, embedPackDirFor, embedSourceTreeDigest } = await import('./src/mneme/embedPack.ts');
-const { embedDefaultModel } = await import('./src/mneme/embedModels.ts');
+const { EMBED_PACK_PATH: embedRelPath, EMBED_NATIVE_PATH: embedNativePath, checkEmbedPackDir, embedPackDirFor, embedSourceTreeDigest } = await import('./src/sessions/mneme/embedPack.ts');
+const { embedDefaultModel } = await import('./src/sessions/mneme/embedModels.ts');
 const embedModelsRelPath = 'vendor/embed-models';
 let embedVendored = false;
 let embedModelVendored = false;
@@ -979,7 +979,7 @@ let embedMeta: { version: string; platform: string; addon: string; addonSha256: 
   const embedModelsDest = resolve(OUT, embedModelsRelPath);
   rmSync(embedModelsDest, { recursive: true, force: true });
   if (embedVendored) {
-    const { EMBED_MODELS_VENDOR_PATH, checkEmbedModel } = await import('./src/mneme/embedModels.ts');
+    const { EMBED_MODELS_VENDOR_PATH, checkEmbedModel } = await import('./src/sessions/mneme/embedModels.ts');
     const cacheDir = resolve(ROOT, EMBED_MODELS_VENDOR_PATH);
     const wanted = embedDefaultModel();
     const check = checkEmbedModel({ kind: 'catalogue', row: wanted, pinned: false }, { dir: cacheDir, digest: true });
@@ -1038,7 +1038,7 @@ let typescriptVersion: string | null = null;
   }
 }
 
-const { IMAGE_PACK_PATH: imagePackRelPath, imagePackPlatform, imagePackPackages } = await import('./src/utils/imageProcessor/imageProcessor.ts');
+const { IMAGE_PACK_PATH: imagePackRelPath, imagePackPlatform, imagePackPackages } = await import('./src/platform/images/imageProcessor.ts');
 let imagePackVendored = false;
 let imagePackMeta: { platform: string; packages: string[]; sharp: string; libvips: string | null } | null = null;
 {
@@ -1094,7 +1094,7 @@ let grammarPackMissing: string[] = [];
   const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_TREESITTER === '1';
   const srcDir = resolve(ROOT, 'node_modules', '@vscode', 'tree-sitter-wasm');
   const wasmDir = resolve(srcDir, 'wasm');
-  const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('./src/utils/structure/grammarRegistry.ts');
+  const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('./src/platform/grammars/grammarRegistry.ts');
   const vscodeWasms = GRAMMAR_REGISTRY.filter(g => (g.source ?? 'vscode-pack') === 'vscode-pack').map(g => g.wasm);
   const packWasms = GRAMMAR_REGISTRY.filter(g => g.source === 'grammar-pack').map(g => g.wasm);
   const runtimeFiles = [...GRAMMAR_ENGINE_RUNTIME_FILES];
@@ -1256,7 +1256,7 @@ const documentLibraries = await vendorDocumentLibraries(ROOT, OUT);
 
 {
   const verifier = await Bun.build({
-    entrypoints: [resolve(SRC, 'services/privateChannel/verifyArtifactStandalone.ts')],
+    entrypoints: [resolve(SRC, 'platform/update-channel/verifyArtifactStandalone.ts')],
     outdir: OUT,
     naming: 'verify-artifact.mjs',
     target: 'node',
@@ -1307,7 +1307,7 @@ for (const member of SPLASH_PAIR) {
 }
 
 {
-  const { stampNoticeOnSource, hasCurrentNoticeStamp } = await import('./src/constants/legalNotice.ts');
+  const { stampNoticeOnSource, hasCurrentNoticeStamp } = await import('./src/platform/product/legalNotice.ts');
   for (const artifact of ['mercury.mjs', 'verify-artifact.mjs']) {
     const path = resolve(OUT, artifact);
     writeFileSync(path, stampNoticeOnSource(readFileSync(path, 'utf8'), MACRO_VERSION));

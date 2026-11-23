@@ -9,7 +9,7 @@ import {
   parseGeneratedAssetsMap,
   unregisteredGeneratedFiles,
   type GeneratedAssetRow,
-} from '../../src/guards/generatedAssets.ts'
+} from '../../src/permissions/guards/generatedAssets.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const argv = process.argv.slice(2)

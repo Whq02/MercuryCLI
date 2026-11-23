@@ -23,24 +23,24 @@ for (const k of [
   delete process.env[k]
 }
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 bootstrap.setSessionKind('oculus')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantAPIErrorMessage, createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const settingsRoad = await import('../../src/utils/settings/settings.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantAPIErrorMessage, createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const settingsRoad = await import('../../src/platform/settings/settings.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 
 let failures = 0
 let checks = 0
 const CHANT_HINTS: Record<string, string> = {
-  P5: 'change finalizeAgentTool in src/tools/AgentTool/agentToolUtils.ts (the loop_stopped outcome) or the chant road in src/run-core/turn/noToolReply.ts and src/services/tools/chantGuard.ts',
+  P5: 'change finalizeAgentTool in src/tools/crewmate/crewmateLifecycle.ts (the loop_stopped outcome) or the chant road in src/engine/loop/turn/noToolReply.ts and src/engine/tool-dispatch/chantGuard.ts',
 }
-const CHANT_DEFAULT_HINT = 'change the chant road of the reply turn in src/run-core/turn/noToolReply.ts and the detector in src/services/tools/chantGuard.ts, and the turns.loopGuard setting in src/utils/settings/types.ts'
+const CHANT_DEFAULT_HINT = 'change the chant road of the reply turn in src/engine/loop/turn/noToolReply.ts and the detector in src/engine/tool-dispatch/chantGuard.ts, and the turns.loopGuard setting in src/platform/settings/settingsSchema.ts'
 let chantHint = CHANT_DEFAULT_HINT
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
@@ -253,8 +253,8 @@ section('P4 — a chant cut by the output cap takes the chant road, not the resu
 section('P5 — KEY ON: a sub-agent ended for chanting settles to its parent as a typed failure, and the chant is never returned as its report')
 {
   setStopKey(true)
-  const { finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-  const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
+  const { finalizeAgentTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+  const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
   const run = await runReplies([CHANT, CHANT, HONEST], 'agent-rig-chant')
   check('the sub-agent turn ended typed as loop_stopped for the reply', run.terminal.reason === 'loop_stopped' && stops(run).length === 1, JSON.stringify(run.terminal))
   const collected = run.yields.filter(m => m.type === 'assistant' || m.type === 'user' || m.type === 'attachment')

@@ -10,15 +10,15 @@ const HOME = underScratchHome(import.meta.path)
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { closeRemoteConnections } = await import('../../src/services/remoteFiles/connection.ts')
-const ops = await import('../../src/services/remoteFiles/ops.ts')
-const { parseRemotePath, remoteGeneration } = await import('../../src/utils/remoteFiles/target.ts')
-const { readFileInRange, FileTooLargeError } = await import('../../src/utils/readFileInRange.ts')
-const { fileGeneration } = await import('../../src/services/changeTransaction/seenLines.ts')
+const { closeRemoteConnections } = await import('../../src/platform/remote-files/connection.ts')
+const ops = await import('../../src/platform/remote-files/ops.ts')
+const { parseRemotePath, remoteGeneration } = await import('../../src/platform/remote-file-target/target.ts')
+const { readFileInRange, FileTooLargeError } = await import('../../src/platform/files/readFileInRange.ts')
+const { fileGeneration } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
 
 const PORT = 27062
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 300 seconds; a remote operation in src/services/remoteFiles/ops.ts or the transport set up by scripts/remote-files/remoteKit.ts is hanging, so look at the last section printed above')
+  console.log('  [FAIL] the proof did not finish within 300 seconds; a remote operation in src/platform/remote-files/ops.ts or the transport set up by scripts/remote-files/remoteKit.ts is hanging, so look at the last section printed above')
   process.exit(1)
 }, 300_000)
 watchdog.unref()
@@ -28,7 +28,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
-  if (!ok) console.log('     change: the remote operation this check names, in src/services/remoteFiles/ops.ts (remoteReadRange, remoteReadBytes, remoteStat, remoteList, remoteCommit, remoteRealPath, remoteAbsolutePath), so that it gives the answer the label states')
+  if (!ok) console.log('     change: the remote operation this check names, in src/platform/remote-files/ops.ts (remoteReadRange, remoteReadBytes, remoteStat, remoteList, remoteCommit, remoteRealPath, remoteAbsolutePath), so that it gives the answer the label states')
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 const at = (path: string) => parseRemotePath(`ssh://box${path.replaceAll('%', '%25')}`)!

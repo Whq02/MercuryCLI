@@ -10,10 +10,10 @@ process.env.MERCURY_BROWSER_NO_DISCOVERY = '1'
 delete process.env.MERCURY_BROWSER_MAX_SESSIONS
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const sessions = await import(join(ROOT, 'src/services/browser/browserSession.ts'))
-const { makeOwnerKey } = await import(join(ROOT, 'src/utils/run/ownerKey.ts'))
-const { BrowserTool } = await import(join(ROOT, 'src/tools/BrowserTool/BrowserTool.ts'))
-const { FLAG_REGISTRY } = await import(join(ROOT, 'src/substrate/flagRegistry.ts'))
+const sessions = await import(join(ROOT, 'src/integrations/browser/browserSession.ts'))
+const { makeOwnerKey } = await import(join(ROOT, 'src/engine/run-owner/ownerKey.ts'))
+const { BrowserTool } = await import(join(ROOT, 'src/tools/browser/BrowserTool.ts'))
+const { FLAG_REGISTRY } = await import(join(ROOT, 'src/platform/substrate/flagRegistry.ts'))
 
 let checks = 0
 let failures = 0
@@ -21,7 +21,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
-  if (!ok) console.log('    what to change: make the allowance match this label in src/services/browser/session/owners.ts (browserSessionCap), src/services/browser/session/launch.ts (ensureBrowserSession refusal), src/tools/BrowserTool/browser/page.ts (the status line), the Session lifetime manual in src/tools/BrowserTool/BrowserTool.ts, or the MERCURY_BROWSER_MAX_SESSIONS row in FLAG_REGISTRY')
+  if (!ok) console.log('    what to change: make the allowance match this label in src/integrations/browser/session/owners.ts (browserSessionCap), src/integrations/browser/session/launch.ts (ensureBrowserSession refusal), src/tools/browser/ops/page.ts (the status line), the Session lifetime manual in src/tools/browser/BrowserTool.ts, or the MERCURY_BROWSER_MAX_SESSIONS row in FLAG_REGISTRY')
 }
 
 class Child extends EventEmitter {

@@ -19,17 +19,17 @@ process.env.INK_WRITE_TEE_FULL = '1'
 const { pinSourceRef } = await import('../lib/settingsPopupHarness.ts')
 pinSourceRef()
 
-const grid = await import('../../src/ink/cell-grid.js')
+const grid = await import('../../src/screen/renderer/cell-grid.js')
 const { CellWidth, CharPool, HyperlinkPool, StylePool, blitRegion, cellAt, charInCellAt, clearRegion, createScreen, setCellAt, setCellStyleId, shiftRows } = grid
-type Screen = import('../../src/ink/cell-grid.js').Screen
-type Cell = import('../../src/ink/cell-grid.js').Cell
-const { FrameWriter } = await import('../../src/ink/frame-writer.js')
-const { optimizePatches } = await import('../../src/ink/patch-stream.js')
-const { writeDiffToTerminal } = await import('../../src/ink/session/delivery.js')
-const { CURSOR_HOME } = await import('../../src/ink/termio/csi.js')
-const { emptyFrame } = await import('../../src/ink/frame.js')
-type Frame = import('../../src/ink/frame.js').Frame
-type Diff = import('../../src/ink/frame.js').Diff
+type Screen = import('../../src/screen/renderer/cell-grid.js').Screen
+type Cell = import('../../src/screen/renderer/cell-grid.js').Cell
+const { FrameWriter } = await import('../../src/screen/renderer/frame-writer.js')
+const { optimizePatches } = await import('../../src/screen/renderer/patch-stream.js')
+const { writeDiffToTerminal } = await import('../../src/screen/renderer/terminal-session/frameDelivery.js')
+const { CURSOR_HOME } = await import('../../src/screen/renderer/termio/csi.js')
+const { emptyFrame } = await import('../../src/screen/renderer/frame.js')
+type Frame = import('../../src/screen/renderer/frame.js').Frame
+type Diff = import('../../src/screen/renderer/frame.js').Diff
 const { AnsiEmulator, defaultSgr, sgrStateOfStyleString } = await import('../ink-runtime/ansiEmulator.js')
 type Emulator = InstanceType<typeof AnsiEmulator>
 type SgrState = import('../ink-runtime/ansiEmulator.js').SgrState
@@ -198,15 +198,15 @@ if (ONLY.has('1')) {
     const emu = new AnsiEmulator(W, H, true)
     emu.feed(CURSOR_HOME + serialize(optimizePatches(writer.render(emptyFrame(H, W, pool, chars, links), framed(prev, H), true, true))))
     const seeded = terminalMismatch(prev, pool, emu)
-    check(`${c.name}: the terminal holds the previous frame before the step`, seeded === null, `${seeded ?? ''} — a first render of a frame must put every cell on the terminal; check FrameWriter.render() in src/ink/frame-writer.ts`)
+    check(`${c.name}: the terminal holds the previous frame before the step`, seeded === null, `${seeded ?? ''} — a first render of a frame must put every cell on the terminal; check FrameWriter.render() in src/screen/renderer/frame-writer.ts`)
     const diff = optimizePatches(writer.render(framed(prev, H), framed(next, H), true, true))
     const bytes = diff.length === 0 ? '' : CURSOR_HOME + serialize(diff)
     emu.feed(bytes)
     const mismatch = terminalMismatch(next, pool, emu)
-    check(`${c.name}: the terminal equals the composed frame afterwards`, mismatch === null, `${mismatch ?? ''} — a changed cell must reach the terminal whatever the damage rect says; check how FrameWriter.render() in src/ink/frame-writer.ts finds changed cells`)
+    check(`${c.name}: the terminal equals the composed frame afterwards`, mismatch === null, `${mismatch ?? ''} — a changed cell must reach the terminal whatever the damage rect says; check how FrameWriter.render() in src/screen/renderer/frame-writer.ts finds changed cells`)
     const emitted = wireCells(bytes)
     const expected = c.cells < 0 ? differing : c.cells
-    check(`${c.name}: exactly the ${expected} differing cell(s) crossed the wire (${emitted}), no clear`, emitted === expected && clearCount(bytes) === 0, `emitted=${emitted} differing=${differing} clears=${clearCount(bytes)} patches=${diff.length} — the writer must emit exactly the differing cells and no clear; check FrameWriter.render() in src/ink/frame-writer.ts and optimizePatches() in src/ink/patch-stream.ts`)
+    check(`${c.name}: exactly the ${expected} differing cell(s) crossed the wire (${emitted}), no clear`, emitted === expected && clearCount(bytes) === 0, `emitted=${emitted} differing=${differing} clears=${clearCount(bytes)} patches=${diff.length} — the writer must emit exactly the differing cells and no clear; check FrameWriter.render() in src/screen/renderer/frame-writer.ts and optimizePatches() in src/screen/renderer/patch-stream.ts`)
   }
   {
     const prev = base()
@@ -216,7 +216,7 @@ if (ONLY.has('1')) {
     const writer = new FrameWriter({ isTTY: true, stylePool: pool })
     writer.render(emptyFrame(H, W, pool, chars, links), framed(prev, H), true, true)
     const diff = optimizePatches(writer.render(framed(prev, H), framed(next, H), true, true))
-    check('an unchanged frame under whole-screen damage emits nothing (damage never adds a cell)', diff.length === 0, `patches=${diff.length} — damage must never add a cell to the diff; check how FrameWriter.render() in src/ink/frame-writer.ts uses the damage rect`)
+    check('an unchanged frame under whole-screen damage emits nothing (damage never adds a cell)', diff.length === 0, `patches=${diff.length} — damage must never add a cell to the diff; check how FrameWriter.render() in src/screen/renderer/frame-writer.ts uses the damage rect`)
   }
   {
     const prev = base(60)
@@ -228,12 +228,12 @@ if (ONLY.has('1')) {
     const bytes = CURSOR_HOME + serialize(diff)
     emu.feed(bytes)
     const mismatch = terminalMismatch(next, pool, emu)
-    check('the frame grows from 60 to 70 rows: the new rows arrive and the rest is untouched', mismatch === null && clearCount(bytes) === 0, `${mismatch ?? `clears=${clearCount(bytes)}`} — a frame that grows must paint the new rows without a clear; check the growth path of FrameWriter.render() in src/ink/frame-writer.ts`)
+    check('the frame grows from 60 to 70 rows: the new rows arrive and the rest is untouched', mismatch === null && clearCount(bytes) === 0, `${mismatch ?? `clears=${clearCount(bytes)}`} — a frame that grows must paint the new rows without a clear; check the growth path of FrameWriter.render() in src/screen/renderer/frame-writer.ts`)
     const back = optimizePatches(writer.render(framed(next, H), framed(prev, H), true, true))
     const backBytes = CURSOR_HOME + serialize(back)
     emu.feed(backBytes)
     const shrunk = terminalMismatch(prev, pool, emu)
-    check('the frame shrinks to 60 rows: the writer takes its offscreen repaint and the terminal equals the frame', shrunk === null, `${shrunk ?? ''} — a frame that shrinks must leave the terminal equal to the frame; check the shrink and offscreen repaint path of FrameWriter.render() in src/ink/frame-writer.ts`)
+    check('the frame shrinks to 60 rows: the writer takes its offscreen repaint and the terminal equals the frame', shrunk === null, `${shrunk ?? ''} — a frame that shrinks must leave the terminal equal to the frame; check the shrink and offscreen repaint path of FrameWriter.render() in src/screen/renderer/frame-writer.ts`)
   }
   for (const trusted of [true, false]) {
     const prev = base()
@@ -249,7 +249,7 @@ if (ONLY.has('1')) {
     emu.feed(bytes)
     const mismatch = terminalMismatch(next, pool, emu)
     const scrolled = /\x1b\[11;51r/.test(bytes)
-    check(`a three-row scroll of rows 10..50 with the region scroll ${trusted ? 'trusted (the terminal scrolls, the writer mirrors it)' : 'untrusted (every moved cell is re-emitted)'}: the terminal equals the frame`, mismatch === null && scrolled === trusted && clearCount(bytes) === 0, `${mismatch ?? `scrolled=${scrolled} clears=${clearCount(bytes)}`} — the region scroll must be used only when trusted and the terminal must equal the frame either way; check the scrollHint handling of FrameWriter.render() in src/ink/frame-writer.ts`)
+    check(`a three-row scroll of rows 10..50 with the region scroll ${trusted ? 'trusted (the terminal scrolls, the writer mirrors it)' : 'untrusted (every moved cell is re-emitted)'}: the terminal equals the frame`, mismatch === null && scrolled === trusted && clearCount(bytes) === 0, `${mismatch ?? `scrolled=${scrolled} clears=${clearCount(bytes)}`} — the region scroll must be used only when trusted and the terminal must equal the frame either way; check the scrollHint handling of FrameWriter.render() in src/screen/renderer/frame-writer.ts`)
   }
   {
     const prev = base()
@@ -261,19 +261,19 @@ if (ONLY.has('1')) {
     const bytes = CURSOR_HOME + serialize(diff)
     emu.feed(bytes)
     const mismatch = terminalMismatch(next, pool, emu)
-    check('a viewport resize keeps the writer\'s full repaint and the terminal equals the frame', mismatch === null && clearCount(bytes) >= 1, `${mismatch ?? `clears=${clearCount(bytes)}`} — a viewport size change must trigger a full repaint with a clear; check the resize path of FrameWriter.render() in src/ink/frame-writer.ts`)
+    check('a viewport resize keeps the writer\'s full repaint and the terminal equals the frame', mismatch === null && clearCount(bytes) >= 1, `${mismatch ?? `clears=${clearCount(bytes)}`} — a viewport size change must trigger a full repaint with a clear; check the resize path of FrameWriter.render() in src/screen/renderer/frame-writer.ts`)
   }
 }
 
 if (ONLY.has('2')) {
   section('§2 a FullscreenLayout-shaped tree: incremental compose equals from-scratch compose, and the writer\'s bytes equal the frame')
-  const { appendChildNode, createNode, createTextNode, insertBeforeNode, markDirty, removeChildNode, setAttribute, setTextNodeValue } = await import('../../src/ink/dom.js')
-  type DOMElement = import('../../src/ink/dom.js').DOMElement
-  const { default: createRenderer } = await import('../../src/ink/renderer.js')
+  const { appendChildNode, createNode, createTextNode, insertBeforeNode, markDirty, removeChildNode, setAttribute, setTextNodeValue } = await import('../../src/screen/renderer/dom.js')
+  type DOMElement = import('../../src/screen/renderer/dom.js').DOMElement
+  const { default: createRenderer } = await import('../../src/screen/renderer/renderer.js')
   const { applySceneStyle, makeContext } = await import('../ink-runtime/frameHarness.ts')
   type ComposeContext = import('../ink-runtime/frameHarness.ts').ComposeContext
-  type Styles = import('../../src/ink/styles.js').Styles
-  const recess = await import('../../src/ink/recessLayer.js')
+  type Styles = import('../../src/screen/renderer/styles.js').Styles
+  const recess = await import('../../src/screen/renderer/recessLayer.js')
 
   const GROUND = '#101820'
   type Tree = {
@@ -409,16 +409,16 @@ if (ONLY.has('2')) {
       const liveFrame = renderTree(live, v.cols, v.rows, step.contaminated === true, v.regionScroll)
       const scratchFrame = renderTree(scratch, v.cols, v.rows, true, v.regionScroll)
       const composeDiff = screensDiffer(liveFrame.screen, scratchFrame.screen)
-      check(`${step.name}: the incremental compose equals the from-scratch compose`, composeDiff === null, `${composeDiff ?? ''} — reusing the previous frame painted different cells than a from-scratch paint; check the reuse path in src/ink/renderer.ts`)
+      check(`${step.name}: the incremental compose equals the from-scratch compose`, composeDiff === null, `${composeDiff ?? ''} — reusing the previous frame painted different cells than a from-scratch paint; check the reuse path in src/screen/renderer/renderer.ts`)
       const diff = optimizePatches(writer.render({ ...shown, cursor: HOME }, liveFrame, true, v.regionScroll))
       const bytes = diff.length === 0 ? '' : CURSOR_HOME + serialize(diff)
       if (/\x1b\[\d+;\d+r/.test(bytes)) regionScrolls++
       if (process.env.WIRE_CENSUS_DEBUG) console.log(`    · ${step.name}: hint=${JSON.stringify(liveFrame.scrollHint ?? null)} scroll=${JSON.stringify(live.transcript.scroll ?? null)} bytes=${bytes.length}`)
       emu.feed(bytes)
       const mismatch = terminalMismatch(liveFrame.screen, ctx.stylePool, emu)
-      check(`${step.name}: the terminal equals the composed frame after the writer's bytes (${wireCells(bytes)} cells, ${clearCount(bytes)} clears)`, mismatch === null && clearCount(bytes) === 0, `${mismatch ?? `clears=${clearCount(bytes)}`} — the bytes FrameWriter.render() in src/ink/frame-writer.ts wrote must leave the terminal equal to the composed frame with no clear`)
-      if (step.name === 'nothing changed' || step.name === 'nothing changed while scrolled') check(`${step.name}: nothing crosses the wire`, bytes === '', `bytes=${JSON.stringify(bytes.slice(0, 80))} — an unchanged frame must emit no bytes; check FrameWriter.render() in src/ink/frame-writer.ts`)
-      if (step.name.startsWith('a popup opens')) check(`${step.name}: the recess pass was live for the popup`, recess.recessActive(), 'registerElevatedSurface() did not turn the recess on; check src/ink/recessLayer.ts')
+      check(`${step.name}: the terminal equals the composed frame after the writer's bytes (${wireCells(bytes)} cells, ${clearCount(bytes)} clears)`, mismatch === null && clearCount(bytes) === 0, `${mismatch ?? `clears=${clearCount(bytes)}`} — the bytes FrameWriter.render() in src/screen/renderer/frame-writer.ts wrote must leave the terminal equal to the composed frame with no clear`)
+      if (step.name === 'nothing changed' || step.name === 'nothing changed while scrolled') check(`${step.name}: nothing crosses the wire`, bytes === '', `bytes=${JSON.stringify(bytes.slice(0, 80))} — an unchanged frame must emit no bytes; check FrameWriter.render() in src/screen/renderer/frame-writer.ts`)
+      if (step.name.startsWith('a popup opens')) check(`${step.name}: the recess pass was live for the popup`, recess.recessActive(), 'registerElevatedSurface() did not turn the recess on; check src/screen/renderer/recessLayer.ts')
       shown = liveFrame
     }
     check(`${v.label}: the region scroll ${v.regionScroll ? 'was' : 'was never'} handed to the terminal (${regionScrolls} scrolled frames)`, v.regionScroll ? regionScrolls >= 1 : regionScrolls === 0)
@@ -495,11 +495,11 @@ if (ONLY.has('3')) {
     const deliveries = writes.filter(w => w.ts >= submit + 1500)
     check(`${cols}: enough steady frames (${steady.length}) and deliveries (${deliveries.length})`, steady.length >= 20 && deliveries.length >= 10)
     const cells = deliveries.map(w => wireCells(w.content))
-    check(`${cols}: a tick delivers a handful of cells — p50 ${pct(cells, 0.5)}, max ${Math.max(0, ...cells)} (the spinner glyph, the elapsed digits, a shimmer letter; cap 8)`, pct(cells, 0.5) <= 4 && Math.max(0, ...cells) <= 8, `p50 ${pct(cells, 0.5)}, max ${Math.max(0, ...cells)} cells — a spinner or timer tick must change only a handful of cells; check what FrameWriter.render() in src/ink/frame-writer.ts re-emits on a tick`)
+    check(`${cols}: a tick delivers a handful of cells — p50 ${pct(cells, 0.5)}, max ${Math.max(0, ...cells)} (the spinner glyph, the elapsed digits, a shimmer letter; cap 8)`, pct(cells, 0.5) <= 4 && Math.max(0, ...cells) <= 8, `p50 ${pct(cells, 0.5)}, max ${Math.max(0, ...cells)} cells — a spinner or timer tick must change only a handful of cells; check what FrameWriter.render() in src/screen/renderer/frame-writer.ts re-emits on a tick`)
     const clears = deliveries.reduce((n, w) => n + clearCount(w.content), 0)
     const wholeScreen = deliveries.filter(w => wireCells(w.content) >= (cols * rows) / 4)
-    check(`${cols}: no steady frame is repainted from scratch (${clears} clears, ${wholeScreen.length} whole-screen runs)`, clears === 0 && wholeScreen.length === 0, `${clears} clears, ${wholeScreen.length} whole-screen runs — a steady frame must never repaint the screen; check the full-repaint triggers in src/ink/frame-writer.ts`)
-    check(`${cols}: deliveries never outnumber composed frames (${deliveries.length} ≤ ${steady.length})`, deliveries.length <= steady.length, `${deliveries.length} deliveries for ${steady.length} frames — the writer must deliver at most once per composed frame; check src/ink/session/delivery.ts`)
+    check(`${cols}: no steady frame is repainted from scratch (${clears} clears, ${wholeScreen.length} whole-screen runs)`, clears === 0 && wholeScreen.length === 0, `${clears} clears, ${wholeScreen.length} whole-screen runs — a steady frame must never repaint the screen; check the full-repaint triggers in src/screen/renderer/frame-writer.ts`)
+    check(`${cols}: deliveries never outnumber composed frames (${deliveries.length} ≤ ${steady.length})`, deliveries.length <= steady.length, `${deliveries.length} deliveries for ${steady.length} frames — the writer must deliver at most once per composed frame; check src/screen/renderer/terminal-session/frameDelivery.ts`)
     const bytes = deliveries.reduce((n, w) => n + w.len, 0)
     console.log(`    ${deliveries.length} deliveries, ${bytes} bytes over ${((steady.at(-1)?.ts ?? 0) - (steady[0]?.ts ?? 0)) / 1000} s; compose write p50 ${pct(steady.map(r => r.counts?.write ?? 0), 0.5)} (a compose count, not a wire count)`)
   }
@@ -516,8 +516,8 @@ if (ONLY.has('3')) {
     const cells = deliveries.map(w => wireCells(w.content))
     const clears = deliveries.reduce((n, w) => n + clearCount(w.content), 0)
     const wholeScreen = deliveries.filter(w => wireCells(w.content) >= (cols * 70) / 4)
-    check(`stream: no publish repaints the screen (${clears} clears, ${wholeScreen.length} whole-screen runs)`, clears === 0 && wholeScreen.length === 0, `${clears} clears, ${wholeScreen.length} whole-screen runs — a streamed publish must not repaint the screen; check the full-repaint triggers in src/ink/frame-writer.ts`)
-    check(`stream: a publish stays within the tail's rows — p50 ${pct(cells, 0.5)} cells, max ${Math.max(0, ...cells)} (cap 8 rows = ${8 * cols})`, pct(cells, 0.5) <= 2 * cols && Math.max(0, ...cells) <= 8 * cols, `p50 ${pct(cells, 0.5)}, max ${Math.max(0, ...cells)} cells — a streamed publish must stay within the tail's rows; check what FrameWriter.render() in src/ink/frame-writer.ts re-emits when the tail grows`)
+    check(`stream: no publish repaints the screen (${clears} clears, ${wholeScreen.length} whole-screen runs)`, clears === 0 && wholeScreen.length === 0, `${clears} clears, ${wholeScreen.length} whole-screen runs — a streamed publish must not repaint the screen; check the full-repaint triggers in src/screen/renderer/frame-writer.ts`)
+    check(`stream: a publish stays within the tail's rows — p50 ${pct(cells, 0.5)} cells, max ${Math.max(0, ...cells)} (cap 8 rows = ${8 * cols})`, pct(cells, 0.5) <= 2 * cols && Math.max(0, ...cells) <= 8 * cols, `p50 ${pct(cells, 0.5)}, max ${Math.max(0, ...cells)} cells — a streamed publish must stay within the tail's rows; check what FrameWriter.render() in src/screen/renderer/frame-writer.ts re-emits when the tail grows`)
   }
 }
 
@@ -545,19 +545,19 @@ if (ONLY.has('4')) {
   }))
   const React = await import('react')
   const h = React.createElement
-  const { Box, Text } = await import('../../src/ink.ts')
-  const { App } = await import('../../src/components/App.tsx')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-  const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-  const { HelpV2 } = await import('../../src/components/HelpV2/HelpV2.tsx')
-  const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-  const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-  const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-  const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
-  const settings = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+  const { App } = await import('../../src/boot/App.tsx')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+  const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+  const { HelpV2 } = await import('../../src/screen/help/HelpV2.tsx')
+  const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+  const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+  const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+  const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
+  const settings = await import('../../src/screen/cockpit/settingsPopup.ts')
   const jevCommand = await import('../../src/commands/jev/jev.tsx')
-  const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
+  const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
   enableConfigs()
   saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
   saveGlobalConfig(c => ({ ...c, prStatusFooterEnabled: false }))
@@ -629,7 +629,7 @@ if (ONLY.has('4')) {
         if (record.phase === 'before-diff') groups.push({ delivery: null })
         else if (record.phase !== 'after-diff' && groups.length > 0) groups[groups.length - 1]!.delivery = record
       }
-      check(`${label}: every composed frame has its delivery record (${composed.length} frames, ${groups.length} writer passes)`, composed.length === groups.length, `${composed.length} frames vs ${groups.length} writer passes — every composed frame must be followed by a delivery record; check the INK_COMPOSED_TEE and INK_WRITE_TEE writers in src/ink`)
+      check(`${label}: every composed frame has its delivery record (${composed.length} frames, ${groups.length} writer passes)`, composed.length === groups.length, `${composed.length} frames vs ${groups.length} writer passes — every composed frame must be followed by a delivery record; check the INK_COMPOSED_TEE and INK_WRITE_TEE writers in src/screen/renderer`)
       const out: FrameRecord[] = []
       let firstFault = ''
       let silentChange = ''
@@ -661,13 +661,13 @@ if (ONLY.has('4')) {
         this.previous = rows
         out.push({ f: frame.f, rows, delivered, shown })
       }
-      check(`${label}: the terminal equals the composed frame after every delivery (${out.length} frames, ${out.filter(r => r.delivered).length} delivered, ${clears} clears${modalBoundary ? ', the modal boundary may repaint' : ''})`, firstFault === '' && silentChange === '' && (modalBoundary || clears === 0), `${firstFault || silentChange || `clears=${clears}`} — after a delivery the terminal must show exactly the composed rows, a changed frame must deliver bytes, and only a modal boundary may clear; check FrameWriter.render() in src/ink/frame-writer.ts`)
+      check(`${label}: the terminal equals the composed frame after every delivery (${out.length} frames, ${out.filter(r => r.delivered).length} delivered, ${clears} clears${modalBoundary ? ', the modal boundary may repaint' : ''})`, firstFault === '' && silentChange === '' && (modalBoundary || clears === 0), `${firstFault || silentChange || `clears=${clears}`} — after a delivery the terminal must show exactly the composed rows, a changed frame must deliver bytes, and only a modal boundary may clear; check FrameWriter.render() in src/screen/renderer/frame-writer.ts`)
       return out
     }
   }
   function firstEmission(label: string, frames: FrameRecord[], needle: string, also: (shown: string[]) => boolean = () => true): void {
     const first = frames.find(r => r.rows.some(row => row.includes(needle)))
-    check(`${label}: the first frame composed with ${JSON.stringify(needle)} delivers it (frame ${first?.f ?? '—'})`, first !== undefined && first.delivered && first.shown.some(row => row.includes(needle)) && also(first.shown), first === undefined ? `never composed — the surface never rendered ${JSON.stringify(needle)}; check the component that opens it` : `${first.shown.filter(l => l.trim()).slice(0, 5).join(' | ')} — the first frame composed with this text must be delivered to the terminal, not left in the buffer; check FrameWriter.render() in src/ink/frame-writer.ts`)
+    check(`${label}: the first frame composed with ${JSON.stringify(needle)} delivers it (frame ${first?.f ?? '—'})`, first !== undefined && first.delivered && first.shown.some(row => row.includes(needle)) && also(first.shown), first === undefined ? `never composed — the surface never rendered ${JSON.stringify(needle)}; check the component that opens it` : `${first.shown.filter(l => l.trim()).slice(0, 5).join(' | ')} — the first frame composed with this text must be delivered to the terminal, not left in the buffer; check FrameWriter.render() in src/screen/renderer/frame-writer.ts`)
   }
   const bodyRows = (shown: string[], title: string): number => {
     const at = shown.findIndex(l => l.includes(title))

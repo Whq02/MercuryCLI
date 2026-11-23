@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { recordToEntry } from '../../src/fabric/entryCodec.ts'
-import { historyLines } from '../../src/utils/sessionStorage/historyParts.ts'
+import { recordToEntry } from '../../src/sessions/fabric/entryCodec.ts'
+import { historyLines } from '../../src/sessions/transcripts/historyParts.ts'
 import { withFixtureRunner } from '../lib/builtProduct.ts'
 import type { CapturedRequest, FixtureApi, ScriptedTurn } from '../lib/fixtureApi.ts'
 import { transcriptFiles } from '../daemon/dupline-world.ts'
@@ -12,12 +12,12 @@ const FOLD = 'Write the running record of this conversation'
 const SUMMARY = '<summary>The notes of the earlier turn are recorded and nothing is open.</summary>'
 const notes = Array.from({ length: 700 }, (_, i) => `Note ${i + 1}: module ${(i * 7919) % 1000} changed and its ${(i * 31) % 97} checks pass.`).join(' ')
 const long = (inputTokens: number): ScriptedTurn => ({ kind: 'text', text: notes, usage: { input_tokens: inputTokens, output_tokens: 8_000 } })
-const METER = 'createFoldMeter in src/services/compact/compact/foldMeasure.ts must count the conversation before the fold by the estimate it counts the fold with, never by the smaller of that estimate and the provider figure'
-const RECEIPT = 'compactConversation in src/services/compact/compact.ts must report the after figure of a manual fold as the before figure less what the fold saved by the one estimate'
-const SENT_AGAIN = 'createFoldMeter in src/services/compact/compact/foldMeasure.ts must leave the skills list out of the count before the fold: the next turn sends it again, so a fold credited with it can leave the next request longer'
-const FLOOR = 'projectManualFold in src/services/compact/compact/projection.ts must project the summary at the shortest prose Mercury records as a full one (DEGRADED_SUMMARY_LENGTH in src/services/compact/compact/limits.ts), so that the summariser is asked and its real summary judged'
-const ONCE = 'autoCompactIfNeeded in src/services/compact/autoCompact.ts must complete the queued /compact when compactConversation in src/services/compact/compact.ts refuses its fold after the summary, and no later step or turn may ask for a summary nobody asked for'
-const KEPT = 'compactConversation in src/services/compact/compact.ts must throw its refusal before anything of the fold is committed: no boundary or summary row is stored and the conversation stands as it was'
+const METER = 'createFoldMeter in src/engine/compaction/fold/foldMeasure.ts must count the conversation before the fold by the estimate it counts the fold with, never by the smaller of that estimate and the provider figure'
+const RECEIPT = 'compactConversation in src/engine/compaction/foldConversation.ts must report the after figure of a manual fold as the before figure less what the fold saved by the one estimate'
+const SENT_AGAIN = 'createFoldMeter in src/engine/compaction/fold/foldMeasure.ts must leave the skills list out of the count before the fold: the next turn sends it again, so a fold credited with it can leave the next request longer'
+const FLOOR = 'projectManualFold in src/engine/compaction/fold/projection.ts must project the summary at the shortest prose Mercury records as a full one (DEGRADED_SUMMARY_LENGTH in src/engine/compaction/fold/foldLimits.ts), so that the summariser is asked and its real summary judged'
+const ONCE = 'autoCompactIfNeeded in src/engine/compaction/autoFold.ts must complete the queued /compact when compactConversation in src/engine/compaction/foldConversation.ts refuses its fold after the summary, and no later step or turn may ask for a summary nobody asked for'
+const KEPT = 'compactConversation in src/engine/compaction/foldConversation.ts must throw its refusal before anything of the fold is committed: no boundary or summary row is stored and the conversation stands as it was'
 
 let failures = 0
 function check(label: string, ok: boolean, seen: unknown, change: string): void {
@@ -151,7 +151,7 @@ async function queuedMidTurn(): Promise<void> {
     const figures = receiptFigures(receipts[0] ?? '')
     const journal = entries.filter(row => row.type === 'queue-operation' && row.commandUuid === queued).map(row => row.operation)
     check('queued mid-turn: one receipt, reading a smaller context after than before', receipts.length === 1 && figures.after < figures.before, receipts, RECEIPT)
-    check('queued mid-turn: the queued line is entered once and settled once', journal.length === 2 && journal[0] === 'enqueue' && (journal[1] === 'dequeue' || journal[1] === 'remove'), journal, 'autoCompactIfNeeded in src/services/compact/autoCompact.ts must complete the queued /compact once when its fold lands')
+    check('queued mid-turn: the queued line is entered once and settled once', journal.length === 2 && journal[0] === 'enqueue' && (journal[1] === 'dequeue' || journal[1] === 'remove'), journal, 'autoCompactIfNeeded in src/engine/compaction/autoFold.ts must complete the queued /compact once when its fold lands')
   } finally {
     rmSync(home, { recursive: true, force: true })
   }

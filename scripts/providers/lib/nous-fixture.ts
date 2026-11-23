@@ -1,4 +1,4 @@
-import { NOUS_CLIENT_CONTRACT_RELEASE } from '../../../src/services/providers/nous/nousClientContract.ts'
+import { NOUS_CLIENT_CONTRACT_RELEASE } from '../../../src/models/roads/nous/nousClientContract.ts'
 
 export const NOUS_FIXTURE_API_KEY = 'sk-nous-fixture-not-a-real-key-0123456789'
 export const NOUS_FIXTURE_NOW = Date.UTC(2026, 9, 9, 7, 30, 0)

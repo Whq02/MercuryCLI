@@ -54,11 +54,11 @@ console.log('============================================================')
 console.log(' cross-model launch matrix — every family, every seam, typed')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const workerModels = await import('../../src/services/concourse/workerModels.ts')
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
+const workerModels = await import('../../src/screen/concourse-model/workerModels.ts')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
 
 const SPECIMENS: ReadonlyArray<{ family: string; id: string }> = [
   { family: 'anthropic', id: 'claude-opus-5' },
@@ -75,7 +75,7 @@ const SPECIMENS: ReadonlyArray<{ family: string; id: string }> = [
 
 section('§1 — the catalog family census: every row folds to a DECLARED family')
 {
-  const { getModelOptions } = await import('../../src/services/model/modelOptions.ts')
+  const { getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
   const families = new Map<string, number>()
   const unrecognised: string[] = []
   for (const o of getModelOptions()) {
@@ -86,23 +86,23 @@ section('§1 — the catalog family census: every row folds to a DECLARED family
     if (route === null) unrecognised.push(id)
     else families.set(route, (families.get(route) ?? 0) + 1)
   }
-  check('no catalog row is family-less', unrecognised.length === 0, JSON.stringify(unrecognised) + ' — declare a family for these ids in declaredRouteOf (src/services/providers/routeLaw.ts), or drop the rows from getModelOptions (src/services/model/modelOptions.ts)')
-  check('the home family is on the shelf', (families.get('anthropic') ?? 0) > 0, 'getModelOptions (src/services/model/modelOptions.ts) returned no anthropic row, or declaredRouteOf (src/services/providers/routeLaw.ts) folds the home ids to another family')
+  check('no catalog row is family-less', unrecognised.length === 0, JSON.stringify(unrecognised) + ' — declare a family for these ids in declaredRouteOf (src/models/roads/routeLaw.ts), or drop the rows from getModelOptions (src/models/catalogue/modelOptions.ts)')
+  check('the home family is on the shelf', (families.get('anthropic') ?? 0) > 0, 'getModelOptions (src/models/catalogue/modelOptions.ts) returned no anthropic row, or declaredRouteOf (src/models/roads/routeLaw.ts) folds the home ids to another family')
   note(`catalog census: ${[...families.entries()].map(([f, n]) => `${f}×${n}`).join(' · ') || '(empty shelf)'}`)
   for (const s of SPECIMENS) {
-    check(`specimen '${s.id}' is declared by ${s.family}`, declaredRouteOf(s.id) === s.family, String(declaredRouteOf(s.id)) + ' — declaredRouteOf (src/services/providers/routeLaw.ts) must declare this id as ' + s.family)
+    check(`specimen '${s.id}' is declared by ${s.family}`, declaredRouteOf(s.id) === s.family, String(declaredRouteOf(s.id)) + ' — declaredRouteOf (src/models/roads/routeLaw.ts) must declare this id as ' + s.family)
   }
 }
 
 section('§2 — canonicalization, one door: aliases fold home; engine ids pass verbatim')
 {
   const opus = await workerModels.canonicalWorkerModelId('opus')
-  check("legacy key 'opus' folds to a canonical claude id", opus.startsWith('claude-opus-'), opus + ' — canonicalWorkerModelId (src/services/concourse/workerModels.ts) must fold the legacy key to a claude-opus id')
+  check("legacy key 'opus' folds to a canonical claude id", opus.startsWith('claude-opus-'), opus + ' — canonicalWorkerModelId (src/screen/concourse-model/workerModels.ts) must fold the legacy key to a claude-opus id')
   const oneM = await workerModels.canonicalWorkerModelId('claude-opus-5[1m]')
-  check('the [1m] context tag strips (a call-time flavor, not an identity)', oneM === 'claude-opus-5', oneM + ' — canonicalWorkerModelId (src/services/concourse/workerModels.ts) must strip the [1m] tag')
+  check('the [1m] context tag strips (a call-time flavor, not an identity)', oneM === 'claude-opus-5', oneM + ' — canonicalWorkerModelId (src/screen/concourse-model/workerModels.ts) must strip the [1m] tag')
   for (const s of SPECIMENS.filter(x => x.family !== 'anthropic')) {
     const folded = await workerModels.canonicalWorkerModelId(s.id)
-    check(`'${s.id}' passes through unchanged`, folded === s.id, folded + ' — canonicalWorkerModelId (src/services/concourse/workerModels.ts) must pass an engine id through verbatim')
+    check(`'${s.id}' passes through unchanged`, folded === s.id, folded + ' — canonicalWorkerModelId (src/screen/concourse-model/workerModels.ts) must pass an engine id through verbatim')
   }
 }
 
@@ -114,7 +114,7 @@ section('§3 — the KEYLESS world: every family refuses TYPED with its OWN name
       check(
         `local: discovery truth, never a credential lie`,
         !verdict.ok && verdict.reason === 'unreachable:local' && /local server/.test(verdict.detail ?? ''),
-        JSON.stringify(verdict) + ' — validateWorkerModelChoice (src/services/concourse/workerModels.ts) must refuse a local id as unreachable:local with a detail naming the local server',
+        JSON.stringify(verdict) + ' — validateWorkerModelChoice (src/screen/concourse-model/workerModels.ts) must refuse a local id as unreachable:local with a detail naming the local server',
       )
       continue
     }
@@ -122,13 +122,13 @@ section('§3 — the KEYLESS world: every family refuses TYPED with its OWN name
     check(
       `${s.family}: refuses '${wantReason}' naming its own family`,
       !verdict.ok && verdict.reason === wantReason && (verdict.detail ?? '').includes(s.family),
-      JSON.stringify(verdict) + ' — validateWorkerModelChoice (src/services/concourse/workerModels.ts) must refuse a keyless family with its own no-credential reason and name the family in the detail',
+      JSON.stringify(verdict) + ' — validateWorkerModelChoice (src/screen/concourse-model/workerModels.ts) must refuse a keyless family with its own no-credential reason and name the family in the detail',
     )
     const action = !verdict.ok ? (verdict.action ?? '') : ''
     const correctAction = s.family === 'openai-compat'
       ? action === 'ask the operator to start an OpenAI-compatible endpoint with /llmhost, or pick another model with /model'
       : new RegExp(`/logins ${s.family === 'huggingface' ? 'huggingface' : s.family}`).test(action)
-    check(`…and the fix is the family's OWN door`, correctAction, action + ' — the action of the refusal in validateWorkerModelChoice (src/services/concourse/workerModels.ts) must point to /logins for this family (/llmhost for openai-compat)')
+    check(`…and the fix is the family's OWN door`, correctAction, action + ' — the action of the refusal in validateWorkerModelChoice (src/screen/concourse-model/workerModels.ts) must point to /logins for this family (/llmhost for openai-compat)')
   }
 }
 
@@ -144,10 +144,10 @@ section('§4 — the CREDENTIALED world (presence = existence): the session arm 
   process.env.HF_TOKEN = 'fixture-token'
   process.env.MERCURY_COMPAT_BASE_URL = 'http://127.0.0.1:1/v1'
   process.env.MERCURY_COMPAT_API_KEY = 'fixture-key'
-  const { providerFamilyPresences } = await import('../../src/services/providers/providerUsage.ts')
+  const { providerFamilyPresences } = await import('../../src/models/roads/providerUsage.ts')
   const presence = new Map(providerFamilyPresences().map(p => [p.id, p.credentialed]))
   for (const must of ['anthropic', 'openai', 'zai']) {
-    check(`presence flips for ${must} on its fixture key`, presence.get(must) === true, JSON.stringify([...presence]) + ' — providerFamilyPresences (src/services/providers/providerUsage.ts) must read this familys fixture key as credentialed')
+    check(`presence flips for ${must} on its fixture key`, presence.get(must) === true, JSON.stringify([...presence]) + ' — providerFamilyPresences (src/models/roads/providerUsage.ts) must read this familys fixture key as credentialed')
   }
   for (const s of SPECIMENS.filter(x => x.family !== 'local')) {
     if (presence.get(s.family) !== true) {
@@ -155,14 +155,14 @@ section('§4 — the CREDENTIALED world (presence = existence): the session arm 
       continue
     }
     const session = await workerModels.validateWorkerModelChoice(s.id, 'session')
-    check(`${s.family}: the session arm admits '${s.id}'`, session.ok === true, JSON.stringify(session) + ' — the session arm of validateWorkerModelChoice (src/services/concourse/workerModels.ts) must admit a credentialed family')
+    check(`${s.family}: the session arm admits '${s.id}'`, session.ok === true, JSON.stringify(session) + ' — the session arm of validateWorkerModelChoice (src/screen/concourse-model/workerModels.ts) must admit a credentialed family')
     const crew = await workerModels.validateWorkerModelChoice(s.id, 'crew')
-    check(`${s.family}: the crew arm admits '${s.id}' (no family is favoured for a crew seat)`, crew.ok === true, JSON.stringify(crew) + ' — the crew arm of validateWorkerModelChoice (src/services/concourse/workerModels.ts) must admit a credentialed family')
+    check(`${s.family}: the crew arm admits '${s.id}' (no family is favoured for a crew seat)`, crew.ok === true, JSON.stringify(crew) + ' — the crew arm of validateWorkerModelChoice (src/screen/concourse-model/workerModels.ts) must admit a credentialed family')
   }
   const haikuSession = await workerModels.validateWorkerModelChoice('claude-haiku-4-5-20251001', 'session')
   const haikuCrew = await workerModels.validateWorkerModelChoice('claude-haiku-4-5-20251001', 'crew')
-  check('small tier: a session runs what the account runs', haikuSession.ok === true, JSON.stringify(haikuSession) + ' — the session arm of validateWorkerModelChoice (src/services/concourse/workerModels.ts) must not refuse the small tier')
-  check('small tier: a crew seat runs it too (no tier is refused)', haikuCrew.ok === true, JSON.stringify(haikuCrew) + ' — the crew arm of validateWorkerModelChoice (src/services/concourse/workerModels.ts) must not refuse the small tier')
+  check('small tier: a session runs what the account runs', haikuSession.ok === true, JSON.stringify(haikuSession) + ' — the session arm of validateWorkerModelChoice (src/screen/concourse-model/workerModels.ts) must not refuse the small tier')
+  check('small tier: a crew seat runs it too (no tier is refused)', haikuCrew.ok === true, JSON.stringify(haikuCrew) + ' — the crew arm of validateWorkerModelChoice (src/screen/concourse-model/workerModels.ts) must not refuse the small tier')
 }
 
 section('§5 — the stamped effort is family-neutral: a ladder word for engine ids exactly as for home ids')
@@ -172,27 +172,27 @@ section('§5 — the stamped effort is family-neutral: a ladder word for engine 
     { modelId: 'glm-4.7', stamped: 'xhigh' },
     { modelId: 'openrouter/nvidia/llama-3.1-nemotron-ultra-253b-v1', stamped: 'high' },
   ] as const
-  const { resolveStampedEffortTruth, isEffortLevel } = await import('../../src/utils/effort.ts')
+  const { resolveStampedEffortTruth, isEffortLevel } = await import('../../src/models/effort/effort.ts')
   for (const c of cases) {
     if (!isEffortLevel(c.stamped)) continue
     const truth = resolveStampedEffortTruth(c.modelId, c.stamped)
     check(
       `${c.modelId}: the stamped-truth label is a ladder word (its own cap law)`,
       typeof truth.label === 'string' && truth.label.length > 0,
-      JSON.stringify(truth) + ' — resolveStampedEffortTruth (src/utils/effort.ts) must return a non-empty label for every model family',
+      JSON.stringify(truth) + ' — resolveStampedEffortTruth (src/models/effort/effort.ts) must return a non-empty label for every model family',
     )
   }
 }
 
 section('§6 — the daemon preview refuses keyless typed and passes credentialed (one validator, by construction)')
 {
-  const { preflightConcourseDispatch } = await import('../../src/daemon/concourseDispatch.ts')
+  const { preflightConcourseDispatch } = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
   const okPreview = await preflightConcourseDispatch(
     { clientMessageId: 'm-ok', prompt: 'walk', workspaceDir: scratch, modelKey: 'gpt-5.2' } as never,
     join(scratch, 'daemon'),
   )
   const okModelRefusals = okPreview.ok ? [] : okPreview.refusals.filter(r => r.code === 'invalid-model')
-  check('a credentialed engine id passes the model gate', okModelRefusals.length === 0, JSON.stringify(okPreview) + ' — preflightConcourseDispatch (src/daemon/concourseDispatch.ts) must not raise invalid-model for a credentialed engine id')
+  check('a credentialed engine id passes the model gate', okModelRefusals.length === 0, JSON.stringify(okPreview) + ' — preflightConcourseDispatch (src/daemon/concourse-workers/concourseDispatch.ts) must not raise invalid-model for a credentialed engine id')
   delete process.env.OPENAI_API_KEY
   const keyless = await preflightConcourseDispatch(
     { clientMessageId: 'm-no', prompt: 'walk', workspaceDir: scratch, modelKey: 'gpt-5.2' } as never,
@@ -202,7 +202,7 @@ section('§6 — the daemon preview refuses keyless typed and passes credentiale
   check(
     'the keyless preview refuses invalid-model naming the family credential fact',
     refusal !== undefined && /no-credential:openai/.test(refusal.reason) && /\/logins openai/.test(refusal.reason),
-    JSON.stringify(keyless) + ' — preflightConcourseDispatch (src/daemon/concourseDispatch.ts) must carry the validateWorkerModelChoice reason (no-credential and the /logins fix) in its invalid-model refusal',
+    JSON.stringify(keyless) + ' — preflightConcourseDispatch (src/daemon/concourse-workers/concourseDispatch.ts) must carry the validateWorkerModelChoice reason (no-credential and the /logins fix) in its invalid-model refusal',
   )
   const junk = await preflightConcourseDispatch(
     { clientMessageId: 'm-junk', prompt: 'walk', workspaceDir: scratch, modelKey: 'glm-4.7', effort: 'ludicrous' } as never,
@@ -211,7 +211,7 @@ section('§6 — the daemon preview refuses keyless typed and passes credentiale
   check(
     'a junk effort refuses invalid-effort naming the ladder (beside the model verdict, never instead of it)',
     !junk.ok && junk.refusals.some(r => r.code === 'invalid-effort' && /low \| medium \| high \| xhigh \| max/.test(r.reason)),
-    JSON.stringify(junk) + ' — preflightConcourseDispatch (src/daemon/concourseDispatch.ts) must add an invalid-effort refusal that lists the ladder',
+    JSON.stringify(junk) + ' — preflightConcourseDispatch (src/daemon/concourse-workers/concourseDispatch.ts) must add an invalid-effort refusal that lists the ladder',
   )
 }
 

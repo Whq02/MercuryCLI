@@ -1,0 +1,273 @@
+import * as React from 'react'
+import { useRef, useState } from 'react'
+import { useLoad } from '../../../screen/effects/effects.js'
+import { Box, Text, useInput } from '../../../screen/themedRenderer.js'
+import TextInput from '../../../screen/composer/text-input/TextInput.js'
+import { Select } from '../../../screen/select/index.js'
+import { setClipboard } from '../../../screen/renderer/termio/osc.js'
+import { openBrowser } from '../../../platform/host-os/browser.js'
+import { errorMessageWithCause } from '../../../platform/errors/errors.js'
+import { useMercuryTokens } from '../../../screen/widgets/useMercuryTokens.js'
+import {
+  KIMI_REGIONS,
+  kimiRegionLabel,
+  moonshotStoredRegion,
+  type KimiRegion,
+  type MoonshotDeviceAuthStart,
+} from '../../roads/moonshot/moonshotAccounts.js'
+import { KIMI_CONNECT_STOPPED_RECEIPT, runKimiDeviceLogin, storeMoonshotApiKeyLogin } from '../../roads/moonshot/moonshotLogin.js'
+import { keyPasteGuardNote } from '../../../screen/widgets/faces/keyPasteGuards.js'
+import { keyPageLine } from './loginFamilyRows.js'
+import { KeyCardTitle } from './KeyCardTitle.js'
+import { usePopupCompact } from '../../../screen/overlays/popupFormContext.js'
+import { startTimeout } from '../../../platform/async/timers.js'
+
+
+const COPY_ACK_MS = 2000
+
+export function KimiConnect({
+  onResult,
+}: {
+  onResult: (result: { ok: boolean; receipt: string }) => void
+}): React.ReactNode {
+  const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
+  const [leg, setLeg] = useState<'choice' | 'region' | 'device' | 'key'>('choice')
+  const [region, setRegion] = useState<KimiRegion>(() => moonshotStoredRegion() ?? 'global')
+  const [phase, setPhase] = useState<'starting' | 'waiting' | 'finishing'>('starting')
+  const [start, setStart] = useState<MoonshotDeviceAuthStart | undefined>(undefined)
+  const [note, setNote] = useState<string | undefined>(undefined)
+  const [polls, setPolls] = useState(0)
+  const [copied, setCopied] = useState(false)
+  const settledRef = useRef(false)
+  const cancelledRef = useRef(false)
+
+  const settle = (receipt: string, ok = false): void => {
+    if (settledRef.current) return
+    settledRef.current = true
+    onResult({ ok, receipt })
+  }
+
+  useLoad(signal => {
+    if (leg !== 'device') return
+    void runKimiDeviceLogin({
+      region,
+      cancelled: () => signal.aborted || cancelledRef.current,
+      onEvent: event => {
+        if (signal.aborted) return
+        if (event.phase === 'starting') {
+          setPhase('starting')
+          return
+        }
+        if (event.phase === 'finishing') {
+          setPhase('finishing')
+          return
+        }
+        setStart(event.start)
+        setPolls(event.polls)
+        setNote(event.note)
+        if (event.polls === 0) {
+          setPhase('waiting')
+          void openBrowser(event.start.verificationUriComplete ?? event.start.verificationUri)
+        }
+      },
+    }).then(outcome => {
+      if (signal.aborted) return
+      settle(outcome.receipt, outcome.ok)
+    }).catch(error => {
+      if (!signal.aborted) settle(errorMessageWithCause(error))
+    })
+  }, [leg])
+
+  useInput((input, key, event) => {
+    if (leg === 'choice' || leg === 'region') return
+    if (key.escape) {
+      if (leg === 'key') {
+        setLeg('choice')
+        return
+      }
+      cancelledRef.current = true
+      settle(KIMI_CONNECT_STOPPED_RECEIPT)
+      return
+    }
+    if (input === 'c' && !key.ctrl && !key.meta && leg === 'device' && start && phase === 'waiting') {
+      event.stopImmediatePropagation()
+      void setClipboard(start.verificationUriComplete ?? start.verificationUri).then(sequence => {
+        if (sequence) process.stdout.write(sequence)
+        setCopied(true)
+        startTimeout(() => setCopied(false), COPY_ACK_MS)
+      })
+    }
+  })
+
+  if (leg === 'choice') {
+    return (
+      <Box flexDirection="column" paddingX={compact ? 0 : 1} gap={compact ? 0 : 1}>
+        <Text bold color={tokens.accent} wrap="truncate-end">
+          Connect Kimi (Moonshot)
+        </Text>
+        {compact ? null : (
+          <Text color={tokens.textSecondary}>
+            A Kimi account signs in with a device code and runs on its plan; a Moonshot platform key bills
+            usage-based. Either one lights the Kimi rows in /model.
+          </Text>
+        )}
+        <Select
+          options={[
+            { label: 'Sign in with Kimi — device code in your browser', value: 'region' },
+            { label: 'Paste a Moonshot API key (stored locally, mode 600)', value: 'key' },
+          ]}
+          onChange={value => setLeg(value as 'region' | 'key')}
+          onCancel={() => settle('Kimi sign-in cancelled — nothing stored.')}
+        />
+      </Box>
+    )
+  }
+
+  if (leg === 'region') {
+    return (
+      <Box flexDirection="column" paddingX={compact ? 0 : 1} gap={compact ? 0 : 1}>
+        <Text bold color={tokens.accent} wrap="truncate-end">
+          Connect Kimi — which deployment holds your account?
+        </Text>
+        {compact ? null : (
+          <Text color={tokens.textSecondary}>
+            The choice picks the sign-in host and the base your turns ride; it is remembered with the login.
+          </Text>
+        )}
+        <Select
+          defaultFocusValue={region}
+          options={KIMI_REGIONS.map(candidate => ({
+            label:
+              candidate === 'global'
+                ? 'Global — kimi.ai (auth.kimi.ai · api.kimi.ai/coding/v1)'
+                : 'Mainland China — kimi.com (auth.kimi.com · api.kimi.com/coding/v1)',
+            value: candidate,
+          }))}
+          onChange={value => {
+            setRegion(value as KimiRegion)
+            setLeg('device')
+          }}
+          onCancel={() => setLeg('choice')}
+        />
+      </Box>
+    )
+  }
+
+  if (leg === 'key') {
+    return <MoonshotKeyLeg onResult={settle} />
+  }
+
+  return (
+    <Box flexDirection="column" paddingX={compact ? 0 : 1}>
+      {compact ? null : (
+        <Text bold color={tokens.accent}>
+          Connect Kimi (device code · {kimiRegionLabel(region)})
+        </Text>
+      )}
+      {phase === 'starting' ? (
+        <Text color={tokens.textSecondary}>Requesting a device code from the Kimi sign-in host…</Text>
+      ) : null}
+      {phase === 'finishing' ? (
+        <Text color={tokens.textSecondary}>Authorized — storing the sign-in and reading your usage…</Text>
+      ) : null}
+      {start && phase === 'waiting' ? (
+        <>
+          {compact ? null : (
+            <Text color={tokens.textSecondary}>
+              A browser window should be opening. On the Kimi page, enter this code:
+            </Text>
+          )}
+          <Text bold color={tokens.textPrimary} wrap="truncate-end">
+            {compact ? '' : '    '}
+            {start.userCode}
+            {compact ? <Text bold={false} color={tokens.info}> · {start.verificationUriComplete ?? start.verificationUri}</Text> : null}
+          </Text>
+          {compact ? null : <Text color={tokens.textMuted}>If nothing opened, visit:</Text>}
+          {compact ? null : (
+            <Text color={tokens.info} wrap="wrap">
+              {start.verificationUriComplete ?? start.verificationUri}
+            </Text>
+          )}
+          {compact ? null : (
+            <Text color={tokens.textMuted}>
+              waiting for Kimi to confirm{polls > 0 ? ` (${polls} check${polls === 1 ? '' : 's'})` : ''} · expires{' '}
+              {new Date(start.expiresAtMs).toLocaleTimeString()}
+            </Text>
+          )}
+        </>
+      ) : null}
+      {copied ? <Text color={tokens.success}>Copied to clipboard</Text> : null}
+      {note !== undefined && phase === 'waiting' ? <Text color={tokens.warning}>{note}</Text> : null}
+      <Text color={tokens.textMuted}>c copies the URL · ESC cancels.</Text>
+    </Box>
+  )
+}
+
+function MoonshotKeyLeg({
+  onResult,
+}: {
+  onResult: (receipt: string, ok?: boolean) => void
+}): React.ReactNode {
+  const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
+  const [value, setValue] = useState('')
+  const [cursor, setCursor] = useState(0)
+  const [note, setNote] = useState<string | null>(null)
+  const [storing, setStoring] = useState(false)
+  const storingRef = useRef(false)
+  const submit = (raw: string): void => {
+    if (storingRef.current) return
+    const key = raw.trim()
+    if (!key) return
+    const guard = keyPasteGuardNote(key, { stores: 'a Moonshot platform key' })
+    if (guard !== null) {
+      setNote(guard)
+      return
+    }
+    storingRef.current = true
+    setStoring(true)
+    void storeMoonshotApiKeyLogin(key).then(outcome => {
+      storingRef.current = false
+      if (!outcome.stored) {
+        setStoring(false)
+        setNote(outcome.receipt)
+        return
+      }
+      setValue('')
+      onResult(outcome.receipt, outcome.ok)
+    }).catch(error => {
+      storingRef.current = false
+      setStoring(false)
+      setNote(errorMessageWithCause(error))
+    })
+  }
+  return (
+    <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>
+      {compact ? <KeyCardTitle family="moonshot">Moonshot key</KeyCardTitle> : <Text>{keyPageLine('moonshot')}</Text>}
+      {compact ? null : (
+        <Text>
+          Paste your Moonshot API key. Stored auth-scoped (mode 600), never logged; a MOONSHOT_API_KEY env var
+          always wins over the store, and a Kimi sign-in outranks a stored key.
+        </Text>
+      )}
+      <Box>
+        <Text>Key: </Text>
+        <TextInput
+          value={value}
+          onChange={setValue}
+          onSubmit={submit}
+          mask="*"
+          columns={48}
+          cursorOffset={cursor}
+          onChangeCursorOffset={setCursor}
+        />
+      </Box>
+      {storing ? <Text dimColor>Checking the key against the Moonshot balance endpoint…</Text> : null}
+      {note !== null ? <Text color={tokens.warning}>{note}</Text> : null}
+      {compact ? null : <Text dimColor>esc back</Text>}
+    </Box>
+  )
+}
+
+export default KimiConnect

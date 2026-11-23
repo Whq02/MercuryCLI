@@ -12,9 +12,9 @@ const proofHome = mkdtempSync(join(tmpdir(), 'blocked-run-home-'))
 process.env.MERCURY_CONFIG_DIR = proofHome
 delete process.env.MERCURY_HOME
 process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
-const vocabulary = await import('../../src/rows/vocabulary.ts')
-const project = await import('../../src/rows/project.ts')
-const asks = await import('../../src/services/run/unansweredAsk.ts')
+const vocabulary = await import('../../src/engine/rows/vocabulary.ts')
+const project = await import('../../src/engine/rows/project.ts')
+const asks = await import('../../src/engine/run/unansweredAsk.ts')
 const sdkRows = existsSync(join(ROOT, 'sdk', 'src', 'rows.ts')) ? await import('../../sdk/src/rows.ts') : null
 const dist = join(ROOT, 'dist', 'mercury.mjs')
 if (!existsSync(dist)) {
@@ -28,7 +28,7 @@ if (node === null) {
 }
 
 let failures = 0
-const BLOCKED_FIX_HINT = 'section 1 reads src/rows/vocabulary.ts and outcomeRow in src/rows/project.ts; the blocker text and its resume line come from unansweredAsksBlocker in src/services/run/unansweredAsk.ts; the door sections run dist/mercury.mjs, so rebuild with bun run build.ts after a change under src/'
+const BLOCKED_FIX_HINT = 'section 1 reads src/engine/rows/vocabulary.ts and outcomeRow in src/engine/rows/project.ts; the blocker text and its resume line come from unansweredAsksBlocker in src/engine/run/unansweredAsk.ts; the door sections run dist/mercury.mjs, so rebuild with bun run build.ts after a change under src/'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${BLOCKED_FIX_HINT}`}`)

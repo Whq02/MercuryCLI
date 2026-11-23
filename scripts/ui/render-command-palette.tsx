@@ -21,12 +21,12 @@ const CONFIG_HOME = resolveProofHome([process.cwd()])
 
 if (process.env.PALETTE_RENDER_CHILD) {
   const React = await import('react')
-  const ink = (await import('../../src/ink.js')) as {
+  const ink = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
     Box: React.ComponentType<Record<string, unknown>>
   }
-  const { NameHighlight } = await import('../../src/components/MercuryCommandPalette.js')
-  const { TERRA, IVORY, SECOND } = await import('../../src/components/mercuryPalette.js')
+  const { NameHighlight } = await import('../../src/screen/composer/MercuryCommandPalette.js')
+  const { TERRA, IVORY, SECOND } = await import('../../src/screen/theme/mercuryPalette.js')
   const h = React.createElement
   const row = (name: string, query: string, here: boolean) =>
     h(NameHighlight, {

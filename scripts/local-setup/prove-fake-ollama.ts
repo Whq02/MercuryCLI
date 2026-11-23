@@ -29,10 +29,10 @@ delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 delete process.env.OLLAMA_HOST
 
-const { discoverLocalServers } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { readLocalServerTruth } = await import('../../src/services/localServer/localServerTruth.ts')
-const { kvGeometryOf, kvCacheBytes, projectLoad } = await import('../../src/services/localServer/localServerMemory.ts')
-const { streamOllamaChat } = await import('../../src/services/providers/local/ollamaChatTransport.ts')
+const { discoverLocalServers } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { readLocalServerTruth } = await import('../../src/models/local-server/localServerTruth.ts')
+const { kvGeometryOf, kvCacheBytes, projectLoad } = await import('../../src/models/local-server/localServerMemory.ts')
+const { streamOllamaChat } = await import('../../src/models/roads/local/ollamaChatTransport.ts')
 
 const REPO = join(import.meta.dir, '..', '..')
 const FIXTURES = join(import.meta.dir, 'fixtures')
@@ -40,7 +40,7 @@ const SERVER = join(FIXTURES, 'fake-ollama.ts')
 const BUN = process.execPath
 const KEEP = process.env.FAKE_OLLAMA_PROOF_KEEP === '1'
 
-const FAKE_OLLAMA_FAIL_HINT = ' — to fix, change the route, reply or script in scripts/local-setup/fixtures/fake-ollama.ts (or fixtures/install-ollama.sh and fixtures/homebrew/brew for the scratch-prefix checks); the in-process checks read src/services/providers/local/localDiscovery.ts, src/services/localServer/localServerTruth.ts, src/services/localServer/localServerMemory.ts and src/services/providers/local/ollamaChatTransport.ts'
+const FAKE_OLLAMA_FAIL_HINT = ' — to fix, change the route, reply or script in scripts/local-setup/fixtures/fake-ollama.ts (or fixtures/install-ollama.sh and fixtures/homebrew/brew for the scratch-prefix checks); the in-process checks read src/models/roads/local/localDiscovery.ts, src/models/local-server/localServerTruth.ts, src/models/local-server/localServerMemory.ts and src/models/roads/local/ollamaChatTransport.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++

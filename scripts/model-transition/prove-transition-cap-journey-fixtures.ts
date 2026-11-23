@@ -8,11 +8,11 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ctm-capfix-config-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
 
-const { computeNewLimitsFromHeaders } = await import('../../src/services/anthropicLimits.ts')
+const { computeNewLimitsFromHeaders } = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
 
 let failures = 0
 const CAP_FIXTURE_FAIL_HINT =
-  'fix computeNewLimitsFromHeaders in src/services/anthropicLimits.ts (how the anthropic-ratelimit-unified-* headers map to status, rateLimitType, resetsAt, surpassedThreshold and isUsingOverage), not this check'
+  'fix computeNewLimitsFromHeaders in src/models/roads/anthropic/anthropicLimits.ts (how the anthropic-ratelimit-unified-* headers map to status, rateLimitType, resetsAt, surpassedThreshold and isUsingOverage), not this check'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(

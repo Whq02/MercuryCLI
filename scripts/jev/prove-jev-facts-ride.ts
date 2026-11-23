@@ -33,7 +33,7 @@ const PROOF_KEY = 'proof-key-jev-facts-ride-not-a-real-key-0003'
 const SNAKE = /^[a-z0-9]+(_[a-z0-9]+)*$/
 
 let failures = 0
-const FACTS_RIDE_HINT = 'the Jev facts row is built by jevFactsOf in src/services/jev/jevSessionFacts.ts, carried by sessionFactsToWire and sessionFactsFromWire in src/services/engine-connector/seatWire.ts, and painted by jevUsageRow in src/components/Settings/usage/compact.tsx and the popup in src/components/Settings/Jev.tsx'
+const FACTS_RIDE_HINT = 'the Jev facts row is built by jevFactsOf in src/models/jev/jevSessionFacts.ts, carried by sessionFactsToWire and sessionFactsFromWire in src/engine/connector/seatWire.ts, and painted by jevUsageRow in src/screen/settings/usage/compact.tsx and the popup in src/screen/settings/Jev.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 400)}; ` : ''}${FACTS_RIDE_HINT}` : ''}`)
@@ -44,31 +44,31 @@ function section(title: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const cap = await import('../../src/utils/switchboard/capacityCheck.js')
+const cap = await import('../../src/daemon/switchboard-capacity/capacityCheck.js')
 cap._setHeldMachineSeatReadingForTesting(6, { cores: 8, availableBytes: 6 * cap.SEAT_COST_BYTES.runner, read: 'vm_stat', sampledAt: 0 })
-const setting = await import('../../src/services/jev/jevSetting.js')
-const status = await import('../../src/services/jev/jevStatus.js')
-const keyOwner = await import('../../src/services/jev/jevKey.js')
-const ledger = await import('../../src/services/jev/jevLedger.js')
-const contract = await import('../../src/services/jev/jevContract.js')
-const reader = await import('../../src/services/jev/jevSessionFacts.js')
-const wire = await import('../../src/services/engine-connector/seatWire.js')
-const slot = await import('../../src/services/engine-connector/focusedConnector.js')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const { CREDITS_UNREPORTED_WORDS } = await import('../../src/services/providers/providerUsage.js')
-const usage = await import('../../src/components/Settings/Usage.js')
-const jevBody = await import('../../src/components/Settings/Jev.js')
+const setting = await import('../../src/models/jev/jevSetting.js')
+const status = await import('../../src/models/jev/jevStatus.js')
+const keyOwner = await import('../../src/models/jev/jevKey.js')
+const ledger = await import('../../src/models/jev/jevLedger.js')
+const contract = await import('../../src/models/jev/jevContract.js')
+const reader = await import('../../src/models/jev/jevSessionFacts.js')
+const wire = await import('../../src/engine/connector/seatWire.js')
+const slot = await import('../../src/engine/connector/focusedConnector.js')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+const { CREDITS_UNREPORTED_WORDS } = await import('../../src/models/roads/providerUsage.js')
+const usage = await import('../../src/screen/settings/Usage.js')
+const jevBody = await import('../../src/screen/settings/Jev.js')
 const { call: jevCall } = await import('../../src/commands/jev/jev.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
-const { CONFIG_ROW_MARK } = await import('../../src/components/Settings/Config.js')
-type JevFactsV1 = import('../../src/services/engine-connector/types.js').JevFactsV1
+const { CONFIG_ROW_MARK } = await import('../../src/screen/settings/Config.js')
+type JevFactsV1 = import('../../src/engine/connector/types.js').JevFactsV1
 
 const ZERO_USAGE = {
   totalCostUSD: 0,

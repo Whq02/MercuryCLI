@@ -28,7 +28,7 @@ console.log('============================================================')
 console.log(' C/C++ closed-loop fixture — diagnose→edit→build→debug→prove')
 console.log('============================================================')
 
-const { probeBuiltinClangd } = await import('../../src/services/lsp/clangdLane.js')
+const { probeBuiltinClangd } = await import('../../src/integrations/lsp/clangdLane.js')
 const clangd = probeBuiltinClangd()
 const clang = spawnSync('clang', ['--version'], { encoding: 'utf8', env: { ...process.env } })
 const lldbDap = spawnSync('xcrun', ['-f', 'lldb-dap'], { encoding: 'utf8', env: { ...process.env } })
@@ -66,17 +66,17 @@ writeFileSync(
 )
 
 process.chdir(proj)
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { createLSPServerManager } = await import('../../src/services/lsp/LSPServerManager.js')
-const { registerLSPNotificationHandlers } = await import('../../src/services/lsp/passiveFeedback.js')
-const { subscribeLSPDiagnosticPublish } = await import('../../src/services/lsp/LSPDiagnosticRegistry.js')
-const { awaitDiagnosticStabilization } = await import('../../src/tools/LSPTool/mercuryOps.js')
-const tx = await import('../../src/services/ide/ideTransaction.js')
-const dap = await import('../../src/services/dap/dapClient.js')
-const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.js')
-const { receiptsFor } = await import('../../src/services/changeTransaction/receipts.js')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
+const { createLSPServerManager } = await import('../../src/integrations/lsp/LSPServerManager.js')
+const { registerLSPNotificationHandlers } = await import('../../src/integrations/lsp/publishedDiagnostics.js')
+const { subscribeLSPDiagnosticPublish } = await import('../../src/integrations/lsp/LSPDiagnosticRegistry.js')
+const { awaitDiagnosticStabilization } = await import('../../src/tools/lsp/mercuryOps.js')
+const tx = await import('../../src/integrations/ide/ideTransaction.js')
+const dap = await import('../../src/integrations/debugger/dapClient.js')
+const { observeToolTerminal } = await import('../../src/engine/run-owner/effectObserver.js')
+const { receiptsFor } = await import('../../src/tools/engines/change-transaction/receipts.js')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.js')
 
 const owner = makeOwnerKey({ workspace: proj, sessionId: 'fixture-cpp', lane: 'main' })
 const manager = createLSPServerManager()
@@ -102,7 +102,7 @@ try {
         .find(d => /conflicting types|arity|declared/i.test(d.message))
       if (!hit) await new Promise(r => setTimeout(r, 150))
     }
-    check('the declaration conflict is diagnosed', hit !== undefined, JSON.stringify(published.flatMap(p => p.files.flatMap(f => f.diagnostics.map(d => d.message)))).slice(0, 200) + '; hint: clangd published no conflicting-types diagnostic for tally.c, so check src/services/lsp/clangdLane.ts (probeBuiltinClangd) and the publish forwarding in src/services/lsp/passiveFeedback.ts and LSPDiagnosticRegistry.ts')
+    check('the declaration conflict is diagnosed', hit !== undefined, JSON.stringify(published.flatMap(p => p.files.flatMap(f => f.diagnostics.map(d => d.message)))).slice(0, 200) + '; hint: clangd published no conflicting-types diagnostic for tally.c, so check src/integrations/lsp/clangdLane.ts (probeBuiltinClangd) and the publish forwarding in src/integrations/lsp/publishedDiagnostics.ts and LSPDiagnosticRegistry.ts')
     await tx.noteStep({
       id: record.id,
       owner,
@@ -147,7 +147,7 @@ try {
       },
     } as never)
     const receipt = receiptsFor(owner).at(-1)
-    check('the receipt minted', receipt !== undefined, 'hint: observeToolTerminal in src/utils/run/effectObserver.ts recorded no receipt for the Edit effect; check that a succeeded edit with changedPaths reaches receiptsFor in src/services/changeTransaction/receipts.ts')
+    check('the receipt minted', receipt !== undefined, 'hint: observeToolTerminal in src/engine/run-owner/effectObserver.ts recorded no receipt for the Edit effect; check that a succeeded edit with changedPaths reaches receiptsFor in src/tools/engines/change-transaction/receipts.ts')
     const noted = await tx.noteStep({
       id: record.id,
       owner,
@@ -156,14 +156,14 @@ try {
       refs: [`mercury://receipt/${receipt?.id}`],
       from: proj,
     })
-    check('apply step carries the receipt ref', noted.state === 'ok', `${JSON.stringify(noted).slice(0, 200)}; hint: noteStep in src/services/ide/ideTransaction.ts refused the apply step with a mercury://receipt ref`)
+    check('apply step carries the receipt ref', noted.state === 'ok', `${JSON.stringify(noted).slice(0, 200)}; hint: noteStep in src/integrations/ide/ideTransaction.ts refused the apply step with a mercury://receipt ref`)
   }
 
   section('3 · stabilize — the push-lane barrier answers honestly')
   {
     await manager.changeAndSaveFile(srcC, readFileSync(srcC, 'utf8'))
     const verdict = await awaitDiagnosticStabilization(manager, srcC)
-    check('an honest verdict (fresh/unchanged/unsupported/timed-out)', ['fresh', 'unchanged', 'unsupported', 'timed-out'].includes(verdict.state), `${JSON.stringify(verdict)}; hint: awaitDiagnosticStabilization in src/tools/LSPTool/mercuryOps/afterWrite.ts returned a state outside the four honest answers`)
+    check('an honest verdict (fresh/unchanged/unsupported/timed-out)', ['fresh', 'unchanged', 'unsupported', 'timed-out'].includes(verdict.state), `${JSON.stringify(verdict)}; hint: awaitDiagnosticStabilization in src/tools/lsp/mercury-ops/afterWrite.ts returned a state outside the four honest answers`)
     await tx.noteStep({
       id: record.id,
       owner,
@@ -188,7 +188,7 @@ try {
       outcome: build.status === 0 ? 'ok' : 'failed',
       from: proj,
     })
-    check('build step noted', noted.state === 'ok', `${JSON.stringify(noted).slice(0, 200)}; hint: noteStep in src/services/ide/ideTransaction.ts refused the build step`)
+    check('build step noted', noted.state === 'ok', `${JSON.stringify(noted).slice(0, 200)}; hint: noteStep in src/integrations/ide/ideTransaction.ts refused the build step`)
   }
 
   section('5 · debug — lldb-dap proves the runtime value')
@@ -203,7 +203,7 @@ try {
       breakpoints: new Map([[srcC, [{ line: 6, condition: 'i == 3' }]]]),
     })
     const stop = await session.waitForStopOutcome(20_000)
-    check('the conditional breakpoint stops (i == 3)', stop.state === 'stopped', `${JSON.stringify(stop)}; hint: the lldb-dap session from createDapSession in src/services/dap/dapClient.ts never stopped on the conditional breakpoint (line 6, i == 3); check the breakpoint passing and waitForStopOutcome`)
+    check('the conditional breakpoint stops (i == 3)', stop.state === 'stopped', `${JSON.stringify(stop)}; hint: the lldb-dap session from createDapSession in src/integrations/debugger/dapClient.ts never stopped on the conditional breakpoint (line 6, i == 3); check the breakpoint passing and waitForStopOutcome`)
     if (stop.state === 'stopped') {
       const threadId = stop.info.threadId ?? 1
       const stack = await session.request('stackTrace', { threadId, startFrame: 0, levels: 3 })
@@ -224,7 +224,7 @@ try {
   section('6 · prove — the mechanical gate closes the loop')
   {
     const done = await tx.finishTransaction({ id: record.id, owner, verdict: 'completed', from: proj })
-    check('the transaction completes through the gate', done.state === 'ok' && done.record.verdict === 'completed', `${JSON.stringify(done).slice(0, 200)}; hint: finishTransaction in src/services/ide/ideTransaction.ts did not complete; read the gate reason above and the steps noted earlier`)
+    check('the transaction completes through the gate', done.state === 'ok' && done.record.verdict === 'completed', `${JSON.stringify(done).slice(0, 200)}; hint: finishTransaction in src/integrations/ide/ideTransaction.ts did not complete; read the gate reason above and the steps noted earlier`)
   }
 } finally {
   unsubscribe()

@@ -45,7 +45,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ` — to fix: the card rows, step words and refusal return are in src/components/geminiConnectGuide.ts; rerun with --frames <dir> --keep to read each captured screen and the kept world` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ` — to fix: the card rows, step words and refusal return are in src/models/sign-in/gemini-connect/geminiConnectGuide.ts; rerun with --frames <dir> --keep to read each captured screen and the kept world` : ''}`)
 }
 const record = (label: string, detail: string): void => {
   console.log(`  [record] ${label}: ${detail}`)

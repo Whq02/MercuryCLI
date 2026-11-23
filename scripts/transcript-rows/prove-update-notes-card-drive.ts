@@ -19,9 +19,9 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 const { seedFirstRun } = await import(join(root, 'scripts/lib/firstRunSeed.ts'))
 const { encodeSeedTranscript } = await import(join(root, 'scripts/lib/seedTranscript.ts'))
-const { getProjectDir } = await import(join(root, 'src/utils/sessionStoragePortable.ts'))
+const { getProjectDir } = await import(join(root, 'src/sessions/transcripts/sessionStoragePortable.ts'))
 const { resolveCaptureDriver, captureEngineEntry, vshotBudgetMs } = await import(join(root, 'scripts/lib/captureDriver.ts'))
-const { getAllReleaseNotes, earlierReleasesLine, earlierReleasesCount } = await import(join(root, 'src/utils/releaseNotes.ts'))
+const { getAllReleaseNotes, earlierReleasesLine, earlierReleasesCount } = await import(join(root, 'src/boot/releaseNotes.ts'))
 const driver = resolveCaptureDriver()
 if (driver.kind === 'unavailable') throw new Error(driver.remedy)
 

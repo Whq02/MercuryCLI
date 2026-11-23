@@ -94,28 +94,28 @@ type BootRow = { surface: string; source: string; discipline: string }
 const BOOT_SURFACES: readonly BootRow[] = [
   {
     surface: 'setup dialogs (showDialog family — onboarding · trust · policy · api-key · teleport · invalid-settings)',
-    source: 'src/interactiveHelpers.tsx',
+    source: 'src/boot/setupScreens.tsx',
     discipline:
       'claims the held screen (SetupScreenHost stations under hold/fullscreen policy; bare inline only when the operator chose inline)',
   },
   {
     surface: 'exit/error messages (exitWithMessage/exitWithError)',
-    source: 'src/interactiveHelpers.tsx',
+    source: 'src/boot/setupScreens.tsx',
     discipline: 'releases the hold before inline render',
   },
   {
     surface: 'Resume Session picker (bare --resume: loading · picker · resuming · Chat swap)',
-    source: 'src/screens/ResumeConversation.tsx',
+    source: 'src/screen/chat/ResumeSession.tsx',
     discipline: 'claims the held screen (<AlternateScreen> host; Chat swap rides the nested path)',
   },
   {
     surface: 'Chat cockpit (direct boot / --continue / --resume <id>)',
-    source: 'src/screens/Chat.tsx → src/ink/components/AlternateScreen.tsx',
+    source: 'src/screen/chat/Chat.tsx → src/screen/renderer/elements/AlternateScreen.tsx',
     discipline: 'claims the held screen (outermost mount consumes + arms the takeover erase)',
   },
   {
     surface: 'non-takeover argv paths (run · --help · subcommands · piped stdout)',
-    source: 'src/entrypoints/cli.tsx',
+    source: 'src/boot/entrypoints/cli.tsx',
     discipline: 'releases the hold before any output',
   },
 ]

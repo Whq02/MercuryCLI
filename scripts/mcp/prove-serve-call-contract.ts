@@ -61,11 +61,11 @@ if (!existsSync(DIST)) {
   send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'probe', version: '0' } } })
   send({ jsonrpc: '2.0', method: 'notifications/initialized' })
   const init = await awaitReply(1)
-  check('the handshake answers', init?.result !== undefined, 'no initialize reply within 30s: run `node dist/mercury.mjs mcp serve` by hand and read its stderr; the server is startMCPServer in src/entrypoints/mcp.ts')
+  check('the handshake answers', init?.result !== undefined, 'no initialize reply within 30s: run `node dist/mercury.mjs mcp serve` by hand and read its stderr; the server is startMCPServer in src/integrations/mcp/mcpServer.ts')
 
   send({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'no_such_tool', arguments: {} } })
   const unknown = await awaitReply(2)
-  check('an unknown tool answers the JSON-RPC error -32602 naming the tool', unknown?.error?.code === -32602 && unknown.error.message.includes('no_such_tool'), `${JSON.stringify(unknown)} — the tools/call handler in startMCPServer (src/entrypoints/mcp.ts) must throw ProtocolErrorCode.InvalidParams naming the tool when the lookup misses`)
+  check('an unknown tool answers the JSON-RPC error -32602 naming the tool', unknown?.error?.code === -32602 && unknown.error.message.includes('no_such_tool'), `${JSON.stringify(unknown)} — the tools/call handler in startMCPServer (src/integrations/mcp/mcpServer.ts) must throw ProtocolErrorCode.InvalidParams naming the tool when the lookup misses`)
 
   const bad: Array<[string, Record<string, unknown>, string]> = [
     ['Read with file_path of the wrong type', { name: 'Read', arguments: { file_path: 123 } }, 'file_path'],
@@ -78,19 +78,19 @@ if (!existsSync(DIST)) {
   for (const [label, params, field] of bad) {
     send({ jsonrpc: '2.0', id, method: 'tools/call', params })
     const reply = await awaitReply(id)
-    check(`${label}: -32602 naming \`${field}\``, reply?.error?.code === -32602 && reply.error.message.includes(`\`${field}\``), `${JSON.stringify(reply)?.slice(0, 200)} — the argument parse in startMCPServer (src/entrypoints/mcp.ts) must throw InvalidParams with formatZodValidationError naming the field`)
-    check(`${label}: no stack trace, no build path, no TypeError`, reply?.error !== undefined && !hasStack(reply.error.message) && !reply.error.message.includes('TypeError'), `${reply?.error?.message.slice(0, 200)} — the error message built in startMCPServer (src/entrypoints/mcp.ts) must carry only the validation text, never an error stack or build path`)
+    check(`${label}: -32602 naming \`${field}\``, reply?.error?.code === -32602 && reply.error.message.includes(`\`${field}\``), `${JSON.stringify(reply)?.slice(0, 200)} — the argument parse in startMCPServer (src/integrations/mcp/mcpServer.ts) must throw InvalidParams with formatZodValidationError naming the field`)
+    check(`${label}: no stack trace, no build path, no TypeError`, reply?.error !== undefined && !hasStack(reply.error.message) && !reply.error.message.includes('TypeError'), `${reply?.error?.message.slice(0, 200)} — the error message built in startMCPServer (src/integrations/mcp/mcpServer.ts) must carry only the validation text, never an error stack or build path`)
     id++
   }
 
   send({ jsonrpc: '2.0', id: 30, method: 'tools/call', params: { name: 'Read', arguments: { file_path: join(outsideDir, 'outside.txt') } } })
   const refused = await awaitReply(30)
-  check('a refused call is a tool result with isError and plain words', refused?.result?.isError === true && textOf(refused).includes('PermissionRefused'), `${JSON.stringify(refused)?.slice(0, 200)} — a call outside the project must be refused in startMCPServer (src/entrypoints/mcp.ts) as a PermissionRefused tool result with isError true`)
-  check('…and no stack trace in it', refused?.result !== undefined && !hasStack(textOf(refused)), `${textOf(refused).slice(0, 200)} — the refusal result built in startMCPServer (src/entrypoints/mcp.ts) must carry the refusal words without a stack or build path`)
+  check('a refused call is a tool result with isError and plain words', refused?.result?.isError === true && textOf(refused).includes('PermissionRefused'), `${JSON.stringify(refused)?.slice(0, 200)} — a call outside the project must be refused in startMCPServer (src/integrations/mcp/mcpServer.ts) as a PermissionRefused tool result with isError true`)
+  check('…and no stack trace in it', refused?.result !== undefined && !hasStack(textOf(refused)), `${textOf(refused).slice(0, 200)} — the refusal result built in startMCPServer (src/integrations/mcp/mcpServer.ts) must carry the refusal words without a stack or build path`)
 
   send({ jsonrpc: '2.0', id: 31, method: 'tools/call', params: { name: 'Read', arguments: { file_path: join(projDir, 'inside.txt'), limit: null } } })
   const inside = await awaitReply(31)
-  check('a valid call (a null optional included) still answers', inside?.result !== undefined && inside.result.isError !== true && textOf(inside).includes('INSIDE-SENTINEL-TEXT'), `${JSON.stringify(inside)?.slice(0, 200)} — the argument parse in startMCPServer (src/entrypoints/mcp.ts) must accept a null optional field and the in-project Read must run`)
+  check('a valid call (a null optional included) still answers', inside?.result !== undefined && inside.result.isError !== true && textOf(inside).includes('INSIDE-SENTINEL-TEXT'), `${JSON.stringify(inside)?.slice(0, 200)} — the argument parse in startMCPServer (src/integrations/mcp/mcpServer.ts) must accept a null optional field and the in-project Read must run`)
 
   child.kill()
   await Promise.race([closed, new Promise<void>(resolve => setTimeout(resolve, 5_000))])

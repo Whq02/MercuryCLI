@@ -13,7 +13,7 @@ const { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, recor
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 
 const tally = makeTally('prove-old-tool-name-rows')
-;(await import('../../src/utils/config/globalConfig.ts')).enableConfigs()
+;(await import('../../src/platform/config/globalConfig.ts')).enableConfigs()
 
 const OLD_TOOL = 'Agent'
 const OLD_RESUME = 'ResumeAgent'
@@ -23,25 +23,25 @@ const RESUME = 'ResumeCrewmate'
 const AGENT_ID = 'a1b2c3d4e'
 
 tally.section('§1 the old names are names no build ships: the renderer, the tool list, the alias road, the render shim, the launch-receipt readers')
-const { toolFamilyFor } = await import('../../src/components/mercury-ui/toolGlyphs.ts')
-tally.check('the transcript renderer paints a recorded row under the old tool name as it paints any unknown tool — no family remembers it', toolFamilyFor(OLD_TOOL) === toolFamilyFor('FrobnicateTool') && toolFamilyFor(OLD_RESUME) === toolFamilyFor('FrobnicateTool'), 'remove any family entry for the old tool names from toolFamilyFor in src/components/mercury-ui/toolGlyphs.ts')
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { findToolByName } = await import('../../src/Tool.ts')
+const { toolFamilyFor } = await import('../../src/screen/widgets/toolGlyphs.ts')
+tally.check('the transcript renderer paints a recorded row under the old tool name as it paints any unknown tool — no family remembers it', toolFamilyFor(OLD_TOOL) === toolFamilyFor('FrobnicateTool') && toolFamilyFor(OLD_RESUME) === toolFamilyFor('FrobnicateTool'), 'remove any family entry for the old tool names from toolFamilyFor in src/screen/widgets/toolGlyphs.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { findToolByName } = await import('../../src/tools/kit/tool.ts')
 const tools = getAllBaseTools()
 const listed = tools.map(tool => tool.name)
-tally.check(`the tool list of a booted session names ${TOOL} and ${RESUME} and neither old name`, listed.includes(TOOL) && listed.includes(RESUME) && !listed.includes(OLD_TOOL) && !listed.includes(OLD_RESUME), `${listed.join(', ')} — getAllBaseTools in src/tools.ts must list the new names and no old name`)
-tally.check('no tool answers to an old name — no alias, no folded match', findToolByName(tools, OLD_TOOL) === undefined && findToolByName(tools, OLD_RESUME) === undefined, 'drop any alias for the old tool names from findToolByName in src/Tool.ts or from the tool definitions in src/tools.ts')
-const { findToolForRender } = await import('../../src/tools/MCPTool/absentToolShim.ts')
+tally.check(`the tool list of a booted session names ${TOOL} and ${RESUME} and neither old name`, listed.includes(TOOL) && listed.includes(RESUME) && !listed.includes(OLD_TOOL) && !listed.includes(OLD_RESUME), `${listed.join(', ')} — getAllBaseTools in src/tools/kit/toolList.ts must list the new names and no old name`)
+tally.check('no tool answers to an old name — no alias, no folded match', findToolByName(tools, OLD_TOOL) === undefined && findToolByName(tools, OLD_RESUME) === undefined, 'drop any alias for the old tool names from findToolByName in src/tools/kit/tool.ts or from the tool definitions in src/tools/kit/toolList.ts')
+const { findToolForRender } = await import('../../src/tools/mcp/absentToolShim.ts')
 const shim = findToolForRender(tools, OLD_TOOL)
-tally.check('a recorded row under the old name resolves a render shim under its recorded name (it paints; it never runs)', shim.name === OLD_TOOL && shim.userFacingName({} as never) === OLD_TOOL && !listed.includes(shim.name), 'findToolForRender in src/tools/MCPTool/absentToolShim.ts must return a render shim named as recorded for a name the build lacks')
+tally.check('a recorded row under the old name resolves a render shim under its recorded name (it paints; it never runs)', shim.name === OLD_TOOL && shim.userFacingName({} as never) === OLD_TOOL && !listed.includes(shim.name), 'findToolForRender in src/tools/mcp/absentToolShim.ts must return a render shim named as recorded for a name the build lacks')
 let shimCall = ''
 try {
   await shim.call({} as never, {} as never, undefined as never, undefined as never)
 } catch (error) {
   shimCall = error instanceof Error ? error.message : String(error)
 }
-tally.check('the shim refuses to run the old tool, as it refuses any tool the build does not have', shimCall.includes('no longer available'), `${shimCall} — the shim call in src/tools/MCPTool/absentToolShim.ts must refuse with a no longer available message`)
-const { backgroundLaunchReceipts, namedLaunchReceipts } = await import('../../src/tasks/LocalAgentTask/launchReceipts.ts')
+tally.check('the shim refuses to run the old tool, as it refuses any tool the build does not have', shimCall.includes('no longer available'), `${shimCall} — the shim call in src/tools/mcp/absentToolShim.ts must refuse with a no longer available message`)
+const { backgroundLaunchReceipts, namedLaunchReceipts } = await import('../../src/engine/tasks/local-agent/launchReceipts.ts')
 const stamp = (n: number): string => new Date(1700000000000 + n * 1000).toISOString()
 const oldLaunch = {
   type: 'assistant',
@@ -55,7 +55,7 @@ const oldReceipt = {
   timestamp: stamp(2),
   message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_old_launch', content: `${OLD_TOOL} launched in the background.\nagentId: ${AGENT_ID} (internal — do not mention it to the user). To continue this agent, use ${OLD_RESUME} addressed to that id or to its name "scout".` }] },
 }
-tally.check('the launch-receipt readers read an old launch row as any unknown tool row: no background receipt, no named launch (a crewmate of the old build is reached by its id, never by its name)', backgroundLaunchReceipts([oldLaunch, oldReceipt] as never).length === 0 && namedLaunchReceipts([oldLaunch, oldReceipt] as never).length === 0, 'backgroundLaunchReceipts and namedLaunchReceipts in src/tasks/LocalAgentTask/launchReceipts.ts must match only the current launch tool name')
+tally.check('the launch-receipt readers read an old launch row as any unknown tool row: no background receipt, no named launch (a crewmate of the old build is reached by its id, never by its name)', backgroundLaunchReceipts([oldLaunch, oldReceipt] as never).length === 0 && namedLaunchReceipts([oldLaunch, oldReceipt] as never).length === 0, 'backgroundLaunchReceipts and namedLaunchReceipts in src/engine/tasks/local-agent/launchReceipts.ts must match only the current launch tool name')
 
 tally.section('§2 the drive: a transcript with an old launch row and an old resume row resumes whole, the session answers, and the model is offered the new names')
 const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ ...turn, model: LEAD_MODEL, whenModel: LEAD_GATE, whenBody: when }) as ScriptedTurn
@@ -64,7 +64,7 @@ type Request = { body: { tools?: Array<{ name: string }>; messages?: Array<{ rol
 const requests = (): Request[] => world.fixture.messageRequests() as Request[]
 const toolNamesOf = (request: Request | undefined): string[] => (request?.body.tools ?? []).map(tool => tool.name)
 
-const { projectSlug } = await import('../../src/utils/sessionStoragePortable.ts')
+const { projectSlug } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
 const cwd = realpathSync(world.project).normalize('NFC')
 const projectDir = join(world.config, 'projects', projectSlug(cwd))
 mkdirSync(projectDir, { recursive: true })
@@ -199,15 +199,15 @@ try {
 tally.section("§4 the old row paints: the transcript renderer with the tip's tool list")
 try {
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { AssistantToolUseMessage } = await import('../../src/components/messages/AssistantToolUseMessage.tsx')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { AssistantToolUseMessage } = await import('../../src/screen/messages/AssistantToolUseMessage.tsx')
   const lookups = { resolvedToolUseIDs: new Set([LAUNCH_ID]), erroredToolUseIDs: new Set<string>(), deniedToolUseIDs: new Set<string>(), toolResultByToolUseID: new Map(), progressMessagesByToolUseID: new Map() }
   const node = React.createElement(AppStateProvider as never, { initialState: getDefaultAppState() } as never, React.createElement(AssistantToolUseMessage as never, { param: { type: 'tool_use', id: LAUNCH_ID, name: OLD_TOOL, input: { description: 'scout the notes', prompt: 'read the notes and report', [OLD_FIELD]: 'mercury-crew' } }, tools, inProgressToolUseIDs: new Set<string>(), lookups, addMargin: false } as never) as never)
   const painted = (await renderToString(node, 100)).trim()
   record('old-row-render.txt', painted + '\n')
-  tally.check('the old launch row paints under its recorded name instead of vanishing', painted.includes(OLD_TOOL), `${JSON.stringify(painted)} — AssistantToolUseMessage in src/components/messages/AssistantToolUseMessage.tsx must paint a row whose tool is absent through the render shim in src/tools/MCPTool/absentToolShim.ts`)
+  tally.check('the old launch row paints under its recorded name instead of vanishing', painted.includes(OLD_TOOL), `${JSON.stringify(painted)} — AssistantToolUseMessage in src/screen/messages/AssistantToolUseMessage.tsx must paint a row whose tool is absent through the render shim in src/tools/mcp/absentToolShim.ts`)
 } catch (error) {
   tally.check('the old row rendered', false, error instanceof Error ? error.message : String(error))
 }

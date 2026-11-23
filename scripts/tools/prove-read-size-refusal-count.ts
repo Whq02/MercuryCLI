@@ -12,12 +12,12 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 delete process.env.NODE_ENV
 
-const { FileReadTool } = await import(`${SRC}/tools/FileReadTool/FileReadTool.ts`)
-const { FileTooLargeError } = await import(`${SRC}/utils/readFileInRange.ts`)
-const { getEmptyToolPermissionContext } = await import(`${SRC}/Tool.ts`)
-const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/utils/fileStateCache.ts`)
-const { enableConfigs } = await import(`${SRC}/utils/config/globalConfig.ts`)
-const { formatFileSize } = await import(`${SRC}/utils/format.ts`)
+const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { FileTooLargeError } = await import(`${SRC}/platform/files/readFileInRange.ts`)
+const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
+const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/platform/files/fileStateCache.ts`)
+const { enableConfigs } = await import(`${SRC}/platform/config/globalConfig.ts`)
+const { formatFileSize } = await import(`${SRC}/platform/text/format.ts`)
 enableConfigs()
 
 const tally = makeTally('prove-read-size-refusal-count')

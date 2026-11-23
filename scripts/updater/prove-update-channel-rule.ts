@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
-import { CHECKSUM_MANIFEST_NAME, parsePrivateVersion, projectReleases, selectRelease, type ChannelRelease, type ReleaseSelection } from '../../src/services/privateChannel/channelCore.js'
+import { CHECKSUM_MANIFEST_NAME, parsePrivateVersion, projectReleases, selectRelease, type ChannelRelease, type ReleaseSelection } from '../../src/platform/update-channel/channelCore.js'
 
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail} — ` : ''}change selectRelease or projectReleases in src/services/privateChannel/channelCore.ts so the selection matches this label`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail} — ` : ''}change selectRelease or projectReleases in src/platform/update-channel/channelCore.ts so the selection matches this label`}`)
   if (!cond) failures++
 }
 

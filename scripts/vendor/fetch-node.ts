@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { extractTarGz } from './tarExtract.ts'
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
-import { NODE_PACK_PLATFORMS, nodePackPlatform, packMembersFor, runtimeBinaryFor, type NodePackPlatform } from '../../src/services/privateChannel/vendoredRuntime.ts'
+import { NODE_PACK_PLATFORMS, nodePackPlatform, packMembersFor, runtimeBinaryFor, type NodePackPlatform } from '../../src/platform/update-channel/vendoredRuntime.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const LOCK_PATH = join(ROOT, 'vendor', 'node.lock.json')

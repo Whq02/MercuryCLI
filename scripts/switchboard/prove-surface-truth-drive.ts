@@ -38,8 +38,8 @@ const SEAT_TITLE = 'Truth Seat'
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFixture.ts')
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 
 const fixture = await startCrossfamilyFixture({
   port: Number(process.env.SURFACE_TRUTH_PORT ?? '0'),

@@ -14,15 +14,15 @@ process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(refusingProvider.address()
 process.env.ANTHROPIC_API_KEY = 'fixture-token-count-key'
 delete process.env.MERCURY_HOME
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
-const { FileReadTool: Read } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileEditTool: Edit } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { GrepTool: Grep } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { toolErrorReason } = await import('../../src/utils/toolErrorReason.ts')
+const { FileReadTool: Read } = await import('../../src/tools/read/ReadTool.ts')
+const { FileEditTool: Edit } = await import('../../src/tools/edit/EditTool.ts')
+const { GrepTool: Grep } = await import('../../src/tools/grep/GrepTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { toolErrorReason } = await import('../../src/tools/kit/toolErrorReason.ts')
 const parent = { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'fixture' } } as any
 function context(): any { return { readFileState: new Map(), abortController: new AbortController(), options: { tools: [], commands: [], engineModel: 'fixture-model' }, getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }), dynamicSkillDirTriggers: new Set(), nestedMemoryAttachmentTriggers: new Set(), updateFileHistoryState() {} } }
 let failures = 0
-function check(label: string, ok: boolean, detail?: unknown) { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok ? ` ${JSON.stringify(detail)} · to fix: a clipped line must stay unreadable to Edit, Write and ChangeSet until a lossless Read; check validateInput in src/tools/FileEditTool/FileEditTool.ts, src/tools/FileWriteTool/FileWriteTool.ts and src/tools/ChangeSetTool/ChangeSetTool.ts, and the Read result in src/tools/FileReadTool/FileReadTool.ts` : ''}`); if (!ok) failures++ }
+function check(label: string, ok: boolean, detail?: unknown) { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok ? ` ${JSON.stringify(detail)} · to fix: a clipped line must stay unreadable to Edit, Write and ChangeSet until a lossless Read; check validateInput in src/tools/edit/EditTool.ts, src/tools/write/WriteTool.ts and src/tools/change-set/ChangeSetTool.ts, and the Read result in src/tools/read/ReadTool.ts` : ''}`); if (!ok) failures++ }
 const line = 'prefix_' + 'x'.repeat(2986) + '_suffix'
 async function read(input: any, ctx: any) { const result = await Read.call(input, ctx, null as any, parent); return { data: result.data, text: String(Read.mapToolResultToToolResultBlockParam(result.data, 'r').content) } }
 try {
@@ -84,8 +84,8 @@ try {
   try { await read({ file_path: huge, offset: 1, limit: 1, lossless: true }, ctx) } catch (e) { error = String(e) }
   check('one line beyond the existing budget is refused honestly', /exceeds.*budget.*single line cannot be split/i.test(error), error)
   check('over-budget lossless read grants no whole-line knowledge', (await Edit.validateInput({ file_path: huge, old_string: 'x'.repeat(600_000), new_string: 'replacement' }, ctx)).result === false)
-  const { FileWriteTool: Write } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-  const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')
+  const { FileWriteTool: Write } = await import('../../src/tools/write/WriteTool.ts')
+  const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
   const siblingContext = (): any => { const c = context(); c.userModified = false; c.getAppState = () => ({ toolPermissionContext: { ...getEmptyToolPermissionContext(), additionalWorkingDirectories: new Map([[realHome, { source: 'session' }]]) } }); return c }
   const written = join(realHome, 'written.txt'); writeFileSync(written, line + '\nshort\n')
   const writeCtx = siblingContext()
@@ -152,7 +152,7 @@ try {
     await Write.call({ file_path: numbered, content: body }, writeCtx, null as any, parent)
     check(`Write writes ${JSON.stringify(body)} as given`, readFileSync(numbered, 'utf8') === `${body}\n`, readFileSync(numbered, 'utf8'))
   }
-  const { stripSequentialReadPrefixes } = await import('../../src/utils/fileEditUtils.ts')
+  const { stripSequentialReadPrefixes } = await import('../../src/tools/edit/call/editMatching.ts')
   for (const body of ['1. alpha\n2. beta', '00000010  61 62\n00000020  63 64', '12:00\talpha\n12:01\tbeta', '12\tAlice\n47\tBob', 'cat <<EOF\n1\tAlice\n2\tBob\nEOF']) {
     check(`numbered lists, hex dumps, timestamps, gapped IDs and heredoc rows stay literal: ${JSON.stringify(body)}`, stripSequentialReadPrefixes(body, '') === body && stripSequentialReadPrefixes(body, 'code\n') === body)
   }

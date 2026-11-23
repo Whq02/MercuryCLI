@@ -15,27 +15,27 @@ delete process.env.MERCURY_MAX_CONNECTIONS
 delete process.env.MERCURY_MAX_CONNECTIONS
 delete process.env.MERCURY_API_TIMEOUT_MS
 
-const proxy = await import('../../src/utils/proxy.ts')
-const evidence = await import('../../src/utils/api/transportEvidence.ts')
+const proxy = await import('../../src/platform/network/proxy.ts')
+const evidence = await import('../../src/engine/request-parts/transportEvidence.ts')
 const { apiErrorDetailOf, createSystemAPIErrorMessage } = await import(
-  '../../src/utils/messages/systemMessages.ts'
+  '../../src/engine/message-shapes/systemMessages.ts'
 )
 
 console.log('— §1 transport knobs + dispatcher (N-01) —')
 {
   const k = proxy.resolveTransportKnobs()
-  check('default connect timeout ≥30s (the 10s undici default is dead)', k.connectTimeoutMs >= 30_000, String(k.connectTimeoutMs), 'raise the default connect timeout in resolveTransportKnobs in src/utils/proxy.ts')
-  check('no connection bound by default: a request never waits in the queue for a socket a streaming reply holds', k.maxConnections === null, String(k.maxConnections), 'resolveTransportKnobs in src/utils/proxy.ts must leave maxConnections null unless MERCURY_MAX_CONNECTIONS is set')
-  check('headers/body timeouts align with the API budget default (600s)', k.headersTimeoutMs === 600_000 && k.bodyTimeoutMs === 600_000, '', 'resolveTransportKnobs in src/utils/proxy.ts must derive headers and body timeouts from the API timeout default')
-  check('keep-alive tuned above the undici 4s default', k.keepAliveTimeoutMs >= 10_000, '', 'raise keepAliveTimeoutMs in resolveTransportKnobs in src/utils/proxy.ts')
+  check('default connect timeout ≥30s (the 10s undici default is dead)', k.connectTimeoutMs >= 30_000, String(k.connectTimeoutMs), 'raise the default connect timeout in resolveTransportKnobs in src/platform/network/proxy.ts')
+  check('no connection bound by default: a request never waits in the queue for a socket a streaming reply holds', k.maxConnections === null, String(k.maxConnections), 'resolveTransportKnobs in src/platform/network/proxy.ts must leave maxConnections null unless MERCURY_MAX_CONNECTIONS is set')
+  check('headers/body timeouts align with the API budget default (600s)', k.headersTimeoutMs === 600_000 && k.bodyTimeoutMs === 600_000, '', 'resolveTransportKnobs in src/platform/network/proxy.ts must derive headers and body timeouts from the API timeout default')
+  check('keep-alive tuned above the undici 4s default', k.keepAliveTimeoutMs >= 10_000, '', 'raise keepAliveTimeoutMs in resolveTransportKnobs in src/platform/network/proxy.ts')
 
   process.env.MERCURY_CONNECT_TIMEOUT_MS = '45000'
   process.env.MERCURY_MAX_CONNECTIONS = '8'
   process.env.MERCURY_API_TIMEOUT_MS = '120000'
   const o = proxy.resolveTransportKnobs()
-  check('MERCURY_CONNECT_TIMEOUT_MS honored', o.connectTimeoutMs === 45_000, '', 'resolveTransportKnobs in src/utils/proxy.ts must read MERCURY_CONNECT_TIMEOUT_MS')
-  check('MERCURY_MAX_CONNECTIONS honored', o.maxConnections === 8, '', 'resolveTransportKnobs in src/utils/proxy.ts must read MERCURY_MAX_CONNECTIONS')
-  check('MERCURY_API_TIMEOUT_MS aligns headers/body', o.headersTimeoutMs === 120_000 && o.bodyTimeoutMs === 120_000, '', 'resolveTransportKnobs in src/utils/proxy.ts must read MERCURY_API_TIMEOUT_MS for both timeouts')
+  check('MERCURY_CONNECT_TIMEOUT_MS honored', o.connectTimeoutMs === 45_000, '', 'resolveTransportKnobs in src/platform/network/proxy.ts must read MERCURY_CONNECT_TIMEOUT_MS')
+  check('MERCURY_MAX_CONNECTIONS honored', o.maxConnections === 8, '', 'resolveTransportKnobs in src/platform/network/proxy.ts must read MERCURY_MAX_CONNECTIONS')
+  check('MERCURY_API_TIMEOUT_MS aligns headers/body', o.headersTimeoutMs === 120_000 && o.bodyTimeoutMs === 120_000, '', 'resolveTransportKnobs in src/platform/network/proxy.ts must read MERCURY_API_TIMEOUT_MS for both timeouts')
   delete process.env.MERCURY_CONNECT_TIMEOUT_MS
   delete process.env.MERCURY_MAX_CONNECTIONS
   delete process.env.MERCURY_API_TIMEOUT_MS
@@ -47,15 +47,15 @@ console.log('— §1 transport knobs + dispatcher (N-01) —')
   proxy._resetApiDispatcherForTesting()
   const opts = proxy.buildApiAgentOptions()
   const connect = opts.connect as { timeout?: number }
-  check('agent options carry the connect budget', connect.timeout === 400, '', 'buildApiAgentOptions in src/utils/proxy.ts must pass the resolved connect timeout')
-  check('agent options carry the connection bound', opts.connections === 5, '', 'buildApiAgentOptions in src/utils/proxy.ts must pass the resolved maxConnections')
+  check('agent options carry the connect budget', connect.timeout === 400, '', 'buildApiAgentOptions in src/platform/network/proxy.ts must pass the resolved connect timeout')
+  check('agent options carry the connection bound', opts.connections === 5, '', 'buildApiAgentOptions in src/platform/network/proxy.ts must pass the resolved maxConnections')
   check(
     'agent options carry aligned headers/body budgets',
     opts.headersTimeout === 600_000 && opts.bodyTimeout === 600_000,
     '',
-    'buildApiAgentOptions in src/utils/proxy.ts must pass the resolved headers and body timeouts',
+    'buildApiAgentOptions in src/platform/network/proxy.ts must pass the resolved headers and body timeouts',
   )
-  check('getApiDispatcher returns a dispatcher', typeof proxy.getApiDispatcher() === 'object', '', 'getApiDispatcher in src/utils/proxy.ts must return the built dispatcher')
+  check('getApiDispatcher returns a dispatcher', typeof proxy.getApiDispatcher() === 'object', '', 'getApiDispatcher in src/platform/network/proxy.ts must return the built dispatcher')
   delete process.env.MERCURY_CONNECT_TIMEOUT_MS
   delete process.env.MERCURY_MAX_CONNECTIONS
   proxy._resetApiDispatcherForTesting()
@@ -137,19 +137,19 @@ console.log('— §2 evidence preservation (N-02) —')
     cause: fetchFailed,
   })
   const deep = evidence.deepestErrorDetail(sdkErr)
-  check('deepestErrorDetail walks two levels', deep.code === 'UND_ERR_CONNECT_TIMEOUT', '', 'deepestErrorDetail in src/utils/api/transportEvidence.ts must follow the cause chain to the leaf')
-  check('errno/syscall survive the walk', deep.errno === -60 && deep.syscall === 'connect', '', 'deepestErrorDetail in src/utils/api/transportEvidence.ts must copy errno and syscall from the leaf')
+  check('deepestErrorDetail walks two levels', deep.code === 'UND_ERR_CONNECT_TIMEOUT', '', 'deepestErrorDetail in src/engine/request-parts/transportEvidence.ts must follow the cause chain to the leaf')
+  check('errno/syscall survive the walk', deep.errno === -60 && deep.syscall === 'connect', '', 'deepestErrorDetail in src/engine/request-parts/transportEvidence.ts must copy errno and syscall from the leaf')
 
   const detail = apiErrorDetailOf(sdkErr)
-  check('apiErrorDetailOf records the deep code (was one-level)', detail.code === 'UND_ERR_CONNECT_TIMEOUT', '', 'apiErrorDetailOf in src/utils/messages/systemMessages.ts must take the deep code from deepestErrorDetail')
-  check('transport sub-object carries via cause-chain', detail.transport?.via === 'cause-chain' && detail.transport?.syscall === 'connect', '', 'apiErrorDetailOf in src/utils/messages/systemMessages.ts must set transport.via to cause-chain')
+  check('apiErrorDetailOf records the deep code (was one-level)', detail.code === 'UND_ERR_CONNECT_TIMEOUT', '', 'apiErrorDetailOf in src/engine/message-shapes/systemMessages.ts must take the deep code from deepestErrorDetail')
+  check('transport sub-object carries via cause-chain', detail.transport?.via === 'cause-chain' && detail.transport?.syscall === 'connect', '', 'apiErrorDetailOf in src/engine/message-shapes/systemMessages.ts must set transport.via to cause-chain')
 
   const a = new Error('a') as Error & { cause?: unknown }
   const b = new Error('b') as Error & { cause?: unknown }
   a.cause = b
   b.cause = a
   const cyc = evidence.deepestErrorDetail(a)
-  check('cause cycles are bounded', typeof cyc.message === 'string', '', 'deepestErrorDetail in src/utils/api/transportEvidence.ts must stop on a cause cycle')
+  check('cause cycles are bounded', typeof cyc.message === 'string', '', 'deepestErrorDetail in src/engine/request-parts/transportEvidence.ts must stop on a cause cycle')
 
   evidence._resetTransportEvidenceForTesting()
   evidence.recordTransportFailure(fetchFailed, 'https://api.anthropic.com/v1/messages')
@@ -162,27 +162,27 @@ console.log('— §2 evidence preservation (N-02) —')
     timeoutDetail.transport?.via === 'recent-failure' &&
       timeoutDetail.transport?.code === 'UND_ERR_CONNECT_TIMEOUT',
     JSON.stringify(timeoutDetail.transport ?? null),
-    'apiErrorDetailOf in src/utils/messages/systemMessages.ts must enrich a cause-less error from the ring kept by recordTransportFailure in src/utils/api/transportEvidence.ts',
+    'apiErrorDetailOf in src/engine/message-shapes/systemMessages.ts must enrich a cause-less error from the ring kept by recordTransportFailure in src/engine/request-parts/transportEvidence.ts',
   )
-  check('ring enrichment carries its age honestly', typeof timeoutDetail.transport?.ageMs === 'number', '', 'the recent-failure enrichment in src/utils/api/transportEvidence.ts must carry ageMs')
+  check('ring enrichment carries its age honestly', typeof timeoutDetail.transport?.ageMs === 'number', '', 'the recent-failure enrichment in src/engine/request-parts/transportEvidence.ts must carry ageMs')
 
   evidence._resetTransportEvidenceForTesting()
   const dry = apiErrorDetailOf(Object.assign(new Error('Request timed out.'), { name: 'APIConnectionTimeoutError' }))
-  check('empty ring ⇒ no transport claim', dry.transport === undefined, '', 'apiErrorDetailOf in src/utils/messages/systemMessages.ts must not claim a transport when the ring is empty')
+  check('empty ring ⇒ no transport claim', dry.transport === undefined, '', 'apiErrorDetailOf in src/engine/message-shapes/systemMessages.ts must not claim a transport when the ring is empty')
 }
 
 console.log('— §3 notice semantics (H-01/H-03) —')
 {
   const err = new Error('stream broke')
   const row = createSystemAPIErrorMessage(err, 0, 1, 1, { recoveryTimeoutMs: 300_000 })
-  check('fallback notice: retryInMs is a REAL delay (0 — proceeding now)', row.retryInMs === 0, '', 'createSystemAPIErrorMessage in src/utils/messages/systemMessages.ts must set retryInMs from its delay argument')
-  check('the ceiling rides recoveryTimeoutMs, its own field', row.recoveryTimeoutMs === 300_000, '', 'createSystemAPIErrorMessage in src/utils/messages/systemMessages.ts must carry recoveryTimeoutMs through')
+  check('fallback notice: retryInMs is a REAL delay (0 — proceeding now)', row.retryInMs === 0, '', 'createSystemAPIErrorMessage in src/engine/message-shapes/systemMessages.ts must set retryInMs from its delay argument')
+  check('the ceiling rides recoveryTimeoutMs, its own field', row.recoveryTimeoutMs === 300_000, '', 'createSystemAPIErrorMessage in src/engine/message-shapes/systemMessages.ts must carry recoveryTimeoutMs through')
   const plain = createSystemAPIErrorMessage(err, 5_000, 2, 10)
-  check('retry notices carry no recovery field', plain.recoveryTimeoutMs === undefined && plain.retryInMs === 5_000, '', 'createSystemAPIErrorMessage in src/utils/messages/systemMessages.ts must leave recoveryTimeoutMs unset on a retry notice')
+  check('retry notices carry no recovery field', plain.recoveryTimeoutMs === undefined && plain.retryInMs === 5_000, '', 'createSystemAPIErrorMessage in src/engine/message-shapes/systemMessages.ts must leave recoveryTimeoutMs unset on a retry notice')
 }
 
 console.log('— §4 wiring anchors —')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
 check(
   'both transport knobs are registered flags',
   getFlagSpec('MERCURY_CONNECT_TIMEOUT_MS') !== undefined && getFlagSpec('MERCURY_MAX_CONNECTIONS') !== undefined,

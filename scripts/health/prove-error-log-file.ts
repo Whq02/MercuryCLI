@@ -6,9 +6,9 @@ import { join } from 'node:path'
 if (process.argv.includes('--writer')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   const tag = process.argv[process.argv.indexOf('--writer') + 1] as string
-  const { initializeErrorLogSink } = await import('../../src/utils/errorLogSink.js')
-  const { logError } = await import('../../src/utils/log.js')
-  const { runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.js')
+  const { initializeErrorLogSink } = await import('../../src/platform/logs/errorLogSink.js')
+  const { logError } = await import('../../src/platform/logs/errorLog.js')
+  const { runCleanupFunctions } = await import('../../src/platform/processes/cleanupRegistry.js')
   initializeErrorLogSink()
   for (let i = 0; i < 40; i++) {
     logError(new Error(`${tag}-${i}-${'p'.repeat(500)}`))
@@ -38,24 +38,24 @@ const CONFIG = join(SCRATCH, 'config')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-let fixAt = 'src/utils/errorLogSink.ts (getErrorsPath, initializeErrorLogSink) and logError in src/utils/log.ts'
+let fixAt = 'src/platform/logs/errorLogSink.ts (getErrorsPath, initializeErrorLogSink) and logError in src/platform/logs/errorLog.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   const hint = cond ? '' : ` | to fix, change ${fixAt}`
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${hint}`)
   if (!cond) failures++
 }
 
-const { getErrorsPath, initializeErrorLogSink } = await import('../../src/utils/errorLogSink.js')
-const { getInMemoryErrors, logError, logMCPError } = await import('../../src/utils/log.js')
-const { runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.js')
-const { getDebugLogPath } = await import('../../src/utils/debug.js')
-const { getSessionId } = await import('../../src/bootstrap/state.js')
-const { CACHE_PATHS } = await import('../../src/utils/cachePaths.js')
-const { getFsImplementation, setFsImplementation, setOriginalFsImplementation } = await import('../../src/utils/fsOperations.js')
+const { getErrorsPath, initializeErrorLogSink } = await import('../../src/platform/logs/errorLogSink.js')
+const { getInMemoryErrors, logError, logMCPError } = await import('../../src/platform/logs/errorLog.js')
+const { runCleanupFunctions } = await import('../../src/platform/processes/cleanupRegistry.js')
+const { getDebugLogPath } = await import('../../src/platform/logs/debugLog.js')
+const { getSessionId } = await import('../../src/boot/process-state/processState.js')
+const { CACHE_PATHS } = await import('../../src/platform/files/cachePaths.js')
+const { getFsImplementation, setFsImplementation, setOriginalFsImplementation } = await import('../../src/platform/files/fsOperations.js')
 
 const errorsPath = getErrorsPath()
 if (!errorsPath.startsWith(SCRATCH) || !getDebugLogPath().startsWith(CONFIG)) {
-  console.log(`  [FAIL] the errors file and the debug log must live under the scratch — ${errorsPath} · ${getDebugLogPath()} | to fix, check getErrorsPath in src/utils/errorLogSink.ts and getDebugLogPath in src/utils/debug.ts honour HOME and MERCURY_CONFIG_DIR`)
+  console.log(`  [FAIL] the errors file and the debug log must live under the scratch — ${errorsPath} · ${getDebugLogPath()} | to fix, check getErrorsPath in src/platform/logs/errorLogSink.ts and getDebugLogPath in src/platform/logs/debugLog.ts honour HOME and MERCURY_CONFIG_DIR`)
   process.exit(1)
 }
 check('the errors file lives under the scratch cache home', true, errorsPath)
@@ -72,7 +72,7 @@ const flush = async (): Promise<void> => {
 
 console.log('§1 a logged error lands as one JSONL record')
 {
-  fixAt = 'src/utils/errorLogSink.ts (initializeErrorLogSink and its record writer) and logError in src/utils/log.ts'
+  fixAt = 'src/platform/logs/errorLogSink.ts (initializeErrorLogSink and its record writer) and logError in src/platform/logs/errorLog.ts'
   initializeErrorLogSink()
   logError(new Error('the first logged error'))
   check('nothing on disk before the writer flushes', !existsSync(errorsPath))
@@ -90,7 +90,7 @@ console.log('§1 a logged error lands as one JSONL record')
 
 console.log('\n§2 bounded')
 {
-  fixAt = 'the size limits in src/utils/errorLogSink.ts (LOG_FILE_BYTE_CEILING, LOG_RECORD_MESSAGE_CEILING and the once-only closePath note) and getErrorsPath for the day file'
+  fixAt = 'the size limits in src/platform/logs/errorLogSink.ts (LOG_FILE_BYTE_CEILING, LOG_RECORD_MESSAGE_CEILING and the once-only closePath note) and getErrorsPath for the day file'
   let stats = 0
   const realFs = getFsImplementation()
   setFsImplementation({
@@ -133,7 +133,7 @@ console.log('\n§2 bounded')
 }
 {
   rmSync(CACHE_PATHS.errors(), { recursive: true, force: true })
-  ;(await import('../../src/utils/errorLogSink.js')).resetErrorLogSinkForTest()
+  ;(await import('../../src/platform/logs/errorLogSink.js')).resetErrorLogSinkForTest()
   const RealDate = globalThis.Date
   const mockClock = (local: Date): void => {
     globalThis.Date = new Proxy(RealDate, {
@@ -162,7 +162,7 @@ console.log('\n§2 bounded')
 {
   const errorsDir = CACHE_PATHS.errors()
   rmSync(errorsDir, { recursive: true, force: true })
-  const { resetErrorLogSinkForTest: resetSink } = await import('../../src/utils/errorLogSink.js')
+  const { resetErrorLogSinkForTest: resetSink } = await import('../../src/platform/logs/errorLogSink.js')
   resetSink()
   const p1 = Bun.spawn([process.execPath, import.meta.path, '--writer', 'sessA'], { env: process.env, stdout: 'ignore', stderr: 'ignore' })
   const p2 = Bun.spawn([process.execPath, import.meta.path, '--writer', 'sessB'], { env: process.env, stdout: 'ignore', stderr: 'ignore' })
@@ -187,13 +187,13 @@ console.log('\n§2 bounded')
 
 console.log('\n§3 refusals: an unwritable errors path never throws, is named once')
 {
-  fixAt = 'the write-failure branch of src/utils/errorLogSink.ts (closePath "cannot be written"); the MCP log is logMCPError in src/utils/log.ts'
+  fixAt = 'the write-failure branch of src/platform/logs/errorLogSink.ts (closePath "cannot be written"); the MCP log is logMCPError in src/platform/logs/errorLog.ts'
   const serverDir = CACHE_PATHS.mcpLogs('fixture')
   const mcpBefore = existsSync(serverDir) ? readdirSync(serverDir).length : 0
   const errorsDir = CACHE_PATHS.errors()
   rmSync(errorsDir, { recursive: true, force: true })
   writeFileSync(errorsDir, 'a file where the errors folder should be\n')
-  const { resetErrorLogSinkForTest } = await import('../../src/utils/errorLogSink.js')
+  const { resetErrorLogSinkForTest } = await import('../../src/platform/logs/errorLogSink.js')
   resetErrorLogSinkForTest()
   let threw: unknown = null
   try {
@@ -217,7 +217,7 @@ console.log('\n§3 refusals: an unwritable errors path never throws, is named on
 
 console.log('\n§4 the control: the ring and the debug line are as before')
 {
-  fixAt = 'logError in src/utils/log.ts (getInMemoryErrors ring and the [ERROR] debug line)'
+  fixAt = 'logError in src/platform/logs/errorLog.ts (getInMemoryErrors ring and the [ERROR] debug line)'
   const ring = getInMemoryErrors()
   check('the in-memory ring holds every logged error', ['the first logged error', 'the second logged error', 'past the ceiling', 'refused one', 'refused three'].every(words => ring.some(entry => entry.error.includes(words))), String(ring.length))
   check('the debug log carries each error line', debugLines().filter(line => line.includes('[ERROR] Error: Error: refused three')).length === 1)
@@ -225,9 +225,9 @@ console.log('\n§4 the control: the ring and the debug line are as before')
 
 console.log('\n§5 a failure the code passes over is written to the debug log, once a distinct message')
 {
-  fixAt = 'src/utils/passedOver.ts (passedOver) and src/utils/passedOverSink.ts (sendPassedOverToDebugLog)'
-  const { passedOver } = await import('../../src/utils/passedOver.js')
-  const { sendPassedOverToDebugLog } = await import('../../src/utils/passedOverSink.js')
+  fixAt = 'src/platform/errors/passedOver.ts (passedOver) and src/platform/errors/passedOverSink.ts (sendPassedOverToDebugLog)'
+  const { passedOver } = await import('../../src/platform/errors/passedOver.js')
+  const { sendPassedOverToDebugLog } = await import('../../src/platform/errors/passedOverSink.js')
   sendPassedOverToDebugLog()
   for (let turn = 0; turn < 3; turn++) passedOver(new Error('row five: a rename that was passed over (EPERM)'))
   passedOver(new Error('row five: another failure passed over'))
@@ -238,10 +238,10 @@ console.log('\n§5 a failure the code passes over is written to the debug log, o
   check('…once each, however often it is passed over', lines.length === 3, String(lines.length))
   check("…at the debug level, the log's floor", lines.length > 0 && lines.every(line => /\[DEBUG\] passed over \(\d+\): row five:/.test(line)), lines[0] ?? 'no line')
   const { mock } = await import('bun:test')
-  const debug = await import('../../src/utils/debug.js')
+  const debug = await import('../../src/platform/logs/debugLog.js')
   const write = debug.logForDebugging
   const handed: Array<[string, string]> = []
-  mock.module(join(import.meta.dir, '..', '..', 'src', 'utils', 'debug.js'), () => ({
+  mock.module(join(import.meta.dir, '..', '..', 'src', 'platform', 'logs', 'debugLog.js'), () => ({
     ...debug,
     logForDebugging: (message: string, opts?: Parameters<typeof write>[1]) => {
       handed.push([opts?.level ?? 'debug', message])

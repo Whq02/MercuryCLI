@@ -17,10 +17,10 @@ delete process.env.ANTHROPIC_API_KEY
 let failures = 0
 let sectionHint = ''
 const HINTS: Record<string, string> = {
-  '§1': 'what to change: ANTHROPIC_CLIENT_CONTRACT_VERSION, ANTHROPIC_CLIENT_CONTRACT_AS_OF or describeAnthropicClientContract in src/constants/oauth.ts, or getAttributionHeader in src/constants/system.ts (the line must start with cc_version=<contract>.<fingerprint>)',
-  '§2': 'what to change: the user-agent function named in the label (src/utils/http.ts, src/utils/userAgent.ts, searchUserAgent in src/services/search/searchContract.js) or the client headers built in getAnthropicClient (src/services/api/client.ts); none may carry the contract version',
-  '§3': 'what to change: getAnthropicClientContractVersion and describeAnthropicClientContract in src/constants/oauth.ts (override parsing), or the MERCURY_ANTHROPIC_CLIENT_CONTRACT row in the flag registry (FLAG_REGISTRY)',
-  '§4': 'what to change: isClientContractGateText, clientContractGateLine or getAssistantMessageFromError in src/services/api/errors.ts (the sign-in wall row also reads src/utils/auth.ts)',
+  '§1': 'what to change: ANTHROPIC_CLIENT_CONTRACT_VERSION, ANTHROPIC_CLIENT_CONTRACT_AS_OF or describeAnthropicClientContract in src/models/sign-in/oauth/oauth.ts, or getAttributionHeader in src/models/roads/attributionHeader.ts (the line must start with cc_version=<contract>.<fingerprint>)',
+  '§2': 'what to change: the user-agent function named in the label (src/models/roads/requestHeaders.ts, src/platform/network/userAgent.ts, searchUserAgent in src/tools/engines/web-search/searchContract.js) or the client headers built in getAnthropicClient (src/models/roads/anthropic/anthropicClientFactory.ts); none may carry the contract version',
+  '§3': 'what to change: getAnthropicClientContractVersion and describeAnthropicClientContract in src/models/sign-in/oauth/oauth.ts (override parsing), or the MERCURY_ANTHROPIC_CLIENT_CONTRACT row in the flag registry (FLAG_REGISTRY)',
+  '§4': 'what to change: isClientContractGateText, clientContractGateLine or getAssistantMessageFromError in src/engine/requests/apiErrorRows.ts (the sign-in wall row also reads src/models/sign-in/credentials/auth.ts)',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -37,17 +37,17 @@ const {
   ANTHROPIC_CLIENT_CONTRACT_AS_OF,
   describeAnthropicClientContract,
   getAnthropicClientContractVersion,
-} = await import('../../src/constants/oauth.js')
-const { getAttributionHeader } = await import('../../src/constants/system.js')
-const { getUserAgent, getMCPUserAgent, getWebFetchUserAgent } = await import('../../src/utils/http.js')
-const { getMercuryUserAgent, getAnthropicClientUserAgent } = await import('../../src/utils/userAgent.js')
-const { searchUserAgent } = await import('../../src/services/search/searchContract.js')
-const { getAnthropicClient } = await import('../../src/services/api/client.js')
+} = await import('../../src/models/sign-in/oauth/oauth.js')
+const { getAttributionHeader } = await import('../../src/models/roads/attributionHeader.js')
+const { getUserAgent, getMCPUserAgent, getWebFetchUserAgent } = await import('../../src/models/roads/requestHeaders.js')
+const { getMercuryUserAgent, getAnthropicClientUserAgent } = await import('../../src/platform/network/userAgent.js')
+const { searchUserAgent } = await import('../../src/tools/engines/web-search/searchContract.js')
+const { getAnthropicClient } = await import('../../src/models/roads/anthropic/anthropicClientFactory.js')
 const { getAssistantMessageFromError, isClientContractGateText, clientContractGateLine } = await import(
-  '../../src/services/api/errors.js'
+  '../../src/engine/requests/apiErrorRows.js'
 )
-const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
-const { APIError } = await import('../../src/utils/api/sdkErrors.js')
+const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.js')
+const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
 
 const CONTRACT = ANTHROPIC_CLIENT_CONTRACT_VERSION
 const AS_OF = ANTHROPIC_CLIENT_CONTRACT_AS_OF
@@ -119,7 +119,7 @@ delete process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
 check('unset ⇒ the constant, live (no memo)', getAnthropicClientContractVersion() === CONTRACT)
 {
   const row = FLAG_REGISTRY.find(f => f.env === 'MERCURY_ANTHROPIC_CLIENT_CONTRACT')
-  check('the registry carries the row as a value knob owned by constants/oauth.ts', row?.kind === 'value' && row.consumer === 'src/constants/oauth.ts' && row.tier === undefined, JSON.stringify(row))
+  check('the registry carries the row as a value knob owned by constants/oauth.ts', row?.kind === 'value' && row.consumer === 'src/models/sign-in/oauth/oauth.ts' && row.tier === undefined, JSON.stringify(row))
 }
 
 section('§4 THE REFUSAL — the gate\'s 400 maps to the Mercury line; the wire\'s advice never rides')
@@ -165,8 +165,8 @@ process.env.NODE_ENV = 'test'
 }
 
 {
-  const auth = { ...(await import('../../src/utils/auth.js')), ...(await import('../../src/services/auth/oauthLifecycle.js')) }
-  const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/constants/oauth.js')
+  const auth = { ...(await import('../../src/models/sign-in/credentials/auth.js')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.js')) }
+  const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/models/sign-in/oauth/oauth.js')
   auth.saveOAuthTokensIfNeeded({
     accessToken: 'at-fixture', refreshToken: 'rt-fixture', expiresAt: Date.now() + 3_600_000,
     scopes: [...SUBSCRIPTION_OAUTH_SCOPES], subscriptionType: 'max', rateLimitTier: 'default_claude_max_5x',

@@ -7,11 +7,11 @@ import {
   HELM_RAIL_WIDE,
   helmCenterCols,
   railPlan,
-} from '../../src/utils/helmGeometry.js'
+} from '../../src/screen/fullscreen-layout/helmGeometry.js'
 import {
   nextHelmPane,
   setHelmVitalsAvailable,
-} from '../../src/utils/cockpit/helmFocus.js'
+} from '../../src/screen/cockpit/helmFocus.js'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
@@ -55,19 +55,19 @@ for (let c = 100; c <= 260; c++) {
   if (!p.lanes) floorHolds = false
   if (helmCenterCols(c) !== p.centerCols) delegationExact = false
 }
-check(`center ≥ ${HELM_CENTER_FLOOR} at EVERY cockpit width (100–260)`, floorHolds, '', 'fix railPlan in src/utils/helmGeometry.ts so centerCols never drops below HELM_CENTER_FLOOR and lanes stays true for widths 100 to 260')
-check('centerCols is monotone non-decreasing WITHIN each tier', tierMonotone, '', 'fix railPlan in src/utils/helmGeometry.ts so centerCols never shrinks as columns grow inside one tier (vitals on or off)')
-check(`both rails return exactly at the ratified ≥${HELM_BOTH_RAILS_MIN}`, vitalsTierExact, `first both-rails width = ${firstBoth}`, 'fix railPlan in src/utils/helmGeometry.ts so vitals is true exactly when columns >= HELM_BOTH_RAILS_MIN and the center still holds HELM_CENTER_FLOOR')
-check('single-rail width grows 20→24 continuously (no tier micro-flip)', slimTierExact, '', 'fix the single-rail branch of railPlan in src/utils/helmGeometry.ts so railW and lanesW equal max(HELM_RAIL_SLIM, min(HELM_RAIL_W, columns - 2 - HELM_CENTER_FLOOR))')
-check(`wide zone: rails grow ${HELM_RAIL_W}→${HELM_RAIL_WIDE} (lanes takes the odd col) while center holds ≥${centerPin}`, wideTierExact, '', 'fix the both-rails branch of railPlan in src/utils/helmGeometry.ts so lanesW and vitalsW split the rail total with lanes taking the odd column, each between HELM_RAIL_W and HELM_RAIL_WIDE, with center at least the pin')
-check('wide zone: lanes + vitals + gutter + center === columns exactly', widthsSum, '', 'fix the both-rails branch of railPlan in src/utils/helmGeometry.ts so lanesW + vitalsW + 2 + centerCols equals columns')
-check('helmCenterCols delegates to the plan (modal sizing agrees with rails)', delegationExact, '', 'make helmCenterCols in src/utils/helmGeometry.ts return railPlan(columns).centerCols')
+check(`center ≥ ${HELM_CENTER_FLOOR} at EVERY cockpit width (100–260)`, floorHolds, '', 'fix railPlan in src/screen/fullscreen-layout/helmGeometry.ts so centerCols never drops below HELM_CENTER_FLOOR and lanes stays true for widths 100 to 260')
+check('centerCols is monotone non-decreasing WITHIN each tier', tierMonotone, '', 'fix railPlan in src/screen/fullscreen-layout/helmGeometry.ts so centerCols never shrinks as columns grow inside one tier (vitals on or off)')
+check(`both rails return exactly at the ratified ≥${HELM_BOTH_RAILS_MIN}`, vitalsTierExact, `first both-rails width = ${firstBoth}`, 'fix railPlan in src/screen/fullscreen-layout/helmGeometry.ts so vitals is true exactly when columns >= HELM_BOTH_RAILS_MIN and the center still holds HELM_CENTER_FLOOR')
+check('single-rail width grows 20→24 continuously (no tier micro-flip)', slimTierExact, '', 'fix the single-rail branch of railPlan in src/screen/fullscreen-layout/helmGeometry.ts so railW and lanesW equal max(HELM_RAIL_SLIM, min(HELM_RAIL_W, columns - 2 - HELM_CENTER_FLOOR))')
+check(`wide zone: rails grow ${HELM_RAIL_W}→${HELM_RAIL_WIDE} (lanes takes the odd col) while center holds ≥${centerPin}`, wideTierExact, '', 'fix the both-rails branch of railPlan in src/screen/fullscreen-layout/helmGeometry.ts so lanesW and vitalsW split the rail total with lanes taking the odd column, each between HELM_RAIL_W and HELM_RAIL_WIDE, with center at least the pin')
+check('wide zone: lanes + vitals + gutter + center === columns exactly', widthsSum, '', 'fix the both-rails branch of railPlan in src/screen/fullscreen-layout/helmGeometry.ts so lanesW + vitalsW + 2 + centerCols equals columns')
+check('helmCenterCols delegates to the plan (modal sizing agrees with rails)', delegationExact, '', 'make helmCenterCols in src/screen/fullscreen-layout/helmGeometry.ts return railPlan(columns).centerCols')
 
 setHelmVitalsAvailable(true)
-check("plan w/ vitals: Tab cycles lanes → vitals", nextHelmPane('lanes') === 'vitals', '', 'fix nextHelmPane in src/utils/cockpit/helmFocus.ts so lanes goes to vitals while setHelmVitalsAvailable(true) is set')
+check("plan w/ vitals: Tab cycles lanes → vitals", nextHelmPane('lanes') === 'vitals', '', 'fix nextHelmPane in src/screen/cockpit/helmFocus.ts so lanes goes to vitals while setHelmVitalsAvailable(true) is set')
 setHelmVitalsAvailable(false)
-check('plan w/o vitals: Tab cycles lanes → prompt (skips the unmounted rail)', nextHelmPane('lanes') === 'prompt', '', 'fix nextHelmPane in src/utils/cockpit/helmFocus.ts so lanes goes to prompt while setHelmVitalsAvailable(false) is set')
-check('prompt still enters lanes first either way', nextHelmPane('prompt') === 'lanes', '', 'fix nextHelmPane in src/utils/cockpit/helmFocus.ts so prompt always goes to lanes')
+check('plan w/o vitals: Tab cycles lanes → prompt (skips the unmounted rail)', nextHelmPane('lanes') === 'prompt', '', 'fix nextHelmPane in src/screen/cockpit/helmFocus.ts so lanes goes to prompt while setHelmVitalsAvailable(false) is set')
+check('prompt still enters lanes first either way', nextHelmPane('prompt') === 'lanes', '', 'fix nextHelmPane in src/screen/cockpit/helmFocus.ts so prompt always goes to lanes')
 setHelmVitalsAvailable(true)
 
 console.log(failures === 0 ? '✅ helm center-floor GREEN' : `❌ helm center-floor RED (${failures})`)

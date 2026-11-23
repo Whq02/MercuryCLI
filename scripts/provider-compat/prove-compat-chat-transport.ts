@@ -6,7 +6,7 @@ import {
   mapCompatHttpFailure,
   streamCompatChat,
   type CompatStreamEvent,
-} from '../../src/services/providers/openaicompat/compatChatClient.ts'
+} from '../../src/models/roads/openaicompat/compatChatClient.ts'
 import {
   buildCompatSlotExtras,
   buildDeepseekExtras,
@@ -16,9 +16,9 @@ import {
   GEMINI_REASONING_EFFORTS,
   OPENROUTER_REASONING_EFFORTS,
   thinkingOffWireEffort,
-} from '../../src/services/providers/openaicompat/compatWire.ts'
-import { mapMessagesToZai } from '../../src/services/providers/zai/zaiCodec.ts'
-import type { MessageParam } from '../../src/types/wire.ts'
+} from '../../src/models/roads/openaicompat/compatWire.ts'
+import { mapMessagesToZai } from '../../src/models/roads/zai/zaiCodec.ts'
+import type { MessageParam } from '../../src/engine/message-shapes/wire.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -104,13 +104,13 @@ section('1 · request truth (url · headers · flat extras · no key in body)')
     }),
   )
   const req = captured[0]!
-  check('url honored', req.url === 'https://fixture.example/v1/chat/completions', 'streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts must fetch options.url unchanged; got ' + req.url)
-  check('bearer header carries the key', req.headers['authorization'] === 'Bearer sk-proof-secret', 'streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts must send apiKey as a Bearer authorization header; got ' + String(req.headers['authorization']))
-  check('stream:true', req.body.stream === true, 'streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts must set stream:true in the request body; got ' + String(req.body.stream))
-  check('extras merged FLAT (reasoning_effort at top level)', req.body.reasoning_effort === 'max', 'streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts must spread request.extra into the top level of the body; body keys: ' + Object.keys(req.body).join(','))
+  check('url honored', req.url === 'https://fixture.example/v1/chat/completions', 'streamCompatChat in src/models/roads/openaicompat/compatChatClient.ts must fetch options.url unchanged; got ' + req.url)
+  check('bearer header carries the key', req.headers['authorization'] === 'Bearer sk-proof-secret', 'streamCompatChat in src/models/roads/openaicompat/compatChatClient.ts must send apiKey as a Bearer authorization header; got ' + String(req.headers['authorization']))
+  check('stream:true', req.body.stream === true, 'streamCompatChat in src/models/roads/openaicompat/compatChatClient.ts must set stream:true in the request body; got ' + String(req.body.stream))
+  check('extras merged FLAT (reasoning_effort at top level)', req.body.reasoning_effort === 'max', 'streamCompatChat in src/models/roads/openaicompat/compatChatClient.ts must spread request.extra into the top level of the body; body keys: ' + Object.keys(req.body).join(','))
   check('extras merged FLAT (max_completion_tokens)', req.body.max_completion_tokens === 4096)
   check("no literal 'extra' key rides the wire", !('extra' in req.body))
-  check('key never in body', !JSON.stringify(req.body).includes('sk-proof-secret'), 'streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts must keep apiKey out of the request body')
+  check('key never in body', !JSON.stringify(req.body).includes('sk-proof-secret'), 'streamCompatChat in src/models/roads/openaicompat/compatChatClient.ts must keep apiKey out of the request body')
   check('tools + tool_choice ride', Array.isArray(req.body.tools) && req.body.tool_choice === 'auto')
   const finish = events.find(e => e.type === 'finish')
   check('happy turn finishes', finish !== undefined && finish.type === 'finish' && finish.reason === 'stop')
@@ -124,21 +124,21 @@ section('1 · request truth (url · headers · flat extras · no key in body)')
       fetchImpl: capturingFetch(HAPPY, captured),
     }),
   )
-  check('keyless dispatch sends NO authorization header', captured[0]!.headers['authorization'] === undefined, 'streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts must omit authorization when no apiKey is given; got ' + String(captured[0]!.headers['authorization']))
+  check('keyless dispatch sends NO authorization header', captured[0]!.headers['authorization'] === undefined, 'streamCompatChat in src/models/roads/openaicompat/compatChatClient.ts must omit authorization when no apiKey is given; got ' + String(captured[0]!.headers['authorization']))
 }
 
 section('2 · wire knobs (the pure lane builders)')
 {
   const base = { thinkingEnabled: true, maxOutputTokensOverride: undefined }
   const kimiMax = buildMoonshotExtras({ ...base, wireModel: 'kimi-k3', effortValue: 'max' })
-  check('kimi: documented effort passes', kimiMax.reasoning_effort === 'max', 'buildMoonshotExtras in src/services/providers/openaicompat/compatWire.ts must pass a documented effort through; got ' + String(kimiMax.reasoning_effort))
+  check('kimi: documented effort passes', kimiMax.reasoning_effort === 'max', 'buildMoonshotExtras in src/models/roads/openaicompat/compatWire.ts must pass a documented effort through; got ' + String(kimiMax.reasoning_effort))
   const kimiX = buildMoonshotExtras({ ...base, wireModel: 'kimi-k3', effortValue: 'xhigh' })
   check('kimi: xhigh rides as max (kimi.com/code/docs/en/kimi-code/models.html, 2026-10-28: ultra/max/xhigh → max)', kimiX.reasoning_effort === 'max')
   const kimiMed = buildMoonshotExtras({ ...base, wireModel: 'kimi-k3', effortValue: 'medium' })
   check('kimi: medium rides as high (the same page: high/medium → high)', kimiMed.reasoning_effort === 'high')
   const kimiOther = buildMoonshotExtras({ ...base, wireModel: 'kimi-k2.6', effortValue: 'max' })
   check('kimi: no documented vocabulary ⇒ effort omitted', !('reasoning_effort' in kimiOther))
-  check('kimi: never a temperature key', !('temperature' in kimiMax), 'buildMoonshotExtras in src/services/providers/openaicompat/compatWire.ts must not emit temperature')
+  check('kimi: never a temperature key', !('temperature' in kimiMax), 'buildMoonshotExtras in src/models/roads/openaicompat/compatWire.ts must not emit temperature')
   check(
     'kimi: include_usage opt-in rides (usage arrives only when requested)',
     (kimiMax.stream_options as Record<string, unknown>).include_usage === true,
@@ -219,7 +219,7 @@ section('3 · stream decode')
     }),
   )
   const text = whole.filter(e => e.type === 'text-delta').map(e => (e as { text: string }).text).join('')
-  check('text deltas assemble', text === 'Hello world', 'streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts must yield each content delta as a text-delta; got ' + text)
+  check('text deltas assemble', text === 'Hello world', 'streamCompatChat in src/models/roads/openaicompat/compatChatClient.ts must yield each content delta as a text-delta; got ' + text)
   check('reasoning delta seen', whole.some(e => e.type === 'reasoning-delta'))
   const usage = whole.find(e => e.type === 'usage')
   check(
@@ -236,7 +236,7 @@ section('3 · stream decode')
     }),
   )
   const splitText = split.filter(e => e.type === 'text-delta').map(e => (e as { text: string }).text).join('')
-  check('pathological chunking assembles identically', splitText === 'Hello world', 'the SSE line buffer in streamCompatChat (src/services/providers/openaicompat/compatChatClient.ts) must join events split across chunks; got ' + splitText)
+  check('pathological chunking assembles identically', splitText === 'Hello world', 'the SSE line buffer in streamCompatChat (src/models/roads/openaicompat/compatChatClient.ts) must join events split across chunks; got ' + splitText)
 }
 {
   const chunks = [
@@ -435,7 +435,7 @@ section('3 · stream decode')
 
 section('3b · reused tool indices and numeric call ids')
 {
-  const { streamZaiChat } = await import('../../src/services/providers/zai/zaiClient.ts')
+  const { streamZaiChat } = await import('../../src/models/roads/zai/zaiClient.ts')
   const cases = [
     { label: 'same-name calls reuse zero after closed nested JSON', deltas: [
       { index: 0, id: 0, function: { name: 'alpha', arguments: '{"x":{"s":"}\\\"["}}' } },

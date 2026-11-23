@@ -19,7 +19,7 @@ const ROW = {
   assets: 'scripts/builtin-tools/fixtures/RESULTS.md scripts/builtin-tools/fixtures/results.json',
   generator: 'bun scripts/builtin-tools/bench-builtin-tools.ts --write',
   check: 'bun scripts/builtin-tools/prove-builtin-tools-benchmark.ts',
-  sources: 'scripts/builtin-tools/bench-builtin-tools.ts src/services/structure/query.ts src/services/structure/transform.ts src/services/structure/store.ts src/services/gitGraph/observe.ts src/services/gitGraph/plan.ts src/services/journeys/runner.ts src/utils/primitives/executionPlane.ts src/services/primitives/transactionPlane.ts src/services/primitives/evidencePlane.ts src/services/resources/registry.ts src/services/resources/adapters/structure.ts src/services/resources/adapters/git.ts src/services/resources/adapters/journey.ts src/services/resources/adapters/evidence.ts src/utils/run/resolveOwner.ts src/tools.ts src/tools/ToolSearchTool/ToolSearchTool.ts',
+  sources: 'scripts/builtin-tools/bench-builtin-tools.ts src/tools/engines/structure/query.ts src/tools/engines/structure/transform.ts src/tools/engines/structure/store.ts src/platform/git-graph/observe.ts src/platform/git-graph/plan.ts src/tools/engines/journeys/runner.ts src/engine/execution-plane/executionPlane.ts src/engine/runtime-kernel/transactionPlane.ts src/engine/runtime-kernel/evidencePlane.ts src/integrations/resources/registry.ts src/integrations/resources/adapters/structure.ts src/integrations/resources/adapters/git.ts src/integrations/resources/adapters/journey.ts src/integrations/resources/adapters/evidence.ts src/engine/run-owner/resolveOwner.ts src/tools/kit/toolList.ts src/tools/tool-search/ToolSearchTool.ts',
 }
 if (import.meta.main && registerOnlyRequested(ROW)) process.exit(0)
 
@@ -39,32 +39,32 @@ if (!process.env.MERCURY_TYPESCRIPT_VENDOR_DIR) {
   }
 }
 
-const { runStructureQuery } = await import('../../src/services/structure/query.ts')
-const { buildPreview, applyPreview } = await import('../../src/services/structure/transform.ts')
-const { _resetStructureStoreForTesting } = await import('../../src/services/structure/store.ts')
-const { gitStatus, gitDiff, gitConflicts } = await import('../../src/services/gitGraph/observe.ts')
+const { runStructureQuery } = await import('../../src/tools/engines/structure/query.ts')
+const { buildPreview, applyPreview } = await import('../../src/tools/engines/structure/transform.ts')
+const { _resetStructureStoreForTesting } = await import('../../src/tools/engines/structure/store.ts')
+const { gitStatus, gitDiff, gitConflicts } = await import('../../src/platform/git-graph/observe.ts')
 const { preparePlan, applyPlan, resolveConflict, _resetGitPlanStoreForTesting } = await import(
-  '../../src/services/gitGraph/plan.ts'
+  '../../src/platform/git-graph/plan.ts'
 )
 const { runJourney, cancelJourney, _resetJourneysForTesting } = await import(
-  '../../src/services/journeys/runner.ts'
+  '../../src/tools/engines/journeys/runner.ts'
 )
-const { getExecution } = await import('../../src/utils/primitives/executionPlane.ts')
+const { getExecution } = await import('../../src/engine/execution-plane/executionPlane.ts')
 const { transactionsFor, _resetTransactionPlaneForTesting } = await import(
-  '../../src/services/primitives/transactionPlane.ts'
+  '../../src/engine/runtime-kernel/transactionPlane.ts'
 )
 const { evidenceFor, _resetEvidencePlaneForTesting } = await import(
-  '../../src/services/primitives/evidencePlane.ts'
+  '../../src/engine/runtime-kernel/evidencePlane.ts'
 )
-const { resolveResource } = await import('../../src/services/resources/registry.ts')
-await import('../../src/services/resources/adapters/structure.ts')
-await import('../../src/services/resources/adapters/git.ts')
-await import('../../src/services/resources/adapters/journey.ts')
-await import('../../src/services/resources/adapters/evidence.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
-const { getAllBaseTools } = await import('../../src/tools.ts')
+const { resolveResource } = await import('../../src/integrations/resources/registry.ts')
+await import('../../src/integrations/resources/adapters/structure.ts')
+await import('../../src/integrations/resources/adapters/git.ts')
+await import('../../src/integrations/resources/adapters/journey.ts')
+await import('../../src/integrations/resources/adapters/evidence.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
 const { searchToolsWithKeywords } = await import(
-  '../../src/tools/ToolSearchTool/ToolSearchTool.ts'
+  '../../src/tools/tool-search/ToolSearchTool.ts'
 )
 
 type OwnerKey = ReturnType<typeof processMainOwner>

@@ -5,8 +5,8 @@ import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: process.env.DEPARTURE_FIXTURE_VERSION ?? '1.0.0' }
 
-const cs = await import('../../src/daemon/controlSocket.ts')
-const { MERCURY_DAEMON_PROTO, MIN_PROTO } = await import('../../src/daemon/protocol.ts')
+const cs = await import('../../src/daemon/control/controlSocket.ts')
+const { MERCURY_DAEMON_PROTO, MIN_PROTO } = await import('../../src/daemon/control/protocol.ts')
 
 const dir = cs.daemonDir()
 const ledger = join(dir, 'fixture-spawns.log')

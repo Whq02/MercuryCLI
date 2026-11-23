@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
-import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
 import { checker } from '../engine-durability/harness.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'

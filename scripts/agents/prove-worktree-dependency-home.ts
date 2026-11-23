@@ -35,10 +35,10 @@ if (mode !== undefined) {
     return (value as (...input: unknown[]) => unknown)(...args)
   }]))
   mock.module('node:fs/promises', () => instrument(promises, 'async.'))
-  const state = await import('../../src/bootstrap/state.ts')
-  const config = await import('../../src/utils/config/globalConfig.ts')
-  const { createAgentWorktree } = await import('../../src/services/worktree.ts')
-  const { mercurySecretPath } = await import('../../src/utils/permissions/protectedPaths.ts')
+  const state = await import('../../src/boot/process-state/processState.ts')
+  const config = await import('../../src/platform/config/globalConfig.ts')
+  const { createAgentWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
+  const { mercurySecretPath } = await import('../../src/permissions/rules/protectedPaths.ts')
   process.chdir(repo)
   state.setOriginalCwd(repo); state.setCwdState(repo); state.setIsInteractive(true); config.enableConfigs()
   observing = true
@@ -52,7 +52,7 @@ if (mode !== undefined) {
 }
 const scratch = fs.realpathSync(fs.mkdtempSync(join(tmpdir(), 'worktree-dependency-home-')))
 let failures = 0
-const check = (label: string, ok: boolean, detail = ''): void => { console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + detail + ' · change heldBackUnder and the dependency-folder placement in src/services/worktree.ts, so a Mercury home inside the checkout is kept out of the clone (credentials never copied), and mercurySecretPath in src/utils/permissions/protectedPaths.ts' : ''}`); if (!ok) failures++ }
+const check = (label: string, ok: boolean, detail = ''): void => { console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + detail + ' · change heldBackUnder and the dependency-folder placement in src/platform/git/worktree/worktree.ts, so a Mercury home inside the checkout is kept out of the clone (credentials never copied), and mercurySecretPath in src/permissions/rules/protectedPaths.ts' : ''}`); if (!ok) failures++ }
 try {
   if (!cloneRoadExpected(scratch)) console.log('  [SKIP] this volume or platform cannot clone: dependency links already keep the secret at its own path')
   else for (const scenario of ['inside', 'inside-files', 'alias', 'alias-files', 'beside', 'outside']) {

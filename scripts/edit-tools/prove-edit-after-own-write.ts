@@ -19,7 +19,7 @@ delete process.env.MERCURY_EDIT_STALE_RECOVERY
 delete process.env.NODE_ENV
 
 let foreignWriteDuringSave: { path: string; content: string } | null = null
-const managerPath = fileURLToPath(new URL('../../src/services/lsp/manager.ts', import.meta.url))
+const managerPath = fileURLToPath(new URL('../../src/integrations/lsp/serverManagerLifecycle.ts', import.meta.url))
 const realManagerModule = await import(managerPath)
 const fakeManager = {
   getServersForFile: () => [],
@@ -34,26 +34,26 @@ const fakeManager = {
 }
 mock.module(managerPath, () => ({ ...realManagerModule, getLspServerManager: () => fakeManager }))
 
-const { fileGeneration, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
-const { processMainOwner, processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
-const { MAIN_LANE, makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/constants/tools/fileEdit.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { fileGeneration, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
+const { processMainOwner, processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { MAIN_LANE, makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/kit/names/fileEdit.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.length > 600 ? `${detail.slice(0, 600)}…` : detail} · ` : ''}to fix: validateInput and call in src/tools/FileEditTool/FileEditTool.ts or src/tools/FileWriteTool/FileWriteTool.ts, or the seen-lines record in src/services/changeTransaction/seenLines.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.length > 600 ? `${detail.slice(0, 600)}…` : detail} · ` : ''}to fix: validateInput and call in src/tools/edit/EditTool.ts or src/tools/write/WriteTool.ts, or the seen-lines record in src/tools/engines/change-transaction/seenLines.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the edit-after-own-write proof exceeded 120s; an Edit or Write call (src/tools/FileEditTool/FileEditTool.ts, src/tools/FileWriteTool/FileWriteTool.ts) did not return, and the last section printed above is where it stopped')
+  console.log('\nTIMEOUT — the edit-after-own-write proof exceeded 120s; an Edit or Write call (src/tools/edit/EditTool.ts, src/tools/write/WriteTool.ts) did not return, and the last section printed above is where it stopped')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -103,7 +103,7 @@ const contentOf = (p: string): string => readFileSync(p, 'utf8').replaceAll('\r\
 const owner = processMainOwner()
 const unreadLead = (_file: string): string => `Read the file before editing it — it exists and was not read in this session, so it may be another session's work; the edit needs a prior read of the current content`
 const noRows = (text: string): boolean => !/\n\d+\t/.test(text)
-const { unreadExistingWriteMessage } = await import('../../src/tools/FileEditTool/otherSession.ts')
+const { unreadExistingWriteMessage } = await import('../../src/tools/edit/otherSession.ts')
 const UNREAD_WRITE = unreadExistingWriteMessage()
 const body = (n: number): string => Array.from({ length: n }, (_, i) => `const w${i + 1} = ${i + 1}`).join('\n') + '\n'
 const wholeLedger = (file: string, lastLine: number): boolean => {

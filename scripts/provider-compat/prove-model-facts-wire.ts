@@ -13,7 +13,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/constants/credentialEnvSpellings.ts`)
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/models/sign-in/credentials/credentialEnvSpellings.ts`)
 for (const key of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[key]
 for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_/.test(key)) delete process.env[key]
 const captures: Array<{ path: string; body: any }> = []
@@ -41,16 +41,16 @@ globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   if (url.origin !== origin) throw new Error(`non-loopback proof request refused: ${url.origin}`)
   return nativeFetch(input, init)
 }) as typeof fetch
-const { enableConfigs } = await import(`${root}/src/utils/config.ts`)
+const { enableConfigs } = await import(`${root}/src/platform/settings/config.ts`)
 enableConfigs()
-const { resetSettingsCache } = await import(`${root}/src/utils/settings/settingsCache.ts`)
-const { routedCallModel } = await import(`${root}/src/services/providers/callModelRouter.ts`)
-const { createUserMessage } = await import(`${root}/src/services/messages.ts`)
-const { asSystemPrompt } = await import(`${root}/src/utils/systemPromptType.ts`)
-const { getModelOptions } = await import(`${root}/src/services/model/modelOptions.ts`)
-const { liveModelsReference } = await import(`${root}/src/services/resources/adapters/models.ts`)
-const { getUsageForModel } = await import(`${root}/src/cost-tracker.ts`)
-const { getModelMaxOutputTokens } = await import(`${root}/src/utils/model/capabilities.ts`)
+const { resetSettingsCache } = await import(`${root}/src/platform/settings/settingsCache.ts`)
+const { routedCallModel } = await import(`${root}/src/models/roads/callModelRouter.ts`)
+const { createUserMessage } = await import(`${root}/src/engine/messages/messages.ts`)
+const { asSystemPrompt } = await import(`${root}/src/engine/system-prompt/systemPromptType.ts`)
+const { getModelOptions } = await import(`${root}/src/models/catalogue/modelOptions.ts`)
+const { liveModelsReference } = await import(`${root}/src/integrations/resources/adapters/models.ts`)
+const { getUsageForModel } = await import(`${root}/src/models/usage/sessionCost.ts`)
+const { getModelMaxOutputTokens } = await import(`${root}/src/models/facts/capabilities.ts`)
 const set = (models: unknown) => { writeFileSync(join(home, 'settings.json'), JSON.stringify({ models })); resetSettingsCache() }
 const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
 const prompt = [createUserMessage({ content: 'fixture model facts' })]
@@ -66,28 +66,28 @@ let failures = 0
 function check(name: string, pass: unknown, detail?: string) { checks++; if (!pass) failures++; console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}${!pass && detail ? ` -- ${detail}` : ''}`) }
 try {
   set({})
-  check('the ordinary endpoint serves without metadata', settled(await run('compat/Fixture')), 'the compat route in src/services/providers/callModelRouter.ts (routedCallModel) returned no MODEL-FACTS-SETTLED text for compat/Fixture with empty settings')
+  check('the ordinary endpoint serves without metadata', settled(await run('compat/Fixture')), 'the compat route in src/models/roads/callModelRouter.ts (routedCallModel) returned no MODEL-FACTS-SETTLED text for compat/Fixture with empty settings')
   const ordinary = JSON.stringify(captures.at(-1)?.body)
-  check('the native-family control serves without metadata', settled(await run('deepseek-v4-pro')), 'the deepseek route in src/services/providers/callModelRouter.ts (routedCallModel) returned no MODEL-FACTS-SETTLED text')
+  check('the native-family control serves without metadata', settled(await run('deepseek-v4-pro')), 'the deepseek route in src/models/roads/callModelRouter.ts (routedCallModel) returned no MODEL-FACTS-SETTLED text')
   const nativeControl = JSON.stringify(captures.at(-1)?.body)
   set({ 'compat/Fixture': { contextWindow: 1_500_000, maxOutputTokens: 240_000, efforts: ['low', 'max'], reasoning: true, images: true, prices: { input: 2, output: 8, cacheRead: 0.5, cacheWrite: 3 } } })
   const costBefore = getUsageForModel('compat/Fixture')?.costUSD ?? 0
-  check('the metadata-bearing endpoint still serves normally', settled(await run('compat/Fixture')), 'a models entry in settings.json made compat/Fixture stop serving; see operatorModelFacts in src/services/model/modelOverrides.ts and src/utils/settings/modelFacts.ts')
+  check('the metadata-bearing endpoint still serves normally', settled(await run('compat/Fixture')), 'a models entry in settings.json made compat/Fixture stop serving; see operatorModelFacts in src/models/catalogue/modelOverrides.ts and src/platform/settings/modelFacts.ts')
   const stated = captures.at(-1)?.body
-  check('the full stated output ceiling reaches the request', stated?.max_tokens === 240_000, `request max_tokens was ${stated?.max_tokens}; the stated maxOutputTokens must reach the request, see statedMaxOut in src/services/providers/openaicompat/compatChatCallModel/prepare.ts`)
+  check('the full stated output ceiling reaches the request', stated?.max_tokens === 240_000, `request max_tokens was ${stated?.max_tokens}; the stated maxOutputTokens must reach the request, see statedMaxOut in src/models/roads/openaicompat/chat-call-model/prepare.ts`)
   check('the stated max effort reaches the request unchanged', stated?.reasoning_effort === 'max', `request reasoning_effort was ${stated?.reasoning_effort}; a stated efforts list containing max must pass max through unchanged`)
   check('all tool declarations remain available with metadata', stated?.tools?.some((entry: any) => entry.function.name === 'FixtureEcho'), 'the request lost the FixtureEcho tool declaration when the models entry was set')
   const ledger = getUsageForModel('compat/Fixture')
-  check('settled usage is priced at the operator rates', Math.abs((ledger?.costUSD ?? 0) - costBefore - 0.0000315) < 1e-12, `ledger cost delta was ${(ledger?.costUSD ?? 0) - costBefore}, wanted 0.0000315 from the stated prices; see getUsageForModel in src/bootstrap/state.ts and the cost recording in src/cost-tracker.ts`)
-  check('the usage ledger records the stated window and output ceiling', ledger?.contextWindow === 1_500_000 && ledger?.maxOutputTokens === 240_000, `ledger recorded ${ledger?.contextWindow} / ${ledger?.maxOutputTokens}; see src/cost-tracker.ts`)
+  check('settled usage is priced at the operator rates', Math.abs((ledger?.costUSD ?? 0) - costBefore - 0.0000315) < 1e-12, `ledger cost delta was ${(ledger?.costUSD ?? 0) - costBefore}, wanted 0.0000315 from the stated prices; see getUsageForModel in src/boot/process-state/processState.ts and the cost recording in src/models/usage/sessionCost.ts`)
+  check('the usage ledger records the stated window and output ceiling', ledger?.contextWindow === 1_500_000 && ledger?.maxOutputTokens === 240_000, `ledger recorded ${ledger?.contextWindow} / ${ledger?.maxOutputTokens}; see src/models/usage/sessionCost.ts`)
   const picker = getModelOptions().find((row: any) => row.value === 'compat/Fixture')
-  check('the picker reads the stated context window', picker?.statedContextWindow === 1_500_000, `picker row statedContextWindow was ${picker?.statedContextWindow}; see getModelOptions in src/services/model/modelOptions.ts`)
+  check('the picker reads the stated context window', picker?.statedContextWindow === 1_500_000, `picker row statedContextWindow was ${picker?.statedContextWindow}; see getModelOptions in src/models/catalogue/modelOptions.ts`)
   const page = await liveModelsReference({})
   const pageRow = page.providers.flatMap((provider: any) => provider.models).find((row: any) => row.id === 'compat/Fixture')
-  check('the models page reads the same stated window and efforts', pageRow?.contextWindow === 1_500_000 && pageRow?.efforts?.includes('max'), `models page row was ${JSON.stringify(pageRow)}; see liveModelsReference in src/services/resources/adapters/models.ts`)
+  check('the models page reads the same stated window and efforts', pageRow?.contextWindow === 1_500_000 && pageRow?.efforts?.includes('max'), `models page row was ${JSON.stringify(pageRow)}; see liveModelsReference in src/integrations/resources/adapters/models.ts`)
   const image = createUserMessage({ content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aT1sAAAAASUVORK5CYII=' } }, { type: 'text', text: 'fixture image' }] })
   await run('compat/Fixture', [image])
-  check('stated image support delivers the actual image part', captures.at(-1)?.body.messages.some((message: any) => Array.isArray(message.content) && message.content.some((part: any) => part.type === 'image_url')), 'the request carried no image_url part although images: true is stated; see src/services/providers/openaicompat/compatChatCallModel/prepare.ts')
+  check('stated image support delivers the actual image part', captures.at(-1)?.body.messages.some((message: any) => Array.isArray(message.content) && message.content.some((part: any) => part.type === 'image_url')), 'the request carried no image_url part although images: true is stated; see src/models/roads/openaicompat/chat-call-model/prepare.ts')
   await run('deepseek-v4-pro')
   check('an unrelated family keeps byte-identical request JSON', JSON.stringify(captures.at(-1)?.body) === nativeControl, 'a models entry for compat/Fixture changed the deepseek-v4-pro request; metadata must stay scoped to its own model id')
   mode = 'tools'
@@ -101,7 +101,7 @@ try {
   const pinnedOutput = getModelMaxOutputTokens('deepseek-v4-pro').upperLimit
   set({ 'deepseek-v4-pro': { contextWindow: 1, maxOutputTokens: 1, efforts: ['low'], reasoning: false, images: false } })
   await run('deepseek-v4-pro')
-  check('a smaller metadata ceiling never lowers the native model request', captures.at(-1)?.body.max_tokens >= pinnedOutput, `max_tokens was ${captures.at(-1)?.body.max_tokens}, native ceiling ${pinnedOutput}; a stated maxOutputTokens must not lower a native model, see src/utils/model/capabilities.ts getModelMaxOutputTokens`)
+  check('a smaller metadata ceiling never lowers the native model request', captures.at(-1)?.body.max_tokens >= pinnedOutput, `max_tokens was ${captures.at(-1)?.body.max_tokens}, native ceiling ${pinnedOutput}; a stated maxOutputTokens must not lower a native model, see src/models/facts/capabilities.ts getModelMaxOutputTokens`)
   check('a reduced effort entry never remaps native max on the request', captures.at(-1)?.body.reasoning_effort === 'max', `reasoning_effort was ${captures.at(-1)?.body.reasoning_effort}; a stated efforts entry must not remap native max`)
   mode = 'refused'
   const beforeRefusal = captures.length

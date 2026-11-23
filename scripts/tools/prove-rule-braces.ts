@@ -48,28 +48,28 @@ git('init', '-q')
 git('add', '-A', '.')
 git('commit', '-q', '-m', 'fixture')
 process.chdir(project)
-const { setOriginalCwd } = await import(`${SRC}/bootstrap/state.ts`)
+const { setOriginalCwd } = await import(`${SRC}/boot/process-state/processState.ts`)
 setOriginalCwd(project)
 
 let failures = 0
 let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? ' | change expandRuleBraces in src/utils/permissions/ruleBraces.ts, the rule matching in src/utils/permissions/filesystem.ts, or validatePermissionRule in src/utils/settings/permissionValidation.ts and filterInvalidPermissionRules in src/utils/settings/validation.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? ' | change expandRuleBraces in src/permissions/rules/ruleBraces.ts, the rule matching in src/permissions/rules/filesystem.ts, or validatePermissionRule in src/platform/settings/permissionValidation.ts and filterInvalidPermissionRules in src/platform/settings/validation.ts' : ''}`)
   if (!cond) failures++
 }
 
-const { FileReadTool } = await import(`${SRC}/tools/FileReadTool/FileReadTool.ts`)
-const { InspectTool } = await import(`${SRC}/tools/InspectTool/InspectTool.ts`)
-const { GitTool } = await import(`${SRC}/tools/GitTool/GitTool.ts`)
-const { GrepTool } = await import(`${SRC}/tools/GrepTool/GrepTool.ts`)
-const { GlobTool } = await import(`${SRC}/tools/GlobTool/GlobTool.ts`)
-const { getEmptyToolPermissionContext } = await import(`${SRC}/Tool.ts`)
-const { decideToolPermission } = await import(`${SRC}/utils/permissions/decision/engine.ts`)
-const permissions = await import(`${SRC}/utils/permissions/filesystem.ts`)
-const braces = (await import(`${SRC}/utils/permissions/ruleBraces.ts`).catch(() => ({}))) as { expandRuleBraces?: (pattern: string, wide?: boolean) => string[]; RULE_BRACE_BOUND?: number }
-const { validatePermissionRule } = await import(`${SRC}/utils/settings/permissionValidation.ts`)
-const { filterInvalidPermissionRules } = await import(`${SRC}/utils/settings/validation.ts`)
+const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { InspectTool } = await import(`${SRC}/tools/inspect/InspectTool.ts`)
+const { GitTool } = await import(`${SRC}/tools/git/GitTool.ts`)
+const { GrepTool } = await import(`${SRC}/tools/grep/GrepTool.ts`)
+const { GlobTool } = await import(`${SRC}/tools/glob/GlobTool.ts`)
+const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
+const { decideToolPermission } = await import(`${SRC}/permissions/rules/decision/engine.ts`)
+const permissions = await import(`${SRC}/permissions/rules/filesystem.ts`)
+const braces = (await import(`${SRC}/permissions/rules/ruleBraces.ts`).catch(() => ({}))) as { expandRuleBraces?: (pattern: string, wide?: boolean) => string[]; RULE_BRACE_BOUND?: number }
+const { validatePermissionRule } = await import(`${SRC}/platform/settings/permissionValidation.ts`)
+const { filterInvalidPermissionRules } = await import(`${SRC}/platform/settings/validation.ts`)
 
 type Permission = ReturnType<typeof getEmptyToolPermissionContext>
 type Kind = 'alwaysDenyRules' | 'alwaysAllowRules' | 'alwaysAskRules'
@@ -190,7 +190,7 @@ console.log(`  (${red.length} of ${cells} cells red)`)
 
 console.log('validation never removes protection: a deny or ask rule the matcher can read stays in force, an allow rule in doubt allows nothing')
 {
-  const { settingsFaultLine } = await import(`${SRC}/utils/settings/validation.ts`)
+  const { settingsFaultLine } = await import(`${SRC}/platform/settings/validation.ts`)
   const wide = Array.from({ length: 9 }, (_, index) => `{a${index},b${index}}`).join('/')
   const nine = `Read(src/${wide})`
   const set = ['Read(src/secret/**)', 'Read(src/sec*ret/keys.ts)', nine, 'Read(unclosed', 'read(src/x)']

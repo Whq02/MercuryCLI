@@ -29,10 +29,10 @@ if (!existsSync(BIN)) {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 let failures = 0
-const STRIP_FAIL_HINT = 'read the frame printed above this check; the strip stops come from src/context/surfaceRoute.ts, the face key-map row from NO_CHAT_HINT there, and the Shift-arrow actions app:surfaceLeft and app:surfaceRight from src/keybindings/actionGraph.ts'
+const STRIP_FAIL_HINT = 'read the frame printed above this check; the strip stops come from src/screen/routes/surfaceRoute.ts, the face key-map row from NO_CHAT_HINT there, and the Shift-arrow actions app:surfaceLeft and app:surfaceRight from src/screen/keys/actionGraph.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? detail : detail ? `${detail} — ${STRIP_FAIL_HINT}` : STRIP_FAIL_HINT
@@ -48,7 +48,7 @@ if (driver.kind !== 'posix-pty') {
 seedFirstRun(TEMPLATE, [CWD])
 
 const { BOOT_FACE_READY, paintsBootFaceReady } = await import('../lib/bootFace.ts')
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSIONS'
 const EMPTY_BOARD = 'no sessions yet'

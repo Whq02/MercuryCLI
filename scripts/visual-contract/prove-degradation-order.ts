@@ -78,8 +78,8 @@ t.section('§3 — the shared table owner degrades to records, never broken word
 {
   const React = (await import('react')).default
   const { marked } = await import('marked')
-  const { MarkdownTable } = await import('../../src/components/MarkdownTable.tsx')
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
+  const { MarkdownTable } = await import('../../src/screen/messages/MarkdownTable.tsx')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
   const MD =
     '| ArchitecturalOwnership | VerificationStrategy | Disposition |\n' +
     '| --- | --- | --- |\n' +

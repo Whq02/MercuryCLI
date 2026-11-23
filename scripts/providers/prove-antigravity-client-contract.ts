@@ -7,7 +7,7 @@ import { statSync } from 'node:fs'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
 
-const contractFixHint = 'fix the behaviour or constant in src/services/providers/gemini/antigravityClientContract.ts (the exported function or constant this check names), or this proof if the shipped contract moved on purpose'
+const contractFixHint = 'fix the behaviour or constant in src/models/roads/gemini/antigravityClientContract.ts (the exported function or constant this check names), or this proof if the shipped contract moved on purpose'
 let failures = 0
 let passes = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -35,9 +35,9 @@ const server = Bun.serve({
 const base = `http://127.0.0.1:${server.port}`
 process.env.MERCURY_ANTIGRAVITY_MANIFEST_BASE = base
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const contract = await import('../../src/services/providers/gemini/antigravityClientContract.ts')
+const contract = await import('../../src/models/roads/gemini/antigravityClientContract.ts')
 const DAY = 24 * 60 * 60 * 1000
 let clock = Date.UTC(2026, 9, 14, 12, 0, 0)
 const now = (): number => clock

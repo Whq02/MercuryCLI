@@ -39,16 +39,16 @@ const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFix
 const fixture = await startCrossfamilyFixture({ port: 0 })
 Object.assign(process.env, fixture.env)
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const compactCommand = (await import('../../src/commands/compact/index.ts')).default
-const { processSlashCommand } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
-const { buildPostCompactMessages, nothingToCompactLine } = await import('../../src/services/compact/compact.ts')
+const { processSlashCommand } = await import('../../src/engine/user-input/processSlashCommand.tsx')
+const { buildPostCompactMessages, nothingToCompactLine } = await import('../../src/engine/compaction/foldConversation.ts')
 const { call } = await import('../../src/commands/compact/compact.ts')
-const { createUserMessage, extractTag } = await import('../../src/services/messages.ts')
-const { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } = await import('../../src/constants/xml.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+const { createUserMessage, extractTag } = await import('../../src/engine/messages/messages.ts')
+const { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } = await import('../../src/engine/message-shapes/messageTags.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
 
 const MODEL = 'claude-opus-4-8'
 type AnyMsg = Record<string, unknown> & { type?: string }
@@ -131,8 +131,8 @@ async function runSlashCompact(messages: AnyMsg[]): Promise<{ rendered: string; 
   return { rendered: outputs.join('\n'), commandError: result.commandError }
 }
 
-const hintNoErrorPrefix = 'runLocalCommand in src/services/processUserInput/processSlashCommand.tsx must emit error.message without Error: for non-fault compact refusals recognised by isNothingToCompactMessage in src/services/compact/compact/limits.ts'
-const hintTrueReason = 'nothingToCompactReason in src/services/compact/compact/projection.ts and nothingToCompactLine in src/services/compact/compact/limits.ts must state the true cause in one plain line'
+const hintNoErrorPrefix = 'runLocalCommand in src/engine/user-input/processSlashCommand.tsx must emit error.message without Error: for non-fault compact refusals recognised by isNothingToCompactMessage in src/engine/compaction/fold/foldLimits.ts'
+const hintTrueReason = 'nothingToCompactReason in src/engine/compaction/fold/projection.ts and nothingToCompactLine in src/engine/compaction/fold/foldLimits.ts must state the true cause in one plain line'
 
 section('1 empty conversation: one plain line, no Error: prefix')
 {

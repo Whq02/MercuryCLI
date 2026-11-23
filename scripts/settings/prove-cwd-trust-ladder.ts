@@ -28,9 +28,9 @@ function verdictFrom(cwd: string, projects: Record<string, { hasTrustDialogAccep
     delete process.env.MERCURY_HOME
     delete process.env.NODE_ENV
     delete process.env.CI
-    const g = await import(${JSON.stringify(join(SRC, 'utils/config/globalConfig.ts'))})
-    const trust = await import(${JSON.stringify(join(SRC, 'utils/config/trust.ts'))})
-    const state = await import(${JSON.stringify(join(SRC, 'bootstrap/state.ts'))})
+    const g = await import(${JSON.stringify(join(SRC, 'platform/config/globalConfig.ts'))})
+    const trust = await import(${JSON.stringify(join(SRC, 'platform/config/trust.ts'))})
+    const state = await import(${JSON.stringify(join(SRC, 'boot/process-state/processState.ts'))})
     g.enableConfigs()
     if (${latch}) state.setSessionTrustAccepted(true)
     console.log(JSON.stringify({ accepted: trust.checkHasTrustDialogAccepted(), direct: trust.isPathTrusted(process.cwd()) }))
@@ -41,11 +41,11 @@ function verdictFrom(cwd: string, projects: Record<string, { hasTrustDialogAccep
   return JSON.parse(line) as Record<string, unknown>
 }
 const keyOf = async (dir: string): Promise<string> => {
-  const pathmod = await import(join(SRC, 'utils/path.ts'))
+  const pathmod = await import(join(SRC, 'platform/files/path.ts'))
   return pathmod.normalizePathForConfigKey(dir) as string
 }
 
-const LADDER_WHERE = ' | the verdict comes from checkHasTrustDialogAccepted, isPathTrusted and the ancestor walk in src/utils/config/trust.ts; the child run failed to print a verdict if childFailed appears'
+const LADDER_WHERE = ' | the verdict comes from checkHasTrustDialogAccepted, isPathTrusted and the ancestor walk in src/platform/config/trust.ts; the child run failed to print a verdict if childFailed appears'
 try {
   const repoKey = await keyOf(repo)
   const deepKey = await keyOf(deep)
@@ -61,7 +61,7 @@ try {
   const declined = verdictFrom(deep, { [repoKey]: { hasTrustDialogAccepted: false } })
   check('a record that says no is no grant', declined.accepted === false && declined.direct === false, JSON.stringify(declined) + LADDER_WHERE)
   const latched = verdictFrom(deep, {}, true)
-  check('the session latch alone satisfies the cwd verdict and never the direct path check', latched.accepted === true && latched.direct === false, JSON.stringify(latched) + LADDER_WHERE + '; the session latch is getSessionTrustAccepted in src/bootstrap/state.ts, read only by computeTrustDialogAccepted')
+  check('the session latch alone satisfies the cwd verdict and never the direct path check', latched.accepted === true && latched.direct === false, JSON.stringify(latched) + LADDER_WHERE + '; the session latch is getSessionTrustAccepted in src/boot/process-state/processState.ts, read only by computeTrustDialogAccepted')
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }

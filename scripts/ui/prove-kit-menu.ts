@@ -5,10 +5,10 @@
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { assembleCardRows, createSplashCore } from '../../assets/splash/splash-core.mjs'
-import { consumeKitManagerDeepLink, decideSplashReceipt } from '../../src/substrate/splashHandover.js'
-import { KIT_LEGEND_PRESET, KIT_LEGEND_PRESETS, KIT_LEGEND_PROMPT, kitEntryOf, kitStatusLine, kitSummaryRows, kitValueLabel, presetPromptLines } from '../../src/components/KitMenuScreen.js'
-import { EMPTY_KIT_CATALOGUE, KIT_SECTION_TITLE, cycleState, kitCounts, kitRowId, kitRowView, kitStateKey, sectionRows, type KitRow, type KitRowState } from '../../src/services/kitMenu/kitTypes.js'
-import { settingsEditors } from '../../src/components/bootSettings/menuModel.js'
+import { consumeKitManagerDeepLink, decideSplashReceipt } from '../../src/platform/substrate/splashHandover.js'
+import { KIT_LEGEND_PRESET, KIT_LEGEND_PRESETS, KIT_LEGEND_PROMPT, kitEntryOf, kitStatusLine, kitSummaryRows, kitValueLabel, presetPromptLines } from '../../src/screen/boot-face/KitMenuScreen.js'
+import { EMPTY_KIT_CATALOGUE, KIT_SECTION_TITLE, cycleState, kitCounts, kitRowId, kitRowView, kitStateKey, sectionRows, type KitRow, type KitRowState } from '../../src/screen/kit-menu-model/kitTypes.js'
+import { settingsEditors } from '../../src/screen/boot-face/settings/menuModel.js'
 import { SAMPLE_CATALOGUE, SAMPLE_STATES, STILLS, composeManager, faceFacts, readStill, renderStill, stillPath } from './kit-menu-stills.ts'
 
 const t = checker()
@@ -208,7 +208,7 @@ t.section('§6 — THE CONTAINER: cycling, the tri-state words, the master row, 
 
 t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
 {
-  const { MCP_SKILLS_NOTE, contributesWords, enumerateKitCatalogue } = await import('../../src/services/kitMenu/kitCatalogue.js')
+  const { MCP_SKILLS_NOTE, contributesWords, enumerateKitCatalogue } = await import('../../src/screen/kit-menu-model/kitCatalogue.js')
   const manifest = (name: string, contributes: Record<string, unknown>) => ({ name, version: '1.0.0', description: 'x', contributes }) as never
   const orchard = manifest('orchard-tools', { skills: ['prune', 'graft'], servers: { db: { command: 'x' } }, commands: ['tidy'], hooks: { 'tool.before': [{ name: 'x', run: 'x' }] } })
   const quiet = manifest('quiet-hooks', { commands: ['lint'], hooks: { 'tool.before': [{ name: 'x', run: 'x' }] } })
@@ -270,10 +270,10 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
   t.check('POISON absent: every server/skill row name is a door spelling verbatim (no prettified or re-cased name)', cat.rows.filter(r => r.kind === 'mcp' || r.kind === 'skill').every(r => doorNames.has(r.name)))
   const listed = sectionRows(cat)
   t.check('sectionRows keeps members first and the note last, both sections titled', listed[listed.length - 1]?.kind === 'note' && listed[0]?.section === 'mcp' && listed.some(r => r.section === 'skill'))
-  const { LOADING_KIT_CATALOGUE } = await import('../../src/services/kitMenu/kitTypes.js')
+  const { LOADING_KIT_CATALOGUE } = await import('../../src/screen/kit-menu-model/kitTypes.js')
   t.check('the loading catalogue paints "reading…" lines, never the none-configured words', sectionRows(LOADING_KIT_CATALOGUE).every(r => r.kind === 'empty' && r.text.startsWith('reading')))
   {
-    const { refusedSkillNote, shadowedSkillNote } = await import('../../src/services/kitMenu/kitCatalogue.js')
+    const { refusedSkillNote, shadowedSkillNote } = await import('../../src/screen/kit-menu-model/kitCatalogue.js')
     const colliding = {
       ...doors,
       dirSkills: async () => [
@@ -304,7 +304,7 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
     const savedHome = process.env.MERCURY_CONFIG_DIR
     process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
     delete process.env.MERCURY_ANTHROPIC_CONNECTORS
-    const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+    const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
     enableConfigs()
     try {
       const real = await enumerateKitCatalogue(join(scratch, 'cwd'))
@@ -321,9 +321,9 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
 
 t.section("§8 — THE STORE WRITE: write-through per toggle onto the REAL record (the record's kitStore), a live session untouched (C4 · C6)")
 {
-  const { RecordKitMenuStore, receiptFor, statesFromDeltas, deltasFromStates } = await import('../../src/services/kitMenu/menuStore.js')
-  const { kitDeltasForWorkspace, kitDeltasOf, emptyKitDeltas } = await import('../../src/services/mcp/kitStore.js')
-  const { getProjectConfigForWorkspace } = await import('../../src/utils/config.js')
+  const { RecordKitMenuStore, receiptFor, statesFromDeltas, deltasFromStates } = await import('../../src/screen/kit-menu-model/menuStore.js')
+  const { kitDeltasForWorkspace, kitDeltasOf, emptyKitDeltas } = await import('../../src/integrations/mcp/kitStore.js')
+  const { getProjectConfigForWorkspace } = await import('../../src/platform/settings/config.js')
   const rows = sectionRows(SAMPLE_CATALOGUE)
   const postgres = rows.find(r => r.kind === 'mcp' && r.name === 'postgres')!
   const deploy = rows.find(r => r.kind === 'skill' && r.name === 'deploy')!
@@ -339,7 +339,7 @@ t.section("§8 — THE STORE WRITE: write-through per toggle onto the REAL recor
   const OTHER = join(scratch, 'other')
   mkdirSync(WS, { recursive: true })
   mkdirSync(OTHER, { recursive: true })
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
   try {
     const store = new RecordKitMenuStore()
@@ -373,12 +373,12 @@ t.section("§8 — THE STORE WRITE: write-through per toggle onto the REAL recor
 
 t.section('§9 — "SAVE AS PRESET…": the action hook, its prompt, the typed refusal, the vocabulary (C5)')
 {
-  const { STORE_PRESET_HOOK, _resetKitPresetHookForTesting, bindKitPresetHook, kitPresetHook, presetNameProblem, PRESET_NAME_MAX } = await import('../../src/services/kitMenu/presetHook.js')
-  const { deltasFromStates, statesFromDeltas } = await import('../../src/services/kitMenu/menuStore.js')
+  const { STORE_PRESET_HOOK, _resetKitPresetHookForTesting, bindKitPresetHook, kitPresetHook, presetNameProblem, PRESET_NAME_MAX } = await import('../../src/screen/kit-menu-model/presetHook.js')
+  const { deltasFromStates, statesFromDeltas } = await import('../../src/screen/kit-menu-model/menuStore.js')
   t.check("an empty name refuses in words ('type a name first'); whitespace is empty", presetNameProblem('') === 'type a name first' && presetNameProblem('   ') === 'type a name first')
   t.check('a bad name refuses in words; a plain name passes; the cap is 40', presetNameProblem('review/kit') !== null && presetNameProblem('review kit') === null && presetNameProblem('a'.repeat(40)) === null && presetNameProblem('a'.repeat(41)) !== null && PRESET_NAME_MAX === 40)
   _resetKitPresetHookForTesting()
-  const presetStore = await import('../../src/services/mcp/presetStore.ts')
+  const presetStore = await import('../../src/integrations/mcp/presetStore.ts')
   const storeSaved = kitPresetHook().save('menu door', { workspaceDir: '/proof/repo', deltas: { mcpOff: ['postgres'], skillStates: {}, extensionsOff: [] }, members: { mcp: ['postgres'], skills: [], extensions: [] } })
   const storeBack = presetStore.kitPresetDeltas('menu door')
   t.check("the DEFAULT hook is the store door: the save lands in the preset store with the counted receipt (the typed-refusal placeholder is dead)", storeSaved.ok && storeSaved.receipt === "preset 'menu door' saved (1 delta)" && storeBack.ok && storeBack.deltas.mcpOff[0] === 'postgres' && kitPresetHook() === STORE_PRESET_HOOK)
@@ -402,9 +402,9 @@ t.section('§9 — "SAVE AS PRESET…": the action hook, its prompt, the typed r
 
 t.section('§10 — THE L18 CARRY: the write seam hands the RESOLVED snapshot to the next birth (the PRIMARY road; the derivation is the fallback) (C7)')
 {
-  const { carryNextSessionKit, resolvedKitOf } = await import('../../src/services/kitMenu/resolvedKit.js')
-  const { _resetBootBirthFactsForTesting, bootBirthFacts, carriedKitOf } = await import('../../src/services/switchboard/bootBirthFacts.js')
-  const { validateSessionKit } = await import('../../src/daemon/sessionKit.js')
+  const { carryNextSessionKit, resolvedKitOf } = await import('../../src/screen/kit-menu-model/resolvedKit.js')
+  const { _resetBootBirthFactsForTesting, bootBirthFacts, carriedKitOf } = await import('../../src/daemon/switchboard/bootBirthFacts.js')
+  const { validateSessionKit } = await import('../../src/daemon/session-seat/sessionKit.js')
   const rows = sectionRows(SAMPLE_CATALOGUE)
   const kit = resolvedKitOf(rows, SAMPLE_STATES)
   t.check('the RESOLVED snapshot is closed membership over EFFECTIVE states: mcp [github] (postgres off; the extension server follows its off master) · skills [review] · invocable [deploy] · extensions {orchard-tools: off}; no `resolved` field', JSON.stringify(kit) === JSON.stringify({ schema: 1, mcp: ['github'], skills: ['review'], invocable: ['deploy'], mcpKnown: ['github', 'postgres', 'ext:orchard-tools:db'], extensions: { 'orchard-tools': 'off' } }), JSON.stringify(kit))
@@ -424,7 +424,7 @@ t.section('§10 — THE L18 CARRY: the write seam hands the RESOLVED snapshot to
 
 t.section('§11 — THE PRESETS LAYER (`w`) + the armed wear on the face')
 {
-  const { KIT_LEGEND_PRESETS: LAYER_LEGEND, PRESET_LAYER_EMPTY, presetLayerEntryOf, presetLayerSummaryRows } = await import('../../src/components/KitMenuScreen.js')
+  const { KIT_LEGEND_PRESETS: LAYER_LEGEND, PRESET_LAYER_EMPTY, presetLayerEntryOf, presetLayerSummaryRows } = await import('../../src/screen/boot-face/KitMenuScreen.js')
   const { SAMPLE_PRESET_FACTS, composePresetsLayer, composeFace } = await import('./kit-menu-stills.ts')
   const armedEntry = presetLayerEntryOf({ name: 'writing', count: 2 }, 'writing')
   const plainEntry = presetLayerEntryOf({ name: 'review kit', count: 4 }, 'writing')

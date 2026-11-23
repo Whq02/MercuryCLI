@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/handoffAsk.ts src/services/providers/anthropic/messageEffort.ts src/services/providers/anthropic/streamCore/wireParams.ts src/services/providers/anthropic/streamCore/passRetries.ts src/services/api/withRetry.ts src/utils/model/capabilities.ts src/services/agents/forkedAgent.ts
+// gate-watch: src/sessions/mneme/handoffAsk.ts src/models/roads/anthropic/messageEffort.ts src/models/roads/anthropic/stream-core/wireParams.ts src/models/roads/anthropic/stream-core/passRetries.ts src/engine/requests/withRetry.ts src/models/facts/capabilities.ts src/crew/agents/forkedAgent.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
@@ -33,7 +33,7 @@ process.env.MERCURY_CACHE_CLOCK = '0'
 
 let failures = 0
 let checks = 0
-const LOW_EFFORT_WHERE = 'the effort row and its header are built in src/services/providers/anthropic/messageEffort.ts and the ask is sent by askForHandoff in src/mneme/handoffAsk.ts; a build check needs dist/mercury.mjs built first'
+const LOW_EFFORT_WHERE = 'the effort row and its header are built in src/models/roads/anthropic/messageEffort.ts and the ask is sent by askForHandoff in src/sessions/mneme/handoffAsk.ts; a build check needs dist/mercury.mjs built first'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -44,7 +44,7 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the handoff effort prover exceeded 240s; a fixture request never answered, so look at the last section printed above and at the ask in src/mneme/handoffAsk.ts')
+  console.log('\nTIMEOUT — the handoff effort prover exceeded 240s; a fixture request never answered, so look at the last section printed above and at the ask in src/sessions/mneme/handoffAsk.ts')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -136,19 +136,19 @@ function address(kind: 'first-party' | 'third-party'): void {
   delete process.env.HTTP_PROXY
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { switchSession } = await import('../../src/bootstrap/state.ts')
-const { askForHandoff, _resetHandoffAskForTesting } = await import('../../src/mneme/handoffAsk.ts')
-const { noteSessionEngine, _resetLineageSessionForTesting } = await import('../../src/mneme/lineageSession.ts')
-const { ledgerEntryOf, openEntry, closeEntry } = await import('../../src/mneme/ledger.ts')
-const { mnemeProjectKey } = await import('../../src/mneme/paths.ts')
-const { getLastCacheSafeParams, runForkedAgent } = await import('../../src/services/agents/forkedAgent.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/query.ts')
+const { switchSession } = await import('../../src/boot/process-state/processState.ts')
+const { askForHandoff, _resetHandoffAskForTesting } = await import('../../src/sessions/mneme/handoffAsk.ts')
+const { noteSessionEngine, _resetLineageSessionForTesting } = await import('../../src/sessions/mneme/lineageSession.ts')
+const { ledgerEntryOf, openEntry, closeEntry } = await import('../../src/sessions/mneme/ledger.ts')
+const { mnemeProjectKey } = await import('../../src/sessions/mneme/paths.ts')
+const { getLastCacheSafeParams, runForkedAgent } = await import('../../src/crew/agents/forkedAgent.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
 
 const posture = asSystemPrompt(['You are a fixture-driven session posture.'])
 const deny = (async () => ({ behavior: 'deny', message: 'no tools in this rig' })) as never

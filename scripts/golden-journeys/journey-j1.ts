@@ -63,7 +63,7 @@ writeRunSidecar(
 const walker = new JourneyWalker(sid, 'j1')
 const glance = walker.glance()
 check('the closing report is on screen', hasProse(glance, 'check.sh reports PASS'), 'the closing assistant message seeded by writeSession above must be painted in the resumed session glance; read the capture grid-j1 in the run home')
-check('the resume recap card renders', hasProse(glance, 'resumed clean'), 'the resume recap card must render the words resumed clean for a completed run sidecar; see src/components/messages/ResumeRecapCard.tsx')
+check('the resume recap card renders', hasProse(glance, 'resumed clean'), 'the resume recap card must render the words resumed clean for a completed run sidecar; see src/screen/messages/ResumeRecapCard.tsx')
 
 const facts = [
   walker.probeFact('outcome', 'Fix the fixture greeting', [{ cmd: '/run' }]),

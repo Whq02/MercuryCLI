@@ -23,7 +23,7 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
   const shown = cond || !hint ? detail : detail ? `${detail} — ${hint}` : hint
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
-const ROW_HINT = 'to change: composeModelListsRow in src/services/providers/typedModelIds.ts builds this row, and modelListsCheck in src/services/health/sections/auth.ts registers it'
+const ROW_HINT = 'to change: composeModelListsRow in src/models/roads/typedModelIds.ts builds this row, and modelListsCheck in src/platform/health/sections/auth.ts registers it'
 
 const SCRATCH = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'model-lists-health-')))
 const HOME = join(SCRATCH, 'home')
@@ -42,7 +42,7 @@ const { guardLoginDriverWrite } = await import('../lib/loginDriverGuard.ts')
 guardLoginDriverWrite('the model lists health drive', process.env)
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const scenarios = await import('../ui/renderScenarios.ts')
-const { GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.ts')
+const { GPT_DISPLAY_PINS } = await import('../../src/models/facts/pins/gptPins.ts')
 seedFirstRun(HOME, [CWD])
 
 const TYPED = GPT_DISPLAY_PINS.map(pin => pin.id)
@@ -195,7 +195,7 @@ try {
   check('Anthropic with the fixture key reads no list read in this process, like every keyed family', /Anthropic · Anthropic API key · no list read in this process — \/model or a chat naming the family reads it · \d+ typed ids not judged/.test(detail), detail, ROW_HINT)
   check('the families without a credential read not judged, Moonshot among them', /DeepSeek · no credential · \d+ typed ids not judged/.test(detail) && /Gemini · no credential · \d+ typed ids not judged/.test(detail) && /Hugging Face · no credential · \d+ typed ids not judged/.test(detail) && /Moonshot · no credential · \d+ typed ids not judged/.test(detail) && !/Moonshot · [^\n]*typed table dated/.test(detail), detail, ROW_HINT)
   check('no fix rides an info row', row !== undefined && row.fix === undefined, '', 'an info row must carry no fix; ' + ROW_HINT)
-  check('the headless health fetched no list', !hits.some(h => h.endsWith('/models')), hits.join(', '), 'headless health must not call a list endpoint; composeModelListsRow and readModelListFacts in src/services/providers/typedModelIds.ts must only read the in-process cache')
+  check('the headless health fetched no list', !hits.some(h => h.endsWith('/models')), hits.join(', '), 'headless health must not call a list endpoint; composeModelListsRow and readModelListFacts in src/models/roads/typedModelIds.ts must only read the in-process cache')
   const rowIndex = Math.max(0, rows.findIndex(r => r.id === 'model-lists'))
 
   for (const [cols, termRows] of [[120, 40], [80, 21]] as const) {

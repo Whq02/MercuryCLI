@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/messages/AssistantThinkingMessage.tsx src/components/messages/thinkingGrammar.tsx
-// gate-watch: src/components/SwitchboardTagBar.tsx src/commands/effort/effort.tsx
-// gate-watch: src/services/providers/gemini/geminiClient.ts src/services/providers/openaicompat/compatChatCallModel.ts
+// gate-watch: src/screen/messages/AssistantThinkingMessage.tsx src/screen/messages/thinkingGrammar.tsx
+// gate-watch: src/screen/chat/SwitchboardTagBar.tsx src/commands/effort/effort.tsx
+// gate-watch: src/models/roads/gemini/geminiClient.ts src/models/roads/openaicompat/compatChatCallModel.ts
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -22,7 +22,7 @@ delete process.env.MERCURY_MODEL
 ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
 let checks = 0
@@ -37,14 +37,14 @@ const j = (v: unknown): string => JSON.stringify(v)
 const stripAnsi = (s: string): string => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
 
 const React = (await import('react')).default
-const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { renderToAnsiString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const mounted = (node: unknown): ReturnType<typeof React.createElement> =>
   React.createElement(AppStateProvider as never, { initialState: getDefaultAppState() } as never, node as never)
-const thinkingModule = (await import('../../src/components/messages/AssistantThinkingMessage.tsx')) as typeof import('../../src/components/messages/AssistantThinkingMessage.tsx') & { thinkingTextWithheld?: (param: { thinking?: string; signature?: string }) => boolean }
+const thinkingModule = (await import('../../src/screen/messages/AssistantThinkingMessage.tsx')) as typeof import('../../src/screen/messages/AssistantThinkingMessage.tsx') & { thinkingTextWithheld?: (param: { thinking?: string; signature?: string }) => boolean }
 const { AssistantThinkingMessage } = thinkingModule
-const grammar = (await import('../../src/components/messages/thinkingGrammar.tsx')) as typeof import('../../src/components/messages/thinkingGrammar.tsx') & { WITHHELD_THINKING_WORDS?: string }
+const grammar = (await import('../../src/screen/messages/thinkingGrammar.tsx')) as typeof import('../../src/screen/messages/thinkingGrammar.tsx') & { WITHHELD_THINKING_WORDS?: string }
 
 const paint = async (param: { type: string; thinking: string; signature?: string }, props: Record<string, unknown> = {}): Promise<string> =>
   stripAnsi(await renderToAnsiString(mounted(React.createElement(AssistantThinkingMessage, { param, ...props } as never)), 100)).trim()
@@ -52,32 +52,32 @@ const paint = async (param: { type: string; thinking: string; signature?: string
 section('Private thinking is silent by default and disclosed on demand')
 {
   const SIGNATURE = 'CAQSQEJBQlaYmNjb5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0A='
-  check('the grammar owns the withheld words, plainly (RED on the base: absent)', grammar.WITHHELD_THINKING_WORDS === 'the provider returned no thinking text for this model', 'export WITHHELD_THINKING_WORDS from src/components/messages/thinkingGrammar.tsx with exactly that text; got: ' + j(grammar.WITHHELD_THINKING_WORDS))
-  check('the withheld test: empty text with a signature is withheld; empty text with no signature (still streaming) is not; text is not', thinkingModule.thinkingTextWithheld !== undefined && thinkingModule.thinkingTextWithheld({ thinking: '', signature: SIGNATURE }) === true && thinkingModule.thinkingTextWithheld({ thinking: '', signature: '' }) === false && thinkingModule.thinkingTextWithheld({ thinking: 'words', signature: SIGNATURE }) === false, 'thinkingTextWithheld in src/components/messages/AssistantThinkingMessage.tsx must be true only for empty text with a signature')
+  check('the grammar owns the withheld words, plainly (RED on the base: absent)', grammar.WITHHELD_THINKING_WORDS === 'the provider returned no thinking text for this model', 'export WITHHELD_THINKING_WORDS from src/screen/messages/thinkingGrammar.tsx with exactly that text; got: ' + j(grammar.WITHHELD_THINKING_WORDS))
+  check('the withheld test: empty text with a signature is withheld; empty text with no signature (still streaming) is not; text is not', thinkingModule.thinkingTextWithheld !== undefined && thinkingModule.thinkingTextWithheld({ thinking: '', signature: SIGNATURE }) === true && thinkingModule.thinkingTextWithheld({ thinking: '', signature: '' }) === false && thinkingModule.thinkingTextWithheld({ thinking: 'words', signature: SIGNATURE }) === false, 'thinkingTextWithheld in src/screen/messages/AssistantThinkingMessage.tsx must be true only for empty text with a signature')
   const withheld = await paint({ type: 'thinking', thinking: '', signature: SIGNATURE })
-  check('the settled empty block paints no row by default', withheld === '', 'AssistantThinkingMessage in src/components/messages/AssistantThinkingMessage.tsx must paint no row for a settled empty block by default; painted: ' + j(withheld))
+  check('the settled empty block paints no row by default', withheld === '', 'AssistantThinkingMessage in src/screen/messages/AssistantThinkingMessage.tsx must paint no row for a settled empty block by default; painted: ' + j(withheld))
   const clicked = await paint({ type: 'thinking', thinking: '', signature: SIGNATURE }, { verbose: true })
-  check('click expansion shows the fact once without a disclosure cue', clicked.startsWith(grammar.THINKING_LABEL) && clicked.includes(grammar.WITHHELD_THINKING_WORDS!) && clicked.split('\n').length === 1 && !/to expand|⌄/.test(clicked), 'AssistantThinkingMessage in src/components/messages/AssistantThinkingMessage.tsx must show the label and the withheld words on one line with no fold cue when verbose; painted: ' + j(clicked))
+  check('click expansion shows the fact once without a disclosure cue', clicked.startsWith(grammar.THINKING_LABEL) && clicked.includes(grammar.WITHHELD_THINKING_WORDS!) && clicked.split('\n').length === 1 && !/to expand|⌄/.test(clicked), 'AssistantThinkingMessage in src/screen/messages/AssistantThinkingMessage.tsx must show the label and the withheld words on one line with no fold cue when verbose; painted: ' + j(clicked))
   const transcript = await paint({ type: 'thinking', thinking: '', signature: SIGNATURE }, { isTranscriptMode: true })
-  check('the transcript view (ctrl+o) paints the same fact row', transcript.includes('the provider returned no thinking text for this model'), 'AssistantThinkingMessage in src/components/messages/AssistantThinkingMessage.tsx must paint the withheld fact in transcript mode; painted: ' + j(transcript))
+  check('the transcript view (ctrl+o) paints the same fact row', transcript.includes('the provider returned no thinking text for this model'), 'AssistantThinkingMessage in src/screen/messages/AssistantThinkingMessage.tsx must paint the withheld fact in transcript mode; painted: ' + j(transcript))
   const streaming = await paint({ type: 'thinking', thinking: '', signature: '' })
-  check('a block still streaming (no signature yet) paints nothing — the fact is never flashed early', streaming === '', 'AssistantThinkingMessage in src/components/messages/AssistantThinkingMessage.tsx must paint nothing while the signature is empty; painted: ' + j(streaming))
+  check('a block still streaming (no signature yet) paints nothing — the fact is never flashed early', streaming === '', 'AssistantThinkingMessage in src/screen/messages/AssistantThinkingMessage.tsx must paint nothing while the signature is empty; painted: ' + j(streaming))
   const hidden = await paint({ type: 'thinking', thinking: '', signature: SIGNATURE }, { isTranscriptMode: true, hideInTranscript: true })
-  check('a transcript row hidden behind the last reasoning block stays hidden', hidden === '', 'AssistantThinkingMessage in src/components/messages/AssistantThinkingMessage.tsx must honour hideInTranscript for the withheld row; painted: ' + j(hidden))
+  check('a transcript row hidden behind the last reasoning block stays hidden', hidden === '', 'AssistantThinkingMessage in src/screen/messages/AssistantThinkingMessage.tsx must honour hideInTranscript for the withheld row; painted: ' + j(hidden))
   const withText = await paint({ type: 'thinking', thinking: 'the reasoning body', signature: SIGNATURE })
-  check('a block with text keeps its fold cue and shows no fact (unchanged)', withText.startsWith(grammar.THINKING_LABEL) && /to expand|⌄/.test(withText) && !withText.includes('returned no thinking text'), 'AssistantThinkingMessage in src/components/messages/AssistantThinkingMessage.tsx must keep the fold cue and no fact for a block with text; painted: ' + j(withText))
+  check('a block with text keeps its fold cue and shows no fact (unchanged)', withText.startsWith(grammar.THINKING_LABEL) && /to expand|⌄/.test(withText) && !withText.includes('returned no thinking text'), 'AssistantThinkingMessage in src/screen/messages/AssistantThinkingMessage.tsx must keep the fold cue and no fact for a block with text; painted: ' + j(withText))
   const withheldAnsi = await renderToAnsiString(mounted(React.createElement(AssistantThinkingMessage, { param: { type: 'thinking', thinking: '', signature: SIGNATURE }, isTranscriptMode: true } as never)), 100)
-  check('the fact row paints in the thinking grammar (italic, one run)', withheldAnsi.includes('\x1b[3m'), 'the withheld row in src/components/messages/AssistantThinkingMessage.tsx must paint italic like the thinking grammar (src/components/messages/thinkingGrammar.tsx); painted: ' + j(withheldAnsi.slice(0, 80)))
+  check('the fact row paints in the thinking grammar (italic, one run)', withheldAnsi.includes('\x1b[3m'), 'the withheld row in src/screen/messages/AssistantThinkingMessage.tsx must paint italic like the thinking grammar (src/screen/messages/thinkingGrammar.tsx); painted: ' + j(withheldAnsi.slice(0, 80)))
 }
 
 section('The Gemini shape (F35A-11): a signed reasoning part with no text reaches the transcript as the same settled empty block')
 {
-  const { geminiCallModel } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { withheldThinkingDisclosure } = await import('../../src/components/messages/withheldThinkingDisclosure.ts')
+  const { geminiCallModel } = await import('../../src/models/roads/gemini/geminiCallModel.ts')
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { withheldThinkingDisclosure } = await import('../../src/screen/messages/withheldThinkingDisclosure.ts')
   const { z } = await import('zod')
-  type Assistant = import('../../src/types/message.ts').AssistantMessage & { geminiProviderTurn?: { parts: unknown[]; projection: string } }
+  type Assistant = import('../../src/engine/message-shapes/message.ts').AssistantMessage & { geminiProviderTurn?: { parts: unknown[]; projection: string } }
   const model = 'gemini-3.8-flash'
   const read = { name: 'Read', prompt: async () => 'Reads a file.', inputSchema: z.object({ path: z.string() }), inputJSONSchema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } }
   const sse = (chunks: unknown[]): Response => new Response(chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } })
@@ -107,42 +107,42 @@ section('The Gemini shape (F35A-11): a signed reasoning part with no text reache
       { candidates: [{ content: { role: 'model', parts: [{ text: 'app.py prints apples and plums on separate lines.' }] }, finishReason: 'STOP' }], usageMetadata: usage },
     ])
     const first = blocksOf(air)[0] as { type: string; thinking?: string; signature?: string } | undefined
-    check('the Air\'s turn: the signed empty reasoning part settles as a thinking block before the answer, signed and empty (RED on the base: the turn holds the answer text only)', first?.type === 'thinking' && first.thinking === '' && first.signature === 'sig-air-1' && blocksOf(air).length === 2 && blocksOf(air)[1]?.type === 'text', 'src/services/providers/gemini/geminiCallModel.ts must settle a signed empty thought part as an empty signed thinking block before the answer text; got: ' + j(blocksOf(air)))
-    check('the block is the withheld shape the component already knows', first !== undefined && thinkingModule.thinkingTextWithheld!(first) === true, 'the block src/services/providers/gemini/geminiCallModel.ts settles must satisfy thinkingTextWithheld in src/components/messages/AssistantThinkingMessage.tsx')
+    check('the Air\'s turn: the signed empty reasoning part settles as a thinking block before the answer, signed and empty (RED on the base: the turn holds the answer text only)', first?.type === 'thinking' && first.thinking === '' && first.signature === 'sig-air-1' && blocksOf(air).length === 2 && blocksOf(air)[1]?.type === 'text', 'src/models/roads/gemini/geminiCallModel.ts must settle a signed empty thought part as an empty signed thinking block before the answer text; got: ' + j(blocksOf(air)))
+    check('the block is the withheld shape the component already knows', first !== undefined && thinkingModule.thinkingTextWithheld!(first) === true, 'the block src/models/roads/gemini/geminiCallModel.ts settles must satisfy thinkingTextWithheld in src/screen/messages/AssistantThinkingMessage.tsx')
     const transcript = await paint({ type: 'thinking', thinking: first?.thinking ?? 'absent', signature: first?.signature ?? '' }, { isTranscriptMode: true })
-    check('the transcript view (ctrl+o) paints the fact for the Gemini turn', transcript.includes(grammar.WITHHELD_THINKING_WORDS!), 'the Gemini thinking block must paint the withheld words in transcript mode (src/components/messages/AssistantThinkingMessage.tsx); painted: ' + j(transcript))
-    check('the chat paints no row for it by default', (await paint({ type: 'thinking', thinking: first?.thinking ?? 'absent', signature: first?.signature ?? '' })) === '', 'the Gemini thinking block must paint no row by default (src/components/messages/AssistantThinkingMessage.tsx)')
+    check('the transcript view (ctrl+o) paints the fact for the Gemini turn', transcript.includes(grammar.WITHHELD_THINKING_WORDS!), 'the Gemini thinking block must paint the withheld words in transcript mode (src/screen/messages/AssistantThinkingMessage.tsx); painted: ' + j(transcript))
+    check('the chat paints no row for it by default', (await paint({ type: 'thinking', thinking: first?.thinking ?? 'absent', signature: first?.signature ?? '' })) === '', 'the Gemini thinking block must paint no row by default (src/screen/messages/AssistantThinkingMessage.tsx)')
     const disclosure = withheldThinkingDisclosure(air as never)
-    check('a click of the answer discloses it: the fact rides the answer row and the thinking row stays hidden', disclosure.hidden.has(air[0]!.uuid) && disclosure.byRow.get(air[1]!.uuid)?.signature === 'sig-air-1', 'withheldThinkingDisclosure in src/components/messages/withheldThinkingDisclosure.ts must hide the thinking row and attach it to the answer row; byRow keys: ' + j([...disclosure.byRow.keys()]))
+    check('a click of the answer discloses it: the fact rides the answer row and the thinking row stays hidden', disclosure.hidden.has(air[0]!.uuid) && disclosure.byRow.get(air[1]!.uuid)?.signature === 'sig-air-1', 'withheldThinkingDisclosure in src/screen/messages/withheldThinkingDisclosure.ts must hide the thinking row and attach it to the answer row; byRow keys: ' + j([...disclosure.byRow.keys()]))
     const record = air.at(-1)?.geminiProviderTurn
-    check('the replay record keeps Google\'s own parts (the signed empty thought part, then the text) and its projection carries no thinking block', JSON.stringify(record?.parts) === JSON.stringify([{ text: '', thought: true, thoughtSignature: 'sig-air-1' }, { text: 'app.py prints apples and plums on separate lines.' }]) && typeof record?.projection === 'string' && !record.projection.includes('thinking'), 'src/services/providers/gemini/geminiCallModel.ts must keep Google parts as sent in geminiProviderTurn and keep thinking out of the projection; got: ' + j(record))
+    check('the replay record keeps Google\'s own parts (the signed empty thought part, then the text) and its projection carries no thinking block', JSON.stringify(record?.parts) === JSON.stringify([{ text: '', thought: true, thoughtSignature: 'sig-air-1' }, { text: 'app.py prints apples and plums on separate lines.' }]) && typeof record?.projection === 'string' && !record.projection.includes('thinking'), 'src/models/roads/gemini/geminiCallModel.ts must keep Google parts as sent in geminiProviderTurn and keep thinking out of the projection; got: ' + j(record))
 
     const signedText = await drain([
       { candidates: [{ content: { role: 'model', parts: [{ text: 'pears', thoughtSignature: 'sig-air-2' }] }, finishReason: 'STOP' }], usageMetadata: usage },
     ])
-    check('a signature riding the answer text with no thought text: the same block, once, before the text', JSON.stringify(blocksOf(signedText).map(block => [block.type, (block as { signature?: string }).signature])) === JSON.stringify([['thinking', 'sig-air-2'], ['text', undefined]]), 'src/services/providers/gemini/geminiCallModel.ts must mint one thinking block before the text when a signature rides the answer text; got: ' + j(blocksOf(signedText)))
+    check('a signature riding the answer text with no thought text: the same block, once, before the text', JSON.stringify(blocksOf(signedText).map(block => [block.type, (block as { signature?: string }).signature])) === JSON.stringify([['thinking', 'sig-air-2'], ['text', undefined]]), 'src/models/roads/gemini/geminiCallModel.ts must mint one thinking block before the text when a signature rides the answer text; got: ' + j(blocksOf(signedText)))
 
     const twoSignatures = await drain([
       { candidates: [{ content: { role: 'model', parts: [{ text: '12', thoughtSignature: 'sig-air-3' }] } }] },
       { candidates: [{ content: { role: 'model', parts: [{ thoughtSignature: 'sig-air-3b' }] }, finishReason: 'STOP' }], usageMetadata: usage },
     ])
-    check('two signatures in one turn mint one fact, never two', blocksOf(twoSignatures).filter(block => block.type === 'thinking').length === 1, 'src/services/providers/gemini/geminiCallModel.ts must mint one thinking block per turn however many signatures arrive; got: ' + j(blocksOf(twoSignatures)))
+    check('two signatures in one turn mint one fact, never two', blocksOf(twoSignatures).filter(block => block.type === 'thinking').length === 1, 'src/models/roads/gemini/geminiCallModel.ts must mint one thinking block per turn however many signatures arrive; got: ' + j(blocksOf(twoSignatures)))
 
     const toolTurn = await drain([
       { candidates: [{ content: { role: 'model', parts: [{ functionCall: { name: 'Read', args: { path: '/proj/app.py' } }, thoughtSignature: 'sig-air-4' }] }, finishReason: 'STOP' }], usageMetadata: usage },
     ], true)
-    check('a signed function call with no thought text: the fact block, then the tool call', JSON.stringify(blocksOf(toolTurn).map(block => block.type)) === JSON.stringify(['thinking', 'tool_use']) && (blocksOf(toolTurn)[0] as { signature?: string }).signature === 'sig-air-4', 'src/services/providers/gemini/geminiCallModel.ts must mint the thinking block before a signed function call; got: ' + j(blocksOf(toolTurn)))
+    check('a signed function call with no thought text: the fact block, then the tool call', JSON.stringify(blocksOf(toolTurn).map(block => block.type)) === JSON.stringify(['thinking', 'tool_use']) && (blocksOf(toolTurn)[0] as { signature?: string }).signature === 'sig-air-4', 'src/models/roads/gemini/geminiCallModel.ts must mint the thinking block before a signed function call; got: ' + j(blocksOf(toolTurn)))
 
     const returned = await drain([
       { candidates: [{ content: { role: 'model', parts: [{ text: 'Reading the file first.', thought: true }, { text: 'apples', thoughtSignature: 'sig-air-5' }] }, finishReason: 'STOP' }], usageMetadata: usage },
     ])
     const returnedBlocks = blocksOf(returned) as Array<{ type: string; thinking?: string }>
-    check('thinking text the provider did return keeps its own block and body; no withheld fact is minted beside it (unchanged)', returnedBlocks.filter(block => block.type === 'thinking').length === 1 && returnedBlocks[0]?.thinking === 'Reading the file first.' && returnedBlocks[1]?.type === 'text', 'src/services/providers/gemini/geminiCallModel.ts must not mint a withheld block beside thinking text the provider returned; got: ' + j(returnedBlocks))
+    check('thinking text the provider did return keeps its own block and body; no withheld fact is minted beside it (unchanged)', returnedBlocks.filter(block => block.type === 'thinking').length === 1 && returnedBlocks[0]?.thinking === 'Reading the file first.' && returnedBlocks[1]?.type === 'text', 'src/models/roads/gemini/geminiCallModel.ts must not mint a withheld block beside thinking text the provider returned; got: ' + j(returnedBlocks))
 
     const faulted = await drain([
       { candidates: [{ content: { role: 'model', parts: [{ functionCall: { id: 'call-1', name: 'Read', args: { path: '/a' } }, thoughtSignature: 'sig-air-6' }, { functionCall: { id: 'call-1', name: 'Read', args: { path: '/b' } } }] }, finishReason: 'STOP' }], usageMetadata: usage },
     ], true)
-    check('a stream that faults after a signed call mints no fact: the fault road is unchanged (one typed error row, nothing settled)', !faulted.some(row => row.message.content.some(block => block.type === 'thinking' || block.type === 'tool_use')) && faulted.some(row => (row as { isApiErrorMessage?: boolean }).isApiErrorMessage === true), 'src/services/providers/gemini/geminiCallModel.ts must settle nothing and raise one typed error row when a stream faults after a signed call; got: ' + j(faulted.map(row => row.message.content)))
+    check('a stream that faults after a signed call mints no fact: the fault road is unchanged (one typed error row, nothing settled)', !faulted.some(row => row.message.content.some(block => block.type === 'thinking' || block.type === 'tool_use')) && faulted.some(row => (row as { isApiErrorMessage?: boolean }).isApiErrorMessage === true), 'src/models/roads/gemini/geminiCallModel.ts must settle nothing and raise one typed error row when a stream faults after a signed call; got: ' + j(faulted.map(row => row.message.content)))
   } finally {
     globalThis.fetch = realFetch
   }
@@ -150,17 +150,17 @@ section('The Gemini shape (F35A-11): a signed reasoning part with no text reache
 
 section('THK-06 — an effort receipt the one-line status row would cut goes to the chat whole')
 {
-  const bar = (await import('../../src/components/SwitchboardTagBar.tsx')) as typeof import('../../src/components/SwitchboardTagBar.tsx') & { statusRowReceiptFits?: (text: string, fit: unknown) => boolean }
+  const bar = (await import('../../src/screen/chat/SwitchboardTagBar.tsx')) as typeof import('../../src/screen/chat/SwitchboardTagBar.tsx') & { statusRowReceiptFits?: (text: string, fit: unknown) => boolean }
   const fits = bar.statusRowReceiptFits
-  check('the status row owns a fit check for a receipt (RED on the base: absent)', typeof fits === 'function', 'export statusRowReceiptFits from src/components/SwitchboardTagBar.tsx')
+  check('the status row owns a fit check for a receipt (RED on the base: absent)', typeof fits === 'function', 'export statusRowReceiptFits from src/screen/chat/SwitchboardTagBar.tsx')
   const frame037 = { columns: 177, head: 'Haiku 4.5', samples: [], folder: 'hunt-thinking', branch: null, backHint: '⇧← back' }
   const long = 'claude-haiku-4-5-20251001 takes no effort setting — max was kept for this session\'s next effort-capable model. Saved as your default for future sessions.'
-  check('the frame-037 receipt does not fit a 177-column row (it was cut to "takes no…")', fits?.(long, frame037) === false, 'statusRowReceiptFits in src/components/SwitchboardTagBar.tsx must return false for a receipt wider than the row')
-  check('a short receipt fits the same row', fits?.('Effort set to max for this session — its next request runs it.', frame037) === true, 'statusRowReceiptFits in src/components/SwitchboardTagBar.tsx must return true for a receipt that fits the row')
-  check('a receipt that fits at 177 columns is cut at 100', fits?.('Effort set to max for this session — its next request runs it. Saved as your default for future sessions.', { ...frame037, columns: 100 }) === false, 'statusRowReceiptFits in src/components/SwitchboardTagBar.tsx must measure against the frame columns it is given')
-  check('with no row painted yet the check does not refuse', fits?.(long, null) === true, 'statusRowReceiptFits in src/components/SwitchboardTagBar.tsx must return true when no row has been painted (fit is null)')
+  check('the frame-037 receipt does not fit a 177-column row (it was cut to "takes no…")', fits?.(long, frame037) === false, 'statusRowReceiptFits in src/screen/chat/SwitchboardTagBar.tsx must return false for a receipt wider than the row')
+  check('a short receipt fits the same row', fits?.('Effort set to max for this session — its next request runs it.', frame037) === true, 'statusRowReceiptFits in src/screen/chat/SwitchboardTagBar.tsx must return true for a receipt that fits the row')
+  check('a receipt that fits at 177 columns is cut at 100', fits?.('Effort set to max for this session — its next request runs it. Saved as your default for future sessions.', { ...frame037, columns: 100 }) === false, 'statusRowReceiptFits in src/screen/chat/SwitchboardTagBar.tsx must measure against the frame columns it is given')
+  check('with no row painted yet the check does not refuse', fits?.(long, null) === true, 'statusRowReceiptFits in src/screen/chat/SwitchboardTagBar.tsx must return true when no row has been painted (fit is null)')
   const plan = bar.statusRowPlan({ ...frame037, rest: long })
-  check('the plan the row would paint for that receipt is indeed the cut tail (the field frame)', plan.rest !== long && plan.rest.startsWith('…') === false && plan.rest.includes(' — max was kept'), 'statusRowPlan in src/components/SwitchboardTagBar.tsx must cut a long receipt to its tail, as the field frame did; rest: ' + j(plan.rest))
+  check('the plan the row would paint for that receipt is indeed the cut tail (the field frame)', plan.rest !== long && plan.rest.startsWith('…') === false && plan.rest.includes(' — max was kept'), 'statusRowPlan in src/screen/chat/SwitchboardTagBar.tsx must cut a long receipt to its tail, as the field frame did; rest: ' + j(plan.rest))
 
 }
 

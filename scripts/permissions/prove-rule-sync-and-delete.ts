@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/permissions/permissions.ts src/utils/permissions/PermissionUpdate.ts src/utils/permissions/permissionsLoader.ts
+// gate-watch: src/permissions/rules/permissionDoor.ts src/permissions/rules/permissionUpdate.ts src/permissions/rules/permissionsLoader.ts
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -16,19 +16,19 @@ process.chdir(PROJ)
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  const failHint = ' — change applyPermissionRulesToPermissionContext, syncPermissionRulesFromDisk or deletePermissionRule in src/utils/permissions/permissions.ts'
+  const failHint = ' — change applyPermissionRulesToPermissionContext, syncPermissionRulesFromDisk or deletePermissionRule in src/permissions/rules/permissionDoor.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}${ok ? '' : failHint}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { applyPermissionRulesToPermissionContext, deletePermissionRule, syncPermissionRulesFromDisk } = await import('../../src/utils/permissions/permissions.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { setCachedSettingsForSource } = await import('../../src/utils/settings/settingsCache.ts')
-const { getSettingsFilePathForSource } = await import('../../src/utils/settings/settings.ts')
-type Rule = import('../../src/types/permissions.ts').PermissionRule
-type Ctx = import('../../src/types/permissions.ts').ToolPermissionContext
+const { applyPermissionRulesToPermissionContext, deletePermissionRule, syncPermissionRulesFromDisk } = await import('../../src/permissions/rules/permissionDoor.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { setCachedSettingsForSource } = await import('../../src/platform/settings/settingsCache.ts')
+const { getSettingsFilePathForSource } = await import('../../src/platform/settings/settings.ts')
+type Rule = import('../../src/permissions/rules/permissions.ts').PermissionRule
+type Ctx = import('../../src/permissions/rules/permissions.ts').ToolPermissionContext
 
 const rule = (source: Rule['source'], ruleBehavior: Rule['ruleBehavior'], toolName: string, ruleContent?: string): Rule => ({
   source,

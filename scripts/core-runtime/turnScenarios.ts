@@ -23,23 +23,23 @@ const RIG_NAMES: Record<string, string | undefined> = {
   NODE_ENV: undefined,
 }
 
-const { runEventCore } = await import('../../src/run-core/turn-machine.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createAssistantAPIErrorMessage, createCompactBoundaryMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { FallbackTriggeredError } = await import('../../src/services/api/withRetry.ts')
-const { ImageSizeError } = await import('../../src/services/imageValidation.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const queue = await import('../../src/utils/messageQueueManager.ts')
-const sessionHooks = await import('../../src/utils/hooks/sessionHooks.ts')
-const guards = await import('../../src/guards/guards.ts')
-const settingsRoad = await import('../../src/utils/settings/settings.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { emptyReplyNote, markEmptyReply } = await import('../../src/services/providers/emptyReply.ts')
-const { streamFaultAfterPartialText } = await import('../../src/services/api/errors.ts')
-const gate = await import('../../src/services/providers/toolCallGate.ts')
-const { operatorPauseGate } = await import('../../src/run-core/pauseGate.ts')
+const { runEventCore } = await import('../../src/engine/loop/turn-machine.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createAssistantAPIErrorMessage, createCompactBoundaryMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { FallbackTriggeredError } = await import('../../src/engine/requests/withRetry.ts')
+const { ImageSizeError } = await import('../../src/engine/requests/imageValidation.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const queue = await import('../../src/daemon/runner/messageQueueManager.ts')
+const sessionHooks = await import('../../src/integrations/event-hooks/sessionHooks.ts')
+const guards = await import('../../src/permissions/guards/guards.ts')
+const settingsRoad = await import('../../src/platform/settings/settings.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { emptyReplyNote, markEmptyReply } = await import('../../src/models/roads/emptyReply.ts')
+const { streamFaultAfterPartialText } = await import('../../src/engine/requests/apiErrorRows.ts')
+const gate = await import('../../src/models/roads/toolCallGate.ts')
+const { operatorPauseGate } = await import('../../src/engine/loop/pauseGate.ts')
 
 export const MODEL = 'claude-opus-4-8'
 export const FALLBACK_MODEL = 'claude-sonnet-5'
@@ -446,10 +446,10 @@ export type Planted = OpenRig & { run: Row; state: Row }
 
 export async function plantRun(plan: Plan): Promise<Planted> {
   const open = openRig(plan)
-  const { createEventMint } = await import('../../src/run-core/events.ts')
-  const { BudgetGuard } = await import('../../src/run-core/budget-guard.ts')
-  const { FRESH_OVERFLOW_EPISODE } = await import('../../src/services/compact/overflowRecovery.ts')
-  const { createSystemMessage } = await import('../../src/services/messages.ts')
+  const { createEventMint } = await import('../../src/engine/loop/events.ts')
+  const { BudgetGuard } = await import('../../src/engine/loop/budget-guard.ts')
+  const { FRESH_OVERFLOW_EPISODE } = await import('../../src/engine/compaction/overflowRecovery.ts')
+  const { createSystemMessage } = await import('../../src/engine/messages/messages.ts')
   const emit = createEventMint()
   const pendingMemoryWrites: Array<{ id: string; argumentsRaw: string }> = []
   const params = open.params
@@ -505,8 +505,8 @@ export async function plantReply(plan: Plan, change: { state?: Row; run?: Row } 
   try {
     Object.assign(planted.state, change.state ?? {})
     Object.assign(planted.run, change.run ?? {})
-    const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
-    const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
+    const { makeRequest } = await import('../../src/engine/loop/turn/makeRequest.ts')
+    const { modelReply } = await import('../../src/engine/loop/turn/modelReply.ts')
     const request = await drain(makeRequest(planted.run as never, planted.state as never, 1))
     if (request.decision.kind !== 'go_on') throw new Error(`the planted request did not go on: ${JSON.stringify(planted.mask(request.decision))}`)
     const iter = request.decision.iter as unknown as Row

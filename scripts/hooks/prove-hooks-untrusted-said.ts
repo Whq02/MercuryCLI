@@ -52,17 +52,17 @@ async function run(trusted: boolean): Promise<{ code: number | null; stderr: str
 
 const untrusted = await run(false)
 check('the untrusted run completes', untrusted.code === 0, `${untrusted.code} ${untrusted.stderr.slice(0, 300)}`)
-check('only the user hook fired: the three checkout hooks stayed unloaded', untrusted.marks === 1, `${untrusted.marks} mark(s) (project and local hooks must not load before the trust card is accepted; see src/utils/hooks/hooksConfigSnapshot.ts)`)
+check('only the user hook fired: the three checkout hooks stayed unloaded', untrusted.marks === 1, `${untrusted.marks} mark(s) (project and local hooks must not load before the trust card is accepted; see src/integrations/event-hooks/hooksConfigSnapshot.ts)`)
 const line = untrusted.stderr.split('\n').find(l => /hooks: this folder is not trusted/.test(l)) ?? ''
-check('stderr says the folder is not trusted and counts the three hooks left unloaded', /hooks: this folder is not trusted, so its 3 project and local hooks were not loaded — start Mercury here once and accept the trust card, and they run$/.test(line), (untrusted.stderr.trim().slice(0, 400) || '(stderr empty)') + ' (the wording is in src/utils/hooks/hooksConfigSnapshot.ts and must match the expected line exactly)')
-check('the line is said once', untrusted.stderr.split('\n').filter(l => /hooks: this folder is not trusted/.test(l)).length === 1, 'the hooks trust line printed more than once or not at all; see src/utils/hooks/hooksConfigSnapshot.ts')
+check('stderr says the folder is not trusted and counts the three hooks left unloaded', /hooks: this folder is not trusted, so its 3 project and local hooks were not loaded — start Mercury here once and accept the trust card, and they run$/.test(line), (untrusted.stderr.trim().slice(0, 400) || '(stderr empty)') + ' (the wording is in src/integrations/event-hooks/hooksConfigSnapshot.ts and must match the expected line exactly)')
+check('the line is said once', untrusted.stderr.split('\n').filter(l => /hooks: this folder is not trusted/.test(l)).length === 1, 'the hooks trust line printed more than once or not at all; see src/integrations/event-hooks/hooksConfigSnapshot.ts')
 const serversLine = untrusted.stderr.split('\n').filter(l => /mcp: this folder is not trusted/.test(l))
-check('stderr also counts the project server left unloaded, once', serversLine.length === 1 && /mcp: this folder is not trusted, so its 1 project MCP server was not loaded from \.mercury\/mcp\.json/.test(serversLine[0] ?? ''), JSON.stringify(serversLine) + ' (the wording is in src/services/mcp/config.ts and must name the count and .mercury/mcp.json, once)')
+check('stderr also counts the project server left unloaded, once', serversLine.length === 1 && /mcp: this folder is not trusted, so its 1 project MCP server was not loaded from \.mercury\/mcp\.json/.test(serversLine[0] ?? ''), JSON.stringify(serversLine) + ' (the wording is in src/integrations/mcp/serverConfigs.ts and must name the count and .mercury/mcp.json, once)')
 check('nothing about trust reaches stdout', !/not trusted/.test(untrusted.stdout))
 
 const trusted = await run(true)
 check('the trusted run completes', trusted.code === 0, `${trusted.code} ${trusted.stderr.slice(0, 300)}`)
-check('every hook fired in the trusted folder', trusted.marks === 3, `${trusted.marks} mark(s) (in a trusted folder the user, project and local hooks must all load; see src/utils/hooks/hooksConfigSnapshot.ts)`)
+check('every hook fired in the trusted folder', trusted.marks === 3, `${trusted.marks} mark(s) (in a trusted folder the user, project and local hooks must all load; see src/integrations/event-hooks/hooksConfigSnapshot.ts)`)
 check('…and no trust line is drawn', !/not trusted/.test(trusted.stderr), trusted.stderr.trim().slice(0, 300))
 
 if (failures > 0) {

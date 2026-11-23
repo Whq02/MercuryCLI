@@ -97,38 +97,38 @@ Object.assign(process.env, {
   OPENROUTER_API_KEY: 'sk-or-v1-fixture-wire-truth',
 })
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 
 const { canonicalWireModelId, qualifiedWireId, declaredRouteOf } = await import(
-  '../../src/services/providers/routeLaw.ts'
+  '../../src/models/roads/routeLaw.ts'
 )
 const { compatDispatchModelId } = await import(
-  '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+  '../../src/models/roads/openaicompat/compatChatCallModel.ts'
 )
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
 const { refreshOpenrouterCatalogue, getOpenrouterModelOptions } = await import(
-  '../../src/services/providers/openrouter/openrouterCatalogue.ts'
+  '../../src/models/roads/openrouter/openrouterCatalogue.ts'
 )
 const { focusedOptionSupports1m, withContext1m } = await import(
-  '../../src/services/model/modelOptions.ts'
+  '../../src/models/catalogue/modelOptions.ts'
 )
 const { getCanonicalName, getEngineModel, parseUserSpecifiedModel } = await import(
-  '../../src/services/model/model.ts'
+  '../../src/models/catalogue/engineModel.ts'
 )
 const { modelSupports1M, resolveContextWindow } = await import(
-  '../../src/utils/model/capabilities.ts'
+  '../../src/models/facts/capabilities.ts'
 )
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
-type Options = import('../../src/services/providers/anthropic/streamCore.ts').Options
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
+type Options = import('../../src/models/roads/anthropic/streamCore.ts').Options
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const wireIdFixHint = ' (fix the wire-id rules in canonicalWireModelId in src/services/providers/routeLaw.ts, the catalogue rows in src/services/providers/openrouter/openrouterCatalogue.ts, or the 1M window in resolveContextWindow in src/utils/model/capabilities.ts, whichever this check names)'
+  const wireIdFixHint = ' (fix the wire-id rules in canonicalWireModelId in src/models/roads/routeLaw.ts, the catalogue rows in src/models/roads/openrouter/openrouterCatalogue.ts, or the 1M window in resolveContextWindow in src/models/facts/capabilities.ts, whichever this check names)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : wireIdFixHint}`)
 }
 function section(t: string): void {
@@ -307,7 +307,7 @@ section('8 · the one owner and the lane projection agree on every dispatchable 
 section("9 · the poisoned feed: junk rows HEAL onto listed twins; the operator's screen renders vendor truth")
 {
   const { __resetOpenrouterCatalogueForTest } = await import(
-    '../../src/services/providers/openrouter/openrouterCatalogue.ts'
+    '../../src/models/roads/openrouter/openrouterCatalogue.ts'
   )
   CATALOGUE = CATALOGUE_POISONED
   __resetOpenrouterCatalogueForTest()

@@ -2,12 +2,12 @@
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { toolContext } from './computerToolKit.ts'
 
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { ComputerTool, COMPUTER_TOOL_NAME } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const { setIsInteractive, getIsInteractive, setAskChannel, getAskChannel } = await import('../../src/bootstrap/state.ts')
-const agents = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/constants/tools.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { ComputerTool, COMPUTER_TOOL_NAME } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const { setIsInteractive, getIsInteractive, setAskChannel, getAskChannel } = await import('../../src/boot/process-state/processState.ts')
+const agents = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/tools/kit/crewmateBarredTools.ts')
 
 resetDesktopDriverForTest()
 const names = (): string[] => getAllBaseTools().map(t => t.name)

@@ -17,18 +17,18 @@ delete process.env.MERCURY_CHANGE_RECEIPTS
 delete process.env.MERCURY_EDIT_STALE_RECOVERY
 delete process.env.NODE_ENV
 
-const { _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const editResult = (await import('../../src/tools/FileEditTool/editResult.ts').catch(() => null)) as null | {
+const { _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const editResult = (await import('../../src/tools/edit/editResult.ts').catch(() => null)) as null | {
   buildEditedLines: (input: Record<string, unknown>) => Promise<{ editedLines: Record<string, unknown>; windows: unknown[] }>
   EDIT_RESULT_CLOSE: string
 }
 
 let failures = 0
 let checks = 0
-const editResultHint = 'change the edit result text in buildEditedLines (src/tools/FileEditTool/editResult.ts) or in FileEditTool.mapToolResultToToolResultBlockParam (src/tools/FileEditTool/FileEditTool.ts) so it matches this check'
+const editResultHint = 'change the edit result text in buildEditedLines (src/tools/edit/editResult.ts) or in FileEditTool.mapToolResultToToolResultBlockParam (src/tools/edit/EditTool.ts) so it matches this check'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -308,7 +308,7 @@ section('R11. the builder over a window reader: same, differs, failed; a CRLF fi
   const map = (FileEditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam
   const base = { filePath: '/x/five.txt', oldString: 'TWO', newString: 'two', originalFile: written.replace('two', 'TWO'), structuredPatch: patch, userModified: false, replaceAll: false }
   if (editResult === null) {
-    check('R11 the builder module exists (RED on .28: no src/tools/FileEditTool/editResult.ts)', false)
+    check('R11 the builder module exists (RED on .28: no src/tools/edit/editResult.ts)', false)
   } else {
     const same = await editResult.buildEditedLines({ written, patch, what: '1 occurrence replaced', occurrences: 1, path: '/x/five.txt', readWindow: feed(['one', 'two', 'three', 'four', 'five', '']) })
     const sameText = String(map({ ...base, editedLines: same.editedLines }, 'toolu_r11').content)
@@ -338,7 +338,7 @@ _resetSeenLinesForTesting()
   writeFileSync(path, body)
   const ctx = makeContext()
   await read({ file_path: path }, ctx)
-  const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
+  const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
   const unchanged = await edit({ file_path: path, expected_anchor: mintFileAnchor(body), hunks: [{ lines: '2', replace: 'beta' }] }, ctx)
   check('R12 the no-change text is .28\'s: "No changes made to <path>: the computed result is byte-identical…", no rows, no CLOSE', unchanged.ok && unchanged.text.startsWith(`No changes made to ${path}: the computed result is byte-identical to the current file content, so nothing was written. `) && rowsOf(unchanged.text).length === 0 && !unchanged.text.includes(CLOSE), textOf(unchanged))
   check('R12b the no-change data carries no editedLines', unchanged.ok && !('editedLines' in unchanged.data), unchanged.ok ? JSON.stringify(Object.keys(unchanged.data)) : '')

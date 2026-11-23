@@ -5,11 +5,11 @@ import { spyOn } from 'bun:test'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const registry = await import(join(ROOT, 'src/services/lsp/LSPDiagnosticRegistry.ts'))
-const manager = await import(join(ROOT, 'src/services/lsp/manager.ts'))
-const road = await import(join(ROOT, 'src/services/attachments/diagnostics.ts'))
-const { processOwnerForLane } = await import(join(ROOT, 'src/utils/run/resolveOwner.ts'))
-const { BASH_TOOL_NAME } = await import(join(ROOT, 'src/constants/tools/bash.ts'))
+const registry = await import(join(ROOT, 'src/integrations/lsp/LSPDiagnosticRegistry.ts'))
+const manager = await import(join(ROOT, 'src/integrations/lsp/serverManagerLifecycle.ts'))
+const road = await import(join(ROOT, 'src/engine/attachments/diagnostics.ts'))
+const { processOwnerForLane } = await import(join(ROOT, 'src/engine/run-owner/resolveOwner.ts'))
+const { BASH_TOOL_NAME } = await import(join(ROOT, 'src/tools/kit/names/bash.ts'))
 type Diagnostic = { message: string; severity: 'Error' | 'Warning'; range: { start: { line: number; character: number }; end: { line: number; character: number } }; source: string; code: string }
 type Row = { type: string; files: Array<{ uri: string; diagnostics: Diagnostic[] }> }
 
@@ -32,9 +32,9 @@ const FILE = '/x/proj/src/app.ts'
 const OTHER = '/x/proj/src/other.ts'
 const CLOSED = '/x/proj/notes.md'
 const CEILING_MS = 1_500
-const ARMED = 'snapshotDiagnosticsBeforeWrite in src/services/lsp/LSPDiagnosticRegistry.ts must arm the write and settleWritesAwaitingReport must clear it once the file is answered or given up'
-const WAIT = 'getLSPDiagnosticAttachments and deliverAfterRevalidation in src/services/attachments/diagnostics.ts must wait (awaitFreshReports, RESYNC_REPORT_WAIT_MS) for a publish of each armed written file the server holds open, then deliver through checkForLSPDiagnostics'
-const TURN_END = 'settleWriterDiagnosticsAtTurnEnd in src/services/attachments/diagnostics.ts must read the writer\'s publish once and return nothing when the turn is aborted'
+const ARMED = 'snapshotDiagnosticsBeforeWrite in src/integrations/lsp/LSPDiagnosticRegistry.ts must arm the write and settleWritesAwaitingReport must clear it once the file is answered or given up'
+const WAIT = 'getLSPDiagnosticAttachments and deliverAfterRevalidation in src/engine/attachments/diagnostics.ts must wait (awaitFreshReports, RESYNC_REPORT_WAIT_MS) for a publish of each armed written file the server holds open, then deliver through checkForLSPDiagnostics'
+const TURN_END = 'settleWriterDiagnosticsAtTurnEnd in src/engine/attachments/diagnostics.ts must read the writer\'s publish once and return nothing when the turn is aborted'
 const diagnostic = (line: number, message: string): Diagnostic => ({ message, severity: 'Error', range: { start: { line, character: 0 }, end: { line, character: 12 } }, source: SERVER, code: '2322' })
 const typeError = (line: number): Diagnostic => diagnostic(line, "Type 'string' is not assignable to type 'number'.", )
 function publish(uri: string, diagnostics: Diagnostic[], version?: number): void {
@@ -91,7 +91,7 @@ try {
     setTimeout(() => publish(FILE, [diagnostic(0, "Cannot find name 'helper'.")], 3), 60)
     setTimeout(() => publish(FILE, [typeError(0)], 4), 260)
     const { value: rows, ms } = await timed(() => drain(context()))
-    check('the wait ran past the stale publish to the written version', ms >= 240 && ms < 1_000, `${ms} ms — the settle check of the document version in settleAwaitingWrite (src/services/lsp/LSPDiagnosticRegistry.ts) and the stillAwaited test in deliverAfterRevalidation (src/services/attachments/diagnostics.ts) must keep waiting past a publish whose version is not newer than the write's`)
+    check('the wait ran past the stale publish to the written version', ms >= 240 && ms < 1_000, `${ms} ms — the settle check of the document version in settleAwaitingWrite (src/integrations/lsp/LSPDiagnosticRegistry.ts) and the stillAwaited test in deliverAfterRevalidation (src/engine/attachments/diagnostics.ts) must keep waiting past a publish whose version is not newer than the write's`)
     check('the attachment carries the written version\'s report (the stale set superseded)', messagesOf(rows).join('|') === "Type 'string' is not assignable to type 'number'.", `${j(messagesOf(rows))} — ${WAIT}; the stale set must be superseded by the report of the written version`)
   }
 
@@ -102,8 +102,8 @@ try {
     writeAsTheToolsDo(mainOwner, FILE, 1)
     const { value: rows, ms } = await timed(() => drain(context()))
     check('the wait is the ceiling', ms >= CEILING_MS - 50 && ms < CEILING_MS + 400, `${ms} ms — ${WAIT}; the wait is RESYNC_REPORT_WAIT_MS`)
-    check('nothing stale is attached (the pre-write publish was dropped by the write)', rows.length === 0, `${j(rows)} — snapshotDiagnosticsBeforeWrite in src/services/lsp/LSPDiagnosticRegistry.ts must drop the pending publish of the written file`)
-    check('the written file is settled after one wait', !registry.writesAwaitingReport(mainOwner).includes(FILE), `still armed — deliverAfterRevalidation in src/services/attachments/diagnostics.ts must call settleWritesAwaitingReport for the written files`)
+    check('nothing stale is attached (the pre-write publish was dropped by the write)', rows.length === 0, `${j(rows)} — snapshotDiagnosticsBeforeWrite in src/integrations/lsp/LSPDiagnosticRegistry.ts must drop the pending publish of the written file`)
+    check('the written file is settled after one wait', !registry.writesAwaitingReport(mainOwner).includes(FILE), `still armed — deliverAfterRevalidation in src/engine/attachments/diagnostics.ts must call settleWritesAwaitingReport for the written files`)
     const { value: again, ms: againMs } = await timed(() => drain(context()))
     check('the next drain does not wait again', again.length === 0 && againMs < 100, `${againMs} ms — the file must not stay armed after the first wait (settleWritesAwaitingReport)`)
   }
@@ -113,7 +113,7 @@ try {
   {
     writeAsTheToolsDo(mainOwner, CLOSED, undefined)
     const { value: rows, ms } = await timed(() => drain(context()))
-    check('the drain is immediate', rows.length === 0 && ms < 100, `${ms} ms — getLSPDiagnosticAttachments in src/services/attachments/diagnostics.ts must not await a written file the manager's isFileOpen says is closed`)
+    check('the drain is immediate', rows.length === 0 && ms < 100, `${ms} ms — getLSPDiagnosticAttachments in src/engine/attachments/diagnostics.ts must not await a written file the manager's isFileOpen says is closed`)
     check('and the write is settled (nothing will come)', !registry.writesAwaitingReport(mainOwner).includes(CLOSED), `still armed — getLSPDiagnosticAttachments must call settleWritesAwaitingReport for armed files no server holds open`)
   }
 
@@ -122,8 +122,8 @@ try {
   {
     writeAsTheToolsDo(crewOwner, OTHER, 1)
     const { value: mainRows, ms: mainMs } = await timed(() => drain(context()))
-    check('the main lane does not wait on a crewmate\'s write', mainRows.length === 0 && mainMs < 100, `${mainMs} ms — writesAwaitingReport(owner) in src/services/lsp/LSPDiagnosticRegistry.ts must return only the lane's own writes`)
-    check('the crewmate\'s write is still armed', registry.writesAwaitingReport(crewOwner).includes(OTHER), `not armed — the main lane's drain must not settle another lane's write (settleWritesAwaitingReport, writesAwaitingReport in src/services/lsp/LSPDiagnosticRegistry.ts)`)
+    check('the main lane does not wait on a crewmate\'s write', mainRows.length === 0 && mainMs < 100, `${mainMs} ms — writesAwaitingReport(owner) in src/integrations/lsp/LSPDiagnosticRegistry.ts must return only the lane's own writes`)
+    check('the crewmate\'s write is still armed', registry.writesAwaitingReport(crewOwner).includes(OTHER), `not armed — the main lane's drain must not settle another lane's write (settleWritesAwaitingReport, writesAwaitingReport in src/integrations/lsp/LSPDiagnosticRegistry.ts)`)
     setTimeout(() => publish(OTHER, [typeError(2)], 2), 80)
     const { value: crewRows, ms: crewMs } = await timed(() => drain(context('agent-settle')))
     check('the crewmate\'s drain waits for and carries its own publish', messagesOf(crewRows).length === 1 && crewMs >= 60 && crewMs < 1_000, `${j(messagesOf(crewRows))} ${crewMs} ms — ${WAIT}, for the drain's own lane`)
@@ -171,7 +171,7 @@ try {
     check(
       'a held turn continues with the rows in its messages (the existing stop-hook gate)',
       held.transitions.join(',') === 'stop_hook_blocking' && held.requests.length === 2 && held.terminal.reason === 'completed' && added.length === 2 && added[0]?.type === 'assistant' && added[1]?.attachment === carried[0] && messagesOf(carried).join('|') === "Type 'string' is not assignable to type 'number'.",
-      `the stop_hooks rule (src/run-core/turn/noToolReply.ts) must hand a held turn over as stop_hook_blocking with the request's rows, the reply and the gate's blocking rows, once; a turn that ended with the writer's publish unread handed over [${held.transitions.join(',')}] in ${held.requests.length} model calls, ended ${j(held.terminal)}, and its second request adds ${added.map(row => `${String(row.type)}${row.attachment ? ` (${row.attachment.type})` : ''}`).join(', ') || 'nothing'} carrying ${j(messagesOf(carried))}`,
+      `the stop_hooks rule (src/engine/loop/turn/noToolReply.ts) must hand a held turn over as stop_hook_blocking with the request's rows, the reply and the gate's blocking rows, once; a turn that ended with the writer's publish unread handed over [${held.transitions.join(',')}] in ${held.requests.length} model calls, ended ${j(held.terminal)}, and its second request adds ${added.map(row => `${String(row.type)}${row.attachment ? ` (${row.attachment.type})` : ''}`).join(', ') || 'nothing'} carrying ${j(messagesOf(carried))}`,
     )
   }
 } finally {

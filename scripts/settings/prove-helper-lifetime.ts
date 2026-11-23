@@ -16,7 +16,7 @@ delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_MODEL
 
 let failures = 0
-const helperLifetimeFailHint = 'fix the helper life cycle: start, adopt and stop in src/services/providers/local/tensorfoldHelper.ts, the start and the session-lifecycle spec in src/services/tensorfold/serve.ts, owner-dispose stops in src/utils/run/ownerLifecycle.ts, service records in src/services/projectServices/serviceManager.ts, the port list in src/services/providers/local/tensorfoldHosts.ts, and probe targets in src/services/providers/local/localDiscovery.ts'
+const helperLifetimeFailHint = 'fix the helper life cycle: start, adopt and stop in src/models/roads/local/tensorfoldHelper.ts, the start and the session-lifecycle spec in src/models/tensorfold/serve.ts, owner-dispose stops in src/engine/run-owner/ownerLifecycle.ts, service records in src/tools/engines/project-services/serviceManager.ts, the port list in src/models/roads/local/tensorfoldHosts.ts, and probe targets in src/models/roads/local/localDiscovery.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — to fix: ${helperLifetimeFailHint}`}`)
@@ -86,15 +86,15 @@ section('§0 the modules import')
 const mods = await (async () => {
   try {
     return {
-      helper: await import('../../src/services/providers/local/tensorfoldHelper.js'),
-      hosts: await import('../../src/services/providers/local/tensorfoldHosts.js'),
-      discovery: await import('../../src/services/providers/local/localDiscovery.js'),
-      serve: await import('../../src/services/tensorfold/serve.js'),
-      engine: await import('../../src/services/tensorfold/engine.js'),
-      manager: await import('../../src/services/projectServices/serviceManager.js'),
-      lifecycle: await import('../../src/utils/run/ownerLifecycle.js'),
-      resolveOwner: await import('../../src/utils/run/resolveOwner.js'),
-      config: await import('../../src/utils/config/globalConfig.js'),
+      helper: await import('../../src/models/roads/local/tensorfoldHelper.js'),
+      hosts: await import('../../src/models/roads/local/tensorfoldHosts.js'),
+      discovery: await import('../../src/models/roads/local/localDiscovery.js'),
+      serve: await import('../../src/models/tensorfold/serve.js'),
+      engine: await import('../../src/models/tensorfold/engine.js'),
+      manager: await import('../../src/tools/engines/project-services/serviceManager.js'),
+      lifecycle: await import('../../src/engine/run-owner/ownerLifecycle.js'),
+      resolveOwner: await import('../../src/engine/run-owner/resolveOwner.js'),
+      config: await import('../../src/platform/config/globalConfig.js'),
     }
   } catch (error) {
     check('the modules import', false, error instanceof Error ? error.message.split('\n')[0] ?? '' : String(error))

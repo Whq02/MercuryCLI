@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import fc from 'fast-check'
-import { lineWidth } from '../../src/ink/line-width-cache.ts'
-import { stringWidth } from '../../src/ink/stringWidth.ts'
+import { lineWidth } from '../../src/screen/renderer/line-width-cache.ts'
+import { stringWidth } from '../../src/screen/renderer/stringWidth.ts'
 
-const WHERE = 'lineWidth in src/ink/line-width-cache.ts'
+const WHERE = 'lineWidth in src/screen/renderer/line-width-cache.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
@@ -72,7 +72,7 @@ console.log('§3 the law: it is the string width, for any line')
   )
   const lines = fc.array(parts, { maxLength: 12 }).map(pieces => pieces.join(''))
   const law = fc.check(fc.property(lines, line => lineWidth(line) === stringWidth(line) && lineWidth(line) === stringWidth(line)), { numRuns: 2000 })
-  check('on two thousand generated lines it equals stringWidth of the line, asked once and asked again', !law.failed, `counterexample ${law.counterexample ? shown(String(law.counterexample[0])) : ''}; ${WHERE} must agree with stringWidth in src/ink/stringWidth.ts on every line`)
+  check('on two thousand generated lines it equals stringWidth of the line, asked once and asked again', !law.failed, `counterexample ${law.counterexample ? shown(String(law.counterexample[0])) : ''}; ${WHERE} must agree with stringWidth in src/screen/renderer/stringWidth.ts on every line`)
   const whole = fc.check(fc.property(lines, line => Number.isInteger(lineWidth(line)) && lineWidth(line) >= 0), { numRuns: 500 })
   check('the width is always a whole number, never below zero', !whole.failed, `counterexample ${whole.counterexample ? shown(String(whole.counterexample[0])) : ''}`)
 }

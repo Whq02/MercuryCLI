@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/constants/**
-# gate-watch: src/utils/run/ownerScopedStore.ts
+# gate-watch: src/commands/update-notes/changelog.ts src/commands/update-notes/changelogArchive.ts src/engine/message-shapes/messageTags.ts src/engine/message-shapes/noContentMessage.ts src/engine/requests/querySource.ts src/engine/system-prompt/defaultSystemPrompt.ts src/engine/system-prompt/systemPromptSections.ts src/engine/tasks/local-agent/agentMessage.ts src/models/roads/attributionHeader.ts src/models/roads/betaHeaders.ts src/models/roads/localPromptProfile.ts src/models/roads/mediaLimits.ts src/models/sign-in/credentials/credentialEnvSpellings.ts src/models/sign-in/oauth/oauth.ts src/platform/primitives/localIsoDate.ts src/platform/product/legalNotice.ts src/platform/product/product.ts src/screen/spinner/spinnerVerbs.ts src/screen/spinner/turnCompletionVerbs.ts src/screen/theme/rowGlyphs.ts src/tools/crewmate/subagentDoctrine.ts src/tools/kit/crewmateBarredTools.ts src/tools/kit/names/** src/tools/kit/toolLimits.ts src/tools/read/binaryExtensions.ts
+# gate-watch: src/engine/run-owner/ownerScopedStore.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

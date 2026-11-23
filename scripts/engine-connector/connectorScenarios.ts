@@ -167,27 +167,27 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
   const clock = installClock()
 
   const src = (path: string): string => join(import.meta.dir, '..', '..', 'src', path)
-  const bootstrap = await import(src('bootstrap/state.ts'))
+  const bootstrap = await import(src('boot/process-state/processState.ts'))
   bootstrap.setIsInteractive(false)
-  const { enableConfigs } = await import(src('utils/config/globalConfig.ts'))
+  const { enableConfigs } = await import(src('platform/config/globalConfig.ts'))
   enableConfigs()
-  const { DaemonSessionConnector } = await import(src('services/engine-connector/daemonConnector.ts'))
-  const projections = await import(src('services/engine-connector/seatProjections.ts'))
-  const { controlSockPath, daemonStatePath } = await import(src('daemon/controlSocket.ts'))
-  const { concourseWorkersPath } = await import(src('daemon/concourseWorkers.ts'))
-  const { _resetDaemonUsableMemoForProofs } = await import(src('services/switchboard/ensureDaemon.ts'))
-  const { createSeatReceiptMessage } = await import(src('utils/messages/systemMessages.ts'))
-  const { mcpToolsAnswerOf } = await import(src('services/mcp/toolsAnswer.ts'))
+  const { DaemonSessionConnector } = await import(src('engine/connector/daemonConnector.ts'))
+  const projections = await import(src('engine/connector/seatProjections.ts'))
+  const { controlSockPath, daemonStatePath } = await import(src('daemon/control/controlSocket.ts'))
+  const { concourseWorkersPath } = await import(src('daemon/concourse-workers/concourseWorkers.ts'))
+  const { _resetDaemonUsableMemoForProofs } = await import(src('daemon/switchboard/ensureDaemon.ts'))
+  const { createSeatReceiptMessage } = await import(src('engine/message-shapes/systemMessages.ts'))
+  const { mcpToolsAnswerOf } = await import(src('integrations/mcp/toolsAnswer.ts'))
   const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
   const carrierCall = async (req: Reply, timeoutMs: number): Promise<Reply> => {
-    const { daemonControlRpc } = await import(src('daemon/controlSocket.ts'))
+    const { daemonControlRpc } = await import(src('daemon/control/controlSocket.ts'))
     return (await daemonControlRpc(req, { timeoutMs })) as Reply
   }
   const carrierThrows = async (message: string): Promise<Reply> => {
     throw new Error(message)
   }
-  const progressStore = await import(src('state/ephemeralProgressStore.ts'))
-  await import(src('utils/ownerWatch.ts'))
+  const progressStore = await import(src('screen/app-state/ephemeralProgressStore.ts'))
+  await import(src('daemon/control/ownerWatch.ts'))
   const WATCHED_TOOLS = ['toolu_attach', 'toolu_run', 'toolu_hook', 'toolu_eval', 'toolu_mcp', 'toolu_ps', 'toolu_fed', 'toolu_old', 'toolu_f']
 
   type Pending = { req: Reply; answer: (reply: Reply | 'drop') => void; closed: Promise<void> }

@@ -12,7 +12,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const tail = await import(join(ROOT, 'src/components/LiveStreamingTail.tsx'))
+const tail = await import(join(ROOT, 'src/screen/messages/LiveStreamingTail.tsx'))
 const { boundTailForInline, openFenceOf } = tail as {
   boundTailForInline: (text: string, rows: number, columns: number) => { text: string; truncated: boolean; openFence?: string | null }
   openFenceOf: (prefix: string) => string | null
@@ -21,7 +21,7 @@ const { marked } = await import('marked')
 
 section('§1 the fence ledger over a discarded prefix')
 {
-  failHint = 'change openFenceOf in src/components/LiveStreamingTail.tsx so the fence still open at the end of the prefix is returned (opener without indent) and closed or absent fences return null'
+  failHint = 'change openFenceOf in src/screen/messages/LiveStreamingTail.tsx so the fence still open at the end of the prefix is returned (opener without indent) and closed or absent fences return null'
   check('an unclosed backtick fence stands, info string kept', openFenceOf('prose\n```ts\nconst a = 1') === '```ts')
   check('a closed pair stands down', openFenceOf('```ts\ncode\n```\nprose') === null)
   check('an unclosed tilde fence stands', openFenceOf('~~~python\nx = 1') === '~~~python')
@@ -36,7 +36,7 @@ section('§1 the fence ledger over a discarded prefix')
 
 section('§2 the bound returns the standing opener beside the untouched slice')
 {
-  failHint = 'change boundTailForInline and openFenceBefore in src/components/LiveStreamingTail.tsx so a cut returns the raw suffix plus the fence open at the cut, and an uncut tail returns openFence null'
+  failHint = 'change boundTailForInline and openFenceBefore in src/screen/messages/LiveStreamingTail.tsx so a cut returns the raw suffix plus the fence open at the cut, and an uncut tail returns openFence null'
   const lines = ['intro prose', '```ts', ...Array.from({ length: 12 }, (_, i) => `const v${i} = ${i} // #${i}`), '- not a bullet', '# not a heading']
   const text = lines.join('\n')
   const out = boundTailForInline(text, 10, 84)
@@ -51,7 +51,7 @@ section('§2 the bound returns the standing opener beside the untouched slice')
 
 section('§3 the dress, through the renderer’s own lexer')
 {
-  failHint = 'change boundTailForInline in src/components/LiveStreamingTail.tsx so the openFence it returns, placed before the kept text, makes marked lex the slice as one code block'
+  failHint = 'change boundTailForInline in src/screen/messages/LiveStreamingTail.tsx so the openFence it returns, placed before the kept text, makes marked lex the slice as one code block'
   const lines = ['```ts', ...Array.from({ length: 12 }, (_, i) => `# line_${i}`)]
   const text = lines.join('\n')
   const out = boundTailForInline(text, 10, 84)
@@ -71,7 +71,7 @@ section('§3 the dress, through the renderer’s own lexer')
 
 section('§4 the parity control — the kept text is untouched by the carry')
 {
-  failHint = 'change boundTailForInline in src/components/LiveStreamingTail.tsx so the kept text stays a raw suffix of the input and the fence travels only in openFence'
+  failHint = 'change boundTailForInline in src/screen/messages/LiveStreamingTail.tsx so the kept text stays a raw suffix of the input and the fence travels only in openFence'
   const rand = ((): (() => number) => {
     let s = 0x5eed2
     return () => {

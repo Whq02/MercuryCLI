@@ -24,8 +24,8 @@ console.log('============================================================')
 console.log(' behaviour laws 2–4 — provider scope · one owner · semantic ids')
 console.log('============================================================')
 
-const prompts = await import('../../src/constants/prompts.ts')
-const contractMod = await import('../../src/prompt/behaviourContract.ts')
+const prompts = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+const contractMod = await import('../../src/engine/system-prompt/behaviourContract.ts')
 
 const toolNames = ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Crewmate', 'Skill', 'TaskCreate', 'AskUserQuestion']
 const tools = toolNames.map(name => ({ name })) as never
@@ -35,16 +35,16 @@ const openai = contractMod.renderOpenaiInstructions(contract)
 const anthropic = segments.join('\n\n')
 
 section('§1 the one-content law — every wire, the same content')
-check('contract resolved from the registry (typed sections, not raw decode)', contract.sections.every(s => s.group !== 'segment'), 'resolveBehaviourContract in src/prompt/behaviourContract.ts must type every section the system prompt of getSystemPrompt in src/constants/prompts.ts carries, none left as a raw segment')
+check('contract resolved from the registry (typed sections, not raw decode)', contract.sections.every(s => s.group !== 'segment'), 'resolveBehaviourContract in src/engine/system-prompt/behaviourContract.ts must type every section the system prompt of getSystemPrompt in src/engine/system-prompt/defaultSystemPrompt.ts carries, none left as a raw segment')
 const VENDOR_STEER_RE = /\b(?:most recent|latest|newest|most capable|default to)\b[^.\n]{0,60}\b(?:Claude|GPT|Gemini|Llama|Grok|Mistral|Qwen|DeepSeek)\b[^.\n]{0,20}\bmodels\b/i
-check('the neutral model-currency rule rides EVERY render', anthropic.includes('Model currency:') && openai.includes('Model currency:'), 'the Model currency rule must be a section of the contract that getSystemPrompt in src/constants/prompts.ts composes, so every render carries it')
-check("no render steers toward one vendor's models (the neutral rule instead)", !VENDOR_STEER_RE.test(anthropic) && !VENDOR_STEER_RE.test(openai), 'reword the prompt section that names one vendor as latest or default so it stays model-neutral; sections are composed in src/constants/prompts.ts')
-check('OpenAI render == Anthropic render (same content, join shape apart)', openai === anthropic, 'renderOpenaiInstructions in src/prompt/behaviourContract.ts must render the same section text that getSystemPrompt in src/constants/prompts.ts joins')
-check('generic render == OpenAI render (chat lanes carry the same content)', contractMod.renderGenericInstructions(contract) === openai, 'renderGenericInstructions in src/prompt/behaviourContract.ts must render the same content as renderOpenaiInstructions')
-check('no section is family-scoped (every scope is "all")', contract.sections.every(s => s.scope === 'all'), 'a section of the contract resolved in src/prompt/behaviourContract.ts has a scope other than all; make it provider-neutral')
-const { MERCURY_CONSTITUTION } = await import('../../src/prompt/mercuryContract.ts')
-check('the constitution rides the composed output, provider-neutral, once', anthropic.split(MERCURY_CONSTITUTION).length === 2 && !/Claude|Anthropic|GPT|OpenAI/.test(MERCURY_CONSTITUTION), 'MERCURY_CONSTITUTION in src/prompt/mercuryContract.ts must appear exactly once in the composed prompt and name no vendor')
-check('the constitution rides the OpenAI render too', openai.includes(MERCURY_CONSTITUTION), 'renderOpenaiInstructions in src/prompt/behaviourContract.ts must include MERCURY_CONSTITUTION from src/prompt/mercuryContract.ts')
+check('the neutral model-currency rule rides EVERY render', anthropic.includes('Model currency:') && openai.includes('Model currency:'), 'the Model currency rule must be a section of the contract that getSystemPrompt in src/engine/system-prompt/defaultSystemPrompt.ts composes, so every render carries it')
+check("no render steers toward one vendor's models (the neutral rule instead)", !VENDOR_STEER_RE.test(anthropic) && !VENDOR_STEER_RE.test(openai), 'reword the prompt section that names one vendor as latest or default so it stays model-neutral; sections are composed in src/engine/system-prompt/defaultSystemPrompt.ts')
+check('OpenAI render == Anthropic render (same content, join shape apart)', openai === anthropic, 'renderOpenaiInstructions in src/engine/system-prompt/behaviourContract.ts must render the same section text that getSystemPrompt in src/engine/system-prompt/defaultSystemPrompt.ts joins')
+check('generic render == OpenAI render (chat lanes carry the same content)', contractMod.renderGenericInstructions(contract) === openai, 'renderGenericInstructions in src/engine/system-prompt/behaviourContract.ts must render the same content as renderOpenaiInstructions')
+check('no section is family-scoped (every scope is "all")', contract.sections.every(s => s.scope === 'all'), 'a section of the contract resolved in src/engine/system-prompt/behaviourContract.ts has a scope other than all; make it provider-neutral')
+const { MERCURY_CONSTITUTION } = await import('../../src/engine/system-prompt/mercuryContract.ts')
+check('the constitution rides the composed output, provider-neutral, once', anthropic.split(MERCURY_CONSTITUTION).length === 2 && !/Claude|Anthropic|GPT|OpenAI/.test(MERCURY_CONSTITUTION), 'MERCURY_CONSTITUTION in src/engine/system-prompt/mercuryContract.ts must appear exactly once in the composed prompt and name no vendor')
+check('the constitution rides the OpenAI render too', openai.includes(MERCURY_CONSTITUTION), 'renderOpenaiInstructions in src/engine/system-prompt/behaviourContract.ts must include MERCURY_CONSTITUTION from src/engine/system-prompt/mercuryContract.ts')
 
 section('§2 one-owner law — sentinel doctrine phrases live in ONE section')
 {
@@ -61,16 +61,16 @@ section('§2 one-owner law — sentinel doctrine phrases live in ONE section')
   ]
   for (const [label, re] of sentinels) {
     const owners = contract.sections.filter(s => re.test(s.text)).map(s => s.name)
-    check(`${label}: exactly one owner`, owners.length === 1, (owners.join(', ') || 'ABSENT') + ' | keep this doctrine phrase in exactly one section of the prompt that getSystemPrompt in src/constants/prompts.ts composes; remove the duplicate or restore the missing one')
+    check(`${label}: exactly one owner`, owners.length === 1, (owners.join(', ') || 'ABSENT') + ' | keep this doctrine phrase in exactly one section of the prompt that getSystemPrompt in src/engine/system-prompt/defaultSystemPrompt.ts composes; remove the duplicate or restore the missing one')
   }
 }
 
 section('§3 semantic ids — no positional section names; live references resolve')
 {
-  check('no positional section names', contract.sections.every(s => !/^(wrapper|mode)-\d+$/.test(s.name)), 'give each section a semantic name in resolveBehaviourContract in src/prompt/behaviourContract.ts instead of wrapper-N or mode-N')
+  check('no positional section names', contract.sections.every(s => !/^(wrapper|mode)-\d+$/.test(s.name)), 'give each section a semantic name in resolveBehaviourContract in src/engine/system-prompt/behaviourContract.ts instead of wrapper-N or mode-N')
   const all = contract.sections.map(s => s.text).join('\n')
   check('live references resolve (spot set): the discovery commands the harness map names exist',
-    all.includes('/help lists commands') && all.includes('/capabilities'), 'restore the harness map lines naming /help and /capabilities in the prompt sections composed by src/constants/prompts.ts, or rename them to commands that exist')
+    all.includes('/help lists commands') && all.includes('/capabilities'), 'restore the harness map lines naming /help and /capabilities in the prompt sections composed by src/engine/system-prompt/defaultSystemPrompt.ts, or rename them to commands that exist')
 }
 
 console.log('\n' + '═'.repeat(76))

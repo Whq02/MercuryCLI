@@ -55,9 +55,9 @@ process.env.MERCURY_LSP_SERVERS = JSON.stringify({
   },
 })
 
-const { enableConfigs } = await import(path.join(SRC, 'utils/config.ts'))
+const { enableConfigs } = await import(path.join(SRC, 'platform/settings/config.ts'))
 enableConfigs()
-const { createLSPServerManager } = await import(path.join(SRC, 'services/lsp/LSPServerManager.ts'))
+const { createLSPServerManager } = await import(path.join(SRC, 'integrations/lsp/LSPServerManager.ts'))
 
 type Manager = {
   initialize(): Promise<void>
@@ -87,16 +87,16 @@ section('§1 a shutdown during the handshake ends the child')
   check('the fake server is registered', server !== undefined, [...manager.getAllServers().keys()].join(','))
   const opening = manager.openFile(file('a.fake'), 'x')
   opening.catch(() => {})
-  check('the open leaves the server starting', await until(() => server?.state === 'starting', 3_000), `state ${server?.state}; openFile should start the server through readyFor in src/services/lsp/LSPServerManager.ts and leave it starting for the 1500ms init delay of scripts/lsp/fixtures/fake-lsp-server.mjs`)
-  check('the child was spawned (its pid is on record)', await until(() => newestPid() !== undefined, 3_000), 'no pid reached the pid file; the fake server writes it from FAKE_LSP_PID_FILE (scripts/lsp/fixtures/fake-lsp-server.mjs) once LSPServerInstance.start in src/services/lsp/LSPServerInstance.ts spawns it')
+  check('the open leaves the server starting', await until(() => server?.state === 'starting', 3_000), `state ${server?.state}; openFile should start the server through readyFor in src/integrations/lsp/LSPServerManager.ts and leave it starting for the 1500ms init delay of scripts/lsp/fixtures/fake-lsp-server.mjs`)
+  check('the child was spawned (its pid is on record)', await until(() => newestPid() !== undefined, 3_000), 'no pid reached the pid file; the fake server writes it from FAKE_LSP_PID_FILE (scripts/lsp/fixtures/fake-lsp-server.mjs) once LSPServerInstance.start in src/integrations/lsp/LSPServerInstance.ts spawns it')
   const pid = newestPid() as number
   check('precondition: the child is alive mid-handshake', alive(pid), `pid ${pid} already exited before shutdown; check the fake server startup in scripts/lsp/fixtures/fake-lsp-server.mjs`)
   const t0 = Date.now()
   await manager.shutdown()
-  check('shutdown settles promptly', Date.now() - t0 < 6_000, `${Date.now() - t0}ms; shutdown in src/services/lsp/LSPServerManager.ts should stop a starting server (stop in src/services/lsp/LSPServerInstance.ts) instead of waiting out the handshake`)
-  check('the starting child is gone after shutdown', await until(() => !alive(pid), 5_000), `pid ${pid} still alive; shutdown in src/services/lsp/LSPServerManager.ts must end a child that is still starting`)
-  check('the in-flight open settles (rejects or resolves) — never a hang', (await settle(opening, 6_000)) === 'settled', 'the open stayed pending after shutdown; the start in src/services/lsp/LSPServerInstance.ts must reject or resolve when its child is stopped')
-  check('the registry is clear', manager.getAllServers().size === 0, `${manager.getAllServers().size} server(s) left; shutdown in src/services/lsp/LSPServerManager.ts must clear its servers map`)
+  check('shutdown settles promptly', Date.now() - t0 < 6_000, `${Date.now() - t0}ms; shutdown in src/integrations/lsp/LSPServerManager.ts should stop a starting server (stop in src/integrations/lsp/LSPServerInstance.ts) instead of waiting out the handshake`)
+  check('the starting child is gone after shutdown', await until(() => !alive(pid), 5_000), `pid ${pid} still alive; shutdown in src/integrations/lsp/LSPServerManager.ts must end a child that is still starting`)
+  check('the in-flight open settles (rejects or resolves) — never a hang', (await settle(opening, 6_000)) === 'settled', 'the open stayed pending after shutdown; the start in src/integrations/lsp/LSPServerInstance.ts must reject or resolve when its child is stopped')
+  check('the registry is clear', manager.getAllServers().size === 0, `${manager.getAllServers().size} server(s) left; shutdown in src/integrations/lsp/LSPServerManager.ts must clear its servers map`)
 }
 
 section('§2 a shutdown during a stop in flight waits it out')
@@ -104,14 +104,14 @@ section('§2 a shutdown during a stop in flight waits it out')
   const manager = await fresh()
   const server = manager.getAllServers().get(keyOf(manager, 'fakeslow')) as { state: string; stop(): Promise<void> }
   await manager.openFile(file('b.fake'), 'y')
-  check('the server is running', server.state === 'running', `state ${server.state}; openFile should leave the fake server running once its handshake ends (src/services/lsp/LSPServerInstance.ts, start)`)
+  check('the server is running', server.state === 'running', `state ${server.state}; openFile should leave the fake server running once its handshake ends (src/integrations/lsp/LSPServerInstance.ts, start)`)
   const pid = newestPid() as number
   const stopping = server.stop()
-  check('the server is stopping', server.state === 'stopping', `state ${server.state}; stop in src/services/lsp/LSPServerInstance.ts should set the state to stopping before it first awaits`)
+  check('the server is stopping', server.state === 'stopping', `state ${server.state}; stop in src/integrations/lsp/LSPServerInstance.ts should set the state to stopping before it first awaits`)
   await manager.shutdown()
-  check('shutdown returned only once the child was gone', !alive(pid), `pid ${pid} still alive; shutdown in src/services/lsp/LSPServerManager.ts must await a stop already in flight, as stop in src/services/lsp/LSPServerInstance.ts returns inFlightStop`)
-  check('the stop in flight settled', (await settle(stopping, 3_000)) === 'settled', 'the stop stayed pending; runStop in src/services/lsp/LSPServerInstance.ts must always reach stopped or error')
-  check('the server reads stopped', server.state === 'stopped', `state ${server.state}; runStop in src/services/lsp/LSPServerInstance.ts should set stopped once the client has stopped`)
+  check('shutdown returned only once the child was gone', !alive(pid), `pid ${pid} still alive; shutdown in src/integrations/lsp/LSPServerManager.ts must await a stop already in flight, as stop in src/integrations/lsp/LSPServerInstance.ts returns inFlightStop`)
+  check('the stop in flight settled', (await settle(stopping, 3_000)) === 'settled', 'the stop stayed pending; runStop in src/integrations/lsp/LSPServerInstance.ts must always reach stopped or error')
+  check('the server reads stopped', server.state === 'stopped', `state ${server.state}; runStop in src/integrations/lsp/LSPServerInstance.ts should set stopped once the client has stopped`)
 }
 
 section('§3 control: a running server is stopped as before')
@@ -121,7 +121,7 @@ section('§3 control: a running server is stopped as before')
   const pid = newestPid() as number
   check('precondition: alive while running', alive(pid), `pid ${pid} is not alive after openFile; check the fake server in scripts/lsp/fixtures/fake-lsp-server.mjs`)
   await manager.shutdown()
-  check('the running child is gone after shutdown', await until(() => !alive(pid), 5_000), `pid ${pid} still alive; shutdown in src/services/lsp/LSPServerManager.ts must stop every server that is not stopped`)
+  check('the running child is gone after shutdown', await until(() => !alive(pid), 5_000), `pid ${pid} still alive; shutdown in src/integrations/lsp/LSPServerManager.ts must stop every server that is not stopped`)
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

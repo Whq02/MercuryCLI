@@ -12,7 +12,7 @@ process.env.MERCURY_CONFIG_DIR = HOME
 
 tally.section('§1 pure: the folded row reads the notice word as it read the old one')
 {
-  const { foldedSummary } = await import('../../src/utils/collapseBackgroundBashNotifications.ts')
+  const { foldedSummary } = await import('../../src/screen/messages-list/foldShellNotices.ts')
   type Notice = Parameters<typeof foldedSummary>[0][number]
   const notice = (status: Notice['status'], detail: string): Notice => ({ message: {} as Notice['message'], shape: 'attachment', status, detail, queued: false })
   const withNewWord = foldedSummary([notice('completed', '"lint" completed (exit code 0)'), notice('failed', '"grep" ended (exit code 1)'), notice('completed', '"unit tests" completed (exit code 0)')])
@@ -59,7 +59,7 @@ const summaries = notices.map(n => /<summary>([^<]*)<\/summary>/.exec(n)?.[1] ??
 console.log(`  notices seen by the model: ${JSON.stringify(summaries)}`)
 tally.check('the model was told about the finished command', notices.length > 0)
 tally.check('the notice carries the command line as written (no entity escaping) and its output file', notices.some(n => n.includes('<command>grep -c zzz haystack.txt && echo "matched"</command>') && n.includes('<output-file>')), JSON.stringify(notices.map(n => /<command>[^\n]*<\/command>/.exec(n)?.[0] ?? '')))
-const { wrapCommandText } = await import('../../src/utils/messages/text.ts')
+const { wrapCommandText } = await import('../../src/engine/message-shapes/text.ts')
 tally.check('a shell notification is introduced as a command, not an agent', notices.some(n => wrapCommandText(n, { kind: 'task-notification' }).startsWith('A background command finished')))
 tally.check('the notice names the exit code', summaries.some(s => s.includes('exit code 1')), summaries[0] ?? 'no notice')
 tally.check('a benign non-zero exit (grep with no match, exit 1) is not told as a failure', notices.length > 0 && !summaries.some(s => /failed/.test(s)), summaries[0] ?? 'no notice')

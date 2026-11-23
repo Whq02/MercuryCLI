@@ -10,19 +10,19 @@ const KEY = 'sk-proof-key-zen-fixture-login-not-a-real-key-000000000000000000000
 const fixture = startZenFixture({ key: KEY })
 process.env.MERCURY_ZEN_API_BASE = fixture.base
 process.env.MERCURY_ZEN_GO_API_BASE = fixture.goBase
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const { storeZenApiKeyLogin } = await import('../../src/services/providers/zen/zenLogin.ts')
-const { resolveZenApiKey, resolveZenAccount, zenApiBase, zenGoApiBase, ZEN_ENV_KEY } = await import('../../src/services/providers/zen/zenAccounts.ts')
-const { readStoredZenApiKey, writeStoredZenApiKey, providerSecretsPathForDisplay, credentialEnvNames } = await import('../../src/utils/accounts/providerSecrets.ts')
-const { readSignInLedger } = await import('../../src/utils/accounts/signInLedger.ts')
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS, PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
-const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')
-const { providerIdentityLine } = await import('../../src/services/providers/providerIdentityLine.ts')
-const { zenObservedGoUsage, refreshZenGoUsage, __resetZenUsageForTest } = await import('../../src/services/providers/zen/zenUsageState.ts')
-const { usageForProvider, refreshProviderUsage } = await import('../../src/services/providers/providerUsage.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const { storeZenApiKeyLogin } = await import('../../src/models/roads/zen/zenLogin.ts')
+const { resolveZenApiKey, resolveZenAccount, zenApiBase, zenGoApiBase, ZEN_ENV_KEY } = await import('../../src/models/roads/zen/zenAccounts.ts')
+const { readStoredZenApiKey, writeStoredZenApiKey, providerSecretsPathForDisplay, credentialEnvNames } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { readSignInLedger } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS, PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
+const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/models/roads/accountSlots.ts')
+const { providerIdentityLine } = await import('../../src/models/roads/providerIdentityLine.ts')
+const { zenObservedGoUsage, refreshZenGoUsage, __resetZenUsageForTest } = await import('../../src/models/roads/zen/zenUsageState.ts')
+const { usageForProvider, refreshProviderUsage } = await import('../../src/models/roads/providerUsage.ts')
 const env = process.env
 let count = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, `${name} — fix: the login is storeZenApiKeyLogin in src/services/providers/zen/zenLogin.ts, the key and account lookup is in src/services/providers/zen/zenAccounts.ts, the Go usage read is src/services/providers/zen/zenUsageState.ts, the stored key is in src/utils/accounts/providerSecrets.ts, and the slot views are src/services/providers/accountSlots.ts`); count++; console.log(`[PASS] ${name}`) }
+const check = (name: string, value: unknown): void => { assert.ok(value, `${name} — fix: the login is storeZenApiKeyLogin in src/models/roads/zen/zenLogin.ts, the key and account lookup is in src/models/roads/zen/zenAccounts.ts, the Go usage read is src/models/roads/zen/zenUsageState.ts, the stored key is in src/models/sign-in/account-ledger/providerSecrets.ts, and the slot views are src/models/roads/accountSlots.ts`); count++; console.log(`[PASS] ${name}`) }
 try {
   check('the documented bases and the one env spelling belong to Zen', zenApiBase({} as NodeJS.ProcessEnv) === 'https://opencode.ai/zen/v1' && zenGoApiBase({} as NodeJS.ProcessEnv) === 'https://opencode.ai/zen/go/v1' && ZEN_ENV_KEY === 'OPENCODE_API_KEY' && ALL_PROVIDER_CREDENTIAL_ENV_VARS.includes('OPENCODE_API_KEY') && credentialEnvNames().includes('OPENCODE_API_KEY') && PROVIDER_CREDENTIAL_ENV_VARS.zen.join() === 'OPENCODE_API_KEY')
   const empty = await storeZenApiKeyLogin(' ', { env })

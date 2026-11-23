@@ -8,7 +8,7 @@ import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' · the plate, the clock column and the message meta come from clockColumnOf, TranscriptNameplate, NameplateClock and MessageMetaProvider in src/components/messages/TranscriptNameplate.tsx' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' · the plate, the clock column and the message meta come from clockColumnOf, TranscriptNameplate, NameplateClock and MessageMetaProvider in src/screen/messages/TranscriptNameplate.tsx' : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
@@ -17,14 +17,14 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpd
 process.env.MERCURY_OPERATOR = 'sam'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_HOME
-const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
 
 const React = (await import('react')).default
-const { renderToString } = await import(join(ROOT, 'src/utils/staticRender.tsx'))
-const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
-const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
-const plate = (await import(join(ROOT, 'src/components/messages/TranscriptNameplate.tsx'))) as {
+const { renderToString } = await import(join(ROOT, 'src/screen/renderer/staticRender.tsx'))
+const { AppStateProvider } = await import(join(ROOT, 'src/screen/app-state/AppState.tsx'))
+const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/AppStateStore.ts'))
+const plate = (await import(join(ROOT, 'src/screen/messages/TranscriptNameplate.tsx'))) as {
   clockColumnOf?: (meta: { timestamp?: string; queued?: boolean; heldFor?: 'compaction' }, grammar: 'plate' | 'notice') => string | null
   formatClock: (ts?: string) => string | null
   HELD_PLATE: string

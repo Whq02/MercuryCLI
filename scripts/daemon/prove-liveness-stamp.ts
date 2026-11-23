@@ -5,13 +5,13 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'liveness-home-'))
 
-const { onFactsAnswer, onSeatRow, onSeatSpawned } = await import('../../src/daemon/sessionSeat.ts')
-const { readSessionTail, readSessionProgress } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { onFactsAnswer, onSeatRow, onSeatSpawned } = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { readSessionTail, readSessionProgress } = await import('../../src/engine/connector/seatProjections.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix by section above: L1-L5 onSeatRow, onFactsAnswer and onSeatSpawned in src/daemon/sessionSeat.ts (what stamps lastEventAtMs and the stream block), L6 LivePart in src/services/engine-connector/daemon/live.ts and the status frame relay in the turn machine` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix by section above: L1-L5 onSeatRow, onFactsAnswer and onSeatSpawned in src/daemon/session-seat/sessionSeat.ts (what stamps lastEventAtMs and the stream block), L6 LivePart in src/engine/connector/daemon/live.ts and the status frame relay in the turn machine` : ''}`)
   if (!ok) failures++
 }
 
@@ -155,11 +155,11 @@ console.log('\nL5 the outcome keeps the stamp and clears the block; a respawn ze
 
 console.log('\nL6 structural — no surface reads transcript growth as liveness')
 {
-  const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
-  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const { LivePart } = await import('../../src/engine/connector/daemon/live.ts')
+  const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
   const liveWith = (over: Record<string, unknown> = {}): InstanceType<typeof LivePart> => new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, ...over } as never)
   const tailOf = (says: Record<string, unknown>): never => ({ schema: 1, sessionId: 'proof', atMs: 1, text: null, ...says }) as never
-  const { streamIdleWarningMsOf } = await import('../../src/services/providers/streamIdleBudget.ts')
+  const { streamIdleWarningMsOf } = await import('../../src/models/roads/streamIdleBudget.ts')
   const realNow = Date.now
   let clock = 5_000_000
   Date.now = () => clock
@@ -183,12 +183,12 @@ console.log('\nL6 structural — no surface reads transcript growth as liveness'
   check('the stuck verdict is measured against the watchdog’s own warning point (one owner, streamIdleBudget)', before === false && at.stuck === true && at.watchdogMs === WATCHDOG && at.quietMs === warnAt, JSON.stringify({ before, at, warnAt }))
   Date.now = realNow
   const t = await import('../core-runtime/turnScenarios.ts')
-  const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
-  const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
-  const seam = await import('../../src/services/crewBoard/seam.ts')
+  const { makeRequest } = await import('../../src/engine/loop/turn/makeRequest.ts')
+  const { modelReply } = await import('../../src/engine/loop/turn/modelReply.ts')
+  const seam = await import('../../src/crew/board/seam.ts')
   const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
-  const { getSwarmAttachments } = await import('../../src/services/attachments/queuedCommands.ts')
-  const { createAttachmentMessage } = await import('../../src/services/attachments.ts')
+  const { getSwarmAttachments } = await import('../../src/engine/attachments/queuedCommands.ts')
+  const { createAttachmentMessage } = await import('../../src/engine/attachments/attachments.ts')
   const STREAM_SPOKE_AT = 4_242
   const relayed: Array<{ frame: unknown; unpresented: number }> = []
   const unpresented = { beforeTheStreamSpoke: -1, afterItSpoke: -1 }
@@ -225,10 +225,10 @@ console.log('\nL6 structural — no surface reads transcript growth as liveness'
   check(
     "the turn machine relays the stream's activity on the runner's status frame, then presents the crew board",
     posted?.ok === true && JSON.stringify(relayed) === JSON.stringify([{ frame: { streamActivity: STREAM_SPOKE_AT }, unpresented: 1 }]) && unpresented.beforeTheStreamSpoke === 1 && unpresented.afterItSpoke === 0,
-    `a crewmate's model call with one board post in its request, the provider reporting stream activity before any event: status frames ${JSON.stringify(relayed)} (one frame { streamActivity: ${STREAM_SPOKE_AT} }, relayed while the post was still unpresented); posts unpresented before the stream spoke ${unpresented.beforeTheStreamSpoke} and after ${unpresented.afterItSpoke} (1, then 0) — onStreamActivity of the model call in src/run-core/turn/streamModel.ts hands the moment to setSDKStatus, then presents the crew board`,
+    `a crewmate's model call with one board post in its request, the provider reporting stream activity before any event: status frames ${JSON.stringify(relayed)} (one frame { streamActivity: ${STREAM_SPOKE_AT} }, relayed while the post was still unpresented); posts unpresented before the stream spoke ${unpresented.beforeTheStreamSpoke} and after ${unpresented.afterItSpoke} (1, then 0) — onStreamActivity of the model call in src/engine/loop/turn/streamModel.ts hands the moment to setSDKStatus, then presents the crew board`,
   )
   const { liveFactsOf, withFixtureRunner, withLiveRunner } = await import('../lib/builtProduct.ts')
-  const { streamIdleTimeoutMs, streamIdleTimeoutMsForRoute } = await import('../../src/services/providers/streamIdleBudget.ts')
+  const { streamIdleTimeoutMs, streamIdleTimeoutMsForRoute } = await import('../../src/models/roads/streamIdleBudget.ts')
   const pinned = (await withLiveRunner(liveFactsOf, { env: { MERCURY_STREAM_IDLE_TIMEOUT_MS: '4321' } })).streamIdleTimeoutMs
   const routed = (await withFixtureRunner([], liveFactsOf)).streamIdleTimeoutMs
   check('the runner reports its own budget in the facts answer', pinned === 4321 && routed === streamIdleTimeoutMsForRoute('anthropic') && routed !== streamIdleTimeoutMs(), `${pinned} · ${routed}`)

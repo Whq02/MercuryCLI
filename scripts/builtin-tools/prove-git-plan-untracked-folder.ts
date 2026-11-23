@@ -7,13 +7,13 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  const shown = [detail, 'fix gitStatus in src/services/gitGraph/observe.ts (untracked folders listed by file) or the folder refusal in preparePlan / applyPlan in src/services/gitGraph/plan.ts'].filter(Boolean).join(' — ')
+  const shown = [detail, 'fix gitStatus in src/platform/git-graph/observe.ts (untracked folders listed by file) or the folder refusal in preparePlan / applyPlan in src/platform/git-graph/plan.ts'].filter(Boolean).join(' — ')
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${shown}` : ''}`)
 }
 
-const { gitStatus } = await import('../../src/services/gitGraph/observe.ts')
-const { preparePlan, applyPlan, _resetGitPlanStoreForTesting } = await import('../../src/services/gitGraph/plan.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { gitStatus } = await import('../../src/platform/git-graph/observe.ts')
+const { preparePlan, applyPlan, _resetGitPlanStoreForTesting } = await import('../../src/platform/git-graph/plan.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 const owner = processMainOwner()
 const root = mkdtempSync(join(tmpdir(), 'builtin-tools-untracked-folder-'))

@@ -433,13 +433,13 @@ async function leg(mainDialect: Dialect): Promise<void> {
   if (seatHits.length === 4) {
     const firstThreeSpan = seatHits[2]!.at - seatHits[0]!.at
     const fourthGap = seatHits[3]!.at - seatHits[2]!.at
-    check(`${tag}: S1 three seats start together (span ${Math.round(firstThreeSpan)} ms < ${SEAT_HOLD_MS / 2} ms)`, firstThreeSpan < SEAT_HOLD_MS / 2, `span ${firstThreeSpan} ms · the first three seats should start together under the seat ceiling of ${SEAT_CEILING} (switchboardCapacity.recommendedSeats seeded in seedWorld); see src/utils/switchboard/capacityCheck.ts`)
-    check(`${tag}: S1 the fourth waits for a seat (starts ≥ ${Math.round(SEAT_HOLD_MS * 0.6)} ms after the third)`, fourthGap >= SEAT_HOLD_MS * 0.6, `gap ${fourthGap} ms · the fourth seat must hold until a seat frees; see the seat gate in src/services/capacity/governor.ts`)
-    check(`${tag}: S1 the fourth on the wire is the one row that waited for a seat (the seats go to whoever reaches the gate first)`, SEATS.filter(s => /waiting for a seat/.test(rowOf(mid, s) ?? '')).join() === waiter, `wire ${seatHits.map(h => h.seat).join(',')} · waiting rows ${SEATS.filter(s => /waiting for a seat/.test(rowOf(mid, s) ?? '')).join(',') || 'none'} · the Crew view row of the seat that waited must read the seat sentence from seatWaitParts in src/services/capacity/seatWords.ts`)
+    check(`${tag}: S1 three seats start together (span ${Math.round(firstThreeSpan)} ms < ${SEAT_HOLD_MS / 2} ms)`, firstThreeSpan < SEAT_HOLD_MS / 2, `span ${firstThreeSpan} ms · the first three seats should start together under the seat ceiling of ${SEAT_CEILING} (switchboardCapacity.recommendedSeats seeded in seedWorld); see src/daemon/switchboard-capacity/capacityCheck.ts`)
+    check(`${tag}: S1 the fourth waits for a seat (starts ≥ ${Math.round(SEAT_HOLD_MS * 0.6)} ms after the third)`, fourthGap >= SEAT_HOLD_MS * 0.6, `gap ${fourthGap} ms · the fourth seat must hold until a seat frees; see the seat gate in src/crew/capacity/governor.ts`)
+    check(`${tag}: S1 the fourth on the wire is the one row that waited for a seat (the seats go to whoever reaches the gate first)`, SEATS.filter(s => /waiting for a seat/.test(rowOf(mid, s) ?? '')).join() === waiter, `wire ${seatHits.map(h => h.seat).join(',')} · waiting rows ${SEATS.filter(s => /waiting for a seat/.test(rowOf(mid, s) ?? '')).join(',') || 'none'} · the Crew view row of the seat that waited must read the seat sentence from seatWaitParts in src/crew/capacity/seatWords.ts`)
   }
 
   const fourth = rowOf(mid, waiter) ?? ''
-  check(`${tag}: S2 the waiting row says why it waits — the seat sentence`, /waiting for a seat/.test(fourth) && /3 of 3 held/.test(fourth), `${flat(fourth)} · the waiting row must read waiting for a seat — 3 of 3 held; see seatWaitParts in src/services/capacity/seatWords.ts`)
+  check(`${tag}: S2 the waiting row says why it waits — the seat sentence`, /waiting for a seat/.test(fourth) && /3 of 3 held/.test(fourth), `${flat(fourth)} · the waiting row must read waiting for a seat — 3 of 3 held; see seatWaitParts in src/crew/capacity/seatWords.ts`)
   const heldWords = /(\brunning\b|first byte|request sent|streaming|reasoning|replying|retry)/
   check(`${tag}: S2 the three held rows run (a phase or 'running'; never a seat wait)`, held.every(s => heldWords.test(rowOf(mid, s) ?? '') && !/waiting for a seat/.test(rowOf(mid, s) ?? '')), held.map(s => flat(rowOf(mid, s) ?? '(no row)')).join(' | ').slice(0, 400) + ' · a held seat row must show a running phase, never the seat wait sentence')
 

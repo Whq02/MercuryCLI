@@ -9,8 +9,8 @@ import {
   type CaptureTiming, type JobsRun,
 } from '../lib/captureJobs.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
-import { HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
-import { DEFAULT_CRITTER_KEY } from '../../src/utils/cockpit/critterData.ts'
+import { HELM_HOME_MIN_COLS } from '../../src/screen/fullscreen-layout/helmGeometry.ts'
+import { DEFAULT_CRITTER_KEY } from '../../src/screen/cockpit/critterData.ts'
 
 function baselineDriverPython(): string {
   const driver = resolveCaptureDriver()

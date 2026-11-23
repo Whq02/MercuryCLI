@@ -15,7 +15,7 @@ if (!existsSync(BIN)) {
 const { seedFirstRun, FIXTURE_API_KEY } = await import('../lib/firstRunSeed.ts')
 const { vshotBudgetMs, vshotBudgetScale, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
 const BACK_HINT = keyHintLabel('⇧← back')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
@@ -29,8 +29,8 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-const HINT_ROW = 'change statusLine in src/components/SwitchboardTagBar.tsx (the bottom row words)'
-const HINT_CLOCK = 'change crewClockOf or statusLine in src/components/SwitchboardTagBar.tsx (the crew clock on the bottom row)'
+const HINT_ROW = 'change statusLine in src/screen/chat/SwitchboardTagBar.tsx (the bottom row words)'
+const HINT_CLOCK = 'change crewClockOf or statusLine in src/screen/chat/SwitchboardTagBar.tsx (the crew clock on the bottom row)'
 const SEAT_MARK = 'hdr-seat:'
 const NOTE_FILES = 30
 const noteFile = (n: number): string => `hdr-notes-${n}.txt`
@@ -564,7 +564,7 @@ if (cap !== null) {
 
   console.log('\n— waiting on crewmates —')
   const waitingRow = statusRow(m['waiting'])
-  check('the wait words stand ("waiting on 2 crewmates")', /waiting on 2 crewmates/.test(waitingRow), flat(waitingRow) + ' — change waitingStatusWords in src/components/SwitchboardTagBar.tsx (the wait words)')
+  check('the wait words stand ("waiting on 2 crewmates")', /waiting on 2 crewmates/.test(waitingRow), flat(waitingRow) + ' — change waitingStatusWords in src/screen/chat/SwitchboardTagBar.tsx (the wait words)')
   check('the wait words carry no phase word', !PHASE_WORDS.test(waitingRow), flat(waitingRow) + ' — ' + HINT_ROW + ' so the wait words carry no phase word')
   const esc2Row = statusRow(m['after-esc-2'])
   check('H3 after esc the bottom row carries the crew\'s clock', CREW_CLOCK.test(esc2Row), flat(esc2Row) + ' — ' + HINT_CLOCK)
@@ -579,7 +579,7 @@ if (cap !== null) {
 
   console.log('\n— the first-byte wait —')
   const fbRow = statusRow(m['first-byte'])
-  check('the request-wait words stand ("first byte")', /first byte/.test(fbRow), flat(fbRow) + ' — change requestWaitLine (used by statusLine in src/components/SwitchboardTagBar.tsx), the request-wait words')
+  check('the request-wait words stand ("first byte")', /first byte/.test(fbRow), flat(fbRow) + ' — change requestWaitLine (used by statusLine in src/screen/chat/SwitchboardTagBar.tsx), the request-wait words')
   check('the request-wait words carry no phase word', !PHASE_WORDS.test(fbRow), flat(fbRow) + ' — ' + HINT_ROW + ' so the request-wait words carry no phase word')
   check('H2 with no crew running the row wears no glyph', noGlyph(m['first-byte']) && noGlyph(m['first-byte+']), flat(statusRow(m['first-byte'])) + ' — ' + HINT_ROW + ' so it wears no glyph when no crew runs')
 
@@ -598,7 +598,7 @@ if (cap !== null) {
 
   console.log('\n— the silent stream —')
   const stuckRow = statusRow(m['stuck'])
-  check('the row never accuses before the budget: no "may be stuck" at 11 s of a 16 s budget', !/may be stuck/.test(stuckRow), flat(stuckRow) + ' — change the stuck branch of statusLine in src/components/SwitchboardTagBar.tsx so the notice waits for the watchdog budget')
+  check('the row never accuses before the budget: no "may be stuck" at 11 s of a 16 s budget', !/may be stuck/.test(stuckRow), flat(stuckRow) + ' — change the stuck branch of statusLine in src/screen/chat/SwitchboardTagBar.tsx so the notice waits for the watchdog budget')
   check('the silent row carries no phase word', !PHASE_WORDS.test(stuckRow), flat(stuckRow) + ' — ' + HINT_ROW + ' so the silent row carries no phase word')
   check('the silent stream ended through the watchdog’s own ladder: the fallback reply landed', /HDR-STUCK-DONE/.test(m['end'] ?? ''), rows(m['end']).filter(r => /HDR-STUCK/.test(r)).map(flat).join(' | ').slice(0, 200) + ' — the stream watchdog did not recover the silent stream into the fallback reply; read the dumped end frame and the routes line above')
 }

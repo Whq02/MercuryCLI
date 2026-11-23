@@ -9,12 +9,12 @@ const tempRoot = realpathSync(mkdtempSync(join(tmpdir(), 'scratchpad-temp-')))
 process.env.MERCURY_TMPDIR = tempRoot
 delete process.env.MERCURY_CONCOURSE_WORKER
 
-const { getScratchpadDir, getMercuryTempDir, getProjectTempDir, projectTempName } = await import('../../src/utils/permissions/filesystem.ts')
-const { getOriginalCwd, getSessionId } = await import('../../src/bootstrap/state.ts')
-const scratchpad = await import('../../src/utils/scratchpad.ts')
-const prompts = await import('../../src/constants/prompts.ts')
-const { injectTurnReceipts, isScratchpadPath } = await import('../../src/utils/cockpit/turnReceipt.ts')
-const { runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.ts')
+const { getScratchpadDir, getMercuryTempDir, getProjectTempDir, projectTempName } = await import('../../src/permissions/rules/filesystem.ts')
+const { getOriginalCwd, getSessionId } = await import('../../src/boot/process-state/processState.ts')
+const scratchpad = await import('../../src/platform/files/scratchpad.ts')
+const prompts = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+const { injectTurnReceipts, isScratchpadPath } = await import('../../src/screen/cockpit/turnReceipt.ts')
+const { runCleanupFunctions } = await import('../../src/platform/processes/cleanupRegistry.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -29,17 +29,17 @@ section('§1 the prompt names the scratchpad, in Mercury\'s words')
 const dir = getScratchpadDir()
 const main = await prompts.computeSimpleEnvInfo('claude-opus-5')
 const sub = await prompts.computeEnvInfo('claude-opus-5')
-check('the main environment block names the directory', main.includes(`Scratchpad directory: ${dir}`), 'computeSimpleEnvInfo in src/constants/prompts.ts must print the Scratchpad directory line with getScratchpadDir; block: ' + main)
-check('…and says what it is for and what it is not', main.includes('temporary files') && main.includes('instead of a system temp directory or the project tree') && main.includes('swept when the session ends'), 'the scratchpad line in the environment block built by computeSimpleEnvInfo in src/constants/prompts.ts lost one of its three phrases')
-check('the sub-agent environment block names it too, inside <env>', /<env>[\s\S]*Scratchpad directory: /.test(sub) && sub.includes(dir), 'computeEnvInfo in src/constants/prompts.ts must name the scratchpad directory inside the env block; block: ' + sub)
-check('composing the prompt creates the directory, so the first write there lands', existsSync(dir), 'computeSimpleEnvInfo in src/constants/prompts.ts must call ensureScratchpadDir (src/utils/scratchpad.ts) when it names the directory')
-check('the line carries no borrowed product name', !/claude|anthropic/i.test((main.split('Scratchpad directory:')[1] ?? '').split('\n')[0] ?? ''), 'remove the borrowed product name from the Scratchpad directory line in src/constants/prompts.ts')
+check('the main environment block names the directory', main.includes(`Scratchpad directory: ${dir}`), 'computeSimpleEnvInfo in src/engine/system-prompt/defaultSystemPrompt.ts must print the Scratchpad directory line with getScratchpadDir; block: ' + main)
+check('…and says what it is for and what it is not', main.includes('temporary files') && main.includes('instead of a system temp directory or the project tree') && main.includes('swept when the session ends'), 'the scratchpad line in the environment block built by computeSimpleEnvInfo in src/engine/system-prompt/defaultSystemPrompt.ts lost one of its three phrases')
+check('the sub-agent environment block names it too, inside <env>', /<env>[\s\S]*Scratchpad directory: /.test(sub) && sub.includes(dir), 'computeEnvInfo in src/engine/system-prompt/defaultSystemPrompt.ts must name the scratchpad directory inside the env block; block: ' + sub)
+check('composing the prompt creates the directory, so the first write there lands', existsSync(dir), 'computeSimpleEnvInfo in src/engine/system-prompt/defaultSystemPrompt.ts must call ensureScratchpadDir (src/platform/files/scratchpad.ts) when it names the directory')
+check('the line carries no borrowed product name', !/claude|anthropic/i.test((main.split('Scratchpad directory:')[1] ?? '').split('\n')[0] ?? ''), 'remove the borrowed product name from the Scratchpad directory line in src/engine/system-prompt/defaultSystemPrompt.ts')
 
 section('§2 the directory lies outside the project and under the temp root')
-check('the scratchpad is under the temp root Mercury owns', dir.startsWith(getMercuryTempDir()) && dir.startsWith(tempRoot), 'getScratchpadDir in src/utils/permissions/filesystem.ts must build the path under getMercuryTempDir; got ' + dir)
-check('…and not under the working directory, so git status never sees it', !dir.startsWith(getOriginalCwd()), 'getScratchpadDir in src/utils/permissions/filesystem.ts must not place the scratchpad under the working directory; got ' + dir)
-check('the daemon derives the same directory from the session\'s cwd and id', scratchpad.scratchpadDirFor(getOriginalCwd(), getSessionId()) === dir, 'scratchpadDirFor (src/utils/scratchpad.ts) and getScratchpadDir (src/utils/permissions/filesystem.ts) must agree; scratchpadDirFor gave ' + scratchpad.scratchpadDirFor(getOriginalCwd(), getSessionId()))
-check('a second session in the same project gets its own', scratchpad.scratchpadDirFor(getOriginalCwd(), 'other-session') !== dir && scratchpad.scratchpadDirFor(getOriginalCwd(), 'other-session').startsWith(getProjectTempDir()), 'scratchpadDirFor (src/utils/scratchpad.ts) must put the session id in the path, under getProjectTempDir')
+check('the scratchpad is under the temp root Mercury owns', dir.startsWith(getMercuryTempDir()) && dir.startsWith(tempRoot), 'getScratchpadDir in src/permissions/rules/filesystem.ts must build the path under getMercuryTempDir; got ' + dir)
+check('…and not under the working directory, so git status never sees it', !dir.startsWith(getOriginalCwd()), 'getScratchpadDir in src/permissions/rules/filesystem.ts must not place the scratchpad under the working directory; got ' + dir)
+check('the daemon derives the same directory from the session\'s cwd and id', scratchpad.scratchpadDirFor(getOriginalCwd(), getSessionId()) === dir, 'scratchpadDirFor (src/platform/files/scratchpad.ts) and getScratchpadDir (src/permissions/rules/filesystem.ts) must agree; scratchpadDirFor gave ' + scratchpad.scratchpadDirFor(getOriginalCwd(), getSessionId()))
+check('a second session in the same project gets its own', scratchpad.scratchpadDirFor(getOriginalCwd(), 'other-session') !== dir && scratchpad.scratchpadDirFor(getOriginalCwd(), 'other-session').startsWith(getProjectTempDir()), 'scratchpadDirFor (src/platform/files/scratchpad.ts) must put the session id in the path, under getProjectTempDir')
 
 section('§2b on Windows the project’s part of the temp path is bounded, so the folders under it stay within what Windows and a browser reach')
 {
@@ -58,14 +58,14 @@ section('§2b on Windows the project’s part of the temp path is bounded, so th
   const deep = fill('C:\\Users\\firstname.lastname01\\source\\repos', 140)
   const twin = `D${deep.slice(1)}`
   const bounded = named(deep, 'windows')
-  check('a project path of 48 characters or fewer keeps its whole name there (holds on the parent too)', named(short, 'windows') === 'C--Users-WHQ-Developer-mercury' && at48.length === 48 && named(at48, 'windows') === plain(at48), 'projectTempName in src/utils/permissions/filesystem.ts must keep a Windows path of 48 characters or fewer whole; ' + `${named(short, 'windows')} | ${named(at48, 'windows')}`)
+  check('a project path of 48 characters or fewer keeps its whole name there (holds on the parent too)', named(short, 'windows') === 'C--Users-WHQ-Developer-mercury' && at48.length === 48 && named(at48, 'windows') === plain(at48), 'projectTempName in src/permissions/rules/filesystem.ts must keep a Windows path of 48 characters or fewer whole; ' + `${named(short, 'windows')} | ${named(at48, 'windows')}`)
   check(
     'a longer one is named by its last 39 characters, a hyphen and the first 8 hex of the SHA-256 of the path: 48 characters, whatever the path',
     at49.length === 49 && named(at49, 'windows').length === 48 && deep.length === 140 && bounded === `${plain(deep).slice(-39)}-${createHash('sha256').update(deep).digest('hex').slice(0, 8)}` && bounded.length === 48 && /^[A-Za-z0-9-]+$/.test(bounded),
-    'projectTempName in src/utils/permissions/filesystem.ts must cut a longer Windows path to its last 39 characters, a hyphen and 8 hex of its SHA-256; ' + `${named(at49, 'windows')} (${named(at49, 'windows').length}) | ${bounded} (${bounded.length})`,
+    'projectTempName in src/permissions/rules/filesystem.ts must cut a longer Windows path to its last 39 characters, a hyphen and 8 hex of its SHA-256; ' + `${named(at49, 'windows')} (${named(at49, 'windows').length}) | ${bounded} (${bounded.length})`,
   )
-  check('two long projects that end alike get folders of their own', plain(twin).slice(-39) === plain(deep).slice(-39) && named(twin, 'windows') !== bounded && named(twin, 'windows').length === 48, 'projectTempName in src/utils/permissions/filesystem.ts must hash the whole path so long projects that end alike get distinct names; ' + `${named(twin, 'windows')} | ${bounded}`)
-  check('on a Mac and on Linux the name is the whole sanitized path as before, whatever its length (holds on the parent too)', named(deep, 'macos') === plain(deep) && named(deep, 'linux') === plain(deep) && named(deep, 'wsl') === plain(deep), 'projectTempName in src/utils/permissions/filesystem.ts must bound the name on Windows only')
+  check('two long projects that end alike get folders of their own', plain(twin).slice(-39) === plain(deep).slice(-39) && named(twin, 'windows') !== bounded && named(twin, 'windows').length === 48, 'projectTempName in src/permissions/rules/filesystem.ts must hash the whole path so long projects that end alike get distinct names; ' + `${named(twin, 'windows')} | ${bounded}`)
+  check('on a Mac and on Linux the name is the whole sanitized path as before, whatever its length (holds on the parent too)', named(deep, 'macos') === plain(deep) && named(deep, 'linux') === plain(deep) && named(deep, 'wsl') === plain(deep), 'projectTempName in src/permissions/rules/filesystem.ts must bound the name on Windows only')
   const lengths = (name: string, agent: string | null): { upload: number; arriving: number } => {
     const pad = win32.join('C:\\Users\\firstname.lastname01\\AppData\\Local\\Temp', 'mercury', name, '0f8fad5b-d9cb-469f-a165-70867728950e', 'scratchpad', ...(agent === null ? [] : [agent]))
     return { upload: win32.join(pad, 'browser-uploads', 'u-XXXXXX').length, arriving: win32.join(pad, 'browser-downloads', 'incoming', '0f8fad5b-d9cb-469f-a165-70867728950e.crdownload').length }
@@ -76,9 +76,9 @@ section('§2b on Windows the project’s part of the temp path is bounded, so th
   check(
     'from a project 140 characters deep, under a user name of 20 letters, an upload’s folder is within the 247 characters a directory may have and a download’s arriving file within the 259 of a path',
     own.upload <= 247 && own.arriving <= 259,
-    'projectTempName in src/utils/permissions/filesystem.ts must keep the bounded name short enough; ' + `upload folder ${own.upload}, arriving file ${own.arriving}`,
+    'projectTempName in src/permissions/rules/filesystem.ts must keep the bounded name short enough; ' + `upload folder ${own.upload}, arriving file ${own.arriving}`,
   )
-  check('and so they are in a crewmate’s own scratchpad, which lies ten characters deeper', crew.upload === own.upload + 10 && crew.upload <= 247 && crew.arriving <= 259, 'projectTempName in src/utils/permissions/filesystem.ts must keep the bounded name short enough for a crewmate scratchpad; ' + `upload folder ${crew.upload}, arriving file ${crew.arriving}`)
+  check('and so they are in a crewmate’s own scratchpad, which lies ten characters deeper', crew.upload === own.upload + 10 && crew.upload <= 247 && crew.arriving <= 259, 'projectTempName in src/permissions/rules/filesystem.ts must keep the bounded name short enough for a crewmate scratchpad; ' + `upload folder ${crew.upload}, arriving file ${crew.arriving}`)
   check('the whole name would carry both past those limits: the bound is what holds them (holds on the parent too)', whole.upload > 247 && whole.arriving > 259, 'the fixture path is too short to prove the bound; deepen it in this file; ' + `upload folder ${whole.upload}, arriving file ${whole.arriving}`)
   console.log(`     an upload’s folder ${own.upload} and a download’s arriving file ${own.arriving} characters (a crewmate’s ${crew.upload} and ${crew.arriving}); with the whole name ${whole.upload} and ${whole.arriving}`)
 }
@@ -94,35 +94,35 @@ const rows = injectTurnReceipts(
   getMercuryTempDir(),
 ) as Array<{ type: string; counts?: { scratchpadEdits: number; fileEdits: number } }>
 const receipt = rows.find(r => r.type === 'turn_receipt')
-check('one scratchpad edit for the file under the scratchpad', receipt?.counts?.scratchpadEdits === 1, 'injectTurnReceipts in src/utils/cockpit/turnReceipt.ts must count an edit under the scratchpad; counts: ' + JSON.stringify(receipt?.counts))
-check("two file edits: a project folder named scratchpad is the project's, not the session's", receipt?.counts?.fileEdits === 2, 'injectTurnReceipts in src/utils/cockpit/turnReceipt.ts must count other edits as file edits; counts: ' + JSON.stringify(receipt?.counts))
-check('the Windows spelling counts under a Windows temp root', isScratchpadPath('C:\\Users\\x\\AppData\\Local\\Temp\\mercury\\proj\\s1\\scratchpad\\a.txt', 'C:\\Users\\x\\AppData\\Local\\Temp\\mercury\\'), 'isScratchpadPath in src/utils/cockpit/turnReceipt.ts must accept backslash paths under a Windows temp root')
-check('a path under the temp root without the segment is not a scratchpad edit', !isScratchpadPath(join(getProjectTempDir(), getSessionId(), 'tasks', 'x.output'), getMercuryTempDir()), 'isScratchpadPath in src/utils/cockpit/turnReceipt.ts must require the scratchpad segment')
+check('one scratchpad edit for the file under the scratchpad', receipt?.counts?.scratchpadEdits === 1, 'injectTurnReceipts in src/screen/cockpit/turnReceipt.ts must count an edit under the scratchpad; counts: ' + JSON.stringify(receipt?.counts))
+check("two file edits: a project folder named scratchpad is the project's, not the session's", receipt?.counts?.fileEdits === 2, 'injectTurnReceipts in src/screen/cockpit/turnReceipt.ts must count other edits as file edits; counts: ' + JSON.stringify(receipt?.counts))
+check('the Windows spelling counts under a Windows temp root', isScratchpadPath('C:\\Users\\x\\AppData\\Local\\Temp\\mercury\\proj\\s1\\scratchpad\\a.txt', 'C:\\Users\\x\\AppData\\Local\\Temp\\mercury\\'), 'isScratchpadPath in src/screen/cockpit/turnReceipt.ts must accept backslash paths under a Windows temp root')
+check('a path under the temp root without the segment is not a scratchpad edit', !isScratchpadPath(join(getProjectTempDir(), getSessionId(), 'tasks', 'x.output'), getMercuryTempDir()), 'isScratchpadPath in src/screen/cockpit/turnReceipt.ts must require the scratchpad segment')
 
 section('§4 the sweep is lease-exact: this session\'s scratchpad, under the temp root, and nothing else')
 writeFileSync(join(dir, 'helper.sh'), 'echo hi\n')
 const outside = mkdtempSync(join(tmpdir(), 'not-a-scratchpad-'))
 const refused = scratchpad.sweepScratchpadDir(outside)
-check('a directory outside the temp root is refused, with the reason', refused.swept === false && refused.refusal.includes('outside the temp root') && existsSync(outside), 'sweepScratchpadDir in src/utils/scratchpad.ts must refuse a directory outside the temp root, say why and leave it')
+check('a directory outside the temp root is refused, with the reason', refused.swept === false && refused.refusal.includes('outside the temp root') && existsSync(outside), 'sweepScratchpadDir in src/platform/files/scratchpad.ts must refuse a directory outside the temp root, say why and leave it')
 const sibling = join(getProjectTempDir(), getSessionId(), 'tasks')
 mkdirSync(sibling, { recursive: true })
 const notScratchpad = scratchpad.sweepScratchpadDir(sibling)
-check('a sibling that is not the scratchpad is refused', notScratchpad.swept === false && existsSync(sibling), 'sweepScratchpadDir in src/utils/scratchpad.ts must refuse a directory that is not a scratchpad')
+check('a sibling that is not the scratchpad is refused', notScratchpad.swept === false && existsSync(sibling), 'sweepScratchpadDir in src/platform/files/scratchpad.ts must refuse a directory that is not a scratchpad')
 const swept = scratchpad.sweepOwnScratchpad()
-check('the session\'s own scratchpad is swept', swept.swept === true && !existsSync(dir), 'sweepOwnScratchpad in src/utils/scratchpad.ts must remove the session scratchpad')
-check('…and the session\'s other temp files stay', existsSync(sibling), 'sweepOwnScratchpad in src/utils/scratchpad.ts must remove only the scratchpad directory')
+check('the session\'s own scratchpad is swept', swept.swept === true && !existsSync(dir), 'sweepOwnScratchpad in src/platform/files/scratchpad.ts must remove the session scratchpad')
+check('…and the session\'s other temp files stay', existsSync(sibling), 'sweepOwnScratchpad in src/platform/files/scratchpad.ts must remove only the scratchpad directory')
 rmSync(outside, { recursive: true, force: true })
 
 section('§5 the sweep rides the session\'s end')
 scratchpad._resetScratchpadSweepForTesting()
 process.env.MERCURY_CONCOURSE_WORKER = '1'
-check('a runner the daemon hosts does not arm its own sweep (the daemon sweeps at the record\'s end)', scratchpad.armScratchpadSweep() === false && scratchpad.scratchpadSweptByDaemon(), 'armScratchpadSweep and scratchpadSweptByDaemon in src/utils/scratchpad.ts must treat a MERCURY_CONCOURSE_WORKER process as swept by the daemon')
+check('a runner the daemon hosts does not arm its own sweep (the daemon sweeps at the record\'s end)', scratchpad.armScratchpadSweep() === false && scratchpad.scratchpadSweptByDaemon(), 'armScratchpadSweep and scratchpadSweptByDaemon in src/platform/files/scratchpad.ts must treat a MERCURY_CONCOURSE_WORKER process as swept by the daemon')
 delete process.env.MERCURY_CONCOURSE_WORKER
-check('a process that is its own session arms the sweep once', scratchpad.armScratchpadSweep() === true && scratchpad.armScratchpadSweep() === false, 'armScratchpadSweep in src/utils/scratchpad.ts must arm once and return false after')
+check('a process that is its own session arms the sweep once', scratchpad.armScratchpadSweep() === true && scratchpad.armScratchpadSweep() === false, 'armScratchpadSweep in src/platform/files/scratchpad.ts must arm once and return false after')
 scratchpad.ensureScratchpadDir()
 writeFileSync(join(dir, 'capture.txt'), 'x\n')
 await runCleanupFunctions()
-check('the registered cleanup sweeps the scratchpad at exit', !existsSync(dir), 'armScratchpadSweep in src/utils/scratchpad.ts must register the sweep with the cleanup registry')
+check('the registered cleanup sweeps the scratchpad at exit', !existsSync(dir), 'armScratchpadSweep in src/platform/files/scratchpad.ts must register the sweep with the cleanup registry')
 
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

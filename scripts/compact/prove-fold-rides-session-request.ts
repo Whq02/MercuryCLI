@@ -22,20 +22,20 @@ const lanesAsked: string[] = []
 const { startOverflowFixture, OVERFLOW_LANES } = await import('./overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/query.ts')
-const { recordSentRequest } = await import('../../src/services/agents/forkedAgent.ts')
-const { rosterOwnerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { compactConversation, shouldRideCacheSharingFork } = await import('../../src/services/compact/compact.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { recordSentRequest } = await import('../../src/crew/agents/forkedAgent.ts')
+const { rosterOwnerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { compactConversation, shouldRideCacheSharingFork } = await import('../../src/engine/compaction/foldConversation.ts')
 
 let failures = 0
 let checks = 0
@@ -44,7 +44,7 @@ const check = (name: string, ok: boolean, details: unknown = '', changeHint = ''
   if (!ok) failures++
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${JSON.stringify(details)}${changeHint ? ` | ${changeHint}` : ''}`}`)
 }
-const foldRequestWhere = 'change how the fold builds its request so it matches the session request: compactConversation (src/services/compact/compact.ts) and the summary request in src/services/compact/compact/summarise.ts'
+const foldRequestWhere = 'change how the fold builds its request so it matches the session request: compactConversation (src/engine/compaction/foldConversation.ts) and the summary request in src/engine/compaction/fold/summarise.ts'
 const summary = 'The synthetic parser accepts quoted commas and its 14 checks passed. Preserve the test command and continue with CLI verification.'
 const ENVELOPE_KEYS_OUTSIDE = new Set(['messages', 'input', 'system', 'instructions', 'tools', 'metadata', 'stream', 'stream_options', 'tool_choice', 'prompt_cache_key', 'previous_response_id', 'store', 'user', 'safety_identifier', 'model', 'max_tokens', 'max_completion_tokens', 'max_output_tokens', 'include', 'cache_control', 'n', 'contents', 'systemInstruction', 'toolConfig', 'max_tokens', 'max_completion_tokens', 'max_output_tokens'])
 type Body = Record<string, any>
@@ -165,11 +165,11 @@ try {
     for (const thinkingConfig of [{ type: 'adaptive' }, { type: 'enabled' }] as const) {
       const label = `${road.lane} · thinking ${thinkingConfig.type} · fork spends its turn on a tool call and answers on its tool-free closing turn`
       const driven = await drive(road, 'max', thinkingConfig, { continued: true, redacted: true, script: [{ calls: [{ id: 'toolu_fixture_fork', name: 'Read', args: '{"file_path":"/tmp/x"}' }] }, { text: summary }] })
-      check(`${label}: two requests, the fork's then its closing turn — no direct-lane request`, driven.fold.length === 2 && driven.error === undefined, { requests: driven.fold.length, error: driven.error }, 'change summarizeViaCacheSharingFork in src/services/compact/compact.ts or the fork turn so the fork and its closing turn are the only two requests')
+      check(`${label}: two requests, the fork's then its closing turn — no direct-lane request`, driven.fold.length === 2 && driven.error === undefined, { requests: driven.fold.length, error: driven.error }, 'change summarizeViaCacheSharingFork in src/engine/compaction/foldConversation.ts or the fork turn so the fork and its closing turn are the only two requests')
       compare(`${label} (fork)`, driven.reference, driven.fold[0], [], true)
       compare(`${label} (closing turn)`, driven.reference, driven.fold[1], [], true, true)
       const closing = driven.fold[1] as any
-      check(`${label}: the closing turn forbids tool calls and settles the wasted call as spent`, closing?.tool_choice?.type === 'none' && JSON.stringify(closing?.messages ?? []).includes('The turn budget is spent'), { tool_choice: closing?.tool_choice }, 'change the fork closing turn in src/services/compact/compact.ts so it sends tool_choice none and settles the spent call')
+      check(`${label}: the closing turn forbids tool calls and settles the wasted call as spent`, closing?.tool_choice?.type === 'none' && JSON.stringify(closing?.messages ?? []).includes('The turn budget is spent'), { tool_choice: closing?.tool_choice }, 'change the fork closing turn in src/engine/compaction/foldConversation.ts so it sends tool_choice none and settles the spent call')
       check(`${label}: the fork and its closing turn carry one posture`, JSON.stringify(posture(driven.fold[0])) === JSON.stringify(posture(driven.fold[1])) && ceilingsNear(ceilingOf(driven.fold[0]), ceilingOf(driven.fold[1])), { fork: posture(driven.fold[0]), closing: posture(driven.fold[1]), ceilings: [ceilingOf(driven.fold[0]), ceilingOf(driven.fold[1])] }, foldRequestWhere + ' so the fork and its closing turn share one posture')
     }
   }
@@ -197,8 +197,8 @@ try {
   }
   {
     const { conversationAtThreshold } = await import('./thresholdFixture.ts')
-    const { getAutoCompactThreshold, getBlockingLimit } = await import('../../src/services/compact/autoCompact.ts')
-    const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
+    const { getAutoCompactThreshold, getBlockingLimit } = await import('../../src/engine/compaction/autoFold.ts')
+    const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
     for (const leg of [{ lane: 'anthropic', fixed: 20_000, ratio: 1 }, { lane: 'gemini', fixed: 42_723, ratio: 1.3 }]) {
       const road = roads.find(r => r.lane === leg.lane)!
       const threshold = getAutoCompactThreshold(road.model)
@@ -218,7 +218,7 @@ try {
     check(
       `the fold's road record reads one row for each of the ${lanesAsked.length} folds, the summary of the lane the model rides — the fork lane itself for the ${forkFolds} folds of a model that rides the cache-sharing fork`,
       rows.length === lanesAsked.length && astray.length === 0 && forkFolds > 0,
-      { rows: rows.length, folds: lanesAsked.length, firstAstray: astray.slice(0, 3), change: 'summarizeViaCacheSharingFork (src/services/compact/compact.ts) hands a failure of its nested turn to the direct lane, and every comparison above then reads the direct lane\'s request: the context drive builds must let that turn start (startTurn) and carry what runForkedAgent reads' },
+      { rows: rows.length, folds: lanesAsked.length, firstAstray: astray.slice(0, 3), change: 'summarizeViaCacheSharingFork (src/engine/compaction/foldConversation.ts) hands a failure of its nested turn to the direct lane, and every comparison above then reads the direct lane\'s request: the context drive builds must let that turn start (startTurn) and carry what runForkedAgent reads' },
     )
   }
 } finally {

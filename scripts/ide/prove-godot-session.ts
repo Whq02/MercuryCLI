@@ -10,14 +10,14 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change parseGodotProjectFile, buildGodotIdeSession or discoverGodotLaunchProfiles in src/services/ide/godotSession.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change parseGodotProjectFile, buildGodotIdeSession or discoverGodotLaunchProfiles in src/integrations/ide/godotSession.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — proof exceeded 120s; a call into src/services/ide/godotSession.ts (buildGodotIdeSession or discoverGodotLaunchProfiles) did not return')
+  console.log('\n❌ TIMEOUT — proof exceeded 120s; a call into src/integrations/ide/godotSession.ts (buildGodotIdeSession or discoverGodotLaunchProfiles) did not return')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -39,8 +39,8 @@ function restoreEnv(): void {
 }
 for (const k of DRIVEN) delete process.env[k]
 
-const godot = await import('../../src/services/ide/godotSession.js')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
+const godot = await import('../../src/integrations/ide/godotSession.js')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.js')
 
 
 console.log('============================================================')

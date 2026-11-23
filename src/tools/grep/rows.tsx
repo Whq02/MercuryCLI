@@ -1,0 +1,202 @@
+import * as React from 'react'
+
+import { CtrlOToExpand } from '../../screen/messages/CtrlOToExpand.js'
+import { FallbackToolUseErrorMessage } from '../kit/FallbackToolUseErrorMessage.js'
+import { isDenialResultText } from '../../engine/message-shapes/rejectionText.js'
+import { MessageResponse } from '../kit/MessageResponse.js'
+import { ToolCardMarker, ToolCardMeta, toolCardCountColor } from '../../screen/widgets/toolCardMeta.js'
+import { GLYPH } from '../../screen/theme/glyphs.js'
+import { useMercuryTokens } from '../../screen/widgets/useMercuryTokens.js'
+import { TOOL_SUMMARY_MAX_LENGTH } from '../kit/toolLimits.js'
+import { Box, Text } from '../../screen/themedRenderer.js'
+import type { ToolResultBlockParam } from '../../engine/message-shapes/wire.js'
+import { FILE_NOT_FOUND_CWD_NOTE } from '../../platform/files/file.js'
+import { truncate } from '../../platform/text/format.js'
+import { extractTag } from '../../engine/messages/messages.js'
+
+
+type GrepRenderOutput = {
+  mode?: 'content' | 'files_with_matches' | 'count'
+  numFiles: number
+  filenames: string[]
+  content?: string
+  numLines?: number
+  numMatches?: number
+  appliedLimit?: number
+  appliedOffset?: number
+}
+
+type GrepRenderInput = { pattern?: string; path?: string }
+
+function labelForCount(count: number, pluralLabel: string): string {
+  if (count !== 1) return pluralLabel
+  if (/(?:ches|shes|sses|xes|zes)$/.test(pluralLabel)) return pluralLabel.slice(0, -2)
+  return pluralLabel.endsWith('s') ? pluralLabel.slice(0, -1) : pluralLabel
+}
+
+type SearchResultSummaryProps = {
+  count: number
+  label: string
+  secondaryCount?: number
+  secondaryLabel?: string
+  body?: string
+  verbose: boolean
+  trailer?: string
+}
+
+export function SearchResultSummary({
+  count,
+  label,
+  secondaryCount,
+  secondaryLabel,
+  body,
+  verbose,
+  trailer,
+}: SearchResultSummaryProps): React.ReactNode {
+  const tokens = useMercuryTokens()
+  const hasBody = Boolean(body)
+  const showExpandHint = count > 0 && hasBody && !verbose
+
+  const summary = (
+    <Text>
+      <ToolCardMarker />
+      Found{' '}
+      <Text bold color={toolCardCountColor()}>
+        {count}
+      </Text>{' '}
+      {labelForCount(count, label)}
+      {secondaryCount !== undefined && secondaryLabel ? (
+        <>
+          {' '}across{' '}
+          <Text bold color={toolCardCountColor()}>
+            {secondaryCount}
+          </Text>{' '}
+          {labelForCount(secondaryCount, secondaryLabel)}
+        </>
+      ) : null}
+      <ToolCardMeta text={trailer} />
+      {showExpandHint ? (
+        <Text color={tokens.textMuted}>
+          {' '}
+          <CtrlOToExpand />
+        </Text>
+      ) : null}
+    </Text>
+  )
+
+  return (
+    <MessageResponse>
+      <Box flexDirection="column">
+        {summary}
+        {verbose && hasBody ? (
+          <Box paddingLeft={2}>
+            <Text>{body}</Text>
+          </Box>
+        ) : null}
+      </Box>
+    </MessageResponse>
+  )
+}
+
+export function getToolUseSummary(input: GrepRenderInput | undefined): string | null {
+  if (!input?.pattern) return null
+  return truncate(input.pattern, TOOL_SUMMARY_MAX_LENGTH)
+}
+
+export function renderToolUseMessage(
+  input: GrepRenderInput,
+  _options: { verbose: boolean },
+): React.ReactNode {
+  if (!input.pattern) return null
+  if (input.path) {
+    return (
+      <Text>
+        {input.pattern}
+        <Text dimColor> in {input.path}</Text>
+      </Text>
+    )
+  }
+  return input.pattern
+}
+
+export function renderToolResultMessage(
+  output: GrepRenderOutput,
+  _progressMessages: unknown,
+  { verbose, isTranscriptMode }: { verbose: boolean; isTranscriptMode?: boolean },
+): React.ReactNode {
+  const revealed = verbose || isTranscriptMode === true
+  const page = output.appliedLimit === undefined ? undefined : `${output.appliedOffset !== undefined && output.appliedOffset > 0 ? 'one page' : 'first page'}, more exist`
+  switch (output.mode) {
+    case 'content':
+      return (
+        <SearchResultSummary
+          count={output.numLines ?? 0}
+          label="lines"
+          body={output.content}
+          verbose={revealed}
+          trailer={page}
+        />
+      )
+    case 'count':
+      return (
+        <SearchResultSummary
+          count={output.numMatches ?? 0}
+          label="matches"
+          secondaryCount={output.numFiles}
+          secondaryLabel="files"
+          body={output.content}
+          verbose={revealed}
+          trailer={page}
+        />
+      )
+    default:
+      return (
+        <SearchResultSummary
+          count={output.numFiles}
+          label="files"
+          body={output.filenames.join('\n')}
+          verbose={revealed}
+          trailer={page}
+        />
+      )
+  }
+}
+
+export function isResultTruncated(output: GrepRenderOutput | undefined): boolean {
+  if (!output) return false
+  switch (output.mode) {
+    case 'content':
+      return (output.numLines ?? 0) > 0 && Boolean(output.content)
+    case 'count':
+      return (output.numMatches ?? 0) > 0 && Boolean(output.content)
+    default:
+      return output.numFiles > 0 && output.filenames.length > 0
+  }
+}
+
+function ShortErrorLine({ text }: { text: string }): React.ReactNode {
+  const tokens = useMercuryTokens()
+  return (
+    <MessageResponse>
+      <Text color={tokens.warning}>
+        {GLYPH.warn} {text}
+      </Text>
+    </MessageResponse>
+  )
+}
+
+export function renderToolUseErrorMessage(
+  result: ToolResultBlockParam['content'],
+  { verbose }: { verbose: boolean },
+): React.ReactNode {
+  if (!verbose && typeof result === 'string' && !isDenialResultText(result)) {
+    const extracted = extractTag(result, 'tool_use_error')
+    if (extracted !== null) {
+      if (extracted.includes(FILE_NOT_FOUND_CWD_NOTE)) {
+        return <ShortErrorLine text="File not found" />
+      }
+      return <ShortErrorLine text="Error searching files" />
+    }
+  }
+  return <FallbackToolUseErrorMessage result={result} verbose={verbose} />
+}

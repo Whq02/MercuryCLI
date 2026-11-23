@@ -6,9 +6,9 @@ import {
   resetHoverOwnerForTest,
   setHoverPointerDown,
   subscribeHover,
-} from '../../src/utils/cockpit/hoverOwner.ts'
+} from '../../src/screen/cockpit/hoverOwner.ts'
 
-const H = 'src/utils/cockpit/hoverOwner.ts'
+const H = 'src/screen/cockpit/hoverOwner.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail = '', fix = ''): void {
   if (!cond) failures++

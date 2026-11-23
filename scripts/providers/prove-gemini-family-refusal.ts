@@ -39,13 +39,13 @@ const server = createServer((req, res) => {
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
 process.env.MERCURY_GEMINI_API_BASE = `http://127.0.0.1:${(server.address() as { port: number }).port}`
 process.env.MERCURY_GEMINI_OAUTH_TOKEN_BASE = 'http://127.0.0.1:1'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.ts')
-const { resolveGeminiAccount, disconnectGeminiOauth } = await import('../../src/services/providers/gemini/geminiAccounts.ts')
-const { refreshGeminiCatalogue, __resetGeminiCatalogueForTest } = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.ts')
-const { flushDebugLogs } = await import('../../src/utils/debug.ts')
+const { resetComputedDefaultMemo } = await import('../../src/models/catalogue/computedDefault.ts')
+const { resolveGeminiAccount, disconnectGeminiOauth } = await import('../../src/models/roads/gemini/geminiAccounts.ts')
+const { refreshGeminiCatalogue, __resetGeminiCatalogueForTest } = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const { validateWorkerModelChoice } = await import('../../src/screen/concourse-model/workerModels.ts')
+const { flushDebugLogs } = await import('../../src/platform/logs/debugLog.ts')
 const SECRETS = ['fixture-access', 'fixture-refresh', 'fixture-client-secret', 'fixture-client', 'fixture-key']
 async function debugLines(): Promise<string[]> {
   await flushDebugLogs()
@@ -54,7 +54,7 @@ async function debugLines(): Promise<string[]> {
 let failures = 0
 function check(label: string, condition: boolean, value?: unknown): void {
   if (!condition) failures++
-  const familyFixHint = condition ? '' : ' (fix the family word verdict in validateWorkerModelChoice in src/services/concourse/workerModels.ts, the catalogue refusal reasons and debug line in src/services/providers/gemini/geminiCatalogue.ts, or the sign-in in src/services/providers/gemini/geminiAccounts.ts)'
+  const familyFixHint = condition ? '' : ' (fix the family word verdict in validateWorkerModelChoice in src/screen/concourse-model/workerModels.ts, the catalogue refusal reasons and debug line in src/models/roads/gemini/geminiCatalogue.ts, or the sign-in in src/models/roads/gemini/geminiAccounts.ts)'
   console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition || value === undefined ? '' : ` — ${JSON.stringify(value)}`}${familyFixHint}`)
 }
 try {
@@ -89,7 +89,7 @@ try {
   __resetGeminiCatalogueForTest()
   await refreshGeminiCatalogue('oauth', { force: true })
   resetComputedDefaultMemo()
-  const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
+  const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
   const gemmaRouted = declaredRouteOf('gemma-fixture') === 'gemini'
   for (const arm of ['session', 'crew'] as const) {
     const listed = await validateWorkerModelChoice('gemini', arm)

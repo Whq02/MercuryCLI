@@ -43,7 +43,7 @@ const arg = (key: string): string | undefined => (process.argv.includes(key) ? p
 const frameDir = arg('--frames')
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 
-const LANES_CURSOR_HINT = 'to fix, change how the lanes cursor is remembered when the rail rows are unpublished and published again (publishHelmRows and moveHelmCursor in src/utils/cockpit/helmFocus.ts); for a frame mismatch, look at how the lanes pane resizes in src/components/FullscreenLayout.tsx'
+const LANES_CURSOR_HINT = 'to fix, change how the lanes cursor is remembered when the rail rows are unpublished and published again (publishHelmRows and moveHelmCursor in src/screen/cockpit/helmFocus.ts); for a frame mismatch, look at how the lanes pane resizes in src/screen/fullscreen-layout/FullscreenLayout.tsx'
 
 let checks = 0
 let failures = 0
@@ -55,15 +55,15 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 const React = await import('react')
 const h = React.createElement
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 const {
   currentHelmRow,
   getHelmCursor,
@@ -72,8 +72,8 @@ const {
   publishHelmRows,
   resetHelmFocusForTest,
   setHelmFocus,
-} = await import('../../src/utils/cockpit/helmFocus.ts')
-type HelmRow = import('../../src/utils/cockpit/helmFocus.ts').HelmRow
+} = await import('../../src/screen/cockpit/helmFocus.ts')
+type HelmRow = import('../../src/screen/cockpit/helmFocus.ts').HelmRow
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))

@@ -16,13 +16,13 @@ writeFileSync(join(outsideDir, 'pkg', 'package.json'), '{}\n')
 writeFileSync(join(outsideDir, 'notes.txt'), 'hello\n')
 process.env.MERCURY_CONFIG_DIR = join(world, 'home')
 process.chdir(project)
-const { getPlatform } = await import('../../src/utils/platform.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
+const { getPlatform } = await import('../../src/platform/environment/platform.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
 let failures = 0
 function check(label: string, ok: boolean, detail = '') {
-  const failHint = ' — change flowShellAsk or flowAskSentence in src/utils/permissions/flowLaw.ts (which shell commands Flow asks about) or decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts'
+  const failHint = ' — change flowShellAsk or flowAskSentence in src/permissions/rules/flowLaw.ts (which shell commands Flow asks about) or decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + detail + failHint}`)
   if (!ok) failures++
 }

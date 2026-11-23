@@ -207,7 +207,7 @@ check('R2 the ctx meter did not reset to em-dash', !/ctx — /.test(gridText), g
 check(
   "R3 the board's live viewer painted the main Chat transcript (no blank mirror)",
   boardFrames > 0 && boardWithReply > 0,
-  `board frames=${boardFrames} with reply=${boardWithReply} census='${(census.stdout ?? census.stderr ?? '').trim()}' | fix: the board frames (SESSIONS) must show the ${TERRA} reply in the live viewer; see SessionMirror in src/components/concourse/SessionMirror.tsx and useWorkerTranscriptFold in src/components/concourse/workerTranscriptFold.ts, frames at ${tee}`,
+  `board frames=${boardFrames} with reply=${boardWithReply} census='${(census.stdout ?? census.stderr ?? '').trim()}' | fix: the board frames (SESSIONS) must show the ${TERRA} reply in the live viewer; see SessionMirror in src/screen/concourse/SessionMirror.tsx and useWorkerTranscriptFold in src/screen/concourse/workerTranscriptFold.ts, frames at ${tee}`,
 )
 
 {

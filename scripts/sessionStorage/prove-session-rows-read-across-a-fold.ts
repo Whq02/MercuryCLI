@@ -18,12 +18,12 @@ type Shape = 'fold' | 'memory-fold-keeps-a-tail' | 'memory-fold-keeps-nothing' |
 if (process.argv.includes('--write')) {
   const session = argOf('--session')!
   const shape = argOf('--shape') as Shape
-  const state = await import('../../src/bootstrap/state.ts')
+  const state = await import('../../src/boot/process-state/processState.ts')
   state.switchSession(session as never)
-  const storage = await import('../../src/utils/sessionStorage.ts')
-  const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-  const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.ts')
-  const { annotateBoundaryWithPreservedSegment } = await import('../../src/services/compact/compact.ts')
+  const storage = await import('../../src/sessions/transcripts/sessionStorage.ts')
+  const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+  const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+  const { annotateBoundaryWithPreservedSegment } = await import('../../src/engine/compaction/foldConversation.ts')
   type Row = Parameters<typeof storage.recordTranscript>[0][number]
   const answer = shape === 'small' ? 'A short answer.' : 'A line of an old answer that the fold has since summarised. '.repeat(31_000)
   storage.saveAgentSetting(AGENT)
@@ -64,9 +64,9 @@ const check = (label: string, ok: boolean, detail = '', hint = ''): void => {
 }
 const section = (title: string): void => console.log(`\n${title}`)
 
-const { loadTranscriptFile, transcriptLoadDegradation } = await import('../../src/utils/sessionStorage/loading.ts')
-const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')
-const { historyLines } = await import('../../src/utils/sessionStorage/historyParts.ts')
+const { loadTranscriptFile, transcriptLoadDegradation } = await import('../../src/sessions/transcripts/loading.ts')
+const { decodeTranscriptBuffer } = await import('../../src/sessions/fabric/transcriptDecode.ts')
+const { historyLines } = await import('../../src/sessions/transcripts/historyParts.ts')
 const THRESHOLD = 5 * 1024 * 1024
 
 type Written = { session: string; file: string; live: string; bytes: number; killed: boolean }
@@ -103,39 +103,39 @@ try {
   const boundaryAt = foldKinds.lastIndexOf('boundary')
   const rowsBefore = ['custom-title', 'agent-setting', 'tag', 'mode'].every(kind => { const at = foldKinds.indexOf(kind); return at >= 0 && at < boundaryAt })
   const rowsAfter = foldKinds.slice(boundaryAt).filter(kind => ['custom-title', 'agent-setting', 'tag', 'mode'].includes(kind))
-  check("the scene: the product's own writer wrote the record, was killed, and left the title, the agent, the tag and the mode before the boundary and none of them after it", fold.killed && boundaryAt > 0 && rowsBefore && rowsAfter.length === 0, `killed ${fold.killed} · boundary at row ${boundaryAt} of ${foldKinds.length} · after it: ${rowsAfter.join(' ')}`, 'the writer leg of this proof (--write above) or the session-meta writers in src/utils/sessionStorage.ts no longer produce this scene; a row re-stamped after the boundary means the writer now restamps, and this proof needs its scene updated')
+  check("the scene: the product's own writer wrote the record, was killed, and left the title, the agent, the tag and the mode before the boundary and none of them after it", fold.killed && boundaryAt > 0 && rowsBefore && rowsAfter.length === 0, `killed ${fold.killed} · boundary at row ${boundaryAt} of ${foldKinds.length} · after it: ${rowsAfter.join(' ')}`, 'the writer leg of this proof (--write above) or the session-meta writers in src/sessions/transcripts/sessionStorage.ts no longer produce this scene; a row re-stamped after the boundary means the writer now restamps, and this proof needs its scene updated')
   const foldRead = await read(fold.file, fold.session)
-  check('the scene: the record is over the size, and its load leaves the folded answers unread', fold.bytes > THRESHOLD && foldRead.messages <= 2, `${fold.bytes} bytes · ${foldRead.messages} messages read`, 'loadTranscriptFile in src/utils/sessionStorage/loading.ts must start a load of a record over THRESHOLD at its last fold boundary; if the threshold moved, update THRESHOLD in this proof')
-  check('the title, the agent, the tag and the mode are read back', allFour(foldRead), JSON.stringify(foldRead), 'loadTranscriptFile in src/utils/sessionStorage/loading.ts must also collect the session rows (custom-title, agent-setting, tag, mode) written before the boundary it starts at')
-  check('the load reports no damage', transcriptLoadDegradation(fold.file) === null, JSON.stringify(transcriptLoadDegradation(fold.file)), 'loadTranscriptFile in src/utils/sessionStorage/loading.ts must not record transcriptLoadDegradation for a record whose rows before the boundary are whole')
+  check('the scene: the record is over the size, and its load leaves the folded answers unread', fold.bytes > THRESHOLD && foldRead.messages <= 2, `${fold.bytes} bytes · ${foldRead.messages} messages read`, 'loadTranscriptFile in src/sessions/transcripts/loading.ts must start a load of a record over THRESHOLD at its last fold boundary; if the threshold moved, update THRESHOLD in this proof')
+  check('the title, the agent, the tag and the mode are read back', allFour(foldRead), JSON.stringify(foldRead), 'loadTranscriptFile in src/sessions/transcripts/loading.ts must also collect the session rows (custom-title, agent-setting, tag, mode) written before the boundary it starts at')
+  check('the load reports no damage', transcriptLoadDegradation(fold.file) === null, JSON.stringify(transcriptLoadDegradation(fold.file)), 'loadTranscriptFile in src/sessions/transcripts/loading.ts must not record transcriptLoadDegradation for a record whose rows before the boundary are whole')
 
   section('§2 a row written after the boundary outranks the one before it')
   const retitled = write('fold-then-retitled')
   const retitledRead = await read(retitled.file, retitled.session)
-  check('the later title is the one read; the agent, the tag and the mode from before the boundary stand', retitled.bytes > THRESHOLD && allFour(retitledRead, LATER_TITLE), JSON.stringify(retitledRead), 'loadTranscriptFile in src/utils/sessionStorage/loading.ts must let a session row after the boundary replace the one collected from before it')
+  check('the later title is the one read; the agent, the tag and the mode from before the boundary stand', retitled.bytes > THRESHOLD && allFour(retitledRead, LATER_TITLE), JSON.stringify(retitledRead), 'loadTranscriptFile in src/sessions/transcripts/loading.ts must let a session row after the boundary replace the one collected from before it')
 
   section('§3 the rows a session-memory fold leaves: a boundary and no restamp, the process killed later')
   const nothingKept = write('memory-fold-keeps-nothing')
   const nothingKeptRead = await read(nothingKept.file, nothingKept.session)
-  check('a fold that keeps none of the conversation: all four are read back', nothingKept.killed && nothingKept.bytes > THRESHOLD && allFour(nothingKeptRead), JSON.stringify(nothingKeptRead), 'loadTranscriptFile in src/utils/sessionStorage/loading.ts must collect the session rows before a session-memory fold boundary that has no restamp')
+  check('a fold that keeps none of the conversation: all four are read back', nothingKept.killed && nothingKept.bytes > THRESHOLD && allFour(nothingKeptRead), JSON.stringify(nothingKeptRead), 'loadTranscriptFile in src/sessions/transcripts/loading.ts must collect the session rows before a session-memory fold boundary that has no restamp')
   const tailKept = write('memory-fold-keeps-a-tail')
   const tailKeptRead = await read(tailKept.file, tailKept.session)
-  check('a fold that keeps a tail of it: all four are read back', tailKept.killed && tailKept.bytes > THRESHOLD && allFour(tailKeptRead), JSON.stringify(tailKeptRead), 'loadTranscriptFile in src/utils/sessionStorage/loading.ts must collect the session rows before a session-memory fold boundary that keeps a tail')
+  check('a fold that keeps a tail of it: all four are read back', tailKept.killed && tailKept.bytes > THRESHOLD && allFour(tailKeptRead), JSON.stringify(tailKeptRead), 'loadTranscriptFile in src/sessions/transcripts/loading.ts must collect the session rows before a session-memory fold boundary that keeps a tail')
 
   section('§4 a record under the size is read whole, as before')
   const small = write('small')
   const smallRead = await read(small.file, small.session)
-  check('all four are read back', small.bytes < THRESHOLD && allFour(smallRead), `${small.bytes} bytes · ${JSON.stringify(smallRead)}`, 'loadTranscriptFile in src/utils/sessionStorage/loading.ts must read a record under THRESHOLD whole')
+  check('all four are read back', small.bytes < THRESHOLD && allFour(smallRead), `${small.bytes} bytes · ${JSON.stringify(smallRead)}`, 'loadTranscriptFile in src/sessions/transcripts/loading.ts must read a record under THRESHOLD whole')
 
   for (const [shape, title] of [[fold, TITLE], [retitled, LATER_TITLE], [nothingKept, TITLE], [tailKept, TITLE], [small, TITLE]] as const) {
     const seen = await read(shape.live, shape.session)
-    check('the live head restores all four fields without reporting damaged rows', allFour(seen, title) && transcriptLoadDegradation(shape.live) === null, JSON.stringify({ seen, damage: transcriptLoadDegradation(shape.live) }), 'loadTranscriptFile in src/utils/sessionStorage/loading.ts must restore the four session rows from the live head file and report no damage')
+    check('the live head restores all four fields without reporting damaged rows', allFour(seen, title) && transcriptLoadDegradation(shape.live) === null, JSON.stringify({ seen, damage: transcriptLoadDegradation(shape.live) }), 'loadTranscriptFile in src/sessions/transcripts/loading.ts must restore the four session rows from the live head file and report no damage')
   }
 
   section('§5 the lines collected from before a boundary are session rows alone: the decoder takes them without a header and refuses nothing')
   const sessionLines = readFileSync(fold.file, 'utf8').split('\n').filter(line => ['custom-title', 'agent-setting', 'tag', 'mode'].some(kind => line.includes(`"metaKind":"${kind}"`)))
   const decoded = decodeTranscriptBuffer<{ type?: string }>(Buffer.from(sessionLines.join('\n')))
-  check('every line decodes to a row that names its kind; no refusal, nothing malformed, nothing invalid', sessionLines.length >= 4 && decoded.refusal === undefined && decoded.malformed.length === 0 && decoded.invalid.length === 0 && decoded.entries.length === sessionLines.length && decoded.entries.every(entry => typeof entry.type === 'string'), `${decoded.entries.length} of ${sessionLines.length} · ${decoded.refusal ?? ''}`, 'decodeTranscriptBuffer in src/fabric/transcriptDecode.ts must accept header-less session-meta lines and return each as an entry with a type')
+  check('every line decodes to a row that names its kind; no refusal, nothing malformed, nothing invalid', sessionLines.length >= 4 && decoded.refusal === undefined && decoded.malformed.length === 0 && decoded.invalid.length === 0 && decoded.entries.length === sessionLines.length && decoded.entries.every(entry => typeof entry.type === 'string'), `${decoded.entries.length} of ${sessionLines.length} · ${decoded.refusal ?? ''}`, 'decodeTranscriptBuffer in src/sessions/fabric/transcriptDecode.ts must accept header-less session-meta lines and return each as an entry with a type')
 
   section('§6 a damaged session row before the boundary is skipped, and is not counted as damage of the load')
   const damaged = join(scratch, `${fold.session}.jsonl`)
@@ -144,8 +144,8 @@ try {
   lines.splice(tagAt + 1, 0, lines[tagAt]!.slice(0, lines[tagAt]!.length - 40))
   writeFileSync(damaged, lines.join('\n'))
   const damagedRead = await read(damaged, fold.session)
-  check('the whole rows are still read back', tagAt >= 0 && allFour(damagedRead), JSON.stringify(damagedRead), 'loadTranscriptFile in src/utils/sessionStorage/loading.ts must skip a damaged session row before the boundary and still read the whole ones')
-  check('the load reports no damage for the half row it never reads as part of the conversation', transcriptLoadDegradation(damaged) === null, JSON.stringify(transcriptLoadDegradation(damaged)), 'loadTranscriptFile in src/utils/sessionStorage/loading.ts must not count a damaged session row before the boundary in transcriptLoadDegradation')
+  check('the whole rows are still read back', tagAt >= 0 && allFour(damagedRead), JSON.stringify(damagedRead), 'loadTranscriptFile in src/sessions/transcripts/loading.ts must skip a damaged session row before the boundary and still read the whole ones')
+  check('the load reports no damage for the half row it never reads as part of the conversation', transcriptLoadDegradation(damaged) === null, JSON.stringify(transcriptLoadDegradation(damaged)), 'loadTranscriptFile in src/sessions/transcripts/loading.ts must not count a damaged session row before the boundary in transcriptLoadDegradation')
 } finally {
   for (const entry of readdirSync(scratch)) rmSync(join(scratch, entry), { recursive: true, force: true })
   rmSync(scratch, { recursive: true, force: true })

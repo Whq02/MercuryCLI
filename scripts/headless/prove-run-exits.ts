@@ -10,7 +10,7 @@ const at = process.argv.indexOf('--dist')
 const dist = resolve(at < 0 ? join(import.meta.dir, '../../dist/mercury.mjs') : process.argv[at + 1]!)
 if (!existsSync(dist)) { console.error(`FAIL run bundle exists: ${dist}`); process.exit(1) }
 let failures = 0
-const RUN_EXITS_FAIL_HINT = 'for the SIGINT and SIGTERM roads (exit 130 and 143) change settleOnSignal in src/cli/headless/boot/ownSignals.ts; for the other roads change the run verb in src/cli/run.ts and its headless driver under src/cli/headless/'
+const RUN_EXITS_FAIL_HINT = 'for the SIGINT and SIGTERM roads (exit 130 and 143) change settleOnSignal in src/daemon/runner/boot/ownSignals.ts; for the other roads change the run verb in src/daemon/runner/runHeadless.ts and its headless driver under src/daemon/runner/'
 const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail} | ${RUN_EXITS_FAIL_HINT}`}`); if (!ok) failures++ }
 for (const road of ['success', 'failure', 'startup', 'usage', 'SIGINT', 'SIGTERM', 'stdin-SIGINT', 'stdin-SIGTERM'] as const) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'run-exit-')))

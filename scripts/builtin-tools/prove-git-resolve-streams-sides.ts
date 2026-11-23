@@ -5,7 +5,7 @@ import { gitClient, gitFixture } from './gitFixture.ts'
 
 let checks = 0
 let failures = 0
-const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail} — fix: the resolve code for take base/both in src/services/gitGraph/plan.ts (it holds sides as .git/mercury-resolve-* and refuses with 'resolve failed:'); this proof runs dist/mercury.mjs, so rebuild with bun run build.ts after a change` : ''}`) }
+const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail} — fix: the resolve code for take base/both in src/platform/git-graph/plan.ts (it holds sides as .git/mercury-resolve-* and refuses with 'resolve failed:'); this proof runs dist/mercury.mjs, so rebuild with bun run build.ts after a change` : ''}`) }
 const marker = '<<<<<<< HEAD\nours\n=======\ntheirs\n>>>>>>> other\n'
 const slashed = (file: string) => file.replaceAll('\\', '/')
 const held = (root: string) => readdirSync(join(root, '.git')).filter(name => name.startsWith('mercury-resolve-'))

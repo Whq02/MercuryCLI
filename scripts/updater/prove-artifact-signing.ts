@@ -10,9 +10,9 @@ import {
   signStatement,
   verifySignatureBlock,
   type SigningStatementV1,
-} from '../../src/services/privateChannel/artifactSigning.js'
-import { verifyPayloadDir } from '../../src/services/privateChannel/artifactVerify.js'
-import type { TrustedSigningKey } from '../../src/services/privateChannel/signingTrust.js'
+} from '../../src/platform/update-channel/artifactSigning.js'
+import { verifyPayloadDir } from '../../src/platform/update-channel/artifactVerify.js'
+import type { TrustedSigningKey } from '../../src/platform/update-channel/signingTrust.js'
 // @ts-expect-error — the packager-side authority is plain .mjs (no types); the
 import { readCompatFloor, releaseLayoutSection } from '../release/payloadContract.mjs'
 
@@ -31,7 +31,7 @@ import { readCompatFloor, releaseLayoutSection } from '../release/payloadContrac
 
 let failures = 0
 const SIGNING_FAIL_HINT =
-  'to fix, change parseStatement, canonicalStatementBytes, signStatement or verifySignatureBlock in src/services/privateChannel/artifactSigning.ts, verifyPayloadDir in src/services/privateChannel/artifactVerify.ts, or releaseLayoutSection in scripts/release/payloadContract.mjs'
+  'to fix, change parseStatement, canonicalStatementBytes, signStatement or verifySignatureBlock in src/platform/update-channel/artifactSigning.ts, verifyPayloadDir in src/platform/update-channel/artifactVerify.ts, or releaseLayoutSection in scripts/release/payloadContract.mjs'
 const check = (label: string, ok: boolean, detail = ''): void => {
   const shown = ok ? '' : detail ? `${detail}; ${SIGNING_FAIL_HINT}` : SIGNING_FAIL_HINT
   console.log(`  ${ok ? '✓' : '✗'} ${label}${shown ? ` — ${shown}` : ''}`)

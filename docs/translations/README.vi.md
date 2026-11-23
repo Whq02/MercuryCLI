@@ -374,7 +374,7 @@ Các lệnh có sẵn bao gồm:
 - **Apollo Mode**, cuộc phỏng vấn đặc tả: trả lời các câu hỏi của tác nhân để hoàn tất đặc tả mà nó sẽ dùng để xây dựng một nguyên mẫu. Xem [docs/APOLLO-MODE.md](../APOLLO-MODE.md).
 - **Phục hồi.** Xuất bản nguyên tử, các thao tác được ghi nhật ký và đối soát khi khởi động. Xem [docs/DURABILITY.md](../DURABILITY.md).
 
-Các cờ runtime được định nghĩa trong `src/substrate/flagRegistry.ts`, được hiển thị dưới dạng cài đặt `MERCURY_*` và được kết xuất theo yêu cầu. Khả năng tương thích tích hợp được ghi lại trong [docs/COMPATIBILITY.md](../COMPATIBILITY.md). Chỉ mục tài liệu đầy đủ là [docs/README.md](../README.md).
+Các cờ runtime được định nghĩa trong `src/platform/substrate/flagRegistry.ts`, được hiển thị dưới dạng cài đặt `MERCURY_*` và được kết xuất theo yêu cầu. Khả năng tương thích tích hợp được ghi lại trong [docs/COMPATIBILITY.md](../COMPATIBILITY.md). Chỉ mục tài liệu đầy đủ là [docs/README.md](../README.md).
 
 ## Lệnh slash
 

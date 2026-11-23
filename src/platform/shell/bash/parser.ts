@@ -1,0 +1,114 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
+import type { TSNode } from '../../grammars/grammarFacility.js'
+import type { TsNode } from './bashParser.js'
+import { passedOver } from '../../errors/passedOver.js'
+
+export type Node = TsNode
+
+const LONGEST_PARSEABLE_COMMAND = 10_000
+
+export const PARSE_ABORTED: unique symbol = Symbol('PARSE_ABORTED')
+export type WordListFault = 'unplaced' | 'line-break'
+const JOINED_LINE = /\\\r?\n/g
+const WORD_LISTS = ['command', 'declaration_command', 'unset_command']
+type RawParse = Node | null | typeof PARSE_ABORTED
+const parseScope = new AsyncLocalStorage<Map<string, Promise<RawParse>>>()
+let lastCommand: string | undefined
+let lastParse: Promise<RawParse> | undefined
+const preparedTrees = new Map<string, WeakRef<Node>>()
+const reclaimedTrees = new FinalizationRegistry<{ command: string; reference: WeakRef<Node> }>(({ command, reference }) => {
+  if (preparedTrees.get(command) === reference) preparedTrees.delete(command)
+})
+
+function rememberTree(command: string, root: Node): void {
+  const remember = (text: string, node: Node): void => {
+    const reference = new WeakRef(node)
+    preparedTrees.set(text, reference)
+    reclaimedTrees.register(node, { command: text, reference })
+  }
+  const visit = (node: Node): void => {
+    if (['command', 'redirected_statement', 'pipeline', 'list', 'declaration_command'].includes(node.type)) remember(node.text, node)
+    for (const child of node.children) visit(child)
+  }
+  visit(root)
+  remember(command, root)
+  remember(command.trim(), root)
+}
+
+export function preparedCommandRoot(command: string): Node | null {
+  return preparedTrees.get(command)?.deref() ?? null
+}
+
+export function withBashParseScope<T>(run: () => T): T {
+  return parseScope.getStore() ? run() : parseScope.run(new Map(), run)
+}
+
+export function wordListFault(node: Node): WordListFault | null {
+  if (node.text.length !== node.endIndex - node.startIndex) return 'unplaced'
+  let end: number | null = null
+  for (const child of node.children) {
+    if (end !== null && node.text.slice(end - node.startIndex, child.startIndex - node.startIndex).replace(JOINED_LINE, '').includes('\n')) return 'line-break'
+    end = child.endIndex
+  }
+  return null
+}
+
+export function misreadWordList(node: Node): WordListFault | null {
+  const own = WORD_LISTS.includes(node.type) ? wordListFault(node) : null
+  if (own !== null) return own
+  for (const child of node.children) {
+    const inner = misreadWordList(child)
+    if (inner !== null) return inner
+  }
+  return null
+}
+
+function snapshot(root: TSNode): Node {
+  const copy = (node: TSNode): Node => ({
+    type: node.isMissing ? 'ERROR' : node.type,
+    text: node.text,
+    startIndex: node.startIndex,
+    endIndex: node.endIndex,
+    children: node.children.filter((child): child is TSNode => child !== null).map(copy),
+  })
+  const result = copy(root)
+  if (root.hasError || misreadWordList(result) !== null) result.type = 'ERROR'
+  return result
+}
+
+async function parseRaw(command: string): Promise<RawParse> {
+  if (command === '' || command.length > LONGEST_PARSEABLE_COMMAND) return null
+  try {
+    const { languageByName, loadGrammarEngine, parsePolyglot } = await import('../../grammars/grammarFacility.js')
+    const engine = await loadGrammarEngine()
+    const language = languageByName('bash')
+    if (engine.state !== 'ok' || !language) return null
+    const parsed = await parsePolyglot(engine, language, command)
+    if ('state' in parsed) return null
+    try {
+      const root = snapshot(parsed.tree.rootNode)
+      rememberTree(command, root)
+      return root
+    } finally {
+      parsed.tree.delete()
+    }
+  } catch (error) {
+    passedOver(error)
+    return null
+  }
+}
+
+export function parseCommandRaw(command: string): Promise<RawParse> {
+  const scoped = parseScope.getStore()
+  if (scoped) {
+    const existing = scoped.get(command)
+    if (existing) return existing
+    const pending = parseRaw(command)
+    scoped.set(command, pending)
+    return pending
+  }
+  if (lastCommand === command && lastParse) return lastParse
+  lastCommand = command
+  lastParse = parseRaw(command)
+  return lastParse
+}

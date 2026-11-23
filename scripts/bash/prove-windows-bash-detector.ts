@@ -4,27 +4,27 @@ import { join, resolve, win32 } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-const road = await import('../../src/utils/shell/windowsShellRoad.ts')
-const { shellEngineRequest } = await import('../../src/utils/shell/shellEngineArm.ts')
-const { gitBashCandidatePaths } = await import('../../src/utils/windowsPaths.ts')
+const road = await import('../../src/platform/shell/windowsShellRoad.ts')
+const { shellEngineRequest } = await import('../../src/platform/shell/shellEngineArm.ts')
+const { gitBashCandidatePaths } = await import('../../src/platform/files/windowsPaths.ts')
 const { BASH_COMPANION_PROGRAMS, OLDEST_BASH_THAT_COUNTS, composeWindowsBashRoad, describeBashCandidate, roadOfRecord, settleWindowsShell } = road
 type World = Parameters<typeof settleWindowsShell>[0]
 type Candidate = ReturnType<typeof describeBashCandidate>
 
 let failures = 0
-let where = 'settleWindowsShell, composeWindowsBashRoad, describeBashCandidate and roadOfRecord in src/utils/shell/windowsShellRoad.ts, and shellEngineRequest in src/utils/shell/shellEngineArm.ts'
+let where = 'settleWindowsShell, composeWindowsBashRoad, describeBashCandidate and roadOfRecord in src/platform/shell/windowsShellRoad.ts, and shellEngineRequest in src/platform/shell/shellEngineArm.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}fix ${where}` : ''}`)
 }
 const section = (title: string): void => {
   where = title.startsWith('(4)')
-    ? 'gitBashCandidatePaths in src/utils/windowsPaths.ts'
+    ? 'gitBashCandidatePaths in src/platform/files/windowsPaths.ts'
     : title.startsWith('(5)')
-      ? 'BASH_COMPANION_PROGRAMS and describeBashCandidate in src/utils/shell/windowsShellRoad.ts, or the programs list in vendor/bash.lock.json'
+      ? 'BASH_COMPANION_PROGRAMS and describeBashCandidate in src/platform/shell/windowsShellRoad.ts, or the programs list in vendor/bash.lock.json'
       : title.startsWith('(2)')
-        ? 'settleWindowsShell in src/utils/shell/windowsShellRoad.ts, or windowsShellQuestion and windowsShellAnswer in src/utils/shell/shellRecord.ts'
-        : 'settleWindowsShell, composeWindowsBashRoad, describeBashCandidate and roadOfRecord in src/utils/shell/windowsShellRoad.ts, and shellEngineRequest in src/utils/shell/shellEngineArm.ts'
+        ? 'settleWindowsShell in src/platform/shell/windowsShellRoad.ts, or windowsShellQuestion and windowsShellAnswer in src/platform/shell/shellRecord.ts'
+        : 'settleWindowsShell, composeWindowsBashRoad, describeBashCandidate and roadOfRecord in src/platform/shell/windowsShellRoad.ts, and shellEngineRequest in src/platform/shell/shellEngineArm.ts'
   console.log(`\n${title}`)
 }
 
@@ -156,7 +156,7 @@ section('(2) the order')
   const CYGDRIVE = 'its runtime reads drive C as /cygdrive/c, where Mercury writes /c'
   const cygdrive = await settle({ pinned: PIN, files: gitFiles(GIT), bashes: [GIT_BASH], versions: { [PIN]: '5.3.15(1)-release', [GIT_BASH]: '5.3.15(2)-release', ...withPack }, unfit: { [PIN]: CYGDRIVE } })
   check('a pinned bash whose runtime does not read /c as drive C is passed over with that reason, and the next bash serves', cygdrive.origin === 'system' && cygdrive.path === GIT_BASH && cygdrive.passed.some(line => line === `${PIN}, named by MERCURY_GIT_BASH_PATH: ${CYGDRIVE}`), JSON.stringify(cygdrive))
-  const record = await import(join(ROOT, 'src/utils/shell/shellRecord.ts'))
+  const record = await import(join(ROOT, 'src/platform/shell/shellRecord.ts'))
   const question = record.windowsShellQuestion('C:\\Users\\x\\AppData\\Local\\Temp') as { text: string; drive: string | null }
   check('on Windows the version question also asks how the bash reads the drive of TEMP, with no quote and no backslash in it', question.drive === 'C' && question.text === 'printf %s $BASH_VERSION; cd C:/ && printf :%s $PWD; :' && !/["\'\\\\]/.test(question.text), JSON.stringify(question))
   check('a TEMP with no drive letter asks the version alone', record.windowsShellQuestion('\\\\server\\share\\temp').drive === null && record.windowsShellQuestion('\\\\server\\share\\temp').text === 'printf %s $BASH_VERSION')

@@ -16,7 +16,7 @@ const check = (label: string, cond: boolean, detail = '', fix = ''): void => {
     if (fix) console.log(`    fix: ${fix}`)
   }
 }
-const gitRowFix = 'the git check in src/services/health/sections/git.ts builds the evidence clauses (unpushed count, no remote configured, no upstream for this branch) from the repo facts of src/utils/git.ts; correct the clause that disagrees with the repository this section built'
+const gitRowFix = 'the git check in src/platform/health/sections/git.ts builds the evidence clauses (unpushed count, no remote configured, no upstream for this branch) from the repo facts of src/platform/git/git.ts; correct the clause that disagrees with the repository this section built'
 
 const BASE = realpathSync(mkdtempSync(join(tmpdir(), 'gitrow-')))
 const git = (cwd: string, ...args: string[]): void => {
@@ -30,9 +30,9 @@ writeFileSync(join(origin, 'a.txt'), 'a\n')
 git(origin, 'add', 'a.txt')
 git(origin, 'commit', '-q', '-m', 'first')
 
-const { setCwd } = await import('../../src/utils/Shell.js')
-const { regroundGitWatch } = await import('../../src/utils/git/gitFilesystem.js')
-const report = await import('../../src/services/health/healthReport.js')
+const { setCwd } = await import('../../src/platform/shell/shellExec.js')
+const { regroundGitWatch } = await import('../../src/platform/git/gitFilesystem.js')
+const report = await import('../../src/platform/health/healthReport.js')
 const gitRow = async (dir: string): Promise<string> => {
   setCwd(dir)
   process.chdir(dir)

@@ -24,9 +24,9 @@ process.on('exit', () => {
   }
 })
 if (process.env.MERCURY_DESKTOP_DRIVER !== 'fake') delete process.env.MERCURY_DESKTOP_DRIVER
-const { resolveDesktopDriver } = await import('../../src/services/desktop/resolveDriver.ts')
-const { resolveDesktopPackDir } = await import('../../src/services/desktop/pack.ts')
-type DesktopBounds = import('../../src/services/desktop/driver.ts').DesktopBounds
+const { resolveDesktopDriver } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const { resolveDesktopPackDir } = await import('../../src/integrations/desktop/pack.ts')
+type DesktopBounds = import('../../src/integrations/desktop/driver.ts').DesktopBounds
 
 function cannot(words: string): never {
   console.log(`CANNOT RUN: ${words}`)

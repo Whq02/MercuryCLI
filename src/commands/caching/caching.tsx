@@ -1,9 +1,9 @@
 import * as React from 'react'
-import { Box, Text, useInput, type DOMElement } from '../../ink.js'
-import { popupPageRows, usePopupListNavigation } from '../../components/CustomSelect/popup-list.js'
-import { CursorRow } from '../../components/mercury-ui/CursorRow.js'
-import { CommandCenter } from '../../components/mercury-ui/components.js'
-import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
+import { Box, Text, useInput, type DOMElement } from '../../screen/themedRenderer.js'
+import { popupPageRows, usePopupListNavigation } from '../../screen/select/popup-list.js'
+import { CursorRow } from '../../screen/widgets/CursorRow.js'
+import { CommandCenter } from '../../screen/widgets/components.js'
+import { useMercuryTokens } from '../../screen/widgets/useMercuryTokens.js'
 import {
   COMMAND_SETTINGS_ROWS,
   menuRowChoices,
@@ -12,13 +12,13 @@ import {
   realEnvPin,
   writeBootEnvChoice,
   type MenuChoice,
-} from '../../substrate/startupMenu.js'
-import { flagSpellings } from '../../substrate/flagRegistry.js'
-import { CACHE_COST } from '../../utils/cache/cacheClockCore.js'
-import { providerDisplayName, type CallModelRoute } from '../../services/providers/routeLaw.js'
-import { DEEPSEEK_DISPLAY_PINS } from '../../utils/model/pins/deepseekPins.js'
-import { KIMI_DISPLAY_PINS } from '../../utils/model/pins/kimiPins.js'
-import type { LocalJSXCommandCall, LocalJSXCommandOnDone } from '../../types/command.js'
+} from '../../platform/substrate/startupMenu.js'
+import { flagSpellings } from '../../platform/substrate/flagRegistry.js'
+import { CACHE_COST } from '../../platform/cache-clock/cacheClockCore.js'
+import { providerDisplayName, type CallModelRoute } from '../../models/roads/routeLaw.js'
+import { DEEPSEEK_DISPLAY_PINS } from '../../models/facts/pins/deepseekPins.js'
+import { KIMI_DISPLAY_PINS } from '../../models/facts/pins/kimiPins.js'
+import type { LocalJSXCommandCall, LocalJSXCommandOnDone } from '../catalogue/command.js'
 
 
 const TTL_ROW = COMMAND_SETTINGS_ROWS.find(r => r.env === 'MERCURY_CACHE_TTL')!

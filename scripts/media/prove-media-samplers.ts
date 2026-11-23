@@ -2,7 +2,7 @@ import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { Client, StdioClientTransport } from '../../src/utils/mcp/sdk.js'
+import { Client, StdioClientTransport } from '../../src/integrations/mcp-shapes/sdk.js'
 import { installLiveFixture, proofHome, removeProofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
 
 process.chdir(proofHome)

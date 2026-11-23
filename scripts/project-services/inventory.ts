@@ -10,8 +10,8 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'vanguard-inv-'))
 
 const OUT = 'scripts/project-services/fixtures/inventory.json'
 
-const { buildToolCensus } = await import('../../src/services/capability/census.ts')
-const taskMod = await import('../../src/Task.ts')
+const { buildToolCensus } = await import('../../src/permissions/capability-census/census.ts')
+const taskMod = await import('../../src/engine/tasks/taskBase.ts')
 
 const baseToolNames = buildToolCensus().rows.map(row => row.name).sort()
 
@@ -25,9 +25,9 @@ const taskIdPrefixes = Object.fromEntries(
   taskTypes.map(t => [t, taskMod.generateTaskId(t as never)[0]]),
 )
 
-const { LSP_READ_OPERATIONS } = await import('../../src/tools/LSPTool/schemas.ts')
+const { LSP_READ_OPERATIONS } = await import('../../src/tools/lsp/schemas.ts')
 const lspOps = [...LSP_READ_OPERATIONS]
-const { inputSchema: debugInputSchema } = await import('../../src/tools/DebugTool/debug/schema.ts')
+const { inputSchema: debugInputSchema } = await import('../../src/tools/debug/ops/schema.ts')
 const dapOps: string[] = [...debugInputSchema().shape.op.options]
 
 const inventory = {
@@ -41,12 +41,12 @@ const inventory = {
     dapOps,
   },
   resourceLikeStores: {
-    artifacts: 'src/utils/artifacts/store.ts (configHome/artifacts/<scope>/<id> + .meta.json)',
-    runSidecar: 'src/services/run/runSidecar.ts (<transcript-dir>/<sessionId>.run.json)',
-    taskOutput: 'src/utils/task/diskOutput.ts (per-task output files)',
-    toolResultSpill: 'src/utils/toolResultStorage.ts (large tool results)',
-    transcripts: 'src/utils/sessionStorage.ts (project JSONL transcripts)',
-    verifyEvidence: 'src/utils/verification/verificationState.ts (.mercury/verify/)',
+    artifacts: 'src/sessions/artifacts/store.ts (configHome/artifacts/<scope>/<id> + .meta.json)',
+    runSidecar: 'src/engine/run/runSidecar.ts (<transcript-dir>/<sessionId>.run.json)',
+    taskOutput: 'src/engine/task-framework/diskOutput.ts (per-task output files)',
+    toolResultSpill: 'src/engine/tool-dispatch/toolResultStorage.ts (large tool results)',
+    transcripts: 'src/sessions/transcripts/sessionStorage.ts (project JSONL transcripts)',
+    verifyEvidence: 'src/platform/verification/verificationState.ts (.mercury/verify/)',
     healthCert: '<config home>/projects/<slug>/health/last-cert.json (utils/healthReport.ts; the project folder keeps only a leftover .mercury/health/)',
     gateVerdict: '.mercury/gate/verdict.json (scripts/run-all-suites.sh)',
   },
@@ -79,11 +79,11 @@ if (process.argv.includes('--check')) {
     if (missing.length > 0) {
       failures++
       const shrankSource: Record<string, string> = {
-        baseToolNames: 'restore the removed tools in buildToolCensus in src/services/capability/census.ts',
-        taskTypes: 'restore the removed task types in src/Task.ts',
+        baseToolNames: 'restore the removed tools in buildToolCensus in src/permissions/capability-census/census.ts',
+        taskTypes: 'restore the removed task types in src/engine/tasks/taskBase.ts',
         taskStatuses: 'taskStatuses is a fixed list in this script, so it cannot shrink on its own',
-        lspOps: 'restore the removed operations in LSP_READ_OPERATIONS in src/tools/LSPTool/schemas.ts',
-        dapOps: 'restore the removed operations in the op option list in src/tools/DebugTool/debug/schema.ts',
+        lspOps: 'restore the removed operations in LSP_READ_OPERATIONS in src/tools/lsp/schemas.ts',
+        dapOps: 'restore the removed operations in the op option list in src/tools/debug/ops/schema.ts',
       }
       console.log(`FAIL: ${key} shrank — missing from live tree: ${missing.join(', ')} — ${shrankSource[key]}; the frozen list lives in ${OUT}`)
     } else {

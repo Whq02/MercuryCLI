@@ -3,10 +3,10 @@
 
 
 
-const { emptyRunSnapshot, reduceRunEvent } = await import('../../src/services/run/runKernel.ts')
+const { emptyRunSnapshot, reduceRunEvent } = await import('../../src/engine/run/runKernel.ts')
 
 let failures = 0
-const failureWhere = 'change the model-transition case of reduceRunEvent (and emptyRunSnapshot) in src/services/run/runKernel.ts so modelState carries current, pendingNext and the last receipt as the check says'
+const failureWhere = 'change the model-transition case of reduceRunEvent (and emptyRunSnapshot) in src/engine/run/runKernel.ts so modelState carries current, pendingNext and the last receipt as the check says'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + failureWhere : ''}`)

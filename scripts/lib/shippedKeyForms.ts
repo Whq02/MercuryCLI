@@ -4,7 +4,7 @@ import { join } from 'node:path'
 type ShippedBlock = { context: string; bindings: Record<string, string | null> }
 type ShippedForm = { form: string; blocks: ShippedBlock[] }
 
-const TABLE = join(import.meta.dir, '..', '..', 'src', 'keybindings', 'defaultBindings.ts')
+const TABLE = join(import.meta.dir, '..', '..', 'src', 'screen', 'keys', 'defaultBindings.ts')
 
 const PLATFORMS: Array<[label: string, platform: string, bun: string | null]> = [
   ['darwin', 'darwin', null],

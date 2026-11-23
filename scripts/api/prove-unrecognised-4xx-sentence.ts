@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { join } from 'node:path'
-import { APIError } from '../../src/utils/api/sdkErrors.js'
+import { APIError } from '../../src/engine/request-parts/sdkErrors.js'
 
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
@@ -11,9 +11,9 @@ let failures = 0
 let checks = 0
 let hintSection = ''
 const failureHints: Array<[string, string]> = [
-  ['§1', 'getAssistantMessageFromError in src/services/api/errors.ts must paint an unrecognised 4xx as the status plus the provider sentence, unescaped, with no envelope bytes'],
-  ['§2', 'mapOpenaiHttpFailure in src/services/providers/openai/openaiWire.ts must carry the sentence the body stated, never the raw body'],
-  ['§3', 'mapCompatHttpFailure in src/services/providers/openaicompat/compatChatClient.ts, compatTerminalFaultText in src/services/providers/openaicompat/compatChatCallModel.ts and classifyCredentialWall in src/services/providers/credentialWall.ts'],
+  ['§1', 'getAssistantMessageFromError in src/engine/requests/apiErrorRows.ts must paint an unrecognised 4xx as the status plus the provider sentence, unescaped, with no envelope bytes'],
+  ['§2', 'mapOpenaiHttpFailure in src/models/roads/openai/openaiWire.ts must carry the sentence the body stated, never the raw body'],
+  ['§3', 'mapCompatHttpFailure in src/models/roads/openaicompat/compatChatClient.ts, compatTerminalFaultText in src/models/roads/openaicompat/compatChatCallModel.ts and classifyCredentialWall in src/models/roads/credentialWall.ts'],
   ['§4', 'the three roads (errors.ts, openaiWire.ts, compatChatCallModel.ts under src/services) must never put a brace or a different prefix on a transcript row'],
 ]
 function check(label: string, ok: boolean, detail = ''): void {
@@ -27,11 +27,11 @@ function section(title: string): void {
   console.log(`\n${title}`)
 }
 
-const { getAssistantMessageFromError, API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errors.ts')
-const { mapOpenaiHttpFailure } = await import('../../src/services/providers/openai/openaiWire.ts')
-const { mapCompatHttpFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-const { compatTerminalFaultText } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { classifyCredentialWall } = await import('../../src/services/providers/credentialWall.ts')
+const { getAssistantMessageFromError, API_ERROR_MESSAGE_PREFIX } = await import('../../src/engine/requests/apiErrorRows.ts')
+const { mapOpenaiHttpFailure } = await import('../../src/models/roads/openai/openaiWire.ts')
+const { mapCompatHttpFailure } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+const { compatTerminalFaultText } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { classifyCredentialWall } = await import('../../src/models/roads/credentialWall.ts')
 
 const textOf = (row: { message: { content: unknown } }): string =>
   (row.message.content as Array<{ type?: string; text?: string }>).map(b => (b.type === 'text' ? (b.text ?? '') : '')).join('')

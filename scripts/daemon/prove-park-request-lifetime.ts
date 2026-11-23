@@ -4,7 +4,7 @@
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ConcourseAdmitResult, ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
+import type { ConcourseAdmitResult, ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'park-request-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -16,17 +16,17 @@ mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: the park request, retirement and withdrawal rules are in src/daemon/concourseWorkers/park.ts (completeRequestedPark, retireRequestedPark, parkAllConcourseSessions), focus.ts and stop.ts beside it, and the message cases in makeConcourseDispatchHandler in src/daemon/concourseDispatch.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: the park request, retirement and withdrawal rules are in src/daemon/concourse-workers/park.ts (completeRequestedPark, retireRequestedPark, parkAllConcourseSessions), focus.ts and stop.ts beside it, and the message cases in makeConcourseDispatchHandler in src/daemon/concourse-workers/concourseDispatch.ts' : ''}`)
 }
 
-const sup = await import('../../src/daemon/concourseWorkers.ts')
-const { makeConcourseDispatchHandler } = await import('../../src/daemon/concourseDispatch.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { makeConcourseDispatchHandler } = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
 const { retiringRunners } = await import('./retiring-runners.ts')
-const { isSaturnSelfWake } = await import('../../src/daemon/saturn.ts')
-const { tickSaturnOnce } = await import('../../src/daemon/saturnTicker.ts')
-const { wakeDelaySpelling } = await import('../../src/utils/messages/noticeRows.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
-const snapshot = await import('../../src/services/concourse/concourseSnapshot.ts')
+const { isSaturnSelfWake } = await import('../../src/daemon/saturn/saturn.ts')
+const { tickSaturnOnce } = await import('../../src/daemon/saturn/saturnTicker.ts')
+const { wakeDelaySpelling } = await import('../../src/engine/message-shapes/noticeRows.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
+const snapshot = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
 enableConfigs()
 
 const dir = process.env.MERCURY_DAEMON_DIR!

@@ -11,12 +11,12 @@ const scratch = mkdtempSync(join(tmpdir(), 'branch-pruning-'))
 import { writeForkedFixture } from './forkedFixture.ts'
 
 const { loadTranscriptFile, pruneRecordBranchesBeforeParse } = await import(
-  '../../src/utils/sessionStorage/loading.ts'
+  '../../src/sessions/transcripts/loading.ts'
 )
-const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')
+const { decodeTranscriptBuffer } = await import('../../src/sessions/fabric/transcriptDecode.ts')
 
 let failures = 0
-const pruningHint = 'change pruneRecordBranchesBeforeParse in src/utils/sessionStorage/branchSelection.ts or the fold in loadTranscriptFile in src/utils/sessionStorage/loading.ts (or the fixture in scripts/sessionStorage/forkedFixture.ts)'
+const pruningHint = 'change pruneRecordBranchesBeforeParse in src/sessions/transcripts/branchSelection.ts or the fold in loadTranscriptFile in src/sessions/transcripts/loading.ts (or the fixture in scripts/sessionStorage/forkedFixture.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${pruningHint}` : ''}`)
@@ -78,7 +78,7 @@ const fullLoad = await loadTranscriptFile(fx.path, { keepAllLeaves: true })
   const liveTail = fx.liveUuids[fx.liveUuids.length - 1]!
   check('the pruned load resumes at the live tail; its other leaves are the recovered rows, as in the full load', prunedLoad.leafUuids.size === 1 + forkFirst.length && prunedLoad.leafUuids.has(liveTail as never), String(prunedLoad.leafUuids.size))
   check('the full load still sees every fork tip as a leaf (+ the live tail)', fullLoad.leafUuids.size === 1 + fx.deadUuids.length / 4 && fullLoad.leafUuids.has(liveTail as never), String(fullLoad.leafUuids.size))
-  const { buildConversationChain } = await import('../../src/utils/sessionStorage/chain.ts')
+  const { buildConversationChain } = await import('../../src/sessions/transcripts/chain.ts')
   const fullChain = buildConversationChain(fullLoad.messages, fullLoad.messages.get(liveTail as never)!).map(m => m.uuid)
   const prunedChain = buildConversationChain(prunedLoad.messages, prunedLoad.messages.get(liveTail as never)!).map(m => m.uuid)
   check('THE LAW: the pruned resume equals the full-load chain, uuid for uuid', JSON.stringify(fullChain) === JSON.stringify(prunedChain), `full=${fullChain.length} pruned=${prunedChain.length}`)

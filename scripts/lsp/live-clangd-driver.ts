@@ -21,7 +21,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const { probeBuiltinClangd, MERCURY_CLANGD_SERVER_NAME } = await import(
-  '../../src/services/lsp/clangdLane.js'
+  '../../src/integrations/lsp/clangdLane.js'
 )
 const clangd = probeBuiltinClangd()
 if (!clangd.available) {
@@ -30,9 +30,9 @@ if (!clangd.available) {
 }
 console.log(`live clangd: ${clangd.clangdPath}`)
 
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
 const { createLSPServerManager } = await import(
-  '../../src/services/lsp/LSPServerManager.js'
+  '../../src/integrations/lsp/LSPServerManager.js'
 )
 
 const proj = mkdtempSync(path.join(tmpdir(), 'clangd-live-'))

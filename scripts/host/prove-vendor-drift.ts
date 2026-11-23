@@ -16,7 +16,7 @@ let failures = 0
 const check = (name: string, value: unknown, detail: unknown = ''): void => {
   checks++
   if (!value) failures++
-  console.log((value ? 'PASS ' : 'FAIL ') + name + (value ? '' : ' — ' + JSON.stringify(detail) + ' — fix the vendor reader the check names: Runpod pods, logs and refusals in src/services/host/runpod.ts, spend in src/services/host/costs.ts, Lambda pages in src/services/host/vendors/lambda.ts, key help in src/services/host/vendors/vendor.ts, Hugging Face limit and offline words in src/services/host/hfRecipes.ts; if the vendor fixture (runpodFixture.mjs, lambdaFixture.mjs, hfFixture.mjs in scripts/host) no longer matches the vendor documents, change the fixture instead'))
+  console.log((value ? 'PASS ' : 'FAIL ') + name + (value ? '' : ' — ' + JSON.stringify(detail) + ' — fix the vendor reader the check names: Runpod pods, logs and refusals in src/models/hosting/runpod.ts, spend in src/models/hosting/costs.ts, Lambda pages in src/models/hosting/vendors/lambda.ts, key help in src/models/hosting/vendors/vendor.ts, Hugging Face limit and offline words in src/models/hosting/hfRecipes.ts; if the vendor fixture (runpodFixture.mjs, lambdaFixture.mjs, hfFixture.mjs in scripts/host) no longer matches the vendor documents, change the fixture instead'))
 }
 const originalFetch = globalThis.fetch
 globalThis.fetch = Object.assign((input: RequestInfo | URL, init?: RequestInit) => {
@@ -28,12 +28,12 @@ const signal = () => new AbortController().signal
 const failure = async (work: () => Promise<unknown>): Promise<string> => { try { await work(); return '' } catch (error) { return error instanceof Error ? error.message : String(error) } }
 const sshKey = 'ssh-ed25519 Zml4dHVyZS1wdWJsaWM= mercury-fixture'
 
-const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
-const { RunpodClient, RunpodHttpError, createRefusal, podLogLines } = await import('../../src/services/host/runpod.ts')
-const { hostSpendSoFar, hostPodBills } = await import('../../src/services/host/costs.ts')
-const { LambdaClient } = await import('../../src/services/host/vendors/lambda.ts')
-const { searchHuggingFace, fetchHuggingFaceRepo, HF_RATE_LIMIT_WORDS, HF_OFFLINE_WORDS } = await import('../../src/services/host/hfRecipes.ts')
-const { HOST_VENDOR_INFO } = await import('../../src/services/host/vendors/vendor.ts')
+const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
+const { RunpodClient, RunpodHttpError, createRefusal, podLogLines } = await import('../../src/models/hosting/runpod.ts')
+const { hostSpendSoFar, hostPodBills } = await import('../../src/models/hosting/costs.ts')
+const { LambdaClient } = await import('../../src/models/hosting/vendors/lambda.ts')
+const { searchHuggingFace, fetchHuggingFaceRepo, HF_RATE_LIMIT_WORDS, HF_OFFLINE_WORDS } = await import('../../src/models/hosting/hfRecipes.ts')
+const { HOST_VENDOR_INFO } = await import('../../src/models/hosting/vendors/vendor.ts')
 
 const recipeFile = join(home, 'drift-recipes.json')
 const previousRecipes = process.env.MERCURY_HOST_RECIPES_FILE

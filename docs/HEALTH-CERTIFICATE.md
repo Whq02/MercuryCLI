@@ -327,5 +327,5 @@ and individually killable: `MERCURY_HEALTH_CERT=0` restores a plain
 install-diagnostics screen with no certificate and no artifact writes,
 `MERCURY_HEALTH_FIX=0` makes `/health` diagnose-only (no remedy offered
 anywhere), and `MERCURY_BOOT_PREFLIGHT=0` skips the boot preflight entirely.
-All three rows live in the in-code registry (`src/substrate/flagRegistry.ts`;
+All three rows live in the in-code registry (`src/platform/substrate/flagRegistry.ts`;
 rendered on demand to an untracked path).

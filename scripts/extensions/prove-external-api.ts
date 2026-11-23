@@ -4,17 +4,17 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { extensionApi, extensionRequest } from '../../src/cli/extensionApi.ts'
-import { hostRecords, readHostRecord } from '../../src/services/host/store.ts'
-import { sweepHostJobs } from '../../src/services/host/jobs.ts'
-import { hostIdleVerdict, HOST_IDLE_LIMIT_MS } from '../../src/services/host/idle.ts'
-import { readBankRegistry } from '../../src/services/host/bank.ts'
-import { HOST_RECIPES } from '../../src/services/host/recipes.ts'
-import { hostRecipeSchema } from '../../src/services/host/recipesFile.ts'
-import { ggufServerPlan } from '../../src/services/localSetup/ggufServer.ts'
-import { bankGgufModel } from '../../src/services/localSetup/ggufModels.ts'
-import { startHostEngine } from '../../src/services/host/ssh.ts'
-import type { HostVendor } from '../../src/services/host/vendors/vendor.ts'
+import { extensionApi, extensionRequest } from '../../src/commands/verbs/extensionApi.ts'
+import { hostRecords, readHostRecord } from '../../src/models/hosting/store.ts'
+import { sweepHostJobs } from '../../src/models/hosting/jobs.ts'
+import { hostIdleVerdict, HOST_IDLE_LIMIT_MS } from '../../src/models/hosting/idle.ts'
+import { readBankRegistry } from '../../src/models/hosting/bank.ts'
+import { HOST_RECIPES } from '../../src/models/hosting/recipes.ts'
+import { hostRecipeSchema } from '../../src/models/hosting/recipesFile.ts'
+import { ggufServerPlan } from '../../src/models/local-setup/ggufServer.ts'
+import { bankGgufModel } from '../../src/models/local-setup/ggufModels.ts'
+import { startHostEngine } from '../../src/models/hosting/ssh.ts'
+import type { HostVendor } from '../../src/models/hosting/vendors/vendor.ts'
 import { ggufHeaderBytes } from './ggufFixture.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -22,7 +22,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const signal = new AbortController().signal
 let created = 0, uncertain = false, now = Date.now()
 const pod = { id: 'fixture-external', name: 'Fixture', status: 'RUNNING', cost: 2, createdAt: new Date(now).toISOString(), ssh: { direct: { host: 'fixture.invalid', port: 22, username: 'root' } } }
-const vendor = { watchOffer: async (recipe: import('../../src/services/host/recipes.ts').HostRecipe) => ({ recipe, price: 2, gpuId: 'fixture' }), create: async () => { created++; if (uncertain) throw new Error('fixture lost placement response'); return pod }, get: async () => pod } as unknown as HostVendor
+const vendor = { watchOffer: async (recipe: import('../../src/models/hosting/recipes.ts').HostRecipe) => ({ recipe, price: 2, gpuId: 'fixture' }), create: async () => { created++; if (uncertain) throw new Error('fixture lost placement response'); return pod }, get: async () => pod } as unknown as HostVendor
 const deps = { client: () => vendor, key: async () => ({ path: join(proofHome, 'key'), publicKey: 'ssh-ed25519 Zml4dHVyZQ==' }), now: () => now }
 const call = (request: Record<string, unknown>) => extensionApi({ version: 1, ...request }, signal, deps) as Promise<any>
 const rental = { ...HOST_RECIPES.find(row => row.engine === 'llamacpp')!, id: 'fixture-compute', model: 'fixture/base', label: 'Fixture', count: 1, nodes: 1, weightsGb: 0, verification: '' }
@@ -79,12 +79,12 @@ writeFileSync(join(plan.path, 'chat.jinja'), files['chat.jinja'])
 const registered = await call({ op: 'bank.register', folder, recipe: bankRecipe })
 assert.equal(registered.registered, true)
 assert.equal(registered.path, plan.path)
-assert.ok(readBankRegistry().models[registered.key], `src/services/host/bank.ts registry missing registered key ${registered.key}`)
+assert.ok(readBankRegistry().models[registered.key], `src/models/hosting/bank.ts registry missing registered key ${registered.key}`)
 await assert.rejects(call({ op: 'bank.register', folder, recipe: bankRecipe }), /already exists/)
 const gguf = await bankGgufModel(bankRecipe, folder, 64 * 1024 ** 3, process.platform, signal)
 const local = await ggufServerPlan(gguf, folder, { serverCommand: 'fixture-server', cwd: proofHome })
 assert.equal(local.args[local.args.indexOf('--chat-template-file') + 1], join(plan.path, 'chat.jinja'))
-assert.ok(!local.args.includes('--lora'), `src/services/localSetup/ggufServer.ts local args must not include --lora: ${local.args.join(' ')}`)
+assert.ok(!local.args.includes('--lora'), `src/models/local-setup/ggufServer.ts local args must not include --lora: ${local.args.join(' ')}`)
 const commands: string[] = []
 const runner = { async run(_command: string, args: string[]) { commands.push(args.at(-1)!); return 'MERCURY_PREBUILT_ENGINE yes' }, tunnel(): never { throw new Error('no tunnel') } }
 for (const kept of [undefined, '/fixture/kept']) {
@@ -92,12 +92,12 @@ for (const kept of [undefined, '/fixture/kept']) {
   await startHostEngine({ host: 'fixture' }, bankRecipe, runner, signal, false, true, kept ? undefined : plan.path, kept)
   const script = commands.findLast(text => text.includes('nohup setsid'))!.replaceAll("'\\''", "'")
   const expectedTemplateArg = "'--chat-template-file' '" + (kept ?? '/workspace/mercury-host/' + bankRecipe.id + '/weights') + "/chat.jinja'"
-  assert.ok(script.includes(expectedTemplateArg), `src/services/host/ssh.ts host launch script missing ${expectedTemplateArg}`)
-  assert.ok(!script.includes('--lora'), 'src/services/host/ssh.ts host launch script must not include --lora')
+  assert.ok(script.includes(expectedTemplateArg), `src/models/hosting/ssh.ts host launch script missing ${expectedTemplateArg}`)
+  assert.ok(!script.includes('--lora'), 'src/models/hosting/ssh.ts host launch script must not include --lora')
 }
 console.log('PASS Bank JSON: plan, checksum refusal without registry write, registration, duplicate refusal and both template readers')
 
-const cli = (input: unknown) => spawnSync(process.execPath, [join(import.meta.dirname, '../../src/entrypoints/cli.tsx'), 'extension-api', '--json'], { cwd: proofHome, env: { ...process.env, MERCURY_CONFIG_DIR: proofHome, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none' }, input: JSON.stringify(input), encoding: 'utf8', timeout: 120_000 })
+const cli = (input: unknown) => spawnSync(process.execPath, [join(import.meta.dirname, '../../src/boot/entrypoints/cli.tsx'), 'extension-api', '--json'], { cwd: proofHome, env: { ...process.env, MERCURY_CONFIG_DIR: proofHome, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none' }, input: JSON.stringify(input), encoding: 'utf8', timeout: 120_000 })
 for (const input of [{ version: 2, op: 'context', project: proofHome }, { version: 1, op: 'unknown' }, { version: 1, op: 'context', project: proofHome, extra: true }]) {
   const result = cli(input)
   assert.equal(result.status, 1, result.stderr)
@@ -108,7 +108,7 @@ assert.equal(context.status, 0, context.stderr)
 const reading = JSON.parse(context.stdout)
 assert.equal(reading.version, 1)
 assert.equal(reading.ok, true)
-assert.ok(reading.result.tools.some((tool: any) => tool.function.name === 'Read'), 'src/cli/extensionApi.ts context response missing Read tool')
+assert.ok(reading.result.tools.some((tool: any) => tool.function.name === 'Read'), 'src/commands/verbs/extensionApi.ts context response missing Read tool')
 assert.match(reading.result.engine.revision, /^[a-f0-9]{40}$/)
 assert.equal(typeof reading.result.projectDir, 'string')
 writeFileSync(join(proofHome, '.provider-secrets.json'), JSON.stringify({ fixture: { apiKey: 'fixture-opaque-credential' } }))

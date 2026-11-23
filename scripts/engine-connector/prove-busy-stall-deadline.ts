@@ -12,11 +12,11 @@ process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 process.env.MERCURY_DAEMON_DIR = plane
 delete process.env.MERCURY_HOME
 
-const { CarrierPart } = await import('../../src/services/engine-connector/daemon/carrier.ts')
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
-await import('../../src/utils/ownerWatch.ts')
+const { CarrierPart } = await import('../../src/engine/connector/daemon/carrier.ts')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+const { publishSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
+const { daemonStatePath } = await import('../../src/daemon/control/controlSocket.ts')
+await import('../../src/daemon/control/ownerWatch.ts')
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
@@ -24,8 +24,8 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const PART = 'src/services/engine-connector/daemon/carrier.ts'
-const DOOR = 'src/services/engine-connector/daemonConnector.ts'
+const PART = 'src/engine/connector/daemon/carrier.ts'
+const DOOR = 'src/engine/connector/daemonConnector.ts'
 
 type Armed = { ms: number; at: number; fire: () => void; cleared: boolean; every: boolean; unref: () => Armed; ref: () => Armed; hasRef: () => boolean; refresh: () => Armed }
 const armed: Armed[] = []

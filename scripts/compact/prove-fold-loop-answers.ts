@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from '
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { runTurns, type Frame } from '../lib/rows.ts'
-import { historyLines } from '../../src/utils/sessionStorage/historyParts.ts'
+import { historyLines } from '../../src/sessions/transcripts/historyParts.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -14,7 +14,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}the drive runs the built dist/mercury.mjs, so rebuild with bun run build.ts first; the thrash notice and the pause are in src/services/compact/autoCompact.ts, the summary and the summary message words are in src/services/compact/prompt.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}the drive runs the built dist/mercury.mjs, so rebuild with bun run build.ts first; the thrash notice and the pause are in src/engine/compaction/autoFold.ts, the summary and the summary message words are in src/engine/compaction/summariserPrompt.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -223,7 +223,7 @@ if (!existsSync(DIST)) {
     check('one painted compaction row per boundary on disk, each with the boundary\'s own before figure', rows.length === boundaries.length && rows.every((row, i) => Number(row.tokens_before) === boundaries[i]!.pre), `${rows.length} rows / ${boundaries.length} boundaries · ${rows.map(r => r.tokens_before).join(',')} vs ${boundaries.map(b => b.pre).join(',')}`)
     check('every boundary carries its own figures: the after figure is the fold\'s own, under its before, and each boundary is its own fold — the ledger epochs strictly increase', boundaries.every(b => b.post < b.pre) && boundaries.every((b, i) => Number.isFinite(b.epoch) && (i === 0 || b.epoch > boundaries[i - 1]!.epoch)), boundaries.map(b => `epoch ${b.epoch}: ${b.pre}→${b.post}`).join(' '))
     check('the before figures are distinct by construction (every file carries a tail of its own length), so no two folds can share one', new Set(boundaries.map(b => b.pre)).size === boundaries.length, boundaries.map(b => b.pre).join(','))
-    const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
+    const reader = await import('../../src/sessions/transcripts/transcriptReader.ts')
     const chain = await reader.readTranscriptChainSince(d.transcript, null)
     const chainBoundaries = chain.rows.filter((r: Record<string, unknown>) => r.type === 'system' && r.subtype === 'compact_boundary') as Array<{ compactMetadata?: { preTokens?: number; postTokens?: number } }>
     const last = boundaries.at(-1)

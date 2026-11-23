@@ -12,9 +12,9 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0))
-const coalesceFix = ' — fix makeCoalescedRebuild in src/components/concourse/route/useConcourseSnapshot.ts'
+const coalesceFix = ' — fix makeCoalescedRebuild in src/screen/concourse/route/useConcourseSnapshot.ts'
 
-const { makeCoalescedRebuild } = await import('../../src/components/concourse/ConcourseRoute.tsx')
+const { makeCoalescedRebuild } = await import('../../src/screen/concourse/ConcourseRoute.tsx')
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void

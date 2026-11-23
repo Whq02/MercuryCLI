@@ -1,0 +1,14 @@
+import type { ApiUsage } from '../message-shapes/wire.js'
+
+export function getTokenCountFromUsage(usage: ApiUsage): number {
+  return (
+    (usage.input_tokens ?? 0) +
+    (usage.cache_creation_input_tokens ?? 0) +
+    (usage.cache_read_input_tokens ?? 0) +
+    (usage.output_tokens ?? 0)
+  )
+}
+
+export function getSpentTokensFromUsage(usage: Pick<ApiUsage, 'input_tokens' | 'output_tokens'>): number {
+  return (usage.input_tokens ?? 0) + (usage.output_tokens ?? 0)
+}

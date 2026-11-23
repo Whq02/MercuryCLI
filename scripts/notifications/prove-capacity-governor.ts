@@ -5,12 +5,12 @@
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
-const gov = (await import('../../src/services/capacity/governor.js')) as Record<string, unknown> &
-  typeof import('../../src/services/capacity/governor.js')
+const gov = (await import('../../src/crew/capacity/governor.js')) as Record<string, unknown> &
+  typeof import('../../src/crew/capacity/governor.js')
 
 t.section('§1 — the ONE capacity owner exists with the permit pair (repro, verbatim)')
 {
-  t.check('src/services/capacity/governor.ts exists', gov != null, 'present')
+  t.check('src/crew/capacity/governor.ts exists', gov != null, 'present')
   t.check('it exports acquireModelPermit()', typeof gov.acquireModelPermit === 'function', 'present')
   t.check('it exports releaseModelPermit()', typeof gov.releaseModelPermit === 'function', 'present')
 }
@@ -71,7 +71,7 @@ t.section('§3b — a stopped waiter leaves the queue')
   gov.setGovernorCeilings({ modelLanes: 1, delegationLanes: 1 })
   const held = await gov.acquireModelPermit({ lane: 'background-session', callId: 'k.c1', holder: 'agent-a' })
   const stop = new AbortController()
-  const { APIUserAbortError } = await import('../../src/utils/api/sdkErrors.js')
+  const { APIUserAbortError } = await import('../../src/engine/request-parts/sdkErrors.js')
   let deadOutcome = 'pending'
   gov.acquireModelPermit({ lane: 'background-session', callId: 'k.c2', holder: 'agent-b', signal: stop.signal }).then(
     () => { deadOutcome = 'admitted' },
@@ -135,7 +135,7 @@ t.section('§5 — hysteresis')
 
 t.section('§6 — the composition: the seats, the delegation band, the operator term, the provenance')
 {
-  const compose = await import('../../src/services/capacity/composeCeilings.js')
+  const compose = await import('../../src/crew/capacity/composeCeilings.js')
   const seats3 = compose.composeGovernorCeilings({ seats: 3, seatSource: 'consented', delegationBand: null, profileId: null, operatorLanes: null })
   t.check('three seats compose three lanes and three delegated lanes — the seats are the one truth', seats3.modelLanes === 3 && seats3.delegationLanes === 3, JSON.stringify(seats3))
   const inherited = compose.composeGovernorCeilings({ seats: 5, seatSource: 'inherited', delegationBand: 3, profileId: 'anthropic-default', operatorLanes: null })

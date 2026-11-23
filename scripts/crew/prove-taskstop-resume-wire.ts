@@ -36,7 +36,7 @@ try {
   stopInput.task_id = /agentId: (a[0-9a-z]+)/.exec(receipt.text)?.[1] ?? ''
   assert.notEqual(stopInput.task_id, '', receipt.text)
   const second = childRequests()[1]
-  assert.ok(JSON.stringify(second.messages).includes('signature'), 'second child request omitted signed thinking block in src/services/providers/anthropic/')
+  assert.ok(JSON.stringify(second.messages).includes('signature'), 'second child request omitted signed thinking block in src/models/roads/anthropic/')
   for (const [round, expected] of [['one', 3], ['two', 4]] as const) {
     lead.submit(`parent-stop-${round}`)
     await lead.waitFor(`TaskStop ${round} settles`, () => toolResultOf(world, `stop-${round}`) !== null)
@@ -49,8 +49,8 @@ try {
     assert.deepEqual(request.thinking, second.thinking)
     assert.equal(request.max_tokens, second.max_tokens)
     const requestJson = JSON.stringify(request.messages)
-    assert.ok(requestJson.includes('[Request interrupted by user]'), `TaskStop+Resume round ${round} omitted [Request interrupted by user] in src/tools/AgentTool/resumeAgent.ts`)
-    assert.ok(requestJson.includes(round === 'one' ? 'resume the stopped edit' : 'do as the lead said'), `TaskStop+Resume round ${round} omitted lead resume message in src/tools/AgentTool/resumeAgent.ts`)
+    assert.ok(requestJson.includes('[Request interrupted by user]'), `TaskStop+Resume round ${round} omitted [Request interrupted by user] in src/tools/crewmate/resumeCrewmate.ts`)
+    assert.ok(requestJson.includes(round === 'one' ? 'resume the stopped edit' : 'do as the lead said'), `TaskStop+Resume round ${round} omitted lead resume message in src/tools/crewmate/resumeCrewmate.ts`)
     assert.deepEqual(request.messages.filter((row: any) => row.role === 'assistant'), second.messages.filter((row: any) => row.role === 'assistant'))
     assert.ok(request.messages.every((row: any, index: number) => index === 0 || row.role !== request.messages[index - 1].role), 'Anthropic request roles alternate')
     console.log(`PASS TaskStop then ResumeCrewmate ${round}: alternating wire roles, signed reasoning, max effort and output ceiling preserved`)

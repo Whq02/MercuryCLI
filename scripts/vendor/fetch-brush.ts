@@ -14,7 +14,7 @@ import {
   checkBrushPackDir,
   type BrushPackManifest,
   type BrushPackPlatform,
-} from '../../src/utils/shell/brushPack.ts'
+} from '../../src/platform/shell/brushPack.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const LOCK_PATH = join(ROOT, 'vendor', 'brush.lock.json')

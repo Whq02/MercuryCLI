@@ -8,9 +8,9 @@ import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { createInterface } from 'node:readline'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { computeActiveSet, publishActiveSet } from '../../src/extensions/active.js'
-import { getExtensionSkills, clearExtensionCommandCaches } from '../../src/extensions/load/commands.js'
-import { validateManifest } from '../../src/extensions/manifest.js'
+import { computeActiveSet, publishActiveSet } from '../../src/integrations/extensions/active.js'
+import { getExtensionSkills, clearExtensionCommandCaches } from '../../src/integrations/extensions/load/commands.js'
+import { validateManifest } from '../../src/integrations/extensions/manifest.js'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -20,8 +20,8 @@ assert(base && isAbsolute(base), 'Pass --scratch <isolated absolute folder>')
 mkdirSync(base, { recursive: true })
 const scratch = mkdtempSync(join(base, 'photocraft-static-'))
 const delivered = join(scratch, 'extension'), dataDir = join(scratch, 'data')
-const shared = arg('--shared-dir') ?? join(root, 'src/extensions/bundled/shared')
-cpSync(join(root, 'src/extensions/bundled/photocraft'), delivered, { recursive: true })
+const shared = arg('--shared-dir') ?? join(root, 'src/integrations/extensions/bundled/shared')
+cpSync(join(root, 'src/integrations/extensions/bundled/photocraft'), delivered, { recursive: true })
 cpSync(shared, join(delivered, 'shared'), { recursive: true })
 const adapterModule = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
 const { adapter, scopedRoots, endpointParts, prepareControl, readPrivateToken, inspectControl, upstream } = adapterModule
@@ -35,7 +35,7 @@ try {
   check('declarative manifest uses shared Node launcher without missing-app prerequisites', () => {
     assert.equal(manifest.name, 'photocraft'); assert.equal(manifest.contributes.servers.app.command, '${MERCURY_NODE}')
     assert.deepEqual(Object.keys(manifest.contributes).sort(), ['servers', 'skills'])
-    assert(!manifest.module && !manifest.install && !manifest.needs.binaries, `src/extensions/bundled/photocraft/mercury-extension.json must stay declarative without module/install/needs.binaries`)
+    assert(!manifest.module && !manifest.install && !manifest.needs.binaries, `src/integrations/extensions/bundled/photocraft/mercury-extension.json must stay declarative without module/install/needs.binaries`)
   })
   check('release plans bind exact app version, URL, bytes and hash; one archive per platform carries app and CLI', () => {
     assert.equal(adapter.version, '0.23.1'); assert.deepEqual(adapter.pins.map((pin: any) => pin.name), ['photocraft'])
@@ -60,7 +60,7 @@ try {
     assert.throws(() => endpointParts('0.0.0.0:7878')); assert.throws(() => endpointParts('127.0.0.1:65536'))
   })
   const tokenFile = prepareControl(dataDir)
-  check('desktop creates the token, not discovery or the adapter', () => assert(!existsSync(tokenFile), 'src/extensions/bundled/photocraft/server/install.mjs prepareControl must not create tokenFile'))
+  check('desktop creates the token, not discovery or the adapter', () => assert(!existsSync(tokenFile), 'src/integrations/extensions/bundled/photocraft/server/install.mjs prepareControl must not create tokenFile'))
   const token = 'a'.repeat(64)
   writeFileSync(tokenFile, token, { mode: 0o600 })
   check('private credential validation does not change the token', () => assert.equal(readPrivateToken(tokenFile), token))
@@ -74,8 +74,8 @@ try {
   check('bridge argv carries only the credential file path, never its value', () => {
     const spec = upstream({ installation: { cli: 'photocraft-cli' }, endpoint: '127.0.0.1:7878', dataDir, input: { mode: 'attach' } })
     assert.deepEqual(spec.args, ['mcp', '--bridge', '127.0.0.1:7878', '--control-token-file', tokenFile])
-    assert(!JSON.stringify(spec).includes(token), 'src/extensions/bundled/photocraft/server/install.mjs upstream spec must never embed raw control token')
-    assert(!spec.args.includes('--control-token'), `src/extensions/bundled/photocraft/server/install.mjs upstream args must not pass --control-token: ${spec.args.join(' ')}`)
+    assert(!JSON.stringify(spec).includes(token), 'src/integrations/extensions/bundled/photocraft/server/install.mjs upstream spec must never embed raw control token')
+    assert(!spec.args.includes('--control-token'), `src/integrations/extensions/bundled/photocraft/server/install.mjs upstream args must not pass --control-token: ${spec.args.join(' ')}`)
     assert.equal(spec.env.PHOTOCRAFT_CONTROL_TOKEN, undefined, 'An empty token environment variable conflicts with the token-file flag')
   })
   let authAccepted = true, omitResponse = false, calls: string[] = []
@@ -121,12 +121,12 @@ try {
   process.env.MERCURY_CONFIG_DIR = join(scratch, 'mercury-config')
   const active = computeActiveSet({ cwd: scratch, sessionPaths: [delivered] }); publishActiveSet(active); clearExtensionCommandCaches()
   const skill = getExtensionSkills().find(s => s.name === 'photocraft:photocraft')
-  assert(skill && skill.type === 'prompt', `src/extensions/load/commands.ts missing prompt skill photocraft:photocraft, got ${skill?.type}`)
+  assert(skill && skill.type === 'prompt', `src/integrations/extensions/load/commands.ts missing prompt skill photocraft:photocraft, got ${skill?.type}`)
   const prompt = await skill.getPromptForCommand('Crop the open PhotoCraft image and export a PNG')
   check('real extension loader discovers the skill and expands supplied arguments', () => {
     assert.equal(skill.source, 'extension'); assert(prompt[0]?.type === 'text' && prompt[0].text.includes('Crop the open PhotoCraft image and export a PNG'), `photocraft:photocraft prompt missing supplied arguments: ${JSON.stringify(prompt[0]).slice(0, 140)}`)
     assert.match(skill.description, /PhotoCraft image/); assert.match(skill.description, /Not for video editing/)
-    assert(prompt[0]?.type === 'text' && prompt[0].text.includes('Trim the video timeline'), 'src/extensions/bundled/photocraft/skills/photocraft/SKILL.md missing video-trim exclusion example')
+    assert(prompt[0]?.type === 'text' && prompt[0].text.includes('Trim the video timeline'), 'src/integrations/extensions/bundled/photocraft/skills/photocraft/SKILL.md missing video-trim exclusion example')
   })
   check('the skill keeps the hard boundaries and the live-discovery rule, without the onboarding the server instructions carry', () => {
     const text = readFileSync(join(delivered, 'skills/photocraft/SKILL.md'), 'utf8')

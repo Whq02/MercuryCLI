@@ -2,13 +2,13 @@
 (globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 
 const { isAwaySummaryEnabled, buildAwaySummary, buildAwayRecap } = await import(
-  '../../src/utils/cockpit/awaySummary.js'
+  '../../src/screen/cockpit/awaySummary.js'
 )
 
 let fail = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) fail++
-  const failHint = 'change isAwaySummaryEnabled, buildAwayRecap or buildAwaySummary in src/utils/cockpit/awaySummary.ts'
+  const failHint = 'change isAwaySummaryEnabled, buildAwayRecap or buildAwaySummary in src/screen/cockpit/awaySummary.ts'
   const shown = cond ? detail : detail ? detail + ' — ' + failHint : failHint
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
 }

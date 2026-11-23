@@ -23,9 +23,9 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, DeadlineExceededError, minutesKnobToMs, formatLimit } =
-  await import('../../src/utils/deadline.ts')
+  await import('../../src/platform/async/deadline.ts')
 {
-  fixHint = 'armInactivityDeadline, withInactivityDeadline, minutesKnobToMs or formatLimit in src/utils/deadline.ts'
+  fixHint = 'armInactivityDeadline, withInactivityDeadline, minutesKnobToMs or formatLimit in src/platform/async/deadline.ts'
   let clock = 1_000
   const now = () => clock
   let expired: unknown = null
@@ -71,8 +71,8 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
 }
 
 {
-  fixHint = 'isRefocusPress in src/ink/components/App.tsx'
-  const { isRefocusPress } = await import('../../src/ink/components/App.tsx')
+  fixHint = 'isRefocusPress in src/screen/renderer/elements/App.tsx'
+  const { isRefocusPress } = await import('../../src/screen/renderer/elements/App.tsx')
   t('a press while the focus store reads blurred is focus-only', isRefocusPress({ focused: false, refocusedAt: -1, now: 10_000 }))
   t('a press 50ms after a focus-in is focus-only', isRefocusPress({ focused: true, refocusedAt: 9_950, now: 10_000 }))
   t('a press in the same batch as the focus-in (0ms) is focus-only', isRefocusPress({ focused: true, refocusedAt: 10_000, now: 10_000 }))
@@ -81,16 +81,16 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
 }
 
 {
-  fixHint = 'cycleModeMayApprove in src/components/permissions/FilePermissionDialog/useFilePermissionDialog.ts'
-  const { cycleModeMayApprove } = await import('../../src/components/permissions/FilePermissionDialog/useFilePermissionDialog.ts')
+  fixHint = 'cycleModeMayApprove in src/permissions/cards/file-dialog/useFilePermissionDialog.ts'
+  const { cycleModeMayApprove } = await import('../../src/permissions/cards/file-dialog/useFilePermissionDialog.ts')
   t('no feedback field open ⇒ the chord may approve', cycleModeMayApprove({ yesInputMode: false, noInputMode: false }))
   t('reject feedback open ⇒ inert', !cycleModeMayApprove({ yesInputMode: false, noInputMode: true }))
   t('accept feedback open ⇒ inert', !cycleModeMayApprove({ yesInputMode: true, noInputMode: false }))
 }
 
 {
-  fixHint = 'consolidateLockOwnedBy in src/mneme/mnemeConsolidate.ts, artifactLockOwnedBy in src/services/artifacts/reviewStore.ts or refreshLockStampedBy in src/services/providers/openai/openaiAccounts.ts (the one named in the failed label)'
-  const { consolidateLockOwnedBy } = await import('../../src/mneme/mnemeConsolidate.ts')
+  fixHint = 'consolidateLockOwnedBy in src/sessions/mneme/mnemeConsolidate.ts, artifactLockOwnedBy in src/sessions/artifact-reviews/reviewStore.ts or refreshLockStampedBy in src/models/roads/openai/openaiAccounts.ts (the one named in the failed label)'
+  const { consolidateLockOwnedBy } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
   const lock = join(SCRATCH, '.consolidate.lock')
   mkdirSync(lock)
   writeFileSync(join(lock, 'pid'), String(process.pid))
@@ -100,7 +100,7 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
   rmSync(join(lock, 'pid'))
   t('mneme lock: no pid file (pre-pid shape) ⇒ releasable', consolidateLockOwnedBy(lock, process.pid))
 
-  const { artifactLockOwnedBy } = await import('../../src/services/artifacts/reviewStore.ts')
+  const { artifactLockOwnedBy } = await import('../../src/sessions/artifact-reviews/reviewStore.ts')
   const fence = join(SCRATCH, '.write-lock')
   mkdirSync(fence)
   writeFileSync(join(fence, 'owner'), '1:abc')
@@ -109,7 +109,7 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
   rmSync(join(fence, 'owner'))
   t('review fence: no token (pre-token lock) ⇒ releasable', artifactLockOwnedBy(fence, '1:abc'))
 
-  const { refreshLockStampedBy } = await import('../../src/services/providers/openai/openaiAccounts.ts')
+  const { refreshLockStampedBy } = await import('../../src/models/roads/openai/openaiAccounts.ts')
   const stamp = join(SCRATCH, 'auth.refresh-lock')
   writeFileSync(stamp, `${process.pid} ${Date.now()}\n`)
   t('refresh lock: our stamp ⇒ ours', refreshLockStampedBy(stamp, process.pid))
@@ -119,12 +119,12 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
 }
 
 {
-  fixHint = 'holdWorkerAsk, answerPermissionAsk, expiredAskDenialMessage or mintGitInitAsk in src/daemon/permissionAsks.ts, or askLimitMs in src/utils/permissions/askClock.ts'
+  fixHint = 'holdWorkerAsk, answerPermissionAsk, expiredAskDenialMessage or mintGitInitAsk in src/daemon/session-seat/permissionAsks.ts, or askLimitMs in src/permissions/rules/askClock.ts'
   const { holdWorkerAsk, answerPermissionAsk, listPendingPermissionAsks, expiredAskDenialMessage } =
-    await import('../../src/daemon/permissionAsks.ts')
-  const { askLimitMs, CREWMATE_ASK_LIMIT_MINUTES } = await import('../../src/utils/permissions/askClock.ts')
-  const { concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
-  type Answer = import('../../src/runner/wire/methods.ts').PermissionAnswer
+    await import('../../src/daemon/session-seat/permissionAsks.ts')
+  const { askLimitMs, CREWMATE_ASK_LIMIT_MINUTES } = await import('../../src/permissions/rules/askClock.ts')
+  const { concourseWorkersPath } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  type Answer = import('../../src/daemon/runner-wire/methods.ts').PermissionAnswer
   const record = (short: string) => ({
     runnerId: short,
     sessionId: `sess-${short}`,
@@ -197,7 +197,7 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
   answerPermissionAsk(idOf('forever'), false, 'operator')
 
   {
-    const { mintGitInitAsk } = await import('../../src/daemon/permissionAsks.ts')
+    const { mintGitInitAsk } = await import('../../src/daemon/session-seat/permissionAsks.ts')
     const before = listPendingPermissionAsks().length
     const fillers: string[] = []
     for (let i = before; i < 200; i++) {

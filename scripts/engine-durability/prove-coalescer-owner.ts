@@ -7,12 +7,12 @@ import { checker, scratchRoot, waitUntil } from './harness.ts'
 scratchRoot('coalescer')
 const t = checker()
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
-const projection = await import('../../src/services/workbench/projection.ts')
+const projection = await import('../../src/screen/workbench/projection.ts')
 const version = (): number => projection.getWorkbenchSnapshot()?.version ?? 0
 const stamp = (): number | undefined => projection.getWorkbenchSnapshot()?.gatherGeneration
 await projection.gatherWorkbenchInputs({})

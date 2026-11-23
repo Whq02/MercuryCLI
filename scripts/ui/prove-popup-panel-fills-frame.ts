@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands/effort/EffortPopup.tsx src/commands/health/HealthCertificate.tsx src/components/CommandPopupSlot.tsx src/components/PopupGutter.tsx src/components/FullscreenLayout.tsx
+// gate-watch: src/commands/effort/EffortPopup.tsx src/commands/health/HealthCertificate.tsx src/screen/overlays/CommandPopupSlot.tsx src/screen/overlays/PopupGutter.tsx src/screen/fullscreen-layout/FullscreenLayout.tsx
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome } from '../lib/settingsPopupHarness.ts'
 import { settledFrame } from './popupFrameSettle.ts'
-import type { CommandPopupShape } from '../../src/utils/cockpit/commandPopup.ts'
+import type { CommandPopupShape } from '../../src/screen/cockpit/commandPopup.ts'
 
 pinSourceRef()
 const HOME = pinScratchHome('popup-panel-fills-frame')
@@ -37,20 +37,20 @@ function section(title: string): void {
 
 const React = await import('react')
 const h = React.createElement
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
-const { POPUP_GUTTER } = await import('../../src/components/PopupGutter.tsx')
-const { CommandPopupLease, commandPopupGeometry } = await import('../../src/components/CommandPopupSlot.tsx')
-const { claimCommandPopup } = await import('../../src/utils/cockpit/commandPopup.ts')
-const { getEngineModel } = await import('../../src/services/model/model.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
+const { POPUP_GUTTER } = await import('../../src/screen/overlays/PopupGutter.tsx')
+const { CommandPopupLease, commandPopupGeometry } = await import('../../src/screen/overlays/CommandPopupSlot.tsx')
+const { claimCommandPopup } = await import('../../src/screen/cockpit/commandPopup.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
 const effortCommand = await import('../../src/commands/effort/effort.tsx')
 const { effortPopupShape } = await import('../../src/commands/effort/EffortPopup.tsx')
 const certificate = await import('../../src/commands/health/HealthCertificate.tsx')
@@ -171,22 +171,22 @@ for (const [columns, rows] of SIZES) {
       save(`${surface.name}-${columns}x${rows}`, lines)
       const screen = screenOf(lines, columns)
       const panel = panelOf(screen, surface.title)
-      check(`${surface.name} ${columns}x${rows}: the popup painted as one closed bordered window over the solid chat`, opened && panel !== null, (panel === null ? lines.slice(0, 6).join(' | ') + ' | ' : '') + 'the popup did not paint its title inside a closed rounded border; check the surface panel in src/commands/effort/EffortPopup.tsx or src/commands/health/HealthCertificate.tsx and how src/components/CommandPopupSlot.tsx mounts it; rerun with --frames <dir> to read the saved frame')
+      check(`${surface.name} ${columns}x${rows}: the popup painted as one closed bordered window over the solid chat`, opened && panel !== null, (panel === null ? lines.slice(0, 6).join(' | ') + ' | ' : '') + 'the popup did not paint its title inside a closed rounded border; check the surface panel in src/commands/effort/EffortPopup.tsx or src/commands/health/HealthCertificate.tsx and how src/screen/overlays/CommandPopupSlot.tsx mounts it; rerun with --frames <dir> to read the saved frame')
       if (panel === null) continue
       const host = hostOf(screen, panel)
       const pasted = [panel.top, panel.top + 1, panel.bottom].map(y => `row ${y}: ${rowAt(screen, y)}`).join('\n')
       console.log(`${surface.name} ${columns}x${rows}: panel ${panel.width} wide at columns ${panel.left}..${panel.right}, rows ${panel.top}..${panel.bottom}; host ${host === null ? 'not read from the title row' : `${host.columns} columns from ${host.left}${host.framed ? ' inside the view frame' : ' (the screen)'}`}`)
-      check(`${surface.name} ${columns}x${rows}: the host the popup floats in is read from the painted view (the centre box's frame or the screen's edge)`, host !== null, pasted + '\nthe popup is not inside a frame whose edges are one border column or the screen edge; check the centre box frame in src/components/FullscreenLayout.tsx')
+      check(`${surface.name} ${columns}x${rows}: the host the popup floats in is read from the painted view (the centre box's frame or the screen's edge)`, host !== null, pasted + '\nthe popup is not inside a frame whose edges are one border column or the screen edge; check the centre box frame in src/screen/fullscreen-layout/FullscreenLayout.tsx')
       if (host !== null) {
         const frame = commandPopupGeometry({ left: host.left, top: 0, columns: host.columns, rows }, rows, surface.shape)
-        check(`${surface.name} ${columns}x${rows}: the panel's left and right border columns are where the popup frame begins and ends (columns ${frame.left}..${frame.left + frame.width - 1}, ${frame.width} wide)`, panel.left === frame.left && panel.width === frame.width, `the panel is ${panel.width} wide at ${panel.left}..${panel.right} — ${frame.width - panel.width} column${frame.width - panel.width === 1 ? '' : 's'} short of its frame\n${pasted}\nmake the panel width and left column equal the geometry commandPopupGeometry in src/components/CommandPopupSlot.tsx returns for this popup shape`)
+        check(`${surface.name} ${columns}x${rows}: the panel's left and right border columns are where the popup frame begins and ends (columns ${frame.left}..${frame.left + frame.width - 1}, ${frame.width} wide)`, panel.left === frame.left && panel.width === frame.width, `the panel is ${panel.width} wide at ${panel.left}..${panel.right} — ${frame.width - panel.width} column${frame.width - panel.width === 1 ? '' : 's'} short of its frame\n${pasted}\nmake the panel width and left column equal the geometry commandPopupGeometry in src/screen/overlays/CommandPopupSlot.tsx returns for this popup shape`)
       }
       const beside = Array.from({ length: panel.bottom - panel.top + 1 }, (_, i) => groundBeside(screen, panel, panel.top + i))
       const lid = beside[0]!
       const widest = beside.reduce((acc, row) => ({ left: Math.max(acc.left, row.left), right: Math.max(acc.right, row.right) }), { left: 0, right: 0 })
       const narrowest = beside.reduce((acc, row) => ({ left: Math.min(acc.left, row.left), right: Math.min(acc.right, row.right) }), { left: columns, right: columns })
-      check(`${surface.name} ${columns}x${rows}: one ground column beside ╭ and one beside ╮ (${POPUP_GUTTER}/${POPUP_GUTTER}), no blank ground column inside the frame`, lid.left === POPUP_GUTTER && lid.right === POPUP_GUTTER, `${lid.left}/${lid.right} blank columns beside the lid\n${pasted}\nthe ground beside the panel is set by POPUP_GUTTER in src/components/PopupGutter.tsx and the frame from commandPopupGeometry in src/components/CommandPopupSlot.tsx`)
-      check(`${surface.name} ${columns}x${rows}: every row of the panel keeps that ${POPUP_GUTTER}/${POPUP_GUTTER} ground beside its border`, narrowest.left === POPUP_GUTTER && narrowest.right === POPUP_GUTTER && widest.left === POPUP_GUTTER && widest.right === POPUP_GUTTER, `left ${narrowest.left}..${widest.left} · right ${narrowest.right}..${widest.right} blank columns across rows ${panel.top}..${panel.bottom}; a row of the panel is wider or narrower than its lid, so check POPUP_GUTTER in src/components/PopupGutter.tsx and the panel rows in the popup component`)
+      check(`${surface.name} ${columns}x${rows}: one ground column beside ╭ and one beside ╮ (${POPUP_GUTTER}/${POPUP_GUTTER}), no blank ground column inside the frame`, lid.left === POPUP_GUTTER && lid.right === POPUP_GUTTER, `${lid.left}/${lid.right} blank columns beside the lid\n${pasted}\nthe ground beside the panel is set by POPUP_GUTTER in src/screen/overlays/PopupGutter.tsx and the frame from commandPopupGeometry in src/screen/overlays/CommandPopupSlot.tsx`)
+      check(`${surface.name} ${columns}x${rows}: every row of the panel keeps that ${POPUP_GUTTER}/${POPUP_GUTTER} ground beside its border`, narrowest.left === POPUP_GUTTER && narrowest.right === POPUP_GUTTER && widest.left === POPUP_GUTTER && widest.right === POPUP_GUTTER, `left ${narrowest.left}..${widest.left} · right ${narrowest.right}..${widest.right} blank columns across rows ${panel.top}..${panel.bottom}; a row of the panel is wider or narrower than its lid, so check POPUP_GUTTER in src/screen/overlays/PopupGutter.tsx and the panel rows in the popup component`)
     } finally {
       scene.unmount()
       resetOverlayStackForTests()

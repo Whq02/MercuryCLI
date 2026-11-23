@@ -13,14 +13,14 @@ const SYS_PY = debugFixturePython(ROOT) ?? '/usr/bin/python3'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix: discover, run and rerun checks live in src/services/ide/pythonTests.ts (discoverPythonTests, runPythonTests, rerunFailedTests, buildDebugTestShim); the Test tool checks in src/tools/TestTool/TestTool.ts; the mercury://test resources in src/services/resources/registry.ts; the breakpoint leg also needs dist/vendor/debugpy (bun run scripts/vendor/fetch-debugpy.ts && bun run build.ts)'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix: discover, run and rerun checks live in src/integrations/ide/pythonTests.ts (discoverPythonTests, runPythonTests, rerunFailedTests, buildDebugTestShim); the Test tool checks in src/tools/test/TestTool.ts; the mercury://test resources in src/integrations/resources/registry.ts; the breakpoint leg also needs dist/vendor/debugpy (bun run scripts/vendor/fetch-debugpy.ts && bun run build.ts)'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — proof exceeded 300s; the last section header above names the step that never returned; look in src/services/ide/pythonTests.ts (run and debug legs) and src/services/dap/dapClient.ts (waitForStopOutcome)')
+  console.log('\n❌ TIMEOUT — proof exceeded 300s; the last section header above names the step that never returned; look in src/integrations/ide/pythonTests.ts (run and debug legs) and src/integrations/debugger/dapClient.ts (waitForStopOutcome)')
   process.exit(1)
 }, 300_000)
 guard.unref?.()
@@ -55,10 +55,10 @@ writeFileSync(
 )
 
 process.chdir(proj)
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const tests = await import('../../src/services/ide/pythonTests.js')
-const { _resetPythonProjectForTesting } = await import('../../src/services/ide/pythonProject.js')
+const tests = await import('../../src/integrations/ide/pythonTests.js')
+const { _resetPythonProjectForTesting } = await import('../../src/integrations/ide/pythonProject.js')
 _resetPythonProjectForTesting()
 
 try {
@@ -118,13 +118,13 @@ try {
       failures++
     } else {
       process.env.MERCURY_DEBUGPY_VENDOR_DIR = DIST_VENDOR
-      const resolver = await import('../../src/services/dap/debugpyResolver.js')
+      const resolver = await import('../../src/integrations/debugger/debugpyResolver.js')
       resolver._resetDebugpyResolverForTesting()
       const shim = tests.buildDebugTestShim('tests.test_calc.TestCalc.test_add', { from: proj, framework: 'unittest' })
       check('debug shim builds', !('state' in shim), JSON.stringify(shim).slice(0, 160))
       if (!('state' in shim)) {
-        const dap = await import('../../src/services/dap/dapClient.js')
-        const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
+        const dap = await import('../../src/integrations/debugger/dapClient.js')
+        const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.js')
         const owner = makeOwnerKey({ workspace: proj, sessionId: 'pytests-proof', lane: 'main' })
         const testFile = path.join(proj, 'tests', 'test_calc.py')
         const session = await dap.createDapSession({
@@ -156,7 +156,7 @@ try {
 
   section('(6) the Test TOOL surface')
   {
-    const { TestTool } = await import('../../src/tools/TestTool/TestTool.js')
+    const { TestTool } = await import('../../src/tools/test/TestTool.js')
     check('tool name is Test', TestTool.name === 'Test')
     check('report is read-only', TestTool.isReadOnly({ op: 'report' } as never) === true)
     check('run is NOT read-only', TestTool.isReadOnly({ op: 'run' } as never) === false)
@@ -172,8 +172,8 @@ try {
 
   section('(7) resources + honesty')
   {
-    const { resolveResource } = await import('../../src/services/resources/registry.js')
-    const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
+    const { resolveResource } = await import('../../src/integrations/resources/registry.js')
+    const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.js')
     const owner = makeOwnerKey({ workspace: proj, sessionId: 'pytests-res', lane: 'main' })
     const latest = await resolveResource('mercury://test/latest', { owner, cwd: proj })
     check('mercury://test/latest resolves', latest.state === 'ok', latest.state !== 'ok' ? latest.note : '')

@@ -78,9 +78,9 @@ console.log('\n§2 no page says the pack is the Apple silicon archive\'s alone')
   check(`the README and ${pages.length - 1} docs pages carry no macOS-only pack claim`, offenders.length === 0, offenders.slice(0, 6).join(' · '))
   const globals = globalThis as Record<string, unknown>
   if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
-  ;(await import('../../src/utils/config.ts')).enableConfigs()
-  const embedderSays = await (await import('../../src/services/health/sections/memory.ts')).memoryChecks().find(row => row.id === 'memory-embedder')?.run()
-  const embedModels = await import('../../src/mneme/embedModels.ts')
+  ;(await import('../../src/platform/settings/config.ts')).enableConfigs()
+  const embedderSays = await (await import('../../src/platform/health/sections/memory.ts')).memoryChecks().find(row => row.id === 'memory-embedder')?.run()
+  const embedModels = await import('../../src/sessions/mneme/embedModels.ts')
   const readiness = embedModels.describeSemanticReadiness()
   const ownersWords = [...(readiness.state === 'ok' ? [readiness.model, String(readiness.dimension)] : [readiness.words, readiness.note]), embedModels.memoryRecallModeWords()].filter(words => words.length > 0).sort((a, b) => b.length - a.length)
   const rowsOwnWords = ownersWords.reduce((text, words) => text.split(words).join('…'), `${embedderSays?.evidence ?? ''} ${embedderSays?.fix ?? ''}`)

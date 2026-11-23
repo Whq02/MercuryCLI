@@ -15,17 +15,17 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
+const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
 const {
   SEEN_LINES_BOUNDS,
   checkSeenLines,
   fileGeneration,
   recordSeenLines,
   _resetSeenLinesForTesting,
-} = await import('../../src/services/changeTransaction/seenLines.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+} = await import('../../src/tools/engines/change-transaction/seenLines.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 const fixtures = realpathSync(mkdtempSync(join(tmpdir(), 'seen-lines-fix-')))
 const owner = processMainOwner()
@@ -71,13 +71,13 @@ console.log('— U. unseen lines refuse until the hinted re-read —')
   recordSeenLines(owner, p, generation, 1, 10)
   const patch = [`file ${p} ${anchorOf(p)}`, 'replace 20', '| line 20 EDITED'].join('\n')
   const r1 = await callTool({ op: 'apply', patch }, ctx)
-  check('edit into undisplayed line 20 refuses', r1.data.outcome === 'failed', r1.data.result.slice(0, 200) + ' — an anchored patch over lines never displayed must refuse; see checkSeenLines in src/services/changeTransaction/seenLines.ts as called from src/tools/ChangeSetTool/ChangeSetTool.ts')
-  check('the refusal is the not-read class with a Read hint', /never displayed/.test(r1.data.result) && /Read\(offset: 20, limit: 1\)/.test(r1.data.result), r1.data.result.slice(0, 300) + ' — the refusal must say never displayed and hint Read(offset: 20, limit: 1); fix the message built in checkSeenLines (src/services/changeTransaction/seenLines.ts)')
-  check('nothing written on the refusal', readFileSync(p, 'utf8').includes('line 20\n'), 'a refused patch must not write; see the seen-lines check before the commit in src/tools/ChangeSetTool/ChangeSetTool.ts')
+  check('edit into undisplayed line 20 refuses', r1.data.outcome === 'failed', r1.data.result.slice(0, 200) + ' — an anchored patch over lines never displayed must refuse; see checkSeenLines in src/tools/engines/change-transaction/seenLines.ts as called from src/tools/change-set/ChangeSetTool.ts')
+  check('the refusal is the not-read class with a Read hint', /never displayed/.test(r1.data.result) && /Read\(offset: 20, limit: 1\)/.test(r1.data.result), r1.data.result.slice(0, 300) + ' — the refusal must say never displayed and hint Read(offset: 20, limit: 1); fix the message built in checkSeenLines (src/tools/engines/change-transaction/seenLines.ts)')
+  check('nothing written on the refusal', readFileSync(p, 'utf8').includes('line 20\n'), 'a refused patch must not write; see the seen-lines check before the commit in src/tools/change-set/ChangeSetTool.ts')
   recordSeenLines(owner, p, generation, 20, 1)
   const r2 = await callTool({ op: 'apply', patch }, ctx)
-  check('after the hinted re-read the SAME patch lands', r2.data.outcome === 'succeeded', r2.data.result.slice(0, 200) + ' — recordSeenLines for the hinted line must make checkSeenLines pass (src/services/changeTransaction/seenLines.ts)')
-  check('the edit is on disk', readFileSync(p, 'utf8').includes('line 20 EDITED'), 'the ChangeSet apply reported success without writing; see src/tools/ChangeSetTool/ChangeSetTool.ts')
+  check('after the hinted re-read the SAME patch lands', r2.data.outcome === 'succeeded', r2.data.result.slice(0, 200) + ' — recordSeenLines for the hinted line must make checkSeenLines pass (src/tools/engines/change-transaction/seenLines.ts)')
+  check('the edit is on disk', readFileSync(p, 'utf8').includes('line 20 EDITED'), 'the ChangeSet apply reported success without writing; see src/tools/change-set/ChangeSetTool.ts')
 }
 
 console.log('— G. generation-keyed sightings —')
@@ -90,10 +90,10 @@ console.log('— G. generation-keyed sightings —')
   utimesSync(p, new Date(), new Date(Date.now() + 5_000))
   const patch = [`file ${p} ${anchorOf(p)}`, 'replace 2', '| B'].join('\n')
   const r = await callTool({ op: 'apply', patch }, ctx)
-  check('stale-generation sighting refuses (honest default)', r.data.outcome === 'failed', r.data.result.slice(0, 200) + ' — a sighting recorded under an older file generation must not count; see fileGeneration and checkSeenLines in src/services/changeTransaction/seenLines.ts')
+  check('stale-generation sighting refuses (honest default)', r.data.outcome === 'failed', r.data.result.slice(0, 200) + ' — a sighting recorded under an older file generation must not count; see fileGeneration and checkSeenLines in src/tools/engines/change-transaction/seenLines.ts')
   recordSeenLines(owner, p, fileGeneration(p)!, 1, 3)
   const r2 = await callTool({ op: 'apply', patch }, ctx)
-  check('fresh-generation sighting lands', r2.data.outcome === 'succeeded', r2.data.result.slice(0, 160) + ' — a sighting at the current file generation must count; see recordSeenLines and checkSeenLines in src/services/changeTransaction/seenLines.ts')
+  check('fresh-generation sighting lands', r2.data.outcome === 'succeeded', r2.data.result.slice(0, 160) + ' — a sighting at the current file generation must count; see recordSeenLines and checkSeenLines in src/tools/engines/change-transaction/seenLines.ts')
 }
 
 console.log('— P/B. pure-module laws: accumulation, coalescing, bounded forgetting —')
@@ -105,11 +105,11 @@ console.log('— P/B. pure-module laws: accumulation, coalescing, bounded forget
   recordSeenLines(owner, p, gen, 6, 5)
   recordSeenLines(owner, p, gen, 30, 1)
   const spans = (s: number, e: number) => [{ index: 1, start: s, end: e, replace: 'x' }]
-  check('coalesced window passes', checkSeenLines(owner, p, gen, spans(1, 10)).ok, 'adjacent sightings 1-5 and 6-10 must merge; fix the coalescing in recordSeenLines (src/services/changeTransaction/seenLines.ts)')
-  check('grep sighting passes for its line', checkSeenLines(owner, p, gen, spans(30, 30)).ok, 'a single-line sighting must satisfy a span on that line; see recordSeenLines and checkSeenLines in src/services/changeTransaction/seenLines.ts')
+  check('coalesced window passes', checkSeenLines(owner, p, gen, spans(1, 10)).ok, 'adjacent sightings 1-5 and 6-10 must merge; fix the coalescing in recordSeenLines (src/tools/engines/change-transaction/seenLines.ts)')
+  check('grep sighting passes for its line', checkSeenLines(owner, p, gen, spans(30, 30)).ok, 'a single-line sighting must satisfy a span on that line; see recordSeenLines and checkSeenLines in src/tools/engines/change-transaction/seenLines.ts')
   const gap = checkSeenLines(owner, p, gen, spans(8, 12))
-  check('a span straddling the gap refuses naming 11-12', !gap.ok && JSON.stringify((gap as { unseen: object[] }).unseen) === JSON.stringify([{ start: 11, end: 12 }]), JSON.stringify(gap) + ' — checkSeenLines must report the unseen lines 11-12 (src/services/changeTransaction/seenLines.ts)')
-  check('wrong generation refuses everything', !checkSeenLines(owner, p, 'm2:100', spans(1, 5)).ok, 'a different generation must refuse every span; see checkSeenLines in src/services/changeTransaction/seenLines.ts')
+  check('a span straddling the gap refuses naming 11-12', !gap.ok && JSON.stringify((gap as { unseen: object[] }).unseen) === JSON.stringify([{ start: 11, end: 12 }]), JSON.stringify(gap) + ' — checkSeenLines must report the unseen lines 11-12 (src/tools/engines/change-transaction/seenLines.ts)')
+  check('wrong generation refuses everything', !checkSeenLines(owner, p, 'm2:100', spans(1, 5)).ok, 'a different generation must refuse every span; see checkSeenLines in src/tools/engines/change-transaction/seenLines.ts')
   _resetSeenLinesForTesting()
   for (let i = 0; i < SEEN_LINES_BOUNDS.rangeCap + 40; i++) {
     recordSeenLines(owner, p, gen, i * 3 + 1, 1)
@@ -120,7 +120,7 @@ console.log('— P/B. pure-module laws: accumulation, coalescing, bounded forget
     if (checkSeenLines(owner, p, gen, spans(i * 3 + 1, i * 3 + 1)).ok) seenCount++
     else refusedCount++
   }
-  check('the cap forgot some sightings (refuses more, never lies)', refusedCount > 0 && seenCount <= SEEN_LINES_BOUNDS.rangeCap, `seen ${seenCount} refused ${refusedCount} — sightings past SEEN_LINES_BOUNDS.rangeCap must be forgotten, not kept; see recordSeenLines in src/services/changeTransaction/seenLines.ts`)
+  check('the cap forgot some sightings (refuses more, never lies)', refusedCount > 0 && seenCount <= SEEN_LINES_BOUNDS.rangeCap, `seen ${seenCount} refused ${refusedCount} — sightings past SEEN_LINES_BOUNDS.rangeCap must be forgotten, not kept; see recordSeenLines in src/tools/engines/change-transaction/seenLines.ts`)
 }
 
 console.log('')

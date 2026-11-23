@@ -100,7 +100,7 @@ async function main(): Promise<void> {
   const oneShot = ['run', '--model', MODEL, 'say the word']
 
   section('§1 the two flags are accepted, say one sentence and write nothing')
-  removedWhere = 'the flags are declared in src/main/rootOptions.ts and the one sentence is written in src/main/defaultAction.ts; rebuild dist/mercury.mjs if the source already reads right'
+  removedWhere = 'the flags are declared in src/boot/main/rootOptions.ts and the one sentence is written in src/boot/main/defaultAction.ts; rebuild dist/mercury.mjs if the source already reads right'
   {
     const plain = world('plain')
     const help = await mercury(plain, ['--help'])
@@ -136,12 +136,12 @@ async function main(): Promise<void> {
   {
     const w = world('had-it-on')
     giveKeys(w)
-    const { enableConfigs } = await import('../../src/utils/config.ts')
+    const { enableConfigs } = await import('../../src/platform/settings/config.ts')
     enableConfigs()
-    const identity = await import('../../src/services/crew/identity.ts')
-    const { buildConcourseSnapshot, writeConcourseDraft } = await import('../../src/services/concourse/concourseSnapshot.ts')
-    const { boardRowsOf } = await import('../../src/components/concourse/contracts.ts')
-    const { projectIdentity } = await import('../../src/utils/bootCardFacts.ts')
+    const identity = await import('../../src/crew/crewmates/identity.ts')
+    const { buildConcourseSnapshot, writeConcourseDraft } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
+    const { boardRowsOf } = await import('../../src/screen/concourse/contracts.ts')
+    const { projectIdentity } = await import('../../src/screen/boot-face/bootCardFacts.ts')
 
     const conversation = join(w.cfg, 'coordinator-conversation.json')
     writeFileSync(conversation, `${j({ schema: 1, entries: [{ kind: 'operator', text: 'launch two sessions', at: 1 }], contextTokens: 1200 })}\n`)
@@ -183,17 +183,17 @@ async function main(): Promise<void> {
     check('a fork an earlier version had already asked about stays off the board, one it never asked about is listed', titles.includes('mercury/never-asked') && !titles.includes('mercury/asked-about'), j(titles))
     check('the draft of the new-session row is the one it left', snapshot.newSession.draft === 'a new session, half written', j(snapshot.newSession))
 
-    const { saveGlobalConfig } = await import('../../src/utils/config.ts')
-    const schema = await import('../../src/utils/config/schema.ts')
+    const { saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
+    const schema = await import('../../src/platform/config/schema.ts')
     check('the config no longer knows the key', !(schema.GLOBAL_CONFIG_KEYS as readonly string[]).includes('coordinatorEnabled'))
     saveGlobalConfig(c => ({ ...c, editorMode: 'vim' as const }))
     check('…and its writer carries the three keys through a save of something else', keysStand(w) && configOf(w).editorMode === 'vim', j(configOf(w)))
   }
 
   section('§3 nothing advertises it')
-  removedWhere = 'remove the word coordinator from the surface that check names (the refusal text is backgroundedLaunchRefusal in src/services/switchboard/launchAuthority.ts, the boot menu is src/substrate/startupMenu.ts)'
+  removedWhere = 'remove the word coordinator from the surface that check names (the refusal text is backgroundedLaunchRefusal in src/daemon/switchboard/launchAuthority.ts, the boot menu is src/platform/substrate/startupMenu.ts)'
   {
-    const { MERCURY_CONSTITUTION, MERCURY_SUBAGENT_CONTRACT } = await import('../../src/prompt/mercuryContract.ts')
+    const { MERCURY_CONSTITUTION, MERCURY_SUBAGENT_CONTRACT } = await import('../../src/engine/system-prompt/mercuryContract.ts')
     const sizes = `crewmate contract ${MERCURY_SUBAGENT_CONTRACT.length} chars`
     const health = await mercury(world('health'), ['health', '--json'])
     let wrapper = ''
@@ -204,12 +204,12 @@ async function main(): Promise<void> {
     }
     check('mercury health: the constitution row reports the constitution and the crewmate contract, and no other seat', wrapper === `the constitution ${MERCURY_CONSTITUTION.length} chars — built-in source; ${sizes}`, j(wrapper))
 
-    const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.ts')
+    const { STARTUP_MENU } = await import('../../src/platform/substrate/startupMenu.ts')
     const crewmates = (STARTUP_MENU as ReadonlyArray<{ env?: string; detail?: { controls?: string } }>).find(row => row.env === 'MERCURY_SESSION_SUBAGENTS')?.detail?.controls ?? ''
     check('the boot menu\'s Crewmates detail goes from the receipt straight to the in-session toggle', crewmates.includes('answers one receipt naming /crewmates and this menu. Inside a session, /crewmates on|off') && !/coordinator/i.test(crewmates), crewmates.slice(0, 600))
-    const { presetPromptLines } = await import('../../src/components/KitMenuScreen.tsx')
+    const { presetPromptLines } = await import('../../src/screen/boot-face/KitMenuScreen.tsx')
     check('the save-as-preset card says who starts from a preset: the next session', j(presetPromptLines('x', null)) === j(['save as preset', '', 'name: x▌', '', 'a preset is this record under a name —', 'the next session can start from it.', '', '↵ save · esc cancel']), j(presetPromptLines('x', null)))
-    const { backgroundedLaunchRefusal } = await import('../../src/services/switchboard/launchAuthority.ts')
+    const { backgroundedLaunchRefusal } = await import('../../src/daemon/switchboard/launchAuthority.ts')
     const refusal = backgroundedLaunchRefusal('subagents')
     check('a backgrounded session\'s refusal names the two ways its tag is granted', refusal.includes('until it holds the crewmates-allowed tag (granted by choosing keep-and-background on leave, or the manual-start option), or until') && !/coordinator/i.test(refusal), refusal)
   }
@@ -217,7 +217,7 @@ async function main(): Promise<void> {
   section('§4 what carries the word and is not the coordinator stands')
   removedWhere = ''
   {
-    const { AGENT_ROLES } = await import('../../src/services/crew/identity.ts')
+    const { AGENT_ROLES } = await import('../../src/crew/crewmates/identity.ts')
     check('the crew\'s role vocabulary goes on accepting coordinator', (AGENT_ROLES as readonly string[]).includes('coordinator'))
     const help = await mercury(world('mcp-help'), ['mcp-server', '--help'])
     check('mercury mcp-server keeps --coordinator <session-id>, the session an automation client addresses by that role', help.code === 0 && help.out.includes('--coordinator <session-id>'), `exit ${help.code}`)

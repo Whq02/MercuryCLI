@@ -44,16 +44,16 @@ try {
   const code = await new Promise<number | null>((resolve, reject) => { child.on('error', reject); child.on('exit', resolve) })
   assert.equal(code, 0, output)
   assert.equal(readFileSync(join(work, 'note.txt'), 'utf8'), 'beta\n')
-  assert.ok(requests.length >= 4, `headless wire run sent ${requests.length} requests (< 4 expected) in src/cli/headless/`)
+  assert.ok(requests.length >= 4, `headless wire run sent ${requests.length} requests (< 4 expected) in src/daemon/runner/`)
   const first = requests[0]!.body
-  assert.ok(first.messages[0].content.includes('running unattended'), 'headless system prompt omitted unattended instruction in src/constants/prompts.ts')
-  assert.ok(!first.messages[0].content.includes('Write down important information from tool results'), 'headless system prompt included retired tool-result note in src/constants/prompts.ts')
+  assert.ok(first.messages[0].content.includes('running unattended'), 'headless system prompt omitted unattended instruction in src/engine/system-prompt/defaultSystemPrompt.ts')
+  assert.ok(!first.messages[0].content.includes('Write down important information from tool results'), 'headless system prompt included retired tool-result note in src/engine/system-prompt/defaultSystemPrompt.ts')
   const economyDeferred = ['AstSearch', 'Crewmate', 'LspRead', 'Skill', 'Test']
   assert.deepEqual(first.tools.map((tool: any) => tool.function.name).sort(), ['Bash', 'ChangeSet', 'Edit', 'Eval', 'Glob', 'Grep', 'Read', 'ToolSearch', 'Write'])
   const announcement = first.messages.find((message: any) => typeof message.content === 'string' && message.content.startsWith('<system-reminder>\nDeferred tools:'))
-  assert.ok(announcement, 'first headless request missing Deferred tools system-reminder in src/services/attachments/')
+  assert.ok(announcement, 'first headless request missing Deferred tools system-reminder in src/engine/attachments/')
   const lines = announcement.content.split('\n').slice(2, -1)
-  assert.ok(lines.includes('Debug') && lines.includes('Browser') && lines.includes('AskUserQuestion'), `deferred tools reminder missing Debug/Browser/AskUserQuestion in src/services/attachments/: ${lines.join(', ').slice(0, 200)}`)
+  assert.ok(lines.includes('Debug') && lines.includes('Browser') && lines.includes('AskUserQuestion'), `deferred tools reminder missing Debug/Browser/AskUserQuestion in src/engine/attachments/: ${lines.join(', ').slice(0, 200)}`)
   const announced = (line: string): string => line.split(' — ')[0]!
   assert.deepEqual(lines.map(announced).filter((name: string) => economyDeferred.includes(name)).sort(), economyDeferred, lines.join('\n'))
   assert.ok(lines.every((line: string) => economyDeferred.includes(announced(line)) ? / — \S/.test(line) : !line.includes(' — ')), lines.join('\n'))

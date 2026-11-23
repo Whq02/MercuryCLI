@@ -12,7 +12,7 @@ delete process.env.MERCURY_BARE
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}clearInstructionFileCaches in src/services/instructions/engine.ts must reach the getUserContext and getSystemContext memos in src/context.ts through the listener that armInstructionInvalidation registers` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}clearInstructionFileCaches in src/sessions/instructions/instructionFiles.ts must reach the getUserContext and getSystemContext memos in src/engine/requestContext.ts through the listener that armInstructionInvalidation registers` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -28,10 +28,10 @@ process.chdir(project)
 console.log('the one instruction invalidation reaches the composed block')
 
 
-const globalConfig = await import('../../src/utils/config/globalConfig.js')
+const globalConfig = await import('../../src/platform/config/globalConfig.js')
 globalConfig.enableConfigs()
-const context = await import('../../src/context.js')
-const engine = await import('../../src/services/instructions/engine.js')
+const context = await import('../../src/engine/requestContext.js')
+const engine = await import('../../src/sessions/instructions/instructionFiles.js')
 
 section('§1 prime on estate A · move to B · invalidate through the one call · read B')
 {

@@ -33,9 +33,9 @@ try {
   const before = run.tee.subarray(0, from).toString()
   const after = run.tee.subarray(from).toString()
   assert.ok(/\x1b\][02];[^\x07]+Mercury/.test(before), 'the cockpit set its terminal title; the boot face never wrote an OSC 0 or OSC 2 title ending in Mercury before the SIGINT, check where src sets the terminal title')
-  assert.ok(after.includes('\x1b]0;\x07'), 'SIGINT clears the title through terminal restoration; the OSC 0 empty-title write is missing after SIGINT, check the SIGINT handler in src/utils/gracefulShutdown.ts and cleanupTerminalModes in src/utils/shutdownRestoration.ts')
-  assert.ok(after.includes('\x1b]111\x07'), 'SIGINT restores the terminal background; the OSC 111 write is missing after SIGINT, check restoreOriginalBackground as called from cleanupTerminalModes in src/utils/shutdownRestoration.ts')
-  assert.ok(after.includes('\x1b[?1049l'), 'SIGINT leaves the alternate screen; the 1049l write is missing after SIGINT, check cleanupTerminalModes in src/utils/shutdownRestoration.ts and the SIGINT handler in src/utils/gracefulShutdown.ts')
+  assert.ok(after.includes('\x1b]0;\x07'), 'SIGINT clears the title through terminal restoration; the OSC 0 empty-title write is missing after SIGINT, check the SIGINT handler in src/platform/processes/gracefulShutdown.ts and cleanupTerminalModes in src/screen/renderer/terminal-session/shutdownRestoration.ts')
+  assert.ok(after.includes('\x1b]111\x07'), 'SIGINT restores the terminal background; the OSC 111 write is missing after SIGINT, check restoreOriginalBackground as called from cleanupTerminalModes in src/screen/renderer/terminal-session/shutdownRestoration.ts')
+  assert.ok(after.includes('\x1b[?1049l'), 'SIGINT leaves the alternate screen; the 1049l write is missing after SIGINT, check cleanupTerminalModes in src/screen/renderer/terminal-session/shutdownRestoration.ts and the SIGINT handler in src/platform/processes/gracefulShutdown.ts')
   console.log('PASS tui-12 SIGINT exits 130 after restoring title, background and alternate screen')
 } finally {
   cleanupScenario('boot-face')

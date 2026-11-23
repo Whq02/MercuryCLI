@@ -11,17 +11,17 @@ import {
   isTransientWin32FsCode,
   renameRetryDelayMs,
   WIN32_RENAME_RETRY_DELAYS_MS,
-} from '../../src/substrate/durablePublish.ts'
+} from '../../src/platform/substrate/durablePublish.ts'
 
 const IS_WIN = process.platform === 'win32'
 let failures = 0
 const sectionHints: Record<string, string> = {
-  '§1': 'change WIN32_RENAME_RETRY_DELAYS_MS, isTransientWin32FsCode or renameRetryDelayMs in src/substrate/durablePublish.ts',
-  '§2': 'change durableAtomicPublish in src/substrate/durablePublish.ts so a clean publish takes one attempt and leaves the bytes and no temp file',
-  '§3': 'change durableAtomicPublish or renameWithWin32Retry in src/substrate/durablePublish.ts so a transient rename failure retries only on win32',
-  '§4': 'change the final-failure path of durableAtomicPublish in src/substrate/durablePublish.ts so the DurablePublishError reports phase, fsCode, attempts, elapsedMs and tempCleanup, and the old file and temps are left clean',
-  '§5': 'change durableAtomicPublish in src/substrate/durablePublish.ts so a structural code such as EROFS fails on the first attempt with no retry sleep',
-  '§6': 'change faultPoint (the MERCURY_FAULT_INJECT grammar) or durableAtomicPublish in src/substrate/durablePublish.ts',
+  '§1': 'change WIN32_RENAME_RETRY_DELAYS_MS, isTransientWin32FsCode or renameRetryDelayMs in src/platform/substrate/durablePublish.ts',
+  '§2': 'change durableAtomicPublish in src/platform/substrate/durablePublish.ts so a clean publish takes one attempt and leaves the bytes and no temp file',
+  '§3': 'change durableAtomicPublish or renameWithWin32Retry in src/platform/substrate/durablePublish.ts so a transient rename failure retries only on win32',
+  '§4': 'change the final-failure path of durableAtomicPublish in src/platform/substrate/durablePublish.ts so the DurablePublishError reports phase, fsCode, attempts, elapsedMs and tempCleanup, and the old file and temps are left clean',
+  '§5': 'change durableAtomicPublish in src/platform/substrate/durablePublish.ts so a structural code such as EROFS fails on the first attempt with no retry sleep',
+  '§6': 'change faultPoint (the MERCURY_FAULT_INJECT grammar) or durableAtomicPublish in src/platform/substrate/durablePublish.ts',
 }
 const ok = (cond: boolean, label: string, detail = ''): void => {
   const shown = cond ? detail : [detail, sectionHints[label.slice(0, 2)] ?? ''].filter(Boolean).join(' — ')

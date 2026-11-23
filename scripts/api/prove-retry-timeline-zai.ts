@@ -7,7 +7,7 @@ const standIn = await openStandIn({
   side: () => ({ data: [{ id: 'glm-5.2' }] }),
   env: base => ({ ZAI_API_KEY: 'fixture-zai-key', MERCURY_ZAI_API_BASE: `${base}/zai/v4` }),
 })
-const { zaiCallModel } = await import('../../src/services/providers/zai/zaiCallModel.ts')
+const { zaiCallModel } = await import('../../src/models/roads/zai/zaiCallModel.ts')
 
 const wire: Wire = {
   answer: streamed('200, the answer', frames([{ choices: [{ delta: { content: 'road answer' }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 2 } }], true)),

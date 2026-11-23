@@ -12,7 +12,7 @@ const dist = resolve(at < 0 ? join(import.meta.dir, '../../dist/mercury.mjs') : 
 if (!existsSync(dist)) { console.error(`FAIL run bundle exists: ${dist}`); process.exit(1) }
 
 let failures = 0
-const WHERE_TO_LOOK = 'to fix: piped stdin is collected and wrapped in <stdin> in src/main/defaultAction.ts and its help words are in src/main/sessionDoors.ts; cost_usd on the outcome row is written in src/rows/project.ts'
+const WHERE_TO_LOOK = 'to fix: piped stdin is collected and wrapped in <stdin> in src/boot/main/defaultAction.ts and its help words are in src/boot/main/sessionDoors.ts; cost_usd on the outcome row is written in src/engine/rows/project.ts'
 const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail ? `${detail} · ` : ''}${WHERE_TO_LOOK}`}`); if (!ok) failures++ }
 const j = (value: unknown): string => JSON.stringify(value)?.slice(0, 500) ?? ''
 const sleep = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))

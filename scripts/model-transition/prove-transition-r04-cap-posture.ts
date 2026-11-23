@@ -20,13 +20,13 @@ const {
   laneSpendPosture,
   clearCapHandoffForFamily,
   CAP_APPROACHING_PCT,
-} = await import('../../src/services/capFailover.ts')
-const mock = await import('../../src/services/mockRateLimits.ts')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
+} = await import('../../src/models/roads/capFailover.ts')
+const mock = await import('../../src/models/roads/anthropic/mockRateLimits.ts')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
 
 let failures = 0
 const CAP_POSTURE_FAIL_HINT =
-  'fix the code this check exercises, not the check: the posture, return and candidate decisions (resolveCapPosture, decideCapAction, decideCapReturn, deriveCapFailoverCandidates, observedFamilyWindow, laneSpendPosture, capLaneLineWords, failoverLineMs, noteCapHandoff) in src/services/capFailover.ts; the mock limits seam in src/services/mockRateLimits.ts; header parsing in src/services/anthropicLimits.ts; the boot menu row in src/substrate/startupMenu.ts; the flag consumers in the flag registry (FLAG_REGISTRY)'
+  'fix the code this check exercises, not the check: the posture, return and candidate decisions (resolveCapPosture, decideCapAction, decideCapReturn, deriveCapFailoverCandidates, observedFamilyWindow, laneSpendPosture, capLaneLineWords, failoverLineMs, noteCapHandoff) in src/models/roads/capFailover.ts; the mock limits seam in src/models/roads/anthropic/mockRateLimits.ts; header parsing in src/models/roads/anthropic/anthropicLimits.ts; the boot menu row in src/platform/substrate/startupMenu.ts; the flag consumers in the flag registry (FLAG_REGISTRY)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(
@@ -110,16 +110,16 @@ section('§D registry truth')
 {
   const seam = getFlagSpec('MERCURY_MOCK_LIMITS')
   const posture = getFlagSpec('MERCURY_CAP_FAILOVER')
-  check('MERCURY_MOCK_LIMITS registered at the seam', seam?.consumer === 'src/services/mockRateLimits.ts')
-  check('MERCURY_CAP_FAILOVER registered at the decision core', posture?.consumer === 'src/services/capFailover.ts')
+  check('MERCURY_MOCK_LIMITS registered at the seam', seam?.consumer === 'src/models/roads/anthropic/mockRateLimits.ts')
+  check('MERCURY_CAP_FAILOVER registered at the decision core', posture?.consumer === 'src/models/roads/capFailover.ts')
 }
 
 section('§E the full journey, both postures — warning → offer/auto → continue → reset → return')
 {
   process.env.MERCURY_MOCK_LIMITS = '1'
-  const limits = await import('../../src/services/anthropicLimits.ts')
+  const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
   const { capHandoffState, noteCapHandoff, noteCapReturn } = await import(
-    '../../src/services/capFailover.ts'
+    '../../src/models/roads/capFailover.ts'
   )
   const ingest = (scenario: string) => {
     if (scenario === 'warning-7d') {
@@ -194,7 +194,7 @@ section('§E the full journey, both postures — warning → offer/auto → cont
 
 section('§F the arm surface — the boot-menu posture row')
 {
-  const { STARTUP_MENU, menuRowChoices } = await import('../../src/substrate/startupMenu.ts')
+  const { STARTUP_MENU, menuRowChoices } = await import('../../src/platform/substrate/startupMenu.ts')
   const row = STARTUP_MENU.find(r => r.env === 'MERCURY_CAP_FAILOVER')
   check('the boot menu carries the cap posture row', row !== undefined)
   check("the row's default is offer (the reachable ask — nothing moves without the keypress)", row?.defaultLabel === 'offer')
@@ -333,7 +333,7 @@ section('§H the ONE per-family window resolver — unknown is a state, a stated
   check("a lane that serves no usage signal reads 'unknown'", observedFamilyWindow('deepseek', quiet).state === 'unknown' && observedFamilyWindow('local', quiet).state === 'unknown')
   const throwing = observedFamilyWindow('anthropic', { ...quiet, anthropic: () => { throw new Error('reader down') } })
   check("a reader that throws reads 'unknown' — the resolver never throws", throwing.state === 'unknown')
-  const { APPROACHING_LIMIT_PCT } = await import('../../src/services/providers/limitWarning.ts')
+  const { APPROACHING_LIMIT_PCT } = await import('../../src/models/roads/limitWarning.ts')
   check('the approaching threshold is the strip warning\'s own number', CAP_APPROACHING_PCT === APPROACHING_LIMIT_PCT)
 }
 
@@ -347,8 +347,8 @@ section('§I the words — the card names the family; the spend posture is per f
 
 section('§J the failover lane line — one owner of the words, the two-minute clock on the product flag, the strip\'s mark only on the lane')
 {
-  const cap = await import('../../src/services/capFailover.ts')
-  const { failoverMarkFor, FAILOVER_MARK } = await import('../../src/components/mercury-ui/FailoverMark.tsx')
+  const cap = await import('../../src/models/roads/capFailover.ts')
+  const { failoverMarkFor, FAILOVER_MARK } = await import('../../src/screen/widgets/FailoverMark.tsx')
   cap._resetOfferMemoriesForTesting()
   const homeWindow = { family: 'openai', state: 'warning' as const, basis: 'observed' as const, resetsAtMs: 1, windowName: '5h window' }
   const facts = { lane: 'anthropic', modelName: 'Opus 5', homeName: 'OpenAI', homeWindow, resetText: '24 Sept, 8:15 pm' }
@@ -363,7 +363,7 @@ section('§J the failover lane line — one owner of the words, the two-minute c
   process.env.MERCURY_FAILOVER_LINE_MS = 'soon'
   check('a non-number reads as unset', cap.failoverLineMs() === 120_000)
   process.env.MERCURY_FAILOVER_LINE_MS = '4000'
-  check('the flag is registered at its consumer', getFlagSpec('MERCURY_FAILOVER_LINE_MS')?.consumer === 'src/services/capFailover.ts')
+  check('the flag is registered at its consumer', getFlagSpec('MERCURY_FAILOVER_LINE_MS')?.consumer === 'src/models/roads/capFailover.ts')
   const key = cap.capLaneLineKey(facts)
   const t0 = 1_000_000
   check('the sentence arms at its first read: it stands until the window from that moment', cap.capLaneLineUntil(key, t0) === t0 + 4000)

@@ -25,7 +25,7 @@ console.log('— §1c the words the health rows print —')
 {
   const globals = globalThis as Record<string, unknown>
   if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
-  const { runHealthReport } = await import('../../src/services/health/healthReport.ts')
+  const { runHealthReport } = await import('../../src/platform/health/healthReport.ts')
   const cert = await runHealthReport({ depth: 'fast' })
   const fsV = await import('node:fs')
   const osV = await import('node:os')
@@ -41,7 +41,7 @@ console.log('— §1c the words the health rows print —')
   const needles = NEEDLES.filter(([, re]) => !(process.env.TMUX !== undefined && re.test('tmux')))
   const said = cert.sections.flatMap(entry => entry.checks.flatMap(row => [row.label, row.evidence, row.fix ?? ''].map(text => ({ id: row.id, text: machine.reduce((rest, place) => rest.split(place).join('…'), text) }))))
   const retired = said.flatMap(piece => needles.filter(([, re]) => re.test(piece.text) && !ROW_ALLOW.some(([fragment]) => piece.text.includes(fragment))).map(([needle]) => `${piece.id} [${needle}] ${piece.text.slice(0, 100)}`))
-  check(`the rows of a fast certificate print no retired word in a label, an evidence line or a fix (${said.length} strings; this machine's folders and branch aside, and the multiplexer's name aside inside a real session of it)`, said.length > 0 && retired.length === 0, `${retired.join(' | ')} — reword the label, evidence or fix of each listed row id; runHealthReport in src/services/health/healthReport.ts assembles the rows`)
+  check(`the rows of a fast certificate print no retired word in a label, an evidence line or a fix (${said.length} strings; this machine's folders and branch aside, and the multiplexer's name aside inside a real session of it)`, said.length > 0 && retired.length === 0, `${retired.join(' | ')} — reword the label, evidence or fix of each listed row id; runHealthReport in src/platform/health/healthReport.ts assembles the rows`)
 }
 
 

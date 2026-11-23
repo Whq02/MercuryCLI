@@ -4,8 +4,8 @@ import { join } from 'node:path'
 import { armEnvironment, check, finish, REPO } from '../ast-tools/lib/harness.ts'
 
 const env = armEnvironment()
-const { resolveAstScope, searchAstPattern, isAstRefusal } = await import('../../src/services/structure/astPatterns.ts')
-const { encodePattern } = await import('../../src/services/structure/pattern.ts')
+const { resolveAstScope, searchAstPattern, isAstRefusal } = await import('../../src/tools/engines/structure/astPatterns.ts')
+const { encodePattern } = await import('../../src/tools/engines/structure/pattern.ts')
 const root = mkdtempSync(join(tmpdir(), 'ast-query-'))
 const negRoot = mkdtempSync(join(tmpdir(), 'ast-query-neg-'))
 async function query(pattern: string, opts: { lang?: string; glob?: string; matchCap?: number; cwd?: string } = {}) {

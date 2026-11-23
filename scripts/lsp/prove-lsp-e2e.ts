@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url'
 
 const repoRoot = path.resolve(import.meta.dir, '../..')
 const fixtureRoot = path.join(repoRoot, 'scripts/lsp/fixtures/proj')
-const entry = path.join(repoRoot, 'src/services/lsp/tsSidecar/entry.ts')
+const entry = path.join(repoRoot, 'src/integrations/lsp/ts-sidecar/entry.ts')
 const bun = process.env.BUN ?? `${process.env.HOME}/.bun/bin/bun`
 
 const libPath = path.join(fixtureRoot, 'src/lib.ts')
@@ -214,7 +214,7 @@ async function main(): Promise<void> {
   console.log('prove-lsp-e2e: spawning mercury-ts sidecar against the fixture project')
   const client = new SidecarClient()
   const overallTimer = setTimeout(() => {
-    console.error('OVERALL TIMEOUT — dumping state (no full run in 120s; find the request that never answered in src/services/lsp/tsSidecar/sidecar.ts handleRequest and the stderr below)')
+    console.error('OVERALL TIMEOUT — dumping state (no full run in 120s; find the request that never answered in src/integrations/lsp/ts-sidecar/sidecar.ts handleRequest and the stderr below)')
     console.error('stderr:', client.stderr)
     client.kill()
     process.exit(1)
@@ -232,7 +232,7 @@ async function main(): Promise<void> {
       capabilities: {},
     })
     client.notify('initialized', {})
-    check('initialize: serverInfo.name === mercury-ts', init.serverInfo?.name === 'mercury-ts', 'the initialize reply in src/services/lsp/tsSidecar/sidecar.ts must carry serverInfo.name mercury-ts')
+    check('initialize: serverInfo.name === mercury-ts', init.serverInfo?.name === 'mercury-ts', 'the initialize reply in src/integrations/lsp/ts-sidecar/sidecar.ts must carry serverInfo.name mercury-ts')
     const caps = init.capabilities
     check(
       'initialize: rename+codeAction+diagnostic+callHierarchy capabilities',
@@ -243,7 +243,7 @@ async function main(): Promise<void> {
         caps.definitionProvider === true &&
         caps.referencesProvider === true &&
         caps.workspaceSymbolProvider === true,
-      JSON.stringify(Object.keys(caps)) + '; add the missing provider to the initialize capabilities in src/services/lsp/tsSidecar/sidecar.ts',
+      JSON.stringify(Object.keys(caps)) + '; add the missing provider to the initialize capabilities in src/integrations/lsp/ts-sidecar/sidecar.ts',
     )
 
     client.notify('textDocument/didOpen', {
@@ -260,7 +260,7 @@ async function main(): Promise<void> {
       'definition: makeGreeting resolves to lib.ts at the defining line',
       defs.length >= 1 &&
         defs.some(d => d.uri === uriOf(libPath) && d.range.start.line === libDefLine),
-      JSON.stringify(defs) + '; fix definitionRequest in src/services/lsp/tsSidecar/sidecar/requests/navigation.ts',
+      JSON.stringify(defs) + '; fix definitionRequest in src/integrations/lsp/ts-sidecar/sidecar/requests/navigation.ts',
     )
 
     const refPos = posOf(libText, 'makeGreeting')
@@ -273,7 +273,7 @@ async function main(): Promise<void> {
     check(
       'references: ≥4 across both files',
       refs.length >= 4 && refFiles.has(uriOf(libPath)) && refFiles.has(uriOf(appPath)),
-      `count=${refs.length} files=${[...refFiles].join(',')}; fix referencesRequest in src/services/lsp/tsSidecar/sidecar/requests/navigation.ts`,
+      `count=${refs.length} files=${[...refFiles].join(',')}; fix referencesRequest in src/integrations/lsp/ts-sidecar/sidecar/requests/navigation.ts`,
     )
 
     const symbols = await client.request<{ name: string; children?: unknown[] }[]>(
@@ -284,7 +284,7 @@ async function main(): Promise<void> {
     check(
       'documentSymbol: Greeting + makeGreeting + shoutGreeting',
       ['Greeting', 'makeGreeting', 'shoutGreeting'].every(n => symbolNames.includes(n)),
-      symbolNames.join(',') + '; fix documentSymbolRequest in src/services/lsp/tsSidecar/sidecar/requests/navigation.ts',
+      symbolNames.join(',') + '; fix documentSymbolRequest in src/integrations/lsp/ts-sidecar/sidecar/requests/navigation.ts',
     )
 
     const wsSymbols = await client.request<{ name: string; location: Loc }[]>(
@@ -294,7 +294,7 @@ async function main(): Promise<void> {
     check(
       'workspace/symbol: finds Greeting-family symbols',
       wsSymbols.length >= 2 && wsSymbols.some(s => s.name === 'Greeting'),
-      `count=${wsSymbols.length}; fix workspaceSymbolRequest in src/services/lsp/tsSidecar/sidecar/requests/navigation.ts`,
+      `count=${wsSymbols.length}; fix workspaceSymbolRequest in src/integrations/lsp/ts-sidecar/sidecar/requests/navigation.ts`,
     )
 
     client.notify('textDocument/didOpen', {
@@ -307,7 +307,7 @@ async function main(): Promise<void> {
     check(
       'push diagnostics: TS2322 arrives for broken.ts',
       pushed.diagnostics.some(d => Number(d.code) === 2322),
-      JSON.stringify(pushed.diagnostics.map(d => d.code)) + '; fix the publishDiagnostics push and computeDiagnostics in src/services/lsp/tsSidecar/sidecar.ts',
+      JSON.stringify(pushed.diagnostics.map(d => d.code)) + '; fix the publishDiagnostics push and computeDiagnostics in src/integrations/lsp/ts-sidecar/sidecar.ts',
     )
     const pulled = await client.request<{ kind: string; items: { code?: number | string }[] }>(
       'textDocument/diagnostic',
@@ -318,7 +318,7 @@ async function main(): Promise<void> {
       pulled.kind === 'full' &&
         pulled.items.some(d => Number(d.code) === 2322) &&
         pulled.items.some(d => Number(d.code) === 6133),
-      JSON.stringify(pulled.items.map(d => d.code)) + '; fix diagnosticRequest in src/services/lsp/tsSidecar/sidecar/requests/diagnostic.ts',
+      JSON.stringify(pulled.items.map(d => d.code)) + '; fix diagnosticRequest in src/integrations/lsp/ts-sidecar/sidecar/requests/diagnostic.ts',
     )
 
     const shoutDef = posOf(libText, 'shoutGreeting')
@@ -326,7 +326,7 @@ async function main(): Promise<void> {
       'textDocument/prepareRename',
       { textDocument: { uri: uriOf(libPath) }, position: shoutDef },
     )
-    check('prepareRename: placeholder is shoutGreeting', prep?.placeholder === 'shoutGreeting', 'got ' + JSON.stringify(prep) + '; fix prepareRenameRequest in src/services/lsp/tsSidecar/sidecar/requests/rename.ts')
+    check('prepareRename: placeholder is shoutGreeting', prep?.placeholder === 'shoutGreeting', 'got ' + JSON.stringify(prep) + '; fix prepareRenameRequest in src/integrations/lsp/ts-sidecar/sidecar/requests/rename.ts')
     const renameEdit = await client.request<{
       changes: Record<string, { newText: string }[]>
     }>('textDocument/rename', {
@@ -342,7 +342,7 @@ async function main(): Promise<void> {
         Object.values(renameEdit.changes)
           .flat()
           .every(e => e.newText === 'bellowGreeting'),
-      `files=${renameFiles.length} edits=${renameEditCount}; fix renameRequest in src/services/lsp/tsSidecar/sidecar/requests/rename.ts`,
+      `files=${renameFiles.length} edits=${renameEditCount}; fix renameRequest in src/integrations/lsp/ts-sidecar/sidecar/requests/rename.ts`,
     )
 
     const importPos = posOf(brokenText, 'makeGreeting')
@@ -359,7 +359,7 @@ async function main(): Promise<void> {
       'codeActions: ≥1 quickfix with a literal edit for the unused import',
       actions.length >= 1 &&
         actions.some(a => a.edit && Object.keys(a.edit.changes ?? {}).length > 0),
-      JSON.stringify(actions.map(a => a.title)) + '; fix codeActionRequest in src/services/lsp/tsSidecar/sidecar/requests/codeActions.ts',
+      JSON.stringify(actions.map(a => a.title)) + '; fix codeActionRequest in src/integrations/lsp/ts-sidecar/sidecar/requests/codeActions.ts',
     )
 
     const hover = await client.request<{ contents: { value: string } } | null>(
@@ -369,7 +369,7 @@ async function main(): Promise<void> {
     check(
       'hover: signature names makeGreeting',
       !!hover && hover.contents.value.includes('makeGreeting'),
-      'got ' + JSON.stringify(hover) + '; fix hoverRequest in src/services/lsp/tsSidecar/sidecar/requests/navigation.ts',
+      'got ' + JSON.stringify(hover) + '; fix hoverRequest in src/integrations/lsp/ts-sidecar/sidecar/requests/navigation.ts',
     )
 
     const prepItems = await client.request<
@@ -378,7 +378,7 @@ async function main(): Promise<void> {
       textDocument: { uri: uriOf(libPath) },
       position: refPos,
     })
-    check('prepareCallHierarchy: item is makeGreeting', prepItems.length >= 1 && prepItems[0]!.name === 'makeGreeting', 'got ' + JSON.stringify(prepItems.map(i => i.name)) + '; fix prepareCallHierarchyRequest in src/services/lsp/tsSidecar/sidecar/requests/callHierarchy.ts')
+    check('prepareCallHierarchy: item is makeGreeting', prepItems.length >= 1 && prepItems[0]!.name === 'makeGreeting', 'got ' + JSON.stringify(prepItems.map(i => i.name)) + '; fix prepareCallHierarchyRequest in src/integrations/lsp/ts-sidecar/sidecar/requests/callHierarchy.ts')
     const incoming = await client.request<{ from: { name: string } }[]>(
       'callHierarchy/incomingCalls',
       { item: prepItems[0] },
@@ -387,7 +387,7 @@ async function main(): Promise<void> {
     check(
       'incomingCalls: greetCrew and greetOne call makeGreeting',
       callers.includes('greetCrew') && callers.includes('greetOne'),
-      callers.join(',') + '; fix incomingCallsRequest in src/services/lsp/tsSidecar/sidecar/requests/callHierarchy.ts',
+      callers.join(',') + '; fix incomingCallsRequest in src/integrations/lsp/ts-sidecar/sidecar/requests/callHierarchy.ts',
     )
 
     check(
@@ -395,7 +395,7 @@ async function main(): Promise<void> {
       caps.typeDefinitionProvider === true &&
         !!(caps.workspace as { fileOperations?: { willRename?: unknown } } | undefined)
           ?.fileOperations?.willRename,
-      'add typeDefinitionProvider and workspace.fileOperations.willRename to the initialize capabilities in src/services/lsp/tsSidecar/sidecar.ts',
+      'add typeDefinitionProvider and workspace.fileOperations.willRename to the initialize capabilities in src/integrations/lsp/ts-sidecar/sidecar.ts',
     )
     const gUse = posOf(appText, 'shoutGreeting(g)')
     const typeDefs = await client.request<Loc[]>('textDocument/typeDefinition', {
@@ -407,7 +407,7 @@ async function main(): Promise<void> {
       'typeDefinition: g resolves to interface Greeting in lib.ts',
       typeDefs.length >= 1 &&
         typeDefs.some(d => d.uri === uriOf(libPath) && d.range.start.line === greetingLine),
-      JSON.stringify(typeDefs) + '; fix typeDefinitionRequest in src/services/lsp/tsSidecar/sidecar/requests/navigation.ts',
+      JSON.stringify(typeDefs) + '; fix typeDefinitionRequest in src/integrations/lsp/ts-sidecar/sidecar/requests/navigation.ts',
     )
 
     const willRename = await client.request<{
@@ -424,19 +424,19 @@ async function main(): Promise<void> {
     check(
       'willRenameFiles: app.ts import edit points at the new path',
       appEdits.length >= 1 && appEdits.some(e => e.newText.includes('core/lib')),
-      JSON.stringify(willRename) + '; fix willRenameFilesRequest in src/services/lsp/tsSidecar/sidecar/requests/rename.ts',
+      JSON.stringify(willRename) + '; fix willRenameFilesRequest in src/integrations/lsp/ts-sidecar/sidecar/requests/rename.ts',
     )
 
     for (const newline of ['\n', '\r\n', '\r']) {
       client.notify('textDocument/didChange', { textDocument: { uri: uriOf(appPath), version: 2 }, contentChanges: [{ text: 'const boundaryValue = 1;' + newline + 'boundaryValue' + newline }] })
       const pastEnd = await client.request('textDocument/hover', { textDocument: { uri: uriOf(appPath) }, position: { line: 0, character: 999 } })
-      check('an overlong column stays on its line ' + JSON.stringify(newline), pastEnd === null, JSON.stringify(pastEnd) + '; a hover at a column past the end of its line must return null, so clamp the position to that line in the sidecar position conversion under src/services/lsp/tsSidecar/sidecar')
+      check('an overlong column stays on its line ' + JSON.stringify(newline), pastEnd === null, JSON.stringify(pastEnd) + '; a hover at a column past the end of its line must return null, so clamp the position to that line in the sidecar position conversion under src/integrations/lsp/ts-sidecar/sidecar')
     }
 
     await client.request('shutdown', null, 5000)
     client.notify('exit', null)
     const code = await client.waitForExit()
-    check('shutdown/exit: child exits 0', code === 0, `code=${code}; the sidecar must exit 0 after shutdown then exit (src/services/lsp/tsSidecar/sidecar.ts)`)
+    check('shutdown/exit: child exits 0', code === 0, `code=${code}; the sidecar must exit 0 after shutdown then exit (src/integrations/lsp/ts-sidecar/sidecar.ts)`)
   } catch (e) {
     failures++
     console.error(`  FAIL (exception): ${e instanceof Error ? e.message : String(e)}`)

@@ -1,13 +1,13 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { advanceToolCallChain, readToolCallChain, type ToolCallChain, type ToolUseContext } from '../../src/Tool.ts'
-import { createSubagentContext } from '../../src/services/agents/forkedAgent.ts'
-import { FileStateCache } from '../../src/utils/fileStateCache.ts'
+import { advanceToolCallChain, readToolCallChain, type ToolCallChain, type ToolUseContext } from '../../src/tools/kit/tool.ts'
+import { createSubagentContext } from '../../src/crew/agents/forkedAgent.ts'
+import { FileStateCache } from '../../src/platform/files/fileStateCache.ts'
 
 let checks = 0
 const equal = (actual: unknown, expected: unknown): void => {
   const shown = (value: unknown): string => JSON.stringify(value, (_key, item) => (typeof item === 'number' && !Number.isFinite(item) ? String(item) : item))
-  assert.deepEqual(actual, expected, `call-chain check ${checks + 1} failed: got ${shown(actual)}, expected ${shown(expected)}; change advanceToolCallChain or readToolCallChain in src/Tool.ts, or createSubagentContext in src/services/agents/forkedAgent.ts`)
+  assert.deepEqual(actual, expected, `call-chain check ${checks + 1} failed: got ${shown(actual)}, expected ${shown(expected)}; change advanceToolCallChain or readToolCallChain in src/tools/kit/tool.ts, or createSubagentContext in src/crew/agents/forkedAgent.ts`)
   checks++
 }
 
@@ -28,10 +28,10 @@ for (const parent of parents) {
     })
     equal(minted, mode === 'fork' || parent === undefined ? 1 : 0)
     equal(context, parent === undefined ? {} : { callChain: parent })
-    assert.notEqual(next, parent, 'advanceToolCallChain in src/Tool.ts returned the parent chain object itself; it must return a new object')
+    assert.notEqual(next, parent, 'advanceToolCallChain in src/tools/kit/tool.ts returned the parent chain object itself; it must return a new object')
     checks++
   }
-  assert.equal(readToolCallChain(context), context.callChain, 'readToolCallChain in src/Tool.ts must return the context callChain object unchanged')
+  assert.equal(readToolCallChain(context), context.callChain, 'readToolCallChain in src/tools/kit/tool.ts must return the context callChain object unchanged')
   checks++
 }
 equal(readToolCallChain(undefined), undefined)

@@ -146,20 +146,20 @@ console.log('============================================================')
 console.log(' cross-family pickup — stopped mid-turn, switched, picked up')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import('../../src/services/messages.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { ASK_USER_QUESTION_TOOL_NAME } = await import('../../src/tools/AskUserQuestionTool/prompt.ts')
-const { buildTransitionPlan, transitionSourceRevision } = await import('../../src/services/providers/transitionPreview.ts')
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
-type Message = import('../../src/types/message.ts').Message
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import('../../src/engine/messages/messages.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { ASK_USER_QUESTION_TOOL_NAME } = await import('../../src/tools/ask-question/prompt.ts')
+const { buildTransitionPlan, transitionSourceRevision } = await import('../../src/models/roads/transitionPreview.ts')
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const BASH = BashTool.name
-const planHint = 'see buildTransitionPlan and transitionSourceRevision in src/services/providers/transitionPreview.ts'
-const wireHint = 'the request is built behind routedCallModel in src/services/providers/callModelRouter.ts; read the rejected reason above to see which wire rule the history broke'
+const planHint = 'see buildTransitionPlan and transitionSourceRevision in src/models/roads/transitionPreview.ts'
+const wireHint = 'the request is built behind routedCallModel in src/models/roads/callModelRouter.ts; read the rejected reason above to see which wire rule the history broke'
 
 function assistantTurn(model: string, content: unknown[], stopReason: string): AssistantMessage {
   const turn = createAssistantMessage({ content: content as never })

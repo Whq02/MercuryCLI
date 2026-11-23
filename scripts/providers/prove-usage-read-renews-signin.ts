@@ -9,8 +9,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
-import type { DOMElement } from '../../src/ink/dom.js'
-import type { UsageWindowView } from '../../src/services/providers/providerUsage.ts'
+import type { DOMElement } from '../../src/screen/renderer/dom.js'
+import type { UsageWindowView } from '../../src/models/roads/providerUsage.ts'
 
 const localeString = Date.prototype.toLocaleString
 Date.prototype.toLocaleString = function (_locales, options) { return localeString.call(this, 'en-US', { ...options, timeZone: 'UTC' }) }
@@ -32,7 +32,7 @@ const arg = (name: string): string | undefined => {
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' | where to look: refreshAnthropicUsage and anthropicUsageReaderNote in src/services/providers/anthropic/anthropicUsageState.ts (the refresh grant before the read, the failure note), the views in src/services/providers/providerUsage.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' | where to look: refreshAnthropicUsage and anthropicUsageReaderNote in src/models/roads/anthropic/anthropicUsageState.ts (the refresh grant before the read, the failure note), the views in src/models/roads/providerUsage.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -122,30 +122,30 @@ const stored = (): { accessToken?: string; refreshToken?: string; expiresAt?: nu
   (JSON.parse(readFileSync(credentialsPath, 'utf8')) as { claudeAiOauth: { accessToken?: string; refreshToken?: string; expiresAt?: number } }).claudeAiOauth
 seedSignIn(Date.now() - 8 * HOUR, 'fixture-refresh-night')
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 async function stub(path: string, fixtureExports: () => Record<string, unknown>): Promise<void> {
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...fixtureExports() }))
 }
-await stub('../../src/services/providers/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
-await stub('../../src/services/providers/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
-await stub('../../src/hooks/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
-await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
-await stub('../../src/services/providers/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
-await stub('../../src/services/providers/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined }))
-await stub('../../src/services/providers/local/localAccounts.js', () => ({ resolveLocalAccount: () => undefined }))
-await stub('../../src/components/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
+await stub('../../src/models/roads/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
+await stub('../../src/models/roads/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
+await stub('../../src/screen/model-picker/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
+await stub('../../src/screen/keys/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
+await stub('../../src/models/roads/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
+await stub('../../src/models/roads/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined }))
+await stub('../../src/models/roads/local/localAccounts.js', () => ({ resolveLocalAccount: () => undefined }))
+await stub('../../src/screen/keys/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
 
-const reader = await import('../../src/services/providers/anthropic/anthropicUsageState.ts')
-const owner = await import('../../src/services/providers/providerUsage.ts')
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
-const limits = await import('../../src/services/anthropicLimits.ts')
-const fresh = await import('../../src/services/providers/usageFreshness.ts')
-const { isOAuthTokenExpired } = await import('../../src/services/oauth/client.ts')
-const { formatCountdown, formatCountdownCoarse } = await import('../../src/services/cockpit/quota.ts')
+const reader = await import('../../src/models/roads/anthropic/anthropicUsageState.ts')
+const owner = await import('../../src/models/roads/providerUsage.ts')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+const fresh = await import('../../src/models/roads/usageFreshness.ts')
+const { isOAuthTokenExpired } = await import('../../src/models/sign-in/oauth/client.ts')
+const { formatCountdown, formatCountdownCoarse } = await import('../../src/screen/cockpit-gauges/quota.ts')
 
 let NOW = 1_790_000_000_000
 const clock = (): number => NOW
@@ -241,12 +241,12 @@ if (frameDir !== undefined) {
   resetWorld()
   fixture.mode = 'grant'
   const grantsBefore = fixture.grants.length
-  const { Usage } = await import('../../src/components/Settings/Usage.js')
-  const { Box, Text, render, flushPendingSyncWork, EventEmitter } = await import('../../src/ink.js')
-  const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-  const { UsageMeter } = await import('../../src/components/mercury-ui/components.js')
-  const { railPanelInnerWidth } = await import('../../src/components/mercury-ui/RailPanel.js')
-  const { railPlanAt } = await import('../../src/utils/helmGeometry.ts')
+  const { Usage } = await import('../../src/screen/settings/Usage.js')
+  const { Box, Text, render, flushPendingSyncWork, EventEmitter } = await import('../../src/screen/themedRenderer.js')
+  const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+  const { UsageMeter } = await import('../../src/screen/widgets/components.js')
+  const { railPanelInnerWidth } = await import('../../src/screen/widgets/RailPanel.js')
+  const { railPlanAt } = await import('../../src/screen/fullscreen-layout/helmGeometry.ts')
   const settle = async (): Promise<void> => {
     for (let index = 0; index < 6; index++) {
       flushPendingSyncWork()

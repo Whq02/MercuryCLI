@@ -25,22 +25,22 @@ process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ fixture: { command: 'true', 
 process.env.TYPESAFE_API_KEY = 'proof-key-deferred-announcement-not-a-real-key'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(config => ({ ...config, jev: { ...(config.jev ?? {}), enabled: true } }))
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { assembleToolPool, getAllBaseTools } = await import('../../src/tools.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { formatDeferredToolLine } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { getDeferredToolsDeltaAttachment, SERVER_SEARCH_ANNOUNCEMENT_HEAD } = await import('../../src/services/attachments/deltas.ts')
-const { DEFERRED_TOOLS_ANNOUNCEMENT_HEAD } = await import('../../src/constants/tools/toolSearch.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Message = import('../../src/types/message.ts').Message
-type Attachment = import('../../src/utils/attachments/types.ts').Attachment
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { assembleToolPool, getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { formatDeferredToolLine } = await import('../../src/tools/tool-search/prompt.ts')
+const { getDeferredToolsDeltaAttachment, SERVER_SEARCH_ANNOUNCEMENT_HEAD } = await import('../../src/engine/attachments/toolAndServerDeltas.ts')
+const { DEFERRED_TOOLS_ANNOUNCEMENT_HEAD } = await import('../../src/tools/kit/names/toolSearch.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type Attachment = import('../../src/engine/attachment-shapes/attachmentTypes.ts').Attachment
 
 const HEAD = 'Deferred tools: offered in this session, but their definitions are not loaded. To call one, first load it with ToolSearch — query "select:<name>", or "select:<name>,<name>" for several — then call it.'
 const SPEC_BODY = [
@@ -119,8 +119,8 @@ const rendered = (row: Attachment): string => {
 }
 const first = createUserMessage({ content: 'begin' }) as Message
 const MODEL = 'claude-sonnet-5-5'
-const lineRuleHint = 'change formatDeferredToolLine (ANNOUNCEMENT_LINE_HINT_LIMIT and the cut) in src/tools/ToolSearchTool/prompt.ts, or the tool searchHint'
-const deltaRowHint = 'change getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts, or the deferral gates it calls'
+const lineRuleHint = 'change formatDeferredToolLine (ANNOUNCEMENT_LINE_HINT_LIMIT and the cut) in src/tools/tool-search/prompt.ts, or the tool searchHint'
+const deltaRowHint = 'change getDeferredToolsDeltaAttachment in src/engine/attachments/toolAndServerDeltas.ts, or the deferral gates it calls'
 const purposeHint = 'fix the searchHint of that tool in its src/tools/<Tool>/ file (a complete purpose of at most 100 characters)'
 
 section('§1 the head and the line rule over a fixture pool')
@@ -161,13 +161,13 @@ section('§1 the head and the line rule over a fixture pool')
     check('a hint with no space is cut at 100', row.addedLines.includes(expectedLines[5]!), lineRuleHint)
     check('the lines are sorted', row.addedLines.join('\n') === expectedLines.join('\n'), `${row.addedLines.join(' | ')} | ${deltaRowHint}`)
     check('the body is the head, a newline, then the lines joined by newlines', row.body === `${HEAD}\n${expectedLines.join('\n')}`, `${row.body} | ${deltaRowHint}`)
-    check('the head is the one the deltas module exports', DEFERRED_TOOLS_ANNOUNCEMENT_HEAD === HEAD, 'DEFERRED_TOOLS_ANNOUNCEMENT_HEAD in src/constants/tools/toolSearch.ts no longer equals the HEAD text in this proof; change one to match the other')
+    check('the head is the one the deltas module exports', DEFERRED_TOOLS_ANNOUNCEMENT_HEAD === HEAD, 'DEFERRED_TOOLS_ANNOUNCEMENT_HEAD in src/tools/kit/names/toolSearch.ts no longer equals the HEAD text in this proof; change one to match the other')
     const text = rendered(row)
-    check('rendered, the text is <system-reminder>\\nDeferred tools: …\\n</system-reminder>', text === `<system-reminder>\n${row.body}\n</system-reminder>` && text.startsWith('<system-reminder>\nDeferred tools: '), `${text} | the attachment rendering is normalizeAttachmentForAPI in src/services/messages/attachmentText.ts`)
+    check('rendered, the text is <system-reminder>\\nDeferred tools: …\\n</system-reminder>', text === `<system-reminder>\n${row.body}\n</system-reminder>` && text.startsWith('<system-reminder>\nDeferred tools: '), `${text} | the attachment rendering is normalizeAttachmentForAPI in src/engine/messages/attachmentText.ts`)
     check('a second turn announces nothing more', getDeferredToolsDeltaAttachment(pool, MODEL, [first, { type: 'attachment', uuid: 'row', timestamp: new Date().toISOString(), attachment: row } as never]).length === 0, `a second call over a history that already holds the row must return no row; ${deltaRowHint}`)
   }
   check('formatDeferredToolLine agrees line by line', formatDeferredToolLine(fixtureTool('Long', { hint: longHint })) === 'Long — a hint of exactly one hundred and twelve characters, long enough that the line rule has to cut it at…' && formatDeferredToolLine(fixtureTool('Bare')) === 'Bare' && formatDeferredToolLine(fixtureTool('Empty', { hint: '   ' })) === 'Empty', lineRuleHint)
-  check('the server-search head keeps its words', SERVER_SEARCH_ANNOUNCEMENT_HEAD.startsWith('The following tools are available in this session but their definitions are not loaded yet.'), 'SERVER_SEARCH_ANNOUNCEMENT_HEAD in src/services/attachments/deltas.ts must keep its opening words')
+  check('the server-search head keeps its words', SERVER_SEARCH_ANNOUNCEMENT_HEAD.startsWith('The following tools are available in this session but their definitions are not loaded yet.'), 'SERVER_SEARCH_ANNOUNCEMENT_HEAD in src/engine/attachments/toolAndServerDeltas.ts must keep its opening words')
 }
 
 section('§2 over the bench roster the body is the specification\'s text byte for byte')
@@ -181,11 +181,11 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
     const tool = catalogue.find(item => item.name === name)
     if (tool !== undefined) pool.push(tool)
   }
-  const { computerToolEnabled } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
+  const { computerToolEnabled } = await import('../../src/tools/computer/ComputerTool.ts')
   const here = computerToolEnabled() ? NAMES : NAMES.filter(name => name !== 'Computer')
   const specBody = computerToolEnabled() ? SPEC_BODY : SPEC_BODY.split('\n').filter(line => !line.startsWith('Computer — ')).join('\n')
   const roster: Tool[] = here.flatMap(name => pool.filter(tool => tool.name === name))
-  check(`the ${here.length} built-ins of the split bench roster this build offers are present`, roster.length === here.length, `${here.filter(name => !roster.some(tool => tool.name === name)).join(', ')} | these tools are missing from assembleToolPool and getAllBaseTools in src/tools.ts`)
+  check(`the ${here.length} built-ins of the split bench roster this build offers are present`, roster.length === here.length, `${here.filter(name => !roster.some(tool => tool.name === name)).join(', ')} | these tools are missing from assembleToolPool and getAllBaseTools in src/tools/kit/toolList.ts`)
   for (const name of ['lease_list', 'lease_release', 'lease_take', 'render_tui']) roster.push(fixtureTool(name, { mcp: 'mercury' }))
   const row = getDeferredToolsDeltaAttachment(roster, MODEL, [first])[0] as { addedNames: string[]; body: string } | undefined
   const announced = computerToolEnabled() ? 47 : 46
@@ -195,42 +195,42 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
     for (const name of ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind', 'Crewmate', 'Skill', 'LspRead', 'AstSearch']) {
       check(`${name} has its line`, row.body.split('\n').some(line => line.startsWith(`${name} — `)), `no line for ${name}; give that tool a searchHint in its src/tools/<Tool>/ file and defer it`)
     }
-    check('the four MCP tools are their names alone', ['mcp__mercury__lease_list', 'mcp__mercury__lease_release', 'mcp__mercury__lease_take', 'mcp__mercury__render_tui'].every(name => row.body.split('\n').includes(name)), `${row.body} | the mcp__mercury__ names come from the fixture tools made in this proof; see formatDeferredToolLine in src/tools/ToolSearchTool/prompt.ts`)
+    check('the four MCP tools are their names alone', ['mcp__mercury__lease_list', 'mcp__mercury__lease_release', 'mcp__mercury__lease_take', 'mcp__mercury__render_tui'].every(name => row.body.split('\n').includes(name)), `${row.body} | the mcp__mercury__ names come from the fixture tools made in this proof; see formatDeferredToolLine in src/tools/tool-search/prompt.ts`)
     check('no loaded tool has a line', ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Eval', 'ChangeSet', 'ToolSearch'].every(name => !row.addedNames.includes(name)), `${row.addedNames.join(',')} | ${deltaRowHint}`)
   }
 }
 
 section('§3 the rewritten hints fit without a clipped tail')
-const { ListMcpResourcesTool } = await import('../../src/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts')
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
+const { ListMcpResourcesTool } = await import('../../src/tools/list-mcp-resources/ListMcpResourcesTool.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
 const purposeNames = ['Inspect', 'Retain', 'Computer', 'Git', 'WebFetch', 'AskUserQuestion', 'Crewmate', 'Service', 'Browser', 'Structure', 'CrewBoard', 'Journey', 'ListMcpResources', 'Test', 'Monitor', 'Launch', 'Debug', 'Correct', 'Checkpoint', 'Sleep']
 const purposeTools = [...getAllBaseTools(), ListMcpResourcesTool, ComputerTool]
 for (const name of purposeNames) {
   const tool = purposeTools.find(tool => tool.name === name)
   const hint = tool?.searchHint ?? ''
-  check(`${name} has a complete purpose under 100 characters`, tool !== undefined && hint.length > 0 && hint.length <= 100 && formatDeferredToolLine(tool, false) === `${name} — ${hint}`, `${name}: ${purposeHint}; the line is built by formatDeferredToolLine in src/tools/ToolSearchTool/prompt.ts`)
+  check(`${name} has a complete purpose under 100 characters`, tool !== undefined && hint.length > 0 && hint.length <= 100 && formatDeferredToolLine(tool, false) === `${name} — ${hint}`, `${name}: ${purposeHint}; the line is built by formatDeferredToolLine in src/tools/tool-search/prompt.ts`)
 }
 check('CrewBoard names messaging and lead-only assignments, not launches', /^read and post shared crew messages; lead-only \w+ assignments$/.test(purposeTools.find(tool => tool.name === 'CrewBoard')?.searchHint ?? '') && !/launch/.test(purposeTools.find(tool => tool.name === 'CrewBoard')?.searchHint ?? ''), `${purposeTools.find(tool => tool.name === 'CrewBoard')?.searchHint ?? 'no CrewBoard tool'} | change the CrewBoard searchHint under src/tools/`)
-check('ListMcpResources has its resource-listing purpose', ListMcpResourcesTool.searchHint === 'list resources exposed by connected MCP servers', `${ListMcpResourcesTool.searchHint} | change searchHint in src/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts`)
+check('ListMcpResources has its resource-listing purpose', ListMcpResourcesTool.searchHint === 'list resources exposed by connected MCP servers', `${ListMcpResourcesTool.searchHint} | change searchHint in src/tools/list-mcp-resources/ListMcpResourcesTool.ts`)
 
-const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
+const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/screen/cockpit/runtimePosture.ts')
 markSessionNonInteractive()
 bootstrap.setAskChannel('none')
 const headlessPool = [ToolSearchTool, fixtureTool('Debug', { defer: true, hint: 'real debugger' }), fixtureTool('lookup', { mcp: 'fixture' })] as Tool[]
 const headless = getDeferredToolsDeltaAttachment(headlessPool, 'glm-5.3', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
-check('headless discovery carries every name without repeating the searchable descriptions', headless.addedLines.join('\n') === headless.addedNames.join('\n'), `${headless.body} | unattended lines are built by formatDeferredToolLine in src/tools/ToolSearchTool/prompt.ts`)
+check('headless discovery carries every name without repeating the searchable descriptions', headless.addedLines.join('\n') === headless.addedNames.join('\n'), `${headless.body} | unattended lines are built by formatDeferredToolLine in src/tools/tool-search/prompt.ts`)
 const economyPool = [...headlessPool, fixtureTool('Crewmate', { hint: 'delegate a task to a crewmate that works on its own' }), fixtureTool('Skill', { hint: 'invoke a slash-command skill by name' })] as Tool[]
 const headlessEconomy = getDeferredToolsDeltaAttachment(economyPool, 'glm-5.3', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
-check('headless discovery keeps the purpose on the lines of the economy-deferred tools, the rest names alone', headlessEconomy.addedLines.join('\n') === ['Crewmate — delegate a task to a crewmate that works on its own', 'Debug', 'Skill — invoke a slash-command skill by name', 'mcp__fixture__lookup'].join('\n'), `${headlessEconomy.body} | ANNOUNCED_WITH_PURPOSE in src/tools/ToolSearchTool/prompt.ts decides which lines keep a purpose`)
+check('headless discovery keeps the purpose on the lines of the economy-deferred tools, the rest names alone', headlessEconomy.addedLines.join('\n') === ['Crewmate — delegate a task to a crewmate that works on its own', 'Debug', 'Skill — invoke a slash-command skill by name', 'mcp__fixture__lookup'].join('\n'), `${headlessEconomy.body} | ANNOUNCED_WITH_PURPOSE in src/tools/tool-search/prompt.ts decides which lines keep a purpose`)
 const localEconomy = getDeferredToolsDeltaAttachment(economyPool, 'local/qwen3-32b', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
-check('the local prompt profile announces the economy-deferred tools on the local lane with their purpose, the rest names alone', localEconomy.addedLines.join('\n') === ['Crewmate — delegate a task to a crewmate that works on its own', 'Debug', 'Skill — invoke a slash-command skill by name', 'mcp__fixture__lookup'].join('\n'), `${localEconomy.body} | localPromptProfileApplies and ANNOUNCED_WITH_PURPOSE in src/tools/ToolSearchTool/prompt.ts decide this`)
+check('the local prompt profile announces the economy-deferred tools on the local lane with their purpose, the rest names alone', localEconomy.addedLines.join('\n') === ['Crewmate — delegate a task to a crewmate that works on its own', 'Debug', 'Skill — invoke a slash-command skill by name', 'mcp__fixture__lookup'].join('\n'), `${localEconomy.body} | localPromptProfileApplies and ANNOUNCED_WITH_PURPOSE in src/tools/tool-search/prompt.ts decide this`)
 process.env.MERCURY_LOCAL_PROMPT_PROFILE = '0'
 const localOff = getDeferredToolsDeltaAttachment(economyPool, 'local/qwen3-32b', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
 delete process.env.MERCURY_LOCAL_PROMPT_PROFILE
-check('with the profile switched off the local lane never announces the economy-deferred tools: they stay in full there', !localOff.addedNames.includes('Crewmate') && !localOff.addedNames.includes('Skill'), `${localOff.body} | MERCURY_LOCAL_PROMPT_PROFILE=0 must stop the local deferral; see defersOnLocalFor in src/tools/ToolSearchTool/prompt.ts`)
+check('with the profile switched off the local lane never announces the economy-deferred tools: they stay in full there', !localOff.addedNames.includes('Crewmate') && !localOff.addedNames.includes('Skill'), `${localOff.body} | MERCURY_LOCAL_PROMPT_PROFILE=0 must stop the local deferral; see defersOnLocalFor in src/tools/tool-search/prompt.ts`)
 bootstrap.setAskChannel('sdk')
 const hosted = getDeferredToolsDeltaAttachment(headlessPool, 'glm-5.3', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
-check('a host that answers asks retains the descriptive roster', hosted.addedLines.includes('Debug — real debugger'), `${hosted.addedLines.join(' | ')} | an ask channel of sdk must keep purposes; see formatDeferredToolLine in src/tools/ToolSearchTool/prompt.ts`)
+check('a host that answers asks retains the descriptive roster', hosted.addedLines.includes('Debug — real debugger'), `${hosted.addedLines.join(' | ')} | an ask channel of sdk must keep purposes; see formatDeferredToolLine in src/tools/tool-search/prompt.ts`)
 resetRuntimePostureForTest()
 
 console.log(`\n${checks - failures}/${checks} checks passed`)

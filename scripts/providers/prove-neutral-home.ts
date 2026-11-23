@@ -9,14 +9,14 @@ import { join } from 'node:path'
 
 let failures = 0
 const SECTION_FIX: Record<string, string> = {
-  '§1': 'change getEngineModel in src/services/model/model.ts, declaredRouteOf in src/services/providers/routeLaw.ts or utilityCallFor in src/services/model/utilityModel.ts',
-  '§2': 'change the token counters in src/services/tokenEstimation.ts so they answer null without a request when the session is not on the first-party route',
-  '§3': 'change src/services/tokenEstimation.ts so an Anthropic-route session still posts to the count_tokens endpoint',
-  '§4': 'change src/services/providers/idSpaces.ts (recognizeModelId, unrecognisedModelIdReason), src/services/providers/homeLaneAdmission.ts (homeLaneAdmissionRefusal) or src/services/providers/validateModel.ts',
-  '§5': 'change homeLaneAdmissionRefusal in src/services/providers/homeLaneAdmission.ts or routedCallModel in src/services/providers/callModelRouter.ts',
-  '§6': 'change src/services/model/computedDefault.ts (evaluateComputedDefault, orderCredentials) or getEngineModel and getDefaultEngineModel in src/services/model/model.ts',
-  '§7': 'change src/components/loginFamilyRows.ts, nonAnthropicBootNotice in src/services/providers/providerUsability.ts or notLoggedInGateDecision in src/services/wallet/wallet.ts',
-  '§8': 'change src/services/concourse/workerModels.ts, src/services/switchboard/bootBirthFacts.ts or operatorFacingBirthReason in src/services/switchboard/bornSession.ts',
+  '§1': 'change getEngineModel in src/models/catalogue/engineModel.ts, declaredRouteOf in src/models/roads/routeLaw.ts or utilityCallFor in src/models/catalogue/utilityModel.ts',
+  '§2': 'change the token counters in src/models/facts/tokenEstimation.ts so they answer null without a request when the session is not on the first-party route',
+  '§3': 'change src/models/facts/tokenEstimation.ts so an Anthropic-route session still posts to the count_tokens endpoint',
+  '§4': 'change src/models/roads/idSpaces.ts (recognizeModelId, unrecognisedModelIdReason), src/models/roads/homeLaneAdmission.ts (homeLaneAdmissionRefusal) or src/models/roads/validateModel.ts',
+  '§5': 'change homeLaneAdmissionRefusal in src/models/roads/homeLaneAdmission.ts or routedCallModel in src/models/roads/callModelRouter.ts',
+  '§6': 'change src/models/catalogue/computedDefault.ts (evaluateComputedDefault, orderCredentials) or getEngineModel and getDefaultEngineModel in src/models/catalogue/engineModel.ts',
+  '§7': 'change src/models/sign-in/flow-cards/loginFamilyRows.ts, nonAnthropicBootNotice in src/models/roads/providerUsability.ts or notLoggedInGateDecision in src/models/wallet/wallet.ts',
+  '§8': 'change src/screen/concourse-model/workerModels.ts, src/daemon/switchboard/bootBirthFacts.ts or operatorFacingBirthReason in src/daemon/switchboard/bornSession.ts',
 }
 let sectionKey = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -122,9 +122,9 @@ process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${port}`
 process.env.MERCURY_OPENROUTER_API_BASE = `http://127.0.0.1:${port}/openrouter/api/v1`
 const firstPartyHits = (): number => seen.filter(hit => hit.firstParty).length
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
 
 function seedHome(model: string): void {
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { model } }))
@@ -147,9 +147,9 @@ async function hitsDuring<T>(work: () => Promise<T>): Promise<{ result: T | 'thr
 section('§1 the sovereign home resolves onto its own lane, the utility call included')
 process.env.OPENROUTER_API_KEY = 'sk-or-fixture-sovereign-home'
 seedHome(HOME_MODEL)
-const { getEngineModel } = await import('../../src/services/model/model.js')
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.js')
-const { utilityCallFor } = await import('../../src/services/model/utilityModel.js')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.js')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.js')
+const { utilityCallFor } = await import('../../src/models/catalogue/utilityModel.js')
 {
   const main = getEngineModel()
   check('the main-loop model is the operator\'s OpenRouter free tier', main === HOME_MODEL, main)
@@ -161,7 +161,7 @@ const { utilityCallFor } = await import('../../src/services/model/utilityModel.j
 }
 
 section('§2 the token counters answer null on the sovereign home and the origin sees nothing')
-const tokEst = await import('../../src/services/tokenEstimation.js')
+const tokEst = await import('../../src/models/facts/tokenEstimation.js')
 {
   const text = 'x '.repeat(30_000)
   const a = await hitsDuring(() => tokEst.countTokensWithAPI(text))
@@ -191,8 +191,8 @@ section('§3 an Anthropic-route home with a first-party key DOES reach the origi
 }
 
 section('§4 the home lane is a declared family; an id no family declares names itself')
-const { recognizeModelId, unrecognisedModelIdReason, declaredIdSpacesLine } = await import('../../src/services/providers/idSpaces.js')
-const { homeLaneAdmissionRefusal } = await import('../../src/services/providers/homeLaneAdmission.js')
+const { recognizeModelId, unrecognisedModelIdReason, declaredIdSpacesLine } = await import('../../src/models/roads/idSpaces.js')
+const { homeLaneAdmissionRefusal } = await import('../../src/models/roads/homeLaneAdmission.js')
 {
   const kind = (id: string, env?: Record<string, string | undefined>): string => {
     const r = recognizeModelId(id, env ?? {})
@@ -231,7 +231,7 @@ const { homeLaneAdmissionRefusal } = await import('../../src/services/providers/
 
   seedHome(HOME_MODEL)
   process.env.ANTHROPIC_AUTH_TOKEN = 'fixture-gateway-token'
-  const { validateModel } = await import('../../src/services/providers/validateModel.js')
+  const { validateModel } = await import('../../src/models/roads/validateModel.js')
   const probed = await hitsDuring(() => validateModel('foo-bar-9'))
   check('on a gateway base URL the typing door probes the endpoint (one request at the spy)', probed.hits === 1, JSON.stringify(probed))
   check('…and the gateway\'s answer validates the id (the endpoint owns it)', typeof probed.result === 'object' && probed.result !== null && (probed.result as { valid: boolean }).valid === true, JSON.stringify(probed.result))
@@ -253,10 +253,10 @@ section('§5 a carrier-shaped id never reaches the first-party wire verbatim (w3
     typeof slug === 'string' && !/any provider family declares/.test(slug))
   seedHome(HOME_MODEL)
   process.env.ANTHROPIC_AUTH_TOKEN = 'fixture-gateway-token'
-  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
-  const { createUserMessage } = await import('../../src/services/messages.js')
+  const { routedCallModel } = await import('../../src/models/roads/callModelRouter.js')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.js')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.js')
   const drive = await hitsDuring(async () => {
     const seen: string[] = []
     const stream = routedCallModel({
@@ -292,8 +292,8 @@ section('§5 a carrier-shaped id never reaches the first-party wire verbatim (w3
 }
 
 section('§6 a home with no first-party credential lands its default on a credentialed lane — any lane, by sign-in recency')
-const { getDefaultEngineModel } = await import('../../src/services/model/model.js')
-const { evaluateComputedDefault, orderCredentials, resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.js')
+const { getDefaultEngineModel } = await import('../../src/models/catalogue/engineModel.js')
+const { evaluateComputedDefault, orderCredentials, resetComputedDefaultMemo } = await import('../../src/models/catalogue/computedDefault.js')
 {
   const REG = ['anthropic', 'openai', 'zai', 'openrouter', 'gemini', 'moonshot', 'deepseek', 'openai-compat', 'huggingface', 'local'] as const
   type Verdict = { usable: true; setting: string; row: string; why: string } | { usable: false; why: string }
@@ -325,14 +325,14 @@ const { evaluateComputedDefault, orderCredentials, resetComputedDefaultMemo } = 
   resetSettingsCache()
   process.env.OPENROUTER_API_KEY = 'sk-or-fixture-sovereign-home'
   resetComputedDefaultMemo()
-  const { refreshOpenrouterCatalogue } = await import('../../src/services/providers/openrouter/openrouterCatalogue.js')
+  const { refreshOpenrouterCatalogue } = await import('../../src/models/roads/openrouter/openrouterCatalogue.js')
   const snapshot = await refreshOpenrouterCatalogue('env', { force: true }).catch(() => null)
   check('premise: the catalogue stand-in served the free row', (snapshot?.models.length ?? 0) === 1, JSON.stringify(snapshot?.models))
   const walked = await hitsDuring(async () => getEngineModel())
   check('LIVE: the env-key-only home boots its default onto the OpenRouter free row (base: claude-opus-5, every turn refused)', walked.result === HOME_MODEL, JSON.stringify(walked))
   check('…with no first-party request', walked.hits === 0, JSON.stringify(walked))
 
-  const { saveGlobalConfig, getGlobalConfig } = await import('../../src/utils/config/globalConfig.js')
+  const { saveGlobalConfig, getGlobalConfig } = await import('../../src/platform/config/globalConfig.js')
   saveGlobalConfig(config => ({ ...config, defaultProvider: 'openrouter' }))
   resetComputedDefaultMemo()
   check('premise: the recorded default provider is openrouter', (getGlobalConfig() as { defaultProvider?: string }).defaultProvider === 'openrouter')
@@ -349,7 +349,7 @@ const { evaluateComputedDefault, orderCredentials, resetComputedDefaultMemo } = 
 
 section("§7 the surfaces name the session's family — never the first-party one by default")
 {
-  const { anthropicArmPickRows, loginFamilyFocusFor, loginFamilyRows } = await import('../../src/components/loginFamilyRows.js')
+  const { anthropicArmPickRows, loginFamilyFocusFor, loginFamilyRows } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.js')
   check("the /logins card pre-focuses the recorded default provider's own row (anthropic → its one row; unset or row-less → the list's first)",
     loginFamilyFocusFor('openrouter') === 'openrouter' && loginFamilyFocusFor('anthropic') === 'anthropic' && loginFamilyFocusFor(undefined) === undefined && loginFamilyFocusFor('local') === undefined)
   const rows = loginFamilyRows({ engineLegs: true })
@@ -358,12 +358,12 @@ section("§7 the surfaces name the session's family — never the first-party on
   const openaiRow = rows.find(r => r.value === 'openai')
   check("…and the OpenAI key's home is the OpenAI family's own row", /OpenAI/.test(openaiRow?.label ?? '') && /API key/.test(openaiRow?.label ?? ''), openaiRow?.label)
   check('…and the host without engine legs still offers the Anthropic row that carries the Console arm', loginFamilyRows({ engineLegs: false }).some(r => r.value === 'anthropic' && /Console/.test(r.label)))
-  const { nonAnthropicBootNotice } = await import('../../src/services/providers/providerUsability.js')
+  const { nonAnthropicBootNotice } = await import('../../src/models/roads/providerUsability.js')
   const lane = (provider: string, usable: boolean) => ({ provider, credential: usable ? 'api-key' : 'none', limit: 'unknown', usable, blockers: usable ? [] : ['x'] })
   const notice = nonAnthropicBootNotice({ anthropic: lane('anthropic', false), openai: lane('openai', false), openrouter: lane('openrouter', true) } as never)
   check('the boot honesty notice LEADS with the ready provider (base: "No Anthropic credential: …")', typeof notice === 'string' && /^OpenRouter is ready/.test(notice), String(notice))
   check('…and still names the dormant first-party surfaces honestly', typeof notice === 'string' && /usage windows/.test(notice) && /No Anthropic credential —/.test(notice), String(notice))
-  const { notLoggedInGateDecision } = await import('../../src/services/wallet/wallet.js')
+  const { notLoggedInGateDecision } = await import('../../src/models/wallet/wallet.js')
   const missing = notLoggedInGateDecision([{ provider: 'openai' }] as never, 'anthropic')
   check('the wallet gate names the missing family by its one-owner display name', missing.state === 'provider-missing' && missing.missingProvider === 'Anthropic' && /No Anthropic account/.test(missing.steering), JSON.stringify(missing))
   check('a session on a key lane is never steered to the first-party sign-in', notLoggedInGateDecision([], 'openrouter').state === 'ok')
@@ -371,7 +371,7 @@ section("§7 the surfaces name the session's family — never the first-party on
 
 section("§8 the operator's sighting: a fresh box's New Session is born keyless; a spelled-out id keeps its family's door, spoken to the operator")
 {
-  const wm = await import('../../src/services/concourse/workerModels.js')
+  const wm = await import('../../src/screen/concourse-model/workerModels.js')
   const ruled = wm.noAccountRefusal('no-credential:anthropic', undefined, false)
   check('no default recorded + nothing signed in ⇒ the ruled door sentence', ruled !== undefined && ruled.reason === 'no-credential:any' && ruled.action === '/logins to choose an account or connect an API key', JSON.stringify(ruled))
   check('…and no family word rides it', ruled !== undefined && !/anthropic|claude|openai|openrouter|gemini|zai|moonshot|deepseek|huggingface/i.test(`${ruled.detail} ${ruled.action}`), JSON.stringify(ruled))
@@ -389,11 +389,11 @@ section("§8 the operator's sighting: a fresh box's New Session is born keyless;
   const freshCrew = await wm.validateWorkerModelChoice(undefined, 'crew')
   check('…while the keyless CREW seat keeps the ruled two-door sentence (naming no family)', !freshCrew.ok && freshCrew.reason === 'no-credential:any' && !/anthropic|claude|openai/i.test(`${freshCrew.detail} ${freshCrew.action}`), JSON.stringify(freshCrew))
 
-  const facts = await import('../../src/services/switchboard/bootBirthFacts.js')
-  ;(await import('../../src/services/model/computedDefault.js')).resetComputedDefaultMemo()
+  const facts = await import('../../src/daemon/switchboard/bootBirthFacts.js')
+  ;(await import('../../src/models/catalogue/computedDefault.js')).resetComputedDefaultMemo()
   check("LIVE: the face's road sends NO model on the fresh box (screenBirthModel is nothing while the default reads keyless)", facts.screenBirthModel() === undefined, String(facts.screenBirthModel()))
-  const { setEngineModelOverride } = await import('../../src/bootstrap/state.js')
-  const { resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.js')
+  const { setEngineModelOverride } = await import('../../src/boot/process-state/processState.js')
+  const { resetComputedDefaultMemo } = await import('../../src/models/catalogue/computedDefault.js')
   process.env.OPENAI_API_KEY = 'fixture-openai-key-for-the-birth'
   resetComputedDefaultMemo()
   check("LIVE: an OpenAI key alone with no catalogue fetched still reads keyless at the face's road with no explicit choice (the verdict itself stands)", facts.screenBirthModel() === undefined, String(facts.screenBirthModel()))
@@ -409,7 +409,7 @@ section("§8 the operator's sighting: a fresh box's New Session is born keyless;
   check("LIVE: the registry's keyless seed is the 'choose a model' entry — a model no provider declares, so spelled out as a NAMED id it keeps the two-door sentence (base: the first-party fallback's own door)",
     facedId === 'choose-a-model' && !faced.ok && faced.reason === 'no-credential:any' && faced.action === '/logins to choose an account or connect an API key', facedLine)
   check('…naming no family on that line', !/anthropic|claude|opus|openai|openrouter|gemini|zai|moonshot|deepseek|huggingface/i.test(facedLine), facedLine)
-  const { operatorFacingBirthReason } = await import('../../src/services/switchboard/bornSession.js')
+  const { operatorFacingBirthReason } = await import('../../src/daemon/switchboard/bornSession.js')
   const spoken = operatorFacingBirthReason(`model refused (${faced.ok ? '' : faced.reason}) · ${faced.ok ? '' : faced.action ?? ''} — ${faced.ok ? '' : faced.detail ?? ''} (got "${facedId}")`)
   check("…and on the operator's own road the sentence is spoken TO the operator — no 'ask the operator', the door kept", !/ask the operator/.test(spoken) && /\/logins to choose an account/.test(spoken), spoken)
   const otherEntry = facedRegistry.entries.find(e => e.modelId !== facedId && e.session.availability !== 'available')

@@ -9,21 +9,21 @@ let text = await status(changed)
 const receipt = receiptsFor(changed.owner).find(row => row.toolUseId === id)
 check('C1 ChangeSet captures all three paths and its actual receipt',
   text.includes('[ok] file.changeSet: a_three/client.py, a_three/config.py, a_three/server.py') &&
-  text.includes(`mercury://receipt/${receipt?.id}`), text + ' | to fix: check how src/services/ide/txAutoCapture.ts records a file.changeSet receipt and how the Transaction tool status lists it (src/tools/TransactionTool/TransactionTool.ts)')
+  text.includes(`mercury://receipt/${receipt?.id}`), text + ' | to fix: check how src/integrations/ide/txAutoCapture.ts records a file.changeSet receipt and how the Transaction tool status lists it (src/tools/transaction/TransactionTool.ts)')
 for (const operation of ['codeActions', 'pathRename', 'fixDiagnostic', 'moveSymbol']) {
   const f = fixture()
   emit(f, `lsp.${operation}`, { toolName: 'LSP' })
-  check(`C2 LSP ${operation} is a landed change`, (await status(f)).includes(`[ok] lsp.${operation}: one.txt`), 'src/services/ide/txAutoCapture.ts must capture this lsp receipt as a landed change')
+  check(`C2 LSP ${operation} is a landed change`, (await status(f)).includes(`[ok] lsp.${operation}: one.txt`), 'src/integrations/ide/txAutoCapture.ts must capture this lsp receipt as a landed change')
 }
 evidence(changed)
 text = await status(changed)
-check('C3 verification-ledger checks join the record', text.includes('[ok] test: bun test — green'), text + ' | to fix: src/services/ide/ideTransaction.ts must join verification-ledger checks (src/utils/verification/verificationState.ts) into the record')
+check('C3 verification-ledger checks join the record', text.includes('[ok] test: bun test — green'), text + ' | to fix: src/integrations/ide/ideTransaction.ts must join verification-ledger checks (src/platform/verification/verificationState.ts) into the record')
 const store = projectHomeStore(changed.root, 'ide-transactions')
-check('C7 capture and status leave the transaction store absent', !existsSync(store), store + ' | to fix: capture and status must not write the ide-transactions store; only finish may (src/services/ide/ideTransaction.ts)')
+check('C7 capture and status leave the transaction store absent', !existsSync(store), store + ' | to fix: capture and status must not write the ide-transactions store; only finish may (src/integrations/ide/ideTransaction.ts)')
 const saved = await finish(changed)
 const record = tx.latestTransaction(changed.root)
 check('C7 finish writes both steps and latest.json', saved.data.outcome === 'succeeded' &&
-  record?.steps.length === 2 && existsSync(join(store, `${record.id}.json`)) && existsSync(join(store, 'latest.json')), saved.data.result + ' | to fix: the finish path in src/services/ide/ideTransaction.ts must write both steps, the record file and latest.json')
+  record?.steps.length === 2 && existsSync(join(store, `${record.id}.json`)) && existsSync(join(store, 'latest.json')), saved.data.result + ' | to fix: the finish path in src/integrations/ide/ideTransaction.ts must write both steps, the record file and latest.json')
 
 const readBack = fixture(['one.txt', 'two.txt'])
 emit(readBack)
@@ -32,21 +32,21 @@ for (const file of readBack.files) {
     input: { file_path: file }, ok: true, durationMs: 1, effect: undefined })
 }
 text = await status(readBack)
-check('C4 full read-back joins the automatic record', text.includes('[ok] read-back: changed files read back (no verification machinery in this workspace) — green'), text + ' | to fix: src/services/ide/txAutoCapture.ts or src/services/ide/ideTransaction.ts must add the read-back step once every changed file has a Read')
-check('C4 read-back satisfies completion', (await finish(readBack)).data.outcome === 'succeeded', 'finish in src/services/ide/ideTransaction.ts must accept a full read-back as the check')
+check('C4 full read-back joins the automatic record', text.includes('[ok] read-back: changed files read back (no verification machinery in this workspace) — green'), text + ' | to fix: src/integrations/ide/txAutoCapture.ts or src/integrations/ide/ideTransaction.ts must add the read-back step once every changed file has a Read')
+check('C4 read-back satisfies completion', (await finish(readBack)).data.outcome === 'succeeded', 'finish in src/integrations/ide/ideTransaction.ts must accept a full read-back as the check')
 
 const commit = fixture()
 emit(commit)
 emit(commit, 'git.commit', { paths: [], input: {}, toolName: 'Git' })
 text = await status(commit)
-check('C5 a commit is information, never a passing check', text.includes('[info] git.commit:') && text.includes('no check has run since the last change'), text + ' | to fix: a git.commit capture must be listed as [info] and never count as a check (src/services/ide/txAutoCapture.ts)')
+check('C5 a commit is information, never a passing check', text.includes('[info] git.commit:') && text.includes('no check has run since the last change'), text + ' | to fix: a git.commit capture must be listed as [info] and never count as a check (src/integrations/ide/txAutoCapture.ts)')
 
 for (const excluded of ['outside', 'internal']) {
   const f = fixture()
   const paths = [excluded === 'outside' ? join(f.root, '..', 'outside.txt') : join(f.root, '.mercury', 'record')]
   emit(f, 'file.write', { paths, input: { file_path: paths[0] } })
   text = await status(f)
-  check(`C6 ${excluded} writes open no journal`, text === 'Nothing recorded at this root since the last finish. Changes (Edit, Write, ChangeSet, AstEdit, NotebookEdit, LSP writes, Structure) and checks (Bash or Test runs) are recorded here as they happen.', text + ' | to fix: txAutoCapture.ts must skip paths outside the root and under .mercury (src/services/ide/txAutoCapture.ts)')
+  check(`C6 ${excluded} writes open no journal`, text === 'Nothing recorded at this root since the last finish. Changes (Edit, Write, ChangeSet, AstEdit, NotebookEdit, LSP writes, Structure) and checks (Bash or Test runs) are recorded here as they happen.', text + ' | to fix: txAutoCapture.ts must skip paths outside the root and under .mercury (src/integrations/ide/txAutoCapture.ts)')
 }
 
 const capped = fixture()
@@ -55,12 +55,12 @@ for (let n = 0; n < 101; n++) emit(capped, 'file.edit', { toolUseId: `window-${n
 await capture._drainTxAutoCaptureForTesting()
 const windowed = tx.getTransaction(opened.id, capped.root)
 check('C8 101 captures keep newest 100 and count the dropped step', windowed?.steps.length === 100 &&
-  (windowed as { elided?: number })?.elided === 1 && windowed.steps[0]?.auto?.toolUseId === 'window-1', JSON.stringify(windowed?.steps.map(s => s.auto)) + ' | to fix: the step window in src/services/ide/ideTransaction.ts must keep the newest 100 steps and count the dropped one in elided')
+  (windowed as { elided?: number })?.elided === 1 && windowed.steps[0]?.auto?.toolUseId === 'window-1', JSON.stringify(windowed?.steps.map(s => s.auto)) + ' | to fix: the step window in src/integrations/ide/ideTransaction.ts must keep the newest 100 steps and count the dropped one in elided')
 
 const queued = fixture()
 emit(queued)
 emit(queued, 'test.run', { paths: [], input: { op: 'run' }, toolName: 'Test' })
-check('C9 finish drains the just-ended check without a test-side wait', (await finish(queued)).data.outcome === 'succeeded', 'finish must drain pending captures first (_drainTxAutoCaptureForTesting in src/services/ide/txAutoCapture.ts)')
+check('C9 finish drains the just-ended check without a test-side wait', (await finish(queued)).data.outcome === 'succeeded', 'finish must drain pending captures first (_drainTxAutoCaptureForTesting in src/integrations/ide/txAutoCapture.ts)')
 
 const duplicate = fixture()
 emit(duplicate, 'file.edit', { toolUseId: 'same-event' })
@@ -69,12 +69,12 @@ await status(duplicate)
 await finish(duplicate)
 emit(duplicate, 'file.edit', { toolUseId: 'same-event' })
 await capture._drainTxAutoCaptureForTesting()
-check('C10 duplicate terminal events do not duplicate journal or saved steps', tx.latestTransaction(duplicate.root)?.steps.filter(s => s.kind === 'apply').length === 1, 'txAutoCapture.ts must ignore a repeated toolUseId, before and after finish (src/services/ide/txAutoCapture.ts)')
+check('C10 duplicate terminal events do not duplicate journal or saved steps', tx.latestTransaction(duplicate.root)?.steps.filter(s => s.kind === 'apply').length === 1, 'txAutoCapture.ts must ignore a repeated toolUseId, before and after finish (src/integrations/ide/txAutoCapture.ts)')
 
 for (const operation of ['git.restore', 'git.resolve', 'fixture.transform', 'future.write']) {
   const f = fixture()
   emit(f, operation)
-  check(`receipt-shaped ${operation} is captured without a second mutation registry`, (await status(f)).includes(`[ok] ${operation}: one.txt`), 'src/services/ide/txAutoCapture.ts must capture any receipt-shaped operation, not a fixed list')
+  check(`receipt-shaped ${operation} is captured without a second mutation registry`, (await status(f)).includes(`[ok] ${operation}: one.txt`), 'src/integrations/ide/txAutoCapture.ts must capture any receipt-shaped operation, not a fixed list')
 }
 for (const kind of ['Bash', 'PowerShell', 'background']) {
   const f = fixture()
@@ -82,34 +82,34 @@ for (const kind of ['Bash', 'PowerShell', 'background']) {
   if (kind === 'background') ledger.recordShellCommandOutcome('bun test', 0, f.root, f.owner)
   else observeToolTerminal({ owner: f.owner, cwd: f.root, toolName: kind, toolUseId: `${kind}-check`,
     input: { command: 'bun test' }, ok: true, durationMs: 1, effect: undefined })
-  check(`${kind} shell checks reach the record through the ledger`, (await finish(f)).data.outcome === 'succeeded', 'the shell check must reach src/utils/verification/verificationState.ts and then the finish in src/services/ide/ideTransaction.ts')
+  check(`${kind} shell checks reach the record through the ledger`, (await finish(f)).data.outcome === 'succeeded', 'the shell check must reach src/platform/verification/verificationState.ts and then the finish in src/integrations/ide/ideTransaction.ts')
 }
 for (const command of ['python -m unittest discover -s tests', 'python3 -m unittest', 'py -3 -m unittest discover']) {
   const f = fixture()
   emit(f)
   observeToolTerminal({ owner: f.owner, cwd: f.root, toolName: 'Bash', toolUseId: command,
     input: { command }, ok: true, durationMs: 1, effect: undefined })
-  check(`${command} satisfies the promised shell check`, (await finish(f)).data.outcome === 'succeeded', 'the command classifier in src/utils/verification/verificationState.ts must read this unittest command as a test run')
+  check(`${command} satisfies the promised shell check`, (await finish(f)).data.outcome === 'succeeded', 'the command classifier in src/platform/verification/verificationState.ts must read this unittest command as a test run')
 }
 const receiptedRead = fixture(['one.txt', 'two.txt'])
 observeToolTerminal({ owner: receiptedRead.owner, cwd: receiptedRead.root, toolName: 'ChangeSet', toolUseId: 'digest-change',
   input: {}, ok: true, durationMs: 1,
   effect: { operation: 'file.changeSet', outcome: 'succeeded', changedPaths: receiptedRead.files,
     evidence: 'digest verified', startedAt: Date.now(), completedAt: Date.now(), details: { artifactDigest: 'a'.repeat(64) } } })
-check('digest receipts still create no forced read debt', ledger.demandedReadBackPaths(receiptedRead.root, receiptedRead.owner).size === 0, 'demandedReadBackPaths in src/utils/verification/verificationState.ts must not demand a read after a receipt that carries an artifactDigest')
+check('digest receipts still create no forced read debt', ledger.demandedReadBackPaths(receiptedRead.root, receiptedRead.owner).size === 0, 'demandedReadBackPaths in src/platform/verification/verificationState.ts must not demand a read after a receipt that carries an artifactDigest')
 for (let i = 0; i < receiptedRead.files.length; i++) {
   const file = receiptedRead.files[i]!
   observeToolTerminal({ owner: receiptedRead.owner, cwd: receiptedRead.root, toolName: 'Read', toolUseId: `read-${file}`,
     input: { file_path: file }, ok: true, durationMs: 1, effect: undefined })
-  if (i === 0) check('one of two files does not settle full read-back', (await finish(receiptedRead)).data.outcome !== 'succeeded', 'finish in src/services/ide/ideTransaction.ts must refuse while any changed file is unread')
+  if (i === 0) check('one of two files does not settle full read-back', (await finish(receiptedRead)).data.outcome !== 'succeeded', 'finish in src/integrations/ide/ideTransaction.ts must refuse while any changed file is unread')
 }
-check('voluntary full Reads settle a digest-receipted change', (await finish(receiptedRead)).data.outcome === 'succeeded', 'finish in src/services/ide/ideTransaction.ts must accept once every changed file has a full Read')
+check('voluntary full Reads settle a digest-receipted change', (await finish(receiptedRead)).data.outcome === 'succeeded', 'finish in src/integrations/ide/ideTransaction.ts must accept once every changed file has a full Read')
 
 const before = fixture()
 evidence(before)
 emit(before, 'git.stage', { paths: [], input: {}, toolName: 'Git' })
 emit(before, 'file.edit', { outcome: 'failed', ok: false })
-check('checks, staging and failed attempts before a landed change start no journal', (await status(before)).startsWith('Nothing recorded at this root'), 'only a landed change may open the journal (src/services/ide/txAutoCapture.ts)')
+check('checks, staging and failed attempts before a landed change start no journal', (await status(before)).startsWith('Nothing recorded at this root'), 'only a landed change may open the journal (src/integrations/ide/txAutoCapture.ts)')
 
 const outcomes = fixture()
 emit(outcomes)
@@ -117,7 +117,7 @@ emit(outcomes, 'file.edit', { paths: [], outcome: 'no-change' })
 emit(outcomes, 'file.edit', { outcome: 'indeterminate' })
 emit(outcomes, 'file.edit', { outcome: 'failed', ok: false })
 await finish(outcomes, 'failed')
-check('capture preserves all outcome classes and adds no synthetic step', tx.latestTransaction(outcomes.root)?.steps.map(s => `${s.kind}/${s.outcome}`).join(',') === 'apply/ok,apply/info,apply/indeterminate,apply/failed', 'txAutoCapture.ts must keep each outcome class as its own apply step (src/services/ide/txAutoCapture.ts)')
+check('capture preserves all outcome classes and adds no synthetic step', tx.latestTransaction(outcomes.root)?.steps.map(s => `${s.kind}/${s.outcome}`).join(',') === 'apply/ok,apply/info,apply/indeterminate,apply/failed', 'txAutoCapture.ts must keep each outcome class as its own apply step (src/integrations/ide/txAutoCapture.ts)')
 
 const sameTime = fixture()
 emit(sameTime)
@@ -132,14 +132,14 @@ try {
 }
 const sameTimeResult = await finish(sameTime)
 check('distinct ledger records at the same timestamp and mutation sequence both survive', sameTimeResult.data.outcome === 'succeeded' &&
-  tx.latestTransaction(sameTime.root)?.steps.filter(s => s.kind === 'test').map(s => s.outcome).join(',') === 'failed,ok', sameTimeResult.data.result + ' | to fix: ledger records with the same timestamp and sequence must both be kept when joined (src/services/ide/ideTransaction.ts)')
+  tx.latestTransaction(sameTime.root)?.steps.filter(s => s.kind === 'test').map(s => s.outcome).join(',') === 'failed,ok', sameTimeResult.data.result + ' | to fix: ledger records with the same timestamp and sequence must both be kept when joined (src/integrations/ide/ideTransaction.ts)')
 
 const disabled = fixture()
 process.env.MERCURY_TX_AUTOCAPTURE = '0'
 emit(disabled)
 evidence(disabled)
 await capture._drainTxAutoCaptureForTesting()
-check('capture flag off creates no automatic record', tx.latestTransaction(disabled.root) === null && (await call(disabled, { op: 'status' })).data.result.startsWith('Nothing recorded'), 'MERCURY_TX_AUTOCAPTURE=0 must stop all capture (src/services/ide/txAutoCapture.ts)')
+check('capture flag off creates no automatic record', tx.latestTransaction(disabled.root) === null && (await call(disabled, { op: 'status' })).data.result.startsWith('Nothing recorded'), 'MERCURY_TX_AUTOCAPTURE=0 must stop all capture (src/integrations/ide/txAutoCapture.ts)')
 process.env.MERCURY_TX_AUTOCAPTURE = '1'
 
 done('prove-transaction-capture')

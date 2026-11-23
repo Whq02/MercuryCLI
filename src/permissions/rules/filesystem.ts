@@ -1,0 +1,1398 @@
+import { randomBytes } from 'node:crypto'
+import { homedir, tmpdir } from 'node:os'
+import { isAbsolute, sep as platformSep, posix as posixPath } from 'node:path'
+import ignore from 'ignore'
+import { flagEnv } from '../../platform/substrate/flagRegistry.js'
+import { getOriginalCwd, getSessionId } from '../../boot/process-state/processState.js'
+import { getCwd, getStartingCwd } from '../../platform/files/cwd.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
+import { permissionRuleValueFromString } from './permissionRuleParser.js'
+import { expandRuleBraces } from './ruleBraces.js'
+import { getMercuryHome } from '../../platform/environment/envUtils.js'
+import { getFsImplementation, getPathsForPermissionCheck, safeResolvePath } from '../../platform/files/fsOperations.js'
+import {
+  expandPath,
+  getDirectoryForPath,
+  localPath,
+  sanitizePath,
+} from '../../platform/files/path.js'
+import { getPlatform, type Platform } from '../../platform/environment/platform.js'
+import { boundedProjectTempName, defaultMercuryTempBase, mercuryTempDirName } from '../../platform/host-os/files.js'
+import { extractDoubleSlashPatternRoot, extractPatternDriveRoot, foldHostPathCase, isEscapingRelativePath, nativePathToShell } from '../../platform/host-os/paths.js'
+import { shortProjectHash } from '../../sessions/transcripts/sessionStoragePortable.js'
+import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, apolloSpecDirectory } from '../../platform/settings/projectConfig.js'
+import { APOLLO_REVIEW_TOOL_NAME } from '../../tools/kit/names/apolloReview.js'
+import { getSettingsFilePathForSource } from '../../platform/settings/settings.js'
+import { getEnabledSettingSources } from '../../platform/settings/settingSources.js'
+import type { PermissionRule, PermissionUpdate } from './permissions.js'
+import type { ToolPermissionContext } from '../../tools/kit/tool.js'
+import type {
+  PermissionAllowDecision,
+  PermissionAskDecision,
+  PermissionDecision,
+  PermissionDecisionReason,
+  PermissionDenyDecision,
+  PermissionResult,
+} from './permissionResult.js'
+import { createEditRuleSuggestion, createReadRuleSuggestion } from './permissionUpdate.js'
+import { refusalWithReason, ruleSentence, withRuleReason } from './ruleReason.js'
+import { uncPathRisk, uncPathMessage } from './uncPath.js'
+import { suspiciousWindowsPattern } from './windowsPath.js'
+import { credentialStorePath, mercurySecretPath, mercurySecretReadIgnores, protectedPathForms, spelling } from './protectedPaths.js'
+import { runtimeWritePath } from './runtimeProtection.js'
+import {
+  isRemotePath,
+  REMOTE_RULE_ROOT,
+  remoteRuleCandidates,
+  remoteRuleEndpointForms,
+  remoteRulePattern,
+  remoteSessionRule,
+} from '../../platform/remote-file-target/target.js'
+import { remoteLocalForms } from './thisMachine.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+import { entriesOf } from '../../platform/primitives/entriesOf.js'
+import { hostEnv } from '../../platform/environment/hostEnv.js'
+import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
+
+
+const DANGEROUS_FILES: string[] = [
+  '.gitconfig',
+  '.gitmodules',
+  '.bashrc',
+  '.bash_profile',
+  '.bash_login',
+  '.zshrc',
+  '.zprofile',
+  '.profile',
+  '.ripgreprc',
+  '.mcp.json',
+  '.mercury.json',
+]
+
+export const DANGEROUS_DIRECTORIES: string[] = [
+  '.git',
+  '.husky',
+  '.vscode',
+  '.idea',
+  '.mercury',
+]
+
+const ENV_FILE_TEMPLATE_WORDS: ReadonlySet<string> = new Set(['example', 'sample', 'template'])
+
+export function isProjectEnvFileName(path: string): boolean {
+  const segments = path.split(/[/\\]/)
+  const name = (segments[segments.length - 1] ?? '').toLowerCase()
+  if (name !== '.env' && !name.startsWith('.env.')) return false
+  return !name.slice('.env.'.length).split('.').some(part => ENV_FILE_TEMPLATE_WORDS.has(part))
+}
+
+const ENV_FILE_WILDCARD = '__wildcard__'
+const GLOB_WILDCARDS = /[*?[\]{}]+/g
+
+export function envFileTargetsInGlob(glob: string): string[] {
+  if (glob.startsWith('!')) return []
+  const token = glob.replace(/^(?:\.\/|\/)+/, '')
+  const cut = Math.max(token.lastIndexOf('/'), token.lastIndexOf('\\')) + 1
+  const dir = token.slice(0, cut)
+  const name = token.slice(cut)
+  const wildcardAt = name.search(GLOB_WILDCARDS)
+  const prefix = wildcardAt === -1 ? name : name.slice(0, wildcardAt)
+  const stem = prefix.endsWith('.') ? prefix.slice(0, -1) : prefix
+  if (!isProjectEnvFileName(stem)) return []
+  const plainDir = dir.search(GLOB_WILDCARDS) === -1
+  if (wildcardAt === -1 && plainDir) return [token]
+  const sibling = dir.replace(GLOB_WILDCARDS, ENV_FILE_WILDCARD) + (wildcardAt === -1 ? name : `${prefix}${prefix === '.env' ? '.' : ''}${ENV_FILE_WILDCARD}`)
+  const reachesStem = (plainDir || dir === '**/') && prefix === stem && name.slice(prefix.length).replace(GLOB_WILDCARDS, '') === ''
+  return reachesStem ? [(plainDir ? dir : '') + stem, sibling] : [sibling]
+}
+
+function envFileFamilySpelling(path: string): string {
+  return path.split(ENV_FILE_WILDCARD).join('*')
+}
+
+
+export function normalizeCaseForComparison(path: string): string {
+  return path.toLowerCase()
+}
+
+function toPosixPath(path: string, platform: ReturnType<typeof getPlatform> = getPlatform()): string {
+  return nativePathToShell(path, platform)
+}
+
+export function relativePath(from: string, to: string, platform: ReturnType<typeof getPlatform> = getPlatform()): string {
+  const a = toPosixPath(from, platform)
+  const b = toPosixPath(to, platform)
+  const aParts = a.split(posixPath.sep).filter(Boolean)
+  const bParts = b.split(posixPath.sep).filter(Boolean)
+  const fold = (part?: string) => (part === undefined ? undefined : foldHostPathCase(part, platform))
+  let i = 0
+  while (i < aParts.length && i < bParts.length && fold(aParts[i]) === fold(bParts[i])) i++
+  const up = aParts.slice(i).map(() => '..')
+  const down = bParts.slice(i)
+  return [...up, ...down].join('/')
+}
+
+export function relativePathEscapes(relative: string, platform: ReturnType<typeof getPlatform> = getPlatform()): boolean {
+  return isEscapingRelativePath(relative, platform)
+}
+
+function foldMacSymlinks(path: string): string {
+  let folded = path
+  if (folded.startsWith('/private/var/')) {
+    folded = '/var/' + folded.slice('/private/var/'.length)
+  }
+  if (folded === '/private/tmp' || folded.startsWith('/private/tmp/')) {
+    folded = '/tmp' + folded.slice('/private/tmp'.length)
+  }
+  return folded
+}
+
+function normalizeForWorkingDirCompare(path: string): string {
+  return normalizeCaseForComparison(toPosixPath(foldMacSymlinks(path)))
+}
+
+
+export function allWorkingDirectories(_context: ToolPermissionContext): Set<string> {
+  return new Set([getStartingCwd()])
+}
+
+export function pathInWorkingPath(path: string, workingPath: string): boolean {
+  const rel = relativePath(normalizeForWorkingDirCompare(workingPath), normalizeForWorkingDirCompare(path))
+  if (rel === '') return true
+  if (relativePathEscapes(rel)) return false
+  if (rel.startsWith('/')) return false
+  return true
+}
+
+let workingDirResolutionCache = new Map<string, string[]>()
+let workingDirResolutionSweep: ReturnType<typeof setTimeout> | null = null
+
+export function getResolvedWorkingDirPaths(path: string): string[] {
+  const base = getCwd()
+  const key = isAbsolute(path) ? path : `${base}\0${path}`
+  const cached = workingDirResolutionCache.get(key)
+  if (cached) return cached
+  const resolved = getPathsForPermissionCheck(localPath(path), base)
+  workingDirResolutionCache.set(key, resolved)
+  if (workingDirResolutionSweep === null) {
+    workingDirResolutionSweep = startTimeout(getResolvedWorkingDirPaths.clearCache, 0)
+    workingDirResolutionSweep.unref?.()
+  }
+  return resolved
+}
+getResolvedWorkingDirPaths.clearCache = (): void => {
+  if (workingDirResolutionSweep !== null) stopTimeout(workingDirResolutionSweep)
+  workingDirResolutionSweep = null
+  workingDirResolutionCache = new Map()
+}
+
+export function pathInAllowedWorkingPath(
+  path: string,
+  context: ToolPermissionContext,
+  precomputedPathsToCheck?: readonly string[],
+): boolean {
+  const resolvedInputs = precomputedPathsToCheck ?? getResolvedWorkingDirPaths(path)
+  const workingDirs = [...allWorkingDirectories(context)].flatMap(getResolvedWorkingDirPaths)
+  const inside = (candidate: string): boolean =>
+    workingDirs.some(workingDir => pathInWorkingPath(candidate, workingDir))
+  const [spelled, ...realForms] = resolvedInputs
+  if (realForms.length === 0) return spelled !== undefined && inside(spelled)
+  return realForms.every(inside)
+}
+
+
+const MERCURY_CONFIG_DIRECTORIES: ReadonlySet<string> = new Set(['hooks', 'agents', 'skills', 'extensions'])
+export const MERCURY_WORKING_FOLDERS: readonly string[] = ['verify', 'test-runs', 'unity-test-results', 'ide-transactions', 'reviews', 'health', 'engine', 'cache-clock']
+const MERCURY_CONFIG_FILES: ReadonlySet<string> = new Set(['mcp.json', 'dap-adapters.json', 'wards.json', 'gates.json', 'launch.json', 'keybindings.json', 'engine-suites.json', 'worktree-setup.json', 'agent-overrides.json'])
+
+function isHomeConfigEstate(prefix: string): boolean {
+  if (prefix === '') return false
+  const homes = new Set(protectedPathForms(homedir()))
+  return protectedPathForms(prefix).some(form => homes.has(form))
+}
+
+export function isMercuryConfigSegment(segment: string): boolean {
+  const name = segment.toLowerCase()
+  if (MERCURY_CONFIG_DIRECTORIES.has(name) || MERCURY_CONFIG_FILES.has(name)) return true
+  return (name.startsWith('settings') && name.endsWith('.json')) || name.startsWith('guard') || name.includes('.local.')
+}
+
+function isDangerousFileOrDirectory(expandedPath: string): boolean {
+
+  const segments = expandedPath.split(platformSep)
+  const lastSegment = segments[segments.length - 1] ?? ''
+  if (DANGEROUS_FILES.some(name => name.toLowerCase() === lastSegment.toLowerCase())) {
+    return true
+  }
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i]?.toLowerCase() ?? ''
+    if (segment === MERCURY_PROJECT_DIR) {
+      if (segments[i + 1]?.toLowerCase() === 'worktrees') continue
+      if (isHomeConfigEstate(segments.slice(0, i).join(platformSep))) return true
+      if (segments.slice(i + 1).some(isMercuryConfigSegment)) return true
+      continue
+    }
+    if (DANGEROUS_DIRECTORIES.some(name => name.toLowerCase() === segment)) {
+      return true
+    }
+  }
+  return false
+}
+
+
+export function getMercuryTempDirName(): string {
+  return mercuryTempDirName()
+}
+
+let tempDirCache: string | null = null
+
+export function getMercuryTempDir(): string {
+  if (tempDirCache) return tempDirCache
+  const envBase = flagEnv('MERCURY_TMPDIR')
+  const base = envBase ?? defaultMercuryTempBase()
+  let resolvedBase = base
+  try {
+    resolvedBase = safeResolvePath(getFsImplementation(), base).resolvedPath
+  } catch {
+    resolvedBase = base
+  }
+  tempDirCache = ensureTrailingSep(joinWithSep(resolvedBase, getMercuryTempDirName()))
+  return tempDirCache
+}
+
+const PROJECT_TEMP_NAME_BOUND = 48
+
+export function projectTempName(cwd: string, platform: Platform = getPlatform()): string {
+  return boundedProjectTempName(sanitizePath(cwd), shortProjectHash(cwd), PROJECT_TEMP_NAME_BOUND, platform)
+}
+
+export function getProjectTempDir(): string {
+  return ensureTrailingSep(joinWithSep(getMercuryTempDir(), projectTempName(getOriginalCwd())))
+}
+
+export function getScratchpadDir(agentId?: string): string {
+  const dir = joinWithSep(joinWithSep(getProjectTempDir(), getSessionId()), 'scratchpad')
+  return agentId === undefined ? dir : joinWithSep(dir, agentId)
+}
+
+export function scratchpadDirFor(cwd: string, sessionId: string): string {
+  return joinWithSep(joinWithSep(ensureTrailingSep(joinWithSep(getMercuryTempDir(), projectTempName(cwd))), sessionId), 'scratchpad')
+}
+
+function getSessionMemoryDir(): string {
+  const projectDir = joinWithSep(getProjectTempDir(), getSessionId())
+  return ensureTrailingSep(joinWithSep(projectDir, 'session-memory'))
+}
+
+export function getSessionMemoryPath(): string {
+  return joinWithSep(getSessionMemoryDir(), 'summary.md')
+}
+
+let bundledSkillsRootCache: string | null = null
+
+export function getBundledSkillsRoot(): string {
+  if (bundledSkillsRootCache) return bundledSkillsRootCache
+  const version = (globalThis as { MACRO?: { VERSION?: string } }).MACRO?.VERSION ?? '0.0.0'
+  const nonce = randomBytes(16).toString('hex')
+  bundledSkillsRootCache = joinWithSep(joinWithSep(getMercuryTempDir(), `bundled-skills`), `${version}-${nonce}`)
+  return bundledSkillsRootCache
+}
+
+
+export function isSettingsFilePath(filePath: string): boolean {
+  const expanded = expandPath(filePath)
+  const folded = normalizeCaseForComparison(expanded)
+  const sep = platformSep.toLowerCase()
+  for (const file of ['settings.json', 'settings.local.json']) {
+    if (folded.endsWith(`${sep}${MERCURY_PROJECT_DIR}${sep}${file}`)) return true
+  }
+  for (const source of getEnabledSettingSources()) {
+    try {
+      const path = getSettingsFilePathForSource(source)
+      if (path && normalizeCaseForComparison(expandPath(path)) === folded) return true
+    } catch (error) {
+      passedOver(new Error(`the settings file of ${source} could not be told (${error instanceof Error ? error.message : String(error)}), so the path is not counted as that settings file`, { cause: error }))
+    }
+  }
+  return false
+}
+
+const INSTRUCTION_FILES = new Set(['mercury.md', 'mercury.local.md', 'agents.md'])
+
+function isApolloPlanningDocument(paths: readonly string[]): boolean {
+  const roots = protectedPathForms(getOriginalCwd()).map(root => apolloSpecDirectory(root).replace(/\\/g, '/').toLowerCase() + '/')
+  const controls = new Set([...INSTRUCTION_FILES, ...DANGEROUS_FILES, 'skill.md', 'settings.json', 'settings.local.json', 'launch.json', 'wards.json'])
+  const forms = paths.flatMap(path => protectedPathForms(path))
+  return forms.length > 0 && forms.every(path => {
+    const root = roots.find(root => path.startsWith(root))
+    if (!root || controls.has(posixPath.basename(path))) return false
+    return !path.slice(root.length).split(/[\\/]/).some(part => [...DANGEROUS_DIRECTORIES, 'agents', 'skills'].includes(part))
+  })
+}
+
+function isMercuryWorkingFile(expandedPath: string): boolean {
+  const forms = protectedPathForms(joinWithSep(getOriginalCwd(), MERCURY_PROJECT_DIR))
+  return MERCURY_WORKING_FOLDERS.some(folder => forms.some(form => expandedPath === `${form}/${folder}` || expandedPath.startsWith(`${form}/${folder}/`)))
+}
+
+function isProductConfigPath(expandedPath: string, instructionEstate = false, worktreesApart = false): boolean {
+  const normalized = expandedPath.replace(/\\/g, '/')
+  if (instructionEstate && INSTRUCTION_FILES.has(posixPath.basename(normalized).toLowerCase())) return true
+  if (isSettingsFilePath(expandedPath)) return true
+  if (instructionEstate && isMercuryWorkingFile(expandedPath)) return false
+  if (instructionEstate && /(?:^|\/)\.mercury(?:\/(?!worktrees(?:\/|$)).*|$)/i.test(normalized)) return true
+  const cwd = getOriginalCwd()
+  const folded = normalizeCaseForComparison(expandedPath)
+  for (const home of PROJECT_CONFIG_DIR_NAMES) {
+    if (instructionEstate && [joinWithSep(cwd, home), getMercuryHome()].flatMap(dir => protectedPathForms(dir)).some(base => expandedPath === base || (expandedPath.startsWith(base + '/') && !(worktreesApart && expandedPath.startsWith(base + '/worktrees/'))))) return true
+    for (const sub of ['agents', 'skills']) {
+      const base = normalizeCaseForComparison(joinWithSep(joinWithSep(cwd, home), sub))
+      if (pathHasSegmentContainment(folded, base)) return true
+    }
+  }
+  return false
+}
+
+let composedInstructionImports: ReadonlySet<string> = new Set()
+
+export function noteComposedInstructionImports(paths: readonly string[]): void {
+  composedInstructionImports = new Set(paths.flatMap(path => protectedPathForms(path)))
+}
+
+export function isInstructionEstatePath(path: string, worktreesApart = false): boolean {
+  return protectedPathForms(path).some(form => composedInstructionImports.has(form) || isProductConfigPath(form, true, worktreesApart))
+}
+
+export function instructionEstateGrant(resolutionSet: readonly string[], context: ToolPermissionContext): PermissionRule | undefined {
+  return resolutionSet.flatMap(resolved => matchingRulesForInput(resolved, context, 'edit', 'allow')).find(rule => {
+    const content = rule.ruleValue.ruleContent ?? ''
+    return content !== '' && !/[*?[\]{}]/.test(content) && rule.source !== 'projectSettings'
+  })
+}
+
+function pathHasSegmentContainment(path: string, base: string): boolean {
+  if (path === base) return true
+  const baseWithSep = base.endsWith(platformSep.toLowerCase()) ? base : base + platformSep.toLowerCase()
+  return path.startsWith(baseWithSep)
+}
+
+type PathSafetyResult =
+  | { safe: true }
+  | { safe: false; message: string; operatorOnly: boolean }
+
+export function checkPathSafetyForAutoEdit(
+  path: string,
+  precomputedPathsToCheck?: readonly string[],
+  context?: ToolPermissionContext,
+): PathSafetyResult {
+  const remoteSafety = (candidate: string): PathSafetyResult | null => {
+    const risk = uncPathRisk(candidate)
+    if (!risk.risky || (context && checkUncPathPermission(candidate, context, 'edit')?.behavior === 'allow')) return null
+    return { safe: false, operatorOnly: true, message: uncPathMessage(candidate, risk) }
+  }
+  const remote = remoteSafety(path)
+  if (remote) return remote
+  const resolvedForms = precomputedPathsToCheck ?? getResolvedWorkingDirPaths(path)
+  for (const resolved of resolvedForms) {
+    const remote = remoteSafety(resolved)
+    if (remote) return remote
+  }
+
+  for (const resolved of resolvedForms) {
+    const pattern = suspiciousWindowsPattern(resolved)
+    if (pattern) {
+      return {
+        safe: false,
+        operatorOnly: true,
+        message: `Mercury requested permission to write to ${path}, which contains a suspicious Windows path pattern (${pattern}) and requires manual approval.`,
+      }
+    }
+  }
+  for (const resolved of resolvedForms) {
+    if (isProductConfigPath(expandPath(resolved))) {
+      return {
+        safe: false,
+        operatorOnly: context?.mode === 'flow',
+        message: `Permission to write to ${path} was requested but not yet granted.`,
+      }
+    }
+  }
+  for (const resolved of resolvedForms) {
+    if (isDangerousFileOrDirectory(expandPath(resolved))) {
+      return {
+        safe: false,
+        operatorOnly: context?.mode === 'flow' && isInstructionEstatePath(resolved, true),
+        message: `Mercury requested permission to edit ${path}, which is a sensitive file.`,
+      }
+    }
+  }
+  return { safe: true }
+}
+
+
+export function getSkillScope(filePath: string): { skillName: string; pattern: string } | null {
+  const expanded = expandPath(filePath)
+  const folded = normalizeCaseForComparison(expanded)
+  const bases: ReadonlyArray<readonly [string, string]> = [
+    [expandPath(joinWithSep(joinWithSep(getOriginalCwd(), MERCURY_PROJECT_DIR), 'skills')), `/${MERCURY_PROJECT_DIR}/skills/`],
+    [expandPath(joinWithSep(getMercuryHome(), 'skills')), `~/${MERCURY_PROJECT_DIR}/skills/`],
+  ]
+  for (const [base, prefix] of bases) {
+    const baseTrimmed = base.replace(/[\\/]+$/, '')
+    const baseFolded = normalizeCaseForComparison(baseTrimmed)
+    const sep = folded[baseFolded.length]
+    if (!folded.startsWith(baseFolded) || (sep !== platformSep && sep !== '/')) continue
+    const rest = expanded.slice(baseTrimmed.length + 1)
+    const nativeIdx = rest.indexOf(platformSep)
+    const slashIdx = rest.indexOf('/')
+    const nextSep =
+      nativeIdx === -1
+        ? slashIdx
+        : slashIdx === -1
+          ? nativeIdx
+          : Math.min(nativeIdx, slashIdx)
+    if (nextSep <= 0) return null
+    const skillName = rest.slice(0, nextSep)
+    if (skillName === '.' || skillName.includes('..') || /[*?[\]]/.test(skillName)) return null
+    return { skillName, pattern: `${prefix}${skillName}/**` }
+  }
+  return null
+}
+
+
+export function checkEditableInternalPath(absolutePath: string, input?: Record<string, unknown>): PermissionResult {
+  const category = editableInternalCategory(expandPath(absolutePath))
+  if (category !== null) {
+    return allow(input, { type: 'other', reason: category })
+  }
+  return { behavior: 'passthrough', message: '' }
+}
+
+export function checkReadableInternalPath(absolutePath: string, input?: Record<string, unknown>): PermissionResult {
+  const category = readableInternalCategory(expandPath(absolutePath))
+  if (category !== null) {
+    return allow(input, { type: 'other', reason: category })
+  }
+  return { behavior: 'passthrough', message: '' }
+}
+
+function isAgentMemory(path: string): boolean {
+  try {
+    return (require('../../crew/agents/agentMemory.js') as { isAgentMemoryPath(p: string): boolean }).isAgentMemoryPath(path)
+  } catch (error) {
+    passedOver(error)
+    return false
+  }
+}
+function isMneme(path: string): boolean {
+  try {
+    return (require('../../sessions/mneme/paths.js') as { isMnemePath(p: string): boolean }).isMnemePath(path)
+  } catch (error) {
+    passedOver(error)
+    return false
+  }
+}
+
+function ownGround(path: string): string | null {
+  try {
+    return (require('./ownGround.js') as { ownGroundCategory(p: string): string | null }).ownGroundCategory(path)
+  } catch (error) {
+    passedOver(error)
+    return null
+  }
+}
+
+function editableInternalCategory(path: string): string | null {
+  const folded = normalizeCaseForComparison(path)
+  const cwd = getOriginalCwd()
+  if (folded === normalizeCaseForComparison(joinWithSep(joinWithSep(cwd, MERCURY_PROJECT_DIR), 'launch.json'))) {
+    return 'preview launch config'
+  }
+  if (isAgentMemory(path)) return 'agent-memory directory'
+  return ownGround(path)
+}
+
+function readableInternalCategory(path: string): string | null {
+  const folded = normalizeCaseForComparison(path)
+  const projectTemp = normalizeCaseForComparison(getProjectTempDir())
+  if (folded.startsWith(projectTemp)) return 'project temp directory'
+  const sessionMemory = normalizeCaseForComparison(getSessionMemoryDir())
+  if (folded.startsWith(sessionMemory)) return 'session memory directory'
+  const tasksDir = normalizeCaseForComparison(joinWithSep(getMercuryHome(), 'tasks'))
+  if (pathHasSegmentContainment(folded, tasksDir)) return 'tasks directory'
+  const bundledRoot = normalizeCaseForComparison(getBundledSkillsRoot())
+  if (folded.startsWith(bundledRoot)) return 'bundled-skill extraction root'
+  try {
+    const projectStore = normalizeCaseForComparison(
+      (require('../../sessions/transcripts/sessionStoragePortable.js') as { getProjectDir(p: string): string }).getProjectDir(getCwd()),
+    )
+    if (folded === projectStore || folded.startsWith(projectStore + platformSep.toLowerCase()) || folded.startsWith(projectStore + '/')) {
+      return 'project directory'
+    }
+  } catch (error) {
+    passedOver(error)
+  }
+  try {
+    const toolResults = normalizeCaseForComparison((require('../../engine/tool-dispatch/toolResultStorage.js') as { getToolResultsDir(): string }).getToolResultsDir())
+    if (folded.startsWith(toolResults)) return 'tool-results directory'
+  } catch (error) {
+    passedOver(error)
+  }
+  if (isAgentMemory(path)) return 'agent-memory directory'
+  if (isMneme(path)) return 'memory directory'
+  return ownGround(path)
+}
+
+
+function fileEditRuleToolNames(): string[] {
+  return ['Write', 'NotebookEdit', 'Edit']
+}
+function fileReadRuleToolNames(): string[] {
+  return ['Glob', 'NotebookRead', 'Read']
+}
+
+function rulesForToolFamilyAndBehavior(
+  context: ToolPermissionContext,
+  toolNames: string[],
+  behavior: 'allow' | 'deny' | 'ask',
+): Map<string, PermissionRule> {
+  const merged = new Map<string, PermissionRule>()
+  for (const name of toolNames) {
+    for (const [pattern, rule] of rulesForToolAndBehavior(context, name, behavior)) {
+      merged.set(pattern, rule)
+    }
+  }
+  return merged
+}
+
+function rulesForToolAndBehavior(
+  context: ToolPermissionContext,
+  toolName: string,
+  behavior: 'allow' | 'deny' | 'ask',
+): Map<string, PermissionRule> {
+  const map = new Map<string, PermissionRule>()
+  const key = behavior === 'allow' ? 'alwaysAllowRules' : behavior === 'deny' ? 'alwaysDenyRules' : 'alwaysAskRules'
+  const bySource: ToolPermissionContext['alwaysAllowRules'] = context[key] ?? {}
+  for (const [source, rules] of entriesOf(bySource)) {
+    for (const ruleString of rules ?? []) {
+      const parsed = permissionRuleValueFromString(ruleString)
+      if (parsed.toolName !== toolName || parsed.ruleContent === undefined) continue
+      const rule = {
+        source: source as PermissionRule['source'],
+        ruleBehavior: behavior,
+        ruleValue: parsed,
+      }
+      for (const pattern of expandRuleBraces(parsed.ruleContent, behavior !== 'allow')) map.set(pattern, rule)
+    }
+  }
+  return map
+}
+
+export function rootForPattern(
+  pattern: string,
+  source: PermissionRule['source'],
+  platform: ReturnType<typeof getPlatform> = getPlatform(),
+  behavior?: 'allow' | 'deny' | 'ask',
+): { root: string | null | undefined; relative: string } {
+  const remote = remoteRulePattern(pattern)
+  if (remote !== null) return { root: REMOTE_RULE_ROOT, relative: remote }
+  const driveRoot = extractPatternDriveRoot(pattern, platformSep, platform)
+  if (driveRoot !== null) return driveRoot
+  if (pattern.startsWith('//')) return extractDoubleSlashPatternRoot(pattern, platformSep, platform)
+  if (pattern.startsWith('~/')) {
+    return { root: normalizeNfc(getHomeDir()), relative: pattern.slice(1) }
+  }
+  if (pattern.startsWith('/')) {
+    return { root: rootForSource(source, behavior), relative: pattern }
+  }
+  if (pattern.startsWith('./')) {
+    return { root: null, relative: pattern.slice(2) }
+  }
+  return { root: null, relative: pattern }
+}
+
+const rememberedSourceRoots = new Map<PermissionRule['source'], string>()
+
+function rootForSource(source: PermissionRule['source'], behavior?: 'allow' | 'deny' | 'ask'): string | null | undefined {
+  switch (source) {
+    case 'cliArg':
+    case 'command':
+    case 'session':
+    case 'toolsNarrowing':
+    case 'mcpServerPolicy':
+      return getOriginalCwd()
+    default: {
+      try {
+        const settingsPath = getSettingsFilePathForSource(source)
+        if (!settingsPath) return null
+        const root = getDirectoryForPath(settingsPath)
+        rememberedSourceRoots.set(source, root)
+        return root
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        const remembered = rememberedSourceRoots.get(source)
+        if (remembered !== undefined) {
+          logForDebugging(`permission root for ${source} failed (${message}); using remembered root ${remembered}`, { level: 'warn' })
+          return remembered
+        }
+        if (behavior === 'deny') {
+          logForDebugging(`permission root for ${source} failed (${message}); rooting deny rule at original cwd`, { level: 'warn' })
+          return getOriginalCwd()
+        }
+        return undefined
+      }
+    }
+  }
+}
+
+export function matchingRuleForInput(
+  path: string,
+  context: ToolPermissionContext,
+  toolType: 'edit' | 'read',
+  behavior: 'allow' | 'deny' | 'ask',
+): PermissionRule | null {
+  return walkMatchingRules(path, context, toolType, behavior, false)[0] ?? null
+}
+
+export function matchingRulesForInput(
+  path: string,
+  context: ToolPermissionContext,
+  toolType: 'edit' | 'read',
+  behavior: 'allow' | 'deny' | 'ask',
+): PermissionRule[] {
+  return walkMatchingRules(path, context, toolType, behavior, true)
+}
+
+function walkMatchingRules(
+  path: string,
+  context: ToolPermissionContext,
+  toolType: 'edit' | 'read',
+  behavior: 'allow' | 'deny' | 'ask',
+  all: boolean,
+): PermissionRule[] {
+  return ruleMatcherFor(context, toolType, behavior)?.(path, all) ?? []
+}
+
+const GLOB_SEGMENT = /[*?[\]{}]/
+
+function absoluteUnderRoot(root: string, literal: string): string {
+  const base = root.replace(/[\\/]+$/, '')
+  if (literal === '') return base === '' ? '/' : base
+  return `${base}${literal.startsWith('/') ? '' : '/'}${literal}`
+}
+
+function resolvedPatternForms(pattern: string, source: PermissionRule['source'], behavior?: 'allow' | 'deny' | 'ask'): string[] {
+  const { root, relative } = rootForPattern(pattern, source, undefined, behavior)
+  if (root === REMOTE_RULE_ROOT) return remoteRuleEndpointForms(pattern)
+  if (root === null || root === undefined) return []
+  const globAt = relative.search(GLOB_SEGMENT)
+  const slashBefore = globAt === -1 ? -1 : relative.lastIndexOf('/', globAt)
+  const literal = globAt === -1 ? relative : slashBefore === -1 ? '' : relative.slice(0, slashBefore)
+  const suffix = globAt === -1 ? '' : slashBefore === -1 ? relative : relative.slice(slashBefore)
+  const typed = absoluteUnderRoot(root, literal)
+  const forms = getPathsForPermissionCheck(typed)
+  const out: string[] = []
+  for (const form of forms) {
+    if (form === typed) continue
+    const alt = form.replace(/\\/g, '/')
+    const joined =
+      suffix === '' || suffix.startsWith('/') || alt.endsWith('/')
+        ? `${alt}${suffix}`
+        : `${alt}/${suffix}`
+    out.push(joined.startsWith('/') ? `/${joined}` : joined)
+  }
+  return out
+}
+
+function cwdForms(): string[] {
+  const cwd = getCwd()
+  return [...new Set(getPathsForPermissionCheck(cwd).map(form => toPosixPath(form)))]
+}
+
+export function ruleMatcherFor(
+  context: ToolPermissionContext,
+  toolType: 'edit' | 'read',
+  behavior: 'allow' | 'deny' | 'ask',
+  workingForms?: readonly string[],
+): ((path: string, all?: boolean) => PermissionRule[]) | null {
+  const toolNames = toolType === 'edit' ? fileEditRuleToolNames() : fileReadRuleToolNames()
+  const rules = rulesForToolFamilyAndBehavior(context, toolNames, behavior)
+  type Group = { matcher: ReturnType<typeof ignore>; entries: Array<{ matcher: ReturnType<typeof ignore>; rule: PermissionRule }> }
+  const groups = new Map<string | null, Group>()
+  for (const [pattern, rule] of rules) {
+    for (const form of [pattern, ...resolvedPatternForms(pattern, rule.source, behavior)]) {
+      const { root, relative } = rootForPattern(form, rule.source, undefined, behavior)
+      if (root === undefined) continue
+      const stripped = relative.endsWith('/**') ? relative.slice(0, -3) : relative
+      const group = groups.get(root) ?? { matcher: ignore(), entries: [] }
+      group.matcher.add(stripped)
+      group.entries.push({ matcher: ignore().add(stripped), rule })
+      groups.set(root, group)
+    }
+  }
+  if (groups.size === 0) return null
+  return (path, all = false) => {
+    const found: PermissionRule[] = []
+    const seen = new Set<PermissionRule>()
+    const remote = remoteRuleCandidates(path, behavior)
+    const expanded = remote === null ? expandPath(path) : ''
+    const candidatePath = expanded.includes('\\') ? toPosixPath(expanded) : expanded
+    const target = candidatePath === '' ? getCwd() : candidatePath
+    for (const [root, group] of groups) {
+      if ((root === REMOTE_RULE_ROOT) !== (remote !== null)) continue
+      const relatives = remote ?? (root === null ? (workingForms ?? cwdForms()) : [root]).map(base => relativePath(base, target))
+      for (const relative of relatives) {
+        if (relative === '' || relativePathEscapes(relative)) continue
+        if (!group.matcher.test(relative).ignored) continue
+        for (const entry of group.entries) {
+          if (seen.has(entry.rule) || !entry.matcher.test(relative).ignored) continue
+          seen.add(entry.rule)
+          found.push(entry.rule)
+          if (!all) return found
+        }
+      }
+    }
+    return found
+  }
+}
+
+export function pathMatchesRulePattern(path: string, pattern: string, source: PermissionRule['source'] = 'session'): boolean {
+  const remote = remoteRuleCandidates(path, 'deny')
+  if (remote !== null) {
+    return [pattern, ...resolvedPatternForms(pattern, source)].some(form => {
+      const spelled = rootForPattern(form, source)
+      if (spelled.root !== REMOTE_RULE_ROOT) return false
+      const matcher = ignore().add(spelled.relative.endsWith('/**') ? spelled.relative.slice(0, -3) : spelled.relative)
+      return remote.some(candidate => matcher.test(candidate).ignored)
+    })
+  }
+  const { root, relative: rel } = rootForPattern(pattern, source)
+  if (root === undefined || root === REMOTE_RULE_ROOT) return false
+  const expanded = expandPath(path)
+  const candidatePath = expanded.includes('\\') ? toPosixPath(expanded) : expanded
+  const relative = relativePath(root === null ? getCwd() : root, candidatePath)
+  if (relative === '' || relativePathEscapes(relative)) return false
+  const stripped = rel.endsWith('/**') ? rel.slice(0, -3) : rel
+  return ignore().add(stripped).test(relative).ignored
+}
+
+function ripgrepSpelling(text: string): string | null {
+  if (text.startsWith('!') || text.startsWith('#') || text.includes('\\')) return null
+  let spelled = ''
+  for (let at = 0; at < text.length; at++) {
+    const char = text[at]!
+    if (char === '{' || char === '}') spelled += `[${char}]`
+    else if (char !== '[') spelled += char
+    else {
+      const close = text.indexOf(']', at + 1)
+      const body = close === -1 ? '' : text.slice(at + 1, close).replace(/^[!^]/, '')
+      if (body === '' || body.includes('/') || [...body.matchAll(/(.)-(.)/g)].some(range => range[1]! > range[2]!)) return null
+      spelled += text.slice(at, close + 1)
+      at = close
+    }
+  }
+  return spelled
+}
+
+function ruleSegments(pattern: string): string[] | null {
+  const segments = pattern.split('/').filter(segment => segment !== '' && segment !== '.')
+  if (segments.length === 0 || segments.some(segment => segment === '..' || ripgrepSpelling(segment) === null)) return null
+  return segments
+}
+
+function segmentMatches(segment: string, name: string): boolean {
+  return GLOB_SEGMENT.test(segment) ? ignore().add(segment).test(name).ignored : segment.toLowerCase() === name.toLowerCase()
+}
+
+function segmentsBelow(segments: readonly string[], folders: readonly string[]): string[][] {
+  const reach = (from: Iterable<number>): Set<number> => {
+    const reached = new Set<number>()
+    for (let at of from) {
+      reached.add(at)
+      while (segments[at] === '**') reached.add(++at)
+    }
+    return reached
+  }
+  let states = reach([0])
+  for (const folder of folders) {
+    const next: number[] = []
+    for (const at of states) {
+      if (at === segments.length || segments[at] === '**') next.push(at)
+      else if (segmentMatches(segments[at]!, folder)) next.push(at + 1)
+    }
+    states = reach(next)
+    if (states.size === 0) return []
+  }
+  return [...states].map(at => segments.slice(at))
+}
+
+function escapeGlobSegment(name: string): string {
+  return name.replace(/[*?[\]{}!\\]/g, '\\$&')
+}
+
+export function normalizePatternsToPath(
+  patternsByRoot: Map<string | null, string[]>,
+  root: string,
+): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  const add = (glob: string): void => {
+    if (!seen.has(glob)) {
+      seen.add(glob)
+      out.push(glob)
+    }
+  }
+  const emitAnchored = (
+    prefix: readonly string[],
+    ruleSegs: readonly string[],
+    folderOnly: boolean,
+  ): void => {
+    const trimmed =
+      ruleSegs.length > 0 && ruleSegs[ruleSegs.length - 1] === '**'
+        ? ruleSegs.slice(0, -1)
+        : ruleSegs
+    const translated: string[] = []
+    for (const seg of trimmed) {
+      const spelled = ripgrepSpelling(seg)
+      if (spelled === null) return
+      translated.push(spelled)
+    }
+    const all = [...prefix, ...translated]
+    if (all.length === 0) {
+      add('/**')
+      return
+    }
+    const anchored = `/${all.join('/')}`
+    if (!folderOnly) add(anchored)
+    add(`${anchored}/**`)
+  }
+  const projectRooted = (ruleRoot: string, pattern: string): void => {
+    const segments = ruleSegments(pattern)
+    if (segments === null) return
+    const folderOnly = pattern.endsWith('/')
+    const fromScan = relativePath(root, ruleRoot)
+    if (!relativePathEscapes(fromScan)) {
+      const prefix = fromScan === '' ? [] : fromScan.split('/').filter(Boolean).map(escapeGlobSegment)
+      emitAnchored(prefix, segments, folderOnly)
+      return
+    }
+    const fromRule = relativePath(ruleRoot, root)
+    if (!relativePathEscapes(fromRule) && pattern.includes('/')) {
+      const folders = fromRule.split('/').filter(Boolean)
+      for (const remaining of segmentsBelow(segments, folders)) {
+        emitAnchored([], remaining, folderOnly)
+      }
+    }
+  }
+
+  let workingDirs: string[] | undefined
+  for (const [ruleRoot, patterns] of patternsByRoot) {
+    if (ruleRoot === null) {
+      for (const pattern of patterns) {
+        const direct = ripgrepSpelling(pattern)
+        if (direct === null) continue
+        add(direct)
+        if (pattern.includes('/')) {
+          workingDirs ??= cwdForms()
+          for (const cwd of workingDirs) projectRooted(cwd, pattern)
+        }
+      }
+      continue
+    }
+    for (const pattern of patterns) {
+      projectRooted(ruleRoot, pattern)
+    }
+  }
+  return out
+}
+
+export function getFileReadIgnorePatterns(context: ToolPermissionContext): Map<string | null, string[]> {
+  const rules = rulesForToolFamilyAndBehavior(context, fileReadRuleToolNames(), 'deny')
+  const byRoot = new Map<string | null, string[]>()
+  for (const [pattern, rule] of rules) {
+    for (const form of [pattern, ...resolvedPatternForms(pattern, rule.source, 'deny')]) {
+      const { root, relative } = rootForPattern(form, rule.source, undefined, 'deny')
+      if (root === undefined || root === REMOTE_RULE_ROOT) continue
+      const list = byRoot.get(root) ?? []
+      if (!list.includes(relative)) list.push(relative)
+      byRoot.set(root, list)
+    }
+  }
+  for (const [root, patterns] of mercurySecretReadIgnores()) byRoot.set(root, [...(byRoot.get(root) ?? []), ...patterns])
+  return byRoot
+}
+
+const OWN_SECRET_NAME = /\.credentials\.json|\.provider-secrets\.json|-auth\.json$|^browser-secrets\.json$/i
+
+export function readDenialFilter(context: ToolPermissionContext, root: string): (file: string) => boolean {
+  const working = cwdForms()
+  const denies = ruleMatcherFor(context, 'read', 'deny', working)
+  const narrowing = readNarrowing(context, 'read')
+  const allows = narrowing === null ? null : ruleMatcherFor(narrowing.narrowed, 'read', 'allow', working)
+  const rootForms = denies === null && narrowing === null ? [] : getPathsForPermissionCheck(root)
+  const base = root.replace(/[\\/]+$/, '')
+  const joinForms = rootForms.map(form => form.replace(/[\\/]+$/, ''))
+  const formsOf = (file: string): string[] => {
+    if (file === root || file === base) return rootForms
+    const next = file.charAt(base.length)
+    if (!file.startsWith(base) || (next !== '/' && next !== '\\')) return getPathsForPermissionCheck(file)
+    return joinForms.map(form => `${form}${file.slice(base.length)}`)
+  }
+  return file => {
+    const name = file.slice(Math.max(file.lastIndexOf('/'), file.lastIndexOf('\\')) + 1)
+    if (OWN_SECRET_NAME.test(name) && mercurySecretPath(file) !== null) return true
+    if (denies === null && narrowing === null) return false
+    const forms = formsOf(file)
+    if (denies !== null && forms.some(form => denies(form).length > 0)) return true
+    if (narrowing === null) return false
+    return !(allows !== null && forms.length > 0 && forms.every(form => allows(form).length > 0))
+  }
+}
+
+
+type ToolLike = { getPath?: (input: any) => string | undefined; name: string }
+
+function ask(message: string, reason: PermissionDecisionReason): PermissionAskDecision {
+  return { behavior: 'ask', message, decisionReason: reason }
+}
+function deny(message: string, reason: PermissionDecisionReason): PermissionDenyDecision {
+  return { behavior: 'deny', message, decisionReason: reason }
+}
+function allow(input: Record<string, unknown> | undefined, reason: PermissionDecisionReason): PermissionAllowDecision {
+  return { behavior: 'allow', updatedInput: input, decisionReason: reason }
+}
+function ruleDecision(
+  kind: 'deny' | 'ask',
+  subject: string,
+  context: ToolPermissionContext,
+  rule: PermissionRule,
+  matches: () => PermissionRule[],
+): PermissionDecision {
+  const said = withRuleReason(context, rule, matches)
+  const reason: PermissionDecisionReason = { type: 'rule', rule: said }
+  const sentence = ruleSentence(subject, kind, said)
+  return kind === 'deny' ? deny(refusalWithReason(sentence, said.ruleValue.reason), reason) : ask(sentence, reason)
+}
+
+const REMOTE_FILE_TOOLS: ReadonlySet<string> = new Set(['Read', 'Edit', 'Write', 'Grep', 'Glob'])
+
+export function remoteFloorRefusal(
+  path: string,
+  toolType: 'edit' | 'read',
+  context: ToolPermissionContext,
+  sameMachine = false,
+): string | null {
+  for (const local of remoteLocalForms(path, sameMachine) ?? []) {
+    if (toolType === 'read') {
+      const secret = mercurySecretPath(local)
+      if (secret !== null) {
+        return `Reading ${path} is refused: ${secret} holds Mercury's own credentials; use the product's sign-in and account surfaces instead.`
+      }
+      continue
+    }
+    const runtime = runtimeWritePath(local)
+    if (runtime !== null) return 'Writing ' + path + ' is refused: ' + runtime + ' is part of Mercury’s running runtime.'
+    const credential = credentialStorePath(local)
+    if (credential !== null && (context.mode === 'apollo' || exactCredentialStoreGrant(local, credential, context) === undefined)) {
+      return 'Writing ' + path + ' is refused: ' + credential + ' is a protected system or credential path.'
+    }
+  }
+  return null
+}
+
+function checkRemotePermission(
+  path: string,
+  input: Record<string, unknown> | undefined,
+  context: ToolPermissionContext,
+  toolType: 'edit' | 'read',
+): PermissionDecision {
+  const floor = remoteFloorRefusal(path, toolType, context)
+  if (floor !== null) return deny(floor, { type: 'other', reason: floor })
+  const subject = `${toolType === 'read' ? 'Reading' : 'Editing'} ${path}`
+  const denied = matchingRuleForInput(path, context, toolType, 'deny')
+  if (denied) return ruleDecision('deny', subject, context, denied, () => matchingRulesForInput(path, context, toolType, 'deny'))
+  const narrowed = toolsNarrowingDenial(path, [path], context, toolType)
+  if (narrowed) return narrowed
+  if (toolType === 'edit' && context.mode === 'apollo') {
+    return deny(apolloWriteRefusal(path), { type: 'mode', mode: 'apollo' })
+  }
+  const asked = matchingRuleForInput(path, context, toolType, 'ask')
+  if (asked) return ruleDecision('ask', subject, context, asked, () => matchingRulesForInput(path, context, toolType, 'ask'))
+  const allowed =
+    matchingRuleForInput(path, context, 'edit', 'allow') ??
+    (toolType === 'read' ? matchingRuleForInput(path, context, 'read', 'allow') : null)
+  if (allowed) return allow(input, { type: 'rule', rule: allowed })
+  return {
+    behavior: 'ask',
+    message: `Permission to ${toolType === 'read' ? 'read from' : 'write to'} ${path} has not been granted.`,
+    decisionReason: {
+      type: 'workingDir',
+      reason: remoteLocalForms(path) === null ? 'the path is on another machine' : 'the path is reached over ssh on this machine',
+    },
+    suggestions: generateSuggestions(path, toolType === 'read' ? 'read' : 'write', context),
+  }
+}
+
+function envFileAsk(subject: string): PermissionAskDecision {
+  const reason = `${subject} needs approval: a .env file usually holds secrets (keys, tokens, passwords). Approve it here, or add a Read allow rule for the path to stop the question.`
+  return ask(reason, { type: 'safetyCheck', reason, operatorOnly: false })
+}
+
+export function envFileReadAsk(
+  path: string,
+  context: ToolPermissionContext,
+  resolutionSet: readonly string[] = getResolvedWorkingDirPaths(path),
+): PermissionAskDecision | null {
+  const forms = [path, ...resolutionSet]
+  if (!forms.some(form => isProjectEnvFileName(expandPath(form)))) return null
+  if (!pathInAllowedWorkingPath(path, context, resolutionSet)) return null
+  for (const form of forms) {
+    if (matchingRuleForInput(form, context, 'read', 'allow') || matchingRuleForInput(form, context, 'edit', 'allow')) return null
+  }
+  return envFileAsk(`Reading ${envFileFamilySpelling(path)}`)
+}
+
+export function checkUncPathPermission(
+  path: string,
+  context: ToolPermissionContext,
+  operation: 'read' | 'edit' = 'read',
+): PermissionDecision | null {
+  const risk = uncPathRisk(path)
+  if (!risk.risky) return null
+  const denied = matchingRuleForInput(path, context, operation, 'deny')
+  if (denied) return ruleDecision('deny', path, context, denied, () => matchingRulesForInput(path, context, operation, 'deny'))
+  const asked = matchingRuleForInput(path, context, operation, 'ask')
+  if (asked) return ruleDecision('ask', path, context, asked, () => matchingRulesForInput(path, context, operation, 'ask'))
+  const granted = matchingRulesForInput(path, context, operation, 'allow').find(rule =>
+    rule.ruleValue.ruleContent?.toLowerCase().includes(risk.host.toLowerCase()),
+  )
+  if (granted) return allow(undefined, { type: 'rule', rule: granted })
+  const message = uncPathMessage(path, risk)
+  return ask(message, { type: 'safetyCheck', reason: message, operatorOnly: true })
+}
+
+export function checkReadPermissionForTool(
+  tool: ToolLike,
+  input: Record<string, unknown> | undefined,
+  context: ToolPermissionContext,
+): PermissionDecision {
+  const path = tool.getPath?.(input)
+  if (path === undefined) {
+    return ask(`Permission to use ${tool.name} has not been granted.`, { type: 'other', reason: 'no path accessor' })
+  }
+  if (isRemotePath(path) && REMOTE_FILE_TOOLS.has(tool.name)) return checkRemotePermission(path, input, context, 'read')
+
+  const secret = mercurySecretPath(path)
+  if (secret !== null) {
+    const message = `Reading ${path} is refused: ${secret} holds Mercury's own credentials; use the product's sign-in and account surfaces instead.`
+    return deny(message, { type: 'other', reason: message })
+  }
+  const remote = checkUncPathPermission(path, context)
+  if (remote && remote.behavior !== 'allow') return remote
+  const resolutionSet = getResolvedWorkingDirPaths(path)
+  for (const resolved of resolutionSet) {
+    const remote = checkUncPathPermission(resolved, context)
+    if (remote && remote.behavior !== 'allow') return remote
+  }
+  for (const resolved of resolutionSet) {
+    if (suspiciousWindowsPattern(resolved)) {
+      return ask(
+        `${path} contains a suspicious Windows path pattern requiring manual approval.`,
+        { type: 'other', reason: 'suspicious Windows path pattern' },
+      )
+    }
+  }
+  for (const resolved of resolutionSet) {
+    const rule = matchingRuleForInput(resolved, context, 'read', 'deny')
+    if (rule) return ruleDecision('deny', `Reading ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'read', 'deny'))
+  }
+  const narrowedRead = toolsNarrowingDenial(path, resolutionSet, context, 'read')
+  if (narrowedRead) return narrowedRead
+  for (const resolved of resolutionSet) {
+    const rule = matchingRuleForInput(resolved, context, 'read', 'ask')
+    if (rule) return ruleDecision('ask', `Reading ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'read', 'ask'))
+  }
+  const envAsk = envFileReadAsk(path, context, resolutionSet)
+  if (envAsk) return envAsk
+  const writeDecision = checkWritePermissionForTool(tool, input, context, resolutionSet)
+  if (writeDecision.behavior === 'allow') return writeDecision
+  if (pathInAllowedWorkingPath(path, context, resolutionSet)) {
+    return allow(input, { type: 'mode', mode: 'default' })
+  }
+  const internal = checkReadableInternalPath(expandPath(path), input)
+  if (internal.behavior !== 'passthrough') return internal
+  const allowRule = matchingRuleForInput(path, context, 'read', 'allow')
+  if (allowRule) return allow(input, { type: 'rule', rule: allowRule })
+  return {
+    behavior: 'ask',
+    message: `Permission to read from ${path} has not been granted.`,
+    decisionReason: { type: 'workingDir', reason: 'the path is outside the starting folder' },
+    suggestions: generateSuggestions(path, 'read', context, resolutionSet),
+  }
+}
+
+function exactCredentialStoreGrant(path: string, credential: string, context: ToolPermissionContext): PermissionRule | undefined {
+  return matchingRulesForInput(path, context, 'edit', 'allow').find(rule => {
+    const content = rule.ruleValue.ruleContent ?? ''
+    if (content === '' || /[*?[\]{}]/.test(content) || rule.source === 'projectSettings') return false
+    const { root, relative } = rootForPattern(content, rule.source, undefined, 'allow')
+    if (root === undefined) return false
+    const target = content.startsWith('~/') ? content : (root ?? getCwd()) + '/' + relative.replace(/^\/+/, '')
+    return protectedPathForms(target).includes(credential)
+  })
+}
+
+export function credentialStoreWriteRefusal(written: string, cwd: string, context: ToolPermissionContext): string | null {
+  const credential = credentialStorePath(written.replace(/ \(Mercury could not read this command[^)]*\)$/, ''), cwd)
+  if (credential !== null && context.mode !== 'apollo' && exactCredentialStoreGrant(expandPath(spelling(written), cwd), credential, context) !== undefined) return null
+  return 'Writing ' + written + ' is refused: ' + (credential ?? written) + ' is a protected system or credential path.'
+}
+
+export function checkWritePermissionForTool(
+  tool: ToolLike,
+  input: Record<string, unknown> | undefined,
+  context: ToolPermissionContext,
+  precomputedPathsToCheck?: readonly string[],
+): PermissionDecision {
+  const path = tool.getPath?.(input)
+  if (path === undefined) {
+    return ask(`Permission to use ${tool.name} has not been granted.`, { type: 'other', reason: 'no path accessor' })
+  }
+  if (isRemotePath(path) && REMOTE_FILE_TOOLS.has(tool.name)) return checkRemotePermission(path, input, context, 'edit')
+  const runtimeInput = typeof input === 'object' && input !== null && 'file_path' in input && typeof input.file_path === 'string' ? input.file_path : path
+  const runtime = runtimeWritePath(path) ?? runtimeWritePath(runtimeInput)
+  if (runtime !== null) {
+    const message = 'Writing ' + path + ' is refused: ' + runtime + ' is part of Mercury’s running runtime.'
+    return deny(message, { type: 'other', reason: message })
+  }
+  const remote = checkUncPathPermission(path, context, 'edit')
+  if (remote && remote.behavior !== 'allow') return remote
+  const resolutionSet = [...new Set([...(precomputedPathsToCheck ?? []), ...getPathsForPermissionCheck(path, getCwd())])]
+  for (const resolved of resolutionSet) {
+    const remote = checkUncPathPermission(resolved, context, 'edit')
+    if (remote && remote.behavior !== 'allow') return remote
+  }
+
+  for (const resolved of resolutionSet) {
+    const rule = matchingRuleForInput(resolved, context, 'edit', 'deny')
+    if (rule) return ruleDecision('deny', `Editing ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'edit', 'deny'))
+  }
+  const narrowedEdit = toolsNarrowingDenial(path, resolutionSet, context, 'edit')
+  if (narrowedEdit) return narrowedEdit
+  const rawPath = typeof input === 'object' && input !== null && 'file_path' in input && typeof input.file_path === 'string' ? input.file_path : path
+  const credential = credentialStorePath(path) ?? credentialStorePath(rawPath)
+  if (credential !== null) {
+    const named = context.mode === 'apollo' ? undefined : exactCredentialStoreGrant(path, credential, context)
+    if (named) return allow(input, { type: 'rule', rule: named })
+    const message = 'Writing ' + path + ' is refused: ' + credential + ' is a protected system or credential path.'
+    return deny(message, { type: 'other', reason: message })
+  }
+  if (tool.name !== 'RecordConvention' && (context.mode === 'default' || context.mode === 'implement' || context.mode === 'flow') &&
+      [path, runtimeInput].some(target => isInstructionEstatePath(target, context.mode === 'flow'))) {
+    for (const resolved of resolutionSet) {
+      const rule = matchingRuleForInput(resolved, context, 'edit', 'ask')
+      if (rule) return ruleDecision('ask', `Editing ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'edit', 'ask'))
+    }
+    const grant = instructionEstateGrant(resolutionSet, context)
+    if (grant) return allow(input, { type: 'rule', rule: grant })
+    const estateGrant = sessionEstateAllow(path, context, input)
+    if (estateGrant) return estateGrant
+    if (!isApolloPlanningDocument([path, runtimeInput, ...resolutionSet])) {
+      const message = `Permission to write ${path} is required: this file steers every later session.`
+      return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: context.mode === 'flow' }, suggestions: generateSuggestions(path, 'write', context, resolutionSet) }
+    }
+  }
+  const internal = checkEditableInternalPath(expandPath(path), input)
+  if (internal.behavior !== 'passthrough') return internal
+  const estate = sessionEstateAllow(path, context, input)
+  if (estate) return estate
+  if (
+    (context.mode === 'apollo' || context.mode === 'implement') &&
+    pathInAllowedWorkingPath(path, context, resolutionSet)
+  ) {
+    const specForms = getResolvedWorkingDirPaths(apolloSpecDirectory(getOriginalCwd()))
+    const inSpecDir = (candidate: string): boolean =>
+      specForms.some(form => pathInWorkingPath(candidate, form))
+    if (resolutionSet.length > 0 && resolutionSet.every(inSpecDir) && isApolloPlanningDocument([path, runtimeInput, ...resolutionSet])) {
+      return allow(input, { type: 'mode', mode: context.mode })
+    }
+  }
+  if (context.mode === 'apollo') {
+    return deny(apolloWriteRefusal(path), { type: 'mode', mode: 'apollo' })
+  }
+  const safety = checkPathSafetyForAutoEdit(path, resolutionSet, context)
+  if (!safety.safe) {
+    const skill = getSkillScope(path)
+    const suggestions = skill
+      ? [narrowedSkillGrant(skill.pattern)]
+      : generateSuggestions(path, 'write', context, resolutionSet)
+    return {
+      behavior: 'ask',
+      message: safety.message,
+      decisionReason: {
+        type: 'safetyCheck',
+        reason: safety.message,
+        operatorOnly: safety.operatorOnly,
+      },
+      suggestions,
+    }
+  }
+  for (const resolved of resolutionSet) {
+    const rule = matchingRuleForInput(resolved, context, 'edit', 'ask')
+    if (rule) return ruleDecision('ask', `Editing ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'edit', 'ask'))
+  }
+  if (context.mode === 'implement' && pathInAllowedWorkingPath(path, context, resolutionSet)) {
+    return allow(input, { type: 'mode', mode: 'implement' })
+  }
+  const allowRule = matchingRuleForInput(path, context, 'edit', 'allow')
+  if (allowRule) return allow(input, { type: 'rule', rule: allowRule })
+  const outsideWorkingDir = !pathInAllowedWorkingPath(path, context, resolutionSet)
+  return {
+    behavior: 'ask',
+    message: `Permission to write to ${path} has not been granted.`,
+    suggestions: generateSuggestions(path, 'write', context, resolutionSet),
+    decisionReason: outsideWorkingDir
+      ? { type: 'workingDir', reason: 'the path is outside the starting folder' }
+      : undefined,
+  }
+}
+
+function readNarrowing(context: ToolPermissionContext, toolType: 'edit' | 'read'): { narrowed: ToolPermissionContext; rules: PermissionRule[] } | null {
+  const narrowed: ToolPermissionContext = {
+    ...context,
+    alwaysAllowRules: {
+      toolsNarrowing: context.alwaysAllowRules?.toolsNarrowing ?? [],
+    },
+  }
+  const names = toolType === 'edit' ? fileEditRuleToolNames() : fileReadRuleToolNames()
+  const rules = [...rulesForToolFamilyAndBehavior(narrowed, names, 'allow').values()]
+  return rules.length === 0 ? null : { narrowed, rules }
+}
+
+function toolsNarrowingDenial(
+  path: string,
+  resolutionSet: readonly string[],
+  context: ToolPermissionContext,
+  toolType: 'edit' | 'read',
+): PermissionDecision | null {
+  const narrowing = readNarrowing(context, toolType)
+  if (narrowing === null) return null
+  const { narrowed, rules } = narrowing
+  if (resolutionSet.length > 0 && resolutionSet.every(resolved => matchingRuleForInput(resolved, narrowed, toolType, 'allow') !== null)) return null
+  return ruleDecision('deny', `${toolType === 'edit' ? 'Editing' : 'Reading'} ${path}`, context, rules[0]!, () => rules)
+}
+
+function sessionEstateAllow(
+  path: string,
+  context: ToolPermissionContext,
+  input: Record<string, unknown> | undefined,
+): PermissionDecision | null {
+  const narrowed: ToolPermissionContext = {
+    ...context,
+    alwaysAllowRules: {
+      session: context.alwaysAllowRules?.session ?? [],
+    },
+  }
+  const rule = matchingRuleForInput(path, narrowed, 'edit', 'allow')
+  if (!rule) return null
+  const content = rule.ruleValue.ruleContent ?? ''
+  if (!content.endsWith('/**')) return null
+  if (content.includes('..')) return null
+  if (!estatePrefixes().some(prefix => content.startsWith(prefix))) return null
+  return allow(input, { type: 'rule', rule })
+}
+
+function estatePrefixes(): string[] {
+  const prefixes: string[] = []
+  for (const home of PROJECT_CONFIG_DIR_NAMES) {
+    prefixes.push(`/${home}/`, `~/${home}/`)
+  }
+  const globalHome = getMercuryHome()
+  const home = getHomeDir()
+  if (normalizeCaseForComparison(globalHome).startsWith(normalizeCaseForComparison(home))) {
+    const rel = globalHome.slice(home.length).replace(/^[/\\]/, '')
+    prefixes.push(`~/${rel}/`)
+  } else {
+    prefixes.push(`${globalHome}/`)
+  }
+  return prefixes
+}
+
+function narrowedSkillGrant(pattern: string): PermissionUpdate {
+  return {
+    type: 'addRules',
+    rules: [{ toolName: 'Edit', ruleContent: pattern }],
+    behavior: 'allow',
+    destination: 'session',
+  }
+}
+
+
+export function generateSuggestions(
+  filePath: string,
+  operationType: 'read' | 'write' | 'create',
+  context: ToolPermissionContext,
+  precomputedPathsToCheck?: readonly string[],
+): PermissionUpdate[] {
+  const remote = remoteSessionRule(filePath)
+  if (remote !== null) {
+    const grant: PermissionUpdate = {
+      type: 'addRules',
+      rules: [{ toolName: operationType === 'read' ? 'Read' : 'Edit', ruleContent: remote }],
+      behavior: 'allow',
+      destination: 'session',
+    }
+    return operationType === 'read' ? [grant] : [...modeSuggestion(context), grant]
+  }
+  if (isRemotePath(filePath)) return []
+  const outside = !pathInAllowedWorkingPath(filePath, context, precomputedPathsToCheck)
+  const parent = getDirectoryForPath(filePath)
+
+  if (operationType === 'read') {
+    if (outside) {
+      const suggestions: PermissionUpdate[] = []
+      for (const resolved of getResolvedWorkingDirPaths(parent)) {
+        const suggestion = createReadRuleSuggestion(resolved, 'session')
+        if (suggestion) suggestions.push(suggestion)
+      }
+      return suggestions
+    }
+    return modeSuggestion(context)
+  }
+
+  const suggestions = modeSuggestion(context)
+  if (outside) {
+    const grant = createEditRuleSuggestion(parent)
+    if (grant) suggestions.push(grant)
+  }
+  return suggestions
+}
+
+export function apolloWriteRefusal(path: string): string {
+  return `Apollo Mode refused writing ${path}: during the pre-flight interview the only files that may be written are the spec files under ${apolloSpecDirectory(getOriginalCwd())}/ — the build begins only after the user approves the closing review (${APOLLO_REVIEW_TOOL_NAME}). Write the spec there, then present the review.`
+}
+
+function modeSuggestion(context: ToolPermissionContext): PermissionUpdate[] {
+  if (context.mode === 'default') {
+    return [{ type: 'setMode', mode: 'implement', destination: 'session' }]
+  }
+  return []
+}
+
+
+function getHomeDir(): string {
+  return hostEnv().HOME || hostEnv().USERPROFILE || tmpdir()
+}
+
+function normalizeNfc(path: string): string {
+  return path.normalize('NFC')
+}
+
+function joinWithSep(a: string, b: string): string {
+  const trimmed = a.endsWith(platformSep) ? a.slice(0, -1) : a
+  return `${trimmed}${platformSep}${b}`
+}
+
+function ensureTrailingSep(path: string): string {
+  return path.endsWith(platformSep) ? path : path + platformSep
+}

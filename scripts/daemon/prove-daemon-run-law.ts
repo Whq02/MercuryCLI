@@ -5,7 +5,7 @@ import { dirname, join, posix, relative, resolve } from 'node:path'
 import ts from 'typescript'
 
 const SELF = 'scripts/daemon/prove-daemon-run-law.ts'
-const MAIN = 'src/daemon/main.ts'
+const MAIN = 'src/daemon/control/main.ts'
 const PARTS = 'src/daemon/run/'
 const UNIT = 'daemonRun'
 const STATE = 'DaemonRunState'
@@ -286,12 +286,12 @@ section('§0 the reader on a planted estate: each of the laws is red by its own 
   plant(`${PARTS}part.ts`, `import { daemonMain } from '../main.js'\nlet remembered = 0\nexport function part(): number {\n  remembered++\n  return daemonMain.length\n}\n`)
   const back = judge(readProgram(estate), 3)
   check('a part that imports the file that starts it is red, and so is a variable a part keeps at module level', back.length === 2 && back.some(line => line.startsWith(`${PARTS}part.ts:1 imports ${MAIN}`)) && back.some(line => line.startsWith(`${PARTS}part.ts:2 keeps a variable at module level (remembered)`)), back.join(' | ') + '; the back and module laws of readProgram in ' + SELF + ' must flag both')
-  plant(`${PARTS}part.ts`, `import { daemonMain } from 'src/daemon/main.js'\nconst remembered = new Map<string, number>()\nconst table = { seen: 0 }\nconst open = ['a']\nconst read = String(daemonMain.length)\nexport function part(): number {\n  return remembered.size + table.seen + open.length + read.length\n}\n`)
+  plant(`${PARTS}part.ts`, `import { daemonMain } from 'src/daemon/control/main.js'\nconst remembered = new Map<string, number>()\nconst table = { seen: 0 }\nconst open = ['a']\nconst read = String(daemonMain.length)\nexport function part(): number {\n  return remembered.size + table.seen + open.length + read.length\n}\n`)
   const rooted = judge(readProgram(estate), 3)
   check('the same import spelled from the root is red, and so is a const of a part that holds state: a map, an object, a list not declared readonly, what a call answered', rooted.length === 5 && rooted.some(line => line.startsWith(`${PARTS}part.ts:1 imports ${MAIN}`)) && ['2 keeps remembered at module level, a const that holds a new Map', '3 keeps table at module level, a const that holds an object', '4 keeps open at module level, a const that holds a list that is not declared readonly', '5 keeps read at module level, a const that holds what a call answered when the file was loaded'].every(head => rooted.some(line => line.startsWith(`${PARTS}part.ts:${head}`))), rooted.join(' | ') + '; heldByConst and the module law of readProgram in ' + SELF + ' must flag each of these consts')
   plant(`${PARTS}part.ts`, `export function part(): number {\n  return 1\n}\n`)
   plant(`${PARTS}state.ts`, `export interface ${STATE} {\n  held: number\n  other: number\n}\nexport function make(): ${STATE} {\n  return { held: 0, other: 0 }\n}\n`)
-  const holding = (writes: string): string => `import { make } from './run/state.js'\nasync function ${UNIT}(): Promise<void> {\n  let held = 0\n  let free = 1\n  const state = make()\n${writes}  const inner = (held: number): number => {\n    held = 9\n    return held + free\n  }\n  inner(state.held)\n}\n`
+  const holding = (writes: string): string => `import { make } from '../run/state.js'\nasync function ${UNIT}(): Promise<void> {\n  let held = 0\n  let free = 1\n  const state = make()\n${writes}  const inner = (held: number): number => {\n    held = 9\n    return held + free\n  }\n  inner(state.held)\n}\n`
   plant(MAIN, holding(`  held = 2\n  state.held = held\n  free = 3\n`))
   const handed = readProgram(estate)
   check('a variable the unit holds beside a field of the state reads clean when each write hands the value over on the next line; a parameter of its name and a variable the state does not hold are not read', judge(handed, 3).length === 0 && handed.twice.join() === 'held', JSON.stringify([judge(handed, 3), handed.twice]) + '; the twice law of readProgram in ' + SELF + ' must accept a write handed over on the next line')

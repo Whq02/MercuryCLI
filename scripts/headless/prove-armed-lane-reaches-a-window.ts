@@ -20,13 +20,13 @@ if (!existsSync(DIST)) {
 }
 const vendoredNode = join(ROOT, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
 const NODE = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'node'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const menu = await import('../../src/substrate/startupMenu.ts')
+const menu = await import('../../src/platform/substrate/startupMenu.ts')
 const API_KEY = 'fixture-key-000'
 const MODEL = 'claude-opus-4-8'
 
-const ARMED_LANE_FAIL_HINT = 'change getHarnessMapSection and getHarnessMapDelta in src/services/cockpit/harnessMap.ts (what the map holds and when an update is due) or the harness_map_delta text in src/services/messages/attachmentText.ts'
+const ARMED_LANE_FAIL_HINT = 'change getHarnessMapSection and getHarnessMapDelta in src/screen/cockpit-gauges/harnessMap.ts (what the map holds and when an update is due) or the harness_map_delta text in src/engine/messages/attachmentText.ts'
 
 let failures = 0
 let checks = 0

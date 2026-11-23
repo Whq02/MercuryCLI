@@ -16,7 +16,7 @@ const upper = process.platform === 'linux' ? join(root, 'MIXEDCASEDAEMON') : dir
 if (process.platform === 'linux' && !existsSync(upper)) symlinkSync(dir, upper, 'dir')
 const aliases = [dir, upper, ...(process.platform === 'win32' ? [dir.replaceAll('\\', '/')] : [])]
 const sockets: net.Server[] = []
-const sock = await import('../../src/daemon/controlSocket.ts')
+const sock = await import('../../src/daemon/control/controlSocket.ts')
 const listen = async (path: string, key: string): Promise<net.Server> => {
   const server = net.createServer(connection => {
     connection.once('data', bytes => {
@@ -38,7 +38,7 @@ try {
   assert.equal(new Set(pipes).size, 1, 'one native directory must have one Windows pipe')
   console.log('PASS case and separator aliases share one pipe')
 
-  const { directoryIdentity, directoryIdentityKey } = await import('../../src/utils/directoryIdentity.ts')
+  const { directoryIdentity, directoryIdentityKey } = await import('../../src/daemon/control/directoryIdentity.ts')
   assert.equal(directoryIdentity(dir).key, directoryIdentity(upper).key)
   const known = { dev: 17n, ino: 8444249301431039n }
   assert.equal(directoryIdentityKey('C:\\Work\\Project', known, 'win32'), directoryIdentityKey('c:/WORK/PROJECT', known, 'win32'))
@@ -51,7 +51,7 @@ try {
 
   process.env.MERCURY_DAEMON_DIR = dir
   const lock = await sock.acquireDaemonLock()
-  assert.ok(lock, `src/daemon/controlSocket.ts acquireDaemonLock failed for clean dir ${dir}`)
+  assert.ok(lock, `src/daemon/control/controlSocket.ts acquireDaemonLock failed for clean dir ${dir}`)
   process.env.MERCURY_DAEMON_DIR = upper
   assert.equal(await sock.acquireDaemonLock(), null, 'case aliases cannot own a second daemon')
   const key = await sock.mintControlKey()
@@ -80,7 +80,7 @@ try {
   await sock.clearDeadDaemonRecords()
   await lock.release()
   const successor = await sock.acquireDaemonLock()
-  assert.ok(successor, `src/daemon/controlSocket.ts acquireDaemonLock failed to acquire successor after release in ${dir}`)
+  assert.ok(successor, `src/daemon/control/controlSocket.ts acquireDaemonLock failed to acquire successor after release in ${dir}`)
   const next = sock.controlSockPath()
   await listen(next, key)
   writeFileSync(sock.daemonStatePath(), JSON.stringify({ ...record, controlSock: next }))

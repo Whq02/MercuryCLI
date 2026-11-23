@@ -10,7 +10,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 
 for (const k of [
   'MERCURY_DEFAULT_OPUS_MODEL',
@@ -24,10 +24,10 @@ for (const k of [
 
 let failures = 0
 const sonnetRowHints: Record<string, string> = {
-  '§1': 'to fix, change the claude-sonnet-5-5 price row in src/services/usage/modelCost.ts (resolveModelPricing, getModelPricingString)',
-  '§2': 'to fix, change the canonical fold and display names for claude-sonnet-5-5 in src/utils/model/modelNames.ts (getCanonicalName) and src/services/model/model.ts (renderModelName, parseUserSpecifiedModel)',
-  '§3': 'to fix, change the sonnet generation declarations (FAMILY_GENERATIONS in src/utils/model/configs.ts), the picker rows in src/services/model/modelOptions.ts, or the effort and capability rows in src/utils/effort.ts and src/utils/model/capabilities.ts',
-  '§4': 'to fix, change the claude-sonnet-5-5 wire laws in src/utils/model/capabilities.ts (modelThinkingAlwaysOn, modelSupportsForcedToolChoice, foldToolChoiceForModel) or the thinking filter in src/services/messages/apiFilters.ts',
+  '§1': 'to fix, change the claude-sonnet-5-5 price row in src/models/usage/modelCost.ts (resolveModelPricing, getModelPricingString)',
+  '§2': 'to fix, change the canonical fold and display names for claude-sonnet-5-5 in src/models/facts/modelNames.ts (getCanonicalName) and src/models/catalogue/engineModel.ts (renderModelName, parseUserSpecifiedModel)',
+  '§3': 'to fix, change the sonnet generation declarations (FAMILY_GENERATIONS in src/models/facts/builtInModelTable.ts), the picker rows in src/models/catalogue/modelOptions.ts, or the effort and capability rows in src/models/effort/effort.ts and src/models/facts/capabilities.ts',
+  '§4': 'to fix, change the claude-sonnet-5-5 wire laws in src/models/facts/capabilities.ts (modelThinkingAlwaysOn, modelSupportsForcedToolChoice, foldToolChoiceForModel) or the thinking filter in src/engine/messages/apiFilters.ts',
 }
 let sonnetRowSection = ''
 function check(label: string, cond: boolean, detail?: string): void {
@@ -46,7 +46,7 @@ const PREVIOUS = 'claude-sonnet-5'
 
 section("§1 the price row: the vendor's tier for claude-sonnet-5-5 is recorded, never a family estimate")
 {
-  const { calculateUSDCost, getModelPricingString, resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
+  const { calculateUSDCost, getModelPricingString, resolveModelPricing } = await import('../../src/models/usage/modelCost.ts')
   const pricing = resolveModelPricing(ID)
   check('the cost tier is recorded: $2 in, $10 out, $2.50 5m write, $0.10 cache read (0.05x, platform.claude.com/docs/en/about-claude/pricing read 2026-10-25)', pricing.basis === 'recorded' && pricing.costs.inputTokens === 2 && pricing.costs.outputTokens === 10 && pricing.costs.promptCacheWriteTokens === 2.5 && pricing.costs.promptCacheReadTokens === 0.1, JSON.stringify(pricing))
   check("the price string reads '$2/$10 per Mtok'", getModelPricingString(ID) === '$2/$10 per Mtok', String(getModelPricingString(ID)))
@@ -64,8 +64,8 @@ section("§1 the price row: the vendor's tier for claude-sonnet-5-5 is recorded,
 
 section('§2 the fold and the names: claude-sonnet-5-5 is its own canonical, never swallowed by the sonnet-5 arm')
 {
-  const { firstPartyNameToCanonical, getCanonicalName, getMarketingNameForModel, getPublicModelName, parseUserSpecifiedModel, renderModelChip, renderModelName } = await import('../../src/services/model/model.ts')
-  const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
+  const { firstPartyNameToCanonical, getCanonicalName, getMarketingNameForModel, getPublicModelName, parseUserSpecifiedModel, renderModelChip, renderModelName } = await import('../../src/models/catalogue/engineModel.ts')
+  const { recognizeModelId } = await import('../../src/models/roads/idSpaces.ts')
   check('its own canonical', getCanonicalName(ID) === ID, getCanonicalName(ID))
   check('the [1m] twin folds to the same canonical', getCanonicalName(`${ID}[1m]`) === ID, getCanonicalName(`${ID}[1m]`))
   check('a spelling with case folds to the same canonical', getCanonicalName('Claude-Sonnet-5-5') === ID, getCanonicalName('Claude-Sonnet-5-5'))
@@ -91,17 +91,17 @@ section('§2 the fold and the names: claude-sonnet-5-5 is its own canonical, nev
 
 section("§3 the row: the sonnet family's newest generation, its class, its picker rows, its launch effort and its capability truth")
 {
-  const { FAMILY_GENERATIONS, newestGenerationKey, previousGenerationKeys } = await import('../../src/utils/model/configs.ts')
-  const { getDefaultSonnetModel, parseUserSpecifiedModel, renderModelName, renderModelSetting, renderDefaultModelSetting } = await import('../../src/services/model/model.ts')
-  const { classOfModel } = await import('../../src/services/providers/modelRegistry.ts')
-  const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/services/providers/anthropic/anthropicAdapter.ts')
-  const { focusedOptionSupports1m, getModelOptions } = await import('../../src/services/model/modelOptions.ts')
-  const { resolveCatalogueSpelling } = await import('../../src/services/model/modelSpellingFold.ts')
-  const effort = await import('../../src/utils/effort.ts')
-  const caps = await import('../../src/utils/model/capabilities.ts')
-  const { foldLegacyWorkerModelKey } = await import('../../src/services/concourse/workerModels.ts')
-  const { getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
-  const { getModelStrings } = await import('../../src/utils/model/modelStrings.ts')
+  const { FAMILY_GENERATIONS, newestGenerationKey, previousGenerationKeys } = await import('../../src/models/facts/builtInModelTable.ts')
+  const { getDefaultSonnetModel, parseUserSpecifiedModel, renderModelName, renderModelSetting, renderDefaultModelSetting } = await import('../../src/models/catalogue/engineModel.ts')
+  const { classOfModel } = await import('../../src/models/roads/modelRegistry.ts')
+  const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/models/roads/anthropic/anthropicAdapter.ts')
+  const { focusedOptionSupports1m, getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
+  const { resolveCatalogueSpelling } = await import('../../src/models/catalogue/modelSpellingFold.ts')
+  const effort = await import('../../src/models/effort/effort.ts')
+  const caps = await import('../../src/models/facts/capabilities.ts')
+  const { foldLegacyWorkerModelKey } = await import('../../src/screen/concourse-model/workerModels.ts')
+  const { getGlobalConfig, saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
+  const { getModelStrings } = await import('../../src/models/facts/pinnedModelIds.ts')
   const OLDEST = getModelStrings().sonnet46
 
   check('the generation table lists sonnet55 first, Sonnet 5 second, Sonnet 4.6 third (newest first)', FAMILY_GENERATIONS.sonnet.join(',') === 'sonnet55,sonnet5,sonnet46', FAMILY_GENERATIONS.sonnet.join(','))
@@ -156,10 +156,10 @@ section("§3 the row: the sonnet family's newest generation, its class, its pick
 
 section('§4 the wire laws as the real model answered: thinking always on, no forced tool choice, the disabled roads omit the parameter, foreign thinking leaves the wire both ways')
 {
-  const caps = await import('../../src/utils/model/capabilities.ts')
-  const { sideQueryThinkingParam } = await import('../../src/services/api/sideQuery.ts')
-  const { isSameModel, modelSwitchReceipt } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
-  const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/services/messages/apiFilters.ts')
+  const caps = await import('../../src/models/facts/capabilities.ts')
+  const { sideQueryThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
+  const { isSameModel, modelSwitchReceipt } = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
+  const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/engine/messages/apiFilters.ts')
   const show = (v: unknown): string => JSON.stringify(v)
 
   check('thinking is always on for the row (the [1m] twin too); Sonnet 5 keeps its switch; a carrier row never joins', caps.modelThinkingAlwaysOn(ID) && caps.modelThinkingAlwaysOn(`${ID}[1m]`) && !caps.modelThinkingAlwaysOn(PREVIOUS) && !caps.modelThinkingAlwaysOn('openrouter/anthropic/claude-sonnet-5-5'))

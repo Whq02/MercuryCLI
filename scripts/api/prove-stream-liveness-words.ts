@@ -19,14 +19,14 @@ process.env.MERCURY_SILENT_AFTER_HEADERS_MS = '400'
 process.env.GEMINI_API_KEY = 'fixture-key-not-real'
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
-const guard = setTimeout(() => { console.error('liveness proof exceeded 90 s — a scenario never settled: the last [PASS] or FRAME line printed above is the last one that ran; look at the reconnect and idle-wait law in src/services/providers/streamIdleBudget.ts and the compat and gemini call models under src/services/providers/'); process.exit(1) }, 90_000)
+const guard = setTimeout(() => { console.error('liveness proof exceeded 90 s — a scenario never settled: the last [PASS] or FRAME line printed above is the last one that ran; look at the reconnect and idle-wait law in src/models/roads/streamIdleBudget.ts and the compat and gemini call models under src/models/roads/'); process.exit(1) }, 90_000)
 guard.unref()
 let checks = 0
 let failures = 0
 const check = (label: string, pass: boolean, detail: unknown = '') => {
   checks++
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${pass ? '' : ` — ${String(detail)} — fix: the wait, idle and reconnect law is src/services/providers/streamIdleBudget.ts; the spinner words are src/components/Spinner/liveCounterWords.ts and src/components/Spinner.tsx; the roads are compatChatCallModel.ts and geminiCallModel.ts under src/services/providers/`}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${pass ? '' : ` — ${String(detail)} — fix: the wait, idle and reconnect law is src/models/roads/streamIdleBudget.ts; the spinner words are src/screen/spinner/liveCounterWords.ts and src/screen/spinner/Spinner.tsx; the roads are compatChatCallModel.ts and geminiCallModel.ts under src/models/roads/`}`)
 }
 const pause = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
 const sse = (obj: unknown) => `data: ${JSON.stringify(obj)}\n\n`
@@ -88,20 +88,20 @@ process.env.MERCURY_ANTIGRAVITY_MANIFEST_BASE = base
 writeFileSync(join(home, '.mercury.json'), JSON.stringify({ compatProvider: { llama: { baseUrl: `${base}/v1`, dialect: 'llamacpp', models: ['fixture'] } } }))
 const VERB = 'Debugging the sphinx'
 writeFileSync(join(home, 'settings.json'), JSON.stringify({ activity: { verbs: { mode: 'replace', verbs: [VERB] } } }))
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { geminiCallModel } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
-const { compatCallModel } = await import('../../src/services/providers/openaicompat/compatCallModel.ts')
-const { compatResponsesTransport } = await import('../../src/services/providers/openaicompat/compatResponsesTransport.ts')
-const { isContinuableStreamFaultMessage } = await import('../../src/services/api/errors.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const idle = await import('../../src/services/providers/streamIdleBudget.ts')
-const words = await import('../../src/components/Spinner/liveCounterWords.ts')
-type Wait = import('../../src/services/providers/streamIdleBudget.ts').RequestWaitV1
-type Facts = import('../../src/components/Spinner/liveCounterWords.ts').LiveCounterFacts
-type Profile = import('../../src/services/providers/openaicompat/compatChatCallModel.ts').CompatLaneProfile
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { geminiCallModel } = await import('../../src/models/roads/gemini/geminiCallModel.ts')
+const { compatCallModel } = await import('../../src/models/roads/openaicompat/compatCallModel.ts')
+const { compatResponsesTransport } = await import('../../src/models/roads/openaicompat/compatResponsesTransport.ts')
+const { isContinuableStreamFaultMessage } = await import('../../src/engine/requests/apiErrorRows.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const idle = await import('../../src/models/roads/streamIdleBudget.ts')
+const words = await import('../../src/screen/spinner/liveCounterWords.ts')
+type Wait = import('../../src/models/roads/streamIdleBudget.ts').RequestWaitV1
+type Facts = import('../../src/screen/spinner/liveCounterWords.ts').LiveCounterFacts
+type Profile = import('../../src/models/roads/openaicompat/compatChatCallModel.ts').CompatLaneProfile
 const profile: Profile = { lane: 'openai-compat', providerLabel: 'Fixture', requestUrl: () => `${base}/v1/chat/completions`, resolveCredential: () => ({}), credentialHint: '', wireModelId: () => 'fixture', buildExtras: () => ({ reasoning_effort: 'max', max_tokens: 32768 }) }
 const freshFacts = (): Facts => ({ phase: 'waiting', sentAtMs: Date.now(), firstByteAtMs: null, replyChars: 0, thinkingChars: 0, wireOutputTokens: null, wait: null })
 let facts = freshFacts()
@@ -166,11 +166,11 @@ try {
   check('headers do not erase the token wait', words.liveCounterWords(waiting.facts, waiting.facts.sentAtMs! + 2000).phase === 'waiting for the first token', JSON.stringify(waiting.facts))
   check('reasoning and text feed the shared live counter', snapshots.filter(s => s.tag !== 'waiting').every(s => words.liveCounterFigure(s.facts).total > 0))
   const React = await import('react')
-  const { default: Ink } = await import('../../src/ink/ink.tsx')
-  const { default: instances } = await import('../../src/ink/instances.ts')
-  const { App } = await import('../../src/components/App.tsx')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { SpinnerWithVerb } = await import('../../src/components/Spinner.tsx')
+  const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+  const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+  const { App } = await import('../../src/boot/App.tsx')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { SpinnerWithVerb } = await import('../../src/screen/spinner/Spinner.tsx')
   class Output extends EventEmitter { isTTY = true; rows = 40; constructor(public columns: number) { super() }; write() { return true } }
   class Input extends EventEmitter { isTTY = true; isRaw = false; setEncoding() { return this }; setRawMode(v: boolean) { this.isRaw = v; return this }; ref() { return this }; unref() { return this }; read() { return null }; get readableLength() { return 0 } }
   snapshots.push({ tag: 'no tokens for 2 min · reconnecting (1 of 3)', facts: { ...freshFacts(), sentAtMs: Date.now() - 120000, thinkingChars: 4800, replyChars: 1200, wait: { kind: 'retry', attempt: 1, of: 3, sinceMs: Date.now(), delayMs: 5000, reason: 'no tokens for 2 min', reconnecting: true, silentMs: 120000 } as Wait } })
@@ -257,7 +257,7 @@ try {
     const tool = await drive(road, 'tool')
     check(`${road}: an unfinished tool is not reissued or executed`, tool.hits === 1 && tool.errors.length === 1 && !tool.items.some(i => i.type === 'assistant' && i.message.content.some((b: any) => b.type === 'tool_use')), JSON.stringify(tool))
   }
-  const accounts = await import('../../src/services/providers/gemini/geminiAccounts.ts')
+  const accounts = await import('../../src/models/roads/gemini/geminiAccounts.ts')
   writeFileSync(join(home, '.gemini-auth.json'), JSON.stringify({ version: 1, preferredSource: 'plan', plan: { projectId: 'fixture-project', tokens: { accessToken: 'fixture-access', refreshToken: 'fixture-refresh', accessTokenExpiresAtMs: Date.now() + 3600000 } } }))
   accounts.__resetGeminiAccountsForTest()
   const planRead = await drive('gemini', 'read')
@@ -281,7 +281,7 @@ try {
   const measuredWait = measured.waits.find(w => w.kind === 'first-byte') as Extract<Wait, { kind: 'first-byte' }> | undefined
   check('configured llama.cpp route feeds measured speed into the real request wait', measured.hits === 1 && measuredWait !== undefined && (measuredWait.prefillMs ?? 0) >= 20000 && measuredWait.budgetMs === idle.streamIdleTimeoutMsForRoute('openai-compat', 'llamacpp') + measuredWait.prefillMs!, JSON.stringify(measuredWait))
   check('prefill estimate survives the wait wire codec', measuredWait !== undefined && idle.decodeRequestWait(idle.requestWaitFromWire(idle.requestWaitToWire(measuredWait)))?.kind === 'first-byte' && isDeepStrictEqual(idle.decodeRequestWait(idle.requestWaitFromWire(idle.requestWaitToWire(measuredWait))), measuredWait))
-  const probe = await import('../../src/services/providers/openaicompat/compatPrefill.ts').catch(() => null)
+  const probe = await import('../../src/models/roads/openaicompat/compatPrefill.ts').catch(() => null)
   check('the measured prefill probe exists', probe !== null)
   if (probe) {
     const speed = await probe.readCompatPrefillSpeed({ baseUrl: `${base}/v1`, dialect: 'llamacpp' }, 'fixture')

@@ -15,20 +15,20 @@ const key = 'AIzaFixtureSignedParts00000000000000000'
 process.env.GEMINI_API_KEY = key
 writeFileSync(join(proofHome, '.gemini-auth.json'), JSON.stringify({ version: 1, preferredSource: 'api-key' }))
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { geminiCallModel } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
-const { buildGeminiRequest, GEMINI_SKIP_SIGNATURE_VALIDATION } = await import('../../src/services/providers/gemini/geminiCodec.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { foldSplitTurnsForWire } = await import('../../src/services/messages/pairing.ts')
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
-import type { GeminiContent, GeminiPart } from '../../src/services/providers/gemini/geminiCodec.ts'
+const { geminiCallModel } = await import('../../src/models/roads/gemini/geminiCallModel.ts')
+const { buildGeminiRequest, GEMINI_SKIP_SIGNATURE_VALIDATION } = await import('../../src/models/roads/gemini/geminiCodec.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { foldSplitTurnsForWire } = await import('../../src/engine/messages/wirePairing.ts')
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
+import type { GeminiContent, GeminiPart } from '../../src/models/roads/gemini/geminiCodec.ts'
 
 let passes = 0
 let failures = 0
-const GEMINI_SIGNED_PARTS_HINT = 'to fix, change how thought signatures are recorded and replayed in buildGeminiRequest (src/services/providers/gemini/geminiCodec.ts), geminiCallModel (src/services/providers/gemini/geminiCallModel.ts) or foldSplitTurnsForWire (src/utils/messages/resultPairing.ts)'
+const GEMINI_SIGNED_PARTS_HINT = 'to fix, change how thought signatures are recorded and replayed in buildGeminiRequest (src/models/roads/gemini/geminiCodec.ts), geminiCallModel (src/models/roads/gemini/geminiCallModel.ts) or foldSplitTurnsForWire (src/engine/message-shapes/resultPairing.ts)'
 function check(label: string, ok: boolean, detail = ''): void {
   if (ok) passes++
   else failures++

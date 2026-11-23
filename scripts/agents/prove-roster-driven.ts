@@ -193,7 +193,7 @@ section('§2 a scout run: mercury-scout has no writer; its write attempt is refu
   check('the scout seat carries no Write, Edit, NotebookEdit or Crewmate tool', !['Write', 'Edit', 'NotebookEdit', 'Crewmate'].some(t => seatTools.includes(t)), seatTools.join(','))
   check('the scout seat keeps Read, Grep and Glob', ['Read', 'Grep', 'Glob'].every(t => seatTools.includes(t)), seatTools.join(','))
   check('the scout seat carries no worktree door, no schedule writer and no memory writer', !['EnterWorktree', 'ExitWorktree', 'CronCreate', 'CronDelete', 'ScheduleWakeup', 'Retain', 'Correct', 'RecordConvention'].some(t => seatTools.includes(t)), seatTools.join(','))
-  const { getAllBaseTools } = await import('../../src/tools.ts')
+  const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
   const baseTools = new Map((getAllBaseTools() as unknown as ClassifiedTool[]).map(t => [t.name, t]))
   const offered = seatTools.filter(t => t !== 'Bash' && t !== 'Skill' && !t.startsWith('mcp__'))
   const writers = offered.filter(t => !readsOnlyAtRest(baseTools.get(t)))
@@ -254,7 +254,7 @@ section('§2d a scout run: an input-dependent tool is offered, its writing form 
 
 section("§2e the scout's tool gate itself: the pool is the read-only pool, the call road refuses a writing form")
 {
-  const policy = await import('../../src/tools/AgentTool/scoutPolicy.ts') as Partial<{ restrictScoutTools: (tools: ClassifiedTool[]) => ClassifiedTool[]; scoutRefusal: (tool: ClassifiedTool, input: Record<string, unknown>) => Promise<string | null> }>
+  const policy = await import('../../src/tools/crewmate/scoutPolicy.ts') as Partial<{ restrictScoutTools: (tools: ClassifiedTool[]) => ClassifiedTool[]; scoutRefusal: (tool: ClassifiedTool, input: Record<string, unknown>) => Promise<string | null> }>
   const calls: string[] = []
   const tool = (name: string, isReadOnly: (input: Record<string, unknown>) => boolean): ClassifiedTool => ({ name, isReadOnly, call: async (...args: unknown[]) => { calls.push(`${name}:${JSON.stringify(args[0])}`); return 'ran' } })
   const pool = [
@@ -297,13 +297,13 @@ section("§2e the scout's tool gate itself: the pool is the read-only pool, the 
 
 section("§2f the agents screen says the scout's tools are the read-only pool, and the crew agent's are all")
 {
-  const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryScoutAgent.ts')
-  const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryCrewAgent.ts')
-  const { resolveEffectiveAgentRuntime } = await import('../../src/services/agents/resolver.ts')
-  const { agentFaceDetailLines } = await import('../../src/components/BootAgentsScreen.tsx')
-  const { getAllBaseTools } = await import('../../src/tools.ts')
-  const { SCOUT_TOOLS_DESCRIPTION } = await import('../../src/tools/AgentTool/scoutPolicy.ts')
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryScoutAgent.ts')
+  const { MERCURY_CREW_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryCrewAgent.ts')
+  const { resolveEffectiveAgentRuntime } = await import('../../src/crew/agents/resolver.ts')
+  const { agentFaceDetailLines } = await import('../../src/screen/boot-face/BootAgentsScreen.tsx')
+  const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+  const { SCOUT_TOOLS_DESCRIPTION } = await import('../../src/tools/crewmate/scoutPolicy.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
   const tools = getAllBaseTools()
   const lineFor = (agent: typeof MERCURY_SCOUT_AGENT): string => {

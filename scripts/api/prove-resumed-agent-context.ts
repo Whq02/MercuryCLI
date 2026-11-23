@@ -18,21 +18,21 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${!cond ? ' — to fix: the crewmate record is written and restored by boundPrefixRecordToEmit, restoreBoundPrefixFromMessages and recordedRequestContexts in src/services/providers/anthropic/boundPrefixRecord.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${!cond ? ' — to fix: the crewmate record is written and restored by boundPrefixRecordToEmit, restoreBoundPrefixFromMessages and recordedRequestContexts in src/models/roads/anthropic/boundPrefixRecord.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { planToolPayload, clearToolRosterLatches, clearToolRosterRestore } = await import('../../src/services/providers/toolEconomy.ts')
-const prefixRecord = await import('../../src/services/providers/anthropic/boundPrefixRecord.ts')
+const { planToolPayload, clearToolRosterLatches, clearToolRosterRestore } = await import('../../src/models/roads/toolEconomy.ts')
+const prefixRecord = await import('../../src/models/roads/anthropic/boundPrefixRecord.ts')
 const { boundPrefixRecordToEmit, restoreBoundPrefixFromMessages, resetBoundPrefixEmitted } = prefixRecord
 const recordedRequestContexts: (messages: readonly unknown[], boundKey: string) => { userContext?: Record<string, string>; systemContext?: Record<string, string> } | null =
   (prefixRecord as { recordedRequestContexts?: typeof recordedRequestContexts }).recordedRequestContexts ?? (() => null)
-const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
-const { clearSystemPromptSectionState } = await import('../../src/bootstrap/state.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getSystemContext } = await import('../../src/context.ts')
+const { clearToolSchemaCache } = await import('../../src/models/roads/toolSchemaCache.ts')
+const { clearSystemPromptSectionState } = await import('../../src/boot/process-state/processState.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getSystemContext } = await import('../../src/engine/requestContext.ts')
 const { z } = await import('zod/v4')
 
 const model = 'claude-fable-5-1'
@@ -102,9 +102,9 @@ check('a transcript with no record yields no override', recordedRequestContexts(
 section('§4 the resume and the launch wire the record end to end')
 {
   const t = await import('../core-runtime/turnScenarios.ts')
-  const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
-  const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
-  const { rosterOwnerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
+  const { makeRequest } = await import('../../src/engine/loop/turn/makeRequest.ts')
+  const { modelReply } = await import('../../src/engine/loop/turn/modelReply.ts')
+  const { rosterOwnerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
   const firstExchangeRecordOf = async (who: { agentId?: string; querySource?: string }): Promise<Record_ | undefined> => {
     const planted = await t.plantRun({ ...who, script: [t.fixtures.yields(t.fixtures.says('the note is written.'))] })
     Object.assign(planted.run, { userContext: launchUserContext, systemContext: launchSystemContext })
@@ -120,7 +120,7 @@ section('§4 the resume and the launch wire the record end to end')
   check(
     'the turn machine hands a crewmate\'s own request contexts to its record',
     crewRecord !== undefined && crewRecord.sections.length === 0 && j(crewRecord.userContext) === j(launchUserContext) && j(crewRecord.systemContext) === j(launchSystemContext) && leadRecord !== undefined && leadRecord.userContext === undefined,
-    `the record a run under an agent id wrote after its first reply: ${j(crewRecord && { sections: crewRecord.sections.length, userContext: crewRecord.userContext, systemContext: crewRecord.systemContext })}; the record of a run with no agent id: ${j(leadRecord && { userContext: leadRecord.userContext })} — the model call of src/run-core/turn/streamModel.ts writes a crewmate's record roster-only with the user and system contexts of its own request, and the main conversation's without a user context`,
+    `the record a run under an agent id wrote after its first reply: ${j(crewRecord && { sections: crewRecord.sections.length, userContext: crewRecord.userContext, systemContext: crewRecord.systemContext })}; the record of a run with no agent id: ${j(leadRecord && { userContext: leadRecord.userContext })} — the model call of src/engine/loop/turn/streamModel.ts writes a crewmate's record roster-only with the user and system contexts of its own request, and the main conversation's without a user context`,
   )
 }
 

@@ -14,15 +14,15 @@ import {
   hintBudget,
   HELM_COMPACT_ROWS,
   HELM_DENSITY_FLOOR,
-} from '../../src/utils/helmDensity.ts'
+} from '../../src/screen/fullscreen-layout/helmDensity.ts'
 import {
   getCockpitActivity,
   publishCockpitActivity,
   resetCockpitActivityForTests,
   subscribeCockpitActivity,
   type ActivityState,
-} from '../../src/utils/cockpit/cockpitActivity.ts'
-import { critterDefForKey, squareDockArtFor } from '../../src/utils/cockpit/critterData.ts'
+} from '../../src/screen/cockpit/cockpitActivity.ts'
+import { critterDefForKey, squareDockArtFor } from '../../src/screen/cockpit/critterData.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const t = checker()
@@ -138,8 +138,8 @@ t.section('§2 — one published activity, subscribed rather than polled')
 t.section('§3 — the rail consumes the plan; no lane order is written twice')
 {
   const { mountPart } = await import('../ui/chatScenarios.ts')
-  const { useChatTitle } = await import('../../src/screens/chat/useChatTitle.tsx')
-  const { pushOverlay, popOverlay } = await import('../../src/context/overlayStack.ts')
+  const { useChatTitle } = await import('../../src/screen/chat/useChatTitle.tsx')
+  const { pushOverlay, popOverlay } = await import('../../src/screen/overlays/overlayStack.ts')
   type TitleArgs = Parameters<typeof useChatTitle>[0]
   const seat = { sessionId: () => 'density-proof' } as unknown as TitleArgs['focusedConnector']
   const planted = (over: Partial<TitleArgs>) => (store: TitleArgs['store']) => useChatTitle({ focusedInputDialog: undefined, focusedConnector: seat, isLoading: false, store, ...over })

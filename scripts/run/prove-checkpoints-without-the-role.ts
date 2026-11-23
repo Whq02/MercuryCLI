@@ -6,7 +6,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFile
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { FileCheckpointsFactSchema, InitializeParamsSchema, InitializeResultSchema, RUNNER_PROTOCOL } from '../../src/runner/wire/methods.ts'
+import { FileCheckpointsFactSchema, InitializeParamsSchema, InitializeResultSchema, RUNNER_PROTOCOL } from '../../src/daemon/runner-wire/methods.ts'
 import { DIST, MODEL, NODE, SCRATCH_ROOT, bound, childEnv, isOutcome, makeTally, removeWorld, seedHome, type Frame } from '../daemon/dupline-world.ts'
 import { HANDOFF_ASK_MARK, renderTurn, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
@@ -27,10 +27,10 @@ const LEAD_DONE = 'CP-DONE.'
 
 section('§1 the switch is its own fact: the role no longer gates a hosted run, the setting stays the off switch, the defaults hold')
 {
-  const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { setIsInteractive, getIsNonInteractiveSession } = await import('../../src/bootstrap/state.ts')
-  const fh = await import('../../src/services/changeTransaction/fileHistory.ts')
+  const { setIsInteractive, getIsNonInteractiveSession } = await import('../../src/boot/process-state/processState.ts')
+  const fh = await import('../../src/tools/engines/change-transaction/fileHistory.ts')
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: true }))
   setIsInteractive(false)
   check('the run posture reads non-interactive (the premise)', getIsNonInteractiveSession())

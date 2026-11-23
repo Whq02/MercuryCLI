@@ -56,7 +56,7 @@ const world = {
   reinitialized: 0,
   waited: 0,
 }
-const managerPath = fileURLToPath(new URL('../../src/services/lsp/manager.ts', import.meta.url))
+const managerPath = fileURLToPath(new URL('../../src/integrations/lsp/serverManagerLifecycle.ts', import.meta.url))
 const realManager = await import(managerPath)
 mock.module(managerPath, () => ({
   ...realManager,
@@ -71,7 +71,7 @@ mock.module(managerPath, () => ({
 }))
 
 let failures = 0
-const lspCommandHint = 'change the call function of /lsp in src/commands/lsp/lsp.ts (the status lines come from serverStatusLines in src/tools/LSPTool/mercuryOps/serverStatus.ts)'
+const lspCommandHint = 'change the call function of /lsp in src/commands/lsp/lsp.ts (the status lines come from serverStatusLines in src/tools/lsp/mercury-ops/serverStatus.ts)'
 function check(name: string, ok: boolean, detail?: string): void {
   if (ok) console.log(`  ok  ${name}`)
   else {
@@ -93,7 +93,7 @@ const say = async (args: string): Promise<string> => {
 
 section('/lsp status is the serverStatus answer as a screen line')
 const status = await say('status')
-const ops = (await import('../../src/tools/LSPTool/mercuryOps.ts')) as { serverStatusLines?: (manager: unknown) => string[] }
+const ops = (await import('../../src/tools/lsp/mercuryOps.ts')) as { serverStatusLines?: (manager: unknown) => string[] }
 const opLines = typeof ops.serverStatusLines === 'function' ? ops.serverStatusLines(fakeManager).join('\n') : '(the serverStatus op shares no lines in this tree)'
 check('the status lines are byte-identical to the LspRead serverStatus op\'s lines', status === opLines, status)
 check('each server reads with its state, generation and restarts', status.includes('mercury-ts — running (gen 1, restarts 0)') && status.includes('mercury-pyright — error (gen 1, restarts 0)') && status.includes('lastError: spawn pyright-langserver ENOENT'), status)

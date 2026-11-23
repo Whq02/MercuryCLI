@@ -19,10 +19,10 @@ const MODEL = 'claude-fable-5-1'
 let failures = 0
 let checks = 0
 let sectionHint = ''
-const HINT_PREFIX = 'what to change: a request that moved the prefix is fixed where the moved part (system, tools or message) is built in src/services/providers/anthropic/ (cacheAndUsage.ts builds the system blocks and cache breakpoints); the first differing part is in the detail; a non-zero exit or a missing answer is read from the stderr tail in the detail, and dist/mercury.mjs must be freshly built (bun run build.ts)'
+const HINT_PREFIX = 'what to change: a request that moved the prefix is fixed where the moved part (system, tools or message) is built in src/models/roads/anthropic/ (cacheAndUsage.ts builds the system blocks and cache breakpoints); the first differing part is in the detail; a non-zero exit or a missing answer is read from the stderr tail in the detail, and dist/mercury.mjs must be freshly built (bun run build.ts)'
 const HINTS: Record<string, string> = {
-  '§1': 'what to change: the function named in the label, in src/services/providers/anthropic/cacheDiagnostics.ts (cacheDiagnosticsParam, previousProviderMessageId, describeCacheDiagnostics, cacheMissReasonOf, isCacheDiagnosticsRefusal, refuseCacheDiagnostics)',
-  '§6': 'what to change: the posture section or its change reminder in src/utils/cockpit/runtimePosture.ts (getRuntimePostureSection, markSessionPermissionMode)',
+  '§1': 'what to change: the function named in the label, in src/models/roads/anthropic/cacheDiagnostics.ts (cacheDiagnosticsParam, previousProviderMessageId, describeCacheDiagnostics, cacheMissReasonOf, isCacheDiagnosticsRefusal, refuseCacheDiagnostics)',
+  '§6': 'what to change: the posture section or its change reminder in src/screen/cockpit/runtimePosture.ts (getRuntimePostureSection, markSessionPermissionMode)',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
@@ -210,7 +210,7 @@ const U = (name: string, input: Record<string, unknown>): ScriptedTurn => ({ kin
 
 section('§1 the pure law: the diagnostics field, the previous id and the cold-prefix reading')
 {
-  const { cacheDiagnosticsParam, previousProviderMessageId, describeCacheDiagnostics, cacheMissReasonOf } = await import('../../src/services/providers/anthropic/cacheDiagnostics.ts')
+  const { cacheDiagnosticsParam, previousProviderMessageId, describeCacheDiagnostics, cacheMissReasonOf } = await import('../../src/models/roads/anthropic/cacheDiagnostics.ts')
   check('the previous id is the newest provider message id in the wire (synthetic ids skipped)', previousProviderMessageId(['msg_01A', null, 'not-a-provider-id', 'msg_02B', null]) === 'msg_02B' && previousProviderMessageId([null, 'a-uuid']) === null)
   check('the main thread on the first-party road opts in; the first request carries null', j(cacheDiagnosticsParam([], 'main_thread', () => true)) === j({ previous_message_id: null }))
   check('a side request (the summariser) does not opt in', cacheDiagnosticsParam(['msg_01A'], 'compact', () => true) === null)
@@ -223,7 +223,7 @@ section('§1 the pure law: the diagnostics field, the previous id and the cold-p
   check('MERCURY_CACHE_DIAGNOSTICS=0 turns the field off', cacheDiagnosticsParam(['msg_01A'], 'main_thread', () => true) === null)
   if (saved === undefined) delete process.env.MERCURY_CACHE_DIAGNOSTICS
   else process.env.MERCURY_CACHE_DIAGNOSTICS = saved
-  const { isCacheDiagnosticsRefusal, refuseCacheDiagnostics, cacheDiagnosticsRefusal } = await import('../../src/services/providers/anthropic/cacheDiagnostics.ts')
+  const { isCacheDiagnosticsRefusal, refuseCacheDiagnostics, cacheDiagnosticsRefusal } = await import('../../src/models/roads/anthropic/cacheDiagnostics.ts')
   const refused = Object.assign(new Error('diagnostics: Extra inputs are not permitted'), { status: 400 })
   check('a 400 that names the diagnostics field is the refusal the retry ladder heals; a 400 about anything else is not; a 500 naming it is not', isCacheDiagnosticsRefusal(refused) && !isCacheDiagnosticsRefusal(Object.assign(new Error('max_tokens too large'), { status: 400 })) && !isCacheDiagnosticsRefusal(Object.assign(new Error('diagnostics'), { status: 500 })))
   refuseCacheDiagnostics('refused in the proof')
@@ -394,7 +394,7 @@ if (!existsSync(DIST)) {
       const debug = existsSync(debugFile) ? readFileSync(debugFile, 'utf8') : ''
       check('§5 the debug log names the re-composition once, at the fold', debug.split('\n').filter(line => line.includes('composed again after the fold')).length === 1)
       check('§5 the product\'s ledger saw no rewrite of sent history in the turn after the fold', !debug.includes('names a rewrite of sent history'), debug.split('\n').filter(l => l.includes('rewrite of sent history')).slice(0, 2).join(' | '))
-      const { historyLines } = await import('../../src/utils/sessionStorage/historyParts.ts')
+      const { historyLines } = await import('../../src/sessions/transcripts/historyParts.ts')
       const transcript = findFile(arena.home, p => p.endsWith(`${SID}.jsonl`) && p.includes('projects'))
       const rows = transcript === null ? [] : [...historyLines(transcript)].map(bytes => bytes.toString('utf8'))
       const records = rows.filter(line => line.includes('"attachmentType":"bound_prefix"')).map(line => { try { return (JSON.parse(line) as { payload?: { fields?: { systemContext?: Record<string, string> } } }).payload?.fields?.systemContext } catch { return undefined } })
@@ -408,7 +408,7 @@ if (!existsSync(DIST)) {
 
     section('§6 a posture change rides the message stream, never the system block')
     {
-      const posture = await import('../../src/utils/cockpit/runtimePosture.ts')
+      const posture = await import('../../src/screen/cockpit/runtimePosture.ts')
       posture.resetRuntimePostureForTest()
       posture.markSessionNonInteractive('default')
       const atBoot = posture.getRuntimePostureSection()

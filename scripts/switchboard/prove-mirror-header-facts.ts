@@ -23,7 +23,7 @@ const OUT_DIR = resolve(argAfter('--frames') ?? join(tmpdir(), `mirror-header-fa
 mkdirSync(OUT_DIR, { recursive: true })
 
 let failures = 0
-const headerFailHint = 'change mirrorHeaderFit in src/components/concourse/mirrorHeader.ts (how many facts and how many cells of the reply words fit beside the title); it is called from src/components/concourse/SessionMirror.tsx, which draws the header the board checks read, and the screens captured at each size are the mirror-header-*.txt files under the frames folder'
+const headerFailHint = 'change mirrorHeaderFit in src/screen/concourse/mirrorHeader.ts (how many facts and how many cells of the reply words fit beside the title); it is called from src/screen/concourse/SessionMirror.tsx, which draws the header the board checks read, and the screens captured at each size are the mirror-header-*.txt files under the frames folder'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${headerFailHint}` : ''}`)
@@ -31,8 +31,8 @@ function check(label: string, cond: boolean, detail = ''): void {
 const j = (value: unknown): string => JSON.stringify(value)
 
 const cells = (text: string): number => [...text].length
-const { truncateToWidth } = await import('../../src/utils/glyphs.ts')
-const header = (await import('../../src/components/concourse/mirrorHeader.ts').catch(() => null)) as null | typeof import('../../src/components/concourse/mirrorHeader.ts')
+const { truncateToWidth } = await import('../../src/screen/theme/glyphs.ts')
+const header = (await import('../../src/screen/concourse/mirrorHeader.ts').catch(() => null)) as null | typeof import('../../src/screen/concourse/mirrorHeader.ts')
 
 const HINT = '↵ enter session'
 const FACTS = ['proj', 'Opus 4.8', 'high']

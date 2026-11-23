@@ -7,9 +7,9 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'rows-vocab-'))
 
-const vocabulary = await import('../../src/rows/vocabulary.ts')
-const project = await import('../../src/rows/project.ts')
-const read = await import('../../src/rows/read.ts')
+const vocabulary = await import('../../src/engine/rows/vocabulary.ts')
+const project = await import('../../src/engine/rows/project.ts')
+const read = await import('../../src/engine/rows/read.ts')
 
 const {
   ROWS_SCHEMA,

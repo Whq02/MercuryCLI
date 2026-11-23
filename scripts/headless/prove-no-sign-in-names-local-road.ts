@@ -94,7 +94,7 @@ console.log('§2 no sign-in, a local server answering with models: the refusal n
 
 console.log('§3 the words have one owner')
 {
-  const { localRoadBesideSignIn, LOCAL_SETUP_WORDS } = await import('../../src/services/providers/local/localAccounts.ts')
+  const { localRoadBesideSignIn, LOCAL_SETUP_WORDS } = await import('../../src/models/roads/local/localAccounts.ts')
   check('the clause without a server is the /localsetup words the sign-in wall\'s readiness row uses', localRoadBesideSignIn(undefined) === `or run a local model — ${LOCAL_SETUP_WORDS}`)
 }
 

@@ -4,12 +4,12 @@ import { join } from 'node:path'
 const saved = process.env.MERCURY_WORKER_RECON_ALLOW
 delete process.env.MERCURY_WORKER_RECON_ALLOW
 
-const { SEAT_RECON_ALLOW, isValidReconAllowRule, resolveWorkerReconAllow } = await import('../../src/daemon/workerRecon.ts')
+const { SEAT_RECON_ALLOW, isValidReconAllowRule, resolveWorkerReconAllow } = await import('../../src/daemon/concourse-workers/workerRecon.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const hint = 'change: SEAT_RECON_ALLOW, isValidReconAllowRule or resolveWorkerReconAllow in src/daemon/workerRecon.ts'
+  const hint = 'change: SEAT_RECON_ALLOW, isValidReconAllowRule or resolveWorkerReconAllow in src/daemon/concourse-workers/workerRecon.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${[detail, hint].filter(Boolean).join(' | ')}` : ''}`)
 }
 

@@ -8,15 +8,15 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 const leakFailureHints: Array<[string, string]> = [
-  ['A1a', 'fix subprocessEnv in src/utils/subprocessEnv.ts or pythonSpawnEnv in src/services/dap/debugpyResolver.ts'],
-  ['A2', 'fix execFileNoThrow in src/utils/execFileNoThrow.ts'],
-  ['A3', 'fix buildKernelEnv in src/services/eval/kernelEnv.ts'],
-  ['A4', 'fix the call of CronCreateTool (src/tools/ScheduleCronTool/CronCreateTool.ts) or ScheduleWakeupTool (src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts)'],
-  ['A5', 'fix deriveScheduleAccountForModel in src/daemon/saturnAccount.ts or saturnFactsOf in src/daemon/saturn.ts'],
-  ['A6', 'fix describeHeadersRedacted in src/utils/redactHeaders.ts'],
-  ['A7', 'fix validateSaturnSubmission or saturnSecretProseRefusal in src/daemon/saturn.ts, boxScheduleProblem in src/daemon/saturnBoxSchedules.ts, or the two schedule tools'],
-  ['B5', 'fix runHuggingfaceDeviceLogin in src/services/providers/huggingface/huggingfaceLogin.ts or runKimiDeviceLogin in src/services/providers/moonshot/moonshotLogin.ts'],
-  ['B4x', 'fix rearmWatchRoots or dispose in src/utils/skills/skillChangeDetector.ts'],
+  ['A1a', 'fix subprocessEnv in src/platform/processes/subprocessEnv.ts or pythonSpawnEnv in src/integrations/debugger/debugpyResolver.ts'],
+  ['A2', 'fix execFileNoThrow in src/platform/processes/execFileNoThrow.ts'],
+  ['A3', 'fix buildKernelEnv in src/tools/engines/eval-kernels/kernelEnv.ts'],
+  ['A4', 'fix the call of CronCreateTool (src/tools/cron/CronCreateTool.ts) or ScheduleWakeupTool (src/tools/schedule-wakeup/ScheduleWakeupTool.ts)'],
+  ['A5', 'fix deriveScheduleAccountForModel in src/daemon/saturn/saturnAccount.ts or saturnFactsOf in src/daemon/saturn/saturn.ts'],
+  ['A6', 'fix describeHeadersRedacted in src/commands/mcp/redactHeaders.ts'],
+  ['A7', 'fix validateSaturnSubmission or saturnSecretProseRefusal in src/daemon/saturn/saturn.ts, boxScheduleProblem in src/daemon/saturn/saturnBoxSchedules.ts, or the two schedule tools'],
+  ['B5', 'fix runHuggingfaceDeviceLogin in src/models/roads/huggingface/huggingfaceLogin.ts or runKimiDeviceLogin in src/models/roads/moonshot/moonshotLogin.ts'],
+  ['B4x', 'fix rearmWatchRoots or dispose in src/integrations/skill-watch/skillChangeDetector.ts'],
 ]
 const leakHintOf = (label: string): string => {
   const found = leakFailureHints.find(([prefix]) => label.startsWith(`${prefix} `))
@@ -40,14 +40,14 @@ section('§A1a — the scrubbed base is BEHAVIOURAL law (subprocessEnv strips th
   process.env.MERCURY_OAUTH_TOKEN = MARK
   process.env[FOREIGN_TOKEN_VAR] = MARK
   process.env.OTEL_EXPORTER_OTLP_HEADERS = `authorization=Bearer ${MARK}`
-  const { subprocessEnv } = await import('../../src/utils/subprocessEnv.ts')
+  const { subprocessEnv } = await import('../../src/platform/processes/subprocessEnv.ts')
   const scrubbed = subprocessEnv()
   check('A1a the session token never rides a child env', scrubbed.MERCURY_OAUTH_TOKEN === undefined)
   check('A1a the foreign session token never rides a child env', scrubbed[FOREIGN_TOKEN_VAR] === undefined)
   check('A1a the OTLP bearer header never rides a child env', scrubbed.OTEL_EXPORTER_OTLP_HEADERS === undefined)
   check('A1a the scrub never eats the world (PATH survives)', scrubbed.PATH === process.env.PATH)
 
-  const { pythonSpawnEnv } = await import('../../src/services/dap/debugpyResolver.ts')
+  const { pythonSpawnEnv } = await import('../../src/integrations/debugger/debugpyResolver.ts')
   const adapterEnv = pythonSpawnEnv()
   const overlayPresent =
     adapterEnv.PYTHONPYCACHEPREFIX !== undefined || adapterEnv.PYTHONDONTWRITEBYTECODE === '1'
@@ -65,7 +65,7 @@ section('§A1a — the scrubbed base is BEHAVIOURAL law (subprocessEnv strips th
 section('§A2 — the execa wrapper cannot extend over the raw env (extendEnv trap)')
 {
   process.env.MERCURY_OAUTH_TOKEN = MARK
-  const { execFileNoThrow } = await import('../../src/utils/execFileNoThrow.ts')
+  const { execFileNoThrow } = await import('../../src/platform/processes/execFileNoThrow.ts')
   const probeJs = 'process.stdout.write((process.env.MERCURY_OAUTH_TOKEN ?? "absent") + "|" + (process.env.LEAK_OVERLAY ?? "none") + "|" + (process.env.PATH ? "path" : "nopath"))'
   const bare = await execFileNoThrow(process.execPath, ['-e', probeJs])
   check('A2 a wrapper child never sees the session token (no caller env)', bare.stdout.startsWith('absent|'), bare.stdout.slice(0, 60))
@@ -77,7 +77,7 @@ section('§A2 — the execa wrapper cannot extend over the raw env (extendEnv tr
 
 section('§A3 — the no-env spawn subset that runs foreign/user code, and the kernel env\'s OTEL gap')
 {
-  const { buildKernelEnv } = await import('../../src/services/eval/kernelEnv.ts')
+  const { buildKernelEnv } = await import('../../src/tools/engines/eval-kernels/kernelEnv.ts')
   const kernelEnv = buildKernelEnv({
     PATH: '/usr/bin',
     MERCURY_OAUTH_TOKEN: MARK,
@@ -95,7 +95,7 @@ section('§A3 — the no-env spawn subset that runs foreign/user code, and the k
 section('§A4 — a secret-bearing prompt never persists onto a schedule (both model doors)')
 {
   const MARKED_KEY = `sk-ant-${MARK}`
-  const { CronCreateTool } = await import('../../src/tools/ScheduleCronTool/CronCreateTool.ts')
+  const { CronCreateTool } = await import('../../src/tools/cron/CronCreateTool.ts')
   let cronRefusal = ''
   try {
     await CronCreateTool.call({ cron: '0 9 * * *', prompt: `use ${MARKED_KEY} for the audit` } as never, {} as never)
@@ -105,7 +105,7 @@ section('§A4 — a secret-bearing prompt never persists onto a schedule (both m
   check('A4 CronCreate refuses a secret-bearing prompt typed', cronRefusal.includes('secret'), cronRefusal.slice(0, 90))
   check('A4 the refusal never echoes the secret bytes', !cronRefusal.includes(MARK), cronRefusal.slice(0, 90))
 
-  const { ScheduleWakeupTool } = await import('../../src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts')
+  const { ScheduleWakeupTool } = await import('../../src/tools/schedule-wakeup/ScheduleWakeupTool.ts')
   let wakeRefusal = ''
   try {
     await ScheduleWakeupTool.call({ delaySeconds: 60, prompt: `key: ${MARKED_KEY}` } as never, {} as never)
@@ -118,7 +118,7 @@ section('§A4 — a secret-bearing prompt never persists onto a schedule (both m
 
 section('§A5 — SATURN\'s capture is WHO, never a token (the schema\'s own law, driven)')
 {
-  const { deriveScheduleAccountForModel } = await import('../../src/daemon/saturnAccount.ts')
+  const { deriveScheduleAccountForModel } = await import('../../src/daemon/saturn/saturnAccount.ts')
   const smuggled = {
     subscriber: true,
     scopeDir: '/scope/ring-a',
@@ -140,7 +140,7 @@ section('§A5 — SATURN\'s capture is WHO, never a token (the schema\'s own law
   check('A5 the capture fields are the closed WHO set', captureKeys.length > 0 && captureKeys.every(k => CAPTURE_FIELDS.has(k)), captureKeys.join(','))
   check('A5 the capture carries the identity (WHO rides)', derived.ok && (derived.account as { identity?: string }).identity === 'operator@example.com')
 
-  const saturn = await import('../../src/daemon/saturn.ts')
+  const saturn = await import('../../src/daemon/saturn/saturn.ts')
   const schedule = {
     schema: 1,
     id: 'ab12cd34',
@@ -161,7 +161,7 @@ section('§A5 — SATURN\'s capture is WHO, never a token (the schema\'s own law
 
 section('§A6 — a headers object is never spelled whole onto a surface (log, confirmation, error)')
 {
-  const { describeHeadersRedacted } = await import('../../src/utils/redactHeaders.ts')
+  const { describeHeadersRedacted } = await import('../../src/commands/mcp/redactHeaders.ts')
   const spelled = describeHeadersRedacted({
     authorization: `Bearer ${MARK}`,
     'X-Api-Key': MARK,
@@ -179,7 +179,7 @@ section('§A6 — a headers object is never spelled whole onto a surface (log, c
 section('§A7 — the secret-prose guard is the DAEMON VALIDATOR\'s (one home; every persisting door inherits)')
 {
   const MARKED_KEY = `sk-ant-${MARK}`
-  const saturn = await import('../../src/daemon/saturn.ts')
+  const saturn = await import('../../src/daemon/saturn/saturn.ts')
   const fire = saturn.validateSaturnSubmission({
     when: { kind: 'every', cron: '0 9 * * *' },
     action: { kind: 'fire', prompt: `audit with ${MARKED_KEY}` },
@@ -200,7 +200,7 @@ section('§A7 — the secret-prose guard is the DAEMON VALIDATOR\'s (one home; e
   })
   check('A7 a clean submission still validates ok (no false refusal)', cleanFire.ok === true)
 
-  const { boxScheduleProblem } = await import('../../src/daemon/saturnBoxSchedules.ts')
+  const { boxScheduleProblem } = await import('../../src/daemon/saturn/saturnBoxSchedules.ts')
   const boxProblem = boxScheduleProblem({
     schema: 1,
     id: 'ab12cd34',
@@ -214,14 +214,14 @@ section('§A7 — the secret-prose guard is the DAEMON VALIDATOR\'s (one home; e
 
   const refusalSentence = saturn.saturnSecretProseRefusal('prompt', MARKED_KEY)
   check('A7 the helper refuses a marked key and never echoes it', refusalSentence !== null && !refusalSentence.includes(MARK) && refusalSentence.includes('environment or keychain'))
-  const { CronCreateTool } = await import('../../src/tools/ScheduleCronTool/CronCreateTool.ts')
+  const { CronCreateTool } = await import('../../src/tools/cron/CronCreateTool.ts')
   let cronRefusal = ''
   try {
     await CronCreateTool.call({ cron: '0 9 * * *', prompt: `use ${MARKED_KEY}` } as never, {} as never)
   } catch (e) {
     cronRefusal = String((e as Error).message ?? e)
   }
-  const { ScheduleWakeupTool } = await import('../../src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts')
+  const { ScheduleWakeupTool } = await import('../../src/tools/schedule-wakeup/ScheduleWakeupTool.ts')
   let wakeRefusal = ''
   try {
     await ScheduleWakeupTool.call({ delaySeconds: 60, prompt: `key ${MARKED_KEY}` } as never, {} as never)
@@ -239,8 +239,8 @@ section('§B — every arm is paired with its release (the class-B lifecycle cen
 
   {
     ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
-    const { runHuggingfaceDeviceLogin } = await import('../../src/services/providers/huggingface/huggingfaceLogin.ts')
-    const { runKimiDeviceLogin } = await import('../../src/services/providers/moonshot/moonshotLogin.ts')
+    const { runHuggingfaceDeviceLogin } = await import('../../src/models/roads/huggingface/huggingfaceLogin.ts')
+    const { runKimiDeviceLogin } = await import('../../src/models/roads/moonshot/moonshotLogin.ts')
     const cancelledInThePause = async (run: (seam: { cancelled: () => boolean; sleep: () => Promise<void>; fetchImpl: typeof fetch }) => Promise<{ ok: boolean; code?: string }>): Promise<string> => {
       let cancelled = false
       let pauses = 0
@@ -265,7 +265,7 @@ section('§B4x — two overlapping re-arms leave EXACTLY ONE live watcher (the g
   const home = process.env.MERCURY_CONFIG_DIR as string
   mkdirSync(join(home, 'skills'), { recursive: true })
   mkdirSync(join(home, 'commands'), { recursive: true })
-  const detector = await import('../../src/utils/skills/skillChangeDetector.ts')
+  const detector = await import('../../src/integrations/skill-watch/skillChangeDetector.ts')
   const made: Array<{ closed: boolean }> = []
   const factory = () => {
     const rec = { closed: false }

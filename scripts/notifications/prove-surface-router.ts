@@ -10,8 +10,8 @@ import { checker, scratchRoot } from '../engine-durability/harness.ts'
 const t = checker()
 scratchRoot('surface-router')
 
-const route = await import('../../src/context/surfaceRoute.js')
-const ledger = await import('../../src/ink/root/terminalModeLedger.js')
+const route = await import('../../src/screen/routes/surfaceRoute.js')
+const ledger = await import('../../src/screen/renderer/root/terminalModeLedger.js')
 
 t.section('§1 — typed refusals while nothing is registered')
 {
@@ -97,7 +97,7 @@ t.section('§4 — transition silence (ledger untouched; no termio/process impor
 
 t.section('§5 — the MERCURY_CONCOURSE closed value grammar')
 {
-  const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
+  const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.js')
   t.check('MERCURY_CONCOURSE is a registered flag', getFlagSpec('MERCURY_CONCOURSE') != null, String(getFlagSpec('MERCURY_CONCOURSE')?.kind))
   t.check('unset resolves off', route.resolveConcoursePolicy({}) === 'off', route.resolveConcoursePolicy({}))
   t.check("'auto' resolves auto", route.resolveConcoursePolicy({ MERCURY_CONCOURSE: 'auto' }) === 'auto', 'auto')
@@ -125,7 +125,7 @@ t.section('§6 — resolveInitialSurface reads flag + the bounded summary only')
     const always = await route.resolveInitialSurface({ env: { MERCURY_CONCOURSE: 'always' }, recordsDir: dir })
     t.check('Always with the surface registered resolves concourse', always.effective.kind === 'concourse' && always.reason === 'always', JSON.stringify(always))
 
-    const { _setBootSurfaceIntentForTesting } = await import('../../src/substrate/splashHandover.js')
+    const { _setBootSurfaceIntentForTesting } = await import('../../src/platform/substrate/splashHandover.js')
     _setBootSurfaceIntentForTesting('repl')
     const chosenChat = await route.resolveInitialSurface({ env: { MERCURY_CONCOURSE: 'always' }, recordsDir: dir })
     t.check(

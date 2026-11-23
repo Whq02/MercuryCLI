@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands/compact/compact.ts src/run-core/turn-machine.ts
+// gate-watch: src/commands/compact/compact.ts src/engine/loop/turn-machine.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -18,21 +18,21 @@ for (const k of [
 }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { queryEvents } = await import('../../src/query.ts')
-const { legacyYieldsOf } = await import('../../src/run-core/project-legacy.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { legacyYieldsOf } = await import('../../src/engine/loop/project-legacy.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 bootstrap.setAskChannel('none')
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
-const { estimateOverflowSignal } = await import('../../src/services/api/overflowSignal.ts')
-const autoCompact = await import('../../src/services/compact/autoCompact.ts')
-const { overflowRefusalText, foldAvailability } = await import('../../src/services/compact/overflowRecovery.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/engine/requests/apiErrorRows.ts')
+const { estimateOverflowSignal } = await import('../../src/engine/requests/overflowSignal.ts')
+const autoCompact = await import('../../src/engine/compaction/autoFold.ts')
+const { overflowRefusalText, foldAvailability } = await import('../../src/engine/compaction/overflowRecovery.ts')
 const compactionBreakerText: ((opts: { nonInteractive: boolean }) => string) | undefined = (autoCompact as { compactionBreakerText?: (opts: { nonInteractive: boolean }) => string }).compactionBreakerText
 
 type AnyMsg = Record<string, unknown> & { type?: string }
@@ -44,7 +44,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}the breaker sentence is compactionBreakerText and autoCompactIfNeeded in src/services/compact/autoCompact.ts, the refusal text and foldAvailability are in src/services/compact/overflowRecovery.ts, and the run loop that asks the gate is queryEvents in src/query.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}the breaker sentence is compactionBreakerText and autoCompactIfNeeded in src/engine/compaction/autoFold.ts, the refusal text and foldAvailability are in src/engine/compaction/overflowRecovery.ts, and the run loop that asks the gate is queryEvents in src/engine/turnDoor.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -248,7 +248,7 @@ section('B4 the hand road — /compact reads no failure count: the command calls
   check(
     'the failure count is seeded empty at every run entry — the pause is the run\'s',
     counting.compact.length === 2 && counting.compact[0]?.tracking === undefined && carriedWithin === 2 && entering.compact.length === 1 && entering.compact[0]?.tracking === undefined,
-    `a run whose first fold ask reported two failures asked the gate ${counting.compact.length} time(s) with ${JSON.stringify(counting.compact.map(ask => ask.tracking))} (nothing, then a count of 2 carried to its next turn); the next run on the same context asked with ${JSON.stringify(entering.compact.map(ask => ask.tracking))} (nothing is right) — runEventMachine in src/run-core/turn-machine.ts opens every run with no fold tracking`,
+    `a run whose first fold ask reported two failures asked the gate ${counting.compact.length} time(s) with ${JSON.stringify(counting.compact.map(ask => ask.tracking))} (nothing, then a count of 2 carried to its next turn); the next run on the same context asked with ${JSON.stringify(entering.compact.map(ask => ask.tracking))} (nothing is right) — runEventMachine in src/engine/loop/turn-machine.ts opens every run with no fold tracking`,
   )
 }
 

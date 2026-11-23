@@ -20,22 +20,22 @@ for (const name of ['MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_AUTH_SCOPE_DIR', 'ME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${!cond ? ' · the request and the stream folding come from openaiCallModel in src/services/providers/openai/openaiCallModel.ts; the shared fixture is scripts/messages/dialectFixture.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${!cond ? ' · the request and the stream folding come from openaiCallModel in src/models/roads/openai/openaiCallModel.ts; the shared fixture is scripts/messages/dialectFixture.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n  ' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 
-const { openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { openaiCallModel } = await import('../../src/models/roads/openai/openaiCallModel.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { DIALECT_CONVERSATION, VIRTUAL_ROW, STRUCTURED_OUTPUT_ASK, canonicalJson } = await import('./dialectFixture.ts')
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 
 const sseChunk = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 function sseResponse(chunks: string[]): Response {

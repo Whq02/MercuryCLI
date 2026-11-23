@@ -21,7 +21,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — membership prover exceeded 60s; look at the section printed last above, most likely connectAgentMcpServers (src/tools/AgentTool/runAgent.ts) dialing a server')
+  console.log('\nTIMEOUT — membership prover exceeded 60s; look at the section printed last above, most likely connectAgentMcpServers (src/tools/crewmate/runCrewmate.ts) dialing a server')
   process.exit(1)
 }, 60_000)
 watchdog.unref?.()
@@ -33,27 +33,27 @@ console.log('============================================================')
 
 section('§1 owner semantics: the per-project record, verbatim')
 {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { isMcpCatalogueMember } = await import('../../src/services/mcp/membership.ts')
-  const { setMcpServerEnabled } = await import('../../src/services/mcp/config.ts')
+  const { isMcpCatalogueMember } = await import('../../src/integrations/mcp/membership.ts')
+  const { setMcpServerEnabled } = await import('../../src/integrations/mcp/serverConfigs.ts')
 
-  t('an unconfigured name is a member (default-on)', isMcpCatalogueMember('alpha') === true, 'isMcpCatalogueMember (src/services/mcp/membership.ts) must treat a name with no disabled record as a member')
+  t('an unconfigured name is a member (default-on)', isMcpCatalogueMember('alpha') === true, 'isMcpCatalogueMember (src/integrations/mcp/membership.ts) must treat a name with no disabled record as a member')
   setMcpServerEnabled('blocked-server', false)
   t(
     'a record-disabled name is NOT a member (the opt-out list bites)',
     isMcpCatalogueMember('blocked-server') === false,
-    'isMcpCatalogueMember (src/services/mcp/membership.ts) must read the disabledMcpServers record that setMcpServerEnabled (src/services/mcp/config.ts) writes',
+    'isMcpCatalogueMember (src/integrations/mcp/membership.ts) must read the disabledMcpServers record that setMcpServerEnabled (src/integrations/mcp/serverConfigs.ts) writes',
   )
-  t('a sibling name is untouched by the exclusion', isMcpCatalogueMember('alpha') === true, 'isMcpCatalogueMember (src/services/mcp/membership.ts) must exclude only the names in the disabled record')
+  t('a sibling name is untouched by the exclusion', isMcpCatalogueMember('alpha') === true, 'isMcpCatalogueMember (src/integrations/mcp/membership.ts) must exclude only the names in the disabled record')
   setMcpServerEnabled('blocked-server', true)
-  t('re-enable restores membership', isMcpCatalogueMember('blocked-server') === true, 'setMcpServerEnabled(name, true) in src/services/mcp/config.ts must remove the name from the disabled record')
+  t('re-enable restores membership', isMcpCatalogueMember('blocked-server') === true, 'setMcpServerEnabled(name, true) in src/integrations/mcp/serverConfigs.ts must remove the name from the disabled record')
   setMcpServerEnabled('blocked-server', false)
 }
 
 section('§2 runner partition: excluded never reaches the member half')
 {
-  const { partitionMcpConfigsByMembership } = await import('../../src/services/mcp/membership.ts')
+  const { partitionMcpConfigsByMembership } = await import('../../src/integrations/mcp/membership.ts')
   type Cfg = { type: 'stdio'; command: string; scope: 'dynamic' }
   const cfg = (command: string): Cfg => ({ type: 'stdio', command, scope: 'dynamic' })
   const { members, excluded } = partitionMcpConfigsByMembership({
@@ -65,23 +65,23 @@ section('§2 runner partition: excluded never reaches the member half')
     'POISON armed: the disabled name lands in excluded, never members',
     members.every(([name]) => name !== 'blocked-server') &&
       excluded.some(([name]) => name === 'blocked-server'),
-    `partitionMcpConfigsByMembership (src/services/mcp/membership.ts) must put disabled names in excluded only; members=${members.map(([n]) => n).join(',')} excluded=${excluded.map(([n]) => n).join(',')}`,
+    `partitionMcpConfigsByMembership (src/integrations/mcp/membership.ts) must put disabled names in excluded only; members=${members.map(([n]) => n).join(',')} excluded=${excluded.map(([n]) => n).join(',')}`,
   )
   t(
     'members preserve batch order',
     members.map(([n]) => n).join(',') === 'alpha,zeta',
-    'partitionMcpConfigsByMembership (src/services/mcp/membership.ts) must keep the order of the input batch in members',
+    'partitionMcpConfigsByMembership (src/integrations/mcp/membership.ts) must keep the order of the input batch in members',
   )
-  t('excluded carries its config (the disabled roster row seeds from it)', excluded[0]?.[1] !== undefined, 'partitionMcpConfigsByMembership (src/services/mcp/membership.ts) must return each excluded entry as a name and config pair')
+  t('excluded carries its config (the disabled roster row seeds from it)', excluded[0]?.[1] !== undefined, 'partitionMcpConfigsByMembership (src/integrations/mcp/membership.ts) must return each excluded entry as a name and config pair')
   const empty = partitionMcpConfigsByMembership({} as never)
-  t('empty catalogue partitions empty', empty.members.length === 0 && empty.excluded.length === 0, 'partitionMcpConfigsByMembership (src/services/mcp/membership.ts) must return two empty lists for an empty catalogue')
+  t('empty catalogue partitions empty', empty.members.length === 0 && empty.excluded.length === 0, 'partitionMcpConfigsByMembership (src/integrations/mcp/membership.ts) must return two empty lists for an empty catalogue')
 }
 
 
 section('§3 subagent ∩: names resolve only within the parent catalogue')
 {
-  const { connectAgentMcpServers } = await import('../../src/tools/AgentTool/runAgent.ts')
-  const { connectToServer, getServerCacheKey } = await import('../../src/services/mcp/client.ts')
+  const { connectAgentMcpServers } = await import('../../src/tools/crewmate/runCrewmate.ts')
+  const { connectToServer, getServerCacheKey } = await import('../../src/integrations/mcp/client.ts')
 
   const parentCfg = { type: 'stdio', command: 'parent-cmd', scope: 'local' } as never
   const disabledCfg = { type: 'stdio', command: 'blocked-cmd', scope: 'local' } as never
@@ -111,35 +111,35 @@ section('§3 subagent ∩: names resolve only within the parent catalogue')
   t(
     'a lawful member grant connects through the PARENT ROW config (cache hit, no dial)',
     outcome.clients.length === 1 && (outcome.clients[0] as { name?: string }).name === 'shared-server',
-    `connectAgentMcpServers (src/tools/AgentTool/runAgent.ts) must connect a granted name that is a connected row of the parent catalogue through the cached connection; clients=${outcome.clients.map(c => (c as { name?: string }).name).join(',')}`,
+    `connectAgentMcpServers (src/tools/crewmate/runCrewmate.ts) must connect a granted name that is a connected row of the parent catalogue through the cached connection; clients=${outcome.clients.map(c => (c as { name?: string }).name).join(',')}`,
   )
   t(
     'POISON armed: the outside name refused (no widening past the parent catalogue)',
     !outcome.clients.some(c => (c as { name?: string }).name === 'outside-server'),
-    'connectAgentMcpServers (src/tools/AgentTool/runAgent.ts) must refuse a granted name that is not in the parent catalogue',
+    'connectAgentMcpServers (src/tools/crewmate/runCrewmate.ts) must refuse a granted name that is not in the parent catalogue',
   )
   t(
     "POISON armed: the 'disabled' row refused (a disk-disabled server cannot ride a grant)",
     !outcome.clients.some(c => (c as { name?: string }).name === 'blocked-server'),
-    'connectAgentMcpServers (src/tools/AgentTool/runAgent.ts) must refuse a catalogue row whose type is disabled',
+    'connectAgentMcpServers (src/tools/crewmate/runCrewmate.ts) must refuse a catalogue row whose type is disabled',
   )
   t(
     'no refusal arm dialed the memo (no connection was opened only to refuse it)',
     !memo.has(getServerCacheKey('outside-server', parentCfg)) &&
       !memo.has(getServerCacheKey('blocked-server', disabledCfg)),
-    'connectAgentMcpServers (src/tools/AgentTool/runAgent.ts) must check the parent catalogue before it calls connectToServer',
+    'connectAgentMcpServers (src/tools/crewmate/runCrewmate.ts) must check the parent catalogue before it calls connectToServer',
   )
   t(
     'the parent row key still owns the one connection (no re-key, no second dial)',
     memo.has(parentKey) === true,
-    'connectAgentMcpServers (src/tools/AgentTool/runAgent.ts) must reuse the parent row config so the key from getServerCacheKey (src/services/mcp/client.ts) stays the same',
+    'connectAgentMcpServers (src/tools/crewmate/runCrewmate.ts) must reuse the parent row config so the key from getServerCacheKey (src/integrations/mcp/client.ts) stays the same',
   )
   memo.delete(parentKey)
 }
 
 section('§4 cache key = name + config JSON, no session dimension')
 {
-  const { getServerCacheKey } = await import('../../src/services/mcp/client.ts')
+  const { getServerCacheKey } = await import('../../src/integrations/mcp/client.ts')
   const cfg = { type: 'stdio', command: 'c', args: ['x'], scope: 'local' } as never
   t(
     'the key is exactly name + ":" + JSON(config)',
@@ -150,16 +150,16 @@ section('§4 cache key = name + config JSON, no session dimension')
     'two configs, two keys (same name never collides across configs)',
     getServerCacheKey('srv', cfg) !==
       getServerCacheKey('srv', { type: 'stdio', command: 'other', scope: 'local' } as never),
-    'getServerCacheKey (src/services/mcp/client.ts) must include the config JSON in the key',
+    'getServerCacheKey (src/integrations/mcp/client.ts) must include the config JSON in the key',
   )
 }
 
 section('§5 the config key answers the BOOT project for the process lifetime')
 {
-  const { getProjectPathForConfig } = await import('../../src/utils/config/projectConfig.ts')
-  const { setOriginalCwd, getOriginalCwd } = await import('../../src/bootstrap/state.ts')
+  const { getProjectPathForConfig } = await import('../../src/platform/config/projectConfig.ts')
+  const { setOriginalCwd, getOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
   const bootKey = getProjectPathForConfig()
-  t('the boot key derives from the boot cwd', bootKey.length > 0, 'getProjectPathForConfig (src/utils/config/projectConfig.ts) must return a non-empty key for the boot cwd')
+  t('the boot key derives from the boot cwd', bootKey.length > 0, 'getProjectPathForConfig (src/platform/config/projectConfig.ts) must return a non-empty key for the boot cwd')
   const before = getOriginalCwd()
   const ELSEWHERE = join(SCRATCH, 'other-project')
   mkdirSync(ELSEWHERE, { recursive: true })
@@ -168,7 +168,7 @@ section('§5 the config key answers the BOOT project for the process lifetime')
     t(
       'POISON armed: a moved originalCwd never re-homes the config key mid-process',
       getProjectPathForConfig() === bootKey,
-      `getProjectPathForConfig (src/utils/config/projectConfig.ts) must stay memoized on the boot cwd; key drifted to ${getProjectPathForConfig()}`,
+      `getProjectPathForConfig (src/platform/config/projectConfig.ts) must stay memoized on the boot cwd; key drifted to ${getProjectPathForConfig()}`,
     )
   } finally {
     setOriginalCwd(before)

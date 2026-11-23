@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
-import type { SessionLiveV1 } from '../../src/services/engine-connector/seatLive.ts'
-import type { WorkRowV1 } from '../../src/services/engine-connector/types.ts'
+import type { SessionLiveV1 } from '../../src/engine/connector/seatLive.ts'
+import type { WorkRowV1 } from '../../src/engine/connector/types.ts'
 
 const argument = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)
@@ -35,18 +35,18 @@ const section = (title: string, fixWhere = ''): void => {
 
 async function main(): Promise<void> {
   const src = (relative: string): string => join(ROOT, 'src', relative)
-  const { enableConfigs } = await import(src('utils/config.ts'))
+  const { enableConfigs } = await import(src('platform/settings/config.ts'))
   enableConfigs()
-  const counts = await import(src('services/engine-connector/workCounts.ts'))
-  const verbs = await import(src('utils/cockpit/toolVerb.ts'))
-  const bar = await import(src('components/SwitchboardTagBar.tsx'))
-  const { IDLE_LIVE } = await import(src('services/engine-connector/seatLive.ts'))
-  const ink = await import(src('ink.ts'))
-  const { default: StdinContext } = await import(src('ink/components/StdinContext.ts'))
-  const { AppStoreContext } = await import(src('state/AppState.tsx'))
-  const { createStore } = await import(src('state/store.ts'))
-  const { getDefaultAppState } = await import(src('state/AppStateStore.ts'))
-  const { SpinnerWithVerb } = await import(src('components/Spinner.tsx'))
+  const counts = await import(src('engine/connector/workCounts.ts'))
+  const verbs = await import(src('screen/cockpit/toolVerb.ts'))
+  const bar = await import(src('screen/chat/SwitchboardTagBar.tsx'))
+  const { IDLE_LIVE } = await import(src('engine/connector/seatLive.ts'))
+  const ink = await import(src('screen/themedRenderer.ts'))
+  const { default: StdinContext } = await import(src('screen/renderer/elements/StdinContext.ts'))
+  const { AppStoreContext } = await import(src('screen/app-state/AppState.tsx'))
+  const { createStore } = await import(src('platform/primitives/store.ts'))
+  const { getDefaultAppState } = await import(src('screen/app-state/AppStateStore.ts'))
+  const { SpinnerWithVerb } = await import(src('screen/spinner/Spinner.tsx'))
   const React = (await import(Bun.resolveSync('react', join(ROOT, 'src')))).default
 
   const t0 = 1_700_000_000_000
@@ -69,7 +69,7 @@ async function main(): Promise<void> {
   const readTurn = [{ type: 'user', message: { role: 'user', content: 'read' } }, asst([toolUse('t3', 'Read', { file_path: '/a/live.ts' })])]
   const inFlight = new Set(['t2'])
 
-  section('W1 the law: a delegation call in flight paints the roster\'s wait words; any other tool keeps its verb', 'delegationWaitWords in src/services/engine-connector/workCounts.ts, activeToolCall and isDelegationToolName in src/utils/cockpit/toolVerb.ts, waitingStatusWords in src/components/SwitchboardTagBar.tsx')
+  section('W1 the law: a delegation call in flight paints the roster\'s wait words; any other tool keeps its verb', 'delegationWaitWords in src/engine/connector/workCounts.ts, activeToolCall and isDelegationToolName in src/screen/cockpit/toolVerb.ts, waitingStatusWords in src/screen/chat/SwitchboardTagBar.tsx')
   {
     check('the pieces exist (delegationWaitWords · activeToolCall · isDelegationToolName)', lawful)
     check('a foreground Crewmate with a crewmate and a shell running reads the background wait\'s words', wait('Crewmate', rows) === WORDS, String(wait('Crewmate', rows)))
@@ -84,7 +84,7 @@ async function main(): Promise<void> {
     check('the background wait keeps its own words', bar.waitingStatusWords({ ...IDLE_LIVE, inFlight: true, phase: 'waiting', agentsWaiting: 1, waitingOn: counts.workCounts(rows), inProgressToolUseIDs: new Set<string>(), turnStartedAtMs: t0 }) === WORDS)
   }
 
-  section('W2 the working strip paints both cases with the same words', 'SpinnerWithVerb in src/components/Spinner.tsx and activeToolVerb in src/utils/cockpit/toolVerb.ts')
+  section('W2 the working strip paints both cases with the same words', 'SpinnerWithVerb in src/screen/spinner/Spinner.tsx and activeToolVerb in src/screen/cockpit/toolVerb.ts')
   const settle = async (): Promise<void> => {
     for (let index = 0; index < 6; index++) {
       ink.flushPendingSyncWork()
@@ -150,9 +150,9 @@ async function main(): Promise<void> {
   console.log(`  a Read in flight:      ${JSON.stringify(readFrame.trim())}`)
   check('a Read in flight beside a running shell keeps its own verb', readFrame.includes('Reading live.ts…') && !readFrame.includes('waiting on'), readFrame.trim())
 
-  section('W3 the wiring: the Chat composes the words as the proof did, over the focused roster', 'LivePart in src/services/engine-connector/daemon/live.ts (the phase) and statusLine and statusRowWarns in src/components/SwitchboardTagBar.tsx')
+  section('W3 the wiring: the Chat composes the words as the proof did, over the focused roster', 'LivePart in src/engine/connector/daemon/live.ts (the phase) and statusLine and statusRowWarns in src/screen/chat/SwitchboardTagBar.tsx')
   {
-    const { LivePart } = await import(src('services/engine-connector/daemon/live.ts'))
+    const { LivePart } = await import(src('engine/connector/daemon/live.ts'))
     const phaseOver = (transcript: SessionLiveV1): string => {
       const seatLive = new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, transcriptLive: () => transcript } as never)
       seatLive.takeTail({ schema: 1, sessionId: 'proof', atMs: 1, text: null, stateWord: 'waiting-on-agents', waitingOnAgents: 1 } as never)
@@ -161,8 +161,8 @@ async function main(): Promise<void> {
     const overTool = phaseOver({ ...IDLE_LIVE, inFlight: true, phase: 'tool', inProgressToolUseIDs: new Set(['toolu_1']) })
     const overThinking = phaseOver({ ...IDLE_LIVE, inFlight: true, phase: 'thinking' })
     const { openStatusPart } = await import(join(ROOT, 'scripts/ui/chatScenarios.ts'))
-    const { FOLD_ROW_HEAD } = await import(src('services/compact/foldStatus.ts'))
-    const slot = await import(src('services/engine-connector/focusedConnector.ts'))
+    const { FOLD_ROW_HEAD } = await import(src('engine/compaction/foldStatus.ts'))
+    const slot = await import(src('engine/connector/focusedConnector.ts'))
     const strip = await openStatusPart('crewmate-wait-words-strip', { keepHome: true })
     const said = async (live: SessionLiveV1, isCompact = false): Promise<{ words: unknown; warning: unknown }> => {
       await strip.plant({ seatLive: live, isCompact })

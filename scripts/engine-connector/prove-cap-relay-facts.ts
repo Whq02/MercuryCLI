@@ -36,23 +36,23 @@ writeFileSync(
   { mode: 0o600 },
 )
 
-const limits = await import('../../src/services/anthropicLimits.ts')
-const mock = await import('../../src/services/mockRateLimits.ts')
-const failover = await import('../../src/services/capFailover.ts')
-const seatWire = await import('../../src/services/engine-connector/seatWire.ts')
-const projections = await import('../../src/services/engine-connector/seatProjections.ts')
-const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const epochs = await import('../../src/services/providers/catalogueEpoch.ts')
-const capabilities = await import('../../src/utils/model/capabilities.ts')
-const contextFill = await import('../../src/services/context/contextFill.ts')
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+const mock = await import('../../src/models/roads/anthropic/mockRateLimits.ts')
+const failover = await import('../../src/models/roads/capFailover.ts')
+const seatWire = await import('../../src/engine/connector/seatWire.ts')
+const projections = await import('../../src/engine/connector/seatProjections.ts')
+const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const epochs = await import('../../src/models/roads/catalogueEpoch.ts')
+const capabilities = await import('../../src/models/facts/capabilities.ts')
+const contextFill = await import('../../src/engine/context-window/contextFill.ts')
 
 let failures = 0
 let checks = 0
 const WHERE_TO_LOOK: Record<string, string> = {
-  '§1': 'anthropicWindowFact in src/services/anthropicLimits.ts',
-  '§2': 'adoptAnthropicWindowFact and anthropicLimitVerdict in src/services/anthropicLimits.ts, or observedFamilyWindow in src/services/capFailover.ts',
-  '§3': 'the facts encoder and decoder in src/services/engine-connector/seatWire.ts, or publishSessionFacts and readSessionFacts in src/services/engine-connector/seatProjections.ts',
-  '§5': 'adoptOpenaiCatalogueFact in src/services/providers/openai/openaiCatalogue.ts, or resolveContextWindow in src/utils/model/capabilities.ts',
+  '§1': 'anthropicWindowFact in src/models/roads/anthropic/anthropicLimits.ts',
+  '§2': 'adoptAnthropicWindowFact and anthropicLimitVerdict in src/models/roads/anthropic/anthropicLimits.ts, or observedFamilyWindow in src/models/roads/capFailover.ts',
+  '§3': 'the facts encoder and decoder in src/engine/connector/seatWire.ts, or publishSessionFacts and readSessionFacts in src/engine/connector/seatProjections.ts',
+  '§5': 'adoptOpenaiCatalogueFact in src/models/roads/openai/openaiCatalogue.ts, or resolveContextWindow in src/models/facts/capabilities.ts',
 }
 let whereToLook = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -231,8 +231,8 @@ section("§5 the screen primes its catalogue from the fact: the pinned window be
 
 section('§6 the connector folds both on its facts read: the verdict and the OpenAI bands on every read, the list when it moved and at the first read of a window opened on facts that carry one')
 {
-  const openaiLimits = await import('../../src/services/providers/openai/openaiLimitState.ts')
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const openaiLimits = await import('../../src/models/roads/openai/openaiLimitState.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
   const planeBefore = process.env.MERCURY_DAEMON_DIR
   process.env.MERCURY_DAEMON_DIR = join(scratch, 'plane')
   limits.resetLimitsForCredentialSwitch()
@@ -270,7 +270,7 @@ section('§6 the connector folds both on its facts read: the verdict and the Ope
   if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
   else process.env.MERCURY_DAEMON_DIR = planeBefore
   check('the connector folds the verdict on every facts read, beside the OpenAI bands', j(firstRead) === j({ status: 'rejected', observed: true, band: 23 }) && j(laterRead) === j({ status: 'allowed', band: 41 }), `a hosted connector attached over facts carrying a rejected verdict and a 23% band leaves the screen at ${j(firstRead)}, and after its feed reads a later publication (allowed, 41%) at ${j(laterRead)}: its facts read hands usage.anthropicWindow to adoptAnthropicWindowFact and usage.openaiObserved to adoptOpenaiObservedUsage on every read`)
-  check("a window opened on facts that already carry the runner's list primes the screen's catalogue at its first read", j(beforeTheWindow) === j({ fetchedAtMs: T0, window: 272_000 }) && j(atTheFirstRead) === j({ fetchedAtMs: T0 + 2, window: 290_000 }), `before the window the catalogue stood at ${j(beforeTheWindow)}; the facts on disk carried a list stamped ${T0 + 2} with a window of 290000, and after attach the catalogue stands at ${j(atTheFirstRead)}: the first facts read of a connector hands on the list its seed holds (FactsPart.handOn in src/services/engine-connector/daemon/facts.ts), whatever the stamp of the facts before`)
+  check("a window opened on facts that already carry the runner's list primes the screen's catalogue at its first read", j(beforeTheWindow) === j({ fetchedAtMs: T0, window: 272_000 }) && j(atTheFirstRead) === j({ fetchedAtMs: T0 + 2, window: 290_000 }), `before the window the catalogue stood at ${j(beforeTheWindow)}; the facts on disk carried a list stamped ${T0 + 2} with a window of 290000, and after attach the catalogue stands at ${j(atTheFirstRead)}: the first facts read of a connector hands on the list its seed holds (FactsPart.handOn in src/engine/connector/daemon/facts.ts), whatever the stamp of the facts before`)
   check('…and primes its catalogue when the list moved', j(primed) === j({ fetchedAtMs: T0 + 5, window: 300_000, epochs: 1 }) && j(sameList) === j({ band: 55, epochs: 1 }), `a later publication with a fresher list leaves the catalogue at ${j(primed)}, and one more read of the same list at ${j(sameList)}: its facts read hands a moved openaiCatalogue to adoptOpenaiCatalogueFact`)
   limits.resetLimitsForCredentialSwitch()
   openaiLimits.__resetOpenaiLimitStateForTest()

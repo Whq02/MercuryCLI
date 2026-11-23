@@ -12,12 +12,12 @@ mkdirSync(process.env.MERCURY_TMPDIR, { recursive: true })
 let failures = 0
 let checks = 0
 const WHERE_BY_SECTION: Record<string, string> = {
-  '1': 'change formatOutput in src/utils/shell/utils.ts (head, tail and one middle notice)',
-  '2': 'change generatePreview in src/utils/toolResultStorage.ts (head and tail preview)',
-  '3': 'change formatOutput in src/utils/shell/utils.ts so its result stays a bounded string',
-  '4': 'change how TaskOutput.getStdout in src/utils/task/TaskOutput.ts reads a spilled file',
-  '5': 'change the preExcerpted handling of formatOutput in src/utils/shell/utils.ts',
-  '7': 'change resizeShellImageOutput in src/utils/shell/utils.ts (async size gate, no sync read)',
+  '1': 'change formatOutput in src/platform/shell/shellOutput.ts (head, tail and one middle notice)',
+  '2': 'change generatePreview in src/engine/tool-dispatch/toolResultStorage.ts (head and tail preview)',
+  '3': 'change formatOutput in src/platform/shell/shellOutput.ts so its result stays a bounded string',
+  '4': 'change how TaskOutput.getStdout in src/engine/task-framework/taskOutput.ts reads a spilled file',
+  '5': 'change the preExcerpted handling of formatOutput in src/platform/shell/shellOutput.ts',
+  '7': 'change resizeShellImageOutput in src/platform/shell/shellOutput.ts (async size gate, no sync read)',
 }
 let sectionKey = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -31,9 +31,9 @@ const section = (t: string): void => {
 }
 
 delete process.env.MERCURY_SHELL_MAX_OUTPUT
-const { formatOutput } = await import('../../src/utils/shell/utils.ts')
-const { getMaxOutputLength } = await import('../../src/utils/shell/outputLimits.ts')
-const { generatePreview, PREVIEW_SIZE_CHARS } = await import('../../src/utils/toolResultStorage.ts')
+const { formatOutput } = await import('../../src/platform/shell/shellOutput.ts')
+const { getMaxOutputLength } = await import('../../src/platform/shell/outputLimits.ts')
+const { generatePreview, PREVIEW_SIZE_CHARS } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
 
 section('§1 formatOutput keeps the head and the tail')
 {
@@ -74,9 +74,9 @@ section('§3 the notebook path still receives a bounded string')
 
 section('§4 the spilled-file read keeps the head and the tail, and names the file')
 {
-  const { TaskOutput } = await import('../../src/utils/task/TaskOutput.ts')
-  const { getTaskOutputPath } = await import('../../src/utils/task/diskOutput.ts')
-  const { generateTaskId } = await import('../../src/Task.ts')
+  const { TaskOutput } = await import('../../src/engine/task-framework/taskOutput.ts')
+  const { getTaskOutputPath } = await import('../../src/engine/task-framework/diskOutput.ts')
+  const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
   const cap = getMaxOutputLength()
   const id = generateTaskId('local_bash')
   const path = getTaskOutputPath(id)
@@ -128,7 +128,7 @@ section('§5 the second cut never eats the first cut’s honest notice')
 
 section('§7 the shell-image read is awaited — never a sync read on the tool’s async road')
 {
-  const { resizeShellImageOutput } = await import('../../src/utils/shell/utils.ts')
+  const { resizeShellImageOutput } = await import('../../src/platform/shell/shellOutput.ts')
   const dir = mkdtempSync(join(tmpdir(), 'shell-image-'))
   const big = join(dir, 'big.output')
   writeFileSync(big, '')

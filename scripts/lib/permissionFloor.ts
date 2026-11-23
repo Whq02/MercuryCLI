@@ -1,7 +1,7 @@
-import { getEmptyToolPermissionContext } from '../../src/Tool.ts'
-import { decideToolPermission } from '../../src/utils/permissions/decision/engine.ts'
-import { FileReadTool } from '../../src/tools/FileReadTool/FileReadTool.ts'
-import { BashTool } from '../../src/tools/BashTool/BashTool.tsx'
+import { getEmptyToolPermissionContext } from '../../src/tools/kit/tool.ts'
+import { decideToolPermission } from '../../src/permissions/rules/decision/engine.ts'
+import { FileReadTool } from '../../src/tools/read/ReadTool.ts'
+import { BashTool } from '../../src/tools/shell/BashTool.tsx'
 
 type Decide = (tool: unknown, input: unknown, context: unknown) => Promise<{ decision: { behavior: string } }>
 const decide = decideToolPermission as unknown as Decide

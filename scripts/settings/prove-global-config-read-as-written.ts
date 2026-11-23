@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/config/schema.ts src/utils/config/globalConfig.ts src/main.tsx src/utils/releaseNotes.ts
+// gate-watch: src/platform/config/schema.ts src/platform/config/globalConfig.ts src/boot/main.tsx src/boot/releaseNotes.ts
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -23,7 +23,7 @@ const launchDir = process.cwd()
 process.chdir(CWD)
 
 let failures = 0
-const globalConfigWrittenFailHint = 'fix how getGlobalConfig and saveGlobalConfig in src/utils/config/globalConfig.ts load and save the file (keys the schema in src/utils/config/schema.ts does not declare must stay as written, and no default may be written in their place); the built-product leg also boots dist/mercury.mjs, so run bun run build.ts after a fix'
+const globalConfigWrittenFailHint = 'fix how getGlobalConfig and saveGlobalConfig in src/platform/config/globalConfig.ts load and save the file (keys the schema in src/platform/config/schema.ts does not declare must stay as written, and no default may be written in their place); the built-product leg also boots dist/mercury.mjs, so run bun run build.ts after a fix'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${globalConfigWrittenFailHint}`}`)
@@ -59,7 +59,7 @@ const carriesEveryKey = (file: Record<string, unknown>, cwd: string): string[] =
 section('§1 the module: every undeclared key is carried through a load and kept by a save')
 {
   writeFileSync(configPath, `${JSON.stringify(written(CWD), null, 2)}\n`)
-  const { enableConfigs, getGlobalConfig, readGlobalConfigAgain, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs, getGlobalConfig, readGlobalConfigAgain, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
   readGlobalConfigAgain()
   const loaded = getGlobalConfig() as unknown as Record<string, unknown>

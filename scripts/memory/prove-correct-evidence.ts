@@ -8,7 +8,7 @@ const scratch = mkdtempSync(join(tmpdir(), 'mercury-correct-evidence-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 
 let failures = 0
-const EVIDENCE_FIX_HINT = 'change the code, not the check: the correction verbs, their refusal codes and hints, and the full-row read that evidence needs are in src/mneme/memoryVerbs.ts (correctMemory, readMemoryRecord, recallQuery, retainItems); the consolidation that lands the seed facts is src/mneme/mnemeConsolidate.ts (maybeConsolidate)'
+const EVIDENCE_FIX_HINT = 'change the code, not the check: the correction verbs, their refusal codes and hints, and the full-row read that evidence needs are in src/sessions/mneme/memoryVerbs.ts (correctMemory, readMemoryRecord, recallQuery, retainItems); the consolidation that lands the seed facts is src/sessions/mneme/mnemeConsolidate.ts (maybeConsolidate)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ` — to fix: ${EVIDENCE_FIX_HINT}` : ''}`)
@@ -18,9 +18,9 @@ function section(t: string): void {
 }
 
 const { retainItems, recallQuery, readMemoryRecord, correctMemory, _resetMemoryVerbSessionStateForTesting } =
-  await import('../../src/mneme/memoryVerbs.js')
-const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.js')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
+  await import('../../src/sessions/mneme/memoryVerbs.js')
+const { maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.js')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.js')
 
 retainItems(
   [

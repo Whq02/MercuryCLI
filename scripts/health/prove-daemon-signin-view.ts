@@ -53,12 +53,12 @@ for (const k of [
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
 
 let failures = 0
-const SIGNIN_VIEW_FAIL_HINT = 'change the daemon-sign-ins row in src/services/health/sections/crew/daemon.ts, or compareSignInViews in src/daemon/signInView.ts; rebuild dist first (bun run build.ts) since sections 1 to 3 run dist/mercury.mjs'
+const SIGNIN_VIEW_FAIL_HINT = 'change the daemon-sign-ins row in src/platform/health/sections/crew/daemon.ts, or compareSignInViews in src/daemon/session-seat/signInView.ts; rebuild dist first (bun run build.ts) since sections 1 to 3 run dist/mercury.mjs'
 const check = (name: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  ${cond ? '✅' : '❌'} ${name}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${SIGNIN_VIEW_FAIL_HINT}` : ''}`)
@@ -74,7 +74,7 @@ async function untilAsync(cond: () => Promise<boolean> | boolean, ms = 60_000): 
   }
 }
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — daemon-signin-view exceeded 240s; the daemon or a health run did not finish, read the daemon log tail printed on failure and the daemon verbs in src/daemon/controlSocket.ts')
+  console.log('\n❌ TIMEOUT — daemon-signin-view exceeded 240s; the daemon or a health run did not finish, read the daemon log tail printed on failure and the daemon verbs in src/daemon/control/controlSocket.ts')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -187,17 +187,17 @@ try {
 
   section('§4 the source: an older daemon reads warn with the restart words; the fail arm names sign-in/estate')
   {
-    const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
+    const { crewChecks } = await import('../../src/platform/health/sections/crew.ts')
     const ids = crewChecks().map(entry => entry.id)
     check('the row exists once, ahead of the scheduler-daemon row', ids.filter(id => id === 'daemon-sign-ins').length === 1 && ids.indexOf('daemon-sign-ins') + 1 === ids.indexOf('daemon'), ids.join(','))
     const fsH = await import('node:fs')
     const rowPlane = fsH.mkdtempSync((await import('node:path')).join((await import('node:os')).tmpdir(), 'health-daemon-row-'))
     const planeBefore = process.env.MERCURY_DAEMON_DIR
     process.env.MERCURY_DAEMON_DIR = rowPlane
-    const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
+    const { daemonStatePath } = await import('../../src/daemon/control/controlSocket.ts')
     fsH.writeFileSync(daemonStatePath(), JSON.stringify({ pid: process.pid, version: '0.0.0-fixture', startedAt: Date.now() }))
-    const { restartDaemonWords } = await import('../../src/daemon/controlSocket.ts')
-    const { binaryName } = await import('../../src/utils/config/derived.ts')
+    const { restartDaemonWords } = await import('../../src/daemon/control/controlSocket.ts')
+    const { binaryName } = await import('../../src/platform/config/derived.ts')
     const unanswered = await crewChecks().find(entry => entry.id === 'daemon-sign-ins')?.run()
     if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
     else process.env.MERCURY_DAEMON_DIR = planeBefore
@@ -206,7 +206,7 @@ try {
 
   section('§5 a catalogue-timing gap (one side has not fetched) is NOT a disagreement')
   {
-    const { compareSignInViews } = await import('../../src/daemon/signInView.ts')
+    const { compareSignInViews } = await import('../../src/daemon/session-seat/signInView.ts')
     const daemonView = { home, store: 'file', refreshed: true, families: [{ family: 'openrouter', credentialed: true, usable: true, row: 'a usable row' }] } as never
     const clientUnfetched = { home, store: 'file', refreshed: true, families: [{ family: 'openrouter', credentialed: true, usable: false, unfetched: true, why: 'no selectable row in the catalogue yet' }] } as never
     const clientRealGap = { home, store: 'file', refreshed: true, families: [{ family: 'openrouter', credentialed: true, usable: false, why: 'a gate refused every row' }] } as never

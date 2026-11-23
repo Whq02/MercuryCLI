@@ -8,11 +8,11 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { appendEntryToFile } = await import('../../src/utils/sessionStorage/writer.ts')
-const { resetTranscriptFormatCacheForTesting } = await import('../../src/utils/sessionStorage/vnext.ts')
+const { appendEntryToFile } = await import('../../src/sessions/transcripts/writer.ts')
+const { resetTranscriptFormatCacheForTesting } = await import('../../src/sessions/transcripts/vnext.ts')
 
 let failures = 0
-const tornTailFailHint = 'fix how appendEntryToFile in src/utils/sessionStorage/writer.ts treats the tail of an existing file (heal a torn tail with a newline, add no blank line, write the header first on a fresh file)'
+const tornTailFailHint = 'fix how appendEntryToFile in src/sessions/transcripts/writer.ts treats the tail of an existing file (heal a torn tail with a newline, add no blank line, write the header first on a fresh file)'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — ' + tornTailFailHint}`)
   if (!cond) failures++

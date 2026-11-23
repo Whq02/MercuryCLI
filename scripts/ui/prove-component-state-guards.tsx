@@ -20,22 +20,22 @@ let countText = '0'
 let changed = ''
 let removed = 0
 const checkedDirectories: string[] = []
-const worktrees = await import('../../src/services/worktree.js')
+const worktrees = await import('../../src/platform/git/worktree/worktree.js')
 const realCleanup = worktrees.cleanupWorktree
 const realCurrent = worktrees.getCurrentWorktreeSession
 let realRemoval = false
 let removalError = ''
 let exitsRecorded = 0
-const execution = await import('../../src/utils/execFileNoThrow.js')
-const logs = await import('../../src/utils/sessionStorage/logs.js')
+const execution = await import('../../src/platform/processes/execFileNoThrow.js')
+const logs = await import('../../src/sessions/transcripts/sessionListings.js')
 const runCommand = execution.execFileNoThrowWithCwd
-mock.module('../../src/services/worktree.js', () => ({
+mock.module('../../src/platform/git/worktree/worktree.js', () => ({
   ...worktrees,
   getCurrentWorktreeSession: () => session,
   cleanupWorktree: async () => { removed++; if (realRemoval) await realCleanup() },
   keepWorktree: async () => {},
 }))
-mock.module('../../src/utils/execFileNoThrow.js', () => ({
+mock.module('../../src/platform/processes/execFileNoThrow.js', () => ({
   ...execution,
   execFileNoThrow: async () => ({ code: 0, stdout: '', stderr: '' }),
   execFileNoThrowWithCwd: async (_command: string, args: string[], options: { cwd: string }) => {
@@ -47,15 +47,15 @@ mock.module('../../src/utils/execFileNoThrow.js', () => ({
       : { code: countCode, stdout: countText, stderr: '' }
   },
 }))
-mock.module('../../src/utils/sessionStorage/logs.js', () => ({ ...logs, saveWorktreeState: () => { exitsRecorded++ } }))
+mock.module('../../src/sessions/transcripts/sessionListings.js', () => ({ ...logs, saveWorktreeState: () => { exitsRecorded++ } }))
 
-const { ValidationErrorsList } = await import('../../src/components/ValidationErrorsList.js')
-const { WorktreeExitDialog } = await import('../../src/components/WorktreeExitDialog.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-const { Box } = await import('../../src/ink.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { ValidationErrorsList } = await import('../../src/boot/first-run/ValidationErrorsList.js')
+const { WorktreeExitDialog } = await import('../../src/commands/exit/WorktreeExitDialog.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 const mount = (element: React.ReactNode) => mountOffscreen(<AppStateProvider><ThemeProvider><KeybindingSetup><Box width={100} height={24} flexDirection="column">{element}</Box></KeybindingSetup></ThemeProvider></AppStateProvider>, 100, 24)
 
@@ -68,8 +68,8 @@ try {
     { path: 'view.__proto__.nested', message: 'nested fixture' },
   ]} />)
   const painted = await waitFor(() => validation.screen().includes('validation fixture') && validation.screen().includes('nested fixture'), 3000)
-  check('validation paths cannot write Object.prototype', !Object.hasOwn(prototype, property) && !Object.hasOwn(prototype, 'nested'), 'the path tree in src/components/ValidationErrorsList.tsx must not assign through a __proto__ segment; keep the nodes prototype-free (Object.create(null)) and skip or own-key that segment')
-  check('prototype-named paths still render their own errors', painted, 'src/components/ValidationErrorsList.tsx must still paint the message of an error whose path has a __proto__ segment, not drop the row')
+  check('validation paths cannot write Object.prototype', !Object.hasOwn(prototype, property) && !Object.hasOwn(prototype, 'nested'), 'the path tree in src/boot/first-run/ValidationErrorsList.tsx must not assign through a __proto__ segment; keep the nodes prototype-free (Object.create(null)) and skip or own-key that segment')
+  check('prototype-named paths still render their own errors', painted, 'src/boot/first-run/ValidationErrorsList.tsx must still paint the message of an error whose path has a __proto__ segment, not drop the row')
   validation.unmount()
   await settle(50)
   delete prototype[property]
@@ -90,7 +90,7 @@ try {
     checkedDirectories.length = 0
     const view = await mount(<WorktreeExitDialog onDone={() => {}} />)
     await waitFor(() => scenario.expected === 0 ? view.screen().includes('Keep worktree') : removed === 1, 3000)
-    check(`${scenario.name}: probes the session worktree, not process.cwd()`, checkedDirectories.length === 2 && checkedDirectories.every(path => path === session.worktreePath), `git status and the commit count must run with cwd set to the session worktreePath, two calls in all; saw ${JSON.stringify(checkedDirectories)}; fix the calls in src/components/WorktreeExitDialog.tsx`)
+    check(`${scenario.name}: probes the session worktree, not process.cwd()`, checkedDirectories.length === 2 && checkedDirectories.every(path => path === session.worktreePath), `git status and the commit count must run with cwd set to the session worktreePath, two calls in all; saw ${JSON.stringify(checkedDirectories)}; fix the calls in src/commands/exit/WorktreeExitDialog.tsx`)
     check(`${scenario.name}: only proven empty work is silently removed`, removed === scenario.expected, `cleanupWorktree ran ${removed} time(s), expected ${scenario.expected}; WorktreeExitDialog.tsx may remove silently only when git status succeeded clean and the commit count parsed as 0, otherwise it must show the Keep worktree choice`)
     const outAt = process.argv.indexOf('--out')
     if (outAt >= 0) {
@@ -98,7 +98,7 @@ try {
       mkdirSync(output, { recursive: true })
       writeFileSync(join(output, `${scenario.name.replaceAll(' ', '-')}.txt`), view.screen())
     }
-    if (scenario.expected === 0) check(`${scenario.name}: keeps the choice available`, view.screen().includes('Keep worktree'), 'the Keep worktree option is missing from the dialog screen; fix the render in src/components/WorktreeExitDialog.tsx')
+    if (scenario.expected === 0) check(`${scenario.name}: keeps the choice available`, view.screen().includes('Keep worktree'), 'the Keep worktree option is missing from the dialog screen; fix the render in src/commands/exit/WorktreeExitDialog.tsx')
     view.unmount()
     await settle(50)
   }
@@ -112,8 +112,8 @@ try {
   git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--allow-empty', '-qm', 'fixture'])
   const parent = join(root, 'trees')
   mkdirSync(parent)
-  const bootstrap = await import('../../src/bootstrap/state.js')
-  const { getCurrentProjectConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.js')
+  const bootstrap = await import('../../src/boot/process-state/processState.js')
+  const { getCurrentProjectConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.js')
   bootstrap.setOriginalCwd(root)
   bootstrap.setProjectRoot(root)
   bootstrap.setCwdState(root)
@@ -135,15 +135,15 @@ try {
     let reported = 0
     const view = await mount(<WorktreeExitDialog onDone={message => { result = message; reported++ }} />)
     if (scenario === 'file held open') {
-      check('a held file presents the existing remove choice', await waitFor(() => view.screen().includes('Remove worktree'), 3000), 'no Remove worktree choice painted within 3s; fix the dialog options in src/components/WorktreeExitDialog.tsx')
+      check('a held file presents the existing remove choice', await waitFor(() => view.screen().includes('Remove worktree'), 3000), 'no Remove worktree choice painted within 3s; fix the dialog options in src/commands/exit/WorktreeExitDialog.tsx')
       view.push(KEY.down)
       await settle(80)
       view.push(KEY.enter)
     }
     await waitFor(() => result !== undefined, 4000)
     if (expectedFailure) {
-      check(`${scenario}: the failure row carries the OS reason, not Removed`, result !== undefined && !result.startsWith('Removed') && /Permission denied|Device or resource busy/.test(result), `the failure message must carry the git error text; got ${JSON.stringify(result)}; see the catch around cleanupWorktree in src/components/WorktreeExitDialog.tsx`)
-      check(`${scenario}: the row names the tree and a retry action`, result !== undefined && result.includes(path) && /retry|try again/i.test(result), `the failure message must name the worktree path and say to retry; got ${JSON.stringify(result)}; see the catch around cleanupWorktree in src/components/WorktreeExitDialog.tsx`)
+      check(`${scenario}: the failure row carries the OS reason, not Removed`, result !== undefined && !result.startsWith('Removed') && /Permission denied|Device or resource busy/.test(result), `the failure message must carry the git error text; got ${JSON.stringify(result)}; see the catch around cleanupWorktree in src/commands/exit/WorktreeExitDialog.tsx`)
+      check(`${scenario}: the row names the tree and a retry action`, result !== undefined && result.includes(path) && /retry|try again/i.test(result), `the failure message must name the worktree path and say to retry; got ${JSON.stringify(result)}; see the catch around cleanupWorktree in src/commands/exit/WorktreeExitDialog.tsx`)
       check(`${scenario}: the tree and session record stay`, existsSync(path) && realCurrent()?.worktreePath === path && getCurrentProjectConfig().activeWorktreeSession?.worktreePath === path, 'after a failed removal the worktree directory, the in-memory worktree session and the saved activeWorktreeSession must all remain; cleanupWorktree must not clear them on error')
       check(`${scenario}: session history is not cleared`, exitsRecorded === 0, `saveWorktreeState ran ${exitsRecorded} time(s) after a failed removal; it may run only after a successful one`)
       if (scenario === 'file held open') check('the held file is untouched', readFileSync(join(path, 'held.txt'), 'utf8') === 'keep this file', 'the held file was changed or deleted by a failed removal; the dialog must not delete files itself')

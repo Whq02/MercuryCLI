@@ -2,11 +2,11 @@ import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
-import { defineStore, publishAtomic, VERSION_KEY } from '../../src/substrate/fileStore.ts'
+import { defineStore, publishAtomic, VERSION_KEY } from '../../src/platform/substrate/fileStore.ts'
 
 let failures = 0
 const ok = (cond: boolean, label: string) => {
-  console.log(`${cond ? '  ✅' : '  ❌'} ${label}${cond ? '' : ' — fix defineStore (read, write, mutate, subscribe) or publishAtomic in src/substrate/fileStore.ts; the check label names the section'}`)
+  console.log(`${cond ? '  ✅' : '  ❌'} ${label}${cond ? '' : ' — fix defineStore (read, write, mutate, subscribe) or publishAtomic in src/platform/substrate/fileStore.ts; the check label names the section'}`)
   if (!cond) failures++
 }
 

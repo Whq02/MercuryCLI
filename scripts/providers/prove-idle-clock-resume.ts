@@ -2,7 +2,7 @@ import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import net from 'node:net'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.2' }
-const { createStreamIdleWatchdog } = await import('../../src/services/providers/streamIdleBudget.ts')
+const { createStreamIdleWatchdog } = await import('../../src/models/roads/streamIdleBudget.ts')
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 if (process.argv[2] === '--child') {
   const socket = net.connect(Number(process.argv[3]), '127.0.0.1')
@@ -32,11 +32,11 @@ if (process.argv[2] === '--child') {
     watchdog.noteActivity()
     skew = 600000
     await delay(350)
-    assert.equal(watchdog.fired(), null, 'wall-clock jumps do not consume idle time: createStreamIdleWatchdog in src/services/providers/streamIdleBudget.ts must measure silence with performance.now, not Date.now')
+    assert.equal(watchdog.fired(), null, 'wall-clock jumps do not consume idle time: createStreamIdleWatchdog in src/models/roads/streamIdleBudget.ts must measure silence with performance.now, not Date.now')
   } finally { Date.now = clock; watchdog.stop() }
   const stalled = createStreamIdleWatchdog({ timeoutMs: 100 })
   await delay(150)
-  assert(stalled.fired() !== null, 'real silence still expires: onStreamIdleDeadline in createStreamIdleWatchdog (src/services/providers/streamIdleBudget.ts) must set its fire once silentMs reaches timeoutMs')
+  assert(stalled.fired() !== null, 'real silence still expires: onStreamIdleDeadline in createStreamIdleWatchdog (src/models/roads/streamIdleBudget.ts) must set its fire once silentMs reaches timeoutMs')
   stalled.stop()
   if (process.platform !== 'win32') {
     let client: net.Socket | undefined
@@ -56,7 +56,7 @@ if (process.argv[2] === '--child') {
       process.kill(child.pid, 'SIGCONT')
       const exit = await child.exited
       await reading
-      assert.equal(exit, 0, `${output}child exit ${exit}: 1 means the idle watchdog fired before the buffered byte was read after SIGCONT, so onStreamIdleDeadline in createStreamIdleWatchdog (src/services/providers/streamIdleBudget.ts) must re-queue itself when it wakes more than 100 ms late; 2 means no byte reached the child`)
+      assert.equal(exit, 0, `${output}child exit ${exit}: 1 means the idle watchdog fired before the buffered byte was read after SIGCONT, so onStreamIdleDeadline in createStreamIdleWatchdog (src/models/roads/streamIdleBudget.ts) must re-queue itself when it wakes more than 100 ms late; 2 means no byte reached the child`)
     } finally {
       if (child.exitCode === null) { process.kill(child.pid, 'SIGCONT'); child.kill() }
       client?.destroy()

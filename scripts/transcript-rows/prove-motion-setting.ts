@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = HOME
 delete process.env.MERCURY_CRITTER_IDLE
 delete process.env.MERCURY_LIVE_GLYPHS
 
-const { enableConfigs, getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.js')
+const { enableConfigs, getGlobalConfig, saveGlobalConfig } = await import('../../src/platform/settings/config.js')
 const {
   MOTION_DOORS,
   MOTION_MENU_ROW,
@@ -22,7 +22,7 @@ const {
   primeMotionSetting,
   readMotionSetting,
   setMotionSetting,
-} = await import('../../src/utils/cockpit/motionSetting.js')
+} = await import('../../src/screen/cockpit/motionSetting.js')
 const {
   __motionGovernorResetForTest,
   __setLoopMeterForTest,
@@ -34,18 +34,18 @@ const {
   noteFrameCost,
   REDUCED_FLOOR_MS,
   TRIP_RUN,
-} = await import('../../src/utils/cockpit/motionGovernor.js')
-const { critterIdleTickMs, IDLE_TICK_MS } = await import('../../src/utils/cockpit/critterIdle.js')
-const { glyphTickMs, REDUCED_TICK_MS, WORK_TICK_MS } = await import('../../src/utils/cockpit/liveGlyphs.js')
-const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.js')
-const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
-const { generateSettingsJSONSchema } = await import('../../src/utils/settings/schemaOutput.js')
+} = await import('../../src/screen/cockpit/motionGovernor.js')
+const { critterIdleTickMs, IDLE_TICK_MS } = await import('../../src/screen/cockpit/critterIdle.js')
+const { glyphTickMs, REDUCED_TICK_MS, WORK_TICK_MS } = await import('../../src/screen/cockpit/liveGlyphs.js')
+const { STARTUP_MENU } = await import('../../src/platform/substrate/startupMenu.js')
+const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.js')
+const { generateSettingsJSONSchema } = await import('../../src/platform/settings/schemaOutput.js')
 const { STILLS, readStill, renderStill, stillPath, composeMotionMenu } = await import('../ui/motion-menu-stills.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' [change the setting and its words in src/utils/cockpit/motionSetting.ts, the cadence and posture in src/utils/cockpit/motionGovernor.ts; for a still, regenerate with bun scripts/ui/motion-menu-stills.ts --write only if the change is on purpose]'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' [change the setting and its words in src/screen/cockpit/motionSetting.ts, the cadence and posture in src/screen/cockpit/motionGovernor.ts; for a still, regenerate with bun scripts/ui/motion-menu-stills.ts --write only if the change is on purpose]'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

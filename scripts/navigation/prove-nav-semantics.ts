@@ -6,14 +6,14 @@ import {
   skipDisabled,
   type NavAction,
   type NavDecodeOptions,
-} from '../../src/components/mercury-ui/navSemantics.js'
-import type { Key } from '../../src/ink/events/input-event.js'
+} from '../../src/screen/widgets/navSemantics.js'
+import type { Key } from '../../src/screen/renderer/events/input-event.js'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   if (!cond || process.env.COMPASS_PROOF_VERBOSE) {
-    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix decodeNavKey and decodeDomNavKey (key to action), applyNavMotion (motion) or skipDisabled (disabled rows) in src/components/mercury-ui/navSemantics.ts` : detail ? ` — ${detail}` : ''}`)
+    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix decodeNavKey and decodeDomNavKey (key to action), applyNavMotion (motion) or skipDisabled (disabled rows) in src/screen/widgets/navSemantics.ts` : detail ? ` — ${detail}` : ''}`)
   }
 }
 

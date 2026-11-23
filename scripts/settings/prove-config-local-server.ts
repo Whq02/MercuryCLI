@@ -17,7 +17,7 @@ if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let failures = 0
 const LOCAL_SERVER_FAILURE_HINT =
-  'fix the row words and rows in src/components/Settings/LocalServer.tsx, the knobs, memory fit and apply plan in src/services/localServer/ (localServerKnobs.ts, localServerMemory.ts, localServerApply.ts), whichever this check names'
+  'fix the row words and rows in src/screen/settings/LocalServer.tsx, the knobs, memory fit and apply plan in src/models/local-server/ (localServerKnobs.ts, localServerMemory.ts, localServerApply.ts), whichever this check names'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${LOCAL_SERVER_FAILURE_HINT}${detail ? `; got: ${detail}` : ''}` : ''}`)
@@ -34,9 +34,9 @@ async function finish(): Promise<never> {
 section('§0 the page module exists (red on the base: the component and the reader are absent)')
 const mods = await (async () => {
   try {
-    return { page: await import('../../src/components/Settings/LocalServer.js'), truth: await import('../../src/services/localServer/localServerTruth.js') }
+    return { page: await import('../../src/screen/settings/LocalServer.js'), truth: await import('../../src/models/local-server/localServerTruth.js') }
   } catch (error) {
-    check('src/components/Settings/LocalServer.tsx and src/services/localServer import', false, error instanceof Error ? error.message.split('\n')[0] ?? '' : String(error))
+    check('src/screen/settings/LocalServer.tsx and src/models/local-server import', false, error instanceof Error ? error.message.split('\n')[0] ?? '' : String(error))
     return undefined
   }
 })()
@@ -84,14 +84,14 @@ section('§1 the pure words')
 }
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
-const { CONFIG_POPUP_HINT, CONFIG_ROW_MARK } = await import('../../src/components/Settings/Config.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { CONFIG_POPUP_HINT, CONFIG_ROW_MARK } = await import('../../src/screen/settings/Config.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 async function mount(columns: number, rows: number): Promise<Mounted> {
@@ -186,7 +186,7 @@ section('§3 ←/→ on a knob writes the user setting; esc reverts it')
 
 section('§4 an over-memory choice: red words with the figures on the knob rows, the Apply row refuses with no door')
 {
-  const { updateSettingsForSource } = await import('../../src/utils/settings/settings.js')
+  const { updateSettingsForSource } = await import('../../src/platform/settings/settings.js')
   updateSettingsForSource('userSettings', { local: { server: { maxLoadedModels: 2, parallelSlots: 4, contextLength: 262144 } } })
   const REFUSAL = 'does not fit · 73.4 of 36.9 GiB usable — lower the window or the count'
   for (const [columns, rows] of [[178, 51], [80, 21]] as const) {

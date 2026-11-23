@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { streamZaiChat, type ZaiStreamEvent } from '../../src/services/providers/zai/zaiClient.js'
+import { streamZaiChat, type ZaiStreamEvent } from '../../src/models/roads/zai/zaiClient.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = '', hint = ''): void {
@@ -57,15 +57,15 @@ section('1 · abandoned generator tears the transport down')
     'the first event streamed (the connection is live mid-turn)',
     first.done === false && (first.value as ZaiStreamEvent).type === 'text-delta',
     JSON.stringify(first.value ?? null),
-    'to fix: streamZaiChat (src/services/providers/zai/zaiClient.ts) must yield a text-delta for the first content chunk',
+    'to fix: streamZaiChat (src/models/roads/zai/zaiClient.ts) must yield a text-delta for the first content chunk',
   )
-  check('the fixture observed the transport signal', wire.signal !== null, '', 'to fix: streamZaiChat (src/services/providers/zai/zaiClient.ts) must pass an AbortSignal in the fetch init')
+  check('the fixture observed the transport signal', wire.signal !== null, '', 'to fix: streamZaiChat (src/models/roads/zai/zaiClient.ts) must pass an AbortSignal in the fetch init')
   await gen.return(undefined)
   check(
     'closing the generator ABORTS the transport (RED pre-TEMPER: socket leaks)',
     wire.signal?.aborted === true,
     `aborted=${String(wire.signal?.aborted)}`,
-    'to fix: streamZaiChat (src/services/providers/zai/zaiClient.ts) must abort its controller when the consumer closes the generator',
+    'to fix: streamZaiChat (src/models/roads/zai/zaiClient.ts) must abort its controller when the consumer closes the generator',
   )
 }
 
@@ -81,10 +81,10 @@ section('2 · a consumed stream is unaffected by the baseline teardown')
     'full sequence: two text deltas then exactly one finish, no faults',
     kinds === 'text-delta,text-delta,finish',
     kinds,
-    'to fix: the SSE parse loop of streamZaiChat (src/services/providers/zai/zaiClient.ts) must emit one text-delta per content chunk and one finish',
+    'to fix: the SSE parse loop of streamZaiChat (src/models/roads/zai/zaiClient.ts) must emit one text-delta per content chunk and one finish',
   )
   const finish = events.find(e => e.type === 'finish')
-  check('finish reason is stop', finish?.type === 'finish' && finish.reason === 'stop', '', `to fix: streamZaiChat (src/services/providers/zai/zaiClient.ts) must map finish_reason 'stop' to a finish event with reason 'stop' (got ${JSON.stringify(finish ?? null)})`)
+  check('finish reason is stop', finish?.type === 'finish' && finish.reason === 'stop', '', `to fix: streamZaiChat (src/models/roads/zai/zaiClient.ts) must map finish_reason 'stop' to a finish event with reason 'stop' (got ${JSON.stringify(finish ?? null)})`)
 }
 
 section('3 · the explicit cancel contract is preserved')
@@ -93,7 +93,7 @@ section('3 · the explicit cancel contract is preserved')
   const outer = new AbortController()
   const gen = streamZaiChat({ apiKey: 'fixture-key', request: REQUEST, signal: outer.signal, fetchImpl })
   const first = await gen.next()
-  check('streamed before cancel', first.done === false, '', 'to fix: streamZaiChat (src/services/providers/zai/zaiClient.ts) ended before yielding the first chunk')
+  check('streamed before cancel', first.done === false, '', 'to fix: streamZaiChat (src/models/roads/zai/zaiClient.ts) ended before yielding the first chunk')
   outer.abort()
   const events: ZaiStreamEvent[] = []
   for (;;) {
@@ -106,9 +106,9 @@ section('3 · the explicit cancel contract is preserved')
     `outer abort surfaces the typed 'cancelled' fault`,
     fault?.type === 'stream-fault' && fault.fault.kind === 'cancelled',
     JSON.stringify(fault ?? null),
-    "to fix: streamZaiChat (src/services/providers/zai/zaiClient.ts) must yield a stream-fault of kind 'cancelled' when options.signal aborts mid-stream",
+    "to fix: streamZaiChat (src/models/roads/zai/zaiClient.ts) must yield a stream-fault of kind 'cancelled' when options.signal aborts mid-stream",
   )
-  check('the transport signal is aborted after cancel', wire.signal?.aborted === true, '', 'to fix: streamZaiChat (src/services/providers/zai/zaiClient.ts) must abort its own controller when the outer signal aborts')
+  check('the transport signal is aborted after cancel', wire.signal?.aborted === true, '', 'to fix: streamZaiChat (src/models/roads/zai/zaiClient.ts) must abort its own controller when the outer signal aborts')
 }
 
 console.log('')

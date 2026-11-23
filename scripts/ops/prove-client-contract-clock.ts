@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { lt, valid } from 'semver'
-import * as oauth from '../../src/constants/oauth.ts'
+import * as oauth from '../../src/models/sign-in/oauth/oauth.ts'
 import { latestReleaseNote, parseIsoDate, readReleaseNoteParameters } from '../release/notesFromChangelog.mjs'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -117,9 +117,9 @@ try {
   rmSync(noteRoot, { recursive: true, force: true })
 }
 
-check('the describer carries the constant check date', isDate(AS_OF) && oauth.describeAnthropicClientContract().asOf === AS_OF, '', 'ANTHROPIC_CLIENT_CONTRACT_AS_OF in src/constants/oauth.ts must be a real YYYY-MM-DD date, and describeAnthropicClientContract there must return it as asOf when nothing newer was learned')
+check('the describer carries the constant check date', isDate(AS_OF) && oauth.describeAnthropicClientContract().asOf === AS_OF, '', 'ANTHROPIC_CLIENT_CONTRACT_AS_OF in src/models/sign-in/oauth/oauth.ts must be a real YYYY-MM-DD date, and describeAnthropicClientContract there must return it as asOf when nothing newer was learned')
 const tree = assess(NOTE, VERSION, CONTRACT, AS_OF, TODAY)
-check('the tree has a checked contract for its release day', tree.findings.length === 0, tree.findings.join(' | '), 'check the vendor CLI version, then stamp ANTHROPIC_CLIENT_CONTRACT_AS_OF (and ANTHROPIC_CLIENT_CONTRACT_VERSION if it moved) in src/constants/oauth.ts, or fix the release note or package.json version the finding names')
+check('the tree has a checked contract for its release day', tree.findings.length === 0, tree.findings.join(' | '), 'check the vendor CLI version, then stamp ANTHROPIC_CLIENT_CONTRACT_AS_OF (and ANTHROPIC_CLIENT_CONTRACT_VERSION if it moved) in src/models/sign-in/oauth/oauth.ts, or fix the release note or package.json version the finding names')
 if (tree.info) console.log(tree.info)
 
 console.log('Client-contract clock: a learned number presents with its own date; the constant stays the baseline the clock checks')
@@ -142,11 +142,11 @@ function describeWithLearned(version: string): ReturnType<typeof oauth.describeA
 const learnedOverride = process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
 delete process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
 const learned = describeWithLearned(patchOf(9))
-check('a learned number newer than the constant presents as learned, dated by its own learning', learned.presented === patchOf(9) && learned.source === 'learned' && learned.asOf === '2000-03-01', JSON.stringify(learned), 'describeAnthropicClientContract in src/constants/oauth.ts must present a learned number newer than the constant, with asOf taken from the day it was learned')
-check('the constant and its check date are untouched while a learned number presents', oauth.ANTHROPIC_CLIENT_CONTRACT_VERSION === CONTRACT && (oauth as Record<string, unknown>).ANTHROPIC_CLIENT_CONTRACT_AS_OF === AS_OF, '', 'presenting a learned number in src/constants/oauth.ts must not change ANTHROPIC_CLIENT_CONTRACT_VERSION or ANTHROPIC_CLIENT_CONTRACT_AS_OF')
-check("the clock reads the constant's own check date, never the learned date the door presents", learned.asOf !== AS_OF && assess(NOTE, VERSION, CONTRACT, (oauth as Record<string, unknown>).ANTHROPIC_CLIENT_CONTRACT_AS_OF, TODAY).findings.join(' | ') === tree.findings.join(' | '), '', 'the clock must read ANTHROPIC_CLIENT_CONTRACT_AS_OF from the constant, not the asOf that describeAnthropicClientContract returns for a learned number (src/constants/oauth.ts)')
+check('a learned number newer than the constant presents as learned, dated by its own learning', learned.presented === patchOf(9) && learned.source === 'learned' && learned.asOf === '2000-03-01', JSON.stringify(learned), 'describeAnthropicClientContract in src/models/sign-in/oauth/oauth.ts must present a learned number newer than the constant, with asOf taken from the day it was learned')
+check('the constant and its check date are untouched while a learned number presents', oauth.ANTHROPIC_CLIENT_CONTRACT_VERSION === CONTRACT && (oauth as Record<string, unknown>).ANTHROPIC_CLIENT_CONTRACT_AS_OF === AS_OF, '', 'presenting a learned number in src/models/sign-in/oauth/oauth.ts must not change ANTHROPIC_CLIENT_CONTRACT_VERSION or ANTHROPIC_CLIENT_CONTRACT_AS_OF')
+check("the clock reads the constant's own check date, never the learned date the door presents", learned.asOf !== AS_OF && assess(NOTE, VERSION, CONTRACT, (oauth as Record<string, unknown>).ANTHROPIC_CLIENT_CONTRACT_AS_OF, TODAY).findings.join(' | ') === tree.findings.join(' | '), '', 'the clock must read ANTHROPIC_CLIENT_CONTRACT_AS_OF from the constant, not the asOf that describeAnthropicClientContract returns for a learned number (src/models/sign-in/oauth/oauth.ts)')
 const staleLearned = describeWithLearned(patchOf(-1))
-check('a learned number older than the constant never presents: the constant and its date do', staleLearned.presented === CONTRACT && staleLearned.source === 'constant' && staleLearned.asOf === AS_OF, JSON.stringify(staleLearned), 'describeAnthropicClientContract in src/constants/oauth.ts must fall back to the constant and its check date when the learned number is older')
+check('a learned number older than the constant never presents: the constant and its date do', staleLearned.presented === CONTRACT && staleLearned.source === 'constant' && staleLearned.asOf === AS_OF, JSON.stringify(staleLearned), 'describeAnthropicClientContract in src/models/sign-in/oauth/oauth.ts must fall back to the constant and its check date when the learned number is older')
 if (learnedOverride !== undefined) process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT = learnedOverride
 for (const home of learnedHomes) rmSync(home, { recursive: true, force: true })
 console.log(failures === 0 ? 'client-contract clock: green' : `client-contract clock: ${failures} failure(s)`)

@@ -4,13 +4,13 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { check as baseCheck, cleanup, finish, loadEval, refusingBridge, section, setup, sleep, within } from './lib.js'
-import type { ProcKernel } from '../../src/services/eval/procKernel.js'
+import type { ProcKernel } from '../../src/tools/engines/eval-kernels/procKernel.js'
 
 const check = (label: string, cond: boolean, detail = '', fix = ''): void => baseCheck(label, cond, cond || !fix ? detail : detail ? `${detail} — ${fix}` : fix)
 
 const { work } = setup()
-const { pythonCandidates } = await import('../../src/services/eval/interpreters.js')
-const { EVAL_SHUTDOWN_GRACE_MS } = await import('../../src/services/eval/contracts.js')
+const { pythonCandidates } = await import('../../src/tools/engines/eval-kernels/interpreters.js')
+const { EVAL_SHUTDOWN_GRACE_MS } = await import('../../src/tools/engines/eval-kernels/contracts.js')
 
 const REPORTS = join(homedir(), 'Library', 'Logs', 'DiagnosticReports')
 const REPORT_WINDOW_MS = 3_000
@@ -112,17 +112,17 @@ function attach(manager: Manager, before: string[]): Live | null {
 
 async function settle(name: string, live: Live, since: number, settledAt: number): Promise<void> {
   const exit = await within(`${name}: the kernel exit`, EVAL_SHUTDOWN_GRACE_MS * 2 + 2_000, live.exit).catch(() => null)
-  check(`${name}: the kernel exited`, exit !== null, '', 'the kernel did not leave within the grace; see ProcKernel.dispose in src/services/eval/procKernel.ts and the SIGTERM handler in src/services/eval/pyRunnerSource.ts')
-  check(`${name}: exit code 0`, exit?.code === 0, `code=${String(exit?.code)} signal=${String(exit?.signal)}`, 'the Python runner must leave through its one exit path with code 0; see the exit and SIGTERM handling in src/services/eval/pyRunnerSource.ts')
-  check(`${name}: exit signal null (never SIGABRT, never SIGTERM)`, exit !== null && exit.signal === null, `signal=${String(exit?.signal)}`, 'the runner must exit itself instead of being killed or aborting; see the exit and SIGTERM handling in src/services/eval/pyRunnerSource.ts and ProcKernel.dispose in src/services/eval/procKernel.ts')
-  check(`${name}: left within the polite grace, before any escalation`, exit !== null && exit.at - since < EVAL_SHUTDOWN_GRACE_MS, exit ? `${exit.at - since} ms` : 'no exit', 'the kernel must leave before EVAL_SHUTDOWN_GRACE_MS (src/services/eval/contracts.ts) runs out; see ProcKernel.dispose in src/services/eval/procKernel.ts')
-  check(`${name}: the cell's done frame and end marks came before the exit`, exit !== null && settledAt <= exit.at, '', 'the kernel exited before the cell settled; see ProcKernel.exec in src/services/eval/procKernel.ts')
+  check(`${name}: the kernel exited`, exit !== null, '', 'the kernel did not leave within the grace; see ProcKernel.dispose in src/tools/engines/eval-kernels/procKernel.ts and the SIGTERM handler in src/tools/engines/eval-kernels/pyRunnerSource.ts')
+  check(`${name}: exit code 0`, exit?.code === 0, `code=${String(exit?.code)} signal=${String(exit?.signal)}`, 'the Python runner must leave through its one exit path with code 0; see the exit and SIGTERM handling in src/tools/engines/eval-kernels/pyRunnerSource.ts')
+  check(`${name}: exit signal null (never SIGABRT, never SIGTERM)`, exit !== null && exit.signal === null, `signal=${String(exit?.signal)}`, 'the runner must exit itself instead of being killed or aborting; see the exit and SIGTERM handling in src/tools/engines/eval-kernels/pyRunnerSource.ts and ProcKernel.dispose in src/tools/engines/eval-kernels/procKernel.ts')
+  check(`${name}: left within the polite grace, before any escalation`, exit !== null && exit.at - since < EVAL_SHUTDOWN_GRACE_MS, exit ? `${exit.at - since} ms` : 'no exit', 'the kernel must leave before EVAL_SHUTDOWN_GRACE_MS (src/tools/engines/eval-kernels/contracts.ts) runs out; see ProcKernel.dispose in src/tools/engines/eval-kernels/procKernel.ts')
+  check(`${name}: the cell's done frame and end marks came before the exit`, exit !== null && settledAt <= exit.at, '', 'the kernel exited before the cell settled; see ProcKernel.exec in src/tools/engines/eval-kernels/procKernel.ts')
   const reports = await reportsAfter(live.before, live.pid)
   console.log(`      Python crash reports: ${live.before.length} before, ${reports.after.length} after${reports.fresh.length > 0 ? ` (new: ${reports.fresh.join(', ')})` : ''}`)
-  check(`${name}: no new Python crash report for the kernel (pid ${live.pid})`, reports.ours.length === 0, reports.ours.join(', '), 'the Python runner crashed at exit; the report names the file under DiagnosticReports, and src/services/eval/pyRunnerSource.ts must leave through os._exit instead of finalization')
+  check(`${name}: no new Python crash report for the kernel (pid ${live.pid})`, reports.ours.length === 0, reports.ours.join(', '), 'the Python runner crashed at exit; the report names the file under DiagnosticReports, and src/tools/engines/eval-kernels/pyRunnerSource.ts must leave through os._exit instead of finalization')
   await live.manager.disposeAll()
-  check(`${name}: the manager holds no kernel`, live.manager.kernelCount() === 0, String(live.manager.kernelCount()), 'disposeAll in src/services/eval/kernelManager.ts must drop every kernel')
-  check(`${name}: the kernel process is gone`, gone(live.pid), '', 'the kernel process outlived disposeAll; see ProcKernel.dispose in src/services/eval/procKernel.ts')
+  check(`${name}: the manager holds no kernel`, live.manager.kernelCount() === 0, String(live.manager.kernelCount()), 'disposeAll in src/tools/engines/eval-kernels/kernelManager.ts must drop every kernel')
+  check(`${name}: the kernel process is gone`, gone(live.pid), '', 'the kernel process outlived disposeAll; see ProcKernel.dispose in src/tools/engines/eval-kernels/procKernel.ts')
 }
 
 async function oneCell(name: string, end: (live: Live) => Promise<void>): Promise<void> {
@@ -137,10 +137,10 @@ async function oneCell(name: string, end: (live: Live) => Promise<void>): Promis
     serveBridge: bridge,
   }))
   const settledAt = Date.now()
-  check(`${name}: the cell ran clean and its stdout arrived`, outcome.status === 'ok' && outcome.stdout.text === '1\n', JSON.stringify({ error: outcome.error, notes: outcome.annotations, stderr: outcome.stderr.text }), 'a plain Python cell failed on a fresh kernel; see runCell in src/services/eval/kernelManager.ts')
-  check(`${name}: both end marks settled the cell, not the grace`, outcome.runtimeMs < 1_200, `${outcome.runtimeMs} ms`, 'the cell must settle on the end marks; see the mark handling and END_MARK_GRACE_MS in src/services/eval/procKernel.ts')
+  check(`${name}: the cell ran clean and its stdout arrived`, outcome.status === 'ok' && outcome.stdout.text === '1\n', JSON.stringify({ error: outcome.error, notes: outcome.annotations, stderr: outcome.stderr.text }), 'a plain Python cell failed on a fresh kernel; see runCell in src/tools/engines/eval-kernels/kernelManager.ts')
+  check(`${name}: both end marks settled the cell, not the grace`, outcome.runtimeMs < 1_200, `${outcome.runtimeMs} ms`, 'the cell must settle on the end marks; see the mark handling and END_MARK_GRACE_MS in src/tools/engines/eval-kernels/procKernel.ts')
   const live = attach(manager, before)
-  check(`${name}: the manager retains one live kernel`, live !== null, String(manager.kernelCount()), 'the manager must keep exactly one live kernel after a cell; see EvalKernelManager in src/services/eval/kernelManager.ts')
+  check(`${name}: the manager retains one live kernel`, live !== null, String(manager.kernelCount()), 'the manager must keep exactly one live kernel after a cell; see EvalKernelManager in src/tools/engines/eval-kernels/kernelManager.ts')
   if (!live) {
     await manager.disposeAll()
     return
@@ -174,7 +174,7 @@ async function midCell(name: string): Promise<void> {
   })
   await within(`${name}: the cell's first line, newline included (the unbuffered runner writes the word and its newline separately)`, 60_000, beforeLine)
   const live = attach(manager, before)
-  check(`${name}: the manager retains one live kernel mid-cell`, live !== null, String(manager.kernelCount()), 'the manager must keep exactly one live kernel while a cell runs; see EvalKernelManager in src/services/eval/kernelManager.ts')
+  check(`${name}: the manager retains one live kernel mid-cell`, live !== null, String(manager.kernelCount()), 'the manager must keep exactly one live kernel while a cell runs; see EvalKernelManager in src/tools/engines/eval-kernels/kernelManager.ts')
   if (!live) {
     controller.abort()
     await run.catch(() => undefined)
@@ -186,15 +186,15 @@ async function midCell(name: string): Promise<void> {
   process.kill(live.pid, 'SIGTERM')
   const exit = await within(`${name}: the kernel exit`, EVAL_SHUTDOWN_GRACE_MS * 2 + 2_000, live.exit).catch(() => null)
   const outcome = await within(`${name}: the cell outcome`, 10_000, run)
-  check(`${name}: the kernel left at once with exit code 0`, exit !== null && exit.code === 0 && exit.signal === null && exit.at - since < EVAL_SHUTDOWN_GRACE_MS, exit ? `code=${String(exit.code)} signal=${String(exit.signal)} after ${exit.at - since} ms` : 'no exit', 'on SIGTERM the Python runner must flush and exit 0 at once; see the SIGTERM handler in src/services/eval/pyRunnerSource.ts')
-  check(`${name}: the bytes the cell had printed reached the host`, outcome.stdout.text === 'before\n', JSON.stringify(outcome.stdout.text), 'bytes printed before the kernel left must reach the host; see the stdout handling in ProcKernel in src/services/eval/procKernel.ts')
-  check(`${name}: the cell reports the kernel's death and is not retried`, outcome.status === 'error' && outcome.annotations.some(note => note.includes('not retried')), JSON.stringify(outcome.annotations), 'a kernel that left on SIGTERM while its cell ran must be reported as dead and not retried; see the dead-kernel handling in runCell in src/services/eval/kernelManager.ts')
+  check(`${name}: the kernel left at once with exit code 0`, exit !== null && exit.code === 0 && exit.signal === null && exit.at - since < EVAL_SHUTDOWN_GRACE_MS, exit ? `code=${String(exit.code)} signal=${String(exit.signal)} after ${exit.at - since} ms` : 'no exit', 'on SIGTERM the Python runner must flush and exit 0 at once; see the SIGTERM handler in src/tools/engines/eval-kernels/pyRunnerSource.ts')
+  check(`${name}: the bytes the cell had printed reached the host`, outcome.stdout.text === 'before\n', JSON.stringify(outcome.stdout.text), 'bytes printed before the kernel left must reach the host; see the stdout handling in ProcKernel in src/tools/engines/eval-kernels/procKernel.ts')
+  check(`${name}: the cell reports the kernel's death and is not retried`, outcome.status === 'error' && outcome.annotations.some(note => note.includes('not retried')), JSON.stringify(outcome.annotations), 'a kernel that left on SIGTERM while its cell ran must be reported as dead and not retried; see the dead-kernel handling in runCell in src/tools/engines/eval-kernels/kernelManager.ts')
   const reports = await reportsAfter(before, live.pid)
   console.log(`      Python crash reports: ${before.length} before, ${reports.after.length} after${reports.fresh.length > 0 ? ` (new: ${reports.fresh.join(', ')})` : ''}`)
   check(`${name}: no new Python crash report for the kernel (pid ${live.pid})`, reports.ours.length === 0, reports.ours.join(', '))
   await manager.disposeAll()
-  check(`${name}: the manager holds no kernel`, manager.kernelCount() === 0, String(manager.kernelCount()), 'disposeAll in src/services/eval/kernelManager.ts must drop every kernel')
-  check(`${name}: the kernel process is gone`, gone(live.pid), '', 'the kernel process outlived disposeAll; see ProcKernel.dispose in src/services/eval/procKernel.ts')
+  check(`${name}: the manager holds no kernel`, manager.kernelCount() === 0, String(manager.kernelCount()), 'disposeAll in src/tools/engines/eval-kernels/kernelManager.ts must drop every kernel')
+  check(`${name}: the kernel process is gone`, gone(live.pid), '', 'the kernel process outlived disposeAll; see ProcKernel.dispose in src/tools/engines/eval-kernels/procKernel.ts')
 }
 
 try {

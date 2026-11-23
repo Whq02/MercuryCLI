@@ -17,7 +17,7 @@ const {
   acpPromptToComposerDocument,
   composerDocumentBlocks,
   replayUpdatesOf,
-} = await import('../../src/services/acp/acpServer.ts')
+} = await import('../../src/integrations/acp/acpServer.ts')
 
 t.section('§1 toolKindOf — the verb kinds')
 {

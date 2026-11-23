@@ -1,7 +1,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const deleteWardFixHint = 'change the no-root-recursive-delete and no-other-user-delete rules or windowsRemovalPatterns in src/utils/wards/wards.ts (a refused spelling needs a pattern added, an allowed one a pattern narrowed), and isDangerousRemovalRawPath in src/tools/PowerShellTool/pathValidation.ts for the section 5 hard-deny checks'
+const deleteWardFixHint = 'change the no-root-recursive-delete and no-other-user-delete rules or windowsRemovalPatterns in src/permissions/wards/wards.ts (a refused spelling needs a pattern added, an allowed one a pattern narrowed), and isDangerousRemovalRawPath in src/tools/powershell/pathValidation.ts for the section 5 hard-deny checks'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : `${detail ? '; ' : ' — '}${deleteWardFixHint}`}`)
@@ -84,8 +84,8 @@ async function main(): Promise<void> {
   delete process.env.MERCURY_WARDS
   const savedHome = process.env.HOME
   const savedProfile = process.env.USERPROFILE
-  const wards = await import('../../src/utils/wards/wards.js')
-  const psPaths = await import('../../src/tools/PowerShellTool/pathValidation.js')
+  const wards = await import('../../src/permissions/wards/wards.js')
+  const psPaths = await import('../../src/tools/powershell/pathValidation.js')
   const pending = (command: string, toolName = 'PowerShell') => ({ toolName, input: { command }, shellCommand: command })
   const refused = (command: string): boolean => !wards.evaluateWards(wards.REFUSAL_WARDS, pending(command)).allow
   const ruleOf = (command: string): string => {

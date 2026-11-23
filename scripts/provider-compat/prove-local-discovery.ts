@@ -14,7 +14,7 @@ delete process.env.MERCURY_LOCAL_BASE_URL
 delete process.env.MERCURY_DISABLE_1M_CONTEXT
 
 let failures = 0
-const localDiscoveryHint = 'fix the behaviour this check names in src/services/providers/local/ (localDiscovery.ts for probing and records, localCatalogue.ts for picker rows, localWindow.ts for the context window and its setting, localCallModel.ts for the lane profile and request-fit refusal, localAccounts.ts), src/services/providers/openaicompat/compatWire.ts (buildLocalExtras), src/utils/model/capabilities.ts (resolveContextWindow, effort support), src/services/crew/engineDispatch.ts (resolveEngineDispatch) or src/services/cockpit/modelGauge.ts (modelGauge)'
+const localDiscoveryHint = 'fix the behaviour this check names in src/models/roads/local/ (localDiscovery.ts for probing and records, localCatalogue.ts for picker rows, localWindow.ts for the context window and its setting, localCallModel.ts for the lane profile and request-fit refusal, localAccounts.ts), src/models/roads/openaicompat/compatWire.ts (buildLocalExtras), src/models/facts/capabilities.ts (resolveContextWindow, effort support), src/crew/crewmates/engineDispatch.ts (resolveEngineDispatch) or src/screen/cockpit-gauges/modelGauge.ts (modelGauge)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${localDiscoveryHint}` : ''}`)
@@ -133,22 +133,22 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = [
   `ollama=${deadRoot}`,
 ].join(',')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const discovery = await import('../../src/services/providers/local/localDiscovery.ts')
+const discovery = await import('../../src/models/roads/local/localDiscovery.ts')
 const { refreshLocalDiscovery, getCachedLocalDiscovery, localModelRecord, localProbeTargets, cachedLocalModels, __resetLocalDiscoveryForTest } = discovery
-const catalogue = await import('../../src/services/providers/local/localCatalogue.ts')
+const catalogue = await import('../../src/models/roads/local/localCatalogue.ts')
 const { getLocalModelOptions, localRecordFor, localWireId, LOCAL_MODEL_GROUP } = catalogue
-const localWindowWords: (record: import('../../src/services/providers/local/localDiscovery.ts').LocalModelRecord) => string = catalogue.localWindowWords ?? (() => '(localWindowWords is not exported on this tree)')
-const { localLaneProfileFor, localModelAcceptsEffort } = await import('../../src/services/providers/local/localCallModel.ts')
-const { resolveLocalAccount } = await import('../../src/services/providers/local/localAccounts.ts')
-const { resolveContextWindow, modelSupportsEffort, modelSupportsMaxEffort, modelSupportsXHighEffort } = await import('../../src/utils/model/capabilities.ts')
-const { buildLocalExtras } = await import('../../src/services/providers/openaicompat/compatWire.ts')
-const { streamCompatChat, mapCompatHttpFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-type CompatStreamEvent = import('../../src/services/providers/openaicompat/compatChatClient.ts').CompatStreamEvent
-const { activeSourceUsage } = await import('../../src/services/providers/providerUsage.ts')
-const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
+const localWindowWords: (record: import('../../src/models/roads/local/localDiscovery.ts').LocalModelRecord) => string = catalogue.localWindowWords ?? (() => '(localWindowWords is not exported on this tree)')
+const { localLaneProfileFor, localModelAcceptsEffort } = await import('../../src/models/roads/local/localCallModel.ts')
+const { resolveLocalAccount } = await import('../../src/models/roads/local/localAccounts.ts')
+const { resolveContextWindow, modelSupportsEffort, modelSupportsMaxEffort, modelSupportsXHighEffort } = await import('../../src/models/facts/capabilities.ts')
+const { buildLocalExtras } = await import('../../src/models/roads/openaicompat/compatWire.ts')
+const { streamCompatChat, mapCompatHttpFailure } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+type CompatStreamEvent = import('../../src/models/roads/openaicompat/compatChatClient.ts').CompatStreamEvent
+const { activeSourceUsage } = await import('../../src/models/roads/providerUsage.ts')
+const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
 
 section('1 · the probe set + one bounded discovery pass')
 {
@@ -228,7 +228,7 @@ section('5 · the picker rows')
 
 section('6 · the capability edge: the window is the one Mercury will send — under the server-default setting the server\'s stated figure, under auto the decision (the automatic ceiling on an unread machine whose trained max is above it)')
 {
-  const w = await import('../../src/services/providers/local/localWindow.ts')
+  const w = await import('../../src/models/roads/local/localWindow.ts')
   w.__resetLocalWindowsForTest()
   w.writeLocalWindowSetting({ id: 'qwen3:8b' }, 'server')
   const served = resolveContextWindow('local/qwen3:8b')
@@ -271,8 +271,8 @@ section('7 · the wire')
   check('a tool-capable model keeps its tools on the wire', profile.toolsInPrompt?.('qwen3:8b') === false && profile.toolCapabilityRefusal === undefined)
   const lmProfile = localLaneProfileFor(localRecordFor('local/meta-llama-3.1-8b-instruct')!)
   check('LM Studio trained_for_tool_use:false takes the prompt dialect too', lmProfile.toolsInPrompt?.('meta-llama-3.1-8b-instruct') === true)
-  const { localLiveCatalogue } = await import('../../src/services/providers/local/localAdapter.ts')
-  const { SPECIALIST_ROLES } = await import('../../src/services/providers/providerAdapter.ts')
+  const { localLiveCatalogue } = await import('../../src/models/roads/local/localAdapter.ts')
+  const { SPECIALIST_ROLES } = await import('../../src/models/roads/providerAdapter.ts')
   const llavaEntry = localLiveCatalogue().find(entry => entry.id === 'local/llava:latest')
   check('every role is open to a model that declares no tools (its tools ride in the prompt)', llavaEntry !== undefined && llavaEntry.roles.length === SPECIALIST_ROLES.length, JSON.stringify(llavaEntry?.roles))
   const events: CompatStreamEvent[] = []
@@ -325,11 +325,11 @@ section('8 · identity collision across servers (the namespace law)')
 
 section('9 · the cockpit gauge on a local main (the model line is the served truth)')
 {
-  const g = await import('../../src/services/cockpit/modelGauge.ts')
+  const g = await import('../../src/screen/cockpit-gauges/modelGauge.ts')
   __resetLocalDiscoveryForTest()
   process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
   await refreshLocalDiscovery({ force: true })
-  const gaugeWindows = await import('../../src/services/providers/local/localWindow.ts')
+  const gaugeWindows = await import('../../src/models/roads/local/localWindow.ts')
   gaugeWindows.__resetLocalWindowsForTest()
   gaugeWindows.writeLocalWindowSetting({ id: 'qwen3:8b' }, 'server')
   const live = g.modelGauge('local/qwen3:8b')
@@ -367,9 +367,9 @@ section('9 · the cockpit gauge on a local main (the model line is the served tr
 
 section('10 · the cloud-needed census on a local main (named degrades, never silence)')
 {
-  const { modelSupports1M } = await import('../../src/utils/model/capabilities.ts')
+  const { modelSupports1M } = await import('../../src/models/facts/capabilities.ts')
   check('the 1M toggle never lights on a local id', !modelSupports1M('local/qwen3:8b') && !modelSupports1M('local/hf.co/org/model:tag'))
-  const { mapMessagesToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
+  const { mapMessagesToZai } = await import('../../src/models/roads/zai/zaiCodec.ts')
   const rows = mapMessagesToZai(undefined, [
     {
       role: 'user',
@@ -398,7 +398,7 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
   __resetLocalDiscoveryForTest()
   process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
   await refreshLocalDiscovery({ force: true })
-  const windows = await import('../../src/services/providers/local/localWindow.ts')
+  const windows = await import('../../src/models/roads/local/localWindow.ts')
   windows.__resetLocalWindowsForTest()
   windows.writeLocalWindowSetting({ id: 'qwen3:8b' }, 'server')
   windows.writeLocalWindowSetting({ id: 'llama3.2:latest' }, 'server')
@@ -429,7 +429,7 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
   check('a trained maximum the server merely lists (model-max 32768) never guards by itself — only served/modelfile do: a 100k request past that listing is not refused (the guard is the window the request will send, pinned above)', localLaneProfileFor(trainedOnly).requestFitRefusal?.({ requestBytes: 400_000, estTokens: 100_000, toolCount: 202, wireModel: 'llava:latest' }) === undefined)
 
   windows.writeLocalWindowSetting({ id: 'qwen3:8b' }, 'server')
-  const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
+  const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
   const chatCountBefore = ollamaChatRequests.length
   const fat = 'x'.repeat(200_000)
   const yielded: Array<{ type?: string; isApiErrorMessage?: boolean; message?: { content?: unknown } }> = []

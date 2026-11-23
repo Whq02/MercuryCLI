@@ -16,17 +16,17 @@ delete process.env.MERCURY_EDIT_STALE_RECOVERY
 delete process.env.MERCURY_EDIT_LEDGER
 delete process.env.NODE_ENV
 
-const { mintFileAnchor, mintRangeAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { mintFileAnchor, mintRangeAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  const unreadRefusalHint = 'to fix, change readKnowledge in src/tools/FileEditTool/edit/readKnowledge.ts (the refusal text for an unread file or a failed anchor) so it leads with the read law and carries no anchor, digest or file content'
+  const unreadRefusalHint = 'to fix, change readKnowledge in src/tools/edit/call/readKnowledge.ts (the refusal text for an unread file or a failed anchor) so it leads with the read law and carries no anchor, digest or file content'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.length > 700 ? `${detail.slice(0, 700)}…` : detail} | ` : ''}${unreadRefusalHint}` : ''}`)
 }
 function section(t: string): void {

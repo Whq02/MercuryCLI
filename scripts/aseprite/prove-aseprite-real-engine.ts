@@ -9,7 +9,7 @@ import * as path from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const failHint = 'fix the op this check drives in src/tools/AsepriteTool/AsepriteTool.ts (export, info, run-script, status) or src/tools/AsepriteTool/art.ts (draw, parts, render, describe, palette-check)'
+  const failHint = 'fix the op this check drives in src/tools/aseprite/AsepriteTool.ts (export, info, run-script, status) or src/tools/aseprite/art.ts (draw, parts, render, describe, palette-check)'
   const shown = cond ? detail : detail ? `${detail} — ${failHint}` : failHint
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
@@ -17,9 +17,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { resolveAseprite } = await import('../../src/utils/aseprite/asepriteApp.ts')
-const { AsepriteTool } = await import('../../src/tools/AsepriteTool/AsepriteTool.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+const { resolveAseprite } = await import('../../src/integrations/aseprite/asepriteApp.ts')
+const { AsepriteTool } = await import('../../src/tools/aseprite/AsepriteTool.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
 
 const resolution = resolveAseprite()
 if (resolution.state !== 'ok') {

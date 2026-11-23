@@ -3,12 +3,12 @@ import assert from 'node:assert/strict'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { Client, StdioClientTransport } from '../../src/utils/mcp/sdk.js'
+import { Client, StdioClientTransport } from '../../src/integrations/mcp-shapes/sdk.js'
 import { catalogue, installLiveFixture, proofHome, removeProofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
-import { mediaHostStatePath, connectMediaHost } from '../../src/services/media/host.js'
-import { writeHostRecord } from '../../src/services/host/store.js'
-import { mediaConfigModule, mediaRoot } from '../../src/services/media/settings.js'
-import { hostIdleVerdict, HOST_IDLE_LIMIT_MS } from '../../src/services/host/idle.js'
+import { mediaHostStatePath, connectMediaHost } from '../../src/integrations/media/host.js'
+import { writeHostRecord } from '../../src/models/hosting/store.js'
+import { mediaConfigModule, mediaRoot } from '../../src/integrations/media/settings.js'
+import { hostIdleVerdict, HOST_IDLE_LIMIT_MS } from '../../src/models/hosting/idle.js'
 
 const client = new Client({ name: 'media-host-proof', version: '1' })
 let gateway: { port: number; close(): Promise<void> } | undefined

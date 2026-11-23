@@ -7,23 +7,23 @@ process.chdir(REPO)
 const HOME = pinScratchHome('mercury-config-mode-row')
 
 let failures = 0
-const MODE_ROW_WHERE = 'the Default permission mode row, its value word and its left/right step order, is built in src/components/Settings/config/configRowsEngine.tsx; the words come from permissionModeTitle in src/utils/permissions/PermissionMode.ts'
+const MODE_ROW_WHERE = 'the Default permission mode row, its value word and its left/right step order, is built in src/screen/settings/config/configRowsEngine.tsx; the words come from permissionModeTitle in src/permissions/rules/permissionMode.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${ok ? '' : `${detail ? ' | ' : ' — '}${MODE_ROW_WHERE}`}`)
 }
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
-const { CONFIG_POPUP_HINT, CONFIG_ROW_MARK } = await import('../../src/components/Settings/Config.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
-const settings = await import('../../src/utils/settings/settings.js')
-const { PERMISSION_MODES, permissionModeTitle } = await import('../../src/utils/permissions/PermissionMode.js')
+const { CONFIG_POPUP_HINT, CONFIG_ROW_MARK } = await import('../../src/screen/settings/Config.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
+const settings = await import('../../src/platform/settings/settings.js')
+const { PERMISSION_MODES, permissionModeTitle } = await import('../../src/permissions/rules/permissionMode.js')
 enableConfigs()
 
 const COLS = 178

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { DIST, NODE, SCRATCH_ROOT, bound, childEnv, makeTally } from '../daemon/dupline-world.ts'
 import { frameLines, isOutcome } from '../lib/rows.ts'
 import { seedScratchHome } from '../lib/scriptedTurn.ts'
-import { caretEscape } from '../../src/utils/caretEscape.ts'
+import { caretEscape } from '../../src/daemon/runner/caretEscape.ts'
 
 const tally = makeTally('prove-text-format-caret-escapes')
 const root = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'text-format-caret-')))

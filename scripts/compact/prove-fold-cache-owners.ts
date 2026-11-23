@@ -7,19 +7,19 @@ import { join, resolve } from 'node:path'
 process.chdir(resolve(import.meta.dir, '..', '..'))
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'fold-cache-owners-'))
 delete process.env.MERCURY_EFFORT_LEVEL
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { shouldRideCacheSharingFork } = await import('../../src/services/compact/compact.ts')
-const { addCacheBreakpoints } = await import('../../src/services/providers/anthropic/cacheAndUsage.ts')
-const { lastAssistantTimestamp, restoreSessionStateFromLog } = await import('../../src/services/resume/sessionRestore.ts')
-const { getLastApiCompletionTimestamp, setLastApiCompletionTimestamp } = await import('../../src/bootstrap/state.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
+const { shouldRideCacheSharingFork } = await import('../../src/engine/compaction/foldConversation.ts')
+const { addCacheBreakpoints } = await import('../../src/models/roads/anthropic/cacheAndUsage.ts')
+const { lastAssistantTimestamp, restoreSessionStateFromLog } = await import('../../src/sessions/resume/sessionRestore.ts')
+const { getLastApiCompletionTimestamp, setLastApiCompletionTimestamp } = await import('../../src/boot/process-state/processState.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}the cache-sharing fork rule is shouldRideCacheSharingFork in src/services/compact/compact/foldBound.ts, the marker placement is addCacheBreakpoints in src/services/providers/anthropic/cacheAndUsage.ts, the resume clock is lastAssistantTimestamp and restoreSessionStateFromLog in src/services/resume/sessionRestore.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}the cache-sharing fork rule is shouldRideCacheSharingFork in src/engine/compaction/fold/foldBound.ts, the marker placement is addCacheBreakpoints in src/models/roads/anthropic/cacheAndUsage.ts, the resume clock is lastAssistantTimestamp and restoreSessionStateFromLog in src/sessions/resume/sessionRestore.ts` : ''}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
 for (const type of ['disabled', 'adaptive', 'enabled']) {

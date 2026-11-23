@@ -11,13 +11,13 @@ import {
   type LocalSetupEvent,
   type LocalSetupRoad,
   type LocalSetupSummary,
-} from '../../components/LocalSetupDialog.js'
-import { useSettingsPopupFrame } from '../../components/Settings/Settings.js'
-import type { SessionModelSetter } from '../../services/localSetup/index.js'
-import { runLocalSetupRoad } from '../../services/localSetup/ggufRoad.js'
-import { useSetAppStateMaybe } from '../../state/AppState.js'
-import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
-import { openSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
+} from './LocalSetupDialog.js'
+import { useSettingsPopupFrame } from '../../screen/settings/Settings.js'
+import type { SessionModelSetter } from '../../models/local-setup/index.js'
+import { runLocalSetupRoad } from '../../models/local-setup/ggufRoad.js'
+import { useSetAppStateMaybe } from '../../screen/app-state/AppState.js'
+import type { LocalCommandResult, LocalJSXCommandContext } from '../catalogue/command.js'
+import { openSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../screen/cockpit/settingsPopup.js'
 
 export type SetupRoadRow = { tag: string; words: string; on?: string; current?: boolean; tested?: boolean }
 export type SetupRoadPlan = { label: string; title?: string; found: string; willRun: string; needsSudo?: boolean; keys?: string; rows?: readonly SetupRoadRow[]; input?: string }

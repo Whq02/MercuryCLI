@@ -11,16 +11,16 @@ delete process.env.CI
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.ts')
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/boot/process-state/processState.ts')
 trustTheProofFolder(true)
-const agentsMod = await import('../../src/tools/AgentTool/loadAgentsDir.ts')
-const contributionsMod = await import('../../src/extensions/load/contributions.ts')
-const handlerMod = await import('../../src/cli/handlers/agents.ts')
+const agentsMod = await import('../../src/tools/crewmate/loadAgentsDir.ts')
+const contributionsMod = await import('../../src/integrations/extensions/load/contributions.ts')
+const handlerMod = await import('../../src/commands/verbs/agents.ts')
 
 let failures = 0
-const identifierChangeHint = ' — change: the identifier gate must apply at each loading door: getAgentDefinitionsWithOverrides in src/tools/AgentTool/loadAgentsDir.ts (agents dir), resolveContributions in src/extensions/load/contributions.ts (extension agents and skills), renderAgentLine in src/cli/handlers/agents.ts (inventory render)'
+const identifierChangeHint = ' — change: the identifier gate must apply at each loading door: getAgentDefinitionsWithOverrides in src/tools/crewmate/loadAgentsDir.ts (agents dir), resolveContributions in src/integrations/extensions/load/contributions.ts (extension agents and skills), renderAgentLine in src/commands/verbs/agents.ts (inventory render)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? identifierChangeHint : ''}`)

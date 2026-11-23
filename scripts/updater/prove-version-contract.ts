@@ -9,13 +9,13 @@ import {
   parsePrivateTag,
   parsePrivateVersion,
   repoSlugFromUrl,
-} from '../../src/services/privateChannel/channelCore.js'
+} from '../../src/platform/update-channel/channelCore.js'
 import { parseEnginesNode } from '../release/launcherTemplates.mjs'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
-  const versionHint = 'package.json version must agree with the channel grammar and asset names in src/services/privateChannel/channelCore.ts and src/services/privateChannel/releaseTarget.ts, with scripts/release/compat-floor.json, THIRD_PARTY_NOTICES.md and .github/workflows/private-release.yml, and engines.node must parse in scripts/release/launcherTemplates.mjs; fix the one this check names'
+  const versionHint = 'package.json version must agree with the channel grammar and asset names in src/platform/update-channel/channelCore.ts and src/platform/update-channel/releaseTarget.ts, with scripts/release/compat-floor.json, THIRD_PARTY_NOTICES.md and .github/workflows/private-release.yml, and engines.node must parse in scripts/release/launcherTemplates.mjs; fix the one this check names'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail} — ` : ''}${versionHint}`}`)
   if (!cond) failures++
 }
@@ -65,7 +65,7 @@ check('macos asset name matches the packager grammar', assetNameFor(VERSION, 'da
 check('intel macos asset name matches the packager grammar', assetNameFor(VERSION, 'darwin', 'x64') === `mercury-v${VERSION}-macos-x64.tar.gz`)
 check('windows asset name matches the packager grammar', assetNameFor(VERSION, 'win32', 'x64') === `mercury-v${VERSION}-windows-x64.zip`)
 {
-  const rt = await import('../../src/services/privateChannel/releaseTarget.ts')
+  const rt = await import('../../src/platform/update-channel/releaseTarget.ts')
   check('the owner\'s base is the archive name without its extension, for every target', rt.RELEASE_TARGETS.every(t => rt.archiveNameFor(VERSION, t) === `${rt.archiveBaseNameFor(VERSION, t)}.${t.startsWith('windows-') ? 'zip' : 'tar.gz'}`))
   check('the base carries the version and the target in the asset grammar', rt.archiveBaseNameFor(VERSION, 'macos-arm64') === `mercury-v${VERSION}-macos-arm64`)
 }

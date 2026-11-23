@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { untilAsync } from '../lib/untilAsync.ts'
 import { startDaemonClientBeat } from '../lib/daemonClientBeat.ts'
-import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/models/facts/builtInModelTable.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 const REPO = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..')
@@ -144,14 +144,14 @@ const HELP_SENTENCE = 'Commands are in the form'
 const HELLO = 'hello from the beta screen'
 
 try {
-  const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-  const sup = await import('../../src/daemon/concourseWorkers.ts')
-  const paths = await import('../../src/utils/sessionStorage/paths.ts')
-  const dispatch = await import('../../src/daemon/concourseDispatch.ts')
+  const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+  const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  const paths = await import('../../src/sessions/transcripts/paths.ts')
+  const dispatch = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
   check('the scratch daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), '', 'the daemon spawned from dist/mercury.mjs never answered ping within 60s: read daemon.log in the scratch folder, and rebuild with bun run build.ts if the bundle is stale')
   const admit = async (title: string, cmid: string, prompt: string, workspaceDir: string): Promise<string> => {
     const d = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: cmid, prompt, workspaceDir, title, model: DEFAULT_OPUS, effort: 'high' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
-    check(`${title} admitted`, d.ok === true && typeof d.sessionId === 'string', JSON.stringify(d) + ' | the concourseDispatch request was refused: see src/daemon/concourseDispatch.ts for why a dispatch is not admitted')
+    check(`${title} admitted`, d.ok === true && typeof d.sessionId === 'string', JSON.stringify(d) + ' | the concourseDispatch request was refused: see src/daemon/concourse-workers/concourseDispatch.ts for why a dispatch is not admitted')
     return d.sessionId ?? ''
   }
   const sidB = await admit('beta probe', 'stays-home-beta', 'say beta is ready', ground)
@@ -162,7 +162,7 @@ try {
   const tA = join(paths.getProjectDir(sandbox), `${sidA}.jsonl`)
   const tB = join(paths.getProjectDir(ground), `${sidB}.jsonl`)
   check('both probes answered on their own transcripts', await untilAsync(() => readFileSync(tA, 'utf8').includes('alpha is ready.') && readFileSync(tB, 'utf8').includes('beta is ready.'), 40_000), '', 'a probe session never wrote its fixture reply to its own transcript within 40s: read daemon.log in the scratch folder')
-  check('both transcripts stand, each in its own project folder', existsSync(tA) && existsSync(tB) && paths.getProjectDir(sandbox) !== paths.getProjectDir(ground), '', 'each session must write its transcript under getProjectDir of its own folder (src/utils/sessionStorage/paths.ts)')
+  check('both transcripts stand, each in its own project folder', existsSync(tA) && existsSync(tB) && paths.getProjectDir(sandbox) !== paths.getProjectDir(ground), '', 'each session must write its transcript under getProjectDir of its own folder (src/sessions/transcripts/paths.ts)')
 
   const LIST_FOCUSED = 'new session · n'
   const ARMED = 'armed — ↵ again enters'
@@ -212,15 +212,15 @@ try {
   const ledger = Object.values(dispatch.readConcourseDispatches(daemonDir))
   const compactDigest = createHash('sha256').update('/compact', 'utf8').digest('hex')
   const compactRows = ledger.filter(r => r.promptDigest === compactDigest)
-  check('the /compact dispatch rode to alpha alone', compactRows.length === 1 && compactRows[0]!.sessionId === sidA, JSON.stringify(compactRows.map(r => [r.sessionId, r.state])) + ' | the dispatch ledger (readConcourseDispatches in src/daemon/concourseDispatch.ts) must hold exactly one /compact row, keyed by the alpha session id')
+  check('the /compact dispatch rode to alpha alone', compactRows.length === 1 && compactRows[0]!.sessionId === sidA, JSON.stringify(compactRows.map(r => [r.sessionId, r.state])) + ' | the dispatch ledger (readConcourseDispatches in src/daemon/concourse-workers/concourseDispatch.ts) must hold exactly one /compact row, keyed by the alpha session id')
   const helloDigest = createHash('sha256').update(HELLO, 'utf8').digest('hex')
-  check("beta's line rode to beta alone", ledger.filter(r => r.promptDigest === helloDigest).every(r => r.sessionId === sidB) && ledger.some(r => r.promptDigest === helloDigest), '', 'the dispatch ledger (readConcourseDispatches in src/daemon/concourseDispatch.ts) must hold the beta line, keyed by the beta session id alone')
+  check("beta's line rode to beta alone", ledger.filter(r => r.promptDigest === helloDigest).every(r => r.sessionId === sidB) && ledger.some(r => r.promptDigest === helloDigest), '', 'the dispatch ledger (readConcourseDispatches in src/daemon/concourse-workers/concourseDispatch.ts) must hold the beta line, keyed by the beta session id alone')
   const bareDigest = createHash('sha256').update('/', 'utf8').digest('hex')
-  check('no bare slash was ever dispatched to either session', !ledger.some(r => r.promptDigest === bareDigest), '', 'a lone slash was dispatched as a prompt: the dispatch ledger (src/daemon/concourseDispatch.ts) holds a row for it')
+  check('no bare slash was ever dispatched to either session', !ledger.some(r => r.promptDigest === bareDigest), '', 'a lone slash was dispatched as a prompt: the dispatch ledger (src/daemon/concourse-workers/concourseDispatch.ts) holds a row for it')
 } finally {
   clientBeat.stop()
   try {
-    const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+    const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
     await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
   } catch {
   }

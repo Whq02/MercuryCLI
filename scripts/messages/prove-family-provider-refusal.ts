@@ -8,8 +8,8 @@ const home = mkdtempSync(join(tmpdir(), 'family-refusal-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-const { requestConversationPlan } = await import('../../src/services/messages/apiPlan.ts')
-const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
+const { requestConversationPlan } = await import('../../src/engine/messages/apiPlan.ts')
+const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
 try {
   const user = createUserMessage({ content: 'The original user request.' })
   const thinking = createAssistantMessage({ content: [{ type: 'thinking', thinking: 'Refused thought.', signature: 'fixture-signature' }] })

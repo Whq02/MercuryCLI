@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import { mock } from 'bun:test'
 import { SCRATCH_ROOT, makeTally, sleep } from './dupline-world.ts'
-import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
+import type { RunnerChildSpec } from '../../src/daemon/runner-link/headlessRun.ts'
 
 const tally = makeTally('prove-degraded-clears-with-its-seat')
 const scratch = mkdtempSync(join(SCRATCH_ROOT, 'degraded-clears-'))
@@ -27,8 +27,8 @@ console.error = (() => {}) as typeof console.error
 
 type FakeChild = EventEmitter & { pid: number; stdin: PassThrough; stdout: PassThrough; stderr: PassThrough; kill: () => boolean }
 const fakes: FakeChild[] = []
-const realChildren = await import('../../src/daemon/headlessRun.ts')
-mock.module('../../src/daemon/headlessRun.ts', () => ({
+const realChildren = await import('../../src/daemon/runner-link/headlessRun.ts')
+mock.module('../../src/daemon/runner-link/headlessRun.ts', () => ({
   ...realChildren,
   spawnRunnerChild: () => {
     const fake = fakes.shift()
@@ -36,8 +36,8 @@ mock.module('../../src/daemon/headlessRun.ts', () => ({
     return { child: fake, argv: [], env: {} }
   },
 }))
-const { TaskRoster } = await import('../../src/daemon/roster.ts')
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { TaskRoster } = await import('../../src/daemon/roster/roster.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 3 } }))
 

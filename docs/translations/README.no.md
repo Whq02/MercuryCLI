@@ -374,7 +374,7 @@ Blant de tilgjengelige kommandoene er:
 - **Apollo Mode**, spesifikasjonsintervjuet: svar på agentens spørsmål for å fullføre spesifikasjonen den vil bruke til å bygge en prototype. Se [docs/APOLLO-MODE.md](../APOLLO-MODE.md).
 - **Gjenoppretting.** Atomisk publisering, journalførte operasjoner og avstemming ved oppstart. Se [docs/DURABILITY.md](../DURABILITY.md).
 
-Runtime-flaggene er definert i `src/substrate/flagRegistry.ts`, eksponeres som `MERCURY_*`-innstillinger og vises ved behov. Integrasjonskompatibilitet er dokumentert i [docs/COMPATIBILITY.md](../COMPATIBILITY.md). Den fulle dokumentasjonsindeksen er [docs/README.md](../README.md).
+Runtime-flaggene er definert i `src/platform/substrate/flagRegistry.ts`, eksponeres som `MERCURY_*`-innstillinger og vises ved behov. Integrasjonskompatibilitet er dokumentert i [docs/COMPATIBILITY.md](../COMPATIBILITY.md). Den fulle dokumentasjonsindeksen er [docs/README.md](../README.md).
 
 ## Slash-kommandoer
 

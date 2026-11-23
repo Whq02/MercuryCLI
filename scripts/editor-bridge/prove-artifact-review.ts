@@ -6,17 +6,17 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-let where = 'src/services/artifacts/reviewStore.ts'
+let where = 'src/sessions/artifact-reviews/reviewStore.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — look at ${where}` : ''}`)
 }
 function section(t: string): void {
-  where = t.startsWith('(3)') ? 'addReviewComment in src/services/artifacts/reviewStore.ts and validateAnchor in src/utils/artifacts/anchors.ts'
-    : t.startsWith('(6)') ? 'the mercury://artifact adapter in src/services/resources/adapters/artifact.ts'
-    : t.startsWith('(7)') ? 'composeWorkbenchSnapshot in src/services/workbench/selectors.ts'
-    : t.startsWith('(8)') ? 'reviseReviewArtifact and addReviewComment in src/services/artifacts/reviewStore.ts, src/utils/artifacts/anchors.ts, and src/services/resources/adapters/artifact.ts'
-    : 'the review functions in src/services/artifacts/reviewStore.ts (createReviewArtifact, reviseReviewArtifact, setReviewArtifactStatus, addReviewComment, readReviewArtifactState)'
+  where = t.startsWith('(3)') ? 'addReviewComment in src/sessions/artifact-reviews/reviewStore.ts and validateAnchor in src/sessions/artifacts/anchors.ts'
+    : t.startsWith('(6)') ? 'the mercury://artifact adapter in src/integrations/resources/adapters/artifact.ts'
+    : t.startsWith('(7)') ? 'composeWorkbenchSnapshot in src/screen/workbench/selectors.ts'
+    : t.startsWith('(8)') ? 'reviseReviewArtifact and addReviewComment in src/sessions/artifact-reviews/reviewStore.ts, src/sessions/artifacts/anchors.ts, and src/integrations/resources/adapters/artifact.ts'
+    : 'the review functions in src/sessions/artifact-reviews/reviewStore.ts (createReviewArtifact, reviseReviewArtifact, setReviewArtifactStatus, addReviewComment, readReviewArtifactState)'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
@@ -37,9 +37,9 @@ const {
   listReviewArtifactHeads,
   setReviewArtifactStatus,
   setReviewCommentState,
-} = await import('../../src/services/artifacts/reviewStore.js')
+} = await import('../../src/sessions/artifact-reviews/reviewStore.js')
 const { contentDigest, listMdBlocks, listDiffLineSites, validateAnchor } = await import(
-  '../../src/utils/artifacts/anchors.js'
+  '../../src/sessions/artifacts/anchors.js'
 )
 
 const producer = { sessionId: 'sess-1', turn: 3 }
@@ -283,8 +283,8 @@ section('(5) torn-tail tolerance')
 
 section('(6) the mercury://artifact adapter forms')
 {
-  const { resolveResource } = await import('../../src/services/resources/registry.js')
-  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.js')
+  const { resolveResource } = await import('../../src/integrations/resources/registry.js')
+  const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.js')
   const ctx = { owner: processMainOwner(), cwd: process.cwd() }
 
   const head = await resolveResource(`mercury://artifact/${raId}`, ctx)
@@ -320,7 +320,7 @@ section('(6) the mercury://artifact adapter forms')
 
 section('(7) workbench projection surfaces artifacts + review queue')
 {
-  const { composeWorkbenchSnapshot } = await import('../../src/services/workbench/selectors.js')
+  const { composeWorkbenchSnapshot } = await import('../../src/screen/workbench/selectors.js')
   const heads = listReviewArtifactHeads()
   check('heads listed', heads.length >= 3)
   const inputs = {
@@ -376,7 +376,7 @@ section('(8) verify-wave fixes — fence · ordinal · damaged≠absent · CRLF 
     childScript,
     `
 process.env.MERCURY_REVIEW_ARTIFACTS_DIR = ${JSON.stringify(root)}
-const { reviseReviewArtifact } = await import(${JSON.stringify(process.cwd() + '/src/services/artifacts/reviewStore.ts')})
+const { reviseReviewArtifact } = await import(${JSON.stringify(process.cwd() + '/src/sessions/artifact-reviews/reviewStore.ts')})
 const r = reviseReviewArtifact({
   id: ${JSON.stringify(raceId)},
   body: { kind: 'plan', markdown: 'revised by ' + process.argv[2] + ' at ' + Date.now() + '\\n' },
@@ -417,8 +417,8 @@ console.log(JSON.stringify({ ok: r.ok, version: r.ok ? r.value.version : null })
   })
   check('negative ordinal refused with the reason named', !badOrdinal.ok && badOrdinal.reason.includes('non-negative'), badOrdinal.ok ? 'was OK' : badOrdinal.reason)
 
-  const { resolveResource } = await import('../../src/services/resources/registry.js')
-  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.js')
+  const { resolveResource } = await import('../../src/integrations/resources/registry.js')
+  const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.js')
   const ctx = { owner: processMainOwner(), cwd: process.cwd() }
   const damagedArt = createReviewArtifact({
     kind: 'plan',

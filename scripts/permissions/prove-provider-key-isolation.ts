@@ -14,9 +14,9 @@ console.log('============================================================')
 console.log(' provider-key isolation — derived, unconditional for LSP')
 console.log('============================================================')
 
-const spellings = await import('../../src/constants/credentialEnvSpellings.ts')
-const idSpaces = await import('../../src/services/providers/idSpaces.ts')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
+const spellings = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
+const idSpaces = await import('../../src/models/roads/idSpaces.ts')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
 
 section('§1 the strip set derives from the route-law family table')
 {
@@ -24,19 +24,19 @@ section('§1 the strip set derives from the route-law family table')
     ...(idSpaces.PROVIDER_ID_SPACES as Array<{ route: string }>).map(space => space.route),
     'anthropic',
   ])
-  check('the credential table covers exactly the declared family union', routes.size === Object.keys(spellings.PROVIDER_CREDENTIAL_ENV_VARS).length && Object.keys(spellings.PROVIDER_CREDENTIAL_ENV_VARS).every(route => routes.has(route)), [...routes].join(',') + ' — make PROVIDER_CREDENTIAL_ENV_VARS in src/constants/credentialEnvSpellings.ts list exactly the routes of PROVIDER_ID_SPACES (src/services/providers/idSpaces.ts) plus anthropic')
+  check('the credential table covers exactly the declared family union', routes.size === Object.keys(spellings.PROVIDER_CREDENTIAL_ENV_VARS).length && Object.keys(spellings.PROVIDER_CREDENTIAL_ENV_VARS).every(route => routes.has(route)), [...routes].join(',') + ' — make PROVIDER_CREDENTIAL_ENV_VARS in src/models/sign-in/credentials/credentialEnvSpellings.ts list exactly the routes of PROVIDER_ID_SPACES (src/models/roads/idSpaces.ts) plus anthropic')
   for (const route of routes) {
     const vars = (spellings.PROVIDER_CREDENTIAL_ENV_VARS as Record<string, readonly string[]>)[route]
-    check(`route '${route}' carries at least one credential spelling`, Array.isArray(vars) && vars.length > 0, JSON.stringify(vars) + ' — add this route\'s key spellings to PROVIDER_CREDENTIAL_ENV_VARS in src/constants/credentialEnvSpellings.ts')
+    check(`route '${route}' carries at least one credential spelling`, Array.isArray(vars) && vars.length > 0, JSON.stringify(vars) + ' — add this route\'s key spellings to PROVIDER_CREDENTIAL_ENV_VARS in src/models/sign-in/credentials/credentialEnvSpellings.ts')
     for (const name of vars ?? []) {
-      check(`  '${name}' lands in the flat derived set`, spellings.ALL_PROVIDER_CREDENTIAL_ENV_VARS.includes(name), 'ALL_PROVIDER_CREDENTIAL_ENV_VARS in src/constants/credentialEnvSpellings.ts must be derived from every route in PROVIDER_CREDENTIAL_ENV_VARS')
+      check(`  '${name}' lands in the flat derived set`, spellings.ALL_PROVIDER_CREDENTIAL_ENV_VARS.includes(name), 'ALL_PROVIDER_CREDENTIAL_ENV_VARS in src/models/sign-in/credentials/credentialEnvSpellings.ts must be derived from every route in PROVIDER_CREDENTIAL_ENV_VARS')
     }
   }
   const seven = ['ZAI_API_KEY', 'DEEPSEEK_API_KEY', 'MODEL_API_KEY', 'META_API_KEY', 'MOONSHOT_API_KEY', 'OPENROUTER_API_KEY', 'HF_TOKEN', 'MERCURY_COMPAT_API_KEY', 'MERCURY_LOCAL_API_KEY']
-  check('the seven previously-missing spellings are all covered', seven.every(name => spellings.ALL_PROVIDER_CREDENTIAL_ENV_VARS.includes(name)), 'missing: ' + seven.filter(name => !spellings.ALL_PROVIDER_CREDENTIAL_ENV_VARS.includes(name)).join(',') + ' — add them to PROVIDER_CREDENTIAL_ENV_VARS in src/constants/credentialEnvSpellings.ts')
+  check('the seven previously-missing spellings are all covered', seven.every(name => spellings.ALL_PROVIDER_CREDENTIAL_ENV_VARS.includes(name)), 'missing: ' + seven.filter(name => !spellings.ALL_PROVIDER_CREDENTIAL_ENV_VARS.includes(name)).join(',') + ' — add them to PROVIDER_CREDENTIAL_ENV_VARS in src/models/sign-in/credentials/credentialEnvSpellings.ts')
 }
 
-const subEnvModule = await import('../../src/utils/subprocessEnv.ts')
+const subEnvModule = await import('../../src/platform/processes/subprocessEnv.ts')
 const SPELLINGS = [...spellings.ALL_PROVIDER_CREDENTIAL_ENV_VARS]
 const cleanTriggers = (): void => {
   delete process.env.MERCURY_SUBPROCESS_ENV_SCRUB
@@ -56,9 +56,9 @@ section('§2 language servers: stripped with NO flag armed; the default path unc
   process.env.HF_TOKEN = 'fixture-hf-secret'
   const forLs = subEnvModule.languageServerEnv()
   check('the language-server env carries NO provider key', SPELLINGS.every(name => forLs[name] === undefined), JSON.stringify(SPELLINGS.filter(n => forLs[n] !== undefined)))
-  check('startup facts survive (PATH intact)', forLs.PATH === process.env.PATH, 'languageServerEnv in src/utils/subprocessEnv.ts must delete only the provider credential names and keep PATH')
+  check('startup facts survive (PATH intact)', forLs.PATH === process.env.PATH, 'languageServerEnv in src/platform/processes/subprocessEnv.ts must delete only the provider credential names and keep PATH')
   const forChild = subEnvModule.subprocessEnv()
-  check('the DEFAULT child path still inherits (unchanged this release)', forChild.DEEPSEEK_API_KEY === 'fixture-deepseek-secret' && forChild.HF_TOKEN === 'fixture-hf-secret', 'subprocessEnv in src/utils/subprocessEnv.ts must keep provider keys when neither MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION nor the CI scrub is set; only languageServerEnv strips them unconditionally')
+  check('the DEFAULT child path still inherits (unchanged this release)', forChild.DEEPSEEK_API_KEY === 'fixture-deepseek-secret' && forChild.HF_TOKEN === 'fixture-hf-secret', 'subprocessEnv in src/platform/processes/subprocessEnv.ts must keep provider keys when neither MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION nor the CI scrub is set; only languageServerEnv strips them unconditionally')
   delete process.env.DEEPSEEK_API_KEY
   delete process.env.HF_TOKEN
 }
@@ -69,16 +69,16 @@ section('§3 the isolation flag and the hot path')
   process.env.OPENROUTER_API_KEY = 'fixture-openrouter-secret'
   process.env.MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION = '1'
   const isolated = subEnvModule.subprocessEnv()
-  check('armed: the provider set is absent from every child env', SPELLINGS.every(name => isolated[name] === undefined), 'with MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION=1 subprocessEnv in src/utils/subprocessEnv.ts must delete every ALL_PROVIDER_CREDENTIAL_ENV_VARS name: ' + JSON.stringify(SPELLINGS.filter(n => isolated[n] !== undefined)))
-  check('armed: non-credential env survives', isolated.PATH === process.env.PATH, 'the isolation strip in subprocessEnv (src/utils/subprocessEnv.ts) must delete only credential names')
+  check('armed: the provider set is absent from every child env', SPELLINGS.every(name => isolated[name] === undefined), 'with MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION=1 subprocessEnv in src/platform/processes/subprocessEnv.ts must delete every ALL_PROVIDER_CREDENTIAL_ENV_VARS name: ' + JSON.stringify(SPELLINGS.filter(n => isolated[n] !== undefined)))
+  check('armed: non-credential env survives', isolated.PATH === process.env.PATH, 'the isolation strip in subprocessEnv (src/platform/processes/subprocessEnv.ts) must delete only credential names')
   delete process.env.MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION
   const ambient = subEnvModule.subprocessEnv()
-  check('unarmed: ambient inheritance, byte-identical', ambient.OPENROUTER_API_KEY === 'fixture-openrouter-secret', 'without the flag subprocessEnv in src/utils/subprocessEnv.ts must pass provider keys through untouched')
+  check('unarmed: ambient inheritance, byte-identical', ambient.OPENROUTER_API_KEY === 'fixture-openrouter-secret', 'without the flag subprocessEnv in src/platform/processes/subprocessEnv.ts must pass provider keys through untouched')
   delete process.env.OPENROUTER_API_KEY
-  const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+  const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
   setIsInteractive(true)
   const hot = subEnvModule.subprocessEnv()
-  check('the hot path returns the LIVE env by reference when nothing needs stripping (an interactive session: a headless one owes its children the non-interactive stamps and is a copy)', hot === process.env, 'subprocessEnv in src/utils/subprocessEnv.ts must return process.env itself (no copy) when no strip, scrub or owed default applies')
+  check('the hot path returns the LIVE env by reference when nothing needs stripping (an interactive session: a headless one owes its children the non-interactive stamps and is a copy)', hot === process.env, 'subprocessEnv in src/platform/processes/subprocessEnv.ts must return process.env itself (no copy) when no strip, scrub or owed default applies')
   setIsInteractive(false)
 }
 
@@ -92,7 +92,7 @@ section('§4 the CI scrub armed: every spelling and its INPUT_ twin')
   }
   const scrubbed = subEnvModule.subprocessEnv()
   check('all spellings absent', SPELLINGS.every(name => scrubbed[name] === undefined), JSON.stringify(SPELLINGS.filter(n => scrubbed[n] !== undefined)))
-  check('all INPUT_-prefixed twins absent', SPELLINGS.every(name => scrubbed[`INPUT_${name}`] === undefined), 'with MERCURY_SUBPROCESS_ENV_SCRUB=1 the scrub in src/utils/subprocessEnv.ts must also delete the INPUT_ twin of every name it strips')
+  check('all INPUT_-prefixed twins absent', SPELLINGS.every(name => scrubbed[`INPUT_${name}`] === undefined), 'with MERCURY_SUBPROCESS_ENV_SCRUB=1 the scrub in src/platform/processes/subprocessEnv.ts must also delete the INPUT_ twin of every name it strips')
   for (const name of SPELLINGS) {
     delete process.env[name]
     delete process.env[`INPUT_${name}`]

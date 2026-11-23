@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
-import type { JevEvalInput } from '../../src/tools/JevEvalTool/jevEvalSchema.js'
+import type { JevEvalInput } from '../../src/tools/jev-eval/jevEvalSchema.js'
 import { roadHome } from './lib/roadHome.ts'
 
 export const LEAD_WAKE_QUESTION_FLOOR = 0.8

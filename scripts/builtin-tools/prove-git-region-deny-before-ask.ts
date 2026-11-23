@@ -14,20 +14,20 @@ if (!process.argv.includes('--child')) {
   if (homedir() !== process.env.GIT_PROOF_HOME) throw new Error('wrong proof home before product imports')
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   const world = gitFixture('git-region-preflight-')
-  const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
-  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-  const { enableConfigs } = await import('../../src/utils/config.ts')
-  const { GitTool } = await import('../../src/tools/GitTool/GitTool.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
-  const { permissionRuleValueFromString, permissionRuleValueToString } = await import('../../src/utils/permissions/permissionRuleParser.ts')
+  const { setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
+  const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
+  const { GitTool } = await import('../../src/tools/git/GitTool.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.ts')
+  const { permissionRuleValueFromString, permissionRuleValueToString } = await import('../../src/permissions/rules/permissionRuleParser.ts')
   enableConfigs()
   setOriginalCwd(world.root)
   const marker = '<<<<<<< HEAD\nours\n=======\ntheirs\n>>>>>>> other\n'
   const names = ['open.txt', 'locked/one.txt', 'locked/two.txt', 'secret/read.txt']
   let checks = 0
   let failures = 0
-  const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail} — fix: the permission verdict for Git conflict ops, in src/tools/GitTool/GitTool.ts and decideToolPermission in src/utils/permissions/decision/engine.ts` : ''}`) }
+  const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail} — fix: the permission verdict for Git conflict ops, in src/tools/git/GitTool.ts and decideToolPermission in src/permissions/rules/decision/engine.ts` : ''}`) }
   try {
     mkdirSync(join(world.root, 'locked'))
     mkdirSync(join(world.root, 'secret'))
@@ -75,7 +75,7 @@ if (!process.argv.includes('--child')) {
     const throwing = { ...GitTool, name: 'Bash', inputSchema: z.strictObject({ command: z.string() }), checkPermissions: async (input: { command: string }) => { input.command.trim(); throw new Error('unreachable invalid control') } }
     const invalid = await decideToolPermission(throwing as never, { command: null }, context)
     check('invalid input whose verdict also throws retains the existing degraded trace', invalid.decision.behavior === 'ask' && invalid.trace.stages.some(stage => stage.note === 'resolution failed — degraded to passthrough'), JSON.stringify(invalid))
-    const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
+    const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
     const edit = { file_path: join(world.root, 'locked/one.txt'), old_string: 'ours', new_string: 'different' }
     const editContext = { ...context as object, getAppState: () => ({ toolPermissionContext: { ...permission, alwaysDenyRules: { session: ['Edit(locked/**)'] } }, sessionHooks: new Map(), tasks: {} }) } as never
     await runWithCwdOverride(world.root, async () => {

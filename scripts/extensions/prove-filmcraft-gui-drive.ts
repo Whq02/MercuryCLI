@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createServer } from 'node:net'
-import { Client, StdioClientTransport } from '../../src/utils/mcp/sdk.ts'
+import { Client, StdioClientTransport } from '../../src/integrations/mcp-shapes/sdk.ts'
 
 const automatic = process.argv[2] === undefined
 assert(automatic || process.argv.includes('--gui'), 'Pass --gui explicitly; this proof opens a FilmCraft window')
@@ -22,12 +22,12 @@ if (automatic) {
 }
 const delivered = join(scratch, 'extension'), dataDir = join(scratch, 'data'), project = join(scratch, 'edited.fcproj')
 await readFile(project)
-await cp(join(root, 'src/extensions/bundled/filmcraft'), delivered, { recursive: true })
-await cp(join(root, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
+await cp(join(root, 'src/integrations/extensions/bundled/filmcraft'), delivered, { recursive: true })
+await cp(join(root, 'src/integrations/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
 const { adapter, readPrivateToken, tokenPath } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
 const { checkInstall } = await import(pathToFileURL(join(delivered, 'shared/install.mjs')).href)
 const { controlSession } = await import(pathToFileURL(join(delivered, 'shared/control.mjs')).href)
-const checked = await checkInstall(adapter, { dataDir }); assert.equal(checked.state, 'installed', 'checkInstall in src/extensions/bundled/shared/install.mjs must report the FilmCraft app as installed in the proof data dir (adapter in src/extensions/bundled/filmcraft/server/install.mjs); run prove-filmcraft-drive.ts first, it prepares the app and project')
+const checked = await checkInstall(adapter, { dataDir }); assert.equal(checked.state, 'installed', 'checkInstall in src/integrations/extensions/bundled/shared/install.mjs must report the FilmCraft app as installed in the proof data dir (adapter in src/integrations/extensions/bundled/filmcraft/server/install.mjs); run prove-filmcraft-drive.ts first, it prepares the app and project')
 await rename(join(dataDir, 'app-data'), join(scratch, `previous-proof-app-data-${Date.now()}`)).catch((error: any) => { if (error.code !== 'ENOENT') throw error })
 const reservation = createServer()
 await new Promise<void>(resolve => reservation.listen(0, '127.0.0.1', resolve))
@@ -57,7 +57,7 @@ async function call(client: Client, name: string, args: Record<string, unknown> 
 async function screenshot(client: Client, name: string) {
   const response = await call(client, 'ui_screenshot')
   const image = response.content.find((c: any) => c.type === 'image') as any
-  assert(image?.data, 'App-native screenshot must return image bytes; ui_screenshot in the FilmCraft bridge (src/extensions/bundled/filmcraft/server) returned no image content for ' + name)
+  assert(image?.data, 'App-native screenshot must return image bytes; ui_screenshot in the FilmCraft bridge (src/integrations/extensions/bundled/filmcraft/server) returned no image content for ' + name)
   await writeFile(join(scratch, name), Buffer.from(image.data, 'base64'))
 }
 const clips = (sequence: any) => sequence.video.reduce((count: number, track: any) => count + track.items.length, 0)
@@ -68,7 +68,7 @@ try {
   const status = decode(await call(client, 'craft_status'))
   const pid = status.attached.process.pid
   const tools = await client.listTools()
-  assert.equal(tools.tools.length, 20, 'the FilmCraft bridge (src/extensions/bundled/filmcraft/server/bridge.mjs) must list 20 tools: 17 app tools plus craft_connect, craft_install and craft_status; read ' + tools.tools.length)
+  assert.equal(tools.tools.length, 20, 'the FilmCraft bridge (src/integrations/extensions/bundled/filmcraft/server/bridge.mjs) must list 20 tools: 17 app tools plus craft_connect, craft_install and craft_status; read ' + tools.tools.length)
   const commands = decode(await call(client, 'command_list'))
   await writeFile(join(scratch, 'gui-tools.json'), JSON.stringify(tools, null, 2))
   console.log(`Attached GUI: ${tools.tools.length - 3} upstream tools, ${commands.length} commands`)
@@ -93,7 +93,7 @@ try {
   client = await connect()
   await call(client, 'craft_connect', { mode: 'attach', endpoint, project })
   const reattached = decode(await call(client, 'craft_status'))
-  assert.equal(reattached.attached.process.pid, pid, 'craft_connect mode attach (src/extensions/bundled/filmcraft/server/bridge.mjs) must reattach to the same FilmCraft process after the MCP client closed; read pid ' + reattached.attached.process.pid + ', expected ' + pid)
+  assert.equal(reattached.attached.process.pid, pid, 'craft_connect mode attach (src/integrations/extensions/bundled/filmcraft/server/bridge.mjs) must reattach to the same FilmCraft process after the MCP client closed; read pid ' + reattached.attached.process.pid + ', expected ' + pid)
   assert.equal(clips(decode(await call(client, 'sequence_inspect'))), clips(before), 'after reattaching, the open sequence must still hold the clip count it had after the GUI Undo: ' + clips(before))
   await screenshot(client, 'filmcraft-reattached.png')
   if (process.platform !== 'win32') {

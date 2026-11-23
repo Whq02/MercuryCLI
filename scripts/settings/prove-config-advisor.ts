@@ -33,9 +33,9 @@ async function finish(): Promise<never> {
 section('§0 the rows module exists (red on the base: the component and the service are absent)')
 const mods = await (async () => {
   try {
-    return { page: await import('../../src/components/Settings/Advisor.js'), service: await import('../../src/services/advisor/index.js') }
+    return { page: await import('../../src/screen/settings/Advisor.js'), service: await import('../../src/models/advisor/index.js') }
   } catch (error) {
-    check('src/components/Settings/Advisor.tsx and src/services/advisor import', false, error instanceof Error ? error.message.split('\n')[0] ?? '' : String(error))
+    check('src/screen/settings/Advisor.tsx and src/models/advisor import', false, error instanceof Error ? error.message.split('\n')[0] ?? '' : String(error))
     return undefined
   }
 })()
@@ -77,16 +77,16 @@ section('§1 the pure rows and the ladder (minutes, not turns): two rows, no cre
 }
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
-const { CONFIG_POPUP_HINT, CONFIG_ROW_MARK } = await import('../../src/components/Settings/Config.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { CONFIG_POPUP_HINT, CONFIG_ROW_MARK } = await import('../../src/screen/settings/Config.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { getGlobalConfig } = await import('../../src/utils/config.js')
+const { getGlobalConfig } = await import('../../src/platform/settings/config.js')
 
 async function mount(columns: number, rows: number): Promise<Mounted> {
   const element = React.createElement(
@@ -196,7 +196,7 @@ section('§4 ↵ saves: the advisor on at 30 minutes survives the close and read
 
 section('§5 a key nothing reads inside the advisor block is carried as it stands at read: the service reads the default interval, nothing rewrites it, and the next save writes the block the advisor owns')
 {
-  const { readGlobalConfigAgain } = await import('../../src/utils/config/globalConfig.js')
+  const { readGlobalConfigAgain } = await import('../../src/platform/config/globalConfig.js')
   const { setAdvisorMinutes } = ready.service
   const file = join(HOME, '.mercury.json')
   const onDisk = JSON.parse(readFileSync(file, 'utf8').trim() || '{}') as Record<string, unknown>

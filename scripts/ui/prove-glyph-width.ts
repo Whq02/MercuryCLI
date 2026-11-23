@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
-import { GLYPH, SPARK } from '../../src/utils/glyphs.js'
-import { charWidth, displayWidth, padTo } from '../../src/utils/glyphs.js'
-import { stringWidth } from '../../src/ink/stringWidth.js'
+import { GLYPH, SPARK } from '../../src/screen/theme/glyphs.js'
+import { charWidth, displayWidth, padTo } from '../../src/screen/theme/glyphs.js'
+import { stringWidth } from '../../src/screen/renderer/stringWidth.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: GLYPH, SPARK, charWidth, displayWidth and padTo are in src/utils/glyphs.ts (give a glyph a width-1 character there); the width model is stringWidth in src/ink/stringWidth.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: GLYPH, SPARK, charWidth, displayWidth and padTo are in src/screen/theme/glyphs.ts (give a glyph a width-1 character there); the width model is stringWidth in src/screen/renderer/stringWidth.ts'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

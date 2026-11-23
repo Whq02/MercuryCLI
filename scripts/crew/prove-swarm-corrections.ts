@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
-import { open } from '../../src/services/crewBoard/store.ts'
-import { chatRows } from '../../src/services/crewBoard/chat.ts'
-import type { BoardPost } from '../../src/services/crewBoard/contracts.ts'
+import { open } from '../../src/crew/board/store.ts'
+import { chatRows } from '../../src/crew/board/chat.ts'
+import type { BoardPost } from '../../src/crew/board/contracts.ts'
 
 const home = process.env.MERCURY_CONFIG_DIR
 assert(home, 'run with a scratch MERCURY_CONFIG_DIR')
@@ -31,11 +31,11 @@ const corrected = board.view().events.find(event => event.eventId === correction
 assert.equal(corrected.threadId, original.threadId)
 assert.equal(corrected.corrects, original.eventId)
 post(b, { kind: 'answer', replyTo: wrong.eventId, text: 'My correction stands.' })
-assert(!board.post(b, { clientOpId: 'absent', kind: 'correction', corrects: 'missing', text: 'No target.' }).ok, 'board.post accepted correction targeting nonexistent eventId in src/services/crewBoard/store.ts')
+assert(!board.post(b, { clientOpId: 'absent', kind: 'correction', corrects: 'missing', text: 'No target.' }).ok, 'board.post accepted correction targeting nonexistent eventId in src/crew/board/store.ts')
 const rows = chatRows(board.view())
 assert(rows.findIndex(row => row.id === wrong.eventId) < rows.findIndex(row => row.id === second.eventId), 'each answer stays below its own ask, before the next ask')
-assert(rows.find(row => row.id === wrong.eventId)!.kind.includes('→ correction'), 'chatRows did not annotate corrected answer with → correction in src/services/crewBoard/chat.ts')
-assert(rows.find(row => row.id === correction.eventId)!.reply, 'chatRows did not mark correction row as reply in src/services/crewBoard/chat.ts')
+assert(rows.find(row => row.id === wrong.eventId)!.kind.includes('→ correction'), 'chatRows did not annotate corrected answer with → correction in src/crew/board/chat.ts')
+assert(rows.find(row => row.id === correction.eventId)!.reply, 'chatRows did not mark correction row as reply in src/crew/board/chat.ts')
 assert.equal(rows.find(row => row.id === correction.eventId)!.thread, rows.find(row => row.id === wrong.eventId)!.thread)
 board.close()
 const reopened = open(path, 'corrections', Date.now, true)

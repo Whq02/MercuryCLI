@@ -4,9 +4,9 @@ import { createServer, type ServerResponse } from 'node:http'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const { streamOpenaiResponses } = await import(join(ROOT, 'src/services/providers/openai/openaiClient.ts'))
+const { streamOpenaiResponses } = await import(join(ROOT, 'src/models/roads/openai/openaiClient.ts'))
 
-const HEARTBEAT_FAILURE_HINT = 'change the stream activity relay used by streamOpenaiResponses in src/services/providers/openai/openaiClient.ts (createStreamActivityRelay, called with onStreamActivity): decoded events must not mint a heartbeat, undecodable bytes must mint one at most once a second'
+const HEARTBEAT_FAILURE_HINT = 'change the stream activity relay used by streamOpenaiResponses in src/models/roads/openai/openaiClient.ts (createStreamActivityRelay, called with onStreamActivity): decoded events must not mint a heartbeat, undecodable bytes must mint one at most once a second'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++

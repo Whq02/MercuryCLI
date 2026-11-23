@@ -12,23 +12,23 @@ const ROW = {
   check: 'bun scripts/engine-connector/prove-crew-token-rows.ts --stills',
   sources: [
     'scripts/engine-connector/prove-crew-token-rows.ts',
-    'src/components/mercury-ui/screens/CrewView.tsx',
-    'src/components/AgentProgressLine.tsx',
-    'src/tools/AgentTool/UI.tsx',
-    'src/services/engine-connector/crewFacts.ts',
-    'src/tools/AgentTool/AgentTool.tsx',
-    'src/utils/config/globalConfig.ts',
-    'src/utils/staticRender.tsx',
-    'src/tasks/LocalAgentTask/LocalAgentTask.tsx',
-    'src/fabric/transcriptDecode.ts',
-    'src/services/engine-connector/workRoster.ts',
-    'src/services/engine-connector/seatWire.ts',
-    'src/state/AppState.tsx',
-    'src/ink/components/TerminalSizeContext.tsx',
-    'src/services/engine-connector/focusedConnector.ts',
-    'src/services/engine-connector/noSessionConnector.ts',
-    'src/fabric/entryCodec.ts',
-    'src/fabric/ordinal.ts',
+    'src/screen/widgets/faces/CrewView.tsx',
+    'src/tools/crewmate/CrewmateProgressLine.tsx',
+    'src/tools/crewmate/rows.tsx',
+    'src/engine/connector/crewFacts.ts',
+    'src/tools/crewmate/CrewmateTool.tsx',
+    'src/platform/config/globalConfig.ts',
+    'src/screen/renderer/staticRender.tsx',
+    'src/engine/tasks/local-agent/crewmateTask.tsx',
+    'src/sessions/fabric/transcriptDecode.ts',
+    'src/engine/connector/workRoster.ts',
+    'src/engine/connector/seatWire.ts',
+    'src/screen/app-state/AppState.tsx',
+    'src/screen/renderer/elements/TerminalSizeContext.tsx',
+    'src/engine/connector/focusedConnector.ts',
+    'src/engine/connector/noSessionConnector.ts',
+    'src/sessions/fabric/entryCodec.ts',
+    'src/sessions/fabric/ordinal.ts',
   ],
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
@@ -38,30 +38,30 @@ const scratch = mkdtempSync(join(tmpdir(), 'crew-token-rows-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 for (const key of ['MERCURY_LIVE_GLYPHS', 'MERCURY_LIVE_CLOCK']) process.env[key] = '0'
-await import('../../src/tools/AgentTool/AgentTool.tsx')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 const React = (await import('react')).default
-const { renderToString } = await import('../../src/utils/staticRender.tsx')
-const { createProgressTracker, getProgressUpdate, updateProgressFromMessage } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')
-const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.ts')
-const crew = await import('../../src/services/engine-connector/crewFacts.ts')
-const wire = await import('../../src/services/engine-connector/seatWire.ts')
-const { CrewView } = await import('../../src/components/mercury-ui/screens/CrewView.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const ui = await import('../../src/tools/AgentTool/UI.tsx')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { createProgressTracker, getProgressUpdate, updateProgressFromMessage } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { decodeTranscriptBuffer } = await import('../../src/sessions/fabric/transcriptDecode.ts')
+const { projectWorkRoster } = await import('../../src/engine/connector/workRoster.ts')
+const crew = await import('../../src/engine/connector/crewFacts.ts')
+const wire = await import('../../src/engine/connector/seatWire.ts')
+const { CrewView } = await import('../../src/screen/widgets/faces/CrewView.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import('../../src/engine/connector/focusedConnector.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const ui = await import('../../src/tools/crewmate/rows.tsx')
 let failures = 0
 function tokenRowsHint(label: string): string {
-  if (label.startsWith('stored still')) return 'to fix: if the new frame is the intended one, regenerate it with bun scripts/engine-connector/prove-crew-token-rows.ts --write; otherwise change the row text in src/components/mercury-ui/screens/CrewView.tsx or renderGroupedAgentToolUse in src/tools/AgentTool/UI.tsx'
-  if (label.includes('inline')) return 'to fix: renderGroupedAgentToolUse in src/tools/AgentTool/UI.tsx (the AgentProgressLine row)'
-  if (label.includes('columns')) return 'to fix: the crew row in src/components/mercury-ui/screens/CrewView.tsx'
-  if (label.includes('wire')) return 'to fix: sessionFactsToWire and sessionFactsFromWire in src/services/engine-connector/seatWire.ts'
-  if (label.includes('fixture records')) return 'to fix: decodeTranscriptBuffer in src/fabric/transcriptDecode.ts or the fixture written above the check'
-  return 'to fix: crewAgentFactsOf and the crewTokens functions in src/services/engine-connector/crewFacts.ts, or the progress tracker in src/tasks/LocalAgentTask/LocalAgentTask.tsx'
+  if (label.startsWith('stored still')) return 'to fix: if the new frame is the intended one, regenerate it with bun scripts/engine-connector/prove-crew-token-rows.ts --write; otherwise change the row text in src/screen/widgets/faces/CrewView.tsx or renderGroupedAgentToolUse in src/tools/crewmate/rows.tsx'
+  if (label.includes('inline')) return 'to fix: renderGroupedAgentToolUse in src/tools/crewmate/rows.tsx (the AgentProgressLine row)'
+  if (label.includes('columns')) return 'to fix: the crew row in src/screen/widgets/faces/CrewView.tsx'
+  if (label.includes('wire')) return 'to fix: sessionFactsToWire and sessionFactsFromWire in src/engine/connector/seatWire.ts'
+  if (label.includes('fixture records')) return 'to fix: decodeTranscriptBuffer in src/sessions/fabric/transcriptDecode.ts or the fixture written above the check'
+  return 'to fix: crewAgentFactsOf and the crewTokens functions in src/engine/connector/crewFacts.ts, or the progress tracker in src/engine/tasks/local-agent/crewmateTask.tsx'
 }
 function check(label: string, good: boolean, detail = ''): void {
   if (!good) failures++
@@ -77,8 +77,8 @@ const record = usages.flatMap((usage, i) => [
   { type: 'assistant', uuid: `settled-${i}`, message: { id: `response-${i}`, model: 'fixture/crew', role: 'assistant', content: [], usage } },
 ])
 const file = join(scratch, 'agent-fixture.jsonl')
-const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-const { nextOrdinal } = await import('../../src/fabric/ordinal.ts')
+const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+const { nextOrdinal } = await import('../../src/sessions/fabric/ordinal.ts')
 let ordinal: ReturnType<typeof nextOrdinal> | null = null
 writeFileSync(file, record.map(row => JSON.stringify(entryToRecord(row, { sessionId: 'fixture' as never, observedAt: new Date(0).toISOString(), source: { channel: 'sdk' }, nextOrdinal: () => (ordinal = nextOrdinal(ordinal)) }))).join('\n') + '\n')
 const tracker = createProgressTracker()

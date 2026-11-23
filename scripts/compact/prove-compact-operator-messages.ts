@@ -20,7 +20,7 @@ process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'compact-operator-me
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const SELECTION_MODULE = 'src/utils/compact/operatorMessages.ts'
+const SELECTION_MODULE = 'src/engine/compaction-window/operatorMessages.ts'
 const KIND = 'compact_operator_messages'
 
 let failures = 0
@@ -44,25 +44,25 @@ const { startOverflowFixture, OVERFLOW_WIRE_SHAPES } = await import('./overflowF
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.ts')
-const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { normalizeMessagesForAPI } = await import('../../src/services/messages/apiView.ts')
-const { NULL_RENDERING_ATTACHMENT_TYPES, isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
-const { BODY_SHAPE_KINDS } = await import('../../src/fabric/validate.ts')
-const { estimateContextTokens } = await import('../../src/services/compact/microCompact.ts')
-const compactMod = await import('../../src/services/compact/compact.ts')
-const chain = await import('../../src/utils/sessionStorage/chain.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { query } = await import('../../src/query.ts')
-const { productionDeps } = await import('../../src/query/deps.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { normalizeMessagesForAPI } = await import('../../src/engine/messages/apiView.ts')
+const { NULL_RENDERING_ATTACHMENT_TYPES, isNullRenderingAttachment } = await import('../../src/screen/messages/nullRenderingAttachments.ts')
+const { BODY_SHAPE_KINDS } = await import('../../src/sessions/fabric/validate.ts')
+const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
+const compactMod = await import('../../src/engine/compaction/foldConversation.ts')
+const chain = await import('../../src/sessions/transcripts/chain.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string; uuid?: string }
 type Entry = { ordinal: number; text: string; truncated?: boolean }
@@ -232,17 +232,17 @@ section('B the wire projection and the registry — one meta user row, newest fi
   const projected = normalizeAttachmentForAPI(block as never)
   const text = projected.length === 1 ? textOf(projected[0]) : ''
   console.log(text.split('\n').map(line => `  │ ${line.slice(0, 150)}`).join('\n'))
-  check('the block projects to ONE meta user row', projected.length === 1 && (projected[0] as { isMeta?: boolean }).isMeta === true, `${String(projected.length)}; the compact_operator_messages entry in src/services/messages/attachmentText.ts must return one meta row`)
+  check('the block projects to ONE meta user row', projected.length === 1 && (projected[0] as { isMeta?: boolean }).isMeta === true, `${String(projected.length)}; the compact_operator_messages entry in src/engine/messages/attachmentText.ts must return one meta row`)
   check('…headed as the operator\'s own messages, verbatim and newest first, with the coverage spoken by ordinal', text.startsWith("The operator's own messages from this stretch and the earlier folds, verbatim and newest first (3 of 10; messages 1-7 are carried whole by the earlier folds' boundary records)"), `${text.slice(0, 200)}; fix the head line in operatorMessagesBlockText in ${SELECTION_MODULE}`)
   check('…each entry framed with its ordinal out of the total', text.includes('<operator-message ordinal="10" of="10">\nthe newest ask\n</operator-message>') && text.includes('<operator-message ordinal="8" of="10">'), `entry framing is wrong; fix operatorMessagesBlockText in ${SELECTION_MODULE}`)
   check('…newest first on the wire', text.indexOf('ordinal="10"') >= 0 && text.indexOf('ordinal="10"') < text.indexOf('ordinal="9"') && text.indexOf('ordinal="9"') >= 0 && text.indexOf('ordinal="9"') < text.indexOf('ordinal="8"'), `entries are not newest first; fix operatorMessagesBlockText in ${SELECTION_MODULE}`)
   check('…the truncated entry carries its marker', text.includes('the oldest kept ask\n[the rest of this message is cut for the budget; the summary covers it]\n</operator-message>'), `a truncated entry lost its marker; fix operatorMessagesBlockText in ${SELECTION_MODULE}`)
-  check('…not wrapped in a system reminder (the operator\'s words weigh as the summary does)', !text.startsWith('<system-reminder>'), `the block text is wrapped in a system reminder; the compact_operator_messages entry in src/services/messages/attachmentText.ts must use meta() without a reminder wrapper`)
+  check('…not wrapped in a system reminder (the operator\'s words weigh as the summary does)', !text.startsWith('<system-reminder>'), `the block text is wrapped in a system reminder; the compact_operator_messages entry in src/engine/messages/attachmentText.ts must use meta() without a reminder wrapper`)
   const whole = normalizeAttachmentForAPI({ type: KIND, messages: [{ ordinal: 1, text: 'only ask' }], omitted: 0 } as never)
   check('a whole block says so (all 1 of them)', whole.length === 1 && textOf(whole[0]).includes('(all 1 of them)'), `fix the coverage wording in operatorMessagesBlockText in ${SELECTION_MODULE}`)
-  check('an empty block projects nothing', normalizeAttachmentForAPI({ type: KIND, messages: [], omitted: 0 } as never).length === 0, `the compact_operator_messages entry in src/services/messages/attachmentText.ts must return [] for an empty block`)
-  check('the kind is registered null-rendering (transcript-only, never painted — no look change)', (NULL_RENDERING_ATTACHMENT_TYPES as readonly string[]).includes(KIND) && isNullRenderingAttachment(createAttachmentMessage(block as never) as never), `add 'compact_operator_messages' to NULL_RENDERING_ATTACHMENT_TYPES in src/components/messages/nullRenderingAttachments.ts`)
-  check('the body-shape registry knows the kind', (BODY_SHAPE_KINDS.attachment as readonly string[]).includes(KIND), `add compact_operator_messages to the attachment body shapes in src/fabric/validate.ts`)
+  check('an empty block projects nothing', normalizeAttachmentForAPI({ type: KIND, messages: [], omitted: 0 } as never).length === 0, `the compact_operator_messages entry in src/engine/messages/attachmentText.ts must return [] for an empty block`)
+  check('the kind is registered null-rendering (transcript-only, never painted — no look change)', (NULL_RENDERING_ATTACHMENT_TYPES as readonly string[]).includes(KIND) && isNullRenderingAttachment(createAttachmentMessage(block as never) as never), `add 'compact_operator_messages' to NULL_RENDERING_ATTACHMENT_TYPES in src/screen/messages/nullRenderingAttachments.ts`)
+  check('the body-shape registry knows the kind', (BODY_SHAPE_KINDS.attachment as readonly string[]).includes(KIND), `add compact_operator_messages to the attachment body shapes in src/sessions/fabric/validate.ts`)
 }
 
 const CACHE_SAFE = { systemPrompt: ['fixture posture'] } as never
@@ -306,28 +306,28 @@ section('C the real fold, no kept tail — every prompt verbatim between the bou
 {
   process.env.MERCURY_COMPACT_KEEP_TAIL = '0'
   const { result, error } = await fold('claude-opus-4-8')
-  check('compactConversation resolved on the loopback', result !== undefined && error === undefined, `${(error?.stack ?? '').slice(0, 400)}; compactConversation in src/services/compact/compact.ts threw on the loopback fixture, read the stack`)
+  check('compactConversation resolved on the loopback', result !== undefined && error === undefined, `${(error?.stack ?? '').slice(0, 400)}; compactConversation in src/engine/compaction/foldConversation.ts threw on the loopback fixture, read the stack`)
   if (result !== undefined) {
     const post = compactMod.buildPostCompactMessages(result as never) as unknown as AnyMsg[]
     const { between, summary } = betweenBoundaryAndSummary(post)
     const summaryText = textOf(summary)
     const betweenText = between.map(rowText).join('\n')
-    check('the result carries the operator-messages row', blockOf(result.operatorMessages) !== null, `operatorMessages=${j(result.operatorMessages)}; compactConversation in src/services/compact/compact.ts must set operatorMessages from selectOperatorMessages`)
-    check('the first row is the boundary, the summary row is present', post[0]?.type === 'system' && summary !== undefined, 'buildPostCompactMessages in src/services/compact/compact/result.ts must start with the boundary and include the summary row')
-    check('the row between the boundary and the summary is the operator-messages block', between.length === 1 && blockOf(between[0]) !== null, `between the boundary and the summary: ${between.length === 0 ? 'nothing' : between.map(row => String(row.type)).join(',')}; the summary reads: "${SECTION_SIX.slice(0, 120)}…"; buildPostCompactMessages in src/services/compact/compact/result.ts must place operatorMessages right after the boundary`)
-    check('every one of the eight prompts appears VERBATIM between the boundary and the summary', PROMPTS.every(prompt => betweenText.includes(j(prompt).slice(1, -1))), `missing: ${PROMPTS.filter(prompt => !betweenText.includes(j(prompt).slice(1, -1))).map(prompt => prompt.slice(0, 24)).join(' | ')}; the model sees only the summariser's paraphrase: "${SECTION_SIX.slice(0, 160)}"; check selectOperatorMessages in ${SELECTION_MODULE} and its wiring in compactConversation (src/services/compact/compact.ts)`)
+    check('the result carries the operator-messages row', blockOf(result.operatorMessages) !== null, `operatorMessages=${j(result.operatorMessages)}; compactConversation in src/engine/compaction/foldConversation.ts must set operatorMessages from selectOperatorMessages`)
+    check('the first row is the boundary, the summary row is present', post[0]?.type === 'system' && summary !== undefined, 'buildPostCompactMessages in src/engine/compaction/fold/foldResult.ts must start with the boundary and include the summary row')
+    check('the row between the boundary and the summary is the operator-messages block', between.length === 1 && blockOf(between[0]) !== null, `between the boundary and the summary: ${between.length === 0 ? 'nothing' : between.map(row => String(row.type)).join(',')}; the summary reads: "${SECTION_SIX.slice(0, 120)}…"; buildPostCompactMessages in src/engine/compaction/fold/foldResult.ts must place operatorMessages right after the boundary`)
+    check('every one of the eight prompts appears VERBATIM between the boundary and the summary', PROMPTS.every(prompt => betweenText.includes(j(prompt).slice(1, -1))), `missing: ${PROMPTS.filter(prompt => !betweenText.includes(j(prompt).slice(1, -1))).map(prompt => prompt.slice(0, 24)).join(' | ')}; the model sees only the summariser's paraphrase: "${SECTION_SIX.slice(0, 160)}"; check selectOperatorMessages in ${SELECTION_MODULE} and its wiring in compactConversation (src/engine/compaction/foldConversation.ts)`)
     const block = blockOf(between[0])
     check('…newest first (p8 first, p1 last), none omitted, none truncated', block !== null && block.messages.length === 8 && block.omitted === 0 && block.messages[0]!.text === PROMPTS[7] && block.messages[7]!.text === PROMPTS[0] && block.messages.every((entry, index) => entry.ordinal === 8 - index && entry.truncated === undefined), `${j(block?.messages.map(entry => `${entry.ordinal}:${entry.text.slice(0, 12)}`))}; fix selectOperatorMessages in ${SELECTION_MODULE}`)
     check('…the wake, the command echo and its expansion did not ride', !betweenText.includes('self-paced wake') && !betweenText.includes('command-name') && !betweenText.includes(EXPANSION_TEXT), `a wake, echo or expansion row rode in the block; exclude it in collectOperatorTexts in ${SELECTION_MODULE}`)
-    check('the summary still covers everything (section 6 is the summariser\'s paraphrase, the block is the exact words)', summaryText.includes(SECTION_SIX) && !summaryText.includes(PROMPTS[0]!), 'the summary row must carry the summariser text only and not the prompts; check compactConversation in src/services/compact/compact.ts')
+    check('the summary still covers everything (section 6 is the summariser\'s paraphrase, the block is the exact words)', summaryText.includes(SECTION_SIX) && !summaryText.includes(PROMPTS[0]!), 'the summary row must carry the summariser text only and not the prompts; check compactConversation in src/engine/compaction/foldConversation.ts')
     const api = normalizeMessagesForAPI(post as never, [])
     const apiText = api.map(textOf).join('\n')
-    check('on the wire the block precedes the summary text', apiText.indexOf("The operator's own messages") >= 0 && apiText.indexOf("The operator's own messages") < apiText.indexOf('The context window turned over'), `${apiText.slice(0, 160)}; normalizeMessagesForAPI (src/services/messages/apiView.ts) must keep the block row ahead of the summary row`)
-    check('…and every prompt is on the wire verbatim', PROMPTS.every(prompt => apiText.includes(prompt)), 'a prompt is missing on the wire; check the compact_operator_messages entry in src/services/messages/attachmentText.ts')
+    check('on the wire the block precedes the summary text', apiText.indexOf("The operator's own messages") >= 0 && apiText.indexOf("The operator's own messages") < apiText.indexOf('The context window turned over'), `${apiText.slice(0, 160)}; normalizeMessagesForAPI (src/engine/messages/apiView.ts) must keep the block row ahead of the summary row`)
+    check('…and every prompt is on the wire verbatim', PROMPTS.every(prompt => apiText.includes(prompt)), 'a prompt is missing on the wire; check the compact_operator_messages entry in src/engine/messages/attachmentText.ts')
     const without = { ...result, operatorMessages: undefined }
     const withBlock = estimateContextTokens(post as never)
     const withoutBlock = estimateContextTokens(compactMod.buildPostCompactMessages(without as never) as never)
-    check('the size guard counts the block (the true post figure includes it)', withBlock > withoutBlock && result.truePostCompactTokenCount === withBlock, `${withBlock} vs ${withoutBlock}; true=${String(result.truePostCompactTokenCount)}; estimateContextTokens (src/services/compact/microCompact.ts) and truePostCompactTokenCount in src/services/compact/compact.ts must both count the block`)
+    check('the size guard counts the block (the true post figure includes it)', withBlock > withoutBlock && result.truePostCompactTokenCount === withBlock, `${withBlock} vs ${withoutBlock}; true=${String(result.truePostCompactTokenCount)}; estimateContextTokens (src/engine/compaction/pruneToolResults.ts) and truePostCompactTokenCount in src/engine/compaction/foldConversation.ts must both count the block`)
   }
 }
 
@@ -336,7 +336,7 @@ section('D the real fold with the kept tail — a prompt inside the tail is not 
   process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
   const { result, error } = await fold('claude-opus-4-8')
   delete process.env.MERCURY_COMPACT_KEEP_TAIL
-  check('compactConversation resolved on the loopback', result !== undefined && error === undefined, `${(error?.stack ?? '').slice(0, 400)}; compactConversation in src/services/compact/compact.ts threw on the loopback fixture with MERCURY_COMPACT_KEEP_TAIL=1, read the stack`)
+  check('compactConversation resolved on the loopback', result !== undefined && error === undefined, `${(error?.stack ?? '').slice(0, 400)}; compactConversation in src/engine/compaction/foldConversation.ts threw on the loopback fixture with MERCURY_COMPACT_KEEP_TAIL=1, read the stack`)
   if (result !== undefined) {
     const kept = (result.messagesToKeep ?? []) as AnyMsg[]
     const keptText = kept.map(rowText).join('\n')
@@ -346,10 +346,10 @@ section('D the real fold with the kept tail — a prompt inside the tail is not 
     const post = compactMod.buildPostCompactMessages(result as never) as unknown as AnyMsg[]
     const { between } = betweenBoundaryAndSummary(post)
     const block = blockOf(between[0])
-    check('the block sits between the boundary and the summary', between.length === 1 && block !== null, `between: ${between.map(row => String(row.type)).join(',') || 'nothing'}; buildPostCompactMessages in src/services/compact/compact/result.ts must place operatorMessages after the boundary`)
-    check('…and carries exactly the folded prompts, newest first', block !== null && j(block.messages.map(entry => entry.text)) === j([...folded].reverse()), `${j(block?.messages.map(entry => entry.text.slice(0, 12)))}; the block must hold exactly the folded prompts: fix selectOperatorMessages in ${SELECTION_MODULE} and the keptUuids passed to it in src/services/compact/compact.ts`)
+    check('the block sits between the boundary and the summary', between.length === 1 && block !== null, `between: ${between.map(row => String(row.type)).join(',') || 'nothing'}; buildPostCompactMessages in src/engine/compaction/fold/foldResult.ts must place operatorMessages after the boundary`)
+    check('…and carries exactly the folded prompts, newest first', block !== null && j(block.messages.map(entry => entry.text)) === j([...folded].reverse()), `${j(block?.messages.map(entry => entry.text.slice(0, 12)))}; the block must hold exactly the folded prompts: fix selectOperatorMessages in ${SELECTION_MODULE} and the keptUuids passed to it in src/engine/compaction/foldConversation.ts`)
     check('…no prompt of the kept tail is repeated in it', block !== null && !block.messages.some(entry => inTail.includes(entry.text)), `a kept-tail prompt was repeated in the block; selectOperatorMessages in ${SELECTION_MODULE} must skip keptUuids`)
-    check('the kept tail rows come after the summary, whole', post.findIndex(row => row.uuid === kept[0]?.uuid) > post.findIndex(row => (row as { isCompactSummary?: boolean }).isCompactSummary === true), 'buildPostCompactMessages in src/services/compact/compact/result.ts must put messagesToKeep after the summaryMessages')
+    check('the kept tail rows come after the summary, whole', post.findIndex(row => row.uuid === kept[0]?.uuid) > post.findIndex(row => (row as { isCompactSummary?: boolean }).isCompactSummary === true), 'buildPostCompactMessages in src/engine/compaction/fold/foldResult.ts must put messagesToKeep after the summaryMessages')
   }
 }
 
@@ -393,13 +393,13 @@ section('F the size guard sheds the block LAST, before refusing; a fitting resul
   const full = rig([fileAttachment('A.txt', 4_000), skills], block)
   const core = estimateContextTokens(compactMod.buildPostCompactMessages(rig([], undefined) as never) as never)
   const coreWithBlock = estimateContextTokens(compactMod.buildPostCompactMessages(rig([], block) as never) as never)
-  check('the block weighs in the whole-context estimate', coreWithBlock > core, `${coreWithBlock} vs ${core}; buildPostCompactMessages in src/services/compact/compact/result.ts must include operatorMessages and estimateContextTokens (src/services/compact/microCompact.ts) must count it`)
+  check('the block weighs in the whole-context estimate', coreWithBlock > core, `${coreWithBlock} vs ${core}; buildPostCompactMessages in src/engine/compaction/fold/foldResult.ts must include operatorMessages and estimateContextTokens (src/engine/compaction/pruneToolResults.ts) must count it`)
   const out = compactMod.fitPostCompactUnderThreshold(full as never, coreWithBlock) as { result: { operatorMessages?: unknown; attachments: unknown[] }; estimate: number; shed: string[] }
-  check('files and skills may go; operator bytes stand even when the fit must refuse', j(out.shed) === j(['file /rig/A.txt', 'invoked_skills']) && out.result.operatorMessages === block && out.estimate >= coreWithBlock, `${j({ shed: out.shed, estimate: out.estimate, threshold: coreWithBlock })}; fitPostCompactUnderThreshold in src/services/compact/compact/attachments.ts may shed files and skills but never operatorMessages`)
+  check('files and skills may go; operator bytes stand even when the fit must refuse', j(out.shed) === j(['file /rig/A.txt', 'invoked_skills']) && out.result.operatorMessages === block && out.estimate >= coreWithBlock, `${j({ shed: out.shed, estimate: out.estimate, threshold: coreWithBlock })}; fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts may shed files and skills but never operatorMessages`)
   const roomy = compactMod.fitPostCompactUnderThreshold(full as never, coreWithBlock + 100_000) as { result: { operatorMessages?: unknown }; shed: string[] }
-  check('a result under the threshold keeps its block (nothing shed)', roomy.shed.length === 0 && roomy.result.operatorMessages === block, `fitPostCompactUnderThreshold in src/services/compact/compact/attachments.ts shed ${j(roomy.shed)} although the result fit the threshold`)
+  check('a result under the threshold keeps its block (nothing shed)', roomy.shed.length === 0 && roomy.result.operatorMessages === block, `fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts shed ${j(roomy.shed)} although the result fit the threshold`)
   const tight = compactMod.fitPostCompactUnderThreshold(rig([fileAttachment('A.txt', 4_000)], block) as never, coreWithBlock + 50) as { result: { operatorMessages?: unknown }; shed: string[]; estimate: number }
-  check('when shedding the file alone brings the fit under, the block stands', j(tight.shed) === j(['file /rig/A.txt']) && tight.result.operatorMessages === block && tight.estimate < coreWithBlock + 50, `${j(tight.shed)}; fitPostCompactUnderThreshold in src/services/compact/compact/attachments.ts must stop shedding once the estimate is under the threshold and keep operatorMessages`)
+  check('when shedding the file alone brings the fit under, the block stands', j(tight.shed) === j(['file /rig/A.txt']) && tight.result.operatorMessages === block && tight.estimate < coreWithBlock + 50, `${j(tight.shed)}; fitPostCompactUnderThreshold in src/engine/compaction/fold/foldAttachments.ts must stop shedding once the estimate is under the threshold and keep operatorMessages`)
 }
 
 section('G the resume road — the block survives a reload the way the summary does')
@@ -421,9 +421,9 @@ section('G the resume road — the block survives a reload the way the summary d
   chain.applyPreservedSegmentRelinks(map as never)
   const loaded = chain.buildConversationChain(map as never, map.get(a3.uuid as never) as never) as unknown as AnyMsg[]
   const order = loaded.map(m => (m.uuid === boundary.uuid ? 'boundary' : m.uuid === block.uuid ? 'block' : m.uuid === summary.uuid ? 'summary' : m.uuid === u1.uuid ? 'u1' : m.uuid === a1.uuid ? 'a1' : m.uuid === u2.uuid ? 'u2' : m.uuid === a2.uuid ? 'a2' : m.uuid === u3.uuid ? 'u3' : 'a3'))
-  check('the reloaded chain: boundary, block, summary, the kept tail, the later turn — the folded head pruned', j(order) === j(['boundary', 'block', 'summary', 'u2', 'a2', 'u3', 'a3']), `${j(order)}; applyPreservedSegmentRelinks and buildConversationChain in src/utils/sessionStorage/chain.ts must rebuild the chain boundary, block, summary, kept tail, later turn`)
-  check('the block is a loggable row (it projects to the wire, so the file keeps it)', chain.isTranscribable(block as never) === true, 'isTranscribable in src/utils/sessionStorage/chain.ts must accept the compact_operator_messages attachment')
-  check('an empty block is not persisted (it projects nothing)', chain.isTranscribable(createAttachmentMessage({ type: KIND, messages: [], omitted: 0 } as never) as never) === false, 'isTranscribable in src/utils/sessionStorage/chain.ts must reject an empty compact_operator_messages block')
+  check('the reloaded chain: boundary, block, summary, the kept tail, the later turn — the folded head pruned', j(order) === j(['boundary', 'block', 'summary', 'u2', 'a2', 'u3', 'a3']), `${j(order)}; applyPreservedSegmentRelinks and buildConversationChain in src/sessions/transcripts/chain.ts must rebuild the chain boundary, block, summary, kept tail, later turn`)
+  check('the block is a loggable row (it projects to the wire, so the file keeps it)', chain.isTranscribable(block as never) === true, 'isTranscribable in src/sessions/transcripts/chain.ts must accept the compact_operator_messages attachment')
+  check('an empty block is not persisted (it projects nothing)', chain.isTranscribable(createAttachmentMessage({ type: KIND, messages: [], omitted: 0 } as never) as never) === false, 'isTranscribable in src/sessions/transcripts/chain.ts must reject an empty compact_operator_messages block')
 }
 
 section('H the turn machine end to end — the retried request after an overflow fold carries the asks verbatim, ahead of the summary')

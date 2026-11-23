@@ -4,22 +4,22 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import type { Message, TurnReceiptMessage } from '../../src/types/message.ts'
+import type { Message, TurnReceiptMessage } from '../../src/engine/message-shapes/message.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'fold-work-render-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_TMPDIR = home
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { renderToString } = await import('../../src/utils/staticRender.tsx')
-const { TurnReceiptRow } = await import('../../src/components/messages/TurnReceiptRow.tsx')
-const { ResumeRecapCard } = await import('../../src/components/messages/ResumeRecapCard.tsx')
-const { composeTranscript } = await import('../../src/components/Messages.tsx')
-const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
-const { isNotEmptyMessage } = await import('../../src/utils/messages/text.ts')
-const { createCompactBoundaryMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { annotateBoundaryWithWork, buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
-const { buildAwayRecap } = await import('../../src/utils/cockpit/awaySummary.ts')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { TurnReceiptRow } = await import('../../src/screen/messages/TurnReceiptRow.tsx')
+const { ResumeRecapCard } = await import('../../src/screen/messages/ResumeRecapCard.tsx')
+const { composeTranscript } = await import('../../src/screen/messages/Messages.tsx')
+const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.ts')
+const { isNotEmptyMessage } = await import('../../src/engine/message-shapes/text.ts')
+const { createCompactBoundaryMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { annotateBoundaryWithWork, buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { buildAwayRecap } = await import('../../src/screen/cockpit/awaySummary.ts')
 
 const timestamp = new Date().toISOString()
 const messages: Message[] = [createUserMessage({ content: 'Repair the file and run its checks.' })]
@@ -35,7 +35,7 @@ const summary = createUserMessage({ content: 'The repair and checks are complete
 annotateBoundaryWithWork(boundary, messages, keep, summary.uuid)
 const folded = buildPostCompactMessages({ boundaryMarker: boundary, summaryMessages: [summary], messagesToKeep: keep, attachments: [], hookResults: [], preCompactTokenCount: 80_000, postCompactTokenCount: 200 })
 let failures = 0
-const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `: ${detail} (to fix: the work counts a fold carries are written by annotateBoundaryWithWork in src/services/compact/compact.ts and painted by src/components/messages/TurnReceiptRow.tsx and ResumeRecapCard.tsx, with the recap numbers from buildAwayRecap in src/utils/cockpit/awaySummary.ts; compare the printed frame with the unfolded one)` : ''}`) }
+const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `: ${detail} (to fix: the work counts a fold carries are written by annotateBoundaryWithWork in src/engine/compaction/foldConversation.ts and painted by src/screen/messages/TurnReceiptRow.tsx and ResumeRecapCard.tsx, with the recap numbers from buildAwayRecap in src/screen/cockpit/awaySummary.ts; compare the printed frame with the unfolded one)` : ''}`) }
 async function frame(rows: Message[], width: number): Promise<string> {
   const composition = composeTranscript({ normalized: normalizeMessages(rows).filter(isNotEmptyMessage), syntheticStreamingRows: [], verbose: false, fullscreen: true, isTranscriptMode: false, truncateTranscript: false, tools: [], inProgressToolUseIDs: new Set() })
   const receipt = composition.collapsed.find((m): m is TurnReceiptMessage => m.type === 'turn_receipt')

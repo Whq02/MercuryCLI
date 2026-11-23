@@ -39,11 +39,11 @@ const wide = Array.from({ length: 1_500 }, (_, i) => `${String(i + 1).padStart(4
 const NOTE = /only its first (\d+) lines are shown above/
 
 try {
-  const bootstrap = await import(`${root}/src/bootstrap/state.ts`)
+  const bootstrap = await import(`${root}/src/boot/process-state/processState.ts`)
   bootstrap.setOriginalCwd(cwd)
   bootstrap.setProjectRoot(cwd)
-  const { processAtMentionedFiles } = await import(`${root}/src/services/attachments/mentionResolvers.ts`)
-  const { normalizeAttachmentForAPI } = await import(`${root}/src/services/messages/attachmentText.ts`)
+  const { processAtMentionedFiles } = await import(`${root}/src/engine/attachments/mentionResolvers.ts`)
+  const { normalizeAttachmentForAPI } = await import(`${root}/src/engine/messages/attachmentText.ts`)
 
   type Row = { type: string; truncated?: boolean; content?: { file?: { numLines?: number; totalLines?: number; startLine?: number } } }
   const context = (): unknown => ({
@@ -66,30 +66,30 @@ try {
   {
     const fits = file('fits.ts', Array.from({ length: 400 }, (_, i) => `const fit${String(i + 1).padStart(4, '0')} = '${'z'.repeat(59)}'`).join('\n') + '\n')
     const whole = await mention(`look at @${fits}`)
-    check('A control: a 32 KB file is carried whole, with no note', whole.length === 1 && whole[0]!.type === 'file' && whole[0]!.truncated !== true && whole[0]!.content?.file?.numLines === 400 && !NOTE.test(modelReads(whole[0]!)), shape(whole), 'a file under the byte and token limits must come back whole and unmarked; check generateFileAttachment in src/services/attachments/fileAttachments.ts (the clip must start only on the token-limit or file-size error) and the too-large note in fileRows of src/services/messages/attachmentText.ts')
+    check('A control: a 32 KB file is carried whole, with no note', whole.length === 1 && whole[0]!.type === 'file' && whole[0]!.truncated !== true && whole[0]!.content?.file?.numLines === 400 && !NOTE.test(modelReads(whole[0]!)), shape(whole), 'a file under the byte and token limits must come back whole and unmarked; check generateFileAttachment in src/engine/attachments/fileAttachments.ts (the clip must start only on the token-limit or file-size error) and the too-large note in fileRows of src/engine/messages/attachmentText.ts')
 
     const densePath = file('dense.ts', dense)
     const clipped = await mention(`look at @${densePath}`)
     const shown = clipped[0]?.content?.file?.numLines ?? 0
-    check('A: a 200 KB file of 2,500 lines is carried, clipped to the lines that fit, from its first line', clipped.length === 1 && clipped[0]!.type === 'file' && clipped[0]!.truncated === true && clipped[0]!.content?.file?.startLine === 1 && shown >= 1 && shown < 2_000, shape(clipped), 'an over-limit mention must come back as one file row, truncated, starting at line 1; check oversizedFallback and clippedRead in src/services/attachments/fileAttachments.ts')
+    check('A: a 200 KB file of 2,500 lines is carried, clipped to the lines that fit, from its first line', clipped.length === 1 && clipped[0]!.type === 'file' && clipped[0]!.truncated === true && clipped[0]!.content?.file?.startLine === 1 && shown >= 1 && shown < 2_000, shape(clipped), 'an over-limit mention must come back as one file row, truncated, starting at line 1; check oversizedFallback and clippedRead in src/engine/attachments/fileAttachments.ts')
     const told = clipped[0] ? modelReads(clipped[0]) : ''
-    check('A: …the model reads its first line, the last line that fits and no line past it, and the note that says how many', told.includes('const line0001 ') && told.includes(`const line${String(shown).padStart(4, '0')} `) && !told.includes(`const line${String(shown + 1).padStart(4, '0')} `) && NOTE.exec(told)?.[1] === String(shown), `shown ${shown}; note ${NOTE.exec(told)?.[0]}`, 'the model text must hold lines 1 to numLines and the note naming that same numLines; check fileRows in src/services/messages/attachmentText.ts and the clipped window from clippedRead in src/services/attachments/fileAttachments.ts')
+    check('A: …the model reads its first line, the last line that fits and no line past it, and the note that says how many', told.includes('const line0001 ') && told.includes(`const line${String(shown).padStart(4, '0')} `) && !told.includes(`const line${String(shown + 1).padStart(4, '0')} `) && NOTE.exec(told)?.[1] === String(shown), `shown ${shown}; note ${NOTE.exec(told)?.[0]}`, 'the model text must hold lines 1 to numLines and the note naming that same numLines; check fileRows in src/engine/messages/attachmentText.ts and the clipped window from clippedRead in src/engine/attachments/fileAttachments.ts')
 
     const widePath = file('wide.log', wide)
     const widened = await mention(`look at @${widePath}`)
     const wideShown = widened[0]?.content?.file?.numLines ?? 0
-    check('A: a 240 KB log of 1,500 lines of 160 characters is carried the same way', widened.length === 1 && widened[0]!.truncated === true && wideShown >= 1 && wideShown < 1_500 && NOTE.exec(modelReads(widened[0]!))?.[1] === String(wideShown), shape(widened), 'a wide-line file must be clipped by tokens like the dense one, with the note naming the lines shown; check clippedRead in src/services/attachments/fileAttachments.ts and fileRows in src/services/messages/attachmentText.ts')
+    check('A: a 240 KB log of 1,500 lines of 160 characters is carried the same way', widened.length === 1 && widened[0]!.truncated === true && wideShown >= 1 && wideShown < 1_500 && NOTE.exec(modelReads(widened[0]!))?.[1] === String(wideShown), shape(widened), 'a wide-line file must be clipped by tokens like the dense one, with the note naming the lines shown; check clippedRead in src/engine/attachments/fileAttachments.ts and fileRows in src/engine/messages/attachmentText.ts')
 
     const ranged = await mention(`look at @${densePath}#L1000-2400`)
     const from = ranged[0]?.content?.file?.startLine
     const rangedShown = ranged[0]?.content?.file?.numLines ?? 0
     const rangedTold = ranged[0] ? modelReads(ranged[0]) : ''
-    check('A: a mention of lines 1000–2400 of it is clipped from line 1000, not from the file\'s head', ranged.length === 1 && ranged[0]!.truncated === true && from === 1000 && rangedShown >= 1 && rangedShown < 1_401 && rangedTold.includes('const line1000 ') && !rangedTold.includes('const line0999 '), shape(ranged), 'a mention with a line range must clip from the range start, not from line 1; check the offset passed in readMention of src/services/attachments/mentionResolvers.ts and oversizedFallback in src/services/attachments/fileAttachments.ts')
-    check('A: …and the model is told the lines that are shown, not that they are the file\'s first', rangedShown >= 1 && rangedTold.includes(`dense.ts was too large — only lines 1000-${999 + rangedShown} are shown above.`) && !NOTE.test(rangedTold), /[^"\n]*too large[^"\n]*/.exec(rangedTold)?.[0]?.slice(-140) ?? '(no note)', 'a clip that starts after line 1 must say which lines are shown, not its first lines; check the startLine branch in fileRows of src/services/messages/attachmentText.ts')
+    check('A: a mention of lines 1000–2400 of it is clipped from line 1000, not from the file\'s head', ranged.length === 1 && ranged[0]!.truncated === true && from === 1000 && rangedShown >= 1 && rangedShown < 1_401 && rangedTold.includes('const line1000 ') && !rangedTold.includes('const line0999 '), shape(ranged), 'a mention with a line range must clip from the range start, not from line 1; check the offset passed in readMention of src/engine/attachments/mentionResolvers.ts and oversizedFallback in src/engine/attachments/fileAttachments.ts')
+    check('A: …and the model is told the lines that are shown, not that they are the file\'s first', rangedShown >= 1 && rangedTold.includes(`dense.ts was too large — only lines 1000-${999 + rangedShown} are shown above.`) && !NOTE.test(rangedTold), /[^"\n]*too large[^"\n]*/.exec(rangedTold)?.[0]?.slice(-140) ?? '(no note)', 'a clip that starts after line 1 must say which lines are shown, not its first lines; check the startLine branch in fileRows of src/engine/messages/attachmentText.ts')
 
     const longPath = file('long.txt', Array.from({ length: 3_000 }, (_, i) => `${String(i + 1).padStart(4, '0')} ${'y'.repeat(34)}`).join('\n') + '\n')
     const windowed = await mention(`look at @${longPath}`)
-    check('A control: a 120 KB file of 3,000 short lines reads as before — the read\'s own first 2,000 lines', windowed.length === 1 && windowed[0]!.type === 'file' && windowed[0]!.truncated !== true && windowed[0]!.content?.file?.numLines === 2_000, shape(windowed), 'a file that fits the token limit must keep the read tool default window of its first 2,000 lines, untruncated; check oversizedFallback in src/services/attachments/fileAttachments.ts, which should clip only after a size or token error')
+    check('A control: a 120 KB file of 3,000 short lines reads as before — the read\'s own first 2,000 lines', windowed.length === 1 && windowed[0]!.type === 'file' && windowed[0]!.truncated !== true && windowed[0]!.content?.file?.numLines === 2_000, shape(windowed), 'a file that fits the token limit must keep the read tool default window of its first 2,000 lines, untruncated; check oversizedFallback in src/engine/attachments/fileAttachments.ts, which should clip only after a size or token error')
   }
 
   console.log('\nB — the built bundle through mercury run: the read counts its tokens with the provider')
@@ -133,8 +133,8 @@ try {
       check('B: the run answered, and the read counted its tokens with the provider', ran.exit === 0 && ran.stdout.includes('DENSE-REPLY.') && counted >= 2, `exit=${ran.exit} counted=${counted} ${ran.stderr.slice(-200)}`, 'rebuild dist/mercury.mjs, then run node dist/mercury.mjs run with the two @-mentions against the fixture API; the read must send count_tokens requests for the two large files, so look at the stderr above and at how the file read measures tokens')
       const notes = [...wire.matchAll(/(dense\.ts|wide\.log) was too large — only its first (\d+) lines are shown above/g)].map(found => [found[1], Number(found[2])] as const)
       const lines = Object.fromEntries(notes)
-      check('B: the request carries both files clipped, each with the note of how many lines it shows', notes.length === 2 && lines['dense.ts']! >= 1 && lines['dense.ts']! < 2_000 && lines['wide.log']! >= 1 && lines['wide.log']! < 1_500, j(notes), 'the request sent to the provider must hold both files clipped, each followed by its too-large note; check fileRows in src/services/messages/attachmentText.ts and clippedRead in src/services/attachments/fileAttachments.ts')
-      check('B: …their first lines, and neither file\'s last line', wire.includes('const line0001 ') && wire.includes('0001 word') && !wire.includes('const line2500 ') && !wire.includes('1500 word'), `${wire.length} chars`, 'the request must carry each clipped file from its first line and never its last line; check clippedRead in src/services/attachments/fileAttachments.ts')
+      check('B: the request carries both files clipped, each with the note of how many lines it shows', notes.length === 2 && lines['dense.ts']! >= 1 && lines['dense.ts']! < 2_000 && lines['wide.log']! >= 1 && lines['wide.log']! < 1_500, j(notes), 'the request sent to the provider must hold both files clipped, each followed by its too-large note; check fileRows in src/engine/messages/attachmentText.ts and clippedRead in src/engine/attachments/fileAttachments.ts')
+      check('B: …their first lines, and neither file\'s last line', wire.includes('const line0001 ') && wire.includes('0001 word') && !wire.includes('const line2500 ') && !wire.includes('1500 word'), `${wire.length} chars`, 'the request must carry each clipped file from its first line and never its last line; check clippedRead in src/engine/attachments/fileAttachments.ts')
     } finally {
       await fixture.close()
     }

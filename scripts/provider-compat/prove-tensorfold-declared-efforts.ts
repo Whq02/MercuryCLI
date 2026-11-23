@@ -75,17 +75,17 @@ const engines = [refuses, honours, unstated, plain, lacksLow]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = engines.map(one => `tensorfold=${one.root}`).join(',')
 
 const DECLARED = ['none', 'low', 'high']
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
 const declared = updateSettingsForSource('userSettings', { models: { ...Object.fromEntries([refuses, honours, unstated].map(one => [`local/${one.name}`, { efforts: DECLARED, reasoning: true }])), [`local/${lacksLow.name}`]: { efforts: ['none', 'high'], reasoning: true } } } as never)
 if (declared.error) throw new Error(String(declared.error))
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
-const { effortStampLine } = await import('../../src/utils/effortStamp.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { localLaneProfileFor } = await import('../../src/models/roads/local/localCallModel.ts')
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { effortVocabularyFor } = await import('../../src/models/facts/capabilities.ts')
+const { effortStampLine } = await import('../../src/models/effort/effortStamp.ts')
 
 await refreshLocalDiscovery({ force: true })
 
@@ -118,7 +118,7 @@ const show = (t: Turn): string => JSON.stringify({ effort: t.body?.reasoning_eff
 
 section("§1 the operator declares none, low and high for three TensorFold models; the engines state their own thinking switch")
 {
-  failHint = 'fix the discovery record in src/services/providers/local/localCatalogue.ts and localDiscovery.ts (thinkingSwitch as the engine states it), or effortVocabularyFor in src/utils/model/capabilities.ts (operator-declared efforts)'
+  failHint = 'fix the discovery record in src/models/roads/local/localCatalogue.ts and localDiscovery.ts (thinkingSwitch as the engine states it), or effortVocabularyFor in src/models/facts/capabilities.ts (operator-declared efforts)'
   const read = (one: Engine): { server?: string; thinkingSwitch?: boolean } | undefined => localRecordFor(`local/${one.name}`)
   check('the engines are read as they state themselves: no switch, with the switch, nothing stated', read(refuses)?.thinkingSwitch === false && read(honours)?.thinkingSwitch === true && read(unstated) !== undefined && !('thinkingSwitch' in read(unstated)!), JSON.stringify([read(refuses), read(honours), read(unstated)].map(r => r?.thinkingSwitch)))
   const views = [refuses, honours, unstated].map(one => effortVocabularyFor(`local/${one.name}`))
@@ -129,7 +129,7 @@ section("§1 the operator declares none, low and high for three TensorFold model
 
 section("§2 the engine that cannot switch thinking off: the operator's declaration never puts the off word on its request")
 {
-  failHint = 'an engine that states no thinking switch must not be sent the off word; fix the request built by compatChatCallModel (src/services/providers/openaicompat/compatChatCallModel.ts) with the lane profile from localLaneProfileFor in src/services/providers/local/localCallModel.ts'
+  failHint = 'an engine that states no thinking switch must not be sent the off word; fix the request built by compatChatCallModel (src/models/roads/openaicompat/compatChatCallModel.ts) with the lane profile from localLaneProfileFor in src/models/roads/local/localCallModel.ts'
   const off = await turn(refuses, false, 'high')
   console.log(`  [record] thinking off, asked high: ${show(off)}`)
   check('thinking off: the request carries no effort word and the reply arrives (the engine answers the off word with HTTP 400)', off.body !== undefined && !('reasoning_effort' in off.body) && !('thinking_budget' in off.body) && off.said === 'ready' && off.error === '', show(off))
@@ -143,7 +143,7 @@ section("§2 the engine that cannot switch thinking off: the operator's declarat
 
 section("§3 what the declaration still does there, and everywhere the engine has not ruled the word out")
 {
-  failHint = 'the declared effort words must still ride the request where the engine has not refused them; fix compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts or localLaneProfileFor in src/services/providers/local/localCallModel.ts'
+  failHint = 'the declared effort words must still ride the request where the engine has not refused them; fix compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts or localLaneProfileFor in src/models/roads/local/localCallModel.ts'
   const low = await turn(refuses, true, 'low')
   check("no switch: the operator's low rides as declared, a word the engine takes", low.body?.reasoning_effort === 'low' && low.said === 'ready' && low.error === '', show(low))
   const high = await turn(refuses, true, 'high')
@@ -158,7 +158,7 @@ section("§3 what the declaration still does there, and everywhere the engine ha
 
 section('§4 the rule is the engine\'s statement and one word')
 {
-  failHint = 'fix refusesEffort in the lane profile returned by localLaneProfileFor in src/services/providers/local/localCallModel.ts'
+  failHint = 'fix refusesEffort in the lane profile returned by localLaneProfileFor in src/models/roads/local/localCallModel.ts'
   const profileOf = (one: Engine): { refusesEffort?: (word: string) => boolean } => localLaneProfileFor(localRecordFor(`local/${one.name}`)!) as { refusesEffort?: (word: string) => boolean }
   const table = [refuses, honours, unstated].map(one => [one.name, ...['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].filter(word => profileOf(one).refusesEffort?.(word) === true)])
   check('only the engine that states no switch refuses a word, and the word is none', JSON.stringify(table) === JSON.stringify([['no-switch', 'none'], ['with-switch'], ['unstated']]), JSON.stringify(table))
@@ -166,7 +166,7 @@ section('§4 the rule is the engine\'s statement and one word')
 
 section('§5 /effort says what the next request carries: where the dial sends none for low, the receipt says so in the words of the reply\'s own stamp')
 {
-  failHint = 'fix the /effort receipt in executeEffort (src/commands/effort/effort.tsx) or the reply stamp (src/utils/effortStamp.ts) so they name the same applied word the request carries'
+  failHint = 'fix the /effort receipt in executeEffort (src/commands/effort/effort.tsx) or the reply stamp (src/models/effort/effortStamp.ts) so they name the same applied word the request carries'
   const { executeEffort } = await import('../../src/commands/effort/effort.tsx')
   type Row = { said: string; sent: unknown; stamp: string }
   const rows = new Map<string, Row>()

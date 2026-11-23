@@ -9,15 +9,15 @@ function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
 
-const chord = await import('../../src/input-core/sendNowChord.ts')
-const bar = await import('../../src/components/SwitchboardTagBar.tsx')
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
-const { resolveKeyWithChordState } = await import('../../src/keybindings/resolver.ts')
-const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
-const { parseBindings } = await import('../../src/keybindings/parser.ts')
-const { DAEMON_VERB_BORN_AT, MERCURY_DAEMON_PROTO, verbBornAt } = await import('../../src/daemon/protocol.ts')
-const { METHODS } = await import('../../src/runner/wire/methods.ts')
+const chord = await import('../../src/screen/composer/input-core/sendNowChord.ts')
+const bar = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
+const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
+const { resolveKeyWithChordState } = await import('../../src/screen/keys/resolver.ts')
+const { DEFAULT_BINDINGS } = await import('../../src/screen/keys/defaultBindings.ts')
+const { parseBindings } = await import('../../src/screen/keys/parser.ts')
+const { DAEMON_VERB_BORN_AT, MERCURY_DAEMON_PROTO, verbBornAt } = await import('../../src/daemon/control/protocol.ts')
+const { METHODS } = await import('../../src/daemon/runner-wire/methods.ts')
 
 type Live = typeof IDLE_LIVE
 const live = (inFlight: boolean): Live => ({ ...IDLE_LIVE, inFlight, phase: inFlight ? 'tool' : 'idle', inProgressToolUseIDs: new Set(inFlight ? ['toolu_1'] : []) })

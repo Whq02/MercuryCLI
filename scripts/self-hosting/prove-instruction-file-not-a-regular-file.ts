@@ -15,12 +15,12 @@ import { join } from 'node:path'
 if (homedir() !== process.env.DRV_HOME) throw new Error('the home folder is ' + homedir() + ', not the scratch home of this proof')
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const repo = ${JSON.stringify(repo)}
-const { enableConfigs } = await import(join(repo, 'src/utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(repo, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
-const { getEmptyToolPermissionContext } = await import(join(repo, 'src/Tool.ts'))
-const { getInstructionFiles } = await import(join(repo, 'src/services/instructions/engine.ts'))
-const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/services/attachments/nestedMemory.ts'))
-const { createFileStateCacheWithSizeLimit } = await import(join(repo, 'src/utils/fileStateCache.ts'))
+const { getEmptyToolPermissionContext } = await import(join(repo, 'src/tools/kit/tool.ts'))
+const { getInstructionFiles } = await import(join(repo, 'src/sessions/instructions/instructionFiles.ts'))
+const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/engine/attachments/nestedInstructions.ts'))
+const { createFileStateCacheWithSizeLimit } = await import(join(repo, 'src/platform/files/fileStateCache.ts'))
 const plan = JSON.parse(process.env.DRV_PLAN ?? '{}')
 const files = await getInstructionFiles()
 const state = { toolPermissionContext: getEmptyToolPermissionContext() }
@@ -38,7 +38,7 @@ let failed = 0
 let skipped = 0
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)} | to fix, make the instruction file reader in src/services/instructions/discovery.ts (the stat isFile checks) pass over a named pipe instead of opening it, so getInstructionFiles in src/services/instructions/engine.ts answers and still loads the regular file beside it` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)} | to fix, make the instruction file reader in src/sessions/instructions/discovery.ts (the stat isFile checks) pass over a named pipe instead of opening it, so getInstructionFiles in src/sessions/instructions/instructionFiles.ts answers and still loads the regular file beside it` : ''}`)
 }
 
 const WIN = process.platform === 'win32'

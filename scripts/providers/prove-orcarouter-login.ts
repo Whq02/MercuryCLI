@@ -4,18 +4,18 @@ import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import fixture from '../provider-compat/fixtures/orcarouter-documented.json'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const key of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[key]
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const { storeOrcarouterApiKeyLogin, runOrcarouterDeviceLogin, ORCAROUTER_CONNECT_ROWS } = await import('../../src/services/providers/orcarouter/orcarouterLogin.ts')
-const { readStoredOrcarouterApiKey, writeStoredOrcarouterApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-const { resolveOrcarouterApiKey } = await import('../../src/services/providers/orcarouter/orcarouterAccounts.ts')
-const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')
-const { loginFamilyRows, keyPageLine } = await import('../../src/components/loginFamilyRows.ts')
-const { loginsPickOptions, deviceWaitPaneLines } = await import('../../src/components/BootLoginsScreen.tsx')
-const { providerAuthList } = await import('../../src/cli/handlers/providerAuth.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const { storeOrcarouterApiKeyLogin, runOrcarouterDeviceLogin, ORCAROUTER_CONNECT_ROWS } = await import('../../src/models/roads/orcarouter/orcarouterLogin.ts')
+const { readStoredOrcarouterApiKey, writeStoredOrcarouterApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { resolveOrcarouterApiKey } = await import('../../src/models/roads/orcarouter/orcarouterAccounts.ts')
+const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/models/roads/accountSlots.ts')
+const { loginFamilyRows, keyPageLine } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.ts')
+const { loginsPickOptions, deviceWaitPaneLines } = await import('../../src/screen/boot-face/BootLoginsScreen.tsx')
+const { providerAuthList } = await import('../../src/commands/verbs/providerAuth.ts')
 let checks = 0
-const orcarouterFixHint = 'fix src/services/providers/orcarouter/orcarouterLogin.ts (storeOrcarouterApiKeyLogin, runOrcarouterDeviceLogin), orcarouterAccounts.ts (resolveOrcarouterApiKey), OrcarouterConnect.tsx for the rendered card, or the login rows in src/components/loginFamilyRows.ts and src/components/BootLoginsScreen.tsx'
+const orcarouterFixHint = 'fix src/models/roads/orcarouter/orcarouterLogin.ts (storeOrcarouterApiKeyLogin, runOrcarouterDeviceLogin), orcarouterAccounts.ts (resolveOrcarouterApiKey), OrcarouterConnect.tsx for the rendered card, or the login rows in src/models/sign-in/flow-cards/loginFamilyRows.ts and src/screen/boot-face/BootLoginsScreen.tsx'
 const check = (name: string, value: unknown): void => { assert.ok(value, `${name} — ${orcarouterFixHint}`); checks++; console.log(`[PASS] ${name}`) }
 const keyFetch = (status: number): typeof fetch => (async () => Response.json(status === 200 ? fixture.catalogue : { error: { type: 'orcarouter_api_error', message: 'invalid api key' } }, { status })) as typeof fetch
 try {
@@ -93,12 +93,12 @@ try {
   check('an approval already in flight is retained after cancellation', late.ok && late.settledAfterCancel && readStoredOrcarouterApiKey() === 'sk-orca-fixture-minted-not-real')
   check('boot device instructions contain only the code, URL and next action', deviceWaitPaneLines({ family: 'orcarouter', phase: 'waiting', userCode: 'BCDF-GHJK', verificationUri: 'https://www.orcarouter.ai/device', expiresAtMs: 600000, polls: 8, copied: false }, 0).join('\n').includes('BCDF-GHJK') && !deviceWaitPaneLines({ family: 'orcarouter', phase: 'waiting', polls: 8, copied: false }, 0).join(' ').includes('checks'))
   const { createElement } = await import('react')
-  const { OrcarouterConnect } = await import('../../src/services/providers/orcarouter/OrcarouterConnect.tsx')
-  const { PopupCompactContext } = await import('../../src/context/popupFormContext.ts')
-  const { ThemeProvider } = await import('../../src/ink.ts')
-  const { App } = await import('../../src/components/App.tsx')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
+  const { OrcarouterConnect } = await import('../../src/models/roads/orcarouter/OrcarouterConnect.tsx')
+  const { PopupCompactContext } = await import('../../src/screen/overlays/popupFormContext.ts')
+  const { ThemeProvider } = await import('../../src/screen/themedRenderer.ts')
+  const { App } = await import('../../src/boot/App.tsx')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
   const { mountOffscreen, waitFor } = await import('../lib/settingsPopupHarness.ts')
   const frameArg = process.argv.indexOf('--frames')
   const frames = frameArg >= 0 ? process.argv[frameArg + 1] : undefined

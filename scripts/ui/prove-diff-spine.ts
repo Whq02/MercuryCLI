@@ -1,16 +1,16 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
-import { getTheme } from '../../src/utils/theme.js'
-import { getPatchForDisplay } from '../../src/utils/diff.js'
+import { getTheme } from '../../src/screen/theme/theme.js'
+import { getPatchForDisplay } from '../../src/platform/text/diff.js'
 import {
   DIFF_ADD_BG,
   DIFF_ADD_WORD,
   DIFF_DEL_BG,
   DIFF_DEL_WORD,
-} from '../../src/components/mercuryPalette.js'
+} from '../../src/screen/theme/mercuryPalette.js'
 
 let failures = 0
-const diffSpineHint = 'for a theme role, fix getTheme in src/utils/theme.ts or the DIFF_* constants in src/components/mercuryPalette.ts; for the CRLF line, fix getPatchForDisplay in src/utils/diff.ts'
+const diffSpineHint = 'for a theme role, fix getTheme in src/screen/theme/theme.ts or the DIFF_* constants in src/screen/theme/mercuryPalette.ts; for the CRLF line, fix getPatchForDisplay in src/platform/text/diff.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ` — ${detail}` : '') : ` — ${detail ? `${detail} · ` : ''}${diffSpineHint}`}`)

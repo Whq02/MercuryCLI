@@ -39,8 +39,8 @@ function runBunChild(name: string, body: string): { status: number | null; home:
 
 const PEER_GONE = `Object.assign(new Error('write EPIPE'), { code: 'EPIPE', errno: -32, syscall: 'write' })`
 const SHUTDOWN_CHILD = (rejection: string): string => `
-  import { registerCleanup } from '${ROOT}/src/utils/cleanupRegistry.ts'
-  import { gracefulShutdown, setupGracefulShutdown } from '${ROOT}/src/utils/gracefulShutdown.ts'
+  import { registerCleanup } from '${ROOT}/src/platform/processes/cleanupRegistry.ts'
+  import { gracefulShutdown, setupGracefulShutdown } from '${ROOT}/src/platform/processes/gracefulShutdown.ts'
   setupGracefulShutdown()
   registerCleanup(async () => {
     void Promise.reject(${rejection})
@@ -52,30 +52,30 @@ const SHUTDOWN_CHILD = (rejection: string): string => `
 section('§1 a peer that closed its pipe during a requested shutdown is not a crash')
 {
   const quit = runBunChild('quit-epipe', SHUTDOWN_CHILD(PEER_GONE))
-  check('the child exits 0 through the shutdown road', quit.status === 0, `status=${String(quit.status)} ${quit.err} — gracefulShutdown in src/utils/gracefulShutdown.ts must finish and exit 0 when a cleanup leaves a broken-pipe rejection behind`)
+  check('the child exits 0 through the shutdown road', quit.status === 0, `status=${String(quit.status)} ${quit.err} — gracefulShutdown in src/platform/processes/gracefulShutdown.ts must finish and exit 0 when a cleanup leaves a broken-pipe rejection behind`)
   const records = crashRecords(quit.home)
-  check('a broken-pipe rejection raised inside gracefulShutdown files NO crash record', records.length === 0, records.join(', ') + ' — the unhandled-rejection handler in setupGracefulShutdown (src/utils/gracefulShutdown.ts, the isShuttingDown and isPeerGoneWriteError branch) must skip the crash report for a peer-gone write error during shutdown')
+  check('a broken-pipe rejection raised inside gracefulShutdown files NO crash record', records.length === 0, records.join(', ') + ' — the unhandled-rejection handler in setupGracefulShutdown (src/platform/processes/gracefulShutdown.ts, the isShuttingDown and isPeerGoneWriteError branch) must skip the crash report for a peer-gone write error during shutdown')
 }
 {
   const fault = runBunChild('quit-fault', SHUTDOWN_CHILD(`new Error('boom-in-cleanup')`))
-  check('control: the child exits 0', fault.status === 0, `status=${String(fault.status)} ${fault.err} — gracefulShutdown in src/utils/gracefulShutdown.ts must exit 0 even when a cleanup leaves an ordinary rejection`)
+  check('control: the child exits 0', fault.status === 0, `status=${String(fault.status)} ${fault.err} — gracefulShutdown in src/platform/processes/gracefulShutdown.ts must exit 0 even when a cleanup leaves an ordinary rejection`)
   const records = crashRecords(fault.home)
-  check('control: an ordinary rejection during shutdown still files its record (forensics kept)', records.length === 1 && records[0]!.includes('unhandled-rejection'), records.join(', ') + ' — the unhandled-rejection handler in setupGracefulShutdown (src/utils/gracefulShutdown.ts) must still persist one crash report for a rejection that is not a peer-gone write error, even during shutdown')
+  check('control: an ordinary rejection during shutdown still files its record (forensics kept)', records.length === 1 && records[0]!.includes('unhandled-rejection'), records.join(', ') + ' — the unhandled-rejection handler in setupGracefulShutdown (src/platform/processes/gracefulShutdown.ts) must still persist one crash report for a rejection that is not a peer-gone write error, even during shutdown')
   if (records[0] !== undefined) {
     const body = readFileSync(join(fault.home, 'crashes', records[0]), 'utf8')
-    check('control: …carrying the real error', body.includes('boom-in-cleanup'), 'the crash report persisted by the unhandled-rejection handler in src/utils/gracefulShutdown.ts must carry the rejected error text')
+    check('control: …carrying the real error', body.includes('boom-in-cleanup'), 'the crash report persisted by the unhandled-rejection handler in src/platform/processes/gracefulShutdown.ts must carry the rejected error text')
   }
 }
 {
   const live = runBunChild('live-epipe', `
-    import { setupGracefulShutdown } from '${ROOT}/src/utils/gracefulShutdown.ts'
+    import { setupGracefulShutdown } from '${ROOT}/src/platform/processes/gracefulShutdown.ts'
     setupGracefulShutdown()
     void Promise.reject(${PEER_GONE})
     setTimeout(() => process.exit(0), 400)
   `)
-  check('control: the child exits 0', live.status === 0, `status=${String(live.status)} ${live.err} — setupGracefulShutdown in src/utils/gracefulShutdown.ts must let the process carry on and exit 0 after one ordinary unhandled rejection`)
+  check('control: the child exits 0', live.status === 0, `status=${String(live.status)} ${live.err} — setupGracefulShutdown in src/platform/processes/gracefulShutdown.ts must let the process carry on and exit 0 after one ordinary unhandled rejection`)
   const records = crashRecords(live.home)
-  check('control: the same broken pipe OUTSIDE a shutdown still files its record', records.length === 1 && records[0]!.includes('unhandled-rejection'), records.join(', ') + ' — the peer-gone skip in the unhandled-rejection handler of src/utils/gracefulShutdown.ts must apply only while isShuttingDown() is true')
+  check('control: the same broken pipe OUTSIDE a shutdown still files its record', records.length === 1 && records[0]!.includes('unhandled-rejection'), records.join(', ') + ' — the peer-gone skip in the unhandled-rejection handler of src/platform/processes/gracefulShutdown.ts must apply only while isShuttingDown() is true')
 }
 
 section("§2 the field's shape under the product's runtime (node): the quit stops a language server whose pipe is already closed")
@@ -96,9 +96,9 @@ section("§2 the field's shape under the product's runtime (node): the quit stop
   const serverBody = `require('fs').closeSync(0); require('fs').writeFileSync(process.argv[1], 'closed'); setInterval(() => {}, 1000)`
   writeFileSync(entry, `
     import { existsSync } from 'node:fs'
-    import { registerCleanup } from '${ROOT}/src/utils/cleanupRegistry.ts'
-    import { gracefulShutdown, setupGracefulShutdown } from '${ROOT}/src/utils/gracefulShutdown.ts'
-    import { createLSPClient } from '${ROOT}/src/services/lsp/LSPClient.ts'
+    import { registerCleanup } from '${ROOT}/src/platform/processes/cleanupRegistry.ts'
+    import { gracefulShutdown, setupGracefulShutdown } from '${ROOT}/src/platform/processes/gracefulShutdown.ts'
+    import { createLSPClient } from '${ROOT}/src/integrations/lsp/LSPClient.ts'
     setupGracefulShutdown()
     const client = createLSPClient('field-r29a-08')
     await client.start(${JSON.stringify(nodeBin)}, ['-e', ${JSON.stringify(serverBody)}, ${JSON.stringify(marker)}])
@@ -134,7 +134,7 @@ section("§2 the field's shape under the product's runtime (node): the quit stop
     ],
     loader: { '.md': 'text', '.txt': 'text', '.sh': 'text', '.py': 'text', '.html': 'text', '.xml': 'text', '.dot': 'text' },
   })
-  check('the shutdown road and the LSP client bundle for node', built.success, built.logs.map(String).join('\n').slice(0, 800) + '\nfix the bundle error above; the entry imports src/utils/gracefulShutdown.ts, src/utils/cleanupRegistry.ts and src/services/lsp/LSPClient.ts, and the resolver in this script may need a rule for a new import')
+  check('the shutdown road and the LSP client bundle for node', built.success, built.logs.map(String).join('\n').slice(0, 800) + '\nfix the bundle error above; the entry imports src/platform/processes/gracefulShutdown.ts, src/platform/processes/cleanupRegistry.ts and src/integrations/lsp/LSPClient.ts, and the resolver in this script may need a rule for a new import')
   const bundle = built.outputs[0]?.path
   if (built.success && bundle !== undefined) {
     const home = join(SCRATCH, 'node-home')
@@ -145,10 +145,10 @@ section("§2 the field's shape under the product's runtime (node): the quit stop
       env: { ...process.env, MERCURY_CONFIG_DIR: home, NODE_ENV: 'production' },
       cwd: ROOT,
     })
-    check('the server closed its stdin before the quit (the race the field met, made certain)', existsSync(marker), 'the fake language server never closed its stdin; check the node binary this script chose and that client.start in src/services/lsp/LSPClient.ts launched it')
-    check('the quit exits 0', r.status === 0, `status=${String(r.status)} signal=${String(r.signal)} ${(r.stderr ?? '').slice(0, 600)} — gracefulShutdown in src/utils/gracefulShutdown.ts must exit 0 when client.stop (src/services/lsp/LSPClient.ts) meets an already closed server pipe`)
+    check('the server closed its stdin before the quit (the race the field met, made certain)', existsSync(marker), 'the fake language server never closed its stdin; check the node binary this script chose and that client.start in src/integrations/lsp/LSPClient.ts launched it')
+    check('the quit exits 0', r.status === 0, `status=${String(r.status)} signal=${String(r.signal)} ${(r.stderr ?? '').slice(0, 600)} — gracefulShutdown in src/platform/processes/gracefulShutdown.ts must exit 0 when client.stop (src/integrations/lsp/LSPClient.ts) meets an already closed server pipe`)
     const records = crashRecords(home)
-    check('no crash record: the write EPIPE to the gone language server is not a crash', records.length === 0, records.map(f => `${f}: ${readFileSync(join(home, 'crashes', f), 'utf8').slice(0, 200)}`).join(' | ') + ' — the write EPIPE to the gone server must be skipped by the shutdown branch of the unhandled-rejection handler in src/utils/gracefulShutdown.ts (isPeerGoneWriteError), or LSPClient.ts must not let it escape')
+    check('no crash record: the write EPIPE to the gone language server is not a crash', records.length === 0, records.map(f => `${f}: ${readFileSync(join(home, 'crashes', f), 'utf8').slice(0, 200)}`).join(' | ') + ' — the write EPIPE to the gone server must be skipped by the shutdown branch of the unhandled-rejection handler in src/platform/processes/gracefulShutdown.ts (isPeerGoneWriteError), or LSPClient.ts must not let it escape')
   }
 }
 

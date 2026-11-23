@@ -1,0 +1,151 @@
+import type { AppState } from '../../screen/app-state/AppState.js'
+import type { TaskState } from '../tasks/taskState.js'
+import { isLocalAgentTask } from '../tasks/local-agent/crewmateTask.js'
+import { isLocalShellTask } from '../tasks/local-shell/shellTaskState.js'
+import type { WorkRowV1 } from './types.js'
+import { unreadNoticeCount } from '../../sessions/notices/unreadLedger.js'
+import { crewStartOf } from '../../crew/crew-start/crewStart.js'
+import { clipWithEllipsis } from '../../platform/text/strings.js'
+
+
+const MAX_NAME = 120
+const MAX_ERROR = 200
+const MAX_COMMAND = 4000
+
+function endTimeOf(task: TaskState): number | undefined {
+  const t = task as { endTime?: unknown }
+  return typeof t.endTime === 'number' && Number.isFinite(t.endTime) ? t.endTime : undefined
+}
+
+function plainRow(task: TaskState, kind: WorkRowV1['kind'], name: string): WorkRowV1 {
+  const t = task as { model?: unknown; error?: unknown; stopReason?: unknown }
+  return {
+    id: task.id,
+    kind,
+    name: clipWithEllipsis(name, MAX_NAME),
+    status: task.status,
+    startTime: task.startTime,
+    ...(endTimeOf(task) !== undefined ? { endTime: endTimeOf(task) } : {}),
+    ...(typeof t.model === 'string' ? { model: t.model } : {}),
+    ...(typeof t.error === 'string' ? { error: clipWithEllipsis(t.error, MAX_ERROR) } : {}),
+    ...(typeof t.stopReason === 'string' && t.stopReason !== '' ? { stopReason: clipWithEllipsis(t.stopReason, MAX_ERROR) } : {}),
+    ...(typeof task.toolUseId === 'string' && task.toolUseId !== '' ? { toolUseId: task.toolUseId } : {}),
+  }
+}
+
+const finite = (v: unknown): number | undefined =>
+  typeof v === 'number' && Number.isFinite(v) ? v : undefined
+
+function unreadNoticesOf(...ids: readonly string[]): Partial<WorkRowV1> {
+  let n = 0
+  for (const id of new Set(ids)) n += unreadNoticeCount(id)
+  return n > 0 ? { unreadNotices: n } : {}
+}
+
+function startFoldersOf(task: TaskState): Partial<WorkRowV1> {
+  const own = task as { cwd?: unknown; worktree?: unknown }
+  const start = crewStartOf(task.id)
+  const cwd = typeof own.cwd === 'string' && own.cwd !== '' ? own.cwd : start?.cwd
+  const worktree = typeof own.worktree === 'string' && own.worktree !== '' ? own.worktree : start?.worktree ?? undefined
+  return {
+    ...(cwd !== undefined && cwd !== null ? { cwd } : {}),
+    ...(worktree !== undefined ? { worktree } : {}),
+  }
+}
+
+function agentCounters(task: TaskState): Partial<WorkRowV1> {
+  const progress = (task as { progress?: unknown }).progress
+  if (typeof progress !== 'object' || progress === null) return {}
+  const p = progress as {
+    model?: unknown
+    inputTokens?: unknown
+    outputTokens?: unknown
+    cacheReadTokens?: unknown
+    contextTokens?: unknown
+    costUSD?: unknown
+    unpricedTurns?: unknown
+    toolUseCount?: unknown
+    lastActivity?: unknown
+    phase?: unknown
+  }
+  const input = finite(p.inputTokens)
+  const output = finite(p.outputTokens)
+  const context = finite(p.contextTokens)
+  const cached = finite(p.cacheReadTokens)
+  const cost = finite(p.costUSD)
+  const unpriced = finite(p.unpricedTurns)
+  const toolUses = finite(p.toolUseCount)
+  const last = (typeof p.lastActivity === 'object' && p.lastActivity !== null ? p.lastActivity : {}) as {
+    activityDescription?: unknown
+    toolName?: unknown
+  }
+  const activity =
+    typeof last.activityDescription === 'string' && last.activityDescription !== ''
+      ? last.activityDescription
+      : typeof last.toolName === 'string' && last.toolName !== ''
+        ? last.toolName
+        : undefined
+  const phase =
+    typeof p.phase === 'object' && p.phase !== null && typeof (p.phase as { phase?: unknown }).phase === 'string' && typeof (p.phase as { sinceMs?: unknown }).sinceMs === 'number'
+      ? (p.phase as WorkRowV1['phase'])
+      : undefined
+  return {
+    ...(typeof p.model === 'string' && p.model !== '' ? { model: p.model } : {}),
+    ...(toolUses !== undefined && toolUses >= 0 ? { toolUses } : {}),
+    ...(activity !== undefined ? { activity: clipWithEllipsis(activity, MAX_NAME) } : {}),
+    ...(phase !== undefined ? { phase } : {}),
+    ...(input !== undefined && output !== undefined && (input + output > 0 || (context ?? 0) > 0)
+      ? {
+          inputTokens: input,
+          outputTokens: output,
+          totalTokens: input + output,
+          ...(cached !== undefined && cached >= 0 ? { cacheReadTokens: cached } : {}),
+          ...(context !== undefined && context > 0 ? { contextTokens: context } : {}),
+        }
+      : {}),
+    ...(cost !== undefined && cost > 0 ? { costUSD: cost } : {}),
+    ...(unpriced !== undefined && unpriced > 0 ? { unpricedTurns: unpriced } : {}),
+  }
+}
+
+export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
+  const rows: WorkRowV1[] = []
+  for (const task of Object.values(tasks ?? {})) {
+    if (isLocalAgentTask(task)) {
+      if (task.agentType === 'main-session') continue
+      rows.push({
+        ...plainRow(task, 'agent', task.description || task.agentType),
+        agentId: task.agentId,
+        ...(task.agentType !== undefined ? { agentType: task.agentType } : {}),
+        ...startFoldersOf(task),
+        ...agentCounters(task),
+        ...unreadNoticesOf(task.id, String(task.agentId)),
+        ...(typeof task.wait === 'string' && task.wait !== '' ? { wait: task.wait } : {}),
+        ...(typeof task.pendingAsks === 'number' && task.pendingAsks > 0 ? { pendingAsks: task.pendingAsks } : {}),
+        ...(task.paused !== undefined
+          ? {
+              paused: {
+                why: task.paused.why,
+                words: clipWithEllipsis(task.paused.words, MAX_ERROR),
+                ...(task.paused.resumesAtMs !== undefined ? { resumesAtMs: task.paused.resumesAtMs } : {}),
+              },
+            }
+          : {}),
+      })
+    } else if (isLocalShellTask(task)) {
+      rows.push({
+        ...plainRow(task, task.kind === 'monitor' ? 'monitor' : 'shell', task.command),
+        command: clipWithEllipsis(task.command, MAX_COMMAND),
+        ...(task.description ? { description: clipWithEllipsis(task.description, MAX_NAME) } : {}),
+        ...(task.verifyCwd !== undefined ? { cwd: task.verifyCwd } : {}),
+        ...(task.result !== undefined ? { exitCode: task.result.code } : {}),
+        outputFile: task.outputFile,
+        ...(task.isBackgrounded === false && task.status === 'running' ? { foreground: true as const } : {}),
+      })
+    } else {
+      rows.push(plainRow(task, 'monitor', task.description))
+    }
+  }
+  rows.sort((a, b) => b.startTime - a.startTime || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+  return rows
+}

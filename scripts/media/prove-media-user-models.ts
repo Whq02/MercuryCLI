@@ -3,15 +3,15 @@ import assert from 'node:assert/strict'
 import { cpSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { createHash } from 'node:crypto'
-import { Client, StdioClientTransport } from '../../src/utils/mcp/sdk.js'
-import { mediaAddPlan, mediaAddSource, mediaRows, pullMedia, runMediaSetup, type MediaProgress } from '../../src/services/media/setup.js'
-import { readMediaCatalogue } from '../../src/services/media/catalogue.js'
+import { Client, StdioClientTransport } from '../../src/integrations/mcp-shapes/sdk.js'
+import { mediaAddPlan, mediaAddSource, mediaRows, pullMedia, runMediaSetup, type MediaProgress } from '../../src/integrations/media/setup.js'
+import { readMediaCatalogue } from '../../src/integrations/media/catalogue.js'
 import { installFixture, proofHome, removeProofHome, root, serverPath } from './fixture.ts'
 
 const client = new Client({ name: 'media-user-models-proof', version: '1' })
 try {
   installFixture()
-  cpSync(new URL('../../src/extensions/bundled/mercury-media/server/', import.meta.url), dirname(serverPath), { recursive: true })
+  cpSync(new URL('../../src/integrations/extensions/bundled/mercury-media/server', import.meta.url), dirname(serverPath), { recursive: true })
   const tensors: Record<string, { dtype: string; shape: number[]; data_offsets: number[] }> = {}
   let offset = 0
   for (const [name, shape] of Object.entries({

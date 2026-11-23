@@ -21,9 +21,9 @@ try {
   const plan = await client.call('Git', { op: 'plan', groups: [{ files: ['file.txt'], message: 'commit through the plan' }] })
   const id = plan.match(/gp-[a-f0-9]+/)?.[0]
   const applied = await client.call('Git', { op: 'apply', planId: id })
-  check('the real APPLIED receipt states exactly which hooks are not run', applied.includes('APPLIED') && applied.includes(line), `${applied} — applyOp in src/tools/GitTool/GitTool.ts must print the hook line exactly as this test spells it`)
-  check('pre-commit and commit-msg are in fact not run (existing behaviour)', !existsSync(join(world.root, '.git/pre-commit-seen')) && !existsSync(join(world.root, '.git/commit-msg-seen')), 'applyPlan in src/services/gitGraph/plan.ts commits with --no-verify; a hook ran, so that flag was lost')
-  check('prepare-commit-msg still runs, so the wording does not claim all hooks are skipped', existsSync(join(world.root, '.git/prepare-commit-msg-seen')), 'prepare-commit-msg should still run under --no-verify in applyPlan (src/services/gitGraph/plan.ts); if it is now skipped too, widen the hook line in applyOp (src/tools/GitTool/GitTool.ts) to say so')
+  check('the real APPLIED receipt states exactly which hooks are not run', applied.includes('APPLIED') && applied.includes(line), `${applied} — applyOp in src/tools/git/GitTool.ts must print the hook line exactly as this test spells it`)
+  check('pre-commit and commit-msg are in fact not run (existing behaviour)', !existsSync(join(world.root, '.git/pre-commit-seen')) && !existsSync(join(world.root, '.git/commit-msg-seen')), 'applyPlan in src/platform/git-graph/plan.ts commits with --no-verify; a hook ran, so that flag was lost')
+  check('prepare-commit-msg still runs, so the wording does not claim all hooks are skipped', existsSync(join(world.root, '.git/prepare-commit-msg-seen')), 'prepare-commit-msg should still run under --no-verify in applyPlan (src/platform/git-graph/plan.ts); if it is now skipped too, widen the hook line in applyOp (src/tools/git/GitTool.ts) to say so')
 } finally { await client?.close(); world.dispose() }
 console.log(`Git hook disclosure: ${checks - failures}/${checks}`)
 process.exitCode = failures ? 1 : 0

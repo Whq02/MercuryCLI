@@ -19,19 +19,19 @@ process.env.SystemRoot = join(SCRATCH, 'no-windows-here')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { plainTextStorage } = await import(join(SRC, 'utils/secureStorage/plainTextStorage.ts'))
-const { clearAuthScope } = await import(join(SRC, 'utils/envUtils.ts'))
-const { lockSync } = await import(join(SRC, 'utils/lockfile.ts'))
-const { FLAG_REGISTRY } = await import(join(SRC, 'substrate/flagRegistry.ts'))
-const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
+const { plainTextStorage } = await import(join(SRC, 'platform/secure-storage/plainTextStorage.ts'))
+const { clearAuthScope } = await import(join(SRC, 'platform/environment/envUtils.ts'))
+const { lockSync } = await import(join(SRC, 'platform/storage/lockfile.ts'))
+const { FLAG_REGISTRY } = await import(join(SRC, 'platform/substrate/flagRegistry.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/config/globalConfig.ts'))
 enableConfigs()
-const auth = await import(join(SRC, 'utils/auth.ts'))
-const sealedRecord = await import(join(SRC, 'utils/secureStorage/sealedRecord.ts'))
-const sealedFile = await import(join(SRC, 'utils/secureStorage/sealedFileStorage.ts'))
-const starts = await import(join(SRC, 'utils/secureStorage/sealedStoreStart.ts'))
-const system = await import(join(SRC, 'utils/secureStorage/systemProtector.ts'))
-const files = await import(join(SRC, 'utils/secureStorage/fileStorage.ts'))
-const prefetch = await import(join(SRC, 'utils/secureStorage/keychainPrefetch.ts'))
+const auth = await import(join(SRC, 'models/sign-in/credentials/auth.ts'))
+const sealedRecord = await import(join(SRC, 'platform/secure-storage/sealedRecord.ts'))
+const sealedFile = await import(join(SRC, 'platform/secure-storage/sealedFileStorage.ts'))
+const starts = await import(join(SRC, 'platform/secure-storage/sealedStoreStart.ts'))
+const system = await import(join(SRC, 'platform/secure-storage/systemProtector.ts'))
+const files = await import(join(SRC, 'platform/secure-storage/fileStorage.ts'))
+const prefetch = await import(join(SRC, 'platform/secure-storage/keychainPrefetch.ts'))
 
 type Answer = { ok: true; bytes: Buffer } | { ok: false; why: string; final: boolean }
 type Store = {
@@ -51,7 +51,7 @@ type Fake = {
 
 let total = 0
 let failures = 0
-const WHERE = 'the unseal road lives in src/utils/secureStorage: systemProtector.ts (sealsUnder), sealedStoreStart.ts (startSealedStore), sealedFileStorage.ts (createSealedFileStorage), fileStorage.ts (fileStorageFor), keychainPrefetch.ts (sealedStoreStartFor)'
+const WHERE = 'the unseal road lives in src/platform/secure-storage: systemProtector.ts (sealsUnder), sealedStoreStart.ts (startSealedStore), sealedFileStorage.ts (createSealedFileStorage), fileStorage.ts (fileStorageFor), keychainPrefetch.ts (sealedStoreStartFor)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   total++
   if (!ok) failures++
@@ -161,9 +161,9 @@ section('§1 the flag\'s second value, read in one place')
   const sealsUnder = system.sealsUnder as ((flag: string | undefined) => boolean) | undefined
   check('with no value the store seals', sealsUnder?.(undefined) === true, String(sealsUnder?.(undefined)))
   check('under unseal it does not', sealsUnder?.('unseal') === false, String(sealsUnder?.('unseal')))
-  check('no other spelling turns sealing off', sealsUnder?.('UNSEAL') === true && sealsUnder?.('plain') === true && sealsUnder?.('') === true, 'sealsUnder in src/utils/secureStorage/systemProtector.ts must return false only for the exact value unseal')
+  check('no other spelling turns sealing off', sealsUnder?.('UNSEAL') === true && sealsUnder?.('plain') === true && sealsUnder?.('') === true, 'sealsUnder in src/platform/secure-storage/systemProtector.ts must return false only for the exact value unseal')
   check('under unseal Windows still has its protector, to open what is sealed', sealsUnder !== undefined && (system.systemProtectorFor('win32', 'unseal') as { scheme?: string } | null)?.scheme === 'dpapi-user')
-  check('under file it has none, as before', system.systemProtectorFor('win32', 'file') === null, 'systemProtectorFor in src/utils/secureStorage/systemProtector.ts must return null for the file value')
+  check('under file it has none, as before', system.systemProtectorFor('win32', 'file') === null, 'systemProtectorFor in src/platform/secure-storage/systemProtector.ts must return null for the file value')
   check('on macOS and Linux unseal changes nothing: no protector, so no sealed store to open', sealsUnder !== undefined && system.systemProtectorFor('darwin', 'unseal') === null && system.systemProtectorFor('linux', 'unseal') === null)
   const row = (FLAG_REGISTRY as Array<{ env: string; summary: string; off: string }>).find(flag => flag.env === 'MERCURY_CREDENTIAL_STORE')
   check('the flag\'s row names the value and what it does', row !== undefined && row.summary.includes("'unseal'") && row.summary.includes('written back in the clear') && row.off.includes('win32: the sealed file'), `${row?.off}; edit the MERCURY_CREDENTIAL_STORE row in FLAG_REGISTRY`)
@@ -269,7 +269,7 @@ section('§4 the choice at start and of the store, by the flag\'s value')
   check('on Windows under unseal the start finds a plain file in the clear already, and asks no census', underUnseal === CLEAR_ALREADY, underUnseal)
   const underNothing = await (startFor('win32', undefined)?.settled ?? Promise.resolve('no start'))
   check('with no value the same start takes the sealing road and asks the census', /^left plain until the next start: this process does not run from a mercury\.mjs/.test(underNothing), underNothing)
-  check('under file there is no start at all', startFor('win32', 'file') === null, 'sealedStoreStartFor in src/utils/secureStorage/keychainPrefetch.ts must return null under the file value')
+  check('under file there is no start at all', startFor('win32', 'file') === null, 'sealedStoreStartFor in src/platform/secure-storage/keychainPrefetch.ts must return null under the file value')
   check('the file is untouched by all three', same(onDisk(file), { claudeAiOauth: TOKENS }), raw(file).slice(0, 120))
   const protector = fakeProtector('alice')
   const fileStorageFor = files.fileStorageFor as (protector: Fake | null, seals?: boolean) => Store

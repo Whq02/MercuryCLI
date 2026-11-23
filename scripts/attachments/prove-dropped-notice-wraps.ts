@@ -10,21 +10,21 @@ const argument = (name: string): string | undefined => {
 }
 const root = argument('--source-root') ?? resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const frames = argument('--frames')
-const { enableConfigs } = await import(`${root}/src/utils/config.ts`)
+const { enableConfigs } = await import(`${root}/src/platform/settings/config.ts`)
 enableConfigs()
 const React = (await import('react')).default
-const { render, Box, Text } = await import(`${root}/src/ink.ts`)
-const { AppStateProvider } = await import(`${root}/src/state/AppState.tsx`)
-const { getDefaultAppState } = await import(`${root}/src/state/AppStateStore.ts`)
-const { AttachmentMessage } = await import(`${root}/src/components/messages/AttachmentMessage.tsx`)
-const { MessageMetaProvider } = await import(`${root}/src/components/messages/TranscriptNameplate.tsx`)
+const { render, Box, Text } = await import(`${root}/src/screen/themedRenderer.ts`)
+const { AppStateProvider } = await import(`${root}/src/screen/app-state/AppState.tsx`)
+const { getDefaultAppState } = await import(`${root}/src/screen/app-state/AppStateStore.ts`)
+const { AttachmentMessage } = await import(`${root}/src/screen/messages/AttachmentMessage.tsx`)
+const { MessageMetaProvider } = await import(`${root}/src/screen/messages/TranscriptNameplate.tsx`)
 const h = React.createElement
 let checks = 0
 let failures = 0
 const check = (label: string, pass: boolean, detail: string): void => {
   checks++
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${pass ? '' : `: ${detail} — change the dropped_image_file case in src/components/messages/AttachmentMessage.tsx so the notice wraps within 80 columns and keeps the following row below it`}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${pass ? '' : `: ${detail} — change the dropped_image_file case in src/screen/messages/AttachmentMessage.tsx so the notice wraps within 80 columns and keeps the following row below it`}`)
 }
 const strip = (text: string): string => text.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
 const compact = (text: string): string => text.replace(/\s+/g, '')

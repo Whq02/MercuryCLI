@@ -18,7 +18,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0
 let checks = 0
-const TEXT_ROUTE_WHERE = 'change planToolPayload in src/services/providers/toolEconomy.ts (roster, deferral marks, admissions, freeze), the route table DEFERRAL_WIRE_CAPABILITY and deferralWireFormFor in src/services/providers/deferralWire.ts (which routes read the text form), or getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts (the name row)'
+const TEXT_ROUTE_WHERE = 'change planToolPayload in src/models/roads/toolEconomy.ts (roster, deferral marks, admissions, freeze), the route table DEFERRAL_WIRE_CAPABILITY and deferralWireFormFor in src/models/roads/deferralWire.ts (which routes read the text form), or getDeferredToolsDeltaAttachment in src/engine/attachments/toolAndServerDeltas.ts (the name row)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -108,28 +108,28 @@ Object.assign(process.env, {
   MERCURY_COMPAT_LABEL: 'text-route fixture endpoint',
 })
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { assembleToolPool } = await import('../../src/tools.ts')
-const { MCPTool } = await import('../../src/tools/MCPTool/MCPTool.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { getDeferredToolsDeltaAttachment } = await import('../../src/services/attachments/deltas.ts')
-const { DEFERRED_TOOLS_ANNOUNCEMENT_HEAD } = await import('../../src/constants/tools/toolSearch.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-const { deferralWireFormFor, DEFERRAL_WIRE_CAPABILITY, supportsToolDeferral } = await import('../../src/services/providers/deferralWire.ts')
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
-const { clearToolRosterLatches, admissionRecordText, planToolPayload } = await import('../../src/services/providers/toolEconomy.ts')
-const { getToolSearchMode } = await import('../../src/services/messages/toolSearch.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Tools = import('../../src/Tool.ts').Tools
-type Message = import('../../src/types/message.ts').Message
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
+const { MCPTool } = await import('../../src/tools/mcp/MCPTool.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/tool-search/prompt.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { getDeferredToolsDeltaAttachment } = await import('../../src/engine/attachments/toolAndServerDeltas.ts')
+const { DEFERRED_TOOLS_ANNOUNCEMENT_HEAD } = await import('../../src/tools/kit/names/toolSearch.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
+const { deferralWireFormFor, DEFERRAL_WIRE_CAPABILITY, supportsToolDeferral } = await import('../../src/models/roads/deferralWire.ts')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
+const { clearToolRosterLatches, admissionRecordText, planToolPayload } = await import('../../src/models/roads/toolEconomy.ts')
+const { getToolSearchMode } = await import('../../src/engine/messages/toolSearch.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Tools = import('../../src/tools/kit/tool.ts').Tools
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const permissionContext = getEmptyToolPermissionContext()
 const TEXT_ROUTE_MODELS: Record<string, string> = {

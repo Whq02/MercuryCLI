@@ -10,7 +10,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    what to change: the shell row in runtimeChecks of src/services/health/sections/runtime.ts so its evidence and fix match the record from shellRecord in src/utils/shell/shellRecord.ts and the tool:shell row from collectReadiness in src/services/health/readiness.ts; the bundle checks run dist/mercury.mjs, so rebuild with `bun run build.ts` first')
+  if (!cond) console.log('    what to change: the shell row in runtimeChecks of src/platform/health/sections/runtime.ts so its evidence and fix match the record from shellRecord in src/platform/shell/shellRecord.ts and the tool:shell row from collectReadiness in src/platform/health/readiness.ts; the bundle checks run dist/mercury.mjs, so rebuild with `bun run build.ts` first')
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const flagAt = (flag: string): string | null => (process.argv.includes(flag) ? (process.argv[process.argv.indexOf(flag) + 1] ?? null) : null)
@@ -44,11 +44,11 @@ function health(bundle: string, name: string, env: Record<string, string | undef
 const source = (rel: string): string => join(ROOT, rel).replace(/\\/g, '\\\\')
 const BOTH = `
   ;(globalThis).MACRO = { VERSION: '1.0.0' }
-  const config = await import('${source('src/utils/config.ts')}')
+  const config = await import('${source('src/platform/settings/config.ts')}')
   config.enableConfigs()
-  const { runtimeChecks } = await import('${source('src/services/health/sections/runtime.ts')}')
+  const { runtimeChecks } = await import('${source('src/platform/health/sections/runtime.ts')}')
   const row = await runtimeChecks().find(spec => spec.id === 'shell')?.run()
-  const readiness = await import('${source('src/services/health/readiness.ts')}')
+  const readiness = await import('${source('src/platform/health/readiness.ts')}')
   console.log('BOTH ' + JSON.stringify({ row, ready: readiness.collectReadiness({ includeEnv: false }).records.find(found => found.id === 'tool:shell') }))
   process.exit(0)
 `
@@ -84,8 +84,8 @@ const NOT_CARRIED = 'nothing the bash login files define is carried: '
 try {
   section('(1) the row, asked in this process')
   {
-    const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
-    const record = await import('../../src/utils/shell/shellRecord.ts')
+    const { runtimeChecks } = await import('../../src/platform/health/sections/runtime.ts')
+    const record = await import('../../src/platform/shell/shellRecord.ts')
     const row = (await runtimeChecks().find(spec => spec.id === 'shell')?.run()) as Row | undefined
     const served = await record.shellRecord()
     check('the row names the path of the shell the record names', row !== undefined && row.evidence.includes(served.path), JSON.stringify({ row, served }))
@@ -130,10 +130,10 @@ try {
         }
         const bare = health(withoutThePack(join(scratch, 'dist-without-the-pack')), 'bundle-no-pack', { HOME: emptyHome })
         check('with the bash pack gone from beside the bundle, the two rows say the same, and both name the skipped pack as what to mend', same(bare) && (bare.row?.fix ?? '').startsWith('The bash pack is skipped in this install:'), JSON.stringify({ row: bare.row, ready: bare.ready }) + bare.text)
-        const REMEDY = ' · the remedy of the absent pack is chosen by resolveBashPackDir in src/utils/shell/bashPack.ts: the install command for a packaged install that stands in a versions folder beside its current.txt and whose build carried the pack; the command that makes the pack everywhere else'
+        const REMEDY = ' · the remedy of the absent pack is chosen by resolveBashPackDir in src/platform/shell/bashPack.ts: the install command for a packaged install that stands in a versions folder beside its current.txt and whose build carried the pack; the command that makes the pack everywhere else'
         const bareSays = `${bare.row?.evidence ?? ''} | ${bare.row?.fix ?? ''}`
         check('…a packaged copy run in place, with no versions folder around it, keeps the command that makes the pack', bare.build.includes('packaged-install') && /\(prepare it: bun run scripts\/vendor\/build-bash\.ts \(needs [^)]+\), then rebuild\)$/.test(bare.row?.fix ?? '') && !bareSays.includes('reinstall Mercury'), bareSays + REMEDY)
-        const { mercuryInstallUpdateCommand } = await import('../../src/utils/platform/words.ts')
+        const { mercuryInstallUpdateCommand } = await import('../../src/platform/host-os/words.ts')
         const version = (JSON.parse(readFileSync(join(dirname(bundle), 'manifest.json'), 'utf8')) as { version: string }).version
         const versions = join(scratch, 'versions')
         const installedBundle = withoutThePack(join(versions, version))

@@ -9,14 +9,14 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_CONTEXT_SELECTION
 
-const sel = await import('../../src/services/run/contextSelection.js')
-const planMod = await import('../../src/services/run/requestContextPlan.js')
-const ok = await import('../../src/utils/run/ownerKey.js')
+const sel = await import('../../src/engine/run/contextSelection.js')
+const planMod = await import('../../src/engine/run/requestContextPlan.js')
+const ok = await import('../../src/engine/run-owner/ownerKey.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}change src/services/run/contextSelection.ts (candidate index, exclusions, overflow) or buildRequestContextPlan in src/services/run/requestContextPlan.ts so this check holds` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}change src/engine/run/contextSelection.ts (candidate index, exclusions, overflow) or buildRequestContextPlan in src/engine/run/requestContextPlan.ts so this check holds` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

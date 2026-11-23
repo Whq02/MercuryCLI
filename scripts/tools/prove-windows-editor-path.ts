@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const arg = process.argv.indexOf('--source-root')
 const root = arg < 0 ? resolve(dirname(fileURLToPath(import.meta.url)), '../..') : resolve(process.argv[arg + 1]!)
-const { resolveExternalEditor } = await import(`${root}/src/utils/editor.ts`)
-const { editorCommandLine } = await import(`${root}/src/utils/promptEditor.ts`)
+const { resolveExternalEditor } = await import(`${root}/src/platform/editor/externalEditor.ts`)
+const { editorCommandLine } = await import(`${root}/src/screen/composer/promptEditor.ts`)
 const scratch = mkdtempSync(join(tmpdir(), 'windows-editor-'))
 const prior = process.cwd()
 process.chdir(scratch)
@@ -18,7 +18,7 @@ const check = (label: string, pass: boolean, detail = ''): void => {
   if (!pass) failures++
   console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? `: ${detail}` : ''}${pass ? '' : editorFixHint}`)
 }
-const editorFixHint = ' | fix: splitting an editor setting into executable and arguments is resolveExternalEditor in src/utils/editor.ts; the quoted launch line is editorCommandLine in src/utils/promptEditor.ts'
+const editorFixHint = ' | fix: splitting an editor setting into executable and arguments is resolveExternalEditor in src/platform/editor/externalEditor.ts; the quoted launch line is editorCommandLine in src/screen/composer/promptEditor.ts'
 try {
   const executable = process.platform === 'win32' ? join(scratch, 'Program Files', 'Editor', 'editor.exe') : String.raw`C:\Program Files\Editor\editor.exe`
   const nppForward =

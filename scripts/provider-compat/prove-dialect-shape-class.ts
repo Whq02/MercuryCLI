@@ -5,18 +5,18 @@ import {
   mapCompatHttpFailure,
   streamCompatChat,
   type CompatStreamEvent,
-} from '../../src/services/providers/openaicompat/compatChatClient.ts'
+} from '../../src/models/roads/openaicompat/compatChatClient.ts'
 import {
   compatFaultToTypedError,
   compatTerminalFaultText,
   mapCompatUsageToAnthropic,
-} from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
-import { mapZaiUsageToAnthropic } from '../../src/services/providers/zai/zaiCallModel.ts'
-import { mapZaiHttpFailure, streamZaiChat, type ZaiStreamEvent } from '../../src/services/providers/zai/zaiClient.ts'
-import { mapMessagesToZai } from '../../src/services/providers/zai/zaiCodec.ts'
-import { mapOpenaiHttpFailure } from '../../src/services/providers/openai/openaiWire.ts'
-import { openaiFaultToTypedError } from '../../src/services/providers/openai/openaiCallModel.ts'
-import type { MessageParam } from '../../src/types/wire.ts'
+} from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
+import { mapZaiUsageToAnthropic } from '../../src/models/roads/zai/zaiCallModel.ts'
+import { mapZaiHttpFailure, streamZaiChat, type ZaiStreamEvent } from '../../src/models/roads/zai/zaiClient.ts'
+import { mapMessagesToZai } from '../../src/models/roads/zai/zaiCodec.ts'
+import { mapOpenaiHttpFailure } from '../../src/models/roads/openai/openaiWire.ts'
+import { openaiFaultToTypedError } from '../../src/models/roads/openai/openaiCallModel.ts'
+import type { MessageParam } from '../../src/engine/message-shapes/wire.ts'
 
 let failures = 0
 let checks = 0
@@ -24,7 +24,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('         fix stream parsing and mapCompatHttpFailure in src/services/providers/openaicompat/compatChatClient.ts, usage and fault typing in compatChatCallModel.ts beside it, the Z.AI lane in src/services/providers/zai/ (zaiClient.ts, zaiCodec.ts, zaiCallModel.ts), or the OpenAI lane in src/services/providers/openai/openaiWire.ts and openaiCallModel.ts')
+  if (!cond) console.log('         fix stream parsing and mapCompatHttpFailure in src/models/roads/openaicompat/compatChatClient.ts, usage and fault typing in compatChatCallModel.ts beside it, the Z.AI lane in src/models/roads/zai/ (zaiClient.ts, zaiCodec.ts, zaiCallModel.ts), or the OpenAI lane in src/models/roads/openai/openaiWire.ts and openaiCallModel.ts')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

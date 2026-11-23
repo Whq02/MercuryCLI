@@ -1,14 +1,14 @@
 import * as React from 'react'
-import { flagEnv } from '../../substrate/flagRegistry.js'
-import { paintStatusRowReceipt } from '../../components/SwitchboardTagBar.js'
-import { LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
-import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import { tensorFoldEffortApplied } from '../../services/providers/local/localCallModel.js'
-import type { AppState } from '../../state/AppState.js'
+import { flagEnv } from '../../platform/substrate/flagRegistry.js'
+import { paintStatusRowReceipt } from '../../screen/chat/SwitchboardTagBar.js'
+import { LOCAL_COMMAND_STDOUT_TAG } from '../../engine/message-shapes/messageTags.js'
+import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
+import { tensorFoldEffortApplied } from '../../models/roads/local/localCallModel.js'
+import type { AppState } from '../../screen/app-state/AppState.js'
 import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
-} from '../../types/command.js'
+} from '../catalogue/command.js'
 import {
   EFFORT_LEVELS,
   getDisplayedEffortLabel,
@@ -24,13 +24,13 @@ import {
   unpinAllLaunchEffort,
   type EffortLevel,
   type EffortValue,
-} from '../../utils/effort.js'
-import { createCommandInputMessage, createUserMessage } from '../../services/messages.js'
-import { renderModelName } from '../../services/model/model.js'
-import { formatCommandLoadingMetadata } from '../../services/processUserInput/processSlashCommand.js'
-import { updateSettingsForSource } from '../../utils/settings/settings.js'
-import { CommandPopupLease } from '../../components/CommandPopupSlot.js'
-import { claimCommandPopup } from '../../utils/cockpit/commandPopup.js'
+} from '../../models/effort/effort.js'
+import { createCommandInputMessage, createUserMessage } from '../../engine/messages/messages.js'
+import { renderModelName } from '../../models/catalogue/engineModel.js'
+import { formatCommandLoadingMetadata } from '../../engine/user-input/processSlashCommand.js'
+import { updateSettingsForSource } from '../../platform/settings/settings.js'
+import { CommandPopupLease } from '../../screen/overlays/CommandPopupSlot.js'
+import { claimCommandPopup } from '../../screen/cockpit/commandPopup.js'
 import { EffortApplyContext, EffortPopup, effortPopupShape } from './EffortPopup.js'
 
 const OPTION_LIST = `${EFFORT_LEVELS.join('|')}|auto`

@@ -1,17 +1,17 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import type { Message } from '../../src/types/message.ts'
-import type { CompatChatRequest, CompatMessage } from '../../src/services/providers/openaicompat/compatChatClient.ts'
-import type { GeminiContent, GeminiTurnItem } from '../../src/services/providers/gemini/geminiCodec.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
+import type { CompatChatRequest, CompatMessage } from '../../src/models/roads/openaicompat/compatChatClient.ts'
+import type { GeminiContent, GeminiTurnItem } from '../../src/models/roads/gemini/geminiCodec.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { buildTool, getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { tool } = await import('../../src/services/crewBoard/implementation.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { mapToolsToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
-const { buildGeminiRequest, buildGeminiPlanRequest } = await import('../../src/services/providers/gemini/geminiCodec.ts')
+const { buildTool, getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { tool } = await import('../../src/crew/board/implementation.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { mapToolsToZai } = await import('../../src/models/roads/zai/zaiCodec.ts')
+const { buildGeminiRequest, buildGeminiPlanRequest } = await import('../../src/models/roads/gemini/geminiCodec.ts')
 
 let failures = 0
 function check(name: string, test: () => void): void {
@@ -21,7 +21,7 @@ function check(name: string, test: () => void): void {
 const model = 'gemini-4-argon-high'
 const board = tool({ buildTool, principal: () => null, paused: () => false, sessionOn: () => false }, () => null)
 const schema = await toolToAPISchema(board, { tools: [board], agents: [], model, getToolPermissionContext: async () => getEmptyToolPermissionContext() })
-assert('name' in schema && 'input_schema' in schema, `src/utils/api.ts toolToAPISchema(CrewBoard) missing name or input_schema: keys=${Object.keys(schema).join(',')}`)
+assert('name' in schema && 'input_schema' in schema, `src/engine/request-parts.ts toolToAPISchema(CrewBoard) missing name or input_schema: keys=${Object.keys(schema).join(',')}`)
 const request: CompatChatRequest = {
   model,
   messages: [{ role: 'user', content: 'Read the board and continue.' }],
@@ -79,7 +79,7 @@ check('CrewBoard keeps its real declaration and every accepted schema constraint
 })
 check('the native API wire and the stored replay are not mutated', () => {
   assert.equal(JSON.stringify({ request, saved, native }), before)
-  assert(native.contents.some(content => content.parts.some(part => part.functionResponse) && content.parts.some(part => part.text)), 'src/services/providers/gemini/geminiCodec.ts buildGeminiRequest native fixture must retain separate text+functionResponse parts before plan packing')
+  assert(native.contents.some(content => content.parts.some(part => part.functionResponse) && content.parts.some(part => part.text)), 'src/models/roads/gemini/geminiCodec.ts buildGeminiRequest native fixture must retain separate text+functionResponse parts before plan packing')
   assert.deepEqual(buildGeminiPlanRequest(native, model, envelope), wire)
 })
 check('plain text, images and response errors survive without duplication', () => {

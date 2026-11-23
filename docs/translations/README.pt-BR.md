@@ -374,7 +374,7 @@ Entre os comandos disponíveis estão:
 - **Apollo Mode**, a entrevista de especificação: responda às perguntas do agente para completar a especificação que ele usará para construir um protótipo. Veja [docs/APOLLO-MODE.md](../APOLLO-MODE.md).
 - **Recuperação.** Publicação atômica, operações registradas em diário e reconciliação na inicialização. Veja [docs/DURABILITY.md](../DURABILITY.md).
 
-As flags de execução são definidas em `src/substrate/flagRegistry.ts`, expostas como configurações `MERCURY_*` e geradas sob demanda. A compatibilidade com integrações está documentada em [docs/COMPATIBILITY.md](../COMPATIBILITY.md). O índice completo da documentação está em [docs/README.md](../README.md).
+As flags de execução são definidas em `src/platform/substrate/flagRegistry.ts`, expostas como configurações `MERCURY_*` e geradas sob demanda. A compatibilidade com integrações está documentada em [docs/COMPATIBILITY.md](../COMPATIBILITY.md). O índice completo da documentação está em [docs/README.md](../README.md).
 
 ## Comandos slash
 

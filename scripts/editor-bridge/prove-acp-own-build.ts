@@ -18,7 +18,7 @@ function section(t: string): void {
 
 const SUITE_DEADLINE_MS = 120_000
 const suiteAlarm = setTimeout(() => {
-  console.error(`\n✗ DEADLINE: the suite exceeded ${SUITE_DEADLINE_MS}ms wall clock; the last section header printed above shows what was awaited (server start, initialize, session/new or its child process); look at the acp server under src/services/acp/acpServer.ts and its child spawn in src/services/acp/childSession.ts`)
+  console.error(`\n✗ DEADLINE: the suite exceeded ${SUITE_DEADLINE_MS}ms wall clock; the last section header printed above shows what was awaited (server start, initialize, session/new or its child process); look at the acp server under src/integrations/acp/acpServer.ts and its child spawn in src/integrations/acp/childSession.ts`)
   process.exit(1)
 }, SUITE_DEADLINE_MS)
 
@@ -122,7 +122,7 @@ const init = await conn.agent.request('initialize', {
   protocolVersion: acp.PROTOCOL_VERSION,
   clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } },
 })
-check('the server answers initialize', init.protocolVersion === acp.PROTOCOL_VERSION, `${String(init.protocolVersion)} — the acp server (mercury acp, the initialize handler in src/services/acp/acpServer/sessionRequests.ts) must answer initialize with the SDK protocol version`)
+check('the server answers initialize', init.protocolVersion === acp.PROTOCOL_VERSION, `${String(init.protocolVersion)} — the acp server (mercury acp, the initialize handler in src/integrations/acp/server/sessionRequests.ts) must answer initialize with the SDK protocol version`)
 check('the server itself runs through the pointer path', argvOf(server.pid!).includes(pointerScript), `${argvOf(server.pid!)} — the server process must be started as node <runtime pointer>/mercury.mjs acp; this fixture launch is in section (1) of this proof`)
 
 section('(2) the runtime pointer moves to another build')
@@ -133,18 +133,18 @@ check('the pointer now names the other build', realpathSync(pointerScript) === r
 
 section('(3) session/new spawns the build the server booted from')
 const created = await conn.agent.request('session/new', { cwd: projDir, mcpServers: [] })
-check('a session is created', typeof created.sessionId === 'string' && created.sessionId.length >= 8, `${String(created.sessionId)} — session/new must return a session id of at least 8 characters; look at src/services/acp/acpServer/sessionRequests.ts`)
+check('a session is created', typeof created.sessionId === 'string' && created.sessionId.length >= 8, `${String(created.sessionId)} — session/new must return a session id of at least 8 characters; look at src/integrations/acp/server/sessionRequests.ts`)
 const sawChild = await untilTrue(() => childPids(server.pid!).some(pid => argvOf(pid).includes('mercury.mjs')), 15_000)
 const children = childPids(server.pid!).map(pid => argvOf(pid)).filter(line => line.includes('mercury.mjs'))
-check('a child session process is running under the server', sawChild && children.length > 0, `${JSON.stringify(children)} — session/new must spawn a child process running mercury.mjs under the server; look at the spawn in src/services/acp/childSession.ts`)
+check('a child session process is running under the server', sawChild && children.length > 0, `${JSON.stringify(children)} — session/new must spawn a child process running mercury.mjs under the server; look at the spawn in src/integrations/acp/childSession.ts`)
 check(
   "the child's script is the server's own build (the realpath the link named at boot)",
   children.length > 0 && children.every(line => line.includes(DIST)),
-  `${JSON.stringify(children)} — the child must run the script the server booted from; the script comes from selfScriptPath() in src/daemon/daemonBuild.ts, passed by src/services/acp/acpServer/state.ts to src/services/acp/childSession.ts`,
+  `${JSON.stringify(children)} — the child must run the script the server booted from; the script comes from selfScriptPath() in src/daemon/control/daemonBuild.ts, passed by src/integrations/acp/server/state.ts to src/integrations/acp/childSession.ts`,
 )
-check("the child's script is not the pointer path", children.every(line => !line.includes(pointerScript)), `${JSON.stringify(children)} — the child must be spawned with the resolved real path, not the runtime pointer; look at selfScriptPath() in src/daemon/daemonBuild.ts and src/services/acp/childSession.ts`)
+check("the child's script is not the pointer path", children.every(line => !line.includes(pointerScript)), `${JSON.stringify(children)} — the child must be spawned with the resolved real path, not the runtime pointer; look at selfScriptPath() in src/daemon/control/daemonBuild.ts and src/integrations/acp/childSession.ts`)
 await new Promise(r => setTimeout(r, 1500))
-check('the other build never ran', !existsSync(marker), existsSync(marker) ? readFileSync(marker, 'utf8').trim() + ' — the build the pointer moved to ran; the server must keep spawning its own build (selfScriptPath() in src/daemon/daemonBuild.ts, used by src/services/acp/childSession.ts) and never re-resolve the runtime pointer' : '')
+check('the other build never ran', !existsSync(marker), existsSync(marker) ? readFileSync(marker, 'utf8').trim() + ' — the build the pointer moved to ran; the server must keep spawning its own build (selfScriptPath() in src/daemon/control/daemonBuild.ts, used by src/integrations/acp/childSession.ts) and never re-resolve the runtime pointer' : '')
 
 
 conn.close()

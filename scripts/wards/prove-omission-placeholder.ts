@@ -23,16 +23,16 @@ async function main(): Promise<void> {
   process.env.MERCURY_CONFIG_DIR = proofHome
   delete process.env.MERCURY_HOME
   process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
-  const { BUILTIN_WARDS, evaluateWards, buildWardDenial } = await import('../../src/utils/wards/wards.js')
+  const { BUILTIN_WARDS, evaluateWards, buildWardDenial } = await import('../../src/permissions/wards/wards.js')
   type WardRule = (typeof BUILTIN_WARDS)[number]
-  const { registerWardsGuard, resetWardsEngagedSessionsForTest } = await import('../../src/guards/wardsGuard.js')
-  const { judgeToolCall } = await import('../../src/guards/guards.js')
+  const { registerWardsGuard, resetWardsEngagedSessionsForTest } = await import('../../src/permissions/guards/wardsGuard.js')
+  const { judgeToolCall } = await import('../../src/permissions/guards/guards.js')
   const judgeFor = (key: string) => async (toolName: string, input: Record<string, unknown>): Promise<unknown> => {
     const verdict = await judgeToolCall(key, { tool: toolName, input, callId: 'omission-call', messages: [], toolRef: { name: toolName } as never })
     return verdict.refused ? verdict.reason : true
   }
   const { judgeGrowth } = await import('../lib/linearGrowth.js')
-  type WardWork = import('../../src/utils/wards/wards.js').WardWork
+  type WardWork = import('../../src/permissions/wards/wards.js').WardWork
   const workUnits = (work: WardWork): number => Object.values(work).reduce((sum, n) => sum + n, 0)
   const growthSizes = (n: number): number[] => [Math.ceil(n / 8), Math.ceil(n / 8) * 8]
   const judgeWork = (points: Array<{ size: number; ms: number }>) => {
@@ -69,7 +69,7 @@ async function main(): Promise<void> {
   console.log(' the omission-placeholder ward — proof')
   console.log('============================================================')
 
-  section('A. the builtin rule exists with the fields the placeholder needs', 'fix the no-omission-placeholder rule in BUILTIN_WARDS (scope, skipCommentLines, newContentOnly, foldLines, patterns, pathPattern) in src/utils/wards/wards.ts')
+  section('A. the builtin rule exists with the fields the placeholder needs', 'fix the no-omission-placeholder rule in BUILTIN_WARDS (scope, skipCommentLines, newContentOnly, foldLines, patterns, pathPattern) in src/permissions/wards/wards.ts')
   {
     const rule = BUILTIN_WARDS.find(r => r.name === RULE)
     check(`BUILTIN_WARDS carries '${RULE}'`, rule !== undefined, BUILTIN_WARDS.map(r => r.name).join(','))
@@ -80,7 +80,7 @@ async function main(): Promise<void> {
     check('the rule is gated by no path (every file a Write or Edit can reach)', rule !== undefined && rule.pathPattern === undefined)
   }
 
-  section('B. a Write whose content carries a placeholder is refused before any byte lands', 'fix the no-omission-placeholder patterns in src/utils/wards/wards.ts, or the wording built by buildWardDenial in the same file')
+  section('B. a Write whose content carries a placeholder is refused before any byte lands', 'fix the no-omission-placeholder patterns in src/permissions/wards/wards.ts, or the wording built by buildWardDenial in the same file')
   {
     const call = write(file, around('// rest of methods ...'))
     check('Write with "// rest of methods ..." in content ⇒ denied by the rule', deniedBy(call) === RULE, denialText(call))
@@ -91,7 +91,7 @@ async function main(): Promise<void> {
     check('the denial keeps the content-rule closing (rewrite the call to comply)', text.endsWith('rewrite the call to comply.'), text)
   }
 
-  section('C. an Edit whose new_string carries a placeholder is refused', 'fix how evaluateWards in src/utils/wards/wards.ts reads Edit new_string (and replace_all) as new content')
+  section('C. an Edit whose new_string carries a placeholder is refused', 'fix how evaluateWards in src/permissions/wards/wards.ts reads Edit new_string (and replace_all) as new content')
   {
     const call = edit(file, 'function a() {}\n(unchanged code ...)\nfunction z() {}')
     check('Edit with "(unchanged code ...)" in new_string ⇒ denied', deniedBy(call) === RULE, denialText(call))
@@ -99,7 +99,7 @@ async function main(): Promise<void> {
     check('replace_all carries the same new_string road ⇒ denied', deniedBy(all) === RULE, denialText(all))
   }
 
-  section('D. a placeholder that already stands in the file may be edited (old_string carries it)', 'fix the newContentOnly comparison of new_string against old_string (folded the same way) in evaluateWards in src/utils/wards/wards.ts')
+  section('D. a placeholder that already stands in the file may be edited (old_string carries it)', 'fix the newContentOnly comparison of new_string against old_string (folded the same way) in evaluateWards in src/permissions/wards/wards.ts')
   {
     const moved = edit(file, '  (unchanged code ...)\nconst after = 2', '(unchanged code ...)\nconst before = 1')
     check('the same placeholder line present in old_string ⇒ allowed (delta-aware, indentation aside)', deniedBy(moved) === null, denialText(moved))
@@ -111,7 +111,7 @@ async function main(): Promise<void> {
     check('a NEW placeholder beside a kept one ⇒ denied (only the new one counts)', deniedBy(extra) === RULE && verdictOf(extra).allow === false && verdictOf(extra).excerpt === '// rest of code ...', denialText(extra))
   }
 
-  section('E. the fixed phrase set — everything outside it passes, ellipsis or not', 'the placeholder patterns matched a line outside the fixed phrase set: narrow OMISSION_PHRASE or its leader and noun parts in src/utils/wards/wards.ts')
+  section('E. the fixed phrase set — everything outside it passes, ellipsis or not', 'the placeholder patterns matched a line outside the fixed phrase set: narrow OMISSION_PHRASE or its leader and noun parts in src/permissions/wards/wards.ts')
   {
     const passes: Array<[string, string]> = [
       ['rest of the world', 'the prefix without an ellipsis'],
@@ -169,7 +169,7 @@ async function main(): Promise<void> {
     }
   }
 
-  section('F. every road that lands bytes passes the ward: hunks, append, section, ChangeSet, the patch dialect, AstEdit', 'fix how evaluateWards in src/utils/wards/wards.ts collects the new bytes of each tool (Edit hunks, append, section, NotebookEdit, ChangeSet, AstEdit, Structure, Git resolve, Godot)')
+  section('F. every road that lands bytes passes the ward: hunks, append, section, ChangeSet, the patch dialect, AstEdit', 'fix how evaluateWards in src/permissions/wards/wards.ts collects the new bytes of each tool (Edit hunks, append, section, NotebookEdit, ChangeSet, AstEdit, Structure, Git resolve, Godot)')
   {
     const hunks = { toolName: 'Edit', input: { file_path: file, expected_anchor: 'fa:0123456789ab', hunks: [{ lines: '2-3', replace: 'const kept = 1' }, { lines: '9', replace: '// ... existing code ...' }] } }
     check('a hunks edit carrying the placeholder in a hunk body ⇒ denied', deniedBy(hunks) === RULE, denialText(hunks))
@@ -251,7 +251,7 @@ async function main(): Promise<void> {
     check('a clean Godot shader_edit ⇒ allowed', deniedBy(shaderClean) === null, denialText(shaderClean))
   }
 
-  section('G. the fixed phrase set — the seven Gemini prefixes, their normalisation, and the ellipsis-led idiom', 'fix OMISSION_PHRASE and the leader, close and trailing-dots parts (OMISSION_TRAILING and the ellipsis-led form) in src/utils/wards/wards.ts')
+  section('G. the fixed phrase set — the seven Gemini prefixes, their normalisation, and the ellipsis-led idiom', 'fix OMISSION_PHRASE and the leader, close and trailing-dots parts (OMISSION_TRAILING and the ellipsis-led form) in src/permissions/wards/wards.ts')
   {
     const denies = [
       'rest of ...', 'rest of method ...', 'rest of methods ...', 'rest of code ...',
@@ -272,13 +272,13 @@ async function main(): Promise<void> {
     check('the concourse probe line ends the content ⇒ denied with the line quoted', probeText.includes('"// ... rest of the code unchanged"') && probeText.includes(`${file}:2`), probeText)
   }
 
-  section('H. a legitimate literal: a file whose content TESTS the ward passes the ward', 'the placeholder patterns in src/utils/wards/wards.ts must not match a one-line string literal; keep this proof and the wards sources free of a placeholder standing alone on its own line')
+  section('H. a legitimate literal: a file whose content TESTS the ward passes the ward', 'the placeholder patterns in src/permissions/wards/wards.ts must not match a one-line string literal; keep this proof and the wards sources free of a placeholder standing alone on its own line')
   {
     const here = readFileSync(import.meta.path, 'utf8')
     const self = write('/work/project/scripts/wards/prove-omission-placeholder.ts', here)
     check('a Write of this proof (its one-line literals carry every placeholder) ⇒ allowed', deniedBy(self) === null, denialText(self))
     const engine = `export const BUILTIN_WARDS = ${JSON.stringify(BUILTIN_WARDS, null, 2)}\n`
-    const rules = write('/work/project/src/utils/wards/wards.ts', engine)
+    const rules = write('/work/project/src/permissions/wards/wards.ts', engine)
     check('a Write of the engine rules and vocabulary ⇒ allowed', deniedBy(rules) === null, denialText(rules))
     const suite = readFileSync(join(import.meta.dir, 'prove-wards.ts'), 'utf8')
     check('a Write of the wards suite proof ⇒ allowed', deniedBy(write('/work/project/scripts/wards/prove-wards.ts', suite)) === null)
@@ -288,7 +288,7 @@ async function main(): Promise<void> {
     check('a multi-line template literal with the placeholder on its own line ⇒ denied (write it split or escaped)', deniedBy(template) === RULE, denialText(template))
   }
 
-  section('I. the matcher uses linear counted work on adversarial lines at an eightfold input step', 'a no-omission-placeholder pattern in src/utils/wards/wards.ts backtracks (cost grows faster than the input): anchor it or remove the nested or overlapping repeat, and keep evaluateWards counting regexEvaluations')
+  section('I. the matcher uses linear counted work on adversarial lines at an eightfold input step', 'a no-omission-placeholder pattern in src/permissions/wards/wards.ts backtracks (cost grows faster than the input): anchor it or remove the nested or overlapping repeat, and keep evaluateWards counting regexEvaluations')
   {
     const growthOf = (build: (n: number) => string, sizes: readonly number[]) => {
       const points = sizes.map(size => {
@@ -383,7 +383,7 @@ async function main(): Promise<void> {
     check(`the growth law has teeth: a planted quadratic pattern is refused by the prefix-rescan cost model (${quadratic.summary.replaceAll('ms', ' comparisons')})`, !quadratic.linear)
   }
 
-  section('J. the armed hook road denies with the teaching string', 'fix registerWardsGuard in src/guards/wardsGuard.ts (how it hands tool input to evaluateWards and returns the denial)')
+  section('J. the armed hook road denies with the teaching string', 'fix registerWardsGuard in src/permissions/guards/wardsGuard.ts (how it hands tool input to evaluateWards and returns the denial)')
   {
     type AnyState = { sessionHooks: Map<string, unknown> } & Record<string, unknown>
     let state: AnyState = { sessionHooks: new Map() }
@@ -434,7 +434,7 @@ async function main(): Promise<void> {
     resetWardsEngagedSessionsForTest()
   }
 
-  section('K. the rule set stays data', 'keep BUILTIN_WARDS in src/utils/wards/wards.ts plain JSON data, and keep evaluateWards returning the same verdict with and without the work counter argument')
+  section('K. the rule set stays data', 'keep BUILTIN_WARDS in src/permissions/wards/wards.ts plain JSON data, and keep evaluateWards returning the same verdict with and without the work counter argument')
   {
     check('metrics preserve every fixture verdict, excerpt, path, and teaching field', metricParity)
     check('BUILTIN_WARDS survives a JSON round-trip unchanged', JSON.stringify(JSON.parse(JSON.stringify(BUILTIN_WARDS))) === JSON.stringify(BUILTIN_WARDS))

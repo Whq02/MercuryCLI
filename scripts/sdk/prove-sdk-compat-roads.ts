@@ -69,8 +69,8 @@ try {
   const task = run({ ...options, model: anthropicModel, prompt: 'Launch the TS child', agentDefs: { 'sdk-compat-child': agent } })
   assert.equal((await task.outcome).status, 'completed')
   assert(task.rows.some(row => row.type === 'tool_result' && row.output.includes('LLMHOST-READY')), JSON.stringify(task.rows.filter(row => row.type === 'tool_result')))
-  assert(c.requests.slice(before).some(request => JSON.stringify(request.body.messages).includes('TS-CHILD-ONLY')), 'compat fixture received no request carrying TS-CHILD-ONLY prompt for inline agent in src/tools/AgentTool/')
-  assert(task.rows.some(row => row.type === 'step' && row.parent_call_id !== undefined && row.model === c.model), `task.rows missing subagent step row for ${c.model} in src/cli/headless/`)
+  assert(c.requests.slice(before).some(request => JSON.stringify(request.body.messages).includes('TS-CHILD-ONLY')), 'compat fixture received no request carrying TS-CHILD-ONLY prompt for inline agent in src/tools/crewmate/')
+  assert(task.rows.some(row => row.type === 'step' && row.parent_call_id !== undefined && row.model === c.model), `task.rows missing subagent step row for ${c.model} in src/daemon/runner/`)
   console.log('PASS TS inline AgentDefinition.model dispatches a compat child from an Anthropic parent')
 
   c.script(
@@ -97,12 +97,12 @@ try {
     const outcome = await closed.outcome
     assert.equal(outcome.status, 'completed'); assert.equal((await closed.exit).code, 0)
     const usages = closed.rows.filter(row => row.type === 'step' && isMainThread(row)).map(row => 'usage' in row ? row.usage : undefined)
-    assert(!closed.rows.some(row => row.type === 'close'), `${model}: completed run unexpectedly emitted a close row in src/cli/headless/`)
+    assert(!closed.rows.some(row => row.type === 'close'), `${model}: completed run unexpectedly emitted a close row in src/daemon/runner/`)
     assert.equal(closed.rows.at(-1)?.type, 'outcome')
     for (const key of ['input_tokens', 'cached_input_tokens', 'output_tokens'] as const) assert.equal(outcome.usage[key], usages.reduce((sum, usage) => sum + (usage?.[key] ?? 0), 0))
     console.log(`PASS ${model}: unanswered permission exits 1, authentication fails with exit 1, a run ends on its answer with no close row and the step usage is the outcome's`)
   }
-  assert(c.requests.every(request => request.fault === undefined && request.body.model === c.model.slice('compat/fixture/'.length)), 'compat fixture observed faulted request or unstripped model prefix in src/services/providers/openaicompat/')
+  assert(c.requests.every(request => request.fault === undefined && request.body.model === c.model.slice('compat/fixture/'.length)), 'compat fixture observed faulted request or unstripped model prefix in src/models/roads/openaicompat/')
   assert(c.requests.some(request => request.body.messages.some((message: any) => message.role === 'tool')), 'compat fixture never observed a replayed role=tool message')
   assert(c.requests.some(request => request.body.messages.some((message: any) => message.role === 'assistant' && message.reasoning_content)), 'compat fixture never observed assistant reasoning_content replay')
   assert(c.requests.some(request => JSON.stringify(request.body.messages).includes('Python-CHILD-ONLY')), 'compat fixture never observed Python-CHILD-ONLY subagent prompt')

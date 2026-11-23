@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 let failures = 0
-const mintFailHint = 'the receipt is written by settleOpenaiTurn in src/services/providers/openai/openaiCallModel/turnSettled.ts through recordLiveQualification (one row per model, role and source, the older row of that key replaced) and judged by receiptCurrency, both in src/services/providers/openai/qualificationStore.ts; the call itself goes through routedCallModel in src/services/providers/callModelRouter.ts'
+const mintFailHint = 'the receipt is written by settleOpenaiTurn in src/models/roads/openai/call-model/turnSettled.ts through recordLiveQualification (one row per model, role and source, the older row of that key replaced) and judged by receiptCurrency, both in src/models/roads/openai/qualificationStore.ts; the call itself goes through routedCallModel in src/models/roads/callModelRouter.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${mintFailHint}` : ''}`)
@@ -105,18 +105,18 @@ console.log('============================================================')
 console.log(' the role mint — a settled GPT turn qualifies the row of the role it ran in')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const q = await import('../../src/services/providers/openai/qualificationStore.ts')
-const { MERCURY_CONSTITUTION } = await import('../../src/prompt/mercuryContract.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const q = await import('../../src/models/roads/openai/qualificationStore.ts')
+const { MERCURY_CONSTITUTION } = await import('../../src/engine/system-prompt/mercuryContract.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 const MODEL = 'gpt-5.6-sol'
 const receiptsOf = () => q.readQualificationReceipts().filter(r => r.receipt.modelId === MODEL)
-const { APEX_ARCHITECTURE_EPOCH, OPENAI_ADAPTER_DIGEST } = await import('../../src/services/providers/openai/openaiCatalogue.ts')
+const { APEX_ARCHITECTURE_EPOCH, OPENAI_ADAPTER_DIGEST } = await import('../../src/models/roads/openai/openaiCatalogue.ts')
 const STORE = join(home, '.apex-qualification.json')
 const EARLIER = {
   modelId: MODEL,

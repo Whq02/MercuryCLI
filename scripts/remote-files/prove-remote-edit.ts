@@ -22,16 +22,16 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS', 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(project)
 
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
-const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
-const { closeRemoteConnections } = await import('../../src/services/remoteFiles/connection.ts')
-const remoteTarget = (await import('../../src/utils/remoteFiles/target.ts')) as { remoteLastRead?: (ledger: unknown, path: string) => string | null }
-const rewindScreen = (await import('../../src/components/MessageSelector.tsx')) as { writtenElsewhereLine?: (messages: never, from: string) => string | null }
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
+const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
+const { closeRemoteConnections } = await import('../../src/platform/remote-files/connection.ts')
+const remoteTarget = (await import('../../src/platform/remote-file-target/target.ts')) as { remoteLastRead?: (ledger: unknown, path: string) => string | null }
+const rewindScreen = (await import('../../src/screen/rewind-picker/RewindPicker.tsx')) as { writtenElsewhereLine?: (messages: never, from: string) => string | null }
 setSessionTrustAccepted(true)
 enableConfigs()
 setOriginalCwd(project)
@@ -39,13 +39,13 @@ setCwdState(project)
 
 const PORT = 27066
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 420 seconds — a remote edit, read or write never returned; see the last section printed above, then validateInput / call in src/tools/FileEditTool/FileEditTool.ts, src/services/remoteFiles/connection.ts, or scripts/remote-files/remoteKit.ts')
+  console.log('  [FAIL] the proof did not finish within 420 seconds — a remote edit, read or write never returned; see the last section printed above, then validateInput / call in src/tools/edit/EditTool.ts, src/platform/remote-files/connection.ts, or scripts/remote-files/remoteKit.ts')
   process.exit(1)
 }, 420_000)
 watchdog.unref()
 let failures = 0
 let checks = 0
-const REMOTE_EDIT_FIX_HINT = 'to fix: change checkPermissions / validateInput / call in src/tools/FileEditTool/FileEditTool.ts (or FileWriteTool.ts, FileReadTool.ts when the label is about a write or a read) and the ssh:// file operations in src/services/remoteFiles/ and src/utils/remoteFiles/target.ts'
+const REMOTE_EDIT_FIX_HINT = 'to fix: change checkPermissions / validateInput / call in src/tools/edit/EditTool.ts (or FileWriteTool.ts, FileReadTool.ts when the label is about a write or a read) and the ssh:// file operations in src/platform/remote-files/ and src/platform/remote-file-target/target.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++

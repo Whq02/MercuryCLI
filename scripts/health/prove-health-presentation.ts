@@ -7,9 +7,9 @@ process.env.NODE_ENV = 'test'
 let failures = 0
 let presentationHint = ''
 const presentationHintOf = (title: string): string => {
-  if (title.startsWith('§1') || title.startsWith('§2') || title.startsWith('§3')) return 'change resolveHealthPresentation, renderPlainCertificate or writeOutAndExit in src/cli/healthPresentation.ts'
-  if (title.startsWith('§6')) return 'change settingsChecks in src/services/health/sections/settings.ts'
-  if (title.startsWith('§7')) return 'change the health rows in src/services/health/sections.ts and the sections it lists, or the health command help the built bundle prints'
+  if (title.startsWith('§1') || title.startsWith('§2') || title.startsWith('§3')) return 'change resolveHealthPresentation, renderPlainCertificate or writeOutAndExit in src/commands/verbs/healthPresentation.ts'
+  if (title.startsWith('§6')) return 'change settingsChecks in src/platform/health/sections/settings.ts'
+  if (title.startsWith('§7')) return 'change the health rows in src/platform/health/sections.ts and the sections it lists, or the health command help the built bundle prints'
   return ''
 }
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -23,7 +23,7 @@ const section = (t: string): void => {
 }
 
 const { resolveHealthPresentation, renderPlainCertificate } = await import(
-  '../../src/cli/healthPresentation.ts'
+  '../../src/commands/verbs/healthPresentation.ts'
 )
 const { builtHelp } = await import('../lib/builtProduct.ts')
 
@@ -73,7 +73,7 @@ section('§3 THE DRAIN-AWARE EXIT (HL-30/31)')
 {
   const { spawn } = await import('node:child_process')
   const payloadScript = [
-    `const { writeOutAndExit } = await import(${JSON.stringify(join(import.meta.dir, '../../src/cli/healthPresentation.ts'))})`,
+    `const { writeOutAndExit } = await import(${JSON.stringify(join(import.meta.dir, '../../src/commands/verbs/healthPresentation.ts'))})`,
     `const record = JSON.stringify({ rows: Array.from({ length: 20000 }, (_, i) => 'row-' + i) })`,
     `writeOutAndExit(record + String.fromCharCode(10), 0)`,
   ].join('\n')
@@ -151,14 +151,14 @@ section('§6 N-06 · THE PROFILE CONTRACT + THE VISIBLE REMEDIES')
 {
   check(
     'the health instruction-profile row projects the same diagnostics (warn on findings)',
-    (await import('../../src/services/health/sections/settings.ts')).settingsChecks().some(row => row.id === 'instruction-profile' && row.label === 'Instruction profile'),
+    (await import('../../src/platform/health/sections/settings.ts')).settingsChecks().some(row => row.id === 'instruction-profile' && row.label === 'Instruction profile'),
   )
 }
 
 section('§7 · RICH convergence + LEGACY RETIREMENT (HL-10/19/22/23/25/32/33)')
 {
-  const { healthContext: contextOf } = await import('../../src/services/health/healthReport.ts')
-  const { HEALTH_SECTIONS } = await import('../../src/services/health/sections.ts')
+  const { healthContext: contextOf } = await import('../../src/platform/health/healthReport.ts')
+  const { HEALTH_SECTIONS } = await import('../../src/platform/health/sections.ts')
   const listContext = await contextOf()
   const listed = (await Promise.all(HEALTH_SECTIONS.map(entry => entry.checks(listContext)))).flat()
   for (const id of ['agent-definitions', 'env-limits', 'keybindings', 'version-locks']) {

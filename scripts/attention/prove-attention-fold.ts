@@ -3,14 +3,14 @@ import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 
-let m: typeof import('../../src/services/attention/contracts.ts') | null = null
+let m: typeof import('../../src/screen/attention/contracts.ts') | null = null
 try {
-  m = await import('../../src/services/attention/contracts.ts')
+  m = await import('../../src/screen/attention/contracts.ts')
 } catch {
   m = null
 }
 if (!m) {
-  t.check('src/services/attention/contracts.ts loads', false, 'module absent')
+  t.check('src/screen/attention/contracts.ts loads', false, 'module absent')
   t.finish('prove-attention-fold')
 }
 const mod = m!

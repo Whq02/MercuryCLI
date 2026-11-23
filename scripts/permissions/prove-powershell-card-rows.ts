@@ -10,7 +10,7 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.NODE_ENV = 'test'
 
 let failures = 0
-const cardRowsFixHint = 'fix powershellToolUseOptions in src/components/permissions/PowerShellPermissionRequest/powershellToolUseOptions.tsx'
+const cardRowsFixHint = 'fix powershellToolUseOptions in src/permissions/cards/powershell/powershellAskOptions.tsx'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}${!ok ? ' — ' + cardRowsFixHint : ''}`)
   if (!ok) failures++
@@ -18,8 +18,8 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { powershellToolUseOptions } = await import('../../src/components/permissions/PowerShellPermissionRequest/powershellToolUseOptions.js')
-const { POWERSHELL_TOOL_NAME } = await import('../../src/constants/tools/powershell.js')
+const { powershellToolUseOptions } = await import('../../src/permissions/cards/powershell/powershellAskOptions.js')
+const { POWERSHELL_TOOL_NAME } = await import('../../src/tools/kit/names/powershell.js')
 type Row = ReturnType<typeof powershellToolUseOptions>[number] & { type?: string; placeholder?: string; initialValue?: string; onChange?: unknown; allowEmptySubmitToCancel?: boolean; showLabelWithValue?: boolean; labelValueSeparator?: string; resetCursorOnUpdate?: boolean }
 
 const accept = (): void => {}

@@ -89,7 +89,7 @@ section('§2 PERSISTED-RULE CAP (mega-command approvals stay session-scoped)')
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
   const { addPermissionRulesToSettings, MAX_PERSISTED_ALLOW_RULE_LENGTH } = await import(
-    '../../src/utils/permissions/permissionsLoader.ts'
+    '../../src/permissions/rules/permissionsLoader.ts'
   )
 
   const settingsRaw = (): string => {
@@ -107,21 +107,21 @@ section('§2 PERSISTED-RULE CAP (mega-command approvals stay session-scoped)')
     'a ~1KB allow rule reports success but persists NOTHING (session-scoped)',
     megaOk === true && !settingsRaw().includes('xxxxxxxxxx'),
     `settings ${settingsRaw().length} bytes`,
-    'change addPermissionRulesToSettings in src/utils/permissions/permissionsLoader.ts so an allow rule longer than MAX_PERSISTED_ALLOW_RULE_LENGTH is skipped on disk and the call still returns true',
+    'change addPermissionRulesToSettings in src/permissions/rules/permissionsLoader.ts so an allow rule longer than MAX_PERSISTED_ALLOW_RULE_LENGTH is skipped on disk and the call still returns true',
   )
-  check('the cap is declared and generous for real patterns', MAX_PERSISTED_ALLOW_RULE_LENGTH >= small.length * 2, '', 'raise MAX_PERSISTED_ALLOW_RULE_LENGTH in src/utils/permissions/permissionsLoader.ts to at least twice the length of an ordinary rule')
+  check('the cap is declared and generous for real patterns', MAX_PERSISTED_ALLOW_RULE_LENGTH >= small.length * 2, '', 'raise MAX_PERSISTED_ALLOW_RULE_LENGTH in src/permissions/rules/permissionsLoader.ts to at least twice the length of an ordinary rule')
 
   addPermissionRulesToSettings(
     { ruleValues: [{ toolName: 'Bash', ruleContent: 'npm run build *' }], ruleBehavior: 'allow' },
     'userSettings',
   )
-  check('a genuine reusable pattern persists', settingsRaw().includes('npm run build *'), '', 'addPermissionRulesToSettings in src/utils/permissions/permissionsLoader.ts must write an allow rule within the cap to the settings file')
+  check('a genuine reusable pattern persists', settingsRaw().includes('npm run build *'), '', 'addPermissionRulesToSettings in src/permissions/rules/permissionsLoader.ts must write an allow rule within the cap to the settings file')
 
   addPermissionRulesToSettings(
     { ruleValues: [{ toolName: 'Bash', ruleContent: 'y'.repeat(1024) }], ruleBehavior: 'deny' },
     'userSettings',
   )
-  check('an oversized DENY still persists (safety-positive, exempt from the cap)', settingsRaw().includes('yyyyyyyyyy'), '', 'the length cap in addPermissionRulesToSettings (src/utils/permissions/permissionsLoader.ts) must apply to the allow behavior only')
+  check('an oversized DENY still persists (safety-positive, exempt from the cap)', settingsRaw().includes('yyyyyyyyyy'), '', 'the length cap in addPermissionRulesToSettings (src/permissions/rules/permissionsLoader.ts) must apply to the allow behavior only')
 
   const mixed = addPermissionRulesToSettings(
     {
@@ -137,21 +137,21 @@ section('§2 PERSISTED-RULE CAP (mega-command approvals stay session-scoped)')
     'a mixed batch persists the small rule and skips the mega one',
     mixed === true && settingsRaw().includes('git status') && !settingsRaw().includes('zzzzzzzzzz'),
     '',
-    'addPermissionRulesToSettings in src/utils/permissions/permissionsLoader.ts must drop only the oversized allow rules of a batch and persist the rest',
+    'addPermissionRulesToSettings in src/permissions/rules/permissionsLoader.ts must drop only the oversized allow rules of a batch and persist the rest',
   )
   rmSync(HOME, { recursive: true, force: true })
 }
 
 section('§3 THE LONG-HOME GUARD — a 224-char Windows home never starts without it')
 {
-  const { compileCacheDirUsable, WIN32_COMPILE_CACHE_DIR_MAX } = await import('../../src/utils/runtime/compileCachePath.ts')
+  const { compileCacheDirUsable, WIN32_COMPILE_CACHE_DIR_MAX } = await import('../../src/platform/node-runtime/compileCachePath.ts')
   const home = 'C:\\Users\\op\\' + 'x'.repeat(224 - 'C:\\Users\\op\\'.length)
   const cacheDir = home + '\\compile-cache'
-  check('the field shape (a 224-char home) is refused on win32', compileCacheDirUsable(cacheDir, 'win32') === false, String(cacheDir.length), 'compileCacheDirUsable in src/utils/runtime/compileCachePath.ts must return false on win32 for a directory longer than WIN32_COMPILE_CACHE_DIR_MAX')
-  check('a short win32 home is usable', compileCacheDirUsable('C:\\Users\\op\\.mercury\\compile-cache', 'win32') === true, '', 'compileCacheDirUsable in src/utils/runtime/compileCachePath.ts must accept a win32 directory of at most WIN32_COMPILE_CACHE_DIR_MAX characters')
-  check('the bound is inclusive at the constant', compileCacheDirUsable('C'.repeat(WIN32_COMPILE_CACHE_DIR_MAX), 'win32') === true && compileCacheDirUsable('C'.repeat(WIN32_COMPILE_CACHE_DIR_MAX + 1), 'win32') === false, '', 'compileCacheDirUsable in src/utils/runtime/compileCachePath.ts must compare the length with <= WIN32_COMPILE_CACHE_DIR_MAX')
-  check('an extended-length spelling opts out of the bound', compileCacheDirUsable('\\\\?\\' + 'C:\\' + 'y'.repeat(300), 'win32') === true, '', 'compileCacheDirUsable in src/utils/runtime/compileCachePath.ts must return true for a path that starts with the extended-length prefix')
-  check('off win32 the guard never refuses', compileCacheDirUsable('/' + 'z'.repeat(400), 'darwin') === true && compileCacheDirUsable('/' + 'z'.repeat(400), 'linux') === true, '', 'compileCacheDirUsable in src/utils/runtime/compileCachePath.ts must return true whenever the platform is not win32')
+  check('the field shape (a 224-char home) is refused on win32', compileCacheDirUsable(cacheDir, 'win32') === false, String(cacheDir.length), 'compileCacheDirUsable in src/platform/node-runtime/compileCachePath.ts must return false on win32 for a directory longer than WIN32_COMPILE_CACHE_DIR_MAX')
+  check('a short win32 home is usable', compileCacheDirUsable('C:\\Users\\op\\.mercury\\compile-cache', 'win32') === true, '', 'compileCacheDirUsable in src/platform/node-runtime/compileCachePath.ts must accept a win32 directory of at most WIN32_COMPILE_CACHE_DIR_MAX characters')
+  check('the bound is inclusive at the constant', compileCacheDirUsable('C'.repeat(WIN32_COMPILE_CACHE_DIR_MAX), 'win32') === true && compileCacheDirUsable('C'.repeat(WIN32_COMPILE_CACHE_DIR_MAX + 1), 'win32') === false, '', 'compileCacheDirUsable in src/platform/node-runtime/compileCachePath.ts must compare the length with <= WIN32_COMPILE_CACHE_DIR_MAX')
+  check('an extended-length spelling opts out of the bound', compileCacheDirUsable('\\\\?\\' + 'C:\\' + 'y'.repeat(300), 'win32') === true, '', 'compileCacheDirUsable in src/platform/node-runtime/compileCachePath.ts must return true for a path that starts with the extended-length prefix')
+  check('off win32 the guard never refuses', compileCacheDirUsable('/' + 'z'.repeat(400), 'darwin') === true && compileCacheDirUsable('/' + 'z'.repeat(400), 'linux') === true, '', 'compileCacheDirUsable in src/platform/node-runtime/compileCachePath.ts must return true whenever the platform is not win32')
 }
 
 section('§4 THE EXPORT TO CHILDREN — the API never sets the env; the boot seam does')

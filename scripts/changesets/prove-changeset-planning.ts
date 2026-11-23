@@ -9,19 +9,19 @@ process.env.MERCURY_CHANGESET_DIR = mkdtempSync(join(tmpdir(), 'fulcrum-plan-cs-
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  const where = 'fix planChangeSet in src/services/changeTransaction/changeSetPlan.ts (limits in changeSetContracts.ts, plan store checks in changeSetStore.ts)'
+  const where = 'fix planChangeSet in src/tools/engines/change-transaction/changeSetPlan.ts (limits in changeSetContracts.ts, plan store checks in changeSetStore.ts)'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${[detail, where].filter(Boolean).join(' | ')}` : ''}`)
 }
 
 const { planChangeSet } = await import(
-  '../../src/services/changeTransaction/changeSetPlan.ts'
+  '../../src/tools/engines/change-transaction/changeSetPlan.ts'
 )
-const { sha256Hex } = await import('../../src/utils/hash.ts')
+const { sha256Hex } = await import('../../src/platform/primitives/hash.ts')
 const { CHANGESET_BOUNDS } = await import(
-  '../../src/services/changeTransaction/changeSetContracts.ts'
+  '../../src/tools/engines/change-transaction/changeSetContracts.ts'
 )
 const { mintFileAnchor, mintRangeAnchor } = await import(
-  '../../src/services/changeTransaction/snapshotAnchor.ts'
+  '../../src/tools/engines/change-transaction/snapshotAnchor.ts'
 )
 const {
   rememberChangeSetPlan,
@@ -30,15 +30,15 @@ const {
   changeSetPlanExpired,
   setChangeSetPlanState,
   _resetChangeSetStoreForTesting,
-} = await import('../../src/services/changeTransaction/changeSetStore.ts')
+} = await import('../../src/tools/engines/change-transaction/changeSetStore.ts')
 const { processMainOwner, processOwnerForLane } = await import(
-  '../../src/utils/run/resolveOwner.ts'
+  '../../src/engine/run-owner/resolveOwner.ts'
 )
 const { rememberAnchoredSnapshot, _resetSnapshotRingForTesting } = await import(
-  '../../src/services/changeTransaction/snapshotRing.ts'
+  '../../src/tools/engines/change-transaction/snapshotRing.ts'
 )
-const { LOSSY_DECODE_MESSAGE } = await import('../../src/utils/fileRead.ts')
-const { matchExactEdit } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
+const { LOSSY_DECODE_MESSAGE } = await import('../../src/platform/files/syncFileRead.ts')
+const { matchExactEdit } = await import('../../src/tools/edit/EditTool.ts')
 
 const root = mkdtempSync(join(tmpdir(), 'fulcrum-plan-'))
 mkdirSync(join(root, 'sub'))
@@ -184,7 +184,7 @@ console.log("── §1b edits members ride Edit's exact-string matcher ──")
   const twoOnOneLine = planChangeSet([editsMember(todo3, [{ old_string: 'a TODO', new_string: 'A' }, { old_string: 'b TODO', new_string: 'B' }])], ctx)
   check('two edits on one line share one span', twoOnOneLine.ok === true && twoOnOneLine.plan.targets[0]!.plannedContent === 'A B\n' && twoOnOneLine.plan.targets[0]!.hunkSpans.length === 1 && twoOnOneLine.plan.targets[0]!.hunkSpans[0]!.replace === 'A B', twoOnOneLine.ok ? JSON.stringify(twoOnOneLine.plan.targets[0]!.hunkSpans) : (twoOnOneLine as { message: string }).message)
   const curly = write('prose.md', 'She said “hello” to him.\n')
-  const { fileLanguageKind } = await import('../../src/native-ts/color-diff/index.ts')
+  const { fileLanguageKind } = await import('../../src/platform/native/color-diff/index.ts')
   const proseCtx = {
     ...ctx,
     exactEdit: (target: { canonicalPath: string; content: string }, edit: Edit) =>

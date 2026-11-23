@@ -26,24 +26,24 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const HOSTED_EXIT_NOTE = 'see noteAskedAtExit and leaveNoteAtExit in src/components/ExitHandoff.tsx'
-const HOSTED_EXIT_SCREEN = 'see ExitHandoff in src/components/ExitHandoff.tsx'
+const HOSTED_EXIT_NOTE = 'see noteAskedAtExit and leaveNoteAtExit in src/commands/exit/ExitHandoff.tsx'
+const HOSTED_EXIT_SCREEN = 'see ExitHandoff in src/commands/exit/ExitHandoff.tsx'
 const HOSTED_EXIT_COUNT = 'see liveWorkAtExit in src/commands/exit/exit.tsx'
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { exitNoteDue, HANDOFF_EXIT_NOTICE } = await import('../../src/mneme/exitHandoff.ts')
+const { exitNoteDue, HANDOFF_EXIT_NOTICE } = await import('../../src/sessions/mneme/exitHandoff.ts')
 const { liveWorkAtExit } = await import('../../src/commands/exit/exit.tsx')
-const { ExitHandoff, HANDOFF_SKIP_GRACE_MS, leaveNoteAtExit, noteAskedAtExit } = await import('../../src/components/ExitHandoff.tsx')
-const { getFocusedSessionConnector, hasFocusedSession, releaseFocusedSessionConnector, setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { liveWorkWords } = await import('../../src/utils/task/framework.ts')
+const { ExitHandoff, HANDOFF_SKIP_GRACE_MS, leaveNoteAtExit, noteAskedAtExit } = await import('../../src/commands/exit/ExitHandoff.tsx')
+const { getFocusedSessionConnector, hasFocusedSession, releaseFocusedSessionConnector, setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import('../../src/engine/connector/focusedConnector.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { liveWorkWords } = await import('../../src/engine/task-framework/taskRegistry.ts')
 const React = await import('react')
-const { Box } = await import('../../src/ink.ts')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-type Connector = import('../../src/services/engine-connector/types.ts').EngineConnectorV1
-type LeaveReceipt = import('../../src/services/engine-connector/types.ts').LeaveReceiptV1
-type WorkRow = import('../../src/services/engine-connector/types.ts').WorkRowV1
+const { Box } = await import('../../src/screen/themedRenderer.ts')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+type Connector = import('../../src/engine/connector/types.ts').EngineConnectorV1
+type LeaveReceipt = import('../../src/engine/connector/types.ts').LeaveReceiptV1
+type WorkRow = import('../../src/engine/connector/types.ts').WorkRowV1
 
 const row = (kind: WorkRow['kind'], status: string, id: string): WorkRow => ({ id, kind, name: id, status, startTime: 1 })
 function hosted(leave: Connector['leave'], rows: WorkRow[] = []): Connector {
@@ -54,7 +54,7 @@ function hosted(leave: Connector['leave'], rows: WorkRow[] = []): Connector {
 section('§1 with no session in the slot the old road stands: nothing due, the local count alone')
 {
   _resetFocusedSessionConnectorForTesting()
-  check('no focused session and no turn in this process: no note is asked for', hasFocusedSession() === false && exitNoteDue() === false && noteAskedAtExit() === false, `${HOSTED_EXIT_NOTE} and exitNoteDue in src/mneme/exitHandoff.ts`)
+  check('no focused session and no turn in this process: no note is asked for', hasFocusedSession() === false && exitNoteDue() === false && noteAskedAtExit() === false, `${HOSTED_EXIT_NOTE} and exitNoteDue in src/sessions/mneme/exitHandoff.ts`)
   const counts = liveWorkAtExit(undefined)
   check('the live-work count is the local count alone', j(counts) === j({ total: 0, shells: 0, agents: 0, other: 0 }), `${j(counts)}; ${HOSTED_EXIT_COUNT}`)
   const receipt = await leaveNoteAtExit(new AbortController().signal)
@@ -80,7 +80,7 @@ section("§3 the exit card counts the runner's own work beside the local tasks (
   setFocusedSessionConnector(hosted(async () => ({ note: 'skipped' }), [row('agent', 'running', 'crewmate-1'), row('agent', 'completed', 'crewmate-2'), row('shell', 'running', 'sh-1'), row('workflow', 'paused', 'wf-1'), row('monitor', 'pending', 'mon-1')]))
   const counts = liveWorkAtExit(undefined)
   check('one running agent, two running shells (the monitor counts as a shell), no run row of an older runner, nothing finished', j(counts) === j({ total: 3, shells: 2, agents: 1, other: 0 }), `${j(counts)}; ${HOSTED_EXIT_COUNT}`)
-  check('the card words name them by kind', liveWorkWords(counts) === '2 shell commands and 1 crewmate', `${liveWorkWords(counts)}; see liveWorkWords in src/utils/task/framework.ts`)
+  check('the card words name them by kind', liveWorkWords(counts) === '2 shell commands and 1 crewmate', `${liveWorkWords(counts)}; see liveWorkWords in src/engine/task-framework/taskRegistry.ts`)
   releaseFocusedSessionConnector()
   check('with the slot released the count is local again', liveWorkAtExit(undefined).total === 0, `${HOSTED_EXIT_COUNT}; the hosted rows count only while hasFocusedSession is true`)
 }
@@ -139,7 +139,7 @@ section('§5 ctrl-c skips: the signal reaches the session, and a session that ne
   check('after the grace the exit leaves without a note', left && deaf?.note === 'none' && Date.now() - t0 >= HANDOFF_SKIP_GRACE_MS, `${JSON.stringify(deaf)} after ${Date.now() - t0} ms; ${HOSTED_EXIT_SCREEN} (ctrl-c starts the HANDOFF_SKIP_GRACE_MS timer that settles with note none)`)
   d.unmount()
   releaseFocusedSessionConnector()
-  check('the slot rests again', getFocusedSessionConnector().sessionId() === '' && hasFocusedSession() === false, 'releaseFocusedSessionConnector in src/services/engine-connector/focusedConnector.ts must restore the no-session connector')
+  check('the slot rests again', getFocusedSessionConnector().sessionId() === '' && hasFocusedSession() === false, 'releaseFocusedSessionConnector in src/engine/connector/focusedConnector.ts must restore the no-session connector')
 }
 
 console.log('\n============================================================')

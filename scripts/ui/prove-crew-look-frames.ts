@@ -58,7 +58,7 @@ function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
   console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
-  if (!good) console.log('    to fix: the crew rail rows and the view swap are in src/components/tasks/CompactWorkSummary.tsx (useCompactWorkControls) and TranscriptSwap in src/components/CrewmateTranscript.tsx, the status row in FocusedSessionStatusRow in src/components/SwitchboardTagBar.tsx, the pill and borders in src/components/FullscreenLayout.tsx, the pop-ups in src/commands/crewmates/crewmates.tsx; run with --frames <folder> to keep every frame as text')
+  if (!good) console.log('    to fix: the crew rail rows and the view swap are in src/screen/tasks/CompactWorkSummary.tsx (useCompactWorkControls) and TranscriptSwap in src/screen/chat/CrewmateTranscript.tsx, the status row in FocusedSessionStatusRow in src/screen/chat/SwitchboardTagBar.tsx, the pill and borders in src/screen/fullscreen-layout/FullscreenLayout.tsx, the pop-ups in src/commands/crewmates/crewmates.tsx; run with --frames <folder> to keep every frame as text')
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -144,11 +144,11 @@ async function stub(path: string, fixture: (actual: Record<string, unknown>) => 
   const actual = (await import(path)) as Record<string, unknown>
   mock.module(path, () => ({ ...actual, ...fixture(actual) }))
 }
-await stub('../../src/components/tasks/useFocusedWork.ts', () => ({ focusedRunnerPresence: () => 'live' }))
+await stub('../../src/screen/tasks/useFocusedWork.ts', () => ({ focusedRunnerPresence: () => 'live' }))
 let heldRead: Promise<void> | undefined
 let readHeld = false
-await stub('../../src/utils/sessionStorage/loading.ts', actual => {
-  const load = actual.loadTranscriptFile as typeof import('../../src/utils/sessionStorage/loading.ts').loadTranscriptFile
+await stub('../../src/sessions/transcripts/loading.ts', actual => {
+  const load = actual.loadTranscriptFile as typeof import('../../src/sessions/transcripts/loading.ts').loadTranscriptFile
   return { loadTranscriptFile: async (...args: Parameters<typeof load>) => {
     if (heldRead !== undefined && args[0].includes('agent-a-atlas.')) {
       readHeld = true
@@ -159,38 +159,38 @@ await stub('../../src/utils/sessionStorage/loading.ts', actual => {
 })
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { useAppStateStore } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout, useUnseenDivider } = await import('../../src/components/FullscreenLayout.tsx')
-const { ScrollKeybindingHandler } = await import('../../src/components/ScrollKeybindingHandler.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { FocusedSessionStatusRow } = await import('../../src/components/SwitchboardTagBar.tsx')
-const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
-const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { useAppStateStore } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout, useUnseenDivider } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { ScrollKeybindingHandler } = await import('../../src/screen/scroll-keys/ScrollKeybindingHandler.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { FocusedSessionStatusRow } = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
+const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
+const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const { default: instances } = await import('../../src/ink/instances.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
-const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocus.ts')
-const { closeSettingsPopup, isSettingsPopupOpen } = await import('../../src/utils/cockpit/settingsPopup.ts')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
+const { resetHelmFocusForTest } = await import('../../src/screen/cockpit/helmFocus.ts')
+const { closeSettingsPopup, isSettingsPopupOpen } = await import('../../src/screen/cockpit/settingsPopup.ts')
 const crewmatesCommand = await import('../../src/commands/crewmates/crewmates.tsx')
 const usageCommand = await import('../../src/commands/usage/usage.tsx')
 const configCommand = await import('../../src/commands/config/config.tsx')
-const { TranscriptSwap } = await import('../../src/components/CrewmateTranscript.tsx')
-const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+const { TranscriptSwap } = await import('../../src/screen/chat/CrewmateTranscript.tsx')
+const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-type ScrollBoxHandle = import('../../src/ink/components/ScrollBox.tsx').ScrollBoxHandle
+type ScrollBoxHandle = import('../../src/screen/renderer/elements/ScrollBox.tsx').ScrollBoxHandle
 const h = React.createElement
 
 const resting = noSessionConnector() as unknown as Record<string, unknown>
@@ -385,7 +385,7 @@ const transcriptOf = (lines: string[], cockpit: Cockpit): string[] => {
 const cardOf = (lines: string[], cockpit: Cockpit): string => lines.slice(1, 5).map(line => centre(line, cockpit)).join(' ').replace(/\s+/g, ' ')
 const flat = (s: string): string => s.replace(/\s+/g, ' ').trim()
 
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
 const chordDelta = keyHintLabel('⇧← back').length - '⇧← back'.length
 for (const [nominal, rows] of sizes) {
   const cols = nominal + chordDelta

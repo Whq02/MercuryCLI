@@ -62,8 +62,8 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}${ok ? '' : ` | fix: ${failureHint(label)}`}`)
 }
 function failureHint(label: string): string {
-  if (/durable/.test(label)) return 'the on-disk draft is read by readDraftSync in src/utils/promptDraft.ts; the view move must leave that entry in place'
-  if (/draft|composer|POCKET|pocket|words|typed/.test(label)) return 'the open or close road named in this label must not clear or replace the composer text held by src/input-core/pending-input.ts (edit, text, stashedPrompt); find the call on that road that empties it'
+  if (/durable/.test(label)) return 'the on-disk draft is read by readDraftSync in src/screen/composer/input-core/promptDraft.ts; the view move must leave that entry in place'
+  if (/draft|composer|POCKET|pocket|words|typed/.test(label)) return 'the open or close road named in this label must not clear or replace the composer text held by src/screen/composer/input-core/pending-input.ts (edit, text, stashedPrompt); find the call on that road that empties it'
   return 'the surface this label opens or closes did not follow the key or command the proof sent; look at the component named in the label and at the road in the section heading'
 }
 function section(title: string): void {
@@ -76,28 +76,28 @@ function record(road: string, after: string, row: string, driven = true): void {
 }
 
 const React = await import('react')
-const { App } = await import('../../src/components/App.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { useAppStateStore } = await import('../../src/state/AppState.js')
-const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.js')
-const { Chat } = await import('../../src/screens/Chat.js')
-const route = await import('../../src/context/surfaceRoute.js')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.js')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.js')
+const { App } = await import('../../src/boot/App.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { useAppStateStore } = await import('../../src/screen/app-state/AppState.js')
+const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.js')
+const { Chat } = await import('../../src/screen/chat/Chat.js')
+const route = await import('../../src/screen/routes/surfaceRoute.js')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.js')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true, hasTrustDialogAccepted: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false, hasCompletedOnboarding: true, theme: 'dark' }))
-const pending = await import('../../src/input-core/pending-input.js')
-const helm = await import('../../src/utils/cockpit/helmFocus.js')
-const popup = await import('../../src/utils/cockpit/settingsPopup.js')
-const filesMenu = await import('../../src/utils/cockpit/filesMenu.js')
-const crewmateView = await import('../../src/state/crewmateViewHelpers.js')
-const { createTaskStateBase } = await import('../../src/Task.js')
-const promptDraft = await import('../../src/utils/promptDraft.js')
-const slot = await import('../../src/services/engine-connector/focusedConnector.js')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const { getCommands } = await import('../../src/commands.js')
-const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.js')
+const pending = await import('../../src/screen/composer/input-core/pending-input.js')
+const helm = await import('../../src/screen/cockpit/helmFocus.js')
+const popup = await import('../../src/screen/cockpit/settingsPopup.js')
+const filesMenu = await import('../../src/screen/cockpit/filesMenu.js')
+const crewmateView = await import('../../src/crew/crewmates/crewmateView.js')
+const { createTaskStateBase } = await import('../../src/engine/tasks/taskBase.js')
+const promptDraft = await import('../../src/screen/composer/input-core/promptDraft.js')
+const slot = await import('../../src/engine/connector/focusedConnector.js')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+const { getCommands } = await import('../../src/commands/catalogue/commands.js')
+const { markDaemonHaltStanddown } = await import('../../src/daemon/control/daemonStanddown.js')
 markDaemonHaltStanddown()
 const commands = await getCommands(PROJECT)
 type AppStore = ReturnType<typeof useAppStateStore>

@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 
-import { formatFreshness, freshnessTone } from '../../src/utils/cockpit/freshness.js'
+import { formatFreshness, freshnessTone } from '../../src/screen/cockpit/freshness.js'
 
 let fail = 0
 const t = (name: string, ok: boolean, detail = '') => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ' | fix formatFreshness (age label) or freshnessTone (fresh or stale) in src/utils/cockpit/freshness.ts'}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ' | fix formatFreshness (age label) or freshnessTone (fresh or stale) in src/screen/cockpit/freshness.ts'}`)
   if (!ok) fail = 1
 }
 

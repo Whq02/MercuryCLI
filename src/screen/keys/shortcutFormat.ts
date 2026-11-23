@@ -1,0 +1,12 @@
+import type { KeybindingContextName } from './types.js'
+import { getPlatform } from '../../platform/environment/platform.js'
+import { loadKeybindingsSync } from './loadUserBindings.js'
+import { getBindingDisplayText } from './resolver.js'
+
+export function getShortcutDisplay(
+  action: string,
+  context: KeybindingContextName,
+  fallback: string,
+): string {
+  return getBindingDisplayText(action, context, loadKeybindingsSync(), getPlatform()) ?? fallback
+}

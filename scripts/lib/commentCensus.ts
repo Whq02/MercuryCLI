@@ -4,12 +4,12 @@ import { extname, join } from 'node:path'
 import { commentRanges as hookCommentRanges } from './commentBytes.mjs'
 import { hashCandidate, hashComments, hashKindOf, PLAIN_EXTENSIONS, PLAIN_NAMES } from './hashComments.ts'
 
-const COMMENT_KEEP_FOLDERS = ['/src/extensions/bundled/', '/vendor/']
+const COMMENT_KEEP_FOLDERS = ['/src/integrations/extensions/bundled/', '/vendor/']
 const HASH_KEEP_FOLDERS = ['vendor/', 'native/']
 export const KEEP_REASONS: [under: string, reason: string][] = [
   ['vendor/', 'fetched packs, their lock files and licence texts: not written here'],
   ['native/', "the build pins each crate's source digest, so the crates wait for the next native build"],
-  ['src/extensions/bundled/mercury-media/server/', 'a built bundle the project does not write by hand'],
+  ['src/integrations/extensions/bundled/mercury-media/server/', 'a built bundle the project does not write by hand'],
   ['scripts/field-tasks/field-kit/task/', "the practice task: its comment lines are the task's own specification, read by the tester's session"],
 ]
 const SKIP_NAMES = new Set(['node_modules', 'dist', '.git', 'vendor'])

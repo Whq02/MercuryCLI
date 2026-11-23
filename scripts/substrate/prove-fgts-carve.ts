@@ -29,7 +29,7 @@ const restore = (): void => {
 }
 
 const { fineGrainedToolStreamingEnabled } = await import(
-  '../../src/utils/model/capabilities.ts'
+  '../../src/models/facts/capabilities.ts'
 )
 
 section('§1 GATE POLARITY — live env re-reads on direct first-party')

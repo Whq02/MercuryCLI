@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/BashTool/bashPermissions.ts src/tools/BashTool/pathValidation.ts src/Tool.ts
-// gate-watch: src/utils/permissions/filesystem.ts src/utils/verification/scanCeiling.ts
+// gate-watch: src/tools/shell/bashPermissions.ts src/tools/shell/pathValidation.ts src/tools/kit/tool.ts
+// gate-watch: src/permissions/rules/filesystem.ts src/platform/verification/scanCeiling.ts
 import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -36,15 +36,15 @@ process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_TREE_SCAN_CEILING
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
 setSessionTrustAccepted(true)
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
 
 let failures = 0
 let checks = 0
-const RECURSIVE_DENY_FIX = 'change the recursive and git readers in src/tools/BashTool/pathValidation.ts (RECURSIVE_READERS, extractPatternCommand, gitPrintedPaths) and the tree ceiling in src/utils/verification/scanCeiling.ts'
+const RECURSIVE_DENY_FIX = 'change the recursive and git readers in src/tools/shell/pathValidation.ts (RECURSIVE_READERS, extractPatternCommand, gitPrintedPaths) and the tree ceiling in src/platform/verification/scanCeiling.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++

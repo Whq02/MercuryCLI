@@ -5,21 +5,21 @@ import { tmpdir } from 'node:os'
 import { join, relative, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-const ENTRY = join(ROOT, 'src', 'services', 'privateChannel', 'verifyArtifactStandalone.ts')
+const ENTRY = join(ROOT, 'src', 'platform', 'update-channel', 'verifyArtifactStandalone.ts')
 const DIST_VERIFIER = join(ROOT, 'dist', 'verify-artifact.mjs')
 const DIST_BUNDLE = join(ROOT, 'dist', 'mercury.mjs')
 const DIST_MANIFEST = join(ROOT, 'dist', 'manifest.json')
 const SIZE_CEILING_BYTES = 64 * 1024
 const MODULES_ALLOWED = [
-  'src/services/privateChannel/artifactSigning.ts',
-  'src/services/privateChannel/artifactVerify.ts',
-  'src/services/privateChannel/payloadDigest.ts',
-  'src/services/privateChannel/provenanceNotice.ts',
-  'src/services/privateChannel/releaseTarget.ts',
-  'src/services/privateChannel/signingTrust.ts',
-  'src/services/privateChannel/vendoredPython.ts',
-  'src/services/privateChannel/vendoredRuntime.ts',
-  'src/services/privateChannel/verifyArtifactStandalone.ts',
+  'src/platform/update-channel/artifactSigning.ts',
+  'src/platform/update-channel/artifactVerify.ts',
+  'src/platform/update-channel/payloadDigest.ts',
+  'src/platform/update-channel/provenanceNotice.ts',
+  'src/platform/update-channel/releaseTarget.ts',
+  'src/platform/update-channel/signingTrust.ts',
+  'src/platform/update-channel/vendoredPython.ts',
+  'src/platform/update-channel/vendoredRuntime.ts',
+  'src/platform/update-channel/verifyArtifactStandalone.ts',
 ]
 const EXIT_BY_STATE: Record<string, number> = { signed: 0, unsigned: 3, 'unrecognized-key': 4, tampered: 5, malformed: 6 }
 const LEAVE_WITHIN_MS = 10_000
@@ -31,7 +31,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-section('§1 the verifier bundle carries the verifier and its own needs: every module under src/services/privateChannel, from a fixed list, nothing from node_modules')
+section('§1 the verifier bundle carries the verifier and its own needs: every module under src/platform/update-channel, from a fixed list, nothing from node_modules')
 {
   const built = await Bun.build({
     entrypoints: [ENTRY],
@@ -43,8 +43,8 @@ section('§1 the verifier bundle carries the verifier and its own needs: every m
   })
   check('the entry builds', built.success, built.logs.map(l => String(l)).join(' | '))
   const inputs = Object.keys(built.metafile?.inputs ?? {}).map(p => relative(ROOT, resolve(process.cwd(), p)).split('\\').join('/'))
-  const outside = inputs.filter(p => !p.startsWith('src/services/privateChannel/'))
-  check('no module outside src/services/privateChannel is bundled (the product substrate, config, git, flag registry and lodash stay out)', outside.length === 0, outside.slice(0, 12).join(' · '))
+  const outside = inputs.filter(p => !p.startsWith('src/platform/update-channel/'))
+  check('no module outside src/platform/update-channel is bundled (the product substrate, config, git, flag registry and lodash stay out)', outside.length === 0, outside.slice(0, 12).join(' · '))
   const unlisted = inputs.filter(p => !MODULES_ALLOWED.includes(p))
   check(`every bundled module is on the list of ${MODULES_ALLOWED.length} the verifier may carry`, unlisted.length === 0, unlisted.join(' · '))
   check('the list is exact: each listed module is bundled (a stale row is red)', MODULES_ALLOWED.every(p => inputs.includes(p)), MODULES_ALLOWED.filter(p => !inputs.includes(p)).join(' · '))

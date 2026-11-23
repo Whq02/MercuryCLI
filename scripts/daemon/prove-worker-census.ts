@@ -32,10 +32,10 @@ const api = await startFixtureApi([
   { kind: 'text', text: 'aux slack 1' },
   { kind: 'text', text: 'aux slack 2' },
 ])
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — census exceeded 300s; the last check printed above is the step that never settled, and daemon.log in the daemon-census-* temp folder says why (status counts: src/daemon/status.ts)')
+  console.log('\n❌ TIMEOUT — census exceeded 300s; the last check printed above is the step that never settled, and daemon.log in the daemon-census-* temp folder says why (status counts: src/daemon/control/status.ts)')
   process.exit(1)
 }, 300_000)
 guard.unref?.()
@@ -43,7 +43,7 @@ guard.unref?.()
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change: the census counts (workersLive, workersTotal) come from the status answer built in src/daemon/status.ts and src/daemon/controlServer.ts; for a worker that is not reaped or a daemon that does not exit, read daemon.log in the scratch folder named in the temp directory daemon-census-*' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change: the census counts (workersLive, workersTotal) come from the status answer built in src/daemon/control/status.ts and src/daemon/control/controlServer.ts; for a worker that is not reaped or a daemon that does not exit, read daemon.log in the scratch folder named in the temp directory daemon-census-*' : ''}`)
 }
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms))
 async function untilAsync(cond: () => Promise<boolean> | boolean, ms = 120_000): Promise<boolean> {

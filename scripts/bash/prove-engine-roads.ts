@@ -43,10 +43,10 @@ const q = (path: string): string => `'${path.split("'").join("'\\''")}'`
 const SERVED = '${BRUSH_VERSION:-system}'
 
 async function runLeg(leg: LegName): Promise<LegReport> {
-  const { exec, getShellCwd, setCwd } = await import('../../src/utils/Shell.ts')
-  const engine = await import('../../src/utils/shell/engineSession.ts')
-  const road = await import('../../src/utils/shell/windowsShellRoad.ts')
-  const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
+  const { exec, getShellCwd, setCwd } = await import('../../src/platform/shell/shellExec.ts')
+  const engine = await import('../../src/platform/shell/engineSession.ts')
+  const road = await import('../../src/platform/shell/windowsShellRoad.ts')
+  const { getSimplePrompt } = await import('../../src/tools/shell/prompt.ts')
   road.armWindowsShellRoad()
   const resolution = engine.resolveShellEngine()
   const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'engine-roads-leg-')))
@@ -157,13 +157,13 @@ for (const name of Object.keys(process.env)) {
 
 let failures = 0
 const ROAD_FIXES: Array<[string, string]> = [
-  ['§1 ', 'change exec in src/utils/Shell.ts (which shell each call rides) or armWindowsShellRoad in src/utils/shell/windowsShellRoad.ts and resolveShellEngine in src/utils/shell/engineSession.ts'],
-  ['§1b ', 'change exec in src/utils/Shell.ts or the engine start in src/utils/shell/engineSession.ts (BASH_ENV must not reach the engine)'],
-  ['§2 ', 'change exec in src/utils/Shell.ts or resolveShellEngine in src/utils/shell/engineSession.ts (off the Windows road the system shell serves)'],
-  ['§3 ', 'change exec in src/utils/Shell.ts or resolveShellEngine in src/utils/shell/engineSession.ts (the pinned engine serves only the plain call)'],
-  ['§4 ', 'change exec in src/utils/Shell.ts or armWindowsShellRoad in src/utils/shell/windowsShellRoad.ts (the located bash serves the three paths beside the engine)'],
-  ['§6 ', 'change createWatchMailbox, BURST_WINDOW_MS or DELIVERY_INTERVAL_MS in src/tools/MonitorTool/watchMailbox.ts'],
-  ['§7 ', 'rebuild dist/mercury.mjs (bun run build.ts), then change exec in src/utils/Shell.ts or the Monitor tool under src/tools/MonitorTool'],
+  ['§1 ', 'change exec in src/platform/shell/shellExec.ts (which shell each call rides) or armWindowsShellRoad in src/platform/shell/windowsShellRoad.ts and resolveShellEngine in src/platform/shell/engineSession.ts'],
+  ['§1b ', 'change exec in src/platform/shell/shellExec.ts or the engine start in src/platform/shell/engineSession.ts (BASH_ENV must not reach the engine)'],
+  ['§2 ', 'change exec in src/platform/shell/shellExec.ts or resolveShellEngine in src/platform/shell/engineSession.ts (off the Windows road the system shell serves)'],
+  ['§3 ', 'change exec in src/platform/shell/shellExec.ts or resolveShellEngine in src/platform/shell/engineSession.ts (the pinned engine serves only the plain call)'],
+  ['§4 ', 'change exec in src/platform/shell/shellExec.ts or armWindowsShellRoad in src/platform/shell/windowsShellRoad.ts (the located bash serves the three paths beside the engine)'],
+  ['§6 ', 'change createWatchMailbox, BURST_WINDOW_MS or DELIVERY_INTERVAL_MS in src/tools/monitor/watchMailbox.ts'],
+  ['§7 ', 'rebuild dist/mercury.mjs (bun run build.ts), then change exec in src/platform/shell/shellExec.ts or the Monitor tool under src/tools/monitor'],
 ]
 let roadFix = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -216,7 +216,7 @@ function runLegProcess(leg: LegName, extra: Record<string, string>): Promise<{ r
 const servedBy = (out: string): string => out.split(':')[1] ?? ''
 const shellOf = (out: string): string => out.split(':').slice(-1)[0] ?? ''
 
-const { resolveBrushPackDir } = await import('../../src/utils/shell/brushPack.ts')
+const { resolveBrushPackDir } = await import('../../src/platform/shell/brushPack.ts')
 const pack = resolveBrushPackDir()
 check('the shell engine pack resolves on this tree (build or fetch it first: bun run scripts/vendor/fetch-brush.ts)', pack.state === 'ok', pack.state === 'ok' ? '' : pack.note)
 const VERSION = pack.state === 'ok' ? pack.manifest.version : 'unresolved'
@@ -293,7 +293,7 @@ section('§3 off the Windows road with the engine pinned (MERCURY_SHELL_ENGINE=b
 
 section('§4 the Windows road WITH a bash located (MERCURY_WINDOWS_SHELL_ROAD=locate): the located bash serves the three paths beside the engine')
 {
-  const { locateGitBash } = await import('../../src/utils/windowsPaths.ts')
+  const { locateGitBash } = await import('../../src/platform/files/windowsPaths.ts')
   const gitBash = process.platform === 'win32' ? locateGitBash() : null
   const located = gitBash !== null ? ('path' in gitBash ? gitBash.path : null) : existsSync('/bin/bash') ? '/bin/bash' : null
   if (located === null) {
@@ -312,7 +312,7 @@ section('§4 the Windows road WITH a bash located (MERCURY_WINDOWS_SHELL_ROAD=lo
 
 section('§6 the Monitor mailbox delivers the first burst, holds later ticks, and delivers them together at 30 seconds')
 {
-  const { createWatchMailbox, BURST_WINDOW_MS, DELIVERY_INTERVAL_MS } = await import('../../src/tools/MonitorTool/watchMailbox.ts')
+  const { createWatchMailbox, BURST_WINDOW_MS, DELIVERY_INTERVAL_MS } = await import('../../src/tools/monitor/watchMailbox.ts')
   let now = 0
   let nextTimer = 0
   const timers = new Map<number, { at: number; run: () => void }>()

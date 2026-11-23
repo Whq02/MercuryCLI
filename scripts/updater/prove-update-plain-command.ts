@@ -28,7 +28,7 @@ for (const p of [home, configHome, versionsDir]) mkdirSync(p, { recursive: true 
 const DEAD_BASE = `http://127.0.0.1:${await closedLoopbackPort()}`
 
 let failures = 0
-const PLAIN_FIX_HINT = 'to fix, change refuseTerminalMismatch in src/main/bootFlags.ts (it prints the note about a terminal) so the update verbs and --help skip it, and build dist/mercury.mjs again with bun run build.ts before rerunning'
+const PLAIN_FIX_HINT = 'to fix, change refuseTerminalMismatch in src/boot/main/bootFlags.ts (it prints the note about a terminal) so the update verbs and --help skip it, and build dist/mercury.mjs again with bun run build.ts before rerunning'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${PLAIN_FIX_HINT}${detail ? ` — ${detail.slice(0, 400)}` : ''}`}`)

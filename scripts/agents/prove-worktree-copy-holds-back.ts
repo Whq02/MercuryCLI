@@ -47,24 +47,24 @@ mock.module('node:fs/promises', () => ({
     throw Object.assign(new Error('this account may not make a link'), { code: 'EPERM' })
   },
 }))
-const debug = await import('../../src/utils/debug.js')
+const debug = await import('../../src/platform/logs/debugLog.js')
 const logged: string[] = []
-mock.module('../../src/utils/debug.js', () => ({
+mock.module('../../src/platform/logs/debugLog.js', () => ({
   ...debug,
   logForDebugging: (message: string): void => {
     logged.push(message)
   },
 }))
 
-const state = await import('../../src/bootstrap/state.ts')
-const config = await import('../../src/utils/config/globalConfig.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { applyPermissionRulesToPermissionContext } = await import('../../src/utils/permissions/permissions.ts')
-const { loadAllPermissionRulesFromDisk } = await import('../../src/utils/permissions/permissionsLoader.ts')
-const { checkReadPermissionForTool } = await import('../../src/utils/permissions/filesystem.ts')
-const worktree = await import('../../src/services/worktree.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const config = await import('../../src/platform/config/globalConfig.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { applyPermissionRulesToPermissionContext } = await import('../../src/permissions/rules/permissionDoor.ts')
+const { loadAllPermissionRulesFromDisk } = await import('../../src/permissions/rules/permissionsLoader.ts')
+const { checkReadPermissionForTool } = await import('../../src/permissions/rules/filesystem.ts')
+const worktree = await import('../../src/platform/git/worktree/worktree.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
 type Made = { worktreePath: string; prepareFailure?: string; ready?: Promise<void> }
 const make = (slug: string, options: Record<string, unknown> = {}): Promise<Made> => (worktree.createAgentWorktree as (slug: string, options: unknown) => Promise<Made>)(slug, options)
 const prepare = worktree.prepareWorktreeFiles as (repo: string, path: string, from?: string, preserve?: boolean, permission?: unknown, carry?: boolean) => Promise<boolean>
@@ -191,7 +191,7 @@ const ownFile = (copy: string, rel: string): boolean => {
 }
 const leftBehind = (copy: string): string[] => DEPENDENCY_FILES.filter(rel => !ownFile(copy, rel))
 const skippedFor = (reason: string): string[] => FOLDERS.filter(name => logged.some(line => line.includes('worktree copy skipped') && line.includes(reason) && line.endsWith(`: ${name}`)))
-const holdBackHint = 'change prepareWorktreeFiles in src/services/worktree.ts, the copy it makes where a link is refused, so it leaves out what the Read rules name'
+const holdBackHint = 'change prepareWorktreeFiles in src/platform/git/worktree/worktree.ts, the copy it makes where a link is refused, so it leaves out what the Read rules name'
 const roadHolds = async (road: string, copy: string, rules: unknown): Promise<void> => {
   check(`${road}: the dependency folder and the open pack are folders of the copy's own, where the link was refused`, kindOf(join(copy, 'node_modules')) === 'folder' && kindOf(join(copy, 'vendor', 'pack-open')) === 'folder', `${kindOf(join(copy, 'node_modules'))}, ${kindOf(join(copy, 'vendor', 'pack-open'))} | ` + holdBackHint)
   check(`${road}: no file a Read rule refuses is in the copy: the folder a rule names whole, a file a pattern names at two depths, a pack named whole`, present(copy, REFUSED).length === 0, present(copy, REFUSED).join(', ') + ' | ' + holdBackHint)
@@ -213,13 +213,13 @@ try {
   const rules = applyPermissionRulesToPermissionContext(getEmptyToolPermissionContext(), loadAllPermissionRulesFromDisk())
 
   section('the rules, where the files lie in the checkout')
-  check('the Read gate refuses each of the five files the rules name', REFUSED.every(rel => refused(rules, join(fixture, rel))), REFUSED.filter(rel => !refused(rules, join(fixture, rel))).join(', ') + ' | the deny rules come from .mercury/settings.json in the fixture; see checkReadPermissionForTool in src/utils/permissions/filesystem.ts')
-  check('…and none of the four they do not', Object.keys(OPEN).every(rel => !refused(rules, join(fixture, rel))), Object.keys(OPEN).filter(rel => refused(rules, join(fixture, rel))).join(', ') + ' | a Read rule refuses a file it should not; see checkReadPermissionForTool in src/utils/permissions/filesystem.ts')
+  check('the Read gate refuses each of the five files the rules name', REFUSED.every(rel => refused(rules, join(fixture, rel))), REFUSED.filter(rel => !refused(rules, join(fixture, rel))).join(', ') + ' | the deny rules come from .mercury/settings.json in the fixture; see checkReadPermissionForTool in src/permissions/rules/filesystem.ts')
+  check('…and none of the four they do not', Object.keys(OPEN).every(rel => !refused(rules, join(fixture, rel))), Object.keys(OPEN).filter(rel => refused(rules, join(fixture, rel))).join(', ') + ' | a Read rule refuses a file it should not; see checkReadPermissionForTool in src/permissions/rules/filesystem.ts')
 
   section('a crewmate\'s isolated copy, on an account that may not make a link')
   const crewmate = await make('agent-ac100001', { permission: rules })
   await crewmate.ready
-  check('the link was asked for and refused', refusals >= 2, String(refusals) + ' | the copy should ask for a link before it falls back to copying; see prepareWorktreeFiles in src/services/worktree.ts')
+  check('the link was asked for and refused', refusals >= 2, String(refusals) + ' | the copy should ask for a link before it falls back to copying; see prepareWorktreeFiles in src/platform/git/worktree/worktree.ts')
   await roadHolds('a crewmate\'s copy', crewmate.worktreePath, rules)
   check('the pack a rule names whole is left out, and the debug log names it', kindOf(join(crewmate.worktreePath, 'vendor', 'pack-secret')) === 'absent' && JSON.stringify(skippedFor('it stays behind')) === JSON.stringify(['vendor/pack-secret']), `${kindOf(join(crewmate.worktreePath, 'vendor', 'pack-secret'))} · ${logged.filter(line => line.includes('worktree copy')).join(' | ')} | ` + holdBackHint)
 
@@ -238,7 +238,7 @@ try {
     process.env.MERCURY_WORKTREE_CLONE = 'off'
     refuse = true
     const [byClone, byCopy] = [leftBehind(cloned.worktreePath), leftBehind(crewmate.worktreePath)]
-    check('the clone holds back the five refused files and the home\'s credential file, each a link or under one', JSON.stringify(byClone) === JSON.stringify([...REFUSED, OWN_CREDENTIALS].sort()), byClone.join(', ') + ' | change the clone road in src/services/worktree.ts so it holds back the files the Read rules name')
+    check('the clone holds back the five refused files and the home\'s credential file, each a link or under one', JSON.stringify(byClone) === JSON.stringify([...REFUSED, OWN_CREDENTIALS].sort()), byClone.join(', ') + ' | change the clone road in src/platform/git/worktree/worktree.ts so it holds back the files the Read rules name')
     check('the copy made where the link is refused leaves behind the same files as the clone, no more and no fewer', JSON.stringify(byCopy) === JSON.stringify(byClone), `clone: ${byClone.join(', ')} | copy: ${byCopy.join(', ')} | ` + holdBackHint)
   }
 
@@ -251,20 +251,20 @@ try {
     return tree
   }
   const blind = await lane('blind', 'unknown')
-  check('rules the command line gives and no session has read yet: nothing is copied, each folder is left out whole', FOLDERS.every(name => kindOf(join(blind, ...name.split('/'))) === 'absent'), FOLDERS.map(name => kindOf(join(blind, ...name.split('/')))).join(', ') + ' | prepareWorktreeFiles in src/services/worktree.ts must leave each folder out whole when the rules are unknown')
-  check('…and the debug log names each folder and that the rules could not be read', JSON.stringify(skippedFor('the Read rules could not be read')) === JSON.stringify(FOLDERS), logged.filter(line => line.includes('worktree copy')).join(' | ') + ' | the log line is written by prepareWorktreeFiles in src/services/worktree.ts')
+  check('rules the command line gives and no session has read yet: nothing is copied, each folder is left out whole', FOLDERS.every(name => kindOf(join(blind, ...name.split('/'))) === 'absent'), FOLDERS.map(name => kindOf(join(blind, ...name.split('/')))).join(', ') + ' | prepareWorktreeFiles in src/platform/git/worktree/worktree.ts must leave each folder out whole when the rules are unknown')
+  check('…and the debug log names each folder and that the rules could not be read', JSON.stringify(skippedFor('the Read rules could not be read')) === JSON.stringify(FOLDERS), logged.filter(line => line.includes('worktree copy')).join(' | ') + ' | the log line is written by prepareWorktreeFiles in src/platform/git/worktree/worktree.ts')
   const elsewhere = join(scratch, 'elsewhere')
   mkdirSync(elsewhere)
   enter(elsewhere)
   const worker = await lane('worker', undefined)
   enter(fixture)
-  check('a process that stands elsewhere, for a workspace whose own settings deny a read: nothing is copied either', FOLDERS.every(name => kindOf(join(worker, ...name.split('/'))) === 'absent'), FOLDERS.map(name => kindOf(join(worker, ...name.split('/')))).join(', ') + ' | prepareWorktreeFiles in src/services/worktree.ts must leave each folder out whole when the rules cannot be read')
-  check('…and the debug log says the same of each folder', JSON.stringify(skippedFor('the Read rules could not be read')) === JSON.stringify(FOLDERS), logged.filter(line => line.includes('worktree copy')).join(' | ') + ' | the log line is written by prepareWorktreeFiles in src/services/worktree.ts')
+  check('a process that stands elsewhere, for a workspace whose own settings deny a read: nothing is copied either', FOLDERS.every(name => kindOf(join(worker, ...name.split('/'))) === 'absent'), FOLDERS.map(name => kindOf(join(worker, ...name.split('/')))).join(', ') + ' | prepareWorktreeFiles in src/platform/git/worktree/worktree.ts must leave each folder out whole when the rules cannot be read')
+  check('…and the debug log says the same of each folder', JSON.stringify(skippedFor('the Read rules could not be read')) === JSON.stringify(FOLDERS), logged.filter(line => line.includes('worktree copy')).join(' | ') + ' | the log line is written by prepareWorktreeFiles in src/platform/git/worktree/worktree.ts')
 
   section('the checkout')
-  check('every file is where it was, the refused ones too', [...REFUSED, ...Object.keys(INSTRUCTIONS), OWN_CREDENTIALS, OWN_SESSION].every(rel => kindOf(join(fixture, rel)) === 'file') && Object.entries(OPEN).every(([rel, body]) => read(join(fixture, rel)) === body), 'the copy must never move or delete a file of the checkout; see prepareWorktreeFiles in src/services/worktree.ts')
+  check('every file is where it was, the refused ones too', [...REFUSED, ...Object.keys(INSTRUCTIONS), OWN_CREDENTIALS, OWN_SESSION].every(rel => kindOf(join(fixture, rel)) === 'file') && Object.entries(OPEN).every(([rel, body]) => read(join(fixture, rel)) === body), 'the copy must never move or delete a file of the checkout; see prepareWorktreeFiles in src/platform/git/worktree/worktree.ts')
   writeFileSync(join(crewmate.worktreePath, 'node_modules', 'open', 'index.js'), 'changed in the copy\n')
-  check('a write in the copy does not reach it', read(join(fixture, 'node_modules', 'open', 'index.js')) === OPEN['node_modules/open/index.js'], 'a file in the copy must not be a link to the checkout file; see prepareWorktreeFiles in src/services/worktree.ts')
+  check('a write in the copy does not reach it', read(join(fixture, 'node_modules', 'open', 'index.js')) === OPEN['node_modules/open/index.js'], 'a file in the copy must not be a link to the checkout file; see prepareWorktreeFiles in src/platform/git/worktree/worktree.ts')
 } finally {
   Object.defineProperty(process, 'platform', platform)
   process.chdir(ROOT)

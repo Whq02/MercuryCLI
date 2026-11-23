@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { railPlan } from '../../src/utils/helmGeometry.js'
+import { railPlan } from '../../src/screen/fullscreen-layout/helmGeometry.js'
 import { CONFIG_HOME, cleanupScenario, scenario } from './renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 

@@ -4,9 +4,9 @@ import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, childEnv, DIST, endLeg, FACE_READY, finish, netlines, nonLoopback, printFrame, productNode, requireCaptureDriver, ROOT, scratch, startLeg } from '../computer/computerDriveKit.ts'
 import { captureEngineEntry, vshotBudgetMs } from '../lib/captureDriver.ts'
-import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
-import { stringWidth } from '../../src/ink/stringWidth.ts'
-import { MODEL_PICKER_EXIT_WORDS } from '../../src/utils/model/modelPickerFooter.ts'
+import { keyHintLabel } from '../../src/screen/widgets/keyHintLabel.ts'
+import { stringWidth } from '../../src/screen/renderer/stringWidth.ts'
+import { MODEL_PICKER_EXIT_WORDS } from '../../src/models/facts/modelPickerFooter.ts'
 
 type Cell = { c: string; fg: string; bg: string; bold: boolean; rev: boolean }
 type Grid = Cell[][]

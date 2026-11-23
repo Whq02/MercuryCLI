@@ -1,15 +1,15 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
-import { MANAGER_MIN_COLS, REDUCED_NOTICE_ROWS, switchboardGeometry, resolveConcourseProfile } from '../../src/components/concourse/ConcourseLayout.js'
-import { RAIL_MAX_ROWS } from '../../src/components/concourse/NeedsYouRail.js'
-import { draftWindow } from '../../src/components/concourse/lineDraft.js'
+import { MANAGER_MIN_COLS, REDUCED_NOTICE_ROWS, switchboardGeometry, resolveConcourseProfile } from '../../src/screen/concourse/ConcourseLayout.js'
+import { RAIL_MAX_ROWS } from '../../src/screen/concourse/NeedsYouRail.js'
+import { draftWindow } from '../../src/screen/concourse/lineDraft.js'
 
 let failures = 0
 let checks = 0
 function fail(label: string, detail: string): void {
   failures += 1
-  const whereToChange = label.startsWith('draftWindow') ? 'change draftWindow in src/components/concourse/lineDraft.ts' : 'change switchboardGeometry in src/components/concourse/ConcourseLayout.tsx'
+  const whereToChange = label.startsWith('draftWindow') ? 'change draftWindow in src/screen/concourse/lineDraft.ts' : 'change switchboardGeometry in src/screen/concourse/ConcourseLayout.tsx'
   if (failures <= 25) console.log(`  ❌ ${label} — ${detail} · ${whereToChange}`)
 }
 

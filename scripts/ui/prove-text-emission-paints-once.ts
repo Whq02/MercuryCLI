@@ -16,13 +16,13 @@ process.env.MERCURY_FORCE_SYNC_OUTPUT = '1'
 process.env.FORCE_COLOR = '3'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { streamRenderedMessages } = await import('../../src/components/exportRenderer.tsx')
-const { NO_RESPONSE_REQUESTED, INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/services/messages.ts')
-const { startsWithApiErrorPrefix } = await import('../../src/services/api/errors.ts')
-const { listingsOfSessionFile } = await import('../../src/utils/sessionStorage/logs.ts')
+const { streamRenderedMessages } = await import('../../src/screen/chat/exportRenderer.tsx')
+const { NO_RESPONSE_REQUESTED, INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/engine/messages/messages.ts')
+const { startsWithApiErrorPrefix } = await import('../../src/engine/requests/apiErrorRows.ts')
+const { listingsOfSessionFile } = await import('../../src/sessions/transcripts/sessionListings.ts')
 
 let failures = 0
-const paintsOnceHint = 'change how the transcript painter streamRenderedMessages in src/components/exportRenderer.tsx renders assistant text blocks so each paints once, and a commentary note keeps its own ink on its own row'
+const paintsOnceHint = 'change how the transcript painter streamRenderedMessages in src/screen/chat/exportRenderer.tsx renders assistant text blocks so each paints once, and a commentary note keeps its own ink on its own row'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail + '; ' : ''}${paintsOnceHint}` : ''}`)
   if (!ok) failures++

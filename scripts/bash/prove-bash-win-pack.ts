@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { BASH_PACK_MANIFEST_FILE, BASH_PACK_PATH, bashPackIsFetched, bashPackTreeDigest, checkBashPackDir, readBashPackManifest } from '../../src/utils/shell/bashPack.ts'
+import { BASH_PACK_MANIFEST_FILE, BASH_PACK_PATH, bashPackIsFetched, bashPackTreeDigest, checkBashPackDir, readBashPackManifest } from '../../src/platform/shell/bashPack.ts'
 import { BashWinPackRefused, bashVersionInside, bashWinPackFault, bashWinPlatforms, bunzip2, layBashWinPack, memberOfBzip2Tar, pinnedBashWinFiles, pinnedFileFault, readBashWinLock, readPe } from '../vendor/lay-bash-win-pack.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')

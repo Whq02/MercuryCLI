@@ -4,12 +4,12 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const modelIdsWhere: Record<string, string> = {
-  '1': 'change ENGINE_DISPATCH_MODELS, isExactEngineModelId and unrecognisedModelWordRefusal in src/services/crew/engineDispatch.ts',
-  '2': 'change resolveEngineDispatch in src/services/crew/engineDispatch.ts or the live catalogue in src/services/providers/openai/openaiCatalogue.ts',
-  '3': 'change DEPRECATED_GPT_IDS in src/services/providers/openai/openaiAdapter.ts or its refusal in resolveEngineDispatch (src/services/crew/engineDispatch.ts)',
-  '4': 'change the display-pin fallback (GPT_DISPLAY_PINS) in src/services/providers/openai/openaiCatalogue.ts or resolveEngineDispatch in src/services/crew/engineDispatch.ts',
-  '5': 'change resolveEngineDispatch in src/services/crew/engineDispatch.ts',
-  '6': 'change resolveEngineDispatch in src/services/crew/engineDispatch.ts or parseUserSpecifiedModel in src/services/model/model.ts',
+  '1': 'change ENGINE_DISPATCH_MODELS, isExactEngineModelId and unrecognisedModelWordRefusal in src/crew/crewmates/engineDispatch.ts',
+  '2': 'change resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts or the live catalogue in src/models/roads/openai/openaiCatalogue.ts',
+  '3': 'change DEPRECATED_GPT_IDS in src/models/roads/openai/openaiAdapter.ts or its refusal in resolveEngineDispatch (src/crew/crewmates/engineDispatch.ts)',
+  '4': 'change the display-pin fallback (GPT_DISPLAY_PINS) in src/models/roads/openai/openaiCatalogue.ts or resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts',
+  '5': 'change resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts',
+  '6': 'change resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts or parseUserSpecifiedModel in src/models/catalogue/engineModel.ts',
 }
 let modelIdsHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -60,14 +60,14 @@ process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:1'
 
 const { ENGINE_DISPATCH_MODELS, isExactEngineModelId, resolveEngineDispatch, unrecognisedModelWordRefusal } = await import(
-  '../../src/services/crew/engineDispatch.js'
+  '../../src/crew/crewmates/engineDispatch.js'
 )
-const { DEPRECATED_GPT_IDS } = await import('../../src/services/providers/openai/openaiAdapter.js')
+const { DEPRECATED_GPT_IDS } = await import('../../src/models/roads/openai/openaiAdapter.js')
 const { __resetProviderDiscoveryForTest, refreshProviderDiscovery } = await import(
-  '../../src/services/providers/providerDiscovery.js'
+  '../../src/models/roads/providerDiscovery.js'
 )
 const { __resetOpenaiCatalogueForTest, refreshOpenaiCatalogue, GPT_DISPLAY_PINS } = await import(
-  '../../src/services/providers/openai/openaiCatalogue.js'
+  '../../src/models/roads/openai/openaiCatalogue.js'
 )
 
 const LIVE_WIRE = {
@@ -244,7 +244,7 @@ section('6 · the class aliases law')
     "'glm' ⇒ the zai catalogue FLAGSHIP pin (glm-5.3)",
     glm?.backend === 'zai' && glm.model === 'glm-5.3',
   )
-  const { parseUserSpecifiedModel } = await import('../../src/services/model/model.js')
+  const { parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.js')
   check("'glm' ⇒ the same row the session road resolves for the word", glm?.model === parseUserSpecifiedModel('glm'), `${glm?.model} vs ${parseUserSpecifiedModel('glm')}`)
   for (const [word, provider] of [['kimi', 'moonshot'], ['deepseek', 'deepseek'], ['grok', 'xai']] as const) {
     const keyless = await refusal(() => resolveEngineDispatch(word))

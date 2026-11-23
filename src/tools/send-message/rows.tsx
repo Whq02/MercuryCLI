@@ -1,0 +1,37 @@
+import * as React from 'react'
+
+import { MessageResponse } from '../kit/MessageResponse.js'
+import { Text } from '../../screen/themedRenderer.js'
+import type { Input, SendMessageToolOutput } from './SendMessageTool.js'
+
+
+export function renderToolUseMessage(_input?: Partial<Input>): React.ReactNode {
+  return null
+}
+
+export function renderToolResultMessage(
+  content: SendMessageToolOutput | string,
+  _progressMessages: unknown,
+  _options: { verbose: boolean },
+): React.ReactNode {
+  let output: SendMessageToolOutput | undefined
+  if (typeof content === 'string') {
+    try {
+      output = JSON.parse(content) as SendMessageToolOutput
+    } catch {
+      return (
+        <MessageResponse>
+          <Text dimColor>{content}</Text>
+        </MessageResponse>
+      )
+    }
+  } else {
+    output = content
+  }
+  if (!output) return null
+  return (
+    <MessageResponse>
+      <Text dimColor>{output.message}</Text>
+    </MessageResponse>
+  )
+}

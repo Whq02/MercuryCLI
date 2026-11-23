@@ -89,11 +89,11 @@ console.log('============================================================')
 console.log(' watchdog timer economy — creations independent of events')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 
 async function drive(deltas: number): Promise<{ events: number; watchdog: number; total: number }> {
   deltasToServe = deltas
@@ -128,24 +128,24 @@ section('two drives — the watchdog timer count must not scale with events')
 {
   const small = await drive(5)
   const large = await drive(405)
-  check('the small drive consumed its stream', small.events >= 5, `events=${small.events} — the routed call produced too few stream_event items; check routedCallModel in src/services/providers/callModelRouter.ts`)
-  check('the large drive consumed ~400 more events', large.events - small.events >= 380, `small=${small.events} large=${large.events} — the large drive should serve 400 more deltas; check routedCallModel in src/services/providers/callModelRouter.ts`)
+  check('the small drive consumed its stream', small.events >= 5, `events=${small.events} — the routed call produced too few stream_event items; check routedCallModel in src/models/roads/callModelRouter.ts`)
+  check('the large drive consumed ~400 more events', large.events - small.events >= 380, `small=${small.events} large=${large.events} — the large drive should serve 400 more deltas; check routedCallModel in src/models/roads/callModelRouter.ts`)
   const slopeDetail = `watchdog creates: small=${small.watchdog} large=${large.watchdog}; total setTimeout creates: small=${small.total} large=${large.total}`
   console.log(`  · ${slopeDetail}`)
   check(
     'watchdog timer creations are event-count independent (delta ≤ 2 across +400 events; the old shape added 2 per event ⇒ ~800)',
     large.watchdog - small.watchdog <= 2,
-    `${slopeDetail} — noteActivity must not create a timer per event; keep one timer and re-arm it from onStreamIdleDeadline in src/services/providers/streamIdleBudget.ts`,
+    `${slopeDetail} — noteActivity must not create a timer per event; keep one timer and re-arm it from onStreamIdleDeadline in src/models/roads/streamIdleBudget.ts`,
   )
   check(
     'the watchdog armed at all (attribution is live, not vacuous)',
     small.watchdog >= 1 && large.watchdog >= 1,
-    `${slopeDetail} — no timer named onStreamIdleDeadline was created; the counter matches that function name in src/services/providers/streamIdleBudget.ts, so keep the name or update this proof`,
+    `${slopeDetail} — no timer named onStreamIdleDeadline was created; the counter matches that function name in src/models/roads/streamIdleBudget.ts, so keep the name or update this proof`,
   )
   check(
     'whole-process timer creations do not scale per event either (delta < 100 across +400 events)',
     large.total - small.total < 100,
-    `${slopeDetail} — something on the stream path creates a setTimeout per event; find it among the stream readers under src/services/providers`,
+    `${slopeDetail} — something on the stream path creates a setTimeout per event; find it among the stream readers under src/models/roads`,
   )
 }
 

@@ -48,7 +48,7 @@ const ids = ['anthropic', 'openai', 'gemini', 'moonshot', 'huggingface', 'deepse
 const spend = { inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }
 const families = () => ids.map(id => ({ id, available: false, credentialed: false, credentialLabel: `${id} fixture key` }))
 const owner = (id: string) => ({ provider: id, sourceKind: 'none', windows: [], figures: [], absence: undefined })
-await stub('../../src/services/providers/providerUsage.js', () => ({
+await stub('../../src/models/roads/providerUsage.js', () => ({
   providerFamilyPresences: families,
   providerSessionSpend: () => spend,
   providerUsageView: () => ({ entries: [], activeEntry: undefined, sessionSpend: spend, limits: { kind: 'none' } }),
@@ -59,38 +59,38 @@ await stub('../../src/services/providers/providerUsage.js', () => ({
   anthropicPoolWindowViews: () => [],
   openaiObservedWindowViews: () => [],
 }))
-await stub('../../src/utils/auth.js', () => ({ isClaudeAISubscriber: () => false }))
-await stub('../../src/services/model/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))
-await stub('../../src/services/wallet/wallet.js', () => ({ walletEntries: () => [], activeWalletEntry: () => undefined }))
-await stub('../../src/services/providers/usageFreshness.js', () => ({ usageSourceWords: () => 'endpoint-fed · read 0 s ago' }))
-await stub('../../src/services/providers/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
-await stub('../../src/services/providers/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
-await stub('../../src/services/providers/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
-await stub('../../src/services/providers/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined }))
-await stub('../../src/services/providers/local/localAccounts.js', () => ({ resolveLocalAccount: () => undefined }))
-await stub('../../src/cost-tracker.js', () => ({ formatLaneSpend: () => '$0.00' }))
+await stub('../../src/models/sign-in/credentials/auth.js', () => ({ isClaudeAISubscriber: () => false }))
+await stub('../../src/models/catalogue/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))
+await stub('../../src/models/wallet/wallet.js', () => ({ walletEntries: () => [], activeWalletEntry: () => undefined }))
+await stub('../../src/models/roads/usageFreshness.js', () => ({ usageSourceWords: () => 'endpoint-fed · read 0 s ago' }))
+await stub('../../src/models/roads/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
+await stub('../../src/models/roads/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
+await stub('../../src/models/roads/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
+await stub('../../src/models/roads/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined }))
+await stub('../../src/models/roads/local/localAccounts.js', () => ({ resolveLocalAccount: () => undefined }))
+await stub('../../src/models/usage/sessionCost.js', () => ({ formatLaneSpend: () => '$0.00' }))
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const crash = await import('../../src/utils/crashReport.js')
-const setting = await import('../../src/services/jev/jevSetting.js')
-const keyOwner = await import('../../src/services/jev/jevKey.js')
-const contract = await import('../../src/services/jev/jevContract.js')
-const reader = await import('../../src/services/jev/jevSessionFacts.js')
-const slot = await import('../../src/services/engine-connector/focusedConnector.js')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const { CREDITS_UNREPORTED_WORDS } = await import('../../src/services/providers/providerUsage.js')
-const usage = await import('../../src/components/Settings/Usage.js')
+const crash = await import('../../src/platform/logs/crashReport.js')
+const setting = await import('../../src/models/jev/jevSetting.js')
+const keyOwner = await import('../../src/models/jev/jevKey.js')
+const contract = await import('../../src/models/jev/jevContract.js')
+const reader = await import('../../src/models/jev/jevSessionFacts.js')
+const slot = await import('../../src/engine/connector/focusedConnector.js')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+const { CREDITS_UNREPORTED_WORDS } = await import('../../src/models/roads/providerUsage.js')
+const usage = await import('../../src/screen/settings/Usage.js')
 const { call: usageCall } = await import('../../src/commands/usage/usage.js')
-const jevBody = await import('../../src/components/Settings/Jev.js')
+const jevBody = await import('../../src/screen/settings/Jev.js')
 const { call: jevCall, jevPopupRequest } = await import('../../src/commands/jev/jev.js')
 
 const ZERO_USAGE = {
@@ -172,11 +172,11 @@ const decode = (row: unknown): unknown => (typeof reader.jevFactsOfRow === 'func
 section('§0 the decoder is total: both spellings decode, everything else reads as not reported')
 {
   check('the crashes dir is the scratch home\'s (hermetic) and empty going in', crashesDir.includes('jev-facts-total') && crashFiles().length === 0, `${crashesDir} · ${crashFiles().join(',')}`, 'the proof home must be the scratch home from pinScratchHome and hold no crash report before the legs run; a leftover crash file means an earlier leg threw')
-  check('a fresh home: switch off, no key', setting.jevEnabled() === false && keyOwner.jevKeyPresence().present === false, '', 'a fresh home must read jevEnabled false in src/services/jev/jevSetting.ts and no key in src/services/jev/jevKey.ts')
-  check('the reader exports the one total decoder', typeof reader.jevFactsOfRow === 'function', '', 'export jevFactsOfRow from src/services/jev/jevSessionFacts.ts')
-  check("an older daemon's wire-spelled row decodes to the internal spelling", j(decode(wireRow)) === j(internalRow), j(decode(wireRow)), 'change jevFactsOfRow in src/services/jev/jevSessionFacts.ts to decode the snake_case wire row into the camelCase facts')
-  check('the internal spelling decodes to itself', j(decode(internalRow)) === j(internalRow), '', 'jevFactsOfRow in src/services/jev/jevSessionFacts.ts must accept the camelCase row unchanged')
-  check('a row with a null last answer and no model decodes', j(decode({ ...wireRow, last_answered_at_ms: null, last_model: null })) === j({ ...internalRow, lastAnsweredAtMs: null, lastModel: null }), '', 'jevFactsOfRow in src/services/jev/jevSessionFacts.ts must accept a null last answer and a null model')
+  check('a fresh home: switch off, no key', setting.jevEnabled() === false && keyOwner.jevKeyPresence().present === false, '', 'a fresh home must read jevEnabled false in src/models/jev/jevSetting.ts and no key in src/models/jev/jevKey.ts')
+  check('the reader exports the one total decoder', typeof reader.jevFactsOfRow === 'function', '', 'export jevFactsOfRow from src/models/jev/jevSessionFacts.ts')
+  check("an older daemon's wire-spelled row decodes to the internal spelling", j(decode(wireRow)) === j(internalRow), j(decode(wireRow)), 'change jevFactsOfRow in src/models/jev/jevSessionFacts.ts to decode the snake_case wire row into the camelCase facts')
+  check('the internal spelling decodes to itself', j(decode(internalRow)) === j(internalRow), '', 'jevFactsOfRow in src/models/jev/jevSessionFacts.ts must accept the camelCase row unchanged')
+  check('a row with a null last answer and no model decodes', j(decode({ ...wireRow, last_answered_at_ms: null, last_model: null })) === j({ ...internalRow, lastAnsweredAtMs: null, lastModel: null }), '', 'jevFactsOfRow in src/models/jev/jevSessionFacts.ts must accept a null last answer and a null model')
   const refused: Array<[string, unknown]> = [
     ['absent', undefined],
     ['null', null],
@@ -195,8 +195,8 @@ section('§0 the decoder is total: both spellings decode, everything else reads 
     ["status.kind 'toString' (a prototype key is not a kind)", { ...internalRow, status: { kind: 'toString', words: 'x' } }],
     ['status.words a number', { ...internalRow, status: { kind: 'ready', words: 1 } }],
   ]
-  for (const [name, row] of refused) check(`${name} reads as not reported`, decode(row) === undefined, j(decode(row)), 'jevFactsOfRow in src/services/jev/jevSessionFacts.ts must return undefined for this malformed row instead of decoding or throwing')
-  check('every status kind the headwords name is accepted', contract.JEV_STATUS_KINDS.every(kind => (decode({ ...internalRow, status: { kind, words: 'w' } }) as { status?: { kind?: string } } | undefined)?.status?.kind === kind), '', 'jevFactsOfRow in src/services/jev/jevSessionFacts.ts must accept every kind in JEV_STATUS_KINDS from src/services/jev/jevContract.ts')
+  for (const [name, row] of refused) check(`${name} reads as not reported`, decode(row) === undefined, j(decode(row)), 'jevFactsOfRow in src/models/jev/jevSessionFacts.ts must return undefined for this malformed row instead of decoding or throwing')
+  check('every status kind the headwords name is accepted', contract.JEV_STATUS_KINDS.every(kind => (decode({ ...internalRow, status: { kind, words: 'w' } }) as { status?: { kind?: string } } | undefined)?.status?.kind === kind), '', 'jevFactsOfRow in src/models/jev/jevSessionFacts.ts must accept every kind in JEV_STATUS_KINDS from src/models/jev/jevContract.ts')
 }
 
 type Case = { name: string; jev: unknown; reported: boolean }
@@ -219,49 +219,49 @@ for (const c of cases) {
   section(`§${n} usage().jev is ${c.name}`)
   slot.setFocusedSessionConnector(stubConnector(c.jev))
   const session = reader.jevSessionFacts()
-  check(`the reader answers ${c.reported ? 'reported' : 'unknown'}`, slot.hasFocusedSession() && session.state === (c.reported ? 'reported' : 'unknown'), j(session), 'change jevSessionFacts in src/services/jev/jevSessionFacts.ts so this usage().jev value reads as the expected state')
+  check(`the reader answers ${c.reported ? 'reported' : 'unknown'}`, slot.hasFocusedSession() && session.state === (c.reported ? 'reported' : 'unknown'), j(session), 'change jevSessionFacts in src/models/jev/jevSessionFacts.ts so this usage().jev value reads as the expected state')
   const row = safe(() => usage.jevUsageRow())
-  check(c.reported ? 'the /usage row carries the figures decoded from spend_usd ($0.42, 3 calls, 1 unconfirmed) and the runner\'s headword' : 'the /usage row carries the not-reported words, the shared allowance and the shared headword', row === (c.reported ? reportedUsageRow : absentUsageRow), row, 'change the Jev row in src/components/Settings/Usage.tsx; a THROW in the printed row means it threw on this usage value')
+  check(c.reported ? 'the /usage row carries the figures decoded from spend_usd ($0.42, 3 calls, 1 unconfirmed) and the runner\'s headword' : 'the /usage row carries the not-reported words, the shared allowance and the shared headword', row === (c.reported ? reportedUsageRow : absentUsageRow), row, 'change the Jev row in src/screen/settings/Usage.tsx; a THROW in the printed row means it threw on this usage value')
   const line = safe(() => jevBody.jevPopupLine())
-  check(c.reported ? 'the /jev summary line reads the decoded spend against the allowance' : 'the /jev summary line reads the short absence words', line === (c.reported ? reportedPopupLine : absentPopupLine), line, 'change jevPopupLine in src/components/Settings/Jev.tsx; a THROW in the printed line means it threw on this usage value')
+  check(c.reported ? 'the /jev summary line reads the decoded spend against the allowance' : 'the /jev summary line reads the short absence words', line === (c.reported ? reportedPopupLine : absentPopupLine), line, 'change jevPopupLine in src/screen/settings/Jev.tsx; a THROW in the printed line means it threw on this usage value')
   const jev = await paintJev()
-  check('the /jev popup paints without a throw', jev.ok, jev.ok ? '' : jev.error, 'the /jev popup in src/components/Settings/Jev.tsx threw or never showed its title; read the error printed here')
+  check('the /jev popup paints without a throw', jev.ok, jev.ok ? '' : jev.error, 'the /jev popup in src/screen/settings/Jev.tsx threw or never showed its title; read the error printed here')
   if (jev.ok) {
-    check('the popup title and the summary line are on the frame, and no boundary fallback', has(jev.lines, 'Mercury · jev') && has(jev.lines, line) && !has(jev.lines, FALLBACK) && !has(jev.lines, 'RENDER ERROR'), jev.lines.filter(l => l.includes('JEV') || l.includes(FALLBACK)).join(' | '), 'the /jev popup body in src/components/Settings/Jev.tsx threw while painting, or its summary line is missing from the frame')
-    check(c.reported ? 'the Spend row carries the decoded count' : 'the Spend row carries the full not-reported words', c.reported ? /spend so far: \$0\.42 · 3 calls · 1 unconfirmed/.test(spendRow(jev.lines)) : spendRow(jev.lines).includes(reader.JEV_SPEND_UNREPORTED_WORDS), spendRow(jev.lines), 'change the Spend row in src/components/Settings/Jev.tsx to read the session facts from src/services/jev/jevSessionFacts.ts')
+    check('the popup title and the summary line are on the frame, and no boundary fallback', has(jev.lines, 'Mercury · jev') && has(jev.lines, line) && !has(jev.lines, FALLBACK) && !has(jev.lines, 'RENDER ERROR'), jev.lines.filter(l => l.includes('JEV') || l.includes(FALLBACK)).join(' | '), 'the /jev popup body in src/screen/settings/Jev.tsx threw while painting, or its summary line is missing from the frame')
+    check(c.reported ? 'the Spend row carries the decoded count' : 'the Spend row carries the full not-reported words', c.reported ? /spend so far: \$0\.42 · 3 calls · 1 unconfirmed/.test(spendRow(jev.lines)) : spendRow(jev.lines).includes(reader.JEV_SPEND_UNREPORTED_WORDS), spendRow(jev.lines), 'change the Spend row in src/screen/settings/Jev.tsx to read the session facts from src/models/jev/jevSessionFacts.ts')
     check(c.reported ? "the status line is the runner's words" : 'the status line is the shared reading (off)', c.reported ? has(jev.lines, 'JEV allowance hit') : has(jev.lines, 'JEV off'), jev.lines.filter(l => l.includes('JEV ')).join(' | '))
     await closePopup(jev.m)
   }
   const use = await paintUsage()
-  check('the /usage popup paints without a throw', use.ok, use.ok ? '' : use.error, 'the /usage popup in src/components/Settings/Usage.tsx threw or never showed its title; read the error printed here')
+  check('the /usage popup paints without a throw', use.ok, use.ok ? '' : use.error, 'the /usage popup in src/screen/settings/Usage.tsx threw or never showed its title; read the error printed here')
   if (use.ok) {
-    check(c.reported ? 'the usage title is on the frame and the Jev row (calls on the count) is painted verbatim, no boundary fallback' : 'the usage title is on the frame and no Jev row paints for a home with no key and nothing counted, no boundary fallback', has(use.lines, 'Mercury · usage') && usageRowOf(use.lines) === (c.reported ? row : '') && !has(use.lines, FALLBACK) && !has(use.lines, 'RENDER ERROR'), usageRowOf(use.lines), 'the Jev row in src/components/Settings/Usage.tsx must paint exactly as jevUsageRow reads, and not at all with no key and nothing counted')
+    check(c.reported ? 'the usage title is on the frame and the Jev row (calls on the count) is painted verbatim, no boundary fallback' : 'the usage title is on the frame and no Jev row paints for a home with no key and nothing counted, no boundary fallback', has(use.lines, 'Mercury · usage') && usageRowOf(use.lines) === (c.reported ? row : '') && !has(use.lines, FALLBACK) && !has(use.lines, 'RENDER ERROR'), usageRowOf(use.lines), 'the Jev row in src/screen/settings/Usage.tsx must paint exactly as jevUsageRow reads, and not at all with no key and nothing counted')
     await closePopup(use.m)
   }
-  check('no crash report landed', crashFiles().length === 0, crashFiles().join(','), 'a popup surface threw and the boundary in src/components/SettingsPopupSlot.tsx filed a crash report; read the file under the crashes dir')
+  check('no crash report landed', crashFiles().length === 0, crashFiles().join(','), 'a popup surface threw and the boundary in src/screen/overlays/SettingsPopupSlot.tsx filed a crash report; read the file under the crashes dir')
 }
 
 section(`§${n + 1} no session in the slot`)
 {
   slot.releaseFocusedSessionConnector()
-  check('the reader answers no-session', !slot.hasFocusedSession() && reader.jevSessionFacts().state === 'no-session', '', 'jevSessionFacts in src/services/jev/jevSessionFacts.ts must read no-session once the focused connector is released')
+  check('the reader answers no-session', !slot.hasFocusedSession() && reader.jevSessionFacts().state === 'no-session', '', 'jevSessionFacts in src/models/jev/jevSessionFacts.ts must read no-session once the focused connector is released')
   const row = safe(() => usage.jevUsageRow())
-  check('the /usage row reads no chat open beside the shared parts', row === `${usage.JEV_USAGE_LABEL} · second-opinion evaluator · ${reader.JEV_NO_SESSION_WORDS} · allowance $20.00 · off · credits: ${CREDITS_UNREPORTED_WORDS}`, row, 'change the Jev row in src/components/Settings/Usage.tsx to read no chat open when there is no session')
+  check('the /usage row reads no chat open beside the shared parts', row === `${usage.JEV_USAGE_LABEL} · second-opinion evaluator · ${reader.JEV_NO_SESSION_WORDS} · allowance $20.00 · off · credits: ${CREDITS_UNREPORTED_WORDS}`, row, 'change the Jev row in src/screen/settings/Usage.tsx to read no chat open when there is no session')
   const line = safe(() => jevBody.jevPopupLine())
-  check('the /jev summary line reads no chat', line === `off · official · no key · ${reader.JEV_NO_SESSION_SHORT_WORDS} · cap $20.00 · off`, line, 'change jevPopupLine in src/components/Settings/Jev.tsx to read no chat when there is no session')
+  check('the /jev summary line reads no chat', line === `off · official · no key · ${reader.JEV_NO_SESSION_SHORT_WORDS} · cap $20.00 · off`, line, 'change jevPopupLine in src/screen/settings/Jev.tsx to read no chat when there is no session')
   const jev = await paintJev()
-  check('the /jev popup paints without a throw', jev.ok, jev.ok ? '' : jev.error, 'the /jev popup in src/components/Settings/Jev.tsx threw or never showed its title; read the error printed here')
+  check('the /jev popup paints without a throw', jev.ok, jev.ok ? '' : jev.error, 'the /jev popup in src/screen/settings/Jev.tsx threw or never showed its title; read the error printed here')
   if (jev.ok) {
     check('the Spend row reads no chat open and no fallback paints', spendRow(jev.lines).includes(reader.JEV_NO_SESSION_WORDS) && has(jev.lines, line) && !has(jev.lines, FALLBACK), spendRow(jev.lines))
     await closePopup(jev.m)
   }
   const use = await paintUsage()
-  check('the /usage popup paints without a throw', use.ok, use.ok ? '' : use.error, 'the /usage popup in src/components/Settings/Usage.tsx threw or never showed its title; read the error printed here')
+  check('the /usage popup paints without a throw', use.ok, use.ok ? '' : use.error, 'the /usage popup in src/screen/settings/Usage.tsx threw or never showed its title; read the error printed here')
   if (use.ok) {
     check('no chat and no key: no Jev row paints, no fallback', usageRowOf(use.lines) === '' && !has(use.lines, FALLBACK), usageRowOf(use.lines))
     await closePopup(use.m)
   }
-  check('no crash report landed', crashFiles().length === 0, crashFiles().join(','), 'a popup surface threw and the boundary in src/components/SettingsPopupSlot.tsx filed a crash report; read the file under the crashes dir')
+  check('no crash report landed', crashFiles().length === 0, crashFiles().join(','), 'a popup surface threw and the boundary in src/screen/overlays/SettingsPopupSlot.tsx filed a crash report; read the file under the crashes dir')
 }
 
 section(`§${n + 2} a throw inside a popup surface never reaches the app root: the slot's boundary paints one quiet line and files a settings-popup report`)
@@ -281,12 +281,12 @@ section(`§${n + 2} a throw inside a popup surface never reaches the app root: t
   }, FALLBACK)
   check('the mount survives the surface throw', painted.ok, painted.ok ? '' : painted.error)
   if (painted.ok) {
-    check('the boundary\'s one quiet line paints where the popup stands, no raw render error', has(painted.lines, FALLBACK) && !has(painted.lines, 'RENDER ERROR') && !has(painted.lines, 'MERCURY_JEV_FIXTURE_FAULT'), painted.lines.filter(l => l.trim() !== '').slice(0, 6).join(' | '), 'the popup boundary in src/components/SettingsPopupSlot.tsx must paint one quiet fallback line for a throwing surface, not the raw render error')
+    check('the boundary\'s one quiet line paints where the popup stands, no raw render error', has(painted.lines, FALLBACK) && !has(painted.lines, 'RENDER ERROR') && !has(painted.lines, 'MERCURY_JEV_FIXTURE_FAULT'), painted.lines.filter(l => l.trim() !== '').slice(0, 6).join(' | '), 'the popup boundary in src/screen/overlays/SettingsPopupSlot.tsx must paint one quiet fallback line for a throwing surface, not the raw render error')
     await closePopup(painted.m)
   }
   const reports = crashFiles()
-  check('exactly one crash report landed, with the settings-popup origin and the fault named', reports.length === 1 && reports[0]!.includes('-settings-popup.json') && (JSON.parse(readFileSync(join(crashesDir, reports[0]!), 'utf8')) as { origin?: string; message?: string }).origin === 'settings-popup' && (JSON.parse(readFileSync(join(crashesDir, reports[0]!), 'utf8')) as { message?: string }).message === 'MERCURY_JEV_FIXTURE_FAULT', reports.join(','), 'the popup boundary in src/components/SettingsPopupSlot.tsx must file exactly one crash report with origin settings-popup and the thrown message')
-  check('no app-root report landed', !reports.some(name => name.includes('-app-root.json')), reports.join(','), 'a popup throw reached the app root; the boundary in src/components/SettingsPopupSlot.tsx must catch it')
+  check('exactly one crash report landed, with the settings-popup origin and the fault named', reports.length === 1 && reports[0]!.includes('-settings-popup.json') && (JSON.parse(readFileSync(join(crashesDir, reports[0]!), 'utf8')) as { origin?: string; message?: string }).origin === 'settings-popup' && (JSON.parse(readFileSync(join(crashesDir, reports[0]!), 'utf8')) as { message?: string }).message === 'MERCURY_JEV_FIXTURE_FAULT', reports.join(','), 'the popup boundary in src/screen/overlays/SettingsPopupSlot.tsx must file exactly one crash report with origin settings-popup and the thrown message')
+  check('no app-root report landed', !reports.some(name => name.includes('-app-root.json')), reports.join(','), 'a popup throw reached the app root; the boundary in src/screen/overlays/SettingsPopupSlot.tsx must catch it')
 }
 
 

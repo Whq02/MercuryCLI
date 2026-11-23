@@ -1,0 +1,246 @@
+
+import { readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
+import { isENOENT } from '../../platform/errors/errors.js'
+import { bufferTokens, readBuffer, readConsumingRows } from './mnemeBuffer.js'
+import {
+  CONSOLIDATE_AGE_MS,
+  CONSOLIDATE_TOKENS,
+  PINNED_ROW_WAITS,
+  acquireConsolidateLock,
+  listTopicDocs,
+  maybeConsolidate,
+  pinnedRowWaits,
+  readLibraryMeta,
+  releaseConsolidateLock,
+  pidAlive as pidAliveSafe,
+} from './mnemeConsolidate.js'
+import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
+import { publishLibraryFile } from './mnemeLibrary.js'
+import { clearMnemeUnread, recordMnemeUnread } from './mnemeUnread.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+import { startTimeout } from '../../platform/async/timers.js'
+
+type MnemeMaintenanceTrigger = 'boot' | 'turn-end' | 'retain' | 'operator'
+
+interface MnemeStatus {
+  enabled: boolean
+  buffered: number
+  pendingConsuming: number
+  topicCount: number
+  entryCount: number
+  historyCount: number
+  lastConsolidatedAt: string | null
+  due: boolean
+  dueReason: string | null
+  running: boolean
+  degraded: string[]
+}
+
+interface MnemeMaintenanceOutcome {
+  ran: boolean
+  trigger: MnemeMaintenanceTrigger
+  reason: string
+  consolidated?: boolean
+  entries?: number
+  docsTouched?: string[]
+  wallMs?: number
+}
+
+
+interface LockView {
+  present: boolean
+  holderAlive: boolean | null
+  ageMs: number
+}
+
+function lockView(dir: string): LockView {
+  const lock = join(dir, '.consolidate.lock')
+  try {
+    const st = statSync(lock)
+    let holderAlive: boolean | null = null
+    try {
+      const pid = Number(readFileSync(join(lock, 'pid'), 'utf8').trim())
+      if (Number.isInteger(pid) && pid > 0) holderAlive = pidAliveSafe(pid)
+    } catch (error) {
+      passedOver(error)
+    }
+    return { present: true, holderAlive, ageMs: Date.now() - st.mtimeMs }
+  } catch {
+    return { present: false, holderAlive: null, ageMs: 0 }
+  }
+}
+
+export function dueForMaintenance(
+  dir: string = mnemeLibraryDir(),
+  now: Date = new Date(),
+): { due: boolean; reason: string | null } {
+  if (!mnemeEnabled()) return { due: false, reason: null }
+  const consuming = readConsumingRows(dir)
+  if (consuming.length > 0) return { due: true, reason: `${consuming.length} row(s) stranded mid-consolidation` }
+  const lock = lockView(dir)
+  if (lock.present && lock.holderAlive === false) return { due: true, reason: 'stale lock held by a dead process' }
+  const rows = readBuffer(dir)
+  if (rows.length === 0) return { due: false, reason: null }
+  if (pinnedRowWaits(rows)) return { due: true, reason: PINNED_ROW_WAITS }
+  if (bufferTokens(dir) >= CONSOLIDATE_TOKENS) return { due: true, reason: 'buffer over the size threshold' }
+  const oldest = Date.parse(rows[0]!.ts)
+  if (Number.isFinite(oldest) && now.getTime() - oldest >= CONSOLIDATE_AGE_MS) {
+    return { due: true, reason: 'oldest buffered observation over the age threshold' }
+  }
+  return { due: false, reason: null }
+}
+
+export function mnemeStatus(dir: string = mnemeLibraryDir()): MnemeStatus {
+  if (!mnemeEnabled()) {
+    return { enabled: false, buffered: 0, pendingConsuming: 0, topicCount: 0, entryCount: 0, historyCount: 0, lastConsolidatedAt: null, due: false, dueReason: null, running: false, degraded: [] }
+  }
+  const degraded: string[] = []
+  const buffered = readBuffer(dir).length
+  const pendingConsuming = readConsumingRows(dir).length
+  const docs = listTopicDocs(dir)
+  let entryCount = 0
+  let historyCount = 0
+  for (const d of docs) {
+    for (const s of d.sections) entryCount += s.entries.length
+    historyCount += d.history.length
+  }
+  const lock = lockView(dir)
+  const running = lock.present && lock.holderAlive !== false
+  if (lock.present && lock.holderAlive === false) degraded.push('consolidation lock held by a dead process (auto-reaped at the next maintenance pass)')
+  if (pendingConsuming > 0 && !running) degraded.push(`${pendingConsuming} observation(s) stranded mid-consolidation`)
+  const { due, reason } = dueForMaintenance(dir)
+  return {
+    enabled: true,
+    buffered,
+    pendingConsuming,
+    topicCount: docs.length,
+    entryCount,
+    historyCount,
+    lastConsolidatedAt: readLibraryMeta(dir).lastConsolidatedAt,
+    due,
+    dueReason: reason,
+    running,
+    degraded,
+  }
+}
+
+const RECEIPT_RING = 50
+
+export interface MnemeMaintenanceReceipt {
+  ts: string
+  trigger: MnemeMaintenanceTrigger
+  ran: boolean
+  reason: string
+  entries?: number
+  docsTouched?: string[]
+  wallMs?: number
+}
+
+function receiptPath(dir: string): string {
+  return join(dir, 'maintenance.jsonl')
+}
+
+function readMaintenanceReceiptsStrict(dir: string, n: number): MnemeMaintenanceReceipt[] {
+  const p = receiptPath(dir)
+  let raw: string
+  try {
+    raw = readFileSync(p, 'utf8')
+  } catch (e) {
+    if (isENOENT(e)) return []
+    throw e
+  }
+  const out: MnemeMaintenanceReceipt[] = []
+  for (const line of raw.split('\n')) {
+    if (!line.trim()) continue
+    try {
+      out.push(JSON.parse(line) as MnemeMaintenanceReceipt)
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+  return out.slice(Math.max(0, out.length - n))
+}
+
+export function readMaintenanceReceipts(dir: string = mnemeLibraryDir(), n = 10): MnemeMaintenanceReceipt[] {
+  const p = receiptPath(dir)
+  try {
+    const rows = readMaintenanceReceiptsStrict(dir, n)
+    clearMnemeUnread(p)
+    return rows
+  } catch (e) {
+    recordMnemeUnread(p, e)
+    logForDebugging(`mneme maintenance receipts unreadable at ${p}: ${String(e)}`)
+    passedOver(e)
+    return []
+  }
+}
+
+function appendReceipt(dir: string, row: MnemeMaintenanceReceipt): void {
+  try {
+    const rows = readMaintenanceReceiptsStrict(dir, RECEIPT_RING - 1)
+    rows.push(row)
+    publishLibraryFile(receiptPath(dir), rows.map(r => JSON.stringify(r)).join('\n') + '\n')
+  } catch (e) {
+    logForDebugging(`mneme maintenance receipt failed: ${String(e)}`)
+  }
+}
+
+let inflight: Promise<MnemeMaintenanceOutcome> | null = null
+
+export function runDueMaintenance(
+  trigger: MnemeMaintenanceTrigger,
+  opts: { dir?: string; force?: boolean } = {},
+): Promise<MnemeMaintenanceOutcome> {
+  if (!mnemeEnabled()) return Promise.resolve({ ran: false, trigger, reason: 'memory off' })
+  if (inflight) return inflight
+  const dir = opts.dir ?? mnemeLibraryDir()
+  const run = (async (): Promise<MnemeMaintenanceOutcome> => {
+    try {
+      const t0 = performance.now()
+      const { due, reason } = dueForMaintenance(dir)
+      if (!due && !opts.force) return { ran: false, trigger, reason: 'not due' }
+      const lock = lockView(dir)
+      if (lock.present && lock.holderAlive === false) {
+        if (acquireConsolidateLock(dir)) releaseConsolidateLock(dir)
+      }
+      const r = maybeConsolidate({ dir, force: opts.force === true })
+      const wallMs = Math.round(performance.now() - t0)
+      const outcome: MnemeMaintenanceOutcome = {
+        ran: true,
+        trigger,
+        reason: reason ?? (opts.force ? 'forced' : 'due'),
+        consolidated: r.consolidated,
+        entries: r.entries,
+        docsTouched: r.docsTouched,
+        wallMs,
+      }
+      appendReceipt(dir, { ts: new Date().toISOString(), trigger, ran: true, reason: `${outcome.reason} → ${r.reason}`, entries: r.entries, docsTouched: r.docsTouched, wallMs })
+      return outcome
+    } catch (e) {
+      logForDebugging(`mneme maintenance failed: ${String(e)}`)
+      return { ran: false, trigger, reason: `error: ${String(e).slice(0, 120)}` }
+    }
+  })()
+  inflight = run
+  void run.finally(() => {
+    if (inflight === run) inflight = null
+  })
+  return run
+}
+
+export function scheduleMnemeMaintenance(trigger: MnemeMaintenanceTrigger): void {
+  if (!mnemeEnabled()) return
+  const delay = trigger === 'boot' ? 3000 : 500
+  startTimeout(() => {
+    if (trigger === 'boot') {
+      void import('./mnemeHandover.js')
+        .then(m => m.handoverIfDue())
+        .catch(e => logForDebugging(`memory intake failed: ${String(e)}`))
+        .finally(() => void runDueMaintenance(trigger))
+      return
+    }
+    void runDueMaintenance(trigger)
+  }, delay).unref()
+}

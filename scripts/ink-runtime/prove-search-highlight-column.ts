@@ -10,12 +10,12 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { createNode, appendChildNode, createTextNode } = await import(join(ROOT, 'src/ink/dom.ts'))
-const composeTree = (await import(join(ROOT, 'src/ink/compose-walk.ts'))).default
-const ComposeBuffer = (await import(join(ROOT, 'src/ink/compose-buffer.ts'))).default
-const { createScreen, cellAt } = await import(join(ROOT, 'src/ink/cell-grid.ts'))
-const { applyPositionedHighlight, scanPositions } = await import(join(ROOT, 'src/ink/render-to-screen.ts'))
-const { elementScreenLeft } = await import(join(ROOT, 'src/ink/measure-element.ts'))
+const { createNode, appendChildNode, createTextNode } = await import(join(ROOT, 'src/screen/renderer/dom.ts'))
+const composeTree = (await import(join(ROOT, 'src/screen/renderer/compose-walk.ts'))).default
+const ComposeBuffer = (await import(join(ROOT, 'src/screen/renderer/compose-buffer.ts'))).default
+const { createScreen, cellAt } = await import(join(ROOT, 'src/screen/renderer/cell-grid.ts'))
+const { applyPositionedHighlight, scanPositions } = await import(join(ROOT, 'src/screen/renderer/matchPositions.ts'))
+const { elementScreenLeft } = await import(join(ROOT, 'src/screen/renderer/measure-element.ts'))
 const { applySceneStyle, makeContext, screenLines } = await import(join(ROOT, 'scripts/ink-runtime/frameHarness.ts'))
 
 const COLS = 60
@@ -52,7 +52,7 @@ section('§1 the geometry law: scan col + screen-left == the composed column')
 const full = composeAt(root, COLS, ROWS, 0, 0)
 const fullLine = screenLines(full)[0]!
 const composedCol = fullLine.indexOf('needle')
-check('fixture: the full compose puts the message right of the rail', composedCol > 10, `${j({ fullLine, composedCol })} — the fixture layout changed: the full compose (src/ink/compose-walk.ts) no longer puts the message right of the 10-column rail`)
+check('fixture: the full compose puts the message right of the rail', composedCol > 10, `${j({ fullLine, composedCol })} — the fixture layout changed: the full compose (src/screen/renderer/compose-walk.ts) no longer puts the message right of the 10-column rail`)
 const mLayout = message.layoutNode!
 const scanScreen = composeAt(
   message,
@@ -62,9 +62,9 @@ const scanScreen = composeAt(
   -mLayout.getComputedTop(),
 )
 const positions = scanPositions(scanScreen, 'needle')
-check('the scan finds the match, element-relative', positions.length === 1 && positions[0]!.col === 4, `${j(positions)} — scanPositions in src/ink/render-to-screen.ts must return one match whose col is relative to the element`)
+check('the scan finds the match, element-relative', positions.length === 1 && positions[0]!.col === 4, `${j(positions)} — scanPositions in src/screen/renderer/matchPositions.ts must return one match whose col is relative to the element`)
 const left = elementScreenLeft(message as never)
-check('elementScreenLeft is the missing translation: scan col + left == composed col', positions[0]!.col + left === composedCol, `${j({ scanCol: positions[0]!.col, left, composedCol })} — elementScreenLeft in src/ink/measure-element.ts must return the element's screen-left column so scan col plus left equals the composed column`)
+check('elementScreenLeft is the missing translation: scan col + left == composed col', positions[0]!.col + left === composedCol, `${j({ scanCol: positions[0]!.col, left, composedCol })} — elementScreenLeft in src/screen/renderer/measure-element.ts must return the element's screen-left column so scan col plus left equals the composed column`)
 
 section('§2 the defect pin: the styled cells land ON the words — never in the rail')
 {
@@ -72,18 +72,18 @@ section('§2 the defect pin: the styled cells land ON the words — never in the
   const applied = applyPositionedHighlight(full, ctx.stylePool, positions, 0, left, 0)
   const changed: number[] = []
   for (let x = 0; x < COLS; x++) if (cellAt(full, x, 0)?.styleId !== before[x]) changed.push(x)
-  check('the overlay applied', applied === true, 'applyPositionedHighlight in src/ink/render-to-screen.ts returned false for the scanned position')
+  check('the overlay applied', applied === true, 'applyPositionedHighlight in src/screen/renderer/matchPositions.ts returned false for the scanned position')
   check(
     'THE DEFECT PIN: the current-match block covers exactly the match on screen',
     changed.length === positions[0]!.len && changed[0] === composedCol,
-    `${j({ changed, composedCol })} — applyPositionedHighlight in src/ink/render-to-screen.ts must style exactly the matched cells at scan col plus the colOffset passed from elementScreenLeft`,
+    `${j({ changed, composedCol })} — applyPositionedHighlight in src/screen/renderer/matchPositions.ts must style exactly the matched cells at scan col plus the colOffset passed from elementScreenLeft`,
   )
   const full2 = composeAt(root, COLS, ROWS, 0, 0)
   const before2 = Array.from({ length: COLS }, (_, x) => cellAt(full2, x, 0)?.styleId)
   applyPositionedHighlight(full2, ctx.stylePool, positions, 0, 0, 0)
   const changed2: number[] = []
   for (let x = 0; x < COLS; x++) if (cellAt(full2, x, 0)?.styleId !== before2[x]) changed2.push(x)
-  check('CONTROL (the disease): a zero col-offset lands the block in the rail, left of the words', changed2.length > 0 && changed2[0] === positions[0]!.col && changed2[0]! < 10, `${j({ changed2 })} — with colOffset 0 applyPositionedHighlight in src/ink/render-to-screen.ts must style at the scan col, which is the rail; the control no longer reproduces the defect`)
+  check('CONTROL (the disease): a zero col-offset lands the block in the rail, left of the words', changed2.length > 0 && changed2[0] === positions[0]!.col && changed2[0]! < 10, `${j({ changed2 })} — with colOffset 0 applyPositionedHighlight in src/screen/renderer/matchPositions.ts must style at the scan col, which is the rail; the control no longer reproduces the defect`)
 }
 
 

@@ -10,7 +10,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const root = join(import.meta.dir, '..', '..')
 const { isInstructionFilePath } = await import(
-  join(root, 'src/services/instructions/engine.ts')
+  join(root, 'src/sessions/instructions/instructionFiles.ts')
 )
 
 console.log('── post-compact memory-file exclusion (child-dir memory) ──')

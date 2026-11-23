@@ -71,10 +71,10 @@ writeFileSync(
   }),
 )
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const slots = await import('../../src/services/providers/accountSlots.ts')
+const slots = await import('../../src/models/roads/accountSlots.ts')
 const {
   deriveFamilySlotGroups,
   familySigninCount,
@@ -83,8 +83,8 @@ const {
   scopeSlotTail,
   slotSigninState,
 } = slots
-type AccountSlot = import('../../src/services/providers/accountSlots.ts').AccountSlot
-type Presence = import('../../src/services/providers/providerUsage.ts').ProviderFamilyPresence
+type AccountSlot = import('../../src/models/roads/accountSlots.ts').AccountSlot
+type Presence = import('../../src/models/roads/providerUsage.ts').ProviderFamilyPresence
 
 let failures = 0
 let sectionHint = ''
@@ -141,7 +141,7 @@ const subscriptionSlot: AccountSlot = {
   removal: { route: 'openai-subscription' },
 }
 
-section('§1 slotSigninState — one answer per slot', 'fix slotSigninState, scopeSlotTail or familyAbsentWords/familyRouteWords in src/services/providers/accountSlots.ts')
+section('§1 slotSigninState — one answer per slot', 'fix slotSigninState, scopeSlotTail or familyAbsentWords/familyRouteWords in src/models/roads/accountSlots.ts')
 {
   const authed = scopeSlot(true)
   const verified = slotSigninState(authed, { [SCOPE_DIR]: { state: 'verified', email: 'live@fixture.example' } })
@@ -209,7 +209,7 @@ section('§1 slotSigninState — one answer per slot', 'fix slotSigninState, sco
   check('a non-scope slot without a credential is absent', !absent.signedIn && absent.basis === 'absent')
 }
 
-section("§2 the family summary counts the SAME derivation the row paints (the operator's shape)", 'fix familySigninSummary or familySigninCount in src/services/providers/accountSlots.ts so they count slotSigninState')
+section("§2 the family summary counts the SAME derivation the row paints (the operator's shape)", 'fix familySigninSummary or familySigninCount in src/models/roads/accountSlots.ts so they count slotSigninState')
 {
   const expiredRead = { [SCOPE_DIR]: { state: 'expired' as const, snapshotEmail: 'stale@fixture.example' } }
   const anthropic = [scopeSlot(true)]
@@ -234,7 +234,7 @@ section("§2 the family summary counts the SAME derivation the row paints (the o
   check('a stored key on a family with no ceiling is one held sign-in (the plain count chip reads it)', familySigninSummary([keySlot('zai', false)], {}).held === 1)
 }
 
-section('§3 mainLoopIdentity — the route decides the family, the owner decides the credential', 'fix mainLoopIdentity in src/services/providers/accountSlots.ts')
+section('§3 mainLoopIdentity — the route decides the family, the owner decides the credential', 'fix mainLoopIdentity in src/models/roads/accountSlots.ts')
 {
   const presences = (overrides: Partial<Record<string, Partial<Presence>>> = {}): Presence[] =>
     (
@@ -292,11 +292,11 @@ section('§3 mainLoopIdentity — the route decides the family, the owner decide
   check('a discovered local server is a live fact (discovered live)', local.basis === 'discovered-live' && local.text.endsWith('· discovered live'), local.text)
 }
 
-section('§4 the REAL owners on the fixture home (credential refused live, subscription present)', 'fix deriveFamilySlotGroups or mainLoopIdentity in src/services/providers/accountSlots.ts, resolveLiveScopeIdentity in src/utils/accounts/accountIdentity.ts, or providerFamilyPresences in src/services/providers/providerUsage.ts')
+section('§4 the REAL owners on the fixture home (credential refused live, subscription present)', 'fix deriveFamilySlotGroups or mainLoopIdentity in src/models/roads/accountSlots.ts, resolveLiveScopeIdentity in src/models/sign-in/account-ledger/accountIdentity.ts, or providerFamilyPresences in src/models/roads/providerUsage.ts')
 {
-  const { resolveLiveScopeIdentity, _resetIdentityCacheForTesting } = await import('../../src/utils/accounts/accountIdentity.ts')
-  const { providerFamilyPresences } = await import('../../src/services/providers/providerUsage.ts')
-  const { isClaudeAISubscriber } = await import('../../src/utils/auth.ts')
+  const { resolveLiveScopeIdentity, _resetIdentityCacheForTesting } = await import('../../src/models/sign-in/account-ledger/accountIdentity.ts')
+  const { providerFamilyPresences } = await import('../../src/models/roads/providerUsage.ts')
+  const { isClaudeAISubscriber } = await import('../../src/models/sign-in/credentials/auth.ts')
   check('the fixture credential reads as a Claude subscriber (existence, through the real owner)', isClaudeAISubscriber() === true)
 
   const groups = deriveFamilySlotGroups()
@@ -338,9 +338,9 @@ section('§4 the REAL owners on the fixture home (credential refused live, subsc
   check("the main loop on an Anthropic model reads 'not signed in — credential expired (snapshot …)'", onClaude.basis === 'expired' && onClaude.text.includes(`(snapshot ${snapshot})`) && onClaude.text.startsWith('not signed in'), onClaude.text)
 }
 
-section('§5 the presence owner counts what the wire would send', 'fix anthropicCredentialPresence in src/services/providers/providerUsage.ts')
+section('§5 the presence owner counts what the wire would send', 'fix anthropicCredentialPresence in src/models/roads/providerUsage.ts')
 {
-  const { anthropicCredentialPresence } = await import('../../src/services/providers/providerUsage.ts')
+  const { anthropicCredentialPresence } = await import('../../src/models/roads/providerUsage.ts')
   const bearer = anthropicCredentialPresence({
     claudeSubscriber: () => false,
     anthropicApiKeyPresent: () => false,

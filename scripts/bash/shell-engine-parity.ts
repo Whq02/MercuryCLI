@@ -3,8 +3,8 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, isAbsolute, join, relative, resolve } from 'node:path'
-import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
-import { brushPackPlatform } from '../../src/utils/shell/brushPack.ts'
+import { getFlagSpec } from '../../src/platform/substrate/flagRegistry.ts'
+import { brushPackPlatform } from '../../src/platform/shell/brushPack.ts'
 
 const ENGINES = ['system', 'brush'] as const
 export type Engine = (typeof ENGINES)[number]

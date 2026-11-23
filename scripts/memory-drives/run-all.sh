@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/memory/**
-# gate-watch: src/mneme/** src/tools/JournalTool/**
+# gate-watch: src/sessions/mneme/** src/tools/journal/**
 # gate-watch: docs/MNEME.md docs/MEMORY-FINDINGS.md
-# gate-watch: src/services/compact/compact.ts
-# gate-watch: src/services/eval/evalBridge.ts src/services/instructions/sourceText.ts
-# gate-watch: src/utils/capability/declarations.ts src/query/stopHooks.ts
-# gate-watch: src/commands.ts src/utils/memory/types.ts src/utils/agentMemory.ts
-# gate-watch: src/components/mercury-ui/useFlatList.ts
+# gate-watch: src/engine/compaction/foldConversation.ts
+# gate-watch: src/tools/engines/eval-kernels/evalBridge.ts src/sessions/instructions/sourceText.ts
+# gate-watch: src/permissions/capability/declarations.ts src/engine/turn-entry/stopHooks.ts
+# gate-watch: src/commands/catalogue/commands.ts src/sessions/memory-shapes/types.ts src/crew/agents/agentMemory.ts
+# gate-watch: src/screen/widgets/useFlatList.ts
 # gate-watch: scripts/lib/rows.ts
 # gate-watch: scripts/hooks/lib/runDoor.ts
 # gate-watch: scripts/project-intel/fixtures/materialize.ts
 # gate-watch: scripts/ui/** scripts/memory-study/**
-# gate-watch: scripts/jev/lib/jevStandin.ts src/services/jev/jevClient.ts
-# gate-watch: src/utils/permissions/decision/engine.ts src/utils/permissions/permissions.ts src/utils/permissions/PermissionMode.ts src/cli/run.ts
-# gate-watch: docs/SAMPLES.md src/services/samples/**
+# gate-watch: scripts/jev/lib/jevStandin.ts src/models/jev/jevClient.ts
+# gate-watch: src/permissions/rules/decision/engine.ts src/permissions/rules/permissionDoor.ts src/permissions/rules/permissionMode.ts src/daemon/runner/runHeadless.ts
+# gate-watch: docs/SAMPLES.md src/integrations/samples/**
 # gate-watch: .gitignore scripts/vendor/build-embed.ts scripts/vendor/fetch-embed-models.ts native/embed/**
 # gate-watch: scripts/lib/hermetic.ts
 # gate-watch: scripts/lib/flagRegistrySource.ts

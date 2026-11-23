@@ -27,19 +27,19 @@ delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const engine = await import('../../src/services/tensorfold/engine.ts')
-const serve = await import('../../src/services/tensorfold/serve.ts')
-const pull = await import('../../src/services/tensorfold/pull.ts')
+const engine = await import('../../src/models/tensorfold/engine.ts')
+const serve = await import('../../src/models/tensorfold/serve.ts')
+const pull = await import('../../src/models/tensorfold/pull.ts')
 const road = await import('../../src/commands/tensorfold/road.ts')
-const models = await import('../../src/services/tensorfold/adapter/models.ts')
-const adapterServe = await import('../../src/services/tensorfold/adapter/serve.ts')
-const adapterLlama = await import('../../src/services/tensorfold/adapter/llama.ts')
-const hfCache = await import('../../src/services/tensorfold/hfCache.ts')
-const { probeTensorFold, refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localServerKind } = await import('../../src/constants/localPromptProfile.ts')
-const { readRecord } = await import('../../src/services/projectServices/serviceManager.ts')
+const models = await import('../../src/models/tensorfold/adapter/models.ts')
+const adapterServe = await import('../../src/models/tensorfold/adapter/serve.ts')
+const adapterLlama = await import('../../src/models/tensorfold/adapter/llama.ts')
+const hfCache = await import('../../src/models/tensorfold/hfCache.ts')
+const { probeTensorFold, refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localServerKind } = await import('../../src/models/roads/localPromptProfile.ts')
+const { readRecord } = await import('../../src/tools/engines/project-services/serviceManager.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

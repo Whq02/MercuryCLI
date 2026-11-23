@@ -64,8 +64,8 @@ else {
   const r = runSubprocess(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const paths = await import(${JSON.stringify(join(SRC, 'utils/sessionStorage/paths.ts'))})
-    const verb = await import(${JSON.stringify(join(SRC, 'cli/sessionsVerb.ts'))})
+    const paths = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/paths.ts'))})
+    const verb = await import(${JSON.stringify(join(SRC, 'commands/verbs/sessionsVerb.ts'))})
     const sid = '11111111-1111-4111-8111-111111111111'
     const absentSid = '99999999-9999-4999-8999-999999999999'
     const projectsDir = paths.getProjectsDir()
@@ -115,7 +115,7 @@ else {
     const fs = await import('node:fs')
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    const paths = await import(${JSON.stringify(join(SRC, 'utils/sessionStorage/paths.ts'))})
+    const paths = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/paths.ts'))})
     const relaunchedIds = []
     mock.module(path.join(SRC, 'tools/AgentTool/resumeAgent.js'), () => ({
       resumeAgentBackground: async ({ agentId }) => {
@@ -123,7 +123,7 @@ else {
         if (agentId === 'a12345678') throw new Error('cannot open worktree')
       },
     }))
-    const carry = await import(${JSON.stringify(join(SRC, 'cli/headless/restartCarry.ts'))})
+    const carry = await import(${JSON.stringify(join(SRC, 'daemon/runner/restartCarry.ts'))})
     const absentPath = path.join(HOME, 'missing-transcript.jsonl')
     const basePorts = (transcriptPath, messages = []) => ({
       reason: 'crash',
@@ -146,8 +146,8 @@ else {
     } finally {
       fs.chmodSync(unreadableTranscript, 0o600)
     }
-    const { AGENT_TOOL_NAME } = await import(${JSON.stringify(join(SRC, 'constants/tools/agent.ts'))})
-    const { BACKGROUND_LAUNCH_LINE } = await import(${JSON.stringify(join(SRC, 'tasks/LocalAgentTask/launchReceipts.ts'))})
+    const { AGENT_TOOL_NAME } = await import(${JSON.stringify(join(SRC, 'tools/kit/names/agent.ts'))})
+    const { BACKGROUND_LAUNCH_LINE } = await import(${JSON.stringify(join(SRC, 'engine/tasks/local-agent/launchReceipts.ts'))})
     const agent1 = 'a12345678'
     const agent2 = 'b87654321'
     const twoAgents = [
@@ -214,7 +214,7 @@ console.log('\nclaimSession.ts — loadConversationForResume error reports resum
     const fs = await import('node:fs')
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    const loading = await import(${JSON.stringify(join(SRC, 'utils/sessionStorage/loading.ts'))})
+    const loading = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/loading.ts'))})
     const sid = '33333333-3333-4333-8333-333333333333'
     const file = loading.sessionFilePath(sid)
     fs.mkdirSync(path.dirname(file), { recursive: true })
@@ -230,7 +230,7 @@ console.log('\nclaimSession.ts — loadConversationForResume error reports resum
     mock.module(path.join(SRC, 'cli/headless/resume.js'), () => ({
       emitLoadError: message => { emitted.push(message) },
     }))
-    const { claimSession } = await import(${JSON.stringify(join(SRC, 'cli/headless/claimSession.ts'))})
+    const { claimSession } = await import(${JSON.stringify(join(SRC, 'daemon/runner/claimSession.ts'))})
     const live = { awaitingSessionClaim: true, claimSettling: null, runnerRestartReason: null }
     const ports = {
       armSessionRunnerWiring: async () => {},
@@ -274,7 +274,7 @@ console.log('\nhealthJson.ts — serialization failure emits cert-failed error a
     mock.module(path.join(SRC, 'services/health/readiness.js'), () => ({
       collectReadiness: () => ({ records: [] }),
     }))
-    const { runHealthJsonCli } = await import(${JSON.stringify(join(SRC, 'cli/healthJson.ts'))})
+    const { runHealthJsonCli } = await import(${JSON.stringify(join(SRC, 'commands/verbs/healthJson.ts'))})
     await runHealthJsonCli()
   `, { allowNonZero: true })
   let parsed: { code?: string; error?: string } | null = null
@@ -286,13 +286,13 @@ console.log('\nhealthPresentation.ts — sync non-EPIPE stdout error exits 1 ins
 {
   const enospc = runSubprocess(`
     const path = await import('node:path')
-    const { writeOutAndExit } = await import(${JSON.stringify(join(SRC, 'cli/healthPresentation.ts'))})
+    const { writeOutAndExit } = await import(${JSON.stringify(join(SRC, 'commands/verbs/healthPresentation.ts'))})
     process.stdout.write = () => { throw Object.assign(new Error('no space'), { code: 'ENOSPC' }) }
     await writeOutAndExit('ok\\n', 0)
   `, { allowNonZero: true })
   const epipe = runSubprocess(`
     const path = await import('node:path')
-    const { writeOutAndExit } = await import(${JSON.stringify(join(SRC, 'cli/healthPresentation.ts'))})
+    const { writeOutAndExit } = await import(${JSON.stringify(join(SRC, 'commands/verbs/healthPresentation.ts'))})
     process.stdout.write = () => { throw Object.assign(new Error('broken pipe'), { code: 'EPIPE' }) }
     await writeOutAndExit('ok\\n', 0)
   `, { allowNonZero: true })
@@ -315,7 +315,7 @@ console.log('\nmodels.ts — non-EPIPE stdout write failure rejects instead of b
       liveModelsReference: async () => ({ models: [] }),
       liveModelsReferenceText: () => 'models',
     }))
-    const { modelsCli } = await import(${JSON.stringify(join(SRC, 'cli/handlers/models.ts'))})
+    const { modelsCli } = await import(${JSON.stringify(join(SRC, 'commands/verbs/models.ts'))})
     try {
       await modelsCli({ json: true })
       out.threw = null
@@ -336,7 +336,7 @@ console.log('\nmodels.ts — non-EPIPE stdout write failure rejects instead of b
       liveModelsReference: async () => ({ models: [] }),
       liveModelsReferenceText: () => 'models',
     }))
-    const { modelsCli } = await import(${JSON.stringify(join(SRC, 'cli/handlers/models.ts'))})
+    const { modelsCli } = await import(${JSON.stringify(join(SRC, 'commands/verbs/models.ts'))})
     try {
       await modelsCli({ json: true })
       out.threw = null
@@ -354,7 +354,7 @@ console.log('\nutil.tsx — healthHandler exits 1 instead of 0 when rendering th
 {
   const r = runSubprocess(`
     const path = await import('node:path')
-    const { healthHandler } = await import(${JSON.stringify(join(SRC, 'cli/handlers/util.tsx'))})
+    const { healthHandler } = await import(${JSON.stringify(join(SRC, 'commands/verbs/setupTokenAndHealth.tsx'))})
     await healthHandler({
       render: () => { throw new Error('render failed') },
       unmount: () => {},
@@ -368,7 +368,7 @@ console.log('\nchatLauncher.tsx — rejecting boot recovery or resume fold relea
   const r = runSubprocess(`
     const path = await import('node:path')
     const { mock } = await import('bun:test')
-    const timers = await import(${JSON.stringify(join(SRC, 'utils/timers.js'))})
+    const timers = await import(${JSON.stringify(join(SRC, 'platform/async/timers.js'))})
     const realStart = timers.startTimeout
     const realStop = timers.stopTimeout
     let started = 0
@@ -379,7 +379,7 @@ console.log('\nchatLauncher.tsx — rejecting boot recovery or resume fold relea
       startTimeout: (fn, ms) => { started++; return realStart(fn, ms) },
       stopTimeout: handle => { stopped++; return realStop(handle) },
     }))
-    const logMod = await import(${JSON.stringify(join(SRC, 'utils/log.js'))})
+    const logMod = await import(${JSON.stringify(join(SRC, 'platform/logs/errorLog.js'))})
     mock.module(path.join(SRC, 'utils/log.js'), () => ({
       ...logMod,
       logError: err => { logged.push(String(err instanceof Error ? err.message : err)) },
@@ -398,7 +398,7 @@ console.log('\nchatLauncher.tsx — rejecting boot recovery or resume fold relea
     mock.module(path.join(SRC, 'components/SurfaceRouter.js'), () => ({ SurfaceRouter: () => null }))
     mock.module(path.join(SRC, 'screens/Chat.js'), () => ({ Chat: () => null }))
     mock.module(path.join(SRC, 'services/mcp/dynamicMcpSeed.js'), () => ({ seedDynamicMcpConfig: () => {} }))
-    const { launchChat } = await import(${JSON.stringify(join(SRC, 'chatLauncher.tsx'))})
+    const { launchChat } = await import(${JSON.stringify(join(SRC, 'boot/chatLauncher.tsx'))})
     let rendered = false
     await launchChat({}, { getFpsMetrics: () => undefined, initialState: {} }, {}, async () => { rendered = true })
     out.started = started
@@ -416,12 +416,12 @@ console.log('\nprintTurn.ts — failed elicitation registration does not mark se
     const path = await import('node:path')
     const { mock } = await import('bun:test')
     const logged = []
-    const logMod = await import(${JSON.stringify(join(SRC, 'utils/log.js'))})
+    const logMod = await import(${JSON.stringify(join(SRC, 'platform/logs/errorLog.js'))})
     mock.module(path.join(SRC, 'utils/log.js'), () => ({
       ...logMod,
       logError: err => { logged.push(String(err instanceof Error ? err.message : err)) },
     }))
-    const { registerPerTurnHandlers } = await import(${JSON.stringify(join(SRC, 'cli/headless/printTurn.ts'))})
+    const { registerPerTurnHandlers } = await import(${JSON.stringify(join(SRC, 'daemon/runner/runnerTurn.ts'))})
     const registered = new Set()
     let unhandled = 0
     process.on('unhandledRejection', () => { unhandled++ })

@@ -18,7 +18,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/constants/credentialEnvSpellings.ts`)
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/models/sign-in/credentials/credentialEnvSpellings.ts`)
 for (const key of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[key]
 for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_/.test(key)) delete process.env[key]
 
@@ -58,20 +58,20 @@ globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   return nativeFetch(input, init)
 }) as typeof fetch
 
-const { enableConfigs } = await import(`${root}/src/utils/config.ts`)
+const { enableConfigs } = await import(`${root}/src/platform/settings/config.ts`)
 enableConfigs()
-const { setCwd } = await import(`${root}/src/utils/Shell.ts`)
-const { setIsInteractive, setSessionTrustAccepted, setProjectRoot, setOriginalCwd } = await import(`${root}/src/bootstrap/state.ts`)
-const { resetTrustDialogAcceptedCacheForTesting } = await import(`${root}/src/utils/config/trust.ts`)
-const { resetSettingsCache } = await import(`${root}/src/utils/settings/settingsCache.ts`)
-const { SettingsSchema } = await import(`${root}/src/utils/settings/types.ts`)
-const { routedCallModel } = await import(`${root}/src/services/providers/callModelRouter.ts`)
-const { createUserMessage } = await import(`${root}/src/services/messages.ts`)
-const { asSystemPrompt } = await import(`${root}/src/utils/systemPromptType.ts`)
-const secrets = await import(`${root}/src/utils/accounts/providerSecrets.ts`)
-const auth = await import(`${root}/src/utils/auth.ts`)
-const keyCommandOwner = existsSync(`${root}/src/services/providers/providerKeyCommand.ts`)
-  ? await import(`${root}/src/services/providers/providerKeyCommand.ts`)
+const { setCwd } = await import(`${root}/src/platform/shell/shellExec.ts`)
+const { setIsInteractive, setSessionTrustAccepted, setProjectRoot, setOriginalCwd } = await import(`${root}/src/boot/process-state/processState.ts`)
+const { resetTrustDialogAcceptedCacheForTesting } = await import(`${root}/src/platform/config/trust.ts`)
+const { resetSettingsCache } = await import(`${root}/src/platform/settings/settingsCache.ts`)
+const { SettingsSchema } = await import(`${root}/src/platform/settings/settingsSchema.ts`)
+const { routedCallModel } = await import(`${root}/src/models/roads/callModelRouter.ts`)
+const { createUserMessage } = await import(`${root}/src/engine/messages/messages.ts`)
+const { asSystemPrompt } = await import(`${root}/src/engine/system-prompt/systemPromptType.ts`)
+const secrets = await import(`${root}/src/models/sign-in/account-ledger/providerSecrets.ts`)
+const auth = await import(`${root}/src/models/sign-in/credentials/auth.ts`)
+const keyCommandOwner = existsSync(`${root}/src/models/roads/providerKeyCommand.ts`)
+  ? await import(`${root}/src/models/roads/providerKeyCommand.ts`)
   : undefined
 
 setCwd(project)
@@ -144,25 +144,25 @@ try {
   process.env.USER_OWN_VAR = 'kept'
   delete process.env.NO_COLOR
   const familyResolvers: Array<[string, () => string | undefined, () => void, () => void, string, string]> = [
-    ['openai', () => require(`${root}/src/services/providers/openai/openaiAccounts.ts`).resolveOpenaiApiKey()?.key, () => secrets.writeStoredOpenaiApiKey('stored-openai'), () => secrets.writeStoredOpenaiApiKey(null), 'OPENAI_API_KEY', 'env-openai'],
-    ['openrouter', () => require(`${root}/src/services/providers/openrouter/openrouterAccounts.ts`).resolveOpenrouterApiKey()?.key, () => secrets.writeStoredOpenrouterApiKey('stored-openrouter'), () => secrets.writeStoredOpenrouterApiKey(null), 'OPENROUTER_API_KEY', 'env-openrouter'],
-    ['gemini', () => require(`${root}/src/services/providers/gemini/geminiAccounts.ts`).resolveGeminiApiKey()?.key, () => secrets.writeStoredGeminiApiKey('stored-gemini'), () => secrets.writeStoredGeminiApiKey(null), 'GEMINI_API_KEY', 'env-gemini'],
-    ['moonshot', () => require(`${root}/src/services/providers/moonshot/moonshotAccounts.ts`).resolveMoonshotApiKey()?.key, () => secrets.writeStoredMoonshotApiKey('stored-moonshot'), () => secrets.writeStoredMoonshotApiKey(null), 'MOONSHOT_API_KEY', 'env-moonshot'],
-    ['deepseek', () => require(`${root}/src/services/providers/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()?.key, () => secrets.writeStoredDeepseekApiKey('stored-deepseek'), () => secrets.writeStoredDeepseekApiKey(null), 'DEEPSEEK_API_KEY', 'env-deepseek'],
-    ['xai', () => require(`${root}/src/services/providers/xai/xaiAccounts.ts`).resolveXaiApiKey()?.key, () => secrets.writeStoredXaiApiKey('stored-xai'), () => secrets.writeStoredXaiApiKey(null), 'XAI_API_KEY', 'env-xai'],
-    ['meta', () => require(`${root}/src/services/providers/meta/metaAccounts.ts`).resolveMetaRawApiKey()?.key, () => secrets.writeStoredMetaApiKey('stored-meta'), () => secrets.writeStoredMetaApiKey(null), 'MODEL_API_KEY', 'env-meta'],
-    ['mistral', () => require(`${root}/src/services/providers/mistral/mistralAccounts.ts`).resolveMistralApiKey()?.key, () => secrets.writeStoredMistralApiKey('stored-mistral'), () => secrets.writeStoredMistralApiKey(null), 'MISTRAL_API_KEY', 'env-mistral'],
-    ['nous', () => require(`${root}/src/services/providers/nous/nousAccounts.ts`).resolveNousApiKey()?.key, () => secrets.writeStoredNousApiKey('stored-nous'), () => secrets.writeStoredNousApiKey(null), 'NOUS_API_KEY', 'env-nous'],
-    ['zen', () => require(`${root}/src/services/providers/zen/zenAccounts.ts`).resolveZenApiKey()?.key, () => secrets.writeStoredZenApiKey('stored-zen'), () => secrets.writeStoredZenApiKey(null), 'OPENCODE_API_KEY', 'env-zen'],
-    ['minimax', () => require(`${root}/src/services/providers/minimax/minimaxAccounts.ts`).resolveMinimaxApiKey()?.key, () => secrets.writeStoredMinimaxApiKey('stored-minimax'), () => secrets.writeStoredMinimaxApiKey(null), 'MINIMAX_API_KEY', 'env-minimax'],
-    ['together', () => require(`${root}/src/services/providers/together/togetherAccounts.ts`).resolveTogetherApiKey()?.key, () => secrets.writeStoredTogetherApiKey('stored-together'), () => secrets.writeStoredTogetherApiKey(null), 'TOGETHER_API_KEY', 'env-together'],
-    ['cohere', () => require(`${root}/src/services/providers/cohere/cohereAccounts.ts`).resolveCohereApiKey()?.key, () => secrets.writeStoredCohereApiKey('stored-cohere'), () => secrets.writeStoredCohereApiKey(null), 'COHERE_API_KEY', 'env-cohere'],
-    ['huggingface', () => require(`${root}/src/services/providers/huggingface/huggingfaceAccounts.ts`).resolveHuggingfaceApiKey()?.key, () => secrets.writeStoredHuggingfaceApiKey('stored-huggingface'), () => secrets.writeStoredHuggingfaceApiKey(null), 'HF_TOKEN', 'env-huggingface'],
-    ['local', () => require(`${root}/src/services/providers/local/localAccounts.ts`).resolveLocalApiKey()?.key, () => secrets.writeStoredLocalApiKey('stored-local'), () => secrets.writeStoredLocalApiKey(null), 'MERCURY_LOCAL_API_KEY', 'env-local'],
-    ['zai', () => (existsSync(`${root}/src/services/providers/zai/zaiAccounts.ts`) ? require(`${root}/src/services/providers/zai/zaiAccounts.ts`) : require(`${root}/src/services/providers/providerDiscovery.ts`)).resolveZaiDispatch()?.key, () => secrets.writeStoredZaiApiKey('stored-zai'), () => secrets.writeStoredZaiApiKey(null), 'ZAI_API_KEY', 'env-zai'],
-    ['groq', () => require(`${root}/src/services/providers/groq/groqAccounts.ts`).resolveGroqApiKey()?.key, () => secrets.writeStoredGroqApiKey('stored-groq'), () => secrets.writeStoredGroqApiKey(null), 'GROQ_API_KEY', 'env-groq'],
-    ['cerebras', () => require(`${root}/src/services/providers/cerebras/cerebrasAccounts.ts`).resolveCerebrasApiKey()?.key, () => secrets.writeStoredCerebrasApiKey('stored-cerebras'), () => secrets.writeStoredCerebrasApiKey(null), 'CEREBRAS_API_KEY', 'env-cerebras'],
-    ['fireworks', () => require(`${root}/src/services/providers/fireworks/fireworksAccounts.ts`).resolveFireworksApiKey()?.key, () => secrets.writeStoredFireworksApiKey('stored-fireworks'), () => secrets.writeStoredFireworksApiKey(null), 'FIREWORKS_API_KEY', 'env-fireworks'],
+    ['openai', () => require(`${root}/src/models/roads/openai/openaiAccounts.ts`).resolveOpenaiApiKey()?.key, () => secrets.writeStoredOpenaiApiKey('stored-openai'), () => secrets.writeStoredOpenaiApiKey(null), 'OPENAI_API_KEY', 'env-openai'],
+    ['openrouter', () => require(`${root}/src/models/roads/openrouter/openrouterAccounts.ts`).resolveOpenrouterApiKey()?.key, () => secrets.writeStoredOpenrouterApiKey('stored-openrouter'), () => secrets.writeStoredOpenrouterApiKey(null), 'OPENROUTER_API_KEY', 'env-openrouter'],
+    ['gemini', () => require(`${root}/src/models/roads/gemini/geminiAccounts.ts`).resolveGeminiApiKey()?.key, () => secrets.writeStoredGeminiApiKey('stored-gemini'), () => secrets.writeStoredGeminiApiKey(null), 'GEMINI_API_KEY', 'env-gemini'],
+    ['moonshot', () => require(`${root}/src/models/roads/moonshot/moonshotAccounts.ts`).resolveMoonshotApiKey()?.key, () => secrets.writeStoredMoonshotApiKey('stored-moonshot'), () => secrets.writeStoredMoonshotApiKey(null), 'MOONSHOT_API_KEY', 'env-moonshot'],
+    ['deepseek', () => require(`${root}/src/models/roads/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()?.key, () => secrets.writeStoredDeepseekApiKey('stored-deepseek'), () => secrets.writeStoredDeepseekApiKey(null), 'DEEPSEEK_API_KEY', 'env-deepseek'],
+    ['xai', () => require(`${root}/src/models/roads/xai/xaiAccounts.ts`).resolveXaiApiKey()?.key, () => secrets.writeStoredXaiApiKey('stored-xai'), () => secrets.writeStoredXaiApiKey(null), 'XAI_API_KEY', 'env-xai'],
+    ['meta', () => require(`${root}/src/models/roads/meta/metaAccounts.ts`).resolveMetaRawApiKey()?.key, () => secrets.writeStoredMetaApiKey('stored-meta'), () => secrets.writeStoredMetaApiKey(null), 'MODEL_API_KEY', 'env-meta'],
+    ['mistral', () => require(`${root}/src/models/roads/mistral/mistralAccounts.ts`).resolveMistralApiKey()?.key, () => secrets.writeStoredMistralApiKey('stored-mistral'), () => secrets.writeStoredMistralApiKey(null), 'MISTRAL_API_KEY', 'env-mistral'],
+    ['nous', () => require(`${root}/src/models/roads/nous/nousAccounts.ts`).resolveNousApiKey()?.key, () => secrets.writeStoredNousApiKey('stored-nous'), () => secrets.writeStoredNousApiKey(null), 'NOUS_API_KEY', 'env-nous'],
+    ['zen', () => require(`${root}/src/models/roads/zen/zenAccounts.ts`).resolveZenApiKey()?.key, () => secrets.writeStoredZenApiKey('stored-zen'), () => secrets.writeStoredZenApiKey(null), 'OPENCODE_API_KEY', 'env-zen'],
+    ['minimax', () => require(`${root}/src/models/roads/minimax/minimaxAccounts.ts`).resolveMinimaxApiKey()?.key, () => secrets.writeStoredMinimaxApiKey('stored-minimax'), () => secrets.writeStoredMinimaxApiKey(null), 'MINIMAX_API_KEY', 'env-minimax'],
+    ['together', () => require(`${root}/src/models/roads/together/togetherAccounts.ts`).resolveTogetherApiKey()?.key, () => secrets.writeStoredTogetherApiKey('stored-together'), () => secrets.writeStoredTogetherApiKey(null), 'TOGETHER_API_KEY', 'env-together'],
+    ['cohere', () => require(`${root}/src/models/roads/cohere/cohereAccounts.ts`).resolveCohereApiKey()?.key, () => secrets.writeStoredCohereApiKey('stored-cohere'), () => secrets.writeStoredCohereApiKey(null), 'COHERE_API_KEY', 'env-cohere'],
+    ['huggingface', () => require(`${root}/src/models/roads/huggingface/huggingfaceAccounts.ts`).resolveHuggingfaceApiKey()?.key, () => secrets.writeStoredHuggingfaceApiKey('stored-huggingface'), () => secrets.writeStoredHuggingfaceApiKey(null), 'HF_TOKEN', 'env-huggingface'],
+    ['local', () => require(`${root}/src/models/roads/local/localAccounts.ts`).resolveLocalApiKey()?.key, () => secrets.writeStoredLocalApiKey('stored-local'), () => secrets.writeStoredLocalApiKey(null), 'MERCURY_LOCAL_API_KEY', 'env-local'],
+    ['zai', () => (existsSync(`${root}/src/models/roads/zai/zaiAccounts.ts`) ? require(`${root}/src/models/roads/zai/zaiAccounts.ts`) : require(`${root}/src/models/roads/providerDiscovery.ts`)).resolveZaiDispatch()?.key, () => secrets.writeStoredZaiApiKey('stored-zai'), () => secrets.writeStoredZaiApiKey(null), 'ZAI_API_KEY', 'env-zai'],
+    ['groq', () => require(`${root}/src/models/roads/groq/groqAccounts.ts`).resolveGroqApiKey()?.key, () => secrets.writeStoredGroqApiKey('stored-groq'), () => secrets.writeStoredGroqApiKey(null), 'GROQ_API_KEY', 'env-groq'],
+    ['cerebras', () => require(`${root}/src/models/roads/cerebras/cerebrasAccounts.ts`).resolveCerebrasApiKey()?.key, () => secrets.writeStoredCerebrasApiKey('stored-cerebras'), () => secrets.writeStoredCerebrasApiKey(null), 'CEREBRAS_API_KEY', 'env-cerebras'],
+    ['fireworks', () => require(`${root}/src/models/roads/fireworks/fireworksAccounts.ts`).resolveFireworksApiKey()?.key, () => secrets.writeStoredFireworksApiKey('stored-fireworks'), () => secrets.writeStoredFireworksApiKey(null), 'FIREWORKS_API_KEY', 'env-fireworks'],
   ]
 
   for (const [family, resolveKey, writeStored, clearStored, envName, envVal] of familyResolvers) {
@@ -182,7 +182,7 @@ try {
     check(
       `${family}: keyCommand runs in project dir with user env, caches in process, wins over stored key, and yields to ${envName}`,
       resolvedCmd === `cmd-${family}` && cachedSecond === `cmd-${family}` && countAfterTwo === 1 && resolvedEnv === envVal && resolvedStored === `stored-${family}`,
-      `keyCommand ${JSON.stringify(resolvedCmd)}, cached ${JSON.stringify(cachedSecond)}, runs ${countAfterTwo} (want 1), env ${JSON.stringify(resolvedEnv)}, stored ${JSON.stringify(resolvedStored)}; the ${family} resolver in src/services/providers/${family}/${family}Accounts.ts must read the command through resolveProviderKeyCommand in src/services/providers/providerKeyCommand.ts, ahead of the stored key and behind the env var`,
+      `keyCommand ${JSON.stringify(resolvedCmd)}, cached ${JSON.stringify(cachedSecond)}, runs ${countAfterTwo} (want 1), env ${JSON.stringify(resolvedEnv)}, stored ${JSON.stringify(resolvedStored)}; the ${family} resolver in src/models/roads/${family}/${family}Accounts.ts must read the command through resolveProviderKeyCommand in src/models/roads/providerKeyCommand.ts, ahead of the stored key and behind the env var`,
     )
   }
 
@@ -196,30 +196,30 @@ try {
       keyCommands: { zai: cmdLine },
     },
   })
-  const compatAccounts = await import(`${root}/src/services/providers/openaicompat/compatAccounts.ts`)
-  const providerDiscovery = await import(`${root}/src/services/providers/providerDiscovery.ts`)
-  check('named custom endpoint resolves its own keyCommand and caches it', compatAccounts.resolveCompatApiKey(process.env, 'east')?.key === 'cmd-compat-east' && compatAccounts.resolveCompatApiKey(process.env, 'east')?.key === 'cmd-compat-east' && providerDiscovery.primeZaiDiscovery()?.keyPresent === true && executions() === 2, `runs ${executions()} (want 2); resolveCompatApiKey in src/services/providers/openaicompat/compatAccounts.ts and primeZaiDiscovery in src/services/providers/providerDiscovery.ts must each read the command through src/services/providers/providerKeyCommand.ts and cache it`)
+  const compatAccounts = await import(`${root}/src/models/roads/openaicompat/compatAccounts.ts`)
+  const providerDiscovery = await import(`${root}/src/models/roads/providerDiscovery.ts`)
+  check('named custom endpoint resolves its own keyCommand and caches it', compatAccounts.resolveCompatApiKey(process.env, 'east')?.key === 'cmd-compat-east' && compatAccounts.resolveCompatApiKey(process.env, 'east')?.key === 'cmd-compat-east' && providerDiscovery.primeZaiDiscovery()?.keyPresent === true && executions() === 2, `runs ${executions()} (want 2); resolveCompatApiKey in src/models/roads/openaicompat/compatAccounts.ts and primeZaiDiscovery in src/models/roads/providerDiscovery.ts must each read the command through src/models/roads/providerKeyCommand.ts and cache it`)
 
   clearExecutions()
   nextKey = 'cmd-deepseek-expired'
   rejectKey = 'cmd-deepseek-expired'
   setHelperState({ key: nextKey })
   setSettings({ credentials: { keyCommands: { deepseek: cmdLine } } })
-  const firstPrime = require(`${root}/src/services/providers/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()?.key
-  check('deepseek primes the first command key before the turn', firstPrime === 'cmd-deepseek-expired' && executions() === 1, `key ${JSON.stringify(firstPrime)}, runs ${executions()} (want 1); resolveDeepseekApiKey in src/services/providers/deepseek/deepseekAccounts.ts must run the configured keyCommand once through src/services/providers/providerKeyCommand.ts`)
+  const firstPrime = require(`${root}/src/models/roads/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()?.key
+  check('deepseek primes the first command key before the turn', firstPrime === 'cmd-deepseek-expired' && executions() === 1, `key ${JSON.stringify(firstPrime)}, runs ${executions()} (want 1); resolveDeepseekApiKey in src/models/roads/deepseek/deepseekAccounts.ts must run the configured keyCommand once through src/models/roads/providerKeyCommand.ts`)
   setHelperState({ key: 'cmd-deepseek-rotated' })
   const rowsAfter401 = await run('deepseek-v4-pro')
   check(
     'a 401 invalidates the cached command key, re-runs keyCommand once, and settles on the rotated key',
     executions() === 2 && seenAuth.at(-1)?.auth === 'Bearer cmd-deepseek-rotated' && rowsAfter401.some(r => !r.isApiErrorMessage && r.message.content.some((b: any) => b.text === 'KEY-COMMAND-SETTLED')),
-    `runs ${executions()} (want 2), last auth ${JSON.stringify(seenAuth.at(-1)?.auth)}; a 401 must call recoverProviderKeyCommand in src/services/providers/providerKeyCommand.ts and retry once with the rotated key`,
+    `runs ${executions()} (want 2), last auth ${JSON.stringify(seenAuth.at(-1)?.auth)}; a 401 must call recoverProviderKeyCommand in src/models/roads/providerKeyCommand.ts and retry once with the rotated key`,
   )
   rejectKey = null
 
   for (const [family, model, resolveKey] of [
-    ['groq', 'groq/llama-3.3-70b-versatile', () => require(`${root}/src/services/providers/groq/groqAccounts.ts`).resolveGroqApiKey()?.key],
-    ['cerebras', 'cerebras/gpt-oss-120b', () => require(`${root}/src/services/providers/cerebras/cerebrasAccounts.ts`).resolveCerebrasApiKey()?.key],
-    ['fireworks', 'fireworks/accounts/fireworks/models/gpt-oss-120b', () => require(`${root}/src/services/providers/fireworks/fireworksAccounts.ts`).resolveFireworksApiKey()?.key],
+    ['groq', 'groq/llama-3.3-70b-versatile', () => require(`${root}/src/models/roads/groq/groqAccounts.ts`).resolveGroqApiKey()?.key],
+    ['cerebras', 'cerebras/gpt-oss-120b', () => require(`${root}/src/models/roads/cerebras/cerebrasAccounts.ts`).resolveCerebrasApiKey()?.key],
+    ['fireworks', 'fireworks/accounts/fireworks/models/gpt-oss-120b', () => require(`${root}/src/models/roads/fireworks/fireworksAccounts.ts`).resolveFireworksApiKey()?.key],
   ] as Array<[string, string, () => string | undefined]>) {
     clearExecutions()
     rejectKey = `cmd-${family}-expired`
@@ -231,7 +231,7 @@ try {
     check(
       `${family}: a 401 invalidates the cached command key, re-runs keyCommand once, and settles on the rotated key`,
       primed === `cmd-${family}-expired` && executions() === 2 && seenAuth.at(-1)?.path === `/${family}/chat/completions` && seenAuth.at(-1)?.auth === `Bearer cmd-${family}-rotated` && rows.some(r => !r.isApiErrorMessage && r.message.content.some((b: any) => b.text === 'KEY-COMMAND-SETTLED')),
-      `primed ${JSON.stringify(primed)}, runs ${executions()} (want 2), last ${JSON.stringify(seenAuth.at(-1))}; a 401 on the ${family} road must call recoverProviderKeyCommand in src/services/providers/providerKeyCommand.ts and retry once with the rotated key`,
+      `primed ${JSON.stringify(primed)}, runs ${executions()} (want 2), last ${JSON.stringify(seenAuth.at(-1))}; a 401 on the ${family} road must call recoverProviderKeyCommand in src/models/roads/providerKeyCommand.ts and retry once with the rotated key`,
     )
     rejectKey = null
   }
@@ -240,25 +240,25 @@ try {
   clearExecutions()
   setHelperState({ failCode: 7, stderr: 'vault sealed' })
   setSettings({ credentials: { keyCommands: { deepseek: cmdLine, openrouter: cmdLine, openai: cmdLine, groq: cmdLine, cerebras: cmdLine, fireworks: cmdLine } } })
-  const failedResolve = require(`${root}/src/services/providers/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()
-  const backoffResolve = require(`${root}/src/services/providers/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()
-  const failedOpenrouterResolve = require(`${root}/src/services/providers/openrouter/openrouterAccounts.ts`).resolveOpenrouterApiKey()
-  const failedOpenaiResolve = require(`${root}/src/services/providers/openai/openaiAccounts.ts`).resolveOpenaiApiKey()
+  const failedResolve = require(`${root}/src/models/roads/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()
+  const backoffResolve = require(`${root}/src/models/roads/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()
+  const failedOpenrouterResolve = require(`${root}/src/models/roads/openrouter/openrouterAccounts.ts`).resolveOpenrouterApiKey()
+  const failedOpenaiResolve = require(`${root}/src/models/roads/openai/openaiAccounts.ts`).resolveOpenaiApiKey()
   const failedFastResolves = [
-    require(`${root}/src/services/providers/groq/groqAccounts.ts`).resolveGroqApiKey(),
-    require(`${root}/src/services/providers/cerebras/cerebrasAccounts.ts`).resolveCerebrasApiKey(),
-    require(`${root}/src/services/providers/fireworks/fireworksAccounts.ts`).resolveFireworksApiKey(),
+    require(`${root}/src/models/roads/groq/groqAccounts.ts`).resolveGroqApiKey(),
+    require(`${root}/src/models/roads/cerebras/cerebrasAccounts.ts`).resolveCerebrasApiKey(),
+    require(`${root}/src/models/roads/fireworks/fireworksAccounts.ts`).resolveFireworksApiKey(),
   ]
-  check('a failing keyCommand leaves the family with no key and backs off without re-running immediately', failedResolve === undefined && backoffResolve === undefined && failedOpenrouterResolve === undefined && failedOpenaiResolve === undefined && failedFastResolves.every(key => key === undefined) && executions() === 6, `runs ${executions()} (want 6, one per family); a failing command must leave no key and back off, see resolveProviderKeyCommand and providerKeyCommandFailure in src/services/providers/providerKeyCommand.ts`)
+  check('a failing keyCommand leaves the family with no key and backs off without re-running immediately', failedResolve === undefined && backoffResolve === undefined && failedOpenrouterResolve === undefined && failedOpenaiResolve === undefined && failedFastResolves.every(key => key === undefined) && executions() === 6, `runs ${executions()} (want 6, one per family); a failing command must leave no key and back off, see resolveProviderKeyCommand and providerKeyCommandFailure in src/models/roads/providerKeyCommand.ts`)
   const failedTurn = await run('deepseek-v4-pro')
   const failedOpenrouter = JSON.stringify(await run('openrouter/openai/gpt-5.6-terra'))
   const failedOpenai = JSON.stringify(await run('gpt-6-astra'))
   const failedText = JSON.stringify(failedTurn)
-  check('a turn on a failed keyCommand names the command exit once and sends no request', failedText.includes('exited with code 7') && failedText.includes('vault sealed') && failedOpenrouter.includes('exited with code 7') && failedOpenai.includes('exited with code 7'), 'the turn must name the command exit and send no request; the failure text comes from providerKeyCommandFailure in src/services/providers/providerKeyCommand.ts')
+  check('a turn on a failed keyCommand names the command exit once and sends no request', failedText.includes('exited with code 7') && failedText.includes('vault sealed') && failedOpenrouter.includes('exited with code 7') && failedOpenai.includes('exited with code 7'), 'the turn must name the command exit and send no request; the failure text comes from providerKeyCommandFailure in src/models/roads/providerKeyCommand.ts')
   const requestsBefore = seenAuth.length
   for (const [family, model] of [['groq', 'groq/llama-3.3-70b-versatile'], ['cerebras', 'cerebras/gpt-oss-120b'], ['fireworks', 'fireworks/accounts/fireworks/models/gpt-oss-120b']]) {
     const failed = JSON.stringify(await run(model!))
-    check(`${family}: a turn on a failed keyCommand names credentials.keyCommands.${family} and its exit, and sends no request`, failed.includes(`credentials.keyCommands.${family} exited with code 7`) && failed.includes('vault sealed') && seenAuth.length === requestsBefore, `requests sent ${seenAuth.length - requestsBefore} (want 0); the ${family} turn must refuse with credentials.keyCommands.${family} and the exit, see providerKeyCommandFailure in src/services/providers/providerKeyCommand.ts`)
+    check(`${family}: a turn on a failed keyCommand names credentials.keyCommands.${family} and its exit, and sends no request`, failed.includes(`credentials.keyCommands.${family} exited with code 7`) && failed.includes('vault sealed') && seenAuth.length === requestsBefore, `requests sent ${seenAuth.length - requestsBefore} (want 0); the ${family} turn must refuse with credentials.keyCommands.${family} and the exit, see providerKeyCommandFailure in src/models/roads/providerKeyCommand.ts`)
   }
 
   clearExecutions()
@@ -272,19 +272,19 @@ try {
   setSettings({})
   setSessionTrustAccepted(false)
   resetTrustDialogAcceptedCacheForTesting()
-  const untrustedKey = require(`${root}/src/services/providers/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()
+  const untrustedKey = require(`${root}/src/models/roads/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()
   setIsInteractive(true)
-  const untrustedInteractive = require(`${root}/src/services/providers/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()
+  const untrustedInteractive = require(`${root}/src/models/roads/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()
   const untrustedConfigured = keyCommandOwner?.configuredProviderKeyCommand('deepseek')
   setIsInteractive(false)
-  check('an untrusted project-scope keyCommand is refused and never executed', untrustedKey === undefined && untrustedInteractive === undefined && untrustedConfigured === undefined && !existsSync(marker), 'a project-scope keyCommand must be ignored until the project is trusted; see configuredProviderKeyCommand in src/services/providers/providerKeyCommand.ts')
+  check('an untrusted project-scope keyCommand is refused and never executed', untrustedKey === undefined && untrustedInteractive === undefined && untrustedConfigured === undefined && !existsSync(marker), 'a project-scope keyCommand must be ignored until the project is trusted; see configuredProviderKeyCommand in src/models/roads/providerKeyCommand.ts')
   rmSync(join(project, '.mercury'), { recursive: true, force: true })
   setSessionTrustAccepted(true)
   resetTrustDialogAcceptedCacheForTesting()
 
   for (const bad of [{ credentials: { keyCommands: 'not-a-map' } }, { credentials: { keyCommands: { openai: 123 } } }, { compatProvider: { east: { baseUrl: 'https://example.com/v1', keyCommand: 42 } } }]) {
     const verdict = SettingsSchema().safeParse(bad)
-    check(`malformed keyCommand setting is refused: ${JSON.stringify(bad)}`, !verdict.success, 'SettingsSchema in src/utils/settings/types.ts must reject this keyCommand shape (credentials.keyCommands is a map of strings, compatProvider keyCommand a string)')
+    check(`malformed keyCommand setting is refused: ${JSON.stringify(bad)}`, !verdict.success, 'SettingsSchema in src/platform/settings/settingsSchema.ts must reject this keyCommand shape (credentials.keyCommands is a map of strings, compatProvider keyCommand a string)')
   }
 
   console.log(`${failures ? 'PROVIDER KEY COMMANDS RED' : 'PROVIDER KEY COMMANDS GREEN'} (${checks} checks, ${failures} failures; loopback only)`)

@@ -29,20 +29,20 @@ delete process.env.NODE_ENV
 
 const React = await import('react')
 const chalk = (await import('chalk')).default
-const { enableConfigs } = await import(`${ROOT}/src/utils/config.js`)
+const { enableConfigs } = await import(`${ROOT}/src/platform/settings/config.js`)
 enableConfigs()
-const { render, Box, Text } = (await import(`${ROOT}/src/ink.js`)) as {
+const { render, Box, Text } = (await import(`${ROOT}/src/screen/themedRenderer.js`)) as {
   render: (node: unknown, opts: Record<string, unknown>) => Promise<{ unmount: () => void }>
   Box: unknown
   Text: unknown
 }
-const { AlternateScreen } = await import(`${ROOT}/src/ink/components/AlternateScreen.js`)
-const { default: useInput } = await import(`${ROOT}/src/ink/hooks/use-input.js`)
-const { AnimatedCritterArt } = await import(`${ROOT}/src/components/mercury-ui/AnimatedCritterArt.js`)
-const { cellColor, CRITTERS, SQUARE_DOCK_ART_LINES, SLEEP_CELL } = await import(`${ROOT}/src/utils/cockpit/critterData.js`)
+const { AlternateScreen } = await import(`${ROOT}/src/screen/renderer/elements/AlternateScreen.js`)
+const { default: useInput } = await import(`${ROOT}/src/screen/renderer/bindings/use-input.js`)
+const { AnimatedCritterArt } = await import(`${ROOT}/src/screen/widgets/AnimatedCritterArt.js`)
+const { cellColor, CRITTERS, SQUARE_DOCK_ART_LINES, SLEEP_CELL } = await import(`${ROOT}/src/screen/cockpit/critterData.js`)
 type CritterDef = (typeof CRITTERS)[number]
-const { composeCritterFrame } = await import(`${ROOT}/src/components/mercury-ui/CritterArt.js`)
-const owner = (await import(`${ROOT}/src/utils/cockpit/oasisBg.js`)) as Record<string, unknown>
+const { composeCritterFrame } = await import(`${ROOT}/src/screen/widgets/CritterArt.js`)
+const owner = (await import(`${ROOT}/src/screen/cockpit/oasisBg.js`)) as Record<string, unknown>
 const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
 
 let failures = 0
@@ -62,8 +62,8 @@ const markQuerySent = owner.markOriginalGroundQuerySent as () => void
 const noteReply = owner.noteOriginalGroundReply as (spec: string, write: (s: string) => void) => void
 const syncToTheme = owner.syncOasisBgToTheme as (theme: string, write: (s: string) => void) => void
 const exitGround = owner.exitOasisBg as (write: (s: string) => void) => void
-check('oasisBg exports terminalGround()', typeof terminalGround === 'function', 'export terminalGround from src/utils/cockpit/oasisBg.ts')
-check('oasisBg exports subscribeTerminalGround()', typeof subscribeTerminalGround === 'function', 'export subscribeTerminalGround from src/utils/cockpit/oasisBg.ts')
+check('oasisBg exports terminalGround()', typeof terminalGround === 'function', 'export terminalGround from src/screen/cockpit/oasisBg.ts')
+check('oasisBg exports subscribeTerminalGround()', typeof subscribeTerminalGround === 'function', 'export subscribeTerminalGround from src/screen/cockpit/oasisBg.ts')
 if (typeof terminalGround !== 'function' || typeof subscribeTerminalGround !== 'function') {
   console.log(`\n❌ EYE-GROUND RED — ${checks - failures}/${checks} checks (no ground reader on the owner: the painter cannot know the ground)`)
   process.exit(1)
@@ -73,27 +73,27 @@ const sink = (s: string): void => {
   wire.push(s)
 }
 resetGround()
-check('fresh owner: the ground is unknown', terminalGround().state === 'unknown', JSON.stringify(terminalGround()) + ' — a reset ground must read unknown; see _resetGroundForTest and terminalGround in src/utils/cockpit/oasisBg.ts')
+check('fresh owner: the ground is unknown', terminalGround().state === 'unknown', JSON.stringify(terminalGround()) + ' — a reset ground must read unknown; see _resetGroundForTest and terminalGround in src/screen/cockpit/oasisBg.ts')
 let notified = 0
 const unsubscribe = subscribeTerminalGround(() => {
   notified++
 })
 markQuerySent()
 noteReply('rgb:1111/2222/3333', sink)
-check('the warm road (an OSC 11 reply while unpainted) paints the canvas: state painted, the NIGHT hex', terminalGround().state === 'painted' && terminalGround().color === '#0d181b', JSON.stringify(terminalGround()) + ' — change noteOriginalGroundReply in src/utils/cockpit/oasisBg.ts so a reply while unpainted marks the canvas painted')
-check('…and the subscription fired', notified >= 1, `notified ${notified} — oasisBg.ts in src/utils/cockpit must call every subscribeTerminalGround listener when the ground changes`)
+check('the warm road (an OSC 11 reply while unpainted) paints the canvas: state painted, the NIGHT hex', terminalGround().state === 'painted' && terminalGround().color === '#0d181b', JSON.stringify(terminalGround()) + ' — change noteOriginalGroundReply in src/screen/cockpit/oasisBg.ts so a reply while unpainted marks the canvas painted')
+check('…and the subscription fired', notified >= 1, `notified ${notified} — oasisBg.ts in src/screen/cockpit must call every subscribeTerminalGround listener when the ground changes`)
 exitGround(sink)
-check('after the exit restore the ground is the terminal\'s ORIGINAL, normalised from the rgb:/16-bit reply to a hex', terminalGround().state === 'original' && terminalGround().color === '#112233', JSON.stringify(terminalGround()) + ' — change exitOasisBg and the rgb: reply parser in src/utils/cockpit/oasisBg.ts')
+check('after the exit restore the ground is the terminal\'s ORIGINAL, normalised from the rgb:/16-bit reply to a hex', terminalGround().state === 'original' && terminalGround().color === '#112233', JSON.stringify(terminalGround()) + ' — change exitOasisBg and the rgb: reply parser in src/screen/cockpit/oasisBg.ts')
 resetGround()
 markQuerySent()
 noteReply('not-a-colour', sink)
-check('a reply the XParseColor grammar cannot read never becomes a colour: the canvas is painted (NIGHT) and the original stays unknown after release', terminalGround().state === 'painted' && (exitGround(sink), terminalGround().state === 'unknown'), JSON.stringify(terminalGround()) + ' — change the reply parser in noteOriginalGroundReply in src/utils/cockpit/oasisBg.ts so an unreadable reply yields no colour')
+check('a reply the XParseColor grammar cannot read never becomes a colour: the canvas is painted (NIGHT) and the original stays unknown after release', terminalGround().state === 'painted' && (exitGround(sink), terminalGround().state === 'unknown'), JSON.stringify(terminalGround()) + ' — change the reply parser in noteOriginalGroundReply in src/screen/cockpit/oasisBg.ts so an unreadable reply yields no colour')
 unsubscribe()
 resetGround()
 const notifiedBefore = notified
 markQuerySent()
 noteReply('rgb:0000/0000/0000', sink)
-check('an unsubscribed listener is not called', notified === notifiedBefore, `notified ${notified} vs ${notifiedBefore} — the function subscribeTerminalGround returns in src/utils/cockpit/oasisBg.ts must remove the listener`)
+check('an unsubscribed listener is not called', notified === notifiedBefore, `notified ${notified} vs ${notifiedBefore} — the function subscribeTerminalGround returns in src/screen/cockpit/oasisBg.ts must remove the listener`)
 resetGround()
 
 const DOCKS = CRITTERS.map(def => ({ def, cols: Math.max(...def.squareDock.map(r => r.length)) }))
@@ -255,16 +255,16 @@ await awaitGlass(() => glass.rowText(0).includes('above the critters') && DOCKS.
 
 section('§1 the ground UNKNOWN: a painted-top cell is ▀ on the default background, a painted-bottom cell ▄ on it (never a guessed colour); a pair with a painted pixel below it is ▄ with the top colour as its background, a pair on the bottom edge ▀ with the bottom colour as its background')
 {
-  check('the four docks reached the glass', DOCKS.every((_, i) => readSprite(i).some(k => k.ch === '▄')), `fault=${glassFault} — the critter docks did not render half blocks; see composeCritterFrame and the painter in src/components/mercury-ui/CritterArt.tsx`)
+  check('the four docks reached the glass', DOCKS.every((_, i) => readSprite(i).some(k => k.ch === '▄')), `fault=${glassFault} — the critter docks did not render half blocks; see composeCritterFrame and the painter in src/screen/widgets/CritterArt.tsx`)
   for (let i = 0; i < DOCKS.length; i++) {
     const cells = readSprite(i)
     const bad = cells.filter(k => !baseShape(k))
     const singles = cells.filter(k => k.kind === 'top' || k.kind === 'bottom')
-    check(`${DOCKS[i]!.def.name}: ${cells.length} cells read the base shape (${singles.length} single-colour halves on the default ground, ${cells.filter(bottomEdge).length} cells on the bottom edge)`, bad.length === 0, show(bad.slice(0, 6)) + ' — with the ground unknown the painter in src/components/mercury-ui/CritterArt.tsx must paint half cells on the default background')
+    check(`${DOCKS[i]!.def.name}: ${cells.length} cells read the base shape (${singles.length} single-colour halves on the default ground, ${cells.filter(bottomEdge).length} cells on the bottom edge)`, bad.length === 0, show(bad.slice(0, 6)) + ' — with the ground unknown the painter in src/screen/widgets/CritterArt.tsx must paint half cells on the default background')
   }
   const crab = readSprite(0)
   const underEyes = crab.filter(k => k.line === 2 && k.kind === 'top')
-  check('the crab\'s line under the eyes carries four painted-top cells at grid cols 2/4/6/8 on the sprite\'s bottom edge — ▀, the ▀ glyph starting 8 px below the cell\'s top on Apple Terminal, so the ground shows under each eye-white there (the .27/.28 look)', underEyes.map(k => k.c).join(',') === '2,4,6,8' && underEyes.every(k => k.ch === '▀' && !k.below), show(underEyes) + ' — change the crab squareDock art in src/utils/cockpit/critterData.ts or the cell painter in src/components/mercury-ui/CritterArt.tsx')
+  check('the crab\'s line under the eyes carries four painted-top cells at grid cols 2/4/6/8 on the sprite\'s bottom edge — ▀, the ▀ glyph starting 8 px below the cell\'s top on Apple Terminal, so the ground shows under each eye-white there (the .27/.28 look)', underEyes.map(k => k.c).join(',') === '2,4,6,8' && underEyes.every(k => k.ch === '▀' && !k.below), show(underEyes) + ' — change the crab squareDock art in src/screen/cockpit/critterData.ts or the cell painter in src/screen/widgets/CritterArt.tsx')
 }
 const eyeBefore = DOCKS.map((_, i) => snapshot(eyeLine(readSprite(i))))
 
@@ -274,22 +274,22 @@ section('§2 the ground becomes KNOWN while the critters stand (the product\'s o
   markQuerySent()
   noteReply('rgb:0000/0000/0000', sink)
   const GROUND = terminalGround().color!
-  check('the owner reports the painted canvas', terminalGround().state === 'painted' && GROUND === '#0d181b', JSON.stringify(terminalGround()) + ' — change noteOriginalGroundReply in src/utils/cockpit/oasisBg.ts')
+  check('the owner reports the painted canvas', terminalGround().state === 'painted' && GROUND === '#0d181b', JSON.stringify(terminalGround()) + ' — change noteOriginalGroundReply in src/screen/cockpit/oasisBg.ts')
   const repainted = await awaitGlass(() => DOCKS.every((_, i) => readSprite(i).filter(k => k.kind === 'top' || k.kind === 'bottom').every(k => k.bg !== 'default')))
-  check('the mounted sprites repainted on the owner\'s notice without any prop changing', repainted && stdout.chunks.length > paintMark, `chunks +${stdout.chunks.length - paintMark} — CritterArt in src/components/mercury-ui/CritterArt.tsx must subscribe to subscribeTerminalGround and re-render when it fires`)
+  check('the mounted sprites repainted on the owner\'s notice without any prop changing', repainted && stdout.chunks.length > paintMark, `chunks +${stdout.chunks.length - paintMark} — CritterArt in src/screen/widgets/CritterArt.tsx must subscribe to subscribeTerminalGround and re-render when it fires`)
   for (let i = 0; i < DOCKS.length; i++) {
     const cells = readSprite(i)
     const bad = cells.filter(k => !groundShape(GROUND)(k))
-    check(`${DOCKS[i]!.def.name}: the cells beneath the eyes use lower blocks with their bottom row sealed; every other cell keeps the known-ground shape`, bad.length === 0, show(bad.slice(0, 6)) + ' — with a known ground the painter in src/components/mercury-ui/CritterArt.tsx must put the ground colour in the empty half')
+    check(`${DOCKS[i]!.def.name}: the cells beneath the eyes use lower blocks with their bottom row sealed; every other cell keeps the known-ground shape`, bad.length === 0, show(bad.slice(0, 6)) + ' — with a known ground the painter in src/screen/widgets/CritterArt.tsx must put the ground colour in the empty half')
     const painted = cells.filter(k => k.kind !== 'empty')
-    check(`${DOCKS[i]!.def.name}: no painted cell carries the default background, no cell with a painted pixel below it is ▀, and no cell on the bottom edge carries the top colour as its background`, painted.every(k => k.bg !== 'default' && !(k.below && k.ch === '▀') && !(bottomEdge(k) && wearsTopAsBackground(k) && !k.underline)), show(painted.filter(k => k.bg === 'default' || (k.below && k.ch === '▀') || (bottomEdge(k) && wearsTopAsBackground(k) && !k.underline)).slice(0, 6)) + ' — change the painter in src/components/mercury-ui/CritterArt.tsx')
-    check(`${DOCKS[i]!.def.name}: the eye line is byte-identical to the unknown-ground frame (the four-eyes law stands: every eye cell a pair)`, snapshot(eyeLine(cells)) === eyeBefore[i], snapshot(eyeLine(cells)) + ' — the eye cells must not change with the ground; see the painter in src/components/mercury-ui/CritterArt.tsx')
+    check(`${DOCKS[i]!.def.name}: no painted cell carries the default background, no cell with a painted pixel below it is ▀, and no cell on the bottom edge carries the top colour as its background`, painted.every(k => k.bg !== 'default' && !(k.below && k.ch === '▀') && !(bottomEdge(k) && wearsTopAsBackground(k) && !k.underline)), show(painted.filter(k => k.bg === 'default' || (k.below && k.ch === '▀') || (bottomEdge(k) && wearsTopAsBackground(k) && !k.underline)).slice(0, 6)) + ' — change the painter in src/screen/widgets/CritterArt.tsx')
+    check(`${DOCKS[i]!.def.name}: the eye line is byte-identical to the unknown-ground frame (the four-eyes law stands: every eye cell a pair)`, snapshot(eyeLine(cells)) === eyeBefore[i], snapshot(eyeLine(cells)) + ' — the eye cells must not change with the ground; see the painter in src/screen/widgets/CritterArt.tsx')
   }
   const crab = readSprite(0)
   const underEyes = crab.filter(k => k.line === 2 && k.c % 2 === 0 && k.c >= 2 && k.c <= 8)
-  check('the crab\'s four cells under the eye-whites join the body without a notch and seal their lower edge in the ground colour', underEyes.every(k => k.underEye && k.underline && groundShape(GROUND)(k)), show(underEyes) + ' — change the painter in src/components/mercury-ui/CritterArt.tsx (the underline shape mask)')
+  check('the crab\'s four cells under the eye-whites join the body without a notch and seal their lower edge in the ground colour', underEyes.every(k => k.underEye && k.underline && groundShape(GROUND)(k)), show(underEyes) + ' — change the painter in src/screen/widgets/CritterArt.tsx (the underline shape mask)')
   const clam = readSprite(3)
-  check('the clam (no single-colour half in its dock) is byte-identical in both states', clam.every(k => baseShape(k) && groundShape(GROUND)(k)), show(clam.filter(k => !baseShape(k)).slice(0, 4)) + ' — change the painter in src/components/mercury-ui/CritterArt.tsx')
+  check('the clam (no single-colour half in its dock) is byte-identical in both states', clam.every(k => baseShape(k) && groundShape(GROUND)(k)), show(clam.filter(k => !baseShape(k)).slice(0, 4)) + ' — change the painter in src/screen/widgets/CritterArt.tsx')
 }
 
 section('§2b the exact eye cells AND their lower neighbours: no top notch and no bottom fringe; other bottom-edge cells keep their shape')
@@ -299,17 +299,17 @@ section('§2b the exact eye cells AND their lower neighbours: no top notch and n
   const last = crab.filter(k => k.line === 2 && k.kind !== 'empty')
   const legs = last.filter(k => k.kind === 'pair')
   const gaps = last.filter(k => k.kind === 'top')
-  check('the crab\'s last line is its bottom edge: five leg pairs at the odd columns and four gaps between them, nothing painted below any of them', legs.map(k => k.c).join(',') === '1,3,5,7,9' && gaps.map(k => k.c).join(',') === '2,4,6,8' && last.every(k => !k.below), show(last) + ' — the crab squareDock art in src/utils/cockpit/critterData.ts changed; update this check or the art')
-  check('the three leg cells outside the eyes stay upper blocks with body foreground and leg background', legs.filter(k => !k.underEye).map(k => k.c).join(',') === '1,5,9' && legs.filter(k => !k.underEye).every(pairShape), show(legs) + ' — change the painter in src/components/mercury-ui/CritterArt.tsx')
-  check('the four gaps beneath the crab eye-whites are lower blocks with body background, ground foreground and a ground underline sealing the bottom row', gaps.every(k => k.underEye && k.underline && groundShape(GROUND)(k)), show(gaps) + ' — change the painter in src/components/mercury-ui/CritterArt.tsx (lower block, ground foreground, underline)')
+  check('the crab\'s last line is its bottom edge: five leg pairs at the odd columns and four gaps between them, nothing painted below any of them', legs.map(k => k.c).join(',') === '1,3,5,7,9' && gaps.map(k => k.c).join(',') === '2,4,6,8' && last.every(k => !k.below), show(last) + ' — the crab squareDock art in src/screen/cockpit/critterData.ts changed; update this check or the art')
+  check('the three leg cells outside the eyes stay upper blocks with body foreground and leg background', legs.filter(k => !k.underEye).map(k => k.c).join(',') === '1,5,9' && legs.filter(k => !k.underEye).every(pairShape), show(legs) + ' — change the painter in src/screen/widgets/CritterArt.tsx')
+  check('the four gaps beneath the crab eye-whites are lower blocks with body background, ground foreground and a ground underline sealing the bottom row', gaps.every(k => k.underEye && k.underline && groundShape(GROUND)(k)), show(gaps) + ' — change the painter in src/screen/widgets/CritterArt.tsx (lower block, ground foreground, underline)')
   for (let i = 0; i < DOCKS.length; i++) {
     const cells = readSprite(i)
     const edge = cells.filter(k => bottomEdge(k) && !k.underEye)
-    check(`${DOCKS[i]!.def.name}: ${edge.length} other bottom-edge cells keep the top colour out of their background`, edge.length > 0 && edge.every(k => !wearsTopAsBackground(k) && !k.underline), show(edge) + ' — change the painter in src/components/mercury-ui/CritterArt.tsx')
+    check(`${DOCKS[i]!.def.name}: ${edge.length} other bottom-edge cells keep the top colour out of their background`, edge.length > 0 && edge.every(k => !wearsTopAsBackground(k) && !k.underline), show(edge) + ' — change the painter in src/screen/widgets/CritterArt.tsx')
     const eyes = eyeLine(cells)
-    check(`${DOCKS[i]!.def.name}: all six authored eye cells keep their glyph and both colours, with no underline`, eyes.map(k => `${k.c},${k.line}`).join(' ') === '2,1 3,1 4,1 6,1 7,1 8,1' && eyes.every(k => k.ch === '▄' && pairShape(k) && !k.underline), show(eyes) + ' — change the painter in src/components/mercury-ui/CritterArt.tsx so the eye cells keep glyph, colours and no underline')
+    check(`${DOCKS[i]!.def.name}: all six authored eye cells keep their glyph and both colours, with no underline`, eyes.map(k => `${k.c},${k.line}`).join(' ') === '2,1 3,1 4,1 6,1 7,1 8,1' && eyes.every(k => k.ch === '▄' && pairShape(k) && !k.underline), show(eyes) + ' — change the painter in src/screen/widgets/CritterArt.tsx so the eye cells keep glyph, colours and no underline')
     const under = cells.filter(k => k.underEye)
-    check(`${DOCKS[i]!.def.name}: line 2 beneath the eyes at columns 2,3,4,6,7,8 is lower-block, top-colour background, lower-colour foreground and underline`, under.map(k => `${k.c},${k.line}`).join(' ') === '2,2 3,2 4,2 6,2 7,2 8,2' && under.every(k => k.ch === '▄' && k.bg === `48;2;${rgb(k.top!)}` && k.fg === `38;2;${rgb(k.bot ?? GROUND)}` && k.underline), show(under) + ' — change the painter in src/components/mercury-ui/CritterArt.tsx')
+    check(`${DOCKS[i]!.def.name}: line 2 beneath the eyes at columns 2,3,4,6,7,8 is lower-block, top-colour background, lower-colour foreground and underline`, under.map(k => `${k.c},${k.line}`).join(' ') === '2,2 3,2 4,2 6,2 7,2 8,2' && under.every(k => k.ch === '▄' && k.bg === `48;2;${rgb(k.top!)}` && k.fg === `38;2;${rgb(k.bot ?? GROUND)}` && k.underline), show(under) + ' — change the painter in src/screen/widgets/CritterArt.tsx')
   }
 }
 
@@ -324,7 +324,7 @@ section('§3 the ground CHANGES: a dark ⇄ true-black switch repaints the half 
   } finally {
     stdoutProto.isTTY = wasTTY
   }
-  check('the theme sync painted the true-black canvas', terminalGround().state === 'painted' && terminalGround().color === '#000000', JSON.stringify(terminalGround()) + ' — change syncOasisBgToTheme in src/utils/cockpit/oasisBg.ts')
+  check('the theme sync painted the true-black canvas', terminalGround().state === 'painted' && terminalGround().color === '#000000', JSON.stringify(terminalGround()) + ' — change syncOasisBgToTheme in src/screen/cockpit/oasisBg.ts')
   const black = await awaitGlass(() => DOCKS.every((_, i) => readSprite(i).filter(k => k.kind === 'top' || k.kind === 'bottom').every(groundShape('#000000'))))
   check('every single-colour half of every critter now names #000000 as its ground half', black, show(readSprite(0).filter(k => (k.kind === 'top' || k.kind === 'bottom') && !groundShape('#000000')(k)).slice(0, 6)))
   stdoutProto.isTTY = true
@@ -339,7 +339,7 @@ section('§3 the ground CHANGES: a dark ⇄ true-black switch repaints the half 
   markQuerySent()
   noteReply('rgb:1111/2222/3333', sink)
   exitGround(sink)
-  check('the owner reports the original after the exit restore', terminalGround().state === 'original' && terminalGround().color === '#112233', JSON.stringify(terminalGround()) + ' — change exitOasisBg in src/utils/cockpit/oasisBg.ts')
+  check('the owner reports the original after the exit restore', terminalGround().state === 'original' && terminalGround().color === '#112233', JSON.stringify(terminalGround()) + ' — change exitOasisBg in src/screen/cockpit/oasisBg.ts')
   const original = await awaitGlass(() => DOCKS.every((_, i) => readSprite(i).filter(k => k.kind === 'top' || k.kind === 'bottom').every(groundShape('#112233'))))
   check('the original reaches the painter: every single-colour half names #112233', original, show(readSprite(1).filter(k => (k.kind === 'top' || k.kind === 'bottom') && !groundShape('#112233')(k)).slice(0, 6)))
   resetGround()
@@ -354,7 +354,7 @@ section('§4 colour OFF: the glyph is the only shape left, so a known ground cha
   try {
     markQuerySent()
     noteReply('rgb:0000/0000/0000', sink)
-    check('the canvas is painted while colour is off', terminalGround().state === 'painted', JSON.stringify(terminalGround()) + ' — change noteOriginalGroundReply in src/utils/cockpit/oasisBg.ts')
+    check('the canvas is painted while colour is off', terminalGround().state === 'painted', JSON.stringify(terminalGround()) + ' — change noteOriginalGroundReply in src/screen/cockpit/oasisBg.ts')
     await settle(400)
     flushGlass()
     check('with chalk at level 0 and the canvas painted, every painted-top cell is still ▀ and every painted-bottom cell still ▄', DOCKS.every((_, i) => readSprite(i).filter(k => k.kind === 'top').every(k => k.ch === '▀') && readSprite(i).filter(k => k.kind === 'bottom').every(k => k.ch === '▄')), show(readSprite(0).filter(k => (k.kind === 'top' && k.ch !== '▀') || (k.kind === 'bottom' && k.ch !== '▄'))))
@@ -364,7 +364,7 @@ section('§4 colour OFF: the glyph is the only shape left, so a known ground cha
     resetGround()
   }
 }
-check('the glass replay raised no vocabulary fault', glassFault === '', glassFault + ' — the critter frame wrote an escape the test AnsiEmulator cannot replay; extend forGlass here or see the writer in src/components/mercury-ui/CritterArt.tsx')
+check('the glass replay raised no vocabulary fault', glassFault === '', glassFault + ' — the critter frame wrote an escape the test AnsiEmulator cannot replay; extend forGlass here or see the writer in src/screen/widgets/CritterArt.tsx')
 
 instance.unmount()
 await settle(50)

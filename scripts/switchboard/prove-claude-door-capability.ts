@@ -13,8 +13,8 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const text = (v: unknown): string => JSON.stringify(v) ?? ''
-const whereAdmission = 'change validateWorkerModelChoice in src/services/concourse/workerModels.ts'
-const wherePreflight = 'change preflightConcourseDispatch in src/daemon/concourseDispatch.ts'
+const whereAdmission = 'change validateWorkerModelChoice in src/screen/concourse-model/workerModels.ts'
+const wherePreflight = 'change preflightConcourseDispatch in src/daemon/concourse-workers/concourseDispatch.ts'
 const withHint = (value: string, hint: string): string => `${value} — ${hint}`
 
 const scratch = mkdtempSync(join(tmpdir(), 'claude-door-capability-'))
@@ -57,22 +57,22 @@ console.log('============================================================')
 console.log(' the Claude door — a Claude id the account can run starts from every door; the wire decides')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const wm = await import('../../src/services/concourse/workerModels.ts')
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
-const { getModelOptions } = await import('../../src/services/model/modelOptions.ts')
-const { getEngineModel } = await import('../../src/services/model/model.ts')
-const { refreshSignInReads } = await import('../../src/daemon/signInView.ts')
+const wm = await import('../../src/screen/concourse-model/workerModels.ts')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
+const { getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
+const { refreshSignInReads } = await import('../../src/daemon/session-seat/signInView.ts')
 
 section(`§1 the session and crew doors: '${UNKNOWN_CLAUDE_ID}' (no catalogue knows it) dispatches on capability`)
 {
-  check('the id is inside the first-party space (the claude- mark routes it to the Anthropic lane)', declaredRouteOf(UNKNOWN_CLAUDE_ID) === 'anthropic', withHint(String(declaredRouteOf(UNKNOWN_CLAUDE_ID)), 'change declaredRouteOf in src/services/providers/routeLaw.ts so the claude- mark routes to anthropic'))
-  check('no catalogue row lists it', !getModelOptions().some(o => o.value === UNKNOWN_CLAUDE_ID), 'the fixture id appeared in getModelOptions (src/services/model/modelOptions.ts); pick an id no catalogue lists')
+  check('the id is inside the first-party space (the claude- mark routes it to the Anthropic lane)', declaredRouteOf(UNKNOWN_CLAUDE_ID) === 'anthropic', withHint(String(declaredRouteOf(UNKNOWN_CLAUDE_ID)), 'change declaredRouteOf in src/models/roads/routeLaw.ts so the claude- mark routes to anthropic'))
+  check('no catalogue row lists it', !getModelOptions().some(o => o.value === UNKNOWN_CLAUDE_ID), 'the fixture id appeared in getModelOptions (src/models/catalogue/modelOptions.ts); pick an id no catalogue lists')
   const session = await wm.validateWorkerModelChoice(UNKNOWN_CLAUDE_ID, 'session')
   check('the SESSION door admits it — dispatched to the Anthropic lane, the wire decides', session.ok && session.entry.modelId === UNKNOWN_CLAUDE_ID && session.entry.session.availability === 'available', withHint(text(session), whereAdmission + ' so a claude- id no catalogue knows is admitted as available on the Anthropic lane'))
   check('…with the ratified effort convention on the row', session.ok && session.entry.effort === 'high', withHint(text(session), whereAdmission + ' so the admitted row carries effort high'))
-  const { preflightConcourseDispatch } = await import('../../src/daemon/concourseDispatch.ts')
+  const { preflightConcourseDispatch } = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
   const preflight = await preflightConcourseDispatch({ workspaceDir: work, modelKey: UNKNOWN_CLAUDE_ID })
   check("the birth door's preflight (the boot face's New Session road) is CLEAN on it", preflight.ok === true, withHint(text(preflight), wherePreflight + ' so an unknown claude- id passes'))
   const twin = await wm.validateWorkerModelChoice(`${UNKNOWN_CLAUDE_ID}[1m]`, 'session')
@@ -97,7 +97,7 @@ section('§2 the honest refusals stay: a family-less stranger, and a keyless fam
   process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
   refreshSignInReads(true)
 
-  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+  const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { roster: ['claude-opus-5-5'] } }, null, 2))
   resetSettingsCache()
   const forbidden = await wm.validateWorkerModelChoice(UNKNOWN_CLAUDE_ID, 'session')
@@ -112,13 +112,13 @@ section(`§3 the real case: '${REAL_ID}' saved after the daemon booted, judged b
 {
   const primed = getEngineModel()
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { model: REAL_ID } }, null, 2))
-  check("the saved setting names the row while this process's settings read still holds its boot-time value (the daemon's read)", getEngineModel() === primed && primed !== REAL_ID, withHint(`${primed} → ${getEngineModel()}`, 'getEngineModel in src/services/model/model.ts must keep its boot-time value until the settings cache resets; the proof relies on that'))
-  const { parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
+  check("the saved setting names the row while this process's settings read still holds its boot-time value (the daemon's read)", getEngineModel() === primed && primed !== REAL_ID, withHint(`${primed} → ${getEngineModel()}`, 'getEngineModel in src/models/catalogue/engineModel.ts must keep its boot-time value until the settings cache resets; the proof relies on that'))
+  const { parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.ts')
   const canonical = (value: string): string => parseUserSpecifiedModel(value).replace(/\[1m]$/, '')
   const preRow = () => getModelOptions().filter(o => canonical(o.value) !== REAL_ID)
-  check('the pre-row catalogue read lists no Sonnet 5.5 row', !preRow().some(o => canonical(o.value) === REAL_ID), 'preRow filters on canonical(parseUserSpecifiedModel); check parseUserSpecifiedModel in src/services/model/model.ts')
+  check('the pre-row catalogue read lists no Sonnet 5.5 row', !preRow().some(o => canonical(o.value) === REAL_ID), 'preRow filters on canonical(parseUserSpecifiedModel); check parseUserSpecifiedModel in src/models/catalogue/engineModel.ts')
   const registry = await wm.composeWorkerModelRegistry({ modelOptions: preRow })
-  check("the registry composes from the injected read — a bundle whose catalogue predates the row (a build without the read judges by its own catalogue alone)", !registry.entries.some(e => e.modelId === REAL_ID), withHint(text(registry.entries.map(e => e.modelId)), 'change composeWorkerModelRegistry in src/services/concourse/workerModels.ts so it builds from the injected modelOptions read alone'))
+  check("the registry composes from the injected read — a bundle whose catalogue predates the row (a build without the read judges by its own catalogue alone)", !registry.entries.some(e => e.modelId === REAL_ID), withHint(text(registry.entries.map(e => e.modelId)), 'change composeWorkerModelRegistry in src/screen/concourse-model/workerModels.ts so it builds from the injected modelOptions read alone'))
   const born = await wm.validateWorkerModelChoice(REAL_ID, 'session', { modelOptions: preRow })
   check(`the boot face's new session on '${REAL_ID}' resolves under that read — dispatched to the Anthropic lane, never "'${REAL_ID}' is not an exact model id"`, born.ok && born.entry.modelId === REAL_ID && born.entry.session.availability === 'available', withHint(text(born), whereAdmission + ' so a Claude id the injected catalogue lacks is still admitted as available'))
 }
@@ -127,30 +127,30 @@ const FUTURE_IDS = [UNKNOWN_CLAUDE_ID, 'claude-sonnet-7-3']
 
 section('§4 the guarantee — a future Claude id starts from EVERY door, the wire deciding')
 {
-  const { preflightConcourseDispatch } = await import('../../src/daemon/concourseDispatch.ts')
-  const { setSubModel, resolveSubModel } = await import('../../src/services/model/subModelSlots.ts')
-  const { resolveAdvisorModel } = await import('../../src/services/advisor/advisorSettings.ts')
-  const { validateModel } = await import('../../src/services/providers/validateModel.ts')
-  const { homeLaneAdmissionRefusal } = await import('../../src/services/providers/homeLaneAdmission.ts')
-  const { canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
-  const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
-  const { parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
-  const { isModelAllowed } = await import('../../src/services/model/modelAllowlist.ts')
+  const { preflightConcourseDispatch } = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
+  const { setSubModel, resolveSubModel } = await import('../../src/models/catalogue/subModelSlots.ts')
+  const { resolveAdvisorModel } = await import('../../src/models/advisor/advisorSettings.ts')
+  const { validateModel } = await import('../../src/models/roads/validateModel.ts')
+  const { homeLaneAdmissionRefusal } = await import('../../src/models/roads/homeLaneAdmission.ts')
+  const { canonicalWireModelId } = await import('../../src/models/roads/routeLaw.ts')
+  const { recognizeModelId } = await import('../../src/models/roads/idSpaces.ts')
+  const { parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.ts')
+  const { isModelAllowed } = await import('../../src/models/catalogue/modelAllowlist.ts')
   for (const id of FUTURE_IDS) {
     console.log(`  · ${id}`)
-    check(`identity: the id passes through the setting parser byte-identical, is first-party by the claude- mark, admitted by the home lane, allowed, and rides the wire as itself`, parseUserSpecifiedModel(id) === id && recognizeModelId(id).kind === 'first-party' && homeLaneAdmissionRefusal(id) === null && isModelAllowed(id) && canonicalWireModelId(id).ok, withHint(id, 'one leg failed: parseUserSpecifiedModel (src/services/model/model.ts), recognizeModelId (src/services/providers/idSpaces.ts), homeLaneAdmissionRefusal (src/services/providers/homeLaneAdmission.ts), isModelAllowed (src/services/model/modelAllowlist.ts) or canonicalWireModelId (src/services/providers/routeLaw.ts)'))
+    check(`identity: the id passes through the setting parser byte-identical, is first-party by the claude- mark, admitted by the home lane, allowed, and rides the wire as itself`, parseUserSpecifiedModel(id) === id && recognizeModelId(id).kind === 'first-party' && homeLaneAdmissionRefusal(id) === null && isModelAllowed(id) && canonicalWireModelId(id).ok, withHint(id, 'one leg failed: parseUserSpecifiedModel (src/models/catalogue/engineModel.ts), recognizeModelId (src/models/roads/idSpaces.ts), homeLaneAdmissionRefusal (src/models/roads/homeLaneAdmission.ts), isModelAllowed (src/models/catalogue/modelAllowlist.ts) or canonicalWireModelId (src/models/roads/routeLaw.ts)'))
     const admission = await wm.validateWorkerModelChoice(id, 'session')
     check("door · the daemon's session admission (the boot face's New Session, /clear, --model and a saved setting all reach it through bornSession)", admission.ok && admission.entry.modelId === id, withHint(text(admission), whereAdmission))
     const preflight = await preflightConcourseDispatch({ workspaceDir: work, modelKey: id })
     check("door · the birth door's preflight", preflight.ok === true, withHint(text(preflight), wherePreflight))
     const picked = setSubModel('advisor', id)
     const advisor = resolveAdvisorModel()
-    check("door · the advisor pick (/submodels) and AskAdvisor's model", picked.ok && advisor.origin === 'saved' && advisor.model === id && advisor.route === 'anthropic', withHint(`${text(picked)} ${text(advisor)}`, 'change setSubModel in src/services/model/subModelSlots.ts or resolveAdvisorModel in src/services/advisor/advisorSettings.ts'))
+    check("door · the advisor pick (/submodels) and AskAdvisor's model", picked.ok && advisor.origin === 'saved' && advisor.model === id && advisor.route === 'anthropic', withHint(`${text(picked)} ${text(advisor)}`, 'change setSubModel in src/models/catalogue/subModelSlots.ts or resolveAdvisorModel in src/models/advisor/advisorSettings.ts'))
     setSubModel('advisor', null)
   }
 
-  check('the shape guards stay: a bare vendor slug is carrier-shaped junk for the home lane', !canonicalWireModelId('anthropic/claude-zephyr-9-1').ok, 'change canonicalWireModelId in src/services/providers/routeLaw.ts to refuse a vendor-slug id on the home lane')
-  check("the shape guards stay: a spelling without the claude- mark is no family's ('claude zephyr 9' → unrecognised)", recognizeModelId('claude zephyr 9').kind === 'unrecognised', 'change recognizeModelId in src/services/providers/idSpaces.ts so a spelling without the claude- mark is unrecognised')
+  check('the shape guards stay: a bare vendor slug is carrier-shaped junk for the home lane', !canonicalWireModelId('anthropic/claude-zephyr-9-1').ok, 'change canonicalWireModelId in src/models/roads/routeLaw.ts to refuse a vendor-slug id on the home lane')
+  check("the shape guards stay: a spelling without the claude- mark is no family's ('claude zephyr 9' → unrecognised)", recognizeModelId('claude zephyr 9').kind === 'unrecognised', 'change recognizeModelId in src/models/roads/idSpaces.ts so a spelling without the claude- mark is unrecognised')
   const spaced = await wm.validateWorkerModelChoice('claude zephyr 9', 'session')
   check('…and the door refuses it not-runnable:unrecognised, the honest class', !spaced.ok && spaced.reason === 'not-runnable:unrecognised', withHint(text(spaced), whereAdmission + ' to refuse a spelling no family claims as not-runnable:unrecognised'))
 }

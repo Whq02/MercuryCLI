@@ -15,10 +15,10 @@ import { join } from 'node:path'
 if (homedir() !== process.env.DRV_HOME) throw new Error('the home folder is ' + homedir() + ', not the scratch home of this proof')
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const repo = ${JSON.stringify(repo)}
-const { enableConfigs } = await import(join(repo, 'src/utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(repo, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
-const { getInstructionFiles } = await import(join(repo, 'src/services/instructions/engine.ts'))
-const { currentHiddenCharacterFindings, hiddenCharacterLine, hiddenCharacterScanCounts } = await import(join(repo, 'src/utils/text/hiddenCharacterFindings.ts'))
+const { getInstructionFiles } = await import(join(repo, 'src/sessions/instructions/instructionFiles.ts'))
+const { currentHiddenCharacterFindings, hiddenCharacterLine, hiddenCharacterScanCounts } = await import(join(repo, 'src/platform/text/hiddenCharacterFindings.ts'))
 const files = await getInstructionFiles()
 writeFileSync(process.argv[2]!, JSON.stringify({
   texts: Object.fromEntries(files.map((f: any) => [f.path, f.content])),
@@ -32,7 +32,7 @@ type Drive = { texts: Record<string, string>; findings: Finding[]; scanned: numb
 
 let passed = 0
 let failed = 0
-const HIDDEN_CHARACTER_HINT = 'What to change: where instruction files are scanned and recorded with recordHiddenCharacters in src/services/instructions/discovery.ts, or how they are reported in src/utils/text/hiddenCharacterFindings.ts'
+const HIDDEN_CHARACTER_HINT = 'What to change: where instruction files are scanned and recorded with recordHiddenCharacters in src/sessions/instructions/discovery.ts, or how they are reported in src/platform/text/hiddenCharacterFindings.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${HIDDEN_CHARACTER_HINT}`}`)

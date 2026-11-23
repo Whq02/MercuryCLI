@@ -14,17 +14,17 @@ import {
   LID_MS,
   pupilForTime,
   SECOND_LID_AT,
-} from '../../src/utils/cockpit/critterIdle.js'
+} from '../../src/screen/cockpit/critterIdle.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
-const PUPIL_HINT = 'pupilForTime in src/utils/cockpit/critterIdle.ts must shut the lid only in the first LID_MS of each cycle, plus the second lid on every 4th cycle'
-const WAVE_HINT = 'breathWave in src/utils/cockpit/critterIdle.ts must stay smooth and within 0 to 1'
-const EDGE_HINT = 'the tick constants or the pupil and breath functions in src/utils/cockpit/critterIdle.ts change the derived value too often'
-const GATE_HINT = 'critterIdleEnabled in src/utils/cockpit/critterIdle.ts must follow the MERCURY_CRITTER_IDLE setting alone'
+const PUPIL_HINT = 'pupilForTime in src/screen/cockpit/critterIdle.ts must shut the lid only in the first LID_MS of each cycle, plus the second lid on every 4th cycle'
+const WAVE_HINT = 'breathWave in src/screen/cockpit/critterIdle.ts must stay smooth and within 0 to 1'
+const EDGE_HINT = 'the tick constants or the pupil and breath functions in src/screen/cockpit/critterIdle.ts change the derived value too often'
+const GATE_HINT = 'critterIdleEnabled in src/screen/cockpit/critterIdle.ts must follow the MERCURY_CRITTER_IDLE setting alone'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -104,7 +104,7 @@ check(
     return seen.has(0) && seen.has(BREATH_BUCKETS) && seen.size >= BREATH_BUCKETS - 1
   })(),
   '',
-  'breathBucket in src/utils/cockpit/critterIdle.ts must reach bucket 0 and BREATH_BUCKETS across one BREATH_PERIOD',
+  'breathBucket in src/screen/cockpit/critterIdle.ts must reach bucket 0 and BREATH_BUCKETS across one BREATH_PERIOD',
 )
 
 section('fork + env GATE (OFF ⇒ static fallback ⇒ byte-identical)')

@@ -7,7 +7,7 @@ import { join, relative } from 'node:path'
 const ROOT = join(import.meta.dir, '..', '..')
 const NAME = 'image-generation'
 const SOURCE = join(ROOT, 'mercury-skills', NAME)
-const MEDIA_SERVER = join(ROOT, 'src', 'extensions', 'bundled', 'mercury-media', 'server', 'server.js')
+const MEDIA_SERVER = join(ROOT, 'src', 'integrations', 'extensions', 'bundled', 'mercury-media', 'server', 'server.js')
 const POSITIVE = 'Use Mercury image generation to make a pixel-art character from this reference.'
 const NEGATIVE = 'How do I install Mercury or sign in?'
 
@@ -30,7 +30,7 @@ const guard = setTimeout(() => {
 }, 120_000)
 guard.unref?.()
 
-const { mercuryDocPages, MERCURY_DOCS_SKILL_NAME } = await import('../../src/skills/bundled/mercuryDocs.ts')
+const { mercuryDocPages, MERCURY_DOCS_SKILL_NAME } = await import('../../src/integrations/skills/bundled/mercuryDocs.ts')
 plugin({
   name: 'bundled-skill-text',
   setup(build) {
@@ -43,29 +43,29 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const proofFixHint = ' | fix: edit mercury-skills/image-generation (SKILL.md and references/), then run bun scripts/skills/gen-bundled.ts to regenerate the bundled modules; schema and tool checks read the media server src/extensions/bundled/mercury-media/server/server.js'
+  const proofFixHint = ' | fix: edit mercury-skills/image-generation (SKILL.md and references/), then run bun scripts/skills/gen-bundled.ts to regenerate the bundled modules; schema and tool checks read the media server src/integrations/extensions/bundled/mercury-media/server/server.js'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? `: ${detail.slice(0, 400)}` : ''}${proofFixHint}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${'-'.repeat(76)}\n${title}`)
 
-const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
 setSessionTrustAccepted(true)
 const gen = await import('./gen-bundled.ts')
-const { parseFrontmatter } = await import('../../src/utils/frontmatterParser.ts')
-const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
-const { getBundledSkills, getBundledSkillExtractDir } = await import('../../src/skills/bundledSkills.ts')
-const { builtinCommands, getCommands, getSkillToolCommands } = await import('../../src/commands.ts')
-const { getSkillListingAttachments, resetSentSkillNames } = await import('../../src/utils/attachments/skillListing.ts')
-const { SkillTool, expansionBodyOf } = await import('../../src/tools/SkillTool/SkillTool.ts')
-const { MAX_LISTING_DESC_CHARS } = await import('../../src/constants/tools/skill.ts')
-const { processSlashCommand } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
-const { bareUsageLine, requiresArgument } = await import('../../src/skills/argumentHint.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { compileJsonSchema, formatSchemaIssues } = await import('../../src/services/schema/jsonSchemaEngine.ts')
-const { Client, StdioClientTransport } = await import('../../src/utils/mcp/sdk.ts')
-type Command = import('../../src/types/command.ts').Command
-type Message = import('../../src/types/message.ts').Message
-type ToolUseContext = import('../../src/Tool.ts').ToolUseContext
+const { parseFrontmatter } = await import('../../src/platform/text/frontmatterParser.ts')
+const { initBundledSkills } = await import('../../src/integrations/skills/bundled/index.ts')
+const { getBundledSkills, getBundledSkillExtractDir } = await import('../../src/integrations/skills/bundledSkills.ts')
+const { builtinCommands, getCommands, getSkillToolCommands } = await import('../../src/commands/catalogue/commands.ts')
+const { getSkillListingAttachments, resetSentSkillNames } = await import('../../src/engine/attachment-shapes/skillListing.ts')
+const { SkillTool, expansionBodyOf } = await import('../../src/tools/skill/SkillTool.ts')
+const { MAX_LISTING_DESC_CHARS } = await import('../../src/tools/kit/names/skill.ts')
+const { processSlashCommand } = await import('../../src/engine/user-input/processSlashCommand.tsx')
+const { bareUsageLine, requiresArgument } = await import('../../src/integrations/skills/argumentHint.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { compileJsonSchema, formatSchemaIssues } = await import('../../src/platform/json-schema/jsonSchemaEngine.ts')
+const { Client, StdioClientTransport } = await import('../../src/integrations/mcp-shapes/sdk.ts')
+type Command = import('../../src/commands/catalogue/command.ts').Command
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type ToolUseContext = import('../../src/tools/kit/tool.ts').ToolUseContext
 
 const context = (commands: Command[] = [], interactive = false): ToolUseContext =>
   ({

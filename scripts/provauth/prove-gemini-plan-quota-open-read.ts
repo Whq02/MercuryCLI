@@ -72,16 +72,16 @@ process.env.MERCURY_GOOGLE_USERINFO_BASE = googleBase
 process.env.MERCURY_ANTIGRAVITY_CODE_ASSIST_BASE = assistBase
 process.env.MERCURY_ANTIGRAVITY_MANIFEST_BASE = 'https://example.invalid'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const accounts = await import('../../src/services/providers/gemini/geminiAccounts.ts')
-const catalogue = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const owner = await import('../../src/services/providers/providerUsage.ts')
-const freshness = await import('../../src/services/providers/usageFreshness.ts')
+const accounts = await import('../../src/models/roads/gemini/geminiAccounts.ts')
+const catalogue = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const owner = await import('../../src/models/roads/providerUsage.ts')
+const freshness = await import('../../src/models/roads/usageFreshness.ts')
 const sleep = async (): Promise<void> => {}
-const quotaHint = 'see refreshGeminiPlanQuota in src/services/providers/gemini/geminiPlanQuota.ts, which the gemini case of refreshProviderUsage in src/services/providers/providerUsage.ts calls'
-const stampHint = 'see usagePollTtlMs, usageStaleAfterMs and usageSourceWords in src/services/providers/usageFreshness.ts'
-const accountHint = 'see beginGeminiPlanBrowserConnect and resolveGeminiAccount in src/services/providers/gemini/geminiAccounts.ts'
+const quotaHint = 'see refreshGeminiPlanQuota in src/models/roads/gemini/geminiPlanQuota.ts, which the gemini case of refreshProviderUsage in src/models/roads/providerUsage.ts calls'
+const stampHint = 'see usagePollTtlMs, usageStaleAfterMs and usageSourceWords in src/models/roads/usageFreshness.ts'
+const accountHint = 'see beginGeminiPlanBrowserConnect and resolveGeminiAccount in src/models/roads/gemini/geminiAccounts.ts'
 
 async function signIn(): Promise<'resolved' | 'rejected' | 'timed-out'> {
   const handles = accounts.beginGeminiPlanBrowserConnect({ skipBrowserOpen: true, loopbackPort: 0, sleep })
@@ -116,7 +116,7 @@ try {
   check('the sign-in resolves and the plan is the active source', (await signIn()) === 'resolved' && accounts.resolveGeminiAccount()?.kind === 'plan', accountHint)
   const first = await catalogue.refreshGeminiCatalogue('plan', { force: true })
   const readsAfterFirst = assist.rosterReads
-  check('the first roster read lands the quota row', first?.models.some(m => m.id === 'gemini-4-argon-high' && m.quota?.remainingFraction === 0.8) === true && quotaOf().value === '80%', j(quotaOf()) + ' — fetchGeminiLiveModels and refreshGeminiCatalogue in src/services/providers/gemini/geminiCatalogue.ts must keep the roster quota, and geminiPlanUsageFigures in src/services/providers/providerUsage/gemini.ts must turn it into a plan-quota figure')
+  check('the first roster read lands the quota row', first?.models.some(m => m.id === 'gemini-4-argon-high' && m.quota?.remainingFraction === 0.8) === true && quotaOf().value === '80%', j(quotaOf()) + ' — fetchGeminiLiveModels and refreshGeminiCatalogue in src/models/roads/gemini/geminiCatalogue.ts must keep the roster quota, and geminiPlanUsageFigures in src/models/roads/provider-usage/gemini.ts must turn it into a plan-quota figure')
 
   console.log('── the popup opens: one read through the owner\'s door, bounded by the one floor every family honours ──')
   const floor = freshness.usagePollTtlMs()
@@ -143,7 +143,7 @@ try {
   const beforeRefusal = quotaOf()
   await owner.refreshProviderUsage('gemini', { reason: 'open' })
   const refused = quotaOf()
-  check('the refused read made one request, kept the last quota row with its age, and the owner names the refusal', assist.rosterReads === readsAfterFirst + 4 && refused.value === beforeRefusal.value && refused.observedAtMs === beforeRefusal.observedAtMs && refused.stamp === 'endpoint-fed · stale · last read 6 h ago' && refused.note === "no quota read (Google's Code Assist roster refused the credential (HTTP 403))", j(refused) + ' — ' + quotaHint + '; the refusal words are built in refreshGeminiCatalogue in src/services/providers/gemini/geminiCatalogue.ts')
+  check('the refused read made one request, kept the last quota row with its age, and the owner names the refusal', assist.rosterReads === readsAfterFirst + 4 && refused.value === beforeRefusal.value && refused.observedAtMs === beforeRefusal.observedAtMs && refused.stamp === 'endpoint-fed · stale · last read 6 h ago' && refused.note === "no quota read (Google's Code Assist roster refused the credential (HTTP 403))", j(refused) + ' — ' + quotaHint + '; the refusal words are built in refreshGeminiCatalogue in src/models/roads/gemini/geminiCatalogue.ts')
   await owner.refreshProviderUsage('gemini', { reason: 'open' })
   check('an open inside the floor after a failure does not re-ask', assist.rosterReads === readsAfterFirst + 4, String(assist.rosterReads - readsAfterFirst) + ' roster reads since the first — ' + quotaHint)
   assist.rosterStatus = 200

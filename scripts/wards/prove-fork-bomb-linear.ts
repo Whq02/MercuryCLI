@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { REFUSAL_WARDS, evaluateWards, buildWardDenial } from '../../src/utils/wards/wards.ts'
+import { REFUSAL_WARDS, evaluateWards, buildWardDenial } from '../../src/permissions/wards/wards.ts'
 import { makeTally } from '../daemon/dupline-world.ts'
 
 const rule = REFUSAL_WARDS.find(rule => rule.name === 'no-fork-bomb')!

@@ -9,7 +9,7 @@ const HOME = pinScratchHome('mercury-settings-popup-frame')
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  const failHint = ok ? '' : ' | to fix: change settingsPopupGeometry in src/components/SettingsPopupSlot.tsx for a size or position mismatch, or the page rows and constants in src/components/Settings/Config.tsx for a row or text mismatch'
+  const failHint = ok ? '' : ' | to fix: change settingsPopupGeometry in src/screen/overlays/SettingsPopupSlot.tsx for a size or position mismatch, or the page rows and constants in src/screen/settings/Config.tsx for a row or text mismatch'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${failHint}`)
 }
 function section(title: string): void {
@@ -17,14 +17,14 @@ function section(title: string): void {
 }
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { SettingsPopupSlot, settingsPopupGeometry, SETTINGS_POPUP_CHROME_ROWS } = await import('../../src/components/SettingsPopupSlot.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { SettingsPopupSlot, settingsPopupGeometry, SETTINGS_POPUP_CHROME_ROWS } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
-const { CONFIG_POPUP_HINT, CONFIG_POPUP_ROWS, CONFIG_POPUP_WIDTH, CONFIG_SEARCH_PLACEHOLDER, CONFIG_LIST_CHROME_ROWS, CONFIG_ROW_MARK } = await import('../../src/components/Settings/Config.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { CONFIG_POPUP_HINT, CONFIG_POPUP_ROWS, CONFIG_POPUP_WIDTH, CONFIG_SEARCH_PLACEHOLDER, CONFIG_LIST_CHROME_ROWS, CONFIG_ROW_MARK } = await import('../../src/screen/settings/Config.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 const context = { messages: [], options: {} } as never

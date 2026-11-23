@@ -9,7 +9,7 @@ const scratch = mkdtempSync(join(tmpdir(), 'mercury-pointers-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 
 let failures = 0
-const POINTERS_FIX_HINT = 'searchPointers in src/mneme/mnemePointers.ts (pointer shape, titles, footnotes, ledger pointers), recallQuery, readMemoryRecord and correctMemory in src/mneme/memoryVerbs.ts, the Recall result text in src/tools/MemoryTools/MemoryTools.ts, RECALL_PROMPT and RECALL_DESCRIPTION in src/constants/tools/memory.ts, publishFrontPage in src/mneme/mnemeFrontPage.ts'
+const POINTERS_FIX_HINT = 'searchPointers in src/sessions/mneme/mnemePointers.ts (pointer shape, titles, footnotes, ledger pointers), recallQuery, readMemoryRecord and correctMemory in src/sessions/mneme/memoryVerbs.ts, the Recall result text in src/tools/memory/MemoryTools.ts, RECALL_PROMPT and RECALL_DESCRIPTION in src/tools/kit/names/memory.ts, publishFrontPage in src/sessions/mneme/mnemeFrontPage.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` | fix: ${POINTERS_FIX_HINT}`}`)
@@ -19,11 +19,11 @@ function section(t: string): void {
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
-const { retainItems, readMemoryRecord, correctMemory, recallQuery } = await import('../../src/mneme/memoryVerbs.js')
-const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.js')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
-const { publishFrontPage } = await import('../../src/mneme/mnemeFrontPage.js')
-const { RecallTool } = await import('../../src/tools/MemoryTools/MemoryTools.js')
+const { retainItems, readMemoryRecord, correctMemory, recallQuery } = await import('../../src/sessions/mneme/memoryVerbs.js')
+const { maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.js')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.js')
+const { publishFrontPage } = await import('../../src/sessions/mneme/mnemeFrontPage.js')
+const { RecallTool } = await import('../../src/tools/memory/MemoryTools.js')
 const dir = mnemeLibraryDir()
 
 type Block = { content: string; is_error?: boolean }
@@ -73,8 +73,8 @@ check('the text shows the content and the unlock note', SECRETS.some(s => read.t
 const pendingPointer = pointers.find(p => String(p.id).startsWith('pending:'))!
 const pendingRead = await recallTool({ read: String(pendingPointer.id) })
 check('a pending pointer opens to its row', pendingRead.data.found === true && String(pendingRead.data.content).includes(SECRETS[3]!))
-const { RECALL_PROMPT, RECALL_DESCRIPTION } = await import('../../src/constants/tools/memory.js')
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.js')
+const { RECALL_PROMPT, RECALL_DESCRIPTION } = await import('../../src/tools/kit/names/memory.js')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.js')
 const querySchemaText = String((zodToJsonSchema(RecallTool.inputSchema as never) as { properties?: { query?: { description?: string } } }).properties?.query?.description ?? '')
 const NEGATIONS = ['never from a pointer', 'quoted from the record', 'never the content', 'never carries the content']
 const negated = [RECALL_PROMPT, RECALL_DESCRIPTION, querySchemaText].flatMap(text => NEGATIONS.filter(phrase => text.includes(phrase)))
@@ -89,7 +89,7 @@ check(
 check('no law of negation in the prompt, the description or the query schema', negated.length === 0, negated.join(' | '))
 
 section('§3 the footnotes point both ways after a Correct')
-const { searchPointers } = await import('../../src/mneme/mnemePointers.js')
+const { searchPointers } = await import('../../src/sessions/mneme/mnemePointers.js')
 const tokenHit = recallQuery('refreshes weekly').hits.find(h => h.label === 'consolidated')!
 const superseded = correctMemory({ op: 'supersede', id: tokenHit.id, content: 'the deploy gate token now rotates itself', reason: 'automation landed', session: 'beta-session' })
 check('supersede landed', superseded.ok === true, JSON.stringify(superseded))
@@ -202,8 +202,8 @@ const rulingBySessionLedger = searchPointers('soak suite nightly', { dir, sessio
 check('the ruling footnote stands with the ledger in view', rulingBySessionLedger?.footnotes.ruling === rulingPointer?.id && rulingBySessionLedger?.footnotes.session === 2, JSON.stringify(rulingBySessionLedger))
 
 section('§7 the lineage ledger itself: what the ledger module wrote, the button finds and reads with nothing passed in')
-const { openEntry, recordHandoff, closeEntry, readLedger } = await import('../../src/mneme/ledger.js')
-const { mnemeProjectKey } = await import('../../src/mneme/paths.js')
+const { openEntry, recordHandoff, closeEntry, readLedger } = await import('../../src/sessions/mneme/ledger.js')
+const { mnemeProjectKey } = await import('../../src/sessions/mneme/paths.js')
 const key = mnemeProjectKey()
 check('no session in the ledger yet', readLedger(key).length === 0)
 const before = await recallTool({ read: 'ledger:1' })

@@ -21,18 +21,18 @@ const CONFIG_HOME = resolveProofHome([process.cwd()])
 
 if (process.env.AXIOM_CARDS_CHILD) {
   const React = await import('react')
-  const { render, Box, Text } = (await import('../../src/ink.js')) as {
+  const { render, Box, Text } = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
     Box: never
     Text: never
   }
-  const { cardTone } = await import('../../src/components/mercury-ui/toolCardGrammar.js')
+  const { cardTone } = await import('../../src/screen/widgets/toolCardGrammar.js')
   const {
     EXECUTION_STATES,
     TRANSACTION_STATES,
     executionCardState,
     transactionCardState,
-  } = await import('../../src/services/primitives/index.js')
+  } = await import('../../src/engine/runtime-kernel/index.js')
   const h = React.createElement
 
   const row = (label: string, cardState: string) => {
@@ -60,7 +60,7 @@ if (process.env.AXIOM_CARDS_CHILD) {
   let failures = 0
   const check = (label: string, cond: boolean, detail = ''): void => {
     if (!cond) failures++
-    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — the glyphs come from cardTone in src/components/mercury-ui/toolCardGrammar and the states from executionCardState and transactionCardState in src/services/primitives; rerun the child with AXIOM_CARDS_CHILD=1 to see the grid, and update GLYPH_FOR here only if the grammar changed on purpose' : ''}`)
+    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — the glyphs come from cardTone in src/screen/widgets/toolCardGrammar and the states from executionCardState and transactionCardState in src/engine/runtime-kernel; rerun the child with AXIOM_CARDS_CHILD=1 to see the grid, and update GLYPH_FOR here only if the grammar changed on purpose' : ''}`)
   }
   if (!existsSync(VSHOT)) {
     console.error(`vshot.py not found at ${VSHOT} — the render-verify harness (scripts/ui/vshot.py) is required.`)

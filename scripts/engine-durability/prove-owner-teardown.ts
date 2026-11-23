@@ -8,11 +8,11 @@ const ROOT = scratchRoot('teardown')
 const t = checker()
 
 const barrier = await import('./barrier.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const sidecar = await import('../../src/services/run/runSidecar.ts')
-const coord = await import('../../src/services/run/runCoordinator.ts')
-const lifecycle = await import('../../src/utils/run/ownerLifecycle.ts')
-const { OwnerScopedStore } = await import('../../src/utils/run/ownerScopedStore.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const sidecar = await import('../../src/engine/run/runSidecar.ts')
+const coord = await import('../../src/engine/run/runCoordinator.ts')
+const lifecycle = await import('../../src/engine/run-owner/ownerLifecycle.ts')
+const { OwnerScopedStore } = await import('../../src/engine/run-owner/ownerScopedStore.ts')
 
 function liveOwner(sessionId: string): string {
   const owner = makeOwnerKey({ workspace: ROOT, sessionId, lane: 'main' })
@@ -223,7 +223,7 @@ t.section('§7 — a new owner admitted while EVERY other owner is retained surv
 
 t.section('§8 — the graceful-shutdown sweep drains durable owners')
 {
-  const { runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.ts')
+  const { runCleanupFunctions } = await import('../../src/platform/processes/cleanupRegistry.ts')
 
   const owner = liveOwner('keel-shutdown')
   const before = await sidecar.loadRunSidecar(owner)

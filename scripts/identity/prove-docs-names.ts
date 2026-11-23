@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // gate-watch: README.md docs/** package.json build.ts assets/splash/** scripts/ops/** scripts/vendor/**
-// gate-watch: src/main.tsx src/cli/** src/commands/** src/tools/** src/skills/bundled/** src/keybindings/**
-// gate-watch: src/utils/settings/** src/utils/hooks/contract.ts src/substrate/flagRegistry.ts src/components/ConsoleOAuthFlow.tsx
+// gate-watch: src/boot/main.tsx src/commands/verbs/agents.ts src/commands/verbs/auth.ts src/commands/verbs/editorBridge.ts src/commands/verbs/exit.ts src/commands/verbs/extensionApi.ts src/commands/verbs/godotEngineCli.ts src/commands/verbs/healthJson.ts src/commands/verbs/healthPresentation.ts src/commands/verbs/healthProcesses.ts src/commands/verbs/installVerb.ts src/commands/verbs/lspVerb.ts src/commands/verbs/mcp.tsx src/commands/verbs/mcpServer.ts src/commands/verbs/models.ts src/commands/verbs/providerAuth.ts src/commands/verbs/sessionsVerb.ts src/commands/verbs/setupTokenAndHealth.tsx src/commands/verbs/tuneDoor.ts src/commands/verbs/update.ts src/commands/verbs/usage.ts src/commands/verbs/usageHistory.ts src/daemon/runner/agentFreshness.ts src/daemon/runner/boot/** src/daemon/runner/claimSession.ts src/daemon/runner/controlHandlers.ts src/daemon/runner/hostAskLiveness.ts src/daemon/runner/inputDoor.ts src/daemon/runner/mcpArms.ts src/daemon/runner/model.ts src/daemon/runner/ndjsonSafeStringify.ts src/daemon/runner/parkRefusal.ts src/daemon/runner/projectQuery.ts src/daemon/runner/refusalEnvelope.ts src/daemon/runner/restartCarry.ts src/daemon/runner/resume.ts src/daemon/runner/resumeHydration.ts src/daemon/runner/runArgs.ts src/daemon/runner/runHeadless.ts src/daemon/runner/runnerArms.ts src/daemon/runner/runnerAsks.ts src/daemon/runner/runnerDriver.ts src/daemon/runner/runnerMethods.ts src/daemon/runner/runnerPorts.ts src/daemon/runner/runnerRunEnd.ts src/daemon/runner/runnerTurn.ts src/daemon/runner/sendNow.ts src/daemon/runner/sessionFactsArm.ts src/daemon/runner/spawnSwitchLanding.ts src/daemon/runner/structuredIO.ts src/daemon/runner/turn-driver/** src/daemon/runner/turnDriver.ts src/commands/accounts/** src/commands/advise/** src/commands/agents/** src/commands/appearance/appearance.tsx src/commands/appearance/index.ts src/commands/audit/** src/commands/bootmenu/** src/commands/browse/** src/commands/browser/** src/commands/caching/** src/commands/capabilities/** src/commands/catalogue/createBuiltinPromptCommand.ts src/commands/catalogue/effectiveCatalogue.ts src/commands/catalogue/enablement.ts src/commands/clear/** src/commands/compact/** src/commands/concourse/** src/commands/config/** src/commands/context/context.tsx src/commands/context/contextHeadless.ts src/commands/context/index.ts src/commands/copy/** src/commands/crew/** src/commands/crewmates/** src/commands/critter/critter.tsx src/commands/critter/index.ts src/commands/daemon/** src/commands/defaultprovider/** src/commands/diff/** src/commands/effort/** src/commands/exit/exit.tsx src/commands/exit/index.ts src/commands/export/export.tsx src/commands/export/index.ts src/commands/export/transcript.ts src/commands/extensions/** src/commands/feedback/feedback.tsx src/commands/feedback/healthSection.ts src/commands/feedback/index.ts src/commands/feedback/issueForms.ts src/commands/feedback/testerDoor.ts src/commands/general/** src/commands/health/** src/commands/help/** src/commands/hooks/** src/commands/host/** src/commands/imagesetup/** src/commands/jev/** src/commands/keybindings/** src/commands/keys/** src/commands/keysetup/index.ts src/commands/keysetup/keysetup.tsx src/commands/kill/** src/commands/llmhost/index.ts src/commands/llmhost/llmhost.tsx src/commands/llmhost/words.ts src/commands/localsetup/index.ts src/commands/localsetup/localsetup.tsx src/commands/localsetup/words.ts src/commands/logins/** src/commands/logout/** src/commands/lsp/** src/commands/mcp/McpPopup.tsx src/commands/mcp/addCommand.ts src/commands/mcp/index.ts src/commands/mcp/mcp.tsx src/commands/mcp/route.ts src/commands/memory/** src/commands/mission/** src/commands/model/index.ts src/commands/model/mercuryModel.tsx src/commands/model/model.tsx src/commands/model/modelPickerLandingGate.tsx src/commands/model/persistModelChoice.ts src/commands/model/picker/ChoicePicker.tsx src/commands/model/picker/DefaultPicker.tsx src/commands/model/picker/SessionPicker.tsx src/commands/model/picker/apply.ts src/commands/model/picker/headings.ts src/commands/model/picker/roads.ts src/commands/model/picker/rows.ts src/commands/model/picker/select.ts src/commands/mouse/** src/commands/orient/** src/commands/palette/** src/commands/permissions/** src/commands/rename/** src/commands/restart/** src/commands/review/** src/commands/rewind/** src/commands/run/** src/commands/runs/** src/commands/samples/** src/commands/saturn/** src/commands/seats/** src/commands/sessions/** src/commands/skills/** src/commands/submodels/index.ts src/commands/submodels/submodels.tsx src/commands/swarm/** src/commands/swarmchat/** src/commands/team/** src/commands/tensorfold/** src/commands/title/** src/commands/trace/index.ts src/commands/trace/trace.tsx src/commands/update-notes/index.ts src/commands/update-notes/update-notes.ts src/commands/usage/** src/commands/verify/** src/commands/vim/** src/commands/voice/** src/commands/whisper/** src/commands/workbench/** src/commands/zen/** src/tools/apollo-review/** src/tools/aseprite/** src/tools/ask-advisor/** src/tools/ask-question/** src/tools/ast-edit/** src/tools/ast-search/** src/tools/blender/** src/tools/browser/** src/tools/change-set/** src/tools/checkpoint/** src/tools/computer/** src/tools/context-left/** src/tools/crewmate/CrewmateTool.tsx src/tools/crewmate/agentPermissionPosture.ts src/tools/crewmate/agentToolRules.ts src/tools/crewmate/built-in/** src/tools/crewmate/builtInAgents.ts src/tools/crewmate/call/** src/tools/crewmate/continuationNote.ts src/tools/crewmate/crewmateColors.ts src/tools/crewmate/crewmateLifecycle.ts src/tools/crewmate/foregroundExecution.tsx src/tools/crewmate/frozenWorktreeNotice.ts src/tools/crewmate/liveAgentOwner.ts src/tools/crewmate/loadAgentsDir.ts src/tools/crewmate/prompt.ts src/tools/crewmate/refusalRetry.ts src/tools/crewmate/resumeCrewmate.ts src/tools/crewmate/reviewerPolicy.ts src/tools/crewmate/rows.tsx src/tools/crewmate/run/crewmateEnd.ts src/tools/crewmate/run/prepare.ts src/tools/crewmate/run/setup.ts src/tools/crewmate/run/watch.ts src/tools/crewmate/runCrewmate.ts src/tools/crewmate/scoutPolicy.ts src/tools/crewmate/worktreePrepareNotice.ts src/tools/cron/** src/tools/debug/** src/tools/document/** src/tools/edit/EditTool.ts src/tools/edit/call/call.ts src/tools/edit/call/callParts.ts src/tools/edit/call/exactMatch.ts src/tools/edit/call/fileFacts.ts src/tools/edit/call/readKnowledge.ts src/tools/edit/call/validate.ts src/tools/edit/editResult.ts src/tools/edit/otherSession.ts src/tools/edit/prompt.ts src/tools/edit/readThrough.ts src/tools/edit/rows.tsx src/tools/edit/schema.ts src/tools/edit/sectionEdit.ts src/tools/enter-worktree/** src/tools/eval/** src/tools/exit-worktree/** src/tools/git/** src/tools/glob/GlobTool.ts src/tools/glob/prompt.ts src/tools/glob/rows.tsx src/tools/godot/** src/tools/grep/** src/tools/inspect/** src/tools/jev-eval/** src/tools/journal/** src/tools/journey/** src/tools/kit/commandDisplay.ts src/tools/kit/documentText.ts src/tools/kit/gitOperationTracking.ts src/tools/kit/sessionEnvNotice.ts src/tools/kit/toolResultSummary.ts src/tools/kit/toolTable.ts src/tools/kit/toolUseIds.ts src/tools/launch/** src/tools/list-mcp-resources/** src/tools/lsp/** src/tools/mcp-auth/** src/tools/mcp/** src/tools/memory/** src/tools/monitor/** src/tools/notebook-edit/NotebookEditTool.ts src/tools/notebook-edit/constants.ts src/tools/notebook-edit/notebookText.ts src/tools/notebook-edit/prompt.ts src/tools/notebook-edit/rows.tsx src/tools/powershell/** src/tools/read-mcp-resource/** src/tools/read/ReadTool.ts src/tools/read/call/call.ts src/tools/read/call/callParts.ts src/tools/read/call/image.ts src/tools/read/call/multiRangeLane.ts src/tools/read/call/notebook.ts src/tools/read/call/pdfLane.ts src/tools/read/call/reminder.ts src/tools/read/call/resultBlock.ts src/tools/read/call/results.ts src/tools/read/call/richFormatLane.ts src/tools/read/call/schema.ts src/tools/read/call/serialize.ts src/tools/read/call/source.ts src/tools/read/call/target.ts src/tools/read/call/textLane.ts src/tools/read/call/validate.ts src/tools/read/call/window.ts src/tools/read/call/windowText.ts src/tools/read/jsonQueryOutput.ts src/tools/read/jsonQueryProcess.mjs src/tools/read/jsonQueryProvenance.ts src/tools/read/jsonQueryRuntime.ts src/tools/read/jsonQuerySource.ts src/tools/read/jsonQueryWorker.mjs src/tools/read/officeText.ts src/tools/read/outline.ts src/tools/read/profileJson.ts src/tools/read/profileModel.ts src/tools/read/profileParse.ts src/tools/read/profileStream.ts src/tools/read/readJson.ts src/tools/read/readProfiles.ts src/tools/read/readQuery.ts src/tools/read/readQueryTarget.ts src/tools/read/readRichFormats.ts src/tools/read/readTarget.ts src/tools/read/readViewPage.ts src/tools/read/readViewSource.ts src/tools/read/rows.tsx src/tools/read/sqliteQuery.ts src/tools/read/sqliteQueryProcess.ts src/tools/record-convention/** src/tools/resume-crewmate/** src/tools/rewind/** src/tools/schedule-wakeup/** src/tools/send-message/** src/tools/service/** src/tools/shell/** src/tools/skill/** src/tools/sleep/SleepTool.tsx src/tools/sleep/prompt.ts src/tools/structure/** src/tools/structured-output/** src/tools/task-create/** src/tools/task-get/** src/tools/task-list/** src/tools/task-stop/** src/tools/task-update/** src/tools/test/** src/tools/testing-permission/** src/tools/tool-search/** src/tools/transaction/** src/tools/unity/** src/tools/video/** src/tools/web-fetch/WebFetchTool.ts src/tools/web-fetch/extractHtml.ts src/tools/web-fetch/fetchContent.ts src/tools/web-fetch/fetchErrors.ts src/tools/web-fetch/fetchPacing.ts src/tools/web-fetch/fetchTransport.ts src/tools/web-fetch/pageAccess.ts src/tools/web-fetch/pageBudget.ts src/tools/web-fetch/preapproved.ts src/tools/web-fetch/privateHost.ts src/tools/web-fetch/prompt.ts src/tools/web-fetch/reader.ts src/tools/web-fetch/robots.ts src/tools/web-fetch/rows.tsx src/tools/web-fetch/structuredHosts.ts src/tools/web-fetch/tableRule.ts src/tools/web-search/** src/tools/write/SqliteDeletePermissionRequest.tsx src/tools/write/WriteTool.ts src/tools/write/call/** src/tools/write/parseCheck.ts src/tools/write/rows.tsx src/tools/write/structuredTargets.ts src/integrations/skills/bundled/** src/screen/keys/KeybindingContext.tsx src/screen/keys/KeybindingProviderSetup.tsx src/screen/keys/RouteSurfaceScope.ts src/screen/keys/actionGraph.ts src/screen/keys/atlas.ts src/screen/keys/defaultBindings.ts src/screen/keys/delivery.ts src/screen/keys/keyCapture.ts src/screen/keys/loadUserBindings.ts src/screen/keys/match.ts src/screen/keys/parser.ts src/screen/keys/pendingChordMirror.ts src/screen/keys/reservedShortcuts.ts src/screen/keys/resolver.ts src/screen/keys/schema.ts src/screen/keys/shortcutFormat.ts src/screen/keys/template.ts src/screen/keys/types.ts src/screen/keys/useKeybinding.ts src/screen/keys/useShortcutDisplay.ts src/screen/keys/validate.ts src/screen/keys/writeBindings.ts
+// gate-watch: src/platform/settings/applySettingsChange.ts src/platform/settings/changeDetector.ts src/platform/settings/compatEndpoints.ts src/platform/settings/compatProvider.ts src/platform/settings/extensionOnlyPolicy.ts src/platform/settings/internalWrites.ts src/platform/settings/localSchema.ts src/platform/settings/managedPath.ts src/platform/settings/mdm/** src/platform/settings/modelFacts.ts src/platform/settings/permissionValidation.ts src/platform/settings/schemaOutput.ts src/platform/settings/settingSources.ts src/platform/settings/settings.ts src/platform/settings/settingsCache.ts src/platform/settings/settingsSchema.ts src/platform/settings/snapshot.ts src/platform/settings/toolValidationConfig.ts src/platform/settings/unknownKeyRemoval.ts src/platform/settings/validateSettingsEdit.ts src/platform/settings/validation.ts src/platform/settings/validationTips.ts src/integrations/event-hooks/contract.ts src/platform/substrate/flagRegistry.ts src/models/sign-in/flow-cards/SignInFlow.tsx
 import { execFileSync, spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -659,7 +659,7 @@ async function buildVocab(): Promise<Vocab> {
 
   const readText = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
   const flagsIn = (files: string[]): Set<string> => new Set(files.flatMap(f => longFlagsOf(readText(f))))
-  const { ACP_LOGIN_FLAG } = await import('../../src/services/acp/acpSignIn.ts')
+  const { ACP_LOGIN_FLAG } = await import('../../src/integrations/acp/acpSignIn.ts')
   const { call: feedbackCall } = await import('../../src/commands/feedback/feedback.tsx')
   const [hostUsage, godotUsage, feedbackEl] = await Promise.all([
     cliOut(['host', '--help']),
@@ -679,20 +679,20 @@ async function buildVocab(): Promise<Vocab> {
   }).map(p => slashed(p.slice(ROOT.length + 1)))
   const toolingFlags = flagsIn(toolingFiles)
 
-  const { builtinCommands } = await import('../../src/commands.ts')
+  const { builtinCommands } = await import('../../src/commands/catalogue/commands.ts')
   const slash = new Set<string>()
   for (const c of builtinCommands() as ReadonlyArray<{ name: string; aliases?: string[] }>) {
     slash.add(c.name)
     for (const a of c.aliases ?? []) slash.add(a)
   }
-  const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
-  const { getBundledSkills } = await import('../../src/skills/bundledSkills.ts')
+  const { initBundledSkills } = await import('../../src/integrations/skills/bundled/index.ts')
+  const { getBundledSkills } = await import('../../src/integrations/skills/bundledSkills.ts')
   initBundledSkills()
   const skills = new Set((getBundledSkills() as ReadonlyArray<{ name: string }>).map(s => s.name))
   for (const s of skills) slash.add(s)
-  const { parseFamilyFocus } = await import('../../src/commands/login/login.tsx')
+  const { parseFamilyFocus } = await import('../../src/commands/logins/login.tsx')
 
-  await import('../../src/tools.ts')
+  await import('../../src/tools/kit/toolList.ts')
   const toolFiles = walkFiles(join(ROOT, 'src', 'tools'), p => /\.(ts|tsx)$/.test(p) && !/\.test\./.test(p))
   const tools = new Set<string>()
   for (const f of toolFiles) {
@@ -714,9 +714,9 @@ async function buildVocab(): Promise<Vocab> {
     }
   }
   tools.delete('mcp')
-  const { ruleArgumentOf } = await import('../../src/utils/hooks/matcherGrammar.ts')
+  const { ruleArgumentOf } = await import('../../src/integrations/event-hooks/matcherGrammar.ts')
 
-  const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
+  const { SettingsSchema } = await import('../../src/platform/settings/settingsSchema.ts')
   type Z = { _zod?: { def?: Record<string, unknown> }; def?: Record<string, unknown>; shape?: Record<string, Z> }
   const settingsPaths: string[][] = []
   const enums = new Map<string, string[]>()
@@ -755,14 +755,14 @@ async function buildVocab(): Promise<Vocab> {
   walk((SettingsSchema as unknown as () => Z)(), [], 0)
   const settingsTop = new Set(settingsPaths.filter(p => p.length === 1).map(p => p[0]!))
 
-  const { HOOK_EVENTS } = await import('../../src/utils/hooks/contract.ts')
+  const { HOOK_EVENTS } = await import('../../src/integrations/event-hooks/contract.ts')
   const hookEvents = new Set<string>(HOOK_EVENTS as readonly string[])
 
-  const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
+  const { DEFAULT_BINDINGS } = await import('../../src/screen/keys/defaultBindings.ts')
   const chords: string[] = []
   for (const block of DEFAULT_BINDINGS as ReadonlyArray<{ bindings: Record<string, string> }>) for (const k of Object.keys(block.bindings)) chords.push(k.toLowerCase())
 
-  const srcFiles = walkFiles(join(ROOT, 'src'), p => /\.(ts|tsx|js|mjs)$/.test(p) && !/\.test\.|\.generated\.|constants\/changelog\.ts$|\/skills\/bundled\//.test(slashed(p)))
+  const srcFiles = walkFiles(join(ROOT, 'src'), p => /\.(ts|tsx|js|mjs)$/.test(p) && !/\.test\.|\.generated\.|commands\/update-notes\/changelog\.ts$|\/skills\/bundled\//.test(slashed(p)))
   const extraFiles = [...toolingFiles, 'build.ts', 'assets/splash/splash-core.mjs', 'assets/splash/mercury-splash.mjs', 'assets/splash/launcher-action-block.sh'].filter(f => existsSync(join(ROOT, f)))
   const envCorpus = new Set<string>()
   const productParts: string[] = []
@@ -789,7 +789,7 @@ async function buildVocab(): Promise<Vocab> {
     }
     if (/\.(sh|ps1|cmd)$/.test(f)) for (const w of body.matchAll(/[A-Za-z0-9_.-]+/g)) pathSegments.add(w[0])
   }
-  const { MODEL_PICKER_CONTEXT_CHORD, MODEL_PICKER_EFFORT_CHORD } = await import('../../src/utils/model/modelPickerGroups.ts')
+  const { MODEL_PICKER_CONTEXT_CHORD, MODEL_PICKER_EFFORT_CHORD } = await import('../../src/models/facts/modelPickerGroups.ts')
   srcChords.add(normaliseChord(MODEL_PICKER_CONTEXT_CHORD))
   srcChords.add(normaliseChord(MODEL_PICKER_EFFORT_CHORD))
 
@@ -801,7 +801,7 @@ async function buildVocab(): Promise<Vocab> {
   }
   const pkg = JSON.parse(readText('package.json')) as { scripts: Record<string, string> }
 
-  const { READINESS_ROWS } = await import('../../src/components/consoleOAuth/readiness.tsx')
+  const { READINESS_ROWS } = await import('../../src/models/sign-in/flow-cards/readiness.tsx')
   const providerCount = READINESS_ROWS.filter(row => row.id !== 'local' && row.id !== 'openai-compat').length
 
   const english = readText('README.md')

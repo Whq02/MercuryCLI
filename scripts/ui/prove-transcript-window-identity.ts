@@ -4,7 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { CONFIG_HOME, RUNTIME_CWD, cleanupScenario, encodeFixtureTranscript, scenario } from './renderScenarios.ts'
-import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
 import { buildCompass1k, COMPASS_SID, TAIL_SENTINEL } from '../navigation/fixture1k.ts'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { composerCaret, inspect, rowsOf } from './frameChecks.ts'
@@ -123,14 +123,14 @@ if (driver.kind !== 'posix-pty') {
     const first = nameplated[0]?.replace(/^.*?\] ❯ /, '').trim().slice(0, 60) ?? '(no prompt row on screen)'
     console.log(`  ${label}: ${paneRowsOf(rows)} painted transcript rows · first prompt row on screen: "${first}"`)
   }
-  check('the 1k tail was on screen at the loaded mark', (marks.get('loaded') ?? '').includes(TAIL_SENTINEL), 'the resumed 1k transcript did not paint its tail; look at the resume load and the window logic in src/components/VirtualMessageList.tsx')
-  check('six page-ups scrolled the tail off screen (the window left the tail)', marks.has('scrolled') && !(marks.get('scrolled') ?? '').includes(TAIL_SENTINEL), 'page-up did not move the viewport off the tail; look at the page-up handling in src/components/ScrollKeybindingHandler.tsx')
-  check('the scrolled viewport is painted, not the spacer (the window followed the scroll)', paneRows('scrolled') >= 12, `${paneRows('scrolled')} painted rows — the mounted window in src/components/VirtualMessageList.tsx must follow the scroll and not leave the spacer unpainted`)
+  check('the 1k tail was on screen at the loaded mark', (marks.get('loaded') ?? '').includes(TAIL_SENTINEL), 'the resumed 1k transcript did not paint its tail; look at the resume load and the window logic in src/screen/virtual-message-list/VirtualMessageList.tsx')
+  check('six page-ups scrolled the tail off screen (the window left the tail)', marks.has('scrolled') && !(marks.get('scrolled') ?? '').includes(TAIL_SENTINEL), 'page-up did not move the viewport off the tail; look at the page-up handling in src/screen/scroll-keys/ScrollKeybindingHandler.tsx')
+  check('the scrolled viewport is painted, not the spacer (the window followed the scroll)', paneRows('scrolled') >= 12, `${paneRows('scrolled')} painted rows — the mounted window in src/screen/virtual-message-list/VirtualMessageList.tsx must follow the scroll and not leave the spacer unpainted`)
   const HEAD_ROW = '] ❯ load the compass baseline fixture'
-  check('ctrl+home reached the head (the first prompt’s row on screen)', (marks.get('home') ?? '').includes(HEAD_ROW), 'ctrl+home did not bring the first prompt on screen; look at the ctrl+home handling in src/components/ScrollKeybindingHandler.tsx and the re-windowing in src/components/VirtualMessageList.tsx')
-  check('the pages down from the head paint content, not the spacer', paneRows('paged') >= 12, `${paneRows('paged')} painted rows — the mounted window in src/components/VirtualMessageList.tsx must follow page-down and not leave the spacer unpainted`)
-  check('the pages down left the head behind (the first prompt’s row is off screen)', marks.has('paged') && !(marks.get('paged') ?? '').includes(HEAD_ROW), 'the page-downs did not move the viewport off the head; look at src/components/ScrollKeybindingHandler.tsx')
-  check('cursor mode opened (the action bar names the walk)', (marks.get('cursor') ?? '').includes('navigate') && (marks.get('cursor') ?? '').includes('esc'), 'shift+up then up did not open cursor mode with the navigate action bar; look at src/components/VirtualMessageList.tsx and the keys this test sends')
+  check('ctrl+home reached the head (the first prompt’s row on screen)', (marks.get('home') ?? '').includes(HEAD_ROW), 'ctrl+home did not bring the first prompt on screen; look at the ctrl+home handling in src/screen/scroll-keys/ScrollKeybindingHandler.tsx and the re-windowing in src/screen/virtual-message-list/VirtualMessageList.tsx')
+  check('the pages down from the head paint content, not the spacer', paneRows('paged') >= 12, `${paneRows('paged')} painted rows — the mounted window in src/screen/virtual-message-list/VirtualMessageList.tsx must follow page-down and not leave the spacer unpainted`)
+  check('the pages down left the head behind (the first prompt’s row is off screen)', marks.has('paged') && !(marks.get('paged') ?? '').includes(HEAD_ROW), 'the page-downs did not move the viewport off the head; look at src/screen/scroll-keys/ScrollKeybindingHandler.tsx')
+  check('cursor mode opened (the action bar names the walk)', (marks.get('cursor') ?? '').includes('navigate') && (marks.get('cursor') ?? '').includes('esc'), 'shift+up then up did not open cursor mode with the navigate action bar; look at src/screen/virtual-message-list/VirtualMessageList.tsx and the keys this test sends')
   check('the resize landed (the final grid is 100 columns wide)', Array.isArray(payload.grid) && payload.grid[0]?.length === 100, `${payload.grid?.[0]?.length} — the resize at tick 125 did not reach the final grid; check the resizes entry in this test and scripts/ui/vshot.py`)
   const finalRows = rowsOf(payload.grid)
   const caret = composerCaret(finalRows)
@@ -150,7 +150,7 @@ if (driver.kind !== 'posix-pty') {
     }
     if (count(frame, TAIL_SENTINEL) > 1) doubled.push(`${label}:tail`)
   }
-  check('no frame paints a chapter heading or the tail twice (no stacked copies)', doubled.length === 0, doubled.join(' · ') + ' — a frame painted the same chapter or tail twice; look at the item keys and mounted range in src/components/VirtualMessageList.tsx')
+  check('no frame paints a chapter heading or the tail twice (no stacked copies)', doubled.length === 0, doubled.join(' · ') + ' — a frame painted the same chapter or tail twice; look at the item keys and mounted range in src/screen/virtual-message-list/VirtualMessageList.tsx')
 
   console.log('\n— the trace (every virtual list render) —')
   let renders: ListRender[] = []
@@ -177,29 +177,29 @@ if (driver.kind !== 'posix-pty') {
   const pagesSent = sends.filter((x, i) => i >= sendIndexOf('home') && i < sendIndexOf('paged') && x.data === PAGE_DOWN).length
   const pageRequests = homeAt !== undefined && pagedAt !== undefined ? requests.filter(r => r.delta > 0 && r.t >= homeAt - 50 && r.t <= pagedAt + 50) : []
   console.log(`  page-downs sent ${pagesSent} · scroll requests in the phase ${pageRequests.length} · tops: ${pageRequests.map(r => r.top).join(' ')}`)
-  check('every page-down press reached the scroller (no key lost to a paint)', pageRequests.length === pagesSent, `${pageRequests.length} of ${pagesSent} — a page-down key was lost; the scroll-request trace comes from src/components/ScrollKeybindingHandler.tsx`)
+  check('every page-down press reached the scroller (no key lost to a paint)', pageRequests.length === pagesSent, `${pageRequests.length} of ${pagesSent} — a page-down key was lost; the scroll-request trace comes from src/screen/scroll-keys/ScrollKeybindingHandler.tsx`)
   if (pageRequests.length >= 2) {
     const first = pageRequests[0]!
     const last = pageRequests[pageRequests.length - 1]!
     const step = Math.max(1, first.viewport - 2)
     const travelled = last.top - first.top
     const asked = (pageRequests.length - 1) * step
-    check(`the presses travelled (${travelled} rows over ${pageRequests.length - 1} gaps of ${step}; the clamp did not swallow them)`, travelled >= Math.floor(asked * 0.75), `${travelled} of ${asked} — scroll requests were clamped; look at src/components/ScrollKeybindingHandler.tsx`)
+    check(`the presses travelled (${travelled} rows over ${pageRequests.length - 1} gaps of ${step}; the clamp did not swallow them)`, travelled >= Math.floor(asked * 0.75), `${travelled} of ${asked} — scroll requests were clamped; look at src/screen/scroll-keys/ScrollKeybindingHandler.tsx`)
   }
-  check('the list rendered under the trace seam (renders recorded)', renders.length > 0, `${renders.length} — no list-render lines in ${trace}; VirtualMessageList in src/components/VirtualMessageList.tsx writes them when MERCURY_CONNECTOR_TRACE is set`)
+  check('the list rendered under the trace seam (renders recorded)', renders.length > 0, `${renders.length} — no list-render lines in ${trace}; VirtualMessageList in src/screen/virtual-message-list/VirtualMessageList.tsx writes them when MERCURY_CONNECTOR_TRACE is set`)
   console.log(`  renders: ${renders.map(r => `[${r.range[0]},${r.range[1]})/${r.messages}${r.scroll ? `@${r.scroll.top}${r.scroll.pending ? `+${r.scroll.pending}` : ''}${r.scroll.sticky ? 's' : ''}/${r.scroll.height}` : ''}`).join(' ')}`)
   const viewports = [...new Set(renders.map(r => r.scroll?.viewport).filter((v): v is number => typeof v === 'number' && v > 0))]
   console.log(`  viewport rows seen: ${viewports.join(', ') || '(none)'} — a page step is viewport − 2`)
   const stale = renders.filter(r => r.stale > 0).length
-  check('no render carried a stale key (every mounted index exact)', stale === 0, `${stale} of ${renders.length} — the stale count is computed in src/components/VirtualMessageList.tsx where list-render is traced`)
+  check('no render carried a stale key (every mounted index exact)', stale === 0, `${stale} of ${renders.length} — the stale count is computed in src/screen/virtual-message-list/VirtualMessageList.tsx where list-render is traced`)
   const dup = renders.filter(r => r.dupKeys.length > 0)
-  check('no render carried a duplicate sibling key', dup.length === 0, dup.slice(0, 3).map(r => r.dupKeys.join(',')).join(' | ') + ' — two siblings share a key; fix the item key in src/components/VirtualMessageList.tsx')
+  check('no render carried a duplicate sibling key', dup.length === 0, dup.slice(0, 3).map(r => r.dupKeys.join(',')).join(' | ') + ' — two siblings share a key; fix the item key in src/screen/virtual-message-list/VirtualMessageList.tsx')
   const offHead = renders.filter(r => r.range[0] > 0 && r.range[1] < r.messages).length
-  check('the mounted window left BOTH ends during the run (the keyed-map path was exercised)', offHead > 0, `${offHead} of ${renders.length} — the mounted range never left both ends; the scroll keys did not move the window (src/components/VirtualMessageList.tsx)`)
+  check('the mounted window left BOTH ends during the run (the keyed-map path was exercised)', offHead > 0, `${offHead} of ${renders.length} — the mounted range never left both ends; the scroll keys did not move the window (src/screen/virtual-message-list/VirtualMessageList.tsx)`)
   const reachedHead = renders.filter(r => r.range[0] === 0 && r.range[1] < r.messages).length
-  check('the window reached the head (ctrl+home re-windowed the list)', reachedHead > 0, `${reachedHead} of ${renders.length} — ctrl+home did not re-window to the head (src/components/VirtualMessageList.tsx)`)
+  check('the window reached the head (ctrl+home re-windowed the list)', reachedHead > 0, `${reachedHead} of ${renders.length} — ctrl+home did not re-window to the head (src/screen/virtual-message-list/VirtualMessageList.tsx)`)
   check('the list saw a long transcript (≥ 300 painted rows)', renders.some(r => r.messages >= 300), `max ${Math.max(0, ...renders.map(r => r.messages))} — the resumed fixture transcript did not load in full; see buildCompass1k in scripts/navigation/fixture1k.ts`)
-  check('the key cache never outran the rows', renders.every(r => r.keys === r.messages), renders.filter(r => r.keys !== r.messages).slice(0, 2).map(r => `${r.keys}/${r.messages}`).join(' ') + ' — the key cache length differs from the row count; fix itemKeys in src/components/VirtualMessageList.tsx')
+  check('the key cache never outran the rows', renders.every(r => r.keys === r.messages), renders.filter(r => r.keys !== r.messages).slice(0, 2).map(r => `${r.keys}/${r.messages}`).join(' ') + ' — the key cache length differs from the row count; fix itemKeys in src/screen/virtual-message-list/VirtualMessageList.tsx')
 
   rmSync(staged, { force: true })
   if (failures === 0) {

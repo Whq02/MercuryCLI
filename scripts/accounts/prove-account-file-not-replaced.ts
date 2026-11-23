@@ -22,7 +22,7 @@ const FAMILIES: Family[] = [
   {
     id: 'gemini',
     label: 'Gemini',
-    mod: 'services/providers/gemini/geminiAccounts.ts',
+    mod: 'models/roads/gemini/geminiAccounts.ts',
     pathFn: 'geminiAuthPathForDisplay',
     write: `m.writePreferredGeminiSource('api-key')`,
     wrote: `after.preferredSource === 'api-key'`,
@@ -34,7 +34,7 @@ const FAMILIES: Family[] = [
   {
     id: 'huggingface',
     label: 'Hugging Face',
-    mod: 'services/providers/huggingface/huggingfaceAccounts.ts',
+    mod: 'models/roads/huggingface/huggingfaceAccounts.ts',
     pathFn: 'huggingfaceAuthPathForDisplay',
     write: `m.writeHuggingfaceTokenIdentity('hf_fixturekey01', { username: 'fixture', observedAtMs: 1 })`,
     wrote: `after.tokenIdentity?.username === 'fixture'`,
@@ -46,7 +46,7 @@ const FAMILIES: Family[] = [
   {
     id: 'moonshot',
     label: 'Moonshot',
-    mod: 'services/providers/moonshot/moonshotAccounts.ts',
+    mod: 'models/roads/moonshot/moonshotAccounts.ts',
     pathFn: 'moonshotAuthPathForDisplay',
     write: `m.writeMoonshotRegion('mainland-cn')`,
     wrote: `after.region === 'mainland-cn'`,
@@ -58,7 +58,7 @@ const FAMILIES: Family[] = [
   {
     id: 'openai',
     label: 'OpenAI',
-    mod: 'services/providers/openai/openaiAccounts.ts',
+    mod: 'models/roads/openai/openaiAccounts.ts',
     pathFn: 'openaiAuthPathForDisplay',
     write: `m.writePreferredOpenaiSource('api-key')`,
     wrote: `after.preferredSource === 'api-key'`,
@@ -70,7 +70,7 @@ const FAMILIES: Family[] = [
   {
     id: 'openrouter',
     label: 'OpenRouter',
-    mod: 'services/providers/openrouter/openrouterAccounts.ts',
+    mod: 'models/roads/openrouter/openrouterAccounts.ts',
     pathFn: 'openrouterAuthPathForDisplay',
     write: `m.disconnectOpenrouterOauthKey()`,
     wrote: `after.version === 1 && after.minted === undefined`,
@@ -82,7 +82,7 @@ const FAMILIES: Family[] = [
   {
     id: 'xai',
     label: 'xAI',
-    mod: 'services/providers/xai/xaiOauth.ts',
+    mod: 'models/roads/xai/xaiOauth.ts',
     pathFn: 'xaiAuthPathForDisplay',
     write: `m.writePreferredXaiSource('api-key')`,
     wrote: `after.preferredSource === 'api-key'`,
@@ -94,7 +94,7 @@ const FAMILIES: Family[] = [
   {
     id: 'nous',
     label: 'Nous',
-    mod: 'services/providers/nous/nousOauth.ts',
+    mod: 'models/roads/nous/nousOauth.ts',
     pathFn: 'nousAuthPathForDisplay',
     write: `m.writePreferredNousSource('api-key')`,
     wrote: `after.preferredSource === 'api-key'`,
@@ -125,7 +125,7 @@ function runIn(family: Family, body: string): Record<string, unknown> {
     const fs = await import('node:fs')
     const path = await import('node:path')
     const m = await import(${JSON.stringify(join(SRC, family.mod))})
-    const recovery = await import(${JSON.stringify(join(SRC, 'substrate/storeRecovery.ts'))})
+    const recovery = await import(${JSON.stringify(join(SRC, 'platform/substrate/storeRecovery.ts'))})
     const file = m.${family.pathFn}()
     const dir = path.dirname(file)
     const FULL = ${JSON.stringify(JSON.stringify(family.full, null, 2) + '\n')}
@@ -190,12 +190,12 @@ for (const family of FAMILIES) {
     `)
     const asides = r.asides as string[]
     check('the write lands', r.threw === null && r.wrote === true, `${JSON.stringify(r.threw)} · the ${family.label} writer in src/${family.mod} must keep the torn file aside and then write the new one`)
-    check('exactly one copy is kept beside the file, under a name that ends in -auth.json', asides.length === 1 && family.aside.test(asides[0]!), `found ${JSON.stringify(asides)} — the old bytes are gone · the keep-aside step of the ${family.label} writer in src/${family.mod} (see src/substrate/storeRecovery.ts) must leave exactly one copy named like .${family.id}.corrupt.<time>-auth.json`)
+    check('exactly one copy is kept beside the file, under a name that ends in -auth.json', asides.length === 1 && family.aside.test(asides[0]!), `found ${JSON.stringify(asides)} — the old bytes are gone · the keep-aside step of the ${family.label} writer in src/${family.mod} (see src/platform/substrate/storeRecovery.ts) must leave exactly one copy named like .${family.id}.corrupt.<time>-auth.json`)
     check('the copy holds the old bytes verbatim', r.asideHoldsTheBytes === true, `the keep-aside step of the ${family.label} writer in src/${family.mod} must copy the old file byte for byte`)
     if (POSIX_MODES) check('the copy is mode 0600', r.asideMode === 0o600, `mode ${(r.asideMode as number | null)?.toString(8)} · the kept-aside copy of the ${family.label} writer in src/${family.mod} must be created with mode 0600`)
     const events = r.events as Array<{ store?: string; kind?: string; quarantinePath?: string | null; reason?: string }>
     const last = events.at(-1)
-    check('the recovery ledger, which the Health Check prints, names the store, the reason and where the copy is', last !== undefined && last.store === family.store && last.reason === 'not valid JSON' && last.quarantinePath === r.aside && (last.kind ?? 'quarantine') === 'quarantine', `${JSON.stringify(last ?? null)} · the keep-aside step of the ${family.label} writer in src/${family.mod} must record an event in src/substrate/storeRecovery.ts with store ${family.store}, reason not valid JSON and the copy path`)
+    check('the recovery ledger, which the Health Check prints, names the store, the reason and where the copy is', last !== undefined && last.store === family.store && last.reason === 'not valid JSON' && last.quarantinePath === r.aside && (last.kind ?? 'quarantine') === 'quarantine', `${JSON.stringify(last ?? null)} · the keep-aside step of the ${family.label} writer in src/${family.mod} must record an event in src/platform/substrate/storeRecovery.ts with store ${family.store}, reason not valid JSON and the copy path`)
     const floor = r.floor as Record<string, { read: string; cat: string }> | null
     const fileFloor = r.floorOfTheFile as Record<string, { read: string; cat: string }>
     for (const mode of ['default', 'sovereign']) {
@@ -268,7 +268,7 @@ if (!POSIX_MODES) skip('the refused sign-out', 'a mode-0200 file needs a POSIX p
 else {
   for (const [family, route] of [[FAMILIES[0]!, 'gemini-oauth'], [FAMILIES[1]!, 'huggingface-oauth'], [FAMILIES[2]!, 'moonshot-oauth']] as const) {
     const r = runIn(family, `
-      const removal = await import(${JSON.stringify(join(SRC, 'services/providers/accountSlots/removal.ts'))})
+      const removal = await import(${JSON.stringify(join(SRC, 'models/roads/account-slots/removal.ts'))})
       fs.mkdirSync(dir, { recursive: true })
       fs.writeFileSync(file, FULL, { mode: 0o600 })
       fs.chmodSync(file, 0o200)
@@ -278,16 +278,16 @@ else {
     `)
     const answered = r.answered as { note?: string; mutated?: boolean; refused?: boolean } | undefined
     const words = `Could not sign out: The ${family.label} auth file at ${String(r.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.`
-    check(`${family.label}: the sign-out answers a note that says why, changes nothing and says it was refused`, r.outcome === null && answered?.note === words && answered.mutated === false && answered.refused === true && r.same === true, `${JSON.stringify(r.outcome ?? answered)} · file ${r.same === true ? 'kept' : 'replaced'} · executeSlotRemoval in src/services/providers/accountSlots/removal.ts must turn the store refusal into a refused note and change nothing`)
+    check(`${family.label}: the sign-out answers a note that says why, changes nothing and says it was refused`, r.outcome === null && answered?.note === words && answered.mutated === false && answered.refused === true && r.same === true, `${JSON.stringify(r.outcome ?? answered)} · file ${r.same === true ? 'kept' : 'replaced'} · executeSlotRemoval in src/models/roads/account-slots/removal.ts must turn the store refusal into a refused note and change nothing`)
   }
   const gemini = FAMILIES[0]!
   const fault = runIn(gemini, `
-    const removal = await import(${JSON.stringify(join(SRC, 'services/providers/accountSlots/removal.ts'))})
+    const removal = await import(${JSON.stringify(join(SRC, 'models/roads/account-slots/removal.ts'))})
     out.threw = attempt(() => removal.executeSlotRemoval({ id: 'fixture-slot', family: 'gemini', kind: 'oauth', removal: { route: 'gemini-oauth' } }, { disconnectGeminiOauth: () => { throw new TypeError('a fault of the code, not a refusal') } }))
   `)
-  check('a throw that is not a refusal of the store still leaves the sign-out as a throw, as before', (fault.threw as Threw)?.message === 'a fault of the code, not a refusal', `${JSON.stringify(fault.threw)} · executeSlotRemoval in src/services/providers/accountSlots/removal.ts must turn only store refusals into notes and rethrow any other error`)
+  check('a throw that is not a refusal of the store still leaves the sign-out as a throw, as before', (fault.threw as Threw)?.message === 'a fault of the code, not a refusal', `${JSON.stringify(fault.threw)} · executeSlotRemoval in src/models/roads/account-slots/removal.ts must turn only store refusals into notes and rethrow any other error`)
   const r = runIn(gemini, `
-    const login = await import(${JSON.stringify(join(SRC, 'services/providers/gemini/geminiLogin.ts'))})
+    const login = await import(${JSON.stringify(join(SRC, 'models/roads/gemini/geminiLogin.ts'))})
     fs.mkdirSync(dir, { recursive: true })
     fs.writeFileSync(file, FULL, { mode: 0o600 })
     fs.chmodSync(file, 0o200)
@@ -296,7 +296,7 @@ else {
     out.same = raw(file) === FULL
   `)
   const answered = r.answered as { ok?: boolean; receipt?: string } | undefined
-  check('Gemini: making a source active answers a receipt that says why and is not ok', r.outcome === null && answered?.ok === false && answered.receipt === `Could not make it the active source: The Gemini auth file at ${String(r.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.` && r.same === true, `${JSON.stringify(r.outcome ?? answered)} · file ${r.same === true ? 'kept' : 'replaced'} · activateGeminiSource in src/services/providers/gemini/geminiLogin.ts must answer ok false with the refusal as its receipt and leave the file alone`)
+  check('Gemini: making a source active answers a receipt that says why and is not ok', r.outcome === null && answered?.ok === false && answered.receipt === `Could not make it the active source: The Gemini auth file at ${String(r.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.` && r.same === true, `${JSON.stringify(r.outcome ?? answered)} · file ${r.same === true ? 'kept' : 'replaced'} · activateGeminiSource in src/models/roads/gemini/geminiLogin.ts must answer ok false with the refusal as its receipt and leave the file alone`)
 }
 
 console.log('\nan auth file that reads and takes no write — the sign-out says which file could not be written, on each road, and nothing is thrown')
@@ -304,8 +304,8 @@ if (process.platform !== 'darwin' || !POSIX_MODES) skip('the write that fails', 
 else {
   for (const [family, route] of [[FAMILIES[0]!, 'gemini-oauth'], [FAMILIES[1]!, 'huggingface-oauth'], [FAMILIES[2]!, 'moonshot-oauth']] as const) {
     const r = runIn(family, `
-      const removal = await import(${JSON.stringify(join(SRC, 'services/providers/accountSlots/removal.ts'))})
-      const cli = await import(${JSON.stringify(join(SRC, 'cli/handlers/providerAuth.ts'))})
+      const removal = await import(${JSON.stringify(join(SRC, 'models/roads/account-slots/removal.ts'))})
+      const cli = await import(${JSON.stringify(join(SRC, 'commands/verbs/providerAuth.ts'))})
       const child = await import('node:child_process')
       fs.mkdirSync(dir, { recursive: true })
       fs.writeFileSync(file, FULL, { mode: 0o600 })
@@ -321,9 +321,9 @@ else {
     const words = `Could not sign out: The ${family.label} auth file at ${String(r.file)} could not be written (EPERM); nothing was written. Close what holds the file, then try again.`
     const answered = r.answered as { note?: string; mutated?: boolean; refused?: boolean } | undefined
     const said = r.said as { out: string; err: string; exit: number | null }
-    check(`${family.label}: the sign-out of the slot answers the note, refused, and throws nothing`, r.slot === null && answered?.note === words && answered.mutated === false && answered.refused === true, `${JSON.stringify(r.slot ?? answered)} · executeSlotRemoval in src/services/providers/accountSlots/removal.ts must answer a refused note when the file cannot be written`)
-    check(`${family.label}: the sign-out of the family says it on the error stream and exits 1`, r.verbThrew === null && said.err === `${words}\n` && said.out === '' && said.exit === 1, `${JSON.stringify({ threw: r.verbThrew, said })} · providerAuthLogout in src/cli/handlers/providerAuth.ts must write the refusal to the error stream and exit 1`)
-    check(`${family.label}: the sign-out of every provider answers it once, and the file stands byte for byte`, r.every === null && JSON.stringify(r.everyAnswered) === JSON.stringify([words]) && r.same === true, `${JSON.stringify(r.every ?? r.everyAnswered)} · file ${r.same === true ? 'kept' : 'changed'} · signOutEveryEngineCredential in src/services/providers/accountSlots/removal.ts must answer the refusal once and leave the file alone`)
+    check(`${family.label}: the sign-out of the slot answers the note, refused, and throws nothing`, r.slot === null && answered?.note === words && answered.mutated === false && answered.refused === true, `${JSON.stringify(r.slot ?? answered)} · executeSlotRemoval in src/models/roads/account-slots/removal.ts must answer a refused note when the file cannot be written`)
+    check(`${family.label}: the sign-out of the family says it on the error stream and exits 1`, r.verbThrew === null && said.err === `${words}\n` && said.out === '' && said.exit === 1, `${JSON.stringify({ threw: r.verbThrew, said })} · providerAuthLogout in src/commands/verbs/providerAuth.ts must write the refusal to the error stream and exit 1`)
+    check(`${family.label}: the sign-out of every provider answers it once, and the file stands byte for byte`, r.every === null && JSON.stringify(r.everyAnswered) === JSON.stringify([words]) && r.same === true, `${JSON.stringify(r.every ?? r.everyAnswered)} · file ${r.same === true ? 'kept' : 'changed'} · signOutEveryEngineCredential in src/models/roads/account-slots/removal.ts must answer the refusal once and leave the file alone`)
   }
   const marked = runIn(FAMILIES[4]!, `
     const child = await import('node:child_process')
@@ -334,7 +334,7 @@ else {
     child.spawnSync('/usr/bin/chflags', ['nouchg', file])
     out.same = raw(file) === FULL
   `)
-  check('OpenRouter: the mark of a refused key throws nothing when its file takes no write, so a turn still shows OpenRouter\'s own refusal', marked.threw === null && marked.same === true, `${JSON.stringify(marked.threw)} · markOpenrouterKeyRefused in src/services/providers/openrouter/openrouterAccounts.ts must catch a write failure instead of throwing`)
+  check('OpenRouter: the mark of a refused key throws nothing when its file takes no write, so a turn still shows OpenRouter\'s own refusal', marked.threw === null && marked.same === true, `${JSON.stringify(marked.threw)} · markOpenrouterKeyRefused in src/models/roads/openrouter/openrouterAccounts.ts must catch a write failure instead of throwing`)
 }
 
 console.log('\nthe terminal sign-out of one family — a file that cannot be read is named with exit 1, and a file that is not valid JSON is kept aside')
@@ -344,7 +344,7 @@ else {
     const full = JSON.stringify(family.full, null, 2) + '\n'
     const broken = full.slice(0, -9)
     const signOut = (prepare: string): Record<string, unknown> => runIn(family, `
-      const cli = await import(${JSON.stringify(join(SRC, 'cli/handlers/providerAuth.ts'))})
+      const cli = await import(${JSON.stringify(join(SRC, 'commands/verbs/providerAuth.ts'))})
       const said = { out: '', err: '', exit: null }
       fs.mkdirSync(dir, { recursive: true })
       ${prepare}
@@ -358,12 +358,12 @@ else {
     const unread = signOut(`fs.writeFileSync(file, FULL, { mode: 0o600 }); fs.chmodSync(file, 0o200)`)
     const said = unread.said as { out: string; err: string; exit: number | null }
     const words = `Could not sign out: The ${family.label} auth file at ${String(unread.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.`
-    check(`${family.label}: the sign-out of the family names the file it could not read on the error stream and exits 1, and the file stands`, said.err === `${words}\n` && said.out === '' && said.exit === 1 && unread.now === full, `${JSON.stringify(said)} · file ${unread.now === full ? 'kept' : 'replaced'} · providerAuthLogout in src/cli/handlers/providerAuth.ts must print the refusal on the error stream, exit 1 and leave the file alone`)
+    check(`${family.label}: the sign-out of the family names the file it could not read on the error stream and exits 1, and the file stands`, said.err === `${words}\n` && said.out === '' && said.exit === 1 && unread.now === full, `${JSON.stringify(said)} · file ${unread.now === full ? 'kept' : 'replaced'} · providerAuthLogout in src/commands/verbs/providerAuth.ts must print the refusal on the error stream, exit 1 and leave the file alone`)
     const unusable = signOut(`fs.writeFileSync(file, ${JSON.stringify(broken)}, { mode: 0o600 })`)
     const kept = unusable.kept as unknown[]
-    check(`${family.label}: a file that is not valid JSON is kept aside by the sign-out of the family, every byte`, kept.length === 1 && kept[0] === broken && typeof unusable.now === 'string' && !unusable.now.includes(family.secret), `${kept.length} kept aside · ${JSON.stringify(unusable.said)} · providerAuthLogout in src/cli/handlers/providerAuth.ts must keep the invalid file aside byte for byte and then remove the credential`)
+    check(`${family.label}: a file that is not valid JSON is kept aside by the sign-out of the family, every byte`, kept.length === 1 && kept[0] === broken && typeof unusable.now === 'string' && !unusable.now.includes(family.secret), `${kept.length} kept aside · ${JSON.stringify(unusable.said)} · providerAuthLogout in src/commands/verbs/providerAuth.ts must keep the invalid file aside byte for byte and then remove the credential`)
     const told = unusable.said as { out: string; err: string; exit: number | null }
-    check(`${family.label}: …and the sign-out says so with exit 0: what the file was, where the copy is, and that no credential could be read from it`, told.out === `The ${family.label} auth file at ${String(unusable.file)} was not valid JSON and is kept aside at ${String((unusable.copies as string[])[0])}; no credential could be read from it.\n` && told.err === '' && told.exit === 0, `${JSON.stringify(told)} · change the kept-aside message printed by providerAuthLogout in src/cli/handlers/providerAuth.ts to match`)
+    check(`${family.label}: …and the sign-out says so with exit 0: what the file was, where the copy is, and that no credential could be read from it`, told.out === `The ${family.label} auth file at ${String(unusable.file)} was not valid JSON and is kept aside at ${String((unusable.copies as string[])[0])}; no credential could be read from it.\n` && told.err === '' && told.exit === 0, `${JSON.stringify(told)} · change the kept-aside message printed by providerAuthLogout in src/commands/verbs/providerAuth.ts to match`)
   }
 }
 
@@ -371,10 +371,10 @@ console.log('\na key sign-in that the auth file refuses — nothing of it is sto
 if (!POSIX_MODES) skip('the refused key sign-in', 'a mode-0200 file needs a POSIX process that is not root')
 else {
   for (const [family, module, call, field, said] of [
-    [FAMILIES[0]!, 'services/providers/gemini/geminiLogin.ts', `login.storeGeminiApiKeyLogin('fixture-new-gemini-key-0123', { refreshCatalogue: async () => null })`, 'geminiApiKey', 'Could not store the key: '],
-    [FAMILIES[1]!, 'services/providers/huggingface/huggingfaceLogin.ts', `login.storeHuggingfaceTokenLogin('hf_fixturenewtoken0123', { fetchImpl: async () => new Response(JSON.stringify({ name: 'fixture' }), { status: 200, headers: { 'content-type': 'application/json' } }) }, async () => null)`, 'huggingfaceApiKey', 'Could not store the token: '],
-    [FAMILIES[5]!, 'services/providers/xai/xaiLogin.ts', `login.storeXaiApiKeyLogin('fixture-new-xai-key-0123', { fetchImpl: async () => { throw new Error('the fixture has no network') }, env: {} })`, 'xaiApiKey', 'Could not store the key: '],
-    [FAMILIES[6]!, 'services/providers/nous/nousLogin.ts', `login.storeNousApiKeyLogin('fixture-new-nous-key-0123', { fetchImpl: async () => { throw new Error('the fixture has no network') }, env: {} })`, 'nousApiKey', 'Could not store the key: '],
+    [FAMILIES[0]!, 'models/roads/gemini/geminiLogin.ts', `login.storeGeminiApiKeyLogin('fixture-new-gemini-key-0123', { refreshCatalogue: async () => null })`, 'geminiApiKey', 'Could not store the key: '],
+    [FAMILIES[1]!, 'models/roads/huggingface/huggingfaceLogin.ts', `login.storeHuggingfaceTokenLogin('hf_fixturenewtoken0123', { fetchImpl: async () => new Response(JSON.stringify({ name: 'fixture' }), { status: 200, headers: { 'content-type': 'application/json' } }) }, async () => null)`, 'huggingfaceApiKey', 'Could not store the token: '],
+    [FAMILIES[5]!, 'models/roads/xai/xaiLogin.ts', `login.storeXaiApiKeyLogin('fixture-new-xai-key-0123', { fetchImpl: async () => { throw new Error('the fixture has no network') }, env: {} })`, 'xaiApiKey', 'Could not store the key: '],
+    [FAMILIES[6]!, 'models/roads/nous/nousLogin.ts', `login.storeNousApiKeyLogin('fixture-new-nous-key-0123', { fetchImpl: async () => { throw new Error('the fixture has no network') }, env: {} })`, 'nousApiKey', 'Could not store the key: '],
   ] as const) {
     const r = runIn(family, `
       const login = await import(${JSON.stringify(join(SRC, module))})
@@ -423,19 +423,19 @@ else {
 console.log('\na Gemini key that Google refuses — nothing of it stays: no key, and no sign-in in the ledger')
 {
   const r = runIn(FAMILIES[0]!, `
-    const login = await import(${JSON.stringify(join(SRC, 'services/providers/gemini/geminiLogin.ts'))})
+    const login = await import(${JSON.stringify(join(SRC, 'models/roads/gemini/geminiLogin.ts'))})
     out.outcome = await login.storeGeminiApiKeyLogin('fixture-key-google-refuses', { refreshCatalogue: async () => ({ models: [], lastError: 'Google refused the credential', lastStatus: 400, lastSaid: 'API key not valid' }) })
     out.ledger = Object.keys((parsed(path.join(dir, '.sign-ins.json')) ?? {}).signIns ?? {})
     out.storedKey = (parsed(path.join(dir, '.provider-secrets.json')) ?? {}).geminiApiKey ?? null
     out.madeAFile = fs.existsSync(file)
   `)
   const outcome = r.outcome as { ok?: boolean; stored?: boolean; receipt?: string } | undefined
-  check('the sign-in answers that Google refused the key, stores no key and leaves no sign-in of it in the ledger', outcome?.ok === false && outcome.stored === false && (outcome.receipt ?? '').startsWith('Google refused this key') && r.storedKey === null && (r.ledger as string[]).length === 0, `${JSON.stringify({ outcome, ledger: r.ledger, storedKey: r.storedKey })} · storeGeminiApiKeyLogin in src/services/providers/gemini/geminiLogin.ts must store nothing and record no sign-in when Google refuses the key`)
+  check('the sign-in answers that Google refused the key, stores no key and leaves no sign-in of it in the ledger', outcome?.ok === false && outcome.stored === false && (outcome.receipt ?? '').startsWith('Google refused this key') && r.storedKey === null && (r.ledger as string[]).length === 0, `${JSON.stringify({ outcome, ledger: r.ledger, storedKey: r.storedKey })} · storeGeminiApiKeyLogin in src/models/roads/gemini/geminiLogin.ts must store nothing and record no sign-in when Google refuses the key`)
   check('…and where there was no auth file, the refused key leaves none', r.madeAFile === false, 'an auth file was left where there was none')
   if (process.platform !== 'darwin' || !POSIX_MODES) skip('the restore that cannot be written', 'a file that takes no rename is made here with the immutable flag of macOS')
   else {
     const held = runIn(FAMILIES[0]!, `
-      const ps = await import(${JSON.stringify(join(SRC, 'utils/accounts/providerSecrets.ts'))})
+      const ps = await import(${JSON.stringify(join(SRC, 'models/sign-in/account-ledger/providerSecrets.ts'))})
       const child = await import('node:child_process')
       fs.mkdirSync(dir, { recursive: true })
       fs.writeFileSync(file, FULL, { mode: 0o600 })
@@ -444,7 +444,7 @@ console.log('\na Gemini key that Google refuses — nothing of it stays: no key,
       out.threw = attempt(restore)
       child.spawnSync('/usr/bin/chflags', ['nouchg', file])
     `)
-    check('a restore of the auth file that cannot be written throws nothing, so the sign-in answers its own refusal', held.threw === null, `${JSON.stringify(held.threw)} · credentialFileRestorer in src/utils/accounts/providerSecrets.ts must catch a failed restore instead of throwing`)
+    check('a restore of the auth file that cannot be written throws nothing, so the sign-in answers its own refusal', held.threw === null, `${JSON.stringify(held.threw)} · credentialFileRestorer in src/models/sign-in/account-ledger/providerSecrets.ts must catch a failed restore instead of throwing`)
   }
 }
 

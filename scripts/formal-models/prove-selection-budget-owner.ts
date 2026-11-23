@@ -10,8 +10,8 @@ delete process.env.MERCURY_SELECTION_BUDGET
 delete process.env.MERCURY_SELECTION_BUDGET
 
 const t = checker()
-const { resolveSelectionBudget } = await import('../../src/services/run/contextSelection.ts')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
+const { resolveSelectionBudget } = await import('../../src/engine/run/contextSelection.ts')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
 
 t.section('§1 — accepted default: unset ⇒ the caller budget passes through identically')
 {

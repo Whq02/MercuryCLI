@@ -3,13 +3,13 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { projectLocalPath } from '../../src/utils/projectLocal/paths.js'
+import { projectLocalPath } from '../../src/platform/project-local/paths.js'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('       fix: make project_store_dir in scripts/lib/project-home.sh pick the same directory as projectLocalPath in src/utils/projectConfig.js (re-exported by src/utils/projectLocal/paths.ts), whichever of the two changed')
+  if (!cond) console.log('       fix: make project_store_dir in scripts/lib/project-home.sh pick the same directory as projectLocalPath in src/platform/settings/projectConfig.js (re-exported by src/platform/project-local/paths.ts), whichever of the two changed')
 }
 
 const HELPER = join(import.meta.dir, '..', 'lib', 'project-home.sh')

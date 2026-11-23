@@ -32,7 +32,7 @@ const COLS = 120
 const ROWS = 40
 const PLACEHOLDER = 'Type a prompt'
 
-const LANDING_ORDER_HINT = 'to fix, change how a line submitted while a session lands is held and replayed (holdForLanding in src/screens/chat/submit/sessionSend.ts, armForLanding in src/screens/chat/submit/submitLine.ts); a refused landing hands the lines back to the composer'
+const LANDING_ORDER_HINT = 'to fix, change how a line submitted while a session lands is held and replayed (holdForLanding in src/screen/chat/submit/sessionSend.ts, armForLanding in src/screen/chat/submit/submitLine.ts); a refused landing hands the lines back to the composer'
 
 let checks = 0
 let failures = 0
@@ -46,26 +46,26 @@ function section(title: string): void {
 }
 
 const React = await import('react')
-const { setIsInteractive } = await import('../../src/bootstrap/state.js')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.js')
 setIsInteractive(true)
-const { App } = await import('../../src/components/App.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.js')
-const { Chat } = await import('../../src/screens/Chat.js')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.js')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.js')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.js')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.js')
+const { App } = await import('../../src/boot/App.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.js')
+const { Chat } = await import('../../src/screen/chat/Chat.js')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.js')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.js')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.js')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true, hasTrustDialogAccepted: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false, hasCompletedOnboarding: true, theme: 'dark' }))
-const pending = await import('../../src/input-core/pending-input.js')
-const history = await import('../../src/history.js')
-const slot = await import('../../src/services/engine-connector/focusedConnector.js')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const { createUserMessage } = await import('../../src/utils/messages/factories.js')
-const { getCommands, commandSeat } = await import('../../src/commands.js')
-const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.js')
+const pending = await import('../../src/screen/composer/input-core/pending-input.js')
+const history = await import('../../src/sessions/promptHistory.js')
+const slot = await import('../../src/engine/connector/focusedConnector.js')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+const { createUserMessage } = await import('../../src/engine/message-shapes/factories.js')
+const { getCommands, commandSeat } = await import('../../src/commands/catalogue/commands.js')
+const { markDaemonHaltStanddown } = await import('../../src/daemon/control/daemonStanddown.js')
 markDaemonHaltStanddown()
 const commands = await getCommands(PROJECT)
 const sessionCommand = commands.find(command => command.name === 'review' && commandSeat(command) === 'session') ?? commands.find(command => command.type === 'prompt' && commandSeat(command) === 'session')

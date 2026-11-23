@@ -53,14 +53,14 @@ const h = React.createElement
 type AdmitReq = { op?: string; workspaceDir?: string; resumeSessionId?: string }
 let admitCalls: AdmitReq[] = []
 
-const realEnsure = await import('../../src/services/switchboard/ensureDaemon.ts')
-mock.module('../../src/services/switchboard/ensureDaemon.ts', () => ({
+const realEnsure = await import('../../src/daemon/switchboard/ensureDaemon.ts')
+mock.module('../../src/daemon/switchboard/ensureDaemon.ts', () => ({
   ...realEnsure,
   ensureOwnedDaemon: async () => true,
 }))
 
-const realControl = await import('../../src/daemon/controlSocket.ts')
-mock.module('../../src/daemon/controlSocket.ts', () => ({
+const realControl = await import('../../src/daemon/control/controlSocket.ts')
+mock.module('../../src/daemon/control/controlSocket.ts', () => ({
   ...realControl,
   daemonControlRpc: async (req: Record<string, unknown>) => {
     if (req.op === 'sessionAdmit') {
@@ -89,40 +89,40 @@ mock.module('../../src/daemon/controlSocket.ts', () => ({
   },
 }))
 
-const realWorkers = await import('../../src/daemon/concourseWorkers.ts')
-mock.module('../../src/daemon/concourseWorkers.ts', () => ({
+const realWorkers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+mock.module('../../src/daemon/concourse-workers/concourseWorkers.ts', () => ({
   ...realWorkers,
   countLiveConcourseWorkers: () => 0,
   sessionOwnedByLiveWorker: () => null,
 }))
 
-const realActivity = await import('../../src/services/concourse/projectActivity.ts')
-mock.module('../../src/services/concourse/projectActivity.ts', () => ({
+const realActivity = await import('../../src/screen/concourse-model/projectActivity.ts')
+mock.module('../../src/screen/concourse-model/projectActivity.ts', () => ({
   ...realActivity,
   runningByProjectKey: async () => new Map<string, number>(),
 }))
 
-const { enableConfigs, setPathTrusted } = await import('../../src/utils/config.ts')
+const { enableConfigs, setPathTrusted } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 setPathTrusted(freshDir)
 setPathTrusted(otherTrusted)
 setPathTrusted(ownDir)
 
-const bootstrapState = await import('../../src/bootstrap/state.ts')
-const { getCwd } = await import('../../src/utils/cwd.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
-const surfaceRoute = await import('../../src/context/surfaceRoute.ts')
-const focusedSlot = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { default: reconciler } = await import('../../src/ink/reconciler.js')
-const { disposeKeybindingWatcher } = await import('../../src/keybindings/loadUserBindings.js')
-const { Box } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { BootSplashScreen } = await import('../../src/components/BootSplashScreen.tsx')
+const bootstrapState = await import('../../src/boot/process-state/processState.ts')
+const { getCwd } = await import('../../src/platform/files/cwd.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
+const surfaceRoute = await import('../../src/screen/routes/surfaceRoute.ts')
+const focusedSlot = await import('../../src/engine/connector/focusedConnector.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
+const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { BootSplashScreen } = await import('../../src/screen/boot-face/BootSplashScreen.tsx')
 
 const SID_OWN = '00000000-0000-4000-8000-000000000101'
 const SID_OTHER = '00000000-0000-4000-8000-000000000202'
@@ -323,8 +323,8 @@ function check(label: string, cond: boolean, fixWhere: string, detail = ''): voi
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${fixWhere}` : ''}`)
 }
 
-const FIX_ROW = 'change continueTarget in src/components/BootSplashScreen.tsx so cross-project Continue Last Session is not dim'
-const FIX_ACTION = 'change case \'continue\' in runRowOf (src/components/bootSplash/rowActions.ts) so it resumes facts.recentLast in its own folder and grounds trusted projects'
+const FIX_ROW = 'change continueTarget in src/screen/boot-face/BootSplashScreen.tsx so cross-project Continue Last Session is not dim'
+const FIX_ACTION = 'change case \'continue\' in runRowOf (src/screen/boot-face/splash/rowActions.ts) so it resumes facts.recentLast in its own folder and grounds trusted projects'
 
 const NOW = Date.now()
 seedSession(ownDir, SID_OWN, 'own project prompt', NOW - 180_000)

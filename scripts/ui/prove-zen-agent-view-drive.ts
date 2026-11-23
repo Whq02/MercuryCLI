@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/tasks/BackgroundTasksDialog.tsx src/components/CrewmateTranscript.tsx src/components/tasks/useCrewmateTranscript.ts src/components/CompactIdentityBand.tsx src/components/CrewmateCard.tsx src/utils/cockpit/crewmateWords.ts src/components/mercury-ui/screens/CrewView.tsx
+// gate-watch: src/screen/tasks/BackgroundTasksDialog.tsx src/screen/chat/CrewmateTranscript.tsx src/screen/tasks/useCrewmateTranscript.ts src/screen/fullscreen-layout/CompactIdentityBand.tsx src/screen/fullscreen-layout/CrewmateCard.tsx src/screen/cockpit/crewmateWords.ts src/screen/widgets/faces/CrewView.tsx
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -44,7 +44,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — the frames dumped below show what painted; change the screen code this proof watches (the gate-watch line at the top of this file: src/components/CrewmateTranscript.tsx, src/components/CompactIdentityBand.tsx, src/components/CrewmateCard.tsx, src/components/tasks/BackgroundTasksDialog.tsx, src/components/mercury-ui/screens/CrewView.tsx), or the sends in compactLeg and cockpitLeg when a frame never painted' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — the frames dumped below show what painted; change the screen code this proof watches (the gate-watch line at the top of this file: src/screen/chat/CrewmateTranscript.tsx, src/screen/fullscreen-layout/CompactIdentityBand.tsx, src/screen/fullscreen-layout/CrewmateCard.tsx, src/screen/tasks/BackgroundTasksDialog.tsx, src/screen/widgets/faces/CrewView.tsx), or the sends in compactLeg and cockpitLeg when a frame never painted' : ''}`)
 }
 
 type Grid = Array<Array<{ c?: string } | string>>

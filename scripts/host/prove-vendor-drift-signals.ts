@@ -13,7 +13,7 @@ let failures = 0
 const check = (name: string, value: unknown, detail: unknown = ''): void => {
   checks++
   if (!value) failures++
-  console.log((value ? 'PASS ' : 'FAIL ') + name + (value ? '' : ' — ' + JSON.stringify(detail) + ' — a vendor document moved: re-read it, then update the adapter words in src/services/host/vendors/ (vendor.ts holds HOST_VENDOR_INFO), the images in src/services/host/recipes.ts, or the pinned URL or node version in vendor/*.lock.json that this check names'))
+  console.log((value ? 'PASS ' : 'FAIL ') + name + (value ? '' : ' — ' + JSON.stringify(detail) + ' — a vendor document moved: re-read it, then update the adapter words in src/models/hosting/vendors/ (vendor.ts holds HOST_VENDOR_INFO), the images in src/models/hosting/recipes.ts, or the pinned URL or node version in vendor/*.lock.json that this check names'))
 }
 const record = (value: unknown): Record<string, any> | undefined => typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, any> : undefined
 const fetchText = async (url: string, init: RequestInit = {}): Promise<{ status: number; headers: Headers; text: string }> => {
@@ -94,7 +94,7 @@ const RUNPOD_POD_STATUSES = ['PROVISIONING', 'STARTING', 'RUNNING', 'EXITED', 'E
   check('a Runpod problem+json carries title, status, detail and errors[]', ['title', 'status', 'detail', 'errors'].every(key => property(errorShape, key) !== undefined), Object.keys(errorShape?.properties ?? {}))
   const credentials = await fetchText('https://docs.runpod.io/get-started/credentials.md')
   const keyPage = /Create an API key[\s\S]*?\((https:\/\/console\.runpod\.io\/user\/[a-z]+)\)/.exec(credentials.text)?.[1]
-  const { HOST_VENDOR_INFO } = await import('../../src/services/host/vendors/vendor.ts')
+  const { HOST_VENDOR_INFO } = await import('../../src/models/hosting/vendors/vendor.ts')
   check('Runpod’s credentials document still names the page the key words point to (https://console.runpod.io/user/credentials)', credentials.status === 200 && keyPage !== undefined && HOST_VENDOR_INFO.runpod.keyHelp.includes(keyPage), { keyPage, keyHelp: HOST_VENDOR_INFO.runpod.keyHelp })
   const keyHelp = (await fetchText('https://console.runpod.io/user/credentials', { headers: { 'user-agent': 'Mozilla/5.0' } })).status
   check('the Runpod credentials page answers', keyHelp === 200, keyHelp)
@@ -141,7 +141,7 @@ const HF_RATE_LIMITS = 'https://huggingface.co/docs/hub/rate-limits'
 }
 
 {
-  const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+  const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
   const images = [...new Set(HOST_RECIPES.map(recipe => recipe.image))]
   const accept = 'application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json'
   const tokens = new Map<string, string>()

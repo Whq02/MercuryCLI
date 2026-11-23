@@ -52,18 +52,18 @@ console.log('============================================================')
 console.log(' sovereign session models — one registry, two dispatch arms')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const wm = await import('../../src/services/concourse/workerModels.ts')
+const wm = await import('../../src/screen/concourse-model/workerModels.ts')
 
-type Entry = import('../../src/services/concourse/workerModels.ts').WorkerModelEntryV1
+type Entry = import('../../src/screen/concourse-model/workerModels.ts').WorkerModelEntryV1
 const registry = await wm.composeWorkerModelRegistry()
 const row = (id: string): Entry | undefined => registry.entries.find(e => e.modelId === id)
 const text = (v: unknown): string => JSON.stringify(v) ?? ''
 
 section('§1 — the session arm: pure product capability')
 {
-  armHint = 'change validateWorkerModelChoice or composeWorkerModelRegistry in src/services/concourse/workerModels.ts'
+  armHint = 'change validateWorkerModelChoice or composeWorkerModelRegistry in src/screen/concourse-model/workerModels.ts'
   const fable = await wm.validateWorkerModelChoice('claude-fable-5', 'session')
   check('an Anthropic frontier id validates ok for a session', fable.ok, text(fable))
 
@@ -106,7 +106,7 @@ section('§1 — the session arm: pure product capability')
 
 section('§2 — the crew arm: the same vocabulary, row for row')
 {
-  armHint = 'change validateWorkerModelChoice or composeWorkerModelRegistry in src/services/concourse/workerModels.ts so the crew arm admits what the session arm admits'
+  armHint = 'change validateWorkerModelChoice or composeWorkerModelRegistry in src/screen/concourse-model/workerModels.ts so the crew arm admits what the session arm admits'
   const fable = await wm.validateWorkerModelChoice('claude-fable-5', 'crew')
   check('an Anthropic frontier id validates ok for a crew seat', fable.ok, text(fable))
 
@@ -121,7 +121,7 @@ section('§2 — the crew arm: the same vocabulary, row for row')
 
 section('§3 — display ≡ dispatch, row by row, per arm')
 {
-  armHint = 'the mismatch lines above name each row and arm; make composeWorkerModelRegistry and validateWorkerModelChoice in src/services/concourse/workerModels.ts agree on it'
+  armHint = 'the mismatch lines above name each row and arm; make composeWorkerModelRegistry and validateWorkerModelChoice in src/screen/concourse-model/workerModels.ts agree on it'
   let mismatches = 0
   for (const e of registry.entries) {
     for (const arm of ['session', 'crew'] as const) {
@@ -138,7 +138,7 @@ section('§3 — display ≡ dispatch, row by row, per arm')
 
 section('§4 — the seed names its arm')
 {
-  armHint = 'change defaultWorkerModelId in src/services/concourse/workerModels.ts'
+  armHint = 'change defaultWorkerModelId in src/screen/concourse-model/workerModels.ts'
   const reg = (entries: Entry[]) => ({ schema: 1 as const, entries })
   const sessionOnly = {
     session: { availability: 'available' },
@@ -156,8 +156,8 @@ section('§4 — the seed names its arm')
 
 section('§5 — the preflight door speaks the session arm')
 {
-  armHint = 'change preflightConcourseDispatch in src/daemon/concourseDispatch.ts, or the validateWorkerModelChoice verdict it relays'
-  const { preflightConcourseDispatch } = await import('../../src/daemon/concourseDispatch.ts')
+  armHint = 'change preflightConcourseDispatch in src/daemon/concourse-workers/concourseDispatch.ts, or the validateWorkerModelChoice verdict it relays'
+  const { preflightConcourseDispatch } = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
   const glm = await preflightConcourseDispatch({ workspaceDir: work, modelKey: 'glm-5.3' })
   check('a credentialed engine session preflights CLEAN', glm.ok === true, text(glm))
   const haiku = await preflightConcourseDispatch({ workspaceDir: work, modelKey: 'claude-haiku-4-5-20251001' })
@@ -173,10 +173,10 @@ section('§6 — a record-less resume retains the transcript’s model (the vNex
 {
   const { writeFileSync, mkdirSync: mkd } = await import('node:fs')
   const { join: j } = await import('node:path')
-  const workers = await import('../../src/daemon/concourseWorkers.ts')
-  const paths = await import('../../src/utils/sessionStorage/paths.ts')
-  const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-  armHint = 'change resumeModelKeyOf in src/daemon/concourseWorkers/admitModel.ts'
+  const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  const paths = await import('../../src/sessions/transcripts/paths.ts')
+  const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+  armHint = 'change resumeModelKeyOf in src/daemon/concourse-workers/admitModel.ts'
   const SID = '00000000-aaaa-bbbb-cccc-00000000f6f6'
   const workspaceId = workers.canonicalWorkspaceId(work)
   const projDir = paths.getProjectDir(workspaceId)
@@ -223,11 +223,11 @@ section('§6b — the retained walk runs the ONE provenance law (FN-013 MODEL-01
 {
   const { writeFileSync, mkdirSync: mkd } = await import('node:fs')
   const { join: j } = await import('node:path')
-  const workers = await import('../../src/daemon/concourseWorkers.ts')
-  const paths = await import('../../src/utils/sessionStorage/paths.ts')
-  const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-  const { restoreConversationModelFromMessages } = await import('../../src/services/resume/sessionRestore.ts')
-  const { getDefaultEngineModelSetting, parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
+  const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  const paths = await import('../../src/sessions/transcripts/paths.ts')
+  const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+  const { restoreConversationModelFromMessages } = await import('../../src/sessions/resume/sessionRestore.ts')
+  const { getDefaultEngineModelSetting, parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.ts')
   const workspaceId = workers.canonicalWorkspaceId(work)
   const projDir = paths.getProjectDir(workspaceId)
   mkd(projDir, { recursive: true })
@@ -270,7 +270,7 @@ section('§6b — the retained walk runs the ONE provenance law (FN-013 MODEL-01
   const user = (): unknown => ({ type: 'user', message: { role: 'user', content: 'x' } })
   type Msg = Parameters<typeof restoreConversationModelFromMessages>[0]
 
-  armHint = 'change resumeModelKeyOf in src/daemon/concourseWorkers/admitModel.ts, or restoreConversationModelFromMessages in src/services/resume/sessionRestore.ts, so both read the same model'
+  armHint = 'change resumeModelKeyOf in src/daemon/concourse-workers/admitModel.ts, or restoreConversationModelFromMessages in src/sessions/resume/sessionRestore.ts, so both read the same model'
   const SID_TAIL = '00000000-aaaa-bbbb-cccc-00000000a601'
   writeFixture(SID_TAIL, ['glm-5.3', '<synthetic>'])
   const tail = workers.resumeModelKeyOf(SID_TAIL, work)
@@ -308,11 +308,11 @@ section("§6c — the session's own model entry: written when the session starts
 {
   const { readFileSync, writeFileSync, mkdirSync: mkd } = await import('node:fs')
   const { join: j } = await import('node:path')
-  const workers = await import('../../src/daemon/concourseWorkers.ts')
-  const paths = await import('../../src/utils/sessionStorage/paths.ts')
-  const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-  const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
-  const restore = (await import('../../src/services/resume/sessionRestore.ts')) as Record<string, unknown>
+  const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  const paths = await import('../../src/sessions/transcripts/paths.ts')
+  const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+  const { loadTranscriptFile } = await import('../../src/sessions/transcripts/loading.ts')
+  const restore = (await import('../../src/sessions/resume/sessionRestore.ts')) as Record<string, unknown>
   const fromRows = restore.restoreConversationModelFromMessages as (messages: unknown[]) => string | null
   const restoreConversationModel = (restore.restoreConversationModel ?? ((r: { messages: unknown[] }) => fromRows(r.messages))) as (r: { messages: unknown[]; model?: string }) => string | null
   const workspaceId = workers.canonicalWorkspaceId(work)
@@ -351,7 +351,7 @@ section("§6c — the session's own model entry: written when the session starts
     return restoreConversationModel({ messages, model: fold.sessionModels?.get(sid as never) })
   }
 
-  armHint = 'change resumeModelKeyOf in src/daemon/concourseWorkers/admitModel.ts, or restoreConversationModel in src/services/resume/sessionRestore.ts, so both resume roads read the model entry first'
+  armHint = 'change resumeModelKeyOf in src/daemon/concourse-workers/admitModel.ts, or restoreConversationModel in src/sessions/resume/sessionRestore.ts, so both resume roads read the model entry first'
   const SID_UNANSWERED = '00000000-aaaa-bbbb-cccc-00000000a701'
   const unanswered = writeShape(SID_UNANSWERED, [{ kind: 'model', model: 'openrouter/stealth/space-bunny-alpha' }])
   const walkUnanswered = workers.resumeModelKeyOf(SID_UNANSWERED, work)
@@ -375,7 +375,7 @@ section("§6c — the session's own model entry: written when the session starts
 
 section('§7 — spoken names resolve on the LAUNCH path')
 {
-  armHint = 'change validateWorkerModelChoice in src/services/concourse/workerModels.ts'
+  armHint = 'change validateWorkerModelChoice in src/screen/concourse-model/workerModels.ts'
   const sonnet = await wm.validateWorkerModelChoice('sonnet 5', 'session')
   check("'sonnet 5' resolves to claude-sonnet-5", sonnet.ok && sonnet.entry.modelId === 'claude-sonnet-5', text(sonnet))
   const opus = await wm.validateWorkerModelChoice('opus 5', 'session')
@@ -397,7 +397,7 @@ section('§7 — spoken names resolve on the LAUNCH path')
 
 section("§8 — the refusal's action names the family's OWN /logins word")
 {
-  armHint = 'change loginsActionFor or defaultProviderDriftNote in src/services/concourse/workerModels.ts'
+  armHint = 'change loginsActionFor or defaultProviderDriftNote in src/screen/concourse-model/workerModels.ts'
   for (const family of ['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta']) {
     check(`${family}: the action names /logins ${family}`, wm.loginsActionFor(family) === `ask the operator to run /logins ${family}`, wm.loginsActionFor(family))
   }

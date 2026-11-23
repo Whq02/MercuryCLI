@@ -16,20 +16,20 @@ for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOK
   delete process.env[k]
 }
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { REPEATED_RESULT_MIN_CHARS, REPEATED_RESULT_TAG } = await import('../../src/constants/toolLimits.ts')
-const { TOOL_RESULT_CLEARED_MESSAGE } = await import('../../src/utils/toolResultStorage.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { REPEATED_RESULT_MIN_CHARS, REPEATED_RESULT_TAG } = await import('../../src/tools/kit/toolLimits.ts')
+const { TOOL_RESULT_CLEARED_MESSAGE } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
 
 let failures = 0
 let checks = 0
-let failureHint = 'to fix, change repeatedResultPointer in src/services/tools/loopGuard.ts, or REPEATED_RESULT_MIN_CHARS and REPEATED_RESULT_TAG in src/constants/toolLimits.ts'
+let failureHint = 'to fix, change repeatedResultPointer in src/engine/tool-dispatch/loopGuard.ts, or REPEATED_RESULT_MIN_CHARS and REPEATED_RESULT_TAG in src/tools/kit/toolLimits.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   const shown = [detail, failureHint].filter(Boolean).join(' | ')
@@ -40,7 +40,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — repeated-result pointer prover exceeded 120s; a scripted round never finished, look at query in src/query.ts and runToolUse in src/services/tools/toolExecution.ts for a tool call that never returns')
+  console.log('\nTIMEOUT — repeated-result pointer prover exceeded 120s; a scripted round never finished, look at query in src/engine/turnDoor.ts and runToolUse in src/engine/tool-dispatch/toolExecution.ts for a tool call that never returns')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
@@ -280,7 +280,7 @@ section('E — two identical calls in ONE parallel round: the later of the two i
 
 section('F — the earlier result is no longer whole in the model\'s view (pruned to the cleared placeholder): the repeat goes whole again and becomes the new reference')
 {
-  const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
+  const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
   resultFor = () => ({ text: LONG })
   const rig = makeCtx()
   const prompt = createUserMessage({ content: 'a turn whose view is shaped by hand' })
@@ -342,12 +342,12 @@ section('J — a tool that is not concurrency-safe takes the same law: two ident
 
 section('refusals — the three stub readers (compact, microcompact, queryHelpers) and the 128-entry ledger cap')
 {
-  const { restorePreservedReads } = await import('../../src/services/compact/compact.ts')
-  const { projectTimeBasedMicrocompact } = await import('../../src/services/compact/microCompact.ts')
-  const { isClearedOrDigested } = await import('../../src/services/compact/microCompactDigest.ts')
-  const { extractReadFilesFromMessages } = await import('../../src/utils/queryHelpers.ts')
-  const { repeatedResultPointer } = await import('../../src/services/tools/loopGuard.ts')
-  const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+  const { restorePreservedReads } = await import('../../src/engine/compaction/foldConversation.ts')
+  const { projectTimeBasedMicrocompact } = await import('../../src/engine/compaction/pruneToolResults.ts')
+  const { isClearedOrDigested } = await import('../../src/engine/compaction/pruneDigest.ts')
+  const { extractReadFilesFromMessages } = await import('../../src/engine/turn-entry/filesReadInMessages.ts')
+  const { repeatedResultPointer } = await import('../../src/engine/tool-dispatch/loopGuard.ts')
+  const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
   const pointerText = `${REPEATED_RESULT_TAG} this Read call ({"file_path":"/work/a.ts"}) returned exactly the same ${LONG.length} characters as call tu_r1 earlier in this turn, so the text is not repeated here. Reread that result — it is unchanged.`
   const readUse = (id: string, file_path: string) => createAssistantMessage({ content: [{ type: 'tool_use', id, name: 'Read', input: { file_path } }] as never })
   const readRes = (tool_use_id: string, content: string, timestamp = '2026-10-17T12:00:00.000Z') => ({ ...(createUserMessage({ content: [{ type: 'tool_result', tool_use_id, content }] as never }) as Record<string, unknown>), timestamp })

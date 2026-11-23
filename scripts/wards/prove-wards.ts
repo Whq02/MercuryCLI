@@ -5,7 +5,7 @@
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: the ward rules and evaluateWards in src/utils/wards/wards.ts, or registerWardsGuard and wardsEnabled in src/guards/wardsGuard.ts, whichever the label above names'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: the ward rules and evaluateWards in src/permissions/wards/wards.ts, or registerWardsGuard and wardsEnabled in src/permissions/guards/wardsGuard.ts, whichever the label above names'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -25,11 +25,11 @@ async function main(): Promise<void> {
     evaluateWards,
     parseProjectWards,
     buildWardDenial,
-  } = await import('../../src/utils/wards/wards.js')
+  } = await import('../../src/permissions/wards/wards.js')
   const { registerWardsGuard, resetWardsEngagedSessionsForTest, wardsEnabled, WARDS_HOOK_ID } =
-    await import('../../src/guards/wardsGuard.js')
-  const { judgeToolCall, guardsEngaged } = await import('../../src/guards/guards.js')
-  const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
+    await import('../../src/permissions/guards/wardsGuard.js')
+  const { judgeToolCall, guardsEngaged } = await import('../../src/permissions/guards/guards.js')
+  const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.js')
   type Judge = (toolName: string, input: Record<string, unknown>, toolUseId?: string) => Promise<unknown>
   const judgeFor = (key: string): Judge => async (toolName, input, toolUseId = 'wards-call') => {
     const verdict = await judgeToolCall(key, {
@@ -103,12 +103,12 @@ async function main(): Promise<void> {
     )
     check(
       'hex in mercuryPalette.ts ⇒ passes (sanctioned holder)',
-      !denies(evaluateWards(rules, edit('src/components/mercuryPalette.ts', "terra: '#DD4444',"))),
+      !denies(evaluateWards(rules, edit('src/screen/theme/mercuryPalette.ts', "terra: '#DD4444',"))),
     )
     check(
       'hex in sessionAccent.ts ⇒ passes (sanctioned holder)',
       !denies(
-        evaluateWards(rules, edit('src/components/mercury-ui/sessionAccent.ts', "'#AA00AA'")),
+        evaluateWards(rules, edit('src/screen/widgets/sessionAccent.ts', "'#AA00AA'")),
       ),
     )
     check(
@@ -184,7 +184,7 @@ async function main(): Promise<void> {
 
   section('3b. C7 disclosure — a wards-file problem lands on the notification channel')
   {
-    const { parseProjectWardsDetailed } = await import('../../src/utils/wards/wards.js')
+    const { parseProjectWardsDetailed } = await import('../../src/permissions/wards/wards.js')
     const d1 = parseProjectWardsDetailed('{nope')
     check('invalid JSON ⇒ zero rules + the problem named', d1.rules.length === 0 && /not valid JSON/.test(d1.problem ?? ''))
     const d2 = parseProjectWardsDetailed('{"a":1}')
@@ -198,7 +198,7 @@ async function main(): Promise<void> {
     check('partial drop ⇒ kept rules + the count named', d3.rules.length === 1 && /1 of 2 rules unreadable/.test(d3.problem ?? ''))
     check('a clean file carries NO problem', parseProjectWardsDetailed('[]').problem === undefined)
 
-    const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+    const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
     const { mkdtempSync, mkdirSync, writeFileSync } = await import('node:fs')
     const { tmpdir } = await import('node:os')
     const { join: joinPath } = await import('node:path')
@@ -241,7 +241,7 @@ async function main(): Promise<void> {
   {
     let withReport: ((t: string) => { rules: unknown[]; problems: string[] }) | null = null
     try {
-      const mod = (await import('../../src/utils/wards/wards.js')) as unknown as {
+      const mod = (await import('../../src/permissions/wards/wards.js')) as unknown as {
         parseProjectWardsWithReport?: (t: string) => { rules: never[]; problems: string[] }
       }
       withReport = mod.parseProjectWardsWithReport ?? null
@@ -295,9 +295,9 @@ async function main(): Promise<void> {
     {
       const { join } = await import('node:path')
       const fsH = await import('node:fs')
-      const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
-      const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-      const guard = await import('../../src/guards/wardsGuard.ts')
+      const { settingsChecks } = await import('../../src/platform/health/sections/settings.ts')
+      const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
+      const guard = await import('../../src/permissions/guards/wardsGuard.ts')
       const unreadable = fsH.mkdtempSync(join((await import('node:os')).tmpdir(), 'wards-health-row-'))
       fsH.mkdirSync(join(unreadable, '.mercury'), { recursive: true })
       fsH.writeFileSync(join(unreadable, '.mercury', 'wards.json'), '{nope')
@@ -343,8 +343,8 @@ async function main(): Promise<void> {
 
   section('6. the autonomous delete-ward (the incident class)')
   {
-    const { AUTONOMOUS_WARDS } = await import('../../src/utils/wards/wards.js')
-    const { deleteWardActive } = await import('../../src/guards/wardsGuard.js')
+    const { AUTONOMOUS_WARDS } = await import('../../src/permissions/wards/wards.js')
+    const { deleteWardActive } = await import('../../src/permissions/guards/wardsGuard.js')
     const bash = (command: string) => ({ toolName: 'Bash', input: { command }, shellCommand: command })
     const denied = (cmd: string) => !evaluateWards(AUTONOMOUS_WARDS, bash(cmd)).allow
     check('denies rm -rf of a /Users path', denied('rm -rf /Users/alice/Developer/some-repo'))
@@ -379,8 +379,8 @@ async function main(): Promise<void> {
 
   section('7. the refuse-list — every shape refused with its sentence, reads and near-misses clear')
   {
-    const { REFUSAL_WARDS } = await import('../../src/utils/wards/wards.js')
-    const { SEAT_RECON_ALLOW } = await import('../../src/daemon/workerRecon.js')
+    const { REFUSAL_WARDS } = await import('../../src/permissions/wards/wards.js')
+    const { SEAT_RECON_ALLOW } = await import('../../src/daemon/concourse-workers/workerRecon.js')
     type Call = { toolName: string; input: Record<string, unknown> }
     const refusedAs = (call: Call): string | null => {
       const v = evaluateWards(REFUSAL_WARDS, call)
@@ -521,8 +521,8 @@ async function main(): Promise<void> {
 
   section('8. the hook road — a refusal never stands down; warn records without refusing; off stands down')
   {
-    const { REFUSAL_WARDS } = await import('../../src/utils/wards/wards.js')
-    const { wardsLevel } = await import('../../src/guards/wardsGuard.js')
+    const { REFUSAL_WARDS } = await import('../../src/permissions/wards/wards.js')
+    const { wardsLevel } = await import('../../src/permissions/guards/wardsGuard.js')
     const CLOSING = 'Do not rephrase the command to evade this rule — surface the refusal to the operator instead.'
     delete process.env.MERCURY_WARDS
     check("unset ⇒ level 'enforce'", wardsLevel() === 'enforce', String(wardsLevel()))
@@ -550,9 +550,9 @@ async function main(): Promise<void> {
     check('rm -rf / is refused on the hook road', typeof r3 === 'string' && r3.includes("Ward 'no-root-recursive-delete'"), String(r3).slice(0, 80))
     check('a read-only recon command passes the hook', (await cb(...ctx('Bash', { command: 'git log --oneline -3' }))) === true)
     process.env.MERCURY_WARDS = 'warn'
-    const { enableDebugLogging, getDebugLogPath, isDebugMode } = await import('../../src/utils/debug.js')
+    const { enableDebugLogging, getDebugLogPath, isDebugMode } = await import('../../src/platform/logs/debugLog.js')
     const { existsSync: logExists, readFileSync: readLog, mkdirSync: mkProject, writeFileSync: writeProject, realpathSync: realLog } = await import('node:fs')
-    const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+    const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
     type Note = { type?: string; subtype?: string; level?: string; content?: string; toolUseID?: string; isMeta?: boolean }
     const noteOf = (r: unknown): Note | undefined => (r !== null && typeof r === 'object' && (r as { pass?: unknown }).pass === true ? (r as { note?: Note }).note : undefined)
     const HOUSE_CLOSING = 'rewrite the call to comply.'
@@ -600,7 +600,7 @@ async function main(): Promise<void> {
 
   section('9. shell execution declares its command projection, independent of the tool name')
   {
-    const { REFUSAL_WARDS } = await import('../../src/utils/wards/wards.js')
+    const { REFUSAL_WARDS } = await import('../../src/permissions/wards/wards.js')
     const command = 'git config --global refusal.probe blocked'
     check('a declared command on an unknown tool meets the refuse-list', !evaluateWards(REFUSAL_WARDS, { toolName: 'WatchFixture', input: { script: command }, shellCommand: command }).allow)
     const store = makeStore()

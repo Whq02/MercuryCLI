@@ -6,11 +6,11 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod'
-import type { AssistantMessage, Message, StreamEvent } from '../../src/types/message.js'
+import type { AssistantMessage, Message, StreamEvent } from '../../src/engine/message-shapes/message.js'
 
 let failures = 0
 let checks = 0
-const servedWordHint = ' | to fix, change how openaiCallModel (src/services/providers/openai/openaiCallModel.ts) builds reasoning.effort and the catalogue note when the live model list is unavailable, or effortSentOf (src/services/engine-connector/seatProjections.ts) and resolveEffortTruth (src/utils/effort.ts) for the facts projection'
+const servedWordHint = ' | to fix, change how openaiCallModel (src/models/roads/openai/openaiCallModel.ts) builds reasoning.effort and the catalogue note when the live model list is unavailable, or effortSentOf (src/engine/connector/seatProjections.ts) and resolveEffortTruth (src/models/effort/effort.ts) for the facts projection'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -92,11 +92,11 @@ globalThis.fetch = (async (url: unknown, init?: { body?: unknown; headers?: Reco
   throw new Error(`unexpected fixture URL: ${u}`)
 }) as unknown as typeof fetch
 
-const { openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.js')
-const { __resetOpenaiCatalogueForTest } = await import('../../src/services/providers/openai/openaiCatalogue.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const effort = await import('../../src/utils/effort.js')
-const { effortSentOf } = await import('../../src/services/engine-connector/seatProjections.js')
+const { openaiCallModel } = await import('../../src/models/roads/openai/openaiCallModel.js')
+const { __resetOpenaiCatalogueForTest } = await import('../../src/models/roads/openai/openaiCatalogue.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const effort = await import('../../src/models/effort/effort.js')
+const { effortSentOf } = await import('../../src/engine/connector/seatProjections.js')
 
 const echoTool = {
   name: 'EchoTool',

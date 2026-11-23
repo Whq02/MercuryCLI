@@ -1,7 +1,7 @@
 import { turn, answer } from './compatBugFixture.ts'
 import assert from 'node:assert/strict'
-import { mapCompatHttpFailure } from '../../src/services/providers/openaicompat/compatChatClient.ts'
-import { compatFaultToTypedError } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+import { mapCompatHttpFailure } from '../../src/models/roads/openaicompat/compatChatClient.ts'
+import { compatFaultToTypedError } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
 for (const code of ['insufficient_quota', 'billing_hard_limit_reached', 'exceeded_current_quota_error']) {
   const body = { error: { code, message: 'Account requires a top-up' } }
   const result = await turn(() => Response.json(body, { status: 429 }))
@@ -15,6 +15,6 @@ for (const code of ['insufficient_quota', 'billing_hard_limit_reached', 'exceede
 for (const code of ['rate_limit_exceeded', 'RESOURCE_EXHAUSTED']) {
   const result = await turn(attempt => attempt === 1 ? Response.json({ error: { code, message: 'Quota exceeded for a request window' } }, { status: 429 }) : answer())
   assert.equal(result.requests.length, 2, code)
-  assert(result.events.some(e => e.type === 'assistant' && !e.isApiErrorMessage), `compat 429 throttle (${code}) in src/services/providers/openaicompat/compatChatCallModel.ts must retry and settle with a non-error assistant reply`)
+  assert(result.events.some(e => e.type === 'assistant' && !e.isApiErrorMessage), `compat 429 throttle (${code}) in src/models/roads/openaicompat/compatChatCallModel.ts must retry and settle with a non-error assistant reply`)
 }
 console.log('P04 billing quota refusals stop once; request-window throttles retry and serve')

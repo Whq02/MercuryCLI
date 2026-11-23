@@ -64,15 +64,15 @@ console.log('============================================================')
 console.log(' an exact id of a signed-in family needs no catalogue row: live row, else the known pin, else an honest refusal that names the next rung')
 console.log('============================================================')
 
-;(await import('../../src/utils/config.ts')).enableConfigs()
-const engine = await import('../../src/services/crew/engineDispatch.ts')
-const { MODEL_LOOKUP_LADDER } = await import('../../src/utils/model/modelLookup.ts')
-const roadModule = await import('../../src/services/model/modelNameRoad.ts')
-const discovery = await import('../../src/services/providers/providerDiscovery.ts')
-const xai = await import('../../src/services/providers/xai/xaiCatalogue.ts')
-const meta = await import('../../src/services/providers/meta/metaCatalogue.ts')
-const mistral = await import('../../src/services/providers/mistral/mistralCatalogue.ts')
-const zai = await import('../../src/services/providers/zai/zaiCatalogue.ts')
+;(await import('../../src/platform/settings/config.ts')).enableConfigs()
+const engine = await import('../../src/crew/crewmates/engineDispatch.ts')
+const { MODEL_LOOKUP_LADDER } = await import('../../src/models/facts/modelLookup.ts')
+const roadModule = await import('../../src/models/catalogue/modelNameRoad.ts')
+const discovery = await import('../../src/models/roads/providerDiscovery.ts')
+const xai = await import('../../src/models/roads/xai/xaiCatalogue.ts')
+const meta = await import('../../src/models/roads/meta/metaCatalogue.ts')
+const mistral = await import('../../src/models/roads/mistral/mistralCatalogue.ts')
+const zai = await import('../../src/models/roads/zai/zaiCatalogue.ts')
 
 type Road = { model?: string; backend?: string; displayLabel?: string; note?: string; threw?: string }
 const road = (word: string): Promise<Road> =>
@@ -97,15 +97,15 @@ section("§1 the launch road: an id-shaped word the picker does not list reaches
 {
   process.env.XAI_API_KEY = 'xai-fixture-key'
   resetAll()
-  check('the picker lists no xAI row while the list is unread', !roadModule.reachableModelEntries().some(entry => entry.id.startsWith('grok-')), 'change reachableModelEntries in src/services/model/modelNameRoad.ts so unread provider lists add no rows: ' + show(roadModule.reachableModelEntries().filter(entry => entry.id.startsWith('grok-'))))
+  check('the picker lists no xAI row while the list is unread', !roadModule.reachableModelEntries().some(entry => entry.id.startsWith('grok-')), 'change reachableModelEntries in src/models/catalogue/modelNameRoad.ts so unread provider lists add no rows: ' + show(roadModule.reachableModelEntries().filter(entry => entry.id.startsWith('grok-'))))
   const asked = roadModule.matchReachableModelName('grok-4.7')
-  check("the asking matcher (the base's Crewmate-tool road) refuses the id: 'names no listed model'", asked !== null && asked.kind === 'none' && roadModule.modelNameHeadlessRefusal(asked, 'model').includes("model 'grok-4.7' names no listed model"), 'change matchReachableModelName or modelNameHeadlessRefusal in src/services/model/modelNameRoad.ts (default ask mode must refuse an unlisted id): ' + show(asked))
+  check("the asking matcher (the base's Crewmate-tool road) refuses the id: 'names no listed model'", asked !== null && asked.kind === 'none' && roadModule.modelNameHeadlessRefusal(asked, 'model').includes("model 'grok-4.7' names no listed model"), 'change matchReachableModelName or modelNameHeadlessRefusal in src/models/catalogue/modelNameRoad.ts (default ask mode must refuse an unlisted id): ' + show(asked))
   const passed = launchRoad('grok-4.7')
-  check("the launch road passes 'grok-4.7' through to the provider road unchanged", passed.passedTo === 'grok-4.7' && passed.refused === undefined, 'change matchReachableModelName in src/services/model/modelNameRoad.ts so pass mode lets an id-shaped unlisted word through: ' + show(passed))
+  check("the launch road passes 'grok-4.7' through to the provider road unchanged", passed.passedTo === 'grok-4.7' && passed.refused === undefined, 'change matchReachableModelName in src/models/catalogue/modelNameRoad.ts so pass mode lets an id-shaped unlisted word through: ' + show(passed))
   const windowed = launchRoad('grok-4.7[1m]')
-  check('…and keeps a typed window on the word it passes', windowed.passedTo === 'grok-4.7[1m]', 'change matchReachableModelName in src/services/model/modelNameRoad.ts to keep a typed window on a passed word: ' + show(windowed))
+  check('…and keeps a typed window on the word it passes', windowed.passedTo === 'grok-4.7[1m]', 'change matchReachableModelName in src/models/catalogue/modelNameRoad.ts to keep a typed window on a passed word: ' + show(windowed))
   const loose = launchRoad('grok four point seven')
-  check('a loose word that matches nothing still gets the nearest-rows refusal, never a pass-through', loose.refused !== undefined && loose.refused.includes("names no listed model"), 'change matchReachableModelName in src/services/model/modelNameRoad.ts so a loose word is refused, never passed through: ' + show(loose))
+  check('a loose word that matches nothing still gets the nearest-rows refusal, never a pass-through', loose.refused !== undefined && loose.refused.includes("names no listed model"), 'change matchReachableModelName in src/models/catalogue/modelNameRoad.ts so a loose word is refused, never passed through: ' + show(loose))
 }
 
 section("§2 the ladder for 'grok-4.7' with a signed-in xAI and an empty catalogue cache")
@@ -113,27 +113,27 @@ section("§2 the ladder for 'grok-4.7' with a signed-in xAI and an empty catalog
   modes.xai = 'fail'
   resetAll()
   const cold = await road('grok-4.7')
-  check("the list cannot be read: 'grok-4.7' launches on xAI as the pin this build knows (RED on the base: 'not a catalogue-verified id')", cold.backend === 'xai' && cold.model === 'grok-4.7' && cold.displayLabel === 'Grok 4.7', 'change resolveEngineDispatch in src/services/crew/engineDispatch.ts so an unreadable xAI list falls back to the pinned id: ' + show(cold))
-  check('…with a note that names the read failure with the service\'s own words, the id that runs and the two pages', cold.note?.includes('the xAI model list could not be read (xAI models endpoint returned HTTP 500 — fixture outage)') === true && cold.note.includes('Grok 4.7 (grok-4.7)') && cold.note.includes('mercury://models/known'), 'change the read-failure note built in src/services/crew/engineDispatch.ts to carry the failure words, the running id and both pages: ' + show(cold))
+  check("the list cannot be read: 'grok-4.7' launches on xAI as the pin this build knows (RED on the base: 'not a catalogue-verified id')", cold.backend === 'xai' && cold.model === 'grok-4.7' && cold.displayLabel === 'Grok 4.7', 'change resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts so an unreadable xAI list falls back to the pinned id: ' + show(cold))
+  check('…with a note that names the read failure with the service\'s own words, the id that runs and the two pages', cold.note?.includes('the xAI model list could not be read (xAI models endpoint returned HTTP 500 — fixture outage)') === true && cold.note.includes('Grok 4.7 (grok-4.7)') && cold.note.includes('mercury://models/known'), 'change the read-failure note built in src/crew/crewmates/engineDispatch.ts to carry the failure words, the running id and both pages: ' + show(cold))
   const windowed = await road('grok-4.7[1m]')
-  check("a typed window is dressing for an xAI id: 'grok-4.7[1m]' looks up grok-4.7 and runs it", windowed.backend === 'xai' && windowed.model === 'grok-4.7', 'change resolveEngineDispatch in src/services/crew/engineDispatch.ts to strip a typed window before the xAI lookup: ' + show(windowed))
+  check("a typed window is dressing for an xAI id: 'grok-4.7[1m]' looks up grok-4.7 and runs it", windowed.backend === 'xai' && windowed.model === 'grok-4.7', 'change resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts to strip a typed window before the xAI lookup: ' + show(windowed))
   const unknown = await road('grok-9-fixture')
-  check("an id on neither page refuses, naming both pages, the ids this build knows and the ask rung (RED on the base: 'listed: ' with nothing)", unknown.threw !== undefined && unknown.threw.includes("xAI model 'grok-9-fixture' is on neither mercury://models") && unknown.threw.includes('mercury://models/known') && unknown.threw.includes('grok-4.7') && unknown.threw.includes('ask the operator for the model id') && unknown.threw.includes(MODEL_LOOKUP_LADDER), 'change the neither-page refusal in src/services/crew/engineDispatch.ts to name both pages, the known ids and the ask rung: ' + show(unknown))
+  check("an id on neither page refuses, naming both pages, the ids this build knows and the ask rung (RED on the base: 'listed: ' with nothing)", unknown.threw !== undefined && unknown.threw.includes("xAI model 'grok-9-fixture' is on neither mercury://models") && unknown.threw.includes('mercury://models/known') && unknown.threw.includes('grok-4.7') && unknown.threw.includes('ask the operator for the model id') && unknown.threw.includes(MODEL_LOOKUP_LADDER), 'change the neither-page refusal in src/crew/crewmates/engineDispatch.ts to name both pages, the known ids and the ask rung: ' + show(unknown))
 
   modes.xai = 'ok'
   resetAll()
   const live = await road('grok-4.7')
-  check("the list reads: 'grok-4.7' runs the live row with no note", live.backend === 'xai' && live.model === 'grok-4.7' && live.note === undefined, 'change resolveEngineDispatch in src/services/crew/engineDispatch.ts so a pinned id on the live list runs with no note: ' + show(live))
-  check('the road read the list itself', hits.xai >= 1, 'change resolveEngineDispatch in src/services/crew/engineDispatch.ts to read the provider list itself on a cold cache: ' + show(hits))
+  check("the list reads: 'grok-4.7' runs the live row with no note", live.backend === 'xai' && live.model === 'grok-4.7' && live.note === undefined, 'change resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts so a pinned id on the live list runs with no note: ' + show(live))
+  check('the road read the list itself', hits.xai >= 1, 'change resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts to read the provider list itself on a cold cache: ' + show(hits))
   const liveUnknown = await road('grok-fixture-new')
-  check('a live id this build has no pin for runs under its own id (the live list is the truth)', liveUnknown.backend === 'xai' && liveUnknown.model === 'grok-fixture-new' && liveUnknown.note === undefined, 'change resolveEngineDispatch in src/services/crew/engineDispatch.ts so a live id with no pin runs under its own id: ' + show(liveUnknown))
+  check('a live id this build has no pin for runs under its own id (the live list is the truth)', liveUnknown.backend === 'xai' && liveUnknown.model === 'grok-fixture-new' && liveUnknown.note === undefined, 'change resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts so a live id with no pin runs under its own id: ' + show(liveUnknown))
   const absent = await road('grok-4.3')
-  check("the list reads and lacks the id: a pinned id the account does not serve refuses, naming the listed ids, mercury://models and the ask rung", absent.threw !== undefined && absent.threw.includes("xAI model 'grok-4.3' is not on the account's live model list (listed: grok-fixture-new, grok-4.7)") && absent.threw.includes('mercury://models') && absent.threw.includes('ask the operator for the model id'), 'change the live-list refusal in src/services/crew/engineDispatch.ts to name the listed ids, mercury://models and the ask rung: ' + show(absent))
+  check("the list reads and lacks the id: a pinned id the account does not serve refuses, naming the listed ids, mercury://models and the ask rung", absent.threw !== undefined && absent.threw.includes("xAI model 'grok-4.3' is not on the account's live model list (listed: grok-fixture-new, grok-4.7)") && absent.threw.includes('mercury://models') && absent.threw.includes('ask the operator for the model id'), 'change the live-list refusal in src/crew/crewmates/engineDispatch.ts to name the listed ids, mercury://models and the ask rung: ' + show(absent))
 
   modes.xai = 'empty'
   resetAll()
   const empty = await road('grok-4.7')
-  check("a live list that serves no chat model: 'grok-4.7' refuses naming that fact and the ask rung (the list was read; nothing is invented)", empty.threw !== undefined && empty.threw.includes('the list serves no chat model') && empty.threw.includes('ask the operator'), 'change the live-list refusal in src/services/crew/engineDispatch.ts to say the list serves no chat model and name the ask rung: ' + show(empty))
+  check("a live list that serves no chat model: 'grok-4.7' refuses naming that fact and the ask rung (the list was read; nothing is invented)", empty.threw !== undefined && empty.threw.includes('the list serves no chat model') && empty.threw.includes('ask the operator'), 'change the live-list refusal in src/crew/crewmates/engineDispatch.ts to say the list serves no chat model and name the ask rung: ' + show(empty))
 }
 
 section('§3 the other key lanes follow the same ladder with their own pin tables')
@@ -143,15 +143,15 @@ section('§3 the other key lanes follow the same ladder with their own pin table
   process.env.ZAI_API_KEY = 'zai-fixture-key'
   resetAll()
   const muse = await road('muse-spark-1.2')
-  check("'muse-spark-1.2' with an unreadable Meta list runs the pin with the note (RED on the base: 'not listed by the account')", muse.backend === 'meta' && muse.model === 'muse-spark-1.2' && muse.note?.includes('the Meta model list could not be read') === true, 'change the Meta pin table or its fallback in src/services/crew/engineDispatch.ts: ' + show(muse))
+  check("'muse-spark-1.2' with an unreadable Meta list runs the pin with the note (RED on the base: 'not listed by the account')", muse.backend === 'meta' && muse.model === 'muse-spark-1.2' && muse.note?.includes('the Meta model list could not be read') === true, 'change the Meta pin table or its fallback in src/crew/crewmates/engineDispatch.ts: ' + show(muse))
   const mistralAlias = await road('mistral-medium-latest')
-  check("'mistral-medium-latest' (a pin alias) with an unreadable Mistral list runs the pinned id mistral-medium-3-5 with the note (RED on the base)", mistralAlias.backend === 'mistral' && mistralAlias.model === 'mistral-medium-3-5' && mistralAlias.note?.includes('the Mistral model list could not be read') === true, 'change the Mistral pin alias or its fallback in src/services/crew/engineDispatch.ts: ' + show(mistralAlias))
+  check("'mistral-medium-latest' (a pin alias) with an unreadable Mistral list runs the pinned id mistral-medium-3-5 with the note (RED on the base)", mistralAlias.backend === 'mistral' && mistralAlias.model === 'mistral-medium-3-5' && mistralAlias.note?.includes('the Mistral model list could not be read') === true, 'change the Mistral pin alias or its fallback in src/crew/crewmates/engineDispatch.ts: ' + show(mistralAlias))
   const glmFloor = await road('glm-5.2')
-  check("'glm-5.2' with an unreadable Z.AI list runs from the floor rows the picker shows, no note (unchanged)", glmFloor.backend === 'zai' && glmFloor.model === 'glm-5.2' && glmFloor.note === undefined, 'change the Z.AI floor-row fallback in src/services/crew/engineDispatch.ts: ' + show(glmFloor))
+  check("'glm-5.2' with an unreadable Z.AI list runs from the floor rows the picker shows, no note (unchanged)", glmFloor.backend === 'zai' && glmFloor.model === 'glm-5.2' && glmFloor.note === undefined, 'change the Z.AI floor-row fallback in src/crew/crewmates/engineDispatch.ts: ' + show(glmFloor))
   const glmKnown = await road('glm-4.7')
-  check("'glm-4.7' (pinned, not a floor row) with an unreadable Z.AI list runs with the note (RED on the base: 'not a catalogue-verified id')", glmKnown.backend === 'zai' && glmKnown.model === 'glm-4.7' && glmKnown.note?.includes('the Z.AI model list') === true, 'change the Z.AI pin table or its fallback note in src/services/crew/engineDispatch.ts: ' + show(glmKnown))
+  check("'glm-4.7' (pinned, not a floor row) with an unreadable Z.AI list runs with the note (RED on the base: 'not a catalogue-verified id')", glmKnown.backend === 'zai' && glmKnown.model === 'glm-4.7' && glmKnown.note?.includes('the Z.AI model list') === true, 'change the Z.AI pin table or its fallback note in src/crew/crewmates/engineDispatch.ts: ' + show(glmKnown))
   const nobody = await road('muse-spark-9-fixture')
-  check('an unknown Meta id refuses naming both pages and the ask rung', nobody.threw !== undefined && nobody.threw.includes("Meta model 'muse-spark-9-fixture' is on neither mercury://models") && nobody.threw.includes('ask the operator'), 'change the neither-page refusal in src/services/crew/engineDispatch.ts to name both pages and the ask rung for Meta ids: ' + show(nobody))
+  check('an unknown Meta id refuses naming both pages and the ask rung', nobody.threw !== undefined && nobody.threw.includes("Meta model 'muse-spark-9-fixture' is on neither mercury://models") && nobody.threw.includes('ask the operator'), 'change the neither-page refusal in src/crew/crewmates/engineDispatch.ts to name both pages and the ask rung for Meta ids: ' + show(nobody))
   for (const key of ['XAI_API_KEY', 'MODEL_API_KEY', 'MISTRAL_API_KEY', 'ZAI_API_KEY']) delete process.env[key]
   resetAll()
 }

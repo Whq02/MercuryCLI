@@ -14,7 +14,7 @@ mkdirSync(home, { recursive: true })
 mkdirSync(cwd, { recursive: true })
 
 let failures = 0
-const WHERE_TO_FIX = 'the extensions verbs are in src/extensions/cli.ts (their install, trust, blocklist and source steps are in install.ts, blocklist.ts and sources.ts beside it, the install card in card.ts); rebuild dist with bun run build.ts if the source is already right'
+const WHERE_TO_FIX = 'the extensions verbs are in src/integrations/extensions/cli.ts (their install, trust, blocklist and source steps are in install.ts, blocklist.ts and sources.ts beside it, the install card in card.ts); rebuild dist with bun run build.ts if the source is already right'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' | where to fix: ' + WHERE_TO_FIX}`)
@@ -69,7 +69,7 @@ console.log('[1] the verb walk: add → sources → list → install(--yes) → 
   check('sources --json carries the row', sourcesParsed.sources[0]?.label === 'fixture-source' && sourcesParsed.sources[0]?.offered === 3)
 
   const bad = run(['extensions', 'add', 'owner/repo'])
-  check('the owner/repo shorthand refuses with exit 1 naming the missing host', bad.code === 1 && bad.stderr.includes('names no host'), 'extensions add owner/repo must exit 1 with a message containing names no host (src/extensions/sources.ts); got ' + bad.code + ': ' + bad.stderr.slice(0, 160))
+  check('the owner/repo shorthand refuses with exit 1 naming the missing host', bad.code === 1 && bad.stderr.includes('names no host'), 'extensions add owner/repo must exit 1 with a message containing names no host (src/integrations/extensions/sources.ts); got ' + bad.code + ': ' + bad.stderr.slice(0, 160))
 
   const installed = run(['extensions', 'install', 'kitchen-sink', '--yes'])
   check('install --yes approves and switches on', installed.code === 0 && installed.stdout.includes('approved and on'), (installed.stderr + installed.stdout).slice(0, 200))
@@ -145,19 +145,19 @@ console.log('[4] inspect reads the one manifest: other files beside it are never
 
 console.log('[5] /extensions is in the catalogue with its help-domain row; the retired routes are gone')
 {
-  const commandsMod = await import('../../src/commands.ts')
+  const commandsMod = await import('../../src/commands/catalogue/commands.ts')
   process.env.MERCURY_CONFIG_DIR = home
   const commands = await commandsMod.getCommands(cwd)
   const names = new Set(commands.map((c: { name: string }) => c.name))
-  check('/extensions exists', names.has('extensions'), 'register the extensions command in src/commands.ts (its folder is src/commands/extensions)')
+  check('/extensions exists', names.has('extensions'), 'register the extensions command in src/commands/catalogue/commands.ts (its folder is src/commands/extensions)')
   const J = (...parts: string[]): string => parts.join('')
   check('the retired routes are absent', !names.has(J('plug', 'in')) && !names.has(J('reload-', 'plug', 'ins')), [...names].filter(n => n.includes('plug')).join(','))
   const extensions = commands.find((c: { name: string }) => c.name === 'extensions') as { description: string; argumentHint?: string } | undefined
   check('the description says what it does', extensions !== undefined && extensions.description.includes('extensions') && extensions.description.includes('sources'), 'the description of the extensions command in src/commands/extensions must mention extensions and sources')
   check('reload rides the command (argument hint)', (extensions?.argumentHint ?? '').includes('reload'), 'the argumentHint of the extensions command in src/commands/extensions must include reload; read: ' + (extensions?.argumentHint ?? ''))
-  const domains = await import('../../src/components/HelpV2/commandDomains.ts')
+  const domains = await import('../../src/screen/help/commandDomains.ts')
   const rows = JSON.stringify((domains as { COMMAND_DOMAINS?: unknown }).COMMAND_DOMAINS ?? domains)
-  check("the help domain 'config & setup' lists extensions", rows.includes("'extensions'") || rows.includes('"extensions"'), 'list extensions in the config & setup domain in src/components/HelpV2/commandDomains.ts')
+  check("the help domain 'config & setup' lists extensions", rows.includes("'extensions'") || rows.includes('"extensions"'), 'list extensions in the config & setup domain in src/screen/help/commandDomains.ts')
 }
 
 removeScratch(scratch)

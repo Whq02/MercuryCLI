@@ -15,30 +15,30 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_BARE
 
 let failures = 0
-const fireHint = 'to fix, change the hook road named by this label: fireHooks and prepareHooks in src/utils/hooks/fire.ts, or its helpers in src/utils/hooks/matching.ts, background.ts and rows.ts'
+const fireHint = 'to fix, change the hook road named by this label: fireHooks and prepareHooks in src/integrations/event-hooks/fire.ts, or its helpers in src/integrations/event-hooks/matching.ts, background.ts and rows.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${fireHint}` : ''}`)
 }
 const watchdog = setTimeout(() => {
-  console.log('FAIL — the fire proof wedged past 120s: a hook command of the block being run never ended or fireHooks in src/utils/hooks/fire.ts never returned; the last PASS line above names the block before it')
+  console.log('FAIL — the fire proof wedged past 120s: a hook command of the block being run never ended or fireHooks in src/integrations/event-hooks/fire.ts never returned; the last PASS line above names the block before it')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
 
-const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
 setSessionTrustAccepted(true)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { refreshHooksSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.ts')
-const { fireHooks, prepareHooks, answeredNothing } = await import('../../src/utils/hooks/fire.ts')
-const { forgetSpentHooks } = await import('../../src/utils/hooks/matching.ts')
-const { subscribeHookExecutionEvents, withHookRunContext } = await import('../../src/utils/hooks/hookEvents.ts')
-const { takeBackgroundHookOutcomes, backgroundHooksRunning, endBackgroundHooks, resetBackgroundHooksForTesting } = await import('../../src/utils/hooks/background.ts')
-const { hookRowsOfResult } = await import('../../src/utils/hooks/rows.ts')
-const { HOOK_CUT_BUDGET_MS } = await import('../../src/utils/hooks/contract.ts')
-const { hookEndingSentence, HOOK_ENDING_CLASSES } = await import('../../src/rows/vocabulary.ts')
-const { dequeueAll } = await import('../../src/utils/messageQueueManager.ts')
+const { refreshHooksSnapshot } = await import('../../src/integrations/event-hooks/hooksConfigSnapshot.ts')
+const { fireHooks, prepareHooks, answeredNothing } = await import('../../src/integrations/event-hooks/fire.ts')
+const { forgetSpentHooks } = await import('../../src/integrations/event-hooks/matching.ts')
+const { subscribeHookExecutionEvents, withHookRunContext } = await import('../../src/integrations/event-hooks/hookEvents.ts')
+const { takeBackgroundHookOutcomes, backgroundHooksRunning, endBackgroundHooks, resetBackgroundHooksForTesting } = await import('../../src/integrations/event-hooks/background.ts')
+const { hookRowsOfResult } = await import('../../src/integrations/event-hooks/rows.ts')
+const { HOOK_CUT_BUDGET_MS } = await import('../../src/integrations/event-hooks/contract.ts')
+const { hookEndingSentence, HOOK_ENDING_CLASSES } = await import('../../src/engine/rows/vocabulary.ts')
+const { dequeueAll } = await import('../../src/daemon/runner/messageQueueManager.ts')
 
 type Entry = Record<string, unknown>
 const install = (hooks: Record<string, Entry[]>): void => {
@@ -109,8 +109,8 @@ const turnStart = () => fireHooks('turn.start', { turn_id: 'turn-1', prompt: 'he
 }
 
 {
-  const { bankHookOutcomes } = await import('../../src/utils/hooks/background.ts')
-  const { getBackgroundHookAttachments } = await import('../../src/utils/attachments/taskStatus.ts')
+  const { bankHookOutcomes } = await import('../../src/integrations/event-hooks/background.ts')
+  const { getBackgroundHookAttachments } = await import('../../src/engine/attachment-shapes/taskStatus.ts')
   resetBackgroundHooksForTesting()
   install({ 'file.changed': [{ name: 'noticer', run: say({ notice: 'the schema file moved' }) }, { name: 'broken watcher', run: 'echo lost the plot >&2; exit 1' }, { name: 'quiet watch', run: say({ watch: ['src/x.ts'] }) }] })
   const result = await fireHooks('file.changed', { path: 'src/schema.ts', change: 'changed' }, { scope })
@@ -214,9 +214,9 @@ const turnStart = () => fireHooks('turn.start', { turn_id: 'turn-1', prompt: 'he
 }
 
 {
-  const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
-  const { resetTrustDialogAcceptedCacheForTesting } = await import('../../src/utils/config/trust.ts')
-  const { workspaceUntrustedForHooks } = await import('../../src/utils/hooks/fire.ts')
+  const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
+  const { resetTrustDialogAcceptedCacheForTesting } = await import('../../src/platform/config/trust.ts')
+  const { workspaceUntrustedForHooks } = await import('../../src/integrations/event-hooks/fire.ts')
   install({ 'turn.start': [{ name: 'trust probe', run: 'echo trusted-ran >> ' + q(join(root, 'trust.log')) }] })
   delete process.env.MERCURY_TRUST_DIALOG_ACCEPTED
   setSessionTrustAccepted(false)
@@ -236,8 +236,8 @@ const turnStart = () => fireHooks('turn.start', { turn_id: 'turn-1', prompt: 'he
 }
 
 {
-  const { registerHookCallbacks, clearRegisteredExtensionHooks } = await import('../../src/bootstrap/state.ts')
-  const { hookPermissionOutcomeOf } = await import('../../src/services/tools/toolHooks.ts')
+  const { registerHookCallbacks, clearRegisteredExtensionHooks } = await import('../../src/boot/process-state/processState.ts')
+  const { hookPermissionOutcomeOf } = await import('../../src/engine/tool-dispatch/toolHooks.ts')
   install({ 'tool.before': [
     { name: 'closed gate', run: 'no-such-binary-for-this-proof --closed', failClosed: true },
     { name: 'open gate', run: 'no-such-binary-for-this-proof --open' },

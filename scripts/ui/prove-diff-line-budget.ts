@@ -3,8 +3,8 @@ import {
   boundPatchForRender,
   DIFF_LINE_MARKER_SLACK,
   DIFF_LINE_RENDER_CAP,
-} from '../../src/components/StructuredDiff/lineBudget.js'
-import type { StructuredPatchHunk } from '../../src/utils/diff.js'
+} from '../../src/screen/structured-diff/lineBudget.js'
+import type { StructuredPatchHunk } from '../../src/platform/text/diff.js'
 
 let failures = 0
 let checks = 0
@@ -12,7 +12,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — fix boundPatchForRender or DIFF_LINE_RENDER_CAP in src/components/StructuredDiff/lineBudget.ts`)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — fix boundPatchForRender or DIFF_LINE_RENDER_CAP in src/screen/structured-diff/lineBudget.ts`)
   }
 }
 

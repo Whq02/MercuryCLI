@@ -9,10 +9,10 @@ const ROOT = scratchRoot('settle')
 const t = checker()
 
 const barrier = await import('./barrier.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const kernel = await import('../../src/services/run/runKernel.ts')
-const sidecar = await import('../../src/services/run/runSidecar.ts')
-const coord = await import('../../src/services/run/runCoordinator.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const kernel = await import('../../src/engine/run/runKernel.ts')
+const sidecar = await import('../../src/engine/run/runSidecar.ts')
+const coord = await import('../../src/engine/run/runCoordinator.ts')
 
 const diskSeq = (path: string): number | null => {
   try {

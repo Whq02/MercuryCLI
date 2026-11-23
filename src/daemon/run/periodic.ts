@@ -1,7 +1,7 @@
-import { SESSIONLESS_EXIT_BEAT_MS } from '../sessionlessExit.js'
+import { SESSIONLESS_EXIT_BEAT_MS } from '../control/sessionlessExit.js'
 import { ARMED_RESTART_BEAT_MS } from './restart.js'
 import type { DaemonRunState } from './state.js'
-import { startInterval, stopInterval } from '../../utils/timers.js'
+import { startInterval, stopInterval } from '../../platform/async/timers.js'
 
 const PLANE_HEAL_FLOOR_MS = 30_000
 const HANDOVER_LOCK_BEAT_MS = 2_000

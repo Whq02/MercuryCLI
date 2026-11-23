@@ -11,7 +11,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const whereToChange = 'change the form choice in src/services/providers/deferralWire.ts, the probe in src/services/providers/deferralProbe.ts, the plan in src/services/providers/toolEconomy.ts, or the request in src/services/providers/openai/responsesBridge.ts'
+  const whereToChange = 'change the form choice in src/models/roads/deferralWire.ts, the probe in src/models/roads/deferralProbe.ts, the plan in src/models/roads/toolEconomy.ts, or the request in src/models/roads/openai/responsesBridge.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${whereToChange}${detail ? ` · ${detail}` : ''}` : ''}`)
 }
 const section = (t: string): void => {
@@ -174,24 +174,24 @@ function pointAt(target: { base: string }): void {
 }
 pointAt(passing)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const wire = await import('../../src/services/providers/deferralWire.ts')
-const probe = await import('../../src/services/providers/deferralProbe.ts')
-const { planToolPayload, clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
-const { gateToolCall } = await import('../../src/services/providers/toolCallGate.ts')
-const { openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.ts')
-const { __resetOpenaiCatalogueForTest } = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const { decodeOpenaiTurnRecord, mapToolsToOpenai, buildOpenaiResponsesRequest } = await import('../../src/services/providers/openai/responsesBridge.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { getPrompt, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Message = import('../../src/types/message.ts').Message
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
+const wire = await import('../../src/models/roads/deferralWire.ts')
+const probe = await import('../../src/models/roads/deferralProbe.ts')
+const { planToolPayload, clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.ts')
+const { gateToolCall } = await import('../../src/models/roads/toolCallGate.ts')
+const { openaiCallModel } = await import('../../src/models/roads/openai/openaiCallModel.ts')
+const { __resetOpenaiCatalogueForTest } = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const { decodeOpenaiTurnRecord, mapToolsToOpenai, buildOpenaiResponsesRequest } = await import('../../src/models/roads/openai/responsesBridge.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { getPrompt, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/tool-search/prompt.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 const probeKeyOf = (host: string): string => (typeof probe.openaiGatewayProbeKey === 'function' ? probe.openaiGatewayProbeKey(host) : `openai:${host}`)
 
 function fixtureTool(name: string, opts: { defer?: boolean; mcp?: string; params?: string[] } = {}): Tool {

@@ -45,9 +45,9 @@ export async function compatRoadFixture(turns: ScriptedTurn[] = []) {
   const model = `compat/fixture/${f.model}`
   const settings = { engine: { model: anthropicModel }, compatProvider: { fixture: { baseUrl: `http://127.0.0.1:${proxy.port}/v1`, models: [f.model], dialect: 'llamacpp' } } }
   writeFileSync(join(f.home, 'settings.json'), JSON.stringify(settings))
-  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+  const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
   resetSettingsCache()
-  const { writeStoredCompatApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
+  const { writeStoredCompatApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
   writeStoredCompatApiKey(f.key, 'fixture')
   const env: NodeJS.ProcessEnv = { HOME: f.home, PATH: process.env.PATH, TMPDIR: process.env.TMPDIR, BROWSER: '/usr/bin/true', MERCURY_CONFIG_DIR: f.home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(f.home, 'daemon'), ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url }
   return { ...f, cwd, api, env, model, settings, requests, script: (...next: CompatTurn[]) => queue.push(...next), close: async () => { proxy.stop(true); await api.close(); f.close() } }

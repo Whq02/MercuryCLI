@@ -33,13 +33,13 @@ if (!spec) {
 
 async function main(): Promise<void> {
   if (spec.headless) {
-    const bootstrap = await import('../../src/bootstrap/state.js')
+    const bootstrap = await import('../../src/boot/process-state/processState.js')
     const set = (bootstrap as Record<string, unknown>)['setIsNonInteractiveSession']
     if (typeof set === 'function') (set as (v: boolean) => void)(true)
   }
 
-  const prompts = await import('../../src/constants/prompts.js')
-  const contractMod = await import('../../src/prompt/behaviourContract.js')
+  const prompts = await import('../../src/engine/system-prompt/defaultSystemPrompt.js')
+  const contractMod = await import('../../src/engine/system-prompt/behaviourContract.js')
 
   const toolNames = [
     'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'NotebookEdit',
@@ -57,8 +57,8 @@ async function main(): Promise<void> {
       spec.permissionMode as never,
     )
   } else {
-    const doctrine = await import('../../src/constants/subagentDoctrine.js')
-    const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryScoutAgent.js')
+    const doctrine = await import('../../src/tools/crewmate/subagentDoctrine.js')
+    const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryScoutAgent.js')
     const agentDefinition =
       spec.kind === 'subagent-fixed'
         ? MERCURY_SCOUT_AGENT

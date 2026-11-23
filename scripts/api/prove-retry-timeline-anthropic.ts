@@ -6,7 +6,7 @@ const standIn = await openStandIn({
   isModelCall: (method, path) => method === 'POST' && path.endsWith('/v1/messages'),
   env: base => ({ ANTHROPIC_API_KEY: 'fixture-anthropic-key', ANTHROPIC_BASE_URL: base }),
 })
-const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.ts')
+const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
 
 const MODEL = 'claude-fable-5-1'
 const usage = { input_tokens: 12, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 3 }

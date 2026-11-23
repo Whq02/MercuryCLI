@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 import * as hostPath from 'node:path'
 import { posix as pathPosix, win32 as pathWin32 } from 'node:path'
-import { realTargetPath } from '../../src/guards/wardsGuard.js'
-import { splitPathFromRoot } from '../../src/utils/platform/paths.js'
+import { realTargetPath } from '../../src/permissions/guards/wardsGuard.js'
+import { splitPathFromRoot } from '../../src/platform/host-os/paths.js'
 
-const TARGET_ROOT_FAIL_HINT = 'fix: splitPathFromRoot in src/utils/platform/paths.ts (root, segments and separator per path grammar) or realTargetPath in src/guards/wardsGuard.ts (host resolution of the deepest existing ancestor)'
+const TARGET_ROOT_FAIL_HINT = 'fix: splitPathFromRoot in src/platform/host-os/paths.ts (root, segments and separator per path grammar) or realTargetPath in src/permissions/guards/wardsGuard.ts (host resolution of the deepest existing ancestor)'
 let passed = 0
 let failed = 0
 

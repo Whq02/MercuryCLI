@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/MercuryHome.tsx src/components/SwitchboardTagBar.tsx src/components/HelmLanesRail.tsx src/components/FullscreenLayout.tsx
-// gate-watch: src/ink/frame-writer.ts src/ink/root/screen-session.ts scripts/ui/alt-screen-scroll-audit.py
+// gate-watch: src/screen/fullscreen-layout/MercuryHome.tsx src/screen/chat/SwitchboardTagBar.tsx src/screen/fullscreen-layout/HelmLanesRail.tsx src/screen/fullscreen-layout/FullscreenLayout.tsx
+// gate-watch: src/screen/renderer/frame-writer.ts src/screen/renderer/root/screen-session.ts scripts/ui/alt-screen-scroll-audit.py
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -25,18 +25,18 @@ const storedPath = (cols: number, rows: number): string => join(ROOT, 'scripts',
 const PROJECT = 'gridgame'
 const REPLY = 'Finished.'
 const PROMPT = 'say hi'
-const WHERE_FACE = 'fix the session-start face in src/components/MercuryHome.tsx, SwitchboardTagBar.tsx, HelmLanesRail.tsx or FullscreenLayout.tsx'
-const WHERE_PAINT = 'fix the frame writer in src/ink/frame-writer.ts or src/ink/root/screen-session.ts'
-const WHERE_STATUS = 'fix the status row, whose back hint is built in src/components/SwitchboardTagBar.tsx'
+const WHERE_FACE = 'fix the session-start face in src/screen/fullscreen-layout/MercuryHome.tsx, SwitchboardTagBar.tsx, HelmLanesRail.tsx or FullscreenLayout.tsx'
+const WHERE_PAINT = 'fix the frame writer in src/screen/renderer/frame-writer.ts or src/screen/renderer/root/screen-session.ts'
+const WHERE_STATUS = 'fix the status row, whose back hint is built in src/screen/chat/SwitchboardTagBar.tsx'
 const VOLATILE = [/\b\d{1,2}:\d{2}(?::\d{2})?\b/g]
 const COUNTS_ROW = /^\d+ sessions? on · .*(⇧← concourse|shift\+← concourse)$/
 const mask = (row: string): string => (COUNTS_ROW.test(row) ? row.replace(COUNTS_ROW, '⟪live counts⟫ $1') : VOLATILE.reduce((s, re) => s.replace(re, m => '·'.repeat(m.length)), row))
 const trimmed = (grid: Array<Array<{ c: string }>>): string[] => grid.map(r => r.map(c => c.c).join('').replace(/\s+$/, ''))
 const untrimmed = (grid: Array<Array<{ c: string }>>): string[] => grid.map(r => r.map(c => c.c).join(''))
 
-const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { mnemeProjectKeyFor } = await import('../../src/mneme/paths.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+const { createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { mnemeProjectKeyFor } = await import('../../src/sessions/mneme/paths.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
 
 function gitRepo(dir: string): void {
   mkdirSync(dir, { recursive: true })
@@ -135,7 +135,7 @@ for (const [cols, rows] of SIZES) {
     check(`${cols}x${rows}: no row of the session-start screen repeats the row above it (the doubled-header shape)`, doubled(chat).length === 0, `${WHERE_FACE} | rows ${doubled(chat).join(',')}`)
     check(`${cols}x${rows}: no row of the after-turn screen repeats the row above it`, doubled(turn).length === 0, `${WHERE_FACE} | rows ${doubled(turn).join(',')}`)
     const dirRow = chat.find(r => /\bdir\b/.test(r) && r.includes(PROJECT))
-    check(`${cols}x${rows}: the realm row names the project, its branch and its uncommitted state on one row`, wide ? dirRow !== undefined && /gridgame\s+\S\s*master · uncommitted/.test(dirRow) : chat.some(r => r.includes(PROJECT)), `fix the realm row in src/components/MercuryHome.tsx | ${dirRow ?? chat.slice(0, 4).join(' | ')}`)
+    check(`${cols}x${rows}: the realm row names the project, its branch and its uncommitted state on one row`, wide ? dirRow !== undefined && /gridgame\s+\S\s*master · uncommitted/.test(dirRow) : chat.some(r => r.includes(PROJECT)), `fix the realm row in src/screen/fullscreen-layout/MercuryHome.tsx | ${dirRow ?? chat.slice(0, 4).join(' | ')}`)
     if (wide) {
       const top = chatFull[0] ?? ''
       check(`${cols}x${rows}: the top row carries the pane's top border — not a copy of the header below it`, top.includes('╭') && top.trimEnd().endsWith('╮') && top.includes('lanes'), `${WHERE_FACE} | ${chat[0] ?? ''}`)

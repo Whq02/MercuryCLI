@@ -141,15 +141,15 @@ console.log('============================================================')
 console.log(' oauth refresh on switch — the credential path, all shapes')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
-const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/constants/oauth.ts')
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
-type Message = import('../../src/types/message.ts').Message
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
+const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/models/sign-in/oauth/oauth.ts')
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const HISTORY: Message[] = [createUserMessage({ content: 'pick up where the last model stopped' })]
 
@@ -204,10 +204,10 @@ section('A · proactive — an EXPIRED stored token refreshes before request 1')
   const o = await drive()
   const mine = apiRequests.slice(before.api)
   check('subscriber path live (no env token shadowing the stored OAuth)', auth.isClaudeAISubscriber(), 'isClaudeAISubscriber()=false — seeding failed')
-  check('exactly ONE token POST before the first API request', tokenPosts - before.posts === 1, `posts=${tokenPosts - before.posts} — an expired stored token must refresh once before request 1; see checkAndRefreshOAuthTokenIfNeeded in src/services/auth/oauthLifecycle.ts`)
-  check('the API request carries the REFRESHED bearer, first try', mine.length === 1 && mine[0]?.bearer === 'at-fresh-a', `requests=${JSON.stringify(mine)} — the first request must carry the refreshed bearer; see checkAndRefreshOAuthTokenIfNeeded in src/services/auth/oauthLifecycle.ts`)
-  check('the turn settled end_turn with no error surfaced', o.threw === undefined && o.errors.length === 0 && o.last?.message.stop_reason === 'end_turn', `threw=${String(o.threw)} errors=${o.errors.length} — the turn must complete after the proactive refresh; look at routedCallModel in src/services/providers/callModelRouter.ts`)
-  check('the refreshed credential was persisted', auth.getClaudeAIOAuthTokens()?.accessToken === 'at-fresh-a', 'refresh must save the new tokens; see saveOAuthTokensIfNeeded in src/services/auth/oauthLifecycle.ts')
+  check('exactly ONE token POST before the first API request', tokenPosts - before.posts === 1, `posts=${tokenPosts - before.posts} — an expired stored token must refresh once before request 1; see checkAndRefreshOAuthTokenIfNeeded in src/models/sign-in/lifecycle/oauthLifecycle.ts`)
+  check('the API request carries the REFRESHED bearer, first try', mine.length === 1 && mine[0]?.bearer === 'at-fresh-a', `requests=${JSON.stringify(mine)} — the first request must carry the refreshed bearer; see checkAndRefreshOAuthTokenIfNeeded in src/models/sign-in/lifecycle/oauthLifecycle.ts`)
+  check('the turn settled end_turn with no error surfaced', o.threw === undefined && o.errors.length === 0 && o.last?.message.stop_reason === 'end_turn', `threw=${String(o.threw)} errors=${o.errors.length} — the turn must complete after the proactive refresh; look at routedCallModel in src/models/roads/callModelRouter.ts`)
+  check('the refreshed credential was persisted', auth.getClaudeAIOAuthTokens()?.accessToken === 'at-fresh-a', 'refresh must save the new tokens; see saveOAuthTokensIfNeeded in src/models/sign-in/lifecycle/oauthLifecycle.ts')
 }
 
 section('B · reactive — a server-revoked (unexpired) token 401s, refresh heals the retry')
@@ -218,11 +218,11 @@ section('B · reactive — a server-revoked (unexpired) token 401s, refresh heal
   const before = { posts: tokenPosts, api: apiRequests.length }
   const o = await drive()
   const mine = apiRequests.slice(before.api)
-  check('request 1 went out with the revoked bearer and 401d (no proactive refresh — token looked fresh)', mine[0]?.bearer === 'at-revoked-b' && mine[0]?.status === 401, `requests=${JSON.stringify(mine)} — the fixture revokes at-revoked-b; check the request path in routedCallModel (src/services/providers/callModelRouter.ts) sends the stored bearer`)
-  check('the 401 triggered exactly ONE refresh POST', tokenPosts - before.posts === 1, `posts=${tokenPosts - before.posts} — a 401 must trigger one forced refresh; see handleOAuth401Error in src/services/auth/oauthLifecycle.ts and its call in src/services/api/withRetry.ts`)
-  check('the RETRIED request carries the refreshed bearer and succeeds', mine.length === 2 && mine[1]?.bearer === 'at-fresh-b' && mine[1]?.status === 200, `requests=${JSON.stringify(mine)} — the retry after a 401 must use the refreshed bearer; see src/services/api/withRetry.ts`)
-  check('the turn settled end_turn — a 401 heals, it never wedges', o.threw === undefined && o.last?.message.stop_reason === 'end_turn', `threw=${String(o.threw)} — the 401 retry must end the turn; see src/services/api/withRetry.ts`)
-  check('the rotated refresh token was persisted', auth.getClaudeAIOAuthTokens()?.refreshToken === 'rt-b2', 'the refresh must persist the rotated refresh token; see saveOAuthTokensIfNeeded in src/services/auth/oauthLifecycle.ts')
+  check('request 1 went out with the revoked bearer and 401d (no proactive refresh — token looked fresh)', mine[0]?.bearer === 'at-revoked-b' && mine[0]?.status === 401, `requests=${JSON.stringify(mine)} — the fixture revokes at-revoked-b; check the request path in routedCallModel (src/models/roads/callModelRouter.ts) sends the stored bearer`)
+  check('the 401 triggered exactly ONE refresh POST', tokenPosts - before.posts === 1, `posts=${tokenPosts - before.posts} — a 401 must trigger one forced refresh; see handleOAuth401Error in src/models/sign-in/lifecycle/oauthLifecycle.ts and its call in src/engine/requests/withRetry.ts`)
+  check('the RETRIED request carries the refreshed bearer and succeeds', mine.length === 2 && mine[1]?.bearer === 'at-fresh-b' && mine[1]?.status === 200, `requests=${JSON.stringify(mine)} — the retry after a 401 must use the refreshed bearer; see src/engine/requests/withRetry.ts`)
+  check('the turn settled end_turn — a 401 heals, it never wedges', o.threw === undefined && o.last?.message.stop_reason === 'end_turn', `threw=${String(o.threw)} — the 401 retry must end the turn; see src/engine/requests/withRetry.ts`)
+  check('the rotated refresh token was persisted', auth.getClaudeAIOAuthTokens()?.refreshToken === 'rt-b2', 'the refresh must persist the rotated refresh token; see saveOAuthTokensIfNeeded in src/models/sign-in/lifecycle/oauthLifecycle.ts')
   check('the retry refreshes the usage reading on the same fixture account', usageGets === 1, `gets=${usageGets} — expected one usage fetch after the retry; the fixture counts GET /api/oauth/usage`)
   revokedBearers.clear()
 }
@@ -233,13 +233,13 @@ section('C · dead refresh token — invalid_grant is a typed, bounded refusal')
   tokenGrant = { invalidGrant: true }
   const before = { posts: tokenPosts }
   const healed = await auth.handleOAuth401Error('at-stale-c')
-  check('C1: handleOAuth401Error reports NOT healed on invalid_grant', healed === false, `healed=${String(healed)} — handleOAuth401Error in src/services/auth/oauthLifecycle.ts must return false when the refresh ends in invalid_grant`)
+  check('C1: handleOAuth401Error reports NOT healed on invalid_grant', healed === false, `healed=${String(healed)} — handleOAuth401Error in src/models/sign-in/lifecycle/oauthLifecycle.ts must return false when the refresh ends in invalid_grant`)
   check('C1: exactly one token POST was spent', tokenPosts - before.posts === 1, `posts=${tokenPosts - before.posts}`)
   const blanked = auth.getClaudeAIOAuthTokens()
-  check('C1: the dead refresh token is BLANKED on disk; the record survives', blanked !== null && blanked?.refreshToken === '', `refreshToken=${JSON.stringify(blanked?.refreshToken)} — see blankRefreshTokenOnDisk in src/services/auth/oauthLifecycle.ts`)
+  check('C1: the dead refresh token is BLANKED on disk; the record survives', blanked !== null && blanked?.refreshToken === '', `refreshToken=${JSON.stringify(blanked?.refreshToken)} — see blankRefreshTokenOnDisk in src/models/sign-in/lifecycle/oauthLifecycle.ts`)
   const posts2 = tokenPosts
   await auth.handleOAuth401Error('at-stale-c')
-  check('C1: known-dead latch — no second token POST for the same credential', tokenPosts === posts2, `posts=${tokenPosts - posts2} — see markKnownDeadRefreshToken and isOAuthRefreshKnownDead use in src/services/auth/oauthLifecycle.ts`)
+  check('C1: known-dead latch — no second token POST for the same credential', tokenPosts === posts2, `posts=${tokenPosts - posts2} — see markKnownDeadRefreshToken and isOAuthRefreshKnownDead use in src/models/sign-in/lifecycle/oauthLifecycle.ts`)
 
   revokedBearers.add('at-stale-c')
   const beforeApi = apiRequests.length

@@ -49,8 +49,8 @@ console.log('============================================================')
 console.log(' Bash parser — corpus parity (the tree and the verdict)')
 console.log('============================================================')
 
-const ast = await import('../../src/utils/bash/ast.ts')
-const parser = await import('../../src/utils/bash/parser.ts')
+const ast = await import('../../src/platform/shell/bash/ast.ts')
+const parser = await import('../../src/platform/shell/bash/parser.ts')
 
 const grammarDir = join(ROOT, 'node_modules', '@vscode', 'tree-sitter-wasm', 'wasm')
 const grammarWasm = join(grammarDir, 'tree-sitter-bash.wasm')
@@ -201,9 +201,9 @@ if (!existsSync(FIXTURE)) {
     section(`(1) the grammar and the id table (${Object.keys(recorded.nodeTypeIds).length} node kinds)`)
     check('the grammar that builds the trees is the recorded one', recorded.grammar === grammarId, `${recorded.grammar} vs ${grammarId} — node_modules/@vscode/tree-sitter-wasm changed; restore the pinned version, or re-record scripts/bash/parser-corpus-parity.json with --record after review`)
     const recordedKindsNow = Object.fromEntries(Object.keys(recorded.nodeTypeIds).map(name => [name, ast.nodeTypeId(name === 'undefined' ? undefined : name)]))
-    check('nodeTypeId gives the recorded id for every recorded kind', same(recorded.nodeTypeIds, recordedKindsNow), JSON.stringify(recordedKindsNow) + ' — nodeTypeId in src/utils/bash/ast.ts must keep the id of every recorded node kind; append new kinds, never renumber')
+    check('nodeTypeId gives the recorded id for every recorded kind', same(recorded.nodeTypeIds, recordedKindsNow), JSON.stringify(recordedKindsNow) + ' — nodeTypeId in src/platform/shell/bash/ast.ts must keep the id of every recorded node kind; append new kinds, never renumber')
     check('each binding re-pin names an existing corpus command', [...bindingRepins.keys()].every(command => recorded.entries.some(entry => entry.command === command)) && [...hashedRepins.keys()].every(commandHash => recorded.entries.some(entry => hash16(entry.command) === commandHash)), 'a bindingRepins or hashedRepins pin in this file names a command that is not in scripts/bash/parser-corpus-parity.json; fix or remove the pin')
-    check('checkSemantics over no commands is the recorded verdict', same(recorded.emptySemantics, fixture.emptySemantics), JSON.stringify(fixture.emptySemantics) + ' — checkSemantics in src/utils/bash/ast.ts must keep its verdict for an empty command list')
+    check('checkSemantics over no commands is the recorded verdict', same(recorded.emptySemantics, fixture.emptySemantics), JSON.stringify(fixture.emptySemantics) + ' — checkSemantics in src/platform/shell/bash/ast.ts must keep its verdict for an empty command list')
 
     section(`(2) the corpus — ${recorded.entries.length} commands, trees unchanged; verdicts exact with reviewed binding fixes`)
     const fields: (keyof Entry)[] = ['tree', 'walk', 'semantics', 'abort', 'string', 'raw']
@@ -225,10 +225,10 @@ if (!existsSync(FIXTURE)) {
     }
     for (const [from, count] of [...perSource.entries()].sort()) console.log(`    ${from}: ${count}`)
     for (const [kind, count] of [...kinds.entries()].sort()) console.log(`    walk verdict ${kind}: ${count}`)
-    check(`every command's tree hash, walk verdict, semantic verdict, abort verdict, string-road verdict and raw parse match their exact pins (${recorded.entries.length} commands; ${bindingRepins.size} binding fixes)`, moved.length === 0, `${moved.length} moved; first: ${moved[0] ?? ''} — the verdict from src/utils/bash/ast.ts or parser.ts changed; fix it there, or add a reviewed pin (pinWalk, pinRead, pinWalkByHash) in this file`)
+    check(`every command's tree hash, walk verdict, semantic verdict, abort verdict, string-road verdict and raw parse match their exact pins (${recorded.entries.length} commands; ${bindingRepins.size} binding fixes)`, moved.length === 0, `${moved.length} moved; first: ${moved[0] ?? ''} — the verdict from src/platform/shell/bash/ast.ts or parser.ts changed; fix it there, or add a reviewed pin (pinWalk, pinRead, pinWalkByHash) in this file`)
     for (const line of moved.slice(0, 12)) console.log(`      ${line}`)
-    check('the corpus reaches every walk verdict kind', kinds.has('simple') && kinds.has('too-complex'), [...kinds.keys()].join(',') + ' — parseForSecurityFromAst in src/utils/bash/ast.ts must still return both simple and too-complex verdicts across the corpus')
-    check('the corpus holds at least one command refused by each pre-check and the abort road', recorded.entries.some(e => (e.abort as { nodeType?: string }).nodeType === 'PARSE_ABORT') && recorded.entries.filter(e => (e.abort as { nodeType?: string }).nodeType === undefined).length >= 6, 'parseForSecurityFromAst in src/utils/bash/ast.ts must abort with PARSE_ABORT on a PARSE_ABORTED tree, and at least six corpus commands must not abort; compare against scripts/bash/parser-corpus-parity.json')
+    check('the corpus reaches every walk verdict kind', kinds.has('simple') && kinds.has('too-complex'), [...kinds.keys()].join(',') + ' — parseForSecurityFromAst in src/platform/shell/bash/ast.ts must still return both simple and too-complex verdicts across the corpus')
+    check('the corpus holds at least one command refused by each pre-check and the abort road', recorded.entries.some(e => (e.abort as { nodeType?: string }).nodeType === 'PARSE_ABORT') && recorded.entries.filter(e => (e.abort as { nodeType?: string }).nodeType === undefined).length >= 6, 'parseForSecurityFromAst in src/platform/shell/bash/ast.ts must abort with PARSE_ABORT on a PARSE_ABORTED tree, and at least six corpus commands must not abort; compare against scripts/bash/parser-corpus-parity.json')
   }
 }
 

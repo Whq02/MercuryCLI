@@ -14,7 +14,7 @@ delete process.env.NODE_ENV
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}change the macOS plist paths and registry key paths in src/utils/settings/mdm/constants.ts (getMacOSPlistPaths) or the reg queries fireRawRead fires in src/utils/settings/mdm/rawRead.ts` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}change the macOS plist paths and registry key paths in src/platform/settings/mdm/mdmSources.ts (getMacOSPlistPaths) or the reg queries fireRawRead fires in src/platform/settings/mdm/rawRead.ts` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 
@@ -35,8 +35,8 @@ mock.module('node:child_process', () => ({
   },
 }))
 
-const constants = await import('../../src/utils/settings/mdm/constants.js')
-const raw = await import('../../src/utils/settings/mdm/rawRead.js')
+const constants = await import('../../src/platform/settings/mdm/mdmSources.js')
+const raw = await import('../../src/platform/settings/mdm/rawRead.js')
 
 section('§1 macOS: the managed-preferences candidates are the Mercury domain alone, per-user before device')
 {

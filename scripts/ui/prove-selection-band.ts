@@ -5,7 +5,7 @@ process.env.NODE_ENV = 'test'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const selectionBandWhere = 'to fix: deriveSelectionBand and the selectionBand token in resolveMercuryTokens, src/utils/mercuryTokens.ts (change the derived band so it keeps its contrast, follows the accent and differs from surface1, surface2, selection and the raw accent)'
+  const selectionBandWhere = 'to fix: deriveSelectionBand and the selectionBand token in resolveMercuryTokens, src/screen/theme/mercuryTokens.ts (change the derived band so it keeps its contrast, follows the accent and differs from surface1, surface2, selection and the raw accent)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail || !cond ? ` — ${detail}${!cond ? `${detail ? ' · ' : ''}${selectionBandWhere}` : ''}` : ''}`)
 }
 function section(t: string): void {
@@ -16,10 +16,10 @@ console.log('============================================================')
 console.log(' Selection band — LUSTRE L2, the one decisive cursor paint')
 console.log('============================================================')
 
-const tokensMod = await import('../../src/utils/mercuryTokens.js')
-const themeMod = await import('../../src/utils/theme.js')
-const brand = await import('../../src/components/mercuryPalette.js')
-const accentMod = await import('../../src/components/mercury-ui/sessionAccent.js')
+const tokensMod = await import('../../src/screen/theme/mercuryTokens.js')
+const themeMod = await import('../../src/screen/theme/theme.js')
+const brand = await import('../../src/screen/theme/mercuryPalette.js')
+const accentMod = await import('../../src/screen/widgets/sessionAccent.js')
 
 const CRAB = brand.TERRA
 const OCTOPUS = '#7A5FBE'

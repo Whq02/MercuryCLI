@@ -12,10 +12,10 @@ delete process.env.WT_SESSION
 delete process.env.TERM_PROGRAM
 process.env.MERCURY_REDUCED_MOTION = '1'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { Box, Text } = await import('../../src/ink.js')
-const { useTerminalSize } = await import('../../src/hooks/useTerminalSize.js')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { useTerminalSize } = await import('../../src/screen/fullscreen-layout/useTerminalSize.js')
 
 const PROBE_CSI = /\x1b\[(?:[<>=][0-9;]*[a-zA-Z]|\?[0-9;]*\$p|\?[0-9;]*u|[0-9;]*c|6n)/g
 const WIDTH_PROBE_WRITE = /\x1b7.*\x1b\[6n/s
@@ -23,7 +23,7 @@ const REPLACEMENT = '\uFFFD'
 
 let checks = 0
 let failures = 0
-const borderSplitHint = 'section 1 failing means the renderer repaint after a resize is wrong, so fix src/ink/ink/resize.ts (applySettledResize, settleResize) or src/ink/ink.tsx; sections 2 and 3 failing means the capture model changed, so look at the AnsiEmulator in scripts/ink-runtime/ansiEmulator.ts and the decoder helpers in this file'
+const borderSplitHint = 'section 1 failing means the renderer repaint after a resize is wrong, so fix src/screen/renderer/instance/resize.ts (applySettledResize, settleResize) or src/screen/renderer/screenInstance.tsx; sections 2 and 3 failing means the capture model changed, so look at the AnsiEmulator in scripts/ink-runtime/ansiEmulator.ts and the decoder helpers in this file'
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++

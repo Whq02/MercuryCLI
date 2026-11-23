@@ -7,15 +7,15 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
-const rekeyWhere = ' | change the effect on focusedSessionId in useChatSession, src/screens/chat/useChatSession.ts'
-const warmthWhere = ' | change paintedTranscriptOf, entryLoadingLineOf or enteringWarmth in src/services/concourse/sessionWarmth.ts, or their use in useChatSession, src/screens/chat/useChatSession.ts'
-const settleWhere = ' | change the settle effect (slotHasSession, landing, chatSurfaceCovered, localJsx, armedMessage) in useChatSession, src/screens/chat/useChatSession.ts'
+const rekeyWhere = ' | change the effect on focusedSessionId in useChatSession, src/screen/chat/useChatSession.ts'
+const warmthWhere = ' | change paintedTranscriptOf, entryLoadingLineOf or enteringWarmth in src/screen/concourse-model/sessionWarmth.ts, or their use in useChatSession, src/screen/chat/useChatSession.ts'
+const settleWhere = ' | change the settle effect (slotHasSession, landing, chatSurfaceCovered, localJsx, armedMessage) in useChatSession, src/screen/chat/useChatSession.ts'
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 
 const t = await openSessionPart('sess-a')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
 const row = (text: string): never => createAssistantMessage({ content: text }) as never
 const asked = (text: string): never => createUserMessage({ content: text }) as never
 const taken = (): string => {
@@ -103,13 +103,13 @@ await t.close()
 section('§4 the conversation the screen names')
 {
   const { useChatConversation } = t.module
-  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
   const connector = Object.assign(new NoSessionConnector(), { sessionId: () => 'sess-named' }) as never
   const named = await mountPart(() => useChatConversation(connector))
-  check('it starts as the session in focus at mount', named.value().conversationId === 'sess-named', named.value().conversationId + ' | change useChatConversation in src/screens/chat/useChatSession.ts')
+  check('it starts as the session in focus at mount', named.value().conversationId === 'sess-named', named.value().conversationId + ' | change useChatConversation in src/screen/chat/useChatSession.ts')
   named.value().setConversationId('sess-other')
   await settle(80)
-  check('and is set through the setter the part hands on', named.value().conversationId === 'sess-other', named.value().conversationId + ' | change useChatConversation in src/screens/chat/useChatSession.ts')
+  check('and is set through the setter the part hands on', named.value().conversationId === 'sess-other', named.value().conversationId + ' | change useChatConversation in src/screen/chat/useChatSession.ts')
   named.unmount()
 }
 

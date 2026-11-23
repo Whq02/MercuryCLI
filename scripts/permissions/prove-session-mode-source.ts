@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/permissions/permissionSetup.ts src/components/Settings/Config.tsx
+// gate-watch: src/permissions/rules/permissionSetup.ts src/screen/settings/Config.tsx
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -11,16 +11,16 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const sessionModeHint = 'fix resolveSessionPermissionMode, initialPermissionModeFromCLI, describeSessionPermissionMode or sessionPermissionModeSourceWords in src/utils/permissions/permissionSetup.ts (mode titles come from src/utils/permissions/PermissionMode.ts)'
+const sessionModeHint = 'fix resolveSessionPermissionMode, initialPermissionModeFromCLI, describeSessionPermissionMode or sessionPermissionModeSourceWords in src/permissions/rules/permissionSetup.ts (mode titles come from src/permissions/rules/permissionMode.ts)'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ' — ' + detail : '') : ' — ' + (detail ? detail + ' — ' : '') + sessionModeHint}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const setup = await import('../../src/utils/permissions/permissionSetup.ts')
-const modes = await import('../../src/utils/permissions/PermissionMode.ts')
-const settings = await import('../../src/utils/settings/settings.ts')
+const setup = await import('../../src/permissions/rules/permissionSetup.ts')
+const modes = await import('../../src/permissions/rules/permissionMode.ts')
+const settings = await import('../../src/platform/settings/settings.ts')
 
 const seedSettings = (mode: string | undefined): void => {
   const written = settings.updateSettingsForSource('userSettings', { guardrails: { mode } } as never)

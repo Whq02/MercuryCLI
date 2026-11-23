@@ -3,7 +3,7 @@ process.env.NODE_ENV = 'test'
 
 import { Readable, Writable } from 'node:stream'
 
-const OPEN_GATE_HINT = 'to fix, change how an opened palette ignores the key that opened it (src/components/mercury-ui/useOpenEventGate.ts, used by src/components/MercuryCommandPalette.tsx), or how every stdin event bumps the sequence (currentInputEventSeq in src/ink/events/input-event.ts)'
+const OPEN_GATE_HINT = 'to fix, change how an opened palette ignores the key that opened it (src/screen/widgets/useOpenEventGate.ts, used by src/screen/composer/MercuryCommandPalette.tsx), or how every stdin event bumps the sequence (currentInputEventSeq in src/screen/renderer/events/input-event.ts)'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -12,11 +12,11 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const React = await import('react')
-const { render, Box, Text } = await import('../../src/ink.js')
-const { default: useInput } = await import('../../src/ink/hooks/use-input.js')
-const { MercuryCommandPalette } = await import('../../src/components/MercuryCommandPalette.js')
-const { currentInputEventSeq } = await import('../../src/ink/events/input-event.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
+const { render, Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { default: useInput } = await import('../../src/screen/renderer/bindings/use-input.js')
+const { MercuryCommandPalette } = await import('../../src/screen/composer/MercuryCommandPalette.js')
+const { currentInputEventSeq } = await import('../../src/screen/renderer/events/input-event.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
 
 let written = ''
 const stdout = Object.assign(
@@ -100,7 +100,7 @@ await new Promise(r => setTimeout(r, 300))
 check('esc closed the palette (no gate in the way)', strip(written).includes('palette-closed'))
 check('close observed the esc event itself (no extra wall-clock wait)', closedAt === currentInputEventSeq())
 
-const { currentInputEventSeq: seqFn } = await import('../../src/ink/events/input-event.js')
+const { currentInputEventSeq: seqFn } = await import('../../src/screen/renderer/events/input-event.js')
 const a = seqFn()
 await press('x')
 check('every stdin event bumps the seq exactly once', seqFn() === a + 1, `${a} → ${seqFn()}`)

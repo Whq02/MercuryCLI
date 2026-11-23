@@ -6,7 +6,7 @@ import { join } from 'node:path'
 const HOME = mkdtempSync(join(tmpdir(), 'eval-drain-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 
-const { ProcKernel, cellEndMark } = await import('../../src/services/eval/procKernel.js')
+const { ProcKernel, cellEndMark } = await import('../../src/tools/engines/eval-kernels/procKernel.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = '', fix = ''): void {
@@ -55,7 +55,7 @@ async function runCell(mode: 'late' | 'split' | 'silent', cellId: string): Promi
     env: { PATH: process.env.PATH ?? '', DRAIN_MODE: mode },
   })
   const ready = await kernel.handshake(HOME, 10_000)
-  check(`${mode}: the scripted runner handshakes`, ready, '', 'ProcKernel.handshake in src/services/eval/procKernel.ts did not get a ready frame on fd 3 from the scripted runner in this file')
+  check(`${mode}: the scripted runner handshakes`, ready, '', 'ProcKernel.handshake in src/tools/engines/eval-kernels/procKernel.ts did not get a ready frame on fd 3 from the scripted runner in this file')
   let out = ''
   let err = ''
   const t0 = Date.now()
@@ -79,29 +79,29 @@ async function runCell(mode: 'late' | 'split' | 'silent', cellId: string): Promi
 section('§1 — `done` outruns the data pipes: the cell still settles with its bytes')
 {
   const r = await runCell('late', 'cell-late')
-  check('the cell settled as done', r.end.kind === 'done' && r.end.status === 'ok', JSON.stringify(r.end), 'ProcKernel.exec in src/services/eval/procKernel.ts must settle the cell on its done frame once both end marks have arrived')
-  check('stdout landed before the settle', r.out === 'late-out', JSON.stringify(r.out), 'ProcKernel in src/services/eval/procKernel.ts must hold the settle until the stdout end mark arrives, so bytes written after done are kept')
-  check('stderr landed before the settle', r.err === 'late-err', JSON.stringify(r.err), 'ProcKernel in src/services/eval/procKernel.ts must hold the settle until the stderr end mark arrives, so bytes written after done are kept')
-  check('the marks settled the cell (not the grace)', r.elapsedMs < 1200, `${r.elapsedMs} ms`, 'the cell must settle on the end marks; see the mark handling and END_MARK_GRACE_MS in src/services/eval/procKernel.ts')
+  check('the cell settled as done', r.end.kind === 'done' && r.end.status === 'ok', JSON.stringify(r.end), 'ProcKernel.exec in src/tools/engines/eval-kernels/procKernel.ts must settle the cell on its done frame once both end marks have arrived')
+  check('stdout landed before the settle', r.out === 'late-out', JSON.stringify(r.out), 'ProcKernel in src/tools/engines/eval-kernels/procKernel.ts must hold the settle until the stdout end mark arrives, so bytes written after done are kept')
+  check('stderr landed before the settle', r.err === 'late-err', JSON.stringify(r.err), 'ProcKernel in src/tools/engines/eval-kernels/procKernel.ts must hold the settle until the stderr end mark arrives, so bytes written after done are kept')
+  check('the marks settled the cell (not the grace)', r.elapsedMs < 1200, `${r.elapsedMs} ms`, 'the cell must settle on the end marks; see the mark handling and END_MARK_GRACE_MS in src/tools/engines/eval-kernels/procKernel.ts')
 }
 
 section('§2 — a mark split across chunks counts once and never leaks')
 {
   const r = await runCell('split', 'cell-split')
   const mark = cellEndMark('cell-split', 'x')
-  check('the cell settled as done', r.end.kind === 'done', JSON.stringify(r.end), 'ProcKernel.exec in src/services/eval/procKernel.ts must settle the cell even when an end mark is split across chunks')
-  check('stdout is the user bytes alone', r.out === 'split-out', JSON.stringify(r.out), 'the end-mark scanner in src/services/eval/procKernel.ts must strip a mark split across stdout chunks and keep the user bytes')
-  check('stderr is the user bytes alone', r.err === 'split-err', JSON.stringify(r.err), 'the end-mark scanner in src/services/eval/procKernel.ts must strip a mark split across stderr chunks and keep the user bytes')
-  check('no mark byte leaked', !r.out.includes(mark.slice(0, 1)) && !r.err.includes(mark.slice(0, 1)), JSON.stringify({ out: r.out, err: r.err }), 'the end-mark scanner in src/services/eval/procKernel.ts must not pass any part of a mark through to the cell output')
-  check('the marks settled the cell (not the grace)', r.elapsedMs < 1200, `${r.elapsedMs} ms`, 'a split mark must still settle the cell once both halves arrive; see the mark handling and END_MARK_GRACE_MS in src/services/eval/procKernel.ts')
+  check('the cell settled as done', r.end.kind === 'done', JSON.stringify(r.end), 'ProcKernel.exec in src/tools/engines/eval-kernels/procKernel.ts must settle the cell even when an end mark is split across chunks')
+  check('stdout is the user bytes alone', r.out === 'split-out', JSON.stringify(r.out), 'the end-mark scanner in src/tools/engines/eval-kernels/procKernel.ts must strip a mark split across stdout chunks and keep the user bytes')
+  check('stderr is the user bytes alone', r.err === 'split-err', JSON.stringify(r.err), 'the end-mark scanner in src/tools/engines/eval-kernels/procKernel.ts must strip a mark split across stderr chunks and keep the user bytes')
+  check('no mark byte leaked', !r.out.includes(mark.slice(0, 1)) && !r.err.includes(mark.slice(0, 1)), JSON.stringify({ out: r.out, err: r.err }), 'the end-mark scanner in src/tools/engines/eval-kernels/procKernel.ts must not pass any part of a mark through to the cell output')
+  check('the marks settled the cell (not the grace)', r.elapsedMs < 1200, `${r.elapsedMs} ms`, 'a split mark must still settle the cell once both halves arrive; see the mark handling and END_MARK_GRACE_MS in src/tools/engines/eval-kernels/procKernel.ts')
 }
 
 section('§3 — a runner that never marks settles on the bounded grace')
 {
   const r = await runCell('silent', 'cell-silent')
-  check('the cell settled as done', r.end.kind === 'done', JSON.stringify(r.end), 'a runner that never writes marks must still settle after END_MARK_GRACE_MS in src/services/eval/procKernel.ts')
-  check('nothing was invented', r.out === '' && r.err === '', JSON.stringify({ out: r.out, err: r.err }), 'the grace settle in src/services/eval/procKernel.ts must not add bytes to stdout or stderr')
-  check('the grace is bounded (≈1.5 s, never a hang)', r.elapsedMs >= 1300 && r.elapsedMs < 4000, `${r.elapsedMs} ms`, 'END_MARK_GRACE_MS in src/services/eval/procKernel.ts sets how long a cell with no marks waits before it settles')
+  check('the cell settled as done', r.end.kind === 'done', JSON.stringify(r.end), 'a runner that never writes marks must still settle after END_MARK_GRACE_MS in src/tools/engines/eval-kernels/procKernel.ts')
+  check('nothing was invented', r.out === '' && r.err === '', JSON.stringify({ out: r.out, err: r.err }), 'the grace settle in src/tools/engines/eval-kernels/procKernel.ts must not add bytes to stdout or stderr')
+  check('the grace is bounded (≈1.5 s, never a hang)', r.elapsedMs >= 1300 && r.elapsedMs < 4000, `${r.elapsedMs} ms`, 'END_MARK_GRACE_MS in src/tools/engines/eval-kernels/procKernel.ts sets how long a cell with no marks waits before it settles')
 }
 
 rmSync(HOME, { recursive: true, force: true })

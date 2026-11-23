@@ -10,7 +10,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('         fix the meters in src/services/providers/providerUsage.ts (activeSourceUsage and the window view builders), the strip warning in src/services/providers/limitWarning.ts, or the Anthropic header and endpoint fold in src/services/anthropicLimits.ts')
+  if (!cond) console.log('         fix the meters in src/models/roads/providerUsage.ts (activeSourceUsage and the window view builders), the strip warning in src/models/roads/limitWarning.ts, or the Anthropic header and endpoint fold in src/models/roads/anthropic/anthropicLimits.ts')
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
@@ -42,13 +42,13 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_AUTH_SCOPE_DIR = home
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 
-const limits = await import('../../src/services/anthropicLimits.js')
-const usage = await import('../../src/services/providers/providerUsage.js')
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.js')
+const usage = await import('../../src/models/roads/providerUsage.js')
 const { providerLimitWarning, preferSessionLimitWarning, APPROACHING_LIMIT_PCT } = await import(
-  '../../src/services/providers/limitWarning.js'
+  '../../src/models/roads/limitWarning.js'
 )
 type UsageReads = NonNullable<NonNullable<Parameters<typeof usage.activeSourceUsage>[0]>['reads']>
 
@@ -300,7 +300,7 @@ section('§7 scheduled spend: Saturn fires replay session envelopes — the one 
 section('§8 the REAL cache: equality holds THROUGH the live 2s activeUsageCache, and the model key invalidates')
 {
   const { writeFileSync } = await import('node:fs')
-  const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.js')
+  const { clearOAuthTokenCache } = await import('../../src/models/sign-in/lifecycle/oauthLifecycle.js')
   writeFileSync(
     join(process.env.MERCURY_AUTH_SCOPE_DIR!, '.credentials.json'),
     JSON.stringify({

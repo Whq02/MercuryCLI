@@ -6,14 +6,14 @@ import { delimiter, join } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
-import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
+import { keyHintLabel } from '../../src/screen/widgets/keyHintLabel.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
-const bangRowFailHint = 'to fix, rebuild with bun run build.ts if dist/mercury.mjs is stale or missing, else change the live tail of a ! shell row in src/components/shell/ShellLiveTail.tsx; saved frames are named at the end of the run'
+const bangRowFailHint = 'to fix, rebuild with bun run build.ts if dist/mercury.mjs is stale or missing, else change the live tail of a ! shell row in src/screen/shell-output/ShellLiveTail.tsx; saved frames are named at the end of the run'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail.slice(0, 400)}` : ''}${!cond ? `${detail ? ' · ' : ' — '}${bangRowFailHint}` : ''}`)

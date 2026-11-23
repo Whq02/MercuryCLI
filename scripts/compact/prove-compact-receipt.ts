@@ -38,8 +38,8 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const receiptHint = ' | fix manualCompactDisplayText in src/services/compact/manualReceipt.ts'
-const cardHint = ' | fix enrichSummaryForLiveDisplay and shouldEnrichForLiveDisplay in src/commands/compact/compact.ts and src/services/compact/manualReceipt.ts'
+const receiptHint = ' | fix manualCompactDisplayText in src/engine/compaction/manualReceipt.ts'
+const cardHint = ' | fix enrichSummaryForLiveDisplay and shouldEnrichForLiveDisplay in src/commands/compact/compact.ts and src/engine/compaction/manualReceipt.ts'
 
 const guard = setTimeout(() => {
   console.log('\nTIMEOUT — compact receipt prover exceeded 120s; look for a hung compact call in src/commands/compact/compact.ts or the fixture in scripts/lib/crossfamilyConcourseFixture.ts')
@@ -51,12 +51,12 @@ const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFix
 const fixture = await startCrossfamilyFixture({ port: FIXTURE_PORT })
 Object.assign(process.env, fixture.env)
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { call } = await import('../../src/commands/compact/compact.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
 
 function makeMessages(): unknown[] {
   const out: unknown[] = []

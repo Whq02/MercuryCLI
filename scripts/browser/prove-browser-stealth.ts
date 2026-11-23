@@ -39,8 +39,8 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-const { resolveBrowser } = await import(join(ROOT, 'src/services/browser/browserResolver.ts'))
-const sessionMod = await import(join(ROOT, 'src/services/browser/browserSession.ts'))
+const { resolveBrowser } = await import(join(ROOT, 'src/integrations/browser/browserResolver.ts'))
+const sessionMod = await import(join(ROOT, 'src/integrations/browser/browserSession.ts'))
 const {
   activeSession,
   browserProfileDirForOrigin,
@@ -50,10 +50,10 @@ const {
   resolveNavigatorPlatform,
   setBrowserLaunchDriverForProof,
 } = sessionMod
-const { BrowserTool } = await import(join(ROOT, 'src/tools/BrowserTool/BrowserTool.ts'))
-const { processOwnerForLane } = await import(join(ROOT, 'src/utils/run/resolveOwner.ts'))
-const { decideToolPermission } = await import(join(ROOT, 'src/utils/permissions/decision/engine.ts'))
-const { getEmptyToolPermissionContext } = await import(join(ROOT, 'src/Tool.ts'))
+const { BrowserTool } = await import(join(ROOT, 'src/tools/browser/BrowserTool.ts'))
+const { processOwnerForLane } = await import(join(ROOT, 'src/engine/run-owner/resolveOwner.ts'))
+const { decideToolPermission } = await import(join(ROOT, 'src/permissions/rules/decision/engine.ts'))
+const { getEmptyToolPermissionContext } = await import(join(ROOT, 'src/tools/kit/tool.ts'))
 
 const OWNER = processOwnerForLane(null)
 type ToolInput = Parameters<typeof BrowserTool.call>[0]
@@ -341,15 +341,15 @@ try {
     }
     const extracted = await run({ op: 'extract', mode: 'text', selector: '#report' })
     console.log(`  detection score line: ${extracted.result.split('\n')[1] ?? ''}`)
-    check('check 1 — webdriver is false on Navigator.prototype (no own property)', report.checks.webdriver === true, JSON.stringify(report.details) + ' | fix: the page-side tell is set up by the stealth code under src/services/browser/session/, see details')
-    check('check 2 — headless tells absent (no HeadlessChrome in UA/appVersion, outer >= inner)', report.checks.headless === true, JSON.stringify(report.details) + ' | fix: the launch and stealth code under src/services/browser/session/ must hide the headless tells')
-    check('check 3 — navigator.plugins & mimeTypes are populated PluginArray / MimeTypeArray instances', report.checks.plugins === true, JSON.stringify(report.details) + ' | fix: the stealth code under src/services/browser/session/ must populate plugins and mimeTypes')
-    check('check 4 — window.chrome carries app, csi, loadTimes, and runtime (connect + sendMessage)', report.checks.chromeObject === true, JSON.stringify(report.details) + ' | fix: the stealth code under src/services/browser/session/ must install window.chrome')
-    check('check 5 — Notification.permission and navigator.permissions.query({name:"notifications"}) agree', report.checks.permissions === true, JSON.stringify(report.details) + ' | fix: the stealth code under src/services/browser/session/ must keep permissions.query consistent with Notification.permission')
-    check('check 6 — WebGL vendor and renderer report non-software strings with native getParameter', report.checks.webgl === true, JSON.stringify(report.details) + ' | fix: the launch flags in src/services/browser/session/ must not leave a software WebGL renderer')
-    check('check 7 — Sec-CH-UA and navigator.userAgentData carry Google Chrome and Chromium brands', report.checks.clientHints === true, JSON.stringify(report.details) + ' | fix: the stealth code under src/services/browser/session/ must set user-agent metadata with Google Chrome and Chromium brands')
-    check('check 8 — User-Agent, Accept-Language, navigator.languages, platform, and timezone match the host', report.checks.uaConsistency === true, JSON.stringify(report.details) + ' | fix: resolveHostLanguages and resolveNavigatorPlatform in src/services/browser/session/stealth.ts must match the headers, platform and timezone')
-    check('check 9 — automation-banner flag (--enable-automation) stripped and AutomationControlled disabled', report.checks.automationBannerFlag === true, JSON.stringify(spawnargs) + ' | fix: the launch args in src/services/browser/session/launch.ts must drop --enable-automation and add --disable-blink-features=AutomationControlled')
+    check('check 1 — webdriver is false on Navigator.prototype (no own property)', report.checks.webdriver === true, JSON.stringify(report.details) + ' | fix: the page-side tell is set up by the stealth code under src/integrations/browser/session/, see details')
+    check('check 2 — headless tells absent (no HeadlessChrome in UA/appVersion, outer >= inner)', report.checks.headless === true, JSON.stringify(report.details) + ' | fix: the launch and stealth code under src/integrations/browser/session/ must hide the headless tells')
+    check('check 3 — navigator.plugins & mimeTypes are populated PluginArray / MimeTypeArray instances', report.checks.plugins === true, JSON.stringify(report.details) + ' | fix: the stealth code under src/integrations/browser/session/ must populate plugins and mimeTypes')
+    check('check 4 — window.chrome carries app, csi, loadTimes, and runtime (connect + sendMessage)', report.checks.chromeObject === true, JSON.stringify(report.details) + ' | fix: the stealth code under src/integrations/browser/session/ must install window.chrome')
+    check('check 5 — Notification.permission and navigator.permissions.query({name:"notifications"}) agree', report.checks.permissions === true, JSON.stringify(report.details) + ' | fix: the stealth code under src/integrations/browser/session/ must keep permissions.query consistent with Notification.permission')
+    check('check 6 — WebGL vendor and renderer report non-software strings with native getParameter', report.checks.webgl === true, JSON.stringify(report.details) + ' | fix: the launch flags in src/integrations/browser/session/ must not leave a software WebGL renderer')
+    check('check 7 — Sec-CH-UA and navigator.userAgentData carry Google Chrome and Chromium brands', report.checks.clientHints === true, JSON.stringify(report.details) + ' | fix: the stealth code under src/integrations/browser/session/ must set user-agent metadata with Google Chrome and Chromium brands')
+    check('check 8 — User-Agent, Accept-Language, navigator.languages, platform, and timezone match the host', report.checks.uaConsistency === true, JSON.stringify(report.details) + ' | fix: resolveHostLanguages and resolveNavigatorPlatform in src/integrations/browser/session/stealth.ts must match the headers, platform and timezone')
+    check('check 9 — automation-banner flag (--enable-automation) stripped and AutomationControlled disabled', report.checks.automationBannerFlag === true, JSON.stringify(spawnargs) + ' | fix: the launch args in src/integrations/browser/session/launch.ts must drop --enable-automation and add --disable-blink-features=AutomationControlled')
     check('all 9 public detection checks pass (score: 9/9 passed)', report.passed === 9 && report.total === 9 && extracted.result.includes('score: 9/9 passed'), extracted.result + ' | fix: see the failing check N lines above')
   }
 
@@ -436,7 +436,7 @@ try {
         userDataArgA === expectedProfileA &&
         userDataArgA.startsWith(join(SCRATCH_HOME, 'browser-profiles') + sep) &&
         existsSync(userDataArgA),
-      `arg=${userDataArgA} expected=${expectedProfileA} | fix: ensureBrowserSession in src/services/browser/session/launch.ts must launch with the --user-data-dir that browserProfileDirForOrigin returns under the config home`,
+      `arg=${userDataArgA} expected=${expectedProfileA} | fix: ensureBrowserSession in src/integrations/browser/session/launch.ts must launch with the --user-data-dir that browserProfileDirForOrigin returns under the config home`,
     )
     if (process.platform !== 'win32') {
       const rootMode = statSync(dirname(userDataArgA)).mode & 0o777
@@ -507,7 +507,7 @@ try {
       ['dot-dot host', 'http://../etc'],
     ] as const) {
       const out = browserProfileDirForOrigin ? browserProfileDirForOrigin(badInput, OWNER) : 'missing-fn'
-      check(`refusal: browserProfileDirForOrigin refuses ${label}`, out === null, String(out) + ' | fix: browserProfileDirForOrigin in src/services/browser/session/launch.ts must return null for this input')
+      check(`refusal: browserProfileDirForOrigin refuses ${label}`, out === null, String(out) + ' | fix: browserProfileDirForOrigin in src/integrations/browser/session/launch.ts must return null for this input')
     }
 
     const engineCtx = (opts: { mode?: string; allow?: string[]; deny?: string[] }) => {
@@ -609,10 +609,10 @@ try {
     try {
       const OWNER_VIS = processOwnerForLane('visible-window-check')
       await ensureBrowserSession(OWNER_VIS, { headless: false })
-      check('visible window: ensureBrowserSession({ headless: false }) passes headless: false to driver', recordedLaunches.length === 1 && recordedLaunches[0]!.headless === false, JSON.stringify(recordedLaunches[0]?.headless) + ' | fix: ensureBrowserSession in src/services/browser/session/launch.ts must pass headless false through to the driver')
+      check('visible window: ensureBrowserSession({ headless: false }) passes headless: false to driver', recordedLaunches.length === 1 && recordedLaunches[0]!.headless === false, JSON.stringify(recordedLaunches[0]?.headless) + ' | fix: ensureBrowserSession in src/integrations/browser/session/launch.ts must pass headless false through to the driver')
       await sessionMod.disposeBrowserOwner(OWNER_VIS)
       await ensureBrowserSession(OWNER_VIS)
-      check('headless default: ensureBrowserSession() passes headless: true by default', recordedLaunches.length === 2 && recordedLaunches[1]!.headless === true, JSON.stringify(recordedLaunches[1]?.headless) + ' | fix: ensureBrowserSession in src/services/browser/session/launch.ts must launch headless by default')
+      check('headless default: ensureBrowserSession() passes headless: true by default', recordedLaunches.length === 2 && recordedLaunches[1]!.headless === true, JSON.stringify(recordedLaunches[1]?.headless) + ' | fix: ensureBrowserSession in src/integrations/browser/session/launch.ts must launch headless by default')
       const rotatedFromOriginless = await ensureBrowserSession(OWNER_VIS, { origin: 'http://127.0.0.1:61001' })
       check(
         'an originless session rotates to the origin persistent profile when ensureBrowserSession({ origin }) is called',
@@ -689,7 +689,7 @@ try {
         bareEn.languages[0] === 'en-US' &&
         bareEn.languages[1] === 'en' &&
         bareEn.acceptLanguage === 'en-US,en',
-      JSON.stringify(bareEn) + ' | fix: resolveHostLanguages in src/services/browser/session/stealth.ts must turn en into en-US with languages en-US and en',
+      JSON.stringify(bareEn) + ' | fix: resolveHostLanguages in src/integrations/browser/session/stealth.ts must turn en into en-US with languages en-US and en',
     )
     check(
       'Linux arm64 resolves navigatorPlatform to Linux aarch64 and x64 to Linux x86_64',

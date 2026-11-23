@@ -11,7 +11,7 @@ const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 
 let failures = 0
-const exitFailHint = 'change src/components/SurfaceExitChord.tsx (SurfaceExitChord arms on the first ctrl+c and calls gracefulShutdown on the second inside EXIT_CHORD_WINDOW_MS; SurfaceExitChordNotice paints the bottom-left notice) or the notice words in src/components/PromptInput/ExitChordNotice.tsx; leg G is the main Chat; the captured screens are the *-mark-*.txt files in EXIT_EVERYWHERE_CAPTURE_DIR'
+const exitFailHint = 'change src/screen/routes/SurfaceExitChord.tsx (SurfaceExitChord arms on the first ctrl+c and calls gracefulShutdown on the second inside EXIT_CHORD_WINDOW_MS; SurfaceExitChordNotice paints the bottom-left notice) or the notice words in src/screen/composer/ExitChordNotice.tsx; leg G is the main Chat; the captured screens are the *-mark-*.txt files in EXIT_EVERYWHERE_CAPTURE_DIR'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? detail : detail ? `${detail}; ${exitFailHint}` : exitFailHint

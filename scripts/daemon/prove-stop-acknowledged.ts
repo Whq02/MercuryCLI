@@ -50,9 +50,9 @@ process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(configDir, [work])
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const { concourseRecordState } = await import('../../src/daemon/concourseWorkers.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
+const { concourseRecordState } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 const LONG_THINK_ASK = 'think long please'
 
@@ -156,7 +156,7 @@ try {
     model: 'claude-opus-5',
     effort: 'high',
   } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; error?: string }
-  check('the session dispatched onto a real runner', dispatched.ok === true && typeof dispatched.sessionId === 'string', JSON.stringify(dispatched) + ' | the concourseDispatch op in src/daemon/concourseDispatch.ts must start a runner and return its sessionId')
+  check('the session dispatched onto a real runner', dispatched.ok === true && typeof dispatched.sessionId === 'string', JSON.stringify(dispatched) + ' | the concourseDispatch op in src/daemon/concourse-workers/concourseDispatch.ts must start a runner and return its sessionId')
   const sid = dispatched.sessionId ?? ''
   check('the runner opened the never-ending thinking phase on the loopback', await untilAsync(() => wire().some(c => c.kind === 'anthropic-open'), 60_000), JSON.stringify(wire().map(c => c.kind)) + ' | the runner never opened a model request to the fixture server (scripts/journey/switch-fixture-server.ts); see daemon.log in the scratch folder')
   const before = readRec(sid)
@@ -165,17 +165,17 @@ try {
   console.log('\nS1 the stop is applied as a request on a live runner')
   const stopAt = Date.now()
   const reply = (await daemonControlRpc({ op: 'sessionControl', action: 'stop', sessionId: sid, by: 'operator' } as never)) as { ok?: boolean; outcome?: string; detail?: string; error?: string }
-  check("the verb answered applied with the honest detail ('stop sent … reads stopped once it is gone')", reply.ok === true && reply.outcome === 'applied' && /stop sent/.test(reply.detail ?? ''), JSON.stringify(reply) + ' | the stop arm of the sessionControl verb in src/daemon/run/concourseControl.ts must answer applied with the stop sent detail while the pid is live (stopConcourseSession in src/daemon/concourseWorkers/stop.ts)')
+  check("the verb answered applied with the honest detail ('stop sent … reads stopped once it is gone')", reply.ok === true && reply.outcome === 'applied' && /stop sent/.test(reply.detail ?? ''), JSON.stringify(reply) + ' | the stop arm of the sessionControl verb in src/daemon/run/concourseControl.ts must answer applied with the stop sent detail while the pid is live (stopConcourseSession in src/daemon/concourse-workers/stop.ts)')
   const justAfter = readRec(sid)
-  check('right after the verb the record carries the stop REQUEST', justAfter?.stopRequestedAt !== undefined || justAfter?.stoppedAt !== undefined, JSON.stringify(justAfter) + ' | stopConcourseSession in src/daemon/concourseWorkers/stop.ts must stamp stopRequestedAt on a live runner')
-  check('the record never says stopped over a live pid', justAfter !== undefined && (justAfter.stoppedAt === undefined || !alive(justAfter.pid)), JSON.stringify({ stoppedAt: justAfter?.stoppedAt, pid: justAfter?.pid, alive: alive(justAfter?.pid) }) + ' | stopConcourseSession in src/daemon/concourseWorkers/stop.ts must stamp stoppedAt only when the pid is gone; a live runner gets stopRequestedAt')
+  check('right after the verb the record carries the stop REQUEST', justAfter?.stopRequestedAt !== undefined || justAfter?.stoppedAt !== undefined, JSON.stringify(justAfter) + ' | stopConcourseSession in src/daemon/concourse-workers/stop.ts must stamp stopRequestedAt on a live runner')
+  check('the record never says stopped over a live pid', justAfter !== undefined && (justAfter.stoppedAt === undefined || !alive(justAfter.pid)), JSON.stringify({ stoppedAt: justAfter?.stoppedAt, pid: justAfter?.pid, alive: alive(justAfter?.pid) }) + ' | stopConcourseSession in src/daemon/concourse-workers/stop.ts must stamp stoppedAt only when the pid is gone; a live runner gets stopRequestedAt')
 
   console.log('\nS3 the acknowledgement lands with the runner\'s exit')
   const acked = await untilAsync(() => readRec(sid)?.stoppedAt !== undefined, 15_000)
   const after = readRec(sid)
   const ackAlive = alive(after?.pid)
-  check('stoppedAt landed (the runner\'s exit acknowledged the stop)', acked && after?.stoppedAt !== undefined, JSON.stringify(after) + ' | completeRequestedStop in src/daemon/concourseWorkers/stop.ts (and the reconcile in src/daemon/concourseWorkers/settle.ts) must stamp stoppedAt once the runner has exited')
-  check('at the acknowledgement the pid is dead — nothing listens in fact', acked && !ackAlive, JSON.stringify({ pid: after?.pid, alive: ackAlive }) + ' | stoppedAt was stamped while the runner pid still lives; stampStopped must only be reached after workerPidAlive is false in src/daemon/concourseWorkers/stop.ts')
+  check('stoppedAt landed (the runner\'s exit acknowledged the stop)', acked && after?.stoppedAt !== undefined, JSON.stringify(after) + ' | completeRequestedStop in src/daemon/concourse-workers/stop.ts (and the reconcile in src/daemon/concourse-workers/settle.ts) must stamp stoppedAt once the runner has exited')
+  check('at the acknowledgement the pid is dead — nothing listens in fact', acked && !ackAlive, JSON.stringify({ pid: after?.pid, alive: ackAlive }) + ' | stoppedAt was stamped while the runner pid still lives; stampStopped must only be reached after workerPidAlive is false in src/daemon/concourse-workers/stop.ts')
   check('the request stamps retired with the acknowledgement; the actor is the operator', after?.stopRequestedAt === undefined && after?.stoppedBy === 'operator', JSON.stringify(after) + ' | stampStopped in src/daemon/concourseWorkers/ must delete stopRequestedAt and keep stopRequestedBy as stoppedBy')
   const listed = (await daemonControlRpc({ op: 'list' } as never)) as { ok?: boolean; jobs?: Array<{ short: string; outcome?: string; busy?: boolean }> }
   const row = listed.jobs?.find(j => j.short === after?.runnerId)
@@ -184,7 +184,7 @@ try {
   console.log('\nS2 the runner\'s turn ended first')
   const closed = wire().find(c => c.kind === 'anthropic-closed')
   check('the fixture saw the stream drop (the client aborted it)', closed !== undefined && closed.why === 'client-dropped', JSON.stringify(closed ?? null) + ' | the hard interrupt sent from the stop arm in src/daemon/run/concourseControl.ts must abort the runner model stream before the kill')
-  check('the drop landed no later than the record said stopped', closed !== undefined && after?.stoppedAt !== undefined && closed.at <= after.stoppedAt, JSON.stringify({ closed: closed?.at, stoppedAt: after?.stoppedAt, stopAt }) + ' | stoppedAt must be stamped only after the runner has exited (stopConcourseSession / completeRequestedStop in src/daemon/concourseWorkers/stop.ts)')
+  check('the drop landed no later than the record said stopped', closed !== undefined && after?.stoppedAt !== undefined && closed.at <= after.stoppedAt, JSON.stringify({ closed: closed?.at, stoppedAt: after?.stoppedAt, stopAt }) + ' | stoppedAt must be stamped only after the runner has exited (stopConcourseSession / completeRequestedStop in src/daemon/concourse-workers/stop.ts)')
   const transcript = join(paths.getProjectDir(work), `${sid}.jsonl`)
   const rows = existsSync(transcript) ? readFileSync(transcript, 'utf8') : ''
   check('the transcript carries the interruption row (the hard interrupt reached the runner before the kill)', rows.includes('Request interrupted by user'), transcript + ' | the stop arm in src/daemon/run/concourseControl.ts sends the hard interrupt request before stopConcourseSession kills; the runner must write the interruption row first')
@@ -197,8 +197,8 @@ try {
     delete preAck.lastTurnSettledAt
     const pre = concourseRecordState(preAck as never, { needsYou: false, alive: true })
     const post = concourseRecordState(after as never, { needsYou: false, alive: false })
-    check("the ladder reads a stop on its way over a live runner as 'working' (still a live session, still counted)", pre === 'working', pre + ' | fix concourseRecordState in src/daemon/concourseWorkers/recordState.ts so an alive record without stoppedAt reads working')
-    check("the ladder reads the acknowledged record as 'stopped' (the same stamp the count drops)", post === 'stopped', post + ' | fix concourseRecordState in src/daemon/concourseWorkers/recordState.ts so a record with stoppedAt reads stopped')
+    check("the ladder reads a stop on its way over a live runner as 'working' (still a live session, still counted)", pre === 'working', pre + ' | fix concourseRecordState in src/daemon/concourse-workers/recordState.ts so an alive record without stoppedAt reads working')
+    check("the ladder reads the acknowledged record as 'stopped' (the same stamp the count drops)", post === 'stopped', post + ' | fix concourseRecordState in src/daemon/concourse-workers/recordState.ts so a record with stoppedAt reads stopped')
   } else {
     check('the ladder could be read on both records', false, 'readRec found no concourse-workers.json record for the session before or after the stop; see the earlier failures and daemon.log')
   }

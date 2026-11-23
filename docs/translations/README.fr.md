@@ -374,7 +374,7 @@ Les commandes disponibles comprennent :
 - **Apollo Mode**, l'entretien de spécification : répondez aux questions de l'agent pour compléter la spécification qu'il utilisera pour construire un prototype. Voir [docs/APOLLO-MODE.md](../APOLLO-MODE.md).
 - **Récupération.** Publication atomique, opérations journalisées et réconciliation au démarrage. Voir [docs/DURABILITY.md](../DURABILITY.md).
 
-Les options d'exécution sont définies dans `src/substrate/flagRegistry.ts`, exposées comme réglages `MERCURY_*` et rendues à la demande. La compatibilité des intégrations est documentée dans [docs/COMPATIBILITY.md](../COMPATIBILITY.md). L'index complet de la documentation est [docs/README.md](../README.md).
+Les options d'exécution sont définies dans `src/platform/substrate/flagRegistry.ts`, exposées comme réglages `MERCURY_*` et rendues à la demande. La compatibilité des intégrations est documentée dans [docs/COMPATIBILITY.md](../COMPATIBILITY.md). L'index complet de la documentation est [docs/README.md](../README.md).
 
 ## Commandes slash
 

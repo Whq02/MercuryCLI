@@ -18,7 +18,7 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
 
 console.log('B — row controls i/p/m: manifest, selection-aware legend, receipts on the row')
 {
-  const manifest = await import('../../src/components/concourse/controlManifest.ts')
+  const manifest = await import('../../src/screen/concourse/controlManifest.ts')
   const byId = (id: string) => manifest.CONCOURSE_CONTROLS.find(c => c.id === id)
   check(
     'B1 the three controls are declared list-region controls with their keys and the row-control receipt',
@@ -29,7 +29,7 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
         c => c?.region === 'list' && c.receipt === 'row-control',
       ),
     '',
-    'fix the board:interrupt, board:pause-resume and board:set-model entries of CONCOURSE_CONTROLS in src/components/concourse/controlManifest.ts (keys, region list, receipt row-control)',
+    'fix the board:interrupt, board:pause-resume and board:set-model entries of CONCOURSE_CONTROLS in src/screen/concourse/controlManifest.ts (keys, region list, receipt row-control)',
   )
   const live = manifest.regionKeysFor('list', { newSession: true, selection: 'live' })
   const paused = manifest.regionKeysFor('list', { newSession: true, selection: 'paused' })
@@ -42,15 +42,15 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
       live.some(k => k.keys === 'p' && k.label === 'pause') &&
       live.some(k => k.keys === 'm' && k.label === 'model'),
     '',
-    'fix the live case of regionKeysFor in src/components/concourse/controlManifest.ts',
+    'fix the live case of regionKeysFor in src/screen/concourse/controlManifest.ts',
   )
-  check('B2 a PAUSED selection flips p to resume (the toggle says its live half)', paused.some(k => k.keys === 'p' && k.label === 'resume'), '', 'fix the paused selection in regionKeysFor (p must read resume) in src/components/concourse/controlManifest.ts')
+  check('B2 a PAUSED selection flips p to resume (the toggle says its live half)', paused.some(k => k.keys === 'p' && k.label === 'resume'), '', 'fix the paused selection in regionKeysFor (p must read resume) in src/screen/concourse/controlManifest.ts')
   check(
     "B2 a PARKED selection dims to the reason — 'parked · ↵ brings it back' — and carries no i/p/m",
     parked.some(k => `${k.keys} ${k.label}` === 'parked · ↵ brings it back') &&
       parked.every(k => k.keys !== 'i' && k.keys !== 'p' && k.keys !== 'm'),
     '',
-    'fix the parked case of regionKeysFor in src/components/concourse/controlManifest.ts',
+    'fix the parked case of regionKeysFor in src/screen/concourse/controlManifest.ts',
   )
   check(
     "B2 a QUEUED selection keeps m as 'message queued' and the close chord as 'withdraw' — never model, never stop",
@@ -58,14 +58,14 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
       queued.some(k => k.keys === '⌃x ⌃x' && k.label === 'withdraw') &&
       queued.every(k => k.keys !== 'i' && k.keys !== 'p' && k.label !== 'model' && k.label !== 'stop'),
     '',
-    'fix the queued case of regionKeysFor in src/components/concourse/controlManifest.ts',
+    'fix the queued case of regionKeysFor in src/screen/concourse/controlManifest.ts',
   )
-  check('B2 a DOOR selection says ↵ open and nothing session-shaped', door.some(k => k.keys === '↵' && k.label === 'open') && door.every(k => k.keys !== 'i' && k.keys !== 'p' && k.keys !== 'm' && k.keys !== '⌃x ⌃x' && k.keys !== 'x'), '', 'fix the door case of regionKeysFor in src/components/concourse/controlManifest.ts')
+  check('B2 a DOOR selection says ↵ open and nothing session-shaped', door.some(k => k.keys === '↵' && k.label === 'open') && door.every(k => k.keys !== 'i' && k.keys !== 'p' && k.keys !== 'm' && k.keys !== '⌃x ⌃x' && k.keys !== 'x'), '', 'fix the door case of regionKeysFor in src/screen/concourse/controlManifest.ts')
   check(
     'B2 WITHOUT a selection the resolver answers the static census exactly (the older pins’ baseline)',
     JSON.stringify(manifest.regionKeysFor('list', { newSession: true })) === JSON.stringify(manifest.CONCOURSE_REGION_KEYS.list),
     '',
-    'regionKeysFor with no selection must return CONCOURSE_REGION_KEYS.list unchanged; see src/components/concourse/controlManifest.ts',
+    'regionKeysFor with no selection must return CONCOURSE_REGION_KEYS.list unchanged; see src/screen/concourse/controlManifest.ts',
   )
   const cls = manifest.boardSelectionClassOf
   check(
@@ -82,7 +82,7 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
       cls({ sessionId: 's1', state: 'needs-you' }) === 'live' &&
       cls({ sessionId: 's1', state: 'ready-to-review' }) === 'live',
     '',
-    'fix boardSelectionClassOf in src/components/concourse/controlManifest.ts so each state maps to the class named in the label',
+    'fix boardSelectionClassOf in src/screen/concourse/controlManifest.ts so each state maps to the class named in the label',
   )
   check(
     "B9 the legend reads the line as the empty board's selection (no row under the cursor ⇒ n and the m phrase), never a session row's verbs",
@@ -90,12 +90,12 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
       manifest.regionKeysFor('list', { newSession: true, selection: 'none', modelDefault: true }).some(k => k.keys === 'm' && k.label === 'to select model-default') &&
       manifest.regionKeysFor('list', { newSession: true, selection: 'none', modelDefault: true }).every(k => k.keys !== 'i' && k.keys !== 'p' && k.keys !== 'e'),
     '',
-    'fix the none case of regionKeysFor and boardSelectionClassOf in src/components/concourse/controlManifest.ts',
+    'fix the none case of regionKeysFor and boardSelectionClassOf in src/screen/concourse/controlManifest.ts',
   )
   const manifest2 = manifest.regionKeysFor('list', { newSession: true, selection: 'live' })
-  check('B2 a LIVE selection prints e effort beside m model (the WARMRUN rider’s key-map row)', manifest2.some(k => k.keys === 'e' && k.label === 'effort'), '', 'add the e effort key to the live case of regionKeysFor in src/components/concourse/controlManifest.ts')
-  const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  check('B2 a LIVE selection prints e effort beside m model (the WARMRUN rider’s key-map row)', manifest2.some(k => k.keys === 'e' && k.label === 'effort'), '', 'add the e effort key to the live case of regionKeysFor in src/screen/concourse/controlManifest.ts')
+  const { publishSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
   const plane = mkdtempSync(join(tmpdir(), 'board-controls-plane-'))
   const planeBefore = process.env.MERCURY_DAEMON_DIR
   process.env.MERCURY_DAEMON_DIR = plane
@@ -116,7 +116,7 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
     'B7 the grey "model switched" note stays the connector’s own settle paint (the ruled shape — not rebuilt here)',
     settled.length === 1 && settled[0]!.boundary === 'turn-boundary' && settled[0]!.resolution === 'applied' && settled[0]!.applied === 'fable',
     `a hosted connector whose facts feed reads a settlement stamp paints ${JSON.stringify(settled)}: its facts read mints one model_transition row, applied at the turn boundary, naming the model as picked`,
-    'the settle note comes from the DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts reading modelSettled published by seatProjections.ts',
+    'the settle note comes from the DaemonSessionConnector in src/engine/connector/daemonConnector.ts reading modelSettled published by seatProjections.ts',
   )
 }
 
@@ -125,7 +125,7 @@ console.log('C — the L17 cut: a session ask routes INTO the chat; no board key
 console.log('D — permission ids: stable from birth to answer, across repaint/re-subscribe')
 {
   const recDir = mkdtempSync(join(tmpdir(), 'board-controls-recs-'))
-  const o = await import('../../src/services/crew/obligations.ts')
+  const o = await import('../../src/crew/crewmates/obligations.ts')
   const first = await o.upsertObligation({
     ref: 'permission:req-stable-1',
     sessionId: 'sess-stable',
@@ -140,7 +140,7 @@ console.log('D — permission ids: stable from birth to answer, across repaint/r
     owner: 'operator',
     scope: 'switchboard',
   })
-  check('D1 one OPEN row per ref: a re-raise answers the SAME obligationId', first.obligationId === again.obligationId, `${first.obligationId} vs ${again.obligationId}`, 'upsertObligation in src/services/crew/obligations.ts must reuse the open row with the same ref')
+  check('D1 one OPEN row per ref: a re-raise answers the SAME obligationId', first.obligationId === again.obligationId, `${first.obligationId} vs ${again.obligationId}`, 'upsertObligation in src/crew/crewmates/obligations.ts must reuse the open row with the same ref')
   const readA = await o.openObligations({ scope: 'switchboard' })
   const readB = await o.openObligations({ scope: 'switchboard' })
   const rowA = readA.find(x => x.ref === 'permission:req-stable-1')
@@ -153,10 +153,10 @@ console.log('D — permission ids: stable from birth to answer, across repaint/r
       rowA.ref === rowB.ref &&
       rowA.ref?.slice('permission:'.length) === 'req-stable-1',
     '',
-    'openObligations in src/services/crew/obligations.ts must return the same obligationId and ref on every read',
+    'openObligations in src/crew/crewmates/obligations.ts must return the same obligationId and ref on every read',
   )
-  const asks = await import('../../src/daemon/permissionAsks.ts')
-  const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+  const asks = await import('../../src/daemon/session-seat/permissionAsks.ts')
+  const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const sid = '550e8400-e29b-41d4-a716-446655440077'
   updateConcourseWorkers(ws => {
     ws['concourse-w1'] = {
@@ -167,7 +167,7 @@ console.log('D — permission ids: stable from birth to answer, across repaint/r
   }, recDir)
   const held = asks.holdWorkerAsk('concourse-w1', { kind: 'tool', tool_use_id: 'tu-stable-2', tool_name: 'Bash', input: { command: 'echo stable' } }, recDir, 60_000, () => 'attached')
   const parkedIds = asks.listPendingPermissionAsks().filter(a => a.workerId === 'concourse-w1').map(a => a.requestId)
-  check('D3 one held request parks exactly ONE ask under a daemon-minted id — nothing forks', parkedIds.length === 1 && /^[0-9a-f-]{36}$/.test(parkedIds[0] ?? ''), JSON.stringify(parkedIds), 'holdWorkerAsk in src/daemon/permissionAsks.ts must park one ask with a uuid requestId')
+  check('D3 one held request parks exactly ONE ask under a daemon-minted id — nothing forks', parkedIds.length === 1 && /^[0-9a-f-]{36}$/.test(parkedIds[0] ?? ''), JSON.stringify(parkedIds), 'holdWorkerAsk in src/daemon/session-seat/permissionAsks.ts must park one ask with a uuid requestId')
   const stableId = parkedIds[0] ?? ''
   const answered = asks.answerPermissionAsk(stableId, true, 'operator')
   const landed = await Promise.race([held.answer, new Promise<null>(r => setTimeout(() => r(null), 1_000))])
@@ -175,22 +175,22 @@ console.log('D — permission ids: stable from birth to answer, across repaint/r
     "D4 the answer keys by the id ALONE and lands on THE ask (the runner's request resolves allow)",
     answered.outcome === 'applied' && landed !== null && landed.outcome === 'allow',
     JSON.stringify({ answered, landed }),
-    'answerPermissionAsk in src/daemon/permissionAsks.ts must apply the answer by requestId and resolve the held ask allow',
+    'answerPermissionAsk in src/daemon/session-seat/permissionAsks.ts must apply the answer by requestId and resolve the held ask allow',
   )
   check(
     'D4 a second answer on the settled id REFUSES — a stale click can never re-target another ask',
     asks.answerPermissionAsk(stableId, true, 'operator').outcome === 'refused',
     '',
-    'answerPermissionAsk in src/daemon/permissionAsks.ts must refuse an id that is already settled',
+    'answerPermissionAsk in src/daemon/session-seat/permissionAsks.ts must refuse an id that is already settled',
   )
   const g1 = asks.mintGitInitAsk('/tmp/board-controls-folder')
   const g2 = asks.mintGitInitAsk('/tmp/board-controls-folder')
-  check('D5 the git-init twin: the folder mints ONE deterministic id — a re-mint converges', g1.requestId === g2.requestId && g1.requestId.startsWith('git-init:'), '', 'mintGitInitAsk in src/daemon/permissionAsks.ts must mint the same git-init: id for the same folder')
+  check('D5 the git-init twin: the folder mints ONE deterministic id — a re-mint converges', g1.requestId === g2.requestId && g1.requestId.startsWith('git-init:'), '', 'mintGitInitAsk in src/daemon/session-seat/permissionAsks.ts must mint the same git-init: id for the same folder')
 }
 
 console.log('E — the seats cell: demand over the reading wears the warning ink; the strip paints context, receipt, hint in that order')
 {
-  const strips = await import('../../src/components/concourse/ConcourseStrips.tsx')
+  const strips = await import('../../src/screen/concourse/ConcourseStrips.tsx')
   const overSnap = {
     counts: { live: 4 },
     groups: [
@@ -205,7 +205,7 @@ console.log('E — the seats cell: demand over the reading wears the warning ink
       },
     ],
   } as never
-  check('E1 the demand fold counts live + seat-queued (a repo-held wait is not seat demand)', strips.seatDemandOf(overSnap) === 5, '', 'fix seatDemandOf in src/components/concourse/ConcourseStrips.tsx (live plus seat-queued, not repo-held)')
+  check('E1 the demand fold counts live + seat-queued (a repo-held wait is not seat demand)', strips.seatDemandOf(overSnap) === 5, '', 'fix seatDemandOf in src/screen/concourse/ConcourseStrips.tsx (live plus seat-queued, not repo-held)')
   check(
     "E1 the chip reads `5/4` while over (the warning ink carries it, no words) and the plain live/reading when the demand fits",
     strips.seatsCellText(5, 4, 4).text === '5/4' &&
@@ -213,7 +213,7 @@ console.log('E — the seats cell: demand over the reading wears the warning ink
       strips.seatsCellText(2, 2, 4).text === '2/4' &&
       strips.seatsCellText(2, 2, 4).over === false,
     '',
-    'fix seatsCellText in src/components/concourse/ConcourseStrips.tsx',
+    'fix seatsCellText in src/screen/concourse/ConcourseStrips.tsx',
   )
 }
 
@@ -222,8 +222,8 @@ console.log('F — the ground note: composed at dispatch from the REAL isolation
 console.log('G — the git-offer No leg: deny proceeds lawfully; the copy tells each truth')
 {
   const { mkdirSync: mkDir, writeFileSync: writeF } = await import('node:fs')
-  const d = await import('../../src/daemon/concourseDispatch.ts')
-  const sup = await import('../../src/daemon/concourseWorkers.ts')
+  const d = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
+  const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const denyDir = mkdtempSync(join(tmpdir(), 'board-controls-deny-'))
   const folder = mkdtempSync(join(tmpdir(), 'board-controls-plain-'))
   const canonical = sup.canonicalWorkspaceId(folder)
@@ -252,8 +252,8 @@ console.log('G — the git-offer No leg: deny proceeds lawfully; the copy tells 
       },
     }),
   )
-  check('G1 a claim-free folder frees exactly the OLDEST defaulted launch — one row, alone by design', JSON.stringify(d.denyProceedLaunchesFor(folder, denyDir).map(r => r.clientMessageId)) === JSON.stringify(['cm-default-old']), '', 'fix denyProceedLaunchesFor in src/daemon/concourseDispatch.ts')
-  check('G1 an explicit worktree pick is never overridden to exclusive — it is not in the gate', d.denyProceedLaunchesFor(folder, denyDir).every(r => r.clientMessageId !== 'cm-explicit'), '', 'denyProceedLaunchesFor in src/daemon/concourseDispatch.ts must skip rows with an explicit isolation')
+  check('G1 a claim-free folder frees exactly the OLDEST defaulted launch — one row, alone by design', JSON.stringify(d.denyProceedLaunchesFor(folder, denyDir).map(r => r.clientMessageId)) === JSON.stringify(['cm-default-old']), '', 'fix denyProceedLaunchesFor in src/daemon/concourse-workers/concourseDispatch.ts')
+  check('G1 an explicit worktree pick is never overridden to exclusive — it is not in the gate', d.denyProceedLaunchesFor(folder, denyDir).every(r => r.clientMessageId !== 'cm-explicit'), '', 'denyProceedLaunchesFor in src/daemon/concourse-workers/concourseDispatch.ts must skip rows with an explicit isolation')
   const calls: Array<Record<string, unknown>> = []
   const stub = (async (req: Record<string, unknown>) => {
     calls.push(req)
@@ -264,7 +264,7 @@ console.log('G — the git-offer No leg: deny proceeds lawfully; the copy tells 
     'G2 the replay is VERBATIM — one call, the same id, and NO isolation injected (the defaulted fold admits it exclusive)',
     calls.length === 1 && calls[0]?.clientMessageId === 'cm-default-old' && !('isolation' in (calls[0] ?? {})),
     '',
-    'fix replayDenyProceedDispatches in src/daemon/concourseDispatch.ts to replay one call without adding isolation',
+    'fix replayDenyProceedDispatches in src/daemon/concourse-workers/concourseDispatch.ts to replay one call without adding isolation',
   )
   check('G2 the claim fold: a live record on the folder gates everything off', (() => {
     sup.updateConcourseWorkers(ws => {
@@ -279,29 +279,29 @@ console.log('G — the git-offer No leg: deny proceeds lawfully; the copy tells 
       if (w) w.parkedAt = Date.now()
     }, denyDir)
     return gated && d.folderClaimHeld(folder, denyDir) === false
-  })(), '', 'fix folderClaimHeld and denyProceedLaunchesFor in src/daemon/concourseDispatch.ts')
-  const asks = await import('../../src/daemon/permissionAsks.ts')
+  })(), '', 'fix folderClaimHeld and denyProceedLaunchesFor in src/daemon/concourse-workers/concourseDispatch.ts')
+  const asks = await import('../../src/daemon/session-seat/permissionAsks.ts')
   const minted = asks.mintGitInitAsk(folder)
   const denied = asks.answerPermissionAsk(minted.requestId, false, 'operator', {
     onDenyProceed: () => [{ clientMessageId: 'cm-default-old', title: 'fix the parser' }],
   })
-  check("G3 the deny receipt names what starts — 'in the folder as it is, alone'", denied.outcome === 'applied' && (denied.detail ?? '').includes('starting in the folder as it is, alone: fix the parser'), '', 'fix the deny receipt text of answerPermissionAsk in src/daemon/permissionAsks.ts')
+  check("G3 the deny receipt names what starts — 'in the folder as it is, alone'", denied.outcome === 'applied' && (denied.detail ?? '').includes('starting in the folder as it is, alone: fix the parser'), '', 'fix the deny receipt text of answerPermissionAsk in src/daemon/session-seat/permissionAsks.ts')
   const minted2 = asks.mintGitInitAsk(folder)
   const denied2 = asks.answerPermissionAsk(minted2.requestId, false, 'operator', { onDenyProceed: () => [] })
-  check('G3 a held folder speaks the queued truth', denied2.outcome === 'applied' && (denied2.detail ?? '').includes('stays queued until the folder frees or git lands'), '', 'fix the held-folder receipt text of answerPermissionAsk in src/daemon/permissionAsks.ts')
-  const card = await import('../../src/components/concourse/GitOfferCard.tsx')
+  check('G3 a held folder speaks the queued truth', denied2.outcome === 'applied' && (denied2.detail ?? '').includes('stays queued until the folder frees or git lands'), '', 'fix the held-folder receipt text of answerPermissionAsk in src/daemon/session-seat/permissionAsks.ts')
+  const card = await import('../../src/screen/concourse/GitOfferCard.tsx')
   check(
     'G4 the No label splits by the folder state (short enough for the wide pane row)',
     card.gitOfferNoLabel(false) === 'No — run here as it is, alone (esc)' && card.gitOfferNoLabel(true) === 'No, keep the folder as it is (esc)',
     '',
-    'fix gitOfferNoLabel in src/components/concourse/GitOfferCard.tsx',
+    'fix gitOfferNoLabel in src/screen/concourse/GitOfferCard.tsx',
   )
   check(
     "G4 the description tells each leg's whole ruled truth",
     card.gitOfferDescription('/x', false).includes('runs the session in this folder as it is, alone — no isolated copy is made') &&
       card.gitOfferDescription('/x', true).includes('stays queued until the folder frees or git lands'),
     '',
-    'fix gitOfferDescription in src/components/concourse/GitOfferCard.tsx',
+    'fix gitOfferDescription in src/screen/concourse/GitOfferCard.tsx',
   )
   const heldSnap = {
     groups: [{ id: 'working', label: 'W', rows: [{ sessionId: 's', state: 'working', workspaceDir: '/x/plain' }] }],
@@ -316,7 +316,7 @@ console.log('G — the git-offer No leg: deny proceeds lawfully; the copy tells 
       card.gitOfferFolderHeld(parkedSnap, '/x/plain') === false &&
       card.gitOfferFolderHeld(elsewhereSnap, '/x/plain') === true,
     '',
-    'fix gitOfferFolderHeld in src/components/concourse/GitOfferCard.tsx to mirror folderClaimHeld',
+    'fix gitOfferFolderHeld in src/screen/concourse/GitOfferCard.tsx to mirror folderClaimHeld',
   )
 }
 

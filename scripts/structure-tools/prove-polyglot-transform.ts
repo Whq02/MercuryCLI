@@ -4,10 +4,10 @@ import { join } from 'node:path'
 import { armEnvironment, check, drive, enterRoot, finish, makeContext, REPO } from '../ast-tools/lib/harness.ts'
 
 const env = armEnvironment()
-const { AstEditTool } = await import('../../src/tools/AstEditTool/AstEditTool.ts')
-const { AstSearchTool } = await import('../../src/tools/AstSearchTool/AstSearchTool.ts')
-const { resolveAstScope, isAstRefusal, searchAstPattern } = await import('../../src/services/structure/astPatterns.ts')
-const { loadGrammarEngine, parsePolyglot, languageByName } = await import('../../src/utils/structure/grammarFacility.ts')
+const { AstEditTool } = await import('../../src/tools/ast-edit/AstEditTool.ts')
+const { AstSearchTool } = await import('../../src/tools/ast-search/AstSearchTool.ts')
+const { resolveAstScope, isAstRefusal, searchAstPattern } = await import('../../src/tools/engines/structure/astPatterns.ts')
+const { loadGrammarEngine, parsePolyglot, languageByName } = await import('../../src/platform/grammars/grammarFacility.ts')
 const root = mkdtempSync(join(tmpdir(), 'ast-transform-'))
 try {
   await enterRoot(root)

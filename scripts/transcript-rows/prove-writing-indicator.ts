@@ -3,11 +3,11 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const { liveTurnStateOf } = await import('../../src/services/resume/conversationRecovery.ts')
+const { liveTurnStateOf } = await import('../../src/sessions/resume/conversationRecovery.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' | W1: change liveTurnStateOf in src/services/resume/conversationRecovery.ts; W2: change live() of DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts; W3 and W4: change what the Chat hands the spinner (its mode) and the hold row (the response length ref)' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' | W1: change liveTurnStateOf in src/sessions/resume/conversationRecovery.ts; W2: change live() of DaemonSessionConnector in src/engine/connector/daemonConnector.ts; W3 and W4: change what the Chat hands the spinner (its mode) and the hold row (the response length ref)' : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
@@ -76,8 +76,8 @@ section('W2 the connector busy-union never claims writing for a fold-idle transc
   const planeBefore = process.env.MERCURY_DAEMON_DIR
   process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
   mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-  const { publishSessionFacts, publishSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+  const { publishSessionFacts, publishSessionTail } = await import('../../src/engine/connector/seatProjections.ts')
   const sessionId = 'writing-indicator'
   let factsFeedReads: () => void = () => {}
   const seat = new DaemonSessionConnector({ sessionId, runnerId: 'runner-1', title: 'the chat', projectLabel: 'proof', workspaceId: scratch, home: scratch }, {
@@ -144,7 +144,7 @@ let heldFigure: number | undefined
 section('W3 the Chat hands the spinner all three live phases')
 {
   const { openStatusPart } = await import('../ui/chatScenarios.ts')
-  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
   const status = await openStatusPart('writing-indicator-status', { keepHome: true })
   const modeOf = async (phase: 'tool' | 'thinking' | 'responding'): Promise<string> => {
     await status.plant({ seatLive: { ...IDLE_LIVE, inFlight: true, phase } })

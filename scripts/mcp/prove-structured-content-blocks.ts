@@ -10,14 +10,14 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { transformMCPResult } = await import(join(SRC, 'services/mcp/client.ts'))
+const { transformMCPResult } = await import(join(SRC, 'integrations/mcp/client.ts'))
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix transformMCPResult in src/services/mcp/client/results.ts so the content blocks beside structuredContent survive` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix transformMCPResult in src/integrations/mcp/client/results.ts so the content blocks beside structuredContent survive` : ''}`)
 }
 type Block = { type?: string; text?: string; source?: { data?: string } }
 const texts = (content: unknown): string[] => (Array.isArray(content) ? (content as Block[]).filter(b => b.type === 'text').map(b => b.text ?? '') : [])

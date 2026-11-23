@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/mnemeContradiction.ts src/mneme/mnemeText.ts src/mneme/mnemeStemmer.ts src/mneme/memoryVerbs.ts src/constants/tools/memory.ts
+// gate-watch: src/sessions/mneme/mnemeContradiction.ts src/sessions/mneme/mnemeText.ts src/sessions/mneme/mnemeStemmer.ts src/sessions/mneme/memoryVerbs.ts src/tools/kit/names/memory.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0', PACKAGE_URL: 'https://example.invalid/mercury' }
 import { cpSync, existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -14,7 +14,7 @@ for (const key of ['MERCURY_HOME', 'MERCURY_BARE', 'TYPESAFE_API_KEY', 'NODE_ENV
 
 let failures = 0
 let checks = 0
-const FIX_HINT = 'change src/mneme/mnemeContradiction.ts (comparableLength, restates, contradictionBetween, conflictReason, conflictNotice, recordEntries) for guard checks, or retainItems in src/mneme/memoryVerbs.ts for the re-retain census'
+const FIX_HINT = 'change src/sessions/mneme/mnemeContradiction.ts (comparableLength, restates, contradictionBetween, conflictReason, conflictNotice, recordEntries) for guard checks, or retainItems in src/sessions/mneme/memoryVerbs.ts for the re-retain census'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -26,18 +26,18 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 writeFileSync(join(HOME, '.mercury.json'), JSON.stringify({ hasCompletedOnboarding: true, numStartups: 3 }))
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const guard = await import('../../src/mneme/mnemeContradiction.ts')
+const guard = await import('../../src/sessions/mneme/mnemeContradiction.ts')
 const { contradictionBetween, contradictionCandidates, comparableLength, restates, conflictReason, conflictNotice, recordEntries, COMPARABLE_LENGTH_RATIO } = guard
-const { retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
-const { appendObservation, pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
-const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { listTopicDocs, listArchiveDocs } = await import('../../src/mneme/mnemeLibrary.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { pinFact, readPins } = await import('../../src/mneme/mnemeUsage.ts')
-const { USER_ASKED_RULE_ROAD } = await import('../../src/mneme/mnemeCorrect.ts')
-const { RETAIN_PROMPT } = await import('../../src/constants/tools/memory.ts')
+const { retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { appendObservation, pendingRows } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { listTopicDocs, listArchiveDocs } = await import('../../src/sessions/mneme/mnemeLibrary.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { pinFact, readPins } = await import('../../src/sessions/mneme/mnemeUsage.ts')
+const { USER_ASKED_RULE_ROAD } = await import('../../src/sessions/mneme/mnemeCorrect.ts')
+const { RETAIN_PROMPT } = await import('../../src/tools/kit/names/memory.ts')
 
 const stems = (n: number): Set<string> => new Set(Array.from({ length: n }, (_, i) => `w${i}`))
 

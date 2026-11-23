@@ -13,7 +13,7 @@ Object.assign(process.env, fixture.signinEnv)
 
 let failures = 0
 let passes = 0
-const nousContractFailureHint = 'change the presented client facts, the peek and the record in src/services/providers/nous/nousClientContract.ts, the device-code request in src/services/providers/nous/nousOauth.ts, or the sign-in door in src/services/providers/nous/nousLogin.ts, whichever this label names'
+const nousContractFailureHint = 'change the presented client facts, the peek and the record in src/models/roads/nous/nousClientContract.ts, the device-code request in src/models/roads/nous/nousOauth.ts, or the sign-in door in src/models/roads/nous/nousLogin.ts, whichever this label names'
 function check(label: string, ok: boolean, detail = ''): void {
   if (ok) passes++
   else failures++
@@ -21,11 +21,11 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const contract = await import('../../src/services/providers/nous/nousClientContract.ts')
-const oauth = await import('../../src/services/providers/nous/nousOauth.ts')
-const login = await import('../../src/services/providers/nous/nousLogin.ts')
+const contract = await import('../../src/models/roads/nous/nousClientContract.ts')
+const oauth = await import('../../src/models/roads/nous/nousOauth.ts')
+const login = await import('../../src/models/roads/nous/nousLogin.ts')
 const DAY = 24 * 60 * 60 * 1000
 let clock = Date.UTC(2026, 9, 9, 12, 0, 0)
 const now = (): number => clock

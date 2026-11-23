@@ -16,12 +16,12 @@ const WRITTEN_ISO = new Date(WRITTEN_MS).toISOString()
 let clock = NINE_MIN_LATER_MS
 Date.now = () => clock
 
-const { composeEntryPage } = await import('../../src/mneme/entryPage.ts')
-const { lineagePath } = await import('../../src/mneme/paths.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { readMemoryRecord } = await import('../../src/mneme/memoryVerbs.ts')
-const { RecallTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
-import type { LedgerEntry } from '../../src/mneme/types.ts'
+const { composeEntryPage } = await import('../../src/sessions/mneme/entryPage.ts')
+const { lineagePath } = await import('../../src/sessions/mneme/paths.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { readMemoryRecord } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { RecallTool } = await import('../../src/tools/memory/MemoryTools.ts')
+import type { LedgerEntry } from '../../src/sessions/mneme/types.ts'
 
 let failures = 0
 let checks = 0
@@ -75,7 +75,7 @@ try {
   check(
     'session-start block frames a timed handoff note on one line with its age and file/git freshness warning',
     entryLineKnown === `${EXPECTED_WITH_AGE} ${NOTE_TEXT}`,
-    `got ${JSON.stringify(entryLineKnown)}; build one handoff frame helper in src/mneme/memoryEvidence.ts and call it from composeEntryPage in src/mneme/entryPage.ts`,
+    `got ${JSON.stringify(entryLineKnown)}; build one handoff frame helper in src/sessions/mneme/memoryEvidence.ts and call it from composeEntryPage in src/sessions/mneme/entryPage.ts`,
   )
 
   const recallKnown = recallLedger(dir, [knownEntry])
@@ -83,7 +83,7 @@ try {
   check(
     'Recall ledger read frames the same timed handoff note with the exact same frame as session start',
     recallLineKnown === `${EXPECTED_WITH_AGE} ${NOTE_TEXT}` && recallLineKnown === entryLineKnown,
-    `got ${JSON.stringify(recallLineKnown)}; call the shared handoff frame helper from renderLedgerEntry in src/mneme/mnemeFootnotes.ts`,
+    `got ${JSON.stringify(recallLineKnown)}; call the shared handoff frame helper from renderLedgerEntry in src/sessions/mneme/mnemeFootnotes.ts`,
   )
 
   const timelessEntry: LedgerEntry = {
@@ -99,7 +99,7 @@ try {
   check(
     'session-start block omits the age clause when the note has no recorded time, keeping the rest of the frame',
     entryLineTimeless === `${EXPECTED_NO_AGE} ${NOTE_TEXT}` && !entryLineTimeless.includes('written '),
-    `got ${JSON.stringify(entryLineTimeless)}; omit the age clause in handoffGrade (src/mneme/memoryEvidence.ts) when the recorded timestamp is empty or unparseable`,
+    `got ${JSON.stringify(entryLineTimeless)}; omit the age clause in handoffGrade (src/sessions/mneme/memoryEvidence.ts) when the recorded timestamp is empty or unparseable`,
   )
 
   const recallTimeless = recallLedger(dir, [timelessEntry])
@@ -107,7 +107,7 @@ try {
   check(
     'Recall ledger read omits the age clause when the note has no recorded time, matching session start',
     recallLineTimeless === `${EXPECTED_NO_AGE} ${NOTE_TEXT}` && recallLineTimeless === entryLineTimeless,
-    `got ${JSON.stringify(recallLineTimeless)}; call the same handoffGrade helper in renderLedgerEntry (src/mneme/mnemeFootnotes.ts)`,
+    `got ${JSON.stringify(recallLineTimeless)}; call the same handoffGrade helper in renderLedgerEntry (src/sessions/mneme/mnemeFootnotes.ts)`,
   )
 
   const badTimeEntry: LedgerEntry = {
@@ -120,7 +120,7 @@ try {
   check(
     'an unparseable timestamp omits the age clause rather than printing NaN or Invalid',
     recallLineBadTime === `${EXPECTED_NO_AGE} ${NOTE_TEXT}`,
-    `got ${JSON.stringify(recallLineBadTime)}; guard Date.parse in handoffGrade (src/mneme/memoryEvidence.ts)`,
+    `got ${JSON.stringify(recallLineBadTime)}; guard Date.parse in handoffGrade (src/sessions/mneme/memoryEvidence.ts)`,
   )
 } finally {
   Date.now = realNow

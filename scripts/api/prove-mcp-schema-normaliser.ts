@@ -10,13 +10,13 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
-const normaliser = await import('../../src/utils/normalizeToolSchema.ts')
+const normaliser = await import('../../src/integrations/mcp/normalizeToolSchema.ts')
 const { normalizeToolSchemaFor, restoreRenamedArgumentKeys, rememberRenamedArgumentKeys, schemaLaneFor, legalPropertyKey, PROPERTY_KEY_PATTERN } = normaliser
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 500 ? `${detail.slice(0, 500)}…` : detail}` : ''}${!cond ? ' — the rule this label names lives in src/utils/normalizeToolSchema.ts (normalizeToolSchemaFor, restoreRenamedArgumentKeys, legalPropertyKey); section D exercises toolToAPISchema in src/services/messages/api.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 500 ? `${detail.slice(0, 500)}…` : detail}` : ''}${!cond ? ' — the rule this label names lives in src/integrations/mcp/normalizeToolSchema.ts (normalizeToolSchemaFor, restoreRenamedArgumentKeys, legalPropertyKey); section D exercises toolToAPISchema in src/engine/messages/apiSystemAndToolSchema.ts' : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
@@ -105,11 +105,11 @@ section('C. refusals: collisions, length, an empty name, and a schema that needs
 
 section('D. the builder applies the lane to an explicit schema only; every built-in tool is byte-identical (the corpus parity proof runs in this suite)')
 {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
+  const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
   const permissionContext = getEmptyToolPermissionContext()
   const options = { getToolPermissionContext: async () => permissionContext, tools: [GrepTool], agents: [] }
   const mcpLike = { ...GrepTool, name: 'mcp__quirky__search', inputJSONSchema: quirky(), prompt: async () => 'a quirky search' } as typeof GrepTool
@@ -121,7 +121,7 @@ section('D. the builder applies the lane to an explicit schema only; every built
   const onAnthropicCached = (await toolToAPISchema(mcpLike, { ...options, tools: [mcpLike], model: 'claude-fable-5-1' })) as { input_schema: Node }
   check('building the schema for another route does not erase the Anthropic rename tree across a cached Anthropic turn', Object.keys(onAnthropicCached.input_schema.properties as Node).includes('file_name') && (restoreRenamedArgumentKeys('mcp__quirky__search', { file_name: 'a.txt' }) as Node)['file name'] === 'a.txt', JSON.stringify(restoreRenamedArgumentKeys('mcp__quirky__search', { file_name: 'a.txt' })))
   const builtin = (await toolToAPISchema(GrepTool, { ...options, model: 'claude-fable-5-1' })) as { input_schema: Node }
-  const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+  const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
   check('a built-in tool is its own zod schema, byte for byte, on the strict road', JSON.stringify(builtin.input_schema) === JSON.stringify(zodToJsonSchema(GrepTool.inputSchema as never)))
 }
 

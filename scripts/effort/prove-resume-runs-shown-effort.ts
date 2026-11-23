@@ -54,14 +54,14 @@ const hooks: {
   admit: async () => ({ ok: false, error: 'unarmed' }),
 }
 
-const realEnsure = await import('../../src/services/switchboard/ensureDaemon.js')
-mock.module('../../src/services/switchboard/ensureDaemon.js', () => ({
+const realEnsure = await import('../../src/daemon/switchboard/ensureDaemon.js')
+mock.module('../../src/daemon/switchboard/ensureDaemon.js', () => ({
   ...realEnsure,
   ensureOwnedDaemon: async () => true,
 }))
 
-const realControl = await import('../../src/daemon/controlSocket.js')
-mock.module('../../src/daemon/controlSocket.js', () => ({
+const realControl = await import('../../src/daemon/control/controlSocket.js')
+mock.module('../../src/daemon/control/controlSocket.js', () => ({
   ...realControl,
   daemonControlRpc: async (request: Record<string, unknown>) => {
     if (request.op === 'sessionAdmit') return hooks.admit(request)
@@ -70,29 +70,29 @@ mock.module('../../src/daemon/controlSocket.js', () => ({
   },
 }))
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const workers = await import('../../src/daemon/concourseWorkers.js')
-const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.js')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.js')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.js')
-const facts = await import('../../src/services/switchboard/bootBirthFacts.js')
-const { bornSession } = await import('../../src/services/switchboard/bornSession.js')
-const { focusResumedSession } = await import('../../src/services/switchboard/hopIntoSession.js')
-const { releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
-const { focusedEffortLabelOf } = await import('../../src/components/mercury-ui/EffortChip.js')
-const { restingStatusWords } = await import('../../src/components/SwitchboardTagBar.js')
-const { renderModelChip } = await import('../../src/services/model/model.js')
+const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.js')
+const { buildRunnerInvocation } = await import('../../src/daemon/runner-link/headlessRun.js')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.js')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.js')
+const facts = await import('../../src/daemon/switchboard/bootBirthFacts.js')
+const { bornSession } = await import('../../src/daemon/switchboard/bornSession.js')
+const { focusResumedSession } = await import('../../src/daemon/switchboard/hopIntoSession.js')
+const { releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.js')
+const { focusedEffortLabelOf } = await import('../../src/screen/widgets/EffortChip.js')
+const { restingStatusWords } = await import('../../src/screen/chat/SwitchboardTagBar.js')
+const { renderModelChip } = await import('../../src/models/catalogue/engineModel.js')
 
 const BOOT_MODEL = 'claude-sonnet-5-5'
 const SAVED_MODEL = 'claude-opus-5-5'
 const BOOT_EFFORT = 'high'
 const SAVED_EFFORT = 'max'
 
-type RunnerChildSpec = import('../../src/daemon/headlessRun.js').RunnerChildSpec
+type RunnerChildSpec = import('../../src/daemon/runner-link/headlessRun.js').RunnerChildSpec
 type AdmittedCapture = {
   wire: Record<string, unknown>
-  reply: import('../../src/daemon/concourseWorkers.js').ConcourseAdmitResult
+  reply: import('../../src/daemon/concourse-workers/concourseWorkers.js').ConcourseAdmitResult
   spec: RunnerChildSpec | undefined
 }
 
@@ -117,7 +117,7 @@ hooks.admit = async request => {
     spec: undefined,
   }
   lastCapture = capture
-  const req: import('../../src/daemon/concourseWorkers.js').ConcourseAdmitRequest = {
+  const req: import('../../src/daemon/concourse-workers/concourseWorkers.js').ConcourseAdmitRequest = {
     workspaceDir: String(request.workspaceDir ?? ''),
     ...(typeof request.birthKey === 'string' ? { birthKey: request.birthKey } : {}),
     ...(typeof request.isolation === 'string' ? { isolation: request.isolation as 'shared' } : {}),
@@ -198,8 +198,8 @@ function seedTranscript(workspaceDir: string, sessionId: string, model: string, 
 }
 
 function assertRunnerMatchesBoot(road: string, capture: AdmittedCapture | null, expectResumeId?: string): void {
-  const fixInvocation = 'pass --effort <spec.effort> in buildRunnerInvocation (src/daemon/headlessRun.ts) alongside --model'
-  const fixResumeCarry = 'carry bootBirthFacts().effort, model and runnerArgv in focusResumedSession (src/services/switchboard/hopIntoSession.ts) and reactivateConcourseSession (src/daemon/concourseWorkers/admit.ts, src/daemon/concourseWorkers/reactivate.ts)'
+  const fixInvocation = 'pass --effort <spec.effort> in buildRunnerInvocation (src/daemon/runner-link/headlessRun.ts) alongside --model'
+  const fixResumeCarry = 'carry bootBirthFacts().effort, model and runnerArgv in focusResumedSession (src/daemon/switchboard/hopIntoSession.ts) and reactivateConcourseSession (src/daemon/concourse-workers/admit.ts, src/daemon/concourse-workers/reactivate.ts)'
   check(`${road}: admission succeeded and registered a runner spec`, capture !== null && capture.reply.ok && capture.spec !== undefined, JSON.stringify(capture?.reply), fixResumeCarry)
   if (!capture || !capture.reply.ok || !capture.spec) return
   const inv = buildRunnerInvocation(capture.spec)
@@ -232,7 +232,7 @@ try {
   {
     lastCapture = null
     const born = await bornSession({ workspaceDir: work, firstPaintMs: 10 })
-    check('New Session opened', born.ok, JSON.stringify(born), 'check bornSession in src/services/switchboard/bornSession.ts')
+    check('New Session opened', born.ok, JSON.stringify(born), 'check bornSession in src/daemon/switchboard/bornSession.ts')
     assertRunnerMatchesBoot('New Session', lastCapture)
     releaseFocusedSessionConnector()
   }
@@ -320,8 +320,8 @@ try {
     await outcome.admitted
     const restartCapture = lastCapture as AdmittedCapture | null
     const inv = restartCapture?.spec ? buildRunnerInvocation(restartCapture.spec) : null
-    check('/restart keeps standing effort low (does not overwrite with stale boot high)', inv !== null && flagValue(inv.argv, '--effort') === 'low', `argv=${JSON.stringify(inv?.argv)}`, 'do not carry boot model/effort over restartReason === "update" in focusResumedSession (src/services/switchboard/hopIntoSession.ts)')
-    check('/restart keeps standing model claude-haiku-5-5', inv !== null && flagValue(inv.argv, '--model') === 'claude-haiku-5-5', `argv=${JSON.stringify(inv?.argv)}`, 'do not carry boot model/effort over restartReason === "update" in focusResumedSession (src/services/switchboard/hopIntoSession.ts)')
+    check('/restart keeps standing effort low (does not overwrite with stale boot high)', inv !== null && flagValue(inv.argv, '--effort') === 'low', `argv=${JSON.stringify(inv?.argv)}`, 'do not carry boot model/effort over restartReason === "update" in focusResumedSession (src/daemon/switchboard/hopIntoSession.ts)')
+    check('/restart keeps standing model claude-haiku-5-5', inv !== null && flagValue(inv.argv, '--model') === 'claude-haiku-5-5', `argv=${JSON.stringify(inv?.argv)}`, 'do not carry boot model/effort over restartReason === "update" in focusResumedSession (src/daemon/switchboard/hopIntoSession.ts)')
     releaseFocusedSessionConnector()
   }
 } finally {

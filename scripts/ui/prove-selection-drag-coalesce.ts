@@ -23,21 +23,21 @@ process.env.MERCURY_CLIPBOARD_FILE = join(SCRATCH, 'clipboard.txt')
 delete process.env.NODE_ENV
 
 const React = await import('react')
-const { enableConfigs } = await import(`${ROOT}/src/utils/config.js`)
+const { enableConfigs } = await import(`${ROOT}/src/platform/settings/config.js`)
 enableConfigs()
-const { render, Box, Text } = (await import(`${ROOT}/src/ink.js`)) as {
+const { render, Box, Text } = (await import(`${ROOT}/src/screen/themedRenderer.js`)) as {
   render: (node: unknown, opts: Record<string, unknown>) => Promise<{ unmount: () => void }>
   Box: unknown
   Text: unknown
 }
-const { AlternateScreen } = await import(`${ROOT}/src/ink/components/AlternateScreen.js`)
-const { default: ScrollBox } = await import(`${ROOT}/src/ink/components/ScrollBox.js`)
-const { default: instances } = await import(`${ROOT}/src/ink/instances.js`)
-const { default: useInput } = await import(`${ROOT}/src/ink/hooks/use-input.js`)
-const { lastComposeCounts } = await import(`${ROOT}/src/ink/compose-buffer.js`)
-const { AppStateProvider } = await import(`${ROOT}/src/state/AppState.js`)
-const { default: ScrollKeybindingHandler, AUTOSCROLL_STEP_ROWS, AUTOSCROLL_TICK_MS } = await import(`${ROOT}/src/components/ScrollKeybindingHandler.js`)
-const { subscribeUiClock } = await import(`${ROOT}/src/utils/cockpit/uiClock.js`)
+const { AlternateScreen } = await import(`${ROOT}/src/screen/renderer/elements/AlternateScreen.js`)
+const { default: ScrollBox } = await import(`${ROOT}/src/screen/renderer/elements/ScrollBox.js`)
+const { default: instances } = await import(`${ROOT}/src/screen/renderer/instances.js`)
+const { default: useInput } = await import(`${ROOT}/src/screen/renderer/bindings/use-input.js`)
+const { lastComposeCounts } = await import(`${ROOT}/src/screen/renderer/compose-buffer.js`)
+const { AppStateProvider } = await import(`${ROOT}/src/screen/app-state/AppState.js`)
+const { default: ScrollKeybindingHandler, AUTOSCROLL_STEP_ROWS, AUTOSCROLL_TICK_MS } = await import(`${ROOT}/src/screen/scroll-keys/ScrollKeybindingHandler.js`)
+const { subscribeUiClock } = await import(`${ROOT}/src/screen/cockpit/uiClock.js`)
 const countTicks = (): { ticks: () => number; stop: () => void } => {
   let n = 0
   const stop = subscribeUiClock(AUTOSCROLL_TICK_MS, () => {
@@ -228,7 +228,7 @@ const tailRow = (() => {
   for (let y = 0; y < ROWS; y++) if (glassRowText(y).includes(TAIL_MARK)) return y
   return -1
 })()
-check('the transcript tail is on the glass', tailRow > 0, `tailRow=${tailRow}; fault=${glassFault}`, 'The transcript did not paint its last row: check the ScrollBox stickyScroll in src/ink/components/ScrollBox.tsx, and the printed fault if the ANSI emulator threw.')
+check('the transcript tail is on the glass', tailRow > 0, `tailRow=${tailRow}; fault=${glassFault}`, 'The transcript did not paint its last row: check the ScrollBox stickyScroll in src/screen/renderer/elements/ScrollBox.tsx, and the printed fault if the ANSI emulator threw.')
 const ANCHOR: Cell = { col: 30, row: Math.max(1, tailRow - 8) }
 function focusAt(k: number): Cell {
   const perRow = PANE_C1 - PANE_C0 + 1
@@ -280,25 +280,25 @@ async function glassEqualsRedraw(label: string): Promise<void> {
 section('§1 coalescing — a chunk of drag reports paints once, at its last position')
 {
   const pressFrames = await pressAt(ANCHOR)
-  check('a press paints one frame', pressFrames === 1, `${pressFrames} frames`, 'A mouse press must start the selection and paint exactly one frame: check handleSelectionStart in src/ink/ink/selection.ts and the press path in src/ink/components/App.tsx.')
+  check('a press paints one frame', pressFrames === 1, `${pressFrames} frames`, 'A mouse press must start the selection and paint exactly one frame: check handleSelectionStart in src/screen/renderer/instance/selection.ts and the press path in src/screen/renderer/elements/App.tsx.')
   const N = 200
   const motions = Array.from({ length: N }, (_, k) => sgr(LEFT | MOTION, focusAt(k)))
   let f0 = frames
   push(motions.join(''))
   await twoTicks()
-  check(`${N} drag reports in one chunk paint at most one frame`, frames - f0 <= 1, `${frames - f0} frames`, 'A chunk of drag reports must paint once: check the drag-motion skip in src/ink/components/AppInputLoop.ts (isDragMotion).')
+  check(`${N} drag reports in one chunk paint at most one frame`, frames - f0 <= 1, `${frames - f0} frames`, 'A chunk of drag reports must paint once: check the drag-motion skip in src/screen/renderer/elements/AppInputLoop.ts (isDragMotion).')
   const last = focusAt(N - 1)
-  check('the coalesced frame carries the final focus', same(ink.selection.focus, last), JSON.stringify(ink.selection.focus), 'The last drag report of a chunk must set the selection focus: check the drag-motion skip in src/ink/components/AppInputLoop.ts and handleSelectionDrag in src/ink/ink/selection.ts.')
+  check('the coalesced frame carries the final focus', same(ink.selection.focus, last), JSON.stringify(ink.selection.focus), 'The last drag report of a chunk must set the selection focus: check the drag-motion skip in src/screen/renderer/elements/AppInputLoop.ts and handleSelectionDrag in src/screen/renderer/instance/selection.ts.')
   flushGlass()
   const beyond: Cell = { col: last.col + 1, row: last.row }
   const highlight = styleKey(last)
-  check('the glass highlights the final focus cell and not the cell beyond it', highlight !== styleKey(beyond), `focus ${highlight} beyond ${styleKey(beyond)}`, 'The painted highlight must end at the focus cell: check the selection overlay in src/ink/ink/selection.ts and how the frame is diffed to the terminal.')
+  check('the glass highlights the final focus cell and not the cell beyond it', highlight !== styleKey(beyond), `focus ${highlight} beyond ${styleKey(beyond)}`, 'The painted highlight must end at the focus cell: check the selection overlay in src/screen/renderer/instance/selection.ts and how the frame is diffed to the terminal.')
 
   f0 = frames
   push(sgr(LEFT | MOTION, last))
   await twoTicks()
-  check('a report for the cell already focused paints nothing', frames - f0 === 0, `${frames - f0} frames`, 'A report for the already-focused cell must change nothing: check handleSelectionDrag in src/ink/ink/selection.ts so it does not notify a selection change when the focus is unchanged.')
-  check('a release paints one frame', (await releaseAt(last)) === 1, '', 'A mouse release must paint exactly one frame: check handleSelectionRelease in src/ink/ink/selection.ts.')
+  check('a report for the cell already focused paints nothing', frames - f0 === 0, `${frames - f0} frames`, 'A report for the already-focused cell must change nothing: check handleSelectionDrag in src/screen/renderer/instance/selection.ts so it does not notify a selection change when the focus is unchanged.')
+  check('a release paints one frame', (await releaseAt(last)) === 1, '', 'A mouse release must paint exactly one frame: check handleSelectionRelease in src/screen/renderer/instance/selection.ts.')
   await clearAll()
 
   const word: Cell = { col: 30, row: ANCHOR.row }
@@ -309,15 +309,15 @@ section('§1 coalescing — a chunk of drag reports paints once, at its last pos
   await twoTicks()
   push(sgr(LEFT, word))
   await twoTicks()
-  check('a double-click selects a word', ink.selection.anchorSpan?.kind === 'word', JSON.stringify(ink.selection.anchorSpan), 'A press, release and press at one cell must select a word: check handleMultiClick in src/ink/ink/selection.ts and the click counting in src/ink/components/App.tsx.')
+  check('a double-click selects a word', ink.selection.anchorSpan?.kind === 'word', JSON.stringify(ink.selection.anchorSpan), 'A press, release and press at one cell must select a word: check handleMultiClick in src/screen/renderer/instance/selection.ts and the click counting in src/screen/renderer/elements/App.tsx.')
   f0 = frames
   push(sgr(LEFT | MOTION, { col: word.col + 1, row: word.row }))
   await twoTicks()
-  check('a word-mode report inside the selected word paints nothing', frames - f0 === 0, `${frames - f0} frames`, 'A drag inside the already-selected word must not repaint: check handleSelectionDrag in src/ink/ink/selection.ts for the word-mode path.')
+  check('a word-mode report inside the selected word paints nothing', frames - f0 === 0, `${frames - f0} frames`, 'A drag inside the already-selected word must not repaint: check handleSelectionDrag in src/screen/renderer/instance/selection.ts for the word-mode path.')
   f0 = frames
   push(sgr(LEFT | MOTION, { col: word.col + 15, row: word.row }))
   await twoTicks()
-  check('a word-mode report into a later word paints one frame', frames - f0 === 1, `${frames - f0} frames`, 'A drag into a later word must extend the selection and paint once: check handleSelectionDrag in src/ink/ink/selection.ts for the word-mode path.')
+  check('a word-mode report into a later word paints one frame', frames - f0 === 1, `${frames - f0} frames`, 'A drag into a later word must extend the selection and paint once: check handleSelectionDrag in src/screen/renderer/instance/selection.ts for the word-mode path.')
   await releaseAt({ col: word.col + 15, row: word.row })
   await clearAll()
 }
@@ -336,8 +336,8 @@ section('§2 the blit survives — a drag frame composes no text and costs a ste
     if (lastComposeCounts.blit === 0) blitMissing++
   }
   const drag = durations.slice(d0)
-  check(`${N} chunked drag reports paint ${N} frames`, drag.length === N, `${drag.length} frames`, 'Each drag report delivered in its own tick must paint its own frame: check handleSelectionDrag in src/ink/ink/selection.ts and the drag-motion skip in src/ink/components/AppInputLoop.ts, which must only drop reports queued behind another.')
-  check('no drag frame composes text (the blit engaged on every one)', composedText === 0 && blitMissing === 0, `composed=${composedText} blitMissing=${blitMissing}`, 'A drag frame must reuse the previous screen by blit and compose no text: check the blit path and lastComposeCounts in src/ink/compose-buffer.ts, and that the selection overlay does not damage the whole pane.')
+  check(`${N} chunked drag reports paint ${N} frames`, drag.length === N, `${drag.length} frames`, 'Each drag report delivered in its own tick must paint its own frame: check handleSelectionDrag in src/screen/renderer/instance/selection.ts and the drag-motion skip in src/screen/renderer/elements/AppInputLoop.ts, which must only drop reports queued behind another.')
+  check('no drag frame composes text (the blit engaged on every one)', composedText === 0 && blitMissing === 0, `composed=${composedText} blitMissing=${blitMissing}`, 'A drag frame must reuse the previous screen by blit and compose no text: check the blit path and lastComposeCounts in src/screen/renderer/compose-buffer.ts, and that the selection overlay does not damage the whole pane.')
   await releaseAt(focusAt(N - 1))
   await clearAll()
   const s0 = durations.length
@@ -350,7 +350,7 @@ section('§2 the blit survives — a drag frame composes no text and costs a ste
     'a drag frame\'s median cost stays in the steady frame\'s class (≤ 5×, 0.5 ms floor)',
     dragP50 <= bound,
     `drag p50 ${dragP50.toFixed(3)} ms vs steady p50 ${steadyP50.toFixed(3)} ms (bound ${bound.toFixed(3)} ms)`,
-    'A drag frame costs too much: find the work added per drag report in src/ink/ink/selection.ts or the frame path in src/ink/compose-buffer.ts.',
+    'A drag frame costs too much: find the work added per drag report in src/screen/renderer/instance/selection.ts or the frame path in src/screen/renderer/compose-buffer.ts.',
   )
   console.log(`  drag p50 ${dragP50.toFixed(3)} ms · p95 ${pct(drag, 95).toFixed(3)} ms · steady p50 ${steadyP50.toFixed(3)} ms`)
 }
@@ -364,15 +364,15 @@ section('§3 the ghosts — the glass equals a full redraw after every step')
   await glassEqualsRedraw('shrink to ten cells')
   flushGlass()
   const vacated = focusAt(30)
-  check('the vacated cell carries no highlight after the shrink', styleKey(vacated) !== styleKey(focusAt(5)), `vacated ${styleKey(vacated)} vs selected ${styleKey(focusAt(5))}`, 'Shrinking the selection must clear the cells it left: check the selection overlay and its damage in src/ink/ink/selection.ts.')
+  check('the vacated cell carries no highlight after the shrink', styleKey(vacated) !== styleKey(focusAt(5)), `vacated ${styleKey(vacated)} vs selected ${styleKey(focusAt(5))}`, 'Shrinking the selection must clear the cells it left: check the selection overlay and its damage in src/screen/renderer/instance/selection.ts.')
   push(Array.from({ length: 700 }, (_, k) => sgr(LEFT | MOTION, focusAt(k))).join(''))
   await twoTicks()
-  check('the selection reaches the tail row', ink.selection.focus?.row === tailRow, JSON.stringify(ink.selection.focus), 'Drag reports at the last row must move the focus there: check handleSelectionDrag in src/ink/ink/selection.ts.')
+  check('the selection reaches the tail row', ink.selection.focus?.row === tailRow, JSON.stringify(ink.selection.focus), 'Drag reports at the last row must move the focus there: check handleSelectionDrag in src/screen/renderer/instance/selection.ts.')
   setTailText?.(`199 ${TAIL_MARK} CHANGED the quick brown fox jumps over the lazy dog`)
   await settle(50)
   await glassEqualsRedraw('content change under the selection')
   flushGlass()
-  check('the glass shows the changed tail text', rowWith('CHANGED') >= 0, glassRowText(tailRow).slice(24, 80), 'A content change under a selection must still reach the screen: check that the selection overlay in src/ink/ink/selection.ts does not hold back the changed row.')
+  check('the glass shows the changed tail text', rowWith('CHANGED') >= 0, glassRowText(tailRow).slice(24, 80), 'A content change under a selection must still reach the screen: check that the selection overlay in src/screen/renderer/instance/selection.ts does not hold back the changed row.')
   await releaseAt(focusAt(699))
   await clearAll()
   await glassEqualsRedraw('clear')
@@ -380,16 +380,16 @@ section('§3 the ghosts — the glass equals a full redraw after every step')
   let highlighted = 0
   const plain = styleKey({ col: 40, row: ANCHOR.row })
   for (let y = 1; y < tailRow; y++) for (let x = PANE_C0; x <= PANE_C1; x++) if (styleKey({ col: x, row: y }) !== plain) highlighted++
-  check('no transcript cell carries a highlight after the clear', highlighted === 0, `${highlighted} cells`, 'Clearing the selection must repaint every highlighted cell: check clearTextSelection in src/ink/ink/selection.ts.')
+  check('no transcript cell carries a highlight after the clear', highlighted === 0, `${highlighted} cells`, 'Clearing the selection must repaint every highlighted cell: check clearTextSelection in src/screen/renderer/instance/selection.ts.')
 }
 
 section('§4 scroll under a drag — the tick scrolls, motion reports never do; the highlight follows the text')
 {
   const handle = scrollRef.current
-  check('the transcript exposes its scroll handle', handle !== null, 'scrollRef.current is null', 'The ScrollBox did not expose its handle: check the ref in src/ink/components/ScrollBox.tsx.')
+  check('the transcript exposes its scroll handle', handle !== null, 'scrollRef.current is null', 'The ScrollBox did not expose its handle: check the ref in src/screen/renderer/elements/ScrollBox.tsx.')
   const viewportTop = handle?.getViewportTop() ?? 1
   const paneRows = handle?.getViewportHeight() ?? 0
-  check('the pane fills the transcript box', paneRows > 20 && viewportTop >= 1, `viewportTop=${viewportTop} height=${paneRows}`, 'The transcript pane must fill its box: check getViewportTop and getViewportHeight in src/ink/components/ScrollBox.tsx.')
+  check('the pane fills the transcript box', paneRows > 20 && viewportTop >= 1, `viewportTop=${viewportTop} height=${paneRows}`, 'The transcript pane must fill its box: check getViewportTop and getViewportHeight in src/screen/renderer/elements/ScrollBox.tsx.')
   const plainKey = styleKey({ col: 40, row: tailRow })
   const highlightedRows = (): number[] => {
     const rows: number[] = []
@@ -420,7 +420,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   full?.scrollBy(-4)
   await settle(60)
   flushGlass()
-  check('the scroll handle scrolls the pane (the control for the tick)', controlTop - scrollTop() === 4, `scrollTop ${controlTop} → ${scrollTop()}; ${facts()}`, 'The scroll handle must move the pane by the rows asked: check scrollBy in src/ink/components/ScrollBox.tsx.')
+  check('the scroll handle scrolls the pane (the control for the tick)', controlTop - scrollTop() === 4, `scrollTop ${controlTop} → ${scrollTop()}; ${facts()}`, 'The scroll handle must move the pane by the rows asked: check scrollBy in src/screen/renderer/elements/ScrollBox.tsx.')
   full?.scrollToBottom()
   await settle(60)
 
@@ -434,7 +434,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   held.stop()
   console.log(`  after the hold: ${facts()}`)
   const heldStill = top0 - scrollTop()
-  check(`a pointer held still above the pane scrolls the content by the tick (${AUTOSCROLL_STEP_ROWS} rows per clock tick, counted through the clock seam)`, held.ticks() >= 1 && rowsForTicks(heldStill, held.ticks()), `${heldStill} rows for ${held.ticks()} ticks`, 'A pointer held above the pane must autoscroll AUTOSCROLL_STEP_ROWS per clock tick: check the autoscroll tick in src/components/ScrollKeybindingHandler.tsx.')
+  check(`a pointer held still above the pane scrolls the content by the tick (${AUTOSCROLL_STEP_ROWS} rows per clock tick, counted through the clock seam)`, held.ticks() >= 1 && rowsForTicks(heldStill, held.ticks()), `${heldStill} rows for ${held.ticks()} ticks`, 'A pointer held above the pane must autoscroll AUTOSCROLL_STEP_ROWS per clock tick: check the autoscroll tick in src/screen/scroll-keys/ScrollKeybindingHandler.tsx.')
   const top1 = scrollTop()
   const moving = countTicks()
   for (let k = 0; k < 30; k++) {
@@ -444,7 +444,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   await twoTicks()
   moving.stop()
   const heldMoving = top1 - scrollTop()
-  check("thirty reports at the edge scroll the tick's rows, not thirty (the rate, not the count)", rowsForTicks(heldMoving, moving.ticks()) && heldMoving < 30, `${heldMoving} rows for 30 reports over ${moving.ticks()} ticks`, 'Autoscroll must follow the clock tick, never the report count: check the autoscroll tick in src/components/ScrollKeybindingHandler.tsx.')
+  check("thirty reports at the edge scroll the tick's rows, not thirty (the rate, not the count)", rowsForTicks(heldMoving, moving.ticks()) && heldMoving < 30, `${heldMoving} rows for 30 reports over ${moving.ticks()} ticks`, 'Autoscroll must follow the clock tick, never the report count: check the autoscroll tick in src/screen/scroll-keys/ScrollKeybindingHandler.tsx.')
   const top2 = scrollTop()
   const blocked = countTicks()
   await settle(60)
@@ -457,19 +457,19 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   await twoTicks()
   blocked.stop()
   const heldBlocked = top2 - scrollTop()
-  check('the loop blocked 200 ms mid-hold: the rows are still the delivered ticks × the step (the law holds under load)', rowsForTicks(heldBlocked, blocked.ticks()), `${heldBlocked} rows for ${blocked.ticks()} ticks`, 'After a blocked loop the rows must still equal the delivered ticks times the step: check the autoscroll tick in src/components/ScrollKeybindingHandler.tsx and subscribeUiClock in src/utils/cockpit/uiClock.ts.')
+  check('the loop blocked 200 ms mid-hold: the rows are still the delivered ticks × the step (the law holds under load)', rowsForTicks(heldBlocked, blocked.ticks()), `${heldBlocked} rows for ${blocked.ticks()} ticks`, 'After a blocked loop the rows must still equal the delivered ticks times the step: check the autoscroll tick in src/screen/scroll-keys/ScrollKeybindingHandler.tsx and subscribeUiClock in src/screen/cockpit/uiClock.ts.')
 
   await twoTicks()
   flushGlass()
   const anchorNow = rowWith(anchorLine)
   const rows = highlightedRows()
-  check('the anchor line moved down with the scrolled content', anchorNow > ANCHOR_B.row, `anchor line ${JSON.stringify(anchorLine)} now at row ${anchorNow} (was ${ANCHOR_B.row}); scrolled ${heldStill + heldMoving} rows`, 'The pane did not scroll under the drag: check the autoscroll tick in src/components/ScrollKeybindingHandler.tsx.')
-  check('the anchor line is still highlighted at its new row (the highlight followed the text)', anchorNow >= 0 && rows.includes(anchorNow), `highlighted rows ${rows[0]}..${rows.at(-1)}, anchor at ${anchorNow}`, 'The selection anchor must follow its text when the pane scrolls: check shiftAnchor and shiftSelection in src/ink/geometry/shift.ts.')
-  check('the highlight spans from the pane top down to the anchor line', rows.length > 0 && rows[0]! <= viewportTop && rows.at(-1)! >= anchorNow, `rows ${rows[0]}..${rows.at(-1)}, anchor at ${anchorNow}`, 'The highlight must cover from the pane top to the anchor line after a scroll: check shiftSelection in src/ink/geometry/shift.ts.')
+  check('the anchor line moved down with the scrolled content', anchorNow > ANCHOR_B.row, `anchor line ${JSON.stringify(anchorLine)} now at row ${anchorNow} (was ${ANCHOR_B.row}); scrolled ${heldStill + heldMoving} rows`, 'The pane did not scroll under the drag: check the autoscroll tick in src/screen/scroll-keys/ScrollKeybindingHandler.tsx.')
+  check('the anchor line is still highlighted at its new row (the highlight followed the text)', anchorNow >= 0 && rows.includes(anchorNow), `highlighted rows ${rows[0]}..${rows.at(-1)}, anchor at ${anchorNow}`, 'The selection anchor must follow its text when the pane scrolls: check shiftAnchor and shiftSelection in src/screen/renderer/geometry/selectionShift.ts.')
+  check('the highlight spans from the pane top down to the anchor line', rows.length > 0 && rows[0]! <= viewportTop && rows.at(-1)! >= anchorNow, `rows ${rows[0]}..${rows.at(-1)}, anchor at ${anchorNow}`, 'The highlight must cover from the pane top to the anchor line after a scroll: check shiftSelection in src/screen/renderer/geometry/selectionShift.ts.')
   const copied = (ink as unknown as { copySelectionNoClear: () => string }).copySelectionNoClear()
-  check('the copy carries the anchor line and the lines that scrolled in above it', copied.includes(anchorLine.slice(0, 6)) && copied.split('\n').length >= heldStill, `${copied.split('\n').length} lines copied; ${JSON.stringify(copied.slice(-80))}`, 'The copy must include rows that scrolled out of view: check captureScrolledRows in src/ink/geometry/shift.ts and copySelectionNoClear in src/ink/ink/selection.ts.')
+  check('the copy carries the anchor line and the lines that scrolled in above it', copied.includes(anchorLine.slice(0, 6)) && copied.split('\n').length >= heldStill, `${copied.split('\n').length} lines copied; ${JSON.stringify(copied.slice(-80))}`, 'The copy must include rows that scrolled out of view: check captureScrolledRows in src/screen/renderer/geometry/selectionShift.ts and copySelectionNoClear in src/screen/renderer/instance/selection.ts.')
   const clipboardFile = join(SCRATCH, 'clipboard.txt')
-  check('the copy went to the fixture clipboard file, never the machine\'s clipboard', existsSync(clipboardFile) && readFileSync(clipboardFile, 'utf8') === copied, existsSync(clipboardFile) ? `${readFileSync(clipboardFile, 'utf8').length} bytes in the file vs ${copied.length} copied` : 'no clipboard file', 'The copy must be written to the file named by MERCURY_CLIPBOARD_FILE: check copySelectionNoClear in src/ink/ink/selection.ts.')
+  check('the copy went to the fixture clipboard file, never the machine\'s clipboard', existsSync(clipboardFile) && readFileSync(clipboardFile, 'utf8') === copied, existsSync(clipboardFile) ? `${readFileSync(clipboardFile, 'utf8').length} bytes in the file vs ${copied.length} copied` : 'no clipboard file', 'The copy must be written to the file named by MERCURY_CLIPBOARD_FILE: check copySelectionNoClear in src/screen/renderer/instance/selection.ts.')
   await releaseAt(above)
   await clearAll()
   ;(handle as unknown as { scrollToBottom: () => void } | null)?.scrollToBottom()
@@ -483,15 +483,15 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   await releaseAt({ col: ANCHOR.col + 20, row: tailBefore })
   flushGlass()
   const textsBefore = highlightedRows().map(y => glassRowText(y).slice(PANE_C0, PANE_C0 + 16))
-  check('a selection stands on the last three lines', textsBefore.length === 3, `${textsBefore.length} rows (${highlightedRows().join(',')}); ${facts()}`, 'The drag over the last three lines did not leave a three-row highlight: check handleSelectionDrag and handleSelectionRelease in src/ink/ink/selection.ts.')
+  check('a selection stands on the last three lines', textsBefore.length === 3, `${textsBefore.length} rows (${highlightedRows().join(',')}); ${facts()}`, 'The drag over the last three lines did not leave a three-row highlight: check handleSelectionDrag and handleSelectionRelease in src/screen/renderer/instance/selection.ts.')
   setStreamedRows?.(4)
   await settle(150)
   flushGlass()
   console.log(`  after the stream: ${facts()}`)
   console.log(`  glass tail rows: ${tailRows()}`)
   const textsAfter = highlightedRows().map(y => glassRowText(y).slice(PANE_C0, PANE_C0 + 16))
-  check('four streamed lines scrolled the pane (the tail moved up)', rowWith(TAIL_MARK) === tailBefore - 4, `tail ${tailBefore} → ${rowWith(TAIL_MARK)}`, 'Streamed rows must scroll a sticky pane up by their count: check stickyScroll in src/ink/components/ScrollBox.tsx.')
-  check('the same lines stay highlighted after the stream (the follow translation)', JSON.stringify(textsAfter) === JSON.stringify(textsBefore), `before ${JSON.stringify(textsBefore)} after ${JSON.stringify(textsAfter)}`, 'A selection must follow its text when the sticky pane scrolls: check shiftSelectionForFollow in src/ink/geometry/shift.ts.')
+  check('four streamed lines scrolled the pane (the tail moved up)', rowWith(TAIL_MARK) === tailBefore - 4, `tail ${tailBefore} → ${rowWith(TAIL_MARK)}`, 'Streamed rows must scroll a sticky pane up by their count: check stickyScroll in src/screen/renderer/elements/ScrollBox.tsx.')
+  check('the same lines stay highlighted after the stream (the follow translation)', JSON.stringify(textsAfter) === JSON.stringify(textsBefore), `before ${JSON.stringify(textsBefore)} after ${JSON.stringify(textsAfter)}`, 'A selection must follow its text when the sticky pane scrolls: check shiftSelectionForFollow in src/screen/renderer/geometry/selectionShift.ts.')
   await clearAll()
   flushGlass()
   const tail2 = rowWith(TAIL_MARK)
@@ -504,7 +504,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   await settle(150)
   flushGlass()
   const anchorRowNow = rowWith(anchorText)
-  check('while dragging, the anchor line moved up with the stream and is still highlighted', anchorRowNow === tail2 - 6 && highlightedRows().includes(anchorRowNow), `anchor ${JSON.stringify(anchorText)} at ${anchorRowNow} (expected ${tail2 - 6}); highlighted ${highlightedRows().join(',')}`, 'While dragging, the anchor must follow its text as the stream scrolls the pane: check shiftAnchor and shiftSelectionForFollow in src/ink/geometry/shift.ts.')
+  check('while dragging, the anchor line moved up with the stream and is still highlighted', anchorRowNow === tail2 - 6 && highlightedRows().includes(anchorRowNow), `anchor ${JSON.stringify(anchorText)} at ${anchorRowNow} (expected ${tail2 - 6}); highlighted ${highlightedRows().join(',')}`, 'While dragging, the anchor must follow its text as the stream scrolls the pane: check shiftAnchor and shiftSelectionForFollow in src/screen/renderer/geometry/selectionShift.ts.')
   await releaseAt({ col: ANCHOR.col + 20, row: tail2 })
   await clearAll()
   ;(handle as unknown as { scrollToBottom: () => void } | null)?.scrollToBottom()
@@ -548,8 +548,8 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   }
   await twoTicks()
   const worstQueue = Math.max(...queueSamples)
-  check(`${k} reports over 5 s with the pane scrolling: the input queue stays ≤ 1 report at every sample`, worstQueue <= 1, `worst ${worstQueue.toFixed(2)} reports pending; ${frames - f0} frames painted`, 'Input is backing up behind the drag: check the drag-motion skip in src/ink/components/AppInputLoop.ts and the per-frame cost of the autoscroll tick in src/components/ScrollKeybindingHandler.tsx.')
-  check('keystrokes typed through the drag land within one painted frame (the frame index, never the wall clock)', keyFrameDeltas.length >= 5 && Math.max(...keyFrameDeltas) <= 1, `${keyFrameDeltas.length} keys, worst ${keyFrameDeltas.length ? Math.max(...keyFrameDeltas) : '?'} frames (${keyLatencies.map(x => x.toFixed(1)).join(' ')} ms)`, 'A key typed during a drag must reach the app within one frame: check the input loop in src/ink/components/AppInputLoop.ts.')
+  check(`${k} reports over 5 s with the pane scrolling: the input queue stays ≤ 1 report at every sample`, worstQueue <= 1, `worst ${worstQueue.toFixed(2)} reports pending; ${frames - f0} frames painted`, 'Input is backing up behind the drag: check the drag-motion skip in src/screen/renderer/elements/AppInputLoop.ts and the per-frame cost of the autoscroll tick in src/screen/scroll-keys/ScrollKeybindingHandler.tsx.')
+  check('keystrokes typed through the drag land within one painted frame (the frame index, never the wall clock)', keyFrameDeltas.length >= 5 && Math.max(...keyFrameDeltas) <= 1, `${keyFrameDeltas.length} keys, worst ${keyFrameDeltas.length ? Math.max(...keyFrameDeltas) : '?'} frames (${keyLatencies.map(x => x.toFixed(1)).join(' ')} ms)`, 'A key typed during a drag must reach the app within one frame: check the input loop in src/screen/renderer/elements/AppInputLoop.ts.')
   console.log(`  ${k} reports · ${frames - f0} frames · worst queue ${worstQueue.toFixed(2)} · keys ${keyLatencies.map(x => x.toFixed(1)).join(' ')} ms · scrollTop every half second ${scrollSamples.join(' ')} → ${scrollTop()}`)
   keyLanded = null
   await releaseAt({ col: 40, row: 0 })

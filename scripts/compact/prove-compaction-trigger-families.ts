@@ -31,16 +31,16 @@ process.env.MERCURY_HUGGINGFACE_API_BASE = 'http://127.0.0.1:9/v1'
 process.env.MERCURY_HUGGINGFACE_HUB_BASE = 'http://127.0.0.1:9'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const compact = await import('../../src/services/compact/autoCompact.ts')
-const { resolveContextWindow, getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
-const tokens = await import('../../src/services/context/tokens.ts')
-const { contextFillView } = await import('../../src/services/context/contextFill.ts')
-const { contextGauge } = await import('../../src/services/cockpit/contextGauge.ts')
-const openrouter = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
-const gemini = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const huggingface = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.ts')
+const compact = await import('../../src/engine/compaction/autoFold.ts')
+const { resolveContextWindow, getModelMaxOutputTokens } = await import('../../src/models/facts/capabilities.ts')
+const tokens = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { contextFillView } = await import('../../src/engine/context-window/contextFill.ts')
+const { contextGauge } = await import('../../src/screen/cockpit-gauges/contextGauge.ts')
+const openrouter = await import('../../src/models/roads/openrouter/openrouterCatalogue.ts')
+const gemini = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const huggingface = await import('../../src/models/roads/huggingface/huggingfaceCatalogue.ts')
 
 const jsonFetch = (body: unknown): typeof fetch =>
   (async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch
@@ -116,14 +116,14 @@ for (const f of FAMILIES) {
   const reserve = Math.min(getModelMaxOutputTokens(f.model).upperLimit, 20_000, Math.floor(f.window / 4))
   const turnReserve = Math.min(getModelMaxOutputTokens(f.model).upperLimit, 20_000, Math.floor(f.window / 8))
   const expected = effective - 3_000 - turnReserve
-  check(`${f.label}: window ${f.window.toLocaleString()} · effective ${effective.toLocaleString()} · threshold ${threshold.toLocaleString()} (${((threshold / f.window) * 100).toFixed(1)}%)`, r.effectiveWindow === f.window && effective === f.window - reserve && compact.getTurnReserveTokens(f.model) === turnReserve && threshold === expected, JSON.stringify({ w: r.effectiveWindow, s: r.source, effective, threshold, expected }) + ' | fix the window in resolveContextWindow (src/utils/model/capabilities.ts) or the reserves and threshold in getEffectiveContextWindowSize, getTurnReserveTokens and getAutoCompactThreshold (src/utils/compact/autoCompactWindow.ts)')
+  check(`${f.label}: window ${f.window.toLocaleString()} · effective ${effective.toLocaleString()} · threshold ${threshold.toLocaleString()} (${((threshold / f.window) * 100).toFixed(1)}%)`, r.effectiveWindow === f.window && effective === f.window - reserve && compact.getTurnReserveTokens(f.model) === turnReserve && threshold === expected, JSON.stringify({ w: r.effectiveWindow, s: r.source, effective, threshold, expected }) + ' | fix the window in resolveContextWindow (src/models/facts/capabilities.ts) or the reserves and threshold in getEffectiveContextWindowSize, getTurnReserveTokens and getAutoCompactThreshold (src/engine/compaction-window/autoFoldWindow.ts)')
 }
-check('a 1M carrier never compacts at ~160k: its threshold exceeds 950,000', thresholds.get('openrouter/stealth/ox-alpha')! > 950_000, 'the OpenRouter live context_length is not reaching getAutoCompactThreshold; check resolveContextWindow in src/utils/model/capabilities.ts and getAutoCompactThreshold in src/utils/compact/autoCompactWindow.ts')
-check('a 131k carrier reserves 16,384 for the turn and folds at 91,688', compact.getTurnReserveTokens('openrouter/meta/llama-small') === 16_384 && thresholds.get('openrouter/meta/llama-small') === 91_688, JSON.stringify({ turnReserve: compact.getTurnReserveTokens('openrouter/meta/llama-small'), threshold: thresholds.get('openrouter/meta/llama-small') }) + ' | fix getTurnReserveTokens and getAutoCompactThreshold in src/utils/compact/autoCompactWindow.ts')
+check('a 1M carrier never compacts at ~160k: its threshold exceeds 950,000', thresholds.get('openrouter/stealth/ox-alpha')! > 950_000, 'the OpenRouter live context_length is not reaching getAutoCompactThreshold; check resolveContextWindow in src/models/facts/capabilities.ts and getAutoCompactThreshold in src/engine/compaction-window/autoFoldWindow.ts')
+check('a 131k carrier reserves 16,384 for the turn and folds at 91,688', compact.getTurnReserveTokens('openrouter/meta/llama-small') === 16_384 && thresholds.get('openrouter/meta/llama-small') === 91_688, JSON.stringify({ turnReserve: compact.getTurnReserveTokens('openrouter/meta/llama-small'), threshold: thresholds.get('openrouter/meta/llama-small') }) + ' | fix getTurnReserveTokens and getAutoCompactThreshold in src/engine/compaction-window/autoFoldWindow.ts')
 {
   const tiny = compact.getAutoCompactThreshold('openrouter/tiny/edge-32k')
   const tinyEff = compact.getEffectiveContextWindowSize('openrouter/tiny/edge-32k')
-  check('a 32,768 row keeps proportional summary and turn reserves: effective 24,576; turn reserve 4,096; threshold 17,480', tinyEff === 24_576 && compact.getTurnReserveTokens('openrouter/tiny/edge-32k') === 4_096 && tiny === 17_480, JSON.stringify({ tinyEff, tiny }) + ' | fix the proportional reserves in getEffectiveContextWindowSize, getTurnReserveTokens and getAutoCompactThreshold (src/utils/compact/autoCompactWindow.ts)')
+  check('a 32,768 row keeps proportional summary and turn reserves: effective 24,576; turn reserve 4,096; threshold 17,480', tinyEff === 24_576 && compact.getTurnReserveTokens('openrouter/tiny/edge-32k') === 4_096 && tiny === 17_480, JSON.stringify({ tinyEff, tiny }) + ' | fix the proportional reserves in getEffectiveContextWindowSize, getTurnReserveTokens and getAutoCompactThreshold (src/engine/compaction-window/autoFoldWindow.ts)')
 }
 
 section('T2 · shouldAutoCompact is exact to the token on every family')
@@ -131,31 +131,31 @@ for (const f of FAMILIES) {
   const threshold = thresholds.get(f.model)!
   const below = transcriptAt(threshold - 1)
   const at = transcriptAt(threshold)
-  check(`  ${f.model}: the canonical count reads the settled usage exactly (${threshold - 1} / ${threshold})`, tokens.tokenCountWithEstimation(below as never) === threshold - 1 && tokens.tokenCountWithEstimation(at as never) === threshold, 'tokenCountWithEstimation in src/services/context/tokens.ts no longer sums the settled usage of the last assistant message exactly; fix it there')
+  check(`  ${f.model}: the canonical count reads the settled usage exactly (${threshold - 1} / ${threshold})`, tokens.tokenCountWithEstimation(below as never) === threshold - 1 && tokens.tokenCountWithEstimation(at as never) === threshold, 'tokenCountWithEstimation in src/engine/context-window/contextTokenCount.ts no longer sums the settled usage of the last assistant message exactly; fix it there')
   const fireBelow = await compact.shouldAutoCompact(below as never, f.model)
   const fireAt = await compact.shouldAutoCompact(at as never, f.model)
-  check(`${f.label}: false at threshold − 1, true at threshold`, fireBelow === false && fireAt === true, JSON.stringify({ fireBelow, fireAt }) + ' | shouldAutoCompact in src/services/compact/autoCompact.ts must compare the token count to getAutoCompactThreshold with >= (src/utils/compact/autoCompactWindow.ts)')
+  check(`${f.label}: false at threshold − 1, true at threshold`, fireBelow === false && fireAt === true, JSON.stringify({ fireBelow, fireAt }) + ' | shouldAutoCompact in src/engine/compaction/autoFold.ts must compare the token count to getAutoCompactThreshold with >= (src/engine/compaction-window/autoFoldWindow.ts)')
 }
 {
   const oldFallbackThreshold = 200_000 - 20_000 - 13_000
   const fired = await compact.shouldAutoCompact(transcriptAt(oldFallbackThreshold) as never, 'openrouter/stealth/ox-alpha')
-  check('the 1M carrier at 167,000 tokens (the fallback-window threshold) does NOT compact', fired === false, 'shouldAutoCompact (src/services/compact/autoCompact.ts) is using the 200,000 fallback window for an OpenRouter 1M model; the live context_length must reach resolveContextWindow (src/utils/model/capabilities.ts)')
+  check('the 1M carrier at 167,000 tokens (the fallback-window threshold) does NOT compact', fired === false, 'shouldAutoCompact (src/engine/compaction/autoFold.ts) is using the 200,000 fallback window for an OpenRouter 1M model; the live context_length must reach resolveContextWindow (src/models/facts/capabilities.ts)')
   const fired131 = await compact.shouldAutoCompact(transcriptAt(120_000) as never, 'openrouter/meta/llama-small')
-  check('the 131k carrier at 120,000 tokens DOES compact (the fallback window would have let it overflow)', fired131 === true, 'shouldAutoCompact (src/services/compact/autoCompact.ts) is not compacting a 131k model at 120,000 tokens; check getAutoCompactThreshold in src/utils/compact/autoCompactWindow.ts')
+  check('the 131k carrier at 120,000 tokens DOES compact (the fallback window would have let it overflow)', fired131 === true, 'shouldAutoCompact (src/engine/compaction/autoFold.ts) is not compacting a 131k model at 120,000 tokens; check getAutoCompactThreshold in src/engine/compaction-window/autoFoldWindow.ts')
 }
 
 section('T3 · settings override clamps; the warning ladder, blocking limit, overflow diagnostic and the fold read the same numbers')
 {
   const low = compact.resolveAutoCompactWindow('openrouter/stealth/ox-alpha', 50_000)
-  check('autoCompactWindow 50,000 rises to the 100,000 floor (configured 100,000; window 100,000)', low.configured === 100_000 && low.window === 100_000 && low.source === 'settings', JSON.stringify(low) + ' | fix the 100,000 floor in resolveAutoCompactWindow (src/utils/compact/autoCompactWindow.ts)')
+  check('autoCompactWindow 50,000 rises to the 100,000 floor (configured 100,000; window 100,000)', low.configured === 100_000 && low.window === 100_000 && low.source === 'settings', JSON.stringify(low) + ' | fix the 100,000 floor in resolveAutoCompactWindow (src/engine/compaction-window/autoFoldWindow.ts)')
   const high = compact.resolveAutoCompactWindow('openrouter/stealth/ox-alpha', 2_000_000)
-  check('autoCompactWindow 2,000,000 falls to the 1,000,000 cap (a 1,048,576 model budgets 1,000,000 under the override)', high.configured === 1_000_000 && high.window === 1_000_000, JSON.stringify(high) + ' | fix the 1,000,000 cap in resolveAutoCompactWindow (src/utils/compact/autoCompactWindow.ts)')
+  check('autoCompactWindow 2,000,000 falls to the 1,000,000 cap (a 1,048,576 model budgets 1,000,000 under the override)', high.configured === 1_000_000 && high.window === 1_000_000, JSON.stringify(high) + ' | fix the 1,000,000 cap in resolveAutoCompactWindow (src/engine/compaction-window/autoFoldWindow.ts)')
   const clamped = compact.resolveAutoCompactWindow('openrouter/meta/llama-small', 500_000)
-  check('autoCompactWindow 500,000 never exceeds the model\'s own 131,072', clamped.configured === 500_000 && clamped.window === 131_072, JSON.stringify(clamped) + ' | resolveAutoCompactWindow (src/utils/compact/autoCompactWindow.ts) must clamp the window to the model window')
+  check('autoCompactWindow 500,000 never exceeds the model\'s own 131,072', clamped.configured === 500_000 && clamped.window === 131_072, JSON.stringify(clamped) + ' | resolveAutoCompactWindow (src/engine/compaction-window/autoFoldWindow.ts) must clamp the window to the model window')
   const auto = compact.resolveAutoCompactWindow('openrouter/stealth/ox-alpha')
-  check('no override ⇒ the model window verbatim (1,048,576 · source auto)', auto.window === 1_048_576 && auto.source === 'auto', JSON.stringify(auto) + ' | resolveAutoCompactWindow (src/utils/compact/autoCompactWindow.ts) must return the model window with source auto when no override is set')
+  check('no override ⇒ the model window verbatim (1,048,576 · source auto)', auto.window === 1_048_576 && auto.source === 'auto', JSON.stringify(auto) + ' | resolveAutoCompactWindow (src/engine/compaction-window/autoFoldWindow.ts) must return the model window with source auto when no override is set')
   const effOverride = compact.getEffectiveContextWindowSize('openrouter/meta/llama-small', 500_000)
-  check('getEffectiveContextWindowSize honours the clamped override (131,072 − 20,000)', effOverride === 111_072, JSON.stringify({ effOverride }) + ' | getEffectiveContextWindowSize in src/utils/compact/autoCompactWindow.ts must use the clamped window from resolveAutoCompactWindow')
+  check('getEffectiveContextWindowSize honours the clamped override (131,072 − 20,000)', effOverride === 111_072, JSON.stringify({ effOverride }) + ' | getEffectiveContextWindowSize in src/engine/compaction-window/autoFoldWindow.ts must use the clamped window from resolveAutoCompactWindow')
 
   const model = 'openrouter/stealth/ox-alpha'
   const threshold = thresholds.get(model)!
@@ -164,10 +164,10 @@ section('T3 · settings override clamps; the warning ladder, blocking limit, ove
   const warnBelow = compact.calculateTokenWarningState(threshold - 20_001, model)
   const compactAt = compact.calculateTokenWarningState(threshold, model)
   const blockedAt = compact.calculateTokenWarningState(effective - 3_000, model)
-  check('warning ladder: warn 20k before the fold, compact at the fold, blocked only at the edge', warnAt.level === 'warn' && warnBelow.level === 'ok' && compactAt.level === 'compact' && blockedAt.level === 'blocked', JSON.stringify({ warnAt, warnBelow, compactAt, blockedAt }) + ' | fix the level cutoffs in calculateTokenWarningState (src/utils/compact/autoCompactWindow.ts)')
-  check('pctLeft is measured to the trigger threshold over the model window (0 at threshold)', compactAt.pctLeft === 0 && warnAt.pctLeft === Math.round((20_000 / resolveContextWindow(model).effectiveWindow) * 100), JSON.stringify({ compactAt, warnAt }) + ' | fix pctLeft in calculateTokenWarningState (src/utils/compact/autoCompactWindow.ts)')
+  check('warning ladder: warn 20k before the fold, compact at the fold, blocked only at the edge', warnAt.level === 'warn' && warnBelow.level === 'ok' && compactAt.level === 'compact' && blockedAt.level === 'blocked', JSON.stringify({ warnAt, warnBelow, compactAt, blockedAt }) + ' | fix the level cutoffs in calculateTokenWarningState (src/engine/compaction-window/autoFoldWindow.ts)')
+  check('pctLeft is measured to the trigger threshold over the model window (0 at threshold)', compactAt.pctLeft === 0 && warnAt.pctLeft === Math.round((20_000 / resolveContextWindow(model).effectiveWindow) * 100), JSON.stringify({ compactAt, warnAt }) + ' | fix pctLeft in calculateTokenWarningState (src/engine/compaction-window/autoFoldWindow.ts)')
   const overflow = compact.detectFixedPrefixOverflow(transcriptAt(threshold + 50_000) as never, model)
-  check('the fixed-prefix overflow diagnostic reads the same threshold', overflow !== null && overflow.thresholdTokens === threshold && overflow.prefixTokens <= effective, JSON.stringify(overflow) + ' | detectFixedPrefixOverflow in src/services/compact/autoCompact.ts must report the same threshold as getAutoCompactThreshold')
+  check('the fixed-prefix overflow diagnostic reads the same threshold', overflow !== null && overflow.thresholdTokens === threshold && overflow.prefixTokens <= effective, JSON.stringify(overflow) + ' | detectFixedPrefixOverflow in src/engine/compaction/autoFold.ts must report the same threshold as getAutoCompactThreshold')
 }
 
 section('T4 · the surfaces agree with the trigger to the token')
@@ -177,13 +177,13 @@ for (const f of FAMILIES) {
   const view = contextFillView(messages as never, f.model)
   const count = tokens.tokenCountWithEstimation(messages as never)
   const snap = contextGauge(messages as never, f.model as never)
-  check(`${f.label}: usedTokens === trigger count (${count.toLocaleString()}) · window ${f.window.toLocaleString()} · compactAtPct === threshold/window · contextGauge agrees`, view.usedTokens === count && view.window === f.window && view.compactAtPct !== null && Math.abs(view.compactAtPct - (threshold / f.window) * 100) < 1e-9 && view.usedPct === Math.round((count / f.window) * 100) && snap.data.usedPct === view.usedPct && snap.data.usedTokens === count && snap.data.window === f.window, JSON.stringify({ view, count, snap: snap.data }) + ' | the surface disagrees with the trigger; fix contextFillView (src/services/context/contextFill.ts) or contextGauge (src/services/cockpit/contextGauge.ts) to read the same window, count and threshold')
+  check(`${f.label}: usedTokens === trigger count (${count.toLocaleString()}) · window ${f.window.toLocaleString()} · compactAtPct === threshold/window · contextGauge agrees`, view.usedTokens === count && view.window === f.window && view.compactAtPct !== null && Math.abs(view.compactAtPct - (threshold / f.window) * 100) < 1e-9 && view.usedPct === Math.round((count / f.window) * 100) && snap.data.usedPct === view.usedPct && snap.data.usedTokens === count && snap.data.window === f.window, JSON.stringify({ view, count, snap: snap.data }) + ' | the surface disagrees with the trigger; fix contextFillView (src/engine/context-window/contextFill.ts) or contextGauge (src/screen/cockpit-gauges/contextGauge.ts) to read the same window, count and threshold')
 }
 {
   const fallback = contextFillView(transcriptAt(56_300) as never, 'compat/my-model')
-  check("the compat slot's window is LABELLED as the fallback on the surface (windowSource 'fallback', reason stated)", fallback.windowSource === 'fallback' && typeof fallback.windowReason === 'string' && fallback.usedPct === 28, JSON.stringify(fallback) + ' | contextFillView (src/services/context/contextFill.ts) must label the fallback window with windowSource and windowReason')
+  check("the compat slot's window is LABELLED as the fallback on the surface (windowSource 'fallback', reason stated)", fallback.windowSource === 'fallback' && typeof fallback.windowReason === 'string' && fallback.usedPct === 28, JSON.stringify(fallback) + ' | contextFillView (src/engine/context-window/contextFill.ts) must label the fallback window with windowSource and windowReason')
   const carrier = contextFillView(transcriptAt(56_300) as never, 'openrouter/stealth/ox-alpha')
-  check("the operator's frame: 56,300 tokens on the 1M carrier paints 5%, not 28%", carrier.usedPct === 5 && carrier.windowSource === 'live-current', JSON.stringify(carrier) + ' | contextFillView (src/services/context/contextFill.ts) must use the live OpenRouter window, not the 200,000 fallback')
+  check("the operator's frame: 56,300 tokens on the 1M carrier paints 5%, not 28%", carrier.usedPct === 5 && carrier.windowSource === 'live-current', JSON.stringify(carrier) + ' | contextFillView (src/engine/context-window/contextFill.ts) must use the live OpenRouter window, not the 200,000 fallback')
 }
 
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`))

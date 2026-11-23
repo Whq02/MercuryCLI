@@ -1,18 +1,18 @@
 import * as React from 'react'
 import { useRef, useState } from 'react'
-import { useLoad, useMount } from '../../hooks/effects.js'
-import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
-import { useAppState, useSetAppState } from '../../state/AppState.js'
-import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../constants/xml.js'
-import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js'
-import type { Message } from '../../types/message.js'
-import { usabilityForRoute } from '../../services/providers/providerUsability.js'
-import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
+import { useLoad, useMount } from '../../screen/effects/effects.js'
+import { TransitionPreviewCard } from './TransitionPreviewCard.js'
+import { useAppState, useSetAppState } from '../../screen/app-state/AppState.js'
+import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../engine/message-shapes/messageTags.js'
+import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../catalogue/command.js'
+import type { Message } from '../../engine/message-shapes/message.js'
+import { usabilityForRoute } from '../../models/roads/providerUsability.js'
+import { requestCommandDispatch } from '../../screen/cockpit/helmFocus.js'
 import {
   previewForSelection,
   reconfirmTransitionPlan,
   transitionPlanSummary,
-} from '../../services/providers/transitionPreview.js'
+} from '../../models/roads/transitionPreview.js'
 import {
   crossProviderNote,
   providerFamilyOfSetting,
@@ -21,13 +21,13 @@ import {
   type SeatReceiptState,
   type SettledSelection,
   type TransitionPlan,
-} from '../../services/model/modelTransition.js'
-import { isModelAlias } from '../../utils/model/aliases.js'
-import { isModelAllowed } from '../../services/model/modelAllowlist.js'
-import { isModelFromDisabledProvider, isProviderDisabled } from '../../services/providers/disabledProviders.js'
-import { BARE_FAMILY_WORDS } from '../../services/model/bareFamilyWords.js'
-import { validateModel } from '../../services/providers/validateModel.js'
-import { checkOpus1mAccess, checkSonnet1mAccess } from '../../utils/model/check1mAccess.js'
+} from '../../models/catalogue/modelTransition.js'
+import { isModelAlias } from '../../models/facts/aliases.js'
+import { isModelAllowed } from '../../models/catalogue/modelAllowlist.js'
+import { isModelFromDisabledProvider, isProviderDisabled } from '../../models/roads/disabledProviders.js'
+import { BARE_FAMILY_WORDS } from '../../models/catalogue/bareFamilyWords.js'
+import { validateModel } from '../../models/roads/validateModel.js'
+import { checkOpus1mAccess, checkSonnet1mAccess } from '../../models/facts/check1mAccess.js'
 import {
   getDefaultEngineModel,
   isOpus1mMergeEnabled,
@@ -36,11 +36,11 @@ import {
   renderDefaultModelSetting,
   renderModelName,
   type ModelSetting,
-} from '../../services/model/model.js'
-import { resolveEffortTruth, type EffortValue } from '../../utils/effort.js'
-import { errorMessage } from '../../utils/errors.js'
-import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import type { ModelSwitchReceiptV1 } from '../../services/engine-connector/types.js'
+} from '../../models/catalogue/engineModel.js'
+import { resolveEffortTruth, type EffortValue } from '../../models/effort/effort.js'
+import { errorMessage } from '../../platform/errors/errors.js'
+import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
+import type { ModelSwitchReceiptV1 } from '../../engine/connector/types.js'
 import { persistModelChoice } from './persistModelChoice.js'
 
 function renderModelLabel(setting: ModelSetting): string {

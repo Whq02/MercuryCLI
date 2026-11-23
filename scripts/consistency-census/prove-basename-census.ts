@@ -18,7 +18,7 @@ check(
 )
 if (forbidden.length > 0) {
   for (const s of forbidden) console.log(`    ${s.file} (${s.needle}) ${s.excerpt}`)
-  console.log('    remove the forbidden basename or move it behind src/services/instructions/adapters/claudeCode.ts')
+  console.log('    remove the forbidden basename or move it behind src/sessions/instructions/adapters/claudeCode.ts')
 }
 const unclassified = census.sites.filter(s => s.cls === 'UNCLASSIFIED')
 check('§B zero UNCLASSIFIED rows', unclassified.length === 0, String(unclassified.length))
@@ -27,10 +27,10 @@ if (unclassified.length > 0) {
   console.log('    classify it in RULES in scripts/consistency-census/gen-basename-census.ts, or route through the home/project-dirs owner')
 }
 const OWNER_FILES = new Set([
-  'src/utils/env.ts',
-  'src/utils/envUtils.ts',
-  'src/utils/projectConfig.ts',
-  'src/entrypoints/cli.tsx',
+  'src/platform/environment/env.ts',
+  'src/platform/environment/envUtils.ts',
+  'src/platform/settings/projectConfig.ts',
+  'src/boot/entrypoints/cli.tsx',
 ])
 const strayOwners = census.sites.filter(
   s => s.cls === 'owner-internal' && !OWNER_FILES.has(s.file) && !/getMercuryHome|configHome|homeDir/.test(''),

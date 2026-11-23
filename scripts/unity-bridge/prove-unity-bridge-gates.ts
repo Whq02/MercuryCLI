@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
 let failures = 0
-const GATES_FIX_HINT = 'change the gate in src/utils/unity/bridgeGates.ts (unityBridgeEnabled, unityBridgeToolCatalogEnabled, unityBridgePort, unityBridgeTokenOverride) or, for the registry rows in section 5, the MERCURY_UNITY flag rows read through getFlagSpec in the flag registry (FLAG_REGISTRY)'
+const GATES_FIX_HINT = 'change the gate in src/integrations/unity-protocol/bridgeGates.ts (unityBridgeEnabled, unityBridgeToolCatalogEnabled, unityBridgePort, unityBridgeTokenOverride) or, for the registry rows in section 5, the MERCURY_UNITY flag rows read through getFlagSpec in the flag registry (FLAG_REGISTRY)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? detail : detail ? `${detail}; ${GATES_FIX_HINT}` : GATES_FIX_HINT
@@ -27,10 +27,10 @@ function resetEnv(): void {
 }
 resetEnv()
 
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const gates = await import('../../src/utils/unity/bridgeGates.js')
-const { UNITY_BRIDGE_DEFAULT_PORT } = await import('../../src/utils/unity/bridgeProtocol.js')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
+const gates = await import('../../src/integrations/unity-protocol/bridgeGates.js')
+const { UNITY_BRIDGE_DEFAULT_PORT } = await import('../../src/integrations/unity-protocol/bridgeProtocol.js')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'unity-bridge-gates-'))
 const proj = path.join(scratch, 'game')
@@ -94,13 +94,13 @@ section('5. registry census — the rows + the ruling’s premise')
   const port = getFlagSpec('MERCURY_UNITY_BRIDGE_PORT')
   check(
     'PORT row: value-kind, gates-module consumer, default named',
-    port?.kind === 'value' && port.consumer === 'src/utils/unity/bridgeGates.ts' && port.off === '6011',
+    port?.kind === 'value' && port.consumer === 'src/integrations/unity-protocol/bridgeGates.ts' && port.off === '6011',
   )
   const token = getFlagSpec('MERCURY_UNITY_BRIDGE_TOKEN')
   check(
     'TOKEN row: value-kind, gates-module consumer, never-logged wording',
     token?.kind === 'value' &&
-      token.consumer === 'src/utils/unity/bridgeGates.ts' &&
+      token.consumer === 'src/integrations/unity-protocol/bridgeGates.ts' &&
       /never logged/.test(token.summary),
   )
   const master = getFlagSpec('MERCURY_UNITY')

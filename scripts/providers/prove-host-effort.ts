@@ -11,9 +11,9 @@ let mounted: Mounted | undefined
 try {
   f.state.dialect = 'llamacpp'
   f.state.slots = 4
-  const { runLlmHost } = await import(`${f.root}/src/services/llmHost/index.ts`)
-  const { updateSettingsForSource } = await import(`${f.root}/src/utils/settings/settings.ts`)
-  const { selectableEffortLevels, resolveEffortTruth } = await import(`${f.root}/src/utils/effort.ts`)
+  const { runLlmHost } = await import(`${f.root}/src/models/llm-host/index.ts`)
+  const { updateSettingsForSource } = await import(`${f.root}/src/platform/settings/settings.ts`)
+  const { selectableEffortLevels, resolveEffortTruth } = await import(`${f.root}/src/models/effort/effort.ts`)
   const { effortPopupRows, EffortPopup, EffortApplyContext } = await import(`${f.root}/src/commands/effort/EffortPopup.tsx`)
   const { executeEffort } = await import(`${f.root}/src/commands/effort/effort.tsx`)
   const answers: Record<string, string> = { servers: '__add__', address: f.baseUrl, dialect: 'llamacpp', key: '', model: f.model, name: 'effort-host', confirm: 'run' }
@@ -29,12 +29,12 @@ try {
   assert.deepEqual(effortPopupRows(id).map((row: any) => row.word), ['auto', 'low', 'high', 'max'])
 
   const React = await import('react')
-  const { Box } = await import(`${f.root}/src/ink.js`)
-  const { AppStateProvider } = await import(`${f.root}/src/state/AppState.tsx`)
-  const { getDefaultAppState } = await import(`${f.root}/src/state/AppStateStore.ts`)
-  const { ThemeProvider } = await import(`${f.root}/src/components/design-system/ThemeProvider.tsx`)
-  const { setEngineModelOverride } = await import(`${f.root}/src/bootstrap/state.ts`)
-  const { MODEL_PICKER_CURRENT } = await import(`${f.root}/src/utils/model/modelPickerGroups.ts`)
+  const { Box } = await import(`${f.root}/src/screen/themedRenderer.js`)
+  const { AppStateProvider } = await import(`${f.root}/src/screen/app-state/AppState.tsx`)
+  const { getDefaultAppState } = await import(`${f.root}/src/screen/app-state/AppStateStore.ts`)
+  const { ThemeProvider } = await import(`${f.root}/src/screen/theme/ThemeProvider.tsx`)
+  const { setEngineModelOverride } = await import(`${f.root}/src/boot/process-state/processState.ts`)
+  const { MODEL_PICKER_CURRENT } = await import(`${f.root}/src/models/facts/modelPickerGroups.ts`)
   const h = React.createElement
   let selected: string | undefined
   let done = ''
@@ -63,7 +63,7 @@ try {
   assert.match(done, /Effort set to high/)
   mounted.unmount(); mounted = undefined
   const high = await f.run(id, undefined, undefined, selected)
-  assert.ok(high.every(row => !row.isApiErrorMessage), `src/services/providers/callModelRouter.ts hosted llamacpp high-effort turn failed: ${JSON.stringify(high.map(r => r.error)).slice(0, 140)}`)
+  assert.ok(high.every(row => !row.isApiErrorMessage), `src/models/roads/callModelRouter.ts hosted llamacpp high-effort turn failed: ${JSON.stringify(high.map(r => r.error)).slice(0, 140)}`)
   assert.equal(f.captures.at(-1)!.body.chat_template_kwargs.reasoning_effort, 'high')
   assert.equal(f.captures.at(-1)!.body.reasoning_effort, undefined)
   assert.equal(high.at(-1).effort.wire, 'chat_template_kwargs.reasoning_effort=high')
@@ -79,7 +79,7 @@ try {
     f.state.dialect = dialect
     assert.deepEqual(selectableEffortLevels(model), ['low', 'high', 'max'])
     const replies = await f.run(model, undefined, undefined, 'high')
-    assert.ok(replies.every(row => !row.isApiErrorMessage), `src/services/providers/callModelRouter.ts ${dialect} high-effort turn failed: ${JSON.stringify(replies.map(r => r.error)).slice(0, 140)}`)
+    assert.ok(replies.every(row => !row.isApiErrorMessage), `src/models/roads/callModelRouter.ts ${dialect} high-effort turn failed: ${JSON.stringify(replies.map(r => r.error)).slice(0, 140)}`)
     assert.equal(f.captures.at(-1)!.body.reasoning_effort, 'high', dialect)
     if (dialect === 'sglang') assert.equal(f.captures.at(-1)!.body.chat_template_kwargs.clear_thinking, false)
     if (dialect === 'chat-completions') {
@@ -133,8 +133,8 @@ try {
     assert.equal(replies[0].effort.applied, 'high')
     const sent = f.captures[before]!.body
     assert.equal(sent.reasoning_effort ?? sent.chat_template_kwargs?.reasoning_effort, 'high')
-    assert.ok(sent.tools.some((tool: any) => tool.function.name === 'FixtureEcho'), `src/services/providers/openaicompat/compatChatClient.ts ${dialect} rejected-effort request missing FixtureEcho tool`)
-    if (dialect === 'llamacpp') assert.ok(Number.isInteger(sent.id_slot), `src/services/providers/openaicompat/compatChatClient.ts llamacpp rejected-effort request missing integer id_slot: got ${String(sent.id_slot)}`)
+    assert.ok(sent.tools.some((tool: any) => tool.function.name === 'FixtureEcho'), `src/models/roads/openaicompat/compatChatClient.ts ${dialect} rejected-effort request missing FixtureEcho tool`)
+    if (dialect === 'llamacpp') assert.ok(Number.isInteger(sent.id_slot), `src/models/roads/openaicompat/compatChatClient.ts llamacpp rejected-effort request missing integer id_slot: got ${String(sent.id_slot)}`)
     if (dialect === 'sglang') assert.equal(sent.chat_template_kwargs.clear_thinking, false)
   }
   f.state.dialect = 'llamacpp'
@@ -142,7 +142,7 @@ try {
   const containerStart = f.captures.length
   const containerReplies = await f.run(id, undefined, undefined, 'high')
   assert.equal(f.captures.length - containerStart, 1)
-  assert.ok(containerReplies.some(row => row.isApiErrorMessage && row.error === 'invalid_request'), `src/services/providers/callModelRouter.ts reject-template expected invalid_request: got ${JSON.stringify(containerReplies.map(r => r.error))}`)
+  assert.ok(containerReplies.some(row => row.isApiErrorMessage && row.error === 'invalid_request'), `src/models/roads/callModelRouter.ts reject-template expected invalid_request: got ${JSON.stringify(containerReplies.map(r => r.error))}`)
   assert.match(JSON.stringify(containerReplies[0].message.content), /chat_template_kwargs.*selected effort and thinking are unchanged/)
   assert.equal(f.captures.at(-1)!.body.chat_template_kwargs.reasoning_effort, 'high')
   assert.equal(containerReplies[0].effort.applied, 'high')
@@ -150,7 +150,7 @@ try {
   const persistentStart = f.captures.length
   const persistentReplies = await f.run(id, undefined, undefined, 'high')
   assert.equal(f.captures.length - persistentStart, 1, 'a named 400 is terminal, never an effort downgrade')
-  assert.ok(persistentReplies.some(row => row.isApiErrorMessage && row.error === 'invalid_request'), `src/services/providers/callModelRouter.ts reject-persistent expected invalid_request: got ${JSON.stringify(persistentReplies.map(r => r.error))}`)
+  assert.ok(persistentReplies.some(row => row.isApiErrorMessage && row.error === 'invalid_request'), `src/models/roads/callModelRouter.ts reject-persistent expected invalid_request: got ${JSON.stringify(persistentReplies.map(r => r.error))}`)
   assert.equal(persistentReplies[0].effort.applied, 'high')
   f.state.mode = 'reply'
   f.state.dialect = 'ollama'
@@ -184,7 +184,7 @@ try {
   const before = f.captures.length
   const refused = await f.run(id, undefined, undefined, 'high')
   assert.equal(f.captures.length - before, 1, 'unrelated 400 is not hidden by an effort retry')
-  assert.ok(refused.some(row => row.isApiErrorMessage), `src/services/providers/callModelRouter.ts reject-other 400 did not return isApiErrorMessage`)
+  assert.ok(refused.some(row => row.isApiErrorMessage), `src/models/roads/callModelRouter.ts reject-other 400 did not return isApiErrorMessage`)
   f.state.mode = 'reply'
   f.state.dialect = 'llamacpp'
   await f.run(id, undefined, undefined, 'high')

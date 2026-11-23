@@ -14,7 +14,7 @@ const guard = (p: string): string => {
 }
 
 const overall = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — sweep exceeded 480s; a writer is stuck, so read the lock and batching path of store.mutate in src/substrate/fileStore.ts (the writer is scripts/reliability/_sweep-writer.ts)')
+  console.log('\n❌ TIMEOUT — sweep exceeded 480s; a writer is stuck, so read the lock and batching path of store.mutate in src/platform/substrate/fileStore.ts (the writer is scripts/reliability/_sweep-writer.ts)')
   process.exit(1)
 }, 480_000)
 overall.unref?.()
@@ -65,7 +65,7 @@ for (const { writers, perWriter } of RUNGS) {
   check(
     `every writer acked every commit (no retry-budget drop) [${secs}s]`,
     codes.every(c => c === 0),
-    `exits: ${codes.join(',')}; a non-zero exit means store.mutate in src/substrate/fileStore.ts rejected a commit, and the writer prints DROPPED with the reason on stderr`,
+    `exits: ${codes.join(',')}; a non-zero exit means store.mutate in src/platform/substrate/fileStore.ts rejected a commit, and the writer prints DROPPED with the reason on stderr`,
   )
 
   const doc = JSON.parse(readFileSync(file, 'utf8')) as Doc
@@ -74,12 +74,12 @@ for (const { writers, perWriter } of RUNGS) {
   check(
     `zero loss: the store holds all ${expected} acked marks`,
     marks.length === expected,
-    `held ${marks.length}; a commit was lost or applied twice, so fix the cross-process write path of store.mutate in src/substrate/fileStore.ts`,
+    `held ${marks.length}; a commit was lost or applied twice, so fix the cross-process write path of store.mutate in src/platform/substrate/fileStore.ts`,
   )
   check(
     'every mark exactly once (no duplicate applies)',
     new Set(marks).size === marks.length,
-    'a mutate was applied twice; fix the retry or batching path of store.mutate in src/substrate/fileStore.ts',
+    'a mutate was applied twice; fix the retry or batching path of store.mutate in src/platform/substrate/fileStore.ts',
   )
   let ordered = true
   for (let w = 0; w < writers; w++) {
@@ -94,7 +94,7 @@ for (const { writers, perWriter } of RUNGS) {
   check(
     'per-writer issue order preserved through batching',
     ordered,
-    'one writer marks are missing or out of issue order; fix how store.mutate in src/substrate/fileStore.ts orders batched mutations',
+    'one writer marks are missing or out of issue order; fix how store.mutate in src/platform/substrate/fileStore.ts orders batched mutations',
   )
 }
 

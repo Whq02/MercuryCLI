@@ -9,7 +9,7 @@ const HOME = mkdtempSync(join(tmpdir(), 'snapshot-proof-home-'))
 const PROJ = mkdtempSync(join(tmpdir(), 'snapshot-proof-proj-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 
-const state = await import('../../src/bootstrap/state.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
 state.setOriginalCwd(PROJ)
 state.setAllowedSettingSources([
   'userSettings',
@@ -19,10 +19,10 @@ state.setAllowedSettingSources([
   'policySettings',
 ])
 
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 const { getSettingsSnapshot, settingsRevision, _resetSettingsSnapshotForTesting } =
-  await import('../../src/utils/settings/snapshot.ts')
+  await import('../../src/platform/settings/snapshot.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -33,7 +33,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const snapshotSrcHint = 'see src/utils/settings/snapshot.ts'
+const snapshotSrcHint = 'see src/platform/settings/snapshot.ts'
 
 const userPath = join(HOME, 'settings.json')
 const projDir = join(PROJ, '.mercury')
@@ -117,15 +117,15 @@ section('(3) revisions — monotonic, content-keyed')
 
   updateSettingsForSource('userSettings', { engine: { model: 'written-through' } })
   const r4 = settingsRevision()
-  check('a settings WRITE advances the revision without a manual reset', r4 === r3 + 1, `${r3} → ${r4}; check that updateSettingsForSource in src/utils/settings/settings.ts clears the settings cache, then ${snapshotSrcHint}`)
+  check('a settings WRITE advances the revision without a manual reset', r4 === r3 + 1, `${r3} → ${r4}; check that updateSettingsForSource in src/platform/settings/settings.ts clears the settings cache, then ${snapshotSrcHint}`)
 }
 
 section('(4) atomic persistence — no durable temp orphans beside settings')
 {
   updateSettingsForSource('userSettings', { environment: { values: { A: 'atomic' } } })
   const leftovers = readdirSync(HOME).filter(f => f.includes('.tmp') || f.includes('durable'))
-  check('no temp/orphan files beside settings.json after writes', leftovers.length === 0, `${j(leftovers)}; updateSettingsForSource in src/utils/settings/settings.ts must remove its temp file after writing`)
-  check('write landed', getSettingsSnapshot().settings.environment?.values?.A === 'atomic', 'updateSettingsForSource in src/utils/settings/settings.ts must persist the write and the snapshot must see it')
+  check('no temp/orphan files beside settings.json after writes', leftovers.length === 0, `${j(leftovers)}; updateSettingsForSource in src/platform/settings/settings.ts must remove its temp file after writing`)
+  check('write landed', getSettingsSnapshot().settings.environment?.values?.A === 'atomic', 'updateSettingsForSource in src/platform/settings/settings.ts must persist the write and the snapshot must see it')
 }
 
 console.log('\n============================================================')

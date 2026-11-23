@@ -17,24 +17,24 @@ delete process.env.ANTHROPIC_AUTH_TOKEN
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  const windowHint = 'change the window reading in src/services/anthropicLimits.ts (extractQuotaStatusFromError, anthropicWindowClosed) or src/services/providers/providerUsage.ts (anthropicLimitedWindow, usageWindowReached, limitBindsWords); screen text lives in fullWindowLine (src/components/Settings/usage/lines.tsx), usagePopupLine (src/components/Settings/usageLine.ts) and composeUsageReading (src/cli/handlers/usage.ts); hop checks in src/services/api/backupEngines.ts'
+  const windowHint = 'change the window reading in src/models/roads/anthropic/anthropicLimits.ts (extractQuotaStatusFromError, anthropicWindowClosed) or src/models/roads/providerUsage.ts (anthropicLimitedWindow, usageWindowReached, limitBindsWords); screen text lives in fullWindowLine (src/screen/settings/usage/lines.tsx), usagePopupLine (src/screen/settings/usageLine.ts) and composeUsageReading (src/commands/verbs/usage.ts); hop checks in src/engine/requests/backupEngines.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${windowHint}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + t)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
 auth.clearOAuthTokenCache()
 writeFileSync(join(HOME, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: 'at-live', refreshToken: 'rt-live', expiresAt: Date.now() + 7 * 24 * 3600_000, scopes: ['user:inference', 'user:profile'], subscriptionType: 'max', rateLimitTier: null } }))
 auth.clearOAuthTokenCache()
-const { APIError } = await import('../../src/utils/api/sdkErrors.js')
-const limits = await import('../../src/services/anthropicLimits.ts')
-const usage = await import('../../src/services/providers/providerUsage.ts')
-const { fullWindowLine } = await import('../../src/components/Settings/Usage.tsx')
-const { usagePopupLine } = await import('../../src/components/Settings/usageLine.ts')
-const { composeUsageReading } = await import('../../src/cli/handlers/usage.ts')
-const { failoverCauseOf, withBackupVote } = await import('../../src/services/api/backupEngines.ts')
+const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+const usage = await import('../../src/models/roads/providerUsage.ts')
+const { fullWindowLine } = await import('../../src/screen/settings/Usage.tsx')
+const { usagePopupLine } = await import('../../src/screen/settings/usageLine.ts')
+const { composeUsageReading } = await import('../../src/commands/verbs/usage.ts')
+const { failoverCauseOf, withBackupVote } = await import('../../src/engine/requests/backupEngines.ts')
 
 const OWNER = 'anthropic:oauth:primary:00000000-0000-4000-8000-0000000000aa'
 limits.__setAnthropicOwnerResolverForTest(() => OWNER, () => 'ana@example.com')

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 const home = process.env.MERCURY_CONFIG_DIR
 assert(home, 'run with a scratch MERCURY_CONFIG_DIR')
 const scratch = mkdtempSync(join(home, 'owned-daemon-entry-'))
-const { spawnOwnedDaemon } = await import('../../src/daemon/ownedDaemon.ts')
+const { spawnOwnedDaemon } = await import('../../src/daemon/control/ownedDaemon.ts')
 let checks = 0
 const check = (label: string, value: unknown) => { assert(value, label); console.log(`PASS ${label}`); checks++ }
 const settle = (ms: number) => new Promise(res => setTimeout(res, ms))

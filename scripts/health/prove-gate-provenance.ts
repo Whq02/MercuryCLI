@@ -27,26 +27,26 @@ writeFileSync(
   }),
 )
 
-const { setCwd } = await import('../../src/utils/Shell.js')
-const { setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.js')
+const { setCwd } = await import('../../src/platform/shell/shellExec.js')
+const { setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.js')
 setCwd(SCRATCH)
 setOriginalCwd(SCRATCH)
 setProjectRoot(SCRATCH)
 
-const report = await import('../../src/services/health/healthReport.js')
+const report = await import('../../src/platform/health/healthReport.js')
 const cert = await report.runHealthReport({ depth: 'fast' })
 const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'gate')
 check(
   'a forged verdict in a gate-less project reads INFO naming the provenance, never a green gate',
   String(row?.status) === 'info' && String(row?.evidence).includes('NO gate') && String(row?.evidence).includes('project-authored'),
   `${row?.status}: ${String(row?.evidence).slice(0, 140)}`,
-  'change the gate check in src/services/health/sections/proofs.ts (proofsChecks) so a project without scripts/run-all-suites.sh returns status info with evidence naming NO gate and project-authored data',
+  'change the gate check in src/platform/health/sections/proofs.ts (proofsChecks) so a project without scripts/run-all-suites.sh returns status info with evidence naming NO gate and project-authored data',
 )
 check(
   'the forged suite count never rides the evidence',
   !String(row?.evidence).includes('12'),
   '',
-  'change the gate check in src/services/health/sections/proofs.ts (proofsChecks) so the info evidence for a gate-less project never carries the verdict suite count',
+  'change the gate check in src/platform/health/sections/proofs.ts (proofsChecks) so the info evidence for a gate-less project never carries the verdict suite count',
 )
 
 rmSync(HOME, { recursive: true, force: true })

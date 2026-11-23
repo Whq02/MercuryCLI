@@ -42,9 +42,9 @@ process.env.MERCURY_LSP_SERVERS = JSON.stringify({
   },
 })
 
-const { enableConfigs } = await import(path.join(SRC, 'utils/config.ts'))
+const { enableConfigs } = await import(path.join(SRC, 'platform/settings/config.ts'))
 enableConfigs()
-const { createLSPServerManager } = await import(path.join(SRC, 'services/lsp/LSPServerManager.ts'))
+const { createLSPServerManager } = await import(path.join(SRC, 'integrations/lsp/LSPServerManager.ts'))
 
 type Manager = {
   initialize(): Promise<void>
@@ -66,16 +66,16 @@ section('§1 two opens during the cold start both succeed, on one spawn')
   const manager = createLSPServerManager() as Manager
   await manager.initialize()
   const server = manager.getAllServers().get(keyOf(manager, 'fakeslow'))
-  check('the fake server is registered', server !== undefined, 'MERCURY_LSP_SERVERS did not yield a server named fakeslow from createLSPServerManager().initialize() in src/services/lsp/LSPServerManager.ts')
+  check('the fake server is registered', server !== undefined, 'MERCURY_LSP_SERVERS did not yield a server named fakeslow from createLSPServerManager().initialize() in src/integrations/lsp/LSPServerManager.ts')
   const first = manager.openFile(file('a.fake'), 'x')
   await new Promise(resolve => setTimeout(resolve, 150))
   check('precondition: the server is still starting when the second caller arrives', server?.state === 'starting', String(server?.state) + ' — the fake server must still be starting 150 ms into a 1200 ms init delay; check the FAKE_LSP_INIT_DELAY_MS env in this file and scripts/lsp/fixtures/fake-lsp-server.mjs')
   const second = manager.openFile(file('b.fake'), 'y')
   const [one, two] = await Promise.all([outcome(first), outcome(second)])
-  check('the first open succeeds', one.ok, one.error + ' — openFile in src/services/lsp/LSPServerManager.ts must start the server and open the file')
-  check('the second open succeeds — it joined the start instead of racing past it', two.ok, two.error + ' — openFile in src/services/lsp/LSPServerManager.ts must wait for the start already in flight, not fail while the server is starting')
-  check('exactly one server process was spawned', spawns() === 1, `spawns=${spawns()} — a second caller must join the pending start in ensureServerStarted (src/services/lsp/LSPServerManager.ts), not spawn another process`)
-  check('the server is running', server?.state === 'running', String(server?.state) + ' — the joined start in src/services/lsp/LSPServerManager.ts must leave the server running')
+  check('the first open succeeds', one.ok, one.error + ' — openFile in src/integrations/lsp/LSPServerManager.ts must start the server and open the file')
+  check('the second open succeeds — it joined the start instead of racing past it', two.ok, two.error + ' — openFile in src/integrations/lsp/LSPServerManager.ts must wait for the start already in flight, not fail while the server is starting')
+  check('exactly one server process was spawned', spawns() === 1, `spawns=${spawns()} — a second caller must join the pending start in ensureServerStarted (src/integrations/lsp/LSPServerManager.ts), not spawn another process`)
+  check('the server is running', server?.state === 'running', String(server?.state) + ' — the joined start in src/integrations/lsp/LSPServerManager.ts must leave the server running')
   await manager.shutdown()
 }
 
@@ -88,9 +88,9 @@ section('§2 a request during the cold start joins it too')
   await new Promise(resolve => setTimeout(resolve, 150))
   const ensured = outcome(manager.ensureServerStarted(file('c.fake')))
   const [openOutcome, ensureOutcome] = await Promise.all([outcome(opening), ensured])
-  check('the open succeeds', openOutcome.ok, openOutcome.error + ' — openFile in src/services/lsp/LSPServerManager.ts must succeed while a request joins its start')
-  check('ensureServerStarted joined the start and answered a running server', ensureOutcome.ok, ensureOutcome.error + ' — ensureServerStarted in src/services/lsp/LSPServerManager.ts must wait for the start in flight and return the running server')
-  check('still one spawn for this manager', spawns() - before === 1, `spawns=${spawns() - before} — ensureServerStarted in src/services/lsp/LSPServerManager.ts must not spawn a second process while one is starting`)
+  check('the open succeeds', openOutcome.ok, openOutcome.error + ' — openFile in src/integrations/lsp/LSPServerManager.ts must succeed while a request joins its start')
+  check('ensureServerStarted joined the start and answered a running server', ensureOutcome.ok, ensureOutcome.error + ' — ensureServerStarted in src/integrations/lsp/LSPServerManager.ts must wait for the start in flight and return the running server')
+  check('still one spawn for this manager', spawns() - before === 1, `spawns=${spawns() - before} — ensureServerStarted in src/integrations/lsp/LSPServerManager.ts must not spawn a second process while one is starting`)
   await manager.shutdown()
 }
 

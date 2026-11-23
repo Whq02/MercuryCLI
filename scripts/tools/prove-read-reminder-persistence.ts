@@ -11,11 +11,11 @@ process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_HOME
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 try {
-  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
-  const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
+  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
+  const { setEngineModelOverride } = await import('../../src/boot/process-state/processState.ts')
   enableConfigs()
   const context: any = { messages: [], readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), updateFileHistoryState: () => {}, getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }
   const files = ['a', 'b', 'c', 'd'].map(name => join(scratch, name + '.txt'))
@@ -24,7 +24,7 @@ try {
   const read = (file: string, parent?: any) => FileReadTool.call({ file_path: file }, context, undefined, parent)
   const first = await read(files[0]!)
   const firstText = text(first.data)
-  assert.ok(firstText.includes('Assess harm in context'), `first Read in src/tools/FileReadTool/FileReadTool.ts omitted the safety reminder (${firstText.slice(0, 160)})`)
+  assert.ok(firstText.includes('Assess harm in context'), `first Read in src/tools/read/ReadTool.ts omitted the safety reminder (${firstText.slice(0, 160)})`)
   context.messages.push({ type: 'attachment', attachment: { type: 'file', filename: files[0], content: first.data } })
   const second = await read(files[1]!)
   console.log(JSON.stringify({ firstBytes: Buffer.byteLength(text(first.data)), laterBytes: Buffer.byteLength(text(second.data)) }))

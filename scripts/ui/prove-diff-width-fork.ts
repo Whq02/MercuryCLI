@@ -7,14 +7,14 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
-const CHROME_HINT = 'consentContentWidth and CONSENT_CARD_CHROME_COLUMNS in src/components/permissions/consentBodyBudget.ts must subtract the card borders, outer padding and inner padding from the columns'
+const CHROME_HINT = 'consentContentWidth and CONSENT_CARD_CHROME_COLUMNS in src/permissions/cards/consentBodyBudget.ts must subtract the card borders, outer padding and inner padding from the columns'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 process.chdir(root)
-const { consentContentWidth, CONSENT_CARD_CHROME_COLUMNS } = await import('../../src/components/permissions/consentBodyBudget.ts')
+const { consentContentWidth, CONSENT_CARD_CHROME_COLUMNS } = await import('../../src/permissions/cards/consentBodyBudget.ts')
 
 console.log('============================================================')
 console.log(' permission diff width — the card chrome subtraction')

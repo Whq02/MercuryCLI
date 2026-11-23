@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-const atomicWriteFailureHint = 'change the fallback table in classifyAtomicWriteFailure, the typed AtomicWriteRefusal, or writeFileAndFlushAtomically (temp write, rename, guarded direct write with restore and temp cleanup) in src/utils/file.ts, or the fault injection in src/substrate/durablePublish.ts, whichever this label names'
+const atomicWriteFailureHint = 'change the fallback table in classifyAtomicWriteFailure, the typed AtomicWriteRefusal, or writeFileAndFlushAtomically (temp write, rename, guarded direct write with restore and temp cleanup) in src/platform/files/file.ts, or the fault injection in src/platform/substrate/durablePublish.ts, whichever this label names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${atomicWriteFailureHint}` : ''}`)
@@ -24,13 +24,13 @@ const scratch = mkdtempSync(join(tmpdir(), 'prove-write-keeps-old-bytes-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 
-const fileMod = (await import('../../src/utils/file.ts')) as Record<string, unknown>
+const fileMod = (await import('../../src/platform/files/file.ts')) as Record<string, unknown>
 const write = fileMod.writeFileAndFlushAtomically as (p: string, c: string, o?: { encoding?: BufferEncoding; mode?: number }) => void
 const classify = fileMod.classifyAtomicWriteFailure as
   | ((code: string | undefined, facts: { platform: NodeJS.Platform; isNewFile: boolean; phase: string; attempt: number }) => string)
   | undefined
 const Refusal = fileMod.AtomicWriteRefusal as (new (...a: never[]) => Error) | undefined
-const { _resetFaultInjectionCountersForTests } = await import('../../src/substrate/durablePublish.ts')
+const { _resetFaultInjectionCountersForTests } = await import('../../src/platform/substrate/durablePublish.ts')
 
 const OLD = 'OLD BYTES — the previous contents\n'.repeat(120)
 const NEW = 'NEW BYTES — the replacement\n'.repeat(200)

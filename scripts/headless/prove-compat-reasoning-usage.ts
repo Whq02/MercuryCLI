@@ -23,9 +23,9 @@ for (const reasoning of [123, 0, undefined]) {
   tally.check('the input counts the whole prompt and names the cached part, per request served', result?.usage?.input_tokens === 211 * served && result.usage.cached_input_tokens === 41 * served)
 }
 
-const { decodeCompatUsage } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-const { mapCompatUsageToAnthropic } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { accumulateUsage, updateUsage } = await import('../../src/services/providers/anthropic/cacheAndUsage.ts')
+const { decodeCompatUsage } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+const { mapCompatUsageToAnthropic } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { accumulateUsage, updateUsage } = await import('../../src/models/roads/anthropic/cacheAndUsage.ts')
 const first = mapCompatUsageToAnthropic(decodeCompatUsage(rawUsage(123)))
 const second = mapCompatUsageToAnthropic(decodeCompatUsage(rawUsage(7)))
 const unstated = mapCompatUsageToAnthropic(decodeCompatUsage(rawUsage(undefined)))

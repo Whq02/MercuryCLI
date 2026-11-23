@@ -4,7 +4,7 @@ import { join, relative, resolve } from 'node:path'
 import ts from 'typescript'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-const FOLDER = 'src/services/engine-connector'
+const FOLDER = 'src/engine/connector'
 const DOOR = `${FOLDER}/daemonConnector.ts`
 const PARTS_DIR = `${FOLDER}/daemon`
 const SELF = 'scripts/engine-connector/prove-connector-parts-law.ts'

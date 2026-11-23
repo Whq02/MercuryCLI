@@ -26,7 +26,7 @@ for (const key of ['TMUX', 'LC_TERMINAL', 'SSH_CLIENT', 'SSH_TTY']) delete proce
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const React = await import('react')
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 const starts: boolean[] = []
 let resets = 0
@@ -34,10 +34,10 @@ async function stub(path: string, overrides: Record<string, unknown>): Promise<v
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...overrides }))
 }
-await stub('../../src/context/notifications.js', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
-await stub('../../src/hooks/useCatalogueEpoch.js', { useCatalogueEpoch: () => 0 })
-await stub('../../src/services/model/computedDefault.js', { mostRecentSignInFamily: () => undefined })
-await stub('../../src/components/mercury-ui/screens/anthropicLoginModel.js', {
+await stub('../../src/screen/notifications/notifications.js', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
+await stub('../../src/screen/model-picker/useCatalogueEpoch.js', { useCatalogueEpoch: () => 0 })
+await stub('../../src/models/catalogue/computedDefault.js', { mostRecentSignInFamily: () => undefined })
+await stub('../../src/screen/widgets/faces/anthropicLoginModel.js', {
   useAnthropicLoginModel: () => ({
     flow: { name: 'idle' },
     pastePromptUp: false,
@@ -58,16 +58,16 @@ await stub('../../src/components/mercury-ui/screens/anthropicLoginModel.js', {
   }),
 })
 
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
 const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
-const owner = (await import('../../src/components/loginFamilyRows.js')) as Record<string, unknown>
-const login = await import('../../src/commands/login/login.tsx')
-const screen = await import('../../src/components/BootLoginsScreen.js')
-const { ConsoleOAuthFlow } = await import('../../src/components/ConsoleOAuthFlow.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
+const owner = (await import('../../src/models/sign-in/flow-cards/loginFamilyRows.js')) as Record<string, unknown>
+const login = await import('../../src/commands/logins/login.tsx')
+const screen = await import('../../src/screen/boot-face/BootLoginsScreen.js')
+const { ConsoleOAuthFlow } = await import('../../src/models/sign-in/flow-cards/SignInFlow.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
 const { signedOutFacts } = await import('./face-logins-stills.ts')
 
 let failures = 0
@@ -100,26 +100,26 @@ section('§1 the catalogue: one Anthropic row, second after OpenAI, carrying bot
 {
   const rows = loginFamilyRows({ engineLegs: true })
   const anthropicRows = rows.filter(row => row.label.startsWith('Anthropic'))
-  check('exactly one row whose label begins Anthropic', anthropicRows.length === 1, `loginFamilyRows in src/components/loginFamilyRows must return one Anthropic row: ${rows.map(row => row.label).join(' | ')}`)
-  check('OpenAI still leads the list', rows[0]?.value === 'openai', `loginFamilyRows in src/components/loginFamilyRows must list OpenAI first: ${rows[0]?.label ?? 'no first row'}`)
-  check('the Anthropic row is second, right after OpenAI', rows[1]?.label === ANTHROPIC_ROW && rows[1]?.value === 'anthropic', `loginFamilyRows in src/components/loginFamilyRows must list the Anthropic row second: ${rows[1]?.label ?? 'no second row'}`)
+  check('exactly one row whose label begins Anthropic', anthropicRows.length === 1, `loginFamilyRows in src/models/sign-in/flow-cards/loginFamilyRows must return one Anthropic row: ${rows.map(row => row.label).join(' | ')}`)
+  check('OpenAI still leads the list', rows[0]?.value === 'openai', `loginFamilyRows in src/models/sign-in/flow-cards/loginFamilyRows must list OpenAI first: ${rows[0]?.label ?? 'no first row'}`)
+  check('the Anthropic row is second, right after OpenAI', rows[1]?.label === ANTHROPIC_ROW && rows[1]?.value === 'anthropic', `loginFamilyRows in src/models/sign-in/flow-cards/loginFamilyRows must list the Anthropic row second: ${rows[1]?.label ?? 'no second row'}`)
   check('no row is labelled Claude subscription account', !rows.some(row => row.label === OLD_SUBSCRIPTION_ROW))
   check('no row is labelled Usage-based billing', !rows.some(row => row.label.startsWith('Usage-based billing')))
   check('no row keeps the retired values claudeai or console', !rows.some(row => row.value === 'claudeai' || row.value === 'console'))
-  check('twenty-two rows: one Anthropic row and every other family', rows.length === 22, `loginFamilyRows in src/components/loginFamilyRows returned ${rows.length} rows, not 22: add or remove the family row there`)
+  check('twenty-two rows: one Anthropic row and every other family', rows.length === 22, `loginFamilyRows in src/models/sign-in/flow-cards/loginFamilyRows returned ${rows.length} rows, not 22: add or remove the family row there`)
   const restricted = loginFamilyRows({ engineLegs: false })
-  check('a host without engine legs offers the one Anthropic row alone', restricted.length === 1 && restricted[0]?.label === ANTHROPIC_ROW, `loginFamilyRows with engineLegs false in src/components/loginFamilyRows must return the Anthropic row alone: ${restricted.map(row => row.label).join(' | ')}`)
-  check('the arm pick offers both roads in order: the subscription arm, then the usage-based arm', armPick.map(arm => arm.value).join(',') === 'claudeai,console,key', `anthropicArmPickRows in src/components/loginFamilyRows must order its arms claudeai, console, key: ${armPick.map(arm => arm.value).join(',')}`)
+  check('a host without engine legs offers the one Anthropic row alone', restricted.length === 1 && restricted[0]?.label === ANTHROPIC_ROW, `loginFamilyRows with engineLegs false in src/models/sign-in/flow-cards/loginFamilyRows must return the Anthropic row alone: ${restricted.map(row => row.label).join(' | ')}`)
+  check('the arm pick offers both roads in order: the subscription arm, then the usage-based arm', armPick.map(arm => arm.value).join(',') === 'claudeai,console,key', `anthropicArmPickRows in src/models/sign-in/flow-cards/loginFamilyRows must order its arms claudeai, console, key: ${armPick.map(arm => arm.value).join(',')}`)
   check('the subscription arm names the Claude subscription and its browser sign-in', armPick[0]?.label === SUBSCRIPTION_ARM, armPick[0]?.label ?? 'absent')
   check('the usage-based arm keeps the Console words the roster carried before', armPick[1]?.label === USAGE_ARM, armPick[1]?.label ?? 'absent')
-  check('the recorded default anthropic pre-focuses the one Anthropic row', loginFamilyFocusFor('anthropic') === 'anthropic', `loginFamilyFocusFor in src/components/loginFamilyRows must map anthropic to the one Anthropic row: ${String(loginFamilyFocusFor('anthropic'))}`)
-  check('/logins anthropic, claude, claudeai and console all pre-focus the one Anthropic row', ['anthropic', 'claude', 'claudeai', 'console'].every(word => login.parseFamilyFocus(word) === 'anthropic'), `parseFamilyFocus in src/commands/login/login.tsx must map each word to anthropic: ${['anthropic', 'claude', 'claudeai', 'console'].map(word => `${word}→${String(login.parseFamilyFocus(word))}`).join(' ')}`)
+  check('the recorded default anthropic pre-focuses the one Anthropic row', loginFamilyFocusFor('anthropic') === 'anthropic', `loginFamilyFocusFor in src/models/sign-in/flow-cards/loginFamilyRows must map anthropic to the one Anthropic row: ${String(loginFamilyFocusFor('anthropic'))}`)
+  check('/logins anthropic, claude, claudeai and console all pre-focus the one Anthropic row', ['anthropic', 'claude', 'claudeai', 'console'].every(word => login.parseFamilyFocus(word) === 'anthropic'), `parseFamilyFocus in src/commands/logins/login.tsx must map each word to anthropic: ${['anthropic', 'claude', 'claudeai', 'console'].map(word => `${word}→${String(login.parseFamilyFocus(word))}`).join(' ')}`)
   const arms = screen.loginsCatalogue()
-  check('the face catalogue binds exactly one row to the anthropic family', arms.filter(arm => arm.familyId === 'anthropic').length === 1, `loginsCatalogue in src/components/BootLoginsScreen must bind one row to the anthropic family: ${arms.filter(arm => arm.familyId === 'anthropic').map(arm => arm.row.label).join(' | ')}`)
-  check('the distinct family count includes Melious AI and OrcaRouter', screen.loginsFamilyCounts([]).familyIds.length === 22 && screen.loginsFamilyCounts([]).familyIds.includes('melious') && screen.loginsFamilyCounts([]).familyIds.includes('orcarouter'), `loginsFamilyCounts in src/components/BootLoginsScreen must count 22 families including melious and orcarouter: ${screen.loginsFamilyCounts([]).familyIds.length}`)
-  check('the face pick for the Anthropic row is the row owner\'s pair, byte-same', JSON.stringify(screen.loginsPickOptions('anthropic' as never).map(option => option.label)) === JSON.stringify(armPick.map(arm => arm.label)) && armPick.length === 3, 'loginsPickOptions in src/components/BootLoginsScreen must return the same three labels as anthropicArmPickRows in src/components/loginFamilyRows')
+  check('the face catalogue binds exactly one row to the anthropic family', arms.filter(arm => arm.familyId === 'anthropic').length === 1, `loginsCatalogue in src/screen/boot-face/BootLoginsScreen must bind one row to the anthropic family: ${arms.filter(arm => arm.familyId === 'anthropic').map(arm => arm.row.label).join(' | ')}`)
+  check('the distinct family count includes Melious AI and OrcaRouter', screen.loginsFamilyCounts([]).familyIds.length === 22 && screen.loginsFamilyCounts([]).familyIds.includes('melious') && screen.loginsFamilyCounts([]).familyIds.includes('orcarouter'), `loginsFamilyCounts in src/screen/boot-face/BootLoginsScreen must count 22 families including melious and orcarouter: ${screen.loginsFamilyCounts([]).familyIds.length}`)
+  check('the face pick for the Anthropic row is the row owner\'s pair, byte-same', JSON.stringify(screen.loginsPickOptions('anthropic' as never).map(option => option.label)) === JSON.stringify(armPick.map(arm => arm.label)) && armPick.length === 3, 'loginsPickOptions in src/screen/boot-face/BootLoginsScreen must return the same three labels as anthropicArmPickRows in src/models/sign-in/flow-cards/loginFamilyRows')
   const pane = screen.loginsPickPaneLines('anthropic' as never)
-  check('the face pick pane explains the two credentials and names the way out', pane.join(' ').includes('One Anthropic family, two credentials') && pane[pane.length - 1] === 'esc — back to the roster', `loginsPickPaneLines in src/components/BootLoginsScreen must explain the two credentials and end with the esc line: ${pane.join(' | ')}`)
+  check('the face pick pane explains the two credentials and names the way out', pane.join(' ').includes('One Anthropic family, two credentials') && pane[pane.length - 1] === 'esc — back to the roster', `loginsPickPaneLines in src/screen/boot-face/BootLoginsScreen must explain the two credentials and end with the esc line: ${pane.join(' | ')}`)
 }
 
 const COLS = 120

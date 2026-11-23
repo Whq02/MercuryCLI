@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/tools/AsepriteTool/**
-# gate-watch: src/substrate/flagRegistry* src/substrate/startupMenu* src/services/cockpit/harnessMap*
+# gate-watch: src/tools/aseprite/**
+# gate-watch: src/platform/substrate/flagRegistry.ts src/platform/substrate/startupMenu.ts src/screen/cockpit-gauges/harnessMap.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

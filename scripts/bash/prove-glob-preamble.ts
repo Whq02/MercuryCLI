@@ -1,14 +1,14 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { resolveBashPackDir } from '../../src/utils/shell/bashPack.js'
-import { createBashShellProvider } from '../../src/utils/shell/bashProvider.js'
-import { getGlobPreambleCommand } from '../../src/utils/shell/globPreamble.js'
-import { systemShellAt } from '../../src/utils/shell/shellRecord.js'
+import { resolveBashPackDir } from '../../src/platform/shell/bashPack.js'
+import { createBashShellProvider } from '../../src/platform/shell/bashProvider.js'
+import { getGlobPreambleCommand } from '../../src/platform/shell/globPreamble.js'
+import { systemShellAt } from '../../src/platform/shell/shellRecord.js'
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  const failureHint = 'to fix, change getGlobPreambleCommand in src/utils/shell/globPreamble.ts (the preamble text per shell origin) or buildExecCommand in src/utils/shell/bashProvider.ts (where the preamble is placed); the check that no bash stands needs the bundled bash pack from resolveBashPackDir in src/utils/shell/bashPack.ts or /bin/bash on this host'
+  const failureHint = 'to fix, change getGlobPreambleCommand in src/platform/shell/globPreamble.ts (the preamble text per shell origin) or buildExecCommand in src/platform/shell/bashProvider.ts (where the preamble is placed); the check that no bash stands needs the bundled bash pack from resolveBashPackDir in src/platform/shell/bashPack.ts or /bin/bash on this host'
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? (detail ? ` — ${detail}` : '') : ` — ${detail ? `${detail}; ` : ''}${failureHint}`}`)
   if (!ok) failures = 1
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/memoryRefs.ts src/mneme/entryKnapsack.ts src/mneme/entryState.ts src/mneme/mnemeUsage.ts
+// gate-watch: src/sessions/mneme/memoryRefs.ts src/sessions/mneme/entryKnapsack.ts src/sessions/mneme/entryState.ts src/sessions/mneme/mnemeUsage.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
@@ -20,7 +20,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 600)}; ` : ''}fix cited-path handling in citedPathTokens, validateCitedPaths, factMemoryState and memoryStatusWords (src/mneme/memoryRefs.ts), or the start page in composeMemoryAtStart and composeStartPage (src/mneme/entryKnapsack.ts)` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 600)}; ` : ''}fix cited-path handling in citedPathTokens, validateCitedPaths, factMemoryState and memoryStatusWords (src/sessions/mneme/memoryRefs.ts), or the start page in composeMemoryAtStart and composeStartPage (src/sessions/mneme/entryKnapsack.ts)` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -40,30 +40,30 @@ const git = (...args: string[]): void => {
   if (run.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${run.stderr}`)
 }
 git('init', '-q', '-b', 'lane/quartz-rotation')
-mkdirSync(join(repo, 'src', 'mneme'), { recursive: true })
+mkdirSync(join(repo, 'src', 'sessions', 'mneme'), { recursive: true })
 mkdirSync(join(repo, 'docs'), { recursive: true })
 mkdirSync(join(repo, 'scripts'), { recursive: true })
 writeFileSync(join(repo, 'README.md'), 'quartz\n')
 writeFileSync(join(repo, 'src', 'exists.ts'), 'export {}\n')
-writeFileSync(join(repo, 'src', 'mneme', 'memoryRefs.ts'), 'export {}\n')
+writeFileSync(join(repo, 'src', 'sessions', 'mneme', 'memoryRefs.ts'), 'export {}\n')
 writeFileSync(join(repo, 'docs', 'guide.md'), '# guide\n')
 git('add', '.')
 git('commit', '-q', '-m', 'first')
 
-const state = await import('../../src/bootstrap/state.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
 process.chdir(repo)
 state.setOriginalCwd(repo)
 state.setCwdState(repo)
 state.setProjectRoot(repo)
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { mnemeProjectKey } = await import('../../src/mneme/paths.ts')
-const knapsack = await import('../../src/mneme/entryKnapsack.ts')
-const { readProjectState } = await import('../../src/mneme/entryState.ts')
-const refs = await import('../../src/mneme/memoryRefs.ts')
-const { appendObservation } = await import('../../src/mneme/mnemeBuffer.ts')
-const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { listTopicDocs } = await import('../../src/mneme/mnemeLibrary.ts')
-const { pinFact, readPins, readUsage } = await import('../../src/mneme/mnemeUsage.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { mnemeProjectKey } = await import('../../src/sessions/mneme/paths.ts')
+const knapsack = await import('../../src/sessions/mneme/entryKnapsack.ts')
+const { readProjectState } = await import('../../src/sessions/mneme/entryState.ts')
+const refs = await import('../../src/sessions/mneme/memoryRefs.ts')
+const { appendObservation } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { listTopicDocs } = await import('../../src/sessions/mneme/mnemeLibrary.ts')
+const { pinFact, readPins, readUsage } = await import('../../src/sessions/mneme/mnemeUsage.ts')
 
 const validate = (refs as { validateCitedPaths?: (text: string, root: string | null) => { checked: string[]; missing: string[]; other: string[] } }).validateCitedPaths
 const tokens = (refs as { citedPathTokens?: (text: string) => string[] }).citedPathTokens
@@ -116,9 +116,9 @@ section('§3 external, unknown and non-path tokens are never demotion evidence')
 
 section('§4 punctuation, quotes and line references around a citation do not change what is checked')
 {
-  const text = 'see (src/exists.ts:12–18), `src/mneme/memoryRefs.ts:68-73`, "docs/guide.md", src/exists.ts#L40, and src/exists.ts.'
+  const text = 'see (src/exists.ts:12–18), `src/sessions/mneme/memoryRefs.ts:68-73`, "docs/guide.md", src/exists.ts#L40, and src/exists.ts.'
   const r = report(text)
-  check('the citations are read whole and once each', j(r.checked) === j(['src/exists.ts', 'src/mneme/memoryRefs.ts', 'docs/guide.md']), j(r))
+  check('the citations are read whole and once each', j(r.checked) === j(['src/exists.ts', 'src/sessions/mneme/memoryRefs.ts', 'docs/guide.md']), j(r))
   check('all present', r.missing.length === 0, j(r))
   const trailing = report('the file src/gone.ts, then src/gone.ts.')
   check('a missing path is reported once however it is punctuated', j(trailing.missing) === j(['src/gone.ts']), j(trailing))
@@ -129,8 +129,8 @@ section('§5 absolute citations inside the project are checked whole; the projec
   const r = report(`${repo}/src/exists.ts and ${repo}/src/nope.ts and ${repo}`)
   check('the two files are checked, the root too', j(r.checked) === j([`${repo}/src/exists.ts`, `${repo}/src/nope.ts`, repo]), j(r))
   check('the absent one is missing', j(r.missing) === j([`${repo}/src/nope.ts`]), j(r))
-  const dirs = report('the folder src/mneme/ holds it and src/absent-dir/ does not')
-  check('a directory citation is checked as a directory', j(dirs.checked) === j(['src/mneme/', 'src/absent-dir/']) && j(dirs.missing) === j(['src/absent-dir/']), j(dirs))
+  const dirs = report('the folder src/sessions/mneme/ holds it and src/absent-dir/ does not')
+  check('a directory citation is checked as a directory', j(dirs.checked) === j(['src/sessions/mneme/', 'src/absent-dir/']) && j(dirs.missing) === j(['src/absent-dir/']), j(dirs))
 }
 
 section('§6 recovery: a path that comes back makes the fact current again; a deleted one demotes it')

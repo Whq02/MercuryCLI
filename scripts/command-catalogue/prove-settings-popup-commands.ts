@@ -15,8 +15,8 @@ function section(title: string): void {
   console.log(`\n${title}`)
 }
 
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 const VIEWS = ['config', 'usage'] as const
@@ -38,7 +38,7 @@ for (const view of VIEWS) {
     const module = await load()
     const result = await module.call('', { messages: [], options: {} })
     check(`/${view}'s body returns skip (the popup is the receipt)`, result.type === 'skip', JSON.stringify(result), `call in src/commands/${view}/${view}.tsx must open the popup with openSettingsPopup and return { type: 'skip' }`)
-    check(`/${view} opens the store with its own view`, opened !== null && opened.view === view, JSON.stringify(opened), `call in src/commands/${view}/${view}.tsx must pass view: '${view}' to openSettingsPopup (src/utils/cockpit/settingsPopup.ts)`)
+    check(`/${view} opens the store with its own view`, opened !== null && opened.view === view, JSON.stringify(opened), `call in src/commands/${view}/${view}.tsx must pass view: '${view}' to openSettingsPopup (src/screen/cockpit/settingsPopup.ts)`)
   } catch (error) {
     check(`/${view}'s body runs`, false, String(error).slice(0, 160), `the load or call of src/commands/${view}/${view}.tsx threw; fix the error shown`)
   } finally {
@@ -55,8 +55,8 @@ const request = store.settingsPopupRequest()
   const module = await (config.load as () => Promise<{ call: (args: string, context: unknown) => Promise<unknown> }>)()
   await module.call('', { messages: [], options: {} })
   const opened = store.settingsPopupRequest()
-  check('/config asks for 110 columns and 44 rows', opened?.width === 110 && opened?.rows === 44, JSON.stringify({ width: opened?.width, rows: opened?.rows }), 'configPopupRequest in src/commands/config/config.tsx takes CONFIG_POPUP_WIDTH and CONFIG_POPUP_ROWS from src/components/Settings/config/configLayout.ts; fix them there')
-  check("/config's hint row is the page's, verbatim", opened?.hint === '↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc or click outside closes', opened?.hint, 'CONFIG_POPUP_HINT in src/components/Settings/config/configLayout.ts must read as the page text')
+  check('/config asks for 110 columns and 44 rows', opened?.width === 110 && opened?.rows === 44, JSON.stringify({ width: opened?.width, rows: opened?.rows }), 'configPopupRequest in src/commands/config/config.tsx takes CONFIG_POPUP_WIDTH and CONFIG_POPUP_ROWS from src/screen/settings/config/configLayout.ts; fix them there')
+  check("/config's hint row is the page's, verbatim", opened?.hint === '↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc or click outside closes', opened?.hint, 'CONFIG_POPUP_HINT in src/screen/settings/config/configLayout.ts must read as the page text')
   store.closeSettingsPopup()
 }
 void request

@@ -40,7 +40,7 @@ for (const [path, meta] of Object.entries(BLENDS)) {
   writeFileSync(join(project, path), JSON.stringify(meta))
 }
 process.chdir(project)
-const { setOriginalCwd } = await import(`${SRC}/bootstrap/state.ts`)
+const { setOriginalCwd } = await import(`${SRC}/boot/process-state/processState.ts`)
 setOriginalCwd(project)
 
 let failures = 0
@@ -50,8 +50,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
-const PERM_FIX = ' | change checkPermissions in src/tools/BlenderTool/BlenderTool.ts so it refuses every file that checkReadPermissionForTool denies and changes no other answer'
-const SHOW_FIX = ' | change the checkReadPermissionForTool calls in src/tools/BlenderTool/BlenderTool.ts so a picture named to show is read-checked before and after the operation'
+const PERM_FIX = ' | change checkPermissions in src/tools/blender/BlenderTool.ts so it refuses every file that checkReadPermissionForTool denies and changes no other answer'
+const SHOW_FIX = ' | change the checkReadPermissionForTool calls in src/tools/blender/BlenderTool.ts so a picture named to show is read-checked before and after the operation'
 
 const deadPort = await new Promise<number>(resolve => {
   const server = net.createServer()
@@ -66,12 +66,12 @@ process.env.MERCURY_BLENDER_BIN = fixture.bin
 process.env.MERCURY_BLENDER_BRIDGE_PORT = String(deadPort)
 process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR = join(world, 'addons')
 
-const { BlenderTool } = await import(`${SRC}/tools/BlenderTool/BlenderTool.ts`)
-const { getEmptyToolPermissionContext } = await import(`${SRC}/Tool.ts`)
-const { decideToolPermission } = await import(`${SRC}/utils/permissions/decision/engine.ts`)
-const permissions = await import(`${SRC}/utils/permissions/filesystem.ts`)
-const { resetBlenderBridgeClientForTest } = await import(`${SRC}/services/blender/bridgeClient.ts`)
-const { _resetBlenderBridgeContextCacheForTesting } = await import(`${SRC}/utils/blender/bridgeGates.ts`)
+const { BlenderTool } = await import(`${SRC}/tools/blender/BlenderTool.ts`)
+const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
+const { decideToolPermission } = await import(`${SRC}/permissions/rules/decision/engine.ts`)
+const permissions = await import(`${SRC}/permissions/rules/filesystem.ts`)
+const { resetBlenderBridgeClientForTest } = await import(`${SRC}/integrations/blender/bridgeClient.ts`)
+const { _resetBlenderBridgeContextCacheForTesting } = await import(`${SRC}/integrations/blender-protocol/bridgeGates.ts`)
 resetBlenderBridgeClientForTest()
 _resetBlenderBridgeContextCacheForTesting()
 
@@ -117,10 +117,10 @@ console.log('the control: with no rule the free reads open the file and answer f
     const used = await use(op, args, open)
     if (used.behavior !== 'allow' || used.starts !== 1 || !FROM_THE_FILE.test(used.answer)) wrong.push(`${label}: ${used.behavior} ${used.answer.slice(0, 80)}`)
   }
-  check('four read verbs by blend and one by path: each starts one Blender with no window and answers from the file', wrong.length === 0, wrong.join(' | ') + ' | the free read verbs must still open and answer with no rule; see checkPermissions in src/tools/BlenderTool/BlenderTool.ts')
+  check('four read verbs by blend and one by path: each starts one Blender with no window and answers from the file', wrong.length === 0, wrong.join(' | ') + ' | the free read verbs must still open and answer with no rule; see checkPermissions in src/tools/blender/BlenderTool.ts')
   const asked: Array<Awaited<ReturnType<typeof use>>> = []
   for (const [, op, args] of CALLS.slice(5)) asked.push(await use(op, args, open))
-  check('opening it, rendering it and running Python on it ask first', asked.every(used => used.behavior === 'ask' && used.starts === 0), asked.map(used => used.behavior).join(' ') + ' | open, render and python_run must ask with no rule; see checkPermissions in src/tools/BlenderTool/BlenderTool.ts')
+  check('opening it, rendering it and running Python on it ask first', asked.every(used => used.behavior === 'ask' && used.starts === 0), asked.map(used => used.behavior).join(' ') + ' | open, render and python_run must ask with no rule; see checkPermissions in src/tools/blender/BlenderTool.ts')
 }
 
 console.log('the law: a file whose direct Read is denied is not opened by the tool, on any verb, by either argument')
@@ -172,7 +172,7 @@ console.log('a script named to python_run is a file the tool opens: the same law
 
 console.log('a picture named to show is a file the tool opens: the same law')
 {
-  const { encodePng } = await import(`${SRC}/utils/imageProcessor/imageProcessorJs.ts`)
+  const { encodePng } = await import(`${SRC}/platform/images/imageProcessorJs.ts`)
   const picture = encodePng({ width: 2, height: 2, data: new Uint8Array(16).fill(255) })
   writeFileSync(join(project, 'secret/sheet.png'), picture)
   writeFileSync(join(project, 'open/sheet.png'), picture)
@@ -248,7 +248,7 @@ console.log('a show path is checked again after the operation, when a new link m
   settle()
 
   const sockets = new Set<net.Socket>()
-  const { BLENDER_BRIDGE_PROTOCOL_VERSION } = await import(`${SRC}/utils/blender/bridgeProtocol.ts`)
+  const { BLENDER_BRIDGE_PROTOCOL_VERSION } = await import(`${SRC}/integrations/blender-protocol/bridgeProtocol.ts`)
   const server = net.createServer(socket => {
     sockets.add(socket)
     socket.on('close', () => sockets.delete(socket))

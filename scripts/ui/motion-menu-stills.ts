@@ -4,10 +4,10 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { createSplashCore } from '../../assets/splash/splash-core.mjs'
-import { menuRowChoices, STARTUP_MENU, type MenuRow } from '../../src/substrate/startupMenu.js'
-import { SEATS_MENU_ROW } from '../../src/utils/switchboard/capacityCheck.js'
-import { __motionGovernorResetForTest, setMotionPosture } from '../../src/utils/cockpit/motionGovernor.js'
-import { MOTION_MENU_ROW, motionDetailLines, motionValueWords } from '../../src/utils/cockpit/motionSetting.js'
+import { menuRowChoices, STARTUP_MENU, type MenuRow } from '../../src/platform/substrate/startupMenu.js'
+import { SEATS_MENU_ROW } from '../../src/daemon/switchboard-capacity/capacityCheck.js'
+import { __motionGovernorResetForTest, setMotionPosture } from '../../src/screen/cockpit/motionGovernor.js'
+import { MOTION_MENU_ROW, motionDetailLines, motionValueWords } from '../../src/screen/cockpit/motionSetting.js'
 
 const STILLS_DIR = join(import.meta.dir, 'fixtures', 'motion-menu')
 
@@ -98,7 +98,7 @@ const ROW = {
   assets: 'scripts/ui/fixtures/motion-menu/*.txt',
   generator: 'bun scripts/ui/motion-menu-stills.ts --write',
   check: 'bun scripts/transcript-rows/prove-motion-setting.ts',
-  sources: 'scripts/ui/motion-menu-stills.ts assets/splash/splash-core.mjs src/substrate/startupMenu.ts src/utils/switchboard/capacityCheck.ts src/utils/cockpit/motion* src/utils/cockpit/liveGlyphs.ts src/utils/cockpit/critterIdle.ts',
+  sources: 'scripts/ui/motion-menu-stills.ts assets/splash/splash-core.mjs src/platform/substrate/startupMenu.ts src/daemon/switchboard-capacity/capacityCheck.ts src/screen/cockpit/motion* src/screen/cockpit/liveGlyphs.ts src/screen/cockpit/critterIdle.ts',
 }
 if (import.meta.main && registerOnlyRequested(ROW)) process.exit(0)
 if (import.meta.main && process.argv.includes('--write')) {

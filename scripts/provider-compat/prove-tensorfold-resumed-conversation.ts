@@ -36,18 +36,18 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const usageLedger = await import('../../src/services/providers/local/tensorfoldUsage.ts')
-type LocalModelRecord = import('../../src/services/providers/local/localDiscovery.ts').LocalModelRecord
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { localLaneProfileFor } = await import('../../src/models/roads/local/localCallModel.ts')
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const usageLedger = await import('../../src/models/roads/local/tensorfoldUsage.ts')
+type LocalModelRecord = import('../../src/models/roads/local/localDiscovery.ts').LocalModelRecord
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 
 const READ = FileReadTool.name
 const FILE = Array.from({ length: 40 }, (_, n) => `${n + 1}\tledger line ${n + 1}: a delivery of ${(n * 37) % 91} crates to bay ${(n * 13) % 17}`).join('\n')
@@ -119,35 +119,35 @@ section('1 · an engine whose template renders the reasoning of every assistant 
 {
   usageLedger.__resetTensorFoldUsageForTest()
   const { requests, kinds, record } = await converse('every-row', 'qwen3.8-27b')
-  check('the fixture is discovered as a TensorFold record', record?.server === 'tensorfold', JSON.stringify(record) + ' — check refreshLocalDiscovery in src/services/providers/local/localDiscovery.ts and the fixture root in MERCURY_LOCAL_PROBE_TARGETS')
-  check('seven requests reached the engine, one a step of the conversation', requests.length === CONVERSATION.length, String(requests.length) + ' — a step of the conversation did not reach the engine; look at compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts for a turn that returned an error message')
+  check('the fixture is discovered as a TensorFold record', record?.server === 'tensorfold', JSON.stringify(record) + ' — check refreshLocalDiscovery in src/models/roads/local/localDiscovery.ts and the fixture root in MERCURY_LOCAL_PROBE_TARGETS')
+  check('seven requests reached the engine, one a step of the conversation', requests.length === CONVERSATION.length, String(requests.length) + ' — a step of the conversation did not reach the engine; look at compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts for a turn that returned an error message')
   const short = requests.map((request, index) => (index === 0 ? null : { at: index + 1, kind: kinds[index], cached: request.cachedTokens, before: requests[index - 1]!.promptTokens })).filter((row): row is NonNullable<typeof row> => row !== null && row.cached !== row.before)
-  check('every request after the first reports, as cached tokens, every prompt token of the request before it', requests.length > 1 && short.length === 0, JSON.stringify(short) + ' — a request no longer resumes the whole request before it; change what keepReasoningHistory and keepReasoningAfterLastUser send in src/services/providers/openaicompat/compatChatCallModel/prepare.ts')
+  check('every request after the first reports, as cached tokens, every prompt token of the request before it', requests.length > 1 && short.length === 0, JSON.stringify(short) + ' — a request no longer resumes the whole request before it; change what keepReasoningHistory and keepReasoningAfterLastUser send in src/models/roads/openaicompat/chat-call-model/prepare.ts')
   const turnStarts = requests.map((request, index) => ({ request, index })).filter(({ index }) => index > 0 && kinds[index]!.includes('a new user message'))
-  check('the first request of a new user turn after a turn with tool calls resumes that whole turn (the engine read 6,538 of 15,427 tokens there before)', turnStarts.length === 3 && turnStarts.slice(0, 2).every(({ request, index }) => request.cachedTokens === requests[index - 1]!.promptTokens), JSON.stringify(turnStarts.map(({ request, index }) => [request.cachedTokens, requests[index - 1]!.promptTokens])) + ' — the first request of a new user turn lost the reasoning of the turn before; change the reasoning history sent in src/services/providers/openaicompat/compatChatCallModel/prepare.ts')
+  check('the first request of a new user turn after a turn with tool calls resumes that whole turn (the engine read 6,538 of 15,427 tokens there before)', turnStarts.length === 3 && turnStarts.slice(0, 2).every(({ request, index }) => request.cachedTokens === requests[index - 1]!.promptTokens), JSON.stringify(turnStarts.map(({ request, index }) => [request.cachedTokens, requests[index - 1]!.promptTokens])) + ' — the first request of a new user turn lost the reasoning of the turn before; change the reasoning history sent in src/models/roads/openaicompat/chat-call-model/prepare.ts')
   const last = requests.at(-1)
   const reasoned = last === undefined ? [] : assistantRows(last).map(row => row.reasoning_content)
-  check('the last request carries each of the six earlier replies with the reasoning the model wrote', reasoned.length === 6 && reasoned.every((text, index) => text === CONVERSATION[index]!.reply.reasoning), JSON.stringify(reasoned) + ' — earlier replies must go back with their reasoning_content; change the reasoning history sent in src/services/providers/openaicompat/compatChatCallModel/prepare.ts')
+  check('the last request carries each of the six earlier replies with the reasoning the model wrote', reasoned.length === 6 && reasoned.every((text, index) => text === CONVERSATION[index]!.reply.reasoning), JSON.stringify(reasoned) + ' — earlier replies must go back with their reasoning_content; change the reasoning history sent in src/models/roads/openaicompat/chat-call-model/prepare.ts')
   const earlierForm = last === undefined ? 0 : sharedFoldTokens(foldTokens(requests.at(-2)!.rendered), foldTokens(renderFoldPrompt(withoutEarlierReasoning(last.rows), 'every-row')))
   check('the same rows without the earlier reasoning would part from the held prompt at the first reply of the turn before', last !== undefined && earlierForm < requests.at(-2)!.promptTokens, `${earlierForm} of ${requests.at(-2)?.promptTokens} — the fixture's every-row template or its token fold in tensorfoldPromptFixture.ts no longer shows the parting this check needs`)
   const readings = usageLedger.tensorFoldTurnReadings()
-  check('Mercury\'s own usage reading carries the engine\'s cached tokens for every request', readings.length === requests.length && readings.every((reading, index) => reading.cachedTokens === requests[index]!.cachedTokens && reading.promptTokens === requests[index]!.promptTokens), JSON.stringify(readings.map(reading => [reading.promptTokens, reading.cachedTokens])) + ' — change noteTensorFoldTurn / tensorFoldTurnReadings in src/services/providers/local/tensorfoldUsage.ts to record every request\'s cached and prompt tokens')
+  check('Mercury\'s own usage reading carries the engine\'s cached tokens for every request', readings.length === requests.length && readings.every((reading, index) => reading.cachedTokens === requests[index]!.cachedTokens && reading.promptTokens === requests[index]!.promptTokens), JSON.stringify(readings.map(reading => [reading.promptTokens, reading.cachedTokens])) + ' — change noteTensorFoldTurn / tensorFoldTurnReadings in src/models/roads/local/tensorfoldUsage.ts to record every request\'s cached and prompt tokens')
   const prompt = requests.reduce((sum, request) => sum + request.promptTokens, 0)
   const cached = requests.reduce((sum, request) => sum + request.cachedTokens, 0)
   const session = usageLedger.tensorFoldUsageLines().find(line => line.startsWith('this session'))
-  check('the session line of /usage states that share', session !== undefined && session.includes(`${prompt.toLocaleString()} in (${cached.toLocaleString()} cached`), String(session) + ' — change tensorFoldUsageLines in src/services/providers/local/tensorfoldUsage.ts, which writes the this session line')
+  check('the session line of /usage states that share', session !== undefined && session.includes(`${prompt.toLocaleString()} in (${cached.toLocaleString()} cached`), String(session) + ' — change tensorFoldUsageLines in src/models/roads/local/tensorfoldUsage.ts, which writes the this session line')
 }
 
 section('2 · an engine whose template drops reasoning before the last user message itself (the Qwen3.5-2B checkpoint\'s): the rendered prompt is what it was')
 {
   const { requests, record } = await converse('after-last-user', 'qwen3.5-2b')
-  check('the fixture is discovered as a TensorFold record', record?.server === 'tensorfold', JSON.stringify(record) + ' — check refreshLocalDiscovery in src/services/providers/local/localDiscovery.ts and the fixture root in MERCURY_LOCAL_PROBE_TARGETS')
+  check('the fixture is discovered as a TensorFold record', record?.server === 'tensorfold', JSON.stringify(record) + ' — check refreshLocalDiscovery in src/models/roads/local/localDiscovery.ts and the fixture root in MERCURY_LOCAL_PROBE_TARGETS')
   const moved = requests.map((request, index) => ({ at: index + 1, same: renderFoldPrompt(withoutEarlierReasoning(request.rows), 'after-last-user') === request.rendered })).filter(row => !row.same)
-  check('every request renders token for token as the same rows without their earlier reasoning do', requests.length === CONVERSATION.length && moved.length === 0, JSON.stringify(moved) + ' — the listed requests were rendered from rows that carry reasoning the template drops; change what the request builder in src/services/providers/openaicompat/compatChatCallModel/prepare.ts sends')
+  check('every request renders token for token as the same rows without their earlier reasoning do', requests.length === CONVERSATION.length && moved.length === 0, JSON.stringify(moved) + ' — the listed requests were rendered from rows that carry reasoning the template drops; change what the request builder in src/models/roads/openaicompat/chat-call-model/prepare.ts sends')
   const third = requests[3]
-  check('a new user turn there still parts at the first reply of the turn before, which is the template\'s rule and not a row Mercury sends', third !== undefined && third.cachedTokens < requests[2]!.promptTokens && third.cachedTokens === sharedFoldTokens(foldTokens(requests[2]!.rendered), foldTokens(third.rendered)), JSON.stringify(third && [third.cachedTokens, requests[2]!.promptTokens]) + ' — the rows Mercury sent for the third turn changed from what the after-last-user template expects; compare with prepare.ts in src/services/providers/openaicompat/compatChatCallModel/')
+  check('a new user turn there still parts at the first reply of the turn before, which is the template\'s rule and not a row Mercury sends', third !== undefined && third.cachedTokens < requests[2]!.promptTokens && third.cachedTokens === sharedFoldTokens(foldTokens(requests[2]!.rendered), foldTokens(third.rendered)), JSON.stringify(third && [third.cachedTokens, requests[2]!.promptTokens]) + ' — the rows Mercury sent for the third turn changed from what the after-last-user template expects; compare with prepare.ts in src/models/roads/openaicompat/chat-call-model/')
   const continuations = requests.map((request, index) => ({ request, index })).filter(({ index }) => index === 1 || index === 2 || index === 4)
-  check('a continuation inside a turn resumes the whole request before it on this template too', continuations.every(({ request, index }) => request.cachedTokens === requests[index - 1]!.promptTokens), JSON.stringify(continuations.map(({ request, index }) => [request.cachedTokens, requests[index - 1]!.promptTokens])) + ' — a continuation inside a turn no longer resends the reasoning of the request before it; change keepReasoningAfterLastUser in src/services/providers/openaicompat/compatChatCallModel/prepare.ts')
+  check('a continuation inside a turn resumes the whole request before it on this template too', continuations.every(({ request, index }) => request.cachedTokens === requests[index - 1]!.promptTokens), JSON.stringify(continuations.map(({ request, index }) => [request.cachedTokens, requests[index - 1]!.promptTokens])) + ' — a continuation inside a turn no longer resends the reasoning of the request before it; change keepReasoningAfterLastUser in src/models/roads/openaicompat/chat-call-model/prepare.ts')
 }
 
 section('3 · the other local servers keep the rule they had')
@@ -157,8 +157,8 @@ section('3 · the other local servers keep the rule they had')
   const fold: LocalModelRecord = { id: 'qwen3.8-27b', server: 'tensorfold', baseUrl: 'http://127.0.0.1:9/v1', toolsDeclared: true, thinkingDeclared: true }
   const history = (record: LocalModelRecord): boolean => (localLaneProfileFor(record) as { keepsReasoningHistory?: (model: string) => boolean }).keepsReasoningHistory?.(record.id) === true
   const continuations = (record: LocalModelRecord): boolean => (localLaneProfileFor(record) as { keepsReasoningOnContinuations?: (model: string) => boolean }).keepsReasoningOnContinuations?.(record.id) === true
-  check('a TensorFold record keeps the reasoning of every turn', history(fold) && continuations(fold), 'change localLaneProfileFor in src/services/providers/local/localCallModel.ts so a tensorfold record keeps reasoning history and continuations')
-  check('an Ollama and a llama.cpp record keep it on the running turn only', !history(ollama) && !history(llamacpp) && continuations(ollama) && continuations(llamacpp), 'change localLaneProfileFor in src/services/providers/local/localCallModel.ts so only a tensorfold record keeps reasoning history, and every local server keeps it on continuations')
+  check('a TensorFold record keeps the reasoning of every turn', history(fold) && continuations(fold), 'change localLaneProfileFor in src/models/roads/local/localCallModel.ts so a tensorfold record keeps reasoning history and continuations')
+  check('an Ollama and a llama.cpp record keep it on the running turn only', !history(ollama) && !history(llamacpp) && continuations(ollama) && continuations(llamacpp), 'change localLaneProfileFor in src/models/roads/local/localCallModel.ts so only a tensorfold record keeps reasoning history, and every local server keeps it on continuations')
 }
 
 console.log(`\nprove-tensorfold-resumed-conversation: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)

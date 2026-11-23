@@ -44,7 +44,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = '', fix = ''): void {
@@ -296,7 +296,7 @@ console.log('D2 — ↵ on New Session initializes `.mercury/` + the project car
   removeScratch(estate)
   check('D2 beyond the estate the folder is byte-identical (the birth wrote nothing else)', treeHash(FOO) === before, '', 'the first birth wrote files into the folder besides the .mercury estate')
   const stores = storeDirsFor(home, FOO)
-  check('D2 the project card sits in the folder\'s session-store dir', stores.length === 1 && existsSync(join(stores[0]!, 'project.json')), stores.join(','), 'the first birth must write exactly one project.json card in the folder session-store dir; see src/utils/projectStoreIdentity.ts')
+  check('D2 the project card sits in the folder\'s session-store dir', stores.length === 1 && existsSync(join(stores[0]!, 'project.json')), stores.join(','), 'the first birth must write exactly one project.json card in the folder session-store dir; see src/platform/storage/projectStoreIdentity.ts')
   if (stores.length === 1) {
     const card = JSON.parse(readFileSync(join(stores[0]!, 'project.json'), 'utf8')) as Record<string, unknown>
     const live = Object.values(liveRecords(home))

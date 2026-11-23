@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/memory/MemoryCentreView.tsx src/components/memory/memoryCentreLayout.ts src/commands/memory/memory.tsx src/mneme/ledger.ts src/mneme/paths.ts
+// gate-watch: src/screen/memory/MemoryCentreView.tsx src/screen/memory/memoryCentreLayout.ts src/commands/memory/memory.tsx src/sessions/mneme/ledger.ts src/sessions/mneme/paths.ts
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
@@ -9,7 +9,7 @@ const HOME = pinScratchHome('mercury-lineage-view')
 
 let failures = 0
 let checks = 0
-const LINEAGE_FIX_HINT = 'lineageRow, lineageRows, lineageHeading and pageLines in src/components/memory/memoryCentreLayout.ts, notePage and the lineage rows in src/components/memory/MemoryCentreView.tsx, the ledger in src/mneme/ledger.ts (openEntry, closeEntry)'
+const LINEAGE_FIX_HINT = 'lineageRow, lineageRows, lineageHeading and pageLines in src/screen/memory/memoryCentreLayout.ts, notePage and the lineage rows in src/screen/memory/MemoryCentreView.tsx, the ledger in src/sessions/mneme/ledger.ts (openEntry, closeEntry)'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
@@ -19,24 +19,24 @@ function section(title: string): void {
   console.log(`\n${title}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { openEntry, closeEntry } = await import('../../src/mneme/ledger.js')
-const { mnemeProjectKey } = await import('../../src/mneme/paths.js')
-const { humanStamp, lineageRow, lineageRows, lineageHeading, pageLines } = await import('../../src/components/memory/memoryCentreLayout.js')
-const { notePage } = await import('../../src/components/memory/MemoryCentreView.js')
-const { getSessionId } = await import('../../src/bootstrap/state.js')
+const { openEntry, closeEntry } = await import('../../src/sessions/mneme/ledger.js')
+const { mnemeProjectKey } = await import('../../src/sessions/mneme/paths.js')
+const { humanStamp, lineageRow, lineageRows, lineageHeading, pageLines } = await import('../../src/screen/memory/memoryCentreLayout.js')
+const { notePage } = await import('../../src/screen/memory/MemoryCentreView.js')
+const { getSessionId } = await import('../../src/boot/process-state/processState.js')
 
 const key = mnemeProjectKey()
 const me = String(getSessionId())
 
 async function mountCentre(): Promise<{ m: Mounted; close: () => void }> {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.js')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-  const store = await import('../../src/utils/cockpit/settingsPopup.js')
+  const { Box } = await import('../../src/screen/themedRenderer.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+  const store = await import('../../src/screen/cockpit/settingsPopup.js')
   const { memoryPopupRequest } = await import('../../src/commands/memory/memory.js')
   const element = React.createElement(
     AppStateProvider as never,

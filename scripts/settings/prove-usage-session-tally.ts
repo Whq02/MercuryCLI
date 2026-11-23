@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
-import type { DOMElement } from '../../src/ink/dom.js'
+import type { DOMElement } from '../../src/screen/renderer/dom.js'
 import { startFixtureApi, type FixtureApi } from '../lib/fixtureApi.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 
@@ -46,42 +46,42 @@ async function stub(path: string, fixtureExports: () => Record<string, unknown>)
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...fixtureExports() }))
 }
-await stub('../../src/services/providers/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
-await stub('../../src/services/providers/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
-await stub('../../src/hooks/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
-await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
-await stub('../../src/services/providers/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
-await stub('../../src/services/providers/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined }))
-await stub('../../src/services/providers/local/localAccounts.js', () => ({ resolveLocalAccount: () => undefined }))
-await stub('../../src/components/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
+await stub('../../src/models/roads/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
+await stub('../../src/models/roads/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
+await stub('../../src/screen/model-picker/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
+await stub('../../src/screen/keys/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
+await stub('../../src/models/roads/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
+await stub('../../src/models/roads/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined }))
+await stub('../../src/models/roads/local/localAccounts.js', () => ({ resolveLocalAccount: () => undefined }))
+await stub('../../src/screen/keys/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
 let airShape = false
 const AIR_SUBSCRIPTION = { id: 'anthropic:oauth:primary', provider: 'anthropic', kind: 'subscription-oauth', label: 'Claude account (air@example.test)', custodian: 'anthropic-slots' }
-const realWallet = await import('../../src/services/wallet/wallet.ts')
+const realWallet = await import('../../src/models/wallet/wallet.ts')
 const realWalletEntries = realWallet.walletEntries
 const realActiveWalletEntry = realWallet.activeWalletEntry
-await stub('../../src/services/wallet/wallet.js', () => ({
+await stub('../../src/models/wallet/wallet.js', () => ({
   walletEntries: () => (airShape ? [AIR_SUBSCRIPTION, ...realWalletEntries().filter(entry => entry.provider !== 'anthropic')] : realWalletEntries()),
   activeWalletEntry: (id: string) => (airShape && id === 'anthropic' ? AIR_SUBSCRIPTION : realActiveWalletEntry(id as never)),
 }))
-await stub('../../src/utils/auth.js', () => ({ isClaudeAISubscriber: () => airShape }))
+await stub('../../src/models/sign-in/credentials/auth.js', () => ({ isClaudeAISubscriber: () => airShape }))
 
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const state = await import('../../src/bootstrap/state.ts')
-const usageOwner = await import('../../src/services/providers/providerUsage.ts')
-const wire = await import('../../src/services/engine-connector/seatWire.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { Usage, SESSION_SPEND_LABEL, SESSION_SPEND_NONE, MODEL_ROW_INDENT, sessionSpendLines } = await import('../../src/components/Settings/Usage.js')
-const { Box, render, flushPendingSyncWork, EventEmitter } = await import('../../src/ink.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-type UsageFacts = import('../../src/services/engine-connector/types.ts').UsageFactsV1
-type SpendRow = import('../../src/services/engine-connector/types.ts').ModelSpendRowV1
-type Connector = import('../../src/services/engine-connector/types.ts').EngineConnectorV1
+const state = await import('../../src/boot/process-state/processState.ts')
+const usageOwner = await import('../../src/models/roads/providerUsage.ts')
+const wire = await import('../../src/engine/connector/seatWire.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+const { Usage, SESSION_SPEND_LABEL, SESSION_SPEND_NONE, MODEL_ROW_INDENT, sessionSpendLines } = await import('../../src/screen/settings/Usage.js')
+const { Box, render, flushPendingSyncWork, EventEmitter } = await import('../../src/screen/themedRenderer.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+type UsageFacts = import('../../src/engine/connector/types.ts').UsageFactsV1
+type SpendRow = import('../../src/engine/connector/types.ts').ModelSpendRowV1
+type Connector = import('../../src/engine/connector/types.ts').EngineConnectorV1
 
 const SONNET = 'claude-sonnet-5-5'
 const OPUS = 'claude-opus-5-5'
@@ -144,7 +144,7 @@ function focus(usage: UsageFacts): void {
 
 section('§1 the laws stand in the source: the slot reads the focused session\'s facts, the runner answers its per-model ledger, the bar and the rail keep their totals')
 {
-  check("the line's words are the old ones: 'This session' and 'This session: 0 tokens.'", SESSION_SPEND_LABEL === 'This session' && SESSION_SPEND_NONE === 'This session: 0 tokens.', '', 'restore SESSION_SPEND_LABEL and SESSION_SPEND_NONE to the old words where the Usage component exports them (src/components/Settings/Usage.tsx)')
+  check("the line's words are the old ones: 'This session' and 'This session: 0 tokens.'", SESSION_SPEND_LABEL === 'This session' && SESSION_SPEND_NONE === 'This session: 0 tokens.', '', 'restore SESSION_SPEND_LABEL and SESSION_SPEND_NONE to the old words where the Usage component exports them (src/screen/settings/Usage.tsx)')
   const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
   const UNPRICED_MODEL = 'fixture-unpriced-1'
   const measured = { input_tokens: 70038, output_tokens: 581 } as never
@@ -179,7 +179,7 @@ section('§1 the laws stand in the source: the slot reads the focused session\'s
       spent.unpriced.totalCostUSD === spendRows[0]!.costUSD &&
       spent.unpriced.totalInputTokens === 2 * 70038,
     j(spent.unpriced),
-    'the runner must answer modelSpend with one priced row per model beside its totals; the facts are built for the seat in src/services/engine-connector/seatWire.ts and the runner that serves them',
+    'the runner must answer modelSpend with one priced row per model beside its totals; the facts are built for the seat in src/engine/connector/seatWire.ts and the runner that serves them',
   )
   const words = JSON.parse(read('scripts/settings/usage-popup-words.json')) as Record<string, string[]>
   check('the recorded popup words (no session focused) carry no session tally', Object.values(words).every(runs => runs.every(run => !run.startsWith('This session'))))
@@ -190,10 +190,10 @@ section('§2 the wire: the rows ride the facts answer in the feed\'s spelling an
   const base = { model: { effective: SONNET, setting: null }, usage: factsWith(ROWS), identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }, skills: [], mcp: [], permissionMode: 'default', workspace: { cwd: '/tmp', originalCwd: '/tmp', projectRoot: '/tmp' }, queue: [] }
   const onWire = wire.sessionFactsToWire(base as never) as { usage: { model_spend?: Array<Record<string, unknown>>; modelSpend?: unknown } }
   const first = onWire.usage.model_spend?.[0] ?? {}
-  check('the answer spells model_spend rows with snake keys', Array.isArray(onWire.usage.model_spend) && onWire.usage.modelSpend === undefined && first.model === SONNET && first.input_tokens === 1500 && first.cache_read_input_tokens === 300 && first.cache_creation_input_tokens === 90 && first.cost_usd === 0.5 && first.unpriced_turns === 0 && !('inputTokens' in first), j(first), 'sessionFactsToWire in src/services/engine-connector/seatWire.ts must spell model_spend rows with snake keys')
+  check('the answer spells model_spend rows with snake keys', Array.isArray(onWire.usage.model_spend) && onWire.usage.modelSpend === undefined && first.model === SONNET && first.input_tokens === 1500 && first.cache_read_input_tokens === 300 && first.cache_creation_input_tokens === 90 && first.cost_usd === 0.5 && first.unpriced_turns === 0 && !('inputTokens' in first), j(first), 'sessionFactsToWire in src/engine/connector/seatWire.ts must spell model_spend rows with snake keys')
   check('a workload row names its workload', (onWire.usage.model_spend ?? []).some(r => r.workload === 'cron' && r.model === SONNET && r.input_tokens === 100))
   const back = wire.sessionFactsFromWire(onWire)
-  check('the seat reads the rows back whole', back !== null && j(back.usage.modelSpend) === j(ROWS), j(back?.usage.modelSpend?.[0]), 'sessionFactsFromWire in src/services/engine-connector/seatWire.ts must read every model_spend row back whole, workload included')
+  check('the seat reads the rows back whole', back !== null && j(back.usage.modelSpend) === j(ROWS), j(back?.usage.modelSpend?.[0]), 'sessionFactsFromWire in src/engine/connector/seatWire.ts must read every model_spend row back whole, workload included')
   const older = wire.sessionFactsFromWire(wire.sessionFactsToWire({ ...base, usage: zeroUsage() } as never))
   check('an answer without the rows (an older runner) reads back without them', older !== null && older.usage.modelSpend === undefined)
 }
@@ -201,24 +201,24 @@ section('§2 the wire: the rows ride the facts answer in the feed\'s spelling an
 section("§3 the partition (the Air's shape, LIVE-27-AIR finding 8: three turns on Sonnet 5.5 and Opus 5.5 plus a scout): every turn under the model that answered it, split by family, one row per model, the rows adding up")
 {
   const anthropic = usageOwner.sessionSpendOfFacts(factsWith(ROWS), 'anthropic')
-  check('the Anthropic column holds the Sonnet and Opus turns: 2,590 input (uncached + cache read + cache write) · 104 output · $0.71 · two models', anthropic !== null && anthropic.inputTokens === 2590 && anthropic.outputTokens === 104 && Math.abs(anthropic.costUSD - 0.71) < 1e-9 && anthropic.models === 2 && anthropic.pricing === undefined, j(anthropic), 'fix sessionSpendOfFacts in src/services/providers/providerUsage.ts')
+  check('the Anthropic column holds the Sonnet and Opus turns: 2,590 input (uncached + cache read + cache write) · 104 output · $0.71 · two models', anthropic !== null && anthropic.inputTokens === 2590 && anthropic.outputTokens === 104 && Math.abs(anthropic.costUSD - 0.71) < 1e-9 && anthropic.models === 2 && anthropic.pricing === undefined, j(anthropic), 'fix sessionSpendOfFacts in src/models/roads/providerUsage.ts')
   const byModel = usageOwner.sessionSpendByModel(factsWith(ROWS), 'anthropic')
-  check('one entry per model in the order the session used them, each with its own figures (the scout rides under the model that answered it)', byModel.length === 2 && byModel[0]!.model === SONNET && byModel[0]!.spend.inputTokens === 1890 && byModel[0]!.spend.outputTokens === 60 && byModel[1]!.model === OPUS && byModel[1]!.spend.inputTokens === 700 && byModel[1]!.spend.outputTokens === 44, j(byModel), 'fix sessionSpendByModel in src/services/providers/providerUsage.ts')
+  check('one entry per model in the order the session used them, each with its own figures (the scout rides under the model that answered it)', byModel.length === 2 && byModel[0]!.model === SONNET && byModel[0]!.spend.inputTokens === 1890 && byModel[0]!.spend.outputTokens === 60 && byModel[1]!.model === OPUS && byModel[1]!.spend.inputTokens === 700 && byModel[1]!.spend.outputTokens === 44, j(byModel), 'fix sessionSpendByModel in src/models/roads/providerUsage.ts')
   check('the entries add up to the column: input, output and cost', anthropic !== null && byModel.reduce((n, e) => n + e.spend.inputTokens, 0) === anthropic.inputTokens && byModel.reduce((n, e) => n + e.spend.outputTokens, 0) === anthropic.outputTokens && Math.abs(byModel.reduce((n, e) => n + e.spend.costUSD, 0) - anthropic.costUSD) < 1e-9)
   check('the workload rows stay out of the per-model entries (they have their own lines)', byModel.every(e => e.spend.inputTokens !== 100 && e.spend.inputTokens !== 90))
-  check('its scheduled share is the cron row, its advisor share the advisor row', anthropic?.scheduled?.inputTokens === 100 && anthropic?.scheduled?.outputTokens === 10 && anthropic?.advisor?.inputTokens === 90 && anthropic?.advisor?.outputTokens === 14, j(anthropic), 'fix the scheduled and advisor shares in sessionSpendOfFacts, src/services/providers/providerUsage.ts')
+  check('its scheduled share is the cron row, its advisor share the advisor row', anthropic?.scheduled?.inputTokens === 100 && anthropic?.scheduled?.outputTokens === 10 && anthropic?.advisor?.inputTokens === 90 && anthropic?.advisor?.outputTokens === 14, j(anthropic), 'fix the scheduled and advisor shares in sessionSpendOfFacts, src/models/roads/providerUsage.ts')
   const openai = usageOwner.sessionSpendOfFacts(factsWith(ROWS), 'openai')
   check('the OpenAI column holds the astra turn only, no workload shares', openai !== null && openai.inputTokens === 700 && openai.outputTokens === 30 && Math.abs(openai.costUSD - 0.2) < 1e-9 && openai.models === 1 && openai.scheduled === undefined && openai.advisor === undefined, j(openai))
   const stranger = usageOwner.sessionSpendOfFacts(factsWith(ROWS), 'unrecognised')
-  check('a model no family declares lands in the stranger bucket with its unpriced turns counted', stranger !== null && stranger.inputTokens === 40 && stranger.models === 1 && stranger.pricing?.unpricedTurns === 2 && stranger.pricing?.unpricedModels === 1, j(stranger), 'fix the unrecognised bucket in sessionSpendOfFacts, src/services/providers/providerUsage.ts')
+  check('a model no family declares lands in the stranger bucket with its unpriced turns counted', stranger !== null && stranger.inputTokens === 40 && stranger.models === 1 && stranger.pricing?.unpricedTurns === 2 && stranger.pricing?.unpricedModels === 1, j(stranger), 'fix the unrecognised bucket in sessionSpendOfFacts, src/models/roads/providerUsage.ts')
   check("a family the session never ran on reads as zero models (the slot says 'This session: 0 tokens.')", usageOwner.sessionSpendOfFacts(factsWith(ROWS), 'gemini')?.models === 0)
   check('facts without the rows partition to nothing (an older runner: no line, never a false zero)', usageOwner.sessionSpendOfFacts(factsWith(undefined), 'anthropic') === null)
   state.resetCostState()
   const screen = usageOwner.providerSessionSpend('anthropic')
   focus(factsWith(ROWS))
   const lines = sessionSpendLines('anthropic', screen, true)
-  check("the slot's lines: the session line first, one row per model beneath it (Sonnet 5.5, Opus 5.5 — the product's names), then Scheduled and Advisor, from the facts (the screen's own ledger is empty)", lines.length === 5 && lines[0] === `${SESSION_LINE} · $0.71` && lines[1] === `${SONNET_ROW} · $0.5000` && lines[2] === `${OPUS_ROW} · $0.2100` && lines[3]!.startsWith('Scheduled: 100 input · 10 output tokens') && lines[4]!.startsWith('Advisor: 90 input · 14 output tokens'), j(lines), 'fix sessionSpendLines, exported by the Usage component (src/components/Settings/Usage.tsx)')
-  check('the per-model rows add up to the session line', rowsAddUp(lines[0], lines.slice(1, 3)), j(lines), 'fix sessionSpendLines, exported by the Usage component (src/components/Settings/Usage.tsx)')
+  check("the slot's lines: the session line first, one row per model beneath it (Sonnet 5.5, Opus 5.5 — the product's names), then Scheduled and Advisor, from the facts (the screen's own ledger is empty)", lines.length === 5 && lines[0] === `${SESSION_LINE} · $0.71` && lines[1] === `${SONNET_ROW} · $0.5000` && lines[2] === `${OPUS_ROW} · $0.2100` && lines[3]!.startsWith('Scheduled: 100 input · 10 output tokens') && lines[4]!.startsWith('Advisor: 90 input · 14 output tokens'), j(lines), 'fix sessionSpendLines, exported by the Usage component (src/screen/settings/Usage.tsx)')
+  check('the per-model rows add up to the session line', rowsAddUp(lines[0], lines.slice(1, 3)), j(lines), 'fix sessionSpendLines, exported by the Usage component (src/screen/settings/Usage.tsx)')
   const openaiLines = sessionSpendLines('openai', screen, false)
   check('a family with one model: the session line and its one row, no cost on a subscription slot', j(openaiLines) === j(['This session: 700 input · 30 output tokens', `${MODEL_ROW_INDENT}GPT-6 Astra: 700 input · 30 output tokens`]), j(openaiLines))
   check('the unpriced bucket spells its turns beside the figure, never $0.00', sessionSpendLines('unrecognised' as never, screen, true)[0]!.includes('unpriced'), j(sessionSpendLines('unrecognised' as never, screen, true)))

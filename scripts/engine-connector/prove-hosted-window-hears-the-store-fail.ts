@@ -14,24 +14,24 @@ process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const proj = await import('../../src/services/engine-connector/seatProjections.ts')
-const seatWire = await import('../../src/services/engine-connector/seatWire.ts')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+const proj = await import('../../src/engine/connector/seatProjections.ts')
+const seatWire = await import('../../src/engine/connector/seatWire.ts')
 
 let failures = 0
 let checks = 0
-let where = 'the transcriptStoreFailing key of FACTS_SPEC in src/services/engine-connector/seatWire.ts'
+let where = 'the transcriptStoreFailing key of FACTS_SPEC in src/engine/connector/seatWire.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)}` : ''}${ok ? '' : ` — to change: ${where}`}`)
 }
 const section = (t: string): void => {
-  if (t.startsWith('§2')) where = 'transcriptStoreFailing() and wake() of the facts part in src/services/engine-connector/daemon/facts.ts, reached through DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts'
+  if (t.startsWith('§2')) where = 'transcriptStoreFailing() and wake() of the facts part in src/engine/connector/daemon/facts.ts, reached through DaemonSessionConnector in src/engine/connector/daemonConnector.ts'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? 'undefined'

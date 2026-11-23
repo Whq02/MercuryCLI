@@ -11,7 +11,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
   if (!cond) failures++
 }
-const authRowHint = ' | change providerAuthChecks in src/services/health/sections/auth.ts (the auth-anthropic and auth-<provider> rows and routedAuthFamily)'
+const authRowHint = ' | change providerAuthChecks in src/platform/health/sections/auth.ts (the auth-anthropic and auth-<provider> rows and routedAuthFamily)'
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
 type Check = { id: string; status: string; evidence?: string; fix?: string }
@@ -52,7 +52,7 @@ section('§1 a home whose only credential is an OpenRouter key: the verdict foll
 const openrouterOnly = health({ OPENROUTER_API_KEY: 'sk-or-proof-not-a-real-key' })
 const anthropicRow = openrouterOnly.checks.find(c => c.id === 'auth-anthropic')
 const openrouterRow = openrouterOnly.checks.find(c => c.id === 'auth-openrouter')
-check('health answered a certificate', openrouterOnly.verdict !== undefined, openrouterOnly.stderr.slice(-300) + ' | health --json must print a certificate with a verdict; read its stderr above and the health verb in src/services/health')
+check('health answered a certificate', openrouterOnly.verdict !== undefined, openrouterOnly.stderr.slice(-300) + ' | health --json must print a certificate with a verdict; read its stderr above and the health verb in src/platform/health')
 check('the OpenRouter key reads present', openrouterRow?.status === 'ok', JSON.stringify(openrouterRow) + authRowHint)
 check("Anthropic's absence is a fact, not a failure: the session routes to openrouter", anthropicRow?.status === 'info' && (anthropicRow.evidence ?? '').includes('session routes to openrouter'), JSON.stringify(anthropicRow) + authRowHint)
 check('no row says no turn can run', !openrouterOnly.checks.some(c => (c.fix ?? '').includes('no turn can run')), 'a fix that says no turn can run is printed although the session routes to another provider' + authRowHint)
@@ -61,7 +61,7 @@ check('the verdict is not FAULT and the exit is not 3', openrouterOnly.verdict !
 section('§2 a home with no credential anywhere still names the sign-in as the way forward')
 const keyless = health({})
 const keylessAnthropic = keyless.checks.find(c => c.id === 'auth-anthropic')
-check('health answered a certificate', keyless.verdict !== undefined, keyless.stderr.slice(-300) + ' | health --json must print a certificate with a verdict; read its stderr above and the health verb in src/services/health')
+check('health answered a certificate', keyless.verdict !== undefined, keyless.stderr.slice(-300) + ' | health --json must print a certificate with a verdict; read its stderr above and the health verb in src/platform/health')
 check('the Anthropic row is not informational in a keyless home', keylessAnthropic !== undefined && keylessAnthropic.status !== 'info' && keylessAnthropic.status !== 'ok', JSON.stringify(keylessAnthropic) + authRowHint)
 check('its fix names the sign-in', (keylessAnthropic?.fix ?? '').includes('/logins'), JSON.stringify(keylessAnthropic) + authRowHint)
 

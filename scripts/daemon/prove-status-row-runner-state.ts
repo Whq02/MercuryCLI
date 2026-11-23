@@ -19,37 +19,37 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const section = (title: string): void => console.log(`\n${title}`)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const projections = await import('../../src/services/engine-connector/seatProjections.ts')
-const tagBar = await import('../../src/components/SwitchboardTagBar.tsx')
-const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+const projections = await import('../../src/engine/connector/seatProjections.ts')
+const tagBar = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
+const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
 
 section('§4 the status row says what the daemon knows: never "ready" over a runner that is booting, crashed or down')
 {
   const factOf = (projections as Partial<typeof projections>).runnerStateFactOf
   const now = 1_700_000_000_000
   const starting = factOf?.({ state: 'running', ready: false, respawns: 0, maxRespawns: 5, spawnedAt: now - 23_000 }, now)
-  check('a spawned runner that has not answered initialize reads starting, since its spawn', j(starting) === j({ state: 'starting', sinceMs: now - 23_000, respawns: 0, maxRespawns: 5 }), j(starting) + ' — runnerStateFactOf in src/services/engine-connector/seatProjections.ts must return starting for a spawning runner, or for a running one with ready false')
+  check('a spawned runner that has not answered initialize reads starting, since its spawn', j(starting) === j({ state: 'starting', sinceMs: now - 23_000, respawns: 0, maxRespawns: 5 }), j(starting) + ' — runnerStateFactOf in src/engine/connector/seatProjections.ts must return starting for a spawning runner, or for a running one with ready false')
   const live = factOf?.({ state: 'running', ready: true, respawns: 0, maxRespawns: 5, spawnedAt: now - 23_000 }, now)
-  check('a runner that answered initialize carries no runner fact (the row speaks its ordinary words)', live === undefined, j(live) + ' — runnerStateFactOf in src/services/engine-connector/seatProjections.ts must return undefined for a running runner that is ready')
+  check('a runner that answered initialize carries no runner fact (the row speaks its ordinary words)', live === undefined, j(live) + ' — runnerStateFactOf in src/engine/connector/seatProjections.ts must return undefined for a running runner that is ready')
   const crashed = factOf?.({ state: 'spawning', ready: false, respawns: 2, maxRespawns: 5, spawnedAt: now - 60_000, crashedAt: now - 1_000, lastError: 'exit 1' }, now)
-  check('a crashed runner with a restart due reads crashed (n/max) with the kept reason', j(crashed) === j({ state: 'crashed', sinceMs: now - 1_000, respawns: 2, maxRespawns: 5, reason: 'exit 1' }), j(crashed) + ' — runnerStateFactOf in src/services/engine-connector/seatProjections.ts must return crashed for a spawning runner with crashedAt, keeping lastError as reason')
+  check('a crashed runner with a restart due reads crashed (n/max) with the kept reason', j(crashed) === j({ state: 'crashed', sinceMs: now - 1_000, respawns: 2, maxRespawns: 5, reason: 'exit 1' }), j(crashed) + ' — runnerStateFactOf in src/engine/connector/seatProjections.ts must return crashed for a spawning runner with crashedAt, keeping lastError as reason')
   const degraded = factOf?.({ state: 'crashed', outcome: 'degraded', ready: false, respawns: 6, maxRespawns: 5, crashedAt: now - 5_000 }, now)
-  check('a seat whose respawns are exhausted reads degraded', j(degraded) === j({ state: 'degraded', sinceMs: now - 5_000, respawns: 6, maxRespawns: 5 }), j(degraded) + ' — runnerStateFactOf in src/services/engine-connector/seatProjections.ts must return degraded when the outcome is degraded')
-  check('a killed seat (the operator stopped it) carries no runner fact', factOf?.({ state: 'settled', outcome: 'killed', respawns: 0 }, now) === undefined, 'runnerStateFactOf in src/services/engine-connector/seatProjections.ts must return undefined for any outcome other than degraded')
-  check('no roster row — nothing is claimed', factOf?.(undefined, now) === undefined, 'runnerStateFactOf in src/services/engine-connector/seatProjections.ts must be exported and return undefined for no roster entry')
+  check('a seat whose respawns are exhausted reads degraded', j(degraded) === j({ state: 'degraded', sinceMs: now - 5_000, respawns: 6, maxRespawns: 5 }), j(degraded) + ' — runnerStateFactOf in src/engine/connector/seatProjections.ts must return degraded when the outcome is degraded')
+  check('a killed seat (the operator stopped it) carries no runner fact', factOf?.({ state: 'settled', outcome: 'killed', respawns: 0 }, now) === undefined, 'runnerStateFactOf in src/engine/connector/seatProjections.ts must return undefined for any outcome other than degraded')
+  check('no roster row — nothing is claimed', factOf?.(undefined, now) === undefined, 'runnerStateFactOf in src/engine/connector/seatProjections.ts must be exported and return undefined for no roster entry')
 
   const base = { title: 't', projectLabel: 'p', interrupting: false, hardStopping: false, wait: null, quietMs: null, watchdogMs: null, phaseMs: null, toolBudgetMs: null, stuck: false }
   const line = (runner: unknown): string => tagBar.statusLine(IDLE_LIVE, { ...base, runner } as never, null, false)
   const liveNow = Date.now()
-  check('an idle seat with no runner fact still reads ready', line(null) === 'ready' && line(undefined) === 'ready', j([line(null), line(undefined)]) + ' — statusLine in src/components/SwitchboardTagBar.tsx must keep its ordinary words when s.runner is null or undefined')
+  check('an idle seat with no runner fact still reads ready', line(null) === 'ready' && line(undefined) === 'ready', j([line(null), line(undefined)]) + ' — statusLine in src/screen/chat/SwitchboardTagBar.tsx must keep its ordinary words when s.runner is null or undefined')
   const booting = { state: 'starting', sinceMs: liveNow - 23_000, respawns: 0, maxRespawns: 5 }
-  check('a booting runner: "the runner is starting · 23s" (the receipt painted ready here)', /^the runner is starting · 2[34]s$/.test(line(booting)), line(booting) + ' — runnerStatusWords in src/components/SwitchboardTagBar.tsx words the starting state')
+  check('a booting runner: "the runner is starting · 23s" (the receipt painted ready here)', /^the runner is starting · 2[34]s$/.test(line(booting)), line(booting) + ' — runnerStatusWords in src/screen/chat/SwitchboardTagBar.tsx words the starting state')
   const restarting = { state: 'starting', sinceMs: liveNow - 4_000, respawns: 2, maxRespawns: 5 }
-  check('a respawned runner booting again names the ladder', /^the runner is restarting \(2\/5\) · [45]s$/.test(line(restarting)), line(restarting) + ' — runnerStatusWords in src/components/SwitchboardTagBar.tsx words a restart with its respawn count')
-  check('a crashed runner with a restart due', line(crashed) === 'the runner crashed (exit 1) — restarting (2/5)', line(crashed) + ' — runnerStatusWords in src/components/SwitchboardTagBar.tsx words the crashed state')
-  check('a degraded seat: the session has no live runner and ↵ revives it', line(degraded) === 'the runner crashed 6 times — the session has no live runner · ↵ revives it', line(degraded) + ' — runnerStatusWords in src/components/SwitchboardTagBar.tsx words the degraded state')
-  check('the runner state outranks the resting receipt (statusRowWarns)', tagBar.statusRowWarns(IDLE_LIVE, { ...base, runner: starting } as never) === true && tagBar.statusRowWarns(IDLE_LIVE, { ...base, runner: null } as never) === false, 'statusRowWarns in src/components/SwitchboardTagBar.tsx must be true for a runner fact and false for none; statusLine must show the runner words before the resting receipt')
-  check('the words wear no internal name (no worker short, no "long-lived")', ![line(booting), line(crashed), line(degraded)].some(words => /concourse-w|long-lived/.test(words)), 'reword runnerStatusWords in src/components/SwitchboardTagBar.tsx so no internal name shows')
+  check('a respawned runner booting again names the ladder', /^the runner is restarting \(2\/5\) · [45]s$/.test(line(restarting)), line(restarting) + ' — runnerStatusWords in src/screen/chat/SwitchboardTagBar.tsx words a restart with its respawn count')
+  check('a crashed runner with a restart due', line(crashed) === 'the runner crashed (exit 1) — restarting (2/5)', line(crashed) + ' — runnerStatusWords in src/screen/chat/SwitchboardTagBar.tsx words the crashed state')
+  check('a degraded seat: the session has no live runner and ↵ revives it', line(degraded) === 'the runner crashed 6 times — the session has no live runner · ↵ revives it', line(degraded) + ' — runnerStatusWords in src/screen/chat/SwitchboardTagBar.tsx words the degraded state')
+  check('the runner state outranks the resting receipt (statusRowWarns)', tagBar.statusRowWarns(IDLE_LIVE, { ...base, runner: starting } as never) === true && tagBar.statusRowWarns(IDLE_LIVE, { ...base, runner: null } as never) === false, 'statusRowWarns in src/screen/chat/SwitchboardTagBar.tsx must be true for a runner fact and false for none; statusLine must show the runner words before the resting receipt')
+  check('the words wear no internal name (no worker short, no "long-lived")', ![line(booting), line(crashed), line(degraded)].some(words => /concourse-w|long-lived/.test(words)), 'reword runnerStatusWords in src/screen/chat/SwitchboardTagBar.tsx so no internal name shows')
 }
 
 rmSync(home, { recursive: true, force: true })

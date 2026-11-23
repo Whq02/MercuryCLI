@@ -4,7 +4,7 @@ import { mock } from 'bun:test'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  const failHint = cond ? '' : ' | to fix: the rounds, pauses, spawn guard and heal order live in ensureOwnedDaemon in src/services/switchboard/ensureDaemon.ts; compare the walked steps above with the wanted ladder named in the label'
+  const failHint = cond ? '' : ' | to fix: the rounds, pauses, spawn guard and heal order live in ensureOwnedDaemon in src/daemon/switchboard/ensureDaemon.ts; compare the walked steps above with the wanted ladder named in the label'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${failHint}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -22,15 +22,15 @@ const begin = (verdicts: Verdict[], rest: Verdict, holds: Hold[] = []): void => 
   world.spawns = 0
 }
 
-const handshake = await import('../../src/daemon/handshake.ts')
-const ownedDaemon = await import('../../src/daemon/ownedDaemon.ts')
-const controlSocket = await import('../../src/daemon/controlSocket.ts')
-const ownerWatch = await import('../../src/utils/ownerWatch.ts')
-const pidLock = await import('../../src/substrate/pidLock.ts')
-const standdown = await import('../../src/utils/daemonStanddown.ts')
-const presence = await import('../../src/services/switchboard/screenPresence.ts')
+const handshake = await import('../../src/daemon/control/handshake.ts')
+const ownedDaemon = await import('../../src/daemon/control/ownedDaemon.ts')
+const controlSocket = await import('../../src/daemon/control/controlSocket.ts')
+const ownerWatch = await import('../../src/daemon/control/ownerWatch.ts')
+const pidLock = await import('../../src/platform/substrate/pidLock.ts')
+const standdown = await import('../../src/daemon/control/daemonStanddown.ts')
+const presence = await import('../../src/daemon/switchboard/screenPresence.ts')
 
-mock.module('../../src/daemon/handshake.ts', () => ({
+mock.module('../../src/daemon/control/handshake.ts', () => ({
   ...handshake,
   handshakeDaemon: async (opts: { timeoutMs?: number } = {}) => {
     world.trace.push(`hello ${opts.timeoutMs}`)
@@ -42,7 +42,7 @@ mock.module('../../src/daemon/handshake.ts', () => ({
     return { state: 'restarting' }
   },
 }))
-mock.module('../../src/daemon/ownedDaemon.ts', () => ({
+mock.module('../../src/daemon/control/ownedDaemon.ts', () => ({
   ...ownedDaemon,
   armDaemonSignInPoke: () => {},
   adoptOwnedDaemonPid: () => {},
@@ -52,7 +52,7 @@ mock.module('../../src/daemon/ownedDaemon.ts', () => ({
     return 5151
   },
 }))
-mock.module('../../src/daemon/controlSocket.ts', () => ({
+mock.module('../../src/daemon/control/controlSocket.ts', () => ({
   ...controlSocket,
   daemonLastUnreachableAt: () => 0,
   readDaemonState: async () => {
@@ -61,12 +61,12 @@ mock.module('../../src/daemon/controlSocket.ts', () => ({
     return hold === 'clear' ? null : { pid: 4242, ...(hold === 'stopping' ? { state: 'stopping' } : {}) }
   },
 }))
-mock.module('../../src/utils/ownerWatch.ts', () => ({ ...ownerWatch, isProcessAlive: () => true }))
-mock.module('../../src/substrate/pidLock.ts', () => ({ ...pidLock, probePidLock: async () => null }))
-mock.module('../../src/utils/daemonStanddown.ts', () => ({ ...standdown, daemonHaltStanddownActive: () => false }))
-mock.module('../../src/services/switchboard/screenPresence.ts', () => ({ ...presence, startScreenPresenceBeat: () => false }))
+mock.module('../../src/daemon/control/ownerWatch.ts', () => ({ ...ownerWatch, isProcessAlive: () => true }))
+mock.module('../../src/platform/substrate/pidLock.ts', () => ({ ...pidLock, probePidLock: async () => null }))
+mock.module('../../src/daemon/control/daemonStanddown.ts', () => ({ ...standdown, daemonHaltStanddownActive: () => false }))
+mock.module('../../src/daemon/switchboard/screenPresence.ts', () => ({ ...presence, startScreenPresenceBeat: () => false }))
 
-const ensure = await import('../../src/services/switchboard/ensureDaemon.ts')
+const ensure = await import('../../src/daemon/switchboard/ensureDaemon.ts')
 
 const pause = async (ms: number): Promise<void> => {
   world.trace.push(`pause ${ms}`)

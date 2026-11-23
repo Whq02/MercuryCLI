@@ -1,10 +1,10 @@
-import { GLYPH } from '../../utils/glyphs.js'
-import { errorMessage } from '../../utils/errors.js'
-import { failWorkingDispatchesForRunner } from '../concourseDispatch.js'
-import { settleConcourseWorker, completeRequestedPark, retireRequestedPark } from '../concourseWorkers.js'
-import { holdWorkerAsk } from '../permissionAsks.js'
-import { TaskRoster } from '../roster.js'
-import { onSeatIdle, onSeatApplied, answerSeatScheduleEdit, onSeatRow, onSeatSpawned, publishSeatFacts, requestSessionFacts } from '../sessionSeat.js'
+import { GLYPH } from '../../screen/theme/glyphs.js'
+import { errorMessage } from '../../platform/errors/errors.js'
+import { failWorkingDispatchesForRunner } from '../concourse-workers/concourseDispatch.js'
+import { settleConcourseWorker, completeRequestedPark, retireRequestedPark } from '../concourse-workers/concourseWorkers.js'
+import { holdWorkerAsk } from '../session-seat/permissionAsks.js'
+import { TaskRoster } from '../roster/roster.js'
+import { onSeatIdle, onSeatApplied, answerSeatScheduleEdit, onSeatRow, onSeatSpawned, publishSeatFacts, requestSessionFacts } from '../session-seat/sessionSeat.js'
 import type { DaemonRunState } from './state.js'
 
 export function makeDaemonRoster(state: DaemonRunState): TaskRoster {

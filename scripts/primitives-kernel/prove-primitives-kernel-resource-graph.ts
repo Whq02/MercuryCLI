@@ -9,10 +9,10 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'axiom-graph-'))
 delete process.env.MERCURY_SERVICES
 delete process.env.MERCURY_REFS
 
-const { resolveResource } = await import('../../src/services/resources/registry.ts')
+const { resolveResource } = await import('../../src/integrations/resources/registry.ts')
 const { startService, stopService, waitForReady } =
-  await import('../../src/services/projectServices/serviceManager.ts')
-const P = await import('../../src/services/primitives/index.ts')
+  await import('../../src/tools/engines/project-services/serviceManager.ts')
+const P = await import('../../src/engine/runtime-kernel/index.ts')
 
 let pass = 0
 let fail = 0
@@ -23,7 +23,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   } else {
     fail++
     console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
-    console.log('       fix: resolveResource in src/services/resources/registry.ts dispatches to the adapters src/services/resources/adapters/owner.ts, execution.ts and service.ts (children, state and version come from there); the service itself starts in src/services/projectServices/serviceManager.ts')
+    console.log('       fix: resolveResource in src/integrations/resources/registry.ts dispatches to the adapters src/integrations/resources/adapters/owner.ts, execution.ts and service.ts (children, state and version come from there); the service itself starts in src/tools/engines/project-services/serviceManager.ts')
   }
 }
 
@@ -34,7 +34,7 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 const workDir = mkdtempSync(join(tmpdir(), 'axiom-graph-work-'))
-;(await import('../../src/bootstrap/state.ts')).setOriginalCwd(workDir)
+;(await import('../../src/boot/process-state/processState.ts')).setOriginalCwd(workDir)
 const owner = P.makeOwnerKey({ workspace: workDir, sessionId: 'graph-proof', lane: P.MAIN_LANE })
 const ctx = { owner, cwd: workDir }
 

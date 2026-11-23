@@ -11,24 +11,24 @@ delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 delete process.env.MERCURY_LINE_ANCHORS
 
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
-const { compileJsonSchema } = await import('../../src/services/schema/jsonSchemaEngine.ts')
-const { mapToolsToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
-const { mapToolsToOpenai } = await import('../../src/services/providers/openai/responsesBridge.ts')
-const { toOpenaiStrictToolSchema } = await import('../../src/utils/messages/toolSchemaDialect.ts')
-const { buildGeminiRequest } = await import('../../src/services/providers/gemini/geminiCodec.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
+const { compileJsonSchema } = await import('../../src/platform/json-schema/jsonSchemaEngine.ts')
+const { mapToolsToZai } = await import('../../src/models/roads/zai/zaiCodec.ts')
+const { mapToolsToOpenai } = await import('../../src/models/roads/openai/responsesBridge.ts')
+const { toOpenaiStrictToolSchema } = await import('../../src/engine/message-shapes/toolSchemaDialect.ts')
+const { buildGeminiRequest } = await import('../../src/models/roads/gemini/geminiCodec.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
 function schemaShapesHint(label: string): string {
-  if (label.startsWith('validateInput') || label.startsWith('refused by the runtime')) return 'change validateInput in src/tools/FileEditTool/FileEditTool.ts (or the inputSchema in src/tools/FileEditTool/types.ts) so the runtime refuses this shape with the words named'
-  if (label.startsWith('the chat-completions')) return 'change mapToolsToZai in src/services/providers/zai/zaiCodec.ts so it passes the root through unchanged'
-  if (label.startsWith('the OpenAI Responses') || label.startsWith('the strict root')) return 'change mapToolsToOpenai in src/services/providers/openai/responsesBridge.ts or toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts'
-  if (label.startsWith('the Gemini')) return 'change buildGeminiRequest in src/services/providers/gemini/geminiCodec.ts so it sends the same schema as parametersJsonSchema'
-  if (label.startsWith('the conversion is one object')) return 'change zodToJsonSchema in src/utils/zodToJsonSchema.ts so it memoizes one object per schema identity'
-  if (label.startsWith('the wire schema compiles') || label.startsWith('accepted') || label.startsWith('refused by the wire')) return 'change the Edit input schema in src/tools/FileEditTool/types.ts, or compileJsonSchema in src/services/schema/jsonSchemaEngine.ts, so the wire schema validates as listed'
-  return 'change the Edit input schema in src/tools/FileEditTool/types.ts (its fields, descriptions and required list) or zodToJsonSchema in src/utils/zodToJsonSchema.ts'
+  if (label.startsWith('validateInput') || label.startsWith('refused by the runtime')) return 'change validateInput in src/tools/edit/EditTool.ts (or the inputSchema in src/tools/edit/schema.ts) so the runtime refuses this shape with the words named'
+  if (label.startsWith('the chat-completions')) return 'change mapToolsToZai in src/models/roads/zai/zaiCodec.ts so it passes the root through unchanged'
+  if (label.startsWith('the OpenAI Responses') || label.startsWith('the strict root')) return 'change mapToolsToOpenai in src/models/roads/openai/responsesBridge.ts or toOpenaiStrictToolSchema in src/engine/message-shapes/toolSchemaDialect.ts'
+  if (label.startsWith('the Gemini')) return 'change buildGeminiRequest in src/models/roads/gemini/geminiCodec.ts so it sends the same schema as parametersJsonSchema'
+  if (label.startsWith('the conversion is one object')) return 'change zodToJsonSchema in src/platform/primitives/zodToJsonSchema.ts so it memoizes one object per schema identity'
+  if (label.startsWith('the wire schema compiles') || label.startsWith('accepted') || label.startsWith('refused by the wire')) return 'change the Edit input schema in src/tools/edit/schema.ts, or compileJsonSchema in src/platform/json-schema/jsonSchemaEngine.ts, so the wire schema validates as listed'
+  return 'change the Edit input schema in src/tools/edit/schema.ts (its fields, descriptions and required list) or zodToJsonSchema in src/platform/primitives/zodToJsonSchema.ts'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++

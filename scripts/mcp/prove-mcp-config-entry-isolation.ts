@@ -19,7 +19,7 @@ process.chdir(cwd)
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | change the per-entry validation in parseMcpConfig in src/services/mcp/config.ts; the built-product checks also need dist rebuilt with bun run build.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | change the per-entry validation in parseMcpConfig in src/integrations/mcp/serverConfigs.ts; the built-product checks also need dist rebuilt with bun run build.ts'}`)
 }
 
 const document = {
@@ -29,7 +29,7 @@ const document = {
     z: { type: 'http', url: 42 },
   },
 }
-const { parseMcpConfig } = await import('../../src/services/mcp/config.ts')
+const { parseMcpConfig } = await import('../../src/integrations/mcp/serverConfigs.ts')
 
 console.log('[1] the pure parse: one bad entry never voids its neighbours')
 {

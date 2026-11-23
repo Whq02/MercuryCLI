@@ -118,7 +118,7 @@ t.section('leg 2 — Exit leaves the guidance, not a cockpit')
   t.check(
     'the exit guidance paints: what the check found, then the way that works anywhere',
     r.text.includes('cannot show Mercury the way it is designed: TERM=dumb') && r.text.includes('Non-interactive use works anywhere via mercury run'),
-    'the exit branch of showSetupScreens in src/interactiveHelpers.tsx writes these lines',
+    'the exit branch of showSetupScreens in src/boot/setupScreens.tsx writes these lines',
   )
   t.check('…and no cockpit followed (the card never continued)', !r.text.includes('? for shortcuts'), 'cockpit')
 }

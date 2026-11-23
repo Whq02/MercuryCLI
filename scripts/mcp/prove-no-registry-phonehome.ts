@@ -15,7 +15,7 @@ import { delimiter, join, resolve } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
-import { getProcessStartToken } from '../../src/utils/ownerWatch.ts'
+import { getProcessStartToken } from '../../src/daemon/control/ownerWatch.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = process.env.MERCURY_PROOF_DIST ?? join(ROOT, 'dist', 'mercury.mjs')
@@ -252,7 +252,7 @@ if (process.platform === 'win32') {
     execFileSync('sleep', ['0.05'])
   }
   const ownedRow = existsSync(ownedPids) ? readFileSync(ownedPids, 'utf8').split('\n').find(row => row.startsWith(`${owned.pid}\t`)) ?? '' : ''
-  check('an owned child registers itself with its pid AND its start token', ownedRow !== '' && ownedRow.split('\t')[1] === getProcessStartToken(owned.pid ?? -1), `${ownedRow} | the preload's ps lstart row must equal getProcessStartToken (src/utils/ownerWatch.ts); fix the tripwire preload written in this file or that function`)
+  check('an owned child registers itself with its pid AND its start token', ownedRow !== '' && ownedRow.split('\t')[1] === getProcessStartToken(owned.pid ?? -1), `${ownedRow} | the preload's ps lstart row must equal getProcessStartToken (src/daemon/control/ownerWatch.ts); fix the tripwire preload written in this file or that function`)
   writeFileSync(ownedPids, `${bystander.pid}\tThu Jan  1 00:00:00 1970\n${bystander.pid}\n${ownedRow}\n`, { flag: 'w' })
   const ownedExit = new Promise<string | null>(resolve => owned.once('exit', (_code, signal) => resolve(signal)))
   const { swept, refused } = sweepOwned()
@@ -331,7 +331,7 @@ console.log('[2] an EMPTY config home, booted headless: no registry request')
   check('empty home: zero requests to the vendor API host', vendorHostHits(result.lines).length === 0, vendorHostHits(result.lines).join(' · ') + ' | a plain boot contacted the vendor API host; find the caller from the logged request and stop it running at boot')
   check('empty home: no ssh and no git network verb spawned', networkSpawns() === '', networkSpawns() + ' | a boot spawned ssh or a git network verb; the shim log rows name which, find who spawns it')
   check('empty home: nothing left running', result.leftovers === '', result.leftovers + ' | a child process of the boot outlived the run; the listed pid and args name it, make its owner stop it at exit')
-  check('empty home: no owned record was refused for uncertain identity', result.refused === '', result.refused + ' | a pid in the owned-pids roster has a start token that differs from the live process; see the tripwire preload row format and getProcessStartToken in src/utils/ownerWatch.ts')
+  check('empty home: no owned record was refused for uncertain identity', result.refused === '', result.refused + ' | a pid in the owned-pids roster has a start token that differs from the live process; see the tripwire preload row format and getProcessStartToken in src/daemon/control/ownerWatch.ts')
 }
 
 console.log('[3] a SEEDED home (onboarded, trusted cwd, approved env key): the boot passes the prefetch stage, no registry request')
@@ -351,7 +351,7 @@ console.log('[3] a SEEDED home (onboarded, trusted cwd, approved env key): the b
   check('seeded home: zero requests to the vendor API host', vendorHostHits(result.lines).length === 0, vendorHostHits(result.lines).join(' · ') + ' | a plain boot contacted the vendor API host; find the caller from the logged request and stop it running at boot')
   check('seeded home: no ssh and no git network verb spawned', networkSpawns() === '', networkSpawns() + ' | a boot spawned ssh or a git network verb; the shim log rows name which, find who spawns it')
   check('seeded home: nothing left running', result.leftovers === '', result.leftovers + ' | a child process of the boot outlived the run; the listed pid and args name it, make its owner stop it at exit')
-  check('seeded home: no owned record was refused for uncertain identity', result.refused === '', result.refused + ' | a pid in the owned-pids roster has a start token that differs from the live process; see the tripwire preload row format and getProcessStartToken in src/utils/ownerWatch.ts')
+  check('seeded home: no owned record was refused for uncertain identity', result.refused === '', result.refused + ' | a pid in the owned-pids roster has a start token that differs from the live process; see the tripwire preload row format and getProcessStartToken in src/daemon/control/ownerWatch.ts')
 }
 
 console.log('[4] a home with MCP servers CONFIGURED (http · sse · stdio at user scope · a stdio server that dies on the revision probe): the configured servers are the only MCP connects')
@@ -391,7 +391,7 @@ console.log('[4] a home with MCP servers CONFIGURED (http · sse · stdio at use
   check('MCP home: zero requests to the vendor API host', vendorHostHits(result.lines).length === 0, vendorHostHits(result.lines).join(' · ') + ' | a plain boot contacted the vendor API host; find the caller from the logged request and stop it running at boot')
   check('MCP home: no ssh and no git network verb spawned', networkSpawns() === '', networkSpawns() + ' | a boot spawned ssh or a git network verb; the shim log rows name which, find who spawns it')
   check('MCP home: nothing left running', result.leftovers === '', result.leftovers + ' | a child process of the boot outlived the run; the listed pid and args name it, make its owner stop it at exit')
-  check('MCP home: no owned record was refused for uncertain identity', result.refused === '', result.refused + ' | a pid in the owned-pids roster has a start token that differs from the live process; see the tripwire preload row format and getProcessStartToken in src/utils/ownerWatch.ts')
+  check('MCP home: no owned record was refused for uncertain identity', result.refused === '', result.refused + ' | a pid in the owned-pids roster has a start token that differs from the live process; see the tripwire preload row format and getProcessStartToken in src/daemon/control/ownerWatch.ts')
 }
 
 console.log('[5] the built binary spells neither the registry host+path nor its versioned path')

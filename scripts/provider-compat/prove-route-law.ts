@@ -12,7 +12,7 @@ delete process.env.ANTHROPIC_API_KEY
 delete process.env.MOONSHOT_API_KEY
 delete process.env.DEEPSEEK_API_KEY
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 const {
@@ -24,9 +24,9 @@ const {
   canonicalWireModelId,
   COMPAT_MODEL_PREFIX,
   PROVIDER_ID_SPACES,
-} = await import('../../src/services/providers/routeLaw.ts')
+} = await import('../../src/models/roads/routeLaw.ts')
 const { compatDispatchModelId } = await import(
-  '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+  '../../src/models/roads/openaicompat/compatChatCallModel.ts'
 )
 
 let failures = 0
@@ -34,7 +34,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — change the family table or the rule this label names in ${ROUTE_LAW_AT}` : ''}`)
 }
-const ROUTE_LAW_AT = 'src/services/providers/routeLaw.ts (PROVIDER_ID_SPACES, classifyModelRoute, declaredRouteOf, qualifiedWireId, canonicalWireModelId); a dispatch-id row: compatDispatchModelId in src/services/providers/openaicompat/compatChatCallModel.ts; an admission row: homeLaneAdmissionRefusal in src/services/providers/homeLaneAdmission.ts; a listed-id row: src/services/providers/moonshot/moonshotCatalogue.ts'
+const ROUTE_LAW_AT = 'src/models/roads/routeLaw.ts (PROVIDER_ID_SPACES, classifyModelRoute, declaredRouteOf, qualifiedWireId, canonicalWireModelId); a dispatch-id row: compatDispatchModelId in src/models/roads/openaicompat/compatChatCallModel.ts; an admission row: homeLaneAdmissionRefusal in src/models/roads/homeLaneAdmission.ts; a listed-id row: src/models/roads/moonshot/moonshotCatalogue.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
@@ -186,7 +186,7 @@ check('a bare Hub slug stays UNRECOGNISED (never a guessed family, and no lane b
 section('6 · the earned ride (the neutrality ruling): total classifier, admission-owned ride')
 {
   const { homeLaneAdmissionRefusal } = await import(
-    '../../src/services/providers/homeLaneAdmission.ts'
+    '../../src/models/roads/homeLaneAdmission.ts'
   )
   const noFact = { firstPartyBaseUrl: () => true, env: {} }
   const refusal = homeLaneAdmissionRefusal('banana-brew-9', noFact)
@@ -216,7 +216,7 @@ section('6 · the earned ride (the neutrality ruling): total classifier, admissi
 section('7 · the honest verdict (phase 2): absence and unknownness first-class')
 {
   const { classifyModelRoute, declaredRouteOf, laneLabelForVerdict } = await import(
-    '../../src/services/providers/routeLaw.ts'
+    '../../src/models/roads/routeLaw.ts'
   )
   const empty = {}
   check(
@@ -272,7 +272,7 @@ section('7 · the honest verdict (phase 2): absence and unknownness first-class'
 
 section('9 · provenance before grammar: an id a signed-in account\'s live list holds belongs to that family whatever its spelling; the grammar answers only with no list to check')
 {
-  const moonshot = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
+  const moonshot = await import('../../src/models/roads/moonshot/moonshotCatalogue.ts')
   const liveIds = (): ReadonlySet<string> => (moonshot as { cachedLiveIds?: () => ReadonlySet<string> }).cachedLiveIds?.() ?? new Set()
   const listFetch = (async () => Response.json({ object: 'list', data: [{ id: 'k3', object: 'model', owned_by: 'moonshot', created: 1 }] })) as typeof fetch
   check("with no list to check, 'k3' is unrecognised and 'kimi-k3' routes to moonshot by its prefix", classifyModelRoute('k3').kind === 'unrecognised' && declaredRouteOf('kimi-k3') === 'moonshot')

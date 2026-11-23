@@ -260,7 +260,7 @@ const signingLib = await import(pathToFileURL(join(pkgDir, 'verify-artifact.mjs'
       ok(`signed with key ${block.keyId} OUTSIDE the compiled trust roster (allowed by flag — every verifier will report unrecognized-key)`)
     } else if (check.verdict.state === 'unrecognized-key') {
       fail(
-        `signing key ${block.keyId} is not in the compiled trust roster — fill PRODUCTION_SIGNING_KEY (src/services/privateChannel/signingTrust.ts), rebuild, then sign; or pass --allow-unrosterred-signature deliberately`,
+        `signing key ${block.keyId} is not in the compiled trust roster — fill PRODUCTION_SIGNING_KEY (src/platform/update-channel/signingTrust.ts), rebuild, then sign; or pass --allow-unrosterred-signature deliberately`,
       )
     } else {
       fail(`post-sign self-verification returned ${check.verdict.state}${check.verdict.note ? `: ${check.verdict.note}` : ''} — the signing step is broken; nothing was published`)

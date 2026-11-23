@@ -11,11 +11,11 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && text ? ` — ${text}` : ''}`)
 }
 function section(t: string): void {
-  where = t.startsWith('§1 CORE') ? 'fix the pure rule in src/utils/cache/cacheClockCore.ts (decideInitialTtl, shouldEscalate, classifyGap, stepCache, priorFromRollups)'
-    : t.startsWith('§2') ? 'fix decideInitialTtl or shouldEscalate in src/utils/cache/cacheClockCore.ts so a TTL flip happens only when the gap proves the cache cold'
-    : t.startsWith('§3b') ? 'fix the rollup directory in src/utils/cache/cacheClock.ts so a worktree session meters under its original project'
-    : t.startsWith('§3') ? 'fix cacheClockTtlDecision / cacheClockObserve / cacheClockSnapshot in src/utils/cache/cacheClock.ts'
-    : t.startsWith('§5') ? 'fix the tier lease in src/utils/cache/cacheClock.ts (cacheClockTtlDecision, cacheClockObserve) or tierLeaseOf / tierLeaseWarm in src/utils/cache/cacheClockCore.ts'
+  where = t.startsWith('§1 CORE') ? 'fix the pure rule in src/platform/cache-clock/cacheClockCore.ts (decideInitialTtl, shouldEscalate, classifyGap, stepCache, priorFromRollups)'
+    : t.startsWith('§2') ? 'fix decideInitialTtl or shouldEscalate in src/platform/cache-clock/cacheClockCore.ts so a TTL flip happens only when the gap proves the cache cold'
+    : t.startsWith('§3b') ? 'fix the rollup directory in src/platform/cache-clock/cacheClock.ts so a worktree session meters under its original project'
+    : t.startsWith('§3') ? 'fix cacheClockTtlDecision / cacheClockObserve / cacheClockSnapshot in src/platform/cache-clock/cacheClock.ts'
+    : t.startsWith('§5') ? 'fix the tier lease in src/platform/cache-clock/cacheClock.ts (cacheClockTtlDecision, cacheClockObserve) or tierLeaseOf / tierLeaseWarm in src/platform/cache-clock/cacheClockCore.ts'
     : ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -33,7 +33,7 @@ for (const k of [
   delete process.env[k]
 }
 
-const core = await import('../../src/utils/cache/cacheClockCore.ts')
+const core = await import('../../src/platform/cache-clock/cacheClockCore.ts')
 const {
   CACHE_COST,
   TTL_MS,
@@ -197,7 +197,7 @@ section('§1 CORE — prior fold tolerates junk')
 }
 
 section('§3 SHELL — stamp-sim drive (real module, scratch cwd)')
-const shell = await import('../../src/utils/cache/cacheClock.ts')
+const shell = await import('../../src/platform/cache-clock/cacheClock.ts')
 const {
   cacheClockObserve,
   cacheClockSnapshot,
@@ -271,7 +271,7 @@ section('§3 SHELL — rollup persistence (the cadence prior on disk)')
       uncachedInputTokens: 100, now: NOW + i * 1_000,
     })
   }
-  const portable = await import('../../src/utils/sessionStoragePortable.ts')
+  const portable = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
   const dir = join(
     portable.getProjectDir(process.cwd()),
     'cache-clock',
@@ -313,7 +313,7 @@ section('§3 SHELL — rollup persistence (the cadence prior on disk)')
 
 section('§3b STORE KEYING — a worktree lane meters to its ORIGIN project (L24)')
 {
-  const { restoreWorktreeSession } = await import('../../src/services/worktree.ts')
+  const { restoreWorktreeSession } = await import('../../src/platform/git/worktree/worktree.ts')
   const { mkdirSync: mkd } = await import('node:fs')
   const origin = join(mkdtempSync(join(tmpdir(), 'cache-clock proof origin-')), 'projected work')
   mkd(origin, { recursive: true })
@@ -334,7 +334,7 @@ section('§3b STORE KEYING — a worktree lane meters to its ORIGIN project (L24
     })
   }
   restoreWorktreeSession(null)
-  const portable = await import('../../src/utils/sessionStoragePortable.ts')
+  const portable = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
   const originStore = join(
     portable.getProjectDir(origin),
     'cache-clock',
@@ -366,8 +366,8 @@ section('§5 RELAUNCH — the 1h tier a process bought survives a restart of the
 {
   const { noteCacheClockPrefix } = shell
   const { tierLeaseOf, tierLeaseWarm } = core
-  const portable = await import('../../src/utils/sessionStoragePortable.ts')
-  const { getSessionId } = await import('../../src/bootstrap/state.ts')
+  const portable = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
+  const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
   const dir = join(portable.getProjectDir(process.cwd()), 'cache-clock', 'sessions')
   const own = join(dir, `${String(getSessionId())}.json`)
   const PREFIX = 'owner|first-row|claude-fable-5-1'

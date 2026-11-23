@@ -1,0 +1,35 @@
+import type { Dispatch, RefObject, SetStateAction } from 'react';
+import type { useSetAppStateMaybe } from '../../app-state/AppState.js';
+import type { useAnthropicLoginModel } from '../../widgets/faces/anthropicLoginModel.js';
+import type { KimiRegion } from '../../../models/roads/moonshot/moonshotAccounts.js';
+import type { LoginsScreenFactsV1 } from './facts.js';
+import type { FaceKeyLegId, LoginsPickId } from './pickLines.js';
+import type { FaceDeviceFamily, HandlesLegId, OpenFlowState } from './flowLines.js';
+
+export type LoginsFlowContext = {
+  given: LoginsScreenFactsV1 | undefined;
+  setAppStateMaybe: ReturnType<typeof useSetAppStateMaybe>;
+  flowRef: RefObject<OpenFlowState | null>;
+  draftRef: RefObject<string>;
+  deviceRunRef: RefObject<number>;
+  handlesRef: RefObject<{ cancel: (reason?: string) => void; completeWithRedirect: (pasted: string) => void } | null>;
+  anthropicKeyDraft: RefObject<string>;
+  anthropicKeyRequest: RefObject<AbortController | null>;
+  xaiApiReceipt: RefObject<string>;
+  mistralApiReceipt: RefObject<string>;
+  setFlow: Dispatch<SetStateAction<OpenFlowState | null>>;
+  setNotice: Dispatch<SetStateAction<string | null>>;
+  setDraft: (next: string | ((current: string) => string)) => void;
+  refreshFacts: () => void;
+  closeFlow: () => void;
+  settleSignedIn: () => void;
+  discloseLateSettle: (sentence: string) => void;
+  startDeviceRun: (family: FaceDeviceFamily, region?: KimiRegion) => void;
+  openGuideStep: (step: 1 | 2 | 3 | 4 | 5, from: 'walk' | 'pick', note?: string | null) => void;
+  startHandlesRun: (leg: HandlesLegId) => void;
+  startOpenaiDeviceRun: () => void;
+  model: ReturnType<typeof useAnthropicLoginModel>;
+  openPick: (pick: LoginsPickId, cursor?: number) => void;
+  submitKey: (leg: FaceKeyLegId, raw: string) => void;
+  keyEscape: (leg: FaceKeyLegId) => void;
+};

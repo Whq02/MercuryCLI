@@ -23,14 +23,14 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 const React = await import('react')
 const h = React.createElement
-const { Box } = await import('../../src/ink.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
-const { setCwdState } = await import('../../src/bootstrap/state.ts')
-const { getKeybindingsPath } = await import('../../src/keybindings/loadUserBindings.ts')
-const { QuestionView } = await import('../../src/components/permissions/AskUserQuestionPermissionRequest/QuestionView.tsx')
+const { Box } = await import('../../src/screen/themedRenderer.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
+const { setCwdState } = await import('../../src/boot/process-state/processState.ts')
+const { getKeybindingsPath } = await import('../../src/screen/keys/loadUserBindings.ts')
+const { QuestionView } = await import('../../src/permissions/cards/ask-user-question/QuestionView.tsx')
 enableConfigs()
 
 function writeBindings(tag: string, blocks: Array<{ context: string; bindings: Record<string, string | null> }> | null): void {

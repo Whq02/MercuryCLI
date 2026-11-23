@@ -63,14 +63,14 @@ export function fetchOffered(card: Pick<Card, 'legend' | 'all'>): string | undef
 export async function openPanelCard(opts: { road: PanelRoad; label: string; prefix: string; free: () => number; serviceEnv?: Record<string, string>; standIn?: StandIn; engine?: 'missing' }): Promise<PanelCard> {
   const React = await import('react')
   const h = React.createElement
-  const { Box } = await import('../../../src/ink.ts')
-  const { AppStateProvider } = await import('../../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../../src/components/design-system/ThemeProvider.tsx')
+  const { Box } = await import('../../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../../src/screen/theme/ThemeProvider.tsx')
   const panel = await import('../../../src/commands/tensorfold/tensorfold.tsx')
   const road = await import('../../../src/commands/tensorfold/road.ts')
   const scene = await import('../../../src/commands/tensorfold/scene.ts')
-  const engine = await import('../../../src/services/tensorfold/engine.ts')
-  const serve = await import('../../../src/services/tensorfold/serve.ts')
+  const engine = await import('../../../src/models/tensorfold/engine.ts')
+  const serve = await import('../../../src/models/tensorfold/serve.ts')
   const adapter = opts.road === 'adapter'
   const machine = adapter ? WIN_16 : MAC_48
   engine.__pinTensorFoldMachineForTest(machine)
@@ -79,8 +79,8 @@ export async function openPanelCard(opts: { road: PanelRoad; label: string; pref
   let binary: string
   let found: unknown
   if (adapter) {
-    const models = await import('../../../src/services/tensorfold/adapter/models.ts')
-    const llama = await import('../../../src/services/tensorfold/adapter/llama.ts')
+    const models = await import('../../../src/models/tensorfold/adapter/models.ts')
+    const llama = await import('../../../src/models/tensorfold/adapter/llama.ts')
     const script = join(FIXTURES, 'fake-llama-server.ts')
     world = fakeWorld(opts.prefix, { seeds: [], ggufSeeds: [models.QWEN_4B_GGUF.gguf, models.QWEN_2B_GGUF.gguf], env: { FAKE_LLAMA_SCRIPT: script, FAKE_TENSORFOLD_BUN: process.execPath, ...SEALED_ENV }, ...(opts.standIn !== undefined ? { standIn: opts.standIn } : {}) })
     if (missing) {

@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
-const { entryToRecord } = await import('../../src/fabric/entryCodec.js')
-const { BODY_SHAPE_KINDS, bodyShapeIssue, validateRecord } = await import('../../src/fabric/validate.js')
-const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.js')
-const { ordinalOf } = await import('../../src/fabric/ordinal.js')
+const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.js')
+const { BODY_SHAPE_KINDS, bodyShapeIssue, validateRecord } = await import('../../src/sessions/fabric/validate.js')
+const { decodeTranscriptBuffer } = await import('../../src/sessions/fabric/transcriptDecode.js')
+const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.js')
 
 let failures = 0
-const bodyShapeFixHint = 'fix: the kind registry BODY_SHAPE_KINDS and bodyShapeIssue in src/fabric/validate.ts, or the body-invalid thinning in src/fabric/transcriptDecode.ts, or this fixture list'
+const bodyShapeFixHint = 'fix: the kind registry BODY_SHAPE_KINDS and bodyShapeIssue in src/sessions/fabric/validate.ts, or the body-invalid thinning in src/sessions/fabric/transcriptDecode.ts, or this fixture list'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${bodyShapeFixHint}` : ''}`)

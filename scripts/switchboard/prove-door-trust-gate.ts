@@ -55,7 +55,7 @@ const spawnDaemonWithHome = (configHome: string): void => {
     stdio: ['ignore', logFd, logFd],
   })
 }
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boolean> => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -67,7 +67,7 @@ const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boo
   }
   return false
 }
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 try {
   const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
   const run = await runArtifactArena({
@@ -107,17 +107,17 @@ try {
     const grabs = grabScreens(run, 140, 40, offsets)
     const text = (g: { rows: string[] }): string => g.rows.join('\n')
     const doorFrames = grabs.filter(g => text(g).includes('running in') && text(g).includes('OTHER PROJECTS'))
-    check('§1 the OTHER-PROJECTS door row paints for the foreign running session', doorFrames.length > 0, `door frames: ${doorFrames.map(g => g.atMs).join(',') || 'none'} - the board should paint an OTHER PROJECTS group with a running-in line for the foreign session; the group is built in src/services/concourse/concourseSnapshot.ts`)
+    check('§1 the OTHER-PROJECTS door row paints for the foreign running session', doorFrames.length > 0, `door frames: ${doorFrames.map(g => g.atMs).join(',') || 'none'} - the board should paint an OTHER PROJECTS group with a running-in line for the foreign session; the group is built in src/screen/concourse-model/concourseSnapshot.ts`)
     const rescoped = grabs.filter(
       g => text(g).includes('Door probe session') && text(g).includes('repo → work') && !text(g).includes('UNTRUSTED FOLDER'),
     )
     check(
       '§2 door ↵ → trust y → the board RE-SCOPES (session row live, ground note painted, modal settled) — never a silent nothing',
       rescoped.length > 0,
-      `re-scoped frames: ${rescoped.map(g => g.atMs).join(',') || 'none'} - after enter on the door and y on the UNTRUSTED FOLDER modal the board should show the session row and the ground note; the modal is src/components/concourse/screen/modals.tsx`,
+      `re-scoped frames: ${rescoped.map(g => g.atMs).join(',') || 'none'} - after enter on the door and y on the UNTRUSTED FOLDER modal the board should show the session row and the ground note; the modal is src/screen/concourse/screen/modals.tsx`,
     )
     const late = grabs[grabs.length - 1]
-    check('§2 …and the door row is gone from the re-scoped board (the sessions are no longer elsewhere)', late !== undefined && !text(late).includes('OTHER PROJECTS'), late ? `late frame @${late.atMs} - once the board is re-scoped the OTHER PROJECTS group should be gone; see src/services/concourse/concourseSnapshot.ts` : 'no late frame - no screen was grabbed; check the artifact arena run output')
+    check('§2 …and the door row is gone from the re-scoped board (the sessions are no longer elsewhere)', late !== undefined && !text(late).includes('OTHER PROJECTS'), late ? `late frame @${late.atMs} - once the board is re-scoped the OTHER PROJECTS group should be gone; see src/screen/concourse-model/concourseSnapshot.ts` : 'no late frame - no screen was grabbed; check the artifact arena run output')
   } finally {
     run.cleanup()
   }

@@ -11,23 +11,23 @@ process.env.CI = '1'
 const CREDENTIAL_VARS = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR', 'MERCURY_API_KEY_FILE_DESCRIPTOR', 'ANTHROPIC_BASE_URL'] as const
 for (const name of CREDENTIAL_VARS) delete process.env[name]
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const auth = await import('../../src/utils/auth.ts')
-const errors = await import('../../src/services/api/errors.ts')
+const auth = await import('../../src/models/sign-in/credentials/auth.ts')
+const errors = await import('../../src/engine/requests/apiErrorRows.ts')
 
 let failures = 0
 let checks = 0
 let sectionHint = ''
 const HINTS: Record<string, string> = {
-  '§1': 'what to change: wireCredentialSource in src/utils/auth.ts (which credential source it names for the env set in the label)',
-  '§2': 'what to change: invalidCredentialWords and getAssistantMessageFromError in src/services/api/errors.ts (the words a 401 shows for that source)',
-  '§3': 'what to change: isInvalidCredentialWords and invalidCredentialWords in src/services/api/errors.ts',
+  '§1': 'what to change: wireCredentialSource in src/models/sign-in/credentials/auth.ts (which credential source it names for the env set in the label)',
+  '§2': 'what to change: invalidCredentialWords and getAssistantMessageFromError in src/engine/requests/apiErrorRows.ts (the words a 401 shows for that source)',
+  '§3': 'what to change: isInvalidCredentialWords and invalidCredentialWords in src/engine/requests/apiErrorRows.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  const hint = HINTS[label.slice(0, 2)] ?? HINTS[sectionHint] ?? 'what to change: wireCredentialSource in src/utils/auth.ts or invalidCredentialWords in src/services/api/errors.ts'
+  const hint = HINTS[label.slice(0, 2)] ?? HINTS[sectionHint] ?? 'what to change: wireCredentialSource in src/models/sign-in/credentials/auth.ts or invalidCredentialWords in src/engine/requests/apiErrorRows.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${hint}` : ''}`)
 }
 function section(t: string): void {

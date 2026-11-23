@@ -14,9 +14,9 @@ CREATE TABLE rowidbig(value TEXT); INSERT INTO rowidbig(rowid,value) VALUES(9223
 CREATE TABLE withoutbig(id INTEGER PRIMARY KEY,value TEXT) WITHOUT ROWID; INSERT INTO withoutbig VALUES(9223372036854775807,'withoutbig');`)
 seed.close()
 const client = await readViewMcp(home)
-const rowHint = 'change how a keyed SQLite row is read and rendered (renderSqliteRow, renderSqliteValue, selectSqliteRows in src/tools/FileReadTool/readRichFormats.ts); the Node side runs the built dist/mercury.mjs, so rebuild with bun run build.ts first'
-const writeHint = 'change the addressed SQLite row update in the Write tool under src/tools/FileWriteTool (write/call.ts, structuredTargets.ts) so it targets the row Read showed'
-const queryHint = 'change the sql= engine in src/tools/FileReadTool/sqliteQueryProcess.ts so a large integer is returned exactly'
+const rowHint = 'change how a keyed SQLite row is read and rendered (renderSqliteRow, renderSqliteValue, selectSqliteRows in src/tools/read/readRichFormats.ts); the Node side runs the built dist/mercury.mjs, so rebuild with bun run build.ts first'
+const writeHint = 'change the addressed SQLite row update in the Write tool under src/tools/write (write/call.ts, structuredTargets.ts) so it targets the row Read showed'
+const queryHint = 'change the sql= engine in src/tools/read/sqliteQueryProcess.ts so a large integer is returned exactly'
 const bunRead = async (path: string): Promise<string> => {
   try { return (await kit.FileReadTool.call({ file_path: path }, kit.context)).data.file.content }
   catch (error) { return String(error) }

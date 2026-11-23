@@ -4,14 +4,14 @@ import { join } from 'node:path'
 import { check, finish, HOME, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, ownerOf, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const grants = await import('../../src/services/desktop/computerGrant.ts')
-const session = await import('../../src/services/desktop/desktopSession.ts')
-const { resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const { getSessionId, setIsInteractive, getIsInteractive, setAskChannel, getAskChannel } = await import('../../src/bootstrap/state.ts')
-const { readBootEnvChoices, bootEnvPath } = await import('../../src/substrate/startupMenu.ts')
-const { applyComputerAskChoice, COMPUTER_ASK_CHOICES, COMPUTER_ASK_NOTE, COMPUTER_CLIPBOARD_CHOICES, computerClipboardChoicesFor } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
-type ToolUseContext = import('../../src/Tool.ts').ToolUseContext
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const grants = await import('../../src/integrations/desktop/computerGrant.ts')
+const session = await import('../../src/integrations/desktop/desktopSession.ts')
+const { resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const { getSessionId, setIsInteractive, getIsInteractive, setAskChannel, getAskChannel } = await import('../../src/boot/process-state/processState.ts')
+const { readBootEnvChoices, bootEnvPath } = await import('../../src/platform/substrate/startupMenu.ts')
+const { applyComputerAskChoice, COMPUTER_ASK_CHOICES, COMPUTER_ASK_NOTE, COMPUTER_CLIPBOARD_CHOICES, computerClipboardChoicesFor } = await import('../../src/permissions/cards/computer/ComputerPermissionRequest.tsx')
+type ToolUseContext = import('../../src/tools/kit/tool.ts').ToolUseContext
 
 const scratch = scratchDir('grants')
 const TEXTEDIT = { identity: 'com.example.TextEdit', name: 'TextEdit' }

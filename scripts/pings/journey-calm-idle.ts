@@ -33,9 +33,9 @@ if (!existsSync(DIST)) {
 }
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
-const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
 
 const { realpathSync } = await import('node:fs')
 const scratch = mkdtempSync(join(tmpdir(), 'pings-calm-'))
@@ -87,7 +87,7 @@ const SID = '00000000-aaaa-bbbb-cccc-000000000042'
 }
 
 {
-  const obl = await import('../../src/services/crew/obligations.ts')
+  const obl = await import('../../src/crew/crewmates/obligations.ts')
   await obl.upsertObligation({
     ref: 'calm-standing-1',
     sessionId: SID,

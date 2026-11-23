@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/appleTerminalBackup.ts
+// gate-watch: src/commands/keysetup/appleTerminalBackup.ts
 import { mock } from 'bun:test'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -18,15 +18,15 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
-const terminalBackupHint = 'see src/utils/appleTerminalBackup.ts'
+const terminalBackupHint = 'see src/commands/keysetup/appleTerminalBackup.ts'
 
 const calls: string[][] = []
 let exportCode = 0
 let importCode = 0
 let plistAppears = true
 mkdirSync(join(HOME, 'Library', 'Preferences'), { recursive: true })
-const execActual = await import('../../src/utils/execFileNoThrow.ts')
-mock.module('../../src/utils/execFileNoThrow.ts', () => ({
+const execActual = await import('../../src/platform/processes/execFileNoThrow.ts')
+mock.module('../../src/platform/processes/execFileNoThrow.ts', () => ({
   ...execActual,
   execFileNoThrow: async (file: string, args: string[]) => {
     calls.push([file, ...args])
@@ -41,9 +41,9 @@ mock.module('../../src/utils/execFileNoThrow.ts', () => ({
 const osActual = await import('node:os')
 mock.module('node:os', () => ({ ...osActual, homedir: () => HOME }))
 
-const { enableConfigs, getGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, getGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const backup = await import('../../src/utils/appleTerminalBackup.ts')
+const backup = await import('../../src/commands/keysetup/appleTerminalBackup.ts')
 const flags = () => ({ inProgress: getGlobalConfig().appleTerminalSetupInProgress, path: getGlobalConfig().appleTerminalBackupPath })
 
 section('§1 nothing in progress: the launch check is a no-op')

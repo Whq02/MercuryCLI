@@ -32,7 +32,7 @@ try {
         writeSync(fd, `${xref}${at}\n%%EOF\n`)
         writeSync(fd, Buffer.alloc(size - statSync(path).size, 0x20))
       } else {
-        const ExcelJS = await import('../../src/tools/DocumentTool/workbook.ts')
+        const ExcelJS = await import('../../src/tools/document/workbook.ts')
         const book = new ExcelJS.Workbook(); book.addWorksheet('Data').addRow(['Large workbook'])
         const base = Buffer.from(await book.xlsx.writeBuffer()), end = Buffer.from(base.subarray(base.length - 22))
         const originalOffset = end.readUInt32LE(16), originalCentral = base.subarray(originalOffset, base.length - 22)
@@ -58,34 +58,34 @@ try {
     const start = performance.now()
     if (kind === 'pdf') {
       assert.match(await read(path, { offset: 1, limit: 2 }), /Large PDF text survives/)
-      const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+      const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
       const lines = join(root, 'window.docx')
       writeFileSync(lines, zip({ 'word/document.xml': '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + '<w:p><w:r><w:t>x</w:t></w:r></w:p>'.repeat(2100) + '</w:body></w:document>' }))
       const result = await FileReadTool.call({ file_path: lines }, context, undefined as any, { uuid: crypto.randomUUID() } as any)
       assert.equal(result.data.type, 'text')
       const numLines = (result.data as any).file.numLines
-      assert.ok(numLines <= 2000, `FileReadTool returned ${numLines} lines (> 2000 default window) for window.docx in src/tools/FileReadTool/FileReadTool.ts`)
+      assert.ok(numLines <= 2000, `FileReadTool returned ${numLines} lines (> 2000 default window) for window.docx in src/tools/read/ReadTool.ts`)
       assert.match(JSON.stringify(FileReadTool.mapToolResultToToolResultBlockParam(result.data, 'window')), /Read\(offset:|Read.*limit|read.*offset/i)
-      const { parsePdfText } = await import('../../src/utils/pdfText.ts')
+      const { parsePdfText } = await import('../../src/tools/kit/pdfText.ts')
       const { pdfFixture, textPage } = await import('./fixtures.ts')
       const abort = new AbortController()
       const pending = parsePdfText(pdfFixture(Array.from({ length: 500 }, () => textPage('cancel'))), undefined, abort.signal)
       const timer = setTimeout(() => abort.abort(), 20)
       try { await assert.rejects(pending, /cancelled|abort/i) } finally { clearTimeout(timer) }
-      const { getToolResultsDir } = await import('../../src/utils/toolResultStorage.ts')
+      const { getToolResultsDir } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
       assert.ok(!readdirSync(getToolResultsDir()).some(name => name.startsWith('pdf-input-')), 'worker input remains after cancellation')
     } else {
       await assert.rejects(read(path), (e: Error) => /large\.xlsx/.test(e.message) && /16 (?:MiB|MB)|16777216/.test(e.message))
-      const { DocumentTool } = await import('../../src/tools/DocumentTool/DocumentTool.ts')
+      const { DocumentTool } = await import('../../src/tools/document/DocumentTool.ts')
       await assert.rejects(DocumentTool.call({ op: 'inspect', source: path }, context, undefined as any, { uuid: crypto.randomUUID() } as any), (e: Error) => /large\.xlsx/.test(e.message) && /16 (?:MiB|MB)|16777216/.test(e.message))
-      const { documentArchive } = await import('../../src/tools/DocumentTool/archive.ts')
+      const { documentArchive } = await import('../../src/tools/document/archive.ts')
       assert.throws(() => documentArchive(zip({ 'word/document.xml': 'x'.repeat(4 * 1024 * 1024 + 1) })), /entry.*(?:size|limit)|exceeds/i)
     }
     await healthy()
     const elapsed = performance.now() - start
     const peakBytes = process.resourceUsage().maxRSS * (process.versions.bun && process.platform === 'darwin' ? 1 : 1024)
     console.log(JSON.stringify({ kind, bytes: statSync(path).size, elapsedMs: Math.round(elapsed), peakRSSBytes: peakBytes, peakRSSMiB: Math.round(peakBytes / 1024 / 1024) }))
-    assert.ok(elapsed < 60_000, `large ${kind} read took ${Math.round(elapsed)}ms (>= 60000ms ceiling) in src/tools/FileReadTool/FileReadTool.ts`)
+    assert.ok(elapsed < 60_000, `large ${kind} read took ${Math.round(elapsed)}ms (>= 60000ms ceiling) in src/tools/read/ReadTool.ts`)
     assert.ok(peakBytes < 1536 * 1024 ** 2, 'peak RSS exceeds 1.5 GiB')
     console.log(`PASS large ${kind}: bounded read and healthy session`)
   }

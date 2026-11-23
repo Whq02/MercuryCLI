@@ -10,22 +10,22 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spell
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}fix the floor and the receipts file in src/services/switchboard/sessionReceipts.ts (deriveSessionFloor, appendSessionReceipt, readSessionReceipts, receiptsPathBesideTranscript), the park and settle seams that write them in src/daemon/concourseWorkers.ts (parkConcourseSession, settleConcourseWorker), or the delete door in src/services/switchboard/transcriptPruneDoor.ts (buildPruneOffer, operatorPruneTranscripts)`
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}fix the floor and the receipts file in src/daemon/switchboard/sessionReceipts.ts (deriveSessionFloor, appendSessionReceipt, readSessionReceipts, receiptsPathBesideTranscript), the park and settle seams that write them in src/daemon/concourse-workers/concourseWorkers.ts (parkConcourseSession, settleConcourseWorker), or the delete door in src/daemon/switchboard/transcriptPruneDoor.ts (buildPruneOffer, operatorPruneTranscripts)`
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
 const {
   appendSessionReceipt,
   readSessionReceipts,
   deriveSessionFloor,
   machineFloorDetailsOf,
   receiptsPathBesideTranscript,
-} = await import('../../src/services/switchboard/sessionReceipts.ts')
-const workers = await import('../../src/daemon/concourseWorkers.ts')
-const { buildPruneOffer, operatorPruneTranscripts } = await import('../../src/services/switchboard/transcriptPruneDoor.ts')
+} = await import('../../src/daemon/switchboard/sessionReceipts.ts')
+const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { buildPruneOffer, operatorPruneTranscripts } = await import('../../src/daemon/switchboard/transcriptPruneDoor.ts')
 
 const DAEMON_DIR = join(SCRATCH, 'daemon')
 mkdirSync(DAEMON_DIR, { recursive: true })

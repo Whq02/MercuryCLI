@@ -9,8 +9,8 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
-const persistFixHint = 'fix persistPermissionUpdate in src/utils/permissions/PermissionUpdate.ts, which must merge into the rules already in the settings file on disk (writePartial calls updateSettingsForSource in src/utils/settings/settings.ts)'
-const writerFixHint = 'fix updateSettingsForSource in src/utils/settings/settings.ts, which persistPermissionUpdate uses to write the settings file, so that concurrent writers each keep their rule'
+const persistFixHint = 'fix persistPermissionUpdate in src/permissions/rules/permissionUpdate.ts, which must merge into the rules already in the settings file on disk (writePartial calls updateSettingsForSource in src/platform/settings/settings.ts)'
+const writerFixHint = 'fix updateSettingsForSource in src/platform/settings/settings.ts, which persistPermissionUpdate uses to write the settings file, so that concurrent writers each keep their rule'
 const HERE = import.meta.dir
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
@@ -32,8 +32,8 @@ function runIn(home: string, project: string, body: string): Record<string, unkn
     delete process.env.NODE_ENV
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const s = await import(${JSON.stringify(join(SRC, 'utils/settings/settings.ts'))})
-    const pu = await import(${JSON.stringify(join(SRC, 'utils/permissions/PermissionUpdate.ts'))})
+    const s = await import(${JSON.stringify(join(SRC, 'platform/settings/settings.ts'))})
+    const pu = await import(${JSON.stringify(join(SRC, 'permissions/rules/permissionUpdate.ts'))})
     const localPath = s.getSettingsWriteFilePathForSource('localSettings')
     fs.mkdirSync(path.dirname(localPath), { recursive: true })
     const readAllow = () => { try { return JSON.parse(fs.readFileSync(localPath, 'utf8')).guardrails?.allow ?? [] } catch { return null } }
@@ -111,7 +111,7 @@ console.log('L4 the writer serializes')
           `process.chdir(${JSON.stringify(project)});` +
           `process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(home)};` +
           `delete process.env.NODE_ENV;` +
-          `const pu = await import(${JSON.stringify(join(SRC, 'utils/permissions/PermissionUpdate.ts'))});` +
+          `const pu = await import(${JSON.stringify(join(SRC, 'permissions/rules/permissionUpdate.ts'))});` +
           `pu.persistPermissionUpdate({ type: 'addRules', rules: [{ toolName: ${JSON.stringify(`Tool${n}`)} }], behavior: 'allow', destination: 'localSettings' })`
         const proc = spawn(BUN, ['-e', src], { env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '' }, cwd: project, stdio: 'ignore' })
         proc.on('exit', code => resolvePromise(code ?? 1))

@@ -15,15 +15,15 @@ const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
 
 console.log('§1 the guard matrix')
 {
-  const { BudgetGuard } = await import('../../src/run-core/budget-guard.js')
+  const { BudgetGuard } = await import('../../src/engine/loop/budget-guard.js')
   const guard = new BudgetGuard()
-  check('a positive cap fires past the cap', guard.maxTurnsExceeded(3, 2) === true, '', 'fix BudgetGuard.maxTurnsExceeded in src/run-core/budget-guard.ts so a positive cap fires when turns exceed it')
-  check('… and not at or under it', guard.maxTurnsExceeded(2, 2) === false && guard.maxTurnsExceeded(1, 2) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/run-core/budget-guard.ts so it does not fire at or under the cap')
-  check('absent ⇒ uncapped (unchanged)', guard.maxTurnsExceeded(999, undefined) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/run-core/budget-guard.ts so an absent cap means uncapped')
-  check('0 never fires AND never removes an assertion elsewhere (junk caps nothing)', guard.maxTurnsExceeded(999, 0) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/run-core/budget-guard.ts so a cap of 0 never fires')
-  check('NaN caps nothing', guard.maxTurnsExceeded(999, Number.NaN) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/run-core/budget-guard.ts so a NaN cap never fires')
-  check('a NEGATIVE cap no longer fires on the first turn', guard.maxTurnsExceeded(1, -3) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/run-core/budget-guard.ts so a negative cap never fires')
-  check('a fractional cap caps nothing (integer vocabulary)', guard.maxTurnsExceeded(999, 2.5) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/run-core/budget-guard.ts so a fractional cap never fires')
+  check('a positive cap fires past the cap', guard.maxTurnsExceeded(3, 2) === true, '', 'fix BudgetGuard.maxTurnsExceeded in src/engine/loop/budget-guard.ts so a positive cap fires when turns exceed it')
+  check('… and not at or under it', guard.maxTurnsExceeded(2, 2) === false && guard.maxTurnsExceeded(1, 2) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/engine/loop/budget-guard.ts so it does not fire at or under the cap')
+  check('absent ⇒ uncapped (unchanged)', guard.maxTurnsExceeded(999, undefined) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/engine/loop/budget-guard.ts so an absent cap means uncapped')
+  check('0 never fires AND never removes an assertion elsewhere (junk caps nothing)', guard.maxTurnsExceeded(999, 0) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/engine/loop/budget-guard.ts so a cap of 0 never fires')
+  check('NaN caps nothing', guard.maxTurnsExceeded(999, Number.NaN) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/engine/loop/budget-guard.ts so a NaN cap never fires')
+  check('a NEGATIVE cap no longer fires on the first turn', guard.maxTurnsExceeded(1, -3) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/engine/loop/budget-guard.ts so a negative cap never fires')
+  check('a fractional cap caps nothing (integer vocabulary)', guard.maxTurnsExceeded(999, 2.5) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/engine/loop/budget-guard.ts so a fractional cap never fires')
 }
 
 console.log('§2 the door, live (preflight — credential-free)')

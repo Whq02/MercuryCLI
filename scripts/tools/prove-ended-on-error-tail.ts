@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 import { join } from 'node:path'
 
-import { scanTailForEndedOnError } from '../../src/utils/sessionStoragePortable.js'
-import { formatLogMetadata } from '../../src/utils/format.js'
-import { entryToRecord } from '../../src/fabric/entryCodec.js'
-import { ordinalOf } from '../../src/fabric/ordinal.js'
+import { scanTailForEndedOnError } from '../../src/sessions/transcripts/sessionStoragePortable.js'
+import { formatLogMetadata } from '../../src/platform/text/format.js'
+import { entryToRecord } from '../../src/sessions/fabric/entryCodec.js'
+import { ordinalOf } from '../../src/sessions/fabric/ordinal.js'
 
 let __ord = 0
 const enc = (entry: unknown): string =>
@@ -21,8 +21,8 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const endedOnErrorHint = /^(endedOnError|marker)/.test(label)
-    ? 'fix formatLogMetadata in src/utils/format.ts: the last part is the ended-on-error marker, added only when endedOnError is true'
-    : 'fix scanTailForEndedOnError in src/utils/sessionStoragePortable.ts: the last real assistant or api_error line rules, quoted or nested error-shaped text never counts, and an unreadable tail gives undefined'
+    ? 'fix formatLogMetadata in src/platform/text/format.ts: the last part is the ended-on-error marker, added only when endedOnError is true'
+    : 'fix scanTailForEndedOnError in src/sessions/transcripts/sessionStoragePortable.ts: the last real assistant or api_error line rules, quoted or nested error-shaped text never counts, and an unreadable tail gives undefined'
   const shown = cond ? detail : detail ? `${detail} — ${endedOnErrorHint}` : endedOnErrorHint
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }

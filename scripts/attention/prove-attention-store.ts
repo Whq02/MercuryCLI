@@ -3,11 +3,11 @@ import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 
-let store: typeof import('../../src/services/attention/store.ts') | null = null
-let view: typeof import('../../src/services/attention/viewModel.ts') | null = null
+let store: typeof import('../../src/screen/attention/store.ts') | null = null
+let view: typeof import('../../src/screen/attention/viewModel.ts') | null = null
 try {
-  store = await import('../../src/services/attention/store.ts')
-  view = await import('../../src/services/attention/viewModel.ts')
+  store = await import('../../src/screen/attention/store.ts')
+  view = await import('../../src/screen/attention/viewModel.ts')
 } catch {
   store = null
   view = null
@@ -18,8 +18,8 @@ if (!store || !view) {
 }
 const S = store!
 const V = view!
-const q = await import('../../src/input-core/command-queue.ts')
-type Fact = import('../../src/services/attention/contracts.ts').AttentionFact
+const q = await import('../../src/screen/composer/input-core/command-queue.ts')
+type Fact = import('../../src/screen/attention/contracts.ts').AttentionFact
 
 const cmd = (value: string, mode: string): Record<string, unknown> => ({ value, mode })
 

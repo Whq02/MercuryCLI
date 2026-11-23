@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process'
 const ROOT = resolve(import.meta.dir, '..', '..')
 
 let failures = 0
-const FAIL_HINT = 'change spawnPlanOf in src/utils/spawnPlan.ts (or windowsBatchTail in src/utils/shell/windowsBatchLine.ts) so this word is quoted, refused or passed as the check expects'
+const FAIL_HINT = 'change spawnPlanOf in src/platform/processes/spawnPlan.ts (or windowsBatchTail in src/platform/shell/windowsBatchLine.ts) so this word is quoted, refused or passed as the check expects'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${FAIL_HINT}${detail ? `; ${detail.slice(0, 400)}` : ''}` : ''}`)
   if (!cond) failures++
@@ -19,10 +19,10 @@ console.log('============================================================')
 console.log(" spawn plan — a .cmd/.bat remedy rides the batch composer's cmd.exe line")
 console.log('============================================================')
 
-type Planner = typeof import('../../src/utils/spawnPlan.ts')
-type Composer = typeof import('../../src/utils/shell/windowsBatchLine.ts')
-const planner = (await import('../../src/utils/spawnPlan.ts').catch(() => null)) as Planner | null
-const composer = (await import('../../src/utils/shell/windowsBatchLine.ts').catch(() => null)) as Composer | null
+type Planner = typeof import('../../src/platform/processes/spawnPlan.ts')
+type Composer = typeof import('../../src/platform/shell/windowsBatchLine.ts')
+const planner = (await import('../../src/platform/processes/spawnPlan.ts').catch(() => null)) as Planner | null
+const composer = (await import('../../src/platform/shell/windowsBatchLine.ts').catch(() => null)) as Composer | null
 
 const SWITCHES = ['/d', '/s', '/v:off', '/c']
 

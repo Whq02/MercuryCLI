@@ -8,7 +8,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}fix the Windows shell road in src/utils/shell/windowsShellRoad.ts and the records in src/utils/shell/shellRecord.ts (systemShellRecord, shellRecord, shellLineWords, shellRow)` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}fix the Windows shell road in src/platform/shell/windowsShellRoad.ts and the records in src/platform/shell/shellRecord.ts (systemShellRecord, shellRecord, shellLineWords, shellRow)` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const source = (rel: string): string => join(ROOT, rel).replace(/\\/g, '\\\\')
@@ -37,8 +37,8 @@ type Leg = {
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'windows-road-no-zsh-')))
 const PROBE = `
   ;(globalThis).MACRO = { VERSION: '0.0.0' }
-  const record = await import('${source('src/utils/shell/shellRecord.ts')}')
-  const shell = await import('${source('src/utils/Shell.ts')}')
+  const record = await import('${source('src/platform/shell/shellRecord.ts')}')
+  const shell = await import('${source('src/platform/shell/shellExec.ts')}')
   let system = null
   let error = null
   try { system = await record.systemShellRecord() } catch (e) { error = e instanceof Error ? e.message : String(e) }

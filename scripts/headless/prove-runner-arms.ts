@@ -12,14 +12,14 @@ const at = (rel: string): string => join(ROOT, rel)
 let failures = 0
 let ownerHint = ''
 const ownerHintOf = (title: string): string => {
-  if (title.startsWith('§4b')) return 'change the project/query arm in src/cli/headless/runnerArms.ts or projectQuery in src/cli/headless/projectQuery.ts'
-  if (title.startsWith('§5')) return 'change the session/send_now arm in src/cli/headless/runnerArms.ts or sendQueuedWordsNow in src/cli/headless/sendNow.ts'
-  if (title.startsWith('§6')) return 'change setSessionKit in src/cli/headless/mcpArms.ts or the session/set_kit arm in src/cli/headless/runnerArms.ts'
-  if (title.startsWith('§8b')) return 'change runnerParkRefusal in src/cli/headless/parkRefusal.ts'
-  if (title.startsWith('§8c')) return 'change landSpawnSwitch in src/cli/headless/spawnSwitchLanding.ts'
-  if (title.startsWith('§8')) return 'change answerSessionFacts in src/cli/headless/sessionFactsArm.ts'
-  if (title.startsWith('§9')) return 'change claimSession in src/cli/headless/claimSession.ts'
-  return 'change the arm this section names in runnerArmsOf in src/cli/headless/runnerArms.ts, or the owner that arm calls'
+  if (title.startsWith('§4b')) return 'change the project/query arm in src/daemon/runner/runnerArms.ts or projectQuery in src/daemon/runner/projectQuery.ts'
+  if (title.startsWith('§5')) return 'change the session/send_now arm in src/daemon/runner/runnerArms.ts or sendQueuedWordsNow in src/daemon/runner/sendNow.ts'
+  if (title.startsWith('§6')) return 'change setSessionKit in src/daemon/runner/mcpArms.ts or the session/set_kit arm in src/daemon/runner/runnerArms.ts'
+  if (title.startsWith('§8b')) return 'change runnerParkRefusal in src/daemon/runner/parkRefusal.ts'
+  if (title.startsWith('§8c')) return 'change landSpawnSwitch in src/daemon/runner/spawnSwitchLanding.ts'
+  if (title.startsWith('§8')) return 'change answerSessionFacts in src/daemon/runner/sessionFactsArm.ts'
+  if (title.startsWith('§9')) return 'change claimSession in src/daemon/runner/claimSession.ts'
+  return 'change the arm this section names in runnerArmsOf in src/daemon/runner/runnerArms.ts, or the owner that arm calls'
 }
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
@@ -35,7 +35,7 @@ const UNSETTLED = Symbol('unsettled')
 const within = <T,>(work: Promise<T> | T, ms = 3_000): Promise<T | typeof UNSETTLED> => Promise.race([Promise.resolve(work), new Promise<typeof UNSETTLED>(done => setTimeout(() => done(UNSETTLED), ms))])
 setTimeout(() => {
   console.log('  [FAIL] the proof ended within its two minutes')
-  console.log('  a step is still waiting: the last section header printed above names the arm; look there in src/cli/headless/runnerArms.ts for a request that never answers')
+  console.log('  a step is still waiting: the last section header printed above names the arm; look there in src/daemon/runner/runnerArms.ts for a request that never answers')
   process.exit(1)
 }, 120_000).unref()
 
@@ -64,77 +64,77 @@ async function spied(rel: string, names: string[]): Promise<Record<string, (...a
   return real
 }
 
-await spied('src/services/agents/operatorStop.ts', ['stopAgentByOperator'])
-await spied('src/tools/AgentTool/resumeAgent.ts', ['resumeAgentBackground'])
-const sendNowReal = await spied('src/cli/headless/sendNow.ts', ['sendQueuedWordsNow'])
-await spied('src/commands.ts', ['clearCommandMemoizationCaches', 'getCommands'])
-await spied('src/services/mcp/kitCompletion.ts', ['completeSessionKitFromRoster'])
-await spied('src/utils/config.ts', ['readGlobalConfigAgain'])
-await spied('src/services/anthropicLimits.ts', ['resetLimitsForCredentialSwitch', 'anthropicObservedUsage', 'anthropicWindowFact'])
-await spied('src/services/auth/oauthLifecycle.ts', ['dropCredentialMemos'])
-await spied('src/services/providers/openai/openaiCatalogue.ts', ['readOpenaiAccountAgain', 'primeOpenaiCatalogue', 'openaiCatalogueFact'])
-await spied('src/services/crew/crewAccountChange.ts', ['noteCrewAccountChange'])
-await spied('src/utils/gracefulShutdown.ts', ['gracefulShutdownSync', 'gracefulShutdown'])
-await spied('src/utils/hooks/sessionHooks.ts', ['pruneSkillSessionHooks'])
-await spied('src/services/mcp/config.ts', ['setMcpServerEnabled'])
-await spied('src/services/notices/unreadLedger.ts', ['noticeRows'])
-await spied('src/services/providers/limitWarning.ts', ['providerLimitWarning'])
-await spied('src/services/providers/openai/openaiLimitState.ts', ['openaiObservedUsage'])
-await spied('src/utils/tasks.ts', ['listSessionMission'])
-await spied('src/services/samples/facts.ts', ['sampleRowsOf'])
-await spied('src/services/providers/providerUsage.ts', ['anthropicSignInEmail'])
-await spied('src/services/engine-connector/seatProjections.ts', ['effortSentOf'])
-await spied('src/services/engine-connector/rosterTerms.ts', ['skillsRosterOf'])
-await spied('src/skills/kitGovernance.ts', ['offSkillNamesOf'])
-await spied('src/cli/headless/model.ts', ['resolveHeadlessModel'])
-await spied('src/utils/sessionStorage/sessionHomePin.ts', ['consumeSessionHomePin'])
-await spied('src/utils/sessionStorage/sessionWriter.ts', ['claimSessionWriter'])
-await spied('src/constants/systemPromptSections.ts', ['clearSystemPromptSections'])
-await spied('src/services/resume/conversationRecovery.ts', ['loadConversationForResume'])
-await spied('src/services/resume/sessionRestore.ts', ['restoreConversationModel', 'restoreSessionStateFromLog'])
-await spied('src/bootstrap/state.ts', ['switchSession', 'setEngineModelOverride'])
-await spied('src/utils/sessionStorage.ts', ['resetSessionFilePointer', 'restoreSessionMetadata', 'saveSessionModel'])
-await spied('src/utils/cockpit/runtimePosture.ts', ['markSessionPermissionModeAtClaim'])
-await spied('src/utils/sessionStorage/logs.ts', ['saveCustomTitle'])
-await spied('src/cli/headless/resume.ts', ['emitLoadError'])
+await spied('src/crew/agents/operatorStop.ts', ['stopAgentByOperator'])
+await spied('src/tools/crewmate/resumeCrewmate.ts', ['resumeAgentBackground'])
+const sendNowReal = await spied('src/daemon/runner/sendNow.ts', ['sendQueuedWordsNow'])
+await spied('src/commands/catalogue/commands.ts', ['clearCommandMemoizationCaches', 'getCommands'])
+await spied('src/integrations/mcp/kitCompletion.ts', ['completeSessionKitFromRoster'])
+await spied('src/platform/settings/config.ts', ['readGlobalConfigAgain'])
+await spied('src/models/roads/anthropic/anthropicLimits.ts', ['resetLimitsForCredentialSwitch', 'anthropicObservedUsage', 'anthropicWindowFact'])
+await spied('src/models/sign-in/lifecycle/oauthLifecycle.ts', ['dropCredentialMemos'])
+await spied('src/models/roads/openai/openaiCatalogue.ts', ['readOpenaiAccountAgain', 'primeOpenaiCatalogue', 'openaiCatalogueFact'])
+await spied('src/crew/crewmates/crewAccountChange.ts', ['noteCrewAccountChange'])
+await spied('src/platform/processes/gracefulShutdown.ts', ['gracefulShutdownSync', 'gracefulShutdown'])
+await spied('src/integrations/event-hooks/sessionHooks.ts', ['pruneSkillSessionHooks'])
+await spied('src/integrations/mcp/serverConfigs.ts', ['setMcpServerEnabled'])
+await spied('src/sessions/notices/unreadLedger.ts', ['noticeRows'])
+await spied('src/models/roads/limitWarning.ts', ['providerLimitWarning'])
+await spied('src/models/roads/openai/openaiLimitState.ts', ['openaiObservedUsage'])
+await spied('src/engine/task-framework/tasks.ts', ['listSessionMission'])
+await spied('src/integrations/samples/facts.ts', ['sampleRowsOf'])
+await spied('src/models/roads/providerUsage.ts', ['anthropicSignInEmail'])
+await spied('src/engine/connector/seatProjections.ts', ['effortSentOf'])
+await spied('src/engine/connector/rosterTerms.ts', ['skillsRosterOf'])
+await spied('src/integrations/skills/kitGovernance.ts', ['offSkillNamesOf'])
+await spied('src/daemon/runner/model.ts', ['resolveHeadlessModel'])
+await spied('src/sessions/transcripts/sessionHomePin.ts', ['consumeSessionHomePin'])
+await spied('src/sessions/transcripts/sessionWriter.ts', ['claimSessionWriter'])
+await spied('src/engine/system-prompt/systemPromptSections.ts', ['clearSystemPromptSections'])
+await spied('src/sessions/resume/conversationRecovery.ts', ['loadConversationForResume'])
+await spied('src/sessions/resume/sessionRestore.ts', ['restoreConversationModel', 'restoreSessionStateFromLog'])
+await spied('src/boot/process-state/processState.ts', ['switchSession', 'setEngineModelOverride'])
+await spied('src/sessions/transcripts/sessionStorage.ts', ['resetSessionFilePointer', 'restoreSessionMetadata', 'saveSessionModel'])
+await spied('src/screen/cockpit/runtimePosture.ts', ['markSessionPermissionModeAtClaim'])
+await spied('src/sessions/transcripts/sessionListings.ts', ['saveCustomTitle'])
+await spied('src/daemon/runner/resume.ts', ['emitLoadError'])
 let trusted: boolean | null = null
 {
-  const real = { ...((await import(at('src/utils/config/trust.ts'))) as { isPathTrusted: (path: string) => boolean }) }
-  mock.module(at('src/utils/config/trust.ts'), () => ({ ...real, isPathTrusted: (path: string): boolean => (trusted === null ? real.isPathTrusted(path) : trusted) }))
+  const real = { ...((await import(at('src/platform/config/trust.ts'))) as { isPathTrusted: (path: string) => boolean }) }
+  mock.module(at('src/platform/config/trust.ts'), () => ({ ...real, isPathTrusted: (path: string): boolean => (trusted === null ? real.isPathTrusted(path) : trusted) }))
 }
 async function lent(rel: string, names: string[]): Promise<void> {
   const real = { ...((await import(at(rel))) as Record<string, (...args: unknown[]) => unknown>) }
   mock.module(at(rel), () => ({ ...real, ...Object.fromEntries(names.map(name => [name, (...args: unknown[]): unknown => (answers.has(name) ? answers.get(name)!(...args) : real[name]!(...args))])) }))
 }
-await lent('src/utils/sessionStorage/paths.ts', ['getProjectDir'])
-await lent('src/daemon/concourseWorkers.ts', ['readSessionWorkers', 'sessionOwnedByLiveWorker'])
-await lent('src/daemon/controlSocket.ts', ['daemonControlRpc'])
-await lent('src/utils/permissions/filesystem.ts', ['checkReadPermissionForTool'])
+await lent('src/sessions/transcripts/paths.ts', ['getProjectDir'])
+await lent('src/daemon/concourse-workers/concourseWorkers.ts', ['readSessionWorkers', 'sessionOwnedByLiveWorker'])
+await lent('src/daemon/control/controlSocket.ts', ['daemonControlRpc'])
+await lent('src/permissions/rules/filesystem.ts', ['checkReadPermissionForTool'])
 
-const { runnerArmsOf } = await import('../../src/cli/headless/runnerArms.ts')
-const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
-const { RUNNER_NOTIFICATION_METHODS, RUNNER_REQUEST_METHODS } = await import('../../src/cli/headless/runnerMethods.ts')
-const { RPC_INVALID_PARAMS, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
-const { isLocalShellTask } = await import('../../src/tasks/LocalShellTask/guards.ts')
-const { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, peekOperatorMessages } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { drainRows } = await import('../../src/utils/sdkEventQueue.ts')
-const { dequeue, enqueue } = await import('../../src/utils/messageQueueManager.ts')
-const { runnerParkRefusal } = await import('../../src/cli/headless/parkRefusal.ts')
-const { landSpawnSwitch } = await import('../../src/cli/headless/spawnSwitchLanding.ts')
-const lawful = await import('../../src/services/providers/lawfulPrefixChange.ts')
-const switches = await import('../../src/services/switchboard/spawnSwitches.ts')
-const { capabilityHoldWords, runnerCapabilityHolds } = await import('../../src/daemon/runnerCapabilityCensus.ts')
-const { sessionKitOf, setProcessSessionKit } = await import('../../src/services/mcp/sessionKitPin.ts')
-const { answerSessionFacts } = await import('../../src/cli/headless/sessionFactsArm.ts')
-const { sessionFactsFromWire, sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
-const { getOriginalCwd, getSessionId } = await import('../../src/bootstrap/state.ts')
-const { getEngineModel } = await import('../../src/services/model/model.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { runnerArmsOf } = await import('../../src/daemon/runner/runnerArms.ts')
+const { createRunnerState } = await import('../../src/daemon/runner/runnerPorts.ts')
+const { RUNNER_NOTIFICATION_METHODS, RUNNER_REQUEST_METHODS } = await import('../../src/daemon/runner/runnerMethods.ts')
+const { RPC_INVALID_PARAMS, RPC_REFUSED } = await import('../../src/daemon/runner-wire/errors.ts')
+const { isLocalShellTask } = await import('../../src/engine/tasks/local-shell/shellTaskState.ts')
+const { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, peekOperatorMessages } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { drainRows } = await import('../../src/daemon/runner/sdkEventQueue.ts')
+const { dequeue, enqueue } = await import('../../src/daemon/runner/messageQueueManager.ts')
+const { runnerParkRefusal } = await import('../../src/daemon/runner/parkRefusal.ts')
+const { landSpawnSwitch } = await import('../../src/daemon/runner/spawnSwitchLanding.ts')
+const lawful = await import('../../src/models/roads/lawfulPrefixChange.ts')
+const switches = await import('../../src/daemon/switchboard/spawnSwitches.ts')
+const { capabilityHoldWords, runnerCapabilityHolds } = await import('../../src/daemon/runner-link/runnerCapabilityCensus.ts')
+const { sessionKitOf, setProcessSessionKit } = await import('../../src/integrations/mcp/sessionKitPin.ts')
+const { answerSessionFacts } = await import('../../src/daemon/runner/sessionFactsArm.ts')
+const { sessionFactsFromWire, sessionFactsToWire } = await import('../../src/engine/connector/seatWire.ts')
+const { getOriginalCwd, getSessionId } = await import('../../src/boot/process-state/processState.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { claimSession } = await import('../../src/cli/headless/claimSession.ts')
-const { clearModeTransitions, modeTransitions } = await import('../../src/utils/permissions/modeTransitions.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { openaiCatalogueFromWire } = await import('../../src/services/engine-connector/seatWire.ts')
+const { claimSession } = await import('../../src/daemon/runner/claimSession.ts')
+const { clearModeTransitions, modeTransitions } = await import('../../src/permissions/rules/modeTransitions.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { openaiCatalogueFromWire } = await import('../../src/engine/connector/seatWire.ts')
 
 type Ports = Parameters<typeof runnerArmsOf>[0]
 type Refusal = { code?: number; message?: string; data?: { kind?: string } }
@@ -302,7 +302,7 @@ section('§4 agent/resume: a running crewmate is told, a stopped one rides the o
   const withNote = said('resumeAgentBackground')[1]?.args[0] as { prompt?: string; replyTarget?: string } | undefined
   const second = dequeue(command => typeof command.value === 'string' && command.value.includes('<task-id>gone</task-id>'))
   check("a resume with the operator's own words sends those words, answers to the operator, and leaves no receipt row of its own", withNote?.prompt === 'carry on with the tests' && withNote.replyTarget === 'operator' && receipt !== undefined && String(receipt.value).includes('(in the session folder)') && second === undefined, `${j(withNote)} · receipt ${receipt !== undefined} · second ${second !== undefined}`)
-  const owner = (await import('../../src/tools/AgentTool/resumeAgent.ts')) as { AgentNotRecorded?: new (message: string) => Error }
+  const owner = (await import('../../src/tools/crewmate/resumeCrewmate.ts')) as { AgentNotRecorded?: new (message: string) => Error }
   const NotRecorded = owner.AgentNotRecorded ?? Error
   answers.set('resumeAgentBackground', async () => Promise.reject(new NotRecorded('No transcript found for crewmate a-none')))
   const unrecorded = await refusalOf(arms['agent/resume']({ agent_id: 'a-none' }, ref, signalOf()))
@@ -354,9 +354,9 @@ section('§4b project/query: a folder nobody trusted, a parameter that is missin
     parameters.filter(one => !one.ok).map(one => `${one.name}: ${shown(one.answer)}`).join(' · '),
   )
 
-  type WorkerRecord = ReturnType<typeof import('../../src/daemon/concourseWorkers.ts').readSessionWorkers>[string]
-  type DaemonAnswer = Awaited<ReturnType<typeof import('../../src/daemon/controlSocket.ts').daemonControlRpc>>
-  type ReadDecision = ReturnType<typeof import('../../src/utils/permissions/filesystem.ts').checkReadPermissionForTool>
+  type WorkerRecord = ReturnType<typeof import('../../src/daemon/concourse-workers/concourseWorkers.ts').readSessionWorkers>[string]
+  type DaemonAnswer = Awaited<ReturnType<typeof import('../../src/daemon/control/controlSocket.ts').daemonControlRpc>>
+  type ReadDecision = ReturnType<typeof import('../../src/permissions/rules/filesystem.ts').checkReadPermissionForTool>
   const elsewhere = { sessionId: SAVED, workspaceId: join(tmpdir(), 'another-project') } satisfies Pick<WorkerRecord, 'sessionId' | 'workspaceId'>
   const here = { sessionId: SAVED, workspaceId: getOriginalCwd() } satisfies Pick<WorkerRecord, 'sessionId' | 'workspaceId'>
   const daemonSaysNo = { ok: false, code: 'EREFUSED', error: 'the session is held by another caller' } satisfies DaemonAnswer
@@ -388,8 +388,8 @@ section('§4b project/query: a folder nobody trusted, a parameter that is missin
   check('a daemon that cannot be reached stays a fault of the run: the sentence with no code and no kind, which the wire sends as the internal error', unreached !== null && unreached.code === undefined && unreached.data === undefined && unreached.message === daemonUnreached.error, shown(unreached))
   {
     const net = await import('node:net')
-    const socket = (await import(at('src/daemon/controlSocket.ts'))) as typeof import('../../src/daemon/controlSocket.ts')
-    const { forwardFrame } = await import('../../src/daemon/handover.ts')
+    const socket = (await import(at('src/daemon/control/controlSocket.ts'))) as typeof import('../../src/daemon/control/controlSocket.ts')
+    const { forwardFrame } = await import('../../src/daemon/control/handover.ts')
     const daemonHome = mkdtempSync(join(tmpdir(), 'arms-d-'))
     const daemonDirBefore = process.env.MERCURY_DAEMON_DIR
     process.env.MERCURY_DAEMON_DIR = daemonHome
@@ -412,7 +412,7 @@ section('§4b project/query: a folder nobody trusted, a parameter that is missin
     const swollen = await answering('x'.repeat((1 << 20) + 64), swollenPath)
     const overCap = await forwardFrame(swollenPath, j({ op: 'ping' }), 5_000)
     await new Promise<void>(done => swollen.close(() => done()))
-    const { startControlServer } = await import('../../src/daemon/controlServer.ts')
+    const { startControlServer } = await import('../../src/daemon/control/controlServer.ts')
     const daemon = await startControlServer({} as never)
     const tooLong = await query({ ...letter, message: 'x'.repeat(1 << 21) })
     await daemon.close()
@@ -532,10 +532,10 @@ section('§8 session/facts: each fact comes from its one owner, and a fact its o
   type Owned<Owner extends (...args: never[]) => unknown> = NonNullable<Awaited<ReturnType<Owner>>>
   const held = {
     noticeRows: [{ key: 'n-1', state: 'unread', summary: 'a notice the owner holds' }],
-    providerLimitWarning: { provider: 'anthropic', text: 'the warning the owner holds' } satisfies Owned<typeof import('../../src/services/providers/limitWarning.ts').providerLimitWarning>,
-    anthropicObservedUsage: { owner: 'the owner of the observation', fiveHour: { utilization: 0.41, resetsAt: 1_800_000_000, observedAtMs: 1_700_000_000_000 } } satisfies Owned<typeof import('../../src/services/anthropicLimits.ts').anthropicObservedUsage>,
-    anthropicWindowFact: { status: 'allowed_warning', observedAtMs: 1_700_000_000_000, owner: 'the owner of the window' } satisfies Owned<typeof import('../../src/services/anthropicLimits.ts').anthropicWindowFact>,
-    openaiCatalogueFact: { sourceKind: 'api-key', models: [{ id: 'gpt-fixture', displayName: 'GPT Fixture', supportedReasoningEfforts: ['low', 'high'], reasoningEffortsStated: true }], fetchedAtMs: 1_700_000_000_000 } satisfies Owned<typeof import('../../src/services/providers/openai/openaiCatalogue.ts').openaiCatalogueFact>,
+    providerLimitWarning: { provider: 'anthropic', text: 'the warning the owner holds' } satisfies Owned<typeof import('../../src/models/roads/limitWarning.ts').providerLimitWarning>,
+    anthropicObservedUsage: { owner: 'the owner of the observation', fiveHour: { utilization: 0.41, resetsAt: 1_800_000_000, observedAtMs: 1_700_000_000_000 } } satisfies Owned<typeof import('../../src/models/roads/anthropic/anthropicLimits.ts').anthropicObservedUsage>,
+    anthropicWindowFact: { status: 'allowed_warning', observedAtMs: 1_700_000_000_000, owner: 'the owner of the window' } satisfies Owned<typeof import('../../src/models/roads/anthropic/anthropicLimits.ts').anthropicWindowFact>,
+    openaiCatalogueFact: { sourceKind: 'api-key', models: [{ id: 'gpt-fixture', displayName: 'GPT Fixture', supportedReasoningEfforts: ['low', 'high'], reasoningEffortsStated: true }], fetchedAtMs: 1_700_000_000_000 } satisfies Owned<typeof import('../../src/models/roads/openai/openaiCatalogue.ts').openaiCatalogueFact>,
     openaiObservedUsage: { primary: { used: 41 } },
     sampleRowsOf: [{ id: 'sample-1', title: 'the sample the owner holds' }],
     anthropicSignInEmail: 'who@example.test',

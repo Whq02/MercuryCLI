@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { startFixtureApi, handoffTurn, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
-import { askNobodyAnswered } from '../../src/services/run/unansweredAsk.ts'
+import { askNobodyAnswered } from '../../src/engine/run/unansweredAsk.ts'
 
 const at = process.argv.indexOf('--dist')
 const dist = resolve(at < 0 ? join(import.meta.dir, '../../dist/mercury.mjs') : process.argv[at + 1]!)
@@ -54,7 +54,7 @@ const writeTurn: ScriptedTurn = { kind: 'tool_use', name: 'Write', input: { file
 const afterRefusal: ScriptedTurn = { kind: 'text', text: 'The write was refused, so the file does not exist.' }
 
 console.log('§1 RUN-03 — an ask nobody could answer ends the turn blocked and exits 1; the operator\'s own deny rule does not')
-failHint = ' | to fix: the blocked outcome, its resume line and the askNobodyAnswered decision table are built in src/services/run/unansweredAsk.ts; change them there, or the exit code where the run verb ends its turn'
+failHint = ' | to fix: the blocked outcome, its resume line and the askNobodyAnswered decision table are built in src/engine/run/unansweredAsk.ts; change them there, or the exit code where the run verb ends its turn'
 for (const [label, modeArgs] of [['default mode, no host', []], ['dontAsk mode', ['--mode', 'dontAsk']]] as const) {
   const run = await mercuryRun(['--format', 'rows', ...modeArgs, 'create made-by-run.txt with hello in it'], [writeTurn, afterRefusal, handoffTurn()])
   const outcome = run.outcome
@@ -77,7 +77,7 @@ for (const [label, modeArgs] of [['default mode, no host', []], ['dontAsk mode',
 }
 
 console.log('§2 UPD-03 — an unknown slash command is refused with the cockpit\'s sentence and exits 1')
-failHint = ' | to fix: the unknown-command sentence is built in src/services/processUserInput/processSlashCommand.tsx (the Unknown command line); a run that prints Unknown skill or exits 0 is taking the wrong road there'
+failHint = ' | to fix: the unknown-command sentence is built in src/engine/user-input/processSlashCommand.tsx (the Unknown command line); a run that prints Unknown skill or exits 0 is taking the wrong road there'
 {
   const run = await mercuryRun(['--format', 'rows', '/update-notez'], [])
   const outcome = run.outcome
@@ -101,7 +101,7 @@ failHint = ' | to fix: the run verb must end a rejected model with a failed outc
 }
 
 console.log('§4 UPD-02 — update --check --json writes its failure document to stdout')
-failHint = ' | to fix: the --check --json document and its exit code come from src/cli/update.ts (the access-unavailable cases); the JSON must go to stdout and the exit code must be 1'
+failHint = ' | to fix: the --check --json document and its exit code come from src/commands/verbs/update.ts (the access-unavailable cases); the JSON must go to stdout and the exit code must be 1'
 {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'exit-truth-upd-')))
   seedFirstRun(home, [home])

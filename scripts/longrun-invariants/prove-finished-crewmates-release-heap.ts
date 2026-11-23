@@ -24,7 +24,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (title: string): void => console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the crewmate batches exceeded 240s; a crewmate turn in runAgent (src/tools/AgentTool/runAgent.ts) did not end, or the loopback model on 127.0.0.1 stopped answering')
+  console.log('\nTIMEOUT — the crewmate batches exceeded 240s; a crewmate turn in runAgent (src/tools/crewmate/runCrewmate.ts) did not end, or the loopback model on 127.0.0.1 stopped answering')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -56,22 +56,22 @@ const server = Bun.serve({
 writeFileSync(join(proofHome, 'settings.json'), JSON.stringify({ compatProvider: { boundary: { baseUrl: `http://127.0.0.1:${server.port}/v1`, dialect: 'vllm', models: [MODEL] } } }))
 const model = `compat/boundary/${MODEL}`
 
-const config = await import('../../src/utils/config.ts')
+const config = await import('../../src/platform/settings/config.ts')
 config.enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 bootstrap.setOriginalCwd(process.cwd())
 bootstrap.setCwdState(process.cwd())
 bootstrap.switchSession('00000000-0000-4000-8000-0000000000bb' as never)
-const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/query.ts')
-const { flushSessionStorage, getAgentTranscript } = await import('../../src/utils/sessionStorage.ts')
-await import('../../src/tasks.ts')
+const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { flushSessionStorage, getAgentTranscript } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+await import('../../src/engine/tasks/tasks.ts')
 
-type AppState = import('../../src/state/AppStateStore.ts').AppState
+type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState
 let state: AppState = { ...getDefaultAppState(), effortValue: 'low' } as AppState
 const setState = (update: (previous: AppState) => AppState): void => {
   state = update(state)
@@ -143,12 +143,12 @@ const answered = await getAgentTranscript('second-000' as never)
 check(
   `every crewmate ran its turn against the loopback model (${requests} requests) and its transcript is on disk`,
   requests >= 2 * BATCH + AT_ONCE && JSON.stringify(answered?.messages ?? []).includes('reply '),
-  `${requests} requests; second-000 has ${answered?.messages.length ?? 0} rows on disk; a crewmate ended before its turn ran or its transcript was not flushed: look at runAgent in src/tools/AgentTool/runAgent.ts and flushSessionStorage in src/utils/sessionStorage.ts`,
+  `${requests} requests; second-000 has ${answered?.messages.length ?? 0} rows on disk; a crewmate ended before its turn ran or its transcript was not flushed: look at runAgent in src/tools/crewmate/runCrewmate.ts and flushSessionStorage in src/sessions/transcripts/sessionStorage.ts`,
 )
 check(
   `the second batch of ${BATCH} finished crewmates keeps ${mb(kept)} MB of heap after a collection (${mb(afterFirst)} MB before it, ${mb(afterSecond)} MB after; the ceiling is ${KEPT_AFTER_A_BATCH_MB} MB and may only be lowered)`,
   kept <= KEPT_AFTER_A_BATCH_MB * 1_048_576,
-  `${mb(kept)} MB stayed, ${(kept / BATCH / 1024).toFixed(0)} KB a crewmate: something keeps a finished crewmate's messages; find the holder (a store filled per message or per crewmate with nothing that ends it) and release it where the crewmate's run ends, in src/tools/AgentTool/runAgent.ts or the store's own module; do not raise KEPT_AFTER_A_BATCH_MB`,
+  `${mb(kept)} MB stayed, ${(kept / BATCH / 1024).toFixed(0)} KB a crewmate: something keeps a finished crewmate's messages; find the holder (a store filled per message or per crewmate with nothing that ends it) and release it where the crewmate's run ends, in src/tools/crewmate/runCrewmate.ts or the store's own module; do not raise KEPT_AFTER_A_BATCH_MB`,
 )
 
 server.stop(true)

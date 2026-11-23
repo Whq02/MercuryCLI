@@ -20,7 +20,7 @@
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
-      "color-diff-napi": ["./src/native-ts/color-diff/index.ts"]
+      "color-diff-napi": ["./src/platform/native/color-diff/index.ts"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]

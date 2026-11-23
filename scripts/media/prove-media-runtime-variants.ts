@@ -5,19 +5,19 @@ import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { basename, delimiter, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { parseMediaCatalogue } from '../../src/services/media/catalogue.js'
-import { mediaPullPlan, mediaRuntimeChoice, mediaRuntimeInstalled, mediaRuntimeRowWords, mediaSizeWords, type MediaSnapshot } from '../../src/services/media/setup.js'
+import { parseMediaCatalogue } from '../../src/integrations/media/catalogue.js'
+import { mediaPullPlan, mediaRuntimeChoice, mediaRuntimeInstalled, mediaRuntimeRowWords, mediaSizeWords, type MediaSnapshot } from '../../src/integrations/media/setup.js'
 import { catalogue as fixtureCatalogue, proofHome, removeProofHome, root } from './fixture.ts'
-import bundledCatalog from '../../src/extensions/bundled/mercury-media/server/catalog.json' with { type: 'json' }
+import bundledCatalog from '../../src/integrations/extensions/bundled/mercury-media/server/catalog.json' with { type: 'json' }
 
 const MAC = { asset: 'sd-master-e41fbcf-bin-Darwin-macOS-26.6.2-arm64.zip', bytes: 37584335, sha256: '933fb5b622b578df7a0d22c41f39bc83791d40b876648a084fe1c4cbff2ef36c' }
 const savedPath = process.env.PATH
 const savedModulePath = process.env.PSModulePath
 try {
   const bundled = parseMediaCatalogue(bundledCatalog)
-  assert.equal(bundled.runtime.tag, 'master-1015-e41fbcf', 'the bundled catalogue runtime tag differs: change src/extensions/bundled/mercury-media/server/catalog.json or parseMediaCatalogue in src/services/media/catalogue.ts')
+  assert.equal(bundled.runtime.tag, 'master-1015-e41fbcf', 'the bundled catalogue runtime tag differs: change src/integrations/extensions/bundled/mercury-media/server/catalog.json or parseMediaCatalogue in src/integrations/media/catalogue.ts')
   assert.deepEqual(Object.keys(bundled.runtime.platforms), ['darwin-arm64', 'win32-x64', 'linux-x64'])
-  assert.deepEqual(bundled.runtime.platforms['darwin-arm64'], [{ variant: 'metal', binary: 'sd-server', files: [MAC] }], 'the darwin-arm64 runtime row of the bundled catalogue differs: change src/extensions/bundled/mercury-media/server/catalog.json')
+  assert.deepEqual(bundled.runtime.platforms['darwin-arm64'], [{ variant: 'metal', binary: 'sd-server', files: [MAC] }], 'the darwin-arm64 runtime row of the bundled catalogue differs: change src/integrations/extensions/bundled/mercury-media/server/catalog.json')
   assert.deepEqual(bundled.runtime.platforms['win32-x64']!.map(row => [row.variant, row.binary, row.files.map(file => [file.asset, file.bytes, file.sha256])]), [
     ['vulkan', 'sd-server.exe', [['sd-master-e41fbcf-bin-win-vulkan-x64.zip', 29744345, '259ceeb62f1069190d24c85ea1c4549d2d61deb0ef712510dbe98d79ce93a38b']]],
     ['cuda12', 'sd-server.exe', [['sd-master-e41fbcf-bin-win-cuda12-x64.zip', 343503038, '56141f67eb8c2b3b3b295d54a56be29040abc2efdf81584dbd94725fce5d474d'], ['cudart-sd-bin-win-cu12-x64.zip', 563452046, 'fe20366827d357c00797eebb58244dddab7fd9a348d70090c3871004c320f38d']]],
@@ -35,10 +35,10 @@ try {
   assert.throws(() => parseMediaCatalogue({ runtime: { tag: 't', platforms: { 'win32-x64': [{ variant: 'vulkan', binary: 'sd-server.exe', files: [{ asset: 'x.tar', bytes: 1, sha256: 'a'.repeat(64) }] }] } }, models: [], files: [] }))
 
   const choice = (platform: string, arch: string, gpu?: 'nvidia' | 'amd') => { const row = mediaRuntimeChoice(bundled, platform, arch, gpu); return row ? [row.variant, row.words, row.bytes, row.args] : undefined }
-  assert.deepEqual(choice('darwin', 'arm64'), ['metal', 'Metal', 37584335, ['pull-runtime', '--variant', 'metal']], 'change mediaRuntimeChoice in src/services/media/setup.ts so the darwin arm64 choice is the Metal row')
+  assert.deepEqual(choice('darwin', 'arm64'), ['metal', 'Metal', 37584335, ['pull-runtime', '--variant', 'metal']], 'change mediaRuntimeChoice in src/integrations/media/setup.ts so the darwin arm64 choice is the Metal row')
   assert.deepEqual(choice('win32', 'x64'), ['vulkan', 'Vulkan', 29744345, ['pull-runtime', '--variant', 'vulkan']])
   assert.deepEqual(choice('win32', 'x64', 'amd'), ['vulkan', 'Vulkan', 29744345, ['pull-runtime', '--variant', 'vulkan']])
-  assert.deepEqual(choice('win32', 'x64', 'nvidia'), ['cuda12', 'CUDA 12', 343503038 + 563452046, ['pull-runtime', '--variant', 'cuda12']], 'change mediaRuntimeChoice in src/services/media/setup.ts so an NVIDIA win32 x64 machine gets the CUDA 12 row with both archives summed')
+  assert.deepEqual(choice('win32', 'x64', 'nvidia'), ['cuda12', 'CUDA 12', 343503038 + 563452046, ['pull-runtime', '--variant', 'cuda12']], 'change mediaRuntimeChoice in src/integrations/media/setup.ts so an NVIDIA win32 x64 machine gets the CUDA 12 row with both archives summed')
   assert.deepEqual(choice('linux', 'x64'), ['vulkan', 'Vulkan', 37644143, ['pull-runtime', '--variant', 'vulkan']])
   assert.deepEqual(choice('linux', 'x64', 'nvidia'), ['cuda12', 'CUDA 12', undefined, ['pull-runtime', '--variant', 'cuda12']])
   assert.deepEqual(bundled.runtime.platforms['linux-x64']!.find(row => row.variant === 'cuda12')!.source, { revision: 'e41fbcf455e0fbb45e08bd535b00d6cba865e921', fallback: 'vulkan' })
@@ -52,7 +52,7 @@ try {
   assert.equal(choice('darwin', 'x64'), undefined)
 
   const snapshot = (runtime: MediaSnapshot['runtime'], runtimeInstalled: boolean): MediaSnapshot => ({ root, runtimeInstalled, ...(runtime ? { runtime } : {}), catalogue: bundled, config: {}, totalMemoryBytes: 32 * 1024 ** 3, usableMemoryBytes: 24 * 1024 ** 3, freeBytes: 100, rows: [] })
-  assert.equal(mediaRuntimeRowWords(snapshot(mediaRuntimeChoice(bundled, 'darwin', 'arm64'), false)), 'stable-diffusion.cpp (Metal) · pull 37.6 MB · MIT', 'change mediaRuntimeRowWords in src/services/media/setup.ts so the runtime row reads name, variant, pull size, licence')
+  assert.equal(mediaRuntimeRowWords(snapshot(mediaRuntimeChoice(bundled, 'darwin', 'arm64'), false)), 'stable-diffusion.cpp (Metal) · pull 37.6 MB · MIT', 'change mediaRuntimeRowWords in src/integrations/media/setup.ts so the runtime row reads name, variant, pull size, licence')
   assert.equal(mediaRuntimeRowWords(snapshot(mediaRuntimeChoice(bundled, 'darwin', 'arm64'), true)), 'stable-diffusion.cpp (Metal) · installed · MIT')
   assert.equal(mediaRuntimeRowWords(snapshot(mediaRuntimeChoice(bundled, 'win32', 'x64'), false)), 'stable-diffusion.cpp (Vulkan) · pull 29.7 MB · MIT')
   assert.equal(mediaRuntimeRowWords(snapshot(mediaRuntimeChoice(bundled, 'win32', 'x64', 'nvidia'), false)), 'stable-diffusion.cpp (CUDA 12) · pull 907.0 MB · MIT')
@@ -61,7 +61,7 @@ try {
   assert.equal(mediaRuntimeRowWords(snapshot({ variant: 'cpu', binary: 'sd-server.exe', words: 'CPU', bytes: 18080790, args: ['pull-runtime', '--variant', 'cpu'] }, false)), 'stable-diffusion.cpp (CPU) · pull 18.1 MB · MIT')
   assert.equal(mediaRuntimeRowWords(snapshot(undefined, false)), 'stable-diffusion.cpp · MIT')
   const plan = mediaPullPlan(snapshot(mediaRuntimeChoice(bundled, 'win32', 'x64', 'nvidia'), false))
-  assert.deepEqual(plan.args, ['pull-runtime', '--variant', 'cuda12'], 'change mediaPullPlan in src/services/media/setup.ts so the plan carries the chosen --variant')
+  assert.deepEqual(plan.args, ['pull-runtime', '--variant', 'cuda12'], 'change mediaPullPlan in src/integrations/media/setup.ts so the plan carries the chosen --variant')
   assert.equal(plan.bytes, 906955084)
   assert.equal(mediaSizeWords(plan.bytes), '907.0 MB')
   assert.equal(plan.title, 'stable-diffusion.cpp')
@@ -111,7 +111,7 @@ try {
   ] } }
   process.env.MEDIA_ROOT = root
   type Unpack = { command: string; args: string[]; env?: NodeJS.ProcessEnv }
-  const engine = await import(pathToFileURL(resolve(import.meta.dir, '../../src/extensions/bundled/mercury-media/server/setup.js')).href) as {
+  const engine = await import(pathToFileURL(resolve(import.meta.dir, '../../src/integrations/extensions/bundled/mercury-media/server/setup.js')).href) as {
     setup: (...args: unknown[]) => Promise<{ ok: boolean; runtime?: { installed: boolean; variant: string | null } }>
     unpackCommand: (archive: string, dir: string, platform?: string, env?: NodeJS.ProcessEnv) => Unpack
     unpack: (archive: string, dir: string, signal?: AbortSignal, platform?: string, env?: NodeJS.ProcessEnv) => Promise<void>
@@ -122,16 +122,16 @@ try {
 
   if (!windows) process.env.PATH = [join(dir, 'tar'), join(dir, 'bin'), savedPath ?? ''].join(delimiter)
   const viaTar = engine.unpackCommand(join(root, 'runtime', 'engine.zip'), runtimeDir, 'win32')
-  assert.equal(basename(viaTar.command), 'tar.exe', 'change unpackCommand in src/extensions/bundled/mercury-media/server/setup.js so a win32 unpack uses tar.exe when it exists')
+  assert.equal(basename(viaTar.command), 'tar.exe', 'change unpackCommand in src/integrations/extensions/bundled/mercury-media/server/setup.js so a win32 unpack uses tar.exe when it exists')
   if (windows) assert.match(viaTar.command, /\\System32\\tar\.exe$/i, 'the tar.exe Windows ships, found through SystemRoot before PATH')
   else assert.equal(viaTar.command, join(dir, 'tar', 'tar.exe'))
   assert.deepEqual(viaTar.args, ['-xf', join(root, 'runtime', 'engine.zip'), '-C', runtimeDir])
   const events: Record<string, unknown>[] = []
   assert.equal((await engine.setup('pull-runtime', undefined, root, (event: Record<string, unknown>) => events.push(event), { ...fixtureCatalogue, runtime: table }, undefined, pull, { platform: 'win32', arch: 'x64', variant: 'cuda12' })).ok, true)
-  assert.deepEqual(pulled, ['engine.zip', 'cudart.zip'], 'change setup (pull-runtime) in src/extensions/bundled/mercury-media/server/setup.js so every archive of the chosen variant is pulled in catalogue order')
+  assert.deepEqual(pulled, ['engine.zip', 'cudart.zip'], 'change setup (pull-runtime) in src/integrations/extensions/bundled/mercury-media/server/setup.js so every archive of the chosen variant is pulled in catalogue order')
   assert.deepEqual(events.at(-1), { event: 'done', command: 'pull-runtime', tag: 'fixture-tag', variant: 'cuda12' })
   const record = JSON.parse(readFileSync(join(root, 'runtime.json'), 'utf8')) as { tag: string; variant: string; binary: string; archives: string[] }
-  assert.equal(record.variant, 'cuda12', 'change setup (pull-runtime) in src/extensions/bundled/mercury-media/server/setup.js so runtime.json records the pulled variant')
+  assert.equal(record.variant, 'cuda12', 'change setup (pull-runtime) in src/integrations/extensions/bundled/mercury-media/server/setup.js so runtime.json records the pulled variant')
   assert.equal(record.binary, join(runtimeDir, 'sd-server.exe'))
   assert.deepEqual(record.archives, ['engine.zip', 'cudart.zip'])
   for (const file of ['sd-server.exe', 'ggml-cuda.dll', 'cudart64_12.dll', 'cublas64_12.dll', 'cublasLt64_12.dll']) assert.ok(existsSync(join(runtimeDir, file)), file)
@@ -150,9 +150,9 @@ try {
   const noTar = windows ? without(process.env, ['PATH', 'SystemRoot', 'windir']) : { ...process.env, PATH: [join(dir, 'bin'), savedPath ?? ''].join(delimiter) }
   if (windows) assert.equal(Object.keys(noTar).some(key => /^(path|systemroot|windir)$/i.test(key)), false, 'the no-tar environment carries no spelling of PATH, SystemRoot or windir, whatever case the launching shell hands them in')
   const fallback = engine.unpackCommand(engineZip, fallbackDir, 'win32', noTar)
-  assert.equal(fallback.command, 'powershell.exe', 'change unpackCommand in src/extensions/bundled/mercury-media/server/setup.js so the unpack falls back to powershell.exe when no tar.exe is found')
+  assert.equal(fallback.command, 'powershell.exe', 'change unpackCommand in src/integrations/extensions/bundled/mercury-media/server/setup.js so the unpack falls back to powershell.exe when no tar.exe is found')
   assert.deepEqual(fallback.args.slice(0, 3), ['-NoProfile', '-NonInteractive', '-EncodedCommand'])
-  assert.equal(Buffer.from(fallback.args[3]!, 'base64').toString('utf16le'), script, 'change unpackCommand in src/extensions/bundled/mercury-media/server/setup.js so the encoded PowerShell script is the Expand-Archive line the fixture expects')
+  assert.equal(Buffer.from(fallback.args[3]!, 'base64').toString('utf16le'), script, 'change unpackCommand in src/integrations/extensions/bundled/mercury-media/server/setup.js so the encoded PowerShell script is the Expand-Archive line the fixture expects')
   assert.equal(Object.keys(fallback.env ?? {}).some(key => key.toLowerCase() === 'psmodulepath'), false, "the child never inherits the launching shell's PSModulePath")
   mkdirSync(fallbackDir, { recursive: true })
   if (windows) {
@@ -169,7 +169,7 @@ try {
   const bogus = join(dir, 'bogus.zip')
   writeFileSync(bogus, 'not an archive\n')
   mkdirSync(join(dir, 'bogus'), { recursive: true })
-  await assert.rejects(engine.unpack(bogus, join(dir, 'bogus'), undefined, 'win32'), (error: Error) => { assert.match(error.message, /^tar\.exe exited \d+: tar(\.exe)?: /, `change unpack in src/extensions/bundled/mercury-media/server/setup.js so a failed unpack names the child exit code and its last stderr line; ${error.message}`); return true })
+  await assert.rejects(engine.unpack(bogus, join(dir, 'bogus'), undefined, 'win32'), (error: Error) => { assert.match(error.message, /^tar\.exe exited \d+: tar(\.exe)?: /, `change unpack in src/integrations/extensions/bundled/mercury-media/server/setup.js so a failed unpack names the child exit code and its last stderr line; ${error.message}`); return true })
   console.log('media runtime variants: table and old row parse; variant per platform, arch and GPU; row words per variant; pull plan with --variant; docs sizes; the vendored Windows unpack road through tar.exe with fixture archives, the powershell.exe fallback without PSModulePath, and a failed unpack naming the child\'s last stderr line; runtime.json carries the variant')
 } finally {
   process.env.PATH = savedPath

@@ -6,17 +6,17 @@ process.env.NODE_ENV = 'test'
 import OptionMap, {
   isInputOption,
   optionValueOf,
-} from '../../src/components/CustomSelect/option-map.js'
-import { color, isRawColorValue, resolveThemeColor } from '../../src/utils/color.js'
+} from '../../src/screen/select/optionMap.js'
+import { color, isRawColorValue, resolveThemeColor } from '../../src/screen/theme/color.js'
 import {
   copyTextOf,
   isNavigableMessage,
   MESSAGE_ACTIONS,
   stripSystemReminders,
   toolCallOf,
-} from '../../src/components/messageActions.js'
-import { getAgentSourceDisplayName } from '../../src/components/agents/utils.js'
-import { getTheme } from '../../src/utils/theme.js'
+} from '../../src/screen/messages/messageActions.js'
+import { getAgentSourceDisplayName } from '../../src/screen/agents/utils.js'
+import { getTheme } from '../../src/screen/theme/theme.js'
 
 let passCount = 0
 let failCount = 0
@@ -35,7 +35,7 @@ function check(name: string, condition: boolean): void {
 console.log('S25 §7.2 acceptance battery')
 
 {
-  blockFixHint = 'change isRawColorValue, resolveThemeColor or color in src/utils/color.ts'
+  blockFixHint = 'change isRawColorValue, resolveThemeColor or color in src/screen/theme/color.ts'
   for (const raw of ['rgb(1, 2, 3)', '#aabbcc', 'ansi256(41)', 'ansi:red']) {
     check(`raw form recognized: ${raw}`, isRawColorValue(raw))
   }
@@ -51,7 +51,7 @@ console.log('S25 §7.2 acceptance battery')
 }
 
 {
-  blockFixHint = 'change the OptionMap class or isInputOption or optionValueOf in src/components/CustomSelect/option-map.ts'
+  blockFixHint = 'change the OptionMap class or isInputOption or optionValueOf in src/screen/select/optionMap.ts'
   const options = [
     { label: 'a', value: 'a' },
     { label: 'b', value: 'b', disabled: true },
@@ -69,7 +69,7 @@ console.log('S25 §7.2 acceptance battery')
 }
 
 {
-  blockFixHint = 'change stripSystemReminders in src/components/messageActions.tsx'
+  blockFixHint = 'change stripSystemReminders in src/screen/messages/messageActions.tsx'
   check('strip: zero blocks', stripSystemReminders('  hello') === 'hello')
   check(
     'strip: one block',
@@ -86,7 +86,7 @@ console.log('S25 §7.2 acceptance battery')
 }
 
 {
-  blockFixHint = 'change isNavigableMessage in src/components/messageActions.tsx'
+  blockFixHint = 'change isNavigableMessage in src/screen/messages/messageActions.tsx'
   const user = (over: Record<string, unknown> = {}, text = 'a prompt') =>
     ({
       type: 'user',
@@ -150,7 +150,7 @@ console.log('S25 §7.2 acceptance battery')
 }
 
 {
-  blockFixHint = 'change toolCallOf, copyTextOf or the MESSAGE_ACTIONS table in src/components/messageActions.tsx'
+  blockFixHint = 'change toolCallOf, copyTextOf or the MESSAGE_ACTIONS table in src/screen/messages/messageActions.tsx'
   const toolMsg = (name: string, input: unknown) =>
     ({
       type: 'assistant',
@@ -185,7 +185,7 @@ console.log('S25 §7.2 acceptance battery')
 }
 
 {
-  blockFixHint = 'change copyTextOf in src/components/messageActions.tsx'
+  blockFixHint = 'change copyTextOf in src/screen/messages/messageActions.tsx'
   const result = (content: unknown) =>
     ({
       type: 'user',
@@ -241,7 +241,7 @@ console.log('S25 §7.2 acceptance battery')
 
 
 {
-  blockFixHint = 'change getAgentSourceDisplayName in src/components/agents/utils.ts'
+  blockFixHint = 'change getAgentSourceDisplayName in src/screen/agents/utils.ts'
   check('all → plural agents label', getAgentSourceDisplayName('all').toLowerCase().includes('agents'))
   check('built-in label', getAgentSourceDisplayName('built-in').toLowerCase().includes('built-in'))
   check('extension label', getAgentSourceDisplayName('extension').toLowerCase().includes('extension'))

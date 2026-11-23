@@ -11,19 +11,19 @@ for (const k of ['MERCURY_BARE', 'MERCURY_MODEL', 'NODE_ENV']) delete process.en
 const scratch = mkdtempSync(join(tmpdir(), 'cut-off-turn-cwd-'))
 process.chdir(scratch)
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { loadConversationForResume, getResumePrompt } = await import('../../src/services/resume/conversationRecovery.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-import type { Message } from '../../src/types/message.ts'
+const { loadConversationForResume, getResumePrompt } = await import('../../src/sessions/resume/conversationRecovery.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 const SENTENCE = 'The previous run ended before its turn finished — stopped from outside or crashed; continue from where you left off.'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${!cond ? ' [change detectInterruption, deserializeMessagesWithInterruptDetection or getResumePrompt in src/services/resume/conversationRecovery.ts]' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${!cond ? ' [change detectInterruption, deserializeMessagesWithInterruptDetection or getResumePrompt in src/sessions/resume/conversationRecovery.ts]' : ''}`)
   if (!cond) failures = 1
 }
 

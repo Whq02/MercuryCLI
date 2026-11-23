@@ -15,21 +15,21 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
   process.env[spelling] = home
 }
 
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const { buildConcourseSnapshot, readConcourseDraft, subscribeConcourseDraft, writeConcourseDraft } = await import('../../src/services/concourse/concourseSnapshot.ts')
-const { boardRowsOf } = await import('../../src/components/concourse/contracts.ts')
-const { projectIdentity } = await import('../../src/utils/bootCardFacts.ts')
-const { upsertObligation } = await import('../../src/services/crew/obligations.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
+const { buildConcourseSnapshot, readConcourseDraft, subscribeConcourseDraft, writeConcourseDraft } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
+const { boardRowsOf } = await import('../../src/screen/concourse/contracts.ts')
+const { projectIdentity } = await import('../../src/screen/boot-face/bootCardFacts.ts')
+const { upsertObligation } = await import('../../src/crew/crewmates/obligations.ts')
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 
 let failures = 0
 function check(label: string, ok: boolean, detail?: string): void {
   if (ok) console.log(`  ✅ ${label}`)
   else {
     failures += 1
-    const where = 'change buildConcourseSnapshot or the draft store (readConcourseDraft, writeConcourseDraft) in src/services/concourse/concourseSnapshot.ts, or boardRowsOf in src/components/concourse/contracts.ts for the board-order checks'
+    const where = 'change buildConcourseSnapshot or the draft store (readConcourseDraft, writeConcourseDraft) in src/screen/concourse-model/concourseSnapshot.ts, or boardRowsOf in src/screen/concourse/contracts.ts for the board-order checks'
     console.log(`  ❌ ${label} — ${detail ? `${detail} | ` : ''}${where}`)
   }
 }
@@ -232,7 +232,7 @@ console.log('§6 board interleave')
 
 console.log('§7 surface: preflight preview, typed collision scope, plain-folder fact')
 {
-  const { recordCollisionEvidence, canonicalWorkspaceId } = await import('../../src/daemon/concourseWorkers.ts')
+  const { recordCollisionEvidence, canonicalWorkspaceId } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { ...c.switchboardCapacity, operatorSeats: 5 } }))
   await writeConcourseDraft('ship the parser fix', draftDir)
   seedWorkers([])

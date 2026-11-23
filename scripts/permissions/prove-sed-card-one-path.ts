@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/permissions/BashPermissionRequest/** src/components/permissions/SedEditPermissionRequest/** src/tools/BashTool/BashTool.tsx src/utils/path.ts
+// gate-watch: src/permissions/cards/bash/** src/permissions/cards/sed-edit/** src/tools/shell/BashTool.tsx src/platform/files/path.ts
 import { mock } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
@@ -49,27 +49,27 @@ async function stub(path: string, fixture: () => Record<string, unknown>): Promi
   mock.module(path, () => ({ ...actual, ...fixture() }))
 }
 let cycleMode: (() => void) | undefined
-await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: (action: string, handler: () => void) => { if (action === 'confirm:cycleMode') cycleMode = handler }, useKeybindings: () => undefined }))
-await stub('../../src/components/CustomSelect/select.js', () => ({
+await stub('../../src/screen/keys/useKeybinding.js', () => ({ useKeybinding: (action: string, handler: () => void) => { if (action === 'confirm:cycleMode') cycleMode = handler }, useKeybindings: () => undefined }))
+await stub('../../src/screen/select/Select.js', () => ({
   Select: (props: SelectProps) => {
     selectProps = props
     return null
   },
 }))
 
-const { BashPermissionRequest } = await import('../../src/components/permissions/BashPermissionRequest/BashPermissionRequest.js')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { parseForSecurity } = await import('../../src/utils/permissions/decision/commandAnalysis.js')
-const { setCwd, getShellCwd } = await import('../../src/utils/Shell.js')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import('../../src/services/engine-connector/focusedConnector.js')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const StdinContext = (await import('../../src/ink/components/StdinContext.js')).default
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { BashPermissionRequest } = await import('../../src/permissions/cards/bash/ShellPermissionRequest.js')
+const { BashTool } = await import('../../src/tools/shell/BashTool.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { parseForSecurity } = await import('../../src/permissions/rules/decision/commandAnalysis.js')
+const { setCwd, getShellCwd } = await import('../../src/platform/shell/shellExec.js')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import('../../src/engine/connector/focusedConnector.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const StdinContext = (await import('../../src/screen/renderer/elements/StdinContext.js')).default
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 
 const PROJECT = join(SCRATCH, 'project')
 const SHELL_CWD = join(PROJECT, 'packages', 'foo')
@@ -202,7 +202,7 @@ try {
   check('the shell-cwd file is written and the root file is untouched', readFileSync(join(SHELL_CWD, 'package.json'), 'utf8') === 'foo b\n' && readFileSync(join(PROJECT, 'package.json'), 'utf8') === 'root a\n')
   section('§3 a change while the card is open refuses without overwriting it')
   const target = join(SHELL_CWD, 'notes.txt')
-  const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/constants/tools/fileEdit.js')
+  const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/kit/names/fileEdit.js')
   for (const changed of ['another session\n', 'alpha\r\n']) {
     writeFileSync(target, 'alpha\n')
     const stale = await approveCard("sed -i 's/alpha/beta/' notes.txt", () => writeFileSync(target, changed))

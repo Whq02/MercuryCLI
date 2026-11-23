@@ -3,15 +3,15 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir, homedir } from 'node:os'
 import { join } from 'node:path'
-import { NODE_SUPPORT } from '../../src/utils/runtime/nodePolicy.js'
+import { NODE_SUPPORT } from '../../src/platform/node-runtime/nodePolicy.js'
 
 const REPO = join(import.meta.dir, '..', '..')
 let failures = 0
 let sectionFixHint = ''
 const sectionFixHints: Record<string, string> = {
-  '(2)': 'fix evaluateNodeRuntime / nodeRefusalMessage in src/utils/runtime/nodePolicy.ts or the gate call in src/entrypoints/cli.tsx, then rebuild dist with bun run build.ts since this reads dist/mercury.mjs',
-  '(3)': 'fix the route that failed in src/entrypoints/cli.tsx (the gate must pass on a supported Node), or for health --json nodeRuntimeProjection in src/utils/runtime/nodePolicy.ts and src/services/health/healthReport.ts, then rebuild dist with bun run build.ts',
-  '(4)': 'fix the expect-refusal mode of scripts/node-runtime/qualify-artifact.sh or the refusal in src/utils/runtime/nodePolicy.ts, then rebuild dist with bun run build.ts',
+  '(2)': 'fix evaluateNodeRuntime / nodeRefusalMessage in src/platform/node-runtime/nodePolicy.ts or the gate call in src/boot/entrypoints/cli.tsx, then rebuild dist with bun run build.ts since this reads dist/mercury.mjs',
+  '(3)': 'fix the route that failed in src/boot/entrypoints/cli.tsx (the gate must pass on a supported Node), or for health --json nodeRuntimeProjection in src/platform/node-runtime/nodePolicy.ts and src/platform/health/healthReport.ts, then rebuild dist with bun run build.ts',
+  '(4)': 'fix the expect-refusal mode of scripts/node-runtime/qualify-artifact.sh or the refusal in src/platform/node-runtime/nodePolicy.ts, then rebuild dist with bun run build.ts',
 }
 const check = (name: string, cond: boolean, detail?: string): void => {
   if (cond) console.log(`  [PASS] ${name}`)

@@ -19,12 +19,12 @@ const guard = setTimeout(() => {
 }, 120_000)
 guard.unref?.()
 
-const commitMod = await import(join(SRC, 'services/changeTransaction/changeSetCommit.ts'))
+const commitMod = await import(join(SRC, 'tools/engines/change-transaction/changeSetCommit.ts'))
 const { runTextChangeSetCommit, commitPlanDigest } = commitMod
-const { sha256Hex } = await import(join(SRC, 'utils/hash.ts'))
-const { listJournalOperations } = await import(join(SRC, 'substrate/operationJournal.ts'))
+const { sha256Hex } = await import(join(SRC, 'platform/primitives/hash.ts'))
+const { listJournalOperations } = await import(join(SRC, 'platform/substrate/operationJournal.ts'))
 const seam = commitMod._setBeforeRenameHookForProofs as ((hook: ((path: string) => void) | null) => void) | undefined
-check('the staging-window proof seam exists', typeof seam === 'function', 'src/services/changeTransaction/changeSetCommit.ts must export _setBeforeRenameHookForProofs, called before each target rename')
+check('the staging-window proof seam exists', typeof seam === 'function', 'src/tools/engines/change-transaction/changeSetCommit.ts must export _setBeforeRenameHookForProofs, called before each target rename')
 
 interface Case { dir: string; csHome: string; paths: string[]; originals: string[]; planned: string[] }
 let caseN = 0
@@ -85,21 +85,21 @@ console.log('── D1 an external save inside the staging window is drift ─�
   })
   const out = await commit(c)
   seam?.(null)
-  check('the seam fired inside the window', saved, 'the before-rename hook never ran for the second target; runTextChangeSetCommit in src/services/changeTransaction/changeSetCommit.ts must call it before each rename')
-  check("the outcome is the drift probe's own stale verdict", out.kind === 'stale', `${JSON.stringify(out)} — runTextChangeSetCommit in src/services/changeTransaction/changeSetCommit.ts must answer kind stale when a target changed after the drift probe and before its rename`)
-  check('…naming the drifted path, only it', out.stalePaths?.length === 1 && out.stalePaths[0] === c.paths[1], `${JSON.stringify(out.stalePaths)} — the stale outcome in src/services/changeTransaction/changeSetCommit.ts must list only the drifted path`)
-  check("the operator's newer bytes survive", readFileSync(c.paths[1]!, 'utf8') === EXTERNAL, `${readFileSync(c.paths[1]!, 'utf8')} — the drifted target was overwritten; the rename step in src/services/changeTransaction/changeSetCommit.ts must refuse to replace newer bytes`)
-  check('the target already renamed is restored, the later one never touched', diskState(c)[0] === 'original' && diskState(c)[2] === 'original', `${diskState(c).join(',')} — the compensation after a drift refusal in src/services/changeTransaction/changeSetCommit.ts must restore the targets already renamed and leave the later ones alone`)
-  check('the staged temps are swept', noStrayTemps(c), 'a .tmp file is left beside the targets; the drift-refusal exit of runTextChangeSetCommit in src/services/changeTransaction/changeSetCommit.ts must unlink its staged temps')
-  check('the journal op settled (nothing left for boot recovery)', (await nonTerminalOps(c)) === 0, 'the journal operation is still non-terminal after a drift refusal; runTextChangeSetCommit in src/services/changeTransaction/changeSetCommit.ts must settle it')
+  check('the seam fired inside the window', saved, 'the before-rename hook never ran for the second target; runTextChangeSetCommit in src/tools/engines/change-transaction/changeSetCommit.ts must call it before each rename')
+  check("the outcome is the drift probe's own stale verdict", out.kind === 'stale', `${JSON.stringify(out)} — runTextChangeSetCommit in src/tools/engines/change-transaction/changeSetCommit.ts must answer kind stale when a target changed after the drift probe and before its rename`)
+  check('…naming the drifted path, only it', out.stalePaths?.length === 1 && out.stalePaths[0] === c.paths[1], `${JSON.stringify(out.stalePaths)} — the stale outcome in src/tools/engines/change-transaction/changeSetCommit.ts must list only the drifted path`)
+  check("the operator's newer bytes survive", readFileSync(c.paths[1]!, 'utf8') === EXTERNAL, `${readFileSync(c.paths[1]!, 'utf8')} — the drifted target was overwritten; the rename step in src/tools/engines/change-transaction/changeSetCommit.ts must refuse to replace newer bytes`)
+  check('the target already renamed is restored, the later one never touched', diskState(c)[0] === 'original' && diskState(c)[2] === 'original', `${diskState(c).join(',')} — the compensation after a drift refusal in src/tools/engines/change-transaction/changeSetCommit.ts must restore the targets already renamed and leave the later ones alone`)
+  check('the staged temps are swept', noStrayTemps(c), 'a .tmp file is left beside the targets; the drift-refusal exit of runTextChangeSetCommit in src/tools/engines/change-transaction/changeSetCommit.ts must unlink its staged temps')
+  check('the journal op settled (nothing left for boot recovery)', (await nonTerminalOps(c)) === 0, 'the journal operation is still non-terminal after a drift refusal; runTextChangeSetCommit in src/tools/engines/change-transaction/changeSetCommit.ts must settle it')
 }
 
 console.log('── D2 control: a clean commit still lands ──')
 {
   const c = makeCase()
   const out = await commit(c)
-  check('committed', out.kind === 'committed', `${JSON.stringify(out)} — a clean runTextChangeSetCommit in src/services/changeTransaction/changeSetCommit.ts must answer committed; the drift check is refusing an undrifted target`)
-  check('every target holds the planned bytes', diskState(c).every(s => s === 'planned'), `${diskState(c).join(',')} — a committed runTextChangeSetCommit in src/services/changeTransaction/changeSetCommit.ts must leave every target with its planned bytes`)
+  check('committed', out.kind === 'committed', `${JSON.stringify(out)} — a clean runTextChangeSetCommit in src/tools/engines/change-transaction/changeSetCommit.ts must answer committed; the drift check is refusing an undrifted target`)
+  check('every target holds the planned bytes', diskState(c).every(s => s === 'planned'), `${diskState(c).join(',')} — a committed runTextChangeSetCommit in src/tools/engines/change-transaction/changeSetCommit.ts must leave every target with its planned bytes`)
 }
 
 console.log(failures === 0 ? '\nprove-drift-before-rename: GREEN' : `\nprove-drift-before-rename: ${failures} FAILURE(S)`)

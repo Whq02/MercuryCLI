@@ -13,13 +13,13 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 
-const setup = await import('../../src/services/localSetup/index.ts')
+const setup = await import('../../src/models/local-setup/index.ts')
 
 section('§1 the Windows start plan hands cmd.exe one pre-quoted command line')
 {
   const plan = await setup.planStart({ found: 'windows', where: 'C:\\Users\\Ana Lee\\AppData\\Local\\Programs\\Ollama\\ollama app.exe' } as never, { env: {}, platform: 'win32', fetchImpl: (async () => { throw new Error('offline') }) as never })
-  check('the plan is the app start through cmd', plan.form === 'windows' && plan.argv[0] === 'cmd.exe' && plan.argv.slice(1, 4).join(' ') === '/d /s /c', `fix the windows case of planStart in src/services/localSetup/setupStart.ts so argv is cmd.exe /d /s /c then one command line: ${JSON.stringify(plan.argv)}`)
-  check('the command line carries its own quotes round the spaced path', plan.argv[4] === 'start "" "C:\\Users\\Ana Lee\\AppData\\Local\\Programs\\Ollama\\ollama app.exe"', `fix the windows case of planStart in src/services/localSetup/setupStart.ts to quote the empty title and the path inside argv[4]: ${String(plan.argv[4])}`)
+  check('the plan is the app start through cmd', plan.form === 'windows' && plan.argv[0] === 'cmd.exe' && plan.argv.slice(1, 4).join(' ') === '/d /s /c', `fix the windows case of planStart in src/models/local-setup/setupStart.ts so argv is cmd.exe /d /s /c then one command line: ${JSON.stringify(plan.argv)}`)
+  check('the command line carries its own quotes round the spaced path', plan.argv[4] === 'start "" "C:\\Users\\Ana Lee\\AppData\\Local\\Programs\\Ollama\\ollama app.exe"', `fix the windows case of planStart in src/models/local-setup/setupStart.ts to quote the empty title and the path inside argv[4]: ${String(plan.argv[4])}`)
 }
 
 section('§2 the default exec runs that line as written (Windows hosts)')
@@ -33,9 +33,9 @@ if (process.platform !== 'win32') {
   const io = setup.resolveSetupIo({})
   const argv = setup.shellArgv('win32', `start "" /b "${tool}" arg1`)
   const ran = await io.exec(argv[0]!, argv.slice(1), { timeoutMs: 30_000 })
-  check('the spaced, quoted batch file ran', ran.rc === 0 && ran.stdout.includes('RAN arg1'), `fix shellArgv or the default exec (defaultExec) in src/services/localSetup/setupIo.ts so the quoted line reaches cmd.exe as written: ${JSON.stringify({ rc: ran.rc, stdout: ran.stdout, stderr: ran.stderr })}`)
+  check('the spaced, quoted batch file ran', ran.rc === 0 && ran.stdout.includes('RAN arg1'), `fix shellArgv or the default exec (defaultExec) in src/models/local-setup/setupIo.ts so the quoted line reaches cmd.exe as written: ${JSON.stringify({ rc: ran.rc, stdout: ran.stdout, stderr: ran.stderr })}`)
   const plain = await io.exec('cmd.exe', ['/d', '/s', '/c', 'echo plain words'], { timeoutMs: 30_000 })
-  check('an unquoted command line is unchanged', plain.rc === 0 && plain.stdout.trim() === 'plain words', `fix the default exec (defaultExec) in src/services/localSetup/setupIo.ts so a line without quotes reaches cmd.exe unchanged: ${JSON.stringify(plain.stdout)}`)
+  check('an unquoted command line is unchanged', plain.rc === 0 && plain.stdout.trim() === 'plain words', `fix the default exec (defaultExec) in src/models/local-setup/setupIo.ts so a line without quotes reaches cmd.exe unchanged: ${JSON.stringify(plain.stdout)}`)
 }
 
 removeScratch(proofHome)

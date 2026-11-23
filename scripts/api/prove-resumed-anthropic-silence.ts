@@ -30,11 +30,11 @@ Object.assign(process.env, {
   MERCURY_MAX_RETRIES: '0',
 })
 for (const name of ['ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_DISABLE_NONSTREAMING_FALLBACK', 'MERCURY_BARE']) delete process.env[name]
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import('../../src/services/messages.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import('../../src/engine/messages/messages.ts')
 const first = createAssistantMessage({ content: 'I have read the source.' })
 first.message.model = 'claude-opus-5-5'
 first.message.stop_reason = 'end_turn'
@@ -64,14 +64,14 @@ try {
   assert.match(JSON.stringify(errors[0].message.content), /one non-streamed answer got nothing/)
   assert.ok(notices.some(m => /not one byte after the headers/.test(m.error?.message ?? '')), 'first-byte silence is surfaced before fallback')
   assert.deepEqual(requests.map(r => Boolean(r.stream)), [true, true, false])
-  assert.ok(requests.every(r => r.model === 'claude-opus-5-5' && r.output_config?.effort === 'max'), `Anthropic retry/fallback changed model or effort in src/services/providers/anthropic/: ${JSON.stringify(requests.map(r => ({ model: r.model, effort: r.output_config?.effort })))}`)
+  assert.ok(requests.every(r => r.model === 'claude-opus-5-5' && r.output_config?.effort === 'max'), `Anthropic retry/fallback changed model or effort in src/models/roads/anthropic/: ${JSON.stringify(requests.map(r => ({ model: r.model, effort: r.output_config?.effort })))}`)
   assert.ok(requests.every(r => r.thinking !== undefined), 'thinking stays enabled on every attempt')
   assert.equal(requests[0]?.max_tokens, requests[1]?.max_tokens)
   for (const request of requests) {
     assert.equal(request.messages.map((row: any) => row.role).join(','), 'user,assistant,user')
     const lastMessageText = JSON.stringify(request.messages.at(-1))
-    assert.ok(lastMessageText.includes('Resume the stopped edit.'), `merged trailing user message dropped task-notification in src/services/providers/anthropic/: ${lastMessageText.slice(0, 200)}`)
-    assert.ok(lastMessageText.includes('do as the lead said'), `merged trailing user message dropped follow-up user text in src/services/providers/anthropic/: ${lastMessageText.slice(0, 200)}`)
+    assert.ok(lastMessageText.includes('Resume the stopped edit.'), `merged trailing user message dropped task-notification in src/models/roads/anthropic/: ${lastMessageText.slice(0, 200)}`)
+    assert.ok(lastMessageText.includes('do as the lead said'), `merged trailing user message dropped follow-up user text in src/models/roads/anthropic/: ${lastMessageText.slice(0, 200)}`)
   }
   console.log('PASS stopped/resumed Anthropic history alternates and zero-byte streaming plus fallback settles with an error')
 } finally {

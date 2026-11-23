@@ -24,17 +24,17 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const ledger = await import('../../src/cost-tracker.ts')
-const { getCanonicalName } = await import('../../src/services/model/model.ts')
+const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const ledger = await import('../../src/models/usage/sessionCost.ts')
+const { getCanonicalName } = await import('../../src/models/catalogue/engineModel.ts')
 
-const servedFix = 'fix the message_start handling (startMessage, noteServedModel) in queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts so the minted message and the usage row use the model the stream names'
+const servedFix = 'fix the message_start handling (startMessage, noteServedModel) in queryModelWithStreaming in src/models/roads/anthropic/streamCore.ts so the minted message and the usage row use the model the stream names'
 const REQUESTED = 'claude-fable-5-1'
 const OTHER_FAMILY = 'claude-opus-5'
 const DATED_TWIN = 'claude-fable-5-1-20260901'
@@ -121,9 +121,9 @@ console.log('============================================================')
 section('§1 message_start names another family: the minted message and the ledger follow the serving model')
 {
   const d = await drive(OTHER_FAMILY)
-  check('the premise: the two ids are different canonical families', getCanonicalName(OTHER_FAMILY) !== getCanonicalName(REQUESTED), `${getCanonicalName(OTHER_FAMILY)} vs ${getCanonicalName(REQUESTED)}; the fixture ids OTHER_FAMILY and REQUESTED in this file must canonicalize to different families in getCanonicalName in src/services/model/model.ts`)
-  check('one request left the core, asking for the requested model', d.wire.requests === 1 && d.wire.requestedModels[0] === REQUESTED, `${JSON.stringify(d.wire)}; the request must go out once with the requested model id, see queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts`)
-  check('the stream settled without a thrown error', d.thrown === null, `${d.thrown ?? ''}; the stream threw, see queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts`)
+  check('the premise: the two ids are different canonical families', getCanonicalName(OTHER_FAMILY) !== getCanonicalName(REQUESTED), `${getCanonicalName(OTHER_FAMILY)} vs ${getCanonicalName(REQUESTED)}; the fixture ids OTHER_FAMILY and REQUESTED in this file must canonicalize to different families in getCanonicalName in src/models/catalogue/engineModel.ts`)
+  check('one request left the core, asking for the requested model', d.wire.requests === 1 && d.wire.requestedModels[0] === REQUESTED, `${JSON.stringify(d.wire)}; the request must go out once with the requested model id, see queryModelWithStreaming in src/models/roads/anthropic/streamCore.ts`)
+  check('the stream settled without a thrown error', d.thrown === null, `${d.thrown ?? ''}; the stream threw, see queryModelWithStreaming in src/models/roads/anthropic/streamCore.ts`)
   check('exactly one assistant message was minted', d.assistants.length === 1, `${d.assistants.length}; ${servedFix}`)
   check('the stamp: the minted message carries the serving model, never the requested one', d.assistants[0]?.message?.model === OTHER_FAMILY, `${String(d.assistants[0]?.message?.model)}; ${servedFix}`)
   check("the bill: the ledger's usage row is the serving model's (500 in, 40 out)", d.servingRow?.inputTokens === 500 && d.servingRow?.outputTokens === 40, `${JSON.stringify(d.servingRow)}; ${servedFix}`)
@@ -133,10 +133,10 @@ section('§1 message_start names another family: the minted message and the ledg
 
 section('§2 the same canonical family is never a substitute: a dated twin and the exact id bill the requested model')
 {
-  check('the premise: the dated twin canonicalizes onto the requested family', getCanonicalName(DATED_TWIN) === getCanonicalName(REQUESTED), `${getCanonicalName(DATED_TWIN)}; the fixture id DATED_TWIN in this file must canonicalize to the same family as REQUESTED in getCanonicalName in src/services/model/model.ts`)
+  check('the premise: the dated twin canonicalizes onto the requested family', getCanonicalName(DATED_TWIN) === getCanonicalName(REQUESTED), `${getCanonicalName(DATED_TWIN)}; the fixture id DATED_TWIN in this file must canonicalize to the same family as REQUESTED in getCanonicalName in src/models/catalogue/engineModel.ts`)
   for (const echoed of [DATED_TWIN, REQUESTED]) {
     const d = await drive(echoed)
-    check(`${echoed}: the stream settled and one message was minted`, d.thrown === null && d.assistants.length === 1, `${d.thrown ?? String(d.assistants.length)}; see queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts`)
+    check(`${echoed}: the stream settled and one message was minted`, d.thrown === null && d.assistants.length === 1, `${d.thrown ?? String(d.assistants.length)}; see queryModelWithStreaming in src/models/roads/anthropic/streamCore.ts`)
     check(`${echoed}: the bill stays under the requested model (500 in, 40 out)`, d.requestedRow?.inputTokens === 500 && d.requestedRow?.outputTokens === 40, `${JSON.stringify(d.requestedRow)}; a model of the same canonical family must stay billed under the requested model, ${servedFix}`)
     check(`${echoed}: the message carries the wire's own model word unchanged`, d.assistants[0]?.message?.model === echoed, `${String(d.assistants[0]?.message?.model)}; ${servedFix}`)
   }

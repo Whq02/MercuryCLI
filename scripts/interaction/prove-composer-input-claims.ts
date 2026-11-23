@@ -13,19 +13,19 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const claimsKeyHint = ' · fix the Atlas, Global or Chat bindings in src/keybindings/defaultBindings.ts, or resolveKey in src/keybindings/resolver.ts'
-const claimsDisplayHint = ' · fix getBindingDisplayText in src/keybindings/resolver.ts (or the chat:modelPicker and app:toggleTranscript entries in src/keybindings/defaultBindings.ts)'
-const claimsEarlyHint = ' · fix seedEarlyInput and consumeEarlyInput in src/utils/earlyInput.ts, or initSession in src/input-core/pending-input.ts'
-const claimsRefHint = 'fix danglingReferences in src/history.ts'
+const claimsKeyHint = ' · fix the Atlas, Global or Chat bindings in src/screen/keys/defaultBindings.ts, or resolveKey in src/screen/keys/resolver.ts'
+const claimsDisplayHint = ' · fix getBindingDisplayText in src/screen/keys/resolver.ts (or the chat:modelPicker and app:toggleTranscript entries in src/screen/keys/defaultBindings.ts)'
+const claimsEarlyHint = ' · fix seedEarlyInput and consumeEarlyInput in src/boot/earlyInput.ts, or initSession in src/screen/composer/input-core/pending-input.ts'
+const claimsRefHint = 'fix danglingReferences in src/sessions/promptHistory.ts'
 console.log('============================================================')
 console.log(' composer input claims — atlas · dialect · boot seed (PTY)')
 console.log('============================================================')
 
 console.log('\n── §1 resolver + seed truths ────────────────────────────────')
 {
-  const { resolveKey, getBindingDisplayText } = await import('../../src/keybindings/resolver.ts')
-  const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
-  const { parseBindings } = await import('../../src/keybindings/parser.ts')
+  const { resolveKey, getBindingDisplayText } = await import('../../src/screen/keys/resolver.ts')
+  const { DEFAULT_BINDINGS } = await import('../../src/screen/keys/defaultBindings.ts')
+  const { parseBindings } = await import('../../src/screen/keys/parser.ts')
   const bindings = parseBindings(DEFAULT_BINDINGS)
   const key = (ctrl: boolean) =>
     ({ ctrl, alt: false, shift: false, meta: false, super: false }) as never
@@ -57,13 +57,13 @@ console.log('\n── §1 resolver + seed truths ──────────�
   check('ctrl chords render unchanged in the dialect', ctrlChord === 'ctrl+o', String(ctrlChord) + claimsDisplayHint)
 }
 {
-  const early = await import('../../src/utils/earlyInput.ts')
-  const pending = await import('../../src/input-core/pending-input.ts')
+  const early = await import('../../src/boot/earlyInput.ts')
+  const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
   pending.resetPendingInputForTests()
   early.seedEarlyInput('typed during boot')
   const consumed = early.consumeEarlyInput()
   check('consumeEarlyInput returns the captured buffer once', consumed === 'typed during boot', consumed + claimsEarlyHint)
-  check('… and clears it', early.consumeEarlyInput() === '', 'consumeEarlyInput must empty the buffer in src/utils/earlyInput.ts')
+  check('… and clears it', early.consumeEarlyInput() === '', 'consumeEarlyInput must empty the buffer in src/boot/earlyInput.ts')
   pending.initSession('input-claims-session', consumed)
   check(
     "initSession seeds the composer draft from the early input ('early input wins')",
@@ -73,7 +73,7 @@ console.log('\n── §1 resolver + seed truths ──────────�
   pending.resetPendingInputForTests()
 }
 {
-  const { danglingReferences } = await import('../../src/history.ts')
+  const { danglingReferences } = await import('../../src/sessions/promptHistory.ts')
   const store = {
     1: { id: 1, type: 'text', content: 'body one' },
     2: { id: 2, type: 'image', content: 'x', mediaType: 'image/png', filename: 'a.png' },
@@ -113,7 +113,7 @@ console.log('\n── §1 resolver + seed truths ──────────�
   check(
     'the Chat boot seed consumes the early-input capture (a hardcoded empty seed discarded boot keystrokes)',
     bootSeed === 'keys typed while the screen booted',
-    JSON.stringify(bootSeed) + ' · the Chat boot seed must read consumeEarlyInput from src/utils/earlyInput.ts and hand it to initSession in src/input-core/pending-input.ts',
+    JSON.stringify(bootSeed) + ' · the Chat boot seed must read consumeEarlyInput from src/boot/earlyInput.ts and hand it to initSession in src/screen/composer/input-core/pending-input.ts',
   )
 
 console.log('\n── §3 PTY journeys ──────────────────────────────────────────')

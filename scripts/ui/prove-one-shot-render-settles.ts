@@ -19,9 +19,9 @@ if (process.argv[2] === '--child') {
   }
   process.env.FORCE_COLOR = '3'
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { streamRenderedMessages } = await import('../../src/components/exportRenderer.tsx')
+  const { streamRenderedMessages } = await import('../../src/screen/chat/exportRenderer.tsx')
   const uuidAt = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
   const stampAt = (n: number): string => `2026-06-19T12:00:${String(n).padStart(2, '0')}.000Z`
   const usage = { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }
@@ -86,24 +86,24 @@ section('one settled frame — the export render of one turn under every marker 
 const frames = new Map<string, string>()
 for (const arm of ARMS) {
   const res = runChild(arm.name, arm.env)
-  check(`${arm.name}: the child rendered (exit 0, nothing printed)`, res.status === 0 && res.stdout === '' && res.stderr === '', `status=${res.status} stdout=${JSON.stringify(res.stdout.slice(0, 120))} stderr=${JSON.stringify(res.stderr.slice(-300))}; the child at the top of this file calls streamRenderedMessages in src/components/exportRenderer.tsx, so read its stderr for the throw`)
+  check(`${arm.name}: the child rendered (exit 0, nothing printed)`, res.status === 0 && res.stdout === '' && res.stderr === '', `status=${res.status} stdout=${JSON.stringify(res.stdout.slice(0, 120))} stderr=${JSON.stringify(res.stderr.slice(-300))}; the child at the top of this file calls streamRenderedMessages in src/screen/chat/exportRenderer.tsx, so read its stderr for the throw`)
   const path = join(res.dir, 'frame.ansi')
   const frame = existsSync(path) ? readFileSync(path, 'utf8') : ''
   frames.set(arm.name, frame)
   check(`${arm.name}: the frame is not empty`, stripAnsi(frame).trim() !== '')
-  check(`${arm.name}: the working note paints exactly once`, copiesOf(frame, NOTE) === 1, `${copiesOf(frame, NOTE)} copies; streamRenderedMessages in src/components/exportRenderer.tsx must paint each message of the turn once`)
-  check(`${arm.name}: the final answer paints exactly once`, copiesOf(frame, FINAL) === 1, `${copiesOf(frame, FINAL)} copies; streamRenderedMessages in src/components/exportRenderer.tsx must paint each message of the turn once`)
-  check(`${arm.name}: no sync marker survives in the settled frame`, !frame.includes('\x1b[?2026'), 'BSU/ESU inside the returned frame; streamRenderedMessages in src/components/exportRenderer.tsx must strip the synchronized-output markers (see src/ink/session/capabilities.ts)')
+  check(`${arm.name}: the working note paints exactly once`, copiesOf(frame, NOTE) === 1, `${copiesOf(frame, NOTE)} copies; streamRenderedMessages in src/screen/chat/exportRenderer.tsx must paint each message of the turn once`)
+  check(`${arm.name}: the final answer paints exactly once`, copiesOf(frame, FINAL) === 1, `${copiesOf(frame, FINAL)} copies; streamRenderedMessages in src/screen/chat/exportRenderer.tsx must paint each message of the turn once`)
+  check(`${arm.name}: no sync marker survives in the settled frame`, !frame.includes('\x1b[?2026'), 'BSU/ESU inside the returned frame; streamRenderedMessages in src/screen/chat/exportRenderer.tsx must strip the synchronized-output markers (see src/screen/renderer/terminal-session/capabilities.ts)')
 }
 const reference = frames.get('force') ?? ''
 for (const arm of ARMS.slice(1)) {
   const frame = frames.get(arm.name) ?? ''
   if (arm.name === 'tmux') {
     const sgrCount = (s: string): number => (s.match(/\x1b\[[0-9;]*m/g) ?? []).length
-    check(`${arm.name}: the same settled text and the same style transitions as the forced-on arm (only the colour form follows the terminal)`, stripAnsi(frame) === stripAnsi(reference) && sgrCount(frame) === sgrCount(reference), `${sgrCount(frame)} vs ${sgrCount(reference)} transitions; the export render in src/components/exportRenderer.tsx must not change text or style with the sync-output regime`)
+    check(`${arm.name}: the same settled text and the same style transitions as the forced-on arm (only the colour form follows the terminal)`, stripAnsi(frame) === stripAnsi(reference) && sgrCount(frame) === sgrCount(reference), `${sgrCount(frame)} vs ${sgrCount(reference)} transitions; the export render in src/screen/chat/exportRenderer.tsx must not change text or style with the sync-output regime`)
     continue
   }
-  check(`${arm.name}: byte-identical to the forced-on arm (the same bytes with sync on, off and on the harness path)`, frame === reference, `${frame.length} vs ${reference.length} bytes; the export render in src/components/exportRenderer.tsx must not change bytes with the sync-output regime`)
+  check(`${arm.name}: byte-identical to the forced-on arm (the same bytes with sync on, off and on the harness path)`, frame === reference, `${frame.length} vs ${reference.length} bytes; the export render in src/screen/chat/exportRenderer.tsx must not change bytes with the sync-output regime`)
 }
 
 if (failures === 0) rmSync(scratch, { recursive: true, force: true })

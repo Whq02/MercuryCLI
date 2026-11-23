@@ -1,5 +1,5 @@
-import type { Command } from '../../commands.js'
-import { flagEnabled } from '../../substrate/flagRegistry.js'
+import type { Command } from '../catalogue/commands.js'
+import { flagEnabled } from '../../platform/substrate/flagRegistry.js'
 
 const compact: Command = {
   type: 'local',

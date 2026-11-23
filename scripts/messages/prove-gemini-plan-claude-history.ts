@@ -1,16 +1,16 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { randomUUID } from 'node:crypto'
-import type { Message } from '../../src/types/message.ts'
-import type { CompatChatRequest } from '../../src/services/providers/openaicompat/compatChatClient.ts'
-import type { GeminiContent, GeminiPart } from '../../src/services/providers/gemini/geminiCodec.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
+import type { CompatChatRequest } from '../../src/models/roads/openaicompat/compatChatClient.ts'
+import type { GeminiContent, GeminiPart } from '../../src/models/roads/gemini/geminiCodec.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { buildGeminiRequest, geminiThoughtKindOf, GEMINI_SKIP_SIGNATURE_VALIDATION } = await import('../../src/services/providers/gemini/geminiCodec.ts')
+const { buildGeminiRequest, geminiThoughtKindOf, GEMINI_SKIP_SIGNATURE_VALIDATION } = await import('../../src/models/roads/gemini/geminiCodec.ts')
 
 let passes = 0
 let failures = 0
-const GEMINI_HISTORY_FIX_HINT = 'fix buildGeminiRequest (call and response ids, thought-part filtering, replay of Gemini records) or geminiThoughtKindOf in src/services/providers/gemini/geminiCodec.ts'
+const GEMINI_HISTORY_FIX_HINT = 'fix buildGeminiRequest (call and response ids, thought-part filtering, replay of Gemini records) or geminiThoughtKindOf in src/models/roads/gemini/geminiCodec.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   if (ok) passes++
   else failures++

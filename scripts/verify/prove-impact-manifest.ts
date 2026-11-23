@@ -142,12 +142,12 @@ const narrow: ImpactManifest = {
   watches: {
     wide: ['src/utils/**'],
     folder: ['src/utils/shell/*'],
-    exact: ['src/utils/shell/engine.ts', 'src/utils/Shell.ts'],
+    exact: ['src/utils/shell/engine.ts', 'src/platform/shell/shellExec.ts'],
     net: ['src/**'],
     flat: ['src/utils/*'],
   },
   ignores: [],
-  narrowed: ['src/utils/shell/**', 'src/utils/Shell.ts'],
+  narrowed: ['src/utils/shell/**', 'src/platform/shell/shellExec.ts'],
 }
 const claimed = (m: ImpactManifest, path: string): string => [...selectImpact(m, [path]).suites].sort().join(' ')
 check(
@@ -167,8 +167,8 @@ check(
 )
 check(
   'narrowed file row: only its own name and the net claim it',
-  claimed(narrow, 'src/utils/Shell.ts') === 'exact net',
-  claimed(narrow, 'src/utils/Shell.ts'),
+  claimed(narrow, 'src/platform/shell/shellExec.ts') === 'exact net',
+  claimed(narrow, 'src/platform/shell/shellExec.ts'),
 )
 {
   const s = selectImpact({ ...narrow, watches: { wide: ['src/utils/**'] } }, ['src/utils/shell/unnamed.ts'])
@@ -224,21 +224,21 @@ section('§3 verify:fast --plan runs the real selector end-to-end')
 }
 {
   const s = selectImpact(loadImpactManifest(ROOT, computedWatch(ROOT)), [
-    'src/services/lsp/config.ts',
+    'src/integrations/lsp/config.ts',
     'src/components/anything.tsx',
     'scripts/ui/vshot.py',
     'docs/ROADMAP.md',
-    'src/main.tsx',
+    'src/boot/main.tsx',
   ])
   check(
-    'core estate paths classify (lsp source → lsp; components → ui-ish; vshot → capture suites; docs → the identity suite; src/main.tsx claimed by smoke src/**)',
+    'core estate paths classify (lsp source → lsp; components → ui-ish; vshot → capture suites; docs → the identity suite; src/boot/main.tsx claimed by smoke src/**)',
     s.unclassified.length === 0 &&
       s.ignored.length === 0 &&
       s.suites.has('lsp') &&
       s.suites.has('ui') &&
       s.perPath['docs/ROADMAP.md']?.includes('identity') === true &&
-      s.perPath['src/main.tsx']?.includes('smoke') === true,
-    JSON.stringify({ unclassified: s.unclassified, ignored: s.ignored, docs: s.perPath['docs/ROADMAP.md'], main: s.perPath['src/main.tsx'] }),
+      s.perPath['src/boot/main.tsx']?.includes('smoke') === true,
+    JSON.stringify({ unclassified: s.unclassified, ignored: s.ignored, docs: s.perPath['docs/ROADMAP.md'], main: s.perPath['src/boot/main.tsx'] }),
   )
 }
 
@@ -275,8 +275,8 @@ section('§4 a planted estate: what a suite\'s proofs touch wakes it, with no he
   w('scripts/named/prove-named.ts', ["import { existsSync, readFileSync } from 'node:fs'", ...head, "console.log(readFileSync(join(ROOT, 'docs/page.md'), 'utf8').length, existsSync(join(ROOT, 'src/keys/one.ts')))", ''].join('\n'))
   w('scripts/walked/run-all.sh', runner('', each))
   w('scripts/walked/prove-walked.ts', ["import { readdirSync } from 'node:fs'", ...head, "console.log(readdirSync(join(ROOT, 'src', 'keys')).length)", ''].join('\n'))
-  w('src/main.tsx', 'export const main = 1\n')
-  w('src/cli/run.ts', 'export const run = 1\n')
+  w('src/boot/main.tsx', 'export const main = 1\n')
+  w('src/daemon/runner/runHeadless.ts', 'export const run = 1\n')
   w('scripts/lib/builtProduct.ts', "export const builtCli = (): string => 'dist/mercury.mjs'\n")
   w('scripts/built/run-all.sh', runner('', each))
   w('scripts/built/prove-built.ts', "import { builtCli } from '../lib/builtProduct.ts'\nconsole.log(builtCli())\n")
@@ -309,7 +309,7 @@ section('§4 a planted estate: what a suite\'s proofs touch wakes it, with no he
   const SOURCED = 'scripts/lib/suite-env.sh'
   const want: Record<string, string[]> = {
     blind: ['scripts/blind/prove-blind.ts', SOURCED],
-    built: ['scripts/built/prove-built.ts', 'scripts/lib/builtProduct.ts', SOURCED, 'src/cli/run.ts', 'src/main.tsx'],
+    built: ['scripts/built/prove-built.ts', 'scripts/lib/builtProduct.ts', SOURCED, 'src/daemon/runner/runHeadless.ts', 'src/boot/main.tsx'],
     child: ['scripts/child/prove-child.ts', 'scripts/lib/child.ts', SOURCED, 'src/gamma/g.ts'],
     handed: ['scripts/handed/prove-handed.ts', SOURCED, 'src/beta/b.ts'],
     lister: [SOURCED, 'scripts/lister/prove-lister.ts', 'src/keys/one.ts', 'src/keys/two.ts'],
@@ -346,8 +346,8 @@ section('§4 a planted estate: what a suite\'s proofs touch wakes it, with no he
     ['template-drives', 'src/beta/b.ts'],
     ['template', 'src/beta/b.ts'],
     ['template-drives', 'src/alpha/a.ts'],
-    ['built', 'src/main.tsx'],
-    ['built', 'src/cli/run.ts'],
+    ['built', 'src/boot/main.tsx'],
+    ['built', 'src/daemon/runner/runHeadless.ts'],
     ['pyrun', 'scripts/lib/child.ts'],
     ['pyrun', 'src/gamma/g.ts'],
     ['pyrun', 'docs/page.md'],

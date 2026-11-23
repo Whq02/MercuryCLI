@@ -5,18 +5,18 @@ import {
   type ParsedInput,
   type ParsedKey,
   parseMultipleKeypresses,
-} from '../../src/ink/input/input-decoder.js'
-import { InputEvent } from '../../src/ink/events/input-event.js'
+} from '../../src/screen/renderer/input/input-decoder.js'
+import { InputEvent } from '../../src/screen/renderer/events/input-event.js'
 
 let failures = 0
 let checks = 0
 function whereToLook(label: string): string {
-  if (label.startsWith('dom-key')) return 'KeyboardEvent in src/ink/events/keyboard-event.ts'
-  if (label.startsWith('request:')) return 'ENABLE_KITTY_KEYBOARD in src/ink/termio/csi.ts'
-  if (label.startsWith('flush-kind') || label.startsWith('a bodied') || label.startsWith('a chord') || label.startsWith('…and the second sealed') || /^alt\+[\]P_]: /.test(label)) return 'createScanner in src/ink/input/scanner.ts'
-  if (label.startsWith('the gate') || label.startsWith('conhost law') || label.startsWith('typed law')) return 'burstCrIsLineBreak and parseMultipleKeypresses in src/ink/input/input-decoder.ts'
-  if (label.startsWith('projection') && label.endsWith('(key,input) shape')) return 'InputEvent in src/ink/events/input-event.ts, then parseMultipleKeypresses in src/ink/input/input-decoder.ts'
-  return 'parseMultipleKeypresses in src/ink/input/input-decoder.ts (and createScanner in src/ink/input/scanner.ts)'
+  if (label.startsWith('dom-key')) return 'KeyboardEvent in src/screen/renderer/events/keyboard-event.ts'
+  if (label.startsWith('request:')) return 'ENABLE_KITTY_KEYBOARD in src/screen/renderer/termio/csi.ts'
+  if (label.startsWith('flush-kind') || label.startsWith('a bodied') || label.startsWith('a chord') || label.startsWith('…and the second sealed') || /^alt\+[\]P_]: /.test(label)) return 'createScanner in src/screen/renderer/input/scanner.ts'
+  if (label.startsWith('the gate') || label.startsWith('conhost law') || label.startsWith('typed law')) return 'burstCrIsLineBreak and parseMultipleKeypresses in src/screen/renderer/input/input-decoder.ts'
+  if (label.startsWith('projection') && label.endsWith('(key,input) shape')) return 'InputEvent in src/screen/renderer/events/input-event.ts, then parseMultipleKeypresses in src/screen/renderer/input/input-decoder.ts'
+  return 'parseMultipleKeypresses in src/screen/renderer/input/input-decoder.ts (and createScanner in src/screen/renderer/input/scanner.ts)'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
@@ -315,7 +315,7 @@ console.log('native-core T4 — input interpretation contract')
     }
   }
   {
-    const { ENABLE_KITTY_KEYBOARD } = await import('../../src/ink/termio/csi.js')
+    const { ENABLE_KITTY_KEYBOARD } = await import('../../src/screen/renderer/termio/csi.js')
     const m = /^\x1b\[>(\d+)u$/.exec(ENABLE_KITTY_KEYBOARD)
     const flags = m ? parseInt(m[1]!, 10) : 0
     check('request: the kitty push carries REPORT-ALTERNATE-KEYS (0b100)', (flags & 0b100) !== 0, ENABLE_KITTY_KEYBOARD)
@@ -363,7 +363,7 @@ console.log('native-core T4 — input interpretation contract')
 }
 
 {
-  const { createScanner } = await import('../../src/ink/input/scanner.js')
+  const { createScanner } = await import('../../src/screen/renderer/input/scanner.js')
   const families: Array<[string, string, string]> = [
     ['csi', '\x1b[1;5', 'csi'],
     ['ss3', '\x1bO', 'ss3'],
@@ -408,7 +408,7 @@ console.log('native-core T4 — input interpretation contract')
 }
 
 {
-  const { KeyboardEvent } = await import('../../src/ink/events/keyboard-event.js')
+  const { KeyboardEvent } = await import('../../src/screen/renderer/events/keyboard-event.js')
   const key = (over: Record<string, unknown>): string =>
     new KeyboardEvent({
       kind: 'key', name: '', fn: false, ctrl: false, meta: false,
@@ -424,7 +424,7 @@ console.log('native-core T4 — input interpretation contract')
 }
 
 {
-  const { createScanner } = await import('../../src/ink/input/scanner.js')
+  const { createScanner } = await import('../../src/screen/renderer/input/scanner.js')
   for (const [label, chord] of [['alt+]', '\x1b]'], ['alt+P', '\x1bP'], ['alt+_', '\x1b_']] as const) {
     const scanner = createScanner()
     const fed = scanner.feed(chord)
@@ -458,7 +458,7 @@ console.log('native-core T4 — input interpretation contract')
 }
 
 {
-  const dec = await import('../../src/ink/input/input-decoder.js')
+  const dec = await import('../../src/screen/renderer/input/input-decoder.js')
   check('the gate: win32 without WT_SESSION engages the paste law', dec.burstCrIsLineBreak('win32', {}) === true)
   check('the gate: Windows Terminal keeps the typed law (bracketed paste arrives there)', dec.burstCrIsLineBreak('win32', { WT_SESSION: 'x' }) === false)
   check('the gate: POSIX hosts keep the typed law', dec.burstCrIsLineBreak('darwin', {}) === false && dec.burstCrIsLineBreak('linux', {}) === false)

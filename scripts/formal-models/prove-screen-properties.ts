@@ -45,14 +45,14 @@ const { mock } = await import('bun:test')
 const React = await import('react')
 const h = React.createElement
 
-type SessionListing = import('../../src/types/logs.js').SessionListing
+type SessionListing = import('../../src/sessions/transcripts/transcriptEntries.js').SessionListing
 
 let activeLogs: SessionListing[] = []
 let resumedCalls: Array<{ sessionId: string; fullPath?: string; title?: string }> = []
 let faultRewriteId: ((sessionId: string) => string) | null = null
 
-const realLogs = await import('../../src/utils/sessionStorage/logs.ts')
-mock.module('../../src/utils/sessionStorage/logs.ts', () => ({
+const realLogs = await import('../../src/sessions/transcripts/sessionListings.ts')
+mock.module('../../src/sessions/transcripts/sessionListings.ts', () => ({
   ...realLogs,
   listRepoSessionsProgressive: async () => ({
     logs: activeLogs,
@@ -66,8 +66,8 @@ mock.module('../../src/utils/sessionStorage/logs.ts', () => ({
   }),
 }))
 
-const realHop = await import('../../src/services/switchboard/hopIntoSession.ts')
-mock.module('../../src/services/switchboard/hopIntoSession.ts', () => ({
+const realHop = await import('../../src/daemon/switchboard/hopIntoSession.ts')
+mock.module('../../src/daemon/switchboard/hopIntoSession.ts', () => ({
   ...realHop,
   focusResumedSession: async (
     sessionId: string,
@@ -80,31 +80,31 @@ mock.module('../../src/services/switchboard/hopIntoSession.ts', () => ({
   },
 }))
 
-const realGit = await import('../../src/utils/git.ts')
-mock.module('../../src/utils/git.ts', () => ({
+const realGit = await import('../../src/platform/git/git.ts')
+mock.module('../../src/platform/git/git.ts', () => ({
   ...realGit,
   getBranch: async () => null,
 }))
 
-const realWorktrees = await import('../../src/utils/getWorktreePaths.ts')
-mock.module('../../src/utils/getWorktreePaths.ts', () => ({
+const realWorktrees = await import('../../src/platform/git/worktree/worktreePaths.ts')
+mock.module('../../src/platform/git/worktree/worktreePaths.ts', () => ({
   ...realWorktrees,
   getWorktreePaths: async () => [fixtureRoot],
 }))
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { default: reconciler } = await import('../../src/ink/reconciler.js')
-const { disposeKeybindingWatcher } = await import('../../src/keybindings/loadUserBindings.js')
-const { Box } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { ResumeConversation } = await import('../../src/screens/ResumeConversation.tsx')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
+const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { ResumeConversation } = await import('../../src/screen/chat/ResumeSession.tsx')
 
 class FakeStdout extends EventEmitter {
   isTTY = true

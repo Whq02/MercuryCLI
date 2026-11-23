@@ -11,7 +11,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${doorHint ? ` — ${doorHint}` : ''}`)
 }
 const section = (t: string): void => {
-  doorSource = t.startsWith('§1') ? 'src/daemon/concourseWorkers/admit.ts (makeConcourseAdmitHandler)' : 'src/daemon/sessionSeat/effort.ts (setSessionEffort)'
+  doorSource = t.startsWith('§1') ? 'src/daemon/concourse-workers/admit.ts (makeConcourseAdmitHandler)' : 'src/daemon/session-seat/effort.ts (setSessionEffort)'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
@@ -39,12 +39,12 @@ console.log('============================================================')
 console.log(' effort chain of custody — asked tier in, honest words out')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 section('§1 — the daemon admit door: normalize, else refuse typed naming the ladder')
 {
-  const sup = await import('../../src/daemon/concourseWorkers.ts')
+  const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const admit = sup.makeConcourseAdmitHandler({ roster: () => undefined, dir: join(scratch, 'daemon') })
   const junk = await admit({ workspaceDir: scratch, effort: 'ultra mega' })
   check('junk effort refuses', junk.ok === false, JSON.stringify(junk))
@@ -63,7 +63,7 @@ section('§1 — the daemon admit door: normalize, else refuse typed naming the 
 
 section('§2 — the set-effort verb door: same normalizer, same typed refusal')
 {
-  const seat = await import('../../src/daemon/sessionSeat.ts')
+  const seat = await import('../../src/daemon/session-seat/sessionSeat.ts')
   const roster = { has: () => ({ present: false, alive: false }), door: () => undefined } as never
   const junk = await seat.setSessionEffort('00000000-0000-0000-0000-000000000000', 'turbo', roster, join(scratch, 'daemon'))
   check('junk effort refuses at the door', junk.outcome === 'refused' && /the levels are/.test(junk.detail ?? ''), JSON.stringify(junk))

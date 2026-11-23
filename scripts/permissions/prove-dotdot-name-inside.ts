@@ -9,9 +9,9 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(PROJ)
 
-const fsMod = await import('../../src/utils/permissions/filesystem.ts')
-const { getPlatform } = await import('../../src/utils/platform.ts')
-type Ctx = import('../../src/Tool.ts').ToolPermissionContext
+const fsMod = await import('../../src/permissions/rules/filesystem.ts')
+const { getPlatform } = await import('../../src/platform/environment/platform.ts')
+type Ctx = import('../../src/tools/kit/tool.ts').ToolPermissionContext
 type Platform = ReturnType<typeof getPlatform>
 
 let failures = 0
@@ -20,9 +20,9 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const DOTDOT_ESCAPE_HINT = ' · fix relativePathEscapes in src/utils/permissions/filesystem.ts: only .. itself or .. followed by a separator escapes, a name that merely starts with .. stays inside'
-const DOTDOT_INSIDE_HINT = ' · fix pathInWorkingPath in src/utils/permissions/filesystem.ts: a ..-led name is inside the working directory, .. and ../x are outside'
-const DOTDOT_RULE_HINT = ' · fix matchingRuleForInput or pathMatchesRulePattern in src/utils/permissions/filesystem.ts so a rule reaches a ..-led name inside the working directory and never a path outside it'
+const DOTDOT_ESCAPE_HINT = ' · fix relativePathEscapes in src/permissions/rules/filesystem.ts: only .. itself or .. followed by a separator escapes, a name that merely starts with .. stays inside'
+const DOTDOT_INSIDE_HINT = ' · fix pathInWorkingPath in src/permissions/rules/filesystem.ts: a ..-led name is inside the working directory, .. and ../x are outside'
+const DOTDOT_RULE_HINT = ' · fix matchingRuleForInput or pathMatchesRulePattern in src/permissions/rules/filesystem.ts so a rule reaches a ..-led name inside the working directory and never a path outside it'
 
 const escapes = (fsMod as { relativePathEscapes?: (relative: string, platform?: Platform) => boolean }).relativePathEscapes
 const cache = (getPlatform as unknown as { cache: Map<unknown, unknown> }).cache
@@ -46,7 +46,7 @@ const ctx = (behavior: 'allow' | 'deny', rules: string[]): Ctx =>
 
 section('§1 the one traversal test: `..` itself or `..` followed by a separator')
 {
-  check('the helper exists on filesystem.ts', typeof escapes === 'function', 'export relativePathEscapes from src/utils/permissions/filesystem.ts')
+  check('the helper exists on filesystem.ts', typeof escapes === 'function', 'export relativePathEscapes from src/permissions/rules/filesystem.ts')
   const rows: Array<[string, Platform, boolean]> = [
     ['..', 'linux', true],
     ['../x', 'linux', true],
@@ -108,9 +108,9 @@ section('§3 rule matching: an allow rule and a deny rule both reach a ..-led na
 section('§4 pattern normalisation keeps a ..-led child root')
 {
   const kept = fsMod.normalizePatternsToPath(new Map([[join(PROJ, '..foo'), ['*.txt']]]), PROJ)
-  check('a child root named ..foo is rewritten under the reference root', kept.includes('/..foo/*.txt'), JSON.stringify(kept) + ' · fix normalizePatternsToPath in src/utils/permissions/filesystem.ts to keep a child root whose name starts with ..')
+  check('a child root named ..foo is rewritten under the reference root', kept.includes('/..foo/*.txt'), JSON.stringify(kept) + ' · fix normalizePatternsToPath in src/permissions/rules/filesystem.ts to keep a child root whose name starts with ..')
   const dropped = fsMod.normalizePatternsToPath(new Map([[join(PROJ, '..', 'elsewhere'), ['*.txt']]]), PROJ)
-  check('a root outside the reference root is still skipped', dropped.length === 0, JSON.stringify(dropped) + ' · fix normalizePatternsToPath in src/utils/permissions/filesystem.ts to skip a root outside the reference root')
+  check('a root outside the reference root is still skipped', dropped.length === 0, JSON.stringify(dropped) + ' · fix normalizePatternsToPath in src/permissions/rules/filesystem.ts to skip a root outside the reference root')
 }
 
 process.chdir(launchDir)

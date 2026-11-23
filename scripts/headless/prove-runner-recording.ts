@@ -11,9 +11,9 @@ import { handoffTurn, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 import { endProcessGroup, spawnInOwnGroup } from '../lib/processGroup.ts'
 import type { HostedRunner } from '../lib/runnerHost.ts'
-import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
-import { RPC_INVALID_PARAMS, RPC_REFUSED } from '../../src/runner/wire/errors.ts'
-import { RUNNER_NOTIFICATION_METHODS, RUNNER_REQUEST_METHODS } from '../../src/cli/headless/runnerMethods.ts'
+import { FLAG_REGISTRY } from '../../src/platform/substrate/flagRegistry.ts'
+import { RPC_INVALID_PARAMS, RPC_REFUSED } from '../../src/daemon/runner-wire/errors.ts'
+import { RUNNER_NOTIFICATION_METHODS, RUNNER_REQUEST_METHODS } from '../../src/daemon/runner/runnerMethods.ts'
 
 type Want = 'answer' | 'refused' | 'invalid' | 'failed'
 type Answer = { result: unknown } | { error: { code?: number; message: string; data?: unknown } }
@@ -27,7 +27,7 @@ const argOf = (flag: string): string | undefined => {
 }
 
 let failures = 0
-const RECORDING_FAIL_HINT = 'to fix, change the arm named in the detail (the arms are bound in bindRunnerMethods in src/cli/headless/runnerMethods.ts, project/query is served by src/cli/headless/projectQuery.ts) so its answer class matches the want; if the new answer is intended, regenerate the stored recording with --out and rebuild the bundle with bun run build.ts first, since this proof runs the built bundle'
+const RECORDING_FAIL_HINT = 'to fix, change the arm named in the detail (the arms are bound in bindRunnerMethods in src/daemon/runner/runnerMethods.ts, project/query is served by src/daemon/runner/projectQuery.ts) so its answer class matches the want; if the new answer is intended, regenerate the stored recording with --out and rebuild the bundle with bun run build.ts first, since this proof runs the built bundle'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${RECORDING_FAIL_HINT}` : ''}`)

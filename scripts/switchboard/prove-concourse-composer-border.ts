@@ -1,28 +1,28 @@
 #!/usr/bin/env bun
 import * as React from 'react'
-import type { ThemeName } from '../../src/utils/theme.ts'
+import type { ThemeName } from '../../src/screen/theme/theme.ts'
 import { pinScratchHome, releaseScratchHome, mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
 
 const HOME = pinScratchHome('concourse-composer-border')
 process.env.MERCURY_WARM_INK = '1'
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { ConcourseComposer } = await import('../../src/components/concourse/ConcourseStrips.tsx')
-const { composerFrame } = await import('../../src/components/PromptInput/composerFrame.tsx')
-const { composerBorderRole } = await import('../../src/components/mercury-ui/composerFloor.ts')
-const { setSessionCritter } = await import('../../src/components/mercury-ui/sessionAccent.ts')
-const { getTheme } = await import('../../src/utils/theme.ts')
-const { resolveMercuryTokens } = await import('../../src/utils/mercuryTokens.ts')
-const { Text } = await import('../../src/ink.ts')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { ConcourseComposer } = await import('../../src/screen/concourse/ConcourseStrips.tsx')
+const { composerFrame } = await import('../../src/screen/composer/composerFrame.tsx')
+const { composerBorderRole } = await import('../../src/screen/widgets/composerFloor.ts')
+const { setSessionCritter } = await import('../../src/screen/widgets/sessionAccent.ts')
+const { getTheme } = await import('../../src/screen/theme/theme.ts')
+const { resolveMercuryTokens } = await import('../../src/screen/theme/mercuryTokens.ts')
+const { Text } = await import('../../src/screen/themedRenderer.ts')
 
 let failures = 0
 let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  const borderHint = ok ? '' : ' — change the border colour in ConcourseComposer in src/components/concourse/ConcourseStrips.tsx (it takes the theme role from composerBorderRole in src/components/mercury-ui/composerFloor.ts; the 16-colour case also reads src/ink/colorize.ts)'
+  const borderHint = ok ? '' : ' — change the border colour in ConcourseComposer in src/screen/concourse/ConcourseStrips.tsx (it takes the theme role from composerBorderRole in src/screen/widgets/composerFloor.ts; the 16-colour case also reads src/screen/renderer/colorize.ts)'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${borderHint}`)
 }
 
@@ -149,13 +149,13 @@ try {
         delete process.env.MERCURY_TRUECOLOR
         globalThis.MACRO = { VERSION: '1.0.0' }
         const React = await import('react')
-        const { enableConfigs } = await import(${JSON.stringify(join(repo, 'src/utils/config/globalConfig.ts'))})
+        const { enableConfigs } = await import(${JSON.stringify(join(repo, 'src/platform/config/globalConfig.ts'))})
         enableConfigs()
-        const { ThemeProvider } = await import(${JSON.stringify(join(repo, 'src/components/design-system/ThemeProvider.tsx'))})
-        const { ConcourseComposer } = await import(${JSON.stringify(join(repo, 'src/components/concourse/ConcourseStrips.tsx'))})
-        const { setSessionCritter } = await import(${JSON.stringify(join(repo, 'src/components/mercury-ui/sessionAccent.ts'))})
-        const { resolveMercuryTokens } = await import(${JSON.stringify(join(repo, 'src/utils/mercuryTokens.ts'))})
-        const { paletteCollapsed, colorize } = await import(${JSON.stringify(join(repo, 'src/ink/colorize.ts'))})
+        const { ThemeProvider } = await import(${JSON.stringify(join(repo, 'src/screen/theme/ThemeProvider.tsx'))})
+        const { ConcourseComposer } = await import(${JSON.stringify(join(repo, 'src/screen/concourse/ConcourseStrips.tsx'))})
+        const { setSessionCritter } = await import(${JSON.stringify(join(repo, 'src/screen/widgets/sessionAccent.ts'))})
+        const { resolveMercuryTokens } = await import(${JSON.stringify(join(repo, 'src/screen/theme/mercuryTokens.ts'))})
+        const { paletteCollapsed, colorize } = await import(${JSON.stringify(join(repo, 'src/screen/renderer/colorize.ts'))})
         const { mountOffscreen, waitFor } = await import(${JSON.stringify(join(repo, 'scripts/lib/settingsPopupHarness.ts'))})
         setSessionCritter('crab')
         const el = React.createElement(

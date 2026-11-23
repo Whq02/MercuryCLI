@@ -7,7 +7,7 @@ import { pinSourceRef } from '../lib/settingsPopupHarness.ts'
 
 pinSourceRef()
 const root = join(import.meta.dir, '../..')
-const SURFACES = ['src/services/host', 'src/services/llmHost/index.ts', 'src/commands/llmhost', 'src/commands/host/index.ts', 'src/services/providers/openaicompat/compatRefusals.ts', 'src/services/providers/openaicompat/compatToolSchemas.ts', 'src/components/LlmHostDialog.tsx']
+const SURFACES = ['src/models/hosting', 'src/models/llm-host/index.ts', 'src/commands/llmhost', 'src/commands/host/index.ts', 'src/models/roads/openaicompat/compatRefusals.ts', 'src/models/roads/openaicompat/compatToolSchemas.ts', 'src/commands/llmhost/LlmHostDialog.tsx']
 const HOUSE_WORDS = /\b(doors?|roads?|seats?|folds?|lanes?|ladders?|owners?|laws?|pins?|provers?)\b/i
 const SCREENS = ['Machines I’m paying for', 'Bank', 'Rent a GPU', 'the model', 'A server that’s already running', 'A box I can reach by SSH', 'One of my computers']
 const RETIRED_SCREENS = [/→ Fast-load\b/, /\b(open|refresh|reopen)(ing)? Fast-load\b/i, /\bFast-load (closed|shows|does not|screen)\b/]
@@ -120,7 +120,7 @@ const describe = (rows: { file: string; line: number; text?: string; kind?: stri
 
 const files = sourceFiles()
 const { sentences, notices } = census(files)
-check('the census reads every surface and finds the sentences and the failure notices', files.length >= 30 && sentences.length >= 400 && notices.filter(row => FAILURE_KINDS.has(row.kind)).length >= 12, files.length + ' files · ' + sentences.length + ' sentences · ' + notices.length + ' notice sites · the census walks the SURFACES paths (src/services/host, src/commands/llmhost and the others listed at the top of this file) and reads hostNotice calls from src/services/host/notices.ts; a path that moved or a renamed hostNotice makes it find too little')
+check('the census reads every surface and finds the sentences and the failure notices', files.length >= 30 && sentences.length >= 400 && notices.filter(row => FAILURE_KINDS.has(row.kind)).length >= 12, files.length + ' files · ' + sentences.length + ' sentences · ' + notices.length + ' notice sites · the census walks the SURFACES paths (src/models/hosting, src/commands/llmhost and the others listed at the top of this file) and reads hostNotice calls from src/models/hosting/notices.ts; a path that moved or a renamed hostNotice makes it find too little')
 const house = houseWordBreaks(sentences)
 check('§1 no sentence on the host surfaces carries a house word', house.length === 0, describe(house) + '\nreword each sentence listed above at its file and line so it avoids the house words in HOUSE_WORDS (door, road, seat, fold, lane, ladder, owner, law, pin, prover)')
 const dead = deadScreenBreaks(sentences)

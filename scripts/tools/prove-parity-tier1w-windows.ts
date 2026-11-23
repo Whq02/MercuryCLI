@@ -7,9 +7,9 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 
-const { getPlatform } = await import('../../src/utils/platform.ts')
+const { getPlatform } = await import('../../src/platform/environment/platform.ts')
 getPlatform.cache.set(undefined, 'windows')
-const { checkReadPermissionForTool } = await import('../../src/utils/permissions/filesystem.ts')
+const { checkReadPermissionForTool } = await import('../../src/permissions/rules/filesystem.ts')
 const fakeTool = (path: string) => ({ name: 'ParityProbe', getPath: () => path })
 const ctx = {
   mode: 'default',
@@ -18,7 +18,7 @@ const ctx = {
   alwaysDenyRules: {},
 } as never
 
-hintFor = 'checkReadPermissionForTool in src/utils/permissions/filesystem.ts must ask for UNC and extended-length Windows paths with the reason that matches each shape'
+hintFor = 'checkReadPermissionForTool in src/permissions/rules/filesystem.ts must ask for UNC and extended-length Windows paths with the reason that matches each shape'
 const uncDecision = checkReadPermissionForTool(fakeTool('\\\\server\\share\\x') as never, {}, ctx) as {
   behavior?: string
   message?: string
@@ -51,8 +51,8 @@ t(
 )
 getPlatform.cache.delete(undefined)
 
-const { isDangerousRemovalPath } = await import('../../src/utils/permissions/pathValidation.ts')
-hintFor = 'isDangerousRemovalPath in src/utils/permissions/pathValidation.ts must keep treating drive roots and their direct children as dangerous, extended-length spelling included'
+const { isDangerousRemovalPath } = await import('../../src/permissions/rules/pathValidation.ts')
+hintFor = 'isDangerousRemovalPath in src/permissions/rules/pathValidation.ts must keep treating drive roots and their direct children as dangerous, extended-length spelling included'
 t('\\\\?\\C:\\ is still a drive root', isDangerousRemovalPath('\\\\?\\C:\\') === true)
 t(
   '\\\\?\\C:\\Windows is still a drive-root direct child',
@@ -61,22 +61,22 @@ t(
 t('plain C:\\ stays protected', isDangerousRemovalPath('C:\\') === true)
 t('an ordinary nested path stays unflagged', isDangerousRemovalPath('/home/u/project/tmp') === false)
 
-const { processAtMentionedFiles } = await import('../../src/services/attachments/mentionResolvers.ts')
+const { processAtMentionedFiles } = await import('../../src/engine/attachments/mentionResolvers.ts')
 const mentionContext = {
   getAppState: () => ({ toolPermissionContext: ctx }),
   options: {},
   abortController: new AbortController(),
 } as never
-hintFor = 'processAtMentionedFiles in src/services/attachments/mentionResolvers.ts must skip UNC-shaped mentions before any filesystem call and still resolve plain absolute paths'
+hintFor = 'processAtMentionedFiles in src/engine/attachments/mentionResolvers.ts must skip UNC-shaped mentions before any filesystem call and still resolve plain absolute paths'
 const uncAttachments = await processAtMentionedFiles('look at @//tmp please', mentionContext)
 t('a UNC-shaped mention produces no attachment (zero fs calls)', uncAttachments.length === 0)
 const plainAttachments = await processAtMentionedFiles('look at @/tmp please', mentionContext)
 t('a plain absolute mention still resolves', plainAttachments.length > 0)
 
-const { createPowerShellProvider } = await import('../../src/utils/shell/powershellProvider.ts')
+const { createPowerShellProvider } = await import('../../src/platform/shell/powershellProvider.ts')
 const provider = createPowerShellProvider('/usr/local/bin/pwsh')
 
-hintFor = 'buildExecCommand and getEnvironmentOverrides in createPowerShellProvider in src/utils/shell/powershellProvider.ts own the plain-text rendering pin, its 5.1 guard, the exit trailer and the win32-only Python override'
+hintFor = 'buildExecCommand and getEnvironmentOverrides in createPowerShellProvider in src/platform/shell/powershellProvider.ts own the plain-text rendering pin, its 5.1 guard, the exit trailer and the win32-only Python override'
 const plain = await provider.buildExecCommand('Write-Output hi', { id: 7 })
 const prelude = "$PSStyle.OutputRendering = 'PlainText'"
 const preludeAt = plain.commandString.indexOf(prelude)

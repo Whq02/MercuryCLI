@@ -26,16 +26,16 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req: Requ
   return new Response('not found', { status: 404 })
 } })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=http://127.0.0.1:${server.port}`
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const discovery = await import('../../src/services/providers/local/localDiscovery.ts')
-const { getLocalModelOptions, localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { localLiveCatalogue } = await import('../../src/services/providers/local/localAdapter.ts')
-const { resolveModelPricing, getModelPricingString } = await import('../../src/services/usage/modelCost.ts')
-const { activeSourceUsage } = await import('../../src/services/providers/providerUsage.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+const discovery = await import('../../src/models/roads/local/localDiscovery.ts')
+const { getLocalModelOptions, localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { localLiveCatalogue } = await import('../../src/models/roads/local/localAdapter.ts')
+const { resolveModelPricing, getModelPricingString } = await import('../../src/models/usage/modelCost.ts')
+const { activeSourceUsage } = await import('../../src/models/roads/providerUsage.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 let failures = 0
 function check(label: string, actual: unknown, expected: unknown): void {
   try { assert.deepEqual(actual, expected); console.log(`PASS ${label}`) }

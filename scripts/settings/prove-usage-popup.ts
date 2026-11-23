@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
 import stringWidth from 'string-width'
-import type { DOMElement, DOMNode } from '../../src/ink/dom.js'
+import type { DOMElement, DOMNode } from '../../src/screen/renderer/dom.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const name of Object.keys(process.env)) {
@@ -16,7 +16,7 @@ const localeString = Date.prototype.toLocaleString
 Date.prototype.toLocaleString = function (_locales, options) { return localeString.call(this, 'en-US', { ...options, timeZone: 'UTC' }) }
 const { pinSourceRef } = await import('../lib/settingsPopupHarness.ts')
 pinSourceRef()
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 async function stub(path: string, fixture: () => Record<string, unknown>): Promise<void> {
   const actual = await import(path)
@@ -53,7 +53,7 @@ const geminiFigures = () => [
   ...geminiRoster.map((id, i) => ({ key: `plan-quota:${id}`, label: `${id} quota left`, value: `${99 - i}%`, observedAtMs: 0, resetsAtMs: Date.parse('2026-10-15T00:00:00Z'), source: 'endpoint', freshForMs: 300_000 })),
 ]
 const owner = (id: string) => (id === 'gemini' && rich ? { provider: id, sourceKind: 'oauth', windows: [], figures: geminiFigures(), absence: 'Google states no spend or credit figure for a Google sign-in' } : { provider: id, sourceKind: 'none', windows: [], figures: [], absence: undefined })
-await stub('../../src/services/providers/providerUsage.js', () => ({
+await stub('../../src/models/roads/providerUsage.js', () => ({
   providerFamilyPresences: families,
   providerSessionSpend: () => spend,
   providerUsageView: (id: string) => ({ entries: entries().filter(entry => entry.provider === id), activeEntry: entries().find(entry => entry.provider === id), sessionSpend: spend, limits: { kind: 'none' } }),
@@ -67,32 +67,32 @@ await stub('../../src/services/providers/providerUsage.js', () => ({
   anthropicPoolWindowViews: () => subscriber ? pools : [],
   openaiObservedWindowViews: () => [],
 }))
-await stub('../../src/utils/auth.js', () => ({ isClaudeAISubscriber: () => subscriber }))
-await stub('../../src/services/providers/gemini/geminiPlanQuota.js', () => ({ geminiLaneModelsByLastUse: () => (rich ? ['gemini-3.8-flash', 'google/claude-opus-4-6-thinking'] : []) }))
-await stub('../../src/hooks/useDisplayedSessionModel.js', () => ({ useFocusedServedModel: () => (rich ? 'gemini-4-argon' : null), useFocusedServedEffort: () => (rich ? 'high' : null) }))
-await stub('../../src/services/engine-connector/focusedConnector.js', () => ({ focusedSessionModelFacts: () => (rich ? { effective: 'gemini-4-argon', main: 'gemini-4-argon', setting: 'gemini-4-argon', sessionPin: null, effort: 'high', effectiveSource: 'session' } : null) }))
-await stub('../../src/services/model/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))
-await stub('../../src/services/wallet/wallet.js', () => ({ walletEntries: entries, activeWalletEntry: (id: string) => entries().find(entry => entry.provider === id) }))
-await stub('../../src/services/providers/usageFreshness.js', () => ({ usageSourceWords: () => 'endpoint-fed · read 0 s ago' }))
-await stub('../../src/services/providers/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
-await stub('../../src/services/providers/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
-await stub('../../src/hooks/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
-await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
-await stub('../../src/services/providers/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
-await stub('../../src/services/providers/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
-await stub('../../src/services/providers/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined }))
-await stub('../../src/services/providers/local/localAccounts.js', () => ({ resolveLocalAccount: () => undefined }))
-await stub('../../src/services/providers/local/localCatalogue.js', () => ({ LOCAL_SERVER_NAMES: {} }))
-await stub('../../src/cost-tracker.js', () => ({ formatLaneSpend: () => '$0.00' }))
-await stub('../../src/components/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
-await stub('../../src/components/Settings/Settings.js', () => ({ nextSettingsOpen: (() => { let n = 0; return () => ++n })() }))
+await stub('../../src/models/sign-in/credentials/auth.js', () => ({ isClaudeAISubscriber: () => subscriber }))
+await stub('../../src/models/roads/gemini/geminiPlanQuota.js', () => ({ geminiLaneModelsByLastUse: () => (rich ? ['gemini-3.8-flash', 'google/claude-opus-4-6-thinking'] : []) }))
+await stub('../../src/screen/model-picker/useDisplayedSessionModel.js', () => ({ useFocusedServedModel: () => (rich ? 'gemini-4-argon' : null), useFocusedServedEffort: () => (rich ? 'high' : null) }))
+await stub('../../src/engine/connector/focusedConnector.js', () => ({ focusedSessionModelFacts: () => (rich ? { effective: 'gemini-4-argon', main: 'gemini-4-argon', setting: 'gemini-4-argon', sessionPin: null, effort: 'high', effectiveSource: 'session' } : null) }))
+await stub('../../src/models/catalogue/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))
+await stub('../../src/models/wallet/wallet.js', () => ({ walletEntries: entries, activeWalletEntry: (id: string) => entries().find(entry => entry.provider === id) }))
+await stub('../../src/models/roads/usageFreshness.js', () => ({ usageSourceWords: () => 'endpoint-fed · read 0 s ago' }))
+await stub('../../src/models/roads/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
+await stub('../../src/models/roads/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
+await stub('../../src/screen/model-picker/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
+await stub('../../src/screen/keys/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
+await stub('../../src/models/roads/moonshot/moonshotAccounts.js', () => ({ resolveMoonshotAccount: () => undefined, resolveMoonshotApiKey: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceAccounts.js', () => ({ resolveHuggingfaceAccount: () => undefined }))
+await stub('../../src/models/roads/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'not connected' }) }))
+await stub('../../src/models/roads/local/localDiscovery.js', () => ({ getCachedLocalDiscovery: () => undefined }))
+await stub('../../src/models/roads/local/localAccounts.js', () => ({ resolveLocalAccount: () => undefined }))
+await stub('../../src/models/roads/local/localCatalogue.js', () => ({ LOCAL_SERVER_NAMES: {} }))
+await stub('../../src/models/usage/sessionCost.js', () => ({ formatLaneSpend: () => '$0.00' }))
+await stub('../../src/screen/keys/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
+await stub('../../src/screen/settings/Settings.js', () => ({ nextSettingsOpen: (() => { let n = 0; return () => ++n })() }))
 
-const { JEV_USAGE_LABEL, Usage, usageBodyRows, usageColumns, usageCompactLines, usageSectionPlan, usageWindow, orderUsageSections } = await import('../../src/components/Settings/Usage.js')
-const { PopupCompactContext } = await import('../../src/context/popupFormContext.js')
-const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent, elementScreenTop, elementScreenLeft, wrapText } = await import('../../src/ink.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { default: squashText } = await import('../../src/ink/squash-text-nodes.js')
+const { JEV_USAGE_LABEL, Usage, usageBodyRows, usageColumns, usageCompactLines, usageSectionPlan, usageWindow, orderUsageSections } = await import('../../src/screen/settings/Usage.js')
+const { PopupCompactContext } = await import('../../src/screen/overlays/popupFormContext.js')
+const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent, elementScreenTop, elementScreenLeft, wrapText } = await import('../../src/screen/themedRenderer.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { default: squashText } = await import('../../src/screen/renderer/squash-text-nodes.js')
 let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
@@ -156,15 +156,15 @@ async function mount(width: number, rowBudget: number, columns: number, openToke
   }
 }
 
-check('146 gives three 46-cell columns, four-cell gaps and 42-cell bars', JSON.stringify(usageColumns(146, 10)) === JSON.stringify({ perRow: 3, colW: 46, meterW: 42, gap: 4 }), `${JSON.stringify(usageColumns(146, 10))} — change usageColumns in src/components/Settings/usage/compact.tsx`)
-check('116 keeps the stacked layout', usageColumns(116, 10).perRow === 1, `perRow ${usageColumns(116, 10).perRow} — change usageColumns in src/components/Settings/usage/compact.tsx`)
+check('146 gives three 46-cell columns, four-cell gaps and 42-cell bars', JSON.stringify(usageColumns(146, 10)) === JSON.stringify({ perRow: 3, colW: 46, meterW: 42, gap: 4 }), `${JSON.stringify(usageColumns(146, 10))} — change usageColumns in src/screen/settings/usage/compact.tsx`)
+check('116 keeps the stacked layout', usageColumns(116, 10).perRow === 1, `perRow ${usageColumns(116, 10).perRow} — change usageColumns in src/screen/settings/usage/compact.tsx`)
 let token = 100
 const frameDir = arg('--frames')
 const record = arg('--record-words')
 const sameWhen = (runs: string[]): string[] => runs.map(run => run.replace(/resets .+$/, 'resets <when>'))
 const baseline = Object.fromEntries(Object.entries(JSON.parse(readFileSync(arg('--compare-words') ?? join(import.meta.dir, 'usage-popup-words.json'), 'utf8')) as Record<string, string[]>).map(([k, v]) => [k, sameWhen(v)]))
 const wordRecords: Record<string, string[]> = {}
-const usageWalkHint = 'fix the band layout and scroll step in src/components/Settings/Usage.tsx, usageWindow and usageBodyRows in src/components/Settings/usage/compact.tsx'
+const usageWalkHint = 'fix the band layout and scroll step in src/screen/settings/Usage.tsx, usageWindow and usageBodyRows in src/screen/settings/usage/compact.tsx'
 async function walk(board: Awaited<ReturnType<typeof mount>>, width: number, budget: number, label: string, save?: string): Promise<void> {
   const history: string[] = []
   const covered = board.sizes().map(() => new Set<number>())
@@ -225,7 +225,7 @@ async function walk(board: Awaited<ReturnType<typeof mount>>, width: number, bud
   }
   consumed &&= await board.key('up')
   check(`${label}: every up-step exactly reverses the down-step, including names`, reversed && board.frame() === history[0], usageWalkHint)
-  check(`${label}: only scroll arrows are consumed`, consumed && !(await board.key('escape')) && !(await board.key('x')), 'the usage body must stop only the up and down keys and let every other key pass: see the key handler in src/components/Settings/Usage.tsx')
+  check(`${label}: only scroll arrows are consumed`, consumed && !(await board.key('escape')) && !(await board.key('x')), 'the usage body must stop only the up and down keys and let every other key pass: see the key handler in src/screen/settings/Usage.tsx')
 }
 for (const fixture of ['absent', 'signed-in']) {
   rich = fixture === 'signed-in'
@@ -234,12 +234,12 @@ for (const fixture of ['absent', 'signed-in']) {
   const geminiBefore = counts.get('gemini:open') ?? 0
   const board = await mount(146, 22, 178, token++)
   wordRecords[fixture] = sameWhen(board.runs().sort())
-  check(`${fixture}: every provider mounts without an error`, board.sizes().length === 10 && !board.frame().includes('RENDER ERROR'), `${board.sizes().length} sections · the section list comes from usageSectionPlan in src/components/Settings/usage/plan.ts and a render error comes from a section in src/components/Settings/Usage.tsx`)
-  check(`${fixture}: the Google sign-in slot asks the owner's door once on mount with the open reason${rich ? '' : ' — not at all without a plan'}`, (counts.get('gemini:open') ?? 0) - geminiBefore === (rich ? 1 : 0), `${(counts.get('gemini:open') ?? 0) - geminiBefore} open reads — the Google slot must call refreshProviderUsage with reason open once on mount, see src/components/Settings/usage/lines.tsx`)
-  check(`${fixture}: the section text runs equal the original tab byte for byte`, JSON.stringify(wordRecords[fixture]) === JSON.stringify(baseline[fixture]), 'the words of the popup changed: run this script with --record-words <file> to see them, then restore the wording in src/components/Settings/usage/ or update usage-popup-words.json next to this script if the change is wanted')
+  check(`${fixture}: every provider mounts without an error`, board.sizes().length === 10 && !board.frame().includes('RENDER ERROR'), `${board.sizes().length} sections · the section list comes from usageSectionPlan in src/screen/settings/usage/plan.ts and a render error comes from a section in src/screen/settings/Usage.tsx`)
+  check(`${fixture}: the Google sign-in slot asks the owner's door once on mount with the open reason${rich ? '' : ' — not at all without a plan'}`, (counts.get('gemini:open') ?? 0) - geminiBefore === (rich ? 1 : 0), `${(counts.get('gemini:open') ?? 0) - geminiBefore} open reads — the Google slot must call refreshProviderUsage with reason open once on mount, see src/screen/settings/usage/lines.tsx`)
+  check(`${fixture}: the section text runs equal the original tab byte for byte`, JSON.stringify(wordRecords[fixture]) === JSON.stringify(baseline[fixture]), 'the words of the popup changed: run this script with --record-words <file> to see them, then restore the wording in src/screen/settings/usage/ or update usage-popup-words.json next to this script if the change is wanted')
   const headings = board.frame().split('\n')[0] ?? ''
   const order = rich ? ['Gemini usage', 'Anthropic usage', 'OpenAI usage'] : ['Anthropic usage', 'OpenAI usage', 'Gemini usage']
-  check(`${fixture}: columns start at exactly 0, 50 and 100 (${rich ? "the seated model's family leads" : 'catalogue order'}: ${order.join(' · ')})`, order.every((title, index) => headings.indexOf(title) === index * 50), `${headings} — column order comes from orderUsageSections in src/components/Settings/usage/plan.ts and the column width from usageColumns in usage/compact.tsx`)
+  check(`${fixture}: columns start at exactly 0, 50 and 100 (${rich ? "the seated model's family leads" : 'catalogue order'}: ${order.join(' · ')})`, order.every((title, index) => headings.indexOf(title) === index * 50), `${headings} — column order comes from orderUsageSections in src/screen/settings/usage/plan.ts and the column width from usageColumns in usage/compact.tsx`)
   if (rich) {
     const bars = board.meters()
     const anthropicX = board.sizes().find(section => section.title === 'Anthropic usage')?.x ?? 0
@@ -254,28 +254,28 @@ for (const fixture of ['absent', 'signed-in']) {
     }
     const top = paintedAt(anthropicX)
     const geminiTop = paintedAt(geminiX)
-    check('the seven meters (4 Anthropic + 3 Gemini) are 42 cells, Anthropic paints three on the top frame and Gemini paints its meters in its column', bars.length === 7 && bars.every(bar => stringWidth(bar) === 42) && top.length === 3 && geminiTop.length >= 2, `${bars.length} bars · anthropic=${top.length} · gemini=${geminiTop.length} — the meter width and which meters scroll into view are set in src/components/Settings/Usage.tsx and usage/compact.tsx`)
+    check('the seven meters (4 Anthropic + 3 Gemini) are 42 cells, Anthropic paints three on the top frame and Gemini paints its meters in its column', bars.length === 7 && bars.every(bar => stringWidth(bar) === 42) && top.length === 3 && geminiTop.length >= 2, `${bars.length} bars · anthropic=${top.length} · gemini=${geminiTop.length} — the meter width and which meters scroll into view are set in src/screen/settings/Usage.tsx and usage/compact.tsx`)
     await board.key('down')
     await board.key('down')
     const stepped = paintedAt(anthropicX)
-    check('two down-steps paint the fourth Anthropic meter, the second weekly pool, at 42 cells too (the identity line under the title costs the second step)', stepped.length === 4, `${stepped.length} painted — a down-step moves by band or content rows in usageWindow, src/components/Settings/usage/compact.tsx`)
+    check('two down-steps paint the fourth Anthropic meter, the second weekly pool, at 42 cells too (the identity line under the title costs the second step)', stepped.length === 4, `${stepped.length} painted — a down-step moves by band or content rows in usageWindow, src/screen/settings/usage/compact.tsx`)
     await board.key('up')
     await board.key('up')
     const back = paintedAt(anthropicX)
-    check('two up-steps return to the top frame', back.length === 3 && back.every(bar => top.includes(bar)), `${back.length} painted — an up-step must undo a down-step in usageWindow, src/components/Settings/usage/compact.tsx`)
+    check('two up-steps return to the top frame', back.length === 3 && back.every(bar => top.includes(bar)), `${back.length} painted — an up-step must undo a down-step in usageWindow, src/screen/settings/usage/compact.tsx`)
   } else {
-    check('six providers at the top leave the exact four names from the design', board.frame().includes('↓ 4 more · Z.AI · OpenRouter · Custom endpoint · Local models'), `${board.frame().split('\n').at(-1)} — the more row is built in src/components/Settings/Usage.tsx`)
+    check('six providers at the top leave the exact four names from the design', board.frame().includes('↓ 4 more · Z.AI · OpenRouter · Custom endpoint · Local models'), `${board.frame().split('\n').at(-1)} — the more row is built in src/screen/settings/Usage.tsx`)
   }
   console.log(`${fixture} section sizes: ${JSON.stringify(board.sizes())}`)
   await walk(board, 146, 22, `${fixture} 178×51`, `${fixture}-178x51`)
   await board.resize(116, 22)
-  check(`${fixture}: the clamped layout stacks at x=0`, board.sizes().every(section => section.x === 0 && section.width === 116), `${JSON.stringify(board.sizes().map(section => [section.x, section.width]))} — below 120 columns usageColumns in src/components/Settings/usage/compact.tsx must stack one column`)
+  check(`${fixture}: the clamped layout stacks at x=0`, board.sizes().every(section => section.x === 0 && section.width === 116), `${JSON.stringify(board.sizes().map(section => [section.x, section.width]))} — below 120 columns usageColumns in src/screen/settings/usage/compact.tsx must stack one column`)
   await walk(board, 116, 22, `${fixture} 120×40`, `${fixture}-120x40`)
   await board.resize(146, 9)
   await walk(board, 146, 9, `${fixture} short body`)
   await board.resize(40, 13)
   await walk(board, 40, 13, `${fixture} narrow body`)
-  check(`${fixture}: resize and scrolling never repeat the operator ask`, (counts.get('anthropic:operator') ?? 0) - before === (rich ? 1 : 0), `${(counts.get('anthropic:operator') ?? 0) - before} operator asks — the ask belongs to the mount effect in src/components/Settings/usage/anthropicSection.tsx and must not rerun on resize or scroll`)
+  check(`${fixture}: resize and scrolling never repeat the operator ask`, (counts.get('anthropic:operator') ?? 0) - before === (rich ? 1 : 0), `${(counts.get('anthropic:operator') ?? 0) - before} operator asks — the ask belongs to the mount effect in src/screen/settings/usage/anthropicSection.tsx and must not rerun on resize or scroll`)
   board.close()
 }
 if (record) writeFileSync(record, JSON.stringify(wordRecords, null, 2) + '\n')
@@ -284,11 +284,11 @@ subscriber = true
 let releaseRefresh = (): void => {}
 heldRefresh = new Promise<void>(resolve => { releaseRefresh = resolve })
 const delayed = await mount(146, 22, 178, token++)
-check('a pending read keeps its loading words', delayed.frame().includes('loading usage…'), `${delayed.frame()} — the loading words come from src/components/Settings/usage/anthropicSection.tsx`)
+check('a pending read keeps its loading words', delayed.frame().includes('loading usage…'), `${delayed.frame()} — the loading words come from src/screen/settings/usage/anthropicSection.tsx`)
 releaseRefresh()
 await settle()
 heldRefresh = undefined
-check('an asynchronously taller band updates clipping and the more names without a key', delayed.viewport().clip === usageBodyRows(22, 0).capacity && delayed.frame().includes('↓ 7 more · DeepSeek · Moonshot · Hugging Face · Z.AI · OpenRouter · Custom endpoint · Local models'), `clip ${delayed.viewport().clip} · the body must re-measure its bands when a section grows after the read, see src/components/Settings/Usage.tsx`)
+check('an asynchronously taller band updates clipping and the more names without a key', delayed.viewport().clip === usageBodyRows(22, 0).capacity && delayed.frame().includes('↓ 7 more · DeepSeek · Moonshot · Hugging Face · Z.AI · OpenRouter · Custom endpoint · Local models'), `clip ${delayed.viewport().clip} · the body must re-measure its bands when a section grows after the read, see src/screen/settings/Usage.tsx`)
 await walk(delayed, 146, 22, 'asynchronous band growth')
 delayed.close()
 {
@@ -308,28 +308,28 @@ delayed.close()
   const compactReads = { identity: () => 'fixture identity', usage: owner as never, anthropicWindows: () => windows as never, anthropicPools: () => pools as never, openaiWindows: () => [], jev: () => 'JEV fixture row' }
   const lines: Array<{ text: string; heading: boolean }> = typeof usageCompactLines === 'function' ? usageCompactLines(usageSectionPlan(families() as never), compactReads) : []
   const geminiCompact = lines[lines.findIndex(line => line.text === 'Gemini usage · fixture identity') + 1]?.text ?? ''
-  check('compact lines: every provider is one heading line, the signed-in Anthropic family adds one line per window and pool, the Google sign-in adds its one figures line in the owner\'s order (the tier, the session\'s model, the models used this session, the rest counted), the JEV row closes the list', lines.length === ids.length + 4 + 1 + 1 && lines.filter(line => line.heading).length === ids.length && lines[0]!.text === 'Anthropic usage · fixture identity' && lines[1]!.text.startsWith('  Current session · 52% · resets ') && lines[2]!.text.startsWith('  Current week (all models) · 49% · resets ') && lines[3]!.text.startsWith('  Current week (Fable) · 46%') && lines[4]!.text.startsWith('  Current week (Opus) · 12%') && geminiCompact === "  Google AI Pro tier Google reports · 98% gemini-4-argon-high quota left (the session's model) · 97% gemini-3.8-flash-high quota left (used this session) · 96% google/claude-opus-4-6-thinking quota left (used this session) · 24 other roster models · endpoint-fed · read 0 s ago" && lines.at(-1)!.text === 'JEV fixture row', `${JSON.stringify(lines.map(line => line.text))} — change usageCompactLines in src/components/Settings/usage/compact.tsx`)
+  check('compact lines: every provider is one heading line, the signed-in Anthropic family adds one line per window and pool, the Google sign-in adds its one figures line in the owner\'s order (the tier, the session\'s model, the models used this session, the rest counted), the JEV row closes the list', lines.length === ids.length + 4 + 1 + 1 && lines.filter(line => line.heading).length === ids.length && lines[0]!.text === 'Anthropic usage · fixture identity' && lines[1]!.text.startsWith('  Current session · 52% · resets ') && lines[2]!.text.startsWith('  Current week (all models) · 49% · resets ') && lines[3]!.text.startsWith('  Current week (Fable) · 46%') && lines[4]!.text.startsWith('  Current week (Opus) · 12%') && geminiCompact === "  Google AI Pro tier Google reports · 98% gemini-4-argon-high quota left (the session's model) · 97% gemini-3.8-flash-high quota left (used this session) · 96% google/claude-opus-4-6-thinking quota left (used this session) · 24 other roster models · endpoint-fed · read 0 s ago" && lines.at(-1)!.text === 'JEV fixture row', `${JSON.stringify(lines.map(line => line.text))} — change usageCompactLines in src/screen/settings/usage/compact.tsx`)
   const before = counts.get('anthropic:operator') ?? 0
   const board = await mount(58, 4, 64, token++, true)
   const frameLines = () => board.frame().split('\n')
-  check("compact 58×4: four single-line rows fill the body, the first the Gemini heading (the seated model's family) under the cursor, its figures line under it, then the Anthropic heading and its first window", frameLines().length === 4 && frameLines().every(line => stringWidth(line) <= 58) && frameLines()[0]!.startsWith('› Gemini usage') && frameLines()[1]!.includes('Google AI Pro tier Google reports') && frameLines()[2]!.startsWith('  Anthropic usage') && frameLines()[3]!.includes('Current session · 52%') && !board.frame().includes('▀') && !board.frame().includes('Subscription'), `${board.frame()} — compact rows are painted by UsageCompact in src/components/Settings/usage/compact.tsx`)
+  check("compact 58×4: four single-line rows fill the body, the first the Gemini heading (the seated model's family) under the cursor, its figures line under it, then the Anthropic heading and its first window", frameLines().length === 4 && frameLines().every(line => stringWidth(line) <= 58) && frameLines()[0]!.startsWith('› Gemini usage') && frameLines()[1]!.includes('Google AI Pro tier Google reports') && frameLines()[2]!.startsWith('  Anthropic usage') && frameLines()[3]!.includes('Current session · 52%') && !board.frame().includes('▀') && !board.frame().includes('Subscription'), `${board.frame()} — compact rows are painted by UsageCompact in src/screen/settings/usage/compact.tsx`)
   const painted = lines.length - 1
-  check('compact: the marker reads 1 of the line count — the mounted board, in a home with no evaluator key and no chat, paints every line but the Jev row', marker === `1 of ${painted}`, `${String(marker)} — the marker is set by UsageCompact in src/components/Settings/usage/compact.tsx`)
+  check('compact: the marker reads 1 of the line count — the mounted board, in a home with no evaluator key and no chat, paints every line but the Jev row', marker === `1 of ${painted}`, `${String(marker)} — the marker is set by UsageCompact in src/screen/settings/usage/compact.tsx`)
   let consumed = true
   for (let step = 0; step < painted - 1; step++) consumed &&= await board.key('down')
-  check('compact: down arrows walk every line to the last provider line, the marker following, no Jev row below it, only arrows consumed', consumed && marker === `${painted} of ${painted}` && frameLines().at(-1)!.startsWith('› ') && !frameLines().at(-1)!.includes(`${JEV_USAGE_LABEL} ·`) && !(await board.key('escape')), `${marker} · ${board.frame()} — see the key handling of UsageCompact in src/components/Settings/usage/compact.tsx`)
+  check('compact: down arrows walk every line to the last provider line, the marker following, no Jev row below it, only arrows consumed', consumed && marker === `${painted} of ${painted}` && frameLines().at(-1)!.startsWith('› ') && !frameLines().at(-1)!.includes(`${JEV_USAGE_LABEL} ·`) && !(await board.key('escape')), `${marker} · ${board.frame()} — see the key handling of UsageCompact in src/screen/settings/usage/compact.tsx`)
   consumed &&= await board.key('down')
-  check('compact: the bottom clamps', consumed && marker === `${painted} of ${painted}`, `${String(marker)} — clamp the cursor in UsageCompact, src/components/Settings/usage/compact.tsx`)
+  check('compact: the bottom clamps', consumed && marker === `${painted} of ${painted}`, `${String(marker)} — clamp the cursor in UsageCompact, src/screen/settings/usage/compact.tsx`)
   for (let step = 0; step < painted; step++) consumed &&= await board.key('up')
-  check('compact: up arrows return to the first line', consumed && marker === `1 of ${painted}` && frameLines()[0]!.startsWith('› Gemini usage'), `${String(marker)} · ${frameLines()[0]} — the cursor in UsageCompact, src/components/Settings/usage/compact.tsx`)
-  check('compact: the operator ask ran once for the open', (counts.get('anthropic:operator') ?? 0) - before === 1, `${(counts.get('anthropic:operator') ?? 0) - before} operator asks — UsageCompact must call refreshProviderUsage once with the operator reason on open, src/components/Settings/usage/compact.tsx`)
+  check('compact: up arrows return to the first line', consumed && marker === `1 of ${painted}` && frameLines()[0]!.startsWith('› Gemini usage'), `${String(marker)} · ${frameLines()[0]} — the cursor in UsageCompact, src/screen/settings/usage/compact.tsx`)
+  check('compact: the operator ask ran once for the open', (counts.get('anthropic:operator') ?? 0) - before === 1, `${(counts.get('anthropic:operator') ?? 0) - before} operator asks — UsageCompact must call refreshProviderUsage once with the operator reason on open, src/screen/settings/usage/compact.tsx`)
   if (frameDir) writeFileSync(join(frameDir, 'compact-58x4.txt'), board.frame() + '\n')
   board.close()
-  check('compact: unmounting clears the marker', marker === null, `${String(marker)} — UsageCompact must set the marker to null on unmount, src/components/Settings/usage/compact.tsx`)
+  check('compact: unmounting clears the marker', marker === null, `${String(marker)} — UsageCompact must set the marker to null on unmount, src/screen/settings/usage/compact.tsx`)
   rich = false
   subscriber = false
   const absent = await mount(58, 4, 64, token++, true)
-  check('compact absent estate: every row is a heading with the identity line, no window rows', absent.frame().split('\n').every(line => / usage · /.test(line)), `${absent.frame()} — compact rows of an absent estate come from usageCompactLines in src/components/Settings/usage/compact.tsx`)
+  check('compact absent estate: every row is a heading with the identity line, no window rows', absent.frame().split('\n').every(line => / usage · /.test(line)), `${absent.frame()} — compact rows of an absent estate come from usageCompactLines in src/screen/settings/usage/compact.tsx`)
   absent.close()
 }
 for (const budget of [0, 1, 2, 3, 7, 13, 22]) {
@@ -337,12 +337,12 @@ for (const budget of [0, 1, 2, 3, 7, 13, 22]) {
     rich = false
     subscriber = false
     const board = await mount(width, budget, 178, token++)
-    check(`width ${width}, budget ${budget}: bounds hold`, board.viewport().height <= budget && (budget === 0 ? board.frame().trim() === '' : board.frame().split('\n').length <= budget) && board.frame().split('\n').every(line => stringWidth(line) <= width), `${board.viewport().height} rows high, ${board.frame().split('\n').length} frame lines — Usage in src/components/Settings/Usage.tsx must stay inside its width and rowBudget props`)
+    check(`width ${width}, budget ${budget}: bounds hold`, board.viewport().height <= budget && (budget === 0 ? board.frame().trim() === '' : board.frame().split('\n').length <= budget) && board.frame().split('\n').every(line => stringWidth(line) <= width), `${board.viewport().height} rows high, ${board.frame().split('\n').length} frame lines — Usage in src/screen/settings/Usage.tsx must stay inside its width and rowBudget props`)
     board.close()
   }
 }
 const math = [8, 4, 4, 5].map((height, index) => ({ height, count: index === 3 ? 1 : 3 }))
-check('the six-provider window advances and retreats symmetrically', usageWindow(math, 21, 0).next === 9 && usageWindow(math, 21, 9).next === 14 && usageWindow(math, 21, 14).previous === 9 && usageWindow(math, 21, 14).next === 14, `${JSON.stringify([usageWindow(math, 21, 0), usageWindow(math, 21, 9), usageWindow(math, 21, 14)])} — change usageWindow in src/components/Settings/usage/compact.tsx`)
+check('the six-provider window advances and retreats symmetrically', usageWindow(math, 21, 0).next === 9 && usageWindow(math, 21, 9).next === 14 && usageWindow(math, 21, 14).previous === 9 && usageWindow(math, 21, 14).next === 14, `${JSON.stringify([usageWindow(math, 21, 0), usageWindow(math, 21, 9), usageWindow(math, 21, 14)])} — change usageWindow in src/screen/settings/usage/compact.tsx`)
 {
   const savedRich = rich
   rich = true
@@ -353,23 +353,23 @@ check('the six-provider window advances and retreats symmetrically', usageWindow
   const glmOrder = orderUsageSections(zaiPlan, recency, 'zai')
   check('RED ON THE BASE: a GLM session leads the listing even when Anthropic signed in last', glmOrder[0]!.id === 'zai', glmOrder.map(section => section.id).join(','))
   check('the session lead keeps the recency order behind it', glmOrder.slice(1, credentialed.length).map(section => section.id).join(',') === recency.filter(id => id !== 'zai' && credentialed.includes(id)).join(','), glmOrder.map(section => section.id).join(','))
-  check('the absent families still close the listing', glmOrder.slice(credentialed.length).every(section => !section.family.credentialed), `${glmOrder.map(section => section.id).join(',')} — change orderUsageSections in src/components/Settings/usage/plan.ts`)
+  check('the absent families still close the listing', glmOrder.slice(credentialed.length).every(section => !section.family.credentialed), `${glmOrder.map(section => section.id).join(',')} — change orderUsageSections in src/screen/settings/usage/plan.ts`)
   const plainOrder = orderUsageSections(zaiPlan, recency)
-  check('no session lead falls back to the recency order byte for byte', plainOrder.map(section => section.id).join(',') === orderUsageSections(zaiPlan, recency, undefined).map(section => section.id).join(','), `${plainOrder.map(section => section.id).join(',')} — change orderUsageSections in src/components/Settings/usage/plan.ts`)
+  check('no session lead falls back to the recency order byte for byte', plainOrder.map(section => section.id).join(',') === orderUsageSections(zaiPlan, recency, undefined).map(section => section.id).join(','), `${plainOrder.map(section => section.id).join(',')} — change orderUsageSections in src/screen/settings/usage/plan.ts`)
   const unknownSession = orderUsageSections(zaiPlan, recency, 'moonshot')
-  check('an uncredentialed session family leads nothing (the listing keeps the recency order)', unknownSession.map(section => section.id).join(',') === plainOrder.map(section => section.id).join(','), `${unknownSession.map(section => section.id).join(',')} — change orderUsageSections in src/components/Settings/usage/plan.ts`)
+  check('an uncredentialed session family leads nothing (the listing keeps the recency order)', unknownSession.map(section => section.id).join(',') === plainOrder.map(section => section.id).join(','), `${unknownSession.map(section => section.id).join(',')} — change orderUsageSections in src/screen/settings/usage/plan.ts`)
   rich = savedRich
 }
 const command = (await import('../../src/commands/usage/index.js')).default
 check('/usage is ungated, private, screen-local and unavailable non-interactively', command.type === 'local' && command.seat === 'screen' && command.userPrivate === true && command.supportsNonInteractive === false && !('availability' in command), `${JSON.stringify({ type: command.type, seat: command.seat, userPrivate: command.userPrivate, supportsNonInteractive: command.supportsNonInteractive })} — change the command definition in src/commands/usage/index.ts`)
-const popup = await import('../../src/utils/cockpit/settingsPopup.js')
+const popup = await import('../../src/screen/cockpit/settingsPopup.js')
 const { call } = await import('../../src/commands/usage/usage.js')
 rich = true
 subscriber = true
 const result = await call('', {} as never)
 const request = popup.settingsPopupRequest()
 check('/usage opens only its 150×29 popup and returns skip', result.type === 'skip' && request?.view === 'usage' && typeof request.width === 'function' && request.width(178) === 150 && request.width(98) === 98 && request.rows === 29, `${JSON.stringify({ type: result.type, view: request?.view, rows: request?.rows })} — change call in src/commands/usage/usage.tsx`)
-check('the context leads with the session family and carries its live figures', request?.line === 'Anthropic session on · 3 subscriptions signed in · session 52% · week 49%', `${String(request?.line)} — change usagePopupLine in src/components/Settings/usageLine.ts`)
+check('the context leads with the session family and carries its live figures', request?.line === 'Anthropic session on · 3 subscriptions signed in · session 52% · week 49%', `${String(request?.line)} — change usagePopupLine in src/screen/settings/usageLine.ts`)
 check('the hint is exactly the design\'s words', request?.hint === '↑↓ scroll · esc or click outside closes', `${String(request?.hint)} — change the hint in call in src/commands/usage/usage.tsx`)
 const body = request?.body({ width: 120, inner: 116, rowBudget: 13 }) as React.ReactElement<{ width: number; rowBudget: number; openToken: number }>
 check('the store geometry reaches the body unchanged', body?.props.width === 116 && body?.props.rowBudget === 13, `${body?.props.width} x ${body?.props.rowBudget} — the body in call, src/commands/usage/usage.tsx, must pass geometry.inner and geometry.rowBudget to Usage`)
@@ -379,15 +379,15 @@ check('each open mints a distinct token', reopened.props.openToken !== body.prop
 rich = false
 subscriber = false
 await call('', {} as never)
-check('no credential invents a subscription, a percentage or a session: the lead says the family is not signed in', popup.settingsPopupRequest()?.line === 'Anthropic not signed in · 0 subscriptions signed in', `${String(popup.settingsPopupRequest()?.line)} — change usagePopupLine in src/components/Settings/usageLine.ts`)
+check('no credential invents a subscription, a percentage or a session: the lead says the family is not signed in', popup.settingsPopupRequest()?.line === 'Anthropic not signed in · 0 subscriptions signed in', `${String(popup.settingsPopupRequest()?.line)} — change usagePopupLine in src/screen/settings/usageLine.ts`)
 popup.closeSettingsPopup()
 ids.splice(ids.indexOf('deepseek') + 1, 0, 'xai', 'meta')
 const fullEstate = await mount(146, 22, 178, token++)
-check('the complete estate mounts twelve provider sections including xAI and Meta', fullEstate.sizes().length === 12 && ['xAI usage', 'Meta usage'].every(title => fullEstate.sizes().some(section => section.title === title)), `${fullEstate.sizes().length} sections — usageSectionPlan in src/components/Settings/usage/plan.ts must list every family`)
+check('the complete estate mounts twelve provider sections including xAI and Meta', fullEstate.sizes().length === 12 && ['xAI usage', 'Meta usage'].every(title => fullEstate.sizes().some(section => section.title === title)), `${fullEstate.sizes().length} sections — usageSectionPlan in src/screen/settings/usage/plan.ts must list every family`)
 await walk(fullEstate, 146, 22, 'complete estate 178x51')
 fullEstate.close()
 await call('', {} as never)
-check('the complete estate context keeps the not-signed-in lead and no invented figure', popup.settingsPopupRequest()?.line === 'Anthropic not signed in · 0 subscriptions signed in', `${String(popup.settingsPopupRequest()?.line)} — change usagePopupLine in src/components/Settings/usageLine.ts`)
+check('the complete estate context keeps the not-signed-in lead and no invented figure', popup.settingsPopupRequest()?.line === 'Anthropic not signed in · 0 subscriptions signed in', `${String(popup.settingsPopupRequest()?.line)} — change usagePopupLine in src/screen/settings/usageLine.ts`)
 popup.closeSettingsPopup()
 console.log(`usage popup: ${failures} failure(s)`)
 process.exit(failures ? 1 : 0)

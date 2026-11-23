@@ -21,13 +21,13 @@ function check(label: string, cond: boolean, detail = '', changeHint = ''): void
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && (detail || changeHint) ? ` — ${[detail, changeHint].filter(Boolean).join(' | ')}` : ''}`)
 }
-const ttlWhere = 'change the prompt-cache TTL decision in src/utils/cache/cacheClock.ts, or the request that carries it: runForkedAgent in src/services/agents/forkedAgent.ts, routedCallModel in src/services/providers/callModelRouter.ts'
+const ttlWhere = 'change the prompt-cache TTL decision in src/platform/cache-clock/cacheClock.ts, or the request that carries it: runForkedAgent in src/crew/agents/forkedAgent.ts, routedCallModel in src/models/roads/callModelRouter.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the fork TTL prover exceeded 120s; a request to the fixture API (scripts/lib/fixtureApi.ts) or runForkedAgent (src/services/agents/forkedAgent.ts) did not finish')
+  console.log('\nTIMEOUT — the fork TTL prover exceeded 120s; a request to the fixture API (scripts/lib/fixtureApi.ts) or runForkedAgent (src/crew/agents/forkedAgent.ts) did not finish')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -38,16 +38,16 @@ const api = await startFixtureApi(
 )
 process.env.ANTHROPIC_BASE_URL = api.url
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { runForkedAgent } = await import('../../src/services/agents/forkedAgent.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/query.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { runForkedAgent } = await import('../../src/crew/agents/forkedAgent.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
 
 const MODEL = 'claude-opus-4-8'
 const PARENT_SOURCE = 'main_thread'

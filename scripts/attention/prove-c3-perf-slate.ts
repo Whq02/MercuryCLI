@@ -5,10 +5,10 @@ const t = checker()
 const BUDGET_MS = 35
 
 const { foldAttention, emptyAttentionState, bucketItems, ATTENTION_BUCKETS } = await import(
-  '../../src/services/attention/contracts.ts'
+  '../../src/screen/attention/contracts.ts'
 )
-const { foldRelations, emptyRelationState } = await import('../../src/services/attention/relations.ts')
-const { submitDispatch } = await import('../../src/services/attention/actions.ts')
+const { foldRelations, emptyRelationState } = await import('../../src/screen/attention/relations.ts')
+const { submitDispatch } = await import('../../src/screen/attention/actions.ts')
 
 function median5(fn: () => void): number {
   const samples: number[] = []
@@ -128,7 +128,7 @@ t.section('§2 the relationship graph at 1,000 edges (fold · spawned-by depth w
 
 t.section('§4 the intent layer adds no weight to the delivery door (steer-removal re-cut)')
 {
-  const focused = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const focused = await import('../../src/engine/connector/focusedConnector.ts')
   const refusal = await submitDispatch({ intentId: 'perf-intent-1', kind: 'prompt', value: '' })
   t.check('an empty-intent refusal settles typed, doorless', refusal.kind === 'dispatch-unavailable')
   focused.setFocusedSessionConnector({

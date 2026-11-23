@@ -7,7 +7,7 @@ const standIn = await openStandIn({
   side: () => ({ data: [{ id: 'fixture-model' }] }),
   env: base => ({ MERCURY_COMPAT_BASE_URL: `${base}/v1`, MERCURY_COMPAT_MODELS: 'fixture-model', MERCURY_COMPAT_LABEL: 'Fixture' }),
 })
-const { compatCallModel } = await import('../../src/services/providers/openaicompat/compatCallModel.ts')
+const { compatCallModel } = await import('../../src/models/roads/openaicompat/compatCallModel.ts')
 
 const wire: Wire = {
   answer: streamed('200, the answer', frames([{ choices: [{ delta: { content: 'road answer' }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 2 } }], true)),

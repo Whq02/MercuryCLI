@@ -23,7 +23,7 @@ const CountingRegExp = new Proxy(RealRegExp, {
 }) as RegExpConstructor
 globalThis.RegExp = CountingRegExp
 
-const wards = await import('../../src/utils/wards/wards.ts')
+const wards = await import('../../src/permissions/wards/wards.ts')
 type WardRule = (typeof wards.AUTONOMOUS_WARDS)[number]
 
 const bashCall = (command: string) =>
@@ -46,7 +46,7 @@ section('W1 · counted operations — zero constructions after the first call')
   check(
     '100 warmed evaluateWards calls construct ZERO regexes (the previous shape paid patterns x calls)',
     constructions === 0,
-    `constructions=${constructions}; evaluateWards in src/utils/wards/wards.ts is compiling a RegExp per call, so keep the compiled pattern in the per-rule WeakMap (compile, wardPattern)`,
+    `constructions=${constructions}; evaluateWards in src/permissions/wards/wards.ts is compiling a RegExp per call, so keep the compiled pattern in the per-rule WeakMap (compile, wardPattern)`,
   )
   const builtin = wards.BUILTIN_WARDS
   const heads: Record<string, string> = { '/p/gen.ts': '// @generated\nexport const a = 1\n', '/p/plain.ts': 'export const a = 1\n' }
@@ -68,13 +68,13 @@ section('W1 · counted operations — zero constructions after the first call')
   check(
     '100 warmed edit-scope calls over the builtin rules (path table, leading marker, declaration, placeholder, a ChangeSet member) construct ZERO regexes',
     constructions === 0,
-    `constructions=${constructions}; an edit-scope check in src/utils/wards/wards.ts (cachedPathRegex, cachedLeadingMarker, cachedGeneratedPaths or the declaration regex) is compiling per call, so cache it per rule`,
+    `constructions=${constructions}; an edit-scope check in src/permissions/wards/wards.ts (cachedPathRegex, cachedLeadingMarker, cachedGeneratedPaths or the declaration regex) is compiling per call, so cache it per rule`,
   )
   const verdicts = edits.map(call => wards.evaluateWards(builtin, call))
   check(
     'the five verdicts are allow, deny (marker), deny (name), deny (placeholder), deny (placeholder in a ChangeSet member)',
     verdicts[0]!.allow === true && verdicts[1]!.allow === false && verdicts[2]!.allow === false && verdicts[3]!.allow === false && verdicts[4]!.allow === false,
-    JSON.stringify(verdicts.map(v => (v.allow ? 'allow' : v.rule.name))) + '; caching must not change what evaluateWards in src/utils/wards/wards.ts answers over BUILTIN_WARDS',
+    JSON.stringify(verdicts.map(v => (v.allow ? 'allow' : v.rule.name))) + '; caching must not change what evaluateWards in src/permissions/wards/wards.ts answers over BUILTIN_WARDS',
   )
 }
 
@@ -90,10 +90,10 @@ section('W2 · verdict stability across cached calls')
       denied1.rule?.name === denied2.rule?.name &&
       denied1.excerpt === denied2.excerpt &&
       denied1.line === denied2.line,
-    JSON.stringify({ denied1, denied2 }).slice(0, 200) + ' — the second evaluateWards call of the same rule list answered differently from the first; look at the cached compile in src/utils/wards/wards.ts',
+    JSON.stringify({ denied1, denied2 }).slice(0, 200) + ' — the second evaluateWards call of the same rule list answered differently from the first; look at the cached compile in src/permissions/wards/wards.ts',
   )
   const allowed = wards.evaluateWards(rules, bashCall('rm -rf ./local/tmp'))
-  check('a worktree-local recursive delete stays allowed', allowed.allow === true, JSON.stringify(allowed).slice(0, 120) + ' — AUTONOMOUS_WARDS in src/utils/wards/wards.ts now refuses a recursive delete inside the worktree; narrow the rule that fired')
+  check('a worktree-local recursive delete stays allowed', allowed.allow === true, JSON.stringify(allowed).slice(0, 120) + ' — AUTONOMOUS_WARDS in src/permissions/wards/wards.ts now refuses a recursive delete inside the worktree; narrow the rule that fired')
 
   const pathRule: WardRule = {
     name: 'edit-path-gated',
@@ -108,9 +108,9 @@ section('W2 · verdict stability across cached calls')
   const inScope2 = wards.evaluateWards(gated, editCall('src/hot/a.ts', 'has forbidden-token here'))
   const outOfScope = wards.evaluateWards(gated, editCall('src/cold/a.ts', 'has forbidden-token here'))
   const carvedOut = wards.evaluateWards(gated, editCall('src/hot/allowed/a.ts', 'has forbidden-token here'))
-  check('path-gated denial stable across cached calls', inScope1.allow === false && inScope2.allow === false && inScope1.excerpt === inScope2.excerpt, `first ${JSON.stringify(inScope1)}, second ${JSON.stringify(inScope2)}; a rule with pathPattern must deny the same edit on every call (cachedPathRegex in src/utils/wards/wards.ts)`)
-  check('out-of-scope path never applies', outOfScope.allow === true, `${JSON.stringify(outOfScope)}; a path that pathPattern does not match must be allowed (cachedPathRegex in src/utils/wards/wards.ts)`)
-  check('allowPathPattern carve-out holds', carvedOut.allow === true, `${JSON.stringify(carvedOut)}; a path matching allowPathPattern must be allowed (compiledAllowPathPatterns in src/utils/wards/wards.ts)`)
+  check('path-gated denial stable across cached calls', inScope1.allow === false && inScope2.allow === false && inScope1.excerpt === inScope2.excerpt, `first ${JSON.stringify(inScope1)}, second ${JSON.stringify(inScope2)}; a rule with pathPattern must deny the same edit on every call (cachedPathRegex in src/permissions/wards/wards.ts)`)
+  check('out-of-scope path never applies', outOfScope.allow === true, `${JSON.stringify(outOfScope)}; a path that pathPattern does not match must be allowed (cachedPathRegex in src/permissions/wards/wards.ts)`)
+  check('allowPathPattern carve-out holds', carvedOut.allow === true, `${JSON.stringify(carvedOut)}; a path matching allowPathPattern must be allowed (compiledAllowPathPatterns in src/permissions/wards/wards.ts)`)
 
   const invalidPatternRule: WardRule = {
     name: 'half-broken',
@@ -120,7 +120,7 @@ section('W2 · verdict stability across cached calls')
   } as WardRule
   const half1 = wards.evaluateWards([invalidPatternRule], bashCall('this still-works today'))
   const half2 = wards.evaluateWards([invalidPatternRule], bashCall('this still-works today'))
-  check('an invalid pattern stays skipped while valid siblings enforce, stably', half1.allow === false && half2.allow === false && half1.excerpt === 'still-works', `${JSON.stringify([half1, half2])}; compile in src/utils/wards/wards.ts must skip a pattern that does not compile and keep the valid ones`)
+  check('an invalid pattern stays skipped while valid siblings enforce, stably', half1.allow === false && half2.allow === false && half1.excerpt === 'still-works', `${JSON.stringify([half1, half2])}; compile in src/permissions/wards/wards.ts must skip a pattern that does not compile and keep the valid ones`)
 
   const invalidPathRule: WardRule = {
     name: 'never-applies',
@@ -133,7 +133,7 @@ section('W2 · verdict stability across cached calls')
     'an invalid pathPattern keeps the rule never-applying on every call',
     wards.evaluateWards([invalidPathRule], editCall('a.ts', 'forbidden-token')).allow === true &&
       wards.evaluateWards([invalidPathRule], editCall('a.ts', 'forbidden-token')).allow === true,
-    'a pathPattern that does not compile must leave the rule never applying, on the first call and on the cached one (cachedPathRegex in src/utils/wards/wards.ts)',
+    'a pathPattern that does not compile must leave the rule never applying, on the first call and on the cached one (cachedPathRegex in src/permissions/wards/wards.ts)',
   )
 
   const invalidAllowRule: WardRule = {
@@ -147,7 +147,7 @@ section('W2 · verdict stability across cached calls')
     'an invalid allowPathPattern is treated absent — the rule still enforces, stably',
     wards.evaluateWards([invalidAllowRule], editCall('a.ts', 'forbidden-token')).allow === false &&
       wards.evaluateWards([invalidAllowRule], editCall('a.ts', 'forbidden-token')).allow === false,
-    'an allowPathPattern that does not compile must be treated as absent, on the first call and on the cached one (cachedPathRegex in src/utils/wards/wards.ts)',
+    'an allowPathPattern that does not compile must be treated as absent, on the first call and on the cached one (cachedPathRegex in src/permissions/wards/wards.ts)',
   )
 }
 
@@ -170,8 +170,8 @@ section('W3 · identity is the invalidation')
   wards.evaluateWards([b], bashCall('nothing more'))
   const freshCalls = constructions - cachedCalls
   counting = false
-  check('the cached object constructs nothing', cachedCalls === 0, `cachedCalls=${cachedCalls}; the rule object was already compiled, so compile in src/utils/wards/wards.ts must read it from compiledPatterns`)
-  check('a NEW object with identical fields compiles afresh', freshCalls >= 2, `freshCalls=${freshCalls}; the cache in src/utils/wards/wards.ts must key on the rule object (WeakMap), not on its fields, so a new object compiles its patterns afresh`)
+  check('the cached object constructs nothing', cachedCalls === 0, `cachedCalls=${cachedCalls}; the rule object was already compiled, so compile in src/permissions/wards/wards.ts must read it from compiledPatterns`)
+  check('a NEW object with identical fields compiles afresh', freshCalls >= 2, `freshCalls=${freshCalls}; the cache in src/permissions/wards/wards.ts must key on the rule object (WeakMap), not on its fields, so a new object compiles its patterns afresh`)
 }
 
 globalThis.RegExp = RealRegExp

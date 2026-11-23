@@ -27,13 +27,13 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const NUDGE_WORDS_AT = 'change the nudge words, the cut marker or the notice line in src/services/api/errors.ts (reasoningOnlyRecoveryNudge, REASONING_CUT_MARKER, reasoningOnlyNoticeLine)'
-const NUDGE_RECOVERY_AT = 'change reasoningOnlyRecovery in src/run-core/turn/noToolReply.ts or decideReasoningOnlyRecovery in src/run-core/turn/judgements.ts'
-const NUDGE_LOCAL_WIRE_AT = 'the local request is built in src/services/providers/local/localCallModel.ts (localCallModel)'
-const NUDGE_CLOUD_WIRE_AT = 'the Anthropic request is built in src/services/providers/anthropic/streamCore.ts (queryModelWithStreaming)'
+const NUDGE_WORDS_AT = 'change the nudge words, the cut marker or the notice line in src/engine/requests/apiErrorRows.ts (reasoningOnlyRecoveryNudge, REASONING_CUT_MARKER, reasoningOnlyNoticeLine)'
+const NUDGE_RECOVERY_AT = 'change reasoningOnlyRecovery in src/engine/loop/turn/noToolReply.ts or decideReasoningOnlyRecovery in src/engine/loop/turn/judgements.ts'
+const NUDGE_LOCAL_WIRE_AT = 'the local request is built in src/models/roads/local/localCallModel.ts (localCallModel)'
+const NUDGE_CLOUD_WIRE_AT = 'the Anthropic request is built in src/models/roads/anthropic/streamCore.ts (queryModelWithStreaming)'
 const nudgeHint = (detail: string, at: string): string => (detail === '' ? at : `${detail} — ${at}`)
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the reasoning-only nudge prover exceeded 180s — the last section printed above is the one that hung; its road is reasoningOnlyRecovery in src/run-core/turn/noToolReply.ts or the fixture script that ran out of answers')
+  console.log('\nTIMEOUT — the reasoning-only nudge prover exceeded 180s — the last section printed above is the one that hung; its road is reasoningOnlyRecovery in src/engine/loop/turn/noToolReply.ts or the fixture script that ran out of answers')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -119,21 +119,21 @@ const vllm = await serve((req, body, res) => {
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `vllm=${vllm.root}`
 
-const turnMachine = (await import('../../src/run-core/turn-machine.ts')) as Record<string, unknown>
+const turnMachine = (await import('../../src/engine/loop/turn-machine.ts')) as Record<string, unknown>
 const runEventCore = turnMachine.runEventCore as (params: unknown, consumed: string[]) => AsyncGenerator<Record<string, unknown>, Record<string, unknown>>
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const errors = (await import('../../src/services/api/errors.ts')) as Record<string, unknown>
-const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
-const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const errors = (await import('../../src/engine/requests/apiErrorRows.ts')) as Record<string, unknown>
+const { getModelMaxOutputTokens } = await import('../../src/models/facts/capabilities.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
+const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
 await refreshLocalDiscovery({ force: true })
 const LOCAL_MODEL = `local/${LOCAL_MODEL_ID}`
 const CEILING = getModelMaxOutputTokens(CLOUD_MODEL).default
@@ -284,13 +284,13 @@ section('0 · the owners: the words live beside the other nudges, the decision i
   check('the plain words: ' + j(BASE_WORDS), typeof nudge === 'function' && nudge(false).includes(BASE_WORDS) && !nudge(false).includes(FEWER_WORDS), nudgeHint(typeof nudge === 'function' ? nudge(false) : '', NUDGE_WORDS_AT))
   check('the fewer-words variant adds: ' + j(FEWER_WORDS), typeof nudge === 'function' && nudge(true).includes(BASE_WORDS) && nudge(true).includes(FEWER_WORDS), nudgeHint(typeof nudge === 'function' ? nudge(true) : '', NUDGE_WORDS_AT))
   const isNudge = errors.isReasoningOnlyRecoveryNudgeText as ((text: string) => boolean) | undefined
-  check('the classifier accepts both wordings and nothing else', typeof isNudge === 'function' && typeof nudge === 'function' && isNudge(nudge(false)) && isNudge(nudge(true)) && !isNudge(ASK) && !isNudge(String(errors.EMPTY_REPLY_RECOVERY_NUDGE)), nudgeHint('isReasoningOnlyRecoveryNudgeText missing or wrong', 'change isReasoningOnlyRecoveryNudgeText in src/services/api/errors.ts so it accepts exactly the two nudge wordings'))
+  check('the classifier accepts both wordings and nothing else', typeof isNudge === 'function' && typeof nudge === 'function' && isNudge(nudge(false)) && isNudge(nudge(true)) && !isNudge(ASK) && !isNudge(String(errors.EMPTY_REPLY_RECOVERY_NUDGE)), nudgeHint('isReasoningOnlyRecoveryNudgeText missing or wrong', 'change isReasoningOnlyRecoveryNudgeText in src/engine/requests/apiErrorRows.ts so it accepts exactly the two nudge wordings'))
   check('the cut marker (the text block that lets the truncated thinking ride the wire) is owned there too', typeof MARKER === 'string' && MARKER.startsWith('[') && MARKER.endsWith(']') && /output ran out/.test(MARKER), nudgeHint(j(MARKER), NUDGE_WORDS_AT))
   const decide = turnMachine.decideReasoningOnlyRecovery as ((input: { recoveryCount: number; maxTokens: boolean }) => { kind: string; attempt?: number }) | undefined
-  check('a plain thinking-only stop: one continuation, then surface', typeof decide === 'function' && decide({ recoveryCount: 0, maxTokens: false }).kind === 'continue' && decide({ recoveryCount: 0, maxTokens: false }).attempt === 1 && decide({ recoveryCount: 1, maxTokens: false }).kind === 'surface', nudgeHint('not exported or wrong', 'change decideReasoningOnlyRecovery in src/run-core/turn/judgements.ts (re-exported by src/run-core/turn-machine.ts)'))
-  check('a max-tokens thinking-only stop: two continuations, then surface', typeof decide === 'function' && decide({ recoveryCount: 0, maxTokens: true }).kind === 'continue' && decide({ recoveryCount: 1, maxTokens: true }).kind === 'continue' && decide({ recoveryCount: 1, maxTokens: true }).attempt === 2 && decide({ recoveryCount: 2, maxTokens: true }).kind === 'surface', nudgeHint('not exported or wrong', 'change decideReasoningOnlyRecovery in src/run-core/turn/judgements.ts (re-exported by src/run-core/turn-machine.ts)'))
+  check('a plain thinking-only stop: one continuation, then surface', typeof decide === 'function' && decide({ recoveryCount: 0, maxTokens: false }).kind === 'continue' && decide({ recoveryCount: 0, maxTokens: false }).attempt === 1 && decide({ recoveryCount: 1, maxTokens: false }).kind === 'surface', nudgeHint('not exported or wrong', 'change decideReasoningOnlyRecovery in src/engine/loop/turn/judgements.ts (re-exported by src/engine/loop/turn-machine.ts)'))
+  check('a max-tokens thinking-only stop: two continuations, then surface', typeof decide === 'function' && decide({ recoveryCount: 0, maxTokens: true }).kind === 'continue' && decide({ recoveryCount: 1, maxTokens: true }).kind === 'continue' && decide({ recoveryCount: 1, maxTokens: true }).attempt === 2 && decide({ recoveryCount: 2, maxTokens: true }).kind === 'surface', nudgeHint('not exported or wrong', 'change decideReasoningOnlyRecovery in src/engine/loop/turn/judgements.ts (re-exported by src/engine/loop/turn-machine.ts)'))
   const ceilings = [LOCAL_MODEL, CLOUD_MODEL].map(model => getModelMaxOutputTokens(model).default)
-  check('the row fixtures have different catalogue ceilings, so a literal cannot satisfy both', new Set(ceilings).size === 2, nudgeHint(j(ceilings), 'the two fixture models must resolve to different getModelMaxOutputTokens defaults (src/utils/model/capabilities.ts); change LOCAL_MODEL_ID or CLOUD_MODEL in this prover'))
+  check('the row fixtures have different catalogue ceilings, so a literal cannot satisfy both', new Set(ceilings).size === 2, nudgeHint(j(ceilings), 'the two fixture models must resolve to different getModelMaxOutputTokens defaults (src/models/facts/capabilities.ts); change LOCAL_MODEL_ID or CLOUD_MODEL in this prover'))
   for (const model of [LOCAL_MODEL, CLOUD_MODEL]) {
     let calls = 0
     const r = await run(async function* () {
@@ -307,7 +307,7 @@ section('0 · the owners: the words live beside the other nudges, the decision i
 
 section('A · the local road: a turn of thinking only (no text, no tool call, end_turn) gets ONE continuation and the reply lands as text')
 {
-  check('the fixture model is a discovered local record', localRecordFor(LOCAL_MODEL) !== undefined, 'the fixture vLLM model was not discovered; see refreshLocalDiscovery in src/services/providers/local/localDiscovery.ts and localRecordFor in src/services/providers/local/localCatalogue.ts')
+  check('the fixture model is a discovered local record', localRecordFor(LOCAL_MODEL) !== undefined, 'the fixture vLLM model was not discovered; see refreshLocalDiscovery in src/models/roads/local/localDiscovery.ts and localRecordFor in src/models/roads/local/localCatalogue.ts')
   const r = await runLocal([reasoningOnlyStop, reasoningThenReply])
   check('two chat requests (the thinking-only turn, then the continuation)', r.calls.length === 2 && localBodies.length === 2, nudgeHint(`${r.calls.length} call(s), ${localBodies.length} body(ies)`, NUDGE_RECOVERY_AT))
   check('the run completed', r.terminal.reason === 'completed', nudgeHint(j(r.terminal), NUDGE_RECOVERY_AT))
@@ -372,7 +372,7 @@ section(`D · the Anthropic road: thinking ran to max_tokens with no text — on
   check('both requests rode at the same effort (max, max) — no rung drop', bodies[0]?.output_config?.effort === 'max' && bodies[1]?.output_config?.effort === 'max' && j(r.efforts) === j(['max', 'max']), nudgeHint(`${j(bodies.map(b => b.output_config))} ${j(r.efforts)}`, NUDGE_RECOVERY_AT + ' (the continuation must keep the effort)'))
   const rows = assistantRows(bodies[1])
   const prefix = rows.at(-1)
-  check('the continuation body carries the truncated turn\'s SIGNED thinking block, verbatim, as its last assistant row (followed only by the cut marker text)', prefix !== undefined && carriesCutThinking(prefix), nudgeHint(j(prefix ?? null).slice(0, 300), 'the carried turn is built by withReasoningCutMarker in src/run-core/turn/noToolReply.ts'))
+  check('the continuation body carries the truncated turn\'s SIGNED thinking block, verbatim, as its last assistant row (followed only by the cut marker text)', prefix !== undefined && carriesCutThinking(prefix), nudgeHint(j(prefix ?? null).slice(0, 300), 'the carried turn is built by withReasoningCutMarker in src/engine/loop/turn/noToolReply.ts'))
   const wireMessages = bodies[1]?.messages ?? []
   check('that assistant row stands directly before the user nudge (the prefix the model resumes from)', wireMessages.at(-2)?.role === 'assistant' && wireMessages.at(-1)?.role === 'user', nudgeHint(j(wireMessages.map(m => m.role)), NUDGE_RECOVERY_AT))
   const last = wireMessages.at(-1)
@@ -392,7 +392,7 @@ section('E · the Anthropic road: a second max-tokens stop gets the second conti
   check('two reasoning_only_recovery transitions (attempts 1 and 2) and no max_output_tokens_recovery', j(reasoningTransitions(r).map(t => t.attempt)) === j([1, 2]) && maxTokensTransitions(r) === 0, nudgeHint(j(r.transitions), NUDGE_RECOVERY_AT))
   check('every request rode at max', bodies.every(b => b.output_config?.effort === 'max') && j(r.efforts) === j(['max', 'max', 'max']), nudgeHint(j(r.efforts), NUDGE_RECOVERY_AT))
   const rows = assistantRows(bodies[2])
-  check('the third request carries BOTH truncated turns\' signed thinking (two assistant rows, each thinking + the marker)', rows.length === 2 && rows.every(carriesCutThinking), nudgeHint(j(rows).slice(0, 400), 'the carried turns are built by withReasoningCutMarker in src/run-core/turn/noToolReply.ts'))
+  check('the third request carries BOTH truncated turns\' signed thinking (two assistant rows, each thinking + the marker)', rows.length === 2 && rows.every(carriesCutThinking), nudgeHint(j(rows).slice(0, 400), 'the carried turns are built by withReasoningCutMarker in src/engine/loop/turn/noToolReply.ts'))
   const last = bodies[2]?.messages?.at(-1)
   check('the second continuation\'s nudge adds "answer in fewer words"', last?.role === 'user' && textOf(last.content).includes(BASE_WORDS) && textOf(last.content).includes(FEWER_WORDS), nudgeHint(j(textOf(last?.content)).slice(0, 240), NUDGE_RECOVERY_AT + ' (fewerWords is set there from the attempt number)'))
   const firstNudge = bodies[1]?.messages?.at(-1)

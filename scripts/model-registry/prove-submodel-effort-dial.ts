@@ -48,12 +48,12 @@ process.env.GEMINI_API_KEY = 'AIza-EFFORT-DIAL-PROOF-00000'
 let failures = 0
 let hintArea = 'rig'
 const hintByArea: Record<string, string> = {
-  rig: 'a fixture catalogue did not load: see the refresh function of that catalogue (src/services/providers/openai/openaiCatalogue.ts, openrouter/openrouterCatalogue.ts, gemini/geminiCatalogue.ts, local/localDiscovery.ts) and the fixture payload in this file',
-  store: 'change setSubModelEffort, resolveSubModelEffort, setSubModel or resolveSubModel in src/services/model/subModelSlots.ts',
-  strip: 'change subModelEffortStrip or subModelEffortContext in src/services/model/subModelSlots.ts, or the levels owner resolveEffortTruth in src/utils/effort.ts',
-  dispatch: 'change subModelDispatchEffort in src/services/model/subModelSlots.ts, or the family wire builder the check names (configureEffortParams in src/services/providers/anthropic/requestParams.ts, buildOpenaiResponsesRequest in src/services/providers/openai/responsesBridge.ts, buildZaiChatRequest in src/services/providers/zai/zaiCodec.ts, buildMoonshotExtras and buildDeepseekExtras in src/services/providers/openaicompat/compatWire.ts)',
-  copy: 'change subModelEffortClause, setSubModelEffort or setSubModel in src/services/model/subModelSlots.ts (the receipt and clause wording)',
-  panel: 'change the effort strip of the Advisor panel in src/components/SubModelPicker.tsx, or the registry in composeSubModelRegistry in src/services/model/subModelSlots.ts',
+  rig: 'a fixture catalogue did not load: see the refresh function of that catalogue (src/models/roads/openai/openaiCatalogue.ts, openrouter/openrouterCatalogue.ts, gemini/geminiCatalogue.ts, local/localDiscovery.ts) and the fixture payload in this file',
+  store: 'change setSubModelEffort, resolveSubModelEffort, setSubModel or resolveSubModel in src/models/catalogue/subModelSlots.ts',
+  strip: 'change subModelEffortStrip or subModelEffortContext in src/models/catalogue/subModelSlots.ts, or the levels owner resolveEffortTruth in src/models/effort/effort.ts',
+  dispatch: 'change subModelDispatchEffort in src/models/catalogue/subModelSlots.ts, or the family wire builder the check names (configureEffortParams in src/models/roads/anthropic/requestParams.ts, buildOpenaiResponsesRequest in src/models/roads/openai/responsesBridge.ts, buildZaiChatRequest in src/models/roads/zai/zaiCodec.ts, buildMoonshotExtras and buildDeepseekExtras in src/models/roads/openaicompat/compatWire.ts)',
+  copy: 'change subModelEffortClause, setSubModelEffort or setSubModel in src/models/catalogue/subModelSlots.ts (the receipt and clause wording)',
+  panel: 'change the effort strip of the Advisor panel in src/commands/submodels/SubModelPicker.tsx, or the registry in composeSubModelRegistry in src/models/catalogue/subModelSlots.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -65,22 +65,22 @@ function section(t: string): void {
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 const ESC = String.fromCharCode(27)
 
-const { enableConfigs, getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, getGlobalConfig, saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const slots = await import('../../src/services/model/subModelSlots.ts')
-const effort = await import('../../src/utils/effort.ts')
-const thinking = await import('../../src/utils/thinking.ts')
-const requestParams = await import('../../src/services/providers/anthropic/requestParams.ts')
-const openaiCatalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const responsesBridge = await import('../../src/services/providers/openai/responsesBridge.ts')
-const gptPins = await import('../../src/utils/model/pins/gptPins.ts')
-const glmPins = await import('../../src/utils/model/pins/glmPins.ts')
-const zaiCodec = await import('../../src/services/providers/zai/zaiCodec.ts')
-const wire = await import('../../src/services/providers/openaicompat/compatWire.ts')
-const openrouter = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
-const gemini = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const localDiscovery = await import('../../src/services/providers/local/localDiscovery.ts')
-const localCatalogue = await import('../../src/services/providers/local/localCatalogue.ts')
+const slots = await import('../../src/models/catalogue/subModelSlots.ts')
+const effort = await import('../../src/models/effort/effort.ts')
+const thinking = await import('../../src/models/effort/thinking.ts')
+const requestParams = await import('../../src/models/roads/anthropic/requestParams.ts')
+const openaiCatalogue = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const responsesBridge = await import('../../src/models/roads/openai/responsesBridge.ts')
+const gptPins = await import('../../src/models/facts/pins/gptPins.ts')
+const glmPins = await import('../../src/models/facts/pins/glmPins.ts')
+const zaiCodec = await import('../../src/models/roads/zai/zaiCodec.ts')
+const wire = await import('../../src/models/roads/openaicompat/compatWire.ts')
+const openrouter = await import('../../src/models/roads/openrouter/openrouterCatalogue.ts')
+const gemini = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const localDiscovery = await import('../../src/models/roads/local/localDiscovery.ts')
+const localCatalogue = await import('../../src/models/roads/local/localCatalogue.ts')
 
 type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max']
@@ -362,8 +362,8 @@ section('§5 the panel, driven: e opens the strip, → moves, ↵ persists and t
 hintArea = 'panel'
 {
   const React = (await import('react')).default
-  const { render } = await import('../../src/ink.js')
-  const { SubModelPicker } = await import('../../src/components/SubModelPicker.js')
+  const { render } = await import('../../src/screen/themedRenderer.js')
+  const { SubModelPicker } = await import('../../src/commands/submodels/SubModelPicker.js')
   const SYNC_BEGIN = `${ESC}[?2026h`
   const SYNC_END = `${ESC}[?2026l`
   const lastFrame = (output: string): string => {

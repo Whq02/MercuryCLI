@@ -9,7 +9,7 @@ process.chdir(join(import.meta.dir, '..', '..'))
 const ROOT = join(import.meta.dir, '..', '..')
 const { runCompassArena, requireDist, grabScreens } = await import(`${ROOT}/scripts/navigation/arena.ts`)
 const { TAIL_SENTINEL } = await import(`${ROOT}/scripts/navigation/fixture1k.ts`)
-const { keyHintLabel } = await import(`${ROOT}/src/components/mercury-ui/keyHintLabel.ts`)
+const { keyHintLabel } = await import(`${ROOT}/src/screen/widgets/keyHintLabel.ts`)
 const BACK_HINTS = (['macos', 'linux'] as const).map(p => keyHintLabel('⇧← back', p))
 
 requireDist()
@@ -26,7 +26,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  const followHint = 'fix the selection and scroll translation: applyOverlayPass in src/ink/root/overlay-pass.ts (selection:xlate) and the scroll region in src/ink/compose-walk.ts (scroll:xlate); the flux marks printed below show which arm ran'
+  const followHint = 'fix the selection and scroll translation: applyOverlayPass in src/screen/renderer/root/overlay-pass.ts (selection:xlate) and the scroll region in src/screen/renderer/compose-walk.ts (scroll:xlate); the flux marks printed below show which arm ran'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail} · ` : ''}${followHint}`}`)
 }
 

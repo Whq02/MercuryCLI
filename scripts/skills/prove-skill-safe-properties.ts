@@ -2,13 +2,13 @@
 import { join } from 'node:path'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { skillHasOnlySafeProperties } = await import(join(SRC, 'tools/SkillTool/SkillTool.ts'))
-const { createSkillCommand, parseSkillFrontmatterFields } = await import(join(SRC, 'skills/loadSkillsDir.ts'))
-const { registerLoopSkill } = await import(join(SRC, 'skills/bundled/loop.ts'))
-const { getBundledSkills } = await import(join(SRC, 'skills/bundledSkills.ts'))
+const { skillHasOnlySafeProperties } = await import(join(SRC, 'tools/skill/SkillTool.ts'))
+const { createSkillCommand, parseSkillFrontmatterFields } = await import(join(SRC, 'integrations/skills/loadSkillsDir.ts'))
+const { registerLoopSkill } = await import(join(SRC, 'integrations/skills/bundled/loop.ts'))
+const { getBundledSkills } = await import(join(SRC, 'integrations/skills/bundledSkills.ts'))
 
 let failures = 0
-const safePropertiesHint = 'a property that grants nothing belongs in SAFE_COMMAND_PROPERTIES and a granting one must not: fix skillHasOnlySafeProperties in src/tools/SkillTool/SkillTool.ts, or the command built by createSkillCommand in src/skills/loadSkillsDir.ts'
+const safePropertiesHint = 'a property that grants nothing belongs in SAFE_COMMAND_PROPERTIES and a granting one must not: fix skillHasOnlySafeProperties in src/tools/skill/SkillTool.ts, or the command built by createSkillCommand in src/integrations/skills/loadSkillsDir.ts'
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail}; ` : ''}${safePropertiesHint}` : ''}`)
   if (!ok) failures = 1

@@ -73,8 +73,8 @@
       "name": "the fold branch, many files touched",
       "branch": "working-35",
       "files": [
-        "src/mneme/entryPage.ts",
-        "src/mneme/mnemeLookup.ts",
+        "src/sessions/mneme/entryPage.ts",
+        "src/sessions/mneme/mnemeLookup.ts",
         "scripts/memory/run-all.sh",
         "docs/releases/1.0.0-beta.35.md",
         "package.json"
@@ -94,7 +94,7 @@
         {
           "topic": "memory",
           "daysAgo": 4,
-          "text": "the entry page is composed in src/mneme/entryPage.ts and the search in src/mneme/mnemeLookup.ts"
+          "text": "the entry page is composed in src/sessions/mneme/entryPage.ts and the search in src/sessions/mneme/mnemeLookup.ts"
         },
         {
           "topic": "memory",
@@ -142,14 +142,14 @@
       "name": "an owner-shaped shelf (twenty rules, 8,381 characters) at the default allowance: the pins ride whole and the rest fills its own 4,000",
       "branch": "working-35",
       "files": [
-        "src/mneme/entryPage.ts"
+        "src/sessions/mneme/entryPage.ts"
       ],
       "limit": 4000,
       "facts": [
         {
           "topic": "memory",
           "daysAgo": 4,
-          "text": "the entry page is composed in src/mneme/entryPage.ts"
+          "text": "the entry page is composed in src/sessions/mneme/entryPage.ts"
         },
         {
           "topic": "memory",
@@ -651,15 +651,15 @@
       "name": "the same owner-shaped shelf with the allowance at its floor of 1,000: the pins ride whole beside it",
       "branch": "working-35",
       "files": [
-        "src/mneme/entryPage.ts",
-        "src/mneme/entryKnapsack.ts"
+        "src/sessions/mneme/entryPage.ts",
+        "src/sessions/mneme/entryKnapsack.ts"
       ],
       "limit": 1000,
       "facts": [
         {
           "topic": "memory",
           "daysAgo": 4,
-          "text": "the entry page is composed in src/mneme/entryPage.ts"
+          "text": "the entry page is composed in src/sessions/mneme/entryPage.ts"
         },
         {
           "topic": "memory",
@@ -669,7 +669,7 @@
         {
           "topic": "memory",
           "daysAgo": 2,
-          "text": "the knapsack composer lives in src/mneme/entryKnapsack.ts and is proven by the lifecycle suite"
+          "text": "the knapsack composer lives in src/sessions/mneme/entryKnapsack.ts and is proven by the lifecycle suite"
         },
         {
           "topic": "voice",

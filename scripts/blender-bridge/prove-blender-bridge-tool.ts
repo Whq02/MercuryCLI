@@ -9,7 +9,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    what to change: make the tool match this label in src/tools/BlenderTool/BlenderTool.ts (call, checkPermissions, capability), src/tools/BlenderTool/prompt.ts (getBlenderToolDescription) or src/services/cockpit/harnessMap.ts (computeHarnessMapLines)')
+  if (!cond) console.log('    what to change: make the tool match this label in src/tools/blender/BlenderTool.ts (call, checkPermissions, capability), src/tools/blender/prompt.ts (getBlenderToolDescription) or src/screen/cockpit-gauges/harnessMap.ts (computeHarnessMapLines)')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -28,19 +28,19 @@ for (const k of [
 }
 process.env.MERCURY_BLENDER_BRIDGE_TOKEN = 'tok'
 
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const { getAllBaseTools } = await import('../../src/tools.js')
-const { BlenderTool } = await import('../../src/tools/BlenderTool/BlenderTool.js')
-const { getBlenderToolDescription } = await import('../../src/tools/BlenderTool/prompt.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.js')
+const { BlenderTool } = await import('../../src/tools/blender/BlenderTool.js')
+const { getBlenderToolDescription } = await import('../../src/tools/blender/prompt.js')
 const {
   BLENDER_PYTHON_RUN_NO_SANDBOX_SENTENCE,
   BLENDER_PYTHON_RUN_NO_PREEMPTION_SENTENCE,
-} = await import('../../src/utils/blender/bridgeProtocol.js')
-const { getBlenderBridgeClient, resetBlenderBridgeClientForTest } = await import('../../src/services/blender/bridgeClient.js')
-const { _resetBlenderBridgeContextCacheForTesting } = await import('../../src/utils/blender/bridgeGates.js')
-const { computeHarnessMapLines } = await import('../../src/services/cockpit/harnessMap.js')
-const { formatDeferredToolLine } = await import('../../src/tools/ToolSearchTool/prompt.js')
-const { searchToolsWithKeywords, clearToolSearchDescriptionCache } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.js')
+} = await import('../../src/integrations/blender-protocol/bridgeProtocol.js')
+const { getBlenderBridgeClient, resetBlenderBridgeClientForTest } = await import('../../src/integrations/blender/bridgeClient.js')
+const { _resetBlenderBridgeContextCacheForTesting } = await import('../../src/integrations/blender-protocol/bridgeGates.js')
+const { computeHarnessMapLines } = await import('../../src/screen/cockpit-gauges/harnessMap.js')
+const { formatDeferredToolLine } = await import('../../src/tools/tool-search/prompt.js')
+const { searchToolsWithKeywords, clearToolSearchDescriptionCache } = await import('../../src/tools/tool-search/ToolSearchTool.js')
 const { startFakeBlenderBridge } = await import('./fake-bridge.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'blender-bridge-tool-'))
@@ -156,8 +156,8 @@ section('§2 · ARMED — catalog + teaching surfaces + the danger sentences (th
       !(harness ?? '').includes('Nothing is installed or launched for you.'),
     harness ?? '',
   )
-  const { validateToolCapability } = await import('../../src/utils/capability/contract.js')
-  const { blenderBridgeVerbNames } = await import('../../src/utils/blender/bridgeProtocol.js')
+  const { validateToolCapability } = await import('../../src/permissions/capability/contract.js')
+  const { blenderBridgeVerbNames } = await import('../../src/integrations/blender-protocol/bridgeProtocol.js')
   const cap = BlenderTool.capability
   const expectedOps = [
     ...blenderBridgeVerbNames(),

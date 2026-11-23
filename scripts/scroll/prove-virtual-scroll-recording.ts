@@ -8,11 +8,11 @@ const home = pinScratchHome('virtual-scroll-recording')
 const TRACE = join(home, 'pin-trace.jsonl')
 process.env['MERCURY_CONNECTOR_TRACE'] = TRACE
 ;(globalThis as Record<string, unknown>)['IS_REACT_ACT_ENVIRONMENT'] = true
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { Box } = await import('../../src/ink.js')
-const { InkInstanceContext } = await import('../../src/ink/components/InkInstanceContext.js')
-const { useVirtualScroll } = await import('../../src/hooks/useVirtualScroll.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { InkInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.js')
+const { useVirtualScroll } = await import('../../src/screen/virtual-message-list/useVirtualScroll.js')
 
 const SELF = 'scripts/scroll/prove-virtual-scroll-recording.ts'
 const RECORDING = join(import.meta.dirname, 'recordings', 'virtual-scroll.txt')
@@ -23,7 +23,7 @@ const REFS = [
   'lastWrittenTop', 'keyIndex', 'minChangedIndex', 'reflowHold', 'outOfLayout', 'laidOut', 'listCommitting', 'painted', 'afterLayout', 'prevCommittedRange',
 ]
 
-type Handle = import('../../src/ink/components/ScrollBox.js').ScrollBoxHandle
+type Handle = import('../../src/screen/renderer/elements/ScrollBox.js').ScrollBoxHandle
 type Result = ReturnType<typeof useVirtualScroll>
 type HookCall = { name: string; args: unknown[]; out: unknown }
 type Dispatcher = Record<string, (...args: unknown[]) => unknown>
@@ -838,8 +838,8 @@ const fail = (line: string): void => {
   console.log(`  [FAIL] ${line}`)
 }
 
-const source = Bun.resolveSync('../../src/hooks/useVirtualScroll.js', import.meta.dirname)
-if (useVirtualScroll.name === UNIT && source.replaceAll('\\', '/').endsWith('/src/hooks/useVirtualScroll.ts')) console.log(`  [PASS] the hook recorded is the product's own ${UNIT} of src/hooks/useVirtualScroll.ts: no module is replaced; the scroll handle, the rows' heights and the clock are scripted`)
+const source = Bun.resolveSync('../../src/screen/virtual-message-list/useVirtualScroll.js', import.meta.dirname)
+if (useVirtualScroll.name === UNIT && source.replaceAll('\\', '/').endsWith('/src/screen/virtual-message-list/useVirtualScroll.ts')) console.log(`  [PASS] the hook recorded is the product's own ${UNIT} of src/screen/virtual-message-list/useVirtualScroll.ts: no module is replaced; the scroll handle, the rows' heights and the clock are scripted`)
 else fail(`the hook under the recording is not the product's own ${UNIT}: it is ${useVirtualScroll.name} of ${source}`)
 
 const first = await record()

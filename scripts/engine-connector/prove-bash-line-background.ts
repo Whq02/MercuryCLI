@@ -36,10 +36,10 @@ process.chdir(work)
 
 let failures = 0
 const WHERE_TO_LOOK: Record<string, string> = {
-  '§0': 'foregroundShellInRoster in src/services/engine-connector/shellRunning.ts, projectWorkRoster in src/services/engine-connector/workRoster.ts, or bashExitWords in src/components/messages/UserBashOutputMessage.tsx',
-  '§1': 'focusedShellRunning and foregroundShellInRoster in src/services/engine-connector/shellRunning.ts, or projectWorkRoster in src/services/engine-connector/workRoster.ts (the daemon log under forensics shows the runner side)',
-  '§2': 'focusedShellRunning in src/services/engine-connector/shellRunning.ts and bashExitWords in src/components/messages/UserBashOutputMessage.tsx (the daemon log under forensics shows the runner side)',
-  '§3': 'endingWorkWords in src/tools/MonitorTool/watchReceipts.ts (the daemon log under forensics shows the runner and resume side)',
+  '§0': 'foregroundShellInRoster in src/engine/connector/shellRunning.ts, projectWorkRoster in src/engine/connector/workRoster.ts, or bashExitWords in src/screen/messages/UserBashOutputMessage.tsx',
+  '§1': 'focusedShellRunning and foregroundShellInRoster in src/engine/connector/shellRunning.ts, or projectWorkRoster in src/engine/connector/workRoster.ts (the daemon log under forensics shows the runner side)',
+  '§2': 'focusedShellRunning in src/engine/connector/shellRunning.ts and bashExitWords in src/screen/messages/UserBashOutputMessage.tsx (the daemon log under forensics shows the runner side)',
+  '§3': 'endingWorkWords in src/tools/monitor/watchReceipts.ts (the daemon log under forensics shows the runner and resume side)',
 }
 let whereToLook = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -84,9 +84,9 @@ const sleepPids = (): number[] => {
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
 const env = {
@@ -112,21 +112,21 @@ const env = {
 const log = join(SCRATCH, 'daemon.log')
 const daemon = spawn(NODE, [DIST, 'daemon', 'run', work], { cwd: work, env, stdio: ['ignore', openSync(log, 'a'), openSync(log, 'a')] })
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
-const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-const shell = await import('../../src/services/engine-connector/shellRunning.ts')
-const sup = await import('../../src/daemon/concourseWorkers.ts')
-const { endingWorkWords } = await import('../../src/tools/MonitorTool/watchReceipts.ts')
-const { bashExitWords } = await import('../../src/components/messages/UserBashOutputMessage.tsx')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
+const seat = await import('../../src/engine/connector/daemonConnector.ts')
+const slot = await import('../../src/engine/connector/focusedConnector.ts')
+const shell = await import('../../src/engine/connector/shellRunning.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { endingWorkWords } = await import('../../src/tools/monitor/watchReceipts.ts')
+const { bashExitWords } = await import('../../src/screen/messages/UserBashOutputMessage.tsx')
 const exitWordsOf = (code: string | null, durationMs: string | null, backgroundTaskId: string | null): string | null =>
   typeof bashExitWords === 'function' ? bashExitWords(code, durationMs, backgroundTaskId) : null
 const shellFacts = shell as { foregroundShellInRoster?: (rows: ReadonlyArray<{ kind: string; status: string; foreground?: true }>) => boolean }
 const foregroundShellInRoster = (rows: ReadonlyArray<{ kind: string; status: string; foreground?: true }>): boolean =>
   typeof shellFacts.foregroundShellInRoster === 'function' ? shellFacts.foregroundShellInRoster(rows) : false
-const { BASH_BACKGROUND_TASK_TAG, BASH_INPUT_TAG } = await import('../../src/constants/xml.ts')
-const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.ts')
+const { BASH_BACKGROUND_TASK_TAG, BASH_INPUT_TAG } = await import('../../src/engine/message-shapes/messageTags.ts')
+const { projectWorkRoster } = await import('../../src/engine/connector/workRoster.ts')
 type WorkRow = { id: string; kind: string; name: string; status: string; command?: string; toolUseId?: string; foreground?: true; description?: string; outputFile?: string }
 type Facts = { busy?: boolean; work?: WorkRow[] }
 
@@ -196,7 +196,7 @@ try {
   check('the screen\'s turn is in flight (the chat is working)', await untilAsync(() => connector.turnActive(), 10_000))
   check('the chat\'s roster snapshot carries the foreground shell', await untilAsync(() => connector.workRoster().rows.some(r => r.kind === 'shell' && r.status === 'running' && r.foreground === true), 10_000), JSON.stringify(connector.workRoster().rows))
   check('THE KEY STANDS ARMED: focusedShellRunning reads the operator\'s own `!` shell (no assistant Bash tool_use row exists for it)', shell.focusedShellRunning(), JSON.stringify({ live: connector.live(), rows: connector.workRoster().rows }))
-  check('the ready line names the background key while the shell runs', (await import('../../src/components/SwitchboardTagBar.tsx')).escBackHint(connector.live(), { interrupting: false, hardStopping: false }, shell.focusedShellRunning()).includes('backgrounds'))
+  check('the ready line names the background key while the shell runs', (await import('../../src/screen/chat/SwitchboardTagBar.tsx')).escBackHint(connector.live(), { interrupting: false, hardStopping: false }, shell.focusedShellRunning()).includes('backgrounds'))
   const sleeping = sleepPids()
   check('the sleep itself runs under the runner', sleeping.length >= 1, JSON.stringify(sleeping))
 

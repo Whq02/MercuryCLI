@@ -32,7 +32,7 @@ function encrypted(user: string): Buffer {
 }
 try {
   const { read, healthy, context } = await reader(root)
-  const { DocumentTool } = await import('../../src/tools/DocumentTool/DocumentTool.ts')
+  const { DocumentTool } = await import('../../src/tools/document/DocumentTool.ts')
   const failures: string[] = []
   for (const user of ['', 'reader secret']) {
     const name = user ? 'user-password.pdf' : 'owner-password.pdf', path = join(root, name)
@@ -49,6 +49,6 @@ try {
       await healthy()
     }
   }
-  assert.deepEqual(failures, [], 'these roads did not refuse an encrypted PDF with a message naming the file, "PDF is encrypted" and "unencrypted copy" (or leaked text or a stack): Read goes through src/tools/FileReadTool/FileReadTool.ts, inspect and convert through the DocumentTool in src/tools/DocumentTool/DocumentTool.ts (its encrypted message), the text worker is src/utils/pdfTextWorker.mjs')
+  assert.deepEqual(failures, [], 'these roads did not refuse an encrypted PDF with a message naming the file, "PDF is encrypted" and "unencrypted copy" (or leaked text or a stack): Read goes through src/tools/read/ReadTool.ts, inspect and convert through the DocumentTool in src/tools/document/DocumentTool.ts (its encrypted message), the text worker is src/tools/kit/pdfTextWorker.mjs')
   console.log('PASS owner-only and user-password PDFs refuse without partial text; Read, inspect, convert and same-session health')
 } finally { cleanup(root) }

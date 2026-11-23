@@ -21,15 +21,15 @@ const CONFIG_HOME = resolveProofHome([process.cwd()])
 
 if (process.env.FILEOPEN_RENDER_CHILD) {
   const React = await import('react')
-  const { render } = (await import('../../src/ink.js')) as {
+  const { render } = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
   }
-  const { MercuryFileOpen } = await import('../../src/components/MercuryFileOpen.js')
+  const { MercuryFileOpen } = await import('../../src/screen/composer/MercuryFileOpen.js')
   const h = React.createElement
   const mockFiles = [
-    'src/components/MercuryFileOpen.tsx',
-    'src/components/MercuryCommandPalette.tsx',
-    'src/query.ts',
+    'src/screen/composer/MercuryFileOpen.tsx',
+    'src/screen/composer/MercuryCommandPalette.tsx',
+    'src/engine/turnDoor.ts',
     'README.md',
     'package.json',
   ].map((displayText, i) => ({ id: `f${i}`, displayText }))

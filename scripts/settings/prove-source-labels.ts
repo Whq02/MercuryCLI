@@ -1,11 +1,11 @@
 import { join } from 'node:path'
 
 const root = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const source = await import(join(root, 'utils/settings/constants.ts'))
+const source = await import(join(root, 'platform/settings/settingSources.ts'))
 let failures = 0
 function check(name: string, actual: unknown, wanted: unknown) {
   const ok = JSON.stringify(actual) === JSON.stringify(wanted)
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — got ${JSON.stringify(actual)}, wanted ${JSON.stringify(wanted)}; change the matching list or label function in src/utils/settings/constants.ts`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — got ${JSON.stringify(actual)}, wanted ${JSON.stringify(wanted)}; change the matching list or label function in src/platform/settings/settingSources.ts`}`)
   if (!ok) failures++
 }
 const keys = ['userSettings', 'projectSettings', 'localSettings', 'flagSettings', 'policySettings']

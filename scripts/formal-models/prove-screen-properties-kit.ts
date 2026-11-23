@@ -7,8 +7,8 @@ import { join } from 'node:path'
 import fc from 'fast-check'
 import stripAnsi from 'strip-ansi'
 import { checker } from '../engine-durability/harness.ts'
-import type { KitCatalogue, KitRow, KitRowState, KitStates } from '../../src/services/kitMenu/kitTypes.ts'
-import type { KitMenuStore } from '../../src/services/kitMenu/menuStore.ts'
+import type { KitCatalogue, KitRow, KitRowState, KitStates } from '../../src/screen/kit-menu-model/kitTypes.ts'
+import type { KitMenuStore } from '../../src/screen/kit-menu-model/menuStore.ts'
 
 const previousCwd = process.cwd()
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-screen-kit-'))
@@ -47,23 +47,23 @@ for (const name of Object.keys(process.env)) {
 const React = await import('react')
 const h = React.createElement
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { registerBootDoors } = await import('../../src/services/boot/registerDoors.ts')
+const { registerBootDoors } = await import('../../src/boot/doors/registerDoors.ts')
 registerBootDoors()
 
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { default: reconciler } = await import('../../src/ink/reconciler.js')
-const { disposeKeybindingWatcher } = await import('../../src/keybindings/loadUserBindings.js')
-const { Box } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { KitMenuScreen } = await import('../../src/components/KitMenuScreen.tsx')
-const { cycleState, kitCounts, kitRowView, kitStateKey, sectionRows } = await import('../../src/services/kitMenu/kitTypes.ts')
-const { receiptFor } = await import('../../src/services/kitMenu/menuStore.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
+const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { KitMenuScreen } = await import('../../src/screen/boot-face/KitMenuScreen.tsx')
+const { cycleState, kitCounts, kitRowView, kitStateKey, sectionRows } = await import('../../src/screen/kit-menu-model/kitTypes.ts')
+const { receiptFor } = await import('../../src/screen/kit-menu-model/menuStore.ts')
 
 class FakeStdout extends EventEmitter {
   isTTY = true

@@ -3,7 +3,7 @@ import { existsSync, readFileSync, realpathSync, renameSync, writeFileSync } fro
 import { dirname, isAbsolute, join, relative } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { open } from '../../src/services/crewBoard/store.ts'
+import { open } from '../../src/crew/board/store.ts'
 import { makeWorld, bootLead, closeWorld, LEAD_MODEL, findFiles, toolResultOf, userTextsOf, record } from './crew-world.ts'
 
 export async function proveWakeJourney(missingWorktree: boolean, check: (label: string, value: unknown) => void): Promise<void> {

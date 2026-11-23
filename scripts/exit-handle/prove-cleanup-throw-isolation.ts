@@ -11,23 +11,23 @@ const alive = (pid: number): boolean => { try { process.kill(pid, 0); return tru
 if (process.argv[2] === '--child') {
   const dir = process.argv[3]!
   const road = process.argv[4]!
-  const { registerCleanup } = await import('../../src/utils/cleanupRegistry.ts')
+  const { registerCleanup } = await import('../../src/platform/processes/cleanupRegistry.ts')
   registerCleanup(() => { throw new Error('fixture cleanup throws synchronously') })
-  const watchRoot = await import('../../src/utils/watchRoot.ts')
+  const watchRoot = await import('../../src/platform/processes/watchRoot.ts')
   let handedOver = 0
-  mock.module('../../src/utils/watchRoot.ts', () => ({ ...watchRoot, leaveFileWatchesToProcessEnd: () => { handedOver++ } }))
+  mock.module('../../src/platform/processes/watchRoot.ts', () => ({ ...watchRoot, leaveFileWatchesToProcessEnd: () => { handedOver++ } }))
   process.on('exit', () => writeFileSync(join(dir, 'watches.json'), JSON.stringify({ handedOver })))
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const { setCwd } = await import('../../src/utils/Shell.ts')
+  const { setCwd } = await import('../../src/platform/shell/shellExec.ts')
   await setCwd(dir)
-  const { setupGracefulShutdown, gracefulShutdown, crashShutdown } = await import('../../src/utils/gracefulShutdown.ts')
+  const { setupGracefulShutdown, gracefulShutdown, crashShutdown } = await import('../../src/platform/processes/gracefulShutdown.ts')
   setupGracefulShutdown()
-  const { ensureScratchpadDir, armScratchpadSweep } = await import('../../src/utils/scratchpad.ts')
+  const { ensureScratchpadDir, armScratchpadSweep } = await import('../../src/platform/files/scratchpad.ts')
   const scratch = ensureScratchpadDir()
   armScratchpadSweep()
   writeFileSync(join(scratch, 'owned.txt'), 'fixture')
-  const { connectToServer } = await import('../../src/services/mcp/client.ts')
+  const { connectToServer } = await import('../../src/integrations/mcp/client.ts')
   const marker = join(dir, 'mcp.pid')
   const client = await connectToServer('exit-fixture', { type: 'stdio', command: 'node', args: [join(root, 'scripts/core-runtime/mcp-stub-server.mjs'), '--spawn-marker', marker], scope: 'dynamic' })
   if (client.type !== 'connected') throw new Error(JSON.stringify(client))
@@ -81,11 +81,11 @@ if (process.argv[2] === '--child') {
     const left = ready.pids.filter(alive)
     const scratchLeft = existsSync(ready.scratch)
     const ok = code === (road === 'exit' ? 0 : road === 'crash' ? 1 : road === 'interrupt' ? 130 : 129) && left.length === 0 && !scratchLeft
-    console.log(`${ok ? 'PASS' : 'FAIL'} ${road}: exit=${code}, children=${left.length}, scratch=${scratchLeft}${ok ? '' : `; a throwing cleanup must not stop the later cleanups, the exit code (exit 0, interrupt 130, hangup 129, crash 1) or the scratchpad sweep: see ${road === 'crash' ? 'crashShutdown' : 'gracefulShutdown'} in src/utils/gracefulShutdown.ts and runCleanupFunctions in src/utils/cleanupRegistry.ts`}`)
+    console.log(`${ok ? 'PASS' : 'FAIL'} ${road}: exit=${code}, children=${left.length}, scratch=${scratchLeft}${ok ? '' : `; a throwing cleanup must not stop the later cleanups, the exit code (exit 0, interrupt 130, hangup 129, crash 1) or the scratchpad sweep: see ${road === 'crash' ? 'crashShutdown' : 'gracefulShutdown'} in src/platform/processes/gracefulShutdown.ts and runCleanupFunctions in src/platform/processes/cleanupRegistry.ts`}`)
     if (!ok) failures++
     const watches = existsSync(join(dir, 'watches.json')) ? (JSON.parse(readFileSync(join(dir, 'watches.json'), 'utf8')) as { handedOver: number }) : null
     const watchesLeft = watches !== null && watches.handedOver === 1
-    console.log(`${watchesLeft ? 'PASS' : 'FAIL'} ${road}: the way out hands its file watches over to the process end, once: handedOver=${watches?.handedOver ?? 'unread'}${watchesLeft ? '' : '; the shutdown road must call leaveFileWatchesToProcessEnd exactly once: see src/utils/gracefulShutdown.ts and src/utils/watchRoot.ts'}`)
+    console.log(`${watchesLeft ? 'PASS' : 'FAIL'} ${road}: the way out hands its file watches over to the process end, once: handedOver=${watches?.handedOver ?? 'unread'}${watchesLeft ? '' : '; the shutdown road must call leaveFileWatchesToProcessEnd exactly once: see src/platform/processes/gracefulShutdown.ts and src/platform/processes/watchRoot.ts'}`)
     if (!watchesLeft) failures++
     if (code === 'timeout') { child.kill('SIGKILL'); await exited }
     for (const pid of left) { try { process.kill(pid, 'SIGKILL') } catch {} }
@@ -108,12 +108,12 @@ if (process.argv[2] === '--child') {
     for (const watcher of held) watcher.close()
     console.log(JSON.stringify({ closed }))
     process.exit(0)
-  `, watched, join(root, 'src/utils/watchRoot.ts')], { encoding: 'utf8', timeout: 20000 })
+  `, watched, join(root, 'src/platform/processes/watchRoot.ts')], { encoding: 'utf8', timeout: 20000 })
   rmSync(watched, { recursive: true, force: true })
   const realCloses = underNode.status === 0 ? (JSON.parse(underNode.stdout.trim().split('\n').at(-1) ?? '{}') as { closed?: number }).closed : undefined
   const wanted = process.platform === 'darwin' ? 0 : 3
   const left = realCloses === wanted
-  console.log(`${left ? 'PASS' : 'FAIL'} node: three directory watches closed after the hand-over reach the system ${wanted} time(s) on ${process.platform}: real closes=${realCloses ?? `unread (exit ${underNode.status}: ${(underNode.stderr ?? '').trim().split('\n').at(-1) ?? ''})`}${left ? '' : '; leaveFileWatchesToProcessEnd must stop the watchers closing on darwin and leave them closing elsewhere: see src/utils/watchRoot.ts'}`)
+  console.log(`${left ? 'PASS' : 'FAIL'} node: three directory watches closed after the hand-over reach the system ${wanted} time(s) on ${process.platform}: real closes=${realCloses ?? `unread (exit ${underNode.status}: ${(underNode.stderr ?? '').trim().split('\n').at(-1) ?? ''})`}${left ? '' : '; leaveFileWatchesToProcessEnd must stop the watchers closing on darwin and leave them closing elsewhere: see src/platform/processes/watchRoot.ts'}`)
   if (!left) failures++
   process.exitCode = failures === 0 ? 0 : 1
 }

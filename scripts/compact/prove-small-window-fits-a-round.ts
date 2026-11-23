@@ -5,7 +5,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { join } from 'node:path'
 import { DIST, NODE, SCRATCH_ROOT, childEnv, makeTally } from '../daemon/dupline-world.ts'
 import { runScriptedTurn, seedScratchHome, startScriptedFixture } from '../lib/scriptedTurn.ts'
-import { resultRoomBudget, type ResultRoomFacts } from '../../src/services/run/resultRoom.ts'
+import { resultRoomBudget, type ResultRoomFacts } from '../../src/engine/run/resultRoom.ts'
 
 const tally = makeTally('prove-small-window-fits-a-round')
 const scratch = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'small-window-')))

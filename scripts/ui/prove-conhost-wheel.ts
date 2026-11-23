@@ -33,23 +33,23 @@ mock.module('node:child_process', () => ({
 
 const React = await import('react')
 const h = React.createElement
-const { App } = await import('../../src/components/App.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.js')
-const { Chat } = await import('../../src/screens/Chat.js')
-const route = await import('../../src/context/surfaceRoute.js')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.js')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.js')
-const { InkInstanceContext } = await import('../../src/ink/components/InkInstanceContext.js')
-const { resolveAlternateScrollIntent } = await import('../../src/ink/termio/alternateScrollPolicy.js')
-const { parseMultipleKeypresses, INITIAL_STATE } = await import('../../src/ink/input/input-decoder.js')
-const pending = await import('../../src/input-core/pending-input.js')
-const slot = await import('../../src/services/engine-connector/focusedConnector.js')
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.js')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.js')
-const { getCommands } = await import('../../src/commands.js')
-const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.js')
-const history = await import('../../src/history.js')
+const { App } = await import('../../src/boot/App.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.js')
+const { Chat } = await import('../../src/screen/chat/Chat.js')
+const route = await import('../../src/screen/routes/surfaceRoute.js')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.js')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.js')
+const { InkInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.js')
+const { resolveAlternateScrollIntent } = await import('../../src/screen/renderer/termio/alternateScrollPolicy.js')
+const { parseMultipleKeypresses, INITIAL_STATE } = await import('../../src/screen/renderer/input/input-decoder.js')
+const pending = await import('../../src/screen/composer/input-core/pending-input.js')
+const slot = await import('../../src/engine/connector/focusedConnector.js')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.js')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.js')
+const { getCommands } = await import('../../src/commands/catalogue/commands.js')
+const { markDaemonHaltStanddown } = await import('../../src/daemon/control/daemonStanddown.js')
+const history = await import('../../src/sessions/promptHistory.js')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true, hasTrustDialogAccepted: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false, hasCompletedOnboarding: true, theme: 'dark' }))
@@ -74,9 +74,9 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 2000)}` : ''}${ok ? '' : ` | fix: ${wheelHint(label)}`}`)
 }
 function wheelHint(label: string): string {
-  if (/routes plain arrows|keeps keyboard history arrows|never wheel|alternate-scroll road/.test(label)) return 'change resolveAlternateScrollIntent in src/ink/termio/alternateScrollPolicy.ts, which decides from the terminal state whether a plain arrow becomes a wheel step'
-  if (/notch|resize|draft|SGR wheel|empty composer scrolls|tracking/.test(label)) return 'a plain arrow or wheel report on a scrollable transcript must scroll three rows and leave the draft and mode alone; the arrow-to-wheel decision is resolveAlternateScrollIntent in src/ink/termio/alternateScrollPolicy.ts and the mouse tracking state is on the Ink instance this proof taps'
-  return 'the key or report this check sends did not do what the label says; start from resolveAlternateScrollIntent in src/ink/termio/alternateScrollPolicy.ts and the screen or text printed above'
+  if (/routes plain arrows|keeps keyboard history arrows|never wheel|alternate-scroll road/.test(label)) return 'change resolveAlternateScrollIntent in src/screen/renderer/termio/alternateScrollPolicy.ts, which decides from the terminal state whether a plain arrow becomes a wheel step'
+  if (/notch|resize|draft|SGR wheel|empty composer scrolls|tracking/.test(label)) return 'a plain arrow or wheel report on a scrollable transcript must scroll three rows and leave the draft and mode alone; the arrow-to-wheel decision is resolveAlternateScrollIntent in src/screen/renderer/termio/alternateScrollPolicy.ts and the mouse tracking state is on the Ink instance this proof taps'
+  return 'the key or report this check sends did not do what the label says; start from resolveAlternateScrollIntent in src/screen/renderer/termio/alternateScrollPolicy.ts and the screen or text printed above'
 }
 let mounted: Mounted | undefined
 let ink: React.ContextType<typeof InkInstanceContext>

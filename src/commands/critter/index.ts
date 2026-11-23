@@ -1,4 +1,4 @@
-import type { Command } from '../../commands.js'
+import type { Command } from '../catalogue/commands.js'
 
 const critter = {
   type: 'local-jsx',

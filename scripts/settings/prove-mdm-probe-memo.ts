@@ -10,7 +10,7 @@ delete process.env.NODE_ENV
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const MDM_MEMO_FIX_HINT = 'fix mdmBootAwaitsRawRead, readMdmProbeMemo, writeMdmProbeMemo and recordMdmProbeOutcome in src/utils/settings/mdm/probeMemo.ts, or the boot barrier ensureMdmSettingsLoaded in src/utils/settings/mdm/settings.ts'
+const MDM_MEMO_FIX_HINT = 'fix mdmBootAwaitsRawRead, readMdmProbeMemo, writeMdmProbeMemo and recordMdmProbeOutcome in src/platform/settings/mdm/probeMemo.ts, or the boot barrier ensureMdmSettingsLoaded in src/platform/settings/mdm/settings.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${MDM_MEMO_FIX_HINT}` : ''}`)
@@ -18,9 +18,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const memo = await import('../../src/utils/settings/mdm/probeMemo.ts')
-const raw = await import('../../src/utils/settings/mdm/rawRead.ts')
-const mdm = await import('../../src/utils/settings/mdm/settings.ts')
+const memo = await import('../../src/platform/settings/mdm/probeMemo.ts')
+const raw = await import('../../src/platform/settings/mdm/rawRead.ts')
+const mdm = await import('../../src/platform/settings/mdm/settings.ts')
 
 const scratch = (): string => mkdtempSync(join(tmpdir(), 'mdm-probe-home-'))
 const absentRead = { plistStdouts: null, hklmStdout: null, hkcuStdout: null }

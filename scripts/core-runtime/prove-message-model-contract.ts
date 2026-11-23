@@ -1,22 +1,22 @@
 #!/usr/bin/env bun
 import { mock } from 'bun:test'
 
-const realLog = await import('../../src/utils/log.ts')
+const realLog = await import('../../src/platform/logs/errorLog.ts')
 
 const loggedErrors: unknown[] = []
 const logSnapshot = { ...realLog }
 
-mock.module('../../src/utils/log.ts', () => ({
+mock.module('../../src/platform/logs/errorLog.ts', () => ({
   ...logSnapshot,
   logError: (e: unknown) => {
     loggedErrors.push(e)
   },
 }))
 
-const M = await import('../../src/services/messages.ts')
-const mergeMod = await import('../../src/services/messages/merge.ts')
-const rejection = await import('../../src/utils/messages/rejectionText.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const M = await import('../../src/engine/messages/messages.ts')
+const mergeMod = await import('../../src/engine/messages/merge.ts')
+const rejection = await import('../../src/engine/message-shapes/rejectionText.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 
 type AnyMsg = Record<string, any>
 type Block = Record<string, any>
@@ -99,7 +99,7 @@ const serverTr = (id: string): Block => ({
 
 section('MERGING — string results merge text; array results retain blocks')
 {
-  sectionHint = 'to fix, change mergeUserContentBlocks in src/services/messages/merge.ts'
+  sectionHint = 'to fix, change mergeUserContentBlocks in src/engine/messages/merge.ts'
   const a = [txt('lead'), tr('toolu_l1')]
   const b = [txt('sibling')]
   const out = M.mergeUserContentBlocks(a as never, b as never) as Block[]
@@ -123,7 +123,7 @@ section('MERGING — string results merge text; array results retain blocks')
 
 section('SEAM — joinTextAtSeam / hoistToolResults / meta-uuid algebra')
 {
-  sectionHint = 'to fix, change joinTextAtSeam or hoistToolResults in src/services/messages/merge.ts, or mergeUserMessages as exported by src/services/messages.ts'
+  sectionHint = 'to fix, change joinTextAtSeam or hoistToolResults in src/engine/messages/merge.ts, or mergeUserMessages as exported by src/engine/messages/messages.ts'
   const j = mergeMod.joinTextAtSeam
   const a = [txt('<system-reminder>\nnote\n</system-reminder>'), txt('left tail')]
   const b = [txt('right head'), tr('toolu_s1')]
@@ -182,7 +182,7 @@ section('SEAM — joinTextAtSeam / hoistToolResults / meta-uuid algebra')
 
 section('NORMALIZE-LATCH — derived-uuid law over random block mixes')
 {
-  sectionHint = 'to fix, change normalizeMessages as exported by src/services/messages.ts, or deriveUUID in src/utils/messages/identity.ts'
+  sectionHint = 'to fix, change normalizeMessages as exported by src/engine/messages/messages.ts, or deriveUUID in src/engine/message-shapes/identity.ts'
   const rand = lcg(0x17e5)
   const image = (): Block => ({
     type: 'image',
@@ -308,7 +308,7 @@ section('NORMALIZE-LATCH — derived-uuid law over random block mixes')
 }
 
 section('PAIR — adversarial corpus generator + postcondition oracle')
-sectionHint = 'to fix, change ensureToolResultPairing in src/utils/messages/resultPairing.ts (re-exported by src/services/messages.ts)'
+sectionHint = 'to fix, change ensureToolResultPairing in src/engine/message-shapes/resultPairing.ts (re-exported by src/engine/messages/messages.ts)'
 
 function genPairingConversation(rand: () => number, iter: number): AnyMsg[] {
   const msgs: AnyMsg[] = []
@@ -596,7 +596,7 @@ const elementwiseSame = (a: AnyMsg[], b: AnyMsg[]): boolean =>
 
 section('LOOKUPS-DIFF — lookups vs legacy scans vs naive re-derivation')
 {
-  sectionHint = 'to fix, change buildMessageLookups in src/services/messages/lookups.ts so it agrees with the legacy scan helpers exported by src/services/messages.ts'
+  sectionHint = 'to fix, change buildMessageLookups in src/engine/messages/lookups.ts so it agrees with the legacy scan helpers exported by src/engine/messages/messages.ts'
   const rand = lcg(0xdeadbe)
   const HOOK_EVENTS = ['tool.before', 'tool.after'] as const
 
@@ -833,7 +833,7 @@ section('LOOKUPS-DIFF — lookups vs legacy scans vs naive re-derivation')
 
 section('EMPTY-ALIAS — the shared-empties hazard, pinned as current truth')
 {
-  sectionHint = 'to fix, change buildSubagentLookups in src/services/messages/lookups.ts, or EMPTY_LOOKUPS and getSiblingToolUseIDsFromLookup as exported by src/services/messages.ts'
+  sectionHint = 'to fix, change buildSubagentLookups in src/engine/messages/lookups.ts, or EMPTY_LOOKUPS and getSiblingToolUseIDsFromLookup as exported by src/engine/messages/messages.ts'
   const subMsgs = [
     { message: mkAssistant([tu('toolu_sub1'), tu('toolu_sub2')]) },
     { message: M.normalizeMessages([mkUser([tr('toolu_sub1')])] as never)[0] },
@@ -884,7 +884,7 @@ section('EMPTY-ALIAS — the shared-empties hazard, pinned as current truth')
 
 section('FACTORY-QUIRKS — the mint table')
 {
-  sectionHint = 'to fix, change the message factory the failing label names (createUserMessage, createAssistantMessage, createModelSwitchBreadcrumbs or createToolResultStopMessage) as exported by src/services/messages.ts'
+  sectionHint = 'to fix, change the message factory the failing label names (createUserMessage, createAssistantMessage, createModelSwitchBreadcrumbs or createToolResultStopMessage) as exported by src/engine/messages/messages.ts'
   const empty = M.createUserMessage({ content: '' }) as AnyMsg
   check("createUserMessage(''): NO_CONTENT substitution", typeof empty.message.content === 'string' && empty.message.content !== '')
   const emptyArr = M.createUserMessage({ content: [] }) as AnyMsg
@@ -920,7 +920,7 @@ section('FACTORY-QUIRKS — the mint table')
 
 section('TEXT-TABLE — extractTag / textForResubmit / wrapCommandText rows')
 {
-  sectionHint = 'to fix, change the text helper the failing label names (extractTag, textForResubmit, wrapCommandText or isNotEmptyMessage) as exported by src/services/messages.ts'
+  sectionHint = 'to fix, change the text helper the failing label names (extractTag, textForResubmit, wrapCommandText or isNotEmptyMessage) as exported by src/engine/messages/messages.ts'
   check('extractTag QUIRK: same-name nesting truncates at the first close', M.extractTag('<a>outer <a>inner</a> tail</a>', 'a') === 'outer <a>inner')
   check(
     'extractTag: depth>0 occurrence skipped, later top-level wins',
@@ -958,7 +958,7 @@ section('TEXT-TABLE — extractTag / textForResubmit / wrapCommandText rows')
 
 section('ORDER — reorderMessagesInUI vs an independent naive oracle')
 {
-  sectionHint = 'to fix, change reorderMessagesInUI in src/services/messages/uiOrder.ts'
+  sectionHint = 'to fix, change reorderMessagesInUI in src/screen/messages-list/chatRowOrder.ts'
   function naiveReorder(messages: AnyMsg[], synthetics: AnyMsg[]): AnyMsg[] {
     const isUse = (m: AnyMsg): boolean =>
       m.type === 'assistant' && (m.message.content as Block[])[0]?.type === 'tool_use'
@@ -1093,7 +1093,7 @@ section('ORDER — reorderMessagesInUI vs an independent naive oracle')
 
 section('SYSMSG — boundary slice reference law + scan predicates')
 {
-  sectionHint = 'to fix, change the compact-boundary or tool-call scan helper the failing label names, as exported by src/services/messages.ts'
+  sectionHint = 'to fix, change the compact-boundary or tool-call scan helper the failing label names, as exported by src/engine/messages/messages.ts'
   const a = mkUser('one')
   const b = mkAssistant('two')
   const noBoundary = [a, b]
@@ -1135,8 +1135,8 @@ section('SYSMSG — boundary slice reference law + scan predicates')
 
 section('ROWS — the projection table (the value laws the row stream carries)')
 {
-  sectionHint = 'to fix, change itemRowsOf, commandOutputTextOf, commandOutputRow or rateLimitRow in src/rows/project.ts'
-  const rows = await import('../../src/rows/project.ts')
+  sectionHint = 'to fix, change itemRowsOf, commandOutputTextOf, commandOutputRow or rateLimitRow in src/engine/rows/project.ts'
+  const rows = await import('../../src/engine/rows/project.ts')
   const scope = { session_id: 'proj-session', turn: 1 }
   const asstMap = mkAssistant([txt('hello'), tu('toolu_map1'), txt('')])
   const items = rows.itemRowsOf(scope, 'msg_map1', asstMap.message.content) as AnyMsg[]

@@ -10,7 +10,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
 delete process.env.NODE_ENV
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 let failures = 0
@@ -18,16 +18,16 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const HINT_LAW = 'fix the local first-byte wait in streamCompatChat (src/services/providers/openaicompat/compatChatClient.ts) or startLocalLivenessLoop (src/services/providers/localLiveness.ts)'
-const HINT_PACE = 'fix the promise sizing in localFirstBytePromiseMs or localPaceDefaultFor (src/services/providers/localLiveness.ts)'
-const HINT_WORDS = 'fix the wait wording in requestWaitLine (src/services/providers/streamIdleBudget.ts) or the promise extension in localPromiseExtensionMs (src/services/providers/localLiveness.ts)'
-const HINT_PROBE = 'fix the probe URL in localLivenessProbeUrl (src/services/providers/localLiveness.ts)'
-const HINT_DEAD = 'fix localDeadServerLine (src/services/providers/localLiveness.ts) or the dead-server cut in streamCompatChat (src/services/providers/openaicompat/compatChatClient.ts)'
-const HINT_CAP = 'fix localCapLine or LOCAL_REQUEST_CAP_MS (src/services/providers/localLiveness.ts)'
-const HINT_SILENT = 'fix the no-bytes warning in requestWaitLine (src/services/providers/streamIdleBudget.ts) or the idle watchdog in streamCompatChat (src/services/providers/openaicompat/compatChatClient.ts)'
-const HINT_BUDGET = 'fix streamIdleTimeoutMsForRoute or the first-byte budget numbers in src/services/providers/streamIdleBudget.ts'
-const HINT_RUNTIME = 'fix the stream options built in src/services/providers/openaicompat/compatChatCallModel/attemptEvents.ts (localStreamLawFor, idleTimeoutMs)'
-const HINT_RETRY = 'fix retryEligible and isLocalLivenessCut in src/services/providers/openaicompat/compatChatCallModel/attempt.ts'
+const HINT_LAW = 'fix the local first-byte wait in streamCompatChat (src/models/roads/openaicompat/compatChatClient.ts) or startLocalLivenessLoop (src/models/roads/localLiveness.ts)'
+const HINT_PACE = 'fix the promise sizing in localFirstBytePromiseMs or localPaceDefaultFor (src/models/roads/localLiveness.ts)'
+const HINT_WORDS = 'fix the wait wording in requestWaitLine (src/models/roads/streamIdleBudget.ts) or the promise extension in localPromiseExtensionMs (src/models/roads/localLiveness.ts)'
+const HINT_PROBE = 'fix the probe URL in localLivenessProbeUrl (src/models/roads/localLiveness.ts)'
+const HINT_DEAD = 'fix localDeadServerLine (src/models/roads/localLiveness.ts) or the dead-server cut in streamCompatChat (src/models/roads/openaicompat/compatChatClient.ts)'
+const HINT_CAP = 'fix localCapLine or LOCAL_REQUEST_CAP_MS (src/models/roads/localLiveness.ts)'
+const HINT_SILENT = 'fix the no-bytes warning in requestWaitLine (src/models/roads/streamIdleBudget.ts) or the idle watchdog in streamCompatChat (src/models/roads/openaicompat/compatChatClient.ts)'
+const HINT_BUDGET = 'fix streamIdleTimeoutMsForRoute or the first-byte budget numbers in src/models/roads/streamIdleBudget.ts'
+const HINT_RUNTIME = 'fix the stream options built in src/models/roads/openaicompat/chat-call-model/attemptEvents.ts (localStreamLawFor, idleTimeoutMs)'
+const HINT_RETRY = 'fix retryEligible and isLocalLivenessCut in src/models/roads/openaicompat/chat-call-model/attempt.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -80,11 +80,11 @@ async function advance(ms: number): Promise<void> {
   await settle()
 }
 
-const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.js')
-const budget = await import('../../src/services/providers/streamIdleBudget.js')
-let liveness: typeof import('../../src/services/providers/localLiveness.js') | null = null
+const { streamCompatChat } = await import('../../src/models/roads/openaicompat/compatChatClient.js')
+const budget = await import('../../src/models/roads/streamIdleBudget.js')
+let liveness: typeof import('../../src/models/roads/localLiveness.js') | null = null
 try {
-  liveness = await import('../../src/services/providers/localLiveness.js')
+  liveness = await import('../../src/models/roads/localLiveness.js')
 } catch {
   liveness = null
 }
@@ -387,14 +387,14 @@ section('a generic compat road under the same clock still cuts at its first-byte
   await advance(200_000)
   await Promise.race([consumed, new Promise<void>(r => realSetTimeout(r, 2_000))])
   const fault = events.find(e => e.type === 'stream-fault')?.fault
-  check('the generic road fired its 198 s budget as the typed first-byte fault, retryable', fault?.code === 'first-byte-timeout' && fault.retryable === true && fault.message === 'no first byte from kimi after 3m 18s (a 65k-token prompt ingesting uncached)', JSON.stringify(fault) + ' — fix the first-byte cut in streamCompatChat (src/services/providers/openaicompat/compatChatClient.ts) or firstByteBudgetMs (src/services/providers/streamIdleBudget.ts)')
+  check('the generic road fired its 198 s budget as the typed first-byte fault, retryable', fault?.code === 'first-byte-timeout' && fault.retryable === true && fault.message === 'no first byte from kimi after 3m 18s (a 65k-token prompt ingesting uncached)', JSON.stringify(fault) + ' — fix the first-byte cut in streamCompatChat (src/models/roads/openaicompat/compatChatClient.ts) or firstByteBudgetMs (src/models/roads/streamIdleBudget.ts)')
 }
 
 section('fold 46b: the initialized runtime feeds the transport the local law, and a dead-server cut is never reissued')
 {
-  const discovery = await import('../../src/services/providers/local/localDiscovery.js')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
+  const discovery = await import('../../src/models/roads/local/localDiscovery.js')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
   const discoveryFetch = (async (input: unknown) => {
     const url = String(input)
     const json = (body: unknown): Response => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -407,9 +407,9 @@ section('fold 46b: the initialized runtime feeds the transport the local law, an
   discovery.__resetLocalDiscoveryForTest()
   await discovery.refreshLocalDiscovery({ force: true, env: { MERCURY_LOCAL_PROBE_TARGETS: 'ollama=http://127.0.0.1:11434' } as NodeJS.ProcessEnv, fetchImpl: discoveryFetch, timeoutMs: 500 })
   const record = discovery.localModelRecord('qwen3.5:27b')
-  check('the fixture discovery seeded a 27B record, loaded, on the Ollama base', record?.parameterSize === '27B' && record.loaded === true && record.baseUrl === 'http://127.0.0.1:11434/v1', JSON.stringify(record) + ' — fix refreshLocalDiscovery or localModelRecord in src/services/providers/local/localDiscovery.ts')
-  const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.js')
-  const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.js')
+  check('the fixture discovery seeded a 27B record, loaded, on the Ollama base', record?.parameterSize === '27B' && record.loaded === true && record.baseUrl === 'http://127.0.0.1:11434/v1', JSON.stringify(record) + ' — fix refreshLocalDiscovery or localModelRecord in src/models/roads/local/localDiscovery.ts')
+  const { localLaneProfileFor } = await import('../../src/models/roads/local/localCallModel.js')
+  const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.js')
   async function driveWithTransport(fault: { kind: string; code: string; message: string; retryable: boolean }): Promise<{ transports: number; seen: Array<Record<string, unknown>>; errors: string[] }> {
     let transports = 0
     const seen: Array<Record<string, unknown>> = []

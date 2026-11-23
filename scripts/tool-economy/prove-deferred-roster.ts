@@ -24,19 +24,19 @@ process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ fixture: { command: 'true', 
 process.env.TYPESAFE_API_KEY = 'proof-key-deferred-roster-not-a-real-key'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(config => ({ ...config, jev: { ...(config.jev ?? {}), enabled: true } }))
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { planToolPayload, clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { assembleToolPool, getAllBaseTools } = await import('../../src/tools.ts')
-const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Message = import('../../src/types/message.ts').Message
+const { planToolPayload, clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { assembleToolPool, getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { deferralWireFormFor } = await import('../../src/models/roads/deferralWire.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const EIGHT = ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind']
 const ECONOMY = ['Crewmate', 'Skill', 'LspRead', 'AstSearch']
@@ -58,7 +58,7 @@ for (const name of absentHere) {
   const tool = catalogue.find(item => item.name === name)
   if (tool !== undefined) pool.push(tool)
 }
-const { computerToolEnabled } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
+const { computerToolEnabled } = await import('../../src/tools/computer/ComputerTool.ts')
 const BENCH_HERE = computerToolEnabled() ? BENCH_ROSTER : BENCH_ROSTER.filter(name => name !== 'Computer')
 const missing = BENCH_HERE.filter(name => !pool.some(item => item.name === name))
 console.log(`  the pool: ${pool.length} tools · added from the catalogue because this environment's gates leave them out: ${absentHere.join(', ') || 'none'}${computerToolEnabled() ? '' : ' · Computer is not in this build (no desktop driver)'}`)

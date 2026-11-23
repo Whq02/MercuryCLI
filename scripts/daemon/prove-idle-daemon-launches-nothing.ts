@@ -21,7 +21,7 @@ const SETTLE_MS = 8_000
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}fix: a launch listed above is a process an idle daemon must not start, so stop the code path that spawns it (the census names its kind and command, scripts/daemon/census-preload.cjs records it); a daemon that stayed up after its owner died is the reap in src/utils/ownerWatch.ts; daemon logs are in the [forensics] worlds kept below`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}fix: a launch listed above is a process an idle daemon must not start, so stop the code path that spawns it (the census names its kind and command, scripts/daemon/census-preload.cjs records it); a daemon that stayed up after its owner died is the reap in src/daemon/control/ownerWatch.ts; daemon logs are in the [forensics] worlds kept below`}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
@@ -142,7 +142,7 @@ const bootDaemon = (w: World, label: string, script: string, extra: Record<strin
   w.daemons.push(entry)
   return { pid: entry.pid, log }
 }
-const { daemonControlRpc, clearControlKeyMemo } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc, clearControlKeyMemo } = await import('../../src/daemon/control/controlSocket.ts')
 const inWorld = async <T>(w: World, call: () => Promise<T>): Promise<T> => {
   process.env.MERCURY_CONFIG_DIR = w.home
   process.env.MERCURY_DAEMON_DIR = w.daemonDir
@@ -287,7 +287,7 @@ try {
   }
 
   section('the reap still works with no process on the beat: the owner dies, every daemon parks and leaves within the grace')
-  const ownerWatch = await import('../../src/utils/ownerWatch.ts')
+  const ownerWatch = await import('../../src/daemon/control/ownerWatch.ts')
   const ceilingMs = ownerWatch.OWNER_WATCH_INTERVAL_MS * ownerWatch.OWNER_WATCH_GRACE_CHECKS + ownerWatch.OWNER_WATCH_INTERVAL_MS + 3_000
   const killedAt = Date.now()
   owner.kill('SIGKILL')

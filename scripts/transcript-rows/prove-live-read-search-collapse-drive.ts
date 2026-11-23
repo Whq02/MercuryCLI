@@ -199,10 +199,10 @@ try {
         const start = samples.findIndex(s => s.rows > 0)
         const live = samples.slice(Math.max(0, start))
         const bad = live.filter(s => s.rows !== 1 || s.count < 1)
-        check(`${tag}: every emitted frame keeps exactly one numbered row`, start >= 0 && bad.length === 0, `a frame showed zero or several rows instead of one; fix the live grouping in collapseReadSearchGroups (src/components/messages/collapseReadSearch.ts) or collapsedGroupView (src/components/messages/collapsedReadSearch/views.tsx). start=${start} ${JSON.stringify(bad.slice(0, 5))}`)
+        check(`${tag}: every emitted frame keeps exactly one numbered row`, start >= 0 && bad.length === 0, `a frame showed zero or several rows instead of one; fix the live grouping in collapseReadSearchGroups (src/screen/messages/collapseReadSearch.ts) or collapsedGroupView (src/screen/messages/collapsed-read-search/views.tsx). start=${start} ${JSON.stringify(bad.slice(0, 5))}`)
         const dipped = live.filter((s, i) => i > 0 && s.count < live[i - 1]!.count)
-        check(`${tag}: the count never decreases`, dipped.length === 0, `the count on the one live row fell between frames; fix the live count in collapseReadSearchGroups (src/components/messages/collapseReadSearch.ts). ${JSON.stringify(dipped.slice(0, 5))}`)
-        check(`${tag}: every count from one through ${count} was observed`, Array.from({ length: count }, (_, i) => i + 1).every(n => live.some(s => s.count === n)), `some counts from 1 to ${count} never showed on the live row; the group must grow one call at a time in collapseReadSearchGroups (src/components/messages/collapseReadSearch.ts). Seen: ${[...new Set(live.map(s => s.count))].join(',')}`)
+        check(`${tag}: the count never decreases`, dipped.length === 0, `the count on the one live row fell between frames; fix the live count in collapseReadSearchGroups (src/screen/messages/collapseReadSearch.ts). ${JSON.stringify(dipped.slice(0, 5))}`)
+        check(`${tag}: every count from one through ${count} was observed`, Array.from({ length: count }, (_, i) => i + 1).every(n => live.some(s => s.count === n)), `some counts from 1 to ${count} never showed on the live row; the group must grow one call at a time in collapseReadSearchGroups (src/screen/messages/collapseReadSearch.ts). Seen: ${[...new Set(live.map(s => s.count))].join(',')}`)
         const ticks = new Map<number, typeof samples[number]>()
         for (const s of live) ticks.set(s.tick, s)
         const perTick: typeof samples = []
@@ -214,8 +214,8 @@ try {
         writeFileSync(join(dest, 'per-tick.json'), JSON.stringify(perTick, null, 2))
       } else {
         const marks = new Map((payload.marks ?? []).map(m => [m.label, pane(linesOf(m)).join('\n')]))
-        check(`${tag}: clicking the first live card reveals its file`, (marks.get('live-expanded') ?? '').includes('Expanded group (1 call)') && (marks.get('live-expanded') ?? '').includes('f01.txt'), `the click on the live card did not expand it with its file; fix the expanded view in verboseGroupView (src/components/messages/collapsedReadSearch/views.tsx). Pane: ${marks.get('live-expanded') ?? 'no live-expanded mark'}`)
-        check(`${tag}: clicking the settled card reveals every file`, (marks.get('settled-expanded') ?? '').includes('Expanded group (4 calls)') && [1, 2, 3, 4].every(n => (marks.get('settled-expanded') ?? '').includes(`f0${n}.txt`)), `the click on the settled card did not expand it with all four files; fix the expanded view in verboseGroupView (src/components/messages/collapsedReadSearch/views.tsx). Pane: ${marks.get('settled-expanded') ?? 'no settled-expanded mark'}`)
+        check(`${tag}: clicking the first live card reveals its file`, (marks.get('live-expanded') ?? '').includes('Expanded group (1 call)') && (marks.get('live-expanded') ?? '').includes('f01.txt'), `the click on the live card did not expand it with its file; fix the expanded view in verboseGroupView (src/screen/messages/collapsed-read-search/views.tsx). Pane: ${marks.get('live-expanded') ?? 'no live-expanded mark'}`)
+        check(`${tag}: clicking the settled card reveals every file`, (marks.get('settled-expanded') ?? '').includes('Expanded group (4 calls)') && [1, 2, 3, 4].every(n => (marks.get('settled-expanded') ?? '').includes(`f0${n}.txt`)), `the click on the settled card did not expand it with all four files; fix the expanded view in verboseGroupView (src/screen/messages/collapsed-read-search/views.tsx). Pane: ${marks.get('settled-expanded') ?? 'no settled-expanded mark'}`)
       }
       const transcript = transcriptFiles(join(home, 'projects')).find(f => !f.includes('subagents') && readFileSync(f, 'utf8').includes(ASK))
       check(`${tag}: the real session transcript was recorded`, transcript !== undefined, `no .jsonl under the scene home projects folder held the prompt; the session did not write its transcript, look at the session transcript writer rather than the card`)
@@ -229,7 +229,7 @@ try {
       if (reference.code === 0) {
         const cells = cardCells(payload, summary)
         const stored = cardCells(JSON.parse(readFileSync(referenceGrid, 'utf8')) as Grid, summary)
-        check(`${tag}: the final cells equal the same build's recorded-only card`, cells.length > 0 && JSON.stringify(cells) === JSON.stringify(stored), `the live card and the resumed card differ; make the live render and the recorded-only render of the group in src/components/messages/collapsedReadSearch/views.tsx (collapsedGroupView) produce the same cells. live=${cells.length} recorded=${stored.length}`)
+        check(`${tag}: the final cells equal the same build's recorded-only card`, cells.length > 0 && JSON.stringify(cells) === JSON.stringify(stored), `the live card and the resumed card differ; make the live render and the recorded-only render of the group in src/screen/messages/collapsed-read-search/views.tsx (collapsedGroupView) produce the same cells. live=${cells.length} recorded=${stored.length}`)
       }
     } finally {
       server.closeAllConnections()

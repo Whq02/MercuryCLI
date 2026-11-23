@@ -1,5 +1,5 @@
-import { FakeDesktopDriver, FAKE_SCENE_DEFAULT, type FakeScene } from '../../src/services/desktop/fakeDesktopDriver.ts'
-import type { DesktopApplication, DesktopBounds, DesktopDriver, DesktopPoint } from '../../src/services/desktop/driver.ts'
+import { FakeDesktopDriver, FAKE_SCENE_DEFAULT, type FakeScene } from '../../src/integrations/desktop/fakeDesktopDriver.ts'
+import type { DesktopApplication, DesktopBounds, DesktopDriver, DesktopPoint } from '../../src/integrations/desktop/driver.ts'
 
 export type Call = Record<string, unknown>
 const ROUTINE = 'Example webhook routine'

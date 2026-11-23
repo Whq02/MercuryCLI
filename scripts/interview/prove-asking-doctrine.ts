@@ -6,7 +6,7 @@ import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 
-const { AskUserQuestionTool } = await import('../../src/tools/AskUserQuestionTool/AskUserQuestionTool.js')
+const { AskUserQuestionTool } = await import('../../src/tools/ask-question/AskUserQuestionTool.js')
 
 const toolPrompt = await AskUserQuestionTool.prompt!({ getToolPermissionContext: () => ({}) } as never)
 
@@ -31,10 +31,10 @@ t.section('§1 — the question tool describes its interface, not a second askin
     t.check(`the tool does not duplicate ${name}`, !toolPrompt.includes(needle), needle)
   }
   t.check('the description names questions and answers under 100 bytes', toolPrompt.startsWith('Ask structured multiple-choice questions') && toolPrompt.includes("user's answers") && Buffer.byteLength(toolPrompt) <= 100)
-  const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+  const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
   const fields = (zodToJsonSchema(AskUserQuestionTool.inputSchema) as any).properties.questions.items.properties
   t.check('the Other answer and multi-select meanings live only in their fields', fields.options.description.includes('Other free-text answer is supplied automatically') && fields.multiSelect.description.includes('Allow several answers') && !/Other|multiSelect/.test(toolPrompt))
-  const { PREVIEW_FEATURE_PROMPT } = await import('../../src/tools/AskUserQuestionTool/prompt.ts')
+  const { PREVIEW_FEATURE_PROMPT } = await import('../../src/tools/ask-question/prompt.ts')
   t.check('preview formats keep their grammar without worked scenarios', PREVIEW_FEATURE_PROMPT.markdown.includes('Markdown in a monospace box') && PREVIEW_FEATURE_PROMPT.html.includes('without a document wrapper, script or style elements') && Object.values(PREVIEW_FEATURE_PROMPT).every(text => text.includes('Single-select only.') && !/mockups|Use previews/.test(text)))
 }
 

@@ -11,23 +11,23 @@ delete process.env.MERCURY_LOCAL_PROBE_TARGETS
 delete process.env.MERCURY_MODEL
 
 const { proofHome } = await import('../lib/hermetic.ts')
-const setup = await import('../../src/services/localSetup/index.ts')
-const memory = await import('../../src/services/localServer/localServerMemory.ts')
-const memory_truth = await import('../../src/services/localServer/localServerTruth.ts')
-type LocalServerTruth = import('../../src/services/localServer/localServerTruth.ts').LocalServerTruth
-const { localWindowSettingOf } = await import('../../src/services/providers/local/localWindow.ts')
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const setup = await import('../../src/models/local-setup/index.ts')
+const memory = await import('../../src/models/local-server/localServerMemory.ts')
+const memory_truth = await import('../../src/models/local-server/localServerTruth.ts')
+type LocalServerTruth = import('../../src/models/local-server/localServerTruth.ts').LocalServerTruth
+const { localWindowSettingOf } = await import('../../src/models/roads/local/localWindow.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 let failures = 0
 let currentSectionTitle = ''
 function failureHintOf(title: string): string {
-  const dir = 'src/services/localSetup/'
+  const dir = 'src/models/local-setup/'
   if (title.startsWith('§1 ')) return `change ${dir}index.ts (its exports) or ${dir}setupTypes.ts and ${dir}setupChoose.ts (the constants and rows this check reads)`
   if (title.startsWith('§2 ')) return `change ${dir}setupDetect.ts (detectLocalServers, probeWords) or ${dir}setupInstall.ts (findOllamaInstall, planInstall)`
   if (title.startsWith('§3 ')) return `change ${dir}setupInstall.ts (findOllamaInstall) or ${dir}setupStart.ts (planStart, startServer, waitForOllama)`
   if (title.startsWith('§4 ')) return `change ${dir}setupPull.ts (pullModel, modelListed, pullProgressLine)`
-  if (title.startsWith('§5 ')) return `change ${dir}setupWindow.ts (chooseWindow, chooseWindowFrom) or the memory module src/services/localServer/localServerMemory.ts`
+  if (title.startsWith('§5 ')) return `change ${dir}setupWindow.ts (chooseWindow, chooseWindowFrom) or the memory module src/models/local-server/localServerMemory.ts`
   if (title.startsWith('§6')) return `change ${dir}setupProve.ts (pickAndProve, switchSessionModel, proveWillRun)`
   return `change ${dir}setupRoad.ts (runSetupRoad, the step order and consents) or the step file the failing label names in ${dir}`
 }

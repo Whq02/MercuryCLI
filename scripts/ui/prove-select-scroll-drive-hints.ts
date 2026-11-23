@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DRIVE = 'scripts/ui/prove-select-scroll-drive.ts'
 const HINT = '⇧← back'
-const { keyHintLabel, MAC_MODIFIER_GLYPHS } = await import(`${ROOT}/src/components/mercury-ui/keyHintLabel.ts`)
+const { keyHintLabel, MAC_MODIFIER_GLYPHS } = await import(`${ROOT}/src/screen/widgets/keyHintLabel.ts`)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

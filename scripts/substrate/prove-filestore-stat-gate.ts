@@ -2,13 +2,13 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { _setEmitReadGateForProofs, defineStore, publishAtomic } from '../../src/substrate/fileStore.ts'
-import { uiClockStatsForProofs } from '../../src/utils/cockpit/uiClock.ts'
+import { _setEmitReadGateForProofs, defineStore, publishAtomic } from '../../src/platform/substrate/fileStore.ts'
+import { uiClockStatsForProofs } from '../../src/screen/cockpit/uiClock.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — fix the poll floor and its lastStatKey gate in src/substrate/fileStore.ts, or the shared cadence bucket in src/utils/cockpit/uiClock.ts for the bucket count checks' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — fix the poll floor and its lastStatKey gate in src/platform/substrate/fileStore.ts, or the shared cadence bucket in src/screen/cockpit/uiClock.ts for the bucket count checks' : ''}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 

@@ -18,7 +18,7 @@ const frameDir = ((): string | undefined => {
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let failures = 0
-const HELPER_MODEL_FAIL_HINT = 'fix the helper model setting, choices and serving in src/services/providers/local/tensorfoldHelper.ts and tensorfoldHosts.ts (helperModelChoices, readHelperModelSetting, helperModelState), the routing in src/services/model/utilityModel.ts (utilityCallFor), the fold choice in src/services/compact/autoCompact.ts (foldModelFor), or the /config rows in src/components/Settings/Config.tsx'
+const HELPER_MODEL_FAIL_HINT = 'fix the helper model setting, choices and serving in src/models/roads/local/tensorfoldHelper.ts and tensorfoldHosts.ts (helperModelChoices, readHelperModelSetting, helperModelState), the routing in src/models/catalogue/utilityModel.ts (utilityCallFor), the fold choice in src/engine/compaction/autoFold.ts (foldModelFor), or the /config rows in src/screen/settings/Config.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}${HELPER_MODEL_FAIL_HINT}` : ''}`)
@@ -70,12 +70,12 @@ section('§0 the modules import (red on the base: no helper setting, no helper m
 const mods = await (async () => {
   try {
     return {
-      helper: await import('../../src/services/providers/local/tensorfoldHelper.js'),
-      hosts: await import('../../src/services/providers/local/tensorfoldHosts.js'),
-      utility: await import('../../src/services/model/utilityModel.js'),
-      discovery: await import('../../src/services/providers/local/localDiscovery.js'),
-      catalogue: await import('../../src/services/providers/local/localCatalogue.js'),
-      config: await import('../../src/utils/config/globalConfig.js'),
+      helper: await import('../../src/models/roads/local/tensorfoldHelper.js'),
+      hosts: await import('../../src/models/roads/local/tensorfoldHosts.js'),
+      utility: await import('../../src/models/catalogue/utilityModel.js'),
+      discovery: await import('../../src/models/roads/local/localDiscovery.js'),
+      catalogue: await import('../../src/models/roads/local/localCatalogue.js'),
+      config: await import('../../src/platform/config/globalConfig.js'),
     }
   } catch (error) {
     check('the helper module imports', false, error instanceof Error ? error.message.split('\n')[0] ?? '' : String(error))
@@ -140,8 +140,8 @@ section('§2 the setting: off by default; on, the helper\'s own process answers 
   check('2B: compaction stays on the session model until opted in', helper.helperCompactionModelId() === undefined)
   helper.writeHelperModelSetting({ compaction: true })
   check('compaction opt-in routes compaction to the helper', helper.helperCompactionModelId() === 'local/qwen3.5-2b')
-  const { foldModelFor } = await import('../../src/services/compact/autoCompact.js')
-  const { createUserMessage } = await import('../../src/utils/messages/factories.js')
+  const { foldModelFor } = await import('../../src/engine/compaction/autoFold.js')
+  const { createUserMessage } = await import('../../src/engine/message-shapes/factories.js')
   const short = [createUserMessage({ content: 'a short history' })]
   const long = [createUserMessage({ content: 'x'.repeat(400_000) })]
   helper.writeHelperModelSetting({ compaction: false })
@@ -189,7 +189,7 @@ section('§2b the helper is its own process beside the session\'s server, starte
     while (!done() && Date.now() - begun < ms) await quiet(25)
   }
   process.env.MERCURY_MODEL = 'local/qwen3.8-27b'
-  const { armLocalWarm, disarmLocalWarm } = await import('../../src/services/providers/local/localWarm.js')
+  const { armLocalWarm, disarmLocalWarm } = await import('../../src/models/roads/local/localWarm.js')
   helper.__pinHelperReadsForTest({ engineFound: true, twoBOnDisk: false })
   armLocalWarm(() => ({ messages: [], systemPrompt: [], tools: [] } as never), { io: { settleMs: 0 } })
   await quiet(500)
@@ -241,13 +241,13 @@ section('§2b the helper is its own process beside the session\'s server, starte
 }
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
-const { CONFIG_POPUP_HINT, CONFIG_ROW_MARK } = await import('../../src/components/Settings/Config.js')
+const { CONFIG_POPUP_HINT, CONFIG_ROW_MARK } = await import('../../src/screen/settings/Config.js')
 
 async function mount(columns: number, rows: number): Promise<Mounted> {
   const element = React.createElement(

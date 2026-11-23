@@ -13,10 +13,10 @@ mkdirSync(daemonDir, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = daemonDir
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '9.9.9' }
 
-const seat = await import('../../src/daemon/sessionSeat.ts')
-const protocol = await import('../../src/daemon/protocol.ts')
+const seat = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const protocol = await import('../../src/daemon/control/protocol.ts')
 const { standInRunner } = await import('../lib/seatDoor.ts')
-const { RPC_METHOD_NOT_FOUND, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+const { RPC_METHOD_NOT_FOUND, RPC_REFUSED } = await import('../../src/daemon/runner-wire/errors.ts')
 const { withdrawSessionSend } = seat
 
 let failures = 0
@@ -24,7 +24,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  const said = [detail, 'fix withdrawSessionSend in src/daemon/sessionSeat/verbs.ts (the queue/withdraw relay); the §5 wire checks live in src/runner/wire/sessionVerbs.ts and verbBornAt in src/daemon/protocol.ts'].filter(Boolean).join('; ')
+  const said = [detail, 'fix withdrawSessionSend in src/daemon/session-seat/verbs.ts (the queue/withdraw relay); the §5 wire checks live in src/daemon/runner-wire/sessionVerbs.ts and verbBornAt in src/daemon/control/protocol.ts'].filter(Boolean).join('; ')
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${said}` : ''}`)
 }
 function section(t: string): void {

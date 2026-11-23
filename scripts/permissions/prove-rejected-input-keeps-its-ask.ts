@@ -18,21 +18,21 @@ if (!process.argv.includes('--child')) {
   if (homedir() !== process.env.REJECTED_INPUT_HOME) throw new Error('wrong proof home before product imports')
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   const world = gitFixture('rejected-input-')
-  const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
-  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-  const { enableConfigs } = await import('../../src/utils/config.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { decideToolPermission, defaultDecisionPorts } = await import('../../src/utils/permissions/decision/engine.ts')
-  const { createPermissionRequestMessage } = await import('../../src/utils/permissions/decision/requestMessage.ts')
-  const { getAllBaseTools } = await import('../../src/tools.ts')
-  const { GitTool } = await import('../../src/tools/GitTool/GitTool.ts')
+  const { setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
+  const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { decideToolPermission, defaultDecisionPorts } = await import('../../src/permissions/rules/decision/engine.ts')
+  const { createPermissionRequestMessage } = await import('../../src/permissions/rules/decision/requestMessage.ts')
+  const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+  const { GitTool } = await import('../../src/tools/git/GitTool.ts')
   enableConfigs()
   setOriginalCwd(world.root)
   const startedIn = process.cwd()
   process.chdir(world.root)
   let checks = 0
   let failures = 0
-  const check = (label: string, ok: boolean, detail = ''): void => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}to fix: change decideToolPermission in src/utils/permissions/decision/engine.ts (its toolVerdict stage degrades a rejected input to passthrough) or the named tool's checkPermissions, not this proof` : ''}`) }
+  const check = (label: string, ok: boolean, detail = ''): void => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}to fix: change decideToolPermission in src/permissions/rules/decision/engine.ts (its toolVerdict stage degrades a rejected input to passthrough) or the named tool's checkPermissions, not this proof` : ''}`) }
   type Verdict = { behavior: 'allow' | 'ask' | 'deny'; message?: string; note: string }
   type AnyTool = { name: string; inputSchema: { safeParse(input: unknown): { success: boolean }; parse(input: unknown): unknown }; inputJSONSchema?: unknown; checkPermissions(input: unknown, context: unknown): Promise<unknown>; requiresUserInteraction?(): boolean; backfillObservableInput?(input: unknown): void; call(input: unknown, context: unknown): Promise<{ data: { result: string } }> }
   const DEGRADED = 'resolution failed — degraded to passthrough'

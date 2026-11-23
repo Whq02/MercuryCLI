@@ -4,18 +4,18 @@ import { generateKeyPairSync } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { keyIdOf, signStatement, type SigningStatementV1 } from '../../src/services/privateChannel/artifactSigning.js'
-import { artifactSignatureCheck } from '../../src/services/privateChannel/artifactVerify.js'
-import { listInstalledVersions } from '../../src/services/privateChannel/installLayout.js'
-import type { TrustedSigningKey } from '../../src/services/privateChannel/signingTrust.js'
+import { keyIdOf, signStatement, type SigningStatementV1 } from '../../src/platform/update-channel/artifactSigning.js'
+import { artifactSignatureCheck } from '../../src/platform/update-channel/artifactVerify.js'
+import { listInstalledVersions } from '../../src/platform/update-channel/installLayout.js'
+import type { TrustedSigningKey } from '../../src/platform/update-channel/signingTrust.js'
 // @ts-expect-error — packager-side authorities are plain .mjs (no types)
 import { posixLauncher, cmdLauncher, ps1Launcher, parseEnginesNode } from '../release/launcherTemplates.mjs'
-import { NODE_SUPPORT } from '../../src/utils/runtime/nodePolicy.js'
+import { NODE_SUPPORT } from '../../src/platform/node-runtime/nodePolicy.js'
 // @ts-expect-error — same
 import { readCompatFloor, releaseLayoutSection, topAllowlist } from '../release/payloadContract.mjs'
 
 let failures = 0
-const SIGNING_FIX_HINT = 'to fix, change the launcher text in scripts/release/launcherTemplates.mjs, the /health row in artifactSignatureCheck (src/services/privateChannel/artifactVerify.ts), or the shipped verifier src/services/privateChannel/verifyArtifactStandalone.ts, whichever this check names'
+const SIGNING_FIX_HINT = 'to fix, change the launcher text in scripts/release/launcherTemplates.mjs, the /health row in artifactSignatureCheck (src/platform/update-channel/artifactVerify.ts), or the shipped verifier src/platform/update-channel/verifyArtifactStandalone.ts, whichever this check names'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  ${ok ? '✓' : '✗'} ${label}${ok ? '' : ` — ${detail ? `${detail} — ` : ''}${SIGNING_FIX_HINT}`}`)
   if (!ok) failures++
@@ -123,9 +123,9 @@ try {
   const unrecognizedRow = artifactSignatureCheck(asManaged(signedDir), 'fast', [])
   check('/health unrecognized-key row: warn + names the roster gap', unrecognizedRow.status === 'warn' && unrecognizedRow.evidence.includes('NOT in this build') && (unrecognizedRow.fix ?? '').includes('signingTrust'))
 
-  const { healthContext } = await import('../../src/services/health/healthReport.ts')
-  const { identityChecks } = await import('../../src/services/health/sections/identity.ts')
-  const { resolveInstallProvenance } = await import('../../src/services/privateChannel/installProvenance.ts')
+  const { healthContext } = await import('../../src/platform/health/healthReport.ts')
+  const { identityChecks } = await import('../../src/platform/health/sections/identity.ts')
+  const { resolveInstallProvenance } = await import('../../src/platform/update-channel/installProvenance.ts')
   const identityRows = identityChecks(await healthContext())
   const fastRow = identityRows.find(row => row.id === 'artifact-signature')
   const deepRow = identityRows.find(row => row.id === 'artifact-signature-payload')

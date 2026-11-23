@@ -16,16 +16,16 @@ const check = (name: string, ok: boolean, detail = '') => {
   if (!ok) failures++
 }
 try {
-  const background = await import(`${root}/src/utils/hooks/background.ts`)
-  const { getBackgroundHookAttachments } = await import(`${root}/src/utils/attachments/taskStatus.ts`)
+  const background = await import(`${root}/src/integrations/event-hooks/background.ts`)
+  const { getBackgroundHookAttachments } = await import(`${root}/src/engine/attachment-shapes/taskStatus.ts`)
   const finished = (stdout: string, code: number, stderr = '') => ({
     pid: 1,
     result: Promise.resolve({ kind: 'exited' as const, code, stdout, stderr, durationMs: 5 }),
     kill: () => {},
   })
-  const H = 'Check hookRowsOf in src/utils/hooks/rows.ts and takeBackgroundHookOutcomes in src/utils/hooks/background.ts, which getBackgroundHookAttachments in src/utils/attachments/taskStatus.ts calls.'
+  const H = 'Check hookRowsOf in src/integrations/event-hooks/rows.ts and takeBackgroundHookOutcomes in src/integrations/event-hooks/background.ts, which getBackgroundHookAttachments in src/engine/attachment-shapes/taskStatus.ts calls.'
   background.resetBackgroundHooksForTesting()
-  check('an empty background delivers nothing', (await getBackgroundHookAttachments()).length === 0, `after resetBackgroundHooksForTesting in src/utils/hooks/background.ts, getBackgroundHookAttachments in src/utils/attachments/taskStatus.ts should return no rows; check takeBackgroundHookOutcomes`)
+  check('an empty background delivers nothing', (await getBackgroundHookAttachments()).length === 0, `after resetBackgroundHooksForTesting in src/integrations/event-hooks/background.ts, getBackgroundHookAttachments in src/engine/attachment-shapes/taskStatus.ts should return no rows; check takeBackgroundHookOutcomes`)
   const scope = { sessionId: 'delivery-session' }
   background.startBackgroundHook({ id: 'hook-one', name: 'after-edit', event: 'tool.after', process: finished('{"notice":"edit noted"}\n', 0), wake: false, scope })
   background.startBackgroundHook({ id: 'hook-two', name: 'warm-up', event: 'session.start', process: finished('ready\n', 0), wake: false, scope })
@@ -40,7 +40,7 @@ try {
   check('a notice answer rides as a notice row naming the hook and the event', one?.outcome === 'notice' && one.event === 'tool.after' && one.words === 'edit noted', `${JSON.stringify(one)}. ${H}`)
   check('plain words on session.start ride as a context row', two?.outcome === 'context' && two.event === 'session.start' && two.words === 'ready', `${JSON.stringify(two)}. ${H}`)
   check('a failed background hook rides as a failed row with the one sentence', three?.outcome === 'failed' && String(three.words).includes('broken') && String(three.words).includes('it broke'), `${JSON.stringify(three)}. ${H}`)
-  check('a delivered outcome is delivered once', (await getBackgroundHookAttachments()).length === 0, 'takeBackgroundHookOutcomes in src/utils/hooks/background.ts should empty the banked outcomes when it returns them')
+  check('a delivered outcome is delivered once', (await getBackgroundHookAttachments()).length === 0, 'takeBackgroundHookOutcomes in src/integrations/event-hooks/background.ts should empty the banked outcomes when it returns them')
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

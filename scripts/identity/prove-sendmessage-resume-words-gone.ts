@@ -13,7 +13,7 @@ const forbidden = [
   'one-line outcome through ${SEND_MESSAGE_TOOL_NAME}',
 ]
 const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(join(dir, entry.name)) : /\.(tsx?|txt)$/.test(entry.name) ? [join(dir, entry.name)] : [])
-const sources = walk(join(root, 'src')).filter(path => relative(root, path) !== 'src/constants/changelogArchive.ts').map(path => [relative(root, path), readFileSync(path, 'utf8')] as const)
+const sources = walk(join(root, 'src')).filter(path => relative(root, path) !== 'src/commands/update-notes/changelogArchive.ts').map(path => [relative(root, path), readFileSync(path, 'utf8')] as const)
 let failures = 0
 for (const words of forbidden) {
   const hits = sources.filter(([, text]) => text.includes(words)).map(([path]) => path)

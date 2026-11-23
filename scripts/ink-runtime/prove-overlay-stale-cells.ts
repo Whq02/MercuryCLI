@@ -1,18 +1,18 @@
 #!/usr/bin/env bun
-// gate-watch: src/ink/compose-walk.ts src/ink/renderer.ts src/ink/compose-buffer.ts src/ink/cell-grid.ts
+// gate-watch: src/screen/renderer/compose-walk.ts src/screen/renderer/renderer.ts src/screen/renderer/compose-buffer.ts src/screen/renderer/cell-grid.ts
 process.env.FORCE_COLOR = '3'
 delete process.env.NO_COLOR
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { appendChildNode, createNode, removeChildNode, setTextNodeValue } = await import('../../src/ink/dom.js')
-type DOMElement = import('../../src/ink/dom.js').DOMElement
-type TextNode = import('../../src/ink/dom.js').TextNode
-const { cellAt } = await import('../../src/ink/cell-grid.js')
-type Screen = import('../../src/ink/cell-grid.js').Screen
-const { lastComposeCounts } = await import('../../src/ink/compose-buffer.js')
-const { emptyFrame } = await import('../../src/ink/frame.js')
-type Frame = import('../../src/ink/frame.js').Frame
-const { default: createRenderer } = await import('../../src/ink/renderer.js')
+const { appendChildNode, createNode, removeChildNode, setTextNodeValue } = await import('../../src/screen/renderer/dom.js')
+type DOMElement = import('../../src/screen/renderer/dom.js').DOMElement
+type TextNode = import('../../src/screen/renderer/dom.js').TextNode
+const { cellAt } = await import('../../src/screen/renderer/cell-grid.js')
+type Screen = import('../../src/screen/renderer/cell-grid.js').Screen
+const { lastComposeCounts } = await import('../../src/screen/renderer/compose-buffer.js')
+const { emptyFrame } = await import('../../src/screen/renderer/frame.js')
+type Frame = import('../../src/screen/renderer/frame.js').Frame
+const { default: createRenderer } = await import('../../src/screen/renderer/renderer.js')
 const { applySceneStyle, buildDom, makeContext } = await import('./frameHarness.js')
 type ComposeContext = import('./frameHarness.js').ComposeContext
 
@@ -20,7 +20,7 @@ const COLS = 50
 const ROWS = 14
 
 const overlayFixHint =
-  'the reused-frame paint left cells that a fresh paint does not; fix the overlay invalidation in invalidOverlayRects (src/ink/compose-walk.ts) or the blit and clear path in src/ink/compose-buffer.ts and src/ink/renderer.ts'
+  'the reused-frame paint left cells that a fresh paint does not; fix the overlay invalidation in invalidOverlayRects (src/screen/renderer/compose-walk.ts) or the blit and clear path in src/screen/renderer/compose-buffer.ts and src/screen/renderer/renderer.ts'
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {

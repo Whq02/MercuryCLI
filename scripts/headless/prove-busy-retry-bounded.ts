@@ -7,7 +7,7 @@ import { dirname, join, resolve } from 'node:path'
 import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { BUSY_RETRY_QUIET_MS, BUSY_RETRY_RUNGS_MS } = await import('../../src/services/providers/busyRetry.ts')
+const { BUSY_RETRY_QUIET_MS, BUSY_RETRY_RUNGS_MS } = await import('../../src/models/roads/busyRetry.ts')
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 
 const arg = (name: string): string | undefined => {
@@ -18,7 +18,7 @@ const ROOT = resolve(import.meta.dir, '../..')
 const DIST = resolve(arg('--dist') ?? join(ROOT, 'dist/mercury.mjs'))
 const ROADS = (arg('--roads') ?? 'gemini,openai,deepseek').split(',')
 let failures = 0
-const BUSY_RETRY_LOOK = 'where to look: the busy-retry ladder (BUSY_RETRY_RUNGS_MS, BUSY_RETRY_QUIET_MS) in src/services/providers/busyRetry.ts, its use by the provider road named in the check, and the bundle (rebuild dist/mercury.mjs with bun run build.ts if it is stale)'
+const BUSY_RETRY_LOOK = 'where to look: the busy-retry ladder (BUSY_RETRY_RUNGS_MS, BUSY_RETRY_QUIET_MS) in src/models/roads/busyRetry.ts, its use by the provider road named in the check, and the bundle (rebuild dist/mercury.mjs with bun run build.ts if it is stale)'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' | ' : '') + BUSY_RETRY_LOOK : ''}`)
   if (!cond) failures++

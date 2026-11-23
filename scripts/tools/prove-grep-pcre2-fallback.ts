@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 let failures = 0
-const pcreFailureHint = 'Change the PCRE2 fallback in src/tools/GrepTool/GrepTool.ts (pcreOnlyConstruct and the retry) or ripGrepAnswer and isRipgrepUsageDiagnostic in src/utils/ripgrep.ts until this check holds'
+const pcreFailureHint = 'Change the PCRE2 fallback in src/tools/grep/GrepTool.ts (pcreOnlyConstruct and the retry) or ripGrepAnswer and isRipgrepUsageDiagnostic in src/platform/shell/ripgrep.ts until this check holds'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + pcreFailureHint + (detail ? '. ' + detail : '') : ''}`)
   if (!cond) failures++
@@ -21,14 +21,14 @@ const BACKREFERENCE = '(foo)\\1'
 const CLAUSE_LOOKAROUND = 'matched with PCRE2: the pattern uses lookaround'
 const CLAUSE_BACKREFERENCE = 'matched with PCRE2: the pattern uses a backreference'
 
-const grepModule = (await import('../../src/tools/GrepTool/GrepTool.ts')) as unknown as {
-  GrepTool: typeof import('../../src/tools/GrepTool/GrepTool.ts').GrepTool
+const grepModule = (await import('../../src/tools/grep/GrepTool.ts')) as unknown as {
+  GrepTool: typeof import('../../src/tools/grep/GrepTool.ts').GrepTool
   pcreOnlyConstruct?: (pattern: string) => string | null
 }
 const { GrepTool } = grepModule
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { resolveRipgrep, ripGrepAnswer, isRipgrepUsageDiagnostic } = await import('../../src/utils/ripgrep.ts')
-const { whichSync } = await import('../../src/utils/which.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { resolveRipgrep, ripGrepAnswer, isRipgrepUsageDiagnostic } = await import('../../src/platform/shell/ripgrep.ts')
+const { whichSync } = await import('../../src/platform/processes/which.ts')
 
 type Data = {
   mode?: string
@@ -229,7 +229,7 @@ try {
 
   console.log('\n§6 the description tells the model in one sentence')
   const description = await GrepTool.description()
-  const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+  const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
   const patternField = String((zodToJsonSchema((GrepTool as unknown as { inputSchema: never }).inputSchema) as { properties?: { pattern?: { description?: string } } }).properties?.pattern?.description ?? '')
   check('the pattern field names the fallback (the description says what the tool does, the field what its pattern is)', /PCRE2/.test(patternField) && !/PCRE2/.test(description), patternField)
 

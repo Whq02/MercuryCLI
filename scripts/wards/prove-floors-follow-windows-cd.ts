@@ -8,7 +8,7 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
-const windowsCdFailHint = 'for the §1 checks change how readShellCommands (re-exported by src/utils/wards/wardsShellRead.ts from src/utils/permissions/decision/commandAnalysis.ts) follows a cd; for §2 to §5 change shellMercurySecretPath, shellSelfProtectionReason or shellCredentialWritePath in src/utils/permissions/shellProtectedPaths.ts so they judge the folder the cd leaves'
+const windowsCdFailHint = 'for the §1 checks change how readShellCommands (re-exported by src/permissions/wards/wardsShellRead.ts from src/permissions/rules/decision/commandAnalysis.ts) follows a cd; for §2 to §5 change shellMercurySecretPath, shellSelfProtectionReason or shellCredentialWritePath in src/permissions/rules/shellProtectedPaths.ts so they judge the folder the cd leaves'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -32,10 +32,10 @@ process.env.MERCURY_CONFIG_DIR = STORE
 process.env.MERCURY_DAEMON_DIR = `${STORE}\\daemon`
 for (const key of ['MERCURY_HOME', 'MERCURY_WARDS', 'MERCURY_SPAWNED_BY', 'MERCURY_SKIP_PERMISSIONS']) delete process.env[key]
 
-const { getPlatform } = await import(join(SRC, 'utils/platform.ts'))
+const { getPlatform } = await import(join(SRC, 'platform/environment/platform.ts'))
 getPlatform.cache.set(undefined, 'windows')
-const { readShellCommands } = await import(join(SRC, 'utils/wards/wardsShellRead.ts'))
-const floors = await import(join(SRC, 'utils/permissions/shellProtectedPaths.ts'))
+const { readShellCommands } = await import(join(SRC, 'permissions/wards/wardsShellRead.ts'))
+const floors = await import(join(SRC, 'permissions/rules/shellProtectedPaths.ts'))
 
 const readRefusal = (command: string, cwd = PROJECT, powershell = false): Promise<string | null> => floors.shellMercurySecretPath(command, powershell, cwd)
 const runtimeRefusal = (command: string, cwd = PROJECT): Promise<string | null> => floors.shellSelfProtectionReason(command, false, cwd)

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
-import { stringWidth } from '../../src/ink/stringWidth.ts'
+import { stringWidth } from '../../src/screen/renderer/stringWidth.ts'
 
 const REPO = path.resolve(import.meta.dir, '..', '..')
 const VSHOT = path.join(REPO, 'scripts/ui/vshot.py')
@@ -27,7 +27,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
-  if (!cond) console.log('    to fix: the landing notice is sent from src/screens/chat/submit/sessionSend.ts, the failover sentence (words, cut, /model to return tail) is built in src/services/capFailover.ts (capLaneLineWords, capLaneLineCut); read the frame-*.txt files and engine.log under the world folder named at the top of this run')
+  if (!cond) console.log('    to fix: the landing notice is sent from src/screen/chat/submit/sessionSend.ts, the failover sentence (words, cut, /model to return tail) is built in src/models/roads/capFailover.ts (capLaneLineWords, capLaneLineCut); read the frame-*.txt files and engine.log under the world folder named at the top of this run')
 }
 
 const RUN_HOME = path.join(realpathSync(tmpdir()), `mercury-failover-rows-${process.pid}`)

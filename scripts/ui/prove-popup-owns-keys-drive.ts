@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { DIST, FRAMES, argAfter, makeTally } from '../daemon/dupline-world.ts'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
-import { jevReceiptWords } from '../../src/services/jev/jevSetting.ts'
+import { jevReceiptWords } from '../../src/models/jev/jevSetting.ts'
 
 const VSHOT = join(import.meta.dir, 'vshot.py')
 const tally = makeTally('prove-popup-owns-keys-drive')

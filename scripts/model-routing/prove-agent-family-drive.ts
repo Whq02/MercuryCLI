@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
-const REPO = join(import.meta.dir, '../..')
+const REPO = join(import.meta.dir, '../../kit/toolList')
 const arg = (name: string): string | undefined => { const at = process.argv.indexOf(name); return at < 0 ? undefined : process.argv[at + 1] }
 const BIN = arg('--dist') ?? join(REPO, 'dist/mercury.mjs')
 const OUT = arg('--records')
@@ -83,7 +83,7 @@ try {
     const record = { parent, word, expected, rc, childModels, wire, stdout, stderr }
     records.push(record)
     console.log(JSON.stringify(record, null, 2))
-    console.log(`[${ok ? 'PASS' : 'FAIL'}] ${parent} + ${word} launches ${expected}${ok ? '' : ` — read rc, childModels and stderr in the record above; if the child model is wrong, fix getAgentModel in src/services/model/agent.ts (the model word the Crewmate call passes from src/tools/AgentTool/agent/call.ts)`}`)
+    console.log(`[${ok ? 'PASS' : 'FAIL'}] ${parent} + ${word} launches ${expected}${ok ? '' : ` — read rc, childModels and stderr in the record above; if the child model is wrong, fix getAgentModel in src/models/catalogue/agentModel.ts (the model word the Crewmate call passes from src/tools/crewmate/call/call.ts)`}`)
     if (!ok) failures++
   }
   if (OUT) writeFileSync(OUT, JSON.stringify({ bundle: BIN, records }, null, 2) + '\n')

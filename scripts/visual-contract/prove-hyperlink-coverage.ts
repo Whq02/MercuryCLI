@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { checker } from '../engine-durability/harness.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -174,9 +174,9 @@ t.section('§1 — the owners emit COMPLETE OSC 8 links on the flow path')
   for (const k of TERMINAL_IDENTITY_ENV) delete process.env[k]
   process.env.TERM_PROGRAM = 'iTerm.app'
   const React = (await import('react')).default
-  const { createHyperlink } = await import('../../src/utils/hyperlink.ts')
-  const { FilePathLink } = await import('../../src/components/FilePathLink.tsx')
-  const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
+  const { createHyperlink } = await import('../../src/platform/text/hyperlink.ts')
+  const { FilePathLink } = await import('../../src/tools/kit/FilePathLink.tsx')
+  const { renderToAnsiString } = await import('../../src/screen/renderer/staticRender.tsx')
 
   const md = createHyperlink('https://example.invalid/guide', 'the field guide')
   t.check(

@@ -2,13 +2,13 @@ import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { Client, StdioClientTransport } from '../../src/utils/mcp/sdk.ts'
-import { mediaGenerationDetails, mediaGenerationKind } from '../../src/services/media/generation.js'
-import { MEDIA_SERVER_NAME } from '../../src/services/media/settings.js'
+import { Client, StdioClientTransport } from '../../src/integrations/mcp-shapes/sdk.ts'
+import { mediaGenerationDetails, mediaGenerationKind } from '../../src/integrations/media/generation.js'
+import { MEDIA_SERVER_NAME } from '../../src/integrations/media/settings.js'
 import { catalogue, proofHome, removeProofHome } from './fixture.ts'
 
 const root = join(proofHome, 'storage')
-const bundled = resolve(import.meta.dir, '../../src/extensions/bundled/mercury-media/server')
+const bundled = resolve(import.meta.dir, '../../src/integrations/extensions/bundled/mercury-media/server')
 const client = new Client({ name: 'media-slot-proof', version: '1.0.0' })
 try {
   const config = { imageModel: 'image-two', videoModel: 'video-one' }
@@ -48,14 +48,14 @@ try {
   assert.doesNotMatch(JSON.stringify(referenceOnDefault), /does not support reference/)
   const explicitEditing = await client.callTool({ name: 'image_generate', arguments: { prompt: 'fixture', model: 'flux2-klein-4b', reference_image: join(root, 'absent.png') } })
   assert.doesNotMatch(JSON.stringify(explicitEditing), /does not support reference/)
-  const { connectToServer, fetchToolsForClient } = await import('../../src/services/mcp/client.ts')
+  const { connectToServer, fetchToolsForClient } = await import('../../src/integrations/mcp/client.ts')
   const connection = await connectToServer(MEDIA_SERVER_NAME, { type: 'stdio', command: 'node', args: [join(bundled, 'server.js')], env: { MEDIA_ROOT: root }, scope: 'dynamic' })
   assert.equal(connection.type, 'connected')
   if (connection.type === 'connected') {
     try {
       const discovered = await fetchToolsForClient(connection)
-      const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-      const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
+      const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+      const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.ts')
       const permission = getEmptyToolPermissionContext()
       const context: any = { abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: permission }), options: {} }
       for (const kind of ['image', 'video'] as const) {

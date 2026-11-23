@@ -33,29 +33,29 @@ if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 1200)}` : ''}${!ok ? ` | to fix: the jump pill and the divider come from useUnseenDivider and the layout in src/components/FullscreenLayout.tsx, the page keys from src/components/ScrollKeybindingHandler.tsx; change the one that disagrees with this check` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 1200)}` : ''}${!ok ? ` | to fix: the jump pill and the divider come from useUnseenDivider and the layout in src/screen/fullscreen-layout/FullscreenLayout.tsx, the page keys from src/screen/scroll-keys/ScrollKeybindingHandler.tsx; change the one that disagrees with this check` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 
 const React = await import('react')
-const { Box, Text } = await import('../../src/ink.js')
-const { App } = await import('../../src/components/App.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-const { FullscreenLayout, useUnseenDivider } = await import('../../src/components/FullscreenLayout.js')
-const { ScrollKeybindingHandler } = await import('../../src/components/ScrollKeybindingHandler.js')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.js')
-const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.js')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.js')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.js')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.js')
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { App } = await import('../../src/boot/App.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+const { FullscreenLayout, useUnseenDivider } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.js')
+const { ScrollKeybindingHandler } = await import('../../src/screen/scroll-keys/ScrollKeybindingHandler.js')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.js')
+const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.js')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.js')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.js')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
-const pending = await import('../../src/input-core/pending-input.js')
-type ScrollBoxHandle = import('../../src/ink/components/ScrollBox.js').ScrollBoxHandle
+const pending = await import('../../src/screen/composer/input-core/pending-input.js')
+type ScrollBoxHandle = import('../../src/screen/renderer/elements/ScrollBox.js').ScrollBoxHandle
 const h = React.createElement
 
 type Row = { id: string; lines: string[] }
@@ -103,7 +103,7 @@ async function mountCockpit(initial: Row[], countsNewRows = false): Promise<{ m:
   pending.edit('')
   pending.setMode('prompt')
   const scrollRef = React.createRef<ScrollBoxHandle | null>() as React.MutableRefObject<ScrollBoxHandle | null>
-  const insertRef = { current: null } as React.MutableRefObject<import('../../src/components/PromptInput/PromptInput.js').PromptInputProps['insertTextRef']['current']>
+  const insertRef = { current: null } as React.MutableRefObject<import('../../src/screen/composer/Composer.js').PromptInputProps['insertTextRef']['current']>
   const api: Api = { setRows: () => {}, handle: () => scrollRef.current, armed: () => false }
   function Cockpit(): React.ReactNode {
     const [rows, setRows] = React.useState<Row[]>(initial)

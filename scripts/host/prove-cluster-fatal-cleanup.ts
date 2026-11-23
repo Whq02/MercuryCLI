@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture } from './runpodFixture.mjs'
-import type { HostRunner } from '../../src/services/host/ssh.ts'
+import type { HostRunner } from '../../src/models/hosting/ssh.ts'
 
 assert.ok(process.env.MERCURY_CONFIG_DIR, 'a scratch MERCURY_CONFIG_DIR is required')
 const f = await llmhostFixture()
@@ -17,14 +17,14 @@ globalThis.fetch = Object.assign((input: RequestInfo | URL, init?: RequestInit) 
   return originalFetch(input, init)
 }, originalFetch)
 try {
-  const { runHostJob } = await import('../../src/services/host/worker.ts')
-  const { queueHostSetup } = await import('../../src/services/host/jobs.ts')
-  const { readHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
-  const { saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
-  const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+  const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+  const { queueHostSetup } = await import('../../src/models/hosting/jobs.ts')
+  const { readHostRecord, removeHostRecord } = await import('../../src/models/hosting/store.ts')
+  const { saveVendorKey } = await import('../../src/models/hosting/vendors/client.ts')
+  const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
   saveVendorKey('runpod', rp.key)
   const recipe = HOST_RECIPES.find(row => row.nodes === 2 && row.gpu === 'B200')!
-  assert.ok(recipe, `HOST_RECIPES missing 2-node B200 cluster recipe (total=${HOST_RECIPES.length}); check src/services/host/recipes.ts`)
+  assert.ok(recipe, `HOST_RECIPES missing 2-node B200 cluster recipe (total=${HOST_RECIPES.length}); check src/models/hosting/recipes.ts`)
   const notices = (id: string): string[] => readdirSync(join(f.home, 'host/notices')).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(join(f.home, 'host/notices', name), 'utf8'))).filter(row => row.sessionId === id).map(row => row.words)
   for (const mode of ['shape-mismatch', 'node-lost', 'cuda', 'placement', 'tunnel-failed', 'tunnel-delete-held', 'tunnel-listing-unavailable', 'head-oom', 'node-launch', 'worker-exit', 'delete-held', 'listing-unavailable', 'read-paused', 'repriced'] as const) {
     const id = 'cluster-' + mode
@@ -58,7 +58,7 @@ try {
     const words = notices(id)
     if (mode === 'read-paused') {
       const record = readHostRecord(id)!
-      const { hostIdleVerdict, HOST_IDLE_LIMIT_MS } = await import('../../src/services/host/idle.ts')
+      const { hostIdleVerdict, HOST_IDLE_LIMIT_MS } = await import('../../src/models/hosting/idle.ts')
       check('transient vendor-read exhaustion pauses the cluster without terminating it', deletes.length === 0 && rp.state.clusters.has(id) && record.jobState === 'paused' && words.length === 1 && words[0]!.includes('setup paused'))
       check('the exhausted-read pause starts its unanswered timer at the failure', record.advancedAt! >= queued.advancedAt! && record.steps?.at(-1)?.at === record.advancedAt && hostIdleVerdict(record, record.advancedAt! + HOST_IDLE_LIMIT_MS - 1) === undefined && hostIdleVerdict(record, record.advancedAt! + HOST_IDLE_LIMIT_MS)?.kind === 'paused')
     } else {

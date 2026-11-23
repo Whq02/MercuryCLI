@@ -408,7 +408,7 @@ docker run --rm mercury --version
 - **Apollo Mode**، وهو مقابلة المواصفات: أجب عن أسئلة الوكيل لإكمال المواصفات التي سيستخدمها لبناء نموذج أولي (prototype). راجع [docs/APOLLO-MODE.md](../APOLLO-MODE.md).
 - **الاسترداد.** نشر ذرّي، وعمليات مُسجَّلة في يومية، ومطابقة عند بدء التشغيل. راجع [docs/DURABILITY.md](../DURABILITY.md).
 
-تُعرَّف أعلام التشغيل في `src/substrate/flagRegistry.ts`، وتُعرض كإعدادات `MERCURY_*`، وتُولَّد عند الطلب. وتُوثَّق توافقية التكاملات في [docs/COMPATIBILITY.md](../COMPATIBILITY.md). وفهرس التوثيق الكامل هو [docs/README.md](../README.md).
+تُعرَّف أعلام التشغيل في `src/platform/substrate/flagRegistry.ts`، وتُعرض كإعدادات `MERCURY_*`، وتُولَّد عند الطلب. وتُوثَّق توافقية التكاملات في [docs/COMPATIBILITY.md](../COMPATIBILITY.md). وفهرس التوثيق الكامل هو [docs/README.md](../README.md).
 
 ## أوامر الشرطة المائلة
 

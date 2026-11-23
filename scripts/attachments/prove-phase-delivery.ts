@@ -4,12 +4,12 @@ import { join, resolve } from 'node:path'
 
 const root = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const engine = await import(join(root, 'services/instructions/engine.ts'))
-const bootstrap = await import(join(root, 'bootstrap/state.ts'))
-const permissions = await import(join(root, 'utils/permissions/filesystem.ts'))
-const framework = await import(join(root, 'utils/task/framework.ts'))
-const { getNestedMemoryAttachmentsForFile, getDirectoriesToProcess } = await import(join(root, 'services/attachments/nestedMemory.ts'))
-const { getUnifiedTaskAttachments } = await import(join(root, 'utils/attachments/taskStatus.ts'))
+const engine = await import(join(root, 'sessions/instructions/instructionFiles.ts'))
+const bootstrap = await import(join(root, 'boot/process-state/processState.ts'))
+const permissions = await import(join(root, 'permissions/rules/filesystem.ts'))
+const framework = await import(join(root, 'engine/task-framework/taskRegistry.ts'))
+const { getNestedMemoryAttachmentsForFile, getDirectoriesToProcess } = await import(join(root, 'engine/attachments/nestedInstructions.ts'))
+const { getUnifiedTaskAttachments } = await import(join(root, 'engine/attachment-shapes/taskStatus.ts'))
 const base = resolve(process.env.MERCURY_CONFIG_DIR!, 'project')
 const file = join(base, 'sub', 'deep', 'file.ts')
 const context = { readFileState: new Map(), loadedNestedMemoryPaths: new Set() }
@@ -23,7 +23,7 @@ const spies = [
   spyOn(permissions, 'pathInAllowedWorkingPath').mockImplementation(() => allowed),
   spyOn(engine, 'getManagedAndUserConditionalInstructionRules').mockImplementation(async (_path, seen) => { events.push('managed'); ledgers.push(seen); return [entry('managed')] as never }),
   spyOn(engine, 'getInstructionFilesForNestedDirectory').mockImplementation(async (directory, _path, seen) => {
-    assert(context.readFileState.has(join(base, 'managed.md')), 'managed instruction file was not admitted into readFileState before nested directory load in src/services/attachments/nestedMemory.ts')
+    assert(context.readFileState.has(join(base, 'managed.md')), 'managed instruction file was not admitted into readFileState before nested directory load in src/engine/attachments/nestedInstructions.ts')
     events.push('nested:' + directory); ledgers.push(seen)
     if (directory === failAt) throw new Error('fixture phase failure')
     return [entry('nested-' + events.length)] as never
@@ -35,7 +35,7 @@ try {
   const rows = await getNestedMemoryAttachmentsForFile(file, context as never, { toolPermissionContext: {} } as never)
   assert.deepEqual(events, ['managed', ...directories.nestedDirs.map((directory: string) => 'nested:' + directory), ...directories.cwdLevelDirs.map((directory: string) => 'root:' + directory)])
   assert.equal(rows.length, events.length)
-  assert(ledgers.every(seen => seen === ledgers[0]), 'nested memory phases did not share one dedup ledger Set in src/services/attachments/nestedMemory.ts')
+  assert(ledgers.every(seen => seen === ledgers[0]), 'nested memory phases did not share one dedup ledger Set in src/engine/attachments/nestedInstructions.ts')
   assert.equal(context.readFileState.size, events.length)
   events.length = 0; ledgers.length = 0; context.readFileState.clear(); context.loadedNestedMemoryPaths.clear()
   failAt = directories.nestedDirs[0]!

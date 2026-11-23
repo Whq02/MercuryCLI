@@ -8,13 +8,13 @@ import * as path from 'node:path'
 let failures = 0
 let sectionFailHint = ''
 const failHintsBySection: Record<string, string> = {
-  '§1': 'change the gate in src/services/vulcan/vulcanGates.ts (vulcanEnabled and the section, doctrine and harness-map lines) or the tool catalog in src/tools.ts so nothing of Godot shows while MERCURY_GODOT_TOOLS is unset',
-  '§2': 'change src/services/vulcan/vulcanGates.ts (vulcanEnabled, godotToolWithholding, the prompt lines), src/tools/GodotTool/GodotTool.ts (call) or src/services/vulcan/vulcanClient.ts (getVulcanClient) so the armed seams match this check',
-  '§3': 'change getGodotToolDescription in src/tools/GodotTool/prompt.ts or the lite and unknown-op refusals in src/tools/GodotTool/GodotTool.ts',
-  '§4': 'change checkPermissions and isReadOnly in src/tools/GodotTool/GodotTool.ts so read, mutate and exec ops get the permission class this check names',
-  '§5': 'change src/services/vulcan/addonInstaller.ts (vulcanInstallStatus, applyVulcanInstall, applyVulcanUninstall, describeVulcanStatus, readEnabledPlugins, readRuntimeAutoloadEntry) so install, refresh and uninstall report what this check names',
+  '§1': 'change the gate in src/integrations/vulcan/vulcanGates.ts (vulcanEnabled and the section, doctrine and harness-map lines) or the tool catalog in src/tools/kit/toolList.ts so nothing of Godot shows while MERCURY_GODOT_TOOLS is unset',
+  '§2': 'change src/integrations/vulcan/vulcanGates.ts (vulcanEnabled, godotToolWithholding, the prompt lines), src/tools/godot/GodotTool.ts (call) or src/integrations/vulcan/vulcanClient.ts (getVulcanClient) so the armed seams match this check',
+  '§3': 'change getGodotToolDescription in src/tools/godot/prompt.ts or the lite and unknown-op refusals in src/tools/godot/GodotTool.ts',
+  '§4': 'change checkPermissions and isReadOnly in src/tools/godot/GodotTool.ts so read, mutate and exec ops get the permission class this check names',
+  '§5': 'change src/integrations/vulcan/addonInstaller.ts (vulcanInstallStatus, applyVulcanInstall, applyVulcanUninstall, describeVulcanStatus, readEnabledPlugins, readRuntimeAutoloadEntry) so install, refresh and uninstall report what this check names',
   '§6': 'change the MERCURY_GODOT_TOOLS rows in the flag registry (FLAG_REGISTRY)',
-  '§7': 'change src/services/cockpit/harnessMap.ts, src/constants/subagentDoctrine.ts, src/substrate/startupMenu.ts or the vulcan row in src/services/health/sections/runtime.ts, whichever this check names',
+  '§7': 'change src/screen/cockpit-gauges/harnessMap.ts, src/tools/crewmate/subagentDoctrine.ts, src/platform/substrate/startupMenu.ts or the vulcan row in src/platform/health/sections/runtime.ts, whichever this check names',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -37,14 +37,14 @@ function restoreEnv(): void {
   delete process.env.MERCURY_GODOT_TOOLS_LITE
 }
 
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const gates = await import('../../src/services/vulcan/vulcanGates.js')
-const { getVulcanClient, resetVulcanClientForTest } = await import('../../src/services/vulcan/vulcanClient.js')
-const installer = await import('../../src/services/vulcan/addonInstaller.js')
-const { getAllBaseTools } = await import('../../src/tools.js')
-const { GodotTool } = await import('../../src/tools/GodotTool/GodotTool.js')
-const { getGodotToolDescription } = await import('../../src/tools/GodotTool/prompt.js')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
+const gates = await import('../../src/integrations/vulcan/vulcanGates.js')
+const { getVulcanClient, resetVulcanClientForTest } = await import('../../src/integrations/vulcan/vulcanClient.js')
+const installer = await import('../../src/integrations/vulcan/addonInstaller.js')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.js')
+const { GodotTool } = await import('../../src/tools/godot/GodotTool.js')
+const { getGodotToolDescription } = await import('../../src/tools/godot/prompt.js')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'vulcan-gates-'))
 const proj = path.join(scratch, 'game')
@@ -54,7 +54,7 @@ writeFileSync(
   '[application]\n\nconfig/name="fixture"\n',
 )
 const hasGodot = () => getAllBaseTools().some(t => t.name === 'Godot')
-const { _resetGodotExecutablePresenceForTesting: resetGodotPresence } = await import('../../src/services/vulcan/portabilityHealth.js')
+const { _resetGodotExecutablePresenceForTesting: resetGodotPresence } = await import('../../src/integrations/vulcan/portabilityHealth.js')
 const godotBin = path.join(scratch, 'godot')
 writeFileSync(godotBin, '#!/bin/sh\nexit 0\n')
 chmodSync(godotBin, 0o755)
@@ -198,14 +198,14 @@ section('§6 · flag registry rows')
 section('§7 · behavioral seams — harness map, doctrine, boot menu, health, prompt splice')
 {
   restoreEnv()
-  const { computeHarnessMapLines, resetHarnessMapForTest } = await import('../../src/services/cockpit/harnessMap.js')
+  const { computeHarnessMapLines, resetHarnessMapForTest } = await import('../../src/screen/cockpit-gauges/harnessMap.js')
   resetHarnessMapForTest()
   check('harness map: no VULCAN line when off', !computeHarnessMapLines().some(l => l.includes('VULCAN')))
   process.env.MERCURY_GODOT_TOOLS = '1'
   resetHarnessMapForTest()
   check('harness map: VULCAN line when armed (delta machinery sees the flip)', computeHarnessMapLines().some(l => l.includes('VULCAN') && l.includes('is armed')))
 
-  const { buildSubagentMercurySections } = await import('../../src/constants/subagentDoctrine.js')
+  const { buildSubagentMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.js')
   const doctrine = () =>
     buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } }).join('\n')
   const armedDoctrine = runWithCwdOverride(proj, doctrine)
@@ -214,14 +214,14 @@ section('§7 · behavioral seams — harness map, doctrine, boot menu, health, p
   const offDoctrine = runWithCwdOverride(proj, doctrine)
   check('subagent doctrine: absent when off', !offDoctrine.includes('VULCAN'))
 
-  const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.js')
+  const { STARTUP_MENU } = await import('../../src/platform/substrate/startupMenu.js')
   const vulcanRow = STARTUP_MENU.find(r => r.env === 'MERCURY_GODOT_TOOLS')
   const lanesRow = STARTUP_MENU.find(r => r.env === 'MERCURY_GODOT')
   check('boot menu: VULCAN row in miscellaneous with detail', vulcanRow?.group === 'miscellaneous' && (vulcanRow?.detail?.controls ?? '').length > 100)
   check('boot menu: Godot lanes row moved to miscellaneous', lanesRow?.group === 'miscellaneous')
 
-  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
-  const { vulcanEnabled: armedNow } = await import('../../src/services/vulcan/vulcanGates.ts')
+  const { runtimeChecks } = await import('../../src/platform/health/sections/runtime.ts')
+  const { vulcanEnabled: armedNow } = await import('../../src/integrations/vulcan/vulcanGates.ts')
   const vulcanCheck = runtimeChecks().find(row => row.id === 'vulcan')
   const vulcanSays = await vulcanCheck?.run()
   check("health: the 'vulcan' check is wired", vulcanCheck?.label === 'Godot control (VULCAN)' && vulcanSays !== undefined && (armedNow() ? vulcanSays.status !== 'off' && vulcanSays.evidence.startsWith('armed (port ') || vulcanSays.evidence.startsWith('project ') : vulcanSays.status === 'off' && vulcanSays.evidence.startsWith('MERCURY_GODOT_TOOLS unset')), vulcanSays?.evidence)

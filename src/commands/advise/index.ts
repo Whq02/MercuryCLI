@@ -1,6 +1,6 @@
-import type { Command } from '../../commands.js'
-import { advisorChipWords } from '../../services/advisor/advisorSettings.js'
-import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
+import type { Command } from '../catalogue/commands.js'
+import { advisorChipWords } from '../../models/advisor/advisorSettings.js'
+import { getFocusedSessionConnector, hasFocusedSession } from '../../engine/connector/focusedConnector.js'
 
 const advise = {
   type: 'local',

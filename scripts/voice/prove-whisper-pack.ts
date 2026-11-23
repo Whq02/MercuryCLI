@@ -27,13 +27,13 @@ const finish = (note: string): never => {
   process.exit(failures > 0 ? 1 : 0)
 }
 
-const pack = await import('../../src/services/voice/whisperPack.js')
-const models = await import('../../src/services/voice/whisperModels.js')
-const voicePack = await import('../../src/utils/voice/voicePack.js')
-const transcribe = await import('../../src/services/voice/transcribe.js')
-const wav = await import('../../src/services/voice/wav.js')
-const capture = await import('../../src/services/voice/capture.js')
-const voiceSession = await import('../../src/services/voice/voiceSession.js')
+const pack = await import('../../src/integrations/voice/whisperPack.js')
+const models = await import('../../src/integrations/voice/whisperModels.js')
+const voicePack = await import('../../src/integrations/voice-pack/voicePack.js')
+const transcribe = await import('../../src/integrations/voice/transcribe.js')
+const wav = await import('../../src/integrations/voice/wav.js')
+const capture = await import('../../src/integrations/voice/capture.js')
+const voiceSession = await import('../../src/integrations/voice/voiceSession.js')
 const speak = await import('../../src/commands/voice/voice.js')
 
 const PLATFORM = voicePack.voicePackPlatform()
@@ -52,26 +52,26 @@ console.log('\n[M] the model road — the lock, the three states, the pin, the d
 {
   const lockRaw = JSON.parse(readFileSync(join(ROOT, models.WHISPER_MODELS_LOCK_PATH), 'utf8')) as unknown
   const catalogue = models.decodeWhisperModelsLock(lockRaw)
-  check('the lock is well-formed: a licence, a source, a default that names a row, every row whole', catalogue.models.length >= 4 && catalogue.defaultName === 'base.en-q5_1' && catalogue.license === 'MIT' && catalogue.models.every(r => r.url.startsWith('https://huggingface.co/ggerganov/whisper.cpp/resolve/main/') && r.url.endsWith(r.file) && /^[0-9a-f]{64}$/.test(r.sha256) && r.bytes > 1_000_000), 'fix the rows or the default in the models lock file (models.WHISPER_MODELS_LOCK_PATH) read by decodeWhisperModelsLock in src/services/voice/whisperModels.ts; rows: ' + catalogue.models.map(r => r.name).join(','))
-  check('the compiled catalogue is the lock', models.WHISPER_DEFAULT_MODEL === catalogue.defaultName && models.WHISPER_MODELS.length === catalogue.models.length && models.WHISPER_MODELS.every((r, i) => r.sha256 === catalogue.models[i]?.sha256), 'WHISPER_MODELS and WHISPER_DEFAULT_MODEL in src/services/voice/whisperModels.ts must carry the same rows as the models lock file')
-  check('the default is English-only and about 60 MB; a multilingual row exists for other speech', models.whisperDefaultModel().language === 'en' && models.mbWords(models.whisperDefaultModel().bytes) === '60 MB' && models.WHISPER_MODELS.some(r => r.language === 'multilingual'), 'check the default row (language en, about 60 MB) and the multilingual row in the models lock file read by src/services/voice/whisperModels.ts')
+  check('the lock is well-formed: a licence, a source, a default that names a row, every row whole', catalogue.models.length >= 4 && catalogue.defaultName === 'base.en-q5_1' && catalogue.license === 'MIT' && catalogue.models.every(r => r.url.startsWith('https://huggingface.co/ggerganov/whisper.cpp/resolve/main/') && r.url.endsWith(r.file) && /^[0-9a-f]{64}$/.test(r.sha256) && r.bytes > 1_000_000), 'fix the rows or the default in the models lock file (models.WHISPER_MODELS_LOCK_PATH) read by decodeWhisperModelsLock in src/integrations/voice/whisperModels.ts; rows: ' + catalogue.models.map(r => r.name).join(','))
+  check('the compiled catalogue is the lock', models.WHISPER_DEFAULT_MODEL === catalogue.defaultName && models.WHISPER_MODELS.length === catalogue.models.length && models.WHISPER_MODELS.every((r, i) => r.sha256 === catalogue.models[i]?.sha256), 'WHISPER_MODELS and WHISPER_DEFAULT_MODEL in src/integrations/voice/whisperModels.ts must carry the same rows as the models lock file')
+  check('the default is English-only and about 60 MB; a multilingual row exists for other speech', models.whisperDefaultModel().language === 'en' && models.mbWords(models.whisperDefaultModel().bytes) === '60 MB' && models.WHISPER_MODELS.some(r => r.language === 'multilingual'), 'check the default row (language en, about 60 MB) and the multilingual row in the models lock file read by src/integrations/voice/whisperModels.ts')
   let bad = ''
   try {
     models.decodeWhisperModelsLock({ ...(lockRaw as object), models: [{ name: 'x', file: 'ggml-x.bin', url: 'https://example.invalid/x', bytes: 1, sha256: 'nope', language: 'en', words: 'x' }] })
   } catch (error) {
     bad = error instanceof Error ? error.message : String(error)
   }
-  check('a row with half a claim is refused, naming the row', bad.includes('not whole') && bad.includes('"x"'), 'decodeWhisperModelsLock in src/services/voice/whisperModels.ts must throw an error saying the row is not whole and quoting its name; got: ' + bad)
+  check('a row with half a claim is refused, naming the row', bad.includes('not whole') && bad.includes('"x"'), 'decodeWhisperModelsLock in src/integrations/voice/whisperModels.ts must throw an error saying the row is not whole and quoting its name; got: ' + bad)
   const home = join(SCRATCH, 'model-home')
   mkdirSync(home, { recursive: true })
   const row = models.whisperDefaultModel()
   let state = models.checkWhisperModel({ kind: 'catalogue', row, pinned: false }, { home })
-  check('absent ⇒ the note names the download door, the file and the size', state.state === 'absent' && state.note === `pack present, model missing — /voice on fetches ${row.file} (60 MB)` && state.path === join(home, 'models', 'whisper', row.file), 'checkWhisperModel in src/services/voice/whisperModels.ts must answer absent with the /voice on note, the file and the size; got: ' + JSON.stringify(state))
+  check('absent ⇒ the note names the download door, the file and the size', state.state === 'absent' && state.note === `pack present, model missing — /voice on fetches ${row.file} (60 MB)` && state.path === join(home, 'models', 'whisper', row.file), 'checkWhisperModel in src/integrations/voice/whisperModels.ts must answer absent with the /voice on note, the file and the size; got: ' + JSON.stringify(state))
   const dir = models.whisperModelsDir(home)
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, row.file), Buffer.alloc(1234))
   state = models.checkWhisperModel({ kind: 'catalogue', row, pinned: false }, { home })
-  check('a file of the wrong size ⇒ mismatch naming both byte counts and the door', state.state === 'mismatch' && state.note.includes('1234 bytes on disk') && state.note.includes(String(row.bytes)) && state.note.includes('/voice on'), 'checkWhisperModel in src/services/voice/whisperModels.ts must answer mismatch naming both byte counts and /voice on; got: ' + JSON.stringify(state))
+  check('a file of the wrong size ⇒ mismatch naming both byte counts and the door', state.state === 'mismatch' && state.note.includes('1234 bytes on disk') && state.note.includes(String(row.bytes)) && state.note.includes('/voice on'), 'checkWhisperModel in src/integrations/voice/whisperModels.ts must answer mismatch naming both byte counts and /voice on; got: ' + JSON.stringify(state))
   const cached = join(CACHE_DIR, row.file)
   const tiny = models.whisperModelByName('tiny.en-q5_1')
   const cachedTiny = tiny ? join(CACHE_DIR, tiny.file) : ''
@@ -106,13 +106,13 @@ console.log('\n[M] the model road — the lock, the three states, the pin, the d
   check('a path that is absent names itself', pin.kind === 'broken' && pin.note.includes('MERCURY_WHISPER_MODEL is set to') && pin.note.includes('which does not exist'))
   process.env.MERCURY_WHISPER_MODEL = 'bogus'
   pin = models.resolveWhisperModelPin()
-  check('a name outside the catalogue names itself and the catalogue', pin.kind === 'broken' && pin.note.startsWith('MERCURY_WHISPER_MODEL=bogus is not a catalogue name (base.en-q5_1'), 'resolveWhisperModelPin in src/services/voice/whisperModels.ts must answer broken naming the bad value and the catalogue; got: ' + (pin.kind === 'broken' ? pin.note : pin.kind))
+  check('a name outside the catalogue names itself and the catalogue', pin.kind === 'broken' && pin.note.startsWith('MERCURY_WHISPER_MODEL=bogus is not a catalogue name (base.en-q5_1'), 'resolveWhisperModelPin in src/integrations/voice/whisperModels.ts must answer broken naming the bad value and the catalogue; got: ' + (pin.kind === 'broken' ? pin.note : pin.kind))
   delete process.env.MERCURY_WHISPER_MODEL
   check('unset ⇒ the default, unpinned', models.resolveWhisperModelPin().kind === 'catalogue' && !(models.resolveWhisperModelPin() as { pinned: boolean }).pinned)
   const fake = (bytes: Buffer | null, status = 200): typeof fetch =>
     (async () => new Response(bytes === null ? null : new Blob([new Uint8Array(bytes)]), { status })) as unknown as typeof fetch
   const target = join(SCRATCH, 'downloads')
-  const small: import('../../src/services/voice/whisperModels.js').WhisperModelRow = { name: 'fixture', file: 'ggml-fixture.bin', url: 'https://127.0.0.1:9/ggml-fixture.bin', bytes: 4096, sha256: '', language: 'en', words: 'a fixture' }
+  const small: import('../../src/integrations/voice/whisperModels.js').WhisperModelRow = { name: 'fixture', file: 'ggml-fixture.bin', url: 'https://127.0.0.1:9/ggml-fixture.bin', bytes: 4096, sha256: '', language: 'en', words: 'a fixture' }
   const good = Buffer.alloc(4096, 7)
   small.sha256 = (await import('node:crypto')).createHash('sha256').update(good).digest('hex')
   let refusal = ''
@@ -121,28 +121,28 @@ console.log('\n[M] the model road — the lock, the three states, the pin, the d
   } catch (error) {
     refusal = error instanceof Error ? error.message : String(error)
   }
-  check('a body that does not match the lock digest is refused, and nothing is left behind', refusal.includes('does not match the lock digest') && !existsSync(join(target, small.file)) && !existsSync(join(target, `${small.file}.part`)), 'downloadWhisperModel in src/services/voice/whisperModels.ts must refuse a body that fails the lock digest and remove the .part file; got: ' + `${refusal} · ${existsSync(target) ? readdirSync(target).join(',') : 'no dir'}`)
+  check('a body that does not match the lock digest is refused, and nothing is left behind', refusal.includes('does not match the lock digest') && !existsSync(join(target, small.file)) && !existsSync(join(target, `${small.file}.part`)), 'downloadWhisperModel in src/integrations/voice/whisperModels.ts must refuse a body that fails the lock digest and remove the .part file; got: ' + `${refusal} · ${existsSync(target) ? readdirSync(target).join(',') : 'no dir'}`)
   refusal = ''
   try {
     await models.downloadWhisperModel(small, target, { fetchImpl: fake(good.subarray(0, 100)) })
   } catch (error) {
     refusal = error instanceof Error ? error.message : String(error)
   }
-  check('a short body is refused naming the counts, nothing left behind', refusal.includes('ended at 100 of 4096 bytes') && !existsSync(join(target, small.file)) && !existsSync(join(target, `${small.file}.part`)), 'downloadWhisperModel in src/services/voice/whisperModels.ts must refuse a short body naming the counts and leave no file; got: ' + refusal)
+  check('a short body is refused naming the counts, nothing left behind', refusal.includes('ended at 100 of 4096 bytes') && !existsSync(join(target, small.file)) && !existsSync(join(target, `${small.file}.part`)), 'downloadWhisperModel in src/integrations/voice/whisperModels.ts must refuse a short body naming the counts and leave no file; got: ' + refusal)
   refusal = ''
   try {
     await models.downloadWhisperModel(small, target, { fetchImpl: fake(null, 503) })
   } catch (error) {
     refusal = error instanceof Error ? error.message : String(error)
   }
-  check('an HTTP refusal is named', refusal.includes('HTTP 503'), 'downloadWhisperModel in src/services/voice/whisperModels.ts must name the HTTP status of a refused request; got: ' + refusal)
+  check('an HTTP refusal is named', refusal.includes('HTTP 503'), 'downloadWhisperModel in src/integrations/voice/whisperModels.ts must name the HTTP status of a refused request; got: ' + refusal)
   let calls = 0
   const counting: typeof fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     calls++
     return fake(good)(input, init)
   }) as typeof fetch
   const got = await models.downloadWhisperModel(small, target, { fetchImpl: counting })
-  check('the right bytes land under their name, verified, through a .part file that is gone after', got.bytes === 4096 && got.sha256 === small.sha256 && !got.reused && existsSync(join(target, small.file)) && !existsSync(join(target, `${small.file}.part`)) && calls === 1, 'downloadWhisperModel in src/services/voice/whisperModels.ts must verify the bytes, rename the .part file into place and make one request; got: ' + JSON.stringify(got))
+  check('the right bytes land under their name, verified, through a .part file that is gone after', got.bytes === 4096 && got.sha256 === small.sha256 && !got.reused && existsSync(join(target, small.file)) && !existsSync(join(target, `${small.file}.part`)) && calls === 1, 'downloadWhisperModel in src/integrations/voice/whisperModels.ts must verify the bytes, rename the .part file into place and make one request; got: ' + JSON.stringify(got))
   const again = await models.downloadWhisperModel(small, target, { fetchImpl: counting })
   check('a whole file already there is reused without a request', again.reused && calls === 1)
   const offline = spawnSync(BUN, ['run', 'scripts/vendor/fetch-whisper-models.ts', '--check'], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, https_proxy: 'http://127.0.0.1:9', HTTPS_PROXY: 'http://127.0.0.1:9' }, timeout: 120_000 })
@@ -170,8 +170,8 @@ console.log('\n[F] the CPU floor — the helper-process probe, the decision per 
   const noFloor = join(fixtures, 'no-floor.js')
   writeFileSync(noFloor, 'module.exports = {}\n')
   const noRuntime = join(fixtures, 'no-such-runtime')
-  const floorProbeHint = 'probeCpuFloorByLoad in src/services/voice/whisperPack.ts runs the addon in a helper process and must answer met, unmet or unknown as the check says; got: '
-  const floorDecisionHint = 'probeCpuFloor in src/services/voice/whisperPack.ts must decide per platform and architecture as the check says; got: '
+  const floorProbeHint = 'probeCpuFloorByLoad in src/integrations/voice/whisperPack.ts runs the addon in a helper process and must answer met, unmet or unknown as the check says; got: '
+  const floorDecisionHint = 'probeCpuFloor in src/integrations/voice/whisperPack.ts must decide per platform and architecture as the check says; got: '
 
   const hosts: Array<[string, string | null]> = [
     ['this prover\'s runtime', BUN],
@@ -202,7 +202,7 @@ console.log('\n[F] the CPU floor — the helper-process probe, the decision per 
   }
   let p = pack.probeCpuFloorByLoad(meets, { exe: noRuntime })
   check('a runtime that cannot start ⇒ unknown, named', p.state === 'unknown' && p.note.includes('could not start'), floorProbeHint + JSON.stringify(p))
-  check('the helper\'s bound is well under the 20 s the old probe could freeze the screen for', pack.CPU_FLOOR_HELPER_TIMEOUT_MS <= 10_000, 'lower CPU_FLOOR_HELPER_TIMEOUT_MS in src/services/voice/whisperPack.ts to 10000 or less; got ' + String(pack.CPU_FLOOR_HELPER_TIMEOUT_MS))
+  check('the helper\'s bound is well under the 20 s the old probe could freeze the screen for', pack.CPU_FLOOR_HELPER_TIMEOUT_MS <= 10_000, 'lower CPU_FLOOR_HELPER_TIMEOUT_MS in src/integrations/voice/whisperPack.ts to 10000 or less; got ' + String(pack.CPU_FLOOR_HELPER_TIMEOUT_MS))
 
   const nowhere = { exe: noRuntime }
   let d = pack.probeCpuFloor({ platform: 'win32', arch: 'x64', addonPath: answers })

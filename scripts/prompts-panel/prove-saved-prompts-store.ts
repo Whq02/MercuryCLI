@@ -11,12 +11,12 @@ process.env.MERCURY_CONFIG_DIR = home
 delete process.env.NODE_ENV
 delete process.env.CI
 
-const store = await import('../../src/utils/savedPrompts/savedPromptsStore.ts')
+const store = await import('../../src/sessions/saved-prompts/savedPromptsStore.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const savedStoreHint = 'change the store function this check names (savedPromptsPath, addSavedPrompt, editSavedPrompt, moveSavedPrompt, deleteSavedPrompt, clearSavedPrompts, listSavedPrompts, subscribeSavedPrompts) in src/utils/savedPrompts/savedPromptsStore.ts'
+  const savedStoreHint = 'change the store function this check names (savedPromptsPath, addSavedPrompt, editSavedPrompt, moveSavedPrompt, deleteSavedPrompt, clearSavedPrompts, listSavedPrompts, subscribeSavedPrompts) in src/sessions/saved-prompts/savedPromptsStore.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${savedStoreHint}`}`)
 }
 function section(t: string): void {
@@ -127,7 +127,7 @@ try {
     process.execPath,
     [
       '-e',
-      `globalThis.MACRO={VERSION:'1.0.0'}; const s = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/savedPrompts/savedPromptsStore.ts'))}); const l = await s.listSavedPrompts(${JSON.stringify(project)}); console.log(JSON.stringify(l.map(d => [d.id, d.text])))`,
+      `globalThis.MACRO={VERSION:'1.0.0'}; const s = await import(${JSON.stringify(join(import.meta.dir, '../../src/sessions/saved-prompts/savedPromptsStore.ts'))}); const l = await s.listSavedPrompts(${JSON.stringify(project)}); console.log(JSON.stringify(l.map(d => [d.id, d.text])))`,
     ],
     { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: home } },
   )
@@ -158,7 +158,7 @@ try {
     check('clearing an empty list is ok with 0', again.ok && again.cleared === 0)
     const child = spawnSync(
       process.execPath,
-      ['-e', `globalThis.MACRO={VERSION:'1.0.0'}; const s = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/savedPrompts/savedPromptsStore.ts'))}); console.log(JSON.stringify((await s.listSavedPrompts(${JSON.stringify(clearProject)})).length))`],
+      ['-e', `globalThis.MACRO={VERSION:'1.0.0'}; const s = await import(${JSON.stringify(join(import.meta.dir, '../../src/sessions/saved-prompts/savedPromptsStore.ts'))}); console.log(JSON.stringify((await s.listSavedPrompts(${JSON.stringify(clearProject)})).length))`],
       { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: home } },
     )
     check('the empty list survives a restart (a fresh bun process reads 0)', child.stdout.trim().split('\n').pop() === '0', child.stderr.slice(0, 200))
@@ -192,7 +192,7 @@ try {
     check('a prompt saved in one sibling never lists in the other', (await store.listSavedPrompts(underscoreProj)).length === 0)
 
     const legacyProj = '/Users/example/dev/legacy.era'
-    const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.ts')
+    const { sanitizePath } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
     const legacyFile = join(home, 'saved-prompts', `${sanitizePath(legacyProj)}.json`)
     writeFileSync(legacyFile, JSON.stringify({ _v: 1, drafts: [{ id: 'leg1', text: 'the legacy prompt' }] }))
     const adopted = await store.listSavedPrompts(legacyProj)

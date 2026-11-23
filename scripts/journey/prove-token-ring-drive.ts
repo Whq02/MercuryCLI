@@ -15,8 +15,8 @@ if (!existsSync(BIN)) {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { vshotBudgetMs, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
-const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const { decodeTranscriptBuffer } = await import('../../src/sessions/fabric/transcriptDecode.ts')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
   console.error(`prove-token-ring-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)

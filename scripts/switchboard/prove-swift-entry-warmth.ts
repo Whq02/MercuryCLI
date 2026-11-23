@@ -10,8 +10,8 @@ process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 
 let failures = 0
 const warmthFailureHint = (label: string): string => {
-  if (/the Chat|transcript modes|cold loading line is keyed/.test(label)) return 'change how the chat screen uses the warmth in src/screens/chat/useChatSession.ts (paintedMessages, entryLoadingLine) and src/services/concourse/sessionWarmth.ts'
-  return 'change the store or the paint selection in src/services/concourse/sessionWarmth.ts (armEntryWarmth, settleEntryWarmth, paintedTranscriptOf, entryLoadingLineOf)'
+  if (/the Chat|transcript modes|cold loading line is keyed/.test(label)) return 'change how the chat screen uses the warmth in src/screen/chat/useChatSession.ts (paintedMessages, entryLoadingLine) and src/screen/concourse-model/sessionWarmth.ts'
+  return 'change the store or the paint selection in src/screen/concourse-model/sessionWarmth.ts (armEntryWarmth, settleEntryWarmth, paintedTranscriptOf, entryLoadingLineOf)'
 }
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
@@ -38,7 +38,7 @@ console.log('§1 the wiring (mirror publishes · entry arms/settles · Chat pain
 }
 
 console.log('\n§2 the store (bounded by construction · per-session settle)')
-const w = await import('../../src/services/concourse/sessionWarmth.ts')
+const w = await import('../../src/screen/concourse-model/sessionWarmth.ts')
 const row = (i: number, text: string): Record<string, unknown> => ({
   type: 'assistant',
   uuid: `00000000-0000-4000-a000-${String(i).padStart(12, '0')}`,
@@ -94,10 +94,10 @@ check('unarmed → plain identity (the ordinary chat path never re-renders over 
 check('unarmed → no loading line', w.entryLoadingLineOf(w.enteringWarmth(), true) === null)
 
 console.log('\n§4 the first frame paints content (static render through the real pipeline)')
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { renderMessagesToPlainText } = await import('../../src/components/exportRenderer.tsx')
-const { getAllBaseTools } = await import('../../src/tools.ts')
+const { renderMessagesToPlainText } = await import('../../src/screen/chat/exportRenderer.tsx')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
 w._resetSessionWarmthForTesting()
 w.rememberSessionWarmth('s1', Array.from({ length: 6 }, (_, i) => row(i, `the mirror held row ${i}`)) as never, 0)
 w.armEntryWarmth('s1', 'census')
@@ -106,8 +106,8 @@ check('the warm first frame carries the tail\'s own words', warmText.includes('t
 check('…and is never blank', warmText.trim().length > 0)
 w.evictSessionWarmth('s1')
 const React = (await import('react')).default
-const { renderToString } = await import('../../src/utils/staticRender.tsx')
-const { Box, Text } = await import('../../src/ink.js')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
 const line = w.entryLoadingLineOf(w.enteringWarmth(), true)
 const coldText = await renderToString(
   React.createElement(Box, { paddingLeft: 1, marginTop: 1 }, React.createElement(Text, { dimColor: true }, line)),

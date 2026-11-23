@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/SurfaceExitChord.tsx src/components/PromptInput/ExitChordNotice.tsx
+// gate-watch: src/screen/routes/SurfaceExitChord.tsx src/screen/composer/ExitChordNotice.tsx
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome } from '../lib/settingsPopupHarness.ts'
 import { settledFrame } from './popupFrameSettle.ts'
@@ -13,7 +13,7 @@ Object.assign(process.env, {
   MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', BROWSER: '/usr/bin/true',
 })
 
-const EXIT_NOTICE_HINT = 'change SurfaceExitChordNotice in src/components/SurfaceExitChord.tsx (and the text from exitChordNoticeText in src/components/PromptInput/ExitChordNotice.tsx) so the notice fills its own last row and leaves nothing of the row beneath'
+const EXIT_NOTICE_HINT = 'change SurfaceExitChordNotice in src/screen/routes/SurfaceExitChord.tsx (and the text from exitChordNoticeText in src/screen/composer/ExitChordNotice.tsx) so the notice fills its own last row and leaves nothing of the row beneath'
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -24,13 +24,13 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 const React = await import('react')
 const h = React.createElement
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { SurfaceExitChordNotice } = await import('../../src/components/SurfaceExitChord.tsx')
-const { exitChordNoticeText } = await import('../../src/components/PromptInput/ExitChordNotice.tsx')
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { SurfaceExitChordNotice } = await import('../../src/screen/routes/SurfaceExitChord.tsx')
+const { exitChordNoticeText } = await import('../../src/screen/composer/ExitChordNotice.tsx')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 const BENEATH = 'f'

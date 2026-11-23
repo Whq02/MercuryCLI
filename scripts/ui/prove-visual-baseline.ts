@@ -149,8 +149,8 @@ const fixHint = (ok: boolean, text: string): string => (ok ? '' : ' — ' + text
 
 {
   const { DEFAULT_MASKS, neutralizeGrid } = await import('./visualBaseline.ts')
-  const { compactWorkSummaryText } = await import('../../src/components/tasks/useFocusedWork.ts')
-  const { stringWidth } = await import('../../src/ink/stringWidth.ts')
+  const { compactWorkSummaryText } = await import('../../src/screen/tasks/useFocusedWork.ts')
+  const { stringWidth } = await import('../../src/screen/renderer/stringWidth.ts')
   const counts = { sessionsOn: 1, monitorsHere: 0, agentsHere: 0, samples: 0 }
   const countRow = (columns: number, hint: string): string => {
     const words = compactWorkSummaryText(counts, Math.max(0, columns - (stringWidth(hint) + 1)))
@@ -164,7 +164,7 @@ const fixHint = (ok: boolean, text: string): string => (ok ? '' : ' — ' + text
   const linux80 = countRow(80, 'shift+← concourse')
   const mac62 = countRow(62, '⇧← concourse')
   const squeezed = mac62.startsWith('1 session on · 0 monitors here · 0 crewmates here') && mac60.startsWith('S:1 · M:0 · C:0') && linux60.startsWith('S:1 · M:0 · C:0')
-  console.log(`  [${squeezed ? 'PASS' : 'FAIL'}] at 62 columns the count row keeps its words under the glyph; at 60 it drops to its short form under either hint (the product's own budget: the words take 49 cells beside the glyph hint's 13) — ${JSON.stringify([mac62.trim(), mac60.trim(), linux60.trim()])}${fixHint(squeezed, 'fix compactWorkSummaryText in src/components/tasks/useFocusedWork.ts, or this proof if its budget changed')}`)
+  console.log(`  [${squeezed ? 'PASS' : 'FAIL'}] at 62 columns the count row keeps its words under the glyph; at 60 it drops to its short form under either hint (the product's own budget: the words take 49 cells beside the glyph hint's 13) — ${JSON.stringify([mac62.trim(), mac60.trim(), linux60.trim()])}${fixHint(squeezed, 'fix compactWorkSummaryText in src/screen/tasks/useFocusedWork.ts, or this proof if its budget changed')}`)
   if (!squeezed) fail = 1
   const rowMasked = canon(mac60, DEFAULT_MASKS) === canon(linux60, DEFAULT_MASKS) && canon(mac60, DEFAULT_MASKS) === '⟪row⟫'
   console.log(`  [${rowMasked ? 'PASS' : 'FAIL'}] the squeezed count row canonicalizes across the hosts as one row${fixHint(rowMasked, 'fix the count-row mask in DEFAULT_MASKS in scripts/ui/visualBaseline.ts')}`)

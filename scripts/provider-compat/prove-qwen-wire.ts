@@ -4,10 +4,10 @@ import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import { z } from 'zod/v4'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'ANTHROPIC_BASE_URL', 'DASHSCOPE_BASE_URL', 'DASHSCOPE_WORKSPACE_ID']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_BUSY_RETRY_SCALE = '0.2'
@@ -59,7 +59,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   if (url.pathname.startsWith('/api/v1/oauth2/')) { oauthCalls.push(url.pathname); return new Response('not found', { status: 404 }) }
   if (path !== '/chat/completions' || req.method !== 'POST') return new Response('not found', { status: 404 })
   const raw = await req.text()
-  for (const key of Object.keys(ACCEPTS)) assert.ok(!raw.includes(key), 'Qwen chat request body in src/services/providers/qwen/ must never contain any API key')
+  for (const key of Object.keys(ACCEPTS)) assert.ok(!raw.includes(key), 'Qwen chat request body in src/models/roads/qwen/ must never contain any API key')
   const body = JSON.parse(raw) as Record<string, any>
   captures.push({ endpoint: endpoint!, body, bearer })
   if (!accepted && endpoint === 'qwencloud-token-plan') return refuse(401, 'invalid_api_key', 'Invalid API-key provided.')
@@ -100,41 +100,41 @@ let count = 0
 const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
 const section = (name: string): void => console.log(`\n── ${name}`)
 try {
-  const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
-  const { parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
+  const { classifyModelRoute } = await import('../../src/models/roads/routeLaw.ts')
+  const { parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.ts')
   section('routing')
   check('the bare Model Studio ids and the family word route to Qwen before any request', ['qwen3.8-max', 'qwen4-max', 'Qwen4-Max', 'qwen3.7-plus', 'qwen3-coder-flash', 'qwen-plus', 'qwq-plus', 'qwen', 'Qwen3.8-Max'].every(id => classifyModelRoute(parseUserSpecifiedModel(id)).route === 'qwen'))
   check('the qualified namespaces keep their own Qwen rows and a bare vendor slug stays carrier-shaped', classifyModelRoute('zen/qwen3.8-max').route === 'zen' && classifyModelRoute('groq/qwen/qwen3.8-27b').route === 'groq' && classifyModelRoute('together/Qwen/Qwen3.7-Plus').route === 'together' && classifyModelRoute('qwen/qwen3-coder').kind === 'unrecognised')
-  const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
-  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-  const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
-  const { QWEN_SHARED_ENDPOINTS, qwenProbeEndpoints, qwenEndpointBase, qwenBoundBase, forgetQwenBoundBases, qwenUnboundKeyRefusal } = await import('../../src/services/providers/qwen/qwenAccounts.ts')
-  const { refreshQwenCatalogue, __resetQwenCatalogueForTest, qwenCatalogueRows, qwenCatalogueSourceWords, getCachedQwenCatalogue, probeQwenEndpoints } = await import('../../src/services/providers/qwen/qwenCatalogue.ts')
-  const { buildQwenExtras } = await import('../../src/services/providers/qwen/qwenCallModel.ts')
-  const { storeQwenApiKeyLogin } = await import('../../src/services/providers/qwen/qwenLogin.ts')
-  const { QWEN_DISPLAY_PINS } = await import('../../src/utils/model/pins/qwenPins.ts')
-  const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
-  const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-  const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
-  const { keyLaneListState, keyLanePins, keyLaneProviderRows, QWEN_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+  const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+  const { resolvePrimaryAgentBackend } = await import('../../src/models/roads/primaryBackend.ts')
+  const { QWEN_SHARED_ENDPOINTS, qwenProbeEndpoints, qwenEndpointBase, qwenBoundBase, forgetQwenBoundBases, qwenUnboundKeyRefusal } = await import('../../src/models/roads/qwen/qwenAccounts.ts')
+  const { refreshQwenCatalogue, __resetQwenCatalogueForTest, qwenCatalogueRows, qwenCatalogueSourceWords, getCachedQwenCatalogue, probeQwenEndpoints } = await import('../../src/models/roads/qwen/qwenCatalogue.ts')
+  const { buildQwenExtras } = await import('../../src/models/roads/qwen/qwenCallModel.ts')
+  const { storeQwenApiKeyLogin } = await import('../../src/models/roads/qwen/qwenLogin.ts')
+  const { QWEN_DISPLAY_PINS } = await import('../../src/models/facts/pins/qwenPins.ts')
+  const { usageForProvider } = await import('../../src/models/roads/providerUsage.ts')
+  const { laneBillingState } = await import('../../src/models/roads/laneBillingState.ts')
+  const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
+  const { keyLaneListState, keyLanePins, keyLaneProviderRows, QWEN_MODEL_GROUP } = await import('../../src/models/catalogue/modelOptions.ts')
   const pickerWords = (): string[] => keyLaneProviderRows().filter(row => row.group === QWEN_MODEL_GROUP).map(row => row.descriptionForModel ?? '')
-  const { readStoredQwenApiKey, readStoredQwenKeyBase } = await import('../../src/utils/accounts/providerSecrets.ts')
-  const { liveModelsReference, knownModelsReference } = await import('../../src/services/resources/adapters/models.ts')
-  const { loginFamilyRows, KEY_PAGES, keyPageLine } = await import('../../src/components/loginFamilyRows.ts')
-  const { providerAuthLogin, normalizeTerminalAuthFamily } = await import('../../src/cli/handlers/providerAuth.ts')
-  const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-  const { bareFamilyWordOf } = await import('../../src/services/model/bareFamilyWords.ts')
-  const { getContextWindowForModel, getModelMaxOutputTokens, modelSupportsThinking } = await import('../../src/utils/model/capabilities.ts')
-  const { getModelCosts, modelPricingBasis } = await import('../../src/services/usage/modelCost.ts')
-  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-  const { effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
+  const { readStoredQwenApiKey, readStoredQwenKeyBase } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const { liveModelsReference, knownModelsReference } = await import('../../src/integrations/resources/adapters/models.ts')
+  const { loginFamilyRows, KEY_PAGES, keyPageLine } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.ts')
+  const { providerAuthLogin, normalizeTerminalAuthFamily } = await import('../../src/commands/verbs/providerAuth.ts')
+  const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
+  const { bareFamilyWordOf } = await import('../../src/models/catalogue/bareFamilyWords.ts')
+  const { getContextWindowForModel, getModelMaxOutputTokens, modelSupportsThinking } = await import('../../src/models/facts/capabilities.ts')
+  const { getModelCosts, modelPricingBasis } = await import('../../src/models/usage/modelCost.ts')
+  const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+  const { effortVocabularyFor } = await import('../../src/models/facts/capabilities.ts')
   const { writeFileSync, mkdirSync } = await import('node:fs')
   const { join } = await import('node:path')
-  const { resolveQwenAccount } = await import('../../src/services/providers/qwen/qwenAccounts.ts')
-  const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
-  const { validateModel } = await import('../../src/services/providers/validateModel.ts')
+  const { resolveQwenAccount } = await import('../../src/models/roads/qwen/qwenAccounts.ts')
+  const { deriveFamilySlotGroups } = await import('../../src/models/roads/accountSlots.ts')
+  const { validateModel } = await import('../../src/models/roads/validateModel.ts')
   const stateFacts = (models: unknown): void => { mkdirSync(proofHome, { recursive: true }); writeFileSync(join(proofHome, 'settings.json'), JSON.stringify({ models })); resetSettingsCache() }
   const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
   function params(model = 'qwen3.8-max', effortValue: string | undefined = 'max', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
@@ -181,8 +181,8 @@ try {
   const highBody = captures.at(-1)!.body
   check("the operator's dial rides in Qwen's vocabulary and never below it: low → low, medium → medium, high → xhigh (Qwen has no high rung)", lowBody.reasoning_effort === 'low' && mediumBody.reasoning_effort === 'medium' && highBody.reasoning_effort === 'xhigh')
   check('the picker offers the qwen3.8 rows their own three rungs with the word map the wire uses, and the other rows no dial', JSON.stringify(effortVocabularyFor('qwen3.8-max')) === JSON.stringify({ kind: 'provider', source: 'qwen', vocabulary: ['low', 'medium', 'xhigh'], defaultEffort: 'xhigh', thinkingGated: true, steps: { none: 'low', minimal: 'low', high: 'xhigh', max: 'xhigh' } }) && effortVocabularyFor('qwen3.7-plus').kind === 'none' && effortVocabularyFor('qwen3-coder-flash').kind === 'none')
-  const { resolveEffortTruth } = await import('../../src/utils/effort.ts')
-  const { QWEN_TEMPLATE_EFFORTS, QWEN_TEMPLATE_EFFORT_STEPS, qwenTemplateEffort } = await import('../../src/utils/model/pins/qwenTemplate.ts')
+  const { resolveEffortTruth } = await import('../../src/models/effort/effort.ts')
+  const { QWEN_TEMPLATE_EFFORTS, QWEN_TEMPLATE_EFFORT_STEPS, qwenTemplateEffort } = await import('../../src/models/facts/pins/qwenTemplate.ts')
   const told: Array<{ asked: string; label: string | undefined; sent: unknown }> = []
   for (const asked of ['minimal', 'low', 'medium', 'high', 'xhigh', 'max']) {
     await run(params('qwen3.8-max', asked))
@@ -238,7 +238,7 @@ try {
   check('/usage says plainly that no endpoint states usage or balance to an API key, naming the console and the credential checked', meter.sourceKind === 'api-key' && meter.windows.length === 0 && meter.credits?.state === 'unreported' && (meter.absence ?? '').includes('no usage, balance or quota endpoint') && (meter.absence ?? '').includes('the key was the one credential checked') && (meter.absence ?? '').includes('International (Singapore)'))
 
   section('Qwen 4: a live qwen4 id takes Qwen\'s thinking switch, preserved thinking and effort dial; an id that only begins with the same letters does not')
-  const { qwenThinkingDial, qwenPreservesThinking, qwenEffortVocabulary } = await import('../../src/utils/model/pins/qwenPins.ts')
+  const { qwenThinkingDial, qwenPreservesThinking, qwenEffortVocabulary } = await import('../../src/models/facts/pins/qwenPins.ts')
   const QWEN4_IDS = ['qwen4-max', 'qwen4-plus', 'qwen4-flash', 'qwen4-omni-flash', 'qwen4-27b', 'qwen4.5-max', 'qwen4-max-2026-11-20', 'Qwen4-Max']
   const QWEN4_DECOYS = ['qwen40', 'qwen45-turbo', 'qwen4max', 'qwen4', 'qwen4-turbo', 'qwen4-tts-flash']
   check('the three controls on every Qwen 4 id of a known tier, dated and versioned spellings included, the dial in the template\'s words on all but Qwen4 Max, which reads its own ladder', QWEN4_IDS.every(id => qwenThinkingDial(id) === 'hybrid' && qwenPreservesThinking(id) && JSON.stringify(qwenEffortVocabulary(id)) === (id.toLowerCase() === 'qwen4-max' ? '["low","high","xhigh"]' : '["low","medium","xhigh"]')))

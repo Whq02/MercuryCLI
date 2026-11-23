@@ -23,11 +23,11 @@ const READ_ONLY_FOR_MS = 3000
 let failures = 0
 const hints: Array<[string, string]> = [
   ['the scene', 'the proof chmods the session record to read-only once it holds the second prompt; if the record never held it, the arena run (runArtifactArena in scripts/streaming/artifactArena.ts) did not reach the second turn, so read its output and frames first'],
-  ['the facts the daemon publishes', 'the runner puts the sentence in its session facts at src/cli/headless/sessionFactsArm.ts (transcriptStoreHealth), and the daemon publishes them under the daemon directory of the arena home'],
-  ['the window says it', 'the notice is painted by the transcript-store notification in src/screens/chat/useChatBoot.tsx, from DaemonSessionConnector.transcriptStoreFailing in src/services/engine-connector/daemonConnector.ts'],
+  ['the facts the daemon publishes', 'the runner puts the sentence in its session facts at src/daemon/runner/sessionFactsArm.ts (transcriptStoreHealth), and the daemon publishes them under the daemon directory of the arena home'],
+  ['the window says it', 'the notice is painted by the transcript-store notification in src/screen/chat/useChatBoot.tsx, from DaemonSessionConnector.transcriptStoreFailing in src/engine/connector/daemonConnector.ts'],
   ['the store writes again', 'the held-back rows of the session transcript store must reach the record once the file is writable again; the proof does not name which store function retries them, so start from the record and the runner log of this arena run'],
-  ['the facts no longer', 'the runner must stop adding transcriptStoreFailing to its facts once the store writes: src/cli/headless/sessionFactsArm.ts (transcriptStoreHealth)'],
-  ['the window stops', 'the notification in src/screens/chat/useChatBoot.tsx must be removed when the connector tells no sentence (removeNotification in its paint)'],
+  ['the facts no longer', 'the runner must stop adding transcriptStoreFailing to its facts once the store writes: src/daemon/runner/sessionFactsArm.ts (transcriptStoreHealth)'],
+  ['the window stops', 'the notification in src/screen/chat/useChatBoot.tsx must be removed when the connector tells no sentence (removeNotification in its paint)'],
 ]
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++

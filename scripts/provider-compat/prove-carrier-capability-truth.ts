@@ -12,7 +12,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('         fix the capability answer in src/utils/model/capabilities.ts or src/utils/effort.ts, the wire body in src/services/providers/openaicompat/compatWire.ts, or the row decode in src/services/providers/openrouter/openrouterCatalogue.ts or src/services/providers/gemini/geminiCatalogue.ts')
+  if (!cond) console.log('         fix the capability answer in src/models/facts/capabilities.ts or src/models/effort/effort.ts, the wire body in src/models/roads/openaicompat/compatWire.ts, or the row decode in src/models/roads/openrouter/openrouterCatalogue.ts or src/models/roads/gemini/geminiCatalogue.ts')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -47,11 +47,11 @@ process.env.MERCURY_GEMINI_API_BASE = 'https://fixture.invalid/v1beta'
 process.env.OPENROUTER_API_KEY = 'sk-or-v1-CARRIERCAPSPROOF00000000'
 process.env.GEMINI_API_KEY = 'AIza-CARRIER-CAPS-PROOF-00000'
 
-const openrouter = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
-const gemini = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const caps = await import('../../src/utils/model/capabilities.ts')
-const effort = await import('../../src/utils/effort.ts')
-const wire = await import('../../src/services/providers/openaicompat/compatWire.ts')
+const openrouter = await import('../../src/models/roads/openrouter/openrouterCatalogue.ts')
+const gemini = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const caps = await import('../../src/models/facts/capabilities.ts')
+const effort = await import('../../src/models/effort/effort.ts')
+const wire = await import('../../src/models/roads/openaicompat/compatWire.ts')
 
 const OPENROUTER_PAGE = {
   data: [

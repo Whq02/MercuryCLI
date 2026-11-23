@@ -1,0 +1,200 @@
+import { catalogueTrafficVerdict } from './catalogueGate.js'
+import { passedOver, passedOverAs } from '../../platform/errors/passedOver.js'
+import { hostEnv } from '../../platform/environment/hostEnv.js'
+import { withDeadline } from '../../platform/async/deadline.js'
+import { isOneOf } from '../../platform/primitives/isOneOf.js'
+
+export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'orcarouter', 'melious', 'cerebras', 'fireworks', 'qwen', 'openai-compat'] as const
+export type KeyedCatalogueFamily = (typeof KEYED_CATALOGUE_FAMILIES)[number]
+
+export const CATALOGUE_READ_BOUND_MS = 5_000
+
+export function isKeyedCatalogueFamily(family: string): family is KeyedCatalogueFamily {
+  return isOneOf(KEYED_CATALOGUE_FAMILIES, family)
+}
+
+async function bounded(refresh: Promise<unknown>, boundMs: number, signal?: AbortSignal): Promise<void> {
+  await withDeadline(refresh.catch(passedOverAs(null)), boundMs, () => undefined, { signal, onAbort: () => undefined, unref: true })
+}
+
+function nothingUsable(snapshot: { models: readonly unknown[]; lastError?: string } | null): boolean {
+  return snapshot === null || (snapshot.models.length === 0 && snapshot.lastError !== undefined)
+}
+
+async function readCatalogueBody(family: string, boundMs: number, force: boolean, signal?: AbortSignal): Promise<boolean> {
+  try {
+    switch (family) {
+      case 'openai-compat': {
+        if (!catalogueTrafficVerdict('openai-compat').allowed) return false
+        const { refreshCompatCatalogues } = await import('./openaicompat/compatCatalogue.js')
+        await bounded(refreshCompatCatalogues({ force }), boundMs, signal)
+        return true
+      }
+      case 'openai': {
+        const { readOpenaiCatalogueIfPending } = await import('./openai/openaiCatalogue.js')
+        return await readOpenaiCatalogueIfPending({ boundMs, force })
+      }
+      case 'openrouter': {
+        const [{ getCachedOpenrouterCatalogue, refreshOpenrouterCatalogue }, { resolveOpenrouterRequestAuth }] =
+          await Promise.all([import('./openrouter/openrouterCatalogue.js'), import('./openrouter/openrouterAccounts.js')])
+        const auth = resolveOpenrouterRequestAuth(hostEnv())
+        if (!auth || !catalogueTrafficVerdict('openrouter').allowed) return false
+        if (!nothingUsable(getCachedOpenrouterCatalogue(auth.account.keySource))) return false
+        await bounded(refreshOpenrouterCatalogue(auth.account.keySource, { force }), boundMs, signal)
+        return true
+      }
+      case 'gemini': {
+        const [{ getCachedGeminiCatalogue, refreshGeminiCatalogue }, { resolveGeminiAccount }] =
+          await Promise.all([import('./gemini/geminiCatalogue.js'), import('./gemini/geminiAccounts.js')])
+        const account = resolveGeminiAccount(hostEnv())
+        if (!account || !catalogueTrafficVerdict('gemini').allowed) return false
+        const sourceKind = account.kind
+        if (!nothingUsable(getCachedGeminiCatalogue(sourceKind))) return false
+        await bounded(refreshGeminiCatalogue(sourceKind, { force }), boundMs, signal)
+        return true
+      }
+      case 'xai': {
+        const { getCachedXaiCatalogue, refreshXaiCatalogue } = await import('./xai/xaiCatalogue.js')
+        if (!catalogueTrafficVerdict('xai').allowed) return false
+        if (!force && !nothingUsable(getCachedXaiCatalogue())) return false
+        await bounded(refreshXaiCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      case 'meta': {
+        const { getCachedMetaCatalogue, refreshMetaCatalogue } = await import('./meta/metaCatalogue.js')
+        if (!catalogueTrafficVerdict('meta').allowed) return false
+        if (!force && !nothingUsable(getCachedMetaCatalogue())) return false
+        await bounded(refreshMetaCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      case 'zen': {
+        const { getCachedZenCatalogue, refreshZenCatalogue } = await import('./zen/zenCatalogue.js')
+        if (!catalogueTrafficVerdict('zen').allowed) return false
+        if (!force && !nothingUsable(getCachedZenCatalogue())) return false
+        await bounded(refreshZenCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      case 'minimax': {
+        const { getCachedMinimaxCatalogue, refreshMinimaxCatalogue } = await import('./minimax/minimaxCatalogue.js')
+        if (!catalogueTrafficVerdict('minimax').allowed) return false
+        if (!force && !nothingUsable(getCachedMinimaxCatalogue())) return false
+        await bounded(refreshMinimaxCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      case 'together': {
+        const { getCachedTogetherCatalogue, refreshTogetherCatalogue } = await import('./together/togetherCatalogue.js')
+        if (!catalogueTrafficVerdict('together').allowed) return false
+        if (!force && !nothingUsable(getCachedTogetherCatalogue())) return false
+        await bounded(refreshTogetherCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      case 'cohere': {
+        const { getCachedCohereCatalogue, refreshCohereCatalogue } = await import('./cohere/cohereCatalogue.js')
+        if (!catalogueTrafficVerdict('cohere').allowed) return false
+        if (!force && !nothingUsable(getCachedCohereCatalogue())) return false
+        await bounded(refreshCohereCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      case 'groq': {
+        const { getCachedGroqCatalogue, refreshGroqCatalogue } = await import('./groq/groqCatalogue.js')
+        if (!catalogueTrafficVerdict('groq').allowed) return false
+        if (!force && !nothingUsable(getCachedGroqCatalogue())) return false
+        await bounded(refreshGroqCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      case 'melious': {
+        const { getCachedMeliousCatalogue, refreshMeliousCatalogue } = await import('./melious/meliousCatalogue.js')
+        if (!catalogueTrafficVerdict('melious').allowed) return false
+        if (!force && !nothingUsable(getCachedMeliousCatalogue())) return false
+        await bounded(refreshMeliousCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      case 'orcarouter': {
+        const { getCachedOrcarouterCatalogue, refreshOrcarouterCatalogue } = await import('./orcarouter/orcarouterCatalogue.js')
+        if (!catalogueTrafficVerdict('orcarouter').allowed) return false
+        if (!force && !nothingUsable(getCachedOrcarouterCatalogue())) return false
+        await bounded(refreshOrcarouterCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      case 'cerebras': {
+        const { getCachedCerebrasCatalogue, refreshCerebrasCatalogue } = await import('./cerebras/cerebrasCatalogue.js')
+        if (!catalogueTrafficVerdict('cerebras').allowed) return false
+        if (!force && !nothingUsable(getCachedCerebrasCatalogue())) return false
+        await bounded(refreshCerebrasCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      case 'fireworks': {
+        const { getCachedFireworksCatalogue, refreshFireworksCatalogue } = await import('./fireworks/fireworksCatalogue.js')
+        if (!catalogueTrafficVerdict('fireworks').allowed) return false
+        if (!force && !nothingUsable(getCachedFireworksCatalogue())) return false
+        await bounded(refreshFireworksCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      case 'qwen': {
+        const { getCachedQwenCatalogue, refreshQwenCatalogue } = await import('./qwen/qwenCatalogue.js')
+        if (!catalogueTrafficVerdict('qwen').allowed) return false
+        if (!force && !nothingUsable(getCachedQwenCatalogue())) return false
+        await bounded(refreshQwenCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      case 'moonshot': {
+        const { getCachedMoonshotCatalogue, refreshMoonshotCatalogue } = await import('./moonshot/moonshotCatalogue.js')
+        if (!catalogueTrafficVerdict('moonshot').allowed) return false
+        if (!nothingUsable(getCachedMoonshotCatalogue())) return false
+        await bounded(refreshMoonshotCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      case 'huggingface': {
+        const [{ getCachedHuggingfaceCatalogue, refreshHuggingfaceCatalogue }, { resolveHuggingfaceAccount }] =
+          await Promise.all([import('./huggingface/huggingfaceCatalogue.js'), import('./huggingface/huggingfaceAccounts.js')])
+        if (!resolveHuggingfaceAccount(hostEnv()) || !catalogueTrafficVerdict('huggingface').allowed) return false
+        if (!nothingUsable(getCachedHuggingfaceCatalogue())) return false
+        await bounded(refreshHuggingfaceCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      case 'zai': {
+        const { getCachedZaiCatalogue, refreshZaiCatalogue } = await import('./zai/zaiCatalogue.js')
+        if (!catalogueTrafficVerdict('zai').allowed) return false
+        if (!force && !nothingUsable(getCachedZaiCatalogue())) return false
+        await bounded(refreshZaiCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      case 'mistral': {
+        const { getCachedMistralCatalogue, refreshMistralCatalogue } = await import('./mistral/mistralCatalogue.js')
+        if (!catalogueTrafficVerdict('mistral').allowed) return false
+        if (!force && !nothingUsable(getCachedMistralCatalogue())) return false
+        await bounded(refreshMistralCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      case 'nous': {
+        const { getCachedNousCatalogue, refreshNousCatalogue } = await import('./nous/nousCatalogue.js')
+        if (!catalogueTrafficVerdict('nous').allowed) return false
+        if (!force && !nothingUsable(getCachedNousCatalogue())) return false
+        await bounded(refreshNousCatalogue({ force }), boundMs, signal)
+        return true
+      }
+      default:
+        return false
+    }
+  } catch (error) {
+    passedOver(error)
+    return false
+  }
+}
+
+export async function readCatalogueIfPending(family: string, opts?: { boundMs?: number; force?: boolean; signal?: AbortSignal }): Promise<boolean> {
+  const signal = opts?.signal
+  if (signal?.aborted) return false
+  const boundMs = opts?.boundMs ?? CATALOGUE_READ_BOUND_MS
+  const force = opts?.force === true
+  const work = readCatalogueBody(family, boundMs, force, signal)
+  if (!signal) return work
+  return withDeadline(work, Infinity, () => false, { signal, onAbort: () => false })
+}
+
+export async function readCataloguesForOtherFamilies(home: string | null, opts?: { boundMs?: number }): Promise<KeyedCatalogueFamily[]> {
+  const outcomes = await Promise.all(
+    KEYED_CATALOGUE_FAMILIES.filter(family => family !== home).map(async family => ((await readCatalogueIfPending(family, opts)) ? family : null)),
+  )
+  return outcomes.filter((family): family is KeyedCatalogueFamily => family !== null)
+}

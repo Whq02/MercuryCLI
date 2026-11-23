@@ -21,7 +21,7 @@ const SCOPE_TOP_FILES = ['README.md', 'AGENTS.md', 'MERCURY.md', 'BUILD-NOTES.md
 
 const EXCLUDED_PATHS: Array<{ prefix: string } & Why> = [
   { prefix: 'docs/releases/', why: 'published release pages are history' },
-  { prefix: 'src/constants/changelogArchive.ts', why: 'past release notes stay as published' },
+  { prefix: 'src/commands/update-notes/changelogArchive.ts', why: 'past release notes stay as published' },
   { prefix: 'scripts/mission-runner/corpus/', why: 'fixture repositories of foreign source' },
   { prefix: 'scripts/interview/baselines/', why: 'frozen journey capture records keep their recorded bytes' },
   { prefix: 'scripts/visual-contract/baselines/', why: 'frozen capture records of earlier screens' },
@@ -39,8 +39,8 @@ const FROZEN_FILES: Array<{ path: string } & Why> = [
 
 type FileRule = { path: string; protect: string[] } & Why
 const FILE_RULES: FileRule[] = [
-  { path: 'src/utils/hooks/hooksSettings.ts', protect: [OLD_TOOL], why: "the short word for a hook that came from an agent definition's frontmatter (beside Extension and Skill), not the tool" },
-  { path: 'src/utils/model/agentModelPicker.ts', protect: [OLD_TOOL], why: "the agent model picker's group label for the agent definition being edited, not the tool" },
+  { path: 'src/integrations/event-hooks/hooksSettings.ts', protect: [OLD_TOOL], why: "the short word for a hook that came from an agent definition's frontmatter (beside Extension and Skill), not the tool" },
+  { path: 'src/models/facts/agentModelPicker.ts', protect: [OLD_TOOL], why: "the agent model picker's group label for the agent definition being edited, not the tool" },
   { path: 'scripts/api/node-transport-lane.mjs', protect: [OLD_TOOL], why: "undici's dispatcher class, compared by its constructor name, not the tool" },
 ]
 

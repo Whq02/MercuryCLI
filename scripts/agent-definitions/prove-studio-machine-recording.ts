@@ -6,12 +6,12 @@ import { dirname, join } from 'node:path'
 
 process.env['MERCURY_CONFIG_DIR'] = mkdtempSync(join(tmpdir(), 'studio-machine-recording-'))
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-await import('../../src/tools/AgentTool/AgentTool.js')
-const { createStudioEditorMachine } = await import('../../src/components/agents/studio/studioEditorModel.js')
-const { AgentStoreError } = await import('../../src/services/agents/store.js')
-const { revisionDigest } = await import('../../src/services/agents/contracts.js')
+await import('../../src/tools/crewmate/CrewmateTool.js')
+const { createStudioEditorMachine } = await import('../../src/screen/agents/studio/studioEditorModel.js')
+const { AgentStoreError } = await import('../../src/crew/agents/store.js')
+const { revisionDigest } = await import('../../src/crew/agents/contracts.js')
 
 const SELF = 'scripts/agent-definitions/prove-studio-machine-recording.ts'
 const RECORDING = join(import.meta.dirname, 'recordings', 'studio-machine.txt')

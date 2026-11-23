@@ -12,28 +12,28 @@ delete process.env.NODE_ENV
 
 import { z } from 'zod/v4'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-await import('../../src/services/providers/callModelRouter.ts')
-await import('../../src/services/messages.ts')
-await import('../../src/Tool.ts')
-const { decideToolPermissionWithModes, defaultWrapperPorts } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+await import('../../src/models/roads/callModelRouter.ts')
+await import('../../src/engine/messages/messages.ts')
+await import('../../src/tools/kit/tool.ts')
+const { decideToolPermissionWithModes, defaultWrapperPorts } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { resolveAgentPromptPosture, composeAgentAppState, withAllowedCommandRules } = await import(
-  '../../src/tools/AgentTool/agentPermissionPosture.ts'
+  '../../src/tools/crewmate/agentPermissionPosture.ts'
 )
-const { resolveAgentTools, filterToolsForAgent } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryScoutAgent.ts')
-const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryCrewAgent.ts')
+const { resolveAgentTools, filterToolsForAgent } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryScoutAgent.ts')
+const { MERCURY_CREW_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryCrewAgent.ts')
 
 let failures = 0
 let checks = 0
 function ladderFixHint(label: string): string {
-  if (/ answers as /.test(label)) return 'fix: an agent must reach the same decision as its parent peer; compare the two cells and fix composeAgentAppState or resolveAgentPromptPosture in src/tools/AgentTool/agentPermissionPosture.ts, or the agent context built by contextFor in this file'
-  if (/ — (main|a prompt-less parent|a run|a daemon seat)$/.test(label)) return 'fix: the cell shows behavior, wrapper and engine; the decision comes from decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts and the Bash rules in src/tools/BashTool/bashPermissions.ts, so change the stage that answered differently, or the want in the ROWS entry in this file if the ladder was meant to change'
-  if (/keeps Bash|Crewmate tool|the one filter|read-only scout/.test(label)) return 'fix: the agent tool roster comes from resolveAgentTools and filterToolsForAgent in src/tools/AgentTool/agentToolUtils.ts and the definitions in src/tools/AgentTool/built-in/mercuryCrewAgent.ts and mercuryScoutAgent.ts'
-  return 'fix: the allow-rule merge and the prompt posture are withAllowedCommandRules, composeAgentAppState and resolveAgentPromptPosture in src/tools/AgentTool/agentPermissionPosture.ts; change the one this check names'
+  if (/ answers as /.test(label)) return 'fix: an agent must reach the same decision as its parent peer; compare the two cells and fix composeAgentAppState or resolveAgentPromptPosture in src/tools/crewmate/agentPermissionPosture.ts, or the agent context built by contextFor in this file'
+  if (/ — (main|a prompt-less parent|a run|a daemon seat)$/.test(label)) return 'fix: the cell shows behavior, wrapper and engine; the decision comes from decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts and the Bash rules in src/tools/shell/bashPermissions.ts, so change the stage that answered differently, or the want in the ROWS entry in this file if the ladder was meant to change'
+  if (/keeps Bash|Crewmate tool|the one filter|read-only scout/.test(label)) return 'fix: the agent tool roster comes from resolveAgentTools and filterToolsForAgent in src/tools/crewmate/crewmateLifecycle.ts and the definitions in src/tools/crewmate/built-in/mercuryCrewAgent.ts and mercuryScoutAgent.ts'
+  return 'fix: the allow-rule merge and the prompt posture are withAllowedCommandRules, composeAgentAppState and resolveAgentPromptPosture in src/tools/crewmate/agentPermissionPosture.ts; change the one this check names'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
@@ -46,7 +46,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the ladder proof exceeded 120s (a row reached a live path?); find the row that never returned: decide() in this file awaits decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts with defaultWrapperPorts, and only runHeadlessHooks is stubbed')
+  console.log('\n❌ TIMEOUT — the ladder proof exceeded 120s (a row reached a live path?); find the row that never returned: decide() in this file awaits decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts with defaultWrapperPorts, and only runHeadlessHooks is stubbed')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

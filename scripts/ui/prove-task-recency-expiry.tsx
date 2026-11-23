@@ -4,14 +4,14 @@ import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settl
 
 pinSourceRef()
 const home = pinScratchHome('task-recency-expiry')
-const tasksModule = await import('../../src/utils/tasks.js')
-mock.module('../../src/utils/tasks.js', () => ({ ...tasksModule, isTaskToolsEnabled: () => true }))
-const { TaskListV2 } = await import('../../src/components/TaskListV2.js')
-const { Box } = await import('../../src/ink.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const tasksModule = await import('../../src/engine/task-framework/tasks.js')
+mock.module('../../src/engine/task-framework/tasks.js', () => ({ ...tasksModule, isTaskToolsEnabled: () => true }))
+const { TaskListV2 } = await import('../../src/screen/tasks/TaskList.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
 const realNow = Date.now
 const realTimeout = globalThis.setTimeout
 const realClear = globalThis.clearTimeout
@@ -64,11 +64,11 @@ try {
   rows = rows.map(row => row.id === '5' ? { ...row, status: 'completed' } : row)
   view.resize(element(), 80, 17)
   await settle(100)
-  check('both new completions have priority', view.screen().includes('first completion') && view.screen().includes('second completion'), 'src/components/TaskListV2.tsx must list tasks completed within RECENT_COMPLETION_MS ahead of the pending rows')
+  check('both new completions have priority', view.screen().includes('first completion') && view.screen().includes('second completion'), 'src/screen/tasks/TaskList.tsx must list tasks completed within RECENT_COMPLETION_MS ahead of the pending rows')
   await elapse(29_000)
-  check('the first completion expires', !view.screen().includes('first completion') && view.screen().includes('second completion'), 'src/components/TaskListV2.tsx must drop a completion once RECENT_COMPLETION_MS has passed since it completed, using the timer armed in its useEffect')
+  check('the first completion expires', !view.screen().includes('first completion') && view.screen().includes('second completion'), 'src/screen/tasks/TaskList.tsx must drop a completion once RECENT_COMPLETION_MS has passed since it completed, using the timer armed in its useEffect')
   await elapse(1000)
-  check('the next expiry re-arms without a task-list change', !view.screen().includes('second completion') && view.screen().includes('pending three'), 'the useEffect in src/components/TaskListV2.tsx must arm a new timer for the earliest remaining expiry after each expiry fires, without waiting for a tasks change')
+  check('the next expiry re-arms without a task-list change', !view.screen().includes('second completion') && view.screen().includes('pending three'), 'the useEffect in src/screen/tasks/TaskList.tsx must arm a new timer for the earliest remaining expiry after each expiry fires, without waiting for a tasks change')
 } finally {
   view.unmount()
   for (const handle of timers.keys()) realClear(handle)

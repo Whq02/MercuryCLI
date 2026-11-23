@@ -10,9 +10,9 @@ import { checker, scratchRoot, guardWrite, waitUntil } from '../engine-durabilit
 const root = scratchRoot('interview-settle')
 const t = checker()
 
-const store = await import('../../src/services/interview/store.ts')
-const { rebuildInterview } = await import('../../src/services/interview/contracts.ts')
-const { readStoreRecoveryEvents } = await import('../../src/substrate/storeRecovery.ts')
+const store = await import('../../src/tools/engines/interview/store.ts')
+const { rebuildInterview } = await import('../../src/tools/engines/interview/contracts.ts')
+const { readStoreRecoveryEvents } = await import('../../src/platform/substrate/storeRecovery.ts')
 
 const logPath = join(
   root,
@@ -78,7 +78,7 @@ t.section('§3 — the shutdown drain reports EVERY identity (the flush receipt)
 
 t.section('§3b — the REGISTERED shutdown cleanup itself drains every identity (CA-15)')
 {
-  const { runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.ts')
+  const { runCleanupFunctions } = await import('../../src/platform/processes/cleanupRegistry.ts')
   store._resetInterviewForProofs()
   const a = store.openInterviewSession({ mission: 'cleanup drain A', atMs: 30 })
   const b = store.openInterviewSession({ mission: 'cleanup drain B', atMs: 31 })

@@ -15,7 +15,7 @@ const EDIT: Rules = { deny: ['Edit(secrets/**)'] }
 const ALL: Rules = { deny: ['Bash(rm *)', `Bash(${PUSH} *)`, 'Read(secrets/**)', 'Edit(secrets/**)'] }
 const EVERY_MODE = ['default', 'implement', 'flow', 'sovereign']
 const ruleOf = (rules: Rules): string => (rules.deny as string[])[0] as string
-const reachFix = 'Fix: change denyRuleReach in src/tools/BashTool/denyRuleReach.ts (called from bashToolHasPermission in src/tools/BashTool/bashPermissions.ts); its refusal text is hiddenDenyRuleRefusal in the same file. Got: '
+const reachFix = 'Fix: change denyRuleReach in src/tools/shell/denyRuleReach.ts (called from bashToolHasPermission in src/tools/shell/bashPermissions.ts); its refusal text is hiddenDenyRuleRefusal in the same file. Got: '
 
 const FOLLOWED: Array<[Rules, string[]]> = [
   [RM, [

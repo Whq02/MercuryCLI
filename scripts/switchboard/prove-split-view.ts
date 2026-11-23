@@ -14,11 +14,11 @@ const REPO = join(import.meta.dir, '..', '..')
 
 let failures = 0
 const splitFailureHint = (label: string): string => {
-  if (/^A([6-9]|1\d)/.test(label) || /^G/.test(label)) return 'change the key rows or the legend in src/components/concourse/controlManifest.ts (regionKeysFor, withSplitViewTruth, legendPriorityOf, CONCOURSE_CONTROLS)'
-  if (/^F2/.test(label)) return 'change resolveConcourseProfile in src/components/concourse/ConcourseLayout.tsx'
-  if (/^C/.test(label)) return 'change splitGeometryAt and the pane minimums in src/components/concourse/splitView.ts'
-  if (/^[AEF]/.test(label)) return 'change splitToggleDecisionOf, splitAvailableAt, toggleSplitView, collapseSplitForFrame or nudgeSplitRatio in src/components/concourse/splitView.ts'
-  return 'change src/components/concourse/splitView.ts'
+  if (/^A([6-9]|1\d)/.test(label) || /^G/.test(label)) return 'change the key rows or the legend in src/screen/concourse/controlManifest.ts (regionKeysFor, withSplitViewTruth, legendPriorityOf, CONCOURSE_CONTROLS)'
+  if (/^F2/.test(label)) return 'change resolveConcourseProfile in src/screen/concourse/ConcourseLayout.tsx'
+  if (/^C/.test(label)) return 'change splitGeometryAt and the pane minimums in src/screen/concourse/splitView.ts'
+  if (/^[AEF]/.test(label)) return 'change splitToggleDecisionOf, splitAvailableAt, toggleSplitView, collapseSplitForFrame or nudgeSplitRatio in src/screen/concourse/splitView.ts'
+  return 'change src/screen/concourse/splitView.ts'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -26,8 +26,8 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
-const split = await import('../../src/components/concourse/splitView.ts')
-const manifest = await import('../../src/components/concourse/controlManifest.ts')
+const split = await import('../../src/screen/concourse/splitView.ts')
+const manifest = await import('../../src/screen/concourse/controlManifest.ts')
 
 console.log('A — toggle presence per world/width')
 {
@@ -125,7 +125,7 @@ console.log('E — the collapse line')
 
 console.log('F — the rows law (the half-frame class)')
 {
-  const layout = await import('../../src/components/concourse/ConcourseLayout.tsx')
+  const layout = await import('../../src/screen/concourse/ConcourseLayout.tsx')
   const R = split.SPLIT_MIN_ROWS
   check(
     `F1 availability refuses at 130×${R - 1} and affords at 130×${R}`,
@@ -163,8 +163,8 @@ console.log('F — the rows law (the half-frame class)')
 
 console.log('G — legend continuity: the way back survives the split-width shed')
 {
-  const { shedToFit } = await import('../../src/components/mercury-ui/geometry.ts')
-  const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+  const { shedToFit } = await import('../../src/screen/widgets/geometry.ts')
+  const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
   const interior = split.splitGeometryAt(161, 'board-min').boardCols - 4
   const legendAt = (region: 'list' | 'chat', splitOn: boolean): string[] => {
     const browse = manifest.browseKeysFor({ chatPresent: true, region })

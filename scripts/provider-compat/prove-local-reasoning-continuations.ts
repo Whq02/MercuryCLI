@@ -21,10 +21,10 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const { mapMessagesToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
-const { ollamaMessagesOf } = await import('../../src/services/providers/local/ollamaChatTransport.ts')
-type MessageParam = import('../../src/types/wire.ts').MessageParam
-type ZaiMessage = import('../../src/services/providers/zai/zaiClient.ts').ZaiMessage
+const { mapMessagesToZai } = await import('../../src/models/roads/zai/zaiCodec.ts')
+const { ollamaMessagesOf } = await import('../../src/models/roads/local/ollamaChatTransport.ts')
+type MessageParam = import('../../src/engine/message-shapes/wire.ts').MessageParam
+type ZaiMessage = import('../../src/models/roads/zai/zaiClient.ts').ZaiMessage
 
 const history = [
   { role: 'user', content: 'first question' },
@@ -60,15 +60,15 @@ section('1 · the codec: reasoning kept on the assistant rows after the last pla
 {
   const rows = mapMessagesToZai('sys', history, { keepReasoningAfterLastUser: true })
   const a = assistants(rows)
-  check('three assistant rows ride the wire', a.length === 3, `${a.length} · mapMessagesToZai in src/services/providers/zai/zaiCodec.ts must emit one row per assistant turn`)
-  check('the first turn (before the last user question) carries NO reasoning_content', a[0] !== undefined && !('reasoning_content' in a[0]), `${JSON.stringify(a[0])} · with keepReasoningAfterLastUser, mapMessagesToZai in src/services/providers/zai/zaiCodec.ts must drop reasoning before the last user query`)
-  check('the first tool step of the active turn keeps its thinking', a[1]?.reasoning_content === 'I should read it first', `${JSON.stringify(a[1])} · mapMessagesToZai in src/services/providers/zai/zaiCodec.ts must keep reasoning_content after the last user query`)
-  check('the second tool step of the active turn keeps its thinking', a[2]?.reasoning_content === 'now the edit', `${JSON.stringify(a[2])} · mapMessagesToZai in src/services/providers/zai/zaiCodec.ts must keep reasoning_content after the last user query`)
-  check('tool_calls ride beside the kept reasoning with content null (the documented shape beside calls)', a[1]?.tool_calls?.length === 1 && a[1].content === null && a[2]?.tool_calls?.length === 1, `${JSON.stringify(a[1])} · fix the assistant row shape in mapMessagesToZai in src/services/providers/zai/zaiCodec.ts`)
+  check('three assistant rows ride the wire', a.length === 3, `${a.length} · mapMessagesToZai in src/models/roads/zai/zaiCodec.ts must emit one row per assistant turn`)
+  check('the first turn (before the last user question) carries NO reasoning_content', a[0] !== undefined && !('reasoning_content' in a[0]), `${JSON.stringify(a[0])} · with keepReasoningAfterLastUser, mapMessagesToZai in src/models/roads/zai/zaiCodec.ts must drop reasoning before the last user query`)
+  check('the first tool step of the active turn keeps its thinking', a[1]?.reasoning_content === 'I should read it first', `${JSON.stringify(a[1])} · mapMessagesToZai in src/models/roads/zai/zaiCodec.ts must keep reasoning_content after the last user query`)
+  check('the second tool step of the active turn keeps its thinking', a[2]?.reasoning_content === 'now the edit', `${JSON.stringify(a[2])} · mapMessagesToZai in src/models/roads/zai/zaiCodec.ts must keep reasoning_content after the last user query`)
+  check('tool_calls ride beside the kept reasoning with content null (the documented shape beside calls)', a[1]?.tool_calls?.length === 1 && a[1].content === null && a[2]?.tool_calls?.length === 1, `${JSON.stringify(a[1])} · fix the assistant row shape in mapMessagesToZai in src/models/roads/zai/zaiCodec.ts`)
   const off = mapMessagesToZai('sys', history)
-  check('without the option nothing changes: no reasoning_content anywhere (today\'s default for every other lane)', assistants(off).every(row => !('reasoning_content' in row)), 'mapMessagesToZai in src/services/providers/zai/zaiCodec.ts must keep reasoning only when an option asks for it')
+  check('without the option nothing changes: no reasoning_content anywhere (today\'s default for every other lane)', assistants(off).every(row => !('reasoning_content' in row)), 'mapMessagesToZai in src/models/roads/zai/zaiCodec.ts must keep reasoning only when an option asks for it')
   const whole = mapMessagesToZai('sys', history, { keepReasoningHistory: true })
-  check('keepReasoningHistory (Kimi\'s law) still keeps every turn\'s reasoning', assistants(whole).every(row => typeof row.reasoning_content === 'string'), 'keepReasoningHistory in mapMessagesToZai (src/services/providers/zai/zaiCodec.ts) must keep every turn\'s reasoning')
+  check('keepReasoningHistory (Kimi\'s law) still keeps every turn\'s reasoning', assistants(whole).every(row => typeof row.reasoning_content === 'string'), 'keepReasoningHistory in mapMessagesToZai (src/models/roads/zai/zaiCodec.ts) must keep every turn\'s reasoning')
 }
 
 section('2 · a tool-result row is not a user query: a user row carrying text beside a result starts a new query')
@@ -80,11 +80,11 @@ section('2 · a tool-result row is not a user query: a user row carrying text be
     { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't3', content: 'ok' }] },
   ] as unknown as readonly MessageParam[]
   const a = assistants(mapMessagesToZai('sys', annotated, { keepReasoningAfterLastUser: true }))
-  check('the earlier loop\'s steps drop their reasoning once a new user text arrived', a.length === 4 && !('reasoning_content' in a[1]!) && !('reasoning_content' in a[2]!), `${JSON.stringify(a.map(row => row.reasoning_content ?? null))} · lastUserQueryIndex in src/services/providers/zai/zaiCodec.ts must treat a user row with text as a new query`)
-  check('the newest step keeps its reasoning', a[3]?.reasoning_content === 'renaming', `${JSON.stringify(a[3])} · mapMessagesToZai in src/services/providers/zai/zaiCodec.ts must keep reasoning on the newest step`)
+  check('the earlier loop\'s steps drop their reasoning once a new user text arrived', a.length === 4 && !('reasoning_content' in a[1]!) && !('reasoning_content' in a[2]!), `${JSON.stringify(a.map(row => row.reasoning_content ?? null))} · lastUserQueryIndex in src/models/roads/zai/zaiCodec.ts must treat a user row with text as a new query`)
+  check('the newest step keeps its reasoning', a[3]?.reasoning_content === 'renaming', `${JSON.stringify(a[3])} · mapMessagesToZai in src/models/roads/zai/zaiCodec.ts must keep reasoning on the newest step`)
   const stringUser = [...history.slice(0, 5), { role: 'user', content: 'string prompt' }, { role: 'assistant', content: [{ type: 'thinking', thinking: 'later', signature: '' }, { type: 'text', text: 'done', citations: null }] }] as unknown as readonly MessageParam[]
   const b = assistants(mapMessagesToZai('sys', stringUser, { keepReasoningAfterLastUser: true }))
-  check('a string user prompt is a query too', !('reasoning_content' in b[1]!) && b[2]?.reasoning_content === 'later', `${JSON.stringify(b.map(row => row.reasoning_content ?? null))} · lastUserQueryIndex in src/services/providers/zai/zaiCodec.ts must count a string user prompt as a query`)
+  check('a string user prompt is a query too', !('reasoning_content' in b[1]!) && b[2]?.reasoning_content === 'later', `${JSON.stringify(b.map(row => row.reasoning_content ?? null))} · lastUserQueryIndex in src/models/roads/zai/zaiCodec.ts must count a string user prompt as a query`)
 }
 
 section('3 · the /api/chat body: an assistant row with reasoning_content carries it as `thinking` (the field Ollama renders back into the template)')
@@ -92,40 +92,40 @@ section('3 · the /api/chat body: an assistant row with reasoning_content carrie
   const rows = mapMessagesToZai('sys', history, { keepReasoningAfterLastUser: true })
   const ollama = ollamaMessagesOf(rows as never)
   const a = ollama.filter(row => row.role === 'assistant') as Array<{ thinking?: string; content: string; tool_calls?: unknown[] }>
-  check('the kept reasoning rides as thinking on the active turn\'s rows', a[1]?.thinking === 'I should read it first' && a[2]?.thinking === 'now the edit', `${JSON.stringify(a)} · ollamaMessagesOf in src/services/providers/local/ollamaChatTransport.ts must map reasoning_content to thinking`)
-  check('the earlier turn carries no thinking key', a[0] !== undefined && !('thinking' in a[0]), `${JSON.stringify(a[0])} · ollamaMessagesOf in src/services/providers/local/ollamaChatTransport.ts must add thinking only when reasoning_content is present`)
-  check('content is a string beside the calls (Ollama\'s shape)', a[1]?.content === '' && Array.isArray(a[1]?.tool_calls), `${JSON.stringify(a[1])} · fix ollamaMessagesOf in src/services/providers/local/ollamaChatTransport.ts`)
+  check('the kept reasoning rides as thinking on the active turn\'s rows', a[1]?.thinking === 'I should read it first' && a[2]?.thinking === 'now the edit', `${JSON.stringify(a)} · ollamaMessagesOf in src/models/roads/local/ollamaChatTransport.ts must map reasoning_content to thinking`)
+  check('the earlier turn carries no thinking key', a[0] !== undefined && !('thinking' in a[0]), `${JSON.stringify(a[0])} · ollamaMessagesOf in src/models/roads/local/ollamaChatTransport.ts must add thinking only when reasoning_content is present`)
+  check('content is a string beside the calls (Ollama\'s shape)', a[1]?.content === '' && Array.isArray(a[1]?.tool_calls), `${JSON.stringify(a[1])} · fix ollamaMessagesOf in src/models/roads/local/ollamaChatTransport.ts`)
 }
 
 section('4 · the local lane profile asks for it')
 {
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
-  type LocalModelRecord = import('../../src/services/providers/local/localDiscovery.ts').LocalModelRecord
+  const { localLaneProfileFor } = await import('../../src/models/roads/local/localCallModel.ts')
+  type LocalModelRecord = import('../../src/models/roads/local/localDiscovery.ts').LocalModelRecord
   const thinker: LocalModelRecord = { id: 'qwen3.5:9b', server: 'ollama', baseUrl: 'http://127.0.0.1:9/v1', toolsDeclared: true, thinkingDeclared: true, family: 'qwen3', parameterSize: '9B' }
   const llamacpp: LocalModelRecord = { id: 'glm-4.7-flash', server: 'llamacpp', baseUrl: 'http://127.0.0.1:9/v1', toolsDeclared: true, family: 'glm4', parameterSize: '30B' }
   const profile = localLaneProfileFor(thinker) as { keepsReasoningOnContinuations?: (model: string) => boolean; keepsReasoningHistory?: (model: string) => boolean }
-  check('an Ollama thinking model keeps reasoning on continuations', profile.keepsReasoningOnContinuations?.('qwen3.5:9b') === true, 'localLaneProfileFor in src/services/providers/local/localCallModel.ts must set keepsReasoningOnContinuations')
-  check('a llama.cpp model (thinking undeclared, the template decides) keeps it too', (localLaneProfileFor(llamacpp) as { keepsReasoningOnContinuations?: (model: string) => boolean }).keepsReasoningOnContinuations?.('glm-4.7-flash') === true, 'localLaneProfileFor in src/services/providers/local/localCallModel.ts must set keepsReasoningOnContinuations for llama.cpp too')
-  check('the whole-history law (Kimi\'s) stays off on local', profile.keepsReasoningHistory === undefined || profile.keepsReasoningHistory('qwen3.5:9b') === false, 'localLaneProfileFor in src/services/providers/local/localCallModel.ts must not enable keepsReasoningHistory')
+  check('an Ollama thinking model keeps reasoning on continuations', profile.keepsReasoningOnContinuations?.('qwen3.5:9b') === true, 'localLaneProfileFor in src/models/roads/local/localCallModel.ts must set keepsReasoningOnContinuations')
+  check('a llama.cpp model (thinking undeclared, the template decides) keeps it too', (localLaneProfileFor(llamacpp) as { keepsReasoningOnContinuations?: (model: string) => boolean }).keepsReasoningOnContinuations?.('glm-4.7-flash') === true, 'localLaneProfileFor in src/models/roads/local/localCallModel.ts must set keepsReasoningOnContinuations for llama.cpp too')
+  check('the whole-history law (Kimi\'s) stays off on local', profile.keepsReasoningHistory === undefined || profile.keepsReasoningHistory('qwen3.5:9b') === false, 'localLaneProfileFor in src/models/roads/local/localCallModel.ts must not enable keepsReasoningHistory')
 }
 
 section('5 · an assistant turn with no text, no kept reasoning and no call never replays as content "" (Devstral\'s template rejects it): it reads the thinking-only row')
 {
-  const { ASSISTANT_THINKING_ONLY_ROW } = await import('../../src/services/providers/zai/zaiCodec.ts')
+  const { ASSISTANT_THINKING_ONLY_ROW } = await import('../../src/models/roads/zai/zaiCodec.ts')
   const silent = [
     { role: 'user', content: 'first' },
     { role: 'assistant', content: [{ type: 'thinking', thinking: 'only thought', signature: '' }] },
     { role: 'user', content: 'say it' },
   ] as unknown as readonly MessageParam[]
   const dropped = assistants(mapMessagesToZai('sys', silent))
-  check('reasoning off the wire: the row carries the thinking-only words, never ""', dropped[0]?.content === ASSISTANT_THINKING_ONLY_ROW && dropped[0].content !== '' && !('reasoning_content' in dropped[0]), `${JSON.stringify(dropped[0])} · mapMessagesToZai in src/services/providers/zai/zaiCodec.ts must emit ASSISTANT_THINKING_ONLY_ROW for a thinking-only turn`)
+  check('reasoning off the wire: the row carries the thinking-only words, never ""', dropped[0]?.content === ASSISTANT_THINKING_ONLY_ROW && dropped[0].content !== '' && !('reasoning_content' in dropped[0]), `${JSON.stringify(dropped[0])} · mapMessagesToZai in src/models/roads/zai/zaiCodec.ts must emit ASSISTANT_THINKING_ONLY_ROW for a thinking-only turn`)
   const kept = assistants(mapMessagesToZai('sys', silent, { keepReasoningHistory: true }))
-  check('reasoning kept on the wire: content stays "" beside reasoning_content (the pinned Kimi shape)', kept[0]?.content === '' && kept[0].reasoning_content === 'only thought', `${JSON.stringify(kept[0])} · mapMessagesToZai in src/services/providers/zai/zaiCodec.ts must keep content "" beside kept reasoning`)
+  check('reasoning kept on the wire: content stays "" beside reasoning_content (the pinned Kimi shape)', kept[0]?.content === '' && kept[0].reasoning_content === 'only thought', `${JSON.stringify(kept[0])} · mapMessagesToZai in src/models/roads/zai/zaiCodec.ts must keep content "" beside kept reasoning`)
   const call = assistants(mapMessagesToZai('sys', [{ role: 'user', content: 'go' }, { role: 'assistant', content: [{ type: 'tool_use', id: 't', name: 'Read', input: {} }] }] as unknown as readonly MessageParam[]))
-  check('beside a call content stays null (the documented shape)', call[0]?.content === null && call[0].tool_calls?.length === 1, `${JSON.stringify(call[0])} · mapMessagesToZai in src/services/providers/zai/zaiCodec.ts must emit content null beside tool_calls`)
-  check('the words name what happened', ASSISTANT_THINKING_ONLY_ROW === '(thinking)', 'ASSISTANT_THINKING_ONLY_ROW in src/services/providers/zai/zaiCodec.ts must read (thinking)')
+  check('beside a call content stays null (the documented shape)', call[0]?.content === null && call[0].tool_calls?.length === 1, `${JSON.stringify(call[0])} · mapMessagesToZai in src/models/roads/zai/zaiCodec.ts must emit content null beside tool_calls`)
+  check('the words name what happened', ASSISTANT_THINKING_ONLY_ROW === '(thinking)', 'ASSISTANT_THINKING_ONLY_ROW in src/models/roads/zai/zaiCodec.ts must read (thinking)')
 }
 
 console.log(failures === 0 ? '\nprove-local-reasoning-continuations: ALL GREEN' : `\nprove-local-reasoning-continuations: ${failures} FAILURE(S)`)

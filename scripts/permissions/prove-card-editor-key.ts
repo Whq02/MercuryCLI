@@ -16,12 +16,12 @@ function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
 
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { Box } = await import('../../src/ink.ts')
-const { Select } = await import('../../src/components/CustomSelect/select.tsx')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { Box } = await import('../../src/screen/themedRenderer.ts')
+const { Select } = await import('../../src/screen/select/Select.tsx')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
 const h = React.createElement
@@ -29,7 +29,7 @@ const CTRL_G = '\x07'
 const CTRL_X = '\x18'
 const CTRL_E = '\x05'
 const OTHER = '__other__'
-const EDITOR_KEY_HINT = ' · change the chat:externalEditor binding (useKeybinding, isActive needs onOpenEditor and focus) in src/components/CustomSelect/select-input-option.tsx'
+const EDITOR_KEY_HINT = ' · change the chat:externalEditor binding (useKeybinding, isActive needs onOpenEditor and focus) in src/screen/select/SelectInputOption.tsx'
 
 const mount = (element: React.ReactNode): Promise<Mounted> =>
   mountOffscreen(h(AppStateProvider, null, h(ThemeProvider, null, h(KeybindingSetup, null, h(Box, { width: 100, height: 24, flexDirection: 'column' }, element)))), 100, 24)
@@ -60,7 +60,7 @@ section('the card\'s Other field: the key its footer names opens the editor with
     check('with the mark on a plain option the key opens nothing', opened.length === 0, JSON.stringify(opened) + EDITOR_KEY_HINT)
     await press(view, KEY.down)
     for (const letter of 'memo') await press(view, letter)
-    check('the Other field holds what was typed', typed === 'memo', JSON.stringify(typed) + ' · the input option in src/components/CustomSelect/select-input-option.tsx must pass typed text to its onChange')
+    check('the Other field holds what was typed', typed === 'memo', JSON.stringify(typed) + ' · the input option in src/screen/select/SelectInputOption.tsx must pass typed text to its onChange')
     const beforeKey = opened.length
     await press(view, CTRL_G)
     check('ctrl+g on the Other field hands the editor what was typed', opened.length === beforeKey + 1 && opened.at(-1) === 'memo', JSON.stringify(opened) + EDITOR_KEY_HINT)
@@ -68,7 +68,7 @@ section('the card\'s Other field: the key its footer names opens the editor with
     await press(view, CTRL_X)
     await press(view, CTRL_E)
     check('ctrl+x ctrl+e on the Other field does the same, once', opened.length === beforeChord + 1 && opened.at(-1) === 'memo', JSON.stringify(opened) + EDITOR_KEY_HINT)
-    check('neither key typed into the field', typed === 'memo', JSON.stringify(typed) + ' · the editor key must be consumed by the chat:externalEditor binding in src/components/CustomSelect/select-input-option.tsx, not typed into the field')
+    check('neither key typed into the field', typed === 'memo', JSON.stringify(typed) + ' · the editor key must be consumed by the chat:externalEditor binding in src/screen/select/SelectInputOption.tsx, not typed into the field')
   } finally {
     view.unmount()
   }
@@ -83,7 +83,7 @@ section('a list that offers no editor: the key is nobody\'s')
     await press(view, KEY.down)
     for (const letter of 'memo') await press(view, letter)
     await press(view, CTRL_G)
-    check('ctrl+g leaves the field as it was and the list standing', typed === 'memo' && view.screen().includes('one'), `${JSON.stringify(typed)} · ${view.screen().slice(0, 120)} · the editor binding in src/components/CustomSelect/select-input-option.tsx must stay inactive when the list passes no onOpenEditor`)
+    check('ctrl+g leaves the field as it was and the list standing', typed === 'memo' && view.screen().includes('one'), `${JSON.stringify(typed)} · ${view.screen().slice(0, 120)} · the editor binding in src/screen/select/SelectInputOption.tsx must stay inactive when the list passes no onOpenEditor`)
   } finally {
     view.unmount()
   }

@@ -110,11 +110,11 @@ function firstDiff(a: string, b: string): string {
 }
 
 try {
-  const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-  check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), '', 'the daemon did not answer ping in 60s; read daemon.log in the scratch folder (rerun with WARM_PARITY_KEEP=1 to keep it) for the boot error from src/daemon/main.ts')
+  const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+  check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), '', 'the daemon did not answer ping in 60s; read daemon.log in the scratch folder (rerun with WARM_PARITY_KEEP=1 to keep it) for the boot error from src/daemon/control/main.ts')
 
   const warmed = (await daemonControlRpc({ op: 'concourseWarm', workspaceDir: wsClaimed } as never)) as { ok?: boolean; state?: string; detail?: string }
-  check('workspace A warms a runner', warmed.ok === true && (warmed.state === 'warmed' || warmed.state === 'kept'), JSON.stringify(warmed), 'the concourseWarm op must answer ok with state warmed or kept; see answerConcourseWarm in src/daemon/controlServer.ts')
+  check('workspace A warms a runner', warmed.ok === true && (warmed.state === 'warmed' || warmed.state === 'kept'), JSON.stringify(warmed), 'the concourseWarm op must answer ok with state warmed or kept; see answerConcourseWarm in src/daemon/control/controlServer.ts')
   const daemonLog = (): string => {
     try {
       return readFileSync(join(SCRATCH, 'daemon.log'), 'utf8')
@@ -123,7 +123,7 @@ try {
     }
   }
   const warmLine = (): string | undefined => daemonLog().split('\n').find(l => l.includes('warm runner pre-spawned') && l.includes(wsClaimed))
-  check('the pre-spawn is named', await untilAsync(() => warmLine() !== undefined, 10_000), '', 'daemon.log has no warm runner pre-spawned line for workspace A; the daemon prints it from onWarmSpawned in src/daemon/main.ts, so check that concourseWarm spawned a runner')
+  check('the pre-spawn is named', await untilAsync(() => warmLine() !== undefined, 10_000), '', 'daemon.log has no warm runner pre-spawned line for workspace A; the daemon prints it from onWarmSpawned in src/daemon/control/main.ts, so check that concourseWarm spawned a runner')
   const warmShort = /pre-spawned: (concourse-w\d+)/.exec(warmLine() ?? '')?.[1] ?? ''
   check('the warm runner reaches ready before the claim', await untilAsync(async () => {
     const h = (await daemonControlRpc({ op: 'has', proto: 1, short: warmShort } as never)) as { ready?: boolean }
@@ -141,12 +141,12 @@ try {
       effort: 'high',
       title: 'Parity probe',
     } as never, { timeoutMs: 30_000 })) as { ok?: boolean; sessionId?: string; workerId?: string; error?: string }
-    check(`${id} dispatches`, d.ok === true && typeof d.sessionId === 'string', JSON.stringify(d), 'the concourseDispatch op must answer ok with a sessionId; see answerSessionDispatch in src/daemon/controlServer.ts')
+    check(`${id} dispatches`, d.ok === true && typeof d.sessionId === 'string', JSON.stringify(d), 'the concourseDispatch op must answer ok with a sessionId; see answerSessionDispatch in src/daemon/control/controlServer.ts')
     return { sessionId: d.sessionId ?? '', workerId: d.workerId ?? '' }
   }
 
   const claimed = await dispatch(wsClaimed, 'parity-claimed')
-  check('the claimed session rode the warm runner (claim-over-spawn, live)', claimed.workerId === warmShort, `admitted ${claimed.workerId}, warm was ${warmShort}`, 'dispatch into the warmed workspace must claim the pre-spawned runner instead of spawning another; see the concourseDispatch and concourseWarm handlers in src/daemon/controlServer.ts')
+  check('the claimed session rode the warm runner (claim-over-spawn, live)', claimed.workerId === warmShort, `admitted ${claimed.workerId}, warm was ${warmShort}`, 'dispatch into the warmed workspace must claim the pre-spawned runner instead of spawning another; see the concourseDispatch and concourseWarm handlers in src/daemon/control/controlServer.ts')
   const cold = await dispatch(wsCold, 'parity-cold')
   check('the cold session spawned its own runner', cold.workerId !== warmShort && cold.workerId !== '', cold.workerId, 'dispatch into the other workspace must spawn its own runner, never take the warm one of workspace A')
 
@@ -192,13 +192,13 @@ try {
   const fCold = normalize(canonical(JSON.parse(readFileSync(factsOf(cold.sessionId), 'utf8'))))
   check('PARITY the facts projections are identical modulo ids/clocks', fClaimed === fCold, fClaimed === fCold ? '' : firstDiff(fClaimed, fCold), 'the facts projection of a claimed session must equal a cold one; the line above is the first difference, so fix the claim path or add the varying field to normalize in this file if it is only an id or a clock')
 
-  const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+  const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const records = readSessionWorkers(daemonDir)
   const rowOf = (workerId: string): string => normalize(canonical(records[workerId] ?? {}))
-  check('PARITY the worker records are identical modulo ids/clocks', rowOf(claimed.workerId) === rowOf(cold.workerId), rowOf(claimed.workerId) === rowOf(cold.workerId) ? '' : firstDiff(rowOf(claimed.workerId), rowOf(cold.workerId)), 'the worker record of the claimed runner must equal the cold one as read by readSessionWorkers (src/daemon/concourseWorkers/store.ts); the line above is the first difference')
+  check('PARITY the worker records are identical modulo ids/clocks', rowOf(claimed.workerId) === rowOf(cold.workerId), rowOf(claimed.workerId) === rowOf(cold.workerId) ? '' : firstDiff(rowOf(claimed.workerId), rowOf(cold.workerId)), 'the worker record of the claimed runner must equal the cold one as read by readSessionWorkers (src/daemon/concourse-workers/store.ts); the line above is the first difference')
 } finally {
   try {
-    await (await import('../../src/daemon/controlSocket.ts')).daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
+    await (await import('../../src/daemon/control/controlSocket.ts')).daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
   } catch {
   }
   daemon.kill('SIGTERM')

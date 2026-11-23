@@ -24,11 +24,11 @@ process.chdir(project)
 
 let failures = 0
 const UNREAD_FIX =
-  'the reader of that file in src/mneme must call recordMnemeUnread(path, error) on failure and clearMnemeUnread(path) on success (src/mneme/mnemeUnread.ts), and the screen must show mnemeUnreadSentence'
+  'the reader of that file in src/sessions/mneme must call recordMnemeUnread(path, error) on failure and clearMnemeUnread(path) on success (src/sessions/mneme/mnemeUnread.ts), and the screen must show mnemeUnreadSentence'
 const CREW_NOTE_FIX =
-  'the note comes from subagentMemoryLoadNote in src/constants/subagentDoctrine.ts; check where src/tools/AgentTool/agent/call.ts and src/tools/AgentTool/runAgent.ts use it when loadMemoryPrompt fails'
+  'the note comes from subagentMemoryLoadNote in src/tools/crewmate/subagentDoctrine.ts; check where src/tools/crewmate/call/call.ts and src/tools/crewmate/runCrewmate.ts use it when loadMemoryPrompt fails'
 const PROBE_FIX =
-  'the preserved-thinking row is built in src/services/health/sections/memory.ts from readThinkingDropLedger in src/services/providers/anthropic/thinkingBinding.ts'
+  'the preserved-thinking row is built in src/platform/health/sections/memory.ts from readThinkingDropLedger in src/models/roads/anthropic/thinkingBinding.ts'
 function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${!cond && hint ? ` — to fix: ${hint}` : ''}`)
@@ -37,39 +37,39 @@ function section(title: string): void {
   console.log(`\n${title}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setProjectRoot } = await import('../../src/bootstrap/state.ts')
+const { setProjectRoot } = await import('../../src/boot/process-state/processState.ts')
 setProjectRoot(project)
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { mnemeUnreadSentence } = await import('../../src/mneme/mnemeUnread.ts')
-const { lineagePath, mnemeProjectKey } = await import('../../src/mneme/paths.ts')
-const { pinsPath, readPins, usagePath, readUsage } = await import('../../src/mneme/mnemeUsage.ts')
-const { libraryMetaPath, readLibraryMeta } = await import('../../src/mneme/mnemeLibrary.ts')
-const { readLedger } = await import('../../src/mneme/ledger.ts')
-const { currentBufferPath, readBuffer, readConsumingRows } = await import('../../src/mneme/mnemeBuffer.ts')
-const { currentLedger } = await import('../../src/mneme/mnemeFootnotes.ts')
-const { frontPagePath, pinnedStatusPath, readPinnedStatus } = await import('../../src/mneme/mnemeFrontPage.ts')
-const { handoverReceiptPath, readHandoverReceipt } = await import('../../src/mneme/mnemeHandover.ts')
-const { readMaintenanceReceipts } = await import('../../src/mneme/mnemeMaintenance.ts')
-const { journalPath, readJournal } = await import('../../src/mneme/journal.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { mnemeUnreadSentence } = await import('../../src/sessions/mneme/mnemeUnread.ts')
+const { lineagePath, mnemeProjectKey } = await import('../../src/sessions/mneme/paths.ts')
+const { pinsPath, readPins, usagePath, readUsage } = await import('../../src/sessions/mneme/mnemeUsage.ts')
+const { libraryMetaPath, readLibraryMeta } = await import('../../src/sessions/mneme/mnemeLibrary.ts')
+const { readLedger } = await import('../../src/sessions/mneme/ledger.ts')
+const { currentBufferPath, readBuffer, readConsumingRows } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { currentLedger } = await import('../../src/sessions/mneme/mnemeFootnotes.ts')
+const { frontPagePath, pinnedStatusPath, readPinnedStatus } = await import('../../src/sessions/mneme/mnemeFrontPage.ts')
+const { handoverReceiptPath, readHandoverReceipt } = await import('../../src/sessions/mneme/mnemeHandover.ts')
+const { readMaintenanceReceipts } = await import('../../src/sessions/mneme/mnemeMaintenance.ts')
+const { journalPath, readJournal } = await import('../../src/sessions/mneme/journal.ts')
 const { call: callMemoryCommand } = await import('../../src/commands/memory/memory.tsx')
-const { MemoryCentreView } = await import('../../src/components/memory/MemoryCentreView.tsx')
-const { configMemoryRows } = await import('../../src/components/Settings/config/configRowsMemory.tsx')
-const { memoryChecks } = await import('../../src/services/health/sections/memory.ts')
-const { runHealthReport } = await import('../../src/services/health/healthReport.ts')
-const { readThinkingDropLedger, thinkingDropLedgerPath } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
-const { agentToolCall } = await import('../../src/tools/AgentTool/agent/call.ts')
-const { agentToolResultBlock } = await import('../../src/tools/AgentTool/agent/resultBlock.ts')
-const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
-const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryCrewAgent.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { tellTheToolTable } = await import('../../src/tools/toolTable.ts')
-const { getCommandQueueSnapshot, resetCommandQueue } = await import('../../src/utils/messageQueueManager.ts')
-const { memoryLifecycleCheck } = await import('../../src/services/health/sections/settings/prompt.ts')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { Box } = await import('../../src/ink.ts')
+const { MemoryCentreView } = await import('../../src/screen/memory/MemoryCentreView.tsx')
+const { configMemoryRows } = await import('../../src/screen/settings/config/configRowsMemory.tsx')
+const { memoryChecks } = await import('../../src/platform/health/sections/memory.ts')
+const { runHealthReport } = await import('../../src/platform/health/healthReport.ts')
+const { readThinkingDropLedger, thinkingDropLedgerPath } = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
+const { agentToolCall } = await import('../../src/tools/crewmate/call/call.ts')
+const { agentToolResultBlock } = await import('../../src/tools/crewmate/call/resultBlock.ts')
+const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+const { MERCURY_CREW_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryCrewAgent.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { tellTheToolTable } = await import('../../src/tools/kit/toolTable.ts')
+const { getCommandQueueSnapshot, resetCommandQueue } = await import('../../src/daemon/runner/messageQueueManager.ts')
+const { memoryLifecycleCheck } = await import('../../src/platform/health/sections/settings/prompt.ts')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { Box } = await import('../../src/screen/themedRenderer.ts')
 const { dirname } = await import('node:path')
 
 const dir = mnemeLibraryDir()

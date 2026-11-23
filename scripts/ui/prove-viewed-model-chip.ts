@@ -37,7 +37,7 @@ function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
   console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
-  if (!good) console.log('    hint: the status row with the model chip, effort and main chat words is FocusedSessionStatusRow in src/components/SwitchboardTagBar.tsx, the crewmate in view comes from useViewedCrewmate in src/components/tasks/useCrewmateView.ts, and the chip label from renderModelChip in src/services/model/model.ts; rerun with --frames <dir> to write the frames')
+  if (!good) console.log('    hint: the status row with the model chip, effort and main chat words is FocusedSessionStatusRow in src/screen/chat/SwitchboardTagBar.tsx, the crewmate in view comes from useViewedCrewmate in src/screen/tasks/useCrewmateView.ts, and the chip label from renderModelChip in src/models/catalogue/engineModel.ts; rerun with --frames <dir> to write the frames')
 }
 async function until(predicate: () => boolean): Promise<boolean> {
   const deadline = Date.now() + 4000
@@ -61,32 +61,32 @@ class Input extends EventEmitter {
 }
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { Box, Text } = await import('../../src/ink.ts')
-const { stringWidth } = await import('../../src/ink/stringWidth.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { useAppStateStore } = await import('../../src/state/AppState.tsx')
-const { enterCrewmateView, exitCrewmateView, setMainChat } = await import('../../src/state/crewmateViewHelpers.ts')
-const { useViewedCrewmate } = await import('../../src/components/tasks/useCrewmateView.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { FocusedSessionStatusRow } = await import('../../src/components/SwitchboardTagBar.tsx')
-const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, registerRouteSurface, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { useAppStateStore } = await import('../../src/screen/app-state/AppState.tsx')
+const { enterCrewmateView, exitCrewmateView, setMainChat } = await import('../../src/crew/crewmates/crewmateView.ts')
+const { useViewedCrewmate } = await import('../../src/screen/tasks/useCrewmateView.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { FocusedSessionStatusRow } = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
+const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, registerRouteSurface, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
 registerRouteSurface('concourse', { render: () => null })
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocus.ts')
-const { getProjectDir, getAgentMetadataPath, writeAgentMetadata } = await import('../../src/utils/sessionStorage/paths.ts')
-const { asAgentId } = await import('../../src/types/ids.ts')
-const { renderModelChip } = await import('../../src/services/model/model.ts')
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-const { default: instances } = await import('../../src/ink/instances.ts')
-type AppState = import('../../src/state/AppState.tsx').AppState
-type WorkRow = import('../../src/services/engine-connector/types.ts').WorkRowV1
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+const { resetHelmFocusForTest } = await import('../../src/screen/cockpit/helmFocus.ts')
+const { getProjectDir, getAgentMetadataPath, writeAgentMetadata } = await import('../../src/sessions/transcripts/paths.ts')
+const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
+const { renderModelChip } = await import('../../src/models/catalogue/engineModel.ts')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+type AppState = import('../../src/screen/app-state/AppState.tsx').AppState
+type WorkRow = import('../../src/engine/connector/types.ts').WorkRowV1
 const h = React.createElement
 const leadModel = 'claude-fable-5-1'
 const agentModel = 'gpt-6-astra'
@@ -152,7 +152,7 @@ function Harness(): React.ReactNode {
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }
-const deadline = setTimeout(() => { console.error('viewed-model-chip exceeded its 120s deadline; a status row step never painted, so check the last PASS line above and the FocusedSessionStatusRow render in src/components/SwitchboardTagBar.tsx'); process.exit(1) }, 120_000)
+const deadline = setTimeout(() => { console.error('viewed-model-chip exceeded its 120s deadline; a status row step never painted, so check the last PASS line above and the FocusedSessionStatusRow render in src/screen/chat/SwitchboardTagBar.tsx'); process.exit(1) }, 120_000)
 deadline.unref()
 
 for (const [cols, rows] of [[178, 51], [120, 40]] as const) {

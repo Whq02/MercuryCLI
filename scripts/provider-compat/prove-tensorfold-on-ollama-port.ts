@@ -28,7 +28,7 @@ delete process.env.MERCURY_LOCAL_BASE_URL
 delete process.env.MERCURY_LOCAL_NEXT_TURN_PREFILL
 
 let failures = 0
-const OLLAMA_PORT_FAIL_HINT = 'to fix, change how an engine found by the ollama probe is recorded in src/services/providers/local/localDiscovery.ts (the /api/tags probe and the /health read), how a turn is sent in src/services/providers/local/localCallModel.ts, or the usage reading in src/services/providers/local/tensorfoldUsage.ts'
+const OLLAMA_PORT_FAIL_HINT = 'to fix, change how an engine found by the ollama probe is recorded in src/models/roads/local/localDiscovery.ts (the /api/tags probe and the /health read), how a turn is sent in src/models/roads/local/localCallModel.ts, or the usage reading in src/models/roads/local/tensorfoldUsage.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${OLLAMA_PORT_FAIL_HINT}` : ''}`)
@@ -121,19 +121,19 @@ function ollama(headers: Record<string, string> = {}): StandIn {
   })
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { discoverLocalServers, refreshLocalDiscovery, __resetLocalDiscoveryForTest } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
-const { runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.ts')
-const { lastTensorFoldTurn, __resetTensorFoldUsageForTest } = await import('../../src/services/providers/local/tensorfoldUsage.ts')
-const { __resetNextTurnPrefillForTest } = await import('../../src/services/providers/local/tensorfoldPrefill.ts')
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
+const { discoverLocalServers, refreshLocalDiscovery, __resetLocalDiscoveryForTest } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { setEngineModelOverride } = await import('../../src/boot/process-state/processState.ts')
+const { runCleanupFunctions } = await import('../../src/platform/processes/cleanupRegistry.ts')
+const { lastTensorFoldTurn, __resetTensorFoldUsageForTest } = await import('../../src/models/roads/local/tensorfoldUsage.ts')
+const { __resetNextTurnPrefillForTest } = await import('../../src/models/roads/local/tensorfoldPrefill.ts')
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
 type Block = { type: string; id?: string; name?: string; text?: string; input?: Row }
 const READ = FileReadTool.name
 

@@ -8,7 +8,7 @@ const paths = sceneRoot('daemon-refused-start-')
 process.env.MERCURY_CONFIG_DIR = paths.home
 process.env.MERCURY_DAEMON_DIR = join(paths.home, 'daemon')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 const child = spawn('node', [dist, 'daemon', 'run'], { cwd: paths.cwd, env: process.env, stdio: 'ignore' })
 const exited = new Promise(resolve => child.once('exit', resolve))
 try {
@@ -19,11 +19,11 @@ try {
     ready = reply.ok
     if (!ready) await new Promise(resolve => setTimeout(resolve, 100))
   }
-  assert.ok(ready, 'scratch daemon did not answer a status within 20s; run node dist/mercury.mjs daemon run with MERCURY_CONFIG_DIR set to a scratch home and read its boot in src/daemon/main.ts (dist/mercury.mjs must be built first with bun run build.ts)')
+  assert.ok(ready, 'scratch daemon did not answer a status within 20s; run node dist/mercury.mjs daemon run with MERCURY_CONFIG_DIR set to a scratch home and read its boot in src/daemon/control/main.ts (dist/mercury.mjs must be built first with bun run build.ts)')
   const second = spawnSync('node', [dist, 'daemon', 'run'], { cwd: paths.cwd, env: process.env, encoding: 'utf8', timeout: 15_000 })
-  assert.ok(second.stderr.includes('refusing to start'), 'the second daemon run must print refusing to start on stderr; see the refuse step of the plane boot in src/daemon/main.ts. stderr was: ' + second.stderr)
-  assert.equal(second.status, 1, 'a refused daemon start must fail with exit code 1; the refuse step in src/daemon/main.ts sets process.exitCode to 1, so check that nothing resets it before exit')
-  assert.ok((await daemonControlRpc({ op: 'status' }, 2000)).ok, 'the first daemon must remain live after the refused second start; the refuse path in src/daemon/main.ts must not shut down or clobber the live daemon plane')
+  assert.ok(second.stderr.includes('refusing to start'), 'the second daemon run must print refusing to start on stderr; see the refuse step of the plane boot in src/daemon/control/main.ts. stderr was: ' + second.stderr)
+  assert.equal(second.status, 1, 'a refused daemon start must fail with exit code 1; the refuse step in src/daemon/control/main.ts sets process.exitCode to 1, so check that nothing resets it before exit')
+  assert.ok((await daemonControlRpc({ op: 'status' }, 2000)).ok, 'the first daemon must remain live after the refused second start; the refuse path in src/daemon/control/main.ts must not shut down or clobber the live daemon plane')
   console.log('PASS refused daemon start exits 1 and leaves its live predecessor intact')
 } finally {
   await daemonControlRpc({ op: 'shutdown', reapWorkers: true }, 2000)

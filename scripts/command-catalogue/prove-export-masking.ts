@@ -4,7 +4,7 @@ import { exportFixture } from './exportFixture.js'
 
 const textOnly = process.argv.includes('--text-only')
 let failures = 0
-function check(label: string, ok: boolean, detail = 'change the masking in createSecretRedactor / redactSecretValues in src/utils/redactSecrets.ts, or how /export applies it in src/commands/export/export.tsx'): void {
+function check(label: string, ok: boolean, detail = 'change the masking in createSecretRedactor / redactSecretValues in src/platform/secrets/redactSecrets.ts, or how /export applies it in src/commands/export/export.tsx'): void {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${detail}`}`)
   if (!ok) failures++
 }
@@ -38,11 +38,11 @@ const samples = [
 ]
 const fixture = await exportFixture(samples.map(([, , text]) => text).join('\n'))
 try {
-  const { getSecureStorage } = await import('../../src/utils/secureStorage/index.js')
+  const { getSecureStorage } = await import('../../src/platform/secure-storage/index.js')
   check('the scratch credential store is planted', getSecureStorage().update({ trustedDeviceToken: stored, extensionSecrets: { proof: { value: 'otherOpaqueStoredValue' } } }).success)
-  const { writeStoredCompatApiKey } = await import('../../src/utils/accounts/providerSecrets.js')
+  const { writeStoredCompatApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.js')
   writeStoredCompatApiKey('opaqueProviderFixture')
-  const { saveApiKey } = await import('../../src/utils/auth.js')
+  const { saveApiKey } = await import('../../src/models/sign-in/credentials/auth.js')
   await saveApiKey('opaqueManagedFixture')
   writeFileSync(join(fixture.scratch, '.openai-auth.json'), JSON.stringify({ version: 1, tokens: { accessToken: 'opaqueAccessFixture', refreshToken: 'opaqueRefreshFixture' } }))
   const extraValues = ['otherOpaqueStoredValue', 'opaqueProviderFixture', 'opaqueManagedFixture', 'opaqueAccessFixture', 'opaqueRefreshFixture', 'opaqueEnvironmentFixture']
@@ -53,7 +53,7 @@ try {
   assistant.message.content.find((block: any) => block.type === 'tool_use').input.nested = {
     password: 'unshaped password with spaces', Authorization: 'Basic nestedHeaderValue', ordinary: 'keep this value', count: 2,
   }
-  const { getFocusedSessionConnector, setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
+  const { getFocusedSessionConnector, setFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.js')
   const connector = getFocusedSessionConnector()
   const workspace = join(fixture.scratch, stored)
   mkdirSync(workspace)
@@ -83,13 +83,13 @@ try {
   first.message.content = JSON.parse(before)[0].message.content
   check('masking does not rewrite the transcript or credential store', JSON.stringify(fixture.messages) === before && getSecureStorage().read()?.trustedDeviceToken === stored)
   if (!textOnly) {
-    const { createSecretRedactor, redactSecretValues } = await import('../../src/utils/redactSecrets.js')
-    const { detectSecrets } = await import('../../src/utils/detectSecrets.js')
-    const { redactSecrets } = await import('../../src/utils/secrets/secretScanner.js')
+    const { createSecretRedactor, redactSecretValues } = await import('../../src/platform/secrets/redactSecrets.js')
+    const { detectSecrets } = await import('../../src/platform/secrets/detectSecrets.js')
+    const { redactSecrets } = await import('../../src/platform/secrets/secretScanner.js')
     const contextKey = 'ctx7sk-' + 'aB_9-'.repeat(6)
-    check('Context7 keys are refused by memory detection', detectSecrets(contextKey).some(row => row.kind === 'context7-key'), 'the context7-key pattern in src/utils/detectSecrets.ts must match ctx7sk- keys')
-    check('Context7 keys redact in the shared scanner including adjacent keys', redactSecrets(`${contextKey},${contextKey}`) === '[REDACTED],[REDACTED]', 'the context7-api-key pattern in src/utils/secrets/secretScanner.ts must redact each ctx7sk- key, adjacent ones included')
-    check('short Context7 examples are not secrets', detectSecrets('ctx7sk-short').length === 0 && redactSecrets('ctx7sk-short') === 'ctx7sk-short', 'the Context7 patterns in src/utils/detectSecrets.ts and src/utils/secrets/secretScanner.ts must keep their minimum key length (10 characters after ctx7sk-)')
+    check('Context7 keys are refused by memory detection', detectSecrets(contextKey).some(row => row.kind === 'context7-key'), 'the context7-key pattern in src/platform/secrets/detectSecrets.ts must match ctx7sk- keys')
+    check('Context7 keys redact in the shared scanner including adjacent keys', redactSecrets(`${contextKey},${contextKey}`) === '[REDACTED],[REDACTED]', 'the context7-api-key pattern in src/platform/secrets/secretScanner.ts must redact each ctx7sk- key, adjacent ones included')
+    check('short Context7 examples are not secrets', detectSecrets('ctx7sk-short').length === 0 && redactSecrets('ctx7sk-short') === 'ctx7sk-short', 'the Context7 patterns in src/platform/secrets/detectSecrets.ts and src/platform/secrets/secretScanner.ts must keep their minimum key length (10 characters after ctx7sk-)')
     const redact = createSecretRedactor([stored, 'opaque\\"Credential\\\\Value'])
     check('surrounding prose, quotes and adjacent values survive naturally', redact('Use Authorization: Bearer simple-token then retry. api_key="one"&token=two; done') === 'Use Authorization: Bearer [redacted] then retry. api_key="[redacted]"&token=[redacted]; done')
     check('quoted Authorization preserves its surrounding command', redact('curl -H "Authorization: Bearer fixtureToken" https://example.test') === 'curl -H "Authorization: Bearer [redacted]" https://example.test')

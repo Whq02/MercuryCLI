@@ -99,7 +99,7 @@ turn) followed by an arrow; a bare `ESC ESC` is still two Escapes.
 
 The switches for Mercury's visible terminal behaviour are read live, and
 every one of them is a row of the in-code registry
-(`src/substrate/flagRegistry.ts`):
+(`src/platform/substrate/flagRegistry.ts`):
 
 - `MERCURY_TERMINAL_TITLE` (default-on): OSC 0/2 terminal-title updates,
   set at boot, cleared at shutdown.

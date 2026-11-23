@@ -6,7 +6,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  ${cond ? '✓' : '✗'} ${label}${cond || !detail ? '' : ` — ${detail}`}`)
   if (!cond) fail = 1
 }
-const vocabulary = (await import(join(ROOT, 'src/rows/vocabulary.ts'))) as Record<string, unknown>
+const vocabulary = (await import(join(ROOT, 'src/engine/rows/vocabulary.ts'))) as Record<string, unknown>
 const sentence = vocabulary.hookEndingSentence as ((ending: Record<string, unknown>, hook: { name: string; event: string }) => string) | undefined
 const classes = vocabulary.HOOK_ENDING_CLASSES as readonly string[] | undefined
 const hook = { name: 'guard', event: 'tool.before' }

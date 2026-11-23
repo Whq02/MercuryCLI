@@ -1,10 +1,10 @@
 import { check, finish } from './computerProofKit.ts'
 import { allowEverything, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
-import type { DesktopDriver } from '../../src/services/desktop/driver.ts'
+import type { DesktopDriver } from '../../src/integrations/desktop/driver.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const { markTypingActivity, __typingActivityResetForTest } = await import('../../src/utils/cockpit/typingActivity.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const { markTypingActivity, __typingActivityResetForTest } = await import('../../src/screen/cockpit/typingActivity.ts')
 resetDesktopDriverForTest()
 const resolved = resolveDesktopDriver()
 if (resolved.state !== 'ok') throw new Error(resolved.note)
@@ -31,7 +31,7 @@ markTypingActivity()
 let localWasActiveAtAct = false
 const originalType = driver.typeText.bind(driver)
 driver.typeText = async (...args) => {
-  const { isTypingActive } = await import('../../src/utils/cockpit/typingActivity.ts')
+  const { isTypingActive } = await import('../../src/screen/cockpit/typingActivity.ts')
   localWasActiveAtAct = isTypingActive()
   return originalType(...args)
 }
@@ -64,8 +64,8 @@ check('typing that resumes during target checking is refused before input', late
 driver.accessibilityTree = originalTree
 __typingActivityResetForTest()
 
-const { DESKTOP_ADDON_EXPORTS, loadDesktopAddon } = await import('../../src/services/desktop/pack.ts')
-const { resolveNativeDesktopDriver } = await import('../../src/services/desktop/nativeDriver.ts')
+const { DESKTOP_ADDON_EXPORTS, loadDesktopAddon } = await import('../../src/integrations/desktop/pack.ts')
+const { resolveNativeDesktopDriver } = await import('../../src/integrations/desktop/nativeDriver.ts')
 const addon = loadDesktopAddon()
 if (addon.state !== 'ok') {
   console.log(`  [SKIP] the rebuilt-pack rows drive the real desktop driver and this host has none (${addon.note}) — the hosted gate builds no desktop pack; the Mac pool and the release road read them`)

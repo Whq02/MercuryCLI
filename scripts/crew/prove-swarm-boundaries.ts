@@ -14,25 +14,25 @@ mkdirSync(work, { recursive: true })
 process.chdir(work)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-const boot = await import('../../src/bootstrap/state.ts')
+const boot = await import('../../src/boot/process-state/processState.ts')
 boot.setOriginalCwd(work); boot.setCwdState(work); boot.setProjectRoot(work)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
 updateSettingsForSource('userSettings', { swarm: { enabled: true } })
 const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
-const seam = await import('../../src/services/crewBoard/seam.ts')
+const seam = await import('../../src/crew/board/seam.ts')
 const swarmOnText = runSwarmCommand('on')
 assert(swarmOnText.startsWith('Swarm on'), `runSwarmCommand('on') failed in src/commands/swarm/swarm.ts: ${swarmOnText}`)
 await seam.latchSwarmAgent('reader', 'Reader')
 await seam.latchSwarmAgent('writer', 'Writer')
 const board = seam.swarmStore()!
 const writer = seam.swarmPrincipal('writer')!
-const { query } = await import('../../src/query.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { buildTool } = await import('../../src/Tool.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { buildTool } = await import('../../src/tools/kit/tool.ts')
 const echo = buildTool({ name: 'Echo', maxResultSizeChars: 1000, inputSchema: z.object({}), async description() { return 'Echo' }, async prompt() { return 'Echo' }, isReadOnly: () => true, async call() { return { data: 'done' } }, mapToolResultToToolResultBlockParam: (data, id) => ({ type: 'tool_result' as const, tool_use_id: id, content: data }) })
 let state = getDefaultAppState()
 const ctx: any = { agentId: 'reader', agentKind: 'crewmate', abortController: new AbortController(), options: { tools: [echo, ...seam.swarmTools('reader')], commands: [], engineModel: 'claude-fable-5-1', thinkingConfig: { type: 'adaptive' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [] } }, getAppState: () => state, setAppState: (f: any) => { state = f(state) }, messages: [], readFileState: createFileStateCacheWithSizeLimit(100), setInProgressToolUseIDs() {}, setResponseLength() {}, updateFileHistoryState() {}, updateAttributionState() {} }
@@ -45,7 +45,7 @@ async function run(withTool: boolean): Promise<any[]> {
     request.options.onStreamActivity?.(Date.now())
     if (requests.length === 1) {
       const posted = board.post(writer, { clientOpId: `during-${++serial}`, kind: 'message', text: withTool ? 'The next tool boundary sees this.' : 'Keep this for the next active turn.', mentions: ['reader'] })
-      assert(posted.ok, `board.post during inference failed in src/services/crewBoard/store.ts: ${JSON.stringify(posted)}`)
+      assert(posted.ok, `board.post during inference failed in src/crew/board/store.ts: ${JSON.stringify(posted)}`)
       if (withTool) {
         const row = createAssistantMessage({ content: [{ type: 'tool_use', id: `echo-${serial}`, name: 'Echo', input: {} }] as never })
         row.message.stop_reason = 'tool_use'
@@ -61,15 +61,15 @@ async function run(withTool: boolean): Promise<any[]> {
 }
 const working = await run(true)
 assert.equal(working.length, 2)
-assert(!JSON.stringify(working[0].messages).includes('The next tool boundary sees this.'), 'board post made during first inference leaked into first request in src/query.ts')
+assert(!JSON.stringify(working[0].messages).includes('The next tool boundary sees this.'), 'board post made during first inference leaked into first request in src/engine/turnDoor.ts')
 assert.equal(JSON.stringify(working[1].messages).split('The next tool boundary sees this.').length, 2)
 console.log('PASS a post during inference reaches only the next tool boundary, once')
 const ending = await run(false)
 assert.equal(ending.length, 1)
-assert(board.boundary(seam.swarmPrincipal('reader')!, new Set())?.text.includes('Keep this for the next active turn.'), 'unread board post did not stay queued for next active turn in src/services/crewBoard/store.ts')
+assert(board.boundary(seam.swarmPrincipal('reader')!, new Set())?.text.includes('Keep this for the next active turn.'), 'unread board post did not stay queued for next active turn in src/crew/board/store.ts')
 console.log('PASS a final reply does not start a peer-only follow-up')
 const driverArg = process.argv.indexOf('--driver')
-const { createTurnDriver } = driverArg < 0 ? await import('../../src/cli/headless/turnDriver.ts') : await import(pathToFileURL(process.argv[driverArg + 1]!).href)
+const { createTurnDriver } = driverArg < 0 ? await import('../../src/daemon/runner/turnDriver.ts') : await import(pathToFileURL(process.argv[driverArg + 1]!).href)
 let peeks = 0
 let sleeps = 0
 let running = 7
@@ -89,7 +89,7 @@ const driver = createTurnDriver({
 driver.kick()
 await new Promise(resolve => setTimeout(resolve, 150))
 assert(!fault, String(fault))
-assert(sleeps > 0 && peeks < 20000 && turns.length === 0, `turnDriver spun or ran premature turn (sleeps=${sleeps}, peeks=${peeks}, turns=${turns.length}) in src/cli/headless/turnDriver.ts`)
+assert(sleeps > 0 && peeks < 20000 && turns.length === 0, `turnDriver spun or ran premature turn (sleeps=${sleeps}, peeks=${peeks}, turns=${turns.length}) in src/daemon/runner/turnDriver.ts`)
 queue.push({ value: 'Stop waiting.', mode: 'prompt', priority: 'next' })
 driver.kick()
 await new Promise(resolve => setTimeout(resolve, 30))
@@ -97,7 +97,7 @@ running = 0
 driver.kick()
 await new Promise(resolve => setTimeout(resolve, 20))
 assert.equal(turns.length, 1)
-assert(board.view().peerTurns === 0, `expected 0 peerTurns, got ${board.view().peerTurns} in src/services/crewBoard/store.ts`)
+assert(board.view().peerTurns === 0, `expected 0 peerTurns, got ${board.view().peerTurns} in src/crew/board/store.ts`)
 console.log('PASS seven active seats, an outside report and unread board posts leave timers and operator work responsive')
 board.close()
 process.exit(0)

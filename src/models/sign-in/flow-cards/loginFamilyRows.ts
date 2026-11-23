@@ -1,0 +1,227 @@
+
+import { configuredCompatEndpoints } from '../../roads/openaicompat/compatAccounts.js'
+import { cachedCompatCatalogue, compatEndpointPodTerminated } from '../../roads/openaicompat/compatCatalogue.js'
+import { META_SIGN_IN_ROADS } from '../../facts/loginWords.js'
+import { keysOf } from '../../../platform/primitives/entriesOf.js'
+export type LoginFamilyValue =
+  | 'anthropic'
+  | 'openai'
+  | 'openrouter'
+  | 'gemini'
+  | 'huggingface'
+  | 'moonshot'
+  | 'zai'
+  | 'deepseek'
+  | 'xai'
+  | 'meta'
+  | 'mistral'
+  | 'nous'
+  | 'zen'
+  | 'minimax'
+  | 'together'
+  | 'cohere'
+  | 'groq'
+  | 'melious'
+  | 'orcarouter'
+  | 'cerebras'
+  | 'fireworks'
+  | 'qwen'
+
+export const TENSORFOLD_FAMILY_VALUE = 'tensorfold'
+
+export interface LoginFamilyRow {
+  label: string
+  value: LoginFamilyValue | `compat/${string}` | typeof TENSORFOLD_FAMILY_VALUE
+}
+
+export type TensorFoldOffer =
+  | { kind: 'host' }
+  | { kind: 'served'; model: string; version: string; servedBy?: string }
+  | { kind: 'ready' | 'install'; label: string; place: 'mac' | 'gpu' | 'adapter' }
+
+export const ADAPTER_PLACE_WORDS = "this machine with Mercury's engine"
+
+export function tensorFoldFamilyRow(offer: TensorFoldOffer): LoginFamilyRow {
+  const place = (where: 'mac' | 'gpu' | 'adapter'): string => (where === 'mac' ? 'this Mac' : where === 'adapter' ? ADAPTER_PLACE_WORDS : "this machine's NVIDIA GPU")
+  const words =
+    offer.kind === 'host'
+      ? 'on a host: a server on your network or a rented GPU pod'
+      : offer.kind === 'served'
+        ? offer.servedBy !== undefined
+          ? `run ${offer.model} on ${ADAPTER_PLACE_WORDS}, no account`
+          : `run ${offer.model} on TensorFold ${offer.version}, no account`
+        : offer.kind === 'ready'
+          ? `run ${offer.label} on ${place(offer.place)}, no account`
+          : `install and run ${offer.label} on ${place(offer.place)}, no account`
+  return { label: `TensorFold — ${words} (/tensorfold)`, value: TENSORFOLD_FAMILY_VALUE }
+}
+
+export const META_LOGIN_FAMILY_LABEL = `Meta — ${META_SIGN_IN_ROADS}`
+export const ANTHROPIC_FAMILY_ROW_LABEL = 'Anthropic — Claude subscription or Console sign-in / API key'
+
+export function loginFamilyRows({ engineLegs, tensorfold }: { engineLegs: boolean; tensorfold?: TensorFoldOffer | null }): LoginFamilyRow[] {
+  const offered = tensorfold === undefined || tensorfold === null ? undefined : tensorFoldFamilyRow(tensorfold)
+  return [
+    ...(offered !== undefined && tensorfold?.kind !== 'host' ? [offered] : []),
+    ...(engineLegs
+      ? [{ label: 'OpenAI — ChatGPT subscription or API key', value: 'openai' as const }]
+      : []),
+    { label: ANTHROPIC_FAMILY_ROW_LABEL, value: 'anthropic' },
+    ...(offered !== undefined && tensorfold?.kind === 'host' ? [offered] : []),
+    ...(engineLegs
+      ? [
+          {
+            label: 'OpenRouter — browser sign-in or API key',
+            value: 'openrouter' as const,
+          },
+          { label: 'Google Gemini — Google sign-in, API key', value: 'gemini' as const },
+          {
+            label: 'Hugging Face — sign-in or Hub token',
+            value: 'huggingface' as const,
+          },
+          { label: 'Kimi (Moonshot) — device-code sign-in or API key', value: 'moonshot' as const },
+          { label: 'GLM (Z.AI) — API key (general or GLM Coding Plan)', value: 'zai' as const },
+          { label: 'DeepSeek — API key', value: 'deepseek' as const },
+          { label: 'xAI — Grok subscription sign-in or API key', value: 'xai' as const },
+          { label: META_LOGIN_FAMILY_LABEL, value: 'meta' as const },
+          { label: 'Mistral — API key', value: 'mistral' as const },
+          { label: 'Nous Portal — sign-in or API key', value: 'nous' as const },
+          { label: 'MiniMax — API key or M Plan key', value: 'minimax' as const },
+          { label: 'Together AI — API key', value: 'together' as const },
+          { label: 'Cohere — API key', value: 'cohere' as const },
+          { label: 'Groq — API key', value: 'groq' as const },
+          { label: 'Melious AI — API key', value: 'melious' as const },
+          { label: 'OrcaRouter — device-code sign-in or API key', value: 'orcarouter' as const },
+          { label: 'Cerebras — API key', value: 'cerebras' as const },
+          { label: 'Fireworks — API key', value: 'fireworks' as const },
+          { label: 'Qwen — QwenCloud or Model Studio API key', value: 'qwen' as const },
+          { label: 'OpenCode Zen — API key', value: 'zen' as const },
+          ...configuredCompatEndpoints().filter(endpoint => endpoint.named).map(endpoint => ({ label: `${endpoint.label} (${endpoint.name}) — ${cachedCompatCatalogue(endpoint)?.error || compatEndpointPodTerminated(endpoint) ? 'server is not answering · retry or remove in /model' : 'endpoint API key'}`, value: `compat/${endpoint.name}` as const })),
+        ]
+      : []),
+  ]
+}
+
+export function loginFamilyInitialFocus<T extends string>(
+  rows: readonly { value: T }[],
+  recordedFocus: string | undefined,
+  initialFocus?: string,
+): T | undefined {
+  for (const value of [initialFocus, recordedFocus]) {
+    const row = rows.find(candidate => candidate.value === value)
+    if (row) return row.value
+  }
+  return rows[0]?.value
+}
+
+export const openaiArmPickRows = [
+  { label: 'ChatGPT subscription — browser sign-in', value: 'subscription' },
+  { label: 'OpenAI API key — usage-based billing', value: 'key' },
+] as const
+
+export const anthropicArmPickRows = [
+  { label: 'Claude subscription — browser sign-in', value: 'claudeai' },
+  { label: 'Anthropic Console — browser sign-in', value: 'console' },
+  { label: 'Anthropic API key — usage-based billing', value: 'key' },
+] as const
+
+export type KeyFamilyValue = Exclude<LoginFamilyValue, 'anthropic'>
+
+export const KEY_PAGES: Record<KeyFamilyValue, string> = {
+  openai: 'platform.openai.com/api-keys',
+  openrouter: 'openrouter.ai/settings/keys',
+  gemini: 'aistudio.google.com/apikey',
+  huggingface: 'huggingface.co/settings/tokens',
+  moonshot: 'platform.kimi.ai',
+  zai: 'z.ai/manage-apikey',
+  deepseek: 'platform.deepseek.com',
+  xai: 'console.x.ai',
+  meta: 'dev.meta.ai',
+  mistral: 'console.mistral.ai/api-keys',
+  nous: 'portal.nousresearch.com',
+  zen: 'opencode.ai/auth',
+  minimax: 'platform.minimax.io',
+  together: 'api.together.ai/settings',
+  cohere: 'dashboard.cohere.com/api-keys',
+  groq: 'console.groq.com/keys',
+  melious: 'melious.ai/account/api/keys',
+  orcarouter: 'orcarouter.ai/console/token',
+  cerebras: 'cloud.cerebras.ai',
+  fireworks: 'app.fireworks.ai/api-keys',
+  qwen: 'modelstudio.alibabacloud.com',
+}
+
+export const KEY_FAMILIES: KeyFamilyValue[] = keysOf(KEY_PAGES)
+
+export function keyPageMenuWord(family: KeyFamilyValue): string {
+  return family === 'huggingface' ? 'Access Tokens' : 'API Keys'
+}
+
+export function keyPageLine(family: KeyFamilyValue): string {
+  if (family === 'gemini') return `API key: ${KEY_PAGES[family]} — create a key, paste it here.`
+  return `${family === 'huggingface' ? 'Token' : 'API key'}: ${KEY_PAGES[family]} — sign in, ${keyPageMenuWord(family)}, create, paste it here.`
+}
+
+export function loginFamilyFocusFor(defaultProvider: string | undefined): LoginFamilyRow['value'] | undefined {
+  if (defaultProvider?.startsWith('compat/') && configuredCompatEndpoints().some(endpoint => `compat/${endpoint.name}` === defaultProvider)) return defaultProvider as `compat/${string}`
+  switch (defaultProvider) {
+    case 'anthropic':
+    case 'openai':
+    case 'openrouter':
+    case 'gemini':
+    case 'huggingface':
+    case 'moonshot':
+    case 'zai':
+    case 'deepseek':
+    case 'xai':
+    case 'meta':
+    case 'mistral':
+    case 'nous':
+    case 'zen':
+    case 'minimax':
+    case 'together':
+    case 'cohere':
+    case 'groq':
+    case 'melious':
+    case 'orcarouter':
+    case 'cerebras':
+    case 'fireworks':
+    case 'qwen':
+      return defaultProvider
+    default:
+      return undefined
+  }
+}
+
+export const SIGN_IN_LATER_ROW = {
+  label: 'Sign in later to look around. The agent needs a sign-in or a local model (/localsetup).',
+  value: 'later',
+} as const
+
+export interface LocalRoadFacts {
+  models: number
+  labels: string[]
+}
+
+export function localRoadOpen(local: LocalRoadFacts | null | undefined): boolean {
+  return local !== null && local !== undefined && local.models > 0 && local.labels.length > 0
+}
+
+export function signInLaterRow(local: LocalRoadFacts | null | undefined): { label: string; value: typeof SIGN_IN_LATER_ROW.value } {
+  if (!localRoadOpen(local)) return SIGN_IN_LATER_ROW
+  return {
+    label: `Sign in later to look around, or run a local model — ${local!.models} found on ${local!.labels.join(' · ')}`,
+    value: SIGN_IN_LATER_ROW.value,
+  }
+}
+
+export function loginFamilyNameOf(row: LoginFamilyRow): string {
+  return row.label.split(' — ')[0]!
+}
+
+export function connectableLoginFamilyWords(tensorfold = false): string {
+  const names = [...(tensorfold ? ['TensorFold'] : []), ...loginFamilyRows({ engineLegs: true })
+    .filter(row => row.value !== 'openai' && row.value !== 'anthropic')
+    .map(loginFamilyNameOf)]
+  return `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`
+}

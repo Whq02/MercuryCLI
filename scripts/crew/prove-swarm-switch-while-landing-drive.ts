@@ -6,8 +6,8 @@ import { ADMITTED, check, childEnv, DIST, endLeg, FACE_READY, finish, printFrame
 import { captureEngineEntry, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { handoffTurn, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { untilAsync } from '../lib/untilAsync.ts'
-import { readSessionWorkers } from '../../src/daemon/concourseWorkers.ts'
-import { open } from '../../src/services/crewBoard/store.ts'
+import { readSessionWorkers } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
+import { open } from '../../src/crew/board/store.ts'
 
 type Cell = { c: string }
 type Grid = Cell[][]
@@ -110,7 +110,7 @@ const inOrder = (lines: string[], needles: string[]): boolean => {
   return true
 }
 const short = (paths: string[], leg: Leg): string => paths.map(path => path.replace(leg.home, '<home>')).join(' · ')
-const heldHint = 'change holdCommandForLanding and HELD_FOR_LANDING in src/screens/chat/submit/screenCommand.ts so a verb typed while the session lands is held and replayed on the landed session'
+const heldHint = 'change holdCommandForLanding and HELD_FOR_LANDING in src/screen/chat/submit/screenCommand.ts so a verb typed while the session lands is held and replayed on the landed session'
 
 function stopDaemon(leg: Leg): void {
   for (const worker of workersOf(leg)) {

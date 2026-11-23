@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import fc from 'fast-check'
-import { resolveFlexibleLengths } from '../../src/ink/layout/cellLayout/flex.ts'
+import { resolveFlexibleLengths } from '../../src/screen/renderer/layout/cell-layout/flex.ts'
 
-const WHERE = 'resolveFlexibleLengths in src/ink/layout/cellLayout/flex.ts'
+const WHERE = 'resolveFlexibleLengths in src/screen/renderer/layout/cell-layout/flex.ts'
 type Item = { flexGrow: number; flexShrink: number; min?: number; max?: number }
 type Entry = { node: Item; basis: number; targetMain: number }
 const bounded = (item: Item, value: number): number => Math.max(item.min ?? Number.NEGATIVE_INFINITY, Math.min(item.max ?? Number.POSITIVE_INFINITY, value))

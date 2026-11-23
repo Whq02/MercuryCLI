@@ -2,10 +2,10 @@ import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { closeSync, ftruncateSync, mkdirSync, openSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import bundledCatalog from '../../src/extensions/bundled/mercury-media/server/catalog.json' with { type: 'json' }
-import { mediaCheckpointFile, mediaCheckpointInstalled, mediaModelJoined, mediaModelSupported, parseMediaCatalogue } from '../../src/services/media/catalogue.js'
-import { mediaGenerationDetails } from '../../src/services/media/generation.js'
-import { mediaPullPlan, mediaRows, mediaRuntimeChoice, type MediaSnapshot } from '../../src/services/media/setup.js'
+import bundledCatalog from '../../src/integrations/extensions/bundled/mercury-media/server/catalog.json' with { type: 'json' }
+import { mediaCheckpointFile, mediaCheckpointInstalled, mediaModelJoined, mediaModelSupported, parseMediaCatalogue } from '../../src/integrations/media/catalogue.js'
+import { mediaGenerationDetails } from '../../src/integrations/media/generation.js'
+import { mediaPullPlan, mediaRows, mediaRuntimeChoice, type MediaSnapshot } from '../../src/integrations/media/setup.js'
 import { removeProofHome, root } from './fixture.ts'
 
 try {
@@ -74,6 +74,6 @@ try {
   assert.throws(() => parseMediaCatalogue(bundled, { runtime: { families: ['bad id!'] } }))
   console.log('media sdxl family: the vendored engine carries the family, its checkpoint recipe and both rows; with the shipped runtime both rows are listed in the existing row shape, the disk check counts the download and the join, a joined checkpoint of the pinned size makes the row installed with no component left, a component-loading runtime pulls without a join, and the pull card carries the licences and the card sentence')
 } catch (error) {
-  console.log('media sdxl family failed: change the sdxl rows, runtime families or checkpoint sizes in src/extensions/bundled/mercury-media/server/catalog.json, the catalogue parsing and checkpoint helpers in src/services/media/catalogue.ts (parseMediaCatalogue, mediaModelJoined, mediaCheckpointInstalled), the row words and pull card in src/services/media/setup.ts (mediaRows, mediaPullPlan), or mediaGenerationDetails in src/services/media/generation.ts; the assertion below names the first value that differs')
+  console.log('media sdxl family failed: change the sdxl rows, runtime families or checkpoint sizes in src/integrations/extensions/bundled/mercury-media/server/catalog.json, the catalogue parsing and checkpoint helpers in src/integrations/media/catalogue.ts (parseMediaCatalogue, mediaModelJoined, mediaCheckpointInstalled), the row words and pull card in src/integrations/media/setup.ts (mediaRows, mediaPullPlan), or mediaGenerationDetails in src/integrations/media/generation.ts; the assertion below names the first value that differs')
   throw error
 } finally { removeProofHome() }

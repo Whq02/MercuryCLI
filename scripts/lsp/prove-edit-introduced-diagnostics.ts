@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 
-import * as registry from '../../src/services/lsp/LSPDiagnosticRegistry.js'
-import { DiagnosticTrackingService, type Diagnostic, type DiagnosticFile } from '../../src/utils/diagnosticTracking.js'
+import * as registry from '../../src/integrations/lsp/LSPDiagnosticRegistry.js'
+import { DiagnosticTrackingService, type Diagnostic, type DiagnosticFile } from '../../src/integrations/lsp/diagnosticTracking.js'
 
 const SERVER = 'mercury-ts'
 const FILE = '/x/proj/src/app.ts'
@@ -20,7 +20,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   if (ok) console.log(`  ok  ${name}`)
   else {
     failures++
-    console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''} — change snapshotDiagnosticsBeforeWrite, introducedSinceWrite, staleAgainstWriteBaseline or the MAX_WRITE_BASELINES / MAX_BASELINE_TEXT_CHARS limits in src/services/lsp/LSPDiagnosticRegistry.ts, whichever the check's section names`)
+    console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''} — change snapshotDiagnosticsBeforeWrite, introducedSinceWrite, staleAgainstWriteBaseline or the MAX_WRITE_BASELINES / MAX_BASELINE_TEXT_CHARS limits in src/integrations/lsp/LSPDiagnosticRegistry.ts, whichever the check's section names`)
   }
 }
 function section(title: string): void {

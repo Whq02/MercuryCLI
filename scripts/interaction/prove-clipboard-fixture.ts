@@ -25,8 +25,8 @@ for (const exe of ['pbcopy', 'wl-copy', 'xclip', 'xsel', 'clip']) {
 }
 process.env.PATH = `${SHIM_DIR}:${process.env.PATH ?? ''}`
 
-const { setClipboardWithReceipt, subscribeClipboardReceipts } = await import('../../src/ink/termio/osc.ts')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
+const { setClipboardWithReceipt, subscribeClipboardReceipts } = await import('../../src/screen/renderer/termio/osc.ts')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -44,9 +44,9 @@ section('§1 the knob unset: a copy goes down the old road (the native utility o
 const UNSET_TEXT = `clipboard-fixture unset ${process.pid}`
 const real = await setClipboardWithReceipt(UNSET_TEXT)
 const nativeRoute = process.platform === 'darwin' ? 'pbcopy' : process.platform === 'win32' ? 'clip.exe' : 'wl-copy'
-check(`the native utility was called with the text (${nativeRoute} on PATH is the recording shim)`, shimLog().includes(UNSET_TEXT), `${shimLog().slice(-120)} — with MERCURY_CLIPBOARD_FILE unset setClipboardWithReceipt in src/ink/termio/osc.ts must pipe the text to the native utility`)
-check('the receipt settles on the native route, OSC 52 emitted, a non-empty sequence', real.settled.includes(nativeRoute as never) && real.osc52Emitted === true && real.sequence.length > 0 && real.confirmation.startsWith('copied ('), `${JSON.stringify(real)} — setClipboardWithReceipt in src/ink/termio/osc.ts must settle on the native route, emit OSC 52 and return a non-empty sequence`)
-check('the settlement reached the listeners', published.length === 1 && published[0] === real.settled.join('+'), `${JSON.stringify(published)} — setClipboardWithReceipt in src/ink/termio/osc.ts must publish each settlement to subscribeClipboardReceipts listeners`)
+check(`the native utility was called with the text (${nativeRoute} on PATH is the recording shim)`, shimLog().includes(UNSET_TEXT), `${shimLog().slice(-120)} — with MERCURY_CLIPBOARD_FILE unset setClipboardWithReceipt in src/screen/renderer/termio/osc.ts must pipe the text to the native utility`)
+check('the receipt settles on the native route, OSC 52 emitted, a non-empty sequence', real.settled.includes(nativeRoute as never) && real.osc52Emitted === true && real.sequence.length > 0 && real.confirmation.startsWith('copied ('), `${JSON.stringify(real)} — setClipboardWithReceipt in src/screen/renderer/termio/osc.ts must settle on the native route, emit OSC 52 and return a non-empty sequence`)
+check('the settlement reached the listeners', published.length === 1 && published[0] === real.settled.join('+'), `${JSON.stringify(published)} — setClipboardWithReceipt in src/screen/renderer/termio/osc.ts must publish each settlement to subscribeClipboardReceipts listeners`)
 
 section('§2 the knob set: the copy lands in the file, the native utility is never called, nothing is offered to the terminal')
 const FAKE = join(SCRATCH, 'clipboard.txt')
@@ -54,24 +54,24 @@ process.env.MERCURY_CLIPBOARD_FILE = FAKE
 const before = shimLog()
 const SET_TEXT = `clipboard-fixture set ${process.pid}\nsecond line`
 const faked = await setClipboardWithReceipt(SET_TEXT)
-check('the file holds exactly the copied text', existsSync(FAKE) && readFileSync(FAKE, 'utf8') === SET_TEXT, `${existsSync(FAKE) ? readFileSync(FAKE, 'utf8').slice(0, 80) : 'no file'} — with MERCURY_CLIPBOARD_FILE set the copy must be written to that file by writeClipboardFile in src/utils/clipboardFile.ts`)
-check('the native utility was NOT called (the shim log did not grow)', shimLog() === before && !shimLog().includes(SET_TEXT), `${shimLog().slice(-120)} — with MERCURY_CLIPBOARD_FILE set setClipboardWithReceipt in src/ink/termio/osc.ts must not reach the native utility`)
-check("the receipt settles on route 'file' with an empty sequence and no OSC 52", JSON.stringify(faked.settled) === JSON.stringify(['file']) && faked.sequence === '' && faked.osc52Emitted === false && faked.confirmation === 'copied (file)', `${JSON.stringify(faked)} — the file route (CLIPBOARD_FILE_ROUTE in src/utils/clipboardFile.ts) must be the only settled route, with an empty sequence and no OSC 52`)
-check('the settlement still reaches the listeners (the toast correction logic sees a settled copy)', published.length === 2 && published[1] === 'file', `${JSON.stringify(published)} — setClipboardWithReceipt in src/ink/termio/osc.ts must publish the file settlement to the listeners`)
+check('the file holds exactly the copied text', existsSync(FAKE) && readFileSync(FAKE, 'utf8') === SET_TEXT, `${existsSync(FAKE) ? readFileSync(FAKE, 'utf8').slice(0, 80) : 'no file'} — with MERCURY_CLIPBOARD_FILE set the copy must be written to that file by writeClipboardFile in src/screen/renderer/termio/clipboardFile.ts`)
+check('the native utility was NOT called (the shim log did not grow)', shimLog() === before && !shimLog().includes(SET_TEXT), `${shimLog().slice(-120)} — with MERCURY_CLIPBOARD_FILE set setClipboardWithReceipt in src/screen/renderer/termio/osc.ts must not reach the native utility`)
+check("the receipt settles on route 'file' with an empty sequence and no OSC 52", JSON.stringify(faked.settled) === JSON.stringify(['file']) && faked.sequence === '' && faked.osc52Emitted === false && faked.confirmation === 'copied (file)', `${JSON.stringify(faked)} — the file route (CLIPBOARD_FILE_ROUTE in src/screen/renderer/termio/clipboardFile.ts) must be the only settled route, with an empty sequence and no OSC 52`)
+check('the settlement still reaches the listeners (the toast correction logic sees a settled copy)', published.length === 2 && published[1] === 'file', `${JSON.stringify(published)} — setClipboardWithReceipt in src/screen/renderer/termio/osc.ts must publish the file settlement to the listeners`)
 const SECOND = 'clipboard-fixture overwrite'
 await setClipboardWithReceipt(SECOND)
-check('a later copy replaces the file (a clipboard holds one item)', readFileSync(FAKE, 'utf8') === SECOND, 'writeClipboardFile in src/utils/clipboardFile.ts must overwrite the file, not append to it')
+check('a later copy replaces the file (a clipboard holds one item)', readFileSync(FAKE, 'utf8') === SECOND, 'writeClipboardFile in src/screen/renderer/termio/clipboardFile.ts must overwrite the file, not append to it')
 
 section('§3 the knob names an unwritable path: the copy settles nowhere and still never reaches the real clipboard')
 process.env.MERCURY_CLIPBOARD_FILE = join(SCRATCH, 'missing-dir', 'clipboard.txt')
 const broken = await setClipboardWithReceipt('clipboard-fixture broken')
-check('no settled route, no sequence, no native call', broken.settled.length === 0 && broken.sequence === '' && broken.osc52Emitted === false && !shimLog().includes('clipboard-fixture broken'), `${JSON.stringify(broken)} — when writeClipboardFile in src/utils/clipboardFile.ts fails, setClipboardWithReceipt in src/ink/termio/osc.ts must settle nowhere and not fall back to the native clipboard`)
+check('no settled route, no sequence, no native call', broken.settled.length === 0 && broken.sequence === '' && broken.osc52Emitted === false && !shimLog().includes('clipboard-fixture broken'), `${JSON.stringify(broken)} — when writeClipboardFile in src/screen/renderer/termio/clipboardFile.ts fails, setClipboardWithReceipt in src/screen/renderer/termio/osc.ts must settle nowhere and not fall back to the native clipboard`)
 process.env.MERCURY_CLIPBOARD_FILE = FAKE
 unsubscribe()
 
 section('§4 the seam is registered and every capture road sets it')
 const spec = getFlagSpec('MERCURY_CLIPBOARD_FILE')
-check('MERCURY_CLIPBOARD_FILE is a registered value flag consumed by src/utils/clipboardFile.ts', spec?.kind === 'value' && spec.consumer === 'src/utils/clipboardFile.ts', `${JSON.stringify(spec ?? null)} — register MERCURY_CLIPBOARD_FILE as a value flag with consumer src/utils/clipboardFile.ts in the flag registry read by getFlagSpec (the flag registry)`)
+check('MERCURY_CLIPBOARD_FILE is a registered value flag consumed by src/screen/renderer/termio/clipboardFile.ts', spec?.kind === 'value' && spec.consumer === 'src/screen/renderer/termio/clipboardFile.ts', `${JSON.stringify(spec ?? null)} — register MERCURY_CLIPBOARD_FILE as a value flag with consumer src/screen/renderer/termio/clipboardFile.ts in the flag registry read by getFlagSpec (the flag registry)`)
 const vshot = readFileSync(join(ROOT, 'scripts', 'ui', 'vshot.py'), 'utf8')
 const setdefault = vshot.indexOf('os.environ.setdefault("MERCURY_CLIPBOARD_FILE", out + ".clipboard")')
 check('vshot.py gives every pty capture a clipboard file beside its grid before the child becomes the product', setdefault >= 0 && setdefault < vshot.indexOf('os.execvp(argv[0], argv)'), 'scripts/ui/vshot.py must call os.environ.setdefault for MERCURY_CLIPBOARD_FILE with out + .clipboard before os.execvp starts the child')

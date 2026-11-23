@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
 import * as t from './turnScenarios.ts'
 
-const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
-const stream = await import('../../src/run-core/turn/streamModel.ts')
-const { operatorPauseGate } = await import('../../src/run-core/pauseGate.ts')
-const { engineLadderOf } = await import('../../src/services/api/backupEngines.ts')
-const { FallbackTriggeredError } = await import('../../src/services/api/withRetry.ts')
-const { ImageSizeError } = await import('../../src/services/imageValidation.ts')
-const { createAssistantAPIErrorMessage } = await import('../../src/services/messages.ts')
+const { makeRequest } = await import('../../src/engine/loop/turn/makeRequest.ts')
+const stream = await import('../../src/engine/loop/turn/streamModel.ts')
+const { operatorPauseGate } = await import('../../src/engine/loop/pauseGate.ts')
+const { engineLadderOf } = await import('../../src/engine/requests/backupEngines.ts')
+const { FallbackTriggeredError } = await import('../../src/engine/requests/withRetry.ts')
+const { ImageSizeError } = await import('../../src/engine/requests/imageValidation.ts')
+const { createAssistantAPIErrorMessage } = await import('../../src/engine/messages/messages.ts')
 
 const f = t.fixtures
 type Row = Record<string, unknown>
@@ -20,11 +20,11 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the stream.<step> function this check's section calls in src/run-core/turn/streamModel.ts so the condition holds`)
+  if (!cond) console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the stream.<step> function this check's section calls in src/engine/loop/turn/streamModel.ts so the condition holds`)
 }
 const section = (title: string): void => console.log('\n' + '─'.repeat(76) + '\n' + title)
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the model call steps exceeded 180s; a step in src/run-core/turn/streamModel.ts never settled, find the last section printed above')
+  console.log('\nTIMEOUT — the model call steps exceeded 180s; a step in src/engine/loop/turn/streamModel.ts never settled, find the last section printed above')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -36,7 +36,7 @@ async function before(plan: Plan, state: Row = {}) {
   const planted = await t.plantRun(plan)
   Object.assign(planted.state, state)
   const made = await t.drain(makeRequest(planted.run as never, planted.state as never, 1))
-  if (made.decision.kind !== 'go_on') throw new Error(`the planted request did not go on: ${t.reasonOf(made.decision)}; makeRequest in src/run-core/turn/makeRequest.ts refused the plan, or the plan in this file is wrong`)
+  if (made.decision.kind !== 'go_on') throw new Error(`the planted request did not go on: ${t.reasonOf(made.decision)}; makeRequest in src/engine/loop/turn/makeRequest.ts refused the plan, or the plan in this file is wrong`)
   const iter = made.decision.iter as unknown as Row
   const emit = planted.run.emit as never
   return { planted, iter, emit, run: planted.run as never, it: iter as never }
@@ -47,7 +47,7 @@ const settlingFor = (callId: string): Row & { gauged: unknown[] } => {
 }
 
 console.log('============================================================')
-console.log(' one model call, part by part: src/run-core/turn/streamModel.ts')
+console.log(' one model call, part by part: src/engine/loop/turn/streamModel.ts')
 console.log('============================================================')
 
 section('(1) waiting for the gate and the permit')

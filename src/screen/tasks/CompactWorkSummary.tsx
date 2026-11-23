@@ -1,0 +1,110 @@
+import React, { useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { Box, Text } from '../themedRenderer.js'
+import { useMercuryTokens } from '../widgets/useMercuryTokens.js'
+import { compactSummaryHint } from '../widgets/compactModeChip.js'
+import { compactWorkSummaryText, useCompactWorkCounts } from './useFocusedWork.js'
+import { stringWidth } from '../renderer/stringWidth.js'
+import { presentStripStops, stripKeyMapHintOf, subscribeSurfaceRoute } from '../routes/surfaceRoute.js'
+import { useEscapeOwned } from '../keys/useEscapeOwned.js'
+import { escRungHint, escRungOf, type EscRungV1 } from '../composer/input-core/interruptArity.js'
+import {
+  getFocusedSessionConnector,
+  subscribeThroughFocused,
+} from '../../engine/connector/focusedConnector.js'
+import { hasSeatLive } from '../../engine/connector/seatLive.js'
+import { useAppState, type AppState } from '../app-state/AppState.js'
+import { NoticeWords, noticeRowDetail, noticeRowText, noticeRowWayOut } from '../composer/Notifications.js'
+import { settingsChangeDetector } from '../../platform/settings/changeDetector.js'
+import { getSettingsSnapshot, settingsRevision } from '../../platform/settings/snapshot.js'
+
+export type CompactWorkFocus = 'composer' | 'summary' | 'detail'
+export type CompactWorkControls = {
+  read: () => CompactWorkFocus
+  set: (focus: CompactWorkFocus) => void
+  toggleSummary: () => void
+  bindToggle: (handler: (() => void) | null) => void
+  detailState: { selectedId: string | null; detailTaskId: string | undefined }
+}
+
+export function useCompactWorkControls(): { controls: CompactWorkControls; focus: CompactWorkFocus } {
+  const current = useRef<CompactWorkFocus>('composer')
+  const toggle = useRef<(() => void) | null>(null)
+  const [focus, setFocus] = useState<CompactWorkFocus>('composer')
+  const detailState = useRef<{ selectedId: string | null; detailTaskId: string | undefined }>({ selectedId: null, detailTaskId: undefined })
+  const controls = useMemo<CompactWorkControls>(() => ({
+    detailState: detailState.current,
+    read: () => current.current,
+    set: next => {
+      if (current.current === next) return
+      current.current = next
+      if (next === 'composer') { detailState.current.selectedId = null; detailState.current.detailTaskId = undefined }
+      setFocus(next)
+    },
+    toggleSummary: () => toggle.current?.(),
+    bindToggle: handler => { toggle.current = handler },
+  }), [])
+  return { controls, focus }
+}
+
+const subscribeFocusedSeat = subscribeThroughFocused((connector, listener) =>
+  hasSeatLive(connector) ? connector.subscribeLive(listener) : () => {},
+)
+function getFocusedEscRung(): EscRungV1 {
+  const connector = getFocusedSessionConnector()
+  if (!hasSeatLive(connector)) return 'idle'
+  const status = connector.status()
+  return escRungOf({ inFlight: connector.live().inFlight, interrupting: status.interrupting, hardStopping: status.hardStopping })
+}
+const getStripHint = (): string => stripKeyMapHintOf('repl', presentStripStops())
+const noHint = (): string => ''
+
+export function CompactWorkSummary({
+  columns,
+  focused,
+  vimInsert = false,
+  onFocus,
+}: {
+  columns: number
+  focused: boolean
+  vimInsert?: boolean
+  onFocus: () => void
+}): React.ReactNode {
+  const counts = useCompactWorkCounts()
+  const tokens = useMercuryTokens()
+  const rung = useSyncExternalStore(subscribeFocusedSeat, getFocusedEscRung, getFocusedEscRung)
+  const escapeOwned = useEscapeOwned()
+  const stripHint = useSyncExternalStore(subscribeSurfaceRoute, getStripHint, noHint)
+  const currentNotice = useAppState((state: AppState) => state.notifications.current)
+  const noticeText = noticeRowText(currentNotice)
+  const noticeDetail = noticeText !== null ? noticeRowDetail(currentNotice) : null
+  useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
+  const wayBackStays = noticeText !== null && getSettingsSnapshot().settings.context?.wayBack !== false
+  const hint = noticeText !== null && !wayBackStays ? '' : compactSummaryHint({ focused, vimInsert, escHint: escapeOwned ? '' : escRungHint(rung), stripHint })
+  const hintWidth = hint === '' ? 0 : stringWidth(hint) + 1
+  const noticeColumns = wayBackStays && hint !== '' ? Math.max(0, columns - hintWidth - 1) : null
+  const ink = { bold: focused, color: focused ? tokens.textPrimary : tokens.textMuted, backgroundColor: focused ? tokens.selectionBand : undefined }
+  return (
+    <Box height={1} flexShrink={0} overflow="hidden" flexDirection="row">
+      <Box {...(noticeColumns === null ? { flexGrow: 1 } : { width: noticeColumns, flexShrink: 0 })} minWidth={0} flexWrap="wrap" height={1} overflow="hidden" onClick={onFocus}>
+        {noticeText !== null ? (
+          <NoticeWords seam={false} words={noticeText} wayOut={noticeRowWayOut(currentNotice)} muted={tokens.textMuted} />
+        ) : (
+          <Text wrap="truncate-end" {...ink}>
+            {compactWorkSummaryText(counts, Math.max(0, columns - hintWidth))}
+          </Text>
+        )}
+        {noticeDetail !== null ? (
+          <Text wrap="truncate-end" {...ink}>
+            {' · '}
+            {noticeDetail}
+          </Text>
+        ) : null}
+      </Box>
+      {hint !== '' ? (
+        <Box flexShrink={0} marginLeft={wayBackStays ? 2 : 1}>
+          <Text color={focused ? tokens.textSecondary : tokens.textMuted}>{hint}</Text>
+        </Box>
+      ) : null}
+    </Box>
+  )
+}

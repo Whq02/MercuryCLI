@@ -10,9 +10,9 @@ process.chdir(scratch)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.on('exit', () => rmSync(scratch, { recursive: true, force: true }))
 
-const { default: command, VERIFIER_BRIEF, verifierPrompt } = await import('../../src/commands/verify.ts')
-const { AGENT_TOOL_NAME, MERCURY_CREW_AGENT_TYPE } = await import('../../src/constants/tools/agent.ts')
-const { getVerificationNudgeNote } = await import('../../src/tools/TaskUpdateTool/prompt.ts')
+const { default: command, VERIFIER_BRIEF, verifierPrompt } = await import('../../src/commands/verify/index.ts')
+const { AGENT_TOOL_NAME, MERCURY_CREW_AGENT_TYPE } = await import('../../src/tools/kit/names/agent.ts')
+const { getVerificationNudgeNote } = await import('../../src/tools/task-update/prompt.ts')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok && detail ? ` — ${detail}` : ''}`)

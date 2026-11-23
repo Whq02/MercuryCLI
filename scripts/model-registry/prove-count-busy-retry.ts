@@ -32,7 +32,7 @@ Math.random = () => 0.5
 let failures = 0
 function check(label: string, condition: boolean, detail?: unknown): void {
   if (!condition) failures++
-  console.log(`  [${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail !== undefined ? ` — ${JSON.stringify(detail)}` : ''}${condition ? '' : ' — fix the retry ladder in src/services/providers/busyRetry.ts (openBusyRetryLadder, nextBusyRetryWithinBudget) or the count paths countMessagesTokensWithAPI and countTokensViaHaikuFallback in src/services/tokenEstimation.ts'}`)
+  console.log(`  [${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail !== undefined ? ` — ${JSON.stringify(detail)}` : ''}${condition ? '' : ' — fix the retry ladder in src/models/roads/busyRetry.ts (openBusyRetryLadder, nextBusyRetryWithinBudget) or the count paths countMessagesTokensWithAPI and countTokensViaHaikuFallback in src/models/facts/tokenEstimation.ts'}`)
 }
 const show = (value: unknown): string => JSON.stringify(value)
 
@@ -89,11 +89,11 @@ try {
     })
   })
   process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${port}`
-  ;(await import('../../src/utils/config.js')).enableConfigs()
-  const { setEngineModelOverride } = await import('../../src/bootstrap/state.js')
-  const { COUNT_RETRY_BUDGET_MS, countMessagesTokensWithAPI, countTokensViaHaikuFallback } = await import('../../src/services/tokenEstimation.js')
-  const { BUSY_RETRY_RUNGS_MS, openBusyRetryLadder, nextBusyRetryWithinBudget } = await import('../../src/services/providers/busyRetry.js')
-  const { getAnthropicClientContractVersion } = await import('../../src/constants/oauth.js')
+  ;(await import('../../src/platform/settings/config.js')).enableConfigs()
+  const { setEngineModelOverride } = await import('../../src/boot/process-state/processState.js')
+  const { COUNT_RETRY_BUDGET_MS, countMessagesTokensWithAPI, countTokensViaHaikuFallback } = await import('../../src/models/facts/tokenEstimation.js')
+  const { BUSY_RETRY_RUNGS_MS, openBusyRetryLadder, nextBusyRetryWithinBudget } = await import('../../src/models/roads/busyRetry.js')
+  const { getAnthropicClientContractVersion } = await import('../../src/models/sign-in/oauth/oauth.js')
   setEngineModelOverride('claude-sonnet-5-5')
   const messages = [{ role: 'user', content: 'Count me.' }]
   const scale = 0.01

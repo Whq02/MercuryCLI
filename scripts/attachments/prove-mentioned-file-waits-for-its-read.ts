@@ -32,15 +32,15 @@ delete process.env.NODE_ENV
 let failures = 0
 let checks = 0
 const whereToLook: Record<string, string> = {
-  A: 'processAtMentionedFiles in src/services/attachments/mentionResolvers.ts and getAttachments in src/services/attachments/orchestrator.ts must wait for the mentioned file read and carry it to the model',
-  B: 'processAtMentionedFiles in src/services/attachments/mentionResolvers.ts must read mentioned files side by side, give each up at the 10 second ceiling, cancel the read and leave a dropped row with the ceiling reason; the wording the model reads is built in src/services/messages/attachmentText.ts',
-  C: 'processAtMentionedFiles in src/services/attachments/mentionResolvers.ts must leave a dropped row with the true reason for a file it leaves out; the wording the model reads is built in src/services/messages/attachmentText.ts',
-  D: 'processAtMentionedFiles in src/services/attachments/mentionResolvers.ts must keep its earlier behaviour for non-files, small files and interrupted turns',
-  E: 'the attachment row painted by src/components/messages/AttachmentMessage.tsx must show Read <path> or Dropped <path> with the reason of the row it is given, and droppedMentionLine in src/services/attachments/fileAttachments.ts must spell the same line for a run with no screen',
-  F: 'the request the built bundle sends must carry each mention kind as processAtMentionedFiles in src/services/attachments/mentionResolvers.ts and src/services/messages/attachmentText.ts word it, and the run must tell its caller of each file left out: droppedMentionLine in src/services/attachments/fileAttachments.ts, yielded as a notice row and kept for the outcome by turnRows in src/rows/turn/turnRows.ts, written to stderr by runPrintTurn in src/cli/headless/printTurn.ts; rebuild dist/mercury.mjs first',
-  G: 'the request the built bundle sends must carry what processAtMentionedFiles in src/services/attachments/mentionResolvers.ts read or gave up on with a slow disk, and the run must tell its caller of each file given up on: droppedMentionLine in src/services/attachments/fileAttachments.ts, yielded as a notice row and kept for the outcome by turnRows in src/rows/turn/turnRows.ts, written to stderr by runPrintTurn in src/cli/headless/printTurn.ts; rebuild dist/mercury.mjs first',
-  H: 'the read in src/services/attachments/mentionResolvers.ts must clip a dense mentioned file even when each provider token count is slow; rebuild dist/mercury.mjs first',
-  I: 'processAtMentionedFiles in src/services/attachments/mentionResolvers.ts must keep a large mentioned file via its estimate at once when the token count hits a connection error',
+  A: 'processAtMentionedFiles in src/engine/attachments/mentionResolvers.ts and getAttachments in src/engine/attachments/turnAttachments.ts must wait for the mentioned file read and carry it to the model',
+  B: 'processAtMentionedFiles in src/engine/attachments/mentionResolvers.ts must read mentioned files side by side, give each up at the 10 second ceiling, cancel the read and leave a dropped row with the ceiling reason; the wording the model reads is built in src/engine/messages/attachmentText.ts',
+  C: 'processAtMentionedFiles in src/engine/attachments/mentionResolvers.ts must leave a dropped row with the true reason for a file it leaves out; the wording the model reads is built in src/engine/messages/attachmentText.ts',
+  D: 'processAtMentionedFiles in src/engine/attachments/mentionResolvers.ts must keep its earlier behaviour for non-files, small files and interrupted turns',
+  E: 'the attachment row painted by src/screen/messages/AttachmentMessage.tsx must show Read <path> or Dropped <path> with the reason of the row it is given, and droppedMentionLine in src/engine/attachments/fileAttachments.ts must spell the same line for a run with no screen',
+  F: 'the request the built bundle sends must carry each mention kind as processAtMentionedFiles in src/engine/attachments/mentionResolvers.ts and src/engine/messages/attachmentText.ts word it, and the run must tell its caller of each file left out: droppedMentionLine in src/engine/attachments/fileAttachments.ts, yielded as a notice row and kept for the outcome by turnRows in src/engine/rows/turn/turnRows.ts, written to stderr by runPrintTurn in src/daemon/runner/runnerTurn.ts; rebuild dist/mercury.mjs first',
+  G: 'the request the built bundle sends must carry what processAtMentionedFiles in src/engine/attachments/mentionResolvers.ts read or gave up on with a slow disk, and the run must tell its caller of each file given up on: droppedMentionLine in src/engine/attachments/fileAttachments.ts, yielded as a notice row and kept for the outcome by turnRows in src/engine/rows/turn/turnRows.ts, written to stderr by runPrintTurn in src/daemon/runner/runnerTurn.ts; rebuild dist/mercury.mjs first',
+  H: 'the read in src/engine/attachments/mentionResolvers.ts must clip a dense mentioned file even when each provider token count is slow; rebuild dist/mercury.mjs first',
+  I: 'processAtMentionedFiles in src/engine/attachments/mentionResolvers.ts must keep a large mentioned file via its estimate at once when the token count hits a connection error',
 }
 const check = (name: string, ok: boolean, detail = ''): void => {
   checks++
@@ -52,7 +52,7 @@ const j = (value: unknown): string => JSON.stringify(value) ?? ''
 const sleep = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))
 const strip = (text: string): string => text.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
 const guard = setTimeout(() => {
-  console.log('\nFAIL the proof exceeded 300 s — a read in processAtMentionedFiles (src/services/attachments/mentionResolvers.ts) or a bundle run did not finish; the checks printed above show how far it got')
+  console.log('\nFAIL the proof exceeded 300 s — a read in processAtMentionedFiles (src/engine/attachments/mentionResolvers.ts) or a bundle run did not finish; the checks printed above show how far it got')
   process.exit(1)
 }, 300_000)
 guard.unref?.()
@@ -167,20 +167,20 @@ const outcomeNoticesOf = (ran: Ran): string[] => (toldBy(ran).findLast(row => ro
 const stderrLinesOf = (ran: Ran): string[] => strip(ran.stderr).split('\n').filter(line => line.includes('Dropped ')).map(line => line.slice(line.indexOf('Dropped ')))
 
 try {
-  const bootstrap = await import(`${root}/src/bootstrap/state.ts`)
+  const bootstrap = await import(`${root}/src/boot/process-state/processState.ts`)
   bootstrap.setOriginalCwd(cwd)
   bootstrap.setProjectRoot(cwd)
   bootstrap.setCwdState(cwd)
   bootstrap.setSessionTrustAccepted(true)
-  const { enableConfigs } = await import(`${root}/src/utils/config/globalConfig.ts`)
+  const { enableConfigs } = await import(`${root}/src/platform/config/globalConfig.ts`)
   enableConfigs()
-  const { getDefaultAppState } = await import(`${root}/src/state/AppStateStore.ts`)
-  const { createFileStateCacheWithSizeLimit } = await import(`${root}/src/utils/fileStateCache.ts`)
-  const { getEngineModel } = await import(`${root}/src/services/model/model.ts`)
-  const { getAttachments } = await import(`${root}/src/services/attachments/orchestrator.ts`)
-  const { processAtMentionedFiles } = await import(`${root}/src/services/attachments/mentionResolvers.ts`)
-  const { normalizeAttachmentForAPI } = await import(`${root}/src/services/messages/attachmentText.ts`)
-  const { FileReadTool } = await import(`${root}/src/tools/FileReadTool/FileReadTool.ts`)
+  const { getDefaultAppState } = await import(`${root}/src/screen/app-state/AppStateStore.ts`)
+  const { createFileStateCacheWithSizeLimit } = await import(`${root}/src/platform/files/fileStateCache.ts`)
+  const { getEngineModel } = await import(`${root}/src/models/catalogue/engineModel.ts`)
+  const { getAttachments } = await import(`${root}/src/engine/attachments/turnAttachments.ts`)
+  const { processAtMentionedFiles } = await import(`${root}/src/engine/attachments/mentionResolvers.ts`)
+  const { normalizeAttachmentForAPI } = await import(`${root}/src/engine/messages/attachmentText.ts`)
+  const { FileReadTool } = await import(`${root}/src/tools/read/ReadTool.ts`)
 
   type ReadCall = (input: { file_path: string }, context: { abortController: AbortController }, ...rest: unknown[]) => Promise<unknown>
   const realRead = (FileReadTool.call as ReadCall).bind(FileReadTool)
@@ -336,10 +336,10 @@ try {
   console.log('\nE — the row on the screen, painted from the rows above')
   {
     const React = (await import('react')).default
-    const { render } = await import(`${root}/src/ink.ts`)
-    const { AppStateProvider } = await import(`${root}/src/state/AppState.tsx`)
-    const { AttachmentMessage } = await import(`${root}/src/components/messages/AttachmentMessage.tsx`)
-    const { MessageMetaProvider } = await import(`${root}/src/components/messages/TranscriptNameplate.tsx`)
+    const { render } = await import(`${root}/src/screen/themedRenderer.ts`)
+    const { AppStateProvider } = await import(`${root}/src/screen/app-state/AppState.tsx`)
+    const { AttachmentMessage } = await import(`${root}/src/screen/messages/AttachmentMessage.tsx`)
+    const { MessageMetaProvider } = await import(`${root}/src/screen/messages/TranscriptNameplate.tsx`)
     const h = React.createElement as (...parts: unknown[]) => unknown
     const painted = async (row: Row): Promise<string> => {
       const stdout = Object.assign(new Writable({ write: (_chunk, _encoding, done) => done() }), { columns: 400, rows: 30, isTTY: false })
@@ -352,7 +352,7 @@ try {
       await sleep(50)
       return text
     }
-    const { droppedMentionLine } = await import(`${root}/src/services/attachments/fileAttachments.ts`)
+    const { droppedMentionLine } = await import(`${root}/src/engine/attachments/fileAttachments.ts`)
     for (const { kind, row } of onScreen) {
       const line = row === undefined ? '(no row to paint)' : await painted(row)
       const wanted = row?.type === 'file' ? `Read ${row.displayPath} (1 line)` : `Dropped ${row?.displayPath} — ${row?.reason}`

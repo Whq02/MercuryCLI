@@ -41,9 +41,9 @@ const SUMMARY_CHUNK_MS = 160
 const RESTORE_HOLD_S = 1.5
 const AUTO_PCT = '1.5'
 const MANUAL_PCT = '10'
-const { FOLD_ROW_HEAD: ROW_HEAD, FOLD_BAR_CELLS_PER_STAGE } = await import('../../src/services/compact/foldStatus.ts')
+const { FOLD_ROW_HEAD: ROW_HEAD, FOLD_BAR_CELLS_PER_STAGE } = await import('../../src/engine/compaction/foldStatus.ts')
 const CARD = 'Compacted —'
-const { ERROR_MESSAGE_USER_ABORT: CANCELLED_LINE } = await import('../../src/services/compact/compact.ts')
+const { ERROR_MESSAGE_USER_ABORT: CANCELLED_LINE } = await import('../../src/engine/compaction/foldConversation.ts')
 const FAILED_LINE = 'Error during compaction'
 const AUTO_ASK = 'station 61: survey the ledger row and report'
 const POST_FOLD_ASK = 'station 31: survey the ledger row and report'
@@ -51,7 +51,7 @@ const READ_ASK = 'station 0: read the notes files and report'
 const READ_DONE = 'READ-DONE'
 const NOTES = ['notes-a.txt', 'notes-b.txt'] as const
 const AUTO_REPLY = 'ok — surveyed.'
-const ROW_FIX_HINT = 'the fold row is painted by src/components/FoldStatusRow.tsx from foldRowWords, foldRowVisible and foldBarCells in src/services/compact/foldStatus.ts; change what they paint or when, then read the frame dumps above'
+const ROW_FIX_HINT = 'the fold row is painted by src/screen/messages/FoldStatusRow.tsx from foldRowWords, foldRowVisible and foldBarCells in src/engine/compaction/foldStatus.ts; change what they paint or when, then read the frame dumps above'
 
 function seedRows(sid: string, cwd: string, turns: number, fillers: number, inputTokens: number): string {
   const base = { isSidechain: false, entrypoint: 'cli', cwd, sessionId: sid, version: '1.0.0', gitBranch: 'main' }
@@ -91,7 +91,7 @@ async function seedWorld(): Promise<{ home: string; cwd: string }> {
   seedFirstRun(home, [cwd])
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ events: { hooks: { 'compaction.after': [{ name: 'restore hold', match: 'summary', run: `sleep ${RESTORE_HOLD_S}` }] } } }))
   process.env.MERCURY_CONFIG_DIR = home
-  const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
   const projDir = join(home, 'projects', basename(getProjectDir(cwd)))
   mkdirSync(projDir, { recursive: true })
   for (const key of ['fold', 'cancel', 'refuse'] as const) writeFileSync(join(projDir, `${SID[key]}.jsonl`), seedRows(SID[key], cwd, 30, 30, 900))
@@ -485,10 +485,10 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
     const seen = [...new Set(stages)]
     check('F2 [fold] the bar advances in the fold\'s order without phase words', seen.length >= 2 && seen.every(s => order.includes(s)) && nonDecreasing(seen.map(s => order.indexOf(s))) && live.every(l => !/micro-compaction|summarising|restoring|session memory/.test(l.row)), seen.join(' → '), ROW_FIX_HINT + '; stages must advance summarising then restoring and the row must carry no phase words')
     check('F2 [fold] the bar shows summarising and restoring', seen.includes('summarising') && seen.includes('restoring'), seen.join(' → '), ROW_FIX_HINT + '; the bar must reach both the summarising and the restoring stage')
-    check('F2 [fold] the filled cells never decrease', nonDecreasing(live.map(l => l.facts.filled)), live.map(l => l.facts.filled).join(','), 'foldBarCells in src/services/compact/foldStatus.ts must never unfill a cell while the fold runs')
+    check('F2 [fold] the filled cells never decrease', nonDecreasing(live.map(l => l.facts.filled)), live.map(l => l.facts.filled).join(','), 'foldBarCells in src/engine/compaction/foldStatus.ts must never unfill a cell while the fold runs')
     const tokens = live.filter(l => l.facts.stage === 'summarising').map(l => l.facts.tokens ?? 0)
-    check('F2 [fold] the streamed tokens grow while summarising', tokens.length >= 2 && nonDecreasing(tokens) && tokens[tokens.length - 1]! > tokens[0]!, tokens.join(','), 'the streamed token count in the row (foldRowWords in src/services/compact/foldStatus.ts, fed by foldStatusOnEvent) must grow while summarising')
-    check('F2 [fold] the clock grows from the fold\'s own start (never the session\'s age)', nonDecreasing(live.map(l => l.facts.seconds ?? 0)) && live.every(l => (l.facts.seconds ?? 0) <= 40), live.map(l => l.facts.seconds).join(','), 'the row clock (foldRowWords in src/services/compact/foldStatus.ts) must count from the fold start, not the session start')
+    check('F2 [fold] the streamed tokens grow while summarising', tokens.length >= 2 && nonDecreasing(tokens) && tokens[tokens.length - 1]! > tokens[0]!, tokens.join(','), 'the streamed token count in the row (foldRowWords in src/engine/compaction/foldStatus.ts, fed by foldStatusOnEvent) must grow while summarising')
+    check('F2 [fold] the clock grows from the fold\'s own start (never the session\'s age)', nonDecreasing(live.map(l => l.facts.seconds ?? 0)) && live.every(l => (l.facts.seconds ?? 0) <= 40), live.map(l => l.facts.seconds).join(','), 'the row clock (foldRowWords in src/engine/compaction/foldStatus.ts) must count from the fold start, not the session start')
     const strips = live.map(l => stripOf(m[l.key])).filter((s): s is { glyph: string; words: string } => s !== null)
     check('F3 [fold] the working strip never says thinking while the fold runs', strips.every(s => !/thinking/i.test(s.words)), strips.map(s => s.words).slice(0, 3).join(' | '), 'the working strip must read compacting, not thinking, while a fold runs; change the strip label source for a running fold')
     check('F3 [fold] the working strip\'s glyph stands still through the fold', strips.length >= 3 && new Set(strips.map(s => s.glyph)).size === 1, strips.map(s => s.glyph).join(''), 'the working strip glyph must stay fixed through a fold; change the strip animation while a fold runs')
@@ -514,7 +514,7 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
         }
       }
       console.log(`  post-fold request: ${parts.items} items · ${parts.total} chars ≈ ${Math.round(parts.total / 4)} tokens — summary ${parts.summary} · restored files ${parts.files} (${parts.fileCount} rows) · kept tail ${parts.tail} (${parts.tailRows} rows) · the ask ${parts.ask} · other ${parts.other} · first byte ${postFold.response.firstByteMs ?? '?'} ms (the fixture's)`)
-      check('F7 [fold] the post-fold request carries the summary, the ask and both restored files, no file block over the per-file limit', parts.summary > 0 && parts.ask > 0 && parts.filesNamed === 2 && parts.largestFile <= 5_000 * 4 + 400, `summary ${parts.summary} chars · ask ${parts.ask} · files named ${parts.filesNamed} in ${parts.fileCount} blocks · largest block ${parts.largestFile} chars`, 'the post-fold request must hold the summary, the ask and both restored notes files, each under POST_COMPACT_MAX_TOKENS_PER_FILE (src/services/compact/compact/limits.ts); read the item dump above')
+      check('F7 [fold] the post-fold request carries the summary, the ask and both restored files, no file block over the per-file limit', parts.summary > 0 && parts.ask > 0 && parts.filesNamed === 2 && parts.largestFile <= 5_000 * 4 + 400, `summary ${parts.summary} chars · ask ${parts.ask} · files named ${parts.filesNamed} in ${parts.fileCount} blocks · largest block ${parts.largestFile} chars`, 'the post-fold request must hold the summary, the ask and both restored notes files, each under POST_COMPACT_MAX_TOKENS_PER_FILE (src/engine/compaction/fold/foldLimits.ts); read the item dump above')
     }
   }
 }

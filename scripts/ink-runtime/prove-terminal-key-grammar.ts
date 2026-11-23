@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { INITIAL_STATE, parseMultipleKeypresses, type ParsedInput } from '../../src/ink/input/input-decoder.ts'
-import { interpretKey } from '../../src/ink/input/interpreter.ts'
-import { InputEvent } from '../../src/ink/events/input-event.ts'
+import { INITIAL_STATE, parseMultipleKeypresses, type ParsedInput } from '../../src/screen/renderer/input/input-decoder.ts'
+import { interpretKey } from '../../src/screen/renderer/input/interpreter.ts'
+import { InputEvent } from '../../src/screen/renderer/events/input-event.ts'
 
 type Reading = { name: string | undefined; input: string; delete: boolean; meta: boolean; shift: boolean; option: boolean }
 
@@ -14,7 +14,7 @@ function project(seq: string): Reading {
 
 const CHILD = process.env.KEY_GRAMMAR_CHILD
 if (CHILD !== undefined) {
-  const caps = await import('../../src/ink/session/capabilities.ts')
+  const caps = await import('../../src/screen/renderer/terminal-session/capabilities.ts')
   const out: Record<string, unknown> = {
     term: process.env.TERM,
     sniffArmsPush: caps.supportsExtendedKeys(),
@@ -34,7 +34,7 @@ if (CHILD !== undefined) {
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix the byte-sequence split in parseMultipleKeypresses (src/ink/input/input-decoder.ts) or the key naming in interpretKey (src/ink/input/interpreter.ts); the kitty-protocol latch for CSI P is in src/ink/session/capabilities.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix the byte-sequence split in parseMultipleKeypresses (src/screen/renderer/input/input-decoder.ts) or the key naming in interpretKey (src/screen/renderer/input/interpreter.ts); the kitty-protocol latch for CSI P is in src/screen/renderer/terminal-session/capabilities.ts' : ''}`)
 }
 
 function atomsOf(chunk: string): ParsedInput[] {
@@ -179,10 +179,10 @@ for (const [label, seq, want] of unicodeCases) {
   const previousHome = process.env.MERCURY_CONFIG_DIR
   process.env.MERCURY_CONFIG_DIR = home
   const React = await import('react')
-  const { default: render } = await import('../../src/ink/root.ts')
-  const { default: Text } = await import('../../src/ink/components/Text.tsx')
-  const { default: useInput } = await import('../../src/ink/hooks/use-input.ts')
-  const { flushPendingSyncWork } = await import('../../src/ink/reconciler.ts')
+  const { default: render } = await import('../../src/screen/renderer/root.ts')
+  const { default: Text } = await import('../../src/screen/renderer/elements/Text.tsx')
+  const { default: useInput } = await import('../../src/screen/renderer/bindings/use-input.ts')
+  const { flushPendingSyncWork } = await import('../../src/screen/renderer/reconciler.ts')
   const stdin = Object.assign(new Readable({ read() {} }), {
     isTTY: true,
     isRaw: false,

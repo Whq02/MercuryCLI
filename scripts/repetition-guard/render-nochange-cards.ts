@@ -12,7 +12,7 @@ const { scenario, cleanupScenario } = await import('../ui/renderScenarios.ts')
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  const hint = 'fix how the no-change result paints in src/tools/FileEditTool/UI.tsx and src/tools/FileWriteTool/UI.tsx; the scene is the nochange-cards scenario in scripts/ui/renderScenarios.ts'
+  const hint = 'fix how the no-change result paints in src/tools/edit/rows.tsx and src/tools/write/rows.tsx; the scene is the nochange-cards scenario in scripts/ui/renderScenarios.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${!ok ? ` — ${detail ? `${detail} — ` : ''}${hint}` : ''}`)
   if (!ok) failures = 1
 }

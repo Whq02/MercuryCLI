@@ -10,8 +10,8 @@ const home = mkdtempSync(join(tmpdir(), 'usage-lanes-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { providerSessionSpend } = await import('../../src/services/providers/providerUsage.ts')
-const { getModelUsage, resetCostState } = await import('../../src/bootstrap/state.ts')
+const { providerSessionSpend } = await import('../../src/models/roads/providerUsage.ts')
+const { getModelUsage, resetCostState } = await import('../../src/boot/process-state/processState.ts')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
@@ -40,17 +40,17 @@ try {
   for (const [, model, input, output, cost] of fixtures) getModelUsage()[model] = record(input, output, cost)
   for (const [route, , input, output, cost] of fixtures) {
     const spend = providerSessionSpend(route)
-    check(`${route}: the usage owner partitions its own tokens and spend`, spend.models === 1 && spend.inputTokens === input && spend.outputTokens === output && spend.costUSD === cost, `${JSON.stringify(spend)}; fix spendForRoute in src/services/providers/providerUsage/spend.ts, or the model-to-route mapping declaredRouteOf in src/services/providers/routeLaw.ts`)
+    check(`${route}: the usage owner partitions its own tokens and spend`, spend.models === 1 && spend.inputTokens === input && spend.outputTokens === output && spend.costUSD === cost, `${JSON.stringify(spend)}; fix spendForRoute in src/models/roads/provider-usage/spend.ts, or the model-to-route mapping declaredRouteOf in src/models/roads/routeLaw.ts`)
   }
   const ledgerIn = fixtures.reduce((sum, fixture) => sum + fixture[2], 0)
   const familiesIn = fixtures.reduce((sum, fixture) => sum + providerSessionSpend(fixture[0]).inputTokens, 0)
-  check('every turn lands in one family: the families sum to the ledger', familiesIn === ledgerIn, `${familiesIn} of ${ledgerIn}; a model reaches no route or two routes, so check declaredRouteOf in src/services/providers/routeLaw.ts and spendForRoute in src/services/providers/providerUsage/spend.ts`)
-  check('a Claude slug behind the OpenRouter carrier counts toward OpenRouter, never Anthropic', providerSessionSpend('anthropic').inputTokens === 1000 && providerSessionSpend('openrouter').inputTokens === 700, `anthropic ${providerSessionSpend('anthropic').inputTokens} (want 1000), openrouter ${providerSessionSpend('openrouter').inputTokens} (want 700); fix declaredRouteOf in src/services/providers/routeLaw.ts so an openrouter/ slug routes to openrouter`)
+  check('every turn lands in one family: the families sum to the ledger', familiesIn === ledgerIn, `${familiesIn} of ${ledgerIn}; a model reaches no route or two routes, so check declaredRouteOf in src/models/roads/routeLaw.ts and spendForRoute in src/models/roads/provider-usage/spend.ts`)
+  check('a Claude slug behind the OpenRouter carrier counts toward OpenRouter, never Anthropic', providerSessionSpend('anthropic').inputTokens === 1000 && providerSessionSpend('openrouter').inputTokens === 700, `anthropic ${providerSessionSpend('anthropic').inputTokens} (want 1000), openrouter ${providerSessionSpend('openrouter').inputTokens} (want 700); fix declaredRouteOf in src/models/roads/routeLaw.ts so an openrouter/ slug routes to openrouter`)
   resetCostState()
   getModelUsage()['claude-opus-5'] = record(10, 1, 0.01)
   getModelUsage()['gemini-3-pro'] = record(5, 1, 0.001)
-  check('a lane with no turn has no invented model or spend', providerSessionSpend('openai').models === 0 && providerSessionSpend('openai').costUSD === 0, `${JSON.stringify(providerSessionSpend('openai'))}; spendForRoute in src/services/providers/providerUsage/spend.ts must count only models routed to the asked lane`)
-  check('the active Gemini lane keeps its own tokens', providerSessionSpend('gemini').inputTokens === 5, `${JSON.stringify(providerSessionSpend('gemini'))}; fix the gemini route of declaredRouteOf in src/services/providers/routeLaw.ts or spendForRoute in src/services/providers/providerUsage/spend.ts`)
+  check('a lane with no turn has no invented model or spend', providerSessionSpend('openai').models === 0 && providerSessionSpend('openai').costUSD === 0, `${JSON.stringify(providerSessionSpend('openai'))}; spendForRoute in src/models/roads/provider-usage/spend.ts must count only models routed to the asked lane`)
+  check('the active Gemini lane keeps its own tokens', providerSessionSpend('gemini').inputTokens === 5, `${JSON.stringify(providerSessionSpend('gemini'))}; fix the gemini route of declaredRouteOf in src/models/roads/routeLaw.ts or spendForRoute in src/models/roads/provider-usage/spend.ts`)
 } finally {
   resetCostState()
   rmSync(home, { recursive: true, force: true })

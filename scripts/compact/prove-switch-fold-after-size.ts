@@ -40,19 +40,19 @@ const { startOverflowFixture } = await import('./overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { contextFill } = await import('../../src/services/context/tokens.ts')
-const { contextFillView } = await import('../../src/services/context/contextFill.ts')
-const { primeOpenaiCatalogue } = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const { requestGaugeDigest } = await import('../../src/services/run/requestGauge.ts')
-const { buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
-const { estimateContextTokens } = await import('../../src/services/compact/microCompact.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { contextFill } = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { contextFillView } = await import('../../src/engine/context-window/contextFill.ts')
+const { primeOpenaiCatalogue } = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const { requestGaugeDigest } = await import('../../src/engine/run/requestGauge.ts')
+const { buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
 const { call } = await import('../../src/commands/compact/compact.ts')
 
 const SOURCE = 'claude-opus-4-8'
@@ -60,8 +60,8 @@ const SEATED = 'gpt-5.6-sol'
 const WINDOW = 65_536
 const FIXED = 31_900
 const NOTES = 6
-const METER = 'createFoldMeter in src/services/compact/compact/foldMeasure.ts must state the after size of a fold on the seated model\'s own count when the context before it was measured by a model of another family; compactConversation in src/services/compact/compact.ts records that figure'
-const GAUGE = 'messageContextFill in src/services/context/messageContextFill.ts must estimate only the rows that stand after the last fold boundary'
+const METER = 'createFoldMeter in src/engine/compaction/fold/foldMeasure.ts must state the after size of a fold on the seated model\'s own count when the context before it was measured by a model of another family; compactConversation in src/engine/compaction/foldConversation.ts records that figure'
+const GAUGE = 'messageContextFill in src/engine/context-window/messageContextFill.ts must estimate only the rows that stand after the last fold boundary'
 
 if (!primeOpenaiCatalogue({
   sourceKind: 'api-key',
@@ -154,7 +154,7 @@ section('2 no switch: the same six notes folded on the model that measured them'
   const before = contextFill(messages as never).tokens
   const saved = estimateContextTokens(messages as never, SOURCE) - estimateContextTokens(post as never, SOURCE)
   check('the fold lands', folded?.type === 'compact', threw, METER)
-  check('the after size is the measured before figure less what the fold saved by the one estimate, as it was', saved > 0 && result?.truePostCompactTokenCount === before - saved && result.boundaryMarker.compactMetadata.postTokens === before - saved, JSON.stringify({ before, saved, result: result?.truePostCompactTokenCount, recorded: result?.boundaryMarker.compactMetadata.postTokens }), 'createFoldMeter in src/services/compact/compact/foldMeasure.ts must keep contextAfterFold for a conversation the seated model measured')
+  check('the after size is the measured before figure less what the fold saved by the one estimate, as it was', saved > 0 && result?.truePostCompactTokenCount === before - saved && result.boundaryMarker.compactMetadata.postTokens === before - saved, JSON.stringify({ before, saved, result: result?.truePostCompactTokenCount, recorded: result?.boundaryMarker.compactMetadata.postTokens }), 'createFoldMeter in src/engine/compaction/fold/foldMeasure.ts must keep contextAfterFold for a conversation the seated model measured')
 }
 
 await fixture.close()

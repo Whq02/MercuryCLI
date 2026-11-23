@@ -10,20 +10,20 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'file-shape-home-'))
 process.env.MERCURY_BARE = '1'
 process.env.MERCURY_CHANGESET_DIR = mkdtempSync(join(tmpdir(), 'file-shape-cs-'))
 
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 let failures = 0
 let checks = 0
 function shapeHintFor(label: string): string {
-  if (label.startsWith('ChangeSet')) return 'to fix: the apply path of src/tools/ChangeSetTool/ChangeSetTool.ts must keep each untouched line terminator, the trailing newline and the BOM'
-  if (label.startsWith('Edit')) return 'to fix: src/tools/FileEditTool/edit/call.ts must keep each untouched line terminator, the trailing newline and the BOM'
-  return 'to fix: src/tools/FileWriteTool/write/call.ts must keep the file own line terminators, trailing newline and BOM, and name the path for nested memory'
+  if (label.startsWith('ChangeSet')) return 'to fix: the apply path of src/tools/change-set/ChangeSetTool.ts must keep each untouched line terminator, the trailing newline and the BOM'
+  if (label.startsWith('Edit')) return 'to fix: src/tools/edit/call/call.ts must keep each untouched line terminator, the trailing newline and the BOM'
+  return 'to fix: src/tools/write/call/call.ts must keep the file own line terminators, trailing newline and BOM, and name the path for nested memory'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   checks++

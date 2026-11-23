@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync } from 'nod
 import { basename, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
-import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -194,15 +194,15 @@ function runCell(cell: Cell): void {
     check(`${cell.tag}: pin holds the content through the reflow (strict)`,
       preTop !== null && postTop !== null && postTop.turn === preTop.turn &&
         Math.abs(lineOf(postTop) - lineOf(preTop)) <= 1,
-      `pre=${preTop?.turn}:${preTop?.sig} post=${postTop?.turn}:${postTop?.sig}; the strict pin after the resize moved the content, so the column-change handling of the virtual scroll (prevColumnsRef and reflowHoldRef) in src/hooks/useVirtualScroll.ts must keep the top row pinned`)
+      `pre=${preTop?.turn}:${preTop?.sig} post=${postTop?.turn}:${postTop?.sig}; the strict pin after the resize moved the content, so the column-change handling of the virtual scroll (prevColumnsRef and reflowHoldRef) in src/screen/virtual-message-list/useVirtualScroll.ts must keep the top row pinned`)
   } else {
     check(`${cell.tag}: reflow landing within three turns of the pinned content`,
       preTop !== null && postTop !== null && Math.abs(postTop.turn - preTop.turn) <= 3,
-      `pre=${preTop?.turn}:${preTop?.sig} post=${postTop?.turn}:${postTop?.sig}; the view landed more than three turns from the pinned content after the resize, so the column-change handling of the virtual scroll (prevColumnsRef and reflowHoldRef) in src/hooks/useVirtualScroll.ts must keep the pinned content in view`)
+      `pre=${preTop?.turn}:${preTop?.sig} post=${postTop?.turn}:${postTop?.sig}; the view landed more than three turns from the pinned content after the resize, so the column-change handling of the virtual scroll (prevColumnsRef and reflowHoldRef) in src/screen/virtual-message-list/useVirtualScroll.ts must keep the pinned content in view`)
   }
   check(`${cell.tag}: no late drift`,
     postTop !== null && lateTop !== null && lateTop.turn === postTop.turn && lateTop.sig === postTop.sig,
-    `post=${postTop?.turn}:${postTop?.sig} late=${lateTop?.turn}:${lateTop?.sig}; the top row kept moving after the reflow settled, so the reflow hold (reflowHoldRef) in src/hooks/useVirtualScroll.ts is releasing into a second adjustment`)
+    `post=${postTop?.turn}:${postTop?.sig} late=${lateTop?.turn}:${lateTop?.sig}; the top row kept moving after the reflow settled, so the reflow hold (reflowHoldRef) in src/screen/virtual-message-list/useVirtualScroll.ts is releasing into a second adjustment`)
   const postGrids = [marks.get('q01')!.grid, marks.get('q02')!.grid, marks.get('qEnd')!.grid, payload.grid]
   const postRuler = positionRuler(postGrids)
   const region = regionOf([marks.get('q01')!.grid, marks.get('q02')!.grid, marks.get('qEnd')!.grid])
@@ -215,13 +215,13 @@ function runCell(cell: Cell): void {
   check(`${cell.tag}: the post-resize transcript region is a real pane (≥ 6 rows)`, region >= 6, `region ${region}; the transcript pane read from the q01, q02 and qEnd grids is too short, so check the resize target rows in STANDING and FULL_EXTRA and regionOf in scripts/scroll/paneRuler.ts`)
   check(`${cell.tag}: post-reflow press 1 is a page (region − 4 ≤ step ≤ region + 1)`,
     step1 !== null && step1 >= bounds.floor && step1 <= bounds.ceiling,
-    `settled ${step1 ?? '—'} vs bounds [${bounds.floor}, ${bounds.ceiling}]; the first PageUp after the resize did not move one page, so check the page step of the virtual scroll in src/hooks/useVirtualScroll.ts at the new width`)
+    `settled ${step1 ?? '—'} vs bounds [${bounds.floor}, ${bounds.ceiling}]; the first PageUp after the resize did not move one page, so check the page step of the virtual scroll in src/screen/virtual-message-list/useVirtualScroll.ts at the new width`)
   check(`${cell.tag}: post-reflow press 2 is a page (region − 4 ≤ step ≤ region + 1)`,
     step2 !== null && step2 >= bounds.floor && step2 <= bounds.ceiling,
-    `settled ${step2 ?? '—'} vs bounds [${bounds.floor}, ${bounds.ceiling}]; the second PageUp after the resize did not move one page, so check the page step of the virtual scroll in src/hooks/useVirtualScroll.ts at the new width`)
+    `settled ${step2 ?? '—'} vs bounds [${bounds.floor}, ${bounds.ceiling}]; the second PageUp after the resize did not move one page, so check the page step of the virtual scroll in src/screen/virtual-message-list/useVirtualScroll.ts at the new width`)
   check(`${cell.tag}: the two post-reflow presses are row-exact (equal within one row)`,
     step1 !== null && step2 !== null && Math.abs(step1 - step2) <= 1,
-    `presses ${step1 ?? '—'} and ${step2 ?? '—'}; two PageUp presses after the resize moved by different amounts, so the page step in src/hooks/useVirtualScroll.ts must be the same for both`)
+    `presses ${step1 ?? '—'} and ${step2 ?? '—'}; two PageUp presses after the resize moved by different amounts, so the page step in src/screen/virtual-message-list/useVirtualScroll.ts must be the same for both`)
   console.log(`  reflow: pre=${preTop?.turn}:${preTop?.sig} post=${postTop?.turn}:${postTop?.sig} presses=[${step1 ?? '—'},${step2 ?? '—'}] region=${region} endReason=${payload.endReason}`)
 }
 

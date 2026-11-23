@@ -9,7 +9,7 @@ const t = checker()
 
 t.section('§1 — the focus graph nodes')
 {
-  const { ACTION_GRAPH } = await import('../../src/keybindings/actionGraph.ts')
+  const { ACTION_GRAPH } = await import('../../src/screen/keys/actionGraph.ts')
   const keys = Object.keys(ACTION_GRAPH)
   for (const id of [
     'prompts:expand',

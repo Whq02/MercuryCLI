@@ -9,10 +9,10 @@ const {
   DEFAULT_TAIL_TOKEN_BUDGET,
   MIN_HEAD_ROUNDS,
   MAX_FLOOR_ROUND_TOKENS,
-} = await import('../../src/services/compact/verbatimTail.js')
-const { roughTokenCountEstimationForMessages } = await import('../../src/services/tokenEstimation.js')
+} = await import('../../src/engine/compaction/verbatimTail.js')
+const { roughTokenCountEstimationForMessages } = await import('../../src/models/facts/tokenEstimation.js')
 
-const TAIL_HINT = 'change computeVerbatimRecentTail, isMercuryCompactKeepTailEnabled or the DEFAULT_KEEP_ROUNDS, MIN_HEAD_ROUNDS and token-budget constants in src/services/compact/verbatimTail.ts so the kept tail matches this label'
+const TAIL_HINT = 'change computeVerbatimRecentTail, isMercuryCompactKeepTailEnabled or the DEFAULT_KEEP_ROUNDS, MIN_HEAD_ROUNDS and token-budget constants in src/engine/compaction/verbatimTail.ts so the kept tail matches this label'
 
 let fail = 0
 function check(label: string, cond: boolean, detail = ''): void {

@@ -13,7 +13,7 @@ delete process.env.MERCURY_WARM_RUNNER_IDLE_RETIRE_MINUTES
 delete process.env.MERCURY_WARM_RUNNER
 delete process.env.MERCURY_DAEMON_NO_SELF_WARM
 
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 function pinSeatCeiling(recommendedSeats: number): void {
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats } }))
@@ -29,22 +29,22 @@ const {
   buildConcourseWorkerSpec,
   canonicalWorkspaceId,
   runnerRestartReasonOf,
-} = await import('../../src/daemon/concourseWorkers.ts')
-const warm = await import('../../src/daemon/warmRunner.ts')
+} = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const warm = await import('../../src/daemon/runner-link/warmRunner.ts')
 const { LEAVE_PENDING, standInRunner } = await import('../lib/seatDoor.ts')
-const { RpcError, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+const { RpcError, RPC_REFUSED } = await import('../../src/daemon/runner-wire/errors.ts')
 type StandInRunner = ReturnType<typeof standInRunner>
-type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
-const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.ts')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
+type RunnerDoor = import('../../src/daemon/runner-link/runnerConnection.ts').RunnerDoor
+const { STARTUP_MENU } = await import('../../src/platform/substrate/startupMenu.ts')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
 
 let failures = 0
 function failureHint(label: string): string {
-  if (label.startsWith('WR')) return 'change: the restart reason carried by the warm claim (claimWarmRunner, src/daemon/warmRunner.ts) and runnerRestartReasonOf (src/daemon/concourseWorkers/revive.ts); the knob row is in the flag registry (FLAG_REGISTRY)'
-  if (label.startsWith('W13')) return 'change: the runner-side claim gate in src/cli/headless/claimSession.ts, or the knob row in the flag registry (FLAG_REGISTRY)'
+  if (label.startsWith('WR')) return 'change: the restart reason carried by the warm claim (claimWarmRunner, src/daemon/runner-link/warmRunner.ts) and runnerRestartReasonOf (src/daemon/concourse-workers/revive.ts); the knob row is in the flag registry (FLAG_REGISTRY)'
+  if (label.startsWith('W13')) return 'change: the runner-side claim gate in src/daemon/runner/claimSession.ts, or the knob row in the flag registry (FLAG_REGISTRY)'
   if (label.startsWith('W14') && label.includes('tail')) return 'change: the settle-text projection of the session tail (readSessionTail, the module this proof imports)'
-  if (label.startsWith('W-off') || label.startsWith('W-bound') || /^W(15|14|10|10b|12|16|7|6|8)\b/.test(label)) return 'change: ensureWarmRunner or claimWarmRunner in src/daemon/warmRunner.ts'
-  return 'change: ensureWarmRunner or claimWarmRunner in src/daemon/warmRunner.ts, or the admit road in src/daemon/concourseWorkers/admit.ts'
+  if (label.startsWith('W-off') || label.startsWith('W-bound') || /^W(15|14|10|10b|12|16|7|6|8)\b/.test(label)) return 'change: ensureWarmRunner or claimWarmRunner in src/daemon/runner-link/warmRunner.ts'
+  return 'change: ensureWarmRunner or claimWarmRunner in src/daemon/runner-link/warmRunner.ts, or the admit road in src/daemon/concourse-workers/admit.ts'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -263,7 +263,7 @@ console.log('\n── W16: a booting runner keeps its claim; a dying one release
   const now = Date.now()
   check('W16 a runner spawned this second is given the boot allowance', warm.claimAnswerDeadlineMs(now, now) === warm.WARM_BOOT_ALLOWANCE_MS)
   check('W16 a runner older than the allowance keeps the plain answer deadline', warm.claimAnswerDeadlineMs(now - warm.WARM_BOOT_ALLOWANCE_MS - 1, now) === 10_000)
-  const { deriveSessionKitForWorkspace } = await import('../../src/daemon/sessionKit.ts')
+  const { deriveSessionKitForWorkspace } = await import('../../src/daemon/session-seat/sessionKit.ts')
   const { realpathSync } = await import('node:fs')
   const wsH = realpathSync(mkdtempSync(join(tmpdir(), 'warm-ws-h-')))
   roster.answer = 'never'
@@ -342,9 +342,9 @@ console.log('\n── W-bound: the seat reading ──')
 
 console.log('\n── W14: the settle reply on the tail ──')
 {
-  const { onSeatRow } = await import('../../src/daemon/sessionSeat.ts')
-  const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
-  const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+  const { onSeatRow } = await import('../../src/daemon/session-seat/sessionSeat.ts')
+  const { readSessionTail } = await import('../../src/engine/connector/seatProjections.ts')
+  const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const tailDir = mkdtempSync(join(tmpdir(), 'warm-tail-'))
   const sid = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
   updateConcourseWorkers(workers => {
@@ -392,7 +392,7 @@ console.log('\n── W13: source pins ──')
     again: await refusalOf(runner.request('session/claim', { session_id: PINNED })),
   }), { env: { MERCURY_CONCOURSE_WORKER: '1' } })
   check('W13 the claim validates everything BEFORE mutating (mode transition + effort ladder)', claim.mode?.message.startsWith('claim refused —') === true && claim.effort?.message.startsWith('claim refused —') === true && claim.taken === null && claim.again?.data?.kind === 'claim')
-  const { EFFORT_LEVELS } = await import('../../src/utils/effortLadder.ts')
+  const { EFFORT_LEVELS } = await import('../../src/models/effort/effortLadder.ts')
   const effortVerb = await withLiveRunner(async runner => {
     const taken: unknown[] = []
     for (const effort of EFFORT_LEVELS) taken.push(await runner.request('session/set_effort', { effort }).catch(() => null))
@@ -489,7 +489,7 @@ console.log('\n── W15: the newest kit trails the running warm-up ──')
 
 console.log('\n── WR: the restart reason travels to the resumed runner (item 3) ──')
 {
-  const { deriveSessionKitForWorkspace } = await import('../../src/daemon/sessionKit.ts')
+  const { deriveSessionKitForWorkspace } = await import('../../src/daemon/session-seat/sessionKit.ts')
 
   check('WR runnerRestartReasonOf reads the record: a crash fact ⇒ "crash", none ⇒ "relaunch"', typeof runnerRestartReasonOf === 'function' && runnerRestartReasonOf({ crash: { at: 1, reason: 'x', respawning: false } } as never) === 'crash' && runnerRestartReasonOf({} as never) === 'relaunch')
 

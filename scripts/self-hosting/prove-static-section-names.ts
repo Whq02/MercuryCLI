@@ -11,13 +11,13 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const namesHint = ' | change STATIC_SECTION_NAMES in src/prompt/behaviourContract.ts, or where getSystemPrompt in src/constants/prompts.ts names its static sections'
+const namesHint = ' | change STATIC_SECTION_NAMES in src/engine/system-prompt/behaviourContract.ts, or where getSystemPrompt in src/engine/system-prompt/defaultSystemPrompt.ts names its static sections'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { STATIC_SECTION_NAMES } = await import('../../src/prompt/behaviourContract.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { STATIC_SECTION_NAMES } = await import('../../src/engine/system-prompt/behaviourContract.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
 console.log('the static head sections carry their own names')
@@ -29,8 +29,8 @@ section('§1 one name per static section')
 
 section('§2 a real composition names every static section from the table')
 {
-  const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
-  const provenance = await import('../../src/utils/cockpit/promptProvenance.ts')
+  const { getSystemPrompt } = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+  const provenance = await import('../../src/screen/cockpit/promptProvenance.ts')
   await getSystemPrompt([], 'claude-fable-5-1')
   const recorded = provenance.readPromptProvenance()
   const statics = (recorded?.sections ?? []).filter(s => s.group === 'static').map(s => s.name)

@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands/exit/exit.tsx src/components/ExitHandoff.tsx src/mneme/exitHandoff.ts src/mneme/handoffAsk.ts src/mneme/journal.ts
-// gate-watch: src/mneme/lineageSession.ts src/mneme/ledger.ts src/mneme/sessionClose.ts src/utils/gracefulShutdown.ts src/cli/run.ts
-// gate-watch: src/daemon/main.ts src/daemon/sessionSeat.ts src/daemon/protocol.ts src/runner/wire/methods.ts
-// gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/noSessionConnector.ts src/services/engine-connector/types.ts
-// gate-watch: src/services/switchboard/quitParksAll.ts src/utils/processGroup.ts
+// gate-watch: src/commands/exit/exit.tsx src/commands/exit/ExitHandoff.tsx src/sessions/mneme/exitHandoff.ts src/sessions/mneme/handoffAsk.ts src/sessions/mneme/journal.ts
+// gate-watch: src/sessions/mneme/lineageSession.ts src/sessions/mneme/ledger.ts src/sessions/mneme/sessionClose.ts src/platform/processes/gracefulShutdown.ts src/daemon/runner/runHeadless.ts
+// gate-watch: src/daemon/control/main.ts src/daemon/session-seat/sessionSeat.ts src/daemon/control/protocol.ts src/daemon/runner-wire/methods.ts
+// gate-watch: src/engine/connector/daemonConnector.ts src/engine/connector/noSessionConnector.ts src/engine/connector/types.ts
+// gate-watch: src/daemon/switchboard/quitParksAll.ts src/platform/processes/processGroup.ts
 // gate-watch: scripts/streaming/artifactArena.ts scripts/lib/fixtureApi.ts
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -29,9 +29,9 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const HINT_EXIT = 'what to change: the /exit note path, leaveNoteBeforeExit in src/mneme/exitHandoff.ts and askForHandoff in src/mneme/handoffAsk.ts'
-const HINT_NOTICE = 'what to change: HANDOFF_EXIT_NOTICE and its painting while the note is written, src/mneme/exitHandoff.ts'
-const HINT_JOURNAL = 'what to change: the journal line of the close ask, src/mneme/handoffAsk.ts (askForHandoff) and the memory.journal setting'
+const HINT_EXIT = 'what to change: the /exit note path, leaveNoteBeforeExit in src/sessions/mneme/exitHandoff.ts and askForHandoff in src/sessions/mneme/handoffAsk.ts'
+const HINT_NOTICE = 'what to change: HANDOFF_EXIT_NOTICE and its painting while the note is written, src/sessions/mneme/exitHandoff.ts'
+const HINT_JOURNAL = 'what to change: the journal line of the close ask, src/sessions/mneme/handoffAsk.ts (askForHandoff) and the memory.journal setting'
 
 type LedgerRow = { sessionId: string; endedAt: string | null; outcome: string | null; handoff: { text: string; at: string } | null }
 

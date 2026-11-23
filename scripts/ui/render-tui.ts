@@ -8,7 +8,7 @@ import { gridToPng } from './gridToPng.ts'
 import { resolveCaptureDriver, vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { describeCapturePreflight, preflightCaptureDriver } from '../lib/capturePreflight.ts'
 import { SETTLE_LAW, cockpitReadyText, settleCaptureConfig, settleNeedles, settleWallMs } from './visualBaseline.ts'
-import { HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
+import { HELM_HOME_MIN_COLS } from '../../src/screen/fullscreen-layout/helmGeometry.ts'
 
 const driver = resolveCaptureDriver()
 const PYTE_PATH = (() => {

@@ -1,6 +1,6 @@
-import type { Command } from '../../commands.js'
-import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
-import { permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
+import type { Command } from '../catalogue/commands.js'
+import { getFocusedSessionConnector, hasFocusedSession } from '../../engine/connector/focusedConnector.js'
+import { permissionModeTitle } from '../../permissions/rules/permissionMode.js'
 
 const permissions: Command = {
   type: 'local-jsx',

@@ -17,11 +17,11 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const WARD_FIX = ' · to fix: the wards guard in src/guards/wardsGuard.ts (registerWardsGuard) and its judgement in runToolUse, src/services/tools/toolExecution.ts'
-const KEYS_FIX = ' · to fix: guardKeysOf and judgeToolCall in src/guards/guards.ts, which must judge a context under the session id and its own id, and the call in src/services/tools/toolExecution.ts'
-const PROMPT_FIX = ' · to fix: the judgeToolCall call in executeShellCommandsInPrompt, src/services/tools/promptShellExecution.ts'
-const GATE_FIX = ' · to fix: engageCommitGate in src/guards/commitGate.ts and the judgement in src/services/tools/toolExecution.ts'
-const ARGV_FIX = ' · to fix: the wards guard in src/guards/wardsGuard.ts, which must read the command and args of ServiceTool and JourneyTool as one command line'
+const WARD_FIX = ' · to fix: the wards guard in src/permissions/guards/wardsGuard.ts (registerWardsGuard) and its judgement in runToolUse, src/engine/tool-dispatch/toolExecution.ts'
+const KEYS_FIX = ' · to fix: guardKeysOf and judgeToolCall in src/permissions/guards/guards.ts, which must judge a context under the session id and its own id, and the call in src/engine/tool-dispatch/toolExecution.ts'
+const PROMPT_FIX = ' · to fix: the judgeToolCall call in executeShellCommandsInPrompt, src/engine/tool-dispatch/promptShellExecution.ts'
+const GATE_FIX = ' · to fix: engageCommitGate in src/permissions/guards/commitGate.ts and the judgement in src/engine/tool-dispatch/toolExecution.ts'
+const ARGV_FIX = ' · to fix: the wards guard in src/permissions/guards/wardsGuard.ts, which must read the command and args of ServiceTool and JourneyTool as one command line'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const SRC = join(ROOT, 'src')
@@ -35,17 +35,17 @@ process.env.USERPROFILE = FAKE_HOME
 for (const key of ['MERCURY_SPAWNED_BY', 'MERCURY_WARDS', 'MERCURY_COMMIT_GATE', 'MERCURY_SKIP_PERMISSIONS']) delete process.env[key]
 
 const { z } = (await import(Bun.resolveSync('zod/v4', ROOT))) as typeof import('zod/v4')
-const { runToolUse } = await import(join(SRC, 'services/tools/toolExecution.ts'))
-const { getEmptyToolPermissionContext } = await import(join(SRC, 'Tool.ts'))
-const { enableConfigs } = await import(join(SRC, 'utils/config.ts'))
-const { getSessionId } = await import(join(SRC, 'bootstrap/state.ts'))
-const { registerWardsGuard, resetWardsEngagedSessionsForTest, WARDS_HOOK_ID } = await import(join(SRC, 'guards/wardsGuard.ts'))
-const { disengageToolGuard, engageToolGuard, guardsEngaged, resetGuardsForTesting } = await import(join(SRC, 'guards/guards.ts'))
-const { COMMIT_GATE_ID, engageCommitGate } = await import(join(SRC, 'guards/commitGate.ts'))
-const { deleteFlagEnv, setFlagEnv } = await import(join(SRC, 'substrate/flagRegistry.ts'))
-const { createSubagentContext } = await import(join(SRC, 'services/agents/forkedAgent.ts'))
-const { runWithCwdOverride } = await import(join(SRC, 'utils/cwd.ts'))
-const { createFileStateCacheWithSizeLimit } = await import(join(SRC, 'utils/fileStateCache.ts'))
+const { runToolUse } = await import(join(SRC, 'engine/tool-dispatch/toolExecution.ts'))
+const { getEmptyToolPermissionContext } = await import(join(SRC, 'tools/kit/tool.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/settings/config.ts'))
+const { getSessionId } = await import(join(SRC, 'boot/process-state/processState.ts'))
+const { registerWardsGuard, resetWardsEngagedSessionsForTest, WARDS_HOOK_ID } = await import(join(SRC, 'permissions/guards/wardsGuard.ts'))
+const { disengageToolGuard, engageToolGuard, guardsEngaged, resetGuardsForTesting } = await import(join(SRC, 'permissions/guards/guards.ts'))
+const { COMMIT_GATE_ID, engageCommitGate } = await import(join(SRC, 'permissions/guards/commitGate.ts'))
+const { deleteFlagEnv, setFlagEnv } = await import(join(SRC, 'platform/substrate/flagRegistry.ts'))
+const { createSubagentContext } = await import(join(SRC, 'crew/agents/forkedAgent.ts'))
+const { runWithCwdOverride } = await import(join(SRC, 'platform/files/cwd.ts'))
+const { createFileStateCacheWithSizeLimit } = await import(join(SRC, 'platform/files/fileStateCache.ts'))
 enableConfigs()
 
 let ran: string[] = []
@@ -117,7 +117,7 @@ resetGuardsForTesting()
 resetWardsEngagedSessionsForTest()
 const sessionId = String(getSessionId())
 const armed = await runWithCwdOverride(PROJECT, () => registerWardsGuard((() => {}) as never, sessionId))
-check('the wards are engaged under the session id', armed === WARDS_HOOK_ID && guardsEngaged(sessionId).tool.includes(WARDS_HOOK_ID), JSON.stringify(guardsEngaged(sessionId)) + ' · to fix: registerWardsGuard in src/guards/wardsGuard.ts must engage WARDS_HOOK_ID under the session id it is given')
+check('the wards are engaged under the session id', armed === WARDS_HOOK_ID && guardsEngaged(sessionId).tool.includes(WARDS_HOOK_ID), JSON.stringify(guardsEngaged(sessionId)) + ' · to fix: registerWardsGuard in src/permissions/guards/wardsGuard.ts must engage WARDS_HOOK_ID under the session id it is given')
 
 section('§2 control — the session\'s own call of each named command is refused before the tool runs (Sovereign mode, the permission answer is allow)')
 for (const [label, command] of REFUSED) {
@@ -126,14 +126,14 @@ for (const [label, command] of REFUSED) {
 }
 {
   const plain = await run(sessionContext, 'echo ok')
-  check('the session\'s own plain command reaches the tool', plain.reached && !plain.warded, plain.text.slice(0, 160) + ' · to fix: a ward rule in src/guards/wardsGuard.ts refuses a harmless command, or the call fails in src/services/tools/toolExecution.ts before the tool')
+  check('the session\'s own plain command reaches the tool', plain.reached && !plain.warded, plain.text.slice(0, 160) + ' · to fix: a ward rule in src/permissions/guards/wardsGuard.ts refuses a harmless command, or the call fails in src/engine/tool-dispatch/toolExecution.ts before the tool')
 }
 
 section('§3 a crewmate of that session is refused the same calls')
 const crewmate = createSubagentContext(sessionContext as never, {})
 const crewmateId = String(crewmate.agentId)
-check('the crewmate\'s context carries an id of its own', typeof crewmate.agentId === 'string' && crewmateId !== sessionId, crewmateId + ' · to fix: createSubagentContext in src/services/agents/forkedAgent.ts must give the context its own agentId')
-check('no guard is engaged under the crewmate\'s own id: what refuses it is the session\'s', guardsEngaged(crewmateId).tool.length === 0, JSON.stringify(guardsEngaged(crewmateId)) + ' · to fix: the session guards must stay engaged under the session id only; see src/guards/wardsGuard.ts and src/guards/guards.ts')
+check('the crewmate\'s context carries an id of its own', typeof crewmate.agentId === 'string' && crewmateId !== sessionId, crewmateId + ' · to fix: createSubagentContext in src/crew/agents/forkedAgent.ts must give the context its own agentId')
+check('no guard is engaged under the crewmate\'s own id: what refuses it is the session\'s', guardsEngaged(crewmateId).tool.length === 0, JSON.stringify(guardsEngaged(crewmateId)) + ' · to fix: the session guards must stay engaged under the session id only; see src/permissions/guards/wardsGuard.ts and src/permissions/guards/guards.ts')
 for (const [label, command] of REFUSED) {
   const theirs = await run(crewmate, command)
   check(`a crewmate's call · ${label} · refused by a ward, the tool never reached`, theirs.warded && !theirs.reached, `reached the tool: ${JSON.stringify(ran)} · ${theirs.text.slice(0, 200)}` + KEYS_FIX)
@@ -146,7 +146,7 @@ for (const [label, command] of REFUSED) {
 section('§4 a crewmate of a crewmate, and a forked context, are refused the same way')
 {
   const nested = createSubagentContext(crewmate as never, {})
-  check('the nested crewmate carries a third id', String(nested.agentId) !== crewmateId && String(nested.agentId) !== sessionId, String(nested.agentId) + ' · to fix: createSubagentContext in src/services/agents/forkedAgent.ts must give each nested context its own agentId')
+  check('the nested crewmate carries a third id', String(nested.agentId) !== crewmateId && String(nested.agentId) !== sessionId, String(nested.agentId) + ' · to fix: createSubagentContext in src/crew/agents/forkedAgent.ts must give each nested context its own agentId')
   const deep = await run(nested, 'sudo true')
   check('a crewmate\'s crewmate · sudo · refused by a ward, the tool never reached', deep.warded && !deep.reached, `reached the tool: ${JSON.stringify(ran)} · ${deep.text.slice(0, 160)}` + KEYS_FIX)
   const forked = { ...createSubagentContext(sessionContext as never, { shareAbortController: true }), rosterOwner: undefined }
@@ -175,7 +175,7 @@ section('§6 a guard engaged under a crewmate\'s own id judges that crewmate alo
   engageToolGuard(crewmateId, { id: 'ride-own', judge: () => (order.push('own'), { allow: false, reason: 'refused by the crewmate\'s own guard' }) })
   const theirs = await run(crewmate, 'echo ok')
   check('the crewmate\'s plain command is refused by its own guard, the tool never reached', /refused by the crewmate's own guard/.test(theirs.text) && !theirs.reached, theirs.text.slice(0, 160) + KEYS_FIX)
-  check('the session\'s guards judged first, the crewmate\'s own after', order.join(',') === 'session,own', order.join(',') + ' · to fix: judgeToolCall in src/guards/guards.ts must judge the session guards first and then the context own guards')
+  check('the session\'s guards judged first, the crewmate\'s own after', order.join(',') === 'session,own', order.join(',') + ' · to fix: judgeToolCall in src/permissions/guards/guards.ts must judge the session guards first and then the context own guards')
   order.length = 0
   const own = await run(sessionContext, 'echo ok')
   check('the session\'s own plain command is not judged by the crewmate\'s guard and reaches the tool', own.reached && order.join(',') === 'session', `${order.join(',')} · ${own.text.slice(0, 120)}` + KEYS_FIX)
@@ -193,7 +193,7 @@ section('§7 a context whose id is the session\'s is judged once')
   engageToolGuard(sessionId, { id: 'ride-count', judge: () => (judged++, { allow: true }) })
   const same = { ...sessionContext, agentId: sessionId }
   const once = await run(same, 'echo ok')
-  check('one judgement for one call', judged === 1 && once.reached, String(judged) + ' · to fix: guardKeysOf in src/guards/guards.ts must not list the session id twice when the context id equals it')
+  check('one judgement for one call', judged === 1 && once.reached, String(judged) + ' · to fix: guardKeysOf in src/permissions/guards/guards.ts must not list the session id twice when the context id equals it')
   disengageToolGuard(sessionId, 'ride-count')
 }
 
@@ -214,7 +214,7 @@ section('§8 no count of refusals stands a rule down: thirty refused calls of a 
 
 section('§9 a command embedded in the text of a skill or a custom command is judged before it is asked about')
 {
-  const { executeShellCommandsInPrompt } = await import(join(SRC, 'services/tools/promptShellExecution.ts'))
+  const { executeShellCommandsInPrompt } = await import(join(SRC, 'engine/tool-dispatch/promptShellExecution.ts'))
   const askingState = { ...appState, toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default', shouldAvoidPermissionPrompts: true } }
   const asking = { ...sessionContext, getAppState: () => askingState }
   const theirs = createSubagentContext(asking as never, {})
@@ -237,7 +237,7 @@ section('§9 a command embedded in the text of a skill or a custom command is ju
 
 section('§9b under MERCURY_WARDS=warn an embedded command carries the warning row a Bash call carries')
 {
-  const { executeShellCommandsInPrompt } = await import(join(SRC, 'services/tools/promptShellExecution.ts'))
+  const { executeShellCommandsInPrompt } = await import(join(SRC, 'engine/tool-dispatch/promptShellExecution.ts'))
   const rows: Array<{ content?: unknown; level?: unknown }> = []
   const denyingState = { ...appState, toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default', shouldAvoidPermissionPrompts: true, alwaysDenyRules: { localSettings: ['Bash'] } } }
   const screened = { ...sessionContext, getAppState: () => denyingState, appendSystemMessage: (row: { content?: unknown; level?: unknown }) => void rows.push(row) }
@@ -252,22 +252,22 @@ section('§9b under MERCURY_WARDS=warn an embedded command carries the warning r
   }
   setFlagEnv('MERCURY_WARDS', 'warn')
   const words = await tried(screened)
-  check('under warn the command goes on to the permission question, where a deny rule stands in the tool’s place: nothing ran', /Permission check failed/.test(words) && !/Ward '[a-z-]+' blocked/.test(words), words.slice(0, 200) + PROMPT_FIX + ' and the warn level in src/guards/wardsGuard.ts')
-  check('one warning row is handed to the screen', rows.length === 1, String(rows.length) + ' · to fix: the warn branch in src/guards/wardsGuard.ts (appendSystemMessage), and the judgeToolCall call in executeShellCommandsInPrompt, src/services/tools/promptShellExecution.ts')
-  check('it says what a Bash call says under warn', /^Ward 'git-hooks-path' would have blocked this Bash call .* MERCURY_WARDS=warn let it run\.$/.test(String(rows[0]?.content ?? '')), String(rows[0]?.content ?? '').slice(0, 220) + ' · to fix: the warning text in src/guards/wardsGuard.ts')
-  check('at the warning level', rows[0]?.level === 'warning', String(rows[0]?.level) + ' · to fix: the level of the warning row in src/guards/wardsGuard.ts')
+  check('under warn the command goes on to the permission question, where a deny rule stands in the tool’s place: nothing ran', /Permission check failed/.test(words) && !/Ward '[a-z-]+' blocked/.test(words), words.slice(0, 200) + PROMPT_FIX + ' and the warn level in src/permissions/guards/wardsGuard.ts')
+  check('one warning row is handed to the screen', rows.length === 1, String(rows.length) + ' · to fix: the warn branch in src/permissions/guards/wardsGuard.ts (appendSystemMessage), and the judgeToolCall call in executeShellCommandsInPrompt, src/engine/tool-dispatch/promptShellExecution.ts')
+  check('it says what a Bash call says under warn', /^Ward 'git-hooks-path' would have blocked this Bash call .* MERCURY_WARDS=warn let it run\.$/.test(String(rows[0]?.content ?? '')), String(rows[0]?.content ?? '').slice(0, 220) + ' · to fix: the warning text in src/permissions/guards/wardsGuard.ts')
+  check('at the warning level', rows[0]?.level === 'warning', String(rows[0]?.level) + ' · to fix: the level of the warning row in src/permissions/guards/wardsGuard.ts')
   const bare = await tried({ ...sessionContext, getAppState: () => denyingState })
   check('a context with no screen takes no row and the command is judged the same', /Permission check failed/.test(bare) && rows.length === 1, bare.slice(0, 200) + PROMPT_FIX)
   deleteFlagEnv('MERCURY_WARDS')
   const enforced = await tried(screened)
-  check('with the list enforcing, the same command is refused and no row is added', /Ward 'git-hooks-path' blocked this Bash call/.test(enforced) && rows.length === 1, enforced.slice(0, 200) + PROMPT_FIX + ' and wardsLevel in src/guards/wardsGuard.ts')
+  check('with the list enforcing, the same command is refused and no row is added', /Ward 'git-hooks-path' blocked this Bash call/.test(enforced) && rows.length === 1, enforced.slice(0, 200) + PROMPT_FIX + ' and wardsLevel in src/permissions/guards/wardsGuard.ts')
 }
 
 section('§10 a tool that starts a program by its argv is read as that command: Service and Journey')
 {
-  const { judgeToolCall } = await import(join(SRC, 'guards/guards.ts'))
-  const { ServiceTool } = await import(join(SRC, 'tools/ServiceTool/ServiceTool.ts'))
-  const { JourneyTool } = await import(join(SRC, 'tools/JourneyTool/JourneyTool.ts'))
+  const { judgeToolCall } = await import(join(SRC, 'permissions/guards/guards.ts'))
+  const { ServiceTool } = await import(join(SRC, 'tools/service/ServiceTool.ts'))
+  const { JourneyTool } = await import(join(SRC, 'tools/journey/JourneyTool.ts'))
   const judged = async (toolRef: { name: string }, input: Record<string, unknown>): Promise<string> => {
     const judgement = await judgeToolCall(sessionId, { tool: toolRef.name, input, callId: `ride-argv-${++calls}`, messages: [], toolRef: toolRef as never })
     return judgement.refused ? judgement.reason : ''
@@ -287,9 +287,9 @@ section('§10 a tool that starts a program by its argv is read as that command: 
   const started = await judged(JourneyTool, { op: 'run', name: 'probe', steps: [{ kind: 'service.start', name: 'web', command: 'sudo', args: ['true'] }] })
   check('Journey run with a service.start step · sudo · refused by a ward', /Ward '[a-z-]+' blocked this Journey call/.test(started), (started.slice(0, 160) || 'allowed') + ARGV_FIX)
   const plain = await judged(ServiceTool, { op: 'start', name: 'web', command: 'bun', args: ['run', 'dev'] })
-  check('a plain Service start is not refused', plain === '', plain.slice(0, 160) + ' · to fix: a ward rule in src/guards/wardsGuard.ts refuses a harmless Service start')
+  check('a plain Service start is not refused', plain === '', plain.slice(0, 160) + ' · to fix: a ward rule in src/permissions/guards/wardsGuard.ts refuses a harmless Service start')
   const quoted = await judged(ServiceTool, { op: 'start', name: 'probe', command: 'echo', args: ['rm -rf / and sudo are only words here'] })
-  check('…nor one whose argument only mentions such words', quoted === '', quoted.slice(0, 160) + ' · to fix: a ward rule in src/guards/wardsGuard.ts matches words in an argument instead of the command')
+  check('…nor one whose argument only mentions such words', quoted === '', quoted.slice(0, 160) + ' · to fix: a ward rule in src/permissions/guards/wardsGuard.ts matches words in an argument instead of the command')
 }
 
 console.log('\n' + '='.repeat(60))

@@ -3,12 +3,12 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { ownerOf, resultOf, toolContext } from './computerToolKit.ts'
-import type { DesktopApplication, DesktopTree, DesktopTreeElement } from '../../src/services/desktop/driver.ts'
+import type { DesktopApplication, DesktopTree, DesktopTreeElement } from '../../src/integrations/desktop/driver.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { waitConditionPassed } = await import('../../src/tools/ComputerTool/waitCondition.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const session = await import('../../src/services/desktop/desktopSession.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { waitConditionPassed } = await import('../../src/tools/computer/waitCondition.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const session = await import('../../src/integrations/desktop/desktopSession.ts')
 
 const scratch = scratchDir('gone-windows')
 const TEXT = 'Saving…'
@@ -144,8 +144,8 @@ for (const [index, window] of windows.entries()) {
 
 section('through the native adapter over a stand-in for the pack: a web area that arrives with no row under it is a page still starting')
 {
-  const { DESKTOP_ADDON_EXPORTS } = await import('../../src/services/desktop/pack.ts')
-  const { resolveNativeDesktopDriver, resetNativeDesktopDriverForTest } = await import('../../src/services/desktop/nativeDriver.ts')
+  const { DESKTOP_ADDON_EXPORTS } = await import('../../src/integrations/desktop/pack.ts')
+  const { resolveNativeDesktopDriver, resetNativeDesktopDriverForTest } = await import('../../src/integrations/desktop/nativeDriver.ts')
   const pack = join(scratch, 'pack')
   const clock = join(pack, 'started')
   mkdirSync(pack, { recursive: true })

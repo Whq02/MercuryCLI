@@ -11,9 +11,9 @@ const server = createServer(socket => socket.end())
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
 const port = (server.address() as { port: number }).port
 const calls: string[][] = []
-const exec = await import('../../src/utils/execFileNoThrow.js')
+const exec = await import('../../src/platform/processes/execFileNoThrow.js')
 const originalExec = exec.execFileNoThrowWithCwd
-mock.module('../../src/utils/execFileNoThrow.js', () => ({
+mock.module('../../src/platform/processes/execFileNoThrow.js', () => ({
   ...exec,
   execFileNoThrowWithCwd: async (command: string, args: string[], options: any) => {
     if (command !== 'lsof') return originalExec(command, args, options)
@@ -21,18 +21,18 @@ mock.module('../../src/utils/execFileNoThrow.js', () => ({
     return { code: 0, stderr: '', stdout: `p${process.pid}\ncfixture-node\nn127.0.0.1:${port}\n` }
   },
 }))
-const { startService, awaitOutput, waitForReady, stopService } = await import('../../src/services/projectServices/serviceManager.js')
+const { startService, awaitOutput, waitForReady, stopService } = await import('../../src/tools/engines/project-services/serviceManager.js')
 try {
   const result = await startService({ sessionId: 'port-owner-proof', spec: {
     name: 'collision', command: process.execPath, args: ['-e', 'process.stderr.write("EADDRINUSE\\n"); process.exit(1)'], cwd: scratch,
     readiness: [{ kind: 'tcp', port }], readinessMode: 'all', restart: 'never', lifecycle: 'session',
   } })
-  assert.ok('record' in result, `src/services/projectServices/serviceManager.ts startService(collision) expected record, got ${JSON.stringify(result).slice(0, 140)}`)
+  assert.ok('record' in result, `src/tools/engines/project-services/serviceManager.ts startService(collision) expected record, got ${JSON.stringify(result).slice(0, 140)}`)
   await awaitOutput(scratch, 'collision', 0, 5000)
   const final = await waitForReady(scratch, 'collision', 5000)
   assert.equal(final.ready, false)
   assert.ok(final.statuses.some(status => status.detail.includes(`PID ${process.pid} (fixture-node)`) && !status.met), JSON.stringify(final.statuses))
-  assert.ok(calls.some(args => args[0] === 'lsof' && args.includes(`-iTCP:${port}`) && args.includes('-sTCP:LISTEN')), `src/services/projectServices/serviceManager.ts did not probe lsof -iTCP:${port} -sTCP:LISTEN: calls=${JSON.stringify(calls).slice(0, 140)}`)
+  assert.ok(calls.some(args => args[0] === 'lsof' && args.includes(`-iTCP:${port}`) && args.includes('-sTCP:LISTEN')), `src/tools/engines/project-services/serviceManager.ts did not probe lsof -iTCP:${port} -sTCP:LISTEN: calls=${JSON.stringify(calls).slice(0, 140)}`)
   console.log('service port holder: PASS')
 } finally {
   await stopService(scratch, 'collision')

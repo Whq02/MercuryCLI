@@ -39,24 +39,24 @@ delete process.env.MERCURY_DISABLE_NONSTREAMING_FALLBACK
 for (const name of ['GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MERCURY_GEMINI_OAUTH_CLIENT_ID', 'MERCURY_GEMINI_OAUTH_CLIENT_SECRET', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_MODEL', 'MERCURY_COMPAT_API_KEY']) delete process.env[name]
 const access = 'ya29.fixture-esc-access'
 writeFileSync(join(home, '.gemini-auth.json'), JSON.stringify({ version: 1, preferredSource: 'oauth', client: { clientId: 'fixture-client' }, tokens: { accessToken: access, refreshToken: 'fixture-refresh', accessTokenExpiresAtMs: Date.now() + 3600000 } }))
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { geminiCallModel } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.ts')
-const { zaiCallModel } = await import('../../src/services/providers/zai/zaiCallModel.ts')
-const { deepseekLaneProfile } = await import('../../src/services/providers/deepseek/deepseekCallModel.ts')
-const { openrouterLaneProfile } = await import('../../src/services/providers/openrouter/openrouterCallModel.ts')
-const { xaiLaneProfile } = await import('../../src/services/providers/xai/xaiCallModel.ts')
-const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
-const { compatCallModel } = await import('../../src/services/providers/openaicompat/compatCallModel.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { geminiCallModel } = await import('../../src/models/roads/gemini/geminiCallModel.ts')
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { openaiCallModel } = await import('../../src/models/roads/openai/openaiCallModel.ts')
+const { zaiCallModel } = await import('../../src/models/roads/zai/zaiCallModel.ts')
+const { deepseekLaneProfile } = await import('../../src/models/roads/deepseek/deepseekCallModel.ts')
+const { openrouterLaneProfile } = await import('../../src/models/roads/openrouter/openrouterCallModel.ts')
+const { xaiLaneProfile } = await import('../../src/models/roads/xai/xaiCallModel.ts')
+const { localLaneProfileFor } = await import('../../src/models/roads/local/localCallModel.ts')
+const { compatCallModel } = await import('../../src/models/roads/openaicompat/compatCallModel.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-import type { Message } from '../../src/types/message.ts'
-import type { CompatCallModelParams, CompatLaneProfile } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+import type { Message } from '../../src/engine/message-shapes/message.ts'
+import type { CompatCallModelParams, CompatLaneProfile } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
 
 let checks = 0
 let failures = 0
@@ -184,10 +184,10 @@ try {
     const assistant = run.items.filter(item => item.type === 'assistant' && item.isApiErrorMessage !== true)
     const texts = assistant.map(textOf)
     const red = run.items.filter(item => item.type === 'assistant' && item.isApiErrorMessage === true)
-    check(`${road.name}: the operator watched the second paragraph stream before esc landed`, run.escAt > 0, `the ${road.name} road never streamed the partial text before the cut, so esc was not sent; look at its stream reader under src/services/providers. ${run.items.length} items, no text delta carried the partial`)
-    check(`${road.name}: the words streamed before the cut are minted as assistant blocks — the settled paragraph and the one still streaming`, texts.some(text => text.includes(SETTLED)) && texts.some(text => text.includes(PARTIAL)), `the ${road.name} road must mint the words already streamed as assistant blocks when the signal aborts; see its call model under src/services/providers. ${JSON.stringify(texts)}`)
-    check(`${road.name}: the partial block is minted after esc, from the words already on the wire — nothing is re-requested`, hits === 1 && assistant.length > 0 && run.items.slice(run.escAt).some(item => item.type === 'assistant' && textOf(item).includes(PARTIAL)), `the ${road.name} road must mint the partial block once after esc from the words on the wire and not retry; see its call model under src/services/providers. ${hits} request(s) · after esc: ${JSON.stringify(run.items.slice(run.escAt).filter(item => item.type === 'assistant').map(textOf))}`)
-    check(`${road.name}: the stream ends quietly — no red line, no throw (the turn machine paints the interruption row)`, red.length === 0 && run.threw === undefined, `the ${road.name} road must end quietly on esc, with no error message and no throw; see its call model under src/services/providers. ${red.length} red · ${run.threw === undefined ? 'no throw' : String(run.threw)}`)
+    check(`${road.name}: the operator watched the second paragraph stream before esc landed`, run.escAt > 0, `the ${road.name} road never streamed the partial text before the cut, so esc was not sent; look at its stream reader under src/models/roads. ${run.items.length} items, no text delta carried the partial`)
+    check(`${road.name}: the words streamed before the cut are minted as assistant blocks — the settled paragraph and the one still streaming`, texts.some(text => text.includes(SETTLED)) && texts.some(text => text.includes(PARTIAL)), `the ${road.name} road must mint the words already streamed as assistant blocks when the signal aborts; see its call model under src/models/roads. ${JSON.stringify(texts)}`)
+    check(`${road.name}: the partial block is minted after esc, from the words already on the wire — nothing is re-requested`, hits === 1 && assistant.length > 0 && run.items.slice(run.escAt).some(item => item.type === 'assistant' && textOf(item).includes(PARTIAL)), `the ${road.name} road must mint the partial block once after esc from the words on the wire and not retry; see its call model under src/models/roads. ${hits} request(s) · after esc: ${JSON.stringify(run.items.slice(run.escAt).filter(item => item.type === 'assistant').map(textOf))}`)
+    check(`${road.name}: the stream ends quietly — no red line, no throw (the turn machine paints the interruption row)`, red.length === 0 && run.threw === undefined, `the ${road.name} road must end quietly on esc, with no error message and no throw; see its call model under src/models/roads. ${red.length} red · ${run.threw === undefined ? 'no throw' : String(run.threw)}`)
   }
 } finally {
   globalThis.fetch = realFetch

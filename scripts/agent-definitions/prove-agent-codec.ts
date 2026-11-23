@@ -2,8 +2,8 @@ import {
   decodeAgentDocument,
   patchAgentDocument,
   serializeAgentMarkdown,
-} from '../../src/services/agents/codec.js'
-import { AgentCodecPatchError, revisionDigest } from '../../src/services/agents/contracts.js'
+} from '../../src/crew/agents/codec.js'
+import { AgentCodecPatchError, revisionDigest } from '../../src/crew/agents/contracts.js'
 
 let failures = 0
 function check(name: string, cond: boolean, detail?: string): void {
@@ -11,7 +11,7 @@ function check(name: string, cond: boolean, detail?: string): void {
     console.log(`  ✓ ${name}`)
   } else {
     failures++
-    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — to fix, change decodeAgentDocument, patchAgentDocument or serializeAgentMarkdown in src/services/agents/codec.ts (revisionDigest is in src/services/agents/contracts.ts)`)
+    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — to fix, change decodeAgentDocument, patchAgentDocument or serializeAgentMarkdown in src/crew/agents/codec.ts (revisionDigest is in src/crew/agents/contracts.ts)`)
   }
 }
 

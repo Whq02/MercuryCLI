@@ -21,13 +21,13 @@ process.chdir(PROJ)
 
 let failures = 0
 const doorHints: Record<string, string> = {
-  '§1': 'to fix, look at initializeToolPermissionContext in src/utils/permissions/permissionSetup.ts (how the allow and skip flags set isBypassPermissionsModeAvailable)',
-  '§2': 'to fix, look at bootBirthFacts, setBootBirthFacts and carriedConsentOf in src/services/switchboard/bootBirthFacts.ts',
-  '§3': 'to fix, look at buildConcourseWorkerSpec in src/daemon/concourseWorkers.ts and buildRunnerInvocation in src/daemon/headlessRun.ts (where the consent becomes argv)',
-  '§4': 'to fix, look at headlessPermissionArgv in src/daemon/headlessRun.ts',
-  '§5': 'to fix, look at ensureWarmRunner and claimWarmRunner in src/daemon/warmRunner.ts (the consent gate on the warm pool)',
-  '§7': 'to fix, look at buildRunnerInvocation in src/daemon/headlessRun.ts and resolvePermissionModeTransition in src/cli/headless/controlHandlers.ts',
-  '§8': 'to fix, look at carriedTypedModeOf in src/services/switchboard/bootBirthFacts.ts (what the launch carries) and buildConcourseWorkerSpec in src/daemon/concourseWorkers/spec.ts (what the seat keeps)',
+  '§1': 'to fix, look at initializeToolPermissionContext in src/permissions/rules/permissionSetup.ts (how the allow and skip flags set isBypassPermissionsModeAvailable)',
+  '§2': 'to fix, look at bootBirthFacts, setBootBirthFacts and carriedConsentOf in src/daemon/switchboard/bootBirthFacts.ts',
+  '§3': 'to fix, look at buildConcourseWorkerSpec in src/daemon/concourse-workers/concourseWorkers.ts and buildRunnerInvocation in src/daemon/runner-link/headlessRun.ts (where the consent becomes argv)',
+  '§4': 'to fix, look at headlessPermissionArgv in src/daemon/runner-link/headlessRun.ts',
+  '§5': 'to fix, look at ensureWarmRunner and claimWarmRunner in src/daemon/runner-link/warmRunner.ts (the consent gate on the warm pool)',
+  '§7': 'to fix, look at buildRunnerInvocation in src/daemon/runner-link/headlessRun.ts and resolvePermissionModeTransition in src/daemon/runner/controlHandlers.ts',
+  '§8': 'to fix, look at carriedTypedModeOf in src/daemon/switchboard/bootBirthFacts.ts (what the launch carries) and buildConcourseWorkerSpec in src/daemon/concourse-workers/spec.ts (what the seat keeps)',
 }
 let doorHint = ''
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -39,21 +39,21 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
 
-const { initializeToolPermissionContext } = await import('../../src/utils/permissions/permissionSetup.ts')
-const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
-const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
-const { buildRunnerInvocation, headlessPermissionArgv } = await import('../../src/daemon/headlessRun.ts')
-const { deriveSessionKitForWorkspace } = await import('../../src/daemon/sessionKit.ts')
-const warm = await import('../../src/daemon/warmRunner.ts')
+const { initializeToolPermissionContext } = await import('../../src/permissions/rules/permissionSetup.ts')
+const facts = await import('../../src/daemon/switchboard/bootBirthFacts.ts')
+const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { buildRunnerInvocation, headlessPermissionArgv } = await import('../../src/daemon/runner-link/headlessRun.ts')
+const { deriveSessionKitForWorkspace } = await import('../../src/daemon/session-seat/sessionKit.ts')
+const warm = await import('../../src/daemon/runner-link/warmRunner.ts')
 const { standInRunner } = await import('../lib/seatDoor.ts')
 type StandInRunner = ReturnType<typeof standInRunner>
-type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
-const { resolvePermissionModeTransition } = await import('../../src/cli/headless/controlHandlers.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+type RunnerDoor = import('../../src/daemon/runner-link/runnerConnection.ts').RunnerDoor
+const { resolvePermissionModeTransition } = await import('../../src/daemon/runner/controlHandlers.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 const SKIP = '--sovereign'
 const ALLOW = '--allow-sovereign'

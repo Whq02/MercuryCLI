@@ -1,6 +1,6 @@
 import { rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { recoverJournalDir } from '../../../src/substrate/operationJournal.ts'
+import { recoverJournalDir } from '../../../src/platform/substrate/operationJournal.ts'
 
 const dir = process.env.RELIA_JOURNAL_DIR
 const work = process.env.RELIA_WORK_DIR

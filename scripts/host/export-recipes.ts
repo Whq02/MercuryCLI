@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { HOST_RECIPES } from '../../src/services/host/recipes.ts'
-import { SHIPPED_HOST_RECIPES_PATH, exportHostRecipesJson } from '../../src/services/host/recipesFile.ts'
+import { HOST_RECIPES } from '../../src/models/hosting/recipes.ts'
+import { SHIPPED_HOST_RECIPES_PATH, exportHostRecipesJson } from '../../src/models/hosting/recipesFile.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const outIndex = process.argv.indexOf('--out')

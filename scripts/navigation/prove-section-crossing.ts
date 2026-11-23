@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
-import { crossSectionAtEdge } from '../../src/components/mercury-ui/useNavigablePanes.js'
+import { crossSectionAtEdge } from '../../src/screen/widgets/useNavigablePanes.js'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) {
     failures++
-    detail = `${detail ? detail + ' — ' : ''}change crossSectionAtEdge in src/components/mercury-ui/useNavigablePanes.ts so its result matches this row`
+    detail = `${detail ? detail + ' — ' : ''}change crossSectionAtEdge in src/screen/widgets/useNavigablePanes.ts so its result matches this row`
   }
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
 }

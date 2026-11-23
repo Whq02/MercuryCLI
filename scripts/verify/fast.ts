@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { projectLocalPath } from '../../src/utils/projectLocal/paths.js'
+import { projectLocalPath } from '../../src/platform/project-local/paths.js'
 import { isAdvisoryKind, readLedger } from '../gate/ledger.js'
 import { spawnSync } from 'node:child_process'
 import { gitOutOrNull } from '../lib/git.ts'
@@ -305,7 +305,7 @@ if (PLAN_ONLY) {
 async function recordRow(ok: boolean, scope: 'fast' | 'full-gate', coverage: string): Promise<void> {
   try {
     const { recordEvidence, verifyEvidenceEnabled } = await import(
-      '../../src/utils/verification/verificationState.js'
+      '../../src/platform/verification/verificationState.js'
     )
     if (!verifyEvidenceEnabled()) return
     recordEvidence(ROOT, { command: 'bun run verify:fast', ok, scope, coverage })

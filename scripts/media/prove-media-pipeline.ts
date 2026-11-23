@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { crc32, deflateSync } from 'node:zlib'
 import { installLiveFixture, proofHome, removeProofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
 
-const source = fileURLToPath(new URL('../../src/services/media/pipeline.ts', import.meta.url))
+const source = fileURLToPath(new URL('../../src/integrations/media/pipeline.ts', import.meta.url))
 const arg = (name: string): string | undefined => { const index = process.argv.indexOf(name); return index < 0 ? undefined : process.argv[index + 1] }
 const project = join(proofHome, 'project')
 const originalCwd = process.cwd()
@@ -66,10 +66,10 @@ try {
   writeFileSync(join(root, 'config.json'), JSON.stringify({ imageModel: 'image-one', videoModel: 'video-one', outputs: join(proofHome, 'elsewhere') }))
   process.chdir(project)
   Object.assign(globalThis, { MACRO: { VERSION: '1.0.0', IS_DEV: false } })
-  const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.js')
+  const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.js')
   setCwdState(project); setOriginalCwd(project); setProjectRoot(project)
-  const { connectToServer, fetchToolsForClient } = await import('../../src/services/mcp/client.js')
-  const { mediaGenerationKind } = await import('../../src/services/media/generation.js')
+  const { connectToServer, fetchToolsForClient } = await import('../../src/integrations/mcp/client.js')
+  const { mediaGenerationKind } = await import('../../src/integrations/media/generation.js')
   const connection = await connectToServer(server, { type: 'stdio', command: 'node', args: [serverPath], env: { PATH: process.env.PATH!, MEDIA_ROOT: root }, scope: 'dynamic' })
   assert.equal(connection.type, 'connected', JSON.stringify(connection))
   if (connection.type !== 'connected') throw new Error('Fixture media connection failed')
@@ -80,9 +80,9 @@ try {
   const runTool = tools.find(tool => tool.mcpInfo?.toolName === 'pipeline_run')!
   assert.equal(mediaGenerationKind(runTool), 'image')
   assert.equal(mediaGenerationKind({ mcpInfo: { serverName: 'other', toolName: 'pipeline_run' } }), undefined)
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-  const { createAssistantMessage } = await import('../../src/utils/messages/factories.js')
-  const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.js')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+  const { createAssistantMessage } = await import('../../src/engine/message-shapes/factories.js')
+  const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.js')
   const permission = getEmptyToolPermissionContext()
   const context: any = { abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: permission }), setAppState: () => {}, options: {} }
   const decision = await decideToolPermission(runTool, { pipeline: pipelinePath }, context)
@@ -180,11 +180,11 @@ try {
   assert.equal(rerunRecord.steps[1].status, 'completed')
   assert.equal(await readMediaPipelineDetails({ pipeline: 'landscape.pipeline.json', step: 'small', resume: result.recordPath }, project), `Pipeline: Landscape · step small\nOutput: ${join(project, 'media')}`)
   const React = await import('react')
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const { MediaPermissionRequest } = await import('../../src/components/permissions/MediaPermissionRequest.js')
-  const { AppStoreContext, getDefaultAppState } = await import('../../src/state/AppState.js')
-  const { createStore } = await import('../../src/state/store.js')
+  const { MediaPermissionRequest } = await import('../../src/permissions/cards/MediaPermissionRequest.js')
+  const { AppStoreContext, getDefaultAppState } = await import('../../src/screen/app-state/AppState.js')
+  const { createStore } = await import('../../src/platform/primitives/store.js')
   const { mountOffscreen, waitFor } = await import('../lib/settingsPopupHarness.js')
   const input = { pipeline: pipelinePath, step: 'small', resume: result.recordPath }
   const card = React.createElement(MediaPermissionRequest, {

@@ -13,15 +13,15 @@ process.env.NODE_ENV = 'test'
 for (const key of ['MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'OPENAI_API_KEY', 'MERCURY_EFFORT_LEVEL', 'MERCURY_DISABLE_1M_CONTEXT']) delete process.env[key]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { gptDisplayPin, GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.js')
-const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
-const { getContextWindowForModel } = await import('../../src/utils/context.js')
-const { getModelMaxOutputTokens, modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.js')
-const { resolveEffortTruth, resolveStampedEffortTruth } = await import('../../src/utils/effort.js')
-const { getModelOptions, OPENAI_MODEL_GROUP } = await import('../../src/services/model/modelOptions.js')
-const { resolveModelPricing } = await import('../../src/services/usage/modelCost.js')
-const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.js')
-const { buildOpenaiResponsesRequest, openaiEffortWireFact } = await import('../../src/services/providers/openai/responsesBridge.js')
+const { gptDisplayPin, GPT_DISPLAY_PINS } = await import('../../src/models/facts/pins/gptPins.js')
+const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.js')
+const { getContextWindowForModel } = await import('../../src/engine/compaction-window/contextFill.js')
+const { getModelMaxOutputTokens, modelReceivesImageBlocks } = await import('../../src/models/facts/capabilities.js')
+const { resolveEffortTruth, resolveStampedEffortTruth } = await import('../../src/models/effort/effort.js')
+const { getModelOptions, OPENAI_MODEL_GROUP } = await import('../../src/models/catalogue/modelOptions.js')
+const { resolveModelPricing } = await import('../../src/models/usage/modelCost.js')
+const { deferralWireFormFor } = await import('../../src/models/roads/deferralWire.js')
+const { buildOpenaiResponsesRequest, openaiEffortWireFact } = await import('../../src/models/roads/openai/responsesBridge.js')
 
 const id = 'gpt-6.1-terra'
 const source = 'https://developers.openai.com/api/docs/models/gpt-6.1-terra'
@@ -39,7 +39,7 @@ async function seed(rows: Record<string, unknown>[]): Promise<void> {
 try {
   check('dated Terra model-page pin', () => {
     const pin = gptDisplayPin(id)
-    assert.ok(pin, `src/utils/model/pins/gptPins.ts gptDisplayPin(${id}) returned undefined`)
+    assert.ok(pin, `src/models/facts/pins/gptPins.ts gptDisplayPin(${id}) returned undefined`)
     assert.equal(pin.source, source)
     assert.equal(pin.observedAt, '2026-11-17')
     assert.equal(pin.displayName, 'GPT-6.1 Terra')
@@ -64,24 +64,24 @@ try {
   await seed([{ id: 'gpt-6.1-sol', priority: 1 }, { id, priority: 2 }])
   check('bare API list inherits documented vocabulary and modalities', () => {
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
-    assert.ok(row.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed: ${JSON.stringify(row).slice(0, 140)}`)
+    assert.ok(row.ok, `src/models/roads/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed: ${JSON.stringify(row).slice(0, 140)}`)
     assert.deepEqual(row.candidate.live.supportedReasoningEfforts, words)
     assert.equal(row.candidate.live.defaultReasoningEffort, 'medium')
     assert.deepEqual(row.candidate.live.inputModalities, ['text', 'image'])
-    assert.ok(modelReceivesImageBlocks(id), `src/utils/model/capabilities.ts modelReceivesImageBlocks(${id}) returned false`)
+    assert.ok(modelReceivesImageBlocks(id), `src/models/facts/capabilities.ts modelReceivesImageBlocks(${id}) returned false`)
   })
   check('picker uses live rank and the model-page name', () => {
     const rows = getModelOptions()
     const row = rows.find(r => r.value === id)
-    assert.ok(row, `src/utils/model/modelOptions.ts getModelOptions missing ${id}`)
+    assert.ok(row, `src/models/facts/modelOptions.ts getModelOptions missing ${id}`)
     assert.equal(row.label, 'GPT-6.1 Terra')
     assert.equal(row.group, OPENAI_MODEL_GROUP)
     assert.equal(row.unavailable, undefined)
-    assert.ok(rows.findIndex(r => r.value === id) > rows.findIndex(r => r.value === 'gpt-6.1-sol'), `src/utils/model/modelOptions.ts expected ${id} ranked after gpt-6.1-sol`)
+    assert.ok(rows.findIndex(r => r.value === id) > rows.findIndex(r => r.value === 'gpt-6.1-sol'), `src/models/facts/modelOptions.ts expected ${id} ranked after gpt-6.1-sol`)
   })
   for (const word of words) check(`request preserves ${word}`, () => {
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
-    assert.ok(row.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed for effort ${word}`)
+    assert.ok(row.ok, `src/models/roads/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed for effort ${word}`)
     const profile = catalogue.resolveGptReasoningProfile(word, row.candidate.live)
     const request = buildOpenaiResponsesRequest({ model: id, messages: [{ role: 'user', content: 'Reply OK.' }], reasoningEffort: profile.wireEffort })
     assert.equal(request.reasoning?.effort, word)
@@ -95,13 +95,13 @@ try {
   check('documented default and sibling vocabulary', () => {
     assert.equal(resolveEffortTruth(id, undefined).wire, 'medium')
     const sibling = catalogue.evaluateGptCandidate('gpt-6.1-sol', 'api-key')
-    assert.ok(sibling.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(gpt-6.1-sol, api-key) failed: ${JSON.stringify(sibling).slice(0, 140)}`)
+    assert.ok(sibling.ok, `src/models/roads/openai/openaiCatalogue.ts evaluateGptCandidate(gpt-6.1-sol, api-key) failed: ${JSON.stringify(sibling).slice(0, 140)}`)
     assert.deepEqual(sibling.candidate.live.supportedReasoningEfforts, words.slice(1))
   })
   await seed([{ id, supported_reasoning_levels: [], input_modalities: ['text'], context_window: 272_000, max_context_window: 872_000 }])
   check('explicit source facts outrank page fallback', () => {
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
-    assert.ok(row.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed on explicit list`)
+    assert.ok(row.ok, `src/models/roads/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed on explicit list`)
     assert.deepEqual(row.candidate.live.supportedReasoningEfforts, [])
     assert.deepEqual(row.candidate.live.inputModalities, ['text'])
     assert.equal(getContextWindowForModel(id), 872_000)

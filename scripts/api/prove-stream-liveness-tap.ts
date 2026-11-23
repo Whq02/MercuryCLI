@@ -6,13 +6,13 @@ import { pathToFileURL } from 'node:url'
 const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
-const idle = await import('../../src/services/providers/streamIdleBudget.js')
-const { AnthropicStream: Stream } = await import('../../src/services/providers/anthropic/anthropicStream.js')
+const idle = await import('../../src/models/roads/streamIdleBudget.js')
+const { AnthropicStream: Stream } = await import('../../src/models/roads/anthropic/anthropicStream.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix: the idle watchdog, observeStreamActivity and the activity relay are in src/services/providers/streamIdleBudget.ts; the SSE parser that yields events is src/services/providers/anthropic/anthropicStream.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix: the idle watchdog, observeStreamActivity and the activity relay are in src/models/roads/streamIdleBudget.ts; the SSE parser that yields events is src/models/roads/anthropic/anthropicStream.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

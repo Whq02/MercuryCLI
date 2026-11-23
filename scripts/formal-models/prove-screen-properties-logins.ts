@@ -7,11 +7,11 @@ import { join } from 'node:path'
 import fc from 'fast-check'
 import stripAnsi from 'strip-ansi'
 import { checker } from '../engine-durability/harness.ts'
-import type { AccountSlot, FamilySlotGroup } from '../../src/services/providers/accountSlots.ts'
-import type { ProviderId, ProviderUsability } from '../../src/services/providers/providerUsability.ts'
-import type { ProviderFamilyPresence } from '../../src/services/providers/providerUsage.ts'
-import type { LoginsArmV1, LoginsScreenFactsV1 } from '../../src/components/bootLogins/facts.ts'
-import type { FaceKeyLegId } from '../../src/components/bootLogins/pickLines.ts'
+import type { AccountSlot, FamilySlotGroup } from '../../src/models/roads/accountSlots.ts'
+import type { ProviderId, ProviderUsability } from '../../src/models/roads/providerUsability.ts'
+import type { ProviderFamilyPresence } from '../../src/models/roads/providerUsage.ts'
+import type { LoginsArmV1, LoginsScreenFactsV1 } from '../../src/screen/boot-face/logins/facts.ts'
+import type { FaceKeyLegId } from '../../src/screen/boot-face/logins/pickLines.ts'
 
 const previousCwd = process.cwd()
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-screen-logins-'))
@@ -55,9 +55,9 @@ const h = React.createElement
 let openedArms: string[] = []
 let faultForceArm: LoginsArmV1 | null = null
 
-const realPicks = await import('../../src/components/bootLogins/picks.ts')
+const realPicks = await import('../../src/screen/boot-face/logins/picks.ts')
 const origOpenFlowOf = realPicks.openFlowOf
-mock.module('../../src/components/bootLogins/picks.ts', () => ({
+mock.module('../../src/screen/boot-face/logins/picks.ts', () => ({
   ...realPicks,
   openFlowOf: (ctx: Parameters<typeof origOpenFlowOf>[0], arm: LoginsArmV1) => {
     const chosen = faultForceArm ?? arm
@@ -66,27 +66,27 @@ mock.module('../../src/components/bootLogins/picks.ts', () => ({
   },
 }))
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { registerBootDoors } = await import('../../src/services/boot/registerDoors.ts')
+const { registerBootDoors } = await import('../../src/boot/doors/registerDoors.ts')
 registerBootDoors()
 
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { default: reconciler } = await import('../../src/ink/reconciler.js')
-const { disposeKeybindingWatcher } = await import('../../src/keybindings/loadUserBindings.js')
-const { Box } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
+const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const {
   BootLoginsScreen,
   keyLegTitle,
   loginsCatalogue,
   loginsFamilyCounts,
   loginsSortedArms,
-} = await import('../../src/components/BootLoginsScreen.tsx')
+} = await import('../../src/screen/boot-face/BootLoginsScreen.tsx')
 
 class FakeStdout extends EventEmitter {
   isTTY = true

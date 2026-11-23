@@ -16,10 +16,10 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const kernel = await import('../../src/services/run/runKernel.ts')
-const plane = await import('../../src/utils/primitives/executionPlane.ts')
-const sidecar = await import('../../src/services/run/runSidecar.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
+const kernel = await import('../../src/engine/run/runKernel.ts')
+const plane = await import('../../src/engine/execution-plane/executionPlane.ts')
+const sidecar = await import('../../src/engine/run/runSidecar.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
 
 console.log('============================================================')
 console.log(' S29 — repeated + late events ⇒ exactly one effect, cross-owner')
@@ -51,12 +51,12 @@ section('§1 run kernel — replayed events do not double-count facts')
   let once = base
   for (const e of events) once = kernel.reduceRunEvent(once, e as never)
   const replayed = kernel.reduceRunEvent(once, events[3] as never)
-  check('pending tools stay settled after the duplicate effect', replayed.pendingTools.length === once.pendingTools.length, `before=${once.pendingTools.length} after=${replayed.pendingTools.length}; make the 'tool-effected' case of reduceRunEvent in src/services/run/runKernel.ts ignore an effect whose toolUseId is already settled`)
-  check('no bad-effect count from a duplicated OK effect', replayed.unresolvedBadEffects === once.unresolvedBadEffects, `before=${once.unresolvedBadEffects} after=${replayed.unresolvedBadEffects}; the 'tool-effected' case of reduceRunEvent in src/services/run/runKernel.ts must not count a replayed applied effect as a bad effect`)
-  check('lifecycle unchanged by the duplicate', replayed.lifecycle === once.lifecycle, `before=${once.lifecycle} after=${replayed.lifecycle}; a replayed 'tool-effected' event must not move the lifecycle in reduceRunEvent (src/services/run/runKernel.ts)`)
+  check('pending tools stay settled after the duplicate effect', replayed.pendingTools.length === once.pendingTools.length, `before=${once.pendingTools.length} after=${replayed.pendingTools.length}; make the 'tool-effected' case of reduceRunEvent in src/engine/run/runKernel.ts ignore an effect whose toolUseId is already settled`)
+  check('no bad-effect count from a duplicated OK effect', replayed.unresolvedBadEffects === once.unresolvedBadEffects, `before=${once.unresolvedBadEffects} after=${replayed.unresolvedBadEffects}; the 'tool-effected' case of reduceRunEvent in src/engine/run/runKernel.ts must not count a replayed applied effect as a bad effect`)
+  check('lifecycle unchanged by the duplicate', replayed.lifecycle === once.lifecycle, `before=${once.lifecycle} after=${replayed.lifecycle}; a replayed 'tool-effected' event must not move the lifecycle in reduceRunEvent (src/engine/run/runKernel.ts)`)
   const dupStart = kernel.reduceRunEvent(replayed, events[2] as never)
   const dupSettled = kernel.reduceRunEvent(dupStart, events[3] as never)
-  check('a replayed started+effected PAIR nets to settled (no stuck pending)', dupSettled.pendingTools.length === once.pendingTools.length, `pending=${dupSettled.pendingTools.length}; a replayed 'tool-started' after settlement must not re-add a pending tool in reduceRunEvent (src/services/run/runKernel.ts)`)
+  check('a replayed started+effected PAIR nets to settled (no stuck pending)', dupSettled.pendingTools.length === once.pendingTools.length, `pending=${dupSettled.pendingTools.length}; a replayed 'tool-started' after settlement must not re-add a pending tool in reduceRunEvent (src/engine/run/runKernel.ts)`)
 }
 
 section('§2 execution plane — duplicate settle inert; stale generation refused')
@@ -72,7 +72,7 @@ section('§2 execution plane — duplicate settle inert; stale generation refuse
   })
   plane.settleExecution(owner, 'exec-1', 'succeeded', { outcome: { reason: 'done' } })
   const afterFirst = plane.getExecution(owner, 'exec-1')
-  check('first settle lands', afterFirst?.state === 'succeeded', `state=${afterFirst?.state}; settleExecution in src/utils/primitives/executionPlane.ts must record the first settle`)
+  check('first settle lands', afterFirst?.state === 'succeeded', `state=${afterFirst?.state}; settleExecution in src/engine/execution-plane/executionPlane.ts must record the first settle`)
   let dupOutcome = 'no-op'
   try {
     plane.settleExecution(owner, 'exec-1', 'failed', { outcome: { reason: 'late duplicate' } })
@@ -80,7 +80,7 @@ section('§2 execution plane — duplicate settle inert; stale generation refuse
     dupOutcome = 'refused'
   }
   const afterDup = plane.getExecution(owner, 'exec-1')
-  check(`duplicate settle is ${dupOutcome} — the record stays succeeded`, afterDup?.state === 'succeeded', `state=${afterDup?.state}; settleExecution in src/utils/primitives/executionPlane.ts must leave an already-settled record unchanged (no-op or throw)`)
+  check(`duplicate settle is ${dupOutcome} — the record stays succeeded`, afterDup?.state === 'succeeded', `state=${afterDup?.state}; settleExecution in src/engine/execution-plane/executionPlane.ts must leave an already-settled record unchanged (no-op or throw)`)
   plane.registerExecution({
     owner,
     id: 'exec-2',
@@ -91,7 +91,7 @@ section('§2 execution plane — duplicate settle inert; stale generation refuse
   })
   const rec = plane.getExecution(owner, 'exec-2')
   const gen = rec?.generation
-  check('the generation surface is present on the record (fence observable)', typeof gen === 'number', `generation=${String(gen)}; registerExecution in src/utils/primitives/executionPlane.ts must give each record a numeric generation`)
+  check('the generation surface is present on the record (fence observable)', typeof gen === 'number', `generation=${String(gen)}; registerExecution in src/engine/execution-plane/executionPlane.ts must give each record a numeric generation`)
   let staleError: unknown = null
   try {
     plane.transitionExecution(owner, 'exec-2', 'starting', { generation: (gen ?? 0) - 1 })
@@ -99,9 +99,9 @@ section('§2 execution plane — duplicate settle inert; stale generation refuse
     staleError = e
   }
   const afterStale = plane.getExecution(owner, 'exec-2')
-  check('a stale-generation transition is refused by the typed generation error and mutates nothing', staleError instanceof plane.ExecutionGenerationError && afterStale?.state === 'queued', `error=${staleError instanceof Error ? staleError.constructor.name : String(staleError)} state=${afterStale?.state}; transitionExecution in src/utils/primitives/executionPlane.ts must throw ExecutionGenerationError for an older generation before changing state`)
+  check('a stale-generation transition is refused by the typed generation error and mutates nothing', staleError instanceof plane.ExecutionGenerationError && afterStale?.state === 'queued', `error=${staleError instanceof Error ? staleError.constructor.name : String(staleError)} state=${afterStale?.state}; transitionExecution in src/engine/execution-plane/executionPlane.ts must throw ExecutionGenerationError for an older generation before changing state`)
   const current = plane.transitionExecution(owner, 'exec-2', 'starting', { generation: gen })
-  check('the same transition with the CURRENT generation lands (the fence refuses staleness, not motion)', current?.state === 'starting' && plane.getExecution(owner, 'exec-2')?.state === 'starting', `state=${plane.getExecution(owner, 'exec-2')?.state}; transitionExecution in src/utils/primitives/executionPlane.ts must accept the record's current generation`)
+  check('the same transition with the CURRENT generation lands (the fence refuses staleness, not motion)', current?.state === 'starting' && plane.getExecution(owner, 'exec-2')?.state === 'starting', `state=${plane.getExecution(owner, 'exec-2')?.state}; transitionExecution in src/engine/execution-plane/executionPlane.ts must accept the record's current generation`)
   plane.settleExecution(owner, 'exec-2', 'succeeded', { outcome: { reason: 'done' } })
 }
 
@@ -120,9 +120,9 @@ section('§4 run sidecar — double-save yields ONE stable durable record')
   await sidecar.saveRunSidecar(owner, snap)
   await sidecar.saveRunSidecar(owner, snap)
   const load1 = await sidecar.loadRunSidecar(owner)
-  check('the sidecar loads after the double save', load1.state === 'loaded', `${load1.state}; saveRunSidecar / loadRunSidecar in src/services/run/runSidecar.ts must round-trip a completed snapshot after two saves`)
+  check('the sidecar loads after the double save', load1.state === 'loaded', `${load1.state}; saveRunSidecar / loadRunSidecar in src/engine/run/runSidecar.ts must round-trip a completed snapshot after two saves`)
   if (load1.state === 'loaded') {
-    check('objective survived once, exact', load1.snapshot.objective === 'persist me', `objective=${load1.snapshot.objective}; loadRunSidecar in src/services/run/runSidecar.ts must return the saved objective unchanged`)
+    check('objective survived once, exact', load1.snapshot.objective === 'persist me', `objective=${load1.snapshot.objective}; loadRunSidecar in src/engine/run/runSidecar.ts must return the saved objective unchanged`)
   }
   const dirs = [process.env.MERCURY_CONFIG_DIR!]
   let sidecarFiles = 0
@@ -140,7 +140,7 @@ section('§4 run sidecar — double-save yields ONE stable durable record')
       else if (e.name.includes('s29-sidecar') || (e.name.includes('run') && e.name.endsWith('.json'))) sidecarFiles++
     }
   }
-  check('exactly one durable record accumulated', sidecarFiles === 1, `files=${sidecarFiles}; saveRunSidecar in src/services/run/runSidecar.ts must write one file per owner (see runSidecarPath), not one per save`)
+  check('exactly one durable record accumulated', sidecarFiles === 1, `files=${sidecarFiles}; saveRunSidecar in src/engine/run/runSidecar.ts must write one file per owner (see runSidecarPath), not one per save`)
 }
 
 console.log('')

@@ -8,22 +8,22 @@ const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
 const h = React.createElement
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(config => ({ ...config, hasCompletedOnboarding: true, theme: 'dark' }))
 
-const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
-const { parseBindings } = await import('../../src/keybindings/parser.ts')
-const manifest = await import('../../src/components/concourse/controlManifest.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { Select } = await import('../../src/components/CustomSelect/select.tsx')
-const { Dialog } = await import('../../src/components/design-system/Dialog.tsx')
-const { CancelRequestHandler } = await import('../../src/hooks/useCancelRequest.ts')
-const { registerShellRun } = await import('../../src/tools/BashTool/backgroundRequest.ts')
-const pendingInput = await import('../../src/input-core/pending-input.ts')
-const { ExtensionsBoard } = await import('../../src/components/extensions/ExtensionsBoard.tsx')
+const { DEFAULT_BINDINGS } = await import('../../src/screen/keys/defaultBindings.ts')
+const { parseBindings } = await import('../../src/screen/keys/parser.ts')
+const manifest = await import('../../src/screen/concourse/controlManifest.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { Select } = await import('../../src/screen/select/Select.tsx')
+const { Dialog } = await import('../../src/screen/theme/Dialog.tsx')
+const { CancelRequestHandler } = await import('../../src/screen/chat/interruptKeys.ts')
+const { registerShellRun } = await import('../../src/tools/shell/backgroundRequest.ts')
+const pendingInput = await import('../../src/screen/composer/input-core/pending-input.ts')
+const { ExtensionsBoard } = await import('../../src/screen/extensions/ExtensionsBoard.tsx')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -253,10 +253,10 @@ section('§1 the registry — every context that binds a bare printable declares
     bound.get(b.context)!.add(`${k.shift ? 'shift+' : ''}${k.key === ' ' ? 'space' : k.key}`)
   }
   const undeclared = [...bound.keys()].filter(c => !(c in CAPTURE_RULES))
-  check('every context that binds a bare printable has a capture rule', undeclared.length === 0, `${undeclared.join(', ')} · add a capture rule for each listed context to CAPTURE_RULES in this file, or remove its bare printable binding from src/keybindings/defaultBindings.ts`)
+  check('every context that binds a bare printable has a capture rule', undeclared.length === 0, `${undeclared.join(', ')} · add a capture rule for each listed context to CAPTURE_RULES in this file, or remove its bare printable binding from src/screen/keys/defaultBindings.ts`)
   const stale = Object.keys(CAPTURE_RULES).filter(c => !bound.has(c))
-  check('the table names no context without a bare printable', stale.length === 0, `${stale.join(', ')} · delete these contexts from CAPTURE_RULES in this file, or restore their bare printable binding in src/keybindings/defaultBindings.ts`)
-  check('the census is populated (≥ 8 contexts bind bare printables)', bound.size >= 8, `${bound.size} · parseBindings(DEFAULT_BINDINGS) in src/keybindings/parser.ts and src/keybindings/defaultBindings.ts yielded too few contexts with bare printable keys`)
+  check('the table names no context without a bare printable', stale.length === 0, `${stale.join(', ')} · delete these contexts from CAPTURE_RULES in this file, or restore their bare printable binding in src/screen/keys/defaultBindings.ts`)
+  check('the census is populated (≥ 8 contexts bind bare printables)', bound.size >= 8, `${bound.size} · parseBindings(DEFAULT_BINDINGS) in src/screen/keys/parser.ts and src/screen/keys/defaultBindings.ts yielded too few contexts with bare printable keys`)
   for (const [ctx, rule] of Object.entries(CAPTURE_RULES)) {
     const keys = [...(bound.get(ctx) ?? [])].join(' ')
     if (rule.shown !== undefined) {
@@ -280,10 +280,10 @@ section('§3 the Session Concourse board — the rows own their letters in every
       if (!held.has(k)) shadowed.push(`${selection}/draft/${k}`)
     }
   }
-  check('no list letter verb disappears under the arm or a held draft (the legend never advertises a key typing would eat)', shadowed.length === 0, `${shadowed.join(' · ')} · regionKeysFor in src/components/concourse/controlManifest.ts must keep these list letter verbs when armed or when liveDraftHeld is set`)
-  check("no 'type to message' row exists in any list state", classes.every(s => !regionKeysFor('list', { newSession: true, selection: s, armed: true }).some(k => k.keys === 'type')), 'regionKeysFor in src/components/concourse/controlManifest.ts returned a type row for a list state; remove it')
-  check("the header's n prints on the rows only, never under the filter or the composer", newSessionTabLabel({ region: 'list', filtering: false }) === '+ new session · n' && newSessionTabLabel({ region: 'list', filtering: true }) === '+ new session' && newSessionTabLabel({ region: 'live', filtering: false }) === '+ new session', 'newSessionTabLabel in src/components/concourse/controlManifest.ts must append · n only for the list region without a filter')
-  check('the atlas key follows the focused composer’s draft', helpKeyFiresFor('list', false) && helpKeyFiresFor('live', true) && !helpKeyFiresFor('live', false), 'helpKeyFiresFor in src/components/concourse/controlManifest.ts must fire for the list region with no draft and for the live region only with a draft')
+  check('no list letter verb disappears under the arm or a held draft (the legend never advertises a key typing would eat)', shadowed.length === 0, `${shadowed.join(' · ')} · regionKeysFor in src/screen/concourse/controlManifest.ts must keep these list letter verbs when armed or when liveDraftHeld is set`)
+  check("no 'type to message' row exists in any list state", classes.every(s => !regionKeysFor('list', { newSession: true, selection: s, armed: true }).some(k => k.keys === 'type')), 'regionKeysFor in src/screen/concourse/controlManifest.ts returned a type row for a list state; remove it')
+  check("the header's n prints on the rows only, never under the filter or the composer", newSessionTabLabel({ region: 'list', filtering: false }) === '+ new session · n' && newSessionTabLabel({ region: 'list', filtering: true }) === '+ new session' && newSessionTabLabel({ region: 'live', filtering: false }) === '+ new session', 'newSessionTabLabel in src/screen/concourse/controlManifest.ts must append · n only for the list region without a filter')
+  check('the atlas key follows the focused composer’s draft', helpKeyFiresFor('list', false) && helpKeyFiresFor('live', true) && !helpKeyFiresFor('live', false), 'helpKeyFiresFor in src/screen/concourse/controlManifest.ts must fire for the list region with no draft and for the live region only with a draft')
 }
 
 await releaseScratchHome(HOME)

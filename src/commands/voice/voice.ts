@@ -1,7 +1,7 @@
-import type { LocalCommandCall } from '../../types/command.js'
-import { prepareLocalTranscriber } from '../../services/voice/transcribe.js'
-import { HOLD_WORDS, NO_REPEAT_WORDS, describeVoiceStatus, setVoiceInputEnabled, toggleVoiceCapture, voiceInputEnabled } from '../../services/voice/voiceSession.js'
-import { mbWords } from '../../services/voice/whisperModels.js'
+import type { LocalCommandCall } from '../catalogue/command.js'
+import { prepareLocalTranscriber } from '../../integrations/voice/transcribe.js'
+import { HOLD_WORDS, NO_REPEAT_WORDS, describeVoiceStatus, setVoiceInputEnabled, toggleVoiceCapture, voiceInputEnabled } from '../../integrations/voice/voiceSession.js'
+import { mbWords } from '../../integrations/voice/whisperModels.js'
 
 let setup: Promise<string> | null = null
 let setupGeneration = 0

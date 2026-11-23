@@ -16,8 +16,8 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'agent-404-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key-agent-404'
 
 const MODEL = 'mercury-no-such-model'
-const routerWhere = 'what to change: the 404 handling behind routedCallModel in src/services/providers/callModelRouter.ts, which must end in one typed api-error assistant message and no retry storm'
-const seamWhere = 'what to change: deriveAgentTerminalOutcome or finalizeAgentTool in src/tools/AgentTool/agentToolUtils.ts, which must carry the full refusal text to the parent'
+const routerWhere = 'what to change: the 404 handling behind routedCallModel in src/models/roads/callModelRouter.ts, which must end in one typed api-error assistant message and no retry storm'
+const seamWhere = 'what to change: deriveAgentTerminalOutcome or finalizeAgentTool in src/tools/crewmate/crewmateLifecycle.ts, which must carry the full refusal text to the parent'
 const REQUEST_ID = 'req_fixture_404_evidence'
 
 let failures = 0
@@ -29,7 +29,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — subagent 404 refusal prover exceeded 90s; it waited for routedCallModel (src/services/providers/callModelRouter.ts) to end its stream after the fixture 404, so look for a retry loop or a stream that never closes there')
+  console.log('\nTIMEOUT — subagent 404 refusal prover exceeded 90s; it waited for routedCallModel (src/models/roads/callModelRouter.ts) to end its stream after the fixture 404, so look for a retry loop or a stream that never closes there')
   process.exit(1)
 }, 90_000)
 
@@ -58,13 +58,13 @@ const server = createServer((req, res) => {
 await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve) })
 process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(server.address() as { port: number }).port}`
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { deriveAgentTerminalOutcome, finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { deriveAgentTerminalOutcome, finalizeAgentTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 
 console.log('\n§1 the first call 404s — the typed refusal, one model, once')
 const abort = new AbortController()

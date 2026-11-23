@@ -2,11 +2,11 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, ownerOf, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
-import type { DesktopDriver, DesktopTreeElement } from '../../src/services/desktop/driver.ts'
+import type { DesktopDriver, DesktopTreeElement } from '../../src/integrations/desktop/driver.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const session = await import('../../src/services/desktop/desktopSession.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const session = await import('../../src/integrations/desktop/desktopSession.ts')
 const scratch = scratchDir('file-fill')
 const bounds = { x: 0, y: 30, width: 1920, height: 956 }
 const app = { identity: 'com.example.Browser', name: 'Browser', pid: 4242, windowId: 'form', title: 'Job application — Example Careers', bounds }

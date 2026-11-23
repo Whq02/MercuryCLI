@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
-const { retryReasonWords } = await import('../../src/services/providers/streamIdleBudget.ts')
+const { retryReasonWords } = await import('../../src/models/roads/streamIdleBudget.ts')
 const { vshotBudgetMs } = await import('../lib/captureDriver.ts')
 
 const arg = (name: string): string | undefined => {

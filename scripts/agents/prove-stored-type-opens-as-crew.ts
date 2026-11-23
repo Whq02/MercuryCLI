@@ -27,16 +27,16 @@ const section = (t: string, hint = ''): void => {
 
 const OLD_TYPES = ['mercury-' + 'general', 'general-' + 'purpose', 'mercury-' + 'verifier', 'verification', 'mercury-' + 'guide', 'mercury-' + 'architect', 'mercury-' + 'background', 'mercury-' + 'reviewer']
 
-const storage = await import('../../src/utils/sessionStorage.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const { getBuiltInAgents } = await import('../../src/tools/AgentTool/builtInAgents.ts')
-const { definitionForStoredType } = await import('../../src/tools/AgentTool/resumeAgent.ts')
-const receipts = await import('../../src/tasks/LocalAgentTask/launchReceipts.ts')
-const { getAgentDefinitionsWithOverrides } = await import('../../src/tools/AgentTool/loadAgentsDir.ts')
-type Message = import('../../src/types/message.ts').Message
+const storage = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
+const { getBuiltInAgents } = await import('../../src/tools/crewmate/builtInAgents.ts')
+const { definitionForStoredType } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
+const receipts = await import('../../src/engine/tasks/local-agent/launchReceipts.ts')
+const { getAgentDefinitionsWithOverrides } = await import('../../src/tools/crewmate/loadAgentsDir.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 type AgentId = Parameters<typeof storage.writeAgentMetadata>[0]
 
-section('§1 a saved sidecar reads as written — no translation table at the disk boundary', 'to fix: readAgentMetadata in src/utils/sessionStorage/paths.ts must return the sidecar JSON as written, with no type translation')
+section('§1 a saved sidecar reads as written — no translation table at the disk boundary', 'to fix: readAgentMetadata in src/sessions/transcripts/paths.ts must return the sidecar JSON as written, with no type translation')
 for (const [index, stored] of OLD_TYPES.entries()) {
   const id = `stored-type-proof-${index}` as AgentId
   const sidecarPath = paths.getAgentMetadataPath(id)
@@ -46,7 +46,7 @@ for (const [index, stored] of OLD_TYPES.entries()) {
   check(`a sidecar carrying '${stored}' still opens and keeps its word`, back?.agentType === stored && back.description === `old helper ${index}` && back.model === 'claude-fable-5-1', JSON.stringify(back))
 }
 
-section('§2 the resume road: a known type is itself; any type Mercury does not know opens as mercury-crew', 'to fix: definitionForStoredType in src/tools/AgentTool/resumeAgent.ts must return the roster entry of that type, else the mercury-crew entry')
+section('§2 the resume road: a known type is itself; any type Mercury does not know opens as mercury-crew', 'to fix: definitionForStoredType in src/tools/crewmate/resumeCrewmate.ts must return the roster entry of that type, else the mercury-crew entry')
 const custom = { agentType: 'code-reviewer', whenToUse: 'the owner\'s own kind', source: 'userSettings', getSystemPrompt: () => 'custom' } as never
 const roster = [...getBuiltInAgents(), custom] as never[]
 check('a custom type the roster knows opens as itself', definitionForStoredType('code-reviewer', roster) === custom)
@@ -58,7 +58,7 @@ for (const stored of [...OLD_TYPES, 'mercury-frobnicate', undefined]) {
 const live = await getAgentDefinitionsWithOverrides(HOME)
 check('on the live roster of this tree the fallback is the real crew definition', (definitionForStoredType(OLD_TYPES[0], live.activeAgents) as { agentType: string }).agentType === 'mercury-crew' && live.activeAgents.some(a => a.agentType === 'mercury-crew'))
 
-section('§3 a fixture transcript whose rows carry old helper types still opens', 'to fix: backgroundLaunchReceipts in src/tasks/LocalAgentTask/launchReceipts.ts must read each launch row with the type word it carries, and definitionForStoredType in src/tools/AgentTool/resumeAgent.ts must resume it as mercury-crew')
+section('§3 a fixture transcript whose rows carry old helper types still opens', 'to fix: backgroundLaunchReceipts in src/engine/tasks/local-agent/launchReceipts.ts must read each launch row with the type word it carries, and definitionForStoredType in src/tools/crewmate/resumeCrewmate.ts must resume it as mercury-crew')
 const stamp = new Date('2026-09-20T10:00:00.000Z').toISOString()
 const launch = (id: string, type: string, description: string): Message => ({
   type: 'assistant',

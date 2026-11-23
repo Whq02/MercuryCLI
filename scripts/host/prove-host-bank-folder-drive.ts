@@ -10,19 +10,19 @@ process.env.HOME = f.home
 if (process.platform === 'win32') process.env.USERPROFILE = f.home
 let mounted: Mounted | undefined
 try {
-  const { bankDoor } = await import(f.root + '/src/services/host/fastLoad.ts')
-  const bank = await import(f.root + '/src/services/host/bank.ts')
+  const { bankDoor } = await import(f.root + '/src/models/hosting/fastLoad.ts')
+  const bank = await import(f.root + '/src/models/hosting/bank.ts')
   const first = bank.rememberBankFolder(join(f.home, 'first-bank'))
   const second = join(f.home, 'second-bank')
   const questions: any[] = []
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
   const road = async (ask: any, emit: any, signal: AbortSignal) => bankDoor(async (q: any) => { questions.push(q); return ask(q) }, emit, signal, { runner: { run: async () => { throw new Error('No process should run') } }, sessionId: 'folder-proof', api: () => undefined, connect: async () => false })
   const width = process.argv.includes('--80') ? 80 : 120

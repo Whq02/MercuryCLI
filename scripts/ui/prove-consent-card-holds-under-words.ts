@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/permissions/CardQueuedWords* src/utils/cockpit/composerSeed* src/components/CustomSelect/use-select-input* src/utils/permissions/permissionFocus* src/screens/Chat*
+// gate-watch: src/permissions/cards/CardQueuedWords.tsx src/screen/cockpit/composerSeed.ts src/screen/select/useSelectInput.ts src/permissions/rules/permissionFocus.ts src/screen/chat/Chat.tsx
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { firstPtyVisibility, grabScreens, requireDist, runArtifactArena, sendStamp, type ArenaRun } from '../streaming/artifactArena.ts'
@@ -15,7 +15,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
-  if (!cond) console.log('    to fix: the words under the card and the hint row come from src/components/permissions/CardQueuedWords.tsx, the hint text from queuedWordsHint in src/utils/cockpit/composerSeed.ts; set MERCURY_CARD_HOLD_CAPTURE_DIR to a folder to keep each frame as text')
+  if (!cond) console.log('    to fix: the words under the card and the hint row come from src/permissions/cards/CardQueuedWords.tsx, the hint text from queuedWordsHint in src/screen/cockpit/composerSeed.ts; set MERCURY_CARD_HOLD_CAPTURE_DIR to a folder to keep each frame as text')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

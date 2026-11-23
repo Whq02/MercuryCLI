@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import fc from 'fast-check'
-import { generateProgressiveArgumentHint, parseArgumentNames, parseArguments, substituteArguments } from '../../src/utils/argumentSubstitution.ts'
+import { generateProgressiveArgumentHint, parseArgumentNames, parseArguments, substituteArguments } from '../../src/integrations/extensions/load/argumentSubstitution.ts'
 
-const WHERE = 'src/utils/argumentSubstitution.ts'
+const WHERE = 'src/integrations/extensions/load/argumentSubstitution.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

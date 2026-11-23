@@ -7,7 +7,7 @@ import { DIST, FRAMES, argAfter, makeTally } from '../daemon/dupline-world.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
-import { projectSlug } from '../../src/utils/sessionStoragePortable.ts'
+import { projectSlug } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
 
 const VSHOT = join(import.meta.dir, 'vshot.py')
 const tally = makeTally('prove-files-menu-drive')

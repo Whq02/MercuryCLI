@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-import { getModelStrings } from '../../src/utils/model/modelStrings.js'
-import { renderModelChip } from '../../src/services/model/model.js'
+import { getModelStrings } from '../../src/models/facts/pinnedModelIds.js'
+import { renderModelChip } from '../../src/models/catalogue/engineModel.js'
 
 let fail = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' | to fix: the chip text is made by renderModelChip in src/services/model/model.ts; change its name mapping or suffix handling so the id renders as the wanted chip'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' | to fix: the chip text is made by renderModelChip in src/models/catalogue/engineModel.ts; change its name mapping or suffix handling so the id renders as the wanted chip'}`)
   if (!cond) fail++
 }
 

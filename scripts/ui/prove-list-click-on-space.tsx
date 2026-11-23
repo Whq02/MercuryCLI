@@ -3,16 +3,16 @@ import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settl
 
 pinSourceRef()
 const home = pinScratchHome('list-click-on-space')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { Box, Text } = await import('../../src/ink.js')
-const { default: ScrollBox } = await import('../../src/ink/components/ScrollBox.js')
-const { VirtualMessageList } = await import('../../src/components/VirtualMessageList.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { createUserMessage } = await import('../../src/utils/messages/factories.js')
-type Scroll = import('../../src/ink/components/ScrollBox.js').ScrollBoxHandle
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { default: ScrollBox } = await import('../../src/screen/renderer/elements/ScrollBox.js')
+const { VirtualMessageList } = await import('../../src/screen/virtual-message-list/VirtualMessageList.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { createUserMessage } = await import('../../src/engine/message-shapes/factories.js')
+type Scroll = import('../../src/screen/renderer/elements/ScrollBox.js').ScrollBoxHandle
 type Row = ReturnType<typeof createUserMessage>
 
 const COLUMNS = 60
@@ -33,7 +33,7 @@ let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok || detail === '' ? '' : ` — ${detail}`}${ok ? '' : ' | to fix: the row click and its blank-cell test (cellIsBlank, onItemClick, isItemClickable) are in src/components/VirtualMessageList.tsx; change that handler so a click on a blank cell between words still reaches the row and a click on the indentation or past the end does not'}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok || detail === '' ? '' : ` — ${detail}`}${ok ? '' : ' | to fix: the row click and its blank-cell test (cellIsBlank, onItemClick, isItemClickable) are in src/screen/virtual-message-list/VirtualMessageList.tsx; change that handler so a click on a blank cell between words still reaches the row and a click on the indentation or past the end does not'}`)
   if (!ok) failures++
 }
 

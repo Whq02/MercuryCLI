@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { BOOT_FACE_READY, paintsBootFaceReady } from '../lib/bootFace.ts'
-import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
+import { keyHintLabel } from '../../src/screen/widgets/keyHintLabel.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -45,8 +45,8 @@ const KEEP = process.env.MODEL_DEFAULT_KEY_KEEP === '1'
 let failures = 0
 function defaultKeyWhere(label: string): string {
   if (/delivered every send/.test(label)) return ' — to fix: the drive stopped early; run bun run build.ts so dist/mercury.mjs is current, then rerun and read the vshot exit and stderr printed above'
-  if (/picker|heading|frontier|GPT|row/.test(label)) return ' — to fix: the model picker in src/components/MercuryModelPicker.tsx, and the m key and its hint in src/services/switchboard/sessionDefaultsKey.ts and src/components/BootSplashScreen.tsx (the engine.sessionDefaults setting turns it off)'
-  return ' — to fix: the m key phrase and the setting behind it (engine.sessionDefaults) in src/services/switchboard/sessionDefaultsKey.ts, and the Boot face in src/components/BootSplashScreen.tsx'
+  if (/picker|heading|frontier|GPT|row/.test(label)) return ' — to fix: the model picker in src/commands/model/picker/MercuryModelPicker.tsx, and the m key and its hint in src/daemon/switchboard/sessionDefaultsKey.ts and src/screen/boot-face/BootSplashScreen.tsx (the engine.sessionDefaults setting turns it off)'
+  return ' — to fix: the m key phrase and the setting behind it (engine.sessionDefaults) in src/daemon/switchboard/sessionDefaultsKey.ts, and the Boot face in src/screen/boot-face/BootSplashScreen.tsx'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++

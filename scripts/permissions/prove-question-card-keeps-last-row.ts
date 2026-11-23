@@ -13,7 +13,7 @@ if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 
 let checks = 0
 let failures = 0
-const cardLayoutFixHint = 'fix how the overlay (the permission card) is placed under the conversation in src/components/FullscreenLayout.tsx, so the conversation last row stays on screen and the card rule stands one row below it'
+const cardLayoutFixHint = 'fix how the overlay (the permission card) is placed under the conversation in src/screen/fullscreen-layout/FullscreenLayout.tsx, so the conversation last row stays on screen and the card rule stands one row below it'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
@@ -23,18 +23,18 @@ function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
 
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { PermissionRequest } = await import('../../src/components/permissions/PermissionRequest.tsx')
-const { AskUserQuestionTool } = await import('../../src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { _resetInterviewForProofs } = await import('../../src/services/interview/store.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { PermissionRequest } = await import('../../src/permissions/cards/PermissionRequest.tsx')
+const { AskUserQuestionTool } = await import('../../src/tools/ask-question/AskUserQuestionTool.tsx')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { _resetInterviewForProofs } = await import('../../src/tools/engines/interview/store.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))

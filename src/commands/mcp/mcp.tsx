@@ -1,16 +1,16 @@
 import * as React from 'react'
 import { useRef } from 'react'
-import { useLoad } from '../../hooks/effects.js'
-import { CommandPopupLease } from '../../components/CommandPopupSlot.js'
-import { claimCommandPopup } from '../../utils/cockpit/commandPopup.js'
+import { useLoad } from '../../screen/effects/effects.js'
+import { CommandPopupLease } from '../../screen/overlays/CommandPopupSlot.js'
+import { claimCommandPopup } from '../../screen/cockpit/commandPopup.js'
 import { mcpPopupShapeFor } from './McpPopup.js'
-import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import { MCPReconnect } from '../../components/mcp/MCPReconnect.js'
-import { MCPSettings } from '../../components/mcp/MCPSettings.js'
+import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
+import { MCPReconnect } from '../../screen/mcp/MCPReconnect.js'
+import { MCPSettings } from '../../screen/mcp/MCPSettings.js'
 import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
-} from '../../types/command.js'
+} from '../catalogue/command.js'
 import { kitDialLine, MCP_ORGAN_LINE } from './route.js'
 
 function McpToggle({
@@ -27,7 +27,7 @@ function McpToggle({
     if (ranRef.current) return
     ranRef.current = true
     void (async () => {
-      const { isMcpOrgan } = await import('../../services/mcp/membership.js')
+      const { isMcpOrgan } = await import('../../integrations/mcp/membership.js')
       const connector = getFocusedSessionConnector()
       const roster = connector.mcpRoster()
       const on = action === 'enable'

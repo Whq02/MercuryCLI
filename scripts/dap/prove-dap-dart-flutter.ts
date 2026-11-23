@@ -13,7 +13,7 @@ process.env.MERCURY_JS_DEBUG_DAP = join(scratch, 'absent.js')
 
 let failures = 0
 function check(label: string, passed: boolean, detail = ''): void {
-  const hint = 'change: the Dart and Flutter adapter rows, pubspec detection and override order in src/services/dap/client/adapters.ts (and builtins.ts), or the adapter inference in DebugTool.checkPermissions, src/tools/DebugTool/DebugTool.ts'
+  const hint = 'change: the Dart and Flutter adapter rows, pubspec detection and override order in src/integrations/debugger/client/adapters.ts (and builtins.ts), or the adapter inference in DebugTool.checkPermissions, src/tools/debug/DebugTool.ts'
   console.log(`${passed ? 'PASS' : 'FAIL'} ${label}${detail || !passed ? ` — ${[detail, ...(passed ? [] : [hint])].filter(Boolean).join(' | ')}` : ''}`)
   if (!passed) failures++
 }
@@ -22,9 +22,9 @@ try {
   const bin = join(scratch, 'bin')
   mkdirSync(bin)
   process.env.PATH = bin
-  const { resolveAdapter, dormantBuiltinAdapterHints, adapterKeyForExtension } = await import('../../src/services/dap/dapClient.js')
-  const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
-  const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+  const { resolveAdapter, dormantBuiltinAdapterHints, adapterKeyForExtension } = await import('../../src/integrations/debugger/dapClient.js')
+  const { DebugTool } = await import('../../src/tools/debug/DebugTool.js')
+  const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
   const permission = async (program: string): Promise<{ message?: string }> => {
     const result = await DebugTool.checkPermissions({ op: 'launch', program } as never, {} as never)
     return 'message' in result ? { message: result.message } : {}

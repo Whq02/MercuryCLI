@@ -3,10 +3,10 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const report = await import('../../src/services/health/healthReport.ts')
-const { renderPlainCertificate } = await import('../../src/cli/healthPresentation.ts')
+const report = await import('../../src/platform/health/healthReport.ts')
+const { renderPlainCertificate } = await import('../../src/commands/verbs/healthPresentation.ts')
 const cache = join(tmpdir(), 'fixture-browser-cache')
 const executablePath = join(cache, 'chrome-for-testing')
 const installed = () => [{ family: 'chrome' as const, label: 'Google Chrome', executablePath: join(cache, 'operator-app') }]
@@ -35,9 +35,9 @@ for (const kind of ['managed', 'pin', 'absent', 'broken'] as const) {
   if (kind === 'broken') assert.match(row.evidence, /MERCURY_BROWSER_PATH is set to .* which does not exist/)
   assert.match(row.detail, /not driven: it is your app/)
   const text = renderPlainCertificate({ sections: json.sections, verdict: 'certified', durationMs: 0 })
-  assert.ok(text.includes(`[${row.status.toUpperCase()}] Browser — ${row.evidence}`), `renderPlainCertificate(${kind}) missing Browser row in src/cli/healthPresentation.ts: ${text.slice(0, 200)}`)
+  assert.ok(text.includes(`[${row.status.toUpperCase()}] Browser — ${row.evidence}`), `renderPlainCertificate(${kind}) missing Browser row in src/commands/verbs/healthPresentation.ts: ${text.slice(0, 200)}`)
 }
-const { interfaceChecks } = await import('../../src/services/health/sections/interface.ts')
+const { interfaceChecks } = await import('../../src/platform/health/sections/interface.ts')
 const listed = interfaceChecks().filter(row => row.id === 'iface-browser')
 assert.equal(listed.length, 1)
 assert.deepEqual({ label: listed[0]!.label, probe: listed[0]!.probe, depth: listed[0]!.depth }, { label: 'Browser', probe: 'configuration', depth: 'fast' })

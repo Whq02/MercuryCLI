@@ -1,17 +1,17 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/diagnosticTracking.ts
+// gate-watch: src/integrations/lsp/diagnosticTracking.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import figures from 'figures'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}${ok ? '' : ' — change getSeveritySymbol or formatDiagnosticsSummary of DiagnosticTrackingService in src/utils/diagnosticTracking.ts so its output matches this check, or update the expected text in this proof'}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}${ok ? '' : ' — change getSeveritySymbol or formatDiagnosticsSummary of DiagnosticTrackingService in src/integrations/lsp/diagnosticTracking.ts so its output matches this check, or update the expected text in this proof'}`)
   if (!ok) failures++
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { DiagnosticTrackingService } = await import('../../src/utils/diagnosticTracking.ts')
-type File = import('../../src/utils/diagnosticTracking.ts').DiagnosticFile
+const { DiagnosticTrackingService } = await import('../../src/integrations/lsp/diagnosticTracking.ts')
+type File = import('../../src/integrations/lsp/diagnosticTracking.ts').DiagnosticFile
 const at = (line: number, character: number) => ({ start: { line, character }, end: { line, character: character + 1 } })
 
 console.log('the severity symbols')

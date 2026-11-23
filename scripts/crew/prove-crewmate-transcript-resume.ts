@@ -92,7 +92,7 @@ try {
   tally.check('the fixture starts a real background crewmate with a history-bearing tool result', typeof taskId === 'string' && JSON.stringify(requests()[1]?.body.messages).includes('HISTORY-WITNESS'), `${requests().length} peer request(s) — the background crewmate must send its Bash tool result back to the model; read the rows tail of this run and the fixture script at the top of this file`)
   if (typeof taskId !== 'string') throw new Error('the fixture has no crewmate task id')
   const stopped = await stopAgent(taskId)
-  tally.check('the crew view\'s stop road stops the working crewmate', stopped.receipt === 'applied', JSON.stringify(stopped) + ' — the agent/stop request must answer receipt applied; see src/runner/wire/sessionVerbs.ts and src/cli/headless/runnerArms.ts')
+  tally.check('the crew view\'s stop road stops the working crewmate', stopped.receipt === 'applied', JSON.stringify(stopped) + ' — the agent/stop request must answer receipt applied; see src/daemon/runner-wire/sessionVerbs.ts and src/daemon/runner/runnerArms.ts')
   await sleep(3500)
   const before = transcripts()
   tally.check('the stopped crewmate\'s transcript stands on disk after the stop and the eviction', before.length === 1 && readFileSync(join(projects, before[0]!), 'utf8').includes('HISTORY-WITNESS'), JSON.stringify(before) + ' — a stopped crewmate must keep exactly one subagents/agent-*.jsonl transcript holding its tool result in the config home')
@@ -100,21 +100,21 @@ try {
   const resumed = await resumeAgent(taskId, `${NOTE}: use your existing conversation.`)
   record('resume-response.json', JSON.stringify(resumed, null, 2))
   const resumedOk = resumed.refused === undefined && typeof resumed.agent_id === 'string'
-  tally.check('r can resume the stopped row after its ephemeral task has been evicted', resumedOk, JSON.stringify(resumed) + ' — agent/resume must accept a stopped crewmate whose task was evicted, resuming from its transcript; see resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts and src/runner/wire/sessionVerbs.ts')
+  tally.check('r can resume the stopped row after its ephemeral task has been evicted', resumedOk, JSON.stringify(resumed) + ' — agent/resume must accept a stopped crewmate whose task was evicted, resuming from its transcript; see resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts and src/daemon/runner-wire/sessionVerbs.ts')
   if (resumedOk) {
     await session.waitFor('the resumed crewmate did not make a request carrying the note', () => continuationAfter(beforeResume) !== undefined, TURN_MS)
     const continued = continuationAfter(beforeResume) ?? requests()[beforeResume]!
     const history = JSON.stringify(continued.body.messages)
     record('continued-request.json', JSON.stringify(continued.body, null, 2))
-    tally.check('the resumed request retains the prior tool result rather than restarting the prompt', history.includes('"tool_result"') && history.includes('HISTORY-WITNESS'), history.slice(-600) + ' — the resumed request must carry the transcript history (tool_result and HISTORY-WITNESS), as built by resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts')
+    tally.check('the resumed request retains the prior tool result rather than restarting the prompt', history.includes('"tool_result"') && history.includes('HISTORY-WITNESS'), history.slice(-600) + ' — the resumed request must carry the transcript history (tool_result and HISTORY-WITNESS), as built by resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts')
     const last = continued.body.messages?.at(-1)
-    tally.check('the continuation is the next user turn after the retained history', last?.role === 'user' && JSON.stringify(last.content).includes(NOTE), JSON.stringify(last) + ' — the resume note must be the last user turn after the retained history; see resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts')
-    tally.check('the original model remains selected', continued.body.model === peerModel, `${continued.body.model} — a resumed crewmate must keep the model it was launched with; see resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts`)
+    tally.check('the continuation is the next user turn after the retained history', last?.role === 'user' && JSON.stringify(last.content).includes(NOTE), JSON.stringify(last) + ' — the resume note must be the last user turn after the retained history; see resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts')
+    tally.check('the original model remains selected', continued.body.model === peerModel, `${continued.body.model} — a resumed crewmate must keep the model it was launched with; see resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts`)
     const landed = (): boolean => transcripts().some(path => readFileSync(join(projects, path), 'utf8').includes(NOTE))
     const until = Date.now() + TURN_MS / 6
     while (!landed() && Date.now() < until) await sleep(100)
     const after = transcripts()
-    tally.check('the resumed turn lands on the same transcript file: one transcript for the crewmate, the note after the history', landed() && after.length === 1 && after[0] === before[0], JSON.stringify(after) + ' — a resume must append the note to the crewmate\'s existing transcript file, not start a second one; see resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts')
+    tally.check('the resumed turn lands on the same transcript file: one transcript for the crewmate, the note after the history', landed() && after.length === 1 && after[0] === before[0], JSON.stringify(after) + ' — a resume must append the note to the crewmate\'s existing transcript file, not start a second one; see resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts')
   }
 } finally {
   await session.terminate()

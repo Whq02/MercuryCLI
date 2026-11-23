@@ -6,7 +6,7 @@ import * as path from 'node:path'
 
 let failures = 0
 const SESSION_FAIL_HINT =
-  'to fix, change buildUnityBridgeIdeSession or unityBridgeReadinessRecords in src/services/ide/unityBridgeSession.ts (readiness must never connect), or getUnityBridgeClient in src/services/unity/bridgeClient.ts for the client checks'
+  'to fix, change buildUnityBridgeIdeSession or unityBridgeReadinessRecords in src/integrations/ide/unityBridgeSession.ts (readiness must never connect), or getUnityBridgeClient in src/integrations/unity/bridgeClient.ts for the client checks'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? detail : detail ? `${detail}; ${SESSION_FAIL_HINT}` : SESSION_FAIL_HINT
@@ -22,12 +22,12 @@ delete process.env.MERCURY_UNITY_BRIDGE_PORT
 delete process.env.MERCURY_UNITY_BRIDGE_TOKEN
 process.env.MERCURY_UNITY_BRIDGE_TOKEN = 'tok'
 
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
 const { buildUnityBridgeIdeSession, unityBridgeReadinessRecords, UNITY_LANES_ARM_SURFACE } =
-  await import('../../src/services/ide/unityBridgeSession.js')
-const { resetUnityBridgeClientForTest, getUnityBridgeClient } = await import('../../src/services/unity/bridgeClient.js')
-const installer = await import('../../src/services/unity/bridgeInstaller.js')
-const { unityTestResultsPath } = await import('../../src/utils/unity/unityProject.js')
+  await import('../../src/integrations/ide/unityBridgeSession.js')
+const { resetUnityBridgeClientForTest, getUnityBridgeClient } = await import('../../src/integrations/unity/bridgeClient.js')
+const installer = await import('../../src/integrations/unity/bridgeInstaller.js')
+const { unityTestResultsPath } = await import('../../src/integrations/unity-protocol/unityProject.js')
 const { startFakeUnityBridge } = await import('./fake-bridge.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'unity-bridge-session-'))

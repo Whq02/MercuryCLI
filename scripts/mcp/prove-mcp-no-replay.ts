@@ -22,9 +22,9 @@ if (typeof Bun !== 'undefined') {
   process.exit(status ?? 1)
 }
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const mcp = await import('../../src/services/mcp/client.ts')
+const mcp = await import('../../src/integrations/mcp/client.ts')
 let calls = 0
 const invocations: unknown[] = []
 let mode: 'drop' | 'timeout' | 'reject' | 'ok' = 'drop'
@@ -51,7 +51,7 @@ const server = createServer(async (req, res) => {
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
 const config = { type: 'http', url: `http://127.0.0.1:${(server.address() as any).port}/mcp`, scope: 'dynamic' } as const
 let failures = 0
-function check(label: string, ok: boolean, hint = '') { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`); if (!ok) { failures++; console.log(`  fix: ${hint || 'the MCP tool-call path in src/services/mcp/client.ts must send a call at most once'}`) } }
+function check(label: string, ok: boolean, hint = '') { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`); if (!ok) { failures++; console.log(`  fix: ${hint || 'the MCP tool-call path in src/integrations/mcp/client.ts must send a call at most once'}`) } }
 try {
   for (const testMode of ['drop', 'timeout', 'reject'] as const) {
     mode = testMode; calls = 0
@@ -73,19 +73,19 @@ try {
       text = JSON.stringify(result)
     } catch (error) { failed = true; text = String(error) }
     console.log(`${testMode}: invocations=${calls} ${text}`)
-    check(`${testMode}: exactly one effect`, calls === 1, `the server saw ${calls} tools/call requests; the tool-call wrapper in src/services/mcp/client.ts must not resend a tools/call after a dropped, timed-out or unanswered response`)
-    if (testMode === 'reject') check('non-executing session rejection can reconnect and retry', !failed && text.includes('recorded'), `got ${text}; a 404 session-not-found must clear the cached connection and reconnect so the retry runs (isMcpSessionExpiredError in src/services/mcp/client/errors.ts, the catch in src/services/mcp/client.ts)`)
+    check(`${testMode}: exactly one effect`, calls === 1, `the server saw ${calls} tools/call requests; the tool-call wrapper in src/integrations/mcp/client.ts must not resend a tools/call after a dropped, timed-out or unanswered response`)
+    if (testMode === 'reject') check('non-executing session rejection can reconnect and retry', !failed && text.includes('recorded'), `got ${text}; a 404 session-not-found must clear the cached connection and reconnect so the retry runs (isMcpSessionExpiredError in src/integrations/mcp/client/errors.ts, the catch in src/integrations/mcp/client.ts)`)
     else {
-      check(`${testMode}: error survives tool wrapper`, failed, 'the tool call must throw when the outcome is unknown, not return a result; see the catch block of the tool-call wrapper in src/services/mcp/client.ts')
-      check(`${testMode}: unknown outcome names action and recovery`, /unknown outcome/i.test(text) && text.includes('action-fixture') && text.includes('record') && text.includes('inspect the effect before retrying'), `got ${text}; the unknownOutcome error in src/services/mcp/client.ts must say unknown outcome, the server name, the tool name and inspect the effect before retrying`)
+      check(`${testMode}: error survives tool wrapper`, failed, 'the tool call must throw when the outcome is unknown, not return a result; see the catch block of the tool-call wrapper in src/integrations/mcp/client.ts')
+      check(`${testMode}: unknown outcome names action and recovery`, /unknown outcome/i.test(text) && text.includes('action-fixture') && text.includes('record') && text.includes('inspect the effect before retrying'), `got ${text}; the unknownOutcome error in src/integrations/mcp/client.ts must say unknown outcome, the server name, the tool name and inspect the effect before retrying`)
       if (process.env.PROOF_RESULT_DIR) writeFileSync(join(process.env.PROOF_RESULT_DIR, `mcp-${testMode}.json`), JSON.stringify({ error: text.replace(/^\w+: /, '') }))
     }
     if (testMode === 'timeout') {
-      check('local timeout aborts the SDK request signal before returning', requestSignal?.aborted === true, 'on a local timeout the tool-call wrapper in src/services/mcp/client.ts must call requestController.abort() before it throws')
+      check('local timeout aborts the SDK request signal before returning', requestSignal?.aborted === true, 'on a local timeout the tool-call wrapper in src/integrations/mcp/client.ts must call requestController.abort() before it throws')
       const id = (invocations.at(-1) as { msg: { id: unknown } }).msg.id
       const deadline = Date.now() + 1_000
       while (!cancelled.includes(id) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10))
-      check('local timeout sends notifications/cancelled for the original request', cancelled.includes(id), 'aborting the request signal in the tool-call wrapper in src/services/mcp/client.ts must reach the SDK so it sends notifications/cancelled with the original request id')
+      check('local timeout sends notifications/cancelled for the original request', cancelled.includes(id), 'aborting the request signal in the tool-call wrapper in src/integrations/mcp/client.ts must reach the SDK so it sends notifications/cancelled with the original request id')
     }
     await mcp.clearServerCache(`action-fixture-${testMode}`, config)
   }

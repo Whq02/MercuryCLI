@@ -12,9 +12,9 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 delete process.env.NODE_ENV
 
-const { FileReadTool } = await import(`${SRC}/tools/FileReadTool/FileReadTool.ts`)
-const { readTargetsEnabled } = await import(`${SRC}/tools/FileReadTool/readTarget.ts`)
-const { zodToJsonSchema } = await import(`${SRC}/utils/zodToJsonSchema.ts`)
+const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { readTargetsEnabled } = await import(`${SRC}/tools/read/readTarget.ts`)
+const { zodToJsonSchema } = await import(`${SRC}/platform/primitives/zodToJsonSchema.ts`)
 
 if (process.argv.includes('--record')) {
   const schema = JSON.stringify(zodToJsonSchema((FileReadTool as { inputSchema: never }).inputSchema))

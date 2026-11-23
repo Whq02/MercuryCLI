@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { checker } from '../engine-durability/harness.ts'
-import type { Frame } from '../../src/ink/frame.js'
-import { FrameWriter } from '../../src/ink/frame-writer.js'
-import { optimizePatches } from '../../src/ink/patch-stream.js'
-import { CURSOR_HOME } from '../../src/ink/termio/csi.js'
-import { writeDiffToTerminal } from '../../src/ink/session/delivery.js'
+import type { Frame } from '../../src/screen/renderer/frame.js'
+import { FrameWriter } from '../../src/screen/renderer/frame-writer.js'
+import { optimizePatches } from '../../src/screen/renderer/patch-stream.js'
+import { CURSOR_HOME } from '../../src/screen/renderer/termio/csi.js'
+import { writeDiffToTerminal } from '../../src/screen/renderer/terminal-session/frameDelivery.js'
 import { AnsiEmulator } from '../ink-runtime/ansiEmulator.js'
 import {
   CellWidth,
@@ -16,7 +16,7 @@ import {
   setCellAt,
   StylePool,
   type Screen,
-} from '../../src/ink/cell-grid.js'
+} from '../../src/screen/renderer/cell-grid.js'
 
 const t = checker()
 const styles = new StylePool()

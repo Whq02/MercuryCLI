@@ -99,7 +99,7 @@ function frame(name: string, lines: string[]): void {
     mkdirSync(join(file, '..'), { recursive: true })
     writeFileSync(file, body)
   } else if (!process.argv.includes('--record')) {
-    try { check(`${name}: the stored frame matches`, readFileSync(file, 'utf8') === body, 'the screen text differs from ' + file + '; if the change is intended, rerun this proof with --record to rewrite it, otherwise fix the exit or confirm text in src/commands/feedback/testerDoor.ts or src/components/MercuryExitConfirm.tsx.') }
+    try { check(`${name}: the stored frame matches`, readFileSync(file, 'utf8') === body, 'the screen text differs from ' + file + '; if the change is intended, rerun this proof with --record to rewrite it, otherwise fix the exit or confirm text in src/commands/feedback/testerDoor.ts or src/commands/exit/MercuryExitConfirm.tsx.') }
     catch { check(`${name}: the stored frame exists`, false, 'missing ' + file + '; run this proof with --record to create it.') }
   }
 }
@@ -125,8 +125,8 @@ const live = await drive('live-exit', [
 ], 520, farewell)
 const first = text(live.marks?.find(mark => mark.label === 'first-card')?.grid ?? [])
 const second = text(live.marks?.find(mark => mark.label === 'second-card')?.grid ?? [])
-check('the first confirm card of a clean session carries no door', first.includes('Leave Mercury?') && count(first) === 0, 'the confirm card must show Leave Mercury? (src/components/MercuryExitConfirm.tsx) and no door line; door count=' + count(first))
-check('staying then leaving again paints no door either', second.includes('Leave Mercury?') && count(second) === 0, 'the second confirm card must show Leave Mercury? (src/components/MercuryExitConfirm.tsx) and no door line; door count=' + count(second))
+check('the first confirm card of a clean session carries no door', first.includes('Leave Mercury?') && count(first) === 0, 'the confirm card must show Leave Mercury? (src/commands/exit/MercuryExitConfirm.tsx) and no door line; door count=' + count(first))
+check('staying then leaving again paints no door either', second.includes('Leave Mercury?') && count(second) === 0, 'the second confirm card must show Leave Mercury? (src/commands/exit/MercuryExitConfirm.tsx) and no door line; door count=' + count(second))
 check('the final farewell of a clean session carries no door', live.endReason === 'eof' && count(text(live.grid)) === 0, 'endReason=' + live.endReason + ', door count=' + count(text(live.grid)) + '; check takeTesterDoor in src/commands/feedback/testerDoor.ts.')
 frame('confirm', first.split('\n').filter(line => /Leave Mercury|quitting stops|Something broke|\[y\]/.test(line)).map(line => line.replace(/sleep \d+/g, 'sleep N').trim()))
 const api = await startFixtureApi([{ kind: 'text', text: 'Short tester report' }])
@@ -141,7 +141,7 @@ try {
     { requireAwait: true, awaitText: composer, awaitPattern: gone('enter to file it'), awaitSettleTicks: 2, data: '' }, ...command('/exit'),
   ], 520, farewell, { ANTHROPIC_BASE_URL: api.url, MERCURY_GH_CMD: JSON.stringify(['node', join(root, 'scripts/command-catalogue/fake-gh.mjs')]), GH_SHIM_LOG: join(scratch, 'short-gh.log') })
   const review = text(report.marks?.find(mark => mark.label === 'review')?.grid ?? [])
-  check('short report reviews the three fields without a health dump', ['Your OS', 'What you tried', 'What broke'].every(label => review.includes(label)) && !review.includes('health --json'), 'the /bug --short review screen must list Your OS, What you tried and What broke with no health dump; see src/components/feedback/feedbackView.tsx and src/commands/feedback/issueForms.ts.')
+  check('short report reviews the three fields without a health dump', ['Your OS', 'What you tried', 'What broke'].every(label => review.includes(label)) && !review.includes('health --json'), 'the /bug --short review screen must list Your OS, What you tried and What broke with no health dump; see src/screen/feedback/feedbackView.tsx and src/commands/feedback/issueForms.ts.')
   const calls = existsSync(join(scratch, 'short-gh.log')) ? readFileSync(join(scratch, 'short-gh.log'), 'utf8') : ''
   check('the proof reached the fake GitHub CLI and filed nothing', calls.includes('auth status') && !calls.includes('issue create'), 'the fake gh log must show auth status and no issue create; see src/commands/feedback/feedback.tsx and scripts/command-catalogue/fake-gh.mjs. Log: ' + calls.slice(-300))
   const { readdirSync } = await import('node:fs')

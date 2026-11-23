@@ -15,7 +15,7 @@ const node = Bun.which('node') ?? 'node'
 let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => { checks++; console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok || !detail ? '' : `: ${detail.slice(0, 700)}`}`); if (!ok) failures++ }
-const HIDDEN_LINES_HINT = 'the run prints these stderr lines from untoldHiddenCharacterLines in src/cli/headless/printTurn.ts, worded by hiddenCharacterLine in src/utils/text/hiddenCharacterFindings.ts'
+const HIDDEN_LINES_HINT = 'the run prints these stderr lines from untoldHiddenCharacterLines in src/daemon/runner/runnerTurn.ts, worded by hiddenCharacterLine in src/platform/text/hiddenCharacterFindings.ts'
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'hidden-instruction-')))
 type World = { home: string; cwd: string; env: Record<string, string> }
@@ -95,7 +95,7 @@ try {
       await host.stop()
       const record = ((): string => { const stack = [join(w.home, 'projects')]; let text = ''; while (stack.length > 0) { const dir = stack.pop()!; if (!existsSync(dir)) continue; for (const entry of readdirSync(dir, { withFileTypes: true })) { const path = join(dir, entry.name); if (entry.isDirectory()) stack.push(path); else if (entry.name.endsWith('.jsonl')) text += readFileSync(path, 'utf8') } } return text })()
       const times = (words: string): number => record.split(words).length - 1
-      check('the record holds one line for each of the four files, across both turns', ['MERCURY.md carries 1 hidden character', 'extra.md carries 2 hidden characters', 'r.md carries 2 hidden characters', 'MERCURY.local.md carries 1 hidden character'].every(words => times(words) === 1), `a runner must say each hidden-character line once, at the first turn; find where the runner door records them (untoldHiddenCharacterLines in src/utils/text/hiddenCharacterFindings.ts); counts ${JSON.stringify(['MERCURY.md carries', 'extra.md carries', 'r.md carries', 'MERCURY.local.md carries'].map(words => [words, times(words)])) }`)
+      check('the record holds one line for each of the four files, across both turns', ['MERCURY.md carries 1 hidden character', 'extra.md carries 2 hidden characters', 'r.md carries 2 hidden characters', 'MERCURY.local.md carries 1 hidden character'].every(words => times(words) === 1), `a runner must say each hidden-character line once, at the first turn; find where the runner door records them (untoldHiddenCharacterLines in src/platform/text/hiddenCharacterFindings.ts); counts ${JSON.stringify(['MERCURY.md carries', 'extra.md carries', 'r.md carries', 'MERCURY.local.md carries'].map(words => [words, times(words)])) }`)
     } finally {
       await host.stop().catch(() => null)
       await api.close()

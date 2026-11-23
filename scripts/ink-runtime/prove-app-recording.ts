@@ -4,9 +4,9 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFil
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join, sep } from 'node:path'
 import type { ReactNode } from 'react'
-import type AppClass from '../../src/ink/components/App.tsx'
-import type { InputEvent } from '../../src/ink/events/input-event.ts'
-import type { ParsedKey } from '../../src/ink/input/input-decoder.ts'
+import type AppClass from '../../src/screen/renderer/elements/App.tsx'
+import type { InputEvent } from '../../src/screen/renderer/events/input-event.ts'
+import type { ParsedKey } from '../../src/screen/renderer/input/input-decoder.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import {
   advance,
@@ -130,23 +130,23 @@ function sgr(button: number, col: number, row: number, up = false): string {
 async function loadProduct() {
   const React = await import('react')
   const { ConcurrentRoot } = await import('react-reconciler/constants.js')
-  const { default: App } = await import('../../src/ink/components/App.js')
-  const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-  const { default: AppContext } = await import('../../src/ink/components/AppContext.js')
-  const { TerminalSizeContext, LiveTerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-  const { useTerminalFocus } = await import('../../src/ink/hooks/use-terminal-focus.js')
-  const { default: useInput } = await import('../../src/ink/hooks/use-input.js')
-  const { default: Text } = await import('../../src/ink/components/Text.js')
-  const { default: Box } = await import('../../src/ink/components/Box.js')
-  const { default: Ink } = await import('../../src/ink/ink.js')
-  const { default: instances } = await import('../../src/ink/instances.js')
-  const { default: reconciler } = await import('../../src/ink/reconciler.js')
-  const { createNode } = await import('../../src/ink/dom.js')
-  const { createSelectionState } = await import('../../src/ink/geometry/selection.js')
-  const { useLayoutChrome } = await import('../../src/context/layoutChromeContext.js')
-  const ledger = await import('../../src/ink/root/terminalModeLedger.js')
-  const { getMercuryHome } = await import('../../src/utils/envUtils.js')
-  const { crashReportDir } = await import('../../src/utils/crashReport.js')
+  const { default: App } = await import('../../src/screen/renderer/elements/App.js')
+  const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+  const { default: AppContext } = await import('../../src/screen/renderer/elements/AppContext.js')
+  const { TerminalSizeContext, LiveTerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+  const { useTerminalFocus } = await import('../../src/screen/renderer/bindings/use-terminal-focus.js')
+  const { default: useInput } = await import('../../src/screen/renderer/bindings/use-input.js')
+  const { default: Text } = await import('../../src/screen/renderer/elements/Text.js')
+  const { default: Box } = await import('../../src/screen/renderer/elements/Box.js')
+  const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+  const { default: instances } = await import('../../src/screen/renderer/instances.js')
+  const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
+  const { createNode } = await import('../../src/screen/renderer/dom.js')
+  const { createSelectionState } = await import('../../src/screen/renderer/geometry/selection.js')
+  const { useLayoutChrome } = await import('../../src/screen/fullscreen-layout/layoutChromeContext.js')
+  const ledger = await import('../../src/screen/renderer/root/terminalModeLedger.js')
+  const { getMercuryHome } = await import('../../src/platform/environment/envUtils.js')
+  const { crashReportDir } = await import('../../src/platform/logs/crashReport.js')
   const home = getMercuryHome()
   hide(home, '<config-home>')
   if (home.startsWith(homedir() + sep)) hide(`~${home.slice(homedir().length)}`, '<config-home>')
@@ -802,11 +802,11 @@ const fail = (line: string): void => {
 }
 
 const names = SCENES.map(scene => scene.name)
-const source = Bun.resolveSync('../../src/ink/components/App.js', import.meta.dir)
-if (source.replaceAll('\\', '/').endsWith('/src/ink/components/App.tsx')) {
-  console.log(`  [PASS] recorded unit is ${UNIT} of src/ink/components/App.tsx`)
+const source = Bun.resolveSync('../../src/screen/renderer/elements/App.js', import.meta.dir)
+if (source.replaceAll('\\', '/').endsWith('/src/screen/renderer/elements/App.tsx')) {
+  console.log(`  [PASS] recorded unit is ${UNIT} of src/screen/renderer/elements/App.tsx`)
 } else {
-  fail(`recorded module is not src/ink/components/App.tsx: ${source}`)
+  fail(`recorded module is not src/screen/renderer/elements/App.tsx: ${source}`)
 }
 
 let first: Record<string, string[]> = {}

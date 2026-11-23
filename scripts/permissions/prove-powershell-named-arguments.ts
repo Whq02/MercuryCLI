@@ -3,7 +3,7 @@ import { deepStrictEqual, ok } from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
-import type { ParsedPowerShellCommand } from '../../src/utils/permissions/decision/commandAnalysis.js'
+import type { ParsedPowerShellCommand } from '../../src/permissions/rules/decision/commandAnalysis.js'
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'powershell-named-'))
 process.env.MERCURY_CONFIG_DIR = scratch
@@ -36,8 +36,8 @@ const denied = [
 ]
 const reads = ['Get-Content notes.txt', 'Get-Content -Path notes.txt']
 const variable = 'ConvertTo-Json $env:USERNAME'
-const { pinnedCommandAnalysis } = await import('../../src/utils/permissions/decision/commandAnalysis.js')
-const { getCachedPowerShellPath } = await import('../../src/utils/shell/powershellDetection.js')
+const { pinnedCommandAnalysis } = await import('../../src/permissions/rules/decision/commandAnalysis.js')
+const { getCachedPowerShellPath } = await import('../../src/platform/shell/powershellDetection.js')
 const native = await getCachedPowerShellPath() !== null
 const parses = new Map<string, ParsedPowerShellCommand>()
 for (const command of [...denied, ...reads, variable]) {
@@ -61,18 +61,18 @@ spyOn(pinnedCommandAnalysis, 'parsePowerShellCommand').mockImplementation(async 
 })
 
 Object.defineProperty(process, 'platform', { ...platform, value: 'win32' })
-const { getPlatform } = await import('../../src/utils/platform.js')
+const { getPlatform } = await import('../../src/platform/environment/platform.js')
 getPlatform.cache.set(undefined, 'windows')
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { setOriginalCwd, setProjectRoot, setCwdState } = await import('../../src/bootstrap/state.js')
+const { setOriginalCwd, setProjectRoot, setCwdState } = await import('../../src/boot/process-state/processState.js')
 const project = 'C:\\src\\project'
 setOriginalCwd(project)
 setProjectRoot(project)
 setCwdState(project)
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { PowerShellTool } = await import('../../src/tools/PowerShellTool/PowerShellTool.js')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { PowerShellTool } = await import('../../src/tools/powershell/PowerShellTool.js')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.js')
 let failures = 0
 for (const mode of ['default', 'implement', 'flow', 'sovereign'] as const) {
   const toolPermissionContext = { ...getEmptyToolPermissionContext(), mode, alwaysDenyRules: { userSettings: ['Edit(//C/denied/**)', 'Read(//C/denied/**)'] } }

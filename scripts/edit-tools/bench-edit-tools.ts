@@ -20,43 +20,43 @@ const DAEMON_HOME = mkdtempSync(join(tmpdir(), 'anvil-bench-daemon-'))
 if (!process.env.MERCURY_CONFIG_DIR) process.env.MERCURY_CONFIG_DIR = CONFIG_HOME
 if (!process.env.MERCURY_DAEMON_DIR) process.env.MERCURY_DAEMON_DIR = DAEMON_HOME
 
-const { applyEditToFile } = await import('../../src/utils/fileEditUtils.ts')
+const { applyEditToFile } = await import('../../src/tools/edit/call/editMatching.ts')
 const { mintFileAnchor, checkAnchor, formatAnchorFailure } = await import(
-  '../../src/services/changeTransaction/snapshotAnchor.ts'
+  '../../src/tools/engines/change-transaction/snapshotAnchor.ts'
 )
 const { planHunks, applyHunks } = await import(
-  '../../src/services/changeTransaction/hunks.ts'
+  '../../src/tools/engines/change-transaction/hunks.ts'
 )
 const { discoverRunnerProfiles, runRunnerProfile } = await import(
-  '../../src/services/ide/projectRunners.ts'
+  '../../src/integrations/ide/projectRunners.ts'
 )
 const { _drainTxAutoCaptureForTesting, installTxAutoCapture } = await import(
-  '../../src/services/ide/txAutoCapture.ts'
+  '../../src/integrations/ide/txAutoCapture.ts'
 )
-const { recordReview } = await import('../../src/services/repoHost/repoHost.ts')
+const { recordReview } = await import('../../src/platform/repo-host/repoHost.ts')
 const { installChangeReceiptObserver, receiptsFor, _resetChangeReceiptsForTesting } =
-  await import('../../src/services/changeTransaction/receipts.ts')
-const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
+  await import('../../src/tools/engines/change-transaction/receipts.ts')
+const { observeToolTerminal } = await import('../../src/engine/run-owner/effectObserver.ts')
 const {
   discoverPythonTests,
   runPythonTests,
   rerunFailedTests,
   latestRun,
-} = await import('../../src/services/ide/pythonTests.ts')
-const { latestTransaction } = await import('../../src/services/ide/ideTransaction.ts')
-const { gitStatus, gitDiff } = await import('../../src/services/gitGraph/observe.ts')
-const { resolveResource } = await import('../../src/services/resources/registry.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
-const { getAllBaseTools } = await import('../../src/tools.ts')
+} = await import('../../src/integrations/ide/pythonTests.ts')
+const { latestTransaction } = await import('../../src/integrations/ide/ideTransaction.ts')
+const { gitStatus, gitDiff } = await import('../../src/platform/git-graph/observe.ts')
+const { resolveResource } = await import('../../src/integrations/resources/registry.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
 const { searchToolsWithKeywords } = await import(
-  '../../src/tools/ToolSearchTool/ToolSearchTool.ts'
+  '../../src/tools/tool-search/ToolSearchTool.ts'
 )
-await import('../../src/services/resources/adapters/test.ts')
-await import('../../src/services/resources/adapters/git.ts')
-await import('../../src/services/resources/adapters/transaction.ts')
-await import('../../src/services/resources/adapters/health.ts')
-await import('../../src/services/resources/adapters/repo.ts')
+await import('../../src/integrations/resources/adapters/test.ts')
+await import('../../src/integrations/resources/adapters/git.ts')
+await import('../../src/integrations/resources/adapters/transaction.ts')
+await import('../../src/integrations/resources/adapters/health.ts')
+await import('../../src/integrations/resources/adapters/repo.ts')
 
 type OwnerKey = ReturnType<typeof processMainOwner>
 const owner: OwnerKey = processMainOwner()
@@ -657,13 +657,13 @@ async function m6MixedTargets(mode: Mode): Promise<MissionMetrics> {
   surfaces.add('Read')
   if (mode === 'after') {
     t.call('Read')
-    const { renderDirectoryTarget } = await import('../../src/tools/FileReadTool/readTarget.ts')
+    const { renderDirectoryTarget } = await import('../../src/tools/read/readTarget.ts')
     const listing = renderDirectoryTarget(join(dir, 'sub'))
     if (!listing.content.includes('(target: directory')) return t.finish(false)
     surfaces.add('Read')
     t.call('Read')
     t.call('Read')
-    const { renderResourceTarget } = await import('../../src/tools/FileReadTool/readTarget.ts')
+    const { renderResourceTarget } = await import('../../src/tools/read/readTarget.ts')
     const res = await runWithCwdOverride(dir, () =>
       renderResourceTarget('mercury://health/latest', { owner, cwd: dir }),
     )
@@ -734,7 +734,7 @@ async function m7Repository(mode: Mode): Promise<MissionMetrics> {
   }
 
   if (mode === 'after') {
-    const { _resetRepoHostCacheForTesting } = await import('../../src/services/repoHost/repoHost.ts')
+    const { _resetRepoHostCacheForTesting } = await import('../../src/platform/repo-host/repoHost.ts')
     const priorPath = process.env.PATH
     process.env.PATH = `${shimDir}:${priorPath}`
     _resetRepoHostCacheForTesting()
@@ -815,7 +815,7 @@ async function m8ClosedLoop(_mode: Mode): Promise<MissionMetrics> {
   if (green) t.greenCheckAt(stepT)
   t.call('Transaction')
   t.m.explicitTxCalls += 1
-  const { TransactionTool } = await import('../../src/tools/TransactionTool/TransactionTool.js')
+  const { TransactionTool } = await import('../../src/tools/transaction/TransactionTool.js')
   const fin = await runWithCwdOverride(dir, () => TransactionTool.call({ op: 'finish', verdict: 'completed' }, { owner } as never))
   if (fin.data.outcome !== 'succeeded') {
     t.note(fin.data.result)

@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 
 import { marked, type Token } from 'marked'
-import { advanceStableBoundary, computeSeamRows } from '../../src/components/Markdown.tsx'
-import { configureMarked, formatToken } from '../../src/utils/markdown.ts'
-import { getTheme } from '../../src/utils/theme.ts'
+import { advanceStableBoundary, computeSeamRows } from '../../src/screen/messages/Markdown.tsx'
+import { configureMarked, formatToken } from '../../src/screen/messages/markdownText.ts'
+import { getTheme } from '../../src/screen/theme/theme.ts'
 
 configureMarked()
 const theme = getTheme()
@@ -13,8 +13,8 @@ let checks = 0
 function fail(name: string, detail: string): void {
   failures++
   const mdFix = name.includes('L5')
-    ? 'change computeSeamRows in src/components/Markdown.tsx so the split render (stable part, seam rows, unstable part) has the same rows as the settled render'
-    : 'change advanceStableBoundary in src/components/Markdown.tsx so the stable boundary never moves back, never passes the text, and cuts only where lexing the parts equals lexing the whole'
+    ? 'change computeSeamRows in src/screen/messages/Markdown.tsx so the split render (stable part, seam rows, unstable part) has the same rows as the settled render'
+    : 'change advanceStableBoundary in src/screen/messages/Markdown.tsx so the stable boundary never moves back, never passes the text, and cuts only where lexing the parts equals lexing the whole'
   console.log(`  ✗ ${name} — ${detail} · ${mdFix}`)
 }
 function pass(name: string): void {

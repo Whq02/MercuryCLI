@@ -8,12 +8,12 @@ import { fileURLToPath } from 'node:url'
 let failures = 0
 let checks = 0
 const SECTION_HINTS: Record<string, string> = {
-  '1': 'change parseDuckDuckGoHtml or resolveDuckDuckGoHref in src/services/search/duckduckgo.ts, or decodeHtmlEntities in src/services/search/htmlText.ts; the page fixtures are in scripts/search/fixtures',
-  '2': 'change parseDuckDuckGoLite in src/services/search/duckduckgo.ts, or decodeHtmlEntities in src/services/search/htmlText.ts; the page fixtures are in scripts/search/fixtures',
-  '3': 'change decodeBraveWebSearch in src/services/search/brave.ts; the fixture is scripts/search/fixtures/brave-web-search.json',
-  '4': 'change decodeTavilySearch in src/services/search/tavily.ts; the fixture is scripts/search/fixtures/tavily-search.json',
-  '5': 'change filterHitsByDomain or normaliseHits in src/services/search/searchContract.ts',
-  '6': 'change failureLine, viaLine, viaChip or KEYED_DOOR_REMEDY in src/services/search/searchContract.ts, the query builders (keylessQueryFor in duckduckgo.ts, braveQueryFor in brave.ts, tavilyRequestBodyFor in tavily.ts) or the entity helpers in src/services/search/htmlText.ts',
+  '1': 'change parseDuckDuckGoHtml or resolveDuckDuckGoHref in src/tools/engines/web-search/duckduckgo.ts, or decodeHtmlEntities in src/tools/engines/web-search/htmlText.ts; the page fixtures are in scripts/search/fixtures',
+  '2': 'change parseDuckDuckGoLite in src/tools/engines/web-search/duckduckgo.ts, or decodeHtmlEntities in src/tools/engines/web-search/htmlText.ts; the page fixtures are in scripts/search/fixtures',
+  '3': 'change decodeBraveWebSearch in src/tools/engines/web-search/brave.ts; the fixture is scripts/search/fixtures/brave-web-search.json',
+  '4': 'change decodeTavilySearch in src/tools/engines/web-search/tavily.ts; the fixture is scripts/search/fixtures/tavily-search.json',
+  '5': 'change filterHitsByDomain or normaliseHits in src/tools/engines/web-search/searchContract.ts',
+  '6': 'change failureLine, viaLine, viaChip or KEYED_DOOR_REMEDY in src/tools/engines/web-search/searchContract.ts, the query builders (keylessQueryFor in duckduckgo.ts, braveQueryFor in brave.ts, tavilyRequestBodyFor in tavily.ts) or the entity helpers in src/tools/engines/web-search/htmlText.ts',
 }
 let sectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -31,11 +31,11 @@ const j = (v: unknown): string => JSON.stringify(v) ?? ''
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures')
 const page = (name: string): string => readFileSync(join(FIXTURES, name), 'utf8')
 
-const { parseDuckDuckGoHtml, parseDuckDuckGoLite, resolveDuckDuckGoHref, keylessQueryFor } = await import('../../src/services/search/duckduckgo.js')
-const { decodeBraveWebSearch, braveQueryFor } = await import('../../src/services/search/brave.js')
-const { decodeTavilySearch, tavilyRequestBodyFor } = await import('../../src/services/search/tavily.js')
-const { decodeHtmlEntities, htmlToText, readAttribute } = await import('../../src/services/search/htmlText.js')
-const contract = await import('../../src/services/search/searchContract.js')
+const { parseDuckDuckGoHtml, parseDuckDuckGoLite, resolveDuckDuckGoHref, keylessQueryFor } = await import('../../src/tools/engines/web-search/duckduckgo.js')
+const { decodeBraveWebSearch, braveQueryFor } = await import('../../src/tools/engines/web-search/brave.js')
+const { decodeTavilySearch, tavilyRequestBodyFor } = await import('../../src/tools/engines/web-search/tavily.js')
+const { decodeHtmlEntities, htmlToText, readAttribute } = await import('../../src/tools/engines/web-search/htmlText.js')
+const contract = await import('../../src/tools/engines/web-search/searchContract.js')
 
 section('§1 DuckDuckGo html — the captured page, the challenge, the poison')
 {

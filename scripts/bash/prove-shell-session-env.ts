@@ -22,7 +22,7 @@ delete process.env.MERCURY_SHELL_ENGINE
 if (!(process.env.SHELL ?? '').includes('bash') && existsSync('/bin/bash')) process.env.SHELL = '/bin/bash'
 
 let failures = 0
-const sessionEnvFixHint = 'change src/substrate/envStamps.ts (sessionEnvStamps, scrubSessionEnvStamps, stampSpawnReceipt, spawnSelfStamped), the exec scrub in src/utils/Shell.ts, or src/tools/shared/sessionEnvNotice.ts (sessionEnvNoticeForResult), whichever the failed label names'
+const sessionEnvFixHint = 'change src/platform/substrate/envStamps.ts (sessionEnvStamps, scrubSessionEnvStamps, stampSpawnReceipt, spawnSelfStamped), the exec scrub in src/platform/shell/shellExec.ts, or src/tools/kit/sessionEnvNotice.ts (sessionEnvNoticeForResult), whichever the failed label names'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' | ' : '') + sessionEnvFixHint : ''}`)
   if (!cond) failures++
@@ -35,9 +35,9 @@ for (const name of Object.keys(process.env)) {
   if (name.startsWith('MERCURY_') && !['MERCURY_CONFIG_DIR', 'MERCURY_CREDENTIAL_STORE'].includes(name)) delete process.env[name]
 }
 
-const { FLAG_REGISTRY, getFlagSpec, setFlagEnv, deleteFlagEnv, selfWrittenFlagEnv } = await import('../../src/substrate/flagRegistry.ts')
+const { FLAG_REGISTRY, getFlagSpec, setFlagEnv, deleteFlagEnv, selfWrittenFlagEnv } = await import('../../src/platform/substrate/flagRegistry.ts')
 const { SPAWN_STAMP_RECEIPT, sessionEnvStamps, scrubSessionEnvStamps, spawnSelfStamped, stampSpawnReceipt } = await import(
-  '../../src/substrate/envStamps.ts'
+  '../../src/platform/substrate/envStamps.ts'
 )
 
 console.log('============================================================')
@@ -102,7 +102,7 @@ for (const [name, consumer] of [
 ]) check(`script environment reader ${name} has its actual consumer registered`, getFlagSpec(name!)?.consumer === consumer && readFileSync(join(ROOT, consumer!), 'utf8').includes(name!))
 
 section('§2 the exec seam: scrubbed by default, named on the handle, inherited on request')
-const { exec, setCwd } = await import('../../src/utils/Shell.ts')
+const { exec, setCwd } = await import('../../src/platform/shell/shellExec.ts')
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'session-env-scrub-')))
 setCwd(SCRATCH)
 
@@ -144,9 +144,9 @@ check('…and the handle reports nothing scrubbed', inheritRun.scrubbed.length =
 check('…with the pin present too', inheritRun.env.get('MERCURY_MODEL_LANES') === '1')
 
 section('§3 the tools: the inherit input and the result notice')
-const { scrubbedSessionEnvNotice, sessionEnvNoticeForResult, shortScrubbedSessionEnvNotice, resetSessionEnvNoticeOnCompaction } = await import('../../src/tools/shared/sessionEnvNotice.ts')
-const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { scrubbedSessionEnvNotice, sessionEnvNoticeForResult, shortScrubbedSessionEnvNotice, resetSessionEnvNoticeOnCompaction } = await import('../../src/tools/kit/sessionEnvNotice.ts')
+const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 const notice = scrubbedSessionEnvNotice(['MERCURY_ENTRYPOINT', 'MERCURY_SEATS'])
 check('the notice names the scrubbed variables and the inherit input', notice.includes('MERCURY_ENTRYPOINT, MERCURY_SEATS') && notice.includes('inherit_session_env'))
 check('no notice when nothing was scrubbed', scrubbedSessionEnvNotice([]) === '' && scrubbedSessionEnvNotice(undefined) === '')
@@ -188,11 +188,11 @@ const acrossNoFold = await noticeAfterARun({ script: [t.fixtures.yields(t.fixtur
 check(
   'the turn machine resets the notice latch at the compaction boundary',
   acrossAFold.folded && acrossAFold.notice === scrubbedSessionEnvNotice(scrubbedSet) && !acrossNoFold.folded && acrossNoFold.notice === '',
-  `after a run in which a fold landed (boundary seen: ${acrossAFold.folded}) the next scrubbing result carried ${JSON.stringify(acrossAFold.notice)} (the full note is right); after a run with no fold (boundary seen: ${acrossNoFold.folded}) it carried ${JSON.stringify(acrossNoFold.notice)} (nothing is right) — makeRequest in src/run-core/turn/makeRequest.ts resets the once-per-session latch where it yields the compaction boundary`,
+  `after a run in which a fold landed (boundary seen: ${acrossAFold.folded}) the next scrubbing result carried ${JSON.stringify(acrossAFold.notice)} (the full note is right); after a run with no fold (boundary seen: ${acrossNoFold.folded}) it carried ${JSON.stringify(acrossNoFold.notice)} (nothing is right) — makeRequest in src/engine/loop/turn/makeRequest.ts resets the once-per-session latch where it yields the compaction boundary`,
 )
 await disposeOwner(processMainOwner())
-const { normalizeToolInput } = await import('../../src/services/messages/api.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+const { normalizeToolInput } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
 const normalized = normalizeToolInput(BashTool as never, { command: 'env', inherit_session_env: true }) as { inherit_session_env?: boolean }
 check('the tool-input normaliser keeps inherit_session_env on its way to execution', normalized.inherit_session_env === true, JSON.stringify(normalized))
 
@@ -215,7 +215,7 @@ check('a suite guard run from the tool shell admits the shell: the session stamp
 const inheritedGuard = await guardRun(true)
 check('the same guard refuses an inheriting call, naming the consent stamp among the foreign values (the guard stays strict)', poisoned ? inheritedGuard.code === 0 : inheritedGuard.code === 78 && inheritedGuard.text.includes('MERCURY_DAEMON_SELF_WARM_CONSENT'), `rc=${inheritedGuard.code} ${inheritedGuard.text.trim().slice(0, 300)}`)
 
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 let appState = getDefaultAppState()
 const toolContext = {
   options: { engineModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {} },
@@ -227,7 +227,7 @@ const toolContext = {
 } as never
 let failureText = ''
 await disposeOwner(processMainOwner())
-const { formatError } = await import('../../src/utils/toolErrors.ts')
+const { formatError } = await import('../../src/tools/kit/toolErrors.ts')
 let failureStderr = ''
 try { await BashTool.call({ command: 'exit 7' }, toolContext) } catch (error) { failureText = formatError(error); failureStderr = String((error as { stderr?: string }).stderr ?? '') }
 check('a failed real Bash tool call preserves the scrub notice and exit in what the model reads', failureText.includes('MERCURY_ENTRYPOINT') && failureText.includes('inherit_session_env') && failureText.includes('7'), failureText)

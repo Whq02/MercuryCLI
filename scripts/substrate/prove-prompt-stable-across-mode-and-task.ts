@@ -7,9 +7,9 @@ for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_MODEL',
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const knapsack = await import('../../src/mneme/entryKnapsack.ts')
+const knapsack = await import('../../src/sessions/mneme/entryKnapsack.ts')
 let composed = 0
-mock.module('../../src/mneme/entryKnapsack.ts', () => ({
+mock.module('../../src/sessions/mneme/entryKnapsack.ts', () => ({
   ...knapsack,
   composeMemoryAtStart: async (input: { task?: { prompt?: string } }) => {
     composed += 1
@@ -17,24 +17,24 @@ mock.module('../../src/mneme/entryKnapsack.ts', () => ({
   },
 }))
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(proofHome)
 bootstrap.setProjectRoot(proofHome)
 bootstrap.setCwdState(proofHome)
 bootstrap.switchSession('00000000-0000-4000-8000-000000000051' as never, proofHome)
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const posture = await import('../../src/utils/cockpit/runtimePosture.ts')
-const { getSystemPrompt, resetMemoryAtStartForTest } = await import('../../src/constants/prompts.ts')
-const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
+const posture = await import('../../src/screen/cockpit/runtimePosture.ts')
+const { getSystemPrompt, resetMemoryAtStartForTest } = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+const { clearSystemPromptSections } = await import('../../src/engine/system-prompt/systemPromptSections.ts')
 
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}${!ok ? ' — change: the posture block and mode reminder in src/utils/cockpit/runtimePosture.ts (getRuntimePostureSection, markSessionPermissionMode), or the memory-at-start and section caching in getSystemPrompt (src/constants/prompts.ts) and src/constants/systemPromptSections.ts' : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}${!ok ? ' — change: the posture block and mode reminder in src/screen/cockpit/runtimePosture.ts (getRuntimePostureSection, markSessionPermissionMode), or the memory-at-start and section caching in getSystemPrompt (src/engine/system-prompt/defaultSystemPrompt.ts) and src/engine/system-prompt/systemPromptSections.ts' : ''}`)
 }
 const MODEL = 'claude-fable-5-1'
 const promptOf = async (task?: string): Promise<string> => (await getSystemPrompt([], MODEL, [], 'default', task === undefined ? undefined : { prompt: task })).join('\n\n')

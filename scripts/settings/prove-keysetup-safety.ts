@@ -27,10 +27,10 @@ mock.module('node:fs/promises', () => ({
     ? Promise.reject(Object.assign(new Error('fixture backup refused'), { code: 'EACCES' }))
     : copy(...args),
 }))
-const exec = await import('../../src/utils/execFileNoThrow.ts')
+const exec = await import('../../src/platform/processes/execFileNoThrow.ts')
 const calls: string[][] = []
 let failBell = false
-mock.module('../../src/utils/execFileNoThrow.ts', () => ({
+mock.module('../../src/platform/processes/execFileNoThrow.ts', () => ({
   ...exec,
   execFileNoThrow: async (file: string, args: string[]) => {
     calls.push([file, ...args])
@@ -42,13 +42,13 @@ mock.module('../../src/utils/execFileNoThrow.ts', () => ({
   },
 }))
 let completed = 0
-mock.module('../../src/utils/appleTerminalBackup.ts', () => ({
+mock.module('../../src/commands/keysetup/appleTerminalBackup.ts', () => ({
   backupTerminalPreferences: async () => join(home, 'terminal.bak'),
   getTerminalPlistPath: () => join(home, 'terminal.plist'),
   markTerminalSetupComplete: () => { completed++ },
 }))
-const { env } = await import('../../src/utils/env.ts')
-const { enableConfigs, getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
+const { env } = await import('../../src/platform/environment/env.ts')
+const { enableConfigs, getGlobalConfig, saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { setupTerminal } = await import('../../src/commands/keysetup/keysetup.tsx')
 const vscode = process.platform === 'darwin' ? join(home, 'Library', 'Application Support', 'Code', 'User', 'keybindings.json') : process.platform === 'win32' ? join(home, 'AppData', 'Roaming', 'Code', 'User', 'keybindings.json') : join(home, '.config', 'Code', 'User', 'keybindings.json')

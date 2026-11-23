@@ -8,11 +8,11 @@ import {
   noteCtxTurnBoundary,
   recordCtxSample,
   resetCtxForecastForTest,
-} from '../../src/services/cockpit/ctxForecast.js'
+} from '../../src/screen/cockpit-gauges/ctxForecast.js'
 
 let fail = 0
 const t = (name: string, ok: boolean, detail = '') => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix ctxForecastEnabled, recordCtxSample, noteCtxTurnBoundary or estimateTurnsToCompact in src/services/cockpit/ctxForecast.ts, whichever this check names'}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix ctxForecastEnabled, recordCtxSample, noteCtxTurnBoundary or estimateTurnsToCompact in src/screen/cockpit-gauges/ctxForecast.ts, whichever this check names'}`)
   if (!ok) fail = 1
 }
 

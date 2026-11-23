@@ -44,7 +44,7 @@ function worker(name: string, owner: string, agent = false) {
 }
 try {
   await configure(api, { unrelated: { baseUrl: engine.base + '/unrelated/v1', dialect: 'llamacpp', models: ['Other'] }, llamacpp: { baseUrl: engine.base + '/llamacpp/v1', dialect: 'llamacpp', models: ['Fixture/Reasoner', 'kimi-k3'] } })
-  const { noteCompatPrefixCache } = await import(`${root}/src/services/providers/openaicompat/compatPrefixCache.ts`)
+  const { noteCompatPrefixCache } = await import(`${root}/src/models/roads/openaicompat/compatPrefixCache.ts`)
   noteCompatPrefixCache({ baseUrl: engine.base + '/unrelated/v1' }, 'Other', { inputTokens: 40, cachedInputTokens: 20 } as never)
   const owners: string[] = []
   for (let n = 0; owners.length < 5; n++) {
@@ -56,7 +56,7 @@ try {
   const initial = await Promise.all(workers.map(w => w.next()))
   check('four independent processes all complete their first turn', initial.every(result => result.ok))
   const first = engine.captures.slice()
-  check('four live sessions use four different slots, despite colliding preferred hashes', new Set(first.map(c => c.body.id_slot)).size === 4 && first.every(c => Number.isInteger(c.body.id_slot)), 'slot pinning is built in src/services/providers/openaicompat/compatWire.ts (id_slot); each live session needs its own slot')
+  check('four live sessions use four different slots, despite colliding preferred hashes', new Set(first.map(c => c.body.id_slot)).size === 4 && first.every(c => Number.isInteger(c.body.id_slot)), 'slot pinning is built in src/models/roads/openaicompat/compatWire.ts (id_slot); each live session needs its own slot')
   const isLead = (capture: any) => capture.body.messages?.some((row: any) => typeof row.content === 'string' && row.content.startsWith('lead '))
   const leadSlot = first.find(isLead)?.body.id_slot
   for (let n = 0; n < 2; n++) {
@@ -69,8 +69,8 @@ try {
   const rereadTokens = lead.reduce((sum, c) => sum + c.prefill, 0)
   console.log(`MEASURE three 50k-token turns: cold=${coldTokens} tokens / ${(coldTokens * engine.state.msPerToken).toFixed(3)} modeled ms; served=${rereadTokens} tokens / ${lead.reduce((sum, c) => sum + c.costMs, 0).toFixed(3)} modeled ms; cached=${lead.map(c => c.cached).join(',')}`)
   check('three turns pay for one full prefill plus appended tokens, not three full reads', lead.length === 3 && rereadTokens <= lead[0]!.total + 1000 && coldTokens > 150_000)
-  check('a lead keeps its id_slot across turns', lead.every(c => c.body.id_slot === leadSlot), 'the session slot choice lives in src/services/providers/openaicompat/compatWire.ts (id_slot); a session must reuse its first slot')
-  check('every pinned request enables cache_prompt', engine.captures.every(c => c.body.cache_prompt === true), 'the request body sets cache_prompt in src/services/providers/openaicompat/compatWire.ts; it must be true on every pinned request')
+  check('a lead keeps its id_slot across turns', lead.every(c => c.body.id_slot === leadSlot), 'the session slot choice lives in src/models/roads/openaicompat/compatWire.ts (id_slot); a session must reuse its first slot')
+  check('every pinned request enables cache_prompt', engine.captures.every(c => c.body.cache_prompt === true), 'the request body sets cache_prompt in src/models/roads/openaicompat/compatWire.ts; it must be true on every pinned request')
   const beforeReset = engine.captures.length
   await workers[0]!.next(true)
   check('compaction changes the conversation prefix, not the session slot', engine.captures[beforeReset]?.body.id_slot === leadSlot)
@@ -80,7 +80,7 @@ try {
   check('a fifth session shares a legal slot rather than inventing capacity', Number.isInteger(assigned) && assigned >= 0 && assigned < 4)
   await workers[0]!.next()
   check('overflow never reassigns an existing session slot', engine.captures.at(-1)!.body.id_slot === leadSlot)
-  const { configuredCompatEndpoints } = await import(`${root}/src/services/providers/openaicompat/compatAccounts.ts`)
+  const { configuredCompatEndpoints } = await import(`${root}/src/models/roads/openaicompat/compatAccounts.ts`)
   const endpoint = configuredCompatEndpoints().find(endpoint => endpoint.name === 'llamacpp')!
   check('the cache reader follows the exercised endpoint, not a neighboring configured server', endpoint?.baseUrl === engine.base + '/llamacpp/v1')
   const kimi = await turn(api, 'compat/llamacpp/kimi-k3', [api.createUserMessage({ content: 'kimi fixture' })])
@@ -93,14 +93,14 @@ try {
   check('a crewmate sharing its parent roster has a separate slot identity', engine.captures.at(-1)!.body.id_slot !== parentSlot)
   await turn(api, model, [api.createUserMessage({ content: 'parent summary' })], { owner: 'shared-roster' })
   check('the parent keeps its own slot after the in-process crewmate', engine.captures.at(-1)!.body.id_slot === parentSlot)
-  const { HOST_RECIPES } = await import(`${root}/src/services/host/recipes.ts`)
+  const { HOST_RECIPES } = await import(`${root}/src/models/hosting/recipes.ts`)
   check('llama recipes explicitly keep prompt caching on and their reuse threshold', HOST_RECIPES.filter((r: any) => r.engine === 'llamacpp').every((r: any) => r.flags.includes('--cache-prompt') && r.flags[r.flags.indexOf('--cache-reuse') + 1] === '256'))
   check('vLLM recipes explicitly enable prefix caching', HOST_RECIPES.filter((r: any) => r.engine === 'vllm').every((r: any) => r.flags.includes('--enable-prefix-caching')))
   check('SGLang recipes keep radix caching on and report measured cache tokens', HOST_RECIPES.filter((r: any) => !r.engine).every((r: any) => !r.flags.includes('--disable-radix-cache') && r.flags.includes('--enable-cache-report')))
-  const { exportHostRecipesJson } = await import(`${root}/src/services/host/recipesFile.ts`)
-  check('recipe asset is exactly the exporter output', readFileSync(root + '/assets/host/recipes.json', 'utf8') === exportHostRecipesJson(), 'regenerate assets/host/recipes.json from exportHostRecipesJson in src/services/host/recipesFile.ts, or revert the edit to src/services/host/recipes.ts')
+  const { exportHostRecipesJson } = await import(`${root}/src/models/hosting/recipesFile.ts`)
+  check('recipe asset is exactly the exporter output', readFileSync(root + '/assets/host/recipes.json', 'utf8') === exportHostRecipesJson(), 'regenerate assets/host/recipes.json from exportHostRecipesJson in src/models/hosting/recipesFile.ts, or revert the edit to src/models/hosting/recipes.ts')
   try {
-    const { compatPrefixCacheWords } = await import(`${root}/src/services/providers/openaicompat/compatPrefixCache.ts`)
+    const { compatPrefixCacheWords } = await import(`${root}/src/models/roads/openaicompat/compatPrefixCache.ts`)
     check('last-turn cache words carry measured totals', /prefix cached.*tokens/.test(compatPrefixCacheWords(endpoint)))
     const { hostPaidPodWords } = await import(`${root}/src/commands/llmhost/words.ts`)
     const pod = { id: 'fixture-pod', name: 'Fixture', status: 'RUNNING', cost: 1, createdAt: new Date().toISOString() }
@@ -117,7 +117,7 @@ try {
     await turn(api, model, [api.createUserMessage({ content: 'cache count without a prompt total' })])
     check('a missing prompt total never becomes a measured zero-of-zero cache reading', compatPrefixCacheWords(endpoint) === '')
     engine.state.reportInput = true
-  } catch (error) { check('last-turn cache words are available', false, 'an import or call failed in the cache words block; see src/services/providers/openaicompat/compatPrefixCache.ts and src/commands/llmhost/words.ts'); console.log(String(error).split('\n')[0]) }
+  } catch (error) { check('last-turn cache words are available', false, 'an import or call failed in the cache words block; see src/models/roads/openaicompat/compatPrefixCache.ts and src/commands/llmhost/words.ts'); console.log(String(error).split('\n')[0]) }
   engine.state.mode = 'retry'
   const retryStart = engine.captures.length
   const retry = await turn(api, model, [api.createUserMessage({ content: 'retry fixture' })], { owner: 'retry' })

@@ -18,11 +18,11 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 
 let failures = 0
 const NEUTRAL_DOORS_FIX_HINT_BY_SECTION: Record<string, string> = {
-  '1': 'change getAgentModel in src/services/model/agent.ts',
-  '2': 'change isModelAllowed in src/services/model/modelAllowlist.ts, or the family words in src/services/model/modelFamilies.ts and src/utils/model/aliases.ts',
-  '3': 'remove the substitution or floor text it names: src/utils/cockpit/runtimePosture.ts, src/services/cockpit/substrateSnapshot.ts, src/services/concourse/workerModels.ts, src/utils/model/seatSlots.ts or src/services/providers/modelRegistry.ts',
-  '4': 'change the Crewmate tool model field in src/tools/AgentTool/AgentTool.tsx, AGENT_DISPATCH_MODELS in src/utils/model/aliases.ts, or unrecognisedModelWordRefusal in src/services/crew/engineDispatch.ts',
-  '5': 'change the model picker door in src/commands/model/mercuryModel.tsx, parseUserSpecifiedModel in src/services/model/model.ts, or subagentDefaultsOf in src/utils/agentDefaults.ts',
+  '1': 'change getAgentModel in src/models/catalogue/agentModel.ts',
+  '2': 'change isModelAllowed in src/models/catalogue/modelAllowlist.ts, or the family words in src/models/catalogue/modelFamilies.ts and src/models/facts/aliases.ts',
+  '3': 'remove the substitution or floor text it names: src/screen/cockpit/runtimePosture.ts, src/screen/cockpit-gauges/substrateSnapshot.ts, src/screen/concourse-model/workerModels.ts, src/models/facts/seatSlots.ts or src/models/roads/modelRegistry.ts',
+  '4': 'change the Crewmate tool model field in src/tools/crewmate/CrewmateTool.tsx, AGENT_DISPATCH_MODELS in src/models/facts/aliases.ts, or unrecognisedModelWordRefusal in src/crew/crewmates/engineDispatch.ts',
+  '5': 'change the model picker door in src/commands/model/mercuryModel.tsx, parseUserSpecifiedModel in src/models/catalogue/engineModel.ts, or subagentDefaultsOf in src/crew/agents/agentDefaults.ts',
 }
 let neutralDoorsFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -38,11 +38,11 @@ console.log('============================================================')
 console.log(' every model door feeds from the live list; nothing substitutes')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
-const agent = await import('../../src/services/model/agent.ts')
-const model = await import('../../src/services/model/model.ts')
+const { saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
+const agent = await import('../../src/models/catalogue/agentModel.ts')
+const model = await import('../../src/models/catalogue/engineModel.ts')
 
 section('§1 the sub-agent resolver follows the parent whatever its provider and substitutes nothing')
 {
@@ -86,9 +86,9 @@ section('§1 the sub-agent resolver follows the parent whatever its provider and
 
 section('§2 the model allowlist: a family word is any family the live list knows')
 {
-  const allow = await import('../../src/services/model/modelAllowlist.ts')
-  const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
-  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+  const allow = await import('../../src/models/catalogue/modelAllowlist.ts')
+  const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
+  const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
   const settingsPath = join(scratch, 'settings.json')
   const withList = (list: string[] | null, fn: () => void): void => {
     writeFileSync(settingsPath, JSON.stringify(list === null ? {} : { engine: { roster: list } }))
@@ -132,7 +132,7 @@ section('§2 the model allowlist: a family word is any family the live list know
   withList(null, () => {})
   let words: readonly string[] = []
   try {
-    const fam = await import('../../src/services/model/modelFamilies.ts')
+    const fam = await import('../../src/models/catalogue/modelFamilies.ts')
     words = fam.modelFamilyWords()
     check('the family words carry every route the id-space table declares, and anthropic', ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'gemini', 'openrouter', 'huggingface', 'local', 'openai-compat'].every(w => words.includes(w)), words.join(' · '))
     check("the family words carry every family's class alias", ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'gemini', 'compat'].every(w => words.includes(w)), words.join(' · '))
@@ -141,14 +141,14 @@ section('§2 the model allowlist: a family word is any family the live list know
   } catch (e) {
     check('the family vocabulary module exists', false, String(e))
   }
-  const aliases = await import('../../src/utils/model/aliases.ts')
+  const aliases = await import('../../src/models/facts/aliases.ts')
   check('the hand list of three first-party family aliases is gone from the alias module', !('MODEL_FAMILY_ALIASES' in aliases) && !('isModelFamilyAlias' in aliases))
 }
 
 section('§3 the floor is gone: no substitution anywhere, no telemetry of one, no document naming one')
 {
-  const posture = await import('../../src/utils/cockpit/runtimePosture.ts')
-  const { setAskChannel } = await import('../../src/bootstrap/state.ts')
+  const posture = await import('../../src/screen/cockpit/runtimePosture.ts')
+  const { setAskChannel } = await import('../../src/boot/process-state/processState.ts')
   posture.resetRuntimePostureForTest()
   setAskChannel('none')
   posture.markSessionNonInteractive('default')
@@ -158,18 +158,18 @@ section('§3 the floor is gone: no substitution anywhere, no telemetry of one, n
   check('the doctrine line states no floored spawn', doctrine.length > 0 && !/floor/i.test(doctrine) && !/Haiku/.test(doctrine), doctrine)
   posture.resetRuntimePostureForTest()
   setAskChannel('operator')
-  const { substrateSnapshot } = await import('../../src/services/cockpit/substrateSnapshot.ts')
+  const { substrateSnapshot } = await import('../../src/screen/cockpit-gauges/substrateSnapshot.ts')
   const rows = substrateSnapshot().data.sections.flatMap(s => s.rows)
   check('the substrate panel carries no floor row', rows.length > 0 && rows.every(r => !/floor/i.test(r.name) && !/Haiku/.test(r.hint)), rows.filter(r => /floor|Haiku/i.test(`${r.name} ${r.hint}`)).map(r => r.name).join(', '))
-  const ledger = await import('../../src/utils/accounts/signInLedger.ts')
+  const ledger = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
   ledger.recordSignIn('anthropic', 'api-key')
-  ;(await import('../../src/services/model/computedDefault.ts')).resetComputedDefaultMemo()
-  const wm = await import('../../src/services/concourse/workerModels.ts')
+  ;(await import('../../src/models/catalogue/computedDefault.ts')).resetComputedDefaultMemo()
+  const wm = await import('../../src/screen/concourse-model/workerModels.ts')
   const seat = await wm.validateWorkerModelChoice('claude-haiku-4-5-20251001', 'session')
   check('a session worker runs the small tier when the account runs it', seat.ok === true, JSON.stringify(seat))
-  const seats = await import('../../src/utils/model/seatSlots.ts')
+  const seats = await import('../../src/models/facts/seatSlots.ts')
   check('the seat family allowlist and its substituting validator are gone', !('SEAT_ALLOWED_FAMILIES' in seats) && !('validateSeatModel' in seats))
-  const kernel = await import('../../src/services/providers/modelRegistry.ts')
+  const kernel = await import('../../src/models/roads/modelRegistry.ts')
   const snapshot = kernel.buildProviderSnapshot()
   check("the kernel's exact pin resolves the sonnet family word as the sonnet class", snapshot.resolveExact('sonnet')?.modelClass === 'sonnet')
   check("the kernel's exact pin refuses an id no available provider lists (typed null, never a substitute)", snapshot.resolveExact('gpt-5.6-sol') === null)
@@ -177,14 +177,14 @@ section('§3 the floor is gone: no substitution anywhere, no telemetry of one, n
 
 section('§4 the Crewmate tool: haiku is a dispatch word like any other, and the words name no provider as the exact case')
 {
-  const aliases = await import('../../src/utils/model/aliases.ts')
+  const aliases = await import('../../src/models/facts/aliases.ts')
   check("AGENT_DISPATCH_MODELS carries 'haiku'", (aliases.AGENT_DISPATCH_MODELS as readonly string[]).includes('haiku'))
-  const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
+  const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
   const schema = AgentTool.inputSchema as { safeParse: (v: unknown) => { success: boolean }; shape: { model: { description?: string } } }
   check("the Crewmate tool schema accepts model 'haiku'", schema.safeParse({ description: 'test', prompt: 'test', model: 'haiku' }).success === true)
   const description = schema.shape.model.description ?? ''
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { getAllBaseTools } = await import('../../src/tools.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
   const permissionContext = getEmptyToolPermissionContext()
   const manual = await AgentTool.prompt({ getToolPermissionContext: async () => permissionContext, tools: [...getAllBaseTools()], agents: [] })
   const MODEL_SECTION = '\n## Model selection\n'
@@ -193,7 +193,7 @@ section('§4 the Crewmate tool: haiku is a dispatch word like any other, and the
   check("the model field says an exact id or a family word, and where to read the ids", /Exact model id or family word/.test(description) && /mercury:\/\/models/.test(description), description.slice(0, 200))
   check('the schema admits an exact gemini or openrouter id (the dispatch grammar validates it)', schema.safeParse({ description: 'test', prompt: 'test', model: 'gemini-2.5-pro' }).success === true && schema.safeParse({ description: 'test', prompt: 'test', model: 'openrouter/qwen/qwen3-coder' }).success === true)
   check('neither the schema text nor the manual enumerates a per-boot id list', !description.includes('gpt-5.6-sol') && !description.includes('glm-5.2') && !modelWords.includes('gpt-5.6-sol') && !modelWords.includes('glm-5.2'))
-  const { unrecognisedModelWordRefusal } = await import('../../src/services/crew/engineDispatch.ts')
+  const { unrecognisedModelWordRefusal } = await import('../../src/crew/crewmates/engineDispatch.ts')
   check("the dispatch grammar refuses a word no family declares, naming it", (unrecognisedModelWordRefusal('banana') ?? '').includes("'banana'") && unrecognisedModelWordRefusal('haiku') === null && unrecognisedModelWordRefusal('gemini-2.5-pro') === null)
 }
 
@@ -210,7 +210,7 @@ section('§5 the doors store exact ids; the words come from a lookup of the id')
     check(`the bare family word '${word}' resolves to its family's first recorded row (${head}) at write time, the way 'grok' resolves to xAI's newest row`, model.parseUserSpecifiedModel(word) === head, model.parseUserSpecifiedModel(word))
     check(`  …and the picker door maps the word onto that row`, picker.modelChoiceRow(word) === head && picker.modelChoiceLabel(word) === picker.modelChoiceLabel(head), `${picker.modelChoiceRow(word)} · ${picker.modelChoiceLabel(word)}`)
   }
-  const { subagentDefaultsOf } = await import('../../src/utils/agentDefaults.ts')
+  const { subagentDefaultsOf } = await import('../../src/crew/agents/agentDefaults.ts')
   check("the sub-agent default reader takes the choice word 'inherit' as unset", subagentDefaultsOf({ defaultModel: 'inherit' }).model === undefined && subagentDefaultsOf({ defaultModel: fable }).model === fable)
 }
 

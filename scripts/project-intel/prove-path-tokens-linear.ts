@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const worker = process.argv[2] === '--worker'
-const modulePath = resolve(process.argv[worker ? 3 : 2] ?? join(import.meta.dir, '../../src/services/projectIntel/capsule.ts'))
+const modulePath = resolve(process.argv[worker ? 3 : 2] ?? join(import.meta.dir, '../../src/sessions/project-intel/capsule.ts'))
 
 if (worker) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -23,7 +23,7 @@ if (worker) {
     ['src/./input.ts src/../README.md @scope/file.ts docs/LICENSE', ['@scope/file.ts', 'README.md', 'docs/LICENSE', 'src/input.ts']],
     ['src/input.ts!README.md?test/input.test.ts;docs/LICENSE', ['README.md', 'docs/LICENSE', 'src/input.ts', 'test/input.test.ts']],
   ]
-  for (const [input, expected] of cases) assert.deepEqual(pathTokens(input, workspace), expected, `${input} | to fix: pathTokens in src/services/projectIntel/capsule.ts must return the workspace files named in the task, deduplicated and sorted, for this input`)
+  for (const [input, expected] of cases) assert.deepEqual(pathTokens(input, workspace), expected, `${input} | to fix: pathTokens in src/sessions/project-intel/capsule.ts must return the workspace files named in the task, deduplicated and sorted, for this input`)
   console.log(JSON.stringify({ kind: 'semantics', checks: cases.length }))
 
   for (const size of [4_200_000, 1_050_000, 2_100_000, 8_400_000]) {
@@ -35,9 +35,9 @@ if (worker) {
     const tokens = pathTokens(input, workspace)
     const elapsedMs = performance.now() - started
     const cpu = process.cpuUsage(usage)
-    assert.deepEqual(tokens, [], `a ${size}-character single token must yield no path tokens | to fix: pathTokens in src/services/projectIntel/capsule.ts`)
+    assert.deepEqual(tokens, [], `a ${size}-character single token must yield no path tokens | to fix: pathTokens in src/sessions/project-intel/capsule.ts`)
     console.log(JSON.stringify({ kind: 'timing', size, shape: 'single-token', elapsedMs, cpuMs: (cpu.user + cpu.system) / 1000, budgetMs }))
-    assert.ok(elapsedMs <= budgetMs, `${size} characters took ${elapsedMs.toFixed(1)}ms; budget ${budgetMs}ms | to fix: pathTokens in src/services/projectIntel/capsule.ts must scan a long single token in linear time`)
+    assert.ok(elapsedMs <= budgetMs, `${size} characters took ${elapsedMs.toFixed(1)}ms; budget ${budgetMs}ms | to fix: pathTokens in src/sessions/project-intel/capsule.ts must scan a long single token in linear time`)
   }
 
   for (const [shape, prefix] of [
@@ -52,9 +52,9 @@ if (worker) {
     const started = performance.now()
     const tokens = pathTokens(input, workspace)
     const elapsedMs = performance.now() - started
-    assert.deepEqual(tokens, ['README.md', 'src/input.ts'], `${shape}: the files after the entire long token survive | to fix: pathTokens in src/services/projectIntel/capsule.ts must keep the files that follow a very long token`)
+    assert.deepEqual(tokens, ['README.md', 'src/input.ts'], `${shape}: the files after the entire long token survive | to fix: pathTokens in src/sessions/project-intel/capsule.ts must keep the files that follow a very long token`)
     console.log(JSON.stringify({ kind: 'timing', size: input.length, shape, elapsedMs, budgetMs }))
-    assert.ok(elapsedMs <= budgetMs, `${shape} took ${elapsedMs.toFixed(1)}ms; budget ${budgetMs}ms | to fix: pathTokens in src/services/projectIntel/capsule.ts must scan this input shape in linear time`)
+    assert.ok(elapsedMs <= budgetMs, `${shape} took ${elapsedMs.toFixed(1)}ms; budget ${budgetMs}ms | to fix: pathTokens in src/sessions/project-intel/capsule.ts must scan this input shape in linear time`)
   }
   console.log('PASS: pathTokens preserves path semantics and scans multi-megabyte single lines within the measured linear budget')
   process.exit(0)
@@ -98,8 +98,8 @@ try {
   child.stderr.on('data', chunk => process.stderr.write(chunk))
   const code = await new Promise<number | null>((done, reject) => { child.once('close', done); child.once('error', reject) })
   clearTimeout(timer!)
-  assert.equal(timedOut, false, 'the isolated function must return before the safety ceiling | to fix: pathTokens in src/services/projectIntel/capsule.ts has a super-linear scan; the FAIL line above names the input shape that hung')
-  assert.equal(code, 0, 'the isolated function proof must pass | to fix: read the worker output above for the failed assertion; the function under test is pathTokens in src/services/projectIntel/capsule.ts')
+  assert.equal(timedOut, false, 'the isolated function must return before the safety ceiling | to fix: pathTokens in src/sessions/project-intel/capsule.ts has a super-linear scan; the FAIL line above names the input shape that hung')
+  assert.equal(code, 0, 'the isolated function proof must pass | to fix: read the worker output above for the failed assertion; the function under test is pathTokens in src/sessions/project-intel/capsule.ts')
 } finally {
   rmSync(workspace, { recursive: true, force: true })
 }

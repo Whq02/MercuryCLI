@@ -12,8 +12,8 @@ const {
   getEphemeralProgressFrame,
   subscribeEphemeralProgress,
   _resetEphemeralProgressForTesting,
-} = await import('../../src/state/ephemeralProgressStore.js')
-const { isEphemeralToolProgress } = await import('../../src/utils/sessionStorage/paths.js')
+} = await import('../../src/screen/app-state/ephemeralProgressStore.js')
+const { isEphemeralToolProgress } = await import('../../src/sessions/transcripts/paths.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -44,13 +44,13 @@ section('§A the keyed store: replace semantics, per-key wakeups, reset law')
   check('60 ticks hold ONE frame (replace semantics, no growth)',
     (getEphemeralProgressFrame('toolA') as { data: { elapsedTimeSeconds: number } }).data
       .elapsedTimeSeconds === 60,
-    'publishEphemeralProgress in src/state/ephemeralProgressStore.ts must replace the frame stored under the tool key, so the latest tick is the one getEphemeralProgressFrame returns')
-  check("only toolA's subscriber woke — 60 times", wakesA === 60, `${wakesA} wakes; publishEphemeralProgress in src/state/ephemeralProgressStore.ts must notify that key's subscribers once per publish`)
-  check("toolB's subscriber NEVER woke (per-key isolation — the one-row law)", wakesB === 0, `${wakesB} wakes; publishEphemeralProgress and subscribeEphemeralProgress in src/state/ephemeralProgressStore.ts must wake only the subscribers of the published key`)
+    'publishEphemeralProgress in src/screen/app-state/ephemeralProgressStore.ts must replace the frame stored under the tool key, so the latest tick is the one getEphemeralProgressFrame returns')
+  check("only toolA's subscriber woke — 60 times", wakesA === 60, `${wakesA} wakes; publishEphemeralProgress in src/screen/app-state/ephemeralProgressStore.ts must notify that key's subscribers once per publish`)
+  check("toolB's subscriber NEVER woke (per-key isolation — the one-row law)", wakesB === 0, `${wakesB} wakes; publishEphemeralProgress and subscribeEphemeralProgress in src/screen/app-state/ephemeralProgressStore.ts must wake only the subscribers of the published key`)
 
   publishEphemeralProgress(tick('toolB', 1))
   check('a toolB tick wakes toolB once and toolA not again', wakesB === 1 && wakesA === 60,
-    `toolB woke ${wakesB} time(s), toolA ${wakesA}; publishEphemeralProgress in src/state/ephemeralProgressStore.ts must wake only the key it published`)
+    `toolB woke ${wakesB} time(s), toolA ${wakesA}; publishEphemeralProgress in src/screen/app-state/ephemeralProgressStore.ts must wake only the key it published`)
 
   clearEphemeralProgress()
   check('clear drops every frame and wakes every subscriber',
@@ -58,12 +58,12 @@ section('§A the keyed store: replace semantics, per-key wakeups, reset law')
       getEphemeralProgressFrame('toolB') === undefined &&
       wakesA === 61 &&
       wakesB === 2,
-    `toolA woke ${wakesA} time(s), toolB ${wakesB}; clearEphemeralProgress in src/state/ephemeralProgressStore.ts must empty the frames and notify every subscriber once`)
+    `toolA woke ${wakesA} time(s), toolB ${wakesB}; clearEphemeralProgress in src/screen/app-state/ephemeralProgressStore.ts must empty the frames and notify every subscriber once`)
   unsubA()
   unsubB()
   publishEphemeralProgress(tick('toolA', 1))
   check('unsubscribed callbacks never fire again', wakesA === 61,
-    `toolA woke ${wakesA} time(s); the function subscribeEphemeralProgress returns in src/state/ephemeralProgressStore.ts must remove the callback`)
+    `toolA woke ${wakesA} time(s); the function subscribeEphemeralProgress returns in src/screen/app-state/ephemeralProgressStore.ts must remove the callback`)
   _resetEphemeralProgressForTesting()
 }
 
@@ -73,12 +73,12 @@ section('§B the ephemeral classifier (which frames belong in the store)')
     isEphemeralToolProgress('bash_progress') &&
       isEphemeralToolProgress('powershell_progress') &&
       isEphemeralToolProgress('mcp_progress'),
-    'EPHEMERAL_STORAGE_PROGRESS in src/rows/storage.ts (read by isEphemeralToolProgress in src/utils/sessionStorage/paths.ts) must list bash_progress, powershell_progress and mcp_progress')
+    'EPHEMERAL_STORAGE_PROGRESS in src/engine/rows/storage.ts (read by isEphemeralToolProgress in src/sessions/transcripts/paths.ts) must list bash_progress, powershell_progress and mcp_progress')
   check('agent/hook/skill progress are NOT (their trails accumulate)',
     !isEphemeralToolProgress('agent_progress') &&
       !isEphemeralToolProgress('hook_progress') &&
       !isEphemeralToolProgress('skill_progress'),
-    'EPHEMERAL_STORAGE_PROGRESS in src/rows/storage.ts must not list agent_progress, hook_progress or skill_progress')
+    'EPHEMERAL_STORAGE_PROGRESS in src/engine/rows/storage.ts must not list agent_progress, hook_progress or skill_progress')
 }
 
 

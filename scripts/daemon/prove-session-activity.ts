@@ -8,16 +8,16 @@ const home = mkdtempSync(join(tmpdir(), 'activity-home-'))
 const dir = mkdtempSync(join(tmpdir(), 'activity-store-'))
 process.env.MERCURY_CONFIG_DIR = home
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const workers = await import('../../src/daemon/concourseWorkers.ts')
-const seat = await import('../../src/daemon/sessionSeat.ts')
-const { sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
-import type { WorkRowV1 } from '../../src/services/engine-connector/types.ts'
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
+const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const seat = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { sessionFactsToWire } = await import('../../src/engine/connector/seatWire.ts')
+import type { WorkRowV1 } from '../../src/engine/connector/types.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 
 let checks = 0
 function check(label: string, value: unknown): void {
   let seen = ''
-  if (!value) { try { seen = ` — activity on disk: ${JSON.stringify(disk().activity)}; it is built by sessionActivityOf in src/daemon/concourseWorkers/record.ts and written by markConcourseWorkerActivity in src/daemon/concourseWorkers/marks.ts, fed from publishActivity in src/daemon/sessionSeat/state.ts (called from sessionSeat/rows.ts and sessionSeat/edges.ts)` } catch { seen = ' — the worker record could not be read; see src/daemon/concourseWorkers/store.ts' } }
+  if (!value) { try { seen = ` — activity on disk: ${JSON.stringify(disk().activity)}; it is built by sessionActivityOf in src/daemon/concourse-workers/record.ts and written by markConcourseWorkerActivity in src/daemon/concourse-workers/marks.ts, fed from publishActivity in src/daemon/session-seat/state.ts (called from sessionSeat/rows.ts and sessionSeat/edges.ts)` } catch { seen = ' — the worker record could not be read; see src/daemon/concourse-workers/store.ts' } }
   assert(value, `${label}${seen}`)
   checks++
   console.log(`PASS ${label}`)

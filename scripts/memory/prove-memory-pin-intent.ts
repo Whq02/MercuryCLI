@@ -9,18 +9,18 @@ process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
 process.env.MERCURY_EMBED_ENGINE = 'off'
 writeFileSync(join(home, 'settings.json'), JSON.stringify({ memory: { journal: false }, jev: { enabled: false } }))
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { RetainTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
-const { pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
-const { readPins, pinFact } = await import('../../src/mneme/mnemeUsage.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { listTopicDocs } = await import('../../src/mneme/mnemeLibrary.ts')
-const { _resetMemoryVerbSessionStateForTesting, retainItems } = await import('../../src/mneme/memoryVerbs.ts')
+const { RetainTool } = await import('../../src/tools/memory/MemoryTools.ts')
+const { pendingRows } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { readPins, pinFact } = await import('../../src/sessions/mneme/mnemeUsage.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { listTopicDocs } = await import('../../src/sessions/mneme/mnemeLibrary.ts')
+const { _resetMemoryVerbSessionStateForTesting, retainItems } = await import('../../src/sessions/mneme/memoryVerbs.ts')
 const dir = mnemeLibraryDir()
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `${detail ? ` ${detail}` : ''} (change the pin intent reading in src/mneme/memoryPinIntent.ts, latestPinIntent and pinIntentSpan, or the pin handling in RetainTool in src/tools/MemoryTools/MemoryTools.ts)`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `${detail ? ` ${detail}` : ''} (change the pin intent reading in src/sessions/mneme/memoryPinIntent.ts, latestPinIntent and pinIntentSpan, or the pin handling in RetainTool in src/tools/memory/MemoryTools.ts)`}`)
   if (!ok) failures++
 }
 async function pin(text: string | null, content: string, extra: Record<string, unknown> = {}) {

@@ -73,34 +73,34 @@ section('§1 refreshConsoleSize')
 {
   let refreshConsoleSize: ((stdout: unknown) => boolean) | null = null
   try {
-    refreshConsoleSize = (await import('../../src/ink/root/console-size.ts')).refreshConsoleSize
+    refreshConsoleSize = (await import('../../src/screen/renderer/root/console-size.ts')).refreshConsoleSize
   } catch (error) {
     check('the console-size owner exists', false, String(error))
   }
   if (refreshConsoleSize !== null) {
     const plain = new PlainStream()
-    check('a stream without the runtime road answers false (the caller falls back)', refreshConsoleSize(plain) === false, 'refreshConsoleSize in src/ink/root/console-size.ts must return false when the stream has no _refreshSize function')
+    check('a stream without the runtime road answers false (the caller falls back)', refreshConsoleSize(plain) === false, 'refreshConsoleSize in src/screen/renderer/root/console-size.ts must return false when the stream has no _refreshSize function')
     const fake = new FakeConsole()
     let resized = 0
     fake.on('resize', () => resized++)
-    check('an unchanged console: the road is taken, nothing is emitted', refreshConsoleSize(fake) === true && fake.refreshCalls === 1 && resized === 0, `refreshCalls=${fake.refreshCalls} resized=${resized}; refreshConsoleSize in src/ink/root/console-size.ts must call _refreshSize once and return true`)
+    check('an unchanged console: the road is taken, nothing is emitted', refreshConsoleSize(fake) === true && fake.refreshCalls === 1 && resized === 0, `refreshCalls=${fake.refreshCalls} resized=${resized}; refreshConsoleSize in src/screen/renderer/root/console-size.ts must call _refreshSize once and return true`)
     fake.trueSize = [120, 40]
-    check('a moved console: the cache updates and resize fires', refreshConsoleSize(fake) === true && fake.columns === 120 && fake.rows === 40 && resized === 1, `${fake.columns}x${fake.rows} resized=${resized}; refreshConsoleSize in src/ink/root/console-size.ts must call the stream _refreshSize and return true`)
+    check('a moved console: the cache updates and resize fires', refreshConsoleSize(fake) === true && fake.columns === 120 && fake.rows === 40 && resized === 1, `${fake.columns}x${fake.rows} resized=${resized}; refreshConsoleSize in src/screen/renderer/root/console-size.ts must call the stream _refreshSize and return true`)
     const refusing = {
       _refreshSize(): void {
         throw new Error('getWindowSize EBADF')
       },
     }
-    check('a refused query is caught; the cached pair stands', refreshConsoleSize(refusing) === true, 'refreshConsoleSize in src/ink/root/console-size.ts must catch an error thrown by _refreshSize and still return true')
+    check('a refused query is caught; the cached pair stands', refreshConsoleSize(refusing) === true, 'refreshConsoleSize in src/screen/renderer/root/console-size.ts must catch an error thrown by _refreshSize and still return true')
   }
 }
 
 section('§2 the renderer under a forced win32 platform')
 {
   const React = await import('react')
-  const { default: Ink } = await import('../../src/ink/ink.js')
-  const { Box, Text } = await import('../../src/ink.js')
-  const { getMercuryHome } = await import('../../src/utils/envUtils.js')
+  const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+  const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+  const { getMercuryHome } = await import('../../src/platform/environment/envUtils.js')
   const home = getMercuryHome()
   const desc = Object.getOwnPropertyDescriptor(process, 'platform')!
   const stdout = new FakeConsole()
@@ -112,21 +112,21 @@ section('§2 the renderer under a forced win32 platform')
     const before = stdout.refreshCalls
     stdout.trueSize = [120, 40]
     ink.reconcileSize()
-    check('reconcileSize asks the console through the runtime refresh road', stdout.refreshCalls === before + 1, `refreshCalls before=${before} after=${stdout.refreshCalls}; reconcileSize in src/ink/ink/resize.ts must call refreshConsoleSize(this.options.stdout) once per call (it returns early when consoleSizeNeedsPolling is false)`)
+    check('reconcileSize asks the console through the runtime refresh road', stdout.refreshCalls === before + 1, `refreshCalls before=${before} after=${stdout.refreshCalls}; reconcileSize in src/screen/renderer/instance/resize.ts must call refreshConsoleSize(this.options.stdout) once per call (it returns early when consoleSizeNeedsPolling is false)`)
     await sleep(400)
     const cached = ink as unknown as { cachedColumns: number; cachedRows: number }
-    check('the renderer adopted the live geometry after the settle window', cached.cachedColumns === 120 && cached.cachedRows === 40, `${cached.cachedColumns}x${cached.cachedRows}; the resize event from _refreshSize must reach handleResize in src/ink/ink/resize.ts and update cachedColumns and cachedRows`)
+    check('the renderer adopted the live geometry after the settle window', cached.cachedColumns === 120 && cached.cachedRows === 40, `${cached.cachedColumns}x${cached.cachedRows}; the resize event from _refreshSize must reach handleResize in src/screen/renderer/instance/resize.ts and update cachedColumns and cachedRows`)
     const calls = stdout.refreshCalls
     ink.reconcileSize()
     await sleep(50)
-    check('an unmoved console: the road is taken again and nothing else happens', stdout.refreshCalls === calls + 1 && cached.cachedColumns === 120, `refreshCalls=${stdout.refreshCalls} expected ${calls + 1}, cachedColumns=${cached.cachedColumns}; reconcileSize in src/ink/ink/resize.ts must call refreshConsoleSize on every call`)
+    check('an unmoved console: the road is taken again and nothing else happens', stdout.refreshCalls === calls + 1 && cached.cachedColumns === 120, `refreshCalls=${stdout.refreshCalls} expected ${calls + 1}, cachedColumns=${cached.cachedColumns}; reconcileSize in src/screen/renderer/instance/resize.ts must call refreshConsoleSize on every call`)
     ink.unmount()
   } finally {
     Object.defineProperty(process, 'platform', desc)
   }
-  check('the session home read before the platform was forced is the home the forced run used', getMercuryHome() === home && home === process.env.MERCURY_CONFIG_DIR, `${getMercuryHome()} against ${home}; getMercuryHome in src/utils/envUtils.ts (memoized, spelled by canonicalHomeSpelling) must return the same home before and after process.platform is forced to win32`)
+  check('the session home read before the platform was forced is the home the forced run used', getMercuryHome() === home && home === process.env.MERCURY_CONFIG_DIR, `${getMercuryHome()} against ${home}; getMercuryHome in src/platform/environment/envUtils.ts (memoized, spelled by canonicalHomeSpelling) must return the same home before and after process.platform is forced to win32`)
   const gained = readdirSync(startedIn).filter(name => !stoodThere.split('\n').includes(name))
-  check('the folder the proof started in gained no entry: nothing was written under a home spelled for another platform', gained.length === 0, JSON.stringify(gained) + '; something under the renderer or getMercuryHome in src/utils/envUtils.ts wrote a path spelled for win32 into the working folder')
+  check('the folder the proof started in gained no entry: nothing was written under a home spelled for another platform', gained.length === 0, JSON.stringify(gained) + '; something under the renderer or getMercuryHome in src/platform/environment/envUtils.ts wrote a path spelled for win32 into the working folder')
 }
 
 if (failures > 0) {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/permissions/windowsPath.ts src/utils/permissions/filesystem.ts src/tools/GrepTool/GrepTool.ts
+// gate-watch: src/permissions/rules/windowsPath.ts src/permissions/rules/filesystem.ts src/tools/grep/GrepTool.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -25,18 +25,18 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
-const patternHint = ' | fix suspiciousWindowsPattern in src/utils/permissions/windowsPath.ts: dot-led POSIX paths must return null, the Windows shapes (trailing dot or space, a/.../b, DOS device names) must keep their reason'
-const verdictHint = ' | fix checkReadPermissionForTool or getResolvedWorkingDirPaths in src/utils/permissions/filesystem.ts: a relative path is read against the session folder (the Grep tool getPath hands it unexpanded), and only the Windows-pattern and outside-folder cases may ask'
+const patternHint = ' | fix suspiciousWindowsPattern in src/permissions/rules/windowsPath.ts: dot-led POSIX paths must return null, the Windows shapes (trailing dot or space, a/.../b, DOS device names) must keep their reason'
+const verdictHint = ' | fix checkReadPermissionForTool or getResolvedWorkingDirPaths in src/permissions/rules/filesystem.ts: a relative path is read against the session folder (the Grep tool getPath hands it unexpanded), and only the Windows-pattern and outside-folder cases may ask'
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { getPlatform } = await import('../../src/utils/platform.ts')
-const { suspiciousWindowsPattern } = await import('../../src/utils/permissions/windowsPath.ts')
-const { checkReadPermissionForTool, getResolvedWorkingDirPaths } = await import('../../src/utils/permissions/filesystem.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
-const { getCwd, runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+const { getPlatform } = await import('../../src/platform/environment/platform.ts')
+const { suspiciousWindowsPattern } = await import('../../src/permissions/rules/windowsPath.ts')
+const { checkReadPermissionForTool, getResolvedWorkingDirPaths } = await import('../../src/permissions/rules/filesystem.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
+const { getCwd, runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
 
 const project = join(proofHome, 'project')
 mkdirSync(join(project, 'src'), { recursive: true })

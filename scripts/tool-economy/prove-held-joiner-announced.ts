@@ -13,7 +13,7 @@ delete process.env.ANTHROPIC_BASE_URL
 const j = (v: unknown): string => JSON.stringify(v)
 let failures = 0
 let checks = 0
-const WHERE_TO_CHANGE = 'to fix: which tools are held at a plan comes from planToolPayload in src/services/providers/toolEconomy.ts; the announcement of a held joiner is getHeldToolsAttachment in src/services/attachments/deltas.ts; its text for the model is normalizeAttachmentForAPI in src/services/messages/attachmentText.ts; whether it shows on screen is isNullRenderingAttachment in src/components/messages/nullRenderingAttachments.ts and whether it is stored is isTranscribable in src/utils/sessionStorage/chain.ts'
+const WHERE_TO_CHANGE = 'to fix: which tools are held at a plan comes from planToolPayload in src/models/roads/toolEconomy.ts; the announcement of a held joiner is getHeldToolsAttachment in src/engine/attachments/toolAndServerDeltas.ts; its text for the model is normalizeAttachmentForAPI in src/engine/messages/attachmentText.ts; whether it shows on screen is isNullRenderingAttachment in src/screen/messages/nullRenderingAttachments.ts and whether it is stored is isTranscribable in src/sessions/transcripts/chain.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -23,14 +23,14 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { planToolPayload, clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
-const { getHeldToolsAttachment } = await import('../../src/services/attachments/deltas.ts')
-const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
-const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
+const { planToolPayload, clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.ts')
+const { getHeldToolsAttachment } = await import('../../src/engine/attachments/toolAndServerDeltas.ts')
+const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { isNullRenderingAttachment } = await import('../../src/screen/messages/nullRenderingAttachments.ts')
+const { isTranscribable } = await import('../../src/sessions/transcripts/chain.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/tool-search/prompt.ts')
 const { z } = await import('zod/v4')
 
 const model = 'claude-fable-5-1'

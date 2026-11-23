@@ -23,7 +23,7 @@ const signOut = (): void => {
 signOut()
 
 let failures = 0
-const USAGE_OWNER_FIX_HINT = 'to fix: change usageForProvider / refreshProviderUsage in src/services/providers/providerUsage.ts, or the family reader beside it (src/services/providers/<family>/<family>UsageState.ts) that the label names, until the line above matches'
+const USAGE_OWNER_FIX_HINT = 'to fix: change usageForProvider / refreshProviderUsage in src/models/roads/providerUsage.ts, or the family reader beside it (src/models/roads/<family>/<family>UsageState.ts) that the label names, until the line above matches'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` | ${USAGE_OWNER_FIX_HINT}` : ''}`)
@@ -33,19 +33,19 @@ function section(t: string): void {
 }
 const ROOT = join(import.meta.dir, '..', '..')
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 
-const owner = await import('../../src/services/providers/providerUsage.ts')
-const deepseekState = await import('../../src/services/providers/deepseek/deepseekUsageState.ts')
-const moonshotState = await import('../../src/services/providers/moonshot/moonshotUsageState.ts')
-const openrouterState = await import('../../src/services/providers/openrouter/openrouterUsageState.ts')
-const huggingfaceState = await import('../../src/services/providers/huggingface/huggingfaceUsageState.ts')
-const geminiState = await import('../../src/services/providers/gemini/geminiUsageState.ts')
-import type { ProviderFamilyId } from '../../src/services/providers/providerAdapter.js'
+const owner = await import('../../src/models/roads/providerUsage.ts')
+const deepseekState = await import('../../src/models/roads/deepseek/deepseekUsageState.ts')
+const moonshotState = await import('../../src/models/roads/moonshot/moonshotUsageState.ts')
+const openrouterState = await import('../../src/models/roads/openrouter/openrouterUsageState.ts')
+const huggingfaceState = await import('../../src/models/roads/huggingface/huggingfaceUsageState.ts')
+const geminiState = await import('../../src/models/roads/gemini/geminiUsageState.ts')
+import type { ProviderFamilyId } from '../../src/models/roads/providerAdapter.js'
 
 const FAMILIES: ProviderFamilyId[] = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'openai-compat', 'openrouter', 'gemini', 'huggingface', 'local']
-const xaiAuth = await import('../../src/services/providers/xai/xaiOauth.ts')
+const xaiAuth = await import('../../src/models/roads/xai/xaiOauth.ts')
 xaiAuth.writeXaiTokens({ accessToken: 'fixture-grok', refreshToken: 'fixture-refresh', expiresAtMs: Date.now() + 3600_000 })
 xaiAuth.writePreferredXaiSource('grok-subscription')
 let grokReads = 0
@@ -104,7 +104,7 @@ section('§1 the readers land in the owner through the one refresh door, stamped
   check('moonshot key: the door asked the balance endpoint once', fetchCalls === 1, String(fetchCalls))
   check('moonshot key: the owner carries the USD balance, stamped', ms.sourceKind === 'api-key' && ms.balance?.display === 'USD 5.5' && ms.balance?.observedAtMs === NOW, JSON.stringify(ms.balance))
 
-  const moonshotAccounts = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
+  const moonshotAccounts = await import('../../src/models/roads/moonshot/moonshotAccounts.ts')
   delete process.env.MOONSHOT_API_KEY
   moonshotAccounts.writeMoonshotTokens({ accessToken: 'kimi-fixture', refreshToken: 'kimi-refresh-fixture' }, 'global')
   fetchCalls = 0
@@ -228,7 +228,7 @@ section('§3 the reader speaks about itself: a failed poll, a provider-marked un
     force: true,
   })
   const or = owner.usageForProvider('openrouter')
-  const { openrouterSlots } = await import('../../src/services/providers/accountSlots.js')
+  const { openrouterSlots } = await import('../../src/models/roads/accountSlots.js')
   check('openrouter: a failed poll names the failed API key slot and keeps the error under that slot, no figures', or.figures === undefined && or.readerNote === 'credit truth unavailable for API key (env)' && openrouterSlots().find(slot => slot.id === 'openrouter:env-key')?.stateNote === 'fixture: socket closed', JSON.stringify({ figures: or.figures, note: or.readerNote }))
   check('openrouter: …and no window is fabricated', or.windows.length === 0)
 
@@ -271,7 +271,7 @@ section('§4 signed out: every family carries its why-not and no figure')
 {
   signOut()
   resetReaders()
-  const { __resetLocalDiscoveryForTest } = await import('../../src/services/providers/local/localDiscovery.ts')
+  const { __resetLocalDiscoveryForTest } = await import('../../src/models/roads/local/localDiscovery.ts')
   __resetLocalDiscoveryForTest()
   for (const family of FAMILIES) {
     const u = owner.usageForProvider(family)
@@ -362,10 +362,10 @@ section('§8 the first-party subscription: the extra-usage figure rides the one 
     join(scratch, '.credentials.json'),
     JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-access-live', refreshToken: 'fixture-refresh', expiresAt: Date.now() + 3_600_000, scopes: ['user:inference', 'user:profile'], subscriptionType: 'max' } }),
   )
-  const { dropCredentialMemos } = await import('../../src/services/auth/oauthLifecycle.js')
-  const { resetWalletEntriesMemo } = await import('../../src/services/wallet/wallet.js')
-  const limits = await import('../../src/services/anthropicLimits.ts')
-  const reader = await import('../../src/services/providers/anthropic/anthropicUsageState.ts')
+  const { dropCredentialMemos } = await import('../../src/models/sign-in/lifecycle/oauthLifecycle.js')
+  const { resetWalletEntriesMemo } = await import('../../src/models/wallet/wallet.js')
+  const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+  const reader = await import('../../src/models/roads/anthropic/anthropicUsageState.ts')
   dropCredentialMemos()
   resetWalletEntriesMemo()
   reader._resetAnthropicUsageReaderForTesting()
@@ -395,7 +395,7 @@ section('§8 the first-party subscription: the extra-usage figure rides the one 
 
 section('§9 the ChatGPT sign-in: the observed balance belongs to the same owner as its windows, and leaves with them')
 {
-  const openai = await import('../../src/services/providers/openai/openaiLimitState.ts')
+  const openai = await import('../../src/models/roads/openai/openaiLimitState.ts')
   const fixture = JSON.parse(readFileSync(join(ROOT, 'scripts/providers/fixtures/openai-chatgpt-usage.json'), 'utf8'))
   openai.__resetOpenaiLimitStateForTest()
   openai.recordOpenaiUsageResponse(fixture.body, NOW)

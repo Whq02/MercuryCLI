@@ -13,7 +13,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' (fix: the reader, setter, words or JEV_MENU_ROW this check names in src/services/jev/jevSetting.ts)'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' (fix: the reader, setter, words or JEV_MENU_ROW this check names in src/models/jev/jevSetting.ts)'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -29,9 +29,9 @@ writeFileSync(
   }),
 )
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const setting = await import('../../src/services/jev/jevSetting.js')
+const setting = await import('../../src/models/jev/jevSetting.js')
 const {
   JEV_DEFAULT_ALLOWANCE_USD,
   JEV_DEFAULT_PACE_PER_MINUTE,

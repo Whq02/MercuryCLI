@@ -109,7 +109,7 @@ function check(label: string, yes: boolean, detail = ''): void {
   if (!yes) failures++
 }
 check('every send reached its product gate', payload.sendReceipts?.length === sends.length && result.status === 0, `vshot exited ${result.status} with ${payload.sendReceipts?.length ?? 0} of ${sends.length} sends received (endReason ${payload.endReason}); read the vshot stderr printed above and the frame-<mark>.txt of the first send that did not land in the world dir printed as world= at the top`)
-check('the offer stood and its lossless handoff settled directly', frame('offer').includes('OpenAI usage window') && frame('confirm').includes('Set model to') && !frame('confirm').includes('Model switch preview'), 'read frame-offer.txt and frame-confirm.txt in the world dir printed as world= at the top; the cap offer and its handoff switch come from src/services/capFailover.ts')
+check('the offer stood and its lossless handoff settled directly', frame('offer').includes('OpenAI usage window') && frame('confirm').includes('Set model to') && !frame('confirm').includes('Model switch preview'), 'read frame-offer.txt and frame-confirm.txt in the world dir printed as world= at the top; the cap offer and its handoff switch come from src/models/roads/capFailover.ts')
 const ack = events.findIndex(event => event.event === 'model-ack' && event.response?.at === 'now' && event.response.model === 'claude-fable-5-2')
 check('the runner acknowledged the failover model applied now', ack >= 0, 'no model-ack event answering at=now for claude-fable-5-2 in facts-events.jsonl in the world dir printed as world= at the top; the runner did not apply the failover model')
 const release = events.findIndex(event => event.event === 'facts-release')

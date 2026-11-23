@@ -6,11 +6,11 @@ import { llmhostFixture } from './lib/llmhostFixture.ts'
 const f = await llmhostFixture()
 const mode = process.argv[2] ?? 'window'
 try {
-  const { resetSettingsCache } = await import(`${f.root}/src/utils/settings/settingsCache.ts`)
-  const { SettingsSchema } = await import(`${f.root}/src/utils/settings/types.ts`)
-  const catalogue = await import(`${f.root}/src/services/providers/openaicompat/compatCatalogue.ts`)
-  const { getContextWindowForModel } = await import(`${f.root}/src/utils/model/capabilities.ts`)
-  const { compatProviderAdapter } = await import(`${f.root}/src/services/providers/openaicompat/compatAdapter.ts`)
+  const { resetSettingsCache } = await import(`${f.root}/src/platform/settings/settingsCache.ts`)
+  const { SettingsSchema } = await import(`${f.root}/src/platform/settings/settingsSchema.ts`)
+  const catalogue = await import(`${f.root}/src/models/roads/openaicompat/compatCatalogue.ts`)
+  const { getContextWindowForModel } = await import(`${f.root}/src/models/facts/capabilities.ts`)
+  const { compatProviderAdapter } = await import(`${f.root}/src/models/roads/openaicompat/compatAdapter.ts`)
   const id = `compat/llmhost/${f.model}`
   const configure = (dialect: string, extra = {}) => {
     const settings = { compatProvider: { llmhost: { baseUrl: f.baseUrl, dialect, sessionAffinityHeader: 'x-session-id' } }, ...extra }
@@ -58,12 +58,12 @@ try {
       const body = f.captures.at(-1)!.body
       assert.equal(body.model, f.model)
       assert.equal(body.reasoning_effort, 'max')
-      assert.ok(body.tools.some((row: any) => row.function.name === 'FixtureEcho'), `src/services/providers/openaicompat/compatChatClient.ts ${dialect} turn ${n} request missing FixtureEcho tool`)
-      assert.ok(f.captures.at(-1)!.affinity, `src/services/providers/openaicompat/compatChatClient.ts ${dialect} turn ${n} missing sessionAffinityHeader`)
+      assert.ok(body.tools.some((row: any) => row.function.name === 'FixtureEcho'), `src/models/roads/openaicompat/compatChatClient.ts ${dialect} turn ${n} request missing FixtureEcho tool`)
+      assert.ok(f.captures.at(-1)!.affinity, `src/models/roads/openaicompat/compatChatClient.ts ${dialect} turn ${n} missing sessionAffinityHeader`)
       if (dialect === 'sglang') assert.equal(body.chat_template_kwargs?.clear_thinking, false)
       for (let prior = 0; prior < n; prior++) {
         assert.ok(body.messages.some((row: any) => row.role === 'assistant' && row.reasoning_content?.includes(`reasoning-${prior}`)), `reasoning-${prior} is replayed on tool turn ${n}`)
-        assert.ok(body.messages.some((row: any) => row.role === 'tool' && row.tool_call_id === `fixture-call-${prior}`), `src/services/providers/openaicompat/compatChatClient.ts ${dialect} turn ${n} missing tool_result fixture-call-${prior}`)
+        assert.ok(body.messages.some((row: any) => row.role === 'tool' && row.tool_call_id === `fixture-call-${prior}`), `src/models/roads/openaicompat/compatChatClient.ts ${dialect} turn ${n} missing tool_result fixture-call-${prior}`)
       }
       messages.push(...replies)
       if (n < 2) messages.push(f.createUserMessage({ content: [{ type: 'tool_result', tool_use_id: `fixture-call-${n}`, content: 'hello' }] }))
@@ -78,13 +78,13 @@ try {
     assert.equal(f.captures.length, prior)
     f.state.mode = 'refuse'
     const refusedReplies = await f.run(id)
-    assert.ok(refusedReplies.some(row => row.isApiErrorMessage && row.error === 'authentication_failed'), `src/services/providers/openaicompat/compatChatClient.ts ${dialect} 401 refusal expected authentication_failed: got ${JSON.stringify(refusedReplies.map(r => r.error))}`)
+    assert.ok(refusedReplies.some(row => row.isApiErrorMessage && row.error === 'authentication_failed'), `src/models/roads/openaicompat/compatChatClient.ts ${dialect} 401 refusal expected authentication_failed: got ${JSON.stringify(refusedReplies.map(r => r.error))}`)
     f.state.mode = 'retry'
     const retriedReplies = await f.run(id)
-    assert.ok(retriedReplies.some(row => row.message.content.some((part: any) => part.text === 'LLMHOST-READY')), `src/services/providers/openaicompat/compatChatClient.ts ${dialect} retry did not yield LLMHOST-READY`)
+    assert.ok(retriedReplies.some(row => row.message.content.some((part: any) => part.text === 'LLMHOST-READY')), `src/models/roads/openaicompat/compatChatClient.ts ${dialect} retry did not yield LLMHOST-READY`)
     f.state.mode = 'truncated'
     const truncatedReplies = await f.run(id)
-    assert.ok(truncatedReplies.some(row => row.isApiErrorMessage), `src/services/providers/openaicompat/compatChatClient.ts ${dialect} truncated stream did not yield isApiErrorMessage`)
+    assert.ok(truncatedReplies.some(row => row.isApiErrorMessage), `src/models/roads/openaicompat/compatChatClient.ts ${dialect} truncated stream did not yield isApiErrorMessage`)
   }
   console.log(`LLMHOST WIRE ${mode.toUpperCase()} GREEN — loopback only`)
 } finally { f.close() }

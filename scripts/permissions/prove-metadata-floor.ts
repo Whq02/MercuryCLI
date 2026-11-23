@@ -14,13 +14,13 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const load = (file: string) => import(pathToFileURL(join(root, file)).href)
-const { getEmptyToolPermissionContext } = await load('src/Tool.ts')
-const { decideToolPermission } = await load('src/utils/permissions/decision/engine.ts')
-const { WebFetchTool } = await load('src/tools/WebFetchTool/WebFetchTool.ts')
-const { BrowserTool } = await load('src/tools/BrowserTool/BrowserTool.ts')
+const { getEmptyToolPermissionContext } = await load('src/tools/kit/tool.ts')
+const { decideToolPermission } = await load('src/permissions/rules/decision/engine.ts')
+const { WebFetchTool } = await load('src/tools/web-fetch/WebFetchTool.ts')
+const { BrowserTool } = await load('src/tools/browser/BrowserTool.ts')
 let failures = 0
 let checks = 0
-const metadataFloorHint = 'fix the guard the label names: the tool decision in src/utils/permissions/decision/engine.ts (decideToolPermission), metadataSafeAddresses in src/tools/WebFetchTool/privateHost.ts, fetchPage in src/tools/WebFetchTool/fetchTransport.ts, tryStructuredFetch in src/tools/WebFetchTool/structuredHosts.ts, or startMetadataProxy in src/services/browser/metadataProxy.ts; cloud metadata addresses must be refused and ordinary private addresses must stay available'
+const metadataFloorHint = 'fix the guard the label names: the tool decision in src/permissions/rules/decision/engine.ts (decideToolPermission), metadataSafeAddresses in src/tools/web-fetch/privateHost.ts, fetchPage in src/tools/web-fetch/fetchTransport.ts, tryStructuredFetch in src/tools/web-fetch/structuredHosts.ts, or startMetadataProxy in src/integrations/browser/metadataProxy.ts; cloud metadata addresses must be refused and ordinary private addresses must stay available'
 function check(label: string, ok: boolean, detail = '') {
   checks++
   if (!ok) failures++
@@ -38,7 +38,7 @@ try {
       check(`${mode} ${tool.name} ${host}`, result.behavior === 'deny' && /metadata/i.test(result.message ?? ''), `${result.behavior}: ${result.message ?? ''}`)
     }
   }
-  const { metadataSafeAddresses } = await load('src/tools/WebFetchTool/privateHost.ts')
+  const { metadataSafeAddresses } = await load('src/tools/web-fetch/privateHost.ts')
   if (typeof metadataSafeAddresses !== 'function') check('DNS metadata guard exists', false, 'base has no guard')
   else {
     for (const addresses of [[{ address: '169.254.169.254', family: 4 }], [{ address: '93.184.216.34', family: 4 }, { address: '100.100.100.200', family: 4 }], [{ address: '::ffff:a9fe:a9fe', family: 6 }], []]) {
@@ -50,7 +50,7 @@ try {
     try { await metadataSafeAddresses('http://fixture.test/', async () => { throw new Error('fixture DNS fault') }) } catch (error) { failedDns = String(error) }
     check('DNS failure refuses before connection', /DNS.*failed/.test(failedDns), failedDns)
   }
-  const { fetchPage } = await load('src/tools/WebFetchTool/fetchTransport.ts')
+  const { fetchPage } = await load('src/tools/web-fetch/fetchTransport.ts')
   let hits = 0
   const server = createServer((req, res) => {
     hits++
@@ -66,7 +66,7 @@ try {
     let redirectRefusal = ''
     try { await fetchPage(local + '/redirect', new AbortController().signal) } catch (error) { redirectRefusal = String(error) }
     check('redirect metadata is refused, not offered as a follow-up URL', /metadata/.test(redirectRefusal), redirectRefusal)
-    const proxyModulePath = join(root, 'src/services/browser/metadataProxy.ts')
+    const proxyModulePath = join(root, 'src/integrations/browser/metadataProxy.ts')
     let proxyModule: any
     try { proxyModule = await import(pathToFileURL(proxyModulePath).href) } catch { proxyModule = null }
     if (!proxyModule) check('browser connection-time metadata guard exists', false)
@@ -109,7 +109,7 @@ try {
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())) }
   const axios = (await import(pathToFileURL(join(root, 'node_modules/axios/index.js')).href)).default
   const originalGet = axios.get
-  const { tryStructuredFetch } = await load('src/tools/WebFetchTool/structuredHosts.ts')
+  const { tryStructuredFetch } = await load('src/tools/web-fetch/structuredHosts.ts')
   let structuredRefusal = ''
   let pinnedPageLookup = false
   let pinnedApiLookup = false

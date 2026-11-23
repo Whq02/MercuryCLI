@@ -1,4 +1,4 @@
-import type { LocalCommandCall } from '../../types/command.js'
+import type { LocalCommandCall } from '../catalogue/command.js'
 import {
   SEAT_COST_BYTES,
   SEAT_DOORS,
@@ -8,7 +8,7 @@ import {
   seatSourceWords,
   setOperatorSeats,
   type SeatCeilingFacts,
-} from '../../utils/switchboard/capacityCheck.js'
+} from '../../daemon/switchboard-capacity/capacityCheck.js'
 
 
 export function parseSeatsArg(input: string): number | 'auto' | undefined {

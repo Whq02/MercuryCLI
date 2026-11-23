@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { MonitorTool } from '../../src/tools/MonitorTool/MonitorTool.ts'
+import { MonitorTool } from '../../src/tools/monitor/MonitorTool.ts'
 import {
   deadWatchLine,
   monitorNoticeBlock,
@@ -8,12 +8,12 @@ import {
   settledWatchIds,
   WATCH_STARTED_LINE,
   watchReceipts,
-} from '../../src/tools/MonitorTool/watchReceipts.ts'
-import { getCommandQueue, resetCommandQueue } from '../../src/utils/messageQueueManager.ts'
+} from '../../src/tools/monitor/watchReceipts.ts'
+import { getCommandQueue, resetCommandQueue } from '../../src/daemon/runner/messageQueueManager.ts'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${!ok ? `${detail ? ` — ${detail}` : ''} — fix src/tools/MonitorTool/watchReceipts.ts (receipts, settling, dead-watch line, resume notice) or, for the delivery batching and folded row checks, src/tools/MonitorTool/watchMailbox.ts` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${!ok ? `${detail ? ` — ${detail}` : ''} — fix src/tools/monitor/watchReceipts.ts (receipts, settling, dead-watch line, resume notice) or, for the delivery batching and folded row checks, src/tools/monitor/watchMailbox.ts` : ''}`)
   if (!ok) failures = 1
 }
 
@@ -93,11 +93,11 @@ const messages = (...m: Msg[]): never => m as never
 }
 
 {
-  const { createWatchMailbox } = await import('../../src/tools/MonitorTool/watchMailbox.ts')
-  const { wrappedNoticeBlocks } = await import('../../src/utils/messages/noticeRows.ts')
-  const { UserNoticeMessage } = await import('../../src/components/messages/UserNoticeMessage.tsx')
-  const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { createWatchMailbox } = await import('../../src/tools/monitor/watchMailbox.ts')
+  const { wrappedNoticeBlocks } = await import('../../src/engine/message-shapes/noticeRows.ts')
+  const { UserNoticeMessage } = await import('../../src/screen/messages/UserNoticeMessage.tsx')
+  const { renderToAnsiString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
   const React = await import('react')
   let now = 0

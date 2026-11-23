@@ -2,9 +2,9 @@
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { isDeferredTool } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { searchToolsWithKeywords } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { isDeferredTool } = await import('../../src/tools/tool-search/prompt.ts')
+const { searchToolsWithKeywords } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -30,7 +30,7 @@ for (const [query, winner] of [
   ['run the tests touched by changed files', 'Test'],
 ] as const) {
   const r = await search(query)
-  check(`"${query}" → ${winner} first`, r[0] === winner, (r.slice(0, 4).join(', ') || '(none)') + ' (top four results); add the query words to the searchHint of the expected tool, or fix the scoring in searchToolsWithKeywords, src/tools/ToolSearchTool/ToolSearchTool.ts')
+  check(`"${query}" → ${winner} first`, r[0] === winner, (r.slice(0, 4).join(', ') || '(none)') + ' (top four results); add the query words to the searchHint of the expected tool, or fix the scoring in searchToolsWithKeywords, src/tools/tool-search/ToolSearchTool.ts')
 }
 
 console.log(failures === 0 ? '\nLATHE TOOLSEARCH GREEN' : `\n${failures} FAILURE(S)`)

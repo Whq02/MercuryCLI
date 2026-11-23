@@ -7,7 +7,7 @@ import { isAbsolute, join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
 import stringWidth from 'string-width'
-import type { DOMElement, DOMNode } from '../../../src/ink/dom.js'
+import type { DOMElement, DOMNode } from '../../../src/screen/renderer/dom.js'
 
 function argument(name: string): string | undefined {
   const index = process.argv.indexOf(name)
@@ -124,28 +124,28 @@ export async function usagePlanWorld() {
     const actual = await import(target)
     mock.module(target, () => ({ ...actual, ...overrides }))
   }
-  await stub('src/utils/proxy.ts', { getApiFetch: () => fetchImpl, getProxyFetchOptions: () => ({}) })
-  const { enableConfigs } = await import(path('src/utils/config.ts'))
+  await stub('src/platform/network/proxy.ts', { getApiFetch: () => fetchImpl, getProxyFetchOptions: () => ({}) })
+  const { enableConfigs } = await import(path('src/platform/settings/config.ts'))
   enableConfigs()
-  const accounts = await import(path('src/services/providers/moonshot/moonshotAccounts.ts')) as typeof import('../../../src/services/providers/moonshot/moonshotAccounts.js')
-  const secrets = await import(path('src/utils/accounts/providerSecrets.ts')) as typeof import('../../../src/utils/accounts/providerSecrets.js')
+  const accounts = await import(path('src/models/roads/moonshot/moonshotAccounts.ts')) as typeof import('../../../src/models/roads/moonshot/moonshotAccounts.js')
+  const secrets = await import(path('src/models/sign-in/account-ledger/providerSecrets.ts')) as typeof import('../../../src/models/sign-in/account-ledger/providerSecrets.js')
   accounts.writeMoonshotTokens({ accessToken: 'kimi-fixture-access', refreshToken: 'kimi-fixture-refresh' }, 'global')
   secrets.writeStoredZaiApiKey(glmKey, 'coding')
-  const reader = await import(path('src/services/providers/moonshot/moonshotUsageState.ts')) as typeof import('../../../src/services/providers/moonshot/moonshotUsageState.js')
-  const owner = await import(path('src/services/providers/providerUsage.ts')) as typeof import('../../../src/services/providers/providerUsage.js')
-  const fresh = await import(path('src/services/providers/usageFreshness.ts')) as typeof import('../../../src/services/providers/usageFreshness.js')
-  const quota = await import(path('src/services/cockpit/quota.ts')) as typeof import('../../../src/services/cockpit/quota.js')
-  const records = await import(path('src/services/anthropicLimits.ts')) as typeof import('../../../src/services/anthropicLimits.js')
+  const reader = await import(path('src/models/roads/moonshot/moonshotUsageState.ts')) as typeof import('../../../src/models/roads/moonshot/moonshotUsageState.js')
+  const owner = await import(path('src/models/roads/providerUsage.ts')) as typeof import('../../../src/models/roads/providerUsage.js')
+  const fresh = await import(path('src/models/roads/usageFreshness.ts')) as typeof import('../../../src/models/roads/usageFreshness.js')
+  const quota = await import(path('src/screen/cockpit-gauges/quota.ts')) as typeof import('../../../src/screen/cockpit-gauges/quota.js')
+  const records = await import(path('src/models/roads/anthropic/anthropicLimits.ts')) as typeof import('../../../src/models/roads/anthropic/anthropicLimits.js')
   await owner.refreshProviderUsage('moonshot', { fetchImpl, now: () => observedAtMs, force: true })
   await owner.refreshProviderUsage('zai', { fetchImpl, now: () => observedAtMs, force: true })
   const ids = ['moonshot', 'zai', 'anthropic', 'openai', 'openrouter', 'gemini', 'deepseek', 'huggingface', 'openai-compat', 'local']
-  await stub('src/services/providers/providerUsage.ts', {
+  await stub('src/models/roads/providerUsage.ts', {
     providerFamilyPresences: () => ids.map(id => ({ id, available: id === 'moonshot' || id === 'zai', credentialed: id === 'moonshot' || id === 'zai', credentialLabel: id === 'zai' ? 'GLM Coding Plan key' : accounts.resolveMoonshotAccount()?.label })),
   })
-  await stub('src/services/model/computedDefault.ts', { recentSignIns: () => [{ family: 'moonshot' }, { family: 'zai' }] })
-  await stub('src/keybindings/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
-  await stub('src/hooks/useExitOnCtrlCD.ts', { useExitOnCtrlCD: () => undefined })
-  await stub('src/context/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
+  await stub('src/models/catalogue/computedDefault.ts', { recentSignIns: () => [{ family: 'moonshot' }, { family: 'zai' }] })
+  await stub('src/screen/keys/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
+  await stub('src/screen/keys/useExitChord.ts', { useExitOnCtrlCD: () => undefined })
+  await stub('src/screen/notifications/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
   let model = 'glm-fixture'
   const modelListeners = new Set<() => void>()
   const clockListeners = new Set<() => void>()
@@ -156,24 +156,24 @@ export async function usagePlanWorld() {
     subscribeModel: (listener: () => void) => { modelListeners.add(listener); return () => { modelListeners.delete(listener) } },
     usage: () => ({ totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }),
   }
-  await stub('src/services/engine-connector/focusedConnector.ts', {
+  await stub('src/engine/connector/focusedConnector.ts', {
     getFocusedSessionConnector: () => connector,
     subscribeThroughFocused: (subscribe: (connection: typeof connector, listener: () => void) => () => void) => (listener: () => void) => subscribe(connector, listener),
   })
-  await stub('src/components/tasks/useFocusedWork.ts', {
+  await stub('src/screen/tasks/useFocusedWork.ts', {
     useFocusedWorkRows: () => [],
     useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }),
     focusedSessionIdOrNull: () => null,
   })
-  await stub('src/state/vitalsBus.ts', { useVitals: () => ({ trace: null }) })
-  await stub('src/services/health/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
+  await stub('src/screen/app-state/vitalsBus.ts', { useVitals: () => ({ trace: null }) })
+  await stub('src/platform/health/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
   let size = { columns: 178, rows: 51 }
-  await stub('src/hooks/useTerminalSize.ts', { useTerminalSize: () => size })
-  await stub('src/components/mercury-ui/components.tsx', { useNowTick: () => React.useSyncExternalStore(subscribeClock, () => now, () => now) })
-  const ink = await import(path('src/ink.ts')) as typeof import('../../../src/ink.js')
-  const { InputEvent } = await import(path('src/ink/events/input-event.ts')) as typeof import('../../../src/ink/events/input-event.js')
-  const { default: StdinContext } = await import(path('src/ink/components/StdinContext.ts'))
-  const { default: squashText } = await import(path('src/ink/squash-text-nodes.ts')) as typeof import('../../../src/ink/squash-text-nodes.js')
+  await stub('src/screen/fullscreen-layout/useTerminalSize.ts', { useTerminalSize: () => size })
+  await stub('src/screen/widgets/components.tsx', { useNowTick: () => React.useSyncExternalStore(subscribeClock, () => now, () => now) })
+  const ink = await import(path('src/screen/themedRenderer.ts')) as typeof import('../../../src/screen/themedRenderer.js')
+  const { InputEvent } = await import(path('src/screen/renderer/events/input-event.ts')) as typeof import('../../../src/screen/renderer/events/input-event.js')
+  const { default: StdinContext } = await import(path('src/screen/renderer/elements/StdinContext.ts'))
+  const { default: squashText } = await import(path('src/screen/renderer/squash-text-nodes.ts')) as typeof import('../../../src/screen/renderer/squash-text-nodes.js')
   const mounted = new Set<() => void>()
   const settle = async () => {
     for (let index = 0; index < 8; index++) {

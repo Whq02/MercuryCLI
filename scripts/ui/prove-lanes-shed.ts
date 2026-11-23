@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { densityPlan, HELM_DENSITY_FLOOR } from '../../src/utils/helmDensity.ts'
+import { densityPlan, HELM_DENSITY_FLOOR } from '../../src/screen/fullscreen-layout/helmDensity.ts'
 
-const D = 'src/utils/helmDensity.ts'
+const D = 'src/screen/fullscreen-layout/helmDensity.ts'
 
 
 let fail = 0

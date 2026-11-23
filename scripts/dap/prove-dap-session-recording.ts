@@ -22,8 +22,8 @@ const STDERR_THEN_MOCK = `process.stderr.write('recording adapter: warming up\\n
 const STDOUT_THEN_MOCK = `process.stdout.write('recording adapter: on its port\\n'); ${THEN_MOCK}`
 const scratch = mkdtempSync(path.join(tmpdir(), 'dap-session-recording-'))
 
-const { DapSession, createDapSession, removeDapSession, _dapSessionCountForTesting } = await import('../../src/services/dap/dapClient.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
+const { DapSession, createDapSession, removeDapSession, _dapSessionCountForTesting } = await import('../../src/integrations/debugger/dapClient.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
 type Session = InstanceType<typeof DapSession>
 const owner = makeOwnerKey({ workspace: '/tmp/w', sessionId: 'dap-session-recording', lane: 'main' })
 
@@ -304,6 +304,6 @@ if (recorded === now) {
   process.exit(0)
 }
 sayDifferences(recorded, now)
-console.log(`  [FAIL] DapSession no longer answers as recorded in ${RECORDING_NAME}: mend src/services/dap/dapClient.ts or its parts in src/services/dap/client/ until the lines above are equal; only where the difference is meant, record it again with \`bun ${SELF} --write\` and commit the recording`)
+console.log(`  [FAIL] DapSession no longer answers as recorded in ${RECORDING_NAME}: mend src/integrations/debugger/dapClient.ts or its parts in src/integrations/debugger/client/ until the lines above are equal; only where the difference is meant, record it again with \`bun ${SELF} --write\` and commit the recording`)
 console.log('prove-dap-session-recording: 1 FAILURE')
 process.exit(1)

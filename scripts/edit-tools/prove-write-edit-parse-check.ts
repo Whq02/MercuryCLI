@@ -21,29 +21,29 @@ delete process.env.NODE_ENV
 
 const engineDir = join(scratch, 'engine')
 mkdirSync(engineDir)
-const repo = join(import.meta.dir, '../..')
+const repo = join(import.meta.dir, '../../kit/toolList')
 const vscodeDir = join(repo, 'node_modules/@vscode/tree-sitter-wasm/wasm')
-const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/utils/structure/grammarRegistry.ts')
+const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/platform/grammars/grammarRegistry.ts')
 for (const file of GRAMMAR_ENGINE_RUNTIME_FILES) copyFileSync(join(vscodeDir, file), join(engineDir, file))
 for (const grammar of GRAMMAR_REGISTRY) {
   const from = grammar.source === 'grammar-pack' ? join(repo, 'vendor/grammars/extracted') : vscodeDir
   copyFileSync(join(from, grammar.wasm), join(engineDir, grammar.wasm))
 }
 process.env.MERCURY_TREESITTER_VENDOR_DIR = engineDir
-const { _resetGrammarEngineForTesting } = await import('../../src/utils/structure/grammarFacility.ts')
-const { _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const parseCheckModule = await import('../../src/tools/FileWriteTool/parseCheck.ts')
+const { _resetGrammarEngineForTesting } = await import('../../src/platform/grammars/grammarFacility.ts')
+const { _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const parseCheckModule = await import('../../src/tools/write/parseCheck.ts')
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  const parseCheckHint = 'to fix, change checkIntroducedParseError in src/tools/FileWriteTool/parseCheck.ts (what it reports, and when it stays silent) or its callers src/tools/FileWriteTool/write/call.ts and src/tools/FileEditTool/edit/call.ts (whether the write or edit lands and carries the parse error)'
+  const parseCheckHint = 'to fix, change checkIntroducedParseError in src/tools/write/parseCheck.ts (what it reports, and when it stays silent) or its callers src/tools/write/call/call.ts and src/tools/edit/call/call.ts (whether the write or edit lands and carries the parse error)'
   console.log(
     `  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.length > 500 ? `${detail.slice(0, 500)}…` : detail} | ` : ''}${parseCheckHint}` : ''}`,
   )

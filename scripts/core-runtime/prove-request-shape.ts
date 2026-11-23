@@ -12,21 +12,21 @@ process.env.ANTHROPIC_API_KEY = 'fixture-key'
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_EFFORT_LEVEL
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 
 const { queryModelWithStreaming } = await import(
-  '../../src/services/providers/anthropic/streamCore.ts'
+  '../../src/models/roads/anthropic/streamCore.ts'
 )
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const requestParams = await import(
-  '../../src/services/providers/anthropic/requestParams.ts'
+  '../../src/models/roads/anthropic/requestParams.ts'
 )
 const messageParams = await import(
-  '../../src/services/providers/anthropic/messageParams.ts'
+  '../../src/models/roads/anthropic/messageParams.ts'
 )
 
 let failures = 0
@@ -80,7 +80,7 @@ async function captureRequest(model: string): Promise<Captured> {
   const controller = new AbortController()
   abortCapture = () => controller.abort()
   const deadline = setTimeout(() => {
-    console.log(`  [FAIL] ${model}: no request captured within ${CAPTURE_DEADLINE_MS}ms — aborting the query; check that queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts still sends through options.fetchOverride`)
+    console.log(`  [FAIL] ${model}: no request captured within ${CAPTURE_DEADLINE_MS}ms — aborting the query; check that queryModelWithStreaming in src/models/roads/anthropic/streamCore.ts still sends through options.fetchOverride`)
     failures++
     controller.abort()
   }, CAPTURE_DEADLINE_MS)
@@ -109,7 +109,7 @@ async function captureRequest(model: string): Promise<Captured> {
   }
   clearTimeout(deadline)
   abortCapture = null
-  if (!captured) throw new Error(`no request captured for ${model}; check that queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts reaches fetchOverride`)
+  if (!captured) throw new Error(`no request captured for ${model}; check that queryModelWithStreaming in src/models/roads/anthropic/streamCore.ts reaches fetchOverride`)
   return captured
 }
 
@@ -122,40 +122,40 @@ section('WIRE — first-party composed request bodies (fetchOverride capture)')
       && Array.isArray((opus.body as Record<string, unknown>)?.system)
       && Array.isArray((opus.body as Record<string, unknown>)?.messages)
       && (opus.body as Record<string, unknown>)?.stream === true,
-    'compose the body in src/services/providers/anthropic/streamCore/wireParams.ts so it carries model, system, messages and stream:true; body starts ' + normalize(opus.body).slice(0, 200))
+    'compose the body in src/models/roads/anthropic/stream-core/wireParams.ts so it carries model, system, messages and stream:true; body starts ' + normalize(opus.body).slice(0, 200))
   check('opus: max_tokens matches the capability table',
     typeof (opus.body as Record<string, unknown>)?.max_tokens === 'number',
-    'the body must carry a numeric max_tokens; see where wireParams.ts in src/services/providers/anthropic/streamCore sets max_tokens from the model output limit')
+    'the body must carry a numeric max_tokens; see where wireParams.ts in src/models/roads/anthropic/stream-core sets max_tokens from the model output limit')
   check('opus: the user message rides as one text block with cache_control on the tail',
     (() => {
       const msgs = (opus.body as { messages: Array<{ content: Array<Record<string, unknown>> }> }).messages
       const last = msgs.at(-1)!.content.at(-1)!
       return last['type'] === 'text' && last['text'] === 'shape fixture prompt'
     })(),
-    'the last user content block must be the plain text block; see userMessageToMessageParam in src/services/providers/anthropic/messageParams.ts')
+    'the last user content block must be the plain text block; see userMessageToMessageParam in src/models/roads/anthropic/messageParams.ts')
   check('opus: anthropic-beta header present and non-empty (the pinned tables ride here)',
     typeof opus.headers['anthropic-beta'] === 'string' && opus.headers['anthropic-beta']!.length > 0,
-    'the request must send a non-empty anthropic-beta header; see the header assembly in src/services/providers/anthropic/anthropicClient.ts, got ' + JSON.stringify(opus.headers['anthropic-beta']))
+    'the request must send a non-empty anthropic-beta header; see the header assembly in src/models/roads/anthropic/anthropicClient.ts, got ' + JSON.stringify(opus.headers['anthropic-beta']))
   check('opus: no task_budget rides output_config',
     !('task_budget' in ((opus.body as Record<string, unknown>)?.output_config as Record<string, unknown> ?? {})),
-    'remove task_budget from the output_config composed in src/services/providers/anthropic/streamCore/wireParams.ts')
+    'remove task_budget from the output_config composed in src/models/roads/anthropic/stream-core/wireParams.ts')
 
   const sonnet = await captureRequest('claude-sonnet-5')
   check('sonnet: model threads through; body shape identical modulo model/limits',
     (sonnet.body as Record<string, unknown>)?.model === 'claude-sonnet-5',
-    'the body model must equal the model passed to queryModelWithStreaming; see src/services/providers/anthropic/streamCore/wireParams.ts')
+    'the body model must equal the model passed to queryModelWithStreaming; see src/models/roads/anthropic/stream-core/wireParams.ts')
   const shapeOf = (c: Captured): string =>
     JSON.stringify(Object.keys(c.body as Record<string, unknown>).sort())
   check('sonnet/opus: the composed body carries the SAME key set',
-    shapeOf(sonnet) === shapeOf(opus), `${shapeOf(sonnet)} vs ${shapeOf(opus)}; a key is added for one model only, see the body composed in src/services/providers/anthropic/streamCore/wireParams.ts`)
+    shapeOf(sonnet) === shapeOf(opus), `${shapeOf(sonnet)} vs ${shapeOf(opus)}; a key is added for one model only, see the body composed in src/models/roads/anthropic/stream-core/wireParams.ts`)
 
   const fable = await captureRequest('claude-fable-5')
   check('fable: model threads through',
     (fable.body as Record<string, unknown>)?.model === 'claude-fable-5',
-    'the body model must equal the model passed to queryModelWithStreaming; see src/services/providers/anthropic/streamCore/wireParams.ts')
+    'the body model must equal the model passed to queryModelWithStreaming; see src/models/roads/anthropic/stream-core/wireParams.ts')
   check('fable: effort param present (an effort-capable model)',
     normalize(fable.body).includes('effort') || shapeOf(fable) === shapeOf(opus),
-    'an effort-capable model must send output_config.effort, or share the opus key set; see the output_config built in src/services/providers/anthropic/streamCore/wireParams.ts')
+    'an effort-capable model must send output_config.effort, or share the opus key set; see the output_config built in src/models/roads/anthropic/stream-core/wireParams.ts')
 }
 
 
@@ -163,19 +163,19 @@ section('PIECES — cache control · metadata · message params')
 {
   const cc = requestParams.getCacheControl()
   check('cacheControl: opus gets ephemeral cache_control',
-    normalize(cc).includes('ephemeral'), 'getCacheControl in src/services/providers/anthropic/requestParams.ts must return type ephemeral, got ' + normalize(cc))
+    normalize(cc).includes('ephemeral'), 'getCacheControl in src/models/roads/anthropic/requestParams.ts must return type ephemeral, got ' + normalize(cc))
 
   const meta = requestParams.getAPIMetadata()
   check('metadata: the shape is {user_id} only',
     JSON.stringify(Object.keys(meta as Record<string, unknown>)) === '["user_id"]',
-    'getAPIMetadata in src/services/providers/anthropic/requestParams.ts must return only user_id, got keys ' + JSON.stringify(Object.keys(meta as Record<string, unknown>)))
+    'getAPIMetadata in src/models/roads/anthropic/requestParams.ts must return only user_id, got keys ' + JSON.stringify(Object.keys(meta as Record<string, unknown>)))
 
   const um = messageParams.userMessageToMessageParam(
     createUserMessage({ content: 'piece fixture' }) as never,
     true as never,
   )
   check('messageParam: user conversion carries role=user + cache_control on the addable',
-    normalize(um).includes('"role":"user"'), 'userMessageToMessageParam in src/services/providers/anthropic/messageParams.ts must return role user; result starts ' + normalize(um).slice(0, 160))
+    normalize(um).includes('"role":"user"'), 'userMessageToMessageParam in src/models/roads/anthropic/messageParams.ts must return role user; result starts ' + normalize(um).slice(0, 160))
 }
 
 console.log('')

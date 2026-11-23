@@ -4,10 +4,10 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const failureHint = (label: string): string => {
-  if (/^parity:/.test(label)) return 'composeSystemPrompt in src/prompt/composer.ts must keep returning the legacy section order (static, boundary, dynamic, wrapper, mode, anti-syc, nulls filtered)'
-  if (/mixed session|all-Anthropic/.test(label)) return 'change stripUnsignedThinkingBlocks in src/services/messages/pairing.ts (or the request build in normalizeMessagesForAPI, src/services/messages/apiView.ts, and assistantMessageToMessageParam, src/services/providers/anthropic/messageParams.ts)'
-  if (/unsigned|thinking|phase|placeholder|zero-copy|projection/.test(label)) return 'change stripUnsignedThinkingBlocks in src/services/messages/pairing.ts'
-  return 'change src/prompt/behaviourContract.ts (buildBehaviourContract, the render functions, resolveBehaviourContract) so the contract keeps this property'
+  if (/^parity:/.test(label)) return 'composeSystemPrompt in src/engine/system-prompt/composer.ts must keep returning the legacy section order (static, boundary, dynamic, wrapper, mode, anti-syc, nulls filtered)'
+  if (/mixed session|all-Anthropic/.test(label)) return 'change stripUnsignedThinkingBlocks in src/engine/messages/wirePairing.ts (or the request build in normalizeMessagesForAPI, src/engine/messages/apiView.ts, and assistantMessageToMessageParam, src/models/roads/anthropic/messageParams.ts)'
+  if (/unsigned|thinking|phase|placeholder|zero-copy|projection/.test(label)) return 'change stripUnsignedThinkingBlocks in src/engine/messages/wirePairing.ts'
+  return 'change src/engine/system-prompt/behaviourContract.ts (buildBehaviourContract, the render functions, resolveBehaviourContract) so the contract keeps this property'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -21,7 +21,7 @@ console.log('============================================================')
 console.log(' A3 — behaviour-contract pipeline proof')
 console.log('============================================================')
 
-const { composeSystemPrompt } = await import('../../src/prompt/composer.js')
+const { composeSystemPrompt } = await import('../../src/engine/system-prompt/composer.js')
 const {
   buildBehaviourContract,
   renderAnthropicSections,
@@ -31,13 +31,13 @@ const {
   resolveBehaviourContract,
   contractFromSegments,
   __resetBehaviourContractRegistryForTest,
-} = await import('../../src/prompt/behaviourContract.js')
-const { stripUnsignedThinkingBlocks } = await import('../../src/services/messages/pairing.js')
-const { normalizeMessagesForAPI } = await import('../../src/services/messages/apiView.js')
+} = await import('../../src/engine/system-prompt/behaviourContract.js')
+const { stripUnsignedThinkingBlocks } = await import('../../src/engine/messages/wirePairing.js')
+const { normalizeMessagesForAPI } = await import('../../src/engine/messages/apiView.js')
 const { assistantMessageToMessageParam, userMessageToMessageParam } = await import(
-  '../../src/services/providers/anthropic/messageParams.js'
+  '../../src/models/roads/anthropic/messageParams.js'
 )
-import type { PromptParts } from '../../src/prompt/composer.js'
+import type { PromptParts } from '../../src/engine/system-prompt/composer.js'
 
 function legacyCompose(parts: PromptParts): string[] {
   return [
@@ -265,10 +265,10 @@ section('6 · section metadata — semantic names, owner, cacheClass')
   check('every section carries an owner', contract.sections.every(s => typeof s.owner === 'string' && s.owner.length > 0))
   check('every section carries a cacheClass', contract.sections.every(s => ['stable', 'session', 'turn'].includes(s.cacheClass)))
   const apollo = contract.sections.find(s => s.name === 'mode-apollo')
-  check('mode-apollo owner is the apollo pack', apollo?.owner === 'src/prompt/apolloMode.ts')
+  check('mode-apollo owner is the apollo pack', apollo?.owner === 'src/engine/system-prompt/apolloMode.ts')
   const staticHead = contract.sections.find(s => s.name === 'head')
   const constitution = contract.sections.find(s => s.name === 'constitution')
-  check('static sections are cache-stable and the constitution names the contract module as its owner', staticHead?.cacheClass === 'stable' && constitution?.cacheClass === 'stable' && constitution.owner === 'src/prompt/mercuryContract.ts')
+  check('static sections are cache-stable and the constitution names the contract module as its owner', staticHead?.cacheClass === 'stable' && constitution?.cacheClass === 'stable' && constitution.owner === 'src/engine/system-prompt/mercuryContract.ts')
 }
 
 console.log('\n' + '═'.repeat(76))

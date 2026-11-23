@@ -4,8 +4,8 @@ import { createHash } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { repoSlugFromUrl, selectBridgePrevious } from '../../src/services/privateChannel/channelCore.js'
-import { RELEASE_TARGETS, archiveNameFor, isReleaseTarget, releaseTargetFor } from '../../src/services/privateChannel/releaseTarget.js'
+import { repoSlugFromUrl, selectBridgePrevious } from '../../src/platform/update-channel/channelCore.js'
+import { RELEASE_TARGETS, archiveNameFor, isReleaseTarget, releaseTargetFor } from '../../src/platform/update-channel/releaseTarget.js'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const IS_WIN = process.platform === 'win32'

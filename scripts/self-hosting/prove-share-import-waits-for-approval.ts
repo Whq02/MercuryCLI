@@ -48,19 +48,19 @@ import { join } from 'node:path'
 if (homedir() !== process.env.DRV_HOME) throw new Error('the home folder is ' + homedir() + ', not the scratch home of this proof')
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const repo = ${JSON.stringify(repo)}
-const { enableConfigs } = await import(join(repo, 'src/utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(repo, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
-const { getPlatform } = await import(join(repo, 'src/utils/platform.ts'))
-const { setIsInteractive, setOriginalCwd } = await import(join(repo, 'src/bootstrap/state.ts'))
-const { getFsImplementation } = await import(join(repo, 'src/utils/fsOperations.ts'))
-const { getEmptyToolPermissionContext } = await import(join(repo, 'src/Tool.ts'))
-const { createFileStateCacheWithSizeLimit } = await import(join(repo, 'src/utils/fileStateCache.ts'))
-const engine = await import(join(repo, 'src/services/instructions/engine.ts'))
-const discovery = await import(join(repo, 'src/services/instructions/discovery.ts'))
-const writer = await import(join(repo, 'src/services/instructions/projectInstructionWriter.ts'))
-const listing = await import(join(repo, 'src/services/instructions/listing.ts'))
-const { getUserContext } = await import(join(repo, 'src/context.ts'))
-const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/services/attachments/nestedMemory.ts'))
+const { getPlatform } = await import(join(repo, 'src/platform/environment/platform.ts'))
+const { setIsInteractive, setOriginalCwd } = await import(join(repo, 'src/boot/process-state/processState.ts'))
+const { getFsImplementation } = await import(join(repo, 'src/platform/files/fsOperations.ts'))
+const { getEmptyToolPermissionContext } = await import(join(repo, 'src/tools/kit/tool.ts'))
+const { createFileStateCacheWithSizeLimit } = await import(join(repo, 'src/platform/files/fileStateCache.ts'))
+const engine = await import(join(repo, 'src/sessions/instructions/instructionFiles.ts'))
+const discovery = await import(join(repo, 'src/sessions/instructions/discovery.ts'))
+const writer = await import(join(repo, 'src/sessions/instructions/projectInstructionWriter.ts'))
+const listing = await import(join(repo, 'src/sessions/instructions/listing.ts'))
+const { getUserContext } = await import(join(repo, 'src/engine/requestContext.ts'))
+const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/engine/attachments/nestedInstructions.ts'))
 const orient = await import(join(repo, 'src/commands/orient/orient.ts'))
 const plan = JSON.parse(process.env.DRV_PLAN ?? '{}')
 
@@ -165,7 +165,7 @@ writeFileSync(process.argv[2]!, JSON.stringify({ roads, loaded: files.map((f: an
 
 let passed = 0
 let failed = 0
-const SHARE_IMPORT_HINT = 'What to change: the external-import block in the include loop of src/services/instructions/discovery.ts (isExternal, followed, pathInInstructionRoots, withinInstructionDir), or shouldShowExternalInstructionIncludesWarning in src/services/instructions/engine.ts'
+const SHARE_IMPORT_HINT = 'What to change: the external-import block in the include loop of src/sessions/instructions/discovery.ts (isExternal, followed, pathInInstructionRoots, withinInstructionDir), or shouldShowExternalInstructionIncludesWarning in src/sessions/instructions/instructionFiles.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${ok ? '' : ` — ${SHARE_IMPORT_HINT}`}`)

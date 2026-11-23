@@ -11,11 +11,11 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 const out = process.env.PICKER_COMPOSE_OUT ?? ''
 const probe = process.env.PICKER_COMPOSE_PROBE ?? ''
 const started = Date.now()
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { getModelOptions, focusedOptionSupports1m, resolvesToExistingOption } = await import('../../src/services/model/modelOptions.ts')
-const model = await import('../../src/services/model/model.ts')
-const { resolveCatalogueSpelling } = await import('../../src/services/model/modelSpellingFold.ts')
+const { getModelOptions, focusedOptionSupports1m, resolvesToExistingOption } = await import('../../src/models/catalogue/modelOptions.ts')
+const model = await import('../../src/models/catalogue/engineModel.ts')
+const { resolveCatalogueSpelling } = await import('../../src/models/catalogue/modelSpellingFold.ts')
 
 const rows = getModelOptions({ anthropicCredentialed: () => true })
 const answer = {

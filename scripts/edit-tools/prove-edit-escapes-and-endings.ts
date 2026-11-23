@@ -15,14 +15,14 @@ delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { locateActualString } = await import('../../src/utils/fileEditUtils.ts')
-const { preserveUntouchedLineEndings } = await import('../../src/utils/file.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { locateActualString } = await import('../../src/tools/edit/call/editMatching.ts')
+const { preserveUntouchedLineEndings } = await import('../../src/platform/files/file.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
-const endingsFailHint = 'check preserveUntouchedLineEndings in src/utils/file.ts and the line-ending handling of FileEditTool in src/tools/FileEditTool/FileEditTool.ts'
-const escapesFailHint = 'check locateActualString in src/utils/fileEditUtils.ts and validateInput and call of FileEditTool in src/tools/FileEditTool/FileEditTool.ts'
+const endingsFailHint = 'check preserveUntouchedLineEndings in src/platform/files/file.ts and the line-ending handling of FileEditTool in src/tools/edit/EditTool.ts'
+const escapesFailHint = 'check locateActualString in src/tools/edit/call/editMatching.ts and validateInput and call of FileEditTool in src/tools/edit/EditTool.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const failHint = /^[CD]/.test(label) ? endingsFailHint : escapesFailHint

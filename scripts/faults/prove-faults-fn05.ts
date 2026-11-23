@@ -16,14 +16,14 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 const AREA_FIX_HINTS: Record<string, string> = {
-  tree: 'fix hashTree, treeFileDigests or folderSize in src/extensions/tree.ts so an unreadable subfolder is marked, not skipped silently',
-  commitGate: 'fix generatedAssetsRefusal in src/guards/commitGate.ts so an unreadable candidate file does not refuse the commit',
-  guards: 'fix judgeToolCall in src/guards/guards.ts so a throwing or timed-out tool guard lets the call go on with one note',
-  runStopAdapter: 'fix headlessMintAllowed, evaluateStopAttempt or mintDeliveryArtifact in src/guards/runStopAdapter.ts',
-  wardsGuard: 'fix src/guards/wardsGuard.ts (registerWardsGuard, realTargetPath, makeTargetResolver or homeSpellings)',
-  history: 'fix historyPasteHashes in src/history.ts so an unreadable history.jsonl rejects instead of answering empty',
-  useAuthWallHold: 'fix afterDoor in src/hooks/useAuthWallHold.ts so a failed sign-in refresh notifies the user',
-  useExtensions: 'fix src/hooks/useExtensions.ts so a failed boot load clears pending and notifies the user',
+  tree: 'fix hashTree, treeFileDigests or folderSize in src/integrations/extensions/tree.ts so an unreadable subfolder is marked, not skipped silently',
+  commitGate: 'fix generatedAssetsRefusal in src/permissions/guards/commitGate.ts so an unreadable candidate file does not refuse the commit',
+  guards: 'fix judgeToolCall in src/permissions/guards/guards.ts so a throwing or timed-out tool guard lets the call go on with one note',
+  runStopAdapter: 'fix headlessMintAllowed, evaluateStopAttempt or mintDeliveryArtifact in src/permissions/guards/runStopAdapter.ts',
+  wardsGuard: 'fix src/permissions/guards/wardsGuard.ts (registerWardsGuard, realTargetPath, makeTargetResolver or homeSpellings)',
+  history: 'fix historyPasteHashes in src/sessions/promptHistory.ts so an unreadable history.jsonl rejects instead of answering empty',
+  useAuthWallHold: 'fix afterDoor in src/screen/chat/useAuthWallHold.ts so a failed sign-in refresh notifies the user',
+  useExtensions: 'fix src/screen/extensions/useExtensions.ts so a failed boot load clears pending and notifies the user',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -37,7 +37,7 @@ function skip(label: string, why: string): void {
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
 {
-  const { hashTree, treeFileDigests, folderSize } = await import('../../src/extensions/tree.ts')
+  const { hashTree, treeFileDigests, folderSize } = await import('../../src/integrations/extensions/tree.ts')
   const dir = mkdtempSync(join(tmpdir(), 'faults-fn05-tree-'))
   const withoutSub = mkdtempSync(join(tmpdir(), 'faults-fn05-tree-nosub-'))
   try {
@@ -76,8 +76,8 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
 }
 
 {
-  const { generatedAssetsRefusal } = await import('../../src/guards/commitGate.ts')
-  const { GENERATED_ASSETS_MAP } = await import('../../src/guards/generatedAssets.ts')
+  const { generatedAssetsRefusal } = await import('../../src/permissions/guards/commitGate.ts')
+  const { GENERATED_ASSETS_MAP } = await import('../../src/permissions/guards/generatedAssets.ts')
   const repo = mkdtempSync(join(tmpdir(), 'faults-fn05-commitgate-'))
   try {
     const git = (...args: string[]): void => {
@@ -113,7 +113,7 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
 }
 
 {
-  const { engageToolGuard, judgeToolCall, resetGuardsForTesting } = await import('../../src/guards/guards.ts')
+  const { engageToolGuard, judgeToolCall, resetGuardsForTesting } = await import('../../src/permissions/guards/guards.ts')
   resetGuardsForTesting()
   engageToolGuard('fn05-throw', {
     id: 'throwing-guard',
@@ -164,14 +164,14 @@ function runIsolated(body: string): Record<string, unknown> {
 {
   const r = runIsolated(`
     const { mock } = await import('bun:test')
-    const statePath = ${JSON.stringify(join(SRC, 'bootstrap/state.ts'))}
+    const statePath = ${JSON.stringify(join(SRC, 'boot/process-state/processState.ts'))}
     const realState = await import(statePath)
     mock.module(statePath, () => ({
       ...realState,
       getIsInteractive: () => { throw new Error('bootstrap boom') },
       getSessionId: () => { throw new Error('session boom') },
     }))
-    const mod = await import(${JSON.stringify(join(SRC, 'guards/runStopAdapter.ts'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'permissions/guards/runStopAdapter.ts'))})
     try {
       mod.headlessMintAllowed(undefined)
       out.headlessThrew = false
@@ -192,13 +192,13 @@ function runIsolated(body: string): Record<string, unknown> {
 {
   const r = runIsolated(`
     const { mock } = await import('bun:test')
-    const missionPath = ${JSON.stringify(join(SRC, 'guards/mission.ts'))}
+    const missionPath = ${JSON.stringify(join(SRC, 'permissions/guards/mission.ts'))}
     const realMission = await import(missionPath)
     mock.module(missionPath, () => ({
       ...realMission,
       getActiveMission: () => { throw new Error('mission boom') },
     }))
-    const mod = await import(${JSON.stringify(join(SRC, 'guards/runStopAdapter.ts'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'permissions/guards/runStopAdapter.ts'))})
     try {
       await mod.evaluateStopAttempt([], { maxBlocks: 1, wordingUnfinished: false })
       out.evalThrew = false
@@ -212,7 +212,7 @@ function runIsolated(body: string): Record<string, unknown> {
 {
   const r = runIsolated(`
     const { mock } = await import('bun:test')
-    const statePath = ${JSON.stringify(join(SRC, 'bootstrap/state.ts'))}
+    const statePath = ${JSON.stringify(join(SRC, 'boot/process-state/processState.ts'))}
     const realState = await import(statePath)
     mock.module(statePath, () => ({
       ...realState,
@@ -220,20 +220,20 @@ function runIsolated(body: string): Record<string, unknown> {
       getSessionId: () => { throw new Error('session boom') },
     }))
     let mintedWith = null
-    const wtPath = ${JSON.stringify(join(SRC, 'services/walkthrough/assembleWalkthrough.ts'))}
+    const wtPath = ${JSON.stringify(join(SRC, 'sessions/walkthrough/assembleWalkthrough.ts'))}
     const realWt = await import(wtPath)
     mock.module(wtPath, () => ({
       ...realWt,
       createWalkthroughArtifact: (args) => { mintedWith = args; return { ok: true, value: { version: 1 } } },
     }))
     const events = []
-    const coordPath = ${JSON.stringify(join(SRC, 'services/run/runCoordinator.ts'))}
+    const coordPath = ${JSON.stringify(join(SRC, 'engine/run/runCoordinator.ts'))}
     const realCoord = await import(coordPath)
     mock.module(coordPath, () => ({
       ...realCoord,
       noteRunEvent: (_owner, ev) => { events.push(ev) },
     }))
-    const mod = await import(${JSON.stringify(join(SRC, 'guards/runStopAdapter.ts'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'permissions/guards/runStopAdapter.ts'))})
     mod.mintDeliveryArtifact('owner-1', 'run-1', true)
     const deadline = Date.now() + 2000
     while (events.length === 0 && mintedWith === null && Date.now() < deadline) {
@@ -256,7 +256,7 @@ function runIsolated(body: string): Record<string, unknown> {
     try {
       fs.mkdirSync(path.join(repo, '.git'))
       fs.mkdirSync(path.join(repo, 'src/components'), { recursive: true })
-      fs.writeFileSync(path.join(repo, 'src/components/mercuryPalette.ts'), 'export const x = 1\\n')
+      fs.writeFileSync(path.join(repo, 'src/screen/theme/mercuryPalette.ts'), 'export const x = 1\\n')
       fs.writeFileSync(path.join(repo, 'package.json'), '{ corrupt json')
       fs.writeFileSync(path.join(repo, 'src/components/a.tsx'), 'export const a = 1\\n')
       try {
@@ -270,8 +270,8 @@ function runIsolated(body: string): Record<string, unknown> {
         }
       }
       process.chdir(repo)
-      const guardsMod = await import(${JSON.stringify(join(SRC, 'guards/guards.ts'))})
-      const wardsGuard = await import(${JSON.stringify(join(SRC, 'guards/wardsGuard.ts'))})
+      const guardsMod = await import(${JSON.stringify(join(SRC, 'permissions/guards/guards.ts'))})
+      const wardsGuard = await import(${JSON.stringify(join(SRC, 'permissions/guards/wardsGuard.ts'))})
       guardsMod.resetGuardsForTesting()
       wardsGuard.resetWardsEngagedSessionsForTest()
       wardsGuard.registerWardsGuard(() => {}, 'wards-fn05')
@@ -347,13 +347,13 @@ function runIsolated(body: string): Record<string, unknown> {
 {
   const r = runIsolated(`
     const { mock } = await import('bun:test')
-    const pathModPath = ${JSON.stringify(join(SRC, 'utils/path.ts'))}
+    const pathModPath = ${JSON.stringify(join(SRC, 'platform/files/path.ts'))}
     const realPathMod = await import(pathModPath)
     mock.module(pathModPath, () => ({
       ...realPathMod,
       expandPath: () => { throw new Error('home boom') },
     }))
-    const wardsGuard = await import(${JSON.stringify(join(SRC, 'guards/wardsGuard.ts'))})
+    const wardsGuard = await import(${JSON.stringify(join(SRC, 'permissions/guards/wardsGuard.ts'))})
     try {
       out.spellings = wardsGuard.homeSpellings()
       out.threw = false
@@ -368,7 +368,7 @@ if (POSIX_MODES) {
   const r = runIsolated(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const historyMod = await import(${JSON.stringify(join(SRC, 'history.ts'))})
+    const historyMod = await import(${JSON.stringify(join(SRC, 'sessions/promptHistory.ts'))})
     const empty = await historyMod.historyPasteHashes()
     out.absentSize = empty.size
     const histFile = path.join(process.env.MERCURY_CONFIG_DIR, 'history.jsonl')
@@ -393,17 +393,17 @@ if (POSIX_MODES) {
     const { PassThrough } = await import('node:stream')
     const { createElement } = await import('react')
     process.env.NODE_ENV = 'test'
-    const authPath = ${JSON.stringify(join(SRC, 'services/auth/oauthLifecycle.ts'))}
+    const authPath = ${JSON.stringify(join(SRC, 'models/sign-in/lifecycle/oauthLifecycle.ts'))}
     const realAuth = await import(authPath)
     mock.module(authPath, () => ({
       ...realAuth,
       invalidateOnDiskChange: () => { throw new Error('config unreadable') },
     }))
-    const { useAuthWallHold } = await import(${JSON.stringify(join(SRC, 'hooks/useAuthWallHold.ts'))})
-    const { AppStoreContext, getDefaultAppState } = await import(${JSON.stringify(join(SRC, 'state/AppState.tsx'))})
-    const { createStore } = await import(${JSON.stringify(join(SRC, 'state/store.ts'))})
-    const { default: StdinContext } = await import(${JSON.stringify(join(SRC, 'ink/components/StdinContext.ts'))})
-    const { Box, EventEmitter, render, flushPendingSyncWork } = await import(${JSON.stringify(join(SRC, 'ink.ts'))})
+    const { useAuthWallHold } = await import(${JSON.stringify(join(SRC, 'screen/chat/useAuthWallHold.ts'))})
+    const { AppStoreContext, getDefaultAppState } = await import(${JSON.stringify(join(SRC, 'screen/app-state/AppState.tsx'))})
+    const { createStore } = await import(${JSON.stringify(join(SRC, 'platform/primitives/store.ts'))})
+    const { default: StdinContext } = await import(${JSON.stringify(join(SRC, 'screen/renderer/elements/StdinContext.ts'))})
+    const { Box, EventEmitter, render, flushPendingSyncWork } = await import(${JSON.stringify(join(SRC, 'screen/themedRenderer.ts'))})
     const store = createStore(getDefaultAppState())
     let handle = null
     let composerText = ''
@@ -450,17 +450,17 @@ if (POSIX_MODES) {
     const { PassThrough } = await import('node:stream')
     const { createElement } = await import('react')
     process.env.NODE_ENV = 'test'
-    const bootPath = ${JSON.stringify(join(SRC, 'extensions/boot.ts'))}
+    const bootPath = ${JSON.stringify(join(SRC, 'integrations/extensions/boot.ts'))}
     const realBoot = await import(bootPath)
     mock.module(bootPath, () => ({
       ...realBoot,
       ensureExtensionsLoaded: async () => { throw new Error('disk offline') },
     }))
-    const { useExtensions } = await import(${JSON.stringify(join(SRC, 'hooks/useExtensions.ts'))})
-    const { AppStoreContext, getDefaultAppState } = await import(${JSON.stringify(join(SRC, 'state/AppState.tsx'))})
-    const { createStore } = await import(${JSON.stringify(join(SRC, 'state/store.ts'))})
-    const { default: StdinContext } = await import(${JSON.stringify(join(SRC, 'ink/components/StdinContext.ts'))})
-    const { Box, EventEmitter, render, flushPendingSyncWork } = await import(${JSON.stringify(join(SRC, 'ink.ts'))})
+    const { useExtensions } = await import(${JSON.stringify(join(SRC, 'screen/extensions/useExtensions.ts'))})
+    const { AppStoreContext, getDefaultAppState } = await import(${JSON.stringify(join(SRC, 'screen/app-state/AppState.tsx'))})
+    const { createStore } = await import(${JSON.stringify(join(SRC, 'platform/primitives/store.ts'))})
+    const { default: StdinContext } = await import(${JSON.stringify(join(SRC, 'screen/renderer/elements/StdinContext.ts'))})
+    const { Box, EventEmitter, render, flushPendingSyncWork } = await import(${JSON.stringify(join(SRC, 'screen/themedRenderer.ts'))})
     const initial = getDefaultAppState()
     initial.extensions.pending = true
     const store = createStore(initial)

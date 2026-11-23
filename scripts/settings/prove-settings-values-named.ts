@@ -27,7 +27,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { parseSettingsFile } = await import('../../src/utils/settings/settings.ts')
+const { parseSettingsFile } = await import('../../src/platform/settings/settings.ts')
 let n = 0
 const parse = (body: unknown): ReturnType<typeof parseSettingsFile> => {
   const path = join(process.env.MERCURY_CONFIG_DIR as string, `case-${n++}.json`)

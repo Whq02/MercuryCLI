@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/UI.tsx src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts src/mneme/mnemeContradiction.ts
+// gate-watch: src/tools/memory/MemoryTools.ts src/tools/memory/rows.tsx src/sessions/mneme/memoryVerbs.ts src/sessions/mneme/mnemeCorrect.ts src/sessions/mneme/mnemeContradiction.ts
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pinScratchHome, releaseScratchHome } from '../lib/settingsPopupHarness.ts'
@@ -16,7 +16,7 @@ for (const key of ['MERCURY_HOME', 'MERCURY_MODEL', 'OPENAI_API_KEY', 'GEMINI_AP
 
 let checks = 0
 let failures = 0
-const FOLLOW_FIX_HINT = 'consolidatedIdOf, readMemoryRecord and retainItems in src/mneme/memoryVerbs.ts (stale pending id following and the history note), maybeConsolidate in src/mneme/mnemeConsolidate.ts, conflictReason in src/mneme/mnemeContradiction.ts, the Correct tool result in src/tools/MemoryTools/MemoryTools.ts and renderCorrectResult in src/tools/MemoryTools/UI.tsx'
+const FOLLOW_FIX_HINT = 'consolidatedIdOf, readMemoryRecord and retainItems in src/sessions/mneme/memoryVerbs.ts (stale pending id following and the history note), maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts, conflictReason in src/sessions/mneme/mnemeContradiction.ts, the Correct tool result in src/tools/memory/MemoryTools.ts and renderCorrectResult in src/tools/memory/rows.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
@@ -25,20 +25,20 @@ function check(label: string, ok: boolean, detail = ''): void {
 const section = (title: string): void => console.log(`\n${title}`)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ memory: { journal: false } }))
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 resetSettingsCache()
 
-const { retainItems, consolidatedIdOf, readMemoryRecord, hasSeenFullRow, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
-const { maybeConsolidate, listTopicDocs } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
-const { CorrectTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
-const { renderCorrectResult } = await import('../../src/tools/MemoryTools/UI.tsx')
-const { conflictReason } = await import('../../src/mneme/mnemeContradiction.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { retainItems, consolidatedIdOf, readMemoryRecord, hasSeenFullRow, _resetMemoryVerbSessionStateForTesting } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { maybeConsolidate, listTopicDocs } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { pendingRows } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { CorrectTool } = await import('../../src/tools/memory/MemoryTools.ts')
+const { renderCorrectResult } = await import('../../src/tools/memory/rows.tsx')
+const { conflictReason } = await import('../../src/sessions/mneme/mnemeContradiction.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 const dir = mnemeLibraryDir()
 const context = (): never => {

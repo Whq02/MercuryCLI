@@ -14,7 +14,7 @@ type ScriptedTurn = import('../lib/fixtureApi.ts').ScriptedTurn
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ATTRGRAB = join(HERE, 'lib', 'attrgrab.py')
 
-const { getTheme } = await import('../../src/utils/theme.js')
+const { getTheme } = await import('../../src/screen/theme/theme.js')
 const themeSelectionBgToPyte = (v: string): string => {
   const rgb = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(v)
   if (rgb) return rgb.slice(1).map(n => Number(n).toString(16).padStart(2, '0')).join('')
@@ -22,7 +22,7 @@ const themeSelectionBgToPyte = (v: string): string => {
   return v.replace('#', '').toLowerCase()
 }
 const SELECTION_BG = themeSelectionBgToPyte(String(getTheme('dark').selectionBg))
-const SELECTION_FIX_HINT = 'to fix: change the drag selection and its copy in src/ink/ink/selection.ts (handleSelectionStart / handleSelectionDrag / handleSelectionRelease / copySelection) and the overlay in src/ink/geometry/overlay.ts; the label says whether the overlay, the copied text or the clear after resize is wrong'
+const SELECTION_FIX_HINT = 'to fix: change the drag selection and its copy in src/screen/renderer/instance/selection.ts (handleSelectionStart / handleSelectionDrag / handleSelectionRelease / copySelection) and the overlay in src/screen/renderer/geometry/selectionOverlay.ts; the label says whether the overlay, the copied text or the clear after resize is wrong'
 const selectionChecker = checker()
 const t = {
   ...selectionChecker,

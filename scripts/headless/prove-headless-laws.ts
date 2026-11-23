@@ -11,7 +11,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 const HEADLESS_LAWS_FAIL_HINT =
-  'change joinPromptValues in src/cli/headless/turnDriver.ts and canBatchWith in src/cli/headless/turnDriver/queue.ts for the section 1 checks; for the protocol checks (initialize, session/set_mode, turn/interrupt) change the runner wire verbs in src/runner/wire/sessionVerbs.ts and the headless turn driver under src/cli/headless/; run bun run build.ts first if dist/mercury.mjs is stale'
+  'change joinPromptValues in src/daemon/runner/turnDriver.ts and canBatchWith in src/daemon/runner/turn-driver/queue.ts for the section 1 checks; for the protocol checks (initialize, session/set_mode, turn/interrupt) change the runner wire verbs in src/daemon/runner-wire/sessionVerbs.ts and the headless turn driver under src/daemon/runner/; run bun run build.ts first if dist/mercury.mjs is stale'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -61,7 +61,7 @@ guard.unref?.()
 
 section('§1 — joinPromptValues / canBatchWith (pure)')
 {
-  const { joinPromptValues, canBatchWith } = await import('../../src/cli/run.ts')
+  const { joinPromptValues, canBatchWith } = await import('../../src/daemon/runner/runHeadless.ts')
   check('a single value passes through untouched', joinPromptValues(['solo']) === 'solo')
   check('all-strings join with newlines', joinPromptValues(['a', 'b', 'c']) === 'a\nb\nc')
   const mixed = joinPromptValues(['head', [{ type: 'text', text: 'block' }] as never])

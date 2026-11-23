@@ -29,12 +29,12 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   const where = /^the idle knob/.test(label)
-    ? 'the MERCURY_MCP_CALL_IDLE_MINUTES reader in src/services/mcp/client.ts'
+    ? 'the MERCURY_MCP_CALL_IDLE_MINUTES reader in src/integrations/mcp/client.ts'
     : label.startsWith('the elicitation ledger')
-      ? 'src/services/mcp/elicitationHandler.ts must export enterElicitation, watchElicitations and elicitationPausedClock'
+      ? 'src/integrations/mcp/elicitationHandler.ts must export enterElicitation, watchElicitations and elicitationPausedClock'
       : /clock|question|deadline|limit|pause|released/.test(label) && !/^row/.test(label)
-        ? 'src/services/mcp/elicitationHandler.ts (enterElicitation, elicitationPausedClock) and src/utils/deadline.ts (armInactivityDeadline)'
-        : 'src/services/mcp/client.ts (callMCPToolWithUrlElicitationRetry) and src/services/mcp/elicitationHandler.ts (registerElicitationHandler, elicitationPausedClock)'
+        ? 'src/integrations/mcp/elicitationHandler.ts (enterElicitation, elicitationPausedClock) and src/platform/async/deadline.ts (armInactivityDeadline)'
+        : 'src/integrations/mcp/client.ts (callMCPToolWithUrlElicitationRetry) and src/integrations/mcp/elicitationHandler.ts (registerElicitationHandler, elicitationPausedClock)'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}change the code, not the check: ${where}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
@@ -43,7 +43,7 @@ const stalledLine = /unknown outcome/
 const recovery = /inspect the effect before retrying/
 
 const proofWatchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the elicitation-pause prover exceeded 90s: a call never settled; look at src/services/mcp/client.ts (callMCPToolWithUrlElicitationRetry) and src/services/mcp/elicitationHandler.ts, and at the last section printed above')
+  console.log('\nTIMEOUT — the elicitation-pause prover exceeded 90s: a call never settled; look at src/integrations/mcp/client.ts (callMCPToolWithUrlElicitationRetry) and src/integrations/mcp/elicitationHandler.ts, and at the last section printed above')
   process.exit(1)
 }, 90_000)
 proofWatchdog.unref?.()
@@ -83,14 +83,14 @@ async function waitForQuestions(questions: () => Question[], count: number, time
 }
 const parentFor = (id: string, name: string): unknown => ({ message: { content: [{ type: 'tool_use', id, name, input: {} }] } })
 
-const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/config/globalConfig.ts'))
 enableConfigs()
-const bootstrap = await import(join(SRC, 'bootstrap/state.ts'))
+const bootstrap = await import(join(SRC, 'boot/process-state/processState.ts'))
 bootstrap.setIsInteractive(false)
-const mcp = await import(join(SRC, 'services/mcp/client.ts'))
-const handlerModule = await import(join(SRC, 'services/mcp/elicitationHandler.ts'))
+const mcp = await import(join(SRC, 'integrations/mcp/client.ts'))
+const handlerModule = await import(join(SRC, 'integrations/mcp/elicitationHandler.ts'))
 const { registerElicitationHandler } = handlerModule
-const { armInactivityDeadline } = await import(join(SRC, 'utils/deadline.ts'))
+const { armInactivityDeadline } = await import(join(SRC, 'platform/async/deadline.ts'))
 const pauseApi = handlerModule as {
   enterElicitation?: (client: unknown) => () => void
   watchElicitations?: (client: unknown, listener: (phase: string, question: symbol) => void) => () => void

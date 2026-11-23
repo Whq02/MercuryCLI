@@ -5,8 +5,8 @@ import { randomUUID } from 'node:crypto'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { Message } from '../../src/types/message.js'
-import type { SessionFactsV1 } from '../../src/services/engine-connector/seatProjections.js'
+import type { Message } from '../../src/engine/message-shapes/message.js'
+import type { SessionFactsV1 } from '../../src/engine/connector/seatProjections.js'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'unknown-one-notice-home-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -14,16 +14,16 @@ delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 delete process.env.CI
 
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { createSystemMessage } = await import('../../src/utils/messages/systemMessages.ts')
-const { processSlashCommand, resolveUnknownSlashName, unknownCommandLine } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
-const { expandPastedTextRefs } = await import('../../src/history.ts')
-const { requestConversationPlan } = await import('../../src/services/messages/apiPlan.ts')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+const { createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { createSystemMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { processSlashCommand, resolveUnknownSlashName, unknownCommandLine } = await import('../../src/engine/user-input/processSlashCommand.tsx')
+const { expandPastedTextRefs } = await import('../../src/sessions/promptHistory.ts')
+const { requestConversationPlan } = await import('../../src/engine/messages/apiPlan.ts')
 
 type Send = { clientMessageId: string; text: string; sentAtMs: number; state: 'queued' | 'taken' | 'delivered'; mode: 'prompt' }
 type Guts = {
@@ -45,8 +45,8 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const SECTION_FIX_HINTS: Record<string, string> = {
-  '§1': 'fix the unknown-command branch of processSlashCommand and unknownCommandLine in src/services/processUserInput/processSlashCommand.tsx (one warning notice, nothing the model reads), or requestConversationPlan in src/services/messages/apiPlan.ts for the last check',
-  '§3': 'fix resolveUnknownSlashName in src/services/processUserInput/processSlashCommand.tsx or expandPastedTextRefs in src/history.ts',
+  '§1': 'fix the unknown-command branch of processSlashCommand and unknownCommandLine in src/engine/user-input/processSlashCommand.tsx (one warning notice, nothing the model reads), or requestConversationPlan in src/engine/messages/apiPlan.ts for the last check',
+  '§3': 'fix resolveUnknownSlashName in src/engine/user-input/processSlashCommand.tsx or expandPastedTextRefs in src/sessions/promptHistory.ts',
 }
 const section = (title: string): void => {
   sectionFixHint = SECTION_FIX_HINTS[title.slice(0, 2)] ?? ''

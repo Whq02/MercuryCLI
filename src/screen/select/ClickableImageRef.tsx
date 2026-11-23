@@ -1,0 +1,43 @@
+
+import { pathToFileURL } from 'node:url'
+import React from 'react'
+import { Text } from '../themedRenderer.js'
+import Link from '../renderer/elements/Link.js'
+import { supportsHyperlinks } from '../renderer/terminal-session/capabilities.js'
+import { formatImageRef } from '../../sessions/promptHistory.js'
+import { storedImageState } from '../../platform/images/imageStore.js'
+
+export function ClickableImageRef({
+  imageId,
+  backgroundColor,
+  isSelected = false,
+}: {
+  imageId: number
+  backgroundColor?: string
+  isSelected?: boolean
+}): React.ReactNode {
+  const label = formatImageRef(imageId)
+  const stored = storedImageState(imageId)
+  const storedPath = stored !== null && stored.present ? stored.path : null
+
+  if (storedPath !== null && supportsHyperlinks()) {
+    return (
+      <Text
+        backgroundColor={backgroundColor}
+        inverse={isSelected}
+        bold={isSelected}
+      >
+        <Link url={pathToFileURL(storedPath).href} fallback={label}>
+          {label}
+        </Link>
+      </Text>
+    )
+  }
+  return (
+    <Text backgroundColor={backgroundColor} inverse={isSelected} dimColor>
+      {label}
+    </Text>
+  )
+}
+
+export default ClickableImageRef

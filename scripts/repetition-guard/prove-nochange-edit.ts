@@ -17,21 +17,21 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — nochange-edit proof exceeded 90s; an edit through FileEditTool (src/tools/FileEditTool/FileEditTool.ts, validateInput or call) did not settle')
+  console.log('\nTIMEOUT — nochange-edit proof exceeded 90s; an edit through FileEditTool (src/tools/edit/EditTool.ts, validateInput or call) did not settle')
   process.exit(1)
 }, 90_000)
 guard.unref?.()
 
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { mintFileAnchor } = await import(
-  '../../src/services/changeTransaction/snapshotAnchor.ts'
+  '../../src/tools/engines/change-transaction/snapshotAnchor.ts'
 )
 const { isReceiptShaped } = await import(
-  '../../src/services/changeTransaction/contracts.ts'
+  '../../src/tools/engines/change-transaction/contracts.ts'
 )
 const { _resetRepetitionPolicyForTesting } = await import(
-  '../../src/services/changeTransaction/repetitionPolicy.ts'
+  '../../src/tools/engines/change-transaction/repetitionPolicy.ts'
 )
 
 const fixtures = mkdtempSync(join(tmpdir(), 'stillpoint-edit-fix-'))
@@ -105,8 +105,8 @@ console.log('── R. refusals preserved ──')
   const before = digestOf(p)
 
   const r1 = await editViaTool({ file_path: p, old_string: 'const a = 1', new_string: 'const a = 1' }, ctx)
-  check('R1 exact old===new refused (errorCode 1)', !r1.ok && r1.errorCode === 1, (r1.ok ? 'succeeded' : String(r1.errorCode)) + ' \u00b7 validateInput in src/tools/FileEditTool/FileEditTool.ts must refuse old_string equal to new_string with errorCode 1')
-  check('R2 refusal wrote nothing', digestOf(p) === before, 'a refused edit changed the file; the refusal must come from validateInput before call writes (src/tools/FileEditTool/FileEditTool.ts)')
+  check('R1 exact old===new refused (errorCode 1)', !r1.ok && r1.errorCode === 1, (r1.ok ? 'succeeded' : String(r1.errorCode)) + ' \u00b7 validateInput in src/tools/edit/EditTool.ts must refuse old_string equal to new_string with errorCode 1')
+  check('R2 refusal wrote nothing', digestOf(p) === before, 'a refused edit changed the file; the refusal must come from validateInput before call writes (src/tools/edit/EditTool.ts)')
 }
 {
   const p = join(fixtures, 'quotes.md')
@@ -121,8 +121,8 @@ console.log('── R. refusals preserved ──')
     { file_path: p, old_string: 'said "hello" to', new_string: 'said “hello” to' },
     ctx,
   )
-  check('R3 normalized-identity edit does NOT succeed', !r.ok, r.ok ? 'claimed success; an edit whose normalized text is identical must be refused in src/tools/FileEditTool/FileEditTool.ts' : '')
-  check('R4 normalized-identity edit wrote ZERO bytes', digestOf(p) === before && mtimeOf(p) === beforeMtime, 'the file was rewritten; the call in src/tools/FileEditTool/FileEditTool.ts must write nothing for a normalized-identity edit')
+  check('R3 normalized-identity edit does NOT succeed', !r.ok, r.ok ? 'claimed success; an edit whose normalized text is identical must be refused in src/tools/edit/EditTool.ts' : '')
+  check('R4 normalized-identity edit wrote ZERO bytes', digestOf(p) === before && mtimeOf(p) === beforeMtime, 'the file was rewritten; the call in src/tools/edit/EditTool.ts must write nothing for a normalized-identity edit')
   check(
     'R5 error never claims an update',
     !r.ok && !/updated|has been updated/i.test(r.error),
@@ -150,16 +150,16 @@ console.log('── N. identical hunk result ⇒ honest no-change ──')
     },
     ctx,
   )
-  check('N1 identical single hunk resolves (not an error)', r.ok, r.ok ? '' : r.error + ' \u00b7 a hunk edit whose result equals the file must resolve as a no-change in src/tools/FileEditTool/FileEditTool.ts, not be refused')
+  check('N1 identical single hunk resolves (not an error)', r.ok, r.ok ? '' : r.error + ' \u00b7 a hunk edit whose result equals the file must resolve as a no-change in src/tools/edit/EditTool.ts, not be refused')
   if (r.ok) {
     check('N2 ZERO writes (digest + mtime unchanged)', digestOf(p) === before && mtimeOf(p) === beforeMtime)
-    check('N3 effect outcome no-change + empty changedPaths', r.effect.outcome === 'no-change' && r.effect.changedPaths.length === 0, 'the effect returned by call in src/tools/FileEditTool/FileEditTool.ts must carry outcome no-change and no changedPaths')
+    check('N3 effect outcome no-change + empty changedPaths', r.effect.outcome === 'no-change' && r.effect.changedPaths.length === 0, 'the effect returned by call in src/tools/edit/EditTool.ts must carry outcome no-change and no changedPaths')
     check('N4 effect stays receipt-shaped (file.edit no-change mints a receipt)', r.effect.operation === 'file.edit' && isReceiptShaped(r.effect as never))
     check('N5 data carries noChange + empty structuredPatch', Boolean((r.data as { noChange?: unknown }).noChange) && Array.isArray(r.data.structuredPatch) && (r.data.structuredPatch as unknown[]).length === 0)
     const mapped = mapResult(r.data)
     check('N6 model text is a truthful no-change', /^No changes made to /.test(mapped.content) && /byte-identical/.test(mapped.content))
     check('N7 model text never says updated/created', !/updated|created/i.test(mapped.content), mapped.content)
-    check('N8 first no-change is recoverable (no is_error)', mapped.is_error !== true, 'mapToolResultToToolResultBlockParam in src/tools/FileEditTool/FileEditTool.ts marked the first no-change as an error; see _resetRepetitionPolicyForTesting in src/services/changeTransaction/repetitionPolicy.ts')
+    check('N8 first no-change is recoverable (no is_error)', mapped.is_error !== true, 'mapToolResultToToolResultBlockParam in src/tools/edit/EditTool.ts marked the first no-change as an error; see _resetRepetitionPolicyForTesting in src/tools/engines/change-transaction/repetitionPolicy.ts')
     check('N9 readFileState untouched (same primed entry)', ctx.readFileState.get(p) === primedEntry)
   }
 
@@ -212,7 +212,7 @@ console.log('── E. real edits unchanged ──')
     },
     ctx,
   )
-  check('E1 real hunk edit still writes', r.ok && readFileSync(p, 'utf8') === 'x1\nX2\nx3\n', (r.ok ? readFileSync(p, 'utf8') : r.error) + ' \u00b7 a real hunk edit must still write through call in src/tools/FileEditTool/FileEditTool.ts')
+  check('E1 real hunk edit still writes', r.ok && readFileSync(p, 'utf8') === 'x1\nX2\nx3\n', (r.ok ? readFileSync(p, 'utf8') : r.error) + ' \u00b7 a real hunk edit must still write through call in src/tools/edit/EditTool.ts')
   if (r.ok) {
     check('E2 effect succeeded with the exact path', r.effect.outcome === 'succeeded' && r.effect.changedPaths.length === 1)
     check('E3 readFileState refreshed to the new content', (ctx.readFileState.get(p) as { content?: string })?.content === 'x1\nX2\nx3\n')

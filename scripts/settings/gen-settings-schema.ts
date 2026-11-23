@@ -9,7 +9,7 @@ const ROW = {
   assets: 'scripts/settings/settings-schema.json',
   generator: 'bun scripts/settings/gen-settings-schema.ts',
   check: 'bun scripts/settings/prove-settings-schema.ts',
-  sources: 'src/utils/settings/** src/utils/video/types.ts src/schemas/hooks.ts src/utils/effortLadder.ts src/utils/lazySchema.ts src/utils/permissions/PermissionMode.ts src/utils/slowOperations.ts',
+  sources: 'src/platform/settings/** src/integrations/video-shapes/types.ts src/integrations/event-hook-schemas/hooks.ts src/models/effort/effortLadder.ts src/platform/primitives/lazySchema.ts src/permissions/rules/permissionMode.ts src/platform/logs/slowOperations.ts',
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 
@@ -19,7 +19,7 @@ const outPath =
     ? (process.argv[outFlag + 1] as string)
     : join(import.meta.dir, 'settings-schema.json')
 
-const { generateSettingsJSONSchema } = await import('../../src/utils/settings/schemaOutput.js')
+const { generateSettingsJSONSchema } = await import('../../src/platform/settings/schemaOutput.js')
 writeFileSync(outPath, `${generateSettingsJSONSchema()}\n`)
 if (outFlag === -1) registerGeneratedAsset(ROW)
 console.log(`settings schema regenerated → ${outPath}`)

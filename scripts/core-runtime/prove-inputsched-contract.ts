@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { SchedulerClock } from '../../src/ink/root/render-scheduler.js'
+import type { SchedulerClock } from '../../src/screen/renderer/root/render-scheduler.js'
 
 if (process.env.NODE_ENV === 'test') {
   console.error('prove-inputsched-contract must not run with NODE_ENV=test (lattice bypass)')
@@ -14,35 +14,35 @@ const HERMETIC_HOME = mkdtempSync(join(tmpdir(), 'native-core-inputsched-'))
 process.env.MERCURY_CONFIG_DIR = HERMETIC_HOME
 process.env.MERCURY_DAEMON_DIR = join(HERMETIC_HOME, 'daemon')
 
-const q = await import('../../src/input-core/command-queue.js')
-const draft = await import('../../src/utils/promptDraft.js')
-const seed = await import('../../src/utils/cockpit/composerSeed.js')
-const { textForResubmit } = await import('../../src/utils/messages/text.js')
-const { createStreamingTailStore } = await import('../../src/utils/messages/streamingTailStore.js')
-const { RenderScheduler } = await import('../../src/ink/root/render-scheduler.js')
-const { FRAME_INTERVAL_MS } = await import('../../src/ink/constants.js')
+const q = await import('../../src/screen/composer/input-core/command-queue.js')
+const draft = await import('../../src/screen/composer/input-core/promptDraft.js')
+const seed = await import('../../src/screen/cockpit/composerSeed.js')
+const { textForResubmit } = await import('../../src/engine/message-shapes/text.js')
+const { createStreamingTailStore } = await import('../../src/engine/message-shapes/streamingTailStore.js')
+const { RenderScheduler } = await import('../../src/screen/renderer/root/render-scheduler.js')
+const { FRAME_INTERVAL_MS } = await import('../../src/screen/renderer/constants.js')
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { Box, Text, useInput } = await import('../../src/ink.js')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { Box, Text, useInput } = await import('../../src/screen/themedRenderer.js')
 const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
 
-import type { QueuedCommand } from '../../src/types/textInputTypes.js'
-import type { Key } from '../../src/ink/events/input-event.js'
+import type { QueuedCommand } from '../../src/screen/composer/input-core/textInput.js'
+import type { Key } from '../../src/screen/renderer/events/input-event.js'
 
 let failures = 0
 let checks = 0
 const WHERE_TO_LOOK: ReadonlyArray<readonly [readonly string[], string]> = [
-  [['queue', 'drain', 'hold', 'reset', 'pen-retired', 'slash', 'restage', 'identity'], 'change the queue code in src/input-core/command-queue.ts until this check holds'],
+  [['queue', 'drain', 'hold', 'reset', 'pen-retired', 'slash', 'restage', 'identity'], 'change the queue code in src/screen/composer/input-core/command-queue.ts until this check holds'],
   [['rekey: the Chat hop', 'rekey: the landing word', 'lock:'], ''],
-  [['rekey'], 'change rekeyCommandQueueToSession in src/input-core/command-queue.ts until this check holds'],
-  [['draft'], 'change the draft save and read code in src/utils/promptDraft.ts until this check holds'],
-  [['seed'], 'change trySeedComposer in src/utils/cockpit/composerSeed.ts until this check holds'],
-  [['resubmit'], 'change textForResubmit in src/utils/messages/text.ts until this check holds'],
-  [['choke', 'restore-matrix', 'staged', 'no-lost'], 'change src/input-core/pending-input.ts until this check holds'],
-  [['bound', 'registry'], 'change the tail store in src/utils/messages/streamingTailStore.ts (and src/ink/root/flush-registry.ts for registry checks) until this check holds'],
-  [['echo'], 'change RenderScheduler in src/ink/root/render-scheduler.ts until this check holds'],
-  [['dispatch'], 'change the stdin reader in src/ink/components/AppInputLoop.ts until this check holds'],
+  [['rekey'], 'change rekeyCommandQueueToSession in src/screen/composer/input-core/command-queue.ts until this check holds'],
+  [['draft'], 'change the draft save and read code in src/screen/composer/input-core/promptDraft.ts until this check holds'],
+  [['seed'], 'change trySeedComposer in src/screen/cockpit/composerSeed.ts until this check holds'],
+  [['resubmit'], 'change textForResubmit in src/engine/message-shapes/text.ts until this check holds'],
+  [['choke', 'restore-matrix', 'staged', 'no-lost'], 'change src/screen/composer/input-core/pending-input.ts until this check holds'],
+  [['bound', 'registry'], 'change the tail store in src/engine/message-shapes/streamingTailStore.ts (and src/screen/renderer/root/flush-registry.ts for registry checks) until this check holds'],
+  [['echo'], 'change RenderScheduler in src/screen/renderer/root/render-scheduler.ts until this check holds'],
+  [['dispatch'], 'change the stdin reader in src/screen/renderer/elements/AppInputLoop.ts until this check holds'],
 ]
 function whereToLook(label: string): string {
   for (const [prefixes, hint] of WHERE_TO_LOOK) {
@@ -489,9 +489,9 @@ console.log('native-core T13/T14 — input-scheduling contract')
 
 {
   const t = await import('./turnScenarios.ts')
-  const { runToolCalls } = await import('../../src/run-core/turn/runToolCalls.ts')
-  const { afterTools } = await import('../../src/run-core/turn/afterTools.ts')
-  const { SLEEP_TOOL_NAME } = await import('../../src/tools/SleepTool/prompt.ts')
+  const { runToolCalls } = await import('../../src/engine/loop/turn/runToolCalls.ts')
+  const { afterTools } = await import('../../src/engine/loop/turn/afterTools.ts')
+  const { SLEEP_TOOL_NAME } = await import('../../src/tools/sleep/prompt.ts')
   const cmd = (value: string, extra: Partial<QueuedCommand> = {}): QueuedCommand =>
     ({ value, mode: 'prompt', ...extra }) as QueuedCommand
   const sorted = (values: readonly unknown[]): string => values.map(String).sort().join(',')
@@ -530,11 +530,11 @@ console.log('native-core T13/T14 — input-scheduling contract')
   check('lock: the steering drain snapshots through the queue-owned band view and removes by identity',
     plain.delivered === 'nextA,nowA' && plain.left === 'laterA,laterN,nowA' && plain.survivorsAreTheQueuesOwn && plain.twinStays
       && slept.delivered === 'laterN,nextA,nowA' && slept.left === 'laterA,nowA' && slept.survivorsAreTheQueuesOwn && slept.twinStays,
-    `a tool boundary over now, next, later and a later notification, with an equal twin of the first command queued while the drain ran — plain: ${JSON.stringify(plain)} (nextA,nowA delivered; laterA,laterN and the twin left); after Sleep: ${JSON.stringify(slept)} (the later notification joins; laterA and the twin left) — afterTools in src/run-core/turn/afterTools.ts takes its snapshot from getDrainableCommands and removes exactly those queue entries`)
+    `a tool boundary over now, next, later and a later notification, with an equal twin of the first command queued while the drain ran — plain: ${JSON.stringify(plain)} (nextA,nowA delivered; laterA,laterN and the twin left); after Sleep: ${JSON.stringify(slept)} (the later notification joins; laterA and the twin left) — afterTools in src/engine/loop/turn/afterTools.ts takes its snapshot from getDrainableCommands and removes exactly those queue entries`)
 }
 
 {
-  const pi = await import('../../src/input-core/pending-input.ts')
+  const pi = await import('../../src/screen/composer/input-core/pending-input.ts')
   pi.resetPendingInputForTests()
   pi.initOnce({ text: '', mode: 'prompt', pastedContents: {} })
   const journal: string[] = []
@@ -594,8 +594,8 @@ console.log('native-core T13/T14 — input-scheduling contract')
 }
 
 {
-  const pi = await import('../../src/input-core/pending-input.ts')
-  const cq = await import('../../src/input-core/command-queue.ts')
+  const pi = await import('../../src/screen/composer/input-core/pending-input.ts')
+  const cq = await import('../../src/screen/composer/input-core/command-queue.ts')
   pi.resetPendingInputForTests()
   cq.resetCommandQueue()
   pi.initOnce({ text: '', mode: 'prompt', pastedContents: {} })
@@ -710,7 +710,7 @@ function makeWheel(): Wheel {
 }
 
 {
-  const reg = await import('../../src/ink/root/flush-registry.ts')
+  const reg = await import('../../src/screen/renderer/root/flush-registry.ts')
   const probesBefore = reg.flushProbeCount()
   const w4 = makeWheel()
   const tt = w4.timer('tail')

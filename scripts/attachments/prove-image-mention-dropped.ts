@@ -36,8 +36,8 @@ function garbagePng(width: number, height: number, bodyBytes: number): Buffer {
 }
 
 try {
-  const { processAtMentionedFiles } = await import(`${root}/src/services/attachments/mentionResolvers.ts`)
-  const { normalizeAttachmentForAPI } = await import(`${root}/src/services/messages/attachmentText.ts`)
+  const { processAtMentionedFiles } = await import(`${root}/src/engine/attachments/mentionResolvers.ts`)
+  const { normalizeAttachmentForAPI } = await import(`${root}/src/engine/messages/attachmentText.ts`)
   const context = {
     getAppState() { return { toolPermissionContext: { mode: 'default', alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {}, additionalWorkingDirectories: new Map() } } },
     options: {},
@@ -52,14 +52,14 @@ try {
     const file = join(scratch, road.file)
     writeFileSync(file, garbagePng(6000, 6000, road.bytes))
     const rows = await processAtMentionedFiles(`describe @${file}`, context as never)
-    assert.equal(rows.length, 1, `${road.name}: an image mention whose image cannot be attached yields one row, not silence: ${JSON.stringify(rows).slice(0, 300)}. Fix: processAtMentionedFiles in src/services/attachments/mentionResolvers.ts must return the droppedImage row built in src/services/attachments/fileAttachments.ts for an oversize image mention.`)
+    assert.equal(rows.length, 1, `${road.name}: an image mention whose image cannot be attached yields one row, not silence: ${JSON.stringify(rows).slice(0, 300)}. Fix: processAtMentionedFiles in src/engine/attachments/mentionResolvers.ts must return the droppedImage row built in src/engine/attachments/fileAttachments.ts for an oversize image mention.`)
     const row = rows[0] as { type: string; filename: string; displayPath: string; reason: string }
-    assert.equal(row.type, 'dropped_image_file', `${road.name}: the row is the dropped-image row, not a file row: ${JSON.stringify(row).slice(0, 200)}. Fix: the over-limit branch in src/services/attachments/fileAttachments.ts must return droppedImage (type dropped_image_file).`)
-    assert.equal(row.filename, file, `${road.name}: the dropped row must carry the mentioned path ${file}, got ${row.filename}. Fix: droppedImage in src/services/attachments/fileAttachments.ts.`)
-    assert.ok(row.reason.includes(road.reason), `${road.name}: the reason says why: ${row.reason}. Fix: the reason text built in src/services/attachments/fileAttachments.ts must include the limit sentence expected here.`)
+    assert.equal(row.type, 'dropped_image_file', `${road.name}: the row is the dropped-image row, not a file row: ${JSON.stringify(row).slice(0, 200)}. Fix: the over-limit branch in src/engine/attachments/fileAttachments.ts must return droppedImage (type dropped_image_file).`)
+    assert.equal(row.filename, file, `${road.name}: the dropped row must carry the mentioned path ${file}, got ${row.filename}. Fix: droppedImage in src/engine/attachments/fileAttachments.ts.`)
+    assert.ok(row.reason.includes(road.reason), `${road.name}: the reason says why: ${row.reason}. Fix: the reason text built in src/engine/attachments/fileAttachments.ts must include the limit sentence expected here.`)
     const text = JSON.stringify(normalizeAttachmentForAPI(row as never))
-    assert.ok(text.includes('could not be attached and was dropped from this turn'), `${road.name}: the model is told the image was dropped: ${text.slice(0, 300)}. Fix: the dropped_image_file entry in src/services/messages/attachmentText.ts must say the image could not be attached and was dropped from this turn.`)
-    assert.ok(text.includes(row.reason), `${road.name}: the model is told why. Fix: the dropped_image_file entry in src/services/messages/attachmentText.ts must include item.reason.`)
+    assert.ok(text.includes('could not be attached and was dropped from this turn'), `${road.name}: the model is told the image was dropped: ${text.slice(0, 300)}. Fix: the dropped_image_file entry in src/engine/messages/attachmentText.ts must say the image could not be attached and was dropped from this turn.`)
+    assert.ok(text.includes(row.reason), `${road.name}: the model is told why. Fix: the dropped_image_file entry in src/engine/messages/attachmentText.ts must include item.reason.`)
     console.log(`PASS ${road.name}: dropped with a visible row — ${row.reason}`)
   }
 } finally {

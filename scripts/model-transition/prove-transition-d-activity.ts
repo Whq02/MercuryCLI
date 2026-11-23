@@ -8,12 +8,12 @@ const HOME = mkdtempSync(join(tmpdir(), 'ctm-d-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 
-const act = await import('../../src/services/crew/activity.js')
-const dispatch = await import('../../src/services/crew/dispatch.js')
+const act = await import('../../src/crew/crewmates/activity.js')
+const dispatch = await import('../../src/crew/crewmates/dispatch.js')
 
 let failures = 0
 const ACTIVITY_FAIL_HINT =
-  'fix classifyActivity, activityIdOf, ingestActivity or cachedActivityFeed in src/services/crew/activity.ts (a tool_call_update must fold into the existing row; ids are adapterKind:sessionId:...), or DELIVERY_STATES in src/services/crew/dispatch.ts, not this check'
+  'fix classifyActivity, activityIdOf, ingestActivity or cachedActivityFeed in src/crew/crewmates/activity.ts (a tool_call_update must fold into the existing row; ids are adapterKind:sessionId:...), or DELIVERY_STATES in src/crew/crewmates/dispatch.ts, not this check'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(

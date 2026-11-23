@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { StringDecoder } from 'node:string_decoder'
-import { SseDecoder, type SseDecodeResult } from '../../src/services/providers/sseDecoder.js'
+import { SseDecoder, type SseDecodeResult } from '../../src/models/roads/sseDecoder.js'
 
-const H = 'change SseDecoder.push or SseDecoder.flush in src/services/providers/sseDecoder.ts'
+const H = 'change SseDecoder.push or SseDecoder.flush in src/models/roads/sseDecoder.ts'
 
 let failures = 0
 let checks = 0
@@ -163,9 +163,9 @@ section('P2 · the CR/LF chunk-boundary law (a CR split from its LF)')
   const b = [...ref.push('data: x\r'), ...ref.push('\ndata: y\r\n'), ...ref.push('\r\n')]
   a.push(...live.flush())
   b.push(...ref.flush())
-  check('split-CR parity', JSON.stringify(a) === JSON.stringify(b), `${JSON.stringify({ a, b }).slice(0, 300)}; fix CR handling across chunk boundaries in src/services/providers/sseDecoder.ts SseDecoder.push`)
+  check('split-CR parity', JSON.stringify(a) === JSON.stringify(b), `${JSON.stringify({ a, b }).slice(0, 300)}; fix CR handling across chunk boundaries in src/models/roads/sseDecoder.ts SseDecoder.push`)
   const first = a[0] as { kind: string; event?: { data: string } }
-  check('the split CR was stripped, the payload joined', first.kind === 'event' && first.event?.data === 'x\ny', `${JSON.stringify(a).slice(0, 200)}; fix CR stripping and data-line joining in src/services/providers/sseDecoder.ts SseDecoder.push`)
+  check('the split CR was stripped, the payload joined', first.kind === 'event' && first.event?.data === 'x\ny', `${JSON.stringify(a).slice(0, 200)}; fix CR stripping and data-line joining in src/models/roads/sseDecoder.ts SseDecoder.push`)
 }
 
 section('P3 · multi-byte UTF-8 split across chunk boundaries (parity + intact)')
@@ -174,7 +174,7 @@ section('P3 · multi-byte UTF-8 split across chunk boundaries (parity + intact)'
   for (let cut = 1; cut < wire.length; cut++) {
     const { live, ref } = drive(wire, [cut])
     if (JSON.stringify(live) !== JSON.stringify(ref)) {
-      check(`utf8 parity at cut ${cut}`, false, `${JSON.stringify({ live, ref }).slice(0, 300)}; fix multi-byte UTF-8 chunk handling in src/services/providers/sseDecoder.ts SseDecoder.push`)
+      check(`utf8 parity at cut ${cut}`, false, `${JSON.stringify({ live, ref }).slice(0, 300)}; fix multi-byte UTF-8 chunk handling in src/models/roads/sseDecoder.ts SseDecoder.push`)
       break
     }
     if (cut === wire.length - 1) check('utf8 parity at every cut point', true)

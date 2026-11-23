@@ -10,11 +10,11 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const stashHint = 'fix stashDraft and popStash in src/input-core/pending-input.ts so the stash record keeps the text, mode, cursor and pastes and the pop restores them'
+  const stashHint = 'fix stashDraft and popStash in src/screen/composer/input-core/pending-input.ts so the stash record keeps the text, mode, cursor and pastes and the pop restores them'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${stashHint}`}`)
 }
 
-const pending = await import('../../src/input-core/pending-input.ts')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
 
 console.log('============================================================')
 console.log(' ctrl+s stash of a shell-mode line: the mode rides the pocket')

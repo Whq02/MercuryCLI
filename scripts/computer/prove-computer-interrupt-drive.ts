@@ -27,18 +27,18 @@ for (const size of SIZES) {
   await endLeg(leg)
   check(`${size.cols}: the drive delivered every send`, res.status === 0, `vshot ${res.status} · ${res.endReason} · ${res.stderr.slice(-400)} · a send never landed: see which awaited text did not appear in the frame printed above`)
   const driving = res.marks.driving ?? []
-  check(`${size.cols}: the footer was up when esc landed`, rowsHaving(driving, 'hands off'), `the driving footer (DRIVING_FOOTER_PREFIX in src/services/desktop/desktopSession.ts) was not on screen when esc was sent · ${driving.filter(r => r.includes('hands off')).join(' · ')}`)
+  check(`${size.cols}: the footer was up when esc landed`, rowsHaving(driving, 'hands off'), `the driving footer (DRIVING_FOOTER_PREFIX in src/integrations/desktop/desktopSession.ts) was not on screen when esc was sent · ${driving.filter(r => r.includes('hands off')).join(' · ')}`)
   const interrupted = res.marks.interrupted ?? []
   printFrame(`${size.cols}×${size.rows} interrupted`, interrupted)
   const text = joined(interrupted)
-  check(`${size.cols}: the transcript row names the interruption (whole words, wrapped or not)`, text.includes('interrupted by the operator') && text.includes('released'), `the interrupted row comes from interruptedText in src/tools/ComputerTool/computer/words.ts, used by src/tools/ComputerTool/computer/roads/act.ts · ${text.slice(0, 400)}`)
-  check(`${size.cols}: the footer is gone`, !rowsHaving(interrupted, 'hands off'), 'the driving footer in src/services/desktop/desktopSession.ts must clear when the act is interrupted')
-  check(`${size.cols}: no type or key row followed`, !text.includes('Computer type') && !text.includes('Computer key') && !text.includes('Done.'), `the act loop in src/tools/ComputerTool/computer/roads/act.ts must end the turn after the interrupt · ${text.slice(0, 400)}`)
+  check(`${size.cols}: the transcript row names the interruption (whole words, wrapped or not)`, text.includes('interrupted by the operator') && text.includes('released'), `the interrupted row comes from interruptedText in src/tools/computer/call/words.ts, used by src/tools/computer/roads/act.ts · ${text.slice(0, 400)}`)
+  check(`${size.cols}: the footer is gone`, !rowsHaving(interrupted, 'hands off'), 'the driving footer in src/integrations/desktop/desktopSession.ts must clear when the act is interrupted')
+  check(`${size.cols}: no type or key row followed`, !text.includes('Computer type') && !text.includes('Computer key') && !text.includes('Done.'), `the act loop in src/tools/computer/roads/act.ts must end the turn after the interrupt · ${text.slice(0, 400)}`)
   const typed = res.marks.typed ?? []
   printFrame(`${size.cols}×${size.rows} typed`, typed)
   check(`${size.cols}: the composer took a typed character afterwards`, typed.some(r => /[❯›>]\s?z(\s|$)/.test(r)), `the composer must take input again after the interrupt · ${typed.filter(r => /[❯›>]/.test(r)).join(' · ')}`)
   const log = actLog(leg.log).map(a => `${a.act}:${a.outcome}`)
-  check(`${size.cols}: the log ends with the aborted click then releaseAll, and no typeText`, log.slice(-2).join(',') === 'click:aborted,releaseAll:done' && !log.some(l => l.startsWith('typeText')), `an interrupt must abort the act and call driver.releaseAll in src/tools/ComputerTool/computer/roads/act.ts · ${log.join(',')}`)
+  check(`${size.cols}: the log ends with the aborted click then releaseAll, and no typeText`, log.slice(-2).join(',') === 'click:aborted,releaseAll:done' && !log.some(l => l.startsWith('typeText')), `an interrupt must abort the act and call driver.releaseAll in src/tools/computer/roads/act.ts · ${log.join(',')}`)
   check(`${size.cols}: nothing left loopback`, nonLoopback(netlines(leg.netlog)).length === 0, `a non-loopback connection was made during the drive: ${nonLoopback(netlines(leg.netlog)).join(' · ')}`)
 }
 

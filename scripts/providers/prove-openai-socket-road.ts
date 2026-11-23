@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/providers/openai/openaiSocketTransport.ts src/services/providers/openai/openaiClient.ts src/services/providers/openai/openaiCallModel.ts src/utils/settings/types.ts docs/SETTINGS.md scripts/settings/settings-schema.json
+// gate-watch: src/models/roads/openai/openaiSocketTransport.ts src/models/roads/openai/openaiClient.ts src/models/roads/openai/openaiCallModel.ts src/platform/settings/settingsSchema.ts docs/SETTINGS.md scripts/settings/settings-schema.json
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -15,7 +15,7 @@ for (const k of ['NODE_ENV', 'MERCURY_BARE', 'MERCURY_MODEL', 'ANTHROPIC_API_KEY
 
 let failures = 0
 let checks = 0
-const socketRoadFailureHint = 'change the socket road (connection, chaining, fallback to HTTP, rotation) in src/services/providers/openai/openaiSocketTransport.ts, the request routing in src/services/providers/openai/openaiClient.ts or src/services/providers/openai/openaiCallModel.ts, or the routing.openai.transport setting in src/utils/settings/types.ts and scripts/settings/settings-schema.json, whichever this label names'
+const socketRoadFailureHint = 'change the socket road (connection, chaining, fallback to HTTP, rotation) in src/models/roads/openai/openaiSocketTransport.ts, the request routing in src/models/roads/openai/openaiClient.ts or src/models/roads/openai/openaiCallModel.ts, or the routing.openai.transport setting in src/platform/settings/settingsSchema.ts and scripts/settings/settings-schema.json, whichever this label names'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${socketRoadFailureHint}` : ''}`)
@@ -25,7 +25,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — openai socket road prover exceeded 180s; a request is stuck, so look at the socket road in src/services/providers/openai/openaiSocketTransport.ts (connect, fallback to HTTP, close handling)')
+  console.log('\nTIMEOUT — openai socket road prover exceeded 180s; a request is stuck, so look at the socket road in src/models/roads/openai/openaiSocketTransport.ts (connect, fallback to HTTP, close handling)')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -154,16 +154,16 @@ const base = `http://127.0.0.1:${server.port}`
 process.env.MERCURY_OPENAI_API_BASE = `${base}/v1`
 process.env.OPENAI_API_KEY = 'sk-fixture-openai-key-not-a-real-key'
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const socketRoadModule = await import('../../src/services/providers/openai/openaiSocketTransport.ts').catch(() => null)
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const socketRoadModule = await import('../../src/models/roads/openai/openaiSocketTransport.ts').catch(() => null)
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { z } = await import('zod/v4')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
@@ -233,7 +233,7 @@ section('S1 off by default')
   check('the setting spelled http reads as off too', (setTransport('http'), socketRoadModule?.openaiSocketRoadChosen() === false))
 }
 
-check('the socket road exists (src/services/providers/openai/openaiSocketTransport.ts)', socketRoadModule !== null)
+check('the socket road exists (src/models/roads/openai/openaiSocketTransport.ts)', socketRoadModule !== null)
 if (socketRoadModule === null) {
   server.stop(true)
   console.log(`\n${failures} FAIL — ${checks} checks (the socket road is absent; the remaining sections need it)`)

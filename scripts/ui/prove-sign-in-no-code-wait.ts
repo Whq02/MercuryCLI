@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/mercury-ui/screens/anthropicLoginModel.ts src/components/ConsoleOAuthFlow.tsx src/components/BootLoginsScreen.tsx src/services/oauth/index.ts
+// gate-watch: src/screen/widgets/faces/anthropicLoginModel.ts src/models/sign-in/flow-cards/SignInFlow.tsx src/screen/boot-face/BootLoginsScreen.tsx src/models/sign-in/oauth/index.ts
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DIST, firstOutputTs, firstPtyVisibility, grabScreens, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'
@@ -15,7 +15,7 @@ const frameDir = arg('--frames')
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const model = await import('../../src/components/mercury-ui/screens/anthropicLoginModel.ts')
+const model = await import('../../src/screen/widgets/faces/anthropicLoginModel.ts')
 const { createAnthropicLoginMachine, NO_CODE_DELAY_MS, PASTE_PROMPT_DELAY_MS } = model
 const words = model as unknown as { BROWSER_OPENED_WORDS?: string; NO_CODE_ARRIVED_WORDS?: string; BROWSER_DID_NOT_OPEN_WORDS?: string; waitingHeadline?: (snap: unknown) => { words: string; warns: boolean } }
 
@@ -88,32 +88,32 @@ function machineWithFakeService(): { m: ReturnType<typeof createAnthropicLoginMa
 
 section('§1 the machine: the waiting screen stops claiming a browser is open once the road\'s own wait passes with no code')
 {
-  check('the model exports the wait and the three sentences', typeof NO_CODE_DELAY_MS === 'number' && typeof words.NO_CODE_ARRIVED_WORDS === 'string' && typeof words.BROWSER_DID_NOT_OPEN_WORDS === 'string' && typeof words.waitingHeadline === 'function', 'export NO_CODE_DELAY_MS, NO_CODE_ARRIVED_WORDS, BROWSER_DID_NOT_OPEN_WORDS and waitingHeadline from src/components/mercury-ui/screens/anthropicLoginModel.ts')
+  check('the model exports the wait and the three sentences', typeof NO_CODE_DELAY_MS === 'number' && typeof words.NO_CODE_ARRIVED_WORDS === 'string' && typeof words.BROWSER_DID_NOT_OPEN_WORDS === 'string' && typeof words.waitingHeadline === 'function', 'export NO_CODE_DELAY_MS, NO_CODE_ARRIVED_WORDS, BROWSER_DID_NOT_OPEN_WORDS and waitingHeadline from src/screen/widgets/faces/anthropicLoginModel.ts')
   check('the wait is a real wait, longer than the paste beat and no longer than a minute', NO_CODE_DELAY_MS > PASTE_PROMPT_DELAY_MS && NO_CODE_DELAY_MS <= 60_000, String(NO_CODE_DELAY_MS))
   const { m, bed, services } = machineWithFakeService()
   m.start(true)
   bed.run()
-  check('the flow started one service', services.length === 1, 'm.start(true) in src/components/mercury-ui/screens/anthropicLoginModel.ts must call createService once; got ' + services.length)
+  check('the flow started one service', services.length === 1, 'm.start(true) in src/screen/widgets/faces/anthropicLoginModel.ts must call createService once; got ' + services.length)
   services[0]!.urlCb('auto-url', 'manual-url')
   const snap0 = m.snapshot() as unknown as { flow: { name: string }; noCodeYet?: boolean; browserOpened?: boolean | null }
   check('the url callback lands waiting with no verdict yet', snap0.flow.name === 'waiting' && snap0.noCodeYet === false && snap0.browserOpened === null, JSON.stringify(snap0))
   const headline0 = words.waitingHeadline?.(snap0)
-  check('before the wait the card says a browser window has been opened', headline0?.words === words.BROWSER_OPENED_WORDS && headline0?.warns === false, JSON.stringify(headline0) + ' — waitingHeadline in src/components/mercury-ui/screens/anthropicLoginModel.ts must return BROWSER_OPENED_WORDS with warns false before the no-code wait')
-  check('the service was handed the opener\'s verdict channel', typeof services[0]!.opts['onBrowserOpen'] === 'function', 'the machine in src/components/mercury-ui/screens/anthropicLoginModel.ts must pass an onBrowserOpen callback in the options it gives startOAuthFlow')
+  check('before the wait the card says a browser window has been opened', headline0?.words === words.BROWSER_OPENED_WORDS && headline0?.warns === false, JSON.stringify(headline0) + ' — waitingHeadline in src/screen/widgets/faces/anthropicLoginModel.ts must return BROWSER_OPENED_WORDS with warns false before the no-code wait')
+  check('the service was handed the opener\'s verdict channel', typeof services[0]!.opts['onBrowserOpen'] === 'function', 'the machine in src/screen/widgets/faces/anthropicLoginModel.ts must pass an onBrowserOpen callback in the options it gives startOAuthFlow')
   const fired = bed.run()
-  check('the paste beat and the no-code beat are both armed on entering waiting', fired.includes(PASTE_PROMPT_DELAY_MS) && fired.includes(NO_CODE_DELAY_MS), JSON.stringify(fired) + ' — the machine in src/components/mercury-ui/screens/anthropicLoginModel.ts must arm setTimer with PASTE_PROMPT_DELAY_MS and NO_CODE_DELAY_MS when the url callback lands')
+  check('the paste beat and the no-code beat are both armed on entering waiting', fired.includes(PASTE_PROMPT_DELAY_MS) && fired.includes(NO_CODE_DELAY_MS), JSON.stringify(fired) + ' — the machine in src/screen/widgets/faces/anthropicLoginModel.ts must arm setTimer with PASTE_PROMPT_DELAY_MS and NO_CODE_DELAY_MS when the url callback lands')
   const snap1 = m.snapshot() as unknown as { noCodeYet?: boolean; pastePromptUp: boolean }
-  check('after the wait with no code: noCodeYet is true and the paste road is up', snap1.noCodeYet === true && snap1.pastePromptUp === true, JSON.stringify(snap1) + ' — the NO_CODE_DELAY_MS timer in src/components/mercury-ui/screens/anthropicLoginModel.ts must set noCodeYet while the flow is waiting')
+  check('after the wait with no code: noCodeYet is true and the paste road is up', snap1.noCodeYet === true && snap1.pastePromptUp === true, JSON.stringify(snap1) + ' — the NO_CODE_DELAY_MS timer in src/screen/widgets/faces/anthropicLoginModel.ts must set noCodeYet while the flow is waiting')
   const headline1 = words.waitingHeadline?.(snap1)
-  check('…and the card says no code arrived from the browser, naming the copy-the-URL road, as a warning', headline1?.words === words.NO_CODE_ARRIVED_WORDS && headline1?.warns === true && /No code arrived from the browser/.test(headline1?.words ?? '') && /press c to copy/.test(headline1?.words ?? ''), JSON.stringify(headline1) + ' — waitingHeadline in src/components/mercury-ui/screens/anthropicLoginModel.ts must return NO_CODE_ARRIVED_WORDS with warns true once noCodeYet is set')
-  check('…and never still says a browser window has been opened', !(headline1?.words ?? '').includes('A browser window has been opened'), 'NO_CODE_ARRIVED_WORDS in src/components/mercury-ui/screens/anthropicLoginModel.ts must not contain "A browser window has been opened"')
+  check('…and the card says no code arrived from the browser, naming the copy-the-URL road, as a warning', headline1?.words === words.NO_CODE_ARRIVED_WORDS && headline1?.warns === true && /No code arrived from the browser/.test(headline1?.words ?? '') && /press c to copy/.test(headline1?.words ?? ''), JSON.stringify(headline1) + ' — waitingHeadline in src/screen/widgets/faces/anthropicLoginModel.ts must return NO_CODE_ARRIVED_WORDS with warns true once noCodeYet is set')
+  check('…and never still says a browser window has been opened', !(headline1?.words ?? '').includes('A browser window has been opened'), 'NO_CODE_ARRIVED_WORDS in src/screen/widgets/faces/anthropicLoginModel.ts must not contain "A browser window has been opened"')
   ;(services[0]!.opts['onBrowserOpen'] as (opened: boolean) => void)(false)
   const snap2 = m.snapshot() as unknown as { browserOpened?: boolean | null }
   const headline2 = words.waitingHeadline?.(snap2)
-  check('the opener\'s own "no" wins: the card says the browser did not open and offers the URL', snap2.browserOpened === false && headline2?.words === words.BROWSER_DID_NOT_OPEN_WORDS && headline2?.warns === true, JSON.stringify(headline2) + ' — the onBrowserOpen callback in src/components/mercury-ui/screens/anthropicLoginModel.ts must set browserOpened, and waitingHeadline must give BROWSER_DID_NOT_OPEN_WORDS priority when it is false')
+  check('the opener\'s own "no" wins: the card says the browser did not open and offers the URL', snap2.browserOpened === false && headline2?.words === words.BROWSER_DID_NOT_OPEN_WORDS && headline2?.warns === true, JSON.stringify(headline2) + ' — the onBrowserOpen callback in src/screen/widgets/faces/anthropicLoginModel.ts must set browserOpened, and waitingHeadline must give BROWSER_DID_NOT_OPEN_WORDS priority when it is false')
   m.reset()
   const snap3 = m.snapshot() as unknown as { noCodeYet?: boolean; browserOpened?: boolean | null; flow: { name: string } }
-  check('reset clears the verdicts with the flow', snap3.flow.name === 'idle' && snap3.noCodeYet === false && snap3.browserOpened === null, JSON.stringify(snap3) + ' — reset in src/components/mercury-ui/screens/anthropicLoginModel.ts must clear noCodeYet and browserOpened')
+  check('reset clears the verdicts with the flow', snap3.flow.name === 'idle' && snap3.noCodeYet === false && snap3.browserOpened === null, JSON.stringify(snap3) + ' — reset in src/screen/widgets/faces/anthropicLoginModel.ts must clear noCodeYet and browserOpened')
 }
 
 section('§2 the machine: a code that arrives before the wait leaves the wait silent')
@@ -127,22 +127,22 @@ section('§2 the machine: a code that arrives before the wait leaves the wait si
   await new Promise(r => setImmediate(r))
   const fired = bed.run()
   const snap = m.snapshot() as unknown as { flow: { name: string }; noCodeYet?: boolean }
-  check('the sign-in settled before the beats fired', snap.flow.name === 'success', JSON.stringify(snap.flow) + ' — the machine in src/components/mercury-ui/screens/anthropicLoginModel.ts must reach the success flow when the service resolves')
-  check('the no-code beat fired but claimed nothing (the flow had left waiting)', fired.includes(NO_CODE_DELAY_MS) && snap.noCodeYet === false, JSON.stringify({ fired, noCodeYet: snap.noCodeYet }) + ' — the NO_CODE_DELAY_MS timer in src/components/mercury-ui/screens/anthropicLoginModel.ts must set noCodeYet only while the flow is still waiting')
+  check('the sign-in settled before the beats fired', snap.flow.name === 'success', JSON.stringify(snap.flow) + ' — the machine in src/screen/widgets/faces/anthropicLoginModel.ts must reach the success flow when the service resolves')
+  check('the no-code beat fired but claimed nothing (the flow had left waiting)', fired.includes(NO_CODE_DELAY_MS) && snap.noCodeYet === false, JSON.stringify({ fired, noCodeYet: snap.noCodeYet }) + ' — the NO_CODE_DELAY_MS timer in src/screen/widgets/faces/anthropicLoginModel.ts must set noCodeYet only while the flow is still waiting')
 }
 
 section('§3 the Boot face\'s sign-in pane speaks the same words with the URL road beside them')
 {
-  const { anthropicFlowPaneLines } = await import('../../src/components/BootLoginsScreen.tsx')
+  const { anthropicFlowPaneLines } = await import('../../src/screen/boot-face/BootLoginsScreen.tsx')
   const base = { flow: { name: 'waiting', url: 'https://sign-in.example/' + 'a'.repeat(40), loginWithClaudeAi: true, forcedMethod: null }, pastePromptUp: true, copied: false, shadowWarning: null, accountLabel: null }
   const before = anthropicFlowPaneLines({ ...base, noCodeYet: false, browserOpened: null } as never, 0)
-  check('before the wait the pane says a browser window has been opened', before.join('\n').includes('A browser window has been opened'), before.join(' | ') + ' — anthropicFlowPaneLines in src/components/bootLogins/anthropicLines.ts must lead with waitingHeadline(snap).words before the wait')
+  check('before the wait the pane says a browser window has been opened', before.join('\n').includes('A browser window has been opened'), before.join(' | ') + ' — anthropicFlowPaneLines in src/screen/boot-face/logins/anthropicLines.ts must lead with waitingHeadline(snap).words before the wait')
   const after = anthropicFlowPaneLines({ ...base, noCodeYet: true, browserOpened: null } as never, 0)
-  check('after the wait the pane leads with no code arrived from the browser', /No code arrived from the browser/.test(after[0] ?? '') && !after.join('\n').includes('A browser window has been opened'), after.join(' | ') + ' — anthropicFlowPaneLines in src/components/bootLogins/anthropicLines.ts must lead with waitingHeadline(snap).words, which is the no-code sentence once noCodeYet is set')
-  check('…keeps the URL road in the same pane (the URL whole, c copies it, the paste line, the way out)', after.join('').includes('a'.repeat(40)) && after.includes('c copies the URL') && after.includes('Paste code here if prompted:') && after[after.length - 1] === 'esc cancels the wait', after.join(' | ') + ' — the waiting branch of anthropicFlowPaneLines in src/components/bootLogins/anthropicLines.ts must list the whole URL, the copy line, the paste line and the esc line')
-  check('…and every line fits the pane', after.every(l => l.length <= 38), after.filter(l => l.length > 38).join(' | ') + ' — anthropicFlowPaneLines in src/components/bootLogins/anthropicLines.ts must wrap every line to 38 columns or fewer')
+  check('after the wait the pane leads with no code arrived from the browser', /No code arrived from the browser/.test(after[0] ?? '') && !after.join('\n').includes('A browser window has been opened'), after.join(' | ') + ' — anthropicFlowPaneLines in src/screen/boot-face/logins/anthropicLines.ts must lead with waitingHeadline(snap).words, which is the no-code sentence once noCodeYet is set')
+  check('…keeps the URL road in the same pane (the URL whole, c copies it, the paste line, the way out)', after.join('').includes('a'.repeat(40)) && after.includes('c copies the URL') && after.includes('Paste code here if prompted:') && after[after.length - 1] === 'esc cancels the wait', after.join(' | ') + ' — the waiting branch of anthropicFlowPaneLines in src/screen/boot-face/logins/anthropicLines.ts must list the whole URL, the copy line, the paste line and the esc line')
+  check('…and every line fits the pane', after.every(l => l.length <= 38), after.filter(l => l.length > 38).join(' | ') + ' — anthropicFlowPaneLines in src/screen/boot-face/logins/anthropicLines.ts must wrap every line to 38 columns or fewer')
   const failed = anthropicFlowPaneLines({ ...base, noCodeYet: false, browserOpened: false } as never, 0)
-  check('an opener that said no reads "the browser did not open" at once', /The browser did not open/.test(failed[0] ?? ''), failed.join(' | ') + ' — waitingHeadline in src/components/mercury-ui/screens/anthropicLoginModel.ts must return BROWSER_DID_NOT_OPEN_WORDS when browserOpened is false, and anthropicFlowPaneLines in src/components/bootLogins/anthropicLines.ts must lead with it')
+  check('an opener that said no reads "the browser did not open" at once', /The browser did not open/.test(failed[0] ?? ''), failed.join(' | ') + ' — waitingHeadline in src/screen/widgets/faces/anthropicLoginModel.ts must return BROWSER_DID_NOT_OPEN_WORDS when browserOpened is false, and anthropicFlowPaneLines in src/screen/boot-face/logins/anthropicLines.ts must lead with it')
 }
 
 if (!existsSync(DIST)) {
@@ -190,13 +190,13 @@ if (!existsSync(DIST)) {
     const noCode = screenAfter(run, noCodePaint)
     if (frameDir) for (const [label, rows] of [['menu', menu], ['pick', pick], ['opened', opened], ['no-code', noCode]] as const) if (rows) writeFileSync(join(frameDir, `card-${label}.txt`), rows.map(steady).join('\n') + '\n')
     const rowsWith = (rows: string[] | null, re: RegExp): string => (rows ?? []).filter(l => re.test(l)).join(' | ')
-    check('the /logins card opened on its family menu', menu !== null && menu.some(l => l.includes(MENU_ROW)), unfired + ' — /logins did not paint the Anthropic family row; rows are in src/components/loginFamilyRows.ts')
-    check('the Anthropic row opened the arm pick offering its three roads', pick !== null && pick.some(l => l.includes('Claude subscription — browser sign-in')) && pick.some(l => l.includes('Anthropic Console — browser sign-in')) && pick.some(l => l.includes('Anthropic API key — usage-based billing')), (pick === null ? unfired : rowsWith(pick, /subscription|Anthropic Console|API key/)) + ' — the three arm rows are in src/components/loginFamilyRows.ts')
-    check('the subscription arm opened the browser road: the card says a browser window has been opened and offers the URL and c', opened !== null && opened.some(l => l.includes('A browser window has been opened')) && opened.some(l => l.includes(OPENED)) && opened.some(l => l.includes('Paste code here if prompted')), (opened === null ? unfired : rowsWith(opened, /browser|copy|Paste/)) + ' — the waiting card in src/components/consoleOAuth/flowCards.tsx must show waitingHeadline words, the copy line and the paste line')
-    check('after the wait with no code the card says so: "No code arrived from the browser yet"', noCode !== null && noCode.some(l => l.includes('No code arrived from the browser yet')), (noCode === null ? `the words never painted · ${unfired}` : rowsWith(noCode, /browser|code/i)) + ' — the waiting card in src/components/consoleOAuth/flowCards.tsx must show waitingHeadline words, which turn to NO_CODE_ARRIVED_WORDS after NO_CODE_DELAY_MS')
-    check('…it no longer says a browser window has been opened', noCode !== null && !noCode.some(l => l.includes('A browser window has been opened')), rowsWith(noCode, /browser/) + ' — the waiting card in src/components/consoleOAuth/flowCards.tsx must stop showing BROWSER_OPENED_WORDS once noCodeYet is set')
-    check('…and the copy-the-URL road stands in the same card', noCode !== null && noCode.some(l => l.includes('press c to copy')) && noCode.some(l => l.includes('Paste code here if prompted')), rowsWith(noCode, /copy|Paste/) + ' — the waiting card in src/components/consoleOAuth/flowCards.tsx must keep the copy and paste lines after the no-code words')
-    check('the no-code words came after the wait, not before it', waitingPaint !== undefined && noCodePaint !== undefined && noCodePaint.ts - waitingPaint.ts >= NO_CODE_DELAY_MS - 3000, `${waitingPaint && noCodePaint ? noCodePaint.ts - waitingPaint.ts : 'n/a'} ms between the waiting screen and the no-code words — the no-code sentence must appear only after NO_CODE_DELAY_MS in src/components/mercury-ui/screens/anthropicLoginModel.ts`)
+    check('the /logins card opened on its family menu', menu !== null && menu.some(l => l.includes(MENU_ROW)), unfired + ' — /logins did not paint the Anthropic family row; rows are in src/models/sign-in/flow-cards/loginFamilyRows.ts')
+    check('the Anthropic row opened the arm pick offering its three roads', pick !== null && pick.some(l => l.includes('Claude subscription — browser sign-in')) && pick.some(l => l.includes('Anthropic Console — browser sign-in')) && pick.some(l => l.includes('Anthropic API key — usage-based billing')), (pick === null ? unfired : rowsWith(pick, /subscription|Anthropic Console|API key/)) + ' — the three arm rows are in src/models/sign-in/flow-cards/loginFamilyRows.ts')
+    check('the subscription arm opened the browser road: the card says a browser window has been opened and offers the URL and c', opened !== null && opened.some(l => l.includes('A browser window has been opened')) && opened.some(l => l.includes(OPENED)) && opened.some(l => l.includes('Paste code here if prompted')), (opened === null ? unfired : rowsWith(opened, /browser|copy|Paste/)) + ' — the waiting card in src/models/sign-in/flow-cards/flowCards.tsx must show waitingHeadline words, the copy line and the paste line')
+    check('after the wait with no code the card says so: "No code arrived from the browser yet"', noCode !== null && noCode.some(l => l.includes('No code arrived from the browser yet')), (noCode === null ? `the words never painted · ${unfired}` : rowsWith(noCode, /browser|code/i)) + ' — the waiting card in src/models/sign-in/flow-cards/flowCards.tsx must show waitingHeadline words, which turn to NO_CODE_ARRIVED_WORDS after NO_CODE_DELAY_MS')
+    check('…it no longer says a browser window has been opened', noCode !== null && !noCode.some(l => l.includes('A browser window has been opened')), rowsWith(noCode, /browser/) + ' — the waiting card in src/models/sign-in/flow-cards/flowCards.tsx must stop showing BROWSER_OPENED_WORDS once noCodeYet is set')
+    check('…and the copy-the-URL road stands in the same card', noCode !== null && noCode.some(l => l.includes('press c to copy')) && noCode.some(l => l.includes('Paste code here if prompted')), rowsWith(noCode, /copy|Paste/) + ' — the waiting card in src/models/sign-in/flow-cards/flowCards.tsx must keep the copy and paste lines after the no-code words')
+    check('the no-code words came after the wait, not before it', waitingPaint !== undefined && noCodePaint !== undefined && noCodePaint.ts - waitingPaint.ts >= NO_CODE_DELAY_MS - 3000, `${waitingPaint && noCodePaint ? noCodePaint.ts - waitingPaint.ts : 'n/a'} ms between the waiting screen and the no-code words — the no-code sentence must appear only after NO_CODE_DELAY_MS in src/screen/widgets/faces/anthropicLoginModel.ts`)
   } finally {
     run.cleanup()
   }

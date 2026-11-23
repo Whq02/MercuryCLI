@@ -13,18 +13,18 @@ process.env.NODE_ENV = 'test'
 for (const key of ['MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'OPENAI_API_KEY', 'OPENCODE_API_KEY', 'NOUS_API_KEY', 'MERCURY_EFFORT_LEVEL', 'MERCURY_DISABLE_1M_CONTEXT']) delete process.env[key]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.js')
-const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
-const { providerFrontierFact, openaiSessionDefault, openaiLightChoice } = await import('../../src/services/model/providerFrontier.js')
-const { effortFamiliesLabel } = await import('../../src/utils/effort.js')
-const { ZEN_DISPLAY_PINS, zenDisplayPin, zenPinObservedAt, zenServedShapeOf, zenAcceptsEffort } = await import('../../src/utils/model/pins/zenPins.js')
-const zenCatalogue = await import('../../src/services/providers/zen/zenCatalogue.js')
-const { keyLanePins } = await import('../../src/services/model/modelOptions.js')
-const { NOUS_PORTAL_RECOMMENDED } = await import('../../src/services/providers/nous/nousCatalogue.js')
-const { readModelListFacts } = await import('../../src/services/providers/typedModelIds.js')
-const { resolveModelPricing } = await import('../../src/services/usage/modelCost.js')
-const { getContextWindowForModel } = await import('../../src/utils/context.js')
-const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.js')
+const { GPT_DISPLAY_PINS } = await import('../../src/models/facts/pins/gptPins.js')
+const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.js')
+const { providerFrontierFact, openaiSessionDefault, openaiLightChoice } = await import('../../src/models/catalogue/providerFrontier.js')
+const { effortFamiliesLabel } = await import('../../src/models/effort/effort.js')
+const { ZEN_DISPLAY_PINS, zenDisplayPin, zenPinObservedAt, zenServedShapeOf, zenAcceptsEffort } = await import('../../src/models/facts/pins/zenPins.js')
+const zenCatalogue = await import('../../src/models/roads/zen/zenCatalogue.js')
+const { keyLanePins } = await import('../../src/models/catalogue/modelOptions.js')
+const { NOUS_PORTAL_RECOMMENDED } = await import('../../src/models/roads/nous/nousCatalogue.js')
+const { readModelListFacts } = await import('../../src/models/roads/typedModelIds.js')
+const { resolveModelPricing } = await import('../../src/models/usage/modelCost.js')
+const { getContextWindowForModel } = await import('../../src/engine/compaction-window/contextFill.js')
+const { getModelMaxOutputTokens } = await import('../../src/models/facts/capabilities.js')
 
 const astra = 'gpt-6.2-astra'
 const sol = 'gpt-6.2-sol'
@@ -50,7 +50,7 @@ try {
     assert.deepEqual(providerFrontierFact('openai'), { modelId: sol, displayName: 'GPT-6.2 Sol', observedAt: '2026-11-17' })
     assert.equal(openaiSessionDefault([astra, sol])?.modelId, sol)
   })
-  const frontierModule = await import('../../src/services/model/providerFrontier.js') as Record<string, unknown>
+  const frontierModule = await import('../../src/models/catalogue/providerFrontier.js') as Record<string, unknown>
   check('the frontier line no caller under src read is gone with what only it used: the module offers no such name, and a frontier fact carries a model, a name and at most a date', () => {
     assert.equal('providerFrontierLine' in frontierModule, false)
     assert.deepEqual(Object.keys(providerFrontierFact('openai') ?? {}), ['modelId', 'displayName', 'observedAt'])
@@ -75,7 +75,7 @@ try {
   })
   for (const row of zenRows) check(`the Zen row of ${row.id}: the page's name, the Responses shape, its prices and the 272,000 tier`, () => {
     const pin = zenDisplayPin(`zen/${row.id}`)
-    assert.ok(pin, `src/utils/model/pins/zenPins.ts zenDisplayPin(zen/${row.id}) returned undefined`)
+    assert.ok(pin, `src/models/facts/pins/zenPins.ts zenDisplayPin(zen/${row.id}) returned undefined`)
     assert.equal(pin.displayName, row.name)
     assert.equal(pin.shape, 'responses')
     assert.equal(zenServedShapeOf(`zen/${row.id}`), 'responses')
@@ -115,7 +115,7 @@ try {
     }
     assert.equal(catalogue.primeOpenaiCatalogue({ sourceKind: 'chatgpt-subscription', fetchedAtMs: now + 1, models: [{ id: sol, supportedReasoningEfforts: [], reasoningEffortsStated: false }] }), true)
     const unstated = catalogue.evaluateGptCandidate(sol, 'chatgpt-subscription')
-    assert.ok(unstated.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(${sol}, chatgpt-subscription) failed when efforts unstated`)
+    assert.ok(unstated.ok, `src/models/roads/openai/openaiCatalogue.ts evaluateGptCandidate(${sol}, chatgpt-subscription) failed when efforts unstated`)
     assert.deepEqual(unstated.candidate.live.supportedReasoningEfforts, [])
     assert.equal(catalogue.resolveGptReasoningProfile('max', unstated.candidate.live).wireEffort, undefined)
     catalogue.__resetOpenaiCatalogueForTest()

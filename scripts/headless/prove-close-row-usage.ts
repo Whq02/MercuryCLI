@@ -59,15 +59,15 @@ console.log('§1 an unattended run (mercury run): the stream ends on the outcome
     const outcome = rows.filter(r => r.type === 'outcome').at(-1)
     const steps = rows.filter(r => r.type === 'step')
     check('the run completed (exit 0)', code === 0, JSON.stringify({ code, err: err.slice(0, 300) }) + ' | the run exited non-zero: read err above and the run verb path that starts the unattended turn')
-    check('one request reached the model: the answer; the close ask never fired (the fixture\'s note turn stayed unserved)', requests.length === 1 && !requests.some(r => isHandoffRequest(r as never)), `${requests.length} requests, ${requests.filter(r => isHandoffRequest(r as never)).length} asks | an unattended mercury run must not send the close ask: stop the close turn firing for runs, and see closeRow in src/rows/project.ts and src/rows/turn/close.ts for where a close row is made`)
-    check('the stream ends on the outcome row with no close row', rows.at(-1)?.type === 'outcome' && !rows.some(r => r.type === 'close'), rows.map(r => r.type).join(',') + ' | row types in order; an unattended run must end on the outcome row and emit no close row (closeRow in src/rows/project.ts)')
+    check('one request reached the model: the answer; the close ask never fired (the fixture\'s note turn stayed unserved)', requests.length === 1 && !requests.some(r => isHandoffRequest(r as never)), `${requests.length} requests, ${requests.filter(r => isHandoffRequest(r as never)).length} asks | an unattended mercury run must not send the close ask: stop the close turn firing for runs, and see closeRow in src/engine/rows/project.ts and src/engine/rows/turn/close.ts for where a close row is made`)
+    check('the stream ends on the outcome row with no close row', rows.at(-1)?.type === 'outcome' && !rows.some(r => r.type === 'close'), rows.map(r => r.type).join(',') + ' | row types in order; an unattended run must end on the outcome row and emit no close row (closeRow in src/engine/rows/project.ts)')
     check('the ledger holds no note for the run', ledgerNoteOf(home) === null, JSON.stringify(ledgerNoteOf(home)) + ' | no handoff note may be written to the lineage ledger by an unattended run')
     for (const key of USAGE_KEYS) {
       const each = usageSum(steps, key)
       const total = Number(outcome?.usage?.[key] ?? 0)
-      check(`the step rows' ${key} sum to the outcome's (${each} = ${total})`, outcome !== undefined && each === total, JSON.stringify({ each, total }) + ' | the outcome usage must equal the sum of the step rows usage: see stepRow and the outcome row builder in src/rows/project.ts')
+      check(`the step rows' ${key} sum to the outcome's (${each} = ${total})`, outcome !== undefined && each === total, JSON.stringify({ each, total }) + ' | the outcome usage must equal the sum of the step rows usage: see stepRow and the outcome row builder in src/engine/rows/project.ts')
     }
-    check('the outcome counts the answer alone', outcome?.usage?.input_tokens === 100 && outcome.usage.output_tokens === 10, JSON.stringify(outcome?.usage) + ' | the outcome must count only the answer turn (100 in, 10 out), not a close ask: see the outcome row builder in src/rows/project.ts')
+    check('the outcome counts the answer alone', outcome?.usage?.input_tokens === 100 && outcome.usage.output_tokens === 10, JSON.stringify(outcome?.usage) + ' | the outcome must count only the answer turn (100 in, 10 out), not a close ask: see the outcome row builder in src/engine/rows/project.ts')
   } finally {
     clearTimeout(timeout)
     await api.close()
@@ -94,13 +94,13 @@ console.log('§2 a hosted session (mercury runner) whose host closes its end aft
     const closeRow = rows.find(r => r.type === 'close')
     check('the runner left with exit 0', code === 0, `exit ${code} · ${host.stderr().slice(0, 300)} | the hosted runner must exit 0 once the host closes its end: see the runner stderr above`)
     check('two requests reached the model: the answer, then the marked close ask', JSON.stringify(requests.map(r => isHandoffRequest(r as never))) === JSON.stringify([false, true]), JSON.stringify(requests.map(r => isHandoffRequest(r as never))) + ' | expected [false,true]: the answer, then one marked close ask after the host closes; check where the runner starts the close turn')
-    check('the close row follows the outcome row and ends the stream', closeRow !== undefined && rows.indexOf(closeRow) > rows.indexOf(outcome!) && rows.at(-1) === closeRow, rows.map(r => `${r.type}${r.state !== undefined ? `:${String(r.state)}` : ''}`).join(',') + ' | the close row must come after the outcome row and be the last row: see closeRow in src/rows/project.ts and src/rows/turn/close.ts')
-    check('the close row says stored and carries the close ask\'s usage', closeRow?.state === 'stored' && closeRow.usage?.input_tokens === 120 && closeRow.usage.output_tokens === 12, JSON.stringify(closeRow) + ' | the close row must have state stored and the close ask usage (120 in, 12 out): see closeRow in src/rows/project.ts and src/rows/turn/close.ts')
+    check('the close row follows the outcome row and ends the stream', closeRow !== undefined && rows.indexOf(closeRow) > rows.indexOf(outcome!) && rows.at(-1) === closeRow, rows.map(r => `${r.type}${r.state !== undefined ? `:${String(r.state)}` : ''}`).join(',') + ' | the close row must come after the outcome row and be the last row: see closeRow in src/engine/rows/project.ts and src/engine/rows/turn/close.ts')
+    check('the close row says stored and carries the close ask\'s usage', closeRow?.state === 'stored' && closeRow.usage?.input_tokens === 120 && closeRow.usage.output_tokens === 12, JSON.stringify(closeRow) + ' | the close row must have state stored and the close ask usage (120 in, 12 out): see closeRow in src/engine/rows/project.ts and src/engine/rows/turn/close.ts')
     check('the ledger holds the note exactly as the model wrote it', ledgerNoteOf(home) === NOTE, JSON.stringify(ledgerNoteOf(home)) + ' | the handoff note the model wrote must be stored verbatim in the lineage ledger of the project')
     for (const key of USAGE_KEYS) {
       const each = usageSum(steps, key)
       const total = Number(outcome?.usage?.[key] ?? 0)
-      check(`the outcome's ${key} is the step rows' sum, the close ask's apart (${each} = ${total})`, outcome !== undefined && each === total, JSON.stringify({ each, total }) + ' | the outcome usage must be the step rows sum with the close ask usage kept out: see the outcome row builder in src/rows/project.ts')
+      check(`the outcome's ${key} is the step rows' sum, the close ask's apart (${each} = ${total})`, outcome !== undefined && each === total, JSON.stringify({ each, total }) + ' | the outcome usage must be the step rows sum with the close ask usage kept out: see the outcome row builder in src/engine/rows/project.ts')
     }
   } finally {
     clearTimeout(killer)

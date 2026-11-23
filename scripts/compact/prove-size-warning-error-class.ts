@@ -8,13 +8,13 @@ import { join } from 'node:path'
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}fix requestSizeWarningApplies and requestSizeWarning in src/services/compact/overflowRecovery.ts (which error classes the size line follows), and the caller in src/run-core/turn/noToolReply.ts` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}fix requestSizeWarningApplies and requestSizeWarning in src/engine/compaction/overflowRecovery.ts (which error classes the size line follows), and the caller in src/engine/loop/turn/noToolReply.ts` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — size-warning error-class prover exceeded 180s; a drive of query (src/query.ts) against the overflow fixture (scripts/compact/overflowFixture.ts) did not finish, read the last section header printed above')
+  console.log('\nTIMEOUT — size-warning error-class prover exceeded 180s; a drive of query (src/engine/turnDoor.ts) against the overflow fixture (scripts/compact/overflowFixture.ts) did not finish, read the last section header printed above')
   process.exit(1)
 }, 180_000)
 watchdog.unref?.()
@@ -38,18 +38,18 @@ type Turn = import('./overflowFixture.ts').Turn
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
 
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveGlobalConfig(config => ({ ...config, autoCompactWindow: 100_000 }))
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/query.ts')
-const { productionDeps } = await import('../../src/query/deps.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { requestSizeWarningApplies } = await import('../../src/services/compact/overflowRecovery.ts')
-const { createAssistantAPIErrorMessage } = await import('../../src/utils/messages/factories.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { requestSizeWarningApplies } = await import('../../src/engine/compaction/overflowRecovery.ts')
+const { createAssistantAPIErrorMessage } = await import('../../src/engine/message-shapes/factories.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
 const textOf = (m: unknown): string => {

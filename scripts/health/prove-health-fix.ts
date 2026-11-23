@@ -11,22 +11,22 @@ import {
   remedyPermitted,
   type HealthCheck,
   type HealthRemedy,
-} from '../../src/utils/healthCertCore.js'
+} from '../../src/platform/health/healthCertCore.js'
 import {
   applyRemedy,
   healthFixEnabled,
   runHeadlessFix,
-} from '../../src/utils/healthFix.js'
-import { getCwd } from '../../src/utils/cwd.js'
-import { getFlagSpec } from '../../src/substrate/flagRegistry.js'
+} from '../../src/platform/health/healthFix.js'
+import { getCwd } from '../../src/platform/files/cwd.js'
+import { getFlagSpec } from '../../src/platform/substrate/flagRegistry.js'
 
 let failures = 0
 let fixAt = ''
 const fixAtBySection: Record<string, string> = {
-  '(1)': 'isFixable and remedyPermitted in src/utils/healthCertCore.ts, healthFixEnabled in src/utils/healthFix.ts',
-  '(2)': 'applyRemedy in src/utils/healthFix.ts',
-  '(3)': 'runHeadlessFix in src/utils/healthFix.ts',
-  '(4)': 'the gate row in src/services/health/sections/proofs.ts, the build-fresh row in src/services/health/sections/identity.ts, the health command flags (--fix, --only, --yes) and MERCURY_HEALTH_FIX in FLAG_REGISTRY',
+  '(1)': 'isFixable and remedyPermitted in src/platform/health/healthCertCore.ts, healthFixEnabled in src/platform/health/healthFix.ts',
+  '(2)': 'applyRemedy in src/platform/health/healthFix.ts',
+  '(3)': 'runHeadlessFix in src/platform/health/healthFix.ts',
+  '(4)': 'the gate row in src/platform/health/sections/proofs.ts, the build-fresh row in src/platform/health/sections/identity.ts, the health command flags (--fix, --only, --yes) and MERCURY_HEALTH_FIX in FLAG_REGISTRY',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -156,9 +156,9 @@ section('(4) wiring — remedies attached, async spawns, panel f-flow, CLI flags
 {
   const fsF = await import('node:fs')
   const { execFileSync } = await import('node:child_process')
-  const { gateVerdictPath, healthContext } = await import('../../src/services/health/healthReport.ts')
-  const { proofsChecks } = await import('../../src/services/health/sections/proofs.ts')
-  const { identityChecks } = await import('../../src/services/health/sections/identity.ts')
+  const { gateVerdictPath, healthContext } = await import('../../src/platform/health/healthReport.ts')
+  const { proofsChecks } = await import('../../src/platform/health/sections/proofs.ts')
+  const { identityChecks } = await import('../../src/platform/health/sections/identity.ts')
   const project = mkdtempSync(join(tmpdir(), 'health-fix-gate-'))
   fsF.mkdirSync(join(project, 'scripts'), { recursive: true })
   fsF.writeFileSync(join(project, 'scripts', 'run-all-suites.sh'), '#!/bin/bash\nexit 1\n')

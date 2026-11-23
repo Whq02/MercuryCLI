@@ -6,10 +6,10 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, utimesSy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const { appendObservation, readBuffer } = await import('../../src/mneme/mnemeBuffer.ts')
-const { listTopicDocs, maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
+const { appendObservation, readBuffer } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { listTopicDocs, maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
 const { dueForMaintenance, mnemeStatus, readMaintenanceReceipts, runDueMaintenance } = await import(
-  '../../src/mneme/mnemeMaintenance.ts'
+  '../../src/sessions/mneme/mnemeMaintenance.ts'
 )
 
 let failures = 0
@@ -28,13 +28,13 @@ section('§1 age-due fires WITHOUT a new observation (the age-due class)')
     JSON.stringify({ ts: new Date(Date.now() - 25 * 3600_000).toISOString(), source: 'old-session', text: 'aged fact', topicHint: 'aging' }) + '\n',
   )
   const due = dueForMaintenance(dir)
-  check('due by age, no new observation needed', due.due && /age/.test(due.reason ?? ''), JSON.stringify(due) + ' — dueForMaintenance in src/mneme/mnemeMaintenance.ts must report an age reason for a buffer row older than a day')
+  check('due by age, no new observation needed', due.due && /age/.test(due.reason ?? ''), JSON.stringify(due) + ' — dueForMaintenance in src/sessions/mneme/mnemeMaintenance.ts must report an age reason for a buffer row older than a day')
   const out = await runDueMaintenance('boot', { dir })
-  check('boot maintenance ran and consolidated', out.ran && out.consolidated === true, JSON.stringify(out) + ' — runDueMaintenance in src/mneme/mnemeMaintenance.ts must consolidate when the buffer is age-due')
-  check('the aged fact is in a topic doc', listTopicDocs(dir).some(d => d.slug === 'aging'), 'maybeConsolidate in src/mneme/mnemeConsolidate.ts must write the aged row into topic-aging.md')
-  check('a receipt row landed', readMaintenanceReceipts(dir).some(r => r.trigger === 'boot' && r.ran), 'runDueMaintenance in src/mneme/mnemeMaintenance.ts must record a receipt for each run')
+  check('boot maintenance ran and consolidated', out.ran && out.consolidated === true, JSON.stringify(out) + ' — runDueMaintenance in src/sessions/mneme/mnemeMaintenance.ts must consolidate when the buffer is age-due')
+  check('the aged fact is in a topic doc', listTopicDocs(dir).some(d => d.slug === 'aging'), 'maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts must write the aged row into topic-aging.md')
+  check('a receipt row landed', readMaintenanceReceipts(dir).some(r => r.trigger === 'boot' && r.ran), 'runDueMaintenance in src/sessions/mneme/mnemeMaintenance.ts must record a receipt for each run')
   const idle = await runDueMaintenance('turn-end', { dir })
-  check('quiet when nothing is due', idle.ran === false && idle.reason === 'not due', JSON.stringify(idle) + ' — runDueMaintenance in src/mneme/mnemeMaintenance.ts must return ran false with reason not due when dueForMaintenance is false')
+  check('quiet when nothing is due', idle.ran === false && idle.reason === 'not due', JSON.stringify(idle) + ' — runDueMaintenance in src/sessions/mneme/mnemeMaintenance.ts must return ran false with reason not due when dueForMaintenance is false')
 }
 
 section('§2 dead-holder lock reaped fast; LIVE holder respected')
@@ -51,15 +51,15 @@ section('§2 dead-holder lock reaped fast; LIVE holder respected')
   const old = new Date(Date.now() - 30_000)
   utimesSync(lock, old, old)
   const s1 = mnemeStatus(dir)
-  check('status names the dead-lock degradation', s1.degraded.some(d => d.includes('dead process')), JSON.stringify(s1.degraded) + ' — mnemeStatus in src/mneme/mnemeMaintenance.ts must list a degraded line naming the dead process that holds the lock')
+  check('status names the dead-lock degradation', s1.degraded.some(d => d.includes('dead process')), JSON.stringify(s1.degraded) + ' — mnemeStatus in src/sessions/mneme/mnemeMaintenance.ts must list a degraded line naming the dead process that holds the lock')
   const out = await runDueMaintenance('turn-end', { dir, force: true })
-  check('maintenance reaped the dead lock and consolidated', out.ran && out.consolidated === true, JSON.stringify(out) + ' — runDueMaintenance in src/mneme/mnemeMaintenance.ts must reap a lock whose pid is dead and then consolidate')
-  check('lock gone', !existsSync(lock), 'the .consolidate.lock directory was left behind; check the lock reaping in src/mneme/mnemeConsolidate.ts')
+  check('maintenance reaped the dead lock and consolidated', out.ran && out.consolidated === true, JSON.stringify(out) + ' — runDueMaintenance in src/sessions/mneme/mnemeMaintenance.ts must reap a lock whose pid is dead and then consolidate')
+  check('lock gone', !existsSync(lock), 'the .consolidate.lock directory was left behind; check the lock reaping in src/sessions/mneme/mnemeConsolidate.ts')
   mkdirSync(lock, { recursive: true })
   writeFileSync(join(lock, 'pid'), String(process.pid))
   appendObservation({ text: 'fact behind a live lock', source: 's', topicHint: 'locks' }, dir)
   const r = maybeConsolidate({ force: true, dir })
-  check('live fresh holder → back off (lock held)', !r.consolidated && /lock held/.test(r.reason), r.reason + ' — maybeConsolidate in src/mneme/mnemeConsolidate.ts must back off with a lock held reason while the lock holder is alive')
+  check('live fresh holder → back off (lock held)', !r.consolidated && /lock held/.test(r.reason), r.reason + ' — maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts must back off with a lock held reason while the lock holder is alive')
   const { rmSync } = await import('node:fs')
   rmSync(lock, { recursive: true, force: true })
 }
@@ -126,9 +126,9 @@ section('§3 crash recovery is EXACTLY-ONCE (manifest dedup; §F dup → 0)')
     }
   }
   check(`kills landed mid-run (${killedMid}/${ROUNDS} ≥ 8)`, killedMid >= 8, String(killedMid) + ' — too few child runs were killed mid-consolidation; check scripts/memory-lifecycle/bench/child-consolidate.ts and the kill delay in this proof')
-  check('ZERO lost across all rounds', lost === 0, String(lost) + ' — observations vanished after a killed consolidation; check crash recovery of the consuming-*.jsonl files in src/mneme/mnemeConsolidate.ts')
-  check('ZERO duplicated across all rounds (exactly-once — was 150 before)', dup === 0, String(dup) + ' — observations were written twice after a killed consolidation; check the manifest dedup in src/mneme/mnemeConsolidate.ts')
-  check('ZERO seq collisions', collisions === 0, String(collisions) + ' — two topic entries share a seq; check how seq numbers are assigned in src/mneme/mnemeConsolidate.ts')
+  check('ZERO lost across all rounds', lost === 0, String(lost) + ' — observations vanished after a killed consolidation; check crash recovery of the consuming-*.jsonl files in src/sessions/mneme/mnemeConsolidate.ts')
+  check('ZERO duplicated across all rounds (exactly-once — was 150 before)', dup === 0, String(dup) + ' — observations were written twice after a killed consolidation; check the manifest dedup in src/sessions/mneme/mnemeConsolidate.ts')
+  check('ZERO seq collisions', collisions === 0, String(collisions) + ' — two topic entries share a seq; check how seq numbers are assigned in src/sessions/mneme/mnemeConsolidate.ts')
 }
 
 section('§4 status shape + receipts ring bound + OFF contract')
@@ -136,15 +136,15 @@ section('§4 status shape + receipts ring bound + OFF contract')
   const dir = mkdtempSync(join(tmpdir(), 'mneme-mnt4-'))
   appendObservation({ text: 'status fact', source: 's', topicHint: 'status' }, dir)
   const s = mnemeStatus(dir)
-  check('status: enabled, buffered=1, 0 topics, not running', s.enabled && s.buffered === 1 && s.topicCount === 0 && !s.running, JSON.stringify(s) + ' — mnemeStatus in src/mneme/mnemeMaintenance.ts must report enabled, one buffered row, no topics and not running for a fresh library')
+  check('status: enabled, buffered=1, 0 topics, not running', s.enabled && s.buffered === 1 && s.topicCount === 0 && !s.running, JSON.stringify(s) + ' — mnemeStatus in src/sessions/mneme/mnemeMaintenance.ts must report enabled, one buffered row, no topics and not running for a fresh library')
   for (let i = 0; i < 60; i++) await runDueMaintenance('operator', { dir, force: true })
-  check('receipts ring bounded ≤50', readMaintenanceReceipts(dir, 500).length <= 50, 'the receipt ring (RECEIPT_RING in src/mneme/mnemeMaintenance.ts) must keep at most 50 rows')
+  check('receipts ring bounded ≤50', readMaintenanceReceipts(dir, 500).length <= 50, 'the receipt ring (RECEIPT_RING in src/sessions/mneme/mnemeMaintenance.ts) must keep at most 50 rows')
   process.env.MERCURY_BARE = '1'
   const off = mnemeStatus(dir)
-  check('OFF: status inert', off.enabled === false && off.buffered === 0, JSON.stringify(off) + ' — mnemeStatus in src/mneme/mnemeMaintenance.ts must report memory off with MERCURY_BARE=1')
+  check('OFF: status inert', off.enabled === false && off.buffered === 0, JSON.stringify(off) + ' — mnemeStatus in src/sessions/mneme/mnemeMaintenance.ts must report memory off with MERCURY_BARE=1')
   const offRun = await runDueMaintenance('boot', { dir })
-  check('OFF: runner refuses', offRun.ran === false && offRun.reason === 'memory off', JSON.stringify(offRun) + ' — runDueMaintenance in src/mneme/mnemeMaintenance.ts must refuse with reason memory off when memory is off')
-  check('OFF: due-check inert', dueForMaintenance(dir).due === false, 'dueForMaintenance in src/mneme/mnemeMaintenance.ts must return due false when memory is off')
+  check('OFF: runner refuses', offRun.ran === false && offRun.reason === 'memory off', JSON.stringify(offRun) + ' — runDueMaintenance in src/sessions/mneme/mnemeMaintenance.ts must refuse with reason memory off when memory is off')
+  check('OFF: due-check inert', dueForMaintenance(dir).due === false, 'dueForMaintenance in src/sessions/mneme/mnemeMaintenance.ts must return due false when memory is off')
   delete process.env.MERCURY_BARE
   }
 

@@ -17,9 +17,9 @@ const {
   resolveLiveScopeIdentity,
   healScopeIdentitySnapshot,
   _resetIdentityCacheForTesting,
-} = await import('../../src/utils/accounts/accountIdentity.ts')
-const { scopeIdentityFile } = await import('../../src/utils/accounts/scopeScan.ts')
-const { getOauthConfig } = await import('../../src/constants/oauth.ts')
+} = await import('../../src/models/sign-in/account-ledger/accountIdentity.ts')
+const { scopeIdentityFile } = await import('../../src/models/sign-in/account-ledger/scopeScan.ts')
+const { getOauthConfig } = await import('../../src/models/sign-in/oauth/oauth.ts')
 
 const dir = mkdtempSync(join(tmpdir(), 'acct-identity-'))
 writeFileSync(
@@ -36,14 +36,14 @@ const okFetch = (async () =>
 try {
   console.log('── verified: live identity wins + snapshot heals ──')
   const verified = await resolveLiveScopeIdentity(dir, { readCreds: () => creds, fetchImpl: okFetch })
-  check('state verified with the LIVE email', verified.state === 'verified' && verified.email === 'true@now.example', `${JSON.stringify(verified)}; resolveUncached in src/utils/accounts/accountIdentity.ts must return the email from the /api/oauth/profile answer`)
+  check('state verified with the LIVE email', verified.state === 'verified' && verified.email === 'true@now.example', `${JSON.stringify(verified)}; resolveUncached in src/models/sign-in/account-ledger/accountIdentity.ts must return the email from the /api/oauth/profile answer`)
   const healed = JSON.parse(readFileSync(join(dir, '.mercury.json'), 'utf8')) as {
     oauthAccount: { emailAddress: string; accountUuid: string }
   }
   check(
     'the scope snapshot HEALED in place (stale lie converges on truth)',
     healed.oauthAccount.emailAddress === 'true@now.example' && healed.oauthAccount.accountUuid === 'true-uuid',
-    `${JSON.stringify(healed)}; a verified read must call healScopeIdentitySnapshot in src/utils/accounts/accountIdentity.ts`,
+    `${JSON.stringify(healed)}; a verified read must call healScopeIdentitySnapshot in src/models/sign-in/account-ledger/accountIdentity.ts`,
   )
 
   console.log('── cache: second read never refetches ──')
@@ -53,7 +53,7 @@ try {
     return new Response(JSON.stringify({ account: { email_address: 'x@x' } }), { status: 200 })
   }) as unknown as typeof fetch
   const again = await resolveLiveScopeIdentity(dir, { readCreds: () => creds, fetchImpl: countingFetch })
-  check('cached verified answer (no refetch)', again.state === 'verified' && fetches === 0, `state=${again.state} fetches=${fetches}; resolveLiveScopeIdentity in src/utils/accounts/accountIdentity.ts must answer a verified result from its cache`)
+  check('cached verified answer (no refetch)', again.state === 'verified' && fetches === 0, `state=${again.state} fetches=${fetches}; resolveLiveScopeIdentity in src/models/sign-in/account-ledger/accountIdentity.ts must answer a verified result from its cache`)
 
   console.log('── expired: 401 is DISTINCT and labeled ──')
   _resetIdentityCacheForTesting()
@@ -74,15 +74,15 @@ try {
   check(
     'offline degrades to the LABELED snapshot fallback',
     offline.state === 'unverified' && offline.email === 'true@now.example' && offline.note.length > 0,
-    `${JSON.stringify(offline)}; the catch branch of resolveUncached in src/utils/accounts/accountIdentity.ts must return state unverified with the snapshot email and a note`,
+    `${JSON.stringify(offline)}; the catch branch of resolveUncached in src/models/sign-in/account-ledger/accountIdentity.ts must return state unverified with the snapshot email and a note`,
   )
   const retried = await resolveLiveScopeIdentity(dir, { readCreds: () => creds, fetchImpl: okFetch })
-  check('offline result was NOT cached (live retry verifies)', retried.state === 'verified', `state=${retried.state}; resolveLiveScopeIdentity in src/utils/accounts/accountIdentity.ts must not cache an unverified result`)
+  check('offline result was NOT cached (live retry verifies)', retried.state === 'verified', `state=${retried.state}; resolveLiveScopeIdentity in src/models/sign-in/account-ledger/accountIdentity.ts must not cache an unverified result`)
 
   console.log('── signed-out: no creds is DISTINCT ──')
   _resetIdentityCacheForTesting()
   const signedOut = await resolveLiveScopeIdentity(dir, { readCreds: () => undefined, fetchImpl: okFetch })
-  check('signed-out state', signedOut.state === 'signed-out', `${JSON.stringify(signedOut)}; resolveUncached in src/utils/accounts/accountIdentity.ts must return signed-out when readCreds gives no token`)
+  check('signed-out state', signedOut.state === 'signed-out', `${JSON.stringify(signedOut)}; resolveUncached in src/models/sign-in/account-ledger/accountIdentity.ts must return signed-out when readCreds gives no token`)
 
   console.log('── the profile read rides the base the usage read rides ──')
   _resetIdentityCacheForTesting()
@@ -111,7 +111,7 @@ try {
   check(
     'heal merges (sibling keys + other oauthAccount fields survive)',
     merged.keepMe === true && oa.organizationName === 'Org' && oa.emailAddress === 'new@x' && oa.accountUuid === 'u2',
-    `${JSON.stringify(merged)}; healScopeIdentitySnapshot in src/utils/accounts/accountIdentity.ts must spread the prior file and prior oauthAccount before writing the new email and uuid`,
+    `${JSON.stringify(merged)}; healScopeIdentitySnapshot in src/models/sign-in/account-ledger/accountIdentity.ts must spread the prior file and prior oauthAccount before writing the new email and uuid`,
   )
 
   console.log('── a snapshot left under another tool\'s basename in a scope dir is never adopted ──')
@@ -119,21 +119,21 @@ try {
   const snapshotBytes = JSON.stringify({ oauthAccount: { accountUuid: 'adopt-uuid', emailAddress: 'adopt@x' } })
   writeFileSync(join(adoptDir, '.claude.json'), snapshotBytes)
   const target = scopeIdentityFile(adoptDir)
-  check('the identity file is the scope config file', target === join(adoptDir, '.mercury.json'), `target=${target}; scopeIdentityFile in src/utils/accounts/scopeScan.ts must return the scope dir's .mercury.json (globalConfigFileIn)`)
-  check('the other tool\'s snapshot is never adopted: no identity file appears', !existsSync(target), `${target} exists; nothing in src/utils/accounts/ may copy another tool's snapshot into the scope's identity file`)
-  check('the other tool\'s file is left as it is', readFileSync(join(adoptDir, '.claude.json'), 'utf8') === snapshotBytes, `${join(adoptDir, '.claude.json')} changed; nothing in src/utils/accounts/ may rewrite another tool's snapshot`)
+  check('the identity file is the scope config file', target === join(adoptDir, '.mercury.json'), `target=${target}; scopeIdentityFile in src/models/sign-in/account-ledger/scopeScan.ts must return the scope dir's .mercury.json (globalConfigFileIn)`)
+  check('the other tool\'s snapshot is never adopted: no identity file appears', !existsSync(target), `${target} exists; nothing in src/models/sign-in/account-ledger/ may copy another tool's snapshot into the scope's identity file`)
+  check('the other tool\'s file is left as it is', readFileSync(join(adoptDir, '.claude.json'), 'utf8') === snapshotBytes, `${join(adoptDir, '.claude.json')} changed; nothing in src/models/sign-in/account-ledger/ may rewrite another tool's snapshot`)
   const foreign = join(adoptDir, '.claude-other')
   mkdirSync(foreign)
   writeFileSync(join(foreign, '.claude.json'), snapshotBytes)
   scopeIdentityFile(foreign)
-  check('another harness\'s home is never written', !existsSync(join(foreign, '.mercury.json')), `${join(foreign, '.mercury.json')} was written; healScopeIdentitySnapshot in src/utils/accounts/accountIdentity.ts must skip an isForeignHarnessDir dir`)
+  check('another harness\'s home is never written', !existsSync(join(foreign, '.mercury.json')), `${join(foreign, '.mercury.json')} was written; healScopeIdentitySnapshot in src/models/sign-in/account-ledger/accountIdentity.ts must skip an isForeignHarnessDir dir`)
   rmSync(adoptDir, { recursive: true, force: true })
   console.log('── every mainstream harness home reads as another tool\'s, never Mercury\'s ──')
-  const { isForeignHarnessDir } = await import('../../src/utils/accounts/scopeScan.ts')
+  const { isForeignHarnessDir } = await import('../../src/models/sign-in/account-ledger/scopeScan.ts')
   const foreignHomes = ['.codex', '.gemini', '.copilot', '.cursor', '.kiro', '.cline', '.continue', '.qwen', '.pi', '.pi/agent', '.omp', '.omp/agent', '.config/opencode', '.config/amp', '.config/goose']
-  check('the harness homes read foreign', foreignHomes.every(h => isForeignHarnessDir(join('/proof-home', h))), `not foreign: ${foreignHomes.filter(h => !isForeignHarnessDir(join('/proof-home', h))).join(', ')}; add the home to FOREIGN_HARNESS_HOMES or FOREIGN_HARNESS_CONFIG_HOMES in src/utils/accounts/scopeScan.ts`)
-  check('a trailing slash changes nothing', isForeignHarnessDir('/proof-home/.codex/'), 'isForeignHarnessDir in src/utils/accounts/scopeScan.ts must strip trailing slashes before comparing')
-  check('Mercury\'s own homes and other folders read as Mercury\'s', ['.mercury', '.mercury-work', '.config/mercury', '.config/other', 'codex'].every(h => !isForeignHarnessDir(join('/proof-home', h))), `read as foreign: ${['.mercury', '.mercury-work', '.config/mercury', '.config/other', 'codex'].filter(h => isForeignHarnessDir(join('/proof-home', h))).join(', ')}; narrow FOREIGN_HARNESS_HOMES or FOREIGN_HARNESS_CONFIG_HOMES in src/utils/accounts/scopeScan.ts`)
+  check('the harness homes read foreign', foreignHomes.every(h => isForeignHarnessDir(join('/proof-home', h))), `not foreign: ${foreignHomes.filter(h => !isForeignHarnessDir(join('/proof-home', h))).join(', ')}; add the home to FOREIGN_HARNESS_HOMES or FOREIGN_HARNESS_CONFIG_HOMES in src/models/sign-in/account-ledger/scopeScan.ts`)
+  check('a trailing slash changes nothing', isForeignHarnessDir('/proof-home/.codex/'), 'isForeignHarnessDir in src/models/sign-in/account-ledger/scopeScan.ts must strip trailing slashes before comparing')
+  check('Mercury\'s own homes and other folders read as Mercury\'s', ['.mercury', '.mercury-work', '.config/mercury', '.config/other', 'codex'].every(h => !isForeignHarnessDir(join('/proof-home', h))), `read as foreign: ${['.mercury', '.mercury-work', '.config/mercury', '.config/other', 'codex'].filter(h => isForeignHarnessDir(join('/proof-home', h))).join(', ')}; narrow FOREIGN_HARNESS_HOMES or FOREIGN_HARNESS_CONFIG_HOMES in src/models/sign-in/account-ledger/scopeScan.ts`)
 } finally {
   rmSync(dir, { recursive: true, force: true })
   _resetIdentityCacheForTesting()

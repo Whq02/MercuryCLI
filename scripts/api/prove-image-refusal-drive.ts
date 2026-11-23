@@ -312,7 +312,7 @@ if (process.argv[2] === '--serve') {
 
   section('A · the pre-send rule on the built product: a 6000x6000 file attachment on a GPT session')
   {
-    refusalHint = 'the image must be shrunk before it is sent; the refusal handling lives in src/utils/api/mediaRefusal.ts, and the pre-send rule in the image ingestion of the Responses road'
+    refusalHint = 'the image must be shrunk before it is sent; the refusal handling lives in src/engine/request-parts/mediaRefusal.ts, and the pre-send rule in the image ingestion of the Responses road'
     const fixture = await startFixture('a', [{ text: 'I see a flat image.' }])
     const run = runProduct(fixture.port, { prompt: `describe @${BIG}` })
     const captured = fixture.capture()
@@ -331,7 +331,7 @@ if (process.argv[2] === '--serve') {
 
   section('B · the refused image leaves every later request on the built product, a resume included')
   {
-    refusalHint = 'a refused image must leave later requests and resumes; see providerRefusedImage and mediaRefusalOf in src/utils/api/mediaRefusal.ts'
+    refusalHint = 'a refused image must leave later requests and resumes; see providerRefusedImage and mediaRefusalOf in src/engine/request-parts/mediaRefusal.ts'
     const fixture = await startFixture('b', [REFUSAL, { text: 'the answer after the refusal' }, { text: 'the answer after the resume' }])
     const sessionId = randomUUID()
     const first = runProduct(fixture.port, { prompt: `describe @${SMALL}`, sessionId })

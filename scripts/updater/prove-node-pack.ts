@@ -55,9 +55,9 @@ const {
   runningBundlePayloadDir,
   runtimeBinaryFor,
   runtimeLine,
-} = await import('../../src/services/privateChannel/vendoredRuntime.js')
-const { resolveLayoutRoots, smokeVersion, validatePayloadDir } = await import('../../src/services/privateChannel/installLayout.js')
-const { verifyPayloadDir } = await import('../../src/services/privateChannel/artifactVerify.js')
+} = await import('../../src/platform/update-channel/vendoredRuntime.js')
+const { resolveLayoutRoots, smokeVersion, validatePayloadDir } = await import('../../src/platform/update-channel/installLayout.js')
+const { verifyPayloadDir } = await import('../../src/platform/update-channel/artifactVerify.js')
 
 const ROOT = join(import.meta.dir, '..', '..')
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
@@ -65,7 +65,7 @@ const sha256 = (b: Buffer | string): string => createHash('sha256').update(b).di
 const IS_WIN = process.platform === 'win32'
 
 let failures = 0
-const packFixHint = 'change the owner src/services/privateChannel/vendoredRuntime.ts for platform, record and runtime-line checks, src/services/privateChannel/installLayout.ts and artifactVerify.ts for the payload checks of sections 5 and 6, vendor/node.lock.json and scripts/vendor/fetch-node.ts for the lock checks, .github/workflows/private-release.yml for the workflow checks'
+const packFixHint = 'change the owner src/platform/update-channel/vendoredRuntime.ts for platform, record and runtime-line checks, src/platform/update-channel/installLayout.ts and artifactVerify.ts for the payload checks of sections 5 and 6, vendor/node.lock.json and scripts/vendor/fetch-node.ts for the lock checks, .github/workflows/private-release.yml for the workflow checks'
 const check = (name: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}${packFixHint}`}`)
   if (!cond) failures++
@@ -166,7 +166,7 @@ section('§2 the owner — platform keys, binaries, the record, the check, the c
   const carried = payloadVendoredRuntime(payload)
   check('payloadVendoredRuntime reads the manifest and resolves the binary', carried !== null && carried.binaryPath === join(payload, 'vendor', 'node', 'bin', 'node'))
   check('payloadVendoredRuntime answers null for a payload without a manifest', payloadVendoredRuntime(join(scratch, 'nowhere')) === null)
-  check('runningBundlePayloadDir: a bundle path answers its directory, a source path answers null', runningBundlePayloadDir('/x/y/mercury.mjs') === '/x/y' && runningBundlePayloadDir('/x/src/entrypoints/cli.tsx') === null && runningBundlePayloadDir(undefined) === null)
+  check('runningBundlePayloadDir: a bundle path answers its directory, a source path answers null', runningBundlePayloadDir('/x/y/mercury.mjs') === '/x/y' && runningBundlePayloadDir('/x/src/boot/entrypoints/cli.tsx') === null && runningBundlePayloadDir(undefined) === null)
 
   const binaryPath = join(payload, 'vendor', 'node', 'bin', 'node')
   const vendoredRun = describeRunningRuntime({ payloadDir: payload, execPath: binaryPath, execVersion: '9.9.0', explicitNode: null, isWindows: false })
@@ -285,12 +285,12 @@ section('§7 the packager + the workflows')
 
 section('§8 the surfaces — health, status, dry-run, registry, notices, docs, launcher')
 {
-  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
-  const { runningRuntime: runningNow } = await import('../../src/services/privateChannel/updateService.ts')
-  const { runtimeLine: lineOfRuntime } = await import('../../src/services/privateChannel/vendoredRuntime.ts')
+  const { runtimeChecks } = await import('../../src/platform/health/sections/runtime.ts')
+  const { runningRuntime: runningNow } = await import('../../src/platform/update-channel/updateService.ts')
+  const { runtimeLine: lineOfRuntime } = await import('../../src/platform/update-channel/vendoredRuntime.ts')
   const nodeSays = await runtimeChecks().find(row => row.id === 'runtime')?.run()
   check('/health runtime row classifies the running node through the owner', nodeSays?.evidence.startsWith(lineOfRuntime(runningNow())) === true, nodeSays?.evidence)
-  const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
+  const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.js')
   const row = FLAG_REGISTRY.find(f => f.env === 'MERCURY_NODE')
   check('MERCURY_NODE is registered as a value knob naming the three rungs', row !== undefined && row.kind === 'value' && row.summary.includes('vendor/node') && row.summary.includes('PATH'))
   const notices = read('THIRD_PARTY_NOTICES.md')

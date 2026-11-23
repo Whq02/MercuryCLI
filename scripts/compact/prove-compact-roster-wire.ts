@@ -20,12 +20,12 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
-const hintFold = 'read the run output above and the debug log; the fold is compactConversation in src/services/compact/compact.ts, the summariser fork is in src/services/compact/compact/summarise.ts'
-const hintSummaryPrompt = 'change getCompactPrompt (and AGENTS_IN_FLIGHT_SECTION) in src/services/compact/prompt.ts'
-const hintRoster = 'change getAgentRosterAttachment in src/services/attachments/agentRoster.ts or its text in src/services/messages/attachmentText.ts'
+const hintFold = 'read the run output above and the debug log; the fold is compactConversation in src/engine/compaction/foldConversation.ts, the summariser fork is in src/engine/compaction/fold/summarise.ts'
+const hintSummaryPrompt = 'change getCompactPrompt (and AGENTS_IN_FLIGHT_SECTION) in src/engine/compaction/summariserPrompt.ts'
+const hintRoster = 'change getAgentRosterAttachment in src/engine/attachments/agentRoster.ts or its text in src/engine/messages/attachmentText.ts'
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the compact roster wire drive exceeded 240s; read the request lines printed above (a missing summary or post-fold request means the fold never fired: src/services/compact/autoCompact.ts)')
+  console.log('\n❌ TIMEOUT — the compact roster wire drive exceeded 240s; read the request lines printed above (a missing summary or post-fold request means the fold never fired: src/engine/compaction/autoFold.ts)')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -329,7 +329,7 @@ if (!existsSync(DIST)) {
       .flatMap(i => blocksOf(i.content).filter(b => b.type === 'tool_result' && /^toolu_roster_(long|agent|shell)_/.test(String(b.tool_use_id))))
     check('fold 46ah: every launch landed; the delivered manual is not a permission refusal', summary !== undefined && launchResults.length === 3 && launchResults.every(b => b.is_error !== true), `${j(launchResults.filter(b => b.is_error === true)).slice(0, 400)}; ${launchResults.length} launch result(s) reached the summary request; ${hintFold}`)
     check('the fold fired on the cycle after the launches (the summariser request went out)', summary !== undefined, `${hits.map(h => h.route).join(' → ')}; ${hintFold}`)
-    check('the fold took the cache-sharing fork road (Claude Fable 5.1 on the Anthropic wire)', debug.includes('forkedAgent(compact)'), debug.split('\n').filter(l => l.includes('compact')).slice(0, 3).join(' | ').slice(0, 300) + `; the summariser must run as the cache-sharing fork labelled compact in src/services/compact/compact/summarise.ts`)
+    check('the fold took the cache-sharing fork road (Claude Fable 5.1 on the Anthropic wire)', debug.includes('forkedAgent(compact)'), debug.split('\n').filter(l => l.includes('compact')).slice(0, 3).join(' | ').slice(0, 300) + `; the summariser must run as the cache-sharing fork labelled compact in src/engine/compaction/fold/summarise.ts`)
     const post = hits.find(h => h.route === 'post')
     check('a post-fold request went out (its first user item is the summary row)', post !== undefined, hintFold)
     check('the post-fold turn answered', r.stdout.includes(POST_DONE), hintFold)
@@ -344,7 +344,7 @@ if (!existsSync(DIST)) {
     section('W2 the post-fold request carries ONE roster naming every agent')
     const postTexts = post !== undefined ? userTextsOf(itemsOf(post.body)) : []
     const postAll = postTexts.join('\n')
-    check('the post-fold request starts from the summary row (the fold happened)', postAll.includes('The context window turned over'), `the summary row text is built by getCompactUserSummaryMessage in src/services/compact/prompt.ts; ${hintFold}`)
+    check('the post-fold request starts from the summary row (the fold happened)', postAll.includes('The context window turned over'), `the summary row text is built by getCompactUserSummaryMessage in src/engine/compaction/summariserPrompt.ts; ${hintFold}`)
     check('…and carries the summary whole, the tenth section included', postAll.includes(SUMMARY_MARK) && postAll.includes('10. Agents in flight'), `the summary body must reach the post-fold request whole; ${hintFold}`)
     const reminders = postAll.split('<system-reminder>').filter(t => t.includes('Agents in flight at the context turnover'))
     const roster = reminders[0] ?? ''
@@ -358,7 +358,7 @@ if (!existsSync(DIST)) {
     check('every row names what is owed and the correct state-specific message door', /owed:/.test(roster) && (running ? /reach it: SendMessage to "a[0-9a-z]+"/.test(agentRow) : /resume it: ResumeCrewmate to "a[0-9a-z]+"/.test(agentRow)) && roster.includes('reach it: TaskStop by its id'), hintRoster)
     check('the sub-agent row carries its output path', new RegExp(`\\[a[0-9a-z]+\\][^\\n]*output: [^\\n]*\\.output`).test(roster), hintRoster)
     check('the roster says a running agent is never re-spawned and an owed result is collected', roster.includes('A running agent is never re-spawned') && roster.includes('never re-derived'), hintRoster)
-    check('no second announcer names the plain sub-agent (the old per-task line is gone)', !postAll.includes('is still running. Do NOT spawn a duplicate'), 'a second per-task announcer still rides the post-fold request; the roster in src/services/attachments/agentRoster.ts should be the only one')
+    check('no second announcer names the plain sub-agent (the old per-task line is gone)', !postAll.includes('is still running. Do NOT spawn a duplicate'), 'a second per-task announcer still rides the post-fold request; the roster in src/engine/attachments/agentRoster.ts should be the only one')
 
     section('W3 the agents are untouched by the fold')
     const summaryAnsweredAt = summary?.answeredAtMs ?? Number.POSITIVE_INFINITY
@@ -366,7 +366,7 @@ if (!existsSync(DIST)) {
     check(`the long sub-agent kept calling after the summary landed (${after} calls)`, after >= 2, `${after} call(s) after the summary; the fold must not stop running agents (${hintFold})`)
     const notes = hits.filter(h => h.route === 'note')
     for (const n of notes) console.log(`  note: ${n.lastUserText.replace(/\s+/g, ' ').slice(0, 260)}`)
-    check('no agent was stopped by the fold (no killed notice)', notes.every(n => !n.lastUserText.includes('<status>killed</status>')), 'a notice reports a killed agent; the fold must leave agents running (compactConversation in src/services/compact/compact.ts)')
+    check('no agent was stopped by the fold (no killed notice)', notes.every(n => !n.lastUserText.includes('<status>killed</status>')), 'a notice reports a killed agent; the fold must leave agents running (compactConversation in src/engine/compaction/foldConversation.ts)')
     check('the long sub-agent settled on its own after the fold (its completion notice reached the main)', notes.some(n => n.lastUserText.includes(LONG_DESCRIPTION) && /<status>completed/.test(n.lastUserText)), `${notes.length} notice(s) reached the main; ${hintFold}`)
 
     section('W4 a result that lands during the fold is delivered once, after the boundary')

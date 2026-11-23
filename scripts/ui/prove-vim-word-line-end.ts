@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
-import { Cursor } from '../../src/utils/Cursor.ts'
-import { executeOperatorMotion, type OperatorContext } from '../../src/vim/operators.ts'
+import { Cursor } from '../../src/screen/composer/vim/textCursor.ts'
+import { executeOperatorMotion, type OperatorContext } from '../../src/screen/composer/vim/operators.ts'
 
 for (const motion of ['w', 'W']) {
   for (const op of ['delete', 'yank'] as const) {
@@ -23,8 +23,8 @@ for (const motion of ['w', 'W']) {
         getLastFind: () => null, setLastFind() {}, recordChange() {},
       }
       executeOperatorMotion(op, motion, count, ctx)
-      assert.equal(register, text.slice(offset, end), `${op}${count}${motion} register in ${JSON.stringify(text)}; the w and W operator range must stop at the end of the final word without taking its line break, so fix executeOperatorMotion in src/vim/operators.ts`)
-      assert.equal(value, op === 'delete' ? text.slice(0, offset) + text.slice(end) : text, `${op}${count}${motion} text in ${JSON.stringify(text)} at offset ${offset}; delete must remove exactly the range [offset, ${end}) and yank must leave the text unchanged, so fix executeOperatorMotion in src/vim/operators.ts`)
+      assert.equal(register, text.slice(offset, end), `${op}${count}${motion} register in ${JSON.stringify(text)}; the w and W operator range must stop at the end of the final word without taking its line break, so fix executeOperatorMotion in src/screen/composer/vim/operators.ts`)
+      assert.equal(value, op === 'delete' ? text.slice(0, offset) + text.slice(end) : text, `${op}${count}${motion} text in ${JSON.stringify(text)} at offset ${offset}; delete must remove exactly the range [offset, ${end}) and yank must leave the text unchanged, so fix executeOperatorMotion in src/screen/composer/vim/operators.ts`)
     }
   }
 }

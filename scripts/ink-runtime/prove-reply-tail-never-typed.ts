@@ -1,16 +1,16 @@
 #!/usr/bin/env bun
 import { join } from 'node:path'
-import { InputEvent } from '../../src/ink/events/input-event.ts'
-import { INITIAL_STATE, parseMultipleKeypresses, type KeyParseState, type ParsedInput } from '../../src/ink/input/input-decoder.ts'
-import { openPlainCursorWindow } from '../../src/ink/input/interpreter.ts'
-import { da1, decrqm, kittyKeyboard, oscColor, TerminalQuerier, xtversion } from '../../src/ink/session/querier.ts'
+import { InputEvent } from '../../src/screen/renderer/events/input-event.ts'
+import { INITIAL_STATE, parseMultipleKeypresses, type KeyParseState, type ParsedInput } from '../../src/screen/renderer/input/input-decoder.ts'
+import { openPlainCursorWindow } from '../../src/screen/renderer/input/interpreter.ts'
+import { da1, decrqm, kittyKeyboard, oscColor, TerminalQuerier, xtversion } from '../../src/screen/renderer/terminal-session/terminalQuerier.ts'
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix how createScanner holds and releases a split reply head across flush() in src/ink/input/scanner.ts, or parseMultipleKeypresses in src/ink/input/input-decoder.ts; for the "owed" checks fix TerminalQuerier.stringReplyOwed in src/ink/session/querier.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix how createScanner holds and releases a split reply head across flush() in src/screen/renderer/input/scanner.ts, or parseMultipleKeypresses in src/screen/renderer/input/input-decoder.ts; for the "owed" checks fix TerminalQuerier.stringReplyOwed in src/screen/renderer/terminal-session/terminalQuerier.ts` : ''}`)
 }
 const vis = (s: string): string => JSON.stringify(s)
 

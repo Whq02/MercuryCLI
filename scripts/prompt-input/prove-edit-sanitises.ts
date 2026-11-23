@@ -10,12 +10,12 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const hint = 'every road into the composer must go through the one edit path in src/input-core/pending-input.ts, which strips escape and control bytes and stores NFC text; draft loading is in src/utils/promptDraft.ts'
+  const hint = 'every road into the composer must go through the one edit path in src/screen/composer/input-core/pending-input.ts, which strips escape and control bytes and stores NFC text; draft loading is in src/screen/composer/input-core/promptDraft.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${hint}` : ''}`)
 }
 
-const pending = await import('../../src/input-core/pending-input.ts')
-const drafts = await import('../../src/utils/promptDraft.ts')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const drafts = await import('../../src/screen/composer/input-core/promptDraft.ts')
 
 console.log('============================================================')
 console.log(' the composer\'s one edit path strips what no road may carry')
@@ -63,7 +63,7 @@ pending.resetPendingInputForTests()
 pending.initSession('early-session', 'early \x1b[4mwords\x1b[24m')
 check('initSession(): early input is stripped', pending.text() === 'early words', JSON.stringify(pending.text()))
 
-const { Cursor } = await import('../../src/utils/Cursor.ts')
+const { Cursor } = await import('../../src/screen/composer/vim/textCursor.ts')
 const composed: Array<[string, string, string]> = [
   ['a Latin letter and its combining acute', 'e\u0301', '\u00e9'],
   ['an Arabic alef and a maddah above', '\u0627\u0653', '\u0622'],

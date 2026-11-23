@@ -4,14 +4,14 @@
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { BELLY, CLAW, FAINT, IVORY, TERRA } from '../../src/components/mercuryPalette.ts'
-import { deriveFocalRamp } from '../../src/utils/mercuryTokens.ts'
-import { shouldHonorNoColor, truecolorFingerprint } from '../../src/ink/colorize.ts'
-import { isEnvTruthy } from '../../src/utils/envUtils.ts'
-import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
+import { BELLY, CLAW, FAINT, IVORY, TERRA } from '../../src/screen/theme/mercuryPalette.ts'
+import { deriveFocalRamp } from '../../src/screen/theme/mercuryTokens.ts'
+import { shouldHonorNoColor, truecolorFingerprint } from '../../src/screen/renderer/colorize.ts'
+import { isEnvTruthy } from '../../src/platform/environment/envUtils.ts'
+import { getFlagSpec } from '../../src/platform/substrate/flagRegistry.ts'
 import { GROUND, GROUND_FAMILIES, adoptGroundFamily, truecolorFingerprintOf } from '../../assets/splash/splash-core.mjs'
-import { NIGHT, OASIS_GROUND, TRUE_BLACK_GROUND } from '../../src/components/mercuryPalette.ts'
-import { DEFAULT_THEME_SETTING } from '../../src/utils/systemTheme.ts'
+import { NIGHT, OASIS_GROUND, TRUE_BLACK_GROUND } from '../../src/screen/theme/mercuryPalette.ts'
+import { DEFAULT_THEME_SETTING } from '../../src/screen/theme/systemTheme.ts'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -252,8 +252,8 @@ t.section('§6 — the flat-ground pair-law (no vignette sampler)')
 
 t.section('§7 — GLOW: accent families + the mirrored greeting law')
 {
-  const cd = await import('../../src/utils/cockpit/critterData.ts')
-  const { deriveAccentSoft } = await import('../../src/utils/mercuryTokens.ts')
+  const cd = await import('../../src/screen/cockpit/critterData.ts')
+  const { deriveAccentSoft } = await import('../../src/screen/theme/mercuryTokens.ts')
   const core = await import('../../assets/splash/splash-core.mjs')
   const fams = core.ACCENT_FAMILIES as Record<
     string,
@@ -303,7 +303,7 @@ t.section('§7 — GLOW: accent families + the mirrored greeting law')
     JSON.stringify(crab.rasterHard(core.WORD, crab.wordTone).lines)
   t.check('accent-less core ≡ explicit crab (label + divider + word bytes)', sameLabel && sameDiv && sameWord, 'crab default parity')
 
-  const kit = await import('../../src/utils/cockpit/greetingShimmer.ts')
+  const kit = await import('../../src/screen/cockpit/greetingShimmer.ts')
   t.check('tick cadence mirrors (GLOW_TICK_MS == SHIMMER_TICK_MS)', core.GLOW_TICK_MS === kit.SHIMMER_TICK_MS, `${core.GLOW_TICK_MS}`)
   let phaseOk = true
   let boostOk = true

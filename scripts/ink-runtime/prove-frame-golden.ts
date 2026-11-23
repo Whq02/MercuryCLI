@@ -128,7 +128,7 @@ for (const scene of SCENES) {
   check(
     `determinism: ${scene.name}`,
     JSON.stringify(a) === JSON.stringify(b),
-    'two composes of the same scene differ; the render pipeline in src/ink/renderer.ts (createRenderer) must not depend on state left from an earlier frame',
+    'two composes of the same scene differ; the render pipeline in src/screen/renderer/renderer.ts (createRenderer) must not depend on state left from an earlier frame',
   )
   results[scene.name] = a
 }
@@ -156,7 +156,7 @@ if (record) {
         console.log(`    live:\n${results[name]!.lines.map(l => '      |' + l).join('\n')}`)
       }
     }
-    check('all composed grids match the golden', mismatches === 0, `${mismatches} scenes diverged; if the new grid is the intended output, re-record with bun scripts/ink-runtime/prove-frame-golden.ts --record, otherwise fix the composition in src/ink/renderer.ts (createRenderer)`)
+    check('all composed grids match the golden', mismatches === 0, `${mismatches} scenes diverged; if the new grid is the intended output, re-record with bun scripts/ink-runtime/prove-frame-golden.ts --record, otherwise fix the composition in src/screen/renderer/renderer.ts (createRenderer)`)
   }
 }
 

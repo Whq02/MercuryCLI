@@ -6,9 +6,9 @@ const t = checker()
 
 t.section('§2 a REAL 10 s quiet window: armed, event-free, and completely silent')
 {
-  const { registerAttentionGatherer } = await import('../../src/services/attention/store.ts')
+  const { registerAttentionGatherer } = await import('../../src/screen/attention/store.ts')
   const { subscribeAttentionView, cachedAttentionView } = await import(
-    '../../src/services/attention/viewModel.ts'
+    '../../src/screen/attention/viewModel.ts'
   )
 
   let gatherCalls = 0

@@ -38,11 +38,11 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 const FOLD = 'Write the running record of this conversation'
-const FILL = "contextFill in src/services/context/tokens.ts must read the last manual fold's record (postTokens and postEstimate on its boundary, written by compactConversation in src/services/compact/compact.ts) until a provider count lands for the seated model"
-const TRIGGER = 'tokenCountWithEstimation in src/services/context/tokens.ts is the count the automatic fold reads: it must stay the request estimate and never read a fold\'s record'
+const FILL = "contextFill in src/engine/context-window/contextTokenCount.ts must read the last manual fold's record (postTokens and postEstimate on its boundary, written by compactConversation in src/engine/compaction/foldConversation.ts) until a provider count lands for the seated model"
+const TRIGGER = 'tokenCountWithEstimation in src/engine/context-window/contextTokenCount.ts is the count the automatic fold reads: it must stay the request estimate and never read a fold\'s record'
 
-const { recordToEntry } = await import('../../src/fabric/entryCodec.ts')
-const { historyLines } = await import('../../src/utils/sessionStorage/historyParts.ts')
+const { recordToEntry } = await import('../../src/sessions/fabric/entryCodec.ts')
+const { historyLines } = await import('../../src/sessions/transcripts/historyParts.ts')
 const { transcriptFiles } = await import('../daemon/dupline-world.ts')
 const { liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
 type Turn = import('../lib/fixtureApi.ts').ScriptedTurn
@@ -94,8 +94,8 @@ section('1 the built product, a provider that counts fewer tokens than the estim
   check('/compact folds and its receipt reads a smaller context', run.receipt.startsWith('Compacted — folded ') && run.recorded !== undefined && run.before !== null && run.recorded < run.before, JSON.stringify(run), FILL)
   check("the footer reads the after size of the fold's record, the figure the receipt prints", run.footer !== null && run.footer === run.recorded, JSON.stringify({ footer: run.footer, recorded: run.recorded, receipt: run.receipt }), FILL)
   check('it is still marked as an estimate: no provider count has landed', run.source === 'estimate', String(run.source), FILL)
-  check('a second /compact at once names that same figure in its refusal', run.refusal === `Nothing to compact: the last fold already holds this conversation (${afterFigureOf(run.receipt)} tokens)`, run.refusal, 'createFoldMeter in src/services/compact/compact/foldMeasure.ts must take the context before a fold from contextFill in src/services/context/tokens.ts')
-  check('that second /compact asks for no summary: the one request of the session is the fold that landed', run.summaries === 1, String(run.summaries), 'call in src/commands/compact/compact.ts must refuse a fold that would fold no working round before it asks for a summary (manualFoldHasNothingToFold in src/services/compact/compact/projection.ts)')
+  check('a second /compact at once names that same figure in its refusal', run.refusal === `Nothing to compact: the last fold already holds this conversation (${afterFigureOf(run.receipt)} tokens)`, run.refusal, 'createFoldMeter in src/engine/compaction/fold/foldMeasure.ts must take the context before a fold from contextFill in src/engine/context-window/contextTokenCount.ts')
+  check('that second /compact asks for no summary: the one request of the session is the fold that landed', run.summaries === 1, String(run.summaries), 'call in src/commands/compact/compact.ts must refuse a fold that would fold no working round before it asks for a summary (manualFoldHasNothingToFold in src/engine/compaction/fold/projection.ts)')
   check("once the next answer lands, the footer reads the provider's count", run.settledSource === 'usage' && run.settled === 30_005, JSON.stringify({ settled: run.settled, source: run.settledSource }), FILL)
 }
 
@@ -104,26 +104,26 @@ section('2 the built product, a provider that reports no usage: the footer after
   const run = await foldInTheProduct(() => ({ input_tokens: 0, output_tokens: 0 }))
   check('/compact folds and its receipt reads a smaller context', run.receipt.startsWith('Compacted — folded ') && run.recorded !== undefined && run.before !== null && run.recorded < run.before, JSON.stringify(run), FILL)
   check("the footer reads the after size of the fold's record: the folded rows are not counted, the skills list on its way back is", run.footer !== null && run.footer === run.recorded, JSON.stringify({ footer: run.footer, recorded: run.recorded, receipt: run.receipt }), FILL)
-  check('a second /compact at once names that same figure in its refusal', run.refusal === `Nothing to compact: the last fold already holds this conversation (${afterFigureOf(run.receipt)} tokens)`, run.refusal, 'createFoldMeter in src/services/compact/compact/foldMeasure.ts must take the context before a fold from contextFill in src/services/context/tokens.ts')
-  check('that second /compact asks for no summary: the one request of the session is the fold that landed', run.summaries === 1, String(run.summaries), 'call in src/commands/compact/compact.ts must refuse a fold that would fold no working round before it asks for a summary (manualFoldHasNothingToFold in src/services/compact/compact/projection.ts)')
+  check('a second /compact at once names that same figure in its refusal', run.refusal === `Nothing to compact: the last fold already holds this conversation (${afterFigureOf(run.receipt)} tokens)`, run.refusal, 'createFoldMeter in src/engine/compaction/fold/foldMeasure.ts must take the context before a fold from contextFill in src/engine/context-window/contextTokenCount.ts')
+  check('that second /compact asks for no summary: the one request of the session is the fold that landed', run.summaries === 1, String(run.summaries), 'call in src/commands/compact/compact.ts must refuse a fold that would fold no working round before it asks for a summary (manualFoldHasNothingToFold in src/engine/compaction/fold/projection.ts)')
   check('once the next turn has run, the footer counts the conversation that stands, no less than the fold left', run.settledSource === 'estimate' && run.settled !== null && run.recorded !== undefined && run.settled >= run.recorded, JSON.stringify({ settled: run.settled, recorded: run.recorded }), FILL)
 }
 
 const { startOverflowFixture } = await import('./overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { contextFill, tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
-const { contextFillView } = await import('../../src/services/context/contextFill.ts')
-const { requestGaugeDigest } = await import('../../src/services/run/requestGauge.ts')
-const { buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
-const { estimateContextTokens } = await import('../../src/services/compact/microCompact.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { contextFill, tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { contextFillView } = await import('../../src/engine/context-window/contextFill.ts')
+const { requestGaugeDigest } = await import('../../src/engine/run/requestGauge.ts')
+const { buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
 const { call } = await import('../../src/commands/compact/compact.ts')
 
 section('3 the measure: the conversation as stored after a manual fold, read for the model that measured it, for the automatic fold and for a model of another family')

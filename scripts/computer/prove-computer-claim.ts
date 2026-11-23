@@ -3,9 +3,9 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, finish, freshSignal, section } from './computerProofKit.ts'
 
-const claim = await import('../../src/services/desktop/desktopClaim.ts')
-const { acquirePidLock, releasePidLock, probePidLock, restampPidLock } = await import('../../src/substrate/pidLock.ts')
-const { desktopSnapshot } = await import('../../src/services/desktop/desktopSession.ts')
+const claim = await import('../../src/integrations/desktop/desktopClaim.ts')
+const { acquirePidLock, releasePidLock, probePidLock, restampPidLock } = await import('../../src/platform/substrate/pidLock.ts')
+const { desktopSnapshot } = await import('../../src/integrations/desktop/desktopSession.ts')
 
 const DEAD_PID = 2147483000
 const path = claim.desktopClaimPath()
@@ -139,7 +139,7 @@ section('§9 idle release does not race a new application act')
 
 section('§10 the cockpit reads the focused session, not its bootstrap identity')
 {
-  const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import('../../src/engine/connector/focusedConnector.ts')
   const focusedId = 'focused-desktop-session'
   await acquirePidLock(path, `${focusedId}:${process.pid}`, { liveness: 'assume-dead', extra: { app: { identity: 'com.example.Editor', name: 'Editor' }, since: Date.now() } })
   setFocusedSessionConnector({ sessionId: () => focusedId } as never)

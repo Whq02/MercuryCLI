@@ -5,11 +5,11 @@ import {
   getSessionCritterKey,
   setSessionCritter,
   subscribeSessionCritter,
-} from '../../src/components/mercury-ui/sessionAccent.js'
-import { critterDefForKey } from '../../src/utils/cockpit/critterData.js'
+} from '../../src/screen/widgets/sessionAccent.js'
+import { critterDefForKey } from '../../src/screen/cockpit/critterData.js'
 
 let failures = 0
-const critterSelectHint = 'change setSessionCritter, getSessionCritterKey or ALL_CRITTERS in src/components/mercury-ui/sessionAccent.ts, or critterDefForKey in src/utils/cockpit/critterData.ts for a picker row that resolves the wrong grid'
+const critterSelectHint = 'change setSessionCritter, getSessionCritterKey or ALL_CRITTERS in src/screen/widgets/sessionAccent.ts, or critterDefForKey in src/screen/cockpit/critterData.ts for a picker row that resolves the wrong grid'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ` — ${detail}` : '') : ` — ${detail ? `${detail} · ` : ''}${critterSelectHint}`}`)

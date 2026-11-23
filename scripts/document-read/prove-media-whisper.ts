@@ -16,20 +16,20 @@ const model = fileURLToPath(new URL('../../vendor/whisper-models/ggml-base.en-q5
 process.env.MERCURY_WHISPER_MODEL = model
 const fetchBefore = globalThis.fetch
 globalThis.fetch = (() => { throw new Error('The local-media proof must not fetch the network.') }) as typeof fetch
-const { loadWhisperAddon } = await import('../../src/services/voice/whisperPack.ts')
-const { extractMediaTranscript, mediaFileFormat } = await import('../../src/services/voice/fileTranscript.ts')
-const { transcribeWav, unloadLocalModels } = await import('../../src/services/voice/transcribe.ts')
-const { readWav } = await import('../../src/services/voice/wav.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { loadWhisperAddon } = await import('../../src/integrations/voice/whisperPack.ts')
+const { extractMediaTranscript, mediaFileFormat } = await import('../../src/integrations/voice/fileTranscript.ts')
+const { transcribeWav, unloadLocalModels } = await import('../../src/integrations/voice/transcribe.ts')
+const { readWav } = await import('../../src/integrations/voice/wav.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 try {
   const load = loadWhisperAddon()
   if (!existsSync(source) || !existsSync(model) || load.state !== 'ok') {
     console.log(`SKIP real Whisper media: ${!existsSync(source) ? 'speech fixture absent' : !existsSync(model) ? 'offline base.en-q5_1 model absent' : load.state === 'unavailable' ? load.note : 'driver absent'}`)
   } else {
     const wav = readWav(readFileSync(source))
-    assert.ok(wav.ok, 'readWav rejected voice fixture on-device-take.wav in src/services/voice/wav.ts')
+    assert.ok(wav.ok, 'readWav rejected voice fixture on-device-take.wav in src/integrations/voice/wav.ts')
     const wavSeconds = wav.header.dataBytes / 32000
     assert.ok(wavSeconds < 10, `fixture WAV duration ${wavSeconds.toFixed(2)}s >= 10s in scripts/voice/fixtures/on-device-take.wav`)
     const signal = new AbortController().signal
@@ -64,7 +64,7 @@ try {
         const exportResult = spawnSync('ffmpeg', ['-nostdin', '-hide_banner', '-loglevel', 'error', ...args, encoded], { encoding: 'utf8', windowsHide: true })
         assert.equal(exportResult.status, 0, exportResult.stderr)
         const format = mediaFileFormat(encoded)
-        assert.ok(format, `mediaFileFormat failed to sniff encoded speech.${extension} in src/services/voice/fileTranscript.ts`)
+        assert.ok(format, `mediaFileFormat failed to sniff encoded speech.${extension} in src/integrations/voice/fileTranscript.ts`)
         const decoded = await extractMediaTranscript(encoded, format, signal, cpu)
         assert.match(decoded, /\[00:00:0[0-2]\]/)
         assert.ok(['lighthouse', 'seven', 'ships'].filter(word => decoded.toLowerCase().includes(word)).length >= 2, decoded)

@@ -38,15 +38,15 @@ assert.equal(git.status, 0, git.stderr)
 const previousCwd = process.cwd()
 process.chdir(root)
 const React = await import('react')
-const { Box, Text } = await import('../../src/ink.ts')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FilesMenuSlot } = await import('../../src/components/FilesMenuSlot.tsx')
-const { openFilesMenu, closeFilesMenu, isFilesMenuOpen } = await import('../../src/utils/cockpit/filesMenu.ts')
-const { setComposerInsert } = await import('../../src/components/PromptInput/composerInsert.ts')
-const { getFocusedWorkspaceCwd } = await import('../../src/hooks/useFocusedWorkspaceCwd.ts')
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FilesMenuSlot } = await import('../../src/screen/fullscreen-layout/FilesMenuSlot.tsx')
+const { openFilesMenu, closeFilesMenu, isFilesMenuOpen } = await import('../../src/screen/cockpit/filesMenu.ts')
+const { setComposerInsert } = await import('../../src/screen/composer/composerInsert.ts')
+const { getFocusedWorkspaceCwd } = await import('../../src/screen/focused-session/useFocusedWorkspaceCwd.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 assert.equal(realpathSync(getFocusedWorkspaceCwd()), realpathSync(root), 'the real file slot must browse the fixture workspace')
 const h = React.createElement
@@ -56,7 +56,7 @@ let checks = 0
 const check = (label: string, good: boolean, detail = '') => {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good ? ` — ${detail ? detail + ' — ' : ''}the files menu this drive mounts is FilesMenuSlot in src/components/FilesMenuSlot.tsx; compare the printed screen with what this check expects and change the slot's reader or key handling` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good ? ` — ${detail ? detail + ' — ' : ''}the files menu this drive mounts is FilesMenuSlot in src/screen/fullscreen-layout/FilesMenuSlot.tsx; compare the printed screen with what this check expects and change the slot's reader or key handling` : ''}`)
 }
 const snapshot = async (scene: Mounted, label: string, cols: number) => {
   if (!frames) return
@@ -70,7 +70,7 @@ const snapshot = async (scene: Mounted, label: string, cols: number) => {
   await gridToPng(file, join(frames, `${label}-${cols}.png`))
 }
 function Fixture(): React.ReactNode {
-  const host = React.useRef<import('../../src/ink.ts').DOMElement | null>(null)
+  const host = React.useRef<import('../../src/screen/themedRenderer.ts').DOMElement | null>(null)
   return h(Box, { ref: host, width: '100%', height: 28, flexDirection: 'column' }, h(Text, null, 'Files reader fixture'), h(FilesMenuSlot, { hostRef: host, framed: false }))
 }
 try {

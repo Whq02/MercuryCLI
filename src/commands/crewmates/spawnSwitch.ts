@@ -1,11 +1,11 @@
-import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
+import { getFocusedSessionConnector, hasFocusedSession } from '../../engine/connector/focusedConnector.js'
 import {
   parseSpawnSwitchArg,
   spawnSwitchLine,
   spawnSwitchToggleReceipt,
   SPAWN_SWITCH_COMMAND,
   type SpawnSwitchKind,
-} from '../../services/switchboard/spawnSwitches.js'
+} from '../../daemon/switchboard/spawnSwitches.js'
 
 export async function runSpawnSwitchCommand(kind: SpawnSwitchKind, rawArg: string): Promise<string> {
   const parsed = parseSpawnSwitchArg(rawArg)

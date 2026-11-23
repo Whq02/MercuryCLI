@@ -7,7 +7,7 @@ import { join } from 'node:path'
 const cfg = mkdtempSync(join(tmpdir(), 'artifacts-cfg-'))
 process.env.MERCURY_CONFIG_DIR = cfg
 
-const { storeArtifact, redactMetadata, scopeSlugForDir } = await import('../../src/utils/artifacts/store.js')
+const { storeArtifact, redactMetadata, scopeSlugForDir } = await import('../../src/sessions/artifacts/store.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = '', failHint = ''): void {
@@ -32,12 +32,12 @@ section('#8 — content blob is secret-redacted on write')
     kind: 'output',
     content: `build output\nleaked: ${SECRET}\ndone`,
   })
-  check('storeArtifact returned a path', r.id !== null && typeof r.path === 'string', '', 'fix storeArtifact in src/utils/artifacts/store.ts so it returns an id and a blob path for plain string content')
+  check('storeArtifact returned a path', r.id !== null && typeof r.path === 'string', '', 'fix storeArtifact in src/sessions/artifacts/store.ts so it returns an id and a blob path for plain string content')
   if (r.path) {
     const blob = readFileSync(r.path, 'utf8')
-    check('the raw secret is NOT in the blob on disk', !blob.includes(SECRET), '', 'storeArtifact in src/utils/artifacts/store.ts must run the content through redactSecrets before writing the blob')
-    check('the secret span is [REDACTED]', blob.includes('[REDACTED]'), '', 'redactSecrets in src/utils/secrets/secretScanner.ts must replace the secret span with the [REDACTED] marker')
-    check('surrounding content survives', blob.includes('build output') && blob.includes('done'), '', 'storeArtifact in src/utils/artifacts/store.ts must redact only the secret span and keep the text around it')
+    check('the raw secret is NOT in the blob on disk', !blob.includes(SECRET), '', 'storeArtifact in src/sessions/artifacts/store.ts must run the content through redactSecrets before writing the blob')
+    check('the secret span is [REDACTED]', blob.includes('[REDACTED]'), '', 'redactSecrets in src/platform/secrets/secretScanner.ts must replace the secret span with the [REDACTED] marker')
+    check('surrounding content survives', blob.includes('build output') && blob.includes('done'), '', 'storeArtifact in src/sessions/artifacts/store.ts must redact only the secret span and keep the text around it')
   }
 }
 
@@ -45,9 +45,9 @@ section('#9 — metadata value redaction (not just keys)')
 {
   const red = redactMetadata({ note: `the token is ${SECRET}`, apiKey: 'should-be-key-redacted' })
   const json = JSON.stringify(red)
-  check('a secret VALUE under a benign key ("note") is scrubbed', !json.includes(SECRET), '', 'redactValue in src/utils/artifacts/store.ts must pass string values under non-sensitive keys through redactSecrets')
-  check('the benign key is preserved, value [REDACTED]', json.includes('[REDACTED]'), '', 'redactMetadata in src/utils/artifacts/store.ts must keep the key and put the [REDACTED] marker in the value')
-  check('a SENSITIVE key ("apiKey") is still redacted', !json.includes('should-be-key-redacted'), '', 'SENSITIVE_KEY in src/utils/artifacts/store.ts must match apiKey so redactMetadata redacts its value')
+  check('a secret VALUE under a benign key ("note") is scrubbed', !json.includes(SECRET), '', 'redactValue in src/sessions/artifacts/store.ts must pass string values under non-sensitive keys through redactSecrets')
+  check('the benign key is preserved, value [REDACTED]', json.includes('[REDACTED]'), '', 'redactMetadata in src/sessions/artifacts/store.ts must keep the key and put the [REDACTED] marker in the value')
+  check('a SENSITIVE key ("apiKey") is still redacted', !json.includes('should-be-key-redacted'), '', 'SENSITIVE_KEY in src/sessions/artifacts/store.ts must match apiKey so redactMetadata redacts its value')
 }
 
 section('end-to-end: sidecar on disk has no secret value')
@@ -61,33 +61,33 @@ section('end-to-end: sidecar on disk has no secret value')
   })
   if (r.path) {
     const sidecar = readFileSync(r.path + '.meta.json', 'utf8')
-    check('sidecar JSON contains no raw secret', !sidecar.includes(SECRET), '', 'storeArtifact in src/utils/artifacts/store.ts must write redactMetadata(input.metadata) to the .meta.json sidecar')
+    check('sidecar JSON contains no raw secret', !sidecar.includes(SECRET), '', 'storeArtifact in src/sessions/artifacts/store.ts must write redactMetadata(input.metadata) to the .meta.json sidecar')
   } else {
-    check('sidecar written', false, '', 'storeArtifact in src/utils/artifacts/store.ts returned no path; fix it so a write of small content with metadata succeeds')
+    check('sidecar written', false, '', 'storeArtifact in src/sessions/artifacts/store.ts returned no path; fix it so a write of small content with metadata succeeds')
   }
 }
 
 section('#11 — distinct project dirs ⇒ distinct artifact scopes')
 {
-  check('non-injective collision pair now maps to DISTINCT scopes', scopeSlugForDir('/a/b') !== scopeSlugForDir('/a_b'), '', 'scopeSlugForDir in src/utils/artifacts/store.ts must add the hash of the full directory to the slug')
-  check('two distinct project dirs ⇒ distinct scopes', scopeSlugForDir('/home/u/projA') !== scopeSlugForDir('/home/u/projB'), '', 'scopeSlugForDir in src/utils/artifacts/store.ts must give different directories different slugs')
-  check('same dir ⇒ STABLE scope (writer & reader agree)', scopeSlugForDir('/home/u/proj') === scopeSlugForDir('/home/u/proj'), '', 'scopeSlugForDir in src/utils/artifacts/store.ts must be deterministic for one directory')
-  check('scope is still filesystem-safe', /^[A-Za-z0-9._-]+$/.test(scopeSlugForDir('/weird path/with spaces')), '', 'scopeSlugForDir in src/utils/artifacts/store.ts must keep only letters, digits, dot, underscore and dash')
+  check('non-injective collision pair now maps to DISTINCT scopes', scopeSlugForDir('/a/b') !== scopeSlugForDir('/a_b'), '', 'scopeSlugForDir in src/sessions/artifacts/store.ts must add the hash of the full directory to the slug')
+  check('two distinct project dirs ⇒ distinct scopes', scopeSlugForDir('/home/u/projA') !== scopeSlugForDir('/home/u/projB'), '', 'scopeSlugForDir in src/sessions/artifacts/store.ts must give different directories different slugs')
+  check('same dir ⇒ STABLE scope (writer & reader agree)', scopeSlugForDir('/home/u/proj') === scopeSlugForDir('/home/u/proj'), '', 'scopeSlugForDir in src/sessions/artifacts/store.ts must be deterministic for one directory')
+  check('scope is still filesystem-safe', /^[A-Za-z0-9._-]+$/.test(scopeSlugForDir('/weird path/with spaces')), '', 'scopeSlugForDir in src/sessions/artifacts/store.ts must keep only letters, digits, dot, underscore and dash')
 }
 
 section('#10 — two adjacent azure secrets: the SECOND no longer leaks')
 {
   const { redactSecrets } = await import(
-    '../../src/utils/secrets/secretScanner.js'
+    '../../src/platform/secrets/secretScanner.js'
   )
   const az1 = 'abc1Q~' + 'a'.repeat(33)
   const az2 = 'xyz9Q~' + 'b'.repeat(33)
   const nl = redactSecrets(`${az1}\n${az2}`)
-  check('newline-separated: az1 redacted', !nl.includes(az1), '', 'the Azure rule built in buildRules (src/utils/secrets/secretScanner.ts) no longer redacts a lone secret')
-  check('newline-separated: az2 redacted (was the leak)', !nl.includes(az2), '', 'the Azure rule built in buildRules (src/utils/secrets/secretScanner.ts) must not consume the separator that the next secret needs')
+  check('newline-separated: az1 redacted', !nl.includes(az1), '', 'the Azure rule built in buildRules (src/platform/secrets/secretScanner.ts) no longer redacts a lone secret')
+  check('newline-separated: az2 redacted (was the leak)', !nl.includes(az2), '', 'the Azure rule built in buildRules (src/platform/secrets/secretScanner.ts) must not consume the separator that the next secret needs')
   const sp = redactSecrets(`${az1} ${az2}`)
-  check('space-separated: both redacted', !sp.includes(az1) && !sp.includes(az2), '', 'the Azure rule built in buildRules (src/utils/secrets/secretScanner.ts) must not consume the separator that the next secret needs')
-  check('single secret still redacts', !redactSecrets(` ${az1} `).includes(az1), '', 'the Azure rule built in buildRules (src/utils/secrets/secretScanner.ts) must still redact a secret surrounded by spaces')
+  check('space-separated: both redacted', !sp.includes(az1) && !sp.includes(az2), '', 'the Azure rule built in buildRules (src/platform/secrets/secretScanner.ts) must not consume the separator that the next secret needs')
+  check('single secret still redacts', !redactSecrets(` ${az1} `).includes(az1), '', 'the Azure rule built in buildRules (src/platform/secrets/secretScanner.ts) must still redact a secret surrounded by spaces')
 }
 
 console.log('\n' + '═'.repeat(76))

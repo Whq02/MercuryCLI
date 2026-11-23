@@ -9,7 +9,7 @@ import { seedScratchHome } from '../lib/scriptedTurn.ts'
 
 let failures = 0
 let checks = 0
-const budgetRuleHint = 'to fix, change the stop before a model call (inputFloorUsd in src/rows/turn/modelRows.ts) or its sentences (budgetCannotPaySentence and the budget_limit line in src/rows/vocabulary.ts), then rebuild dist'
+const budgetRuleHint = 'to fix, change the stop before a model call (inputFloorUsd in src/engine/rows/turn/modelRows.ts) or its sentences (budgetCannotPaySentence and the budget_limit line in src/engine/rows/vocabulary.ts), then rebuild dist'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++

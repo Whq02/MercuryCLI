@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { findLatestSession, launchArgs, runTaskWithPolicy } from './live/runner.js'
 import { policyById } from './live/policies.js'
-import { getProjectDir } from '../../src/utils/sessionStoragePortable.js'
+import { getProjectDir } from '../../src/sessions/transcripts/sessionStoragePortable.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = '', hint = ''): void {

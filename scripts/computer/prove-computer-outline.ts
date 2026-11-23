@@ -3,9 +3,9 @@ import { join } from 'node:path'
 import { check, finish, scratchDir } from './computerProofKit.ts'
 import { allowEverything, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resetDesktopDriverForTest, resolveDesktopDriver } = await import('../../src/services/desktop/resolveDriver.ts')
-const { processPreMappedToolResultBlock } = await import('../../src/utils/toolResultStorage.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resetDesktopDriverForTest, resolveDesktopDriver } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const { processPreMappedToolResultBlock } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
 const frame = { x: 100, y: 100, width: 800, height: 600 }
 const button = { role: 'AXButton', title: 'Save', frame: { x: 200, y: 200, width: 80, height: 24 } }
 const dialog = { role: 'AXApplicationDialog', title: 'Routine', frame, children: [

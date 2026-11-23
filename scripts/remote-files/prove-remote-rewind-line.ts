@@ -21,28 +21,28 @@ process.chdir(project)
 const reactModule = (await import('react')) as unknown as { default?: typeof import('react') } & typeof import('react')
 const React = reactModule.default ?? reactModule
 const { default: stripAnsi } = await import('strip-ansi')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
-const { setCwdState, setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
+const { setCwdState, setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
 enableConfigs()
 setOriginalCwd(project)
 setCwdState(project)
-const { render } = await import('../../src/ink.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const selector = await import('../../src/components/MessageSelector.tsx')
-const focused = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+const { render } = await import('../../src/screen/themedRenderer.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const selector = await import('../../src/screen/rewind-picker/RewindPicker.tsx')
+const focused = await import('../../src/engine/connector/focusedConnector.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
 
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 180 seconds; the last section header printed above is the step that hung, and the rewind screen it renders is MessageSelector in src/components/MessageSelector.tsx')
+  console.log('  [FAIL] the proof did not finish within 180 seconds; the last section header printed above is the step that hung, and the rewind screen it renders is MessageSelector in src/screen/rewind-picker/RewindPicker.tsx')
   process.exit(1)
 }, 180_000)
 watchdog.unref()
 let failures = 0
 let checks = 0
 const SECTION_FIX: Record<string, string> = {
-  'what the s': 'change writtenElsewhereLine in src/components/messageSelector/stats.ts (which tool results count as a file written on another machine, and how the line names them)',
-  'the rewind': 'change the rewind screen in src/components/MessageSelector.tsx, where the writtenElsewhereLine row is placed under the Restores line and hidden on the conversation-only choice',
+  'what the s': 'change writtenElsewhereLine in src/screen/rewind-picker/stats.ts (which tool results count as a file written on another machine, and how the line names them)',
+  'the rewind': 'change the rewind screen in src/screen/rewind-picker/RewindPicker.tsx, where the writtenElsewhereLine row is placed under the Restores line and hidden on the conversation-only choice',
 }
 let sectionKey = ''
 const check = (label: string, ok: boolean, detail = ''): void => {

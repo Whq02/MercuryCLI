@@ -1,19 +1,19 @@
 import { lstatSync, readlinkSync, unlinkSync, writeSync } from 'node:fs'
 import { unlink } from 'fs/promises'
 import { basename } from 'path'
-import { GLYPH } from '../../utils/glyphs.js'
-import { logForDebugging } from '../../utils/debug.js'
-import { localIpcDoorKind } from '../../utils/platform/files.js'
-import { treeEndsSettled } from '../../utils/processGroup.js'
-import { recordSpawnExit } from '../spawnLedger.js'
-import { parkAllConcourseSessions } from '../concourseWorkers.js'
-import { clearControlKey, clearDaemonState, controlKeyPath, controlSockPath, daemonDir, markDaemonStoppingSync } from '../controlSocket.js'
-import { armDaemonHomeWatch } from '../daemonHome.js'
-import { forwardFrame, predecessorSockPath } from '../handover.js'
-import { supersededByLivePlaneOwnerSync } from '../planeRecords.js'
+import { GLYPH } from '../../screen/theme/glyphs.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
+import { localIpcDoorKind } from '../../platform/host-os/files.js'
+import { treeEndsSettled } from '../../platform/processes/processGroup.js'
+import { recordSpawnExit } from '../roster/spawnLedger.js'
+import { parkAllConcourseSessions } from '../concourse-workers/concourseWorkers.js'
+import { clearControlKey, clearDaemonState, controlKeyPath, controlSockPath, daemonDir, markDaemonStoppingSync } from '../control/controlSocket.js'
+import { armDaemonHomeWatch } from '../control/daemonHome.js'
+import { forwardFrame, predecessorSockPath } from '../control/handover.js'
+import { supersededByLivePlaneOwnerSync } from '../control/planeRecords.js'
 import type { DaemonRunState } from './state.js'
-import { passedOver, passedOverAs } from '../../utils/passedOver.js'
-import { startImmediate, startTimeout, stopInterval } from '../../utils/timers.js'
+import { passedOver, passedOverAs } from '../../platform/errors/passedOver.js'
+import { startImmediate, startTimeout, stopInterval } from '../../platform/async/timers.js'
 
 const PREDECESSOR_SHUTDOWN_WAIT_MS = 6_000
 const KILLED_TREES_BOUND_MS = 5_000
@@ -238,7 +238,7 @@ function failedAt(step: WayOutStep, e: unknown): never {
 
 function leaveWatchesToProcessEnd(): void {
   try {
-    const watches = require('../../utils/watchRoot.js') as typeof import('../../utils/watchRoot.js')
+    const watches = require('../../platform/processes/watchRoot.js') as typeof import('../../platform/processes/watchRoot.js')
     watches.leaveFileWatchesToProcessEnd()
   } catch (e) {
     logForDebugging(`[daemon] the file watches were not left to the process end: ${e}`)

@@ -23,13 +23,13 @@ if (process.env.MEASURE_CHILD) {
   const scene = process.env.MEASURE_SCENE ?? 'turn-thinking'
   const cols = Number(process.env.MEASURE_COLS ?? '120')
   const React = await import('react')
-  const { render, Box, Text } = (await import('../../src/ink.js')) as {
+  const { render, Box, Text } = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: unknown) => Promise<unknown>
     Box: unknown
     Text: unknown
   }
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
   const h = React.createElement as (...a: unknown[]) => unknown
   const ref = <T,>(v: T) => ({ current: v })
@@ -55,7 +55,7 @@ if (process.env.MEASURE_CHILD) {
   if (scene === 'idle-static') {
     live = h(Text as never, {}, '● ready')
   } else if (scene === 'scroll-fullwidth' || scene === 'scroll-cockpit') {
-    const { default: ScrollBox } = await import('../../src/ink/components/ScrollBox.js')
+    const { default: ScrollBox } = await import('../../src/screen/renderer/elements/ScrollBox.js')
     type Handle = {
       scrollBy: (dy: number) => void
       getScrollTop: () => number
@@ -94,7 +94,7 @@ if (process.env.MEASURE_CHILD) {
     }
     live = scene === 'scroll-cockpit' ? cockpitWrap(h(Scroller as never, {})) : h(Scroller as never, {})
   } else if (scene === 'stream-cockpit' || scene === 'stream-deckstrip') {
-    const { default: ScrollBox } = await import('../../src/ink/components/ScrollBox.js')
+    const { default: ScrollBox } = await import('../../src/screen/renderer/elements/ScrollBox.js')
     const Streamer = () => {
       const [count, setCount] = React.useState(1)
       React.useEffect(() => {
@@ -115,7 +115,7 @@ if (process.env.MEASURE_CHILD) {
     }
     live = scene === 'stream-cockpit' ? cockpitWrap(h(Streamer as never, {})) : h(Streamer as never, {})
   } else if (scene === 'turn-tools') {
-    const { ToolRowLead } = await import('../../src/components/messages/ToolRowLead.js')
+    const { ToolRowLead } = await import('../../src/screen/messages/ToolRowLead.js')
     live = h(
       Box as never,
       { flexDirection: 'column' },
@@ -129,7 +129,7 @@ if (process.env.MEASURE_CHILD) {
       ),
     )
   } else {
-    const { SpinnerAnimationRow } = await import('../../src/components/Spinner/SpinnerAnimationRow.js')
+    const { SpinnerAnimationRow } = await import('../../src/screen/spinner/SpinnerAnimationRow.js')
     const responseLengthRef = ref(0)
     if (scene === 'turn-responding') {
       setInterval(() => {
@@ -164,7 +164,7 @@ if (process.env.MEASURE_CHILD) {
   const tree = h(Box as never, { flexDirection: 'column' }, ...filler, live)
   let mounted = tree
   if (paneScene) {
-    const { AlternateScreen } = await import('../../src/ink/components/AlternateScreen.js')
+    const { AlternateScreen } = await import('../../src/screen/renderer/elements/AlternateScreen.js')
     mounted = h(AlternateScreen as never, { mouseTracking: false }, tree)
   }
   void render(h(AppStateProvider as never, {}, mounted))

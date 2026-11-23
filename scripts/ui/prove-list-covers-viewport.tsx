@@ -3,17 +3,17 @@ import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settl
 
 pinSourceRef()
 const home = pinScratchHome('list-covers-viewport')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { Box, Text } = await import('../../src/ink.js')
-const { default: ScrollBox } = await import('../../src/ink/components/ScrollBox.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { VirtualMessageList } = await import('../../src/components/VirtualMessageList.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { createUserMessage } = await import('../../src/utils/messages/factories.js')
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { default: ScrollBox } = await import('../../src/screen/renderer/elements/ScrollBox.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { VirtualMessageList } = await import('../../src/screen/virtual-message-list/VirtualMessageList.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { createUserMessage } = await import('../../src/engine/message-shapes/factories.js')
 const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
-type Scroll = import('../../src/ink/components/ScrollBox.js').ScrollBoxHandle
+type Scroll = import('../../src/screen/renderer/elements/ScrollBox.js').ScrollBoxHandle
 type Row = ReturnType<typeof createUserMessage>
 
 const VIEWPORT = 20
@@ -26,7 +26,7 @@ let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail === '' ? '' : `${detail}; `}fix the row windowing and scroll anchoring in src/hooks/useVirtualScroll.ts and src/components/VirtualMessageList.tsx; rerun with --only "<scene name>" --frames to see the painted frames`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail === '' ? '' : `${detail}; `}fix the row windowing and scroll anchoring in src/screen/virtual-message-list/useVirtualScroll.ts and src/screen/virtual-message-list/VirtualMessageList.tsx; rerun with --only "<scene name>" --frames to see the painted frames`}`)
   if (!ok) failures++
 }
 

@@ -1,0 +1,1186 @@
+import {
+  MESSAGE_TAG,
+  OUTPUT_FILE_TAG,
+  STATUS_TAG,
+  SUMMARY_TAG,
+  TASK_ID_TAG,
+  TASK_NOTIFICATION_TAG,
+  TOOL_USE_ID_TAG,
+} from '../../message-shapes/messageTags.js'
+import type { SetAppState, Task, TaskStateBase, TaskStatus } from '../taskBase.js'
+import { createTaskStateBase } from '../taskBase.js'
+import type { AppState } from '../../../screen/app-state/AppState.js'
+import { abortSpeculation } from '../../../screen/prompt-suggestion/speculation.js'
+import type { AgentDefinition } from '../../../crew/agents/agentDefinition.js'
+import type { AssistantMessage, Message } from '../../message-shapes/message.js'
+import { evalNestedToolIds } from '../../../tools/engines/eval-kernels/bridgeProgress.js'
+import type { ApiUsage } from '../../message-shapes/wire.js'
+import { isRecord } from '../../../platform/primitives/isRecord.js'
+import type { Tools } from '../../../tools/kit/tool.js'
+import { findToolByName, safeSearchOrReadClassification } from '../../../tools/kit/tool.js'
+import { createAbortController } from '../../../platform/async/abortController.js'
+import { registerCleanup } from '../../../platform/processes/cleanupRegistry.js'
+import { crewWorktreeLeftoverNoted } from '../../../crew/crewmates/crewWorktreeReminder.js'
+import { logForDebugging } from '../../../platform/logs/debugLog.js'
+import { sliceHeadAtGrapheme, sliceTailAtGrapheme } from '../../../platform/text/textSegments.js'
+import { calculateUSDCost, modelPricingBasis } from '../../../models/usage/modelCost.js'
+import { getTokenCountFromUsage } from '../../context-window/contextTokenCount.js'
+import { getSpentTokensFromUsage } from '../../context-window/tokenUsage.js'
+import { enqueuePendingNotification } from '../../../daemon/runner/messageQueueManager.js'
+import { consumeAgentMessages, recordAgentMessage } from '../../../sessions/notices/unreadLedger.js'
+import { getAgentTranscriptPath } from '../../../sessions/transcripts/paths.js'
+import type { AgentId } from '../../../sessions/transcripts/ids.js'
+import { asAgentId } from '../../../sessions/transcripts/ids.js'
+import {
+  evictTaskOutput,
+  getTaskOutputPath,
+  initTaskOutputAsSymlink,
+} from '../../task-framework/diskOutput.js'
+import { PANEL_GRACE_MS, registerTask, updateTaskState } from '../../task-framework/taskRegistry.js'
+import { emitTaskProgress } from '../../task-framework/sdkProgress.js'
+import { operatorPauseGate } from '../../loop/pauseGate.js'
+import { emitTaskEnded, enqueueRow, type TaskUsage } from '../../../daemon/runner/sdkEventQueue.js'
+import { AGENT_MESSAGE_STATUS, MAIN_AGENT_MESSAGE_SUMMARY } from './agentMessage.js'
+import { foldAgentWaitEvent, type AgentWaitV1 } from './agentWait.js'
+import type { AgentPauseV1 } from './agentPause.js'
+import { isOverloadAnswerText, overloadPauseWords } from './agentOverload.js'
+import type { BackgroundHandoverReason } from './launchReceipts.js'
+import { isSyntheticApiErrorMessage } from '../../message-shapes/factories.js'
+import { observedFamilyWindow } from '../../../models/roads/capFailover.js'
+import { CREW_INTERRUPTED_BY_OPERATOR_WORDS } from '../../connector/crewFacts.js'
+import { providerFamilyOfSetting } from '../../../models/catalogue/modelTransition.js'
+import { getMarketingNameForModel } from '../../../models/catalogue/engineModel.js'
+import { getSessionId } from '../../../boot/process-state/processState.js'
+import { mirrorSwarmNotice } from '../../../crew/board/seam.js'
+import { taskRow } from '../../rows/project.js'
+import { NOTIFICATION_RESULT_CAP_CHARS } from '../../../crew/agent-results/summaryRoom.js'
+import { passedOver } from '../../../platform/errors/passedOver.js'
+import { startTimeout, stopTimeout } from '../../../platform/async/timers.js'
+
+
+const DEFAULT_AGENT_TYPE = 'mercury-crew'
+
+const MAIN_SESSION_AGENT_TYPE = 'main-session'
+
+const MAX_RECENT_ACTIVITIES = 5
+
+const STRUCTURED_OUTPUT_TOOL_NAME = 'StructuredOutput'
+
+
+export type ToolActivity = {
+  toolName: string
+  input: unknown
+  activityDescription?: string
+  isSearch?: boolean
+  isRead?: boolean
+}
+
+type AgentProgress = {
+  toolUseCount: number
+  tokenCount: number
+  totalTokens: number
+  totalToolUseCount: number
+  lastActivity?: ToolActivity
+  recentActivities: ToolActivity[]
+  inputTokens?: number
+  outputTokens?: number
+  cacheReadTokens?: number
+  contextTokens?: number
+  costUSD?: number
+  unpricedTurns?: number
+  model?: string
+  phase?: AgentWaitV1
+}
+
+type AgentLedger = {
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  contextTokens: number
+  costUSD: number
+  unpricedTurns: number
+  servedModel?: string
+  lastResponseId?: string
+  lastResponse?: { input: number; output: number; cached: number; cost: number; unpriced: number }
+}
+
+export type ProgressTracker = {
+  toolUseCount: number
+  bridgeToolUseIds?: Set<string>
+  recentActivities: ToolActivity[]
+  ledger: AgentLedger
+  lastAssistant?: AssistantMessage
+  phase: AgentWaitV1 | null
+}
+
+export function createAgentLedger(): AgentLedger {
+  return { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, contextTokens: 0, costUSD: 0, unpricedTurns: 0 }
+}
+
+export function foldQueryProgressIntoTracker(tracker: ProgressTracker, event: unknown, nowMs: number = Date.now()): boolean {
+  const next = foldAgentWaitEvent(tracker.phase, event, nowMs)
+  if (next === tracker.phase) return false
+  tracker.phase = next
+  return true
+}
+
+export function foldResponseIntoLedger(ledger: AgentLedger, assistant: AssistantMessage): void {
+  const usage = assistant.message.usage
+  if (!usage) return
+  const context = getTokenCountFromUsage(usage as ApiUsage)
+  const output = usage.output_tokens ?? 0
+  const input = getSpentTokensFromUsage(usage as ApiUsage) - output
+  if (context <= 0) return
+  const rawModel = (assistant.message as { model?: unknown }).model
+  const model = typeof rawModel === 'string' && rawModel.trim() !== '' ? rawModel : undefined
+  const priced = model !== undefined && modelPricingBasis(model) !== 'unpriced'
+  const startedAtMs = Number((usage as { request_started_at_ms?: number }).request_started_at_ms) || Date.parse(assistant.timestamp)
+  const cost = priced
+    ? calculateUSDCost(model, {
+        input_tokens: usage.input_tokens ?? 0,
+        output_tokens: usage.output_tokens ?? 0,
+        ...(usage.cache_read_input_tokens != null ? { cache_read_input_tokens: usage.cache_read_input_tokens } : {}),
+        ...(usage.cache_creation_input_tokens != null
+          ? { cache_creation_input_tokens: usage.cache_creation_input_tokens }
+          : {}),
+        ...(usage.cache_creation ? { cache_creation: usage.cache_creation } : {}),
+        ...(Number.isFinite(startedAtMs) ? { request_started_at_ms: startedAtMs } : {}),
+      })
+    : 0
+  const next = { input, output, cached: usage.cache_read_input_tokens ?? 0, cost, unpriced: priced ? 0 : 1 }
+  const id = typeof assistant.message.id === 'string' ? assistant.message.id : undefined
+  if (id !== undefined && ledger.lastResponseId === id && ledger.lastResponse !== undefined) {
+    const prev = ledger.lastResponse
+    ledger.inputTokens -= prev.input
+    ledger.outputTokens -= prev.output
+    ledger.cacheReadTokens -= prev.cached
+    ledger.costUSD -= prev.cost
+    ledger.unpricedTurns -= prev.unpriced
+  }
+  ledger.inputTokens += next.input
+  ledger.outputTokens += next.output
+  ledger.cacheReadTokens += next.cached
+  ledger.contextTokens = context
+  ledger.costUSD += next.cost
+  ledger.unpricedTurns += next.unpriced
+  ledger.lastResponseId = id
+  ledger.lastResponse = next
+  if (model !== undefined) ledger.servedModel = model
+}
+
+type ActivityDescriptionResolver = (toolName: string, input: unknown) => string | null
+
+export function createProgressTracker(): ProgressTracker {
+  return {
+    toolUseCount: 0,
+    recentActivities: [],
+    ledger: createAgentLedger(),
+    phase: null,
+  }
+}
+
+export function getTokenCountFromTracker(tracker: ProgressTracker): number {
+  if (tracker.lastAssistant !== undefined) {
+    foldResponseIntoLedger(tracker.ledger, tracker.lastAssistant)
+  }
+  return tracker.ledger.inputTokens + tracker.ledger.outputTokens
+}
+
+export function getContextTokensFromTracker(tracker: ProgressTracker): number {
+  if (tracker.lastAssistant !== undefined) foldResponseIntoLedger(tracker.ledger, tracker.lastAssistant)
+  return tracker.ledger.contextTokens
+}
+
+export function createActivityDescriptionResolver(
+  tools: Tools,
+): ActivityDescriptionResolver {
+  return (toolName: string, input: unknown): string | null => {
+    const tool = findToolByName(tools, toolName)
+    if (!tool?.getActivityDescription) return null
+    try {
+      return tool.getActivityDescription(input) ?? null
+    } catch (error) {
+      passedOver(error)
+      return null
+    }
+  }
+}
+
+export function updateProgressFromMessage(
+  tracker: ProgressTracker,
+  message: Message,
+  resolveActivityDescription?: ActivityDescriptionResolver,
+  tools?: Tools,
+): void {
+  const nestedIds = evalNestedToolIds(message)
+  if (nestedIds.length > 0) {
+    const seen = (tracker.bridgeToolUseIds ??= new Set())
+    for (const id of nestedIds) {
+      if (!seen.has(id)) {
+        seen.add(id)
+        tracker.toolUseCount += 1
+      }
+    }
+  }
+  if (message.type !== 'assistant') return
+  if (tracker.lastAssistant !== undefined) {
+    foldResponseIntoLedger(tracker.ledger, tracker.lastAssistant)
+  }
+  tracker.lastAssistant = message
+  foldResponseIntoLedger(tracker.ledger, message)
+  const content = message.message.content
+  if (!Array.isArray(content)) return
+  for (const block of content) {
+    if (block.type !== 'tool_use') continue
+    tracker.toolUseCount += 1
+    if (block.name === STRUCTURED_OUTPUT_TOOL_NAME) continue
+    const activityDescription = resolveActivityDescription?.(block.name, block.input) ?? undefined
+    const tool = tools ? findToolByName(tools, block.name) : undefined
+    const classification = safeSearchOrReadClassification(tool, block.input)
+    const activity: ToolActivity = {
+      toolName: block.name,
+      input: block.input,
+      ...(activityDescription !== undefined ? { activityDescription } : {}),
+      ...(classification !== undefined
+        ? { isSearch: classification.isSearch, isRead: classification.isRead }
+        : {}),
+    }
+    tracker.recentActivities.push(activity)
+    if (tracker.recentActivities.length > MAX_RECENT_ACTIVITIES) {
+      tracker.recentActivities.splice(0, tracker.recentActivities.length - MAX_RECENT_ACTIVITIES)
+    }
+  }
+}
+
+export function getProgressUpdate(tracker: ProgressTracker): AgentProgress {
+  const tokenCount = getTokenCountFromTracker(tracker)
+  const recentActivities = [...tracker.recentActivities]
+  const lastActivity = recentActivities.at(-1)
+  const { ledger } = tracker
+  return {
+    toolUseCount: tracker.toolUseCount,
+    tokenCount,
+    totalTokens: tokenCount,
+    totalToolUseCount: tracker.toolUseCount,
+    ...(lastActivity !== undefined ? { lastActivity } : {}),
+    recentActivities,
+    ...(ledger.contextTokens > 0
+      ? {
+          inputTokens: ledger.inputTokens,
+          outputTokens: ledger.outputTokens,
+          cacheReadTokens: ledger.cacheReadTokens,
+          contextTokens: ledger.contextTokens,
+          costUSD: ledger.costUSD,
+          unpricedTurns: ledger.unpricedTurns,
+        }
+      : {}),
+    ...(ledger.servedModel !== undefined ? { model: ledger.servedModel } : {}),
+    ...(tracker.phase !== null ? { phase: tracker.phase } : {}),
+  }
+}
+
+export function publishAgentWaitFromEvent(
+  taskId: string,
+  tracker: ProgressTracker,
+  event: unknown,
+  setAppState: SetAppState,
+): void {
+  if (foldQueryProgressIntoTracker(tracker, event)) updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
+}
+
+
+export type LocalAgentTaskState = TaskStateBase & {
+  type: 'local_agent'
+  agentId: string
+  prompt: string
+  selectedAgent?: AgentDefinition
+  agentType: string
+  model?: string
+  abortController?: AbortController
+  registration?: AbortController
+  cleanup?: () => void
+  error?: string
+  result?: { agentId: string; [key: string]: unknown }
+  progress?: AgentProgress
+  summary?: string
+  wait?: string
+  pendingAsks?: number
+  retrieved?: boolean
+  stopReason?: string
+  paused?: AgentPauseV1
+  messages?: Message[]
+  lastReportedToolCount?: number
+  lastReportedTokenCount?: number
+  isBackgrounded: boolean
+  handoverReason?: BackgroundHandoverReason
+  pendingMessages?: string[]
+  operatorMessages?: string[]
+  compactRequested?: true
+  replyTarget?: 'parent' | 'operator'
+  retain?: boolean
+  diskLoaded?: boolean
+  evictAfter?: number
+}
+
+export function isLocalAgentTask(task: unknown): task is LocalAgentTaskState {
+  return isRecord(task) && task.type === 'local_agent'
+}
+
+export function isPanelAgentTask(task: unknown): task is LocalAgentTaskState {
+  return isLocalAgentTask(task) && task.agentType !== MAIN_SESSION_AGENT_TYPE
+}
+
+export function mergeDiskPrefix<M extends { uuid: unknown }>(live: M[], disk: M[]): M[] {
+  if (disk.length === 0) return live
+  const liveIds = new Set(live.map(message => message.uuid))
+  const diskOnly = disk.filter(message => !liveIds.has(message.uuid))
+  if (diskOnly.length === 0) return live
+  return [...diskOnly, ...live]
+}
+
+
+export const AGENT_STOP_BY_OPERATOR = 'crew-stop'
+export const AGENT_INTERRUPT_BY_OPERATOR = 'operator-interrupt'
+export const AGENT_INTERRUPTED_STATUS_WORD = 'interrupted'
+export const AGENT_INTERRUPTED_WORDS = CREW_INTERRUPTED_BY_OPERATOR_WORDS
+const AGENT_INTERRUPTED_NOTE = 'the operator cut it off on purpose — not a fault, not a loop stop'
+
+export function agentStopReasonOf(signalReason: unknown): string | undefined {
+  if (signalReason === AGENT_STOP_BY_OPERATOR) return 'stopped from the crew view'
+  if (signalReason === AGENT_INTERRUPT_BY_OPERATOR) return AGENT_INTERRUPTED_WORDS
+  return undefined
+}
+
+export function agentStopStatusWordOf(signalReason: unknown): string | undefined {
+  return signalReason === AGENT_INTERRUPT_BY_OPERATOR ? AGENT_INTERRUPTED_STATUS_WORD : undefined
+}
+
+export const AGENT_RESUME_DOOR = 'resume it from the crew view (r on its row) or by ResumeCrewmate to its id'
+
+export const AGENT_RESUME_NOTE =
+  'The operator resumed you from the crew view after a stop. Continue from where your transcript ends — the work before the stop stands; do not redo it.'
+
+export const AGENT_BUDGET_RESUME_NOTE =
+  "The recovery budget's allowance is back and you were resumed by yourself after it was spent waiting on the provider. Continue from where your transcript ends — the work before the cut stands; do not redo it."
+
+export { AGENT_WINDOW_RESUME_NOTE } from './agentPause.js'
+
+export function pauseAgentTask(
+  taskId: string,
+  pause: AgentPauseV1,
+  setAppState: SetAppState,
+  registration?: AbortController,
+): void {
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (heldByAnotherRegistration(task, registration)) return task
+    if (task.status === 'running') return task
+    return { ...task, paused: pause }
+  })
+}
+
+export function usageWindowPauseOf(messages: readonly Message[], model: string | null | undefined): AgentPauseV1 | null {
+  let last: Message | undefined
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]!
+    if (message.type !== 'assistant') continue
+    last = message
+    break
+  }
+  if (last === undefined || last.type !== 'assistant' || !isSyntheticApiErrorMessage(last)) return null
+  const asked = typeof last.providerWaitEndsAtMs === 'number' && last.providerWaitEndsAtMs > Date.now() ? last.providerWaitEndsAtMs : undefined
+  if (last.error !== 'rate_limit' && asked === undefined) return null
+  if (last.busyRefusal !== undefined && asked === undefined) return null
+  const family = providerFamilyOfSetting(model ?? null)
+  const window = ((): { resetsAtMs?: number; windowName?: string } => {
+    if (last.error !== 'rate_limit') return {}
+    try {
+      return observedFamilyWindow(family, undefined, { model: model ?? null })
+    } catch (error) {
+      passedOver(error)
+      return {}
+    }
+  })()
+  const who = ((): string => {
+    if (model === undefined || model === null) return family
+    try {
+      return getMarketingNameForModel(model) ?? model
+    } catch {
+      return model
+    }
+  })()
+  const resumesAtMs = asked ?? (window.resetsAtMs !== undefined && window.resetsAtMs > Date.now() ? window.resetsAtMs : undefined)
+  const content = last.message.content
+  const words = (typeof content === 'string' ? content : content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n')).trim()
+  return {
+    why: last.error === 'rate_limit' ? 'usage limit' : 'provider busy',
+    words: words || `the provider refused ${who}'s request`,
+    ...(resumesAtMs !== undefined ? { resumesAtMs } : {}),
+  }
+}
+
+function pauseModelWords(model: string | null | undefined): string {
+  if (model === undefined || model === null) return providerFamilyOfSetting(null)
+  try {
+    return getMarketingNameForModel(model) ?? model
+  } catch {
+    return model
+  }
+}
+
+export function overloadPauseOf(messages: readonly Message[], model: string | null | undefined): { pause: AgentPauseV1; who: string; status: number | null } | null {
+  let last: Message | undefined
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]!
+    if (message.type !== 'assistant') continue
+    last = message
+    break
+  }
+  if (last === undefined || last.type !== 'assistant' || !isSyntheticApiErrorMessage(last)) return null
+  if (typeof last.providerWaitEndsAtMs === 'number' && last.providerWaitEndsAtMs > Date.now()) return null
+  const content = last.message.content
+  const text = Array.isArray(content) ? content.map(block => ((block as { type?: string; text?: string }).type === 'text' ? ((block as { text?: string }).text ?? '') : '')).join('\n') : ''
+  if (last.busyRefusal === undefined && !isOverloadAnswerText(text)) return null
+  const status = last.busyRefusal !== undefined ? (last.busyRefusal.status ?? null) : 529
+  const who = pauseModelWords(model)
+  return { pause: { why: 'provider overloaded', words: overloadPauseWords(who, undefined, status) }, who, status }
+}
+
+export const AGENT_STOPPED_WHILE_PAUSED = 'stopped while paused'
+
+export function stopPausedAgentTask(taskId: string, setAppState: SetAppState): { description: string; pause: AgentPauseV1 } | null {
+  let stopped: { description: string; pause: AgentPauseV1 } | null = null
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (task.status === 'running' || task.paused === undefined) return task
+    stopped = { description: task.description, pause: task.paused }
+    const { paused: _gone, ...withoutPause } = task
+    return terminalPatch(withoutPause, 'killed', { stopReason: AGENT_STOPPED_WHILE_PAUSED })
+  })
+  return stopped
+}
+
+export function unpauseAgentTask(taskId: string, setAppState: SetAppState, registration?: AbortController): void {
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (heldByAnotherRegistration(task, registration)) return task
+    if (task.paused === undefined) return task
+    const { paused: _gone, ...rest } = task
+    return rest
+  })
+}
+
+export function enqueueAgentReceiptRow(args: { taskId: string; description: string; summary: string; status?: string }): void {
+  const status = args.status ?? 'resumed'
+  const message = `<${TASK_NOTIFICATION_TAG}>
+<${TASK_ID_TAG}>${args.taskId}</${TASK_ID_TAG}>
+<${OUTPUT_FILE_TAG}>${getTaskOutputPath(args.taskId)}</${OUTPUT_FILE_TAG}>
+<${STATUS_TAG}>${status}</${STATUS_TAG}>
+<${SUMMARY_TAG}>${args.summary}</${SUMMARY_TAG}>
+</${TASK_NOTIFICATION_TAG}>`
+  enqueuePendingNotification({
+    value: message,
+    mode: 'task-notification',
+    priority: 'next',
+  })
+}
+
+export function agentMessageSummary(sender: { taskId: string; description?: string } | null): string {
+  return sender === null ? MAIN_AGENT_MESSAGE_SUMMARY : `Crewmate "${sender.description ?? sender.taskId}" sent a message`
+}
+
+export function agentMessageNotice(args: { taskId: string; summary: string; text: string }): string {
+  return `<${TASK_NOTIFICATION_TAG}>
+<${TASK_ID_TAG}>${args.taskId}</${TASK_ID_TAG}>
+<${OUTPUT_FILE_TAG}>${getTaskOutputPath(args.taskId)}</${OUTPUT_FILE_TAG}>
+<${STATUS_TAG}>${AGENT_MESSAGE_STATUS}</${STATUS_TAG}>
+<${SUMMARY_TAG}>${args.summary}</${SUMMARY_TAG}>
+<${MESSAGE_TAG}>${args.text}</${MESSAGE_TAG}>
+</${TASK_NOTIFICATION_TAG}>`
+}
+
+export function enqueueMessageToMainAgent(args: { fromTaskId: string; description: string; text: string }): void {
+  const summary = agentMessageSummary({ taskId: args.fromTaskId, description: args.description })
+  enqueuePendingNotification({ value: agentMessageNotice({ taskId: args.fromTaskId, summary, text: args.text }), mode: 'task-notification', priority: 'next' })
+}
+
+export function speakAgentMessageFrame(taskId: string, notice: string): void {
+  const summary = new RegExp(`<${SUMMARY_TAG}>([\\s\\S]*?)</${SUMMARY_TAG}>`).exec(notice)?.[1]?.trim()
+  enqueueRow(taskRow({ session_id: getSessionId() }, { state: 'progress', taskId, outputFile: getTaskOutputPath(taskId), summary: summary === undefined || summary === '' ? 'a message' : summary }))
+}
+
+export function crewStillRunning(tasks: Record<string, unknown> | undefined): number {
+  let n = 0
+  for (const task of Object.values(tasks ?? {})) {
+    const t = task as { type?: string; status?: string; agentType?: string }
+    if (t.status !== 'running') continue
+    if (t.type === 'local_agent' && t.agentType !== MAIN_SESSION_AGENT_TYPE) n++
+  }
+  return n
+}
+
+
+const backgroundSignalResolvers = new Map<string, () => void>()
+
+function resolveBackgroundSignal(taskId: string): void {
+  const resolve = backgroundSignalResolvers.get(taskId)
+  if (resolve) {
+    backgroundSignalResolvers.delete(taskId)
+    resolve()
+  }
+}
+
+type AgentSiblingEnd = {
+  taskId: string
+  description: string
+  status: 'failed' | 'stopped'
+  error?: string
+}
+
+const siblingEnds = new Map<string, AgentSiblingEnd>()
+
+function releaseForegroundSiblings(end: AgentSiblingEnd, setAppState: SetAppState): string[] {
+  const candidates = [...backgroundSignalResolvers.keys()].filter(id => id !== end.taskId)
+  if (candidates.length === 0) return []
+  let moved: string[] = []
+  setAppState((prev: AppState) => {
+    const nextMoved: string[] = []
+    let nextTasks: AppState['tasks'] | undefined
+    for (const id of candidates) {
+      const task = prev.tasks[id]
+      if (!isLocalAgentTask(task) || task.status !== 'running' || task.isBackgrounded) continue
+      if (nextTasks === undefined) nextTasks = { ...prev.tasks }
+      nextTasks[id] = { ...task, isBackgrounded: true }
+      nextMoved.push(id)
+    }
+    moved = nextMoved
+    return nextTasks === undefined ? prev : { ...prev, tasks: nextTasks }
+  })
+  for (const id of moved) {
+    siblingEnds.set(id, end)
+    resolveBackgroundSignal(id)
+  }
+  return moved
+}
+
+export function takeSiblingEnd(taskId: string): AgentSiblingEnd | null {
+  const end = siblingEnds.get(taskId) ?? null
+  siblingEnds.delete(taskId)
+  return end
+}
+
+export function resetSiblingEnds(): void {
+  siblingEnds.clear()
+}
+
+const registrationReplyTargets = new WeakMap<AbortController, 'parent' | 'operator'>()
+
+export function registerAsyncAgent(args: {
+  agentId: string
+  description: string
+  prompt: string
+  setAppState: SetAppState
+  selectedAgent?: AgentDefinition
+  model?: string
+  toolUseId?: string
+  replyTarget?: 'parent' | 'operator'
+  compactRequested?: true
+}): LocalAgentTaskState {
+  const taskId = args.agentId
+  void initTaskOutputAsSymlink(taskId, getAgentTranscriptPath(taskId as AgentId))
+  const abortController = createAbortController()
+  const cleanup = registerCleanup(async () => {
+    killAsyncAgent(taskId, args.setAppState)
+  })
+  const state: LocalAgentTaskState = {
+    ...createTaskStateBase({ task_id: taskId, task_type: 'local_agent', description: args.description, call_id: args.toolUseId }),
+    type: 'local_agent',
+    status: 'running',
+    agentId: args.agentId,
+    prompt: args.prompt,
+    selectedAgent: args.selectedAgent,
+    agentType: args.selectedAgent?.agentType ?? DEFAULT_AGENT_TYPE,
+    model: args.model,
+    abortController,
+    registration: abortController,
+    cleanup,
+    isBackgrounded: true,
+    replyTarget: args.replyTarget ?? 'parent',
+    retain: false,
+    ...(args.compactRequested === true ? { compactRequested: true as const } : {}),
+  }
+  registrationReplyTargets.set(abortController, state.replyTarget!)
+  registerTask(state, args.setAppState)
+  return state
+}
+
+export function registerAgentForeground(args: {
+  agentId: string
+  description: string
+  prompt: string
+  setAppState: SetAppState
+  selectedAgent?: AgentDefinition
+  model?: string
+  toolUseId?: string
+}): {
+  taskId: string
+  abortController: AbortController
+  backgroundSignal: Promise<void>
+} {
+  const taskId = args.agentId
+  void initTaskOutputAsSymlink(taskId, getAgentTranscriptPath(taskId as AgentId))
+  const abortController = createAbortController()
+  const cleanup = registerCleanup(async () => {
+    killAsyncAgent(taskId, args.setAppState)
+  })
+  const state: LocalAgentTaskState = {
+    ...createTaskStateBase({ task_id: taskId, task_type: 'local_agent', description: args.description, call_id: args.toolUseId }),
+    type: 'local_agent',
+    status: 'running',
+    agentId: args.agentId,
+    prompt: args.prompt,
+    selectedAgent: args.selectedAgent,
+    agentType: args.selectedAgent?.agentType ?? DEFAULT_AGENT_TYPE,
+    model: args.model,
+    abortController,
+    registration: abortController,
+    cleanup,
+    isBackgrounded: false,
+  }
+  registerTask(state, args.setAppState)
+
+  const backgroundSignal = new Promise<void>(resolve => {
+    backgroundSignalResolvers.set(taskId, resolve)
+  })
+
+  return { taskId, abortController, backgroundSignal }
+}
+
+export function registerAgentName(name: string, agentId: string, setAppState: SetAppState): void {
+  setAppState(prev => {
+    const next = new Map(prev.agentNameRegistry)
+    next.set(name, asAgentId(agentId))
+    return { ...prev, agentNameRegistry: next }
+  })
+}
+
+export function backgroundAgentTask(
+  taskId: string,
+  getAppState: () => AppState,
+  setAppState: SetAppState,
+): boolean {
+  const task = getAppState().tasks?.[taskId]
+  if (!task || !isLocalAgentTask(task)) return false
+  if (task.isBackgrounded) return false
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, current =>
+    current.isBackgrounded ? current : { ...current, isBackgrounded: true },
+  )
+  resolveBackgroundSignal(taskId)
+  return true
+}
+
+export function handOverForegroundAgentsToQueuedMessage(
+  getAppState: () => AppState,
+  setAppState: SetAppState,
+): number {
+  let moved = 0
+  for (const task of Object.values(getAppState().tasks ?? {})) {
+    if (!isLocalAgentTask(task) || task.isBackgrounded || task.status !== 'running') continue
+    if (task.agentType === MAIN_SESSION_AGENT_TYPE) continue
+    updateTaskState<LocalAgentTaskState>(task.id, setAppState, current => ({ ...current, handoverReason: 'message-queued' }))
+    if (backgroundAgentTask(task.id, getAppState, setAppState)) moved += 1
+  }
+  return moved
+}
+
+export function unregisterAgentForeground(taskId: string, setAppState: SetAppState): void {
+  let cleanupToRun: (() => void) | undefined
+  setAppState(prevState => {
+    const task = prevState.tasks?.[taskId]
+    if (!task || !isLocalAgentTask(task)) return prevState
+    if (task.isBackgrounded) return prevState
+    cleanupToRun = task.cleanup
+    const tasks = { ...prevState.tasks }
+    delete tasks[taskId]
+    return { ...prevState, tasks }
+  })
+  backgroundSignalResolvers.delete(taskId)
+  cleanupToRun?.()
+}
+
+export function settleAgentForeground(
+  taskId: string,
+  status: 'completed' | 'failed' | 'stopped',
+  setAppState: SetAppState,
+  progress?: AgentProgress,
+  why?: { error: string; stopReason?: string },
+): void {
+  let settled = false
+  let description = ''
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (task.isBackgrounded) return task
+    if (task.status !== 'running') return progress !== undefined ? { ...task, progress } : task
+    settled = true
+    description = task.description
+    return terminalPatch(task, status === 'stopped' ? 'killed' : status, {
+      ...(progress !== undefined ? { progress } : {}),
+      ...(why !== undefined ? { error: why.error, ...(why.stopReason !== undefined ? { stopReason: why.stopReason } : {}) } : {}),
+    })
+  })
+  backgroundSignalResolvers.delete(taskId)
+  if (settled) {
+    void evictTaskOutput(taskId)
+    if (status !== 'completed') {
+      releaseForegroundSiblings({ taskId, description, status, ...(why !== undefined ? { error: why.error } : {}) }, setAppState)
+    }
+  }
+}
+
+
+function heldByAnotherRegistration(
+  task: LocalAgentTaskState,
+  registration: AbortController | undefined,
+): boolean {
+  return (
+    registration !== undefined &&
+    task.registration !== undefined &&
+    task.registration !== registration
+  )
+}
+
+const registrationEndTimes = new WeakMap<AbortController, number>()
+
+function terminalPatch(
+  task: LocalAgentTaskState,
+  status: TaskStatus,
+  patch: Partial<LocalAgentTaskState>,
+): LocalAgentTaskState {
+  task.cleanup?.()
+  const endTime = Date.now()
+  const registration = task.registration ?? task.abortController
+  if (registration !== undefined) registrationEndTimes.set(registration, endTime)
+  return {
+    ...task,
+    ...patch,
+    status,
+    endTime,
+    ...(task.retain ? {} : { evictAfter: Date.now() + PANEL_GRACE_MS }),
+    abortController: undefined,
+    cleanup: undefined,
+    selectedAgent: undefined,
+  }
+}
+
+export function completeAgentTask(
+  result: { agentId: string; [key: string]: unknown },
+  setAppState: SetAppState,
+  registration?: AbortController,
+  options: { usage?: TaskUsage; settleFrame?: boolean } = {},
+): void {
+  const taskId = result.agentId
+  let successorHolds = false
+  let settled: LocalAgentTaskState | undefined
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (heldByAnotherRegistration(task, registration)) {
+      successorHolds = true
+      return task
+    }
+    if (task.status !== 'running') return task
+    settled = task
+    return terminalPatch(task, 'completed', { result })
+  })
+  if (!successorHolds) void evictTaskOutput(taskId)
+  if (settled !== undefined && options.settleFrame !== false) emitSettleFrame(settled, 'completed', options.usage)
+}
+
+function emitSettleFrame(task: LocalAgentTaskState, status: 'completed' | 'failed', usage?: TaskUsage): void {
+  emitTaskEnded(task.id, status, {
+    ...(task.toolUseId !== undefined ? { toolUseId: task.toolUseId } : {}),
+    summary: task.description,
+    ...(usage !== undefined ? { usage } : {}),
+  })
+}
+
+export function failAgentTask(
+  taskId: string,
+  error: string,
+  setAppState: SetAppState,
+  registration?: AbortController,
+  options: { settleFrame?: boolean } = {},
+): void {
+  let successorHolds = false
+  let settled: LocalAgentTaskState | undefined
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (heldByAnotherRegistration(task, registration)) {
+      successorHolds = true
+      return task
+    }
+    if (task.status !== 'running') return task
+    settled = task
+    return terminalPatch(task, 'failed', { error })
+  })
+  if (!successorHolds) void evictTaskOutput(taskId)
+  if (settled !== undefined) {
+    if (options.settleFrame !== false) emitSettleFrame(settled, 'failed')
+    releaseForegroundSiblings({ taskId, description: settled.description, status: 'failed', error }, setAppState)
+  }
+}
+
+export function killAsyncAgent(
+  taskId: string,
+  setAppState: SetAppState,
+  stopReason?: string,
+  registration?: AbortController,
+): void {
+  let killed = false
+  let description = ''
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (task.status !== 'running') return task
+    if (heldByAnotherRegistration(task, registration)) return task
+    killed = true
+    description = task.description
+    task.abortController?.abort()
+    return terminalPatch(task, 'killed', stopReason !== undefined ? { stopReason } : {})
+  })
+  if (killed) {
+    void evictTaskOutput(taskId)
+    releaseForegroundSiblings({ taskId, description, status: 'stopped', ...(stopReason !== undefined ? { error: stopReason } : {}) }, setAppState)
+  }
+}
+
+export function killAllRunningAgentTasks(
+  tasks: Record<string, unknown>,
+  setAppState: SetAppState,
+): void {
+  for (const task of Object.values(tasks ?? {})) {
+    if (!isLocalAgentTask(task)) continue
+    if (task.status !== 'running') continue
+    killAsyncAgent(task.id, setAppState)
+  }
+}
+
+export function stopRunningAgentTasks(
+  tasks: Record<string, unknown>,
+  setAppState: SetAppState,
+): LocalAgentTaskState[] {
+  const running = Object.values(tasks ?? {}).filter(
+    (task): task is LocalAgentTaskState => isLocalAgentTask(task) && task.status === 'running',
+  )
+  if (running.length === 0) return running
+  killAllRunningAgentTasks(tasks, setAppState)
+  for (const task of running) {
+    markAgentsNotified(task.id, setAppState)
+    emitTaskEnded(task.id, 'stopped', {
+      ...(task.toolUseId !== undefined ? { toolUseId: task.toolUseId } : {}),
+      summary: task.description,
+    })
+  }
+  return running
+}
+
+function markAgentsNotified(taskId: string, setAppState: SetAppState): void {
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task =>
+    task.notified ? task : { ...task, notified: true },
+  )
+}
+
+
+function updateAgentProgress(
+  taskId: string,
+  progress: AgentProgress,
+  setAppState: SetAppState,
+): void {
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (task.status !== 'running') return task
+    return {
+      ...task,
+      progress,
+      lastReportedToolCount: progress.toolUseCount,
+      lastReportedTokenCount: progress.tokenCount,
+    }
+  })
+}
+
+const deferredPublishes = new Map<string, ReturnType<typeof setTimeout>>()
+
+const USAGE_SETTLE_GRACE_MS = 750
+
+export function publishAgentProgressSoon(
+  taskId: string,
+  tracker: ProgressTracker,
+  setAppState: SetAppState,
+): void {
+  updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
+  const pending = deferredPublishes.get(taskId)
+  if (pending !== undefined) stopTimeout(pending)
+  const timer = startTimeout(() => {
+    deferredPublishes.delete(taskId)
+    updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
+  }, USAGE_SETTLE_GRACE_MS)
+  timer.unref?.()
+  deferredPublishes.set(taskId, timer)
+}
+
+export function updateAgentSummary(
+  taskId: string,
+  summary: string,
+  setAppState: SetAppState,
+  options?: { emitSdkProgressEvent?: boolean },
+): void {
+  let snapshot: LocalAgentTaskState | undefined
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (task.status !== 'running') return task
+    const updated: LocalAgentTaskState = { ...task, summary }
+    snapshot = updated
+    return updated
+  })
+  if (snapshot && options?.emitSdkProgressEvent) {
+    emitTaskProgress({
+      taskId,
+      toolUseId: snapshot.toolUseId,
+      description: summary,
+      startTime: snapshot.startTime,
+      totalTokens: snapshot.progress?.tokenCount ?? 0,
+      toolUses: snapshot.progress?.toolUseCount ?? 0,
+      summary,
+    })
+  }
+}
+
+export function setAgentWaitLine(taskId: string, line: string | null, setAppState: SetAppState): void {
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (task.status !== 'running') return task
+    if (line === null) {
+      if (task.wait === undefined) return task
+      const { wait: _gone, ...rest } = task
+      return rest as LocalAgentTaskState
+    }
+    if (task.wait === line) return task
+    return { ...task, wait: line }
+  })
+}
+
+export function setAgentPendingAsks(taskId: string, count: number, setAppState: SetAppState): void {
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (task.status !== 'running') return task
+    if (count <= 0) {
+      if (task.pendingAsks === undefined) return task
+      const { pendingAsks: _gone, ...rest } = task
+      return rest as LocalAgentTaskState
+    }
+    if (task.pendingAsks === count) return task
+    return { ...task, pendingAsks: count }
+  })
+}
+
+
+export function queuePendingMessage(
+  taskId: string,
+  message: string,
+  setAppState: SetAppState,
+  options: { preservePause?: boolean } = {},
+): void {
+  let queued = false
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (!isLocalAgentTask(task)) return task
+    queued = true
+    return { ...task, pendingMessages: [...(task.pendingMessages ?? []), message] }
+  })
+  if (queued) recordAgentMessage(taskId, message)
+  if (queued && !options.preservePause) operatorPauseGate.lift(taskId)
+}
+
+export function queueOperatorMessage(
+  taskId: string,
+  message: string,
+  setAppState: SetAppState,
+): void {
+  let queued = false
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (!isLocalAgentTask(task)) return task
+    queued = true
+    return { ...task, operatorMessages: [...(task.operatorMessages ?? []), message] }
+  })
+  if (queued) recordAgentMessage(taskId, message)
+  if (queued) operatorPauseGate.lift(taskId)
+}
+
+export function peekOperatorMessages(task: unknown): string[] {
+  return isLocalAgentTask(task) ? [...(task.operatorMessages ?? [])] : []
+}
+
+export function requestAgentCompaction(taskId: string, setAppState: SetAppState): boolean {
+  let asked = false
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (!isLocalAgentTask(task) || task.status !== 'running') return task
+    asked = true
+    return task.compactRequested === true ? task : { ...task, compactRequested: true }
+  })
+  return asked
+}
+
+export function takeOperatorMessages(
+  taskId: string,
+  getAppState: () => AppState,
+  setAppState: SetAppState,
+  limit?: number,
+): string[] {
+  const task = getAppState().tasks?.[taskId]
+  const all = peekOperatorMessages(task)
+  const queued = limit === undefined ? all : all.slice(0, limit)
+  if (queued.length === 0) return []
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, current => ({
+    ...current,
+    operatorMessages: (current.operatorMessages ?? []).slice(queued.length),
+  }))
+  consumeAgentMessages(taskId)
+  for (const notice of queued) speakAgentMessageFrame(taskId, notice)
+  return queued
+}
+
+export function drainPendingMessages(
+  taskId: string,
+  getAppState: () => AppState,
+  setAppState: SetAppState,
+  limit?: number,
+): string[] {
+  const task = getAppState().tasks?.[taskId]
+  if (!task || !isLocalAgentTask(task)) return []
+  const all = task.pendingMessages ?? []
+  const pending = limit === undefined ? all : all.slice(0, limit)
+  if (pending.length === 0) return []
+  if (task.registration !== undefined && task.status === 'running') registrationReplyTargets.set(task.registration, 'parent')
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, current => ({
+    ...current,
+    ...(current.status === 'running' ? { replyTarget: 'parent' as const } : {}),
+    pendingMessages: (current.pendingMessages ?? []).slice(pending.length),
+  }))
+  consumeAgentMessages(taskId)
+  for (const notice of pending) speakAgentMessageFrame(taskId, notice)
+  return pending
+}
+
+export function appendMessageToLocalAgent(
+  taskId: string,
+  message: Message,
+  setAppState: SetAppState,
+): void {
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (!isLocalAgentTask(task)) return task
+    return { ...task, messages: [...(task.messages ?? []), message] }
+  })
+}
+
+
+export { NOTIFICATION_RESULT_CAP_CHARS } from '../../../crew/agent-results/summaryRoom.js'
+
+function landedWritesWords(paths: readonly string[]): string {
+  if (paths.length === 0) return 'no file writes landed'
+  return `${paths.length} file write${paths.length === 1 ? '' : 's'} landed: ${paths.join(', ')}`
+}
+export function boundNotificationResult(finalMessage: string, cap: number = NOTIFICATION_RESULT_CAP_CHARS): string {
+  if (finalMessage.length <= cap) return finalMessage
+  const head = sliceHeadAtGrapheme(finalMessage, Math.floor(cap * 0.8))
+  const tail = sliceTailAtGrapheme(finalMessage, cap - head.length)
+  const omitted = finalMessage.length - head.length - tail.length
+  return `${head}\n[... ${omitted.toLocaleString()} characters omitted — the complete final message is in the output file named above ...]\n${tail}`
+}
+
+export function enqueueAgentNotification(args: {
+  taskId: string
+  description: string
+  status: TaskStatus
+  error?: string
+  setAppState: SetAppState
+  finalMessage?: string
+  structuredBlock?: string
+  usage?: { totalTokens: number; toolUses: number; durationMs: number }
+  toolUseId?: string
+  worktreePath?: string
+  worktreeBranch?: string
+  envelopeBlock?: string
+  summary?: string
+  stopReason?: string
+  statusWord?: string
+  landedWrites?: readonly string[]
+  lastCalls?: readonly string[]
+  controller?: AbortController
+  replyTarget?: 'parent' | 'operator'
+}): void {
+  let shouldEnqueue = false
+  let successorHolds = false
+  let completedAt = args.controller !== undefined ? registrationEndTimes.get(args.controller) : undefined
+  let replyTarget = (args.controller !== undefined ? registrationReplyTargets.get(args.controller) : undefined) ?? args.replyTarget
+  updateTaskState<LocalAgentTaskState>(args.taskId, args.setAppState, task => {
+    if (heldByAnotherRegistration(task, args.controller)) {
+      successorHolds = true
+      shouldEnqueue = true
+      return task
+    }
+    replyTarget ??= task.replyTarget
+    if (task.status !== 'running') completedAt ??= task.endTime
+    if (task.notified) return task
+    shouldEnqueue = true
+    return { ...task, notified: true }
+  })
+  if (!shouldEnqueue) return
+
+  if (replyTarget !== 'operator') abortSpeculation(args.setAppState)
+
+  const landed = args.landedWrites !== undefined ? ` — ${landedWritesWords(args.landedWrites)}` : ''
+  const summary =
+    args.summary ??
+    (args.status === 'completed'
+      ? `Crewmate "${args.description}" completed`
+      : args.status === 'failed'
+        ? `Crewmate "${args.description}" failed: ${args.error || 'unknown error'}${landed} — its work is kept; ${AGENT_RESUME_DOOR}`
+        : args.statusWord === AGENT_INTERRUPTED_STATUS_WORD
+          ? `Crewmate "${args.description}" was ${args.stopReason ?? AGENT_INTERRUPTED_WORDS} — ${AGENT_INTERRUPTED_NOTE}${landed}; its work is kept; ${AGENT_RESUME_DOOR}`
+          : `Crewmate "${args.description}" was ${args.stopReason ?? 'stopped'}${landed} — its work is kept; ${AGENT_RESUME_DOOR}`)
+
+  const toolUseIdLine = args.toolUseId
+    ? `\n<${TOOL_USE_ID_TAG}>${args.toolUseId}</${TOOL_USE_ID_TAG}>`
+    : ''
+  const structuredSection = args.structuredBlock ? `\n${args.structuredBlock}` : ''
+  const resultSection = args.finalMessage
+    ? `\n<result>${boundNotificationResult(args.finalMessage)}</result>`
+    : ''
+  const usageSection = args.usage
+    ? `\n<usage><total_tokens>${args.usage.totalTokens}</total_tokens><tool_uses>${args.usage.toolUses}</tool_uses><duration_ms>${args.usage.durationMs}</duration_ms></usage>`
+    : ''
+  const leftover = args.worktreePath ? crewWorktreeLeftoverNoted(args.worktreePath) : null
+  const worktreeSection = args.worktreePath
+    ? `\n<worktree><worktreePath>${args.worktreePath}</worktreePath>${
+        args.worktreeBranch ? `<worktreeBranch>${args.worktreeBranch}</worktreeBranch>` : ''
+      }${leftover?.head ? `<worktreeHead>${leftover.head}</worktreeHead>` : ''}${leftover !== null ? `<worktreeState>${leftover.detail}</worktreeState>` : ''}</worktree>`
+    : ''
+  const lastCallsSection = args.lastCalls !== undefined && args.lastCalls.length > 0 ? `\n<last_tool_calls>\n${args.lastCalls.join('\n')}\n</last_tool_calls>` : ''
+  const envelopeSection = args.envelopeBlock ? `\n${args.envelopeBlock}` : ''
+
+  const prefix = `<${TASK_NOTIFICATION_TAG}>
+<${TASK_ID_TAG}>${args.taskId}</${TASK_ID_TAG}>${toolUseIdLine}
+<${OUTPUT_FILE_TAG}>${getTaskOutputPath(args.taskId)}</${OUTPUT_FILE_TAG}>
+<${STATUS_TAG}>${args.statusWord ?? args.status}</${STATUS_TAG}>
+<${SUMMARY_TAG}>${summary}</${SUMMARY_TAG}>${structuredSection}`
+  const message = `${prefix}${resultSection}${usageSection}${worktreeSection}${lastCallsSection}${envelopeSection}
+</${TASK_NOTIFICATION_TAG}>`
+
+  const outcome = successorHolds ? undefined : args.statusWord === 'paused' ? 'paused' : args.status === 'completed' ? 'completed' : args.status === 'failed' ? 'failed' : 'stopped'
+  const mirrored = mirrorSwarmNotice(args.taskId, message, summary, outcome)
+  if (mirrored && !mirrored.ok) logForDebugging(`crew board: ${mirrored.reason}`)
+  if (replyTarget === 'operator') return
+  enqueuePendingNotification({
+    value: message,
+    mode: 'task-notification',
+    priority: 'next',
+    ...(completedAt !== undefined ? { sentAt: new Date(completedAt).toISOString() } : {}),
+    ...(resultSection !== '' ? { agentCompletion: { agentId: args.taskId, start: prefix.length + '\n<result>'.length, end: prefix.length + resultSection.length - '</result>'.length } } : {}),
+  })
+}
+
+
+export const LocalAgentTask: Task = {
+  name: 'LocalAgentTask',
+  type: 'local_agent',
+  async kill(taskId, setAppState) {
+    logForDebugging(`killing agent task ${taskId}`)
+    killAsyncAgent(taskId, setAppState)
+  },
+}

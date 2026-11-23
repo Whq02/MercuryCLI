@@ -8,11 +8,11 @@ import { basename, join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 const RECORD_FIXES: Array<[string, string]> = [
-  ['(1)', 'change systemShellRecord in src/utils/shell/shellRecord.ts, or the provider getShellConfig returns in src/utils/Shell.ts'],
-  ['(2)', 'change shellRecordWords and describeShellRecord in src/utils/shell/shellRecord.ts, or the Shell line of computeEnvInfo and computeSimpleEnvInfo in src/constants/prompts.ts, or getSimplePrompt in src/tools/BashTool/prompt.ts'],
-  ['(3)', 'change completionDialect in src/utils/shell/shellRecord.ts, or createAndSaveSnapshot in src/utils/bash/ShellSnapshot.ts (the snapshot must be taken with the shell the record names)'],
-  ['(4)', 'change OLD_BASH_SENTENCE in src/utils/shell/shellRecord.ts'],
-  ['(5)', 'change restrictReviewerTools in src/tools/AgentTool/reviewerPolicy.ts (the shell that runs the wrapped line)'],
+  ['(1)', 'change systemShellRecord in src/platform/shell/shellRecord.ts, or the provider getShellConfig returns in src/platform/shell/shellExec.ts'],
+  ['(2)', 'change shellRecordWords and describeShellRecord in src/platform/shell/shellRecord.ts, or the Shell line of computeEnvInfo and computeSimpleEnvInfo in src/engine/system-prompt/defaultSystemPrompt.ts, or getSimplePrompt in src/tools/shell/prompt.ts'],
+  ['(3)', 'change completionDialect in src/platform/shell/shellRecord.ts, or createAndSaveSnapshot in src/platform/shell/bash/shellSnapshot.ts (the snapshot must be taken with the shell the record names)'],
+  ['(4)', 'change OLD_BASH_SENTENCE in src/platform/shell/shellRecord.ts'],
+  ['(5)', 'change restrictReviewerTools in src/tools/crewmate/reviewerPolicy.ts (the shell that runs the wrapped line)'],
 ]
 let recordFix = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -37,18 +37,18 @@ delete process.env.MERCURY_SHELL_PREFIX
 delete process.env.MERCURY_WINDOWS_SHELL_ROAD
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const record = await import('../../src/utils/shell/shellRecord.ts')
+const record = await import('../../src/platform/shell/shellRecord.ts')
 if (process.argv.includes('--snapshot-leg')) {
-  const { createAndSaveSnapshot: take } = await import('../../src/utils/bash/ShellSnapshot.ts')
+  const { createAndSaveSnapshot: take } = await import('../../src/platform/shell/bash/shellSnapshot.ts')
   const taken = await take(await record.systemShellRecord())
   console.log(`SNAPSHOT ${JSON.stringify({ path: taken ?? null, text: taken === undefined ? '' : readFileSync(taken, 'utf8') })}`)
   process.exit(0)
 }
-const { resolveBashPackDir } = await import('../../src/utils/shell/bashPack.ts')
-const { computeEnvInfo, computeSimpleEnvInfo } = await import('../../src/constants/prompts.ts')
-const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
-const { getShellCompletions } = await import('../../src/utils/bash/shellCompletion.ts')
-const { exec, getShellConfig, setCwd } = await import('../../src/utils/Shell.ts')
+const { resolveBashPackDir } = await import('../../src/platform/shell/bashPack.ts')
+const { computeEnvInfo, computeSimpleEnvInfo } = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+const { getSimplePrompt } = await import('../../src/tools/shell/prompt.ts')
+const { getShellCompletions } = await import('../../src/platform/shell/bash/shellCompletion.ts')
+const { exec, getShellConfig, setCwd } = await import('../../src/platform/shell/shellExec.ts')
 setCwd(scratch)
 
 type Lock = { version: string }
@@ -178,8 +178,8 @@ section('(4) the sentence a bash before 4.0 is given, held to what that bash doe
 
 section("(5) a reviewer's verification command is wrapped with the shell that runs it")
 {
-  const { canonicalReviewerReceipt, restrictReviewerTools } = await import('../../src/tools/AgentTool/reviewerPolicy.ts')
-  const { BASH_TOOL_NAME } = await import('../../src/constants/tools/bash.ts')
+  const { canonicalReviewerReceipt, restrictReviewerTools } = await import('../../src/tools/crewmate/reviewerPolicy.ts')
+  const { BASH_TOOL_NAME } = await import('../../src/tools/kit/names/bash.ts')
   const frozen = join(scratch, 'frozen')
   mkdirSync(join(frozen, 'scripts', 'checks'), { recursive: true })
   writeFileSync(join(frozen, 'scripts', 'checks', 'prove-read.ts'), 'console.log("review proof ran")\n')

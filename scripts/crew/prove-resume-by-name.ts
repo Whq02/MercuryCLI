@@ -28,32 +28,32 @@ const guard = setTimeout(() => {
 }, 120_000)
 guard.unref?.()
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-await import('../../src/tasks.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { generateTaskId } = await import('../../src/Task.ts')
-const { registerAsyncAgent, completeAgentTask, enqueueAgentNotification, killAsyncAgent, registerAgentName } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
-const { applyTaskOffsetsAndEvictions } = await import('../../src/utils/task/framework.ts')
-const { SendMessageTool } = await import('../../src/tools/SendMessageTool/SendMessageTool.ts')
-const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
-const { getPrompt } = await import('../../src/tools/ResumeAgentTool/prompt.ts')
-const { ResumeAgentTool } = await import('../../src/tools/ResumeAgentTool/ResumeAgentTool.ts')
-const lr = (await import('../../src/tasks/LocalAgentTask/launchReceipts.ts')) as Record<string, unknown> & { BACKGROUND_LAUNCH_LINE: string }
-const queue = await import('../../src/input-core/command-queue.ts')
-const { getAgentTranscriptPath, getAgentMetadataPath, readAgentMetadata } = await import('../../src/utils/sessionStorage/paths.ts')
-const { asAgentId, toAgentId } = await import('../../src/types/ids.ts')
-const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
-const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryCrewAgent.ts')
-const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { buildPostCompactMessages, createAsyncAgentAttachmentsIfNeeded } = await import('../../src/services/compact/compact.ts')
-const { getCompactUserSummaryMessage } = await import('../../src/services/compact/prompt.ts')
-const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.ts')
-const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
-type Message = import('../../src/types/message.ts').Message
-type AppState = import('../../src/state/AppStateStore.ts').AppState
+await import('../../src/engine/tasks/tasks.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
+const { registerAsyncAgent, completeAgentTask, enqueueAgentNotification, killAsyncAgent, registerAgentName } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+const { applyTaskOffsetsAndEvictions } = await import('../../src/engine/task-framework/taskRegistry.ts')
+const { SendMessageTool } = await import('../../src/tools/send-message/SendMessageTool.ts')
+const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { getPrompt } = await import('../../src/tools/resume-crewmate/prompt.ts')
+const { ResumeAgentTool } = await import('../../src/tools/resume-crewmate/ResumeAgentTool.ts')
+const lr = (await import('../../src/engine/tasks/local-agent/launchReceipts.ts')) as Record<string, unknown> & { BACKGROUND_LAUNCH_LINE: string }
+const queue = await import('../../src/screen/composer/input-core/command-queue.ts')
+const { getAgentTranscriptPath, getAgentMetadataPath, readAgentMetadata } = await import('../../src/sessions/transcripts/paths.ts')
+const { asAgentId, toAgentId } = await import('../../src/sessions/transcripts/ids.ts')
+const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
+const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
+const { MERCURY_CREW_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryCrewAgent.ts')
+const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+const { buildPostCompactMessages, createAsyncAgentAttachmentsIfNeeded } = await import('../../src/engine/compaction/foldConversation.ts')
+const { getCompactUserSummaryMessage } = await import('../../src/engine/compaction/summariserPrompt.ts')
+const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState
 type NamedReceipt = { toolUseId: string; agentId: string; name: string; description: string; launchedAt: number }
 type Reader = (messages: readonly Message[]) => NamedReceipt[]
 type ByName = (messages: readonly Message[], name: string) => NamedReceipt[]
@@ -222,45 +222,45 @@ const harbour = launchNamed(store, transcript, 'harbour-count', 'count the harbo
 check('the launch name is not an agent id, so only a name road can reach it', toAgentId('harbour-count') === null)
 check('the registry routes the name to the launch while it runs', store.get().agentNameRegistry.get('harbour-count') === harbour)
 const receiptWords = textOf(transcript[1])
-check('the launch receipt the Crewmate tool minted promises both addresses: the id and the name', receiptWords.startsWith(lr.BACKGROUND_LAUNCH_LINE) && receiptWords.includes(`agentId: ${harbour}`) && receiptWords.includes('or to its name "harbour-count"'), receiptWords.slice(0, 300), 'the launch receipt line in src/tools/AgentTool/agent/resultBlock.ts must carry the agentId and the or to its name clause when the launch had a name')
+check('the launch receipt the Crewmate tool minted promises both addresses: the id and the name', receiptWords.startsWith(lr.BACKGROUND_LAUNCH_LINE) && receiptWords.includes(`agentId: ${harbour}`) && receiptWords.includes('or to its name "harbour-count"'), receiptWords.slice(0, 300), 'the launch receipt line in src/tools/crewmate/call/resultBlock.ts must carry the agentId and the or to its name clause when the launch had a name')
 finishAndEvict(store, harbour, 'count the harbour')
-check('once the settled row is evicted the registry no longer holds the name (the mechanism behind the defect)', store.get().tasks[harbour] === undefined && !store.get().agentNameRegistry.has('harbour-count'), JSON.stringify([...store.get().agentNameRegistry.entries()]), 'evictTerminalTask in src/utils/task/framework.ts must prune the name from agentNameRegistry when it evicts a settled agent row')
-check('…while its transcript stays on disk, the record the id road resumes from', existsSync(getAgentTranscriptPath(asAgentId(harbour))), '', 'the eviction sweep must leave the agent transcript file on disk (getAgentTranscriptPath in src/utils/sessionStorage/paths.ts)')
+check('once the settled row is evicted the registry no longer holds the name (the mechanism behind the defect)', store.get().tasks[harbour] === undefined && !store.get().agentNameRegistry.has('harbour-count'), JSON.stringify([...store.get().agentNameRegistry.entries()]), 'evictTerminalTask in src/engine/task-framework/taskRegistry.ts must prune the name from agentNameRegistry when it evicts a settled agent row')
+check('…while its transcript stays on disk, the record the id road resumes from', existsSync(getAgentTranscriptPath(asAgentId(harbour))), '', 'the eviction sweep must leave the agent transcript file on disk (getAgentTranscriptPath in src/sessions/transcripts/paths.ts)')
 
 section('§2 THE ID ROAD (control) — a message to the finished agent\'s id resumes it from its transcript')
 const byId = await send(ctx, harbour, 'a word for the harbour', 'req_id')
 console.log(`  the answer: ${JSON.stringify(byId.data)}`)
-check('the id road resumes the finished agent in the background', byId.data.success === true && /resumed in the background with your message/.test(byId.data.message), byId.data.message, 'ResumeAgentTool.call in src/tools/ResumeAgentTool/ResumeAgentTool.ts must resume a finished agent addressed by its id')
+check('the id road resumes the finished agent in the background', byId.data.success === true && /resumed in the background with your message/.test(byId.data.message), byId.data.message, 'ResumeAgentTool.call in src/tools/resume-crewmate/ResumeAgentTool.ts must resume a finished agent addressed by its id')
 const rowById = rowOf(store, harbour)
-check('…a fresh running row stands under the same id, its prompt the notice carrying the message', rowById?.status === 'running' && (rowById.prompt ?? '').includes('a word for the harbour'), JSON.stringify({ status: rowById?.status }), 'the resume in src/tools/ResumeAgentTool/ResumeAgentTool.ts must register a running row under the same id with the message in its prompt')
+check('…a fresh running row stands under the same id, its prompt the notice carrying the message', rowById?.status === 'running' && (rowById.prompt ?? '').includes('a word for the harbour'), JSON.stringify({ status: rowById?.status }), 'the resume in src/tools/resume-crewmate/ResumeAgentTool.ts must register a running row under the same id with the message in its prompt')
 settleResumed(store, harbour)
 
 section('§3 THE PIN — the same message to the finished agent\'s NAME takes the resume road (RED on the base: the "spawn a crew first" refusal)')
 const byName = await send(ctx, 'harbour-count', 'a second word for the harbour', 'req_name')
 console.log(`  the answer: ${JSON.stringify(byName.data)}`)
-check('the name road resumes the finished agent exactly as the id road did', byName.data.success === true && /resumed in the background with your message/.test(byName.data.message), byName.data.message, 'the name address must resolve a finished agent: look at the name lookup in src/tools/SendMessageTool/crewAddress.ts and the receipts reader in src/tasks/LocalAgentTask/launchReceipts.ts')
-check('the words never say "spawn a crew" for a name a finished agent carried', !/spawn a crew/i.test(byName.data.message), byName.data.message, 'a finished agent name must resolve through src/tools/SendMessageTool/crewAddress.ts instead of falling to the refusal')
-check('the answer names the id the name resolved to', byName.data.message.includes(harbour), byName.data.message, 'the resume answer in src/tools/ResumeAgentTool/ResumeAgentTool.ts must print the resolved agent id')
+check('the name road resumes the finished agent exactly as the id road did', byName.data.success === true && /resumed in the background with your message/.test(byName.data.message), byName.data.message, 'the name address must resolve a finished agent: look at the name lookup in src/tools/send-message/crewAddress.ts and the receipts reader in src/engine/tasks/local-agent/launchReceipts.ts')
+check('the words never say "spawn a crew" for a name a finished agent carried', !/spawn a crew/i.test(byName.data.message), byName.data.message, 'a finished agent name must resolve through src/tools/send-message/crewAddress.ts instead of falling to the refusal')
+check('the answer names the id the name resolved to', byName.data.message.includes(harbour), byName.data.message, 'the resume answer in src/tools/resume-crewmate/ResumeAgentTool.ts must print the resolved agent id')
 const rowByName = rowOf(store, harbour)
-check('…the same outcome as the id road: a running row under the same id, its prompt the notice carrying the message', rowByName?.status === 'running' && (rowByName.prompt ?? '').includes('a second word for the harbour'), JSON.stringify({ status: rowByName?.status }), 'the name road in src/tools/ResumeAgentTool/ResumeAgentTool.ts must end in the same resume as the id road')
+check('…the same outcome as the id road: a running row under the same id, its prompt the notice carrying the message', rowByName?.status === 'running' && (rowByName.prompt ?? '').includes('a second word for the harbour'), JSON.stringify({ status: rowByName?.status }), 'the name road in src/tools/resume-crewmate/ResumeAgentTool.ts must end in the same resume as the id road')
 settleResumed(store, harbour)
 
 section('§4 A NAME NOBODY CARRIED, with agents in the session — the refusal names what it found and never says "spawn a crew" (RED on the base)')
 const lantern = launchNamed(store, transcript, 'lantern-index', 'index the lanterns')
 const nobody = await deliver(ctx, 'nobody-here', 'anyone there', 'req_nobody')
 console.log(`  the answer: ${JSON.stringify(nobody.data)}`)
-check('the send is refused', nobody.data.success === false, JSON.stringify(nobody.data), 'SendMessageTool.call in src/tools/SendMessageTool/SendMessageTool.ts must refuse an unknown name; the words come from unknownAgentRefusal in src/tools/SendMessageTool/crewAddress.ts')
-check('the refusal says no agent by that name is in this session', /no crewmate named nobody-here in this session/.test(nobody.data.message), nobody.data.message, 'unknownAgentRefusal in src/tools/SendMessageTool/crewAddress.ts must say no crewmate named the name is in this session')
-check('…names the finished agent by name', /finished crewmates are: [^;—]*harbour-count/.test(nobody.data.message), nobody.data.message, 'knownLaunchedAgents and unknownAgentRefusal in src/tools/SendMessageTool/crewAddress.ts must list a finished launch by name')
-check('…names the running agent by name', /running crewmates are: [^;—]*lantern-index/.test(nobody.data.message), nobody.data.message, 'knownLaunchedAgents and unknownAgentRefusal in src/tools/SendMessageTool/crewAddress.ts must list a running launch by name')
-check('…and points at an id or one of those names, never at a crew', /send to an id or one of those names/.test(nobody.data.message) && !/spawn a crew/i.test(nobody.data.message), nobody.data.message, 'the closing words of unknownAgentRefusal in src/tools/SendMessageTool/crewAddress.ts must say send to an id or one of those names')
-check('the running launch is still reached by its name, as today (the live road is untouched)', (await deliver(ctx, 'lantern-index', 'keep going', 'req_live')).data.message.startsWith('Delivered to lantern-index (id '), '', 'SendMessageTool in src/tools/SendMessageTool/SendMessageTool.ts must still deliver to a running agent by its registry name')
+check('the send is refused', nobody.data.success === false, JSON.stringify(nobody.data), 'SendMessageTool.call in src/tools/send-message/SendMessageTool.ts must refuse an unknown name; the words come from unknownAgentRefusal in src/tools/send-message/crewAddress.ts')
+check('the refusal says no agent by that name is in this session', /no crewmate named nobody-here in this session/.test(nobody.data.message), nobody.data.message, 'unknownAgentRefusal in src/tools/send-message/crewAddress.ts must say no crewmate named the name is in this session')
+check('…names the finished agent by name', /finished crewmates are: [^;—]*harbour-count/.test(nobody.data.message), nobody.data.message, 'knownLaunchedAgents and unknownAgentRefusal in src/tools/send-message/crewAddress.ts must list a finished launch by name')
+check('…names the running agent by name', /running crewmates are: [^;—]*lantern-index/.test(nobody.data.message), nobody.data.message, 'knownLaunchedAgents and unknownAgentRefusal in src/tools/send-message/crewAddress.ts must list a running launch by name')
+check('…and points at an id or one of those names, never at a crew', /send to an id or one of those names/.test(nobody.data.message) && !/spawn a crew/i.test(nobody.data.message), nobody.data.message, 'the closing words of unknownAgentRefusal in src/tools/send-message/crewAddress.ts must say send to an id or one of those names')
+check('the running launch is still reached by its name, as today (the live road is untouched)', (await deliver(ctx, 'lantern-index', 'keep going', 'req_live')).data.message.startsWith('Delivered to lantern-index (id '), '', 'SendMessageTool in src/tools/send-message/SendMessageTool.ts must still deliver to a running agent by its registry name')
 
 section('§5 NOTHING LAUNCHED — the refusal names the two addresses, verbatim')
 {
   const bare = makeStore()
   const nothing = await deliver(makeCtx(bare, []), 'nobody-here', 'anyone there', 'req_nothing')
-  check('a session that never launched a named agent refuses naming the id and the name roads, verbatim', nothing.data.success === false && nothing.data.message === TODAY('nobody-here'), nothing.data.message, 'the known.length === 0 branch of unknownAgentRefusal in src/tools/SendMessageTool/crewAddress.ts must keep the words the TODAY constant of this file holds')
+  check('a session that never launched a named agent refuses naming the id and the name roads, verbatim', nothing.data.success === false && nothing.data.message === TODAY('nobody-here'), nothing.data.message, 'the known.length === 0 branch of unknownAgentRefusal in src/tools/send-message/crewAddress.ts must keep the words the TODAY constant of this file holds')
 }
 
 section('§6 TWO FINISHED LAUNCHES WITH ONE NAME — the newest is resumed, and the answer says so (RED on the base)')
@@ -272,31 +272,31 @@ section('§6 TWO FINISHED LAUNCHES WITH ONE NAME — the newest is resumed, and 
   finishAndEvict(twin, older, 'scout the harbour')
   const newer = launchNamed(twin, twinTranscript, 'scout', 'scout the harbour again')
   finishAndEvict(twin, newer, 'scout the harbour again')
-  check('both launches carried the name and both are evicted; the registry holds neither', older !== newer && !twin.get().agentNameRegistry.has('scout') && twin.get().tasks[older] === undefined && twin.get().tasks[newer] === undefined, '', 'evictTerminalTask in src/utils/task/framework.ts must prune both launch rows and the registry name')
+  check('both launches carried the name and both are evicted; the registry holds neither', older !== newer && !twin.get().agentNameRegistry.has('scout') && twin.get().tasks[older] === undefined && twin.get().tasks[newer] === undefined, '', 'evictTerminalTask in src/engine/task-framework/taskRegistry.ts must prune both launch rows and the registry name')
   const toScout = await send(twinCtx, 'scout', 'which of you', 'req_scout')
   console.log(`  the answer: ${JSON.stringify(toScout.data)}`)
-  check('the newest launch is the one resumed', toScout.data.success === true && rowOf(twin, newer)?.status === 'running' && twin.get().tasks[older] === undefined, toScout.data.message, 'the name lookup in src/tools/SendMessageTool/crewAddress.ts must resolve to the newest launch (last of launchesNamed in src/tasks/LocalAgentTask/launchReceipts.ts)')
-  check('…and the answer says the name was carried by two launches and the newest was taken, naming its id', /newest of 2 launches/.test(toScout.data.message) && toScout.data.message.includes(newer), toScout.data.message, 'the who text in src/tools/SendMessageTool/crewAddress.ts must say the newest of N launches that carried the name and name its id')
+  check('the newest launch is the one resumed', toScout.data.success === true && rowOf(twin, newer)?.status === 'running' && twin.get().tasks[older] === undefined, toScout.data.message, 'the name lookup in src/tools/send-message/crewAddress.ts must resolve to the newest launch (last of launchesNamed in src/engine/tasks/local-agent/launchReceipts.ts)')
+  check('…and the answer says the name was carried by two launches and the newest was taken, naming its id', /newest of 2 launches/.test(toScout.data.message) && toScout.data.message.includes(newer), toScout.data.message, 'the who text in src/tools/send-message/crewAddress.ts must say the newest of N launches that carried the name and name its id')
   settleResumed(twin, newer)
   const cased = await send(twinCtx, 'SCOUT', 'which of you, loudly', 'req_scout_cased')
-  check('a differently-cased spelling reaches the same launch when no exact name matches (the roster\'s own rule)', cased.data.success === true && rowOf(twin, newer)?.status === 'running', cased.data.message, 'the name lookup in src/tools/SendMessageTool/crewAddress.ts must fall back to a case-insensitive match when no exact name matches')
+  check('a differently-cased spelling reaches the same launch when no exact name matches (the roster\'s own rule)', cased.data.success === true && rowOf(twin, newer)?.status === 'running', cased.data.message, 'the name lookup in src/tools/send-message/crewAddress.ts must fall back to a case-insensitive match when no exact name matches')
   settleResumed(twin, newer)
 }
 
 section('§7 THE MESSAGE IS ONE STRING — the schema admits no structured message')
 {
-  const { SendMessageTool } = await import('../../src/tools/SendMessageTool/SendMessageTool.ts')
+  const { SendMessageTool } = await import('../../src/tools/send-message/SendMessageTool.ts')
   const structured = SendMessageTool.inputSchema.safeParse({ to: 'harbour-count', message: { type: 'question', content: 'still there?' } })
-  check('a structured message fails the input schema — the message is a string', structured.success === false, '', 'the inputSchema in src/tools/SendMessageTool/SendMessageTool.ts must declare message as a plain string')
+  check('a structured message fails the input schema — the message is a string', structured.success === false, '', 'the inputSchema in src/tools/send-message/SendMessageTool.ts must declare message as a plain string')
   const plain = SendMessageTool.inputSchema.safeParse({ to: 'harbour-count', message: 'still there?' })
-  check('a plain string passes it', plain.success === true, '', 'the inputSchema in src/tools/SendMessageTool/SendMessageTool.ts must accept a string message')
+  check('a plain string passes it', plain.success === true, '', 'the inputSchema in src/tools/send-message/SendMessageTool.ts must accept a string message')
 }
 
 section('§9 THE READER — the launch receipts by name, read-only, in transcript order')
 {
   const reader = lr.namedLaunchReceipts as Reader | undefined
   const byName = lr.launchesNamed as ByName | undefined
-  check('the launch-receipt module exports the read helpers (RED on the base)', typeof reader === 'function' && typeof byName === 'function', '', 'src/tasks/LocalAgentTask/launchReceipts.ts must export namedLaunchReceipts and launchesNamed')
+  check('the launch-receipt module exports the read helpers (RED on the base)', typeof reader === 'function' && typeof byName === 'function', '', 'src/engine/tasks/local-agent/launchReceipts.ts must export namedLaunchReceipts and launchesNamed')
   if (typeof reader === 'function' && typeof byName === 'function') {
     const rows: Message[] = [
       launchRow('toolu_named', 'harbour-count', 'count the harbour'),
@@ -311,12 +311,12 @@ section('§9 THE READER — the launch receipts by name, read-only, in transcrip
       receiptRow('toolu_again', 'a0harbour2', 'harbour-count', 'count the harbour again'),
     ]
     const found = reader(rows)
-    check('every launch that carried a name and whose result names an agent id is listed, in transcript order', found.map(r => `${r.name}=${r.agentId}`).join(' ') === 'harbour-count=a0harbour1 quiet-walk=a0quietwalk harbour-count=a0harbour2', JSON.stringify(found), 'namedLaunchReceipts in src/tasks/LocalAgentTask/launchReceipts.ts must list every named launch whose result names an agent id, in transcript order')
-    check('a launch without a name is not listed', !found.some(r => r.agentId === 'a0noname01'), '', 'namedLaunchReceipts in src/tasks/LocalAgentTask/launchReceipts.ts must skip a launch with no name')
-    check('a crewmate spawn (its receipt names no continuation id) is not listed — the crew road keeps it', !found.some(r => r.agentId === 'seat-9'), '', 'namedLaunchReceipts in src/tasks/LocalAgentTask/launchReceipts.ts must skip a result that names no continuation id')
-    check('a foreground completion pairs through the same continuation words', found.some(r => r.agentId === 'a0quietwalk' && r.name === 'quiet-walk' && r.description === 'a foreground walk'), JSON.stringify(found), 'namedLaunchReceipts in src/tasks/LocalAgentTask/launchReceipts.ts must pair a foreground completion through the continuation words')
-    check('the lookup by name returns the launches that carried it, oldest first, the newest last', byName(rows, 'harbour-count').map(r => r.agentId).join(' ') === 'a0harbour1 a0harbour2' && byName(rows, 'nobody').length === 0, '', 'launchesNamed in src/tasks/LocalAgentTask/launchReceipts.ts must return the matching launches oldest first')
-    check('the lookup matches the exact spelling first and falls back to a case-insensitive match', byName(rows, 'HARBOUR-COUNT').map(r => r.agentId).join(' ') === 'a0harbour1 a0harbour2', '', 'launchesNamed in src/tasks/LocalAgentTask/launchReceipts.ts must match the exact spelling first and then case-insensitively')
+    check('every launch that carried a name and whose result names an agent id is listed, in transcript order', found.map(r => `${r.name}=${r.agentId}`).join(' ') === 'harbour-count=a0harbour1 quiet-walk=a0quietwalk harbour-count=a0harbour2', JSON.stringify(found), 'namedLaunchReceipts in src/engine/tasks/local-agent/launchReceipts.ts must list every named launch whose result names an agent id, in transcript order')
+    check('a launch without a name is not listed', !found.some(r => r.agentId === 'a0noname01'), '', 'namedLaunchReceipts in src/engine/tasks/local-agent/launchReceipts.ts must skip a launch with no name')
+    check('a crewmate spawn (its receipt names no continuation id) is not listed — the crew road keeps it', !found.some(r => r.agentId === 'seat-9'), '', 'namedLaunchReceipts in src/engine/tasks/local-agent/launchReceipts.ts must skip a result that names no continuation id')
+    check('a foreground completion pairs through the same continuation words', found.some(r => r.agentId === 'a0quietwalk' && r.name === 'quiet-walk' && r.description === 'a foreground walk'), JSON.stringify(found), 'namedLaunchReceipts in src/engine/tasks/local-agent/launchReceipts.ts must pair a foreground completion through the continuation words')
+    check('the lookup by name returns the launches that carried it, oldest first, the newest last', byName(rows, 'harbour-count').map(r => r.agentId).join(' ') === 'a0harbour1 a0harbour2' && byName(rows, 'nobody').length === 0, '', 'launchesNamed in src/engine/tasks/local-agent/launchReceipts.ts must return the matching launches oldest first')
+    check('the lookup matches the exact spelling first and falls back to a case-insensitive match', byName(rows, 'HARBOUR-COUNT').map(r => r.agentId).join(' ') === 'a0harbour1 a0harbour2', '', 'launchesNamed in src/engine/tasks/local-agent/launchReceipts.ts must match the exact spelling first and then case-insensitively')
   }
 }
 
@@ -324,8 +324,8 @@ section('§10 THE WORDS — the prompt tells the model a finished agent\'s name 
 {
   const prompt = getPrompt()
   const toField = (ResumeAgentTool.inputSchema as { shape: { to: { description?: string } } }).shape.to.description ?? ''
-  check('the to field keeps the two-address sentence the receipts proof pins', toField.includes('the id its launch receipt names or the name its launch gave it'), toField, 'the to field description in src/tools/ResumeAgentTool/ResumeAgentTool.ts must keep the two-address sentence')
-  check('…and says the name reaches the agent after it has finished, the newest launch when two carried it; the prompt says what a resumed turn is', /running or finished/.test(toField) && /newest/.test(toField) && prompt.includes('resumed from its transcript'), toField, 'the to field in src/tools/ResumeAgentTool/ResumeAgentTool.ts must say running or finished and newest, and getPrompt in src/tools/ResumeAgentTool/prompt.ts must say resumed from its transcript')
+  check('the to field keeps the two-address sentence the receipts proof pins', toField.includes('the id its launch receipt names or the name its launch gave it'), toField, 'the to field description in src/tools/resume-crewmate/ResumeAgentTool.ts must keep the two-address sentence')
+  check('…and says the name reaches the agent after it has finished, the newest launch when two carried it; the prompt says what a resumed turn is', /running or finished/.test(toField) && /newest/.test(toField) && prompt.includes('resumed from its transcript'), toField, 'the to field in src/tools/resume-crewmate/ResumeAgentTool.ts must say running or finished and newest, and getPrompt in src/tools/resume-crewmate/prompt.ts must say resumed from its transcript')
 }
 
 

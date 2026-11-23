@@ -14,19 +14,19 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change the foldersBehindLaunch road (placeFoldersBehindLaunch, createAgentWorktree) in src/services/worktree.ts, the tool hold in src/utils/worktreeReadiness.ts (holdToolsUntil, worktreeHoldOf, hookMayMeetCopy), or parkBeforeTool in src/run-core/pauseGate.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change the foldersBehindLaunch road (placeFoldersBehindLaunch, createAgentWorktree) in src/platform/git/worktree/worktree.ts, the tool hold in src/tools/crewmate/run/worktreeReadiness.ts (holdToolsUntil, worktreeHoldOf, hookMayMeetCopy), or parkBeforeTool in src/engine/loop/pauseGate.ts' : ''}`)
   if (!cond) failures++
 }
 const skip = (label: string): void => console.log(`  [SKIP] ${label}`)
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const state = await import('../../src/bootstrap/state.ts')
-const config = await import('../../src/utils/config/globalConfig.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { createAgentWorktree } = await import('../../src/services/worktree.ts')
-const { operatorPauseGate, parkBeforeTool } = await import('../../src/run-core/pauseGate.ts')
-const cloneModule = await import('../../src/utils/worktreeClone.ts')
-const readiness = (await import('../../src/utils/worktreeReadiness.ts').catch(() => null)) as null | {
+const state = await import('../../src/boot/process-state/processState.ts')
+const config = await import('../../src/platform/config/globalConfig.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { createAgentWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
+const { operatorPauseGate, parkBeforeTool } = await import('../../src/engine/loop/pauseGate.ts')
+const cloneModule = await import('../../src/platform/git/worktree/worktreeClone.ts')
+const readiness = (await import('../../src/tools/crewmate/run/worktreeReadiness.ts').catch(() => null)) as null | {
   holdToolsUntil: (agentId: string, ready: Promise<unknown>) => void
   releaseToolHold: (agentId: string) => void
   heldAgentCount: () => number
@@ -319,7 +319,7 @@ try {
     resetSettingsCache()
 
     section('§8 a hook that could run in the crewmate\'s directory before a tool call makes the crewmate wait for its folders first')
-    const { HOOK_EVENTS } = await import('../../src/utils/hooks/contract.ts')
+    const { HOOK_EVENTS } = await import('../../src/integrations/event-hooks/contract.ts')
     const behindTheGate = ['tool.before', 'tool.after', 'permission.ask', 'permission.decided', 'session.start', 'session.end', 'session.state', 'file.changed']
     const mayMeet = (event: string): boolean => readiness?.hookMayMeetCopy?.(event) === true
     check('the hooks of a tool call and of a permission ask run inside a tool call, behind the gate, and the session\'s own never run in a crewmate\'s directory: none of these makes a crewmate wait', readiness?.hookMayMeetCopy !== undefined && behindTheGate.every(event => (HOOK_EVENTS as readonly string[]).includes(event) && !mayMeet(event)), behindTheGate.filter(mayMeet).join(', '))

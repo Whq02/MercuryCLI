@@ -11,16 +11,16 @@ delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 delete process.env.MERCURY_EDIT_STALE_RECOVERY
 
-const { fileGeneration, recordSeenLines, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
-const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/constants/tools/fileEdit.ts')
+const { fileGeneration, recordSeenLines, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
+const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/kit/names/fileEdit.ts')
 
 let failures = 0
 let checks = 0
-const REFUSAL_WHERE = 'to fix, change the refusal and result words built by readKnowledge, readKnowledgeRefusal and sameCallReadThrough in src/tools/FileEditTool/edit/readKnowledge.ts, the no-match lines of noMatchHint in src/tools/FileEditTool/editResult.ts, or the read ledger in src/services/changeTransaction/seenLines.ts'
+const REFUSAL_WHERE = 'to fix, change the refusal and result words built by readKnowledge, readKnowledgeRefusal and sameCallReadThrough in src/tools/edit/call/readKnowledge.ts, the no-match lines of noMatchHint in src/tools/edit/editResult.ts, or the read ledger in src/tools/engines/change-transaction/seenLines.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -30,7 +30,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — edit refusal proof exceeded 60s; a validateInput or call of FileEditTool (src/tools/FileEditTool/FileEditTool.ts) did not return, so find which check printed last above and look at the code behind it')
+  console.log('\nTIMEOUT — edit refusal proof exceeded 60s; a validateInput or call of FileEditTool (src/tools/edit/EditTool.ts) did not return, so find which check printed last above and look at the code behind it')
   process.exit(1)
 }, 60_000)
 guard.unref?.()
@@ -177,7 +177,7 @@ section('E. a read of an earlier version of the file is named as such')
   const later = new Date(Date.now() + 120_000)
   utimesSync(file, later, later)
   const stale = await validate({ file_path: file, old_string: 'const v5 = 5000', new_string: 'x' }, ctx)
-  check('E2 a full read whose bytes no longer match still refuses as an unexpected modification, not as an unread file', !stale.ok && stale.message === FILE_UNEXPECTEDLY_MODIFIED_ERROR, `a full read whose bytes differ must refuse with FILE_UNEXPECTEDLY_MODIFIED_ERROR (src/constants/tools/fileEdit.ts); got: ${messageOf(stale)}`)
+  check('E2 a full read whose bytes no longer match still refuses as an unexpected modification, not as an unread file', !stale.ok && stale.message === FILE_UNEXPECTEDLY_MODIFIED_ERROR, `a full read whose bytes differ must refuse with FILE_UNEXPECTEDLY_MODIFIED_ERROR (src/tools/kit/names/fileEdit.ts); got: ${messageOf(stale)}`)
 }
 
 section('L. the law itself is unchanged')
@@ -203,7 +203,7 @@ section('L. the law itself is unchanged')
   utimesSync(file, statBefore.atime, statBefore.mtime)
   const statAfter = statSync(file)
   check('L5p an outside rewrite at equal size with the mtime set back keeps the stat pair (mtime ms and size) the ledger once keyed on', Math.floor(statAfter.mtimeMs) === Math.floor(statBefore.mtimeMs) && statAfter.size === statBefore.size, `the fixture rewrite did not keep the stat pair, so this is the test setup (the file system), not edit code: ${Math.floor(statBefore.mtimeMs)}:${statBefore.size} -> ${Math.floor(statAfter.mtimeMs)}:${statAfter.size}`)
-  check('L5g …and the file generation tells the rewrite apart (RED on the base: the key is the stat pair alone)', fileGeneration(file) !== keyBefore, `make fileGeneration in src/services/changeTransaction/seenLines.ts tell an equal-size rewrite apart from the original; key before: ${String(keyBefore)}`)
+  check('L5g …and the file generation tells the rewrite apart (RED on the base: the key is the stat pair alone)', fileGeneration(file) !== keyBefore, `make fileGeneration in src/tools/engines/change-transaction/seenLines.ts tell an equal-size rewrite apart from the original; key before: ${String(keyBefore)}`)
   const before = readFileSync(file, 'utf8')
   const refused = await edit({ file_path: file, old_string: 'const v6 = 6', new_string: 'const v6 = 66' }, makeContext())
   check('L5 a line of a file that changed outside the tool after the lines you read, at equal size in the same instant, still refuses and writes nothing, leading with the change and carrying no line', !refused.ok && refused.message.startsWith(`Read the file before editing it — it changed after the lines you read, which may be another session's work; the edit needs a prior read of the current content`) && !/\n\d+\t/.test(refused.message) && readFileSync(file, 'utf8') === before, messageOf(refused))
@@ -221,8 +221,8 @@ section('L. the law itself is unchanged')
 
 section('the diagnostic reads the same current knowledge as the gate')
 {
-  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-  const { mintRangeAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
+  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { mintRangeAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
   _resetSeenLinesForTesting()
   const file = join(fixtures, 'generation.ts')
   const original = lines(20)

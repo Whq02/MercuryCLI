@@ -19,11 +19,11 @@ const check = (label: string, cond: boolean, detail: unknown = ''): void => {
 const skip = (label: string, why: string): void => console.log(`  [SKIP] ${label} — ${why}`)
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
-const controlSocket = await import('../../src/daemon/controlSocket.ts')
-const handover = await import('../../src/daemon/handover.ts')
+const controlSocket = await import('../../src/daemon/control/controlSocket.ts')
+const handover = await import('../../src/daemon/control/handover.ts')
 const heal = await import('../../src/daemon/run/heal.ts')
 const { makeDaemonRunState } = await import('../../src/daemon/run/state.ts')
-const { DaemonBreaker } = await import('../../src/utils/daemonBreaker.ts')
+const { DaemonBreaker } = await import('../../src/daemon/control/daemonBreaker.ts')
 
 const OURS = 'aaaaaaaaaaaa'
 const OWNER_KEY = 'the-key-of-the-live-owner'

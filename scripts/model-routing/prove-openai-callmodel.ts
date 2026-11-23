@@ -4,11 +4,11 @@ process.env.NODE_ENV = 'test'
 process.argv.push('--log-stderr')
 
 import { z } from 'zod'
-import type { AssistantMessage, Message, StreamEvent } from '../../src/types/message.js'
+import type { AssistantMessage, Message, StreamEvent } from '../../src/engine/message-shapes/message.js'
 
 let failures = 0
 const CALLMODEL_FAIL_HINT =
-  'fix the code this check exercises, not the check: the stream, request body and replay come from openaiCallModel in src/services/providers/openai/openaiCallModel.ts (and its openaiCallModel/ folder); effort adjustment and receipts from resolveEffortTruth and effortAdjustedReceiptLine in src/utils/effort.ts; the remembered wire effort vocabulary from src/services/providers/openai/qualificationStore.ts'
+  'fix the code this check exercises, not the check: the stream, request body and replay come from openaiCallModel in src/models/roads/openai/openaiCallModel.ts (and its openaiCallModel/ folder); effort adjustment and receipts from resolveEffortTruth and effortAdjustedReceiptLine in src/models/effort/effort.ts; the remembered wire effort vocabulary from src/models/roads/openai/qualificationStore.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(
@@ -43,11 +43,11 @@ process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:1'
 
-const { openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.js')
+const { openaiCallModel } = await import('../../src/models/roads/openai/openaiCallModel.js')
 const { __resetOpenaiCatalogueForTest } = await import(
-  '../../src/services/providers/openai/openaiCatalogue.js'
+  '../../src/models/roads/openai/openaiCatalogue.js'
 )
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 function sse(obj: unknown): string {
   return `data: ${JSON.stringify(obj)}\n\n`
@@ -272,7 +272,7 @@ section('1 · the yield contract + the turn record')
   check('instructions carry the system prompt', body?.instructions === 'You are a specialist.')
   check('mercury prompt_cache_key rides as the STABLE domain digest', typeof body?.prompt_cache_key === 'string' && body.prompt_cache_key.startsWith('mercury-domain:'))
   {
-    const { composeSystemPrompt } = await import('../../src/prompt/composer.js')
+    const { composeSystemPrompt } = await import('../../src/engine/system-prompt/composer.js')
     const composedBase = (intro: string): string[] =>
       composeSystemPrompt({ staticSections: [intro], dynamicBoundary: [], dynamicSpecs: [], dynamicResolved: [], wrapperSections: [], modeSections: [], antiSycSections: [] })
     const keyOf = async (systemPrompt: string[]): Promise<string | undefined> => {
@@ -423,10 +423,10 @@ section('2 · honest refusals + the §10 effort-adjustment note')
 
 section("2b · the wire's own vocabulary: a refused word is remembered, re-issued once, and narrows the row")
 {
-  const store = await import('../../src/services/providers/openai/qualificationStore.js')
-  const effort = await import('../../src/utils/effort.js')
-  const capabilities = await import('../../src/utils/model/capabilities.js')
-  const { effortVocabularyRefusalOf } = await import('../../src/services/providers/openai/openaiCallModel.js')
+  const store = await import('../../src/models/roads/openai/qualificationStore.js')
+  const effort = await import('../../src/models/effort/effort.js')
+  const capabilities = await import('../../src/models/facts/capabilities.js')
+  const { effortVocabularyRefusalOf } = await import('../../src/models/roads/openai/openaiCallModel.js')
   const stampOf = (items: Array<StreamEvent | AssistantMessage>): AssistantMessage['effortAdjusted'] | undefined =>
     items.map(m => (m as AssistantMessage).effortAdjusted).find(s => s !== undefined)
   const sentEffort = (): string | undefined => (lastResponsesBody as { reasoning?: { effort?: string } } | undefined)?.reasoning?.effort
@@ -694,9 +694,9 @@ section('3b · reconstruction classes + the cross-model replay guard')
 restoreWire()
 section('native tool discovery preserves encrypted reasoning and earlier request items')
 {
-  const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.js')
-  const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.js')
-  const { createUserMessage, normalizeMessagesForAPI } = await import('../../src/services/messages.js')
+  const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.js')
+  const { clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.js')
+  const { createUserMessage, normalizeMessagesForAPI } = await import('../../src/engine/messages/messages.js')
   const savedSearch = process.env.MERCURY_TOOL_SEARCH
   const savedDefer = process.env.MERCURY_TOOL_DEFER
   process.env.MERCURY_TOOL_SEARCH = 'on'

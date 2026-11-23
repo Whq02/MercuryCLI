@@ -25,7 +25,7 @@ async function reconcileUnlinkRefused(): Promise<void> {
   chmodSync(dir, 0o555)
   process.env.MERCURY_DAEMON_DIR = dir
   try {
-    const { reconcileDaemonRecords } = await import(join(SRC, 'daemon/reconcileRecords.ts'))
+    const { reconcileDaemonRecords } = await import(join(SRC, 'daemon/control/reconcileRecords.ts'))
     let outcome: string
     try {
       const rec = await reconcileDaemonRecords()
@@ -33,7 +33,7 @@ async function reconcileUnlinkRefused(): Promise<void> {
     } catch (error) {
       outcome = `rejected ${(error as NodeJS.ErrnoException).code ?? String(error)}`
     }
-    check(label, outcome === 'rejected EACCES', outcome + ' | fix reconcileDaemonRecords in src/daemon/reconcileRecords.ts so a stale record it cannot remove rejects with the unlink error')
+    check(label, outcome === 'rejected EACCES', outcome + ' | fix reconcileDaemonRecords in src/daemon/control/reconcileRecords.ts so a stale record it cannot remove rejects with the unlink error')
   } finally {
     chmodSync(dir, 0o755)
     delete process.env.MERCURY_DAEMON_DIR
@@ -44,7 +44,7 @@ async function sweepRegistrationUnreadable(): Promise<void> {
   const label = 'process sweep: a cockpit registration that cannot be read makes the registrations unknown, not one fewer window'
   if (!POSIX_MODES) return skip(label, 'needs POSIX modes and a non-root user')
   const home = join(scratch, 'home-sweep')
-  const m = await import(join(SRC, 'daemon/processSweepRun.ts'))
+  const m = await import(join(SRC, 'daemon/process-sweep/processSweepRun.ts'))
   const dir = m.processRecordsDir(home)
   mkdirSync(dir, { recursive: true })
   const file = join(dir, `cockpit-${process.pid}-0a1b2c3d.json`)
@@ -53,19 +53,19 @@ async function sweepRegistrationUnreadable(): Promise<void> {
   try {
     const strict = await m.readCockpitRegistrations(home, 'strict')
     const loose = await m.readCockpitRegistrations(home)
-    check(label, strict === null, `strict read answered ${JSON.stringify(strict)} | fix readCockpitRegistrations in src/daemon/processSweepRun.ts so the strict mode answers null when a registration file cannot be read`)
-    check('readCockpitRegistrations keeps its answer for outside callers', Array.isArray(loose) && loose.length === 0, JSON.stringify(loose) + ' | fix readCockpitRegistrations in src/daemon/processSweepRun.ts so the call without the strict mode still answers an empty list for an unreadable registration')
+    check(label, strict === null, `strict read answered ${JSON.stringify(strict)} | fix readCockpitRegistrations in src/daemon/process-sweep/processSweepRun.ts so the strict mode answers null when a registration file cannot be read`)
+    check('readCockpitRegistrations keeps its answer for outside callers', Array.isArray(loose) && loose.length === 0, JSON.stringify(loose) + ' | fix readCockpitRegistrations in src/daemon/process-sweep/processSweepRun.ts so the call without the strict mode still answers an empty list for an unreadable registration')
   } finally {
     chmodSync(file, 0o644)
   }
 }
 
 async function scheduleSignInUnread(): Promise<void> {
-  const { deriveScheduleAccountForModel } = await import(join(SRC, 'daemon/saturnAccount.ts'))
+  const { deriveScheduleAccountForModel } = await import(join(SRC, 'daemon/saturn/saturnAccount.ts'))
   const unread = deriveScheduleAccountForModel('fixture-model', { familyOf: () => 'anthropic', presenceOf: () => ({ credentialed: false, kind: 'none', unread: 'EACCES: permission denied' }) })
-  check('schedule account: a sign-in that could not be read is refused as unread, not as no credential', !unread.ok && unread.reason === 'unread:anthropic — the sign-in could not be read (EACCES: permission denied)', JSON.stringify(unread) + ' | fix deriveScheduleAccountForModel in src/daemon/saturnAccount.ts so a presence with unread set is refused with the unread reason')
+  check('schedule account: a sign-in that could not be read is refused as unread, not as no credential', !unread.ok && unread.reason === 'unread:anthropic — the sign-in could not be read (EACCES: permission denied)', JSON.stringify(unread) + ' | fix deriveScheduleAccountForModel in src/daemon/saturn/saturnAccount.ts so a presence with unread set is refused with the unread reason')
   const absent = deriveScheduleAccountForModel('fixture-model', { familyOf: () => 'anthropic', presenceOf: () => ({ credentialed: false, kind: 'none' }) })
-  check('schedule account: an absent sign-in still reads no-credential', !absent.ok && absent.reason.startsWith('no-credential:anthropic'), JSON.stringify(absent) + ' | fix deriveScheduleAccountForModel in src/daemon/saturnAccount.ts so a presence without a credential and without unread is refused as no-credential')
+  check('schedule account: an absent sign-in still reads no-credential', !absent.ok && absent.reason.startsWith('no-credential:anthropic'), JSON.stringify(absent) + ' | fix deriveScheduleAccountForModel in src/daemon/saturn/saturnAccount.ts so a presence without a credential and without unread is refused as no-credential')
 }
 
 await reconcileUnlinkRefused()

@@ -6,7 +6,7 @@ import { isAbsolute, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { Client, StdioClientTransport } from '../../src/utils/mcp/sdk.ts'
+import { Client, StdioClientTransport } from '../../src/integrations/mcp-shapes/sdk.ts'
 import sharp from 'sharp'
 
 const exec = promisify(execFile)
@@ -18,8 +18,8 @@ assert(!scratch.startsWith(root), 'Pass an isolated absolute proof directory out
 if (automatic) process.once('exit', () => rmSync(scratch, { recursive: true, force: true }))
 const delivered = join(scratch, 'extension'), dataDir = join(scratch, 'data')
 await mkdir(scratch, { recursive: true })
-await cp(join(root, 'src/extensions/bundled/filmcraft'), delivered, { recursive: true })
-await cp(join(root, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
+await cp(join(root, 'src/integrations/extensions/bundled/filmcraft'), delivered, { recursive: true })
+await cp(join(root, 'src/integrations/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
 const { adapter } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
 const { checkInstall, installPinned } = await import(pathToFileURL(join(delivered, 'shared/install.mjs')).href)
 let asks = 0
@@ -27,7 +27,7 @@ const installation = await installPinned(adapter, { dataDir, authorize: async (p
 console.log(`Installed: ${installation.cli}`)
 assert.equal((await checkInstall(adapter, { dataDir })).state, 'installed')
 const reused = await installPinned(adapter, { dataDir, authorize: () => { throw new Error('Reuse must not ask') } })
-assert(reused.reused, 'filmcraft second installPinned did not reuse existing installation in src/extensions/bundled/shared/install.mjs')
+assert(reused.reused, 'filmcraft second installPinned did not reuse existing installation in src/integrations/extensions/bundled/shared/install.mjs')
 const environment = { ...process.env, HOME: join(scratch, 'home'), USERPROFILE: join(scratch, 'home'), XDG_CONFIG_HOME: join(scratch, 'config'), FILMCRAFT_DATA_DIR: join(scratch, 'app-data'), TMPDIR: join(scratch, 'tmp'), TMP: join(scratch, 'tmp'), TEMP: join(scratch, 'tmp') }
 for (const key of ['HOME', 'XDG_CONFIG_HOME', 'FILMCRAFT_DATA_DIR', 'TMPDIR'] as const) await mkdir(environment[key]!, { recursive: true })
 const version = await exec(installation.cli, ['--version'], { env: environment })

@@ -1,0 +1,643 @@
+import { flagEnv } from '../../platform/substrate/flagRegistry.js'
+import { EMPTY_STREAM_END_MARKER, EMPTY_STREAM_REASON_WORDS, outageCauseWordsOf } from '../../engine/requests/recoveryBudget.js'
+import type { SystemAPIErrorMessage } from '../../engine/message-shapes/message.js'
+import { currentPatience, PATIENCE_NORMAL } from './patience.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+import { startTimeout, stopTimeout, type TimerHandle } from '../../platform/async/timers.js'
+
+export const STREAM_IDLE_DEFAULT_MS = 2 * 60_000
+
+const STREAM_IDLE_FLOOR_MS = 1_000
+
+function pinnedStreamIdleTimeoutMs(): number | null {
+  const raw = flagEnv('MERCURY_STREAM_IDLE_TIMEOUT_MS')
+  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
+  return Number.isFinite(parsed) && parsed >= STREAM_IDLE_FLOOR_MS ? parsed : null
+}
+
+export function streamIdleTimeoutMs(): number {
+  return pinnedStreamIdleTimeoutMs() ?? STREAM_IDLE_DEFAULT_MS
+}
+
+export const STREAM_IDLE_WARNING_FLOOR_MS = 5 * 60_000
+
+export function streamIdleWarningMsOf(timeoutMs: number): number {
+  return Math.min(timeoutMs, Math.max(STREAM_IDLE_WARNING_FLOOR_MS, timeoutMs / 2))
+}
+
+const SELF_HOSTED_COMPAT_DIALECTS: ReadonlySet<string> = new Set(['llamacpp', 'vllm', 'sglang', 'ollama', 'lmstudio'])
+
+function isSelfHostedCompatDialect(dialect: string | null | undefined): boolean {
+  return typeof dialect === 'string' && SELF_HOSTED_COMPAT_DIALECTS.has(dialect)
+}
+
+function streamIdleSettingForRoute(route: string | null): 'streamIdleMs' | 'quietStreamIdleMs' | null {
+  switch (route) {
+    case 'anthropic':
+    case 'zai':
+    case 'openai-compat':
+    case 'deepseek':
+    case 'openrouter':
+      return 'streamIdleMs'
+    case 'openai':
+    case 'local':
+    case 'moonshot':
+    case 'xai':
+    case 'meta':
+    case 'gemini':
+    case 'huggingface':
+    case 'mistral':
+    case 'nous':
+    case 'zen':
+    case 'minimax':
+    case 'together':
+    case 'cohere':
+    case 'groq':
+    case 'melious':
+    case 'orcarouter':
+    case 'cerebras':
+    case 'fireworks':
+    case 'qwen':
+      return 'quietStreamIdleMs'
+    default:
+      return null
+  }
+}
+
+export function streamIdleTimeoutMsForRoute(route: string | null, dialect?: string | null): number {
+  const pinned = pinnedStreamIdleTimeoutMs()
+  if (pinned !== null) return pinned
+  const numbers = currentPatience().numbers
+  if (isSelfHostedCompatDialect(dialect) || isSelfHostedCompatDialect(route)) {
+    return Math.max(numbers.streamIdleMs, numbers.quietStreamIdleMs)
+  }
+  const setting = streamIdleSettingForRoute(route)
+  return setting === null ? STREAM_IDLE_DEFAULT_MS : numbers[setting]
+}
+
+export interface StreamTimers {
+  now(): number
+  setTimeout(fn: () => void, ms: number): TimerHandle
+  clearTimeout(handle: TimerHandle): void
+}
+
+export const REAL_STREAM_TIMERS: StreamTimers = {
+  now: () => Date.now(),
+  setTimeout: (fn, ms) => startTimeout(fn, ms),
+  clearTimeout: handle => stopTimeout(handle),
+}
+
+
+export const COLD_INGEST_MS_PER_1K_TOKENS = 1_200
+export const FIRST_BYTE_BUDGET_CEILING_MS = 300_000
+export const FIRST_BYTE_BUDGET_CEILING_FACTOR = 2
+
+export function firstByteBudgetMs(args: { cold: boolean; promptTokens: number; idleMs?: number; prefillMs?: number }): number {
+  const idle = args.idleMs ?? streamIdleTimeoutMs()
+  if (args.prefillMs !== undefined && Number.isFinite(args.prefillMs) && args.prefillMs > 0 && pinnedStreamIdleTimeoutMs() === null) return idle + args.prefillMs
+  if (!args.cold) return idle
+  const tokens = Number.isFinite(args.promptTokens) && args.promptTokens > 0 ? args.promptTokens : 0
+  const allowance = Math.round((tokens / 1000) * COLD_INGEST_MS_PER_1K_TOKENS)
+  const ceiling = Math.max(FIRST_BYTE_BUDGET_CEILING_MS, idle * FIRST_BYTE_BUDGET_CEILING_FACTOR)
+  return Math.min(ceiling, Math.max(idle, idle + allowance))
+}
+
+let estimateFailureSaid: string | undefined
+
+export function estimateRequestTokens(body: unknown, model?: string): number {
+  try {
+    const { estimateRequestTokens: estimate } = require('../facts/tokenEstimation.js') as typeof import('../facts/tokenEstimation.js')
+    return Math.max(1, estimate(body, model))
+  } catch (error) {
+    const why = error instanceof SyntaxError ? 'a part of the request is not valid JSON' : error instanceof Error ? error.message : String(error)
+    if (why !== estimateFailureSaid) {
+      estimateFailureSaid = why
+      const { logForDebugging } = require('../../platform/logs/debugLog.js') as typeof import('../../platform/logs/debugLog.js')
+      logForDebugging(`[stream-budget] the tokens of a request to ${model ?? 'the model'} could not be estimated (${why}), so it counts as 1 token: the served-window fit and the first-byte allowance read it as small`, { level: 'warn' })
+    }
+    return 1
+  }
+}
+
+export function coldPrefixOf(messages: ReadonlyArray<unknown>, model: string): boolean {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const row = messages[index] as { type?: unknown; subtype?: unknown; message?: { model?: unknown } | null }
+    if (row.type === 'system' && row.subtype === 'compact_boundary') return true
+    if (row.type === 'assistant') {
+      const stamped = row.message?.model
+      if (typeof stamped !== 'string' || stamped === '' || stamped === '<synthetic>') continue
+      return stamped !== model
+    }
+  }
+  return true
+}
+
+export const SILENT_AFTER_HEADERS_DEFAULT_MS = 30_000
+const SILENT_AFTER_HEADERS_FLOOR_MS = 100
+export const SILENT_AFTER_HEADERS_CODE = 'silent-after-headers'
+
+function pinnedSilentAfterHeadersMs(): number | null {
+  const raw = flagEnv('MERCURY_SILENT_AFTER_HEADERS_MS')
+  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
+  return Number.isFinite(parsed) && parsed >= SILENT_AFTER_HEADERS_FLOOR_MS ? parsed : null
+}
+
+export function silentAfterHeadersMsForRoute(route: string | null, dialect?: string | null): number | null {
+  if (isSelfHostedCompatDialect(dialect) || isSelfHostedCompatDialect(route)) return null
+  const setting = streamIdleSettingForRoute(route)
+  if (setting === null || route === 'local') return null
+  const pinned = pinnedSilentAfterHeadersMs()
+  if (pinned !== null) return pinned
+  const scale = currentPatience().numbers[setting] / PATIENCE_NORMAL[setting]
+  return Math.max(SILENT_AFTER_HEADERS_DEFAULT_MS, Math.round(SILENT_AFTER_HEADERS_DEFAULT_MS * scale))
+}
+
+export function measuredPrefillMs(promptTokens: number, prefillTokensPerSecond?: number): number | undefined {
+  if (!Number.isFinite(promptTokens) || promptTokens <= 0 || prefillTokensPerSecond === undefined || !Number.isFinite(prefillTokensPerSecond) || prefillTokensPerSecond <= 0) return undefined
+  const ms = Math.ceil(promptTokens / prefillTokensPerSecond * 1000)
+  return Number.isSafeInteger(ms) ? ms : undefined
+}
+
+export function silentAfterHeadersWindowMs(args: { route: string | null; dialect?: string | null; cold: boolean; promptTokens: number; idleMs: number; prefillTokensPerSecond?: number }): number | null {
+  if (isSelfHostedCompatDialect(args.dialect) || isSelfHostedCompatDialect(args.route)) {
+    const prefill = measuredPrefillMs(args.promptTokens, args.prefillTokensPerSecond)
+    return prefill === undefined || pinnedStreamIdleTimeoutMs() !== null ? null : args.idleMs + prefill
+  }
+  const base = silentAfterHeadersMsForRoute(args.route, args.dialect)
+  if (base === null) return null
+  const tokens = Number.isFinite(args.promptTokens) && args.promptTokens > 0 ? args.promptTokens : 0
+  const allowance = args.cold && pinnedSilentAfterHeadersMs() === null ? Math.round((tokens / 1000) * COLD_INGEST_MS_PER_1K_TOKENS) : 0
+  const window = base + allowance
+  return window < args.idleMs ? window : null
+}
+
+export function silentAfterHeadersFaultWords(model: string, silentMs: number, promptTokens = 0): string {
+  return `${model} answered and then sent nothing for ${seconds(silentMs)} — not one byte after the headers on a prompt of ~${Math.round(promptTokens)} tokens: a dead connection`
+}
+
+export type RequestWaitV1 =
+  | {
+      kind: 'first-byte'
+      cold: boolean
+      promptTokens: number
+      model: string
+      budgetMs: number
+      sinceMs: number
+      attempt: number
+      promise?: boolean
+      phase?: 'loading' | 'tokens'
+      prefillMs?: number
+      sizeGb?: number
+      checkedMs?: number
+    }
+  | {
+      kind: 'retry'
+      attempt: number
+      of: number
+      reason: string
+      delayMs: number
+      sinceMs: number
+      reconnecting?: boolean
+      silentMs?: number
+    }
+  | {
+      kind: 'silence'
+      model: string
+      silentMs: number
+      sinceMs: number
+      answered: boolean
+      askAtMs?: number
+    }
+
+const seconds = (ms: number): string => {
+  const s = Math.max(1, Math.round(ms / 1000))
+  return s < 60 ? `${s} s` : idleSeconds(ms)
+}
+const kTokens = (tokens: number): string => (tokens >= 1000 ? `${Math.round(tokens / 1000)}k-token` : `${tokens}-token`)
+
+export function requestWaitLine(wait: RequestWaitV1, compact = false, pastEstimate = false): string {
+  if (wait.kind === 'retry') {
+    if (wait.reconnecting) return `${wait.silentMs === undefined ? 'connection dropped' : `no tokens for ${streamSilenceDuration(wait.silentMs)}`} · reconnecting (${wait.attempt} of ${wait.of})`
+    const delay = wait.delayMs > 0 ? ` · in ${seconds(wait.delayMs)}` : ''
+    if (outageCauseWordsOf(wait.reason) !== undefined) return `reconnecting — reconnect ${wait.attempt} of ${wait.of} after ${wait.reason}${delay}`
+    return `retrying — attempt ${wait.attempt} of ${wait.of} after ${wait.reason}${delay}`
+  }
+  if (wait.kind === 'silence') {
+    const quiet = `no bytes for ${seconds(wait.silentMs)}`
+    if (compact) return wait.answered ? `${quiet} — the server still answers` : `${quiet} — the server is asked at ${seconds(wait.askAtMs ?? wait.silentMs)}`
+    return wait.answered ? `${quiet} — ${wait.model}'s server still answers` : `${quiet} — ${wait.model}'s server is asked at ${seconds(wait.askAtMs ?? wait.silentMs)}`
+  }
+  const again = wait.attempt > 1 ? ` (attempt ${wait.attempt})` : ''
+  if (wait.prefillMs !== undefined) return `reading ${Math.round(wait.promptTokens / 1000)}k tokens of context · ~${streamSilenceDuration(wait.prefillMs)}${again}`
+  if (wait.phase === 'tokens') return `waiting for the first token${again}`
+  if (wait.phase === 'loading') return `loading ${wait.model}${wait.sizeGb !== undefined && !compact ? ` (${wait.sizeGb} GB)` : ''}${again}`
+  if (wait.promise === true) {
+    const prompt = compact ? 'prompt' : `a ${kTokens(wait.promptTokens)} prompt on ${wait.model}`
+    if (wait.checkedMs !== undefined) {
+      const more = seconds(Math.max(1000, wait.budgetMs - wait.checkedMs))
+      const answered = compact ? '' : ` (its server answered at ${seconds(wait.checkedMs)})`
+      return wait.cold ? `still ingesting ${prompt} — about ${more} more${answered}${again}` : `still waiting for the first byte from ${compact ? 'the model' : wait.model} — about ${more} more${answered}${again}`
+    }
+    if (pastEstimate) return wait.cold ? `ingesting ${prompt}${again}` : `waiting for the first byte from ${compact ? 'the model' : wait.model}${again}`
+    return wait.cold
+      ? `ingesting ${prompt} — first byte expected in about ${seconds(wait.budgetMs)}${again}`
+      : `waiting for the first byte from ${compact ? 'the model' : wait.model} — expected in about ${seconds(wait.budgetMs)}${again}`
+  }
+  if (compact) return `${wait.cold ? 'ingesting prompt' : 'waiting'} — gives up after ${seconds(wait.budgetMs)}${again}`
+  return wait.cold
+    ? `ingesting a ${kTokens(wait.promptTokens)} prompt on ${wait.model} — gives up after ${seconds(wait.budgetMs)}${again}`
+    : `waiting for the first byte from ${wait.model} — gives up after ${seconds(wait.budgetMs)}${again}`
+}
+
+const WAIT_ELAPSED_SUFFIX = / · \d+[sm] so far$/
+const COLD_WAIT_HEAD = /^(still )?ingesting (a \S+-token )prompt(?: on .+?)?( \(attempt \d+\))?$/
+const COLD_COMPACT_HEAD = /^(still )?ingesting prompt( \(attempt \d+\))?$/
+const WARM_WAIT_HEAD = /^(still )?waiting for the first byte(?: from .+?)?( \(attempt \d+\))?$/
+const SILENCE_WAIT_MODEL = /^(no bytes for .+ — ).+'s (server .+)$/
+
+export function shortenRequestWaitLine(line: string, fits: (candidate: string) => boolean): string | null {
+  const silence = SILENCE_WAIT_MODEL.exec(line)
+  if (silence !== null) {
+    const plain = `${silence[1]}the ${silence[2]}`
+    return fits(plain) ? plain : null
+  }
+  const dash = line.indexOf(' — ')
+  let head = line
+  let tail = ''
+  if (dash !== -1) {
+    head = line.slice(0, dash)
+    tail = line.slice(dash)
+  } else {
+    const count = WAIT_ELAPSED_SUFFIX.exec(line)?.[0]
+    if (count !== undefined) {
+      head = line.slice(0, line.length - count.length)
+      tail = count
+    }
+  }
+  const candidates: string[] = []
+  const cold = COLD_WAIT_HEAD.exec(head)
+  if (cold !== null) {
+    const still = cold[1] ?? ''
+    const figure = cold[2] ?? ''
+    const again = cold[3] ?? ''
+    candidates.push(
+      `${still}ingesting ${figure}prompt${again}${tail}`,
+      `${still}ingesting prompt${again}${tail}`,
+      `${still}ingesting${again}${tail}`,
+    )
+  } else {
+    const coldCompact = COLD_COMPACT_HEAD.exec(head)
+    if (coldCompact !== null) {
+      candidates.push(`${coldCompact[1] ?? ''}ingesting${coldCompact[2] ?? ''}${tail}`)
+    } else {
+      const warm = WARM_WAIT_HEAD.exec(head)
+      if (warm !== null) {
+        const still = warm[1] ?? ''
+        const again = warm[2] ?? ''
+        candidates.push(
+          `${still}waiting for the first byte${again}${tail}`,
+          `${still}waiting${again}${tail}`,
+        )
+      } else if (head === 'waiting' || head === 'still waiting') {
+        candidates.push(line)
+      }
+    }
+  }
+  if (candidates.length === 0) return null
+  if (tail.startsWith(' — ')) candidates.push(tail.slice(3))
+  for (const candidate of candidates) {
+    if (candidate !== line && fits(candidate)) return candidate
+  }
+  return null
+}
+
+export function requestWaitLinePastEstimate(line: string): boolean {
+  return !line.includes(' — ') && (line.startsWith('waiting for the first byte from ') || line.startsWith('ingesting '))
+}
+
+export function firstByteTimeoutLine(wait: Extract<RequestWaitV1, { kind: 'first-byte' }>, elapsedMs?: number): string {
+  const waitedMs = elapsedMs !== undefined && Number.isFinite(elapsedMs) && elapsedMs >= 0 ? elapsedMs : wait.budgetMs
+  return `no first byte from ${wait.model} after ${seconds(waitedMs)} (${
+    wait.cold ? `a ${kTokens(wait.promptTokens)} prompt ingesting uncached` : 'the request was accepted and nothing arrived'
+  })`
+}
+
+export function decodeRequestWait(raw: unknown): RequestWaitV1 | null {
+  if (raw === null || typeof raw !== 'object') return null
+  const w = raw as Record<string, unknown>
+  const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+  if (w.kind === 'first-byte') {
+    const promptTokens = num(w.promptTokens)
+    const budgetMs = num(w.budgetMs)
+    const sinceMs = num(w.sinceMs)
+    if (typeof w.model !== 'string' || promptTokens === null || budgetMs === null || sinceMs === null) return null
+    const sizeGb = num(w.sizeGb)
+    const checkedMs = num(w.checkedMs)
+    return {
+      kind: 'first-byte',
+      cold: w.cold === true,
+      promptTokens,
+      model: w.model.slice(0, 120),
+      budgetMs,
+      sinceMs,
+      attempt: num(w.attempt) ?? 1,
+      ...(w.promise === true ? { promise: true } : {}),
+      ...(w.phase === 'loading' || w.phase === 'tokens' ? { phase: w.phase } : {}),
+      ...(num(w.prefillMs) !== null && Number(w.prefillMs) > 0 ? { prefillMs: Number(w.prefillMs) } : {}),
+      ...(sizeGb !== null ? { sizeGb } : {}),
+      ...(checkedMs !== null ? { checkedMs } : {}),
+    }
+  }
+  if (w.kind === 'silence') {
+    const silentMs = num(w.silentMs)
+    const sinceMs = num(w.sinceMs)
+    if (typeof w.model !== 'string' || silentMs === null || sinceMs === null) return null
+    const askAtMs = num(w.askAtMs)
+    return { kind: 'silence', model: w.model.slice(0, 120), silentMs, sinceMs, answered: w.answered === true, ...(askAtMs !== null ? { askAtMs } : {}) }
+  }
+  if (w.kind === 'retry') {
+    const attempt = num(w.attempt)
+    const of = num(w.of)
+    const sinceMs = num(w.sinceMs)
+    if (attempt === null || of === null || sinceMs === null || typeof w.reason !== 'string') return null
+    return { kind: 'retry', attempt, of, reason: w.reason.slice(0, 120), delayMs: num(w.delayMs) ?? 0, sinceMs, ...(w.reconnecting === true ? { reconnecting: true } : {}), ...(num(w.silentMs) !== null ? { silentMs: Number(w.silentMs) } : {}) }
+  }
+  return null
+}
+
+const WAIT_WIRE_KEYS: Readonly<Record<string, string>> = {
+  promptTokens: 'prompt_tokens',
+  budgetMs: 'budget_ms',
+  sinceMs: 'since_ms',
+  delayMs: 'delay_ms',
+  sizeGb: 'size_gb',
+  checkedMs: 'checked_ms',
+  silentMs: 'silent_ms',
+  askAtMs: 'ask_at_ms',
+  prefillMs: 'prefill_ms',
+}
+const WAIT_RECORD_KEYS: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(WAIT_WIRE_KEYS).map(([record, wire]) => [wire, record]),
+)
+function renamedKeys(value: unknown, table: Readonly<Record<string, string>>): unknown {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return value
+  const out: Record<string, unknown> = {}
+  for (const [key, inner] of Object.entries(value as Record<string, unknown>)) out[table[key] ?? key] = inner
+  return out
+}
+
+export function requestWaitToWire(wait: RequestWaitV1): Record<string, unknown> {
+  return renamedKeys(wait, WAIT_WIRE_KEYS) as Record<string, unknown>
+}
+
+export function requestWaitFromWire(raw: unknown): unknown {
+  return renamedKeys(raw, WAIT_RECORD_KEYS)
+}
+
+export function retryReasonWords(status: number | null | undefined, message?: string): string {
+  if (typeof status === 'number' && status > 0) return `a ${status}`
+  if (message === undefined) return 'a connection error'
+  const outage = outageCauseWordsOf(message)
+  if (outage !== undefined) return outage
+  if (message.includes(EMPTY_STREAM_END_MARKER)) return EMPTY_STREAM_REASON_WORDS
+  if (/no first byte/.test(message)) return 'a first-byte timeout'
+  if (/not one byte after the headers/.test(message)) return 'a dead connection'
+  return 'a connection error'
+}
+
+export function streamSilenceDuration(ms: number): string {
+  const s = Math.max(1, Math.round(ms / 1000))
+  return s < 60 ? `${s} s` : `${Math.round(s / 60)} min`
+}
+
+export function streamReconnectSpentLine(route: string, silentMs?: number): string {
+  return `the ${route} stream ${silentMs === undefined ? 'connection dropped' : `went silent for ${streamSilenceDuration(silentMs)}`} and did not reconnect — nothing was lost before that; the request is not retried on its own`
+}
+
+export function streamReconnectWait(attempt: number, of: number, delayMs: number, silentMs?: number): Extract<RequestWaitV1, { kind: 'retry' }> {
+  return { kind: 'retry', attempt, of, delayMs, sinceMs: Date.now(), reason: silentMs === undefined ? 'a dropped stream' : `no tokens for ${streamSilenceDuration(silentMs)}`, reconnecting: true, ...(silentMs !== undefined ? { silentMs } : {}) }
+}
+export function retryNoticeWait(notice: SystemAPIErrorMessage, nowMs: number = Date.now()): Extract<RequestWaitV1, { kind: 'retry' }> {
+  const streamWait = decodeRequestWait((notice.error as Error & { streamWait?: unknown })?.streamWait)
+  if (streamWait?.kind === 'retry') return streamWait
+  const status = notice.errorDetail?.status ?? (notice.error as { status?: number | null } | undefined)?.status
+  return { kind: 'retry', attempt: notice.retryAttempt, of: notice.maxRetries, reason: retryReasonWords(status, notice.error?.message), delayMs: notice.retryInMs, sinceMs: nowMs }
+}
+
+
+export type StreamIdleFire = {
+  silentMs: number
+  activity: number
+  noBytes: boolean
+}
+
+export class StreamIdleTimeoutError extends Error {
+  readonly silentMs: number
+  readonly noBytes: boolean
+  constructor(silentMs: number, noBytes = false) {
+    super(noBytes ? `no bytes for ${silentMs} ms after the headers` : `no stream activity for ${silentMs} ms`)
+    this.name = 'StreamIdleTimeoutError'
+    this.silentMs = silentMs
+    this.noBytes = noBytes
+  }
+}
+
+export function streamIdleFaultWords(idleMs: number): string {
+  const budget = idleMs >= 1000 ? idleSeconds(idleMs) : `${idleMs} ms`
+  return `no bytes for ${budget} — the stream went quiet (no keep-alive arrived) and the watchdog cut it`
+}
+
+const idleSeconds = (ms: number): string => {
+  const s = Math.max(0, Math.round(ms / 1000))
+  if (s < 60) return `${s} s`
+  const m = Math.floor(s / 60)
+  const rest = s % 60
+  return rest === 0 ? `${m}m` : `${m}m ${rest}s`
+}
+
+export interface StreamIdleWatchdog {
+  noteActivity(): void
+  stop(): void
+  fired(): StreamIdleFire | null
+  silentMs(): number
+  guard<T>(pending: Promise<T>): Promise<T>
+}
+
+export function createStreamIdleWatchdog(opts: {
+  timeoutMs: number
+  silentAfterHeadersMs?: number | null
+  onWarning?: (silentMs: number) => void
+  onFire?: (fire: StreamIdleFire) => void
+}): StreamIdleWatchdog {
+  const timeoutMs = opts.timeoutMs
+  const warningMs = streamIdleWarningMsOf(timeoutMs)
+  const initialTimeoutMs = Math.max(timeoutMs, opts.silentAfterHeadersMs ?? 0)
+  const fenceMs =
+    typeof opts.silentAfterHeadersMs === 'number' && opts.silentAfterHeadersMs > 0 && opts.silentAfterHeadersMs < timeoutMs
+      ? opts.silentAfterHeadersMs
+      : null
+  const createdAtMs = performance.now()
+  let scheduledAtMs = createdAtMs
+  let lastActivityAtMs = createdAtMs
+  let activity = 0
+  let warnedForMs = -1
+  let timer: ReturnType<typeof setTimeout> | null = null
+  let fire: StreamIdleFire | null = null
+  let stopped = false
+  const waiters = new Set<(error: StreamIdleTimeoutError) => void>()
+  function clear(): void {
+    if (timer !== null) {
+      stopTimeout(timer)
+      timer = null
+    }
+  }
+  function onStreamIdleDeadline(): void {
+    timer = null
+    if (stopped || fire !== null) return
+    const now = performance.now()
+    if (now - scheduledAtMs > 100) {
+      scheduledAtMs = now
+      timer = startTimeout(onStreamIdleDeadline, 0)
+      return
+    }
+    const silentMs = now - lastActivityAtMs
+    const noBytes = fenceMs !== null && activity === 0 && silentMs >= fenceMs
+    if (silentMs >= (activity === 0 ? initialTimeoutMs : timeoutMs) || noBytes) {
+      fire = { silentMs, activity, noBytes }
+      const error = new StreamIdleTimeoutError(silentMs, noBytes)
+      for (const reject of waiters) reject(error)
+      waiters.clear()
+      opts.onFire?.(fire)
+      return
+    }
+    if (silentMs >= warningMs && warnedForMs !== lastActivityAtMs) {
+      warnedForMs = lastActivityAtMs
+      opts.onWarning?.(silentMs)
+    }
+    arm()
+  }
+  function arm(): void {
+    const idleDeadlineAt = lastActivityAtMs + (warnedForMs === lastActivityAtMs ? activity === 0 ? initialTimeoutMs : timeoutMs : warningMs)
+    const nextDeadlineAt = fenceMs !== null && activity === 0 ? Math.min(idleDeadlineAt, createdAtMs + fenceMs) : idleDeadlineAt
+    scheduledAtMs = nextDeadlineAt
+    timer = startTimeout(onStreamIdleDeadline, Math.max(0, nextDeadlineAt - performance.now()))
+  }
+  arm()
+  return {
+    noteActivity() {
+      const rearm = activity === 0 && initialTimeoutMs > timeoutMs && !stopped && fire === null
+      lastActivityAtMs = performance.now()
+      activity++
+      if (rearm) { clear(); arm() }
+    },
+    stop() {
+      stopped = true
+      clear()
+    },
+    fired() {
+      return fire
+    },
+    silentMs() {
+      return performance.now() - lastActivityAtMs
+    },
+    guard<T>(pending: Promise<T>): Promise<T> {
+      if (fire !== null) return Promise.reject(new StreamIdleTimeoutError(fire.silentMs, fire.noBytes))
+      return new Promise<T>((resolve, reject) => {
+        waiters.add(reject)
+        pending.then(
+          value => {
+            waiters.delete(reject)
+            resolve(value)
+          },
+          error => {
+            waiters.delete(reject)
+            reject(error)
+          },
+        )
+      })
+    },
+  }
+}
+
+
+export type StreamEndV1 =
+  | { reason: 'silent-after-last-item'; provider: string; silentMs: number }
+  | { reason: 'closed-after-last-item'; provider: string }
+
+export function streamEndReceiptLine(end: StreamEndV1): string {
+  return end.reason === 'silent-after-last-item'
+    ? `the ${end.provider} stream went silent ${seconds(end.silentMs)} after its last item; the reply stands`
+    : `the ${end.provider} stream closed without its end event after its last item; the reply stands`
+}
+
+export function typedStreamEndOf(args: {
+  fault: { kind: string; code: string }
+  provider: string
+  tailStands: boolean
+  silentMs: number
+}): StreamEndV1 | null {
+  if (!args.tailStands) return null
+  if (args.fault.kind === 'timeout' && args.fault.code === 'idle-timeout') {
+    return { reason: 'silent-after-last-item', provider: args.provider, silentMs: args.silentMs }
+  }
+  if (args.fault.kind === 'truncated-stream' && (args.fault.code === 'no-terminal-event' || args.fault.code === 'no-finish')) {
+    return { reason: 'closed-after-last-item', provider: args.provider }
+  }
+  return null
+}
+
+
+export const STREAM_ACTIVITY_OPTION = 'mercuryStreamActivity'
+
+export type StreamActivityNote = () => void
+
+export function streamActivityFetchOptions(note: StreamActivityNote): { [STREAM_ACTIVITY_OPTION]: StreamActivityNote } {
+  return { [STREAM_ACTIVITY_OPTION]: note }
+}
+
+export function streamActivityNoteOf(init: unknown): StreamActivityNote | null {
+  const note = (init as Record<string, unknown> | null | undefined)?.[STREAM_ACTIVITY_OPTION]
+  return typeof note === 'function' ? (note as StreamActivityNote) : null
+}
+
+export function observeStreamActivity(response: Response, note: StreamActivityNote): Response {
+  if (response.body === null || response.status === 204 || response.status === 304) return response
+  const tapped = response.body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        if (chunk.byteLength > 0) note()
+        controller.enqueue(chunk)
+      },
+    }),
+  )
+  const observed = new Response(tapped, { status: response.status, statusText: response.statusText, headers: response.headers })
+  try {
+    Object.defineProperty(observed, 'url', { value: response.url, configurable: true })
+  } catch (error) {
+    passedOver(error)
+  }
+  return observed
+}
+
+export const STREAM_ACTIVITY_RELAY_GAP_MS = 1_000
+
+export interface StreamActivityRelay {
+  noteEvent(): void
+  noteChunk(): void
+}
+
+export function createStreamActivityRelay(relay: (atMs: number) => void, gapMs: number = STREAM_ACTIVITY_RELAY_GAP_MS): StreamActivityRelay {
+  let lastEventAtMs = Date.now()
+  let lastRelayAtMs = 0
+  return {
+    noteEvent() {
+      lastEventAtMs = Date.now()
+    },
+    noteChunk() {
+      const now = Date.now()
+      if (now - lastEventAtMs < gapMs || now - lastRelayAtMs < gapMs) return
+      lastRelayAtMs = now
+      relay(now)
+    },
+  }
+}

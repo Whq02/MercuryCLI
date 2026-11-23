@@ -5,15 +5,15 @@ import {
   healWalkableForWire,
   orderToolResultsByUse,
   SYNTHETIC_TOOL_RESULT_PLACEHOLDER,
-} from '../../src/services/messages.ts'
+} from '../../src/engine/messages/messages.ts'
 import type {
   AssistantMessage,
   Message,
   UserMessage,
-} from '../../src/types/message.ts'
+} from '../../src/engine/message-shapes/message.ts'
 
 let failures = 0
-const hint = 'change healWalkableForWire in src/services/messages/pairing.ts (results ordering lives in orderToolResultsByUse, src/utils/messages/resultPairing.ts) so the wire rows match the label'
+const hint = 'change healWalkableForWire in src/engine/messages/wirePairing.ts (results ordering lives in orderToolResultsByUse, src/engine/message-shapes/resultPairing.ts) so the wire rows match the label'
 const t = (name: string, ok: boolean, detail = ''): void => {
   const shown = ok ? detail : [detail, hint].filter(Boolean).join('; ')
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${shown ? ` — ${shown}` : ''}`)

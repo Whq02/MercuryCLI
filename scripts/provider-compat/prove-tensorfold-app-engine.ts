@@ -18,10 +18,10 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const app = await import('../../src/services/providers/local/tensorfoldApp.ts')
-const hosts = await import('../../src/services/providers/local/tensorfoldHosts.ts')
-const A = 'src/services/providers/local/tensorfoldApp.ts'
-const H = 'src/services/providers/local/tensorfoldHosts.ts'
+const app = await import('../../src/models/roads/local/tensorfoldApp.ts')
+const hosts = await import('../../src/models/roads/local/tensorfoldHosts.ts')
+const A = 'src/models/roads/local/tensorfoldApp.ts'
+const H = 'src/models/roads/local/tensorfoldHosts.ts'
 
 const APP = '/Applications/TensorFold.app/Contents/MacOS/TensorFold'
 const ENGINE = '/Applications/TensorFold.app/Contents/Resources/engine/tensorfold-native'

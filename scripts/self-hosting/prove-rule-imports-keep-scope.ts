@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { checker, contentsOf, count, governs, openWorld } from './instructionWorld.ts'
 
 const world = openWorld('rule-imports')
-const IMPORT_FIX = 'an @-imported rule file of another tool must keep the scope that tool gave it (always, manual, offered, scoped); fix the import and rule-adapter handling under src/services/instructions/. Got: '
+const IMPORT_FIX = 'an @-imported rule file of another tool must keep the scope that tool gave it (always, manual, offered, scoped); fix the import and rule-adapter handling under src/sessions/instructions/. Got: '
 const { check, section, close } = checker()
 const offered = (lines: string[]): string => `Rule files offered by description (not loaded; Read one when its description fits the work):\n${lines.join('\n')}`
 const rules = {

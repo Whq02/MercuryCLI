@@ -11,23 +11,23 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 
 const ID = 'claude-haiku-5-5'
 const OLD = 'claude-haiku-4-5-20251001'
 let failures = 0
 const failureHint = (label: string): string => {
-  if (/prices|pricing|price display|longer-prompt tier|100K threshold|one-hour writes/.test(label)) return 'change the Haiku 5.5 and 4.5 price rows or the tier logic in src/services/usage/modelCost.ts (resolveModelPricing, calculateUSDCost, getModelPricingString)'
-  if (/picker offers|follows the new family head|duplicate picker row/.test(label)) return 'change the Anthropic rows of getModelOptions in src/services/model/modelOptions.ts'
-  if (/rendered current row/.test(label)) return 'change the row painting in src/components/MercuryModelPicker.tsx'
-  if (/house router/.test(label)) return 'change classOfModel in src/services/providers/modelRegistry.ts'
-  if (/id-space/.test(label)) return 'change recognizeModelId in src/services/providers/idSpaces.ts'
-  if (/side queries/.test(label)) return 'change sideQueryThinkingParam in src/services/api/sideQuery.ts'
-  if (/forced tool choice is not rewritten/.test(label)) return 'change foldToolChoiceForModel in src/utils/model/capabilities.ts'
-  if (/effort ladder|unpinned default/.test(label)) return 'change the effort ladder in src/utils/effort.ts (selectableEffortLevelsForLadder, resolveEffortTruth) or routeEffortsFor in src/services/providers/anthropic/anthropicAdapter.ts'
-  if (/family default, the haiku alias/.test(label)) return 'change the family order in FAMILY_GENERATIONS (src/utils/model/configs.ts), parseUserSpecifiedModel (src/services/model/model.ts) or getAgentModel (src/services/model/agent.ts)'
-  if (/canonical|display|chip|alias|family order|saved full|spoken|annotation/.test(label)) return 'change the Haiku 5.5 row in src/utils/model/configs.ts (FAMILY_GENERATIONS, familyHeadOf) or the name and alias readers in src/services/model/model.ts'
-  return 'change the Haiku 5.5 capability facts in src/utils/model/capabilities.ts (context window, output ceiling, thinking, betas, cutoff, resolveModelCapabilities)'
+  if (/prices|pricing|price display|longer-prompt tier|100K threshold|one-hour writes/.test(label)) return 'change the Haiku 5.5 and 4.5 price rows or the tier logic in src/models/usage/modelCost.ts (resolveModelPricing, calculateUSDCost, getModelPricingString)'
+  if (/picker offers|follows the new family head|duplicate picker row/.test(label)) return 'change the Anthropic rows of getModelOptions in src/models/catalogue/modelOptions.ts'
+  if (/rendered current row/.test(label)) return 'change the row painting in src/commands/model/picker/MercuryModelPicker.tsx'
+  if (/house router/.test(label)) return 'change classOfModel in src/models/roads/modelRegistry.ts'
+  if (/id-space/.test(label)) return 'change recognizeModelId in src/models/roads/idSpaces.ts'
+  if (/side queries/.test(label)) return 'change sideQueryThinkingParam in src/engine/requests/sideRequest.ts'
+  if (/forced tool choice is not rewritten/.test(label)) return 'change foldToolChoiceForModel in src/models/facts/capabilities.ts'
+  if (/effort ladder|unpinned default/.test(label)) return 'change the effort ladder in src/models/effort/effort.ts (selectableEffortLevelsForLadder, resolveEffortTruth) or routeEffortsFor in src/models/roads/anthropic/anthropicAdapter.ts'
+  if (/family default, the haiku alias/.test(label)) return 'change the family order in FAMILY_GENERATIONS (src/models/facts/builtInModelTable.ts), parseUserSpecifiedModel (src/models/catalogue/engineModel.ts) or getAgentModel (src/models/catalogue/agentModel.ts)'
+  if (/canonical|display|chip|alias|family order|saved full|spoken|annotation/.test(label)) return 'change the Haiku 5.5 row in src/models/facts/builtInModelTable.ts (FAMILY_GENERATIONS, familyHeadOf) or the name and alias readers in src/models/catalogue/engineModel.ts'
+  return 'change the Haiku 5.5 capability facts in src/models/facts/capabilities.ts (context window, output ceiling, thinking, betas, cutoff, resolveModelCapabilities)'
 }
 function check(label: string, condition: boolean, detail?: unknown): void {
   if (!condition) failures++
@@ -36,17 +36,17 @@ function check(label: string, condition: boolean, detail?: unknown): void {
 const close = (actual: number, expected: number): boolean => Math.abs(actual - expected) < 1e-10
 
 try {
-  const model = await import('../../src/services/model/model.ts')
-  const configs = await import('../../src/utils/model/configs.ts')
-  const caps = await import('../../src/utils/model/capabilities.ts')
-  const effort = await import('../../src/utils/effort.ts')
-  const cost = await import('../../src/services/usage/modelCost.ts')
-  const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
-  const { getModelOptions, focusedOptionSupports1m } = await import('../../src/services/model/modelOptions.ts')
-  const { classOfModel } = await import('../../src/services/providers/modelRegistry.ts')
-  const { routeEffortsFor } = await import('../../src/services/providers/anthropic/anthropicAdapter.ts')
-  const { sideQueryThinkingParam } = await import('../../src/services/api/sideQuery.ts')
-  const { getAgentModel } = await import('../../src/services/model/agent.ts')
+  const model = await import('../../src/models/catalogue/engineModel.ts')
+  const configs = await import('../../src/models/facts/builtInModelTable.ts')
+  const caps = await import('../../src/models/facts/capabilities.ts')
+  const effort = await import('../../src/models/effort/effort.ts')
+  const cost = await import('../../src/models/usage/modelCost.ts')
+  const { recognizeModelId } = await import('../../src/models/roads/idSpaces.ts')
+  const { getModelOptions, focusedOptionSupports1m } = await import('../../src/models/catalogue/modelOptions.ts')
+  const { classOfModel } = await import('../../src/models/roads/modelRegistry.ts')
+  const { routeEffortsFor } = await import('../../src/models/roads/anthropic/anthropicAdapter.ts')
+  const { sideQueryThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
+  const { getAgentModel } = await import('../../src/models/catalogue/agentModel.ts')
 
   check('Haiku 5.5 has its own canonical and declared row', model.getCanonicalName(ID) === ID && configs.familyHeadOf(ID) === null)
   check('case and context annotation retain the canonical', model.getCanonicalName('Claude-Haiku-5-5[1m]') === ID)
@@ -66,8 +66,8 @@ try {
   check('native 1M has no duplicate picker row or toggle', !values.includes(`${ID}[1m]`) && !focusedOptionSupports1m(ID))
   check('the house router keeps Haiku outside its seat classes', classOfModel(ID) === undefined && classOfModel(OLD) === undefined)
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { MercuryModelPicker, fmtCtx } = await import('../../src/components/MercuryModelPicker.tsx')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { MercuryModelPicker, fmtCtx } = await import('../../src/commands/model/picker/MercuryModelPicker.tsx')
   const choices = rows.map(row => ({ id: row.value, name: row.label, tag: row.description, ctx: fmtCtx(caps.getContextWindowForModel(row.value)), group: 'Anthropic' }))
   for (const columns of [120, 178]) {
     const frame = await renderToString(React.createElement(MercuryModelPicker, { models: choices, current: ID, ctxPct: null }), columns)

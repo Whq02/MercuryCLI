@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
-import { brushPackTreeDigest, readBrushPackManifest } from '../../src/utils/shell/brushPack.ts'
+import { brushPackTreeDigest, readBrushPackManifest } from '../../src/platform/shell/brushPack.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const PATCH = 'scripts/vendor/patches/brush-0.4.0-windows.patch'
@@ -169,7 +169,7 @@ await import(join(root, 'scripts/vendor/build-brush.ts'))
 `)
     const buildFixture = (args: string[]) => run(process.execPath, [runner, ...args], fixture, { CARGO_HOME: cargoHome, ...autocrlfEnv })
     console.log('build integration — cargo compilation is a fixture here, git/tar/manifest are real')
-    where = `scripts/vendor/build-brush.ts (build and --check), or readBrushPackManifest in src/utils/shell/brushPack.ts`
+    where = `scripts/vendor/build-brush.ts (build and --check), or readBrushPackManifest in src/platform/shell/brushPack.ts`
     for (const [target, platform] of [['macos-arm64', 'darwin-arm64'], ['macos-x64', 'darwin-x64'], ['linux-x64', 'linux-x64']] as const) {
       const dir = join(fixture, 'vendor/brush', platform)
       mkdirSync(dir, { recursive: true })
@@ -207,7 +207,7 @@ await import(join(root, 'scripts/vendor/build-brush.ts'))
     check('a win-arm64 pack built before the patch reads STALE and names its remedy', armStale.rc === 2 && armStale.text.includes('STALE — win-arm64: cache Windows patch sha256 does not match the build source') && armStale.text.includes('remedy: bun run scripts/vendor/build-brush.ts --target windows-arm64'), armStale.text.trim())
 
     console.log("the product build's shell-engine guard — the text of build.ts run over the fixture's packs")
-    where = `the shell-engine guard in build.ts (the brushPrepare block), or checkBrushPackDir in src/utils/shell/brushPack.ts`
+    where = `the shell-engine guard in build.ts (the brushPrepare block), or checkBrushPackDir in src/platform/shell/brushPack.ts`
     const buildScript = readFileSync(join(ROOT, 'build.ts'), 'utf8')
     const guardStart = buildScript.indexOf('  const brushPrepare = packPlatform ? brushPrepareCommand(')
     const guardEnd = buildScript.indexOf("\n  } else if (forceNo) {\n    console.warn('MERCURY_BUILD_NO_VENDOR_BRUSH=1", guardStart)
@@ -216,7 +216,7 @@ await import(join(root, 'scripts/vendor/build-brush.ts'))
     writeFileSync(guard, `import { createHash } from 'node:crypto'
 import { readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
-const { BRUSH_PACK_PATH: brushRelPath, brushLockKindFor, brushPrepareCommand, checkBrushPackDir } = await import(${JSON.stringify(join(ROOT, 'src/utils/shell/brushPack.ts'))})
+const { BRUSH_PACK_PATH: brushRelPath, brushLockKindFor, brushPrepareCommand, checkBrushPackDir } = await import(${JSON.stringify(join(ROOT, 'src/platform/shell/brushPack.ts'))})
 const ROOT = ${JSON.stringify(fixture)}
 const CROSS = false
 const TARGET_ARG = null

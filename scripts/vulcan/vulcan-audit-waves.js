@@ -41,7 +41,7 @@ const COMMON = `
 You are auditing VULCAN — the native Godot editor-control surface just built in this repo (Mercury).
 READ-ONLY: do NOT edit any file; REPORT findings only (the integrator fixes by hand).
 Ground yourself first: assets/vulcan/optable.json.
-The new surfaces: src/utils/vulcan/*, src/services/vulcan/*, src/tools/GodotTool/*, assets/vulcan/addon/**, scripts/vulcan/*, plus edits in src/tools.ts, src/constants/prompts.ts, src/constants/subagentDoctrine.ts, src/utils/cockpit/harnessMap.ts, src/substrate/startupMenu.ts, src/substrate/flagRegistry.ts, src/utils/healthReport.ts, assets/splash/mercury-splash.mjs.
+The new surfaces: src/integrations/vulcan-optable/*, src/integrations/vulcan/*, src/tools/godot/*, assets/vulcan/addon/**, scripts/vulcan/*, plus edits in src/tools/kit/toolList.ts, src/engine/system-prompt/defaultSystemPrompt.ts, src/tools/crewmate/subagentDoctrine.ts, src/screen/cockpit/harnessMap.ts, src/platform/substrate/startupMenu.ts, src/platform/substrate/flagRegistry.ts, src/utils/healthReport.ts, assets/splash/mercury-splash.mjs.
 Report ONLY defects you can argue concretely (file, line, failure scenario). No style nits unless they mask a bug. Severity honestly.
 `
 
@@ -52,7 +52,7 @@ YOUR LENS — addon correctness & protocol (GDScript): misused Godot 4 APIs (Edi
 
 phase('A2 security red-team')
 const a2 = !want('A2') ? null : await agent(COMMON + `
-YOUR LENS — security red-team. Threat model: a malicious process on the same machine, a malicious Godot project (hostile project.godot / addon tampering), a compromised game runtime, a hostile peer feeding frames. Attack the token (timing, file perms, symlink at .godot/mercury-vulcan/<id>/token, override env), the loopback assumptions, res:// guard escapes (.. traversal, res://../..,  user://, absolute windows paths, NodePath tricks), editor_execute_script and runtime_eval reachability without consent (permission classes in src/tools/GodotTool/GodotTool.ts + the optable exec set), the installer's project.godot rewrite (regex injection via plugin names), oversized/malformed frame handling both sides, event-frame spoofing, the addon writing outside the project. Verify every mutating path is behind ask-or-rule permission.`,
+YOUR LENS — security red-team. Threat model: a malicious process on the same machine, a malicious Godot project (hostile project.godot / addon tampering), a compromised game runtime, a hostile peer feeding frames. Attack the token (timing, file perms, symlink at .godot/mercury-vulcan/<id>/token, override env), the loopback assumptions, res:// guard escapes (.. traversal, res://../..,  user://, absolute windows paths, NodePath tricks), editor_execute_script and runtime_eval reachability without consent (permission classes in src/tools/godot/GodotTool.ts + the optable exec set), the installer's project.godot rewrite (regex injection via plugin names), oversized/malformed frame handling both sides, event-frame spoofing, the addon writing outside the project. Verify every mutating path is behind ask-or-rule permission.`,
   { label: 'A2', model: 'fable', phase: 'A2 security red-team', schema: SCHEMA })
 
 phase('A3 wiring + regressions')

@@ -42,7 +42,7 @@ writeFileSync(join(project, 'src/f.ts'), 'export const one = 1\nexport const two
 git('commit', '-q', '-a', '-m', 'two')
 const head = git('rev-parse', 'HEAD').trim()
 process.chdir(project)
-const { setOriginalCwd } = await import(`${SRC}/bootstrap/state.ts`)
+const { setOriginalCwd } = await import(`${SRC}/boot/process-state/processState.ts`)
 setOriginalCwd(project)
 
 let failures = 0
@@ -53,12 +53,12 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 
-const { GitTool } = await import(`${SRC}/tools/GitTool/GitTool.ts`)
-const { InspectTool } = await import(`${SRC}/tools/InspectTool/InspectTool.ts`)
-const { FileReadTool } = await import(`${SRC}/tools/FileReadTool/FileReadTool.ts`)
-const { getEmptyToolPermissionContext } = await import(`${SRC}/Tool.ts`)
-const { decideToolPermission } = await import(`${SRC}/utils/permissions/decision/engine.ts`)
-const observe = (await import(`${SRC}/services/gitGraph/observe.ts`)) as { forgetGitVersion?: () => void }
+const { GitTool } = await import(`${SRC}/tools/git/GitTool.ts`)
+const { InspectTool } = await import(`${SRC}/tools/inspect/InspectTool.ts`)
+const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
+const { decideToolPermission } = await import(`${SRC}/permissions/rules/decision/engine.ts`)
+const observe = (await import(`${SRC}/platform/git-graph/observe.ts`)) as { forgetGitVersion?: () => void }
 
 const context = () =>
   ({ readFileState: new Map(), userModified: false, updateFileHistoryState: () => {}, dynamicSkillDirTriggers: new Set<string>(), nestedMemoryAttachmentTriggers: new Set<string>(), abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), tasks: {}, sessionHooks: new Map() }), setAppState: () => {}, messages: [], options: { tools: [] } }) as never
@@ -170,8 +170,8 @@ console.log('the Git tool\'s input: a field that would reach git and begins with
       if (got.stage !== 'validation' || got.message !== `${field} may not begin with a dash`) wrong.push(`${op} ${field} ${option.slice(0, 12)}: ${got.stage} ${got.message.slice(0, 50)}`)
     }
   }
-  check(`${FIELDS.length} fields, seven options each (${asked} calls): each is refused before any question, in one sentence that names the field`, wrong.length === 0, `change validateInput in src/tools/GitTool/GitTool.ts so each listed field is refused with the message of its field name followed by may not begin with a dash · ${wrong.slice(0, 6).join(' | ')}`)
-  check('and no file was written by any of them', written().length === 0, `change validateInput in src/tools/GitTool/GitTool.ts so a dashed field is refused before git runs · written: ${written().join(' ')}`)
+  check(`${FIELDS.length} fields, seven options each (${asked} calls): each is refused before any question, in one sentence that names the field`, wrong.length === 0, `change validateInput in src/tools/git/GitTool.ts so each listed field is refused with the message of its field name followed by may not begin with a dash · ${wrong.slice(0, 6).join(' | ')}`)
+  check('and no file was written by any of them', written().length === 0, `change validateInput in src/tools/git/GitTool.ts so a dashed field is refused before git runs · written: ${written().join(' ')}`)
 }
 
 console.log('under the tool: a revision that reads as an option never reaches git as one')
@@ -254,9 +254,9 @@ exec "$real" "$@"
     observe.forgetGitVersion?.()
     const before = written().length
     const moved = [...(await honestCalls()), ...(await honestReferences())]
-    check(`git ${version}: the ${HONEST.length} honest calls and the four honest references answer as they do on the installed git`, moved.length === 0, `the honest calls must answer the same under the stand-in git version, so check what endOfOptions in src/services/gitGraph/observe.ts hands a git that does not read the marker · ${moved.slice(0, 5).join(' | ')}`)
+    check(`git ${version}: the ${HONEST.length} honest calls and the four honest references answer as they do on the installed git`, moved.length === 0, `the honest calls must answer the same under the stand-in git version, so check what endOfOptions in src/platform/git-graph/observe.ts hands a git that does not read the marker · ${moved.slice(0, 5).join(' | ')}`)
     const wrote = [...(await optionRevisions()), ...(await optionReferences())]
-    check(`git ${version}: the option revisions write no file, through the tool's call with no validation and through the two doors`, wrote.length === 0 && written().length === before, `an option-like revision must write no file under this git version, so check endOfOptions in src/services/gitGraph/observe.ts and the dash refusal in src/tools/GitTool/GitTool.ts · ${wrote.join(' | ')}`)
+    check(`git ${version}: the option revisions write no file, through the tool's call with no validation and through the two doors`, wrote.length === 0 && written().length === before, `an option-like revision must write no file under this git version, so check endOfOptions in src/platform/git-graph/observe.ts and the dash refusal in src/tools/git/GitTool.ts · ${wrote.join(' | ')}`)
     const spawns = readFileSync(join(standIn, 'log'), 'utf8').split('\n').filter(Boolean).map(line => line.split('\t') as [string, string])
     const marked = spawns.filter(([, marker]) => marker === '1').map(([command]) => command)
     const refused = spawns.filter(([, marker]) => marker === 'refused').map(([command]) => command)
@@ -265,7 +265,7 @@ exec "$real" "$@"
     const others = marked.filter(command => !WALKERS.includes(command) && command !== 'rev-parse')
     const table = spawns.length > 0 && refused.length === 0 && others.length === 0 && (reads(version, 24) ? walkers > 0 : walkers === 0) && (reads(version, 30) ? parses > 0 : parses === 0)
     const where = reads(version, 30) ? 'show, diff, log, merge-base, the walkers and rev-parse' : reads(version, 24) ? 'show, diff, log, merge-base and the walkers, and not rev-parse' : 'no spawn'
-    check(`git ${version}: the marker rides ${where}, and no spawn is handed a marker its git does not read`, table, `change endOfOptions in src/services/gitGraph/observe.ts so the marker goes only to the git versions that read it (2.24 and later for walkers, 2.30 and later for rev-parse) · ${spawns.length} spawns through the stand-in · marked: ${walkers} walkers, ${parses} rev-parse, others ${others.join(' ') || 'none'} · refused: ${[...new Set(refused)].join(' ') || 'none'}`)
+    check(`git ${version}: the marker rides ${where}, and no spawn is handed a marker its git does not read`, table, `change endOfOptions in src/platform/git-graph/observe.ts so the marker goes only to the git versions that read it (2.24 and later for walkers, 2.30 and later for rev-parse) · ${spawns.length} spawns through the stand-in · marked: ${walkers} walkers, ${parses} rev-parse, others ${others.join(' ') || 'none'} · refused: ${[...new Set(refused)].join(' ') || 'none'}`)
   }
   process.env.PATH = path
   observe.forgetGitVersion?.()

@@ -14,21 +14,21 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
-  if (t.startsWith('§1b')) failHint = 'fix composeAnswer in src/components/permissions/AskUserQuestionPermissionRequest/questionState.ts'
-  else if (t.startsWith('§1')) failHint = 'fix projectQuestionState in src/components/permissions/AskUserQuestionPermissionRequest/questionState.ts'
-  else if (t.startsWith('§2')) failHint = 'fix focusSeedAfterOptionsChange in src/components/CustomSelect/use-select-navigation.ts'
-  else if (t.startsWith('§3')) failHint = 'fix optionsEquivalent in src/components/CustomSelect/option-map.ts'
-  else if (t.startsWith('§4')) failHint = 'fix the pointer, tick and checkbox painting in src/components/CustomSelect/select.tsx and SelectMulti.tsx'
+  if (t.startsWith('§1b')) failHint = 'fix composeAnswer in src/permissions/cards/ask-user-question/questionState.ts'
+  else if (t.startsWith('§1')) failHint = 'fix projectQuestionState in src/permissions/cards/ask-user-question/questionState.ts'
+  else if (t.startsWith('§2')) failHint = 'fix focusSeedAfterOptionsChange in src/screen/select/useSelectNavigation.ts'
+  else if (t.startsWith('§3')) failHint = 'fix optionsEquivalent in src/screen/select/optionMap.ts'
+  else if (t.startsWith('§4')) failHint = 'fix the pointer, tick and checkbox painting in src/screen/select/Select.tsx and SelectMulti.tsx'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
 const { OTHER_OPTION_VALUE, composeAnswer, projectQuestionState } = await import(
-  '../../src/components/permissions/AskUserQuestionPermissionRequest/questionState.ts'
+  '../../src/permissions/cards/ask-user-question/questionState.ts'
 )
-const { focusSeedAfterOptionsChange } = await import('../../src/components/CustomSelect/use-select-navigation.ts')
-const { optionsEquivalent } = await import('../../src/components/CustomSelect/option-map.ts')
-type QuestionState = import('../../src/services/interview/contracts.ts').InterviewQuestionState
-type Answer = import('../../src/services/interview/contracts.ts').InterviewAnswerValue
+const { focusSeedAfterOptionsChange } = await import('../../src/screen/select/useSelectNavigation.ts')
+const { optionsEquivalent } = await import('../../src/screen/select/optionMap.ts')
+type QuestionState = import('../../src/tools/engines/interview/contracts.ts').InterviewQuestionState
+type Answer = import('../../src/tools/engines/interview/contracts.ts').InterviewAnswerValue
 
 console.log('============================================================')
 console.log(' The question card: state owners in-process')
@@ -154,11 +154,11 @@ check('a changed length is a list change', !optionsEquivalent([{ value: 'A', lab
 
 section('§4 the paint: the pointer and the tick are two facts')
 try {
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { Select, SelectMulti } = await import('../../src/components/CustomSelect/index.js')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { Select, SelectMulti } = await import('../../src/screen/select/index.js')
   const rows = [
     { value: 'Redis', label: 'Redis', indexLabel: 'A.' },
     { value: 'In-memory', label: 'In-memory', indexLabel: 'B.' },

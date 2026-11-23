@@ -76,9 +76,9 @@ section('R1 — flag typo: release first, error readable on the main screen')
   const bytes = await drivePty(['--definitely-not-a-flag'], 12)
   const rel = bytes.lastIndexOf('\x1b[?1049l')
   const err = bytes.indexOf('unknown option')
-  check('the release sequence appears', rel !== -1, JSON.stringify(bytes.slice(0, 200)) + ' — releaseLauncherAltHoldNow in src/ink/launcherAltHold.ts must write the alt-screen release (its exit hook runs it) when the process ends while MERCURY_ALT_HELD is set')
-  check('the commander error appears', err !== -1, JSON.stringify(bytes.slice(-300)) + ' — the unknown-option error never reached the terminal: check the drive output above, then the flag parsing in src/entrypoints/cli.tsx')
-  check('the error prints AFTER the (last) release — on the main screen', rel !== -1 && err > rel, `rel=${rel} err=${err} — the held alt screen must be released before the error is written: see src/ink/launcherAltHold.ts and src/entrypoints/cli.tsx`)
+  check('the release sequence appears', rel !== -1, JSON.stringify(bytes.slice(0, 200)) + ' — releaseLauncherAltHoldNow in src/screen/renderer/launcherAltHold.ts must write the alt-screen release (its exit hook runs it) when the process ends while MERCURY_ALT_HELD is set')
+  check('the commander error appears', err !== -1, JSON.stringify(bytes.slice(-300)) + ' — the unknown-option error never reached the terminal: check the drive output above, then the flag parsing in src/boot/entrypoints/cli.tsx')
+  check('the error prints AFTER the (last) release — on the main screen', rel !== -1 && err > rel, `rel=${rel} err=${err} — the held alt screen must be released before the error is written: see src/screen/renderer/launcherAltHold.ts and src/boot/entrypoints/cli.tsx`)
 }
 
 section('R2 — run: release precedes the result; the result lands on the main screen')
@@ -89,9 +89,9 @@ section('R2 — run: release precedes the result; the result lands on the main s
   await fx.close().catch(() => {})
   const rel = bytes.indexOf('\x1b[?1049l')
   const result = bytes.indexOf('PROOF-TR-RESULT.')
-  check('the release sequence appears', rel !== -1, JSON.stringify(bytes.slice(0, 200)) + ' — the run command must call releaseLauncherAltHoldNow (src/ink/launcherAltHold.ts) from the MERCURY_ALT_HELD block in src/entrypoints/cli.tsx')
+  check('the release sequence appears', rel !== -1, JSON.stringify(bytes.slice(0, 200)) + ' — the run command must call releaseLauncherAltHoldNow (src/screen/renderer/launcherAltHold.ts) from the MERCURY_ALT_HELD block in src/boot/entrypoints/cli.tsx')
   check('the run result appears', result !== -1, JSON.stringify(bytes.slice(-300)) + ' — the run result never reached the terminal: check the drive output above and the fixture API wiring of mercury run')
-  check('the release PRECEDES the result', rel !== -1 && result > rel, `rel=${rel} result=${result} — the nonTakeover branch in the MERCURY_ALT_HELD block of src/entrypoints/cli.tsx must release before mercury run prints`)
+  check('the release PRECEDES the result', rel !== -1 && result > rel, `rel=${rel} result=${result} — the nonTakeover branch in the MERCURY_ALT_HELD block of src/boot/entrypoints/cli.tsx must release before mercury run prints`)
 }
 
 section('R3 — launcher: splash/hold gated on takeover; OSC title gated on TTY')
@@ -134,7 +134,7 @@ section('R4 — interactive boot: the hold is consumed by the takeover, never re
       }
     }
     check('the cockpit boots (rail chrome present)', visibleText(bytes).includes('lanes'), JSON.stringify(bytes.slice(0, 200)) + ' — the interactive boot drew no rail chrome within the window: boot it with MERCURY_ALT_HELD=1 under a pty and read the bytes above')
-    check('ZERO alt-screen exits during the live window', !bytes.includes('\x1b[?1049l'), 'an alt-screen exit was written while the held screen should be consumed by the interactive boot: check releaseLauncherAltHoldNow callers in src/entrypoints/cli.tsx and consumeLauncherAltHold in src/ink/launcherAltHold.ts')
+    check('ZERO alt-screen exits during the live window', !bytes.includes('\x1b[?1049l'), 'an alt-screen exit was written while the held screen should be consumed by the interactive boot: check releaseLauncherAltHoldNow callers in src/boot/entrypoints/cli.tsx and consumeLauncherAltHold in src/screen/renderer/launcherAltHold.ts')
   } finally {
     run.cleanup()
   }

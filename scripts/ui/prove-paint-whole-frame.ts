@@ -8,11 +8,11 @@ process.env.FORCE_COLOR = '3'
 
 const React = await import('react')
 const h = React.createElement
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { default: instances } = await import('../../src/ink/instances.ts')
-const { Box, Text } = await import('../../src/ink.ts')
-const { AlternateScreen } = await import('../../src/ink/components/AlternateScreen.tsx')
-const { default: useInput } = await import('../../src/ink/hooks/use-input.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { AlternateScreen } = await import('../../src/screen/renderer/elements/AlternateScreen.tsx')
+const { default: useInput } = await import('../../src/screen/renderer/bindings/use-input.ts')
 
 const COLS = 64
 const ROWS = 12
@@ -30,7 +30,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  const repairHint = 'fix the painter: src/ink/ink.tsx (repaintAltScreen, armScreenWatchdog, onRender), src/ink/ink/alt-screen.ts, src/ink/ink/resize.ts (handleWinch, handleResize), and src/ink/frame-writer.ts for the clearTerminal reasons'
+  const repairHint = 'fix the painter: src/screen/renderer/screenInstance.tsx (repaintAltScreen, armScreenWatchdog, onRender), src/screen/renderer/instance/alt-screen.ts, src/screen/renderer/instance/resize.ts (handleWinch, handleResize), and src/screen/renderer/frame-writer.ts for the clearTerminal reasons'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail} · ` : ''}${repairHint}`}`)
 }
 function section(title: string): void {
@@ -295,8 +295,8 @@ section('9. the clearTerminal patch: the two frames that still return it, and a 
   const bytes = w.screen.since(mark)
   check('a shorter tree on the alternate screen is diffed in place: its old rows leave and nothing erases the display', erases(bytes) === 0 && !w.screen.text().includes('foot row that never changes') && !w.screen.text().includes('a row on its own ground') && w.screen.text().includes('head row that never changes'), `${JSON.stringify(bytes.slice(0, 120))}\n${w.screen.text()}`)
   await w.end()
-  const { FrameWriter } = await import('../../src/ink/frame-writer.ts')
-  const { createScreen, StylePool, CharPool, HyperlinkPool } = await import('../../src/ink/cell-grid.ts')
+  const { FrameWriter } = await import('../../src/screen/renderer/frame-writer.ts')
+  const { createScreen, StylePool, CharPool, HyperlinkPool } = await import('../../src/screen/renderer/cell-grid.ts')
   const styles = new StylePool()
   const glyphs = new CharPool()
   const links = new HyperlinkPool()

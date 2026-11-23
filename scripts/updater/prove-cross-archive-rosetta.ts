@@ -6,8 +6,8 @@ import { join } from 'node:path'
 
 process.chdir(join(import.meta.dir, '..', '..'))
 const ROOT = process.cwd()
-const { RELEASE_TARGETS, archiveNameFor, buildPlatformOf, isReleaseTarget, platformKey, readBuildTargetRecord } = await import('../../src/services/privateChannel/releaseTarget.ts')
-const { nodePackPlatform, readRuntimeRecord } = await import('../../src/services/privateChannel/vendoredRuntime.ts')
+const { RELEASE_TARGETS, archiveNameFor, buildPlatformOf, isReleaseTarget, platformKey, readBuildTargetRecord } = await import('../../src/platform/update-channel/releaseTarget.ts')
+const { nodePackPlatform, readRuntimeRecord } = await import('../../src/platform/update-channel/vendoredRuntime.ts')
 
 const argv = process.argv.slice(2)
 const REQUIRE = argv.includes('--require')

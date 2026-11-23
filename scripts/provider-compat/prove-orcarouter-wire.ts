@@ -5,10 +5,10 @@ import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import { z } from 'zod/v4'
 import fixture from './fixtures/orcarouter-documented.json'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'ANTHROPIC_BASE_URL']) delete process.env[key]
 process.env.ORCAROUTER_API_KEY = 'proof-key-orcarouter-fixture-not-a-real-key'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -58,26 +58,26 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
 } })
 process.env.MERCURY_ORCAROUTER_API_BASE = `http://127.0.0.1:${server.port}/v1`
 let checks = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, `${name} | to fix: route and wire ids are in src/services/providers/routeLaw.ts, the live list and prices in src/services/providers/orcarouter/orcarouterCatalogue.ts, the request and refusals in src/services/providers/orcarouter/orcarouterCallModel.ts and src/services/providers/openaicompat/compatChatCallModel.ts, usage and balance in src/services/providers/orcarouter/orcarouterUsageState.ts`); checks++; console.log(`[PASS] ${name}`) }
+const check = (name: string, value: unknown): void => { assert.ok(value, `${name} | to fix: route and wire ids are in src/models/roads/routeLaw.ts, the live list and prices in src/models/roads/orcarouter/orcarouterCatalogue.ts, the request and refusals in src/models/roads/orcarouter/orcarouterCallModel.ts and src/models/roads/openaicompat/compatChatCallModel.ts, usage and balance in src/models/roads/orcarouter/orcarouterUsageState.ts`); checks++; console.log(`[PASS] ${name}`) }
 try {
-  const { classifyModelRoute, canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
+  const { classifyModelRoute, canonicalWireModelId } = await import('../../src/models/roads/routeLaw.ts')
   check('OrcaRouter has its own route', classifyModelRoute('orcarouter/openai/gpt-4o-mini').route === 'orcarouter')
   check('native prefixes cannot steal a qualified route', classifyModelRoute('orcarouter/anthropic/claude-sonnet-4.6').route === 'orcarouter' && classifyModelRoute('gpt-4o-mini').route === 'openai')
   check('the carrier strips once, including its own named-router slug', canonicalWireModelId('orcarouter/orcarouter/auto').wireId === 'orcarouter/auto' && canonicalWireModelId('orcarouter/gpt-4o-mini').wireId === 'gpt-4o-mini')
   check('annotations detach and suffixes remain', canonicalWireModelId('orcarouter/anthropic/claude-sonnet-4.6-max[1m]').wireId === 'anthropic/claude-sonnet-4.6-max')
   check('empty and doubly-composed vendor slugs refuse', !canonicalWireModelId('orcarouter/').ok && !canonicalWireModelId('orcarouter/orcarouter/openai/gpt-4o-mini').ok)
-  const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
-  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-  const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
-  const catalogue = await import('../../src/services/providers/orcarouter/orcarouterCatalogue.ts')
-  const { getModelOptions, keyLaneListState } = await import('../../src/services/model/modelOptions.ts')
-  const { getContextWindowForModel, getModelMaxOutputTokens, modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
-  const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
-  const { usageForProvider, refreshProviderUsage } = await import('../../src/services/providers/providerUsage.ts')
-  const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-  const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+  const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+  const { resolvePrimaryAgentBackend } = await import('../../src/models/roads/primaryBackend.ts')
+  const catalogue = await import('../../src/models/roads/orcarouter/orcarouterCatalogue.ts')
+  const { getModelOptions, keyLaneListState } = await import('../../src/models/catalogue/modelOptions.ts')
+  const { getContextWindowForModel, getModelMaxOutputTokens, modelReceivesImageBlocks } = await import('../../src/models/facts/capabilities.ts')
+  const { resolveModelPricing } = await import('../../src/models/usage/modelCost.ts')
+  const { usageForProvider, refreshProviderUsage } = await import('../../src/models/roads/providerUsage.ts')
+  const { laneBillingState } = await import('../../src/models/roads/laneBillingState.ts')
+  const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
   const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
   function params(model = 'orcarouter/orcarouter/auto', effortValue = 'max', messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
     return { messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: { type: 'enabled', budgetTokens: 4096 }, signal: new AbortController().signal,
@@ -120,7 +120,7 @@ try {
   check('billing cents and total-credit units yield remaining credit', usageForProvider('orcarouter').balance?.display === 'USD 7.25 remaining credit')
   billingUnlimited = true; await refreshProviderUsage('orcarouter', { force: true })
   check('an unlimited key is not a fabricated wallet', usageForProvider('orcarouter').balance === undefined && usageForProvider('orcarouter').credits?.state === 'unreported')
-  const { readSignInRefusal } = await import('../../src/services/providers/signInRefusal.ts')
+  const { readSignInRefusal } = await import('../../src/models/roads/signInRefusal.ts')
   for (const testMode of ['budget', 'key-quota', 'cycle', 'byok']) {
     mode = testMode; const before = captures.length; const result = await run()
     check(`${testMode} is terminal policy, not an expired credential`, captures.length === before + 1 && result.some(row => row.error === 'invalid_request') && readSignInRefusal('orcarouter') === undefined)

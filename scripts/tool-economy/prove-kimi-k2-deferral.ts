@@ -4,8 +4,8 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { z } from 'zod/v4'
-import type { Tool } from '../../src/Tool.ts'
-import type { Message } from '../../src/types/message.ts'
+import type { Tool } from '../../src/tools/kit/tool.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(resolve(import.meta.dir, '..', '..'))
@@ -16,7 +16,7 @@ for (const key of ['NODE_ENV', 'ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MER
 
 let failed = 0
 let checked = 0
-const failWhere = 'look in deferralWireFormFor in src/services/providers/deferralWire.ts, the capability read in src/services/providers/moonshot/moonshotCatalogue.ts, the model sets in src/utils/model/pins/kimiPins.ts, the search description in src/tools/ToolSearchTool/ToolSearchTool.ts, and the request body built through routedCallModel in src/services/providers/callModelRouter.ts'
+const failWhere = 'look in deferralWireFormFor in src/models/roads/deferralWire.ts, the capability read in src/models/roads/moonshot/moonshotCatalogue.ts, the model sets in src/models/facts/pins/kimiPins.ts, the search description in src/tools/tool-search/ToolSearchTool.ts, and the request body built through routedCallModel in src/models/roads/callModelRouter.ts'
 const check = (name: string, ok: boolean, detail = '') => {
   checked++
   if (!ok) failed++
@@ -59,19 +59,19 @@ process.env.MERCURY_MOONSHOT_API_BASE = `http://127.0.0.1:${port}/v1`
 process.env.MOONSHOT_API_KEY = 'fixture-kimi-key'
 process.env.MERCURY_MODEL = KIMI
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-;(await import('../../src/bootstrap/state.ts')).setIsInteractive(false)
-const catalogue = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
-const pins = await import('../../src/utils/model/pins/kimiPins.ts')
-const wire = await import('../../src/services/providers/deferralWire.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { getDeferredToolsDeltaAttachment } = await import('../../src/services/attachments/deltas.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
+;(await import('../../src/boot/process-state/processState.ts')).setIsInteractive(false)
+const catalogue = await import('../../src/models/roads/moonshot/moonshotCatalogue.ts')
+const pins = await import('../../src/models/facts/pins/kimiPins.ts')
+const wire = await import('../../src/models/roads/deferralWire.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { getDeferredToolsDeltaAttachment } = await import('../../src/engine/attachments/toolAndServerDeltas.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.ts')
 const permission = getEmptyToolPermissionContext()
 const tool = (name: string, shouldDefer: boolean): Tool => ({
   name, shouldDefer, alwaysLoad: !shouldDefer, inputSchema: z.object({ value: z.string() }),

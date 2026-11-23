@@ -16,7 +16,7 @@ const RUN_HOME = path.join(tmpdir(), `mercury-l7-${process.pid}`)
 mkdirSync(RUN_HOME, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = RUN_HOME
 
-const scenarios = await import('../../scripts/ui/renderScenarios.js')
+const scenarios = await import('../ui/renderScenarios.js')
 const { writeSyntheticSession, SID, RUNTIME_CWD } = scenarios
 
 const PROBE_KEY = process.env.ANTHROPIC_API_KEY ?? 'sk-ant-verity-shape-probe'

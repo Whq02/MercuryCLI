@@ -19,23 +19,23 @@ process.env.BROWSER = '/usr/bin/true'
 process.chdir(project)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const load = (file: string) => import(pathToFileURL(join(root, file)).href)
-const { getEmptyToolPermissionContext } = await load('src/Tool.ts')
-const { decideToolPermission } = await load('src/utils/permissions/decision/engine.ts')
-const { FileWriteTool } = await load('src/tools/FileWriteTool/FileWriteTool.ts')
-const { FileEditTool } = await load('src/tools/FileEditTool/FileEditTool.ts')
-const { NotebookEditTool } = await load('src/tools/NotebookEditTool/NotebookEditTool.ts')
-const { ChangeSetTool } = await load('src/tools/ChangeSetTool/ChangeSetTool.ts')
-const { AstEditTool } = await load('src/tools/AstEditTool/AstEditTool.ts')
-const { AstSearchTool } = await load('src/tools/AstSearchTool/AstSearchTool.ts')
-const { FileReadTool } = await load('src/tools/FileReadTool/FileReadTool.ts')
-const { RecordConventionTool } = await load('src/tools/RecordConventionTool/RecordConventionTool.ts')
-const { runWithCwdOverride } = await load('src/utils/cwd.ts')
+const { getEmptyToolPermissionContext } = await load('src/tools/kit/tool.ts')
+const { decideToolPermission } = await load('src/permissions/rules/decision/engine.ts')
+const { FileWriteTool } = await load('src/tools/write/WriteTool.ts')
+const { FileEditTool } = await load('src/tools/edit/EditTool.ts')
+const { NotebookEditTool } = await load('src/tools/notebook-edit/NotebookEditTool.ts')
+const { ChangeSetTool } = await load('src/tools/change-set/ChangeSetTool.ts')
+const { AstEditTool } = await load('src/tools/ast-edit/AstEditTool.ts')
+const { AstSearchTool } = await load('src/tools/ast-search/AstSearchTool.ts')
+const { FileReadTool } = await load('src/tools/read/ReadTool.ts')
+const { RecordConventionTool } = await load('src/tools/record-convention/RecordConventionTool.ts')
+const { runWithCwdOverride } = await load('src/platform/files/cwd.ts')
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = '') {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${ok ? '' : '\n  fix: the instruction-file write gate (the ask that says this file steers every later session) is in checkWritePermissionForTool in src/utils/permissions/filesystem.ts and src/utils/permissions/pathValidation.ts; the decision order (deny, ask, grant, mode) is decideToolPermission in src/utils/permissions/decision/engine.ts'}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${ok ? '' : '\n  fix: the instruction-file write gate (the ask that says this file steers every later session) is in checkWritePermissionForTool in src/permissions/rules/filesystem.ts and src/permissions/rules/pathValidation.ts; the decision order (deny, ask, grant, mode) is decideToolPermission in src/permissions/rules/decision/engine.ts'}`)
 }
 function context(mode: string, rules: { allow?: string[]; deny?: string[]; ask?: string[] } = {}) {
   const state = { toolPermissionContext: {

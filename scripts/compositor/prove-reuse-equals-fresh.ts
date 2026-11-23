@@ -2,16 +2,16 @@
 process.env.FORCE_COLOR = '3'
 delete process.env.NO_COLOR
 
-const { appendChildNode, createNode, createTextNode, insertBeforeNode, markDirty, removeChildNode, setAttribute, setTextNodeValue } = await import('../../src/ink/dom.js')
-type DOMElement = import('../../src/ink/dom.js').DOMElement
-const { default: createRenderer } = await import('../../src/ink/renderer.js')
+const { appendChildNode, createNode, createTextNode, insertBeforeNode, markDirty, removeChildNode, setAttribute, setTextNodeValue } = await import('../../src/screen/renderer/dom.js')
+type DOMElement = import('../../src/screen/renderer/dom.js').DOMElement
+const { default: createRenderer } = await import('../../src/screen/renderer/renderer.js')
 const { applySceneStyle, makeContext } = await import('../ink-runtime/frameHarness.ts')
 type ComposeContext = import('../ink-runtime/frameHarness.ts').ComposeContext
-const { emptyFrame } = await import('../../src/ink/frame.js')
-type Frame = import('../../src/ink/frame.js').Frame
-type Screen = import('../../src/ink/cell-grid.js').Screen
-const { cellAt } = await import('../../src/ink/cell-grid.js')
-type Styles = import('../../src/ink/styles.js').Styles
+const { emptyFrame } = await import('../../src/screen/renderer/frame.js')
+type Frame = import('../../src/screen/renderer/frame.js').Frame
+type Screen = import('../../src/screen/renderer/cell-grid.js').Screen
+const { cellAt } = await import('../../src/screen/renderer/cell-grid.js')
+type Styles = import('../../src/screen/renderer/styles.js').Styles
 
 const arg = (name: string): string | undefined => process.argv.find(a => a.startsWith(`${name}=`))?.slice(name.length + 1)
 const SEEDS = Number(arg('--seeds') ?? 12)
@@ -112,8 +112,8 @@ section('§1 a card that climbs one row onto the pane above it paints one way')
       if (diff !== null) wrong.push(`${step}: ${diff}`)
       if (rowOf(reused, 5).startsWith(rule.slice(0, 12))) ruleRows++
     }
-    check(`${name}: every frame of ${steps.length} equals the frame painted from scratch`, wrong.length === 0, `${wrong.length} differ; ${wrong[0]} — a reused frame painted different cells than a from-scratch paint; the first step named is where the reuse path (the blit from the previous frame when prevFrameContaminated is false) in src/ink/renderer.ts goes wrong`)
-    check(`${name}: the scene holds the card's rule on the pane's border row while the card is up and climbs (${ruleRows} frames)`, ruleRows === 8, `${ruleRows} frames — expected 8: the climbing card's rule must stay on the pane's border row in every frame the card is up; check how src/ink/renderer.ts paints a negative marginTop box over the pane`)
+    check(`${name}: every frame of ${steps.length} equals the frame painted from scratch`, wrong.length === 0, `${wrong.length} differ; ${wrong[0]} — a reused frame painted different cells than a from-scratch paint; the first step named is where the reuse path (the blit from the previous frame when prevFrameContaminated is false) in src/screen/renderer/renderer.ts goes wrong`)
+    check(`${name}: the scene holds the card's rule on the pane's border row while the card is up and climbs (${ruleRows} frames)`, ruleRows === 8, `${ruleRows} frames — expected 8: the climbing card's rule must stay on the pane's border row in every frame the card is up; check how src/screen/renderer/renderer.ts paints a negative marginTop box over the pane`)
   }
 }
 
@@ -244,7 +244,7 @@ section('§2 seeded walks of a cockpit-shaped tree: what reuse composes equals w
           break
         }
       }
-      check(`${walk.name} · ${shape.name}: ${SEEDS} walks of ${STEPS} steps, every frame equals the frame painted from scratch (${frames} frames)`, wrong.length === 0, `${wrong.length} walks differ; ${wrong[0]} — a reused frame painted different cells than a from-scratch paint; rerun with --first=<seed> --seeds=1 to replay that walk, then check the reuse path in src/ink/renderer.ts`)
+      check(`${walk.name} · ${shape.name}: ${SEEDS} walks of ${STEPS} steps, every frame equals the frame painted from scratch (${frames} frames)`, wrong.length === 0, `${wrong.length} walks differ; ${wrong[0]} — a reused frame painted different cells than a from-scratch paint; rerun with --first=<seed> --seeds=1 to replay that walk, then check the reuse path in src/screen/renderer/renderer.ts`)
     }
   }
 }

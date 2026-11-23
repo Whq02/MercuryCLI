@@ -15,12 +15,12 @@ seedFirstRun(home, [work])
 for (const key of ['MERCURY_HOME', 'MERCURY_DAEMON_DIR', 'MERCURY_DAEMON_OWNER_PID', 'MERCURY_DAEMON_OWNER_FD', 'MERCURY_DAEMON_HANDOVER_FROM', 'MERCURY_DAEMON_SUCCESSOR_OF', 'MERCURY_WORKER_PARENT_PID', 'MERCURY_CONCOURSE_WORKER']) delete process.env[key]
 Object.assign(process.env, { MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', MERCURY_DAEMON_NO_SELF_WARM: '1', MERCURY_WARM_RUNNER: '0' })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { predecessorSockPath } = await import('../../src/daemon/handover.ts')
-const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
-const { isProcessAlive } = await import('../../src/utils/ownerWatch.ts')
-const { lockHeldByLivePidSync } = await import('../../src/daemon/planeRecords.ts')
-const { SESSIONLESS_EXIT_BEAT_MS } = await import('../../src/daemon/sessionlessExit.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { predecessorSockPath } = await import('../../src/daemon/control/handover.ts')
+const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/control/protocol.ts')
+const { isProcessAlive } = await import('../../src/daemon/control/ownerWatch.ts')
+const { lockHeldByLivePidSync } = await import('../../src/daemon/control/planeRecords.ts')
+const { SESSIONLESS_EXIT_BEAT_MS } = await import('../../src/daemon/control/sessionlessExit.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail: unknown = '', hint = ''): boolean => {
@@ -84,7 +84,7 @@ try {
   const aReady = await until(async () => { const h = await hello(); return h.ok && h.op === 'hello' && h.ready === true }, 30_000)
   const aPid = (await hello()).ok ? ((await hello()) as { pid?: number }).pid ?? null : null
   check('the terminal helper serves the plane', aReady && aPid !== null, a.log().slice(-400), 'the build-a helper (node dist/mercury.mjs daemon run, under a pty) did not answer hello with ready; check HELPERS_DIST points at a current build and read the log tail above')
-  check('it holds the daemon lock', aPid !== null && lockHeldByLivePidSync() === aPid, { lock: lockHeldByLivePidSync(), aPid }, 'the serving daemon must hold the daemon lock: see lockHeldByLivePidSync in src/daemon/planeRecords.ts and the lock acquisition in src/daemon/main.ts')
+  check('it holds the daemon lock', aPid !== null && lockHeldByLivePidSync() === aPid, { lock: lockHeldByLivePidSync(), aPid }, 'the serving daemon must hold the daemon lock: see lockHeldByLivePidSync in src/daemon/control/planeRecords.ts and the lock acquisition in src/daemon/control/main.ts')
   check('it reads as a terminal daemon (its stdout is a tty)', /runs on a terminal|terminal/.test(a.log()) || true)
 
   console.log('§2 build b is installed and its daemon verb moves the plane: the successor takes it, the terminal helper is a session-less predecessor that cannot leave on its own')
@@ -96,34 +96,34 @@ try {
   note(`daemon restart said (rc ${restart.code}, ${restart.ms} ms): ${restart.text.trim().split('\n').join(' | ')}`)
   const successor = await hello()
   const bPid = successor.ok && successor.op === 'hello' ? (successor as { pid?: number }).pid ?? null : null
-  check('a successor on build b serves the plane after the verb', bPid !== null && bPid !== aPid, { bPid, aPid }, 'the daemon restart verb must hand the plane to a successor on build b; see the daemon verbs in src/daemon/verbs.ts and the handover in src/daemon/run/handover.ts')
-  check("the verb's receipt names the successor rather than 'the successor is not answering yet'", restart.code === 0 && !/not answering yet/.test(restart.text) && /daemon handed over|restarted/.test(restart.text), restart.text.trim(), 'the daemon restart verb must exit 0 and print that the daemon handed over or restarted, not that the successor is not answering yet; see the successor wait in src/daemon/handshake.ts')
-  check(`the verb returned within the successor wait (${restart.ms} ms)`, restart.ms < 30_000, restart.ms, 'the daemon restart verb waited too long for the successor; see SUCCESSOR_WAIT_TRIES and SUCCESSOR_WAIT_POLL_MS in src/daemon/handshake.ts')
+  check('a successor on build b serves the plane after the verb', bPid !== null && bPid !== aPid, { bPid, aPid }, 'the daemon restart verb must hand the plane to a successor on build b; see the daemon verbs in src/daemon/control/verbs.ts and the handover in src/daemon/run/handover.ts')
+  check("the verb's receipt names the successor rather than 'the successor is not answering yet'", restart.code === 0 && !/not answering yet/.test(restart.text) && /daemon handed over|restarted/.test(restart.text), restart.text.trim(), 'the daemon restart verb must exit 0 and print that the daemon handed over or restarted, not that the successor is not answering yet; see the successor wait in src/daemon/control/handshake.ts')
+  check(`the verb returned within the successor wait (${restart.ms} ms)`, restart.ms < 30_000, restart.ms, 'the daemon restart verb waited too long for the successor; see SUCCESSOR_WAIT_TRIES and SUCCESSOR_WAIT_POLL_MS in src/daemon/control/handshake.ts')
 
   console.log('§3 the leftover: the lock-holding, session-less predecessor is asked to leave at its first idle read — gone within one sweep beat, not three')
   const left = await until(() => aPid !== null && !isProcessAlive(aPid), 40_000)
   const leftAfterMs = Date.now() - movedAt
   note(`the terminal helper (pid ${aPid}) left ${leftAfterMs} ms after the move; left=${left}`)
   check('the terminal helper leaves once the successor serves', left, a.log().slice(-400), 'the session-less predecessor must be asked to leave once the successor serves; see src/daemon/run/handover.ts and the sweep beat in src/daemon/run/periodic.ts')
-  check(`…at its first idle read (under ${SESSIONLESS_EXIT_BEAT_MS} ms after the move; red on the base: three idle reads, about ${3 * SESSIONLESS_EXIT_BEAT_MS} ms)`, left && leftAfterMs < SESSIONLESS_EXIT_BEAT_MS, leftAfterMs, 'the predecessor must leave at its first idle read; see SESSIONLESS_EXIT_BEAT_MS in src/daemon/sessionlessExit.ts and its use in src/daemon/run/periodic.ts')
+  check(`…at its first idle read (under ${SESSIONLESS_EXIT_BEAT_MS} ms after the move; red on the base: three idle reads, about ${3 * SESSIONLESS_EXIT_BEAT_MS} ms)`, left && leftAfterMs < SESSIONLESS_EXIT_BEAT_MS, leftAfterMs, 'the predecessor must leave at its first idle read; see SESSIONLESS_EXIT_BEAT_MS in src/daemon/control/sessionlessExit.ts and its use in src/daemon/run/periodic.ts')
   const daemonLog = (): string => { try { return readFileSync(join(planeDir, 'daemon.log'), 'utf8') } catch { return '' } }
   check("the successor's log says it asked the predecessor to leave, through its own socket", await until(() => new RegExp(`pid ${aPid}, v[^)]*\\) holds no live session and has not left on its own — asking it to leave`).test(daemonLog()), 5000), daemonLog().split('\n').filter(line => line.includes('asking it to leave')).join(' | ') || daemonLog().slice(-400), 'the successor must log that the predecessor holds no live session and is being asked to leave; see src/daemon/run/handover.ts')
-  const { SUCCESSOR_WAIT_TRIES, SUCCESSOR_WAIT_POLL_MS } = await import('../../src/daemon/handshake.ts')
-  check(`the update verb's successor wait outlasts the grace (${SUCCESSOR_WAIT_TRIES} × ${SUCCESSOR_WAIT_POLL_MS} ms ≥ ${3 * SESSIONLESS_EXIT_BEAT_MS} ms; red on the base: 40 × 250 ms)`, SUCCESSOR_WAIT_TRIES * SUCCESSOR_WAIT_POLL_MS >= 3 * SESSIONLESS_EXIT_BEAT_MS, SUCCESSOR_WAIT_TRIES * SUCCESSOR_WAIT_POLL_MS, 'raise SUCCESSOR_WAIT_TRIES or SUCCESSOR_WAIT_POLL_MS in src/daemon/handshake.ts so the wait covers three sweep beats')
+  const { SUCCESSOR_WAIT_TRIES, SUCCESSOR_WAIT_POLL_MS } = await import('../../src/daemon/control/handshake.ts')
+  check(`the update verb's successor wait outlasts the grace (${SUCCESSOR_WAIT_TRIES} × ${SUCCESSOR_WAIT_POLL_MS} ms ≥ ${3 * SESSIONLESS_EXIT_BEAT_MS} ms; red on the base: 40 × 250 ms)`, SUCCESSOR_WAIT_TRIES * SUCCESSOR_WAIT_POLL_MS >= 3 * SESSIONLESS_EXIT_BEAT_MS, SUCCESSOR_WAIT_TRIES * SUCCESSOR_WAIT_POLL_MS, 'raise SUCCESSOR_WAIT_TRIES or SUCCESSOR_WAIT_POLL_MS in src/daemon/control/handshake.ts so the wait covers three sweep beats')
   const lockMoved = await until(() => lockHeldByLivePidSync() === bPid, 15_000)
-  check('the successor holds the daemon lock once the predecessor is gone', lockMoved, { lock: lockHeldByLivePidSync(), bPid }, 'the successor must take the daemon lock after the predecessor leaves; see lockHeldByLivePidSync in src/daemon/planeRecords.ts and src/daemon/run/handover.ts')
+  check('the successor holds the daemon lock once the predecessor is gone', lockMoved, { lock: lockHeldByLivePidSync(), bPid }, 'the successor must take the daemon lock after the predecessor leaves; see lockHeldByLivePidSync in src/daemon/control/planeRecords.ts and src/daemon/run/handover.ts')
   const status = await cli(['status'], bDir)
-  check('status counts the successor alone, nothing pending', status.text.includes('1 running / 0 live workers') && !/restart pending/.test(status.text), helpersLine(status.text), 'the daemon status verb must report 1 running / 0 live workers and no pending restart once the predecessor is gone; see formatMercuryDaemonStatus in src/daemon/status.ts')
+  check('status counts the successor alone, nothing pending', status.text.includes('1 running / 0 live workers') && !/restart pending/.test(status.text), helpersLine(status.text), 'the daemon status verb must report 1 running / 0 live workers and no pending restart once the predecessor is gone; see formatMercuryDaemonStatus in src/daemon/control/status.ts')
   void t0
 
   console.log('§4 a stop right after the move sticks: no helper re-takes the plane')
   const stop = await cli(['stop'], bDir)
   note(`daemon stop said (rc ${stop.code}): ${stop.text.trim()}`)
-  check('the stop is acknowledged', stop.code === 0 && /shutdown acknowledged/.test(stop.text), stop.text.trim(), 'the daemon stop verb must exit 0 and print shutdown acknowledged; see the stop path in src/daemon/main.ts')
+  check('the stop is acknowledged', stop.code === 0 && /shutdown acknowledged/.test(stop.text), stop.text.trim(), 'the daemon stop verb must exit 0 and print shutdown acknowledged; see the stop path in src/daemon/control/main.ts')
   check('every helper left', await until(() => helperPids().every(pid => !isProcessAlive(pid)) && (bPid === null || !isProcessAlive(bPid)), 20_000), helperPids().filter(isProcessAlive), 'a daemon helper process outlived the stop verb; the pids listed above still hold control.sock files in the plane directory')
   await wait(1500)
   const after = await cli(['status'], bDir)
-  check('status after the stop: not running, no helper, no reachable socket', /daemon:\s+not running/.test(after.text) && !/helpers:\s+[1-9]/.test(after.text) && !/control\.sock:\s+reachable/.test(after.text), helpersLine(after.text) || after.text.trim().slice(0, 300), 'after the stop verb no helper may re-take the plane: status must read not running with no helpers and no reachable socket; see src/daemon/status.ts and the stop path in src/daemon/main.ts')
+  check('status after the stop: not running, no helper, no reachable socket', /daemon:\s+not running/.test(after.text) && !/helpers:\s+[1-9]/.test(after.text) && !/control\.sock:\s+reachable/.test(after.text), helpersLine(after.text) || after.text.trim().slice(0, 300), 'after the stop verb no helper may re-take the plane: status must read not running with no helpers and no reachable socket; see src/daemon/control/status.ts and the stop path in src/daemon/control/main.ts')
 } catch (error) {
   check('the drive completes', false, String(error))
 } finally {

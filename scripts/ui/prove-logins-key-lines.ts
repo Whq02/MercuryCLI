@@ -52,11 +52,11 @@ const expectedLine = (family: Family): string =>
 const LINE_SHAPE = /^(API key|Token): \S+ — sign in, (API Keys|Access Tokens), create, paste it here\.$/
 
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const owner = (await import('../../src/components/loginFamilyRows.js')) as unknown as Record<string, unknown>
-const screen = await import('../../src/components/BootLoginsScreen.js')
-const guide = await import('../../src/components/geminiConnectGuide.js')
+const owner = (await import('../../src/models/sign-in/flow-cards/loginFamilyRows.js')) as unknown as Record<string, unknown>
+const screen = await import('../../src/screen/boot-face/BootLoginsScreen.js')
+const guide = await import('../../src/models/sign-in/gemini-connect/geminiConnectGuide.js')
 const { composeLogins, renderStill, signedOutFacts } = await import('./face-logins-stills.ts')
 
 const DETAIL_W = 38

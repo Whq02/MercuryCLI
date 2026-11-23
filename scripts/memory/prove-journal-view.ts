@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/memory/MemoryCentreView.tsx src/components/memory/memoryCentreLayout.ts src/commands/memory/memory.tsx src/mneme/journal.ts src/mneme/paths.ts src/mneme/ledger.ts
+// gate-watch: src/screen/memory/MemoryCentreView.tsx src/screen/memory/memoryCentreLayout.ts src/commands/memory/memory.tsx src/sessions/mneme/journal.ts src/sessions/mneme/paths.ts src/sessions/mneme/ledger.ts
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -9,7 +9,7 @@ process.chdir(REPO)
 const HOME = pinScratchHome('mercury-journal-view')
 
 let failures = 0
-const JOURNAL_VIEW_FIX_HINT = 'change the code, not the check: the row cells, heading and wrapping are in src/components/memory/memoryCentreLayout.ts (journalRow, journalHeading, humanStamp, wrapText); the list and page are in src/components/memory/MemoryCentreView.tsx (journalRowLabel, journalPage); the popup is src/commands/memory/memory.tsx (memoryPopupRequest); the entries are src/mneme/journal.ts (appendJournalEntry, readJournal) and the memory.journal setting'
+const JOURNAL_VIEW_FIX_HINT = 'change the code, not the check: the row cells, heading and wrapping are in src/screen/memory/memoryCentreLayout.ts (journalRow, journalHeading, humanStamp, wrapText); the list and page are in src/screen/memory/MemoryCentreView.tsx (journalRowLabel, journalPage); the popup is src/commands/memory/memory.tsx (memoryPopupRequest); the entries are src/sessions/mneme/journal.ts (appendJournalEntry, readJournal) and the memory.journal setting'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)}` : ''}${!ok ? ` — to fix: ${JOURNAL_VIEW_FIX_HINT}` : ''}`)
@@ -18,28 +18,28 @@ function section(title: string): void {
   console.log(`\n${title}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
 const setJournal = (on: boolean | null): void => {
   writeFileSync(join(HOME, 'settings.json'), JSON.stringify(on === null ? {} : { memory: { journal: on } }))
   resetSettingsCache()
 }
-const { mnemeProjectKey } = await import('../../src/mneme/paths.js')
-const { appendJournalEntry, journalPath, readJournal } = await import('../../src/mneme/journal.js')
-const { humanStamp, journalHeading, journalRow, wrapText } = await import('../../src/components/memory/memoryCentreLayout.js')
-const { journalRowLabel, journalPage } = await import('../../src/components/memory/MemoryCentreView.js')
+const { mnemeProjectKey } = await import('../../src/sessions/mneme/paths.js')
+const { appendJournalEntry, journalPath, readJournal } = await import('../../src/sessions/mneme/journal.js')
+const { humanStamp, journalHeading, journalRow, wrapText } = await import('../../src/screen/memory/memoryCentreLayout.js')
+const { journalRowLabel, journalPage } = await import('../../src/screen/memory/MemoryCentreView.js')
 
 const key = mnemeProjectKey()
 const realNow = Date.now
 
 async function mountMemory(): Promise<{ m: Mounted; close: () => void }> {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.js')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-  const store = await import('../../src/utils/cockpit/settingsPopup.js')
+  const { Box } = await import('../../src/screen/themedRenderer.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+  const store = await import('../../src/screen/cockpit/settingsPopup.js')
   const { memoryPopupRequest } = await import('../../src/commands/memory/memory.js')
   const element = React.createElement(
     AppStateProvider as never,

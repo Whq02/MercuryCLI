@@ -8,7 +8,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    fix: the credential store read, quarantine of torn bytes and rename publish are in src/utils/secureStorage/plainTextStorage.ts (store chosen by getSecureStorage in src/utils/secureStorage/index.ts); the provider secrets writers (writeStoredOpenaiApiKey and the other writeStored functions) are in src/utils/accounts/providerSecrets.ts; for the keychain checks (L8) look at the other files in src/utils/secureStorage')
+  if (!cond) console.log('    fix: the credential store read, quarantine of torn bytes and rename publish are in src/platform/secure-storage/plainTextStorage.ts (store chosen by getSecureStorage in src/platform/secure-storage/index.ts); the provider secrets writers (writeStoredOpenaiApiKey and the other writeStored functions) are in src/models/sign-in/account-ledger/providerSecrets.ts; for the keychain checks (L8) look at the other files in src/platform/secure-storage')
 }
 function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)
@@ -52,8 +52,8 @@ function runIn(body: string, extraEnv: Record<string, string> = {}, keychainHold
     delete process.env.NODE_ENV
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const ss = await import(${JSON.stringify(join(SRC, 'utils/secureStorage/index.ts'))})
-    const ps = await import(${JSON.stringify(join(SRC, 'utils/accounts/providerSecrets.ts'))})
+    const ss = await import(${JSON.stringify(join(SRC, 'platform/secure-storage/index.ts'))})
+    const ps = await import(${JSON.stringify(join(SRC, 'models/sign-in/account-ledger/providerSecrets.ts'))})
     const home = ${JSON.stringify(home)}
     const credFile = path.join(home, '.credentials.json')
     const secretsFile = ps.providerSecretsPathForDisplay()
@@ -264,14 +264,14 @@ else {
     const before = raw(credFile)
     fs.chmodSync(credFile, 0o200)
     out.unreadWords = 'The credential store at ' + ss.credentialsPath() + ' exists but could not be read (EACCES); nothing was written.'
-    const mcp = await import(${JSON.stringify(join(SRC, 'services/mcp/auth.ts'))})
+    const mcp = await import(${JSON.stringify(join(SRC, 'integrations/mcp/auth.ts'))})
     let opened = null
     out.mcp = await Promise.race([
       mcp.performMCPOAuthFlow('probe', { type: 'http', url: 'http://127.0.0.1:9/mcp' }, url => { opened = url }, undefined, { skipBrowserOpen: true }).then(() => 'resolved', error => 'rejected: ' + error.message),
       new Promise(resolve => setTimeout(() => resolve('still waiting after 4s'), 4000)),
     ])
     out.opened = opened
-    const auth = { ...(await import(${JSON.stringify(join(SRC, 'utils/auth.ts'))})), ...(await import(${JSON.stringify(join(SRC, 'services/auth/oauthLifecycle.ts'))})) }
+    const auth = { ...(await import(${JSON.stringify(join(SRC, 'models/sign-in/credentials/auth.ts'))})), ...(await import(${JSON.stringify(join(SRC, 'models/sign-in/lifecycle/oauthLifecycle.ts'))})) }
     out.claude = auth.saveOAuthTokensIfNeeded({ accessToken: 'at-2', refreshToken: 'rt-2', expiresAt: 4102444800000, scopes: ['user:inference'], subscriptionType: 'pro', rateLimitTier: null })
     fs.chmodSync(credFile, 0o600)
     out.same = raw(credFile) === before

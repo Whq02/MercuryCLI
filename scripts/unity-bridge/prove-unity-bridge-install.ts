@@ -7,7 +7,7 @@ import * as path from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — fix the install, status, describe or uninstall step this check is under in src/services/unity/bridgeInstaller.ts (applyUnityBridgeInstall, unityBridgeInstallStatus, readProjectBridgePort, describeUnityBridgeStatus, applyUnityBridgeUninstall)' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — fix the install, status, describe or uninstall step this check is under in src/integrations/unity/bridgeInstaller.ts (applyUnityBridgeInstall, unityBridgeInstallStatus, readProjectBridgePort, describeUnityBridgeStatus, applyUnityBridgeUninstall)' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -17,9 +17,9 @@ delete process.env.MERCURY_UNITY
 delete process.env.MERCURY_UNITY_BRIDGE_PORT
 delete process.env.MERCURY_UNITY_BRIDGE_TOKEN
 
-const installer = await import('../../src/services/unity/bridgeInstaller.js')
-const { UNITY_BRIDGE_FILES } = await import('../../src/services/unity/bridgeFiles.generated.js')
-const { unityBridgeTokenPath } = await import('../../src/services/unity/bridgeToken.js')
+const installer = await import('../../src/integrations/unity/bridgeInstaller.js')
+const { UNITY_BRIDGE_FILES } = await import('../../src/integrations/unity/bridgeFiles.generated.js')
+const { unityBridgeTokenPath } = await import('../../src/integrations/unity/bridgeToken.js')
 const { startFakeUnityBridge } = await import('./fake-bridge.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'unity-bridge-install-'))

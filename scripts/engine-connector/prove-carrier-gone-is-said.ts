@@ -18,7 +18,7 @@ const SRC = join(REPO, 'src')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  const hint = 'change the carrier verdict in src/services/engine-connector/daemon/carrier.ts (CarrierPart.factsFromCarrier) and its use in src/services/engine-connector/daemonConnector.ts (CARRIER_GONE_WORDS) until this holds'
+  const hint = 'change the carrier verdict in src/engine/connector/daemon/carrier.ts (CarrierPart.factsFromCarrier) and its use in src/engine/connector/daemonConnector.ts (CARRIER_GONE_WORDS) until this holds'
   const shown = !ok ? [detail, hint].filter(Boolean).join(' — ') : ''
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
@@ -31,10 +31,10 @@ const until = async (pred: () => boolean, budgetMs: number): Promise<number> => 
   return Date.now() - started
 }
 
-const connectorModule = await import(join(SRC, 'services/engine-connector/daemonConnector.ts'))
+const connectorModule = await import(join(SRC, 'engine/connector/daemonConnector.ts'))
 const { DaemonSessionConnector, CARRIER_GONE_WORDS } = connectorModule
-const proj = await import(join(SRC, 'services/engine-connector/seatProjections.ts'))
-const { daemonStatePath } = await import(join(SRC, 'daemon/controlSocket.ts'))
+const proj = await import(join(SRC, 'engine/connector/seatProjections.ts'))
+const { daemonStatePath } = await import(join(SRC, 'daemon/control/controlSocket.ts'))
 
 const work = join(SCRATCH, 'work')
 mkdirSync(work, { recursive: true })
@@ -103,7 +103,7 @@ section("§1 the daemon carrying a busy, waiting session is gone (its record cle
   check(
     'a FRESH publication (a new daemon speaks: a new stamp) lifts the latch and the busy word is believed again',
     connector.workRoster().gone !== true && connector.workRoster().rows.some(r => r.status === 'running') && connector.live().inFlight === true,
-    `${j({ roster: connector.workRoster(), live: connector.live() })} — the roster is no longer gone, its running row is back and the turn is in flight: CarrierPart.factsFromCarrier in src/services/engine-connector/daemon/carrier.ts lets go of the verdict when the facts carry another stamp`,
+    `${j({ roster: connector.workRoster(), live: connector.live() })} — the roster is no longer gone, its running row is back and the turn is in flight: CarrierPart.factsFromCarrier in src/engine/connector/daemon/carrier.ts lets go of the verdict when the facts carry another stamp`,
   )
   connector.detach()
 }

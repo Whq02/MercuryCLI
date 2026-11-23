@@ -8,15 +8,15 @@ type Ran = { code: number; text: string }
 
 if (process.argv.includes('--under-the-prefix')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const { exec, setCwd } = await import('../../src/utils/Shell.ts')
-  const { systemShellRecord } = await import('../../src/utils/shell/shellRecord.ts')
+  const { exec, setCwd } = await import('../../src/platform/shell/shellExec.ts')
+  const { systemShellRecord } = await import('../../src/platform/shell/shellRecord.ts')
   setCwd(homedir())
   const run = async (command: string): Promise<Ran> => {
     const handle = await exec(command, new AbortController().signal, 'bash', { timeout: 30_000 })
     const result = await handle.result
     return { code: result.code, text: `${result.stdout ?? ''}${result.stderr ?? ''}`.trim() }
   }
-  const { startCommandHook } = await import('../../src/utils/hooks/commandRunner.ts')
+  const { startCommandHook } = await import('../../src/integrations/event-hooks/commandRunner.ts')
   const hook = async (command: string): Promise<Ran> => {
     const started = await startCommandHook({ command, shell: 'bash', name: 'prefix-proof', event: 'tool.before', index: 0, payloadJson: '{}', timeoutMs: 20_000, source: { kind: 'settings' } })
     const end = await started.result
@@ -46,8 +46,8 @@ if (process.argv.includes('--under-the-prefix')) {
   answers.hidden = await run('cd / && echo "moved inside: $(pwd -P)"')
   rmSync(process.env.PROOF_HIDES_THE_FILE ?? '', { force: true })
   answers.afterHidden = await run('pwd -P')
-  const { createBashShellProvider } = await import('../../src/utils/shell/bashProvider.ts')
-  const { systemShellAt } = await import('../../src/utils/shell/shellRecord.ts')
+  const { createBashShellProvider } = await import('../../src/platform/shell/bashProvider.ts')
+  const { systemShellAt } = await import('../../src/platform/shell/shellRecord.ts')
   const elsewhere = await createBashShellProvider(systemShellAt('/nowhere/on/this/machine/bash'), { skipSnapshot: true })
   answers.elsewhere = (await elsewhere.buildExecCommand('echo "ran elsewhere: bash=${BASH_VERSION:+yes} zsh=${ZSH_VERSION:-no}"; X="a b"; printf "[%s]" $X; echo', { id: 'elsewhere' })).commandString
   answers.elsewherePiped = (await elsewhere.buildExecCommand('echo piped | cat', { id: 'elsewhere-piped' })).commandString
@@ -61,7 +61,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const prefixLineHint = 'change where the line handed to a MERCURY_SHELL_PREFIX wrapper is built: buildExecCommand in createBashShellProvider (src/utils/shell/bashProvider.ts) and shellStartLine (src/utils/bash/shellPrefix.ts)'
+const prefixLineHint = 'change where the line handed to a MERCURY_SHELL_PREFIX wrapper is built: buildExecCommand in createBashShellProvider (src/platform/shell/bashProvider.ts) and shellStartLine (src/platform/shell/bash/shellPrefix.ts)'
 
 console.log('============================================================')
 console.log(' A shell prefix is handed one line that starts the record\'s shell on the command')
@@ -108,7 +108,7 @@ try {
   const counts = existsSync(`${log}.counts`) ? readFileSync(`${log}.counts`, 'utf8').trim().split('\n') : []
   const handed = existsSync(`${log}.line`) ? readFileSync(`${log}.line`, 'utf8') : ''
   check('the wrapper is started once for each of the two hooks and the eight commands, with its flag and one line', counts.length === 10 && counts.every(count => count === '2'), `${JSON.stringify(counts)} · ${prefixLineHint}`)
-  const { tryParseShellCommand } = await import('../../src/utils/bash/shellQuote.ts')
+  const { tryParseShellCommand } = await import('../../src/platform/shell/bash/shellQuote.ts')
   const parsed = tryParseShellCommand(handed)
   const words = parsed.success ? parsed.tokens : []
   check(
@@ -153,7 +153,7 @@ try {
   )
 
   console.log('\n(4) formatShellPrefixCommand joins a wrapper and one line as before: the line it is given is the caller\'s')
-  const { formatShellPrefixCommand } = await import('../../src/utils/bash/shellPrefix.ts')
+  const { formatShellPrefixCommand } = await import('../../src/platform/shell/bash/shellPrefix.ts')
   const SAME: Array<[string, string, string]> = [
     ['/bin/zsh -c', 'echo hi', "/bin/zsh -c 'echo hi'"],
     ['/usr/local/bin/trace', 'echo hi', "/usr/local/bin/trace 'echo hi'"],
@@ -161,7 +161,7 @@ try {
   ]
   for (const [prefix, command, want] of SAME) {
     const got = formatShellPrefixCommand(prefix, command)
-    check(`formatShellPrefixCommand(${JSON.stringify(prefix)}, ${JSON.stringify(command)}) is ${JSON.stringify(want)}`, got === want, `${JSON.stringify(got)} · change formatShellPrefixCommand in src/utils/bash/shellPrefix.ts`)
+    check(`formatShellPrefixCommand(${JSON.stringify(prefix)}, ${JSON.stringify(command)}) is ${JSON.stringify(want)}`, got === want, `${JSON.stringify(got)} · change formatShellPrefixCommand in src/platform/shell/bash/shellPrefix.ts`)
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })

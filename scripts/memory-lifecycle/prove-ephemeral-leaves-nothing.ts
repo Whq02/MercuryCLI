@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/lineageSession.ts src/mneme/journal.ts src/mneme/handoffAsk.ts src/mneme/exitHandoff.ts src/mneme/entryPage.ts src/tools/JournalTool/JournalTool.ts src/tools/JournalTool/prompt.ts src/main.tsx src/bootstrap/state.ts
+// gate-watch: src/sessions/mneme/lineageSession.ts src/sessions/mneme/journal.ts src/sessions/mneme/handoffAsk.ts src/sessions/mneme/exitHandoff.ts src/sessions/mneme/entryPage.ts src/tools/journal/JournalTool.ts src/tools/journal/prompt.ts src/boot/main.tsx src/boot/process-state/processState.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
@@ -36,16 +36,16 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { JOURNAL_ASK, journalPath } = await import('../../src/mneme/journal.ts')
-const { JOURNAL_DESCRIPTION, JOURNAL_PROMPT } = await import('../../src/tools/JournalTool/prompt.ts')
-const { ENTRY_PAGE_HEADING, FIRST_SESSION_LINE } = await import('../../src/mneme/entryPage.ts')
-const { mnemeProjectKeyFor, lineagePath } = await import('../../src/mneme/paths.ts')
-const { readLedger, recordHandoff } = await import('../../src/mneme/ledger.ts')
+const { JOURNAL_ASK, journalPath } = await import('../../src/sessions/mneme/journal.ts')
+const { JOURNAL_DESCRIPTION, JOURNAL_PROMPT } = await import('../../src/tools/journal/prompt.ts')
+const { ENTRY_PAGE_HEADING, FIRST_SESSION_LINE } = await import('../../src/sessions/mneme/entryPage.ts')
+const { mnemeProjectKeyFor, lineagePath } = await import('../../src/sessions/mneme/paths.ts')
+const { readLedger, recordHandoff } = await import('../../src/sessions/mneme/ledger.ts')
 
 section('§0 the note\'s content law: the asks name the user\'s own words, never Mercury\'s standing instructions as the user\'s constraints')
 for (const [name, text] of [['JOURNAL_ASK', JOURNAL_ASK], ['JOURNAL_DESCRIPTION', JOURNAL_DESCRIPTION], ['JOURNAL_PROMPT', JOURNAL_PROMPT]] as const) {
-  check(`${name} no longer asks for "constraints set by the operator"`, !text.includes('constraints set by the operator'), `reword ${name} (JOURNAL_ASK in src/mneme/journal.ts, JOURNAL_DESCRIPTION and JOURNAL_PROMPT in src/tools/JournalTool/prompt.ts) to drop that phrase; ${text.slice(0, 200)}`)
-  check(`${name} asks for what the user said in this session and rules out Mercury's own standing instructions`, /what the user asked for in this session/.test(text) && /never Mercury's own standing instructions/.test(text), `reword ${name} (JOURNAL_ASK in src/mneme/journal.ts, JOURNAL_DESCRIPTION and JOURNAL_PROMPT in src/tools/JournalTool/prompt.ts) to ask for what the user asked for in this session and to rule out Mercury's own standing instructions; ${text.slice(0, 240)}`)
+  check(`${name} no longer asks for "constraints set by the operator"`, !text.includes('constraints set by the operator'), `reword ${name} (JOURNAL_ASK in src/sessions/mneme/journal.ts, JOURNAL_DESCRIPTION and JOURNAL_PROMPT in src/tools/journal/prompt.ts) to drop that phrase; ${text.slice(0, 200)}`)
+  check(`${name} asks for what the user said in this session and rules out Mercury's own standing instructions`, /what the user asked for in this session/.test(text) && /never Mercury's own standing instructions/.test(text), `reword ${name} (JOURNAL_ASK in src/sessions/mneme/journal.ts, JOURNAL_DESCRIPTION and JOURNAL_PROMPT in src/tools/journal/prompt.ts) to ask for what the user asked for in this session and to rule out Mercury's own standing instructions; ${text.slice(0, 240)}`)
 }
 
 const project = realpathSync(mkdtempSync(join(tmpdir(), 'ephemeral-nothing-project-')))
@@ -157,7 +157,7 @@ if (!existsSync(DIST)) {
   ], ['--ephemeral'])
   check('the ephemeral run exits 0 and answers', two.exit === 0 && answeredWith(two.stdout, 'ANSWER-EPHEMERAL'), `exit=${two.exit} stderr=${two.stderr.slice(0, 400)}`)
   const firstSystem = systemText(two.requests[0]?.body ?? {})
-  check('it still reads the lineage at its start (the control\'s note is on its entry page)', firstSystem.includes(ENTRY_PAGE_HEADING) && firstSystem.includes('NOTE-ONE'), 'an ephemeral run must still get the entry page (composeEntryPage in src/mneme/entryPage.ts) in its system prompt; ' + firstSystem.slice(firstSystem.indexOf(ENTRY_PAGE_HEADING), firstSystem.indexOf(ENTRY_PAGE_HEADING) + 200))
+  check('it still reads the lineage at its start (the control\'s note is on its entry page)', firstSystem.includes(ENTRY_PAGE_HEADING) && firstSystem.includes('NOTE-ONE'), 'an ephemeral run must still get the entry page (composeEntryPage in src/sessions/mneme/entryPage.ts) in its system prompt; ' + firstSystem.slice(firstSystem.indexOf(ENTRY_PAGE_HEADING), firstSystem.indexOf(ENTRY_PAGE_HEADING) + 200))
   check('no request carried the handoff ask', !two.requests.some(r => j(r.body).includes(HANDOFF_ASK_MARK)), String(two.requests.length))
   const journalRows = frameLines(two.stdout).filter(f => f.type === 'tool_result')
   const journalResult = journalRows.map(f => String((f as { output?: unknown }).output ?? '')).find(text => /journal/i.test(text)) ?? ''
@@ -197,7 +197,7 @@ if (!existsSync(DIST)) {
   const start = page.indexOf(ENTRY_PAGE_HEADING)
   const nextHeading = start >= 0 ? page.indexOf('\n# ', start + 1) : -1
   const lineage = start >= 0 ? page.slice(start, nextHeading > start ? nextHeading : start + 2000) : ''
-  check('its page counts one session before it, the control, and never a third', lineage.includes('Session 2 of this work; 1 session before it') && !lineage.includes(FIRST_SESSION_LINE), 'the entry page (composeEntryPage in src/mneme/entryPage.ts) must count only the plain sessions, so the ephemeral run is not counted; ' + lineage)
+  check('its page counts one session before it, the control, and never a third', lineage.includes('Session 2 of this work; 1 session before it') && !lineage.includes(FIRST_SESSION_LINE), 'the entry page (composeEntryPage in src/sessions/mneme/entryPage.ts) must count only the plain sessions, so the ephemeral run is not counted; ' + lineage)
   check('its page carries the control\'s note as the last one left', lineage.includes('## The last note left (session 1, ') && lineage.includes('NOTE-ONE'), lineage)
   const final = readLedger(projectKey)
   check('the ledger holds the two plain sessions as ordinals 1 and 2', final.length === 2 && final[0]!.sessionId === SID1 && final[1]!.ordinal === 2 && final[1]!.sessionId === SID3, 'the ledger must hold only the two plain sessions; ' + j(final.map(e => [e.ordinal, e.sessionId])))

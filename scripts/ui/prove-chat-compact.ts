@@ -8,10 +8,10 @@ import {
   printFrame, productNode, requireCaptureDriver, ROOT, scratch, startLeg,
 } from '../computer/computerDriveKit.ts'
 import { captureEngineEntry, vshotBudgetMs } from '../lib/captureDriver.ts'
-import { CRITTERS, cellColor, type CritterDef } from '../../src/utils/cockpit/critterData.ts'
-import { composeCritterFrame } from '../../src/components/mercury-ui/CritterArt.tsx'
-import { LAYOUT_BREAKPOINTS } from '../../src/hooks/useLayoutTier.ts'
-import { compactModeChip, compactSummaryHint } from '../../src/components/mercury-ui/compactModeChip.ts'
+import { CRITTERS, cellColor, type CritterDef } from '../../src/screen/cockpit/critterData.ts'
+import { composeCritterFrame } from '../../src/screen/widgets/CritterArt.tsx'
+import { LAYOUT_BREAKPOINTS } from '../../src/screen/fullscreen-layout/useLayoutTier.ts'
+import { compactModeChip, compactSummaryHint } from '../../src/screen/widgets/compactModeChip.ts'
 
 type Cell = { c: string; fg: string; bg: string; bold: boolean; rev: boolean }
 type Grid = Cell[][]
@@ -27,8 +27,8 @@ const SOVEREIGN_SETTINGS = { guardrails: { sovereignConsentSeen: true } }
 const HINT_TEXTS = ['? for shortcuts', 'for commands + files', 'ctrl+t activity', 'for a new line', 'shift + ↵']
 const STATUS_ROW = '← back'
 const RESTING_STATUS_ROW = /^ ready · Opus 5\.5 · high {2,}\S+(?: ⌥ \S+)? {2}(?:⇧|shift\+)← back$/
-const BAND_AT = 'change CompactIdentityBand in src/components/CompactIdentityBand.tsx or compactBandForm in src/components/mercury-ui/geometry.ts'
-const CHIP_AT = 'change compactModeChip in src/components/mercury-ui/compactModeChip.ts or the chip row in src/components/MercuryFrame.tsx'
+const BAND_AT = 'change CompactIdentityBand in src/screen/fullscreen-layout/CompactIdentityBand.tsx or compactBandForm in src/screen/widgets/geometry.ts'
+const CHIP_AT = 'change compactModeChip in src/screen/widgets/compactModeChip.ts or the chip row in src/screen/frame-chips/MercuryFrame.tsx'
 const REST_ROW_FIX = 'change the resting status row of the full cockpit to read ready, Opus 5.5, high, the folder and branch, then the way back'
 const PAINT_FIX = 'the chat did not paint or the mark was not reached; read the engine log in the scratch folder named at the top of this run'
 const restingRowCheck = (tag: string, text: string[]): void => {
@@ -48,12 +48,12 @@ const LADDER_SIZES: ReadonlyArray<readonly [number, number]> = [[90, 31], [80, 2
 function ladderFor(): (cols: number, rows: number) => Rung {
   const home = join(scratch, 'ladder-home')
   mkdirSync(home, { recursive: true })
-  const geometry = pathToFileURL(join(ROOT, 'src', 'components', 'mercury-ui', 'geometry.ts')).href
+  const geometry = pathToFileURL(join(ROOT, 'src', 'screen', 'widgets', 'geometry.ts')).href
   const code = `import { compactBandForm, compactBandRows } from ${JSON.stringify(geometry)}\nconsole.log(JSON.stringify(${JSON.stringify(LADDER_SIZES)}.map(([c, r]) => [c, r, compactBandForm(c, r), compactBandRows(c, r)])))`
   const read = spawnSync(process.execPath, ['-e', code], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file' } })
   const table = new Map<string, Rung>()
   for (const [c, r, form, bandRows] of JSON.parse(read.stdout.trim().split('\n').pop() || '[]') as Array<[number, number, Rung['form'], number]>) table.set(`${c}x${r}`, { form, bandRows })
-  check('the band ladder is read in its own home (no settings file)', read.status === 0 && table.size === LADDER_SIZES.length && !existsSync(join(home, 'settings.json')), `compactBandForm in src/components/mercury-ui/geometry.ts must load with no settings file; exit=${read.status}; ${read.stderr.slice(-300)}`)
+  check('the band ladder is read in its own home (no settings file)', read.status === 0 && table.size === LADDER_SIZES.length && !existsSync(join(home, 'settings.json')), `compactBandForm in src/screen/widgets/geometry.ts must load with no settings file; exit=${read.status}; ${read.stderr.slice(-300)}`)
   return (cols, rows) => {
     const rung = table.get(`${cols}x${rows}`)
     if (rung === undefined) throw new Error(`no ladder rung for ${cols}x${rows}`)
@@ -129,12 +129,12 @@ function bandChecks(tag: string, cols: number, rows: number, grid: Grid, chip: '
     check(`${tag}: no band under 14 rows`, !all.includes('✶ Mercury') && !text.some(l => /^─+$/.test(l)), `${BAND_AT}; the band must not paint under 14 rows`)
   }
   const last = rows - 1
-  check(`${tag}: the sessions line is the last row with the way back at its right edge`, SESSIONS_LINE.test(text[last] ?? '') && (text[last] ?? '').length === cols, `change compactSummaryHint in src/components/mercury-ui/compactModeChip.ts or the sessions line in src/components/tasks/CompactWorkSummary.tsx; ${JSON.stringify(text[last] ?? '')}`)
+  check(`${tag}: the sessions line is the last row with the way back at its right edge`, SESSIONS_LINE.test(text[last] ?? '') && (text[last] ?? '').length === cols, `change compactSummaryHint in src/screen/widgets/compactModeChip.ts or the sessions line in src/screen/tasks/CompactWorkSummary.tsx; ${JSON.stringify(text[last] ?? '')}`)
   const bordered = rows - bandRows >= 14
   const inputAt = bordered ? last - 2 : last - 1
-  check(`${tag}: the composer sits directly above the sessions line`, /^(?:│)?❯ /.test(text[inputAt] ?? '') && (text[inputAt] ?? '').includes(ADMITTED), `the composer must sit directly above the sessions line; change the compact layout in src/components/MercuryFrame.tsx; ${JSON.stringify(text[inputAt] ?? '')}`)
+  check(`${tag}: the composer sits directly above the sessions line`, /^(?:│)?❯ /.test(text[inputAt] ?? '') && (text[inputAt] ?? '').includes(ADMITTED), `the composer must sit directly above the sessions line; change the compact layout in src/screen/frame-chips/MercuryFrame.tsx; ${JSON.stringify(text[inputAt] ?? '')}`)
   if (bordered) {
-    check(`${tag}: the composer keeps its rounded frame`, (text[last - 1] ?? '').startsWith('╰') && (text[last - 3] ?? '').startsWith('╭'), `keep the composer rounded frame in the compact layout of src/components/MercuryFrame.tsx; ${JSON.stringify(text[last - 3] ?? '')} / ${JSON.stringify(text[last - 1] ?? '')}`)
+    check(`${tag}: the composer keeps its rounded frame`, (text[last - 1] ?? '').startsWith('╰') && (text[last - 3] ?? '').startsWith('╭'), `keep the composer rounded frame in the compact layout of src/screen/frame-chips/MercuryFrame.tsx; ${JSON.stringify(text[last - 3] ?? '')} / ${JSON.stringify(text[last - 1] ?? '')}`)
   }
   const chipAt = bordered ? last - 4 : last - 2
   const chipRow = text[chipAt] ?? ''
@@ -209,7 +209,7 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
       printFrame('chat-sovereign-120x40 idle', text)
       restingRowCheck('sovereign 120x40', text)
       const bandAt = text.findIndex(l => l.includes('sovereign mode on'))
-      check('sovereign 120x40: the full cockpit paints its mode band', bandAt >= 0, 'the full cockpit must paint sovereign mode on; change the mode band in src/components/MercuryFrame.tsx')
+      check('sovereign 120x40: the full cockpit paints its mode band', bandAt >= 0, 'the full cockpit must paint sovereign mode on; change the mode band in src/screen/frame-chips/MercuryFrame.tsx')
       const cell = cellsAt(idle.grid, bandAt).find(c => c.c === '⊠')
       wideChipFg = cell?.fg ?? ''
       check('sovereign 120x40: the band wears a real colour', wideChipFg !== '' && wideChipFg !== 'default', `the mode band glyph must carry a real colour, not the default; got: ${wideChipFg}`)
@@ -253,7 +253,7 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
       const activity = text[chipAt - 1] ?? ''
       check(`${tag}: the glyph line rides directly above the chip line`, activity.startsWith('✶') && /^✶ \S.*… · \d+s · ↓ ~?\d+/.test(activity), `the glyph activity line must ride directly above the chip line; ${JSON.stringify(activity)}`)
       check(`${tag}: the band keeps the lockup without the readiness word while the turn runs`, text.some(l => l.includes('✶ Mercury')) && !text.some(l => l.includes('● ready')), `${BAND_AT}; the band keeps the lockup and drops ready while a turn runs`)
-      check(`${tag}: the sessions line carries the interrupt rung beside the way back`, /esc interrupts · (?:⇧|shift\+)← (?:boot face|concourse)$/.test(text[23] ?? ''), `change compactSummaryHint in src/components/mercury-ui/compactModeChip.ts or the escape rung in src/components/tasks/CompactWorkSummary.tsx; ${JSON.stringify(text[23] ?? '')}`)
+      check(`${tag}: the sessions line carries the interrupt rung beside the way back`, /esc interrupts · (?:⇧|shift\+)← (?:boot face|concourse)$/.test(text[23] ?? ''), `change compactSummaryHint in src/screen/widgets/compactModeChip.ts or the escape rung in src/screen/tasks/CompactWorkSummary.tsx; ${JSON.stringify(text[23] ?? '')}`)
       check(`${tag}: the model still appears on exactly one row while streaming`, text.filter(l => l.includes('Opus 5')).length === 1, `${BAND_AT}; the model must paint once while streaming`)
     }
     check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0, 'the drive reached a non-loopback address; find the request in the leg netlog and stop the code that sends it')
@@ -365,12 +365,12 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17]] as const) {
 
 {
   const chip = compactModeChip('sovereign')
-  check('the chip owner spells the sovereign chip as approved', chip !== null && chip.text === '⊠ sovereign · auto-approved' && chip.tone === 'bypass', 'change compactModeChip in src/components/mercury-ui/compactModeChip.ts so sovereign reads the approved chip text with the bypass tone')
-  check('the chip owner paints nothing for the default mode', compactModeChip('default') === null, 'change compactModeChip in src/components/mercury-ui/compactModeChip.ts to return null for the default mode')
-  check('the chip owner paints nothing for an unreported mode (the honest blank, never a word)', compactModeChip(null) === null, 'change compactModeChip in src/components/mercury-ui/compactModeChip.ts to return null for an unreported mode')
-  check('the sessions line hint folds the focus, the interrupt rung and the way back in order', compactSummaryHint({ focused: true, vimInsert: true, escHint: 'esc interrupts', stripHint: '⇧← concourse' }) === '↵ details · esc back' && compactSummaryHint({ focused: false, vimInsert: true, escHint: 'esc interrupts', stripHint: '⇧← concourse' }) === 'INSERT · esc interrupts · ⇧← concourse' && compactSummaryHint({ focused: false, vimInsert: false, escHint: '', stripHint: '' }) === '', 'change compactSummaryHint in src/components/mercury-ui/compactModeChip.ts: focused reads details and back, else insert, interrupt rung, way back in order')
-  check('the band form ladder: one dock sprite at every size that paints one', ladder(90, 31).form === 'dock' && ladder(80, 26).form === 'dock' && ladder(80, 25).form === 'dock' && ladder(80, 20).form === 'dock' && ladder(82, 19).form === 'line' && ladder(82, 14).form === 'line' && ladder(40, 13).form === 'none' && ladder(20, 31).form === 'line' && ladder(120, 40).form === 'dock', 'change compactBandForm in src/components/mercury-ui/geometry.ts: dock from 20 rows and wide enough, line from 14 rows, none below')
-  check('the band rows follow the forms', ladder(90, 31).bandRows === 4 && ladder(80, 24).bandRows === 4 && ladder(82, 17).bandRows === 2 && ladder(40, 10).bandRows === 0, 'change compactBandRows in src/components/mercury-ui/geometry.ts: dock art lines plus one, line 2, none 0')
+  check('the chip owner spells the sovereign chip as approved', chip !== null && chip.text === '⊠ sovereign · auto-approved' && chip.tone === 'bypass', 'change compactModeChip in src/screen/widgets/compactModeChip.ts so sovereign reads the approved chip text with the bypass tone')
+  check('the chip owner paints nothing for the default mode', compactModeChip('default') === null, 'change compactModeChip in src/screen/widgets/compactModeChip.ts to return null for the default mode')
+  check('the chip owner paints nothing for an unreported mode (the honest blank, never a word)', compactModeChip(null) === null, 'change compactModeChip in src/screen/widgets/compactModeChip.ts to return null for an unreported mode')
+  check('the sessions line hint folds the focus, the interrupt rung and the way back in order', compactSummaryHint({ focused: true, vimInsert: true, escHint: 'esc interrupts', stripHint: '⇧← concourse' }) === '↵ details · esc back' && compactSummaryHint({ focused: false, vimInsert: true, escHint: 'esc interrupts', stripHint: '⇧← concourse' }) === 'INSERT · esc interrupts · ⇧← concourse' && compactSummaryHint({ focused: false, vimInsert: false, escHint: '', stripHint: '' }) === '', 'change compactSummaryHint in src/screen/widgets/compactModeChip.ts: focused reads details and back, else insert, interrupt rung, way back in order')
+  check('the band form ladder: one dock sprite at every size that paints one', ladder(90, 31).form === 'dock' && ladder(80, 26).form === 'dock' && ladder(80, 25).form === 'dock' && ladder(80, 20).form === 'dock' && ladder(82, 19).form === 'line' && ladder(82, 14).form === 'line' && ladder(40, 13).form === 'none' && ladder(20, 31).form === 'line' && ladder(120, 40).form === 'dock', 'change compactBandForm in src/screen/widgets/geometry.ts: dock from 20 rows and wide enough, line from 14 rows, none below')
+  check('the band rows follow the forms', ladder(90, 31).bandRows === 4 && ladder(80, 24).bandRows === 4 && ladder(82, 17).bandRows === 2 && ladder(40, 10).bandRows === 0, 'change compactBandRows in src/screen/widgets/geometry.ts: dock art lines plus one, line 2, none 0')
 }
 
 finish('chat-compact')

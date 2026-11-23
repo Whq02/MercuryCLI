@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { bound, childEnv, DIST, MODEL, NODE, SCRATCH_ROOT } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type ScriptedRequest } from '../lib/scriptedTurn.ts'
 
-const shellLawHint = 'to fix, change the background start result in src/tools/BashTool/resultBlock.ts, the run_in_background text in src/tools/BashTool/prompt.ts, or the Service start in src/tools/ServiceTool/ServiceTool.ts, then rebuild dist'
+const shellLawHint = 'to fix, change the background start result in src/tools/shell/resultBlock.ts, the run_in_background text in src/tools/shell/prompt.ts, or the Service start in src/tools/service/ServiceTool.ts, then rebuild dist'
 const tally = makeTally()
 if (!existsSync(DIST)) {
   console.log(`  [SKIP] ${DIST} absent — build first`)
@@ -135,7 +135,7 @@ tally.section('S2 — the same run with a Service of lifecycle project: the proc
 tally.section('S3 — the words the model reads before choosing: the run_in_background field carries the lifetime, the start result names the road, the sessions doc names it too')
 {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const { getSimplePrompt, describeRunInBackground } = await import('../../src/tools/BashTool/prompt.ts')
+  const { getSimplePrompt, describeRunInBackground } = await import('../../src/tools/shell/prompt.ts')
   const offered = getSimplePrompt(new Set(['Bash', 'Service', 'ToolSearch']))
   const without = getSimplePrompt(new Set(['Bash']))
   tally.check('the run_in_background field says the command is stopped when the run that started it ends', describeRunInBackground().includes('the command is stopped when the run that started it ends'), describeRunInBackground())

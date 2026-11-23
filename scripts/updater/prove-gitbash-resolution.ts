@@ -3,10 +3,10 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { join } from 'node:path'
-import { gitBashCandidatePaths } from '../../src/utils/windowsPaths.ts'
+import { gitBashCandidatePaths } from '../../src/platform/files/windowsPaths.ts'
 
 let failures = 0
-const GITBASH_FAIL_HINT = ' — fix the candidate derivation in gitBashCandidatePaths in src/utils/windowsPaths.ts'
+const GITBASH_FAIL_HINT = ' — fix the candidate derivation in gitBashCandidatePaths in src/platform/files/windowsPaths.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : GITBASH_FAIL_HINT}`)

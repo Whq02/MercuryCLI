@@ -12,14 +12,14 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — change webFetchRuleMatches in src/utils/permissions/webFetchRuleMatches.ts, WebFetchTool.checkPermissions in src/tools/WebFetchTool/WebFetchTool.ts, or the WebFetch rule validation in src/utils/settings/toolValidationConfig.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — change webFetchRuleMatches in src/permissions/rules/webFetchRuleMatches.ts, WebFetchTool.checkPermissions in src/tools/web-fetch/WebFetchTool.ts, or the WebFetch rule validation in src/platform/settings/toolValidationConfig.ts'}`)
 }
 const section = (t: string): void => console.log(`\n${t}`)
 
-const { WebFetchTool } = (await import('../../src/tools/WebFetchTool/WebFetchTool.ts')) as { WebFetchTool: { checkPermissions?: (input: unknown, context: unknown) => Promise<unknown> } }
-const { webFetchRuleMatches } = await import('../../src/utils/permissions/webFetchRuleMatches.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getCustomValidation } = await import('../../src/utils/settings/toolValidationConfig.ts')
+const { WebFetchTool } = (await import('../../src/tools/web-fetch/WebFetchTool.ts')) as { WebFetchTool: { checkPermissions?: (input: unknown, context: unknown) => Promise<unknown> } }
+const { webFetchRuleMatches } = await import('../../src/permissions/rules/webFetchRuleMatches.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getCustomValidation } = await import('../../src/platform/settings/toolValidationConfig.ts')
 const validateToolPermissionRule = (tool: string, content: string): { valid: boolean } => getCustomValidation(tool)?.(content) ?? { valid: false }
 
 type Ctx = ReturnType<typeof getEmptyToolPermissionContext>

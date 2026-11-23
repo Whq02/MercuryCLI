@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import { marked } from 'marked'
-import { advanceStableBoundary, computeSeamRows, pendingRowsOf } from '../../src/components/Markdown.tsx'
-import { configureMarked, formatToken } from '../../src/utils/markdown.ts'
-import { getTheme } from '../../src/utils/theme.ts'
-import { getCliHighlightPromise } from '../../src/utils/cliHighlight.ts'
+import { advanceStableBoundary, computeSeamRows, pendingRowsOf } from '../../src/screen/messages/Markdown.tsx'
+import { configureMarked, formatToken } from '../../src/screen/messages/markdownText.ts'
+import { getTheme } from '../../src/screen/theme/theme.ts'
+import { getCliHighlightPromise } from '../../src/screen/highlighted-code/cliHighlight.ts'
 
 configureMarked()
 const theme = getTheme()

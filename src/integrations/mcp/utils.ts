@@ -1,0 +1,427 @@
+import { createHash } from 'node:crypto'
+
+import { getProjectPathForConfig } from '../../platform/settings/config.js'
+import { getCwd } from '../../platform/files/cwd.js'
+import { getGlobalMercuryFile } from '../../platform/environment/env.js'
+import { errorMessage, errorMessageWithCause, getErrnoCode } from '../../platform/errors/errors.js'
+import { isOneOf } from '../../platform/primitives/isOneOf.js'
+import { getEnabledSettingsForSource, getSettingsForSource, updateSettingsForSource } from '../../platform/settings/settings.js'
+import { getMcpPrefix } from '../mcp-shapes/mcpToolNames.js'
+import { normalizeNameForMCP } from '../mcp-shapes/normalization.js'
+import type {
+  ConfigScope,
+  McpServerConfig,
+  McpUnexpandedStrings,
+  ScopedMcpServerConfig,
+  ServerResource,
+  Transport,
+} from '../mcp-shapes/mcpServerRecords.js'
+import { getEnterpriseMcpFilePath, projectMcpFilePath } from './configPaths.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+
+
+type NamedTool = { name: string; mcpInfo?: { serverName?: string } }
+type NamedCommand = { name: string; type?: string; source?: string; isMcp?: boolean }
+
+function toolBelongsToServer(tool: NamedTool, serverName: string, prefix: string): boolean {
+  if (tool.mcpInfo?.serverName !== undefined) return tool.mcpInfo.serverName === serverName
+  return tool.name.startsWith(prefix)
+}
+
+export function filterToolsByServer<T extends NamedTool>(tools: T[], serverName: string): T[] {
+  const prefix = getMcpPrefix(serverName)
+  return tools.filter(tool => toolBelongsToServer(tool, serverName, prefix))
+}
+
+export function excludeToolsByServer<T extends NamedTool>(tools: T[], serverName: string): T[] {
+  const prefix = getMcpPrefix(serverName)
+  return tools.filter(tool => !toolBelongsToServer(tool, serverName, prefix))
+}
+
+export function excludeCommandsByServer<T extends NamedCommand>(
+  commands: T[],
+  serverName: string,
+): T[] {
+  const mcpPrefix = getMcpPrefix(serverName)
+  const colonPrefix = `${normalizeNameForMCP(serverName)}:`
+  return commands.filter(
+    command => !command.name.startsWith(mcpPrefix) && !command.name.startsWith(colonPrefix),
+  )
+}
+
+export function excludeResourcesByServer(
+  resources: Record<string, ServerResource[]>,
+  serverName: string,
+): Record<string, ServerResource[]> {
+  const result: Record<string, ServerResource[]> = {}
+  for (const [key, value] of Object.entries(resources)) {
+    if (key !== serverName) {
+      result[key] = value
+    }
+  }
+  return result
+}
+
+export function isMcpTool(tool: { name: string; isMcp?: boolean }): boolean {
+  return tool.name.startsWith('mcp__') || tool.isMcp === true
+}
+
+
+function sortKeysDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortKeysDeep)
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    )
+    const sorted: Record<string, unknown> = {}
+    for (const [key, entryValue] of entries) sorted[key] = sortKeysDeep(entryValue)
+    return sorted
+  }
+  return value
+}
+
+export function describeMcpConfigFilePath(scope: ConfigScope | string): string {
+  switch (scope) {
+    case 'user':
+      return getGlobalMercuryConfigPath()
+    case 'project':
+      return projectMcpFilePath(getCwd())
+    case 'local':
+      return `${getGlobalMercuryConfigPath()} [project: ${getProjectPathForConfig()}]`
+    case 'enterprise':
+      return getEnterpriseMcpFilePath()
+    case 'dynamic':
+      return 'supplied at process start'
+    case 'claudeai':
+      return 'the claude.ai web account'
+    default:
+      return String(scope)
+  }
+}
+
+function getGlobalMercuryConfigPath(): string {
+  return getGlobalMercuryFile()
+}
+
+export function getScopeLabel(scope: ConfigScope | string): string {
+  switch (scope) {
+    case 'user':
+      return 'User (available in all your projects)'
+    case 'project':
+      return 'Project (shared with collaborators via .mercury/mcp.json)'
+    case 'local':
+      return 'Local (visible only to you in this project)'
+    case 'enterprise':
+      return 'Enterprise (administered by your organization)'
+    case 'dynamic':
+      return 'Dynamic (provided on the command line)'
+    case 'claudeai':
+      return 'claude.ai (connected through your web account)'
+    default:
+      return String(scope)
+  }
+}
+
+const OPERATOR_CONFIG_SCOPES: readonly ConfigScope[] = ['local', 'user', 'project']
+
+export function ensureConfigScope(scope?: string): ConfigScope {
+  if (scope === undefined || scope === '') return 'local'
+  if (isOneOf(OPERATOR_CONFIG_SCOPES, scope)) return scope
+  throw new Error(`Invalid scope: ${scope}. Valid scopes are: ${OPERATOR_CONFIG_SCOPES.join(', ')}`)
+}
+
+
+export const MCP_CONNECT_TIMEOUT_TELEMETRY = 'MCP connection timeout'
+
+interface McpConnectFailureContext {
+  transport: string
+  command?: string
+  url?: string
+  stderrTail?: string
+}
+
+function errnoCodeInChain(error: unknown, maxDepth = 4): string | undefined {
+  let cursor: unknown = error
+  for (let depth = 0; depth <= maxDepth && cursor !== undefined && cursor !== null; depth++) {
+    const code = getErrnoCode(cursor)
+    if (code !== undefined) return code
+    cursor = cursor instanceof Error ? cursor.cause : undefined
+  }
+  return undefined
+}
+
+function urlTarget(url: string | undefined): { host: string; target: string; port: string } {
+  if (url === undefined) return { host: 'the server', target: 'the server', port: '' }
+  try {
+    const parsed = new URL(url)
+    const port = parsed.port !== '' ? parsed.port : parsed.protocol === 'https:' ? '443' : '80'
+    return { host: parsed.hostname, target: `${parsed.hostname}:${port}`, port }
+  } catch {
+    return { host: url, target: url, port: '' }
+  }
+}
+
+function stripErrorClassPrefixes(text: string): string {
+  return text.replace(/\b(?:TypeError|RangeError|Error|SseError|StreamableHTTPError|AggregateError):\s*/g, '')
+}
+
+export function describeMcpConnectFailure(error: unknown, context: McpConnectFailureContext): string {
+  const message = errorMessage(error)
+  if ((error as { telemetryMessage?: unknown } | null)?.telemetryMessage === MCP_CONNECT_TIMEOUT_TELEMETRY) return message
+  const code = errnoCodeInChain(error)
+  if (context.transport === 'stdio') {
+    const command = context.command ?? 'the command'
+    if (code === 'ENOENT') return `command not found: ${command} — check the path (or install it), then retry from /mcp`
+    if (code === 'EACCES' || code === 'EPERM') return `command not executable: ${command} (${code}) — check its permissions, then retry from /mcp`
+    const tail = (context.stderrTail ?? '').trim()
+    return tail.length > 0
+      ? `${message} — server stderr: ${tail}`
+      : `${message} — the server wrote nothing to stderr before closing (run the command by hand to see why it exits)`
+  }
+  const { host, target, port } = urlTarget(context.url)
+  const chain = errorMessageWithCause(error)
+  if (code === 'ECONNREFUSED' || code === 'ConnectionRefused' || chain.includes('ECONNREFUSED') || chain.includes('Unable to connect')) {
+    return `connection refused at ${target} — nothing is listening there; start the server, then retry from /mcp`
+  }
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN' || /ENOTFOUND|EAI_AGAIN/.test(chain)) return `host not found: ${host} (DNS) — check the URL, then retry from /mcp`
+  if (code === 'ECONNRESET' || chain.includes('ECONNRESET')) return `the connection to ${target} was reset — the server dropped it; retry from /mcp`
+  if (code === 'ETIMEDOUT' || chain.includes('ETIMEDOUT')) return `connecting to ${target} timed out — check the network and the URL, then retry from /mcp`
+  if (/certificate|CERT_|SELF_SIGNED|UNABLE_TO_VERIFY|DEPTH_ZERO/i.test(chain)) return `TLS certificate for ${host} not trusted (${stripErrorClassPrefixes(chain)}) — add its CA with NODE_EXTRA_CA_CERTS, then retry from /mcp`
+  if (/bad port/i.test(chain)) return `port ${port || '(unset)'} is on fetch's blocked-port list — serve on another port, then retry from /mcp`
+  return stripErrorClassPrefixes(chain)
+}
+
+export function clipToWord(text: string, max: number): string {
+  if (max <= 1) return text.length <= max ? text : '…'
+  if (text.length <= max) return text
+  const head = text.slice(0, max - 1)
+  const cut = head.lastIndexOf(' ')
+  return `${(cut > max / 2 ? head.slice(0, cut) : head).trimEnd()}…`
+}
+
+export function mcpServerFailedWords(name: string, reason: string | undefined): string {
+  const why = (reason ?? '').trim()
+  return `MCP server \`${name}\` did not start${why !== '' ? `: ${why}` : ''}; its tools are not available this session`
+}
+
+export function mcpServersFailed(clients: ReadonlyArray<{ name: string; type: string; error?: string }>): Array<{ name: string; reason: string }> {
+  const out: Array<{ name: string; reason: string }> = []
+  for (const client of clients) {
+    if (client.type !== 'failed') continue
+    if (out.some(entry => entry.name === client.name)) continue
+    out.push({ name: client.name, reason: (client.error ?? '').trim() })
+  }
+  return out
+}
+
+const OPERATOR_SERVER_TYPES = ['stdio', 'sse', 'http', 'ws'] as const
+
+type SchemaIssue = {
+  code?: string
+  path: ReadonlyArray<PropertyKey>
+  message: string
+  errors?: ReadonlyArray<ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>>
+}
+
+export function describeMcpConfigIssues(issues: ReadonlyArray<SchemaIssue>, parsed: unknown): string {
+  const typed = parsed !== null && typeof parsed === 'object' ? (parsed as { type?: unknown }).type : undefined
+  const typeWord = typeof typed === 'string' ? typed : undefined
+  const flatten = (list: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>): string[] =>
+    list.map(issue => `${issue.path.map(String).join('.') || '(root)'}: ${issue.message}`)
+  const lines: string[] = []
+  for (const issue of issues) {
+    if (issue.code === 'invalid_union' && issue.errors !== undefined) {
+      const matched = issue.errors.filter(branch => !branch.some(field => field.path.length === 1 && field.path[0] === 'type'))
+      if (matched.length > 0) {
+        const prefix = typeWord !== undefined ? `for a ${typeWord} server — ` : ''
+        lines.push(`${prefix}${[...new Set(matched.flatMap(flatten))].join(' · ')}`)
+        continue
+      }
+      lines.push(
+        typeWord === undefined
+          ? `type: missing — one of ${OPERATOR_SERVER_TYPES.join(', ')}`
+          : `type: "${typeWord}" is not a server type — one of ${OPERATOR_SERVER_TYPES.join(', ')}`,
+      )
+      continue
+    }
+    lines.push(...flatten([issue]))
+  }
+  return [...new Set(lines)].join(' · ')
+}
+
+export function ensureTransport(type?: string): Transport {
+  if (type === undefined || type === '') return 'stdio'
+  if (type === 'stdio' || type === 'sse' || type === 'http') return type
+  throw new Error(`Invalid transport type: ${type}. Valid types are: stdio, sse, http`)
+}
+
+export function parseHeaders(headerArray: string[]): Record<string, string> {
+  const headers: Record<string, string> = {}
+  for (const header of headerArray) {
+    const colonIndex = header.indexOf(':')
+    if (colonIndex === -1) {
+      throw new Error(`Invalid header format: "${header}". Expected "Header-Name: value"`)
+    }
+    const name = header.slice(0, colonIndex).trim()
+    if (name === '') {
+      throw new Error(`Invalid header format: "${header}". Header name cannot be empty`)
+    }
+    const value = header.slice(colonIndex + 1).trim()
+    headers[name] = value
+  }
+  return headers
+}
+
+
+type McpDefinitionRecord = {
+  command?: string
+  args?: string[]
+  url?: string
+  env?: Record<string, string>
+  headersHelper?: string
+  unexpanded?: McpUnexpandedStrings
+}
+
+export function mcpConfigAsWritten(config: McpServerConfig | ScopedMcpServerConfig): { command?: string; args: string[]; url?: string } {
+  const record = config as McpDefinitionRecord
+  const written = record.unexpanded ?? {}
+  const command = written.command ?? record.command
+  const url = written.url ?? record.url
+  return {
+    ...(command === undefined ? {} : { command }),
+    args: written.args ?? record.args ?? [],
+    ...(url === undefined ? {} : { url }),
+  }
+}
+
+const CODE_PATH_VARIABLES: ReadonlySet<string> = new Set([
+  'PATH', 'PATHEXT', 'PSMODULEPATH',
+  'BASH_ENV', 'ENV', 'SHELLOPTS', 'BASHOPTS', 'PS4', 'PROMPT_COMMAND', 'ZDOTDIR', 'FPATH',
+  'NODE_OPTIONS', 'NODE_PATH', 'NODE_REPL_EXTERNAL_MODULE', 'NODE_COMPILE_CACHE',
+  'BUN_OPTIONS', 'BUN_RUNTIME_TRANSPILER_CACHE_PATH', 'DENO_DIR', 'DENO_V8_FLAGS',
+  'PYTHONPATH', 'PYTHONHOME', 'PYTHONSTARTUP', 'PYTHONUSERBASE', 'PYTHONPYCACHEPREFIX', 'PYTHONBREAKPOINT', 'PYTHONWARNINGS', 'PYTHONPLATLIBDIR', 'PYTHONEXECUTABLE',
+  'VIRTUAL_ENV', 'CONDA_PREFIX',
+  'PERL5OPT', 'PERL5LIB', 'PERLLIB', 'PERL5DB',
+  'RUBYOPT', 'RUBYLIB', 'RUBYPATH', 'RUBYSHELL',
+  'JDK_JAVA_OPTIONS', 'JAVA_TOOL_OPTIONS', 'CLASSPATH',
+  'DOTNET_STARTUP_HOOKS', 'DOTNET_ADDITIONAL_DEPS', 'DOTNET_SHARED_STORE', 'DOTNET_ROOT', 'DOTNET_ROOT_X86', 'DOTNET_ROOT_X64', 'DOTNET_ROOT(X86)',
+  'GOFLAGS', 'GOPATH', 'GOROOT', 'GOPROXY', 'GOTOOLCHAIN', 'GOMODCACHE', 'GOWORK', 'GOENV',
+  'DOCKER_HOST', 'DOCKER_CONTEXT', 'DOCKER_CONFIG',
+])
+const CODE_PATH_FAMILIES = /^(?:LD_|DYLD_|BASH_FUNC_)/
+const SETTING_FAMILIES = /^(?:NPM_CONFIG_|PIP_|UV_)/
+const NAMES_A_CREDENTIAL = /TOKEN|PASSWORD|PASSWD|SECRET|CREDENTIAL|USERNAME|AUTH|API_?KEY/
+
+export function mcpVariableCarriesCode(name: string): boolean {
+  const upper = name.toUpperCase()
+  return CODE_PATH_VARIABLES.has(upper) || CODE_PATH_FAMILIES.test(upper) || (SETTING_FAMILIES.test(upper) && !NAMES_A_CREDENTIAL.test(upper))
+}
+
+export function projectMcpServerDefinitionDigest(config: McpServerConfig | ScopedMcpServerConfig): string {
+  const record = config as McpDefinitionRecord
+  const writtenEnv = record.unexpanded?.env ?? {}
+  const code = Object.fromEntries(Object.entries(record.env ?? {}).filter(([name]) => mcpVariableCarriesCode(name)).map(([name, value]) => [name, writtenEnv[name] ?? value]))
+  const definition = {
+    ...mcpConfigAsWritten(config),
+    env: Object.keys(record.env ?? {}).sort(),
+    ...(Object.keys(code).length === 0 ? {} : { code }),
+    ...(typeof record.headersHelper === 'string' ? { headersHelper: record.headersHelper } : {}),
+    ...('command' in config ? { cwd: process.cwd() } : {}),
+  }
+  return createHash('sha256').update(JSON.stringify(sortKeysDeep(definition))).digest('hex').slice(0, 16)
+}
+
+const APPROVAL_DIGEST = /^[0-9a-f]{16}$/
+
+function approvalEntryParts(entry: string): { name: string; digest?: string } {
+  const at = entry.lastIndexOf('#')
+  if (at > 0 && APPROVAL_DIGEST.test(entry.slice(at + 1))) return { name: entry.slice(0, at), digest: entry.slice(at + 1) }
+  return { name: entry }
+}
+
+export function projectMcpApprovalEntry(serverName: string, config: McpServerConfig | ScopedMcpServerConfig): string {
+  return `${serverName}#${projectMcpServerDefinitionDigest(config)}`
+}
+
+function approvalMatch(entries: ReadonlyArray<string> | undefined, serverName: string, digest: string): 'definition' | 'name' | null {
+  const normalized = normalizeNameForMCP(serverName)
+  let byName: 'name' | null = null
+  for (const entry of entries ?? []) {
+    const parts = approvalEntryParts(entry)
+    if (normalizeNameForMCP(parts.name) !== normalized) continue
+    if (parts.digest === digest) return 'definition'
+    if (parts.digest === undefined) byName = 'name'
+  }
+  return byName
+}
+
+type ProjectMcpChoiceSource = 'userSettings' | 'localSettings'
+
+export function recordProjectMcpServerChoices(
+  choices: {
+    approved?: ReadonlyArray<{ name: string; config: McpServerConfig | ScopedMcpServerConfig }>
+    rejected?: ReadonlyArray<string>
+    trustAll?: boolean
+  },
+  source: ProjectMcpChoiceSource = 'localSettings',
+): void {
+  const current = getSettingsForSource(source)?.kit ?? {}
+  const kit: { projectOn?: string[]; projectOff?: string[]; trustProjectServers?: boolean } = {}
+  const approved = choices.approved ?? []
+  if (approved.length > 0) {
+    const names = new Set(approved.map(({ name }) => normalizeNameForMCP(name)))
+    const kept = (current.projectOn ?? []).filter(entry => !names.has(normalizeNameForMCP(approvalEntryParts(entry).name)))
+    kit.projectOn = [...kept, ...approved.map(({ name, config }) => projectMcpApprovalEntry(name, config))]
+  }
+  const rejected = choices.rejected ?? []
+  if (rejected.length > 0) kit.projectOff = [...new Set([...(current.projectOff ?? []), ...rejected])]
+  if (choices.trustAll === true) kit.trustProjectServers = true
+  if (Object.keys(kit).length > 0) updateSettingsForSource(source, { kit })
+}
+
+function upgradeProjectMcpApproval(serverName: string, config: McpServerConfig | ScopedMcpServerConfig): void {
+  const normalized = normalizeNameForMCP(serverName)
+  for (const source of ['userSettings', 'localSettings'] as const) {
+    const entries = getEnabledSettingsForSource(source)?.kit?.projectOn ?? []
+    const plain = entries.some(entry => {
+      const parts = approvalEntryParts(entry)
+      return parts.digest === undefined && normalizeNameForMCP(parts.name) === normalized
+    })
+    if (plain) recordProjectMcpServerChoices({ approved: [{ name: serverName, config }] }, source)
+  }
+}
+
+export function getProjectMcpServerStatus(
+  serverName: string,
+  config: McpServerConfig | ScopedMcpServerConfig,
+): 'approved' | 'rejected' | 'pending' {
+  const normalized = normalizeNameForMCP(serverName)
+  const digest = projectMcpServerDefinitionDigest(config)
+  let match: 'definition' | 'name' | null = null
+  for (const source of ['userSettings', 'localSettings'] as const) {
+    const kit = getEnabledSettingsForSource(source)?.kit
+    if ((kit?.projectOff ?? []).some(name => normalizeNameForMCP(name) === normalized)) return 'rejected'
+    if (kit?.trustProjectServers === true) return 'approved'
+    const found = approvalMatch(kit?.projectOn, serverName, digest)
+    if (found === 'definition') match = 'definition'
+    else if (found === 'name' && match === null) match = 'name'
+  }
+  if (match === null) return 'pending'
+  if (match === 'name') upgradeProjectMcpApproval(serverName, config)
+  return 'approved'
+}
+
+
+export function getLoggingSafeMcpBaseUrl(
+  config: McpServerConfig | ScopedMcpServerConfig,
+): string | undefined {
+  const rawUrl = mcpConfigAsWritten(config).url
+  if (typeof rawUrl !== 'string') return undefined
+  const parsed = URL.parse(rawUrl)
+  if (parsed === null) return undefined
+  parsed.username = ''
+  parsed.password = ''
+  parsed.search = ''
+  parsed.hash = ''
+  return parsed.toString().replace(/\/$/, '')
+}

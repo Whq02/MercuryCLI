@@ -6,7 +6,7 @@ import { isolatedHome } from '../tools/readViewKit.js'
 isolatedHome(import.meta.filename)
 const { runArtifactArena, grabScreens, sendStamp } = await import('../streaming/artifactArena.js')
 let passed = 0, failed = 0
-const rowNoteWhere = 'where to look: the write card is src/components/permissions/FilePermissionDialog/FilePermissionDialog.tsx, the delete card src/tools/FileWriteTool/SqliteDeletePermissionRequest.tsx, the note text and the answers sqliteRowRewindNote in src/tools/FileWriteTool/structuredTargets.ts used by src/tools/FileWriteTool/FileWriteTool.ts, the screen result src/tools/FileWriteTool/UI.tsx. Detail follows.\n'
+const rowNoteWhere = 'where to look: the write card is src/permissions/cards/file-dialog/FilePermissionDialog.tsx, the delete card src/tools/write/SqliteDeletePermissionRequest.tsx, the note text and the answers sqliteRowRewindNote in src/tools/write/structuredTargets.ts used by src/tools/write/WriteTool.ts, the screen result src/tools/write/rows.tsx. Detail follows.\n'
 const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${rowNoteWhere}${detail}`}`) }
 const NOTE = 'Not checkpointed: a rewind will not restore this row.'
 const run = await runArtifactArena({

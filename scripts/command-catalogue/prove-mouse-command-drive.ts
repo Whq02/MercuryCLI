@@ -26,7 +26,7 @@ delete process.env.MERCURY_CONCOURSE
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {

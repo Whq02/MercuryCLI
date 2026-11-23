@@ -24,18 +24,18 @@ for (const k of [
   delete process.env[k]
 }
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import(
-  '../../src/utils/messages/factories.ts'
+  '../../src/engine/message-shapes/factories.ts'
 )
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const settingsRoad = await import('../../src/utils/settings/settings.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const settingsRoad = await import('../../src/platform/settings/settings.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 const fs = await import('node:fs')
 const { dirname } = await import('node:path')
 
@@ -60,7 +60,7 @@ let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  const hint = 'change the detector in src/services/tools/loopGuard.ts (recordToolCall, closeRound), the turn end in src/run-core/turn/afterTools.ts, or the turns.loopGuard setting in src/utils/settings/types.ts, whichever this check exercises'
+  const hint = 'change the detector in src/engine/tool-dispatch/loopGuard.ts (recordToolCall, closeRound), the turn end in src/engine/loop/turn/afterTools.ts, or the turns.loopGuard setting in src/platform/settings/settingsSchema.ts, whichever this check exercises'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${hint}` : ''}`)
   if (!cond) failures++
 }
@@ -123,7 +123,7 @@ function makeTool(name: string, concurrent = false): never {
   } as never
 }
 
-const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
+const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
 let nestSeq = 0
 const nestSettled: string[] = []
 const nestedAllow = async (_tool: unknown, input: Record<string, unknown>) =>
@@ -476,7 +476,7 @@ section('C9 — KEY ON (turns.loopGuard: true in the scratch home\'s settings.js
 {
   const read = stopKeyReadsBack()
   check('the key reads back true through the ordinary settings road (a settings-file change hot-applies)', read.value === true, JSON.stringify(read))
-  const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
+  const { SettingsSchema } = await import('../../src/platform/settings/settingsSchema.ts')
   const turnsShape = ((SettingsSchema() as { shape: Record<string, { unwrap?: () => { shape?: Record<string, unknown> } }> }).shape.turns?.unwrap?.().shape) ?? {}
   const declared = Object.prototype.hasOwnProperty.call(turnsShape, 'loopGuard')
   check('the key is DECLARED in the settings schema, not merely carried through as an unknown key nothing reads', declared, `schema keys under turns with "loop": ${Object.keys(turnsShape).filter(k => /loop/i.test(k)).join(',') || '(none — the passthrough schema carries the key silently and nothing reads it)'}`)
@@ -533,8 +533,8 @@ section('C12 — KEY ON: a repeat counts only across rounds, on the live shape (
 
 section('C14 — KEY ON: a sub-agent the guard ends settles to its parent as a typed failure naming the cycle, never as a completed report')
 {
-  const { finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-  const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
+  const { finalizeAgentTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+  const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
   const run = await runScript(pairs(10, () => TEST), identicalResults, 'agent-rig-3')
   const collected = run.yields.filter(m => m.type === 'assistant' || m.type === 'user' || m.type === 'attachment')
   const finalized = finalizeAgentTool(collected as never, 'agent-rig-3', { prompt: 'loop', resolvedAgentModel: MODEL, isBuiltInAgent: true, startTime: Date.now(), agentType: 'mercury-crew', isAsync: false })
@@ -720,8 +720,8 @@ section('C21 — the guard\'s defence: two cells in one response whose nested ca
 
 section('C22 — the key cannot be read (the settings throw where turns is read): an opt-in that cannot be read is not opted in, so the same loop is reminded and the turn goes on')
 {
-  const { getSessionSettingsCache, setSessionSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-  const { isLoopGuardStopEnabled } = await import('../../src/services/tools/loopGuard.ts')
+  const { getSessionSettingsCache, setSessionSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+  const { isLoopGuardStopEnabled } = await import('../../src/engine/tool-dispatch/loopGuard.ts')
   setStopKey(null)
   const read = settingsRoad.getSettingsWithErrors()
   const unreadable = new Proxy(read.settings as Record<string, unknown>, {

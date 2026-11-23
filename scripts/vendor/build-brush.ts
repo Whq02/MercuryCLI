@@ -13,8 +13,8 @@ import {
   brushPackTreeDigest,
   checkBrushPackDir,
   type BrushCargoBuildManifest,
-} from '../../src/utils/shell/brushPack.ts'
-import { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget } from '../../src/services/privateChannel/releaseTarget.ts'
+} from '../../src/platform/shell/brushPack.ts'
+import { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget } from '../../src/platform/update-channel/releaseTarget.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const LOCK_PATH = join(ROOT, 'vendor', 'brush.lock.json')

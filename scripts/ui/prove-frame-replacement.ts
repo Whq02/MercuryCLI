@@ -12,12 +12,12 @@ pinSourceRef()
 delete process.env.NODE_ENV
 process.env.MERCURY_REDUCED_MOTION = '1'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { Box, Text } = await import('../../src/ink.js')
-const { MercurySetupFrame } = await import('../../src/components/MercurySetupFrame.js')
-const { useTerminalSize } = await import('../../src/hooks/useTerminalSize.js')
-const { regionScrollTrustedNow, upgradeSyncOutputSupport } = await import('../../src/ink/session/capabilities.js')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { MercurySetupFrame } = await import('../../src/boot/first-run/MercurySetupFrame.js')
+const { useTerminalSize } = await import('../../src/screen/fullscreen-layout/useTerminalSize.js')
+const { regionScrollTrustedNow, upgradeSyncOutputSupport } = await import('../../src/screen/renderer/terminal-session/capabilities.js')
 upgradeSyncOutputSupport()
 
 const h = React.createElement
@@ -68,7 +68,7 @@ function model(ink: InstanceType<typeof Ink>, rows: number): string[] {
 function sameGlass(label: string, terminal: AnsiEmulator, ink: InstanceType<typeof Ink>): void {
   const want = model(ink, terminal.height)
   const got = terminal.lines()
-  check(label, JSON.stringify(got) === JSON.stringify(want), got.flatMap((line, y) => line === want[y] ? [] : [`row ${y}: ${JSON.stringify(line)} != ${JSON.stringify(want[y])}`]).slice(0, 4).join(' | ') + ' | the cells the terminal drew differ from the composed frame; look at the frame diff and whole-frame repaint in renderFrame (src/ink/ink/frame-loop.ts) and src/ink/frame-writer.ts')
+  check(label, JSON.stringify(got) === JSON.stringify(want), got.flatMap((line, y) => line === want[y] ? [] : [`row ${y}: ${JSON.stringify(line)} != ${JSON.stringify(want[y])}`]).slice(0, 4).join(' | ') + ' | the cells the terminal drew differ from the composed frame; look at the frame diff and whole-frame repaint in renderFrame (src/screen/renderer/instance/frame-loop.ts) and src/screen/renderer/frame-writer.ts')
 }
 function save(name: string, terminal: AnsiEmulator): void {
   if (frameDir) writeFileSync(join(frameDir, `${name}.txt`), terminal.lines().join('\n') + '\n')
@@ -87,7 +87,7 @@ Date.now = () => realNow() + skew
 for (const profile of ['alt', 'conpty', 'inline'] as const) {
   if (profile === 'conpty') process.env.WT_SESSION = 'frame-replacement'
   else delete process.env.WT_SESSION
-  check(`${profile}: region scrolling follows the profile`, regionScrollTrustedNow() === (profile !== 'conpty' && process.platform !== 'win32'), 'regionScrollTrustedNow in src/ink/session/capabilities.ts must be false only on Windows Terminal (WT_SESSION) hosts')
+  check(`${profile}: region scrolling follows the profile`, regionScrollTrustedNow() === (profile !== 'conpty' && process.platform !== 'win32'), 'regionScrollTrustedNow in src/screen/renderer/terminal-session/capabilities.ts must be false only on Windows Terminal (WT_SESSION) hosts')
   for (const idle of [false, true]) {
     const { ink, stdout } = rig(80, 24, profile !== 'inline')
     const terminal = new AnsiEmulator(80, 24, profile !== 'inline')
@@ -102,12 +102,12 @@ for (const profile of ['alt', 'conpty', 'inline'] as const) {
     const writes = stdout.writes.slice(before)
     feed(terminal, writes)
     sameGlass(`${profile} ${idle ? 'idle' : 'active'}: short wizard replaces every old cell`, terminal, ink)
-    check(`${profile}: no old tail remains`, !terminal.lines().some(line => line.includes('theme 15')), 'the shrunk frame left the tall wizard text on screen; the frame writer in src/ink/frame-writer.ts must clear rows the new frame no longer covers')
-    if (profile === 'inline') check('inline shrink never erases the screen or scrollback', !/\x1b\[[0123]?J/.test(writes.join('')), 'an inline shrink wrote an erase-screen or erase-scrollback sequence; check the frame writer in src/ink/frame-writer.ts')
+    check(`${profile}: no old tail remains`, !terminal.lines().some(line => line.includes('theme 15')), 'the shrunk frame left the tall wizard text on screen; the frame writer in src/screen/renderer/frame-writer.ts must clear rows the new frame no longer covers')
+    if (profile === 'inline') check('inline shrink never erases the screen or scrollback', !/\x1b\[[0123]?J/.test(writes.join('')), 'an inline shrink wrote an erase-screen or erase-scrollback sequence; check the frame writer in src/screen/renderer/frame-writer.ts')
     else if (idle) {
       const bytes = writes.join('')
-      check(`${profile}: the idle reset repaints the whole frame in one synchronized write that overwrites in place`, writes.length === 1 && bytes.startsWith('\x1b[?2026h\x1b[H\x1b[0m') && bytes.endsWith('\x1b[?2026l') && !/\x1b\[[0123]?J/.test(bytes) && bytes.indexOf('Guardrails') !== -1, `got ${writes.length} write(s); after 30 s idle renderFrame in src/ink/ink/frame-loop.ts must set wholeFrameDue and the writer must emit one synchronized, in-place repaint with no erase`)
-    } else check(`${profile}: an ordinary step change needs no whole-screen erase`, !/\x1b\[[0123]?J/.test(writes.join('')), 'a step change wrote an erase-screen sequence; check the frame writer in src/ink/frame-writer.ts')
+      check(`${profile}: the idle reset repaints the whole frame in one synchronized write that overwrites in place`, writes.length === 1 && bytes.startsWith('\x1b[?2026h\x1b[H\x1b[0m') && bytes.endsWith('\x1b[?2026l') && !/\x1b\[[0123]?J/.test(bytes) && bytes.indexOf('Guardrails') !== -1, `got ${writes.length} write(s); after 30 s idle renderFrame in src/screen/renderer/instance/frame-loop.ts must set wholeFrameDue and the writer must emit one synchronized, in-place repaint with no erase`)
+    } else check(`${profile}: an ordinary step change needs no whole-screen erase`, !/\x1b\[[0123]?J/.test(writes.join('')), 'a step change wrote an erase-screen sequence; check the frame writer in src/screen/renderer/frame-writer.ts')
     save(`${profile}-${idle ? 'idle' : 'active'}-short`, terminal)
     ink.unmount()
     await ink.waitUntilExit()
@@ -154,7 +154,7 @@ for (const busy of [true, false, true]) {
   feed(terminal, stdout.writes.slice(mark))
   mark = stdout.writes.length
   sameGlass(`110x32 spinner ${busy}: replay equals composed cells`, terminal, ink)
-  check('rail titles stay on one row', ['NEXT', 'FILES', 'VITALS'].every(word => terminal.lines().some(line => line.startsWith(word))), 'a rail title (NEXT, FILES or VITALS) is missing or no longer starts its row; the Cockpit fixture layout in this file or the frame replay in src/ink/frame-writer.ts is at fault')
+  check('rail titles stay on one row', ['NEXT', 'FILES', 'VITALS'].every(word => terminal.lines().some(line => line.startsWith(word))), 'a rail title (NEXT, FILES or VITALS) is missing or no longer starts its row; the Cockpit fixture layout in this file or the frame replay in src/screen/renderer/frame-writer.ts is at fault')
 }
 for (const [columns, rows] of [[80, 24], [140, 40], [110, 32]] as const) {
   terminal = cropped(terminal, columns, rows)
@@ -165,7 +165,7 @@ for (const [columns, rows] of [[80, 24], [140, 40], [110, 32]] as const) {
   feed(terminal, stdout.writes.slice(mark))
   mark = stdout.writes.length
   sameGlass(`${columns}x${rows}: settled resize removes all old cells`, terminal, ink)
-  check(`${columns}x${rows}: no spilled border fragment`, terminal.lines().every(line => !/^[─╮╯]/.test(line)), 'a border fragment is on the left edge after resize; the settled resize repaint (overwriteScreen in src/ink/ink/alt-screen.ts, handleWinch in src/ink/ink/resize.ts) left old cells')
+  check(`${columns}x${rows}: no spilled border fragment`, terminal.lines().every(line => !/^[─╮╯]/.test(line)), 'a border fragment is on the left edge after resize; the settled resize repaint (overwriteScreen in src/screen/renderer/instance/alt-screen.ts, handleWinch in src/screen/renderer/instance/resize.ts) left old cells')
   save(`resize-${columns}x${rows}`, terminal)
 }
 ink.unmount()

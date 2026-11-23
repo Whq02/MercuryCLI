@@ -12,14 +12,14 @@ delete process.env['NO_COLOR']
 process.env['MERCURY_CRITTER_GAZE'] = '0'
 
 const t = checker()
-const cd = await import('../../src/utils/cockpit/critterData.js')
-const gz = await import('../../src/utils/cockpit/critterGaze.js')
-const idle = await import('../../src/utils/cockpit/critterIdle.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const cd = await import('../../src/screen/cockpit/critterData.js')
+const gz = await import('../../src/screen/cockpit/critterGaze.js')
+const idle = await import('../../src/screen/cockpit/critterIdle.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 const React = (await import('react')).default
-const { renderToString, renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
-const { CritterArt, paintCritterArt, critterFrameCacheStatsForProofs } = await import('../../src/components/mercury-ui/CritterArt.js')
+const { renderToString, renderToAnsiString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { CritterArt, paintCritterArt, critterFrameCacheStatsForProofs } = await import('../../src/screen/widgets/CritterArt.js')
 
 type Def = (typeof cd.CRITTERS)[number]
 type Form = 'square' | 'mini'
@@ -213,9 +213,9 @@ t.section('§8 — under the REAL clock a still critter never commits a frame id
 {
   const { EventEmitter } = await import('node:events')
   const { PassThrough } = await import('node:stream')
-  const { renderSync } = await import('../../src/ink/root.js')
-  const { AnimatedCritterArt } = await import('../../src/components/mercury-ui/AnimatedCritterArt.js')
-  const sleep = await import('../../src/services/cockpit/critterSleep.js')
+  const { renderSync } = await import('../../src/screen/renderer/root.js')
+  const { AnimatedCritterArt } = await import('../../src/screen/widgets/AnimatedCritterArt.js')
+  const sleep = await import('../../src/screen/cockpit-gauges/critterSleep.js')
   const stripAnsi = (await import('strip-ansi')).default
   const stdinStub = (): NodeJS.ReadStream =>
     Object.assign(new EventEmitter(), {

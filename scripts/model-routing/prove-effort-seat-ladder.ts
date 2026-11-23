@@ -10,7 +10,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
 let failures = 0
-const failureWhere = 'change resolveEffortTruth, noteAgentEffortWord or effortAdjustedReceiptLine in src/utils/effort.ts, agentOwnEffortWord or resolveAgentEffort in src/tools/AgentTool/runAgent.ts, or effortSentOf in src/services/engine-connector/seatProjections.ts, whichever the check names'
+const failureWhere = 'change resolveEffortTruth, noteAgentEffortWord or effortAdjustedReceiptLine in src/models/effort/effort.ts, agentOwnEffortWord or resolveAgentEffort in src/tools/crewmate/runCrewmate.ts, or effortSentOf in src/engine/connector/seatProjections.ts, whichever the check names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + failureWhere : ''}`)
@@ -28,9 +28,9 @@ for (const key of ['OPENAI_API_KEY', 'MERCURY_CONFIG_DIR', 'MERCURY_AUTH_SCOPE_D
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-effort-seat-'))
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
-const effort = await import('../../src/utils/effort.js')
-const runner = await import('../../src/tools/AgentTool/runAgent.js')
-const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
+const effort = await import('../../src/models/effort/effort.js')
+const runner = await import('../../src/tools/crewmate/runCrewmate.js')
+const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.js')
 
 const MODEL = 'claude-fable-5-1'
 check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.modelSupportsMaxEffort(MODEL) && effort.modelSupportsXHighEffort(MODEL))
@@ -157,13 +157,13 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   check(
     'the turn machine paints the receipt row from the stamp, once per thread and word pair',
     Object.values(painted).join(' / ') === [line, 'no row', effort.effortAdjustedReceiptLine(otherPair), line, 'no row'].join(' / '),
-    `the model call (streamModel, src/run-core/turn/streamModel.ts) must yield effortAdjustedReceiptLine(stamp) as a notice for a settled reply stamped effortAdjusted, once for each thread, model and asked>sent pair in the process — ${JSON.stringify(painted)}`,
+    `the model call (streamModel, src/engine/loop/turn/streamModel.ts) must yield effortAdjustedReceiptLine(stamp) as a notice for a settled reply stamped effortAdjusted, once for each thread, model and asked>sent pair in the process — ${JSON.stringify(painted)}`,
   )
 }
 
 console.log('\n— the sent word: resolved · no key · unresolved —')
 {
-  const { effortSentOf } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const { effortSentOf } = await import('../../src/engine/connector/seatProjections.ts')
   const live = { supportsEffort: true, wire: 'xhigh', catalogue: 'gpt-live' } as const
   const unstated = { supportsEffort: true, wire: undefined, catalogue: 'gpt-unstated' } as const
   const unavailable = { supportsEffort: true, wire: undefined, catalogue: 'gpt-unavailable' } as const

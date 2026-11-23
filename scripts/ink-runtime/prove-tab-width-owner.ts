@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}tab expansion must agree between the measure function (makeTextMeasureFunc in src/ink/dom.ts, expandTabs) and the paint (composeText in src/ink/compose-walk.ts, expandTabsWithColumn); both come from src/ink/tabstops.ts` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}tab expansion must agree between the measure function (makeTextMeasureFunc in src/screen/renderer/dom.ts, expandTabs) and the paint (composeText in src/screen/renderer/compose-walk.ts, expandTabsWithColumn); both come from src/screen/renderer/tabstops.ts` : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
@@ -15,12 +15,12 @@ const j = (v: unknown): string => JSON.stringify(v)
 const { mkdtempSync } = await import('node:fs')
 const { tmpdir } = await import('node:os')
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'tab-width-home-'))
-const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
 
 const React = (await import('react')).default
-const { renderToString } = await import(join(ROOT, 'src/utils/staticRender.tsx'))
-const { Box, Text } = await import(join(ROOT, 'src/ink.ts'))
+const { renderToString } = await import(join(ROOT, 'src/screen/renderer/staticRender.tsx'))
+const { Box, Text } = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
 
 const TABBED = 'ab\tcd\tEFGHIJKLM'
 

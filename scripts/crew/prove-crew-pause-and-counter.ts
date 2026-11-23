@@ -9,11 +9,11 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'crew-pause-home-'))
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
-const wait = await import('../../src/tasks/LocalAgentTask/agentWait.js')
-const pause = await import('../../src/tasks/LocalAgentTask/agentPause.js')
-const crew = await import('../../src/services/engine-connector/crewFacts.js')
-const wire = await import('../../src/services/engine-connector/seatWire.js')
-const task = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+const wait = await import('../../src/engine/tasks/local-agent/agentWait.js')
+const pause = await import('../../src/engine/tasks/local-agent/agentPause.js')
+const crew = await import('../../src/engine/connector/crewFacts.js')
+const wire = await import('../../src/engine/connector/seatWire.js')
+const task = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
 
 let failures = 0
 let sectionHint = ''
@@ -43,7 +43,7 @@ const delta = (kind: 'thinking_delta' | 'text_delta' | 'input_json_delta', chars
 
 section('C1 — the counter moves while the model reasons')
 {
-  sectionHint = 'to fix, change foldAgentWaitEvent, agentWaitWords or streamedTokensWords in src/tasks/LocalAgentTask/agentWait.ts'
+  sectionHint = 'to fix, change foldAgentWaitEvent, agentWaitWords or streamedTokensWords in src/engine/tasks/local-agent/agentWait.ts'
   let w = wait.foldAgentWaitEvent(null, { type: 'stream_request_start' }, T0)
   w = wait.foldAgentWaitEvent(w, { type: 'stream_event', event: { type: 'message_start' } }, T0 + 1_000)
   check('the first byte in: no tokens yet', w?.phase === 'replying' && wait.agentWaitWords(w, T0 + 1_000) === 'first byte in, no tokens yet', JSON.stringify(w))
@@ -67,7 +67,7 @@ section('C1 — the counter moves while the model reasons')
 
 section('C2 — the wire: the counter and a pause cross the feed and read back')
 {
-  sectionHint = 'to fix, change the sessionFacts codec (sessionFactsToWire and sessionFactsFromWire) for the work rows phase and paused fields in src/services/engine-connector/seatWire.ts'
+  sectionHint = 'to fix, change the sessionFacts codec (sessionFactsToWire and sessionFactsFromWire) for the work rows phase and paused fields in src/engine/connector/seatWire.ts'
   const answer = {
     model: { effective: 'claude-opus-5' },
     usage: { totalCostUSD: 0 },
@@ -109,7 +109,7 @@ section('C2 — the wire: the counter and a pause cross the feed and read back')
 
 section('C3 — the paused row says PAUSED with why and the countdown')
 {
-  sectionHint = 'to fix, change crewAgentFactsOf, crewStateOf, crewStatusWords, crewPauseLine or crewCountLabel in src/services/engine-connector/crewFacts.ts, or decodeAgentPause in src/tasks/LocalAgentTask/agentPause.ts'
+  sectionHint = 'to fix, change crewAgentFactsOf, crewStateOf, crewStatusWords, crewPauseLine or crewCountLabel in src/engine/connector/crewFacts.ts, or decodeAgentPause in src/engine/tasks/local-agent/agentPause.ts'
   const now = T0 + 120_000
   const paused = crew.crewAgentFactsOf(
     {
@@ -145,7 +145,7 @@ section('C3 — the paused row says PAUSED with why and the countdown')
 
 section("C4 — the pause's owner: the provider's typed refusal pauses; anything else does not")
 {
-  sectionHint = 'to fix, change usageWindowPauseOf in src/tasks/LocalAgentTask/LocalAgentTask.tsx, or pauseCountdownWords and pauseResumeWords in src/tasks/LocalAgentTask/agentPause.ts'
+  sectionHint = 'to fix, change usageWindowPauseOf in src/engine/tasks/local-agent/crewmateTask.tsx, or pauseCountdownWords and pauseResumeWords in src/engine/tasks/local-agent/agentPause.ts'
   const refusal = {
     type: 'assistant',
     uuid: 'a1',

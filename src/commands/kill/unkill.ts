@@ -1,5 +1,5 @@
-import type { LocalCommandCall } from '../../types/command.js'
-import { restoreCapability } from '../../utils/permissions/capabilityGate.js'
+import type { LocalCommandCall } from '../catalogue/command.js'
+import { restoreCapability } from '../../permissions/rules/capabilityGate.js'
 import { formatKills, parseKillToken, scopeLabel } from './shared.js'
 
 export const call: LocalCommandCall = async (args, _context) => {

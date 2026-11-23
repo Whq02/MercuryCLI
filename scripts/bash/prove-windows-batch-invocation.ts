@@ -30,25 +30,25 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const TAIL_HINT = ' | change windowsBatchTail in src/utils/shell/windowsBatchLine.ts'
-const PLAN_HINT = ' | change planWindowsBatchInvocation in src/utils/shell/windowsBatchInvocation.ts'
-const EXEC_HINT = ' | change the Windows batch branch of exec in src/utils/Shell.ts (planWindowsBatchInvocation and runWindowsBatchCommand in src/utils/shell/windowsBatchInvocation.ts)'
+const TAIL_HINT = ' | change windowsBatchTail in src/platform/shell/windowsBatchLine.ts'
+const PLAN_HINT = ' | change planWindowsBatchInvocation in src/platform/shell/windowsBatchInvocation.ts'
+const EXEC_HINT = ' | change the Windows batch branch of exec in src/platform/shell/shellExec.ts (planWindowsBatchInvocation and runWindowsBatchCommand in src/platform/shell/windowsBatchInvocation.ts)'
 
 console.log('============================================================')
 console.log(' Windows batch invocation — .cmd/.bat by bare name, literal args')
 console.log('============================================================')
 
-type BatchModule = typeof import('../../src/utils/shell/windowsBatchInvocation.ts')
+type BatchModule = typeof import('../../src/platform/shell/windowsBatchInvocation.ts')
 let batch: BatchModule | null = null
 try {
-  batch = (await import('../../src/utils/shell/windowsBatchInvocation.ts')) as BatchModule
+  batch = (await import('../../src/platform/shell/windowsBatchInvocation.ts')) as BatchModule
 } catch (error) {
   console.log(`  module import failed: ${String(error).slice(0, 160)}`)
 }
 
 section('§1 the module exists and its wiring is in the exec path')
 {
-  check('src/utils/shell/windowsBatchInvocation.ts exports the planner and the composer', batch !== null && typeof batch.planWindowsBatchInvocation === 'function' && typeof batch.windowsBatchTail === 'function', 'export both from src/utils/shell/windowsBatchInvocation.ts, or fix the import error printed above')
+  check('src/platform/shell/windowsBatchInvocation.ts exports the planner and the composer', batch !== null && typeof batch.planWindowsBatchInvocation === 'function' && typeof batch.windowsBatchTail === 'function', 'export both from src/platform/shell/windowsBatchInvocation.ts, or fix the import error printed above')
 }
 
 const CRLF = '\r\n'
@@ -75,7 +75,7 @@ section('§2 the composer emits the cmd.exe line that carries every byte literal
     check(label, got === want, `got ${JSON.stringify(got)} want ${JSON.stringify(want)}${TAIL_HINT}`)
   }
   if (tail === null) {
-    check('the composer is importable', false, 'module absent | src/utils/shell/windowsBatchInvocation.ts must import and export windowsBatchTail')
+    check('the composer is importable', false, 'module absent | src/platform/shell/windowsBatchInvocation.ts must import and export windowsBatchTail')
   }
   eq('plain word is quoted, whole line wrapped once', ['C:\\bin\\tool.cmd', '--version'], wrapped('"C:\\bin\\tool.cmd" "--version"'))
   eq('empty word stays a quoted empty argument', ['p', ''], wrapped('"p" ""'))
@@ -169,13 +169,13 @@ if (process.platform !== 'win32') {
   const was = process.env.PATH ?? ''
   process.env.PATH = `${LIVE_BIN};${was}`
   process.env.BATCHPROOFVAR = 'SHOULD-NOT-EXPAND'
-  const { exec, setCwd } = await import('../../src/utils/Shell.ts')
+  const { exec, setCwd } = await import('../../src/platform/shell/shellExec.ts')
   const SCRATCH = mkdtempSync(join(tmpdir(), 'batch-prove-run-'))
   mkdirSync(join(SCRATCH, 'work'), { recursive: true })
   setCwd(SCRATCH)
 
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
   const makeBangContext = (): never => {
     let appState = getDefaultAppState()
     return {
@@ -268,8 +268,8 @@ if (process.platform !== 'win32') {
   }
 
   {
-    const { TaskOutput } = await import('../../src/utils/task/TaskOutput.ts')
-    const { tailFile } = await import('../../src/utils/fsOperations.ts')
+    const { TaskOutput } = await import('../../src/engine/task-framework/taskOutput.ts')
+    const { tailFile } = await import('../../src/platform/files/fsOperations.ts')
     writeBatch(join(LIVE_BIN, 'staged.cmd'), [
       '@echo off',
       'echo STAGED-LINE',
@@ -300,14 +300,14 @@ if (process.platform !== 'win32') {
   }
 
   {
-    const { processBashCommand } = await import('../../src/services/processUserInput/processBashCommand.tsx')
-    const { extractTag } = await import('../../src/services/messages.ts')
+    const { processBashCommand } = await import('../../src/engine/user-input/processBashCommand.tsx')
+    const { extractTag } = await import('../../src/engine/messages/messages.ts')
     const outcome = await processBashCommand('echoargs.cmd from-bang %BATCHPROOFVAR%', [], [], makeBangContext(), (() => undefined) as never)
     const texts = (outcome.messages as Array<{ message?: { content?: unknown } }>).map(m => (typeof m.message?.content === 'string' ? m.message.content : ''))
     const card = texts.find(text => text.startsWith('<bash-stdout>'))
     const dump = readDump()
     const bangOk = card !== undefined && extractTag(card, 'bash-exit-code') === '0' && JSON.stringify(dump) === JSON.stringify(['from-bang', '%BATCHPROOFVAR%'])
-    check('a bang command that names a batch keeps the literal contract through the same seam', bangOk, `card ${JSON.stringify(card ?? '').slice(0, 80)} dump ${JSON.stringify(dump)}${EXEC_HINT} (the bang path is processBashCommand in src/services/processUserInput/processBashCommand.tsx)`)
+    check('a bang command that names a batch keeps the literal contract through the same seam', bangOk, `card ${JSON.stringify(card ?? '').slice(0, 80)} dump ${JSON.stringify(dump)}${EXEC_HINT} (the bang path is processBashCommand in src/engine/user-input/processBashCommand.tsx)`)
   }
 
   process.env.PATH = was

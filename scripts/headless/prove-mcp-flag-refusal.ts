@@ -44,9 +44,9 @@ for (const [label, value, words] of bad) {
   for (const format of ['rows', 'text'] as const) {
     const cap = await runWith(['hi', '--ephemeral', '--format', format, '--mcp', value])
     const where = format === 'rows' ? String((firstRow(cap.out)?.error as { message?: string } | undefined)?.message ?? '') : cap.err
-    check(`${label} (${format}): the run is refused as a usage error, exit 2`, cap.code === 2, `exit ${cap.code} out=${cap.out.slice(0, 160)} err=${cap.err.slice(0, 160)} — a bad --mcp value must end the run through the failCli call in resolveMcpConfigs in src/main/mcpConfigs.ts`)
-    check(`${label} (${format}): the refusal names the fault${format === 'rows' ? ' on the refused outcome row' : ' on stderr'}`, where.includes(words) && (value.startsWith('{"servers') || where.includes(value.slice(0, 20))), `${JSON.stringify(where.slice(0, 240))} — the refusal must carry the fault words and the --mcp value; change the error strings in parseDynamicMcpConfigs in src/main/mcpConfigs.ts, and for the rows format check how the refusal reaches the outcome row`)
-    check(`${label} (${format}): no model request was made`, cap.requests === 0, `${cap.requests} request(s) — the --mcp refusal in resolveMcpConfigs in src/main/mcpConfigs.ts must happen before any model request is sent`)
+    check(`${label} (${format}): the run is refused as a usage error, exit 2`, cap.code === 2, `exit ${cap.code} out=${cap.out.slice(0, 160)} err=${cap.err.slice(0, 160)} — a bad --mcp value must end the run through the failCli call in resolveMcpConfigs in src/boot/main/mcpConfigs.ts`)
+    check(`${label} (${format}): the refusal names the fault${format === 'rows' ? ' on the refused outcome row' : ' on stderr'}`, where.includes(words) && (value.startsWith('{"servers') || where.includes(value.slice(0, 20))), `${JSON.stringify(where.slice(0, 240))} — the refusal must carry the fault words and the --mcp value; change the error strings in parseDynamicMcpConfigs in src/boot/main/mcpConfigs.ts, and for the rows format check how the refusal reaches the outcome row`)
+    check(`${label} (${format}): no model request was made`, cap.requests === 0, `${cap.requests} request(s) — the --mcp refusal in resolveMcpConfigs in src/boot/main/mcpConfigs.ts must happen before any model request is sent`)
   }
 }
 
@@ -56,6 +56,6 @@ for (const [label, value, words] of bad) {
     writeFileSync(file, '{"mcpServers":{}}\n')
     return ['--mcp', file]
   })
-  check('the control: a file that exists and parses still runs, exit 0, the answer on the outcome', cap.code === 0 && firstRow(cap.out)?.status === 'completed' && cap.requests === 1, `exit ${cap.code} out=${cap.out.slice(0, 160)} err=${cap.err.slice(0, 160)} — a valid --mcp file must not be refused; look at parseDynamicMcpConfigs in src/main/mcpConfigs.ts`)
+  check('the control: a file that exists and parses still runs, exit 0, the answer on the outcome', cap.code === 0 && firstRow(cap.out)?.status === 'completed' && cap.requests === 1, `exit ${cap.code} out=${cap.out.slice(0, 160)} err=${cap.err.slice(0, 160)} — a valid --mcp file must not be refused; look at parseDynamicMcpConfigs in src/boot/main/mcpConfigs.ts`)
 }
 process.exit(failures === 0 ? 0 : 1)

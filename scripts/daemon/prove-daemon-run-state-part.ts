@@ -18,7 +18,7 @@ const check = (label: string, cond: boolean, detail: unknown = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 
 const { makeDaemonRunState, markDaemonReady } = await import('../../src/daemon/run/state.ts')
-const { DaemonBreaker } = await import('../../src/utils/daemonBreaker.ts')
+const { DaemonBreaker } = await import('../../src/daemon/control/daemonBreaker.ts')
 const breaker = new DaemonBreaker()
 const facts = { dir: home, bootBuildTree: 'aaaaaaaaaaaa', foreground: false, breaker, maxInflight: 7, controlEnabled: true }
 

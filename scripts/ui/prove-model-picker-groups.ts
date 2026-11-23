@@ -23,13 +23,13 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
   process.env[base] = 'http://127.0.0.1:1'
 }
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 
 const React = (await import('react')).default
-const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent } = await import('../../src/ink.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.js')
-type ModelChoice = import('../../src/components/MercuryModelPicker.js').ModelChoice
+const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent } = await import('../../src/screen/themedRenderer.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.js')
+type ModelChoice = import('../../src/commands/model/picker/MercuryModelPicker.js').ModelChoice
 
 const arg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)
@@ -41,7 +41,7 @@ if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | to fix: the picker frame, keys and rows are in src/components/MercuryModelPicker.tsx; the grouping, fold bound, order, heading words, column widths and hint text are in src/utils/model/modelPickerGroups.ts; change the one this check names'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | to fix: the picker frame, keys and rows are in src/commands/model/picker/MercuryModelPicker.tsx; the grouping, fold bound, order, heading words, column widths and hint text are in src/models/facts/modelPickerGroups.ts; change the one this check names'}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -364,7 +364,7 @@ for (const [columns, rows] of [[120, 40], [200, 60], [269, 70]] as Array<[number
 
 section('§8 the pure composition (the module the picker derives its lines from)')
 {
-  const pure = await import('../../src/utils/model/modelPickerGroups.ts').catch(() => null)
+  const pure = await import('../../src/models/facts/modelPickerGroups.ts').catch(() => null)
   check('the pure module exists', pure !== null)
   if (pure !== null) {
     const rows = orderedRows(OPENAI, [])

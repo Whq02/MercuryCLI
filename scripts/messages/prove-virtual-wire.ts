@@ -8,11 +8,11 @@ const source = (path: string) => import(`${root}/src/${path}.ts`)
 const { enableConfigs } = await source('utils/config')
 enableConfigs()
 const helpers = await source('services/messages')
-const params = await source('services/providers/anthropic/messageParams')
-const responses = await source('services/providers/openai/responsesBridge')
-const chat = await source('services/providers/zai/zaiCodec')
-const gemini = await source('services/providers/gemini/geminiCodec')
-const local = await source('services/providers/local/ollamaChatTransport')
+const params = await source('models/roads/anthropic/messageParams')
+const responses = await source('models/roads/openai/responsesBridge')
+const chat = await source('models/roads/zai/zaiCodec')
+const gemini = await source('models/roads/gemini/geminiCodec')
+const local = await source('models/roads/local/ollamaChatTransport')
 const virtualUser = { ...DIALECT_CONVERSATION[0], isVirtual: true, message: { role: 'user', content: 'display-only user fixture' } } as never
 const messages = [DIALECT_CONVERSATION[0]!, VIRTUAL_ROW as never, virtualUser, ...DIALECT_CONVERSATION.slice(1)]
 const rows = helpers.healWalkableForWire(messages)
@@ -32,7 +32,7 @@ for (const [name, body] of Object.entries(bodies)) {
   console.log(`${good ? 'PASS' : 'FAIL'}: ${name} request excludes display-only user and assistant rows`)
   if (!good) {
     failures++
-    console.log(`  fix the ${name} request builder so rows with isVirtual: true never reach the wire: anthropic is normalizeMessagesForAPI in src/services/messages, responses is buildOpenaiResponsesRequest in src/services/providers/openai/responsesBridge.ts, compatible is buildZaiChatRequest in src/services/providers/zai/zaiCodec.ts, gemini is buildGeminiRequest in src/services/providers/gemini/geminiCodec.ts, local is ollamaChatBody in src/services/providers/local/ollamaChatTransport.ts`)
+    console.log(`  fix the ${name} request builder so rows with isVirtual: true never reach the wire: anthropic is normalizeMessagesForAPI in src/services/messages, responses is buildOpenaiResponsesRequest in src/models/roads/openai/responsesBridge.ts, compatible is buildZaiChatRequest in src/models/roads/zai/zaiCodec.ts, gemini is buildGeminiRequest in src/models/roads/gemini/geminiCodec.ts, local is ollamaChatBody in src/models/roads/local/ollamaChatTransport.ts`)
   }
 }
 if (messages[1] !== VIRTUAL_ROW || VIRTUAL_ROW.isVirtual !== true) {

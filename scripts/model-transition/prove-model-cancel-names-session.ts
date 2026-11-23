@@ -25,7 +25,7 @@ for (const key of ['MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'ANTHROPIC_AUTH_TOKE
 let failures = 0
 function check(label: string, good: boolean, detail = ''): void {
   if (!good) failures++
-  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${good ? '' : ` — to fix, read call in src/commands/model/model.tsx (the switch preview card and its cancel receipt must name the session's own model for a daemon-carried session) and renderDefaultModelSetting and renderDefaultModelLabel in src/services/model/model.ts`}`)
+  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${good ? '' : ` — to fix, read call in src/commands/model/model.tsx (the switch preview card and its cancel receipt must name the session's own model for a daemon-carried session) and renderDefaultModelSetting and renderDefaultModelLabel in src/models/catalogue/engineModel.ts`}`)
 }
 const section = (t: string): void => console.log(`\n${t}`)
 async function until(predicate: () => boolean, budgetMs = 6000): Promise<boolean> {
@@ -41,15 +41,15 @@ class Output extends EventEmitter {
 }
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import('../../src/services/engine-connector/focusedConnector.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import('../../src/engine/connector/focusedConnector.ts')
 const { call } = await import('../../src/commands/model/model.tsx')
-const { renderDefaultModelSetting, renderDefaultModelLabel } = await import('../../src/services/model/model.ts')
-const { default: instances } = await import('../../src/ink/instances.ts')
+const { renderDefaultModelSetting, renderDefaultModelLabel } = await import('../../src/models/catalogue/engineModel.ts')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
 const h = React.createElement
 
 const SESSION_MODEL = 'openrouter/deepseek/deepseek-v4-flash'

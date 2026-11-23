@@ -47,9 +47,9 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(configDir, [work])
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/warmRunner.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/runner-link/warmRunner.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 const projectDir = paths.getProjectDir(work)
 
 type Wire = { kind: string; n: number; arm?: string; step?: number; lines?: string[]; at: number }
@@ -68,7 +68,7 @@ const wire = (): Wire[] =>
     })
 
 type Row = { type?: string; uuid?: string; timestamp?: string; queued?: true; isVirtual?: true; inReplyTo?: Array<{ uuid?: string; at?: string }>; message?: { role?: string; content?: unknown }; attachment?: { type?: string; source_uuid?: string } }
-const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
+const reader = await import('../../src/sessions/transcripts/transcriptReader.ts')
 const transcriptRows = async (sid: string): Promise<Row[]> => {
   const p = join(projectDir, `${sid}.jsonl`)
   if (!existsSync(p)) return []
@@ -159,11 +159,11 @@ try {
     effort: 'high',
     permissionMode: 'sovereign',
   } as never, { timeoutMs: WARM_BOOT_ALLOWANCE_MS })) as { ok?: boolean; sessionId?: string; error?: string }
-  check('the session opened', opened.ok === true && typeof opened.sessionId === 'string', JSON.stringify(opened) + ' | the concourseDispatch op of the daemon (src/daemon/controlSocket.ts) must open a session and return its sessionId')
+  check('the session opened', opened.ok === true && typeof opened.sessionId === 'string', JSON.stringify(opened) + ' | the concourseDispatch op of the daemon (src/daemon/control/controlSocket.ts) must open a session and return its sessionId')
   const sid = opened.sessionId ?? ''
   check('the first turn answered', await untilAsync(async () => (await transcriptRows(sid)).some(r => r.type === 'assistant' && textOf(r).startsWith('heard: hello there')) && readFacts(sid)?.busy === false, 45_000, 50), 'the first turn must write an assistant row starting with heard: hello there and the session facts file must read busy false; read daemon.log in the kept scratch folder')
 
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
   const list = (await daemonControlRpc({ op: 'list', proto: 1 } as never)) as { jobs?: Array<{ sessionId: string; short: string }> }
   const entry = (list.jobs ?? []).find(j => j.sessionId === sid)
   const conn = new DaemonSessionConnector({ sessionId: sid, runnerId: entry?.short ?? 'w', title: 'composed reply', projectLabel: 'scratch', workspaceId: work, home: projectDir })
@@ -187,18 +187,18 @@ try {
   } as never, { timeoutMs: WARM_BOOT_ALLOWANCE_MS })) as { ok?: boolean; sessionId?: string }
   check('the ask delivered into the opened session', run.ok === true && run.sessionId === sid, JSON.stringify(run) + ' | concourseDispatch with targetSessionId must deliver the ask into the already opened session')
   check("round one's request went out (a 4 s tool runs)", await untilAsync(() => wire().some(w => w.kind === 'request' && w.arm === 'long' && w.step === 0), 45_000), 'the fixture server wire.jsonl in the kept scratch folder has no long-arm step 0 request; the dispatched ask never reached the model, read daemon.log')
-  check("the chat's own connector reads the turn in flight", await untilAsync(() => conn.turnActive(), 10_000), JSON.stringify(conn.live()) + ' | DaemonSessionConnector.turnActive in src/services/engine-connector/daemonConnector.ts must read the running turn as active')
+  check("the chat's own connector reads the turn in flight", await untilAsync(() => conn.turnActive(), 10_000), JSON.stringify(conn.live()) + ' | DaemonSessionConnector.turnActive in src/engine/connector/daemonConnector.ts must read the running turn as active')
 
   const receipt = await conn.sendWords(LINE)
-  check('the line was accepted under the running turn', receipt.state === 'accepted', JSON.stringify(receipt) + ' | DaemonSessionConnector.sendWords in src/services/engine-connector/daemonConnector.ts must return state accepted for a line sent under a running turn')
+  check('the line was accepted under the running turn', receipt.state === 'accepted', JSON.stringify(receipt) + ' | DaemonSessionConnector.sendWords in src/engine/connector/daemonConnector.ts must return state accepted for a line sent under a running turn')
   const round2 = await untilAsync(() => wire().some(w => w.kind === 'request' && w.arm === 'long' && w.step === 1), 30_000)
   const carried = wire().find(w => w.kind === 'request' && w.arm === 'long' && w.step === 1)
   check('round two carried the line to the model at the tool boundary', round2 && JSON.stringify(carried?.lines) === JSON.stringify([LINE]), JSON.stringify(carried?.lines) + ' | the line sent with sendWords must ride the model request of round two at the tool boundary; compare with the long-arm step 1 row of wire.jsonl in the kept scratch folder')
-  check('the composed answer paints on the chat while the 30 s tool runs', await untilAsync(async () => paintedAnswer(await painted()) !== undefined, 20_000, 100), JSON.stringify((await painted()).map(r => `${r.type}:${textOf(r).slice(0, 30)}`)) + ' | the connector records() in src/services/engine-connector/daemonConnector.ts must paint the heard mid-turn answer while the tool runs')
+  check('the composed answer paints on the chat while the 30 s tool runs', await untilAsync(async () => paintedAnswer(await painted()) !== undefined, 20_000, 100), JSON.stringify((await painted()).map(r => `${r.type}:${textOf(r).slice(0, 30)}`)) + ' | the connector records() in src/engine/connector/daemonConnector.ts must paint the heard mid-turn answer while the tool runs')
   await sleep(300)
 
   const pressedAt = Date.now()
-  check("esc through the connector's own door", conn.interrupt() === true, 'DaemonSessionConnector.interrupt in src/services/engine-connector/daemonConnector.ts must return true when esc is sent to a running turn')
+  check("esc through the connector's own door", conn.interrupt() === true, 'DaemonSessionConnector.interrupt in src/engine/connector/daemonConnector.ts must return true when esc is sent to a running turn')
   const samples: Array<{ ms: number; shown: boolean; source: string }> = []
   while (Date.now() - pressedAt < 6_000) {
     const rows = await painted()
@@ -207,7 +207,7 @@ try {
     await sleep(150)
   }
   const gaps = samples.filter(s => !s.shown)
-  check('PINNED (holds on the base too): the composed answer never leaves the screen after esc — every sample in the six seconds after the press shows it', gaps.length === 0, `${gaps.length} of ${samples.length} samples without it; first gap at ${gaps[0]?.ms ?? '-'} ms; sources: ${[...new Set(samples.map(s => s.source))].join(',')} | the connector records() in src/services/engine-connector/daemonConnector.ts must keep the composed answer painted from esc until the record lands on disk`)
+  check('PINNED (holds on the base too): the composed answer never leaves the screen after esc — every sample in the six seconds after the press shows it', gaps.length === 0, `${gaps.length} of ${samples.length} samples without it; first gap at ${gaps[0]?.ms ?? '-'} ms; sources: ${[...new Set(samples.map(s => s.source))].join(',')} | the connector records() in src/engine/connector/daemonConnector.ts must keep the composed answer painted from esc until the record lands on disk`)
   check('the interrupt ended the turn', await untilAsync(() => readFacts(sid)?.busy === false, 20_000), JSON.stringify(readFacts(sid)) + ' | esc through the connector must end the turn so the session facts file reads busy false; read daemon.log in the kept scratch folder')
   const rows = await transcriptRows(sid)
   const idxLine = rows.findIndex(r => r.type === 'attachment' && r.attachment?.type === 'queued_command' && textOf({ message: { content: (r.attachment as { prompt?: unknown }).prompt as string } }).includes(LINE))
@@ -222,7 +222,7 @@ try {
   const finalAnswerAt = final.indexOf(finalAnswer as Row)
   const finalCutAt = final.findIndex((r, i) => i > finalAnswerAt && r.type === 'user' && textOf(r).startsWith('[Request interrupted by user'))
   console.log(`    the chat's painted rows: ${final.map((r, i) => `${i}:${r.type}${r.queued ? '(queued)' : ''}${r.isVirtual ? '(live)' : ''} ${textOf(r).slice(0, 36).replace(/\n/g, ' ')}`).join(' | ')}`)
-  check('once the turn settled the chat paints the answer once, from the record, before the cut row', finalAnswer !== undefined && finalAnswer.isVirtual !== true && final.filter(r => r.type === 'assistant' && textOf(r).startsWith(ANSWER)).length === 1 && finalCutAt > finalAnswerAt, JSON.stringify({ finalAnswerAt, finalCutAt, virtual: finalAnswer?.isVirtual }) + ' | after the turn settles the connector records() in src/services/engine-connector/daemonConnector.ts must show the answer once, from the disk record and not the live copy, before the cut row; see the painted rows line above')
+  check('once the turn settled the chat paints the answer once, from the record, before the cut row', finalAnswer !== undefined && finalAnswer.isVirtual !== true && final.filter(r => r.type === 'assistant' && textOf(r).startsWith(ANSWER)).length === 1 && finalCutAt > finalAnswerAt, JSON.stringify({ finalAnswerAt, finalCutAt, virtual: finalAnswer?.isVirtual }) + ' | after the turn settles the connector records() in src/engine/connector/daemonConnector.ts must show the answer once, from the disk record and not the live copy, before the cut row; see the painted rows line above')
   conn.detach()
 } finally {
   await cleanup()

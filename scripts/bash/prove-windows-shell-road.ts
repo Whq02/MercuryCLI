@@ -14,22 +14,22 @@ function check(label: string, ok: boolean, detail = '', hint = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` — ${hint}` : ''}`)
 }
-const composeHint = 'fix composeWindowsBashRoad or shellEnvForRoad in src/utils/shell/windowsShellRoad.ts so the road follows the label'
-const remedyHint = 'fix the words in GIT_BASH_REMEDY (src/utils/windowsPaths.ts) or WINDOWS_BASH_NOTICE and WINDOWS_BASH_NOTICE_NO_PACK (src/utils/shell/windowsShellRoad.ts)'
-const ladderHint = 'fix shellEngineRequest or shellEngineArmWords in src/utils/shell/shellEngineArm.ts so the ladder gives the answer in the label'
-const locatorHint = 'fix locateGitBash or findGitBashPath in src/utils/windowsPaths.ts'
-const rosterHint = 'fix describeWindowsShellRoad, bashToolAvailable or windowsShellRoadNotice in src/utils/shell/windowsShellRoad.ts, or isPowerShellToolEnabled in src/utils/shell/shellToolUtils.ts'
-const hookHint = 'fix hookBashShell in src/utils/shell/windowsShellRoad.ts'
-const bundleHint = 'rebuild with bun run build.ts, then read node dist/mercury.mjs health --json with the seam set; the shell check follows describeWindowsShellRoad in src/utils/shell/windowsShellRoad.ts'
+const composeHint = 'fix composeWindowsBashRoad or shellEnvForRoad in src/platform/shell/windowsShellRoad.ts so the road follows the label'
+const remedyHint = 'fix the words in GIT_BASH_REMEDY (src/platform/files/windowsPaths.ts) or WINDOWS_BASH_NOTICE and WINDOWS_BASH_NOTICE_NO_PACK (src/platform/shell/windowsShellRoad.ts)'
+const ladderHint = 'fix shellEngineRequest or shellEngineArmWords in src/platform/shell/shellEngineArm.ts so the ladder gives the answer in the label'
+const locatorHint = 'fix locateGitBash or findGitBashPath in src/platform/files/windowsPaths.ts'
+const rosterHint = 'fix describeWindowsShellRoad, bashToolAvailable or windowsShellRoadNotice in src/platform/shell/windowsShellRoad.ts, or isPowerShellToolEnabled in src/tools/kit/shellTools.ts'
+const hookHint = 'fix hookBashShell in src/platform/shell/windowsShellRoad.ts'
+const bundleHint = 'rebuild with bun run build.ts, then read node dist/mercury.mjs health --json with the seam set; the shell check follows describeWindowsShellRoad in src/platform/shell/windowsShellRoad.ts'
 const SEAM = 'MERCURY_WINDOWS_SHELL_ROAD'
 const PIN = 'MERCURY_GIT_BASH_PATH'
 const ENGINE_PIN = 'MERCURY_SHELL_ENGINE'
 const SUB_HOME = mkdtempSync(join(tmpdir(), 'shell-road-sub-home-'))
 
 function roadSubprocess(body: string, env: Record<string, string | undefined>): { status: number | null; stdout: string; stderr: string } {
-  const road = join(ROOT, 'src/utils/shell/windowsShellRoad.ts').replace(/\\/g, '\\\\')
-  const utils = join(ROOT, 'src/utils/shell/shellToolUtils.ts').replace(/\\/g, '\\\\')
-  const paths = join(ROOT, 'src/utils/windowsPaths.ts').replace(/\\/g, '\\\\')
+  const road = join(ROOT, 'src/platform/shell/windowsShellRoad.ts').replace(/\\/g, '\\\\')
+  const utils = join(ROOT, 'src/tools/kit/shellTools.ts').replace(/\\/g, '\\\\')
+  const paths = join(ROOT, 'src/platform/files/windowsPaths.ts').replace(/\\/g, '\\\\')
   const script = `
     ;(globalThis).MACRO = { VERSION: '0.0.0' }
     const road = await import('${road}')
@@ -45,12 +45,12 @@ function roadSubprocess(body: string, env: Record<string, string | undefined>): 
   return { status: r.status, stdout: (r.stdout ?? '').trim(), stderr: (r.stderr ?? '').trim() }
 }
 
-const road = await import('../../src/utils/shell/windowsShellRoad.ts')
+const road = await import('../../src/platform/shell/windowsShellRoad.ts')
 const { composeWindowsBashRoad, WINDOWS_BASH_NOTICE, WINDOWS_BASH_NOTICE_NO_PACK } = road
-const { shellEngineArmWords, shellEngineRequest } = await import('../../src/utils/shell/shellEngineArm.ts')
-const { GIT_BASH_REMEDY, findGitBashPath, installedGitBashes, locateGitBash } = await import('../../src/utils/windowsPaths.ts')
-const { resolveBrushPackDir } = await import('../../src/utils/shell/brushPack.ts')
-const { resolveBashPackDir } = await import('../../src/utils/shell/bashPack.ts')
+const { shellEngineArmWords, shellEngineRequest } = await import('../../src/platform/shell/shellEngineArm.ts')
+const { GIT_BASH_REMEDY, findGitBashPath, installedGitBashes, locateGitBash } = await import('../../src/platform/files/windowsPaths.ts')
+const { resolveBrushPackDir } = await import('../../src/platform/shell/brushPack.ts')
+const { resolveBashPackDir } = await import('../../src/platform/shell/bashPack.ts')
 const PACK_PRESENT = resolveBrushPackDir().state === 'ok'
 const shippedBash = resolveBashPackDir()
 const SHIPPED_BASH = shippedBash.state === 'ok' ? shippedBash.binaryPath : null
@@ -75,7 +75,7 @@ console.log('── §1 the composer and the arm ladder are pure ──')
   check('the remedy names Git for Windows', /git-scm\.com\/downloads\/win/.test(remedy), '', remedyHint)
   check('the remedy names the MERCURY_GIT_BASH_PATH= pin', remedy.includes(`${PIN}=`), '', remedyHint)
   check('the remedy names the shell engine', /shell engine/.test(remedy), '', remedyHint)
-  check('the remedy is the ONE owner (the locator\'s words)', remedy === GIT_BASH_REMEDY, '', 'composeWindowsBashRoad in src/utils/shell/windowsShellRoad.ts must hand back GIT_BASH_REMEDY from src/utils/windowsPaths.ts unchanged')
+  check('the remedy is the ONE owner (the locator\'s words)', remedy === GIT_BASH_REMEDY, '', 'composeWindowsBashRoad in src/platform/shell/windowsShellRoad.ts must hand back GIT_BASH_REMEDY from src/platform/files/windowsPaths.ts unchanged')
   check('the notice is one line naming the same three fixes', !WINDOWS_BASH_NOTICE.includes('\n') && /Git for Windows/.test(WINDOWS_BASH_NOTICE) && WINDOWS_BASH_NOTICE.includes(`${PIN}=`) && /shell engine/.test(WINDOWS_BASH_NOTICE), '', remedyHint)
   check('the no-pack fix is one line naming the pack as the third way', typeof WINDOWS_BASH_NOTICE_NO_PACK === 'string' && !WINDOWS_BASH_NOTICE_NO_PACK.includes('\n') && /Git for Windows/.test(WINDOWS_BASH_NOTICE_NO_PACK) && WINDOWS_BASH_NOTICE_NO_PACK.includes(`${PIN}=`) && /shell engine pack/.test(WINDOWS_BASH_NOTICE_NO_PACK), '', remedyHint)
   const enginePresentAbsentBash = composeWindowsBashRoad({ absent: true }, null, { path: 'brush.exe', arm: 'no-bash' })
@@ -92,7 +92,7 @@ console.log('── §1 the composer and the arm ladder are pure ──')
   check('the pin outranks the setting both ways', ladder('brush', 'system', false) === want('brush', 'pin') && ladder('system', 'brush', false) === want('system', 'pin'), '', ladderHint)
   check('a pin with another word is no pin: the setting, then the road, decide', ladder('nope', 'brush', false) === want('brush', 'setting') && ladder('nope', undefined, true) === want('brush', 'no-bash'), '', ladderHint)
   check('each arm has its words', shellEngineArmWords('pin').includes(ENGINE_PIN) && /Shell engine setting/.test(shellEngineArmWords('setting')) && /no bash\.exe/.test(shellEngineArmWords('no-bash')) && shellEngineArmWords('default') === 'the default', '', ladderHint)
-  check('the ladder has no arm of its own for Windows: it takes the pin, the setting and whether a bash stands, and nothing else', shellEngineRequest.length === 3, '', 'shellEngineRequest in src/utils/shell/shellEngineArm.ts must keep exactly the three parameters pin, setting and bashAbsent')
+  check('the ladder has no arm of its own for Windows: it takes the pin, the setting and whether a bash stands, and nothing else', shellEngineRequest.length === 3, '', 'shellEngineRequest in src/platform/shell/shellEngineArm.ts must keep exactly the three parameters pin, setting and bashAbsent')
   check('the system pin and the system setting keep a bash and never arm the engine', ladder('system', undefined, false) === want('system', 'pin') && ladder(undefined, 'system', false) === want('system', 'setting'), '', ladderHint)
   check('the no-bash arm says both things it means: no bash.exe was found and the install carries none', /no bash\.exe was found/.test(shellEngineArmWords('no-bash')) && /no bash of its own/.test(shellEngineArmWords('no-bash')), '', ladderHint)
 }
@@ -113,8 +113,8 @@ console.log('── §2 the locator: typed answers, one loud refusal ──')
 
   const nowhere = join(tmpdir(), 'shell-road-nowhere', 'bash.exe')
   const pinNowhere = roadSubprocess('console.log(JSON.stringify(paths.locateGitBash()))', { [PIN]: nowhere })
-  check('a pin that is SET and points nowhere exits 1', pinNowhere.status === 1, `status ${pinNowhere.status}`, 'locateGitBash in src/utils/windowsPaths.ts must exit 1 when MERCURY_GIT_BASH_PATH is set and points nowhere')
-  check('…and says so on stderr, naming the pin', pinNowhere.stderr.includes(`unable to find ${PIN} at ${nowhere}`), pinNowhere.stderr.slice(0, 160), 'locateGitBash in src/utils/windowsPaths.ts must print unable to find MERCURY_GIT_BASH_PATH at the path on stderr')
+  check('a pin that is SET and points nowhere exits 1', pinNowhere.status === 1, `status ${pinNowhere.status}`, 'locateGitBash in src/platform/files/windowsPaths.ts must exit 1 when MERCURY_GIT_BASH_PATH is set and points nowhere')
+  check('…and says so on stderr, naming the pin', pinNowhere.stderr.includes(`unable to find ${PIN} at ${nowhere}`), pinNowhere.stderr.slice(0, 160), 'locateGitBash in src/platform/files/windowsPaths.ts must print unable to find MERCURY_GIT_BASH_PATH at the path on stderr')
   const existing = import.meta.path
   const pinExists = roadSubprocess('console.log(JSON.stringify(paths.locateGitBash()))', { [PIN]: existing })
   check('a pin that exists resolves to it', pinExists.status === 0 && pinExists.stdout === JSON.stringify({ path: existing }), pinExists.stdout.slice(0, 160) || pinExists.stderr.slice(0, 160), locatorHint)
@@ -130,7 +130,7 @@ console.log('── §3 the roster follows the road ──')
   }
 
   const noBash = roster({ [SEAM]: 'no-bash' })
-  check('the seam walks the road', noBash.r !== null, noBash.err, 'the road probe subprocess failed; the road is walked by src/utils/shell/windowsShellRoad.ts')
+  check('the seam walks the road', noBash.r !== null, noBash.err, 'the road probe subprocess failed; the road is walked by src/platform/shell/windowsShellRoad.ts')
   const nb = noBash.r
   if (PACK_PRESENT) {
     check('on the road without bash, with the pack: the bundled engine arms itself — kind engine', nb?.active === true && nb.kind === 'engine', JSON.stringify(nb), rosterHint)
@@ -156,7 +156,7 @@ console.log('── §3 the roster follows the road ──')
   check('on the road WITH a bash, whatever packs stand: the found bash is the road and nothing arms the engine — the Bash tool stands, PowerShell keeps its opt-in, no notice', wb?.active === true && wb.kind === 'git-bash' && wb.bash === true && wb.ps === false && wb.notice === null, JSON.stringify(wb) || withBash.err, rosterHint)
   const unasked = (line: string | undefined): boolean => line !== undefined && line.startsWith(`${import.meta.path} — named by MERCURY_GIT_BASH_PATH; whether it is a bash is asked when the Bash tool is first offered`) && !/the Bash tool runs under it|bash at/.test(line)
   check("…and /health's line names the pinned program and who named it, and calls it no bash before it has answered: the road does not trust that the pin's file exists", unasked(wb?.line), wb?.line, rosterHint)
-  const readinessProbe = `const config = await import('${join(ROOT, 'src/utils/config.ts').replace(/\\/g, '\\\\')}'); config.enableConfigs(); const readiness = await import('${join(ROOT, 'src/services/health/readiness.ts').replace(/\\/g, '\\\\')}'); console.log(JSON.stringify(readiness.collectReadiness({ includeEnv: false }).records.find(row => row.id === 'tool:shell')))`
+  const readinessProbe = `const config = await import('${join(ROOT, 'src/platform/settings/config.ts').replace(/\\/g, '\\\\')}'); config.enableConfigs(); const readiness = await import('${join(ROOT, 'src/platform/health/readiness.ts').replace(/\\/g, '\\\\')}'); console.log(JSON.stringify(readiness.collectReadiness({ includeEnv: false }).records.find(row => row.id === 'tool:shell')))`
   const pinnedRow = roadSubprocess(readinessProbe, { [SEAM]: 'locate', [PIN]: import.meta.path })
   let pr: { state?: string; detail?: string } | null = null
   try {
@@ -180,11 +180,11 @@ console.log('── §3 the roster follows the road ──')
   const withBashOptIn = roster({ [SEAM]: 'locate', [PIN]: import.meta.path, MERCURY_USE_POWERSHELL_TOOL: '1' })
   check('…and the opt-in still turns PowerShell on beside Bash', withBashOptIn.r?.bash === true && withBashOptIn.r?.ps === true, '', rosterHint)
 
-  const pinnedProbe = "const engine = await import('" + join(ROOT, 'src/utils/shell/engineSession.ts').replace(/\\/g, '\\\\') + "'); const r = engine.resolveShellEngine(); console.log(JSON.stringify({ armed: r.engine, arm: r.arm, kind: road.windowsBashRoad().kind, bash: road.bashToolAvailable(), ps: utils.isPowerShellToolEnabled(), notice: road.windowsShellRoadNotice(), line: road.describeWindowsShellRoad().line }))"
+  const pinnedProbe = "const engine = await import('" + join(ROOT, 'src/platform/shell/engineSession.ts').replace(/\\/g, '\\\\') + "'); const r = engine.resolveShellEngine(); console.log(JSON.stringify({ armed: r.engine, arm: r.arm, kind: road.windowsBashRoad().kind, bash: road.bashToolAvailable(), ps: utils.isPowerShellToolEnabled(), notice: road.windowsShellRoadNotice(), line: road.describeWindowsShellRoad().line }))"
   type Armed = { armed: string; arm: string; kind: string; bash: boolean; ps: boolean; notice: string | null; line: string }
   const unarmed = roadSubprocess(pinnedProbe, { [SEAM]: 'locate', [PIN]: import.meta.path })
   const un = unarmed.status === 0 ? (JSON.parse(unarmed.stdout) as Armed) : null
-  check('the engine owner walks the one ladder with what the road says: a bash found and nothing set, the system shell by default', un?.armed === 'system' && un.arm === 'default' && un.kind === 'git-bash', JSON.stringify(un) || unarmed.stderr.slice(0, 200), 'fix resolveShellEngine in src/utils/shell/engineSession.ts or windowsBashRoad in src/utils/shell/windowsShellRoad.ts so a found bash with nothing set keeps the system shell')
+  check('the engine owner walks the one ladder with what the road says: a bash found and nothing set, the system shell by default', un?.armed === 'system' && un.arm === 'default' && un.kind === 'git-bash', JSON.stringify(un) || unarmed.stderr.slice(0, 200), 'fix resolveShellEngine in src/platform/shell/engineSession.ts or windowsBashRoad in src/platform/shell/windowsShellRoad.ts so a found bash with nothing set keeps the system shell')
   const pinned = roadSubprocess(pinnedProbe, { [SEAM]: 'locate', [PIN]: import.meta.path, [ENGINE_PIN]: 'brush' })
   const pn = pinned.status === 0 ? (JSON.parse(pinned.stdout) as Armed) : null
   check('the brush pin leg walks the road', pn !== null, pinned.stderr.slice(0, 200))
@@ -328,25 +328,25 @@ console.log('── §5 the built bundle boots headless through the seam ──'
 
     const nowhere = join(home, 'nowhere', 'bash.exe')
     const pin = health({ [SEAM]: 'locate', [PIN]: nowhere })
-    check('the pin-that-points-nowhere arm exits 1 on /health route (the boot step runs for every verb)', pin.status === 1, `status ${pin.status}`, 'the boot step must refuse a MERCURY_GIT_BASH_PATH that points nowhere; see locateGitBash in src/utils/windowsPaths.ts')
-    check('…with its message on stderr', pin.stderr.includes(`unable to find ${PIN} at ${nowhere}`), pin.stderr.slice(0, 200), 'locateGitBash in src/utils/windowsPaths.ts must print unable to find MERCURY_GIT_BASH_PATH at the path on stderr')
+    check('the pin-that-points-nowhere arm exits 1 on /health route (the boot step runs for every verb)', pin.status === 1, `status ${pin.status}`, 'the boot step must refuse a MERCURY_GIT_BASH_PATH that points nowhere; see locateGitBash in src/platform/files/windowsPaths.ts')
+    check('…with its message on stderr', pin.stderr.includes(`unable to find ${PIN} at ${nowhere}`), pin.stderr.slice(0, 200), 'locateGitBash in src/platform/files/windowsPaths.ts must print unable to find MERCURY_GIT_BASH_PATH at the path on stderr')
     rmSync(home, { recursive: true, force: true })
   }
 }
 
 console.log('── §6 the consumers are wired (source) ──')
 {
-  const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
-  const { interfaceChecks } = await import('../../src/services/health/sections/interface.ts')
+  const { runtimeChecks } = await import('../../src/platform/health/sections/runtime.ts')
+  const { interfaceChecks } = await import('../../src/platform/health/sections/interface.ts')
   const shellRow = await runtimeChecks().find(row => row.id === 'shell')?.run()
-  const roadNow = (await import('../../src/utils/shell/windowsShellRoad.ts')).describeWindowsShellRoad()
+  const roadNow = (await import('../../src/platform/shell/windowsShellRoad.ts')).describeWindowsShellRoad()
   check('the certificate check exists and says what the road says', shellRow !== undefined && shellRow.evidence.startsWith(roadNow.line) && (shellRow.status === 'ok' || shellRow.status === 'warn'), JSON.stringify(shellRow))
-  const engineSession = await import('../../src/utils/shell/engineSession.ts')
-  const { getInitialSettings } = await import('../../src/utils/settings/settings.ts')
+  const engineSession = await import('../../src/platform/shell/engineSession.ts')
+  const { getInitialSettings } = await import('../../src/platform/settings/settings.ts')
   const resolvedEngine = engineSession.resolveShellEngine(getInitialSettings().shell?.engine)
   const engineRow = await interfaceChecks().find(row => row.id === 'iface-shell-engine')?.run()
   check('the Shell engine row resolves from the setting as written, so an unset setting lets the road arm', engineRow !== undefined && (resolvedEngine.engine === 'brush' ? engineRow.evidence.startsWith(`brush ${resolvedEngine.version}`) : resolvedEngine.requested === 'brush' ? engineRow.evidence === resolvedEngine.reason : engineRow.evidence.includes(shellEngineArmWords(resolvedEngine.arm))), JSON.stringify(engineRow))
-  const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
+  const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
   check('the seam is registered, and its words name the three values it takes', FLAG_REGISTRY.some(s => s.env === SEAM && ['`no-bash`', '`pack`', '`locate`'].every(value => s.summary.includes(value))))
 }
 

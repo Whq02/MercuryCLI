@@ -9,12 +9,12 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'mercury-samples-mes
 process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 process.env.BROWSER = '/usr/bin/true'
 process.env.MERCURY_SAMPLES = '1'
-const { formatMarksMessage, parseMarksBody, verdictWord } = await import('../../src/services/samples/marks.ts')
-const { stateAfterVerdict, samplesEnabled } = await import('../../src/utils/samples/contracts.ts')
+const { formatMarksMessage, parseMarksBody, verdictWord } = await import('../../src/integrations/samples/marks.ts')
+const { stateAfterVerdict, samplesEnabled } = await import('../../src/integrations/sample-contracts/contracts.ts')
 const { sampleCellRunner } = await import('./evalCell.js')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
-const listener = await import('../../src/services/samples/listener.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.ts')
+const listener = await import('../../src/integrations/samples/listener.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -32,10 +32,10 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 const record = { title: 'Landing page' }
-const hintFormat = 'change formatMarksMessage in src/services/samples/marks.ts. '
-const hintParse = 'change parseMarksBody in src/services/samples/marks.ts. '
-const hintPrompt = 'change the prompt text of the Eval tool in src/tools/EvalTool/EvalTool.ts. '
-const hintGate = 'change samplesEnabled in src/utils/samples/contracts.ts, or the cell runtime that reads it. '
+const hintFormat = 'change formatMarksMessage in src/integrations/samples/marks.ts. '
+const hintParse = 'change parseMarksBody in src/integrations/samples/marks.ts. '
+const hintPrompt = 'change the prompt text of the Eval tool in src/tools/eval/EvalTool.ts. '
+const hintGate = 'change samplesEnabled in src/integrations/sample-contracts/contracts.ts, or the cell runtime that reads it. '
 
 section('M1 the message, exactly')
 const full = formatMarksMessage(record, {
@@ -59,7 +59,7 @@ check('M1a two pins, a note, changes needed', full === expectedFull, hintFormat 
 section('M2 the words: pin/pins, note/no note, the verdict')
 check('M2a one pin, no note, approved', formatMarksMessage(record, { version: 1, pins: [{ x: 0, y: 0, target: 'the page', text: 'ship it' }], note: '', verdict: 'approve' }) === 'Marks on Landing page v1: 1 pin · no note · approved\n- at the page: ship it', hintFormat + 'the head line must say pin (singular) for one pin, no note, and approved')
 check('M2b no pins, no note, no verdict', formatMarksMessage(record, { version: 3, pins: [], note: '', verdict: null }) === 'Marks on Landing page v3: 0 pins · no note · no verdict', hintFormat + 'the head line must say 0 pins, no note and no verdict')
-check('M2c the verdict words', verdictWord('approve') === 'approved' && verdictWord('changes-needed') === 'changes needed' && verdictWord(null) === 'no verdict', 'change verdictWord in src/services/samples/marks.ts')
+check('M2c the verdict words', verdictWord('approve') === 'approved' && verdictWord('changes-needed') === 'changes needed' && verdictWord(null) === 'no verdict', 'change verdictWord in src/integrations/samples/marks.ts')
 
 section('M3 a note with no pins')
 check('M3a the note follows the head line directly', formatMarksMessage(record, { version: 1, pins: [], note: 'Looks right.', verdict: 'approve' }) === 'Marks on Landing page v1: 0 pins · 1 note · approved\nLooks right.', hintFormat + 'with no pins the note must follow the head line directly')
@@ -81,13 +81,13 @@ check('M4h a note that is not text is refused', parseMarksBody({ version: 1, pin
 check('M4i too many pins are refused', parseMarksBody({ version: 1, pins: Array.from({ length: 201 }, () => ({ x: 0, y: 0, text: 'x' })) }, 1) === null, hintParse + 'more than 200 pins must give null')
 
 section('M5 the verdict moves the state')
-check('M5a approve → approved; changes-needed → changes-needed', stateAfterVerdict('open', 'approve') === 'approved' && stateAfterVerdict('open', 'changes-needed') === 'changes-needed', 'change stateAfterVerdict in src/utils/samples/contracts.ts')
-check('M5b no verdict leaves the state as it is', stateAfterVerdict('open', null) === 'open' && stateAfterVerdict('approved', null) === 'approved' && stateAfterVerdict('changes-needed', null) === 'changes-needed', 'change stateAfterVerdict in src/utils/samples/contracts.ts so that no verdict keeps the state')
+check('M5a approve → approved; changes-needed → changes-needed', stateAfterVerdict('open', 'approve') === 'approved' && stateAfterVerdict('open', 'changes-needed') === 'changes-needed', 'change stateAfterVerdict in src/integrations/sample-contracts/contracts.ts')
+check('M5b no verdict leaves the state as it is', stateAfterVerdict('open', null) === 'open' && stateAfterVerdict('approved', null) === 'approved' && stateAfterVerdict('changes-needed', null) === 'changes-needed', 'change stateAfterVerdict in src/integrations/sample-contracts/contracts.ts so that no verdict keeps the state')
 
 section('T the Eval tool lists the sample it kept and its prompt says when')
 {
-  const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { EvalTool } = await import('../../src/tools/eval/EvalTool.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const workDir = mkdtempSync(join(tmpdir(), 'mercury-samples-tool-'))
   const appState = {
     toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' },
@@ -113,7 +113,7 @@ section('T the Eval tool lists the sample it kept and its prompt says when')
   const PARENT = { uuid: 'samples-parent', requestId: 'samples-req', message: { id: 'samples-msg' } }
   const previousCwd = process.cwd()
   process.chdir(workDir)
-  let out: { data: import('../../src/tools/EvalTool/EvalTool.js').EvalToolOutput }
+  let out: { data: import('../../src/tools/eval/EvalTool.js').EvalToolOutput }
   try {
     out = (await (EvalTool as { call: Function }).call(
       { language: 'js', code: "await sample({ name: 'Hero card', doc: { parts: [{ kind: 'section', heading: 'Hero', prose: 'hero' }] }, ask: 'show me the hero card' });\n'kept'" },
@@ -125,25 +125,25 @@ section('T the Eval tool lists the sample it kept and its prompt says when')
     process.chdir(previousCwd)
   }
   const cell = out.data
-  check('T1 the cell succeeded and its result carries the sample', cell.status === 'ok' && cell.samples?.length === 1 && cell.samples[0]!.title === 'Hero card' && cell.samples[0]!.version === 1, 'the Eval cell must return the kept sample (src/tools/EvalTool/EvalTool.ts, src/services/samples/listener.ts): ' + JSON.stringify(cell).slice(0, 400))
+  check('T1 the cell succeeded and its result carries the sample', cell.status === 'ok' && cell.samples?.length === 1 && cell.samples[0]!.title === 'Hero card' && cell.samples[0]!.version === 1, 'the Eval cell must return the kept sample (src/tools/eval/EvalTool.ts, src/integrations/samples/listener.ts): ' + JSON.stringify(cell).slice(0, 400))
   const line = String(EvalTool.mapToolResultToToolResultBlockParam(cell, 'sample-proof').content).match(/^\[sample\] (.+)$/m)?.[1] ?? ''
   check(
     'T2 the result text lists it as "sample: <title> v<N> → <url> · asked: <ask>"',
     /^Hero card v1 → http:\/\/127\.0\.0\.1:\d+\/s\/[a-z0-9]+\?t=[0-9a-f]{32} · asked: show me the hero card$/.test(line),
-    'change mapToolResultToToolResultBlockParam in src/tools/EvalTool/EvalTool.ts so the [sample] line reads as the label says; got ' + line,
+    'change mapToolResultToToolResultBlockParam in src/tools/eval/EvalTool.ts so the [sample] line reads as the label says; got ' + line,
   )
   const prompt = await (EvalTool as { prompt: () => Promise<string> }).prompt()
   check('T3 the prompt names sample under the bridge, taking doc and never html', prompt.includes('sample({name, title?, doc, ask?})') && !prompt.includes('sample({name, title?, html, ask?})') && prompt.includes('Raw `html` is refused'), hintPrompt)
   check('T4 the prompt says when: only when asked, never unasked, never to decorate', /ONLY when the operator asked to see something/.test(prompt) && /never unasked, never to decorate an answer/.test(prompt) && /"show me"/.test(prompt), hintPrompt)
   check('T5 the prompt says the same name is the next version and variables survive', /The same name publishes the next version/.test(prompt) && /Variables, imports, functions and classes survive/.test(prompt), hintPrompt)
-  check('T6 the search hint names samples', ((EvalTool as { searchHint?: string }).searchHint ?? '').includes('sample'), 'add the word sample to searchHint in src/tools/EvalTool/EvalTool.ts')
+  check('T6 the search hint names samples', ((EvalTool as { searchHint?: string }).searchHint ?? '').includes('sample'), 'add the word sample to searchHint in src/tools/eval/EvalTool.ts')
 }
 
 section('G the gate')
 {
-  const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
+  const { EvalTool } = await import('../../src/tools/eval/EvalTool.ts')
   const workDir = mkdtempSync(join(tmpdir(), 'mercury-samples-gate-'))
-  const runEvalCell = async ({ owner, cell }: { owner: import('../../src/utils/run/ownerKey.js').OwnerKey; cwd: string; cell: { language: string; code: string } }) => (await sampleCellRunner(owner, workDir))(cell.code)
+  const runEvalCell = async ({ owner, cell }: { owner: import('../../src/engine/run-owner/ownerKey.js').OwnerKey; cwd: string; cell: { language: string; code: string } }) => (await sampleCellRunner(owner, workDir))(cell.code)
   const ownerOn = makeOwnerKey({ workspace: workDir, sessionId: 'gate-on', lane: 'main' } as never)
   const warm = await runEvalCell({ owner: ownerOn, cwd: workDir, cell: { language: 'js', code: 'typeof sample' } })
   check('G1 with MERCURY_SAMPLES=1 the cell has sample', samplesEnabled() && warm.status === 'ok' && warm.resultRepr === "'function'", hintGate + JSON.stringify(warm).slice(0, 200))
@@ -176,7 +176,7 @@ check('P2 a different title is a different message', formatMarksMessage({ title:
 check('P3 the pinned text is not the text with one word changed', expectedFull !== full.replace('larger', 'smaller'))
 
 await listener.closeSampleListener()
-await (await import('../../src/services/eval/kernelManager.js')).evalKernelManager.disposeAll()
+await (await import('../../src/tools/engines/eval-kernels/kernelManager.js')).evalKernelManager.disposeAll()
 
 console.log('\n' + '═'.repeat(76))
 if (failures > 0) {

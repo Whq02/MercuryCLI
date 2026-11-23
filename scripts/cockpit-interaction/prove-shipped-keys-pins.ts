@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
-// gate-watch: src/keybindings/defaultBindings.ts
+// gate-watch: src/screen/keys/defaultBindings.ts
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const TABLE = join(ROOT, 'src', 'keybindings', 'defaultBindings.ts')
+const TABLE = join(ROOT, 'src', 'screen', 'keys', 'defaultBindings.ts')
 
 type Block = { context: string; bindings: Record<string, string | null> }
 
@@ -40,7 +40,7 @@ if (process.argv[2] === '--variant') {
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + '; ' : '') + 'the shipped table is DEFAULT_BINDINGS in src/keybindings/defaultBindings.ts: if the change is intended, update the pinned SUMS, ROWS, CHORDS and SHOWN in this file, otherwise restore the table' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + '; ' : '') + 'the shipped table is DEFAULT_BINDINGS in src/screen/keys/defaultBindings.ts: if the change is intended, update the pinned SUMS, ROWS, CHORDS and SHOWN in this file, otherwise restore the table' : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

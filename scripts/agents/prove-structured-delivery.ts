@@ -23,14 +23,14 @@ const section = (t: string, hint = ''): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const agentToolModule = await import('../../src/tools/AgentTool/AgentTool.tsx')
-const utils = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { getPrompt } = await import('../../src/tools/AgentTool/prompt.ts')
-const { toolResultText } = await import('../../src/rows/project.ts')
-const { enqueueAgentNotification } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { dequeueAll } = await import('../../src/utils/messageQueueManager.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-type Message = import('../../src/types/message.ts').Message
+const agentToolModule = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const utils = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { getPrompt } = await import('../../src/tools/crewmate/prompt.ts')
+const { toolResultText } = await import('../../src/engine/rows/project.ts')
+const { enqueueAgentNotification } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { dequeueAll } = await import('../../src/daemon/runner/messageQueueManager.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 type Block = { type: 'text'; text: string }
 type Mapped = { type: 'tool_result'; tool_use_id: string; is_error?: boolean; content: Block[] }
@@ -77,7 +77,7 @@ const miss = (error: string, mode: 'permissive' | 'strict', over: Record<string,
     ...over,
   })
 
-section('1. valid, scout — the block first, the prose after, nothing else', 'what to change: agentToolResultBlock in src/tools/AgentTool/agent/resultBlock.ts (block order and the structured block) and structuredResultBlock in src/tools/AgentTool/agentToolUtils.ts')
+section('1. valid, scout — the block first, the prose after, nothing else', 'what to change: agentToolResultBlock in src/tools/crewmate/call/resultBlock.ts (block order and the structured block) and structuredResultBlock in src/tools/crewmate/crewmateLifecycle.ts')
 {
   const mapped = map(valid(), 't1')
   check('a scout result carries two blocks', mapped.content.length === 2, JSON.stringify(texts(mapped)).slice(0, 300))
@@ -86,7 +86,7 @@ section('1. valid, scout — the block first, the prose after, nothing else', 'w
   check('is_error is absent', mapped.is_error !== true)
 }
 
-section('2. valid, crewmate — the block, the prose, the trailer', 'what to change: agentToolResultBlock in src/tools/AgentTool/agent/resultBlock.ts (block order: structured block, prose, trailer)')
+section('2. valid, crewmate — the block, the prose, the trailer', 'what to change: agentToolResultBlock in src/tools/crewmate/call/resultBlock.ts (block order: structured block, prose, trailer)')
 {
   const mapped = map(valid({ agentType: 'mercury-crew' }), 't2')
   check('the first block is the structured block', mapped.content[0]?.text === VALID_BLOCK, show(mapped.content[0]?.text))
@@ -95,7 +95,7 @@ section('2. valid, crewmate — the block, the prose, the trailer', 'what to cha
   check('is_error is absent', mapped.is_error !== true)
 }
 
-section('3. data, not text — the middle line parses back to the payload; the closing tag inside a string is escaped', 'what to change: the JSON line and the closing-tag escape in structuredResultBlock, src/tools/AgentTool/agentToolUtils.ts')
+section('3. data, not text — the middle line parses back to the payload; the closing tag inside a string is escaped', 'what to change: the JSON line and the closing-tag escape in structuredResultBlock, src/tools/crewmate/crewmateLifecycle.ts')
 {
   const mapped = map(valid(), 't3')
   const middle = (mapped.content[0]?.text ?? '').split('\n')[1] ?? ''
@@ -120,7 +120,7 @@ section('3. data, not text — the middle line parses back to the payload; the c
   check('the block is exactly three lines', lines.length === 3 && lines[0] === '<structured status="valid">' && lines[2] === '</structured>', JSON.stringify(lines))
 }
 
-section('4. misses are named — E3 to E6, is_error as today', 'what to change: the miss sentences in structuredMissWords (src/tools/AgentTool/agentToolUtils.ts) or the is_error and failure trailer in agentToolResultBlock (src/tools/AgentTool/agent/resultBlock.ts), or update the E3 to E6 constants at the top of this proof if the wording was changed on purpose')
+section('4. misses are named — E3 to E6, is_error as today', 'what to change: the miss sentences in structuredMissWords (src/tools/crewmate/crewmateLifecycle.ts) or the is_error and failure trailer in agentToolResultBlock (src/tools/crewmate/call/resultBlock.ts), or update the E3 to E6 constants at the top of this proof if the wording was changed on purpose')
 {
   const e3 = map(miss(NO_STRUCTURED_YIELD, 'permissive'), 't4a')
   check('permissive, no call: the first block is E3', e3.content[0]?.text === E3, show(e3.content[0]?.text))
@@ -161,7 +161,7 @@ const transcript = (finalRound: 'valid' | 'invalid' | 'invalid-long' | 'none'): 
 }
 const spec = { structuredSpec: { mode: 'permissive' as const, source: 'dispatch' as const } }
 
-section('5. the issue words are recorded — the validator\'s words after the unchanged prefix, no data', 'what to change: finalizeAgentTool in src/tools/AgentTool/agentToolUtils.ts (the structured error it records, and the 300-character cap SCHEMA_ISSUE_WORDS_CAP)')
+section('5. the issue words are recorded — the validator\'s words after the unchanged prefix, no data', 'what to change: finalizeAgentTool in src/tools/crewmate/crewmateLifecycle.ts (the structured error it records, and the 300-character cap SCHEMA_ISSUE_WORDS_CAP)')
 {
   const errored = utils.finalizeAgentTool(transcript('invalid'), 'a5', { ...META, ...spec })
   check('structured.error is the prefix, a colon, the validator\'s words', errored.structured?.error === `${FAILED_STRUCTURED_YIELD}: ${ISSUE}`, JSON.stringify(errored.structured))
@@ -173,7 +173,7 @@ section('5. the issue words are recorded — the validator\'s words after the un
   check('no call records the unchanged miss sentence', missing.structured?.error === NO_STRUCTURED_YIELD, JSON.stringify(missing.structured))
 }
 
-section('6. nothing invented — without structured, the mapped block is the current unstructured block', 'what to change: agentToolResultBlock in src/tools/AgentTool/agent/resultBlock.ts must add no structured block and keep the old output when output.structured is absent')
+section('6. nothing invented — without structured, the mapped block is the current unstructured block', 'what to change: agentToolResultBlock in src/tools/crewmate/call/resultBlock.ts must add no structured block and keep the old output when output.structured is absent')
 {
   const scout = map(settled({}), 't6')
   check('a scout result without structured is the current unstructured block (one block, the prose)', JSON.stringify(scout) === JSON.stringify({ type: 'tool_result', tool_use_id: 't6', content: [{ type: 'text', text: PROSE }] }), JSON.stringify(scout).slice(0, 300))
@@ -184,14 +184,14 @@ section('6. nothing invented — without structured, the mapped block is the cur
   check('no text in any of them contains <structured', [scout, crew, failed].every(m => texts(m).every(t => !t.includes('<structured'))))
 }
 
-section('7. the SDK host\'s string — the row\'s output begins with the block', 'what to change: toolResultText in src/rows/project.ts or the block order from agentToolResultBlock in src/tools/AgentTool/agent/resultBlock.ts')
+section('7. the SDK host\'s string — the row\'s output begins with the block', 'what to change: toolResultText in src/engine/rows/project.ts or the block order from agentToolResultBlock in src/tools/crewmate/call/resultBlock.ts')
 {
   const output = toolResultText(map(valid(), 't7').content)
   check('toolResultText of a valid scout result starts with the block and a newline', output.startsWith(`${VALID_BLOCK}\n`), JSON.stringify(output.slice(0, 120)))
   check('…and the prose follows it whole', output === `${VALID_BLOCK}\n${PROSE}`)
 }
 
-section('8. background — the completion notice carries the block between the summary and the result', 'what to change: enqueueAgentNotification in src/tasks/LocalAgentTask/LocalAgentTask.tsx (structuredSection must sit between </summary> and <result>)')
+section('8. background — the completion notice carries the block between the summary and the result', 'what to change: enqueueAgentNotification in src/engine/tasks/local-agent/crewmateTask.tsx (structuredSection must sit between </summary> and <result>)')
 {
   dequeueAll()
   let state: { tasks: Record<string, Record<string, unknown>>; speculation: { status: string } } = {
@@ -219,7 +219,7 @@ section('8. background — the completion notice carries the block between the s
   check('the result section still holds the prose', value.includes(`<result>${PROSE}</result>`))
 }
 
-section('9. the words — the two field descriptions and the usage note', 'what to change: the output_schema and schema_mode descriptions in src/tools/AgentTool/agent/schema.ts, or the usage guidance in getPrompt in src/tools/AgentTool/prompt.ts')
+section('9. the words — the two field descriptions and the usage note', 'what to change: the output_schema and schema_mode descriptions in src/tools/crewmate/call/schema.ts, or the usage guidance in getPrompt in src/tools/crewmate/prompt.ts')
 {
   const shape = (agentToolModule.inputSchema() as unknown as { shape: Record<string, { description?: string }> }).shape
   check('output_schema describes the block', shape.output_schema?.description === OUTPUT_SCHEMA_WORDS, JSON.stringify(shape.output_schema?.description))
@@ -229,7 +229,7 @@ section('9. the words — the two field descriptions and the usage note', 'what 
   check('the old sentence is gone', !prompt.includes('Treat the agent\'s output as a claim to verify'))
 }
 
-section('10. hooks see the same keys — {data, source, mode} on a hit, {error, source, mode} on a miss', 'what to change: the key order of the structured object that finalizeAgentTool builds in src/tools/AgentTool/agentToolUtils.ts')
+section('10. hooks see the same keys — {data, source, mode} on a hit, {error, source, mode} on a miss', 'what to change: the key order of the structured object that finalizeAgentTool builds in src/tools/crewmate/crewmateLifecycle.ts')
 {
   const hit = utils.finalizeAgentTool(transcript('valid'), 'a10', { ...META, ...spec })
   check('a hit records data, source, mode in that order', JSON.stringify(Object.keys(hit.structured ?? {})) === '["data","source","mode"]', JSON.stringify(Object.keys(hit.structured ?? {})))

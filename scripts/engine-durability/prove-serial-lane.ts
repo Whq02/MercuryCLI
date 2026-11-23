@@ -7,7 +7,7 @@ import { checker, scratchRoot } from './harness.ts'
 scratchRoot('lane')
 const t = checker()
 
-const { serialGenerationLane } = await import('../../src/substrate/serialGeneration.ts')
+const { serialGenerationLane } = await import('../../src/platform/substrate/serialGeneration.ts')
 
 const turn = (): Promise<void> => new Promise<void>(res => setImmediate(res))
 

@@ -4,10 +4,10 @@ import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import { z } from 'zod/v4'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'ANTHROPIC_BASE_URL']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_BUSY_RETRY_SCALE = '0.2'
@@ -55,25 +55,25 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
 } })
 process.env.MERCURY_FIREWORKS_API_BASE = `http://127.0.0.1:${server.port}/inference/v1`
 let count = 0
-const fireworksFailHint = 'look in src/services/providers/fireworks/ (fireworksCallModel.ts for the request body, effort and tool replay, fireworksCatalogue.ts for the model list and pins, fireworksLogin.ts for the key login) and routedCallModel in src/services/providers/callModelRouter.ts; the failed name above says which'
+const fireworksFailHint = 'look in src/models/roads/fireworks/ (fireworksCallModel.ts for the request body, effort and tool replay, fireworksCatalogue.ts for the model list and pins, fireworksLogin.ts for the key login) and routedCallModel in src/models/roads/callModelRouter.ts; the failed name above says which'
 const check = (name: string, value: unknown): void => { assert.ok(value, name + ' — ' + fireworksFailHint); count++; console.log(`[PASS] ${name}`) }
 try {
-  const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
+  const { classifyModelRoute } = await import('../../src/models/roads/routeLaw.ts')
   check('Fireworks qualified ids are declared before any inference request', classifyModelRoute('fireworks/gpt-oss-120b').route === 'fireworks')
-  const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
-  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-  const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
-  const { refreshFireworksCatalogue, __resetFireworksCatalogueForTest, fireworksCatalogueRows, fireworksCatalogueSourceWords } = await import(new URL('../../src/services/providers/fireworks/fireworksCatalogue.ts', import.meta.url).href)
-  const { buildFireworksExtras, fireworksCallModel } = await import(new URL('../../src/services/providers/fireworks/fireworksCallModel.ts', import.meta.url).href)
-  const { storeFireworksApiKeyLogin } = await import(new URL('../../src/services/providers/fireworks/fireworksLogin.ts', import.meta.url).href)
-  const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
-  const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-  const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
-  const { keyLaneListState, keyLanePins } = await import('../../src/services/model/modelOptions.ts')
-  const { readStoredFireworksApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-  const { liveModelsReference, knownModelsReference } = await import('../../src/services/resources/adapters/models.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+  const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+  const { resolvePrimaryAgentBackend } = await import('../../src/models/roads/primaryBackend.ts')
+  const { refreshFireworksCatalogue, __resetFireworksCatalogueForTest, fireworksCatalogueRows, fireworksCatalogueSourceWords } = await import(new URL('../../src/models/roads/fireworks/fireworksCatalogue.ts', import.meta.url).href)
+  const { buildFireworksExtras, fireworksCallModel } = await import(new URL('../../src/models/roads/fireworks/fireworksCallModel.ts', import.meta.url).href)
+  const { storeFireworksApiKeyLogin } = await import(new URL('../../src/models/roads/fireworks/fireworksLogin.ts', import.meta.url).href)
+  const { usageForProvider } = await import('../../src/models/roads/providerUsage.ts')
+  const { laneBillingState } = await import('../../src/models/roads/laneBillingState.ts')
+  const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
+  const { keyLaneListState, keyLanePins } = await import('../../src/models/catalogue/modelOptions.ts')
+  const { readStoredFireworksApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const { liveModelsReference, knownModelsReference } = await import('../../src/integrations/resources/adapters/models.ts')
   const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
   function params(model = 'fireworks/gpt-oss-120b', effortValue = 'max', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
     return { messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: thinking ? { type: 'enabled', budgetTokens: 4096 } : { type: 'disabled' }, signal: new AbortController().signal,
@@ -152,7 +152,7 @@ try {
   check('a refused login never overwrites the stored key', !refusedLogin.stored && refusedLogin.receipt.includes('HTTP 401') && readStoredFireworksApiKey() === 'proof-key-fireworks-login-fixture-not-a-real-key')
   listStatus = 200; modelList = []; await refreshFireworksCatalogue({ force: true })
   const emptyBefore = captures.length
-  const { fireworksDisplayPin, FIREWORKS_OBSERVED_AT } = await import('../../src/utils/model/pins/fireworksPins.ts')
+  const { fireworksDisplayPin, FIREWORKS_OBSERVED_AT } = await import('../../src/models/facts/pins/fireworksPins.ts')
   check('an empty live list falls to the 14 dated pins (docs.fireworks.ai pricing, read 2026-10-25) labelled as pins with each row\'s own date, admits a pinned id under the note, and refuses an unpinned id', fireworksCatalogueRows().source.kind === 'pins' && fireworksCatalogueRows().rows.length === 14 && fireworksCatalogueRows().rows.every((row: any) => !row.listedLive && row.observedAt === (fireworksDisplayPin(row.id)?.observedAt ?? FIREWORKS_OBSERVED_AT)) && keyLaneListState('fireworks').kind === 'pin' && (fireworksCatalogueSourceWords() ?? '').includes('pinned list — ') && !(await run()).some(row => row.isApiErrorMessage) && captures.length === emptyBefore + 1 && (await run(params('fireworks/missing-fixture'))).some(row => row.isApiErrorMessage) && captures.length === emptyBefore + 1)
   const beforeUnreachable = captures.length
   modelList = fixtures; __resetFireworksCatalogueForTest(); const base = process.env.MERCURY_FIREWORKS_API_BASE

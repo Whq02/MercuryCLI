@@ -3,10 +3,10 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { join } from 'node:path'
-import { rampSampleAt, rampSegments, type RampSegment } from '../../src/components/mercury-ui/focalRamp.ts'
-import { displayWidth } from '../../src/utils/glyphs.ts'
-import { BELLY, TERRA } from '../../src/components/mercuryPalette.ts'
-import { deriveFocalRamp, resolveMercuryTokens } from '../../src/utils/mercuryTokens.ts'
+import { rampSampleAt, rampSegments, type RampSegment } from '../../src/screen/widgets/focalRamp.ts'
+import { displayWidth } from '../../src/screen/theme/glyphs.ts'
+import { BELLY, TERRA } from '../../src/screen/theme/mercuryPalette.ts'
+import { deriveFocalRamp, resolveMercuryTokens } from '../../src/screen/theme/mercuryTokens.ts'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -269,7 +269,7 @@ t.section('§3 — the continuous law (RF-1)')
 
 t.section('§5 — the GREETING SHIMMER: settle law, fixed point, bounded damage')
 {
-  const shim = await import('../../src/utils/cockpit/greetingShimmer.ts')
+  const shim = await import('../../src/screen/cockpit/greetingShimmer.ts')
   const N = 30
   const text = 'M'.repeat(N)
   const plain = cells(rampSegments(text, STOPS))

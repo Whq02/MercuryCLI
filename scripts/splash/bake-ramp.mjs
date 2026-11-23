@@ -10,18 +10,18 @@ const ROW = {
   assets: 'assets/splash/splash-core.mjs',
   generator: 'bun scripts/splash/bake-ramp.mjs',
   check: 'bun scripts/splash/bake-ramp.mjs --check',
-  sources: 'src/utils/mercuryTokens.ts src/components/mercury-ui/focalRamp.ts src/components/mercuryPalette.ts src/ink/colorize.ts src/utils/envUtils.ts src/utils/cockpit/critterData.ts re:MERCURY_TRUECOLOR',
+  sources: 'src/screen/theme/mercuryTokens.ts src/screen/widgets/focalRamp.ts src/screen/theme/mercuryPalette.ts src/screen/renderer/colorize.ts src/platform/environment/envUtils.ts src/screen/cockpit/critterData.ts re:MERCURY_TRUECOLOR',
   build: true,
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 
-const { TERRA, BELLY, IVORY, CLAW } = await import('../../src/components/mercuryPalette.ts')
-const { deriveAccentSoft, deriveFocalRamp } = await import('../../src/utils/mercuryTokens.ts')
-const { rampSampleAt } = await import('../../src/components/mercury-ui/focalRamp.ts')
-const { shouldHonorNoColor, truecolorFingerprint } = await import('../../src/ink/colorize.ts')
-const { isEnvTruthy } = await import('../../src/utils/envUtils.ts')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
-const critterData = await import('../../src/utils/cockpit/critterData.ts')
+const { TERRA, BELLY, IVORY, CLAW } = await import('../../src/screen/theme/mercuryPalette.ts')
+const { deriveAccentSoft, deriveFocalRamp } = await import('../../src/screen/theme/mercuryTokens.ts')
+const { rampSampleAt } = await import('../../src/screen/widgets/focalRamp.ts')
+const { shouldHonorNoColor, truecolorFingerprint } = await import('../../src/screen/renderer/colorize.ts')
+const { isEnvTruthy } = await import('../../src/platform/environment/envUtils.ts')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
+const critterData = await import('../../src/screen/cockpit/critterData.ts')
 
 const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16))
 const mixc = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t))

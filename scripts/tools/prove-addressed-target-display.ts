@@ -6,10 +6,10 @@ const kit = await readViewKit(home)
 const { src } = kit
 let hintFor = ''
 const check = (label: string, ok: boolean, detail = ''): void => kit.check(label, ok, ok ? detail : `${detail} | to fix: ${hintFor}`)
-const file = await import(`${src}/utils/file.ts`)
-const readUi = await import(`${src}/tools/FileReadTool/UI.tsx`)
-const writeUi = await import(`${src}/tools/FileWriteTool/UI.tsx`)
-const editUi = await import(`${src}/tools/FileEditTool/UI.tsx`)
+const file = await import(`${src}/platform/files/file.ts`)
+const readUi = await import(`${src}/tools/read/rows.tsx`)
+const writeUi = await import(`${src}/tools/write/rows.tsx`)
+const editUi = await import(`${src}/tools/edit/rows.tsx`)
 
 const split = (target: string): [string, string] => {
   const parts = file.splitAddressedTarget?.(target) ?? { container: target, address: '' }
@@ -28,13 +28,13 @@ const cases: Array<[target: string, container: string, address: string]> = [
   ['C:\\src\\s143\\sql\\notes.txt', 'C:\\src\\s143\\sql\\notes.txt', ''],
   ['/work/sql/rows.sqlite:items/1#delete', '/work/sql/rows.sqlite', ':items/1#delete'],
 ]
-hintFor = 'splitAddressedTarget in src/utils/file.ts must split a target at the first address marker after its container, Windows drive colon and line ranges excepted'
+hintFor = 'splitAddressedTarget in src/platform/files/file.ts must split a target at the first address marker after its container, Windows drive colon and line ranges excepted'
 for (const [target, container, address] of cases) {
   const got = split(target)
   check(`the address of ${target} begins after its container`, got[0] === container && got[1] === address, JSON.stringify(got))
 }
 
-hintFor = 'displayAddressedTarget in src/utils/file.ts must relativize only the container and append the address exactly as typed'
+hintFor = 'displayAddressedTarget in src/platform/files/file.ts must relativize only the container and append the address exactly as typed'
 const cwd = 'C:\\src\\s143\\sql'
 const shown = (target: string): string => file.displayAddressedTarget?.(target, (container: string) => win32.relative(cwd, container)) ?? win32.relative(cwd, target)
 check('the Windows path functions alone turn a row address into a path', win32.relative(cwd, 'C:\\src\\s143\\sql\\rows.sqlite:items/1#delete') === 'rows.sqlite:items\\1#delete')
@@ -46,7 +46,7 @@ check('a statement is shown as typed', shown('C:\\src\\s143\\sql\\rows.sqlite#re
 check('the container keeps the spelling of its platform', shown('C:\\src\\s143\\sql\\sub\\rows.sqlite:items/1') === 'sub\\rows.sqlite:items/1', shown('C:\\src\\s143\\sql\\sub\\rows.sqlite:items/1'))
 check('a line range and a plain path are shown as before', shown('C:\\src\\s143\\sql\\notes.txt:1-5') === 'notes.txt:1-5' && shown('C:\\src\\s143\\sql\\sub\\notes.txt') === 'sub\\notes.txt')
 
-hintFor = 'getDisplayPath in src/utils/file.ts and getToolUseSummary in the UI.tsx of src/tools/FileReadTool, FileWriteTool and FileEditTool (and backfillObservableInput of FileReadTool) must keep the address whole when showing a path'
+hintFor = 'getDisplayPath in src/platform/files/file.ts and getToolUseSummary in the UI.tsx of src/tools/read, FileWriteTool and FileEditTool (and backfillObservableInput of FileReadTool) must keep the address whole when showing a path'
 const row = `${join(home, 'rows.sqlite')}:items/x/../1#delete`
 const member = join(home, 'bundle.zip') + ':docs/./intro.md'
 const query = `${join(home, 'rows.jsonl')}#read?q=.a/../b`

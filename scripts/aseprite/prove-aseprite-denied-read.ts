@@ -67,21 +67,21 @@ chmodSync(shim, 0o755)
 process.env.MERCURY_ASEPRITE_BIN = shim
 process.env.MERCURY_ASEPRITE_NO_DISCOVERY = '1'
 process.chdir(project)
-const { setOriginalCwd } = await import(`${SRC}/bootstrap/state.ts`)
+const { setOriginalCwd } = await import(`${SRC}/boot/process-state/processState.ts`)
 setOriginalCwd(project)
 
 let failures = 0
 let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' | ' : '') + 'the tool must refuse (and not list) a sprite file exactly when a direct Read of it is denied, and answer as before otherwise; change checkPermissions in src/tools/AsepriteTool/AsepriteTool.ts to use checkReadPermissionForTool from src/utils/permissions/filesystem.ts for every file the call names' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' | ' : '') + 'the tool must refuse (and not list) a sprite file exactly when a direct Read of it is denied, and answer as before otherwise; change checkPermissions in src/tools/aseprite/AsepriteTool.ts to use checkReadPermissionForTool from src/permissions/rules/filesystem.ts for every file the call names' : ''}`)
   if (!cond) failures++
 }
 
-const { AsepriteTool } = await import(`${SRC}/tools/AsepriteTool/AsepriteTool.ts`)
-const { getEmptyToolPermissionContext } = await import(`${SRC}/Tool.ts`)
-const { decideToolPermission } = await import(`${SRC}/utils/permissions/decision/engine.ts`)
-const permissions = await import(`${SRC}/utils/permissions/filesystem.ts`)
+const { AsepriteTool } = await import(`${SRC}/tools/aseprite/AsepriteTool.ts`)
+const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
+const { decideToolPermission } = await import(`${SRC}/permissions/rules/decision/engine.ts`)
+const permissions = await import(`${SRC}/permissions/rules/filesystem.ts`)
 
 type Permission = ReturnType<typeof getEmptyToolPermissionContext>
 type Verdict = { behavior: string; message?: string; updatedInput?: unknown }

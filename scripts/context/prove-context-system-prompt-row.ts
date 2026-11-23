@@ -17,12 +17,12 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { analyzeContextUsage } = await import('../../src/services/context/analyzeContext.ts')
-const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { MERCURY_CONSTITUTION } = await import('../../src/prompt/mercuryContract.ts')
+const { analyzeContextUsage } = await import('../../src/engine/context-window/analyzeContext.ts')
+const { getSystemPrompt } = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { MERCURY_CONSTITUTION } = await import('../../src/engine/system-prompt/mercuryContract.ts')
 
 const MODEL = 'claude-fable-5-1'
 const agents = { activeAgents: [], allAgents: [] }
@@ -40,13 +40,13 @@ const defaultParts = (await getSystemPrompt([], MODEL)).filter(p => p !== '')
 const expectedDefault = defaultParts.map(displayName)
 const floorName = displayName(MERCURY_CONSTITUTION)
 const startsWith = (rows: string[], head: string[]): boolean => head.length <= rows.length && head.every((n, i) => rows[i] === n)
-const rowFix = 'fix countSystemPrompt in src/services/context/analyzeContext.ts so the rows match what getSystemPrompt and buildEffectiveSystemPrompt (src/utils/systemPrompt.ts) compose from customSystemPrompt and appendSystemPrompt'
+const rowFix = 'fix countSystemPrompt in src/engine/context-window/analyzeContext.ts so the rows match what getSystemPrompt and buildEffectiveSystemPrompt (src/engine/system-prompt/systemPrompt.ts) compose from customSystemPrompt and appendSystemPrompt'
 
 console.log('/context counts the prompt the request path composes')
 
 section('§1 the default session: the row lists every default part, not the floor alone')
 {
-  check('the default prompt is many parts (the fixture is meaningful)', expectedDefault.length > 1, `${expectedDefault.length}; getSystemPrompt in src/constants/prompts.ts returned a single part, so the fixture cannot show the row listing every default part`)
+  check('the default prompt is many parts (the fixture is meaningful)', expectedDefault.length > 1, `${expectedDefault.length}; getSystemPrompt in src/engine/system-prompt/defaultSystemPrompt.ts returned a single part, so the fixture cannot show the row listing every default part`)
   const rows = await rowsFor({})
   check('THE ROW LISTS THE WHOLE DEFAULT PROMPT (the base listed the identity floor alone)', startsWith(rows, expectedDefault), `${rows.length} row(s): ${rows.slice(0, 3).join(' · ')}; ${rowFix}`)
   check('…and not the floor-only composition', !(rows.length <= 2 && rows[0] === floorName), `${rows.join(' · ')}; ${rowFix}`)

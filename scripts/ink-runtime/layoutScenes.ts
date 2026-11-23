@@ -10,7 +10,7 @@ import type {
   LayoutOverflow,
   LayoutPositionType,
   LayoutWrap,
-} from '../../src/ink/layout/node.js'
+} from '../../src/screen/renderer/layout/node.js'
 
 
 type NodeSpec = {

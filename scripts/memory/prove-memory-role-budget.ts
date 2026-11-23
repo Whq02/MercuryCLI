@@ -6,9 +6,9 @@ import { join } from 'node:path'
 const home = mkdtempSync(join(tmpdir(), 'memory-role-'))
 process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
-const { emptyDoc, serializeTopicDoc } = await import('../../src/mneme/mnemeTopicDocs.ts')
-const { renderFrontPage, loadMemoryPrompt } = await import('../../src/mneme/mnemeFrontPage.ts')
-const { readPins } = await import('../../src/mneme/mnemeUsage.ts')
+const { emptyDoc, serializeTopicDoc } = await import('../../src/sessions/mneme/mnemeTopicDocs.ts')
+const { renderFrontPage, loadMemoryPrompt } = await import('../../src/sessions/mneme/mnemeFrontPage.ts')
+const { readPins } = await import('../../src/sessions/mneme/mnemeUsage.ts')
 const now = '2026-01-01T00:00:00.000Z'
 const origin = join(home, 'projects', 'one', 'memory', 'library')
 const sibling = join(home, 'projects', 'two', 'memory', 'library')
@@ -28,10 +28,10 @@ try {
   const empty = renderFrontPage({ dir: sibling, topics: [], archives: [], pins: [], usage: {}, now: new Date(now) }).text
   assert.equal(empty.split('\n').length, 2, 'an empty library is the heading and one sentence')
   assert.ok(empty.startsWith('# Memory\n') && empty.includes(sibling) && empty.includes('nothing saved yet') && !empty.includes('## Index') && !empty.includes('## Pinned'), empty)
-  const { appendObservation } = await import('../../src/mneme/mnemeBuffer.ts')
-  const { openEntry, closeEntry } = await import('../../src/mneme/ledger.ts')
-  const { loadMemoryPrompt: pageFor } = await import('../../src/mneme/mnemeFrontPage.ts')
-  const { buildSubagentMercurySections } = await import('../../src/constants/subagentDoctrine.ts')
+  const { appendObservation } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+  const { openEntry, closeEntry } = await import('../../src/sessions/mneme/ledger.ts')
+  const { loadMemoryPrompt: pageFor } = await import('../../src/sessions/mneme/mnemeFrontPage.ts')
+  const { buildSubagentMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
   const seatBefore = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } } as never).find(section => section.startsWith('# Memory')) ?? ''
   const emptyBefore = pageFor({ dir: sibling } as never)
   appendObservation({ text: 'a fact retained mid-conversation waits in the buffer', source: 'tool:Retain s:mid', topicHint: 'harbour' }, sibling)
@@ -41,7 +41,7 @@ try {
   const seatAfter = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } } as never).find(section => section.startsWith('# Memory')) ?? ''
   assert.equal(seatAfter, seatBefore, 'a crewmate rebuilt after the main left its note presents the memory page its first request carried')
   const child = renderFrontPage({ dir: origin, topics: [doc], archives: [], pins: readPins(origin), usage: {}, now: new Date(now), role: 'child' } as never).text
-  assert.ok(child.includes('shared vessel') && child.includes('without checking'), 'renderFrontPage(role="child") in src/mneme/mnemeFrontPage.ts must include both global safety and honesty rules')
+  assert.ok(child.includes('shared vessel') && child.includes('without checking'), 'renderFrontPage(role="child") in src/sessions/mneme/mnemeFrontPage.ts must include both global safety and honesty rules')
   assert.ok(child.includes('unclassified rule'), 'unknown scope keeps conservative visibility')
   assert.ok(!child.includes('launch register'), 'a source-supported main-only rule is not projected into a child')
   const global = loadMemoryPrompt({ dir: sibling } as never) ?? ''

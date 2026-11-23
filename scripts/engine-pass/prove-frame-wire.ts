@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { lastFrameDelivery, writeDiffToTerminal } from '../../src/ink/session/delivery.ts'
-import { _resetFrameTraceForTesting, readFrameTrace, readFrameWire, recordFrameTrace } from '../../src/ink/root/frame-trace.ts'
+import { lastFrameDelivery, writeDiffToTerminal } from '../../src/screen/renderer/terminal-session/frameDelivery.ts'
+import { _resetFrameTraceForTesting, readFrameTrace, readFrameWire, recordFrameTrace } from '../../src/screen/renderer/root/frame-trace.ts'
 import { recordPty, sharedClockMs, type PtyRecord } from '../lib/ptyRecorder.ts'
 import { buildScene } from './build-scene.ts'
 import { ROOT, argument, scratch } from './support.ts'
@@ -11,7 +11,7 @@ let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  const where = 'change the byte count and drain mark a frame records in writeDiffToTerminal/lastFrameDelivery (src/ink/session/delivery.ts), or how the frame row reads them in recordFrameTrace/readFrameWire (src/ink/root/frame-trace.ts)'
+  const where = 'change the byte count and drain mark a frame records in writeDiffToTerminal/lastFrameDelivery (src/screen/renderer/terminal-session/frameDelivery.ts), or how the frame row reads them in recordFrameTrace/readFrameWire (src/screen/renderer/root/frame-trace.ts)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : `${detail ? ' — ' : ' — '}${where}`}`)
   if (!cond) failures++
 }

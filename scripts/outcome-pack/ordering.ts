@@ -7,7 +7,7 @@ import { runScriptedTurn, startScriptedFixture, type WireBlock } from '../lib/sc
 import { digest, event, type Change, type Context } from './runtime.ts'
 
 function summary(ctx: Context): { state: string; detail: string; lastEvidence?: { treeDigest?: string } } {
-  const source = resolve(dirname(fileURLToPath(import.meta.url)), '../../src/utils/verification/verificationState.ts')
+  const source = resolve(dirname(fileURLToPath(import.meta.url)), '../../src/platform/verification/verificationState.ts')
   const program = `globalThis.MACRO={VERSION:'1.0.0'};const vs=await import(${JSON.stringify(source)});console.log(JSON.stringify(vs.verificationSummary(${JSON.stringify(ctx.cwd)})))`
   const env: NodeJS.ProcessEnv = { ...process.env, MERCURY_CONFIG_DIR: ctx.runHome, MERCURY_VERIFY_EVIDENCE: '1' }
   delete env.MERCURY_HOME

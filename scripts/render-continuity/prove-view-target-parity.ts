@@ -13,12 +13,12 @@ const {
   projectViewedAgent,
   NON_VIEWABLE_TASK_TYPES,
   VIEWABLE_TASK_TYPES,
-} = await import('../../src/state/selectors.ts')
+} = await import('../../src/screen/app-state/selectors.ts')
 const { isManageableTask } = await import(
-  '../../src/components/tasks/taskStatusUtils.tsx'
+  '../../src/screen/tasks/taskStatus.tsx'
 )
-const { interruptCrewmate } = await import('../../src/components/tasks/crewmateInterrupt.ts')
-const { AGENT_INTERRUPT_BY_OPERATOR } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
+const { interruptCrewmate } = await import('../../src/screen/tasks/crewmateInterrupt.ts')
+const { AGENT_INTERRUPT_BY_OPERATOR } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 const { runPulseArena } = await import('./lib/pulseArena.ts')
 const { checker } = await import('../engine-durability/harness.ts')
 type ScriptedTurn = import('../lib/fixtureApi.ts').ScriptedTurn
@@ -77,18 +77,18 @@ t.section('§1 the projection is exhaustive and honest')
   t.check(
     'local agent projects with the REGISTRY name (labels are not identity)',
     pl?.kind === 'local_agent' && pl.name === 'probe-name' && pl.statusLabel === 'running',
-    JSON.stringify(pl && { kind: pl.kind, name: pl.name }) + ' · projectViewedAgent in src/state/selectors.ts must name a local agent from the registry map, not from its description',
+    JSON.stringify(pl && { kind: pl.kind, name: pl.name }) + ' · projectViewedAgent in src/screen/app-state/selectors.ts must name a local agent from the registry map, not from its description',
   )
   const plFallback = projectViewedAgent(localAgent, empty as never)
   t.check(
     'unregistered local agent falls back to its description honestly',
     plFallback?.name === 'poise probe',
-    `${plFallback?.name} · projectViewedAgent in src/state/selectors.ts must fall back to the task description when the registry has no name`,
+    `${plFallback?.name} · projectViewedAgent in src/screen/app-state/selectors.ts must fall back to the task description when the registry has no name`,
   )
   t.check(
     'the main-session task NEVER projects as a viewed agent',
     projectViewedAgent(mainSession, registry as never) === undefined,
-    'projectViewedAgent in src/state/selectors.ts must return undefined for the main-session task',
+    'projectViewedAgent in src/screen/app-state/selectors.ts must return undefined for the main-session task',
   )
 
   const doneAgent = { ...(localAgent as object), status: 'completed' } as never
@@ -96,7 +96,7 @@ t.section('§1 the projection is exhaustive and honest')
   t.check(
     'completed local agent projects completed + not working',
     pd?.statusLabel === 'completed' && pd.isWorking === false,
-    `${JSON.stringify(pd && { statusLabel: pd.statusLabel, isWorking: pd.isWorking })} · projectViewedAgent in src/state/selectors.ts must carry a completed status through as not working`,
+    `${JSON.stringify(pd && { statusLabel: pd.statusLabel, isWorking: pd.isWorking })} · projectViewedAgent in src/screen/app-state/selectors.ts must carry a completed status through as not working`,
   )
 
   t.check(
@@ -104,7 +104,7 @@ t.section('§1 the projection is exhaustive and honest')
     VIEWABLE_TASK_TYPES.length === 1 &&
       NON_VIEWABLE_TASK_TYPES.length === 3 &&
       !VIEWABLE_TASK_TYPES.some(v => (NON_VIEWABLE_TASK_TYPES as readonly string[]).includes(v)),
-    `${VIEWABLE_TASK_TYPES.join(',')} | ${NON_VIEWABLE_TASK_TYPES.join(',')} · VIEWABLE_TASK_TYPES and NON_VIEWABLE_TASK_TYPES in src/state/selectors.ts must stay disjoint, one viewable type and three non-viewable`,
+    `${VIEWABLE_TASK_TYPES.join(',')} | ${NON_VIEWABLE_TASK_TYPES.join(',')} · VIEWABLE_TASK_TYPES and NON_VIEWABLE_TASK_TYPES in src/screen/app-state/selectors.ts must stay disjoint, one viewable type and three non-viewable`,
   )
 
   const stateOf = (task: { id: string } | undefined): never =>
@@ -122,7 +122,7 @@ t.section('§1 the projection is exhaustive and honest')
     t.check(
       `${label}: projection and input router agree (${viewable ? 'viewable' : 'never a destination'})`,
       projected === viewable && routed === viewable,
-      `projected=${projected} routed=${routed} · getViewedAgent and getActiveAgentForInput in src/state/selectors.ts must agree on which task types can be viewed`,
+      `projected=${projected} routed=${routed} · getViewedAgent and getActiveAgentForInput in src/screen/app-state/selectors.ts must agree on which task types can be viewed`,
     )
   }
 }
@@ -257,7 +257,7 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
     ['main-session task never manageable once terminal', la({ status: 'completed', agentType: 'main-session', evictAfter: Date.now() + 30_000 }), false],
   ]
   for (const [label, task, want] of table) {
-    t.check(`manageable: ${label} → ${want}`, isManageableTask(task) === want, `isManageableTask in src/components/tasks/taskStatusUtils.tsx returned ${!want}, wanted ${want}`)
+    t.check(`manageable: ${label} → ${want}`, isManageableTask(task) === want, `isManageableTask in src/screen/tasks/taskStatus.tsx returned ${!want}, wanted ${want}`)
   }
 
   type Road = 'local' | 'hosted' | 'idle'
@@ -290,7 +290,7 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
     t.check(
       `esc grammar: ${label}`,
       got.road === want && got.aborted === reason && hostedStops,
-      `road=${got.road} aborted=${String(got.aborted)} stops=${JSON.stringify(got.stops)} · interruptCrewmate in src/components/tasks/crewmateInterrupt.ts must pick the road, abort reason and stop calls this row names`,
+      `road=${got.road} aborted=${String(got.aborted)} stops=${JSON.stringify(got.stops)} · interruptCrewmate in src/screen/tasks/crewmateInterrupt.ts must pick the road, abort reason and stop calls this row names`,
     )
   }
 

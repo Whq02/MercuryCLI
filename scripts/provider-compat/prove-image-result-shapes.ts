@@ -11,15 +11,15 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const imageShapeHint = 'change classifyModelRoute in src/services/providers/idSpaces.ts (route ids), modelReceivesImageBlocks in src/utils/model/capabilities.ts (image predicate), buildZaiChatRequest in src/services/providers/zai/zaiCodec.ts (tool row then image user row), or buildOpenaiResponsesRequest in src/services/providers/openai/responsesBridge.ts (input_text then input_image)'
+  const imageShapeHint = 'change classifyModelRoute in src/models/roads/idSpaces.ts (route ids), modelReceivesImageBlocks in src/models/facts/capabilities.ts (image predicate), buildZaiChatRequest in src/models/roads/zai/zaiCodec.ts (tool row then image user row), or buildOpenaiResponsesRequest in src/models/roads/openai/responsesBridge.ts (input_text then input_image)'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}${ok ? '' : ` | ${imageShapeHint}`}`)
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 
-const { modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
-const { buildZaiChatRequest } = await import('../../src/services/providers/zai/zaiCodec.ts')
-const { buildOpenaiResponsesRequest } = await import('../../src/services/providers/openai/responsesBridge.ts')
-const { classifyModelRoute } = await import('../../src/services/providers/idSpaces.ts')
+const { modelReceivesImageBlocks } = await import('../../src/models/facts/capabilities.ts')
+const { buildZaiChatRequest } = await import('../../src/models/roads/zai/zaiCodec.ts')
+const { buildOpenaiResponsesRequest } = await import('../../src/models/roads/openai/responsesBridge.ts')
+const { classifyModelRoute } = await import('../../src/models/roads/idSpaces.ts')
 
 const PNG_B64 = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 73, 72, 68, 82]).toString('base64')
 const RESULT_LINE = 'screenshot: /shots/1.png — display 1 (1600×1000 px of 1440×900 pt) · cursor (10, 10) · frontmost TextEdit'
@@ -46,17 +46,17 @@ interface RouteRow {
 }
 
 const ROWS: RouteRow[] = [
-  { route: 'anthropic', model: 'claude-opus-5', callModel: 'src/services/providers/anthropic/streamCore.ts', images: true },
-  { route: 'openai', model: 'gpt-5', callModel: 'src/services/providers/openai/openaiCallModel.ts', images: true },
-  { route: 'openai-compat', model: 'compat/fixture', callModel: 'src/services/providers/openaicompat/compatCallModel.ts', images: null },
-  { route: 'openrouter', model: 'openrouter/org/model', callModel: 'src/services/providers/openrouter/openrouterCallModel.ts', images: null },
-  { route: 'gemini', model: 'gemini-2.5-pro', callModel: 'src/services/providers/gemini/geminiCallModel.ts', images: true },
-  { route: 'deepseek', model: 'deepseek-chat', callModel: 'src/services/providers/deepseek/deepseekCallModel.ts', images: true },
-  { route: 'moonshot', model: 'kimi-k2', callModel: 'src/services/providers/moonshot/moonshotCallModel.ts', images: true },
-  { route: 'zai', model: 'glm-4.5', callModel: 'src/services/providers/zai/zaiCallModel.ts', images: false },
-  { route: 'zai', model: 'glm-4.6v', callModel: 'src/services/providers/zai/zaiCallModel.ts', images: true },
-  { route: 'huggingface', model: 'huggingface/org/model', callModel: 'src/services/providers/huggingface/huggingfaceCallModel.ts', images: null },
-  { route: 'local', model: 'local/model', callModel: 'src/services/providers/local/localCallModel.ts', images: null },
+  { route: 'anthropic', model: 'claude-opus-5', callModel: 'src/models/roads/anthropic/streamCore.ts', images: true },
+  { route: 'openai', model: 'gpt-5', callModel: 'src/models/roads/openai/openaiCallModel.ts', images: true },
+  { route: 'openai-compat', model: 'compat/fixture', callModel: 'src/models/roads/openaicompat/compatCallModel.ts', images: null },
+  { route: 'openrouter', model: 'openrouter/org/model', callModel: 'src/models/roads/openrouter/openrouterCallModel.ts', images: null },
+  { route: 'gemini', model: 'gemini-2.5-pro', callModel: 'src/models/roads/gemini/geminiCallModel.ts', images: true },
+  { route: 'deepseek', model: 'deepseek-chat', callModel: 'src/models/roads/deepseek/deepseekCallModel.ts', images: true },
+  { route: 'moonshot', model: 'kimi-k2', callModel: 'src/models/roads/moonshot/moonshotCallModel.ts', images: true },
+  { route: 'zai', model: 'glm-4.5', callModel: 'src/models/roads/zai/zaiCallModel.ts', images: false },
+  { route: 'zai', model: 'glm-4.6v', callModel: 'src/models/roads/zai/zaiCallModel.ts', images: true },
+  { route: 'huggingface', model: 'huggingface/org/model', callModel: 'src/models/roads/huggingface/huggingfaceCallModel.ts', images: null },
+  { route: 'local', model: 'local/model', callModel: 'src/models/roads/local/localCallModel.ts', images: null },
 ]
 
 section('§1 every route id classifies to its route')

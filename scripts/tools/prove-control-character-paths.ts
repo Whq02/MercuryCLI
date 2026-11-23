@@ -18,28 +18,28 @@ delete process.env.CI
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — Change controlCharacterPathRefusal, hasControlCharacter or CONTROL_PATH_MESSAGE in src/utils/path.ts, or the named tool's validateInput (for Read, src/tools/FileReadTool/read/validate.ts) so it calls controlCharacterPathRefusal before any filesystem access${detail ? `. ${detail}` : ''}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — Change controlCharacterPathRefusal, hasControlCharacter or CONTROL_PATH_MESSAGE in src/platform/files/path.ts, or the named tool's validateInput (for Read, src/tools/read/call/validate.ts) so it calls controlCharacterPathRefusal before any filesystem access${detail ? `. ${detail}` : ''}` : ''}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { GlobTool } = await import('../../src/tools/GlobTool/GlobTool.ts')
-const { NotebookEditTool } = await import('../../src/tools/NotebookEditTool/NotebookEditTool.ts')
-const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')
-const { AstSearchTool } = await import('../../src/tools/AstSearchTool/AstSearchTool.ts')
-const { AstEditTool } = await import('../../src/tools/AstEditTool/AstEditTool.ts')
-const { StructureTool } = await import('../../src/tools/StructureTool/StructureTool.ts')
-const { LspReadTool, LspRenameTool } = await import('../../src/tools/LSPTool/LSPTool.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { PowerShellTool } = await import('../../src/tools/PowerShellTool/PowerShellTool.tsx')
-const { resolveAgentCwd } = await import('../../src/tools/AgentTool/AgentTool.tsx')
-const pathModule = (await import('../../src/utils/path.ts')) as { CONTROL_PATH_MESSAGE?: string; NUL_PATH_MESSAGE: string; controlCharacterPathRefusal?: (path: string | undefined) => string | null; hasControlCharacter?: (path: string) => boolean }
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
+const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
+const { NotebookEditTool } = await import('../../src/tools/notebook-edit/NotebookEditTool.ts')
+const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
+const { AstSearchTool } = await import('../../src/tools/ast-search/AstSearchTool.ts')
+const { AstEditTool } = await import('../../src/tools/ast-edit/AstEditTool.ts')
+const { StructureTool } = await import('../../src/tools/structure/StructureTool.ts')
+const { LspReadTool, LspRenameTool } = await import('../../src/tools/lsp/lspTools.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { PowerShellTool } = await import('../../src/tools/powershell/PowerShellTool.tsx')
+const { resolveAgentCwd } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const pathModule = (await import('../../src/platform/files/path.ts')) as { CONTROL_PATH_MESSAGE?: string; NUL_PATH_MESSAGE: string; controlCharacterPathRefusal?: (path: string | undefined) => string | null; hasControlCharacter?: (path: string) => boolean }
 const { NUL_PATH_MESSAGE } = pathModule
 const CONTROL_PATH_MESSAGE = pathModule.CONTROL_PATH_MESSAGE ?? '(absent)'
 const controlCharacterPathRefusal = pathModule.controlCharacterPathRefusal ?? (() => '(absent)')

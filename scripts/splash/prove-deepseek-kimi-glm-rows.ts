@@ -20,7 +20,7 @@ const splashSrc = readFileSync(SPLASH, 'utf8')
 let failures = 0
 function check(label: string, cond: boolean, detail?: string): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: change the pin rows in the owner table (src/utils/model/pins/deepseekPins.ts, src/utils/model/pins/kimiPins.ts or GLM_STATIC_CATALOGUE in src/services/providers/zai/zaiAdapter.ts), then run node scripts/splash/bake-menu.mjs to rebake the MODEL_NAMES block in assets/splash/splash-core.mjs; a label failure in section 3 reads computeModelLabel in assets/splash/mercury-splash.mjs' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: change the pin rows in the owner table (src/models/facts/pins/deepseekPins.ts, src/models/facts/pins/kimiPins.ts or GLM_STATIC_CATALOGUE in src/models/roads/zai/zaiAdapter.ts), then run node scripts/splash/bake-menu.mjs to rebake the MODEL_NAMES block in assets/splash/splash-core.mjs; a label failure in section 3 reads computeModelLabel in assets/splash/mercury-splash.mjs' : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -39,15 +39,15 @@ interface Family {
   head: Pin | undefined
 }
 
-const { DEEPSEEK_DISPLAY_PINS, DEEPSEEK_RETIRED_ALIASES, deepseekDisplayName } = await import('../../src/utils/model/pins/deepseekPins.ts')
-const { KIMI_DISPLAY_PINS, KIMI_PLAN_PINS } = await import('../../src/utils/model/pins/kimiPins.ts')
-const { GLM_STATIC_CATALOGUE } = await import('../../src/services/providers/zai/zaiAdapter.ts')
+const { DEEPSEEK_DISPLAY_PINS, DEEPSEEK_RETIRED_ALIASES, deepseekDisplayName } = await import('../../src/models/facts/pins/deepseekPins.ts')
+const { KIMI_DISPLAY_PINS, KIMI_PLAN_PINS } = await import('../../src/models/facts/pins/kimiPins.ts')
+const { GLM_STATIC_CATALOGUE } = await import('../../src/models/roads/zai/zaiAdapter.ts')
 const glmPins: Pin[] = GLM_STATIC_CATALOGUE.map(entry => ({ id: entry.id, displayName: entry.displayLabel }))
 const deepseekRetired: Pin[] = [...DEEPSEEK_RETIRED_ALIASES.keys()].map(id => ({ id, displayName: deepseekDisplayName(id) }))
 const FAMILIES: Family[] = [
-  { word: 'deepseek', label: 'DeepSeek', shape: /^deepseek-/, owner: 'src/utils/model/pins/deepseekPins.ts', pins: [...DEEPSEEK_DISPLAY_PINS, ...deepseekRetired], head: DEEPSEEK_DISPLAY_PINS[0] },
-  { word: 'kimi', label: 'Kimi', shape: /^(?:kimi-|k3(?:[.-]|$))/, owner: 'src/utils/model/pins/kimiPins.ts', pins: [...KIMI_DISPLAY_PINS, ...KIMI_PLAN_PINS], head: KIMI_DISPLAY_PINS[0] },
-  { word: 'glm', label: 'GLM', shape: /^glm-/, owner: 'src/services/providers/zai/zaiAdapter.ts', pins: glmPins, head: glmPins[0] },
+  { word: 'deepseek', label: 'DeepSeek', shape: /^deepseek-/, owner: 'src/models/facts/pins/deepseekPins.ts', pins: [...DEEPSEEK_DISPLAY_PINS, ...deepseekRetired], head: DEEPSEEK_DISPLAY_PINS[0] },
+  { word: 'kimi', label: 'Kimi', shape: /^(?:kimi-|k3(?:[.-]|$))/, owner: 'src/models/facts/pins/kimiPins.ts', pins: [...KIMI_DISPLAY_PINS, ...KIMI_PLAN_PINS], head: KIMI_DISPLAY_PINS[0] },
+  { word: 'glm', label: 'GLM', shape: /^glm-/, owner: 'src/models/roads/zai/zaiAdapter.ts', pins: glmPins, head: glmPins[0] },
 ]
 const rowOf = (pin: Pin): string => `${JSON.stringify(pin.id.toLowerCase())}: ${JSON.stringify(pin.displayName)},`
 const rowsOf = (text: string): string[] => (/^const MODEL_NAMES = \{\n([\s\S]*?)^\}$/m.exec(text)?.[1] ?? '').split('\n').map(line => line.trim()).filter(line => line !== '')

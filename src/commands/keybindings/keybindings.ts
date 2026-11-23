@@ -1,12 +1,12 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { getKeybindingsPath } from '../../keybindings/loadUserBindings.js'
-import { generateKeybindingsTemplate } from '../../keybindings/template.js'
-import type { LocalCommandResult } from '../../types/command.js'
-import { getErrnoCode } from '../../utils/errors.js'
-import { toTildePath } from '../../utils/path.js'
-import { editFileInEditor } from '../../utils/promptEditor.js'
-import { editorDisplayName, editorRefusalLine, resolveExternalEditor, shownEditorValue, type EditorResolution } from '../../utils/editor.js'
+import { getKeybindingsPath } from '../../screen/keys/loadUserBindings.js'
+import { generateKeybindingsTemplate } from '../../screen/keys/template.js'
+import type { LocalCommandResult } from '../catalogue/command.js'
+import { getErrnoCode } from '../../platform/errors/errors.js'
+import { toTildePath } from '../../platform/files/path.js'
+import { editFileInEditor } from '../../screen/composer/promptEditor.js'
+import { editorDisplayName, editorRefusalLine, resolveExternalEditor, shownEditorValue, type EditorResolution } from '../../platform/editor/externalEditor.js'
 
 export async function call(): Promise<LocalCommandResult> {
   return openKeybindings({})

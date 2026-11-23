@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 process.env.TERM_PROGRAM = 'Apple_Terminal'
 
-const { CharPool, HyperlinkPool, StylePool, charInCellAt, createScreen, setCellAt } = await import('../../src/ink/cell-grid.ts')
-const { shapeBidiForTerminal } = await import('../../src/ink/bidi.ts')
-const { terminalBidiFrame } = await import('../../src/ink/terminalBidiFrame.ts')
-type Screen = import('../../src/ink/cell-grid.ts').Screen
-type Frame = import('../../src/ink/frame.ts').Frame
+const { CharPool, HyperlinkPool, StylePool, charInCellAt, createScreen, setCellAt } = await import('../../src/screen/renderer/cell-grid.ts')
+const { shapeBidiForTerminal } = await import('../../src/screen/renderer/bidi.ts')
+const { terminalBidiFrame } = await import('../../src/screen/renderer/terminalBidiFrame.ts')
+type Screen = import('../../src/screen/renderer/cell-grid.ts').Screen
+type Frame = import('../../src/screen/renderer/frame.ts').Frame
 
 const COLS = 40
 const ROWS = 6
@@ -15,7 +15,7 @@ const ARABIC = 'تفلسف means philosophising'
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  const rtlHint = 'fix terminalBidiFrame in src/ink/terminalBidiFrame.ts (when it reads cells and when it shapes rows)'
+  const rtlHint = 'fix terminalBidiFrame in src/screen/renderer/terminalBidiFrame.ts (when it reads cells and when it shapes rows)'
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail} | ` : ''}${rtlHint}` : ''}`)
   if (!ok) failures = 1
 }

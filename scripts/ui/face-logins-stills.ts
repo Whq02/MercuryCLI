@@ -7,11 +7,11 @@ import {
   loginsSortedArms,
   type LoginsFlowPaneV1,
   type LoginsScreenFactsV1,
-} from '../../src/components/BootLoginsScreen.js'
-import type { AnthropicLoginSnapshot } from '../../src/components/mercury-ui/screens/anthropicLoginModel.js'
-import type { AccountSlot, FamilySlotGroup } from '../../src/services/providers/accountSlots.js'
-import type { ProviderId, ProviderUsability } from '../../src/services/providers/providerUsability.js'
-import type { ProviderFamilyPresence } from '../../src/services/providers/providerUsage.js'
+} from '../../src/screen/boot-face/BootLoginsScreen.js'
+import type { AnthropicLoginSnapshot } from '../../src/screen/widgets/faces/anthropicLoginModel.js'
+import type { AccountSlot, FamilySlotGroup } from '../../src/models/roads/accountSlots.js'
+import type { ProviderId, ProviderUsability } from '../../src/models/roads/providerUsability.js'
+import type { ProviderFamilyPresence } from '../../src/models/roads/providerUsage.js'
 
 const STILLS_DIR = join(import.meta.dir, 'fixtures', 'face-logins')
 
@@ -300,10 +300,10 @@ import {
   resumeStatusLine,
   resumeSummaryRows,
   type ResumeEntry,
-} from '../../src/components/BootResumeScreen.js'
+} from '../../src/screen/boot-face/BootResumeScreen.js'
 import { RESUME_FIXTURE_LOGS, resumeModelOf } from './face-door-stills.ts'
-import { isProjectSession } from '../../src/utils/sessionFilter.js'
-import type { BootProjectFact } from '../../src/utils/bootCardFacts.js'
+import { isProjectSession } from '../../src/screen/session-chooser/sessionFilter.js'
+import type { BootProjectFact } from '../../src/screen/boot-face/bootCardFacts.js'
 
 const MIN = 60_000
 

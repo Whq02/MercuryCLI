@@ -19,13 +19,13 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const watchRootsWhere = 'see initialize and projectWatchRoots in src/utils/settings/changeDetector.ts'
+const watchRootsWhere = 'see initialize and projectWatchRoots in src/platform/settings/changeDetector.ts'
 const same = (a: string[], b: string[]): boolean => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort())
 
-const state = await import('../../src/bootstrap/state.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
 state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSettings'])
-const detector = await import('../../src/utils/settings/changeDetector.ts')
-const { getManagedFilePath, getManagedSettingsDropInDir } = await import('../../src/utils/settings/managedPath.ts')
+const detector = await import('../../src/platform/settings/changeDetector.ts')
+const { getManagedFilePath, getManagedSettingsDropInDir } = await import('../../src/platform/settings/managedPath.ts')
 const managedRoot = getManagedFilePath()
 const dropIn = getManagedSettingsDropInDir()
 const managedArmed = [managedRoot, dropIn].filter(d => existsSync(d))
@@ -44,7 +44,7 @@ const armedFor = async (cwd: string): Promise<Armed> => {
 const pinRoots = (label: string, armed: Armed, projectDirs: string[], expectedRoots: string[], expectedAwaited: string[]): void => {
   const mcpDirs = armed.targets.filter(t => t.endsWith('mcp.json')).map(t => dirname(dirname(t)))
   check(`${label}: the mcp.json targets name the project folders only — ${projectDirs.map(r => r.replace(ROOT, '<root>')).join(', ')} — never an ancestor above them`, same(mcpDirs, projectDirs), `${mcpDirs.join(' · ')}; ${watchRootsWhere}: the mcp.json targets must come only from the folders projectWatchRoots returns for the cwd`)
-  check(`${label}: the armed-roots seam answers`, armed.roots !== null, 'changeDetector exports no _watchRootsForTesting; export it from src/utils/settings/changeDetector.ts returning the watchedRoots and awaitedParents sets sorted')
+  check(`${label}: the armed-roots seam answers`, armed.roots !== null, 'changeDetector exports no _watchRootsForTesting; export it from src/platform/settings/changeDetector.ts returning the watchedRoots and awaitedParents sets sorted')
   if (armed.roots === null || armed.awaited === null) return
   check(`${label}: the armed roots are exactly ${expectedRoots.map(r => r.replace(ROOT, '<root>')).join(', ')}`, same(armed.roots, expectedRoots), `${armed.roots.join(' · ')}; ${watchRootsWhere}: the directories set built in initialize must hold exactly the expected roots`)
   check(`${label}: the awaited project folders are exactly ${expectedAwaited.length === 0 ? 'none' : expectedAwaited.map(r => r.replace(ROOT, '<root>')).join(', ')}`, same(armed.awaited, expectedAwaited), `${armed.awaited.join(' · ')}; ${watchRootsWhere}: the awaited set in initialize must hold only project config folders that do not exist yet`)

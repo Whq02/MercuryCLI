@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/wards/wards* src/guards/wardsGuard* src/guards/guards* src/utils/cwd*
+// gate-watch: src/permissions/wards/wards.ts src/permissions/wards/wardsRefusals.ts src/permissions/wards/wardsShellRead.ts src/permissions/guards/wardsGuard.ts src/permissions/guards/guards.ts src/engine/cwdMemo.ts src/platform/files/cwd.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -11,12 +11,12 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_SPAWNED_BY = 'proof:ward-continuation#1'
 delete process.env.NODE_ENV
 
-type PendingToolCall = import('../../src/utils/wards/wards.js').PendingToolCall
-type WardVerdict = import('../../src/utils/wards/wards.js').WardVerdict
-const { AUTONOMOUS_WARDS, REFUSAL_WARDS, evaluateWards, setHomeSpellings } = await import('../../src/utils/wards/wards.js')
-const { WARDS_HOOK_ID, registerWardsGuard, resetWardsEngagedSessionsForTest } = await import('../../src/guards/wardsGuard.js')
-const { judgeToolCall } = await import('../../src/guards/guards.js')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+type PendingToolCall = import('../../src/permissions/wards/wards.js').PendingToolCall
+type WardVerdict = import('../../src/permissions/wards/wards.js').WardVerdict
+const { AUTONOMOUS_WARDS, REFUSAL_WARDS, evaluateWards, setHomeSpellings } = await import('../../src/permissions/wards/wards.js')
+const { WARDS_HOOK_ID, registerWardsGuard, resetWardsEngagedSessionsForTest } = await import('../../src/permissions/guards/wardsGuard.js')
+const { judgeToolCall } = await import('../../src/permissions/guards/guards.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
 
 let failures = 0
 let checks = 0
@@ -41,8 +41,8 @@ const CONT = ' \\' + NL
 const PS_CONT = ' `' + NL
 const shown = (command: string): string => JSON.stringify(command)
 const pending = (command: string, toolName = 'Bash'): PendingToolCall => ({ toolName, input: { command }, shellCommand: command })
-const verdictOf = (rules: readonly import('../../src/utils/wards/wards.js').WardRule[], command: string, toolName = 'Bash'): WardVerdict => evaluateWards(rules, pending(command, toolName))
-const ruleOf = (rules: readonly import('../../src/utils/wards/wards.js').WardRule[], command: string, toolName = 'Bash'): string => {
+const verdictOf = (rules: readonly import('../../src/permissions/wards/wards.js').WardRule[], command: string, toolName = 'Bash'): WardVerdict => evaluateWards(rules, pending(command, toolName))
+const ruleOf = (rules: readonly import('../../src/permissions/wards/wards.js').WardRule[], command: string, toolName = 'Bash'): string => {
   const v = verdictOf(rules, command, toolName)
   return v.allow ? '(allowed)' : v.rule.name
 }

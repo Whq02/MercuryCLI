@@ -135,9 +135,9 @@ const only = sceneAsked === undefined ? null : SCENES.filter(scene => scene.name
 const names = only ?? SCENES.map(scene => scene.name)
 if (new Set(names).size !== names.length) fail('two scenes carry one name: give each its own in scripts/ink-runtime/inkRecordingScenes.ts')
 
-const source = Bun.resolveSync('../../src/ink/ink.js', import.meta.dir)
-if (source.replaceAll('\\', '/').endsWith('/src/ink/ink.tsx')) console.log(`  [PASS] the class recorded is the product's own ${UNIT} of src/ink/ink.tsx: no module is replaced; the terminal, the keys, the clock and the timers are scripted, and each scene plays in a process of its own`)
-else fail(`the module under the recording is not src/ink/ink.tsx: it is ${source}`)
+const source = Bun.resolveSync('../../src/screen/renderer/screenInstance.js', import.meta.dir)
+if (source.replaceAll('\\', '/').endsWith('/src/screen/renderer/screenInstance.tsx')) console.log(`  [PASS] the class recorded is the product's own ${UNIT} of src/screen/renderer/screenInstance.tsx: no module is replaced; the terminal, the keys, the clock and the timers are scripted, and each scene plays in a process of its own`)
+else fail(`the module under the recording is not src/screen/renderer/screenInstance.tsx: it is ${source}`)
 
 const once = process.argv.includes('--once')
 const firstRed = process.argv.includes('--first-red')
@@ -204,7 +204,7 @@ else {
     }
     const moved = firstDifference(held, lines)
     if (moved === null) console.log(`  [PASS] ${name} (${lines.length} lines)`)
-    else fail(`the recorded behaviour of ${UNIT} changed in "${name}" at ${moved}\n      if nobody asked for the change, the change is the fault: mend src/ink/ink.tsx or its parts in src/ink/ink/ until the scene is equal; if it was asked for, run \`bun run ${SELF} --write\`, read the difference it prints, and commit the recording with the change`)
+    else fail(`the recorded behaviour of ${UNIT} changed in "${name}" at ${moved}\n      if nobody asked for the change, the change is the fault: mend src/screen/renderer/screenInstance.tsx or its parts in src/screen/renderer/instance/ until the scene is equal; if it was asked for, run \`bun run ${SELF} --write\`, read the difference it prints, and commit the recording with the change`)
   }
   if (only === null && !stopped) for (const name of stood.keys()) if (!first.has(name)) fail(`${name}: a recording stands that no scene records; run \`bun run ${SELF} --write\` to drop it`)
 }

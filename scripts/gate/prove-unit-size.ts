@@ -21,14 +21,14 @@ type Listed = { kind: 'table' | 'text' | 'grows'; what: string }
 type Data = ReadonlyMap<string, Listed>
 
 const LISTED: ReadonlyArray<readonly [file: string, name: string, kind: Listed['kind'], what: string]> = [
-  ['src/extensions/bundled/content.generated.ts', 'bundledMetadata', 'grows', 'the bundled extensions as scripts/extensions/gen-bundled.ts writes them'],
-  ['src/utils/vulcan/optable.generated.ts', 'VULCAN_OPS', 'grows', "the Godot bridge's operations as scripts/vulcan/regen-optable.mjs writes them"],
-  ['src/services/tips/tipRegistry.ts', 'GENERAL_TIPS', 'table', 'the tips, one entry a tip'],
-  ['src/substrate/stateLifecycle.ts', 'LIFECYCLE_MANIFEST', 'table', 'the classes of state on disk, one entry a class'],
-  ['src/utils/capability/declarations.ts', 'TOOL_CAPABILITY_DECLARATIONS', 'table', 'what each tool declares it can do, one entry a tool'],
-  ['src/services/eval/jsRunnerSource.ts', 'JS_RUNNER_SOURCE', 'text', "the eval kernel's JavaScript runner, kept as text"],
-  ['src/services/eval/pyRunnerSource.ts', 'PY_RUNNER_SOURCE', 'text', "the eval kernel's Python runner, kept as text"],
-  ['src/services/samples/shell.ts', 'SCRIPT', 'text', "the samples page's browser script, kept as text"],
+  ['src/integrations/extensions/bundled/content.generated.ts', 'bundledMetadata', 'grows', 'the bundled extensions as scripts/extensions/gen-bundled.ts writes them'],
+  ['src/integrations/vulcan-optable/optable.generated.ts', 'VULCAN_OPS', 'grows', "the Godot bridge's operations as scripts/vulcan/regen-optable.mjs writes them"],
+  ['src/screen/tips/tipRegistry.ts', 'GENERAL_TIPS', 'table', 'the tips, one entry a tip'],
+  ['src/platform/substrate/stateLifecycle.ts', 'LIFECYCLE_MANIFEST', 'table', 'the classes of state on disk, one entry a class'],
+  ['src/permissions/capability/declarations.ts', 'TOOL_CAPABILITY_DECLARATIONS', 'table', 'what each tool declares it can do, one entry a tool'],
+  ['src/tools/engines/eval-kernels/jsRunnerSource.ts', 'JS_RUNNER_SOURCE', 'text', "the eval kernel's JavaScript runner, kept as text"],
+  ['src/tools/engines/eval-kernels/pyRunnerSource.ts', 'PY_RUNNER_SOURCE', 'text', "the eval kernel's Python runner, kept as text"],
+  ['src/integrations/samples/shell.ts', 'SCRIPT', 'text', "the samples page's browser script, kept as text"],
 ]
 const DATA: Data = new Map(LISTED.map(([file, name, kind, what]) => [`${file}\t${name}`, { kind, what }]))
 

@@ -2,8 +2,8 @@ import { spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
-import type { GgufSource } from '../../../src/services/tensorfold/hfCache.ts'
-import type { TensorFoldMachineTruth } from '../../../src/services/tensorfold/fit.ts'
+import type { GgufSource } from '../../../src/models/tensorfold/hfCache.ts'
+import type { TensorFoldMachineTruth } from '../../../src/models/tensorfold/fit.ts'
 
 export const GIB = 1024 ** 3
 export const FIXTURES = import.meta.dir

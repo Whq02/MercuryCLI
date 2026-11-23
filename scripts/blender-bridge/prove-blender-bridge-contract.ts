@@ -19,12 +19,12 @@ import {
   buildBlenderBridgeHelloFrame,
   buildBlenderBridgeRequestFrame,
   parseBlenderBridgeFrame,
-} from '../../src/utils/blender/bridgeProtocol.js'
+} from '../../src/integrations/blender-protocol/bridgeProtocol.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const shown = cond ? detail : [detail, 'fix the constant, verb table, error-code union or frame function it exercises in src/utils/blender/bridgeProtocol.ts'].filter(Boolean).join(' — ')
+  const shown = cond ? detail : [detail, 'fix the constant, verb table, error-code union or frame function it exercises in src/integrations/blender-protocol/bridgeProtocol.ts'].filter(Boolean).join(' — ')
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {

@@ -11,9 +11,9 @@ let failures = 0
 let checks = 0
 let sectionFixHint = ''
 const sectionFixHints: Record<string, string> = {
-  '1': 'fix seatWithFold in src/services/model/modelTransition.ts (the order of the seat and /compact per route and carrier)',
-  '2': 'fix the road named in the label (src/commands/model/model.tsx, src/commands/model/mercuryModel.tsx or src/components/PromptInput/composerModelDoorsParts.tsx), which must call seatWithFold from src/services/model/modelTransition.ts after the preview card is confirmed',
-  '3': 'fix the /compact fold (src/commands/compact/compact.ts, src/services/compact/compact.ts) or the window and fold line it reads from src/services/compact/autoCompact.ts, or buildTransitionPlan / transitionWindowFact in src/services/providers/transitionPreview.ts',
+  '1': 'fix seatWithFold in src/models/catalogue/modelTransition.ts (the order of the seat and /compact per route and carrier)',
+  '2': 'fix the road named in the label (src/commands/model/model.tsx, src/commands/model/mercuryModel.tsx or src/screen/composer/composerModelDoorsParts.tsx), which must call seatWithFold from src/models/catalogue/modelTransition.ts after the preview card is confirmed',
+  '3': 'fix the /compact fold (src/commands/compact/compact.ts, src/engine/compaction/foldConversation.ts) or the window and fold line it reads from src/engine/compaction/autoFold.ts, or buildTransitionPlan / transitionWindowFact in src/models/roads/transitionPreview.ts',
 }
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
@@ -94,24 +94,24 @@ console.log('============================================================')
 console.log(' a switch whose history the target cannot hold: who is seated when the fold runs')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const transition = await import('../../src/services/model/modelTransition.ts')
+const transition = await import('../../src/models/catalogue/modelTransition.ts')
 const seatWithFold = (transition as Partial<typeof transition>).seatWithFold
-const { PROVIDER_ID_SPACES } = await import('../../src/services/providers/routeLaw.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const auto = await import('../../src/services/compact/autoCompact.ts')
-const preview = await import('../../src/services/providers/transitionPreview.ts')
-const { buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
-const { estimateContextTokens } = await import('../../src/services/compact/microCompact.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
+const { PROVIDER_ID_SPACES } = await import('../../src/models/roads/routeLaw.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const auto = await import('../../src/engine/compaction/autoFold.ts')
+const preview = await import('../../src/models/roads/transitionPreview.ts')
+const { buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
 const { call: compactCall } = await import('../../src/commands/compact/compact.ts')
-const { query } = await import('../../src/query.ts')
-const { productionDeps } = await import('../../src/query/deps.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
 await refreshLocalDiscovery({ force: true })
 const fmt = (n: number): string => n.toLocaleString('en-US')
 
@@ -176,14 +176,14 @@ section('1 the order has one owner and it asks what kind of target the switch na
 }
 
 const React = await import('react')
-const { App } = await import('../../src/components/App.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { useAppStateStore, useSetAppState } = await import('../../src/state/AppState.tsx')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import('../../src/services/engine-connector/focusedConnector.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { useAppStateStore, useSetAppState } = await import('../../src/screen/app-state/AppState.tsx')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import('../../src/engine/connector/focusedConnector.ts')
 const typedRoad = await import('../../src/commands/model/model.tsx')
 const pickerRoad = await import('../../src/commands/model/mercuryModel.tsx')
-const { useComposerModelDoors } = await import('../../src/components/PromptInput/useComposerModelDoors.tsx')
+const { useComposerModelDoors } = await import('../../src/screen/composer/useComposerModelDoors.tsx')
 const h = React.createElement
 
 const longHistory = [{
@@ -247,7 +247,7 @@ const roads: Road[] = [
   },
   {
     name: "the composer's door",
-    file: 'src/components/PromptInput/useComposerModelDoors.tsx',
+    file: 'src/screen/composer/useComposerModelDoors.tsx',
     open: async (target, done) => {
       let select: ((value: string) => void) | undefined
       function Doors(): unknown {

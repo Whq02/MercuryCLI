@@ -24,18 +24,18 @@ import {
   registerComposerSeeder,
   reportConsentDeclineRow,
   trySeedComposer,
-} from '../../src/utils/cockpit/composerSeed.ts'
-import * as pendingInput from '../../src/input-core/pending-input.ts'
-import { resetPendingInputForTests } from '../../src/input-core/pending-input.ts'
-import { armPermissionFocus } from '../../src/utils/permissions/permissionFocus.ts'
-import type { Key } from '../../src/ink.js'
+} from '../../src/screen/cockpit/composerSeed.ts'
+import * as pendingInput from '../../src/screen/composer/input-core/pending-input.ts'
+import { resetPendingInputForTests } from '../../src/screen/composer/input-core/pending-input.ts'
+import { armPermissionFocus } from '../../src/permissions/rules/permissionFocus.ts'
+import type { Key } from '../../src/screen/themedRenderer.js'
 
 let failures = 0
 function check(name: string, ok: boolean, detail = ''): void {
   console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)
   if (!ok) {
     failures++
-    console.log('    change isSeedableInput, trySeedComposer, armComposerSeed, enterHeldByQueuedWords, queuedWordsHint or the consent decline row in src/utils/cockpit/composerSeed.ts (the screen checks run the built app with the Write permission card)')
+    console.log('    change isSeedableInput, trySeedComposer, armComposerSeed, enterHeldByQueuedWords, queuedWordsHint or the consent decline row in src/screen/cockpit/composerSeed.ts (the screen checks run the built app with the Write permission card)')
   }
 }
 

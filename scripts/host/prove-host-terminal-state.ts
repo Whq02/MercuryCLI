@@ -5,7 +5,7 @@ import { mountOffscreen, pinSourceRef } from '../lib/settingsPopupHarness.ts'
 import { gridToPng } from '../ui/gridToPng.ts'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { vastFixture } from './vastFixture.mjs'
-import type { LlmHostEvent, LlmHostQuestion, LlmHostRoad } from '../../src/services/llmHost/index.ts'
+import type { LlmHostEvent, LlmHostQuestion, LlmHostRoad } from '../../src/models/llm-host/index.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 pinSourceRef()
@@ -29,24 +29,24 @@ const check = (name: string, truth: unknown, detail?: unknown): void => { checks
 const sshCalls: string[] = []
 const runner = { run: async (command: string) => { sshCalls.push(command); throw new Error('No SSH on a stopped machine') }, tunnel: () => { sshCalls.push('tunnel'); throw new Error('No tunnel on a stopped machine') } }
 try {
-  const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
-  const { queueHostSetup } = await import('../../src/services/host/jobs.ts')
-  const { runHostJob } = await import('../../src/services/host/worker.ts')
-  const { readHostRecord, patchHostRecord, hostDirectory } = await import('../../src/services/host/store.ts')
-  const { saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
+  const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
+  const { queueHostSetup } = await import('../../src/models/hosting/jobs.ts')
+  const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+  const { readHostRecord, patchHostRecord, hostDirectory } = await import('../../src/models/hosting/store.ts')
+  const { saveVendorKey } = await import('../../src/models/hosting/vendors/client.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
   saveVendorKey('vast', vast.key)
   const recipe = HOST_RECIPES.find(row => row.id === 'qwen38-27b-rtx-pro-6000')!
-  assert.ok(recipe, `HOST_RECIPES missing qwen38-27b-rtx-pro-6000 (total=${HOST_RECIPES.length}); check src/services/host/recipes.ts`)
+  assert.ok(recipe, `HOST_RECIPES missing qwen38-27b-rtx-pro-6000 (total=${HOST_RECIPES.length}); check src/models/hosting/recipes.ts`)
   const sessionId = 'terminal-state-session'
   const notices = () => readdirSync(join(hostDirectory(), 'notices')).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(join(hostDirectory(), 'notices', name), 'utf8')) as { words: string })
   let sequence = 8100
   const capture = async (id: string, name: string, resume: boolean): Promise<void> => {
     const React = await import('react')
-    const { Box } = await import('../../src/ink.ts')
-    const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-    const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-    const { LlmHostDialog } = await import('../../src/components/LlmHostDialog.tsx')
+    const { Box } = await import('../../src/screen/themedRenderer.ts')
+    const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+    const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+    const { LlmHostDialog } = await import('../../src/commands/llmhost/LlmHostDialog.tsx')
     const columns = 120, rows = 40
     const clock = Date.UTC(2026, 10, 10, 12)
     const now = Date.now

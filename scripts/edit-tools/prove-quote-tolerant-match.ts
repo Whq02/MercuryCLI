@@ -10,20 +10,20 @@ process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 
-const { findSection, planSectionEdit } = await import('../../src/tools/FileEditTool/sectionEdit.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const grepModule = (await import('../../src/tools/GrepTool/GrepTool.ts')) as unknown as {
+const { findSection, planSectionEdit } = await import('../../src/tools/edit/sectionEdit.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const grepModule = (await import('../../src/tools/grep/GrepTool.ts')) as unknown as {
   GrepTool: { call: Function }
   quoteTolerantPattern?: (pattern: string) => string
 }
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
 const FAILURE_HINTS: Record<string, string> = {
-  S: 'fix findSection or planSectionEdit in src/tools/FileEditTool/sectionEdit.ts so a straight quote in the heading matches its curly twin and the file bytes stay as they were',
-  T: 'fix the section mode of validateInput and call in src/tools/FileEditTool/FileEditTool.ts (and findSection in src/tools/FileEditTool/sectionEdit.ts)',
-  G: 'fix quoteTolerantPattern in src/tools/GrepTool/GrepTool.ts',
-  H: 'fix the pattern the Grep tool passes to the search, quoteTolerantPattern and its callers in src/tools/GrepTool/GrepTool.ts',
+  S: 'fix findSection or planSectionEdit in src/tools/edit/sectionEdit.ts so a straight quote in the heading matches its curly twin and the file bytes stay as they were',
+  T: 'fix the section mode of validateInput and call in src/tools/edit/EditTool.ts (and findSection in src/tools/edit/sectionEdit.ts)',
+  G: 'fix quoteTolerantPattern in src/tools/grep/GrepTool.ts',
+  H: 'fix the pattern the Grep tool passes to the search, quoteTolerantPattern and its callers in src/tools/grep/GrepTool.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++

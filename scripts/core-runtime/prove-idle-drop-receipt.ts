@@ -5,14 +5,14 @@
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — change prefixMarkOf, classifyThinkingDrops or describeThinkingDrops in src/services/providers/anthropic/thinkingBinding.ts (the section 1 rows: src/run-core/turn/streamModel.ts)'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — change prefixMarkOf, classifyThinkingDrops or describeThinkingDrops in src/models/roads/anthropic/thinkingBinding.ts (the section 1 rows: src/engine/loop/turn/streamModel.ts)'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
 
-const binding = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
+const binding = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
 const { classifyThinkingDrops, describeThinkingDrops, prefixMarkOf, resetThinkingDropStates } = binding
 
 type Drop = { type: string; path: string; reason: string }
@@ -26,9 +26,9 @@ section('§1 the writer: no site arms a thinking-clear latch after the idle thre
 {
 
   const t = await import('./turnScenarios.ts')
-  const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
-  const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
+  const { makeRequest } = await import('../../src/engine/loop/turn/makeRequest.ts')
+  const { modelReply } = await import('../../src/engine/loop/turn/modelReply.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
   const f = t.fixtures
   type Row = Record<string, unknown>
   const HOURS_AGO = new Date(Date.now() - 3 * 3_600_000).toISOString()
@@ -77,12 +77,12 @@ section('§1 the writer: no site arms a thinking-clear latch after the idle thre
   check(
     'a drop the API reports after an idle gap is written by the turn machine at WARNING level and names no idle clear (the mark writer arms no thinking-clear flag)',
     idleNote?.level === 'warning' && !idleNote.content.includes('after an hour idle') && !idleNote.content.includes('cleared reasoning'),
-    `the note of a reply that dropped a thought written three hours earlier: ${JSON.stringify(idleNote)} — the model call of src/run-core/turn/streamModel.ts classifies the drop against a mark that says no thinking was cleared, so it reads as a first unlawful drop`,
+    `the note of a reply that dropped a thought written three hours earlier: ${JSON.stringify(idleNote)} — the model call of src/engine/loop/turn/streamModel.ts classifies the drop against a mark that says no thinking was cleared, so it reads as a first unlawful drop`,
   )
   check(
     "…and the mark reads this request's own plan: on a request whose plan pruned superseded results the same drop is the INFO note that names Mercury's prune, and the WARNING where nothing was pruned",
     pruned?.level === 'info' && pruned.content.includes('pruned superseded tool results') && unpruned?.level === 'warning',
-    `on the prune rung with two results cleared: ${JSON.stringify(pruned)}; on the same rung with nothing cleared: ${JSON.stringify(unpruned)} — the mark's context in src/run-core/turn/streamModel.ts is the request plan of this very request and nothing else`,
+    `on the prune rung with two results cleared: ${JSON.stringify(pruned)}; on the same rung with nothing cleared: ${JSON.stringify(unpruned)} — the mark's context in src/engine/loop/turn/streamModel.ts is the request plan of this very request and nothing else`,
   )
 }
 

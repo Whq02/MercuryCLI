@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { LimitWarningReads } from '../../src/services/providers/limitWarning.ts'
+import type { LimitWarningReads } from '../../src/models/roads/limitWarning.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const root = mkdtempSync(join(tmpdir(), 'usage-notice-setting-'))
@@ -9,17 +9,17 @@ process.env.MERCURY_CONFIG_DIR = join(root, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 const project = join(root, 'project')
 mkdirSync(join(project, '.mercury'), { recursive: true })
-const { SettingsSchema } = await import('../../src/utils/settings/types.js')
-const pipeline = await import('../../src/utils/settings/settings.js')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
-const state = await import('../../src/bootstrap/state.js')
+const { SettingsSchema } = await import('../../src/platform/settings/settingsSchema.js')
+const pipeline = await import('../../src/platform/settings/settings.js')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
+const state = await import('../../src/boot/process-state/processState.js')
 state.setOriginalCwd(project)
 state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSettings'])
 const userFile = join(process.env.MERCURY_CONFIG_DIR, 'settings.json')
 writeFileSync(userFile, '{}')
 
-const { getUsageLimitNoticeAttachment } = await import('../../src/services/attachments/sessionContext.ts')
-const { usageWarningNoticeText } = await import('../../src/services/providers/limitWarning.ts')
+const { getUsageLimitNoticeAttachment } = await import('../../src/engine/attachments/sessionNotices.ts')
+const { usageWarningNoticeText } = await import('../../src/models/roads/limitWarning.ts')
 
 const reset = Math.floor(Date.now() / 1000) + 604800
 const entry = { id: 'fixture', provider: 'anthropic', kind: 'subscription-oauth', label: 'fixture', custodian: 'anthropic-slots' } as const
@@ -76,7 +76,7 @@ check('unset: the 80% window reaches no attachment', getUsageLimitNoticeAttachme
 check('unset: the 90% window reaches no attachment', getUsageLimitNoticeAttachment(context, messages, reads(90)).length === 0)
 check('unset: the spending-limit state reaches no attachment', getUsageLimitNoticeAttachment(context, messages, overageReads).length === 0)
 check('unset: the transcript keeps no notice row', !JSON.stringify(messages).includes('usage_limit_notice'))
-const offFacts = (await import('../../src/services/providers/limitWarning.ts')).providerLimitWarningFacts({ model: 'fable', reads: reads(80) })
+const offFacts = (await import('../../src/models/roads/limitWarning.ts')).providerLimitWarningFacts({ model: 'fable', reads: reads(80) })
 check('unset: the facts road still reads the window (the user meters keep their owner)', offFacts !== null && offFacts.pct === 80)
 
 setSetting(false)
@@ -92,7 +92,7 @@ const overage = getUsageLimitNoticeAttachment(context, messages, overageReads)
 check('on: the spending-limit state attaches with the base words', overage.length === 1 && overage[0]!.pct === 0 && overage[0]!.text === 'Anthropic says this account is close to its extra usage spending limit')
 check('on: the words are byte-equal to the base law', usageWarningNoticeText(overage[0]!.text, 0).startsWith('Usage limit near — Anthropic says this account is close to its extra usage spending limit.'))
 {
-  const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.js')
+  const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.js')
   const rendered = normalizeAttachmentForAPI(overage[0]!).map(row => (typeof row.message.content === 'string' ? row.message.content : row.message.content.map(block => (block.type === 'text' ? block.text : '')).join('\n'))).join('\n')
   check('on: the render law holds — the notice row carries usageWarningNoticeText(text, pct)', rendered.includes(usageWarningNoticeText(overage[0]!.text, 0)), rendered.slice(0, 160))
 }

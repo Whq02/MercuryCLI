@@ -2,7 +2,7 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import { bigWordmarkRows } from '../../src/components/mercury-ui/assets.js'
+import { bigWordmarkRows } from '../../src/screen/widgets/assets.js'
 import { CONFIG_HOME, cleanupScenario, scenario } from './renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
@@ -31,7 +31,7 @@ const cfg = {
 }
 
 const RECENT_SID = `00000000-aaaa-bbbb-eeee-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
-const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
 const RAIL_PROJECTS = join(CONFIG_HOME, 'projects', basename(getProjectDir(join(import.meta.dir, '..', '..'))))
 mkdirSync(RAIL_PROJECTS, { recursive: true })
 const recentPath = join(RAIL_PROJECTS, `${RECENT_SID}.jsonl`)

@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { projectSlug } from '../../src/utils/sessionStoragePortable.ts'
+import { projectSlug } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
@@ -40,7 +40,7 @@ const KEEP = process.env.COLLAPSE_DRIVE_KEEP === '1'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}${cond ? '' : ` | fix: ${/delivered every send/.test(label) ? 'the drive did not reach its last mark; read the vshot exit and frame printed above, rebuild with bun run build.ts if dist/mercury.mjs is stale, then look for the send that never found its awaited text' : 'a collapsed group must repaint the rows below its head after the collapse; change the group row in src/components/messages/collapsedReadSearch/views.tsx and the scroll anchor in computeSliceStart in src/components/messagesList/transcript.ts'}`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}${cond ? '' : ` | fix: ${/delivered every send/.test(label) ? 'the drive did not reach its last mark; read the vshot exit and frame printed above, rebuild with bun run build.ts if dist/mercury.mjs is stale, then look for the send that never found its awaited text' : 'a collapsed group must repaint the rows below its head after the collapse; change the group row in src/screen/messages/collapsed-read-search/views.tsx and the scroll anchor in computeSliceStart in src/screen/messages-list/transcript.ts'}`}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

@@ -16,7 +16,7 @@ const NOT_STAGED = 75
 const STAGE_TRIES = 3
 
 let failures = 0
-const drainHint = 'change the drain in src/daemon/run/owner.ts (the reap, the ownership hand-over and the cut at the ceiling) or the park and focus records in src/daemon/concourseWorkers/park.ts and src/daemon/concourseWorkers/focus.ts; a scene run alone sets DRAIN_SCREEN_SCENE and keeps its scratch world named in the forensics line'
+const drainHint = 'change the drain in src/daemon/run/owner.ts (the reap, the ownership hand-over and the cut at the ceiling) or the park and focus records in src/daemon/concourse-workers/park.ts and src/daemon/concourse-workers/focus.ts; a scene run alone sets DRAIN_SCREEN_SCENE and keeps its scratch world named in the forensics line'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${drainHint}` : ''}`)
@@ -51,8 +51,8 @@ if (SCENE === undefined) {
   process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
   process.env.MERCURY_DAEMON_DIR = dir
   delete process.env.MERCURY_HOME
-  const sup = await import('../../src/daemon/concourseWorkers.ts')
-  const turnCut = await import('../../src/utils/messages/turnCut.ts')
+  const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  const turnCut = await import('../../src/engine/message-shapes/turnCut.ts')
   const now = Date.now()
   const sid = (tail: string): string => `00000000-dddd-4000-8000-${tail.padStart(12, '0')}`
   const midTurn = (n: string, extra: Record<string, unknown>): Record<string, unknown> => ({ schema: 1, runnerId: `concourse-w${n}`, sessionId: sid(n), workspaceId: scratch, isolation: 'exclusive', modelKey: 'claude-sonnet-5', spawnedAt: now - 60_000, lastLiveAt: now - 60_000, pid: process.pid, lastDeliveryAt: now - 1_000, lastTurnSettledAt: now - 5_000, ...extra })
@@ -122,9 +122,9 @@ if (SCENE === undefined) {
     const cut = turnCut.turnCutOf(words ?? 'no sentence')
     check('as an abort reason it is a cut with its words, and its row is not the interrupt row', words !== undefined && cut.kind === 'cut' && cut.detail === words && turnCut.turnCutLine(cut, false) === `[Request cut off: ${words}]` && turnCut.turnCutLine(cut, true) === `[Request cut off during tool use: ${words}]` && turnCut.turnCutLine(cut, false) !== turnCut.INTERRUPT_MESSAGE, j(cut))
     check('the stored row reads back as that cut, with the words a window paints after "Cut off"', turnCut.turnCutOfText(`[Request cut off: ${words}]`)?.kind === 'cut' && turnCut.turnCutWhy(turnCut.turnCutOfText(`[Request cut off: ${words}]`) ?? { kind: 'operator' }) === words)
-    const chain = await import('../../src/utils/sessionStorage/chain.ts')
-    const sessionIndex = await import('../../src/utils/sessionStorage/sessionIndex.ts')
-    const portable = await import('../../src/utils/sessionStoragePortable.ts')
+    const chain = await import('../../src/sessions/transcripts/chain.ts')
+    const sessionIndex = await import('../../src/sessions/transcripts/sessionIndex.ts')
+    const portable = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
     const rows = ['[Request cut off: any words a cut carries]', '[Request cut off during tool use: any words a cut carries]', '[Request cut off by a no-progress timeout (the provider went quiet)]', '[Request interrupted by user]', 'the prompt the session was given']
     const message = (text: string): unknown => ({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } })
     const record = (text: string): string => JSON.stringify({ schemaVersion: 1, payload: { kind: 'input', content: [{ kind: 'text', text }], meta: {} } })
@@ -138,10 +138,10 @@ if (SCENE === undefined) {
 
   console.log("T the rewind picker and the prompts list pass over a cut's row as they pass over the interrupt's: it is never offered as words of the user's")
   {
-    const messages = await import('../../src/services/messages.ts')
-    const selector = await import('../../src/components/MessageSelector.tsx')
-    const panel = await import('../../src/components/prompts-panel/rows.ts')
-    const { DeadlineExceededError } = await import('../../src/utils/deadline.ts')
+    const messages = await import('../../src/engine/messages/messages.ts')
+    const selector = await import('../../src/screen/rewind-picker/RewindPicker.tsx')
+    const panel = await import('../../src/screen/prompts-panel/rows.ts')
+    const { DeadlineExceededError } = await import('../../src/platform/async/deadline.ts')
     type Row = { message: { content: string | Array<{ type: string; text?: string }> } }
     const wordsOf = (row: Row): string => (typeof row.message.content === 'string' ? row.message.content : row.message.content.map(block => block.text ?? '').join(''))
     const GIVEN = 'the prompt the session was given'
@@ -222,12 +222,12 @@ process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(configDir, [work])
-const { daemonControlRpc, readDaemonState, writeDaemonState } = await import('../../src/daemon/controlSocket.ts')
-const sup = await import('../../src/daemon/concourseWorkers.ts')
-const ownerWatch = await import('../../src/utils/ownerWatch.ts')
-const handshake = await import('../../src/daemon/handshake.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const turnCut = await import('../../src/utils/messages/turnCut.ts')
+const { daemonControlRpc, readDaemonState, writeDaemonState } = await import('../../src/daemon/control/controlSocket.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const ownerWatch = await import('../../src/daemon/control/ownerWatch.ts')
+const handshake = await import('../../src/daemon/control/handshake.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
+const turnCut = await import('../../src/engine/message-shapes/turnCut.ts')
 
 type Rec = { runnerId: string; sessionId: string; pid?: number; focusedAt?: number; focusedBy?: string; parkedAt?: number; parkedBy?: string; parkReason?: string; parkRequestedAt?: number; parkRequestedBy?: string; lastDeliveryAt?: number; lastTurnSettledAt?: number; endedAt?: number }
 const recordsFile = join(daemonDir, 'concourse-workers.json')

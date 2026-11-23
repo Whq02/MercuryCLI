@@ -24,9 +24,9 @@ console.log('============================================================')
 
 console.log('\n── §1 separators ──')
 {
-  sectionHint = 'fix canonicalizeSuggestionPath and displaySuggestionPath in src/hooks/fileSuggestions.ts, or isPathLikeToken in src/utils/suggestions/directoryCompletion.ts, so the spelling the label names comes out'
+  sectionHint = 'fix canonicalizeSuggestionPath and displaySuggestionPath in src/screen/composer/typeahead/fileSuggestions.ts, or isPathLikeToken in src/screen/suggestions/pathCompletion.ts, so the spelling the label names comes out'
   const { canonicalizeSuggestionPath, displaySuggestionPath } = await import(
-    join(REPO, 'src/hooks/fileSuggestions.ts')
+    join(REPO, 'src/screen/composer/typeahead/fileSuggestions.ts')
   )
   check("win32: a backslash query folds to the canonical spelling", canonicalizeSuggestionPath('src\\ut', '\\') === 'src/ut')
   check('win32: a forward-slash query is already canonical', canonicalizeSuggestionPath('src/ut', '\\') === 'src/ut')
@@ -35,7 +35,7 @@ console.log('\n── §1 separators ──')
   check('POSIX: results render untouched', displaySuggestionPath('src/utils/x.ts', '/') === 'src/utils/x.ts')
   check('win32 round trip: canonical → display → canonical', canonicalizeSuggestionPath(displaySuggestionPath('a/b/c', '\\'), '\\') === 'a/b/c')
 
-  const { isPathLikeToken } = await import(join(REPO, 'src/utils/suggestions/directoryCompletion.ts'))
+  const { isPathLikeToken } = await import(join(REPO, 'src/screen/suggestions/pathCompletion.ts'))
   check('the Windows relative spellings are path-like: .\\build', isPathLikeToken('.\\build'))
   check('..\\lib is path-like', isPathLikeToken('..\\lib'))
   check('~\\x is path-like', isPathLikeToken('~\\x'))
@@ -46,7 +46,7 @@ console.log('\n── §1 separators ──')
 
 console.log('\n── §2 per-project keying (two projects, one process) ──')
 {
-  sectionHint = 'generateFileSuggestions in src/hooks/fileSuggestions.ts must key its file index by the working directory (runWithCwdOverride in src/utils/cwd.ts), so one project never answers with another project paths and each project rebuilds its own index'
+  sectionHint = 'generateFileSuggestions in src/screen/composer/typeahead/fileSuggestions.ts must key its file index by the working directory (runWithCwdOverride in src/platform/files/cwd.ts), so one project never answers with another project paths and each project rebuilds its own index'
   const projA = join(SCRATCH, 'proj-alpha')
   const projB = join(SCRATCH, 'proj-beta')
   mkdirSync(projA, { recursive: true })
@@ -54,10 +54,10 @@ console.log('\n── §2 per-project keying (two projects, one process) ──'
   writeFileSync(join(projA, 'alpha-only-marker.ts'), '// alpha\n')
   writeFileSync(join(projB, 'beta-only-marker.ts'), '// beta\n')
 
-  const { enableConfigs } = await import(join(REPO, 'src/utils/config/globalConfig.ts'))
+  const { enableConfigs } = await import(join(REPO, 'src/platform/config/globalConfig.ts'))
   enableConfigs()
-  const { runWithCwdOverride } = await import(join(REPO, 'src/utils/cwd.ts'))
-  const suggestions = await import(join(REPO, 'src/hooks/fileSuggestions.ts'))
+  const { runWithCwdOverride } = await import(join(REPO, 'src/platform/files/cwd.ts'))
+  const suggestions = await import(join(REPO, 'src/screen/composer/typeahead/fileSuggestions.ts'))
 
   const query = (cwd: string, partial: string): Promise<Array<{ displayText: string }>> =>
     runWithCwdOverride(cwd, () => suggestions.generateFileSuggestions(partial))
@@ -86,8 +86,8 @@ console.log('\n── §2 per-project keying (two projects, one process) ──'
 
 console.log('\n── §3 timers ──')
 {
-  sectionHint = 'fix armTypeaheadTimer, disarmTypeaheadTimer and typeaheadTimerCensus in src/hooks/useTypeahead.tsx so the census counts only armed debounces that have not fired or been disarmed'
-  const typeahead = await import(join(REPO, 'src/hooks/useTypeahead.tsx'))
+  sectionHint = 'fix armTypeaheadTimer, disarmTypeaheadTimer and typeaheadTimerCensus in src/screen/composer/typeahead/useTypeahead.tsx so the census counts only armed debounces that have not fired or been disarmed'
+  const typeahead = await import(join(REPO, 'src/screen/composer/typeahead/useTypeahead.tsx'))
   check('census starts at zero', typeahead.typeaheadTimerCensus() === 0, String(typeahead.typeaheadTimerCensus()))
   let fired = false
   const timer = typeahead.armTypeaheadTimer(() => {
@@ -106,8 +106,8 @@ console.log('\n── §3 timers ──')
 
 console.log('\n── §3b worktree gitdir + tracked-skip ──')
 {
-  sectionHint = 'fix resolveGitDir in src/hooks/fileSuggestions.ts: a linked worktree must resolve through its .git pointer file to the per-worktree git dir, and a non-repo must return null without throwing'
-  const { resolveGitDir } = await import(join(REPO, 'src/hooks/fileSuggestions.ts'))
+  sectionHint = 'fix resolveGitDir in src/screen/composer/typeahead/fileSuggestions.ts: a linked worktree must resolve through its .git pointer file to the per-worktree git dir, and a non-repo must return null without throwing'
+  const { resolveGitDir } = await import(join(REPO, 'src/screen/composer/typeahead/fileSuggestions.ts'))
   const { execFileSync } = await import('node:child_process')
   const repoDir = join(SCRATCH, 'gitdir-main')
   const wtDir = join(SCRATCH, 'gitdir-linked')
@@ -132,8 +132,8 @@ console.log('\n── §3b worktree gitdir + tracked-skip ──')
 
 console.log('\n── §4 middle truncation ──')
 {
-  sectionHint = 'fix truncatePathMiddle in src/utils/truncate.ts so both separators keep the root and the file name around the ellipsis within the width budget'
-  const { truncatePathMiddle } = await import(join(REPO, 'src/utils/truncate.ts'))
+  sectionHint = 'fix truncatePathMiddle in src/platform/text/truncate.ts so both separators keep the root and the file name around the ellipsis within the width budget'
+  const { truncatePathMiddle } = await import(join(REPO, 'src/platform/text/truncate.ts'))
   const posix = 'src/components/prompt-input/PromptInputFooterSuggestions.tsx'
   const win32 = 'src\\components\\prompt-input\\PromptInputFooterSuggestions.tsx'
   const budget = 44

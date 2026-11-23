@@ -10,7 +10,7 @@ export function prebuiltSeats(): boolean {
 
 export function sourceLauncher(dir: string, name = 'launcher.ts'): string {
   const launcher = join(dir, name)
-  writeFileSync(launcher, `;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }\ndelete process.env.NODE_ENV\nawait import(${JSON.stringify(join(REPO, 'src', 'entrypoints', 'cli.tsx'))})\n`)
+  writeFileSync(launcher, `;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }\ndelete process.env.NODE_ENV\nawait import(${JSON.stringify(join(REPO, 'src', 'boot', 'entrypoints', 'cli.tsx'))})\n`)
   return launcher
 }
 

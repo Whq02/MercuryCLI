@@ -20,7 +20,7 @@ const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
 let checks = 0
-const FIX_HINT = 'change classifyThinkingDrops, describeThinkingDrops, turnOrdinalOfWirePath or the drop ledger in src/services/providers/anthropic/thinkingBinding.ts (the section heading above names other modules; the section 4 health row is preservedThinkingHealth there, run from src/services/health/sections/memory.ts)'
+const FIX_HINT = 'change classifyThinkingDrops, describeThinkingDrops, turnOrdinalOfWirePath or the drop ledger in src/models/roads/anthropic/thinkingBinding.ts (the section heading above names other modules; the section 4 health row is preservedThinkingHealth there, run from src/platform/health/sections/memory.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -31,7 +31,7 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const binding = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
+const binding = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
 const { classifyThinkingDrops, describeThinkingDrops, prefixMarkOf, resetThinkingDropStates } = binding
 
 type Entry = { type: string; path: string; reason: string }
@@ -172,7 +172,7 @@ section('§1 the classifier')
   const words = describeThinkingDrops([DROP('messages.1.content.0')], modeMove) ?? ''
   check('the words: "after you changed the permission mode (default → apollo) — the system prompt and the tool roster moved with it", expected once', words.includes('after you changed the permission mode (default → apollo)') && words.includes('the system prompt and the tool roster moved with it') && words.includes('expected once') && !words.includes('Mercury') && !words.includes('health'), words)
 
-  const { declareLawfulPrefixChange, consumeLawfulPrefixChange, pendingLawfulPrefixChange, resetLawfulPrefixChanges } = await import('../../src/services/providers/lawfulPrefixChange.ts')
+  const { declareLawfulPrefixChange, consumeLawfulPrefixChange, pendingLawfulPrefixChange, resetLawfulPrefixChanges } = await import('../../src/models/roads/lawfulPrefixChange.ts')
   resetLawfulPrefixChanges()
   resetThinkingDropStates()
   classifyThinkingDrops('seam', [], mark())
@@ -199,8 +199,8 @@ section('§1 the classifier')
 section('§1b Mercury\'s own context edits are named, not read as a rewrite')
 {
   const { preservedThinkingHealth } = binding
-  const { buildRequestContextPlan } = await import('../../src/services/run/requestContextPlan.js')
-  const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.js')
+  const { buildRequestContextPlan } = await import('../../src/engine/run/requestContextPlan.js')
+  const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.js')
   const savedTimePrune = process.env.MERCURY_TIME_BASED_MC
   process.env.MERCURY_TIME_BASED_MC = '1'
   const history = [user('Read the files.'), ...Array.from({ length: 13 }, (_, i) => [
@@ -266,7 +266,7 @@ section('§1b Mercury\'s own context edits are named, not read as a rewrite')
 
 section('§1c the count cannot fire the prune early — a session at 88% never prunes')
 {
-  const { getBlockingLimit, calculateTokenWarningState, getEffectiveContextWindowSize } = await import('../../src/services/compact/autoCompact.ts')
+  const { getBlockingLimit, calculateTokenWarningState, getEffectiveContextWindowSize } = await import('../../src/engine/compaction/autoFold.ts')
   const model = 'claude-fable-5-1'
   const window = getEffectiveContextWindowSize(model)
   const blockingLimit = getBlockingLimit(model)
@@ -285,7 +285,7 @@ section('§2 the words')
   const lawful = describeThinkingDrops(list, classifyThinkingDrops('w', list, mark({ firstRow: 'summary-row' }))) ?? ''
   check('a single lawful drop is the one-line receipt naming compaction and a turn, never a wire path', lawful.startsWith('Preserved thinking: the API dropped 1 thinking block after the compaction') && lawful.includes('the first turn') && !lawful.includes('messages.1.content.0') && lawful.includes('expected once'), lawful)
   check('…with no Mercury blame, no health pointer', !lawful.includes('Mercury') && !lawful.includes('health'), lawful)
-  const { createThinkingNoteMessage } = await import('../../src/utils/messages/systemMessages.ts')
+  const { createThinkingNoteMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
   const note = createThinkingNoteMessage(lawful)
   check('the lawful receipt is a thinking_note system row at info level, carrying the sentence', note.type === 'system' && note.subtype === 'thinking_note' && note.level === 'info' && note.content === lawful, j(note))
 
@@ -295,10 +295,10 @@ section('§2 the words')
   check('a first drop keeps the client-side-edit sentence', first === binding.describeInputTransformations(list), first)
   const warning = createThinkingNoteMessage(first, 'warning')
   check('the rewrite receipt is the same thinking_note row at warning level — never an informational row the painter would draw', warning.type === 'system' && warning.subtype === 'thinking_note' && warning.level === 'warning' && warning.content === first, j(warning))
-  const nullRows = await import('../../src/components/messages/nullRenderingAttachments.ts').catch(() => null)
+  const nullRows = await import('../../src/screen/messages/nullRenderingAttachments.ts').catch(() => null)
   const hides = (row: unknown): boolean => nullRows !== null && typeof nullRows.isNullRenderingSystemRow === 'function' && nullRows.isNullRenderingSystemRow(row as never)
   check('the transcript row filter hides the receipt at either level and the legacy dead row, never a user row', hides(note) && hides(warning) && hides({ type: 'system', subtype: 'thinking_dead', dead: [], content: '', level: 'info' }) && !hides(user('a question')) && !hides({ type: 'system', subtype: 'informational', content: 'a real notice', level: 'warning' }))
-  const { renderMessagesToPlainText } = await import('../../src/components/exportRenderer.tsx')
+  const { renderMessagesToPlainText } = await import('../../src/screen/chat/exportRenderer.tsx')
   const drawn = await renderMessagesToPlainText([user('a question the operator typed'), note, warning] as never, [] as never, 80)
   check('drawn through the transcript pipeline, the operator row paints and neither receipt does', drawn.includes('a question the operator typed') && !drawn.includes('Preserved thinking') && !drawn.includes('dropped 1 thinking block'), j(drawn.slice(0, 400)))
   const { createDeadThinkingAttachment, deadThinkingMarks, stripDeadThinking } = binding
@@ -336,7 +336,7 @@ section('§2 the words')
 section('§2b the model-switch receipt — the previous model\'s thinking leaves quietly, once')
 {
   const { isSameModel, modelSwitchReceipt } = binding
-  const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/services/messages/apiFilters.ts')
+  const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/engine/messages/apiFilters.ts')
   check('an alias, a suffix and a dated spelling of one model are the same model', isSameModel('claude-fable-5-1', 'claude-fable-5-1[1m]') && isSameModel('claude-opus-4-8', 'claude-opus-4-6') && isSameModel('claude-opus-5', 'claude-opus-5'))
   check('two families are not', !isSameModel('claude-opus-4-8', 'claude-fable-5-1') && !isSameModel('claude-opus-5', 'claude-fable-5-1'))
   const withModel = (row: Record<string, unknown>, model: string): Record<string, unknown> => ({ ...row, message: { ...(row.message as Record<string, unknown>), model } })
@@ -426,7 +426,7 @@ section('§3 the ledger and the health row')
   const ls = readThinkingDropLedger()
   const rs = preservedThinkingHealth(ls)
   check('an operator-setting drop is recorded with its detail and reads as an info row naming the setting', ls?.last.lawful === 'operator-setting' && ls.last.detail === 'the permission mode (default → apollo)' && rs.status === 'info' && rs.evidence.includes('a setting change (the permission mode (default → apollo))'), j(rs))
-  const { declareLawfulPrefixChange: declareForLedger, resetLawfulPrefixChanges: resetForLedger } = await import('../../src/services/providers/lawfulPrefixChange.ts')
+  const { declareLawfulPrefixChange: declareForLedger, resetLawfulPrefixChanges: resetForLedger } = await import('../../src/models/roads/lawfulPrefixChange.ts')
   classifyThinkingDrops('ld', [], mark())
   declareForLedger('ld', 'sub-agents were turned on')
   const declaredForLedger = classifyThinkingDrops('ld', [DROP('messages.1.content.0')], mark())

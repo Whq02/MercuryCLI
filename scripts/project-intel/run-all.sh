@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/services/projectIntel/**
-# gate-watch: src/utils/cockpit/repoSurfaceMap*
+# gate-watch: src/sessions/project-intel/**
+# gate-watch: src/screen/cockpit/repoSurfaceMap.ts
 # gate-watch: src/commands/orient/orient.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

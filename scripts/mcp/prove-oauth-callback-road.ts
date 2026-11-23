@@ -12,16 +12,16 @@ process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { performMCPOAuthFlow } = await import('../../src/services/mcp/auth.ts')
+const { performMCPOAuthFlow } = await import('../../src/integrations/mcp/auth.ts')
 
 let failures = 0
-const FAIL_HINT = 'change performMCPOAuthFlow in src/services/mcp/auth.ts (callback listener, state and iss checks, token exchange, browser page); configured headers on the authorization requests come from authFetchFor in the same file'
+const FAIL_HINT = 'change performMCPOAuthFlow in src/integrations/mcp/auth.ts (callback listener, state and iss checks, token exchange, browser page); configured headers on the authorization requests come from authFetchFor in the same file'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' | ' : ''}${FAIL_HINT}` : ''}`)
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — oauth road prover exceeded 90s; a sign-in never settled, read performMCPOAuthFlow in src/services/mcp/auth.ts for the path that waits on the callback')
+  console.log('\nTIMEOUT — oauth road prover exceeded 90s; a sign-in never settled, read performMCPOAuthFlow in src/integrations/mcp/auth.ts for the path that waits on the callback')
   process.exit(1)
 }, 90_000)
 watchdog.unref?.()

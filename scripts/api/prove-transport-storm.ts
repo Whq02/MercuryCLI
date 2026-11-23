@@ -11,8 +11,8 @@ const entry = join(outDir, 'entry.ts')
 writeFileSync(
   entry,
   [
-    `export * from '${join(repo, 'src/utils/proxy.ts')}'`,
-    `export { deepestErrorDetail, isStaleSocketCode, transportCutOf } from '${join(repo, 'src/utils/api/transportEvidence.ts')}'`,
+    `export * from '${join(repo, 'src/platform/network/proxy.ts')}'`,
+    `export { deepestErrorDetail, isStaleSocketCode, transportCutOf } from '${join(repo, 'src/engine/request-parts/transportEvidence.ts')}'`,
     '',
   ].join('\n'),
 )
@@ -34,7 +34,7 @@ const build = await Bun.build({
   ],
 })
 if (!build.success) {
-  console.error('❌ TRANSPORT STORM — bundle failed; fix the import or syntax error below in src/utils/proxy.ts or src/utils/api/transportEvidence.ts')
+  console.error('❌ TRANSPORT STORM — bundle failed; fix the import or syntax error below in src/platform/network/proxy.ts or src/engine/request-parts/transportEvidence.ts')
   for (const log of build.logs) console.error(String(log))
   process.exit(1)
 }

@@ -4,12 +4,12 @@ import * as net from 'node:net'
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
-import { BlenderBridgeClient } from '../../src/services/blender/bridgeClient.js'
-import { BLENDER_BRIDGE_PYTHON_SOURCE_CAP_BYTES } from '../../src/utils/blender/bridgeProtocol.js'
+import { BlenderBridgeClient } from '../../src/integrations/blender/bridgeClient.js'
+import { BLENDER_BRIDGE_PYTHON_SOURCE_CAP_BYTES } from '../../src/integrations/blender-protocol/bridgeProtocol.js'
 import { startFakeBlenderBridge } from './fake-bridge.js'
 
 let failures = 0
-const blenderBridgeFixHint = 'change BlenderBridgeClient (request, status, nextDelayMs, drainEvents) in src/services/blender/bridgeClient.ts or the protocol constants in src/utils/blender/bridgeProtocol.ts; if the label is about what the server sent, the stand-in server is scripts/blender-bridge/fake-bridge.ts'
+const blenderBridgeFixHint = 'change BlenderBridgeClient (request, status, nextDelayMs, drainEvents) in src/integrations/blender/bridgeClient.ts or the protocol constants in src/integrations/blender-protocol/bridgeProtocol.ts; if the label is about what the server sent, the stand-in server is scripts/blender-bridge/fake-bridge.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : `${detail ? ' | ' : ' — '}${blenderBridgeFixHint}`}`)

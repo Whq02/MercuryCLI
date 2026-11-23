@@ -7,7 +7,7 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
-const OVERFLOW_FOLD_FAILURE_HINT = ' | change the overflow recovery in src/services/compact/overflowRecovery.ts (decideOverflowRecovery, overflowRecoveryNotice, overflowRefusalText), driven from src/run-core/turn/makeRequest.ts and src/run-core/turn/noToolReply.ts, or the fold itself (compactConversation in src/services/compact/compact.ts)'
+const OVERFLOW_FOLD_FAILURE_HINT = ' | change the overflow recovery in src/engine/compaction/overflowRecovery.ts (decideOverflowRecovery, overflowRecoveryNotice, overflowRefusalText), driven from src/engine/loop/turn/makeRequest.ts and src/engine/loop/turn/noToolReply.ts, or the fold itself (compactConversation in src/engine/compaction/foldConversation.ts)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -17,7 +17,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — overflow real-fold prover exceeded 240s; the fold or the retry never settled, look at src/services/compact/overflowRecovery.ts and the section printed last above')
+  console.log('\nTIMEOUT — overflow real-fold prover exceeded 240s; the fold or the retry never settled, look at src/engine/compaction/overflowRecovery.ts and the section printed last above')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()
@@ -42,18 +42,18 @@ console.log('============================================================')
 console.log(' context-overflow recovery — the real fold over the loopback')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/query.ts')
-const { productionDeps } = await import('../../src/query/deps.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { contextFill } = await import('../../src/services/context/tokens.ts')
-const { ERROR_MESSAGE_PROMPT_TOO_LONG, PROSE_SKIPPED_KEY } = await import('../../src/services/compact/compact.ts')
-const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { contextFill } = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { ERROR_MESSAGE_PROMPT_TOO_LONG, PROSE_SKIPPED_KEY } = await import('../../src/engine/compaction/foldConversation.ts')
+const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/engine/requests/apiErrorRows.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
 const textOf = (m: unknown): string => {
@@ -294,7 +294,7 @@ section('F5 a long history keeps its verbatim tail through the overflow fold; th
 
 section('F6 early folding off never disables the real emergency fold, on either overflow road')
 {
-  const { saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+  const { saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
   for (const off of ['config', 'environment'] as const) {
     if (off === 'config') saveGlobalConfig(c => ({ ...c, autoCompactEnabled: false }))
     else process.env.MERCURY_AUTO_COMPACT = '0'

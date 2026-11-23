@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/usage/usageHistory.ts src/cli/handlers/usageHistory.ts src/main.tsx src/cost-tracker.ts src/services/usage/modelCost.ts src/utils/model/pins/deepseekPins.ts src/services/providers/providerUsage.ts
+// gate-watch: src/models/usage/usageHistory.ts src/commands/verbs/usageHistory.ts src/boot/main.tsx src/models/usage/sessionCost.ts src/models/usage/modelCost.ts src/models/facts/pins/deepseekPins.ts src/models/roads/providerUsage.ts
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { spawnCaptureSync } from '../lib/spawnCapture.ts'
@@ -22,7 +22,7 @@ delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const netGuard = join(scratch, 'no-network.cjs')
 writeFileSync(netGuard, `const fail = () => { throw new Error('network forbidden in usage history proof') }; globalThis.fetch = fail; for (const name of ['http', 'https', 'net', 'tls']) { const mod = require('node:' + name); for (const key of ['request', 'get', 'connect', 'createConnection']) if (typeof mod[key] === 'function') mod[key] = fail; }`)
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
 const sid = '11111111-1111-4111-8111-111111111111'
 const sid2 = '22222222-2222-4222-8222-222222222222'
 const file = join(home, 'projects', 'alpha', `${sid}.jsonl`)
@@ -100,7 +100,7 @@ try {
   assert.ok(!readFileSync(join(home, 'usage-history.json'), 'utf8').includes('fixture-private-text'), 'usage-history.json persisted private transcript text; check usageHistory.ts')
   console.log('PASS cross-session totals, unpriced, cache reuse, project selection, read-only transcripts, zero network')
 
-  const { formatUsageHistory } = await import('../../src/cli/handlers/usageHistory.ts')
+  const { formatUsageHistory } = await import('../../src/commands/verbs/usageHistory.ts')
   const collisions = formatUsageHistory({ ...report, byProject: [
     { ...report.byProject[0], key: '/workspace/alpha/project-x' },
     { ...report.byProject[1], key: 'C:\\workspace\\beta\\project-x' },
@@ -109,15 +109,15 @@ try {
   assert.match(collisions, /beta\/project-x/)
   assert.ok(!collisions.includes('workspace'), `formatUsageHistory did not strip shared parent prefix (got=${collisions.slice(0, 160)}); check cli/handlers/usageHistory.ts`)
   console.log('PASS short project labels and shortest distinguishing parents')
-  const { readUsageHistory, recordUsageObservations, boundUsageHistory, USAGE_HISTORY_MAX_ROWS, USAGE_OBSERVATION_MAX_ROWS, USAGE_HISTORY_MAX_FILES } = await import('../../src/services/usage/usageHistory.ts')
+  const { readUsageHistory, recordUsageObservations, boundUsageHistory, USAGE_HISTORY_MAX_ROWS, USAGE_OBSERVATION_MAX_ROWS, USAGE_HISTORY_MAX_FILES } = await import('../../src/models/usage/usageHistory.ts')
   globalThis.fetch = (() => { throw new Error('network forbidden') }) as typeof fetch
-  const { transcriptReaderCensus } = await import('../../src/utils/sessionStorage/transcriptReader.ts')
+  const { transcriptReaderCensus } = await import('../../src/sessions/transcripts/transcriptReader.ts')
   const today = await readUsageHistory({ days: 1, now: Date.parse('2026-10-23T20:00:00Z') })
   assert.equal(today.totals.turns, 3)
   const bytesBefore = transcriptReaderCensus.bytesRead
   await readUsageHistory()
   assert.equal(transcriptReaderCensus.bytesRead, bytesBefore, 'unchanged transcripts are not re-read')
-  const { calculateUSDCost, resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
+  const { calculateUSDCost, resolveModelPricing } = await import('../../src/models/usage/modelCost.ts')
   const price = (at: string, model = 'deepseek-flash') => calculateUSDCost(model, { ...usage, request_started_at_ms: Date.parse(at) })
   for (const at of ['2026-10-23T01:00:00Z', '2026-10-23T03:59:59Z', '2026-10-23T06:00:00Z', '2026-10-23T09:59:59Z']) assert.ok(Math.abs(price(at) - 1.506) < 1e-9, at)
   for (const at of ['2026-10-23T00:59:59Z', '2026-10-23T04:00:00Z', '2026-10-23T05:59:59Z', '2026-10-23T10:00:00Z', '2026-10-24T02:00:00Z', '2026-10-01T02:00:00Z', '2026-02-23T02:00:00Z']) assert.ok(Math.abs(price(at) - 0.753) < 1e-9, at)
@@ -129,7 +129,7 @@ try {
   const at = Date.parse('2026-10-23T12:00:00Z')
   process.env.OPENROUTER_API_KEY = 'fixture-history-key'
   process.env.MERCURY_OPENROUTER_API_BASE = 'http://127.0.0.1:1/api/v1'
-  const { refreshProviderUsage } = await import('../../src/services/providers/providerUsage.ts')
+  const { refreshProviderUsage } = await import('../../src/models/roads/providerUsage.ts')
   let requests = 0
   await refreshProviderUsage('openrouter', { force: true, now: () => at, fetchImpl: (async () => {
     requests++

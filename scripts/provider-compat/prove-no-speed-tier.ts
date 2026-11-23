@@ -181,15 +181,15 @@ section('§0 the scanner trips on planted poison')
   check('a `fastMode` or `speed` option a turn hands its lane is flagged, and an ordinary option is not', poisonOptions.map(h => h.where).join(',') === 'options.fastMode,options.speed', JSON.stringify(poisonOptions))
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/query.ts')
-const { productionDeps } = await import('../../src/query/deps.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 
 function makeCtx(model: string): Record<string, unknown> {
   let appState: Record<string, unknown> = {
@@ -279,7 +279,7 @@ for (const { lane, model, dialect } of LANES) {
   turnOptions.push(...r.handed)
   check('the turn completed through the fixture in exactly one request', r.threw === undefined && r.terminal.reason === 'completed' && r.wire.length === 1, `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)} requests=${r.wire.length}`)
   const req = r.wire[0]
-  check('the request left on the expected dialect', req?.dialect === dialect, `${req?.path}; expected the ${dialect} dialect for ${model}, so the model routed to the wrong lane (src/services/providers/callModelRouter.ts)`)
+  check('the request left on the expected dialect', req?.dialect === dialect, `${req?.path}; expected the ${dialect} dialect for ${model}, so the model routed to the wrong lane (src/models/roads/callModelRouter.ts)`)
   if (req === undefined) continue
   check('the request is a real model call (model + conversation present)', typeof req.body.model === 'string' && (Array.isArray(req.body.messages) || Array.isArray(req.body.input)), Object.keys(req.body).join(','))
   const hits = scanRequest(req)

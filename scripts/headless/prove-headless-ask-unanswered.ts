@@ -15,10 +15,10 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ask-unanswered-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_BARE
 
-const rejection = await import('../../src/utils/messages/rejectionText.ts')
+const rejection = await import('../../src/engine/message-shapes/rejectionText.ts')
 const { isDenialResultText, unwrapToolUseError } = rejection
 const build = (rejection as { UNANSWERED_ASK_REJECT_MESSAGE?: (toolName: string, cause: string) => string }).UNANSWERED_ASK_REJECT_MESSAGE
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 
 const tally = makeTally('prove-headless-ask-unanswered')

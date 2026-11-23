@@ -36,17 +36,17 @@ console.log(' /model — a picker opened while the chat lands keeps its cursor')
 console.log('============================================================')
 
 const gate = await import('../../src/commands/model/modelPickerLandingGate.tsx')
-const focused = await import('../../src/services/engine-connector/focusedConnector.ts')
+const focused = await import('../../src/engine/connector/focusedConnector.ts')
 const WORDS = gate.MODEL_PICKER_LANDING_WORDS
 const PICKER = 'PICKER PAINTED'
 
 section('THE GATE off-screen: the landing line while a landing is in flight, the picker once it settles')
 {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
   const stripAnsi = (await import('strip-ansi')).default
   const React = (await import('react')).default
-  const { render, Text } = await import('../../src/ink.js')
+  const { render, Text } = await import('../../src/screen/themedRenderer.js')
   const mount = async (ceilingMs?: number) => {
     let output = ''
     const stdout = new PassThrough()
@@ -90,7 +90,7 @@ section('THE GATE off-screen: the landing line while a landing is in flight, the
     await landing
     await sleep(150)
     check('once the landing settles the picker paints', view.seen().includes(PICKER), `MercuryModelLandingGate in src/commands/model/modelPickerLandingGate.tsx must render its children once the landing settles; screen tail: ${view.seen().slice(-200)}`)
-    check('the landing edge cleared the gate (no landing in flight)', !focused.landingInFlight(), 'withLanding in src/services/engine-connector/focusedConnector.ts must clear its in-flight mark when the landing promise settles')
+    check('the landing edge cleared the gate (no landing in flight)', !focused.landingInFlight(), 'withLanding in src/engine/connector/focusedConnector.ts must clear its in-flight mark when the landing promise settles')
     view.unmount()
   }
   {
@@ -193,7 +193,7 @@ if (driver.kind !== 'posix-pty') {
     check('the capture wrote its grid', false, 'vshot.py wrote no grid file; run scripts/ui/vshot.py by hand with the config and read its stderr')
   }
   try {
-    const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+    const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
     await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
   } catch {
   }

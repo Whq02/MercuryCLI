@@ -21,9 +21,9 @@ const section = (t: string, hint = ''): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const state = await import('../../src/bootstrap/state.ts')
-const config = await import('../../src/utils/config/globalConfig.ts')
-const { createAgentWorktree, createWorktreeForSession, keepWorktree } = await import('../../src/services/worktree.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const config = await import('../../src/platform/config/globalConfig.ts')
+const { createAgentWorktree, createWorktreeForSession, keepWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-base-')))
 const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }
@@ -88,7 +88,7 @@ const enter = (repo: string): void => {
   config.enableConfigs()
 }
 
-section('§1 a stale refs/remotes/origin/main with no origin remote: the worktree stands at the checkout HEAD', 'to fix (unless the fixture line itself failed): createAgentWorktree in src/services/worktree.ts must base the worktree on the checkout HEAD, never on refs/remotes/origin/*, on its own branch with no upstream, and record that sha as WORKTREE_BASE')
+section('§1 a stale refs/remotes/origin/main with no origin remote: the worktree stands at the checkout HEAD', 'to fix (unless the fixture line itself failed): createAgentWorktree in src/platform/git/worktree/worktree.ts must base the worktree on the checkout HEAD, never on refs/remotes/origin/*, on its own branch with no upstream, and record that sha as WORKTREE_BASE')
 const stale = buildRepo('stale')
 const unrelated = unrelatedCommit(stale.repo)
 git(stale.repo, 'update-ref', 'refs/remotes/origin/main', unrelated)
@@ -106,7 +106,7 @@ check('the worktree is on its own branch', !isDetached(lane.worktreePath) && lan
 check('the branch carries no upstream', upstreamLines(stale.repo, 'worktree-agent-a0000001') === '', upstreamLines(stale.repo, 'worktree-agent-a0000001'))
 check('the file in the worktree is the checkout file', readText(join(lane.worktreePath, 'a.txt')) === 'two\n')
 
-section('§2 an origin remote whose main is ahead of the local main: the base is still the local HEAD, and no fetch runs', 'to fix (unless the fixture line itself failed): createAgentWorktree in src/services/worktree.ts must base on the local HEAD and run no git fetch when no pin or pull request is given')
+section('§2 an origin remote whose main is ahead of the local main: the base is still the local HEAD, and no fetch runs', 'to fix (unless the fixture line itself failed): createAgentWorktree in src/platform/git/worktree/worktree.ts must base on the local HEAD and run no git fetch when no pin or pull request is given')
 const local = buildRepo('local')
 const originRepo = join(scratch, 'origin.git')
 git(scratch, 'clone', '-q', '--bare', local.repo, originRepo)
@@ -135,7 +135,7 @@ check('with the remote-tracking ref absent the worktree HEAD is still the local 
 check('…and still no fetch ran', !existsSync(fetchHead))
 check('the remote-tracking ref was not recreated', gitCode(local.repo, 'rev-parse', '--verify', '-q', 'refs/remotes/origin/main') !== 0)
 
-section('§3 the pinned road stands at the pinned commit whatever the stale bookmark says', 'to fix: the `at` option of createAgentWorktree in src/services/worktree.ts must create a detached worktree at that commit and record it as the base')
+section('§3 the pinned road stands at the pinned commit whatever the stale bookmark says', 'to fix: the `at` option of createAgentWorktree in src/platform/git/worktree/worktree.ts must create a detached worktree at that commit and record it as the base')
 enter(stale.repo)
 const pinned = await createAgentWorktree('agent-a0000004', { at: stale.first })
 check('the worktree HEAD is the pin', headOf(pinned.worktreePath) === stale.first, `${headOf(pinned.worktreePath)} vs ${stale.first}`)
@@ -144,7 +144,7 @@ check('the baseline records the pin', baselineOf(pinned.worktreePath) === stale.
 check('the result names the pin', pinned.headCommit === stale.first)
 check('the pinned tree reads the pinned file', readText(join(pinned.worktreePath, 'a.txt')) === 'one\n')
 
-section('§4 six creations launched together in one process, on a repository with a configured origin and its remote-tracking ref, all succeed, each at HEAD', 'to fix: concurrent createAgentWorktree calls (src/services/worktree.ts) must not collide on the shared git config or refs, and every call must base on the checkout HEAD (or the pin)')
+section('§4 six creations launched together in one process, on a repository with a configured origin and its remote-tracking ref, all succeed, each at HEAD', 'to fix: concurrent createAgentWorktree calls (src/platform/git/worktree/worktree.ts) must not collide on the shared git config or refs, and every call must base on the checkout HEAD (or the pin)')
 git(local.repo, 'update-ref', 'refs/remotes/origin/main', remoteHead)
 enter(local.repo)
 const sixSlugs = Array.from({ length: 6 }, (_, index) => `agent-a100000${index}`)
@@ -163,7 +163,7 @@ const sixPinnedOk = fulfilled(sixPinned)
 check('six pinned creations launched together all succeed', sixPinnedOk.length === 6, refusals(sixPinned))
 check('each pinned one stands at the pin, detached', sixPinnedOk.length === 6 && sixPinnedOk.every(cut => headOf(cut.worktreePath) === local.first && isDetached(cut.worktreePath)))
 
-section('§5 a ref lock another process holds for a moment: creation waits it out', 'to fix: createAgentWorktree in src/services/worktree.ts must wait out a briefly held .lock on the branch ref instead of failing')
+section('§5 a ref lock another process holds for a moment: creation waits it out', 'to fix: createAgentWorktree in src/platform/git/worktree/worktree.ts must wait out a briefly held .lock on the branch ref instead of failing')
 const lockSlug = 'agent-a3000000'
 mkdirSync(join(stale.repo, '.git', 'refs', 'heads'), { recursive: true })
 const heldLock = join(stale.repo, '.git', 'refs', 'heads', `worktree-${lockSlug}.lock`)
@@ -187,7 +187,7 @@ clearTimeout(release)
 check('the creation succeeds once the lock is released', lockedOutcome !== null, lockedRefusal)
 check('…at the checkout HEAD', lockedOutcome !== null && headOf(lockedOutcome.worktreePath) === stale.head)
 
-section('§6 the PR road: pull/<n>/head is fetched from origin and is the base', 'to fix: the prNumber option of createWorktreeForSession in src/services/worktree.ts must fetch pull/<n>/head from origin and base the worktree on it')
+section('§6 the PR road: pull/<n>/head is fetched from origin and is the base', 'to fix: the prNumber option of createWorktreeForSession in src/platform/git/worktree/worktree.ts must fetch pull/<n>/head from origin and base the worktree on it')
 git(originWork, 'checkout', '-q', '-b', 'feature')
 writeFileSync(join(originWork, 'feature.txt'), 'from the pull request\n')
 git(originWork, 'add', 'feature.txt')
@@ -202,7 +202,7 @@ check('the baseline records the pull request head', baselineOf(pr.worktreePath) 
 check('the PR tree carries the pull request file', readText(join(pr.worktreePath, 'feature.txt')) === 'from the pull request\n')
 await keepWorktree()
 
-section("§7 a sub-agent launched from inside a worktree bases on that worktree's HEAD", 'to fix: the `from` option of createAgentWorktree in src/services/worktree.ts must base on the HEAD of that worktree, resolve a relative `at` there, and keep the new worktree under the repository\'s own .mercury/worktrees')
+section("§7 a sub-agent launched from inside a worktree bases on that worktree's HEAD", 'to fix: the `from` option of createAgentWorktree in src/platform/git/worktree/worktree.ts must base on the HEAD of that worktree, resolve a relative `at` there, and keep the new worktree under the repository\'s own .mercury/worktrees')
 const laneRoot = join(scratch, 'lead-lane')
 git(stale.repo, 'worktree', 'add', '-q', '-b', 'lane', laneRoot, stale.head)
 writeFileSync(join(laneRoot, 'lane.txt'), 'on the lane\n')

@@ -1,26 +1,26 @@
 import { randomUUID } from 'node:crypto'
 import { pinScratchHome, releaseScratchHome, mountOffscreen, settle, pinSourceRef } from '../lib/settingsPopupHarness.js'
-import type { Message as MessageRow } from '../../src/types/message.js'
-import type { LocalJSXCommandOnDone } from '../../src/types/command.js'
+import type { Message as MessageRow } from '../../src/engine/message-shapes/message.js'
+import type { LocalJSXCommandOnDone } from '../../src/commands/catalogue/command.js'
 
 pinSourceRef()
 const home = pinScratchHome('local-command-order')
 const React = await import('react')
-const { Box } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { Message } = await import('../../src/components/Message.js')
-const { normalizeMessages } = await import('../../src/utils/messages/normalize.js')
-const { buildMessageLookups } = await import('../../src/services/messages/lookups.js')
-const { createUserMessage, createAssistantMessage, createCommandInputMessage } = await import('../../src/services/messages.js')
-const { processSlashCommand, formatCommandLoadingMetadata } = await import('../../src/services/processUserInput/processSlashCommand.js')
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { Message } = await import('../../src/screen/messages/Message.js')
+const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.js')
+const { buildMessageLookups } = await import('../../src/engine/messages/lookups.js')
+const { createUserMessage, createAssistantMessage, createCommandInputMessage } = await import('../../src/engine/messages/messages.js')
+const { processSlashCommand, formatCommandLoadingMetadata } = await import('../../src/engine/user-input/processSlashCommand.js')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 let failures = 0
 function check(label: string, ok: boolean): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' | to fix: display order of a local command echo and its answer is placed by placeLocalCommandRows in src/services/engine-connector/localCommandRows.ts (called from paint in src/services/engine-connector/daemon/transcript.ts); the echo keeping its uuid and timestamp comes from processSlashCommand in src/services/processUserInput/processSlashCommand.ts'}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' | to fix: display order of a local command echo and its answer is placed by placeLocalCommandRows in src/engine/connector/localCommandRows.ts (called from paint in src/engine/connector/daemon/transcript.ts); the echo keeping its uuid and timestamp comes from processSlashCommand in src/engine/user-input/processSlashCommand.ts'}`)
 }
 
 type Guts = { rawRecords: MessageRow[]; paint(): void }

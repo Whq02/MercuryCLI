@@ -16,16 +16,16 @@ delete process.env.MERCURY_EDIT_STALE_RECOVERY
 delete process.env.MERCURY_EDIT_LEDGER
 delete process.env.NODE_ENV
 
-const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
 let checks = 0
-const anchorFixHint = 'to fix: a Write or ranged Read result must end with the whole-file anchor that mintFileAnchor (src/services/changeTransaction/snapshotAnchor.ts) mints from the file content, and a stale-anchor refusal from Edit or ChangeSet must name the Read to do and carry no anchor value; see src/tools/FileWriteTool/FileWriteTool.ts, src/tools/FileReadTool/FileReadTool.ts, src/tools/FileEditTool/FileEditTool.ts, src/tools/ChangeSetTool/ChangeSetTool.ts'
+const anchorFixHint = 'to fix: a Write or ranged Read result must end with the whole-file anchor that mintFileAnchor (src/tools/engines/change-transaction/snapshotAnchor.ts) mints from the file content, and a stale-anchor refusal from Edit or ChangeSet must name the Read to do and carry no anchor value; see src/tools/write/WriteTool.ts, src/tools/read/ReadTool.ts, src/tools/edit/EditTool.ts, src/tools/change-set/ChangeSetTool.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++

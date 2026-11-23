@@ -22,11 +22,11 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
-const lr = await import('../../src/tasks/LocalAgentTask/launchReceipts.ts')
-const q = await import('../../src/input-core/command-queue.ts')
-const { recordTranscript } = await import('../../src/utils/sessionStorage.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { AGENT_RESUME_NOTE, agentStopReasonOf, AGENT_STOP_BY_OPERATOR } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
+const lr = await import('../../src/engine/tasks/local-agent/launchReceipts.ts')
+const q = await import('../../src/screen/composer/input-core/command-queue.ts')
+const { recordTranscript } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { AGENT_RESUME_NOTE, agentStopReasonOf, AGENT_STOP_BY_OPERATOR } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
 
 console.log('============================================================')
 console.log(' the restart carry — the words, the queue log, the journal identity, the seat facts')
@@ -36,11 +36,11 @@ console.log('============================================================')
 section('C1 the ruled row: one row, the crash words and the stop words')
 {
   const crash = lr.restartCarryRow('crash', { relaunched: 2, delivered: 1, stopped: 0 })
-  check('a crash restart names the crash in the ruled shape', crash === 'runner restarted after a crash: 2 background crewmates relaunched, 1 delivered from their receipts, 0 stopped', crash + ' — change restartCarryRow in src/tasks/LocalAgentTask/launchReceipts.ts')
+  check('a crash restart names the crash in the ruled shape', crash === 'runner restarted after a crash: 2 background crewmates relaunched, 1 delivered from their receipts, 0 stopped', crash + ' — change restartCarryRow in src/engine/tasks/local-agent/launchReceipts.ts')
   const stop = lr.restartCarryRow('stop', { relaunched: 3, delivered: 0, stopped: 0 })
-  check("a stop restart says the stop, never a crash: 'after a stop'", stop === 'runner restarted after a stop: 3 background crewmates relaunched, 0 delivered from their receipts, 0 stopped' && !stop.includes('crash'), stop + ' — change restartCarryRow in src/tasks/LocalAgentTask/launchReceipts.ts')
-  check('the row is recognisable by its prefix (the wake reads it)', lr.isRestartCarryRow(crash) && lr.isRestartCarryRow(stop) && !lr.isRestartCarryRow('<task-notification>'), 'change isRestartCarryRow or the row prefix in src/tasks/LocalAgentTask/launchReceipts.ts')
-  check('the relaunch note is shaped like the resume note and tells the agent to read its diff before it edits', lr.AGENT_RELAUNCH_NOTE.includes('Continue from where your transcript ends') && AGENT_RESUME_NOTE.includes('Continue from where your transcript ends') && /git diff/.test(lr.AGENT_RELAUNCH_NOTE) && /read a file again before you edit it/.test(lr.AGENT_RELAUNCH_NOTE), lr.AGENT_RELAUNCH_NOTE + ' — change AGENT_RELAUNCH_NOTE in src/tasks/LocalAgentTask/launchReceipts.ts (AGENT_RESUME_NOTE is in LocalAgentTask.tsx)')
+  check("a stop restart says the stop, never a crash: 'after a stop'", stop === 'runner restarted after a stop: 3 background crewmates relaunched, 0 delivered from their receipts, 0 stopped' && !stop.includes('crash'), stop + ' — change restartCarryRow in src/engine/tasks/local-agent/launchReceipts.ts')
+  check('the row is recognisable by its prefix (the wake reads it)', lr.isRestartCarryRow(crash) && lr.isRestartCarryRow(stop) && !lr.isRestartCarryRow('<task-notification>'), 'change isRestartCarryRow or the row prefix in src/engine/tasks/local-agent/launchReceipts.ts')
+  check('the relaunch note is shaped like the resume note and tells the agent to read its diff before it edits', lr.AGENT_RELAUNCH_NOTE.includes('Continue from where your transcript ends') && AGENT_RESUME_NOTE.includes('Continue from where your transcript ends') && /git diff/.test(lr.AGENT_RELAUNCH_NOTE) && /read a file again before you edit it/.test(lr.AGENT_RELAUNCH_NOTE), lr.AGENT_RELAUNCH_NOTE + ' — change AGENT_RELAUNCH_NOTE in src/engine/tasks/local-agent/launchReceipts.ts (AGENT_RESUME_NOTE is in LocalAgentTask.tsx)')
 }
 
 section('C2 the queue log: enqueue rows in both record shapes, with the identity fields when the runner wrote them')
@@ -55,8 +55,8 @@ const raw = (fields: Record<string, unknown>): string => j({ type: 'queue-operat
     envelope({ operation: 'enqueue', content: '<task-notification>\n<task-id>a1</task-id>\n<status>completed</status>\n</task-notification>', mode: 'task-notification' }),
     j({ payload: { kind: 'input' } }),
   ])
-  check('both shapes parse, torn and foreign lines are skipped', rows.length === 3 && rows[0]!.operation === 'enqueue' && rows[1]!.operation === 'dequeue' && rows[2]!.mode === 'task-notification', j(rows) + ' — change queueLogRows in src/tasks/LocalAgentTask/launchReceipts.ts')
-  check('the identity fields ride the row: uuid, mode, sentAt and the enqueue clock', rows[0]!.uuid === 'u-1' && rows[0]!.mode === 'prompt' && rows[0]!.sentAt === '2026-01-01T00:00:00.500Z' && rows[0]!.at === '2026-01-01T00:00:00.000Z', j(rows[0]) + ' — change queueLogRows in src/tasks/LocalAgentTask/launchReceipts.ts')
+  check('both shapes parse, torn and foreign lines are skipped', rows.length === 3 && rows[0]!.operation === 'enqueue' && rows[1]!.operation === 'dequeue' && rows[2]!.mode === 'task-notification', j(rows) + ' — change queueLogRows in src/engine/tasks/local-agent/launchReceipts.ts')
+  check('the identity fields ride the row: uuid, mode, sentAt and the enqueue clock', rows[0]!.uuid === 'u-1' && rows[0]!.mode === 'prompt' && rows[0]!.sentAt === '2026-01-01T00:00:00.500Z' && rows[0]!.at === '2026-01-01T00:00:00.000Z', j(rows[0]) + ' — change queueLogRows in src/engine/tasks/local-agent/launchReceipts.ts')
 }
 
 section('C3 the undelivered lines: what the dying runner still held, by the log alone')
@@ -70,19 +70,19 @@ section('C3 the undelivered lines: what the dying runner still held, by the log 
     envelope({ operation: 'enqueue', content: 'ls -la', commandUuid: 'u-c', mode: 'bash' }),
   ])
   const pending = lr.pendingQueueLogRows(rows)
-  check('the replay leaves what no dequeue took: the nudge, the line, the notice, the bash line', pending.map(r => r.uuid ?? r.mode).join(',') === 'u-n,u-b,task-notification,u-c', j(pending.map(r => r.uuid ?? r.mode)) + ' — change pendingQueueLogRows in src/tasks/LocalAgentTask/launchReceipts.ts')
+  check('the replay leaves what no dequeue took: the nudge, the line, the notice, the bash line', pending.map(r => r.uuid ?? r.mode).join(',') === 'u-n,u-b,task-notification,u-c', j(pending.map(r => r.uuid ?? r.mode)) + ' — change pendingQueueLogRows in src/engine/tasks/local-agent/launchReceipts.ts')
   const lines = lr.undeliveredLines(rows)
-  check("the operator's lines are the prompt and bash rows that are not meta and not notices, oldest first", lines.map(r => r.uuid).join(',') === 'u-b,u-c' && lines[0]!.sentAt === '2026-01-01T00:10:14.655Z', j(lines) + ' — change undeliveredLines in src/tasks/LocalAgentTask/launchReceipts.ts')
+  check("the operator's lines are the prompt and bash rows that are not meta and not notices, oldest first", lines.map(r => r.uuid).join(',') === 'u-b,u-c' && lines[0]!.sentAt === '2026-01-01T00:10:14.655Z', j(lines) + ' — change undeliveredLines in src/engine/tasks/local-agent/launchReceipts.ts')
   const byIdentity = lr.pendingQueueLogRows(lr.queueLogRows([
     envelope({ operation: 'enqueue', content: 'one', commandUuid: 'u-1', mode: 'prompt' }),
     envelope({ operation: 'enqueue', content: 'two', commandUuid: 'u-2', mode: 'prompt' }),
     envelope({ operation: 'pop', content: 'two', commandUuid: 'u-2', mode: 'prompt' }),
   ]))
-  check('a taking row that names an identity takes that line, not the oldest', byIdentity.length === 1 && byIdentity[0]!.uuid === 'u-1', j(byIdentity) + ' — change pendingQueueLogRows in src/tasks/LocalAgentTask/launchReceipts.ts')
+  check('a taking row that names an identity takes that line, not the oldest', byIdentity.length === 1 && byIdentity[0]!.uuid === 'u-1', j(byIdentity) + ' — change pendingQueueLogRows in src/engine/tasks/local-agent/launchReceipts.ts')
   const legacy = lr.undeliveredLines(lr.queueLogRows([envelope({ operation: 'enqueue', content: 'an old row with no mode' })]))
-  check('a row an older runner wrote (no mode) is never re-queued — the words alone cannot say what it was', legacy.length === 0, 'change undeliveredLines in src/tasks/LocalAgentTask/launchReceipts.ts')
+  check('a row an older runner wrote (no mode) is never re-queued — the words alone cannot say what it was', legacy.length === 0, 'change undeliveredLines in src/engine/tasks/local-agent/launchReceipts.ts')
   const emptied = lr.pendingQueueLogRows(lr.queueLogRows([envelope({ operation: 'enqueue', content: 'x', mode: 'prompt' }), envelope({ operation: 'popAll' })]))
-  check('popAll empties the pending set', emptied.length === 0, 'change pendingQueueLogRows in src/tasks/LocalAgentTask/launchReceipts.ts')
+  check('popAll empties the pending set', emptied.length === 0, 'change pendingQueueLogRows in src/engine/tasks/local-agent/launchReceipts.ts')
 }
 
 section('C4 the held notices: the finished agent, the operator stop, the runner-death stop')
@@ -101,13 +101,13 @@ section('C4 the held notices: the finished agent, the operator stop, the runner-
     ],
     new Set(['alpha', 'beta', 'gamma', 'delta']),
   )
-  check('only the asked ids come back, one notice each', [...held.keys()].sort().join(',') === 'alpha,beta,delta,gamma', j([...held.keys()]) + ' — change heldAgentNotices in src/tasks/LocalAgentTask/launchReceipts.ts')
-  check('a completed notice is a finished agent, with its completion clock', held.get('alpha')?.status === 'completed' && held.get('alpha')?.at === '2026-01-01T00:05:00.000Z' && held.get('alpha')?.operatorStop === false, j(held.get('alpha')) + ' — change heldAgentNotices in src/tasks/LocalAgentTask/launchReceipts.ts')
-  check("the crew view's stop is the operator's own act", held.get('beta')?.status === 'killed' && held.get('beta')?.operatorStop === true, j(held.get('beta')) + ' — change heldAgentNotices in src/tasks/LocalAgentTask/launchReceipts.ts')
-  check("the runner-death stop is not the operator's, and its landed writes are read", held.get('gamma')?.operatorStop === false && held.get('gamma')?.landedWrites === '7 file writes landed: /w/a.ts, /w/b.ts', j(held.get('gamma')) + ' — change heldAgentNotices in src/tasks/LocalAgentTask/launchReceipts.ts')
-  check('an outcome outranks a later stop for the same agent', held.get('delta')?.status === 'failed', j(held.get('delta')) + ' — change heldAgentNotices in src/tasks/LocalAgentTask/launchReceipts.ts')
+  check('only the asked ids come back, one notice each', [...held.keys()].sort().join(',') === 'alpha,beta,delta,gamma', j([...held.keys()]) + ' — change heldAgentNotices in src/engine/tasks/local-agent/launchReceipts.ts')
+  check('a completed notice is a finished agent, with its completion clock', held.get('alpha')?.status === 'completed' && held.get('alpha')?.at === '2026-01-01T00:05:00.000Z' && held.get('alpha')?.operatorStop === false, j(held.get('alpha')) + ' — change heldAgentNotices in src/engine/tasks/local-agent/launchReceipts.ts')
+  check("the crew view's stop is the operator's own act", held.get('beta')?.status === 'killed' && held.get('beta')?.operatorStop === true, j(held.get('beta')) + ' — change heldAgentNotices in src/engine/tasks/local-agent/launchReceipts.ts')
+  check("the runner-death stop is not the operator's, and its landed writes are read", held.get('gamma')?.operatorStop === false && held.get('gamma')?.landedWrites === '7 file writes landed: /w/a.ts, /w/b.ts', j(held.get('gamma')) + ' — change heldAgentNotices in src/engine/tasks/local-agent/launchReceipts.ts')
+  check('an outcome outranks a later stop for the same agent', held.get('delta')?.status === 'failed', j(held.get('delta')) + ' — change heldAgentNotices in src/engine/tasks/local-agent/launchReceipts.ts')
   const record = lr.settledRecordFor({ toolUseId: 'toolu_alpha', agentId: 'alpha', description: 'alpha', prompt: 'p', agentType: 'mercury-crew', launchedAt: 1 }, 'completed', 7)
-  check('the settled record carries the held status, is notified, and names no restart error', record.status === 'completed' && record.notified === true && record.error === undefined && record.toolUseId === 'toolu_alpha', j(record) + ' — change settledRecordFor in src/tasks/LocalAgentTask/launchReceipts.ts')
+  check('the settled record carries the held status, is notified, and names no restart error', record.status === 'completed' && record.notified === true && record.error === undefined && record.toolUseId === 'toolu_alpha', j(record) + ' — change settledRecordFor in src/engine/tasks/local-agent/launchReceipts.ts')
 }
 
 section('C5 the ids a queued_command attachment already carried')
@@ -115,7 +115,7 @@ section('C5 the ids a queued_command attachment already carried')
   const attachment = { type: 'attachment', attachment: { type: 'queued_command', prompt: '<task-notification>\n<task-id>a9</task-id>\n<tool-use-id>toolu_a9</tool-use-id>\n<status>completed</status>\n</task-notification>' } } as never
   const resumed = { type: 'attachment', attachment: { type: 'queued_command', prompt: '<task-notification>\n<task-id>a8</task-id>\n<status>resumed</status>\n</task-notification>' } } as never
   const ids = lr.queuedNoticeIds([attachment, resumed])
-  check('a delivered notice names its task id and tool-use id; a resumed receipt names nothing', ids.has('a9') && ids.has('toolu_a9') && !ids.has('a8'), j([...ids]) + ' — change queuedNoticeIds in src/tasks/LocalAgentTask/launchReceipts.ts')
+  check('a delivered notice names its task id and tool-use id; a resumed receipt names nothing', ids.has('a9') && ids.has('toolu_a9') && !ids.has('a8'), j([...ids]) + ' — change queuedNoticeIds in src/engine/tasks/local-agent/launchReceipts.ts')
 }
 
 section("J1 the journal carries the line's identity: uuid, mode and the send clock ride the enqueue row")
@@ -150,29 +150,29 @@ section("J1 the journal carries the line's identity: uuid, mode and the send clo
   const words = enqueues.find(r => r.content === 'the words the journal keeps')
   const notice = enqueues.find(r => typeof r.content === 'string' && (r.content as string).includes('<task-id>j1</task-id>'))
   const nudge = enqueues.find(r => r.content === 'a nudge')
-  check('J1 the operator line rides with its uuid, its mode and the send clock (red on the base: content only)', words !== undefined && words.uuid === lineUuid && words.mode === 'prompt' && words.sentAt === '2026-01-01T00:10:14.655Z', j(words) + ' — the enqueue row is written by logOperation in src/input-core/command-queue.ts; it must carry uuid, mode and sentAt')
-  check('J1 a notification carries its mode and its enqueue clock as sentAt (the completion, for the row stamp)', notice !== undefined && notice.mode === 'task-notification' && typeof notice.sentAt === 'string' && Number.isFinite(Date.parse(notice.sentAt as string)), j(notice) + ' — the enqueue row is written by logOperation in src/input-core/command-queue.ts; enqueuePendingNotification must give it mode and sentAt')
-  check('J1 a meta line says so, and is never an operator line', nudge !== undefined && nudge.isMeta === true && lr.undeliveredLines(rows as never).every(r => r.content !== 'a nudge'), j(nudge) + ' — logOperation in src/input-core/command-queue.ts must write isMeta, and undeliveredLines in src/tasks/LocalAgentTask/launchReceipts.ts must skip meta rows')
-  check('J1 the runner-side replay of this very journal names the one undelivered operator line', lr.undeliveredLines(rows as never).map(r => r.uuid).join(',') === lineUuid, j(lr.undeliveredLines(rows as never)) + ' — change undeliveredLines in src/tasks/LocalAgentTask/launchReceipts.ts or the row identity logOperation writes in src/input-core/command-queue.ts')
+  check('J1 the operator line rides with its uuid, its mode and the send clock (red on the base: content only)', words !== undefined && words.uuid === lineUuid && words.mode === 'prompt' && words.sentAt === '2026-01-01T00:10:14.655Z', j(words) + ' — the enqueue row is written by logOperation in src/screen/composer/input-core/command-queue.ts; it must carry uuid, mode and sentAt')
+  check('J1 a notification carries its mode and its enqueue clock as sentAt (the completion, for the row stamp)', notice !== undefined && notice.mode === 'task-notification' && typeof notice.sentAt === 'string' && Number.isFinite(Date.parse(notice.sentAt as string)), j(notice) + ' — the enqueue row is written by logOperation in src/screen/composer/input-core/command-queue.ts; enqueuePendingNotification must give it mode and sentAt')
+  check('J1 a meta line says so, and is never an operator line', nudge !== undefined && nudge.isMeta === true && lr.undeliveredLines(rows as never).every(r => r.content !== 'a nudge'), j(nudge) + ' — logOperation in src/screen/composer/input-core/command-queue.ts must write isMeta, and undeliveredLines in src/engine/tasks/local-agent/launchReceipts.ts must skip meta rows')
+  check('J1 the runner-side replay of this very journal names the one undelivered operator line', lr.undeliveredLines(rows as never).map(r => r.uuid).join(',') === lineUuid, j(lr.undeliveredLines(rows as never)) + ' — change undeliveredLines in src/engine/tasks/local-agent/launchReceipts.ts or the row identity logOperation writes in src/screen/composer/input-core/command-queue.ts')
 }
 
 section('J2 a notification drained into an attachment is stamped with its completion clock and carries the delivery clock beside it')
 {
-  const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
+  const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
   const before = Date.now()
   const noticeRow = createAttachmentMessage({ type: 'queued_command', prompt: '<task-notification>done</task-notification>', commandMode: 'task-notification', sentAt: '2026-01-01T00:05:00.000Z' } as never)
   const wordsRow = createAttachmentMessage({ type: 'queued_command', prompt: 'typed words', commandMode: 'prompt', sentAt: '2026-01-01T00:05:00.000Z' } as never)
   const clocks = noticeRow.attachment as { sentAt?: string; deliveredAt?: string }
-  check('J2 the notice row is stamped at its completion (the enqueue clock), its sentAt untouched (red on the base: the row took the delivery clock)', noticeRow.timestamp === '2026-01-01T00:05:00.000Z' && clocks.sentAt === '2026-01-01T00:05:00.000Z', noticeRow.timestamp + ' — change createAttachmentMessage in src/utils/attachments/attachmentMessage.ts to stamp a task-notification row with its sentAt')
-  check('J2 the delivery clock (now) rides the record beside it', typeof clocks.deliveredAt === 'string' && Date.parse(clocks.deliveredAt) >= before, JSON.stringify(clocks.deliveredAt) + ' — change createAttachmentMessage in src/utils/attachments/attachmentMessage.ts to set deliveredAt to now')
-  check("J2 the operator's words keep their send clock as the row time (byte-identical)", wordsRow.timestamp === '2026-01-01T00:05:00.000Z', wordsRow.timestamp + ' — change createAttachmentMessage in src/utils/attachments/attachmentMessage.ts so a prompt row keeps its sentAt as the row time')
+  check('J2 the notice row is stamped at its completion (the enqueue clock), its sentAt untouched (red on the base: the row took the delivery clock)', noticeRow.timestamp === '2026-01-01T00:05:00.000Z' && clocks.sentAt === '2026-01-01T00:05:00.000Z', noticeRow.timestamp + ' — change createAttachmentMessage in src/engine/attachment-shapes/attachmentMessage.ts to stamp a task-notification row with its sentAt')
+  check('J2 the delivery clock (now) rides the record beside it', typeof clocks.deliveredAt === 'string' && Date.parse(clocks.deliveredAt) >= before, JSON.stringify(clocks.deliveredAt) + ' — change createAttachmentMessage in src/engine/attachment-shapes/attachmentMessage.ts to set deliveredAt to now')
+  check("J2 the operator's words keep their send clock as the row time (byte-identical)", wordsRow.timestamp === '2026-01-01T00:05:00.000Z', wordsRow.timestamp + ' — change createAttachmentMessage in src/engine/attachment-shapes/attachmentMessage.ts so a prompt row keeps its sentAt as the row time')
 }
 
 section('S1-S2 the seat facts: a fresh incarnation across a seat delete and re-create, and queueReady')
 {
-  const { onSeatSpawned, onSeatSettled, publishSeatFacts, seatGenerationOf, queueReadinessFacts } = await import('../../src/daemon/sessionSeat.ts')
-  const { readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
-  const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+  const { onSeatSpawned, onSeatSettled, publishSeatFacts, seatGenerationOf, queueReadinessFacts } = await import('../../src/daemon/session-seat/sessionSeat.ts')
+  const { readSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
+  const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const dir = mkdtempSync(join(tmpdir(), 'restart-carry-daemon-'))
   const sid = 'aaaaaaaa-bbbb-4ccc-8ddd-restartcarry'
   const SHORT = 'concourse-rc1'
@@ -200,15 +200,15 @@ section('S1-S2 the seat facts: a fresh incarnation across a seat delete and re-c
   publishSeatFacts(SHORT, dir, roster as never)
   await published(facts => facts !== null)
   const skeleton = readSessionFacts(sid, dir) as (Record<string, unknown> & { runnerGeneration?: number; queueReady?: boolean }) | null
-  check('S1 the first life is generation 1 and its skeleton facts say the queue is not ready yet (red on the base: no queueReady)', first === 1 && skeleton?.runnerGeneration === 1 && skeleton?.queueReady === false, j(skeleton) + ' — change onSeatSpawned in src/daemon/sessionSeat/lifecycle.ts, seatGenerationOf in src/daemon/sessionSeat/state.ts, or publishSeatFacts in src/daemon/sessionSeat/facts.ts')
+  check('S1 the first life is generation 1 and its skeleton facts say the queue is not ready yet (red on the base: no queueReady)', first === 1 && skeleton?.runnerGeneration === 1 && skeleton?.queueReady === false, j(skeleton) + ' — change onSeatSpawned in src/daemon/session-seat/lifecycle.ts, seatGenerationOf in src/daemon/session-seat/state.ts, or publishSeatFacts in src/daemon/session-seat/facts.ts')
   onSeatSettled(SHORT)
   onSeatSpawned(SHORT, roster as never, dir)
   const second = seatGenerationOf(SHORT)
   publishSeatFacts(SHORT, dir, roster as never)
   await published(facts => facts?.runnerGeneration === 2)
   const revived = readSessionFacts(sid, dir) as { runnerGeneration?: number } | null
-  check('S2 a seat deleted at settle and re-created at the revive is generation 2, never 1 again (red on the base: 1→1, the screen never sees a move)', second === 2 && revived?.runnerGeneration === 2, `generation ${second} · facts ${j(revived?.runnerGeneration)} — change onSeatSettled and onSeatSpawned in src/daemon/sessionSeat/lifecycle.ts so the generation counter survives a seat delete`)
-  check('S2 queueReady turns on the runner\'s first real answer, not before', queueReadinessFacts({ lastAnswer: null }).queueReady === false && queueReadinessFacts({ lastAnswer: {} as never }).queueReady === true, 'change queueReadinessFacts in src/daemon/sessionSeat/facts.ts')
+  check('S2 a seat deleted at settle and re-created at the revive is generation 2, never 1 again (red on the base: 1→1, the screen never sees a move)', second === 2 && revived?.runnerGeneration === 2, `generation ${second} · facts ${j(revived?.runnerGeneration)} — change onSeatSettled and onSeatSpawned in src/daemon/session-seat/lifecycle.ts so the generation counter survives a seat delete`)
+  check('S2 queueReady turns on the runner\'s first real answer, not before', queueReadinessFacts({ lastAnswer: null }).queueReady === false && queueReadinessFacts({ lastAnswer: {} as never }).queueReady === true, 'change queueReadinessFacts in src/daemon/session-seat/facts.ts')
   rmSync(dir, { recursive: true, force: true })
 }
 

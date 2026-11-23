@@ -1,10 +1,10 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { printDriverPorts } from '../../src/cli/headless/printDriver.ts'
-import { createRunnerState } from '../../src/cli/headless/runnerPorts.ts'
-import { createTurnDriver } from '../../src/cli/headless/turnDriver.ts'
-import { outcomeRow, turnStartedRow } from '../../src/rows/project.ts'
-import { EMPTY_USAGE } from '../../src/utils/api/emptyUsage.ts'
+import { printDriverPorts } from '../../src/daemon/runner/runnerDriver.ts'
+import { createRunnerState } from '../../src/daemon/runner/runnerPorts.ts'
+import { createTurnDriver } from '../../src/daemon/runner/turnDriver.ts'
+import { outcomeRow, turnStartedRow } from '../../src/engine/rows/project.ts'
+import { EMPTY_USAGE } from '../../src/engine/request-parts/emptyUsage.ts'
 
 const live = createRunnerState()
 const state = {
@@ -71,5 +71,5 @@ const opened = rows.filter(row => row.type === 'turn')
 const pass = outcomes.length === 3 && outcomes.every((row, index) => row.turn === index + 1 && row.turn_id === opened[index]?.turn_id) && outcomes[1]?.status === 'failed' && outcomes[1]?.error.message.includes('second turn') && outcomes[2]?.status === 'completed' && shutdowns.length === 0
 console.log(`[${pass ? 'PASS' : 'FAIL'}] the real print error callback keeps the second failed turn ordinal and identity through driver recovery`)
 console.log(JSON.stringify({ opened, outcomes, shutdowns }))
-if (!pass) console.log('expected three outcome rows numbered 1 to 3, each with the turn_id of its opening turn row, the second failed with its error message and no shutdown; change onCycleError in src/cli/headless/printDriver.ts, or the recovery that calls it in src/cli/headless/turnDriver.ts')
+if (!pass) console.log('expected three outcome rows numbered 1 to 3, each with the turn_id of its opening turn row, the second failed with its error message and no shutdown; change onCycleError in src/daemon/runner/runnerDriver.ts, or the recovery that calls it in src/daemon/runner/turnDriver.ts')
 process.exit(pass ? 0 : 1)

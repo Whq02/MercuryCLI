@@ -7,7 +7,7 @@ import {
   failWorkingDispatchesForRunner,
   readConcourseDispatches,
   reconcileWorkingDispatches,
-} from '../../src/daemon/concourseDispatch.js'
+} from '../../src/daemon/concourse-workers/concourseDispatch.js'
 
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
@@ -50,16 +50,16 @@ try {
     check(
       "the owning WORKING row is 'failed' and carries the daemon's reason",
       moved === 1 && after['d-working-w1']!.state === 'failed' && after['d-working-w1']!.reason === 'concourse-w1: long-lived worker exceeded 5 respawns',
-      `${JSON.stringify(after['d-working-w1'])} — failWorkingDispatchesForRunner in src/daemon/concourseDispatch.ts must move the runner's working row to failed with the given reason (moved=${moved})`,
+      `${JSON.stringify(after['d-working-w1'])} — failWorkingDispatchesForRunner in src/daemon/concourse-workers/concourseDispatch.ts must move the runner's working row to failed with the given reason (moved=${moved})`,
     )
-    check('the revision advanced through the one adjudicator', after['d-working-w1']!.stateRevision === 4, `stateRevision=${after['d-working-w1']!.stateRevision}, expected 4: the failed transition in failWorkingDispatchesForRunner (src/daemon/concourseDispatch.ts) must advance it by one`)
-    check("another runner's working row stands", after['d-working-w2']!.state === 'working', `state=${after['d-working-w2']!.state}: failWorkingDispatchesForRunner in src/daemon/concourseDispatch.ts must settle only rows whose workerId is the runner it was given`)
-    check('a queued row is untouched — death settles only what was RUNNING', after['d-queued']!.state === 'queued', `state=${after['d-queued']!.state}: failWorkingDispatchesForRunner in src/daemon/concourseDispatch.ts must skip rows that are not working`)
+    check('the revision advanced through the one adjudicator', after['d-working-w1']!.stateRevision === 4, `stateRevision=${after['d-working-w1']!.stateRevision}, expected 4: the failed transition in failWorkingDispatchesForRunner (src/daemon/concourse-workers/concourseDispatch.ts) must advance it by one`)
+    check("another runner's working row stands", after['d-working-w2']!.state === 'working', `state=${after['d-working-w2']!.state}: failWorkingDispatchesForRunner in src/daemon/concourse-workers/concourseDispatch.ts must settle only rows whose workerId is the runner it was given`)
+    check('a queued row is untouched — death settles only what was RUNNING', after['d-queued']!.state === 'queued', `state=${after['d-queued']!.state}: failWorkingDispatchesForRunner in src/daemon/concourse-workers/concourseDispatch.ts must skip rows that are not working`)
     const again = failWorkingDispatchesForRunner('concourse-w1', 'a later reason must not overwrite', scratch)
     check(
       'a second call is the terminal noop and the first reason survives',
       again === 0 && readConcourseDispatches(scratch)['d-working-w1']!.reason === 'concourse-w1: long-lived worker exceeded 5 respawns',
-      `second call returned ${again}, reason now ${readConcourseDispatches(scratch)['d-working-w1']!.reason}: a failed row is terminal, so failWorkingDispatchesForRunner in src/daemon/concourseDispatch.ts must leave it alone`,
+      `second call returned ${again}, reason now ${readConcourseDispatches(scratch)['d-working-w1']!.reason}: a failed row is terminal, so failWorkingDispatchesForRunner in src/daemon/concourse-workers/concourseDispatch.ts must leave it alone`,
     )
   }
 
@@ -74,10 +74,10 @@ try {
     check(
       "an ended worker's working row settles at boot with the reconcile reason",
       settled === 1 && after['d-working-w1']!.state === 'failed' && /settled at boot reconcile/.test(after['d-working-w1']!.reason ?? ''),
-      `${JSON.stringify(after['d-working-w1'])} — reconcileWorkingDispatches in src/daemon/concourseDispatch.ts must fail the working row of a worker whose record has endedAt, with a reason containing "settled at boot reconcile" (settled=${settled})`,
+      `${JSON.stringify(after['d-working-w1'])} — reconcileWorkingDispatches in src/daemon/concourse-workers/concourseDispatch.ts must fail the working row of a worker whose record has endedAt, with a reason containing "settled at boot reconcile" (settled=${settled})`,
     )
-    check("a live worker's row stands", after['d-working-w2']!.state === 'working', `state=${after['d-working-w2']!.state}: reconcileWorkingDispatches in src/daemon/concourseDispatch.ts must skip workers with no endedAt`)
-    check('a repeat reconcile is a noop', reconcileWorkingDispatches(scratch, () => ({ 'concourse-w1': { endedAt: 1 } })) === 0, 'a second reconcileWorkingDispatches (src/daemon/concourseDispatch.ts) settled a row that was already failed; it must skip terminal rows')
+    check("a live worker's row stands", after['d-working-w2']!.state === 'working', `state=${after['d-working-w2']!.state}: reconcileWorkingDispatches in src/daemon/concourse-workers/concourseDispatch.ts must skip workers with no endedAt`)
+    check('a repeat reconcile is a noop', reconcileWorkingDispatches(scratch, () => ({ 'concourse-w1': { endedAt: 1 } })) === 0, 'a second reconcileWorkingDispatches (src/daemon/concourse-workers/concourseDispatch.ts) settled a row that was already failed; it must skip terminal rows')
   }
 
 } finally {

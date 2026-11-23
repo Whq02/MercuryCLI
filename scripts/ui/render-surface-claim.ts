@@ -2,12 +2,12 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
-import { mixToward, RECESS_MIX } from '../../src/ink/cell-grid.ts'
+import { mixToward, RECESS_MIX } from '../../src/screen/renderer/cell-grid.ts'
 import {
   AMBER, CRIMSON, FAINT, IVORY, OASIS, SECOND, TEAL, TERRA, NIGHT,
-} from '../../src/components/mercuryPalette.ts'
+} from '../../src/screen/theme/mercuryPalette.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 const RUNTIME_CWD = join(import.meta.dir, '..', '..')
 

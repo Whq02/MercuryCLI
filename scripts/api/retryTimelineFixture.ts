@@ -110,11 +110,11 @@ export async function openStandIn(args: {
     return Promise.reject(Object.assign(new TypeError('fetch failed'), { cause: Object.assign(new Error('the stand-in refuses every address but its own'), { code: 'ECONNREFUSED' }) }))
   }) as typeof fetch
   Math.random = () => 0.5
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const bootstrap = await import('../../src/bootstrap/state.ts')
+  const bootstrap = await import('../../src/boot/process-state/processState.ts')
   bootstrap.setIsInteractive(false)
-  const idle = await import('../../src/services/providers/streamIdleBudget.ts')
+  const idle = await import('../../src/models/roads/streamIdleBudget.ts')
   waitLine = idle.requestWaitLine as (wait: never) => string
   return {
     base,
@@ -128,8 +128,8 @@ export async function openStandIn(args: {
 }
 
 export async function callParams(model: string, args: CallArgs, extra: Record<string, unknown> = {}): Promise<never> {
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   return {
     messages: [{ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content: 'Say hello.' } }],
     systemPrompt: asSystemPrompt(['Only answer the request.']),
@@ -264,6 +264,6 @@ export function settle(name: string, lines: string[], want: readonly string[]): 
     failures++
     if (failures <= 12) console.log(`[FAIL] line ${i + 1}\n  recorded on the base: ${want[i] ?? '(nothing)'}\n  this tree:            ${lines[i] ?? '(nothing)'}`)
   }
-  console.log(failures === 0 ? `\n${name}: the timeline is the one recorded on the base (${lines.length} lines)` : `\n${name}: ${failures} line(s) differ from the timeline recorded on the base — a retry wait, counter or sentence moved; the door is src/services/api/withRetry.ts`)
+  console.log(failures === 0 ? `\n${name}: the timeline is the one recorded on the base (${lines.length} lines)` : `\n${name}: ${failures} line(s) differ from the timeline recorded on the base — a retry wait, counter or sentence moved; the door is src/engine/requests/withRetry.ts`)
   process.exit(failures === 0 ? 0 : 1)
 }

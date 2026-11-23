@@ -43,25 +43,25 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
   process.env[base] = 'http://127.0.0.1:1'
 }
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 
 const React = (await import('react')).default
-const { renderToString } = await import('../../src/utils/staticRender.tsx')
-const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.js')
-type ModelChoice = import('../../src/components/MercuryModelPicker.js').ModelChoice
-const { ANTHROPIC_MODEL_GROUP, getModelOptions, isProviderActionRow } = await import('../../src/services/model/modelOptions.ts')
-type ModelOption = import('../../src/services/model/modelOptions.ts').ModelOption
-const { getEngineModel, parseUserSpecifiedModel, renderModelName } = await import('../../src/services/model/model.ts')
-const caps = await import('../../src/utils/model/capabilities.ts')
-const effort = await import('../../src/utils/effort.ts')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.js')
+type ModelChoice = import('../../src/commands/model/picker/MercuryModelPicker.js').ModelChoice
+const { ANTHROPIC_MODEL_GROUP, getModelOptions, isProviderActionRow } = await import('../../src/models/catalogue/modelOptions.ts')
+type ModelOption = import('../../src/models/catalogue/modelOptions.ts').ModelOption
+const { getEngineModel, parseUserSpecifiedModel, renderModelName } = await import('../../src/models/catalogue/engineModel.ts')
+const caps = await import('../../src/models/facts/capabilities.ts')
+const effort = await import('../../src/models/effort/effort.ts')
 
 let failures = 0
 const CURRENT_MARK_FIX_HINT_BY_SECTION: Record<string, string> = {
-  '1': 'change parseUserSpecifiedModel or getEngineModel in src/services/model/model.ts, getModelOptions in src/services/model/modelOptions.ts, or getDefaultEffortForModel in src/utils/effort.ts',
-  '2': 'change the row painting or current mark in src/components/MercuryModelPicker.tsx, or the row order from getModelOptions in src/services/model/modelOptions.ts',
-  '3': 'change the current mark in src/components/MercuryModelPicker.tsx',
-  '4': 'change the reason footer in src/components/MercuryModelPicker.tsx',
-  '5': 'change parseUserSpecifiedModel or getEngineModel in src/services/model/model.ts for the family word, or the current mark in src/components/MercuryModelPicker.tsx',
+  '1': 'change parseUserSpecifiedModel or getEngineModel in src/models/catalogue/engineModel.ts, getModelOptions in src/models/catalogue/modelOptions.ts, or getDefaultEffortForModel in src/models/effort/effort.ts',
+  '2': 'change the row painting or current mark in src/commands/model/picker/MercuryModelPicker.tsx, or the row order from getModelOptions in src/models/catalogue/modelOptions.ts',
+  '3': 'change the current mark in src/commands/model/picker/MercuryModelPicker.tsx',
+  '4': 'change the reason footer in src/commands/model/picker/MercuryModelPicker.tsx',
+  '5': 'change parseUserSpecifiedModel or getEngineModel in src/models/catalogue/engineModel.ts for the family word, or the current mark in src/commands/model/picker/MercuryModelPicker.tsx',
 }
 let currentMarkFixHint = ''
 function check(label: string, cond: boolean, detail?: string): void {

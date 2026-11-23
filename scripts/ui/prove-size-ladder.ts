@@ -94,9 +94,9 @@ ladderHint = 'change composeBootMenu in assets/splash/splash-core.mjs so the wan
 }
 
 console.log('§3 the concourse remains functional below the former floor')
-ladderHint = 'change resolveConcourseProfile or switchboardGeometry in src/components/concourse/ConcourseLayout.tsx so every size gets a real layout with in-bounds rows'
+ladderHint = 'change resolveConcourseProfile or switchboardGeometry in src/screen/concourse/ConcourseLayout.tsx so every size gets a real layout with in-bounds rows'
 {
-  const { CONCOURSE_TWO_PANE_MIN_COLS, resolveConcourseProfile, switchboardGeometry } = await import('../../src/components/concourse/ConcourseLayout.tsx')
+  const { CONCOURSE_TWO_PANE_MIN_COLS, resolveConcourseProfile, switchboardGeometry } = await import('../../src/screen/concourse/ConcourseLayout.tsx')
   for (const [cols, rows] of [[1, 1], [2, 2], [40, 10], [60, 16], [79, 22], [80, 21], [80, 24], [100, 24], [120, 24]]) {
     check(`${cols}x${rows}: a real layout, never a refusal profile`, resolveConcourseProfile(cols!, rows!) === (cols! >= CONCOURSE_TWO_PANE_MIN_COLS ? 'wide' : 'stacked'))
     for (const region of ['list', 'live', 'rail'] as const) {
@@ -112,17 +112,17 @@ ladderHint = 'change resolveConcourseProfile or switchboardGeometry in src/compo
 
 console.log('§4 split, chrome and overlay commitments hold at the ladder')
 {
-  const split = await import('../../src/components/concourse/splitView.ts')
-  check(`split: 121×${split.SPLIT_MIN_ROWS} is the simultaneous two-pane budget`, !split.splitAvailableAt(120, split.SPLIT_MIN_ROWS) && !split.splitAvailableAt(121, split.SPLIT_MIN_ROWS - 1) && split.splitAvailableAt(121, split.SPLIT_MIN_ROWS), '', 'change splitAvailableAt or SPLIT_MIN_ROWS in src/components/concourse/splitView.ts')
-  const { LAYOUT_BREAKPOINTS } = await import('../../src/hooks/useLayoutTier.ts')
+  const split = await import('../../src/screen/concourse/splitView.ts')
+  check(`split: 121×${split.SPLIT_MIN_ROWS} is the simultaneous two-pane budget`, !split.splitAvailableAt(120, split.SPLIT_MIN_ROWS) && !split.splitAvailableAt(121, split.SPLIT_MIN_ROWS - 1) && split.splitAvailableAt(121, split.SPLIT_MIN_ROWS), '', 'change splitAvailableAt or SPLIT_MIN_ROWS in src/screen/concourse/splitView.ts')
+  const { LAYOUT_BREAKPOINTS } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
   check(
     'chrome: the ratified numbers stand (cockpit 100×26 · deck 22 rows · the 64 frame floor)',
     LAYOUT_BREAKPOINTS.cockpitMin === 100 && LAYOUT_BREAKPOINTS.cockpitMinRows === 26 && LAYOUT_BREAKPOINTS.deckMinRows === 22 && LAYOUT_BREAKPOINTS.frameQuotaMin === 64,
     JSON.stringify(LAYOUT_BREAKPOINTS),
-    'restore the ratified values in LAYOUT_BREAKPOINTS in src/hooks/useLayoutTier.ts',
+    'restore the ratified values in LAYOUT_BREAKPOINTS in src/screen/fullscreen-layout/useLayoutTier.ts',
   )
-  const { viewportRows } = await import('../../src/components/mercury-ui/geometry.ts')
-  check('overlays: min never manufactures rows the terminal lacks', viewportRows(3, { reserve: 5, min: 4 }) === 0 && viewportRows(12, { reserve: 4, min: 4 }) === 8, '', 'change viewportRows in src/components/mercury-ui/geometry.ts')
+  const { viewportRows } = await import('../../src/screen/widgets/geometry.ts')
+  check('overlays: min never manufactures rows the terminal lacks', viewportRows(3, { reserve: 5, min: 4 }) === 0 && viewportRows(12, { reserve: 4, min: 4 }) === 8, '', 'change viewportRows in src/screen/widgets/geometry.ts')
 }
 
 console.log(failures === 0 ? '\nsize-ladder: GREEN' : `\nsize-ladder: ${failures} RED`)

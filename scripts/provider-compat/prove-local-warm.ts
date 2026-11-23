@@ -22,19 +22,19 @@ delete process.env.MERCURY_MODEL
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
-const warmModuleFixHint = 'fix src/services/providers/local/localWarm.ts (armLocalWarm, noteLocalTurn, keepAliveTouchDue, conversationServedBy)'
+const warmModuleFixHint = 'fix src/models/roads/local/localWarm.ts (armLocalWarm, noteLocalTurn, keepAliveTouchDue, conversationServedBy)'
 const sectionFixHints: Record<string, string> = {
-  '0': 'the fixture world is wrong: check refreshLocalDiscovery in src/services/providers/local/localDiscovery.ts and the fixture in scripts/local-setup/fixtures/fake-ollama.ts',
+  '0': 'the fixture world is wrong: check refreshLocalDiscovery in src/models/roads/local/localDiscovery.ts and the fixture in scripts/local-setup/fixtures/fake-ollama.ts',
   '1': warmModuleFixHint,
-  '2': `${warmModuleFixHint}, or the request the turn builds in src/services/providers/local/localCallModel.ts`,
-  '3': `the warm body and the turn body must share their prefix: ${warmModuleFixHint}, or the request the turn builds in src/services/providers/local/localCallModel.ts`,
+  '2': `${warmModuleFixHint}, or the request the turn builds in src/models/roads/local/localCallModel.ts`,
+  '3': `the warm body and the turn body must share their prefix: ${warmModuleFixHint}, or the request the turn builds in src/models/roads/local/localCallModel.ts`,
   '4': `the keep-alive touch: ${warmModuleFixHint}`,
   '5': `the keep-alive touch: ${warmModuleFixHint}`,
   '6': `${warmModuleFixHint} (the clock must stop when the model leaves the local lane)`,
   '7': `${warmModuleFixHint} (a later switch must cancel the in-flight warm)`,
   '8': `${warmModuleFixHint} (whether a switch warms depends on the conversation rows and the served set)`,
   '9': `${warmModuleFixHint} (a failed warm must stay quiet and stop the touches)`,
-  '10': 'the helper model must start only for a claimed runner: check the live gate in armLocalWarm in src/services/providers/local/localWarm.ts and src/services/providers/local/tensorfoldHelper.ts',
+  '10': 'the helper model must start only for a claimed runner: check the live gate in armLocalWarm in src/models/roads/local/localWarm.ts and src/models/roads/local/tensorfoldHelper.ts',
 }
 let sectionFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -202,16 +202,16 @@ const fixture = wrapFixture(createFakeOllama({ pulled: [MODEL, SECOND, THIRD, FO
 const served = await serveFakeOllama(fixture, 0)
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${served.root}`
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 const { setEngineModelOverride, setOriginalCwd, setCwdState } = bootstrap
 process.chdir(CWD)
 setOriginalCwd(CWD)
 setCwdState(CWD)
-const { refreshLocalDiscovery, __resetLocalDiscoveryForTest } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const truthModule = await import('../../src/services/localServer/localServerTruth.ts')
+const { refreshLocalDiscovery, __resetLocalDiscoveryForTest } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const truthModule = await import('../../src/models/local-server/localServerTruth.ts')
 truthModule.__resetLocalServerTruthForTest()
 const SMALL_MACHINE = {
   loaded: [], listed: [], runners: [], launchForm: { kind: 'unknown' as const, note: 'fixture' },
@@ -219,7 +219,7 @@ const SMALL_MACHINE = {
   readAtMs: Date.now(),
 }
 let machineReads = 0
-mock.module('../../src/services/localServer/localServerTruth.ts', () => ({
+mock.module('../../src/models/local-server/localServerTruth.ts', () => ({
   ...truthModule,
   refreshLocalMachineTruth: async () => {
     machineReads++
@@ -228,23 +228,23 @@ mock.module('../../src/services/localServer/localServerTruth.ts', () => ({
     return SMALL_MACHINE
   },
 }))
-const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
-const { __resetLocalWindowsForTest, heldLocalWindow } = await import('../../src/services/providers/local/localWindow.ts')
-const { compatLaneLiveProofState } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { getTools } = await import('../../src/tools.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
-const { getSystemContext, getUserContext } = await import('../../src/context.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { appendSystemContext, firstTurnUserContext, prependUserContext } = await import('../../src/services/messages/api.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { localLaw } = await import('../../src/constants/localPromptProfile.ts')
-const { resolveBehaviourContract, renderGenericInstructions } = await import('../../src/prompt/behaviourContract.ts')
-const { getEngineModel } = await import('../../src/services/model/model.ts')
-const { rosterOwnerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
-const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
-type WarmModule = typeof import('../../src/services/providers/local/localWarm.ts')
-const warmModule: WarmModule | null = await import('../../src/services/providers/local/localWarm.ts').catch(() => null)
+const { localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
+const { __resetLocalWindowsForTest, heldLocalWindow } = await import('../../src/models/roads/local/localWindow.ts')
+const { compatLaneLiveProofState } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { getTools } = await import('../../src/tools/kit/toolList.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getSystemPrompt } = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+const { getSystemContext, getUserContext } = await import('../../src/engine/requestContext.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { appendSystemContext, firstTurnUserContext, prependUserContext } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { localLaw } = await import('../../src/models/roads/localPromptProfile.ts')
+const { resolveBehaviourContract, renderGenericInstructions } = await import('../../src/engine/system-prompt/behaviourContract.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
+const { rosterOwnerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.ts')
+type WarmModule = typeof import('../../src/models/roads/local/localWarm.ts')
+const warmModule: WarmModule | null = await import('../../src/models/roads/local/localWarm.ts').catch(() => null)
 
 __resetLocalDiscoveryForTest()
 __resetLocalWindowsForTest()
@@ -317,7 +317,7 @@ section('0 · the world: a fixture Ollama that records requests, models the prom
 
 section('1 · the seams: the module, the runner registration line and the turn seam')
 {
-  check('src/services/providers/local/localWarm.ts exists and exports armLocalWarm / noteLocalTurn / localWarmFacts', warmModule !== null && typeof warmModule.armLocalWarm === 'function' && typeof warmModule.noteLocalTurn === 'function' && typeof warmModule.localWarmFacts === 'function', 'the module is absent')
+  check('src/models/roads/local/localWarm.ts exists and exports armLocalWarm / noteLocalTurn / localWarmFacts', warmModule !== null && typeof warmModule.armLocalWarm === 'function' && typeof warmModule.noteLocalTurn === 'function' && typeof warmModule.localWarmFacts === 'function', 'the module is absent')
 }
 
 section('2 · pre-warm on switch: the model becomes a local Ollama model and the server receives the first turn\'s prefix, one token, while nobody is waiting')
@@ -464,7 +464,7 @@ section('8 · a conversation that already carries rows: a switch to a model that
   check('the switch back to the model that served this conversation skipped the warm (one debug line) and sent no chat', skipped && chats().length === chatsBeforeBack, `skipped ${String(warmModule?.localWarmFacts().skipped)}, chats +${chats().length - chatsBeforeBack}`)
   check('the keep-alive clock follows the served model regardless', warmModule?.localWarmFacts().clock === `ollama/${MODEL}`, String(warmModule?.localWarmFacts().clock))
   check('pure: a meta user row alone is not a conversation; a user or assistant row is', warmModule !== null && warmModule.conversationHasRows([createUserMessage({ content: 'x', isMeta: true }) as never]) === false && warmModule.conversationHasRows([createUserMessage({ content: 'x' }) as never]) === true)
-  const { compatDispatchModelId } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
+  const { compatDispatchModelId } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
   const fourthId = compatDispatchModelId(PERSISTED_FOURTH)
   history.push({ type: 'assistant', uuid: '00000000-0000-4000-8000-00000000a560', timestamp: new Date().toISOString(), message: { id: 'm2', type: 'message', role: 'assistant', model: fourthId, content: [{ type: 'text', text: 'an earlier answer from the fourth model, in a process that has since restarted', citations: null }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } })
   check('pure: a conversation is served by the model whose assistant rows it carries, by the wire id the compat road writes', (warmModule as { conversationServedBy?: (rows: unknown, id: string) => boolean } | null)?.conversationServedBy?.(history, fourthId) === true && (warmModule as { conversationServedBy?: (rows: unknown, id: string) => boolean } | null)?.conversationServedBy?.(history, compatDispatchModelId(PERSISTED_THIRD)) === false, fourthId)
@@ -496,7 +496,7 @@ section('9 · a warm that fails says nothing: the server goes away, the warm fai
 
 section('10 · an unclaimed warm runner (live false) never starts the helper model; once claimed (live true), the helper starts')
 {
-  const helperModule = await import('../../src/services/providers/local/tensorfoldHelper.ts')
+  const helperModule = await import('../../src/models/roads/local/tensorfoldHelper.ts')
   helperModule.__resetHelperForTest()
   helperModule.__pinHelperReadsForTest({ engineFound: true, twoBOnDisk: true })
   let helperStarts = 0

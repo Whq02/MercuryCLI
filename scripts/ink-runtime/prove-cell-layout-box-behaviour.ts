@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import fc from 'fast-check'
-import { clampH, clampW, crossGapOf, hasMeasureFuncInSubtree, isReverse, mainAxis, mainGapOf, marginH, marginV, padBorderH, padBorderV, resolvedAlign } from '../../src/ink/layout/cellLayout/box.ts'
+import { clampH, clampW, crossGapOf, hasMeasureFuncInSubtree, isReverse, mainAxis, mainGapOf, marginH, marginV, padBorderH, padBorderV, resolvedAlign } from '../../src/screen/renderer/layout/cell-layout/box.ts'
 
-const WHERE = 'src/ink/layout/cellLayout/box.ts'
+const WHERE = 'src/screen/renderer/layout/cell-layout/box.ts'
 type Boxed = Parameters<typeof mainAxis>[0]
 type Dim = Boxed['styleMinWidth']
 const AUTO: Dim = { unit: 'auto' }

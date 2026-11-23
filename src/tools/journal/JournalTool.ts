@@ -1,0 +1,69 @@
+import { z } from 'zod/v4'
+import { buildTool, type ToolDef } from '../kit/tool.js'
+import { getSessionId } from '../../boot/process-state/processState.js'
+import { JOURNAL_ENTRY_CAP, journalEnabled, stageJournalEntry, type JournalStageOutcome } from '../../sessions/mneme/journal.js'
+import { lazySchema } from '../../platform/primitives/lazySchema.js'
+import { JOURNAL_DESCRIPTION, JOURNAL_PROMPT, JOURNAL_TOOL_NAME } from './prompt.js'
+import { renderJournalResult, renderJournalToolUse } from './rows.js'
+
+const journalSchema = lazySchema(() =>
+  z.strictObject({
+    entry: z
+      .string()
+      .describe(
+        `One-sentence entry under ${JOURNAL_ENTRY_CAP} characters.`,
+      ),
+  }),
+)
+type JournalSchema = ReturnType<typeof journalSchema>
+type JournalOutput = JournalStageOutcome
+
+export function journalResultWords(output: JournalOutput): string {
+  if (!output.staged) return `journal entry refused: ${output.reason}`
+  return `journal entry ${output.replaced ? 'replaced' : 'staged'} (${output.chars} characters): it is written to the journal when this session ends; another ${JOURNAL_TOOL_NAME} call replaces it.`
+}
+
+export const JournalTool = buildTool({
+  name: JOURNAL_TOOL_NAME,
+  maxResultSizeChars: 2_000,
+  get inputSchema(): JournalSchema {
+    return journalSchema()
+  },
+  isEnabled() {
+    return journalEnabled()
+  },
+  isConcurrencySafe() {
+    return false
+  },
+  isReadOnly() {
+    return false
+  },
+  capability: {
+    intents: ["write this session's journal entry", 'leave an account of the session for the sessions that follow'],
+    units: ['memory'],
+    class: 'mutation',
+    cancellation: 'not-applicable',
+    latency: 'fast',
+    conditions: ['memory.journal set to true in /config (the session journal is off by default)'],
+    proof: 'scripts/memory/prove-journal.ts',
+  },
+  async description() {
+    return JOURNAL_DESCRIPTION
+  },
+  async prompt() {
+    return JOURNAL_PROMPT
+  },
+  async call(input: z.infer<JournalSchema>) {
+    return { data: stageJournalEntry(String(getSessionId()), input.entry) }
+  },
+  mapToolResultToToolResultBlockParam(output: JournalOutput, toolUseID) {
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result',
+      content: journalResultWords(output),
+      ...(output.staged ? {} : { is_error: true }),
+    }
+  },
+  renderToolUseMessage: input => renderJournalToolUse(input),
+  renderToolResultMessage: renderJournalResult,
+} satisfies ToolDef<JournalSchema, JournalOutput>)

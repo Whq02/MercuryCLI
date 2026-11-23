@@ -23,11 +23,11 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
-const { getSecureStorage } = await import('../../src/utils/secureStorage/index.ts')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
+const { getSecureStorage } = await import('../../src/platform/secure-storage/index.ts')
 getSecureStorage().update({
   claudeAiOauth: {
     accessToken: 'at_proof',
@@ -40,7 +40,7 @@ getSecureStorage().update({
 })
 auth.clearOAuthTokenCache()
 
-const { saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 const seatKey = (): void => {
   saveGlobalConfig(current => ({ ...current, primaryApiKey: 'sk-ant-proof-managed-key' }))
   auth.getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
@@ -50,7 +50,7 @@ const dropKey = (): void => {
   auth.getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
 }
 
-const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
+const { deriveFamilySlotGroups } = await import('../../src/models/roads/accountSlots.ts')
 const anthropicActives = (): string[] => {
   const groups = deriveFamilySlotGroups([], {})
   const anthropic = groups.find(g => (g.family.id as string) === 'anthropic')
@@ -69,30 +69,30 @@ const activesOrNull = (): string[] | null => {
 section('§1 baseline — no preference: the sign-in is the seat')
 {
   seatKey()
-  check('the stored preference starts absent', auth.readAnthropicPreferredSource() === undefined, 'readAnthropicPreferredSource in src/utils/auth.ts reads getGlobalConfig().anthropicPreferredSource; the scratch config home was not clean')
-  check('the token source is claude.ai', auth.getAuthTokenSource().source === 'claude.ai', `source=${auth.getAuthTokenSource().source}; getAuthTokenSource in src/utils/auth.ts must return claude.ai for a stored sign-in with no preference`)
-  check('subscriber answers TRUE (the subscription seat)', auth.isClaudeAISubscriber() === true, 'isClaudeAISubscriber in src/utils/auth.ts must be true for a stored sign-in with no preference')
-  check('the API key still RESOLVES underneath (presence, not the seat)', auth.getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true }).source === '/logins managed key', 'getAnthropicApiKeyWithSource in src/utils/auth.ts must still resolve the managed key from config')
+  check('the stored preference starts absent', auth.readAnthropicPreferredSource() === undefined, 'readAnthropicPreferredSource in src/models/sign-in/credentials/auth.ts reads getGlobalConfig().anthropicPreferredSource; the scratch config home was not clean')
+  check('the token source is claude.ai', auth.getAuthTokenSource().source === 'claude.ai', `source=${auth.getAuthTokenSource().source}; getAuthTokenSource in src/models/sign-in/credentials/auth.ts must return claude.ai for a stored sign-in with no preference`)
+  check('subscriber answers TRUE (the subscription seat)', auth.isClaudeAISubscriber() === true, 'isClaudeAISubscriber in src/models/sign-in/credentials/auth.ts must be true for a stored sign-in with no preference')
+  check('the API key still RESOLVES underneath (presence, not the seat)', auth.getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true }).source === '/logins managed key', 'getAnthropicApiKeyWithSource in src/models/sign-in/credentials/auth.ts must still resolve the managed key from config')
 }
 
 section("§2 preference 'api-key' — the seat flips; the sign-in stays stored")
 {
   auth.writeAnthropicPreferredSource('api-key')
-  check('the preference reads back', auth.readAnthropicPreferredSource() === 'api-key', 'writeAnthropicPreferredSource in src/utils/auth.ts must save anthropicPreferredSource to the global config')
+  check('the preference reads back', auth.readAnthropicPreferredSource() === 'api-key', 'writeAnthropicPreferredSource in src/models/sign-in/credentials/auth.ts must save anthropicPreferredSource to the global config')
   const source = auth.getAuthTokenSource()
   check('the token source leaves claude.ai', source.source !== 'claude.ai', `source=${source.source}`)
-  check('subscriber answers FALSE (a key-billed Anthropic session)', auth.isClaudeAISubscriber() === false, 'isClaudeAISubscriber in src/utils/auth.ts must yield to the managed key (subscriptionYieldsToManagedKey) when the preference is api-key')
-  check('the client would bill the managed key', auth.getAnthropicApiKey() === 'sk-ant-proof-managed-key', 'getAnthropicApiKey in src/utils/auth.ts must return the managed key when the preference is api-key')
-  check('the sign-in STAYS stored (never dropped by a switch)', auth.getClaudeAIOAuthTokens()?.refreshToken === 'rt_proof', 'switching the preference must not delete or rewrite the stored sign-in; check writeAnthropicPreferredSource in src/utils/auth.ts')
-  check('the sign-in is not painted expired by the flip', auth.isAnthropicOAuthSignInExpired() === false, 'isAnthropicOAuthSignInExpired in src/utils/auth.ts must be false while the seat is the key')
+  check('subscriber answers FALSE (a key-billed Anthropic session)', auth.isClaudeAISubscriber() === false, 'isClaudeAISubscriber in src/models/sign-in/credentials/auth.ts must yield to the managed key (subscriptionYieldsToManagedKey) when the preference is api-key')
+  check('the client would bill the managed key', auth.getAnthropicApiKey() === 'sk-ant-proof-managed-key', 'getAnthropicApiKey in src/models/sign-in/credentials/auth.ts must return the managed key when the preference is api-key')
+  check('the sign-in STAYS stored (never dropped by a switch)', auth.getClaudeAIOAuthTokens()?.refreshToken === 'rt_proof', 'switching the preference must not delete or rewrite the stored sign-in; check writeAnthropicPreferredSource in src/models/sign-in/credentials/auth.ts')
+  check('the sign-in is not painted expired by the flip', auth.isAnthropicOAuthSignInExpired() === false, 'isAnthropicOAuthSignInExpired in src/models/sign-in/credentials/auth.ts must be false while the seat is the key')
 }
 
 section('§3 the guard — a removed key hands the seat back')
 {
   dropKey()
-  check('with the key gone, the sign-in quietly resumes the seat', auth.getAuthTokenSource().source === 'claude.ai' && auth.isClaudeAISubscriber() === true, 'subscriptionYieldsToManagedKey in src/utils/auth.ts must stay false when no managed key is stored')
+  check('with the key gone, the sign-in quietly resumes the seat', auth.getAuthTokenSource().source === 'claude.ai' && auth.isClaudeAISubscriber() === true, 'subscriptionYieldsToManagedKey in src/models/sign-in/credentials/auth.ts must stay false when no managed key is stored')
   seatKey()
-  check('the key back ⇒ the standing preference seats it again', auth.isClaudeAISubscriber() === false, 'subscriptionYieldsToManagedKey in src/utils/auth.ts must read the preference live, not remember the key being gone')
+  check('the key back ⇒ the standing preference seats it again', auth.isClaudeAISubscriber() === false, 'subscriptionYieldsToManagedKey in src/models/sign-in/credentials/auth.ts must read the preference live, not remember the key being gone')
 }
 
 section('§4 the slots board paints ONE active slot — the seat')
@@ -117,8 +117,8 @@ section('§4 the slots board paints ONE active slot — the seat')
 section('§5 clearing restores the baseline')
 {
   auth.writeAnthropicPreferredSource(null)
-  check('the preference clears', auth.readAnthropicPreferredSource() === undefined, 'writeAnthropicPreferredSource(null) in src/utils/auth.ts must delete anthropicPreferredSource')
-  check('the sign-in is the seat again', auth.getAuthTokenSource().source === 'claude.ai' && auth.isClaudeAISubscriber() === true, 'getAuthTokenSource and isClaudeAISubscriber in src/utils/auth.ts must return to the sign-in once the preference is cleared')
+  check('the preference clears', auth.readAnthropicPreferredSource() === undefined, 'writeAnthropicPreferredSource(null) in src/models/sign-in/credentials/auth.ts must delete anthropicPreferredSource')
+  check('the sign-in is the seat again', auth.getAuthTokenSource().source === 'claude.ai' && auth.isClaudeAISubscriber() === true, 'getAuthTokenSource and isClaudeAISubscriber in src/models/sign-in/credentials/auth.ts must return to the sign-in once the preference is cleared')
 }
 
 

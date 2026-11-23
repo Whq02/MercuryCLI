@@ -22,9 +22,9 @@ if (driver.kind !== 'posix-pty') {
   process.exit(0)
 }
 
-const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { readSessionFacts, sessionFactsDir } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { CREW_EMPTY_LINE } = await import('../../src/services/engine-connector/crewFacts.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { readSessionFacts, sessionFactsDir } = await import('../../src/engine/connector/seatProjections.ts')
+const { CREW_EMPTY_LINE } = await import('../../src/engine/connector/crewFacts.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -306,9 +306,9 @@ if (process.env.FIELD_KEEP === '1') for (const [label, frame] of Object.entries(
 check('every send became due (the frames the sends waited on all painted)', cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason} · a send was never due: the frame it waited on did not paint, so run with FIELD_KEEP=1 and read the dumped marks to see which screen stalled`)
 check('the crew ran and landed on the wire (parent → two seats → the ack)', fixture.hits.filter(h => h === 'seat').length >= 2 && fixture.hits.includes('parent-ack'), `${fixture.hits.join(',')} · the fixture saw no two seats plus the parent ack, so the Crewmate tool was not offered or the seats did not finish`)
 const landed = marks['landed'] ?? ''
-check('the previous session\'s crew was on every surface: the card names both seats and the usage line attributes the crew', namesSeat(landed) && landed.includes('crewmates finished') && attributesCrew(landed), 'the card after the crew landed must name both seats and the usage line must read crewmates N tokens; see crewAgentsOf in src/services/engine-connector/crewFacts.ts')
+check('the previous session\'s crew was on every surface: the card names both seats and the usage line attributes the crew', namesSeat(landed) && landed.includes('crewmates finished') && attributesCrew(landed), 'the card after the crew landed must name both seats and the usage line must read crewmates N tokens; see crewAgentsOf in src/engine/connector/crewFacts.ts')
 const crewLanded = marks['crew-landed'] ?? ''
-check('the previous session\'s Crew view listed both, landed', namesSeat(crewLanded) && crewLanded.includes('0 running') && crewLanded.includes('Crewmates (2)'), 'the Crew view of the crew session must list both seats as landed with 0 running; see crewAgentsOf and crewRunning in src/services/engine-connector/crewFacts.ts')
+check('the previous session\'s Crew view listed both, landed', namesSeat(crewLanded) && crewLanded.includes('0 running') && crewLanded.includes('Crewmates (2)'), 'the Crew view of the crew session must list both seats as landed with 0 running; see crewAgentsOf and crewRunning in src/engine/connector/crewFacts.ts')
 const fresh = marks['fresh'] ?? ''
 check('the born session is a fresh chat (its splash is up, no card)', fresh.includes(SPLASH_READY) && !fresh.includes('crewmates finished'), 'after /clear the new session must open on the splash with no crew card')
 check('the born session names no seat of the previous session (the CREW lane, the transcript)', !namesSeat(fresh), fresh.split('\n').filter(l => namesSeat(l)).join(' | '))
@@ -328,8 +328,8 @@ const daemonDir = join(home, 'daemon')
 const records = Object.values(readSessionWorkers(daemonDir)).sort((a, b) => a.spawnedAt - b.spawnedAt)
 const crewSession = records[0]
 const bornSessions = records.slice(1)
-check('three sessions exist on the daemon\'s board: the crew\'s, the one born in place, the one born from the face', records.length === 3, `${records.length} records · readSessionWorkers in src/daemon/concourseWorkers.ts must list the crew session, the one born by /clear and the one born from the face`)
-check('every born session has its own id', crewSession !== undefined && bornSessions.every(r => r.sessionId !== crewSession.sessionId) && new Set(records.map(r => r.sessionId)).size === records.length, `${records.map(r => r.sessionId).join(',')} · a born session reused an earlier session id; readSessionWorkers in src/daemon/concourseWorkers.ts shows the records`)
+check('three sessions exist on the daemon\'s board: the crew\'s, the one born in place, the one born from the face', records.length === 3, `${records.length} records · readSessionWorkers in src/daemon/concourse-workers/concourseWorkers.ts must list the crew session, the one born by /clear and the one born from the face`)
+check('every born session has its own id', crewSession !== undefined && bornSessions.every(r => r.sessionId !== crewSession.sessionId) && new Set(records.map(r => r.sessionId)).size === records.length, `${records.map(r => r.sessionId).join(',')} · a born session reused an earlier session id; readSessionWorkers in src/daemon/concourse-workers/concourseWorkers.ts shows the records`)
 const files = existsSync(sessionFactsDir(daemonDir)) ? readdirSync(sessionFactsDir(daemonDir)) : []
 for (const born of bornSessions) {
   const facts = readSessionFacts(born.sessionId, daemonDir)

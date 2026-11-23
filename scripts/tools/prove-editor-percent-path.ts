@@ -66,7 +66,7 @@ mock.module('node:child_process', () => ({
   },
 }))
 
-const { editorCommandLine, editFileInEditor } = await import(`${root}/src/utils/promptEditor.ts`)
+const { editorCommandLine, editFileInEditor } = await import(`${root}/src/screen/composer/promptEditor.ts`)
 let checks = 0
 let failures = 0
 const check = (label: string, pass: boolean, actual: string): void => {
@@ -236,9 +236,9 @@ const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')!
 const savedComSpec = process.env.ComSpec
 const savedCOMSPEC = process.env.COMSPEC
 const savedHome = process.env.HOME
-const instances = (await import(`${root}/src/ink/instances.ts`)).default
-const handback = await import(`${root}/src/utils/terminalHandback.ts`)
-const { getExternalEditor } = await import(`${root}/src/utils/editor.ts`)
+const instances = (await import(`${root}/src/screen/renderer/instances.ts`)).default
+const handback = await import(`${root}/src/platform/shell/terminalHandback.ts`)
+const { getExternalEditor } = await import(`${root}/src/platform/editor/externalEditor.ts`)
 handback.setTerminalHandbackAddonForTest(null)
 handback.setTerminalHandbackDescriptorForTest('none')
 instances.set(

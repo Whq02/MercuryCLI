@@ -12,13 +12,13 @@ delete process.env.NODE_ENV
 delete process.env.MERCURY_TRANSCRIPT_READER
 delete process.env.MERCURY_RESUME_SNAPSHOT
 
-const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
-const loading = await import('../../src/utils/sessionStorage/loading.ts')
-const vnext = await import('../../src/utils/sessionStorage/vnext.ts')
-const recovery = await import('../../src/services/resume/conversationRecovery.ts')
+const reader = await import('../../src/sessions/transcripts/transcriptReader.ts')
+const loading = await import('../../src/sessions/transcripts/loading.ts')
+const vnext = await import('../../src/sessions/transcripts/vnext.ts')
+const recovery = await import('../../src/sessions/resume/conversationRecovery.ts')
 
 let failures = 0
-const tailReaderFailHint = 'fix the reader behaviour this check names in src/utils/sessionStorage/transcriptReader.ts (readTranscript, readTranscriptChainSince, scanTranscriptLinesBackward, retainTranscript; byte reads in transcriptBytes.ts), the load path in src/utils/sessionStorage/loading.ts, or for section I the daemon connector in src/services/engine-connector/daemonConnector.ts'
+const tailReaderFailHint = 'fix the reader behaviour this check names in src/sessions/transcripts/transcriptReader.ts (readTranscript, readTranscriptChainSince, scanTranscriptLinesBackward, retainTranscript; byte reads in transcriptBytes.ts), the load path in src/sessions/transcripts/loading.ts, or for section I the daemon connector in src/engine/connector/daemonConnector.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — to fix: ${tailReaderFailHint}`}`)
@@ -466,7 +466,7 @@ section('§I the daemon connector: one cold read at attach, one growth read per 
 {
   resetAll()
   vnext.resetTranscriptFormatCacheForTesting()
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
   const sessionId = '12345678-1234-4123-8123-1234567890ab'
   const file = join(SCRATCH, `${sessionId}.jsonl`)
   writeFileSync(file, '')

@@ -12,11 +12,11 @@ const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix: the catalogue filter in createSkillAttachmentIfNeeded (src/services/compact/compact/attachments.ts)'}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix: the catalogue filter in createSkillAttachmentIfNeeded (src/engine/compaction/fold/foldAttachments.ts)'}`)
 }
 
-const bootstrap = await import(join(SRC, 'bootstrap/state.ts'))
-const compact = await import(join(SRC, 'services/compact/compact.ts'))
+const bootstrap = await import(join(SRC, 'boot/process-state/processState.ts'))
+const compact = await import(join(SRC, 'engine/compaction/foldConversation.ts'))
 type Attachment = { attachment: { type: string; skills?: Array<{ name: string }> } } | null
 const build = compact.createSkillAttachmentIfNeeded as (agentId?: string, catalogue?: ReadonlyArray<{ name: string }>) => Attachment
 const names = (a: Attachment): string[] => a?.attachment.skills?.map(s => s.name) ?? []

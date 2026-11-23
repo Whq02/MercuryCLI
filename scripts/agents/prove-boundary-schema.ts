@@ -19,22 +19,22 @@ if (childAt !== -1) {
     return originalFetch(input, init)
   }, originalFetch)
   const mode = process.argv[childAt + 1]
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const bootstrap = await import('../../src/bootstrap/state.ts')
+  const bootstrap = await import('../../src/boot/process-state/processState.ts')
   bootstrap.setIsInteractive(false)
   bootstrap.setOriginalCwd(process.cwd())
   bootstrap.setCwdState(process.cwd())
   bootstrap.switchSession('00000000-0000-4000-8000-000000000044' as never)
-  const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
-  const { resumeAgentBackground } = await import('../../src/tools/AgentTool/resumeAgent.ts')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
-  const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-  const { query: startTurn } = await import('../../src/query.ts')
-  const { readAgentMetadata, flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
-  await import('../../src/tasks.ts')
-  type AppState = import('../../src/state/AppStateStore.ts').AppState
+  const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+  const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+  const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+  const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+  const { readAgentMetadata, flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+  await import('../../src/engine/tasks/tasks.ts')
+  type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState
   let state = getDefaultAppState()
   const setState = (update: (previous: AppState) => AppState) => { state = update(state) }
   const context = {
@@ -89,15 +89,15 @@ if (childAt !== -1) {
   }
   try {
     const launched = await child('launch')
-    check('the exact schema, strict requirement and source are durable launch facts', isDeepStrictEqual(launched.metadata?.structuredOutputSpec, spec), launched.metadata, 'runAgent in src/tools/AgentTool/runAgent.ts must write the structuredOutputSpec it was given into the agent metadata (type in src/utils/sessionStorage/paths.ts)')
+    check('the exact schema, strict requirement and source are durable launch facts', isDeepStrictEqual(launched.metadata?.structuredOutputSpec, spec), launched.metadata, 'runAgent in src/tools/crewmate/runCrewmate.ts must write the structuredOutputSpec it was given into the agent metadata (type in src/sessions/transcripts/paths.ts)')
     const resumed = await child('resume')
-    check('a prose-only continuation fails the original strict contract', resumed.status === 'failed', resumed, 'resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts must restore the stored structuredOutputSpec so a strict run that ends without a StructuredOutput call fails')
-    check('the resumed metadata still carries the strict contract', isDeepStrictEqual(resumed.metadata?.structuredOutputSpec, spec), resumed.metadata, 'resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts must pass the stored structuredOutputSpec back into runAgent and keep it in the metadata')
+    check('a prose-only continuation fails the original strict contract', resumed.status === 'failed', resumed, 'resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts must restore the stored structuredOutputSpec so a strict run that ends without a StructuredOutput call fails')
+    check('the resumed metadata still carries the strict contract', isDeepStrictEqual(resumed.metadata?.structuredOutputSpec, spec), resumed.metadata, 'resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts must pass the stored structuredOutputSpec back into runAgent and keep it in the metadata')
     const first = fixture.messageRequests()[0]?.body as any
     const second = fixture.messageRequests()[1]?.body as any
-    check('the same structured-output schema remains available in the fresh process', isDeepStrictEqual(first?.tools.find((row: any) => row.name === 'StructuredOutput')?.input_schema, second?.tools.find((row: any) => row.name === 'StructuredOutput')?.input_schema), undefined, 'the resumed request must offer the StructuredOutput tool with the stored schema; see structuredOutputSpec in src/tools/AgentTool/resumeAgent.ts')
+    check('the same structured-output schema remains available in the fresh process', isDeepStrictEqual(first?.tools.find((row: any) => row.name === 'StructuredOutput')?.input_schema, second?.tools.find((row: any) => row.name === 'StructuredOutput')?.input_schema), undefined, 'the resumed request must offer the StructuredOutput tool with the stored schema; see structuredOutputSpec in src/tools/crewmate/resumeCrewmate.ts')
     const valid = await child('valid')
-    check('the same strict continuation accepts a newly validated payload', valid.status === 'completed', valid, 'a resumed strict run that calls StructuredOutput with a payload matching the stored schema must complete; see src/tools/AgentTool/resumeAgent.ts')
+    check('the same strict continuation accepts a newly validated payload', valid.status === 'completed', valid, 'a resumed strict run that calls StructuredOutput with a payload matching the stored schema must complete; see src/tools/crewmate/resumeCrewmate.ts')
     check('the conforming StructuredOutput call was actually executed', fixture.messageRequests().some(row => JSON.stringify(row.body).includes('Structured output provided successfully')), undefined, 'the StructuredOutput tool call in the valid run was not executed; check how resumeAgent.ts hands the structuredOutputSpec to the resumed run')
     console.log('BOUNDARY SCHEMA ' + (failures ? 'RED' : 'GREEN') + ' — ' + (checks - failures) + '/' + checks + '; real launch/resume processes and validated tool execution')
   } finally { await fixture.close(); rmSync(home, { recursive: true, force: true }) }

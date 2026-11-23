@@ -9,7 +9,7 @@ const OUTSIDE_ONE = 'A file that is personal or stands outside this project load
 const p4 = (root: string): string => join(root, 'app')
 const OUTSIDE_MANY = 'Files that are personal or stand outside this project load here today — their lines belong in MERCURY.local.md, never in MERCURY.md:'
 const ORIENT_PROMPT_HINT = 'What to change: the ORIENT_PROMPT text in src/commands/orient/orient.ts. Received prompt:'
-const ORIENT_LINES_HINT = 'What to change: linesOfWhatLoads in src/commands/orient/orient.ts, or otherToolsImportLines in src/services/instructions/listing.ts. Received:'
+const ORIENT_LINES_HINT = 'What to change: linesOfWhatLoads in src/commands/orient/orient.ts, or otherToolsImportLines in src/sessions/instructions/listing.ts. Received:'
 
 try {
   section('the words of the prompt')

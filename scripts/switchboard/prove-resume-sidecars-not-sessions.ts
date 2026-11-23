@@ -15,11 +15,11 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail.slice(0, 600)}${detail && hint ? ' · ' : ''}${hint}` : ''}`)
 }
 const hints: Record<string, string> = {
-  '§1': 'fix loadTranscriptFile in src/utils/sessionStorage/loading.ts (the snapshot sidecar write) or the scenario setup above',
-  '§2': 'fix the session scan so it skips .receipts sidecars: scanBootCardFacts, projectIdentity, parkedSessionsOf, projectChatCount in src/utils/bootCardFacts.ts',
-  '§3': 'fix readUsageHistory in src/services/usage/usageHistory.ts so it reads transcripts only',
-  '§4': 'fix loadTranscriptFile in src/utils/sessionStorage/loading.ts and transcriptLoadDegradation in src/utils/sessionStorage/transcriptReader.ts',
-  '§5': 'fix readTranscript in src/utils/sessionStorage/transcriptReader.ts and tryLoadResumeSnapshot in src/utils/sessionStorage/resumeSnapshot.ts',
+  '§1': 'fix loadTranscriptFile in src/sessions/transcripts/loading.ts (the snapshot sidecar write) or the scenario setup above',
+  '§2': 'fix the session scan so it skips .receipts sidecars: scanBootCardFacts, projectIdentity, parkedSessionsOf, projectChatCount in src/screen/boot-face/bootCardFacts.ts',
+  '§3': 'fix readUsageHistory in src/models/usage/usageHistory.ts so it reads transcripts only',
+  '§4': 'fix loadTranscriptFile in src/sessions/transcripts/loading.ts and transcriptLoadDegradation in src/sessions/transcripts/transcriptReader.ts',
+  '§5': 'fix readTranscript in src/sessions/transcripts/transcriptReader.ts and tryLoadResumeSnapshot in src/sessions/transcripts/resumeSnapshot.ts',
 }
 let currentSection = ''
 const section = (title: string): void => {
@@ -27,14 +27,14 @@ const section = (title: string): void => {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
 
-const loading = await import('../../src/utils/sessionStorage/loading.ts')
-const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
-const { snapshotPathFor, SNAPSHOT_SCHEMA, tryLoadResumeSnapshot } = await import('../../src/utils/sessionStorage/resumeSnapshot.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { TRANSCRIPT_FORMAT_REFUSAL } = await import('../../src/fabric/transcriptDecode.ts')
-const boot = await import('../../src/utils/bootCardFacts.ts')
-const { readUsageHistory } = await import('../../src/services/usage/usageHistory.ts')
+const loading = await import('../../src/sessions/transcripts/loading.ts')
+const reader = await import('../../src/sessions/transcripts/transcriptReader.ts')
+const { snapshotPathFor, SNAPSHOT_SCHEMA, tryLoadResumeSnapshot } = await import('../../src/sessions/transcripts/resumeSnapshot.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+const { TRANSCRIPT_FORMAT_REFUSAL } = await import('../../src/sessions/fabric/transcriptDecode.ts')
+const boot = await import('../../src/screen/boot-face/bootCardFacts.ts')
+const { readUsageHistory } = await import('../../src/models/usage/usageHistory.ts')
 
 const SESSION = '009c13c0-b123-4fae-ad0b-25e6060405e4'
 const PROJ = join(SCRATCH, 'Café Ledger')
@@ -157,7 +157,7 @@ section('§5 a transcript with a valid resume snapshot resumes without refusal a
   const snapshotMtime = statSync(SNAPSHOT).mtimeMs
   const written = JSON.parse(snapshotBytes.toString('utf8')) as { schemaVersion?: number; byteCursor?: number }
   check('the sidecar is a resume snapshot under the current schema with a byte cursor', written.schemaVersion === SNAPSHOT_SCHEMA && typeof written.byteCursor === 'number' && written.byteCursor > 0, JSON.stringify({ schema: written.schemaVersion, cursor: written.byteCursor }))
-  const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')
+  const { decodeTranscriptBuffer } = await import('../../src/sessions/fabric/transcriptDecode.ts')
   check('the snapshot decoded as a transcript WOULD be refused (so any decode of it would be seen below)', decodeTranscriptBuffer(snapshotBytes).refusal === TRANSCRIPT_FORMAT_REFUSAL)
   appendFileSync(TRANSCRIPT, entryLine(TRANSCRIPT, 1201, 1200, SESSION) + entryLine(TRANSCRIPT, 1202, 1201, SESSION))
   let fired = 0

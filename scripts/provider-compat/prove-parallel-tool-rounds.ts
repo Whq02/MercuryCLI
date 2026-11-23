@@ -7,7 +7,7 @@ import { z } from 'zod/v4'
 
 let failures = 0
 let checks = 0
-const PARALLEL_ROUNDS_HINT = 'to fix, change how the tool round is executed, answered and replayed in query (src/query.ts) or the provider adapter for the lane named in the section heading above, or the refusal gate in src/services/providers/toolCallGate.ts'
+const PARALLEL_ROUNDS_HINT = 'to fix, change how the tool round is executed, answered and replayed in query (src/engine/turnDoor.ts) or the provider adapter for the lane named in the section heading above, or the refusal gate in src/models/roads/toolCallGate.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -17,7 +17,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — parallel tool rounds prover exceeded 240s; a drive of the real loop (query in src/query.ts) against the loopback fixture never settled, so look at the last section printed above')
+  console.log('\nTIMEOUT — parallel tool rounds prover exceeded 240s; a drive of the real loop (query in src/engine/turnDoor.ts) against the loopback fixture never settled, so look at the last section printed above')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()
@@ -227,16 +227,16 @@ console.log('============================================================')
 console.log(' parallel tool rounds — every dialect, through the real loop')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/query.ts')
-const { productionDeps } = await import('../../src/query/deps.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { TOOL_CALL_REFUSAL_CORRECTION_HEAD } = await import('../../src/services/providers/toolCallGate.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { TOOL_CALL_REFUSAL_CORRECTION_HEAD } = await import('../../src/models/roads/toolCallGate.ts')
 type AnyMsg = Record<string, unknown> & { type?: string }
 
 function makeTool(name: string, behaviour: 'echo' | 'throw'): never {

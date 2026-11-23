@@ -10,22 +10,22 @@ process.env.MERCURY_ANCHOR_PATCH = '1'
 process.env.MERCURY_CHANGESET_DIR = mkdtempSync(join(tmpdir(), 'stale-rec-cs-'))
 
 let failures = 0
-const STALE_RECOVERY_FAIL_HINT = 'to fix, change when a stale anchor is recovered or refused in recoverStaleHunks (src/services/changeTransaction/stalePatchRecovery.ts) or how the apply op reports it in src/tools/ChangeSetTool/ChangeSetTool.ts'
+const STALE_RECOVERY_FAIL_HINT = 'to fix, change when a stale anchor is recovered or refused in recoverStaleHunks (src/tools/engines/change-transaction/stalePatchRecovery.ts) or how the apply op reports it in src/tools/change-set/ChangeSetTool.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${STALE_RECOVERY_FAIL_HINT}` : ''}`)
 }
 
-const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
+const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
 const { rememberAnchoredSnapshot } = await import(
-  '../../src/services/changeTransaction/snapshotRing.ts'
+  '../../src/tools/engines/change-transaction/snapshotRing.ts'
 )
 const { recoverStaleHunks } = await import(
-  '../../src/services/changeTransaction/stalePatchRecovery.ts'
+  '../../src/tools/engines/change-transaction/stalePatchRecovery.ts'
 )
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 const fixtures = realpathSync(mkdtempSync(join(tmpdir(), 'stale-rec-fix-')))
 const owner = processMainOwner()

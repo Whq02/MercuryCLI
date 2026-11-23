@@ -25,19 +25,19 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 }, nativeFetch)
 let checks = 0
 let failures = 0
-const whereToLook = ' — to fix: the thinking switch is read from the engine list in src/services/providers/local/localDiscovery.ts (thinkingSwitch from capabilities.thinking_switch); the note and the popup rows are drawn by effortPopupThinkingNote and EffortPopup in src/commands/effort/EffortPopup.tsx; an off-fixture request means a caller outside refreshLocalDiscovery reached the network'
+const whereToLook = ' — to fix: the thinking switch is read from the engine list in src/models/roads/local/localDiscovery.ts (thinkingSwitch from capabilities.thinking_switch); the note and the popup rows are drawn by effortPopupThinkingNote and EffortPopup in src/commands/effort/EffortPopup.tsx; an off-fixture request means a caller outside refreshLocalDiscovery reached the network'
 const check = (name: string, truth: unknown): void => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name + (truth ? '' : whereToLook)) }
 try {
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-  const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
+  const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+  const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
   await refreshLocalDiscovery({ force: true })
   check('the false, true and unstated facts come from the engine list, not a screen stub', localRecordFor('local/note-no-switch')?.thinkingSwitch === false && localRecordFor('local/note-with-switch')?.thinkingSwitch === true && localRecordFor('local/note-unstated')?.thinkingSwitch === undefined)
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
   const { EffortPopup } = await import('../../src/commands/effort/EffortPopup.tsx')
   const h = React.createElement
   for (const [columns, rows] of [[60, 13], [60, 20], [120, 40]] as const) {

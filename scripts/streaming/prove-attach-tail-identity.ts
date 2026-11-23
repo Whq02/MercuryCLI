@@ -5,11 +5,11 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'tailid-home-'))
 
-const { createStreamingTailStore } = await import('../../src/utils/messages/streamingTailStore.ts')
+const { createStreamingTailStore } = await import('../../src/engine/message-shapes/streamingTailStore.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix by section: section 1 in src/utils/messages/streamingTailStore.ts (createStreamingTailStore, setMessageId, readIds), section 2 in src/utils/messages/tailRetirement.ts (computeTailRelease), section 3 in src/daemon/sessionSeat.ts (onSeatRow, onSeatSpawned), section 4 in src/services/engine-connector/daemon/tail.ts (TailPart) and src/services/engine-connector/daemonConnector.ts (DaemonSessionConnector)` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix by section: section 1 in src/engine/message-shapes/streamingTailStore.ts (createStreamingTailStore, setMessageId, readIds), section 2 in src/engine/message-shapes/tailRetirement.ts (computeTailRelease), section 3 in src/daemon/session-seat/sessionSeat.ts (onSeatRow, onSeatSpawned), section 4 in src/engine/connector/daemon/tail.ts (TailPart) and src/engine/connector/daemonConnector.ts (DaemonSessionConnector)` : ''}`)
   if (!ok) failures++
 }
 
@@ -103,7 +103,7 @@ const toolResultRow: Row = {
   message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu-1', content: 'done' }] },
 }
 try {
-  const { computeTailRelease } = await import('../../src/utils/messages/tailRetirement.ts')
+  const { computeTailRelease } = await import('../../src/engine/message-shapes/tailRetirement.ts')
   const rows = [userRow, assistantTextRow('msg_X', FULL, 'a-1'), toolResultRow]
 
   const sighting = computeTailRelease(rows as never, { current: null, settled: 'msg_X' })
@@ -143,14 +143,14 @@ try {
   )
   check('a tool_result user row does not break the walk', acrossToolResult.settledShown === true, JSON.stringify(acrossToolResult))
 } catch (e) {
-  check('the one release law exists (src/utils/messages/tailRetirement.ts)', false, String(e))
+  check('the one release law exists (src/engine/message-shapes/tailRetirement.ts)', false, String(e))
 }
 
 console.log('\n§3 the seat stamps the provider message id into the tail file')
 try {
-  const { onSeatRow, onSeatSpawned } = await import('../../src/daemon/sessionSeat.ts')
-  const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
-  const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+  const { onSeatRow, onSeatSpawned } = await import('../../src/daemon/session-seat/sessionSeat.ts')
+  const { readSessionTail } = await import('../../src/engine/connector/seatProjections.ts')
+  const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
   const dir = mkdtempSync(join(tmpdir(), 'tailid-daemon-'))
   const sid = 'aaaaaaaa-bbbb-4ccc-8ddd-tailidentity'
@@ -221,7 +221,7 @@ try {
 
 console.log('\n§4 the connector stages the id and detach drops the ghost')
 {
-  const { TailPart } = await import('../../src/services/engine-connector/daemon/tail.ts')
+  const { TailPart } = await import('../../src/engine/connector/daemon/tail.ts')
   type TailFile = Parameters<InstanceType<typeof TailPart>['takeTail']>[0]
   const landed: Row[] = []
   let paints = 0
@@ -286,8 +286,8 @@ console.log('\n§4 the connector stages the id and detach drops the ghost')
   const planeBefore = process.env.MERCURY_DAEMON_DIR
   process.env.MERCURY_DAEMON_DIR = join(home, 'daemon')
   mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-  const { publishSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+  const { publishSessionTail } = await import('../../src/engine/connector/seatProjections.ts')
   const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
   const sessionId = 'tailid-door'
   const seat = new DaemonSessionConnector({ sessionId, runnerId: 'runner-tailid', title: 'the chat', projectLabel: 'proof', workspaceId: home, home })

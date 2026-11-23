@@ -18,17 +18,17 @@ process.env.MERCURY_LSP_SIDECAR_ENTRY = TS_SIDECAR_ENTRY
 
 const harness = await import(join(REPO, 'scripts/ast-tools/lib/harness.ts'))
 await harness.enterRoot(project)
-const lspManager = await import(join(REPO, 'src/services/lsp/manager.ts'))
+const lspManager = await import(join(REPO, 'src/integrations/lsp/serverManagerLifecycle.ts'))
 lspManager.initializeLspServerManager()
 await lspManager.waitForInitialization()
-const registry = await import(join(REPO, 'src/services/lsp/LSPDiagnosticRegistry.ts'))
-const { getLSPDiagnosticAttachments } = await import(join(REPO, 'src/services/attachments/diagnostics.ts'))
-const { normalizeAttachmentForAPI } = await import(join(REPO, 'src/services/messages/attachmentText.ts'))
-const { FileReadTool } = await import(join(REPO, 'src/tools/FileReadTool/FileReadTool.ts'))
-const { FileEditTool } = await import(join(REPO, 'src/tools/FileEditTool/FileEditTool.ts'))
-const { getEmptyToolPermissionContext } = await import(join(REPO, 'src/Tool.ts'))
-const { processOwnerForLane } = await import(join(REPO, 'src/utils/run/resolveOwner.ts'))
-const { BASH_TOOL_NAME } = await import(join(REPO, 'src/constants/tools/bash.ts'))
+const registry = await import(join(REPO, 'src/integrations/lsp/LSPDiagnosticRegistry.ts'))
+const { getLSPDiagnosticAttachments } = await import(join(REPO, 'src/engine/attachments/diagnostics.ts'))
+const { normalizeAttachmentForAPI } = await import(join(REPO, 'src/engine/messages/attachmentText.ts'))
+const { FileReadTool } = await import(join(REPO, 'src/tools/read/ReadTool.ts'))
+const { FileEditTool } = await import(join(REPO, 'src/tools/edit/EditTool.ts'))
+const { getEmptyToolPermissionContext } = await import(join(REPO, 'src/tools/kit/tool.ts'))
+const { processOwnerForLane } = await import(join(REPO, 'src/engine/run-owner/resolveOwner.ts'))
+const { BASH_TOOL_NAME } = await import(join(REPO, 'src/tools/kit/names/bash.ts'))
 
 type Row = { type: string; files: Array<{ uri: string; diagnostics: Array<{ message: string; severity: string }> }> }
 

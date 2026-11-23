@@ -8,10 +8,10 @@ const HOME = mkdtempSync(join(tmpdir(), 'hotpath-cadence-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_PROJECT_INTEL = '1'
 
-await import('../../src/tasks.js')
-const { makeMaybe, getAttachments } = await import('../../src/services/attachments/orchestrator.js')
+await import('../../src/engine/tasks/tasks.js')
+const { makeMaybe, getAttachments } = await import('../../src/engine/attachments/turnAttachments.js')
 const { getProjectSnapshot, _resetProjectIntelForTesting } = await import(
-  '../../src/services/projectIntel/snapshot.js'
+  '../../src/sessions/project-intel/snapshot.js'
 )
 
 let failures = 0
@@ -32,7 +32,7 @@ section('C1 §maybe — expired optional work never starts; priority still runs'
     optionalStarts++
     return ['x']
   })
-  check('expired optional work returns [] WITHOUT starting', optional.length === 0 && optionalStarts === 0, 'makeMaybe in src/services/attachments/orchestrator.ts must return [] without calling the body once the deadline has passed and the work is not priority')
+  check('expired optional work returns [] WITHOUT starting', optional.length === 0 && optionalStarts === 0, 'makeMaybe in src/engine/attachments/turnAttachments.ts must return [] without calling the body once the deadline has passed and the work is not priority')
   let priorityStarts = 0
   const priority = await expired(
     'prio',
@@ -43,7 +43,7 @@ section('C1 §maybe — expired optional work never starts; priority still runs'
     { priority: true },
   )
   check('expired PRIORITY work still runs to completion (consume-once law)',
-    priorityStarts === 1 && priority.length === 1, 'makeMaybe in src/services/attachments/orchestrator.ts must still run work marked priority: true after the deadline')
+    priorityStarts === 1 && priority.length === 1, 'makeMaybe in src/engine/attachments/turnAttachments.ts must still run work marked priority: true after the deadline')
 }
 {
   const live = makeMaybe(performance.now() + 60_000)
@@ -58,9 +58,9 @@ section('C1 §maybe — expired optional work never starts; priority still runs'
     live('ambient_probe', slowBody),
   ])
   check('two concurrent collections SINGLE-FLIGHT the same ambient label',
-    starts === 1 && a[0] === 'done' && b[0] === 'done', String(starts) + ' starts; makeMaybe in src/services/attachments/orchestrator.ts must share one in-flight run per label for work that is neither priority nor inputScoped')
+    starts === 1 && a[0] === 'done' && b[0] === 'done', String(starts) + ' starts; makeMaybe in src/engine/attachments/turnAttachments.ts must share one in-flight run per label for work that is neither priority nor inputScoped')
   await live('ambient_probe', slowBody)
-  check('after settle, a fresh collection runs it again', starts === 2, 'makeMaybe in src/services/attachments/orchestrator.ts must drop its in-flight entry for a label once the run settles')
+  check('after settle, a fresh collection runs it again', starts === 2, 'makeMaybe in src/engine/attachments/turnAttachments.ts must drop its in-flight entry for a label once the run settles')
   let scopedStarts = 0
   const scopedBody = (): Promise<string[]> =>
     new Promise(resolve => {
@@ -71,7 +71,7 @@ section('C1 §maybe — expired optional work never starts; priority still runs'
     live('scoped_probe', scopedBody, { inputScoped: true }),
     live('scoped_probe', scopedBody, { inputScoped: true }),
   ])
-  check('input-scoped producers NEVER reuse a prior in-flight instance', scopedStarts === 2, 'makeMaybe in src/services/attachments/orchestrator.ts must not reuse an in-flight run for work marked inputScoped: true')
+  check('input-scoped producers NEVER reuse a prior in-flight instance', scopedStarts === 2, 'makeMaybe in src/engine/attachments/turnAttachments.ts must not reuse an in-flight run for work marked inputScoped: true')
 }
 
 section('C1 §end-to-end — phase-one exhaustion cannot unbound the collection')
@@ -92,12 +92,12 @@ section('C1 §end-to-end — phase-one exhaustion cannot unbound the collection'
   check(
     'the collection stays bounded although phase one spent the whole budget (< 3500ms, not the 4000ms stuck producer)',
     wall < 3_500,
-    `${wall}ms; getAttachments in src/services/attachments/orchestrator.ts must bound the whole collection by its deadline (ATTACHMENT_HARD_DEADLINE_MS) even when phase one has spent it`,
+    `${wall}ms; getAttachments in src/engine/attachments/turnAttachments.ts must bound the whole collection by its deadline (ATTACHMENT_HARD_DEADLINE_MS) even when phase one has spent it`,
   )
   check(
     'the consume-once queued command SURVIVED the exhausted budget (priority lane)',
     attachments.some(a => a.type === 'queued_command'),
-    JSON.stringify(attachments.map(a => a.type)) + '; the queued_command attachment in getAttachments (src/services/attachments/orchestrator.ts) must be collected with priority: true so an exhausted budget cannot drop it',
+    JSON.stringify(attachments.map(a => a.type)) + '; the queued_command attachment in getAttachments (src/engine/attachments/turnAttachments.ts) must be collected with priority: true so an exhausted budget cannot drop it',
   )
   delete process.env.MERCURY_PULSE_FIXTURE
 }
@@ -111,15 +111,15 @@ section('C2 — a successful validation refreshes currency; scoped invalidation'
 
   _resetProjectIntelForTesting()
   const fresh = getProjectSnapshot(ws, { maxStaleMs: 120_000 })
-  check('cold read builds fresh', fresh?.from === 'fresh', fresh?.from + '; getProjectSnapshot in src/services/projectIntel/snapshot.ts must build a fresh snapshot on a cold read')
+  check('cold read builds fresh', fresh?.from === 'fresh', fresh?.from + '; getProjectSnapshot in src/sessions/project-intel/snapshot.ts must build a fresh snapshot on a cold read')
   fresh!.snapshot.generation.scannedAtMs = Date.now() - 200_000
   const validated = getProjectSnapshot(ws, { maxStaleMs: 120_000 })
-  check('the aged read validates against the live tree', validated?.from === 'cache-validated', validated?.from + '; getProjectSnapshot in src/services/projectIntel/snapshot.ts must validate an aged snapshot against the live tree and answer cache-validated')
+  check('the aged read validates against the live tree', validated?.from === 'cache-validated', validated?.from + '; getProjectSnapshot in src/sessions/project-intel/snapshot.ts must validate an aged snapshot against the live tree and answer cache-validated')
   const after = getProjectSnapshot(ws, { maxStaleMs: 120_000 })
   check(
     "validation REFRESHED currency — the next read is 'cache-ttl', not another digest",
     after?.from === 'cache-ttl',
-    after?.from + '; getProjectSnapshot in src/services/projectIntel/snapshot.ts must refresh the snapshot currency after a successful validation',
+    after?.from + '; getProjectSnapshot in src/sessions/project-intel/snapshot.ts must refresh the snapshot currency after a successful validation',
   )
   rmSync(ws, { recursive: true, force: true })
 
@@ -127,9 +127,9 @@ section('C2 — a successful validation refreshes currency; scoped invalidation'
 
 section('C3 — the runner records its new tail and owns the durable flush')
 {
-  const { recordTranscript, flushSessionStorage, setSessionFileForTesting } = await import('../../src/utils/sessionStorage/writer.ts')
-  const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-  const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')
+  const { recordTranscript, flushSessionStorage, setSessionFileForTesting } = await import('../../src/sessions/transcripts/writer.ts')
+  const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
+  const { decodeTranscriptBuffer } = await import('../../src/sessions/fabric/transcriptDecode.ts')
   const file = join(HOME, 'runner-tail.jsonl')
   setSessionFileForTesting(file)
   const prompt = createUserMessage({ content: 'do it' })

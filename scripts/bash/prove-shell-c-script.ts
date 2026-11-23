@@ -8,15 +8,15 @@ delete process.env.MERCURY_HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { setCwd } = await import('../../src/utils/Shell.js')
-const { setOriginalCwd } = await import('../../src/bootstrap/state.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
-const { checkReadOnlyConstraints, prepareBashReadOnly, preparedBashReadsOnly } = await import('../../src/tools/BashTool/readOnlyValidation.js')
-const { shellCommandText } = await import('../../src/utils/permissions/decision/commandAnalysis.js')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.js')
+const { setCwd } = await import('../../src/platform/shell/shellExec.js')
+const { setOriginalCwd } = await import('../../src/boot/process-state/processState.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.js')
+const { checkReadOnlyConstraints, prepareBashReadOnly, preparedBashReadsOnly } = await import('../../src/tools/shell/readOnlyValidation.js')
+const { shellCommandText } = await import('../../src/permissions/rules/decision/commandAnalysis.js')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.js')
 const { z } = await import('zod/v4')
 const project = join(scratch, 'project')
 mkdirSync(join(project, 'sub'), { recursive: true })
@@ -28,7 +28,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail?: unknown): void {
   checks++
   if (!ok) failures++
-  const failureHint = 'to fix, change how a shell -c wrapper is unwrapped and judged: bashToolHasPermission in src/tools/BashTool/bashPermissions.ts (allow, ask and deny), checkReadOnlyConstraints in src/tools/BashTool/readOnlyValidation.ts (read-only reading), prepareShellCScripts and SHELL_C_MAX_DEPTH in src/utils/permissions/decision/commandAnalysis.ts (inner scripts and depth)'
+  const failureHint = 'to fix, change how a shell -c wrapper is unwrapped and judged: bashToolHasPermission in src/tools/shell/bashPermissions.ts (allow, ask and deny), checkReadOnlyConstraints in src/tools/shell/readOnlyValidation.ts (read-only reading), prepareShellCScripts and SHELL_C_MAX_DEPTH in src/permissions/rules/decision/commandAnalysis.ts (inner scripts and depth)'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)}; ${failureHint}` : ''}`)
 }
 const permission = (allow: string[] = [], deny: string[] = [], ask: string[] = []) => ({

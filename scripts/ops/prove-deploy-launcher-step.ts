@@ -10,7 +10,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix the launcher action block step in scripts/splash/deploy.sh (the is_mercury_launcher branch and the REFUSED lines), or shimContent in src/services/privateChannel/installLayout.ts when the shim fixture is wrong` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix the launcher action block step in scripts/splash/deploy.sh (the is_mercury_launcher branch and the REFUSED lines), or shimContent in src/platform/update-channel/installLayout.ts when the shim fixture is wrong` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -18,7 +18,7 @@ const section = (t: string): void => {
 
 const ROOT = join(import.meta.dir, '..', '..')
 const DEPLOY = join(ROOT, 'scripts/splash/deploy.sh')
-const { shimContent } = await import('../../src/services/privateChannel/installLayout.ts')
+const { shimContent } = await import('../../src/platform/update-channel/installLayout.ts')
 const scratch = mkdtempSync(join(tmpdir(), 'deploy-launcher-step-'))
 const launcherAt = (name: string, text: string): string => {
   const dir = join(scratch, name)

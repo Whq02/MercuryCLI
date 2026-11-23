@@ -9,14 +9,14 @@ import {
   isDurableTempName,
   renameWithWin32Retry,
   renameWithWin32RetrySync,
-} from '../../src/substrate/durablePublish.ts'
+} from '../../src/platform/substrate/durablePublish.ts'
 
 const IS_WIN = process.platform === 'win32'
 let failures = 0
 const publishFailureHint = (label: string): string =>
   label.startsWith('§2') || label.startsWith('§3')
-    ? 'change renameWithWin32Retry or renameWithWin32RetrySync in src/substrate/durablePublish.ts (retry only on win32 for EBUSY and EPERM, never for ENOENT or EXDEV)'
-    : 'change durableAtomicPublishSync or DurablePublishError in src/substrate/durablePublish.ts (attempts, phase, fsCode, tempCleanup, temp-file removal)'
+    ? 'change renameWithWin32Retry or renameWithWin32RetrySync in src/platform/substrate/durablePublish.ts (retry only on win32 for EBUSY and EPERM, never for ENOENT or EXDEV)'
+    : 'change durableAtomicPublishSync or DurablePublishError in src/platform/substrate/durablePublish.ts (attempts, phase, fsCode, tempCleanup, temp-file removal)'
 const ok = (cond: boolean, label: string, detail = ''): void => {
   const shown = cond ? detail : `${detail ? `${detail} — ` : ''}${publishFailureHint(label)}`
   console.log(`  ${cond ? '✅' : '❌'} ${label}${shown ? ` — ${shown}` : ''}`)

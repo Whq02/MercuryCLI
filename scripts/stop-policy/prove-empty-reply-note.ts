@@ -22,7 +22,7 @@ export const EMPTY_REPLY_ASK = 'read the readme, then say what it holds'
 export const EMPTY_REPLY_END = 'done: the readme holds one heading'
 const EMPTY_REPLY_NOTE_WORDS = 'returned an empty reply'
 const ZAI_SILENCE_WORDS = 'finished this response with nothing said'
-const emptyReplyWhere = 'the empty-reply turn handling is in src/run-core/turn/noToolReply.ts (nudge text EMPTY_REPLY_RECOVERY_NUDGE in src/services/api/errors.ts, note wording in src/services/providers/emptyReply.ts); rerun the run to see the stderr tail'
+const emptyReplyWhere = 'the empty-reply turn handling is in src/engine/loop/turn/noToolReply.ts (nudge text EMPTY_REPLY_RECOVERY_NUDGE in src/engine/requests/apiErrorRows.ts, note wording in src/models/roads/emptyReply.ts); rerun the run to see the stderr tail'
 
 let failures = 0
 let checks = 0
@@ -224,24 +224,24 @@ async function runRoute(route: { route: string; model: string; dialect: Dialect 
   check(`${route.route}: the turn settled with a completed outcome`, exit === 0 && isCompleted(outcome), `exit ${String(exit)} ${String(outcome?.status)} ${tail} · the run must exit 0 with a completed outcome; if the proof deadline passed, ${emptyReplyWhere}`)
   if (route.route === 'zai') {
     check(`${route.route}: the tool round ran and the second request finished with no words`, requests.length >= 2 && requests[1] !== undefined, `${requests.length} request(s) · the run must send a second request after the Read tool result; ${emptyReplyWhere}`)
-    check(`${route.route}: no chat line — a clean silence paints no words`, !texts.some(t => t.trim() !== '' && t !== EMPTY_REPLY_END), `${JSON.stringify(texts).slice(0, 300)} · a silence-kind empty reply must paint no chat text (emptyReplyChatText in src/services/providers/emptyReply.ts returns an empty string for silence)`)
-    check(`${route.route}: the debug log carries the silence sentence`, debugLogLines(config).some(line => line.includes(ZAI_SILENCE_WORDS)), `${debugLogLines(config).filter(l => l.includes('[zai]')).slice(0, 3).join(' | ')} · the silence note from emptyReplyNote (src/services/providers/emptyReply.ts) must reach the debug log; see how noToolReply.ts uses emptyReplyNoteOf`)
-    check(`${route.route}: nothing carries the old cut wording`, !texts.some(t => t.includes(EMPTY_REPLY_NOTE_WORDS)), `${JSON.stringify(texts).slice(0, 300)} · the zai silence path must not print the returned an empty reply wording (emptyReplyNote and emptyReplyNoticeLine in src/services/providers/emptyReply.ts)`)
-    const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
+    check(`${route.route}: no chat line — a clean silence paints no words`, !texts.some(t => t.trim() !== '' && t !== EMPTY_REPLY_END), `${JSON.stringify(texts).slice(0, 300)} · a silence-kind empty reply must paint no chat text (emptyReplyChatText in src/models/roads/emptyReply.ts returns an empty string for silence)`)
+    check(`${route.route}: the debug log carries the silence sentence`, debugLogLines(config).some(line => line.includes(ZAI_SILENCE_WORDS)), `${debugLogLines(config).filter(l => l.includes('[zai]')).slice(0, 3).join(' | ')} · the silence note from emptyReplyNote (src/models/roads/emptyReply.ts) must reach the debug log; see how noToolReply.ts uses emptyReplyNoteOf`)
+    check(`${route.route}: nothing carries the old cut wording`, !texts.some(t => t.includes(EMPTY_REPLY_NOTE_WORDS)), `${JSON.stringify(texts).slice(0, 300)} · the zai silence path must not print the returned an empty reply wording (emptyReplyNote and emptyReplyNoticeLine in src/models/roads/emptyReply.ts)`)
+    const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/engine/requests/apiErrorRows.ts')
     const needle = JSON.stringify(EMPTY_REPLY_RECOVERY_NUDGE).slice(1, -1)
     const second = requests[1] === undefined ? [] : inputOf(requests[1])
     const third = requests[2] === undefined ? [] : inputOf(requests[2])
-    check(`${route.route}: nobody is at this run, so the silence is asked about once: a third request carries the one-line note and the second did not`, requests.length === 3 && JSON.stringify(third).includes(needle) && !JSON.stringify(second).includes(needle), `${requests.length} request(s) · the silence must be asked about once, by a third request that carries EMPTY_REPLY_RECOVERY_NUDGE (src/services/api/errors.ts) and not the second; ${emptyReplyWhere}`)
+    check(`${route.route}: nobody is at this run, so the silence is asked about once: a third request carries the one-line note and the second did not`, requests.length === 3 && JSON.stringify(third).includes(needle) && !JSON.stringify(second).includes(needle), `${requests.length} request(s) · the silence must be asked about once, by a third request that carries EMPTY_REPLY_RECOVERY_NUDGE (src/engine/requests/apiErrorRows.ts) and not the second; ${emptyReplyWhere}`)
     check(`${route.route}: the outcome's answer is the model's answer to the ask, and carries no notice`, answer === EMPTY_REPLY_END && !answer.includes(ZAI_SILENCE_WORDS) && !answer.includes(EMPTY_REPLY_NOTE_WORDS), `answer: ${JSON.stringify(answer.slice(0, 200))} · the outcome answer must be the last model text without any empty-reply note; ${emptyReplyWhere}`)
   } else {
-    const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
+    const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/engine/requests/apiErrorRows.ts')
     const needle = JSON.stringify(EMPTY_REPLY_RECOVERY_NUDGE).slice(1, -1)
     const second = requests[1] === undefined ? [] : inputOf(requests[1])
     const third = requests[2] === undefined ? [] : inputOf(requests[2])
     const lastItem = third.at(-1) as { role?: unknown } | undefined
     check(`${route.route}: the tool round ran and the second request answered empty`, requests.length >= 2 && (requests[1] !== undefined) , `${requests.length} request(s) · the run must send a second request after the Read tool result; ${emptyReplyWhere}`)
-    check(`${route.route}: a visible note says the provider returned an empty reply`, texts.some(t => t.includes(EMPTY_REPLY_NOTE_WORDS)), `${JSON.stringify(texts).slice(0, 300)} · an empty-kind reply must print the note from emptyReplyNote / emptyReplyChatText (src/services/providers/emptyReply.ts)`)
-    check(`${route.route}: the request was re-issued once, with the nudge as its last user turn after the tool result`, requests.length === 3 && lastItem?.role === 'user' && JSON.stringify(lastItem).includes(needle) && !JSON.stringify(second).includes(needle), `${requests.length} request(s); last input item: ${JSON.stringify(lastItem).slice(0, 300)} · the re-issue must end with a user turn carrying EMPTY_REPLY_RECOVERY_NUDGE (src/services/api/errors.ts), added in src/run-core/turn/noToolReply.ts`)
+    check(`${route.route}: a visible note says the provider returned an empty reply`, texts.some(t => t.includes(EMPTY_REPLY_NOTE_WORDS)), `${JSON.stringify(texts).slice(0, 300)} · an empty-kind reply must print the note from emptyReplyNote / emptyReplyChatText (src/models/roads/emptyReply.ts)`)
+    check(`${route.route}: the request was re-issued once, with the nudge as its last user turn after the tool result`, requests.length === 3 && lastItem?.role === 'user' && JSON.stringify(lastItem).includes(needle) && !JSON.stringify(second).includes(needle), `${requests.length} request(s); last input item: ${JSON.stringify(lastItem).slice(0, 300)} · the re-issue must end with a user turn carrying EMPTY_REPLY_RECOVERY_NUDGE (src/engine/requests/apiErrorRows.ts), added in src/engine/loop/turn/noToolReply.ts`)
     check(`${route.route}: the re-issue is not byte-identical to the empty-answered request`, requests.length === 3 && JSON.stringify(third) !== JSON.stringify(second), `${requests.length} request(s) · the re-issued request must differ from the empty-answered one by the nudge turn; ${emptyReplyWhere}`)
     check(`${route.route}: the outcome's answer is the model's answer from the re-issue, not silence`, answer === EMPTY_REPLY_END, `answer: ${JSON.stringify(answer.slice(0, 200))} · the outcome answer must be the text of the re-issued reply; ${emptyReplyWhere}`)
   }

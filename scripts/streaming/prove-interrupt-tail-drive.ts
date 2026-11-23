@@ -19,8 +19,8 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   const tailFix = /^C\d/.test(label)
-    ? 'change interrupt() or readTail() of DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts so the cut words leave the screen at the press and are painted once from the transcript record'
-    : 'rebuild with bun run build.ts first, then change interrupt() or readTail() of DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts, or the wire in scripts/streaming/turn-end-fixture-server.ts if the wire check failed'
+    ? 'change interrupt() or readTail() of DaemonSessionConnector in src/engine/connector/daemonConnector.ts so the cut words leave the screen at the press and are painted once from the transcript record'
+    : 'rebuild with bun run build.ts first, then change interrupt() or readTail() of DaemonSessionConnector in src/engine/connector/daemonConnector.ts, or the wire in scripts/streaming/turn-end-fixture-server.ts if the wire check failed'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}${tailFix}` : ''}`)
 }
 const section = (t: string): void => {
@@ -35,13 +35,13 @@ async function connectorScenes(): Promise<void> {
   process.env.MERCURY_DAEMON_DIR = daemonDir
   delete process.env.MERCURY_HOME
 
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-  const { publishSessionFacts, publishSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
-  const { createAssistantMessage, createUserMessage, createUserInterruptionMessage } = await import('../../src/utils/messages/factories.ts')
-  const { recordTranscript, flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
-  const { getTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+  const { publishSessionFacts, publishSessionTail } = await import('../../src/engine/connector/seatProjections.ts')
+  const { createAssistantMessage, createUserMessage, createUserInterruptionMessage } = await import('../../src/engine/message-shapes/factories.ts')
+  const { recordTranscript, flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+  const { getTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
 
   type Guts = {
     attached: boolean

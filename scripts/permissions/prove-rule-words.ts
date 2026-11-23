@@ -19,11 +19,11 @@ process.chdir(PROJ)
 
 let failures = 0
 const ruleWordsWhereBySection: Record<string, string> = {
-  '§1': 'fix parsePermissionRule, permissionRuleExtractPrefix or suggestionForPrefix in src/utils/permissions/shellRuleMatching.ts',
-  '§2': 'fix the rule matching in src/utils/permissions/shellRuleMatching.ts and src/tools/BashTool/bashPermissions.ts (PowerShell: src/tools/PowerShellTool/powershellPermissions.ts)',
-  '§3': 'fix validatePermissionRule in src/utils/settings/permissionValidation.ts, filterInvalidPermissionRules in src/utils/settings/validation.ts, or isDangerousBashPermission in src/utils/permissions/permissionSetup.ts',
-  '§4': 'fix the screen named in the label: src/components/permissions/rules/PermissionRuleDescription.tsx, src/components/permissions/rules/PermissionRuleInput.tsx or src/components/permissions/BashPermissionRequest/bashToolUseOptions.tsx',
-  '§5': 'fix ruleSentence, ruleSourceWords or refusalWithReason in src/utils/permissions/ruleReason.ts, the road that speaks the sentence (Bash, PowerShell, src/utils/permissions/filesystem.ts, src/utils/permissions/decision/requestMessage.ts), or src/components/permissions/PermissionRuleExplanation.tsx',
+  '§1': 'fix parsePermissionRule, permissionRuleExtractPrefix or suggestionForPrefix in src/permissions/rules/shellRuleMatching.ts',
+  '§2': 'fix the rule matching in src/permissions/rules/shellRuleMatching.ts and src/tools/shell/bashPermissions.ts (PowerShell: src/tools/powershell/powershellPermissions.ts)',
+  '§3': 'fix validatePermissionRule in src/platform/settings/permissionValidation.ts, filterInvalidPermissionRules in src/platform/settings/validation.ts, or isDangerousBashPermission in src/permissions/rules/permissionSetup.ts',
+  '§4': 'fix the screen named in the label: src/permissions/cards/rule-manager/PermissionRuleDescription.tsx, src/permissions/cards/rule-manager/PermissionRuleInput.tsx or src/permissions/cards/bash/shellAskOptions.tsx',
+  '§5': 'fix ruleSentence, ruleSourceWords or refusalWithReason in src/permissions/rules/ruleReason.ts, the road that speaks the sentence (Bash, PowerShell, src/permissions/rules/filesystem.ts, src/permissions/rules/decision/requestMessage.ts), or src/permissions/cards/PermissionRuleExplanation.tsx',
 }
 let ruleWordsWhere = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -40,28 +40,28 @@ async function stub(path: string, fixture: () => Record<string, unknown>): Promi
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...fixture() }))
 }
-await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined, useKeybindings: () => undefined }))
+await stub('../../src/screen/keys/useKeybinding.js', () => ({ useKeybinding: () => undefined, useKeybindings: () => undefined }))
 
-const { enableConfigs } = await import('../../src/utils/config.js')
-const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
+const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
 setSessionTrustAccepted(true)
 enableConfigs()
-const shell = await import('../../src/utils/permissions/shellRuleMatching.js')
-const { validatePermissionRule } = await import('../../src/utils/settings/permissionValidation.js')
-const { isDangerousBashPermission } = await import('../../src/utils/permissions/permissionSetup.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { bashToolCheckExactMatchPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
+const shell = await import('../../src/permissions/rules/shellRuleMatching.js')
+const { validatePermissionRule } = await import('../../src/platform/settings/permissionValidation.js')
+const { isDangerousBashPermission } = await import('../../src/permissions/rules/permissionSetup.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { bashToolCheckExactMatchPermission } = await import('../../src/tools/shell/bashPermissions.js')
 const { checkParsedCommand: bashToolCheckPermission } = await import('../bash/floor-proof-helpers.ts')
-const { powershellToolCheckPermission } = await import('../../src/tools/PowerShellTool/powershellPermissions.js')
-const { PermissionRuleDescription } = await import('../../src/components/permissions/rules/PermissionRuleDescription.js')
-const { PermissionRuleInput } = await import('../../src/components/permissions/rules/PermissionRuleInput.js')
-const { bashToolUseOptions } = await import('../../src/components/permissions/BashPermissionRequest/bashToolUseOptions.js')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { powershellToolCheckPermission } = await import('../../src/tools/powershell/powershellPermissions.js')
+const { PermissionRuleDescription } = await import('../../src/permissions/cards/rule-manager/PermissionRuleDescription.js')
+const { PermissionRuleInput } = await import('../../src/permissions/cards/rule-manager/PermissionRuleInput.js')
+const { bashToolUseOptions } = await import('../../src/permissions/cards/bash/shellAskOptions.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 
 type Ctx = ReturnType<typeof getEmptyToolPermissionContext>
 type Decision = { behavior: string; message?: string; decisionReason?: { type: string; rule?: { ruleValue: { ruleContent?: string } } } }
@@ -129,7 +129,7 @@ section('§3 THE VALIDATOR — the star forms are legal; no sentence of its own 
     check(`…and the fault says how to write it: ${spaced}`, (result.suggestion ?? '').includes(spaced), j(result))
   }
   {
-    const { filterInvalidPermissionRules } = await import('../../src/utils/settings/validation.js')
+    const { filterInvalidPermissionRules } = await import('../../src/platform/settings/validation.js')
     const settings = { guardrails: { deny: ['Bash(rm:*)', 'Bash(rm -rf *)'], allow: ['Bash(npm run:*)'] } }
     const faults = filterInvalidPermissionRules(settings, 'settings.json')
     check('a settings file that carries such rules gets one fault for each, an error for the deny rule it cannot apply and a warning for the allow rule, and keeps the rules it can read', faults.length === 2 && faults.every(fault => fault.severity === (fault.path === 'guardrails.deny' ? 'error' : 'warning') && /Skipped invalid permission rule/.test(fault.message) && /Write a space before the star/.test(fault.message)) && j(settings.guardrails.deny) === j(['Bash(rm -rf *)']) && j(settings.guardrails.allow) === j([]), j({ faults, settings }))
@@ -203,16 +203,16 @@ section('§4 THE SCREENS — the gloss, the free-text example and the card place
 
 section('§5 ONE VOICE WHEN A RULE DECIDES — what was attempted, the verdict, the rule as written, where it lives')
 {
-  const reasonModule = await import('../../src/utils/permissions/ruleReason.js') as Record<string, unknown>
+  const reasonModule = await import('../../src/permissions/rules/ruleReason.js') as Record<string, unknown>
   check('the one sentence helper exists', typeof reasonModule.ruleSentence === 'function' && typeof reasonModule.ruleSourceWords === 'function')
   if (typeof reasonModule.ruleSentence !== 'function') {
     console.log(`\n❌ rule-words: ${failures} failure(s)`)
     process.exit(1)
   }
-  const { ruleSentence, ruleSourceWords, refusalWithReason } = reasonModule as unknown as typeof import('../../src/utils/permissions/ruleReason.js')
-  const { createPermissionRequestMessage } = await import('../../src/utils/permissions/decision/requestMessage.js')
-  const { checkReadPermissionForTool, checkWritePermissionForTool } = await import('../../src/utils/permissions/filesystem.js')
-  const { PermissionRuleExplanation } = await import('../../src/components/permissions/PermissionRuleExplanation.js')
+  const { ruleSentence, ruleSourceWords, refusalWithReason } = reasonModule as unknown as typeof import('../../src/permissions/rules/ruleReason.js')
+  const { createPermissionRequestMessage } = await import('../../src/permissions/rules/decision/requestMessage.js')
+  const { checkReadPermissionForTool, checkWritePermissionForTool } = await import('../../src/permissions/rules/filesystem.js')
+  const { PermissionRuleExplanation } = await import('../../src/permissions/cards/PermissionRuleExplanation.js')
   const rule = (source: string, behavior: 'allow' | 'deny' | 'ask', toolName: string, ruleContent?: string) =>
     ({ source, ruleBehavior: behavior, ruleValue: { toolName, ...(ruleContent === undefined ? {} : { ruleContent }) } }) as never
   check('a deny names what was attempted, the rule and the file', ruleSentence('rm -rf dist', 'deny', rule('projectSettings', 'deny', 'Bash', 'rm *')) === 'rm -rf dist is denied by the rule Bash(rm *) in the shared project settings.')

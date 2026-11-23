@@ -7,10 +7,10 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'facts-stamp-home-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
-const seat = await import('../../src/daemon/sessionSeat.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
+const seat = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { readSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
+const { sessionFactsToWire } = await import('../../src/engine/connector/seatWire.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -80,8 +80,8 @@ const first = facts()?.atMs
 seat.publishSeatFacts(SHORT, dir, roster as never)
 const second = facts()?.atMs
 freeClock()
-check('the first publication carries the clock', first === t0, `first=${first} clock=${t0} — publishSeatFacts in src/daemon/sessionSeat/facts.ts stamps atMs from the clock when it has moved`)
-check('the second, in the same tick, carries a later stamp', first !== undefined && second !== undefined && second > first, `first=${first} second=${second} — publishSeatFacts in src/daemon/sessionSeat/facts.ts must stamp max(clock, last stamp + 1) (seat.lastFactsAtMs)`)
+check('the first publication carries the clock', first === t0, `first=${first} clock=${t0} — publishSeatFacts in src/daemon/session-seat/facts.ts stamps atMs from the clock when it has moved`)
+check('the second, in the same tick, carries a later stamp', first !== undefined && second !== undefined && second > first, `first=${first} second=${second} — publishSeatFacts in src/daemon/session-seat/facts.ts must stamp max(clock, last stamp + 1) (seat.lastFactsAtMs)`)
 
 section("S2 · the runner's answer landing in the tick of a seat publish is told apart from it (the landing road)")
 const t1 = t0 + 5
@@ -91,9 +91,9 @@ const landing = facts()
 runnerFacts(0.5)
 const fresh = facts()
 freeClock()
-check('the seat publish carries the clock, past the tick before', landing?.atMs === t1, `atMs=${landing?.atMs} clock=${t1} — publishSeatFacts in src/daemon/sessionSeat/facts.ts stamps atMs from the clock when it has moved`)
-check("the runner's answer is the row on disk (its usage figure stands)", fresh?.usage.totalCostUSD === 0.5, `${JSON.stringify(fresh?.usage)} — onFactsAnswer in src/daemon/sessionSeat/facts.ts must publish the runner's usage as the row on disk`)
-check("…with a stamp later than the seat publish's, though the clock did not move", (fresh?.atMs ?? 0) > (landing?.atMs ?? 0), `landing=${landing?.atMs} fresh=${fresh?.atMs} — the stamp onFactsAnswer publishes (src/daemon/sessionSeat/facts.ts) must come after the seat's last stamp even when the clock is held`)
+check('the seat publish carries the clock, past the tick before', landing?.atMs === t1, `atMs=${landing?.atMs} clock=${t1} — publishSeatFacts in src/daemon/session-seat/facts.ts stamps atMs from the clock when it has moved`)
+check("the runner's answer is the row on disk (its usage figure stands)", fresh?.usage.totalCostUSD === 0.5, `${JSON.stringify(fresh?.usage)} — onFactsAnswer in src/daemon/session-seat/facts.ts must publish the runner's usage as the row on disk`)
+check("…with a stamp later than the seat publish's, though the clock did not move", (fresh?.atMs ?? 0) > (landing?.atMs ?? 0), `landing=${landing?.atMs} fresh=${fresh?.atMs} — the stamp onFactsAnswer publishes (src/daemon/session-seat/facts.ts) must come after the seat's last stamp even when the clock is held`)
 
 section('S3 · a burst in one tick lands newest-last with strictly rising stamps, and the clock takes over once it moves on')
 const t2 = t1 + 10
@@ -104,15 +104,15 @@ for (let i = 1; i <= 5; i++) {
   stamps.push(facts()?.atMs ?? 0)
 }
 freeClock()
-check('five stamps rise strictly', stamps.every((s, i) => i === 0 || s > (stamps[i - 1] ?? Number.POSITIVE_INFINITY)), `${stamps.join(',')} — each publication in src/daemon/sessionSeat/facts.ts must stamp past seat.lastFactsAtMs`)
-check('the first of the burst carries the clock', stamps[0] === t2, `first=${stamps[0]} clock=${t2} — the first publication after the clock moves must carry the clock (src/daemon/sessionSeat/facts.ts)`)
-check('the last publication is the row on disk', facts()?.usage.totalCostUSD === 1.5, `${JSON.stringify(facts()?.usage)} — the last onFactsAnswer (src/daemon/sessionSeat/facts.ts) must leave its usage as the row on disk`)
+check('five stamps rise strictly', stamps.every((s, i) => i === 0 || s > (stamps[i - 1] ?? Number.POSITIVE_INFINITY)), `${stamps.join(',')} — each publication in src/daemon/session-seat/facts.ts must stamp past seat.lastFactsAtMs`)
+check('the first of the burst carries the clock', stamps[0] === t2, `first=${stamps[0]} clock=${t2} — the first publication after the clock moves must carry the clock (src/daemon/session-seat/facts.ts)`)
+check('the last publication is the row on disk', facts()?.usage.totalCostUSD === 1.5, `${JSON.stringify(facts()?.usage)} — the last onFactsAnswer (src/daemon/session-seat/facts.ts) must leave its usage as the row on disk`)
 const t3 = t2 + 10_000
 holdClock(t3)
 runnerFacts(2)
 const late = facts()?.atMs
 freeClock()
-check("once the clock has moved past the burst, the stamp is the clock's word again", late === t3, `atMs=${late} clock=${t3} — the stamp in src/daemon/sessionSeat/facts.ts must return to the clock once the clock passes the last stamp`)
+check("once the clock has moved past the burst, the stamp is the clock's word again", late === t3, `atMs=${late} clock=${t3} — the stamp in src/daemon/session-seat/facts.ts must return to the clock once the clock passes the last stamp`)
 
 console.log(failures === 0 ? '\nprove-facts-stamp-order: ALL LAWS HOLD' : `\nprove-facts-stamp-order: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

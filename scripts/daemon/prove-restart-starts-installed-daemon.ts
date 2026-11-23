@@ -48,11 +48,11 @@ console.log(' /restart with no daemon serving starts the INSTALLED build\'s own 
 console.log(' the caller is a source process here (bun on this proof), as a screen of an older build would be — the daemon it starts must run the installed bundle, never the caller\'s own script')
 console.log('============================================================')
 
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-const { handshakeDaemon } = await import('../../src/daemon/handshake.ts')
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
+const { handshakeDaemon } = await import('../../src/daemon/control/handshake.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 const restart = await import('../../src/commands/restart/restart.ts')
-const { sameBuildTree } = await import('../../src/daemon/planeBoot.ts')
+const { sameBuildTree } = await import('../../src/daemon/control/planeBoot.ts')
 
 try {
   const before = await handshakeDaemon({ timeoutMs: 500 })

@@ -11,7 +11,7 @@ import {
   priorFromRollups,
   shouldEscalate,
   stepCache,
-} from '../../src/utils/cache/cacheClockCore.js'
+} from '../../src/platform/cache-clock/cacheClockCore.js'
 
 export interface Corpus {
   v: number

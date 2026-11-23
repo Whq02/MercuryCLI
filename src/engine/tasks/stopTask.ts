@@ -1,0 +1,263 @@
+import { existsSync, statSync } from 'node:fs'
+import { getOriginalCwd, getSessionId, getSessionProjectDir } from '../../boot/process-state/processState.js'
+import type { SetAppState, TaskKillReceipt, TaskStateBase, TaskType } from './taskBase.js'
+import type { AppState } from '../../screen/app-state/AppState.js'
+import { getTaskByType } from './tasks.js'
+import { readAgentTranscript } from '../../crew/crewmates/agentTranscriptReader.js'
+import { asAgentId } from '../../sessions/transcripts/ids.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
+import { getAgentTranscriptPath } from '../../sessions/transcripts/paths.js'
+import { emitTaskEnded } from '../../daemon/runner/sdkEventQueue.js'
+import { updateTaskState } from '../task-framework/taskRegistry.js'
+import { projectLeaseHolder, releaseProjectLeases } from '../../integrations/vulcan/engine/leases.js'
+import type { AgentPauseV1 } from './local-agent/agentPause.js'
+import { AGENT_RESUME_DOOR, isLocalAgentTask, stopPausedAgentTask } from './local-agent/crewmateTask.js'
+import { agentPauseRecordPath, clearAgentPauseRecord } from './local-agent/pauseCarry.js'
+import { isLocalShellTask, type LocalShellTaskState } from './local-shell/shellTaskState.js'
+import { findTaskOutcome, type TaskOutcomeEnvelope, type TaskOutcomeState } from './taskOutcomeEnvelope.js'
+
+
+export function resolveStopTargetId(raw: string, state: Pick<AppState, 'tasks' | 'agentNameRegistry'>): string {
+  const tasks = state.tasks ?? {}
+  if (tasks[raw] !== undefined) return raw
+  const registered = (state.agentNameRegistry as ReadonlyMap<string, string> | undefined)?.get(raw)
+  if (registered !== undefined && tasks[String(registered)] !== undefined) return String(registered)
+  return raw
+}
+
+type StopTaskErrorCode = 'not_found' | 'not_running' | 'unsupported_type'
+
+export class StopTaskError extends Error {
+  code: StopTaskErrorCode
+
+  constructor(code: StopTaskErrorCode, message: string) {
+    super(message)
+    this.name = 'StopTaskError'
+    this.code = code
+  }
+}
+
+export async function taskNotFoundWords(taskId: string): Promise<string> {
+  return (await finishedTaskOnDisk(taskId))?.words ?? bareMissWords(taskId)
+}
+
+export const bareMissWords = (taskId: string): string => `No task found with id ${taskId}`
+
+export type FinishedShell = {
+  taskId: string
+  command: string
+  ended: string
+  endedAt: number
+  exitCode?: number
+  outputPath?: string
+}
+
+export type FinishedAgent = {
+  taskId: string
+  description?: string
+  ended: string
+  endedAt?: number
+  outputPath: string
+}
+
+type FinishedTaskOnDisk =
+  | { kind: 'agent'; words: string; agent: FinishedAgent }
+  | { kind: 'shell'; words: string; shell: FinishedShell }
+
+function endedWord(state: TaskOutcomeState): string {
+  switch (state) {
+    case 'succeeded':
+      return 'completed'
+    case 'failed':
+      return 'failed'
+    case 'stopped':
+      return 'been stopped'
+    case 'timed-out':
+      return 'timed out'
+    case 'killed-policy':
+      return 'been ended by policy'
+    default:
+      return 'ended'
+  }
+}
+
+function finishedShellFromOutcome(outcome: TaskOutcomeEnvelope): FinishedShell {
+  return {
+    taskId: outcome.taskId,
+    command: outcome.command,
+    ended: endedWord(outcome.state),
+    endedAt: outcome.endTime,
+    ...(outcome.exitCode !== undefined ? { exitCode: outcome.exitCode } : {}),
+    ...(outcome.output?.artifactPath ? { outputPath: outcome.output.artifactPath } : {}),
+  }
+}
+
+export function finishedShellFromRow(task: LocalShellTaskState): FinishedShell {
+  return {
+    taskId: task.id,
+    command: task.command,
+    ended: task.status === 'killed' ? 'been stopped' : task.status === 'failed' ? 'failed' : 'completed',
+    endedAt: task.endTime ?? task.startTime,
+    ...(task.result ? { exitCode: task.result.code } : {}),
+    outputPath: task.outputFile,
+  }
+}
+
+export function finishedShellWords(shell: FinishedShell): string {
+  const exit = shell.exitCode !== undefined ? ` (exit code ${shell.exitCode})` : ''
+  const where = shell.outputPath ? `; its output file is ${shell.outputPath} — read it directly` : '; no output file was retained'
+  return `Task ${shell.taskId} (${shell.command}) had already ${shell.ended}${exit} at ${new Date(shell.endedAt).toISOString()}; nothing was stopped${where}`
+}
+
+export function finishedAgentFromRow(task: TaskStateBase): FinishedAgent {
+  return {
+    taskId: task.id,
+    description: task.description,
+    ended: task.status === 'killed' ? 'been stopped' : task.status === 'failed' ? 'failed' : 'completed',
+    endedAt: task.endTime ?? task.startTime,
+    outputPath: task.outputFile,
+  }
+}
+
+export function finishedAgentWords(agent: FinishedAgent): string {
+  const when = agent.endedAt !== undefined ? ` at ${new Date(agent.endedAt).toISOString()}` : ''
+  const named = agent.description !== undefined ? ` (${agent.description})` : ''
+  return `Task ${agent.taskId}${named} had already ${agent.ended}${when}; nothing was stopped; its output file is ${agent.outputPath} — read it directly; ResumeCrewmate to that id resumes it`
+}
+
+type PausedAgentStop = { description: string; pause: AgentPauseV1; leasesReleased: number; recordKept?: string }
+
+export function isPausedAgentRow(task: unknown): task is TaskStateBase & { paused: AgentPauseV1 } {
+  return isLocalAgentTask(task) && task.status !== 'running' && task.paused !== undefined
+}
+
+export function stoppedWhilePausedWords(taskId: string, stop: PausedAgentStop): string {
+  const retry = stop.pause.resumesAtMs !== undefined ? `the retry it had armed for ${new Date(stop.pause.resumesAtMs).toISOString()} is cancelled` : 'no retry stays armed'
+  const leases = stop.leasesReleased > 0 ? `${stop.leasesReleased} lease${stop.leasesReleased === 1 ? '' : 's'} released` : 'no lease was held'
+  const kept = stop.recordKept !== undefined ? `; its pause record ${agentPauseRecordPath(taskId)} could not be removed (${stop.recordKept}) — delete it, or the next session start resumes it` : ''
+  return `Stopped task ${taskId} (${stop.description}) while it was paused: ${retry}, ${leases}; its work is kept${kept}; ${AGENT_RESUME_DOOR}`
+}
+
+export async function stopPausedAgent(
+  taskId: string,
+  context: { getAppState: () => AppState; setAppState: SetAppState },
+): Promise<PausedAgentStop | null> {
+  const task = context.getAppState().tasks?.[taskId]
+  if (!isPausedAgentRow(task)) return null
+  const { cancelAutomaticResume } = await import('../../tools/crewmate/crewmateLifecycle.js')
+  cancelAutomaticResume(taskId)
+  let recordKept: string | undefined
+  try {
+    await clearAgentPauseRecord(taskId)
+  } catch (error) {
+    recordKept = error instanceof Error ? error.message : String(error)
+    logForDebugging(`stop of paused crewmate ${taskId}: its pause record could not be removed — ${recordKept}`)
+  }
+  const stopped = stopPausedAgentTask(taskId, context.setAppState)
+  if (stopped === null) return null
+  let leasesReleased = 0
+  try {
+    const released = await releaseProjectLeases(getSessionProjectDir() ?? getOriginalCwd(), projectLeaseHolder(), undefined, { agentId: taskId })
+    leasesReleased = released.released
+  } catch (error) {
+    logForDebugging(`stop of paused crewmate ${taskId}: its leases could not be released — ${error instanceof Error ? error.message : String(error)}`)
+  }
+  return { ...stopped, leasesReleased, ...(recordKept !== undefined ? { recordKept } : {}) }
+}
+
+export async function finishedTaskOnDisk(taskId: string): Promise<FinishedTaskOnDisk | null> {
+  let transcriptPath: string | null = null
+  try {
+    transcriptPath = getAgentTranscriptPath(asAgentId(taskId))
+  } catch {
+    transcriptPath = null
+  }
+  if (transcriptPath !== null && existsSync(transcriptPath)) {
+    const view = await readAgentTranscript(transcriptPath)
+    let endedAt: number | undefined
+    try {
+      endedAt = Math.floor(statSync(transcriptPath).mtimeMs)
+    } catch {
+      endedAt = undefined
+    }
+    return {
+      kind: 'agent',
+      words: `No running task with id ${taskId} in this session's registry — its transcript on disk ends ${view?.end.words ?? 'unreadable'}; ResumeCrewmate to that id resumes it`,
+      agent: { taskId, ended: view?.end.words ?? 'ended', ...(endedAt !== undefined ? { endedAt } : {}), outputPath: transcriptPath },
+    }
+  }
+  const outcome = await findTaskOutcome(getSessionId(), taskId)
+  if (outcome !== undefined && outcome.taskType === 'local_bash') {
+    const shell = finishedShellFromOutcome(outcome)
+    return { kind: 'shell', words: finishedShellWords(shell), shell }
+  }
+  return null
+}
+
+function isKillReceipt(value: unknown): value is TaskKillReceipt {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof Reflect.get(value, 'settled') === 'boolean'
+  )
+}
+
+export async function stopTask(
+  taskId: string,
+  context: { getAppState: () => AppState; setAppState: SetAppState },
+): Promise<{
+  taskId: string
+  taskType: TaskType
+  command: string
+  settlement?: TaskKillReceipt
+  pausedStop?: PausedAgentStop
+}> {
+  const task = context.getAppState().tasks?.[taskId]
+  if (!task) {
+    throw new StopTaskError('not_found', await taskNotFoundWords(taskId))
+  }
+  if (task.status !== 'running') {
+    const pausedStop = await stopPausedAgent(taskId, context)
+    if (pausedStop !== null) {
+      return {
+        taskId,
+        taskType: task.type,
+        command: pausedStop.description,
+        pausedStop,
+      }
+    }
+    throw new StopTaskError(
+      'not_running',
+      `Task ${taskId} is not running (status: ${task.status})`,
+    )
+  }
+  const implementation = getTaskByType(task.type)
+  if (!implementation) {
+    throw new StopTaskError(
+      'unsupported_type',
+      `Stopping tasks of type ${task.type} is not supported`,
+    )
+  }
+  const rawSettlement = await implementation.kill(taskId, context.setAppState)
+  const settlement = isKillReceipt(rawSettlement) ? rawSettlement : undefined
+  if (isLocalShellTask(task)) {
+    let flipped = false
+    updateTaskState<LocalShellTaskState>(taskId, context.setAppState, current => {
+      if (current.notified) return current
+      flipped = true
+      return { ...current, notified: true }
+    })
+    if (flipped) {
+      emitTaskEnded(taskId, 'stopped', {
+        ...(task.toolUseId !== undefined ? { toolUseId: task.toolUseId } : {}),
+        summary: task.description,
+      })
+    }
+  }
+  return {
+    taskId,
+    taskType: task.type,
+    command: isLocalShellTask(task) ? task.command : task.description,
+    ...(settlement !== undefined ? { settlement } : {}),
+  }
+}

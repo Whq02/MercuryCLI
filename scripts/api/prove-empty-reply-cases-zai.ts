@@ -131,7 +131,7 @@ export function zaiCasesEnv(base: string, home: string, config: string): NodeJS.
 
 let failures = 0
 let checks = 0
-const FAIL_HINT = 'what to change: the note words in src/services/providers/emptyReply.ts (emptyReplyNote), or the one-time retry with the nudge in src/run-core/turn/noToolReply.ts; a failed "turn settled" check means read the stderr tail in the detail and rebuild dist/mercury.mjs (bun run build.ts)'
+const FAIL_HINT = 'what to change: the note words in src/models/roads/emptyReply.ts (emptyReplyNote), or the one-time retry with the nudge in src/engine/loop/turn/noToolReply.ts; a failed "turn settled" check means read the stderr tail in the detail and rebuild dist/mercury.mjs (bun run build.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -208,7 +208,7 @@ async function proveCase(kind: ZaiEmptyReplyCase): Promise<void> {
   if (kind === 'silence') {
     check(`${kind}: no chat line — the silence paints no words`, !texts.some(t => t.trim() !== ''), JSON.stringify(texts).slice(0, 300))
     check(`${kind}: the debug log carries the silence sentence`, debugLogLines(join(run.home, 'config')).some(line => line.includes(SILENCE_WORDS)), debugLogLines(join(run.home, 'config')).filter(l => l.includes('[zai]')).slice(0, 3).join(' | '))
-    const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
+    const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/engine/requests/apiErrorRows.ts')
     const first = run.requests[0] === undefined ? [] : messagesOf(run.requests[0])
     const second = run.requests[1] === undefined ? [] : messagesOf(run.requests[1])
     check(`${kind}: nobody is at this run, so the silence is asked about once: the second request carries the one-line note as its last user row and the first did not`, lastRowIsUserCarrying(second, EMPTY_REPLY_RECOVERY_NUDGE) && !lastRowIsUserCarrying(first, EMPTY_REPLY_RECOVERY_NUDGE), `${run.requests.length} request(s); last row: ${(JSON.stringify(second.at(-1)) ?? 'none').slice(0, 300)}`)
@@ -223,7 +223,7 @@ async function proveCase(kind: ZaiEmptyReplyCase): Promise<void> {
     check(`${kind}: no re-send notice`, !resent, JSON.stringify(systems).slice(0, 300))
     check(`${kind}: the note stands as the turn's result`, resultText.includes(CAP_WORDS), `result: ${JSON.stringify(resultText.slice(0, 200))}`)
   } else if (kind === 'empty') {
-    const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
+    const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/engine/requests/apiErrorRows.ts')
     const first = run.requests[0] === undefined ? [] : messagesOf(run.requests[0])
     const second = run.requests[1] === undefined ? [] : messagesOf(run.requests[1])
     check(`${kind}: the note keeps its words`, notes.some(t => t.includes(EMPTY_WORDS)), JSON.stringify(notes).slice(0, 300))

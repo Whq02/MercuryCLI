@@ -7,10 +7,10 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix: runStructureQuery in src/services/structure/query.ts (selectors, filters, limit, parseFailures, match ids)' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix: runStructureQuery in src/tools/engines/structure/query.ts (selectors, filters, limit, parseFailures, match ids)' : ''}`)
 }
 
-const { runStructureQuery } = await import('../../src/services/structure/query.ts')
+const { runStructureQuery } = await import('../../src/tools/engines/structure/query.ts')
 
 const root = mkdtempSync(join(tmpdir(), 'builtin-tools-structure-'))
 mkdirSync(join(root, 'src'), { recursive: true })

@@ -1,4 +1,4 @@
-import type { Command } from '../../commands.js'
+import type { Command } from '../catalogue/commands.js'
 
 const command = {
   type: 'local-jsx',
@@ -8,7 +8,7 @@ const command = {
   argumentHint: '[on|off]',
   isEnabled: () => true,
   isHidden: false,
-  load: () => import('../crewmates/crewmates.js'),
+  load: () => import('./crewmates.js'),
 } satisfies Command
 
 export default command

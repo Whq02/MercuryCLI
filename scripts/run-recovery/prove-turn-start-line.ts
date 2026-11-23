@@ -23,22 +23,22 @@ process.env.ANTHROPIC_API_KEY = 'fixture-key'
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_EFFORT_LEVEL
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 const loaderCwd = join(scratch, 'loader-cwd')
 mkdirSync(loaderCwd, { recursive: true })
 bootstrap.setOriginalCwd(loaderCwd)
 bootstrap.setProjectRoot(loaderCwd)
-const { loadConversationForResume, getResumePrompt } = await import('../../src/services/resume/conversationRecovery.ts')
+const { loadConversationForResume, getResumePrompt } = await import('../../src/sessions/resume/conversationRecovery.ts')
 const sdk = await import('../../sdk/src/index.ts')
 const acp = await import('@agentclientprotocol/sdk')
-const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
-const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.ts')
+const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { buildRunnerInvocation } = await import('../../src/daemon/runner-link/headlessRun.ts')
 const { transcriptExport, transcriptExportText, truncateExportResults } = await import('../../src/commands/export/transcript.ts')
-const { createSecretRedactor, redactSecretValues } = await import('../../src/utils/redactSecrets.ts')
-const { sessionPromptFromWindow } = await import('../../src/utils/sessionStorage/sessionIndex.ts')
-const { historyLines } = await import('../../src/utils/sessionStorage/historyParts.ts')
+const { createSecretRedactor, redactSecretValues } = await import('../../src/platform/secrets/redactSecrets.ts')
+const { sessionPromptFromWindow } = await import('../../src/sessions/transcripts/sessionIndex.ts')
+const { historyLines } = await import('../../src/sessions/transcripts/historyParts.ts')
 
 let failures = 0
 let checks = 0
@@ -194,23 +194,23 @@ try {
       const file = recordOf(arena, SID)
       const lines = linesOf(file)
       const read = turnsOf(lines)
-      check('A1 one turn: one start row and one end line, both with the id the outcome row gives the turn, every conversation row between them', first.exit === 0 && read.whole && j(read.ids) === j(turnIdsOf(first.stdout)) && read.ids.length === 1, j({ exit: first.exit, read, outcome: turnIdsOf(first.stdout) }), 'recordTurnStart and recordTurnEnd in src/utils/sessionStorage/writer.ts must each write one row per turn of mercury run, with the turn id of the outcome row, around every conversation row')
+      check('A1 one turn: one start row and one end line, both with the id the outcome row gives the turn, every conversation row between them', first.exit === 0 && read.whole && j(read.ids) === j(turnIdsOf(first.stdout)) && read.ids.length === 1, j({ exit: first.exit, read, outcome: turnIdsOf(first.stdout) }), 'recordTurnStart and recordTurnEnd in src/sessions/transcripts/writer.ts must each write one row per turn of mercury run, with the turn id of the outcome row, around every conversation row')
       const starts = lines.filter(isStart)
-      check('A2 the start row is a session row named turn-start that carries the session and the turn and nothing else', starts.length === 1 && j(Object.keys(starts[0]!.fields ?? {}).sort()) === j(['sessionId', 'turnId']) && starts[0]!.fields?.sessionId === SID, j(starts.map(line => line.fields)), 'recordTurnStart in src/utils/sessionStorage/writer.ts must write a turn-start row with only sessionId and turnId')
+      check('A2 the start row is a session row named turn-start that carries the session and the turn and nothing else', starts.length === 1 && j(Object.keys(starts[0]!.fields ?? {}).sort()) === j(['sessionId', 'turnId']) && starts[0]!.fields?.sessionId === SID, j(starts.map(line => line.fields)), 'recordTurnStart in src/sessions/transcripts/writer.ts must write a turn-start row with only sessionId and turnId')
       console.log(`       on disk: ${starts[0]?.raw ?? ''}`)
       const second = await run(arena, ['run', 'RUN second prompt.', '--model', MODEL, '--resume', SID, '--format', 'rows'])
       const after = turnsOf(linesOf(file))
-      check('A3 a resumed turn in a second process adds one start row and one end line of its own', second.exit === 0 && after.whole && after.ids.length === 2 && after.ids[1] === turnIdsOf(second.stdout).at(-1), j({ exit: second.exit, after }), 'a resumed mercury run must call recordTurnStart and recordTurnEnd once more (src/utils/sessionStorage/writer.ts) and its outcome turn id must match the new rows')
+      check('A3 a resumed turn in a second process adds one start row and one end line of its own', second.exit === 0 && after.whole && after.ids.length === 2 && after.ids[1] === turnIdsOf(second.stdout).at(-1), j({ exit: second.exit, after }), 'a resumed mercury run must call recordTurnStart and recordTurnEnd once more (src/sessions/transcripts/writer.ts) and its outcome turn id must match the new rows')
       const loaded = await loadConversationForResume(SID, file)
-      check('A4 the loader reads a finished turn and builds the conversation without the two kinds of line', loaded?.turnInterruptionState.kind === 'none' && (loaded?.messages ?? []).filter(row => row.type === 'user' || row.type === 'assistant').length >= 4, j({ state: loaded?.turnInterruptionState.kind, rows: loaded?.messages.length }), 'loadConversationForResume in src/services/resume/conversationRecovery.ts must read a finished turn as interruption kind none and leave the turn-start and turn-end rows out of the messages')
+      check('A4 the loader reads a finished turn and builds the conversation without the two kinds of line', loaded?.turnInterruptionState.kind === 'none' && (loaded?.messages ?? []).filter(row => row.type === 'user' || row.type === 'assistant').length >= 4, j({ state: loaded?.turnInterruptionState.kind, rows: loaded?.messages.length }), 'loadConversationForResume in src/sessions/resume/conversationRecovery.ts must read a finished turn as interruption kind none and leave the turn-start and turn-end rows out of the messages')
       const document = truncateExportResults(redactSecretValues(transcriptExport((loaded?.messages ?? []) as never, { id: SID, cwd: arena.cwd }), createSecretRedactor([])))
       const exported = transcriptExportText(document)
       check('A5 the document /export builds from that conversation, through its mask, holds the two prompts and the two replies and nothing of either line', j(document.messages.map(message => [message.role, message.text])) === j([['user', 'RUN first prompt.'], ['assistant', 'RUN-REPLY-1.'], ['user', 'RUN second prompt.'], ['assistant', 'RUN-REPLY-2.']]) && after.ids.every(id => !exported.includes(id)), exported.slice(0, 600), 'the export built by transcriptExport in src/commands/export/transcript.ts must carry only the user and assistant text, with no turn id from the turn-start or turn-end rows')
       const head = readFileSync(file, 'utf8').slice(0, 65536)
-      check('A6 the reader that finds a session\'s first prompt for the sessions list passes over the start row ahead of it', sessionPromptFromWindow(head, undefined, true) === 'RUN first prompt.', j(sessionPromptFromWindow(head, undefined, true)), 'sessionPromptFromWindow in src/utils/sessionStorage/sessionIndex.ts must skip the turn-start row and return the first prompt')
+      check('A6 the reader that finds a session\'s first prompt for the sessions list passes over the start row ahead of it', sessionPromptFromWindow(head, undefined, true) === 'RUN first prompt.', j(sessionPromptFromWindow(head, undefined, true)), 'sessionPromptFromWindow in src/sessions/transcripts/sessionIndex.ts must skip the turn-start row and return the first prompt')
       const listed = await run(arena, ['sessions', 'list'])
       const row = listed.stdout.split('\n').find(line => line.startsWith(SID)) ?? ''
-      check('A7 the sessions list names the session by its first prompt, as it does for a record with no start row', listed.exit === 0 && row.endsWith('RUN first prompt.'), j({ exit: listed.exit, row, err: listed.stderr.slice(-200) }), 'the sessions list prompt reader (sessionPromptFromWindow in src/utils/sessionStorage/sessionIndex.ts) must skip turn-start rows when naming a session by its first prompt')
+      check('A7 the sessions list names the session by its first prompt, as it does for a record with no start row', listed.exit === 0 && row.endsWith('RUN first prompt.'), j({ exit: listed.exit, row, err: listed.stderr.slice(-200) }), 'the sessions list prompt reader (sessionPromptFromWindow in src/sessions/transcripts/sessionIndex.ts) must skip turn-start rows when naming a session by its first prompt')
     } finally {
       await fixture.close()
     }
@@ -234,7 +234,7 @@ try {
       }
       await host.stop(20_000)
       const read = turnsOf(linesOf(recordOf(arena, SID)))
-      check('B1 three turns in one runner: three start rows and three end lines, pairwise, in the order of the turns', read.whole && j(read.ids) === j(ids), j({ read, ids }), 'a hosted runner must write one turn-start and one turn-end row per turn, including a typed command, through recordTurnStart and recordTurnEnd in src/utils/sessionStorage/writer.ts')
+      check('B1 three turns in one runner: three start rows and three end lines, pairwise, in the order of the turns', read.whole && j(read.ids) === j(ids), j({ read, ids }), 'a hosted runner must write one turn-start and one turn-end row per turn, including a typed command, through recordTurnStart and recordTurnEnd in src/sessions/transcripts/writer.ts')
     } finally {
       await host.stop().catch(() => null)
       await fixture.close()
@@ -254,7 +254,7 @@ try {
       const task = sdk.run({ prompt: 'DOORS through the run door.', mercury, cwd: viaRun.cwd, env: viaRun.env, model: MODEL })
       const outcome = await task.outcome
       await task.exit
-      check("C1 the package's run door: one start row, one end line, the outcome's turn", outcome.status === 'completed' && whole(viaRun, outcome.turn_id).ok, whole(viaRun, outcome.turn_id).detail, 'a turn through sdk.run must write exactly one turn-start row and one turn-end row, via recordTurnStart and recordTurnEnd in src/utils/sessionStorage/writer.ts')
+      check("C1 the package's run door: one start row, one end line, the outcome's turn", outcome.status === 'completed' && whole(viaRun, outcome.turn_id).ok, whole(viaRun, outcome.turn_id).detail, 'a turn through sdk.run must write exactly one turn-start row and one turn-end row, via recordTurnStart and recordTurnEnd in src/sessions/transcripts/writer.ts')
 
       const viaRunner = makeArena('door-runner', fixture)
       const session = await sdk.connect({ mercury, cwd: viaRunner.cwd, env: viaRunner.env, model: MODEL })
@@ -264,7 +264,7 @@ try {
       } finally {
         await session.close()
       }
-      check("C2 the runner door: one start row, one end line, the outcome's turn", spoken?.status === 'completed' && whole(viaRunner, spoken?.turn_id).ok, whole(viaRunner, spoken?.turn_id).detail, 'a turn through sdk.connect must write exactly one turn-start row and one turn-end row, via recordTurnStart and recordTurnEnd in src/utils/sessionStorage/writer.ts')
+      check("C2 the runner door: one start row, one end line, the outcome's turn", spoken?.status === 'completed' && whole(viaRunner, spoken?.turn_id).ok, whole(viaRunner, spoken?.turn_id).detail, 'a turn through sdk.connect must write exactly one turn-start row and one turn-end row, via recordTurnStart and recordTurnEnd in src/sessions/transcripts/writer.ts')
 
       const viaAcp = makeArena('door-acp', fixture)
       const server: ChildProcess = spawn(nodeBin!, [DIST, 'acp'], { cwd: viaAcp.cwd, env: viaAcp.env, stdio: ['pipe', 'pipe', 'pipe'] })
@@ -292,7 +292,7 @@ try {
           })
         })
       }
-      check('C3 ACP: one start row, one end line', stopReason === 'end_turn' && whole(viaAcp, undefined).ok, whole(viaAcp, undefined).detail, 'a turn through mercury acp must write exactly one turn-start row and one turn-end row, via recordTurnStart and recordTurnEnd in src/utils/sessionStorage/writer.ts')
+      check('C3 ACP: one start row, one end line', stopReason === 'end_turn' && whole(viaAcp, undefined).ok, whole(viaAcp, undefined).detail, 'a turn through mercury acp must write exactly one turn-start row and one turn-end row, via recordTurnStart and recordTurnEnd in src/sessions/transcripts/writer.ts')
     } finally {
       await fixture.close()
     }
@@ -314,8 +314,8 @@ try {
       const read = turnsOf(linesOf(recordOf(arena, SID)))
       const own = recordsOf(arena).sidechains
       const ownLines = own.flatMap(linesOf)
-      check('D1 the turn ran the crewmate and ended: one start row and one end line in the session\'s record', first.exit === 0 && first.stdout.includes('CREW-LEAD-DONE.') && read.whole && read.ids.length === 1, j({ exit: first.exit, read, err: first.stderr.slice(-200) }), 'a turn that launches a crewmate must still write one turn-start and one turn-end row in the session record (recordTurnStart and recordTurnEnd in src/utils/sessionStorage/writer.ts)')
-      check("D2 the crewmate's own record holds its rows and no start row or end line: the two lines are the session's", own.length === 1 && ownLines.filter(isConversation).length >= 2 && ownLines.filter(line => isStart(line) || isEnd(line)).length === 0, j({ files: own.length, shape: own.map(file => shapeOf(linesOf(file))) }), 'the turn rows must be written to the session record only, never to the crewmate record (recordTurnStart and recordTurnEnd in src/utils/sessionStorage/writer.ts)')
+      check('D1 the turn ran the crewmate and ended: one start row and one end line in the session\'s record', first.exit === 0 && first.stdout.includes('CREW-LEAD-DONE.') && read.whole && read.ids.length === 1, j({ exit: first.exit, read, err: first.stderr.slice(-200) }), 'a turn that launches a crewmate must still write one turn-start and one turn-end row in the session record (recordTurnStart and recordTurnEnd in src/sessions/transcripts/writer.ts)')
+      check("D2 the crewmate's own record holds its rows and no start row or end line: the two lines are the session's", own.length === 1 && ownLines.filter(isConversation).length >= 2 && ownLines.filter(line => isStart(line) || isEnd(line)).length === 0, j({ files: own.length, shape: own.map(file => shapeOf(linesOf(file))) }), 'the turn rows must be written to the session record only, never to the crewmate record (recordTurnStart and recordTurnEnd in src/sessions/transcripts/writer.ts)')
     } finally {
       await fixture.close()
     }
@@ -334,10 +334,10 @@ try {
       const boundaryAt = lines.findIndex(line => line.kind === 'boundary')
       const startsBefore = lines.slice(0, boundaryAt).filter(isStart).length
       const endsBefore = lines.slice(0, boundaryAt).filter(isEnd).length
-      check('E1 four turns, the third a fold: four start rows and four end lines, pairwise', outcomesOf(stdout).length === 4 && outcomesOf(stdout).every(row => row.status === 'completed') && read.whole && j(read.ids) === j(turnIdsOf(stdout)), j({ outcomes: outcomesOf(stdout).map(row => row.status), read }), 'every turn, including the compact one, must write its own turn-start and turn-end rows (recordTurnStart and recordTurnEnd in src/utils/sessionStorage/writer.ts)')
+      check('E1 four turns, the third a fold: four start rows and four end lines, pairwise', outcomesOf(stdout).length === 4 && outcomesOf(stdout).every(row => row.status === 'completed') && read.whole && j(read.ids) === j(turnIdsOf(stdout)), j({ outcomes: outcomesOf(stdout).map(row => row.status), read }), 'every turn, including the compact one, must write its own turn-start and turn-end rows (recordTurnStart and recordTurnEnd in src/sessions/transcripts/writer.ts)')
       check("E2 the boundary stands inside the fold's own turn, behind that turn's start row and ahead of its end line", boundaryAt > 0 && startsBefore === 3 && endsBefore === 2, j({ boundaryAt, startsBefore, endsBefore, shape: shapeOf(lines) }), 'the compact boundary must be written after the turn-start row of the compacting turn and before its turn-end row')
       const loaded = await loadConversationForResume(SID, recordOf(arena, SID))
-      check('E3 the folded record reads as finished', loaded?.turnInterruptionState.kind === 'none', j(loaded?.turnInterruptionState.kind), 'loadConversationForResume in src/services/resume/conversationRecovery.ts must read a folded record with a finished final turn as interruption kind none')
+      check('E3 the folded record reads as finished', loaded?.turnInterruptionState.kind === 'none', j(loaded?.turnInterruptionState.kind), 'loadConversationForResume in src/sessions/resume/conversationRecovery.ts must read a folded record with a finished final turn as interruption kind none')
     } finally {
       await fixture.close()
     }
@@ -353,7 +353,7 @@ try {
       const stdout = await oneProcess(arena, SID, ['NOTHING prompt 1.', '/usage', 'NOTHING prompt 2.'])
       const outcomes = outcomesOf(stdout)
       const read = turnsOf(linesOf(recordOf(arena, SID)))
-      check('F1 three turns ran, the second a command the runner refuses without writing a row: the record holds two start rows and two end lines, for the first and the third', j(outcomes.map(row => row.status)) === j(['completed', 'refused', 'completed']) && read.whole && j(read.ids) === j([outcomes[0]!.turn_id, outcomes[2]!.turn_id]), j({ outcomes: outcomes.map(row => row.status), read }), 'a refused command must write no turn-start row, and every other turn must write its pair (recordTurnStart and recordTurnEnd in src/utils/sessionStorage/writer.ts)')
+      check('F1 three turns ran, the second a command the runner refuses without writing a row: the record holds two start rows and two end lines, for the first and the third', j(outcomes.map(row => row.status)) === j(['completed', 'refused', 'completed']) && read.whole && j(read.ids) === j([outcomes[0]!.turn_id, outcomes[2]!.turn_id]), j({ outcomes: outcomes.map(row => row.status), read }), 'a refused command must write no turn-start row, and every other turn must write its pair (recordTurnStart and recordTurnEnd in src/sessions/transcripts/writer.ts)')
       const ephemeral = await run(kept, ['run', 'NOTHING kept.', '--model', MODEL, '--ephemeral', '--format', 'rows'])
       check('F2 a run that keeps nothing answers and leaves no record at all', ephemeral.exit === 0 && outcomesOf(ephemeral.stdout).at(-1)?.status === 'completed' && recordsOf(kept).sessions.length === 0, j({ exit: ephemeral.exit, files: recordsOf(kept).sessions }), 'a mercury run with --ephemeral must not write any session record, turn rows included')
     } finally {
@@ -404,9 +404,9 @@ try {
         }
       }
     }
-    check('G1 a resume tells the model once that the previous run ended before its turn finished, whichever turn was cut', told.first!.resume === 1 && told.later!.resume === 1, j(told), 'the resume path in src/services/resume/conversationRecovery.ts (getResumePrompt, loadConversationForResume) must send the continuation sentence once when the last turn has a turn-start row and no turn-end row; -1 in the detail means the run or its record did not match')
-    check('G2 a fork tells it once too, whichever turn was cut', told.first!.fork === 1 && told.later!.fork === 1, j(told), 'the fork path of resume (src/services/resume/conversationRecovery.ts) must send the continuation sentence once for an unfinished turn; -1 in the detail means the run or its record did not match')
-    check('G3 a rewind to the last recorded row keeps the rows up to it and nothing behind it, the sentence included, whichever turn was cut', told.first!.rewind === 0 && told.later!.rewind === 0, j(told), 'a resume with --replay-to the last recorded row must keep rows up to it and drop the continuation sentence (src/services/resume/conversationRecovery.ts); -1 in the detail means the run or its record did not match')
+    check('G1 a resume tells the model once that the previous run ended before its turn finished, whichever turn was cut', told.first!.resume === 1 && told.later!.resume === 1, j(told), 'the resume path in src/sessions/resume/conversationRecovery.ts (getResumePrompt, loadConversationForResume) must send the continuation sentence once when the last turn has a turn-start row and no turn-end row; -1 in the detail means the run or its record did not match')
+    check('G2 a fork tells it once too, whichever turn was cut', told.first!.fork === 1 && told.later!.fork === 1, j(told), 'the fork path of resume (src/sessions/resume/conversationRecovery.ts) must send the continuation sentence once for an unfinished turn; -1 in the detail means the run or its record did not match')
+    check('G3 a rewind to the last recorded row keeps the rows up to it and nothing behind it, the sentence included, whichever turn was cut', told.first!.rewind === 0 && told.later!.rewind === 0, j(told), 'a resume with --replay-to the last recorded row must keep rows up to it and drop the continuation sentence (src/sessions/resume/conversationRecovery.ts); -1 in the detail means the run or its record did not match')
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })

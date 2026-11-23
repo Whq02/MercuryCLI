@@ -13,7 +13,7 @@ const node = Bun.which('node') ?? 'node'
 
 let failures = 0
 let checks = 0
-let lookAt = 'change the adapters of other tools in src/services/instructions/adapters/ (the Copilot one is copilot.ts) and how the run attaches their files'
+let lookAt = 'change the adapters of other tools in src/sessions/instructions/adapters/ (the Copilot one is copilot.ts) and how the run attaches their files'
 const check = (label: string, ok: boolean, detail = ''): void => { checks++; console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `${detail ? `: ${detail.slice(0, 900)}` : ''} · ${lookAt}`}`); if (!ok) failures++ }
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'run-reads-other-tools-')))
@@ -152,7 +152,7 @@ try {
   }
 
   console.log('\n§5 hidden characters in the files of other tools are told as they are for AGENTS.md')
-  lookAt = 'change how the files of other tools are scanned and told at run start: src/utils/text/hiddenCharacterFindings.ts (recordHiddenCharacters) and the adapters in src/services/instructions/adapters/'
+  lookAt = 'change how the files of other tools are scanned and told at run start: src/platform/text/hiddenCharacterFindings.ts (recordHiddenCharacters) and the adapters in src/sessions/instructions/adapters/'
   {
     const w = world('hidden', { 'GEMINI.md': 'Keep it\u200B short\n', '.cursorrules': 'A plain\u202E rule\n', 'README.md': 'readme-text\n' })
     const ran = await run(w, [done])
@@ -187,7 +187,7 @@ try {
   }
 
   console.log('\n§7 the folders the Copilot variable names')
-  lookAt = 'change the COPILOT_CUSTOM_INSTRUCTIONS_DIRS reading in src/services/instructions/adapters/copilot.ts'
+  lookAt = 'change the COPILOT_CUSTOM_INSTRUCTIONS_DIRS reading in src/sessions/instructions/adapters/copilot.ts'
   {
     const named = join(scratch, 'named-folder')
     mkdirSync(join(named, '.github', 'instructions'), { recursive: true })

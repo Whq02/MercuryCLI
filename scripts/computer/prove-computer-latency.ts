@@ -4,12 +4,12 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, ownerOf, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
-import type { DesktopDriver } from '../../src/services/desktop/driver.ts'
+import type { DesktopDriver } from '../../src/integrations/desktop/driver.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const { forgetDesktopOwner } = await import('../../src/services/desktop/desktopSession.ts')
-const { getImageProcessor } = await import('../../src/utils/imageProcessor/imageProcessor.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const { forgetDesktopOwner } = await import('../../src/integrations/desktop/desktopSession.ts')
+const { getImageProcessor } = await import('../../src/platform/images/imageProcessor.ts')
 const sharp = await getImageProcessor()
 const scratch = scratchDir('latency')
 const scene = join(scratch, 'scene.json')
@@ -62,7 +62,7 @@ check('target settle uses two captures instead of the animation cap', reads === 
 check('local settling keeps the whole window at its default half scale', result.screen?.pointWidth === 400 && result.screen?.pointHeight === 300 && result.screen?.imageWidth === 200 && result.screen?.imageHeight === 150, JSON.stringify(result.screen))
 rows.push({ operation: 'animated-target-settle', medianMs: +elapsed.toFixed(2), minMs: +elapsed.toFixed(2), maxMs: +elapsed.toFixed(2), samples: 1 })
 driver.capture = original
-const { desktopPackDirFor, readDesktopPackManifest } = await import('../../src/services/desktop/pack.ts')
+const { desktopPackDirFor, readDesktopPackManifest } = await import('../../src/integrations/desktop/pack.ts')
 const packDir = desktopPackDirFor(fileURLToPath(new URL('../..', import.meta.url)))
 const manifest = readDesktopPackManifest(packDir)
 if (!manifest) {

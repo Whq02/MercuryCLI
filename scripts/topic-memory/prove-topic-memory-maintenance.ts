@@ -5,18 +5,18 @@ import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { appendObservation } = await import('../../src/mneme/mnemeBuffer.ts')
-const { listTopicDocs, maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
+const { appendObservation } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { listTopicDocs, maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
 const { MAX_DOC_TOKENS, MIN_DOC_TOKENS, computeDocTokens, docFileName, emptyDoc, mergeDocs, pickMergePartner, splitDoc } =
-  await import('../../src/mneme/mnemeTopicDocs.ts')
-import type { MnemeRewriter } from '../../src/mneme/mnemeConsolidate.ts'
+  await import('../../src/sessions/mneme/mnemeTopicDocs.ts')
+import type { MnemeRewriter } from '../../src/sessions/mneme/mnemeConsolidate.ts'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) {
     failures++
-    console.log('    change splitDoc, pickMergePartner or mergeDocs in src/mneme/mnemeTopicDocs.ts, or the split and merge step of maybeConsolidate in src/mneme/mnemeConsolidate.ts')
+    console.log('    change splitDoc, pickMergePartner or mergeDocs in src/sessions/mneme/mnemeTopicDocs.ts, or the split and merge step of maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts')
   }
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

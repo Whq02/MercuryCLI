@@ -14,18 +14,18 @@ const LIGHT_GRID = new RegExp(J('--', 'li', 'ght', '--'))
 const REMOVAL_ROW = /^design-system\/live\/grids\/[^\t]+\.grid\.json\tremoved with the family/
 
 const EXCUSED: Array<[string, string]> = [
-  ['src/extensions/bundled/lightcraft/skills/lightcraft/SKILL.md', 'LightCraft\'s own command vocabulary (its "light" develop section), not a Mercury appearance'],
+  ['src/integrations/extensions/bundled/lightcraft/skills/lightcraft/SKILL.md', 'LightCraft\'s own command vocabulary (its "light" develop section), not a Mercury appearance'],
   ['docs/releases/', 'published release pages are history'],
-  ['src/constants/changelogArchive.ts', 'past release notes stay as published'],
+  ['src/commands/update-notes/changelogArchive.ts', 'past release notes stay as published'],
   ['scripts/engine-pass/contract-59a987410.json', "the recorded contract of the engine pass's base, a snapshot never rewritten"],
   ['scripts/ui/prove-theme-roster.ts', 'drives each retired name to prove it resolves as an unknown name does'],
   ['scripts/identity/prove-no-retired-theme-remains.ts', 'this census composes the names it hunts'],
-  ['src/extensions/bundled/mercury-media/server/', 'the vendored media engine: a minified third-party bundle, read by prove-media-privacy'],
-  ['src/extensions/bundled/content.generated.ts', 'generated from the bundled folders, which this census reads themselves'],
+  ['src/integrations/extensions/bundled/mercury-media/server/', 'the vendored media engine: a minified third-party bundle, read by prove-media-privacy'],
+  ['src/integrations/extensions/bundled/content.generated.ts', 'generated from the bundled folders, which this census reads themselves'],
 ]
 const ROW_EXCUSED: Array<[string, RegExp, string]> = [
   ['scripts/engine-pass/frames-moved.tsv', REMOVAL_ROW, 'a removal row names the removed grid by its path'],
-  ['src/services/samples/docTheme.ts', /data-theme/, 'the browser sample parchment surface is not a terminal appearance'],
+  ['src/integrations/samples/docTheme.ts', /data-theme/, 'the browser sample parchment surface is not a terminal appearance'],
   ['scripts/samples/prove-samples-doc.ts', /html\[data-theme=/, 'the sample stylesheet selector and contrast proof cover the browser parchment surface'],
 ]
 
@@ -90,7 +90,7 @@ check(
   hits('scripts/engine-pass/frames-moved.tsv', removal).length === 0 && hits('scripts/engine-pass/frames-moved.tsv', moved).length === 1 && hits('scripts/ui/x.ts', removal).length === 1,
 )
 
-check('the browser selector exemption never admits a retired terminal appearance or a selector outside its two owners', hits('src/services/samples/docTheme.ts', J("theme: '", 'li', "ght'")).length === 1 && hits('src/components/x.ts', 'html[data-theme="light"]').length === 1)
+check('the browser selector exemption never admits a retired terminal appearance or a selector outside its two owners', hits('src/integrations/samples/docTheme.ts', J("theme: '", 'li', "ght'")).length === 1 && hits('src/components/x.ts', 'html[data-theme="light"]').length === 1)
 
 const files = execFileSync('git', ['-C', ROOT, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split('\0').filter(Boolean)
 const scoped = files.filter(f => /^(src|scripts|docs|design-system|assets|integrations)\//.test(f) || ['README.md', 'AGENTS.md', 'MERCURY.md', 'BUILD-NOTES.md', 'CONTRIBUTING.md'].includes(f))

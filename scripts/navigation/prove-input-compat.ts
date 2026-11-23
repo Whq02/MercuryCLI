@@ -4,16 +4,16 @@ import {
   INITIAL_STATE,
   parseMultipleKeypresses,
   type KeyParseState,
-} from '../../src/ink/input/input-decoder.js'
-import { InputEvent, type Key } from '../../src/ink/events/input-event.js'
-import { stringWidth } from '../../src/ink/stringWidth.js'
-import { enterEditorBytes, extendedKeysReenable } from '../../src/ink/root/screen-session.js'
+} from '../../src/screen/renderer/input/input-decoder.js'
+import { InputEvent, type Key } from '../../src/screen/renderer/events/input-event.js'
+import { stringWidth } from '../../src/screen/renderer/stringWidth.js'
+import { enterEditorBytes, extendedKeysReenable } from '../../src/screen/renderer/root/screen-session.js'
 import {
   DISABLE_KITTY_KEYBOARD,
   DISABLE_MODIFY_OTHER_KEYS,
   ENABLE_KITTY_KEYBOARD,
   ENABLE_MODIFY_OTHER_KEYS,
-} from '../../src/ink/termio/csi.js'
+} from '../../src/screen/renderer/termio/csi.js'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -23,8 +23,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   }
 }
 
-const decoderHint = 'fix parseMultipleKeypresses in src/ink/input/input-decoder.ts (or the key projection in src/ink/events/input-event.ts)'
-const reenableHint = 'fix extendedKeysReenable or enterEditorBytes in src/ink/root/screen-session.ts (escape constants in src/ink/termio/csi.ts)'
+const decoderHint = 'fix parseMultipleKeypresses in src/screen/renderer/input/input-decoder.ts (or the key projection in src/screen/renderer/events/input-event.ts)'
+const reenableHint = 'fix extendedKeysReenable or enterEditorBytes in src/screen/renderer/root/screen-session.ts (escape constants in src/screen/renderer/termio/csi.ts)'
 
 type Projected = { key: Key; input: string }
 
@@ -127,7 +127,7 @@ console.log('== reversible detection + IME prerequisites (source pins) ==')
       check(`editor handoff DISABLES the protocols first (alt=${altActive} mouse=${mouseTracking})`, bytes.startsWith(DISABLE_KITTY_KEYBOARD + DISABLE_MODIFY_OTHER_KEYS) && !bytes.includes(ENABLE_KITTY_KEYBOARD) && !bytes.includes(ENABLE_MODIFY_OTHER_KEYS), JSON.stringify(bytes) + ' | ' + reenableHint)
     }
   }
-  check('the width oracle is grapheme-true (ZWJ family = one cell-cluster width)', stringWidth('\u{1F468}‍\u{1F469}‍\u{1F467}') <= 2 && stringWidth('漢') === 2 && stringWidth('é') === 1, 'fix stringWidth in src/ink/stringWidth.ts so a ZWJ family stays within 2 cells, CJK is 2 and a precomposed letter is 1')
+  check('the width oracle is grapheme-true (ZWJ family = one cell-cluster width)', stringWidth('\u{1F468}‍\u{1F469}‍\u{1F467}') <= 2 && stringWidth('漢') === 2 && stringWidth('é') === 1, 'fix stringWidth in src/screen/renderer/stringWidth.ts so a ZWJ family stays within 2 cells, CJK is 2 and a precomposed letter is 1')
 }
 
 console.log('')

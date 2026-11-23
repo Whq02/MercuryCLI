@@ -17,8 +17,8 @@ process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-dummy0000000000'
 
 let failures = 0
 function failureWhere(label: string): string {
-  if (/is a turn|is not$|⤳/.test(label)) return ' — to fix: isOperatorTurn and countOperatorTurns in src/utils/messages/operatorTurns.ts'
-  if (/effort/.test(label)) return ' — to fix: the EFFORT_* glyphs in src/constants/figures.ts'
+  if (/is a turn|is not$|⤳/.test(label)) return ' — to fix: isOperatorTurn and countOperatorTurns in src/engine/message-shapes/operatorTurns.ts'
+  if (/effort/.test(label)) return ' — to fix: the EFFORT_* glyphs in src/screen/theme/rowGlyphs.ts'
   if (/^\/help/.test(label)) return ' — to fix: the /help view in src/commands/help/help.tsx (column layout and footer at 100x30); if a drive did not deliver, run bun run build.ts and rerun'
   if (/delivered every send/.test(label)) return ' — to fix: the drive stopped before its last send; run bun run build.ts, then rerun and read the exit and stderr above'
   return ' — to fix: the /logins modal body, footer and PageDown or arrow scrolling (the view that paints Mercury · logins); the check reads the 100x30 screen of dist/mercury.mjs, so run bun run build.ts first'
@@ -37,7 +37,7 @@ console.log('============================================================')
 
 section('⤳N counts operator prompts')
 {
-  const { countOperatorTurns, isOperatorTurn } = await import('../../src/utils/messages/operatorTurns.ts')
+  const { countOperatorTurns, isOperatorTurn } = await import('../../src/engine/message-shapes/operatorTurns.ts')
   const user = (content: unknown, extra: Record<string, unknown> = {}) =>
     ({ type: 'user', uuid: 'u', timestamp: 't', message: { role: 'user', content }, ...extra }) as never
   check('a typed prompt is a turn', isOperatorTurn(user('hi, stream the plan')))
@@ -60,7 +60,7 @@ section('⤳N counts operator prompts')
 section('mechanism pins')
 {
 
-  const figures = await import('../../src/constants/figures.ts')
+  const figures = await import('../../src/screen/theme/rowGlyphs.ts')
   const ladder = [figures.EFFORT_LOW, figures.EFFORT_MEDIUM, figures.EFFORT_HIGH, figures.EFFORT_XHIGH, figures.EFFORT_MAX]
   check('no effort glyph is the band separator (`· · low` read as a doubled separator)', ladder.every(g => g !== '·'))
   check('the effort ladder glyphs are distinct', new Set(ladder).size === ladder.length)

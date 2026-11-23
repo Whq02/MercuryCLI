@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/** src/utils/projectStoreIdentity.ts src/utils/directoryIdentity.ts
-// gate-watch: src/utils/sessionStoragePortable.ts src/bootstrap/state.ts src/utils/config/globalConfig.ts src/utils/git.ts
+// gate-watch: src/sessions/mneme/** src/platform/storage/projectStoreIdentity.ts src/daemon/control/directoryIdentity.ts
+// gate-watch: src/sessions/transcripts/sessionStoragePortable.ts src/boot/process-state/processState.ts src/platform/config/globalConfig.ts src/platform/git/git.ts
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
@@ -16,24 +16,24 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_BARE
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setProjectRoot } = await import('../../src/bootstrap/state.ts')
-const { mnemeProjectKeyFor, getMnemeHome, lineagePath } = await import('../../src/mneme/paths.ts')
-const { loadMemoryPrompt } = await import('../../src/mneme/mnemeFrontPage.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { retainItems } = await import('../../src/mneme/memoryVerbs.ts')
-const { readPins } = await import('../../src/mneme/mnemeUsage.ts')
-const { pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
-const { openEntry, readLedger } = await import('../../src/mneme/ledger.ts')
-const { resolveDirectoryIdentity } = await import('../../src/utils/projectStoreIdentity.ts')
-const { capSanitizedName } = await import('../../src/utils/sessionStoragePortable.ts')
+const { setProjectRoot } = await import('../../src/boot/process-state/processState.ts')
+const { mnemeProjectKeyFor, getMnemeHome, lineagePath } = await import('../../src/sessions/mneme/paths.ts')
+const { loadMemoryPrompt } = await import('../../src/sessions/mneme/mnemeFrontPage.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { retainItems } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { readPins } = await import('../../src/sessions/mneme/mnemeUsage.ts')
+const { pendingRows } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { openEntry, readLedger } = await import('../../src/sessions/mneme/ledger.ts')
+const { resolveDirectoryIdentity } = await import('../../src/platform/storage/projectStoreIdentity.ts')
+const { capSanitizedName } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
 const RULE = 'always keep the hatch clear'
 const spellingKey = (dir: string): string => capSanitizedName(dir.replace(/[^A-Za-z0-9_-]/g, '-'), dir)
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}fix how a project directory spelling picks its estate in mnemeProjectKeyFor (src/mneme/paths.ts) and resolveDirectoryIdentity (src/utils/projectStoreIdentity.ts)` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}fix how a project directory spelling picks its estate in mnemeProjectKeyFor (src/sessions/mneme/paths.ts) and resolveDirectoryIdentity (src/platform/storage/projectStoreIdentity.ts)` : ''}`)
 }
 function treeHash(root: string): string {
   const rows: string[] = []
@@ -64,7 +64,7 @@ function at(dir: string): { key: string; home: string; prompt: string | null } {
   return { key: mnemeProjectKeyFor(dir), home: getMnemeHome(), prompt: loadMemoryPrompt() }
 }
 const sourceRoot = join(import.meta.dir, '..', '..', 'src')
-const childCode = `globalThis.MACRO={VERSION:'1.0.0'}; const {enableConfigs}=await import(${JSON.stringify(join(sourceRoot, 'utils/config/globalConfig.ts'))}); enableConfigs(); const {setProjectRoot}=await import(${JSON.stringify(join(sourceRoot, 'bootstrap/state.ts'))}); const {mnemeProjectKeyFor}=await import(${JSON.stringify(join(sourceRoot, 'mneme/paths.ts'))}); const {loadMemoryPrompt}=await import(${JSON.stringify(join(sourceRoot, 'mneme/mnemeFrontPage.ts'))}); for(const dir of process.argv.slice(1)){setProjectRoot(dir); console.log(JSON.stringify({key:mnemeProjectKeyFor(dir),prompt:loadMemoryPrompt()}))}`
+const childCode = `globalThis.MACRO={VERSION:'1.0.0'}; const {enableConfigs}=await import(${JSON.stringify(join(sourceRoot, 'platform/config/globalConfig.ts'))}); enableConfigs(); const {setProjectRoot}=await import(${JSON.stringify(join(sourceRoot, 'boot/process-state/processState.ts'))}); const {mnemeProjectKeyFor}=await import(${JSON.stringify(join(sourceRoot, 'sessions/mneme/paths.ts'))}); const {loadMemoryPrompt}=await import(${JSON.stringify(join(sourceRoot, 'sessions/mneme/mnemeFrontPage.ts'))}); for(const dir of process.argv.slice(1)){setProjectRoot(dir); console.log(JSON.stringify({key:mnemeProjectKeyFor(dir),prompt:loadMemoryPrompt()}))}`
 function fresh(...dirs: string[]): Array<{ key: string; prompt: string | null }> {
   const run = spawnSync(process.execPath, ['-e', childCode, ...dirs], { env: process.env, encoding: 'utf8', windowsHide: true })
   if (run.status !== 0) throw new Error(`fresh process rc ${run.status}: ${run.stderr}`)
@@ -79,7 +79,7 @@ try {
   const library = join(estate, 'memory', 'library')
   const seeded = retainItems([{ content: RULE, pin: true }], { session: 'seed-rule', pin: true, asked: true }, library)
   if (seeded[0]?.status !== 'stored') throw new Error(`fixture rule not stored: ${JSON.stringify(seeded)}`)
-  const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
+  const { maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
   maybeConsolidate({ force: true, dir: library })
   if (readPins(library).length !== 1) throw new Error('fixture rule did not reach the pinned shelf')
   const before = treeHash(HOME)

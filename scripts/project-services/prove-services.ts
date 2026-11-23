@@ -18,7 +18,7 @@ const {
   startService,
   stopService,
   waitForReady,
-} = await import('../../src/services/projectServices/serviceManager.ts')
+} = await import('../../src/tools/engines/project-services/serviceManager.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -69,23 +69,23 @@ section('H. start → combined readiness → cursored logs → input → restart
   check('H1 start records starting + pid + start token',
     'record' in started && started.record.state === 'starting' &&
     started.record.pid !== null && started.record.startToken !== null,
-    'fix startService in src/services/projectServices/serviceManager.ts so the returned record is starting with a pid and a start token')
+    'fix startService in src/tools/engines/project-services/serviceManager.ts so the returned record is starting with a pid and a start token')
 
   const wait = await waitForReady(workDir, 'web', 15_000)
   check('H2 wait meets ALL THREE conditions (log + http + tcp)',
     wait.ready && wait.record?.state === 'ready' &&
     wait.statuses.length === 3 && wait.statuses.every(s => s.met),
-    JSON.stringify(wait.statuses.map(s => s.detail)) + ' — fix waitForReady and evaluateReadiness in src/services/projectServices/serviceManager.ts so readinessMode all needs the log, http and tcp conditions')
+    JSON.stringify(wait.statuses.map(s => s.detail)) + ' — fix waitForReady and evaluateReadiness in src/tools/engines/project-services/serviceManager.ts so readinessMode all needs the log, http and tcp conditions')
 
   const logs1 = await readLogs(workDir, 'web', {})
   check('H3 the tail read shows the boot line',
     !('error' in logs1) && logs1.lines.some(l => l.includes(`listening on ${PORT}`)),
-    'fix readLogs in src/services/projectServices/serviceManager.ts so a tail read returns the lines the service printed')
+    'fix readLogs in src/tools/engines/project-services/serviceManager.ts so a tail read returns the lines the service printed')
   const cursor = 'error' in logs1 ? 0 : logs1.nextCursor
 
   const sent = sendInput(workDir, 'web', 'ping-from-proof', SESSION)
   check('H4 stdin input reaches the spawning-session child', 'ok' in sent,
-    'fix sendInput in src/services/projectServices/serviceManager.ts so the session that started the service can write to its stdin: ' + JSON.stringify(sent))
+    'fix sendInput in src/tools/engines/project-services/serviceManager.ts so the session that started the service can write to its stdin: ' + JSON.stringify(sent))
   await new Promise(r => setTimeout(r, 400))
   const logs2 = await readLogs(workDir, 'web', { cursor })
   check('H5 the cursor read returns STRICTLY newer lines (the echo, not the boot line)',
@@ -101,18 +101,18 @@ section('H. start → combined readiness → cursored logs → input → restart
     restarted.record.pid !== null &&
     restarted.record.pid !== firstPid &&
     restarted.record.restartCount === 1,
-    'fix restartService in src/services/projectServices/serviceManager.ts so it reuses the retained spec, starts a new pid and bumps restartCount')
+    'fix restartService in src/tools/engines/project-services/serviceManager.ts so it reuses the retained spec, starts a new pid and bumps restartCount')
   const reWait = await waitForReady(workDir, 'web', 15_000)
   check('H7 the restarted service becomes ready again', reWait.ready,
-    'fix restartService or waitForReady in src/services/projectServices/serviceManager.ts: the restarted service never met its readiness conditions')
+    'fix restartService or waitForReady in src/tools/engines/project-services/serviceManager.ts: the restarted service never met its readiness conditions')
 
   const stopped = await stopService(workDir, 'web')
   check('H8 explicit stop lands as stopped (restart suppressed)',
     'record' in stopped && stopped.record.state === 'stopped' && stopped.record.explicitStop,
-    'fix stopService in src/services/projectServices/serviceManager.ts so it records state stopped with explicitStop set')
+    'fix stopService in src/tools/engines/project-services/serviceManager.ts so it records state stopped with explicitStop set')
   const after = reconcileRecord(workDir, 'web')
   check('H9 reconciliation confirms nothing is alive', after?.state === 'stopped' && after.pid === null,
-    'fix reconcileRecord in src/services/projectServices/serviceManager.ts so a stopped service keeps state stopped and a null pid')
+    'fix reconcileRecord in src/tools/engines/project-services/serviceManager.ts so a stopped service keeps state stopped and a null pid')
 }
 
 section('F. a process that dies before readiness')
@@ -131,18 +131,18 @@ section('F. a process that dies before readiness')
     },
   })
   check('F1 start accepted', 'record' in started,
-    'fix startService in src/services/projectServices/serviceManager.ts: it refused a valid spec: ' + JSON.stringify(started))
+    'fix startService in src/tools/engines/project-services/serviceManager.ts: it refused a valid spec: ' + JSON.stringify(started))
   const wait = await waitForReady(workDir, 'doomed', 5_000)
   check('F2 wait reports FAILED with the unmet condition named',
     !wait.ready && wait.record?.state === 'failed' &&
     wait.statuses.some(s => !s.met && s.detail.includes('never-appears')),
-    'fix waitForReady in src/services/projectServices/serviceManager.ts so a process that exits before readiness lands as failed and the statuses name the unmet condition')
+    'fix waitForReady in src/tools/engines/project-services/serviceManager.ts so a process that exits before readiness lands as failed and the statuses name the unmet condition')
   check('F3 the exit code is recorded', wait.record?.lastExitCode === 3,
-    'fix the exit handling in src/services/projectServices/serviceManager.ts so lastExitCode keeps the exit code: ' + String(wait.record?.lastExitCode))
+    'fix the exit handling in src/tools/engines/project-services/serviceManager.ts so lastExitCode keeps the exit code: ' + String(wait.record?.lastExitCode))
   const logs = await readLogs(workDir, 'doomed', {})
   check('F4 the logs show WHY (stderr shares the ordered log)',
     !('error' in logs) && logs.lines.some(l => l.includes('boom: missing config')),
-    'fix startService in src/services/projectServices/serviceManager.ts so stderr is written to the same ordered log that readLogs reads')
+    'fix startService in src/tools/engines/project-services/serviceManager.ts so stderr is written to the same ordered log that readLogs reads')
 }
 
 section('U. unmet-condition honesty on a LIVE process')
@@ -171,10 +171,10 @@ section('U. unmet-condition honesty on a LIVE process')
     wait.statuses.find(s => s.met)?.detail.includes('/up/') === true,
     JSON.stringify(wait.statuses))
   check('U2 the process stays starting (alive, not failed)', wait.record?.state === 'starting',
-    'fix waitForReady in src/services/projectServices/serviceManager.ts so a timeout on a live process leaves the state starting: ' + String(wait.record?.state))
+    'fix waitForReady in src/tools/engines/project-services/serviceManager.ts so a timeout on a live process leaves the state starting: ' + String(wait.record?.state))
   const anyMode = await evaluateReadiness(workDir, { ...wait.record!, spec: { ...wait.record!.spec, readinessMode: 'any' } })
   check('U3 readinessMode any would pass with the same statuses', anyMode.ready,
-    'fix evaluateReadiness in src/services/projectServices/serviceManager.ts so readinessMode any passes when one condition is met')
+    'fix evaluateReadiness in src/tools/engines/project-services/serviceManager.ts so readinessMode any passes when one condition is met')
   await stopService(workDir, 'stuck')
 }
 
@@ -199,13 +199,13 @@ section('R. auto-restart on failure; explicit stop suppresses')
     (record?.restartCount ?? 0) >= 1, JSON.stringify({ count: record?.restartCount, state: record?.state }))
   const stopped = await stopService(workDir, 'flappy')
   check('R2 explicit stop marks stopped', 'record' in stopped && stopped.record.state === 'stopped',
-    'fix stopService in src/services/projectServices/serviceManager.ts so an explicit stop records state stopped')
+    'fix stopService in src/tools/engines/project-services/serviceManager.ts so an explicit stop records state stopped')
   const countAtStop = readRecord(workDir, 'flappy')?.restartCount ?? -1
   await new Promise(r => setTimeout(r, 1_500))
   const later = readRecord(workDir, 'flappy')
   check('R3 no restart fires after the explicit stop',
     later?.restartCount === countAtStop && later?.state === 'stopped',
-    'fix stopService in src/services/projectServices/serviceManager.ts so an explicit stop cancels the pending on-failure restart')
+    'fix stopService in src/tools/engines/project-services/serviceManager.ts so an explicit stop cancels the pending on-failure restart')
 }
 
 section('C. records never claim a live process')
@@ -225,19 +225,19 @@ section('C. records never claim a live process')
   })
   const pid = 'record' in started ? started.record.pid : null
   check('C1 live process reconciles as live', reconcileRecord(workDir, 'orphan')?.state === 'starting',
-    'fix reconcileRecord in src/services/projectServices/serviceManager.ts so a record with a live pid keeps its state')
+    'fix reconcileRecord in src/tools/engines/project-services/serviceManager.ts so a record with a live pid keeps its state')
   if (pid) process.kill(pid, 'SIGKILL')
   await new Promise(r => setTimeout(r, 500))
   const reconciled = reconcileRecord(workDir, 'orphan')
   check('C2 a dead pid reconciles to failed (never live from a record)',
     reconciled?.state === 'failed' && reconciled.pid === null,
-    'fix reconcileRecord in src/services/projectServices/serviceManager.ts so a record whose pid is dead becomes failed with a null pid')
+    'fix reconcileRecord in src/tools/engines/project-services/serviceManager.ts so a record whose pid is dead becomes failed with a null pid')
 }
 
 section('T. the Service tool end-to-end')
 {
-  const { ServiceTool } = await import('../../src/tools/ServiceTool/ServiceTool.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { ServiceTool } = await import('../../src/tools/service/ServiceTool.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
   const ctx = {
     abortController: new AbortController(),
     getAppState: () => ({
@@ -260,17 +260,17 @@ section('T. the Service tool end-to-end')
   })
   check('T1 tool start succeeds with the ref line',
     t1.effect.outcome === 'succeeded' && t1.data.result.includes('mercury://service/tool-web'),
-    'fix the start op in src/tools/ServiceTool/ServiceTool.ts so it succeeds and prints the mercury://service/<name> ref: ' + String(t1.data?.result))
+    'fix the start op in src/tools/service/ServiceTool.ts so it succeeds and prints the mercury://service/<name> ref: ' + String(t1.data?.result))
   {
-    const { getOriginalCwd, getSessionId } = await import('../../src/bootstrap/state.ts')
+    const { getOriginalCwd, getSessionId } = await import('../../src/boot/process-state/processState.ts')
     const record = readRecord(getOriginalCwd(), 'tool-web')
     check('T1a the started service is owned by this Mercury session id',
       record?.ownerSessionId === String(getSessionId()) && record.ownerSessionId !== 'session' && record.ownerSessionId !== SESSION, JSON.stringify({ owner: record?.ownerSessionId, session: getSessionId() }))
   }
   const t2 = await call({ op: 'wait', name: 'tool-web', cwd: workDir, timeoutMs: 10_000 })
   check('T2 tool wait reaches READY', t2.data.result.includes('READY'),
-    'fix the wait op in src/tools/ServiceTool/ServiceTool.ts: ' + String(t2.data?.result))
-  const { formatZodValidationError } = await import('../../src/utils/toolErrors.ts')
+    'fix the wait op in src/tools/service/ServiceTool.ts: ' + String(t2.data?.result))
+  const { formatZodValidationError } = await import('../../src/tools/kit/toolErrors.ts')
   const schema = (ServiceTool as { inputSchema: { safeParse: (v: unknown) => { success: boolean; error?: unknown } } }).inputSchema
   const refusal = (r: { success: boolean; error?: unknown }): string => (r.success ? '' : `${formatZodValidationError('Service', r.error as never).replace(/\n/g, ' ')}`)
   const above = schema.safeParse({ op: 'wait', name: 'tool-web', timeoutMs: 900_000 })
@@ -283,7 +283,7 @@ section('T. the Service tool end-to-end')
   check('T2d a negative deadline has no lawful reading and keeps its typed refusal', negative.success === false && refusal(negative).includes('must have a minimum of 0'), refusal(negative))
   const t3 = await call({ op: 'logs', name: 'tool-web', cwd: workDir })
   check('T3 tool logs carry the cursor line', /\[cursor: \d+/.test(t3.data.result),
-    'fix the logs op in src/tools/ServiceTool/ServiceTool.ts so its result ends with the [cursor: N ...] line: ' + String(t3.data?.result))
+    'fix the logs op in src/tools/service/ServiceTool.ts so its result ends with the [cursor: N ...] line: ' + String(t3.data?.result))
   const typedAt = Date.now()
   const t3b = await call({ op: 'input', name: 'tool-web', text: 'ping-from-tool', cwd: workDir })
   const typedMs = Date.now() - typedAt
@@ -307,32 +307,32 @@ section('T. the Service tool end-to-end')
     /· failed( \(exit 7\))?\]$/.test(t3f.data.result) && quitMs < 2_500, `${quitMs} ms · ${t3f.data.result}`)
   const t4 = await call({ op: 'list', cwd: workDir })
   check('T4 list shows reconciled truth', t4.data.result.includes('tool-web — failed'),
-    'fix the list op in src/tools/ServiceTool/ServiceTool.ts so it reconciles records before printing: ' + String(t4.data?.result))
+    'fix the list op in src/tools/service/ServiceTool.ts so it reconciles records before printing: ' + String(t4.data?.result))
   const t5 = await call({ op: 'stop', name: 'tool-web', cwd: workDir })
   check('T5 tool stop succeeds', t5.effect.outcome === 'succeeded' && t5.data.state === 'stopped',
-    'fix the stop op in src/tools/ServiceTool/ServiceTool.ts so it succeeds and reports state stopped')
+    'fix the stop op in src/tools/service/ServiceTool.ts so it succeeds and reports state stopped')
   const t5b = await call({ op: 'wait', name: 'tool-web', cwd: workDir, timeoutMs: 50 })
   check('T5b a deadline under the floor is clamped up to 100 ms and the result says so',
     t5b.data.result.includes('did NOT become ready') && t5b.data.result.endsWith('\ntimeoutMs clamped to 100 ms (the minimum)'), t5b.data.result)
   const t6 = await call({ op: 'describe', name: 'no-such-service', cwd: workDir })
   check('T6 an unknown service reads honest-absent (no-change effect)',
     t6.effect.outcome === 'no-change' && t6.data.result.includes("no service 'no-such-service'"),
-    'fix the describe op in src/tools/ServiceTool/ServiceTool.ts so an unknown service gives a no-change effect and a no service note')
+    'fix the describe op in src/tools/service/ServiceTool.ts so an unknown service gives a no-change effect and a no service note')
   const t6b = await call({ op: 'wait', name: 'no-such-service', cwd: workDir, timeoutMs: 900_000 })
   check('T6b a wait on an absent service ran no wait, yet its result still reports the clamped reading (one rule, wait or no wait)',
     t6b.data.state === 'absent' && t6b.data.result === "no service 'no-such-service' in this project\ntimeoutMs clamped to 300000 ms (the maximum)", t6b.data.result)
 
-  const { resolveResource } = await import('../../src/services/resources/registry.ts')
-  const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
+  const { resolveResource } = await import('../../src/integrations/resources/registry.ts')
+  const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
   const owner = makeOwnerKey({ workspace: workDir, sessionId: SESSION, lane: 'main' } as never)
   const ref = await resolveResource('mercury://service/tool-web', { owner, cwd: workDir } as never)
   check('T7 mercury://service/<name> resolves through the ONE resolver',
     ref.state === 'ok' && ref.resource.summary.includes('stopped'),
-    'fix the service adapter in src/services/resources/adapters/service.ts so mercury://service/<name> resolves ok with the record state in the summary')
+    'fix the service adapter in src/integrations/resources/adapters/service.ts so mercury://service/<name> resolves ok with the record state in the summary')
   const refLogs = await resolveResource('mercury://service/tool-web?child=logs', { owner, cwd: workDir } as never)
   check('T8 the logs child serves the cursored view',
     refLogs.state === 'ok' && refLogs.resource.text?.includes('tool web up') === true,
-    'fix the logs child of the service adapter in src/services/resources/adapters/service.ts so it serves the cursored log view')
+    'fix the logs child of the service adapter in src/integrations/resources/adapters/service.ts so it serves the cursored log view')
 }
 
 console.log('\n' + '═'.repeat(76))

@@ -26,7 +26,7 @@ for (const k of [
 }
 process.env.ANTHROPIC_API_KEY = 'proof-key-runsurface'
 
-const realQueryModule = await import('../../src/query.ts')
+const realQueryModule = await import('../../src/engine/turnDoor.ts')
 const realQuery = realQueryModule.query
 const realQueryEvents = realQueryModule.queryEvents
 
@@ -139,46 +139,46 @@ async function* dispatchQueryEvents(
   return { reason: 'completed' }
 }
 
-mock.module('../../src/query.ts', () => ({
+mock.module('../../src/engine/turnDoor.ts', () => ({
   ...realQueryModule,
   query: dispatchQuery,
   queryEvents: dispatchQueryEvents,
 }))
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { Conversation } = await import('../../src/rows/turn.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { Conversation } = await import('../../src/engine/rows/turn.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import(
-  '../../src/services/messages.ts'
+  '../../src/engine/messages/messages.ts'
 )
 const { createAttachmentMessage } = await import(
-  '../../src/services/attachments/orchestrator.ts'
+  '../../src/engine/attachments/turnAttachments.ts'
 )
 const { createCompactBoundaryMessage, createSystemAPIErrorMessage } =
-  await import('../../src/utils/messages/systemMessages.ts')
+  await import('../../src/engine/message-shapes/systemMessages.ts')
 const { createFileStateCacheWithSizeLimit } = await import(
-  '../../src/utils/fileStateCache.ts'
+  '../../src/platform/files/fileStateCache.ts'
 )
 const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import(
-  '../../src/tools/SyntheticOutputTool/SyntheticOutputTool.ts'
+  '../../src/tools/structured-output/SyntheticOutputTool.ts'
 )
-const { AGENT_TOOL_NAME } = await import('../../src/constants/tools/agent.ts')
-const { logError } = await import('../../src/utils/log.ts')
-const printMod = await import('../../src/cli/run.ts')
-const resumeMod = await import('../../src/cli/headless/resume.ts')
-const controlMod = await import('../../src/cli/headless/controlHandlers.ts')
-const runnerAsksMod = await import('../../src/cli/headless/runnerAsks.ts')
-const streamingMod = await import('../../src/utils/messages/streaming.ts')
-const qm = await import('../../src/utils/messageQueueManager.ts')
+const { AGENT_TOOL_NAME } = await import('../../src/tools/kit/names/agent.ts')
+const { logError } = await import('../../src/platform/logs/errorLog.ts')
+const printMod = await import('../../src/daemon/runner/runHeadless.ts')
+const resumeMod = await import('../../src/daemon/runner/resume.ts')
+const controlMod = await import('../../src/daemon/runner/controlHandlers.ts')
+const runnerAsksMod = await import('../../src/daemon/runner/runnerAsks.ts')
+const streamingMod = await import('../../src/screen/messages-list/streamToScreen.ts')
+const qm = await import('../../src/daemon/runner/messageQueueManager.ts')
 
 const MODEL = 'claude-opus-4-8'
 const MODEL2 = 'claude-sonnet-5'
-const { addToTotalSessionCost } = await import('../../src/cost-tracker.ts')
-const { calculateUSDCost } = await import('../../src/services/usage/modelCost.ts')
-const { EMPTY_USAGE } = await import('../../src/utils/api/emptyUsage.ts')
+const { addToTotalSessionCost } = await import('../../src/models/usage/sessionCost.ts')
+const { calculateUSDCost } = await import('../../src/models/usage/modelCost.ts')
+const { EMPTY_USAGE } = await import('../../src/engine/request-parts/emptyUsage.ts')
 foldScriptedUsage = (usage, params) => {
   const options = (params.toolUseContext as Record<string, unknown> | undefined)?.options as Record<string, unknown> | undefined
   const model = typeof options?.engineModel === 'string' ? options.engineModel : MODEL
@@ -193,7 +193,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) {
     failures++
     console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
-    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the code this section exercises (src/cli/run.ts and src/cli/headless/: resume.ts, controlHandlers.ts, runnerAsks.ts) so the condition holds`)
+    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the code this section exercises (src/daemon/runner/runHeadless.ts and src/daemon/runner/: resume.ts, controlHandlers.ts, runnerAsks.ts) so the condition holds`)
   }
 }
 function section(t: string): void {
@@ -1563,8 +1563,8 @@ section('X1 CROSS-SURFACE REPLAY — the recorded corpus replayed through the tu
 
 section('E15 OPERATOR NOTICES — warning/error system notices reach the transcript file (the silent-stop law)')
 {
-  const { createSystemMessage } = await import('../../src/utils/messages/systemMessages.ts')
-  const { flushSessionStorage } = await import('../../src/utils/sessionStorage/writer.ts')
+  const { createSystemMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+  const { flushSessionStorage } = await import('../../src/sessions/transcripts/writer.ts')
   const { readdirSync, statSync } = await import('node:fs')
   const noticeText =
     'E15-MARKER a warning the operator must see after this turn.'

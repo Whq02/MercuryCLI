@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/ide/pythonProject* src/services/ide/pythonTests* src/services/ide/projectRunners* src/tools/TestTool/* src/services/resources/adapters/test*
+// gate-watch: src/integrations/ide/pythonProject.ts src/integrations/ide/pythonTests.ts src/integrations/ide/projectRunners.ts src/tools/test/* src/integrations/resources/adapters/test.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -12,13 +12,13 @@ process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_TESTS
 delete process.env.MERCURY_HOME
 
-const pythonTests = await import('../../src/services/ide/pythonTests.ts')
-const pythonProject = await import('../../src/services/ide/pythonProject.ts')
-const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-const { resolveResource } = await import('../../src/services/resources/registry.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-type TestRunRecord = import('../../src/services/ide/pythonTests.ts').TestRunRecord
+const pythonTests = await import('../../src/integrations/ide/pythonTests.ts')
+const pythonProject = await import('../../src/integrations/ide/pythonProject.ts')
+const { TestTool } = await import('../../src/tools/test/TestTool.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
+const { resolveResource } = await import('../../src/integrations/resources/registry.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+type TestRunRecord = import('../../src/integrations/ide/pythonTests.ts').TestRunRecord
 type ToolAnswer = { data: { outcome: string; result: string; record?: TestRunRecord }; effect: { outcome: string } }
 
 let failures = 0

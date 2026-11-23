@@ -4,15 +4,15 @@ import { join } from 'node:path'
 import stringWidth from 'string-width'
 import { mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
 import { gridToPng } from '../ui/gridToPng.ts'
-import type { LlmHostQuestion, LlmHostRoad } from '../../src/services/llmHost/index.ts'
+import type { LlmHostQuestion, LlmHostRoad } from '../../src/models/llm-host/index.ts'
 
 export async function trillionFrames(question: LlmHostQuestion, check: (name: string, truth: unknown) => void, output?: string) {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
   for (const [cols, rows] of [[120, 44], [80, 24]] as const) {
     const road: LlmHostRoad = async ask => { await ask(question); return { ok: false, words: 'cancelled' } }
@@ -47,7 +47,7 @@ export async function trillionFrames(question: LlmHostQuestion, check: (name: st
       check(cols + '-column details show download assumption and per-token alternative', ['30–60 min', '0.5–1 GB/s', 'per token by Kimi', 'https://platform.kimi.ai', 'only when kept busy'].every(word => all.includes(word)))
       check(cols + '-column frame stays inside its width without render faults', m.lines().every(line => stringWidth(line) <= cols) && !screen.includes('RENDER ERROR'))
     } finally { popup.closeSettingsPopup(); m.unmount() }
-    const { LlmHostDialog } = await import('../../src/components/LlmHostDialog.tsx')
+    const { LlmHostDialog } = await import('../../src/commands/llmhost/LlmHostDialog.tsx')
     const renderOther = async (lines?: string[]) => {
       const road: LlmHostRoad = async ask => { await ask({ step: 'models', title: 'Unchanged model picker', found: 'fixture', willRun: 'nothing paid', rows: [{ value: 'a', label: 'fixture-model' }], ...(lines ? { lines } : {}) }); return { ok: false, words: 'cancelled' } }
       const view = await mountOffscreen(React.createElement(ThemeProvider, {}, React.createElement(LlmHostDialog, { width: cols, rowBudget: rows, road })), cols, rows)

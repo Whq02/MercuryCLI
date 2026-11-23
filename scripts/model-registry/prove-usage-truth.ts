@@ -4,21 +4,21 @@ import {
   recordOpenaiRateHeaders,
   openaiObservedUsage,
   __resetOpenaiLimitStateForTest,
-} from '../../src/services/providers/openai/openaiLimitState.js'
+} from '../../src/models/roads/openai/openaiLimitState.js'
 import {
   activeSourceUsage,
   openaiObservedWindowViews,
   openaiSubscriptionCredits,
   usageWindowLabel,
   type ActiveUsageReads,
-} from '../../src/services/providers/providerUsage.js'
-import type { WalletEntry } from '../../src/services/wallet/wallet.js'
+} from '../../src/models/roads/providerUsage.js'
+import type { WalletEntry } from '../../src/models/wallet/wallet.js'
 
 const USAGE_SECTION_HINTS: Record<string, string> = {
-  '1': 'change recordOpenaiRateHeaders in src/services/providers/openai/openaiLimitState.ts so it records only the bands and fields the x-codex headers state',
-  '2': 'change usageWindowLabel in src/services/providers/providerUsage/shared.ts so the label follows the stated window length',
-  '3': 'change activeSourceUsage, openaiObservedWindowViews or openaiSubscriptionCredits in src/services/providers/providerUsage.ts so the shape, label and windows follow the active source',
-  '3b': 'change activeSourceUsage in src/services/providers/providerUsage.ts so the tier word derives from the active wallet entry and plan',
+  '1': 'change recordOpenaiRateHeaders in src/models/roads/openai/openaiLimitState.ts so it records only the bands and fields the x-codex headers state',
+  '2': 'change usageWindowLabel in src/models/roads/provider-usage/shared.ts so the label follows the stated window length',
+  '3': 'change activeSourceUsage, openaiObservedWindowViews or openaiSubscriptionCredits in src/models/roads/providerUsage.ts so the shape, label and windows follow the active source',
+  '3b': 'change activeSourceUsage in src/models/roads/providerUsage.ts so the tier word derives from the active wallet entry and plan',
 }
 let usageFailureHint = ''
 let failures = 0

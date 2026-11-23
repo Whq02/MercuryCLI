@@ -2,10 +2,10 @@ import { randomUUID } from 'node:crypto'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { recordToEntry } from '../../src/fabric/entryCodec.ts'
-import { historyLines } from '../../src/utils/sessionStorage/historyParts.ts'
-import { withInactivityDeadline } from '../../src/utils/deadline.ts'
-import { SendsPart } from '../../src/services/engine-connector/daemon/sends.ts'
+import { recordToEntry } from '../../src/sessions/fabric/entryCodec.ts'
+import { historyLines } from '../../src/sessions/transcripts/historyParts.ts'
+import { withInactivityDeadline } from '../../src/platform/async/deadline.ts'
+import { SendsPart } from '../../src/engine/connector/daemon/sends.ts'
 import { liveFactsOf, withFixtureRunner, withLiveRunner } from '../lib/builtProduct.ts'
 import { countTokensFixtureFigure, renderTurn, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { transcriptFiles } from '../daemon/dupline-world.ts'
@@ -50,7 +50,7 @@ async function drive(fails: boolean, commands: string[], early = false): Promise
       for (const [i, id] of ids.entries()) sends.enlist({ clientMessageId: id, text: commands[i]!, sentAtMs: Date.now(), state: 'delivered', mode: 'prompt' })
       const stamp = { schema: 1 as const, sessionId: session, atMs: Date.now(), pendingModel: null, busy: true }
       sends.reconcileQueuedSends({ ...before, ...stamp })
-      check('runner and window have every queued /compact before the fold', ids.every(id => before.queue.some(q => q.uuid === id)) && sends.queuedSendCount() === ids.length, { hint: 'the runner queue must list every queued /compact and SendsPart.reconcileQueuedSends (src/services/engine-connector/daemon/sends.ts) must count them as queued sends', queue: before.queue })
+      check('runner and window have every queued /compact before the fold', ids.every(id => before.queue.some(q => q.uuid === id)) && sends.queuedSendCount() === ids.length, { hint: 'the runner queue must list every queued /compact and SendsPart.reconcileQueuedSends (src/engine/connector/daemon/sends.ts) must count them as queued sends', queue: before.queue })
       runner.answerAsk(first.id, { outcome: 'allow' })
       const second = await runner.waitForAsk('the turn continues after the fold check')
       const after = await liveFactsOf(runner)
@@ -62,7 +62,7 @@ async function drive(fails: boolean, commands: string[], early = false): Promise
       check(`the ${trigger} fold reports its exit before the turn ends`, folds.length === 1 && folds[0]?.trigger === trigger && (fails ? folds[0]?.exit !== 'landed' : folds[0]?.exit === 'landed'), { hint: 'exactly one ended compaction row with this trigger must appear before the turn ends, exit landed only when the summary succeeded', folds })
       if (commands.some(text => text.includes(NEW))) check('only the newest nonempty instructions reach the summary request', requests[0]?.raw.includes(NEW) === true && !requests[0].raw.includes(OLD))
       check(fails ? 'a failed fold leaves all waiting lines' : 'a landed fold takes every /compact but no other command', JSON.stringify(afterIds) === JSON.stringify(fails ? [...ids, other] : [other]), { hint: 'a landed fold must take every queued /compact and leave other commands; a failed fold must leave all lines', afterIds })
-      check('the window settles the queued rows exactly when the fold lands', sends.queuedSendCount() === (fails ? ids.length : 0), { hint: 'SendsPart.reconcileQueuedSends (src/services/engine-connector/daemon/sends.ts) must settle the window queued rows exactly when the fold lands', queuedSendCount: sends.queuedSendCount() })
+      check('the window settles the queued rows exactly when the fold lands', sends.queuedSendCount() === (fails ? ids.length : 0), { hint: 'SendsPart.reconcileQueuedSends (src/engine/connector/daemon/sends.ts) must settle the window queued rows exactly when the fold lands', queuedSendCount: sends.queuedSendCount() })
       runner.answerAsk(second.id, { outcome: 'allow' })
       const end = await runner.waitFor('the original turn finishes', r => r.type === 'outcome' && r.answer === 'continued the same turn')
       if (early && fails) check('the waiting line does not trigger another attempt at the following step', runner.rows.slice(start, runner.rows.indexOf(end)).filter(row => row.type === 'compaction' && row.state === 'ended').length === 1)
@@ -143,8 +143,8 @@ async function lateArrival(duringFold: boolean): Promise<void> {
   } finally { release.resolve(); api.stop(true); rmSync(home, { recursive: true, force: true }) }
 }
 async function checkScope(): Promise<void> {
-  const q = await import('../../src/input-core/command-queue.ts')
-  const { makeOwnerKey, MAIN_LANE, agentLane } = await import('../../src/utils/run/ownerKey.ts')
+  const q = await import('../../src/screen/composer/input-core/command-queue.ts')
+  const { makeOwnerKey, MAIN_LANE, agentLane } = await import('../../src/engine/run-owner/ownerKey.ts')
   const session = randomUUID()
   const owner = (sessionId: string, lane: string) => makeOwnerKey({ workspace: 'project', sessionId, lane })
   q.rekeyCommandQueueToSession(session)
@@ -157,9 +157,9 @@ async function checkScope(): Promise<void> {
   queued(' /compact not a slash command')
   queued('/compact bash', { mode: 'bash' })
   queued('/compact genuine')
-  check('neither a different session nor a crewmate owns the waiting request', q.beginQueuedCompact(owner(randomUUID(), MAIN_LANE)) === undefined && q.beginQueuedCompact(owner(session, agentLane('other'))) === undefined, { hint: 'beginQueuedCompact (src/input-core/command-queue.ts) must return nothing for another session or a crewmate lane' })
+  check('neither a different session nor a crewmate owns the waiting request', q.beginQueuedCompact(owner(randomUUID(), MAIN_LANE)) === undefined && q.beginQueuedCompact(owner(session, agentLane('other'))) === undefined, { hint: 'beginQueuedCompact (src/screen/composer/input-core/command-queue.ts) must return nothing for another session or a crewmate lane' })
   const request = q.beginQueuedCompact(owner(session, MAIN_LANE))
-  check('the main conversation selects its own instructions', request?.instructions === 'genuine', { hint: 'beginQueuedCompact (src/input-core/command-queue.ts) must pick the main conversation /compact line and return its instructions', got: request?.instructions })
+  check('the main conversation selects its own instructions', request?.instructions === 'genuine', { hint: 'beginQueuedCompact (src/screen/composer/input-core/command-queue.ts) must pick the main conversation /compact line and return its instructions', got: request?.instructions })
   q.popById(recalled)
   queued('/compact before recall')
   q.releaseQueuedWordsToTurn()

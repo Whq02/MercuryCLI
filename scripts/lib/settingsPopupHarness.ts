@@ -132,9 +132,9 @@ export type Mounted = {
 }
 
 export async function mountOffscreen(element: unknown, columns: number, rows: number, opts?: { mouseTracking?: boolean }): Promise<Mounted> {
-  const { default: Ink } = await import('../../src/ink/ink.js')
-  const { default: instances } = await import('../../src/ink/instances.js')
-  const { disposeKeybindingWatcher } = await import('../../src/keybindings/loadUserBindings.js')
+  const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+  const { default: instances } = await import('../../src/screen/renderer/instances.js')
+  const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
   const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
   const stdout = new FakeStdout(columns, rows)
   const stdin = new FakeStdin()

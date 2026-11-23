@@ -1,0 +1,34 @@
+import { isOneOf } from '../../platform/primitives/isOneOf.js'
+
+export const MODEL_ALIASES = [
+  'sonnet',
+  'opus',
+  'haiku',
+  'fable',
+  'fable51',
+  'fable52',
+  'mythos',
+  'best',
+  'sonnet[1m]',
+  'opus[1m]',
+  'fable[1m]',
+  'mythos[1m]',
+] as const
+
+export type ModelAlias = (typeof MODEL_ALIASES)[number]
+
+export function isModelAlias(value: string): value is ModelAlias {
+  return isOneOf(MODEL_ALIASES, value)
+}
+
+export const AGENT_DISPATCH_MODELS = [
+  'sonnet',
+  'opus',
+  'haiku',
+  'fable',
+  'fable51',
+  'fable52',
+  'sonnet[1m]',
+  'opus[1m]',
+  'fable[1m]',
+] as const

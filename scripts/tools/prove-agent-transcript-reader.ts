@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { entryToRecord } from '../../src/fabric/entryCodec.js'
-import { ordinalOf } from '../../src/fabric/ordinal.js'
+import { entryToRecord } from '../../src/sessions/fabric/entryCodec.js'
+import { ordinalOf } from '../../src/sessions/fabric/ordinal.js'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -12,10 +12,10 @@ import {
   PROMPT_CAP_CHARS,
   readAgentTranscript,
   summarizeToolInput,
-} from '../../src/services/crew/agentTranscriptReader.ts'
+} from '../../src/crew/crewmates/agentTranscriptReader.ts'
 
 let failures = 0
-const readerFailureHint = 'Change readAgentTranscript or summarizeToolInput in src/services/crew/agentTranscriptReader.ts until this check holds'
+const readerFailureHint = 'Change readAgentTranscript or summarizeToolInput in src/crew/crewmates/agentTranscriptReader.ts until this check holds'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ` — ${detail}` : '') : ` — ${readerFailureHint}${detail ? `. ${detail}` : ''}`}`)

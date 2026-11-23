@@ -1,0 +1,236 @@
+import { spawn, spawnSync } from 'node:child_process'
+import { readdirSync, rmSync } from 'node:fs'
+import * as path from 'node:path'
+import { flagSpellings, stampFlagOnEnv } from '../../../platform/substrate/flagRegistry.js'
+import { endProcessTree, endProcessTreeSurvivors, win32TaskkillCommand, type ProcessTreeKillReceipt } from '../../../platform/processes/processGroup.js'
+import { childGetsOwnProcessGroup, processTreeEndMethod } from '../../../platform/host-os/processes.js'
+import { subprocessEnv } from '../../../platform/processes/subprocessEnv.js'
+import { runningGodotProcesses, type GodotProcess } from '../godotProcessCensus.js'
+import { engineChecksDir, engineTreesDir, isEnginePath } from './paths.js'
+import { engineUserEnv } from './userDir.js'
+import { VULCAN_INSTANCE_ENV, launchedVulcanInstance, type VulcanInstance, type VulcanInstanceLaunch } from '../instances.js'
+import { engineEstateEntry, engineTreeLiveness } from './liveness.js'
+import { removeEngineTree } from './frozenTree.js'
+import { passedOver } from '../../../platform/errors/passedOver.js'
+import { startTimeout, stopTimeout } from '../../../platform/async/timers.js'
+
+const ENGINE_OUTPUT_CAP = 64 * 1024 * 1024
+
+type EngineKillReason = 'timeout' | 'cancel'
+
+interface EngineSpawnRequest {
+  executable: string
+  args: string[]
+  cwd: string
+  userDir: string
+  timeoutMs: number
+  label: string
+  bridge?: VulcanInstanceLaunch
+}
+
+interface EngineSpawnOutcome {
+  pid: number | null
+  exitCode: number | null
+  signal: string | null
+  timedOut: boolean
+  spawnError: string | null
+  killed: EngineKillReason | null
+  killReceipt: ProcessTreeKillReceipt | null
+  output: string
+  truncated: boolean
+  seconds: number
+  startedAt: string
+  endedAt: string
+}
+
+export interface EngineHandle {
+  label: string
+  pid: number | null
+  startedAt: string
+  bridge: VulcanInstance | null
+  done: Promise<EngineSpawnOutcome>
+  kill(reason: EngineKillReason): Promise<ProcessTreeKillReceipt>
+}
+
+const LIVE = new Map<number, EngineHandle>()
+let exitHookArmed = false
+
+function killLiveEnginesSync(): void {
+  for (const pid of LIVE.keys()) {
+    if (processTreeEndMethod() === 'win32-taskkill') {
+      const { file, args } = win32TaskkillCommand(pid)
+      spawnSync(file, args, { windowsHide: true, stdio: 'ignore', timeout: 5_000, env: subprocessEnv() })
+      continue
+    }
+    try {
+      process.kill(-pid, 'SIGKILL')
+    } catch {
+      try {
+        process.kill(pid, 'SIGKILL')
+      } catch (error) {
+        passedOver(error)
+        continue
+      }
+    }
+  }
+}
+
+function armExitHook(): void {
+  if (exitHookArmed) return
+  exitHookArmed = true
+  process.once('exit', killLiveEnginesSync)
+}
+
+function tenths(ms: number): number {
+  return Math.round(ms / 100) / 10
+}
+
+export function spawnEngine(req: EngineSpawnRequest): EngineHandle {
+  armExitHook()
+  const startedAt = new Date().toISOString()
+  const t0 = Date.now()
+  const chunks: string[] = []
+  let size = 0
+  let truncated = false
+  let spawnError: string | null = null
+  let killed: EngineKillReason | null = null
+  let killReceipt: ProcessTreeKillReceipt | null = null
+  let settled = false
+  let killInFlight: Promise<ProcessTreeKillReceipt> | null = null
+  let resolveDone: (o: EngineSpawnOutcome) => void = () => {}
+  const done = new Promise<EngineSpawnOutcome>(resolve => {
+    resolveDone = resolve
+  })
+  const env = { ...subprocessEnv(), ...engineUserEnv(req.userDir) }
+  for (const spelling of flagSpellings(VULCAN_INSTANCE_ENV)) delete env[spelling]
+  if (req.bridge) stampFlagOnEnv(env, VULCAN_INSTANCE_ENV, JSON.stringify(req.bridge))
+  const child = spawn(req.executable, req.args, {
+    cwd: req.cwd,
+    windowsHide: true,
+    detached: childGetsOwnProcessGroup(),
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env,
+  })
+  const onData = (buf: Buffer): void => {
+    if (size >= ENGINE_OUTPUT_CAP) {
+      truncated = true
+      return
+    }
+    const text = buf.toString('utf8')
+    size += text.length
+    chunks.push(text)
+  }
+  child.stdout?.on('data', onData)
+  child.stderr?.on('data', onData)
+  const pid = typeof child.pid === 'number' ? child.pid : null
+  const handle: EngineHandle = {
+    label: req.label,
+    pid,
+    startedAt,
+    bridge: req.bridge && pid !== null ? launchedVulcanInstance(req.bridge, pid) : null,
+    done,
+    async kill(reason) {
+      if (settled) return { ended: 0, survivors: [] }
+      if (killInFlight) return killInFlight
+      killed = reason
+      killInFlight = (async () => {
+        let receipt = await endProcessTree(child, 'SIGKILL')
+        if (receipt.survivors.length > 0 && pid !== null) receipt = await endProcessTreeSurvivors(pid, receipt.survivors)
+        killReceipt = receipt
+        return receipt
+      })()
+      return killInFlight
+    },
+  }
+  if (pid !== null) LIVE.set(pid, handle)
+  let timer: NodeJS.Timeout | null = null
+  if (req.timeoutMs > 0) {
+    timer = startTimeout(() => {
+      void handle.kill('timeout')
+    }, req.timeoutMs)
+  }
+  const settle = (exitCode: number | null, signal: string | null): void => {
+    if (settled) return
+    settled = true
+    if (timer) stopTimeout(timer)
+    if (pid !== null) LIVE.delete(pid)
+    const endedAt = new Date().toISOString()
+    const seconds = tenths(Date.now() - t0)
+    const finish = (): void =>
+      resolveDone({
+        pid,
+        exitCode,
+        signal,
+        timedOut: killed === 'timeout',
+        spawnError,
+        killed,
+        killReceipt,
+        output: chunks.join('') + (truncated ? `\n[mercury: engine output truncated after ${ENGINE_OUTPUT_CAP} characters]\n` : ''),
+        truncated,
+        seconds,
+        startedAt,
+        endedAt,
+      })
+    if (killInFlight) {
+      void killInFlight.then(finish, finish)
+      return
+    }
+    finish()
+  }
+  child.on('error', err => {
+    spawnError = err.message
+    if (pid === null) settle(null, null)
+  })
+  child.on('close', (code, signal) => settle(code, signal))
+  return handle
+}
+
+export function liveEngines(): Array<{ pid: number; label: string; startedAt: string; bridge: VulcanInstance | null }> {
+  return [...LIVE.values()].map(h => ({ pid: h.pid ?? 0, label: h.label, startedAt: h.startedAt, bridge: h.bridge }))
+}
+
+export interface EngineOrphanSweep {
+  pid: number
+  project: string
+  executable: string
+  receipt: ProcessTreeKillReceipt
+}
+
+export async function sweepEngineOrphans(projectRoot: string, census?: GodotProcess[]): Promise<EngineOrphanSweep[]> {
+  const processes = census ?? (await runningGodotProcesses())
+  const out: EngineOrphanSweep[] = []
+  for (const p of processes) {
+    if (!p.project || LIVE.has(p.pid) || !isEnginePath(projectRoot, p.project) || engineTreeLiveness(projectRoot, p.project).alive) continue
+    const receipt = await endProcessTree(p.pid, 'SIGKILL')
+    out.push({ pid: p.pid, project: p.project, executable: p.executable, receipt })
+  }
+  return out
+}
+
+export function removeDeadEngineTrees(projectRoot: string, processes: readonly GodotProcess[], swept: readonly EngineOrphanSweep[]): string[] {
+  const removed: string[] = []
+  for (const dir of [engineTreesDir(projectRoot), engineChecksDir(projectRoot)]) {
+    let names: string[] = []
+    try {
+      names = readdirSync(dir)
+    } catch (error) {
+      passedOver(error)
+      continue
+    }
+    for (const name of names) {
+      const target = path.join(dir, name)
+      const entry = engineEstateEntry(projectRoot, target)
+      if (!entry || engineTreeLiveness(projectRoot, entry.path).alive) continue
+      const workers = processes.filter(p => p.project !== undefined && engineEstateEntry(projectRoot, p.project)?.path === entry.path)
+      if (workers.some(p => !swept.some(s => s.pid === p.pid && s.receipt.survivors.length === 0))) continue
+      if (target === entry.path) removeEngineTree(target)
+      else rmSync(target, { recursive: true, force: true })
+      removed.push(target)
+    }
+  }
+  return removed
+}
+
+export function engineProcessesFor(projectRoot: string, processes: readonly GodotProcess[]): GodotProcess[] {
+  return processes.filter(p => p.project !== undefined && isEnginePath(projectRoot, p.project))
+}

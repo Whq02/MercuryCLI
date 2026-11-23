@@ -21,13 +21,13 @@ mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 let failures = 0
 const check = (label: string, cond: boolean, detail: unknown = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)} — change: the unreadable-file refusal and the keep-aside of a file that cannot be used live in updateConcourseWorkers in src/daemon/concourseWorkers/store.ts; the checks on a dispatched turn, an admission, a revive and the boot reconcile are answered by makeConcourseDispatchHandler in src/daemon/concourseDispatch.ts, makeConcourseAdmitHandler and reviveConcourseWorker in src/daemon/concourseWorkers.ts, and armReconcile in src/daemon/run/sweep.ts; compare the wording with refusal, spoken and keptLine at the top of this file` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)} — change: the unreadable-file refusal and the keep-aside of a file that cannot be used live in updateConcourseWorkers in src/daemon/concourse-workers/store.ts; the checks on a dispatched turn, an admission, a revive and the boot reconcile are answered by makeConcourseDispatchHandler in src/daemon/concourse-workers/concourseDispatch.ts, makeConcourseAdmitHandler and reviveConcourseWorker in src/daemon/concourse-workers/concourseWorkers.ts, and armReconcile in src/daemon/run/sweep.ts; compare the wording with refusal, spoken and keptLine at the top of this file` : ''}`)
 }
 const skip = (label: string, why: string): void => console.log(`  [SKIP] ${label} — ${why}`)
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
-const workers = await import('../../src/daemon/concourseWorkers.ts')
-const recovery = await import('../../src/substrate/storeRecovery.ts')
+const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const recovery = await import('../../src/platform/substrate/storeRecovery.ts')
 type Rec = Parameters<Parameters<typeof workers.updateConcourseWorkers>[0]>[0][string]
 
 const record = (n: number): Rec => ({ schema: 1, runnerId: `concourse-w${n}`, sessionId: `00000000-0000-4000-8000-00000000000${n}`, workspaceId: `/fixture/project-${n}`, isolation: 'exclusive', modelKey: 'fixture-model', spawnedAt: 1000 + n, lastLiveAt: 2000 + n, title: `session ${n}` }) as Rec
@@ -112,7 +112,7 @@ try {
 
   console.log('the session records — cut short while a session is live: the new file starts from that session, and it takes its next turn')
   {
-    const dispatch = await import('../../src/daemon/concourseDispatch.ts')
+    const dispatch = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
     const { dir, file } = fresh()
     const live = { ...record(1), pid: process.pid, effort: 'high', agentName: 'fixture', birthKey: 'born-live', title: 'the live one' } as Rec
     const parked = { ...record(2), parkedAt: 3000, parkedBy: 'operator', title: 'the parked one' } as Rec
@@ -189,7 +189,7 @@ try {
   }
 
   const OTHER_VERSION = THREE.replace('"version": 1', '"version": 2')
-  const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
   const started: string[] = []
@@ -319,7 +319,7 @@ try {
   console.log('the session records — a turn sent to a live session while they cannot be read: the answer is the refusal, not a session with no runner')
   if (!POSIX_MODES) skip('the unreadable file', 'a mode-0200 file needs a POSIX process that is not root')
   else {
-    const dispatch = await import('../../src/daemon/concourseDispatch.ts')
+    const dispatch = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
     const { dir, file } = fresh()
     const live = { ...record(1), pid: process.pid } as Rec
     workers.updateConcourseWorkers(all => void (all['concourse-w1'] = live), dir)
@@ -366,7 +366,7 @@ try {
   else {
     const sweep = await import('../../src/daemon/run/sweep.ts')
     const { makeDaemonRunState } = await import('../../src/daemon/run/state.ts')
-    const { DaemonBreaker } = await import('../../src/utils/daemonBreaker.ts')
+    const { DaemonBreaker } = await import('../../src/daemon/control/daemonBreaker.ts')
     const file = workers.concourseWorkersPath()
     writeFileSync(file, THREE, { mode: 0o600 })
     chmodSync(file, 0o200)

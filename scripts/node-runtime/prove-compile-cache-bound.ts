@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, truncateSync, utimesSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { nodeBinPath } from '../lib/nodeBin.ts'
-import { COMPILE_CACHE_MAX_BYTES, COMPILE_CACHE_MAX_FILES, COMPILE_CACHE_PRUNE_INTERVAL_MS, pruneCompileCache } from '../../src/utils/runtime/compileCachePrune.ts'
+import { COMPILE_CACHE_MAX_BYTES, COMPILE_CACHE_MAX_FILES, COMPILE_CACHE_PRUNE_INTERVAL_MS, pruneCompileCache } from '../../src/platform/node-runtime/compileCachePrune.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 assert.ok(process.env.MERCURY_CONFIG_DIR, 'the proof needs a scratch config home')

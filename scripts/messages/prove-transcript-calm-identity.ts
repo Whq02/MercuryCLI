@@ -3,10 +3,10 @@
 let failures = 0
 let where = ''
 const wheres: Record<string, string> = {
-  A: 'deserializeLiveMessages in src/services/resume/conversationRecovery.ts must return one message per input, in order',
-  B: 'normalizeMessages in src/utils/messages/normalize.ts must return the same row objects for the same parent objects',
-  C: 'normalizeMessages in src/utils/messages/normalize.ts must keep its unchained and chained row variants separate and replay each by identity',
-  D: 'mergeRecordsContentKeyed in src/services/engine-connector/recordIdentity.ts must reuse unchanged record objects and mint fresh ones for changed bytes',
+  A: 'deserializeLiveMessages in src/sessions/resume/conversationRecovery.ts must return one message per input, in order',
+  B: 'normalizeMessages in src/engine/message-shapes/normalize.ts must return the same row objects for the same parent objects',
+  C: 'normalizeMessages in src/engine/message-shapes/normalize.ts must keep its unchained and chained row variants separate and replay each by identity',
+  D: 'mergeRecordsContentKeyed in src/engine/connector/recordIdentity.ts must reuse unchanged record objects and mint fresh ones for changed bytes',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -18,9 +18,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { deserializeLiveMessages } = await import('../../src/services/resume/conversationRecovery.js')
-const { normalizeMessages } = await import('../../src/utils/messages/normalize.js')
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.js')
+const { deserializeLiveMessages } = await import('../../src/sessions/resume/conversationRecovery.js')
+const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.js')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.js')
 type Msg = ReturnType<typeof createUserMessage>
 
 section('A. deserializeLiveMessages is 1:1 and index-aligned (the merge rests on it)')
@@ -88,7 +88,7 @@ section('C. normalize identity — the chain-state variant never replays wrong u
 
 section('D. the connector merge, DRIVEN in BOTH directions (the lead\'s pin law)')
 {
-  const { mergeRecordsContentKeyed } = await import('../../src/services/engine-connector/recordIdentity.js')
+  const { mergeRecordsContentKeyed } = await import('../../src/engine/connector/recordIdentity.js')
   const rawOf = (texts: string[]): unknown[] => texts.map((t, i) => ({ type: 'user', uuid: `u${i}-${t}`, message: { role: 'user', content: t } }))
   const freshOf = (raw: unknown[]): Msg[] => raw.map(r => ({ ...(r as object) })) as Msg[]
 

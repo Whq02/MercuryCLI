@@ -16,28 +16,28 @@ delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
-const acct = await import('../../src/daemon/saturnAccount.ts')
+const acct = await import('../../src/daemon/saturn/saturnAccount.ts')
 const { deriveScheduleAccountForModel, scheduleAccountVerdict, readLiveAccountFacts } = acct
-const saturn = await import('../../src/daemon/saturn.ts')
+const saturn = await import('../../src/daemon/saturn/saturn.ts')
 const { applyConcourseScheduleOp } = saturn
-const ticker = await import('../../src/daemon/saturnTicker.ts')
+const ticker = await import('../../src/daemon/saturn/saturnTicker.ts')
 const { tickSaturnOnce } = ticker
-const box = await import('../../src/daemon/saturnBoxSchedules.ts')
+const box = await import('../../src/daemon/saturn/saturnBoxSchedules.ts')
 const { boxScheduleProblem, boxHeldFireProblem } = box
 const { updateConcourseWorkers, concourseWorkersPath } = await import(
-  '../../src/daemon/concourseWorkers.ts'
+  '../../src/daemon/concourse-workers/concourseWorkers.ts'
 )
-const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const discovery = await import('../../src/services/providers/local/localDiscovery.ts')
+const receipts = await import('../../src/daemon/switchboard/sessionReceipts.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+const discovery = await import('../../src/models/roads/local/localDiscovery.ts')
 const { refreshLocalDiscovery, __resetLocalDiscoveryForTest } = discovery
 
 let failures = 0
 const WHERE_TO_LOOK =
-  'fix the keyless schedule account in src/daemon/saturnAccount.ts (deriveScheduleAccountForModel, scheduleAccountVerdict, readLiveAccountFacts), the holds in src/daemon/saturnTicker.ts (tickSaturnOnce), the box row checks in src/daemon/saturnBoxSchedules.ts, or the sentence in src/components/BootSaturnScreen.tsx (saturnVerdictSentence)'
+  'fix the keyless schedule account in src/daemon/saturn/saturnAccount.ts (deriveScheduleAccountForModel, scheduleAccountVerdict, readLiveAccountFacts), the holds in src/daemon/saturn/saturnTicker.ts (tickSaturnOnce), the box row checks in src/daemon/saturn/saturnBoxSchedules.ts, or the sentence in src/screen/boot-face/BootSaturnScreen.tsx (saturnVerdictSentence)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` (${WHERE_TO_LOOK})`}`)
@@ -106,7 +106,7 @@ console.log('§K2 the real road: discovered server ⇒ keyless capture (no injec
   __resetLocalDiscoveryForTest()
   process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${fixtureRoot}`
   await refreshLocalDiscovery({ force: true })
-  const { primeLocalDiscovery } = await import('../../src/services/providers/providerDiscovery.ts')
+  const { primeLocalDiscovery } = await import('../../src/models/roads/providerDiscovery.ts')
   primeLocalDiscovery()
   const real = deriveScheduleAccountForModel('local/qwen3:1.7b')
   check('the production road derives ok with a discovered server', real.ok === true, real.ok ? '' : real.reason)
@@ -124,7 +124,7 @@ console.log('§K3 no server ⇒ the probe route, never a login door')
   __resetLocalDiscoveryForTest()
   process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
   await refreshLocalDiscovery({ force: true })
-  const { primeLocalDiscovery } = await import('../../src/services/providers/providerDiscovery.ts')
+  const { primeLocalDiscovery } = await import('../../src/models/roads/providerDiscovery.ts')
   primeLocalDiscovery()
   const missed = deriveScheduleAccountForModel('local/ghost')
   check('an undiscovered local model refuses (never throws)', missed.ok === false)
@@ -357,7 +357,7 @@ console.log('§K6 box validation: keyless accounts + unreachable holds')
 
 console.log('§K7 the screen speaks the probe road')
 {
-  const { saturnVerdictSentence } = await import('../../src/components/BootSaturnScreen.tsx')
+  const { saturnVerdictSentence } = await import('../../src/screen/boot-face/BootSaturnScreen.tsx')
   const words = saturnVerdictSentence({ state: 'unreachable' } as never)
   check('the unreachable sentence exists and names the server road', typeof words === 'string' && words.includes('server'), String(words))
   check('no sign-in words on the account-less arm', typeof words === 'string' && !words.includes('/logins') && !words.toLowerCase().includes('sign'), String(words))

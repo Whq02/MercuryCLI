@@ -1,9 +1,9 @@
 
-import { findGodotProjectRoot, probeGodotEditorReachable, godotDapPort, godotLspPort, mercuryGodotEnabled } from '../../src/services/lsp/godotLane.js'
-import { vulcanEnabled, vulcanLiteMode } from '../../src/services/vulcan/vulcanGates.js'
-import { presenceNudge, probeVulcanEditorPresence } from '../../src/services/vulcan/editorPresence.js'
-import type { GodotProcess } from '../../src/services/vulcan/godotProcessCensus.js'
-import { vulcanInstallStatus } from '../../src/services/vulcan/addonInstaller.js'
+import { findGodotProjectRoot, probeGodotEditorReachable, godotDapPort, godotLspPort, mercuryGodotEnabled } from '../../src/integrations/lsp/godotLane.js'
+import { vulcanEnabled, vulcanLiteMode } from '../../src/integrations/vulcan/vulcanGates.js'
+import { presenceNudge, probeVulcanEditorPresence } from '../../src/integrations/vulcan/editorPresence.js'
+import type { GodotProcess } from '../../src/integrations/vulcan/godotProcessCensus.js'
+import { vulcanInstallStatus } from '../../src/integrations/vulcan/addonInstaller.js'
 
 type GodotProviderState =
   | 'ready'

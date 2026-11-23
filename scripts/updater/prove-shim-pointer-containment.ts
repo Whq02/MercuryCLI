@@ -8,10 +8,10 @@ import { removeScratch } from '../lib/removeScratch.ts'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { shimContent, powershellEntryContent } = await import('../../src/services/privateChannel/installLayout.ts')
+const { shimContent, powershellEntryContent } = await import('../../src/platform/update-channel/installLayout.ts')
 
 let failures = 0
-const SHIM_FAIL_HINT = 'change shimContent (the cmd and POSIX shim text) or powershellEntryContent (the PowerShell entry) in src/services/privateChannel/installLayout.ts so the shim reads and guards the current.txt pointer as this check expects'
+const SHIM_FAIL_HINT = 'change shimContent (the cmd and POSIX shim text) or powershellEntryContent (the PowerShell entry) in src/platform/update-channel/installLayout.ts so the shim reads and guards the current.txt pointer as this check expects'
 const check = (label: string, cond: boolean, detail = ''): void => {
   const shown = cond ? detail : detail ? `${detail} | hint: ${SHIM_FAIL_HINT}` : SHIM_FAIL_HINT
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)

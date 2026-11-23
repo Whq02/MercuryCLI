@@ -9,7 +9,7 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'utility-call-family-'))
 
 let failures = 0
-const utilityFamilyHint = 'fix utilityCallFor or floorEffort in src/services/model/utilityModel.ts, openaiLightChoice in src/services/model/providerFrontier.ts, or settleAssistantTurn in src/services/providers/callModelRouter.ts, whichever this check exercises'
+const utilityFamilyHint = 'fix utilityCallFor or floorEffort in src/models/catalogue/utilityModel.ts, openaiLightChoice in src/models/catalogue/providerFrontier.ts, or settleAssistantTurn in src/models/roads/callModelRouter.ts, whichever this check exercises'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${utilityFamilyHint}`}`)
@@ -27,10 +27,10 @@ async function main(): Promise<void> {
   delete process.env.MERCURY_MODEL
   delete process.env.MERCURY_EFFORT_LEVEL
 
-  const { floorEffort, utilityCallFor } = await import('../../src/services/model/utilityModel.js')
-  const { openaiLightChoice } = await import('../../src/services/model/providerFrontier.js')
-  const { __resetOpenaiCatalogueForTest, refreshOpenaiCatalogue } = await import('../../src/services/providers/openai/openaiCatalogue.js')
-  const { parseGptModelId } = await import('../../src/utils/model/pins/gptPins.js')
+  const { floorEffort, utilityCallFor } = await import('../../src/models/catalogue/utilityModel.js')
+  const { openaiLightChoice } = await import('../../src/models/catalogue/providerFrontier.js')
+  const { __resetOpenaiCatalogueForTest, refreshOpenaiCatalogue } = await import('../../src/models/roads/openai/openaiCatalogue.js')
+  const { parseGptModelId } = await import('../../src/models/facts/pins/gptPins.js')
   for (const key of ['OPENAI_API_KEY', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
   process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:1'
   process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:1'
@@ -48,8 +48,8 @@ async function main(): Promise<void> {
     const snapshot = await refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: fixtureFetch(ids) })
     if (!snapshot || snapshot.models.length !== ids.length) throw new Error(`the fixture list did not seed: ${JSON.stringify(snapshot)}`)
   }
-  const { settleAssistantTurn } = await import('../../src/services/providers/callModelRouter.js')
-  const { APIUserAbortError } = await import('../../src/utils/api/sdkErrors.js')
+  const { settleAssistantTurn } = await import('../../src/models/roads/callModelRouter.js')
+  const { APIUserAbortError } = await import('../../src/engine/request-parts/sdkErrors.js')
 
   section('§1 utilityCallFor — the seat\'s own model on all ten routing-law families, never a second id')
   {

@@ -26,24 +26,24 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && text ? ` — ${text}` : ''}`)
 }
 function section(t: string): void {
-  where = t.startsWith('§1') ? 'fix the deepseek and moonshot entries of PRICING_OWNERS in src/services/usage/modelCost.ts, or the pins in src/utils/model/pins/deepseekPins.ts and kimiPins.ts'
-    : t.startsWith('§2') ? 'fix the local entry of PRICING_OWNERS and resolveModelPricing in src/services/usage/modelCost.ts, or how src/services/providers/local/localCatalogue.ts records a model as local or remote'
-    : t.startsWith('§3') ? 'fix resolveModelPricing / getModelCosts in src/services/usage/modelCost.ts (an unpriced lane takes COST_UNPRICED and raises the unknown-cost flag), or the GLM pin in src/utils/model/pins/glmPins.ts'
-    : t.startsWith('§4') ? 'fix getModelCosts in src/services/usage/modelCost.ts, the first-party table MODEL_COSTS or the GPT entry of PRICING_OWNERS'
+  where = t.startsWith('§1') ? 'fix the deepseek and moonshot entries of PRICING_OWNERS in src/models/usage/modelCost.ts, or the pins in src/models/facts/pins/deepseekPins.ts and kimiPins.ts'
+    : t.startsWith('§2') ? 'fix the local entry of PRICING_OWNERS and resolveModelPricing in src/models/usage/modelCost.ts, or how src/models/roads/local/localCatalogue.ts records a model as local or remote'
+    : t.startsWith('§3') ? 'fix resolveModelPricing / getModelCosts in src/models/usage/modelCost.ts (an unpriced lane takes COST_UNPRICED and raises the unknown-cost flag), or the GLM pin in src/models/facts/pins/glmPins.ts'
+    : t.startsWith('§4') ? 'fix getModelCosts in src/models/usage/modelCost.ts, the first-party table MODEL_COSTS or the GPT entry of PRICING_OWNERS'
     : ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const near = (a: number, b: number): boolean => Math.abs(a - b) < 1e-9
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { getModelCosts, calculateUSDCost, resolveModelPricing, COST_TIER_5_25 } = await import('../../src/services/usage/modelCost.ts')
-const state = await import('../../src/bootstrap/state.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
+const { getModelCosts, calculateUSDCost, resolveModelPricing, COST_TIER_5_25 } = await import('../../src/models/usage/modelCost.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
 await refreshLocalDiscovery({ force: true })
-const { deepseekDisplayPin } = await import('../../src/utils/model/pins/deepseekPins.ts')
-const { kimiDisplayPin } = await import('../../src/utils/model/pins/kimiPins.ts')
+const { deepseekDisplayPin } = await import('../../src/models/facts/pins/deepseekPins.ts')
+const { kimiDisplayPin } = await import('../../src/models/facts/pins/kimiPins.ts')
 
 type Usage = Parameters<typeof calculateUSDCost>[1]
 const usage = (input: number, output: number, cacheRead = 0): Usage => ({
@@ -115,7 +115,7 @@ section('§4 the first-party table and the GPT pins are untouched')
 {
   const sonnet = getModelCosts('claude-sonnet-5')
   check('claude-sonnet-5 keeps the 2/10 tier', sonnet.inputTokens === 2 && sonnet.outputTokens === 10)
-  const { gptDisplayPin, gptPriceTierFor } = await import('../../src/utils/model/pins/gptPins.ts')
+  const { gptDisplayPin, gptPriceTierFor } = await import('../../src/models/facts/pins/gptPins.ts')
   const gptId = ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4'].find(id => gptDisplayPin(id)?.costInPerMtok !== undefined)
   if (gptId !== undefined) {
     const pin = gptPriceTierFor(gptDisplayPin(gptId)!, undefined)

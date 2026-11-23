@@ -6,12 +6,12 @@ const check = (ok: boolean, label: string): void => {
   console.log(`${ok ? '✓' : '✗'} ${label}`)
   if (!ok) {
     failures++
-    console.log('  fix: the keychain service name comes from getMacOsKeychainStorageServiceName in src/utils/secureStorage/macOsKeychainHelpers.ts, which must append the 8-hex hash of the NFC-normalised config home from getAuthConfigHomeDir; the env-less case also depends on getMercuryHome in src/utils/envUtils.ts')
+    console.log('  fix: the keychain service name comes from getMacOsKeychainStorageServiceName in src/platform/secure-storage/macOsKeychainHelpers.ts, which must append the 8-hex hash of the NFC-normalised config home from getAuthConfigHomeDir; the env-less case also depends on getMercuryHome in src/platform/environment/envUtils.ts')
   }
 }
 
 const prevEnv = process.env.MERCURY_CONFIG_DIR
-const helpers = (await import('../../src/utils/secureStorage/macOsKeychainHelpers.js')) as typeof import('../../src/utils/secureStorage/macOsKeychainHelpers.js')
+const helpers = (await import('../../src/platform/secure-storage/macOsKeychainHelpers.js')) as typeof import('../../src/platform/secure-storage/macOsKeychainHelpers.js')
 
 const svcFor = (dir: string | undefined): string => {
   delete process.env.MERCURY_CONFIG_DIR
@@ -36,7 +36,7 @@ const decomposed = '/tmp/acct-iso-café'
 check(svcFor(composed) === svcFor(decomposed), 'NFC: composed/decomposed path spellings hash to one service')
 
 ;(globalThis as unknown as { MACRO: { VERSION: string } }).MACRO = { VERSION: '1.0.0' }
-const envUtils = (await import('../../src/utils/envUtils.js')) as typeof import('../../src/utils/envUtils.js')
+const envUtils = (await import('../../src/platform/environment/envUtils.js')) as typeof import('../../src/platform/environment/envUtils.js')
 const prevMercuryHome = process.env.MERCURY_HOME
 const prevMercuryConfigDir = process.env.MERCURY_CONFIG_DIR
 delete process.env.MERCURY_HOME

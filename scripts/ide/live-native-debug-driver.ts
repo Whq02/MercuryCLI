@@ -20,7 +20,7 @@ if (!PROGRAM || !SOURCE) {
   process.exit(1)
 }
 
-const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
+const { DebugTool } = await import('../../src/tools/debug/DebugTool.js')
 type CallOut = { data: { result: string; outcome: string; debuggee?: string } }
 const call = async (input: Record<string, unknown>): Promise<CallOut> =>
   (await DebugTool.call(input as never, {} as never)) as CallOut

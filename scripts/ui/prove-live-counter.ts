@@ -32,20 +32,20 @@ process.env.BROWSER = '/usr/bin/true'
 const mod = async <T>(rel: string): Promise<T> => (await import(join(ROOT, rel))) as T
 const reactModule = await mod<{ default?: typeof import('react') } & typeof import('react')>('node_modules/react/index.js')
 const React = reactModule.default ?? reactModule
-const { default: Ink } = await mod<typeof import('../../src/ink/ink.tsx')>('src/ink/ink.tsx')
-const { App } = await mod<typeof import('../../src/components/App.tsx')>('src/components/App.tsx')
-const { getDefaultAppState } = await mod<typeof import('../../src/state/AppStateStore.ts')>('src/state/AppStateStore.ts')
-const { SpinnerWithVerb } = await mod<typeof import('../../src/components/Spinner.tsx')>('src/components/Spinner.tsx')
-const { SpinnerAnimationRow } = await mod<typeof import('../../src/components/Spinner/SpinnerAnimationRow.tsx')>('src/components/Spinner/SpinnerAnimationRow.tsx')
-const { enableConfigs } = await mod<typeof import('../../src/utils/config.ts')>('src/utils/config.ts')
-const { default: instances } = await mod<typeof import('../../src/ink/instances.ts')>('src/ink/instances.ts')
-const focusedSlot = await mod<typeof import('../../src/services/engine-connector/focusedConnector.ts')>('src/services/engine-connector/focusedConnector.ts')
-const { noSessionConnector } = await mod<typeof import('../../src/services/engine-connector/noSessionConnector.ts')>('src/services/engine-connector/noSessionConnector.ts')
-type Words = typeof import('../../src/components/Spinner/liveCounterWords.ts')
-const words = await mod<Words>('src/components/Spinner/liveCounterWords.ts').catch(() => null)
-type Facts = import('../../src/components/Spinner/liveCounterWords.ts').LiveCounterFacts
-const { formatQuietAge } = await mod<typeof import('../../src/utils/format.ts')>('src/utils/format.ts')
-type Wait = import('../../src/services/providers/streamIdleBudget.ts').RequestWaitV1
+const { default: Ink } = await mod<typeof import('../../src/screen/renderer/screenInstance.tsx')>('src/screen/renderer/screenInstance.tsx')
+const { App } = await mod<typeof import('../../src/boot/App.tsx')>('src/boot/App.tsx')
+const { getDefaultAppState } = await mod<typeof import('../../src/screen/app-state/AppStateStore.ts')>('src/screen/app-state/AppStateStore.ts')
+const { SpinnerWithVerb } = await mod<typeof import('../../src/screen/spinner/Spinner.tsx')>('src/screen/spinner/Spinner.tsx')
+const { SpinnerAnimationRow } = await mod<typeof import('../../src/screen/spinner/SpinnerAnimationRow.tsx')>('src/screen/spinner/SpinnerAnimationRow.tsx')
+const { enableConfigs } = await mod<typeof import('../../src/platform/settings/config.ts')>('src/platform/settings/config.ts')
+const { default: instances } = await mod<typeof import('../../src/screen/renderer/instances.ts')>('src/screen/renderer/instances.ts')
+const focusedSlot = await mod<typeof import('../../src/engine/connector/focusedConnector.ts')>('src/engine/connector/focusedConnector.ts')
+const { noSessionConnector } = await mod<typeof import('../../src/engine/connector/noSessionConnector.ts')>('src/engine/connector/noSessionConnector.ts')
+type Words = typeof import('../../src/screen/spinner/liveCounterWords.ts')
+const words = await mod<Words>('src/screen/spinner/liveCounterWords.ts').catch(() => null)
+type Facts = import('../../src/screen/spinner/liveCounterWords.ts').LiveCounterFacts
+const { formatQuietAge } = await mod<typeof import('../../src/platform/text/format.ts')>('src/platform/text/format.ts')
+type Wait = import('../../src/models/roads/streamIdleBudget.ts').RequestWaitV1
 
 enableConfigs()
 focusedSlot.setFocusedSessionConnector(noSessionConnector())
@@ -56,7 +56,7 @@ function check(label: string, good: boolean, detail = ''): void {
   console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-const hardLimit = setTimeout(() => { console.error('live counter proof exceeded its 90s deadline; a mounted row never painted, look at the mountRow step and src/components/Spinner.tsx'); process.exit(1) }, 90_000)
+const hardLimit = setTimeout(() => { console.error('live counter proof exceeded its 90s deadline; a mounted row never painted, look at the mountRow step and src/screen/spinner/Spinner.tsx'); process.exit(1) }, 90_000)
 hardLimit.unref()
 
 const T = 1_800_000_000_000
@@ -65,7 +65,7 @@ const facts = (over: Partial<Facts>): Facts => ({ phase: 'thinking', sentAtMs: T
 const line = (f: Facts, now = T): string => (words === null ? '' : words.liveCounterSegments(words.liveCounterWords(f, now)).join(' · '))
 
 console.log('the words function — the live facts become the row\'s words in one place')
-check('the row has ONE words function (src/components/Spinner/liveCounterWords.ts) turning sent-at, first-byte-at, reply chars, thinking chars, the wire count and the promise into its words', words !== null, 'src/components/Spinner/liveCounterWords.ts must exist and import cleanly; run bun on it to see the load error')
+check('the row has ONE words function (src/screen/spinner/liveCounterWords.ts) turning sent-at, first-byte-at, reply chars, thinking chars, the wire count and the promise into its words', words !== null, 'src/screen/spinner/liveCounterWords.ts must exist and import cleanly; run bun on it to see the load error')
 if (words !== null) {
   const reading = line(facts({ wait: localPromise }))
   check(`a known empty prefill counter and its clock: ${reading}`, reading === '12s · ↓ 0', reading)
@@ -87,9 +87,9 @@ if (words !== null) {
       for (const wireOutputTokens of [null, 0])
         for (const wait of [null, localPromise]) sweep.push(facts({ thinkingChars, replyChars, wireOutputTokens, wait }))
   const badZeros = sweep.filter(f => /↓ 0\b/.test(line(f)) && !(f.wireOutputTokens === 0 || f.replyChars === 0 && f.thinkingChars === 0 && f.firstByteAtMs === null))
-  check(`${sweep.length} counter combinations only show zero when known`, badZeros.length === 0, `${JSON.stringify(badZeros)} — liveCounterWords in src/components/Spinner/liveCounterWords.ts must print ↓ 0 only when the wire count is 0 or nothing has arrived`)
-  check('hidden thinking blocks are not a token count', line(facts({ thinkingBlocks: 1 })) === '12s', 'liveCounterWords in src/components/Spinner/liveCounterWords.ts must not turn thinkingBlocks into a token count')
-  check('nonfinite counters do not create a zero', line(facts({ replyChars: NaN, thinkingChars: NaN })) === '12s', 'liveCounterWords in src/components/Spinner/liveCounterWords.ts must treat NaN char counts as unknown, not zero')
+  check(`${sweep.length} counter combinations only show zero when known`, badZeros.length === 0, `${JSON.stringify(badZeros)} — liveCounterWords in src/screen/spinner/liveCounterWords.ts must print ↓ 0 only when the wire count is 0 or nothing has arrived`)
+  check('hidden thinking blocks are not a token count', line(facts({ thinkingBlocks: 1 })) === '12s', 'liveCounterWords in src/screen/spinner/liveCounterWords.ts must not turn thinkingBlocks into a token count')
+  check('nonfinite counters do not create a zero', line(facts({ replyChars: NaN, thinkingChars: NaN })) === '12s', 'liveCounterWords in src/screen/spinner/liveCounterWords.ts must treat NaN char counts as unknown, not zero')
   const oneToken = line(facts({ firstByteAtMs: T - 1_000, replyChars: 4 }))
   check(`the count appears as soon as one token is estimated: ${oneToken}`, oneToken === '12s · ↓ ~1', oneToken)
   const sequence: Facts[] = [
@@ -104,7 +104,7 @@ if (words !== null) {
     facts({ phase: 'writing', firstByteAtMs: T + 3_000, thinkingChars: 30_000, replyChars: 4_000, wireOutputTokens: 8_400 }),
   ]
   const totals = sequence.map(f => words.liveCounterWords(f, T + 5_000).figure.total)
-  check(`the total only grows across the same turn: ${totals.join(' → ')}`, totals.every((total, index) => index === 0 || total >= totals[index - 1]!), 'liveCounterWords in src/components/Spinner/liveCounterWords.ts must never lower figure.total within one turn')
+  check(`the total only grows across the same turn: ${totals.join(' → ')}`, totals.every((total, index) => index === 0 || total >= totals[index - 1]!), 'liveCounterWords in src/screen/spinner/liveCounterWords.ts must never lower figure.total within one turn')
   const secondRead = line(sequence[6]!, T + 2_000)
   check(`a later request keeps the turn count: ${secondRead}`, secondRead === '14s · ↓ 8.4k', secondRead)
   const loading = line(facts({ wait: { ...localPromise, phase: 'loading', sizeGb: 6.2 } }))
@@ -114,11 +114,11 @@ if (words !== null) {
   const retry = line(facts({ wait: { kind: 'retry', attempt: 2, of: 5, reason: 'a 529', delayMs: 3_000, sinceMs: T - 1_000 } }))
   check(`an actual retry keeps its concise indication: ${retry}`, retry === '12s · ↓ 0 · retrying 2 of 5', retry)
   const full = words.liveCounterWords(facts({ phase: 'writing', sentAtMs: T - 45_000, firstByteAtMs: T - 38_000, thinkingChars: 4_800, replyChars: 1_360, wait: { kind: 'silence', model: 'qwen3.5:9b', silentMs: 45_000, sinceMs: T - 45_000, answered: true } }), T)
-  check('wide and narrow rows contain the same concise total', words.liveCounterLine(full, 173) === '45s · ↓ ~1.5k' && words.liveCounterLine(full, 40) === '45s · ↓ ~1.5k', 'liveCounterLine in src/components/Spinner/liveCounterWords.ts must give the same line at 173 and 40 columns')
-  check('when the total cannot fit, elapsed remains', words.liveCounterLine(full, 7) === '45s', 'liveCounterLine in src/components/Spinner/liveCounterWords.ts must fall back to the elapsed clock when the total does not fit')
-  check('nothing partial is painted at a width below the clock', words.liveCounterLine(full, 2) === '', 'liveCounterLine in src/components/Spinner/liveCounterWords.ts must return an empty line below the clock width')
+  check('wide and narrow rows contain the same concise total', words.liveCounterLine(full, 173) === '45s · ↓ ~1.5k' && words.liveCounterLine(full, 40) === '45s · ↓ ~1.5k', 'liveCounterLine in src/screen/spinner/liveCounterWords.ts must give the same line at 173 and 40 columns')
+  check('when the total cannot fit, elapsed remains', words.liveCounterLine(full, 7) === '45s', 'liveCounterLine in src/screen/spinner/liveCounterWords.ts must fall back to the elapsed clock when the total does not fit')
+  check('nothing partial is painted at a width below the clock', words.liveCounterLine(full, 2) === '', 'liveCounterLine in src/screen/spinner/liveCounterWords.ts must return an empty line below the clock width')
   const reconnect = words.liveCounterWords(facts({ wait: { kind: 'retry', attempt: 2, of: 5, reason: 'closed', delayMs: 0, sinceMs: T, reconnecting: true } }), T)
-  check('an actual reconnection outranks counters on the narrow ladder', words.liveCounterLine(reconnect, 19) === 'reconnecting 2 of 5', 'liveCounterLine in src/components/Spinner/liveCounterWords.ts must put an actual reconnection ahead of counters at narrow widths')
+  check('an actual reconnection outranks counters on the narrow ladder', words.liveCounterLine(reconnect, 19) === 'reconnecting 2 of 5', 'liveCounterLine in src/screen/spinner/liveCounterWords.ts must put an actual reconnection ahead of counters at narrow widths')
 }
 
 class Output extends EventEmitter {
@@ -175,30 +175,30 @@ console.log('\nthe rendered rows — the compact status row and the full spinner
 for (const columns of [178, 80]) {
   const reading = await mountRow(columns, compactRow(rowFacts.reading, now - 12_000))
   frames.push(`# compact row · reading · ${columns} columns\n${reading}`)
-  check(`@${columns} compact prefill keeps elapsed and known zero`, /\d+s · ↓ 0/.test(reading) && !/reading|first byte|waiting/.test(reading), `${reading} — the compact row (SpinnerWithVerb in src/components/Spinner.tsx) must paint elapsed and the known zero from liveTurnFactsRef, with no phase words`)
+  check(`@${columns} compact prefill keeps elapsed and known zero`, /\d+s · ↓ 0/.test(reading) && !/reading|first byte|waiting/.test(reading), `${reading} — the compact row (SpinnerWithVerb in src/screen/spinner/Spinner.tsx) must paint elapsed and the known zero from liveTurnFactsRef, with no phase words`)
   const thinking = await mountRow(columns, compactRow(rowFacts.thinking, now - 40_000))
   frames.push(`# compact row · thinking 3,000 chars · ${columns} columns\n${thinking}`)
-  check(`@${columns} compact thinking keeps one estimated count`, /(?:39|4\d)s · ↓ ~750/.test(thinking) && !/thinking tokens/.test(thinking), `${thinking} — the compact row (SpinnerWithVerb in src/components/Spinner.tsx) must paint one estimated count and no phase label`)
+  check(`@${columns} compact thinking keeps one estimated count`, /(?:39|4\d)s · ↓ ~750/.test(thinking) && !/thinking tokens/.test(thinking), `${thinking} — the compact row (SpinnerWithVerb in src/screen/spinner/Spinner.tsx) must paint one estimated count and no phase label`)
   const silence = await mountRow(columns, compactRow(rowFacts.silence, now - 40_000))
   frames.push(`# compact row · withheld thinking · ${columns} columns\n${silence}`)
-  check(`@${columns} compact withheld output keeps elapsed, never an invented zero`, /(?:39|4\d)s/.test(silence) && !silence.includes('↓'), `${silence} — the compact row (SpinnerWithVerb in src/components/Spinner.tsx) must paint elapsed only when the output count is unknown`)
+  check(`@${columns} compact withheld output keeps elapsed, never an invented zero`, /(?:39|4\d)s/.test(silence) && !silence.includes('↓'), `${silence} — the compact row (SpinnerWithVerb in src/screen/spinner/Spinner.tsx) must paint elapsed only when the output count is unknown`)
   const fullReading = await mountRow(columns, fullRow(rowFacts.reading, now - 12_000, columns))
   frames.push(`# full row · reading · ${columns} columns\n${fullReading}`)
-  check(`@${columns} full prefill keeps known zero without phase or effort words`, fullReading.includes('↓ 0') && !/reading|waiting|thinking \(max\)/.test(fullReading), `${fullReading} — the full row (SpinnerAnimationRow in src/components/Spinner/SpinnerAnimationRow.tsx) must paint the known zero with no phase or effort words`)
+  check(`@${columns} full prefill keeps known zero without phase or effort words`, fullReading.includes('↓ 0') && !/reading|waiting|thinking \(max\)/.test(fullReading), `${fullReading} — the full row (SpinnerAnimationRow in src/screen/spinner/SpinnerAnimationRow.tsx) must paint the known zero with no phase or effort words`)
   const fullThinking = await mountRow(columns, fullRow(rowFacts.thinking, now - 40_000, columns))
   frames.push(`# full row · thinking 3,000 chars · ${columns} columns\n${fullThinking}`)
-  check(`@${columns} full thinking keeps the total without a phase label`, fullThinking.includes('↓ ~750') && !/thinking tokens|thinking \(max\)/.test(fullThinking), `${fullThinking} — the full row (SpinnerAnimationRow in src/components/Spinner/SpinnerAnimationRow.tsx) must paint the total with no phase label`)
+  check(`@${columns} full thinking keeps the total without a phase label`, fullThinking.includes('↓ ~750') && !/thinking tokens|thinking \(max\)/.test(fullThinking), `${fullThinking} — the full row (SpinnerAnimationRow in src/screen/spinner/SpinnerAnimationRow.tsx) must paint the total with no phase label`)
 }
 console.log('\nthe thinking pulse — how long since the last byte, in the age word the format module owns')
-check('the age word reads 8s at eight seconds', formatQuietAge(8_000) === '8s', `${String(formatQuietAge(8_000))} — formatQuietAge in src/utils/format.ts`)
-check('the age word reads 59s one millisecond under a minute', formatQuietAge(59_999) === '59s', `${String(formatQuietAge(59_999))} — formatQuietAge in src/utils/format.ts`)
-check('the age word reads 4m at four minutes', formatQuietAge(240_000) === '4m', `${String(formatQuietAge(240_000))} — formatQuietAge in src/utils/format.ts`)
-check('the age word reads 1h at one hour', formatQuietAge(3_600_000) === '1h', `${String(formatQuietAge(3_600_000))} — formatQuietAge in src/utils/format.ts`)
-check('the age word reads 1h15m at an hour and a quarter', formatQuietAge(4_500_000) === '1h15m', `${String(formatQuietAge(4_500_000))} — formatQuietAge in src/utils/format.ts`)
+check('the age word reads 8s at eight seconds', formatQuietAge(8_000) === '8s', `${String(formatQuietAge(8_000))} — formatQuietAge in src/platform/text/format.ts`)
+check('the age word reads 59s one millisecond under a minute', formatQuietAge(59_999) === '59s', `${String(formatQuietAge(59_999))} — formatQuietAge in src/platform/text/format.ts`)
+check('the age word reads 4m at four minutes', formatQuietAge(240_000) === '4m', `${String(formatQuietAge(240_000))} — formatQuietAge in src/platform/text/format.ts`)
+check('the age word reads 1h at one hour', formatQuietAge(3_600_000) === '1h', `${String(formatQuietAge(3_600_000))} — formatQuietAge in src/platform/text/format.ts`)
+check('the age word reads 1h15m at an hour and a quarter', formatQuietAge(4_500_000) === '1h15m', `${String(formatQuietAge(4_500_000))} — formatQuietAge in src/platform/text/format.ts`)
 if (words !== null) {
   const pulse = words.liveCounterPulse({ lastByteAtMs: T - 12_000 }, 'thinking', T)
-  check(`a thinking turn whose last byte came twelve seconds ago pulses with that age: ${String(pulse)}`, pulse === '↻12s', `${String(pulse)} — liveCounterPulse in src/components/Spinner/liveCounterWords.ts`)
-  check('no pulse outside thinking, and none before a first byte', words.liveCounterPulse({ lastByteAtMs: T - 12_000 }, 'writing', T) === null && words.liveCounterPulse({ lastByteAtMs: null }, 'thinking', T) === null, 'liveCounterPulse in src/components/Spinner/liveCounterWords.ts must return null outside thinking and before a first byte')
+  check(`a thinking turn whose last byte came twelve seconds ago pulses with that age: ${String(pulse)}`, pulse === '↻12s', `${String(pulse)} — liveCounterPulse in src/screen/spinner/liveCounterWords.ts`)
+  check('no pulse outside thinking, and none before a first byte', words.liveCounterPulse({ lastByteAtMs: T - 12_000 }, 'writing', T) === null && words.liveCounterPulse({ lastByteAtMs: null }, 'thinking', T) === null, 'liveCounterPulse in src/screen/spinner/liveCounterWords.ts must return null outside thinking and before a first byte')
 }
 if (FRAMES !== undefined) {
   mkdirSync(FRAMES, { recursive: true })

@@ -19,12 +19,12 @@ const VSHOT = join(dirname(SELF), 'vshot.py')
 
 if (process.env.BAND_RENDER_CHILD) {
   const React = await import('react')
-  const ink = (await import('../../src/ink.js')) as {
+  const ink = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
     Box: React.ComponentType<Record<string, unknown>>
     Text: React.ComponentType<Record<string, unknown>>
   }
-  const { InteractiveRow } = await import('../../src/components/mercury-ui/InteractiveRow.js')
+  const { InteractiveRow } = await import('../../src/screen/widgets/InteractiveRow.js')
   const h = React.createElement
   const noop = (): void => {}
   void ink.render(

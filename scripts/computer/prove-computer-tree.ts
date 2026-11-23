@@ -4,12 +4,12 @@ import { join } from 'node:path'
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, COMPUTER_READS, ownerOf, pixelOfPointOn, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
 
-const { ComputerTool, TREE_DEPTH_CAP, TREE_DEPTH_DEFAULT, TREE_LIMIT_CAP, TREE_LIMIT_DEFAULT } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const session = await import('../../src/services/desktop/desktopSession.ts')
-const { suggestionForExactCommand } = await import('../../src/utils/permissions/shellRuleMatching.ts')
-type ToolUseContext = import('../../src/Tool.ts').ToolUseContext
-type FakeDesktopDriver = import('../../src/services/desktop/fakeDesktopDriver.ts').FakeDesktopDriver
+const { ComputerTool, TREE_DEPTH_CAP, TREE_DEPTH_DEFAULT, TREE_LIMIT_CAP, TREE_LIMIT_DEFAULT } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const session = await import('../../src/integrations/desktop/desktopSession.ts')
+const { suggestionForExactCommand } = await import('../../src/permissions/rules/shellRuleMatching.ts')
+type ToolUseContext = import('../../src/tools/kit/tool.ts').ToolUseContext
+type FakeDesktopDriver = import('../../src/integrations/desktop/fakeDesktopDriver.ts').FakeDesktopDriver
 
 const scratch = scratchDir('tree')
 const TEXTEDIT = { identity: 'com.example.TextEdit', name: 'TextEdit' }
@@ -37,7 +37,7 @@ type Verdict = { behavior: string; message?: string; suggestions?: unknown; deci
 const permission = async (input: Record<string, unknown>, context: ToolUseContext): Promise<Verdict> => (await ComputerTool.checkPermissions(input as never, context)) as Verdict
 let calls = 0
 const call = async (input: Record<string, unknown>, context: ToolUseContext) => resultOf(await ComputerTool.call({ scope: 'app', ...input } as never, context, allowEverything, toolUseTurn(`toolu_tree_${++calls}`, 'Computer', input)))
-const { WEB_CONTENT_NOTICE } = await import('../../src/tools/BashTool/webContent.ts')
+const { WEB_CONTENT_NOTICE } = await import('../../src/tools/shell/webContent.ts')
 const body = (result: string): string => result.split('\n').filter(line => line !== WEB_CONTENT_NOTICE).join('\n')
 const inputActs = (): string[] => fakeDriver().acts.filter(a => a.act !== 'capture' && a.act !== 'accessibilityTree' && a.act !== 'releaseAll').map(a => a.act)
 
@@ -197,7 +197,7 @@ section('§7 the words and the road')
   check('the ref field carries node lifetime; the prompt carries the returned row format', fields.ref.description.includes('stale once the list changes') && prompt.includes('[n] role "title" value'))
   check('the fields carry tree budgets, scopes and clipboard consent once', fields.depth.description.includes(`default ${TREE_DEPTH_DEFAULT}, clamped at ${TREE_DEPTH_CAP}`) && fields.limit.description.includes(`default ${TREE_LIMIT_DEFAULT}, clamped at ${TREE_LIMIT_CAP}`) && fields.scope.description.includes('app adds its other windows') && !fields.scope.description.includes('menu') && fields.clipboard.description.includes('separate consent') && !prompt.includes('separate consent'))
   check('the prompt puts tree reads under the application grant', prompt.includes('first act of a session asks once') && prompt.includes('tree/find/read/wait-until share its grant'))
-  check('the addon contract carries accessibilityTree among its required exports', (await import('../../src/services/desktop/pack.ts')).DESKTOP_ADDON_EXPORTS.includes('accessibilityTree' as never))
+  check('the addon contract carries accessibilityTree among its required exports', (await import('../../src/integrations/desktop/pack.ts')).DESKTOP_ADDON_EXPORTS.includes('accessibilityTree' as never))
 }
 
 
@@ -236,7 +236,7 @@ section('§8 live: the real tree of the application in front through the native 
 if (LIVE === '1' || LIVE === 'acts') {
   delete process.env.MERCURY_DESKTOP_DRIVER
   resetDesktopDriverForTest()
-  const native = await import('../../src/services/desktop/nativeDriver.ts')
+  const native = await import('../../src/integrations/desktop/nativeDriver.ts')
   const load = native.resolveNativeDesktopDriver()
   check('the native driver resolves', load.state === 'ok', load.state === 'ok' ? '' : load.note)
   if (load.state === 'ok') {

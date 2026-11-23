@@ -9,7 +9,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const usabilityHint = 'change resolveProviderUsability (or delegationDispatchBlocker) in src/services/providers/providerUsability.ts so this lane verdict, credential, limit or blocker text matches the label'
+  const usabilityHint = 'change resolveProviderUsability (or delegationDispatchBlocker) in src/models/roads/providerUsability.ts so this lane verdict, credential, limit or blocker text matches the label'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${usabilityHint}` : ''}`)
 }
 const section = (t: string): void => {
@@ -17,10 +17,10 @@ const section = (t: string): void => {
 }
 
 const { resolveProviderUsability } = await import(
-  '../../src/services/providers/providerUsability.ts'
+  '../../src/models/roads/providerUsability.ts'
 )
-type Reads = import('../../src/services/providers/providerUsability.ts').ProviderUsabilityReads
-type ProviderId = import('../../src/services/providers/providerUsability.ts').ProviderId
+type Reads = import('../../src/models/roads/providerUsability.ts').ProviderUsabilityReads
+type ProviderId = import('../../src/models/roads/providerUsability.ts').ProviderId
 
 const NONE: Reads = {
   anthropicApiKey: () => null,
@@ -131,7 +131,7 @@ section('§D blocker specificity — no two families share a blocker, none gener
 section('§F engine-lane usage truth — observed limit latches flip the limit axis')
 {
   const { delegationDispatchBlocker } = await import(
-    '../../src/services/providers/providerUsability.ts'
+    '../../src/models/roads/providerUsability.ts'
   )
   const latchable = [
     ['openai', 'openaiLimitWindow'],

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/ink/compose-walk.ts src/ink/node-cache.ts
+// gate-watch: src/screen/renderer/compose-walk.ts src/screen/renderer/node-cache.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import {
@@ -10,11 +10,11 @@ import {
   setTextNodeValue,
   type DOMElement,
   type TextNode,
-} from '../../src/ink/dom.js'
-import { emptyFrame, type Frame } from '../../src/ink/frame.js'
-import { nodeCache } from '../../src/ink/node-cache.js'
-import createRenderer from '../../src/ink/renderer.js'
-import type { ComposeSignals } from '../../src/ink/compose-walk.js'
+} from '../../src/screen/renderer/dom.js'
+import { emptyFrame, type Frame } from '../../src/screen/renderer/frame.js'
+import { nodeCache } from '../../src/screen/renderer/node-cache.js'
+import createRenderer from '../../src/screen/renderer/renderer.js'
+import type { ComposeSignals } from '../../src/screen/renderer/compose-walk.js'
 import { applySceneStyle, buildDom, makeContext, screenLines, type SceneNode } from './frameHarness.js'
 
 const COLS = 30
@@ -27,7 +27,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
   if (!cond) {
-    console.log('    fix: the scroll drain (pendingScrollDelta), overlay restore (absoluteRectsCur) and culled-subtree cache checks all exercise the row walk in src/ink/compose-walk.ts, with the per-node rect cache in src/ink/node-cache.ts; compare the step sizes and rects printed above with that code')
+    console.log('    fix: the scroll drain (pendingScrollDelta), overlay restore (absoluteRectsCur) and culled-subtree cache checks all exercise the row walk in src/screen/renderer/compose-walk.ts, with the per-node rect cache in src/screen/renderer/node-cache.ts; compare the step sizes and rects printed above with that code')
   }
 }
 

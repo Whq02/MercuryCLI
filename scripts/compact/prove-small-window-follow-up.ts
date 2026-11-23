@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/compact/autoCompact.ts src/services/compact/compact.ts src/run-core/turn-machine.ts src/services/providers/local/localWindow.ts src/services/providers/local/localCallModel.ts src/utils/model/capabilities.ts
+// gate-watch: src/engine/compaction/autoFold.ts src/engine/compaction/foldConversation.ts src/engine/loop/turn-machine.ts src/models/roads/local/localWindow.ts src/models/roads/local/localCallModel.ts src/models/facts/capabilities.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
@@ -90,29 +90,29 @@ const ollama = await new Promise<{ server: Server; root: string }>(resolve => {
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 bootstrap.setAskChannel('none')
 bootstrap.setSessionPersistenceDisabled(true)
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const w = await import('../../src/services/providers/local/localWindow.ts')
-const { resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
-const autoCompact = await import('../../src/services/compact/autoCompact.ts')
-const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { Conversation } = await import('../../src/rows/turn.ts')
-const { flushDebugLogs } = await import('../../src/utils/debug.ts')
-type Message = import('../../src/types/message.ts').Message
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const w = await import('../../src/models/roads/local/localWindow.ts')
+const { resolveContextWindow } = await import('../../src/models/facts/capabilities.ts')
+const autoCompact = await import('../../src/engine/compaction/autoFold.ts')
+const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { Conversation } = await import('../../src/engine/rows/turn.ts')
+const { flushDebugLogs } = await import('../../src/platform/logs/debugLog.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const MODEL = `local/${SMALL}`
 await refreshLocalDiscovery({ force: true })
 const record8k = localRecordFor(MODEL)
-check('the fixture states an 8,192-token model', record8k?.modelMaxContext === WINDOW, JSON.stringify(record8k) + ' — the fixture Ollama server did not yield an 8,192-token record; look at localRecordFor in src/services/providers/local/localCatalogue.ts and refreshLocalDiscovery in src/services/providers/local/localDiscovery.ts')
+check('the fixture states an 8,192-token model', record8k?.modelMaxContext === WINDOW, JSON.stringify(record8k) + ' — the fixture Ollama server did not yield an 8,192-token record; look at localRecordFor in src/models/roads/local/localCatalogue.ts and refreshLocalDiscovery in src/models/roads/local/localDiscovery.ts')
 
 function textOfTokens(tokens: number, seed: string): string {
   const line = `${seed} the earlier conversation continues here. `
@@ -180,9 +180,9 @@ section("§1 the tester's row: an 8,192-token model, a 6.3k prompt (a 4k system 
   const error = ran.outcome?.error as { message?: string; class?: string } | undefined
   record(`prompt ≈${fmt(ran.promptTokens)} tokens · outcome ${JSON.stringify(ran.outcome?.status)} ${JSON.stringify(error?.class ?? '')} · request ${ran.chat === undefined ? 'none' : `num_ctx ${String(ran.chat.numCtx)} · ${ran.chat.messages} messages · ${fmt(ran.chat.chars)} chars`}`)
   for (const line of ran.lines) record(`debug: ${line.replace(/^\S+ /, '')}`)
-  check('the follow-up is sent at num_ctx 8192 and answered (status completed)', ran.outcome?.status === 'completed' && ran.chat?.numCtx === WINDOW && ran.chat.messages >= 3, JSON.stringify({ outcome: ran.outcome, chat: ran.chat }) + ' — a request that fits the 8,192 window was not sent; fix the blocking preempt in src/run-core/turn/makeRequest.ts and getBlockingLimit in src/utils/compact/autoCompactWindow.ts')
-  check('the answer is the model\'s', ran.outcome?.answer === 'The follow-up is answered.', JSON.stringify(ran.outcome?.answer) + ' — the model reply did not reach the outcome; the follow-up was not sent (see src/run-core/turn/makeRequest.ts)')
-  check('no failed compaction row and no [ERROR] stack: the fold is skipped once, in the debug log only', !ran.lines.some(line => line.includes('[ERROR]')) && (error?.message ?? '') === '', JSON.stringify(ran.lines) + ' — a skipped fold must log only to the debug log and never as an [ERROR] or an outcome error; see src/services/compact/autoCompact.ts')
+  check('the follow-up is sent at num_ctx 8192 and answered (status completed)', ran.outcome?.status === 'completed' && ran.chat?.numCtx === WINDOW && ran.chat.messages >= 3, JSON.stringify({ outcome: ran.outcome, chat: ran.chat }) + ' — a request that fits the 8,192 window was not sent; fix the blocking preempt in src/engine/loop/turn/makeRequest.ts and getBlockingLimit in src/engine/compaction-window/autoFoldWindow.ts')
+  check('the answer is the model\'s', ran.outcome?.answer === 'The follow-up is answered.', JSON.stringify(ran.outcome?.answer) + ' — the model reply did not reach the outcome; the follow-up was not sent (see src/engine/loop/turn/makeRequest.ts)')
+  check('no failed compaction row and no [ERROR] stack: the fold is skipped once, in the debug log only', !ran.lines.some(line => line.includes('[ERROR]')) && (error?.message ?? '') === '', JSON.stringify(ran.lines) + ' — a skipped fold must log only to the debug log and never as an [ERROR] or an outcome error; see src/engine/compaction/autoFold.ts')
   check('no sentence naming "786 tokens" reaches the user (the outcome carries none)', !JSON.stringify(ran.outcome).includes('786 tokens'), JSON.stringify(ran.outcome).slice(0, 300))
 }
 
@@ -193,7 +193,7 @@ section('§2 the other shape of a 6.3k request: a 1k system prompt and a 3.5k hi
   const error = ran.outcome?.error as { message?: string; class?: string } | undefined
   record(`prompt ≈${fmt(ran.promptTokens)} tokens nominal · outcome ${JSON.stringify(ran.outcome?.status)} ${JSON.stringify(error?.class ?? '')}${error?.message ? `: ${error.message}` : ''} · request ${ran.chat === undefined ? 'none' : `num_ctx ${String(ran.chat.numCtx)} · ${ran.chat.messages} messages · ${fmt(Math.round(ran.chat.chars / 4))} tokens on the wire`}`)
   for (const line of ran.lines) record(`debug: ${line.replace(/^\S+ /, '')}`)
-  check('the follow-up is sent at num_ctx 8192 and answered (status completed)', ran.outcome?.status === 'completed' && ran.chat?.numCtx === WINDOW && ran.chat.messages >= 3, JSON.stringify({ outcome: ran.outcome, chat: ran.chat }) + ' — a history over the blocking limit whose composed request fits the window must still be sent; fix the blocking preempt in src/run-core/turn/makeRequest.ts')
+  check('the follow-up is sent at num_ctx 8192 and answered (status completed)', ran.outcome?.status === 'completed' && ran.chat?.numCtx === WINDOW && ran.chat.messages >= 3, JSON.stringify({ outcome: ran.outcome, chat: ran.chat }) + ' — a history over the blocking limit whose composed request fits the window must still be sent; fix the blocking preempt in src/engine/loop/turn/makeRequest.ts')
   check('no sentence naming "786 tokens" reaches the user (the outcome carries none)', !JSON.stringify(ran.outcome).includes('786 tokens'), JSON.stringify(ran.outcome).slice(0, 300))
 }
 
@@ -203,7 +203,7 @@ section('§3 a prompt that genuinely overflows the 8,192 window (a 7k system pro
   const ran = await followUp(7_000, 5_000)
   const error = ran.outcome?.error as { message?: string; class?: string } | undefined
   record(`prompt ≈${fmt(ran.promptTokens)} tokens · outcome ${JSON.stringify(ran.outcome?.status)} ${JSON.stringify(error?.class ?? '')}${error?.message ? `: ${error.message}` : ''} · request ${ran.chat === undefined ? 'none' : 'sent'}`)
-  check('the run fails with the class context_limit and nothing reaches the server', ran.outcome?.status === 'failed' && error?.class === 'context_limit' && ran.chat === undefined, JSON.stringify({ outcome: ran.outcome, chat: ran.chat }) + ' — a prompt that overflows the window must fail as context_limit before any request; fix the blocking preempt in src/run-core/turn/makeRequest.ts')
+  check('the run fails with the class context_limit and nothing reaches the server', ran.outcome?.status === 'failed' && error?.class === 'context_limit' && ran.chat === undefined, JSON.stringify({ outcome: ran.outcome, chat: ran.chat }) + ' — a prompt that overflows the window must fail as context_limit before any request; fix the blocking preempt in src/engine/loop/turn/makeRequest.ts')
   check('no sentence naming "786 tokens" reaches the user (the outcome carries none)', !JSON.stringify(ran.outcome).includes('786 tokens'), JSON.stringify(ran.outcome).slice(0, 300))
 }
 

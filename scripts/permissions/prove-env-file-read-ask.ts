@@ -47,19 +47,19 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 const j = (value: unknown): string => JSON.stringify(value)
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const filesystem = await import('../../src/utils/permissions/filesystem.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const filesystem = await import('../../src/permissions/rules/filesystem.ts')
 const { checkReadPermissionForTool } = filesystem
 const isProjectEnvFileName: (path: string) => boolean = filesystem.isProjectEnvFileName ?? (() => false)
 const envFileTargetsInGlob: (glob: string) => string[] = filesystem.envFileTargetsInGlob ?? (() => [])
-const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { GlobTool } = await import('../../src/tools/GlobTool/GlobTool.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
+const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
+const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
 const { checkParsedPaths } = await import('../bash/floor-proof-helpers.ts')
-const powershell = await import('../../src/tools/PowerShellTool/pathValidation.ts')
+const powershell = await import('../../src/tools/powershell/pathValidation.ts')
 
 type Mode = 'default' | 'implement' | 'sovereign' | 'apollo'
 type Rules = { allow?: string[]; deny?: string[]; ask?: string[] }
@@ -103,7 +103,7 @@ const readVerdict = (path: string, mode: Mode = 'default', rules: Rules = {}): D
 
 section('§0 the name law: .env and .env.* are the row; the templates, .envrc and look-alikes are not')
 {
-  whereToLook = 'the name law is isProjectEnvFileName and the glob targets are envFileTargetsInGlob, both in src/utils/permissions/filesystem.ts; change the one whose answer differs from the label'
+  whereToLook = 'the name law is isProjectEnvFileName and the glob targets are envFileTargetsInGlob, both in src/permissions/rules/filesystem.ts; change the one whose answer differs from the label'
   for (const name of ['.env', '.env.local', '.env.production', '.ENV', 'api/.env', 'C:\\proj\\.env', '/proj/.env.test', '.env.staging.local']) {
     check(`an env-file name: ${name}`, isProjectEnvFileName(name))
   }
@@ -131,7 +131,7 @@ section('§0 the name law: .env and .env.* are the row; the templates, .envrc an
 
 section('§1 the file tools: Read of the project .env asks with the reason in default and implement; the look-alikes never ask')
 {
-  whereToLook = 'Read decisions come from checkReadPermissionForTool and the .env ask (the safetyCheck reason) in src/utils/permissions/filesystem.ts; compare the printed decision with the label'
+  whereToLook = 'Read decisions come from checkReadPermissionForTool and the .env ask (the safetyCheck reason) in src/permissions/rules/filesystem.ts; compare the printed decision with the label'
   for (const mode of ['default', 'implement', 'apollo'] as Mode[]) {
     const verdict = readVerdict(join(PROJ, '.env'), mode)
     check(`${mode}: Read .env asks with the .env reason`, isEnvAsk(verdict), j(verdict))
@@ -158,7 +158,7 @@ section('§1 the file tools: Read of the project .env asks with the reason in de
 
 section('§2 rules: the user\'s own allow rule is honoured; a deny rule still refuses')
 {
-  whereToLook = 'the allow, ask and deny rule order for a .env read is in checkReadPermissionForTool in src/utils/permissions/filesystem.ts'
+  whereToLook = 'the allow, ask and deny rule order for a .env read is in checkReadPermissionForTool in src/permissions/rules/filesystem.ts'
   const byFile = readVerdict(join(PROJ, '.env'), 'default', { allow: ['Read(.env)'] })
   check('an allow rule for the file reads it without a card', byFile.behavior === 'allow', j(byFile))
   const byFolder = readVerdict(join(PROJ, '.env'), 'default', { allow: [`Read(//${PROJ.replace(/^\/+/, '')}/**)`] })
@@ -175,7 +175,7 @@ section('§2 rules: the user\'s own allow rule is honoured; a deny rule still re
 
 section('§3 the engine: default and implement ask at the safety road; sovereign runs it; a deny rule refuses under sovereign too')
 {
-  whereToLook = 'the engine road is decideToolPermission in src/utils/permissions/decision/engine.ts (decidedBy in the printed trace names the road that answered); the .env ask itself comes from src/utils/permissions/filesystem.ts'
+  whereToLook = 'the engine road is decideToolPermission in src/permissions/rules/decision/engine.ts (decidedBy in the printed trace names the road that answered); the .env ask itself comes from src/permissions/rules/filesystem.ts'
   const decide = (tool: unknown, input: Record<string, unknown>, mode: Mode, rules: Rules = {}): Promise<Outcome> =>
     decideToolPermission(tool as never, input, contextOf(mode, rules)) as unknown as Promise<Outcome>
   const input = { file_path: join(PROJ, '.env') }
@@ -195,7 +195,7 @@ section('§3 the engine: default and implement ask at the safety road; sovereign
 
 section('§4 the Grep tool: a search that names .env asks first; a folder-wide search withholds the .env lines and says so; sovereign and the user\'s rule see them')
 {
-  whereToLook = 'the Grep ask and the withheld .env lines with their note come from src/tools/GrepTool/GrepTool.ts (envFilesWithheld and the Withheld note); glob targets come from envFileTargetsInGlob in src/utils/permissions/filesystem.ts'
+  whereToLook = 'the Grep ask and the withheld .env lines with their note come from src/tools/grep/GrepTool.ts (envFilesWithheld and the Withheld note); glob targets come from envFileTargetsInGlob in src/permissions/rules/filesystem.ts'
   const grepVerdict = (input: Record<string, unknown>, mode: Mode = 'default', rules: Rules = {}): Promise<Decision> =>
     GrepTool.checkPermissions(GrepTool.inputSchema.parse(input) as never, contextOf(mode, rules)) as unknown as Promise<Decision>
   check('Grep with path .env asks', isEnvAsk(await grepVerdict({ pattern: 'API', path: join(PROJ, '.env') })), j(await grepVerdict({ pattern: 'API', path: join(PROJ, '.env') })))
@@ -326,7 +326,7 @@ section('§4 the Grep tool: a search that names .env asks first; a folder-wide s
 
 section('§5 the Bash road: a command that cats, pipes, sources or copies the project .env asks the same way; the look-alikes and the metadata commands do not')
 {
-  whereToLook = 'the Bash path check is checkPathConstraints in src/tools/BashTool/pathValidation.ts (envFileReadAsk, envFileBeneath, the file-name filters); the whole decision is bashToolHasPermission in src/tools/BashTool/bashPermissions.ts'
+  whereToLook = 'the Bash path check is checkPathConstraints in src/tools/shell/pathValidation.ts (envFileReadAsk, envFileBeneath, the file-name filters); the whole decision is bashToolHasPermission in src/tools/shell/bashPermissions.ts'
   const bashPath = async (command: string, mode: Mode = 'default', rules: Rules = {}): Promise<Decision> =>
     (await checkParsedPaths({ command }, PROJ, permissionOf(mode, rules) as never)) as unknown as Decision
   const asks = [
@@ -409,7 +409,7 @@ section('§5 the Bash road: a command that cats, pipes, sources or copies the pr
 
 section('§6 the Windows twin: the PowerShell content cmdlets ask for the project .env; the metadata cmdlets and the templates do not')
 {
-  whereToLook = 'the PowerShell path check is checkPathConstraints in src/tools/PowerShellTool/pathValidation.ts'
+  whereToLook = 'the PowerShell path check is checkPathConstraints in src/tools/powershell/pathValidation.ts'
   const parsed = (name: string, args: string[]) => ({
     valid: true,
     statements: [{ statementType: 'PipelineAst', text: [name, ...args].join(' '), commands: [{ name, text: [name, ...args].join(' '), nameType: 'cmdlet' as const, args, elementType: 'CommandAst' }], nestedCommands: [], redirections: [] }],

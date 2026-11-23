@@ -25,11 +25,11 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
-const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
-const { getOriginalCwd, setOriginalCwd, setCwdState } = await import('../../src/bootstrap/state.ts')
-const contract = await import('../../src/prompt/mercuryContract.ts')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
+const { getSystemPrompt } = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+const { clearSystemPromptSections } = await import('../../src/engine/system-prompt/systemPromptSections.ts')
+const { getOriginalCwd, setOriginalCwd, setCwdState } = await import('../../src/boot/process-state/processState.ts')
+const contract = await import('../../src/engine/system-prompt/mercuryContract.ts')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
 
 const scratch = mkdtempSync(join(tmpdir(), 'prompt-layers-cwd-'))
 const cwd = process.cwd()
@@ -135,7 +135,7 @@ try {
     }
     const layers = getFlagSpec('MERCURY_PROMPT_LAYERS')
     const file = getFlagSpec('MERCURY_PROMPT_REPLACE_FILE')
-    check('MERCURY_PROMPT_LAYERS is a registered value row owned by the contract module', layers?.kind === 'value' && layers.consumer === 'src/prompt/mercuryContract.ts')
+    check('MERCURY_PROMPT_LAYERS is a registered value row owned by the contract module', layers?.kind === 'value' && layers.consumer === 'src/engine/system-prompt/mercuryContract.ts')
     check('its summary names the three sets and no other', typeof layers?.summary === 'string' && ["'stock'", "'replace'", "'whole'"].every(word => layers.summary.includes(word)) && !/floor|vessel|identity floor|doctrine/.test(layers.summary))
     check('MERCURY_PROMPT_REPLACE_FILE is a registered value row that requires the layer switch', file?.kind === 'value' && (file.requires ?? []).includes('MERCURY_PROMPT_LAYERS'))
     check('the layer switch declares its interactions with the file and the lean marker, and nothing else', j([...(layers?.interactsWith ?? [])].sort()) === j(['MERCURY_BARE', 'MERCURY_PROMPT_REPLACE_FILE']))

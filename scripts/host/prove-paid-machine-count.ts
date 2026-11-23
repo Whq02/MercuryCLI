@@ -5,7 +5,7 @@ import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture } from './runpodFixture.mjs'
 import { vastFixture } from './vastFixture.mjs'
 import { hfEndpointsFixture } from './hfEndpointsFixture.mjs'
-import type { LlmHostQuestion } from '../../src/services/llmHost/index.ts'
+import type { LlmHostQuestion } from '../../src/models/llm-host/index.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const f = await llmhostFixture()
@@ -21,10 +21,10 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   return nativeFetch(request)
 }, nativeFetch)
 try {
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const secrets = await import('../../src/utils/accounts/providerSecrets.ts')
-  const { hostDirectory, hostRecords, writeHostRecord } = await import('../../src/services/host/store.ts')
-  const { runModelDoor } = await import('../../src/services/host/door.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const { hostDirectory, hostRecords, writeHostRecord } = await import('../../src/models/hosting/store.ts')
+  const { runModelDoor } = await import('../../src/models/hosting/door.ts')
   secrets.writeStoredRunpodApiKey(rp.key)
   secrets.writeStoredVastApiKey(vast.key)
   const record = { name: 'Never created', recipe: 'gpt-oss-120b-h100', status: 'ERROR', price: 9, startedAt: new Date().toISOString(), vendor: 'vast' as const }

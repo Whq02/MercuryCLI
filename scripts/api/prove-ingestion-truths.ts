@@ -13,7 +13,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 
 section('§1 N-04 · NATIVE TOOL-RESULT IMAGES CLAMPED AT THE ONE BOUNDARY')
 {
-  const { clampToolResultImageBlocks } = await import('../../src/utils/imageResizer.ts')
+  const { clampToolResultImageBlocks } = await import('../../src/platform/images/imageResizer.ts')
   const sharp = (await import('sharp')).default
 
   const oversized = await sharp({
@@ -36,7 +36,7 @@ section('§1 N-04 · NATIVE TOOL-RESULT IMAGES CLAMPED AT THE ONE BOUNDARY')
       { type: 'image', source: { type: 'base64', media_type: 'image/png', data: small.toString('base64') } },
     ],
   }
-  const { ANTHROPIC_IMAGE_LIMITS } = await import('../../src/constants/apiLimits.ts')
+  const { ANTHROPIC_IMAGE_LIMITS } = await import('../../src/models/roads/mediaLimits.ts')
   await clampToolResultImageBlocks(block, { limits: ANTHROPIC_IMAGE_LIMITS, model: 'claude-sonnet-5' })
   const clamped = block.content[1] as { source: { data: string } }
   const meta = await sharp(Buffer.from(clamped.source.data, 'base64')).metadata()
@@ -45,7 +45,7 @@ section('§1 N-04 · NATIVE TOOL-RESULT IMAGES CLAMPED AT THE ONE BOUNDARY')
     Math.max(meta.width ?? 9999, meta.height ?? 9999) <= ANTHROPIC_IMAGE_LIMITS.nativeLongEdgePx.highResolution &&
       Math.max(meta.width ?? 0, meta.height ?? 0) > 2000,
     `${meta.width}×${meta.height}`,
-    'clampToolResultImageBlocks in src/utils/imageResizer.ts must shrink a native capture to nativeLongEdgePx.highResolution in ANTHROPIC_IMAGE_LIMITS (src/constants/apiLimits.ts)',
+    'clampToolResultImageBlocks in src/platform/images/imageResizer.ts must shrink a native capture to nativeLongEdgePx.highResolution in ANTHROPIC_IMAGE_LIMITS (src/models/roads/mediaLimits.ts)',
   )
   const standard = {
     tool_use_id: 't1s',
@@ -58,15 +58,15 @@ section('§1 N-04 · NATIVE TOOL-RESULT IMAGES CLAMPED AT THE ONE BOUNDARY')
     'the same capture clamps to the standard tier long edge (≤1568px) for a standard-tier model',
     Math.max(standardMeta.width ?? 9999, standardMeta.height ?? 9999) <= ANTHROPIC_IMAGE_LIMITS.nativeLongEdgePx.standard,
     `${standardMeta.width}×${standardMeta.height}`,
-    'clampToolResultImageBlocks in src/utils/imageResizer.ts must shrink to nativeLongEdgePx.standard in ANTHROPIC_IMAGE_LIMITS (src/constants/apiLimits.ts) for a standard-tier model',
+    'clampToolResultImageBlocks in src/platform/images/imageResizer.ts must shrink to nativeLongEdgePx.standard in ANTHROPIC_IMAGE_LIMITS (src/models/roads/mediaLimits.ts) for a standard-tier model',
   )
   const untouchedSmall = block.content[2] as { source: { data: string } }
-  check('an under-limit image passes through byte-identical', untouchedSmall.source.data === small.toString('base64'), '', 'clampToolResultImageBlocks in src/utils/imageResizer.ts must leave an image under the limit byte-identical')
-  check('text blocks pass through untouched', (block.content[0] as { text: string }).text === 'screenshot captured', '', 'clampToolResultImageBlocks in src/utils/imageResizer.ts must not touch text blocks')
+  check('an under-limit image passes through byte-identical', untouchedSmall.source.data === small.toString('base64'), '', 'clampToolResultImageBlocks in src/platform/images/imageResizer.ts must leave an image under the limit byte-identical')
+  check('text blocks pass through untouched', (block.content[0] as { text: string }).text === 'screenshot captured', '', 'clampToolResultImageBlocks in src/platform/images/imageResizer.ts must not touch text blocks')
 
   const stringContent = { tool_use_id: 't2', type: 'tool_result', content: 'plain text result' }
   await clampToolResultImageBlocks(stringContent)
-  check('string-content results are untouched', stringContent.content === 'plain text result', '', 'clampToolResultImageBlocks in src/utils/imageResizer.ts must leave a result whose content is a string untouched')
+  check('string-content results are untouched', stringContent.content === 'plain text result', '', 'clampToolResultImageBlocks in src/platform/images/imageResizer.ts must leave a result whose content is a string untouched')
 
   const corruptPayload = Buffer.from('this is definitely not an image').toString('base64')
   const corrupt = {
@@ -79,42 +79,42 @@ section('§1 N-04 · NATIVE TOOL-RESULT IMAGES CLAMPED AT THE ONE BOUNDARY')
     'a corrupt image FAILS OPEN (payload byte-identical, nothing throws)',
     (corrupt.content[0] as { source: { data: string } }).source.data === corruptPayload,
     '',
-    'clampToolResultImageBlocks in src/utils/imageResizer.ts must catch a decode failure, keep the payload and not throw',
+    'clampToolResultImageBlocks in src/platform/images/imageResizer.ts must catch a decode failure, keep the payload and not throw',
   )
 
 }
 
 section('§2 N-04 · THE SINGLE-IMAGE DIMENSION 400 MATCHER')
 {
-  const { isMediaSizeError } = await import('../../src/services/api/errors.ts')
+  const { isMediaSizeError } = await import('../../src/engine/requests/apiErrorRows.ts')
   check(
     'the field phrasing now matches (single-image "max allowed size")',
     isMediaSizeError(
       'messages.5.content.237.image.source.base64.data: image dimensions exceed max allowed size: 8412 pixels > 8000 pixels',
     ),
     '',
-    'isMediaSizeError in src/services/api/errors.ts must match the single-image phrase max allowed size',
+    'isMediaSizeError in src/engine/requests/apiErrorRows.ts must match the single-image phrase max allowed size',
   )
   check(
     'the byte-size phrasing still matches',
     isMediaSizeError('image exceeds 5 MB maximum: 5316852 bytes > 5242880 bytes'),
     '',
-    'isMediaSizeError in src/services/api/errors.ts must still match the byte-size phrase',
+    'isMediaSizeError in src/engine/requests/apiErrorRows.ts must still match the byte-size phrase',
   )
   check(
     'the many-image phrasing still matches',
     isMediaSizeError('image dimensions exceed the limit for many-image requests'),
     '',
-    'isMediaSizeError in src/services/api/errors.ts must still match the many-image phrase',
+    'isMediaSizeError in src/engine/requests/apiErrorRows.ts must still match the many-image phrase',
   )
-  check('unrelated 400s still do NOT match', !isMediaSizeError('invalid_request: model not found'), '', 'isMediaSizeError in src/services/api/errors.ts must not match a 400 that is not about media size')
+  check('unrelated 400s still do NOT match', !isMediaSizeError('invalid_request: model not found'), '', 'isMediaSizeError in src/engine/requests/apiErrorRows.ts must not match a 400 that is not about media size')
 }
 
 section('§4 H-19 · ONE FILESYSTEM PERMISSION ENGINE ACROSS THE THREE TOOLS')
 {
 
-  const { pathInAllowedWorkingPath } = await import('../../src/utils/permissions/filesystem.ts')
-  const { getOriginalCwd } = await import('../../src/bootstrap/state.ts')
+  const { pathInAllowedWorkingPath } = await import('../../src/permissions/rules/filesystem.ts')
+  const { getOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
   const ctx = {
     mode: 'default',
     alwaysAllowRules: {},
@@ -126,13 +126,13 @@ section('§4 H-19 · ONE FILESYSTEM PERMISSION ENGINE ACROSS THE THREE TOOLS')
     'a primary-cwd file is IN scope by the shared predicate',
     pathInAllowedWorkingPath(join(getOriginalCwd(), 'src', 'Tool.ts'), ctx),
     '',
-    'pathInAllowedWorkingPath in src/utils/permissions/filesystem.ts must accept a file under the original cwd',
+    'pathInAllowedWorkingPath in src/permissions/rules/filesystem.ts must accept a file under the original cwd',
   )
   check(
     'an outside path stays OUT of scope',
     !pathInAllowedWorkingPath('/definitely/not/in/scope/file.ts', ctx),
     '',
-    'pathInAllowedWorkingPath in src/utils/permissions/filesystem.ts must refuse a path outside every working directory',
+    'pathInAllowedWorkingPath in src/permissions/rules/filesystem.ts must refuse a path outside every working directory',
   )
 }
 

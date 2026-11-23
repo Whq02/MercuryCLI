@@ -10,7 +10,7 @@ import {
   checkBashPackDir,
   type BashMsys2Lock,
   type BashMsys2Manifest,
-} from '../../src/utils/shell/bashPack.ts'
+} from '../../src/platform/shell/bashPack.ts'
 
 type Copy = { from: string; to: string }
 type SourceCopy = { inner: string; member: string; to: string }

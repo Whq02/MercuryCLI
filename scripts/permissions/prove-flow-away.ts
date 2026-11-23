@@ -8,11 +8,11 @@ import { z } from 'zod/v4'
 const home = mkdtempSync(join(tmpdir(), 'ask-clock-'))
 process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_PERMISSION_ASK_EXPIRY_MINUTES
-const { createRunnerAsks } = await import('../../src/cli/headless/runnerAsks.ts')
-const { createPeer } = await import('../../src/runner/wire/peer.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { askExpiredCause, askLimitMs, unansweredAskRefusal, FLOW_ASK_LIMIT_MINUTES, SOVEREIGN_ASK_LIMIT_MINUTES, CREWMATE_ASK_LIMIT_MINUTES } = await import('../../src/utils/permissions/askClock.ts')
-const { isDenialResultText } = await import('../../src/utils/messages/rejectionText.ts')
+const { createRunnerAsks } = await import('../../src/daemon/runner/runnerAsks.ts')
+const { createPeer } = await import('../../src/daemon/runner-wire/peer.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { askExpiredCause, askLimitMs, unansweredAskRefusal, FLOW_ASK_LIMIT_MINUTES, SOVEREIGN_ASK_LIMIT_MINUTES, CREWMATE_ASK_LIMIT_MINUTES } = await import('../../src/permissions/rules/askClock.ts')
+const { isDenialResultText } = await import('../../src/engine/message-shapes/rejectionText.ts')
 const MINUTE = 60_000
 const tick = () => new Promise<void>(resolve => setImmediate(resolve))
 const realSet = globalThis.setTimeout
@@ -53,19 +53,19 @@ check('flow 10 · sovereign 3 · a crewmate 10 elsewhere · a session\'s own ask
   askLimitMs({ mode: 'flow', crewmate: false }) === 10 * MINUTE && askLimitMs({ mode: 'sovereign', crewmate: false }) === 3 * MINUTE &&
   askLimitMs({ mode: 'default', crewmate: false }) === 0 && askLimitMs({ mode: 'default', crewmate: true }) === 10 * MINUTE &&
   askLimitMs({ mode: 'sovereign', crewmate: true }) === 3 * MINUTE && askLimitMs({ mode: undefined, crewmate: true }) === 10 * MINUTE,
-  'change the clock constants or askLimitMs in src/utils/permissions/askClock.ts')
+  'change the clock constants or askLimitMs in src/permissions/rules/askClock.ts')
 process.env.MERCURY_PERMISSION_ASK_EXPIRY_MINUTES = '0.2'
 check('the knob replaces every clock that exists and never gives a clockless ask one',
   askLimitMs({ mode: 'flow', crewmate: false }) === 12_000 && askLimitMs({ mode: 'sovereign', crewmate: false }) === 12_000 &&
   askLimitMs({ mode: 'default', crewmate: true }) === 12_000 && askLimitMs({ mode: 'default', crewmate: false }) === 0,
-  'change how askLimitMs in src/utils/permissions/askClock.ts reads MERCURY_PERMISSION_ASK_EXPIRY_MINUTES')
+  'change how askLimitMs in src/permissions/rules/askClock.ts reads MERCURY_PERMISSION_ASK_EXPIRY_MINUTES')
 process.env.MERCURY_PERMISSION_ASK_EXPIRY_MINUTES = '0'
-check('knob 0 disables expiry everywhere', askLimitMs({ mode: 'flow', crewmate: false }) === 0 && askLimitMs({ mode: 'sovereign', crewmate: true }) === 0, 'change askLimitMs in src/utils/permissions/askClock.ts so a knob of 0 returns 0 for every mode')
+check('knob 0 disables expiry everywhere', askLimitMs({ mode: 'flow', crewmate: false }) === 0 && askLimitMs({ mode: 'sovereign', crewmate: true }) === 0, 'change askLimitMs in src/permissions/rules/askClock.ts so a knob of 0 returns 0 for every mode')
 delete process.env.MERCURY_PERMISSION_ASK_EXPIRY_MINUTES
 const words = unansweredAskRefusal('Bash', 3 * MINUTE)
 check('the refusal is a typed denial the classifier reads, naming the limit and the next move',
-  isDenialResultText(words) && words.includes('nobody answered the permission ask within 3m, so it expired and was refused') && words.includes('Work that does not depend on this action can continue') && words.includes('stop and say plainly'), `${words} — change unansweredAskRefusal in src/utils/permissions/askClock.ts, or isDenialResultText in src/utils/messages/rejectionText.ts`)
-check('the cause the wire carries names the expiry and the limit', askExpiredCause(10 * MINUTE) === 'expired unanswered after 10m', `got ${askExpiredCause(10 * MINUTE)} — change askExpiredCause in src/utils/permissions/askClock.ts`)
+  isDenialResultText(words) && words.includes('nobody answered the permission ask within 3m, so it expired and was refused') && words.includes('Work that does not depend on this action can continue') && words.includes('stop and say plainly'), `${words} — change unansweredAskRefusal in src/permissions/rules/askClock.ts, or isDenialResultText in src/engine/message-shapes/rejectionText.ts`)
+check('the cause the wire carries names the expiry and the limit', askExpiredCause(10 * MINUTE) === 'expired unanswered after 10m', `got ${askExpiredCause(10 * MINUTE)} — change askExpiredCause in src/permissions/rules/askClock.ts`)
 
 try {
   console.log('§2 the hosted runner\'s road: a session\'s own ask and a crewmate\'s in every mode, the knob, and the cause on the wire')
@@ -96,33 +96,33 @@ try {
       const pending = asks.createCanUseTool()(tool as never, {}, context as never, { message: { id: 'away' } } as never, 'away', { behavior: 'ask', message: 'probe' }).then(value => { results.push(value) })
       await tick()
       const tag = `host ${mode}${crewmate ? ' crewmate' : ''}${knob !== undefined ? ` knob ${knob}` : ''} ${winner}`
-      check(`${tag}: the ask parks and carries the mode on the wire`, asks.parkedAsks() === 1 && seenParams?.mode === mode && (crewmate ? seenParams?.agent_id === 'crewmate-2' : seenParams?.agent_id === undefined), `${JSON.stringify(seenParams)} — check that the permission/request in src/cli/headless/runnerAsks.ts parks the ask and sends the mode and agent_id`)
-      check(`${tag}: ${limit > 0 ? `one clock of ${limit} ms arms` : 'no clock arms'}`, limit > 0 ? armed().length === 1 && armed()[0] === limit : armed().length === 0, `${JSON.stringify(armed())} — check the clock askLimitMs gives in src/utils/permissions/askClock.ts and how src/cli/headless/runnerAsks.ts arms it`)
+      check(`${tag}: the ask parks and carries the mode on the wire`, asks.parkedAsks() === 1 && seenParams?.mode === mode && (crewmate ? seenParams?.agent_id === 'crewmate-2' : seenParams?.agent_id === undefined), `${JSON.stringify(seenParams)} — check that the permission/request in src/daemon/runner/runnerAsks.ts parks the ask and sends the mode and agent_id`)
+      check(`${tag}: ${limit > 0 ? `one clock of ${limit} ms arms` : 'no clock arms'}`, limit > 0 ? armed().length === 1 && armed()[0] === limit : armed().length === 0, `${JSON.stringify(armed())} — check the clock askLimitMs gives in src/permissions/rules/askClock.ts and how src/daemon/runner/runnerAsks.ts arms it`)
       if (winner === 'away') {
         advance(limit - 1)
         await tick()
-        check(`${tag}: the ask stays until its deadline`, asks.parkedAsks() === 1 && results.length === 0, 'the ask in src/cli/headless/runnerAsks.ts settled before its deadline')
+        check(`${tag}: the ask stays until its deadline`, asks.parkedAsks() === 1 && results.length === 0, 'the ask in src/daemon/runner/runnerAsks.ts settled before its deadline')
         advance(1)
         await tick()
-        check(`${tag}: the result is the typed refusal, naming the limit`, results.length === 1 && results[0].behavior === 'deny' && results[0].message === unansweredAskRefusal('AwayProbe', limit) && (knob === undefined || String(results[0].message).includes('within 12s')), `${JSON.stringify(results[0])} — the expiry in src/cli/headless/runnerAsks.ts should resolve deny with unansweredAskRefusal from src/utils/permissions/askClock.ts`)
-        check(`${tag}: the wire ask is withdrawn with the cause, both ledgers clear, the turn is not cut`, withdrawn === askExpiredCause(limit) && asks.parkedAsks() === 0 && asks.pendingControlRequestCount() === 0 && !ac.signal.aborted, `${JSON.stringify(withdrawn)} — the expiry in src/cli/headless/runnerAsks.ts should withdraw the wire ask with askExpiredCause, clear both ledgers and leave the turn running`)
+        check(`${tag}: the result is the typed refusal, naming the limit`, results.length === 1 && results[0].behavior === 'deny' && results[0].message === unansweredAskRefusal('AwayProbe', limit) && (knob === undefined || String(results[0].message).includes('within 12s')), `${JSON.stringify(results[0])} — the expiry in src/daemon/runner/runnerAsks.ts should resolve deny with unansweredAskRefusal from src/permissions/rules/askClock.ts`)
+        check(`${tag}: the wire ask is withdrawn with the cause, both ledgers clear, the turn is not cut`, withdrawn === askExpiredCause(limit) && asks.parkedAsks() === 0 && asks.pendingControlRequestCount() === 0 && !ac.signal.aborted, `${JSON.stringify(withdrawn)} — the expiry in src/daemon/runner/runnerAsks.ts should withdraw the wire ask with askExpiredCause, clear both ledgers and leave the turn running`)
         answer?.({ outcome: 'allow' })
         await tick()
-        check(`${tag}: a late yes cannot resurrect the refused call`, results.length === 1 && results[0].behavior === 'deny', 'the answer handler in src/cli/headless/runnerAsks.ts must ignore an answer after the ask expired')
+        check(`${tag}: a late yes cannot resurrect the refused call`, results.length === 1 && results[0].behavior === 'deny', 'the answer handler in src/daemon/runner/runnerAsks.ts must ignore an answer after the ask expired')
       } else if (winner === 'wait') {
         advance(60 * MINUTE)
         await tick()
-        check(`${tag}: an hour later the ask is still parked for the operator`, asks.parkedAsks() === 1 && results.length === 0, 'a mode with no clock in askLimitMs (src/utils/permissions/askClock.ts) must arm none in src/cli/headless/runnerAsks.ts')
+        check(`${tag}: an hour later the ask is still parked for the operator`, asks.parkedAsks() === 1 && results.length === 0, 'a mode with no clock in askLimitMs (src/permissions/rules/askClock.ts) must arm none in src/daemon/runner/runnerAsks.ts')
         answer?.({ outcome: 'allow' })
         await tick()
-        check(`${tag}: the operator's yes, whenever it comes, lands`, results.length === 1 && results[0].behavior === 'allow', 'the permission/request answer in src/cli/headless/runnerAsks.ts must resolve the parked ask')
+        check(`${tag}: the operator's yes, whenever it comes, lands`, results.length === 1 && results[0].behavior === 'allow', 'the permission/request answer in src/daemon/runner/runnerAsks.ts must resolve the parked ask')
       } else {
         if (winner === 'allow') answer?.({ outcome: 'allow' })
         else if (winner === 'deny') answer?.({ outcome: 'deny', message: 'the operator said no' })
         else if (winner === 'abort') ac.abort()
         else host.end()
         await tick()
-        check(`${tag}: clears the clock and settles once`, armed().length === 0 && results.length === 1 && results[0].message !== unansweredAskRefusal('AwayProbe', limit), 'the settle path in src/cli/headless/runnerAsks.ts must clear its clock when an answer, abort or host close wins')
+        check(`${tag}: clears the clock and settles once`, armed().length === 0 && results.length === 1 && results[0].message !== unansweredAskRefusal('AwayProbe', limit), 'the settle path in src/daemon/runner/runnerAsks.ts must clear its clock when an answer, abort or host close wins')
       }
       host.end(); runner.end(); ac.abort()
       await pending

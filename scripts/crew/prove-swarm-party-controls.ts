@@ -5,13 +5,13 @@ import { basename, dirname, join } from 'node:path'
 import { DIST, NODE, closeWorld, findFiles, makeTally, makeWorld, record } from './crew-world.ts'
 import { hostRunner, type HostedRunner } from '../lib/runnerHost.ts'
 
-const { open } = await import('../../src/services/crewBoard/store.ts')
+const { open } = await import('../../src/crew/board/store.ts')
 const requireRuntime = createRequire(import.meta.url)
 const { runSwarmchatCommand } = await import('../../src/commands/swarmchat/swarmchat.ts')
 const suiteHome = process.env.MERCURY_CONFIG_DIR
 assert(suiteHome, 'run with a scratch MERCURY_CONFIG_DIR')
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(suiteHome, 'controls-'))
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
 const tally = makeTally('swarm-party-controls')
 const USAGE = 'usage: /swarmchat [on|off|all|team \\<name\\>|main] — /swarmchat alone toggles board messages in the chat'
 
@@ -26,13 +26,13 @@ tally.check('with the session explicitly off every valid form names the session 
 
 tally.section('§0a an unchanged switch keeps pending rows and the screen cursor')
 {
-  const { swarmStore, swarmPrincipal } = await import('../../src/services/crewBoard/seam.ts')
+  const { swarmStore, swarmPrincipal } = await import('../../src/crew/board/seam.ts')
   runSwarmCommand('on')
   const board = swarmStore()!
   const principal = swarmPrincipal()!
   const cursor = board.screenCursor()
   const posted = board.post(principal, { clientOpId: 'pending-on', kind: 'result', text: 'A row waiting to paint.' })
-  assert(posted.ok && posted.seq > cursor, `pending-on post failed or did not advance seq past cursor=${cursor} in src/services/crewBoard/store.ts: ${JSON.stringify(posted)}`)
+  assert(posted.ok && posted.seq > cursor, `pending-on post failed or did not advance seq past cursor=${cursor} in src/crew/board/store.ts: ${JSON.stringify(posted)}`)
   for (const raw of ['on', ' on ']) tally.check('on when already on leaves the pending row unread', runSwarmchatCommand(raw) === 'Swarm chat on' && board.chat().on && board.screenCursor() === cursor && board.screenEvents(cursor).some(event => event.eventId === posted.eventId))
   runSwarmCommand('off')
 }
@@ -234,11 +234,11 @@ try {
   tally.section('§5 all: every public kind and lifecycle row, nothing else')
   tally.check('select all', (await command('/swarmchat all')) === 'Swarm chat · all')
   post(solo, 'a1', 'a message is traffic, not a post ALL-MESSAGE', { kind: 'message', to: ['lists-judge'] })
-  assert(board.post(solo, { clientOpId: 'a2', kind: 'notice', text: 'a plain mirrored notice ALL-NOTICE' }, 'mirror').ok, 'mirror notice a2 failed in src/services/crewBoard/store.ts')
+  assert(board.post(solo, { clientOpId: 'a2', kind: 'notice', text: 'a plain mirrored notice ALL-NOTICE' }, 'mirror').ok, 'mirror notice a2 failed in src/crew/board/store.ts')
   const earlier = post(solo, 'a3', 'a result to correct ALL-RESULT')
   post(solo, 'a4', 'a correction ALL-CORRECTION', { kind: 'correction', corrects: earlier })
   post(solo, 'a5', 'an ask ALL-ASK', { kind: 'ask' })
-  assert(board.post(solo, { clientOpId: 'a6', kind: 'notice', text: 'Crewmate "solo" completed', lifecycle: { kind: 'done' } }, 'mirror').ok, 'mirror lifecycle done notice a6 failed in src/services/crewBoard/store.ts')
+  assert(board.post(solo, { clientOpId: 'a6', kind: 'notice', text: 'Crewmate "solo" completed', lifecycle: { kind: 'done' } }, 'mirror').ok, 'mirror lifecycle done notice a6 failed in src/crew/board/store.ts')
   post(scout, 'a7', 'closing the all leg ALL-LAST')
   await landed('ALL-LAST')
   tally.check('a message kind never paints', absent('ALL-MESSAGE'))

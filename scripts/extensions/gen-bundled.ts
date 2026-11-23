@@ -2,19 +2,19 @@ import { createHash } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { executableBit, indexedExecutables, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
-import { canonicalJson } from '../../src/extensions/manifest.js'
-import { bootstrapManifest } from '../../src/extensions/bundled/shared/bootstrap.mjs'
+import { canonicalJson } from '../../src/integrations/extensions/manifest.js'
+import { bootstrapManifest } from '../../src/integrations/extensions/bundled/shared/bootstrap.mjs'
 
 const ROW = {
-  assets: 'src/extensions/bundled/content.generated.ts',
+  assets: 'src/integrations/extensions/bundled/content.generated.ts',
   generator: 'bun scripts/extensions/gen-bundled.ts',
   check: 'bun scripts/extensions/gen-bundled.ts --check',
-  sources: 'src/extensions/bundled/*/mercury-extension.json src/extensions/bundled/*/server/** src/extensions/bundled/shared/**',
+  sources: 'src/integrations/extensions/bundled/*/mercury-extension.json src/integrations/extensions/bundled/*/server/** src/integrations/extensions/bundled/shared/**',
   build: true,
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 const rootFlag = process.argv.indexOf('--root')
-const root = rootFlag === -1 ? resolve(import.meta.dir, '../../src/extensions/bundled') : resolve(process.argv[rootFlag + 1]!)
+const root = rootFlag === -1 ? resolve(import.meta.dir, '../../src/integrations/extensions/bundled') : resolve(process.argv[rootFlag + 1]!)
 const target = join(root, 'content.generated.ts')
 const PAYLOADS = 'export const bundledPayloads: Record<string, Record<string, string | { base64: string; executable: boolean }>> = '
 type Payload = string | { base64: string; executable: boolean }
@@ -82,7 +82,7 @@ const metadata = Object.fromEntries(Object.entries(payloads).map(([name, files])
     ...(files['server/bootstrap.json'] ? { bootstrap: JSON.parse(files['server/bootstrap.json'] as string) } : {}),
   }]
 }))
-const content = 'import type { ExtensionManifest } from "../manifest.js"\nimport type { McpBootstrapManifest } from "../../utils/mcp/types.js"\n\nexport const bundledMetadata: Record<string, { digest: string; contentHash: string; contributionsHash: string; manifest: ExtensionManifest; bootstrap?: McpBootstrapManifest }> = ' + JSON.stringify(metadata, null, 2) + '\n\n' + PAYLOADS + JSON.stringify(payloads, null, 2) + '\n'
+const content = 'import type { ExtensionManifest } from "../manifest.js"\nimport type { McpBootstrapManifest } from "../../mcp-shapes/mcpServerRecords.js"\n\nexport const bundledMetadata: Record<string, { digest: string; contentHash: string; contributionsHash: string; manifest: ExtensionManifest; bootstrap?: McpBootstrapManifest }> = ' + JSON.stringify(metadata, null, 2) + '\n\n' + PAYLOADS + JSON.stringify(payloads, null, 2) + '\n'
 if (process.argv.includes('--check')) {
   if (current !== content) throw new Error('Bundled extensions changed; run bun scripts/extensions/gen-bundled.ts')
 } else writeFileSync(target, content)

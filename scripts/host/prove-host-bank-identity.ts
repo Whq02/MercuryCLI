@@ -8,8 +8,8 @@ if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_D
 const f = await llmhostFixture()
 process.env.HOME = f.home
 try {
-  const bank = await import(f.root + '/src/services/host/bank.ts')
-  const { HOST_RECIPES } = await import(f.root + '/src/services/host/recipes.ts')
+  const bank = await import(f.root + '/src/models/hosting/bank.ts')
+  const { HOST_RECIPES } = await import(f.root + '/src/models/hosting/recipes.ts')
   const bytes = Buffer.from('fixture-private-weights')
   const hash = createHash('sha256').update(bytes).digest('hex')
   const recipe = { ...HOST_RECIPES[0], id: 'bank-identity-fixture', model: 'fixture/private-repo', weightFile: 'weights.gguf', weightsGb: bytes.length / 1e9, include: '', weightManifest: { model: 'fixture/private-repo', include: '', revision: 'a'.repeat(40), files: [{ path: 'weights.gguf', size: bytes.length, sha256: hash }] } }

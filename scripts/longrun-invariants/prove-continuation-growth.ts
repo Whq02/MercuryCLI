@@ -7,14 +7,14 @@ import { join } from 'node:path'
 const HOME = mkdtempSync(join(tmpdir(), 'continuation-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 
-await import('../../src/tasks.js')
+await import('../../src/engine/tasks/tasks.js')
 const { recordSidechainTranscript, recordTranscript, getProject } = await import(
-  '../../src/utils/sessionStorage/writer.js'
+  '../../src/sessions/transcripts/writer.js'
 )
-const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.js')
-const { asAgentId } = await import('../../src/types/ids.js')
-const { entryToRecord } = await import('../../src/fabric/entryCodec.js')
-const { ordinalOf } = await import('../../src/fabric/ordinal.js')
+const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.js')
+const { asAgentId } = await import('../../src/sessions/transcripts/ids.js')
+const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.js')
+const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -50,7 +50,7 @@ section('§A continuation rounds append only the NEW tail (per-file dedup)')
 
   await recordSidechainTranscript([msg(u(1), 'one', null), msg(u(2), 'two', u(1))] as never, agentId)
   await getProject().flush()
-  check('round 1 lands 2 lines', lineCount(file) === 2, String(lineCount(file)) + ' lines in the agent file; first-round append of recordSidechainTranscript in src/utils/sessionStorage/writer.ts should write every message')
+  check('round 1 lands 2 lines', lineCount(file) === 2, String(lineCount(file)) + ' lines in the agent file; first-round append of recordSidechainTranscript in src/sessions/transcripts/writer.ts should write every message')
 
   await recordSidechainTranscript(
     [msg(u(1), 'one', null), msg(u(2), 'two', u(1)), msg(u(3), 'three', u(2))] as never,
@@ -60,7 +60,7 @@ section('§A continuation rounds append only the NEW tail (per-file dedup)')
   check(
     'round 2 re-records the restored prefix — only the new tail lands (3 lines, not 5)',
     lineCount(file) === 3,
-    String(lineCount(file)) + ' lines in the agent file; the per-file dedup in insertMessageChain (src/utils/sessionStorage/writer.ts) must skip UUIDs the file already holds'
+    String(lineCount(file)) + ' lines in the agent file; the per-file dedup in insertMessageChain (src/sessions/transcripts/writer.ts) must skip UUIDs the file already holds'
   )
 
   for (let round = 4; round <= 8; round++) {
@@ -73,7 +73,7 @@ section('§A continuation rounds append only the NEW tail (per-file dedup)')
   check(
     'after 8 rounds the file holds exactly 8 rows (linear, never quadratic)',
     lineCount(file) === 8,
-    String(lineCount(file)) + ' lines in the agent file; the per-file dedup in insertMessageChain (src/utils/sessionStorage/writer.ts) must stay linear across rounds'
+    String(lineCount(file)) + ' lines in the agent file; the per-file dedup in insertMessageChain (src/sessions/transcripts/writer.ts) must stay linear across rounds'
   )
 }
 
@@ -97,11 +97,11 @@ section('§B fork-inherited UUIDs still land in the agent file once')
   check(
     'a UUID already in the MAIN transcript still lands in the agent file (fork law)',
     lineCount(file) === 1,
-    String(lineCount(file)) + ' lines in the agent file; recordSidechainTranscript in src/utils/sessionStorage/writer.ts must not dedup against the main transcript for a sidechain file'
+    String(lineCount(file)) + ' lines in the agent file; recordSidechainTranscript in src/sessions/transcripts/writer.ts must not dedup against the main transcript for a sidechain file'
   )
   await recordSidechainTranscript([msg(shared, 'inherited copy', null)] as never, agentId)
   await getProject().flush()
-  check('…but only once (per-file dedup)', lineCount(file) === 1, String(lineCount(file)) + ' lines in the agent file; the per-file dedup in insertMessageChain (src/utils/sessionStorage/writer.ts) must skip a UUID already in this file')
+  check('…but only once (per-file dedup)', lineCount(file) === 1, String(lineCount(file)) + ' lines in the agent file; the per-file dedup in insertMessageChain (src/sessions/transcripts/writer.ts) must skip a UUID already in this file')
 }
 
 section('§C the per-file set seeds from DISK (fresh-process resume shape)')
@@ -131,7 +131,7 @@ section('§C the per-file set seeds from DISK (fresh-process resume shape)')
   check(
     'a fresh process dedups against what the file already holds (3 rows, not 5)',
     lineCount(file) === 3,
-    String(lineCount(file)) + ' lines in the agent file; the per-file UUID set in insertMessageChain (src/utils/sessionStorage/writer.ts) must seed from the file on disk'
+    String(lineCount(file)) + ' lines in the agent file; the per-file UUID set in insertMessageChain (src/sessions/transcripts/writer.ts) must seed from the file on disk'
   )
 }
 

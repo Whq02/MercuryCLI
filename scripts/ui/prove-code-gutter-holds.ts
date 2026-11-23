@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/HighlightedCode.tsx src/components/HighlightedCode/Fallback.tsx src/ink/components/NoSelect.tsx
+// gate-watch: src/screen/highlighted-code/HighlightedCode.tsx src/screen/highlighted-code/CliHighlightedCode.tsx src/screen/renderer/elements/NoSelect.tsx
 import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome } from '../lib/settingsPopupHarness.ts'
 import { settledFrame } from './popupFrameSettle.ts'
 
@@ -19,14 +19,14 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 const React = await import('react')
 const h = React.createElement
-const { Box } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { HighlightedCode } = await import('../../src/components/HighlightedCode.tsx')
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { Box } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { HighlightedCode } = await import('../../src/screen/highlighted-code/HighlightedCode.tsx')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const gutterFix = 'fix the line-number gutter and wrapping in HighlightedCode (src/components/HighlightedCode.tsx, its Fallback in src/components/HighlightedCode/Fallback.tsx) and the NoSelect box (src/ink/components/NoSelect.tsx)'
+const gutterFix = 'fix the line-number gutter and wrapping in HighlightedCode (src/screen/highlighted-code/HighlightedCode.tsx, its Fallback in src/screen/highlighted-code/CliHighlightedCode.tsx) and the NoSelect box (src/screen/renderer/elements/NoSelect.tsx)'
 const WORD = 'word'
 const lineOf = (n: number, cells: number): string => {
   const head = `L${n}`

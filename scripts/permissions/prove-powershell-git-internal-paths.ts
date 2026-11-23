@@ -15,12 +15,12 @@ mkdirSync(join(scratch, 'Other'), { recursive: true })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.on('exit', () => rmSync(scratch, { recursive: true, force: true }))
 
-const { setCwd } = await import('../../src/utils/Shell.ts')
-const { isGitInternalPathPS, isDotGitPathPS } = await import('../../src/tools/PowerShellTool/gitSafety.ts')
+const { setCwd } = await import('../../src/platform/shell/shellExec.ts')
+const { isGitInternalPathPS, isDotGitPathPS } = await import('../../src/tools/powershell/gitSafety.ts')
 setCwd(project)
 
 let failures = 0
-const GIT_PATH_FIX = 'fix isGitInternalPathPS or isDotGitPathPS in src/tools/PowerShellTool/gitSafety.ts so this path is judged as the label says, after resolving it against the session directory set by setCwd'
+const GIT_PATH_FIX = 'fix isGitInternalPathPS or isDotGitPathPS in src/tools/powershell/gitSafety.ts so this path is judged as the label says, after resolving it against the session directory set by setCwd'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}${GIT_PATH_FIX}` : ''}`)
   if (!ok) failures++

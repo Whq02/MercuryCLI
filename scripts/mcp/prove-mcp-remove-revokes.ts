@@ -9,7 +9,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — change mcpRemoveHandler in src/cli/handlers/mcp.tsx (the mercury mcp remove verb) so its exit code, its words, the token revoke requests and the local token clearing match this check${detail ? `; ${detail}` : ''}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — change mcpRemoveHandler in src/commands/verbs/mcp.tsx (the mercury mcp remove verb) so its exit code, its words, the token revoke requests and the local token clearing match this check${detail ? `; ${detail}` : ''}` : ''}`)
 }
 const HERE = import.meta.dir
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
@@ -67,13 +67,13 @@ const PRELUDE = (home: string, cwd: string, store: 'file' | 'keychain' = 'file')
   delete process.env.NODE_ENV
   globalThis.MACRO = { VERSION: '1.0.0' }
   process.chdir(${JSON.stringify(cwd)})
-  const { enableConfigs } = await import(${JSON.stringify(join(SRC, 'utils/config/globalConfig.ts'))})
+  const { enableConfigs } = await import(${JSON.stringify(join(SRC, 'platform/config/globalConfig.ts'))})
   enableConfigs()
-  const bootstrap = await import(${JSON.stringify(join(SRC, 'bootstrap/state.ts'))})
+  const bootstrap = await import(${JSON.stringify(join(SRC, 'boot/process-state/processState.ts'))})
   bootstrap.setOriginalCwd(${JSON.stringify(cwd)})
-  const config = await import(${JSON.stringify(join(SRC, 'services/mcp/config.ts'))})
-  const auth = await import(${JSON.stringify(join(SRC, 'services/mcp/auth.ts'))})
-  const { getSecureStorage } = await import(${JSON.stringify(join(SRC, 'utils/secureStorage/index.ts'))})
+  const config = await import(${JSON.stringify(join(SRC, 'integrations/mcp/serverConfigs.ts'))})
+  const auth = await import(${JSON.stringify(join(SRC, 'integrations/mcp/auth.ts'))})
+  const { getSecureStorage } = await import(${JSON.stringify(join(SRC, 'platform/secure-storage/index.ts'))})
 `
 
 type Run = { code: number | null; stdout: string; stderr: string; seconds: number; seenBeforeExit: Seen[]; seenAfter: Seen[]; tokensLeft: string[]; configured: boolean; world: string; store: string }
@@ -99,7 +99,7 @@ async function remove(stand: Stand, opts: { scope: boolean; tokens: boolean; sto
   const projectFolder = join(cwd, '.mercury')
   const src = `
     ${PRELUDE(home, cwd, opts.keychainAnswersNothing === true ? 'keychain' : 'file')}
-    const handlers = await import(${JSON.stringify(join(SRC, 'cli/handlers/mcp.tsx'))})
+    const handlers = await import(${JSON.stringify(join(SRC, 'commands/verbs/mcp.tsx'))})
     const server = ${server}
     if (${opts.again === undefined}) await config.addMcpConfig('probe', server, ${JSON.stringify(held)})
     if (${opts.tokens && opts.again === undefined}) {

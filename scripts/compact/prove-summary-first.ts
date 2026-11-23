@@ -9,19 +9,19 @@ process.env.MERCURY_TMPDIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY ??= 'proof-key-ci-gate-not-a-real-key'
 
-const { decideOverflowRecovery } = await import('../../src/services/compact/overflowRecovery.js')
+const { decideOverflowRecovery } = await import('../../src/engine/compaction/overflowRecovery.js')
 const decision = decideOverflowRecovery({ episode: { pruned: false, folded: false }, gapTokens: 22398, pruneSavingTokens: 740942, fold: { available: true } })
 assert.deepEqual(decision, { kind: 'recover', rung: 'fold' }, 'the measured 154-body incident offers every body to the summary before pruning')
 console.log('PASS measured overflow chooses summary before 154-body prune')
 
-const { buildRequestContextPlan } = await import('../../src/services/run/requestContextPlan.js')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
-const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.js')
-const { roughTokenCountEstimationForMessages } = await import('../../src/services/tokenEstimation.js')
-const { prepareFoldContext } = await import('../../src/services/compact/foldTransaction.js')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.js')
-const { APIUserAbortError } = await import('../../src/utils/api/sdkErrors.js')
-const messages: import('../../src/types/message.js').Message[] = []
+const { buildRequestContextPlan } = await import('../../src/engine/run/requestContextPlan.js')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.js')
+const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.js')
+const { roughTokenCountEstimationForMessages } = await import('../../src/models/facts/tokenEstimation.js')
+const { prepareFoldContext } = await import('../../src/engine/compaction/foldTransaction.js')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.js')
+const { APIUserAbortError } = await import('../../src/engine/request-parts/sdkErrors.js')
+const messages: import('../../src/engine/message-shapes/message.js').Message[] = []
 for (let index = 0; index < 154; index++) {
   const tokens = Math.floor(740942 / 154) + (index < 740942 % 154 ? 1 : 0)
   messages.push({ type: 'user', uuid: `result-${index}`, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `call-${index}`, content: 'x'.repeat(tokens * 4) }] } } as never)
@@ -59,10 +59,10 @@ assert.deepEqual(decideOverflowRecovery({ episode: { pruned: false, folded: true
 console.log('PASS all 154 bodies / 740942 rough tokens exposed; no prune or replacement before summary; cancelled transaction keeps read state; emergency prune requires explicit evidence')
 
 const { startFixtureApi } = await import('../lib/fixtureApi.js')
-const { compactConversation } = await import('../../src/services/compact/compact.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.js')
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { compactConversation } = await import('../../src/engine/compaction/foldConversation.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 const api = await startFixtureApi([{ kind: 'text', text: 'The source was read and the requested change is still open. Keep the operator wording and verify the change before reporting it complete.' }])
 process.env.ANTHROPIC_BASE_URL = api.url

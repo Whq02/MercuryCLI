@@ -9,15 +9,15 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'inspect-drift-home-
 delete process.env.MERCURY_REFS
 delete process.env.NODE_ENV
 
-const { resolveResource } = await import('../../src/services/resources/registry.ts')
-const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+const { resolveResource } = await import('../../src/integrations/resources/registry.ts')
+const { setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
 
 let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — Hint: the file kind in src/services/resources/adapters/file.ts resolves a mercury://file ref through fileReferenceCandidates in src/services/resources/referencePaths.ts (live cwd first, then the original root; an absolute id stays alone).'}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — Hint: the file kind in src/integrations/resources/adapters/file.ts resolves a mercury://file ref through fileReferenceCandidates in src/integrations/resources/referencePaths.ts (live cwd first, then the original root; an absolute id stays alone).'}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

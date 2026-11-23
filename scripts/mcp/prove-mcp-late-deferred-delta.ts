@@ -4,9 +4,9 @@ import assert from 'node:assert/strict'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod'
-import type { Tool, ToolUseContext } from '../../src/Tool.ts'
-import type { Message } from '../../src/types/message.ts'
-import type { Attachment } from '../../src/utils/attachments/types.ts'
+import type { Tool, ToolUseContext } from '../../src/tools/kit/tool.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
+import type { Attachment } from '../../src/engine/attachment-shapes/attachmentTypes.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const name of ['MERCURY_BARE', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE']) delete process.env[name]
@@ -15,19 +15,19 @@ process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:1/openai/v1'
 process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:1/openai/chatgpt'
 const workspace = join(proofHome, 'workspace')
 mkdirSync(workspace)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(workspace)
 bootstrap.setCwdState(workspace)
 bootstrap.setProjectRoot(workspace)
 bootstrap.setSessionTrustAccepted(true)
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { getAttachments } = await import('../../src/services/attachments/orchestrator.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { getAttachments } = await import('../../src/engine/attachments/turnAttachments.ts')
 const model = 'gpt-6-astra'
 const fixtureTool = (server: string): Tool => ({
   name: `mcp__${server}__echo`,

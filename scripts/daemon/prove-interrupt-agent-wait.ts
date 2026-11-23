@@ -5,22 +5,22 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'agentwait-home-'))
 
-import type { QueuedCommand } from '../../src/types/textInputTypes.ts'
+import type { QueuedCommand } from '../../src/screen/composer/input-core/textInput.ts'
 
-const { createTurnDriver } = await import('../../src/cli/headless/turnDriver.ts')
+const { createTurnDriver } = await import('../../src/daemon/runner/turnDriver.ts')
 type TurnDriverPorts = Parameters<typeof createTurnDriver>[0]
-const { onSeatRow, onSeatSpawned } = await import('../../src/daemon/sessionSeat.ts')
-const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { statusLine } = await import('../../src/components/SwitchboardTagBar.tsx')
-const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
-const { stopRunningAgentTasks } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { drainRows } = await import('../../src/utils/sdkEventQueue.ts')
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { onSeatRow, onSeatSpawned } = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { readSessionTail } = await import('../../src/engine/connector/seatProjections.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { statusLine } = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
+const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
+const { stopRunningAgentTasks } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { drainRows } = await import('../../src/daemon/runner/sdkEventQueue.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix by section above: A1 createTurnDriver in src/cli/headless/turnDriver.ts, A2 onSeatRow in src/daemon/sessionSeat.ts, A3 statusLine in src/components/SwitchboardTagBar.tsx, A4 stopRunningAgentTasks in src/tasks/LocalAgentTask/LocalAgentTask.tsx, A5 DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix by section above: A1 createTurnDriver in src/daemon/runner/turnDriver.ts, A2 onSeatRow in src/daemon/session-seat/sessionSeat.ts, A3 statusLine in src/screen/chat/SwitchboardTagBar.tsx, A4 stopRunningAgentTasks in src/engine/tasks/local-agent/crewmateTask.tsx, A5 DaemonSessionConnector in src/engine/connector/daemonConnector.ts` : ''}`)
   if (!ok) failures++
 }
 const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0))
@@ -28,7 +28,7 @@ async function settleTicks(n: number): Promise<void> {
   for (let i = 0; i < n; i++) await tick()
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the agent-wait prover exceeded 60s; a turn-driver wait (createTurnDriver in src/cli/headless/turnDriver.ts) or a settleTicks loop never finished')
+  console.log('\nTIMEOUT — the agent-wait prover exceeded 60s; a turn-driver wait (createTurnDriver in src/daemon/runner/turnDriver.ts) or a settleTicks loop never finished')
   process.exit(1)
 }, 60_000)
 watchdog.unref?.()
@@ -198,8 +198,8 @@ console.log('\nA5 the wiring — runner to glass (structural)')
   const plane = mkdtempSync(join(tmpdir(), 'agentwait-door-'))
   const planeBefore = process.env.MERCURY_DAEMON_DIR
   process.env.MERCURY_DAEMON_DIR = plane
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-  const { publishSessionFacts, publishSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+  const { publishSessionFacts, publishSessionTail } = await import('../../src/engine/connector/seatProjections.ts')
   const doorId = 'agentwait-door'
   const presses: Array<Record<string, unknown>> = []
   let factsFeedReads: () => void = () => {}

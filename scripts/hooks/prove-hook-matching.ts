@@ -15,26 +15,26 @@ const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — ' + hint : ''}`)
   if (!cond) failures++
 }
-const HINT_MATCH = 'change matchesPattern or matchHooks in src/utils/hooks/matching.ts so the hooks picked for this tool name follow the match grammar (src/utils/hooks/matcherGrammar.ts)'
-const HINT_RULE = 'change argumentMatches or matchesPattern in src/utils/hooks/matching.ts so the rule argument (command, path, crewmate type, domain, MCP server) is read as the permission rule says'
-const HINT_LAYERS = 'change dedupeHooks or hooksFor in src/utils/hooks/matching.ts, or settingsHooksFor in src/utils/hooks/hooksConfigSnapshot.ts, so the layers run once each with the later layer as source'
-const HINT_ONCE = 'change markHookSpent, forgetSpentHooks or matchHooks in src/utils/hooks/matching.ts so a once hook is spent per session in memory only'
-const HINT_SESSION = 'change addSessionHooks, removeSessionHooks, sessionHooksFor or pruneSkillSessionHooks in src/utils/hooks/sessionHooks.ts, or registerAgentHooks or registerSkillHooks in src/utils/hooks/registerFrontmatterHooks.ts'
-const HINT_POLICY = 'change hooksDisabled, managedHooksOnly or settingsHooksFor in src/utils/hooks/hooksConfigSnapshot.ts, or hooksFor in src/utils/hooks/matching.ts'
-const HINT_WORKSPACE = 'change settingsHooksFor (the cwd argument and the trust check) in src/utils/hooks/hooksConfigSnapshot.ts, or hooksFor in src/utils/hooks/matching.ts'
+const HINT_MATCH = 'change matchesPattern or matchHooks in src/integrations/event-hooks/matching.ts so the hooks picked for this tool name follow the match grammar (src/integrations/event-hooks/matcherGrammar.ts)'
+const HINT_RULE = 'change argumentMatches or matchesPattern in src/integrations/event-hooks/matching.ts so the rule argument (command, path, crewmate type, domain, MCP server) is read as the permission rule says'
+const HINT_LAYERS = 'change dedupeHooks or hooksFor in src/integrations/event-hooks/matching.ts, or settingsHooksFor in src/integrations/event-hooks/hooksConfigSnapshot.ts, so the layers run once each with the later layer as source'
+const HINT_ONCE = 'change markHookSpent, forgetSpentHooks or matchHooks in src/integrations/event-hooks/matching.ts so a once hook is spent per session in memory only'
+const HINT_SESSION = 'change addSessionHooks, removeSessionHooks, sessionHooksFor or pruneSkillSessionHooks in src/integrations/event-hooks/sessionHooks.ts, or registerAgentHooks or registerSkillHooks in src/integrations/event-hooks/registerFrontmatterHooks.ts'
+const HINT_POLICY = 'change hooksDisabled, managedHooksOnly or settingsHooksFor in src/integrations/event-hooks/hooksConfigSnapshot.ts, or hooksFor in src/integrations/event-hooks/matching.ts'
+const HINT_WORKSPACE = 'change settingsHooksFor (the cwd argument and the trust check) in src/integrations/event-hooks/hooksConfigSnapshot.ts, or hooksFor in src/integrations/event-hooks/matching.ts'
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { setIsInteractive, setSessionTrustAccepted, setProjectRoot, setOriginalCwd, registerHookCallbacks, clearRegisteredExtensionHooks } = await import('../../src/bootstrap/state.js')
-const { setCwd } = await import('../../src/utils/Shell.js')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
-const { captureHooksSnapshot, refreshHooksSnapshot, hooksDisabled, managedHooksOnly } = await import('../../src/utils/hooks/hooksConfigSnapshot.js')
-const { matchHooks, hasHooksFor, markHookSpent, forgetSpentHooks, matchesPattern } = await import('../../src/utils/hooks/matching.js')
-const { addSessionHooks, removeSessionHooks, sessionHooksFor, pruneSkillSessionHooks } = await import('../../src/utils/hooks/sessionHooks.js')
-const { registerAgentHooks, registerSkillHooks } = await import('../../src/utils/hooks/registerFrontmatterHooks.js')
-const { listHooks } = await import('../../src/utils/hooks/hooksSettings.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { setPathTrusted } = await import('../../src/utils/config/trust.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { setIsInteractive, setSessionTrustAccepted, setProjectRoot, setOriginalCwd, registerHookCallbacks, clearRegisteredExtensionHooks } = await import('../../src/boot/process-state/processState.js')
+const { setCwd } = await import('../../src/platform/shell/shellExec.js')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
+const { captureHooksSnapshot, refreshHooksSnapshot, hooksDisabled, managedHooksOnly } = await import('../../src/integrations/event-hooks/hooksConfigSnapshot.js')
+const { matchHooks, hasHooksFor, markHookSpent, forgetSpentHooks, matchesPattern } = await import('../../src/integrations/event-hooks/matching.js')
+const { addSessionHooks, removeSessionHooks, sessionHooksFor, pruneSkillSessionHooks } = await import('../../src/integrations/event-hooks/sessionHooks.js')
+const { registerAgentHooks, registerSkillHooks } = await import('../../src/integrations/event-hooks/registerFrontmatterHooks.js')
+const { listHooks } = await import('../../src/integrations/event-hooks/hooksSettings.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { setPathTrusted } = await import('../../src/platform/config/trust.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 setCwd(PROJ)
@@ -76,9 +76,9 @@ section('§1 the match: names, a pipe list, a regular expression, everything')
   check('Bash matches the name, the everything entries, not the pipe or the regex', runs(await matchHooks('tool.before', toolPayload('Bash'), scope)) === 'names,everything,star', '', HINT_MATCH)
   check('Edit matches the pipe list', runs(await matchHooks('tool.before', toolPayload('Edit'), scope)) === 'pipe,everything,star', '', HINT_MATCH)
   check('mcp__x matches the regular expression', runs(await matchHooks('tool.before', toolPayload('mcp__x'), scope)) === 'regex,everything,star', '', HINT_MATCH)
-  check('matchesPattern: the LSP family name covers the LSP tools', (await matchesPattern('LspRead', 'LSP')) && !(await matchesPattern('LspRead', '^LSP$')), '', 'change nameMatches in src/utils/hooks/matching.ts (it calls lspFamilyMatches from src/utils/lsp/toolFamily.ts)')
-  check('an empty pipe-list member never widens a name matcher', !(await matchesPattern('Bash', 'Read|')) && (await matchesPattern('Read', 'Read|')), '', 'change matchesPattern in src/utils/hooks/matching.ts so an empty member of a pipe list matches nothing')
-  check('hasHooksFor answers the cheap question', hasHooksFor('tool.before', scope) && !hasHooksFor('turn.end', scope), '', 'change hasHooksFor or hooksFor in src/utils/hooks/matching.ts')
+  check('matchesPattern: the LSP family name covers the LSP tools', (await matchesPattern('LspRead', 'LSP')) && !(await matchesPattern('LspRead', '^LSP$')), '', 'change nameMatches in src/integrations/event-hooks/matching.ts (it calls lspFamilyMatches from src/integrations/lsp-family/toolFamily.ts)')
+  check('an empty pipe-list member never widens a name matcher', !(await matchesPattern('Bash', 'Read|')) && (await matchesPattern('Read', 'Read|')), '', 'change matchesPattern in src/integrations/event-hooks/matching.ts so an empty member of a pipe list matches nothing')
+  check('hasHooksFor answers the cheap question', hasHooksFor('tool.before', scope) && !hasHooksFor('turn.end', scope), '', 'change hasHooksFor or hooksFor in src/integrations/event-hooks/matching.ts')
 }
 
 section("§1b a permission rule in the match reads the call's arguments: a shell tool's command, a file tool's path")
@@ -118,7 +118,7 @@ section('§1c a push matcher sees compound subcommands, not quoted text or unrel
     check(`${JSON.stringify(command)} selects ${expected || 'no hook'}`, runs(await matchHooks('tool.before', payload, scope)) === expected, '', HINT_RULE)
   }
   check('an exact rule also matches a subcommand', (await matchesPattern('Bash', 'Bash(git push)', { command: 'cd x && git push' })), '', HINT_RULE)
-  const { pinnedCommandAnalysis } = await import('../../src/utils/permissions/decision/commandAnalysis.js')
+  const { pinnedCommandAnalysis } = await import('../../src/permissions/rules/decision/commandAnalysis.js')
   const parsePowerShell = pinnedCommandAnalysis.parsePowerShellCommand
   const seen: string[] = []
   pinnedCommandAnalysis.parsePowerShellCommand = Object.assign(async (command: string) => {
@@ -126,9 +126,9 @@ section('§1c a push matcher sees compound subcommands, not quoted text or unrel
     return { valid: true, variables: [], errors: [], hasStopParsing: false, originalCommand: command, statements: [{ statementType: 'PipelineAst', text: command, nestedCommands: [], redirections: [], commands: (command.startsWith('Set-Location') ? ['Set-Location x', 'git push origin main'] : [command]).map(text => ({ name: text.split(' ')[0]!, text, nameType: 'application' as const, args: [], elementType: 'CommandAst' })) }] }
   }, { cache: parsePowerShell.cache })
   try {
-    check('PowerShell uses its permission parser for subcommands', await matchesPattern('PowerShell', 'PowerShell(git push *)', { command: 'Set-Location x; git push origin main' }), '', 'change the command case of argumentMatches in src/utils/hooks/matching.ts so PowerShell subcommands come from pinnedCommandAnalysis.parsePowerShellCommand')
-    check('PowerShell quoted command text is not a subcommand', !await matchesPattern('PowerShell', 'PowerShell(git push *)', { command: 'Write-Output "git push"' }), '', 'change the command case of argumentMatches in src/utils/hooks/matching.ts so quoted text is not a subcommand')
-    check('both PowerShell calls reached the existing parser', seen.join('|') === 'Set-Location x; git push origin main|Write-Output "git push"', '', 'change the command case of argumentMatches in src/utils/hooks/matching.ts so it calls pinnedCommandAnalysis.parsePowerShellCommand once per PowerShell call')
+    check('PowerShell uses its permission parser for subcommands', await matchesPattern('PowerShell', 'PowerShell(git push *)', { command: 'Set-Location x; git push origin main' }), '', 'change the command case of argumentMatches in src/integrations/event-hooks/matching.ts so PowerShell subcommands come from pinnedCommandAnalysis.parsePowerShellCommand')
+    check('PowerShell quoted command text is not a subcommand', !await matchesPattern('PowerShell', 'PowerShell(git push *)', { command: 'Write-Output "git push"' }), '', 'change the command case of argumentMatches in src/integrations/event-hooks/matching.ts so quoted text is not a subcommand')
+    check('both PowerShell calls reached the existing parser', seen.join('|') === 'Set-Location x; git push origin main|Write-Output "git push"', '', 'change the command case of argumentMatches in src/integrations/event-hooks/matching.ts so it calls pinnedCommandAnalysis.parsePowerShellCommand once per PowerShell call')
   } finally {
     pinnedCommandAnalysis.parsePowerShellCommand = parsePowerShell
   }
@@ -176,8 +176,8 @@ section('§2 the layers: every layer runs, an identical entry runs once, the lat
   const matched = await matchHooks('tool.before', toolPayload('Bash'), scope)
   check('user, project and local entries all run; the identical entry runs once', runs(matched) === 'user-only,shared,project-only,local-only', runs(matched), HINT_LAYERS)
   check('the identical entry carries the later layer as its source', sources(matched) === 'user,project,project,local', sources(matched), HINT_LAYERS)
-  check('the ids are stable across reads', JSON.stringify(matched.map(h => h.id)) === JSON.stringify((await matchHooks('tool.before', toolPayload('Bash'), scope)).map(h => h.id)), '', 'change hookId in src/utils/hooks/matching.ts so the id depends only on the hook identity')
-  check('listHooks lists the same hooks with their sources for /hooks', listHooks(appState, 'session-1').filter(r => r.event === 'tool.before').length === 4, '', 'change listHooks in src/utils/hooks/hooksSettings.ts')
+  check('the ids are stable across reads', JSON.stringify(matched.map(h => h.id)) === JSON.stringify((await matchHooks('tool.before', toolPayload('Bash'), scope)).map(h => h.id)), '', 'change hookId in src/integrations/event-hooks/matching.ts so the id depends only on the hook identity')
+  check('listHooks lists the same hooks with their sources for /hooks', listHooks(appState, 'session-1').filter(r => r.event === 'tool.before').length === 4, '', 'change listHooks in src/integrations/event-hooks/hooksSettings.ts')
 }
 
 section('§3 once is once per session, in memory; the settings file is never edited')
@@ -208,7 +208,7 @@ section('§4 extensions, skills and agents are their own sources; an agent\'s ho
   registerAgentHooks(setAppState, { sessionId: 'session-1', crewmateId: 'crew-1' }, { 'tool.before': [{ run: 'from-agent' }], 'turn.answer': [{ question: 'done?' }] }, 'verifier')
   const main = await matchHooks('tool.before', toolPayload('Bash'), scope, { appState })
   check('the main thread runs the settings, extension and skill hooks, never the agent\'s', runs(main) === 'from-settings,from-settings,from-extension,from-skill', runs(main), HINT_SESSION)
-  check('an extension entry identical to a settings entry is NOT collapsed (its own namespace)', main.filter(h => h.entry.run === 'from-settings').length === 2, '', 'change sourceKey or hookIdentity in src/utils/hooks/matching.ts so each extension keeps its own namespace')
+  check('an extension entry identical to a settings entry is NOT collapsed (its own namespace)', main.filter(h => h.entry.run === 'from-settings').length === 2, '', 'change sourceKey or hookIdentity in src/integrations/event-hooks/matching.ts so each extension keeps its own namespace')
   check('the sources are named', sources(main) === 'user,extension,extension,skill', sources(main), HINT_SESSION)
   const crew = await matchHooks('tool.before', { ...toolPayload('Bash'), crewmate_id: 'crew-1', crewmate_type: 'verifier' }, { sessionId: 'session-1', crewmateId: 'crew-1' }, { appState })
   check('the crewmate\'s road runs the agent\'s hooks beside the settings and extension ones, not the main thread\'s skill hooks', runs(crew) === 'from-settings,from-settings,from-extension,from-agent', runs(crew), HINT_SESSION)
@@ -235,9 +235,9 @@ section('§5 the policy locks: disabled, managedOnly, the headless untrusted wor
   write(USER, { events: { hooks: { 'tool.before': [{ run: 'user' }] } } })
   reload()
   check('…and without it the user and project hooks are back', runs(await matchHooks('tool.before', toolPayload('Bash'), scope)) === 'user,project', '', HINT_POLICY)
-  const { setSessionTrustAccepted: setTrust } = await import('../../src/bootstrap/state.js')
+  const { setSessionTrustAccepted: setTrust } = await import('../../src/boot/process-state/processState.js')
   setTrust(false)
-  const { resetTrustDialogAcceptedCacheForTesting } = await import('../../src/utils/config/trust.js')
+  const { resetTrustDialogAcceptedCacheForTesting } = await import('../../src/platform/config/trust.js')
   resetTrustDialogAcceptedCacheForTesting()
   reload()
   const untrusted = await matchHooks('tool.before', toolPayload('Bash'), scope)

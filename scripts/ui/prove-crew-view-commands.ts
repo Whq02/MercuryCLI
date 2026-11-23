@@ -129,44 +129,44 @@ async function stub(path: string, fixture: (actual: Record<string, unknown>) => 
   const actual = (await import(path)) as Record<string, unknown>
   mock.module(path, () => ({ ...actual, ...fixture(actual) }))
 }
-await stub('../../src/components/tasks/useFocusedWork.ts', () => ({ focusedRunnerPresence: () => 'live' }))
+await stub('../../src/screen/tasks/useFocusedWork.ts', () => ({ focusedRunnerPresence: () => 'live' }))
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { useAppStateStore } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { FocusedSessionStatusRow } = await import('../../src/components/SwitchboardTagBar.tsx')
-const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
-const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { useAppStateStore } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { FocusedSessionStatusRow } = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
+const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
+const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const { default: instances } = await import('../../src/ink/instances.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
-const { createStreamingTailStore } = await import('../../src/utils/messages/streamingTailStore.ts')
-const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocus.ts')
-const { TranscriptSwap } = await import('../../src/components/CrewmateTranscript.tsx')
-const crewmateView = await import('../../src/state/crewmateViewHelpers.ts')
-const { createTaskStateBase } = await import('../../src/Task.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
-const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
-const { asAgentId } = await import('../../src/types/ids.ts')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
+const { createStreamingTailStore } = await import('../../src/engine/message-shapes/streamingTailStore.ts')
+const { resetHelmFocusForTest } = await import('../../src/screen/cockpit/helmFocus.ts')
+const { TranscriptSwap } = await import('../../src/screen/chat/CrewmateTranscript.tsx')
+const crewmateView = await import('../../src/crew/crewmates/crewmateView.ts')
+const { createTaskStateBase } = await import('../../src/engine/tasks/taskBase.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
+const { getAgentTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+const { asAgentId } = await import('../../src/sessions/transcripts/ids.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-const { builtinCommands, isCommandEnabled } = await import('../../src/commands.ts')
-const { isSettingsPopupOpen, settingsPopupRequest } = await import('../../src/utils/cockpit/settingsPopup.ts')
-const { getInitialSettings } = await import('../../src/utils/settings/settings.ts')
-const { REFOCUS_CLICK_WINDOW_MS } = await import('../../src/ink/components/App.tsx')
+const { builtinCommands, isCommandEnabled } = await import('../../src/commands/catalogue/commands.ts')
+const { isSettingsPopupOpen, settingsPopupRequest } = await import('../../src/screen/cockpit/settingsPopup.ts')
+const { getInitialSettings } = await import('../../src/platform/settings/settings.ts')
+const { REFOCUS_CLICK_WINDOW_MS } = await import('../../src/screen/renderer/elements/App.tsx')
 const CLOCK_SLEW_MS = 50
 const h = React.createElement
 
@@ -612,20 +612,20 @@ for (const [cols, rows] of SIZES) await drive(cols, rows)
 let nothingToFold = false
 section("§5 the crewmate's own compaction: the flag on its task makes its query fold at the next request boundary, once")
 {
-  await stub('../../src/services/compact/compact.ts', () => ({
+  await stub('../../src/engine/compaction/foldConversation.ts', () => ({
     compactConversation: async (messages: unknown[], context: { agentId?: string }, _cacheSafe: unknown, _suppress: boolean, _instructions: string | undefined, isAutoCompact: boolean) => {
       seatCalls.push({ verb: 'compactConversation', args: [messages.length, context.agentId] })
-      const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.ts')
+      const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
       return { boundaryMarker: createCompactBoundaryMessage(isAutoCompact ? 'auto' : 'manual', 1234), summaryMessages: [], attachments: [], hookResults: [], preCompactTokenCount: 1234, postCompactTokenCount: 10 }
     },
     projectManualFold: async () => (nothingToFold ? { before: 960, after: 960, folds: 0, kept: 0, keptTokens: 0, totalRounds: 2, workingRoundsFolded: 0, context: 960 } : { before: 1234, after: 300, folds: 3, workingRoundsFolded: 2, context: 1234 }),
   }))
-  await stub('../../src/services/compact/sessionMemoryCompact.ts', () => ({
+  await stub('../../src/engine/compaction/sessionNotesFold.ts', () => ({
     shouldUseSessionMemoryCompaction: () => false,
     trySessionMemoryCompaction: async () => null,
   }))
-  const { autoCompactIfNeeded } = await import('../../src/services/compact/autoCompact.ts')
-  const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
+  const { autoCompactIfNeeded } = await import('../../src/engine/compaction/autoFold.ts')
+  const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
   const tasks: Record<string, Record<string, unknown>> = {
     [LOCAL_ID]: { id: LOCAL_ID, type: 'local_agent', agentId: LOCAL_ID, description: LOCAL_NAME, status: 'running', compactRequested: true },
   }
@@ -655,7 +655,7 @@ section("§5 the crewmate's own compaction: the flag on its task makes its query
   check('the flag is taken as the fold begins — the task no longer asks', (appState.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]!.compactRequested === undefined, JSON.stringify((appState.tasks as Record<string, unknown>)[LOCAL_ID]))
   const again = await autoCompactIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew')
   check('the next boundary folds nothing — one ask, one fold', again.wasCompacted === false && callsOf('compactConversation').length === 1, JSON.stringify({ wasCompacted: again.wasCompacted, refusal: again.refusal, calls: callsOf('compactConversation').length }))
-  check("a crewmate whose task does not ask is left to the threshold", (await autoCompactIfNeeded(messages as never, { ...context, agentId: 'a-other' } as never, cacheSafe as never, 'agent:builtin:mercury-crew')).wasCompacted === false, 'what to change: autoCompactIfNeeded in src/services/compact/autoCompact.ts must fold only a task whose compactRequested flag is set')
+  check("a crewmate whose task does not ask is left to the threshold", (await autoCompactIfNeeded(messages as never, { ...context, agentId: 'a-other' } as never, cacheSafe as never, 'agent:builtin:mercury-crew')).wasCompacted === false, 'what to change: autoCompactIfNeeded in src/engine/compaction/autoFold.ts must fold only a task whose compactRequested flag is set')
   askAgain()
   const overflow = { source: 'provider', family: 'anthropic', shape: 'prompt_too_long', actualTokens: 250_000, limitTokens: 200_000 }
   const forcedFold = await autoCompactIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew', undefined, 0, overflow as never)
@@ -670,19 +670,19 @@ section("§5 the crewmate's own compaction: the flag on its task makes its query
 
 section("§6 the resume: a finished crewmate's recorded compaction reaches the task that runs its next turn")
 {
-  const { registerAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
+  const { registerAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
   const compactionRequestedOf = (task: unknown): boolean => (task as { compactRequested?: unknown } | undefined)?.compactRequested === true
   let appState: Record<string, unknown> = { tasks: {} }
   const setAppState = (updater: (prev: Record<string, unknown>) => Record<string, unknown>): void => {
     appState = updater(appState)
   }
   const registered = registerAsyncAgent({ agentId: 'a-resumed', description: 'Lane resumed', prompt: 'carry on', setAppState: setAppState as never, model: CREW_MODEL, compactRequested: true } as never)
-  check('a task registered for a resume with the flag asks for the fold', compactionRequestedOf(registered) && compactionRequestedOf((appState.tasks as Record<string, unknown>)['a-resumed']), 'what to change: registerAsyncAgent in src/tasks/LocalAgentTask/LocalAgentTask.tsx must carry compactRequested onto the registered task')
+  check('a task registered for a resume with the flag asks for the fold', compactionRequestedOf(registered) && compactionRequestedOf((appState.tasks as Record<string, unknown>)['a-resumed']), 'what to change: registerAsyncAgent in src/engine/tasks/local-agent/crewmateTask.tsx must carry compactRequested onto the registered task')
   const plain = registerAsyncAgent({ agentId: 'a-plain', description: 'Lane plain', prompt: 'carry on', setAppState: setAppState as never, model: CREW_MODEL })
-  check('a task registered without it does not', !compactionRequestedOf(plain), 'what to change: registerAsyncAgent in src/tasks/LocalAgentTask/LocalAgentTask.tsx must set compactRequested only when asked')
-  type RecordMerge = typeof import('../../src/services/crew/crewmateRecord.ts')
+  check('a task registered without it does not', !compactionRequestedOf(plain), 'what to change: registerAsyncAgent in src/engine/tasks/local-agent/crewmateTask.tsx must set compactRequested only when asked')
+  type RecordMerge = typeof import('../../src/crew/crewmates/crewmateRecord.ts')
   const absent = (): never => { throw new Error('the record merge does not exist on this tree') }
-  const merge = await import('../../src/services/crew/crewmateRecord.ts').catch((): RecordMerge => ({ recordAfterResume: absent, recordAtRunStart: absent }))
+  const merge = await import('../../src/crew/crewmates/crewmateRecord.ts').catch((): RecordMerge => ({ recordAfterResume: absent, recordAtRunStart: absent }))
   const recordAfterResume: RecordMerge['recordAfterResume'] = (...args) => { try { return merge.recordAfterResume(...args) } catch { return { agentType: 'absent' } } }
   const recordAtRunStart: RecordMerge['recordAtRunStart'] = (...args) => { try { return merge.recordAtRunStart(...args) } catch { return { agentType: 'absent' } } }
   const fresh = { agentType: 'mercury-crew', swarm: false, description: 'Lane resumed' }

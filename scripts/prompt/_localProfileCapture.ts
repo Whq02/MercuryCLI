@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process'
-import { mnemeProjectKeyFor } from '../../src/mneme/paths.ts'
+import { mnemeProjectKeyFor } from '../../src/sessions/mneme/paths.ts'
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'

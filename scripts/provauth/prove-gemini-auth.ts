@@ -36,8 +36,8 @@ process.env.MERCURY_GEMINI_API_BASE = 'https://fixture.invalid/v1beta'
 process.env.MERCURY_GEMINI_OAUTH_AUTH_BASE = 'https://fixture.invalid/o/oauth2/v2/auth'
 process.env.MERCURY_GEMINI_OAUTH_TOKEN_BASE = 'https://fixture.invalid/token'
 
-const accounts = await import('../../src/services/providers/gemini/geminiAccounts.js')
-const secrets = await import('../../src/utils/accounts/providerSecrets.js')
+const accounts = await import('../../src/models/roads/gemini/geminiAccounts.js')
+const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.js')
 const {
   __resetGeminiAccountsForTest,
   beginGeminiBrowserConnect,
@@ -57,31 +57,31 @@ const {
 {
   check('nothing anywhere ⇒ no account', resolveGeminiAccount() === undefined)
   secrets.writeStoredGeminiApiKey('AIza-STORED-000000000000000')
-  check('stored key resolves last', resolveGeminiApiKey()?.source === 'stored', `source=${String(resolveGeminiApiKey()?.source)}; see resolveGeminiApiKey in src/services/providers/gemini/geminiAccounts.ts`)
+  check('stored key resolves last', resolveGeminiApiKey()?.source === 'stored', `source=${String(resolveGeminiApiKey()?.source)}; see resolveGeminiApiKey in src/models/roads/gemini/geminiAccounts.ts`)
   process.env.GEMINI_API_KEY = 'AIza-GEMINI-000000000000000'
-  check('GEMINI_API_KEY outranks the store', resolveGeminiApiKey()?.source === 'env-gemini', `source=${String(resolveGeminiApiKey()?.source)}; resolveGeminiApiKey in src/services/providers/gemini/geminiAccounts.ts must rank GEMINI_API_KEY above the stored key`)
+  check('GEMINI_API_KEY outranks the store', resolveGeminiApiKey()?.source === 'env-gemini', `source=${String(resolveGeminiApiKey()?.source)}; resolveGeminiApiKey in src/models/roads/gemini/geminiAccounts.ts must rank GEMINI_API_KEY above the stored key`)
   process.env.GOOGLE_API_KEY = 'AIza-GOOGLE-000000000000000'
-  check('GOOGLE_API_KEY outranks GEMINI_API_KEY (the documented precedence)', resolveGeminiApiKey()?.source === 'env-google', `source=${String(resolveGeminiApiKey()?.source)}; resolveGeminiApiKey in src/services/providers/gemini/geminiAccounts.ts must rank GOOGLE_API_KEY above GEMINI_API_KEY`)
+  check('GOOGLE_API_KEY outranks GEMINI_API_KEY (the documented precedence)', resolveGeminiApiKey()?.source === 'env-google', `source=${String(resolveGeminiApiKey()?.source)}; resolveGeminiApiKey in src/models/roads/gemini/geminiAccounts.ts must rank GOOGLE_API_KEY above GEMINI_API_KEY`)
   const auth = await resolveGeminiRequestAuth()
-  check('key request auth: pinned base + x-goog-api-key header (no bearer)', auth?.baseUrl === 'https://fixture.invalid/v1beta' && auth?.headers['x-goog-api-key'] === 'AIza-GOOGLE-000000000000000' && auth?.headers.authorization === undefined, JSON.stringify(auth) + '; see resolveGeminiRequestAuth in src/services/providers/gemini/geminiAccounts.ts')
+  check('key request auth: pinned base + x-goog-api-key header (no bearer)', auth?.baseUrl === 'https://fixture.invalid/v1beta' && auth?.headers['x-goog-api-key'] === 'AIza-GOOGLE-000000000000000' && auth?.headers.authorization === undefined, JSON.stringify(auth) + '; see resolveGeminiRequestAuth in src/models/roads/gemini/geminiAccounts.ts')
   delete process.env.GOOGLE_API_KEY
   delete process.env.GEMINI_API_KEY
   secrets.writeStoredGeminiApiKey(null)
 }
 
 {
-  check('no client config ⇒ the honest gate copy', typeof geminiOauthClientMissingCopy() === 'string' && geminiOauthClientMissingCopy()!.includes('Desktop app'), 'geminiOauthClientMissingCopy in src/services/providers/gemini/geminiAccounts.ts must return the gate copy naming Desktop app when no client is configured')
+  check('no client config ⇒ the honest gate copy', typeof geminiOauthClientMissingCopy() === 'string' && geminiOauthClientMissingCopy()!.includes('Desktop app'), 'geminiOauthClientMissingCopy in src/models/roads/gemini/geminiAccounts.ts must return the gate copy naming Desktop app when no client is configured')
   const handles = beginGeminiBrowserConnect({ skipBrowserOpen: true })
   const outcome = await handles.result.then(
     () => 'resolved',
     (error: Error) => error.message,
   )
-  check('clientless connect REFUSES with the gate copy (no URL, no flow)', outcome !== 'resolved' && String(outcome).includes('OAuth client') && handles.authorizeUrl === '', `outcome=${String(outcome)} url=${handles.authorizeUrl}; beginGeminiBrowserConnect in src/services/providers/gemini/geminiAccounts.ts must refuse with the gate copy when no client is configured`)
+  check('clientless connect REFUSES with the gate copy (no URL, no flow)', outcome !== 'resolved' && String(outcome).includes('OAuth client') && handles.authorizeUrl === '', `outcome=${String(outcome)} url=${handles.authorizeUrl}; beginGeminiBrowserConnect in src/models/roads/gemini/geminiAccounts.ts must refuse with the gate copy when no client is configured`)
 
   writeGeminiOauthClientConfig({ clientId: 'stored-client-id.apps.googleusercontent.com', clientSecret: 'stored-secret' })
-  check('stored client config resolves', geminiOauthClientConfig()?.clientId === 'stored-client-id.apps.googleusercontent.com' && geminiOauthClientConfig()?.source === 'stored', JSON.stringify(geminiOauthClientConfig()) + '; see geminiOauthClientConfig and writeGeminiOauthClientConfig in src/services/providers/gemini/geminiAccounts.ts')
+  check('stored client config resolves', geminiOauthClientConfig()?.clientId === 'stored-client-id.apps.googleusercontent.com' && geminiOauthClientConfig()?.source === 'stored', JSON.stringify(geminiOauthClientConfig()) + '; see geminiOauthClientConfig and writeGeminiOauthClientConfig in src/models/roads/gemini/geminiAccounts.ts')
   process.env.MERCURY_GEMINI_OAUTH_CLIENT_ID = 'env-client-id.apps.googleusercontent.com'
-  check('env client id wins over the stored config', geminiOauthClientConfig()?.clientId === 'env-client-id.apps.googleusercontent.com' && geminiOauthClientConfig()?.source === 'env', JSON.stringify(geminiOauthClientConfig()) + '; geminiOauthClientConfig in src/services/providers/gemini/geminiAccounts.ts must prefer MERCURY_GEMINI_OAUTH_CLIENT_ID over the stored config')
+  check('env client id wins over the stored config', geminiOauthClientConfig()?.clientId === 'env-client-id.apps.googleusercontent.com' && geminiOauthClientConfig()?.source === 'env', JSON.stringify(geminiOauthClientConfig()) + '; geminiOauthClientConfig in src/models/roads/gemini/geminiAccounts.ts must prefer MERCURY_GEMINI_OAUTH_CLIENT_ID over the stored config')
   delete process.env.MERCURY_GEMINI_OAUTH_CLIENT_ID
 }
 
@@ -129,7 +129,7 @@ const {
     () => 'resolved',
     (error: Error) => error.message,
   )
-  check('state-mismatch paste rejects honestly', String(outcome).includes('state does not match'), `outcome=${String(outcome)}; the redirect completion in beginGeminiBrowserConnect (src/services/providers/gemini/geminiAccounts.ts) must reject a mismatched state`)
+  check('state-mismatch paste rejects honestly', String(outcome).includes('state does not match'), `outcome=${String(outcome)}; the redirect completion in beginGeminiBrowserConnect (src/models/roads/gemini/geminiAccounts.ts) must reject a mismatched state`)
 
   const noRefresh: typeof fetch = (async () =>
     new Response(JSON.stringify({ access_token: 'A', expires_in: 3600 }), {
@@ -142,12 +142,12 @@ const {
     () => 'resolved',
     (error: Error) => error.message,
   )
-  check('no refresh token ⇒ the honest re-consent rejection, nothing stored', String(outcome2).includes('no refresh token') && !geminiOauthConnected(), `outcome=${String(outcome2)} connected=${String(geminiOauthConnected())}; beginGeminiBrowserConnect in src/services/providers/gemini/geminiAccounts.ts must reject a grant without a refresh token and store nothing`)
+  check('no refresh token ⇒ the honest re-consent rejection, nothing stored', String(outcome2).includes('no refresh token') && !geminiOauthConnected(), `outcome=${String(outcome2)} connected=${String(geminiOauthConnected())}; beginGeminiBrowserConnect in src/models/roads/gemini/geminiAccounts.ts must reject a grant without a refresh token and store nothing`)
 }
 
 {
   const { geminiOauthErrorRemedy } = await import(
-    '../../src/services/providers/gemini/geminiAccounts.ts'
+    '../../src/models/roads/gemini/geminiAccounts.ts'
   )
   const denied = geminiOauthErrorRemedy('access_denied', 'app is in testing mode')
   check('access_denied names the test-user remedy', denied.includes('Test users'))
@@ -197,7 +197,7 @@ const {
     )
   }) as unknown as typeof fetch
   const tokens = await currentGeminiTokens({ fetchImpl: refreshFetch })
-  check('expired set refreshed ONCE; refresh token retained (no rotation)', counter.posts === 1 && tokens?.accessToken === 'NEW' && tokens?.refreshToken === 'RT-1', `posts=${counter.posts} tokens=${JSON.stringify(tokens)}; currentGeminiTokens in src/services/providers/gemini/geminiAccounts.ts must refresh an expired set once and keep the refresh token`)
+  check('expired set refreshed ONCE; refresh token retained (no rotation)', counter.posts === 1 && tokens?.accessToken === 'NEW' && tokens?.refreshToken === 'RT-1', `posts=${counter.posts} tokens=${JSON.stringify(tokens)}; currentGeminiTokens in src/models/roads/gemini/geminiAccounts.ts must refresh an expired set once and keep the refresh token`)
 
   __resetGeminiAccountsForTest()
   const throwingFetch: typeof fetch = (async () => {
@@ -242,7 +242,7 @@ const {
 
 {
   process.env.GEMINI_API_KEY = 'AIza-GEMINI-000000000000000'
-  check('oauth wins by default when both exist', resolveGeminiAccount()?.kind === 'oauth', `kind=${String(resolveGeminiAccount()?.kind)}; resolveGeminiAccount in src/services/providers/gemini/geminiAccounts.ts must pick the oauth grant when both sources exist and no preference is written`)
+  check('oauth wins by default when both exist', resolveGeminiAccount()?.kind === 'oauth', `kind=${String(resolveGeminiAccount()?.kind)}; resolveGeminiAccount in src/models/roads/gemini/geminiAccounts.ts must pick the oauth grant when both sources exist and no preference is written`)
   writePreferredGeminiSource('api-key')
   check('api-key preference outranks the connected oauth', resolveGeminiAccount()?.kind === 'api-key')
   writePreferredGeminiSource(null)

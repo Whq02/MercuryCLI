@@ -40,7 +40,7 @@ status is the verdict (the drive suites run apart through `scripts/run-drives.sh
   declares a generator and has no row is a red on the commit gate's census
   (`bun scripts/gate/generated-assets.ts --census`).
 - A `MERCURY_*` switch has a row in the registry and is named at the
-  environment only through `src/substrate/flagRegistry.ts`:
+  environment only through `src/platform/substrate/flagRegistry.ts`:
   `flagEnabled(name)` answers a default-on or opt-in switch;
   `flagEnv(name)` reads a value at the process and `flagEnv(name, env)` at
   an environment that is handed in; `setFlagEnv` and `deleteFlagEnv` write

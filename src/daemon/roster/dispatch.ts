@@ -1,11 +1,11 @@
 import type { ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { logForDebugging } from '../../utils/debug.js'
-import { DaemonBreaker } from '../../utils/daemonBreaker.js'
-import { runTaskHeadless, buildHeadlessPrompt } from '../headlessRun.js'
-import { resolveWorkerReconAllow } from '../workerRecon.js'
-import { currentVersion } from '../controlSocket.js'
-import type { DispatchBody, DispatchSource } from '../protocol.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
+import { DaemonBreaker } from '../control/daemonBreaker.js'
+import { runTaskHeadless, buildHeadlessPrompt } from '../runner-link/headlessRun.js'
+import { resolveWorkerReconAllow } from '../concourse-workers/workerRecon.js'
+import { currentVersion } from '../control/controlSocket.js'
+import type { DispatchBody, DispatchSource } from '../control/protocol.js'
 import type { DispatchOutcome, RosterEntry, RosterOptions, WorkerHandle } from './types.js'
 
 interface DispatchNeeds {

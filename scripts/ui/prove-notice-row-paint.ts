@@ -10,8 +10,8 @@ process.env.MERCURY_OPERATOR = 'sam'
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 let checks = 0
-const classifierSource = 'src/utils/messages/noticeRows.ts (noticeOfText, wrappedNoticeBlocks, noticePlate, advisorBlockOf, isAdvisorOrigin)'
-const paintedSource = 'the row painters src/components/messages/UserTextMessage.tsx and src/components/messages/AttachmentMessage.tsx, with the classification and plate text in src/utils/messages/noticeRows.ts'
+const classifierSource = 'src/engine/message-shapes/noticeRows.ts (noticeOfText, wrappedNoticeBlocks, noticePlate, advisorBlockOf, isAdvisorOrigin)'
+const paintedSource = 'the row painters src/screen/messages/UserTextMessage.tsx and src/screen/messages/AttachmentMessage.tsx, with the classification and plate text in src/engine/message-shapes/noticeRows.ts'
 let where = classifierSource
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
@@ -23,7 +23,7 @@ const section = (t: string): void => {
   console.log(`\n${'─'.repeat(76)}\n${t}`)
 }
 
-const { noticeOfText, wrappedNoticeBlocks, noticePlate, isNotificationLaneRow, noticeLines } = await import(join(ROOT, 'src/utils/messages/noticeRows.ts'))
+const { noticeOfText, wrappedNoticeBlocks, noticePlate, isNotificationLaneRow, noticeLines } = await import(join(ROOT, 'src/engine/message-shapes/noticeRows.ts'))
 
 const WATCH = 'wave comms: lane questions and verdicts'
 const monitorBlock = (task: string, name: string, body: string): string => `<monitor task=${JSON.stringify(task)} name=${JSON.stringify(name)}>\n${body}\n</monitor>`
@@ -69,14 +69,14 @@ section("§1 the classification: a wrapped notice, the notification lane, and th
 
 section("§2 the painted row: the plate and the lines, never the operator's caret, never the wrapper")
 const React = (await import('react')).default
-const { render } = await import(join(ROOT, 'src/ink.ts'))
-const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
-const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
-const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+const { render } = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
+const { AppStateProvider } = await import(join(ROOT, 'src/screen/app-state/AppState.tsx'))
+const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/AppStateStore.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
-const { UserTextMessage } = await import(join(ROOT, 'src/components/messages/UserTextMessage.tsx'))
-const { AttachmentMessage } = await import(join(ROOT, 'src/components/messages/AttachmentMessage.tsx'))
-const { MessageMetaProvider } = await import(join(ROOT, 'src/components/messages/TranscriptNameplate.tsx'))
+const { UserTextMessage } = await import(join(ROOT, 'src/screen/messages/UserTextMessage.tsx'))
+const { AttachmentMessage } = await import(join(ROOT, 'src/screen/messages/AttachmentMessage.tsx'))
+const { MessageMetaProvider } = await import(join(ROOT, 'src/screen/messages/TranscriptNameplate.tsx'))
 const h = React.createElement as (...a: unknown[]) => React.ReactElement
 const strip = (s: string): string => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
 const settle = (ms = 200): Promise<void> => new Promise(r => setTimeout(r, ms))
@@ -153,7 +153,7 @@ async function paint(body: React.ReactElement, meta: { type: string; timestamp?:
   check('free text drained on the notification lane paints as a plain notice', frame.includes('● notice · 1 line ›') && !frame.includes('Stop hook blocking error from command "lint": 3 errors') && !frame.includes('❯'), frame.slice(0, 200))
 }
 {
-  const { BOARD_PACKET_RULE } = await import(join(ROOT, 'src/services/crewBoard/contracts.ts'))
+  const { BOARD_PACKET_RULE } = await import(join(ROOT, 'src/crew/board/contracts.ts'))
   const wake = { type: 'queued_command', prompt: BOARD_PACKET_RULE, commandMode: 'task-notification', isMeta: true }
   const packet = { type: 'queued_command', prompt: 'a board packet for the model', boardEventIds: ['00000000-0000-4000-8000-000000000001'], origin: { kind: 'coordinator' }, isMeta: true }
   const chat = async (attachment: Record<string, unknown>): Promise<string> => paint(h(AttachmentMessage as never, { attachment, addMargin: false, verbose: false }), { type: 'attachment', timestamp: STAMP })
@@ -185,8 +185,8 @@ async function paint(body: React.ReactElement, meta: { type: string; timestamp?:
 
 section('§3 the advisor row: the [advisor] plate with the model and the cadence, no dot, dim lines, never the caret (red on the base: the operator\'s line)')
 {
-  const { advisorBlockOf, advisorPromptLines, isAdvisorOrigin, isMutedNoticeBlock, ADVISOR_PLATE_NAME } = await import(join(ROOT, 'src/utils/messages/noticeRows.ts'))
-  const { wrapCommandText, ADVISOR_NOTE_HEAD, ADVISOR_NOTE_TAIL } = await import(join(ROOT, 'src/utils/messages/text.ts'))
+  const { advisorBlockOf, advisorPromptLines, isAdvisorOrigin, isMutedNoticeBlock, ADVISOR_PLATE_NAME } = await import(join(ROOT, 'src/engine/message-shapes/noticeRows.ts'))
+  const { wrapCommandText, ADVISOR_NOTE_HEAD, ADVISOR_NOTE_TAIL } = await import(join(ROOT, 'src/engine/message-shapes/text.ts'))
   const origin = { kind: 'advisor', model: 'claude-opus-4-8', minutes: 10, at: STAMP }
   const note = 'Verify the pin on the base before you cut.\nThe seam is print.ts, not the driver.'
   check('the guard admits the origin; the block is muted; the plate is the lowercase word', isAdvisorOrigin(origin) && isMutedNoticeBlock(advisorBlockOf(origin as never, note)) && ADVISOR_PLATE_NAME === 'advisor')
@@ -258,7 +258,7 @@ const monitorBodies = [
   ['memory', '<user-memory-input>keep this memory text</user-memory-input>'],
   ['channel', '<channel source="local">keep this channel text</channel>'],
 ] as const
-const { isMutedNoticeBlock } = await import(join(ROOT, 'src/utils/messages/noticeRows.ts'))
+const { isMutedNoticeBlock } = await import(join(ROOT, 'src/engine/message-shapes/noticeRows.ts'))
 for (const band of [{ columns: 178, rows: 51 }, { columns: 80, rows: 21 }, { columns: 120, rows: 40 }]) {
   for (const [name, content] of monitorBodies) {
     const text = monitorBlock('watch', 'the transcript watch', content)

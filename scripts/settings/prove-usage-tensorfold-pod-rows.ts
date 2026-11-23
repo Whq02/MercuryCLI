@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/providers/local/tensorfoldUsage.ts src/components/Settings/Usage.tsx src/services/host/tensorfoldPod.ts
+// gate-watch: src/models/roads/local/tensorfoldUsage.ts src/screen/settings/Usage.tsx src/models/hosting/tensorfoldPod.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import React from 'react'
 import { mock } from 'bun:test'
@@ -25,7 +25,7 @@ pinSourceRef()
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — change the TensorFold ledger in src/services/providers/local/tensorfoldUsage.ts (turn readings), the Local models usage rows in src/components/Settings/Usage.tsx, or the pod registration in src/services/host/tensorfoldPod.ts${detail ? '; ' + detail.slice(0, 600) : ''}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — change the TensorFold ledger in src/models/roads/local/tensorfoldUsage.ts (turn readings), the Local models usage rows in src/screen/settings/Usage.tsx, or the pod registration in src/models/hosting/tensorfoldPod.ts${detail ? '; ' + detail.slice(0, 600) : ''}` : ''}`)
   if (!cond) failures++
 }
 
@@ -55,31 +55,31 @@ async function stub(path: string, fixtureExports: () => Record<string, unknown>)
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...fixtureExports() }))
 }
-await stub(`${ROOT}/src/services/providers/openai/openaiCatalogue.js`, () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
-await stub(`${ROOT}/src/services/providers/catalogueOnDemand.js`, () => ({ readCatalogueIfPending: async () => undefined }))
-await stub(`${ROOT}/src/hooks/useCatalogueEpoch.js`, () => ({ useCatalogueEpoch: () => 0 }))
-await stub(`${ROOT}/src/keybindings/useKeybinding.js`, () => ({ useKeybinding: () => undefined }))
-await stub(`${ROOT}/src/components/ConfigurableShortcutHint.js`, () => ({ ConfigurableShortcutHint: () => null }))
+await stub(`${ROOT}/src/models/roads/openai/openaiCatalogue.js`, () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
+await stub(`${ROOT}/src/models/roads/catalogueOnDemand.js`, () => ({ readCatalogueIfPending: async () => undefined }))
+await stub(`${ROOT}/src/screen/model-picker/useCatalogueEpoch.js`, () => ({ useCatalogueEpoch: () => 0 }))
+await stub(`${ROOT}/src/screen/keys/useKeybinding.js`, () => ({ useKeybinding: () => undefined }))
+await stub(`${ROOT}/src/screen/keys/ConfigurableShortcutHint.js`, () => ({ ConfigurableShortcutHint: () => null }))
 
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { registerTensorFoldPod } = await import('../../src/services/host/tensorfoldPod.ts')
-const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
-const { writeHostRecord } = await import('../../src/services/host/store.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localServerKind } = await import('../../src/constants/localPromptProfile.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const ledger = await import('../../src/services/providers/local/tensorfoldUsage.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { Usage } = await import('../../src/components/Settings/Usage.js')
-const { Box, render, flushPendingSyncWork, EventEmitter } = await import('../../src/ink.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { default: squashText } = await import('../../src/ink/squash-text-nodes.js')
+const { registerTensorFoldPod } = await import('../../src/models/hosting/tensorfoldPod.ts')
+const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
+const { writeHostRecord } = await import('../../src/models/hosting/store.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localServerKind } = await import('../../src/models/roads/localPromptProfile.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const ledger = await import('../../src/models/roads/local/tensorfoldUsage.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+const { Usage } = await import('../../src/screen/settings/Usage.js')
+const { Box, render, flushPendingSyncWork, EventEmitter } = await import('../../src/screen/themedRenderer.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { default: squashText } = await import('../../src/screen/renderer/squash-text-nodes.js')
 
 const recipe = HOST_RECIPES.find(row => row.id === 'tensorfold-qwen38-27b-rtx-5090')!
 const target = { host: '127.0.0.1', port: 22, user: 'root', key: join(HOME, 'id_ed25519') }

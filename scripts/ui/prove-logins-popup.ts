@@ -5,7 +5,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import stringWidth from 'string-width'
 import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
-import type { DOMElement } from '../../src/ink.js'
+import type { DOMElement } from '../../src/screen/themedRenderer.js'
 
 pinSourceRef()
 const home = pinScratchHome('mercury-logins-popup')
@@ -14,29 +14,29 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const frameArg = process.argv.indexOf('--frames')
 const frames = frameArg < 0 ? undefined : process.argv[frameArg + 1]
 if (frames) mkdirSync(frames, { recursive: true })
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 async function stub(path: string, overrides: Record<string, unknown>): Promise<void> {
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...overrides }))
 }
-await stub('../../src/context/notifications.js', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
-await stub('../../src/hooks/useCatalogueEpoch.js', { useCatalogueEpoch: () => 0 })
-await stub('../../src/services/model/computedDefault.js', { mostRecentSignInFamily: () => undefined })
-await stub('../../src/utils/browser.js', { openBrowser: async () => true })
+await stub('../../src/screen/notifications/notifications.js', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
+await stub('../../src/screen/model-picker/useCatalogueEpoch.js', { useCatalogueEpoch: () => 0 })
+await stub('../../src/models/catalogue/computedDefault.js', { mostRecentSignInFamily: () => undefined })
+await stub('../../src/platform/host-os/browser.js', { openBrowser: async () => true })
 let estate = 'absent'
 const ids = ['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'local', 'openai-compat', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'orcarouter', 'cerebras', 'fireworks', 'qwen']
-await stub('../../src/services/providers/providerUsability.js', {
+await stub('../../src/models/roads/providerUsability.js', {
   resolveProviderUsability: () => Object.fromEntries(ids.map((id, i) => {
     const usable = estate === 'full' || (estate === 'mixed' && i % 2 === 0)
     return [id, { usable, credential: usable ? (id === 'local' ? 'keyless' : ['anthropic', 'openai', 'gemini', 'huggingface', 'moonshot'].includes(id) ? 'oauth' : 'api-key') : 'none', blockers: [`not signed in — /logins ${id} connects this family`], limit: 'allowed' }]
   })),
 })
-const { executeSlotRemoval: removeSlot } = await import('../../src/services/providers/accountSlots.js')
+const { executeSlotRemoval: removeSlot } = await import('../../src/models/roads/accountSlots.js')
 const removed = new Set<string>()
 const removedCalls: string[] = []
 const routeFor: Record<string, string> = { anthropic: 'anthropic-managed-key', openai: 'openai-subscription', openrouter: 'openrouter-stored-key', gemini: 'gemini-oauth', huggingface: 'huggingface-oauth', moonshot: 'moonshot-oauth', zai: 'zai-stored-key', deepseek: 'deepseek-stored-key', xai: 'xai-stored-key', meta: 'meta-stored-key', local: 'local-stored-key', 'openai-compat': 'compat-stored-key', nous: 'nous-stored-key', zen: 'zen-stored-key' }
-await stub('../../src/services/providers/accountSlots.js', {
+await stub('../../src/models/roads/accountSlots.js', {
   deriveFamilySlotGroups: () => ids.map((id, index) => {
     const signed = estate === 'full' || (estate === 'mixed' && index % 2 === 0)
     const slots = signed ? [{ family: id, id: `${id}:fixture`, name: id, kind: ['openai', 'gemini', 'huggingface', 'moonshot'].includes(id) ? 'subscription' : 'api-key', kindLabel: id === 'openai' ? 'ChatGPT subscription' : 'API key', identity: `${id}@example.com`, active: true, signedIn: true, envPinned: false, removal: { route: routeFor[id] } }] : []
@@ -50,14 +50,14 @@ await stub('../../src/services/providers/accountSlots.js', {
   },
 })
 let switches = 0
-const { switchActiveSlot: switchSlot } = await import('../../src/services/providers/slotSwitch.js')
-await stub('../../src/services/providers/slotSwitch.js', { switchActiveSlot: () => switchSlot('openai', { reads: { openaiSubscription: () => ({ label: 'ChatGPT subscription' }), openaiKey: () => ({ source: 'stored' }), openaiActiveKind: () => 'chatgpt-subscription', openaiWallOf: () => ({ state: 'allowed' }) as never }, writes: { writeOpenaiPreference: () => { switches++ } } }) })
+const { switchActiveSlot: switchSlot } = await import('../../src/models/roads/slotSwitch.js')
+await stub('../../src/models/roads/slotSwitch.js', { switchActiveSlot: () => switchSlot('openai', { reads: { openaiSubscription: () => ({ label: 'ChatGPT subscription' }), openaiKey: () => ({ source: 'stored' }), openaiActiveKind: () => 'chatgpt-subscription', openaiWallOf: () => ({ state: 'allowed' }) as never }, writes: { writeOpenaiPreference: () => { switches++ } } }) })
 let seed = 'idle'
 let submits: string[] = []
 let successKey = false
 let deviceStarts = 0
 let deviceCancelled: (() => boolean) | undefined
-await stub('../../src/components/mercury-ui/screens/anthropicLoginModel.js', {
+await stub('../../src/screen/widgets/faces/anthropicLoginModel.js', {
   useAnthropicLoginModel: () => {
     const [flow, setFlow] = React.useState({ name: seed, url: `https://example.com/oauth/authorize?state=${'fixture'.repeat(24)}` })
     return {
@@ -68,7 +68,7 @@ await stub('../../src/components/mercury-ui/screens/anthropicLoginModel.js', {
     }
   },
 })
-await stub('../../src/services/providers/moonshot/moonshotLogin.js', {
+await stub('../../src/models/roads/moonshot/moonshotLogin.js', {
   runKimiDeviceLogin: (options: { cancelled: () => boolean; onEvent: (event: unknown) => void }) => {
     deviceStarts++
     deviceCancelled = options.cancelled
@@ -76,9 +76,9 @@ await stub('../../src/services/providers/moonshot/moonshotLogin.js', {
     return new Promise(() => {})
   },
 })
-await stub('../../src/services/providers/moonshot/moonshotAccounts.js', { moonshotStoredRegion: () => undefined })
+await stub('../../src/models/roads/moonshot/moonshotAccounts.js', { moonshotStoredRegion: () => undefined })
 let xaiCancelled: (() => boolean) | undefined
-await stub('../../src/services/providers/xai/xaiLogin.js', {
+await stub('../../src/models/roads/xai/xaiLogin.js', {
   runXaiDeviceLogin: (options: { cancelled: () => boolean; onEvent: (event: unknown) => void }) => {
     xaiCancelled = options.cancelled
     options.onEvent({ phase: 'waiting', polls: 0, start: { userCode: 'GROK-CODE', verificationUri: 'https://example.com/grok/device', expiresAtMs: 1_900_000_000_000 } })
@@ -86,17 +86,17 @@ await stub('../../src/services/providers/xai/xaiLogin.js', {
   },
 })
 let metaCancelled: (() => boolean) | undefined
-await stub('../../src/services/providers/meta/metaLogin.js', {
+await stub('../../src/models/roads/meta/metaLogin.js', {
   runMetaDeviceLogin: (options: { cancelled: () => boolean; onEvent: (event: unknown) => void }) => {
     metaCancelled = options.cancelled
     options.onEvent({ phase: 'waiting', polls: 0, start: { userCode: 'META-CODE', verificationUri: 'https://example.com/meta/device', expiresAtMs: 1_900_000_000_000 } })
     return new Promise(() => {})
   },
 })
-await stub('../../src/services/providers/deepseek/deepseekLogin.js', {
+await stub('../../src/models/roads/deepseek/deepseekLogin.js', {
   storeDeepseekApiKeyLogin: async (value: string) => { submits.push(value); return { stored: successKey, ok: successKey, receipt: successKey ? 'DeepSeek connected — fixture receipt.' : 'Fixture refused the key — correct it here.' } },
 })
-await stub('../../src/services/providers/huggingface/huggingfaceLogin.js', {
+await stub('../../src/models/roads/huggingface/huggingfaceLogin.js', {
   runHuggingfaceDeviceLogin: (options: { onEvent: (event: unknown) => void }) => {
     options.onEvent({ phase: 'waiting', polls: 0, start: { userCode: 'HF-CODE', verificationUri: 'https://example.com/hf/device', expiresAtMs: 1_900_000_000_000 } })
     return new Promise(() => {})
@@ -104,23 +104,23 @@ await stub('../../src/services/providers/huggingface/huggingfaceLogin.js', {
 })
 let browserCancels = 0
 const browserHandles = () => ({ authorizeUrl: `https://example.com/authorize?state=${'fixture'.repeat(24)}`, result: new Promise(() => {}), cancel() { browserCancels++ }, completeWithRedirect() {} })
-await stub('../../src/services/providers/openai/openaiAccounts.js', { beginOpenaiBrowserConnect: browserHandles, beginOpenaiDeviceConnect: async () => ({ userCode: 'OA-CODE', verifyHint: 'https://example.com/device', result: new Promise(() => {}) }) })
-await stub('../../src/services/providers/openrouter/openrouterAccounts.js', { beginOpenrouterConnect: browserHandles })
-await stub('../../src/services/providers/gemini/geminiAccounts.js', { beginGeminiBrowserConnect: browserHandles })
-const { Box, Text } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-const { SettingsPopupSlot, settingsPopupGeometry } = await import('../../src/components/SettingsPopupSlot.js')
-const { ScrollKeybindingHandler } = await import('../../src/components/ScrollKeybindingHandler.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
-const { call } = await import('../../src/commands/login/login.js')
-const { loginFamilyRows } = await import('../../src/components/loginFamilyRows.js')
+await stub('../../src/models/roads/openai/openaiAccounts.js', { beginOpenaiBrowserConnect: browserHandles, beginOpenaiDeviceConnect: async () => ({ userCode: 'OA-CODE', verifyHint: 'https://example.com/device', result: new Promise(() => {}) }) })
+await stub('../../src/models/roads/openrouter/openrouterAccounts.js', { beginOpenrouterConnect: browserHandles })
+await stub('../../src/models/roads/gemini/geminiAccounts.js', { beginGeminiBrowserConnect: browserHandles })
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+const { SettingsPopupSlot, settingsPopupGeometry } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const { ScrollKeybindingHandler } = await import('../../src/screen/scroll-keys/ScrollKeybindingHandler.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
+const { call } = await import('../../src/commands/logins/login.js')
+const { loginFamilyRows } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.js')
 const familyRows = loginFamilyRows({ engineLegs: true })
 let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${pass ? '' : ` — ${detail ? `${detail}; ` : ''}fix the logins popup in src/components/SettingsPopupSlot.tsx (frame, geometry, key handling) or the /login command in src/commands/login/login.tsx; rerun with --frames <dir> to save each screen`}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${pass ? '' : ` — ${detail ? `${detail}; ` : ''}fix the logins popup in src/screen/overlays/SettingsPopupSlot.tsx (frame, geometry, key handling) or the /login command in src/commands/logins/login.tsx; rerun with --frames <dir> to save each screen`}`)
 }
 type Scene = { columns: number; rows: number; bottom?: number }
 const allSizes: Scene[] = [{ columns: 64, rows: 12 }, { columns: 80, rows: 24 }, { columns: 120, rows: 40 }, { columns: 178, rows: 51 }]
@@ -282,7 +282,7 @@ for (const s of sizes) {
   check('Gemini browser callback stays reachable', await walk(board.m, 'or paste the redirected URL:'))
   save(board.m, s, 'gemini-browser')
   board.close()
-  const geminiConfig = await import('../../src/services/providers/gemini/geminiAccounts.js')
+  const geminiConfig = await import('../../src/models/roads/gemini/geminiAccounts.js')
   geminiConfig.writeGeminiOauthClientConfig(null)
   board = await mount(s, 'deepseek')
   await key(board.m, KEY.enter)

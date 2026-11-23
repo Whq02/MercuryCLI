@@ -10,13 +10,13 @@ import {
   UTF8_CODEPAGE,
   _resetWin32ConsoleForTest,
   type Win32ConsoleSyscalls,
-} from '../../src/utils/runtime/win32Console.js'
-import { flagEnabled } from '../../src/substrate/flagRegistry.js'
+} from '../../src/platform/node-runtime/win32Console.js'
+import { flagEnabled } from '../../src/platform/substrate/flagRegistry.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 const win32FailHint =
-  'fix: the seam is decideWin32ConsoleUtf8, parseChcpCodepage, chcpSpawnShape, ensureWin32ConsoleUtf8 and restoreWin32ConsoleNow in src/utils/runtime/win32Console.ts (the MERCURY_WIN32_UTF8 entry is in FLAG_REGISTRY); change the function this check names, or rebuild dist with bun run build.ts for the bundle checks'
+  'fix: the seam is decideWin32ConsoleUtf8, parseChcpCodepage, chcpSpawnShape, ensureWin32ConsoleUtf8 and restoreWin32ConsoleNow in src/platform/node-runtime/win32Console.ts (the MERCURY_WIN32_UTF8 entry is in FLAG_REGISTRY); change the function this check names, or rebuild dist with bun run build.ts for the bundle checks'
 const check = (name: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}${cond ? '' : ` — ${win32FailHint}`}`)
   if (!cond) failures++

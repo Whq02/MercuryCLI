@@ -14,10 +14,10 @@ let failures = 0
 const check = (name: string, ok: unknown) => { console.log((ok ? 'PASS ' : 'FAIL ') + name); if (!ok) failures++ }
 try {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { Commands } = await import('../../src/components/HelpV2/Commands.tsx')
-  const { COMMAND_DOMAINS } = await import('../../src/components/HelpV2/commandDomains.ts')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { Commands } = await import('../../src/screen/help/Commands.tsx')
+  const { COMMAND_DOMAINS } = await import('../../src/screen/help/commandDomains.ts')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
   const commands = await Promise.all(['llmhost', 'restart', 'mcp'].map(async name => (await import('../../src/commands/' + name + '/index.ts')).default))
   const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8')
   for (const command of commands) {

@@ -14,21 +14,21 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { startOverflowFixture, OVERFLOW_LANES } = await import('./overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { recordSentRequest } = await import('../../src/services/agents/forkedAgent.ts')
-const { rosterOwnerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
-const { noteAgentEffortWord, forgetAgentEffortWord } = await import('../../src/utils/effort.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { compactConversation, partialCompactConversation } = await import('../../src/services/compact/compact.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+const { recordSentRequest } = await import('../../src/crew/agents/forkedAgent.ts')
+const { rosterOwnerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { noteAgentEffortWord, forgetAgentEffortWord } = await import('../../src/models/effort/effort.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { compactConversation, partialCompactConversation } = await import('../../src/engine/compaction/foldConversation.ts')
 const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 let failures = 0
 let checks = 0
@@ -60,9 +60,9 @@ try {
       const requests = fixture.captured.slice(before)
       const wire = JSON.stringify(requests.map(request => request.body))
       const label = `${road.lane} ${direction}`
-      check(`${label}: one request on its declared wire`, requests.length === 1 && requests[0]?.dialect === road.dialect, requests.map(request => ({ dialect: request.dialect, path: request.path })), 'fix compactConversation / partialCompactConversation in src/services/compact/compact.ts and compact/partial.ts so a fold sends exactly one request on its declared road dialect')
-      check(`${label}: built request never demands exposed reasoning`, requests.length > 0 && !forbidden.test(wire), error, 'remove the wording that asks for shown or exposed reasoning from the fold prompt built in src/services/compact/prompt.ts (getCompactPrompt, getPartialCompactPrompt)')
-      check(`${label}: the requested summary and custom instructions survive`, result?.summaryMessages.some(message => String(message.message.content).includes(summary)) === true && wire.includes(custom), error, 'the fold must return the model summary in summaryMessages and carry the custom instructions into the request: see compactConversation in src/services/compact/compact.ts and src/services/compact/prompt.ts')
+      check(`${label}: one request on its declared wire`, requests.length === 1 && requests[0]?.dialect === road.dialect, requests.map(request => ({ dialect: request.dialect, path: request.path })), 'fix compactConversation / partialCompactConversation in src/engine/compaction/foldConversation.ts and compact/partial.ts so a fold sends exactly one request on its declared road dialect')
+      check(`${label}: built request never demands exposed reasoning`, requests.length > 0 && !forbidden.test(wire), error, 'remove the wording that asks for shown or exposed reasoning from the fold prompt built in src/engine/compaction/summariserPrompt.ts (getCompactPrompt, getPartialCompactPrompt)')
+      check(`${label}: the requested summary and custom instructions survive`, result?.summaryMessages.some(message => String(message.message.content).includes(summary)) === true && wire.includes(custom), error, 'the fold must return the model summary in summaryMessages and carry the custom instructions into the request: see compactConversation in src/engine/compaction/foldConversation.ts and src/engine/compaction/summariserPrompt.ts')
     }
     for (const thinkingConfig of [{ type: 'adaptive' }, { type: 'enabled', budgetTokens: 8192 }] as const) {
       for (const continued of [false, true]) {
@@ -96,17 +96,17 @@ try {
         const body = requests.at(-1)?.body as any
         const posture = (row: any): unknown => row && ({ effort: row.reasoning_effort, reasoning: row.reasoning, thinking: row.thinking, output: row.output_config })
         const label = `${road.lane} ${thinkingConfig.type} ${continued ? 'continued' : 'fresh'}`
-        check(`${label}: summary request resolves once on its declared wire`, requests.length === 1 && requests[0]?.dialect === road.dialect && fixture.captured[referenceAt]?.dialect === road.dialect && error === undefined, { error, actual: requests[0]?.dialect, expected: road.dialect }, 'the fold request must be sent once through routedCallModel (src/services/providers/callModelRouter.ts) on the road dialect without throwing: see compactConversation in src/services/compact/compact.ts')
-        if (road.lane === 'anthropic-budget' && thinkingConfig.type === 'enabled') check(`${label}: the fixed thinking budget stays exact`, body?.thinking?.type === 'enabled' && body.thinking.budget_tokens === thinkingConfig.budgetTokens, body?.thinking, 'the fold request must keep the session fixed thinking budget: see compactConversation in src/services/compact/compact.ts')
-        check(`${label}: effort and thinking are the session request's; the ceiling is the session's or the fit's answer for the fold prompt's few extra tokens (under 4,000 lower, never higher)`, JSON.stringify(posture(body)) === JSON.stringify(posture(reference)) && ceilingFollows(ceilingOf(body), ceilingOf(reference)), { actual: posture(body), expected: posture(reference), ceilings: { fold: ceilingOf(body), session: ceilingOf(reference) } }, 'the fold request must reuse the session request effort, thinking and output ceiling (at most 4,000 tokens lower, never higher): see compactConversation in src/services/compact/compact.ts')
-        check(`${label}: no per-message effort row`, Array.isArray(body?.messages) ? body.messages.every((row: any) => row.output_config === undefined) : Array.isArray(body?.input) || Array.isArray(body?.contents), body?.messages, 'the fold request must not put output_config on any message row: see compactConversation in src/services/compact/compact.ts')
+        check(`${label}: summary request resolves once on its declared wire`, requests.length === 1 && requests[0]?.dialect === road.dialect && fixture.captured[referenceAt]?.dialect === road.dialect && error === undefined, { error, actual: requests[0]?.dialect, expected: road.dialect }, 'the fold request must be sent once through routedCallModel (src/models/roads/callModelRouter.ts) on the road dialect without throwing: see compactConversation in src/engine/compaction/foldConversation.ts')
+        if (road.lane === 'anthropic-budget' && thinkingConfig.type === 'enabled') check(`${label}: the fixed thinking budget stays exact`, body?.thinking?.type === 'enabled' && body.thinking.budget_tokens === thinkingConfig.budgetTokens, body?.thinking, 'the fold request must keep the session fixed thinking budget: see compactConversation in src/engine/compaction/foldConversation.ts')
+        check(`${label}: effort and thinking are the session request's; the ceiling is the session's or the fit's answer for the fold prompt's few extra tokens (under 4,000 lower, never higher)`, JSON.stringify(posture(body)) === JSON.stringify(posture(reference)) && ceilingFollows(ceilingOf(body), ceilingOf(reference)), { actual: posture(body), expected: posture(reference), ceilings: { fold: ceilingOf(body), session: ceilingOf(reference) } }, 'the fold request must reuse the session request effort, thinking and output ceiling (at most 4,000 tokens lower, never higher): see compactConversation in src/engine/compaction/foldConversation.ts')
+        check(`${label}: no per-message effort row`, Array.isArray(body?.messages) ? body.messages.every((row: any) => row.output_config === undefined) : Array.isArray(body?.input) || Array.isArray(body?.contents), body?.messages, 'the fold request must not put output_config on any message row: see compactConversation in src/engine/compaction/foldConversation.ts')
         const preserved = (row: any): unknown[] => {
           if (Array.isArray(row?.input)) return row.input.filter((item: any) => item.type === 'reasoning')
           return (row?.messages ?? []).filter((item: any) => item.role === 'assistant').map((item: any) => ({ content: Array.isArray(item.content) ? item.content.filter((block: any) => block.type === 'thinking' || block.type === 'redacted_thinking') : undefined, reasoning_content: item.reasoning_content, reasoning_details: item.reasoning_details, provider_specific_fields: item.provider_specific_fields }))
         }
-        check(`${label}: route-preserved thinking rides byte-identically`, JSON.stringify(preserved(body)) === JSON.stringify(preserved(reference)), { actual: preserved(body), expected: preserved(reference) }, 'the fold request must carry the session thinking and reasoning blocks unchanged: see compactConversation in src/services/compact/compact.ts and recordSentRequest in src/services/agents/forkedAgent.ts')
-        if (road.dialect === 'anthropic') check(`${label}: the signed block is present and unchanged`, JSON.stringify(preserved(body)).includes(JSON.stringify(signed)), preserved(body), 'the fold request must keep the signed thinking block byte for byte: see compactConversation in src/services/compact/compact.ts')
-        if (road.lane === 'openai') check(`${label}: encrypted reasoning stays ahead of its answer`, body?.input?.some((item: any, index: number) => JSON.stringify(item) === JSON.stringify(reasoning) && body.input[index + 1]?.type === 'message'), body?.input, 'the fold request must keep each encrypted reasoning item directly before its answer message: see compactConversation in src/services/compact/compact.ts')
+        check(`${label}: route-preserved thinking rides byte-identically`, JSON.stringify(preserved(body)) === JSON.stringify(preserved(reference)), { actual: preserved(body), expected: preserved(reference) }, 'the fold request must carry the session thinking and reasoning blocks unchanged: see compactConversation in src/engine/compaction/foldConversation.ts and recordSentRequest in src/crew/agents/forkedAgent.ts')
+        if (road.dialect === 'anthropic') check(`${label}: the signed block is present and unchanged`, JSON.stringify(preserved(body)).includes(JSON.stringify(signed)), preserved(body), 'the fold request must keep the signed thinking block byte for byte: see compactConversation in src/engine/compaction/foldConversation.ts')
+        if (road.lane === 'openai') check(`${label}: encrypted reasoning stays ahead of its answer`, body?.input?.some((item: any, index: number) => JSON.stringify(item) === JSON.stringify(reasoning) && body.input[index + 1]?.type === 'message'), body?.input, 'the fold request must keep each encrypted reasoning item directly before its answer message: see compactConversation in src/engine/compaction/foldConversation.ts')
         forgetAgentEffortWord(owner)
         delete process.env.MERCURY_EFFORT_LEVEL
       }
@@ -114,8 +114,8 @@ try {
   }
   {
     const { conversationAtThreshold } = await import('./thresholdFixture.ts')
-    const { getAutoCompactThreshold } = await import('../../src/services/compact/autoCompact.ts')
-    const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
+    const { getAutoCompactThreshold } = await import('../../src/engine/compaction/autoFold.ts')
+    const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
     const posture = (row: any): unknown => row && ({ effort: row.reasoning_effort, reasoning: row.reasoning, thinking: row.thinking, output: row.output_config, generation: row.generationConfig && { ...row.generationConfig, maxOutputTokens: undefined } })
     const preserved = (row: any): unknown[] => (row?.messages ?? row?.contents ?? []).filter((item: any) => item.role === 'assistant' || item.role === 'model').map((item: any) => ({ content: Array.isArray(item.content) ? item.content.filter((block: any) => block.type === 'thinking' || block.type === 'redacted_thinking') : undefined, parts: Array.isArray(item.parts) ? item.parts.filter((part: any) => part.thought === true || part.thoughtSignature !== undefined) : undefined }))
     for (const leg of [{ lane: 'anthropic', fixed: 20_000, ratio: 1 }, { lane: 'gemini', fixed: 42_723, ratio: 1.3 }]) {
@@ -142,10 +142,10 @@ try {
       const body = requests.at(-1)?.body as any
       const wire = JSON.stringify(body ?? {})
       const label = `${road.lane} · real-sized Read results (${built.ids.length} rounds) with a calibrated gauge AT the fold threshold (${built.gauge.toLocaleString('en-US')} of ${getContextWindowForModel(road.model).toLocaleString('en-US')}) · the threshold fold`
-      check(`${label}: the summary request resolves once on its declared wire`, requests.length === 1 && requests[0]?.dialect === road.dialect && error === undefined, { error, requests: requests.length }, 'the threshold fold must send exactly one request on the road dialect without throwing: see compactConversation in src/services/compact/compact.ts')
-      check(`${label}: effort and thinking are the session request's; the ceiling is the session's or the fit's answer for the fold prompt's few extra tokens (under 4,000 lower, never higher)`, JSON.stringify(posture(body)) === JSON.stringify(posture(reference)) && ceilingFollows(ceilingOf(body), ceilingOf(reference)), { actual: posture(body), expected: posture(reference), ceilings: { fold: ceilingOf(body), session: ceilingOf(reference) } }, 'the threshold fold request must reuse the session request effort, thinking and output ceiling (at most 4,000 tokens lower, never higher): see compactConversation in src/services/compact/compact.ts')
-      check(`${label}: route-preserved thinking rides byte-identically, every round of it`, JSON.stringify(preserved(body)) === JSON.stringify(preserved(reference)) && preserved(body).length === built.ids.length, { actual: preserved(body).length, expected: preserved(reference).length }, 'the threshold fold request must keep every round thinking block: see compactConversation in src/services/compact/compact.ts')
-      check(`${label}: the newest round and every result's bytes ride whole`, built.paths.every(path => wire.includes(JSON.stringify(path).slice(1, -1))) && built.results.every(text => wire.includes(JSON.stringify(text).slice(1, -1))) && !wire.includes('characters omitted for the compaction'), { newest: wire.includes(built.paths.at(-1) ?? '') }, 'the threshold fold must send every Read result whole, with no omitted-characters marker: see compactConversation in src/services/compact/compact.ts')
+      check(`${label}: the summary request resolves once on its declared wire`, requests.length === 1 && requests[0]?.dialect === road.dialect && error === undefined, { error, requests: requests.length }, 'the threshold fold must send exactly one request on the road dialect without throwing: see compactConversation in src/engine/compaction/foldConversation.ts')
+      check(`${label}: effort and thinking are the session request's; the ceiling is the session's or the fit's answer for the fold prompt's few extra tokens (under 4,000 lower, never higher)`, JSON.stringify(posture(body)) === JSON.stringify(posture(reference)) && ceilingFollows(ceilingOf(body), ceilingOf(reference)), { actual: posture(body), expected: posture(reference), ceilings: { fold: ceilingOf(body), session: ceilingOf(reference) } }, 'the threshold fold request must reuse the session request effort, thinking and output ceiling (at most 4,000 tokens lower, never higher): see compactConversation in src/engine/compaction/foldConversation.ts')
+      check(`${label}: route-preserved thinking rides byte-identically, every round of it`, JSON.stringify(preserved(body)) === JSON.stringify(preserved(reference)) && preserved(body).length === built.ids.length, { actual: preserved(body).length, expected: preserved(reference).length }, 'the threshold fold request must keep every round thinking block: see compactConversation in src/engine/compaction/foldConversation.ts')
+      check(`${label}: the newest round and every result's bytes ride whole`, built.paths.every(path => wire.includes(JSON.stringify(path).slice(1, -1))) && built.results.every(text => wire.includes(JSON.stringify(text).slice(1, -1))) && !wire.includes('characters omitted for the compaction'), { newest: wire.includes(built.paths.at(-1) ?? '') }, 'the threshold fold must send every Read result whole, with no omitted-characters marker: see compactConversation in src/engine/compaction/foldConversation.ts')
     }
   }
 } finally {

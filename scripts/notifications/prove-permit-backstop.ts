@@ -15,16 +15,16 @@ for (const k of [
   delete process.env[k]
 }
 
-const { queryEvents } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const gov = await import('../../src/services/capacity/governor.ts')
-const compose = await import('../../src/services/capacity/composeCeilings.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const gov = await import('../../src/crew/capacity/governor.ts')
+const compose = await import('../../src/crew/capacity/composeCeilings.ts')
 
 function pinLanes(n: number | null): void {
   if (n === null) delete process.env.MERCURY_MODEL_LANES
@@ -42,7 +42,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — permit backstop exceeded 120s')
-  console.log('  a run never finished: look for a permit that is never granted or never released in acquireModelPermit and releaseModelPermitByCall (src/services/capacity/governor.ts), and in waitForModelPermit and streamModel (src/run-core/turn/streamModel.ts)')
+  console.log('  a run never finished: look for a permit that is never granted or never released in acquireModelPermit and releaseModelPermitByCall (src/crew/capacity/governor.ts), and in waitForModelPermit and streamModel (src/engine/loop/turn/streamModel.ts)')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -142,7 +142,7 @@ async function runOnce(
 console.log('permit backstop — serialization, receipts, fault release (the real core, lanes=1)')
 
 console.log('\n§1 — two concurrent runs serialize at the provider boundary')
-permitFailHint = 'the permit is taken in waitForModelPermit (src/run-core/turn/streamModel.ts) through acquireModelPermit (src/services/capacity/governor.ts); with one lane a second call must wait there, and its model_permit event must carry the wait'
+permitFailHint = 'the permit is taken in waitForModelPermit (src/engine/loop/turn/streamModel.ts) through acquireModelPermit (src/crew/capacity/governor.ts); with one lane a second call must wait there, and its model_permit event must carry the wait'
 {
   gov._resetCapacityGovernorForTesting()
   pinLanes(1)
@@ -162,7 +162,7 @@ permitFailHint = 'the permit is taken in waitForModelPermit (src/run-core/turn/s
 }
 
 console.log('\n§2 — a provider FAULT releases the permit')
-permitFailHint = 'a failed provider call must still release its permit: check the releaseModelPermitByCall calls in streamModel (src/run-core/turn/streamModel.ts) and releaseModelPermitByCall in src/services/capacity/governor.ts'
+permitFailHint = 'a failed provider call must still release its permit: check the releaseModelPermitByCall calls in streamModel (src/engine/loop/turn/streamModel.ts) and releaseModelPermitByCall in src/crew/capacity/governor.ts'
 {
   gov._resetCapacityGovernorForTesting()
   pinLanes(1)
@@ -173,7 +173,7 @@ permitFailHint = 'a failed provider call must still release its permit: check th
 }
 
 console.log('\n§3 — normal completion leaks nothing')
-permitFailHint = 'a finished call must release its permit and the first call must be granted at once: check streamModel (src/run-core/turn/streamModel.ts) and acquireModelPermit (src/services/capacity/governor.ts)'
+permitFailHint = 'a finished call must release its permit and the first call must be granted at once: check streamModel (src/engine/loop/turn/streamModel.ts) and acquireModelPermit (src/crew/capacity/governor.ts)'
 {
   gov._resetCapacityGovernorForTesting()
   pinLanes(null)

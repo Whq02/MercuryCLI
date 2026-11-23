@@ -12,14 +12,14 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-spend-total-'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0
-const spendTotalFailureHint = 'change how providerSessionSpend sums a lane (input plus cache-read plus cache-creation tokens, output and cost unchanged) in src/services/providers/providerUsage/spend.ts, or how addToTotalSessionCost records usage in src/cost-tracker.ts'
+const spendTotalFailureHint = 'change how providerSessionSpend sums a lane (input plus cache-read plus cache-creation tokens, output and cost unchanged) in src/models/roads/provider-usage/spend.ts, or how addToTotalSessionCost records usage in src/models/usage/sessionCost.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${spendTotalFailureHint}` : ''}`)
 }
 
-const ledger = await import('../../src/cost-tracker.ts')
-const { providerSessionSpend } = await import('../../src/services/providers/providerUsage.ts')
+const ledger = await import('../../src/models/usage/sessionCost.ts')
+const { providerSessionSpend } = await import('../../src/models/roads/providerUsage.ts')
 
 console.log('the session-spend view reports the prompt as sent')
 ledger.resetCostState()

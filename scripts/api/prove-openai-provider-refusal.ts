@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const home = mkdtempSync(join(tmpdir(), 'openai-refusal-'))
@@ -29,13 +29,13 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   return new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } })
 } })
 process.env.MERCURY_OPENAI_API_BASE = `http://127.0.0.1:${server.port}/v1`
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { requestConversationPlan } = await import('../../src/services/messages/apiPlan.ts')
-const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage } = await import('../../src/utils/messages/factories.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { requestConversationPlan } = await import('../../src/engine/messages/apiPlan.ts')
+const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage } = await import('../../src/engine/message-shapes/factories.ts')
 const tool = { name: 'fixture_tool', description: async () => 'fixture', inputSchema: z.object({}), isEnabled: async () => true, isReadOnly: () => true, prompt: async () => 'fixture', userFacingName: () => 'fixture' } as never
 async function call(messages: Message[]): Promise<AssistantMessage[]> {
   const rows: AssistantMessage[] = []
@@ -43,7 +43,7 @@ async function call(messages: Message[]): Promise<AssistantMessage[]> {
   return rows
 }
 let failures = 0
-const check = (label: string, ok: boolean): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ' — outcome settling is in src/services/providers/openai/openaiCallModel/attemptSettle.ts; what the next request carries is decided by requestConversationPlan in src/services/messages/apiPlan.ts'}`); if (!ok) failures++ }
+const check = (label: string, ok: boolean): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ' — outcome settling is in src/models/roads/openai/call-model/attemptSettle.ts; what the next request carries is decided by requestConversationPlan in src/engine/messages/apiPlan.ts'}`); if (!ok) failures++ }
 try {
   for (const scenario of ['refusal', 'done-only', 'filter']) {
     mode = scenario

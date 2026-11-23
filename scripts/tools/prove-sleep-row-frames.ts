@@ -11,17 +11,17 @@ process.on('exit', () => rmSync(proofHome, { recursive: true, force: true }))
 process.env.FORCE_COLOR = '3'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 const React = (await import('react')).default
-const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
-const { AssistantToolUseMessage } = await import('../../src/components/messages/AssistantToolUseMessage.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { SleepTool } = await import('../../src/tools/SleepTool/SleepTool.tsx')
-const { clampWait } = await import('../../src/utils/waitCeiling.js')
-const { HELM_BOTH_RAILS_MIN, railPlanAt } = await import('../../src/utils/helmGeometry.js')
-const { LAYOUT_BREAKPOINTS } = await import('../../src/hooks/useLayoutTier.js')
+const { renderToAnsiString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { AssistantToolUseMessage } = await import('../../src/screen/messages/AssistantToolUseMessage.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { SleepTool } = await import('../../src/tools/sleep/SleepTool.tsx')
+const { clampWait } = await import('../../src/tools/kit/waitCeiling.js')
+const { HELM_BOTH_RAILS_MIN, railPlanAt } = await import('../../src/screen/fullscreen-layout/helmGeometry.js')
+const { LAYOUT_BREAKPOINTS } = await import('../../src/screen/fullscreen-layout/useLayoutTier.js')
 
 let failures = 0
 const check = (label: string, pass: boolean, detail = ''): void => {
@@ -117,20 +117,20 @@ for (const [columns, rows] of SIZES) {
       plainFrame.push(`Sleep ${seconds} · ${state}`, plain)
       ansiFrame.push(`Sleep ${seconds} · ${state}`, raw)
       const lines = plain.split('\n')
-      check(`${label} Sleep ${seconds} ${state}: one row`, lines.length === 1, `The Sleep row must paint on one line; change renderToolUseMessage in src/tools/SleepTool/SleepTool.tsx. ${JSON.stringify(lines)}`)
+      check(`${label} Sleep ${seconds} ${state}: one row`, lines.length === 1, `The Sleep row must paint on one line; change renderToolUseMessage in src/tools/sleep/SleepTool.tsx. ${JSON.stringify(lines)}`)
       check(`${label} Sleep ${seconds} ${state}: the row reads the ${waited} s wait${clamped ? ' and the clamp in the result\'s words' : ''}`,
-        plain.includes(`Sleep`) && plain.endsWith(target), `The row must end with the wait that happens, clamp clause included; change renderToolUseMessage in src/tools/SleepTool/SleepTool.tsx (it clamps through clampWait in src/utils/waitCeiling.ts). row reads ${JSON.stringify(plain)}`)
+        plain.includes(`Sleep`) && plain.endsWith(target), `The row must end with the wait that happens, clamp clause included; change renderToolUseMessage in src/tools/sleep/SleepTool.tsx (it clamps through clampWait in src/tools/kit/waitCeiling.ts). row reads ${JSON.stringify(plain)}`)
       if (clamped) {
-        check(`${label} Sleep ${seconds} ${state}: the requested ${requested} is not painted`, !plain.includes(requested), `A clamped row must show the wait that happens and not the requested seconds; change renderToolUseMessage in src/tools/SleepTool/SleepTool.tsx. row reads ${JSON.stringify(plain)}`)
+        check(`${label} Sleep ${seconds} ${state}: the requested ${requested} is not painted`, !plain.includes(requested), `A clamped row must show the wait that happens and not the requested seconds; change renderToolUseMessage in src/tools/sleep/SleepTool.tsx. row reads ${JSON.stringify(plain)}`)
       } else {
         const before = await paintRow(asBefore, seconds, waited, settled, width)
-        check(`${label} Sleep ${seconds} ${state}: an unclamped row is byte-identical to the row before`, raw === before, `An unclamped row must paint exactly as the old renderToolUseMessage did; change renderToolUseMessage in src/tools/SleepTool/SleepTool.tsx. ${JSON.stringify(stripAnsi(raw))} vs ${JSON.stringify(stripAnsi(before))}`)
+        check(`${label} Sleep ${seconds} ${state}: an unclamped row is byte-identical to the row before`, raw === before, `An unclamped row must paint exactly as the old renderToolUseMessage did; change renderToolUseMessage in src/tools/sleep/SleepTool.tsx. ${JSON.stringify(stripAnsi(raw))} vs ${JSON.stringify(stripAnsi(before))}`)
       }
     }
     plainFrame.push(`Sleep ${seconds} · activity`, activity, '')
     ansiFrame.push(`Sleep ${seconds} · activity`, activity, '')
     check(`${label} Sleep ${seconds} activity: the spinner's words read the ${waited} s wait${clamped ? ' and the clamp' : ''}`,
-      activity === `Sleeping for ${target}`, `The spinner words must name the wait that happens; change getActivityDescription in src/tools/SleepTool/SleepTool.tsx. activity reads ${JSON.stringify(activity)}`)
+      activity === `Sleeping for ${target}`, `The spinner words must name the wait that happens; change getActivityDescription in src/tools/sleep/SleepTool.tsx. activity reads ${JSON.stringify(activity)}`)
   }
   for (const line of plainFrame) console.log(`    ${line}`)
   if (frameDir) {

@@ -1,6 +1,6 @@
-import type { Command } from '../../commands.js'
-import { flagEnabled } from '../../substrate/flagRegistry.js'
-import { isEssentialTrafficOnly } from '../../utils/privacyLevel.js'
+import type { Command } from '../catalogue/commands.js'
+import { flagEnabled } from '../../platform/substrate/flagRegistry.js'
+import { isEssentialTrafficOnly } from '../../models/roads/privacyLevel.js'
 
 const feedback: Command = {
   type: 'local-jsx',

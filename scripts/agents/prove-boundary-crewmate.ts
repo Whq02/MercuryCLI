@@ -17,23 +17,23 @@ const model = 'compat/boundary/Fixture/Reasoner'
 const agentId = 'boundary-effort-agent'
 if (childAt !== -1) {
   const mode = process.argv[childAt + 1]
-  const config = await import('../../src/utils/config.ts')
+  const config = await import('../../src/platform/settings/config.ts')
   config.enableConfigs()
   config.saveGlobalConfig(current => ({ ...current, agents: { ...current.agents, defaultEffort: mode === 'launch' ? 'max' : 'low' } }))
-  const bootstrap = await import('../../src/bootstrap/state.ts')
+  const bootstrap = await import('../../src/boot/process-state/processState.ts')
   bootstrap.setIsInteractive(false)
   bootstrap.setOriginalCwd(process.cwd())
   bootstrap.setCwdState(process.cwd())
   bootstrap.switchSession('00000000-0000-4000-8000-000000000042' as never)
-  const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
-  const { resumeAgentBackground } = await import('../../src/tools/AgentTool/resumeAgent.ts')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
-  const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-  const { query: startTurn } = await import('../../src/query.ts')
-  const { readAgentMetadata, flushSessionStorage, getAgentTranscript } = await import('../../src/utils/sessionStorage.ts')
-  await import('../../src/tasks.ts')
-  type AppState = import('../../src/state/AppStateStore.ts').AppState
+  const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+  const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+  const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+  const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+  const { readAgentMetadata, flushSessionStorage, getAgentTranscript } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+  await import('../../src/engine/tasks/tasks.ts')
+  type AppState = import('../../src/screen/app-state/AppStateStore.ts').AppState
   let state: AppState = { ...getDefaultAppState(), effortValue: 'low' } as AppState
   const setState = (update: (previous: AppState) => AppState) => { state = update(state) }
   const context = {
@@ -89,14 +89,14 @@ if (childAt !== -1) {
   }
   try {
     const launch = await child('launch')
-    check('the original process dispatches the configured max effort without a per-call override', f.captures[0]?.body.reasoning_effort === 'max' && launch.metadata?.effort === 'max' && launch.metadata.effortOverride === undefined, launch, 'resolveAgentEffort in src/tools/AgentTool/runAgent.ts must use the configured agents.defaultEffort when no per-call effort is given, and the recorded metadata must hold max with no effortOverride')
+    check('the original process dispatches the configured max effort without a per-call override', f.captures[0]?.body.reasoning_effort === 'max' && launch.metadata?.effort === 'max' && launch.metadata.effortOverride === undefined, launch, 'resolveAgentEffort in src/tools/crewmate/runCrewmate.ts must use the configured agents.defaultEffort when no per-call effort is given, and the recorded metadata must hold max with no effortOverride')
     const resumed = await child('resume')
-    check('a fresh process resumes the same endpoint and wire model', f.captures.length === 2 && f.captures[1]?.body.model === f.model, { captures: f.captures.length, model: f.captures[1]?.body.model }, 'the resumed crewmate must send its second turn to the same compat endpoint and wire model as the first; read the model recorded for the crewmate in src/tools/AgentTool/resumeAgent.ts')
-    check('the resumed request retains its recorded max effort despite a new low default', f.captures[1]?.body.reasoning_effort === 'max', f.captures[1]?.body.reasoning_effort, 'resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts must restore the recorded effort (restoredEffort) ahead of the current agents.defaultEffort')
-    check('the resumed metadata records max instead of silently replacing it', resumed.metadata?.effort === 'max', resumed.metadata, 'the resumed crewmate record must keep the effort it was launched with; see restoredEffort in src/tools/AgentTool/resumeAgent.ts')
+    check('a fresh process resumes the same endpoint and wire model', f.captures.length === 2 && f.captures[1]?.body.model === f.model, { captures: f.captures.length, model: f.captures[1]?.body.model }, 'the resumed crewmate must send its second turn to the same compat endpoint and wire model as the first; read the model recorded for the crewmate in src/tools/crewmate/resumeCrewmate.ts')
+    check('the resumed request retains its recorded max effort despite a new low default', f.captures[1]?.body.reasoning_effort === 'max', f.captures[1]?.body.reasoning_effort, 'resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts must restore the recorded effort (restoredEffort) ahead of the current agents.defaultEffort')
+    check('the resumed metadata records max instead of silently replacing it', resumed.metadata?.effort === 'max', resumed.metadata, 'the resumed crewmate record must keep the effort it was launched with; see restoredEffort in src/tools/crewmate/resumeCrewmate.ts')
     check('both turns and the earlier reasoning text survive the process boundary', resumed.hasFirst && resumed.hasSecond && f.captures[1]?.body.messages.some((row: any) => row.role === 'assistant' && row.reasoning_content === 'reasoning-0'), { hasFirst: resumed.hasFirst, hasSecond: resumed.hasSecond }, 'the resumed request must carry both turns from the stored crewmate transcript, including the assistant reasoning_content of the first turn')
     const overridden = await child('override')
-    check('an explicit resume effort still overrides the retained tier', f.captures[2]?.body.reasoning_effort === 'medium' && overridden.metadata?.effort === 'medium', { wire: f.captures[2]?.body.reasoning_effort, recorded: overridden.metadata?.effort }, 'an explicit effort passed to resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts (args.effort) must win over the recorded effort, on the wire and in the metadata')
+    check('an explicit resume effort still overrides the retained tier', f.captures[2]?.body.reasoning_effort === 'medium' && overridden.metadata?.effort === 'medium', { wire: f.captures[2]?.body.reasoning_effort, recorded: overridden.metadata?.effort }, 'an explicit effort passed to resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts (args.effort) must win over the recorded effort, on the wire and in the metadata')
     console.log('BOUNDARY CREWMATE ' + (failures ? 'RED' : 'GREEN') + ' — ' + (checks - failures) + '/' + checks + '; actual launch and resumes in separate processes, loopback model only')
   } finally { f.close() }
   process.exitCode = failures ? 1 : 0

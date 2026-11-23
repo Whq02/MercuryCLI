@@ -15,14 +15,14 @@ mkdirSync(join(ROOT, 'pkg'), { recursive: true })
 process.chdir(join(ROOT, 'pkg'))
 
 let failures = 0
-const IMPORTS_WHERE = 'the @import scope, its diagnostics and the import composing are processInstructionFile in src/services/instructions/discovery.ts, the @token reading is parseInstructionFileContent in src/services/instructions/sourceText.ts, the file rosters are mercuryNativeConvention in src/services/instructions/nativeSource.ts'
+const IMPORTS_WHERE = 'the @import scope, its diagnostics and the import composing are processInstructionFile in src/sessions/instructions/discovery.ts, the @token reading is parseInstructionFileContent in src/sessions/instructions/sourceText.ts, the file rosters are mercuryNativeConvention in src/sessions/instructions/nativeSource.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : (detail ? ' | ' : ' — ') + IMPORTS_WHERE}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const discovery = await import('../../src/services/instructions/discovery.ts')
+const discovery = await import('../../src/sessions/instructions/discovery.ts')
 
 section('§1 FC-030 — a parent file imports its own sibling')
 {
@@ -87,7 +87,7 @@ section('§1 FC-030 — a parent file imports its own sibling')
 
 section('§3 FN-015 rank 44 — an @import spelled with Windows separators composes, or says why not')
 {
-  const { parseInstructionFileContent } = await import('../../src/services/instructions/sourceText.ts')
+  const { parseInstructionFileContent } = await import('../../src/sessions/instructions/sourceText.ts')
   const base = join(ROOT, 'MERCURY.md')
   const parsed = parseInstructionFileContent(
     'Rules.\n\n@docs\\style.md\n@.\\docs\\other.md\n@C:\\shared\\rules.md\n@notes\\ with\\ space.md\n@./posix.md\n',
@@ -188,7 +188,7 @@ rmSync(ROOT, { recursive: true, force: true })
 }
 
 {
-  const { mercuryNativeConvention } = await import('../../src/services/instructions/nativeSource.ts')
+  const { mercuryNativeConvention } = await import('../../src/sessions/instructions/nativeSource.ts')
   const dir = '/proj'
   const projectFiles = mercuryNativeConvention.projectDirFiles(dir)
   const localFiles = (mercuryNativeConvention as { localDirFiles?: (d: string) => string[] }).localDirFiles?.(dir) ?? []

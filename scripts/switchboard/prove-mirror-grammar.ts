@@ -9,9 +9,9 @@ process.env.MERCURY_CONFIG_DIR = process.env.MERCURY_CONFIG_DIR
 
 let failures = 0
 const mirrorFailureHint = (label: string): string => {
-  if (/plate/.test(label)) return 'change attachedPlateName in src/components/messages/TranscriptNameplate.tsx'
-  if (/projection|retired-format/.test(label)) return 'change foldWorkerRecord in src/utils/sessionStorage/mirrorRecord.ts (re-exported by src/components/concourse/workerTranscriptFold.ts)'
-  return 'change mergeFoldedMessages in src/components/concourse/workerTranscriptFold.ts (or foldWorkerRecord, which gives both revisions one uuid)'
+  if (/plate/.test(label)) return 'change attachedPlateName in src/screen/messages/TranscriptNameplate.tsx'
+  if (/projection|retired-format/.test(label)) return 'change foldWorkerRecord in src/sessions/transcripts/mirrorRecord.ts (re-exported by src/screen/concourse/workerTranscriptFold.ts)'
+  return 'change mergeFoldedMessages in src/screen/concourse/workerTranscriptFold.ts (or foldWorkerRecord, which gives both revisions one uuid)'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -20,7 +20,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 console.log('LAW 2 — the word-ban (mirror-agent-word):')
-const { attachedPlateName, userHandle } = await import('../../src/components/messages/TranscriptNameplate.js')
+const { attachedPlateName, userHandle } = await import('../../src/screen/messages/TranscriptNameplate.js')
 check("attachedPlateName maps 'agent' → 'Mercury'", attachedPlateName('agent') === 'Mercury')
 check("attachedPlateName plates 'coordinator' as 'Coordinator'", attachedPlateName('coordinator') === 'Coordinator')
 check(
@@ -32,9 +32,9 @@ check(
   (['agent', 'coordinator', 'user'] as const).every(a => !/\bagent\b/i.test(attachedPlateName(a))),
 )
 
-const { foldWorkerRecord } = await import('../../src/components/concourse/workerTranscriptFold.js')
-const { entryToRecord } = await import('../../src/fabric/entryCodec.js')
-const { ordinalOf } = await import('../../src/fabric/ordinal.js')
+const { foldWorkerRecord } = await import('../../src/screen/concourse/workerTranscriptFold.js')
+const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.js')
+const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.js')
 let mgOrd = 0
 const mgCtx = {
   sessionId: '00000000-aaaa-4000-8000-00000000mg01' as never,
@@ -60,7 +60,7 @@ check(
 )
 
 console.log('LAW 6 — the revision collapse (AGENTDIALS C3: last-write-wins per recordId):')
-const { mergeFoldedMessages } = await import('../../src/components/concourse/workerTranscriptFold.js')
+const { mergeFoldedMessages } = await import('../../src/screen/concourse/workerTranscriptFold.js')
 const revisionEntry = (stopReason: string | null, text: string): unknown =>
   entryToRecord(
     {

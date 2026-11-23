@@ -5,9 +5,9 @@ import { mountOffscreen, pinScratchHome, releaseScratchHome, waitFor } from '../
 
 const home = pinScratchHome('sessions-command-routing')
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const storage = await import('../../src/utils/sessionStorage.js')
+const storage = await import('../../src/sessions/transcripts/sessionStorage.js')
 const id = '00000000-0000-4000-8000-000000000044'
 let logs: unknown[] = []
 let direct: unknown = { sessionId: id }
@@ -18,7 +18,7 @@ let failures = 0
 const unhandled: unknown[] = []
 const onUnhandled = (error: unknown): void => { unhandled.push(error) }
 process.on('unhandledRejection', onUnhandled)
-mock.module('../../src/utils/sessionStorage.js', () => ({
+mock.module('../../src/sessions/transcripts/sessionStorage.js', () => ({
   ...storage,
   listRepoSessions: async () => logs,
   listSessionsAcrossProjects: async () => logs,
@@ -29,10 +29,10 @@ mock.module('../../src/utils/sessionStorage.js', () => ({
   isLiteListing: (log: { lite?: boolean }) => log.lite === true,
   fillSessionListing: async (log: unknown) => { if (hydrationFails) throw new Error('fixture transcript unreadable'); return log },
 }))
-mock.module('../../src/utils/getWorktreePathsPortable.js', () => ({ getWorktreePathsPortable: async () => [home] }))
-mock.module('../../src/utils/sessionResumeFilter.js', () => ({ filterResumableSessions: (rows: unknown[]) => rows }))
-mock.module('../../src/components/LogSelector.js', () => ({ LogSelector: (props: { onSelect: typeof selected }) => { selected = props.onSelect; return null } }))
-mock.module('../../src/components/Spinner.js', () => ({ Spinner: () => null }))
+mock.module('../../src/platform/git/worktree/worktreePathsPortable.js', () => ({ getWorktreePathsPortable: async () => [home] }))
+mock.module('../../src/screen/session-chooser/sessionResumeFilter.js', () => ({ filterResumableSessions: (rows: unknown[]) => rows }))
+mock.module('../../src/screen/session-chooser/SessionBrowser.js', () => ({ LogSelector: (props: { onSelect: typeof selected }) => { selected = props.onSelect; return null } }))
+mock.module('../../src/screen/spinner/Spinner.js', () => ({ Spinner: () => null }))
 const { call } = await import('../../src/commands/sessions/sessions.js')
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
@@ -65,11 +65,11 @@ process.removeListener('unhandledRejection', onUnhandled)
 
 let generated: ((name: string) => void) | undefined
 mock.module('../../src/commands/rename/generateSessionName.js', () => ({ generateSessionName: () => new Promise<string>(resolve => { generated = resolve }) }))
-const control = await import('../../src/daemon/controlSocket.js')
+const control = await import('../../src/daemon/control/controlSocket.js')
 const renamed: string[] = []
-mock.module('../../src/daemon/controlSocket.js', () => ({ ...control, daemonControlRpc: async (request: { sessionId: string }) => { renamed.push(request.sessionId); return { ok: true, outcome: 'applied' } } }))
-const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
+mock.module('../../src/daemon/control/controlSocket.js', () => ({ ...control, daemonControlRpc: async (request: { sessionId: string }) => { renamed.push(request.sessionId); return { ok: true, outcome: 'applied' } } }))
+const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.js')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
 const { call: rename } = await import('../../src/commands/rename/rename.js')
 const focus = (sessionId: string): void => { setFocusedSessionConnector(Object.assign(new NoSessionConnector(), { sessionId: () => sessionId })) }
 let mirrors = 0

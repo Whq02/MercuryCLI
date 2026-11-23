@@ -31,23 +31,23 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   if (!['127.0.0.1', '[::1]'].includes(url.hostname)) { escaped.push(url.origin); throw new Error('HF proof permits loopback fixtures only') }
   return nativeFetch(input, init)
 }, nativeFetch)
-const hfSrc = 'fix in src/services/host/vendors/huggingface.ts (HuggingfaceClient)'
-const hfWorkerSrc = 'fix in src/services/host/worker.ts (runHostJob) or src/services/host/vendors/huggingface.ts'
+const hfSrc = 'fix in src/models/hosting/vendors/huggingface.ts (HuggingfaceClient)'
+const hfWorkerSrc = 'fix in src/models/hosting/worker.ts (runHostJob) or src/models/hosting/vendors/huggingface.ts'
 let checks = 0
 const check = (name: string, truth: unknown, detail = '') => { assert.ok(truth, name + (detail ? ': ' + detail : '')); checks++; console.log('PASS ' + name) }
 try {
-  const { HOST_VENDORS, vendorKey, vendorClient } = await import('../../src/services/host/vendors/client.ts')
-  check('Hugging Face is the fourth rental provider', HOST_VENDORS.includes('huggingface'), 'add huggingface to HOST_VENDORS in src/services/host/vendors/client.ts')
-  const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
+  const { HOST_VENDORS, vendorKey, vendorClient } = await import('../../src/models/hosting/vendors/client.ts')
+  check('Hugging Face is the fourth rental provider', HOST_VENDORS.includes('huggingface'), 'add huggingface to HOST_VENDORS in src/models/hosting/vendors/client.ts')
+  const { writeStoredHuggingfaceApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
   writeStoredHuggingfaceApiKey(hf.key)
-  check('the existing Hugging Face sign-in supplies the rental key', vendorKey('huggingface') === hf.key, 'fix vendorKey in src/services/host/vendors/client.ts to read the stored Hugging Face key')
-  const { HuggingfaceClient } = await import('../../src/services/host/vendors/huggingface.ts')
-  const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
-  const { hostJobReadOnly } = await import('../../src/services/host/retry.ts')
-  const { queueHostSetup } = await import('../../src/services/host/jobs.ts')
-  const { readHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
-  const { runHostJob } = await import('../../src/services/host/worker.ts')
-  const { configuredCompatEndpoints, resolveCompatApiKey } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
+  check('the existing Hugging Face sign-in supplies the rental key', vendorKey('huggingface') === hf.key, 'fix vendorKey in src/models/hosting/vendors/client.ts to read the stored Hugging Face key')
+  const { HuggingfaceClient } = await import('../../src/models/hosting/vendors/huggingface.ts')
+  const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
+  const { hostJobReadOnly } = await import('../../src/models/hosting/retry.ts')
+  const { queueHostSetup } = await import('../../src/models/hosting/jobs.ts')
+  const { readHostRecord, removeHostRecord } = await import('../../src/models/hosting/store.ts')
+  const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+  const { configuredCompatEndpoints, resolveCompatApiKey } = await import('../../src/models/roads/openaicompat/compatAccounts.ts')
   const signal = new AbortController().signal
   const api = new HuggingfaceClient(hf.key, hf.baseUrl, { pollMs: 5, readyTimeoutMs: 40 })
   const offers = await api.offers(signal)
@@ -146,7 +146,7 @@ try {
   const read = hostJobReadOnly({ label: api.label, pauseMs: 1, timeoutMs: 1000, signal, mark: words => marks.push(words) })
   const at = Date.now()
   await read('pod listing', abort => api.pods(abort))
-  check('read retry honors Retry-After and recovers', Date.now() - at >= 30 && marks.some(row => row.includes('429')) && marks.some(row => row.includes('recovered')), 'fix hostJobReadOnly in src/services/host/retry.ts to wait out Retry-After and report recovery')
+  check('read retry honors Retry-After and recovers', Date.now() - at >= 30 && marks.some(row => row.includes('429')) && marks.some(row => row.includes('recovered')), 'fix hostJobReadOnly in src/models/hosting/retry.ts to wait out Retry-After and report recovery')
   hf.state.ambiguousCreate = true
   const before = hf.state.creates
   await assert.rejects(api.create(offer, '', 'hf-ambiguous'), /may exist/)
@@ -174,7 +174,7 @@ try {
     check(engine + ' preserves parallelism or the exact GGUF/projector paths', engine === 'vLLM' ? payload.model.image.vLLM.tensorParallelSize === 8 && payload.model.image.vLLM.dataParallelSize === 1 : payload.model.image.llamacpp.modelPath === chosen.recipe.weightFile && payload.model.image.llamacpp.mmprojModelPath === chosen.recipe.mmproj, hfSrc + ' create(): carry tensor and data parallelism for vLLM and the GGUF and projector paths for llamacpp')
     await api.terminate(created.id)
   }
-  check('vendor factory returns managed HF client', vendorClient('huggingface', { apiBaseUrl: hf.baseUrl }).capabilities.managed, 'fix vendorClient in src/services/host/vendors/client.ts to return the managed HuggingfaceClient')
+  check('vendor factory returns managed HF client', vendorClient('huggingface', { apiBaseUrl: hf.baseUrl }).capabilities.managed, 'fix vendorClient in src/models/hosting/vendors/client.ts to return the managed HuggingfaceClient')
   check('all HF requests stay on loopback', escaped.length === 0, 'a request left loopback: ' + escaped.join(', '))
   console.log('HF ENDPOINTS GREEN — ' + checks + ' checks; no real token or endpoint')
 } finally { await hf.close(); f.close(); globalThis.fetch = nativeFetch; Date.now = realNow }

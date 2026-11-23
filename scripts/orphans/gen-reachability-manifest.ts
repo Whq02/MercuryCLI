@@ -5,7 +5,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { buildImportGraph, extractSpecs, resolveSpec, readStubMap, GRAPH_ROOT } from './graph.ts'
-import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
+import { FLAG_REGISTRY } from '../../src/platform/substrate/flagRegistry.ts'
 import { DURABLE_OPERATION_MATRIX } from '../reliability/durableOperationMatrix.ts'
 
 const CHECK = process.argv.includes('--check')
@@ -16,7 +16,7 @@ const MAP_PATH = join(OUT_DIR, 'REACHABILITY-MAP.md')
 const graph = buildImportGraph()
 const rel = (p: string): string => p.slice(GRAPH_ROOT.length + 1)
 
-const RUNTIME_ROOT_FILES = ['src/entrypoints/cli.tsx', 'src/entrypoints/init.ts', 'src/entrypoints/mcp.ts']
+const RUNTIME_ROOT_FILES = ['src/boot/entrypoints/cli.tsx', 'src/boot/entrypoints/init.ts', 'src/integrations/mcp/mcpServer.ts']
 const runtimeRoots = graph.entries.filter(e => RUNTIME_ROOT_FILES.includes(rel(e)))
 const sdkRoots = graph.entries.filter(e => !RUNTIME_ROOT_FILES.includes(rel(e)))
 
@@ -211,11 +211,11 @@ const manifest = {
   schema: 1,
   generator: 'scripts/orphans/gen-reachability-manifest.ts',
   rootClasses: {
-    'interactive-runtime': ['src/entrypoints/cli.tsx'],
-    'headless-cli': ['src/entrypoints/cli.tsx (run mode)', 'src/entrypoints/init.ts'],
-    'daemon-scheduler': ['src/entrypoints/cli.tsx (mercury daemon)'],
-    'spawned-workers-agents': ['src/entrypoints/cli.tsx (subagent/workflow re-entry)'],
-    'acp-vscode-mcp': ['src/entrypoints/mcp.ts', 'src/entrypoints/cli.tsx (external seat attach)'],
+    'interactive-runtime': ['src/boot/entrypoints/cli.tsx'],
+    'headless-cli': ['src/boot/entrypoints/cli.tsx (run mode)', 'src/boot/entrypoints/init.ts'],
+    'daemon-scheduler': ['src/boot/entrypoints/cli.tsx (mercury daemon)'],
+    'spawned-workers-agents': ['src/boot/entrypoints/cli.tsx (subagent/workflow re-entry)'],
+    'acp-vscode-mcp': ['src/integrations/mcp/mcpServer.ts', 'src/boot/entrypoints/cli.tsx (external seat attach)'],
     'sdk-barrels': graph.entries.filter(e => rel(e).startsWith('src/entrypoints/') && !RUNTIME_ROOT_FILES.includes(rel(e))).map(rel).sort(),
     'build-package-metadata': [
       'build.ts (stub map)',
@@ -223,7 +223,7 @@ const manifest = {
       ...graph.buildRoots.map(rel).filter(e => !e.startsWith('src/entrypoints/')).map(e => `${e} (build.ts entrypoint or import)`),
     ],
     'generated-registries': [
-      'src/substrate/flagRegistry.ts',
+      'src/platform/substrate/flagRegistry.ts',
       'scripts/reliability/durableOperationMatrix.ts',
       'docs/CAPABILITY-GRADUATION-MATRIX.md',
     ],

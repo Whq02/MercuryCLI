@@ -8,20 +8,20 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'tool-row-lead-'))
 process.env.FORCE_COLOR = '3'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 const React = (await import('react')).default
-const { Box, Text } = await import('../../src/ink.js')
-const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
-const { AssistantToolUseMessage } = await import('../../src/components/messages/AssistantToolUseMessage.js')
-const { CollapsedReadSearchContent } = await import('../../src/components/messages/CollapsedReadSearchContent.js')
-const { UserAgentNotificationMessage } = await import('../../src/components/messages/UserAgentNotificationMessage.js')
-const { MessageMetaProvider } = await import('../../src/components/messages/TranscriptNameplate.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { useMercuryTokens } = await import('../../src/components/mercury-ui/useMercuryTokens.js')
-const { TOOL_FAMILY_BY_NAME, TOOL_FAMILY_MARKS } = await import('../../src/components/mercury-ui/toolGlyphs.js')
-const { GLYPH } = await import('../../src/utils/glyphs.js')
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { renderToAnsiString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { AssistantToolUseMessage } = await import('../../src/screen/messages/AssistantToolUseMessage.js')
+const { CollapsedReadSearchContent } = await import('../../src/screen/messages/CollapsedReadSearchContent.js')
+const { UserAgentNotificationMessage } = await import('../../src/screen/messages/UserCrewmateNotificationMessage.js')
+const { MessageMetaProvider } = await import('../../src/screen/messages/TranscriptNameplate.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { useMercuryTokens } = await import('../../src/screen/widgets/useMercuryTokens.js')
+const { TOOL_FAMILY_BY_NAME, TOOL_FAMILY_MARKS } = await import('../../src/screen/widgets/toolGlyphs.js')
+const { GLYPH } = await import('../../src/screen/theme/glyphs.js')
 
 type Family = keyof typeof TOOL_FAMILY_MARKS
 type ToneRole = (typeof TOOL_FAMILY_MARKS)[Family]['tone']
@@ -30,7 +30,7 @@ type Cell = { ch: string; fg: string; dim: boolean }
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' [change the row lead in AssistantToolUseMessage (src/components/messages/AssistantToolUseMessage.tsx), the group lead in CollapsedReadSearchContent (src/components/messages/CollapsedReadSearchContent.tsx), the notice row in src/components/messages/UserAgentNotificationMessage.tsx, or the family marks and tones in src/components/mercury-ui/toolGlyphs.ts]'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' [change the row lead in AssistantToolUseMessage (src/screen/messages/AssistantToolUseMessage.tsx), the group lead in CollapsedReadSearchContent (src/screen/messages/CollapsedReadSearchContent.tsx), the notice row in src/screen/messages/UserCrewmateNotificationMessage.tsx, or the family marks and tones in src/screen/widgets/toolGlyphs.ts]'}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

@@ -15,15 +15,15 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
   if (!cond) {
     failures++
-    console.log('    where to look: src/tools/GrepTool/GrepTool.ts (the literal input field, buildArgs adding -F, and the quoteTolerantPattern line that literal skips); the description text is in src/tools/GrepTool/prompt.ts getDescription and the -F stand-in is parameterStandIn in src/utils/toolErrors.ts')
+    console.log('    where to look: src/tools/grep/GrepTool.ts (the literal input field, buildArgs adding -F, and the quoteTolerantPattern line that literal skips); the description text is in src/tools/grep/prompt.ts getDescription and the -F stand-in is parameterStandIn in src/tools/kit/toolErrors.ts')
   }
 }
 
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { getDescription } = await import('../../src/tools/GrepTool/prompt.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-const { parameterStandIn } = await import('../../src/utils/toolErrors.ts')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
+const { getDescription } = await import('../../src/tools/grep/prompt.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
+const { parameterStandIn } = await import('../../src/tools/kit/toolErrors.ts')
 
 const base = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'grep-literal-')))
 const dir = join(base, 'work')

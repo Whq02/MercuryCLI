@@ -8,23 +8,23 @@ import { proofHome } from '../lib/hermetic.ts'
 for (const key of ['ZAI_API_KEY', 'XAI_API_KEY', 'DEEPSEEK_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'MOONSHOT_API_KEY', 'MERCURY_MODEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_DISABLE_1M_CONTEXT']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_ZAI_API_BASE = 'http://127.0.0.1:1/v4'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const cat = await import('../../src/services/providers/zai/zaiCatalogue.ts')
-const pins = await import('../../src/utils/model/pins/glmPins.ts')
-const { writeStoredZaiApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-const { catalogueTrafficVerdict, connectToBrowseReason } = await import('../../src/services/providers/catalogueGate.ts')
-const { KEYED_CATALOGUE_FAMILIES, readCatalogueIfPending } = await import('../../src/services/providers/catalogueOnDemand.ts')
-const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
-const { parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
-const router = await import('../../src/services/providers/zai/zaiAdapter.ts')
-const { keyLanePins, keyLaneListState, getModelOptions, ZAI_MODEL_GROUP, LIVE_UNKNOWN_ROW_WORDS } = await import('../../src/services/model/modelOptions.ts')
-const { resolveContextWindow, effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
-const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
-const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
-const { readModelListFacts } = await import('../../src/services/providers/typedModelIds.ts')
-const { zaiApiBase } = await import('../../src/services/providers/zai/zaiClient.ts')
+const cat = await import('../../src/models/roads/zai/zaiCatalogue.ts')
+const pins = await import('../../src/models/facts/pins/glmPins.ts')
+const { writeStoredZaiApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { catalogueTrafficVerdict, connectToBrowseReason } = await import('../../src/models/roads/catalogueGate.ts')
+const { KEYED_CATALOGUE_FAMILIES, readCatalogueIfPending } = await import('../../src/models/roads/catalogueOnDemand.ts')
+const { catalogueEpoch } = await import('../../src/models/roads/catalogueEpoch.ts')
+const { parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.ts')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
+const router = await import('../../src/models/roads/zai/zaiAdapter.ts')
+const { keyLanePins, keyLaneListState, getModelOptions, ZAI_MODEL_GROUP, LIVE_UNKNOWN_ROW_WORDS } = await import('../../src/models/catalogue/modelOptions.ts')
+const { resolveContextWindow, effortVocabularyFor } = await import('../../src/models/facts/capabilities.ts')
+const { resolveModelPricing } = await import('../../src/models/usage/modelCost.ts')
+const { providerFrontierFact } = await import('../../src/models/catalogue/providerFrontier.ts')
+const { readModelListFacts } = await import('../../src/models/roads/typedModelIds.ts')
+const { zaiApiBase } = await import('../../src/models/roads/zai/zaiClient.ts')
 
 const FIXTURE = JSON.parse(readFileSync(join(import.meta.dir, 'fixtures', 'zai-models-2026-10-05.json'), 'utf8')) as { data: Array<{ id: string }> }
 for (const row of FIXTURE.data) if (row.id === 'glm-5-turbo') row.id = 'glm-5-unlisted'
@@ -32,7 +32,7 @@ const LIVE_IDS_NEWEST_FIRST = 'glm-5.3,glm-5.3-flash,glm-5.3-flashx,glm-5.2,glm-
 const FLOOR = 'glm-5.3,glm-5.3-flash,glm-5.2'
 
 let count = 0
-const ZAI_FAILURE_HINT = 'what to change: the Z.AI catalogue rows, source and refresh in src/services/providers/zai/zaiCatalogue.ts, the adapter view in src/services/providers/zai/zaiAdapter.ts, the model pins in src/utils/model/pins/glmPins.ts, or the picker rows in src/services/model/modelOptions.ts, whichever this check names; the list fixture is scripts/providers/fixtures/zai-models-2026-10-05.json'
+const ZAI_FAILURE_HINT = 'what to change: the Z.AI catalogue rows, source and refresh in src/models/roads/zai/zaiCatalogue.ts, the adapter view in src/models/roads/zai/zaiAdapter.ts, the model pins in src/models/facts/pins/glmPins.ts, or the picker rows in src/models/catalogue/modelOptions.ts, whichever this check names; the list fixture is scripts/providers/fixtures/zai-models-2026-10-05.json'
 const check = (name: string, ok: unknown, detail = ''): void => {
   assert.ok(ok, `${name}${detail ? ` — ${detail}` : ''} — ${ZAI_FAILURE_HINT}`)
   count++

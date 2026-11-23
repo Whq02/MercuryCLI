@@ -16,13 +16,13 @@ delete process.env.TMUX
 delete process.env.STY
 delete process.env.SSH_CONNECTION
 
-import type { Key } from '../../src/ink/events/input-event.ts'
-const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
-const { parseBindings } = await import('../../src/keybindings/parser.ts')
-const { resolveKeyWithChordState } = await import('../../src/keybindings/resolver.ts')
-const { MESSAGE_ACTIONS, copyTextOf, isNavigableMessage } = await import('../../src/components/messageActions.tsx')
-const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
-const { setClipboardWithReceipt } = await import('../../src/ink/termio/osc.ts')
+import type { Key } from '../../src/screen/renderer/events/input-event.ts'
+const { DEFAULT_BINDINGS } = await import('../../src/screen/keys/defaultBindings.ts')
+const { parseBindings } = await import('../../src/screen/keys/parser.ts')
+const { resolveKeyWithChordState } = await import('../../src/screen/keys/resolver.ts')
+const { MESSAGE_ACTIONS, copyTextOf, isNavigableMessage } = await import('../../src/screen/messages/messageActions.tsx')
+const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.ts')
+const { setClipboardWithReceipt } = await import('../../src/screen/renderer/termio/osc.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

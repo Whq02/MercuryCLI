@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: acquireDaemonLock and the lock handle release in src/daemon/controlSocket.ts must refuse a live holder, reclaim a dead pid, and remove only their own lock file' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: acquireDaemonLock and the lock handle release in src/daemon/control/controlSocket.ts must refuse a live holder, reclaim a dead pid, and remove only their own lock file' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -16,7 +16,7 @@ const home = mkdtempSync(join(tmpdir(), 'mercury-suplock-'))
 process.env.MERCURY_CONFIG_DIR = home
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const cs = (await import('../../src/daemon/controlSocket.js')) as typeof import('../../src/daemon/controlSocket.js')
+const cs = (await import('../../src/daemon/control/controlSocket.js')) as typeof import('../../src/daemon/control/controlSocket.js')
 const lockPath = join(home, 'daemon', 'daemon.lock')
 
 console.log('============================================================')

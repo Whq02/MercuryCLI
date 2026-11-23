@@ -14,12 +14,12 @@ if (scenario !== null) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0', ISSUES_EXPLAINER: '', PACKAGE_URL: '', README_URL: '', IS_DEV: false, MERCURY_DEMO: false }
   const React = await import('react')
   const { KEY, mountOffscreen, settle, waitFor } = await import('../lib/settingsPopupHarness.ts')
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-  const { Onboarding } = await import('../../src/components/Onboarding.js')
-  const { loginFamilyRows } = await import('../../src/components/loginFamilyRows.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+  const { Onboarding } = await import('../../src/boot/first-run/Onboarding.js')
+  const { loginFamilyRows } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.ts')
   const h = React.createElement
   const element = h(AppStateProvider as never, {} as never, h(KeybindingSetup as never, {} as never, h(Onboarding as never, { onDone: () => {} } as never)))
   const mounted = await mountOffscreen(element, 120, 40)

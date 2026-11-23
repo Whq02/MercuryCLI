@@ -9,14 +9,14 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ctm-plan-config-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
 
 const { buildTransitionPlan, transitionSourceRevision, transitionCapabilityEpoch } =
-  await import('../../src/services/providers/transitionPreview.ts')
-const { confirmTransitionPlan } = await import('../../src/services/model/modelTransition.ts')
-const { toBridgeMessages } = await import('../../src/services/providers/openai/openaiCallModel.ts')
-const { mapMessagesToOpenaiInput } = await import('../../src/services/providers/openai/responsesBridge.ts')
+  await import('../../src/models/roads/transitionPreview.ts')
+const { confirmTransitionPlan } = await import('../../src/models/catalogue/modelTransition.ts')
+const { toBridgeMessages } = await import('../../src/models/roads/openai/openaiCallModel.ts')
+const { mapMessagesToOpenaiInput } = await import('../../src/models/roads/openai/responsesBridge.ts')
 
 let failures = 0
 const failureHint =
-  'fix buildTransitionPlan, transitionPlanSummary, transitionSourceRevision or transitionCapabilityEpoch in src/services/providers/transitionPreview.ts, confirmTransitionPlan in src/services/model/modelTransition.ts, or, when the plan disagrees with the wire walk, toBridgeMessages in src/services/providers/openai/openaiCallModel.ts and mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts'
+  'fix buildTransitionPlan, transitionPlanSummary, transitionSourceRevision or transitionCapabilityEpoch in src/models/roads/transitionPreview.ts, confirmTransitionPlan in src/models/catalogue/modelTransition.ts, or, when the plan disagrees with the wire walk, toBridgeMessages in src/models/roads/openai/openaiCallModel.ts and mapMessagesToOpenaiInput in src/models/roads/openai/responsesBridge.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${failureHint}` : ''}`)
@@ -184,7 +184,7 @@ section('§F stale-safe confirm')
 
 section('§G the loss summary — plain words, nonzero classes only, plan-addressed')
 {
-  const { transitionPlanSummary } = await import('../../src/services/providers/transitionPreview.ts')
+  const { transitionPlanSummary } = await import('../../src/models/roads/transitionPreview.ts')
   const lossy = buildTransitionPlan({ messages: HISTORY as never, from: null, to: 'glm-4.7' })
   const s = transitionPlanSummary(lossy)
   check(

@@ -11,7 +11,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_HOME
 
-const { transformMCPResult } = await import('../../src/services/mcp/client.ts')
+const { transformMCPResult } = await import('../../src/integrations/mcp/client.ts')
 const sharp = (await import('sharp')).default
 
 let failures = 0
@@ -45,15 +45,15 @@ for (const [mime, bytes, ext] of refused) {
   const out = await transformMCPResult({ content: [image(bytes, mime)] }, 'shot', 'srv')
   const texts = textsOf(out.content)
   const path = savedPath(texts[0] ?? '')
-  check(`${mime}: no image block, isImage false`, imagesOf(out.content).length === 0 && out.isImage !== true, `${JSON.stringify(out.content).slice(0, 160)} — pushImage and forwardableImage in src/services/mcp/client/results.ts must send a media type outside IMAGE_MIME_TYPES to persistBlob, never forward it as an image block`)
-  check(`${mime}: one text block names the source, the type, the size and the saved path`, texts.length === 1 && texts[0]!.startsWith('Image from srv: binary content (') && texts[0]!.includes(mime) && path !== null, `${texts[0]} — the saved-blob text must read Image from <server>: binary content (<type>, <size>) saved to <path>; see persistBlob and pushImage in src/services/mcp/client/results.ts and the text built in src/services/mcp/mcpOutputStorage.ts`)
-  check(`${mime}: the file is on disk as .${ext} with the bytes the server sent`, path !== null && path.endsWith(`.${ext}`) && existsSync(path) && readFileSync(path).equals(bytes), `${path ?? 'no path'} — persistBlob in src/services/mcp/client/results.ts (with src/services/mcp/mcpOutputStorage.ts) must write the exact bytes the server sent under an extension that matches the media type`)
+  check(`${mime}: no image block, isImage false`, imagesOf(out.content).length === 0 && out.isImage !== true, `${JSON.stringify(out.content).slice(0, 160)} — pushImage and forwardableImage in src/integrations/mcp/client/results.ts must send a media type outside IMAGE_MIME_TYPES to persistBlob, never forward it as an image block`)
+  check(`${mime}: one text block names the source, the type, the size and the saved path`, texts.length === 1 && texts[0]!.startsWith('Image from srv: binary content (') && texts[0]!.includes(mime) && path !== null, `${texts[0]} — the saved-blob text must read Image from <server>: binary content (<type>, <size>) saved to <path>; see persistBlob and pushImage in src/integrations/mcp/client/results.ts and the text built in src/integrations/mcp/mcpOutputStorage.ts`)
+  check(`${mime}: the file is on disk as .${ext} with the bytes the server sent`, path !== null && path.endsWith(`.${ext}`) && existsSync(path) && readFileSync(path).equals(bytes), `${path ?? 'no path'} — persistBlob in src/integrations/mcp/client/results.ts (with src/integrations/mcp/mcpOutputStorage.ts) must write the exact bytes the server sent under an extension that matches the media type`)
 }
 
 console.log('\n[2] undecodable bytes behind an accepted label are saved too, never forwarded')
 {
   const out = await transformMCPResult({ content: [image(Buffer.from('not a png at all, just text' + 'q'.repeat(40)), 'image/png')] }, 'shot', 'srv')
-  check('garbage labelled image/png is not forwarded as an image', imagesOf(out.content).length === 0 && textsOf(out.content).some(t => t.startsWith('Image from srv: binary content (image/png')), `${JSON.stringify(out.content).slice(0, 160)} — forwardableImage in src/services/mcp/client/results.ts must return null for bytes that cannot be decoded so pushImage saves them`)
+  check('garbage labelled image/png is not forwarded as an image', imagesOf(out.content).length === 0 && textsOf(out.content).some(t => t.startsWith('Image from srv: binary content (image/png')), `${JSON.stringify(out.content).slice(0, 160)} — forwardableImage in src/integrations/mcp/client/results.ts must return null for bytes that cannot be decoded so pushImage saves them`)
 }
 
 console.log('\n[3] accepted images ride as images, with the type the bytes really are')
@@ -67,7 +67,7 @@ console.log('\n[3] accepted images ride as images, with the type the bytes reall
   ] as const) {
     const out = await transformMCPResult({ content: [image(bytes, mime)] }, 'shot', 'srv')
     const img = imagesOf(out.content)
-    check(`${label} rides as ${expected}`, img.length === 1 && img[0]!.source?.media_type === expected && out.isImage === true, `${JSON.stringify(out.content).slice(0, 120)} — resizedImageBlock and forwardableImage in src/services/mcp/client/results.ts must forward an accepted image with the media type the bytes really are`)
+    check(`${label} rides as ${expected}`, img.length === 1 && img[0]!.source?.media_type === expected && out.isImage === true, `${JSON.stringify(out.content).slice(0, 120)} — resizedImageBlock and forwardableImage in src/integrations/mcp/client/results.ts must forward an accepted image with the media type the bytes really are`)
   }
 }
 
@@ -76,9 +76,9 @@ console.log('\n[4] the image note counts the images that ride, not the blocks th
   const out = await transformMCPResult({ content: [image(refused[0]![1], 'image/svg+xml'), image(WIDE, 'image/png'), image(refused[1]![1], 'image/tiff'), { type: 'text', text: 'done' }] }, 'shot', 'srv')
   const img = imagesOf(out.content)
   const notes = textsOf(out.content).filter(t => t.startsWith('[Image '))
-  check('one image rides, two blobs are saved, the server text stays', img.length === 1 && textsOf(out.content).filter(t => t.startsWith('Image from srv')).length === 2 && textsOf(out.content).includes('done'), `${JSON.stringify(out.content).slice(0, 200)} — pushImage in src/services/mcp/client/results.ts must forward only the accepted image and save the other two, keeping the server text`)
-  check('the note, if the wide image was resized, says Image 1 of 1', notes.length === 0 || notes.every(n => n.startsWith('[Image 1 of 1:')), `${notes.join(' | ')} — the image count passed to createImageMetadataText in src/services/mcp/client/results.ts must count only forwarded images, not saved blobs`)
-  check('the result is marked as carrying an image', out.isImage === true, 'transformMCPResult in src/services/mcp/client/results.ts must set isImage when any block in the result is an image')
+  check('one image rides, two blobs are saved, the server text stays', img.length === 1 && textsOf(out.content).filter(t => t.startsWith('Image from srv')).length === 2 && textsOf(out.content).includes('done'), `${JSON.stringify(out.content).slice(0, 200)} — pushImage in src/integrations/mcp/client/results.ts must forward only the accepted image and save the other two, keeping the server text`)
+  check('the note, if the wide image was resized, says Image 1 of 1', notes.length === 0 || notes.every(n => n.startsWith('[Image 1 of 1:')), `${notes.join(' | ')} — the image count passed to createImageMetadataText in src/integrations/mcp/client/results.ts must count only forwarded images, not saved blobs`)
+  check('the result is marked as carrying an image', out.isImage === true, 'transformMCPResult in src/integrations/mcp/client/results.ts must set isImage when any block in the result is an image')
 }
 
 console.log(failures === 0 ? '\nPASS prove-image-block-media-types' : `\nFAIL prove-image-block-media-types (${failures})`)

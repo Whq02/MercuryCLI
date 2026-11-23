@@ -15,8 +15,8 @@ const ALWAYS_KINDS: readonly string[] = ['', 'ERROR', 'PARSE_ABORT', 'command', 
 const STARTED: ReadonlyArray<readonly [unknown, unknown]> = [['git', ['commit', '-m', 'a b']], ['ls', []], ['', ['a']], [undefined, []], ['ls', 'a'], ['printf', ['%s', 3, "it's", '']], [7, ['a']]]
 const LONGER_THAN_THE_PARSER_READS = `echo ${'x'.repeat(10_001)}`
 
-const ast = await import('../../src/utils/bash/ast.ts')
-const parser = await import('../../src/utils/bash/parser.ts')
+const ast = await import('../../src/platform/shell/bash/ast.ts')
+const parser = await import('../../src/platform/shell/bash/parser.ts')
 
 type Tree = { type: string; text: string; startIndex: number; endIndex: number; children: Tree[] }
 type Verdict = Awaited<ReturnType<typeof ast.parseForSecurity>>
@@ -182,15 +182,15 @@ if (RECORD) {
   check(
     `every command reads as recorded: the verdict, the semantic check, the quoted words and the reading of a parse that did not finish, for each of the ${fixture.rows.length} commands, byte for byte`,
     moved.length === 0,
-    `${moved.length} moved. If the walk was meant to change, record again with \`bun ${SELF} --record\` and read the diff of scripts/decisions/walk-corpus.json; if it was not, the change to src/utils/bash/ast.ts or its parts altered what a command reads as`,
+    `${moved.length} moved. If the walk was meant to change, record again with \`bun ${SELF} --record\` and read the diff of scripts/decisions/walk-corpus.json; if it was not, the change to src/platform/shell/bash/ast.ts or its parts altered what a command reads as`,
   )
   for (const line of moved.slice(0, SHOWN)) console.log(`    ${line}`)
   if (moved.length > SHOWN) console.log(`    … ${moved.length - SHOWN} more`)
-  check('the tree a parse leaves prepared reads as the command itself does', unprepared === 0, `${unprepared} commands read differently through preparedSecurityParse; make preparedSecurityParse in src/utils/bash/ast.ts return what parseForSecurity returns for a command the parser held`)
-  check('every command of a simple reading is found again by its own text', lost === 0, `${lost} commands hold a part that preparedSecurityParse does not find; make preparedSecurityParse in src/utils/bash/ast.ts find the text of each command of a simple reading`)
-  check('nodeTypeId gives the recorded id for every recorded kind', JSON.stringify(kindTable(Object.keys(fixture.kinds).filter(name => name !== 'undefined'))) === JSON.stringify(fixture.kinds), JSON.stringify(kindTable(Object.keys(fixture.kinds).filter(name => name !== 'undefined'))) + ' — nodeTypeId in src/utils/permissions/decision/commandAnalysis/exact.ts no longer gives the ids recorded under kinds in scripts/decisions/walk-corpus.json; keep the old ids, or record again with bun ' + SELF + ' --record if they were meant to change')
+  check('the tree a parse leaves prepared reads as the command itself does', unprepared === 0, `${unprepared} commands read differently through preparedSecurityParse; make preparedSecurityParse in src/platform/shell/bash/ast.ts return what parseForSecurity returns for a command the parser held`)
+  check('every command of a simple reading is found again by its own text', lost === 0, `${lost} commands hold a part that preparedSecurityParse does not find; make preparedSecurityParse in src/platform/shell/bash/ast.ts find the text of each command of a simple reading`)
+  check('nodeTypeId gives the recorded id for every recorded kind', JSON.stringify(kindTable(Object.keys(fixture.kinds).filter(name => name !== 'undefined'))) === JSON.stringify(fixture.kinds), JSON.stringify(kindTable(Object.keys(fixture.kinds).filter(name => name !== 'undefined'))) + ' — nodeTypeId in src/permissions/rules/decision/command-analysis/exactParse.ts no longer gives the ids recorded under kinds in scripts/decisions/walk-corpus.json; keep the old ids, or record again with bun ' + SELF + ' --record if they were meant to change')
   check('every refusal kind the corpus meets has a recorded id', [...nodeTypes].every(name => name in fixture.kinds), [...nodeTypes].filter(name => !(name in fixture.kinds)).join(' ') + ' — a refusal kind the corpus meets has no recorded id; record again with bun ' + SELF + ' --record')
-  check('the corpus reaches both verdict kinds', (kinds.get('simple') ?? 0) > 0 && (kinds.get('too-complex') ?? 0) > 0, [...kinds.keys()].join(',') + ' — the corpus must hold both simple and too-complex commands; check parseForSecurity in src/utils/bash/ast.ts and the rows of scripts/decisions/walk-corpus.json')
+  check('the corpus reaches both verdict kinds', (kinds.get('simple') ?? 0) > 0 && (kinds.get('too-complex') ?? 0) > 0, [...kinds.keys()].join(',') + ' — the corpus must hold both simple and too-complex commands; check parseForSecurity in src/platform/shell/bash/ast.ts and the rows of scripts/decisions/walk-corpus.json')
 
   section(`(2) trees no parse builds — ${fixture.crafted.length} built by hand, walked as given`)
   const bent = fixture.crafted.flatMap(([label, tree, reading]) => (craftedReading(tree) === (recorded[reading] ?? '') ? [] : [`${label}\n      recorded: ${recorded[reading] ?? ''}\n      now:      ${craftedReading(tree)}`]))
@@ -200,14 +200,14 @@ if (RECORD) {
   section(`(3) the wrappers — ${fixture.peeled.length} commands of the corpus that peelWrappers changes`)
   const wanted = new Map<string, string>(fixture.peeled.map(([given, left]) => [JSON.stringify(given), JSON.stringify(left)]))
   const unpeeled = [...new Set([...wanted.keys(), ...peeled.keys()])].sort().flatMap(given => (wanted.get(given) === peeled.get(given) ? [] : [`${given}\n      recorded: ${wanted.get(given) ?? 'the words as given'}\n      now:      ${peeled.get(given) ?? 'the words as given'}`]))
-  check(`peelWrappers leaves every simple command of the corpus as recorded: its words as given, or the ${fixture.peeled.length} recorded answers`, unpeeled.length === 0, `${unpeeled.length} moved; record again with \`bun ${SELF} --record\` if the wrappers were meant to change, else the change to src/utils/bash/ast/wrappers.ts altered what a wrapper leaves`)
+  check(`peelWrappers leaves every simple command of the corpus as recorded: its words as given, or the ${fixture.peeled.length} recorded answers`, unpeeled.length === 0, `${unpeeled.length} moved; record again with \`bun ${SELF} --record\` if the wrappers were meant to change, else the change to src/platform/shell/bash/ast/wrappers.ts altered what a wrapper leaves`)
   for (const line of unpeeled.slice(0, SHOWN)) console.log(`    ${line}`)
 
   section('(4) the door beside the walk')
-  check('a parse that did not finish reads as recorded', abortedPlainly === JSON.stringify(fixture.aborted), abortedPlainly + ' — fix parseForSecurityFromAst in src/utils/permissions/decision/commandAnalysis/exact.ts for a parse that did not finish, or record again with bun ' + SELF + ' --record if that was meant to change')
-  check(`startedCommandText spells the ${STARTED.length} recorded starts as recorded`, startedNow === JSON.stringify(fixture.started), startedNow + ' — fix startedCommandText in src/utils/bash/ast.ts, or record again with bun ' + SELF + ' --record if the spelling was meant to change')
-  check('a command longer than the parser reads has no reading, and no command at all reads as none', (await ast.parseForSecurity(LONGER_THAN_THE_PARSER_READS)).kind === 'parse-unavailable' && JSON.stringify(await ast.parseForSecurity('')) === '{"kind":"simple","commands":[]}', 'fix parseForSecurity in src/utils/bash/ast.ts: a command longer than the parser reads must give parse-unavailable, and an empty command must give simple with no commands')
-  check('a text no parse has met is not found prepared', ast.preparedSecurityParse('no parse has met this text').kind === 'parse-unavailable', 'fix preparedSecurityParse in src/utils/bash/ast.ts to give parse-unavailable for a text no parse has met')
+  check('a parse that did not finish reads as recorded', abortedPlainly === JSON.stringify(fixture.aborted), abortedPlainly + ' — fix parseForSecurityFromAst in src/permissions/rules/decision/command-analysis/exactParse.ts for a parse that did not finish, or record again with bun ' + SELF + ' --record if that was meant to change')
+  check(`startedCommandText spells the ${STARTED.length} recorded starts as recorded`, startedNow === JSON.stringify(fixture.started), startedNow + ' — fix startedCommandText in src/platform/shell/bash/ast.ts, or record again with bun ' + SELF + ' --record if the spelling was meant to change')
+  check('a command longer than the parser reads has no reading, and no command at all reads as none', (await ast.parseForSecurity(LONGER_THAN_THE_PARSER_READS)).kind === 'parse-unavailable' && JSON.stringify(await ast.parseForSecurity('')) === '{"kind":"simple","commands":[]}', 'fix parseForSecurity in src/platform/shell/bash/ast.ts: a command longer than the parser reads must give parse-unavailable, and an empty command must give simple with no commands')
+  check('a text no parse has met is not found prepared', ast.preparedSecurityParse('no parse has met this text').kind === 'parse-unavailable', 'fix preparedSecurityParse in src/platform/shell/bash/ast.ts to give parse-unavailable for a text no parse has met')
 }
 
 console.log('\n============================================================')

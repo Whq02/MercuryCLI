@@ -12,7 +12,7 @@ import { xaiUsageFixture, XAI_FIXTURE_NOW, XAI_FIXTURE_API_KEY, XAI_FIXTURE_MANA
 process.env.MERCURY_RECESS = '0'
 process.env.BROWSER = process.execPath
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[name]
 const originalNow = Date.now
 Date.now = () => XAI_FIXTURE_NOW
@@ -20,23 +20,23 @@ const fixture = xaiUsageFixture()
 Object.assign(process.env, fixture.env)
 delete process.env.XAI_API_KEY
 delete process.env.XAI_MANAGEMENT_API_KEY
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const { XaiConnect } = await import('../../src/components/XaiConnect.tsx')
-const { BootLoginsScreen } = await import('../../src/components/BootLoginsScreen.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const { XaiConnect } = await import('../../src/models/sign-in/flow-cards/XaiConnect.tsx')
+const { BootLoginsScreen } = await import('../../src/screen/boot-face/BootLoginsScreen.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 const mount = (element: React.ReactNode, columns: number, rows: number) => mountOffscreen(React.createElement(AppStateProvider, { children: React.createElement(KeybindingSetup, { children: element }) }), columns, rows)
-const secrets = await import('../../src/utils/accounts/providerSecrets.ts')
+const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
 const { signedOutFacts, STILLS, renderStill } = await import('../ui/face-logins-stills.ts')
 const framesArg = process.argv.indexOf('--frames')
 const frames = framesArg >= 0 ? process.argv[framesArg + 1] : undefined
 let checks = 0
 let observedScreen = (): string => 'not mounted'
-const check = (label: string, ok: unknown): void => { assert.ok(ok, `${label}; last screen:\n${observedScreen()}\nchange the component this check paints (src/components/XaiConnect.tsx or src/components/BootLoginsScreen.tsx), the stored xAI keys in src/utils/accounts/providerSecrets.ts, or the sign-in in src/services/providers/xai/xaiOauth.ts`); checks++; console.log(`[PASS] ${label}`) }
+const check = (label: string, ok: unknown): void => { assert.ok(ok, `${label}; last screen:\n${observedScreen()}\nchange the component this check paints (src/models/sign-in/flow-cards/XaiConnect.tsx or src/screen/boot-face/BootLoginsScreen.tsx), the stored xAI keys in src/models/sign-in/account-ledger/providerSecrets.ts, or the sign-in in src/models/roads/xai/xaiOauth.ts`); checks++; console.log(`[PASS] ${label}`) }
 async function until(pred: () => boolean): Promise<void> {
   const deadline = performance.now() + 10000
   while (!pred() && performance.now() < deadline) await settle(10)
-  assert.ok(pred(), `the expected source-rendered frame arrives within 10 s; observed:\n${observedScreen()}\nlook at the text the calling until() waits for and at src/components/XaiConnect.tsx or src/components/BootLoginsScreen.tsx, which paint it`)
+  assert.ok(pred(), `the expected source-rendered frame arrives within 10 s; observed:\n${observedScreen()}\nlook at the text the calling until() waits for and at src/models/sign-in/flow-cards/XaiConnect.tsx or src/screen/boot-face/BootLoginsScreen.tsx, which paint it`)
 }
 try {
   let result: { ok: boolean; receipt: string } | undefined
@@ -96,7 +96,7 @@ try {
   const auth = xaiAuthFixture()
   auth.state.slow = false
   Object.assign(process.env, auth.env)
-  const { xaiStoredTokens, clearStoredXaiSubscription } = await import('../../src/services/providers/xai/xaiOauth.ts')
+  const { xaiStoredTokens, clearStoredXaiSubscription } = await import('../../src/models/roads/xai/xaiOauth.ts')
   try {
     for (const kind of ['modal', 'face'] as const) {
       clearStoredXaiSubscription()
@@ -122,7 +122,7 @@ try {
 } finally {
   fixture.stop()
   Date.now = originalNow
-  const { disposeKeybindingWatcher } = await import('../../src/keybindings/loadUserBindings.ts')
+  const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.ts')
   disposeKeybindingWatcher()
   rmSync(proofHome, { recursive: true, force: true })
 }

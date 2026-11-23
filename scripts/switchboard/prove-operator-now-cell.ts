@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
 import { mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
-import type { ConcourseSnapshotV1 } from '../../src/components/concourse/contracts.ts'
+import type { ConcourseSnapshotV1 } from '../../src/screen/concourse/contracts.ts'
 
 assert.ok(process.env.MERCURY_CONFIG_DIR, 'set scratch MERCURY_CONFIG_DIR before running prove-operator-now-cell.ts')
 delete process.env.MERCURY_HOME
@@ -18,12 +18,12 @@ const section = (t: string): void => console.log(`\n── ${t} ──`)
 
 const React = await import('react')
 const h = React.createElement
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { ConcourseLayout, rowNeedsOperator } = await import('../../src/components/concourse/ConcourseLayout.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { PARK_REFUSED_NOW_LEAD, PARKING_NOW_LEAD } = await import('../../src/services/concourse/concourseSnapshot.ts')
+const { ConcourseLayout, rowNeedsOperator } = await import('../../src/screen/concourse/ConcourseLayout.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { PARK_REFUSED_NOW_LEAD, PARKING_NOW_LEAD } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
 const { referenceFixtureSnapshot } = await import('../notifications/concourseReferenceSeed.ts')
 
 const CRASH = 'crashed — ended unexpectedly; enter to resume, or x x releases it'

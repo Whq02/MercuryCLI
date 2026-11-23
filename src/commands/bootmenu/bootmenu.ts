@@ -1,7 +1,7 @@
-import type { LocalCommandCall } from '../../types/command.js'
-import { armBootSettingsLayerDeepLink } from '../../components/BootSplashScreen.js'
-import { enterBootSettings } from '../../context/surfaceRoute.js'
-import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
+import type { LocalCommandCall } from '../catalogue/command.js'
+import { armBootSettingsLayerDeepLink } from '../../screen/boot-face/BootSplashScreen.js'
+import { enterBootSettings } from '../../screen/routes/surfaceRoute.js'
+import { isFullscreenEnvEnabled } from '../../screen/fullscreen-layout/fullscreen.js'
 
 export const call: LocalCommandCall = async () => {
   if (!isFullscreenEnvEnabled()) {

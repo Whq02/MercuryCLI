@@ -5,14 +5,14 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('      hint: the session accent override (setSessionAccentOverride, getSessionAccent, getSessionAccentOverride, getSessionAccentSnapshotKey, deepOf) lives in src/components/mercury-ui/sessionAccent.ts; fix the function the failed check names there')
+  if (!cond) console.log('      hint: the session accent override (setSessionAccentOverride, getSessionAccent, getSessionAccentOverride, getSessionAccentSnapshotKey, deepOf) lives in src/screen/widgets/sessionAccent.ts; fix the function the failed check names there')
 }
 
 console.log('============================================================')
 console.log(' /appearance accent — session accent override (explicit beats derived)')
 console.log('============================================================')
 
-const sa = (await import('../../src/components/mercury-ui/sessionAccent.js')) as typeof import('../../src/components/mercury-ui/sessionAccent.js')
+const sa = (await import('../../src/screen/widgets/sessionAccent.js')) as typeof import('../../src/screen/widgets/sessionAccent.js')
 
 const baseline = sa.getSessionAccent()
 check('baseline: no override active', sa.getSessionAccentOverride() === null)

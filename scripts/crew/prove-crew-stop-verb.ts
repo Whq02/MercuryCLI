@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { bootRunner, bound, childEnv, DIST, exportWorld, isOutcome, isSession, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome, sleep, type Frame, type Runner } from '../daemon/dupline-world.ts'
-import { PeerDeadline } from '../../src/runner/wire/peer.ts'
+import { PeerDeadline } from '../../src/daemon/runner-wire/peer.ts'
 import {
   LEAD_ASK_HELD,
   LEAD_ASK_SLEEPER,

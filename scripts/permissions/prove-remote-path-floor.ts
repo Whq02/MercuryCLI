@@ -8,14 +8,14 @@ const original = process.cwd()
 const world = realpathSync(mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'remote-path-floor-')))
 process.env.MERCURY_CONFIG_DIR = join(world, 'home')
 process.chdir(world)
-const { getPlatform } = await import('../../src/utils/platform.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
-const { checkReadPermissionForTool } = await import('../../src/utils/permissions/filesystem.ts')
-const { PERMISSION_MODES } = await import('../../src/utils/permissions/PermissionMode.ts')
+const { getPlatform } = await import('../../src/platform/environment/platform.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
+const { checkReadPermissionForTool } = await import('../../src/permissions/rules/filesystem.ts')
+const { PERMISSION_MODES } = await import('../../src/permissions/rules/permissionMode.ts')
 let failures = 0
-const remotePathHint = 'change uncPathRisk and uncPathMessage in src/utils/permissions/uncPath.ts (what counts as a remote path and its SMB/WebDAV sentence), or where the Read check and the Bash check apply it (checkReadPermissionForTool in src/utils/permissions/filesystem.ts, bashToolHasPermission in src/tools/BashTool/bashPermissions.ts) and how decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts turns it into an ask, a deny or the sovereign allowance'
+const remotePathHint = 'change uncPathRisk and uncPathMessage in src/permissions/rules/uncPath.ts (what counts as a remote path and its SMB/WebDAV sentence), or where the Read check and the Bash check apply it (checkReadPermissionForTool in src/permissions/rules/filesystem.ts, bashToolHasPermission in src/tools/shell/bashPermissions.ts) and how decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts turns it into an ask, a deny or the sovereign allowance'
 function check(label: string, ok: boolean, detail = '') {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + (detail === '' ? '' : detail + ' — ') + remotePathHint}`)
   if (!ok) failures++

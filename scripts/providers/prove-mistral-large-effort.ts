@@ -3,8 +3,8 @@ import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import { z } from 'zod/v4'
-import type { Message, AssistantMessage } from '../../src/types/message.js'
-import type { Tool } from '../../src/Tool.js'
+import type { Message, AssistantMessage } from '../../src/engine/message-shapes/message.js'
+import type { Tool } from '../../src/tools/kit/tool.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -26,14 +26,14 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request: 
 } })
 process.env.MISTRAL_API_KEY = 'proof-key-mistral-effort-not-real'
 process.env.MERCURY_MISTRAL_API_BASE = `http://127.0.0.1:${server.port}/v1`
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
-const { buildMistralExtras } = await import('../../src/services/providers/mistral/mistralCallModel.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { createUserMessage } = await import('../../src/services/messages.js')
-const { effortVocabularyFor } = await import('../../src/utils/model/capabilities.js')
-const { resolveEffortTruth } = await import('../../src/utils/effort.js')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.js')
+const { buildMistralExtras } = await import('../../src/models/roads/mistral/mistralCallModel.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { createUserMessage } = await import('../../src/engine/messages/messages.js')
+const { effortVocabularyFor } = await import('../../src/models/facts/capabilities.js')
+const { resolveEffortTruth } = await import('../../src/models/effort/effort.js')
 const tool = { name: 'FixtureRead', inputSchema: z.object({ path: z.string() }), prompt: async () => 'Read a fixture', description: async () => 'Read a fixture', isEnabled: () => true, isReadOnly: () => true, isConcurrencySafe: () => true } as unknown as Tool
 async function turn(model: string, effort: string, messages: Message[], thinking = true) {
   const result: AssistantMessage[] = []
@@ -46,38 +46,38 @@ try {
   for (const model of models) {
     for (const effort of ['low', 'medium', 'high']) {
       const view = effortVocabularyFor(model)
-      assert.ok(view.kind === 'provider' && view.vocabulary.join(',') === 'low,medium,high', `src/utils/model/capabilities.ts effortVocabularyFor(${model}) expected low,medium,high, got ${JSON.stringify(view)}`)
+      assert.ok(view.kind === 'provider' && view.vocabulary.join(',') === 'low,medium,high', `src/models/facts/capabilities.ts effortVocabularyFor(${model}) expected low,medium,high, got ${JSON.stringify(view)}`)
       assert.equal(resolveEffortTruth(model, effort as never, { thinkingEnabled: true }).wire, effort)
       const before = captures.length
       retry = true
       const first = await turn(model, effort, [createUserMessage({ content: 'First request' })])
-      assert.ok(first.length > 0 && first.every(item => !item.isApiErrorMessage), `src/services/providers/mistral/mistralCallModel.ts ${model} ${effort} first turn failed: len=${first.length}`)
+      assert.ok(first.length > 0 && first.every(item => !item.isApiErrorMessage), `src/models/roads/mistral/mistralCallModel.ts ${model} ${effort} first turn failed: len=${first.length}`)
       const continued = await turn(model, effort, [createUserMessage({ content: 'First request' }), ...first, createUserMessage({ content: 'Continue with the same effort' })])
-      assert.ok(continued.length > 0 && continued.every(item => !item.isApiErrorMessage), `src/services/providers/mistral/mistralCallModel.ts ${model} ${effort} continuation turn failed: len=${continued.length}`)
+      assert.ok(continued.length > 0 && continued.every(item => !item.isApiErrorMessage), `src/models/roads/mistral/mistralCallModel.ts ${model} ${effort} continuation turn failed: len=${continued.length}`)
       const sent = captures.slice(before)
       assert.equal(sent.length, 3)
       for (const request of sent) {
         assert.equal(request.authorization, `Bearer ${process.env.MISTRAL_API_KEY}`)
         assert.equal(request.body.model, model)
         assert.equal(request.body.reasoning_effort, effort)
-        assert.ok(request.body.tools.some((row: any) => row.function.name === 'FixtureRead'), `src/services/providers/mistral/mistralCallModel.ts ${model} ${effort} request omitted FixtureRead tool`)
+        assert.ok(request.body.tools.some((row: any) => row.function.name === 'FixtureRead'), `src/models/roads/mistral/mistralCallModel.ts ${model} ${effort} request omitted FixtureRead tool`)
       }
       assert.deepEqual(sent[0]!.body, sent[1]!.body)
-      assert.ok(JSON.stringify(sent[2]!.body.messages).includes('Continue with the same effort'), `src/services/providers/mistral/mistralCallModel.ts ${model} ${effort} continuation missing second user message`)
-      assert.ok(JSON.stringify(sent[2]!.body.messages).includes('answer'), `src/services/providers/mistral/mistralCallModel.ts ${model} ${effort} continuation missing prior assistant reply`)
+      assert.ok(JSON.stringify(sent[2]!.body.messages).includes('Continue with the same effort'), `src/models/roads/mistral/mistralCallModel.ts ${model} ${effort} continuation missing second user message`)
+      assert.ok(JSON.stringify(sent[2]!.body.messages).includes('answer'), `src/models/roads/mistral/mistralCallModel.ts ${model} ${effort} continuation missing prior assistant reply`)
       console.log(`PASS ${model} ${effort}: selection, request, identical retry, continuation and tool roster`)
     }
     const off = await turn(model, 'high', [createUserMessage({ content: 'Thinking off' })], false)
-    assert.ok(off.length > 0 && off.every(item => !item.isApiErrorMessage), `src/services/providers/mistral/mistralCallModel.ts ${model} thinking-off turn failed: len=${off.length}`)
+    assert.ok(off.length > 0 && off.every(item => !item.isApiErrorMessage), `src/models/roads/mistral/mistralCallModel.ts ${model} thinking-off turn failed: len=${off.length}`)
     assert.equal(captures.at(-1)!.body.reasoning_effort, 'low')
     const unsupported = await turn(model, 'max', [createUserMessage({ content: 'Keep my effort' })])
     assert.equal(captures.at(-1)!.body.reasoning_effort, 'max')
-    assert.ok(unsupported.some(item => item.isApiErrorMessage), `src/services/providers/mistral/mistralCallModel.ts ${model} unsupported max effort did not return API error`)
+    assert.ok(unsupported.some(item => item.isApiErrorMessage), `src/models/roads/mistral/mistralCallModel.ts ${model} unsupported max effort did not return API error`)
     console.log(`PASS ${model}: off uses documented low; unsupported max is never downgraded`)
   }
   for (const model of ['mistral-small-2603', 'mistral-medium-3-5']) {
     const view = effortVocabularyFor(model)
-    assert.ok(view.kind === 'provider' && view.vocabulary.join(',') === 'none,high', `src/utils/model/capabilities.ts effortVocabularyFor(${model}) expected none,high, got ${JSON.stringify(view)}`)
+    assert.ok(view.kind === 'provider' && view.vocabulary.join(',') === 'none,high', `src/models/facts/capabilities.ts effortVocabularyFor(${model}) expected none,high, got ${JSON.stringify(view)}`)
     assert.equal(buildMistralExtras({ wireModel: model, effortValue: 'high', thinkingEnabled: false, maxOutputTokensOverride: undefined }).reasoning_effort, 'none')
   }
   assert.equal(buildMistralExtras({ wireModel: 'zai-glm-5-3', effortValue: 'max', thinkingEnabled: true, maxOutputTokensOverride: undefined }).reasoning_effort, 'max')

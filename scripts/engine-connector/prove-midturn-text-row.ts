@@ -9,23 +9,23 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'midturn-text-home-'
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'midturn-text-daemon-'))
 delete process.env.MERCURY_HOME
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const { publishSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { recordTranscript, flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
-const { getTranscriptPathForSession } = await import('../../src/utils/sessionStorage/paths.ts')
-type Message = import('../../src/types/message.ts').Message
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+const { publishSessionTail } = await import('../../src/engine/connector/seatProjections.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { recordTranscript, flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { getTranscriptPathForSession } = await import('../../src/sessions/transcripts/paths.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 let failures = 0
 let checks = 0
-const TAIL = 'src/services/engine-connector/daemon/tail.ts'
+const TAIL = 'src/engine/connector/daemon/tail.ts'
 const wheres: Record<string, string> = {
   T1: `takeTail in ${TAIL} must put the runner's streaming words in the tail store and mint no committed text row until the block ends`,
-  T2: `clearTail and commitHeldText in ${TAIL} must turn the held words into a virtual text row with the message's id, and src/services/engine-connector/daemon/transcript.ts must splice textRows into the records after the anchor`,
+  T2: `clearTail and commitHeldText in ${TAIL} must turn the held words into a virtual text row with the message's id, and src/engine/connector/daemon/transcript.ts must splice textRows into the records after the anchor`,
   T4: `retireTextRows and landedAt in ${TAIL} must drop the committed row once the transcript record with that message id is in the records`,
   T5: `commitHeldText in ${TAIL} must return 'standing' and mint no row when the record with that message id already shows the words`,
   T6: `commitHeldText in ${TAIL} must return 'unidentified' for a tail with no messageId, leaving the words in the tail store's settled slot`,

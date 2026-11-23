@@ -10,7 +10,7 @@ process.chdir(ROOT)
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'notebook-edit-')))
 
 let failures = 0
-const notebookFixHint = 'fix: notebookTextAfterEdit (the in-place splice that keeps the file layout) in src/tools/NotebookEditTool/notebookText.ts, or call / validateInput in src/tools/NotebookEditTool/NotebookEditTool.ts'
+const notebookFixHint = 'fix: notebookTextAfterEdit (the in-place splice that keeps the file layout) in src/tools/notebook-edit/notebookText.ts, or call / validateInput in src/tools/notebook-edit/NotebookEditTool.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ' — ' + detail : ''} — ${notebookFixHint}` : ''}`)
   if (!cond) failures++
@@ -18,8 +18,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const clip = (text: string, limit = 400): string => JSON.stringify(text.length > limit ? `${text.slice(0, limit)}…` : text)
 
-const { NotebookEditTool } = await import('../../src/tools/NotebookEditTool/NotebookEditTool.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { NotebookEditTool } = await import('../../src/tools/notebook-edit/NotebookEditTool.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 
 let appState = getDefaultAppState()
 const readFileState = new Map<string, { content: string; timestamp: number; offset?: number; limit?: number }>()

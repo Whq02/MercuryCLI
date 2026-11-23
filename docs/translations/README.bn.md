@@ -374,7 +374,7 @@ docker run --rm mercury --version
 - **Apollo Mode**, স্পেসিফিকেশন ইন্টারভিউ: এজেন্টের প্রশ্নের উত্তর দিন, যাতে সে একটি প্রোটোটাইপ বানানোর জন্য ব্যবহার করবে এমন স্পেসিফিকেশন সম্পূর্ণ হয়। দেখুন [docs/APOLLO-MODE.md](../APOLLO-MODE.md)।
 - **পুনরুদ্ধার।** পারমাণবিক প্রকাশনা, জার্নাল-করা অপারেশন ও স্টার্টআপে মেলানো (reconciliation)। দেখুন [docs/DURABILITY.md](../DURABILITY.md)।
 
-রানটাইম ফ্ল্যাগ `src/substrate/flagRegistry.ts`-এ সংজ্ঞায়িত, `MERCURY_*` সেটিং হিসেবে উন্মুক্ত এবং চাহিদামতো দেখানো হয়। ইন্টিগ্রেশনের সামঞ্জস্য [docs/COMPATIBILITY.md](../COMPATIBILITY.md)-এ লেখা আছে। সম্পূর্ণ ডকুমেন্টেশন সূচি [docs/README.md](../README.md)।
+রানটাইম ফ্ল্যাগ `src/platform/substrate/flagRegistry.ts`-এ সংজ্ঞায়িত, `MERCURY_*` সেটিং হিসেবে উন্মুক্ত এবং চাহিদামতো দেখানো হয়। ইন্টিগ্রেশনের সামঞ্জস্য [docs/COMPATIBILITY.md](../COMPATIBILITY.md)-এ লেখা আছে। সম্পূর্ণ ডকুমেন্টেশন সূচি [docs/README.md](../README.md)।
 
 ## স্ল্যাশ কমান্ড
 

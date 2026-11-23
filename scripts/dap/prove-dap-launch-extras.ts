@@ -32,8 +32,8 @@ async function main(): Promise<void> {
   const trace = join(scratch, 'trace.jsonl')
   process.env.MOCK_DAP_TRACE = trace
 
-  const { createDapSession, removeDapSession } = await import(join(SRC, 'services/dap/dapClient.ts'))
-  const { makeOwnerKey } = await import(join(SRC, 'utils/run/ownerKey.ts'))
+  const { createDapSession, removeDapSession } = await import(join(SRC, 'integrations/debugger/dapClient.ts'))
+  const { makeOwnerKey } = await import(join(SRC, 'engine/run-owner/ownerKey.ts'))
   const OWNER = makeOwnerKey({ workspace: '/tmp/w', sessionId: 'dap-extras-proof', lane: 'main' })
 
   console.log('============================================================')
@@ -43,18 +43,18 @@ async function main(): Promise<void> {
   await createDapSession({ owner: OWNER, id: 'extras', adapterKey: 'mock', program: '/tmp/pkg', args: ['-test.run', '^TestAdd$'], cwd: scratch, stopOnEntry: true, launchExtras: { mode: 'test', program: 'never-wins' } })
   await removeDapSession(OWNER, 'extras')
   const launch = readTrace(trace).find(row => row.command === 'launch')
-  check('the launch went out', launch !== undefined, 'no launch request reached the mock adapter: check createDapSession in src/services/dap/dapClient.ts and that scripts/dap/mock-dap-adapter.mjs wrote MOCK_DAP_TRACE')
-  check('the caller\'s extra field rides the body (mode: test — the dlv test-mode spelling)', launch?.arguments.mode === 'test', `mode=${String(launch?.arguments.mode)}; startBodyOf in src/services/dap/client/launch.ts must spread options.launchExtras into the launch body`)
-  check('an extra field overrides the adapter row\'s launchDefaults for the same key', launch?.arguments.mode !== 'from-the-row', 'launchExtras must be spread after spec.launchDefaults in startBodyOf (src/services/dap/client/launch.ts)')
-  check('the row\'s other defaults still ride', launch?.arguments.type === 'mock-default', `type=${String(launch?.arguments.type)}; startBodyOf in src/services/dap/client/launch.ts must still spread spec.launchDefaults`)
-  check('the fixed fields win over an extra of the same name (program stays the caller\'s program)', launch?.arguments.program === '/tmp/pkg', `program=${String(launch?.arguments.program)}; startBodyOf in src/services/dap/client/launch.ts must set program after the launchExtras spread`)
-  check('args, cwd and stopOnEntry keep the standard shape', JSON.stringify(launch?.arguments.args) === JSON.stringify(['-test.run', '^TestAdd$']) && launch?.arguments.cwd === scratch && launch?.arguments.stopOnEntry === true, `body=${JSON.stringify(launch?.arguments)}; startBodyOf in src/services/dap/client/launch.ts must keep args, cwd and stopOnEntry after the launchExtras spread`)
+  check('the launch went out', launch !== undefined, 'no launch request reached the mock adapter: check createDapSession in src/integrations/debugger/dapClient.ts and that scripts/dap/mock-dap-adapter.mjs wrote MOCK_DAP_TRACE')
+  check('the caller\'s extra field rides the body (mode: test — the dlv test-mode spelling)', launch?.arguments.mode === 'test', `mode=${String(launch?.arguments.mode)}; startBodyOf in src/integrations/debugger/client/launch.ts must spread options.launchExtras into the launch body`)
+  check('an extra field overrides the adapter row\'s launchDefaults for the same key', launch?.arguments.mode !== 'from-the-row', 'launchExtras must be spread after spec.launchDefaults in startBodyOf (src/integrations/debugger/client/launch.ts)')
+  check('the row\'s other defaults still ride', launch?.arguments.type === 'mock-default', `type=${String(launch?.arguments.type)}; startBodyOf in src/integrations/debugger/client/launch.ts must still spread spec.launchDefaults`)
+  check('the fixed fields win over an extra of the same name (program stays the caller\'s program)', launch?.arguments.program === '/tmp/pkg', `program=${String(launch?.arguments.program)}; startBodyOf in src/integrations/debugger/client/launch.ts must set program after the launchExtras spread`)
+  check('args, cwd and stopOnEntry keep the standard shape', JSON.stringify(launch?.arguments.args) === JSON.stringify(['-test.run', '^TestAdd$']) && launch?.arguments.cwd === scratch && launch?.arguments.stopOnEntry === true, `body=${JSON.stringify(launch?.arguments)}; startBodyOf in src/integrations/debugger/client/launch.ts must keep args, cwd and stopOnEntry after the launchExtras spread`)
 
   rmSync(scratch, { recursive: true, force: true })
   await createDapSession({ owner: OWNER, id: 'plain', adapterKey: 'mock', program: '/tmp/demo.py', cwd: tmpdir(), stopOnEntry: true })
   await removeDapSession(OWNER, 'plain')
   const plain = readTrace(trace).find(row => row.command === 'launch')
-  check('without extras the body is byte-for-byte the standard one (no mode key beyond the row\'s own default)', plain === undefined || plain.arguments.mode === 'from-the-row' || plain.arguments.mode === undefined, `mode=${String(plain?.arguments.mode)}; without launchExtras startBodyOf (src/services/dap/client/launch.ts) must add no mode key beyond the row's launchDefaults`)
+  check('without extras the body is byte-for-byte the standard one (no mode key beyond the row\'s own default)', plain === undefined || plain.arguments.mode === 'from-the-row' || plain.arguments.mode === undefined, `mode=${String(plain?.arguments.mode)}; without launchExtras startBodyOf (src/integrations/debugger/client/launch.ts) must add no mode key beyond the row's launchDefaults`)
 
   console.log(failures === 0 ? '\n✅ prove-dap-launch-extras — all checks pass' : `\n❌ prove-dap-launch-extras — ${failures} check(s) failed`)
   process.exit(failures === 0 ? 0 : 1)

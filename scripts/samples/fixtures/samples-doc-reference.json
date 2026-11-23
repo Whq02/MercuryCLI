@@ -560,7 +560,7 @@
     "doc": {
       "title": "Structured samples: doc replaces html",
       "eyebrow": "Code review",
-      "subtitle": "Review of the candidate change that compiles `sample({ name, title?, doc, ask? })` in `src/services/samples/bridge.ts`, closes raw `html` to models, and leaves `/memory page` on `keepSample()` as it is.",
+      "subtitle": "Review of the candidate change that compiles `sample({ name, title?, doc, ask? })` in `src/integrations/samples/bridge.ts`, closes raw `html` to models, and leaves `/memory page` on `keepSample()` as it is.",
       "meta": [
         "Base 522a7f498b",
         "4 files · +312 / −9",
@@ -603,7 +603,7 @@
           "kind": "section",
           "heading": "How the change sits in the store",
           "prose": [
-            "Today `handleSampleCall()` in `src/services/samples/bridge.ts` hands the cell's payload to `specOf()`, which insists on `html` (line 48) and caps it at 8 MB (line 51) before `keepSample()` writes `v<N>.html` under the session. The change compiles `spec.doc` to HTML inside `specOf()`, so `store.ts`, `listener.ts`, `marks.ts` and the fallback page see the same string they see today.",
+            "Today `handleSampleCall()` in `src/integrations/samples/bridge.ts` hands the cell's payload to `specOf()`, which insists on `html` (line 48) and caps it at 8 MB (line 51) before `keepSample()` writes `v<N>.html` under the session. The change compiles `spec.doc` to HTML inside `specOf()`, so `store.ts`, `listener.ts`, `marks.ts` and the fallback page see the same string they see today.",
             "`keepSample()` is untouched: `src/commands/memory/memoryPage.ts` calls it directly with the memory page's own HTML, so `/memory page` keeps working while the Eval road accepts only `doc`."
           ],
           "items": [
@@ -626,25 +626,25 @@
             [
               "F-01",
               "Defect · minor",
-              "src/services/samples/renderDoc.ts:142",
+              "src/integrations/samples/renderDoc.ts:142",
               "Object rows without `columns` render an empty header: `normalizeSampleDoc()` reads `columns` only from the part. Take the keys of the first object row when `columns` is absent, and in `figure.svg` strip `javascript:` and `http(s):` attribute values along with `<script>` and `on*`."
             ],
             [
               "F-02",
               "Polish",
-              "src/services/samples/bridge.ts:58",
+              "src/integrations/samples/bridge.ts:58",
               "`sample({ name, doc: { title } })` without a top-level `title` names the sample after `name` in the bar; lift `doc.title` into `spec.title` when `spec.title` is absent."
             ],
             [
               "F-03",
               "Verified",
-              "src/services/samples/contracts.ts:57",
+              "src/integrations/samples/contracts.ts:57",
               "`SAMPLE_HTML_CAP_BYTES` (8 MB) is applied to the rendered string, so the cap is the same on both roads."
             ],
             [
               "F-04",
               "Verified",
-              "src/services/samples/shell.ts:282",
+              "src/integrations/samples/shell.ts:282",
               "`describe(el)` reads `tag#id.class.class \"six words\"`; every block id lands within the 160-character target cap in `marks.ts`."
             ]
           ],
@@ -655,12 +655,12 @@
           "heading": "specOf() in bridge.ts",
           "caption": "The byte cap stays where it is; only its input changes from the model's `html` to the rendered page.",
           "before": {
-            "meta": "src/services/samples/bridge.ts · 48–53",
+            "meta": "src/integrations/samples/bridge.ts · 48–53",
             "start": 48,
             "code": "  if (typeof spec.html !== 'string' || spec.html.trim() === '') {\n    throw new Error('sample() needs the page as html')\n  }\n  if (Buffer.byteLength(spec.html, 'utf8') > SAMPLE_HTML_CAP_BYTES) {\n    throw new Error(`sample() keeps at most ${SAMPLE_HTML_CAP_BYTES / (1024 * 1024)} MB of html per version`)\n  }"
           },
           "after": {
-            "meta": "src/services/samples/bridge.ts · 48–55",
+            "meta": "src/integrations/samples/bridge.ts · 48–55",
             "start": 48,
             "code": "  const doc = spec.doc ?? (Array.isArray(spec.parts) ? { parts: spec.parts } : undefined)\n  if (doc === undefined) {\n    throw new Error('sample() takes doc: { parts: [...] } — raw html is retired')\n  }\n  const html = renderSampleDoc(titleOf(spec, doc), normalizeSampleDoc(doc))\n  if (Buffer.byteLength(html, 'utf8') > SAMPLE_HTML_CAP_BYTES) {\n    throw new Error(`sample() keeps at most ${SAMPLE_HTML_CAP_BYTES / (1024 * 1024)} MB per version`)\n  }"
           }

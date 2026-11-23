@@ -1,6 +1,6 @@
 
-import * as M from '../../src/services/messages.ts';
-import type { Message } from '../../src/types/message.ts';
+import * as M from '../../src/engine/messages/messages.ts';
+import type { Message } from '../../src/engine/message-shapes/message.ts';
 
 const uuid = (n: number) =>
   `00000000-0000-4000-8000-${String(n).padStart(12, '0')}` as never;

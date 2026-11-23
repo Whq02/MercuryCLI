@@ -1,0 +1,59 @@
+import { recordSignIn, type SignInLedgerIo } from '../sign-in/account-ledger/signInLedger.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+
+const KNOWN_FAMILIES = new Set([
+  'anthropic',
+  'openai',
+  'zai',
+  'moonshot',
+  'deepseek',
+  'xai',
+  'meta',
+  'openai-compat',
+  'openrouter',
+  'gemini',
+  'huggingface',
+  'local',
+  'mistral',
+  'nous',
+  'zen',
+  'minimax',
+  'together',
+  'cohere',
+  'groq',
+  'melious',
+  'orcarouter',
+  'cerebras',
+  'fireworks',
+  'qwen',
+])
+
+interface DefaultProviderReads {
+  configuredProvider?: () => string | undefined
+}
+
+export function configuredDefaultProvider(reads?: DefaultProviderReads): string | undefined {
+  try {
+    const raw =
+      reads?.configuredProvider !== undefined
+        ? reads.configuredProvider()
+        : (
+            require('../../platform/settings/config.js') as { getGlobalConfig: () => { defaultProvider?: string } }
+          ).getGlobalConfig().defaultProvider
+    if (typeof raw !== 'string') return undefined
+    const trimmed = raw.trim()
+    return KNOWN_FAMILIES.has(trimmed) ? trimmed : undefined
+  } catch (error) {
+    passedOver(error)
+    return undefined
+  }
+}
+
+export function switchDefaultProvider(family: string, io?: SignInLedgerIo): boolean {
+  if (!KNOWN_FAMILIES.has(family)) return false
+  return recordSignIn(family, 'operator-switch', io)
+}
+
+export function knownDefaultProviderFamilies(): readonly string[] {
+  return [...KNOWN_FAMILIES]
+}

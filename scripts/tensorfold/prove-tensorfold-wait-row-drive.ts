@@ -30,7 +30,7 @@ const PING_S = 30
 const ESTIMATE_S = 60
 
 let failures = 0
-const WAIT_ROW_FAIL_HINT = 'the status row text during a long prompt read is built in src/services/providers/streamIdleBudget.ts, so change that wording there; the rows read at each moment are printed above, and the engine and llama.cpp fixture log is in the kept scratch folder'
+const WAIT_ROW_FAIL_HINT = 'the status row text during a long prompt read is built in src/models/roads/streamIdleBudget.ts, so change that wording there; the rows read at each moment are printed above, and the engine and llama.cpp fixture log is in the kept scratch folder'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${WAIT_ROW_FAIL_HINT}${detail ? ` — ${detail.slice(0, 900)}` : ''}` : ''}`)
@@ -56,8 +56,8 @@ process.env.ANTHROPIC_API_KEY = KEY
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const ROOT = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'tfw-')))
 process.env.MERCURY_CONFIG_DIR = join(ROOT, 'proof-home')
-const models = await import('../../src/services/tensorfold/adapter/models.ts')
-const identity = await import('../../src/services/tensorfold/adapter/identity.ts')
+const models = await import('../../src/models/tensorfold/adapter/models.ts')
+const identity = await import('../../src/models/tensorfold/adapter/identity.ts')
 
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {

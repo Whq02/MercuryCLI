@@ -3,16 +3,16 @@ import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { ASH_RAISED, IVORY, OASIS } from '../../src/components/mercuryPalette.ts'
-import { lerpHex } from '../../src/utils/theme.ts'
-import { railPlanAt } from '../../src/utils/helmGeometry.ts'
+import { ASH_RAISED, IVORY, OASIS } from '../../src/screen/theme/mercuryPalette.ts'
+import { lerpHex } from '../../src/screen/theme/theme.ts'
+import { railPlanAt } from '../../src/screen/fullscreen-layout/helmGeometry.ts'
 import { CONFIG_HOME, cleanupScenario, scenario } from './renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: the rail hover must fill only the row under the pointer, never mid-drag, in the ASH_RAISED colour of src/components/mercuryPalette.ts; the header hover recolours only the label; the rail columns come from railPlanAt in src/utils/helmGeometry.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: the rail hover must fill only the row under the pointer, never mid-drag, in the ASH_RAISED colour of src/screen/theme/mercuryPalette.ts; the header hover recolours only the label; the rail columns come from railPlanAt in src/screen/fullscreen-layout/helmGeometry.ts'}`)
 }
 
 type Cell = { c: string; bg?: string }

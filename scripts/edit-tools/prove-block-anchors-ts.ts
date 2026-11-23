@@ -10,21 +10,21 @@ process.env.MERCURY_ANCHOR_PATCH = '1'
 process.env.MERCURY_CHANGESET_DIR = mkdtempSync(join(tmpdir(), 'block-anchor-cs-'))
 
 let failures = 0
-let blockAnchorWhere = 'fix resolveBlockAt in src/services/changeTransaction/blockAnchors.ts'
+let blockAnchorWhere = 'fix resolveBlockAt in src/tools/engines/change-transaction/blockAnchors.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${blockAnchorWhere}` : ''}`)
 }
 
-const { resolveBlockAt } = await import('../../src/services/changeTransaction/blockAnchors.ts')
-const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
-const { countLines } = await import('../../src/services/changeTransaction/hunks.ts')
+const { resolveBlockAt } = await import('../../src/tools/engines/change-transaction/blockAnchors.ts')
+const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
+const { countLines } = await import('../../src/tools/engines/change-transaction/hunks.ts')
 const { fileGeneration, recordSeenLines } = await import(
-  '../../src/services/changeTransaction/seenLines.ts'
+  '../../src/tools/engines/change-transaction/seenLines.ts'
 )
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 const fixtures = realpathSync(mkdtempSync(join(tmpdir(), 'block-anchor-fix-')))
 const owner = processMainOwner()
@@ -100,7 +100,7 @@ console.log('— resolveBlockAt (pure) —')
 }
 
 console.log('— through the real tool —')
-blockAnchorWhere = 'fix the replace-block and insert-after-block ops of the patch lowering in src/services/changeTransaction/anchorPatch.ts and anchorPatchLower.ts, or resolveBlockAt in src/services/changeTransaction/blockAnchors.ts'
+blockAnchorWhere = 'fix the replace-block and insert-after-block ops of the patch lowering in src/tools/engines/change-transaction/anchorPatch.ts and anchorPatchLower.ts, or resolveBlockAt in src/tools/engines/change-transaction/blockAnchors.ts'
 {
   const p = join(fixtures, 'live.ts')
   writeFileSync(p, TS_SOURCE)

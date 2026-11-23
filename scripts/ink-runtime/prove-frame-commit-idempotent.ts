@@ -13,17 +13,17 @@ for (const pin of ['MERCURY_CRITTER_IDLE', 'MERCURY_CRITTER_GAZE', 'MERCURY_CRIT
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}Fix FrameLedger.commitFrame (an unchanged frame must open no generation and count frame-recommit) in src/ink/root/frame-ledger.ts, and the call that passes it the changed flag in src/ink/ink/frame-loop.ts` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}Fix FrameLedger.commitFrame (an unchanged frame must open no generation and count frame-recommit) in src/screen/renderer/root/frame-ledger.ts, and the call that passes it the changed flag in src/screen/renderer/instance/frame-loop.ts` : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 
 const React = (await import('react')).default
-const { render, Text } = await import(join(ROOT, 'src/ink.ts'))
-const instances = (await import(join(ROOT, 'src/ink/instances.ts'))).default
-const { FrameLedger } = await import(join(ROOT, 'src/ink/root/frame-ledger.ts'))
-const { fluxSummary } = await import(join(ROOT, 'src/utils/flux/fluxProbe.ts'))
-const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+const { render, Text } = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
+const instances = (await import(join(ROOT, 'src/screen/renderer/instances.ts'))).default
+const { FrameLedger } = await import(join(ROOT, 'src/screen/renderer/root/frame-ledger.ts'))
+const { fluxSummary } = await import(join(ROOT, 'src/integrations/media-flux/fluxProbe.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
 
 let bytes = ''

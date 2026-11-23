@@ -23,11 +23,11 @@ const check = (label: string, cond: boolean, detail = '', fixHint = ''): void =>
 }
 const warn = (line: string): void => console.log(`  [WARN] ${line}`)
 
-const pack = await import('../../src/services/desktop/pack.js')
-const native = await import('../../src/services/desktop/nativeDriver.js')
-const driver = await import('../../src/services/desktop/driver.js')
-const { voicePackPlatform } = await import('../../src/utils/voice/voicePack.js')
-const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
+const pack = await import('../../src/integrations/desktop/pack.js')
+const native = await import('../../src/integrations/desktop/nativeDriver.js')
+const driver = await import('../../src/integrations/desktop/driver.js')
+const { voicePackPlatform } = await import('../../src/integrations/voice-pack/voicePack.js')
+const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.js')
 
 const PLATFORM = voicePackPlatform()
 const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')
@@ -131,45 +131,45 @@ console.log('[1] the pin names itself')
   mkdirSync(empty, { recursive: true })
   usePack(empty)
   const resolution = pack.resolveDesktopPackDir()
-  check('an empty MERCURY_DESKTOP_PACK_DIR answers unavailable, naming the pin and refusing a silent fallback', resolution.state === 'unavailable' && resolution.note.includes('MERCURY_DESKTOP_PACK_DIR is unusable'), JSON.stringify(resolution), 'resolveDesktopPackDir in src/services/desktop/pack.ts must answer unavailable with a note naming the unusable pin')
+  check('an empty MERCURY_DESKTOP_PACK_DIR answers unavailable, naming the pin and refusing a silent fallback', resolution.state === 'unavailable' && resolution.note.includes('MERCURY_DESKTOP_PACK_DIR is unusable'), JSON.stringify(resolution), 'resolveDesktopPackDir in src/integrations/desktop/pack.ts must answer unavailable with a note naming the unusable pin')
   const load = native.resolveNativeDesktopDriver()
-  check('the native driver answers unavailable with the same note and no remedy', load.state === 'unavailable' && load.note === resolution.note && load.remedy === null, JSON.stringify(load), 'resolveNativeDesktopDriver in src/services/desktop/nativeDriver.ts must carry the pack resolution note with a null remedy')
+  check('the native driver answers unavailable with the same note and no remedy', load.state === 'unavailable' && load.note === resolution.note && load.remedy === null, JSON.stringify(load), 'resolveNativeDesktopDriver in src/integrations/desktop/nativeDriver.ts must carry the pack resolution note with a null remedy')
 }
 
 console.log('\n[2] a pack of another platform')
 {
   const dir = fixturePack({ platform: 'fixture-os-fixture-arch' })
   const result = pack.checkDesktopPackDir(dir)
-  check('reads as a mismatch naming both platforms', result.state === 'mismatch' && result.note.includes('fixture-os-fixture-arch') && result.note.includes(PLATFORM), JSON.stringify(result), 'checkDesktopPackDir in src/services/desktop/pack.ts must return a mismatch note naming the manifest platform and the host platform')
+  check('reads as a mismatch naming both platforms', result.state === 'mismatch' && result.note.includes('fixture-os-fixture-arch') && result.note.includes(PLATFORM), JSON.stringify(result), 'checkDesktopPackDir in src/integrations/desktop/pack.ts must return a mismatch note naming the manifest platform and the host platform')
 }
 
 console.log('\n[3] a manifest whose addon file is missing')
 {
   const dir = fixturePack({ dropAddon: true })
   const result = pack.checkDesktopPackDir(dir)
-  check('reads as a mismatch naming the file', result.state === 'mismatch' && result.note.includes('stub.js'), JSON.stringify(result), 'checkDesktopPackDir in src/services/desktop/pack.ts must return a mismatch note naming the missing addon file')
+  check('reads as a mismatch naming the file', result.state === 'mismatch' && result.note.includes('stub.js'), JSON.stringify(result), 'checkDesktopPackDir in src/integrations/desktop/pack.ts must return a mismatch note naming the missing addon file')
 }
 
 console.log('\n[4] a manifest whose digest disagrees with the addon')
 {
   const dir = fixturePack({ addonSha: sha256('other bytes') })
   const result = pack.checkDesktopPackDir(dir, { digest: true })
-  check('reads as a mismatch naming both digest prefixes', result.state === 'mismatch' && result.note.includes(sha256('other bytes').slice(0, 12)) && result.note.includes('expected') && result.note.includes('got'), JSON.stringify(result), 'checkDesktopPackDir in src/services/desktop/pack.ts must compare the addon digest when digest is set and name both digest prefixes')
-  check('…and passes without the digest', pack.checkDesktopPackDir(dir).state === 'ok', '', 'checkDesktopPackDir in src/services/desktop/pack.ts must skip the addon digest unless digest is set')
+  check('reads as a mismatch naming both digest prefixes', result.state === 'mismatch' && result.note.includes(sha256('other bytes').slice(0, 12)) && result.note.includes('expected') && result.note.includes('got'), JSON.stringify(result), 'checkDesktopPackDir in src/integrations/desktop/pack.ts must compare the addon digest when digest is set and name both digest prefixes')
+  check('…and passes without the digest', pack.checkDesktopPackDir(dir).state === 'ok', '', 'checkDesktopPackDir in src/integrations/desktop/pack.ts must skip the addon digest unless digest is set')
 }
 
 console.log('\n[5] the absent note fits the install')
-check('a release install says the build shipped without it and names the update', pack.desktopPackAbsentNote(null).startsWith('absent — this build shipped without it') && pack.desktopPackAbsentNote(null).includes('mercury update'), '', 'desktopPackAbsentNote in src/services/desktop/pack.ts must say the build shipped without the pack and name mercury update when there is no checkout root')
-check('a checkout names the build command', pack.desktopPackAbsentNote('/x').includes('build-desktop.ts') && pack.desktopPackAbsentNote('/x').includes('cargo'), '', 'desktopPackAbsentNote in src/services/desktop/pack.ts must name build-desktop.ts and cargo when given a checkout root')
+check('a release install says the build shipped without it and names the update', pack.desktopPackAbsentNote(null).startsWith('absent — this build shipped without it') && pack.desktopPackAbsentNote(null).includes('mercury update'), '', 'desktopPackAbsentNote in src/integrations/desktop/pack.ts must say the build shipped without the pack and name mercury update when there is no checkout root')
+check('a checkout names the build command', pack.desktopPackAbsentNote('/x').includes('build-desktop.ts') && pack.desktopPackAbsentNote('/x').includes('cargo'), '', 'desktopPackAbsentNote in src/integrations/desktop/pack.ts must name build-desktop.ts and cargo when given a checkout root')
 
 console.log('\n[6] a stub short of one export')
 {
   const dir = fixturePack({ exports: pack.DESKTOP_ADDON_EXPORTS.filter(name => name !== 'cancel') })
   usePack(dir)
   const load = pack.loadDesktopAddon()
-  check('the loader refuses, naming the missing export and the build command', load.state === 'unavailable' && load.note.includes('cancel()') && load.note.includes('build-desktop.ts'), JSON.stringify(load), 'loadDesktopAddon in src/services/desktop/pack.ts must refuse an addon missing an export, naming it and the build command')
+  check('the loader refuses, naming the missing export and the build command', load.state === 'unavailable' && load.note.includes('cancel()') && load.note.includes('build-desktop.ts'), JSON.stringify(load), 'loadDesktopAddon in src/integrations/desktop/pack.ts must refuse an addon missing an export, naming it and the build command')
   const resolved = native.resolveNativeDesktopDriver()
-  check('the native driver carries the refusal with no remedy', resolved.state === 'unavailable' && resolved.note === load.note && resolved.remedy === null, JSON.stringify(resolved), 'resolveNativeDesktopDriver in src/services/desktop/nativeDriver.ts must carry the loadDesktopAddon refusal with a null remedy')
+  check('the native driver carries the refusal with no remedy', resolved.state === 'unavailable' && resolved.note === load.note && resolved.remedy === null, JSON.stringify(resolved), 'resolveNativeDesktopDriver in src/integrations/desktop/nativeDriver.ts must carry the loadDesktopAddon refusal with a null remedy')
 }
 
 console.log('\n[7] the driver refuses a capture before the addon can fail silently')
@@ -252,7 +252,7 @@ console.log('\n[9] an answer outside the contract is a defect naming the field')
   if (resolved.state !== 'ok') check('the stub pack resolves', false, resolved.note)
   else {
     const permissions = await resolved.driver.permissions()
-    check('permissions with a session outside the union is a defect naming the field and the build command', !permissions.ok && permissions.error.kind === 'defect' && permissions.error.note.includes('session "elsewhere"') && permissions.error.note.includes('build-desktop.ts'), JSON.stringify(permissions), 'the permissions read in src/services/desktop/nativeDriver.ts must return a defect naming the bad session value and the build command')
+    check('permissions with a session outside the union is a defect naming the field and the build command', !permissions.ok && permissions.error.kind === 'defect' && permissions.error.note.includes('session "elsewhere"') && permissions.error.note.includes('build-desktop.ts'), JSON.stringify(permissions), 'the permissions read in src/integrations/desktop/nativeDriver.ts must return a defect naming the bad session value and the build command')
     const move = await resolved.driver.mouseMove({ x: 1, y: 1 }, new AbortController().signal)
     check('an act refuses on the same defect before the addon is called', !move.ok && move.error.kind === 'defect' && (calls().mouseMove ?? 0) === 0, JSON.stringify(move))
   }
@@ -267,14 +267,14 @@ console.log('\n[10] the pure arithmetic of the contract')
   const first = driver.displaysFingerprint(displays)
   const again = driver.displaysFingerprint(displays.map(d => ({ ...d })))
   const moved = driver.displaysFingerprint(displays.map((d, i) => (i === 1 ? { ...d, originX: -1921 } : d)))
-  check('the fingerprint is stable across calls and changes when an origin changes', first === again && first !== moved && /^[0-9a-f]{16}$/.test(first), `${first} ${again} ${moved}`, 'displaysFingerprint in src/services/desktop/driver.ts must hash display origins into a stable 16-hex string')
+  check('the fingerprint is stable across calls and changes when an origin changes', first === again && first !== moved && /^[0-9a-f]{16}$/.test(first), `${first} ${again} ${moved}`, 'displaysFingerprint in src/integrations/desktop/driver.ts must hash display origins into a stable 16-hex string')
   const point = driver.capturePixelToPoint({ scale: 2, originX: -1920, originY: 0 }, 100, 50)
-  check('a screenshot pixel maps to its global point through the scale and the origin', point.x === -1870 && point.y === 25, JSON.stringify(point), 'capturePixelToPoint in src/services/desktop/driver.ts must divide the pixel by scale and add the display origin')
+  check('a screenshot pixel maps to its global point through the scale and the origin', point.x === -1870 && point.y === 25, JSON.stringify(point), 'capturePixelToPoint in src/integrations/desktop/driver.ts must divide the pixel by scale and add the display origin')
 }
 
 console.log('\n[11] the health row')
 {
-  const report = await import('../../src/services/health/healthReport.js')
+  const report = await import('../../src/platform/health/healthReport.js')
   const rowOf = async (): Promise<{ status: string; fix?: string; evidence: string; section: string } | null> => {
     const cert = await report.runHealthReport({ depth: 'fast' })
     for (const section of cert.sections) {
@@ -320,8 +320,8 @@ console.log('\n[12] an interrupted async native act never answers success')
 
 console.log('\n[13] a daemon worker reads the cockpit terminal, never the daemon ancestry')
 {
-  const { getSessionId } = await import('../../src/bootstrap/state.js')
-  const { concourseWorkersPath, focusConcourseSession, blurConcourseSession } = await import('../../src/daemon/concourseWorkers.js')
+  const { getSessionId } = await import('../../src/boot/process-state/processState.js')
+  const { concourseWorkersPath, focusConcourseSession, blurConcourseSession } = await import('../../src/daemon/concourse-workers/concourseWorkers.js')
   const statePath = concourseWorkersPath()
   mkdirSync(join(SCRATCH, 'daemon'), { recursive: true })
   const sessionId = String(getSessionId())

@@ -26,7 +26,7 @@ if (!existsSync(DIST)) {
 }
 
 let failures = 0
-const tilesFailHint = 'the NOW cell text comes from LiveTileStore and liveTilePhase in src/components/concourse/liveTiles.ts and is painted by src/components/concourse/LiveNowCell.tsx inside the list pane src/components/concourse/layout/listPane.tsx; the dispatch and permission ask legs go through the daemon (daemonControlRpc concourseDispatch); set MERCURY_TILES_CAPTURE_DIR to keep the captured frames and TILES_DRIVE_KEEP=1 to keep the scratch folder'
+const tilesFailHint = 'the NOW cell text comes from LiveTileStore and liveTilePhase in src/screen/concourse/liveTiles.ts and is painted by src/screen/concourse/LiveNowCell.tsx inside the list pane src/screen/concourse/layout/listPane.tsx; the dispatch and permission ask legs go through the daemon (daemonControlRpc concourseDispatch); set MERCURY_TILES_CAPTURE_DIR to keep the captured frames and TILES_DRIVE_KEEP=1 to keep the scratch folder'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? detail : detail ? `${detail}; ${tilesFailHint}` : tilesFailHint
@@ -97,7 +97,7 @@ const spawnDaemonWithHome = (configHome: string, projectDir: string): void => {
   clientBeat ??= startDaemonClientBeat()
 }
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boolean> => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -109,8 +109,8 @@ const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boo
   }
   return false
 }
-const obligations = await import('../../src/services/crew/obligations.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const obligations = await import('../../src/crew/crewmates/obligations.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 
 let alphaId = ''
 try {

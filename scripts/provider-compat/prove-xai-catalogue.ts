@@ -7,21 +7,21 @@ import { proofHome } from '../lib/hermetic.ts'
 for (const key of ['XAI_API_KEY', 'DEEPSEEK_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'ZAI_API_KEY', 'MOONSHOT_API_KEY', 'MERCURY_MODEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_DISABLE_1M_CONTEXT']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_XAI_API_BASE = 'http://127.0.0.1:1/v1'
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const cat = await import('../../src/services/providers/xai/xaiCatalogue.ts')
-const { writeStoredXaiApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-const { catalogueTrafficVerdict } = await import('../../src/services/providers/catalogueGate.ts')
-const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
-const { parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
-const { declaredRouteOf, providerDisplayName, canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
-const { modelFamilyWords, routeOfFamilyWord } = await import('../../src/services/model/modelFamilies.ts')
-const { xaiCatalogueEntries } = await import('../../src/services/providers/xai/xaiAdapter.ts')
-const { keyLanePins, getModelOptions, XAI_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
-const { resolveContextWindow, effortVocabularyFor, modelSupportsThinking, modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
-const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
-const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const cat = await import('../../src/models/roads/xai/xaiCatalogue.ts')
+const { writeStoredXaiApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { catalogueTrafficVerdict } = await import('../../src/models/roads/catalogueGate.ts')
+const { catalogueEpoch } = await import('../../src/models/roads/catalogueEpoch.ts')
+const { parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.ts')
+const { declaredRouteOf, providerDisplayName, canonicalWireModelId } = await import('../../src/models/roads/routeLaw.ts')
+const { modelFamilyWords, routeOfFamilyWord } = await import('../../src/models/catalogue/modelFamilies.ts')
+const { xaiCatalogueEntries } = await import('../../src/models/roads/xai/xaiAdapter.ts')
+const { keyLanePins, getModelOptions, XAI_MODEL_GROUP } = await import('../../src/models/catalogue/modelOptions.ts')
+const { resolveContextWindow, effortVocabularyFor, modelSupportsThinking, modelReceivesImageBlocks } = await import('../../src/models/facts/capabilities.ts')
+const { resolveModelPricing } = await import('../../src/models/usage/modelCost.ts')
+const { providerFrontierFact } = await import('../../src/models/catalogue/providerFrontier.ts')
 let count = 0
-const check = (name: string, ok: unknown): void => { assert.ok(ok, `${name} (start at refreshXaiCatalogue and xaiCatalogueRows in src/services/providers/xai/xaiCatalogue.ts, then the module this label names: routeLaw.ts, modelOptions.ts, capabilities.ts or modelCost.ts)`); count++; console.log(`[PASS] ${name}`) }
+const check = (name: string, ok: unknown): void => { assert.ok(ok, `${name} (start at refreshXaiCatalogue and xaiCatalogueRows in src/models/roads/xai/xaiCatalogue.ts, then the module this label names: routeLaw.ts, modelOptions.ts, capabilities.ts or modelCost.ts)`); count++; console.log(`[PASS] ${name}`) }
 let calls = 0
 const page = (data: unknown[], status = 200): typeof fetch => (async (url, init) => {
   calls++

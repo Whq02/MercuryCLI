@@ -14,21 +14,21 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.slice(0, 600)}` : ''} — fix the lift, usage flow or ruling lookup in src/mneme/mnemeLinks.ts (liftLinked, recallUsage, currentRuling, rulingLinkedIds), or Recall in src/mneme/memoryVerbs.ts (recallQuery)` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.slice(0, 600)}` : ''} — fix the lift, usage flow or ruling lookup in src/sessions/mneme/mnemeLinks.ts (liftLinked, recallUsage, currentRuling, rulingLinkedIds), or Recall in src/sessions/mneme/memoryVerbs.ts (recallQuery)` : ''}`)
   if (!cond) failures++
 }
 
-const links = await import('../../src/mneme/mnemeLinks.js')
-const docs = await import('../../src/mneme/mnemeTopicDocs.js')
-const usage = await import('../../src/mneme/mnemeUsage.js')
-const footnotes = await import('../../src/mneme/mnemeFootnotes.js')
-const ledger = await import('../../src/mneme/ledger.js')
-const { mnemeProjectKey } = await import('../../src/mneme/paths.js')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
-const { recallQuery } = await import('../../src/mneme/memoryVerbs.js')
-const { candidates } = await import('../../src/mneme/mnemeLookup.js')
-const { getSessionId } = await import('../../src/bootstrap/state.js')
-const { appendObservation } = await import('../../src/mneme/mnemeBuffer.js')
+const links = await import('../../src/sessions/mneme/mnemeLinks.js')
+const docs = await import('../../src/sessions/mneme/mnemeTopicDocs.js')
+const usage = await import('../../src/sessions/mneme/mnemeUsage.js')
+const footnotes = await import('../../src/sessions/mneme/mnemeFootnotes.js')
+const ledger = await import('../../src/sessions/mneme/ledger.js')
+const { mnemeProjectKey } = await import('../../src/sessions/mneme/paths.js')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.js')
+const { recallQuery } = await import('../../src/sessions/mneme/memoryVerbs.js')
+const { candidates } = await import('../../src/sessions/mneme/mnemeLookup.js')
+const { getSessionId } = await import('../../src/boot/process-state/processState.js')
+const { appendObservation } = await import('../../src/sessions/mneme/mnemeBuffer.js')
 
 console.log('\n[L] the lift is bounded: two places at most, never past another linked fact, ids only')
 {

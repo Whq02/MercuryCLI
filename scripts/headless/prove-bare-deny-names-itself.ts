@@ -122,7 +122,7 @@ tally.check('the MCP tool is named to the operator by a notice row once its serv
 
 tally.section('§3 a rule spelled with an absolute Windows path reads, on a win32 reading, as the file it names (separators and case folded as the OS does)')
 {
-  const { rootForPattern, relativePath } = await import('../../src/utils/permissions/filesystem.ts')
+  const { rootForPattern, relativePath } = await import('../../src/permissions/rules/filesystem.ts')
   const spelled = 'C:\\src\\proj\\made-by-run.txt'
   const anchored = rootForPattern(spelled, 'projectSettings', 'windows')
   tally.check('the backslash spelling anchors at the drive root with a forward-slash relative pattern', /^C:[\\/]$/.test(anchored.root ?? '') && anchored.relative === 'src/proj/made-by-run.txt', JSON.stringify(anchored))
@@ -141,10 +141,10 @@ tally.section('§3 a rule spelled with an absolute Windows path reads, on a win3
   const posix = relativePath('/a/B', '/a/b/c.txt', 'macos')
   tally.check('the POSIX reading does not fold case', posix === '../b/c.txt', posix)
   if (process.platform === 'win32') {
-    const { enableConfigs } = await import('../../src/utils/config.ts')
+    const { enableConfigs } = await import('../../src/platform/settings/config.ts')
     enableConfigs()
-    const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-    const { matchingRuleForInput } = await import('../../src/utils/permissions/filesystem.ts')
+    const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+    const { matchingRuleForInput } = await import('../../src/permissions/rules/filesystem.ts')
     const context = { ...getEmptyToolPermissionContext(), alwaysDenyRules: { projectSettings: [`Write(${spelled})`] } }
     const found = matchingRuleForInput(spelled, context as never, 'edit', 'deny')
     tally.check('on this Windows host the absolute rule alone is the matching deny rule for the file it names', found !== null && found.ruleValue.ruleContent === spelled, JSON.stringify(found))
@@ -155,14 +155,14 @@ tally.section('§3 a rule spelled with an absolute Windows path reads, on a win3
 
 tally.section("§4 a re-entered call (an Eval cell's tool.X) rides an app state that carries no MCP roster: an unknown name is still the typed 'no such tool' answer and a withheld built-in its named refusal — never a thrown read of the roster")
 {
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+  const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
   setSessionTrustAccepted(true)
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  await import('../../src/tools.ts')
-  const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
-  const { createAssistantMessage } = await import('../../src/services/messages.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  await import('../../src/tools/kit/toolList.ts')
+  const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
+  const { createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
   const permissionContext = {
     ...getEmptyToolPermissionContext(),
     alwaysDenyRules: { projectSettings: ['Write'] },

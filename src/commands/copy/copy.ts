@@ -1,11 +1,11 @@
 import { marked } from 'marked'
-import { setClipboardWithReceipt, type ClipboardReceipt } from '../../ink/termio/osc.js'
+import { setClipboardWithReceipt, type ClipboardReceipt } from '../../screen/renderer/termio/osc.js'
 import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
-} from '../../types/command.js'
-import type { AssistantMessage, Message } from '../../types/message.js'
-import { stripPromptXMLTags } from '../../services/messages.js'
+} from '../catalogue/command.js'
+import type { AssistantMessage, Message } from '../../engine/message-shapes/message.js'
+import { stripPromptXMLTags } from '../../engine/messages/messages.js'
 
 const LOOK_BACK_CAP = 20
 

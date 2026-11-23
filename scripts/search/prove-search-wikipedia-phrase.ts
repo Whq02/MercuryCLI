@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 ;(globalThis as any).MACRO = { VERSION: 'proof', PACKAGE_URL: 'https://example.invalid' }
-const { officialSearch, officialSearchUrl, wikipediaPhrase, wikipediaLegNote, wikipediaNothingNote, wikipediaTitleCarries } = await import('../../src/services/search/officialSearch.js')
-const { performWebSearch } = await import('../../src/services/search/searchDoor.js')
-const { officialSearchIntent } = await import('../../src/services/search/searchSources.js')
-const pacing = await import('../../src/services/search/searchPacing.js')
-const { mapSearchResult } = await import('../../src/tools/WebSearchTool/searchOutput.js')
-const { searchTokenEstimate, SEARCH_PAYLOAD_TOKEN_CEILING } = await import('../../src/services/search/searchPayload.js')
+const { officialSearch, officialSearchUrl, wikipediaPhrase, wikipediaLegNote, wikipediaNothingNote, wikipediaTitleCarries } = await import('../../src/tools/engines/web-search/officialSearch.js')
+const { performWebSearch } = await import('../../src/tools/engines/web-search/searchDoor.js')
+const { officialSearchIntent } = await import('../../src/tools/engines/web-search/searchSources.js')
+const pacing = await import('../../src/tools/engines/web-search/searchPacing.js')
+const { mapSearchResult } = await import('../../src/tools/web-search/searchOutput.js')
+const { searchTokenEstimate, SEARCH_PAYLOAD_TOKEN_CEILING } = await import('../../src/tools/engines/web-search/searchPayload.js')
 let now = 1_000_000
 const clock = { now: () => now, random: () => 0.5, sleep: async (ms: number) => { now += ms } }
 const page = (title: string, snippet: string) => ({ ns: 0, title, pageid: 1, snippet })
@@ -43,7 +43,7 @@ try {
   assert.equal(exact.ok, true)
   if (exact.ok) {
     assert.deepEqual(exact.hits.map(h => h.title), ['Reciprocal rank fusion'])
-    assert.ok(exact.notes?.includes(wikipediaLegNote('phrase', words)), `officialSearch(wikipedia) in src/services/search/officialSearch.js must include phrase leg note (got ${JSON.stringify(exact.notes)})`)
+    assert.ok(exact.notes?.includes(wikipediaLegNote('phrase', words)), `officialSearch(wikipedia) in src/tools/engines/web-search/officialSearch.js must include phrase leg note (got ${JSON.stringify(exact.notes)})`)
     assert.ok(exact.notes?.some(n => n.includes('exact phrase "reciprocal rank fusion"')), `officialSearch(wikipedia) must name exact phrase in notes (got ${JSON.stringify(exact.notes)})`)
   }
   assert.deepEqual(seen.map(s => s.srsearch), ['"reciprocal rank fusion"'])
@@ -65,7 +65,7 @@ try {
     assert.ok(!fell.notes?.includes(wikipediaLegNote('phrase', words)) && !fell.notes?.includes(wikipediaLegNote('words', words)), `empty wikipedia fallback must not emit phrase/words leg note (got ${JSON.stringify(fell.notes)})`)
   }
   assert.deepEqual(seen.map(s => s.srsearch), ['"reciprocal rank fusion"', words])
-  assert.ok(seen[1]!.at - seen[0]!.at >= 1000, `wikipedia second leg in src/services/search/officialSearch.js must pace >=1000ms (got ${seen[1]!.at - seen[0]!.at}ms)`)
+  assert.ok(seen[1]!.at - seen[0]!.at >= 1000, `wikipedia second leg in src/tools/engines/web-search/officialSearch.js must pace >=1000ms (got ${seen[1]!.at - seen[0]!.at}ms)`)
   const cachedFall = await officialSearch('wikipedia', words, { query: words }, io)
   assert.equal(cachedFall.ok, true); assert.equal(seen.length, 2)
   if (cachedFall.ok) assert.deepEqual(cachedFall.hits, [])
@@ -102,7 +102,7 @@ try {
   assert.ok(!run.notes.some(n => n.includes('Identity fusion') || n.includes('found no matching links') || n.includes('no open door')), JSON.stringify(run.notes))
   assert.deepEqual(seen.map(s => s.srsearch), ['"reciprocal rank fusion"', words])
   const payload = mapSearchResult({ query: 'what is reciprocal rank fusion?', results: [{ tool_use_id: 'g', content: run.hits }], notes: run.notes, via: run.via, tier: run.tier, durationSeconds: 0 }, 't').content
-  assert.ok((JSON.parse(payload) as { notes: string[] }).notes.includes(`${wikipediaNothingNote(words)}; the next source answered`), 'mapSearchResult in src/tools/WebSearchTool/searchOutput.js must retain wikipedia fallback note'); assert.ok(searchTokenEstimate(payload) < SEARCH_PAYLOAD_TOKEN_CEILING, `wikipedia fallback payload must stay below ${SEARCH_PAYLOAD_TOKEN_CEILING} tokens`)
+  assert.ok((JSON.parse(payload) as { notes: string[] }).notes.includes(`${wikipediaNothingNote(words)}; the next source answered`), 'mapSearchResult in src/tools/web-search/searchOutput.js must retain wikipedia fallback note'); assert.ok(searchTokenEstimate(payload) < SEARCH_PAYLOAD_TOKEN_CEILING, `wikipedia fallback payload must stay below ${SEARCH_PAYLOAD_TOKEN_CEILING} tokens`)
   pacing.resetSearchPacing(); seen.length = 0
   await assert.rejects(performWebSearch({ query: 'what is reciprocal rank fusion?' }, { context, reads: { keylessAllowed: false }, clock, backends: { official } }), (error: unknown) => error instanceof Error && error.message.includes(`${wikipediaNothingNote(words)}; no later source answered`))
   assert.deepEqual(seen.map(s => s.srsearch), ['"reciprocal rank fusion"', words])

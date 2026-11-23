@@ -42,21 +42,21 @@ await mock.module('fs/promises', () => ({
     return contents
   },
 }))
-mock.module(resolve(ROOT, 'src/bootstrap/state.ts'), () => ({
+mock.module(resolve(ROOT, 'src/boot/process-state/processState.ts'), () => ({
   getOriginalCwd: () => { events.push(['cwd']); return state.cwd },
   getSessionId: () => { events.push(['session']); return state.session },
   getSessionProjectDir: () => { events.push(['override']); return state.override },
 }))
-mock.module(resolve(ROOT, 'src/utils/debug.ts'), () => ({
+mock.module(resolve(ROOT, 'src/platform/logs/debugLog.ts'), () => ({
   logForDebugging: (...args: unknown[]) => events.push(['warn', ...args]),
 }))
-mock.module(resolve(ROOT, 'src/utils/envUtils.ts'), () => ({
+mock.module(resolve(ROOT, 'src/platform/environment/envUtils.ts'), () => ({
   getMercuryHome: () => state.home,
 }))
-mock.module(resolve(ROOT, 'src/utils/errors.ts'), () => ({
+mock.module(resolve(ROOT, 'src/platform/errors/errors.ts'), () => ({
   isFsInaccessible: (error: unknown) => error === absent,
 }))
-mock.module(resolve(ROOT, 'src/utils/fsOperations.ts'), () => ({
+mock.module(resolve(ROOT, 'src/platform/files/fsOperations.ts'), () => ({
   getFsImplementation: () => ({
     statSync(file: string) {
       events.push(['stat', file])
@@ -65,13 +65,13 @@ mock.module(resolve(ROOT, 'src/utils/fsOperations.ts'), () => ({
     },
   }),
 }))
-mock.module(resolve(ROOT, 'src/substrate/durablePublish.ts'), () => ({
+mock.module(resolve(ROOT, 'src/platform/substrate/durablePublish.ts'), () => ({
   async durableAtomicPublish(file: string, text: string) {
     events.push(['publish', file, text])
     if (state.publishError) throw state.publishError
   },
 }))
-mock.module(resolve(ROOT, 'src/utils/sessionStoragePortable.ts'), () => ({
+mock.module(resolve(ROOT, 'src/sessions/transcripts/sessionStoragePortable.ts'), () => ({
   getProjectDir(cwd: string) {
     events.push(['project', cwd])
     if (state.resolutionError) throw state.resolutionError
@@ -79,7 +79,7 @@ mock.module(resolve(ROOT, 'src/utils/sessionStoragePortable.ts'), () => ({
   },
 }))
 
-const api = await import('../../src/utils/sessionStorage/paths.ts')
+const api = await import('../../src/sessions/transcripts/paths.ts')
 
 for (const path of [posix, win32]) {
   currentPath = path

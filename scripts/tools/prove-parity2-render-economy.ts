@@ -19,10 +19,10 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 {
-  failHint = 'change the quiet update check in src/services/privateChannel/quietUpdateNotice.ts (runQuietUpdateCheck, decideQuietCheck, updateNoticeText, scheduleQuietUpdateNotice) or the MERCURY_UPDATE_NOTICE flag in the flag registry (FLAG_REGISTRY)'
+  failHint = 'change the quiet update check in src/platform/update-channel/quietUpdateNotice.ts (runQuietUpdateCheck, decideQuietCheck, updateNoticeText, scheduleQuietUpdateNotice) or the MERCURY_UPDATE_NOTICE flag in the flag registry (FLAG_REGISTRY)'
   const { runQuietUpdateCheck, decideQuietCheck, updateNoticeText, readUpdateNoticeCache, writeUpdateNoticeCache, updateNoticeCachePath, UPDATE_NOTICE_DAILY_MS, scheduleQuietUpdateNotice } =
-    await import('../../src/services/privateChannel/quietUpdateNotice.ts')
-  const { flagEnabled } = await import('../../src/substrate/flagRegistry.ts')
+    await import('../../src/platform/update-channel/quietUpdateNotice.ts')
+  const { flagEnabled } = await import('../../src/platform/substrate/flagRegistry.ts')
   const cachePath = updateNoticeCachePath(home)
   let listings = 0
   const notices: string[] = []
@@ -69,16 +69,16 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 {
-  failHint = 'fix truncatePathMiddle in src/utils/truncate.ts so a long path keeps its root and filename and puts the ellipsis in the middle'
-  const { truncatePathMiddle } = await import('../../src/utils/truncate.ts')
-  const long = 'src/components/permissions/FilePermissionDialog/useFilePermissionDialog.ts'
+  failHint = 'fix truncatePathMiddle in src/platform/text/truncate.ts so a long path keeps its root and filename and puts the ellipsis in the middle'
+  const { truncatePathMiddle } = await import('../../src/platform/text/truncate.ts')
+  const long = 'src/permissions/cards/file-dialog/useFilePermissionDialog.ts'
   const shown = truncatePathMiddle(long, 50)
   t('a long path keeps its filename and its root', shown.endsWith('/useFilePermissionDialog.ts') && shown.startsWith('src/') && shown.includes('…'), shown)
 }
 
 {
-  failHint = 'fix the list and rule spacing in applyMarkdown in src/utils/markdown.ts'
-  const { applyMarkdown } = await import('../../src/utils/markdown.ts')
+  failHint = 'fix the list and rule spacing in applyMarkdown in src/screen/messages/markdownText.ts'
+  const { applyMarkdown } = await import('../../src/screen/messages/markdownText.ts')
   const render = (src: string) => applyMarkdown(src, 'dark', null, 60)
   t('a tight list stacks one item per line', render('- one\n- two\n- three') === '- one\n- two\n- three')
   t('a nested tight list indents its children', render('- one\n  - nested a\n  - nested b\n- two') === '- one\n  - nested a\n  - nested b\n- two')
@@ -89,8 +89,8 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 {
-  failHint = 'cut at grapheme boundaries in src/utils/intl.ts (sliceHeadAtGrapheme, sliceTailAtGrapheme), and make generatePreview in src/utils/toolResultStorage.ts and boundHookContext in src/utils/hooks/contextBound.ts use them'
-  const { sliceHeadAtGrapheme, sliceTailAtGrapheme } = await import('../../src/utils/intl.ts')
+  failHint = 'cut at grapheme boundaries in src/platform/text/textSegments.ts (sliceHeadAtGrapheme, sliceTailAtGrapheme), and make generatePreview in src/engine/tool-dispatch/toolResultStorage.ts and boundHookContext in src/integrations/event-hooks/contextBound.ts use them'
+  const { sliceHeadAtGrapheme, sliceTailAtGrapheme } = await import('../../src/platform/text/textSegments.ts')
   const emoji = '🎉'
   const text = `ab${emoji}cd`
   t('a head cut that would split a surrogate pair snaps before it', sliceHeadAtGrapheme(text, 3) === 'ab')
@@ -100,20 +100,20 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   t('a multi-code-point cluster is never split (head)', sliceHeadAtGrapheme(`x${flag}y`, 3) === 'x')
   t('a multi-code-point cluster is never split (tail)', sliceTailAtGrapheme(`x${flag}y`, 3) === 'y')
   t('text within the cap is untouched', sliceHeadAtGrapheme('short', 100) === 'short' && sliceTailAtGrapheme('short', 100) === 'short')
-  const { generatePreview } = await import('../../src/utils/toolResultStorage.ts')
+  const { generatePreview } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
   const big = `${'a'.repeat(2_000)}${emoji}${'b'.repeat(2_000)}`
   const preview = generatePreview(big, 2_003).preview
   t('a tool-result preview never carries a lone surrogate', !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(preview))
-  const { boundHookContext } = await import('../../src/utils/hooks/contextBound.ts')
+  const { boundHookContext } = await import('../../src/integrations/event-hooks/contextBound.ts')
   const hooked = boundHookContext(`${'h'.repeat(16_800)}${emoji}${'t'.repeat(8_000)}`, 'grapheme-probe', 24_000)
   t('the hook-context bound never carries a lone surrogate', !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(hooked.text))
 }
 
 {
-  failHint = 'make every frame of the failing spinner set one terminal width: BRIDGE_SPINNER_FRAMES in src/constants/figures.ts or getDefaultCharacters in src/components/Spinner/utils.ts'
-  const { stringWidth } = await import('../../src/ink/stringWidth.ts')
-  const { BRIDGE_SPINNER_FRAMES } = await import('../../src/constants/figures.ts')
-  const { getDefaultCharacters } = await import('../../src/components/Spinner/utils.ts')
+  failHint = 'make every frame of the failing spinner set one terminal width: BRIDGE_SPINNER_FRAMES in src/screen/theme/rowGlyphs.ts or getDefaultCharacters in src/screen/spinner/glyphsAndColors.ts'
+  const { stringWidth } = await import('../../src/screen/renderer/stringWidth.ts')
+  const { BRIDGE_SPINNER_FRAMES } = await import('../../src/screen/theme/rowGlyphs.ts')
+  const { getDefaultCharacters } = await import('../../src/screen/spinner/glyphsAndColors.ts')
   const sets: Array<[string, readonly string[]]> = [
     ['bridge', BRIDGE_SPINNER_FRAMES as readonly string[]],
     ['default', getDefaultCharacters() as readonly string[]],
@@ -126,8 +126,8 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 {
-  failHint = 'cap each skill description in formatCommandsWithinBudget in src/utils/skillListingFormat.ts (the entry must end with an ellipsis and stay under 300 chars)'
-  const { formatCommandsWithinBudget } = await import('../../src/utils/skillListingFormat.ts')
+  failHint = 'cap each skill description in formatCommandsWithinBudget in src/engine/attachments/skillListingFormat.ts (the entry must end with an ellipsis and stay under 300 chars)'
+  const { formatCommandsWithinBudget } = await import('../../src/engine/attachments/skillListingFormat.ts')
   const huge = 'x'.repeat(5_000)
   const line = formatCommandsWithinBudget([{ name: 'big-skill', description: huge } as never], 1_000_000)
   t('an oversized skill description is hard-capped per entry', line.length < 300 && line.endsWith('…'), `${line.length} chars`)

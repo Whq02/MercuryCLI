@@ -2,12 +2,12 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 
-const accent = await import('../../src/components/mercury-ui/sessionAccent.js')
+const accent = await import('../../src/screen/widgets/sessionAccent.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — change setSessionCritter, setSessionAccentOverride, getAccentEpoch, getSessionAccent and subscribeSessionCritter in src/components/mercury-ui/sessionAccent.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — change setSessionCritter, setSessionAccentOverride, getAccentEpoch, getSessionAccent and subscribeSessionCritter in src/screen/widgets/sessionAccent.ts'}`)
 }
 
 console.log('============================================================')

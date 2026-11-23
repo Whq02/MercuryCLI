@@ -21,11 +21,11 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
 }
-const noticesHint = 'fix deliverHostNotices / watchHostNotices in src/services/host/notices.ts'
+const noticesHint = 'fix deliverHostNotices / watchHostNotices in src/models/hosting/notices.ts'
 const section = (t: string): void => console.log(`\n── ${t} ──`)
 
-const { hostNotice, deliverHostNotices, watchHostNotices } = await import('../../src/services/host/notices.ts')
-const { getCommandQueue, dequeue } = await import('../../src/input-core/command-queue.ts')
+const { hostNotice, deliverHostNotices, watchHostNotices } = await import('../../src/models/hosting/notices.ts')
+const { getCommandQueue, dequeue } = await import('../../src/screen/composer/input-core/command-queue.ts')
 
 const dir = join(home, 'host', 'notices')
 const record = { id: 'damaged-pod', generation: 'g1', sessionId: 'S', name: 'Damaged pod', recipe: 'fixture', price: 0, startedAt: new Date().toISOString(), status: 'RUNNING' }

@@ -10,17 +10,17 @@ const BUN = process.execPath.includes('bun') ? process.execPath : join(process.e
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
 const FN27_FIX_HINTS: Array<[string, string]> = [
-  ['prepare-create-non-enoent', 'fix prepareApply in src/tools/LSPTool/mercuryOps/prepare.ts so a stat error other than ENOENT refuses the create with the real error, and is not read as the path being absent'],
-  ['list-mcp-resources-named-server-throws', 'fix ListMcpResourcesTool.call in src/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts so a named server whose reconnect fails throws, while a query over all servers still returns the healthy ones'],
-  ['memory-tools-session-id-throws', 'fix RetainTool in src/tools/MemoryTools/MemoryTools.ts so an error from getSessionId propagates and the fact is not filed under boot'],
-  ['monitor-stop-fallback-kills-process', 'fix MonitorTool in src/tools/MonitorTool/MonitorTool.ts so when stopTask fails on expiry it kills the shell command directly'],
-  ['crew-address-', 'fix resolveCrewAddress and unknownAgentRefusal in src/tools/SendMessageTool/crewAddress.ts so a failing transcript-path or launch-receipt read propagates and is not answered as unknown'],
-  ['tool-search-probe-enabled-fails-closed', 'fix ToolSearchTool in src/tools/ToolSearchTool/ToolSearchTool.ts so a tool whose isEnabled throws counts as disabled and ranks after enabled tools'],
-  ['video-tool-inline-read-failure-noted', 'fix mapToolResultToToolResultBlockParam in src/tools/VideoTool/VideoTool.tsx so an inline preview that cannot be read adds the preview-unavailable note'],
-  ['shell-directory-non-enoent', 'fix exec in src/utils/Shell.ts so a cwd error other than ENOENT reports the real error, and only a missing folder says Path does not exist'],
-  ['shell-kept-directory-', 'fix exec and getShellCwd in src/utils/Shell.ts so a kept directory that cannot be entered or no longer exists runs the command in the start folder and says so once'],
-  ['scoped-credential-read-throws', 'fix readAccountOAuthCreds in src/utils/accounts/scopedCredentialRead.ts so a storage read failure propagates and only absent credentials return undefined'],
-  ['account-identity-read-error-unverified', 'fix resolveLiveScopeIdentity in src/utils/accounts/accountIdentity.ts so a readCreds that throws returns unverified with the saved email and is not cached'],
+  ['prepare-create-non-enoent', 'fix prepareApply in src/tools/lsp/mercury-ops/prepare.ts so a stat error other than ENOENT refuses the create with the real error, and is not read as the path being absent'],
+  ['list-mcp-resources-named-server-throws', 'fix ListMcpResourcesTool.call in src/tools/list-mcp-resources/ListMcpResourcesTool.ts so a named server whose reconnect fails throws, while a query over all servers still returns the healthy ones'],
+  ['memory-tools-session-id-throws', 'fix RetainTool in src/tools/memory/MemoryTools.ts so an error from getSessionId propagates and the fact is not filed under boot'],
+  ['monitor-stop-fallback-kills-process', 'fix MonitorTool in src/tools/monitor/MonitorTool.ts so when stopTask fails on expiry it kills the shell command directly'],
+  ['crew-address-', 'fix resolveCrewAddress and unknownAgentRefusal in src/tools/send-message/crewAddress.ts so a failing transcript-path or launch-receipt read propagates and is not answered as unknown'],
+  ['tool-search-probe-enabled-fails-closed', 'fix ToolSearchTool in src/tools/tool-search/ToolSearchTool.ts so a tool whose isEnabled throws counts as disabled and ranks after enabled tools'],
+  ['video-tool-inline-read-failure-noted', 'fix mapToolResultToToolResultBlockParam in src/tools/video/VideoTool.tsx so an inline preview that cannot be read adds the preview-unavailable note'],
+  ['shell-directory-non-enoent', 'fix exec in src/platform/shell/shellExec.ts so a cwd error other than ENOENT reports the real error, and only a missing folder says Path does not exist'],
+  ['shell-kept-directory-', 'fix exec and getShellCwd in src/platform/shell/shellExec.ts so a kept directory that cannot be entered or no longer exists runs the command in the start folder and says so once'],
+  ['scoped-credential-read-throws', 'fix readAccountOAuthCreds in src/models/sign-in/account-ledger/scopedCredentialRead.ts so a storage read failure propagates and only absent credentials return undefined'],
+  ['account-identity-read-error-unverified', 'fix resolveLiveScopeIdentity in src/models/sign-in/account-ledger/accountIdentity.ts so a readCreds that throws returns unverified with the saved email and is not cached'],
 ]
 
 let failures = 0
@@ -107,7 +107,7 @@ try {
       `)
       res = r.res as { ok: boolean; reason?: string }
     } else {
-      const { prepareApply } = await import(join(SRC, 'tools/LSPTool/mercuryOps/prepare.ts'))
+      const { prepareApply } = await import(join(SRC, 'tools/lsp/mercury-ops/prepare.ts'))
       const env = { cwd: dir, absolutePath: blockedPath, manager: {}, input: {}, tool: {}, context: {} } as never
       res = await prepareApply(
         env,
@@ -121,7 +121,7 @@ try {
       JSON.stringify(res),
     )
     if (POSIX_MODES) {
-      const { prepareApply } = await import(join(SRC, 'tools/LSPTool/mercuryOps/prepare.ts'))
+      const { prepareApply } = await import(join(SRC, 'tools/lsp/mercury-ops/prepare.ts'))
       const env = { cwd: dir, absolutePath: blockedPath, manager: {}, input: {}, tool: {}, context: {} } as never
       const locked = join(dir, 'locked')
       mkdirSync(locked)

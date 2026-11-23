@@ -6,8 +6,8 @@ import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { CONFIG_HOME, RUNTIME_CWD, scenario, cleanupScenario } from './renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { projectSlug } from '../../src/utils/sessionStoragePortable.ts'
-import { BOOT_ENV_VERSION } from '../../src/substrate/startupMenu.ts'
+import { projectSlug } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
+import { BOOT_ENV_VERSION } from '../../src/platform/substrate/startupMenu.ts'
 
 const VSHOT = join(import.meta.dir, 'vshot.py')
 
@@ -118,11 +118,11 @@ if (res.status === 0 && !undelivered) {
   check('the retired card stays absent even with old notes on disk', !/TABULA|no notes — \/note/.test(cockpit), `the cockpit must not draw a notes card from old tabula files: remove the card where the cockpit rail is built, not the seeded files · ${cockpit.split('\n').filter(l => /TABULA/.test(l)).join(' | ')}`)
   check('neither the old note nor its refinement leaks into the cockpit', !/ship the telemetry|proof paths/.test(cockpit), 'the seeded old note text reached the cockpit: nothing on the cockpit may read the leftover tabula journal')
   check('nothing on the cockpit names the curator (its two product spellings)', !/MINERVA|Minerva/.test(cockpit), `the cockpit must not name the retired curator: remove the word from the screen text that draws it · ${cockpit.split('\n').filter(l => /MINERVA|Minerva/.test(l)).join(' | ')}`)
-  check('the retired boot-env choice raised no error line', !/error|refused|crash/i.test(cockpit), `a leftover boot-env.json must be ignored without an error line: see how BOOT_ENV_VERSION in src/substrate/startupMenu.ts gates the file · ${cockpit.split('\n').filter(l => /error|refused|crash/i.test(l)).join(' | ')}`)
-  check('/submodels opened on the Advisor', /ADVISOR — advises the working model, not you/.test(submodels), `the /submodels picker must open on the Advisor row: see src/components/SubModelPicker.tsx and src/commands/submodels · ${submodels.split('\n').slice(4, 10).join(' | ')}`)
-  check('…UNSET — the leftover minerva pick is never read', /ADVISOR — advises the working model, not you · unset · no model pinned/.test(submodels), `the Advisor row must read unset when only a leftover minerva pick is stored: see src/components/SubModelPicker.tsx and src/services/model/subModelSlots.ts · ${submodels.split('\n').filter(l => /ADVISOR/.test(l)).join(' | ')}`)
-  check('…and the picker names no other container', !/MINERVA|Minerva/.test(submodels), 'the /submodels picker names the retired curator: remove the word in src/components/SubModelPicker.tsx')
-  check('esc closes it back to the cockpit', /RECENT|NEXT/.test(final) && !/ADVISOR — advises the working model/.test(final), 'esc did not close the /submodels picker back to the cockpit: see src/components/SubModelPicker.tsx')
+  check('the retired boot-env choice raised no error line', !/error|refused|crash/i.test(cockpit), `a leftover boot-env.json must be ignored without an error line: see how BOOT_ENV_VERSION in src/platform/substrate/startupMenu.ts gates the file · ${cockpit.split('\n').filter(l => /error|refused|crash/i.test(l)).join(' | ')}`)
+  check('/submodels opened on the Advisor', /ADVISOR — advises the working model, not you/.test(submodels), `the /submodels picker must open on the Advisor row: see src/commands/submodels/SubModelPicker.tsx and src/commands/submodels · ${submodels.split('\n').slice(4, 10).join(' | ')}`)
+  check('…UNSET — the leftover minerva pick is never read', /ADVISOR — advises the working model, not you · unset · no model pinned/.test(submodels), `the Advisor row must read unset when only a leftover minerva pick is stored: see src/commands/submodels/SubModelPicker.tsx and src/models/catalogue/subModelSlots.ts · ${submodels.split('\n').filter(l => /ADVISOR/.test(l)).join(' | ')}`)
+  check('…and the picker names no other container', !/MINERVA|Minerva/.test(submodels), 'the /submodels picker names the retired curator: remove the word in src/commands/submodels/SubModelPicker.tsx')
+  check('esc closes it back to the cockpit', /RECENT|NEXT/.test(final) && !/ADVISOR — advises the working model/.test(final), 'esc did not close the /submodels picker back to the cockpit: see src/commands/submodels/SubModelPicker.tsx')
   const configPath = join(CONFIG_HOME, '.mercury.json')
   const conversationsPath = join(process.env.MERCURY_CREW_DIR!, `conversations-${projectKey}.json`)
   for (const [path, body] of seeded) {
@@ -133,7 +133,7 @@ if (res.status === 0 && !undelivered) {
   check(
     'the leftover container pick and effort survive this build\'s own config writes',
     configAfter.subModels?.minerva === 'claude-opus-5' && (configAfter.subModels?.effort as Record<string, unknown> | undefined)?.minerva === 'xhigh' && configAfter.subModels?.advisor === undefined,
-    `${JSON.stringify(configAfter.subModels)} · this build's own config writes must keep unknown subModels keys: see subModels in src/utils/config/schema.ts and src/services/model/subModelSlots.ts`,
+    `${JSON.stringify(configAfter.subModels)} · this build's own config writes must keep unknown subModels keys: see subModels in src/platform/config/schema.ts and src/models/catalogue/subModelSlots.ts`,
   )
   const conversationsAfter = JSON.parse(readFileSync(conversationsPath, 'utf8')) as { conversations?: Record<string, { kind?: string }> }
   check(

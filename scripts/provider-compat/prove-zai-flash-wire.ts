@@ -4,8 +4,8 @@ import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { proofHome } from '../lib/hermetic.ts'
-import type { Message } from '../../src/types/message.ts'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_HOME = proofHome
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -14,15 +14,15 @@ process.env.MERCURY_ZAI_API_BASE = 'https://zai.fixture.invalid/v4'
 process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '5000'
 for (const key of ['ZAI_API_KEY', 'MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_MAX_RETRIES', 'NODE_ENV']) delete process.env[key]
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { writeStoredZaiApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-const { zaiCallModel } = await import('../../src/services/providers/zai/zaiCallModel.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
+const { writeStoredZaiApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { zaiCallModel } = await import('../../src/models/roads/zai/zaiCallModel.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { effortVocabularyFor } = await import('../../src/models/facts/capabilities.ts')
 
 let count = 0
 const check = (name: string, ok: unknown, detail = ''): void => {
@@ -78,23 +78,23 @@ const settled = (items: unknown[]): boolean => items.some(item => (item as { typ
 try {
   writeStoredZaiApiKey('zai-fixture-stored-coding-key', 'coding')
   const low = await drive('glm-5.3-flash', 'low', true)
-  check('glm-5.3-flash dispatches through the Z.AI road to the fixture base with the bearer key', low.body !== undefined && posted.at(-1)?.url === 'https://zai.fixture.invalid/v4/chat/completions' && posted.at(-1)?.authorization === 'Bearer zai-fixture-stored-coding-key' && settled(low.items), 'zaiCallModel in src/services/providers/zai/zaiCallModel.ts must post to the Z.AI base with the stored coding key as bearer and settle a reply; ' + j({ url: posted.at(-1)?.url, body: low.body }))
-  check('the plain id rides the wire, never a [1m] suffix', low.body?.model === 'glm-5.3-flash', 'the request built by zaiCallModel in src/services/providers/zai/zaiCallModel.ts must send the plain model id; sent: ' + j(low.body?.model))
-  check("the flash dial speaks its own vocabulary: 'low' rides as low", low.body?.reasoning_effort === 'low' && (low.body?.thinking as { type?: string })?.type === 'enabled', 'the request built by zaiCallModel in src/services/providers/zai/zaiCallModel.ts must send the session effort as reasoning_effort and thinking enabled for the flash id; ' + j(low.body))
+  check('glm-5.3-flash dispatches through the Z.AI road to the fixture base with the bearer key', low.body !== undefined && posted.at(-1)?.url === 'https://zai.fixture.invalid/v4/chat/completions' && posted.at(-1)?.authorization === 'Bearer zai-fixture-stored-coding-key' && settled(low.items), 'zaiCallModel in src/models/roads/zai/zaiCallModel.ts must post to the Z.AI base with the stored coding key as bearer and settle a reply; ' + j({ url: posted.at(-1)?.url, body: low.body }))
+  check('the plain id rides the wire, never a [1m] suffix', low.body?.model === 'glm-5.3-flash', 'the request built by zaiCallModel in src/models/roads/zai/zaiCallModel.ts must send the plain model id; sent: ' + j(low.body?.model))
+  check("the flash dial speaks its own vocabulary: 'low' rides as low", low.body?.reasoning_effort === 'low' && (low.body?.thinking as { type?: string })?.type === 'enabled', 'the request built by zaiCallModel in src/models/roads/zai/zaiCallModel.ts must send the session effort as reasoning_effort and thinking enabled for the flash id; ' + j(low.body))
   const max = await drive('glm-5.3-flash', 'max', true)
-  check("'max' rides as max", max.body?.reasoning_effort === 'max', 'the flash vocabulary (effortVocabularyFor in src/utils/model/capabilities.ts) must carry max through zaiCallModel; sent: ' + j(max.body?.reasoning_effort))
+  check("'max' rides as max", max.body?.reasoning_effort === 'max', 'the flash vocabulary (effortVocabularyFor in src/models/facts/capabilities.ts) must carry max through zaiCallModel; sent: ' + j(max.body?.reasoning_effort))
   const xhigh = await drive('glm-5.3-flash', 'xhigh', true)
-  check("a level the flash vocabulary lacks steps to the nearest rung below: 'xhigh' rides as high", xhigh.body?.reasoning_effort === 'high', 'an effort outside the flash vocabulary (effortVocabularyFor in src/utils/model/capabilities.ts) must step to the nearest rung below on the zaiCallModel wire; sent: ' + j(xhigh.body?.reasoning_effort))
+  check("a level the flash vocabulary lacks steps to the nearest rung below: 'xhigh' rides as high", xhigh.body?.reasoning_effort === 'high', 'an effort outside the flash vocabulary (effortVocabularyFor in src/models/facts/capabilities.ts) must step to the nearest rung below on the zaiCallModel wire; sent: ' + j(xhigh.body?.reasoning_effort))
   const off = await drive('glm-5.3-flash', 'low', false)
-  check('with the session thinking off the flash wire still sends thinking enabled (the lock)', (off.body?.thinking as { type?: string })?.type === 'enabled', 'the flash id must keep thinking enabled on the wire whatever the session says: see zaiCallModel in src/services/providers/zai/zaiCallModel.ts; sent: ' + j(off.body?.thinking))
+  check('with the session thinking off the flash wire still sends thinking enabled (the lock)', (off.body?.thinking as { type?: string })?.type === 'enabled', 'the flash id must keep thinking enabled on the wire whatever the session says: see zaiCallModel in src/models/roads/zai/zaiCallModel.ts; sent: ' + j(off.body?.thinking))
   const flashx = await drive('glm-5.3-flashx', 'high', false)
-  check('glm-5.3-flashx carries the same lock and dial', (flashx.body?.thinking as { type?: string })?.type === 'enabled' && flashx.body?.reasoning_effort === 'high', 'glm-5.3-flashx must get the same thinking lock and effort dial as glm-5.3-flash: see zaiCallModel in src/services/providers/zai/zaiCallModel.ts; ' + j(flashx.body))
+  check('glm-5.3-flashx carries the same lock and dial', (flashx.body?.thinking as { type?: string })?.type === 'enabled' && flashx.body?.reasoning_effort === 'high', 'glm-5.3-flashx must get the same thinking lock and effort dial as glm-5.3-flash: see zaiCallModel in src/models/roads/zai/zaiCallModel.ts; ' + j(flashx.body))
   const older = await drive('glm-5.2', 'xhigh', false)
-  check('glm-5.2 keeps its seven-level dial and the session thinking choice', older.body?.reasoning_effort === 'xhigh' && (older.body?.thinking as { type?: string })?.type === 'disabled', 'glm-5.2 must keep its own seven-level dial and the session thinking choice: see zaiCallModel in src/services/providers/zai/zaiCallModel.ts; ' + j(older.body))
+  check('glm-5.2 keeps its seven-level dial and the session thinking choice', older.body?.reasoning_effort === 'xhigh' && (older.body?.thinking as { type?: string })?.type === 'disabled', 'glm-5.2 must keep its own seven-level dial and the session thinking choice: see zaiCallModel in src/models/roads/zai/zaiCallModel.ts; ' + j(older.body))
   const turbo = await drive('glm-5-turbo', 'high', true)
-  check('an id with no documented dial rides without one', turbo.body !== undefined && turbo.body.reasoning_effort === undefined && settled(turbo.items), 'an id with no documented dial must send no reasoning_effort: see zaiCallModel in src/services/providers/zai/zaiCallModel.ts; ' + j(turbo.body))
-  check('the capability edge and the wire agree on the flash vocabulary', effortVocabularyFor('glm-5.3-flash').kind === 'provider' && (effortVocabularyFor('glm-5.3-flash') as { vocabulary: string[] }).vocabulary.join(',') === 'low,high,max', 'effortVocabularyFor in src/utils/model/capabilities.ts must return a provider vocabulary of low, high, max for glm-5.3-flash')
-  check('no fixture body carries the key', posted.every(call => !JSON.stringify(call.body).includes('zai-fixture-stored-coding-key')), 'the stored key must travel only in the authorization header: find where zaiCallModel in src/services/providers/zai/zaiCallModel.ts puts it into the request body')
+  check('an id with no documented dial rides without one', turbo.body !== undefined && turbo.body.reasoning_effort === undefined && settled(turbo.items), 'an id with no documented dial must send no reasoning_effort: see zaiCallModel in src/models/roads/zai/zaiCallModel.ts; ' + j(turbo.body))
+  check('the capability edge and the wire agree on the flash vocabulary', effortVocabularyFor('glm-5.3-flash').kind === 'provider' && (effortVocabularyFor('glm-5.3-flash') as { vocabulary: string[] }).vocabulary.join(',') === 'low,high,max', 'effortVocabularyFor in src/models/facts/capabilities.ts must return a provider vocabulary of low, high, max for glm-5.3-flash')
+  check('no fixture body carries the key', posted.every(call => !JSON.stringify(call.body).includes('zai-fixture-stored-coding-key')), 'the stored key must travel only in the authorization header: find where zaiCallModel in src/models/roads/zai/zaiCallModel.ts puts it into the request body')
   console.log(`ZAI FLASH WIRE GREEN (${count} checks; fixture only)`)
 } finally {
   rmSync(proofHome, { recursive: true, force: true })

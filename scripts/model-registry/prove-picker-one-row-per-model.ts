@@ -56,7 +56,7 @@ for (const base of [
 }
 const FIXTURE_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_API_KEY = FIXTURE_KEY
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 
 const {
   ANTHROPIC_MODEL_GROUP,
@@ -65,22 +65,22 @@ const {
   isProviderActionRow,
   stripContext1m,
   withContext1m,
-} = await import('../../src/services/model/modelOptions.ts')
-type ModelOption = import('../../src/services/model/modelOptions.ts').ModelOption
-const { parseUserSpecifiedModel, renderModelName } = await import('../../src/services/model/model.ts')
-const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
-const { getModelStrings } = await import('../../src/utils/model/modelStrings.ts')
-const { getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.ts')
-const { composeSubModelRegistry } = await import('../../src/services/model/subModelSlots.ts')
-const { isClaudeAISubscriber, isMaxSubscriber } = await import('../../src/utils/auth.ts')
-const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
+} = await import('../../src/models/catalogue/modelOptions.ts')
+type ModelOption = import('../../src/models/catalogue/modelOptions.ts').ModelOption
+const { parseUserSpecifiedModel, renderModelName } = await import('../../src/models/catalogue/engineModel.ts')
+const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
+const { getModelStrings } = await import('../../src/models/facts/pinnedModelIds.ts')
+const { getAgentModelPickerRows } = await import('../../src/models/catalogue/agentModelPicker.ts')
+const { composeSubModelRegistry } = await import('../../src/models/catalogue/subModelSlots.ts')
+const { isClaudeAISubscriber, isMaxSubscriber } = await import('../../src/models/sign-in/credentials/auth.ts')
+const { clearOAuthTokenCache } = await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')
 
 let failures = 0
 const ONE_ROW_FIX_HINT_BY_SECTION: Record<string, string> = {
-  '1': 'change getModelOptions in src/services/model/modelOptions.ts or getAgentModelPickerRows in src/services/model/agentModelPicker.ts so each model is one row with no [1m] id',
-  '2': 'change focusedOptionSupports1m or withContext1m in src/services/model/modelOptions.ts, or the window and name for the [1m] id in src/utils/model/capabilities.ts and src/services/model/model.ts',
-  '3': 'change getModelOptions in src/services/model/modelOptions.ts so the Max subscription lists each model once',
-  '4': 'change composeSubModelRegistry in src/services/model/subModelSlots.ts or getModelOptions in src/services/model/modelOptions.ts',
+  '1': 'change getModelOptions in src/models/catalogue/modelOptions.ts or getAgentModelPickerRows in src/models/catalogue/agentModelPicker.ts so each model is one row with no [1m] id',
+  '2': 'change focusedOptionSupports1m or withContext1m in src/models/catalogue/modelOptions.ts, or the window and name for the [1m] id in src/models/facts/capabilities.ts and src/models/catalogue/engineModel.ts',
+  '3': 'change getModelOptions in src/models/catalogue/modelOptions.ts so the Max subscription lists each model once',
+  '4': 'change composeSubModelRegistry in src/models/catalogue/subModelSlots.ts or getModelOptions in src/models/catalogue/modelOptions.ts',
 }
 let oneRowFixHint = ''
 function check(label: string, cond: boolean, detail?: string): void {

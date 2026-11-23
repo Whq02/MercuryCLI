@@ -18,7 +18,7 @@ function section(t: string): void {
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — proof exceeded 240s; the live mercury-pyright server did not answer, see createLSPServerManager in src/services/lsp/LSPServerManager.ts and builtinPyrightServer in src/services/lsp/pyrightLane.ts')
+  console.log('\n❌ TIMEOUT — proof exceeded 240s; the live mercury-pyright server did not answer, see createLSPServerManager in src/integrations/lsp/LSPServerManager.ts and builtinPyrightServer in src/integrations/lsp/pyrightLane.ts')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -46,13 +46,13 @@ writeFileSync(mainPy, 'from lib import helper\n\nvalue: str = helper(3)\n')
 
 process.chdir(proj)
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { createLSPServerManager } = await import('../../src/services/lsp/LSPServerManager.js')
-const { subscribeLSPDiagnosticPublish } = await import('../../src/services/lsp/LSPDiagnosticRegistry.js')
-const { registerLSPNotificationHandlers } = await import('../../src/services/lsp/passiveFeedback.js')
-const { runMercuryLspOp } = await import('../../src/tools/LSPTool/mercuryOps.js')
-const { primeRuffProbe } = await import('../../src/services/lsp/ruffLane.js')
+const { createLSPServerManager } = await import('../../src/integrations/lsp/LSPServerManager.js')
+const { subscribeLSPDiagnosticPublish } = await import('../../src/integrations/lsp/LSPDiagnosticRegistry.js')
+const { registerLSPNotificationHandlers } = await import('../../src/integrations/lsp/publishedDiagnostics.js')
+const { runMercuryLspOp } = await import('../../src/tools/lsp/mercuryOps.js')
+const { primeRuffProbe } = await import('../../src/integrations/lsp/ruffLane.js')
 
 const PERMISSIVE_CTX = {
   mode: 'implement',
@@ -86,7 +86,7 @@ try {
   section('(1) registration — the routed semantic owner')
   {
     const claimants = manager.getServersForFile(mainPy).map(s => s.name)
-    check('mercury-pyright is the FIRST .py claimant', claimants[0] === 'mercury-pyright', 'claimants: ' + claimants.join(', ') + ' — getMercuryLspServerSources in src/services/lsp/builtinServers.ts must register mercury-pyright before the other .py servers')
+    check('mercury-pyright is the FIRST .py claimant', claimants[0] === 'mercury-pyright', 'claimants: ' + claimants.join(', ') + ' — getMercuryLspServerSources in src/integrations/lsp/builtinServers.ts must register mercury-pyright before the other .py servers')
     console.log(`  (claimants: ${claimants.join(', ') || 'none'})`)
   }
 
@@ -104,7 +104,7 @@ try {
         .find(d => /not assignable|incompatible/i.test(d.message))
       if (!hit) await new Promise(r => setTimeout(r, 150))
     }
-    check('pyright publishes the str↚int assignment error (source identity intact)', hit !== undefined, published.length ? JSON.stringify(published.at(-1)).slice(0, 200) + ' — pyright must publish the assignment error to subscribeLSPDiagnosticPublish (src/services/lsp/LSPDiagnosticRegistry.ts, via registerLSPNotificationHandlers in src/services/lsp/passiveFeedback.ts)' : 'nothing published in 30s — the mercury-pyright server did not publish diagnostics to subscribeLSPDiagnosticPublish (src/services/lsp/LSPDiagnosticRegistry.ts); check registerLSPNotificationHandlers in src/services/lsp/passiveFeedback.ts and the server start in src/services/lsp/pyrightLane.ts')
+    check('pyright publishes the str↚int assignment error (source identity intact)', hit !== undefined, published.length ? JSON.stringify(published.at(-1)).slice(0, 200) + ' — pyright must publish the assignment error to subscribeLSPDiagnosticPublish (src/integrations/lsp/LSPDiagnosticRegistry.ts, via registerLSPNotificationHandlers in src/integrations/lsp/publishedDiagnostics.ts)' : 'nothing published in 30s — the mercury-pyright server did not publish diagnostics to subscribeLSPDiagnosticPublish (src/integrations/lsp/LSPDiagnosticRegistry.ts); check registerLSPNotificationHandlers in src/integrations/lsp/publishedDiagnostics.ts and the server start in src/integrations/lsp/pyrightLane.ts')
   }
 
   section('(3) navigation — cross-file definition + hover (production path)')
@@ -116,13 +116,13 @@ try {
     })
     const target = (defs ?? [])[0]
     const uri = target?.uri ?? target?.targetUri ?? ''
-    check('definition of helper resolves into lib.py', uri.includes('lib.py'), JSON.stringify(defs).slice(0, 160) + ' — the textDocument/definition request through sendRequest in src/services/lsp/LSPServerManager.ts must reach mercury-pyright and return lib.py')
+    check('definition of helper resolves into lib.py', uri.includes('lib.py'), JSON.stringify(defs).slice(0, 160) + ' — the textDocument/definition request through sendRequest in src/integrations/lsp/LSPServerManager.ts must reach mercury-pyright and return lib.py')
 
     const hover = await manager.sendRequest<{ contents?: unknown }>(mainPy, 'textDocument/hover', {
       textDocument: { uri: pathToFileURL(mainPy).href },
       position: { line: 2, character: 14 },
     })
-    check('hover carries the helper signature', JSON.stringify(hover?.contents ?? '').includes('(x: int) -> int'), JSON.stringify(hover?.contents ?? null).slice(0, 140) + ' — the textDocument/hover request through sendRequest in src/services/lsp/LSPServerManager.ts must return the helper signature')
+    check('hover carries the helper signature', JSON.stringify(hover?.contents ?? '').includes('(x: int) -> int'), JSON.stringify(hover?.contents ?? null).slice(0, 140) + ' — the textDocument/hover request through sendRequest in src/integrations/lsp/LSPServerManager.ts must return the helper signature')
   }
 
   section('(4) rename — preview then the REAL apply transaction')
@@ -131,7 +131,7 @@ try {
       { operation: 'rename', filePath: libPy, line: 1, character: 5, newName: 'double_it' },
       libPy,
     ))
-    check('rename preview spans BOTH files', preview.fileCount === 2 && preview.applied === false, `files=${preview.fileCount} result=${preview.result.split('\n')[0]} — the rename case of runMercuryLspOp (src/tools/LSPTool/mercuryOps.ts) must preview edits in both lib.py and main.py without applying`)
+    check('rename preview spans BOTH files', preview.fileCount === 2 && preview.applied === false, `files=${preview.fileCount} result=${preview.result.split('\n')[0]} — the rename case of runMercuryLspOp (src/tools/lsp/mercuryOps.ts) must preview edits in both lib.py and main.py without applying`)
 
     for (const p of [libPy, mainPy]) {
       readFileState.set(p, { content: readFileSync(p, 'utf8'), timestamp: Date.now(), offset: undefined, limit: undefined })
@@ -142,9 +142,9 @@ try {
     ))
     const libAfter = readFileSync(libPy, 'utf8')
     const mainAfter = readFileSync(mainPy, 'utf8')
-    check('apply writes both files through the transaction', apply.applied === true && libAfter.includes('def double_it') && mainAfter.includes('import double_it'), `${apply.effect.outcome}: ${apply.result.split('\n')[0]} — the rename apply of runMercuryLspOp (src/tools/LSPTool/mercuryOps.ts) must write both files`)
-    check('effect carries the exact changed paths', apply.effect.changedPaths.length === 2 && apply.effect.outcome !== 'failed', JSON.stringify(apply.effect.changedPaths) + ' — the rename apply of runMercuryLspOp (src/tools/LSPTool/mercuryOps.ts) must report both changed paths in its effect')
-    check('post-apply stabilization verdict is honest (never silent)', /post-apply diagnostics/i.test(apply.result), String(apply.result.split('\n').at(-1)) + ' — the rename apply of runMercuryLspOp (src/tools/LSPTool/mercuryOps.ts) must end its result with the post-apply diagnostics verdict')
+    check('apply writes both files through the transaction', apply.applied === true && libAfter.includes('def double_it') && mainAfter.includes('import double_it'), `${apply.effect.outcome}: ${apply.result.split('\n')[0]} — the rename apply of runMercuryLspOp (src/tools/lsp/mercuryOps.ts) must write both files`)
+    check('effect carries the exact changed paths', apply.effect.changedPaths.length === 2 && apply.effect.outcome !== 'failed', JSON.stringify(apply.effect.changedPaths) + ' — the rename apply of runMercuryLspOp (src/tools/lsp/mercuryOps.ts) must report both changed paths in its effect')
+    check('post-apply stabilization verdict is honest (never silent)', /post-apply diagnostics/i.test(apply.result), String(apply.result.split('\n').at(-1)) + ' — the rename apply of runMercuryLspOp (src/tools/lsp/mercuryOps.ts) must end its result with the post-apply diagnostics verdict')
   }
 
   section('(5) formatting honesty — the capability-owned refusal or the real format')
@@ -152,13 +152,13 @@ try {
     const ruffProbe = await primeRuffProbe()
     const out = await runMercuryLspOp(opEnv({ operation: 'formatDocument', filePath: mainPy }, mainPy))
     if (ruffProbe.available) {
-      check('ruff formats (preview) through the owner', out.effect.outcome !== 'failed', out.result.split('\n')[0] + ' — the formatDocument case of runMercuryLspOp (src/tools/LSPTool/mercuryOps.ts) must format through the ruff owner')
+      check('ruff formats (preview) through the owner', out.effect.outcome !== 'failed', out.result.split('\n')[0] + ' — the formatDocument case of runMercuryLspOp (src/tools/lsp/mercuryOps.ts) must format through the ruff owner')
       console.log(`  (ruff ${ruffProbe.version} present — formatting owner leg ran live)`)
     } else {
       check(
         'no ruff ⇒ the PRECISE refusal names the checked server + the remedy',
         out.effect.outcome === 'no-change' && out.result.includes('mercury-pyright') && out.result.includes('ruff'),
-        out.result.split('\n')[0] + ' — the formatDocument case of runMercuryLspOp (src/tools/LSPTool/mercuryOps.ts) must refuse as no-change naming mercury-pyright and the ruff remedy',
+        out.result.split('\n')[0] + ' — the formatDocument case of runMercuryLspOp (src/tools/lsp/mercuryOps.ts) must refuse as no-change naming mercury-pyright and the ruff remedy',
       )
       console.log('  [NOTE — machine] ruff not installed: the live ruff format/organize legs did not run here;')
       console.log('  the refusal contract (the honest arm) is what this machine proves. Install ruff to run the other arm.')
@@ -168,7 +168,7 @@ try {
   section('(6) hygiene — status rows + clean shutdown')
   {
     const status = await runMercuryLspOp(opEnv({ operation: 'serverStatus', filePath: mainPy }, mainPy))
-    check('serverStatus names mercury-pyright running', status.result.includes('mercury-pyright') && /running/.test(status.result), status.result.split('\n')[0] + ' — the serverStatus case of runMercuryLspOp (src/tools/LSPTool/mercuryOps.ts) must list mercury-pyright as running')
+    check('serverStatus names mercury-pyright running', status.result.includes('mercury-pyright') && /running/.test(status.result), status.result.split('\n')[0] + ' — the serverStatus case of runMercuryLspOp (src/tools/lsp/mercuryOps.ts) must list mercury-pyright as running')
   }
 } finally {
   unsubscribe()
@@ -178,7 +178,7 @@ try {
 }
 
 const stillRunning = [...manager.getAllServers().values()].filter(s => s.state === 'running')
-check('shutdown left no running servers', stillRunning.length === 0, stillRunning.map(s => s.name).join(', ') + ' — manager.shutdown in src/services/lsp/LSPServerManager.ts must stop every running server')
+check('shutdown left no running servers', stillRunning.length === 0, stillRunning.map(s => s.name).join(', ') + ' — manager.shutdown in src/integrations/lsp/LSPServerManager.ts must stop every running server')
 
 console.log('\n============================================================')
 if (failures === 0) {

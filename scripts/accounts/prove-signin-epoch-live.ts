@@ -20,22 +20,22 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 let current = ''
 const WHERE: Record<string, string> = {
-  E1: 'noteCredentialChange, recordSignIn and subscribeSignInEpoch in src/utils/accounts/signInLedger.ts',
-  E2: 'executeSlotRemoval and signOutEveryEngineCredential in src/services/providers/accountSlots/removal.ts (and the limit-state files under src/services/providers/*/)',
-  E3: 'forgetOpenaiLimitSource in src/services/providers/openai/openaiLimitState.ts or disconnectOpenaiSubscription in src/services/providers/openai/openaiAccounts.ts',
-  E4: 'dropCredentialMemos in src/services/auth/oauthLifecycle.ts or getApiKeyFromConfigOrMacOSKeychain in src/utils/auth.ts',
+  E1: 'noteCredentialChange, recordSignIn and subscribeSignInEpoch in src/models/sign-in/account-ledger/signInLedger.ts',
+  E2: 'executeSlotRemoval and signOutEveryEngineCredential in src/models/roads/account-slots/removal.ts (and the limit-state files under src/models/roads/*/)',
+  E3: 'forgetOpenaiLimitSource in src/models/roads/openai/openaiLimitState.ts or disconnectOpenaiSubscription in src/models/roads/openai/openaiAccounts.ts',
+  E4: 'dropCredentialMemos in src/models/sign-in/lifecycle/oauthLifecycle.ts or getApiKeyFromConfigOrMacOSKeychain in src/models/sign-in/credentials/auth.ts',
 }
 const section = (t: string): void => { current = t; console.log('\n' + '─'.repeat(72) + '\n' + t) }
 
-const ledger = await import('../../src/utils/accounts/signInLedger.ts')
-const slots = await import('../../src/services/providers/accountSlots.ts')
-const openaiLimits = await import('../../src/services/providers/openai/openaiLimitState.ts')
-const openrouterLimits = await import('../../src/services/providers/openrouter/openrouterUsageState.ts')
-const geminiLimits = await import('../../src/services/providers/gemini/geminiUsageState.ts')
-const hfLimits = await import('../../src/services/providers/huggingface/huggingfaceUsageState.ts')
-const accounts = await import('../../src/services/providers/openai/openaiAccounts.ts')
-const cap = await import('../../src/services/capFailover.ts')
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
+const ledger = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
+const slots = await import('../../src/models/roads/accountSlots.ts')
+const openaiLimits = await import('../../src/models/roads/openai/openaiLimitState.ts')
+const openrouterLimits = await import('../../src/models/roads/openrouter/openrouterUsageState.ts')
+const geminiLimits = await import('../../src/models/roads/gemini/geminiUsageState.ts')
+const hfLimits = await import('../../src/models/roads/huggingface/huggingfaceUsageState.ts')
+const accounts = await import('../../src/models/roads/openai/openaiAccounts.ts')
+const cap = await import('../../src/models/roads/capFailover.ts')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
 
 section('E1 the epoch moves on sign-ins AND removals, and subscribers hear it')
 {
@@ -158,7 +158,7 @@ section('E3 a fresh ChatGPT sign-in and a disconnect both forget the subscriptio
 
 section('E4 the readers re-derive on the epoch; the warm claim reads the disk')
 {
-  const { saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+  const { saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
   const beforeKey = auth.getApiKeyFromConfigOrMacOSKeychain()
   saveGlobalConfig(current => ({ ...current, primaryApiKey: 'fixture-managed-key-000000000000' }))
   auth.dropCredentialMemos()

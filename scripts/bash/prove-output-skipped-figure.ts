@@ -26,7 +26,7 @@ mkdirSync(process.env.MERCURY_TMPDIR, { recursive: true })
 
 let failures = 0
 let checks = 0
-const SKIPPED_FIGURE_FIX = 'change generatePreview (the skipped figure) and buildLargeToolResultMessage (the notice) in src/utils/toolResultStorage.ts, and formatFileSize in src/utils/format.ts'
+const SKIPPED_FIGURE_FIX = 'change generatePreview (the skipped figure) and buildLargeToolResultMessage (the notice) in src/engine/tool-dispatch/toolResultStorage.ts, and formatFileSize in src/platform/text/format.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -35,16 +35,16 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { PowerShellTool } = await import('../../src/tools/PowerShellTool/PowerShellTool.tsx')
-const { stripEmptyLines, formatOutput } = await import('../../src/utils/shell/utils.ts')
-const { generatePreview, persistToolResult, PREVIEW_SIZE_CHARS } = await import('../../src/utils/toolResultStorage.ts')
-const { formatFileSize } = await import('../../src/utils/format.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { getScratchpadDir } = await import('../../src/utils/permissions/filesystem.ts')
-const { TaskOutput } = await import('../../src/utils/task/TaskOutput.ts')
-const { getTaskOutputPath } = await import('../../src/utils/task/diskOutput.ts')
-const { generateTaskId } = await import('../../src/Task.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { PowerShellTool } = await import('../../src/tools/powershell/PowerShellTool.tsx')
+const { stripEmptyLines, formatOutput } = await import('../../src/platform/shell/shellOutput.ts')
+const { generatePreview, persistToolResult, PREVIEW_SIZE_CHARS } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
+const { formatFileSize } = await import('../../src/platform/text/format.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { getScratchpadDir } = await import('../../src/permissions/rules/filesystem.ts')
+const { TaskOutput } = await import('../../src/engine/task-framework/taskOutput.ts')
+const { getTaskOutputPath } = await import('../../src/engine/task-framework/diskOutput.ts')
+const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
 
 let appState = getDefaultAppState()
 const toolContext = {

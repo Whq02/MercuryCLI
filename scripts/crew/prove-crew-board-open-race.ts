@@ -3,8 +3,8 @@ import { spawn } from 'node:child_process'
 import { mkdtempSync, readSync, rmSync, writeSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
-import { open } from '../../src/services/crewBoard/store.ts'
-import type { BoardPrincipal } from '../../src/services/crewBoard/contracts.ts'
+import { open } from '../../src/crew/board/store.ts'
+import type { BoardPrincipal } from '../../src/crew/board/contracts.ts'
 
 const instant = 1_800_000_000_000
 const seat = (sessionId: string, agentId: string): BoardPrincipal => ({ author: { sessionId, agentId, executionId: 'first' }, name: agentId })
@@ -49,7 +49,7 @@ if (openerAt >= 0) {
     const ready = printed('"ready":true'), reached = printed('"reached":true')
     const done = new Promise<Verdict>((resolve, reject) => child.once('exit', code => {
       const last = stdout.trim().split('\n').pop() ?? ''
-      try { resolve(JSON.parse(last) as Verdict) } catch { reject(new Error(`opener ${agentId} exited ${code} without a verdict: ${stdout}${stderr} — read the opener output above; the opener runs open() from src/services/crewBoard/store.ts`)) }
+      try { resolve(JSON.parse(last) as Verdict) } catch { reject(new Error(`opener ${agentId} exited ${code} without a verdict: ${stdout}${stderr} — read the opener output above; the opener runs open() from src/crew/board/store.ts`)) }
     }))
     return { ready, reached, done, go: () => { child.stdin.end('g') } }
   }
@@ -77,7 +77,7 @@ if (openerAt >= 0) {
       lock.close()
     }
     const verdicts = await Promise.all(openers.map(o => o.done))
-    assert(staged, `the race was not staged: an opener had not read "no session" and reached the identity insert while the write lock was held — ${JSON.stringify(verdicts)}; open() in src/services/crewBoard/store.ts must read the identity row before it takes BEGIN IMMEDIATE, and this prover only stages that when the machine is not starved`)
+    assert(staged, `the race was not staged: an opener had not read "no session" and reached the identity insert while the write lock was held — ${JSON.stringify(verdicts)}; open() in src/crew/board/store.ts must read the identity row before it takes BEGIN IMMEDIATE, and this prover only stages that when the machine is not starved`)
     return verdicts
   }
   const identity = (path: string): Record<string, unknown>[] => {
@@ -87,21 +87,21 @@ if (openerAt >= 0) {
   try {
     const same = freshBoard('same-session')
     const [first, second] = await race(same, ['wave-a', 'wave-a'])
-    assert(first!.error === undefined && second!.error === undefined, `an opener of the same session lost the race: ${first!.error ?? second!.error}; fix the identity insert inside open() in src/services/crewBoard/store.ts so a same-session opener re-reads the identity after BEGIN IMMEDIATE`)
-    assert.equal(first!.opened, second!.opened, 'both openers must come up on one wave; fix the identity insert inside open() in src/services/crewBoard/store.ts')
-    assert.deepEqual(identity(same), [{ session: 'wave-a', wave: first!.opened }], 'the identity table must hold exactly one row, the wave both openers reported; fix the identity insert inside open() in src/services/crewBoard/store.ts')
+    assert(first!.error === undefined && second!.error === undefined, `an opener of the same session lost the race: ${first!.error ?? second!.error}; fix the identity insert inside open() in src/crew/board/store.ts so a same-session opener re-reads the identity after BEGIN IMMEDIATE`)
+    assert.equal(first!.opened, second!.opened, 'both openers must come up on one wave; fix the identity insert inside open() in src/crew/board/store.ts')
+    assert.deepEqual(identity(same), [{ session: 'wave-a', wave: first!.opened }], 'the identity table must hold exactly one row, the wave both openers reported; fix the identity insert inside open() in src/crew/board/store.ts')
     console.log('PASS two racing opens of a fresh board for one session both open, on one wave (both had read "no session" and stood at the identity insert before the write lock was released)')
 
     const other = freshBoard('other-session')
     const outcomes = await race(other, ['wave-b', 'wave-c'])
-    assert.equal(outcomes.filter(o => o.opened !== undefined).length, 1, `one board, one session: ${JSON.stringify(outcomes)}; exactly one racing session may open a fresh board, fix the identity insert inside open() in src/services/crewBoard/store.ts`)
-    assert.match(outcomes.find(o => o.error !== undefined)!.error!, /This board belongs to another session\./, 'the losing session must be refused with the owned-by-another-session error thrown by open() in src/services/crewBoard/store.ts')
-    assert.equal(identity(other).length, 1, 'the board must record one identity row; fix the identity insert inside open() in src/services/crewBoard/store.ts')
+    assert.equal(outcomes.filter(o => o.opened !== undefined).length, 1, `one board, one session: ${JSON.stringify(outcomes)}; exactly one racing session may open a fresh board, fix the identity insert inside open() in src/crew/board/store.ts`)
+    assert.match(outcomes.find(o => o.error !== undefined)!.error!, /This board belongs to another session\./, 'the losing session must be refused with the owned-by-another-session error thrown by open() in src/crew/board/store.ts')
+    assert.equal(identity(other).length, 1, 'the board must record one identity row; fix the identity insert inside open() in src/crew/board/store.ts')
     console.log('PASS two sessions racing for a fresh board: one owns it, the other is refused (both at the identity insert, as above)')
 
-    assert.throws(() => open(same, 'wave-z', () => instant), /This board belongs to another session\./, 'a later session must be refused by the prior-session check in open() in src/services/crewBoard/store.ts')
+    assert.throws(() => open(same, 'wave-z', () => instant), /This board belongs to another session\./, 'a later session must be refused by the prior-session check in open() in src/crew/board/store.ts')
     console.log('PASS a later session is still refused')
-    assert.throws(() => open(freshBoard('no-session'), 'wave-a', () => instant, true), /This board has no session\./, 'a read-only open of a board without an identity must throw the no-session error from open() in src/services/crewBoard/store.ts')
+    assert.throws(() => open(freshBoard('no-session'), 'wave-a', () => instant, true), /This board has no session\./, 'a read-only open of a board without an identity must throw the no-session error from open() in src/crew/board/store.ts')
     console.log('PASS a reader of a board with no session is still refused')
   } finally {
     rmSync(home, { recursive: true, force: true })

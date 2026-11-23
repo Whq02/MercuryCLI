@@ -37,8 +37,8 @@ assert.equal(modes.length, 1, 'Choose exactly one proof mode.')
 assert.ok(args.every((arg, i) => ['--root', ...modes].includes(arg) || args[i - 1] === '--root'), 'Unknown argument')
 await mkdir(root, { recursive: true, mode: 0o700 })
 const delivered = join(root, 'extension')
-await cp(join(repo, 'src/extensions/bundled/lightcraft'), delivered, { recursive: true })
-await cp(join(repo, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
+await cp(join(repo, 'src/integrations/extensions/bundled/lightcraft'), delivered, { recursive: true })
+await cp(join(repo, 'src/integrations/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
 const { adapter, privateEnvironment } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
 const { planInstall, installPinned, checkInstall } = await import(pathToFileURL(join(delivered, 'shared/install.mjs')).href)
 const dataDir = join(root, 'data')
@@ -83,8 +83,8 @@ async function connect(command: string, commandArgs: string[], extraEnv: Record<
 }
 async function connectBridge(endpoint: string, library: string) {
   const delivered = join(work, 'extension')
-  await cp(join(repo, 'src/extensions/bundled/lightcraft'), delivered, { recursive: true })
-  await cp(join(repo, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
+  await cp(join(repo, 'src/integrations/extensions/bundled/lightcraft'), delivered, { recursive: true })
+  await cp(join(repo, 'src/integrations/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
   const transport = new StdioClientTransport({ command: 'node', args: [join(delivered, 'server/bridge.mjs')], env: { ...env, MERCURY_EXTENSION_DATA: dataDir }, stderr: 'pipe', maxBufferSize: 64 * 1024 * 1024 })
   transport.stderr?.on('data', (bytes: Buffer) => { guiStderr += bytes.toString() })
   const client = new Client({ name: 'mercury-lightcraft-bridge-proof', version: '1' }, { capabilities: {} })
@@ -98,7 +98,7 @@ async function connectBridge(endpoint: string, library: string) {
   assert.equal(tools.tools.length, evidence.toolCount + 3)
   assert.deepEqual(tools.tools.slice(3).map(tool => tool.name), evidence.tools.tools.map((tool: any) => tool.name))
   evidence.resources = await client.listResources()
-  assert.ok(evidence.resources.resources.length > 0, 'lightcraft bridge listResources returned 0 resources in src/extensions/bundled/lightcraft/server/bridge.mjs')
+  assert.ok(evidence.resources.resources.length > 0, 'lightcraft bridge listResources returned 0 resources in src/integrations/extensions/bundled/lightcraft/server/bridge.mjs')
   await client.readResource({ uri: 'lightcraft://document' })
   return client
 }

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { fakeSshRunner, liveCatalogue, runpodFixture } from './runpodFixture.mjs'
-import type { HostRecord } from '../../src/services/host/store.ts'
+import type { HostRecord } from '../../src/models/hosting/store.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const f = await llmhostFixture()
@@ -15,7 +15,7 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   return nativeFetch(request)
 }, nativeFetch)
 let checks = 0
-const rentDriveWhere = 'look in src/services/host (worker.ts runHostJob and ssh.ts for the setup, vendors/client.ts for the Runpod client, tensorfoldPod.ts for stop and terminate, boxes.ts and costs.ts for the rows) and src/services/providers/openaicompat/compatAccounts.ts for the provider; the fixtures are scripts/host/runpodFixture.mjs and scripts/providers/lib/llmhostFixture.ts'
+const rentDriveWhere = 'look in src/models/hosting (worker.ts runHostJob and ssh.ts for the setup, vendors/client.ts for the Runpod client, tensorfoldPod.ts for stop and terminate, boxes.ts and costs.ts for the rows) and src/models/roads/openaicompat/compatAccounts.ts for the provider; the fixtures are scripts/host/runpodFixture.mjs and scripts/providers/lib/llmhostFixture.ts'
 const check = (name: string, truth: unknown, detail = ''): void => { assert.ok(truth, name + (detail ? ': ' + detail : '') + ' · ' + rentDriveWhere); checks++; console.log('PASS ' + name) }
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
 const engineHits: { path: string; authorization?: string; body?: unknown }[] = []
@@ -40,18 +40,18 @@ const engine = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) 
 } })
 const engineBase = 'http://127.0.0.1:' + engine.port + '/v1'
 try {
-  const { hostRunner } = await import('../../src/services/host/ssh.ts')
-  const { runHostJob } = await import('../../src/services/host/worker.ts')
-  const { queueHostSetup } = await import('../../src/services/host/jobs.ts')
-  const { readHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
-  const { vendorClient, saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
-  const { configuredCompatEndpoints, resolveCompatApiKey } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
-  const { TENSORFOLD_HOST_IMAGE } = await import('../../src/services/host/tensorfoldRelease.ts')
-  const { stopTensorFoldPod, settleStoppingTensorFoldPods, tensorFoldPodFacts, tensorFoldPodRows, tensorFoldPodKey, TENSORFOLD_HOST_WORDS } = await import('../../src/services/host/tensorfoldPod.ts')
-  const { currentHostRecipes } = await import('../../src/services/host/recipesFile.ts')
-  const { hostRentalUsage } = await import('../../src/services/host/costs.ts')
-  const { readBox } = await import('../../src/services/host/boxes.ts')
-  const { getSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+  const { hostRunner } = await import('../../src/models/hosting/ssh.ts')
+  const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+  const { queueHostSetup } = await import('../../src/models/hosting/jobs.ts')
+  const { readHostRecord, removeHostRecord } = await import('../../src/models/hosting/store.ts')
+  const { vendorClient, saveVendorKey } = await import('../../src/models/hosting/vendors/client.ts')
+  const { configuredCompatEndpoints, resolveCompatApiKey } = await import('../../src/models/roads/openaicompat/compatAccounts.ts')
+  const { TENSORFOLD_HOST_IMAGE } = await import('../../src/models/hosting/tensorfoldRelease.ts')
+  const { stopTensorFoldPod, settleStoppingTensorFoldPods, tensorFoldPodFacts, tensorFoldPodRows, tensorFoldPodKey, TENSORFOLD_HOST_WORDS } = await import('../../src/models/hosting/tensorfoldPod.ts')
+  const { currentHostRecipes } = await import('../../src/models/hosting/recipesFile.ts')
+  const { hostRentalUsage } = await import('../../src/models/hosting/costs.ts')
+  const { readBox } = await import('../../src/models/hosting/boxes.ts')
+  const { getSettingsForSource } = await import('../../src/platform/settings/settings.ts')
   saveVendorKey('runpod', rp.key)
   rp.state.customGpus = liveCatalogue.gpus.map((gpu: { id: string }) => gpu.id === 'NVIDIA GeForce RTX 5090' ? { ...gpu, availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', name: 'EU-NL-1', availability: 'HIGH' }] } : gpu)
   const api = vendorClient('runpod', { key: rp.key, apiBaseUrl: rp.baseUrl })
@@ -84,11 +84,11 @@ try {
   check('the reply check reached the engine through the tunnel with the key and the engine answered', engineHits.some(hit => hit.path === '/v1/chat/completions' && hit.authorization === 'Bearer ' + key && (hit.body as { model?: string })?.model === 'qwen3.8-27b') && !escaped.length)
   const box = readBox('pod-' + pod.id)
   check('the pod is a host box with engine tensorfold on 8080 and its SSH target, and lane 1’s facts show it serving with price and elapsed time', box?.engines[0]?.kind === 'tensorfold' && box.engines[0].port === 8080 && box.target?.host === '127.0.0.1' && tensorFoldPodFacts(ready, offer.recipe)?.state === 'serving' && tensorFoldPodFacts(ready, offer.recipe)?.price === 1.19 && hostRentalUsage(model)?.price === 1.19 && (hostRentalUsage(model)?.elapsedMs ?? -1) >= 0)
-  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { assembleToolPool } = await import('../../src/tools.ts')
-  const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-  const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
+  const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
+  const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+  const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
   const permission = getEmptyToolPermissionContext()
   const pool = assembleToolPool(permission, [])
   const searched = await ToolSearchTool.call({ query: 'select:TaskStop', max_results: 5 }, { options: { tools: pool }, getAppState: () => ({ toolPermissionContext: { ...permission, mode: 'default' }, mcp: { clients: [] } }) } as never)
@@ -123,8 +123,8 @@ try {
   const settled = await settleStoppingTensorFoldPods({ client: () => slow })
   check('…and settles it to stopped once the vendor confirms, with the spend kept from the stop', settled === 1 && readHostRecord(slowPod.id)?.status === 'EXITED' && tensorFoldPodRows(currentHostRecipes()).find(row => row.id === slowPod.id)?.state === 'stopped' && typeof readHostRecord(slowPod.id)?.spendUSD === 'number', JSON.stringify(readHostRecord(slowPod.id)))
   removeHostRecord(slowPod.id)
-  const { terminateTensorFoldPod } = await import('../../src/services/host/tensorfoldPod.ts')
-  const { HostVendorHttpError } = await import('../../src/services/host/vendors/http.ts')
+  const { terminateTensorFoldPod } = await import('../../src/models/hosting/tensorfoldPod.ts')
+  const { HostVendorHttpError } = await import('../../src/models/hosting/vendors/http.ts')
   const faultPod = await api.create(offer, 'ssh-ed25519 fixture', 'tf-fault')
   queueHostSetup({ id: faultPod.id, vendor: 'runpod', name: faultPod.name, recipe: offer.recipe.id, price: faultPod.cost, startedAt: faultPod.createdAt, status: faultPod.status, apiBaseUrl: rp.baseUrl, sessionId: session })
   const faulty = new Proxy(api, { get: (target, key) => key === 'get' ? async () => { throw new HostVendorHttpError('Runpod GET /pods returned HTTP 503', 503) } : Reflect.get(target, key) })

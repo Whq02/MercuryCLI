@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/providers/local/localWindow.ts src/services/providers/local/localCallModel.ts src/utils/model/capabilities.ts src/services/providers/catalogueEpoch.ts
+// gate-watch: src/models/roads/local/localWindow.ts src/models/roads/local/localCallModel.ts src/models/facts/capabilities.ts src/models/roads/catalogueEpoch.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
@@ -16,13 +16,13 @@ delete process.env.MERCURY_DISABLE_1M_CONTEXT
 
 let failures = 0
 const SECTION_HINTS: Record<string, string> = {
-  '1': 'change localPlannedWindow in src/services/providers/local/localWindow.ts (the setting, trained max and served figure it plans from)',
-  '2': 'change decideLocalWindow, adoptLocalWindow, releaseOutgrownLocalWindow or localPlannedWindow in src/services/providers/local/localWindow.ts (which hold stays current)',
-  '3': 'change localGuardWindow or localCallModel in src/services/providers/local/localCallModel.ts, or localPlannedWindow in src/services/providers/local/localWindow.ts, so the guard, the context window and the request carry one figure',
-  '4': 'change writeLocalWindowSetting, decideLocalWindow or localWindowReasonTag in src/services/providers/local/localWindow.ts so each change bumps catalogueEpoch (src/services/providers/catalogueEpoch.ts) as expected',
-  '5': 'change localPlannedWindow in src/services/providers/local/localWindow.ts or localGuardWindow in src/services/providers/local/localCallModel.ts so a vLLM record reads its served window whatever the setting',
-  '6': 'change localPromptFitRefusal in src/services/providers/local/localCallModel.ts (its sentence and when it refuses)',
-  '7': 'change localPlannedWindow, chooseLocalWindow, localWindowValueWords or localWindowChoiceLine in src/services/providers/local/localWindow.ts, or localPromptFitRefusal in src/services/providers/local/localCallModel.ts, so a Modelfile num_ctx is the plan under auto',
+  '1': 'change localPlannedWindow in src/models/roads/local/localWindow.ts (the setting, trained max and served figure it plans from)',
+  '2': 'change decideLocalWindow, adoptLocalWindow, releaseOutgrownLocalWindow or localPlannedWindow in src/models/roads/local/localWindow.ts (which hold stays current)',
+  '3': 'change localGuardWindow or localCallModel in src/models/roads/local/localCallModel.ts, or localPlannedWindow in src/models/roads/local/localWindow.ts, so the guard, the context window and the request carry one figure',
+  '4': 'change writeLocalWindowSetting, decideLocalWindow or localWindowReasonTag in src/models/roads/local/localWindow.ts so each change bumps catalogueEpoch (src/models/roads/catalogueEpoch.ts) as expected',
+  '5': 'change localPlannedWindow in src/models/roads/local/localWindow.ts or localGuardWindow in src/models/roads/local/localCallModel.ts so a vLLM record reads its served window whatever the setting',
+  '6': 'change localPromptFitRefusal in src/models/roads/local/localCallModel.ts (its sentence and when it refuses)',
+  '7': 'change localPlannedWindow, chooseLocalWindow, localWindowValueWords or localWindowChoiceLine in src/models/roads/local/localWindow.ts, or localPromptFitRefusal in src/models/roads/local/localCallModel.ts, so a Modelfile num_ctx is the plan under auto',
 }
 let sectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -101,14 +101,14 @@ const vllm = await serve((req, _body, res) => {
 }, vllmHits)
 
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root},vllm=${vllm.root}`
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const w = await import('../../src/services/providers/local/localWindow.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { localGuardWindow, localPromptFitRefusal, localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
-const { resolveContextWindow, getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
-const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
+const w = await import('../../src/models/roads/local/localWindow.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { localGuardWindow, localPromptFitRefusal, localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
+const { resolveContextWindow, getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
+const { catalogueEpoch } = await import('../../src/models/roads/catalogueEpoch.ts')
 const userMessage = (content: string): unknown => ({ type: 'user', message: { role: 'user', content }, uuid: '00000000-0000-4000-8000-000000000001', timestamp: new Date().toISOString() })
 await refreshLocalDiscovery({ force: true })
 const coder = localRecordFor(`local/${CODER}`)!

@@ -21,7 +21,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)} — dialect detection and the model list are read in inspectCompatServer (src/services/providers/openaicompat/compatProbe.ts, the detected dialect rule), effort levels in hostModelEfforts (compatEffort.ts) and buildHostedExtras (compatWire.ts) in the same folder`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)} — dialect detection and the model list are read in inspectCompatServer (src/models/roads/openaicompat/compatProbe.ts, the detected dialect rule), effort levels in hostModelEfforts (compatEffort.ts) and buildHostedExtras (compatWire.ts) in the same folder`}`)
 }
 
 type StandIn = { baseUrl: string; asked: string[]; close(): void }
@@ -49,11 +49,11 @@ const ollamaRoutes = (path: string, models: string[]): unknown | undefined =>
       : path === '/api/version' ? { version: '1.2.9' } : undefined
 const tensorFold = (answersOllama: boolean): StandIn => stand(path => path === '/v1/models' ? { object: 'list', data: [row('tensorfold')] } : answersOllama ? ollamaRoutes(path, [MODEL]) : undefined, { server: 'TensorFold' })
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { inspectCompatServer } = await import('../../src/services/providers/openaicompat/compatProbe.ts')
-const { hostModelEfforts } = await import('../../src/services/providers/openaicompat/compatEffort.ts')
-const { buildHostedExtras, LOCAL_SERVER_EFFORTS } = await import('../../src/services/providers/openaicompat/compatWire.ts')
+const { inspectCompatServer } = await import('../../src/models/roads/openaicompat/compatProbe.ts')
+const { hostModelEfforts } = await import('../../src/models/roads/openaicompat/compatEffort.ts')
+const { buildHostedExtras, LOCAL_SERVER_EFFORTS } = await import('../../src/models/roads/openaicompat/compatWire.ts')
 
 const engine = tensorFold(true)
 const older = tensorFold(false)

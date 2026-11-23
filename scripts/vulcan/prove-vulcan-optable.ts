@@ -11,14 +11,14 @@ import {
   vulcanOp,
   vulcanOpNames,
   vulcanCategories,
-} from '../../src/utils/vulcan/optable.generated.js'
+} from '../../src/integrations/vulcan-optable/optable.generated.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
-const OPTABLE_FIX = 'edit the op rows in assets/vulcan/optable.json, then run node scripts/vulcan/regen-optable.mjs to rebuild src/utils/vulcan/optable.generated.ts'
+const OPTABLE_FIX = 'edit the op rows in assets/vulcan/optable.json, then run node scripts/vulcan/regen-optable.mjs to rebuild src/integrations/vulcan-optable/optable.generated.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -80,7 +80,7 @@ section('2. the lite subset')
 const lite = VULCAN_OPS.filter(o => o.lite)
 check('lite is exactly 76 ops', lite.length === 76, `got ${lite.length}`, 'change the lite flags of op rows in assets/vulcan/optable.json, then run node scripts/vulcan/regen-optable.mjs')
 check('lite ⊆ the 163 (frontier never lite)', lite.every(o => o.category !== 'frontier'), '', 'a frontier op row in assets/vulcan/optable.json has lite set; clear it, then run node scripts/vulcan/regen-optable.mjs')
-check('vulcanOpNames({lite:true}) agrees', vulcanOpNames({ lite: true }).length === 76, '', 'vulcanOpNames in src/utils/vulcan/optable.generated.ts disagrees with the lite flags; run node scripts/vulcan/regen-optable.mjs')
+check('vulcanOpNames({lite:true}) agrees', vulcanOpNames({ lite: true }).length === 76, '', 'vulcanOpNames in src/integrations/vulcan-optable/optable.generated.ts disagrees with the lite flags; run node scripts/vulcan/regen-optable.mjs')
 
 section('3. permission classes')
 check('every op classified', VULCAN_OPS.every(o => ['read', 'mutate', 'exec'].includes(o.cls)), '', 'give every op row in assets/vulcan/optable.json a class of read, mutate or exec, then run node scripts/vulcan/regen-optable.mjs')
@@ -95,18 +95,18 @@ check('reads never lite-excluded arbitrarily: all analysis/profiling reads are l
 section('4. names + drift')
 const names = VULCAN_OPS.map(o => o.name)
 check('unique names', new Set(names).size === names.length, '', 'two op rows in assets/vulcan/optable.json share a name; rename or remove one, then run node scripts/vulcan/regen-optable.mjs')
-check('vulcanOp resolves', vulcanOp('node_add')?.cls === 'mutate' && vulcanOp('nope') === undefined, '', 'vulcanOp in src/utils/vulcan/optable.generated.ts must find node_add as a mutate op and return undefined for an unknown name; run node scripts/vulcan/regen-optable.mjs')
-check('categories helper', vulcanCategories().length === Object.keys(CONTRACT).length + 1, '', 'vulcanCategories in src/utils/vulcan/optable.generated.ts must list the CONTRACT categories of this script plus frontier; fix the categories in assets/vulcan/optable.json')
+check('vulcanOp resolves', vulcanOp('node_add')?.cls === 'mutate' && vulcanOp('nope') === undefined, '', 'vulcanOp in src/integrations/vulcan-optable/optable.generated.ts must find node_add as a mutate op and return undefined for an unknown name; run node scripts/vulcan/regen-optable.mjs')
+check('categories helper', vulcanCategories().length === Object.keys(CONTRACT).length + 1, '', 'vulcanCategories in src/integrations/vulcan-optable/optable.generated.ts must list the CONTRACT categories of this script plus frontier; fix the categories in assets/vulcan/optable.json')
 const rawJson = readFileSync(join(repo, 'assets', 'vulcan', 'optable.json'), 'utf8')
 const digest = createHash('sha256').update(rawJson).digest('hex')
-check('digest matches the json', digest === VULCAN_OPTABLE_DIGEST, '', 'assets/vulcan/optable.json changed after src/utils/vulcan/optable.generated.ts was built; run node scripts/vulcan/regen-optable.mjs')
+check('digest matches the json', digest === VULCAN_OPTABLE_DIGEST, '', 'assets/vulcan/optable.json changed after src/integrations/vulcan-optable/optable.generated.ts was built; run node scripts/vulcan/regen-optable.mjs')
 let checkOk = true
 try {
   execFileSync('node', [join(repo, 'scripts', 'vulcan', 'regen-optable.mjs'), '--check'], { stdio: 'pipe' })
 } catch {
   checkOk = false
 }
-check('regen --check clean', checkOk, '', 'run node scripts/vulcan/regen-optable.mjs to rewrite src/utils/vulcan/optable.generated.ts and assets/vulcan/addon/core/op_classes.gd from assets/vulcan/optable.json, and keep the results')
+check('regen --check clean', checkOk, '', 'run node scripts/vulcan/regen-optable.mjs to rewrite src/integrations/vulcan-optable/optable.generated.ts and assets/vulcan/addon/core/op_classes.gd from assets/vulcan/optable.json, and keep the results')
 
 section('5. the game-driving verbs — a press is an event; step mode rides the frontier')
 {

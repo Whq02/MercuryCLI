@@ -68,16 +68,16 @@ try {
     const typed = report.marks['after-typing'] ?? report.final
     printFrame('the composer before the reply (inline, 120x40)', up.filter(r => r !== ''))
     printFrame('after the split device-attributes reply', after.filter(r => r !== ''))
-    check('the bundle asked the terminal for its device attributes at boot (CSI c seen on the pty)', report.sawQueryAt !== null, `no CSI c on the pty: the boot query batch in src/ink/components/App.tsx never sent; events ${JSON.stringify(report.events.slice(0, 6))}`)
+    check('the bundle asked the terminal for its device attributes at boot (CSI c seen on the pty)', report.sawQueryAt !== null, `no CSI c on the pty: the boot query batch in src/screen/renderer/elements/App.tsx never sent; events ${JSON.stringify(report.events.slice(0, 6))}`)
     check('the composer was up before the reply', up.some(r => r.includes(COMPOSER_UP)), `the composer never rendered before the reply; check the boot path; ${up.filter(r => r !== '').slice(-6).join('\n')}`)
     const leaked = after.filter(r => LEAK.some(needle => r.includes(needle)))
     console.log(`  observed: ${leaked.length} row(s) carry the reply's bytes after the split reply`)
-    check('nothing of the split reply is typed into the prompt', leaked.length === 0, `a CSI c reply split across two writes leaked into the input; the CSI hold in src/ink/input/scanner.ts (CSI_HOLD_FLUSHES) must keep a partial reply until its tail arrives; ${leaked.join('\n')}`)
-    check('the loop still hears the keyboard after the reply (zz typed into the composer)', typed.some(r => r.includes('❯ zz')), `keyboard input stopped after the split reply; the input scanner in src/ink/input/scanner.ts is stuck holding the sequence; ${typed.filter(r => r.includes('❯')).join('\n')}`)
+    check('nothing of the split reply is typed into the prompt', leaked.length === 0, `a CSI c reply split across two writes leaked into the input; the CSI hold in src/screen/renderer/input/scanner.ts (CSI_HOLD_FLUSHES) must keep a partial reply until its tail arrives; ${leaked.join('\n')}`)
+    check('the loop still hears the keyboard after the reply (zz typed into the composer)', typed.some(r => r.includes('❯ zz')), `keyboard input stopped after the split reply; the input scanner in src/screen/renderer/input/scanner.ts is stuck holding the sequence; ${typed.filter(r => r.includes('❯')).join('\n')}`)
     const log = existsSync(debugLog) ? readFileSync(debugLog, 'utf8') : ''
     const settled = log.includes('XTVERSION query ignored by the terminal') || log.includes('Terminal identified via XTVERSION')
     console.log(`  observed: the boot query batch ${settled ? 'settled' : 'never settled'} (${log.length} bytes of debug log)`)
-    check('the split reply closed the boot query batch (the probe is not lost)', settled, `the boot query batch in src/ink/components/App.tsx never closed after the split reply; ${log.split('\n').filter(l => /XTVERSION|kitty|DECRQM|Synchronized/i.test(l)).slice(0, 5).join(' | ') || 'no probe line in the log'}`)
+    check('the split reply closed the boot query batch (the probe is not lost)', settled, `the boot query batch in src/screen/renderer/elements/App.tsx never closed after the split reply; ${log.split('\n').filter(l => /XTVERSION|kitty|DECRQM|Synchronized/i.test(l)).slice(0, 5).join(' | ') || 'no probe line in the log'}`)
   }
 } finally {
   await endLeg(leg)

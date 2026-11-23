@@ -8,9 +8,9 @@ import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixt
 import { COMPASS_SID, buildCompass1k } from './fixture1k.ts'
 import { ptyDriverPython, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
-import { entryToRecord } from '../../src/fabric/entryCodec.ts'
-import { ordinalOf } from '../../src/fabric/ordinal.ts'
-import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
+import { entryToRecord } from '../../src/sessions/fabric/entryCodec.ts'
+import { ordinalOf } from '../../src/sessions/fabric/ordinal.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(HERE, '..', '..')

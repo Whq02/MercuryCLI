@@ -6,8 +6,8 @@ import { join } from 'node:path'
 const home = mkdtempSync(join(tmpdir(), 'entry-task-'))
 process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
-const { composeStartPage } = await import('../../src/mneme/entryKnapsack.ts')
-const { emptyDoc, serializeTopicDoc } = await import('../../src/mneme/mnemeTopicDocs.ts')
+const { composeStartPage } = await import('../../src/sessions/mneme/entryKnapsack.ts')
+const { emptyDoc, serializeTopicDoc } = await import('../../src/sessions/mneme/mnemeTopicDocs.ts')
 const dir = join(home, 'library')
 mkdirSync(dir, { recursive: true })
 const now = '2026-01-01T00:00:00.000Z'
@@ -30,27 +30,27 @@ const base = { dir, projectKey: 'harbour', state, previous: [], limit: 300, now:
 try {
   for (const [prompt, id] of [['release bulletins', 'seq:1'], ['caption edits', 'seq:2'], ['kernel inspections', 'seq:3'], ['website crew', 'seq:4']] as const) {
     const page = composeStartPage({ ...base, task: { prompt } } as never)
-    assert.equal(page.choice.rode[0]?.id, id, `${prompt} wins over the old note; composeStartPage in src/mneme/entryKnapsack.ts must rank facts matching the task prompt above the branch note`)
+    assert.equal(page.choice.rode[0]?.id, id, `${prompt} wins over the old note; composeStartPage in src/sessions/mneme/entryKnapsack.ts must rank facts matching the task prompt above the branch note`)
   }
   const pending = composeStartPage({ ...base, task: { prompt: 'quartz tickets dockmaster' } } as never)
-  assert.ok(pending.choice.rode.some(row => row.id === `pending:${now}`), 'a relevant pending row participates at entry; composeStartPage in src/mneme/entryKnapsack.ts must offer buffered rows of current.jsonl that match the task prompt')
+  assert.ok(pending.choice.rode.some(row => row.id === `pending:${now}`), 'a relevant pending row participates at entry; composeStartPage in src/sessions/mneme/entryKnapsack.ts must offer buffered rows of current.jsonl that match the task prompt')
   const required = composeStartPage({ ...base, limit: 1, task: { prompt: 'amber worktree', required: [{ id: 'seq:1', source: 'operator-turn-7' }] } } as never)
-  assert.ok(required.text?.includes('crane count private'), 'required source-linked obligations survive outside optional packing; composeStartPage in src/mneme/entryKnapsack.ts must write every task.required fact into the page whatever the limit')
-  assert.equal(readFileSync(join(dir, 'pins.json'), 'utf8'), pins, 'restoration never pins; composeStartPage in src/mneme/entryKnapsack.ts must not write pins.json')
+  assert.ok(required.text?.includes('crane count private'), 'required source-linked obligations survive outside optional packing; composeStartPage in src/sessions/mneme/entryKnapsack.ts must write every task.required fact into the page whatever the limit')
+  assert.equal(readFileSync(join(dir, 'pins.json'), 'utf8'), pins, 'restoration never pins; composeStartPage in src/sessions/mneme/entryKnapsack.ts must not write pins.json')
   const missing = composeStartPage({ ...base, task: { required: [{ id: 'seq:404', source: 'operator-turn-8' }] } } as never)
-  assert.match(missing.text ?? '', /seq:404.*unknown.*operator-turn-8/, 'composeStartPage in src/mneme/entryKnapsack.ts must name a required id it cannot find as unknown, with its source')
+  assert.match(missing.text ?? '', /seq:404.*unknown.*operator-turn-8/, 'composeStartPage in src/sessions/mneme/entryKnapsack.ts must name a required id it cannot find as unknown, with its source')
   const blank = composeStartPage({ ...base, limit: 4000 } as never)
   for (const weak of ['hi', 'ok go on', 'Resume as the lead from the LIVE line of PIN.md']) {
     const page = composeStartPage({ ...base, limit: 4000, task: { prompt: weak } } as never)
-    assert.deepEqual(page.choice.rode.map(row => row.id), blank.choice.rode.map(row => row.id), `a prompt with no scoring words ("${weak}") falls back to the branch, files and note as a blank prompt does; see the task prompt scoring in composeStartPage, src/mneme/entryKnapsack.ts`)
+    assert.deepEqual(page.choice.rode.map(row => row.id), blank.choice.rode.map(row => row.id), `a prompt with no scoring words ("${weak}") falls back to the branch, files and note as a blank prompt does; see the task prompt scoring in composeStartPage, src/sessions/mneme/entryKnapsack.ts`)
   }
   const newCycle = composeStartPage({ ...base, limit: 4000, task: { prompt: 'make the film for beta.37 about the marble pier and publish the page' } } as never)
-  assert.ok(!newCycle.choice.rode.some(row => row.id === 'seq:6'), 'a prior-cycle plan dropped by the gate (the prompt names the newer cycle) never re-enters through the start block\'s lower tier; see the cycle gate in composeStartPage, src/mneme/entryKnapsack.ts')
-  assert.ok(newCycle.choice.rode.some(row => row.id === 'seq:7'), 'the current-cycle fact rides; composeStartPage in src/mneme/entryKnapsack.ts must keep a fact of the latest cycle that matches the prompt')
+  assert.ok(!newCycle.choice.rode.some(row => row.id === 'seq:6'), 'a prior-cycle plan dropped by the gate (the prompt names the newer cycle) never re-enters through the start block\'s lower tier; see the cycle gate in composeStartPage, src/sessions/mneme/entryKnapsack.ts')
+  assert.ok(newCycle.choice.rode.some(row => row.id === 'seq:7'), 'the current-cycle fact rides; composeStartPage in src/sessions/mneme/entryKnapsack.ts must keep a fact of the latest cycle that matches the prompt')
   const sameWords = composeStartPage({ ...base, limit: 4000, task: { prompt: 'plan the showcase film about the marble pier' } } as never)
   const planLine = (sameWords.text ?? '').split('\n').find(line => line.includes('<seq=6>'))
-  assert.ok(planLine === undefined || /\[historical — names beta\.32; the library's latest cycle is beta\.36; not a current obligation\]/.test(planLine), 'a prior-cycle plan that rides at start carries the historical mark; see composeStartPage in src/mneme/entryKnapsack.ts')
-  assert.ok(planLine === undefined || sameWords.choice.rode.findIndex(row => row.id === 'seq:6') > sameWords.choice.rode.findIndex(row => row.id === 'seq:7'), 'and ranks after the current-cycle fact; see composeStartPage in src/mneme/entryKnapsack.ts')
+  assert.ok(planLine === undefined || /\[historical — names beta\.32; the library's latest cycle is beta\.36; not a current obligation\]/.test(planLine), 'a prior-cycle plan that rides at start carries the historical mark; see composeStartPage in src/sessions/mneme/entryKnapsack.ts')
+  assert.ok(planLine === undefined || sameWords.choice.rode.findIndex(row => row.id === 'seq:6') > sameWords.choice.rode.findIndex(row => row.id === 'seq:7'), 'and ranks after the current-cycle fact; see composeStartPage in src/sessions/mneme/entryKnapsack.ts')
   console.log('PASS prompt precedence 4/4; pending 1/1; source-linked restoration pin-neutral; a prior-cycle plan is dropped or marked at start')
 } finally {
   rmSync(home, { recursive: true, force: true })

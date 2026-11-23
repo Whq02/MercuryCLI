@@ -1,11 +1,11 @@
-import { DaemonView } from '../../components/mercury-ui/parity/DaemonView.js'
-import { LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
-import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import { haltAll, summarizeHalt } from '../../daemon/haltAll.js'
-import { createCommandInputMessage, createUserMessage } from '../../services/messages.js'
-import { formatCommandLoadingMetadata } from '../../services/processUserInput/processSlashCommand.js'
-import type { LocalCommandResult, LocalJSXCommandCall } from '../../types/command.js'
-import type { ToolUseContext } from '../../Tool.js'
+import { DaemonView } from '../../screen/widgets/parity/DaemonView.js'
+import { LOCAL_COMMAND_STDOUT_TAG } from '../../engine/message-shapes/messageTags.js'
+import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
+import { haltAll, summarizeHalt } from '../../daemon/control/haltAll.js'
+import { createCommandInputMessage, createUserMessage } from '../../engine/messages/messages.js'
+import { formatCommandLoadingMetadata } from '../../engine/user-input/processSlashCommand.js'
+import type { LocalCommandResult, LocalJSXCommandCall } from '../catalogue/command.js'
+import type { ToolUseContext } from '../../tools/kit/tool.js'
 
 async function haltVerb(context: ToolUseContext): Promise<LocalCommandResult> {
   const focused = getFocusedSessionConnector()
@@ -30,8 +30,8 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
     return null
   }
   if (verb === 'restart') {
-    const { restartDaemon } = await import('../../daemon/handshake.js')
-    const { getCwd } = await import('../../utils/cwd.js')
+    const { restartDaemon } = await import('../../daemon/control/handshake.js')
+    const { getCwd } = await import('../../platform/files/cwd.js')
     const receipt = await restartDaemon({ by: 'operator', posture: 'owned', dir: getCwd() })
     onDone(receipt.line, { display: 'system' })
     return null

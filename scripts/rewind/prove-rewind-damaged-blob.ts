@@ -17,18 +17,18 @@ process.chdir(cwd)
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const blobHint = 'fix blobMatchesRecord, fileHistoryRestore and copyFileHistoryForResume in src/services/changeTransaction/fileHistory.ts (a blob shorter than its recorded sourceSize must be refused as backup-missing and not re-recorded)'
+  const blobHint = 'fix blobMatchesRecord, fileHistoryRestore and copyFileHistoryForResume in src/tools/engines/change-transaction/fileHistory.ts (a blob shorter than its recorded sourceSize must be refused as backup-missing and not re-recorded)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${blobHint}` : ''}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(true)
 bootstrap.setOriginalCwd(cwd)
-const fh = await import('../../src/services/changeTransaction/fileHistory.ts')
-type FileHistoryState = import('../../src/types/fileHistory.ts').FileHistoryState
-type FileHistorySnapshot = import('../../src/types/fileHistory.ts').FileHistorySnapshot
+const fh = await import('../../src/tools/engines/change-transaction/fileHistory.ts')
+type FileHistoryState = import('../../src/sessions/transcripts/fileHistory.ts').FileHistoryState
+type FileHistorySnapshot = import('../../src/sessions/transcripts/fileHistory.ts').FileHistorySnapshot
 type UUID = import('node:crypto').UUID
 
 const uuid = (): UUID => randomUUID() as UUID
@@ -105,8 +105,8 @@ console.log('[4] the resume copy re-records only the snapshots whose blobs match
   const goodSnapshot: FileHistorySnapshot = { messageId: uuid(), timestamp: new Date(), trackedFileBackups: { 'good.txt': { backupFileName: goodName, version: 1, backupTime: new Date(), sourceSize: original.length } } }
   const badSnapshot: FileHistorySnapshot = { messageId: uuid(), timestamp: new Date(), trackedFileBackups: { 'bad.txt': { backupFileName: badName, version: 1, backupTime: new Date(), sourceSize: original.length } } }
   const log = { fileHistorySnapshots: [goodSnapshot, badSnapshot], messages: [{ sessionId: previous }] }
-  const { createUserMessage } = await import('../../src/services/messages.ts')
-  const { recordTranscript, flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+  const { recordTranscript, flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
   await recordTranscript([createUserMessage({ content: 'resume' })])
   await fh.copyFileHistoryForResume(log as never)
   await flushSessionStorage()

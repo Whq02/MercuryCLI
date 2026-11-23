@@ -1,0 +1,123 @@
+import { flagEnv } from '../../platform/substrate/flagRegistry.js'
+import { retrySeconds } from '../../engine/requests/recoveryBudget.js'
+import { jitterRetryDelay } from '../../engine/requests/retryJitter.js'
+import { isTemporaryStreamFault } from './temporaryStreamError.js'
+import type { BusyRefusalV1, SystemAPIErrorMessage } from '../../engine/message-shapes/message.js'
+import type { RequestWaitV1 } from './streamIdleBudget.js'
+
+export const BUSY_RETRY_RUNGS_MS: readonly number[] = Object.freeze([1_000, 2_000, 4_000, 8_000, 16_000, 30_000])
+export const BUSY_RETRY_QUIET_MS = 30_000
+
+export function busyRetryScale(): number {
+  const raw = flagEnv('MERCURY_BUSY_RETRY_SCALE')
+  const parsed = raw === undefined || raw.trim() === '' ? Number.NaN : Number.parseFloat(raw)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
+}
+
+const BUSY_STATUSES: ReadonlySet<number> = new Set([503, 529])
+const BUSY_CODES: ReadonlySet<string> = new Set(['api-UNAVAILABLE', 'openai-service_unavailable', 'openai-overloaded', 'zai-1305'])
+const BUSY_WORD = /overload|unavailable/i
+
+export function isBusyRefusal(fault: { code: string; status?: number; retryable: boolean }): boolean {
+  if (!fault.retryable) return false
+  if (fault.status !== undefined && BUSY_STATUSES.has(fault.status)) return true
+  if (BUSY_CODES.has(fault.code)) return true
+  const word = fault.code.replace(/^(api|openai)-/, '')
+  return word !== fault.code && BUSY_WORD.test(word)
+}
+
+export function takesBusyLadder(fault: { code: string; status?: number; retryable: boolean; inStream?: true }): boolean {
+  return fault.retryable && (isBusyRefusal(fault) || isTemporaryStreamFault(fault))
+}
+
+export interface BusyRetryLadder {
+  readonly rungsMs: readonly number[]
+  readonly quietMs: number
+  readonly budgetMs: number
+  readonly startedAtMs: number
+  rung: number
+  spentMs: number
+  readonly waitsMs: number[]
+}
+
+export function openBusyRetryLadder(nowMs: number, scale: number = busyRetryScale(), capMs?: number): BusyRetryLadder {
+  const rungsMs = BUSY_RETRY_RUNGS_MS.map(ms => Math.max(1, Math.round(ms * scale)))
+  const wholeMs = rungsMs.reduce((sum, ms) => sum + ms, 0)
+  const budgetMs = capMs === undefined || !Number.isFinite(capMs) ? wholeMs : Math.min(wholeMs, Math.max(1, Math.round(capMs * scale)))
+  return {
+    rungsMs,
+    quietMs: Math.round(BUSY_RETRY_QUIET_MS * scale),
+    budgetMs,
+    startedAtMs: nowMs,
+    rung: 0,
+    spentMs: 0,
+    waitsMs: [],
+  }
+}
+
+export function busyRefusalFact(provider: string, ladder: BusyRetryLadder, fault: { code: string; status?: number; retryable: boolean }, nowMs: number = Date.now()): BusyRefusalV1 | null {
+  if (!isBusyRefusal(fault)) return null
+  return { provider, retries: ladder.waitsMs.length, elapsedMs: nowMs - ladder.startedAtMs, code: fault.code, ...(fault.status !== undefined ? { status: fault.status } : {}) }
+}
+
+export interface BusyRetryStep {
+  waitMs: number
+  quiet: boolean
+  attempt: number
+  of: number
+}
+
+export function nextBusyRetry(ladder: BusyRetryLadder, askedMs: number | undefined, nowMs: number): BusyRetryStep | null {
+  const left = ladder.budgetMs - ladder.spentMs
+  if (ladder.rung >= ladder.rungsMs.length || left <= 0) return null
+  const rungMs = ladder.rungsMs[ladder.rung]!
+  const floorMs = Math.max(1, Math.ceil(rungMs * 0.75))
+  const reserveMs = ladder.rungsMs.slice(ladder.rung + 1).reduce((sum, ms) => sum + Math.max(1, Math.ceil(ms * 0.75)), 0)
+  const availableMs = left >= floorMs + reserveMs ? left - reserveMs : left
+  let waitMs = Math.min(Math.max(floorMs, Math.round(jitterRetryDelay(rungMs, 'symmetric'))), ladder.rungsMs.at(-1)!, availableMs)
+  if (askedMs !== undefined && Number.isFinite(askedMs) && askedMs > waitMs) waitMs = askedMs
+  const attempt = ladder.rung + 1
+  let of = attempt
+  let remaining = left - waitMs
+  for (let rung = ladder.rung + 1; rung < ladder.rungsMs.length && remaining > 0; rung++) {
+    of++
+    remaining -= Math.min(ladder.rungsMs[rung]!, remaining)
+  }
+  const quiet = nowMs - ladder.startedAtMs < ladder.quietMs
+  ladder.rung++
+  ladder.spentMs += waitMs
+  ladder.waitsMs.push(waitMs)
+  return { waitMs, quiet, attempt, of }
+}
+
+export function busyRetryLeftMs(ladder: BusyRetryLadder): number {
+  return Math.max(0, ladder.budgetMs - ladder.spentMs)
+}
+
+export function nextBusyRetryWithinBudget(ladder: BusyRetryLadder, askedMs: number | undefined, nowMs: number): BusyRetryStep | null {
+  if (askedMs !== undefined && Number.isFinite(askedMs) && askedMs > busyRetryLeftMs(ladder)) return null
+  return nextBusyRetry(ladder, askedMs, nowMs)
+}
+
+const ORDINALS = ['second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth']
+
+export function busyRecoveryDetail(input: { provider: string; status: number | undefined; code: string; message: string; waitsMs: readonly number[] }): string {
+  const waits = input.waitsMs.map(ms => retrySeconds(ms))
+  const list = waits.length <= 1 ? waits.join('') : `${waits.slice(0, -1).join(', ')} and ${waits[waits.length - 1]}`
+  const ordinal = ORDINALS[Math.min(waits.length, ORDINALS.length) - 1] ?? 'next'
+  const status = input.status !== undefined ? ` HTTP ${input.status}` : ''
+  const words = input.message !== '' ? `: ${input.message}` : ''
+  return `${input.provider} answered${status} (${input.code})${words} — retried after ${list}, and the ${ordinal} request was answered.`
+}
+
+export type HeldBusyRetryWait = Extract<RequestWaitV1, { kind: 'retry' }> & { held: SystemAPIErrorMessage }
+
+export function heldBusyRetryWait(step: BusyRetryStep, notice: SystemAPIErrorMessage, nowMs: number = Date.now()): HeldBusyRetryWait {
+  return { kind: 'retry', attempt: step.attempt, of: step.of, reason: notice.error.message, delayMs: step.waitMs, sinceMs: nowMs, held: notice }
+}
+
+export function heldBusyRetryNotice(wait: unknown): SystemAPIErrorMessage | null {
+  const w = wait as { kind?: unknown; held?: { type?: unknown; subtype?: unknown } | null } | null
+  if (w === null || typeof w !== 'object' || w.kind !== 'retry' || w.held === null || w.held === undefined || typeof w.held !== 'object') return null
+  return w.held.type === 'system' && w.held.subtype === 'api_error' ? (w.held as SystemAPIErrorMessage) : null
+}

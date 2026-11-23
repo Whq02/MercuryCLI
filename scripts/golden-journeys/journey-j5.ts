@@ -41,7 +41,7 @@ const openBoard = capture({ sid, tag: 'j5-workbench-open', sends: paletteJourney
 check(
   'the palette hands /workbench to the composer beside the held draft, unsent',
   hasProse(openBoard, `${DRAFT} /workbench`),
-  'the palette (ctrl+x p, app:commandPalette in src/keybindings/defaultBindings.ts) must put /workbench after the held draft in the composer without sending; read grid-j5-workbench-open.json in the journey run home to see the screen'
+  'the palette (ctrl+x p, app:commandPalette in src/screen/keys/defaultBindings.ts) must put /workbench after the held draft in the composer without sending; read grid-j5-workbench-open.json in the journey run home to see the screen'
 )
 
 const backFromBoard = capture({ sid, tag: 'j5-workbench-esc', sends: paletteJourney('workbench', true), total: 170 })

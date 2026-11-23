@@ -19,13 +19,13 @@ const DIST = join(ROOT, 'dist', 'mercury.mjs')
 section('§1 FC-043 — the detection module')
 {
   const { detectImageProtocol, _resetImageProtocolForTesting } = await import(
-    '../../src/services/visual/imageDisplay.ts'
+    '../../src/screen/image-display/imageDisplay.ts'
   )
   _resetImageProtocolForTesting()
   if (process.stdout.isTTY) {
     check('harness note: stdout unexpectedly a TTY — module leg skipped', true)
   } else {
-    check('a non-TTY stdout answers the plain link tier', detectImageProtocol() === 'link', detectImageProtocol(), 'detectImageProtocol in src/services/visual/imageDisplay.ts must return link when stdout is not a TTY; also check that MERCURY_IMAGE_PROTOCOL is not set in the shell running this proof')
+    check('a non-TTY stdout answers the plain link tier', detectImageProtocol() === 'link', detectImageProtocol(), 'detectImageProtocol in src/screen/image-display/imageDisplay.ts must return link when stdout is not a TTY; also check that MERCURY_IMAGE_PROTOCOL is not set in the shell running this proof')
   }
 }
 
@@ -50,9 +50,9 @@ section('§2 FC-043 — the redirected show')
     timeout: 60_000,
   })
   const escapes = (run.stdout ?? '').split('\x1b').length - 1
-  check('the redirected show exits 0', run.status === 0, `status=${run.status}`, 'mercury image on a PNG failed when redirected; read the image verb in src/main/verbActions.ts and renderImageForTerminal in src/services/visual/imageDisplay.ts, and rebuild dist with bun run build.ts if dist is stale')
-  check('and stdout carries ZERO escape bytes (FC-043)', escapes === 0, `escapes=${escapes}`, 'a redirected mercury image must print the plain link tier with no terminal escapes; fix the protocol choice in detectImageProtocol and renderImageForTerminal in src/services/visual/imageDisplay.ts')
-  check('the plain pointer names the file', (run.stdout ?? '').includes('probe.png'), JSON.stringify((run.stdout ?? '').slice(0, 80)), 'the link tier payload must carry the image file name; fix renderImageForTerminal in src/services/visual/imageDisplay.ts')
+  check('the redirected show exits 0', run.status === 0, `status=${run.status}`, 'mercury image on a PNG failed when redirected; read the image verb in src/boot/main/verbActions.ts and renderImageForTerminal in src/screen/image-display/imageDisplay.ts, and rebuild dist with bun run build.ts if dist is stale')
+  check('and stdout carries ZERO escape bytes (FC-043)', escapes === 0, `escapes=${escapes}`, 'a redirected mercury image must print the plain link tier with no terminal escapes; fix the protocol choice in detectImageProtocol and renderImageForTerminal in src/screen/image-display/imageDisplay.ts')
+  check('the plain pointer names the file', (run.stdout ?? '').includes('probe.png'), JSON.stringify((run.stdout ?? '').slice(0, 80)), 'the link tier payload must carry the image file name; fix renderImageForTerminal in src/screen/image-display/imageDisplay.ts')
   rmSync(home, { recursive: true, force: true })
 }
 
@@ -69,7 +69,7 @@ section('§3 FC-049 — the measured polyglot count')
     timeout: 120_000,
   })
   const record = run.stdout ?? ''
-  check('the row reports a measured shortfall, never the constant', /0 of \d+ languages present/.test(record), record.match(/polyglot[^\\n"]{0,90}/)?.[0], 'the anvil-workbench-fast health row must print the measured count of present tree-sitter languages; fix the polyglot patterns line in src/services/health/sections/coding-loop-fast.ts, and check that node_modules/@vscode/tree-sitter-wasm/wasm holds tree-sitter.js and tree-sitter.wasm')
+  check('the row reports a measured shortfall, never the constant', /0 of \d+ languages present/.test(record), record.match(/polyglot[^\\n"]{0,90}/)?.[0], 'the anvil-workbench-fast health row must print the measured count of present tree-sitter languages; fix the polyglot patterns line in src/platform/health/sections/coding-loop-fast.ts, and check that node_modules/@vscode/tree-sitter-wasm/wasm holds tree-sitter.js and tree-sitter.wasm')
   rmSync(home, { recursive: true, force: true })
   rmSync(engineDir, { recursive: true, force: true })
 }

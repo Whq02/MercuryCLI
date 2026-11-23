@@ -5,7 +5,7 @@ import {
   describeFrontierDecision,
   FRONTIER_MAX_20X_TIER,
   type FrontierFacts,
-} from '../../src/services/model/frontierPolicy.js'
+} from '../../src/models/catalogue/frontierPolicy.js'
 import {
   getBestModel,
   getDefaultEngineModel,
@@ -14,15 +14,15 @@ import {
   getUserSpecifiedModelSetting,
   isFableAvailable,
   parseUserSpecifiedModel,
-} from '../../src/services/model/model.js'
-import { setEngineModelOverride } from '../../src/bootstrap/state.js'
-import { restoreConversationModelFromMessages } from '../../src/services/resume/sessionRestore.js'
-import { computedDefault } from '../../src/services/model/computedDefault.js'
+} from '../../src/models/catalogue/engineModel.js'
+import { setEngineModelOverride } from '../../src/boot/process-state/processState.js'
+import { restoreConversationModelFromMessages } from '../../src/sessions/resume/sessionRestore.js'
+import { computedDefault } from '../../src/models/catalogue/computedDefault.js'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' (fix evaluateFrontierDecision in src/services/model/frontierPolicy.ts for the decision rows; model precedence and best or default in src/services/model/model.ts; retention in restoreConversationModelFromMessages, src/services/resume/sessionRestore.ts; the default in src/services/model/computedDefault.ts)'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' (fix evaluateFrontierDecision in src/models/catalogue/frontierPolicy.ts for the decision rows; model precedence and best or default in src/models/catalogue/engineModel.ts; retention in restoreConversationModelFromMessages, src/sessions/resume/sessionRestore.ts; the default in src/models/catalogue/computedDefault.ts)'}`)
 }
 
 const base = (): FrontierFacts => ({

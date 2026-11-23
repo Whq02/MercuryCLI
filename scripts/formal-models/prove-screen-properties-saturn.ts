@@ -57,8 +57,8 @@ type CapturedRpc = {
 let rpcCalls: CapturedRpc[] = []
 let faultRewriteScheduleId: ((id: string) => string) | null = null
 
-const realControl = await import('../../src/daemon/controlSocket.ts')
-mock.module('../../src/daemon/controlSocket.ts', () => ({
+const realControl = await import('../../src/daemon/control/controlSocket.ts')
+mock.module('../../src/daemon/control/controlSocket.ts', () => ({
   ...realControl,
   daemonControlRpc: async (req: CapturedRpc) => {
     const captured: CapturedRpc = req.scheduleEdit
@@ -75,8 +75,8 @@ mock.module('../../src/daemon/controlSocket.ts', () => ({
   },
 }))
 
-const realSaturnAccount = await import('../../src/daemon/saturnAccount.ts')
-mock.module('../../src/daemon/saturnAccount.ts', () => ({
+const realSaturnAccount = await import('../../src/daemon/saturn/saturnAccount.ts')
+mock.module('../../src/daemon/saturn/saturnAccount.ts', () => ({
   ...realSaturnAccount,
   deriveScheduleAccountForModel: () => ({
     ok: true as const,
@@ -90,26 +90,26 @@ mock.module('../../src/daemon/saturnAccount.ts', () => ({
   scheduleAccountVerdict: () => ({ state: 'ready' as const }),
 }))
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { registerBootDoors } = await import('../../src/services/boot/registerDoors.ts')
+const { registerBootDoors } = await import('../../src/boot/doors/registerDoors.ts')
 registerBootDoors()
 
 const { readBoxSchedules, addBoxSchedule, removeBoxSchedule, setBoxSchedulePaused } = await import(
-  '../../src/daemon/saturnBoxSchedules.ts'
+  '../../src/daemon/saturn/saturnBoxSchedules.ts'
 )
-const { BootSaturnScreen, sortForBoard } = await import('../../src/components/BootSaturnScreen.tsx')
-type SaturnScreenFactsV1 = import('../../src/components/BootSaturnScreen.tsx').SaturnScreenFactsV1
-type SaturnScreenRowV1 = import('../../src/components/BootSaturnScreen.tsx').SaturnScreenRowV1
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { default: reconciler } = await import('../../src/ink/reconciler.js')
-const { disposeKeybindingWatcher } = await import('../../src/keybindings/loadUserBindings.js')
-const { Box } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
+const { BootSaturnScreen, sortForBoard } = await import('../../src/screen/boot-face/BootSaturnScreen.tsx')
+type SaturnScreenFactsV1 = import('../../src/screen/boot-face/BootSaturnScreen.tsx').SaturnScreenFactsV1
+type SaturnScreenRowV1 = import('../../src/screen/boot-face/BootSaturnScreen.tsx').SaturnScreenRowV1
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
+const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
 
 class FakeStdout extends EventEmitter {
   isTTY = true

@@ -7,7 +7,7 @@ import { FORBIDDEN_HEAD_WORDS } from './requestHeadSource.ts'
 
 let failures = 0
 let checks = 0
-const ANNOUNCEMENT_WHERE = 'change planToolPayload in src/services/providers/toolEconomy.ts (roster, deferral marks, wire form), getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts (the one delta row) or getPrompt in src/tools/ToolSearchTool/prompt.ts (the carrier sentence); the request head must not move when the pool changes'
+const ANNOUNCEMENT_WHERE = 'change planToolPayload in src/models/roads/toolEconomy.ts (roster, deferral marks, wire form), getDeferredToolsDeltaAttachment in src/engine/attachments/toolAndServerDeltas.ts (the one delta row) or getPrompt in src/tools/tool-search/prompt.ts (the carrier sentence); the request head must not move when the pool changes'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -31,23 +31,23 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'announce-stab-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'announce-stab-daemon-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { planToolPayload, renderAdmissionRecordsAsText } = await import('../../src/services/providers/toolEconomy.ts')
-const { getDeferredToolsDeltaAttachment, SERVER_SEARCH_ANNOUNCEMENT_HEAD } = await import('../../src/services/attachments/deltas.ts')
-const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { getPrompt, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Tools = import('../../src/Tool.ts').Tools
-type Message = import('../../src/types/message.ts').Message
-type Attachment = import('../../src/utils/attachments/types.ts').Attachment
+const { planToolPayload, renderAdmissionRecordsAsText } = await import('../../src/models/roads/toolEconomy.ts')
+const { getDeferredToolsDeltaAttachment, SERVER_SEARCH_ANNOUNCEMENT_HEAD } = await import('../../src/engine/attachments/toolAndServerDeltas.ts')
+const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { getPrompt, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/tool-search/prompt.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Tools = import('../../src/tools/kit/tool.ts').Tools
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type Attachment = import('../../src/engine/attachment-shapes/attachmentTypes.ts').Attachment
 
 const ROUTE_MODELS: Record<string, string> = {
   anthropic: 'claude-sonnet-5',

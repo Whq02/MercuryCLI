@@ -31,32 +31,32 @@ process.chdir(project)
 const reactModule = (await import('react')) as unknown as { default?: typeof import('react') } & typeof import('react')
 const React = reactModule.default ?? reactModule
 const { default: stripAnsi } = await import('strip-ansi')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
-const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
+const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
 setSessionTrustAccepted(true)
 enableConfigs()
 setOriginalCwd(project)
 setCwdState(project)
-const { render } = await import('../../src/ink.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { FileWritePermissionRequest } = await import('../../src/components/permissions/FileWritePermissionRequest/FileWritePermissionRequest.tsx')
-const { FileEditPermissionRequest } = await import('../../src/components/permissions/FileEditPermissionRequest/FileEditPermissionRequest.tsx')
-const { FilesystemPermissionRequest } = await import('../../src/components/permissions/FilesystemPermissionRequest/FilesystemPermissionRequest.tsx')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { closeRemoteConnections } = await import('../../src/services/remoteFiles/connection.ts')
+const { render } = await import('../../src/screen/themedRenderer.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { FileWritePermissionRequest } = await import('../../src/permissions/cards/file-write/FileWritePermissionRequest.tsx')
+const { FileEditPermissionRequest } = await import('../../src/permissions/cards/file-edit/FileEditPermissionRequest.tsx')
+const { FilesystemPermissionRequest } = await import('../../src/permissions/cards/filesystem/FilesystemPermissionRequest.tsx')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { closeRemoteConnections } = await import('../../src/platform/remote-files/connection.ts')
 
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 240 seconds — a permission card never settled or the local ssh transport hung; see the last section printed above, then src/components/permissions/FileWritePermissionRequest, FileEditPermissionRequest and FilesystemPermissionRequest, or scripts/remote-files/remoteKit.ts')
+  console.log('  [FAIL] the proof did not finish within 240 seconds — a permission card never settled or the local ssh transport hung; see the last section printed above, then src/permissions/cards/file-write, FileEditPermissionRequest and FilesystemPermissionRequest, or scripts/remote-files/remoteKit.ts')
   process.exit(1)
 }, 240_000)
 watchdog.unref()
 let failures = 0
 let checks = 0
-const ASK_CARD_FIX_HINT = 'to fix: change the card in src/components/permissions/FileWritePermissionRequest, FileEditPermissionRequest or FilesystemPermissionRequest (the one the label names), or renderToolUseRejectedMessage in src/tools/FileWriteTool/UI.tsx or src/tools/FileEditTool/UI.tsx for the refused rows; the rows drawn are above'
+const ASK_CARD_FIX_HINT = 'to fix: change the card in src/permissions/cards/file-write, FileEditPermissionRequest or FilesystemPermissionRequest (the one the label names), or renderToolUseRejectedMessage in src/tools/write/rows.tsx or src/tools/edit/rows.tsx for the refused rows; the rows drawn are above'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++

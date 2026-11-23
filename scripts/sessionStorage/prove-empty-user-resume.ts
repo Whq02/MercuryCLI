@@ -7,8 +7,8 @@ import { runDoor, sceneRoot } from '../hooks/lib/runDoor.ts'
 const paths = sceneRoot('empty-user-resume-')
 process.env.MERCURY_CONFIG_DIR = paths.home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
 try {
   const project = getProjectDir(paths.cwd)
   mkdirSync(project, { recursive: true })

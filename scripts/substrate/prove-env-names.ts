@@ -9,17 +9,17 @@ const J = (...parts: string[]): string => parts.join('')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  const envNamesHint = 'fix the module the check reads: flag rows in the flag registry (FLAG_REGISTRY) (section 1), shell timeouts in src/utils/timeouts.ts (2), output cap in src/utils/shell/outputLimits.ts (3), SAFE_ENV_VARS and isProviderManagedEnvVar in src/utils/managedEnvConstants.ts (4), the CI scrub in src/utils/subprocessEnv.ts (5)'
+  const envNamesHint = 'fix the module the check reads: flag rows in the flag registry (FLAG_REGISTRY) (section 1), shell timeouts in src/tools/kit/timeouts.ts (2), output cap in src/platform/shell/outputLimits.ts (3), SAFE_ENV_VARS and isProviderManagedEnvVar in src/platform/environment/managedEnvVars.ts (4), the CI scrub in src/platform/processes/subprocessEnv.ts (5)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ' — ' + detail : '') : ` — ${detail ? detail + ' | ' : ''}${envNamesHint}`}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const registry = await import(join(SRC, 'substrate/flagRegistry.ts'))
-const timeouts = await import(join(SRC, 'utils/timeouts.ts'))
-const limits = await import(join(SRC, 'utils/shell/outputLimits.ts'))
-const managed = await import(join(SRC, 'utils/managedEnvConstants.ts'))
-const subprocess = await import(join(SRC, 'utils/subprocessEnv.ts'))
+const registry = await import(join(SRC, 'platform/substrate/flagRegistry.ts'))
+const timeouts = await import(join(SRC, 'tools/kit/timeouts.ts'))
+const limits = await import(join(SRC, 'platform/shell/outputLimits.ts'))
+const managed = await import(join(SRC, 'platform/environment/managedEnvVars.ts'))
+const subprocess = await import(join(SRC, 'platform/processes/subprocessEnv.ts'))
 
 const SHELL_TIMEOUT = 'MERCURY_SHELL_TIMEOUT_MS'
 const SHELL_MAX_TIMEOUT = 'MERCURY_SHELL_MAX_TIMEOUT_MS'

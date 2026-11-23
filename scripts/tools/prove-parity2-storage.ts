@@ -11,7 +11,7 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_HOME
 
 let failures = 0
-const failHint = 'change rememberedExpandedView and getDefaultAppState in src/state/AppStateStore.ts, or the expandedView key saved by saveGlobalConfig in src/utils/config/globalConfig.ts'
+const failHint = 'change rememberedExpandedView and getDefaultAppState in src/screen/app-state/AppStateStore.ts, or the expandedView key saved by saveGlobalConfig in src/platform/config/globalConfig.ts'
 const t = (name: string, ok: boolean, detail = ''): void => {
   const shown = ok ? detail : [detail, failHint].filter(Boolean).join(' | ')
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${shown ? ` — ${shown}` : ''}`)
@@ -19,9 +19,9 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 {
-  const { enableConfigs, saveGlobalConfig, getGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs, saveGlobalConfig, getGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
   t('a fresh config starts with no panel open', getDefaultAppState().expandedView === 'none')
   saveGlobalConfig(current => ({ ...current, expandedView: 'tasks' }))
   t('the saved panel is read back', getGlobalConfig().expandedView === 'tasks')

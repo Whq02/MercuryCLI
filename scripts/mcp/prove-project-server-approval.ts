@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/mcp/utils.ts src/services/mcp/config.ts src/services/mcp/liveConfig.ts src/cli/handlers/mcp.tsx src/cli/run.ts src/rows/vocabulary.ts src/services/mcpServerApproval.tsx
+// gate-watch: src/integrations/mcp/utils.ts src/integrations/mcp/serverConfigs.ts src/integrations/mcp/liveConfig.ts src/commands/verbs/mcp.tsx src/daemon/runner/runHeadless.ts src/engine/rows/vocabulary.ts src/screen/mcp/mcpServerApproval.tsx
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -218,12 +218,12 @@ try {
     const w = world('in-process', { trusted: true })
     process.env.MERCURY_CONFIG_DIR = w.home
     process.env.NODE_ENV = 'test'
-    const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
-    const { setIsInteractive, setSessionTrustAccepted, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.js')
-    const { setCwd } = await import('../../src/utils/Shell.js')
-    const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
-    const { getProjectMcpConfigsFromCwd } = await import('../../src/services/mcp/config.js')
-    const { getProjectMcpServerStatus, projectMcpApprovalEntry, projectMcpServerDefinitionDigest, recordProjectMcpServerChoices } = await import('../../src/services/mcp/utils.js')
+    const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
+    const { setIsInteractive, setSessionTrustAccepted, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.js')
+    const { setCwd } = await import('../../src/platform/shell/shellExec.js')
+    const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
+    const { getProjectMcpConfigsFromCwd } = await import('../../src/integrations/mcp/serverConfigs.js')
+    const { getProjectMcpServerStatus, projectMcpApprovalEntry, projectMcpServerDefinitionDigest, recordProjectMcpServerChoices } = await import('../../src/integrations/mcp/utils.js')
     enableConfigs()
     setCwd(w.project)
     setOriginalCwd(w.project)

@@ -9,10 +9,10 @@ import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { frameLines, isMainThread, isToolCall, isToolResult } from '../lib/rows.ts'
-import { countTrackedRunningAgents, SleepTool, TERMINAL_TASK_STATUSES, TRACKED_ARM_GRACE_TICKS, TRACKED_SETTLE_POLL_MS, UNTRACKED_TASK_TYPES } from '../../src/tools/SleepTool/SleepTool.tsx'
-import { isTerminalTaskStatus, type TaskStatus } from '../../src/Task.ts'
-import { setRunInputClosed } from '../../src/bootstrap/state.ts'
-import type { AppState } from '../../src/state/AppState.js'
+import { countTrackedRunningAgents, SleepTool, TERMINAL_TASK_STATUSES, TRACKED_ARM_GRACE_TICKS, TRACKED_SETTLE_POLL_MS, UNTRACKED_TASK_TYPES } from '../../src/tools/sleep/SleepTool.tsx'
+import { isTerminalTaskStatus, type TaskStatus } from '../../src/engine/tasks/taskBase.ts'
+import { setRunInputClosed } from '../../src/boot/process-state/processState.ts'
+import type { AppState } from '../../src/screen/app-state/AppState.js'
 
 const t = checker()
 

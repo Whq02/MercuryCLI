@@ -11,8 +11,8 @@ try {
     assert.equal(url.hostname, '127.0.0.1', 'the proof never leaves loopback')
     return fetchBefore(input, init)
   }) as typeof fetch
-  const { updateSettingsForSource } = await import(`${f.root}/src/utils/settings/settings.ts`)
-  const { resolveEffortTruth } = await import(`${f.root}/src/utils/effort.ts`)
+  const { updateSettingsForSource } = await import(`${f.root}/src/platform/settings/settings.ts`)
+  const { resolveEffortTruth } = await import(`${f.root}/src/models/effort/effort.ts`)
   for (const dialect of ['llamacpp', 'vllm', 'sglang', 'ollama', 'chat-completions']) {
     f.state.dialect = dialect
     const id = `compat/refusal-${dialect}/${f.model}`

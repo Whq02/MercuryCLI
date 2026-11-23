@@ -42,7 +42,7 @@ try {
     await fresh.end()
   }
 
-  const { projectSlug } = await import('../../src/utils/sessionStoragePortable.ts')
+  const { projectSlug } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
   const sessionId = randomUUID()
   const cwd = realpathSync(world.project).normalize('NFC')
   const projectDir = join(world.config, 'projects', projectSlug(cwd))

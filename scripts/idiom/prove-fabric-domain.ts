@@ -5,14 +5,14 @@ import { join } from 'node:path'
 const ROOT = join(import.meta.dir, '..', '..')
 
 const { asOrdinal, betweenOrdinals, compareOrdinals, nextOrdinal, ordinalOf } = await import(
-  '../../src/fabric/ordinal.js'
+  '../../src/sessions/fabric/ordinal.js'
 )
-const { entryToRecord, recordToEntry } = await import('../../src/fabric/entryCodec.js')
-const { validateRecord } = await import('../../src/fabric/validate.js')
+const { entryToRecord, recordToEntry } = await import('../../src/sessions/fabric/entryCodec.js')
+const { validateRecord } = await import('../../src/sessions/fabric/validate.js')
 const { buildCompass1k } = await import('../navigation/fixture1k.js')
 
 let failures = 0
-const fabricHint = 'fix the fabric module this check exercises: src/fabric/ordinal.ts, src/fabric/entryCodec.ts or src/fabric/validate.ts'
+const fabricHint = 'fix the fabric module this check exercises: src/sessions/fabric/ordinal.ts, src/sessions/fabric/entryCodec.ts or src/sessions/fabric/validate.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = detail ? `${detail}; ${fabricHint}` : fabricHint
@@ -231,14 +231,14 @@ section('§C round-trip over MercuryRecord — the 1k corpus (seeded, byte-ident
   check(`all ${lines.length} round-trip losslessly`, equal === lines.length, `${equal}/${lines.length} · ${failuresDetail.join(' | ')}`)
 }
 
-section('§D import fence — src/fabric/ has zero provider-package imports')
+section('§D import fence — src/sessions/fabric/ has zero provider-package imports')
 {
   const offenders: string[] = []
-  for (const f of readdirSync(join(ROOT, 'src/fabric'))) {
-    const text = readFileSync(join(ROOT, 'src/fabric', f), 'utf8')
+  for (const f of readdirSync(join(ROOT, 'src/sessions/fabric'))) {
+    const text = readFileSync(join(ROOT, 'src/sessions/fabric', f), 'utf8')
     if (/@anthropic-ai\/|from 'openai|@modelcontextprotocol\//.test(text)) offenders.push(f)
   }
-  check('zero provider imports anywhere under src/fabric/', offenders.length === 0, offenders.join(', '))
+  check('zero provider imports anywhere under src/sessions/fabric/', offenders.length === 0, offenders.join(', '))
 }
 
 section('§E unknown-retention + typed corruption failure')

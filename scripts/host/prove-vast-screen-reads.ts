@@ -5,7 +5,7 @@ import { KEY, mountOffscreen, pinSourceRef, waitFor, type Mounted } from '../lib
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { vastFixture } from './vastFixture.mjs'
 import { gridToPng } from '../ui/gridToPng.ts'
-import type { LlmHostQuestion, LlmHostRoad } from '../../src/services/llmHost/index.ts'
+import type { LlmHostQuestion, LlmHostRoad } from '../../src/models/llm-host/index.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('Use a scratch MERCURY_CONFIG_DIR')
 delete process.env.MERCURY_HOME
@@ -34,13 +34,13 @@ let mounted: Mounted | undefined
 let checks = 0, failures = 0
 const check = (name: string, condition: unknown) => { checks++; if (!condition) failures++; console.log((condition ? 'PASS ' : 'FAIL ') + name) }
 try {
-  const { VastClient } = await import('../../src/services/host/vendors/vast.ts')
-  const { saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { writeKeptVolume, readKeptVolume } = await import('../../src/services/host/volumes.ts')
-  const { writeHostRecord, readHostRecord } = await import('../../src/services/host/store.ts')
-  const { HostVendorNetworkError } = await import('../../src/services/host/vendors/http.ts')
-  const { hostScreenRead } = await import('../../src/services/host/retry.ts')
+  const { VastClient } = await import('../../src/models/hosting/vendors/vast.ts')
+  const { saveVendorKey } = await import('../../src/models/hosting/vendors/client.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { writeKeptVolume, readKeptVolume } = await import('../../src/models/hosting/volumes.ts')
+  const { writeHostRecord, readHostRecord } = await import('../../src/models/hosting/store.ts')
+  const { HostVendorNetworkError } = await import('../../src/models/hosting/vendors/http.ts')
+  const { hostScreenRead } = await import('../../src/models/hosting/retry.ts')
   saveVendorKey('vast', vast.key)
   vast.state.pods.set(7001, { id: 7001, label: 'Fixture model', actual_status: 'running', start_date: Math.floor(Date.now() / 1000) - 3600, dph_total: 2.1, public_ipaddr: '127.0.0.1' })
   const client = new VastClient(vast.key, vast.baseUrl, { requestTimeoutMs: 80 })
@@ -97,11 +97,11 @@ try {
   }
 
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
   for (const [width, height] of [[120, 40], [80, 24]] as const) {
     let question: LlmHostQuestion | undefined

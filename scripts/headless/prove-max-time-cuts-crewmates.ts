@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { endProcessTree } from '../../src/utils/processGroup.ts'
+import { endProcessTree } from '../../src/platform/processes/processGroup.ts'
 import { quote, runDoor, sceneRoot } from '../hooks/lib/runDoor.ts'
 import { slashed } from '../lib/platformPath.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -28,9 +28,9 @@ for (const background of [false, true]) {
     })
     assert.ok(pidWritten(pidFile), 'the child shell must have started: the Crewmate or Bash tool call never ran before the --max-time deadline, so look at the rows runDoor returned and at scripts/hooks/lib/runDoor.ts')
     assert.ok(result.rows.some(row => row.type === 'tool_call' && row.tool === 'Bash' && row.parent_call_id === 'crew'), 'the sleeper must be in the crewmate: no Bash tool_call row carries parent_call_id crew, so the crewmate did not run the sleeper before the deadline')
-    assert.equal(result.code, 1, `background=${background}, wall=${result.tookMs}: a --max-time run that ends on the deadline must exit 1; see the time_limit outcome in src/cli/headless/printDriver.ts`)
-    assert.ok(result.tookMs < SLEEPER_SECONDS * 1000 * 2 / 3, `the deadline cut the run well before the sleeper's ${SLEEPER_SECONDS} s: wall=${result.tookMs}; the runDeadline cut of the crewmate in src/tools/AgentTool/runAgent.ts did not reach the running tool in time`)
-    assert.ok(result.rows.some(row => row.type === 'outcome' && row.status === 'time_limit'), `no outcome row with status time_limit (the printDriver turns a completed outcome after the deadline into time_limit in src/cli/headless/printDriver.ts): ${JSON.stringify(result.rows.filter(row => row.type === 'outcome'))}`)
+    assert.equal(result.code, 1, `background=${background}, wall=${result.tookMs}: a --max-time run that ends on the deadline must exit 1; see the time_limit outcome in src/daemon/runner/runnerDriver.ts`)
+    assert.ok(result.tookMs < SLEEPER_SECONDS * 1000 * 2 / 3, `the deadline cut the run well before the sleeper's ${SLEEPER_SECONDS} s: wall=${result.tookMs}; the runDeadline cut of the crewmate in src/tools/crewmate/runCrewmate.ts did not reach the running tool in time`)
+    assert.ok(result.rows.some(row => row.type === 'outcome' && row.status === 'time_limit'), `no outcome row with status time_limit (the printDriver turns a completed outcome after the deadline into time_limit in src/daemon/runner/runnerDriver.ts): ${JSON.stringify(result.rows.filter(row => row.type === 'outcome'))}`)
     const sleeper = Number(readFileSync(pidFile, 'utf8'))
     let left = shellTreeRows(sleeper)
     const settle = Date.now() + 3_000

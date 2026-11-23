@@ -7,13 +7,13 @@ import { checker, scratchRoot, waitUntil } from './harness.ts'
 scratchRoot('lifecycle')
 const t = checker()
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
-const projection = await import('../../src/services/workbench/projection.ts')
-const vitals = await import('../../src/state/vitalsBus.ts')
+const projection = await import('../../src/screen/workbench/projection.ts')
+const vitals = await import('../../src/screen/app-state/vitalsBus.ts')
 
 t.section('§1 — an unsubscribed workbench engine holds nothing')
 {

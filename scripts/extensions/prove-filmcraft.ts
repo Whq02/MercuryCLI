@@ -3,13 +3,13 @@ import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { Client, StdioClientTransport } from '../../src/utils/mcp/sdk.ts'
+import { Client, StdioClientTransport } from '../../src/integrations/mcp-shapes/sdk.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: 'craft-proof' }
 const root = resolve(import.meta.dir, '../..')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { computeActiveSet, publishActiveSet } = await import('../../src/extensions/active.ts')
+const { computeActiveSet, publishActiveSet } = await import('../../src/integrations/extensions/active.ts')
 const active = computeActiveSet({ cwd: root })
 publishActiveSet(active)
 const ext = active.active.find(e => e.entry.id === 'filmcraft@mercury')
@@ -17,26 +17,26 @@ assert(ext, 'FilmCraft must be bundled and active without an application install
 assert.equal(ext.health.outcome, 'loads')
 assert.equal(ext.resolution.servers.length, 1)
 assert.equal(ext.resolution.skills.length, 1)
-const { getExtensionSkills } = await import('../../src/extensions/load/commands.ts')
+const { getExtensionSkills } = await import('../../src/integrations/extensions/load/commands.ts')
 const skill: any = getExtensionSkills().find(s => s.name === 'filmcraft:filmcraft')
-assert(skill, 'src/extensions/load/commands.ts missing bundled filmcraft:filmcraft skill')
+assert(skill, 'src/integrations/extensions/load/commands.ts missing bundled filmcraft:filmcraft skill')
 assert.match(skill.description, /Use when editing, cutting, grading or exporting a FilmCraft project/)
 assert.match(skill.description, /Not for PhotoCraft.*LightCraft/)
 const prompt = (await skill.getPromptForCommand('Cut the open FilmCraft sequence at one second')).map((p: any) => p.text).join('\n')
 assert(prompt.includes('Cut the open FilmCraft sequence at one second'), 'filmcraft:filmcraft prompt omitted caller argument')
-assert(prompt.includes('sequence.addEdit') && prompt.includes('ui_screenshot') && prompt.includes('file.exportMedia'), 'src/extensions/bundled/filmcraft/skills/filmcraft/SKILL.md missing core FilmCraft tool guidance')
-assert(prompt.includes('FilmCraft 0.20.1') && prompt.includes('FILMCRAFT_CONTROL_TOKEN') && prompt.includes('tokenFile') && prompt.includes('254016000000'), 'src/extensions/bundled/filmcraft/skills/filmcraft/SKILL.md missing 0.20.1 pin/control token facts')
+assert(prompt.includes('sequence.addEdit') && prompt.includes('ui_screenshot') && prompt.includes('file.exportMedia'), 'src/integrations/extensions/bundled/filmcraft/skills/filmcraft/SKILL.md missing core FilmCraft tool guidance')
+assert(prompt.includes('FilmCraft 0.20.1') && prompt.includes('FILMCRAFT_CONTROL_TOKEN') && prompt.includes('tokenFile') && prompt.includes('254016000000'), 'src/integrations/extensions/bundled/filmcraft/skills/filmcraft/SKILL.md missing 0.20.1 pin/control token facts')
 assert(prompt.includes('timeline.move') && prompt.includes('lastPath'), 'The skill carries the 0.17.1 words: a move takes time objects, an image sequence names its first and last stills')
 assert(!prompt.includes('craft_status') && !prompt.includes('craft_install'), 'Onboarding belongs to the server instructions, not the skill')
 const skillBytes = readFileSync(join(ext.root, 'skills/filmcraft/SKILL.md')).byteLength
-assert(skillBytes <= 1800, `src/extensions/bundled/filmcraft/skills/filmcraft/SKILL.md exceeded 1800 bytes: got ${skillBytes}`)
-assert(!prompt.includes('${MERCURY_EXTENSION_ROOT}'), 'src/extensions/load/commands.ts left unexpanded ${MERCURY_EXTENSION_ROOT} in filmcraft prompt')
+assert(skillBytes <= 1800, `src/integrations/extensions/bundled/filmcraft/skills/filmcraft/SKILL.md exceeded 1800 bytes: got ${skillBytes}`)
+assert(!prompt.includes('${MERCURY_EXTENSION_ROOT}'), 'src/integrations/extensions/load/commands.ts left unexpanded ${MERCURY_EXTENSION_ROOT} in filmcraft prompt')
 console.log('PASS: real skill discovery, argument expansion, FilmCraft editing trigger and PhotoCraft/LightCraft exclusion')
-const { getExtensionMcpServers } = await import('../../src/extensions/load/servers.ts')
+const { getExtensionMcpServers } = await import('../../src/integrations/extensions/load/servers.ts')
 const config: any = getExtensionMcpServers()['ext:filmcraft:app']
-assert(config && config.command === process.execPath, `src/extensions/load/servers.ts ext:filmcraft:app command expected ${process.execPath}, got ${config?.command}`)
-assert(config.env.MERCURY_CRAFT_INSTALL_KEY, 'src/extensions/load/servers.ts ext:filmcraft:app env missing MERCURY_CRAFT_INSTALL_KEY')
-assert(config.args[0].startsWith(ext.root), `src/extensions/load/servers.ts ext:filmcraft:app bridge arg outside ext.root: ${config.args[0]}`)
+assert(config && config.command === process.execPath, `src/integrations/extensions/load/servers.ts ext:filmcraft:app command expected ${process.execPath}, got ${config?.command}`)
+assert(config.env.MERCURY_CRAFT_INSTALL_KEY, 'src/integrations/extensions/load/servers.ts ext:filmcraft:app env missing MERCURY_CRAFT_INSTALL_KEY')
+assert(config.args[0].startsWith(ext.root), `src/integrations/extensions/load/servers.ts ext:filmcraft:app bridge arg outside ext.root: ${config.args[0]}`)
 const client = new Client({ name: 'filmcraft-bundled-proof', version: '1.0.0' })
 await client.connect(new StdioClientTransport({ command: config.command, args: config.args, env: { ...process.env, ...config.env } as Record<string, string>, stderr: 'pipe' }))
 try {
@@ -51,24 +51,24 @@ try {
   assert(install.isError, 'Raw MCP call without the permission handoff must not install')
   console.log('PASS: delivered bundled bootstrap initializes, lists tools and remains absent on unapproved calls')
 } finally { await client.close() }
-const { connectToServer, fetchToolsForClient } = await import('../../src/services/mcp/client.ts')
+const { connectToServer, fetchToolsForClient } = await import('../../src/integrations/mcp/client.ts')
 const connection = await connectToServer('ext:filmcraft:app', config)
 assert.equal(connection.type, 'connected')
 if (connection.type === 'connected') {
   try {
     const tools = await fetchToolsForClient(connection)
-    const { assembleToolPool } = await import('../../src/tools.ts')
-    const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-    const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
+    const { assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
+    const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+    const { decideToolPermission } = await import('../../src/permissions/rules/decision/engine.ts')
     const permission = getEmptyToolPermissionContext()
     const pool = assembleToolPool(permission, tools)
     const install = pool.find(t => t.mcpInfo?.toolName === 'craft_install')!
-    assert(install, 'src/tools.ts assembleToolPool missing filmcraft craft_install tool')
+    assert(install, 'src/tools/kit/toolList.ts assembleToolPool missing filmcraft craft_install tool')
     const context: any = { abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: permission }), options: {} }
     const { decision } = await decideToolPermission(install, {}, context)
     assert.equal(decision.behavior, 'ask')
     assert.match((decision as any).message, /Install FilmCraft 0\.20\.1 \([\d,]+ bytes\)/)
-    assert(!JSON.stringify(decision).includes('_mercuryInstallGrant'), 'src/extensions/installConsent.ts ask decision leaked _mercuryInstallGrant')
+    assert(!JSON.stringify(decision).includes('_mercuryInstallGrant'), 'src/integrations/extensions/installConsent.ts ask decision leaked _mercuryInstallGrant')
     console.log('PASS: real Mercury MCP client and tool pool ask once with a private install handoff')
   } finally { await connection.client.close() }
 }

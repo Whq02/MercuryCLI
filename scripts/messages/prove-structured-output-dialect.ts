@@ -14,13 +14,13 @@ function section(t: string): void {
 
 
 const { toOpenaiStrictSchema, stripExplicitNulls } = await import(
-  '../../src/utils/messages/structuredOutputDialect.ts'
+  '../../src/engine/message-shapes/structuredOutputDialect.ts'
 )
 const { buildOpenaiResponsesRequest } = await import(
-  '../../src/services/providers/openai/responsesBridge.ts'
+  '../../src/models/roads/openai/responsesBridge.ts'
 )
-const { hookAnswerJsonSchema } = await import('../../src/services/hooks/questionRunner.ts')
-const { hookAnswerSchema } = await import('../../src/utils/hooks/contract.ts')
+const { hookAnswerJsonSchema } = await import('../../src/integrations/event-hook-runners/questionRunner.ts')
+const { hookAnswerSchema } = await import('../../src/integrations/event-hooks/contract.ts')
 const VERDICT_JSON_SCHEMA = hookAnswerJsonSchema(hookAnswerSchema('tool.before'))
 
 console.log('============================================================')
@@ -92,7 +92,7 @@ function wireSchemaOf(fmt: { schema: Node }): Node {
     outputFormat: fmt,
   } as never)
   const wire = (req as { text?: { format?: { schema?: unknown } } }).text?.format?.schema
-  if (!isRecord(wire)) throw new Error('no wire schema emitted - buildOpenaiResponsesRequest (src/services/providers/openai/responsesBridge.ts) must put the outputFormat schema at text.format.schema')
+  if (!isRecord(wire)) throw new Error('no wire schema emitted - buildOpenaiResponsesRequest (src/models/roads/openai/responsesBridge.ts) must put the outputFormat schema at text.format.schema')
   return wire
 }
 
@@ -105,24 +105,24 @@ section('§1 the wire is the strict dialect for every product schema')
   for (const [name, fmt] of rows) {
     const wire = wireSchemaOf(fmt)
     const violations = strictViolations(wire, name, [])
-    check(`${name}: zero strict-dialect violations on the wire`, violations.length === 0, violations.join(' · ') + ' - fix toOpenaiStrictSchema (src/utils/messages/structuredOutputDialect.ts), which buildOpenaiResponsesRequest applies to the schema')
+    check(`${name}: zero strict-dialect violations on the wire`, violations.length === 0, violations.join(' · ') + ' - fix toOpenaiStrictSchema (src/engine/message-shapes/structuredOutputDialect.ts), which buildOpenaiResponsesRequest applies to the schema')
   }
   const chatWire = wireSchemaOf({ type: 'json_schema', schema: opsPlanSchema() } as never)
   const ops = ((chatWire.properties as Node).ops as Node).items as Node
   const props = ops.properties as Node
-  check('chat ops.items: op (originally required) stays non-nullable', !admitsNull(props.op), 'toOpenaiStrictSchema (src/utils/messages/structuredOutputDialect.ts) must not make an originally required property nullable')
+  check('chat ops.items: op (originally required) stays non-nullable', !admitsNull(props.op), 'toOpenaiStrictSchema (src/engine/message-shapes/structuredOutputDialect.ts) must not make an originally required property nullable')
   for (const k of ['id', 'text', 'pri', 'refinedText']) {
-    check(`chat ops.items: ${k} (originally optional) admits null on the wire`, admitsNull(props[k]), 'toOpenaiStrictSchema (src/utils/messages/structuredOutputDialect.ts) must make an originally optional property nullable')
+    check(`chat ops.items: ${k} (originally optional) admits null on the wire`, admitsNull(props[k]), 'toOpenaiStrictSchema (src/engine/message-shapes/structuredOutputDialect.ts) must make an originally optional property nullable')
   }
   const pri = props.pri as Node
-  check('chat ops.items: the optional enum admits the null VALUE', Array.isArray(pri.enum) && (pri.enum as unknown[]).includes(null), 'toOpenaiStrictSchema (src/utils/messages/structuredOutputDialect.ts) must add null to the enum list of an optional enum property')
+  check('chat ops.items: the optional enum admits the null VALUE', Array.isArray(pri.enum) && (pri.enum as unknown[]).includes(null), 'toOpenaiStrictSchema (src/engine/message-shapes/structuredOutputDialect.ts) must add null to the enum list of an optional enum property')
 }
 
 section('§2 the transform: idempotent, lawful-preserving, never over-nullable')
 {
   const once = toOpenaiStrictSchema(opsPlanSchema())
   const twice = toOpenaiStrictSchema(once)
-  check('idempotent: transforming twice equals once', JSON.stringify(once) === JSON.stringify(twice), 'toOpenaiStrictSchema (src/utils/messages/structuredOutputDialect.ts) must give the same schema when run on its own output')
+  check('idempotent: transforming twice equals once', JSON.stringify(once) === JSON.stringify(twice), 'toOpenaiStrictSchema (src/engine/message-shapes/structuredOutputDialect.ts) must give the same schema when run on its own output')
   const lawful: Node = {
     type: 'object',
     properties: { reply: { type: 'string' }, items: { type: 'array', items: { type: 'object', properties: { prompt: { type: 'string' }, text: { type: 'string' } }, required: ['prompt', 'text'], additionalProperties: false } } },
@@ -134,27 +134,27 @@ section('§2 the transform: idempotent, lawful-preserving, never over-nullable')
   check(
     'a lawful schema keeps its required set (items)',
     JSON.stringify((lawfulItems.required as string[]).slice().sort()) === JSON.stringify(['prompt', 'text']),
-    'toOpenaiStrictSchema (src/utils/messages/structuredOutputDialect.ts) must not change the required list of a schema that is already strict',
+    'toOpenaiStrictSchema (src/engine/message-shapes/structuredOutputDialect.ts) must not change the required list of a schema that is already strict',
   )
-  check('a lawful schema gains no nullability (reply)', !admitsNull((lawfulStrict.properties as Node).reply), 'toOpenaiStrictSchema (src/utils/messages/structuredOutputDialect.ts) must not make a required property nullable')
+  check('a lawful schema gains no nullability (reply)', !admitsNull((lawfulStrict.properties as Node).reply), 'toOpenaiStrictSchema (src/engine/message-shapes/structuredOutputDialect.ts) must not make a required property nullable')
   const input = opsPlanSchema()
   toOpenaiStrictSchema(input)
-  check('input is not mutated', ((((input.properties as Node).ops as Node).items as Node).required as string[]).length === 1, 'toOpenaiStrictSchema (src/utils/messages/structuredOutputDialect.ts) must copy the schema it is given, not edit it')
+  check('input is not mutated', ((((input.properties as Node).ops as Node).items as Node).required as string[]).length === 1, 'toOpenaiStrictSchema (src/engine/message-shapes/structuredOutputDialect.ts) must copy the schema it is given, not edit it')
 }
 
 section('§3 stripExplicitNulls: object keys drop, array elements stay')
 {
   const stripped = stripExplicitNulls({ a: 1, b: null, c: { d: null, e: 'x' }, f: [1, null, 2] }) as Node
-  check('null-valued keys drop at every depth', JSON.stringify(stripped) === JSON.stringify({ a: 1, c: { e: 'x' }, f: [1, null, 2] }), 'stripExplicitNulls (src/utils/messages/structuredOutputDialect.ts) must drop null object keys at every depth and keep nulls inside arrays; got ' + JSON.stringify(stripped))
-  check('non-objects pass through', stripExplicitNulls('t') === 't' && stripExplicitNulls(null) === null, 'stripExplicitNulls (src/utils/messages/structuredOutputDialect.ts) must return a string or a bare null unchanged')
+  check('null-valued keys drop at every depth', JSON.stringify(stripped) === JSON.stringify({ a: 1, c: { e: 'x' }, f: [1, null, 2] }), 'stripExplicitNulls (src/engine/message-shapes/structuredOutputDialect.ts) must drop null object keys at every depth and keep nulls inside arrays; got ' + JSON.stringify(stripped))
+  check('non-objects pass through', stripExplicitNulls('t') === 't' && stripExplicitNulls(null) === null, 'stripExplicitNulls (src/engine/message-shapes/structuredOutputDialect.ts) must return a string or a bare null unchanged')
 }
 
 section('§4 strict-shaped answers validate ONLY through the strip (the tooth)')
 {
   const hookRefused = hookAnswerSchema('tool.before').safeParse({ permission: 'allow', block: null })
-  check('CONTROL: the unstripped hook answer refuses zod', hookRefused.success === false, 'hookAnswerSchema (src/utils/hooks/contract.ts) must refuse a null block value; the test needs that refusal as its control')
+  check('CONTROL: the unstripped hook answer refuses zod', hookRefused.success === false, 'hookAnswerSchema (src/integrations/event-hooks/contract.ts) must refuse a null block value; the test needs that refusal as its control')
   const hookHealed = hookAnswerSchema('tool.before').safeParse(stripExplicitNulls({ permission: 'allow', block: null }))
-  check('the stripped hook answer passes zod', hookHealed.success === true, 'hookAnswerSchema (src/utils/hooks/contract.ts) must accept the answer once stripExplicitNulls (src/utils/messages/structuredOutputDialect.ts) has dropped the null keys')
+  check('the stripped hook answer passes zod', hookHealed.success === true, 'hookAnswerSchema (src/integrations/event-hooks/contract.ts) must accept the answer once stripExplicitNulls (src/engine/message-shapes/structuredOutputDialect.ts) has dropped the null keys')
 }
 
 

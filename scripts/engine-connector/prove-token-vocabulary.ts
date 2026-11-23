@@ -16,12 +16,12 @@ for (const k of ['MERCURY_CRITTER_IDLE', 'MERCURY_CRITTER_GAZE', 'MERCURY_CRITTE
 
 let failures = 0
 const SECTION_FIX_HINTS: Record<string, string> = {
-  '§1': 'fix mapOpenaiUsageToAnthropic or buildProviderUsageReceipt in src/services/providers/openai/openaiCallModel/attemptSettle.ts, or getTokenCountFromUsage in src/utils/tokenUsage.ts',
-  '§2': 'fix the progress ledger functions (updateProgressFromMessage, getContextTokensFromTracker, getTokenCountFromTracker, getProgressUpdate) in src/tasks/LocalAgentTask/LocalAgentTask.tsx',
-  '§3': 'fix projectWorkRoster in src/services/engine-connector/workRoster.ts or the crew label functions (crewTokensLabel, crewSpendLabel, crewTokensBreakdown, crewRowLine, crewUsageLine) in src/services/engine-connector/crewFacts.ts',
-  '§4': 'fix contextFill in src/services/context/tokens.ts, or addToTotalSessionCost and formatTotalCost in src/cost-tracker.ts',
-  '§5': 'fix the surface that painted the wrong text: RosterWorkDetail in src/components/tasks/backgroundTasks/rows.tsx, src/components/mercury-ui/screens/CrewView.tsx, or the agent card renderers in src/tools/AgentTool/UI.tsx',
-  '§6': 'fix finalizeAgentTool in src/tools/AgentTool/agentToolUtils.ts',
+  '§1': 'fix mapOpenaiUsageToAnthropic or buildProviderUsageReceipt in src/models/roads/openai/call-model/attemptSettle.ts, or getTokenCountFromUsage in src/engine/context-window/tokenUsage.ts',
+  '§2': 'fix the progress ledger functions (updateProgressFromMessage, getContextTokensFromTracker, getTokenCountFromTracker, getProgressUpdate) in src/engine/tasks/local-agent/crewmateTask.tsx',
+  '§3': 'fix projectWorkRoster in src/engine/connector/workRoster.ts or the crew label functions (crewTokensLabel, crewSpendLabel, crewTokensBreakdown, crewRowLine, crewUsageLine) in src/engine/connector/crewFacts.ts',
+  '§4': 'fix contextFill in src/engine/context-window/contextTokenCount.ts, or addToTotalSessionCost and formatTotalCost in src/models/usage/sessionCost.ts',
+  '§5': 'fix the surface that painted the wrong text: RosterWorkDetail in src/screen/tasks/background-tasks/rows.tsx, src/screen/widgets/faces/CrewView.tsx, or the agent card renderers in src/tools/crewmate/rows.tsx',
+  '§6': 'fix finalizeAgentTool in src/tools/crewmate/crewmateLifecycle.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -32,20 +32,20 @@ function check(label: string, cond: boolean, detail = ''): void {
 const stripAnsi = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '')
 const BARE = /\b\d[\d.]*k? tokens\b/
 
-await import('../../src/tools/AgentTool/AgentTool.tsx')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getTokenCountFromUsage, contextFill } = await import('../../src/services/context/tokens.ts')
-const { mapOpenaiUsageToAnthropic, buildProviderUsageReceipt } = await import('../../src/services/providers/openai/openaiCallModel.ts')
+const { getTokenCountFromUsage, contextFill } = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { mapOpenaiUsageToAnthropic, buildProviderUsageReceipt } = await import('../../src/models/roads/openai/openaiCallModel.ts')
 const { createProgressTracker, getProgressUpdate, updateProgressFromMessage, getTokenCountFromTracker, getContextTokensFromTracker } = await import(
-  '../../src/tasks/LocalAgentTask/LocalAgentTask.tsx'
+  '../../src/engine/tasks/local-agent/crewmateTask.tsx'
 )
-const { projectWorkRoster } = await import('../../src/services/engine-connector/workRoster.ts')
-const crew = await import('../../src/services/engine-connector/crewFacts.ts')
-const { finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { addToTotalSessionCost, formatTotalCost } = await import('../../src/cost-tracker.ts')
-const state = await import('../../src/bootstrap/state.ts')
-type WorkRowV1 = import('../../src/services/engine-connector/types.ts').WorkRowV1
+const { projectWorkRoster } = await import('../../src/engine/connector/workRoster.ts')
+const crew = await import('../../src/engine/connector/crewFacts.ts')
+const { finalizeAgentTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { addToTotalSessionCost, formatTotalCost } = await import('../../src/models/usage/sessionCost.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+type WorkRowV1 = import('../../src/engine/connector/types.ts').WorkRowV1
 
 const MODEL = 'claude-fable-5-1'
 const t0 = 1_000_000_000_000
@@ -208,14 +208,14 @@ console.log('— §4 the parent —')
 console.log('— §5 the surfaces —')
 {
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
   const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import(
-    '../../src/services/engine-connector/focusedConnector.ts'
+    '../../src/engine/connector/focusedConnector.ts'
   )
-  const { CrewView } = await import('../../src/components/mercury-ui/screens/CrewView.tsx')
-  const { RosterWorkDetail } = await import('../../src/components/tasks/BackgroundTasksDialog.tsx')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const ui = await import('../../src/tools/AgentTool/UI.tsx')
+  const { CrewView } = await import('../../src/screen/widgets/faces/CrewView.tsx')
+  const { RosterWorkDetail } = await import('../../src/screen/tasks/BackgroundTasksDialog.tsx')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const ui = await import('../../src/tools/crewmate/rows.tsx')
   const NO_ASKS: never[] = []
   const fake = (work: { rows: WorkRowV1[]; mission: never[] }): never =>
     ({

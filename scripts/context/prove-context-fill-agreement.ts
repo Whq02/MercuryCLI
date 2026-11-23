@@ -12,12 +12,12 @@ process.env.MERCURY_OPENROUTER_API_BASE = 'http://127.0.0.1:9/api/v1'
 
 let failures = 0
 const FILL_HINTS: Record<string, string> = {
-  N1: 'change mapCompatUsageToAnthropic (src/services/providers/openaicompat/compatChatCallModel.ts), mapOpenaiUsageToAnthropic (src/services/providers/openai/openaiCallModel.ts) or getTokenCountFromUsage (src/services/context/tokens.ts)',
-  N2: 'change tokenCountWithEstimation or contextFill in src/services/context/tokens.ts',
-  N3: 'change tokenCountWithEstimation in src/services/context/tokens.ts',
-  N4: 'change getTokenUsage, getCurrentUsage or tokenCountFromLastAPIResponse in src/services/context/tokens.ts',
-  N5: 'change contextFillView in src/services/context/contextFill.ts (and contextGauge in src/services/cockpit/contextGauge.ts, contextFillPercent in src/utils/context.ts for the gauge and percent checks)',
-  N6: 'change publishContextUsage in src/services/cockpit/contextUsageLive.ts',
+  N1: 'change mapCompatUsageToAnthropic (src/models/roads/openaicompat/compatChatCallModel.ts), mapOpenaiUsageToAnthropic (src/models/roads/openai/openaiCallModel.ts) or getTokenCountFromUsage (src/engine/context-window/contextTokenCount.ts)',
+  N2: 'change tokenCountWithEstimation or contextFill in src/engine/context-window/contextTokenCount.ts',
+  N3: 'change tokenCountWithEstimation in src/engine/context-window/contextTokenCount.ts',
+  N4: 'change getTokenUsage, getCurrentUsage or tokenCountFromLastAPIResponse in src/engine/context-window/contextTokenCount.ts',
+  N5: 'change contextFillView in src/engine/context-window/contextFill.ts (and contextGauge in src/screen/cockpit-gauges/contextGauge.ts, contextFillPercent in src/engine/compaction-window/contextFill.ts for the gauge and percent checks)',
+  N6: 'change publishContextUsage in src/screen/cockpit-gauges/contextUsageLive.ts',
 }
 let fillHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -30,14 +30,14 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const tokens = await import('../../src/services/context/tokens.ts')
-const context = await import('../../src/utils/context.ts')
-const fillOwner = await import('../../src/services/context/contextFill.ts')
-const live = await import('../../src/services/cockpit/contextUsageLive.ts')
-const tokEst = await import('../../src/services/tokenEstimation.ts')
-const { decodeCompatUsage } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-const { mapCompatUsageToAnthropic } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { mapOpenaiUsageToAnthropic } = await import('../../src/services/providers/openai/openaiCallModel.ts')
+const tokens = await import('../../src/engine/context-window/contextTokenCount.ts')
+const context = await import('../../src/engine/compaction-window/contextFill.ts')
+const fillOwner = await import('../../src/engine/context-window/contextFill.ts')
+const live = await import('../../src/screen/cockpit-gauges/contextUsageLive.ts')
+const tokEst = await import('../../src/models/facts/tokenEstimation.ts')
+const { decodeCompatUsage } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+const { mapCompatUsageToAnthropic } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { mapOpenaiUsageToAnthropic } = await import('../../src/models/roads/openai/openaiCallModel.ts')
 
 type Usage = { input_tokens: number; output_tokens: number; cache_creation_input_tokens: number; cache_read_input_tokens: number }
 const usage = (input: number, output: number, cc = 0, cr = 0): Usage => ({
@@ -154,7 +154,7 @@ section('N5 · the ONE fill derivation every surface reads')
   const est = contextFillView(usageless as never, 'claude-opus-5')
   check('a usage-less response reads an ESTIMATE, labelled — never a confident percent', est.fillSource === 'estimate' && est.usedTokens === rough(usageless) && est.usedPct !== null, JSON.stringify(est))
   check("  the rail label: '≈0%' (estimate) vs '29%' (usage)", contextPercentLabel(est.usedPct, est.fillSource) === `≈${est.usedPct}%` && contextPercentLabel(29, 'usage') === '29%' && contextPercentLabel(null, null) === '—')
-  const { contextGauge } = await import('../../src/services/cockpit/contextGauge.ts')
+  const { contextGauge } = await import('../../src/screen/cockpit-gauges/contextGauge.ts')
   const snap = contextGauge(seq as never, 'claude-opus-5' as never)
   check('contextGauge: live · usedPct 29 · usedTokens 290,000 · window 1,000,000', snap.state === 'live' && snap.data.usedPct === 29 && snap.data.usedTokens === 290_000 && snap.data.window === 1_000_000, JSON.stringify(snap))
   const freshSnap = contextGauge([user('hi')] as never, 'claude-opus-5' as never)

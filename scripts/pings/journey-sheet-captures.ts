@@ -34,9 +34,9 @@ if (!existsSync(DIST)) {
 }
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
-const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
 
 const SID = '00000000-aaaa-bbbb-cccc-000000000077'
 const CAPTURE_OUT = process.env.PINGS_CAPTURE_OUT
@@ -219,7 +219,7 @@ for (const [cols, rows] of SIZES) {
     sidecar(
       w,
       14_000,
-      `const o = await import('${ROOT}/src/services/crew/obligations.ts')
+      `const o = await import('${ROOT}/src/crew/crewmates/obligations.ts')
 await o.upsertObligation({ ref: 'tap-live-1', sessionId: '${SID}', question: 'Migrate now?', owner: 'operator', dir: '${join(w.home, 'crew')}', scope: 'switchboard' })`,
     )
     const c = capture(
@@ -247,7 +247,7 @@ await o.upsertObligation({ ref: 'tap-live-1', sessionId: '${SID}', question: 'Mi
     )
     const board = flat(c.marks['board'] ?? '').replace(/ /g, '')
     check('the advertised key jumps to the board', board.includes('SESSIONS') && board.includes('LASTUSED'), board.slice(0, 160) + ' — the key after ctrl-x did not open the sessions board: see the name.mark-board.txt capture')
-    check("the board's NEEDS-YOU group lists the question", board.includes('NEEDSYOU') && board.includes('Migratenow?'), board.slice(0, 240) + ' — the board lacks the NEEDS YOU group or the question: see the name.mark-board.txt capture and the obligation written by upsertObligation in src/services/crew/obligations.ts')
+    check("the board's NEEDS-YOU group lists the question", board.includes('NEEDSYOU') && board.includes('Migratenow?'), board.slice(0, 240) + ' — the board lacks the NEEDS YOU group or the question: see the name.mark-board.txt capture and the obligation written by upsertObligation in src/crew/crewmates/obligations.ts')
   }
 
   section(`Leg B ${cols}x${rows} — the model-switched grey note paints in THAT chat`)
@@ -266,21 +266,21 @@ await o.upsertObligation({ ref: 'tap-live-1', sessionId: '${SID}', question: 'Mi
         BUN,
         [
           '-e',
-          `const s = await import('${ROOT}/src/services/engine-connector/seatProjections.ts')
+          `const s = await import('${ROOT}/src/engine/connector/seatProjections.ts')
 s.publishSessionFacts(${factsBase.replace('BUSY', 'true').replace('PENDING', "'claude-fable-5'").replace(/EFFECTIVE/g, "'claude-opus-5'")})
 await new Promise(r => setTimeout(r, 400))`,
         ],
         { cwd: ROOT, env: baseEnv(w), encoding: 'utf8', timeout: vshotBudgetMs(30000) },
       )
       if (seed.status !== 0) {
-        check('rig: the parked facts seeded', false, (seed.stderr || '').slice(0, 200) + ' — publishSessionFacts in src/services/engine-connector/seatProjections.ts threw while seeding the parked facts')
+        check('rig: the parked facts seeded', false, (seed.stderr || '').slice(0, 200) + ' — publishSessionFacts in src/engine/connector/seatProjections.ts threw while seeding the parked facts')
         continue
       }
     }
     sidecar(
       w,
       8_000,
-      `const s = await import('${ROOT}/src/services/engine-connector/seatProjections.ts')
+      `const s = await import('${ROOT}/src/engine/connector/seatProjections.ts')
 for (let i = 0; i < 10; i++) {
   s.publishSessionFacts(${factsBase.replace('BUSY', 'true').replace('PENDING', "'claude-fable-5'").replace(/EFFECTIVE/g, "'claude-opus-5'")})
   await new Promise(r => setTimeout(r, 1000))
@@ -289,7 +289,7 @@ for (let i = 0; i < 10; i++) {
     sidecar(
       w,
       22_000,
-      `const s = await import('${ROOT}/src/services/engine-connector/seatProjections.ts')
+      `const s = await import('${ROOT}/src/engine/connector/seatProjections.ts')
 s.publishSessionFacts({ ...${factsBase.replace('BUSY', 'false').replace('PENDING', 'null').replace(/EFFECTIVE/g, "'claude-fable-5'")}, modelSettled: { from: 'claude-opus-5', to: 'claude-fable-5', atMs: Date.now() } })
 await new Promise(r => setTimeout(r, 400))`,
     )
@@ -313,8 +313,8 @@ await new Promise(r => setTimeout(r, 400))`,
     chmodSync(join(w.aux, 'daemon'), 0o755)
     const note = flat(c.marks['note'] ?? '')
     check('the hop painted the session (the parked mark holds the chat)', (c.marks['parked'] ?? '').includes('settled and idle'), 'no transcript in the parked mark — the boot menu did not hop into the resumed session: see the name.mark-parked.txt capture')
-    check('the settle paints the ruled grey note in THAT chat', note.includes('model switched to') && note.includes('for this session'), note.slice(0, 240) + ' — the ruled grey note is painted by src/components/messages/SystemTextMessage.tsx')
-    check('the note names the settled model', note.includes('model switched to Fable'), (note.match(/model switched to [^·]{0,40}/)?.[0] ?? '(absent)') + ' — the note must name the settled model; see src/components/messages/SystemTextMessage.tsx')
+    check('the settle paints the ruled grey note in THAT chat', note.includes('model switched to') && note.includes('for this session'), note.slice(0, 240) + ' — the ruled grey note is painted by src/screen/messages/SystemTextMessage.tsx')
+    check('the note names the settled model', note.includes('model switched to Fable'), (note.match(/model switched to [^·]{0,40}/)?.[0] ?? '(absent)') + ' — the note must name the settled model; see src/screen/messages/SystemTextMessage.tsx')
     const hopTick = c.payload.sendReceipts?.[2]?.atTick ?? -1
     check('the settle is a turn end: with focus unreported and no key for a window, the one ping rings the bell exactly once — the note itself adds none', loneBellFrames(c.teePath, hopTick + 5) === 1, `frames=${loneBellFrames(c.teePath, hopTick + 5)} — the settled turn must ring the bell exactly once; see the name.tee.bin capture for bell bytes (0x07)`)
   }

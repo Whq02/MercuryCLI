@@ -137,7 +137,7 @@ export function buildCompass1k(cwd: string, chapters: number = CHAPTERS_DEFAULT)
 
 
   const LONG_DIR =
-    '/Users/op/dev/orchard/src/components/mercury-ui/interaction/fixtures/deeply/nested/compass/baseline'
+    '/Users/op/dev/orchard/src/screen/widgets/interaction/fixtures/deeply/nested/compass/baseline'
 
   const tsSnippet = (c: number): string =>
     [
@@ -211,7 +211,7 @@ export function buildCompass1k(cwd: string, chapters: number = CHAPTERS_DEFAULT)
     toolPair(
       'glob',
       'Glob',
-      { pattern: `src/components/mercury-ui/**/chapter-${c}*.tsx` },
+      { pattern: `src/screen/widgets/**/chapter-${c}*.tsx` },
       [{ type: 'text', text: `${longPath}\n${LONG_DIR}/index-${c}.ts` }],
       {
         durationMs: 10 + (c % 7),

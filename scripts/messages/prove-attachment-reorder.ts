@@ -2,10 +2,10 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(process.argv[2] ?? fileURLToPath(new URL('../..', import.meta.url)))
-const { reorderAttachmentsForAPI } = await import(`${root}/src/services/messages/apiView.ts`)
+const { reorderAttachmentsForAPI } = await import(`${root}/src/engine/messages/apiView.ts`)
 let failures = 0
 const check = (name: string, ok: boolean, detail = '') => {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${detail ? detail + ' · ' : ''}reorderAttachmentsForAPI in src/services/messages/apiViewRows.ts decides where attachments sit and which rows are stopping points`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${detail ? detail + ' · ' : ''}reorderAttachmentsForAPI in src/engine/messages/apiViewRows.ts decides where attachments sit and which rows are stopping points`}`)
   if (!ok) failures++
 }
 const user = (id: string, content: unknown = `text ${id}`) => ({ type: 'user', uuid: id, message: { role: 'user', content } })

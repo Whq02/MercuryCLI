@@ -1,9 +1,9 @@
 import { PassThrough } from 'node:stream'
-import { RunnerConnection, type RunnerConnectionHooks } from '../../src/daemon/runnerConnection.ts'
-import type { SeatRosterPort } from '../../src/daemon/sessionSeat.ts'
-import { createPeer, type Peer } from '../../src/runner/wire/peer.ts'
-import { METHODS, methodsFrom, type Capabilities, type MethodName, type ParamsOf, type PermissionAnswer, type PermissionRequestParams, type ResultOf, type SessionAppliedParams } from '../../src/runner/wire/methods.ts'
-import { RPC_REFUSED, RpcError, cancelled } from '../../src/runner/wire/errors.ts'
+import { RunnerConnection, type RunnerConnectionHooks } from '../../src/daemon/runner-link/runnerConnection.ts'
+import type { SeatRosterPort } from '../../src/daemon/session-seat/sessionSeat.ts'
+import { createPeer, type Peer } from '../../src/daemon/runner-wire/peer.ts'
+import { METHODS, methodsFrom, type Capabilities, type MethodName, type ParamsOf, type PermissionAnswer, type PermissionRequestParams, type ResultOf, type SessionAppliedParams } from '../../src/daemon/runner-wire/methods.ts'
+import { RPC_REFUSED, RpcError, cancelled } from '../../src/daemon/runner-wire/errors.ts'
 
 type StandInRequest = {
   id: number

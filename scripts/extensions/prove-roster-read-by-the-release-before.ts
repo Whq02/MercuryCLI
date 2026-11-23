@@ -16,15 +16,15 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.chdir(cwd)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const paths = await import('../../src/extensions/paths.ts')
-const sources = await import('../../src/extensions/sources.ts')
-const install = await import('../../src/extensions/install.ts')
-const rosterMod = await import('../../src/extensions/roster.ts')
-const reloadMod = await import('../../src/extensions/reload.ts')
-const activeMod = await import('../../src/extensions/active.ts')
-const cli = await import('../../src/extensions/cli.ts')
+const paths = await import('../../src/integrations/extensions/paths.ts')
+const sources = await import('../../src/integrations/extensions/sources.ts')
+const install = await import('../../src/integrations/extensions/install.ts')
+const rosterMod = await import('../../src/integrations/extensions/roster.ts')
+const reloadMod = await import('../../src/integrations/extensions/reload.ts')
+const activeMod = await import('../../src/integrations/extensions/active.ts')
+const cli = await import('../../src/integrations/extensions/cli.ts')
 
 const RELEASE_BEFORE = '1.0.11'
 const RELEASE_BEFORE_SWITCH_KINDS = ['hooks', 'servers', 'language', 'agents', 'skills', 'channels', 'keybindings'] as const
@@ -46,7 +46,7 @@ const releaseBeforeRecord = z.object({
   bundledNote: z.string().nullable().optional(),
 })
 
-const WHERE_TO_FIX = `the released ${RELEASE_BEFORE} is what mercury update --rollback returns to, and it reads this file with the shape held above; keep every switch kind it requires in what writeInstalled writes (withChannelsSwitch in src/extensions/records.ts), keep what readInstalled does not know (the loose InstalledRecordSchema and SwitchesSchema there), and let a start restore a kind an entry has lost (restoreChannelsSwitches, called by computeRoster in src/extensions/roster.ts)`
+const WHERE_TO_FIX = `the released ${RELEASE_BEFORE} is what mercury update --rollback returns to, and it reads this file with the shape held above; keep every switch kind it requires in what writeInstalled writes (withChannelsSwitch in src/integrations/extensions/records.ts), keep what readInstalled does not know (the loose InstalledRecordSchema and SwitchesSchema there), and let a start restore a kind an entry has lost (restoreChannelsSwitches, called by computeRoster in src/integrations/extensions/roster.ts)`
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

@@ -38,7 +38,7 @@ for (const name of ['MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_AUTH_SCOPE_DIR', 'ME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}${!cond ? ' | fix the effort stamp in src/utils/effortStamp.ts or the provider road named in this section under src/services/providers/' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}${!cond ? ' | fix the effort stamp in src/models/effort/effortStamp.ts or the provider road named in this section under src/models/roads/' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -46,36 +46,36 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 const sameStamp = (a: unknown, b: unknown): boolean => j(a) === j(b)
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 
-const stampModule = await import('../../src/utils/effortStamp.ts').catch(() => null)
-const record = await import('../../src/fabric/record.ts')
-const { entryToRecord, recordToEntry } = await import('../../src/fabric/entryCodec.ts')
-const { validateRecord } = await import('../../src/fabric/validate.ts')
-const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
-const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.ts')
-const { openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.ts')
-const { __resetOpenaiCatalogueForTest } = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const { zaiCallModel } = await import('../../src/services/providers/zai/zaiCallModel.ts')
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { moonshotLaneProfile } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
-const { deepseekLaneProfile } = await import('../../src/services/providers/deepseek/deepseekCallModel.ts')
-const { huggingfaceLaneProfile } = await import('../../src/services/providers/huggingface/huggingfaceCallModel.ts')
-const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
-const discovery = await import('../../src/services/providers/local/localDiscovery.ts')
-const windows = await import('../../src/services/providers/local/localWindow.ts')
-const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { setSubModelEffort, subModelDispatchEffort } = await import('../../src/services/model/subModelSlots.ts')
-const { recordTranscript, flushSessionStorage } = await import('../../src/utils/sessionStorage/writer.ts')
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
-const { jsonlConciseRows } = await import('../../src/services/resources/adapters/transcript.ts')
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+const stampModule = await import('../../src/models/effort/effortStamp.ts').catch(() => null)
+const record = await import('../../src/sessions/fabric/record.ts')
+const { entryToRecord, recordToEntry } = await import('../../src/sessions/fabric/entryCodec.ts')
+const { validateRecord } = await import('../../src/sessions/fabric/validate.ts')
+const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
+const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { openaiCallModel } = await import('../../src/models/roads/openai/openaiCallModel.ts')
+const { __resetOpenaiCatalogueForTest } = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const { zaiCallModel } = await import('../../src/models/roads/zai/zaiCallModel.ts')
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { moonshotLaneProfile } = await import('../../src/models/roads/moonshot/moonshotCallModel.ts')
+const { deepseekLaneProfile } = await import('../../src/models/roads/deepseek/deepseekCallModel.ts')
+const { huggingfaceLaneProfile } = await import('../../src/models/roads/huggingface/huggingfaceCallModel.ts')
+const { localLaneProfileFor } = await import('../../src/models/roads/local/localCallModel.ts')
+const discovery = await import('../../src/models/roads/local/localDiscovery.ts')
+const windows = await import('../../src/models/roads/local/localWindow.ts')
+const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { setSubModelEffort, subModelDispatchEffort } = await import('../../src/models/catalogue/subModelSlots.ts')
+const { recordTranscript, flushSessionStorage } = await import('../../src/sessions/transcripts/writer.ts')
+const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
+const { jsonlConciseRows } = await import('../../src/integrations/resources/adapters/transcript.ts')
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
 
 type Stamp = { asked: string; applied: string; wire: string }
 type Row = AssistantMessage & { effort?: Stamp }
@@ -87,7 +87,7 @@ const NONE: Stamp = { asked: 'none', applied: 'none', wire: 'none' }
 
 section('§A the stamp vocabulary and the records law (schemaVersion unchanged; the field is additive)')
 {
-  check('the stamp owner src/utils/effortStamp.ts exists on this tree', stampModule !== null, 'the module is absent — every request record on this tree rides without its effort')
+  check('the stamp owner src/models/effort/effortStamp.ts exists on this tree', stampModule !== null, 'the module is absent — every request record on this tree rides without its effort')
   if (stampModule !== null) {
     const sent = stampModule.effortStampOf('max', { kind: 'sent', parameter: 'output_config.effort', value: 'max' })
     check('a word on the wire: {asked, applied: the word, wire: parameter=value}', sameStamp(sent, { asked: 'max', applied: 'max', wire: 'output_config.effort=max' }), j(sent))
@@ -99,7 +99,7 @@ section('§A the stamp vocabulary and the records law (schemaVersion unchanged; 
     check("a model with no effort dial: applied says 'not supported by this model', wire 'none'", sameStamp(unsupported, { asked: 'xhigh', applied: 'not supported by this model', wire: 'none' }), j(unsupported))
     check('the one line every reader prints', stampModule.effortStampLine(sent) === 'effort asked max · applied max · wire output_config.effort=max' && stampModule.effortStampLine(undefined) === 'effort unstamped', stampModule.effortStampLine(sent))
   }
-  const wire = await import('../../src/services/providers/openaicompat/compatWire.ts').catch(() => null) as (typeof import('../../src/services/providers/openaicompat/compatWire.ts') & { compatEffortWireFact?: unknown }) | null
+  const wire = await import('../../src/models/roads/openaicompat/compatWire.ts').catch(() => null) as (typeof import('../../src/models/roads/openaicompat/compatWire.ts') & { compatEffortWireFact?: unknown }) | null
   const readFact = wire !== null && typeof wire.compatEffortWireFact === 'function' ? (wire.compatEffortWireFact as (extra: Record<string, unknown>, args: { thinkingGated: boolean; thinkingEnabled: boolean; supported: boolean }) => unknown) : undefined
   check('the compat runtime reads its wire fact off the composed extras through one pure reader (compatWire.compatEffortWireFact)', readFact !== undefined)
   if (readFact !== undefined && wire !== null) {

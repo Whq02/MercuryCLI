@@ -4,7 +4,7 @@ import { join, relative, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const SRC = join(ROOT, 'src')
-const FACILITY = 'src/services/structure/tsFacility.ts'
+const FACILITY = 'src/tools/engines/structure/tsFacility.ts'
 
 const VALUE_LOADS = [
   /\brequire\(\s*['"]typescript['"]\s*\)/,

@@ -40,14 +40,14 @@ console.log('§2 the engine, driven')
     '--sortr=modified answers newest first (the promise kept)',
     descending[0] === 'new.txt' && descending[2] === 'old.txt',
     descending.join(','),
-    'this drives the rg binary found under node_modules/@vscode or on PATH, not Mercury code; if it fails the installed ripgrep no longer sorts --sortr=modified newest first, so reinstall ripgrep or change the flag glob() in src/utils/glob.ts passes',
+    'this drives the rg binary found under node_modules/@vscode or on PATH, not Mercury code; if it fails the installed ripgrep no longer sorts --sortr=modified newest first, so reinstall ripgrep or change the flag glob() in src/tools/glob/glob.ts passes',
   )
   const ascending = run('--sort=modified')
   check(
     "bare --sort=modified is ascending — the defect's mechanism (control)",
     ascending[0] === 'old.txt' && ascending[2] === 'new.txt',
     ascending.join(','),
-    'the control expects bare --sort=modified to list oldest first; if rg now sorts it newest first, the --sortr=modified flag in glob() in src/utils/glob.ts may no longer be needed, so recheck the direction of both flags',
+    'the control expects bare --sort=modified to list oldest first; if rg now sorts it newest first, the --sortr=modified flag in glob() in src/tools/glob/glob.ts may no longer be needed, so recheck the direction of both flags',
   )
   rmSync(dir, { recursive: true, force: true })
 }

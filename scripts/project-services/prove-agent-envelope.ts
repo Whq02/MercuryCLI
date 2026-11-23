@@ -9,22 +9,22 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'vanguard-envelope-'
 delete process.env.MERCURY_CHANGE_RECEIPTS
 
 const { buildAgentResultEnvelope, formatEnvelopeBlock, parseDeclaration } = await import(
-  '../../src/services/agentResults/normalize.ts'
+  '../../src/crew/agent-results/normalize.ts'
 )
-const { ENVELOPE_DOCTRINE } = await import('../../src/services/agentResults/contracts.ts')
+const { ENVELOPE_DOCTRINE } = await import('../../src/crew/agent-results/contracts.ts')
 const { attachAgentEnvelope, envelopeFor } = await import(
-  '../../src/services/agentResults/ingest.ts'
+  '../../src/crew/agent-results/ingest.ts'
 )
-const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.ts')
-const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
+const { observeToolTerminal } = await import('../../src/engine/run-owner/effectObserver.ts')
+const { processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
 const { recordEvidence, verificationSummary, _resetVerificationStateForTesting } = await import(
-  '../../src/utils/verification/verificationState.ts'
+  '../../src/platform/verification/verificationState.ts'
 )
 const { _resetChangeReceiptsForTesting } = await import(
-  '../../src/services/changeTransaction/receipts.ts'
+  '../../src/tools/engines/change-transaction/receipts.ts'
 )
-const { getMercuryHome } = await import('../../src/utils/envUtils.ts')
-const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.ts')
+const { getMercuryHome } = await import('../../src/platform/environment/envUtils.ts')
+const { sanitizePath } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -79,14 +79,14 @@ section('N. normalizer laws')
     legacy.checks.length === 0 &&
     legacy.changedPaths.length === 0 &&
     legacy.fullOutputRef === `mercury://agent/${AGENT_ID}`,
-    `summary ${legacy.summary.length} chars, findings ${legacy.findings.length}, checks ${legacy.checks.length}, changedPaths ${legacy.changedPaths.length}, ref ${legacy.fullOutputRef} · fix the prose-only path of buildAgentResultEnvelope in src/services/agentResults/normalize.ts`)
+    `summary ${legacy.summary.length} chars, findings ${legacy.findings.length}, checks ${legacy.checks.length}, changedPaths ${legacy.changedPaths.length}, ref ${legacy.fullOutputRef} · fix the prose-only path of buildAgentResultEnvelope in src/crew/agent-results/normalize.ts`)
 
   const declaredText =
     'Long prose here.\n<mercury-envelope>{"summary":"declared summary","findings":["f1"],"unresolved":["u1"],"recommendedNextAction":"merge it"}</mercury-envelope>'
   const parsed = parseDeclaration(declaredText)
   check('N2a parseDeclaration strips the block from prose',
     parsed.declared?.summary === 'declared summary' && parsed.prose === 'Long prose here.',
-    `declared summary ${parsed.declared?.summary} · prose ${JSON.stringify(parsed.prose)} · fix parseDeclaration in src/services/agentResults/normalize.ts`)
+    `declared summary ${parsed.declared?.summary} · prose ${JSON.stringify(parsed.prose)} · fix parseDeclaration in src/crew/agent-results/normalize.ts`)
   const declared = await buildAgentResultEnvelope({
     agentId: AGENT_ID,
     status: 'completed',
@@ -97,7 +97,7 @@ section('N. normalizer laws')
     declared.findings[0] === 'f1' &&
     declared.unresolved[0] === 'u1' &&
     declared.recommendedNextAction === 'merge it',
-    `${JSON.stringify(declared)} · fix how buildAgentResultEnvelope in src/services/agentResults/normalize.ts carries the declared fields`)
+    `${JSON.stringify(declared)} · fix how buildAgentResultEnvelope in src/crew/agent-results/normalize.ts carries the declared fields`)
 
   const malformed = await buildAgentResultEnvelope({
     agentId: AGENT_ID,
@@ -108,7 +108,7 @@ section('N. normalizer laws')
     malformed.malformedDeclarationRef?.startsWith('mercury://artifact/agent-results/') === true &&
     malformed.summary === 'Prose stands.' &&
     malformed.artifacts.length === 1,
-    `ref ${malformed.malformedDeclarationRef} · summary ${JSON.stringify(malformed.summary)} · artifacts ${malformed.artifacts.length} · fix the malformed-declaration branch of buildAgentResultEnvelope in src/services/agentResults/normalize.ts`)
+    `ref ${malformed.malformedDeclarationRef} · summary ${JSON.stringify(malformed.summary)} · artifacts ${malformed.artifacts.length} · fix the malformed-declaration branch of buildAgentResultEnvelope in src/crew/agent-results/normalize.ts`)
 
   const extraKeys = await buildAgentResultEnvelope({
     agentId: AGENT_ID,
@@ -117,7 +117,7 @@ section('N. normalizer laws')
   })
   check('N4 unknown declaration keys refuse (strict) and preserve the raw',
     extraKeys.malformedDeclarationRef !== undefined && extraKeys.summary === 'P.',
-    `ref ${extraKeys.malformedDeclarationRef} · summary ${JSON.stringify(extraKeys.summary)} · parseDeclaration in src/services/agentResults/normalize.ts must refuse unknown keys`)
+    `ref ${extraKeys.malformedDeclarationRef} · summary ${JSON.stringify(extraKeys.summary)} · parseDeclaration in src/crew/agent-results/normalize.ts must refuse unknown keys`)
 }
 
 section('O. observed truth — the observer, never prose')
@@ -140,25 +140,25 @@ section('O. observed truth — the observer, never prose')
     env.changedPaths.includes('/tmp/real-a.ts') &&
     env.changedPaths.includes('/tmp/real-b.ts') &&
     !env.changedPaths.includes('/tmp/prose-claim.ts'),
-    `changedPaths ${JSON.stringify(env.changedPaths)} · changedPaths must come only from the observed change receipts in buildAgentResultEnvelope (src/services/agentResults/normalize.ts)`)
-  check('O2 failed attempts counted from observed effects', env.failedAttempts === 1, `failedAttempts ${env.failedAttempts} · buildAgentResultEnvelope in src/services/agentResults/normalize.ts must count failed receipts`)
+    `changedPaths ${JSON.stringify(env.changedPaths)} · changedPaths must come only from the observed change receipts in buildAgentResultEnvelope (src/crew/agent-results/normalize.ts)`)
+  check('O2 failed attempts counted from observed effects', env.failedAttempts === 1, `failedAttempts ${env.failedAttempts} · buildAgentResultEnvelope in src/crew/agent-results/normalize.ts must count failed receipts`)
   const byName = Object.fromEntries(env.checks.map(c => [c.name, c.state]))
   check('O3 declared check matching evidence reads observed',
     byName['scripts/lsp'] === 'observed',
-    `checks ${JSON.stringify(byName)} · a declared check must match recorded evidence in buildAgentResultEnvelope (src/services/agentResults/normalize.ts)`)
+    `checks ${JSON.stringify(byName)} · a declared check must match recorded evidence in buildAgentResultEnvelope (src/crew/agent-results/normalize.ts)`)
   check('O4 declared-but-never-ran check reads unknown',
     byName['scripts/never-ran'] === 'unknown',
-    `checks ${JSON.stringify(byName)} · a declared check with no evidence must read unknown in buildAgentResultEnvelope (src/services/agentResults/normalize.ts)`)
+    `checks ${JSON.stringify(byName)} · a declared check with no evidence must read unknown in buildAgentResultEnvelope (src/crew/agent-results/normalize.ts)`)
   check('O5 observed-but-undeclared evidence joins with its REAL outcome (failed typecheck)',
     env.checks.some(c => c.state === 'failed' && c.name.includes('typecheck')),
-    `checks ${JSON.stringify(env.checks)} · undeclared evidence must join with its real outcome in buildAgentResultEnvelope (src/services/agentResults/normalize.ts)`)
+    `checks ${JSON.stringify(env.checks)} · undeclared evidence must join with its real outcome in buildAgentResultEnvelope (src/crew/agent-results/normalize.ts)`)
 
   const block = formatEnvelopeBlock(env)
   check('O6 the wire block carries observed truth + the ref',
     block.includes('changed (observed): /tmp/real-a.ts') &&
     block.includes('failed/indeterminate attempts (observed): 1') &&
     block.includes(`full output: mercury://agent/${AGENT_ID}`),
-    `${block} · fix formatEnvelopeBlock in src/services/agentResults/normalize.ts`)
+    `${block} · fix formatEnvelopeBlock in src/crew/agent-results/normalize.ts`)
 }
 
 section('P. a second seat in the same project reports only the checks its own run performed')
@@ -167,14 +167,14 @@ section('P. a second seat in the same project reports only the checks its own ru
   const fresh = processOwnerForLane(FRESH_ID)
   const inherited = verificationSummary('/tmp', { skipDigest: true, owner: fresh })
   check('P1 the project history still reaches the fresh seat as tree state (the last persisted check was the failed typecheck)',
-    inherited.state === 'failed' && inherited.lastEvidence?.command === 'bun run typecheck', `${inherited.state} · ${inherited.lastEvidence?.command ?? 'no evidence'} · verificationSummary in src/utils/verification/verificationState.ts must still report the persisted project history`)
+    inherited.state === 'failed' && inherited.lastEvidence?.command === 'bun run typecheck', `${inherited.state} · ${inherited.lastEvidence?.command ?? 'no evidence'} · verificationSummary in src/platform/verification/verificationState.ts must still report the persisted project history`)
   const idle = await buildAgentResultEnvelope({
     agentId: FRESH_ID,
     status: 'completed',
     finalText: 'Read the brief; ran nothing.\n<mercury-envelope>{"summary":"read only"}</mercury-envelope>',
   })
   check('P2 a seat that ran no check reports no check — the persisted project history is not its observed checks',
-    idle.checks.length === 0, idle.checks.map(c => `${c.name}:${c.state}`).join(' · ') + ' · buildAgentResultEnvelope in src/services/agentResults/normalize.ts must list only checks the seat itself ran')
+    idle.checks.length === 0, idle.checks.map(c => `${c.name}:${c.state}`).join(' · ') + ' · buildAgentResultEnvelope in src/crew/agent-results/normalize.ts must list only checks the seat itself ran')
   recordEvidence('/tmp', { command: 'bun run scripts/eval/prove-output-bounds.ts', ok: true, scope: 'proof', coverage: 'prove-output-bounds.ts' }, fresh)
   const own = await buildAgentResultEnvelope({
     agentId: FRESH_ID,
@@ -182,10 +182,10 @@ section('P. a second seat in the same project reports only the checks its own ru
     finalText: 'Ran one proof.\n<mercury-envelope>{"summary":"one proof","checks":["prove-output-bounds"]}</mercury-envelope>',
   })
   check('P3 after its own check the envelope carries exactly that one, observed',
-    own.checks.length === 1 && own.checks[0]?.name === 'prove-output-bounds' && own.checks[0]?.state === 'observed', own.checks.map(c => `${c.name}:${c.state}`).join(' · ') + ' · buildAgentResultEnvelope in src/services/agentResults/normalize.ts must carry the seat own evidence')
+    own.checks.length === 1 && own.checks[0]?.name === 'prove-output-bounds' && own.checks[0]?.state === 'observed', own.checks.map(c => `${c.name}:${c.state}`).join(' · ') + ' · buildAgentResultEnvelope in src/crew/agent-results/normalize.ts must carry the seat own evidence')
   check('P4 the seat that performed the checks still reports them',
     (await buildAgentResultEnvelope({ agentId: AGENT_ID, status: 'completed', finalText: 'done' })).checks.length === 2,
-    'the seat that ran the checks must still report both · buildAgentResultEnvelope in src/services/agentResults/normalize.ts')
+    'the seat that ran the checks must still report both · buildAgentResultEnvelope in src/crew/agent-results/normalize.ts')
 
   _resetVerificationStateForTesting()
   const RESUMED_ID = 'agent-envelope-resumed-seat'
@@ -194,18 +194,18 @@ section('P. a second seat in the same project reports only the checks its own ru
   const store = readFileSync(join(getMercuryHome(), 'verify', sanitizePath('/tmp'), 'evidence.json'), 'utf8')
   check('P5 after a restart the store still answers tree state, and the store carries no in-memory marker',
     afterRestart.lastEvidence?.command === 'bun run scripts/eval/prove-output-bounds.ts' && !store.includes('inherited'),
-    `${afterRestart.lastEvidence?.command ?? 'no evidence'} · marker in store: ${store.includes('inherited')} · the inherited marker must stay in memory only, see the persist and load code in src/utils/verification/verificationState.ts`)
+    `${afterRestart.lastEvidence?.command ?? 'no evidence'} · marker in store: ${store.includes('inherited')} · the inherited marker must stay in memory only, see the persist and load code in src/platform/verification/verificationState.ts`)
   const resumedEnvelope = await buildAgentResultEnvelope({
     agentId: RESUMED_ID,
     status: 'completed',
     finalText: 'Resumed; ran nothing this time.\n<mercury-envelope>{"summary":"resumed"}</mercury-envelope>',
   })
-  check('P6 a resumed seat with zero tool uses reports zero checks', resumedEnvelope.checks.length === 0, resumedEnvelope.checks.map(c => `${c.name}:${c.state}`).join(' · ') + ' · inherited records must not count as the seat own checks in src/utils/verification/verificationState.ts and src/services/agentResults/normalize.ts')
+  check('P6 a resumed seat with zero tool uses reports zero checks', resumedEnvelope.checks.length === 0, resumedEnvelope.checks.map(c => `${c.name}:${c.state}`).join(' · ') + ' · inherited records must not count as the seat own checks in src/platform/verification/verificationState.ts and src/crew/agent-results/normalize.ts')
 }
 
 section('B. the AgentTool parent boundary')
 {
-  const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
+  const { AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
   const map = (AgentTool as { mapToolResultToToolResultBlockParam: Function })
     .mapToolResultToToolResultBlockParam
   const data = {
@@ -223,30 +223,30 @@ section('B. the AgentTool parent boundary')
     finalText: 'final prose',
   })
   attachAgentEnvelope(data, envelope)
-  check('B0 the ingest side-channel round-trips', envelopeFor(data) === envelope, 'attachAgentEnvelope and envelopeFor in src/services/agentResults/ingest.ts must return the same envelope object')
+  check('B0 the ingest side-channel round-trips', envelopeFor(data) === envelope, 'attachAgentEnvelope and envelopeFor in src/crew/agent-results/ingest.ts must return the same envelope object')
   const block = map(data, 'toolu_b')
   const trailer = (block.content as { text: string }[])[1]?.text ?? ''
   check('B1 the completed trailer carries the envelope block',
     trailer.includes('<envelope v="1" status="completed">') &&
     trailer.includes('full output: mercury://agent/'),
-    `trailer ${JSON.stringify(trailer)} · mapToolResultToToolResultBlockParam in src/tools/AgentTool/AgentTool.tsx must append the envelope block`)
+    `trailer ${JSON.stringify(trailer)} · mapToolResultToToolResultBlockParam in src/tools/crewmate/CrewmateTool.tsx must append the envelope block`)
   const oneShot = map({ ...data, agentType: 'mercury-scout' }, 'toolu_b2')
   check('B2 one-shot builtins still drop the whole trailer (envelope included)',
     (oneShot.content as unknown[]).length === 1,
-    `content blocks ${(oneShot.content as unknown[]).length} · mapToolResultToToolResultBlockParam in src/tools/AgentTool/AgentTool.tsx must drop the trailer for one-shot builtin agents`)
+    `content blocks ${(oneShot.content as unknown[]).length} · mapToolResultToToolResultBlockParam in src/tools/crewmate/CrewmateTool.tsx must drop the trailer for one-shot builtin agents`)
   const noEnvelope = map({ ...data, agentId: 'other-agent' }, 'toolu_b3')
   const plainTrailer = (noEnvelope.content as { text: string }[])[1]?.text ?? ''
   check('B3 a data object without an attached envelope keeps the pre-slice trailer',
     plainTrailer.includes('<usage>') && !plainTrailer.includes('<envelope'),
-    `trailer ${JSON.stringify(plainTrailer)} · mapToolResultToToolResultBlockParam in src/tools/AgentTool/AgentTool.tsx must keep the usage trailer when no envelope is attached`)
+    `trailer ${JSON.stringify(plainTrailer)} · mapToolResultToToolResultBlockParam in src/tools/crewmate/CrewmateTool.tsx must keep the usage trailer when no envelope is attached`)
 }
 
 section('A. the async completion notification')
 {
   const { enqueueAgentNotification } = await import(
-    '../../src/tasks/LocalAgentTask/LocalAgentTask.tsx'
+    '../../src/engine/tasks/local-agent/crewmateTask.tsx'
   )
-  const { dequeueAll } = await import('../../src/utils/messageQueueManager.ts')
+  const { dequeueAll } = await import('../../src/daemon/runner/messageQueueManager.ts')
   dequeueAll()
 
   let state: {
@@ -289,7 +289,7 @@ section('A. the async completion notification')
   check('A1 the notification carries the envelope block',
     queued.length === 1 &&
     String((queued[0] as { value?: string }).value).includes('<envelope v="1"'),
-    `queued ${queued.length} · enqueueAgentNotification in src/tasks/LocalAgentTask/LocalAgentTask.tsx must include envelopeBlock in the notification`)
+    `queued ${queued.length} · enqueueAgentNotification in src/engine/tasks/local-agent/crewmateTask.tsx must include envelopeBlock in the notification`)
 
   enqueueAgentNotification({
     taskId: AGENT_ID,
@@ -298,22 +298,22 @@ section('A. the async completion notification')
     setAppState: setAppState as never,
     finalMessage: 'done again',
   })
-  check('A2 duplicate delivery is latched (exactly-once)', dequeueAll().length === 0, 'enqueueAgentNotification in src/tasks/LocalAgentTask/LocalAgentTask.tsx must skip a task already marked notified')
+  check('A2 duplicate delivery is latched (exactly-once)', dequeueAll().length === 0, 'enqueueAgentNotification in src/engine/tasks/local-agent/crewmateTask.tsx must skip a task already marked notified')
 }
 
 section('D. doctrine splice')
 {
   const { buildSubagentMercurySections } = await import(
-    '../../src/constants/subagentDoctrine.ts'
+    '../../src/tools/crewmate/subagentDoctrine.ts'
   )
   const sections = buildSubagentMercurySections({
     agentDefinition: { agentType: 'mercury-crew' } as never,
   })
   check('D1 the envelope doctrine reaches spawned agents',
     sections.some(s => s.includes('mercury-envelope')),
-    'buildSubagentMercurySections in src/constants/subagentDoctrine.ts must add ENVELOPE_DOCTRINE while change receipts are on')
+    'buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts must add ENVELOPE_DOCTRINE while change receipts are on')
   check('D2 the doctrine text is the contracts export, and it ends on the fields (the cross-check claim rides the seat contract, not the envelope)', ENVELOPE_DOCTRINE.endsWith('(names of verification commands you actually ran).') && !ENVELOPE_DOCTRINE.includes('cross-checked') && sections.some(s => s === ENVELOPE_DOCTRINE),
-    'ENVELOPE_DOCTRINE in src/services/agentResults/contracts.ts must end on the fields and buildSubagentMercurySections must splice it unchanged')
+    'ENVELOPE_DOCTRINE in src/crew/agent-results/contracts.ts must end on the fields and buildSubagentMercurySections must splice it unchanged')
 
   process.env.MERCURY_CHANGE_RECEIPTS = '0'
   const off = buildSubagentMercurySections({
@@ -321,7 +321,7 @@ section('D. doctrine splice')
   })
   check('D3 gate OFF drops the doctrine (byte-identical prompts)',
     !off.some(s => s.includes('mercury-envelope')),
-    'buildSubagentMercurySections in src/constants/subagentDoctrine.ts must drop the doctrine when MERCURY_CHANGE_RECEIPTS is 0')
+    'buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts must drop the doctrine when MERCURY_CHANGE_RECEIPTS is 0')
   delete process.env.MERCURY_CHANGE_RECEIPTS
 }
 

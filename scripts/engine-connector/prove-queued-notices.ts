@@ -3,7 +3,7 @@
 
 let failures = 0
 let checks = 0
-const queuedNoticesFile = 'src/services/engine-connector/queuedNotices.ts'
+const queuedNoticesFile = 'src/engine/connector/queuedNotices.ts'
 const queuedNoticesWheres: Record<string, string> = {
   N1: `noticeKeyOf, isNoticeKey and isNoticeFact in ${queuedNoticesFile}`,
   N2: `createNoticeRow and deliveredNoticeRow in ${queuedNoticesFile}`,
@@ -22,9 +22,9 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const notices = await import('../../src/services/engine-connector/queuedNotices.ts')
-type Message = import('../../src/types/message.ts').Message
-type QueuedFactV1 = import('../../src/services/engine-connector/seatProjections.ts').QueuedFactV1
+const notices = await import('../../src/engine/connector/queuedNotices.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type QueuedFactV1 = import('../../src/engine/connector/seatProjections.ts').QueuedFactV1
 
 const NOTE = '<task-notification>\n<task-id>t1</task-id>\n<status>completed</status>\n<summary>Agent "a quick errand" completed</summary>\n</task-notification>'
 const OTHER = '<task-notification>\n<task-id>t2</task-id>\n<status>failed</status>\n<summary>Agent "another errand" failed</summary>\n</task-notification>'

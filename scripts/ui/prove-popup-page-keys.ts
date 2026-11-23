@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/ScrollKeybindingHandler.tsx src/components/CustomSelect/use-select-input.ts src/components/HelpV2/Commands.tsx src/commands/health/HealthCertificate.tsx
+// gate-watch: src/screen/scroll-keys/ScrollKeybindingHandler.tsx src/screen/select/useSelectInput.ts src/screen/help/Commands.tsx src/commands/health/HealthCertificate.tsx
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -84,9 +84,9 @@ try {
   const before = caretCommand(list)
   const after = caretCommand(down)
   const back = caretCommand(up)
-  check('↓ focuses the list on its first command', before !== null, 'the /help commands list shows no caret row; check the Down handling in src/components/HelpV2/Commands.tsx and src/components/CustomSelect/use-select-input.ts; rows with a caret: ' + list.filter(r => r.includes('❯')).join(' | '))
-  check('PageDown moves the caret onto a later command', after !== null && before !== null && after !== before && listIndex(down, after) > listIndex(list, before), `PageDown must move the caret to a later command; check the PageDown handling in src/components/HelpV2/Commands.tsx and src/components/ScrollKeybindingHandler.tsx; before ${before} after ${after}`)
-  check('PageUp brings the caret back to the first command', back === before, `PageUp must page the caret back; check the PageUp handling in src/components/HelpV2/Commands.tsx and src/components/ScrollKeybindingHandler.tsx; back ${back} first ${before}`)
+  check('↓ focuses the list on its first command', before !== null, 'the /help commands list shows no caret row; check the Down handling in src/screen/help/Commands.tsx and src/screen/select/useSelectInput.ts; rows with a caret: ' + list.filter(r => r.includes('❯')).join(' | '))
+  check('PageDown moves the caret onto a later command', after !== null && before !== null && after !== before && listIndex(down, after) > listIndex(list, before), `PageDown must move the caret to a later command; check the PageDown handling in src/screen/help/Commands.tsx and src/screen/scroll-keys/ScrollKeybindingHandler.tsx; before ${before} after ${after}`)
+  check('PageUp brings the caret back to the first command', back === before, `PageUp must page the caret back; check the PageUp handling in src/screen/help/Commands.tsx and src/screen/scroll-keys/ScrollKeybindingHandler.tsx; back ${back} first ${before}`)
 
   section('/health — PageDown pages the cursor over the check rows')
   const health = marks.get('health') ?? []

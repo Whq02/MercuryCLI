@@ -11,10 +11,10 @@ export async function proveBoxDaemon(bundle: string, home: string, model: string
   process.env.MERCURY_DAEMON_DIR = daemonDir
   const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
   seedFirstRun(home, [work])
-  const { saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+  const { saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 3 } }))
-  const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-  const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+  const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
   const log = join(home, 'box-daemon.log')
   const fd = openSync(log, 'a')
   const child = spawn('node', [bundle, 'daemon', 'run', work], { cwd: work, stdio: ['ignore', fd, fd], env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: daemonDir, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_PARTY: '0', MERCURY_CACHE_CLOCK: '0', MERCURY_TERMINAL_TITLE: '0' } })

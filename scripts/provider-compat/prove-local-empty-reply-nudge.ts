@@ -17,7 +17,7 @@ for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOK
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}change the empty-reply mark in src/services/providers/emptyReply.ts and the one-nudge retry in src/run-core/turn/noToolReply.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}change the empty-reply mark in src/models/roads/emptyReply.ts and the one-nudge retry in src/engine/loop/turn/noToolReply.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -83,19 +83,19 @@ const root: string = await new Promise(resolve => {
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${root}`
 
-const turnMachine = (await import('../../src/run-core/turn-machine.ts')) as Record<string, unknown>
+const turnMachine = (await import('../../src/engine/loop/turn-machine.ts')) as Record<string, unknown>
 const runEventCore = turnMachine.runEventCore as (params: unknown, consumed: string[]) => AsyncGenerator<Record<string, unknown>, Record<string, unknown>>
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
-const { emptyReplyKindOf } = await import('../../src/services/providers/emptyReply.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
+const { emptyReplyKindOf } = await import('../../src/models/roads/emptyReply.ts')
 await refreshLocalDiscovery({ force: true })
 const LOCAL_MODEL = `local/${MODEL}`
 

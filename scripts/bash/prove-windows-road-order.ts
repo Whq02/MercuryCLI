@@ -13,9 +13,9 @@ if (process.argv.includes('--no-shell-leg')) {
       build.module('color-diff-napi', () => ({ loader: 'object', exports: { ColorDiff: class {}, ColorFile: class {}, getSyntaxTheme: () => ({}) } }))
     },
   })
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { formatError } = await import('../../src/utils/toolErrors.ts')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { formatError } = await import('../../src/tools/kit/toolErrors.ts')
   const told: string[] = []
   let appState = getDefaultAppState()
   const context = {
@@ -40,8 +40,8 @@ if (process.argv.includes('--no-shell-leg')) {
   const offered = { atStart: 0, whenOffered: 0, toldWhenOffered: 0 }
   const shells: Record<string, string | null> = {}
   if (pinAsked !== undefined) {
-    const road = await import('../../src/utils/shell/windowsShellRoad.ts')
-    const { subprocessEnv } = await import('../../src/utils/subprocessEnv.ts')
+    const road = await import('../../src/platform/shell/windowsShellRoad.ts')
+    const { subprocessEnv } = await import('../../src/platform/processes/subprocessEnv.ts')
     const reads = (env: NodeJS.ProcessEnv): string => spawnSync('/bin/sh', ['-c', 'printf %s "${SHELL:-unset}"'], { env, encoding: 'utf8' }).stdout
     road.armWindowsShellRoad()
     shells.armed = process.env.SHELL ?? null
@@ -73,7 +73,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    what to change: make the road match this label in src/utils/shell/shellRecord.ts (startedBashVersion, shellRecord, shellRow) or src/utils/shell/windowsShellRoad.ts (armWindowsShellRoad, shellFollowsTheRecord, NO_SHELL_WAYS_OUT, PIN_WAYS_OUT)')
+  if (!cond) console.log('    what to change: make the road match this label in src/platform/shell/shellRecord.ts (startedBashVersion, shellRecord, shellRow) or src/platform/shell/windowsShellRoad.ts (armWindowsShellRoad, shellFollowsTheRecord, NO_SHELL_WAYS_OUT, PIN_WAYS_OUT)')
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const source = (rel: string): string => join(ROOT, rel).replace(/\\/g, '\\\\')
@@ -85,10 +85,10 @@ console.log('============================================================')
 
 const WIN = process.platform === 'win32'
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'windows-road-order-')))
-const record = (await import('../../src/utils/shell/shellRecord.ts')) as unknown as {
+const record = (await import('../../src/platform/shell/shellRecord.ts')) as unknown as {
   startedBashVersion?: (path: string, limitMs?: number) => Promise<string | null>
 }
-const { resolveBashPackDir } = await import('../../src/utils/shell/bashPack.ts')
+const { resolveBashPackDir } = await import('../../src/platform/shell/bashPack.ts')
 const shipped = resolveBashPackDir()
 const SHIPPED = shipped.state === 'ok' ? shipped.binaryPath : null
 const SYSTEM_BASH = existsSync('/bin/bash') ? '/bin/bash' : null
@@ -167,7 +167,7 @@ try {
     check('a candidate that is a launcher: at the limit the program it started is ended with it', fromLauncher === null && Number.isInteger(launched.pid) && !launched.alive, JSON.stringify({ fromLauncher, launched }))
     const openFile = join(scratch, 'open.pid')
     const waits = script('waits-bash', `#!/bin/sh\necho $$ > '${openFile}'\nexec sleep 300\n`)
-    spawnSync(process.execPath, ['-e', `;(globalThis).MACRO = { VERSION: '0.0.0' }\nconst record = await import('${source('src/utils/shell/shellRecord.ts')}')\nvoid record.startedBashVersion('${waits}', 20000)\nsetTimeout(() => process.exit(0), 700)`], { cwd: scratch, encoding: 'utf8', timeout: 60_000 })
+    spawnSync(process.execPath, ['-e', `;(globalThis).MACRO = { VERSION: '0.0.0' }\nconst record = await import('${source('src/platform/shell/shellRecord.ts')}')\nvoid record.startedBashVersion('${waits}', 20000)\nsetTimeout(() => process.exit(0), 700)`], { cwd: scratch, encoding: 'utf8', timeout: 60_000 })
     await sleep(300)
     const leftOpen = gone(openFile)
     check('a process that ends while a question is open ends the program it asked', Number.isInteger(leftOpen.pid) && !leftOpen.alive, JSON.stringify(leftOpen))
@@ -183,9 +183,9 @@ try {
   type Leg = { served: { path: string; version: string; origin: string } | null; ran: string | null; error: string | null; row: { status: string; evidence: string }; kind: string; tool: boolean; ms: number }
   const PROBE = `
     ;(globalThis).MACRO = { VERSION: '0.0.0' }
-    const record = await import('${source('src/utils/shell/shellRecord.ts')}')
-    const road = await import('${source('src/utils/shell/windowsShellRoad.ts')}')
-    const shell = await import('${source('src/utils/Shell.ts')}')
+    const record = await import('${source('src/platform/shell/shellRecord.ts')}')
+    const road = await import('${source('src/platform/shell/windowsShellRoad.ts')}')
+    const shell = await import('${source('src/platform/shell/shellExec.ts')}')
     const started = Date.now()
     let served = null
     let error = null
@@ -261,7 +261,7 @@ try {
       mkdirSync(join(scratch, 'row-bound'), { recursive: true })
       const asking = spawnSync(
         process.execPath,
-        ['-e', `;(globalThis).MACRO = { VERSION: '0.0.0' }\nconst record = await import('${source('src/utils/shell/shellRecord.ts')}')\nconst started = Date.now()\nconst row = await record.shellRow(1500)\nconsole.log('ROW ' + JSON.stringify({ row, ms: Date.now() - started }))\nprocess.exit(0)`],
+        ['-e', `;(globalThis).MACRO = { VERSION: '0.0.0' }\nconst record = await import('${source('src/platform/shell/shellRecord.ts')}')\nconst started = Date.now()\nconst row = await record.shellRow(1500)\nconsole.log('ROW ' + JSON.stringify({ row, ms: Date.now() - started }))\nprocess.exit(0)`],
         { cwd: scratch, encoding: 'utf8', timeout: 60_000, env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'row-bound', 'config'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_SHELL_ENGINE: undefined, MERCURY_SHELL_PREFIX: undefined, MERCURY_WINDOWS_SHELL_ROAD: 'locate', MERCURY_GIT_BASH_PATH: stubborn, BASH_ENV: undefined, ENV: undefined } },
       )
       const rowLine = (asking.stdout ?? '').split('\n').find(text => text.startsWith('ROW '))
@@ -280,7 +280,7 @@ try {
   check('with no bash of any origin and MERCURY_SHELL_ENGINE=system nothing answers: no shell is named, the Bash tool is off the roster', none !== null && none.served === null && none.kind === 'absent' && none.tool === false && (none.error ?? '').includes('No shell found'), JSON.stringify(none))
 
   const MODEL_LINE = 'Bash cannot run in this session: no shell starts on this machine, and no shell tool is offered.'
-  const { NO_SHELL_WAYS_OUT, PIN_WAYS_OUT } = (await import('../../src/utils/shell/windowsShellRoad.ts')) as { NO_SHELL_WAYS_OUT?: string; PIN_WAYS_OUT?: string }
+  const { NO_SHELL_WAYS_OUT, PIN_WAYS_OUT } = (await import('../../src/platform/shell/windowsShellRoad.ts')) as { NO_SHELL_WAYS_OUT?: string; PIN_WAYS_OUT?: string }
   const waysOut = NO_SHELL_WAYS_OUT ?? 'the road names no ways out'
   const pinWaysOut = PIN_WAYS_OUT ?? 'the road names no way out of a pin'
   const guide = readFileSync(join(ROOT, 'docs', 'INSTALL.md'), 'utf8').replace(/`/g, '').replace(/\s+/g, ' ')
@@ -338,7 +338,7 @@ try {
     const settledOnNothing = (before: string | undefined): string => {
       const restored = spawnSync(
         process.execPath,
-        ['-e', `;(globalThis).MACRO = { VERSION: '0.0.0' }\nconst road = await import('${source('src/utils/shell/windowsShellRoad.ts')}')\nroad.armWindowsShellRoad()\nconst armed = process.env.SHELL ?? null\nroad.shellFollowsTheRecord(null)\nconsole.log('SHELLS ' + JSON.stringify({ armed, after: process.env.SHELL ?? null }))\nprocess.exit(0)`],
+        ['-e', `;(globalThis).MACRO = { VERSION: '0.0.0' }\nconst road = await import('${source('src/platform/shell/windowsShellRoad.ts')}')\nroad.armWindowsShellRoad()\nconst armed = process.env.SHELL ?? null\nroad.shellFollowsTheRecord(null)\nconsole.log('SHELLS ' + JSON.stringify({ armed, after: process.env.SHELL ?? null }))\nprocess.exit(0)`],
         { cwd: scratch, encoding: 'utf8', timeout: 60_000, env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'restored', 'config'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_SHELL_ENGINE: undefined, MERCURY_SHELL_PREFIX: undefined, MERCURY_WINDOWS_SHELL_ROAD: 'locate', MERCURY_GIT_BASH_PATH: noBash, SHELL: before, BASH_ENV: undefined, ENV: undefined } },
       )
       return (restored.stdout ?? '').split('\n').find(text => text.startsWith('SHELLS ')) ?? `no answer · ${(restored.stderr ?? '').slice(-300)}`

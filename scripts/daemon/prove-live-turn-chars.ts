@@ -5,13 +5,13 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'turnchars-home-'))
 
-const { onSeatRow, onSeatSpawned } = await import('../../src/daemon/sessionSeat.ts')
-const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { onSeatRow, onSeatSpawned } = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { readSessionTail } = await import('../../src/engine/connector/seatProjections.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  const turnHint = 'the tail counters (turnChars, turnOutputTokens) are written by onSeatRow and onSeatSpawned in src/daemon/sessionSeat.ts and read by readSessionTail in src/services/engine-connector/seatProjections.ts; the relay is LivePart in src/services/engine-connector/daemon/live.ts and the figure is liveCounterFigure in src/components/Spinner/liveCounterWords.ts'
+  const turnHint = 'the tail counters (turnChars, turnOutputTokens) are written by onSeatRow and onSeatSpawned in src/daemon/session-seat/sessionSeat.ts and read by readSessionTail in src/engine/connector/seatProjections.ts; the relay is LivePart in src/engine/connector/daemon/live.ts and the figure is liveCounterFigure in src/screen/spinner/liveCounterWords.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${turnHint}` : ''}`)
   if (!ok) failures++
 }
@@ -90,8 +90,8 @@ check('the respawn clears the half-count', (tail()?.turnChars ?? 0) === 0, JSON.
 
 console.log('\nT7 the wiring — connector to ref to spinner (structural)')
 {
-  const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
-  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const { LivePart } = await import('../../src/engine/connector/daemon/live.ts')
+  const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
   const liveWith = (over: Record<string, unknown> = {}): InstanceType<typeof LivePart> => new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, ...over } as never)
   const tailOf = (says: Record<string, unknown>): never => ({ schema: 1, sessionId: 'proof', atMs: 1, text: null, ...says }) as never
   const relay = liveWith()
@@ -118,7 +118,7 @@ console.log('\nT7 the wiring — connector to ref to spinner (structural)')
   await status.close()
   check('the Chat feeds the wire figure to the verb row and the streaming hold row from the same connector', whileAlive.split('/')[1] === '87' && holdRow.split('/')[1] === '87', `${whileAlive} · ${holdRow}`)
   check('the Chat feeds the turn facts (thinking chars, the first byte, the wait) to both rows from the same connector — the live counter never reads a dead 0 while the request is alive', whileAlive.split('/')[2] === '55' && holdRow === '4321/87/55', `${whileAlive} · ${holdRow}`)
-  const { liveCounterFigure } = await import('../../src/components/Spinner/liveCounterWords.ts')
+  const { liveCounterFigure } = await import('../../src/screen/spinner/liveCounterWords.ts')
   check('the figure: no wire figure yet ⇒ characters over four, marked an estimate', JSON.stringify(liveCounterFigure({ replyChars: 1003, thinkingChars: 0, wireOutputTokens: null })) === JSON.stringify({ total: 250, thinking: 0, reply: 250, estimated: true }))
   check('the figure: a wire figure at or above the estimate ⇒ the figure itself, told as a fact', JSON.stringify(liveCounterFigure({ replyChars: 1003, thinkingChars: 0, wireOutputTokens: 777 })) === JSON.stringify({ total: 777, thinking: 0, reply: 777, estimated: false }))
   check('the figure: thinking characters count apart from the reply while the wire has not spoken', JSON.stringify(liveCounterFigure({ replyChars: 400, thinkingChars: 3000, wireOutputTokens: null })) === JSON.stringify({ total: 850, thinking: 750, reply: 100, estimated: true }))

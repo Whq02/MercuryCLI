@@ -7,7 +7,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 
-const { hasBinaryExtension } = await import('../../src/constants/files.ts')
+const { hasBinaryExtension } = await import('../../src/tools/read/binaryExtensions.ts')
 
 console.log('§1 the predicate speaks paths')
 for (const [path, want] of [
@@ -22,7 +22,7 @@ for (const [path, want] of [
   ['exe', false],
   ['trailing.', false],
 ] as Array<[string, boolean]>) {
-  check(`${JSON.stringify(path)} ⇒ ${want}`, hasBinaryExtension(path) === want, String(hasBinaryExtension(path)) + (hasBinaryExtension(path) === want ? '' : ' (fix hasBinaryExtension or its BINARY_EXTENSIONS set in src/constants/files.ts)'))
+  check(`${JSON.stringify(path)} ⇒ ${want}`, hasBinaryExtension(path) === want, String(hasBinaryExtension(path)) + (hasBinaryExtension(path) === want ? '' : ' (fix hasBinaryExtension or its BINARY_EXTENSIONS set in src/tools/read/binaryExtensions.ts)'))
 }
 
 

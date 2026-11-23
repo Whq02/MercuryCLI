@@ -5,14 +5,14 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond ? ' — change capacityDecisionReceipt in src/utils/switchboard/capacityCheck.ts so its line ends with the seat count, which wrap-text truncate-middle in src/ink/wrap-text.ts then keeps' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond ? ' — change capacityDecisionReceipt in src/daemon/switchboard-capacity/capacityCheck.ts so its line ends with the seat count, which wrap-text truncate-middle in src/screen/renderer/wrap-text.ts then keeps' : ''}`)
   if (!cond) failures++
 }
 
-const mod = (await import('../../src/utils/switchboard/capacityCheck.ts')) as unknown as {
+const mod = (await import('../../src/daemon/switchboard-capacity/capacityCheck.ts')) as unknown as {
   capacityDecisionReceipt?: (allowed: boolean, seats: number) => string
 }
-const wrapText = (await import('../../src/ink/wrap-text.ts')).default
+const wrapText = (await import('../../src/screen/renderer/wrap-text.ts')).default
 
 console.log('§1 both arms keep their number through the middle cut')
 {

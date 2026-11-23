@@ -1,1 +1,1 @@
-src/substrate/flags/** src/substrate/flagRegistry.ts
+src/platform/substrate/flags/** src/platform/substrate/flagRegistry.ts

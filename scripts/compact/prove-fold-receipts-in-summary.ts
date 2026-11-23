@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
-import type { CompactMetadata, Message } from '../../src/types/message.ts'
+import type { CompactMetadata, Message } from '../../src/engine/message-shapes/message.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'fold-receipts-'))
 process.env.MERCURY_CONFIG_DIR = home
@@ -13,17 +13,17 @@ process.env.MERCURY_TMPDIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY ??= 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { compactConversation, partialCompactConversation } = await import('../../src/services/compact/compact.ts')
-const prompts = (await import('../../src/services/compact/prompt.ts')) as { renderFoldedWork?: (work: CompactMetadata['work'] | undefined) => string | null }
+const { compactConversation, partialCompactConversation } = await import('../../src/engine/compaction/foldConversation.ts')
+const prompts = (await import('../../src/engine/compaction/summariserPrompt.ts')) as { renderFoldedWork?: (work: CompactMetadata['work'] | undefined) => string | null }
 const renderFoldedWork = prompts.renderFoldedWork ?? (() => null)
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getEngineModel } = await import('../../src/services/model/model.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
 
 let failures = 0
 let checks = 0
-const FOLD_RECEIPTS_FAILURE_HINT = ' | change renderFoldedWork in src/services/compact/prompt.ts (the block text) or compactConversation and partialCompactConversation in src/services/compact/compact.ts (where the block joins the summary)'
+const FOLD_RECEIPTS_FAILURE_HINT = ' | change renderFoldedWork in src/engine/compaction/summariserPrompt.ts (the block text) or compactConversation and partialCompactConversation in src/engine/compaction/foldConversation.ts (where the block joins the summary)'
 const check = (label: string, condition: boolean, detail = '') => {
   checks++
   if (!condition) failures++

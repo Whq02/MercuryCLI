@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/wards/wards* src/guards/wardsGuard* src/guards/guards* src/utils/cwd* src/utils/path*
+// gate-watch: src/permissions/wards/wards.ts src/permissions/wards/wardsRefusals.ts src/permissions/wards/wardsShellRead.ts src/permissions/guards/wardsGuard.ts src/permissions/guards/guards.ts src/engine/cwdMemo.ts src/platform/files/cwd.ts src/platform/files/path.ts src/screen/fullscreen-layout/pathLabel.ts src/tools/read/pathPrefix.ts
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
@@ -26,7 +26,7 @@ function mkdtempOutsideProfiles(prefix: string): string {
 
 let passed = 0
 let failed = 0
-const homeAnywhereFailHint = 'change the no-home-recursive-delete and no-root-recursive-delete rules and wardHomes or setHomeSpellings in src/utils/wards/wards.ts, or homeSpellings, makeTargetResolver and registerWardsGuard in src/guards/wardsGuard.ts; a failing shape line from the parent means read the child output above it'
+const homeAnywhereFailHint = 'change the no-home-recursive-delete and no-root-recursive-delete rules and wardHomes or setHomeSpellings in src/permissions/wards/wards.ts, or homeSpellings, makeTargetResolver and registerWardsGuard in src/permissions/guards/wardsGuard.ts; a failing shape line from the parent means read the child output above it'
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
   const shown = ok ? detail : [detail, homeAnywhereFailHint].filter(Boolean).join(' | ')
@@ -76,14 +76,14 @@ const shape = process.argv[3] ?? ''
 const relocatedHome = process.argv[4] ?? ''
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-type PendingToolCall = import('../../src/utils/wards/wards.js').PendingToolCall
-type WardVerdict = import('../../src/utils/wards/wards.js').WardVerdict
-const { AUTONOMOUS_WARDS, BUILTIN_WARDS, REFUSAL_WARDS, evaluateWards, setHomeSpellings, wardHomes } = await import('../../src/utils/wards/wards.js')
-const guard = await import('../../src/guards/wardsGuard.js')
+type PendingToolCall = import('../../src/permissions/wards/wards.js').PendingToolCall
+type WardVerdict = import('../../src/permissions/wards/wards.js').WardVerdict
+const { AUTONOMOUS_WARDS, BUILTIN_WARDS, REFUSAL_WARDS, evaluateWards, setHomeSpellings, wardHomes } = await import('../../src/permissions/wards/wards.js')
+const guard = await import('../../src/permissions/guards/wardsGuard.js')
 const { deleteWardActive, makeTargetResolver, WARDS_HOOK_ID, registerWardsGuard, resetWardsEngagedSessionsForTest } = guard
 const homeSpellings: () => string[] = (guard as { homeSpellings?: () => string[] }).homeSpellings ?? (() => [])
-const { judgeToolCall } = await import('../../src/guards/guards.js')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+const { judgeToolCall } = await import('../../src/permissions/guards/guards.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
 
 const bash = (command: string, resolvePath?: PendingToolCall['resolvePath']): PendingToolCall => ({
   toolName: 'Bash',

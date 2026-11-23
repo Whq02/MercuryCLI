@@ -16,7 +16,7 @@ let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => { checks++; console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok || !detail ? '' : `: ${detail}`}`); if (!ok) failures++ }
 const head = (text: string): string => JSON.stringify(text.slice(0, 160))
-const agentWhere = 'the --agent and --brief flags are declared in src/main/rootOptions.ts; the agent prompt must reach the system prompt of the first request'
+const agentWhere = 'the --agent and --brief flags are declared in src/boot/main/rootOptions.ts; the agent prompt must reach the system prompt of the first request'
 
 const AGENT_BRIEF = 'AGENT_BRIEF_MARKER: answer as the fixture agent and name the file you would open first.'
 const OTHER_BRIEF = 'OPERATOR_BRIEF_MARKER: answer in one line.'

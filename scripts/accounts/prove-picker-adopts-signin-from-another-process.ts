@@ -27,10 +27,10 @@ const TOKEN = 'at_picker_signin_proof'
 let failures = 0
 let where = ''
 const WHERES: Record<string, string> = {
-  '§1': 'anthropicCredentialPresence in src/services/providers/providerUsage.ts, getModelOptions in src/services/model/modelOptions.ts and the anthropic slots of deriveFamilySlotGroups in src/services/providers/accountSlots.ts',
-  '§2': 'anthropicCredentialPresence in src/services/providers/providerUsage.ts must re-read the stored sign-in instead of keeping the memo from boot; the writer is saveOAuthTokensIfNeeded in src/services/auth/oauthLifecycle.ts',
-  '§3': 'anthropicCredentialPresence in src/services/providers/providerUsage.ts must follow a removed .credentials.json; picker rows come from getModelOptions in src/services/model/modelOptions.ts',
-  '§4': 'anthropicCredentialPresence in src/services/providers/providerUsage.ts must pick up a primaryApiKey saved by another process without a refresh turn',
+  '§1': 'anthropicCredentialPresence in src/models/roads/providerUsage.ts, getModelOptions in src/models/catalogue/modelOptions.ts and the anthropic slots of deriveFamilySlotGroups in src/models/roads/accountSlots.ts',
+  '§2': 'anthropicCredentialPresence in src/models/roads/providerUsage.ts must re-read the stored sign-in instead of keeping the memo from boot; the writer is saveOAuthTokensIfNeeded in src/models/sign-in/lifecycle/oauthLifecycle.ts',
+  '§3': 'anthropicCredentialPresence in src/models/roads/providerUsage.ts must follow a removed .credentials.json; picker rows come from getModelOptions in src/models/catalogue/modelOptions.ts',
+  '§4': 'anthropicCredentialPresence in src/models/roads/providerUsage.ts must pick up a primaryApiKey saved by another process without a refresh turn',
 }
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
@@ -50,13 +50,13 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.CI
 delete process.env.NODE_ENV
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs, saveGlobalConfig, getGlobalConfig } = await import(${JSON.stringify(join(ROOT, 'src/utils/config/globalConfig.ts'))})
+const { enableConfigs, saveGlobalConfig, getGlobalConfig } = await import(${JSON.stringify(join(ROOT, 'src/platform/config/globalConfig.ts'))})
 enableConfigs()
 if (process.argv[2] === 'key') {
   saveGlobalConfig(c => ({ ...c, primaryApiKey: ${JSON.stringify(KEY)} }))
   console.log('WROTE ' + (getGlobalConfig().primaryApiKey === ${JSON.stringify(KEY)}))
 } else {
-  const auth = { ...(await import(${JSON.stringify(join(ROOT, 'src/utils/auth.ts'))})), ...(await import(${JSON.stringify(join(ROOT, 'src/services/auth/oauthLifecycle.ts'))})) }
+  const auth = { ...(await import(${JSON.stringify(join(ROOT, 'src/models/sign-in/credentials/auth.ts'))})), ...(await import(${JSON.stringify(join(ROOT, 'src/models/sign-in/lifecycle/oauthLifecycle.ts'))})) }
   const r = auth.saveOAuthTokensIfNeeded({
     accessToken: ${JSON.stringify(TOKEN)},
     refreshToken: 'rt_picker_signin_proof',
@@ -76,12 +76,12 @@ const runWriter = (mode: 'key' | 'oauth'): boolean => {
   return ok
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
-const usage = await import('../../src/services/providers/providerUsage.ts')
-const { getModelOptions, ANTHROPIC_CONNECT_OPTION_VALUE } = await import('../../src/services/model/modelOptions.ts')
-const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
+const usage = await import('../../src/models/roads/providerUsage.ts')
+const { getModelOptions, ANTHROPIC_CONNECT_OPTION_VALUE } = await import('../../src/models/catalogue/modelOptions.ts')
+const { deriveFamilySlotGroups } = await import('../../src/models/roads/accountSlots.ts')
 
 const anthropicRows = (): Array<{ value: string; unavailable?: string }> =>
   getModelOptions().filter(option => option.group === undefined && !option.value.startsWith('__') && /sonnet|opus|haiku|fable/i.test(option.value))

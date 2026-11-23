@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 const FIXTURE = join(import.meta.dir, 'fixtures/fake-lsp-server.mjs')
-const { createLSPClient } = await import(join(SRC, 'services/lsp/LSPClient.ts'))
+const { createLSPClient } = await import(join(SRC, 'integrations/lsp/LSPClient.ts'))
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
@@ -50,8 +50,8 @@ async function generation(tag: string): Promise<void> {
 await generation('gen1')
 {
   const answer = configAnswers.find(a => a.tag === 'gen1')
-  t('L1 push diagnostics reach the handler registered before start()', diagnostics.includes('probe gen1'), `handlers queued before start() must be applied to the connection by applyQueuedHandlers in src/services/lsp/LSPClient.ts: ${JSON.stringify(diagnostics)}`)
-  t('L1 workspace/configuration is answered by our handler', answer !== undefined && answer.error === null && Array.isArray(answer.result) && configHandlerCalls === 1, `the onRequest handler queued in src/services/lsp/LSPClient.ts must answer workspace/configuration once per generation: ${JSON.stringify(answer)} (handler calls ${configHandlerCalls})`)
+  t('L1 push diagnostics reach the handler registered before start()', diagnostics.includes('probe gen1'), `handlers queued before start() must be applied to the connection by applyQueuedHandlers in src/integrations/lsp/LSPClient.ts: ${JSON.stringify(diagnostics)}`)
+  t('L1 workspace/configuration is answered by our handler', answer !== undefined && answer.error === null && Array.isArray(answer.result) && configHandlerCalls === 1, `the onRequest handler queued in src/integrations/lsp/LSPClient.ts must answer workspace/configuration once per generation: ${JSON.stringify(answer)} (handler calls ${configHandlerCalls})`)
 }
 
 client.onNotification('test/extra', (params: unknown) => {
@@ -60,7 +60,7 @@ client.onNotification('test/extra', (params: unknown) => {
 {
   await client.sendNotification('test/ping', { tag: 'gen1b' })
   await waitFor(() => extras.includes('gen1b'))
-  t('L2 a handler registered while connected fires in the same generation', extras.includes('gen1b'), `onNotification in src/services/lsp/LSPClient.ts must attach a handler to the live connection when one exists: ${JSON.stringify(extras)}`)
+  t('L2 a handler registered while connected fires in the same generation', extras.includes('gen1b'), `onNotification in src/integrations/lsp/LSPClient.ts must attach a handler to the live connection when one exists: ${JSON.stringify(extras)}`)
 }
 
 await client.stop()
@@ -70,9 +70,9 @@ await generation('gen2')
 await waitFor(() => extras.includes('gen2'), 1000)
 {
   const answer = configAnswers.find(a => a.tag === 'gen2')
-  t('L3 push diagnostics still reach the handler after the restart', diagnostics.includes('probe gen2'), `start() in src/services/lsp/LSPClient.ts must call applyQueuedHandlers again on each new connection; diagnostics after restart: ${diagnostics.slice(diagsBefore).join(',') || '(none)'}`)
-  t('L3 workspace/configuration is still answered by our handler after the restart', answer !== undefined && answer.error === null && Array.isArray(answer.result) && configHandlerCalls === 3, `start() in src/services/lsp/LSPClient.ts must re-apply the queued request handlers on each new connection (handler calls ${configHandlerCalls}, expected 3): ${answer ? JSON.stringify(answer) : `no answer relayed (${configAnswers.length - answersBefore} new)`}`)
-  t('L3 the mid-generation handler survives the restart too', extras.includes('gen2'), `handlers added while connected must be kept in the queue that start() in src/services/lsp/LSPClient.ts replays: ${JSON.stringify(extras)}`)
+  t('L3 push diagnostics still reach the handler after the restart', diagnostics.includes('probe gen2'), `start() in src/integrations/lsp/LSPClient.ts must call applyQueuedHandlers again on each new connection; diagnostics after restart: ${diagnostics.slice(diagsBefore).join(',') || '(none)'}`)
+  t('L3 workspace/configuration is still answered by our handler after the restart', answer !== undefined && answer.error === null && Array.isArray(answer.result) && configHandlerCalls === 3, `start() in src/integrations/lsp/LSPClient.ts must re-apply the queued request handlers on each new connection (handler calls ${configHandlerCalls}, expected 3): ${answer ? JSON.stringify(answer) : `no answer relayed (${configAnswers.length - answersBefore} new)`}`)
+  t('L3 the mid-generation handler survives the restart too', extras.includes('gen2'), `handlers added while connected must be kept in the queue that start() in src/integrations/lsp/LSPClient.ts replays: ${JSON.stringify(extras)}`)
 }
 await client.stop()
 

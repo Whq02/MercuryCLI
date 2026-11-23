@@ -11,27 +11,27 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}${ok ? '' : ' — Hint: the recorded result comes from decisionOfAnswer in src/cli/headless/runnerAsks.ts with the texts in src/utils/messages/rejectionText.ts; the row the operator reads comes from src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx.'}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}${ok ? '' : ' — Hint: the recorded result comes from decisionOfAnswer in src/daemon/runner/runnerAsks.ts with the texts in src/engine/message-shapes/rejectionText.ts; the row the operator reads comes from src/screen/messages/user-tool-result/UserToolErrorMessage.tsx.'}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/query.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { Box } = await import('../../src/ink.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { decisionOfAnswer } = await import('../../src/cli/headless/runnerAsks.ts')
-const { REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX, SUBAGENT_REJECT_MESSAGE, DENIAL_WORKAROUND_GUIDANCE } = await import('../../src/utils/messages/rejectionText.ts')
-const { AskUserQuestionTool } = await import('../../src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx')
-const { UserToolErrorMessage } = await import('../../src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { Box } = await import('../../src/screen/themedRenderer.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { decisionOfAnswer } = await import('../../src/daemon/runner/runnerAsks.ts')
+const { REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX, SUBAGENT_REJECT_MESSAGE, DENIAL_WORKAROUND_GUIDANCE } = await import('../../src/engine/message-shapes/rejectionText.ts')
+const { AskUserQuestionTool } = await import('../../src/tools/ask-question/AskUserQuestionTool.tsx')
+const { UserToolErrorMessage } = await import('../../src/screen/messages/user-tool-result/UserToolErrorMessage.tsx')
 
 const h = React.createElement
 const MODEL = 'claude-opus-4-8'

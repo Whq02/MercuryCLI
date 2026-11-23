@@ -2,12 +2,12 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, ownerOf, toolContext, toolResultTurn, toolUseTurn } from './computerToolKit.ts'
-import type { DesktopDriver, DesktopTree } from '../../src/services/desktop/driver.ts'
+import type { DesktopDriver, DesktopTree } from '../../src/integrations/desktop/driver.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const { forgetDesktopOwner } = await import('../../src/services/desktop/desktopSession.ts')
-const { imageDimensionsFromHeader } = await import('../../src/utils/imageProcessor/imageProcessorJs.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const { forgetDesktopOwner } = await import('../../src/integrations/desktop/desktopSession.ts')
+const { imageDimensionsFromHeader } = await import('../../src/platform/images/imageProcessorJs.ts')
 const scratch = scratchDir('token-budget')
 const scene = join(scratch, 'scene.json')
 writeFileSync(scene, JSON.stringify({

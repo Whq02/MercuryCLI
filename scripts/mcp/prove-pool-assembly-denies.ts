@@ -19,7 +19,7 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — fix filterToolsByDenyRules in src/tools.ts, or the tools/list and tools/call handlers of mercury mcp serve in src/entrypoints/mcp.ts (run bun run build.ts first if dist/mercury.mjs is missing)'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — fix filterToolsByDenyRules in src/tools/kit/toolList.ts, or the tools/list and tools/call handlers of mercury mcp serve in src/integrations/mcp/mcpServer.ts (run bun run build.ts first if dist/mercury.mjs is missing)'}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -27,7 +27,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 
 section('§1 THE LAW')
 {
-  const { filterToolsByDenyRules } = await import('../../src/tools.ts')
+  const { filterToolsByDenyRules } = await import('../../src/tools/kit/toolList.ts')
   const ctx = {
     mode: 'default',
     alwaysDenyRules: { userSettings: ['mcp__srv__alpha'] },

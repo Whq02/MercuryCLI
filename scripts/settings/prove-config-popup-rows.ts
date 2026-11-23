@@ -7,7 +7,7 @@ process.chdir(REPO)
 const HOME = pinScratchHome('mercury-config-popup-rows')
 
 let failures = 0
-const configPopupRowsFailHint = 'fix the config schema in src/utils/config/schema.ts (GLOBAL_CONFIG_KEYS, createDefaultGlobalConfig) or the rows the /config popup paints in src/components/Settings/Config.tsx'
+const configPopupRowsFailHint = 'fix the config schema in src/platform/config/schema.ts (GLOBAL_CONFIG_KEYS, createDefaultGlobalConfig) or the rows the /config popup paints in src/screen/settings/Config.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${configPopupRowsFailHint}`}`)
@@ -21,7 +21,7 @@ const EDITOR_WORD = /\bIDE\b/i
 
 section('§1 the global config schema declares no editor-link setting')
 {
-  const schema = await import('../../src/utils/config/schema.js')
+  const schema = await import('../../src/platform/config/schema.js')
   const keys = schema.GLOBAL_CONFIG_KEYS as readonly string[]
   const leaked = EDITOR_LINK_KEYS.filter(key => keys.includes(key))
   check('the global-config key allowlist carries none of the editor-link keys', leaked.length === 0, leaked.join(','))
@@ -33,14 +33,14 @@ section('§1 the global config schema declares no editor-link setting')
 section('§2 the rendered /config popup at 178×51: every row walked, none names an editor link')
 {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.js')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-  const store = await import('../../src/utils/cockpit/settingsPopup.js')
+  const { Box } = await import('../../src/screen/themedRenderer.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+  const store = await import('../../src/screen/cockpit/settingsPopup.js')
   const { configPopupRequest } = await import('../../src/commands/config/config.js')
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
-  const { CONFIG_ROW_MARK, CONFIG_POPUP_HINT } = await import('../../src/components/Settings/Config.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
+  const { CONFIG_ROW_MARK, CONFIG_POPUP_HINT } = await import('../../src/screen/settings/Config.js')
   enableConfigs()
   const COLS = 178
   const ROWS = 51

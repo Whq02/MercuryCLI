@@ -28,7 +28,7 @@ if (process.platform === 'win32') {
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  const failureHint = 'to fix, keep the launch consent stamp MERCURY_DAEMON_SELF_WARM_CONSENT (set in src/services/switchboard/ensureDaemon.ts, read in src/daemon/main.ts) out of the environment the session tool shell is given, so suite_env_guard in scripts/lib/suite-env.sh finds no foreign MERCURY_* variable; if no daemon log or no tool result appeared, read the pty run note and the kept world printed below'
+  const failureHint = 'to fix, keep the launch consent stamp MERCURY_DAEMON_SELF_WARM_CONSENT (set in src/daemon/switchboard/ensureDaemon.ts, read in src/daemon/control/main.ts) out of the environment the session tool shell is given, so suite_env_guard in scripts/lib/suite-env.sh finds no foreign MERCURY_* variable; if no daemon log or no tool result appeared, read the pty run note and the kept world printed below'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${failureHint}` : ''}`)
   if (!cond) failures++
 }
@@ -139,7 +139,7 @@ check('the refusal that named the stamp is gone', result === undefined || !resul
 
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_DAEMON_DIR = daemonDir
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never, { timeoutMs: 8_000 }).catch(() => undefined)
 await new Promise(r => setTimeout(r, 1_500))
 const leftovers = spawnSync('pgrep', ['-f', scratch], { encoding: 'utf8' }).stdout.trim()

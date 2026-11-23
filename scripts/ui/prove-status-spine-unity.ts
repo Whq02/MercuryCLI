@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 import { join } from 'node:path'
-import { cardTone } from '../../src/components/mercury-ui/toolCardGrammar.ts'
-import { STATE_STYLE } from '../../src/components/mercury-ui/theme.ts'
+import { cardTone } from '../../src/screen/widgets/toolCardGrammar.ts'
+import { STATE_STYLE } from '../../src/screen/widgets/theme.ts'
 
 let failures = 0
-const spineFixHint = 'change the state-to-mark mapping in cardTone and cardToneOf in src/components/mercury-ui/toolCardGrammar.ts so it uses STATE_STYLE from src/components/mercury-ui/theme.ts'
+const spineFixHint = 'change the state-to-mark mapping in cardTone and cardToneOf in src/screen/widgets/toolCardGrammar.ts so it uses STATE_STYLE from src/screen/widgets/theme.ts'
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? detail + '; ' : ''}${spineFixHint}` : ''}`)
   if (!ok) failures = 1
@@ -42,9 +42,9 @@ for (const word of ['queued', 'starting', 'running', 'waiting', 'stopping']) {
 }
 
 {
-  const { cardToneOf } = await import('../../src/components/mercury-ui/toolCardGrammar.ts')
-  const { resolveMercuryTokens } = await import('../../src/utils/mercuryTokens.ts')
-  const { TERRA } = await import('../../src/components/mercuryPalette.ts')
+  const { cardToneOf } = await import('../../src/screen/widgets/toolCardGrammar.ts')
+  const { resolveMercuryTokens } = await import('../../src/screen/theme/mercuryTokens.ts')
+  const { TERRA } = await import('../../src/screen/theme/mercuryPalette.ts')
   const dark = resolveMercuryTokens('dark', TERRA)
   const words = [
     'succeeded', 'ok', 'ready', 'completed', 'failed', 'error', 'absent', 'timed-out',

@@ -1,0 +1,41 @@
+import type { SessionKitV1 } from '../../daemon/session-seat/sessionKit.js'
+import { flagEnabled } from '../../platform/substrate/flagRegistry.js'
+import { isMcpServerDisabled } from './serverConfigs.js'
+import { sessionKitOf } from './sessionKitPin.js'
+import type { ScopedMcpServerConfig } from '../mcp-shapes/mcpServerRecords.js'
+
+const MERCURY_ORGAN_NAME = 'mercury'
+
+export function isMcpOrgan(name: string): boolean {
+  return name === MERCURY_ORGAN_NAME && flagEnabled('MERCURY_COORDINATION_MCP')
+}
+
+function recordMembership(name: string): boolean {
+  return !isMcpServerDisabled(name)
+}
+
+export function isMcpCatalogueMember(name: string): boolean {
+  const kit = sessionKitOf()
+  if (kit === undefined) return recordMembership(name)
+  return isMcpOrgan(name) || kitMembership(kit, name)
+}
+
+export function kitMembership(kit: SessionKitV1 | undefined, name: string): boolean {
+  if (kit === undefined) return recordMembership(name)
+  if (kit.resolved === false) return !(kit.deltas?.mcpOff ?? []).includes(name)
+  return kit.mcp.includes(name)
+}
+
+export function partitionMcpConfigsByMembership(
+  configs: Record<string, ScopedMcpServerConfig>,
+): {
+  members: Array<[string, ScopedMcpServerConfig]>
+  excluded: Array<[string, ScopedMcpServerConfig]>
+} {
+  const members: Array<[string, ScopedMcpServerConfig]> = []
+  const excluded: Array<[string, ScopedMcpServerConfig]> = []
+  for (const entry of Object.entries(configs)) {
+    ;(isMcpCatalogueMember(entry[0]) ? members : excluded).push(entry)
+  }
+  return { members, excluded }
+}

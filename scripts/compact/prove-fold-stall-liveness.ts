@@ -31,9 +31,9 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && hint ? ` — change: ${hint}` : ''}`)
 }
-const hintFoldBound = 'foldFirstByteAllowanceMs and the fold bounds in src/services/compact/compact/foldBound.ts, and COLD_INGEST_MS_PER_1K_TOKENS in src/services/providers/streamIdleBudget.ts'
-const hintFoldCut = 'the direct-lane bound and its cut log line in src/services/compact/compact/summarise.ts, with the bound and ERROR_MESSAGE_FOLD_TIMEOUT in src/services/compact/compact/foldBound.ts'
-const hintStreamRelay = 'the onStreamActivity relay for comment lines and progress-only frames in src/services/providers/openai/openaiClient.ts (OpenAI) or src/services/providers/openrouter/openrouterResponsesTransport.ts (OpenRouter)'
+const hintFoldBound = 'foldFirstByteAllowanceMs and the fold bounds in src/engine/compaction/fold/foldBound.ts, and COLD_INGEST_MS_PER_1K_TOKENS in src/models/roads/streamIdleBudget.ts'
+const hintFoldCut = 'the direct-lane bound and its cut log line in src/engine/compaction/fold/summarise.ts, with the bound and ERROR_MESSAGE_FOLD_TIMEOUT in src/engine/compaction/fold/foldBound.ts'
+const hintStreamRelay = 'the onStreamActivity relay for comment lines and progress-only frames in src/models/roads/openai/openaiClient.ts (OpenAI) or src/models/roads/openrouter/openrouterResponsesTransport.ts (OpenRouter)'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -183,20 +183,20 @@ process.env.MERCURY_OPENAI_CHATGPT_BASE = `${BASE}/openai/chatgpt`
 process.env.MERCURY_OPENAI_AUTH_BASE = `${BASE}/openai/auth`
 process.env.OPENAI_API_KEY = 'fixture-openai-key'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const compactModule = await import('../../src/services/compact/compact.ts')
+const compactModule = await import('../../src/engine/compaction/foldConversation.ts')
 const { compactConversation, setFoldBoundsForTests, ERROR_MESSAGE_FOLD_TIMEOUT, shouldRideCacheSharingFork } = compactModule
 const foldFirstByteAllowanceMs: ((estTokens: number, bounds?: { stallMs: number; ingestMsPer1kTokens: number }) => number) | undefined = (compactModule as { foldFirstByteAllowanceMs?: typeof compactModule.foldFirstByteAllowanceMs }).foldFirstByteAllowanceMs
 const allowanceOf = (estTokens: number): number => (foldFirstByteAllowanceMs === undefined ? Number.NaN : foldFirstByteAllowanceMs(estTokens))
-const { COLD_INGEST_MS_PER_1K_TOKENS } = await import('../../src/services/providers/streamIdleBudget.ts')
-const { streamOpenaiResponses } = await import('../../src/services/providers/openai/openaiClient.ts')
-const { streamOpenrouterResponses } = await import('../../src/services/providers/openrouter/openrouterResponsesTransport.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
+const { COLD_INGEST_MS_PER_1K_TOKENS } = await import('../../src/models/roads/streamIdleBudget.ts')
+const { streamOpenaiResponses } = await import('../../src/models/roads/openai/openaiClient.ts')
+const { streamOpenrouterResponses } = await import('../../src/models/roads/openrouter/openrouterResponsesTransport.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
 
 const MODEL = 'gpt-5.6-sol'
 let uuidSeq = 0
@@ -277,7 +277,7 @@ const DEADLINE_MS = 20_000
 const INGEST_MS_PER_1K = 10
 
 section('§1 the first-byte allowance rule, pure — the stall window plus the cold-ingest reading per 1k tokens, without a wall-clock cap')
-check('the allowance rule exists (foldFirstByteAllowanceMs)', typeof foldFirstByteAllowanceMs === 'function', '', 'export foldFirstByteAllowanceMs from src/services/compact/compact.ts (it is defined in src/services/compact/compact/foldBound.ts)')
+check('the allowance rule exists (foldFirstByteAllowanceMs)', typeof foldFirstByteAllowanceMs === 'function', '', 'export foldFirstByteAllowanceMs from src/engine/compaction/foldConversation.ts (it is defined in src/engine/compaction/fold/foldBound.ts)')
 if (typeof foldFirstByteAllowanceMs === 'function') {
   check('an empty history waits the flat stall window (120 s)', foldFirstByteAllowanceMs(0) === 120_000, String(foldFirstByteAllowanceMs(0)), hintFoldBound)
   check('the slope is the product\'s own cold-ingest reading (COLD_INGEST_MS_PER_1K_TOKENS = 1,200 ms per 1k tokens)', foldFirstByteAllowanceMs(1_000) - foldFirstByteAllowanceMs(0) === COLD_INGEST_MS_PER_1K_TOKENS && COLD_INGEST_MS_PER_1K_TOKENS === 1_200, String(foldFirstByteAllowanceMs(1_000)), hintFoldBound)
@@ -289,7 +289,7 @@ if (typeof foldFirstByteAllowanceMs === 'function') {
   check('a NaN or negative estimate reads as zero', foldFirstByteAllowanceMs(Number.NaN) === 120_000 && foldFirstByteAllowanceMs(-5) === 120_000, `${foldFirstByteAllowanceMs(Number.NaN)} ${foldFirstByteAllowanceMs(-5)}`, hintFoldBound)
   const shrunk = { stallMs: STALL_MS, ingestMsPer1kTokens: INGEST_MS_PER_1K }
   check('under the proof bounds, 400k tokens → 2 s + 4 s = 6 s', foldFirstByteAllowanceMs(400_000, shrunk) === 6_000, String(foldFirstByteAllowanceMs(400_000, shrunk)), hintFoldBound)
-  check('gpt-5.6-sol rides the direct lane (the lane this proof drives)', shouldRideCacheSharingFork(MODEL, { type: 'disabled' }) === false, '', 'shouldRideCacheSharingFork in src/services/compact/compact/foldBound.ts must be false for gpt-5.6-sol with thinking disabled')
+  check('gpt-5.6-sol rides the direct lane (the lane this proof drives)', shouldRideCacheSharingFork(MODEL, { type: 'disabled' }) === false, '', 'shouldRideCacheSharingFork in src/engine/compaction/fold/foldBound.ts must be false for gpt-5.6-sol with thinking disabled')
 }
 
 section('§2 the OpenAI Responses transport relays liveness for comment lines and progress-only frames (no outward event)')
@@ -327,9 +327,9 @@ section('§2 the OpenAI Responses transport relays liveness for comment lines an
   })) {
     outward.push(event.type)
   }
-  check('the parser still drops the progress-only frames (no outward event for in_progress, reasoning item added, summary part added)', !outward.includes('reasoning-delta') && outward.filter(t => t === 'response-id').length === 1 && outward.includes('text-delta') && outward.includes('finish'), j(outward), 'the OpenAI Responses parser in src/services/providers/openai/openaiClient.ts must not emit progress-only frames')
+  check('the parser still drops the progress-only frames (no outward event for in_progress, reasoning item added, summary part added)', !outward.includes('reasoning-delta') && outward.filter(t => t === 'response-id').length === 1 && outward.includes('text-delta') && outward.includes('finish'), j(outward), 'the OpenAI Responses parser in src/models/roads/openai/openaiClient.ts must not emit progress-only frames')
   check(`the comment line, the reasoning item and the summary part each relayed liveness (≥ 3 relays, one per silent second): ${j(relays)}`, relays.length >= 3, j(relays), hintStreamRelay)
-  check('the relay is throttled: consecutive relays are at least a second apart', relays.every((at, index) => index === 0 || at - relays[index - 1]! >= 1_000), j(relays), 'createStreamActivityRelay, used in src/services/providers/openai/openaiClient.ts, must throttle to one relay per second')
+  check('the relay is throttled: consecutive relays are at least a second apart', relays.every((at, index) => index === 0 || at - relays[index - 1]! >= 1_000), j(relays), 'createStreamActivityRelay, used in src/models/roads/openai/openaiClient.ts, must throttle to one relay per second')
 
   const orRelays: number[] = []
   const orOutward: string[] = []
@@ -342,7 +342,7 @@ section('§2 the OpenAI Responses transport relays liveness for comment lines an
     orOutward.push(event.type)
   }
   check(`the OpenRouter/xAI Responses transport relays the same liveness (≥ 3 relays): ${j(orRelays)}`, orRelays.length >= 3, j(orRelays), hintStreamRelay)
-  check('…and still forwards the text and the finish', orOutward.includes('text-delta') && orOutward.includes('finish'), j(orOutward), 'streamOpenrouterResponses in src/services/providers/openrouter/openrouterResponsesTransport.ts must still emit text-delta and finish')
+  check('…and still forwards the text and the finish', orOutward.includes('text-delta') && orOutward.includes('finish'), j(orOutward), 'streamOpenrouterResponses in src/models/roads/openrouter/openrouterResponsesTransport.ts must still emit text-delta and finish')
 }
 
 setFoldBoundsForTests({ stallMs: STALL_MS, ingestMsPer1kTokens: INGEST_MS_PER_1K })
@@ -355,7 +355,7 @@ section(`§3 (a) a wire silent for longer than the stall window (${STALL_MS} ms)
   const lines = debugLinesSince()
   const req = seen.at(-1)
   check(`the fold landed after ${run.ms} ms (the wire was event-silent for ${COMMENT_PHASE_MS + PROGRESS_PHASE_MS} ms before the summary)`, run.result !== undefined && run.error === undefined, (run.error?.message ?? '').slice(0, 300), hintStreamRelay + '; ' + hintFoldCut)
-  check('the installed summary is the whole fixture summary', summaryOf(run).includes(SUMMARY_TEXT), summaryOf(run).slice(0, 200), 'compactConversation in src/services/compact/compact.ts must install the streamed summary text')
+  check('the installed summary is the whole fixture summary', summaryOf(run).includes(SUMMARY_TEXT), summaryOf(run).slice(0, 200), 'compactConversation in src/engine/compaction/foldConversation.ts must install the streamed summary text')
   check('one request on the wire, completed, with comments and progress-only frames written before the summary', req !== undefined && seen.filter(s => s.plan === 'heartbeats').length === 1 && req.finished && req.wrote.includes('comment') && req.wrote.some(w => w.startsWith('progress:')), j(req?.wrote), hintFoldCut)
   check(`the whole fold outlived the stall window by the heartbeat phases (≥ ${COMMENT_PHASE_MS + PROGRESS_PHASE_MS} ms)`, run.ms >= COMMENT_PHASE_MS + PROGRESS_PHASE_MS, String(run.ms), hintFoldCut)
   check('the debug log names the armed bound with its first-byte allowance for the small history', lines.some(l => /direct lane bound armed — first-byte allowance \d+ ms for ≈\d+ tokens, stall 2000 ms after the first event/.test(l)), j(lines), hintFoldCut)
@@ -374,8 +374,8 @@ section('§4 (b) a wire with no bytes at all → cut at the first-byte allowance
   check('the fold REFUSED (no result)', run.result === undefined && run.error !== undefined, '', hintFoldCut)
   check('the refusal is the typed fold-timeout sentence', run.error?.message === ERROR_MESSAGE_FOLD_TIMEOUT, (run.error?.message ?? '').slice(0, 300), hintFoldCut)
   check(`the cut came at the allowance (${allowance} ms): fold ${run.ms} ms, within [${allowance}, ${allowance + 2_000}) and well before the ${DEADLINE_MS} ms wall`, run.ms >= allowance && run.ms < allowance + 2_000, String(run.ms), hintFoldCut)
-  check('the conversation stands untouched (read state intact)', run.readFileState.size === 1, String(run.readFileState.size), 'a cut fold must leave the read-file state alone; see the cut path in src/services/compact/compact/summarise.ts')
-  check('the server saw the request and wrote not one byte', req !== undefined && req.plan === 'dead' && req.wrote.length === 0, j(req), 'the fixture server in this file did not receive the request; check that the fold reached the direct lane (src/services/compact/compact/summarise.ts)')
+  check('the conversation stands untouched (read state intact)', run.readFileState.size === 1, String(run.readFileState.size), 'a cut fold must leave the read-file state alone; see the cut path in src/engine/compaction/fold/summarise.ts')
+  check('the server saw the request and wrote not one byte', req !== undefined && req.plan === 'dead' && req.wrote.length === 0, j(req), 'the fixture server in this file did not receive the request; check that the fold reached the direct lane (src/engine/compaction/fold/summarise.ts)')
   const closed = await awaitClose(req, 1_000)
   console.log(`  [NOTE] the cut client's socket ${closed ? `closed ${(req?.closedAt ?? 0) - (req?.startedAt ?? 0)} ms after the request opened` : 'was still open 1 s after the cut (the transport pool reaps it later)'}`)
   check('the debug log names the clock: silence on the wire', lines.some(l => /direct lane cut for silence on the wire after \d+ ms — nothing folded/.test(l)), j(lines), hintFoldCut)
@@ -420,7 +420,7 @@ section('§6 a stream that keeps sending heartbeats waits until the operator can
   const beats = req?.wrote.filter(w => w === 'comment').length ?? 0
   check('heartbeats kept the unfinished request alive', req !== undefined && req.plan === 'forever' && beats >= Math.floor((CANCEL_MS - 500) / TICK_MS) && !req.finished, j(req), hintFoldCut)
   check('no fold clock cut the live request', !lines.some(l => /direct lane cut for/.test(l)), j(lines), hintFoldCut)
-  check('the conversation stands untouched', run.readFileState.size === 1, String(run.readFileState.size), 'a cancelled fold must leave the read-file state alone; see the abort path in src/services/compact/compact/summarise.ts')
+  check('the conversation stands untouched', run.readFileState.size === 1, String(run.readFileState.size), 'a cancelled fold must leave the read-file state alone; see the abort path in src/engine/compaction/fold/summarise.ts')
   setFoldBoundsForTests(null)
 }
 

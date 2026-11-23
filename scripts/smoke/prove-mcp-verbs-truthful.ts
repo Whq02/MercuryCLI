@@ -48,20 +48,20 @@ const projectServers = (): string[] => {
 section('§1 FC-035 — the scopeless remove')
 {
   const added = await runMercury(['mcp', 'add', '--scope', 'local', 'probe_local', '--', 'echo', 'x'])
-  check('fixture: a local-scope server adds', added.rc === 0, added.out.slice(0, 80), 'mcp add --scope local fails before the remove checks can run; read addMcpConfig in src/services/mcp/config.ts and the add command output above')
+  check('fixture: a local-scope server adds', added.rc === 0, added.out.slice(0, 80), 'mcp add --scope local fails before the remove checks can run; read addMcpConfig in src/integrations/mcp/serverConfigs.ts and the add command output above')
   const removed = await runMercury(['mcp', 'remove', 'probe_local'])
   check(
     'scopeless remove FINDS the real server (FC-035)',
     removed.rc === 0 && /Removed MCP server probe_local/.test(removed.out),
     JSON.stringify({ rc: removed.rc, out: removed.out.slice(0, 120) }),
-    'a remove with no --scope must find the server in the scope that holds it; fix the holders lookup in mcpRemoveHandler in src/cli/handlers/mcp.tsx',
+    'a remove with no --scope must find the server in the scope that holds it; fix the holders lookup in mcpRemoveHandler in src/commands/verbs/mcp.tsx',
   )
   const wrapperGhost = await runMercury(['mcp', 'remove', 'servers'])
   check(
     "the wrapper key 'servers' is refused as unconfigured",
     wrapperGhost.rc !== 0 && /No MCP server named servers/.test(wrapperGhost.out),
     JSON.stringify({ rc: wrapperGhost.rc, out: wrapperGhost.out.slice(0, 120) }),
-    'the lookup in mcpRemoveHandler in src/cli/handlers/mcp.tsx must only count real server names, never the servers wrapper key of the config file',
+    'the lookup in mcpRemoveHandler in src/commands/verbs/mcp.tsx must only count real server names, never the servers wrapper key of the config file',
   )
 }
 
@@ -72,8 +72,8 @@ section('§2 FC-036 — eight concurrent project adds')
   )
   const successes = runs.filter(r => r.rc === 0 && /Added/i.test(r.out)).length
   const survivors = projectServers().filter(n => n.startsWith('pj_')).length
-  check('all eight adds report success', successes === 8, `successes=${successes}`, 'a concurrent mcp add --scope project exited non-zero or printed no Added line; read addMcpConfig in src/services/mcp/config.ts')
-  check('every reported success is REAL in the project MCP file (FC-036)', survivors === 8, `survivors=${survivors}/8`, 'concurrent adds overwrote each other in .mercury/mcp.json; the project case of addMcpConfig in src/services/mcp/config.ts must keep its whole read-modify-write inside runExclusiveOnFileSync')
+  check('all eight adds report success', successes === 8, `successes=${successes}`, 'a concurrent mcp add --scope project exited non-zero or printed no Added line; read addMcpConfig in src/integrations/mcp/serverConfigs.ts')
+  check('every reported success is REAL in the project MCP file (FC-036)', survivors === 8, `survivors=${survivors}/8`, 'concurrent adds overwrote each other in .mercury/mcp.json; the project case of addMcpConfig in src/integrations/mcp/serverConfigs.ts must keep its whole read-modify-write inside runExclusiveOnFileSync')
 }
 
 section('§3 FC-036 — the raced remove/add')
@@ -87,9 +87,9 @@ section('§3 FC-036 — the raced remove/add')
   ])
   const after = new Set(projectServers())
   const removedReported = raced.slice(0, 3).filter(r => r.rc === 0 && /Removed/i.test(r.out)).length
-  check('the three removes report removed', removedReported === 3, `reported=${removedReported}`, 'a remove raced with adds exited non-zero or printed no Removed line; read removeMcpConfig in src/services/mcp/config.ts')
-  check('a reported remove IS removed', !after.has('pj_1') && !after.has('pj_2') && !after.has('pj_3'), JSON.stringify([...after]), 'a remove reported success but its server is still in .mercury/mcp.json; a raced add rewrote it, so keep the project cases of removeMcpConfig and addMcpConfig in src/services/mcp/config.ts inside runExclusiveOnFileSync')
-  check('the raced adds are real', after.has('pj_9') && after.has('pj_10'), '', 'an add raced with removes was lost from .mercury/mcp.json; keep the project cases of addMcpConfig and removeMcpConfig in src/services/mcp/config.ts inside runExclusiveOnFileSync')
+  check('the three removes report removed', removedReported === 3, `reported=${removedReported}`, 'a remove raced with adds exited non-zero or printed no Removed line; read removeMcpConfig in src/integrations/mcp/serverConfigs.ts')
+  check('a reported remove IS removed', !after.has('pj_1') && !after.has('pj_2') && !after.has('pj_3'), JSON.stringify([...after]), 'a remove reported success but its server is still in .mercury/mcp.json; a raced add rewrote it, so keep the project cases of removeMcpConfig and addMcpConfig in src/integrations/mcp/serverConfigs.ts inside runExclusiveOnFileSync')
+  check('the raced adds are real', after.has('pj_9') && after.has('pj_10'), '', 'an add raced with removes was lost from .mercury/mcp.json; keep the project cases of addMcpConfig and removeMcpConfig in src/integrations/mcp/serverConfigs.ts inside runExclusiveOnFileSync')
 }
 
 rmSync(HOME, { recursive: true, force: true })

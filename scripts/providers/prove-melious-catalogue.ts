@@ -6,23 +6,23 @@ import { join } from 'node:path'
 import fixture from './fixtures/melious-documented-2026-10-24.json'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_CONFIG_DIR = proofHome
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const name of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[name]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_MELIOUS_API_BASE = 'http://127.0.0.1:1/v1'
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const catalogue = await import('../../src/services/providers/melious/meliousCatalogue.ts')
-const { resolveMeliousApiKey } = await import('../../src/services/providers/melious/meliousAccounts.ts')
-const { storeMeliousApiKeyLogin } = await import('../../src/services/providers/melious/meliousLogin.ts')
-const { readStoredMeliousApiKey, writeStoredMeliousApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-const { loginFamilyRows, KEY_PAGES } = await import('../../src/components/loginFamilyRows.ts')
-const { resolveModelPricing, getModelPricingString } = await import('../../src/services/usage/modelCost.ts')
-const { modelSupportsThinking, effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
-const { getContextWindowForModel } = await import('../../src/utils/context.ts')
-const { keyLanePins, keyLaneListState, parseKeyConnectValue } = await import('../../src/services/model/modelOptions.ts')
-const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
-const { meliousRecordHeaders, meliousRecordChunk, meliousObservedUsage } = await import('../../src/services/providers/melious/meliousUsageState.ts')
-const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const catalogue = await import('../../src/models/roads/melious/meliousCatalogue.ts')
+const { resolveMeliousApiKey } = await import('../../src/models/roads/melious/meliousAccounts.ts')
+const { storeMeliousApiKeyLogin } = await import('../../src/models/roads/melious/meliousLogin.ts')
+const { readStoredMeliousApiKey, writeStoredMeliousApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { loginFamilyRows, KEY_PAGES } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.ts')
+const { resolveModelPricing, getModelPricingString } = await import('../../src/models/usage/modelCost.ts')
+const { modelSupportsThinking, effortVocabularyFor } = await import('../../src/models/facts/capabilities.ts')
+const { getContextWindowForModel } = await import('../../src/engine/compaction-window/contextFill.ts')
+const { keyLanePins, keyLaneListState, parseKeyConnectValue } = await import('../../src/models/catalogue/modelOptions.ts')
+const { buildProviderSnapshot } = await import('../../src/models/roads/modelRegistry.ts')
+const { meliousRecordHeaders, meliousRecordChunk, meliousObservedUsage } = await import('../../src/models/roads/melious/meliousUsageState.ts')
+const { usageForProvider } = await import('../../src/models/roads/providerUsage.ts')
 let count = 0
 const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
 let fetches = 0
@@ -31,7 +31,7 @@ let body: unknown = fixture.models
 const fetchImpl = (async (url: string | URL | Request, init?: RequestInit) => {
   fetches++
   assert.equal(String(url), `${process.env.MERCURY_MELIOUS_API_BASE}/models?include_meta=true`)
-  assert.ok(new Headers(init?.headers).get('authorization')?.startsWith('Bearer proof-key-'), 'src/services/providers/melious/meliousCatalogue.ts request missing expected Bearer authorization prefix')
+  assert.ok(new Headers(init?.headers).get('authorization')?.startsWith('Bearer proof-key-'), 'src/models/roads/melious/meliousCatalogue.ts request missing expected Bearer authorization prefix')
   return Response.json(status === 200 ? body : fixture.modelError, { status })
 }) as typeof fetch
 try {

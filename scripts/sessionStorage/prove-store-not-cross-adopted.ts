@@ -10,12 +10,12 @@ process.env.NODE_ENV = 'test'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { canonicalizePath, findProjectDir, getProjectDir, MAX_SANITIZED_LENGTH, projectSlug, sanitizePath, shortProjectHash } = await import(
-  join(ROOT, 'src/utils/sessionStoragePortable.ts')
+  join(ROOT, 'src/sessions/transcripts/sessionStoragePortable.ts')
 )
-const { getMercuryHome } = await import(join(ROOT, 'src/utils/envUtils.ts'))
+const { getMercuryHome } = await import(join(ROOT, 'src/platform/environment/envUtils.ts'))
 
 let failures = 0
-const crossAdoptHint = 'two projects must never share a store: fix getProjectDir, findProjectDir and projectSlug in src/utils/sessionStoragePortable.ts so a hash-less or other-hash directory is not adopted'
+const crossAdoptHint = 'two projects must never share a store: fix getProjectDir, findProjectDir and projectSlug in src/sessions/transcripts/sessionStoragePortable.ts so a hash-less or other-hash directory is not adopted'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — ' + crossAdoptHint}`)
   if (!cond) failures++

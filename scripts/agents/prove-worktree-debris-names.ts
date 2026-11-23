@@ -25,10 +25,10 @@ mock.module('node:child_process', () => ({
     return child
   },
 }))
-const { discardSetAside, sweepSetAside } = await import('../../src/utils/worktreeClone.ts')
+const { discardSetAside, sweepSetAside } = await import('../../src/platform/git/worktree/worktreeClone.ts')
 let failures = 0
 const check = (label: string, ok: boolean): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — change DEBRIS_NAME, sweepSetAside and discardSetAside (and the detached delete script they spawn) in src/utils/worktreeClone.ts: only a generated .cloning-/.removing- name with pid and stamp, past its grace, may be deleted, never a personal folder'}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — change DEBRIS_NAME, sweepSetAside and discardSetAside (and the detached delete script they spawn) in src/platform/git/worktree/worktreeClone.ts: only a generated .cloning-/.removing- name with pid and stamp, past its grace, may be deleted, never a personal folder'}`)
   if (!ok) failures++
 }
 const make = (name: string, old = true): string => {

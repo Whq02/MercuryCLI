@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/memoryPinIntent.ts src/mneme/memoryVerbs.ts src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/ruleCard.ts
+// gate-watch: src/sessions/mneme/memoryPinIntent.ts src/sessions/mneme/memoryVerbs.ts src/tools/memory/MemoryTools.ts src/tools/memory/ruleCard.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs'
@@ -17,7 +17,7 @@ const TODAYS_NOTE = 'pin needs the originating owner message asking for these wo
 const CREWMATE_NOTE = 'Retain is refused: a crewmate never writes memory — put the finding in your report; the lead decides what is remembered'
 let failures = 0
 function check(label: string, ok: boolean, detail: unknown): void {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${JSON.stringify(detail)?.slice(0, 700)} (what to change: the pin refusal and its notes live in src/mneme/memoryVerbs.ts and src/mneme/memoryPinIntent.ts, the Retain tool in src/tools/MemoryTools/MemoryTools.ts; the answer, rows and pins above show which leg broke)`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${JSON.stringify(detail)?.slice(0, 700)} (what to change: the pin refusal and its notes live in src/sessions/mneme/memoryVerbs.ts and src/sessions/mneme/memoryPinIntent.ts, the Retain tool in src/tools/memory/MemoryTools.ts; the answer, rows and pins above show which leg broke)`}`)
   if (!ok) failures++
 }
 type Row = Record<string, unknown> & { type?: string; tool?: string; call_id?: string; status?: string; output?: unknown; parent_call_id?: string }
@@ -87,7 +87,7 @@ function pinsOf(home: string): Array<{ seq?: number; asked?: boolean }> {
   if (lib === null || !existsSync(join(lib, 'pins.json'))) return []
   return (JSON.parse(readFileSync(join(lib, 'pins.json'), 'utf8')) as { pins?: Array<{ seq?: number; asked?: boolean }> }).pins ?? []
 }
-const { memoryGrade } = await import('../../src/mneme/memoryEvidence.ts')
+const { memoryGrade } = await import('../../src/sessions/mneme/memoryEvidence.ts')
 for (const [name, cell] of Object.entries(cells)) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'pin-this-')))
   const cwd = join(home, 'project')

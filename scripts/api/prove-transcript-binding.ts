@@ -20,7 +20,7 @@ const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
 let checks = 0
-const FIX_HINT = 'sections 1-3: resolveThinkingBindingSetting and applyThinkingBinding in src/services/providers/anthropic/thinkingBinding.ts; section 4: stripThinkingFromIndex and stripSignatureBlocks in src/services/messages/apiFilters.ts, stripExcessMediaItems in src/services/providers/anthropic/media.ts; section 4b: computeFingerprintFromMessages in src/utils/fingerprint.ts, isTranscribable in src/utils/sessionStorage/chain.ts, userMessageToMessageParam in src/services/providers/anthropic/messageParams.ts; section 5 (the wire): the same files, run through dist/mercury.mjs (rebuild with bun run build.ts first)'
+const FIX_HINT = 'sections 1-3: resolveThinkingBindingSetting and applyThinkingBinding in src/models/roads/anthropic/thinkingBinding.ts; section 4: stripThinkingFromIndex and stripSignatureBlocks in src/engine/messages/apiFilters.ts, stripExcessMediaItems in src/models/roads/anthropic/media.ts; section 4b: computeFingerprintFromMessages in src/engine/context-window/fingerprint.ts, isTranscribable in src/sessions/transcripts/chain.ts, userMessageToMessageParam in src/models/roads/anthropic/messageParams.ts; section 5 (the wire): the same files, run through dist/mercury.mjs (rebuild with bun run build.ts first)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -37,10 +37,10 @@ const guard = setTimeout(() => {
 }, 240_000)
 guard.unref?.()
 
-const binding = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
-const { THINKING_BINDING_CONTROLS_BETA_HEADER } = await import('../../src/constants/betas.ts')
-const { stripThinkingFromIndex, stripSignatureBlocks } = await import('../../src/services/messages/apiFilters.ts')
-const { stripExcessMediaItems } = await import('../../src/services/providers/anthropic/media.ts')
+const binding = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
+const { THINKING_BINDING_CONTROLS_BETA_HEADER } = await import('../../src/models/roads/betaHeaders.ts')
+const { stripThinkingFromIndex, stripSignatureBlocks } = await import('../../src/engine/messages/apiFilters.ts')
+const { stripExcessMediaItems } = await import('../../src/models/roads/anthropic/media.ts')
 
 section('§1 the setting table')
 {
@@ -220,7 +220,7 @@ const hasThinking = (m: unknown): boolean => blocksOf(m).some(b => b.type === 't
 
 section("§4b the prefix's own movers — the fingerprint source, the persisted rows, the user-context row")
 {
-  const { extractFirstMessageText, computeFingerprintFromMessages } = await import('../../src/utils/fingerprint.ts')
+  const { extractFirstMessageText, computeFingerprintFromMessages } = await import('../../src/engine/context-window/fingerprint.ts')
   const REMINDER = '<system-reminder>\nThe material below is available to you while you answer the user.\n\n# currentDate\nToday.\n</system-reminder>'
   const meta = (content: Block[] | string): Record<string, unknown> => ({ ...user(content), isMeta: true })
   const attachmentRow = (attachment: Record<string, unknown>): Record<string, unknown> => ({
@@ -239,7 +239,7 @@ section("§4b the prefix's own movers — the fingerprint source, the persisted 
   const fp2 = computeFingerprintFromMessages([meta(REMINDER), user('read the note'), assistant([TEXT('ok')])] as never)
   check('the fingerprint is the same whichever reminder rides in front (3 hex chars)', fp1 === fp2 && /^[0-9a-f]{3}$/.test(fp1), `${fp1} ${fp2}`)
 
-  const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.ts')
+  const { isTranscribable } = await import('../../src/sessions/transcripts/chain.ts')
   check('an attachment row persists (a resumed request replays the turns it once sent)', isTranscribable(attachmentRow({ type: 'mcp_instructions_delta', addedNames: ['x'], addedBlocks: ['## x\nhi'], removedNames: [] }) as never) === true)
   check('a progress row still does not persist', isTranscribable({ type: 'progress', data: { type: 'hook_progress' } } as never) === false)
   check("a hook's plain text on an event the model does not read stays out", isTranscribable(attachmentRow({ type: 'hook', outcome: 'text', event: 'tool.after', name: 'h', words: 'plain' }) as never) === false)
@@ -249,8 +249,8 @@ section("§4b the prefix's own movers — the fingerprint source, the persisted 
   check('a UI-only signal (context_efficiency) stays out', isTranscribable(attachmentRow({ type: 'context_efficiency' }) as never) === false)
   check('the user_context row persists (the request renders its body)', isTranscribable(attachmentRow({ type: 'user_context', body: REMINDER }) as never) === true)
 
-  const { userContextReminderBody, USER_CONTEXT_REMINDER_OPEN } = await import('../../src/utils/userContextReminder.ts')
-  const { getUserContextAttachment, latestUserContextBody } = await import('../../src/utils/attachments/userContext.ts')
+  const { userContextReminderBody, USER_CONTEXT_REMINDER_OPEN } = await import('../../src/engine/attachments/userContextReminder.ts')
+  const { getUserContextAttachment, latestUserContextBody } = await import('../../src/engine/attachment-shapes/userContext.ts')
   const ctx = { instructions: 'be brief', currentDate: "Today's date is 2026-09-01." }
   const body = userContextReminderBody(ctx)!
   check('the reminder body wears its envelope and every entry', body.startsWith(USER_CONTEXT_REMINDER_OPEN) && body.includes('# instructions\nbe brief') && body.includes('# currentDate') && body.endsWith('</system-reminder>'))
@@ -264,7 +264,7 @@ section("§4b the prefix's own movers — the fingerprint source, the persisted 
   check('latestUserContextBody reads the newest copy', latestUserContextBody([...carried, attachmentRow({ type: 'user_context', body: 'newer' })] as never) === 'newer' && latestUserContextBody([user('hi')] as never) === null)
   check('an empty context emits nothing even on a bare history', (await getUserContextAttachment([] as never, {})).length === 0)
 
-  const { userMessageToMessageParam } = await import('../../src/services/providers/anthropic/messageParams.ts')
+  const { userMessageToMessageParam } = await import('../../src/models/roads/anthropic/messageParams.ts')
   const keysOf = (row: unknown): string[] => Object.keys(((row as { content: Record<string, unknown>[] }).content)[0]!)
   const liveRow = user([{ tool_use_id: 'toolu_1', type: 'tool_result', content: 'bytes' }])
   const errorRow = user([{ type: 'tool_result', content: 'boom', is_error: true, tool_use_id: 'toolu_2' }])

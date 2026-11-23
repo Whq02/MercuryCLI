@@ -2,11 +2,11 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, sep } from 'node:path'
 import type { ReactNode } from 'react'
-import type { ScrollBoxHandle } from '../../src/ink/components/ScrollBox.tsx'
-import type { DOMElement } from '../../src/ink/dom.ts'
-import type { FrameEvent } from '../../src/ink/frame.ts'
-import type InkClass from '../../src/ink/ink.tsx'
-import type { Options } from '../../src/ink/ink.tsx'
+import type { ScrollBoxHandle } from '../../src/screen/renderer/elements/ScrollBox.tsx'
+import type { DOMElement } from '../../src/screen/renderer/dom.ts'
+import type { FrameEvent } from '../../src/screen/renderer/frame.ts'
+import type InkClass from '../../src/screen/renderer/screenInstance.tsx'
+import type { Options } from '../../src/screen/renderer/screenInstance.tsx'
 import {
   advance,
   enterWorld,
@@ -42,23 +42,23 @@ type Scene = {
 
 async function loadProduct() {
   const React = await import('react')
-  const unit = await import('../../src/ink/ink.tsx')
-  const { default: instances } = await import('../../src/ink/instances.ts')
-  const { default: Box } = await import('../../src/ink/components/Box.tsx')
-  const { default: Text } = await import('../../src/ink/components/Text.tsx')
-  const { default: Link } = await import('../../src/ink/components/Link.tsx')
-  const { default: ScrollBox } = await import('../../src/ink/components/ScrollBox.tsx')
-  const { AlternateScreen } = await import('../../src/ink/components/AlternateScreen.tsx')
-  const { NoSelect } = await import('../../src/ink/components/NoSelect.tsx')
-  const { default: useInput } = await import('../../src/ink/hooks/use-input.ts')
-  const { useDeclaredCursor } = await import('../../src/ink/hooks/use-declared-cursor.ts')
-  const ledger = await import('../../src/ink/root/terminalModeLedger.ts')
-  const log = await import('../../src/utils/log.ts')
-  const doors = await import('../../src/utils/process.ts')
-  const flux = await import('../../src/utils/flux/fluxProbe.ts')
-  const governor = await import('../../src/utils/cockpit/motionGovernor.ts')
-  const session = await import('../../src/bootstrap/state.ts')
-  const { getMercuryHome } = await import('../../src/utils/envUtils.ts')
+  const unit = await import('../../src/screen/renderer/screenInstance.tsx')
+  const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+  const { default: Box } = await import('../../src/screen/renderer/elements/Box.tsx')
+  const { default: Text } = await import('../../src/screen/renderer/elements/Text.tsx')
+  const { default: Link } = await import('../../src/screen/renderer/elements/Link.tsx')
+  const { default: ScrollBox } = await import('../../src/screen/renderer/elements/ScrollBox.tsx')
+  const { AlternateScreen } = await import('../../src/screen/renderer/elements/AlternateScreen.tsx')
+  const { NoSelect } = await import('../../src/screen/renderer/elements/NoSelect.tsx')
+  const { default: useInput } = await import('../../src/screen/renderer/bindings/use-input.ts')
+  const { useDeclaredCursor } = await import('../../src/screen/renderer/bindings/use-declared-cursor.ts')
+  const ledger = await import('../../src/screen/renderer/root/terminalModeLedger.ts')
+  const log = await import('../../src/platform/logs/errorLog.ts')
+  const doors = await import('../../src/platform/processes/process.ts')
+  const flux = await import('../../src/integrations/media-flux/fluxProbe.ts')
+  const governor = await import('../../src/screen/cockpit/motionGovernor.ts')
+  const session = await import('../../src/boot/process-state/processState.ts')
+  const { getMercuryHome } = await import('../../src/platform/environment/envUtils.ts')
   const home = getMercuryHome()
   hide(home, '<the config home>')
   if (home.startsWith(homedir() + sep)) hide(`~${home.slice(homedir().length)}`, '<the config home>')

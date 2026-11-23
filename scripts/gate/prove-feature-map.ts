@@ -7,11 +7,11 @@ import ts from 'typescript'
 import { fileURLToPath } from 'node:url'
 import { ModuleCache, calleeName, declarationOf, importOf, lineOf, returnedExpressions, slash, unwrap, visit } from './sourceCensus.ts'
 
-const ROOT = fileURLToPath(new URL('../../', import.meta.url))
+const ROOT = fileURLToPath(new URL('../..', import.meta.url))
 const TABLE = 'scripts/gate/feature-map.tsv'
 const HEADER = 'kind\tfeature\tproof\thow'
 const NONE_FLOOR = 74
-const DOOR = 'src/substrate/featureReached.ts'
+const DOOR = 'src/platform/substrate/featureReached.ts'
 const kinds = ['command', 'screen', 'tool', 'verb'] as const
 const cache = new ModuleCache(ROOT)
 const order = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0
@@ -86,7 +86,7 @@ function featureNames(raw: ts.Node, seen = new Set<ts.Node>()): string[] {
     for (const prop of n.properties) if (ts.isSpreadAssignment(prop)) return next(prop.expression)
   }
   if (ts.isCallExpression(n)) {
-    if (calleeName(n) === 'swarmTools') return next(exported(syntax('src/services/crewBoard/implementation.ts'), 'tool'))
+    if (calleeName(n) === 'swarmTools') return next(exported(syntax('src/crew/board/implementation.ts'), 'tool'))
     if (n.arguments.length > 0) return next(n.arguments[0]!)
     return next(n.expression)
   }
@@ -106,7 +106,7 @@ function commandWords(call: ts.CallExpression): string[] {
 }
 function commanderVerbs(): string[] {
   const verbs: string[] = []
-  const inputs = ['src/main/subcommands.ts', 'src/main/sessionDoors.ts', 'src/commands/mcp/addCommand.ts', 'src/cli/tuneDoor.ts']
+  const inputs = ['src/boot/main/subcommands.ts', 'src/boot/main/sessionDoors.ts', 'src/commands/mcp/addCommand.ts', 'src/commands/verbs/tuneDoor.ts']
   for (const file of inputs) for (const action of nodes(syntax(file), ts.isCallExpression)) {
     if (calleeName(action) !== 'action') continue
     let e: ts.Expression = action.expression
@@ -128,52 +128,52 @@ function commanderVerbs(): string[] {
 function catalogue(): Set<string> {
   const keys = new Set<string>()
   const add = (kind: string, names: string[]) => { for (const name of names) keys.add(`${kind}\t${name}`) }
-  add('command', featureNames(variable(syntax('src/commands.ts'), 'COMMANDS')))
-  add('tool', featureNames(variable(syntax('src/tools.ts'), 'candidates')))
-  add('tool', featureNames(variable(syntax('src/tools/SyntheticOutputTool/SyntheticOutputTool.ts'), 'SyntheticOutputTool')))
-  const auth = nodes(syntax('src/tools/McpAuthTool/McpAuthTool.ts'), ts.isCallExpression).find(c => calleeName(c) === 'buildMcpToolName')
+  add('command', featureNames(variable(syntax('src/commands/catalogue/commands.ts'), 'COMMANDS')))
+  add('tool', featureNames(variable(syntax('src/tools/kit/toolList.ts'), 'candidates')))
+  add('tool', featureNames(variable(syntax('src/tools/structured-output/SyntheticOutputTool.ts'), 'SyntheticOutputTool')))
+  const auth = nodes(syntax('src/tools/mcp-auth/McpAuthTool.ts'), ts.isCallExpression).find(c => calleeName(c) === 'buildMcpToolName')
   if (!auth || !auth.arguments[1] || !ts.isStringLiteral(auth.arguments[1])) throw Error('resolve the server-specific MCP authentication tool in the feature census')
   add('tool', [`mcp__<server>__${auth.arguments[1].text}`])
   add('verb', commanderVerbs())
-  const entry = syntax('src/entrypoints/cli.tsx')
+  const entry = syntax('src/boot/entrypoints/cli.tsx')
   const version = nodes(entry, ts.isIfStatement).find(n => nodes(n.expression, ts.isStringLiteral).some(l => l.text === '--version'))
   if (version) add('verb', ['--version'])
   const acp = nodes(entry, ts.isIfStatement).find(n => nodes(n.thenStatement, ts.isReturnStatement).some(r => r.expression && ts.isCallExpression(r.expression) && calleeName(r.expression) === 'runAcpLoginScreen'))
   if (acp) add('verb', ['acp --login'])
-  const surface = nodes(syntax('src/context/surfaceRoute.ts'), ts.isTypeAliasDeclaration).find(t => t.name.text === 'SurfaceKind')
+  const surface = nodes(syntax('src/screen/routes/surfaceRoute.ts'), ts.isTypeAliasDeclaration).find(t => t.name.text === 'SurfaceKind')
   if (!surface) throw Error('find the surface kinds for the feature census')
   add('screen', nodes(surface.type, ts.isStringLiteral).map(l => l.text))
   const directScreens = [
-    ['src/dialogLaunchers.tsx', 'ResumeConversation'],
-    ['src/components/Settings/config/ConfigViews.tsx', 'MediaConfigPicker'],
-    ['src/components/PromptInput/composerView.tsx', 'HistorySearchInput'],
-    ['src/components/permissions/PermissionRequest.tsx', 'ChangeSetPermissionRequest', 'MediaPermissionRequest'],
+    ['src/boot/dialogLaunchers.tsx', 'ResumeConversation'],
+    ['src/screen/settings/config/ConfigViews.tsx', 'MediaConfigPicker'],
+    ['src/screen/composer/composerView.tsx', 'HistorySearchInput'],
+    ['src/permissions/cards/PermissionRequest.tsx', 'ChangeSetPermissionRequest', 'MediaPermissionRequest'],
   ]
   for (const [file, ...names] of directScreens) {
     const mounted = nodes(syntax(file!), ts.isJsxSelfClosingElement).map(n => n.tagName.getText())
     add('screen', mounted.filter(n => names.includes(n)))
   }
-  for (const c of nodes(syntax('src/components/bootSplash/rowActions.ts'), ts.isCaseClause)) if (ts.isStringLiteral(c.expression) && c.statements.some(s => ts.isExpressionStatement(s) && ts.isCallExpression(s.expression) && /^set\w+Open$/.test(calleeName(s.expression) ?? ''))) add('screen', [c.expression.text])
+  for (const c of nodes(syntax('src/screen/boot-face/splash/rowActions.ts'), ts.isCaseClause)) if (ts.isStringLiteral(c.expression) && c.statements.some(s => ts.isExpressionStatement(s) && ts.isCallExpression(s.expression) && /^set\w+Open$/.test(calleeName(s.expression) ?? ''))) add('screen', [c.expression.text])
   return keys
 }
 
 const sites: [string, string, string, number][] = [
-  ['command', 'src/services/processUserInput/processSlashCommand.tsx', 'executePromptCommand', 1],
-  ['command', 'src/services/processUserInput/processSlashCommand.tsx', 'processSlashCommand', 1],
-  ['command', 'src/services/processUserInput/processSlashCommand.tsx', 'runLocalCommand', 1],
-  ['command', 'src/services/processUserInput/processSlashCommand.tsx', 'runLocalJsxCommand', 1],
-  ['command', 'src/screens/chat/submit/screenCommand.ts', 'runLocalCommand', 1],
-  ['command', 'src/screens/chat/useChatSubmit.ts', 'useChatSubmit', 1],
-  ['screen', 'src/components/bootSplash/rowActions.ts', 'runRowOf', 2],
-  ['screen', 'src/context/surfaceRoute.ts', 'commitTransition', 1],
-  ['screen', 'src/dialogLaunchers.tsx', 'launchResumeChooser', 1],
-  ['screen', 'src/components/Settings/config/useConfigExits.ts', 'useConfigExits', 1],
-  ['screen', 'src/hooks/useHistorySearch.ts', 'useHistorySearch', 1],
-  ['screen', 'src/components/permissions/hooks.ts', 'usePermissionRequestLogging', 1],
-  ['tool', 'src/tools/McpAuthTool/McpAuthTool.ts', 'createMcpAuthTool', 1],
-  ['tool', 'src/services/tools/toolExecution.ts', 'runAdmittedCall', 1],
-  ['verb', 'src/main.tsx', 'run', 1],
-  ['verb', 'src/entrypoints/cli.tsx', 'main', 5],
+  ['command', 'src/engine/user-input/processSlashCommand.tsx', 'executePromptCommand', 1],
+  ['command', 'src/engine/user-input/processSlashCommand.tsx', 'processSlashCommand', 1],
+  ['command', 'src/engine/user-input/processSlashCommand.tsx', 'runLocalCommand', 1],
+  ['command', 'src/engine/user-input/processSlashCommand.tsx', 'runLocalJsxCommand', 1],
+  ['command', 'src/screen/chat/submit/screenCommand.ts', 'runLocalCommand', 1],
+  ['command', 'src/screen/chat/useChatSubmit.ts', 'useChatSubmit', 1],
+  ['screen', 'src/screen/boot-face/splash/rowActions.ts', 'runRowOf', 2],
+  ['screen', 'src/screen/routes/surfaceRoute.ts', 'commitTransition', 1],
+  ['screen', 'src/boot/dialogLaunchers.tsx', 'launchResumeChooser', 1],
+  ['screen', 'src/screen/settings/config/useConfigExits.ts', 'useConfigExits', 1],
+  ['screen', 'src/screen/composer/history-search/useHistorySearch.ts', 'useHistorySearch', 1],
+  ['screen', 'src/permissions/cards/cardArrival.ts', 'usePermissionRequestLogging', 1],
+  ['tool', 'src/tools/mcp-auth/McpAuthTool.ts', 'createMcpAuthTool', 1],
+  ['tool', 'src/engine/tool-dispatch/toolExecution.ts', 'runAdmittedCall', 1],
+  ['verb', 'src/boot/main.tsx', 'run', 1],
+  ['verb', 'src/boot/entrypoints/cli.tsx', 'main', 5],
 ]
 function checkSites(): void {
   const want = new Map(sites.map(([k, file, f, count]) => [`${k} ${file} ${f}`, count]))

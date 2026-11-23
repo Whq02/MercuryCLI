@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/cli/headless/turnDriver.ts src/cli/run.ts src/services/notices/idleNudge.ts
+// gate-watch: src/daemon/runner/turnDriver.ts src/daemon/runner/runHeadless.ts src/sessions/notices/idleNudge.ts
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'

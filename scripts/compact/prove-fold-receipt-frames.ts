@@ -6,22 +6,22 @@ import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { render, Box, flushPendingSyncWork } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { CompactBoundaryMessage } = await import('../../src/components/messages/CompactBoundaryMessage.js')
-const { SystemTextMessage } = await import('../../src/components/messages/SystemTextMessage.js')
-const { createSystemMessage } = await import('../../src/utils/messages/systemMessages.js')
-const { overflowRecoveryNotice } = await import('../../src/services/compact/overflowRecovery.js')
-const { stringWidth } = await import('../../src/ink/stringWidth.js')
-const { formatTokens } = await import('../../src/utils/format.js')
-import type { CompactMetadata } from '../../src/types/message.js'
+const { render, Box, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { CompactBoundaryMessage } = await import('../../src/screen/messages/CompactBoundaryMessage.js')
+const { SystemTextMessage } = await import('../../src/screen/messages/SystemTextMessage.js')
+const { createSystemMessage } = await import('../../src/engine/message-shapes/systemMessages.js')
+const { overflowRecoveryNotice } = await import('../../src/engine/compaction/overflowRecovery.js')
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.js')
+const { formatTokens } = await import('../../src/platform/text/format.js')
+import type { CompactMetadata } from '../../src/engine/message-shapes/message.js'
 
 let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass ? `${detail ? ` — ${detail}` : ''} (receipt wording comes from src/services/compact/foldReceipt.ts, the row layout from src/components/messages/CompactBoundaryMessage.tsx, and the emergency prune notice from overflowRecoveryNotice in src/services/compact/overflowRecovery.ts; change the one that owns the missing or extra words)` : ''}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass ? `${detail ? ` — ${detail}` : ''} (receipt wording comes from src/engine/compaction/foldReceipt.ts, the row layout from src/screen/messages/CompactBoundaryMessage.tsx, and the emergency prune notice from overflowRecoveryNotice in src/engine/compaction/overflowRecovery.ts; change the one that owns the missing or extra words)` : ''}`)
 }
 const arg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)

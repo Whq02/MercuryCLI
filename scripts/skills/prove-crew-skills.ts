@@ -67,7 +67,7 @@ process.on('exit', () => {
   rmSync(SCRATCH, { recursive: true, force: true })
 })
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(PROJ)
 bootstrap.setCwdState(PROJ)
 bootstrap.setProjectRoot(PROJ)
@@ -75,32 +75,32 @@ bootstrap.setSessionTrustAccepted(true)
 bootstrap.setIsInteractive(false)
 process.chdir(PROJ)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
-const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
-const { clearCommandsCache, getCommands, getSkillToolCommands } = await import('../../src/commands.ts')
-const { MAX_LISTING_DESC_CHARS } = await import('../../src/constants/tools/skill.ts')
-const { formatCommandsWithinBudgetDetailed } = await import('../../src/utils/skillListingFormat.ts')
-const { SkillTool } = await import('../../src/tools/SkillTool/SkillTool.ts')
-const { getSkillListingAttachments, resetSentSkillNames } = await import('../../src/utils/attachments/skillListing.ts')
-const { bareUsageLine, requiresArgument } = await import('../../src/skills/argumentHint.ts')
-const { parseFrontmatter } = await import('../../src/utils/frontmatterParser.ts')
-const { processSlashCommand } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const seam = await import('../../src/services/crewBoard/seam.ts')
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
+const { initBundledSkills } = await import('../../src/integrations/skills/bundled/index.ts')
+const { clearCommandsCache, getCommands, getSkillToolCommands } = await import('../../src/commands/catalogue/commands.ts')
+const { MAX_LISTING_DESC_CHARS } = await import('../../src/tools/kit/names/skill.ts')
+const { formatCommandsWithinBudgetDetailed } = await import('../../src/engine/attachments/skillListingFormat.ts')
+const { SkillTool } = await import('../../src/tools/skill/SkillTool.ts')
+const { getSkillListingAttachments, resetSentSkillNames } = await import('../../src/engine/attachment-shapes/skillListing.ts')
+const { bareUsageLine, requiresArgument } = await import('../../src/integrations/skills/argumentHint.ts')
+const { parseFrontmatter } = await import('../../src/platform/text/frontmatterParser.ts')
+const { processSlashCommand } = await import('../../src/engine/user-input/processSlashCommand.tsx')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const seam = await import('../../src/crew/board/seam.ts')
 const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
-const { AgentTool, inputSchema: getAgentInputSchema } = await import('../../src/tools/AgentTool/AgentTool.tsx')
-const { getBuiltInAgents } = await import('../../src/tools/AgentTool/builtInAgents.ts')
-const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import('../../src/constants/tools/syntheticOutput.ts')
-const { compileJsonSchema } = await import('../../src/services/schema/jsonSchemaEngine.ts')
-await import('../../src/tasks.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/query.ts')
+const { AgentTool, inputSchema: getAgentInputSchema } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { getBuiltInAgents } = await import('../../src/tools/crewmate/builtInAgents.ts')
+const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import('../../src/tools/kit/names/syntheticOutput.ts')
+const { compileJsonSchema } = await import('../../src/platform/json-schema/jsonSchemaEngine.ts')
+await import('../../src/engine/tasks/tasks.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
 
-type Command = import('../../src/types/command.ts').Command
+type Command = import('../../src/commands/catalogue/command.ts').Command
 type AppState = ReturnType<typeof getDefaultAppState>
 
 initBundledSkills()
@@ -459,7 +459,7 @@ const commsBoundPattern = /\b(?:max|maximum|at most|under|fewer than|limit(?:ed)
 check('neither skill bounds CrewBoard reads or posts by tokens, characters, or count', !commsBoundPattern.test(deepSource) && !commsBoundPattern.test(reviewSource))
 check('neither skill contains retired workflow calls or /workflows references', !/\bWorkflow\s*\(|\/workflows\b/i.test(bothTexts))
 
-const { resolveAgentEffort } = await import('../../src/tools/AgentTool/runAgent.ts')
+const { resolveAgentEffort } = await import('../../src/tools/crewmate/runCrewmate.ts')
 for (const [name, source] of [['deep-research', deepSource], ['code-review', reviewSource]] as const) {
   const identityLine = source.split('\n').find(line => line.includes('on every `Crewmate` launch')) ?? ''
   const identity = launchArguments(identityLine.slice(identityLine.indexOf('on every `Crewmate` launch')))
@@ -490,8 +490,8 @@ const chosenBase = reviewSource.slice(0, 700).includes('@{upstream}...HEAD') ? h
 check('a published feature whose upstream equals its head is compared with its integration base, not itself', git('diff', `${chosenBase}...HEAD`).includes('+export const counter = 2'))
 check('a missing PR head uses patch-only evidence rather than freezing unrelated HEAD', reviewSource.includes('patch-only') && !reviewSource.includes('set `<head_sha>` to `HEAD`') && reviewSource.includes('`file: "<path>"`') && reviewSource.includes('`page: 0`'))
 
-const { finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { createAssistantMessage } = await import('../../src/services/messages.ts')
+const { finalizeAgentTool } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+const { createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
 const missingOutput = createAssistantMessage({ content: [{ type: 'text', text: 'Looks fine overall.' }] as never })
 missingOutput.message.stop_reason = 'end_turn'
 for (const [name, source] of [['deep-research', deepSource], ['code-review', reviewSource]] as const) {
@@ -503,7 +503,7 @@ check('all review candidates have a batch and a ruling, including beyond three v
 
 const readyLine = captainBrief.split('\n').find(line => line.includes('Captain enrolled; launch the remaining seats.')) ?? ''
 check('the captain posts readiness and the lead waits for that event before launching peers', readyLine.includes('clientOpId: "<team>-ready"') && deepSource.includes('wait for the captain’s ready post'), readyLine)
-const { open: openBoard } = await import('../../src/services/crewBoard/store.ts')
+const { open: openBoard } = await import('../../src/crew/board/store.ts')
 const revisionBoard = openBoard(join(SCRATCH, 'revision.sqlite'), 'revision')
 const revisionMain = { author: { sessionId: 'revision', agentId: 'main', executionId: 'main' }, name: 'main' }
 const revisionCaptain = { author: { sessionId: 'revision', agentId: 'captain', executionId: 'captain' }, name: 'captain', team: 'research-1' }

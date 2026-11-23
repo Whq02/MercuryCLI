@@ -17,16 +17,16 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
 }
 
-const { BrowserTool } = await import(join(ROOT, 'src/tools/BrowserTool/BrowserTool.ts'))
+const { BrowserTool } = await import(join(ROOT, 'src/tools/browser/BrowserTool.ts'))
 const { call: browserCommand } = await import(join(ROOT, 'src/commands/browser/browserCommand.ts'))
-const { detectInstalledBrowsers } = await import(join(ROOT, 'src/services/browser/browserResolver.ts'))
+const { detectInstalledBrowsers } = await import(join(ROOT, 'src/integrations/browser/browserResolver.ts'))
 type Words = {
   APPROVAL_RULE_LINE: string
   INSTALLED_NOT_DRIVEN: string
   approvalScopeWords: (origin: string) => string[]
   crossingScopeWords: (origin: string) => string[]
 }
-const words: Words = await import(join(ROOT, 'src/services/browser/browserWords.ts')).catch(() => ({
+const words: Words = await import(join(ROOT, 'src/integrations/browser/browserWords.ts')).catch(() => ({
   APPROVAL_RULE_LINE: '(no shared approval words in this tree)',
   INSTALLED_NOT_DRIVEN: '(no shared installed words in this tree)',
   approvalScopeWords: () => [],

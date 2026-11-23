@@ -7,12 +7,12 @@ import { join } from 'node:path'
 const HOME = mkdtempSync(join(tmpdir(), 'attachment-residue-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 
-await import('../../src/tasks.js')
+await import('../../src/engine/tasks/tasks.js')
 const { getCriticalSystemReminderAttachment } = await import(
-  '../../src/services/attachments/sessionContext.js'
+  '../../src/engine/attachments/sessionNotices.js'
 )
 const { persistToolResult, buildLargeToolResultMessage, PREVIEW_SIZE_CHARS } = await import(
-  '../../src/utils/toolResultStorage.js'
+  '../../src/engine/tool-dispatch/toolResultStorage.js'
 )
 
 let failures = 0
@@ -28,7 +28,7 @@ section('§B critical_system_reminder: once per turn, changed content still fire
 {
   const ctx = { standingRule: 'THE STANDING RULE' } as never
   const fresh = getCriticalSystemReminderAttachment(ctx, [])
-  check('an un-emitted reminder attaches', fresh.length === 1, 'change getCriticalSystemReminderAttachment in src/services/attachments/sessionContext.ts so a standingRule not yet emitted this turn returns one critical_system_reminder')
+  check('an un-emitted reminder attaches', fresh.length === 1, 'change getCriticalSystemReminderAttachment in src/engine/attachments/sessionNotices.ts so a standingRule not yet emitted this turn returns one critical_system_reminder')
 
   const already = [
     { type: 'user', isMeta: false, message: {} },
@@ -41,13 +41,13 @@ section('§B critical_system_reminder: once per turn, changed content still fire
   check(
     'the IDENTICAL reminder is suppressed for the rest of the turn',
     getCriticalSystemReminderAttachment(ctx, already).length === 0,
-    'change awarenessAlreadyEmittedThisTurn in src/services/attachments/sessionContext.ts so an identical reminder already in this turn returns no attachment',
+    'change awarenessAlreadyEmittedThisTurn in src/engine/attachments/sessionNotices.ts so an identical reminder already in this turn returns no attachment',
   )
   const changed = { standingRule: 'A NEW RULE' } as never
   check(
     'changed content still fires immediately',
     getCriticalSystemReminderAttachment(changed, already).length === 1,
-    'change awarenessAlreadyEmittedThisTurn in src/services/attachments/sessionContext.ts so it compares the reminder content and lets changed content through',
+    'change awarenessAlreadyEmittedThisTurn in src/engine/attachments/sessionNotices.ts so it compares the reminder content and lets changed content through',
   )
   const nextTurn = [
     ...already,
@@ -56,7 +56,7 @@ section('§B critical_system_reminder: once per turn, changed content still fire
   check(
     'a new user turn re-arms the reminder',
     getCriticalSystemReminderAttachment(ctx, nextTurn).length === 1,
-    'change awarenessAlreadyEmittedThisTurn in src/services/attachments/sessionContext.ts so it stops scanning at the latest user turn and a new turn re-arms the reminder',
+    'change awarenessAlreadyEmittedThisTurn in src/engine/attachments/sessionNotices.ts so it stops scanning at the latest user turn and a new turn re-arms the reminder',
   )
 }
 
@@ -64,20 +64,20 @@ section('§C sizes: bytes are bytes, the char budget says chars')
 {
   const multi = '漢'.repeat(12_000)
   const result = await persistToolResult(multi, 'vigil-q13-probe')
-  check('the result persisted', !('error' in result), JSON.stringify(result).slice(0, 120) + '; persistToolResult in src/utils/toolResultStorage.ts returned an error, read it above and fix the write under MERCURY_CONFIG_DIR')
+  check('the result persisted', !('error' in result), JSON.stringify(result).slice(0, 120) + '; persistToolResult in src/engine/tool-dispatch/toolResultStorage.ts returned an error, read it above and fix the write under MERCURY_CONFIG_DIR')
   if (!('error' in result)) {
     check(
       'originalSize measures BYTES on disk, not UTF-16 units',
       result.originalSize === Buffer.byteLength(multi, 'utf8'),
-      `${result.originalSize} vs ${Buffer.byteLength(multi, 'utf8')}; change persistToolResult in src/utils/toolResultStorage.ts so originalSize is the UTF-8 byte length`,
+      `${result.originalSize} vs ${Buffer.byteLength(multi, 'utf8')}; change persistToolResult in src/engine/tool-dispatch/toolResultStorage.ts so originalSize is the UTF-8 byte length`,
     )
     const msg = buildLargeToolResultMessage(result)
     check('the size label reflects the byte measure (35.2KB, not 11.7KB)',
-      /35\.\d+KB|36\.?\d*KB|34\.\d+KB/i.test(msg), msg.split('\n')[1] + '; change buildLargeToolResultMessage in src/utils/toolResultStorage.ts so the size label formats originalSize bytes')
+      /35\.\d+KB|36\.?\d*KB|34\.\d+KB/i.test(msg), msg.split('\n')[1] + '; change buildLargeToolResultMessage in src/engine/tool-dispatch/toolResultStorage.ts so the size label formats originalSize bytes')
     check('the preview budget is labelled in CHARS',
-      msg.includes(`~${PREVIEW_SIZE_CHARS} chars`), msg.split('\n').find(l => l.startsWith('Preview')) + '; change the Preview line of buildLargeToolResultMessage in src/utils/toolResultStorage.ts to say PREVIEW_SIZE_CHARS chars')
+      msg.includes(`~${PREVIEW_SIZE_CHARS} chars`), msg.split('\n').find(l => l.startsWith('Preview')) + '; change the Preview line of buildLargeToolResultMessage in src/engine/tool-dispatch/toolResultStorage.ts to say PREVIEW_SIZE_CHARS chars')
     check('no byte claim rides the preview budget line',
-      !/Preview \(head \+ tail, 2\.0KB/.test(msg), 'change the Preview line of buildLargeToolResultMessage in src/utils/toolResultStorage.ts to state the budget in chars, not KB')
+      !/Preview \(head \+ tail, 2\.0KB/.test(msg), 'change the Preview line of buildLargeToolResultMessage in src/engine/tool-dispatch/toolResultStorage.ts to state the budget in chars, not KB')
   }
 }
 

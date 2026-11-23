@@ -8,13 +8,13 @@ process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { createStore } = await import('../../src/state/store.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { onChangeAppState } = await import('../../src/state/onChangeAppState.ts')
-const { tellTheToolTable } = await import('../../src/tools/toolTable.ts')
-const { agentToolCall } = await import('../../src/tools/AgentTool/agent/call.ts')
+const { createStore } = await import('../../src/platform/primitives/store.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { onChangeAppState } = await import('../../src/screen/app-state/onChangeAppState.ts')
+const { tellTheToolTable } = await import('../../src/tools/kit/toolTable.ts')
+const { agentToolCall } = await import('../../src/tools/crewmate/call/call.ts')
 
 tellTheToolTable({ getAllBaseTools: () => [], assembleToolPool: () => [] })
 
@@ -101,7 +101,7 @@ try {
     check(
       'pending required MCP server transitioning to failed wakes waiter before old 500ms poll period',
       elapsed < OLD_POLL_MS - 100 && message.includes("Crewmate type 'mcp-worker' requires MCP server(s) matching: demo"),
-      `elapsed=${elapsed}ms message=${message}; waitForRequiredMcpServers in src/tools/AgentTool/agent/call.ts must wake on the mcp clients change event (subscribeMcpClientsChange) and throw the requires-MCP-server error once the server is failed`,
+      `elapsed=${elapsed}ms message=${message}; waitForRequiredMcpServers in src/tools/crewmate/call/call.ts must wake on the mcp clients change event (subscribeMcpClientsChange) and throw the requires-MCP-server error once the server is failed`,
     )
   }
 
@@ -128,7 +128,7 @@ try {
     check(
       'pending required MCP server transitioning to connected with tools wakes waiter before old 500ms poll period and passes MCP check',
       elapsed < OLD_POLL_MS - 100 && message.includes('review_receipt requires worktree_at'),
-      `elapsed=${elapsed}ms message=${message}; waitForRequiredMcpServers in src/tools/AgentTool/agent/call.ts must wake on the mcp clients change event and pass the MCP check once the server is connected with tools`,
+      `elapsed=${elapsed}ms message=${message}; waitForRequiredMcpServers in src/tools/crewmate/call/call.ts must wake on the mcp clients change event and pass the MCP check once the server is connected with tools`,
     )
   }
 
@@ -148,7 +148,7 @@ try {
     check(
       'abort (Esc) during the 30s pending MCP wait rejects at once with AbortError instead of waiting 30s',
       elapsed < OLD_POLL_MS - 100 && errName === 'AbortError' && errCode === 'ABORT_ERR',
-      `elapsed=${elapsed}ms name=${errName} code=${errCode}; waitForRequiredMcpServers in src/tools/AgentTool/agent/call.ts must pass context.abortController.signal to its deadline wait so Esc rejects with AbortError`,
+      `elapsed=${elapsed}ms name=${errName} code=${errCode}; waitForRequiredMcpServers in src/tools/crewmate/call/call.ts must pass context.abortController.signal to its deadline wait so Esc rejects with AbortError`,
     )
   }
 } finally {

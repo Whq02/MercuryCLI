@@ -97,13 +97,13 @@ const code = await closed
 clearTimeout(guard)
 await fixture.close()
 
-check('turn 2 completes after the file was broken mid-session', secondDone && outcomes()[1]?.status === 'completed' && code === 0, `${code} ${JSON.stringify(outcomes()[1])} ${stderr.slice(0, 300)}; a broken settings file must not fail the turn, so check parseSettingsFileUncached in src/utils/settings/settings.ts`)
+check('turn 2 completes after the file was broken mid-session', secondDone && outcomes()[1]?.status === 'completed' && code === 0, `${code} ${JSON.stringify(outcomes()[1])} ${stderr.slice(0, 300)}; a broken settings file must not fail the turn, so check parseSettingsFileUncached in src/platform/settings/settings.ts`)
 const marksAfterSecond = marksCount()
-check('the hook still fired for the second Read: a one-character slip in the file does not switch the guard off', marksAfterSecond === 2, `${marksAfterSecond} mark(s) after two Reads; a settings file that stops parsing must keep the last good hooks, so check parseSettingsFileUncached in src/utils/settings/settings.ts and the hook runner in src/utils/hooks/commandRunner.ts`)
+check('the hook still fired for the second Read: a one-character slip in the file does not switch the guard off', marksAfterSecond === 2, `${marksAfterSecond} mark(s) after two Reads; a settings file that stops parsing must keep the last good hooks, so check parseSettingsFileUncached in src/platform/settings/settings.ts and the hook runner in src/integrations/event-hooks/commandRunner.ts`)
 const sessionRows = sessionFilesOf(home)
 const saidInChat = sessionRows.filter(row => JSON.stringify(row).includes('the last good settings stay in force'))
-check('the chat was told once: one row names the file, the malformed JSON and what stands', saidInChat.length === 1 && JSON.stringify(saidInChat[0]).includes('settings.json · The settings file contains malformed JSON (or is empty) — the file cannot be read; the last good settings stay in force'), `${saidInChat.length} row(s): ${JSON.stringify(saidInChat).slice(0, 400)}; the wording comes from src/utils/settings/validation.ts (the held severity) and the held error must reach the chat exactly once`)
-check('the hook fired without a word of failure', !rows.some(row => row.type === 'notice' && /hook/.test(String(row.text))), JSON.stringify(rows.filter(row => row.type === 'notice')) + '; a hook that ran fine must not raise a notice, so check src/utils/hooks/commandRunner.ts')
+check('the chat was told once: one row names the file, the malformed JSON and what stands', saidInChat.length === 1 && JSON.stringify(saidInChat[0]).includes('settings.json · The settings file contains malformed JSON (or is empty) — the file cannot be read; the last good settings stay in force'), `${saidInChat.length} row(s): ${JSON.stringify(saidInChat).slice(0, 400)}; the wording comes from src/platform/settings/validation.ts (the held severity) and the held error must reach the chat exactly once`)
+check('the hook fired without a word of failure', !rows.some(row => row.type === 'notice' && /hook/.test(String(row.text))), JSON.stringify(rows.filter(row => row.type === 'notice')) + '; a hook that ran fine must not raise a notice, so check src/integrations/event-hooks/commandRunner.ts')
 
 rmSync(root, { recursive: true, force: true })
 if (failures > 0) {

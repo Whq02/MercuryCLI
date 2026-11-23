@@ -13,11 +13,11 @@ delete process.env.MERCURY_WORKFLOWS
 delete process.env.MERCURY_GODOT
 
 const { getHarnessMapDelta, getHarnessMapSection, harnessMapEnabled, resetHarnessMapForTest } =
-  await import('../../src/services/cockpit/harnessMap.js')
+  await import('../../src/screen/cockpit-gauges/harnessMap.js')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — change: the map lines, the delta and the enable gate in src/services/cockpit/harnessMap.ts (computeHarnessMapLines, getHarnessMapSection, getHarnessMapDelta, harnessMapEnabled); the delta text in src/services/messages/attachmentText.ts; the flag row in FLAG_REGISTRY'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — change: the map lines, the delta and the enable gate in src/screen/cockpit-gauges/harnessMap.ts (computeHarnessMapLines, getHarnessMapSection, getHarnessMapDelta, harnessMapEnabled); the delta text in src/engine/messages/attachmentText.ts; the flag row in FLAG_REGISTRY'}`)
   if (!cond) failures++
 }
 
@@ -80,7 +80,7 @@ delete process.env.MERCURY_WORKFLOWS
 
 {
   const { getHarnessMapDelta, getHarnessMapSection, resetHarnessMapForTest } = await import(
-    '../../src/services/cockpit/harnessMap.ts'
+    '../../src/screen/cockpit-gauges/harnessMap.ts'
   )
   const landed = (d: { added: string[]; removed: string[] }) => ({
     type: 'attachment',
@@ -114,15 +114,15 @@ delete process.env.MERCURY_WORKFLOWS
 }
 
 {
-  const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.js')
+  const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.js')
   const projected = normalizeAttachmentForAPI({ type: 'harness_map_delta', added: ['ADDED-SURFACE'], removed: ['REMOVED-SURFACE'] })
   const content = projected[0]?.message.content
   check('attachmentText renders harness_map_delta', projected.length === 1 && projected[0]?.isMeta === true && typeof content === 'string' && content.includes('ADDED-SURFACE') && content.includes('REMOVED-SURFACE'))
 }
 
 {
-  const posture = await import('../../src/utils/cockpit/runtimePosture.js')
-  const state = await import('../../src/bootstrap/state.js')
+  const posture = await import('../../src/screen/cockpit/runtimePosture.js')
+  const state = await import('../../src/boot/process-state/processState.js')
   const channel = state.getAskChannel()
   const kind = state.getSessionKind()
   const mapOf = (asks: 'sdk' | 'none', sessionKind: 'oculus' | 'headless'): string | null => {
@@ -150,7 +150,7 @@ delete process.env.MERCURY_WORKFLOWS
   resetHarnessMapForTest()
 }
 
-const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
+const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.js')
 const rowCount = FLAG_REGISTRY.filter(row => row.env === 'MERCURY_HARNESS_MAP').length
 check('flagRegistry row present exactly once', rowCount === 1, `count=${rowCount}`)
 

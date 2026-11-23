@@ -46,20 +46,20 @@ section('§A the exact SDK-importer allowlist (B01)')
 
 section('§B provider lanes are direct codecs (B03/B04)')
 {
-  const ANTHROPIC_HOME = 'src/services/providers/anthropic/'
+  const ANTHROPIC_HOME = 'src/models/roads/anthropic/'
   const hits = execSync(
-    `grep -rln "@anthropic-ai/sdk" src/services/providers --include='*.ts' || true`,
+    `grep -rln "@anthropic-ai/sdk" src/models/roads --include='*.ts' || true`,
     { cwd: ROOT, encoding: 'utf8' },
   )
     .split('\n')
     .filter(Boolean)
   const routed = hits.filter(f => !f.startsWith(ANTHROPIC_HOME))
-  check('zero SDK references under src/services/providers/** outside the Anthropic transport', routed.length === 0, routed.join(', ') + ' (each listed file under src/services/providers mentions @anthropic-ai/sdk: remove the reference and use a direct codec)')
+  check('zero SDK references under src/models/roads/** outside the Anthropic transport', routed.length === 0, routed.join(', ') + ' (each listed file under src/models/roads mentions @anthropic-ai/sdk: remove the reference and use a direct codec)')
   const transport = hits.filter(f => f.startsWith(ANTHROPIC_HOME))
   check(
     'the Anthropic transport also has zero SDK references',
     transport.length === 0,
-    transport.join(', ') + ' (each listed file under src/services/providers/anthropic mentions @anthropic-ai/sdk: remove the reference and use a direct codec)',
+    transport.join(', ') + ' (each listed file under src/models/roads/anthropic mentions @anthropic-ai/sdk: remove the reference and use a direct codec)',
   )
 }
 
@@ -76,13 +76,13 @@ section('§C renderers consume Mercury types only (E01)')
 
 section('§F the versioned machine contract + the named projection (E03/E04), on the live homes')
 {
-  for (const home of ['src/rows', 'src/runner/wire']) check(`${home} exists`, existsSync(join(ROOT, home)) && statSync(join(ROOT, home)).isDirectory())
-  const { ROWS_SCHEMA } = await import('../../src/rows/vocabulary.ts')
-  const { RUNNER_PROTOCOL } = await import('../../src/runner/wire/methods.ts')
-  const { itemRowsOf, outcomeRow } = await import('../../src/rows/project.ts')
-  const { parseRow } = await import('../../src/rows/read.ts')
-  check('the row contract is VERSIONED (ROWS_SCHEMA exported as a literal)', typeof ROWS_SCHEMA === 'number' && Number.isInteger(ROWS_SCHEMA) && ROWS_SCHEMA >= 1, String(ROWS_SCHEMA) + ' (export ROWS_SCHEMA as an integer of at least 1 from src/rows/vocabulary.ts)')
-  check('the wire contract is VERSIONED (RUNNER_PROTOCOL exported as a literal)', typeof RUNNER_PROTOCOL === 'number' && Number.isInteger(RUNNER_PROTOCOL) && RUNNER_PROTOCOL >= 1, String(RUNNER_PROTOCOL) + ' (export RUNNER_PROTOCOL as an integer of at least 1 from src/runner/wire/methods.ts)')
+  for (const home of ['src/daemon/runner-wire', 'src/engine/rows']) check(`${home} exists`, existsSync(join(ROOT, home)) && statSync(join(ROOT, home)).isDirectory())
+  const { ROWS_SCHEMA } = await import('../../src/engine/rows/vocabulary.ts')
+  const { RUNNER_PROTOCOL } = await import('../../src/daemon/runner-wire/methods.ts')
+  const { itemRowsOf, outcomeRow } = await import('../../src/engine/rows/project.ts')
+  const { parseRow } = await import('../../src/engine/rows/read.ts')
+  check('the row contract is VERSIONED (ROWS_SCHEMA exported as a literal)', typeof ROWS_SCHEMA === 'number' && Number.isInteger(ROWS_SCHEMA) && ROWS_SCHEMA >= 1, String(ROWS_SCHEMA) + ' (export ROWS_SCHEMA as an integer of at least 1 from src/engine/rows/vocabulary.ts)')
+  check('the wire contract is VERSIONED (RUNNER_PROTOCOL exported as a literal)', typeof RUNNER_PROTOCOL === 'number' && Number.isInteger(RUNNER_PROTOCOL) && RUNNER_PROTOCOL >= 1, String(RUNNER_PROTOCOL) + ' (export RUNNER_PROTOCOL as an integer of at least 1 from src/daemon/runner-wire/methods.ts)')
   const projected = itemRowsOf({ session_id: 's1', turn: 1 }, 'm1', 'hello')
   const parsedItem = projected.length === 1 ? parseRow(JSON.stringify(projected[0])) : null
   const out = outcomeRow({ session_id: 's1', turn: 1 }, {
@@ -99,15 +99,15 @@ section('§F the versioned machine contract + the named projection (E03/E04), on
   check(
     'the row stream is a NAMED projection both ways (project.ts emits the rows, read.ts parses them)',
     parsedItem?.type === 'text' && parsedItem.text === 'hello' && parsedOutcome?.type === 'outcome' && parsedOutcome.schema === ROWS_SCHEMA,
-    'itemRowsOf and outcomeRow in src/rows/project.ts must emit rows that parseRow in src/rows/read.ts reads back: a text row of hello and an outcome row stamped with ROWS_SCHEMA',
+    'itemRowsOf and outcomeRow in src/engine/rows/project.ts must emit rows that parseRow in src/engine/rows/read.ts reads back: a text row of hello and an outcome row stamped with ROWS_SCHEMA',
   )
   const sdkHits = execSync(
-    `grep -rln "from '@anthropic-ai/sdk" src/rows src/runner/wire --include='*.ts' || true`,
+    `grep -rln "from '@anthropic-ai/sdk" src/engine/rows src/daemon/runner-wire --include='*.ts' || true`,
     { cwd: ROOT, encoding: 'utf8' },
   )
     .split('\n')
     .filter(Boolean)
-  check('the machine surface imports no provider SDK (Mercury-native)', sdkHits.length === 0, sdkHits.join(', ') + ' (each listed file under src/rows or src/runner/wire mentions @anthropic-ai/sdk: remove the reference)')
+  check('the machine surface imports no provider SDK (Mercury-native)', sdkHits.length === 0, sdkHits.join(', ') + ' (each listed file under src/engine/rows or src/daemon/runner-wire mentions @anthropic-ai/sdk: remove the reference)')
 }
 
 console.log(failures === 0 ? '\n ✅ IMPORT FENCE HOLDS' : `\n ❌ ${failures} FENCE BREAK(S)`)

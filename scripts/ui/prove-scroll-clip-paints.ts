@@ -9,14 +9,14 @@ process.env.FORCE_COLOR = '3'
 
 const React = await import('react')
 const h = React.createElement
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { default: instances } = await import('../../src/ink/instances.ts')
-const { Box, Text } = await import('../../src/ink.ts')
-const { default: ScrollBox } = await import('../../src/ink/components/ScrollBox.tsx')
-const { AlternateScreen } = await import('../../src/ink/components/AlternateScreen.tsx')
-const { pendingClears } = await import('../../src/ink/node-cache.ts')
-type Handle = import('../../src/ink/components/ScrollBox.tsx').ScrollBoxHandle
-type Node = import('../../src/ink/dom.ts').DOMElement
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { default: ScrollBox } = await import('../../src/screen/renderer/elements/ScrollBox.tsx')
+const { AlternateScreen } = await import('../../src/screen/renderer/elements/AlternateScreen.tsx')
+const { pendingClears } = await import('../../src/screen/renderer/node-cache.ts')
+type Handle = import('../../src/screen/renderer/elements/ScrollBox.tsx').ScrollBoxHandle
+type Node = import('../../src/screen/renderer/dom.ts').DOMElement
 
 const SRC = join(import.meta.dir, '..', '..', 'src')
 const COLS = 40
@@ -27,11 +27,11 @@ const TICK_ITEM = 10
 const LAST_ROW = ITEMS * ITEM_ROWS - 1
 const ALT_SWITCH = /\u001b\[\?1049[hl]/
 const UNMODELLED = /\u001b\[(?:[<>=][0-9;]*[a-zA-Z]|\?u|\??[0-9;]*\$p|c|[0-9;]*t)/g
-const PADDED_BOXES: Record<string, string[]> = { 'components/fullscreenLayout/frame.tsx': ['paddingTop'] }
+const PADDED_BOXES: Record<string, string[]> = { 'screen/fullscreen-layout/frame.tsx': ['paddingTop'] }
 
 let checks = 0
 let failures = 0
-let scrollFix = 'a painted frame differs from a fresh mount at the same position; change how a ScrollBox repaints after a scroll, resize or removal: src/ink/components/ScrollBox.tsx and the renderer in src/ink/ink.tsx (its pendingClears are in src/ink/node-cache.ts)'
+let scrollFix = 'a painted frame differs from a fresh mount at the same position; change how a ScrollBox repaints after a scroll, resize or removal: src/screen/renderer/elements/ScrollBox.tsx and the renderer in src/screen/renderer/screenInstance.tsx (its pendingClears are in src/screen/renderer/node-cache.ts)'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++

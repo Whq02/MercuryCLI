@@ -1,18 +1,18 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { z } from 'zod/v4'
-import { buildTool, getEmptyToolPermissionContext, type Tool } from '../../src/Tool.ts'
-import { getToolSchemaCache } from '../../src/utils/toolSchemaCache.ts'
+import { buildTool, getEmptyToolPermissionContext, type Tool } from '../../src/tools/kit/tool.ts'
+import { getToolSchemaCache } from '../../src/models/roads/toolSchemaCache.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_TOOLSEARCH_COOCCUR = '0'
 delete process.env.NODE_ENV
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { searchToolsWithKeywords, clearToolSearchDescriptionCache } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { formatDeferredToolLine } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
+const { searchToolsWithKeywords, clearToolSearchDescriptionCache } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { formatDeferredToolLine } = await import('../../src/tools/tool-search/prompt.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
 
 let failures = 0
 let checks = 0
@@ -39,7 +39,7 @@ async function search(query: string, tools: Tool[]): Promise<string[]> {
 }
 
 console.log('§1 private keywords participate in ordinary and required-term search')
-whereToChange = 'searchToolsWithKeywords in src/tools/ToolSearchTool/ToolSearchTool.ts must match searchKeywords case-insensitively, as whole words, as literal text, and count them for required terms'
+whereToChange = 'searchToolsWithKeywords in src/tools/tool-search/ToolSearchTool.ts must match searchKeywords case-insensitively, as whole words, as literal text, and count them for required terms'
 const sentinel = 'privatequartz'
 const plain = fixture('Indexed', 'A plain operation.', 'a plain purpose')
 const indexed = { ...plain, searchKeywords: [sentinel.toUpperCase(), sentinel, 'compound phrase', 'a.b'] } as Tool
@@ -53,7 +53,7 @@ check('keyword punctuation is literal, not a regexp', same(await search('+a.b', 
 check('an exact tool name still wins alone', same(await search('Indexed', [indexed, fixture('Other', '', '', ['Indexed'])]), ['Indexed']))
 
 console.log('§2 a keyword has the hint weight, once per query term')
-whereToChange = 'the scoring in searchToolsWithKeywords in src/tools/ToolSearchTool/ToolSearchTool.ts must give a keyword the hint weight (+4) once per query term'
+whereToChange = 'the scoring in searchToolsWithKeywords in src/tools/tool-search/ToolSearchTool.ts must give a keyword the hint weight (+4) once per query term'
 const keyword = fixture('KeywordOnly', '', '', [sentinel, sentinel.toUpperCase()])
 const hint = fixture('HintOnly', '', sentinel)
 const described = fixture('DescriptionOnly', `${sentinel} amber`)
@@ -66,7 +66,7 @@ const oneDescription = fixture('OneDescription', sentinel)
 check('the name substring +5 still beats the keyword +4, which beats description +2', same(await search(sentinel, [oneDescription, keyword, named]), ['Privatequartzish', 'KeywordOnly', 'OneDescription']))
 
 console.log('§3 tools without keywords keep their old ranking')
-whereToChange = 'searchToolsWithKeywords in src/tools/ToolSearchTool/ToolSearchTool.ts must rank tools with no searchKeywords exactly as before the keyword index'
+whereToChange = 'searchToolsWithKeywords in src/tools/tool-search/ToolSearchTool.ts must rank tools with no searchKeywords exactly as before the keyword index'
 const legacy = [fixture('ArchivePack'), fixture('HintPack', '', 'archive'), fixture('DescriptionPack', 'archive'), fixture('TiedPack', 'archive')]
 for (const [query, expected] of [
   ['archive', ['ArchivePack', 'HintPack', 'DescriptionPack', 'TiedPack']],
@@ -80,12 +80,12 @@ for (const [query, expected] of [
 check('an absent keyword bag and an empty one rank identically', same(await search('archive', legacy), await search('archive', legacy.map(tool => ({ ...tool, searchKeywords: [] }) as Tool))))
 
 console.log('§4 keywords never enter the model-facing roster, description or definition')
-whereToChange = 'searchKeywords must stay out of formatDeferredToolLine (src/tools/ToolSearchTool/prompt.ts), the tool prompt, and toolToAPISchema (src/services/messages/api.ts); a tool in the twelve named needs a searchKeywords bag'
+whereToChange = 'searchKeywords must stay out of formatDeferredToolLine (src/tools/tool-search/prompt.ts), the tool prompt, and toolToAPISchema (src/engine/messages/apiSystemAndToolSchema.ts); a tool in the twelve named needs a searchKeywords bag'
 const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
 runSwarmCommand('on')
-const { getAllBaseTools } = await import('../../src/tools.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
 const tools = [...getAllBaseTools()]
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
 if (!tools.some(tool => tool.name === 'Computer')) tools.push(ComputerTool)
 const names = ['Crewmate', 'CrewBoard', 'AskUserQuestion', 'Browser', 'Computer', 'Git', 'Inspect', 'Journey', 'Retain', 'Service', 'Structure', 'WebFetch']
 check('all twelve rewritten tools carry a private keyword bag', names.every(name => tools.find(tool => tool.name === name)?.searchKeywords?.length))

@@ -374,7 +374,7 @@ docker run --rm mercury --version
 - **Apollo Mode** การสัมภาษณ์เพื่อกำหนดสเปก: ตอบคำถามของเอเจนต์เพื่อให้สเปกที่มันจะใช้สร้างต้นแบบสมบูรณ์ ดู [docs/APOLLO-MODE.md](../APOLLO-MODE.md)
 - **การกู้คืน.** การเผยแพร่แบบอะตอมมิก การดำเนินการที่บันทึกลงจอร์นัล และการปรับให้ตรงกันตอนเริ่มต้น ดู [docs/DURABILITY.md](../DURABILITY.md)
 
-แฟล็กรันไทม์นิยามไว้ใน `src/substrate/flagRegistry.ts` เปิดเผยเป็นการตั้งค่า `MERCURY_*` และแสดงผลเมื่อต้องการ ความเข้ากันได้ของการผสานรวมมีเอกสารใน [docs/COMPATIBILITY.md](../COMPATIBILITY.md) ดัชนีเอกสารฉบับเต็มคือ [docs/README.md](../README.md)
+แฟล็กรันไทม์นิยามไว้ใน `src/platform/substrate/flagRegistry.ts` เปิดเผยเป็นการตั้งค่า `MERCURY_*` และแสดงผลเมื่อต้องการ ความเข้ากันได้ของการผสานรวมมีเอกสารใน [docs/COMPATIBILITY.md](../COMPATIBILITY.md) ดัชนีเอกสารฉบับเต็มคือ [docs/README.md](../README.md)
 
 ## คำสั่ง slash
 

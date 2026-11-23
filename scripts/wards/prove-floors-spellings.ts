@@ -31,7 +31,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks += 1
   if (!ok) failures += 1
-  const floorHint = 'to fix, change the floor reading in src/utils/permissions/shellProtectedPaths.ts (shellMercurySecretPath, shellCredentialWritePath, shellSelfProtectionReason), which src/tools/BashTool/bashPermissions.ts and src/tools/PowerShellTool/powershellPermissions.ts call, or the wards in src/utils/wards/wards.ts for a delete-ward row; a page row reads docs/TRUST.md'
+  const floorHint = 'to fix, change the floor reading in src/permissions/rules/shellProtectedPaths.ts (shellMercurySecretPath, shellCredentialWritePath, shellSelfProtectionReason), which src/tools/shell/bashPermissions.ts and src/tools/powershell/powershellPermissions.ts call, or the wards in src/permissions/wards/wards.ts for a delete-ward row; a page row reads docs/TRUST.md'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${floorHint}${detail ? ` | ${detail.slice(0, 600)}` : ''}` : ''}`)
 }
 function section(title: string): void {
@@ -107,20 +107,20 @@ process.on('exit', () => {
 })
 
 const { z } = (await import(Bun.resolveSync('zod/v4', ROOT))) as typeof import('zod/v4')
-const { getEmptyToolPermissionContext } = await import(join(SRC, 'Tool.ts'))
-const { decideToolPermissionWithModes } = await import(join(SRC, 'utils/permissions/decision/wrapper.ts'))
-const { bashToolHasPermission } = await import(join(SRC, 'tools/BashTool/bashPermissions.ts'))
-const { enableConfigs } = await import(join(SRC, 'utils/config.ts'))
-const { daemonStatePath } = await import(join(SRC, 'daemon/controlSocket.ts'))
-const { FileReadTool } = await import(join(SRC, 'tools/FileReadTool/FileReadTool.ts'))
-const { FileWriteTool } = await import(join(SRC, 'tools/FileWriteTool/FileWriteTool.ts'))
-const { FileEditTool } = await import(join(SRC, 'tools/FileEditTool/FileEditTool.ts'))
-const { EvalTool } = await import(join(SRC, 'tools/EvalTool/EvalTool.ts'))
-const { powershellToolHasPermission } = await import(join(SRC, 'tools/PowerShellTool/powershellPermissions.ts'))
-const keychain = await import(join(SRC, 'utils/secureStorage/macOsKeychainHelpers.ts'))
-const { flagEnv } = await import(join(SRC, 'substrate/flagRegistry.ts'))
+const { getEmptyToolPermissionContext } = await import(join(SRC, 'tools/kit/tool.ts'))
+const { decideToolPermissionWithModes } = await import(join(SRC, 'permissions/rules/decision/wrapper.ts'))
+const { bashToolHasPermission } = await import(join(SRC, 'tools/shell/bashPermissions.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/settings/config.ts'))
+const { daemonStatePath } = await import(join(SRC, 'daemon/control/controlSocket.ts'))
+const { FileReadTool } = await import(join(SRC, 'tools/read/ReadTool.ts'))
+const { FileWriteTool } = await import(join(SRC, 'tools/write/WriteTool.ts'))
+const { FileEditTool } = await import(join(SRC, 'tools/edit/EditTool.ts'))
+const { EvalTool } = await import(join(SRC, 'tools/eval/EvalTool.ts'))
+const { powershellToolHasPermission } = await import(join(SRC, 'tools/powershell/powershellPermissions.ts'))
+const keychain = await import(join(SRC, 'platform/secure-storage/macOsKeychainHelpers.ts'))
+const { flagEnv } = await import(join(SRC, 'platform/substrate/flagRegistry.ts'))
 enableConfigs()
-const bootstrap = await import(join(SRC, 'bootstrap/state.ts'))
+const bootstrap = await import(join(SRC, 'boot/process-state/processState.ts'))
 bootstrap.setOriginalCwd(PROJECT)
 bootstrap.setCwdState(PROJECT)
 bootstrap.setProjectRoot(PROJECT)
@@ -752,7 +752,7 @@ if (runs('STAYED')) {
   const joinedInStore = await reading(bash('cd nope && grep -r foo .'), 'sovereign')
   check('STAYED · the session standing in the config home · …and joined by && it is not refused by the floor', joinedInStore.decision.behavior !== 'deny', said(joinedInStore.decision))
   bootstrap.setCwdState(OWN_HOME)
-  const { shellMercurySecretPath } = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const { shellMercurySecretPath } = await import('../../src/permissions/rules/shellProtectedPaths.ts')
   const onPowerShell = await shellMercurySecretPath('cd nope; grep -r foo .', true, OWN_HOME)
   check('STAYED · on the PowerShell tool the line as written keeps the refusal\'s own words and names no way through: cd nope; grep -r foo .', onPowerShell !== null && !onPowerShell.includes('where this line stays') && !onPowerShell.includes('&&'), String(onPowerShell))
   for (const line of ['cd nope && grep -r foo .', 'cd nope; if ($?) { grep -r foo . }', 'cd nope -ErrorAction Stop; grep -r foo .', 'try { cd nope -ErrorAction Stop; grep -r foo . } catch { }', 'mkdir fresh; cd fresh && grep -r x .']) {
@@ -783,7 +783,7 @@ if (runs('STAYED')) {
 
 if (runs('LISTED')) {
   section('LISTED · on the PowerShell tool a listing handed down the pipe to a reader is a read of the files it lists')
-  const { shellMercurySecretPath } = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const { shellMercurySecretPath } = await import('../../src/permissions/rules/shellProtectedPaths.ts')
   const asked = async (line: string, from: string, powershell = true): Promise<string | null> => shellMercurySecretPath(line.replaceAll('<HOME>', OWN_HOME).replaceAll('<CONFIG>', CONFIG_HOME), powershell, from)
   const readers = [
     'Get-ChildItem -Recurse | Select-String canary',
@@ -1103,7 +1103,7 @@ if (runs('NOROOT')) {
 
 if (runs('BLOCKS')) {
   section('BLOCKS · on the PowerShell tool a write that stands inside a script block is the write it is: the credential-store floor asks every command the reading finds, in whatever block it stands')
-  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const floors = await import('../../src/permissions/rules/shellProtectedPaths.ts')
   const filled = (line: string): string => line.replaceAll('<HOME>', OWN_HOME).replaceAll('<CONFIG>', CONFIG_HOME)
   const written = async (line: string, from = PROJECT, powershell = true): Promise<string | null> => floors.shellCredentialWritePath(filled(line), powershell, from)
   const KEYS = '~\\.ssh\\authorized_keys'
@@ -1242,7 +1242,7 @@ if (runs('BLOCKS')) {
 
 if (runs('PARAMS')) {
   section('PARAMS · on the PowerShell tool a parameter and its value are no part of where a writer writes: a copy is asked every word that can be its destination, and a path fused to its parameter by a colon is asked under any spelling of the name')
-  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const floors = await import('../../src/permissions/rules/shellProtectedPaths.ts')
   const filled = (line: string): string => line.replaceAll('<HOME>', OWN_HOME).replaceAll('<CONFIG>', CONFIG_HOME)
   const written = async (line: string, powershell = true): Promise<string | null> => floors.shellCredentialWritePath(filled(line), powershell, PROJECT)
   const afterIt = [
@@ -1427,8 +1427,8 @@ if (runs('PARAMS')) {
 
 if (runs('CALLS')) {
   section('CALLS · on the PowerShell tool a command that stands in the parentheses of a cast, of a call or of the word it is glued to, in a block handed to a method, or behind an assignment in any of its spellings, is read as the command it is; text that stands there is not')
-  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
-  const { refusalOfShellCommand } = await import('../../src/utils/wards/wardsRefusals.ts')
+  const floors = await import('../../src/permissions/rules/shellProtectedPaths.ts')
+  const { refusalOfShellCommand } = await import('../../src/permissions/wards/wardsRefusals.ts')
   const warded = async (line: string, from = PROJECT): Promise<string | null> => {
     const verdict = await refusalOfShellCommand({ toolName: 'PowerShell', input: { command: line }, shellCommand: line, startingFolder: from }, from)
     return verdict.allow ? null : verdict.rule.name
@@ -1573,8 +1573,8 @@ if (runs('CALLS')) {
 
 if (runs('BURIED')) {
   section('BURIED · on the Bash tool a command substitution is read wherever the shell runs one: in an array subscript, in the pattern of a trimming or case operator, anywhere in a default or a replacement, and in the body of a here-document whose word is not quoted; where the shell runs none, none is read')
-  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
-  const { refusalOfShellCommand } = await import('../../src/utils/wards/wardsRefusals.ts')
+  const floors = await import('../../src/permissions/rules/shellProtectedPaths.ts')
+  const { refusalOfShellCommand } = await import('../../src/permissions/wards/wardsRefusals.ts')
   const warded = async (line: string, from = PROJECT): Promise<string | null> => {
     const verdict = await refusalOfShellCommand({ toolName: 'Bash', input: { command: line }, shellCommand: line, startingFolder: from }, from)
     return verdict.allow ? null : verdict.rule.name
@@ -1756,8 +1756,8 @@ if (runs('BURIED')) {
 
 if (runs('MOVES')) {
   section("MOVES · a cd's folder is the word the shell takes for it: not a parameter's value that stands before it, not the word that ends the options, and a cd behind builtin, command or time is the cd it is; a PowerShell cd given no folder may stay where it stood")
-  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
-  const { refusalOfShellCommand } = await import('../../src/utils/wards/wardsRefusals.ts')
+  const floors = await import('../../src/permissions/rules/shellProtectedPaths.ts')
+  const { refusalOfShellCommand } = await import('../../src/permissions/wards/wardsRefusals.ts')
   const warded = async (line: string, powershell: boolean, from = PROJECT): Promise<string | null> => {
     const verdict = await refusalOfShellCommand({ toolName: powershell ? 'PowerShell' : 'Bash', input: { command: line }, shellCommand: line, startingFolder: from }, from)
     return verdict.allow ? null : verdict.rule.name
@@ -1869,8 +1869,8 @@ if (runs('MOVES')) {
 
 if (runs('VALUES')) {
   section('VALUES · on the PowerShell tool a group that holds only literals and the constants of the home is the value it holds: as an operand it is that path, called it is that command, and standing by itself or as what a variable is given it is text and no command')
-  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
-  const { refusalOfShellCommand } = await import('../../src/utils/wards/wardsRefusals.ts')
+  const floors = await import('../../src/permissions/rules/shellProtectedPaths.ts')
+  const { refusalOfShellCommand } = await import('../../src/permissions/wards/wardsRefusals.ts')
   const warded = async (line: string, powershell = true, from = PROJECT): Promise<string | null> => {
     const verdict = await refusalOfShellCommand({ toolName: powershell ? 'PowerShell' : 'Bash', input: { command: line }, shellCommand: line, startingFolder: from }, from)
     return verdict.allow ? null : verdict.rule.name
@@ -2006,7 +2006,7 @@ if (runs('VALUES')) {
 
 if (runs('REACH')) {
   section('REACH · on the PowerShell tool the credential-store floor sees a write whose writer and path both stand written in the text, whichever writer it is and however the line hands it the path')
-  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const floors = await import('../../src/permissions/rules/shellProtectedPaths.ts')
   const written = async (line: string, from = PROJECT): Promise<string | null> => floors.shellCredentialWritePath(fill(line), true, from)
   const refusedRows = async (title: string, lines: string[]): Promise<void> => {
     for (const line of lines) {
@@ -2143,7 +2143,7 @@ if (runs('REACH')) {
     "$text = 'Set-Content ~\\.ssh\\authorized_keys x'",
     "Start-Process powershell -ArgumentList '-Command', 'Set-Content ~\\.ssh\\authorized_keys x' -WhatIf",
   ])
-  const { refusalOfShellCommand: wardOf } = await import('../../src/utils/wards/wardsRefusals.ts')
+  const { refusalOfShellCommand: wardOf } = await import('../../src/permissions/wards/wardsRefusals.ts')
   for (const line of ["'Remove-Item -Recurse -Force ~' | iex", "& ([scriptblock]::Create('Remove-Item -Recurse -Force ~'))", "Start-Process powershell -ArgumentList '-Command', 'Remove-Item -Recurse -Force ~'"]) {
     const verdict = await wardOf({ toolName: 'PowerShell', input: { command: line }, shellCommand: line, startingFolder: PROJECT }, PROJECT)
     check(`REACH · the delete ward · ${shown(line)} · the script handed on is read as the commands it holds: refused as a recursive delete of the home`, !verdict.allow && verdict.rule.name === 'no-root-recursive-delete', verdict.allow ? 'allow' : verdict.rule.name)
@@ -2215,7 +2215,7 @@ if (runs('REACH')) {
     "Set-Content (Join-Path (Get-Location) 'authorized_keys') x",
     "$p = Join-Path $HOME '.ssh'; $p = '.\\out'; Set-Content (Join-Path $p 'authorized_keys') x",
   ])
-  const { refusalOfShellCommand: wardBuilt } = await import('../../src/utils/wards/wardsRefusals.ts')
+  const { refusalOfShellCommand: wardBuilt } = await import('../../src/permissions/wards/wardsRefusals.ts')
   for (const line of ["$r = '~'; Remove-Item $r -Recurse -Force", "Remove-Item (Join-Path $HOME '') -Recurse -Force", "$c = 'Remove-Item'; & $c -Recurse -Force ~"]) {
     const verdict = await wardBuilt({ toolName: 'PowerShell', input: { command: line }, shellCommand: line, startingFolder: PROJECT }, PROJECT)
     check(`REACH · the delete ward · ${shown(line)} · a root or a remover kept in a variable or joined from literals is read as what it is: refused as a recursive delete of the home`, !verdict.allow && verdict.rule.name === 'no-root-recursive-delete', verdict.allow ? 'allow' : verdict.rule.name)
@@ -2254,9 +2254,9 @@ if (runs('REACH')) {
 
 if (runs('UNREAD')) {
   section("UNREAD · a line the reading cannot read is judged by its text: where the text names a floor's subject the floor refuses and says the line could not be read, and where it does not the answer is what it was")
-  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
-  const shellRead = (await import('../../src/utils/wards/wardsShellRead.ts')) as Record<string, unknown>
-  const { refusalOfShellCommand } = await import('../../src/utils/wards/wardsRefusals.ts')
+  const floors = await import('../../src/permissions/rules/shellProtectedPaths.ts')
+  const shellRead = (await import('../../src/permissions/wards/wardsShellRead.ts')) as Record<string, unknown>
+  const { refusalOfShellCommand } = await import('../../src/permissions/wards/wardsRefusals.ts')
   const seam = typeof shellRead.failShellReadingForTesting === 'function' ? (shellRead.failShellReadingForTesting as (fail: boolean) => void) : undefined
   const PAD = 'x'.repeat(10100)
   const ADVICE = 'Mercury could not read this command, so it was not checked: write it as separate, simpler commands'
@@ -2369,7 +2369,7 @@ if (runs('UNREAD')) {
 
 if (runs('EVERYDAY')) {
   section('EVERYDAY · ordinary lines of a second reading that the released build ran: a copy out of a guarded folder with a list of sources, a call through a variable that is handed nothing of a listing, a count taken in a substitution, and a find told how deep to go')
-  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const floors = await import('../../src/permissions/rules/shellProtectedPaths.ts')
   const read = (line: string, powershell: boolean, from: string): Promise<string | null> => floors.shellMercurySecretPath(line, powershell, from)
   const written = (line: string, from = PROJECT): Promise<string | null> => floors.shellCredentialWritePath(line, true, from)
   for (const from of [PROJECT, OWN_HOME]) {
@@ -2442,7 +2442,7 @@ if (runs('EVERYDAY')) {
 
 if (runs('DEPTH')) {
   section('DEPTH · a find told how deep to go is freed only where it lists files alone, one depth said once, no link followed, and what it hands them to names no tree of its own; every twin of the rule that reads the store is refused')
-  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const floors = await import('../../src/permissions/rules/shellProtectedPaths.ts')
   const read = (line: string, from: string): Promise<string | null> => floors.shellMercurySecretPath(line, false, from)
   const twins = [
     'find . -maxdepth 1 -maxdepth 3 -type f -exec cat {} +',

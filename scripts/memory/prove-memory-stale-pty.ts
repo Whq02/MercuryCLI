@@ -16,9 +16,9 @@ process.env.BROWSER = '/usr/bin/true'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_HOME
 const { scenario, cleanupScenario, RUNTIME_CWD, CONFIG_HOME } = await import('../ui/renderScenarios.ts')
-const { emptyDoc } = await import('../../src/mneme/mnemeTopicDocs.ts')
-const { writeDoc } = await import('../../src/mneme/mnemeLibrary.ts')
-const { pinFact } = await import('../../src/mneme/mnemeUsage.ts')
+const { emptyDoc } = await import('../../src/sessions/mneme/mnemeTopicDocs.ts')
+const { writeDoc } = await import('../../src/sessions/mneme/mnemeLibrary.ts')
+const { pinFact } = await import('../../src/sessions/mneme/mnemeUsage.ts')
 const library = join(root, 'memory', 'library')
 const stamp = new Date(Date.now() - 120 * 86400000).toISOString()
 const doc = emptyDoc('checksum', 'checksum facts', stamp)
@@ -45,9 +45,9 @@ try {
   assert.equal(capture.status, 0, `the PTY capture of /memory (scripts/ui/vshot.py) did not exit 0; read its stderr: ${capture.stderr}`)
   const frame = JSON.parse(readFileSync(grid, 'utf8'))
   const text = frame.grid.map((row: { c: string }[]) => row.map(c => c.c).join('')).join('\n')
-  assert(text.includes('memory › facts'), `the facts list did not open from the memory overview; check the facts row and page title in src/components/memory/centre. Screen: ${text}`)
-  assert(text.includes('stale · The backup uses'), `an unpinned fact older than the stale window must be labelled stale in the facts list; check the row label in src/components/memory/centre/refs.ts and how the ref status is set. Screen: ${text}`)
-  assert(text.includes('pinned · Always keep'), `a pinned fact must show pinned, never stale, however old; check the row label in src/components/memory/centre/refs.ts. Screen: ${text}`)
+  assert(text.includes('memory › facts'), `the facts list did not open from the memory overview; check the facts row and page title in src/screen/memory/centre. Screen: ${text}`)
+  assert(text.includes('stale · The backup uses'), `an unpinned fact older than the stale window must be labelled stale in the facts list; check the row label in src/screen/memory/centre/refs.ts and how the ref status is set. Screen: ${text}`)
+  assert(text.includes('pinned · Always keep'), `a pinned fact must show pinned, never stale, however old; check the row label in src/screen/memory/centre/refs.ts. Screen: ${text}`)
   const at = process.argv.indexOf('--frames')
   if (at >= 0 && process.argv[at + 1]) {
     const out = process.argv[at + 1]!

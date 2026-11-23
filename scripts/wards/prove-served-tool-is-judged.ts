@@ -11,7 +11,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}to fix: change servedCallRefusal and armServedSession in src/entrypoints/mcp.ts, which must ask the guards (src/guards/wardsGuard.ts, src/guards/commitGate.ts) before a served tool runs` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}to fix: change servedCallRefusal and armServedSession in src/integrations/mcp/mcpServer.ts, which must ask the guards (src/permissions/guards/wardsGuard.ts, src/permissions/guards/commitGate.ts) before a served tool runs` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -24,14 +24,14 @@ const PROJECT = join(SCRATCH, 'project')
 mkdirSync(join(PROJECT, '.git'), { recursive: true })
 for (const key of ['MERCURY_SPAWNED_BY', 'MERCURY_WARDS', 'MERCURY_COMMIT_GATE', 'MERCURY_SKIP_PERMISSIONS']) delete process.env[key]
 
-const { enableConfigs } = await import(join(SRC, 'utils/config.ts'))
-const state = await import(join(SRC, 'bootstrap/state.ts'))
-const { resetWardsEngagedSessionsForTest } = await import(join(SRC, 'guards/wardsGuard.ts'))
-const { resetGuardsForTesting } = await import(join(SRC, 'guards/guards.ts'))
-const { COMMIT_GATE_ID, disengageCommitGate } = await import(join(SRC, 'guards/commitGate.ts'))
-const { deleteFlagEnv, setFlagEnv } = await import(join(SRC, 'substrate/flagRegistry.ts'))
-const { runWithCwdOverride } = await import(join(SRC, 'utils/cwd.ts'))
-const served = await import(join(SRC, 'entrypoints/mcp.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/settings/config.ts'))
+const state = await import(join(SRC, 'boot/process-state/processState.ts'))
+const { resetWardsEngagedSessionsForTest } = await import(join(SRC, 'permissions/guards/wardsGuard.ts'))
+const { resetGuardsForTesting } = await import(join(SRC, 'permissions/guards/guards.ts'))
+const { COMMIT_GATE_ID, disengageCommitGate } = await import(join(SRC, 'permissions/guards/commitGate.ts'))
+const { deleteFlagEnv, setFlagEnv } = await import(join(SRC, 'platform/substrate/flagRegistry.ts'))
+const { runWithCwdOverride } = await import(join(SRC, 'platform/files/cwd.ts'))
+const served = await import(join(SRC, 'integrations/mcp/mcpServer.ts'))
 enableConfigs()
 state.setOriginalCwd(PROJECT)
 

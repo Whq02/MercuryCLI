@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import { mock } from 'bun:test'
-import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
+import type { RunnerChildSpec } from '../../src/daemon/runner-link/headlessRun.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -28,7 +28,7 @@ writeFileSync(
 )
 
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — prove-warm-claim-respawn-posture exceeded 240s — a warm runner, a claim or a respawn never appeared; read the last section header above and claimWarmRunner in src/daemon/warmRunner.ts')
+  console.log('\nTIMEOUT — prove-warm-claim-respawn-posture exceeded 240s — a warm runner, a claim or a respawn never appeared; read the last section header above and claimWarmRunner in src/daemon/runner-link/warmRunner.ts')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()
@@ -39,8 +39,8 @@ console.error = ((...args: unknown[]): void => {
   daemonLog.push(args.map(a => (typeof a === 'string' ? a : String(a))).join(' '))
 }) as typeof console.error
 
-const real = await import('../../src/daemon/headlessRun.ts')
-const { createPeer } = await import('../../src/runner/wire/peer.ts')
+const real = await import('../../src/daemon/runner-link/headlessRun.ts')
+const { createPeer } = await import('../../src/daemon/runner-wire/peer.ts')
 
 type Fake = EventEmitter & { pid: number; stdin: PassThrough; stdout: PassThrough; stderr: PassThrough; kill: () => boolean }
 type Spawn = { short: string; respawn: boolean; argv: string[]; spec: RunnerChildSpec }
@@ -59,7 +59,7 @@ function scriptedRunner(short: string, child: Fake): void {
   child.once('close', () => runner.close('the fixture runner exited'))
 }
 
-mock.module('../../src/daemon/headlessRun.ts', () => ({
+mock.module('../../src/daemon/runner-link/headlessRun.ts', () => ({
   ...real,
   spawnRunnerChild: (spec: RunnerChildSpec, opts?: { respawn?: boolean }) => {
     const invocation = real.buildRunnerInvocation(spec, opts)
@@ -83,8 +83,8 @@ mock.module('../../src/daemon/headlessRun.ts', () => ({
   },
 }))
 
-const processGroup = await import('../../src/utils/processGroup.ts')
-mock.module('../../src/utils/processGroup.ts', () => ({
+const processGroup = await import('../../src/platform/processes/processGroup.ts')
+mock.module('../../src/platform/processes/processGroup.ts', () => ({
   ...processGroup,
   killProcessGroup: (child: Fake) => {
     if (![...latest.values()].includes(child)) throw new Error('tree termination targeted a child outside the fixture')
@@ -92,11 +92,11 @@ mock.module('../../src/utils/processGroup.ts', () => ({
   },
 }))
 
-const { TaskRoster } = await import('../../src/daemon/roster.ts')
-const sup = await import('../../src/daemon/concourseWorkers.ts')
-const warm = await import('../../src/daemon/warmRunner.ts')
-const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.ts')
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { TaskRoster } = await import('../../src/daemon/roster/roster.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const warm = await import('../../src/daemon/runner-link/warmRunner.ts')
+const { validateWorkerModelChoice } = await import('../../src/screen/concourse-model/workerModels.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
 
@@ -121,10 +121,10 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 function section(t: string): void {
   sectionHint = t.startsWith('§5')
-    ? 'change: runnerHeapArgv in src/daemon/headlessRun.ts'
+    ? 'change: runnerHeapArgv in src/daemon/runner-link/headlessRun.ts'
     : t.startsWith('§3')
-      ? 'change: reconfigureLongLived in src/daemon/roster/retarget.ts must respawn under the claim posture (spawnPostureOf, src/daemon/concourseWorkers/spec.ts)'
-      : 'change: the posture the claim records (claimWarmRunner, src/daemon/warmRunner.ts; admit road src/daemon/concourseWorkers/admit.ts) and the respawn spec read back through spawnPostureOf in src/daemon/concourseWorkers/spec.ts'
+      ? 'change: reconfigureLongLived in src/daemon/roster/retarget.ts must respawn under the claim posture (spawnPostureOf, src/daemon/concourse-workers/spec.ts)'
+      : 'change: the posture the claim records (claimWarmRunner, src/daemon/runner-link/warmRunner.ts; admit road src/daemon/concourse-workers/admit.ts) and the respawn spec read back through spawnPostureOf in src/daemon/concourse-workers/spec.ts'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)

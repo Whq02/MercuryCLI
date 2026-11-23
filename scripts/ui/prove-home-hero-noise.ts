@@ -2,13 +2,13 @@
 import {
   hasRealConversation,
   isTranscriptFurnitureMessage,
-} from '../../src/utils/cockpit/realConversation.ts'
+} from '../../src/screen/cockpit/realConversation.ts'
 
 
 let failures = 0
 function check(label: string, cond: boolean): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ' — to fix: isTranscriptFurnitureMessage and hasRealConversation in src/utils/cockpit/realConversation.ts decide which transcript rows count as chrome and which as conversation'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ' — to fix: isTranscriptFurnitureMessage and hasRealConversation in src/screen/cockpit/realConversation.ts decide which transcript rows count as chrome and which as conversation'}`)
 }
 
 console.log('============================================================')

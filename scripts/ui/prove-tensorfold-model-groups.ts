@@ -3,7 +3,7 @@ import { mkdirSync, truncateSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mock } from 'bun:test'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
-import type { TensorFoldFit, TensorFoldHost, TensorFoldModelRow, TensorFoldServed, TensorFoldEngine, TensorFoldMachine } from '../../src/services/tensorfold/contracts.ts'
+import type { TensorFoldFit, TensorFoldHost, TensorFoldModelRow, TensorFoldServed, TensorFoldEngine, TensorFoldMachine } from '../../src/models/tensorfold/contracts.ts'
 
 const argAfter = (flag: string): string | undefined => {
   const at = process.argv.indexOf(flag)
@@ -135,30 +135,30 @@ const discoveryOf = (): { probedAtMs: number; targetCount: number; servers: Serv
   return snapshot.value
 }
 
-const realEngine = await import('../../src/services/tensorfold/engine.ts')
-const realInstall = await import('../../src/services/tensorfold/install.ts')
-const realInventory = await import('../../src/services/tensorfold/inventory.ts')
-const realServe = await import('../../src/services/tensorfold/serve.ts')
-const realPull = await import('../../src/services/tensorfold/pull.ts')
-const realPod = await import('../../src/services/host/tensorfoldPod.ts')
-const realHosts = await import('../../src/services/providers/local/tensorfoldHosts.ts')
-const realHelper = await import('../../src/services/providers/local/tensorfoldHelper.ts')
-const realApp = await import('../../src/services/providers/local/tensorfoldApp.ts')
-const realSupport = await import('../../src/services/providers/local/tensorfoldSupport.ts')
-const realDiscovery = await import('../../src/services/providers/local/localDiscovery.ts')
-const realAnnouncer = await import('../../src/services/lan/announcer.ts')
-const realProve = await import('../../src/services/localSetup/setupProve.ts')
-const realReceipts = await import('../../src/utils/model/seatReceipts.ts')
+const realEngine = await import('../../src/models/tensorfold/engine.ts')
+const realInstall = await import('../../src/models/tensorfold/install.ts')
+const realInventory = await import('../../src/models/tensorfold/inventory.ts')
+const realServe = await import('../../src/models/tensorfold/serve.ts')
+const realPull = await import('../../src/models/tensorfold/pull.ts')
+const realPod = await import('../../src/models/hosting/tensorfoldPod.ts')
+const realHosts = await import('../../src/models/roads/local/tensorfoldHosts.ts')
+const realHelper = await import('../../src/models/roads/local/tensorfoldHelper.ts')
+const realApp = await import('../../src/models/roads/local/tensorfoldApp.ts')
+const realSupport = await import('../../src/models/roads/local/tensorfoldSupport.ts')
+const realDiscovery = await import('../../src/models/roads/local/localDiscovery.ts')
+const realAnnouncer = await import('../../src/daemon/lan/announcer.ts')
+const realProve = await import('../../src/models/local-setup/setupProve.ts')
+const realReceipts = await import('../../src/models/facts/seatReceipts.ts')
 const readDiskInventory = realInventory.readTensorFoldInventory
 const bestOnDisk = realInventory.bestTensorFoldFit
 
-mock.module('../../src/services/tensorfold/engine.js', () => ({
+mock.module('../../src/models/tensorfold/engine.js', () => ({
   ...realEngine,
   findTensorFoldEngine: async () => seam.engine,
   tensorFoldMachine: () => seam.machine,
   cachedTensorFoldMachineTruth: async () => truthOf(seam.machine),
 }))
-mock.module('../../src/services/tensorfold/install.js', () => ({
+mock.module('../../src/models/tensorfold/install.js', () => ({
   ...realInstall,
   tensorFoldInstallPlan: () => ({ kind: 'brew', commands: ['brew install ashhart/tensorfold/tensorfold'], words: 'Homebrew · ashhart/tensorfold', found: 'Homebrew found' }),
   installTensorFold: async (_plan: unknown, onLine: (line: string) => void) => {
@@ -168,7 +168,7 @@ mock.module('../../src/services/tensorfold/install.js', () => ({
     return { ok: true, line: '' }
   },
 }))
-mock.module('../../src/services/tensorfold/inventory.js', () => ({
+mock.module('../../src/models/tensorfold/inventory.js', () => ({
   ...realInventory,
   readTensorFoldInventory: async (engine: TensorFoldEngine | null, io: Record<string, unknown> = {}) => {
     if (seam.inventory === 'disk') return readDiskInventory(engine, io)
@@ -176,7 +176,7 @@ mock.module('../../src/services/tensorfold/inventory.js', () => ({
   },
   bestTensorFoldFit: (rows: readonly TensorFoldModelRow[]) => (seam.inventory === 'disk' ? bestOnDisk(rows) : (rows.find(row => row.repo === seam.best) ?? null)),
 }))
-mock.module('../../src/services/tensorfold/serve.js', () => ({
+mock.module('../../src/models/tensorfold/serve.js', () => ({
   ...realServe,
   startTensorFold: async (request: StartRequest) => {
     roadCalls.push(['start', request])
@@ -191,13 +191,13 @@ mock.module('../../src/services/tensorfold/serve.js', () => ({
   tensorFoldWillRun: willRunOf,
   tensorFoldPairingCode: () => null,
 }))
-mock.module('../../src/services/tensorfold/pull.js', () => ({
+mock.module('../../src/models/tensorfold/pull.js', () => ({
   ...realPull,
   pullTensorFold: async (repo: string) => {
     roadCalls.push(['pull', repo])
   },
 }))
-mock.module('../../src/services/host/tensorfoldPod.js', () => ({
+mock.module('../../src/models/hosting/tensorfoldPod.js', () => ({
   ...realPod,
   tensorFoldPodRows: () => seam.pods ?? [],
   stopTensorFoldPod: async (id: string) => {
@@ -205,7 +205,7 @@ mock.module('../../src/services/host/tensorfoldPod.js', () => ({
     return { ok: true, words: 'runpod pod stopped · compute billing ended · ~$0.24 so far · the disk bills until you terminate it in /llmhost' }
   },
 }))
-mock.module('../../src/services/providers/local/tensorfoldHosts.js', () => ({
+mock.module('../../src/models/roads/local/tensorfoldHosts.js', () => ({
   ...realHosts,
   rememberTensorFoldHost: async (host: TensorFoldHost & { key?: string; chip?: string }) => {
     remembered.push({ ...host })
@@ -215,15 +215,15 @@ mock.module('../../src/services/providers/local/tensorfoldHosts.js', () => ({
   forgetTensorFoldHost: async () => undefined,
   tensorFoldHosts: () => seam.hosts,
 }))
-mock.module('../../src/services/providers/local/tensorfoldHelper.js', () => ({
+mock.module('../../src/models/roads/local/tensorfoldHelper.js', () => ({
   ...realHelper,
   helperHeadingWords: () => seam.helper,
 }))
-mock.module('../../src/services/providers/local/tensorfoldApp.js', () => ({
+mock.module('../../src/models/roads/local/tensorfoldApp.js', () => ({
   ...realApp,
   detectTensorFoldApp: async () => seam.app ?? { running: false },
 }))
-mock.module('../../src/services/providers/local/tensorfoldSupport.js', () => ({
+mock.module('../../src/models/roads/local/tensorfoldSupport.js', () => ({
   ...realSupport,
   tensorFoldSupportLine: () => 'TensorFold 1.2.2 · Metal · Apple M5 Pro · fixture',
   readTensorFoldSupportLine: async (focus?: unknown) => {
@@ -231,60 +231,60 @@ mock.module('../../src/services/providers/local/tensorfoldSupport.js', () => ({
     return 'TensorFold 1.2.2 · Metal · Apple M5 Pro · fixture'
   },
 }))
-mock.module('../../src/services/providers/local/localDiscovery.js', () => ({
+mock.module('../../src/models/roads/local/localDiscovery.js', () => ({
   ...realDiscovery,
   getCachedLocalDiscovery: () => discoveryOf(),
   cachedLocalModels: () => seam.discovered.flatMap(server => server.models),
   refreshLocalDiscovery: async () => discoveryOf() ?? { probedAtMs: Date.now(), targetCount: 0, servers: [] },
 }))
-mock.module('../../src/services/lan/announcer.js', () => ({
+mock.module('../../src/daemon/lan/announcer.js', () => ({
   ...realAnnouncer,
   browseAnnouncements: async () => seam.announced,
 }))
-mock.module('../../src/services/localSetup/setupProve.js', () => ({
+mock.module('../../src/models/local-setup/setupProve.js', () => ({
   ...realProve,
   pickAndProve: async (tag: string) => {
     roadCalls.push(['prove', tag])
     return { ok: true, settled: 'applied', words: `${tag} is this session's model`, model: `local/${tag}` }
   },
 }))
-mock.module('../../src/utils/model/seatReceipts.js', () => ({
+mock.module('../../src/models/facts/seatReceipts.js', () => ({
   ...realReceipts,
   mintImmediateReceipt: (text: string) => {
     receipts.push(text)
   },
 }))
-const realFacts = await import('../../src/components/tensorfold/tensorfoldFacts.ts')
+const realFacts = await import('../../src/screen/tensorfold/tensorfoldFacts.ts')
 const realCapable = realFacts.tensorFoldCapableMachine
-mock.module('../../src/components/tensorfold/tensorfoldFacts.js', () => ({
+mock.module('../../src/screen/tensorfold/tensorfoldFacts.js', () => ({
   ...realFacts,
   tensorFoldCapableMachine: (...args: Parameters<typeof realCapable>) => (args.length === 0 ? truthOf(seam.machine).platform === 'darwin' : realCapable(...args)),
 }))
 
 const React = await import('react')
 const h = React.createElement
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { Box } = await import('../../src/ink.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.tsx')
-const { ANTHROPIC_MODEL_GROUP, OPENAI_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
-const { readModelTensorFoldFacts } = await import('../../src/components/tensorfold/tensorfoldModelFacts.ts')
-const { tensorFoldCapableMachine, refreshTensorFoldAnnouncements, tensorFoldAnnouncementsNow, pairTensorFoldHost } = await import('../../src/components/tensorfold/tensorfoldFacts.ts')
+const { Box } = await import('../../src/screen/themedRenderer.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.tsx')
+const { ANTHROPIC_MODEL_GROUP, OPENAI_MODEL_GROUP } = await import('../../src/models/catalogue/modelOptions.ts')
+const { readModelTensorFoldFacts } = await import('../../src/screen/tensorfold/tensorfoldModelFacts.ts')
+const { tensorFoldCapableMachine, refreshTensorFoldAnnouncements, tensorFoldAnnouncementsNow, pairTensorFoldHost } = await import('../../src/screen/tensorfold/tensorfoldFacts.ts')
 const road = await import('../../src/commands/tensorfold/road.ts')
 const { TensorFoldPanel } = await import('../../src/commands/tensorfold/tensorfold.tsx')
 const modelCommand = await import('../../src/commands/model/mercuryModel.tsx')
-const pairing = await import('../../src/services/lan/pairing.ts')
+const pairing = await import('../../src/daemon/lan/pairing.ts')
 const { gridToPng } = await import('./gridToPng.ts')
 type Facts = Awaited<ReturnType<typeof readModelTensorFoldFacts>>['picker']
-type Act = import('../../src/components/tensorfold/tensorfoldRows.ts').TensorFoldAct
+type Act = import('../../src/screen/tensorfold/tensorfoldRows.ts').TensorFoldAct
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const failHint = cond ? '' : ' | to fix: the picker rows, headings and legend are drawn by src/components/MercuryModelPicker.tsx from the facts read in src/components/tensorfold/tensorfoldModelFacts.ts and the rows in src/components/tensorfold/tensorfoldRows.ts; the keys hand their act to src/commands/tensorfold/road.ts'
+  const failHint = cond ? '' : ' | to fix: the picker rows, headings and legend are drawn by src/commands/model/picker/MercuryModelPicker.tsx from the facts read in src/screen/tensorfold/tensorfoldModelFacts.ts and the rows in src/screen/tensorfold/tensorfoldRows.ts; the keys hand their act to src/commands/tensorfold/road.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${failHint}`)
 }
 

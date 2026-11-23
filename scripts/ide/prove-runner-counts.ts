@@ -11,10 +11,10 @@ process.env.MERCURY_BARE = '1'
 const FIXTURES = path.join(import.meta.dir, 'fixtures', 'runners')
 const FIXTURE_ROOT = '/work/project'
 
-const reporters = await import('../../src/services/ide/runnerReporters.ts')
-const runners = await import('../../src/services/ide/projectRunners.ts')
-const { latestRun } = await import('../../src/services/ide/pythonTests.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+const reporters = await import('../../src/integrations/ide/runnerReporters.ts')
+const runners = await import('../../src/integrations/ide/projectRunners.ts')
+const { latestRun } = await import('../../src/integrations/ide/pythonTests.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -109,7 +109,7 @@ section('C. the run road: the reporter file is written by the runner, read, pars
     const rerun = await runners.rerunRunnerFailures(r, { from: root })
     const rerunArgv = JSON.parse(readFileSync(argvFile, 'utf8')) as string[]
     check('C9 rerunFailed selects by full name with the reporter flags still present', rerun.state === 'ok' && rerunArgv.includes('-t') && rerunArgv[rerunArgv.indexOf('-t') + 1] === '^calc(?: > | )adds two numbers$' && rerunArgv.includes('--reporter=json') && rerunArgv.some(a => a.startsWith('--outputFile=')), JSON.stringify(rerunArgv))
-    const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
+    const { TestTool } = await import('../../src/tools/test/TestTool.ts')
     const report = (await runWithCwdOverride(root, () => TestTool.call({ op: 'report' } as never, { getAppState: () => ({}) } as never))) as { data: { result: string } }
     check('C10 the Test tool\'s report reads the counts and the typed failure', report.data.result.includes('1 passed · 1 failed · 1 skipped · 0 errored') && report.data.result.includes('calc adds two numbers (src/calc.test.mjs:8)') && !report.data.result.includes('counts not parsed'), report.data.result.split('\n').slice(0, 4).join(' | '))
   }

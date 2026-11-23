@@ -14,11 +14,11 @@ process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT = '2.1.280'
 for (const key of ['NODE_ENV', 'CI', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR', 'MERCURY_API_KEY_FILE_DESCRIPTOR']) delete process.env[key]
 writeFileSync(join(home, '.mercury.json'), JSON.stringify({ customApiKeyResponses: { approved: ['proof-key-ci-gate-not-a-real-key'.slice(-20)], rejected: [] } }))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const health = await import('../../src/services/health/healthReport.js')
-const refusals = await import('../../src/services/providers/anthropic/modelRefusal.js')
-const { renderPlainCertificate } = await import('../../src/cli/healthPresentation.js')
+const health = await import('../../src/platform/health/healthReport.js')
+const refusals = await import('../../src/models/roads/anthropic/modelRefusal.js')
+const { renderPlainCertificate } = await import('../../src/commands/verbs/healthPresentation.js')
 let checks = 0
 const check = (label: string, value: unknown): void => {
   assert(value, label)
@@ -48,8 +48,8 @@ check('the existing plain renderer includes the row and both evidence lines', pl
 refusals.clearModelRefusal(floor.id, floor.door)
 refusals.clearModelRefusal(absent.id, absent.door)
 check('clearing the last observation restores the same neutral row', JSON.stringify(await spec.run()) === JSON.stringify(empty))
-const { healthContext } = await import('../../src/services/health/healthReport.ts')
-const { identityChecks } = await import('../../src/services/health/sections/identity.ts')
+const { healthContext } = await import('../../src/platform/health/healthReport.ts')
+const { identityChecks } = await import('../../src/platform/health/sections/identity.ts')
 const identityRows = identityChecks(await healthContext())
 const contractAt = identityRows.findIndex(row => row.id === 'client-contract')
 const listedSpec = identityRows[contractAt + 1]

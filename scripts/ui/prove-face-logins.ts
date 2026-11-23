@@ -26,7 +26,7 @@ const {
   exchangeFailureMessage,
   parseManualAuthCode,
   sslHint,
-} = await import('../../src/components/mercury-ui/screens/anthropicLoginModel.js')
+} = await import('../../src/screen/widgets/faces/anthropicLoginModel.js')
 type Machine = ReturnType<typeof createAnthropicLoginMachine>
 type Snapshot = ReturnType<Machine['snapshot']>
 type Deps = NonNullable<Parameters<typeof createAnthropicLoginMachine>[2]>
@@ -356,13 +356,13 @@ t.section('§1 — THE ANTHROPIC MACHINE (both arms · setup-token · retry · b
 
 t.section('§3 — THE HUGGING FACE DRIVER (A2: the RFC 8628 machine out of the component, moonshotLogin-shaped)')
 {
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
   const { runHuggingfaceDeviceLogin, storeHuggingfaceTokenLogin } = await import(
-    '../../src/services/providers/huggingface/huggingfaceLogin.js'
+    '../../src/models/roads/huggingface/huggingfaceLogin.js'
   )
   const { huggingfaceStoredTokens, huggingfaceStoredTokenIdentity } = await import(
-    '../../src/services/providers/huggingface/huggingfaceAccounts.js'
+    '../../src/models/roads/huggingface/huggingfaceAccounts.js'
   )
 
   const ENV = {
@@ -465,14 +465,14 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
     loginsSortedArms,
     loginsStatusLine,
     loginsSummaryRows,
-  } = await import('../../src/components/BootLoginsScreen.js')
+  } = await import('../../src/screen/boot-face/BootLoginsScreen.js')
   const { STILLS, composeLogins, expiredFacts, mixedFacts, readStill, renderStill, signedOutFacts } = await import(
     './face-logins-stills.ts'
   )
 
   const arms = loginsCatalogue()
   t.check('the catalogue is the row owner’s twenty-two, engine legs offered', arms.length === 22 && arms.map(a => a.row.value).join(',') === 'openai,anthropic,openrouter,gemini,huggingface,moonshot,zai,deepseek,xai,meta,mistral,nous,minimax,together,cohere,groq,melious,orcarouter,cerebras,fireworks,qwen,zen')
-  const { loginFamilyInitialFocus, loginFamilyFocusFor } = await import('../../src/components/loginFamilyRows.js')
+  const { loginFamilyInitialFocus, loginFamilyFocusFor } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.js')
   const signedOutRows = loginsSortedArms(signedOutFacts()).map(arm => arm.row)
   t.check('signed-out opening focus is the first displayed row', loginFamilyInitialFocus(signedOutRows, undefined) === signedOutRows[0]!.value && signedOutRows[0]!.value === 'openai')
   t.check('recent Anthropic sign-in retains named-row focus', loginFamilyInitialFocus(signedOutRows, loginFamilyFocusFor('anthropic')) === 'anthropic')
@@ -520,8 +520,8 @@ t.section('§5 — THE REAL MOUNT (staticRender with injected facts; the route c
   process.env['MERCURY_CRITTER_GAZE'] = '0'
   process.env['MERCURY_LIVE_GLYPHS'] = '0'
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { BootLoginsScreen } = await import('../../src/components/BootLoginsScreen.js')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { BootLoginsScreen } = await import('../../src/screen/boot-face/BootLoginsScreen.js')
   const { mixedFacts } = await import('./face-logins-stills.ts')
   const frame = await renderToString(
     React.createElement(BootLoginsScreen, { facts: mixedFacts(), fullScene: { columns: 120, rows: 40 } } as never),
@@ -554,7 +554,7 @@ t.section('§6 — THE ANTHROPIC PANES (A4: the machine on the face; reset total
   t.check('the revived flow settles whole', m.m.snapshot().flow.name === 'success' && m.world.saved.length === 1 && m.world.recorded === 1)
 
   const { anthropicFlowLegendOf, anthropicFlowPaneLines, anthropicFlowStatusOf, maskedDraftLine, wrapHard } = await import(
-    '../../src/components/BootLoginsScreen.js'
+    '../../src/screen/boot-face/BootLoginsScreen.js'
   )
   const snapOf = (flow: Record<string, unknown>, over: Record<string, unknown> = {}): never =>
     ({ flow, pastePromptUp: false, copied: false, shadowWarning: null, accountLabel: null, ...over }) as never
@@ -602,13 +602,13 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
     loginsPickOptions,
     loginsPickPaneLines,
     receiptPaneLines,
-  } = await import('../../src/components/BootLoginsScreen.js')
-  const { keyPasteGuardNote } = await import('../../src/components/mercury-ui/screens/keyPasteGuards.js')
-  const { zaiPlanLabel } = await import('../../src/services/providers/zai/zaiLogin.js')
+  } = await import('../../src/screen/boot-face/BootLoginsScreen.js')
+  const { keyPasteGuardNote } = await import('../../src/screen/widgets/faces/keyPasteGuards.js')
+  const { zaiPlanLabel } = await import('../../src/models/roads/zai/zaiLogin.js')
 
   t.check('↵ is live on EVERY catalogue row (the set closed at A6b)', ['anthropic', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'moonshot', 'huggingface', 'openai', 'openrouter', 'gemini'].every(v => loginsFlowReady(v as never)))
 
-  const { anthropicArmPickRows, openaiArmPickRows } = await import('../../src/components/loginFamilyRows.js')
+  const { anthropicArmPickRows, openaiArmPickRows } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.js')
   t.check('the openai pick is the row owner\'s two-arm pair, byte-same labels', JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(openaiArmPickRows.map(o => o.label)) && JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(['ChatGPT subscription — browser sign-in', 'OpenAI API key — usage-based billing']))
   t.check('the Anthropic pick keeps subscription, Console and key paste distinct', JSON.stringify(loginsPickOptions('anthropic')) === JSON.stringify(anthropicArmPickRows) && JSON.stringify(loginsPickOptions('anthropic')) === JSON.stringify([{ label: 'Claude subscription — browser sign-in', value: 'claudeai' }, { label: 'Anthropic Console — browser sign-in', value: 'console' }, { label: 'Anthropic API key — usage-based billing', value: 'key' }]))
   t.check('the zai pick is the landed plan question, byte-same labels', JSON.stringify(loginsPickOptions('zai').map(o => o.label)) === JSON.stringify(['GLM Coding Plan key — api.z.ai/api/coding/paas/v4', 'Z.AI API key (general, pay-as-you-go) — api.z.ai/api/paas/v4']))
@@ -621,7 +621,7 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
   t.check('a clean draft passes the guard', keyPasteGuardNote('zk-9f2c3d4e5f6a7b8c', keyLegGuardOpts('zai-general')) === null && keyPasteGuardNote('  ', keyLegGuardOpts('deepseek')) === null)
 
 
-  const { storeOpenaiApiKeyLogin } = await import('../../src/services/providers/openai/openaiLogin.js')
+  const { storeOpenaiApiKeyLogin } = await import('../../src/models/roads/openai/openaiLogin.js')
   const live = await storeOpenaiApiKeyLogin('ok-abcdefgh12345678', { refreshCatalogue: async () => ({ models: [1, 2, 3] }) })
   const dead = await storeOpenaiApiKeyLogin('ok-abcdefgh12345678', { refreshCatalogue: async () => ({ models: [], lastError: 'ECONNREFUSED' }) })
   const silent = await storeOpenaiApiKeyLogin('ok-abcdefgh12345678', { refreshCatalogue: async () => null })
@@ -653,7 +653,7 @@ t.section('§8 — THE DEVICE FAMILIES (A6a: Kimi + Hugging Face whole — picks
     loginsFlowStatusOf,
     loginsPickOptions,
     loginsPickPaneLines,
-  } = await import('../../src/components/BootLoginsScreen.js')
+  } = await import('../../src/screen/boot-face/BootLoginsScreen.js')
 
   t.check('↵ is live on moonshot + huggingface (and the whole catalogue since A6b)', (['moonshot', 'huggingface', 'openai', 'openrouter', 'gemini'] as const).every(v => loginsFlowReady(v)))
 
@@ -701,16 +701,16 @@ t.section('§9 — THE HANDLES FAMILIES (A6b: openai · openrouter · gemini —
     loginsPickOptions,
     metaPickOptions,
     openaiDevicePaneLines,
-  } = await import('../../src/components/BootLoginsScreen.js')
+  } = await import('../../src/screen/boot-face/BootLoginsScreen.js')
 
   const { finishOpenaiSubscriptionConnect, OPENAI_DEVICE_STOPPED_RECEIPT } = await import(
-    '../../src/services/providers/openai/openaiLogin.js'
+    '../../src/models/roads/openai/openaiLogin.js'
   )
   const { finishOpenrouterConnect, storeOpenrouterApiKeyLogin } = await import(
-    '../../src/services/providers/openrouter/openrouterLogin.js'
+    '../../src/models/roads/openrouter/openrouterLogin.js'
   )
   const { finishGeminiOauthConnect, storeGeminiApiKeyLogin } = await import(
-    '../../src/services/providers/gemini/geminiLogin.js'
+    '../../src/models/roads/gemini/geminiLogin.js'
   )
   const ref = { label: 'ChatGPT Plus', accountId: 'acct1234567890' } as never
   const live = await finishOpenaiSubscriptionConnect(ref, { refreshCatalogue: async () => ({ models: [1, 2] }) })
@@ -727,10 +727,10 @@ t.section('§9 — THE HANDLES FAMILIES (A6b: openai · openrouter · gemini —
 
 
   t.check('the openrouter pick is the landed card, byte-same', JSON.stringify(loginsPickOptions('openrouter').map(o => o.label)) === JSON.stringify(['Sign in with the browser — OAuth mints a scoped key', 'Headless — OpenRouter shows a code you paste here', 'Paste an API key (stored locally, mode 600)']))
-  const { geminiConnectRows } = await import('../../src/components/geminiConnectGuide.js')
+  const { geminiConnectRows } = await import('../../src/models/sign-in/gemini-connect/geminiConnectGuide.js')
   const geminiFacts = [{ oauthConnected: false }, { keySource: 'stored' as const, oauthConnected: false }, { clientSource: 'stored' as const, oauthConnected: false }, { clientSource: 'env' as const, oauthConnected: true }, { planConnected: true, planTier: 'Google AI Pro', oauthConnected: false, active: 'plan' as const }, { planConnected: true, planTier: 'free', keySource: 'stored' as const, clientSource: 'stored' as const, oauthConnected: true, active: 'api-key' as const }]
   t.check("the gemini pick is the card's rows byte-same in every state: Sign in with Google first, the key row, the account row, the change row only over a stored client", geminiFacts.every(f => JSON.stringify(geminiPickOptions(f)) === JSON.stringify(geminiConnectRows(f))) && geminiPickOptions({ oauthConnected: false })[0]!.label === "Sign in with Google — your plan's quota: AI Pro, AI Ultra or a free account" && geminiPickOptions({ oauthConnected: false })[1]!.label === 'API key — the easiest: create one in AI Studio, paste it here' && geminiPickOptions({ clientSource: 'stored', oauthConnected: false })[3]!.label === 'Change the stored client id (step 5 again)' && geminiPickOptions({ oauthConnected: false }).length === 3 && geminiPickOptions({ planConnected: true, planTier: 'Google AI Pro', oauthConnected: false, active: 'plan' })[0]!.label === 'Sign in with Google — connected (Google AI Pro) · ↵ signs in again' && geminiPickOptions({ planConnected: true, planTier: 'free', keySource: 'stored', clientSource: 'stored', oauthConnected: true, active: 'api-key' }).map(o => o.label).join(' | ') === 'Sign in with Google — connected (free), not active · ↵ makes it active | API key — connected (stored locally) · ↵ pastes a replacement | Google account — connected, not active · ↵ makes it active | Change the stored client id (step 5 again)')
-  const { metaConnectRows } = await import('../../src/services/providers/meta/metaLogin.js')
+  const { metaConnectRows } = await import('../../src/models/roads/meta/metaLogin.js')
   const metaFacts = [{ museCodeConnected: false }, { keySource: 'stored' as const, museCodeConnected: false, active: 'api-key' as const }, { museCodeConnected: true, museCodeTier: 'Muse Code Pro', active: 'muse-code' as const }, { museCodeConnected: true, museCodeTier: 'Muse Code Pro', keySource: 'stored' as const, active: 'api-key' as const }]
   t.check("the meta pick is the card's rows byte-same in every state: Sign in with Meta first, the API key second, with stored-but-inactive activation", metaFacts.every(f => JSON.stringify(metaPickOptions(f)) === JSON.stringify(metaConnectRows(f))) && metaPickOptions({ museCodeConnected: false })[0]!.label === 'Sign in with Meta — a Muse Code subscription, a device code in your browser' && metaPickOptions({ museCodeConnected: true, museCodeTier: 'Muse Code Pro', active: 'muse-code' })[0]!.label === 'Sign in with Meta — connected (Muse Code Pro) · ↵ signs in again' && metaPickOptions({ museCodeConnected: true, museCodeTier: 'Muse Code Pro', keySource: 'stored', active: 'api-key' }).map(o => o.label).join(' | ') === 'Sign in with Meta — connected (Muse Code Pro), not active · ↵ makes it active | API key — connected (stored locally) · ↵ pastes a replacement')
   const geminiWait = handlesWaitPaneLines({ leg: 'gemini-oauth', phase: 'waiting', authorizeUrl: 'https://accounts.google.test/o/oauth2/v2/auth?state=elided', copied: false }, 0)
@@ -763,15 +763,15 @@ t.section('§9 — THE HANDLES FAMILIES (A6b: openai · openrouter · gemini —
 
 t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the LIVE store · the chip epoch · the settle)')
 {
-  const handover = await import('../../src/substrate/splashHandover.js')
+  const handover = await import('../../src/platform/substrate/splashHandover.js')
   handover.armFaceDoorDeepLink('logins')
   t.check('the resolver PEEKS without consuming; the face consumes ONCE', handover.peekFaceDoorDeepLink() === 'logins' && handover.consumeFaceDoorDeepLink() === 'logins' && handover.consumeFaceDoorDeepLink() === null)
 
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { BootLoginsScreen } = await import('../../src/components/BootLoginsScreen.js')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { BootLoginsScreen } = await import('../../src/screen/boot-face/BootLoginsScreen.js')
   const { mixedFacts } = await import('./face-logins-stills.ts')
-  const routeStore = await import('../../src/context/surfaceRoute.js')
+  const routeStore = await import('../../src/screen/routes/surfaceRoute.js')
   routeStore._resetSurfaceRouteForTesting()
   const unregister = routeStore.registerRouteSurface('boot-settings', { render: () => null })
   routeStore.initializeSurfaceRoute({ kind: 'boot-settings' })
@@ -795,7 +795,7 @@ t.section('§11 — THE MERGED SESSIONS·PROJECTS SCREEN (B2, dark: the containe
     resumeProjectEntryOf,
     resumeStatusLine,
     resumeSummaryRows,
-  } = await import('../../src/components/BootResumeScreen.js')
+  } = await import('../../src/screen/boot-face/BootResumeScreen.js')
   const { MERGED_FIXTURE_PROJECTS, MERGED_STILLS, composeMerged, readStill, renderStill } = await import(
     './face-logins-stills.ts'
   )
@@ -821,8 +821,8 @@ t.section('§11 — THE MERGED SESSIONS·PROJECTS SCREEN (B2, dark: the containe
   t.check('the merged frame: title · both containers · the jump in the legend', merged.includes('sessions · projects') && merged.includes('projects') && merged.includes('⇥ repos'))
 
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { BootResumeScreen } = await import('../../src/components/BootResumeScreen.js')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { BootResumeScreen } = await import('../../src/screen/boot-face/BootResumeScreen.js')
   const { resumeModelOf } = await import('./face-door-stills.ts')
   const model = { ...resumeModelOf('all'), pendingMore: 0 }
   const frame = await renderToString(
@@ -837,32 +837,32 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
   const SECRET = 'zz-SECRETBYTES-0f9e8d7c6b5a4321'
   guardLoginDriverWrite('the credential-secrecy driver sweep')
   t.check('the sweep runs only in a scratch home (the guard reads the pinned home as scratch)', !configHomeIsReal())
-  const { homeIsAccountStore, proofProcessName } = await import('../../src/utils/proofHomeGuard.js')
+  const { homeIsAccountStore, proofProcessName } = await import('../../src/models/roads/proofHomeGuard.js')
   t.check("the product reads the pinned home the same way: not the account's own store (the wall and the guard agree)", !homeIsAccountStore(process.env['MERCURY_CONFIG_DIR']!))
   t.check('this process is a proof to the product (the credential writers would refuse a write into the account store even if the pin were lost)', proofProcessName() === 'prove-face-logins.ts', String(proofProcessName()))
   const json = (status: number, body: Record<string, unknown>): Response =>
     new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 
   const receipts: string[] = []
-  const { storeOpenaiApiKeyLogin } = await import('../../src/services/providers/openai/openaiLogin.js')
+  const { storeOpenaiApiKeyLogin } = await import('../../src/models/roads/openai/openaiLogin.js')
   receipts.push((await storeOpenaiApiKeyLogin(SECRET, { refreshCatalogue: async () => ({ models: [1] }) })).receipt)
-  const { storeOpenrouterApiKeyLogin } = await import('../../src/services/providers/openrouter/openrouterLogin.js')
+  const { storeOpenrouterApiKeyLogin } = await import('../../src/models/roads/openrouter/openrouterLogin.js')
   receipts.push((await storeOpenrouterApiKeyLogin(SECRET, { refreshCatalogue: async () => null })).receipt)
-  const { storeGeminiApiKeyLogin } = await import('../../src/services/providers/gemini/geminiLogin.js')
+  const { storeGeminiApiKeyLogin } = await import('../../src/models/roads/gemini/geminiLogin.js')
   receipts.push((await storeGeminiApiKeyLogin(SECRET, { refreshCatalogue: async () => ({ models: [], lastError: 'x' }) })).receipt)
-  const { storeZaiApiKeyLogin } = await import('../../src/services/providers/zai/zaiLogin.js')
+  const { storeZaiApiKeyLogin } = await import('../../src/models/roads/zai/zaiLogin.js')
   const zaiAccepted = async () => ({ state: 'accepted' as const, models: 1 })
   receipts.push((await storeZaiApiKeyLogin(SECRET, 'coding', undefined, { probeKey: zaiAccepted })).receipt)
   receipts.push((await storeZaiApiKeyLogin(SECRET, 'general', undefined, { probeKey: zaiAccepted })).receipt)
-  const { storeDeepseekApiKeyLogin } = await import('../../src/services/providers/deepseek/deepseekLogin.js')
+  const { storeDeepseekApiKeyLogin } = await import('../../src/models/roads/deepseek/deepseekLogin.js')
   const dsFetch = (async () => json(200, { balance_infos: [{ currency: 'USD', total_balance: '1.00' }], is_available: true })) as unknown as typeof fetch
   receipts.push((await storeDeepseekApiKeyLogin(SECRET, { fetchImpl: dsFetch })).receipt)
   const dsRefused = (async () => json(401, {})) as unknown as typeof fetch
   receipts.push((await storeDeepseekApiKeyLogin(SECRET, { fetchImpl: dsRefused })).receipt)
-  const { storeMoonshotApiKeyLogin } = await import('../../src/services/providers/moonshot/moonshotLogin.js')
+  const { storeMoonshotApiKeyLogin } = await import('../../src/models/roads/moonshot/moonshotLogin.js')
   const msFetch = (async () => json(200, { data: { available_balance: 1, voucher_balance: 0, cash_balance: 1 } })) as unknown as typeof fetch
   receipts.push((await storeMoonshotApiKeyLogin(SECRET, { fetchImpl: msFetch })).receipt)
-  const { storeHuggingfaceTokenLogin } = await import('../../src/services/providers/huggingface/huggingfaceLogin.js')
+  const { storeHuggingfaceTokenLogin } = await import('../../src/models/roads/huggingface/huggingfaceLogin.js')
   const hfEnv = { MERCURY_HUGGINGFACE_OAUTH_CLIENT_ID: 'c', MERCURY_HUGGINGFACE_HUB_BASE: 'https://hub.test' } as NodeJS.ProcessEnv
   const hfFetch = (async () => json(200, { name: 'op' })) as unknown as typeof fetch
   receipts.push((await storeHuggingfaceTokenLogin(SECRET, { env: hfEnv, fetchImpl: hfFetch }, async () => null)).receipt)
@@ -873,7 +873,7 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
 }
 
 {
-  const { lateSettleNotice, loginsSummaryRows } = await import('../../src/components/BootLoginsScreen.js')
+  const { lateSettleNotice, loginsSummaryRows } = await import('../../src/screen/boot-face/BootLoginsScreen.js')
 
   t.check(
     'the late-settle sentence names the family, the landing, and both removal doors',
@@ -896,9 +896,9 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
   )
 
 
-  const { KIMI_CONNECT_STOPPED_RECEIPT } = await import('../../src/services/providers/moonshot/moonshotLogin.js')
-  const { HUGGINGFACE_CONNECT_STOPPED_RECEIPT } = await import('../../src/services/providers/huggingface/huggingfaceLogin.js')
-  const { OPENROUTER_CONNECT_STOPPED_RECEIPT, OPENROUTER_CONNECT_CANCELLED_RECEIPT } = await import('../../src/services/providers/openrouter/openrouterLogin.js')
+  const { KIMI_CONNECT_STOPPED_RECEIPT } = await import('../../src/models/roads/moonshot/moonshotLogin.js')
+  const { HUGGINGFACE_CONNECT_STOPPED_RECEIPT } = await import('../../src/models/roads/huggingface/huggingfaceLogin.js')
+  const { OPENROUTER_CONNECT_STOPPED_RECEIPT, OPENROUTER_CONNECT_CANCELLED_RECEIPT } = await import('../../src/models/roads/openrouter/openrouterLogin.js')
   t.check(
     'the mid-wait receipts admit an in-flight approval may land, naming /accounts',
     [KIMI_CONNECT_STOPPED_RECEIPT, HUGGINGFACE_CONNECT_STOPPED_RECEIPT, OPENROUTER_CONNECT_STOPPED_RECEIPT].every(
@@ -908,7 +908,7 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
 }
 
 {
-  const { createStore } = await import('../../src/state/store.js')
+  const { createStore } = await import('../../src/platform/primitives/store.js')
   const store = createStore<{ n: number }>({ n: 1 })
   let captured: number | null = null
   store.setState(prev => {
@@ -924,7 +924,7 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
 
 t.section('§15 — THE CLASSIC FRAME CLAMP (no entry row overruns the columns; the legend keeps the way out)')
 {
-  const { loginsMenuModelOf, lateSettleNotice } = await import('../../src/components/BootLoginsScreen.js')
+  const { loginsMenuModelOf, lateSettleNotice } = await import('../../src/screen/boot-face/BootLoginsScreen.js')
   const { createSplashCore } = (await import('../../assets/splash/splash-core.mjs')) as never as {
     createSplashCore: (o: { nocolor: boolean; truecolor: boolean; accent: string }) => {
       composeBootMenu: (c: number, r: number, m: unknown) => { lines: string[] }

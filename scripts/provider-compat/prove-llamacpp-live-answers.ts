@@ -72,17 +72,17 @@ const llamacpp = await serve((req, body, res) => {
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `llamacpp=${llamacpp.root}`
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const discovery = await import('../../src/services/providers/local/localDiscovery.ts')
+const discovery = await import('../../src/models/roads/local/localDiscovery.ts')
 const { refreshLocalDiscovery, getCachedLocalDiscovery, readServedWindow, ensureServedWindow, __resetLocalDiscoveryForTest } = discovery
-const catalogue = await import('../../src/services/providers/local/localCatalogue.ts')
+const catalogue = await import('../../src/models/roads/local/localCatalogue.ts')
 const { getLocalModelOptions, localRecordFor, localWindowWords, localPickerWindowNotice } = catalogue
-const { localLaneProfileFor, localGuardWindow, localModelAcceptsEffort } = await import('../../src/services/providers/local/localCallModel.ts')
-const { localPaceDefaultFor, LOCAL_PACE_SMALL_TOKENS_PER_S } = await import('../../src/services/providers/localLiveness.ts')
-const { buildLocalExtras } = await import('../../src/services/providers/openaicompat/compatWire.ts')
-const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-type CompatStreamEvent = import('../../src/services/providers/openaicompat/compatChatClient.ts').CompatStreamEvent
+const { localLaneProfileFor, localGuardWindow, localModelAcceptsEffort } = await import('../../src/models/roads/local/localCallModel.ts')
+const { localPaceDefaultFor, LOCAL_PACE_SMALL_TOKENS_PER_S } = await import('../../src/models/roads/localLiveness.ts')
+const { buildLocalExtras } = await import('../../src/models/roads/openaicompat/compatWire.ts')
+const { streamCompatChat } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+type CompatStreamEvent = import('../../src/models/roads/openaicompat/compatChatClient.ts').CompatStreamEvent
 
 section('1 · discovery on a single-model llama.cpp whose /models answers the same list as /v1/models')
 {
@@ -117,8 +117,8 @@ section('2 · the served-window road at send (readServedWindow · ensureServedWi
   const guard = localGuardWindow(record)
   check('the silent-truncation guard now has a figure for llama.cpp (served)', guard?.tokens === SERVED && guard.sourceWords === 'served', JSON.stringify(guard))
   const profile = localLaneProfileFor(record)
-  check('a request inside the window is not refused, nor one within a third past it (the server\'s own answer decides there); one past that margin is, naming the served window', profile.requestFitRefusal?.({ requestBytes: 70_000, estTokens: 18_000, toolCount: 12, wireModel: MODEL }) === undefined && profile.requestFitRefusal?.({ requestBytes: 1_200_000, estTokens: 300_000, toolCount: 12, wireModel: MODEL }) === undefined && (profile.requestFitRefusal?.({ requestBytes: 1_600_000, estTokens: 400_000, toolCount: 12, wireModel: MODEL }) ?? '').includes(`${SERVED} tokens — served`), 'a request inside the served window was refused or one past the margin was not, or the refusal text lacks the served window; see requestFitRefusal in localLaneProfileFor in src/services/providers/local/localCallModel.ts')
-  check('llama.cpp keeps tool_choice and takes the effort ladder for any model', profile.omitsToolChoice !== true && localModelAcceptsEffort(record), `omitsToolChoice=${String(profile.omitsToolChoice)} acceptsEffort=${String(localModelAcceptsEffort(record))}; see localLaneProfileFor and localModelAcceptsEffort in src/services/providers/local/localCallModel.ts`)
+  check('a request inside the window is not refused, nor one within a third past it (the server\'s own answer decides there); one past that margin is, naming the served window', profile.requestFitRefusal?.({ requestBytes: 70_000, estTokens: 18_000, toolCount: 12, wireModel: MODEL }) === undefined && profile.requestFitRefusal?.({ requestBytes: 1_200_000, estTokens: 300_000, toolCount: 12, wireModel: MODEL }) === undefined && (profile.requestFitRefusal?.({ requestBytes: 1_600_000, estTokens: 400_000, toolCount: 12, wireModel: MODEL }) ?? '').includes(`${SERVED} tokens — served`), 'a request inside the served window was refused or one past the margin was not, or the refusal text lacks the served window; see requestFitRefusal in localLaneProfileFor in src/models/roads/local/localCallModel.ts')
+  check('llama.cpp keeps tool_choice and takes the effort ladder for any model', profile.omitsToolChoice !== true && localModelAcceptsEffort(record), `omitsToolChoice=${String(profile.omitsToolChoice)} acceptsEffort=${String(localModelAcceptsEffort(record))}; see localLaneProfileFor and localModelAcceptsEffort in src/models/roads/local/localCallModel.ts`)
 }
 
 const collect = async (request: Parameters<typeof streamCompatChat>[0]['request']): Promise<CompatStreamEvent[]> => {
@@ -139,11 +139,11 @@ section('3 · the streamed reply as the server answered it (reasoning_content de
   const events = await collect({ model: MODEL, messages: [{ role: 'user', content: 'reply with pong' }], tools: [], extra: extras })
   check('the reasoning block streams from reasoning_content deltas', reasoningOf(events) === "The user asked for a simple pong reply, so I'll respond directly.\n", JSON.stringify(reasoningOf(events)))
   check('the text streams from content deltas', textOf(events) === 'Pong', JSON.stringify(textOf(events)))
-  check('the finish is a stop with no tool calls', finishOf(events)?.reason === 'stop' && finishOf(events)?.toolCalls.length === 0, JSON.stringify(finishOf(events)) + '; the finish event comes from streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts')
+  check('the finish is a stop with no tool calls', finishOf(events)?.reason === 'stop' && finishOf(events)?.toolCalls.length === 0, JSON.stringify(finishOf(events)) + '; the finish event comes from streamCompatChat in src/models/roads/openaicompat/compatChatClient.ts')
   check('the usage chunk (with llama.cpp timings beside it) reads prompt · completion · cached', usageOf(events)?.inputTokens === 17935 && usageOf(events)?.outputTokens === 21 && (usageOf(events)?.cachedInputTokens ?? 0) === 0, JSON.stringify(usageOf(events)))
   check('no fault on the stream', faultsOf(events).length === 0, faultsOf(events).join(','))
   const sent = chatRequests.at(-1)!
-  check('the request carried stream_options.include_usage and no reasoning_effort without a session effort', (sent.stream_options as { include_usage: boolean }).include_usage === true && sent.reasoning_effort === undefined && sent.stream === true, `${JSON.stringify({ stream_options: sent.stream_options, reasoning_effort: sent.reasoning_effort, stream: sent.stream })}; the request extras come from buildLocalExtras in src/services/providers/openaicompat/compatWire.ts`)
+  check('the request carried stream_options.include_usage and no reasoning_effort without a session effort', (sent.stream_options as { include_usage: boolean }).include_usage === true && sent.reasoning_effort === undefined && sent.stream === true, `${JSON.stringify({ stream_options: sent.stream_options, reasoning_effort: sent.reasoning_effort, stream: sent.stream })}; the request extras come from buildLocalExtras in src/models/roads/openaicompat/compatWire.ts`)
 }
 
 section('4 · the tool loop as the server answered it (streamed tool_calls deltas · finish tool_calls · the second round on the cache)')

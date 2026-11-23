@@ -5,7 +5,7 @@ import { KEY, mountOffscreen, pinSourceRef, waitFor, type Mounted } from '../lib
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture, liveCatalogue } from './runpodFixture.mjs'
 import { hfFixture, fixtureRepos } from './hfFixture.mjs'
-import type { LlmHostQuestion } from '../../src/services/llmHost/index.ts'
+import type { LlmHostQuestion } from '../../src/models/llm-host/index.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 pinSourceRef()
@@ -38,16 +38,16 @@ try {
   process.env.MERCURY_HOST_RECIPES_FILE = recipeFile
   rp.state.customGpus = [{ ...liveCatalogue.gpus.find((row: any) => row.id === 'NVIDIA H100 80GB HBM3'), availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', availability: 'HIGH' }] }]
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-  const { derivedHfRecipe, forgetDerivedHfRecipes } = await import('../../src/services/host/hfRecipes.ts')
-  const { forgetSessionHostRecipes } = await import('../../src/services/host/recipesFile.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const { derivedHfRecipe, forgetDerivedHfRecipes } = await import('../../src/models/hosting/hfRecipes.ts')
+  const { forgetSessionHostRecipes } = await import('../../src/models/hosting/recipesFile.ts')
   writeStoredRunpodApiKey(rp.key)
   const frameAt = process.argv.indexOf('--frames')
   const frames = frameAt < 0 ? undefined : process.argv[frameAt + 1]

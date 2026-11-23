@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { KEY, mountOffscreen, pinSourceRef, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { gridToPng } from '../ui/gridToPng.ts'
-import type { LlmHostQuestion, LlmHostRoad } from '../../src/services/llmHost/index.ts'
+import type { LlmHostQuestion, LlmHostRoad } from '../../src/models/llm-host/index.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 delete process.env.MERCURY_HOME
@@ -24,15 +24,15 @@ let mounted: Mounted | undefined
 let checks = 0
 try {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const recipes = await import('../../src/services/host/recipesFile.ts')
-  const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const recipes = await import('../../src/models/hosting/recipesFile.ts')
+  const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
   const base = HOST_RECIPES[0]!
   const privateRows = [
     { ...base, id: 'private-deepseek', label: 'Private DeepSeek · FP8', model: 'fixture/private-deepseek' },
@@ -55,7 +55,7 @@ try {
   const implementation = createHostRoad({ sessionId: 'private-recipes-proof', runner: { run: async () => { throw new Error('No process is needed') }, tunnel: () => { throw new Error('No tunnel is needed') } }, startJob: () => { throw new Error('No rental is allowed') } })
   const road: LlmHostRoad = (ask, emit, signal) => implementation(plan => { question = plan; return ask(plan) }, emit, signal)
   const screen = () => mounted?.screen() ?? ''
-  const popupHint = ' · change the private recipes file choice in src/services/host/recipesFile.ts (rememberPrivateHostRecipesFile, currentPrivateHostRecipes, currentHostRecipes) or its popup steps in src/commands/llmhost/llmhost.tsx (llmHostPopupRequest)'
+  const popupHint = ' · change the private recipes file choice in src/models/hosting/recipesFile.ts (rememberPrivateHostRecipesFile, currentPrivateHostRecipes, currentHostRecipes) or its popup steps in src/commands/llmhost/llmhost.tsx (llmHostPopupRequest)'
   const check = (name: string, truth: unknown) => { assert.ok(truth, name + popupHint + '\n' + screen()); checks++; console.log('PASS ' + name) }
   const step = async (name: string) => assert.ok(await waitFor(() => question?.step === name && screen().includes(question.title.slice(0, 24)), 10000), 'the popup never reached step ' + name + popupHint + '\n' + screen())
   const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''
@@ -149,7 +149,7 @@ try {
     delete process.env.MERCURY_HOST_RECIPES_FILE
     await close(); mounted!.unmount(); mounted = undefined
   }
-  const child = spawnSync(process.execPath, ['-e', `const m = await import(${JSON.stringify(join(f.root, 'src/services/host/recipesFile.ts'))}); console.log(JSON.stringify(m.currentHostRecipes().map(r => r.id)))`], { cwd: f.root, encoding: 'utf8', env: { ...process.env, MERCURY_HOST_RECIPES_FILE: other } })
+  const child = spawnSync(process.execPath, ['-e', `const m = await import(${JSON.stringify(join(f.root, 'src/models/hosting/recipesFile.ts'))}); console.log(JSON.stringify(m.currentHostRecipes().map(r => r.id)))`], { cwd: f.root, encoding: 'utf8', env: { ...process.env, MERCURY_HOST_RECIPES_FILE: other } })
   check('a fresh process reads the saved choice ahead of the environment file', child.status === 0 && JSON.parse(child.stdout.trim().split('\n').at(-1)!).includes('private-deepseek'))
   const remembered = readFileSync(choicePath, 'utf8')
   writeFileSync(invalid, fileOf([privateRows[0], { ...privateRows[1], count: 0 }]))

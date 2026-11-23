@@ -1,14 +1,14 @@
 import type { ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { turnWaiting, type LooseRow } from '../../rows/read.js'
-import type { PermissionRequestParams, SessionAppliedParams } from '../../runner/wire/methods.js'
-import type { RpcError } from '../../runner/wire/errors.js'
-import { RunnerConnection, type HeldAsk } from '../runnerConnection.js'
-import { UNANSWERED_ASK_REJECT_MESSAGE } from '../../utils/messages/rejectionText.js'
-import { killProcessGroup } from '../../utils/processGroup.js'
-import { logForDebugging } from '../../utils/debug.js'
-import { assertSpawnCwd, recordSpawn } from '../spawnLedger.js'
-import { spawnRunnerChild, type RunnerChildSpec } from '../headlessRun.js'
+import { turnWaiting, type LooseRow } from '../../engine/rows/read.js'
+import type { PermissionRequestParams, SessionAppliedParams } from '../runner-wire/methods.js'
+import type { RpcError } from '../runner-wire/errors.js'
+import { RunnerConnection, type HeldAsk } from '../runner-link/runnerConnection.js'
+import { UNANSWERED_ASK_REJECT_MESSAGE } from '../../engine/message-shapes/rejectionText.js'
+import { killProcessGroup } from '../../platform/processes/processGroup.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
+import { assertSpawnCwd, recordSpawn } from './spawnLedger.js'
+import { spawnRunnerChild, type RunnerChildSpec } from '../runner-link/headlessRun.js'
 import {
   occupancyOfRow,
   isOutcomeRow,
@@ -16,12 +16,12 @@ import {
   errorTextOfOutcome,
   DEFAULT_LONG_LIVED_CONFIG,
   type LongLivedRespawnConfig,
-} from '../longLivedRespawn.js'
-import { calculateContextPercentages, getContextWindowForModel } from '../../utils/context.js'
-import { currentVersion } from '../controlSocket.js'
+} from './longLivedRespawn.js'
+import { calculateContextPercentages, getContextWindowForModel } from '../../engine/compaction-window/contextFill.js'
+import { currentVersion } from '../control/controlSocket.js'
 import type { LongLivedSeat, RosterEntry, RosterOptions, WorkerHandle } from './types.js'
-import { passedOver } from '../../utils/passedOver.js'
-import { stopTimeout } from '../../utils/timers.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+import { stopTimeout } from '../../platform/async/timers.js'
 
 interface SpawnNeeds {
   keepChildStderr(short: string, child: ChildProcess, ll: LongLivedSeat): void
@@ -117,7 +117,7 @@ export class SpawnPart {
     h.entry.pid = child.pid
     if (short.startsWith('concourse-w') && typeof child.pid === 'number') {
       const livePid = child.pid
-      void import('../concourseWorkers.js')
+      void import('../concourse-workers/concourseWorkers.js')
         .then(sup => sup.markConcourseWorkerRespawn(short, livePid))
         .catch(passedOver)
     }
@@ -193,7 +193,7 @@ export class SpawnPart {
       ll.turnActive = false
       ll.turnStartedAt = undefined
       if (short.startsWith('concourse-w')) {
-        void import('../concourseWorkers.js')
+        void import('../concourse-workers/concourseWorkers.js')
           .then(sup => sup.markConcourseWorkerTurnSettled(short))
           .catch(passedOver)
       }
@@ -246,7 +246,7 @@ export class SpawnPart {
       ll.turnActive = false
       ll.turnStartedAt = undefined
       if (short.startsWith('concourse-w')) {
-        void import('../concourseWorkers.js')
+        void import('../concourse-workers/concourseWorkers.js')
           .then(sup => sup.markConcourseWorkerTurnSettled(short))
           .catch(passedOver)
           .then(() => {

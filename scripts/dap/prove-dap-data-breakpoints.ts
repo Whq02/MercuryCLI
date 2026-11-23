@@ -8,7 +8,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const where = 'change the dataBreakpoints, instructionBreakpoints or writeMemory op in src/tools/DebugTool/DebugTool.ts (its helpers sit under src/tools/DebugTool/debug/) or the DAP client in src/services/dap/dapClient.ts; the mock adapter is scripts/dap/mock-dap-adapter-memory.mjs'
+  const where = 'change the dataBreakpoints, instructionBreakpoints or writeMemory op in src/tools/debug/DebugTool.ts (its helpers sit under src/tools/debug/ops/) or the DAP client in src/integrations/debugger/dapClient.ts; the mock adapter is scripts/dap/mock-dap-adapter-memory.mjs'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${where}` : ''}`)
 }
 function section(t: string): void {
@@ -16,7 +16,7 @@ function section(t: string): void {
 }
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — proof exceeded 180s; a DebugTool call in src/tools/DebugTool/DebugTool.ts or the mock adapter scripts/dap/mock-dap-adapter-memory.mjs never answered')
+  console.log('\nTIMEOUT — proof exceeded 180s; a DebugTool call in src/tools/debug/DebugTool.ts or the mock adapter scripts/dap/mock-dap-adapter-memory.mjs never answered')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -32,9 +32,9 @@ process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({
 })
 delete process.env.MERCURY_DAP
 
-const dap = await import('../../src/services/dap/dapClient.js')
-const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
-const { formatZodValidationError } = await import('../../src/utils/toolErrors.js')
+const dap = await import('../../src/integrations/debugger/dapClient.js')
+const { DebugTool } = await import('../../src/tools/debug/DebugTool.js')
+const { formatZodValidationError } = await import('../../src/tools/kit/toolErrors.js')
 
 type CallOut = { data: { result: string; outcome: string; debuggee?: string } }
 const call = async (input: Record<string, unknown>): Promise<CallOut> => {

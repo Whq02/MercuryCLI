@@ -12,17 +12,17 @@ import { Client, type CallToolResult } from '@modelcontextprotocol/client'
 const root = join(proofHome, 'work')
 mkdirSync(join(root, '.mercury'), { recursive: true, mode: 0o700 })
 const store = join(root, '.mercury', 'project-leases.sqlite')
-const { switchSession, setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+const { switchSession, setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
 setOriginalCwd(root)
 switchSession('00000000-0000-4000-8000-000000000053' as never, root)
-const leases = await import('../../src/services/vulcan/engine/leases.ts')
-const { runEngineOp } = await import('../../src/services/vulcan/engine/ops.ts')
-const { createMercuryServer, withMercuryLeaseHolder } = await import('../../src/services/mcp/mercuryServer.ts')
-const { createLinkedTransportPair } = await import('../../src/services/mcp/InProcessTransport.ts')
+const leases = await import('../../src/integrations/vulcan/engine/leases.ts')
+const { runEngineOp } = await import('../../src/integrations/vulcan/engine/ops.ts')
+const { createMercuryServer, withMercuryLeaseHolder } = await import('../../src/integrations/mcp/mercuryServer.ts')
+const { createLinkedTransportPair } = await import('../../src/integrations/mcp/InProcessTransport.ts')
 
 let checks = 0
 let failures = 0
-const FAULT_HINT = 'change the project lease store handling in src/services/vulcan/engine/leases.ts (takeProjectLeases, describeProjectLeases, releaseProjectLeases) and the lease tools in src/services/mcp/mercuryServer.ts so a store fault is refused by name and the service resumes after it'
+const FAULT_HINT = 'change the project lease store handling in src/integrations/vulcan/engine/leases.ts (takeProjectLeases, describeProjectLeases, releaseProjectLeases) and the lease tools in src/integrations/mcp/mercuryServer.ts so a store fault is refused by name and the service resumes after it'
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++

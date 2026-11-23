@@ -37,9 +37,9 @@ const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): P
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-const { CARRIER_GONE_WORDS } = await import('../../src/services/engine-connector/daemonConnector.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
+const { CARRIER_GONE_WORDS } = await import('../../src/engine/connector/daemonConnector.ts')
 const TAG = keyHintLabel('⇧← back')
 
 const api = await startFixtureApi([

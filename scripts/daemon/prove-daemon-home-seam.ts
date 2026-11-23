@@ -26,7 +26,7 @@ writeFileSync(join(PROJECT, 'package.json'), '{"name":"fixture"}\n')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const seamHint = 'the writer named in this label must publish through the daemon-home door in src/daemon/daemonHome.ts (publishInDaemonHome and its append and transient siblings, with daemonHomeStands and armDaemonHomeWatch), never recreate a missing home; the parent option of durableAtomicPublishSync is in src/substrate/durablePublish.ts'
+  const seamHint = 'the writer named in this label must publish through the daemon-home door in src/daemon/control/daemonHome.ts (publishInDaemonHome and its append and transient siblings, with daemonHomeStands and armDaemonHomeWatch), never recreate a missing home; the parent option of durableAtomicPublishSync is in src/platform/substrate/durablePublish.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${seamHint}` : ''}`)
 }
 const text = (v: unknown): string => JSON.stringify(v)
@@ -45,18 +45,18 @@ const freshHome = (): void => {
 }
 const goneHome = (): void => rmSync(DAEMON_DIR, { recursive: true, force: true })
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const homeWatch = await import('../../src/daemon/daemonHome.ts')
-const durable = await import('../../src/substrate/durablePublish.ts')
-const control = await import('../../src/daemon/controlSocket.ts')
-const sup = await import('../../src/daemon/concourseWorkers.ts')
-const dispatch = await import('../../src/daemon/concourseDispatch.ts')
-const box = await import('../../src/daemon/saturnBoxSchedules.ts')
-const asks = await import('../../src/daemon/permissionAsks.ts')
-const led = await import('../../src/daemon/spawnLedger.ts')
-const seatFiles = await import('../../src/services/engine-connector/seatProjections.ts')
-const store = await import('../../src/substrate/fileStore.ts')
+const homeWatch = await import('../../src/daemon/control/daemonHome.ts')
+const durable = await import('../../src/platform/substrate/durablePublish.ts')
+const control = await import('../../src/daemon/control/controlSocket.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const dispatch = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
+const box = await import('../../src/daemon/saturn/saturnBoxSchedules.ts')
+const asks = await import('../../src/daemon/session-seat/permissionAsks.ts')
+const led = await import('../../src/daemon/roster/spawnLedger.ts')
+const seatFiles = await import('../../src/engine/connector/seatProjections.ts')
+const store = await import('../../src/platform/substrate/fileStore.ts')
 
 type Seam = (where: string, path: string, contents: string | Uint8Array, opts?: { dir?: string; mode?: number }) => 'published' | 'home-gone'
 const seam: Seam | undefined = (homeWatch as { publishInDaemonHome?: Seam }).publishInDaemonHome

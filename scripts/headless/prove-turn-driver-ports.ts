@@ -8,7 +8,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const at = (rel: string): string => join(ROOT, rel)
 
 let failures = 0
-const DRIVER_PORTS_FAIL_HINT = 'change printDriverPorts, advisorRoadOf, landAdvisorQuiet, startRunnerIdleNudge or carriersOf in src/cli/headless/printDriver.ts (the runner state is in src/cli/headless/runnerPorts.ts) so the behaviour in the label holds'
+const DRIVER_PORTS_FAIL_HINT = 'change printDriverPorts, advisorRoadOf, landAdvisorQuiet, startRunnerIdleNudge or carriersOf in src/daemon/runner/runnerDriver.ts (the runner state is in src/daemon/runner/runnerPorts.ts) so the behaviour in the label holds'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${DRIVER_PORTS_FAIL_HINT}` : ''}`)
@@ -18,7 +18,7 @@ const j = (value: unknown): string => JSON.stringify(value)
 const UNSETTLED = Symbol('unsettled')
 const within = <T,>(work: Promise<T> | T, ms = 3_000): Promise<T | typeof UNSETTLED> => Promise.race([Promise.resolve(work), new Promise<typeof UNSETTLED>(done => setTimeout(() => done(UNSETTLED), ms))])
 setTimeout(() => {
-  console.log('  [FAIL] the proof ended within its two minutes — a port awaited in a section never settled; the last section printed above says which, look at the matching function in src/cli/headless/printDriver.ts')
+  console.log('  [FAIL] the proof ended within its two minutes — a port awaited in a section never settled; the last section printed above says which, look at the matching function in src/daemon/runner/runnerDriver.ts')
   process.exit(1)
 }, 120_000).unref()
 
@@ -31,7 +31,7 @@ const order = (...wanted: string[]): boolean => {
   const at = wanted.map(name => names().indexOf(name))
   return at.every((index, i) => index !== -1 && (i === 0 || index > at[i - 1]!))
 }
-const phases = await import('../../src/utils/runPhases.ts')
+const phases = await import('../../src/platform/logs/runPhases.ts')
 const stamped = (): string[] => phases.runPhaseReport(0).phases.map(entry => entry.phase)
 const spy =
   (name: string) =>
@@ -45,30 +45,30 @@ async function spied(rel: string, wanted: string[], more: (real: Record<string, 
   mock.module(at(rel), () => ({ ...real, ...Object.fromEntries(wanted.map(name => [name, spy(name)])), ...more(real) }))
 }
 
-await spied('src/services/advisor/index.ts', ['advisorMainTurnSettled', 'createAdvisorQuietMessage'])
-await spied('src/utils/sessionStorage/writer.ts', ['recordTranscript'])
-await spied('src/utils/messageQueueManager.ts', ['enqueue', 'getCommandQueue'])
-await spied('src/utils/headlessProfiler.ts', ['logHeadlessProfilerTurn', 'headlessProfilerStartTurn'])
-await spied('src/mneme/exitHandoff.ts', ['leaveNoteBeforeExit', 'exitNoteDue'])
-await spied('src/utils/hooks/background.ts', ['endBackgroundHooks'])
-await spied('src/utils/skills/skillChangeDetector.ts', [], real => ({ skillChangeDetector: { ...(real.skillChangeDetector as object), dispose: spy('skillChangeDetector.dispose') } }))
-await spied('src/utils/debug.ts', ['logForDebugging'])
-await spied('src/utils/gracefulShutdown.ts', ['gracefulShutdown', 'isShuttingDown'])
-await spied('src/services/notices/idleNudge.ts', ['startIdleNudge'])
-await spied('src/tools/MonitorTool/laneWall.ts', ['sessionLaneWall'])
-await spied('src/utils/task/framework.ts', ['getRunningTasks'])
-await spied('src/tools/AgentTool/agentToolUtils.ts', ['crewmateNoticeOwed'])
-await spied('src/bootstrap/state.ts', ['getTotalAPIDuration'])
+await spied('src/models/advisor/index.ts', ['advisorMainTurnSettled', 'createAdvisorQuietMessage'])
+await spied('src/sessions/transcripts/writer.ts', ['recordTranscript'])
+await spied('src/daemon/runner/messageQueueManager.ts', ['enqueue', 'getCommandQueue'])
+await spied('src/platform/logs/headlessProfiler.ts', ['logHeadlessProfilerTurn', 'headlessProfilerStartTurn'])
+await spied('src/sessions/mneme/exitHandoff.ts', ['leaveNoteBeforeExit', 'exitNoteDue'])
+await spied('src/integrations/event-hooks/background.ts', ['endBackgroundHooks'])
+await spied('src/integrations/skill-watch/skillChangeDetector.ts', [], real => ({ skillChangeDetector: { ...(real.skillChangeDetector as object), dispose: spy('skillChangeDetector.dispose') } }))
+await spied('src/platform/logs/debugLog.ts', ['logForDebugging'])
+await spied('src/platform/processes/gracefulShutdown.ts', ['gracefulShutdown', 'isShuttingDown'])
+await spied('src/sessions/notices/idleNudge.ts', ['startIdleNudge'])
+await spied('src/tools/monitor/laneWall.ts', ['sessionLaneWall'])
+await spied('src/engine/task-framework/taskRegistry.ts', ['getRunningTasks'])
+await spied('src/tools/crewmate/crewmateLifecycle.ts', ['crewmateNoticeOwed'])
+await spied('src/boot/process-state/processState.ts', ['getTotalAPIDuration'])
 
-const driver = await import('../../src/cli/headless/printDriver.ts')
-const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
-const { getSessionId, setIsInteractive } = await import('../../src/bootstrap/state.ts')
-const { getEngineModel } = await import('../../src/services/model/model.ts')
-const { HANDOFF_ASK_BUDGET_MS } = await import('../../src/mneme/handoffAsk.ts')
-const { OUTCOME_SENTENCES } = await import('../../src/rows/vocabulary.ts')
-const { MAIN_THREAD_AGENT, nudgeWords } = await import('../../src/services/notices/idleNudge.ts')
-const { statusListeners } = await import('../../src/services/anthropicLimits.ts')
-const { EMPTY_USAGE } = await import('../../src/utils/api/emptyUsage.ts')
+const driver = await import('../../src/daemon/runner/runnerDriver.ts')
+const { createRunnerState } = await import('../../src/daemon/runner/runnerPorts.ts')
+const { getSessionId, setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
+const { HANDOFF_ASK_BUDGET_MS } = await import('../../src/sessions/mneme/handoffAsk.ts')
+const { OUTCOME_SENTENCES } = await import('../../src/engine/rows/vocabulary.ts')
+const { MAIN_THREAD_AGENT, nudgeWords } = await import('../../src/sessions/notices/idleNudge.ts')
+const { statusListeners } = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+const { EMPTY_USAGE } = await import('../../src/engine/request-parts/emptyUsage.ts')
 
 type Ports = Parameters<typeof driver.printDriverPorts>[0]
 type Scene = { ports: Ports; live: Ports['live']; messages: unknown[]; rows: Array<Record<string, unknown>>; out: Array<Record<string, unknown>>; advisorRoad: unknown; rateLimitListener: () => void }

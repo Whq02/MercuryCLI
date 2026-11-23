@@ -38,25 +38,25 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 const React = await import('react')
 const h = React.createElement
-const { InkInstanceContext } = await import('../../src/ink/components/InkInstanceContext.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.tsx')
-const { Chat } = await import('../../src/screens/Chat.tsx')
-const route = await import('../../src/context/surfaceRoute.ts')
-const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/hooks/useLayoutTier.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { InkInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.tsx')
+const { Chat } = await import('../../src/screen/chat/Chat.tsx')
+const route = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true, hasTrustDialogAccepted: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false, hasCompletedOnboarding: true, theme: 'dark' }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { getCommands } = await import('../../src/commands.ts')
-const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-type Message = import('../../src/types/message.ts').Message
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const slot = await import('../../src/engine/connector/focusedConnector.ts')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { getCommands } = await import('../../src/commands/catalogue/commands.ts')
+const { markDaemonHaltStanddown } = await import('../../src/daemon/control/daemonStanddown.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 type InkInstance = NonNullable<React.ContextType<typeof InkInstanceContext>>
 type InkInternal = {
   scheduler?: { state: () => string }
@@ -184,7 +184,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
     check(
       `${tag}: the prompt view holds the whole short session, its first row and its tail, with no jump pill (the thinking is folded away)`,
       mounted.includes('FIRST-ROW') && mounted.includes('TAIL-END') && !mounted.includes(PILL) && thoughtRows(mounted) === 0,
-      `first=${mounted.includes('FIRST-ROW')} tail=${mounted.includes('TAIL-END')} pill=${mounted.includes(PILL)} thought rows=${thoughtRows(mounted)} · the short prompt view must show every row and no jump pill; check the jump pill in src/components/fullscreenLayout/panes.tsx and the Chat screen in src/screens/Chat.tsx`,
+      `first=${mounted.includes('FIRST-ROW')} tail=${mounted.includes('TAIL-END')} pill=${mounted.includes(PILL)} thought rows=${thoughtRows(mounted)} · the short prompt view must show every row and no jump pill; check the jump pill in src/screen/fullscreen-layout/panes.tsx and the Chat screen in src/screen/chat/Chat.tsx`,
     )
 
     const errors: string[] = []
@@ -203,7 +203,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
       await settle(60)
     }
     const scrolled = await waitScreenSettled(`${tag} scrolled up in detail`, frame => frame.includes('detailed transcript') && frame.includes(PILL) && !frame.includes('TAIL-END'))
-    check(`${tag}: ${NOTCHES} wheel notches up in the detailed transcript leave its tail and show the jump pill`, scrolled.includes(PILL) && !scrolled.includes('TAIL-END') && topThought(scrolled) !== tailTop, `pill=${scrolled.includes(PILL)} top ${tailTop} -> ${topThought(scrolled)} · wheel-up in the detailed transcript must scroll off the tail and show the jump pill from src/components/fullscreenLayout/panes.tsx`)
+    check(`${tag}: ${NOTCHES} wheel notches up in the detailed transcript leave its tail and show the jump pill`, scrolled.includes(PILL) && !scrolled.includes('TAIL-END') && topThought(scrolled) !== tailTop, `pill=${scrolled.includes(PILL)} top ${tailTop} -> ${topThought(scrolled)} · wheel-up in the detailed transcript must scroll off the tail and show the jump pill from src/screen/fullscreen-layout/panes.tsx`)
 
     m.push(CTRL_O)
     let settleFault = ''
@@ -217,12 +217,12 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
     check(
       `${tag}: leaving the scrolled detailed transcript paints the prompt view: no render error, nothing thrown`,
       errors.length === 0 && settleFault === '' && !renderError(back) && back.includes('Type a prompt'),
-      `thrown=${JSON.stringify(errors).slice(0, 300)} render error on the screen=${renderError(back)} prompt view=${back.includes('Type a prompt')} ${settleFault} · leaving the scrolled detailed transcript must return to the prompt view without throwing; look at the scroll state kept across the flip in src/components/fullscreenLayout/panes.tsx`,
+      `thrown=${JSON.stringify(errors).slice(0, 300)} render error on the screen=${renderError(back)} prompt view=${back.includes('Type a prompt')} ${settleFault} · leaving the scrolled detailed transcript must return to the prompt view without throwing; look at the scroll state kept across the flip in src/screen/fullscreen-layout/panes.tsx`,
     )
     check(
       `${tag}: the short prompt view is whole again and shows no jump pill (there is nothing below to go back to)`,
       back.includes('FIRST-ROW') && back.includes('TAIL-END') && !back.includes(PILL),
-      `first=${back.includes('FIRST-ROW')} tail=${back.includes('TAIL-END')} pill=${back.includes(PILL)} · the jump pill in src/components/fullscreenLayout/panes.tsx must hide when the view fits and there is nothing below`,
+      `first=${back.includes('FIRST-ROW')} tail=${back.includes('TAIL-END')} pill=${back.includes(PILL)} · the jump pill in src/screen/fullscreen-layout/panes.tsx must hide when the view fits and there is nothing below`,
     )
 
     appendRow(createAssistantMessage({ content: 'ARRIVED-FIRST a row that lands while the reader watches the tail' }))
@@ -262,7 +262,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
     check(
       `${tag}: a later scroll up shows the plain jump pill, not a count of rows the reader watched arrive`,
       away.includes(PILL) && !/\d+ new messages?/.test(away) && !renderError(away),
-      `pill=${/\[ [^\]]* alt\+↓ \]/.exec(away)?.[0] ?? 'none'} render error=${renderError(away)} · the label in src/components/fullscreenLayout/panes.tsx must read back to the bottom when the divider count is 0`,
+      `pill=${/\[ [^\]]* alt\+↓ \]/.exec(away)?.[0] ?? 'none'} render error=${renderError(away)} · the label in src/screen/fullscreen-layout/panes.tsx must read back to the bottom when the divider count is 0`,
     )
     process.off('uncaughtException', onError)
     process.off('unhandledRejection', onError)

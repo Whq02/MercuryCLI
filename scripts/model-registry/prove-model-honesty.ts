@@ -47,7 +47,7 @@ for (const base of [
   process.env[base] = dead
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 const {
@@ -63,18 +63,18 @@ const {
   isCatalogueDoorRow,
   resolvesToExistingOption,
   stripContext1m,
-} = await import('../../src/services/model/modelOptions.ts')
-const { composeSubModelRegistry } = await import('../../src/services/model/subModelSlots.ts')
-const { composeWorkerModelRegistry } = await import('../../src/services/concourse/workerModels.ts')
-const { anthropicCredentialPresence, providerFamilyPresences } = await import('../../src/services/providers/providerUsage.ts')
-const { primeOpenaiDiscovery } = await import('../../src/services/providers/providerDiscovery.ts')
-const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
-const { getEngineModel, getPublicModelDisplayName, parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
-type ModelOption = import('../../src/services/model/modelOptions.ts').ModelOption
-type Presence = import('../../src/services/providers/providerUsage.ts').ProviderFamilyPresence
+} = await import('../../src/models/catalogue/modelOptions.ts')
+const { composeSubModelRegistry } = await import('../../src/models/catalogue/subModelSlots.ts')
+const { composeWorkerModelRegistry } = await import('../../src/screen/concourse-model/workerModels.ts')
+const { anthropicCredentialPresence, providerFamilyPresences } = await import('../../src/models/roads/providerUsage.ts')
+const { primeOpenaiDiscovery } = await import('../../src/models/roads/providerDiscovery.ts')
+const { clearOAuthTokenCache } = await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')
+const { getEngineModel, getPublicModelDisplayName, parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.ts')
+type ModelOption = import('../../src/models/catalogue/modelOptions.ts').ModelOption
+type Presence = import('../../src/models/roads/providerUsage.ts').ProviderFamilyPresence
 
 let failures = 0
-const modelHonestyHint = ' | to fix, change the /model rows in getModelOptions (src/services/model/modelOptions.ts), the sub-model picker in composeSubModelRegistry (src/services/model/subModelSlots.ts), the worker seats in composeWorkerModelRegistry (src/services/concourse/workerModels.ts), or the credential read in anthropicCredentialPresence (src/services/providers/providerUsage.ts), whichever surface this label names'
+const modelHonestyHint = ' | to fix, change the /model rows in getModelOptions (src/models/catalogue/modelOptions.ts), the sub-model picker in composeSubModelRegistry (src/models/catalogue/subModelSlots.ts), the worker seats in composeWorkerModelRegistry (src/screen/concourse-model/workerModels.ts), or the credential read in anthropicCredentialPresence (src/models/roads/providerUsage.ts), whichever surface this label names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : modelHonestyHint}`)

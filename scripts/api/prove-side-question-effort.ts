@@ -25,7 +25,7 @@ process.env.MERCURY_EFFORT_LEVEL = 'max'
 
 let failures = 0
 let checks = 0
-const SIDE_EFFORT_FAIL_HINT = 'to fix, change how the request is built in src/services/providers/anthropic/streamCore.ts (queryWithModel must send no effort and no thinking, queryUtility must pin effort low on the main seat model), or the stamp words in src/utils/effortStamp.ts (effortStampLine); the turn itself goes through src/services/providers/callModelRouter.ts (routedCallModel)'
+const SIDE_EFFORT_FAIL_HINT = 'to fix, change how the request is built in src/models/roads/anthropic/streamCore.ts (queryWithModel must send no effort and no thinking, queryUtility must pin effort low on the main seat model), or the stamp words in src/models/effort/effortStamp.ts (effortStampLine); the turn itself goes through src/models/roads/callModelRouter.ts (routedCallModel)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -34,7 +34,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const j = (v: unknown): string => JSON.stringify(v)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the side-question effort prover exceeded 120s; a request to the fixture (scripts/compact/overflowFixture.ts) never completed, so read the last section header above and the call it makes in src/services/providers/anthropic/streamCore.ts')
+  console.log('\nTIMEOUT — the side-question effort prover exceeded 120s; a request to the fixture (scripts/compact/overflowFixture.ts) never completed, so read the last section header above and the call it makes in src/models/roads/anthropic/streamCore.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
@@ -43,17 +43,17 @@ const { startOverflowFixture } = await import('../compact/overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { queryWithModel, queryUtility } = await import('../../src/services/providers/anthropic/streamCore.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { extractTextContent } = await import('../../src/utils/messages/text.ts')
-const { effortStampLine } = await import('../../src/utils/effortStamp.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { queryWithModel, queryUtility } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { extractTextContent } = await import('../../src/engine/message-shapes/text.ts')
+const { effortStampLine } = await import('../../src/models/effort/effortStamp.ts')
 
 const MODEL = 'claude-opus-5-5'
 const effortOf = (body: Record<string, unknown> | null): unknown => (body?.output_config as { effort?: unknown } | undefined)?.effort

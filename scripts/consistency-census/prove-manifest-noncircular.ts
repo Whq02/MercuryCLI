@@ -40,9 +40,9 @@ check('§B re-enumeration after write-back is layout-stable', JSON.stringify(rel
 
 check('§C payloadDigest is manifest-exclusive and survives the write-back', payloadDigestOf(staged) === layout.payloadDigest && relayout.payloadDigest === layout.payloadDigest, '', 'payloadDigestOf and releaseLayoutSection in scripts/release/payloadContract.mjs must leave manifest.json out of the payload digest')
 
-const { describePayload } = await import('../../src/services/privateChannel/channelCore.ts')
+const { describePayload } = await import('../../src/platform/update-channel/channelCore.ts')
 const described = describePayload(manifest, ['mercury.mjs', 'mercury', 'manifest.json'], null)
-check('§D describePayload decodes the non-circular layout (arm 1)', described.state === 'ok' && described.descriptor.generation === 'release-layout' && described.descriptor.primary === 'mercury.mjs', described.state === 'ok' ? described.descriptor.generation : described.note, 'describePayload in src/services/privateChannel/channelCore.ts must read the release-layout manifest that releaseLayoutSection writes')
+check('§D describePayload decodes the non-circular layout (arm 1)', described.state === 'ok' && described.descriptor.generation === 'release-layout' && described.descriptor.primary === 'mercury.mjs', described.state === 'ok' ? described.descriptor.generation : described.note, 'describePayload in src/platform/update-channel/channelCore.ts must read the release-layout manifest that releaseLayoutSection writes')
 
 console.log(failed === 0 ? '\n ✅ NON-CIRCULAR MANIFEST CONTRACT HOLDS' : `\n ❌ ${failed} FAILED`)
 process.exit(failed === 0 ? 0 : 1)

@@ -50,40 +50,40 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-const realEnsure = { ...(await import('../../src/services/switchboard/ensureDaemon.ts')) }
-mock.module('../../src/services/switchboard/ensureDaemon.ts', () => ({
+const realEnsure = { ...(await import('../../src/daemon/switchboard/ensureDaemon.ts')) }
+mock.module('../../src/daemon/switchboard/ensureDaemon.ts', () => ({
   ...realEnsure,
   ensureOwnedDaemon: () => hooks.ensureDaemon(),
 }))
-const realControl = { ...(await import('../../src/daemon/controlSocket.ts')) }
-mock.module('../../src/daemon/controlSocket.ts', () => ({
+const realControl = { ...(await import('../../src/daemon/control/controlSocket.ts')) }
+mock.module('../../src/daemon/control/controlSocket.ts', () => ({
   ...realControl,
   daemonControlRpc: (request: { op: string }) => hooks.controlRpc(request),
 }))
 const React = await import('react')
 const h = React.createElement
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.tsx')
-const { Chat } = await import('../../src/screens/Chat.tsx')
-const route = await import('../../src/context/surfaceRoute.ts')
-const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/hooks/useLayoutTier.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.tsx')
+const { Chat } = await import('../../src/screen/chat/Chat.tsx')
+const route = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true, hasTrustDialogAccepted: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false, hasCompletedOnboarding: true, theme: 'dark' }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const { getCommands } = await import('../../src/commands.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { getFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { focusResumedSession } = await import('../../src/services/switchboard/hopIntoSession.ts')
-const { statusLine, statusRowWarns } = await import('../../src/components/SwitchboardTagBar.tsx')
-type SeatStatusV1 = import('../../src/services/engine-connector/seatLive.ts').SeatStatusV1
-type SessionLiveV1 = import('../../src/services/engine-connector/seatLive.ts').SessionLiveV1
-type SendReceiptV1 = import('../../src/services/engine-connector/types.ts').SendReceiptV1
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const { getCommands } = await import('../../src/commands/catalogue/commands.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+const { sessionFactsPath } = await import('../../src/engine/connector/seatProjections.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { getFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+const { focusResumedSession } = await import('../../src/daemon/switchboard/hopIntoSession.ts')
+const { statusLine, statusRowWarns } = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
+type SeatStatusV1 = import('../../src/engine/connector/seatLive.ts').SeatStatusV1
+type SessionLiveV1 = import('../../src/engine/connector/seatLive.ts').SessionLiveV1
+type SendReceiptV1 = import('../../src/engine/connector/types.ts').SendReceiptV1
 
 const commands = await getCommands(WORK)
 const project = getProjectDir(WORK)
@@ -177,31 +177,31 @@ for (const [index, [cols, rows]] of ([[120, 40], [178, 51]] as const).entries())
     const paintedStarting = await waitFor(() => statusRowOf(m).includes('the runner is starting') && statusRowOf(m).includes('Opus 4.8'), 5000)
     await settle(80)
     if (frameDir) writeFileSync(join(frameDir, `${tag}-admitting.txt`), m.lines().join('\n') + '\n')
-    check(`${tag}: while admission is in flight the status row reads starting on the saved model`, paintedStarting, `${statusRowOf(m)} — Fix statusLine in src/components/SwitchboardTagBar.tsx or the admission refusal path in focusResumedSession (src/services/switchboard/hopIntoSession.ts).`)
+    check(`${tag}: while admission is in flight the status row reads starting on the saved model`, paintedStarting, `${statusRowOf(m)} — Fix statusLine in src/screen/chat/SwitchboardTagBar.tsx or the admission refusal path in focusResumedSession (src/daemon/switchboard/hopIntoSession.ts).`)
 
     resolveAdmit({ ok: false, error: 'workspace folder missing' })
-    check(`${tag}: the refused admission resolves false`, (await first.admitted) === false, 'focusResumedSession in src/services/switchboard/hopIntoSession.ts must resolve admitted to false when sessionAdmit replies ok:false')
+    check(`${tag}: the refused admission resolves false`, (await first.admitted) === false, 'focusResumedSession in src/daemon/switchboard/hopIntoSession.ts must resolve admitted to false when sessionAdmit replies ok:false')
     const paintedNotice = await waitFor(() => m.screen().includes('workspace folder missing') && m.screen().includes('revives it'), 5000)
     await settle(150)
     if (frameDir) writeFileSync(join(frameDir, `${tag}-refused.txt`), m.lines().join('\n') + '\n')
     const connector = focused()
     const rowAfterRefusal = statusRowOf(m)
-    check(`${tag}: Chat paints the no-live-runner refusal notice`, paintedNotice, `${m.screen().slice(-400)} — the refusal notice built in src/services/switchboard/hopIntoSession.ts must reach the Chat screen`)
+    check(`${tag}: Chat paints the no-live-runner refusal notice`, paintedNotice, `${m.screen().slice(-400)} — the refusal notice built in src/daemon/switchboard/hopIntoSession.ts must reach the Chat screen`)
     check(
       `${tag}: after admission is refused the status row stops reading starting and reads ready`,
       words() === 'ready' && connector.status().runner === null && !statusRowWarns(connector.live(), connector.status()) && rowAfterRefusal.includes('ready') && !rowAfterRefusal.includes('runner is starting'),
-      `words=${JSON.stringify(words())} row=${JSON.stringify(rowAfterRefusal)} — Fix statusLine in src/components/SwitchboardTagBar.tsx or the admission refusal path in focusResumedSession (src/services/switchboard/hopIntoSession.ts).`,
+      `words=${JSON.stringify(words())} row=${JSON.stringify(rowAfterRefusal)} — Fix statusLine in src/screen/chat/SwitchboardTagBar.tsx or the admission refusal path in focusResumedSession (src/daemon/switchboard/hopIntoSession.ts).`,
     )
     check(
       `${tag}: refused admission keeps the saved worker model instead of stale pre-park facts`,
       connector.modelFacts().effective === 'claude-opus-4-8' && connector.modelFacts().effectiveSource === 'record' && rowAfterRefusal.includes('Opus 4.8') && !rowAfterRefusal.includes('Sonnet'),
-      `modelFacts=${JSON.stringify(connector.modelFacts())} row=${JSON.stringify(rowAfterRefusal)} — after a refusal the focused connector (src/services/engine-connector/daemonConnector.ts) must report the saved worker model with source record`,
+      `modelFacts=${JSON.stringify(connector.modelFacts())} row=${JSON.stringify(rowAfterRefusal)} — after a refusal the focused connector (src/engine/connector/daemonConnector.ts) must report the saved worker model with source record`,
     )
     connector.readFacts()
     const realNow = Date.now
     try {
       Date.now = () => realNow() + 5_000
-      check(`${tag}: five seconds after refusal the status line still reads ready`, words() === 'ready', `${words()} — Fix statusLine in src/components/SwitchboardTagBar.tsx or the admission refusal path in focusResumedSession (src/services/switchboard/hopIntoSession.ts).`)
+      check(`${tag}: five seconds after refusal the status line still reads ready`, words() === 'ready', `${words()} — Fix statusLine in src/screen/chat/SwitchboardTagBar.tsx or the admission refusal path in focusResumedSession (src/daemon/switchboard/hopIntoSession.ts).`)
     } finally {
       Date.now = realNow
     }
@@ -209,7 +209,7 @@ for (const [index, [cols, rows]] of ([[120, 40], [178, 51]] as const).entries())
     releaseFocusedSessionConnector()
     hooks.ensureDaemon = async () => false
     const daemonDown = await focusResumedSession(sid, transcript, { firstPaintMs: 10 })
-    check(`${tag}: daemon-down refusal resolves false and reads ready`, (await daemonDown.admitted) === false && connector.admissionRefusal() === 'the daemon did not start' && words() === 'ready', `refusal=${connector.admissionRefusal()} words=${words()} — fix the daemon-down branch of focusResumedSession (src/services/switchboard/hopIntoSession.ts)`)
+    check(`${tag}: daemon-down refusal resolves false and reads ready`, (await daemonDown.admitted) === false && connector.admissionRefusal() === 'the daemon did not start' && words() === 'ready', `refusal=${connector.admissionRefusal()} words=${words()} — fix the daemon-down branch of focusResumedSession (src/daemon/switchboard/hopIntoSession.ts)`)
 
     releaseFocusedSessionConnector()
     hooks.ensureDaemon = async () => true
@@ -218,14 +218,14 @@ for (const [index, [cols, rows]] of ([[120, 40], [178, 51]] as const).entries())
     check(
       `${tag}: reopening after a refusal clears the old refusal and re-arms starting`,
       connector.admissionRefusal() === null && words().startsWith('the runner is starting'),
-      `refusal=${connector.admissionRefusal()} words=${words()} — a new focusResumedSession (src/services/switchboard/hopIntoSession.ts) must clear admissionRefusal in src/services/engine-connector/daemonConnector.ts`,
+      `refusal=${connector.admissionRefusal()} words=${words()} — a new focusResumedSession (src/daemon/switchboard/hopIntoSession.ts) must clear admissionRefusal in src/engine/connector/daemonConnector.ts`,
     )
     writeWorker({ parkedAt: undefined, parkedBy: undefined })
     resolveAdmit({ ok: true })
-    check(`${tag}: the reopened admission settles true`, await reopened.admitted, 'focusResumedSession in src/services/switchboard/hopIntoSession.ts must resolve admitted to true when sessionAdmit replies ok:true')
+    check(`${tag}: the reopened admission settles true`, await reopened.admitted, 'focusResumedSession in src/daemon/switchboard/hopIntoSession.ts must resolve admitted to true when sessionAdmit replies ok:true')
     publish(1001, 'claude-opus-4-8')
     connector.readFacts()
-    check(`${tag}: fresh runner facts settle the reopened session to ready and live`, words() === 'ready' && connector.modelFacts().effectiveSource === 'live', `${words()} — readFacts in src/services/engine-connector/daemonConnector.ts must take the fresh runner facts as live`)
+    check(`${tag}: fresh runner facts settle the reopened session to ready and live`, words() === 'ready' && connector.modelFacts().effectiveSource === 'live', `${words()} — readFacts in src/engine/connector/daemonConnector.ts must take the fresh runner facts as live`)
 
     releaseFocusedSessionConnector()
     writeWorker({ parkedAt: 1200 })
@@ -234,21 +234,21 @@ for (const [index, [cols, rows]] of ([[120, 40], [178, 51]] as const).entries())
     const initialOpened = connector.status().runner?.sinceMs ?? Date.now()
     resolveAdmit({ ok: false, error: 'daemon busy' })
     await beforeRevive.admitted
-    check(`${tag}: third resume refusal reads ready`, words() === 'ready', `${words()} — Fix statusLine in src/components/SwitchboardTagBar.tsx or the admission refusal path in focusResumedSession (src/services/switchboard/hopIntoSession.ts).`)
+    check(`${tag}: third resume refusal reads ready`, words() === 'ready', `${words()} — Fix statusLine in src/screen/chat/SwitchboardTagBar.tsx or the admission refusal path in focusResumedSession (src/daemon/switchboard/hopIntoSession.ts).`)
     const reviveNow = Date.now
     try {
       Date.now = () => initialOpened + 120_000
-      check(`${tag}: two minutes after refusal the status line still reads ready`, words() === 'ready', `${words()} — Fix statusLine in src/components/SwitchboardTagBar.tsx or the admission refusal path in focusResumedSession (src/services/switchboard/hopIntoSession.ts).`)
+      check(`${tag}: two minutes after refusal the status line still reads ready`, words() === 'ready', `${words()} — Fix statusLine in src/screen/chat/SwitchboardTagBar.tsx or the admission refusal path in focusResumedSession (src/daemon/switchboard/hopIntoSession.ts).`)
       const receipt = await connector.sendWords('revive the runner', [])
-      check(`${tag}: Enter dispatch revives and clears the refusal`, receipt.state === 'accepted' && connector.admissionRefusal() === null, `${JSON.stringify(receipt)} — sendWords in src/services/engine-connector/daemonConnector.ts must revive the runner and clear the refusal`)
-      check(`${tag}: revive starts a fresh starting clock at 0s rather than 2m`, words() === 'the runner is starting · 0s', `${words()} — the revive must restart the starting clock; see statusLine in src/components/SwitchboardTagBar.tsx`)
+      check(`${tag}: Enter dispatch revives and clears the refusal`, receipt.state === 'accepted' && connector.admissionRefusal() === null, `${JSON.stringify(receipt)} — sendWords in src/engine/connector/daemonConnector.ts must revive the runner and clear the refusal`)
+      check(`${tag}: revive starts a fresh starting clock at 0s rather than 2m`, words() === 'the runner is starting · 0s', `${words()} — the revive must restart the starting clock; see statusLine in src/screen/chat/SwitchboardTagBar.tsx`)
       Date.now = () => initialOpened + 121_000
       publish(1002, 'claude-opus-4-8', { state: 'starting', sinceMs: initialOpened + 120_500, respawns: 0, maxRespawns: 3 })
       connector.readFacts()
-      check(`${tag}: one second into the revive the starting fact counts 1s from Enter rather than 2m from the refused open`, words() === 'the runner is starting · 1s', `${words()} — the starting clock must count from the runner's sinceMs fact; see statusLine in src/components/SwitchboardTagBar.tsx`)
+      check(`${tag}: one second into the revive the starting fact counts 1s from Enter rather than 2m from the refused open`, words() === 'the runner is starting · 1s', `${words()} — the starting clock must count from the runner's sinceMs fact; see statusLine in src/screen/chat/SwitchboardTagBar.tsx`)
       publish(1003, 'claude-opus-4-8')
       connector.readFacts()
-      check(`${tag}: the revived runner clears its starting state when ready facts arrive`, connector.status().runner === null && !words().includes('runner is starting'), `${words()} — a ready fact must clear the runner state; see statusLine in src/components/SwitchboardTagBar.tsx and readFacts in src/services/engine-connector/daemonConnector.ts`)
+      check(`${tag}: the revived runner clears its starting state when ready facts arrive`, connector.status().runner === null && !words().includes('runner is starting'), `${words()} — a ready fact must clear the runner state; see statusLine in src/screen/chat/SwitchboardTagBar.tsx and readFacts in src/engine/connector/daemonConnector.ts`)
     } finally {
       Date.now = reviveNow
     }

@@ -7,9 +7,9 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'switch-hold-home-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
-const seat = await import('../../src/daemon/sessionSeat.ts')
-const { updateConcourseWorkers, readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
+const seat = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { updateConcourseWorkers, readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { readSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
 
 let failures = 0
 let where = ''
@@ -34,13 +34,13 @@ console.log('============================================================')
 console.log(' a switch while agents hold the turn — applies now, parks only mid-stream')
 console.log('============================================================')
 
-section('S1 · the pure law', 'change switchAppliesWhileAgentsHold in src/daemon/sessionSeat/state.ts')
+section('S1 · the pure law', 'change switchAppliesWhileAgentsHold in src/daemon/session-seat/state.ts')
 check('a closed turn applies', seat.switchAppliesWhileAgentsHold(false, null) === true)
 check('an open turn held by its agents alone applies', seat.switchAppliesWhileAgentsHold(true, 'waiting-on-agents') === true)
 check('an open turn with a stream in flight parks', seat.switchAppliesWhileAgentsHold(true, null) === false)
 check('an open turn mid-compaction parks', seat.switchAppliesWhileAgentsHold(true, 'compacting') === false)
 
-section('S2 · the seat\'s set-model verb through the real seat', 'change setSessionModel in src/daemon/sessionSeat/model.ts (applied or queued outcome, the pending model on the worker record), onSeatApplied and onSeatIdle in src/daemon/sessionSeat/edges.ts, or onSeatRow in src/daemon/sessionSeat/rows.ts')
+section('S2 · the seat\'s set-model verb through the real seat', 'change setSessionModel in src/daemon/session-seat/model.ts (applied or queued outcome, the pending model on the worker record), onSeatApplied and onSeatIdle in src/daemon/session-seat/edges.ts, or onSeatRow in src/daemon/session-seat/rows.ts')
 const dir = mkdtempSync(join(tmpdir(), 'switch-hold-daemon-'))
 const sid = 'aaaaaaaa-bbbb-4ccc-8ddd-switchhold01'
 const SHORT = 'concourse-sh1'
@@ -115,7 +115,7 @@ await runnerAnswers('session/set_model', 'turn_end', { model: 'claude-opus-5' })
 const raced = await racedCall
 check("a switch the seat read as idle that the runner holds (a turn started under it) parks truthfully: 'queued', the record carries it", raced.outcome === 'queued' && record()?.modelKey === 'claude-sonnet-5' && record()?.pendingModelKey === 'claude-opus-5', JSON.stringify({ raced, record: record() }))
 
-section('S3 · the effort sibling', 'change setSessionEffort in src/daemon/sessionSeat/effort.ts, or onSeatApplied in src/daemon/sessionSeat/edges.ts')
+section('S3 · the effort sibling', 'change setSessionEffort in src/daemon/session-seat/effort.ts, or onSeatApplied in src/daemon/session-seat/edges.ts')
 turnActive = true
 seat.onSeatRow(SHORT, waiting(1) as never, roster as never, dir)
 const effortCall = seat.setSessionEffort(sid, 'low', roster as never, dir)

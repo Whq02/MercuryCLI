@@ -10,12 +10,12 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
 
 let failures = 0
 const AREA_FIX_HINTS: Record<string, string> = {
-  godotCapsule: 'fix staticGodotCapsule in src/services/vulcan/godotCapsule.ts so a read error is thrown, not swallowed into a low census',
-  portabilityHealth: 'fix godotPortabilityReport in src/services/vulcan/portabilityHealth.ts so a read error rejects, not a clean report',
-  projection: 'fix gatherWorkbenchInputs in src/services/workbench/projection.ts so a lane run snapshot error is not swallowed',
-  loadSkillsDir: 'fix getSkillDirCommands and getSkillLoadRefusals in src/skills/loadSkillsDir.ts so a failed skill load is recorded as a refusal',
-  bootBeacon: 'fix clearBootAttempts or readBootAttemptResidue in src/substrate/bootBeacon.ts',
-  invocationRecord: 'fix recordInvocation or readInvocationRecords in src/substrate/invocationRecord.ts',
+  godotCapsule: 'fix staticGodotCapsule in src/integrations/vulcan/godotCapsule.ts so a read error is thrown, not swallowed into a low census',
+  portabilityHealth: 'fix godotPortabilityReport in src/integrations/vulcan/portabilityHealth.ts so a read error rejects, not a clean report',
+  projection: 'fix gatherWorkbenchInputs in src/screen/workbench/projection.ts so a lane run snapshot error is not swallowed',
+  loadSkillsDir: 'fix getSkillDirCommands and getSkillLoadRefusals in src/integrations/skills/loadSkillsDir.ts so a failed skill load is recorded as a refusal',
+  bootBeacon: 'fix clearBootAttempts or readBootAttemptResidue in src/platform/substrate/bootBeacon.ts',
+  invocationRecord: 'fix recordInvocation or readInvocationRecords in src/platform/substrate/invocationRecord.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -48,9 +48,9 @@ async function caughtAsync(fn: () => Promise<unknown>): Promise<{ code: string |
 }
 
 {
-  console.log('\n1. src/services/vulcan/godotCapsule.ts')
-  const { staticGodotCapsule } = await import(join(SRC, 'services/vulcan/godotCapsule.ts'))
-  const { derivePresence } = await import(join(SRC, 'services/vulcan/editorPresence.ts'))
+  console.log('\n1. src/integrations/vulcan/godotCapsule.ts')
+  const { staticGodotCapsule } = await import(join(SRC, 'integrations/vulcan/godotCapsule.ts'))
+  const { derivePresence } = await import(join(SRC, 'integrations/vulcan/editorPresence.ts'))
   const NO_EDITOR = derivePresence(6010, false, { ok: true, processes: [] }, '/fixture')
   const scratch = mkdtempSync(join(tmpdir(), 'faults-fn23-capsule-'))
   try {
@@ -94,8 +94,8 @@ async function caughtAsync(fn: () => Promise<unknown>): Promise<{ code: string |
 }
 
 {
-  console.log('\n2. src/services/vulcan/portabilityHealth.ts')
-  const { godotPortabilityReport } = await import(join(SRC, 'services/vulcan/portabilityHealth.ts'))
+  console.log('\n2. src/integrations/vulcan/portabilityHealth.ts')
+  const { godotPortabilityReport } = await import(join(SRC, 'integrations/vulcan/portabilityHealth.ts'))
   const scratch = mkdtempSync(join(tmpdir(), 'faults-fn23-portability-'))
   try {
     const bareProj = join(scratch, 'bare')
@@ -138,7 +138,7 @@ async function caughtAsync(fn: () => Promise<unknown>): Promise<{ code: string |
 }
 
 {
-  console.log('\n3. src/services/workbench/projection.ts')
+  console.log('\n3. src/screen/workbench/projection.ts')
   const bunBin = process.env.BUN ?? process.execPath
   const script = `
     import { mock } from 'bun:test'
@@ -169,7 +169,7 @@ async function caughtAsync(fn: () => Promise<unknown>): Promise<{ code: string |
 }
 
 {
-  console.log('\n4. src/skills/loadSkillsDir.ts')
+  console.log('\n4. src/integrations/skills/loadSkillsDir.ts')
   const scratch = mkdtempSync(join(tmpdir(), 'faults-fn23-skills-'))
   try {
     const proj = join(scratch, 'proj')
@@ -245,8 +245,8 @@ async function caughtAsync(fn: () => Promise<unknown>): Promise<{ code: string |
 }
 
 {
-  console.log('\n5. src/substrate/bootBeacon.ts')
-  const { bootAttemptsPath, clearBootAttempts, readBootAttemptResidue } = await import(join(SRC, 'substrate/bootBeacon.ts'))
+  console.log('\n5. src/platform/substrate/bootBeacon.ts')
+  const { bootAttemptsPath, clearBootAttempts, readBootAttemptResidue } = await import(join(SRC, 'platform/substrate/bootBeacon.ts'))
   const scratch = mkdtempSync(join(tmpdir(), 'faults-fn23-beacon-'))
   try {
     const home = join(scratch, 'home')
@@ -273,7 +273,7 @@ async function caughtAsync(fn: () => Promise<unknown>): Promise<{ code: string |
 }
 
 {
-  console.log('\n6. src/substrate/invocationRecord.ts')
+  console.log('\n6. src/platform/substrate/invocationRecord.ts')
   const scratch = mkdtempSync(join(tmpdir(), 'faults-fn23-invrec-'))
   try {
     const bunBin = process.env.BUN ?? process.execPath

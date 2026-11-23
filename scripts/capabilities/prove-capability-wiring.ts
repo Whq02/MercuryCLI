@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { builtinCommands } from '../../src/commands.js'
+import { builtinCommands } from '../../src/commands/catalogue/commands.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = resolve(HERE, '..', '..')
@@ -76,14 +76,14 @@ for (const name of COMMANDS) {
   if (registeredCommands.has(name)) {
     console.log(`  ✓ /${name} registered in builtinCommands()`)
   } else {
-    console.error(`  ✗ /${name} NOT registered in builtinCommands(). Fix: add the /${name} command to the list built by builtinCommands in src/commands.ts`)
+    console.error(`  ✗ /${name} NOT registered in builtinCommands(). Fix: add the /${name} command to the list built by builtinCommands in src/commands/catalogue/commands.ts`)
     fail = 1
   }
 }
 
 const commandFiles = [
   'src/commands/help/index.ts',
-  'src/commands/verify.ts',
+  'src/commands/verify/index.ts',
 ]
 for (const f of commandFiles) {
   if (existsSync(resolve(REPO, f))) console.log(`  ✓ ${f} exists`)

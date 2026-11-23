@@ -9,7 +9,7 @@ import { makeFixtures, spawnFixtureReleaseServer } from './journeyFixtures.js'
 if (process.env.MERCURY_PROVE_CHILD === '1') {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: process.env.MERCURY_PROVE_VERSION ?? '1.0.11' }
   process.argv[1] = process.env.MERCURY_PROVE_INVOKED!
-  const { update } = await import('../../src/cli/update.ts')
+  const { update } = await import('../../src/commands/verbs/update.ts')
   await update(JSON.parse(process.env.MERCURY_PROVE_OPTIONS ?? '{}'))
   process.exit(0)
 }
@@ -29,7 +29,7 @@ const section = (title: string, where: string): void => {
   console.log(`\n${'─'.repeat(76)}\n${title}`)
 }
 
-const { classifyInstallProvenance, gatherInstallProbeFacts } = await import('../../src/services/privateChannel/installProvenance.ts')
+const { classifyInstallProvenance, gatherInstallProbeFacts } = await import('../../src/platform/update-channel/installProvenance.ts')
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'source-checkout-words-')))
 const home = join(SCRATCH, 'home')
@@ -96,7 +96,7 @@ const runUpdate = (
 
 section(
   '§1 update --status from a source checkout names the checkout root where build.ts lives, not dist',
-  'change gatherInstallProbeFacts and classifyInstallProvenance in src/services/privateChannel/installProvenance.ts',
+  'change gatherInstallProbeFacts and classifyInstallProvenance in src/platform/update-channel/installProvenance.ts',
 )
 {
   const fromDist = classifyInstallProvenance(gatherInstallProbeFacts({ invokedPath: checkoutEntry, versionsDir }))
@@ -108,7 +108,7 @@ section(
 
   const fromSrc = classifyInstallProvenance(gatherInstallProbeFacts({ invokedPath: checkoutSrcEntry, versionsDir }))
   check(
-    'running from src/entrypoints/cli.tsx also resolves activeRoot to the checkout root',
+    'running from src/boot/entrypoints/cli.tsx also resolves activeRoot to the checkout root',
     fromSrc.kind === 'development' && fromSrc.activeRoot === checkout,
     JSON.stringify({ kind: fromSrc.kind, activeRoot: fromSrc.activeRoot, expected: checkout }),
   )
@@ -131,7 +131,7 @@ section(
 
 section(
   '§2 update --check adds the "this Mercury:" line whenever the running Mercury is not the managed install',
-  'change the options.check branch in src/cli/update.ts so thisMercury is shown whenever provenance.kind !== "managed"',
+  'change the options.check branch in src/commands/verbs/update.ts so thisMercury is shown whenever provenance.kind !== "managed"',
 )
 {
   const managedDir = join(versionsDir, V_CURRENT)

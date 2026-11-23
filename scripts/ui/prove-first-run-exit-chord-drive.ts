@@ -112,14 +112,14 @@ const footOf = (frame: string | undefined): string => (frame ?? '').split('\n').
 
 section('the first run on a new config folder, 120x40: its theme step, the way out by keys')
 const once = await firstRun('Ctrl+C once', [atTheThemeStep('\u0003'), atTheNotice('')], CHORD_NOTICE, 2)
-check('the first run comes up on its theme step, which names esc as the way out (holds on the parent too)', footOf(once.marks.up).includes('esc exits'), `change the theme step footer in src/components/Onboarding.tsx so it names esc exits. ${once.endReason} ${once.note} ${footOf(once.marks.up)}`)
-check('Ctrl+C once says what a second one does and ends nothing (holds on the parent too)', footOf(once.marks.noticed).includes(CHORD_NOTICE) && once.endReason === 'ready', `change the Ctrl+C handling of the first-run theme step in src/components/Onboarding.tsx (exitChordNoticeText in src/components/PromptInput/ExitChordNotice.tsx) so one press shows the notice and ends nothing. ${once.endReason} at tick ${once.endedAtTick}: ${footOf(once.marks.noticed)} ${once.note}`)
+check('the first run comes up on its theme step, which names esc as the way out (holds on the parent too)', footOf(once.marks.up).includes('esc exits'), `change the theme step footer in src/boot/first-run/Onboarding.tsx so it names esc exits. ${once.endReason} ${once.note} ${footOf(once.marks.up)}`)
+check('Ctrl+C once says what a second one does and ends nothing (holds on the parent too)', footOf(once.marks.noticed).includes(CHORD_NOTICE) && once.endReason === 'ready', `change the Ctrl+C handling of the first-run theme step in src/boot/first-run/Onboarding.tsx (exitChordNoticeText in src/screen/composer/ExitChordNotice.tsx) so one press shows the notice and ends nothing. ${once.endReason} at tick ${once.endedAtTick}: ${footOf(once.marks.noticed)} ${once.note}`)
 
 const twice = await firstRun('Ctrl+C twice', [atTheThemeStep('\u0003'), atTheNotice('\u0003')], CHORD_NOTICE, STAYS_S)
-check(`Ctrl+C twice ends the process: its terminal closes inside the ${STAYS_S} s the watch stays after the second one`, twice.endReason === 'eof' && twice.endedAtTick > 0, `change the second Ctrl+C of the first-run theme step in src/components/Onboarding.tsx so it exits. the watch ended by ${twice.endReason} at tick ${twice.endedAtTick}: the process outlived the screen it had handed back. ${twice.note}`)
+check(`Ctrl+C twice ends the process: its terminal closes inside the ${STAYS_S} s the watch stays after the second one`, twice.endReason === 'eof' && twice.endedAtTick > 0, `change the second Ctrl+C of the first-run theme step in src/boot/first-run/Onboarding.tsx so it exits. the watch ended by ${twice.endReason} at tick ${twice.endedAtTick}: the process outlived the screen it had handed back. ${twice.note}`)
 
 const escaped = await firstRun('Esc', [atTheThemeStep('\u001b')], 'esc exits', STAYS_S)
-check('Esc ends it too, as its footer says (holds on the parent too)', escaped.endReason === 'eof' && escaped.endedAtTick > 0, `change the Esc handling of the first-run theme step in src/components/Onboarding.tsx so it exits. the watch ended by ${escaped.endReason} at tick ${escaped.endedAtTick}. ${escaped.note}`)
+check('Esc ends it too, as its footer says (holds on the parent too)', escaped.endReason === 'eof' && escaped.endedAtTick > 0, `change the Esc handling of the first-run theme step in src/boot/first-run/Onboarding.tsx so it exits. the watch ended by ${escaped.endReason} at tick ${escaped.endedAtTick}. ${escaped.note}`)
 
 console.log(`\n${4 - failures} of 4 checks hold`)
 console.log(failures === 0 ? 'prove-first-run-exit-chord-drive: ALL HOLD' : `prove-first-run-exit-chord-drive: ${failures} FAILURE(S)`)

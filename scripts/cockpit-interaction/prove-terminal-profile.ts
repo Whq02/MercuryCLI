@@ -8,16 +8,16 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import * as React from 'react'
 import { checker } from '../engine-durability/harness.ts'
-import { resolveTerminalProfile, TERMINAL_PROFILE_VERSION } from '../../src/ink/session/terminalProfile.ts'
+import { resolveTerminalProfile, TERMINAL_PROFILE_VERSION } from '../../src/screen/renderer/terminal-session/terminalProfile.ts'
 
 if (process.argv[2] === '--leave') {
   const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
   const os = require('node:os') as { release: () => string }
   const release = os.release
   Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
-  const { showSetupScreens } = await import('../../src/interactiveHelpers.tsx')
+  const { showSetupScreens } = await import('../../src/boot/setupScreens.tsx')
   const leave = (node: React.ReactNode): boolean => {
     if (Array.isArray(node)) return node.some(leave)
     if (!React.isValidElement(node)) return false
@@ -222,7 +222,7 @@ t.section('nothing here locks out a working host')
 t.section('the dependency inventory (windowsHostSetup — friend-path QoL)')
 {
   const { detectWindowsHostInventory, hostSetupActions, inventoryLines } = await import(
-    '../../src/ink/session/windowsHostSetup.ts'
+    '../../src/screen/renderer/terminal-session/windowsHostSetup.ts'
   )
   const offPlatform = await detectWindowsHostInventory({ platform: 'darwin' })
   t.check(
@@ -326,7 +326,7 @@ t.section('the parting words after Exit on the terminal check')
     })
     return { status: child.status, lines: child.stdout.split('\n').filter(line => line !== '') }
   }
-  const fix = 'the exit branch of showSetupScreens in src/interactiveHelpers.tsx must open its parting lines with what the failing required rows found (their evidence), and leave the two lines after it as they are'
+  const fix = 'the exit branch of showSetupScreens in src/boot/setupScreens.tsx must open its parting lines with what the failing required rows found (their evidence), and leave the two lines after it as they are'
   const conhost = leave('win32')
   t.check('the old Windows console: Exit ends the process with status 1', conhost.status === 1, `status ${conhost.status} · ${fix}`)
   t.check(

@@ -10,7 +10,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 
 for (const k of [
   'MERCURY_DEFAULT_OPUS_MODEL',
@@ -43,9 +43,9 @@ const DATED = 'claude-fable-5-2-20261109'
 const CARRIER = 'openrouter/anthropic/claude-fable-5-2'
 const UNDECLARED = 'claude-fable-5-7'
 
-section("§1 the price row: the vendor's tier for claude-fable-5-2 is recorded, never the Fable 5.1 estimate", 'fix the claude-fable-5-2 price row, its ANTHROPIC_PRICE_OBSERVED_AT entry and resolveModelPricing in src/services/usage/modelCost.ts, or the mythos52 row in src/utils/model/configs.ts')
+section("§1 the price row: the vendor's tier for claude-fable-5-2 is recorded, never the Fable 5.1 estimate", 'fix the claude-fable-5-2 price row, its ANTHROPIC_PRICE_OBSERVED_AT entry and resolveModelPricing in src/models/usage/modelCost.ts, or the mythos52 row in src/models/facts/builtInModelTable.ts')
 {
-  const { calculateUSDCost, getModelPricingString, resolveModelPricing, ANTHROPIC_PRICE_OBSERVED_AT } = await import('../../src/services/usage/modelCost.ts')
+  const { calculateUSDCost, getModelPricingString, resolveModelPricing, ANTHROPIC_PRICE_OBSERVED_AT } = await import('../../src/models/usage/modelCost.ts')
   const pricing = resolveModelPricing(ID)
   check('the cost tier is recorded: $8 in, $40 out, $10 5m write, $0.20 cache read (0.025x; platform.claude.com/docs/en/about-claude/pricing read 2026-11-09)', pricing.basis === 'recorded' && pricing.costs.inputTokens === 8 && pricing.costs.outputTokens === 40 && pricing.costs.promptCacheWriteTokens === 10 && pricing.costs.promptCacheReadTokens === 0.2, JSON.stringify(pricing))
   check("the price string reads '$8/$40 per Mtok'", getModelPricingString(ID) === '$8/$40 per Mtok', String(getModelPricingString(ID)))
@@ -63,11 +63,11 @@ section("§1 the price row: the vendor's tier for claude-fable-5-2 is recorded, 
   check('the observation is dated the day the pricing page was read', ANTHROPIC_PRICE_OBSERVED_AT[ID]?.observedAt === '2026-11-09', JSON.stringify(ANTHROPIC_PRICE_OBSERVED_AT[ID]))
 }
 
-section('§2 the fold and the names: claude-fable-5-2 is its own canonical, never swallowed by the fable-5 arm or the Fable 5.1 row', 'fix getCanonicalName in src/utils/model/modelNames.ts, the display owner renderModelName in src/services/model/model.ts, the alias parser parseUserSpecifiedModel in src/services/model/model.ts, or the fable52 and mythos52 rows in src/utils/model/configs.ts')
+section('§2 the fold and the names: claude-fable-5-2 is its own canonical, never swallowed by the fable-5 arm or the Fable 5.1 row', 'fix getCanonicalName in src/models/facts/modelNames.ts, the display owner renderModelName in src/models/catalogue/engineModel.ts, the alias parser parseUserSpecifiedModel in src/models/catalogue/engineModel.ts, or the fable52 and mythos52 rows in src/models/facts/builtInModelTable.ts')
 {
-  const { firstPartyNameToCanonical, getCanonicalName, getMarketingNameForModel, getPublicModelName, parseUserSpecifiedModel, renderModelChip, renderModelName } = await import('../../src/services/model/model.ts')
-  const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
-  const { ALL_MODEL_CONFIGS } = await import('../../src/utils/model/configs.ts')
+  const { firstPartyNameToCanonical, getCanonicalName, getMarketingNameForModel, getPublicModelName, parseUserSpecifiedModel, renderModelChip, renderModelName } = await import('../../src/models/catalogue/engineModel.ts')
+  const { recognizeModelId } = await import('../../src/models/roads/idSpaces.ts')
+  const { ALL_MODEL_CONFIGS } = await import('../../src/models/facts/builtInModelTable.ts')
   check('its own canonical', getCanonicalName(ID) === ID, getCanonicalName(ID))
   check('the [1m] twin folds to the same canonical', getCanonicalName(`${ID}[1m]`) === ID, getCanonicalName(`${ID}[1m]`))
   check('a spelling with case folds to the same canonical', getCanonicalName('Claude-Fable-5-2') === ID, getCanonicalName('Claude-Fable-5-2'))
@@ -88,8 +88,8 @@ section('§2 the fold and the names: claude-fable-5-2 is its own canonical, neve
   check("the boot strip's baked table names the row, and a saved 'fable' paints what it boots", MODEL_NAMES[ID] === 'Fable 5.2' && MODEL_NAMES.fable52 === 'Fable 5.2' && MODEL_NAMES.fable === getMarketingNameForModel(parseUserSpecifiedModel('fable')) && MODEL_NAMES[PREVIOUS] === 'Fable 5.1' && MODEL_NAMES.fable51 === 'Fable 5.1', `${String(MODEL_NAMES[ID])} / ${String(MODEL_NAMES.fable)} / ${String(MODEL_NAMES[PREVIOUS])}`)
   check("the word 'mythos' names the row's mirror, the counterpart of what 'fable' names, and 'mythos[1m]' keeps its rider", parseUserSpecifiedModel('mythos') === MIRROR && getCanonicalName(parseUserSpecifiedModel('mythos')) === parseUserSpecifiedModel('fable') && parseUserSpecifiedModel('mythos[1m]') === `${MIRROR}[1m]`, `${parseUserSpecifiedModel('mythos')} / ${parseUserSpecifiedModel('mythos[1m]')}`)
   {
-    const { isModelAlias } = await import('../../src/utils/model/aliases.ts')
-    const { matchReachableModelName } = await import('../../src/services/model/modelNameRoad.ts')
+    const { isModelAlias } = await import('../../src/models/facts/aliases.ts')
+    const { matchReachableModelName } = await import('../../src/models/catalogue/modelNameRoad.ts')
     check("the typed word 'mythos[1m]' is a word like 'fable[1m]': the typed roads hand it to the parser and never to the name matcher", isModelAlias('mythos[1m]') && isModelAlias('fable[1m]') && matchReachableModelName('mythos[1m]') === null && matchReachableModelName('MYTHOS[1M]') === null && MODEL_NAMES['mythos[1m]'] === MODEL_NAMES['fable[1m]']?.replace('Fable', 'Mythos'), `${isModelAlias('mythos[1m]')} / ${String(MODEL_NAMES['mythos[1m]'])} / ${String(MODEL_NAMES['fable[1m]'])}`)
   }
   check("the mirror displays as 'Mythos 5.2' and its [1m] twin as 'Mythos 5.2 (1M context)', as the row's does", renderModelName(MIRROR) === 'Mythos 5.2' && renderModelName(`${MIRROR}[1m]`) === 'Mythos 5.2 (1M context)' && renderModelName('claude-mythos-5-1[1m]') === 'Mythos 5.1 (1M context)', `${renderModelName(MIRROR)} / ${renderModelName(`${MIRROR}[1m]`)} / ${renderModelName('claude-mythos-5-1[1m]')}`)
@@ -103,20 +103,20 @@ section('§2 the fold and the names: claude-fable-5-2 is its own canonical, neve
   check('the id space recognises the bare id by its claude- mark', recognizeModelId(ID).kind === 'first-party')
 }
 
-section("§3 the row: the fable family's newest generation, its class, its picker rows, its launch effort and its capability truth", 'fix the fable52 generation in src/utils/model/configs.ts (FAMILY_GENERATIONS), the picker rows in src/services/model/modelOptions.ts, the launch effort in src/utils/effort.ts, or the capability record in src/utils/model/capabilities.ts')
+section("§3 the row: the fable family's newest generation, its class, its picker rows, its launch effort and its capability truth", 'fix the fable52 generation in src/models/facts/builtInModelTable.ts (FAMILY_GENERATIONS), the picker rows in src/models/catalogue/modelOptions.ts, the launch effort in src/models/effort/effort.ts, or the capability record in src/models/facts/capabilities.ts')
 {
-  const { FAMILY_GENERATIONS, familyHeadOf, newestGenerationKey, previousGenerationKeys } = await import('../../src/utils/model/configs.ts')
-  const { getDefaultFableModel, parseUserSpecifiedModel, renderModelSetting, renderDefaultModelSetting } = await import('../../src/services/model/model.ts')
-  const { AGENT_DISPATCH_MODELS, MODEL_ALIASES } = await import('../../src/utils/model/aliases.ts')
-  const { classOfModel } = await import('../../src/services/providers/modelRegistry.ts')
-  const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/services/providers/anthropic/anthropicAdapter.ts')
-  const { focusedOptionSupports1m, getModelOptions } = await import('../../src/services/model/modelOptions.ts')
-  const { resolveCatalogueSpelling } = await import('../../src/services/model/modelSpellingFold.ts')
-  const effort = await import('../../src/utils/effort.ts')
-  const caps = await import('../../src/utils/model/capabilities.ts')
-  const { foldLegacyWorkerModelKey } = await import('../../src/services/concourse/workerModels.ts')
-  const { _firstPartyFrontierMemberForTest } = await import('../../src/services/capFailover.ts')
-  const { getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
+  const { FAMILY_GENERATIONS, familyHeadOf, newestGenerationKey, previousGenerationKeys } = await import('../../src/models/facts/builtInModelTable.ts')
+  const { getDefaultFableModel, parseUserSpecifiedModel, renderModelSetting, renderDefaultModelSetting } = await import('../../src/models/catalogue/engineModel.ts')
+  const { AGENT_DISPATCH_MODELS, MODEL_ALIASES } = await import('../../src/models/facts/aliases.ts')
+  const { classOfModel } = await import('../../src/models/roads/modelRegistry.ts')
+  const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/models/roads/anthropic/anthropicAdapter.ts')
+  const { focusedOptionSupports1m, getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
+  const { resolveCatalogueSpelling } = await import('../../src/models/catalogue/modelSpellingFold.ts')
+  const effort = await import('../../src/models/effort/effort.ts')
+  const caps = await import('../../src/models/facts/capabilities.ts')
+  const { foldLegacyWorkerModelKey } = await import('../../src/screen/concourse-model/workerModels.ts')
+  const { _firstPartyFrontierMemberForTest } = await import('../../src/models/roads/capFailover.ts')
+  const { getGlobalConfig, saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
 
   check('the generation table lists fable52 first, Fable 5.1 second, Fable 5 third (newest first)', FAMILY_GENERATIONS.fable.join(',') === 'fable52,fable51,fable5', FAMILY_GENERATIONS.fable.join(','))
   check("newestGenerationKey('fable') is fable52", newestGenerationKey('fable') === 'fable52')
@@ -172,12 +172,12 @@ section("§3 the row: the fable family's newest generation, its class, its picke
   check('the capability record is coherent on the row', record.canonical === ID && record.thinking.adaptive && record.effort.ceiling === 'max' && record.tools.structuredOutputs && record.context.window === 1_000_000 && record.identity.knowledgeCutoff === 'June 2026', JSON.stringify(record))
 }
 
-section('§4 the wire laws the vendor states for the row: thinking always on, no forced tool choice, the disabled road omits the parameter, foreign thinking leaves the wire both ways', 'fix the wire laws in src/utils/model/capabilities.ts (modelThinkingAlwaysOn, modelSupportsForcedToolChoice, foldToolChoiceForModel), src/services/api/sideQuery.ts (sideQueryThinkingParam), src/services/providers/anthropic/thinkingDisplay.ts or src/services/providers/anthropic/thinkingBinding.ts')
+section('§4 the wire laws the vendor states for the row: thinking always on, no forced tool choice, the disabled road omits the parameter, foreign thinking leaves the wire both ways', 'fix the wire laws in src/models/facts/capabilities.ts (modelThinkingAlwaysOn, modelSupportsForcedToolChoice, foldToolChoiceForModel), src/engine/requests/sideRequest.ts (sideQueryThinkingParam), src/models/roads/anthropic/thinkingDisplay.ts or src/models/roads/anthropic/thinkingBinding.ts')
 {
-  const caps = await import('../../src/utils/model/capabilities.ts')
-  const { sideQueryThinkingParam } = await import('../../src/services/api/sideQuery.ts')
-  const { describeInputTransformations, isSameModel, modelSwitchReceipt } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
-  const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/services/messages/apiFilters.ts')
+  const caps = await import('../../src/models/facts/capabilities.ts')
+  const { sideQueryThinkingParam } = await import('../../src/engine/requests/sideRequest.ts')
+  const { describeInputTransformations, isSameModel, modelSwitchReceipt } = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
+  const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/engine/messages/apiFilters.ts')
   const show = (v: unknown): string => JSON.stringify(v)
 
   check('thinking is always on for the row, its [1m] twin and its mirror; a carrier row never joins', caps.modelThinkingAlwaysOn(ID) && caps.modelThinkingAlwaysOn(`${ID}[1m]`) && caps.modelThinkingAlwaysOn(MIRROR) && !caps.modelThinkingAlwaysOn(CARRIER))
@@ -206,7 +206,7 @@ section('§4 the wire laws the vendor states for the row: thinking always on, no
   const receipt = modelSwitchReceipt('main', history.slice(0, 2) as never[], ID)
   check("the switch receipt names the row 'Fable 5.2'", receipt !== null && receipt.text.includes('stay out of the requests to Fable 5.2') && receipt.key === `main|msg_opus55|${ID}`, show(receipt))
   check('once the row has answered, a request to it is no switch (the twin and the mirror included)', modelSwitchReceipt('main', history, ID) === null)
-  const { applyThinkingDisplay } = await import('../../src/services/providers/anthropic/thinkingDisplay.ts')
+  const { applyThinkingDisplay } = await import('../../src/models/roads/anthropic/thinkingDisplay.ts')
   const DISPLAY_BETA = 'thinking-display-updates-2026-08-18'
   const asked: string[] = []
   const withUpdates = applyThinkingDisplay(ID, { type: 'adaptive' }, asked, { env: 'updates', firstParty: () => true })
@@ -219,19 +219,19 @@ section('§4 the wire laws the vendor states for the row: thinking always on, no
   check("a drop the provider attributes to another account is said as that: the row's thinking stays with the account that wrote it", otherAccount !== null && otherAccount.includes('another account') && !otherAccount.includes('client-side edit'), String(otherAccount))
 }
 
-section('§5 thinking binding and declared mirrors', 'fix readsThinkingOf and carriesThinking in src/services/providers/anthropic/thinkingBinding.ts, or the mirror rows (mirrorTwinOf) in src/utils/model/configs.ts')
+section('§5 thinking binding and declared mirrors', 'fix readsThinkingOf and carriesThinking in src/models/roads/anthropic/thinkingBinding.ts, or the mirror rows (mirrorTwinOf) in src/models/facts/builtInModelTable.ts')
 {
-  const { carriesThinking, readsThinkingOf } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
+  const { carriesThinking, readsThinkingOf } = await import('../../src/models/roads/anthropic/thinkingBinding.ts')
   const readers = (target: string): string => ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5', 'claude-opus-5-5', 'claude-fable-5', 'claude-fable-5-1', 'claude-fable-5-2'].filter(writer => readsThinkingOf(target, writer)).join(',')
   check("the vendor's table of which model reads which, as read on 11 Nov 2026: the row reads every writer of the table, Fable 5.1 reads Opus 5, Opus 5.5, Fable 5 and itself, Opus 5.5 reads Haiku 5.5, Sonnet 5.5, Opus 5 and itself, Sonnet 5.5 reads Haiku 5.5 and itself, Haiku 5.5 and Opus 5 read themselves alone, and the mirror reads as the row does", readers(ID) === 'claude-haiku-5-5,claude-sonnet-5-5,claude-opus-5,claude-opus-5-5,claude-fable-5,claude-fable-5-1,claude-fable-5-2' && readers(PREVIOUS) === 'claude-opus-5,claude-opus-5-5,claude-fable-5,claude-fable-5-1' && readers('claude-opus-5-5') === 'claude-haiku-5-5,claude-sonnet-5-5,claude-opus-5,claude-opus-5-5' && readers('claude-sonnet-5-5') === 'claude-haiku-5-5,claude-sonnet-5-5' && readers('claude-haiku-5-5') === 'claude-haiku-5-5' && readers(MIRROR) === readers(ID) && readers('claude-opus-5') === 'claude-opus-5', `${readers(ID)} | ${readers(PREVIOUS)} | ${readers('claude-opus-5-5')} | ${readers('claude-sonnet-5-5')} | ${readers('claude-haiku-5-5')} | ${readers('claude-opus-5')}`)
   const stamped = (model: string, id: string, prefix?: string) => ({ type: 'assistant' as const, uuid: id, timestamp: '2026-11-11T00:00:00.000Z', message: { id, model, role: 'assistant' as const, type: 'message' as const, content: [{ type: 'thinking' as const, thinking: 'a plan', signature: 'sig' }, { type: 'text' as const, text: 'done', citations: [] }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }, ...(prefix !== undefined ? { thinkingPrefix: prefix } : {}) }) as never
   const carried = (model: string, target: string, prefix: string | undefined, request: string | undefined, dropped = new Map<string, Set<number>>()): boolean => carriesThinking(stamped(model, `msg_${model}`, prefix), target, request, dropped)
   check("a reply of Opus 5.5 or Fable 5.1 written under the request's own system prompt and tools is carried into the row's request; one written under another, or with no stamp, is not", carried('claude-opus-5-5', ID, 'p1', 'p1') && carried(PREVIOUS, ID, 'p1', 'p1') && carried('claude-mythos-5-1', MIRROR, 'p1', 'p1') && !carried('claude-opus-5-5', ID, 'p0', 'p1') && !carried('claude-opus-5-5', ID, undefined, 'p1') && !carried('claude-opus-5-5', ID, 'p1', undefined))
   check("the row's own thinking is carried to no other model, whatever the stamp, and a block the API has reported dropped is not carried again", !carried(ID, PREVIOUS, 'p1', 'p1') && !carried(ID, 'claude-opus-5-5', 'p1', 'p1') && !carried(MIRROR, PREVIOUS, 'p1', 'p1') && carried(ID, MIRROR, undefined, undefined) && !carried('claude-opus-5-5', ID, 'p1', 'p1', new Map([['msg_claude-opus-5-5', new Set([0])]])))
-  const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
-  const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
-  const { getLaunchDefaultEffort, isLaunchEffortPinned, selectableEffortLevelsForLadder } = await import('../../src/utils/effort.ts')
-  const { CANONICAL_MODEL_IDS, mirrorTwinOf } = await import('../../src/utils/model/configs.ts')
+  const { resolveModelPricing } = await import('../../src/models/usage/modelCost.ts')
+  const { getContextWindowForModel } = await import('../../src/models/facts/capabilities.ts')
+  const { getLaunchDefaultEffort, isLaunchEffortPinned, selectableEffortLevelsForLadder } = await import('../../src/models/effort/effort.ts')
+  const { CANONICAL_MODEL_IDS, mirrorTwinOf } = await import('../../src/models/facts/builtInModelTable.ts')
   const mirrors = CANONICAL_MODEL_IDS.filter(id => mirrorTwinOf(id) !== undefined)
   const sharesTheFour = (id: string): boolean => {
     const twin = mirrorTwinOf(id) ?? ''

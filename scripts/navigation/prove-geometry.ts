@@ -8,11 +8,11 @@ import {
   paneWindow,
   shedToFit,
   viewportRows,
-} from '../../src/components/mercury-ui/geometry.js'
-import { stringWidth } from '../../src/ink/stringWidth.js'
+} from '../../src/screen/widgets/geometry.js'
+import { stringWidth } from '../../src/screen/renderer/stringWidth.js'
 
 let failures = 0
-const failureWhere = 'change frameCells, innerWidth, panelWidth, viewportRows, packHints or shedToFit in src/components/mercury-ui/geometry.ts, paneWindow in src/components/mercury-ui/paneWindow.ts, or packFooter in src/components/mercury-ui/footerHint.ts, whichever the check names'
+const failureWhere = 'change frameCells, innerWidth, panelWidth, viewportRows, packHints or shedToFit in src/screen/widgets/geometry.ts, paneWindow in src/screen/widgets/paneWindow.ts, or packFooter in src/screen/widgets/footerHint.ts, whichever the check names'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   if (!cond || process.env.COMPASS_PROOF_VERBOSE) {
@@ -105,8 +105,8 @@ console.log('== declared shedding: whole units, lowest priority first ==')
 
 console.log('== packFooter: close preferred, physical width ABSOLUTE (MINI-TEMPER 3) ==')
 {
-  const { packFooter } = await import('../../src/components/mercury-ui/footerHint.js')
-  const { stringWidth } = await import('../../src/ink/stringWidth.js')
+  const { packFooter } = await import('../../src/screen/widgets/footerHint.js')
+  const { stringWidth } = await import('../../src/screen/renderer/stringWidth.js')
   const footer = '↑↓ select · ↵/→ view · x kill · tab/1-9 section · esc close'
   check('wide keeps everything', packFooter(footer, 200) === footer)
   const tight = packFooter(footer, 30)

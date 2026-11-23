@@ -11,7 +11,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
-const SCAN_DIRS = ['src/components', 'src/ink']
+const SCAN_DIRS = ['src/components', 'src/screen/renderer']
 
 const BASELINE: Array<{ file: string; childLine: number; reason: string }> = [
 ]

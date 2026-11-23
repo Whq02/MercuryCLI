@@ -17,7 +17,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 const { seedFirstRun } = await import(join(root, 'scripts/lib/firstRunSeed.ts'))
 const { encodeSeedTranscript } = await import(join(root, 'scripts/lib/seedTranscript.ts'))
-const { getProjectDir } = await import(join(root, 'src/utils/sessionStoragePortable.ts'))
+const { getProjectDir } = await import(join(root, 'src/sessions/transcripts/sessionStoragePortable.ts'))
 const { resolveCaptureDriver, captureEngineEntry, vshotBudgetMs } = await import(join(root, 'scripts/lib/captureDriver.ts'))
 const driver = resolveCaptureDriver()
 if (driver.kind === 'unavailable') throw new Error(driver.remedy)
@@ -182,8 +182,8 @@ for (const [cols, rows] of [[120, 40], [177, 45]] as const) {
   const band = bottom ? readBand(textOf(bottom.grid)) : null
   check(`[${size}] the transcript pane is on screen at the bottom of the chat`, band !== null, '', 'no lanes pane header with its box corners was found in the bottom mark; read the saved bottom grid text file under the output folder')
   if (band) {
-    check(`[${size}] the result's last line is painted on the pane's last row when the chat sits at the bottom`, band.needleRow >= 0 && band.needleRow === band.lastContentRow, band.needleRow < 0 ? 'the last line is not on screen: blank rows stand where it should be' : `last line on row ${band.needleRow}, the pane's last row is ${band.lastContentRow}`, 'change UserLocalCommandOutputMessage in src/components/messages/UserLocalCommandOutputMessage.tsx so the row ends where its text ends')
-    check(`[${size}] no empty row stands between the last line and the pane's bottom`, band.needleRow >= 0 && band.blankBelow === 0, `${band.blankBelow} empty rows`, 'change UserLocalCommandOutputMessage in src/components/messages/UserLocalCommandOutputMessage.tsx so it reserves no rows beneath its last bullet')
+    check(`[${size}] the result's last line is painted on the pane's last row when the chat sits at the bottom`, band.needleRow >= 0 && band.needleRow === band.lastContentRow, band.needleRow < 0 ? 'the last line is not on screen: blank rows stand where it should be' : `last line on row ${band.needleRow}, the pane's last row is ${band.lastContentRow}`, 'change UserLocalCommandOutputMessage in src/screen/messages/UserLocalCommandOutputMessage.tsx so the row ends where its text ends')
+    check(`[${size}] no empty row stands between the last line and the pane's bottom`, band.needleRow >= 0 && band.blankBelow === 0, `${band.blankBelow} empty rows`, 'change UserLocalCommandOutputMessage in src/screen/messages/UserLocalCommandOutputMessage.tsx so it reserves no rows beneath its last bullet')
   }
   if (band && band.needleRow < 0) {
     for (const mark of run.marks.filter(m => m.label.startsWith('pageup'))) {

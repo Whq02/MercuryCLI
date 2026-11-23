@@ -13,26 +13,26 @@ const { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, recor
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 
 const tally = makeTally('prove-unshipped-tool-rows')
-;(await import('../../src/utils/config/globalConfig.ts')).enableConfigs()
+;(await import('../../src/platform/config/globalConfig.ts')).enableConfigs()
 const UNSHIPPED = 'FrobnicateTool'
 
 tally.section('§1 a tool no build ships: the renderer, the tool list and the render shim')
-const { toolFamilyFor } = await import('../../src/components/mercury-ui/toolGlyphs.ts')
-tally.check('the transcript renderer paints a recorded row of a tool no build ships as it paints any unknown tool', toolFamilyFor(UNSHIPPED) === toolFamilyFor('AnotherUnknownTool'), `toolFamilyFor in src/components/mercury-ui/toolGlyphs.ts must give every name it does not know the same family; got ${toolFamilyFor(UNSHIPPED)} and ${toolFamilyFor('AnotherUnknownTool')}`)
-const { getAllBaseTools } = await import('../../src/tools.ts')
+const { toolFamilyFor } = await import('../../src/screen/widgets/toolGlyphs.ts')
+tally.check('the transcript renderer paints a recorded row of a tool no build ships as it paints any unknown tool', toolFamilyFor(UNSHIPPED) === toolFamilyFor('AnotherUnknownTool'), `toolFamilyFor in src/screen/widgets/toolGlyphs.ts must give every name it does not know the same family; got ${toolFamilyFor(UNSHIPPED)} and ${toolFamilyFor('AnotherUnknownTool')}`)
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
 const listed = getAllBaseTools().map(tool => tool.name)
-tally.check('the tool list of a booted session names the crew tools (SendMessage · Agent) and no unshipped name', listed.includes('SendMessage') && listed.includes('Crewmate') && !listed.includes(UNSHIPPED), `${listed.join(', ')} (getAllBaseTools in src/tools.ts must list SendMessage and Crewmate and no tool named ${UNSHIPPED})`)
-const { findToolForRender } = await import('../../src/tools/MCPTool/absentToolShim.ts')
+tally.check('the tool list of a booted session names the crew tools (SendMessage · Agent) and no unshipped name', listed.includes('SendMessage') && listed.includes('Crewmate') && !listed.includes(UNSHIPPED), `${listed.join(', ')} (getAllBaseTools in src/tools/kit/toolList.ts must list SendMessage and Crewmate and no tool named ${UNSHIPPED})`)
+const { findToolForRender } = await import('../../src/tools/mcp/absentToolShim.ts')
 const tools = getAllBaseTools()
 const shim = findToolForRender(tools, UNSHIPPED)
-tally.check('a recorded row of an unshipped tool resolves a render shim under its recorded name (it paints; it never runs)', shim.name === UNSHIPPED && shim.userFacingName({} as never) === UNSHIPPED && typeof shim.renderToolUseMessage === 'function', `findToolForRender in src/tools/MCPTool/absentToolShim.ts must return a render shim carrying the recorded name ${UNSHIPPED}; got ${shim.name}`)
+tally.check('a recorded row of an unshipped tool resolves a render shim under its recorded name (it paints; it never runs)', shim.name === UNSHIPPED && shim.userFacingName({} as never) === UNSHIPPED && typeof shim.renderToolUseMessage === 'function', `findToolForRender in src/tools/mcp/absentToolShim.ts must return a render shim carrying the recorded name ${UNSHIPPED}; got ${shim.name}`)
 let shimCall = ''
 try {
   await shim.call({} as never, {} as never, undefined as never, undefined as never)
 } catch (error) {
   shimCall = error instanceof Error ? error.message : String(error)
 }
-tally.check('the shim refuses to run the unshipped tool', shimCall.includes('no longer available'), `${shimCall} (the shim call in src/tools/MCPTool/absentToolShim.ts must throw an error saying the tool is no longer available${shimCall === '' ? '; the call threw nothing' : ''})`)
+tally.check('the shim refuses to run the unshipped tool', shimCall.includes('no longer available'), `${shimCall} (the shim call in src/tools/mcp/absentToolShim.ts must throw an error saying the tool is no longer available${shimCall === '' ? '; the call threw nothing' : ''})`)
 
 tally.section('§2 the drive: a fresh session offers the crew tools; a transcript with an unshipped tool row resumes whole')
 const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ ...turn, model: LEAD_MODEL, whenModel: LEAD_GATE, whenBody: when }) as ScriptedTurn
@@ -46,14 +46,14 @@ try {
   await fresh.waitFor('the fresh session never answered', () => fresh.stdout().includes('FRESH-DONE'), TURN_MS)
   const first = toolNamesOf(requests()[0])
   record('fresh-first-request-tools.txt', first.join('\n') + '\n')
-  tally.check('the first request names SendMessage and Agent', first.includes('SendMessage') && first.includes('Crewmate'), `(${first.length} tools; the request tools list built from getAllBaseTools in src/tools.ts must name SendMessage and Crewmate; see fresh-first-request-tools.txt in the recordings)`)
+  tally.check('the first request names SendMessage and Agent', first.includes('SendMessage') && first.includes('Crewmate'), `(${first.length} tools; the request tools list built from getAllBaseTools in src/tools/kit/toolList.ts must name SendMessage and Crewmate; see fresh-first-request-tools.txt in the recordings)`)
 } catch (error) {
   tally.check('the fresh session ran', false, error instanceof Error ? error.message : String(error))
 } finally {
   await fresh.end()
 }
 
-const { projectSlug } = await import('../../src/utils/sessionStoragePortable.ts')
+const { projectSlug } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
 const sessionId = randomUUID()
 const cwd = realpathSync(world.project).normalize('NFC')
 const projectDir = join(world.config, 'projects', projectSlug(cwd))
@@ -120,15 +120,15 @@ try {
 tally.section('§3 the old row paints: the transcript renderer with the tip\'s tool list')
 try {
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { AssistantToolUseMessage } = await import('../../src/components/messages/AssistantToolUseMessage.tsx')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { AssistantToolUseMessage } = await import('../../src/screen/messages/AssistantToolUseMessage.tsx')
   const lookups = { resolvedToolUseIDs: new Set([CALL_ID]), erroredToolUseIDs: new Set<string>(), deniedToolUseIDs: new Set<string>(), toolResultByToolUseID: new Map(), progressMessagesByToolUseID: new Map() }
   const node = React.createElement(AppStateProvider as never, { initialState: getDefaultAppState() } as never, React.createElement(AssistantToolUseMessage as never, { param: { type: 'tool_use', id: CALL_ID, name: UNSHIPPED, input: { widget: 'old-widget', description: 'the old widget' } }, tools, inProgressToolUseIDs: new Set<string>(), lookups, addMargin: false } as never) as never)
   const painted = (await renderToString(node, 100)).trim()
   record('old-row-render.txt', painted + '\n')
-  tally.check('the unshipped tool row paints under its recorded name instead of vanishing', painted.includes(UNSHIPPED), `${JSON.stringify(painted)} (AssistantToolUseMessage in src/components/messages/AssistantToolUseMessage.tsx must paint the recorded name for a tool absent from the tool list, using findToolForRender in src/tools/MCPTool/absentToolShim.ts)`)
+  tally.check('the unshipped tool row paints under its recorded name instead of vanishing', painted.includes(UNSHIPPED), `${JSON.stringify(painted)} (AssistantToolUseMessage in src/screen/messages/AssistantToolUseMessage.tsx must paint the recorded name for a tool absent from the tool list, using findToolForRender in src/tools/mcp/absentToolShim.ts)`)
 } catch (error) {
   tally.check('the old row rendered', false, error instanceof Error ? error.message : String(error))
 }

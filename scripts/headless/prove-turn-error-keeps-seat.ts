@@ -2,8 +2,8 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
-import type { QueuedCommand } from '../../src/types/textInputTypes.ts'
-import { createTurnDriver, type TurnDriverPorts } from '../../src/cli/headless/turnDriver.ts'
+import type { QueuedCommand } from '../../src/screen/composer/input-core/textInput.ts'
+import { createTurnDriver, type TurnDriverPorts } from '../../src/daemon/runner/turnDriver.ts'
 import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, removeWorld, sleep } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type Script } from '../lib/scriptedTurn.ts'
 

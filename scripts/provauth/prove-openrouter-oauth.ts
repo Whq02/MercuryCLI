@@ -11,7 +11,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('         fix beginOpenrouterConnect (URL, exchange, listener), the key resolvers or disconnectOpenrouterOauthKey in src/services/providers/openrouter/openrouterAccounts.ts, or the stored key in src/utils/accounts/providerSecrets.ts')
+  if (!cond) console.log('         fix beginOpenrouterConnect (URL, exchange, listener), the key resolvers or disconnectOpenrouterOauthKey in src/models/roads/openrouter/openrouterAccounts.ts, or the stored key in src/models/sign-in/account-ledger/providerSecrets.ts')
 }
 
 console.log('============================================================')
@@ -33,8 +33,8 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-openrouter-oa
 process.env.MERCURY_OPENROUTER_AUTH_BASE = 'https://fixture.invalid/auth'
 process.env.MERCURY_OPENROUTER_API_BASE = 'https://fixture.invalid/api/v1'
 
-const accounts = await import('../../src/services/providers/openrouter/openrouterAccounts.js')
-const secrets = await import('../../src/utils/accounts/providerSecrets.js')
+const accounts = await import('../../src/models/roads/openrouter/openrouterAccounts.js')
+const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.js')
 const {
   beginOpenrouterConnect,
   disconnectOpenrouterOauthKey,

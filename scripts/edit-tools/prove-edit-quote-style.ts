@@ -10,13 +10,13 @@ process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 
-const { preserveQuoteStyle, normalizeQuotes, findActualString, LEFT_DOUBLE_CURLY_QUOTE, RIGHT_DOUBLE_CURLY_QUOTE, LEFT_SINGLE_CURLY_QUOTE, RIGHT_SINGLE_CURLY_QUOTE } = await import('../../src/utils/fileEditUtils.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { preserveQuoteStyle, normalizeQuotes, findActualString, LEFT_DOUBLE_CURLY_QUOTE, RIGHT_DOUBLE_CURLY_QUOTE, LEFT_SINGLE_CURLY_QUOTE, RIGHT_SINGLE_CURLY_QUOTE } = await import('../../src/tools/edit/call/editMatching.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
-const quoteHelperHint = 'fix preserveQuoteStyle or normalizeQuotes in src/utils/fileEditUtils.ts'
-const quoteToolHint = 'fix the quote handling of FileEditTool in src/tools/FileEditTool/FileEditTool.ts (validateInput and call), which uses preserveQuoteStyle from src/utils/fileEditUtils.ts, and for S6 fileLanguageKind in src/native-ts/color-diff/index.ts'
+const quoteHelperHint = 'fix preserveQuoteStyle or normalizeQuotes in src/tools/edit/call/editMatching.ts'
+const quoteToolHint = 'fix the quote handling of FileEditTool in src/tools/edit/EditTool.ts (validateInput and call), which uses preserveQuoteStyle from src/tools/edit/call/editMatching.ts, and for S6 fileLanguageKind in src/platform/native/color-diff/index.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const failHint = /^Q/.test(label) ? quoteHelperHint : quoteToolHint
@@ -26,7 +26,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — edit quote-style proof exceeded 60s; a FileEditTool validateInput or call in src/tools/FileEditTool/FileEditTool.ts did not return')
+  console.log('\nTIMEOUT — edit quote-style proof exceeded 60s; a FileEditTool validateInput or call in src/tools/edit/EditTool.ts did not return')
   process.exit(1)
 }, 60_000)
 guard.unref?.()
@@ -155,7 +155,7 @@ section('S. through the real tool: the file\'s language decides — prose keeps 
   check('S5a a dotfile the registry cannot name lands byte for byte', dotfile.after === `summary = 'the daemon${RS}s runner'\noff = 'stopped'\n`, JSON.stringify(dotfile.after))
   const conf = await edit('rows.conf', `text = "she said ${LD}warm${RD}"\n`, 'text = "she said "warm""', 'text = "she said "warm""\non = "running"')
   check('S5b a suffix outside the registry with curly double quotes in the matched text lands the new double quotes straight', conf.after === `text = "she said ${LD}warm${RD}"\non = "running"\n`, JSON.stringify(conf.after))
-  const { fileLanguageKind } = await import('../../src/native-ts/color-diff/index.ts')
+  const { fileLanguageKind } = await import('../../src/platform/native/color-diff/index.ts')
   check('S6 the classifier is the diff highlighter\'s own: code for the languages the incident named, prose for markdown and plain text, unknown for a bare name', ['a.ts', 'a.js', 'a.py', 'a.rs', 'a.go', 'a.c', 'a.sh', 'a.json', 'a.yaml', 'a.toml', 'a.css', 'a.html', 'Dockerfile'].every(name => fileLanguageKind(name) === 'code') && fileLanguageKind('a.md') === 'prose' && fileLanguageKind('a.txt') === 'prose' && fileLanguageKind('NOTES') === 'unknown' && fileLanguageKind('run', '#!/usr/bin/env bash') === 'code')
 }
 

@@ -6,123 +6,123 @@ import { largestCycle, readImports, staticPairs, type Edge, type Kind, type Unre
 
 const ROOT = join(import.meta.dir, '..', '..')
 const SELF = 'scripts/gate/prove-shell-door.ts'
-const PARSE_DOOR = 'src/utils/permissions/decision/commandAnalysis.ts'
-const PROBE = 'src/tools/BashTool/bashPermissions.ts'
+const PARSE_DOOR = 'src/permissions/rules/decision/commandAnalysis.ts'
+const PROBE = 'src/tools/shell/bashPermissions.ts'
 
 const SHELL_DIRS = [
   'src/utils/shell/',
-  'src/utils/bash/',
-  'src/utils/permissions/decision/commandAnalysis/',
-  'src/tools/BashTool/',
-  'src/tools/PowerShellTool/',
+  'src/platform/shell/bash/',
+  'src/permissions/rules/decision/command-analysis/',
+  'src/tools/shell/',
+  'src/tools/powershell/',
   'src/utils/powershell/',
-  'src/tasks/LocalShellTask/',
+  'src/engine/tasks/local-shell/',
 ]
-const SHELL_FILES = ['src/utils/Shell.ts', 'src/utils/ShellCommand.ts']
+const SHELL_FILES = ['src/platform/shell/shellExec.ts', 'src/platform/shell/shellProcess.ts']
 
 const IMPORTERS = [
-  'src/cli/headless/runnerAsks.ts',
-  'src/cli/headless/sendNow.ts',
-  'src/cli/run.ts',
-  'src/components/BashModeProgress.tsx',
-  'src/components/Settings/config/configRowsEngine.tsx',
-  'src/components/Settings/config/useConfigExits.ts',
-  'src/components/WorktreeExitDialog.tsx',
-  'src/components/messages/UserBashOutputMessage.tsx',
-  'src/components/messages/collapseReadSearch.ts',
-  'src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx',
-  'src/components/permissions/BashPermissionRequest/bashToolUseOptions.tsx',
-  'src/components/permissions/PermissionRequest.tsx',
-  'src/components/permissions/PowerShellPermissionRequest/PowerShellPermissionRequest.tsx',
-  'src/components/permissions/SedEditPermissionRequest/SedEditPermissionRequest.tsx',
-  'src/components/tasks/BackgroundTask.tsx',
-  'src/components/tasks/BackgroundTasksDialog.tsx',
-  'src/components/tasks/ShellDetailDialog.tsx',
-  'src/components/tasks/ShellProgress.tsx',
-  'src/components/tasks/backgroundTasks/actions.ts',
-  'src/components/tasks/backgroundTasks/views.tsx',
-  'src/constants/prompts.ts',
-  'src/daemon/runnerScript.ts',
-  'src/entrypoints/cli.tsx',
-  'src/entrypoints/init.ts',
-  'src/entrypoints/mcp.ts',
-  'src/entrypoints/shellParentGuard.ts',
-  'src/extensions/manifest.ts',
-  'src/guards/generatedAssets.ts',
-  'src/hooks/typeahead/accept.ts',
-  'src/hooks/typeahead/tokens.ts',
-  'src/hooks/useCancelRequest.ts',
-  'src/rows/turn/turnRows.ts',
-  'src/schemas/hooks.ts',
-  'src/screens/chat/useChatBoot.tsx',
-  'src/services/acp/ideToolBridge.ts',
-  'src/services/capability/census.ts',
-  'src/services/cockpit/helmLanesModel.ts',
-  'src/services/dap/dapTerminal.ts',
-  'src/services/engine-connector/shellRunning.ts',
-  'src/services/engine-connector/workRoster.ts',
-  'src/services/health/healthReport.ts',
-  'src/services/health/readiness.ts',
-  'src/services/mcp/stdioCommandSafety.ts',
-  'src/services/messages/api.ts',
-  'src/services/messages/attachmentText.ts',
-  'src/services/processUserInput/processBashCommand.tsx',
-  'src/services/switchboard/sessionReceipts.ts',
-  'src/services/tools/promptShellExecution.ts',
-  'src/setup.ts',
-  'src/tasks.ts',
-  'src/tasks/stopTask.ts',
-  'src/tasks/types.ts',
-  'src/tools.ts',
-  'src/tools/AgentTool/foregroundExecution.tsx',
-  'src/tools/AgentTool/reviewerPolicy.ts',
-  'src/tools/AgentTool/runAgent.ts',
-  'src/tools/AgentTool/scoutPolicy.ts',
-  'src/tools/ComputerTool/computer/call.ts',
-  'src/tools/ComputerTool/computer/roads/sequence.ts',
-  'src/tools/DebugTool/DebugTool.ts',
-  'src/tools/EnterWorktreeTool/EnterWorktreeTool.ts',
-  'src/tools/ExitWorktreeTool/ExitWorktreeTool.ts',
-  'src/tools/JourneyTool/JourneyTool.ts',
-  'src/tools/MonitorTool/MonitorTool.ts',
-  'src/tools/MonitorTool/watchReceipts.ts',
-  'src/tools/ServiceTool/ServiceTool.ts',
-  'src/tools/TaskStopTool/TaskStopTool.ts',
-  'src/utils/collapseBackgroundBashNotifications.ts',
-  'src/utils/crossProjectResume.ts',
-  'src/utils/hooks/commandRunner.ts',
-  'src/utils/notebook.ts',
-  'src/utils/permissions/commandContent.ts',
-  'src/utils/permissions/decision/commandAnalysis.ts',
-  'src/utils/permissions/flowLaw.ts',
-  'src/utils/permissions/shellProtectedPaths.ts',
-  'src/utils/permissions/shellRuleMatching.ts',
-  'src/utils/spawnPlan.ts',
-  'src/utils/task/TaskOutput.ts',
-  'src/utils/toolErrors.ts',
-  'src/utils/wards/wardsShellRead.ts',
+  'src/boot/entrypoints/cli.tsx',
+  'src/boot/entrypoints/init.ts',
+  'src/boot/entrypoints/shellParentGuard.ts',
+  'src/boot/sessionSetup.ts',
+  'src/commands/exit/WorktreeExitDialog.tsx',
+  'src/daemon/runner-link/runnerScript.ts',
+  'src/daemon/runner/runHeadless.ts',
+  'src/daemon/runner/runnerAsks.ts',
+  'src/daemon/runner/sendNow.ts',
+  'src/daemon/switchboard/sessionReceipts.ts',
+  'src/engine/connector/shellRunning.ts',
+  'src/engine/connector/workRoster.ts',
+  'src/engine/messages/apiSystemAndToolSchema.ts',
+  'src/engine/messages/attachmentText.ts',
+  'src/engine/rows/turn/turnRows.ts',
+  'src/engine/system-prompt/defaultSystemPrompt.ts',
+  'src/engine/task-framework/taskOutput.ts',
+  'src/engine/tasks/stopTask.ts',
+  'src/engine/tasks/taskState.ts',
+  'src/engine/tasks/tasks.ts',
+  'src/engine/tool-dispatch/promptShellExecution.ts',
+  'src/engine/user-input/BashModeProgress.tsx',
+  'src/engine/user-input/processBashCommand.tsx',
+  'src/integrations/acp/ideToolBridge.ts',
+  'src/integrations/debugger/dapTerminal.ts',
+  'src/integrations/event-hook-schemas/hooks.ts',
+  'src/integrations/event-hooks/commandRunner.ts',
+  'src/integrations/extensions/manifest.ts',
+  'src/integrations/mcp/mcpServer.ts',
+  'src/integrations/mcp/stdioCommandSafety.ts',
+  'src/permissions/capability-census/census.ts',
+  'src/permissions/cards/PermissionRequest.tsx',
+  'src/permissions/cards/bash/ShellPermissionRequest.tsx',
+  'src/permissions/cards/bash/shellAskOptions.tsx',
+  'src/permissions/cards/powershell/PowerShellPermissionRequest.tsx',
+  'src/permissions/cards/sed-edit/SedEditPermissionRequest.tsx',
+  'src/permissions/guards/generatedAssets.ts',
+  'src/permissions/rules/commandContent.ts',
+  'src/permissions/rules/decision/commandAnalysis.ts',
+  'src/permissions/rules/flowLaw.ts',
+  'src/permissions/rules/shellProtectedPaths.ts',
+  'src/permissions/rules/shellRuleMatching.ts',
+  'src/permissions/wards/wardsShellRead.ts',
+  'src/platform/health/healthReport.ts',
+  'src/platform/health/readiness.ts',
+  'src/platform/processes/spawnPlan.ts',
+  'src/screen/chat/interruptKeys.ts',
+  'src/screen/chat/useChatBoot.tsx',
+  'src/screen/cockpit-gauges/helmLanesModel.ts',
+  'src/screen/composer/typeahead/accept.ts',
+  'src/screen/composer/typeahead/tokens.ts',
+  'src/screen/messages-list/foldShellNotices.ts',
+  'src/screen/messages/UserBashOutputMessage.tsx',
+  'src/screen/messages/collapseReadSearch.ts',
+  'src/screen/session-chooser/crossProjectResume.ts',
+  'src/screen/settings/config/configRowsEngine.tsx',
+  'src/screen/settings/config/useConfigExits.ts',
+  'src/screen/tasks/BackgroundTask.tsx',
+  'src/screen/tasks/BackgroundTasksDialog.tsx',
+  'src/screen/tasks/ShellDetailDialog.tsx',
+  'src/screen/tasks/ShellProgress.tsx',
+  'src/screen/tasks/background-tasks/actions.ts',
+  'src/screen/tasks/background-tasks/views.tsx',
+  'src/tools/computer/call/call.ts',
+  'src/tools/computer/roads/sequence.ts',
+  'src/tools/crewmate/foregroundExecution.tsx',
+  'src/tools/crewmate/reviewerPolicy.ts',
+  'src/tools/crewmate/runCrewmate.ts',
+  'src/tools/crewmate/scoutPolicy.ts',
+  'src/tools/debug/DebugTool.ts',
+  'src/tools/enter-worktree/EnterWorktreeTool.ts',
+  'src/tools/exit-worktree/ExitWorktreeTool.ts',
+  'src/tools/journey/JourneyTool.ts',
+  'src/tools/kit/notebook.ts',
+  'src/tools/kit/toolErrors.ts',
+  'src/tools/kit/toolList.ts',
+  'src/tools/monitor/MonitorTool.ts',
+  'src/tools/monitor/watchReceipts.ts',
+  'src/tools/service/ServiceTool.ts',
+  'src/tools/task-stop/TaskStopTool.ts',
 ]
 
 const IN_CYCLE: string[] = []
 
 const UNREAD: Array<[string, number]> = [
-  ['src/extensions/installConsent.ts', 2],
-  ['src/mneme/embedPack.ts', 1],
-  ['src/services/crewBoard/seam.ts', 1],
-  ['src/services/crewBoard/store.ts', 1],
-  ['src/services/desktop/pack.ts', 1],
-  ['src/services/lsp/tsSidecar/sidecar.ts', 1],
-  ['src/services/media/host.ts', 1],
-  ['src/services/media/settings.ts', 2],
-  ['src/services/structure/tsFacility.ts', 1],
-  ['src/services/voice/whisperPack.ts', 1],
-  ['src/services/vulcan/engine/leases.ts', 1],
-  ['src/tools/FileReadTool/jsonQueryWorker.mjs', 1],
-  ['src/tools/FileReadTool/readRichFormats.ts', 1],
-  ['src/utils/bash/registry.ts', 1],
-  ['src/utils/pdfTextWorker.mjs', 1],
-  ['src/utils/structure/grammarFacility.ts', 1],
-  ['src/utils/voice/voicePack.ts', 1],
+  ['src/crew/board/seam.ts', 1],
+  ['src/crew/board/store.ts', 1],
+  ['src/integrations/desktop/pack.ts', 1],
+  ['src/integrations/extensions/installConsent.ts', 2],
+  ['src/integrations/lsp/ts-sidecar/sidecar.ts', 1],
+  ['src/integrations/media/host.ts', 1],
+  ['src/integrations/media/settings.ts', 2],
+  ['src/integrations/voice-pack/voicePack.ts', 1],
+  ['src/integrations/voice/whisperPack.ts', 1],
+  ['src/integrations/vulcan/engine/leases.ts', 1],
+  ['src/platform/grammars/grammarFacility.ts', 1],
+  ['src/platform/shell/bash/commandSpecs.ts', 1],
+  ['src/sessions/mneme/embedPack.ts', 1],
+  ['src/tools/engines/structure/tsFacility.ts', 1],
+  ['src/tools/kit/pdfTextWorker.mjs', 1],
+  ['src/tools/read/jsonQueryWorker.mjs', 1],
+  ['src/tools/read/readRichFormats.ts', 1],
 ]
 
 const GRAMMAR_READERS: Array<[string, number]> = [
@@ -314,10 +314,10 @@ section('(3) what no reader can follow — require(), import() and createRequire
 
 section('(4) the record — which shell this is, asked in one place: places that test a shell\'s name or spell one shell\'s own words, in the shell folder and in every file that asks the record')
 {
-  const RECORD = 'src/utils/shell/shellRecord.ts'
+  const RECORD = 'src/platform/shell/shellRecord.ts'
   const WORDS = /ZSH_VERSION|BASH_VERSION|BASHPID|setopt |shopt |pipestatus/i
   const STILL_OUTSIDE: Record<string, number> = {
-    'src/utils/bash/ShellSnapshot.ts': 1,
+    'src/platform/shell/bash/shellSnapshot.ts': 1,
   }
   const SHELL_WORDS = new Set(['bash', 'zsh', 'sh', 'dash', 'ksh', 'fish', 'ash', 'mksh', 'yash', 'csh', 'tcsh'])
   const namesAShell = (text: string): boolean => /^(?:.*\/)?(?:zsh|bash)(?:\.exe)?$/.test(text)
@@ -388,10 +388,10 @@ section('(4) the record — which shell this is, asked in one place: places that
 
 section("(5) the walker — files under src/ outside the walker folder and parser.ts that compare a .type with a grammar node kind or import the parser's Node")
 {
-  const WALKER_DIR = 'src/utils/permissions/decision/commandAnalysis/'
-  const PARSER = 'src/utils/bash/parser.ts'
-  const BASH_PARSER = 'src/utils/bash/bashParser.ts'
-  const COMPLETION = 'src/utils/bash/shellCompletion.ts'
+  const WALKER_DIR = 'src/permissions/rules/decision/command-analysis/'
+  const PARSER = 'src/platform/shell/bash/parser.ts'
+  const BASH_PARSER = 'src/platform/shell/bash/bashParser.ts'
+  const COMPLETION = 'src/platform/shell/bash/shellCompletion.ts'
   const WRITE = process.argv.includes('--write')
   const EQUALITY = new Set([ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken])
   const SHARED_WORDS = new Set(['string', 'number', 'local', 'done', 'readonly', 'list', 'command', 'comment', 'ERROR', 'function_definition', 'compound_statement'])
@@ -514,7 +514,7 @@ section("(5) the walker — files under src/ outside the walker folder and parse
   for (const file of files) {
     if (file.startsWith(WALKER_DIR) || file === PARSER) continue
     const importsNode = file === PARSE_DOOR ? 0 : (nodeImports.get(file) ?? 0)
-    const touchesDoor = doorImporters.has(file) || file.startsWith('src/utils/bash/')
+    const touchesDoor = doorImporters.has(file) || file.startsWith('src/platform/shell/bash/')
     const typeHits = matchHits(hitsByFile.get(file) ?? [], touchesDoor)
     const total = typeHits.length + importsNode
     if (total > 0) found.set(file, { total, typeHits, nodeImports: importsNode })

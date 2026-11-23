@@ -1,8 +1,8 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const accounts = await import('../../../src/services/providers/openai/openaiAccounts.js')
+const accounts = await import('../../../src/models/roads/openai/openaiAccounts.js')
 const { refreshOpenaiCatalogue } = await import(
-  '../../../src/services/providers/openai/openaiCatalogue.js'
+  '../../../src/models/roads/openai/openaiCatalogue.js'
 )
 
 const device = process.argv.includes('--device')

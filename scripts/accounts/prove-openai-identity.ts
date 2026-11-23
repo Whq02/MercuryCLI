@@ -13,8 +13,8 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 
-const accounts = await import('../../src/services/providers/openai/openaiAccounts.ts')
-const slots = await import('../../src/services/providers/accountSlots.ts')
+const accounts = await import('../../src/models/roads/openai/openaiAccounts.ts')
+const slots = await import('../../src/models/roads/accountSlots.ts')
 
 const b64url = (obj: unknown): string => Buffer.from(JSON.stringify(obj)).toString('base64url')
 const fakeJwt = (payload: Record<string, unknown>): string =>
@@ -32,13 +32,13 @@ const idTokenNoEmail = fakeJwt({
 section('O1 the decode captures the standard email claim')
 {
   const decode = (accounts as { tokensFromExchange?: (raw: { id_token: string; access_token: string; refresh_token: string }) => Record<string, unknown> }).tokensFromExchange
-  check('the exchange decode is reachable for proof', typeof decode === 'function', 'tokensFromExchange must be exported from src/services/providers/openai/openaiAccounts.ts')
+  check('the exchange decode is reachable for proof', typeof decode === 'function', 'tokensFromExchange must be exported from src/models/roads/openai/openaiAccounts.ts')
   if (typeof decode === 'function') {
     const tokens = decode({ id_token: idTokenWithEmail, access_token: fakeJwt({ exp: 2000000000 }), refresh_token: 'rt_1' })
-    check('the top-level email claim is captured', tokens.email === EMAIL, `${JSON.stringify(tokens.email)}; tokensFromExchange in src/services/providers/openai/openaiAccounts.ts must read the top-level email claim of the id token`)
-    check('the proprietary nested claims still decode beside it', tokens.accountId === 'acct_1' && tokens.planType === 'plus', `${JSON.stringify(tokens)}; tokensFromExchange in src/services/providers/openai/openaiAccounts.ts must keep decoding the nested auth claims`)
+    check('the top-level email claim is captured', tokens.email === EMAIL, `${JSON.stringify(tokens.email)}; tokensFromExchange in src/models/roads/openai/openaiAccounts.ts must read the top-level email claim of the id token`)
+    check('the proprietary nested claims still decode beside it', tokens.accountId === 'acct_1' && tokens.planType === 'plus', `${JSON.stringify(tokens)}; tokensFromExchange in src/models/roads/openai/openaiAccounts.ts must keep decoding the nested auth claims`)
     const bare = decode({ id_token: idTokenNoEmail, access_token: fakeJwt({ exp: 2000000000 }), refresh_token: 'rt_1' })
-    check('a token without an email yields NO email field (absence honest)', !('email' in bare), `${JSON.stringify(bare.email)}; tokensFromExchange in src/services/providers/openai/openaiAccounts.ts must leave out the email field when the id token has none`)
+    check('a token without an email yields NO email field (absence honest)', !('email' in bare), `${JSON.stringify(bare.email)}; tokensFromExchange in src/models/roads/openai/openaiAccounts.ts must leave out the email field when the id token has none`)
   }
 }
 
@@ -62,11 +62,11 @@ section('O2 the stored ref carries the email beside the untouched label')
     }) + '\n',
   )
   const ref = accounts.openaiSubscriptionRef()
-  check('the subscription ref stands', ref !== undefined, 'openaiSubscriptionRef in src/services/providers/openai/openaiAccounts.ts found no subscription in the stored .openai-auth.json')
-  check('…and carries the email', (ref as { email?: string } | undefined)?.email === EMAIL, `${JSON.stringify(ref)}; openaiSubscriptionRef in src/services/providers/openai/openaiAccounts.ts must carry the stored email`)
-  check('…and the label wording is untouched (other surfaces pin it)', ref?.label === 'ChatGPT plus subscription', `${JSON.stringify(ref?.label)}; openaiSubscriptionRef in src/services/providers/openai/openaiAccounts.ts must keep this label wording`)
+  check('the subscription ref stands', ref !== undefined, 'openaiSubscriptionRef in src/models/roads/openai/openaiAccounts.ts found no subscription in the stored .openai-auth.json')
+  check('…and carries the email', (ref as { email?: string } | undefined)?.email === EMAIL, `${JSON.stringify(ref)}; openaiSubscriptionRef in src/models/roads/openai/openaiAccounts.ts must carry the stored email`)
+  check('…and the label wording is untouched (other surfaces pin it)', ref?.label === 'ChatGPT plus subscription', `${JSON.stringify(ref?.label)}; openaiSubscriptionRef in src/models/roads/openai/openaiAccounts.ts must keep this label wording`)
   const active = accounts.resolveOpenaiAccount({} as never)
-  check('the active-account resolution carries it too', (active as { email?: string } | undefined)?.email === EMAIL, `${JSON.stringify(active)}; resolveOpenaiAccount in src/services/providers/openai/openaiAccounts.ts must carry the email`)
+  check('the active-account resolution carries it too', (active as { email?: string } | undefined)?.email === EMAIL, `${JSON.stringify(active)}; resolveOpenaiAccount in src/models/roads/openai/openaiAccounts.ts must carry the email`)
 }
 
 section('O3 the slot derivation: email as identity, truthful label as the fallback')
@@ -77,8 +77,8 @@ section('O3 the slot derivation: email as identity, truthful label as the fallba
     openaiApiKey: () => undefined,
   } as never)
   const chatgpt = withEmail.flatMap(g => g.slots).find(s => s.id === 'openai:subscription')
-  check('the ChatGPT slot shows the EMAIL as its identity', chatgpt?.identity === EMAIL, `${JSON.stringify(chatgpt?.identity)}; the openai:subscription slot (src/services/providers/accountSlots/openai.ts, via deriveFamilySlotGroups) must use the ref's email as identity`)
-  check('the plan survives in the kind label', chatgpt !== undefined && /plus/.test(chatgpt.kindLabel), `${JSON.stringify(chatgpt?.kindLabel)}; the openai:subscription slot (src/services/providers/accountSlots/openai.ts) must keep the plan in kindLabel`)
+  check('the ChatGPT slot shows the EMAIL as its identity', chatgpt?.identity === EMAIL, `${JSON.stringify(chatgpt?.identity)}; the openai:subscription slot (src/models/roads/account-slots/openai.ts, via deriveFamilySlotGroups) must use the ref's email as identity`)
+  check('the plan survives in the kind label', chatgpt !== undefined && /plus/.test(chatgpt.kindLabel), `${JSON.stringify(chatgpt?.kindLabel)}; the openai:subscription slot (src/models/roads/account-slots/openai.ts) must keep the plan in kindLabel`)
 
   const withoutEmail = slots.deriveFamilySlotGroups(undefined, {
     openaiSubscription: () => ({ provider: 'openai', kind: 'chatgpt-subscription', label: 'ChatGPT plus subscription', planType: 'plus' }),
@@ -89,7 +89,7 @@ section('O3 the slot derivation: email as identity, truthful label as the fallba
   check(
     'no email from the provider ⇒ the truthful account label, NEVER blank',
     bare?.identity === 'ChatGPT plus subscription' && bare.identity.length > 0,
-    `${JSON.stringify(bare?.identity)}; the openai:subscription slot (src/services/providers/accountSlots/openai.ts) must fall back to the ref's label when there is no email`,
+    `${JSON.stringify(bare?.identity)}; the openai:subscription slot (src/models/roads/account-slots/openai.ts) must fall back to the ref's label when there is no email`,
   )
 }
 

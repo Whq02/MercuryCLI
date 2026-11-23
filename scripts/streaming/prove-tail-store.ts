@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { createStreamingTailStore } from '../../src/utils/messages/streamingTailStore.js'
+import { createStreamingTailStore } from '../../src/engine/message-shapes/streamingTailStore.js'
 
 let failures = 0
 function check(name: string, ok: boolean, detail?: string): void {
@@ -70,19 +70,19 @@ console.log('── FLUX S2 tail-store laws ──')
       sim.advance(2)
     }
     sim.advance(100)
-    check(`byte-equality fresh (${name})`, sim.store.read() === source, 'read() lost or reordered text; fix update() in createStreamingTailStore, src/utils/messages/streamingTailStore.ts')
-    check(`byte-equality published (${name})`, sim.store.getSnapshot() === source, 'the published snapshot differs from the full text after the timers ran; the trailing publish must carry the complete value, see publishNow in src/utils/messages/streamingTailStore.ts')
+    check(`byte-equality fresh (${name})`, sim.store.read() === source, 'read() lost or reordered text; fix update() in createStreamingTailStore, src/engine/message-shapes/streamingTailStore.ts')
+    check(`byte-equality published (${name})`, sim.store.getSnapshot() === source, 'the published snapshot differs from the full text after the timers ran; the trailing publish must carry the complete value, see publishNow in src/engine/message-shapes/streamingTailStore.ts')
   }
 }
 
 {
   const sim = makeSim()
   sim.store.update(() => 'first')
-  check('first content publishes synchronously', sim.publishes.length === 1 && sim.publishes[0] === 'first', 'the first content must notify subscribers at once; see update and transition in src/utils/messages/streamingTailStore.ts')
+  check('first content publishes synchronously', sim.publishes.length === 1 && sim.publishes[0] === 'first', 'the first content must notify subscribers at once; see update and transition in src/engine/message-shapes/streamingTailStore.ts')
   sim.advance(5)
   sim.store.update(() => null)
-  check('clear publishes synchronously', sim.publishes.length === 2 && sim.publishes[1] === null, 'update to null must publish at once; see transition in src/utils/messages/streamingTailStore.ts')
-  check('no timer left after boundary publishes', sim.timersPending() === 0, 'a trailing timer is still pending after a publish at a boundary; clear it in transition, src/utils/messages/streamingTailStore.ts')
+  check('clear publishes synchronously', sim.publishes.length === 2 && sim.publishes[1] === null, 'update to null must publish at once; see transition in src/engine/message-shapes/streamingTailStore.ts')
+  check('no timer left after boundary publishes', sim.timersPending() === 0, 'a trailing timer is still pending after a publish at a boundary; clear it in transition, src/engine/message-shapes/streamingTailStore.ts')
 }
 
 {
@@ -90,10 +90,10 @@ console.log('── FLUX S2 tail-store laws ──')
   sim.store.update(() => 'w1 ')
   sim.advance(90)
   sim.store.update(cur => cur + 'w2 ')
-  check('slow-cadence delta publishes immediately (leading edge)', sim.publishes.length === 2, 'an update after more than intervalMs of quiet must publish at once instead of waiting for a timer; see the intervalMs test in src/utils/messages/streamingTailStore.ts')
+  check('slow-cadence delta publishes immediately (leading edge)', sim.publishes.length === 2, 'an update after more than intervalMs of quiet must publish at once instead of waiting for a timer; see the intervalMs test in src/engine/message-shapes/streamingTailStore.ts')
   sim.advance(90)
   sim.store.update(cur => cur + 'w3')
-  check('every slow delta zero-latency', sim.publishes.length === 3 && sim.publishes[2] === 'w1 w2 w3', 'a slow delta was delayed or lost; see the intervalMs test in src/utils/messages/streamingTailStore.ts')
+  check('every slow delta zero-latency', sim.publishes.length === 3 && sim.publishes[2] === 'w1 w2 w3', 'a slow delta was delayed or lost; see the intervalMs test in src/engine/message-shapes/streamingTailStore.ts')
 }
 
 {
@@ -104,10 +104,10 @@ console.log('── FLUX S2 tail-store laws ──')
   }
   sim.advance(60)
   const total = sim.publishes.length
-  check(`storm publishes bounded (got ${total}, cap 8)`, total <= 8 && total >= 3, 'a burst of updates must publish between 3 and 8 times; check how update schedules the trailing publish in src/utils/messages/streamingTailStore.ts')
-  check('final trailing publish carries the COMPLETE value', sim.store.getSnapshot() === 'x'.repeat(100), 'the last publish after the burst is not the complete value; see publishNow in src/utils/messages/streamingTailStore.ts')
+  check(`storm publishes bounded (got ${total}, cap 8)`, total <= 8 && total >= 3, 'a burst of updates must publish between 3 and 8 times; check how update schedules the trailing publish in src/engine/message-shapes/streamingTailStore.ts')
+  check('final trailing publish carries the COMPLETE value', sim.store.getSnapshot() === 'x'.repeat(100), 'the last publish after the burst is not the complete value; see publishNow in src/engine/message-shapes/streamingTailStore.ts')
   const partials = sim.publishes.filter(p => p !== null)
-  check('publishes are monotonic prefixes', partials.every((p, i) => i === 0 || p!.startsWith(partials[i - 1]!)), 'a published value is not an extension of the one before it; publishes must only grow while streaming, see src/utils/messages/streamingTailStore.ts')
+  check('publishes are monotonic prefixes', partials.every((p, i) => i === 0 || p!.startsWith(partials[i - 1]!)), 'a published value is not an extension of the one before it; publishes must only grow while streaming, see src/engine/message-shapes/streamingTailStore.ts')
 }
 
 {
@@ -115,10 +115,10 @@ console.log('── FLUX S2 tail-store laws ──')
   sim.store.update(() => 'a')
   sim.advance(10)
   sim.store.update(cur => cur + 'b')
-  check('read() sees the un-published tail', sim.store.read() === 'ab', 'read() must return the newest value even before it is published; see read in src/utils/messages/streamingTailStore.ts')
-  check('snapshot stays at the last publish', sim.store.getSnapshot() === 'a', 'the snapshot moved before the trailing publish; getSnapshot must change only on a publish, see src/utils/messages/streamingTailStore.ts')
+  check('read() sees the un-published tail', sim.store.read() === 'ab', 'read() must return the newest value even before it is published; see read in src/engine/message-shapes/streamingTailStore.ts')
+  check('snapshot stays at the last publish', sim.store.getSnapshot() === 'a', 'the snapshot moved before the trailing publish; getSnapshot must change only on a publish, see src/engine/message-shapes/streamingTailStore.ts')
   sim.advance(40)
-  check('trailing publish lands the tail', sim.store.getSnapshot() === 'ab', 'the trailing publish did not fire after intervalMs; see the timer in update, src/utils/messages/streamingTailStore.ts')
+  check('trailing publish lands the tail', sim.store.getSnapshot() === 'ab', 'the trailing publish did not fire after intervalMs; see the timer in update, src/engine/message-shapes/streamingTailStore.ts')
 }
 
 {
@@ -127,7 +127,7 @@ console.log('── FLUX S2 tail-store laws ──')
   sim.advance(10)
   sim.store.update(cur => cur + ' tail')
   sim.store.reset(null)
-  check('reset(null) flushes synchronously and kills the timer', sim.store.getSnapshot() === null && sim.timersPending() === 0, 'reset(null) must publish null at once and clear the pending timer; see reset in src/utils/messages/streamingTailStore.ts')
+  check('reset(null) flushes synchronously and kills the timer', sim.store.getSnapshot() === null && sim.timersPending() === 0, 'reset(null) must publish null at once and clear the pending timer; see reset in src/engine/message-shapes/streamingTailStore.ts')
 
   const sim2 = makeSim(40)
   sim2.store.update(() => 'x')
@@ -136,9 +136,9 @@ console.log('── FLUX S2 tail-store laws ──')
   sim2.store.dispose()
   const before = sim2.publishes.length
   sim2.advance(100)
-  check('dispose kills the pending trailing publish', sim2.publishes.length === before, 'a publish fired after dispose(); dispose must clear the pending timer, see src/utils/messages/streamingTailStore.ts')
+  check('dispose kills the pending trailing publish', sim2.publishes.length === before, 'a publish fired after dispose(); dispose must clear the pending timer, see src/engine/message-shapes/streamingTailStore.ts')
   sim2.store.update(cur => (cur ?? '') + 'z')
-  check('late update stays read()-fresh, never notifies', sim2.store.read() === 'xyz' && sim2.publishes.length === before, 'after dispose(), update must still change read() but must not notify subscribers; see src/utils/messages/streamingTailStore.ts')
+  check('late update stays read()-fresh, never notifies', sim2.store.read() === 'xyz' && sim2.publishes.length === before, 'after dispose(), update must still change read() but must not notify subscribers; see src/engine/message-shapes/streamingTailStore.ts')
 }
 
 if (failures > 0) {

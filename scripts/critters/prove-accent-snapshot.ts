@@ -11,12 +11,12 @@ process.env['MERCURY_CONFIG_DIR'] = mkdtempSync(join(tmpdir(), 'accent-snapshot-
 delete process.env['MERCURY_CRITTER']
 
 const t = checker()
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const accent = await import('../../src/components/mercury-ui/sessionAccent.js')
+const accent = await import('../../src/screen/widgets/sessionAccent.js')
 const React = (await import('react')).default
-const { Box, Text, flushPendingSyncWork } = await import('../../src/ink.js')
-const { renderSync } = await import('../../src/ink/root.js')
+const { Box, Text, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
+const { renderSync } = await import('../../src/screen/renderer/root.js')
 
 const builds = (): number => accent.accentStoreStatsForProofs().snapshotBuilds
 const listeners = (): number => accent.accentStoreStatsForProofs().listeners

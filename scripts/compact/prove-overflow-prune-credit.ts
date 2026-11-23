@@ -17,22 +17,22 @@ for (const k of [
 }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { queryEvents } = await import('../../src/query.ts')
-const { legacyYieldsOf } = await import('../../src/run-core/project-legacy.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { legacyYieldsOf } = await import('../../src/engine/loop/project-legacy.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 bootstrap.setAskChannel('none')
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { MC_DIGEST_PREFIX, MC_CLEARED_PLACEHOLDER } = await import('../../src/services/compact/microCompactDigest.ts')
-const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
-const { projectTimeBasedMicrocompact } = await import('../../src/services/compact/microCompact.ts')
-const { getBlockingLimit, getAutoCompactThreshold } = await import('../../src/services/compact/autoCompact.ts')
-const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { MC_DIGEST_PREFIX, MC_CLEARED_PLACEHOLDER } = await import('../../src/engine/compaction/pruneDigest.ts')
+const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { projectTimeBasedMicrocompact } = await import('../../src/engine/compaction/pruneToolResults.ts')
+const { getBlockingLimit, getAutoCompactThreshold } = await import('../../src/engine/compaction/autoFold.ts')
+const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/engine/requests/apiErrorRows.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
 type AnyEvent = Record<string, unknown> & { kind: string }
@@ -62,7 +62,7 @@ console.log('============================================================')
 saveGlobalConfig(c => ({ ...c, autoCompactWindow: 800_000 }))
 const BLOCKING = getBlockingLimit(MODEL)
 const THRESHOLD = getAutoCompactThreshold(MODEL)
-check(`the owner's window: an 800,000 auto-compact window gives the 777,000 blocking limit and the 757,000 fold threshold`, BLOCKING === 777_000 && THRESHOLD === 757_000, `${BLOCKING} ${THRESHOLD}; fix getBlockingLimit or getAutoCompactThreshold in src/utils/compact/autoCompactWindow.ts so autoCompactWindow 800000 gives 777000 and 757000`)
+check(`the owner's window: an 800,000 auto-compact window gives the 777,000 blocking limit and the 757,000 fold threshold`, BLOCKING === 777_000 && THRESHOLD === 757_000, `${BLOCKING} ${THRESHOLD}; fix getBlockingLimit or getAutoCompactThreshold in src/engine/compaction-window/autoFoldWindow.ts so autoCompactWindow 800000 gives 777000 and 757000`)
 
 const textOf = (m: unknown): string => {
   const msg = m as AnyMsg
@@ -237,7 +237,7 @@ const isPlaceholder = (content: unknown): boolean =>
 const settledTransitions = (events: AnyEvent[]): unknown[] => events.filter(e => e.kind === 'turn_settled').map(e => e.transition)
 const noticeTexts = (yields: AnyMsg[]): string[] => yields.filter(y => y.type === 'system').map(y => String(y.content ?? ''))
 const errorYields = (yields: AnyMsg[]): AnyMsg[] => yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage === true)
-const { ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } = await import('../../src/services/compact/compact.js')
+const { ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } = await import('../../src/engine/compaction/foldConversation.js')
 const SUMMARY_TOO_LARGE = { wasCompacted: false, consecutiveFailures: 1, refusal: ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD }
 
 section('P1 the owner\'s shape — the breaker tripped, the view over the limit by a small gap, every prunable result before the anchor: the prune rung clears the old results and the retry GOES OUT')
@@ -245,19 +245,19 @@ section('P1 the owner\'s shape — the breaker tripped, the view over the limit 
   const seed = seedLongLane(20, 776_000, 16_000)
   const estimate = tokenCountWithEstimation(seed as never, MODEL)
   const saving = projectTimeBasedMicrocompact(seed as never, 'sdk', { pressure: true })?.tokensSaved ?? 0
-  check(`the view is anchored on the last reply's usage and over the limit by a small gap (${fmt(estimate)} > ${fmt(BLOCKING)}; gap ${fmt(estimate - BLOCKING)})`, estimate > BLOCKING && estimate - BLOCKING < 10_000, `${estimate}; the seed from seedLongLane no longer lands just over the limit, so check tokenCountWithEstimation in src/services/context/tokens.ts or change the anchor tokens in this file`)
-  check(`the prune rung's projected saving covers the gap and brings the view under the limit (~${fmt(saving)} tokens)`, saving >= (estimate - BLOCKING) * 1.2 && estimate - saving < BLOCKING, `${saving}; projectTimeBasedMicrocompact in src/services/compact/microCompact.ts must clear enough old tool results under pressure to cover the gap`)
+  check(`the view is anchored on the last reply's usage and over the limit by a small gap (${fmt(estimate)} > ${fmt(BLOCKING)}; gap ${fmt(estimate - BLOCKING)})`, estimate > BLOCKING && estimate - BLOCKING < 10_000, `${estimate}; the seed from seedLongLane no longer lands just over the limit, so check tokenCountWithEstimation in src/engine/context-window/contextTokenCount.ts or change the anchor tokens in this file`)
+  check(`the prune rung's projected saving covers the gap and brings the view under the limit (~${fmt(saving)} tokens)`, saving >= (estimate - BLOCKING) * 1.2 && estimate - saving < BLOCKING, `${saving}; projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts must clear enough old tool results under pressure to cover the gap`)
   const r = await run({ seed, script: [[ping(), asstText('the retry after the prune')]], compactAnswer: SUMMARY_TOO_LARGE })
   const refusals = errorYields(r.yields).map(textOf)
-  check('the retry after the prune went out: one model call, terminal completed', r.terminal.reason === 'completed' && r.calls.length === 1, `${JSON.stringify(r.terminal)} calls=${r.calls.length} refusals=${JSON.stringify(refusals)}; the prune rung in src/run-core/turn/makeRequest.ts must clear results and send the retry instead of refusing`)
-  check('the transition names the prune rung from the estimate', JSON.stringify(settledTransitions(r.events)).includes('"reason":"overflow_recovery","rung":"prune","source":"estimate"'), JSON.stringify(settledTransitions(r.events)) + '; the transition built in src/run-core/turn/makeRequest.ts must carry reason overflow_recovery, rung prune and source estimate')
+  check('the retry after the prune went out: one model call, terminal completed', r.terminal.reason === 'completed' && r.calls.length === 1, `${JSON.stringify(r.terminal)} calls=${r.calls.length} refusals=${JSON.stringify(refusals)}; the prune rung in src/engine/loop/turn/makeRequest.ts must clear results and send the retry instead of refusing`)
+  check('the transition names the prune rung from the estimate', JSON.stringify(settledTransitions(r.events)).includes('"reason":"overflow_recovery","rung":"prune","source":"estimate"'), JSON.stringify(settledTransitions(r.events)) + '; the transition built in src/engine/loop/turn/makeRequest.ts must carry reason overflow_recovery, rung prune and source estimate')
   const notice = noticeTexts(r.yields).find(t => t.startsWith('context overflowed (estimated '))
-  check(`the notice names the estimate, the count and the reclaimed tokens`, notice !== undefined && /^context overflowed \(estimated [\d,]+ tokens > 777,000\) — pruned \d+ superseded tool-result bod(?:y|ies) \(about [\d,]+ tokens by Mercury's estimate, net of placeholders; no summary written, nothing moved to memory\) and retrying$/.test(notice), JSON.stringify(noticeTexts(r.yields)) + '; the notice wording comes from overflowRecoveryNotice in src/services/compact/overflowRecovery.ts, change it or this pattern so they agree')
+  check(`the notice names the estimate, the count and the reclaimed tokens`, notice !== undefined && /^context overflowed \(estimated [\d,]+ tokens > 777,000\) — pruned \d+ superseded tool-result bod(?:y|ies) \(about [\d,]+ tokens by Mercury's estimate, net of placeholders; no summary written, nothing moved to memory\) and retrying$/.test(notice), JSON.stringify(noticeTexts(r.yields)) + '; the notice wording comes from overflowRecoveryNotice in src/engine/compaction/overflowRecovery.ts, change it or this pattern so they agree')
   const cleared = r.calls[0] !== undefined ? toolResultsOf(r.calls[0].messages).filter(x => isPlaceholder(x.content)) : []
-  check(`the request on the wire carries the placeholders of the cleared results (${cleared.length} cleared) and the newest results whole`, r.calls[0] !== undefined && cleared.length >= 5 && !isPlaceholder(toolResultsOf(r.calls[0].messages).at(-1)?.content), JSON.stringify(cleared.map(c => c.id)) + '; the pruned messages must reach the model call, see the prune branch in src/run-core/turn/makeRequest.ts')
-  check('no refusal row ever yields — the number moved, the breaker was never asked', refusals.length === 0, JSON.stringify(refusals) + '; the prune rung in src/run-core/turn/makeRequest.ts must skip the compaction call so no refusal row is yielded')
-  check('no fold was forced past the breaker', r.compact.every(c => c.forced === undefined), JSON.stringify(r.compact.map(c => c.forced)) + '; the prune rung in src/run-core/turn/makeRequest.ts must not call autocompact with a forced fold')
-  check('the last settled assistant is the reply', textOf(r.yields.filter(y => y.type === 'assistant').at(-1)) === 'the retry after the prune', 'the reply of the retried model call is not the last assistant message yielded; see src/run-core/turn/makeRequest.ts')
+  check(`the request on the wire carries the placeholders of the cleared results (${cleared.length} cleared) and the newest results whole`, r.calls[0] !== undefined && cleared.length >= 5 && !isPlaceholder(toolResultsOf(r.calls[0].messages).at(-1)?.content), JSON.stringify(cleared.map(c => c.id)) + '; the pruned messages must reach the model call, see the prune branch in src/engine/loop/turn/makeRequest.ts')
+  check('no refusal row ever yields — the number moved, the breaker was never asked', refusals.length === 0, JSON.stringify(refusals) + '; the prune rung in src/engine/loop/turn/makeRequest.ts must skip the compaction call so no refusal row is yielded')
+  check('no fold was forced past the breaker', r.compact.every(c => c.forced === undefined), JSON.stringify(r.compact.map(c => c.forced)) + '; the prune rung in src/engine/loop/turn/makeRequest.ts must not call autocompact with a forced fold')
+  check('the last settled assistant is the reply', textOf(r.yields.filter(y => y.type === 'assistant').at(-1)) === 'the retry after the prune', 'the reply of the retried model call is not the last assistant message yielded; see src/engine/loop/turn/makeRequest.ts')
 }
 
 section('P2 the compaction gate reads the same credit — the freed tokens ride the decision on the pruned iteration only; a fresh anchor after the reply carries none')
@@ -280,17 +280,17 @@ section('P2 the compaction gate reads the same credit — the freed tokens ride 
     },
   }
   const r = await run({ seed, script: [[ping(), replyWithUsage], [ping(), asstText('the round after the prune')]], compactAnswer: SUMMARY_TOO_LARGE })
-  check('two model calls: the pruned retry, then the round after its tool result; terminal completed', r.terminal.reason === 'completed' && r.calls.length === 2, `${JSON.stringify(r.terminal)} calls=${r.calls.length}; after the pruned retry the loop must run the tool round and call the model again, see src/run-core/turn/makeRequest.ts`)
-  check('the gate runs before recovery and after the fresh reply, not again during the emergency prune', r.compact.length === 2, String(r.compact.length) + '; autocompact should be asked once before recovery and once after the fresh reply, see src/run-core/turn/makeRequest.ts')
+  check('two model calls: the pruned retry, then the round after its tool result; terminal completed', r.terminal.reason === 'completed' && r.calls.length === 2, `${JSON.stringify(r.terminal)} calls=${r.calls.length}; after the pruned retry the loop must run the tool round and call the model again, see src/engine/loop/turn/makeRequest.ts`)
+  check('the gate runs before recovery and after the fresh reply, not again during the emergency prune', r.compact.length === 2, String(r.compact.length) + '; autocompact should be asked once before recovery and once after the fresh reply, see src/engine/loop/turn/makeRequest.ts')
   const [first, second] = r.compact
-  check('the first ask carried no credit (nothing was pruned yet)', first !== undefined && (first.snip ?? 0) === 0, JSON.stringify(first?.snip) + '; the snip credit passed to autocompact in src/run-core/turn/makeRequest.ts must be 0 before anything is pruned')
+  check('the first ask carried no credit (nothing was pruned yet)', first !== undefined && (first.snip ?? 0) === 0, JSON.stringify(first?.snip) + '; the snip credit passed to autocompact in src/engine/loop/turn/makeRequest.ts must be 0 before anything is pruned')
   const notice = noticeTexts(r.yields).find(t => t.startsWith('context overflowed (estimated ')) ?? ''
   const reclaimed = Number((/\(about ([\d,]+) tokens by Mercury's estimate/.exec(notice)?.[1] ?? '0').replace(/,/g, ''))
-  check('the receipt names a real reduction but the projected gauge needs no subtraction', reclaimed > 0 && r.compact.every(call => (call.snip ?? 0) === 0), `reclaimed=${reclaimed}; the notice must report tokens reclaimed (overflowRecoveryNotice in src/services/compact/overflowRecovery.ts) and no autocompact call may carry a snip credit (src/run-core/turn/makeRequest.ts)`)
-  check('the next gate carries no stale credit after the fresh usage anchor', second !== undefined && (second.snip ?? 0) === 0, JSON.stringify(second?.snip) + '; the snip credit in src/run-core/turn/makeRequest.ts must not carry over to the gate after a fresh usage anchor')
+  check('the receipt names a real reduction but the projected gauge needs no subtraction', reclaimed > 0 && r.compact.every(call => (call.snip ?? 0) === 0), `reclaimed=${reclaimed}; the notice must report tokens reclaimed (overflowRecoveryNotice in src/engine/compaction/overflowRecovery.ts) and no autocompact call may carry a snip credit (src/engine/loop/turn/makeRequest.ts)`)
+  check('the next gate carries no stale credit after the fresh usage anchor', second !== undefined && (second.snip ?? 0) === 0, JSON.stringify(second?.snip) + '; the snip credit in src/engine/loop/turn/makeRequest.ts must not carry over to the gate after a fresh usage anchor')
   const retry = r.calls[1]
   const retryCount = retry !== undefined ? tokenCountWithEstimation(retry.messages as never, MODEL) : -1
-  check(`the round after the reply counts from the fresh anchor (${fmt(retryCount)}, under the limit) with the placeholders still in place`, retry !== undefined && retryCount > 600_000 && retryCount < BLOCKING && toolResultsOf(retry.messages).some(x => isPlaceholder(x.content)), `${retryCount}; the second request must count from the fresh usage anchor (tokenCountWithEstimation in src/services/context/tokens.ts) and keep the pruned placeholders`)
+  check(`the round after the reply counts from the fresh anchor (${fmt(retryCount)}, under the limit) with the placeholders still in place`, retry !== undefined && retryCount > 600_000 && retryCount < BLOCKING && toolResultsOf(retry.messages).some(x => isPlaceholder(x.content)), `${retryCount}; the second request must count from the fresh usage anchor (tokenCountWithEstimation in src/engine/context-window/contextTokenCount.ts) and keep the pruned placeholders`)
 }
 
 clearTimeout(guard)

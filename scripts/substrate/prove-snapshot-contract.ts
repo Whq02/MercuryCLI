@@ -19,15 +19,15 @@ function setStamp(on: boolean): void {
 
 const BASE = '../../src/'
 const BRIDGES: Array<[string, string]> = [
-  ['services/cockpit/substrateSnapshot', 'substrateSnapshot'],
-  ['services/cockpit/permissionsSnapshot', 'permissionsSnapshot'],
-  ['services/cockpit/mcpGauge', 'mcpGauge'],
-  ['services/cockpit/daemonSnapshot', 'daemonSnapshot'],
-  ['services/cockpit/fleetGauge', 'fleetGauge'],
-  ['utils/cockpit/traceSnapshot', 'traceSnapshot'],
-  ['utils/cockpit/gitSnapshot', 'gitSnapshot'],
-  ['services/cockpit/modelGauge', 'modelGauge'],
-  ['services/cockpit/contextGauge', 'contextGauge'],
+  ['screen/cockpit-gauges/substrateSnapshot', 'substrateSnapshot'],
+  ['screen/cockpit-gauges/permissionsSnapshot', 'permissionsSnapshot'],
+  ['screen/cockpit-gauges/mcpGauge', 'mcpGauge'],
+  ['screen/cockpit-gauges/daemonSnapshot', 'daemonSnapshot'],
+  ['screen/cockpit-gauges/fleetGauge', 'fleetGauge'],
+  ['screen/cockpit/traceSnapshot', 'traceSnapshot'],
+  ['screen/cockpit/gitSnapshot', 'gitSnapshot'],
+  ['screen/cockpit-gauges/modelGauge', 'modelGauge'],
+  ['screen/cockpit-gauges/contextGauge', 'contextGauge'],
 ]
 
 let fail = 0

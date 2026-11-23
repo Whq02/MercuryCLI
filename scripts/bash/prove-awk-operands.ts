@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/BashTool/bashPermissions.ts src/tools/BashTool/pathValidation.ts src/Tool.ts
+// gate-watch: src/tools/shell/bashPermissions.ts src/tools/shell/pathValidation.ts src/tools/kit/tool.ts
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -21,10 +21,10 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
-const { PATH_EXTRACTORS } = await import('../../src/tools/BashTool/pathValidation.js')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.js')
+const { PATH_EXTRACTORS } = await import('../../src/tools/shell/pathValidation.js')
 const { checkParsedPaths: checkPathConstraints } = await import('./floor-proof-helpers.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -44,7 +44,7 @@ console.log('prove-awk-operands — the awk program is never a path; its real op
 console.log('\n1. the program text is not an operand')
 {
   const got = PATH_EXTRACTORS.awk(['/zzz/{f=1} END{exit !f}', 's.txt'])
-  check(`awk(['/zzz/{f=1} END{exit !f}', 's.txt']) → ['s.txt']`, j(got) === j(['s.txt']), `${j(got)}. Fix: extractAwkOperands (PATH_EXTRACTORS.awk) in src/tools/BashTool/pathValidation.ts must skip the program text and return only the file operands.`)
+  check(`awk(['/zzz/{f=1} END{exit !f}', 's.txt']) → ['s.txt']`, j(got) === j(['s.txt']), `${j(got)}. Fix: extractAwkOperands (PATH_EXTRACTORS.awk) in src/tools/shell/pathValidation.ts must skip the program text and return only the file operands.`)
 }
 
 console.log('\n2. the option table')
@@ -64,36 +64,36 @@ console.log('\n2. the option table')
   ]
   for (const [args, want] of rows) {
     const got = PATH_EXTRACTORS.awk(args)
-    check(`awk(${j(args)}) → ${j(want)}`, j(got) === j(want), `${j(got)}. Fix: extractAwkOperands (PATH_EXTRACTORS.awk) in src/tools/BashTool/pathValidation.ts must handle this option form so only real file operands come back.`)
+    check(`awk(${j(args)}) → ${j(want)}`, j(got) === j(want), `${j(got)}. Fix: extractAwkOperands (PATH_EXTRACTORS.awk) in src/tools/shell/pathValidation.ts must handle this option form so only real file operands come back.`)
   }
 }
 
 console.log('\n3. the path check passes a program that only looks like a path')
 {
   const slash = (await checkPathConstraints({ command: 'awk "/zzz/{f=1} END{exit !f}" s.txt' }, root, context() as never)) as Verdict
-  check('awk "/zzz/{f=1} END{exit !f}" s.txt → passthrough', slash.behavior === 'passthrough', `${shown(slash)}. Fix: the awk program text must not be treated as a path; see extractAwkOperands in src/tools/BashTool/pathValidation.ts.`)
+  check('awk "/zzz/{f=1} END{exit !f}" s.txt → passthrough', slash.behavior === 'passthrough', `${shown(slash)}. Fix: the awk program text must not be treated as a path; see extractAwkOperands in src/tools/shell/pathValidation.ts.`)
   const dollar = (await checkPathConstraints({ command: "awk '{print $1}' s.txt" }, root, context() as never)) as Verdict
-  check("awk '{print $1}' s.txt → passthrough", dollar.behavior === 'passthrough', `${shown(dollar)}. Fix: the awk program text must not be treated as a path; see extractAwkOperands in src/tools/BashTool/pathValidation.ts.`)
+  check("awk '{print $1}' s.txt → passthrough", dollar.behavior === 'passthrough', `${shown(dollar)}. Fix: the awk program text must not be treated as a path; see extractAwkOperands in src/tools/shell/pathValidation.ts.`)
 }
 
 console.log('\n4. with Bash(awk *) allowed, an awk whose operands pass the path check runs')
 {
   const v = await decide('awk "/zzz/{f=1} END{exit !f}" s.txt', AWK_RULE)
-  check('awk "/zzz/{f=1} END{exit !f}" s.txt → allow', v.behavior === 'allow', `${shown(v)}. Fix: with Bash(awk *) allowed, bashToolHasPermission in src/tools/BashTool/bashPermissions.ts must allow when awk operands pass the path check.`)
+  check('awk "/zzz/{f=1} END{exit !f}" s.txt → allow', v.behavior === 'allow', `${shown(v)}. Fix: with Bash(awk *) allowed, bashToolHasPermission in src/tools/shell/bashPermissions.ts must allow when awk operands pass the path check.`)
   const dollar = await decide("awk '{print $1}' s.txt", AWK_RULE)
-  check("awk '{print $1}' s.txt → allow", dollar.behavior === 'allow', `${shown(dollar)}. Fix: with Bash(awk *) allowed, bashToolHasPermission in src/tools/BashTool/bashPermissions.ts must allow when awk operands pass the path check.`)
+  check("awk '{print $1}' s.txt → allow", dollar.behavior === 'allow', `${shown(dollar)}. Fix: with Bash(awk *) allowed, bashToolHasPermission in src/tools/shell/bashPermissions.ts must allow when awk operands pass the path check.`)
 }
 
 console.log('\n5. what keeps refusing')
 {
   const noRule = await decide('awk "/zzz/{f=1} END{exit !f}" s.txt')
-  check('no rule, mode default → not allow', noRule.behavior !== 'allow', `${shown(noRule)}. Fix: bashToolHasPermission in src/tools/BashTool/bashPermissions.ts must not allow awk without a rule.`)
-  check('the words name the part as written and the word awk', noRule.message === '`awk "/zzz/{f=1} END{exit !f}" s.txt` requires approval: `awk` is not a command Mercury can verify as read-only.', `${shown(noRule)}. Fix: the approval message for an unverified command in src/tools/BashTool/bashPermissions.ts must read exactly as expected here.`)
+  check('no rule, mode default → not allow', noRule.behavior !== 'allow', `${shown(noRule)}. Fix: bashToolHasPermission in src/tools/shell/bashPermissions.ts must not allow awk without a rule.`)
+  check('the words name the part as written and the word awk', noRule.message === '`awk "/zzz/{f=1} END{exit !f}" s.txt` requires approval: `awk` is not a command Mercury can verify as read-only.', `${shown(noRule)}. Fix: the approval message for an unverified command in src/tools/shell/bashPermissions.ts must read exactly as expected here.`)
   const outside = await decide(`awk '{print}' ${slashed(outsideWords)}`, AWK_RULE)
-  check('a real input file outside the starting folder asks naming it', outside.behavior === 'ask' && outside.message === `Mercury needs permission to process ${outsideWords}, outside the starting folder ('${root}').`, `${shown(outside)}. Fix: the outside-folder ask in src/tools/BashTool/pathValidation.ts must name the awk input file.`)
+  check('a real input file outside the starting folder asks naming it', outside.behavior === 'ask' && outside.message === `Mercury needs permission to process ${outsideWords}, outside the starting folder ('${root}').`, `${shown(outside)}. Fix: the outside-folder ask in src/tools/shell/pathValidation.ts must name the awk input file.`)
   const programFile = slashed(join(scratch, 'outside', 'prog.awk'))
   const program = await decide(`awk -f ${programFile} s.txt`, AWK_RULE)
-  check('a program file outside the starting folder asks naming it', program.behavior === 'ask' && (program.message ?? '').startsWith(`Mercury needs permission to process ${programFile}, outside the starting folder`), `${shown(program)}. Fix: extractAwkOperands in src/tools/BashTool/pathValidation.ts must return the -f program file so the path check asks about it.`)
+  check('a program file outside the starting folder asks naming it', program.behavior === 'ask' && (program.message ?? '').startsWith(`Mercury needs permission to process ${programFile}, outside the starting folder`), `${shown(program)}. Fix: extractAwkOperands in src/tools/shell/pathValidation.ts must return the -f program file so the path check asks about it.`)
 }
 
 process.chdir(previousCwd)

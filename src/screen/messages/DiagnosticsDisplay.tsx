@@ -1,0 +1,90 @@
+import React from 'react'
+import { Box, Text } from '../themedRenderer.js'
+import type { DiagnosticFile } from '../../integrations/lsp/diagnosticTracking.js'
+import { getCwd } from '../../platform/files/cwd.js'
+import { relative } from 'path'
+import { plural } from '../../platform/text/strings.js'
+import { CtrlOToExpand } from './CtrlOToExpand.js'
+import { MessageResponse } from '../../tools/kit/MessageResponse.js'
+import { GLYPH } from '../theme/glyphs.js'
+
+function splitUri(uri: string): { path: string; scheme: string } {
+  if (uri.startsWith('file://')) {
+    return { path: uri.slice('file://'.length), scheme: 'file://' }
+  }
+  const colon = uri.indexOf(':')
+  return { path: uri, scheme: colon > 0 ? uri.slice(0, colon) : uri }
+}
+
+const SEVERITY_SYMBOLS: Record<string, { glyph: string; color?: string }> = {
+  Error: { glyph: '✗', color: 'error' },
+  Warning: { glyph: GLYPH.warn, color: 'warning' },
+  Info: { glyph: GLYPH.info },
+  Hint: { glyph: '·' },
+}
+
+export function DiagnosticsDisplay({
+  attachment,
+  verbose,
+}: {
+  attachment: { files: DiagnosticFile[]; isNew: boolean }
+  verbose: boolean
+}): React.ReactNode {
+  const files = attachment.files
+  if (files.length === 0) return null
+  const total = files.reduce((sum, file) => sum + file.diagnostics.length, 0)
+
+  if (!verbose) {
+    return (
+      <MessageResponse height={1}>
+        <Text dimColor wrap="wrap">
+          Found <Text bold>{total}</Text> new {plural(total, 'diagnostic')} in{' '}
+          {files.length} {plural(files.length, 'file')} <CtrlOToExpand />
+        </Text>
+      </MessageResponse>
+    )
+  }
+
+  return (
+    <Box flexDirection="column">
+      {files.map(file => {
+        const { path, scheme } = splitUri(file.uri)
+        const rel = relative(getCwd(), path)
+        const display = rel.startsWith('..') ? path : rel
+        return (
+          <Box key={file.uri} flexDirection="column">
+            <MessageResponse height={1}>
+              <Text wrap="wrap">
+                <Text bold>{display}</Text>
+                <Text dimColor> ({scheme})</Text>
+              </Text>
+            </MessageResponse>
+            {file.diagnostics.map((diagnostic, index) => {
+              const severity =
+                SEVERITY_SYMBOLS[diagnostic.severity] ?? SEVERITY_SYMBOLS.Hint!
+              return (
+                <MessageResponse key={index} height={1}>
+                  <Text wrap="wrap">
+                    {'  '}
+                    <Text color={severity.color}>{severity.glyph}</Text>{' '}
+                    <Text dimColor>
+                      [Line {diagnostic.range.start.line + 1}:
+                      {diagnostic.range.start.character + 1}]
+                    </Text>{' '}
+                    {diagnostic.message}
+                    {diagnostic.code ? <Text dimColor> [{diagnostic.code}]</Text> : null}
+                    {diagnostic.source ? (
+                      <Text dimColor> ({diagnostic.source})</Text>
+                    ) : null}
+                  </Text>
+                </MessageResponse>
+              )
+            })}
+          </Box>
+        )
+      })}
+    </Box>
+  )
+}
+
+export default DiagnosticsDisplay

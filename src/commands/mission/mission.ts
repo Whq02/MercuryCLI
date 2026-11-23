@@ -1,6 +1,6 @@
-import type { LocalCommandResult } from '../../types/command.js'
-import type { LocalJSXCommandContext } from '../../types/command.js'
-import { plural } from '../../utils/stringUtils.js'
+import type { LocalCommandResult } from '../catalogue/command.js'
+import type { LocalJSXCommandContext } from '../catalogue/command.js'
+import { plural } from '../../platform/text/strings.js'
 import {
   MISSION_CONDITION_MAX_LENGTH,
   clearActiveMission,
@@ -8,8 +8,8 @@ import {
   isMissionClearKeyword,
   missionCompletedLine,
   setActiveMission,
-} from '../../guards/mission.js'
-import { passedOver } from '../../utils/passedOver.js'
+} from '../../permissions/guards/mission.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
 
 
 export const call = async (
@@ -23,8 +23,8 @@ export const call = async (
     const mission = getActiveMission()
     if (!mission) {
       try {
-        const { inspectMissionCard, missionCardUnreadWords } = await import('../../utils/mission/missionCard.js')
-        const { getSessionId } = await import('../../bootstrap/state.js')
+        const { inspectMissionCard, missionCardUnreadWords } = await import('../../sessions/mission-card/missionCard.js')
+        const { getSessionId } = await import('../../boot/process-state/processState.js')
         const read = inspectMissionCard(getSessionId())
         if (read.state === 'unreadable') {
           passedOver(read.error)

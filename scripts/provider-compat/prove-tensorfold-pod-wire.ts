@@ -6,7 +6,7 @@ import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.NODE_ENV
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'ANTHROPIC_BASE_URL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_MODEL', 'MERCURY_LOCAL_BASE_URL', 'MERCURY_LOCAL_PROMPT_PROFILE', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_EFFORT_LEVEL', 'MERCURY_COMPAT_BASE_URL', 'MERCURY_COMPAT_MODELS', 'MERCURY_CEREBRAS_API_BASE', 'MERCURY_GROQ_API_BASE', 'MERCURY_OPENROUTER_API_BASE']) delete process.env[key]
 
 let failures = 0
@@ -18,7 +18,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (title: string): void => console.log('\n' + '─'.repeat(76) + '\n' + title)
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the TensorFold pod wire proof exceeded 180s; a request to a fixture engine never finished, so find the last section header printed above and check the compat chat road in src/services/providers/openaicompat/compatChatCallModel/')
+  console.log('\nTIMEOUT — the TensorFold pod wire proof exceeded 180s; a request to a fixture engine never finished, so find the last section header printed above and check the compat chat road in src/models/roads/openaicompat/chat-call-model/')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -95,27 +95,27 @@ process.env.MERCURY_GROQ_API_BASE = `${upstreamRoot}/openai/v1`
 process.env.OPENROUTER_API_KEY = 'proof-key-tensorfold-pod-wire-not-a-real-key'
 process.env.MERCURY_OPENROUTER_API_BASE = `${upstreamRoot}/api/v1`
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { assembleToolPool } = await import('../../src/tools.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { localServerKind } = await import('../../src/constants/localPromptProfile.ts')
-const { toolCallShapedAnswer } = await import('../../src/services/providers/local/toolCallMarkup.ts')
-const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
-const { registerTensorFoldPod } = await import('../../src/services/host/tensorfoldPod.ts')
-const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
-const { writeHostRecord } = await import('../../src/services/host/store.ts')
-const { tensorFoldHostAddress } = await import('../../src/services/providers/local/tensorfoldHosts.ts')
-const ledger = await import('../../src/services/providers/local/tensorfoldUsage.ts')
-type Message = import('../../src/types/message.ts').Message
-type Tools = import('../../src/Tool.ts').Tools
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { localServerKind } = await import('../../src/models/roads/localPromptProfile.ts')
+const { toolCallShapedAnswer } = await import('../../src/models/roads/local/toolCallMarkup.ts')
+const { clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.ts')
+const { registerTensorFoldPod } = await import('../../src/models/hosting/tensorfoldPod.ts')
+const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
+const { writeHostRecord } = await import('../../src/models/hosting/store.ts')
+const { tensorFoldHostAddress } = await import('../../src/models/roads/local/tensorfoldHosts.ts')
+const ledger = await import('../../src/models/roads/local/tensorfoldUsage.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type Tools = import('../../src/tools/kit/tool.ts').Tools
 type Block = { type: string; name?: string; input?: Record<string, unknown>; text?: string }
 type Assistant = { type: 'assistant'; isApiErrorMessage?: boolean; outputLimit?: number; message: { content: Block[]; stop_reason?: string } }
 
@@ -181,10 +181,10 @@ const knobs = (body: Body | undefined): string => JSON.stringify({ max_tokens: b
 const declarationRows = (body: Body | undefined): Array<Record<string, unknown>> => (Array.isArray(body?.messages) ? (body!.messages as Array<Record<string, unknown>>) : []).slice(1)
 
 section('§0 the gate: served by TensorFold is the fact the pod registration records (the pod box, engine tensorfold) — the same fact the local prompt profile reads')
-check('a rented TensorFold pod reads as TensorFold-served on the compat road', localServerKind(POD) === 'tensorfold' && localServerKind(SMALL_POD) === 'tensorfold', `${localServerKind(POD)} · ${localServerKind(SMALL_POD)} — localServerKind in src/constants/localPromptProfile.ts must return tensorfold for a compat pod whose box registered a TensorFold engine (registerTensorFoldPod in src/services/host/tensorfoldPod.ts)`)
-check('the local lane\'s TensorFold record reads the same', localServerKind(LOCAL) === 'tensorfold' && localServerKind(SMALL_LOCAL) === 'tensorfold', `${localServerKind(LOCAL)} · ${localServerKind(SMALL_LOCAL)} — localServerKind in src/constants/localPromptProfile.ts must read tensorfold from the local catalogue record; check that refreshLocalDiscovery found both fixture engines`)
-check('a vLLM pod (no TensorFold box) is not TensorFold-served', localServerKind(VLLM_POD) === undefined, `${String(localServerKind(VLLM_POD))} — localServerKind in src/constants/localPromptProfile.ts must return undefined for a pod without a TensorFold engine on its box`)
-check('the same Qwen 3.8 27B on Cerebras, Groq and OpenRouter is not TensorFold-served', OTHER_ROADS.every(model => localServerKind(model) === undefined), `${OTHER_ROADS.map(model => model + '=' + String(localServerKind(model))).join(' ')} — localServerKind in src/constants/localPromptProfile.ts must return undefined for roads that are not a local record or a TensorFold pod`)
+check('a rented TensorFold pod reads as TensorFold-served on the compat road', localServerKind(POD) === 'tensorfold' && localServerKind(SMALL_POD) === 'tensorfold', `${localServerKind(POD)} · ${localServerKind(SMALL_POD)} — localServerKind in src/models/roads/localPromptProfile.ts must return tensorfold for a compat pod whose box registered a TensorFold engine (registerTensorFoldPod in src/models/hosting/tensorfoldPod.ts)`)
+check('the local lane\'s TensorFold record reads the same', localServerKind(LOCAL) === 'tensorfold' && localServerKind(SMALL_LOCAL) === 'tensorfold', `${localServerKind(LOCAL)} · ${localServerKind(SMALL_LOCAL)} — localServerKind in src/models/roads/localPromptProfile.ts must read tensorfold from the local catalogue record; check that refreshLocalDiscovery found both fixture engines`)
+check('a vLLM pod (no TensorFold box) is not TensorFold-served', localServerKind(VLLM_POD) === undefined, `${String(localServerKind(VLLM_POD))} — localServerKind in src/models/roads/localPromptProfile.ts must return undefined for a pod without a TensorFold engine on its box`)
+check('the same Qwen 3.8 27B on Cerebras, Groq and OpenRouter is not TensorFold-served', OTHER_ROADS.every(model => localServerKind(model) === undefined), `${OTHER_ROADS.map(model => model + '=' + String(localServerKind(model))).join(' ')} — localServerKind in src/models/roads/localPromptProfile.ts must return undefined for roads that are not a local record or a TensorFold pod`)
 check('both fixture engines are discovered by the local lane with their served windows', localRecordFor(LOCAL)?.contextWindow?.tokens === 262144 && localRecordFor(SMALL_LOCAL)?.contextWindow?.tokens === 32768, `${JSON.stringify([localRecordFor(LOCAL)?.contextWindow, localRecordFor(SMALL_LOCAL)?.contextWindow])} — the local discovery (refreshLocalDiscovery, MERCURY_LOCAL_PROBE_TARGETS) must record each fixture engine with the context length its /v1/models reports`)
 
 section('§1 max_tokens and the thinking budget: the pod road sends what the local lane sends for the same window and effort')
@@ -198,7 +198,7 @@ for (const [label, pod, local, bodies, ceiling] of [['256k window', POD, LOCAL, 
     check(`${name}: reasoning_effort and thinking_budget match the local lane (${knobs(onLocal.body)})`, onPod.body?.reasoning_effort === onLocal.body?.reasoning_effort && onPod.body?.thinking_budget === onLocal.body?.thinking_budget, `pod ${knobs(onPod.body)} · local ${knobs(onLocal.body)} — the pod request must derive reasoning_effort and thinking_budget the way the local lane does`)
     if (effortValue === 'high' && thinking) {
       check(`${label}: the law, not a literal — max_tokens is min(32768, window/2) = ${ceiling}, the thinking budget leaves the 2048-token answer reserve`, onLocal.body?.max_tokens === ceiling && onPod.body?.max_tokens === ceiling && onPod.body?.thinking_budget === Math.min(16384, ceiling - 2048), `${knobs(onPod.body)} — max_tokens must be min(32768, window/2) on both roads, with the thinking budget leaving the 2048-token answer reserve`)
-      check(`${label}: the reply carries the limit its request sent (outputLimit ${ceiling}) on both TensorFold roads`, onPod.assistants.at(-1)?.outputLimit === ceiling && onLocal.assistants.at(-1)?.outputLimit === ceiling, `${onPod.assistants.at(-1)?.outputLimit} · ${onLocal.assistants.at(-1)?.outputLimit} — the reply must be stamped with outputLimit equal to the max_tokens sent (stamped in src/services/providers/openaicompat/compatChatCallModel/attempt.ts when the request is served by TensorFold)`)
+      check(`${label}: the reply carries the limit its request sent (outputLimit ${ceiling}) on both TensorFold roads`, onPod.assistants.at(-1)?.outputLimit === ceiling && onLocal.assistants.at(-1)?.outputLimit === ceiling, `${onPod.assistants.at(-1)?.outputLimit} · ${onLocal.assistants.at(-1)?.outputLimit} — the reply must be stamped with outputLimit equal to the max_tokens sent (stamped in src/models/roads/openaicompat/chat-call-model/attempt.ts when the request is served by TensorFold)`)
     }
   }
 }
@@ -214,14 +214,14 @@ const history: Message[] = [
 ]
 reply = 'markup'
 const markup = await drive(POD, history, { effortValue: 'high', tools: pool, bodies: big.bodies })
-check('the request rode the pod road without a refusal', markup.errors.length === 0 && markup.body !== undefined, `${markup.errors.join(' | ')} — the pod request with a loaded ToolSearch history must complete; read the error above and the compat chat road in src/services/providers/openaicompat/compatChatCallModel/`)
+check('the request rode the pod road without a refusal', markup.errors.length === 0 && markup.body !== undefined, `${markup.errors.join(' | ')} — the pod request with a loaded ToolSearch history must complete; read the error above and the compat chat road in src/models/roads/openaicompat/chat-call-model/`)
 check('TaskStop stays out of the tools term (the text-append form keeps it frozen) and its definition rides as text', !(markup.body?.tools ?? []).some((tool: Body) => tool.function?.name === 'TaskStop') && declarationRows(markup.body).some(row => String(row.content ?? '').includes('"name":"TaskStop"')), `${(markup.body?.tools ?? []).map((tool: Body) => tool.function?.name).join(',')} — a deferred tool admitted by ToolSearch must stay out of the request tools array and ride as text inside the ToolSearch result`)
-check('RED ON THE BASE: the markup becomes a TaskStop tool_use with its task_id, and the stop reason is tool_use', toolUses(markup).length === 1 && toolUses(markup)[0]!.name === 'TaskStop' && toolUses(markup)[0]!.input?.task_id === 'b4avyo465' && markup.assistants.at(-1)?.message.stop_reason === 'tool_use', `${JSON.stringify(blocks(markup)).slice(0, 400)} — a pod reply of Qwen tool-call markup must become a tool_use with stop reason tool_use; see the markup read in src/services/providers/openaicompat/compatChatCallModel/attempt.ts (extractToolCallMarkup in src/services/providers/local/toolCallMarkup.ts)`)
-check('RED ON THE BASE: no answer text is left for the rows to report as "a tool call (TaskStop) that was not executed"', toolCallShapedAnswer(answerText(markup)) === undefined, `${JSON.stringify(toolCallShapedAnswer(answerText(markup)))} — once the markup is turned into a tool_use no tool-call-shaped text may remain in the answer (attempt.ts in src/services/providers/openaicompat/compatChatCallModel/)`)
+check('RED ON THE BASE: the markup becomes a TaskStop tool_use with its task_id, and the stop reason is tool_use', toolUses(markup).length === 1 && toolUses(markup)[0]!.name === 'TaskStop' && toolUses(markup)[0]!.input?.task_id === 'b4avyo465' && markup.assistants.at(-1)?.message.stop_reason === 'tool_use', `${JSON.stringify(blocks(markup)).slice(0, 400)} — a pod reply of Qwen tool-call markup must become a tool_use with stop reason tool_use; see the markup read in src/models/roads/openaicompat/chat-call-model/attempt.ts (extractToolCallMarkup in src/models/roads/local/toolCallMarkup.ts)`)
+check('RED ON THE BASE: no answer text is left for the rows to report as "a tool call (TaskStop) that was not executed"', toolCallShapedAnswer(answerText(markup)) === undefined, `${JSON.stringify(toolCallShapedAnswer(answerText(markup)))} — once the markup is turned into a tool_use no tool-call-shaped text may remain in the answer (attempt.ts in src/models/roads/openaicompat/chat-call-model/)`)
 check('RED ON THE BASE: the definition rides inside the ToolSearch result, as on the local lane — no mid-conversation system row (TensorFold renders one as a user turn)', declarationRows(markup.body).every(row => row.role !== 'system') && String(declarationRows(markup.body).find(row => row.role === 'tool' && row.tool_call_id === 'toolu_ts_1')?.content ?? '').includes('"name":"TaskStop"'), `${declarationRows(markup.body).map(row => String(row.role)).join(',')} — the admitted definition must ride inside the ToolSearch tool result with no system row mid-conversation`)
 reply = 'mixed'
 const mixed = await drive(POD, history, { effortValue: 'high', tools: pool, bodies: big.bodies })
-check('RED ON THE BASE: TaskStop markup left beside a call the engine parsed runs too, after it (Read, then TaskStop)', toolUses(mixed).map(block => block.name).join(',') === 'Read,TaskStop' && toolUses(mixed)[1]!.input?.task_id === 'b4avyo465' && !answerText(mixed).includes('<tool_call>'), `${JSON.stringify(blocks(mixed)).slice(0, 400)} — markup left beside an engine-parsed call must be read too, after it; see the markup read in src/services/providers/openaicompat/compatChatCallModel/attempt.ts`)
+check('RED ON THE BASE: TaskStop markup left beside a call the engine parsed runs too, after it (Read, then TaskStop)', toolUses(mixed).map(block => block.name).join(',') === 'Read,TaskStop' && toolUses(mixed)[1]!.input?.task_id === 'b4avyo465' && !answerText(mixed).includes('<tool_call>'), `${JSON.stringify(blocks(mixed)).slice(0, 400)} — markup left beside an engine-parsed call must be read too, after it; see the markup read in src/models/roads/openaicompat/chat-call-model/attempt.ts`)
 const localMixed = await drive(LOCAL, history, { effortValue: 'high', tools: pool, bodies: big.bodies })
 check('the local TensorFold lane reads the markup beside a parsed call the same way', toolUses(localMixed).map(block => block.name).join(',') === 'Read,TaskStop', `${JSON.stringify(blocks(localMixed)).slice(0, 300)} — the local TensorFold lane must read markup beside a parsed call as the pod road does`)
 reply = 'markup'
@@ -233,18 +233,18 @@ reply = 'text'
 ledger.__resetTensorFoldUsageForTest()
 const recorded = await drive(POD, undefined, { effortValue: 'high', bodies: big.bodies })
 const turn = ledger.lastTensorFoldTurn()
-check('the turn completed', recorded.errors.length === 0 && answerText(recorded).includes('TF-DONE'), `${recorded.errors.join(' | ')} — the plain pod turn must complete and return TF-DONE; read the error above and the compat chat road in src/services/providers/openaicompat/compatChatCallModel/`)
-check('RED ON THE BASE: the /usage ledger holds the pod turn: tok/s, first token, prefill, prompt and cached tokens, at the tunnel address', ledger.tensorFoldTurnReadings().length === 1 && turn?.model === 'qwen3.8-27b' && turn.address === tensorFoldHostAddress(big.root) && turn.tokensPerSecond === 357.25 && turn.timeToFirstTokenS === 0.23 && turn.prefillSeconds === 0.21 && turn.promptTokens === 640 && turn.cachedTokens === 512 && turn.reasoningTokens === 8, `${JSON.stringify(turn)} — a pod turn must be noted in the /usage ledger with the engine runtime block and usage (noteTensorFoldTurn in src/services/providers/local/tensorfoldUsage.ts), keyed to the tunnel address`)
-check('the ledger line reads the pod turn', ledger.tensorFoldUsageLines()[0]?.startsWith('last turn · qwen3.8-27b · ~357 tok/s · first token in 230 ms · prefill 210 ms · 640 in (512 cached) · 24 out (8 thinking)') === true, `${JSON.stringify(ledger.tensorFoldUsageLines())} — the ledger line is built by tensorFoldUsageLines in src/services/providers/local/tensorfoldUsage.ts; make it read the pod turn in the expected wording`)
+check('the turn completed', recorded.errors.length === 0 && answerText(recorded).includes('TF-DONE'), `${recorded.errors.join(' | ')} — the plain pod turn must complete and return TF-DONE; read the error above and the compat chat road in src/models/roads/openaicompat/chat-call-model/`)
+check('RED ON THE BASE: the /usage ledger holds the pod turn: tok/s, first token, prefill, prompt and cached tokens, at the tunnel address', ledger.tensorFoldTurnReadings().length === 1 && turn?.model === 'qwen3.8-27b' && turn.address === tensorFoldHostAddress(big.root) && turn.tokensPerSecond === 357.25 && turn.timeToFirstTokenS === 0.23 && turn.prefillSeconds === 0.21 && turn.promptTokens === 640 && turn.cachedTokens === 512 && turn.reasoningTokens === 8, `${JSON.stringify(turn)} — a pod turn must be noted in the /usage ledger with the engine runtime block and usage (noteTensorFoldTurn in src/models/roads/local/tensorfoldUsage.ts), keyed to the tunnel address`)
+check('the ledger line reads the pod turn', ledger.tensorFoldUsageLines()[0]?.startsWith('last turn · qwen3.8-27b · ~357 tok/s · first token in 230 ms · prefill 210 ms · 640 in (512 cached) · 24 out (8 thinking)') === true, `${JSON.stringify(ledger.tensorFoldUsageLines())} — the ledger line is built by tensorFoldUsageLines in src/models/roads/local/tensorfoldUsage.ts; make it read the pod turn in the expected wording`)
 
 section('§4 every other road is unchanged: a vLLM pod, Cerebras, Groq and OpenRouter')
 reply = 'markup'
 const ledgerRows = ledger.tensorFoldTurnReadings().length
 const onVllm = await drive(VLLM_POD, history, { effortValue: 'high', tools: pool, bodies: vllm.bodies })
-check('the vLLM pod: the markup stays text, nothing is minted from it', onVllm.errors.length === 0 && toolUses(onVllm).length === 0 && answerText(onVllm).includes('<function=TaskStop>'), `${JSON.stringify(blocks(onVllm)).slice(0, 300)} — a vLLM pod must keep markup as plain text and mint no tool_use from it (the markup read in src/services/providers/openaicompat/compatChatCallModel/attempt.ts must stay limited to TensorFold-served roads)`)
+check('the vLLM pod: the markup stays text, nothing is minted from it', onVllm.errors.length === 0 && toolUses(onVllm).length === 0 && answerText(onVllm).includes('<function=TaskStop>'), `${JSON.stringify(blocks(onVllm)).slice(0, 300)} — a vLLM pod must keep markup as plain text and mint no tool_use from it (the markup read in src/models/roads/openaicompat/chat-call-model/attempt.ts must stay limited to TensorFold-served roads)`)
 check('the vLLM pod: no max_tokens and no thinking_budget join its request', onVllm.body !== undefined && !('max_tokens' in onVllm.body) && !('thinking_budget' in onVllm.body), `${knobs(onVllm.body)} — the vLLM pod request must carry neither max_tokens nor thinking_budget; only TensorFold-served pods get them`)
 check('the vLLM pod: the admitted definition rides inside the ToolSearch result too, the form its engine reads on the local lane (a chat template may refuse or drop a system row after the first)', declarationRows(onVllm.body).every(row => row.role !== 'system') && String(declarationRows(onVllm.body).find(row => row.role === 'tool' && row.tool_call_id === 'toolu_ts_1')?.content ?? '').includes('"name":"TaskStop"'), `${declarationRows(onVllm.body).map(row => String(row.role)).join(',')} — the vLLM pod request must carry the admitted definition inside the ToolSearch tool result and no system row after the first`)
-check('the vLLM pod: no outputLimit stamp and no ledger row', onVllm.assistants.every(message => message.outputLimit === undefined) && ledger.tensorFoldTurnReadings().length === ledgerRows, `${ledgerRows} → ${ledger.tensorFoldTurnReadings().length} — a non-TensorFold pod turn must add no ledger row (noteTensorFoldTurn in src/services/providers/local/tensorfoldUsage.ts) and no outputLimit stamp (attempt.ts in src/services/providers/openaicompat/compatChatCallModel/)`)
+check('the vLLM pod: no outputLimit stamp and no ledger row', onVllm.assistants.every(message => message.outputLimit === undefined) && ledger.tensorFoldTurnReadings().length === ledgerRows, `${ledgerRows} → ${ledger.tensorFoldTurnReadings().length} — a non-TensorFold pod turn must add no ledger row (noteTensorFoldTurn in src/models/roads/local/tensorfoldUsage.ts) and no outputLimit stamp (attempt.ts in src/models/roads/openaicompat/chat-call-model/)`)
 for (const model of OTHER_ROADS) {
   const before = upstreamBodies.length
   const run = await drive(model, [createUserMessage({ content: `Read the notes (${model}).` }) as Message], { effortValue: 'high', tools: readOnly, bodies: upstreamBodies })

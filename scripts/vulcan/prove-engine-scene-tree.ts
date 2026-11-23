@@ -8,19 +8,19 @@ const root = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'engine-scene-tree-'))
 Object.assign(process.env, { MERCURY_CONFIG_DIR: join(scratch, 'config'), MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', MERCURY_GODOT_TOOLS: '1', MERCURY_GODOT_WORKERS: '1' })
 delete process.env.MERCURY_GODOT_TOOLS_LITE
-const { decodeGodotSceneTree, findGodotSceneTreeNode, viewGodotSceneTree } = await import('../../src/services/vulcan/engine/debuggerProfile.js')
-const { EngineJobService } = await import('../../src/services/vulcan/engine/service.js')
-const { runEngineOp } = await import('../../src/services/vulcan/engine/ops.js')
-const { parseEngineTreeSpec } = await import('../../src/services/vulcan/engine/frozenTree.js')
-const { parseEngineMediaRequest } = await import('../../src/services/vulcan/engine/media.js')
-const { liveEngines } = await import('../../src/services/vulcan/engine/spawn.js')
-const { GodotTool } = await import('../../src/tools/GodotTool/GodotTool.js')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+const { decodeGodotSceneTree, findGodotSceneTreeNode, viewGodotSceneTree } = await import('../../src/integrations/vulcan/engine/debuggerProfile.js')
+const { EngineJobService } = await import('../../src/integrations/vulcan/engine/service.js')
+const { runEngineOp } = await import('../../src/integrations/vulcan/engine/ops.js')
+const { parseEngineTreeSpec } = await import('../../src/integrations/vulcan/engine/frozenTree.js')
+const { parseEngineMediaRequest } = await import('../../src/integrations/vulcan/engine/media.js')
+const { liveEngines } = await import('../../src/integrations/vulcan/engine/spawn.js')
+const { GodotTool } = await import('../../src/tools/godot/GodotTool.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
 
 let checks = 0
 const evidence: Array<{ label: string; value: unknown }> = []
 function check(label: string, condition: unknown, value?: unknown): void {
-  assert.ok(condition, `${label}${value === undefined ? '' : ': ' + JSON.stringify(value)} (to fix: decodeGodotSceneTree, viewGodotSceneTree and findGodotSceneTreeNode are in src/services/vulcan/engine/debuggerProfile.ts, runEngineOp in src/services/vulcan/engine/ops.ts, EngineJobService in src/services/vulcan/engine/service.ts)`)
+  assert.ok(condition, `${label}${value === undefined ? '' : ': ' + JSON.stringify(value)} (to fix: decodeGodotSceneTree, viewGodotSceneTree and findGodotSceneTreeNode are in src/integrations/vulcan/engine/debuggerProfile.ts, runEngineOp in src/integrations/vulcan/engine/ops.ts, EngineJobService in src/integrations/vulcan/engine/service.ts)`)
   checks++
   console.log(`PASS ${label}`)
   if (value !== undefined) evidence.push({ label, value })
@@ -43,7 +43,7 @@ for (const [label, data, words] of [
   ['a name that is not a string', [0, 7, 'Window', 1, '', 0], /name must be a string/],
   ['an id that is not an integer', [0, 'root', 'Window', 1.5, '', 0], /id must be an integer/],
 ] as const) {
-  assert.throws(() => decodeGodotSceneTree([...data]), words, `${label}: decodeGodotSceneTree in src/services/vulcan/engine/debuggerProfile.ts must throw an error matching ${words}`)
+  assert.throws(() => decodeGodotSceneTree([...data]), words, `${label}: decodeGodotSceneTree in src/integrations/vulcan/engine/debuggerProfile.ts must throw an error matching ${words}`)
   check(`${label} refuses with words`, true)
 }
 const shallow = viewGodotSceneTree(tree, 1)
@@ -66,7 +66,7 @@ function project(name: string): string {
 function fakeEngine(name: string, connectAfterMs: number): string {
   const script = join(scratch, `${name}.ts`)
   writeFileSync(script, [
-    `const transportModule = ${JSON.stringify(join(root, 'src/services/vulcan/engine/debuggerTransport.ts'))}`,
+    `const transportModule = ${JSON.stringify(join(root, 'src/integrations/vulcan/engine/debuggerTransport.ts'))}`,
     `const tree = ${JSON.stringify(CAPTURED_TREE)}`,
     "const { readFileSync } = await import('node:fs')",
     "const { connect } = await import('node:net')",

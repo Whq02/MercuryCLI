@@ -15,7 +15,7 @@ process.env.NODE_ENV = 'test'
 process.env.FORCE_COLOR = '3'
 
 let failures = 0
-const glyphFixHint = 'change SpinnerGlyph in src/components/Spinner/SpinnerGlyph.tsx (frame, cadence, reducedMotion and attentionIntensity props) or getDefaultCharacters in src/components/Spinner/utils.ts'
+const glyphFixHint = 'change SpinnerGlyph in src/screen/spinner/SpinnerGlyph.tsx (frame, cadence, reducedMotion and attentionIntensity props) or getDefaultCharacters in src/screen/spinner/glyphsAndColors.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + '; ' : '') + glyphFixHint : ''}`)
   if (!ok) failures++
@@ -23,11 +23,11 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { SpinnerGlyph } = await import('../../src/components/Spinner/SpinnerGlyph.js')
-const { getDefaultCharacters } = await import('../../src/components/Spinner/utils.js')
-const { STILL_WAITING_MAX_INTENSITY } = await import('../../src/components/Spinner/useStalledAnimation.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { SpinnerGlyph } = await import('../../src/screen/spinner/SpinnerGlyph.js')
+const { getDefaultCharacters } = await import('../../src/screen/spinner/glyphsAndColors.js')
+const { STILL_WAITING_MAX_INTENSITY } = await import('../../src/screen/spinner/useStalledAnimation.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 
 const settle = async (): Promise<void> => {
   for (let index = 0; index < 4; index++) {

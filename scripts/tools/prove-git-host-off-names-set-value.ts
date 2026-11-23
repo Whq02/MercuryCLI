@@ -24,9 +24,9 @@ writeFileSync(join(repo, 'one.txt'), 'one\n')
 g('add', 'one.txt')
 g('commit', '-q', '-m', 'one')
 
-const { setCwd } = await import('../../src/utils/Shell.ts')
+const { setCwd } = await import('../../src/platform/shell/shellExec.ts')
 setCwd(repo)
-const { GitTool } = await import('../../src/tools/GitTool/GitTool.ts')
+const { GitTool } = await import('../../src/tools/git/GitTool.ts')
 
 let checks = 0
 let failures = 0
@@ -51,7 +51,7 @@ for (const word of ['off', 'false', 'no']) {
   process.env.MERCURY_REPO_HOST = word
   for (const [op, input] of HOST_READS) {
     const out = await answer(input)
-    check(`${op} under MERCURY_REPO_HOST=${word} is refused with that value`, out.outcome === 'failed' && out.result === `repository-host reads are disabled (MERCURY_REPO_HOST=${word})`, `${out.result} — the refusal line must name the value the flag was set to; see repoHostOffLine in src/tools/GitTool/GitTool.ts (and watchRun in src/services/repoHost/runWatch.ts, which words its own refusal)`)
+    check(`${op} under MERCURY_REPO_HOST=${word} is refused with that value`, out.outcome === 'failed' && out.result === `repository-host reads are disabled (MERCURY_REPO_HOST=${word})`, `${out.result} — the refusal line must name the value the flag was set to; see repoHostOffLine in src/tools/git/GitTool.ts (and watchRun in src/platform/repo-host/runWatch.ts, which words its own refusal)`)
   }
 }
 
@@ -59,7 +59,7 @@ console.log('§2 a 0 reads as it always has, and no other value is printed for i
 process.env.MERCURY_REPO_HOST = '0'
 for (const [op, input] of HOST_READS) {
   const out = await answer(input)
-  check(`${op} under MERCURY_REPO_HOST=0 reads as before`, out.outcome === 'failed' && out.result === 'repository-host reads are disabled (MERCURY_REPO_HOST=0)', `${out.result} — a flag of 0 must print as MERCURY_REPO_HOST=0; see repoHostOffLine in src/tools/GitTool/GitTool.ts (and watchRun in src/services/repoHost/runWatch.ts)`)
+  check(`${op} under MERCURY_REPO_HOST=0 reads as before`, out.outcome === 'failed' && out.result === 'repository-host reads are disabled (MERCURY_REPO_HOST=0)', `${out.result} — a flag of 0 must print as MERCURY_REPO_HOST=0; see repoHostOffLine in src/tools/git/GitTool.ts (and watchRun in src/platform/repo-host/runWatch.ts)`)
 }
 delete process.env.MERCURY_REPO_HOST
 

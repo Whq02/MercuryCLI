@@ -47,7 +47,7 @@ const textsOf = (content: unknown): string[] => {
 
 section('§1 the setting and the line')
 {
-  const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
+  const { SettingsSchema } = await import('../../src/platform/settings/settingsSchema.ts')
   const schemaDef = SettingsSchema() as { def?: { shape?: Record<string, { def?: { innerType?: { def?: { shape?: Record<string, unknown> } } } }> } }
   const memoryInner = schemaDef.def?.shape?.memory?.def?.innerType
   const memoryShape = (memoryInner as { def?: { shape?: Record<string, unknown> } } | undefined)?.def?.shape ?? (memoryInner as { shape?: Record<string, unknown> } | undefined)?.shape
@@ -58,7 +58,7 @@ section('§1 the setting and the line')
   const schema = JSON.parse(readFileSync(join(import.meta.dir, '..', 'settings', 'settings-schema.json'), 'utf8')) as { properties?: { memory?: { properties?: Record<string, { description?: string; type?: string }> } } }
   const row = schema.properties?.memory?.properties?.tellEngineSwitch
   check('the committed settings schema carries the key with its help text', row?.type === 'boolean' && (row.description ?? '').includes('invisible to the model') && (row.description ?? '').includes('mercury://seat'), j(row))
-  const factories = (await import('../../src/utils/messages/factories.ts')) as { createEngineSwitchNotice?: (modelId: string, display: string, at: string) => { isMeta?: true; isVirtual?: true; message: { content: unknown } }; engineSwitchNoticeText?: (modelId: string, display: string, at: string) => string }
+  const factories = (await import('../../src/engine/message-shapes/factories.ts')) as { createEngineSwitchNotice?: (modelId: string, display: string, at: string) => { isMeta?: true; isVirtual?: true; message: { content: unknown } }; engineSwitchNoticeText?: (modelId: string, display: string, at: string) => string }
   const at = '2026-10-11T02:40:00.000Z'
   const notice = factories.createEngineSwitchNotice?.(OPUS, 'Opus 5', at)
   check('the line is one model-visible meta row naming the new engine, its name and the time it was given (RED on the base: no such row)', notice !== undefined && notice.isMeta === true && notice.isVirtual === undefined && notice.message.content === `${NOTICE_MARK}${at}: it is now \`${OPUS}\` (Opus 5). The replies above this line were written by the engine before it. When repeating a switch time to the user, say the time with its zone as the seat page gives it.`, j(notice?.message.content))

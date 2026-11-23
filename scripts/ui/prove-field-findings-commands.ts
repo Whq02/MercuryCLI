@@ -283,18 +283,18 @@ async function leg(name: 'law' | 'tight'): Promise<void> {
   const tag = name
   if (process.env.FIELD_KEEP === '1') for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
   check(`${tag}: every send became due (the frames the sends waited on all painted)`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason} · a send was never due: the frame it waited on did not paint, so run with FIELD_KEEP=1 and read the dumped marks`)
-  check(`${tag}: the first row's model was validated on the wire (the held probe — the first command was in flight while the second landed)`, fixture.probes >= 1, `probes ${fixture.probes} · the first /model row never sent its validation request to the fixture; the dialog command path is src/screens/chat/submit/dialogCommand.ts`)
+  check(`${tag}: the first row's model was validated on the wire (the held probe — the first command was in flight while the second landed)`, fixture.probes >= 1, `probes ${fixture.probes} · the first /model row never sent its validation request to the fixture; the dialog command path is src/screen/chat/submit/dialogCommand.ts`)
   const afterSecond = flat(marks['after-second'] ?? '')
-  check(`${tag}: the composer said the second row was queued behind the first`, /\/model queued/.test(afterSecond), `${afterSecond.match(/[^.]*queued[^.]*/)?.[0] ?? 'no queued word'} · a second dialog command sent while the first is in flight must say /model queued; see the queued branch in src/screens/chat/submit/dialogCommand.ts`)
+  check(`${tag}: the composer said the second row was queued behind the first`, /\/model queued/.test(afterSecond), `${afterSecond.match(/[^.]*queued[^.]*/)?.[0] ?? 'no queued word'} · a second dialog command sent while the first is in flight must say /model queued; see the queued branch in src/screen/chat/submit/dialogCommand.ts`)
   const trace = traceRows(tracePath)
   const events = trace.map(r => `${r.site.replace('repl-dialog-', '')}${r.rearmed === true ? ':rearmed' : ''}`)
   check(
     `${tag}: the census reads dispatch(first) → queued(second) → done(first) → dispatch(second, re-armed) → done(second), in order`,
     events.join(' ') === 'dispatch queued done dispatch:rearmed done',
-    `${events.join(' ') || 'no census rows'} · the order comes from the submitTrace calls in src/screens/chat/submit/dialogCommand.ts (queued, dispatch, done, dispatch re-armed, done)`,
+    `${events.join(' ') || 'no census rows'} · the order comes from the submitTrace calls in src/screen/chat/submit/dialogCommand.ts (queued, dispatch, done, dispatch re-armed, done)`,
   )
   const dispatches = trace.filter(r => r.site === 'repl-dialog-dispatch')
-  check(`${tag}: the second row ran only once the first had settled (after the held probe answered)`, dispatches.length === 2 && dispatches[1]!.at - dispatches[0]!.at >= vshotBudgetMs(PROBE_HOLD_MS), (dispatches.length === 2 ? `${dispatches[1]!.at - dispatches[0]!.at} ms apart (the hold ${vshotBudgetMs(PROBE_HOLD_MS)} ms)` : `${dispatches.length} dispatches`) + ' · the queued dialog command must be re-dispatched only after the first one is done; see src/screens/chat/submit/dialogCommand.ts')
+  check(`${tag}: the second row ran only once the first had settled (after the held probe answered)`, dispatches.length === 2 && dispatches[1]!.at - dispatches[0]!.at >= vshotBudgetMs(PROBE_HOLD_MS), (dispatches.length === 2 ? `${dispatches[1]!.at - dispatches[0]!.at} ms apart (the hold ${vshotBudgetMs(PROBE_HOLD_MS)} ms)` : `${dispatches.length} dispatches`) + ' · the queued dialog command must be re-dispatched only after the first one is done; see src/screen/chat/submit/dialogCommand.ts')
   const dones = trace.filter(r => r.site === 'repl-dialog-done').map(r => r.result ?? '')
   check(`${tag}: both dialogs completed with an applied receipt (the first's model, then the second's)`, dones.length === 2 && /Model set to Sonnet/.test(dones[0]!) && dones[1]!.includes(`Model set to ${SECOND_LABEL}`), dones.join(' ‖ ') || 'no done rows')
   const settled = marks['settled'] ?? ''

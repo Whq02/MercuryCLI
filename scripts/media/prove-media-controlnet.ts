@@ -2,19 +2,19 @@ import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { Client, StdioClientTransport } from '../../src/utils/mcp/sdk.js'
-import { mediaCheckpointFile, mediaModelJoined, parseMediaCatalogue } from '../../src/services/media/catalogue.js'
-import { mediaPullPlan, mediaRows, type MediaSnapshot } from '../../src/services/media/setup.js'
+import { Client, StdioClientTransport } from '../../src/integrations/mcp-shapes/sdk.js'
+import { mediaCheckpointFile, mediaModelJoined, parseMediaCatalogue } from '../../src/integrations/media/catalogue.js'
+import { mediaPullPlan, mediaRows, type MediaSnapshot } from '../../src/integrations/media/setup.js'
 import { installLiveFixture, proofHome, removeProofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
 
 process.chdir(proofHome)
 Object.assign(globalThis, { MACRO: { VERSION: '1.0.0', IS_DEV: false } })
-const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.js')
+const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.js')
 setCwdState(proofHome)
 setOriginalCwd(proofHome)
 setProjectRoot(proofHome)
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.js')
-const { saveMediaSettings } = await import('../../src/services/media/settings.js')
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.js')
+const { saveMediaSettings } = await import('../../src/integrations/media/settings.js')
 const client = new Client({ name: 'media-controlnet-proof', version: '1.0.0' })
 try {
   installLiveFixture()

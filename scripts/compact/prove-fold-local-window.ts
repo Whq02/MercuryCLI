@@ -74,23 +74,23 @@ const ollama = await new Promise<{ server: Server; root: string }>(resolve => {
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const compactModule = await import('../../src/services/compact/compact.ts')
+const compactModule = await import('../../src/engine/compaction/foldConversation.ts')
 const { compactConversation } = compactModule
 const FOLD_WINDOW_REFUSAL_KEY: string = compactModule.FOLD_WINDOW_REFUSAL_KEY ?? "compaction cannot run on this model's window"
-const overflowModule = await import('../../src/services/compact/overflowRecovery.ts')
+const overflowModule = await import('../../src/engine/compaction/overflowRecovery.ts')
 const { overflowRefusalText } = overflowModule
 const foldRemedyIsHeadless: (flag: boolean | undefined) => boolean = overflowModule.foldRemedyIsHeadless ?? ((flag: boolean | undefined) => flag === true)
-const { estimateOverflowSignal } = await import('../../src/services/api/overflowSignal.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { setAskChannel, getAskChannel } = await import('../../src/bootstrap/state.ts')
-const windowModule = await import('../../src/services/providers/local/localWindow.ts')
+const { estimateOverflowSignal } = await import('../../src/engine/requests/overflowSignal.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { setAskChannel, getAskChannel } = await import('../../src/boot/process-state/processState.ts')
+const windowModule = await import('../../src/models/roads/local/localWindow.ts')
 await refreshLocalDiscovery({ force: true })
 windowModule.writeLocalWindowSetting?.({ id: MODEL }, 'server')
 

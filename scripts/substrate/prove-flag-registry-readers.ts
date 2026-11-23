@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { dirname, join, posix, resolve } from 'node:path'
 import ts from 'typescript'
-import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
+import { FLAG_REGISTRY } from '../../src/platform/substrate/flagRegistry.ts'
 import { flagRegistryFiles, isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -58,7 +58,7 @@ const NAMED: Row[] = [
   { file: 'scripts/identity/prove-docs-altitude.ts', line: "const CONFIG_INDEX_SPELLING = J('src/@S@/', '@M@.ts')", why: 'the spelling a document may cite: the proof strips it from document text and opens no registry file' },
   { file: 'scripts/orphans/gen-reachability-manifest.ts', line: "'src/@S@/@M@.ts',", why: 'a root-class label written into the generated manifest: the generator reads the rows through its import' },
   { file: 'scripts/substrate/gen-flag-table.ts', line: '> Derived from \\`src/@S@/@M@.ts\\` by \\`scripts/@S@/gen-flag-table.ts\\`.', why: 'a sentence in the header of the rendered table: the renderer reads the rows through its import' },
-  { file: 'scripts/vulcan/vulcan-audit-waves.js', line: 'The new surfaces: src/utils/vulcan/*, src/services/vulcan/*, src/tools/GodotTool/*, assets/vulcan/addon/**, scripts/vulcan/*, plus edits in src/tools.ts, src/constants/prompts.ts, src/constants/subagentDoctrine.ts, src/utils/cockpit/harnessMap.ts, src/@S@/startupMenu.ts, src/@S@/@M@.ts, src/utils/healthReport.ts, assets/splash/mercury-splash.mjs.', why: 'a file list inside the audit prompt text: the script opens none of them' },
+  { file: 'scripts/vulcan/vulcan-audit-waves.js', line: 'The new surfaces: src/integrations/vulcan-optable/*, src/integrations/vulcan/*, src/tools/godot/*, assets/vulcan/addon/**, scripts/vulcan/*, plus edits in src/tools/kit/toolList.ts, src/engine/system-prompt/defaultSystemPrompt.ts, src/tools/crewmate/subagentDoctrine.ts, src/screen/cockpit/harnessMap.ts, src/@S@/startupMenu.ts, src/@S@/@M@.ts, src/utils/healthReport.ts, assets/splash/mercury-splash.mjs.', why: 'a file list inside the audit prompt text: the script opens none of them' },
 ].map(row => ({ ...row, line: spell(row.line) }))
 const NAMED_ROWS = 5
 
@@ -79,53 +79,53 @@ const THE_VERBS = spell("the door is src/@S@/@M@.ts: flagEnv(name) reads the pro
 const PAST_REACH = 'a name assembled at run time, a name taken out of a list or a table, a name handed in from another file, a name that arrives through a re-export, program text held as a string'
 const PAYLOAD = 'a payload copied out of the product and run by node on its own: it cannot import the registry'
 const KEPT: Kept[] = [
-  { file: 'src/extensions/@B@/shared/bootstrap.mjs', flag: 'MERCURY_CRAFT_INSTALL_KEY', places: 2, why: PAYLOAD },
-  { file: 'src/extensions/@B@/shared/bootstrap.mjs', flag: 'MERCURY_EXTENSION_DATA', places: 1, why: PAYLOAD },
-  { file: 'src/extensions/@B@/shared/install.mjs', flag: 'MERCURY_CRAFT_PLATFORM', places: 1, why: PAYLOAD },
+  { file: 'src/integrations/extensions/@B@/shared/bootstrap.mjs', flag: 'MERCURY_CRAFT_INSTALL_KEY', places: 2, why: PAYLOAD },
+  { file: 'src/integrations/extensions/@B@/shared/bootstrap.mjs', flag: 'MERCURY_EXTENSION_DATA', places: 1, why: PAYLOAD },
+  { file: 'src/integrations/extensions/@B@/shared/install.mjs', flag: 'MERCURY_CRAFT_PLATFORM', places: 1, why: PAYLOAD },
 ].map(row => ({ ...row, file: row.file.replace('@B@', J('bund', 'led')) }))
 const KEPT_PLACES = 4
 
 const ABSENT: Law[] = [
-  { file: 'src/services/api/client.ts', flag: 'MERCURY_API_TIMEOUT_MS', why: 'the client rides apiTimeoutMsOverride and parses no timeout of its own' },
-  { file: 'src/services/providers/anthropic/streamCore.ts', flag: 'MERCURY_API_TIMEOUT_MS', why: 'the stream core rides the owner through the patience ceiling and parses no timeout of its own' },
-  { file: 'src/components/mercury-ui/parity/AccountView.tsx', flag: 'MERCURY_CONFIG_DIR', why: 'the scope row keys on the resolved home, not on the pin being set' },
+  { file: 'src/models/roads/anthropic/anthropicClientFactory.ts', flag: 'MERCURY_API_TIMEOUT_MS', why: 'the client rides apiTimeoutMsOverride and parses no timeout of its own' },
+  { file: 'src/models/roads/anthropic/streamCore.ts', flag: 'MERCURY_API_TIMEOUT_MS', why: 'the stream core rides the owner through the patience ceiling and parses no timeout of its own' },
+  { file: 'src/screen/widgets/parity/AccountView.tsx', flag: 'MERCURY_CONFIG_DIR', why: 'the scope row keys on the resolved home, not on the pin being set' },
 ]
 const TAKEN_ONCE: Law[] = [
-  { file: 'src/components/messages/SystemAPIErrorMessage.tsx', flag: 'MERCURY_API_TIMEOUT_MS', why: "the panel takes the raw value into a constant: it glues no 'ms' onto the read and hides no hint behind it" },
-  { file: 'src/components/messages/AssistantTextMessage.tsx', flag: 'MERCURY_API_TIMEOUT_MS', why: 'the timeout hint reaches the operator who has not set the flag: the read is taken into a constant, not used in place as the condition' },
+  { file: 'src/screen/messages/SystemAPIErrorMessage.tsx', flag: 'MERCURY_API_TIMEOUT_MS', why: "the panel takes the raw value into a constant: it glues no 'ms' onto the read and hides no hint behind it" },
+  { file: 'src/screen/messages/AssistantTextMessage.tsx', flag: 'MERCURY_API_TIMEOUT_MS', why: 'the timeout hint reaches the operator who has not set the flag: the read is taken into a constant, not used in place as the condition' },
 ]
 const AMBIENT = 'ambient environment: waits for the environment door'
 const MIXED = 'a list that holds names with no row beside the registered ones, on an environment that is not the process: flagEnv throws on the others and flagEnvLoose takes no environment'
 const NO_REMOVE = 'the key holds undefined, which takes the flag out of the child: no verb of the door says remove'
 const UNSEEN: Unseen[] = [
-  { file: 'src/services/providers/accountSlots/compat.ts', fn: 'compatSlots', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
-  { file: 'src/services/llmHost/index.ts', fn: 'runLlmHost', at: 'process.env', kind: 'read', places: 2, why: AMBIENT },
-  { file: 'src/services/providers/modelRegistry.ts', fn: 'snapshotKey', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
-  { file: 'src/services/providers/providerIdentityLine.ts', fn: 'memoKey', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
-  { file: 'src/services/wallet/wallet.ts', fn: 'entriesKey', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
-  { file: 'src/services/providers/providerUsage.ts', fn: 'refreshProviderUsage', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
-  { file: 'src/utils/redactSecrets.ts', fn: 'sessionSecretValues', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
-  { file: 'src/utils/redactSecrets.ts', fn: 'createShellResultRedactor', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
-  { file: 'src/utils/subprocessEnv.ts', fn: 'subprocessEnv', at: 'env', kind: 'read', places: 1, why: AMBIENT },
-  { file: 'src/services/browser/browserSecrets.ts', fn: 'resolveBrowserSecret', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
-  { file: 'src/daemon/headlessRun.ts', fn: 'scrubDaemonRoleEnv', at: 'env', kind: 'read', places: 1, why: MIXED },
+  { file: 'src/models/roads/account-slots/compat.ts', fn: 'compatSlots', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/models/llm-host/index.ts', fn: 'runLlmHost', at: 'process.env', kind: 'read', places: 2, why: AMBIENT },
+  { file: 'src/models/roads/modelRegistry.ts', fn: 'snapshotKey', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/models/roads/providerIdentityLine.ts', fn: 'memoKey', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/models/wallet/wallet.ts', fn: 'entriesKey', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/models/roads/providerUsage.ts', fn: 'refreshProviderUsage', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/platform/secrets/redactSecrets.ts', fn: 'sessionSecretValues', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/platform/secrets/redactSecrets.ts', fn: 'createShellResultRedactor', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/platform/processes/subprocessEnv.ts', fn: 'subprocessEnv', at: 'env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/integrations/browser/browserSecrets.ts', fn: 'resolveBrowserSecret', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/daemon/runner-link/headlessRun.ts', fn: 'scrubDaemonRoleEnv', at: 'env', kind: 'read', places: 1, why: MIXED },
   { file: 'src/daemon/run/restart.ts', fn: 'spawnSuccessorDaemon', at: 'env', kind: 'read', places: 1, why: MIXED },
-  { file: 'src/daemon/ownedDaemon.ts', fn: 'spawnOwnedDaemon', at: 'env', kind: 'read', places: 1, why: MIXED },
-  { file: 'src/main/cli.ts', fn: 'applyMergedConfigEnv', at: 'process.env', kind: 'write', places: 1, why: "every key of the settings' environment block goes into the process: setFlagEnv and stampFlagEnv throw on a name with no row" },
-  { file: 'src/utils/managedEnv.ts', fn: 'applyFiltered', at: 'process.env', kind: 'write', places: 1, why: 'every key of the managed environment goes into the process: setFlagEnv and stampFlagEnv throw on a name with no row' },
-  { file: 'src/daemon/ownedDaemon.ts', fn: 'spawnOwnedDaemon', at: 'env', kind: 'write', places: 1, why: 'every key of the extra environment is copied: a mixed map, and stampFlagOnEnv throws on a name with no row' },
-  { file: 'src/extensions/options.ts', fn: 'optionEnv', at: 'env', kind: 'write', places: 1, why: 'the name is built from the family prefix and a key: the whole name has no row' },
-  { file: 'src/daemon/headlessRun.ts', fn: 'scrubDaemonRoleEnv', at: 'env', kind: 'delete', places: 1, why: MIXED },
-  { file: 'src/daemon/headlessRun.ts', fn: 'cloneEnvWithoutRoles', at: 'env', kind: 'delete', places: 1, why: MIXED },
-  { file: 'src/daemon/headlessRun.ts', fn: 'buildRunnerInvocation', at: 'env', kind: 'delete', places: 1, why: MIXED },
+  { file: 'src/daemon/control/ownedDaemon.ts', fn: 'spawnOwnedDaemon', at: 'env', kind: 'read', places: 1, why: MIXED },
+  { file: 'src/boot/main/cli.ts', fn: 'applyMergedConfigEnv', at: 'process.env', kind: 'write', places: 1, why: "every key of the settings' environment block goes into the process: setFlagEnv and stampFlagEnv throw on a name with no row" },
+  { file: 'src/platform/environment/settingsEnv.ts', fn: 'applyFiltered', at: 'process.env', kind: 'write', places: 1, why: 'every key of the managed environment goes into the process: setFlagEnv and stampFlagEnv throw on a name with no row' },
+  { file: 'src/daemon/control/ownedDaemon.ts', fn: 'spawnOwnedDaemon', at: 'env', kind: 'write', places: 1, why: 'every key of the extra environment is copied: a mixed map, and stampFlagOnEnv throws on a name with no row' },
+  { file: 'src/integrations/extensions/options.ts', fn: 'optionEnv', at: 'env', kind: 'write', places: 1, why: 'the name is built from the family prefix and a key: the whole name has no row' },
+  { file: 'src/daemon/runner-link/headlessRun.ts', fn: 'scrubDaemonRoleEnv', at: 'env', kind: 'delete', places: 1, why: MIXED },
+  { file: 'src/daemon/runner-link/headlessRun.ts', fn: 'cloneEnvWithoutRoles', at: 'env', kind: 'delete', places: 1, why: MIXED },
+  { file: 'src/daemon/runner-link/headlessRun.ts', fn: 'buildRunnerInvocation', at: 'env', kind: 'delete', places: 1, why: MIXED },
   { file: 'src/daemon/run/restart.ts', fn: 'spawnSuccessorDaemon', at: 'env', kind: 'delete', places: 1, why: MIXED },
-  { file: 'src/daemon/ownedDaemon.ts', fn: 'spawnOwnedDaemon', at: 'env', kind: 'delete', places: 2, why: MIXED },
-  { file: 'src/utils/subprocessEnv.ts', fn: 'deleteNames', at: 'env', kind: 'delete', places: 1, why: AMBIENT },
-  { file: 'src/utils/subprocessEnv.ts', fn: 'scrub', at: 'clone', kind: 'delete', places: 1, why: AMBIENT },
-  { file: 'src/daemon/handshake.ts', fn: '', at: 'MERCURY_DAEMON_SUCCESSOR_OF', kind: 'key', places: 1, why: NO_REMOVE },
-  { file: 'src/daemon/handshake.ts', fn: '', at: 'MERCURY_DAEMON_OWNER_PID', kind: 'key', places: 2, why: NO_REMOVE },
-  { file: 'src/services/eval/jsRunnerSource.ts', fn: '', at: '', kind: 'text', places: 2, why: 'the text of a program that another node runs: it cannot import the registry' },
-  { file: 'src/services/eval/pyRunnerSource.ts', fn: '', at: '', kind: 'text', places: 2, why: 'the text of a Python program: it cannot import the registry' },
+  { file: 'src/daemon/control/ownedDaemon.ts', fn: 'spawnOwnedDaemon', at: 'env', kind: 'delete', places: 2, why: MIXED },
+  { file: 'src/platform/processes/subprocessEnv.ts', fn: 'deleteNames', at: 'env', kind: 'delete', places: 1, why: AMBIENT },
+  { file: 'src/platform/processes/subprocessEnv.ts', fn: 'scrub', at: 'clone', kind: 'delete', places: 1, why: AMBIENT },
+  { file: 'src/daemon/control/handshake.ts', fn: '', at: 'MERCURY_DAEMON_SUCCESSOR_OF', kind: 'key', places: 1, why: NO_REMOVE },
+  { file: 'src/daemon/control/handshake.ts', fn: '', at: 'MERCURY_DAEMON_OWNER_PID', kind: 'key', places: 2, why: NO_REMOVE },
+  { file: 'src/tools/engines/eval-kernels/jsRunnerSource.ts', fn: '', at: '', kind: 'text', places: 2, why: 'the text of a program that another node runs: it cannot import the registry' },
+  { file: 'src/tools/engines/eval-kernels/pyRunnerSource.ts', fn: '', at: '', kind: 'text', places: 2, why: 'the text of a Python program: it cannot import the registry' },
 ]
 const UNSEEN_PLACES = 33
 

@@ -6,14 +6,14 @@ import {
   assembleZaiTurn,
   buildZaiChatRequest,
   mapToolsToZai,
-} from '../../src/services/providers/zai/zaiCodec.js'
-import { SseDecoder } from '../../src/services/providers/sseDecoder.js'
+} from '../../src/models/roads/zai/zaiCodec.js'
+import { SseDecoder } from '../../src/models/roads/sseDecoder.js'
 import {
   mapZaiHttpFailure,
   streamZaiChat,
   type ZaiStreamEvent,
-} from '../../src/services/providers/zai/zaiClient.js'
-import { zodToJsonSchema } from '../../src/utils/zodToJsonSchema.js'
+} from '../../src/models/roads/zai/zaiClient.js'
+import { zodToJsonSchema } from '../../src/platform/primitives/zodToJsonSchema.js'
 
 let failures = 0
 let sectionWhereToLook = ''
@@ -68,7 +68,7 @@ console.log('============================================================')
 console.log(' S4 — Z.AI native streaming proof (fixture-driven)')
 console.log('============================================================')
 
-section('1 · SSE decoder — framing laws', 'SseDecoder in src/services/providers/sseDecoder.ts')
+section('1 · SSE decoder — framing laws', 'SseDecoder in src/models/roads/sseDecoder.ts')
 {
   const dec = new SseDecoder()
   const wire = ': comment\r\ndata: {"a":1}\r\n\r\nevent: ping\ndata: line1\ndata: line2\n\n'
@@ -101,7 +101,7 @@ section('1 · SSE decoder — framing laws', 'SseDecoder in src/services/provide
   )
 }
 
-section('2 · happy turn — deltas, final-chunk usage, [DONE], assembly', 'streamZaiChat in src/services/providers/zai/zaiClient.ts and assembleZaiTurn in src/services/providers/zai/zaiCodec.ts')
+section('2 · happy turn — deltas, final-chunk usage, [DONE], assembly', 'streamZaiChat in src/models/roads/zai/zaiClient.ts and assembleZaiTurn in src/models/roads/zai/zaiCodec.ts')
 {
   const events = await collect(
     streamZaiChat({
@@ -126,7 +126,7 @@ section('2 · happy turn — deltas, final-chunk usage, [DONE], assembly', 'stre
   check('no tool calls', turn.toolUses.length === 0 && turn.malformedToolCalls.length === 0)
 }
 
-section('3 · identical assembly under pathological chunking', 'streamZaiChat in src/services/providers/zai/zaiClient.ts and SseDecoder in src/services/providers/sseDecoder.ts')
+section('3 · identical assembly under pathological chunking', 'streamZaiChat in src/models/roads/zai/zaiClient.ts and SseDecoder in src/models/roads/sseDecoder.ts')
 {
   const wire = HAPPY_WIRE.join('')
   const ragged: string[] = []
@@ -154,7 +154,7 @@ section('3 · identical assembly under pathological chunking', 'streamZaiChat in
   )
 }
 
-section('4 · parallel incremental tool calls — exactly once, schema-validated', 'tool-call assembly in streamZaiChat (src/services/providers/zai/zaiClient.ts), assembleZaiTurn and mapToolsToZai (src/services/providers/zai/zaiCodec.ts), zodToJsonSchema (src/utils/zodToJsonSchema.ts)')
+section('4 · parallel incremental tool calls — exactly once, schema-validated', 'tool-call assembly in streamZaiChat (src/models/roads/zai/zaiClient.ts), assembleZaiTurn and mapToolsToZai (src/models/roads/zai/zaiCodec.ts), zodToJsonSchema (src/platform/primitives/zodToJsonSchema.ts)')
 {
   const searchSchema = z.object({ query: z.string(), limit: z.number().int().min(1) })
   const readSchema = z.object({ path: z.string() })
@@ -249,7 +249,7 @@ section('4 · parallel incremental tool calls — exactly once, schema-validated
   )
 }
 
-section('5 · malformed tool call — surfaced, never silent', 'assembleZaiTurn in src/services/providers/zai/zaiCodec.ts and streamZaiChat in src/services/providers/zai/zaiClient.ts')
+section('5 · malformed tool call — surfaced, never silent', 'assembleZaiTurn in src/models/roads/zai/zaiCodec.ts and streamZaiChat in src/models/roads/zai/zaiClient.ts')
 {
   const wire = [
     sseChunk({
@@ -281,7 +281,7 @@ section('5 · malformed tool call — surfaced, never silent', 'assembleZaiTurn 
   )
 }
 
-section('6 · the finish_reason failure channel (documented SSE rule)', 'the finish_reason handling in streamZaiChat in src/services/providers/zai/zaiClient.ts')
+section('6 · the finish_reason failure channel (documented SSE rule)', 'the finish_reason handling in streamZaiChat in src/models/roads/zai/zaiClient.ts')
 {
   for (const [reason, retryable] of [
     ['network_error', true],
@@ -311,7 +311,7 @@ section('6 · the finish_reason failure channel (documented SSE rule)', 'the fin
   }
 }
 
-section('7 · HTTP + api error mapping (documented code table)', 'mapZaiHttpFailure and streamZaiChat in src/services/providers/zai/zaiClient.ts')
+section('7 · HTTP + api error mapping (documented code table)', 'mapZaiHttpFailure and streamZaiChat in src/models/roads/zai/zaiClient.ts')
 {
   const auth = mapZaiHttpFailure(401, { error: { code: 1000, message: 'Authentication Failed' } })
   check('1000/401 → zai-1000, not retryable', auth.code === 'zai-1000' && !auth.retryable)
@@ -348,7 +348,7 @@ section('7 · HTTP + api error mapping (documented code table)', 'mapZaiHttpFail
   )
 }
 
-section('8 · idle timeout — a silent stream faults, bounded', 'the idleTimeoutMs handling in streamZaiChat in src/services/providers/zai/zaiClient.ts')
+section('8 · idle timeout — a silent stream faults, bounded', 'the idleTimeoutMs handling in streamZaiChat in src/models/roads/zai/zaiClient.ts')
 {
   const events = await collect(
     streamZaiChat({
@@ -370,7 +370,7 @@ section('8 · idle timeout — a silent stream faults, bounded', 'the idleTimeou
   check('the pre-silence delta still arrived', events.some(e => e.type === 'text-delta'))
 }
 
-section('9 · cancellation — abort mid-stream is a typed cancel', 'the abort signal handling in streamZaiChat in src/services/providers/zai/zaiClient.ts')
+section('9 · cancellation — abort mid-stream is a typed cancel', 'the abort signal handling in streamZaiChat in src/models/roads/zai/zaiClient.ts')
 {
   const controller = new AbortController()
   const events: ZaiStreamEvent[] = []
@@ -395,7 +395,7 @@ section('9 · cancellation — abort mid-stream is a typed cancel', 'the abort s
   )
 }
 
-section('10 · truncated stream — EOF without finish/[DONE] is a typed fault', 'the end-of-stream handling in streamZaiChat in src/services/providers/zai/zaiClient.ts')
+section('10 · truncated stream — EOF without finish/[DONE] is a typed fault', 'the end-of-stream handling in streamZaiChat in src/models/roads/zai/zaiClient.ts')
 {
   const events = await collect(
     streamZaiChat({
@@ -411,7 +411,7 @@ section('10 · truncated stream — EOF without finish/[DONE] is a typed fault',
   )
 }
 
-section('11 · request mapping — native shapes, one schema truth, no key leak', 'buildZaiChatRequest in src/services/providers/zai/zaiCodec.ts')
+section('11 · request mapping — native shapes, one schema truth, no key leak', 'buildZaiChatRequest in src/models/roads/zai/zaiCodec.ts')
 {
   const request = buildZaiChatRequest({
     model: 'glm-5.2',

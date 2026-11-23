@@ -20,18 +20,18 @@ for (const k of [
   delete process.env[k]
 }
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage, createAssistantAPIErrorMessage } = await import(
-  '../../src/services/messages.ts'
+  '../../src/engine/messages/messages.ts'
 )
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 const { streamFaultAfterPartialText, STREAM_FAULT_RECOVERY_NUDGE } = await import(
-  '../../src/services/api/errors.ts'
+  '../../src/engine/requests/apiErrorRows.ts'
 )
 
 let failures = 0
@@ -44,9 +44,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const loopHint = 'the run loop is query in src/query.ts; the stream-fault words and recovery nudge come from src/services/api/errors.ts'
-const openaiStreamHint = 'see streamOneOpenaiAttempt in src/services/providers/openai/openaiCallModel.ts and ResponsesStreamFold in src/services/providers/openai/openaiWire.ts'
-const healHint = 'see healWalkableForWire in src/services/messages/pairing.ts'
+const loopHint = 'the run loop is query in src/engine/turnDoor.ts; the stream-fault words and recovery nudge come from src/engine/requests/apiErrorRows.ts'
+const openaiStreamHint = 'see streamOneOpenaiAttempt in src/models/roads/openai/openaiCallModel.ts and ResponsesStreamFold in src/models/roads/openai/openaiWire.ts'
+const healHint = 'see healWalkableForWire in src/engine/messages/wirePairing.ts'
 const guard = setTimeout(() => {
   console.log('\nTIMEOUT — flow dead-turn prover exceeded 120s')
   console.log('a section is still waiting; the last section header above names it. ' + loopHint + ' (a scripted model call that never ends keeps query waiting)')
@@ -342,7 +342,7 @@ section('S4 — a grouped round failing WHOLE settles every member and continues
 
 section('S5 — an unmapped INCOMPLETE finish on the GPT lane settles visibly, never silently')
 {
-  const callModel = await import('../../src/services/providers/openai/openaiCallModel.ts')
+  const callModel = await import('../../src/models/roads/openai/openaiCallModel.ts')
   const source = (async function* () {
     yield { type: 'text-delta', text: 'partial work before the cut' }
     yield {
@@ -400,7 +400,7 @@ section('S5 — an unmapped INCOMPLETE finish on the GPT lane settles visibly, n
 
 section('S6 — done-carried text paints and settles (never an empty turn)')
 {
-  const wire = await import('../../src/services/providers/openai/openaiWire.ts')
+  const wire = await import('../../src/models/roads/openai/openaiWire.ts')
   const fold = new wire.ResponsesStreamFold()
   const events = [
     ...fold.fold({ type: 'response.created', response: { id: 'resp_dc' } }),
@@ -449,8 +449,8 @@ section('S6 — done-carried text paints and settles (never an empty turn)')
 
 section('S7 — the wire heal folds split turns: a grouped round is ONE turn, never a pairing violation')
 {
-  const pairing = await import('../../src/services/messages/pairing.ts')
-  const { SYNTHETIC_TOOL_RESULT_PLACEHOLDER } = await import('../../src/utils/messages/rejectionText.ts')
+  const pairing = await import('../../src/engine/messages/wirePairing.ts')
+  const { SYNTHETIC_TOOL_RESULT_PLACEHOLDER } = await import('../../src/engine/message-shapes/rejectionText.ts')
   const asst = (id: string, blocks: unknown[]): unknown => {
     const m = createAssistantMessage({ content: blocks as never })
     ;(m.message as { id: string }).id = id

@@ -4,7 +4,7 @@ import { once } from 'node:events'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { collectWindowsProcesses, signalWindowsProcess } from '../../src/daemon/processSweepWindows.js'
+import { collectWindowsProcesses, signalWindowsProcess } from '../../src/daemon/process-sweep/processSweepWindows.js'
 
 if (process.platform !== 'win32') {
   console.log('SKIP: the Windows process collector runs on Windows only')
@@ -55,8 +55,8 @@ try {
   for (const target of [live, stale]) {
     assert.equal(target.process.user, self.process.user)
     assert.equal(target.state, 'running')
-    assert.ok(target.startToken !== null && target.process.startedAtMs > 0, `collectWindowsProcesses in src/daemon/processSweepWindows.js must populate startToken and startedAtMs for pid ${target.process.pid}`)
-    assert.ok(target.process.args.includes(bundle) && target.process.exe.toLowerCase() === node.toLowerCase(), `collectWindowsProcesses in src/daemon/processSweepWindows.js must report fixture node exe and bundle arg for pid ${target.process.pid}`)
+    assert.ok(target.startToken !== null && target.process.startedAtMs > 0, `collectWindowsProcesses in src/daemon/process-sweep/processSweepWindows.js must populate startToken and startedAtMs for pid ${target.process.pid}`)
+    assert.ok(target.process.args.includes(bundle) && target.process.exe.toLowerCase() === node.toLowerCase(), `collectWindowsProcesses in src/daemon/process-sweep/processSweepWindows.js must report fixture node exe and bundle arg for pid ${target.process.pid}`)
   }
   assert.equal(live.terminalAlive, true, JSON.stringify(live))
   assert.equal(live.process.terminal, 'session ' + live.process.terminal!.split(' ')[1] + ' · console attached')

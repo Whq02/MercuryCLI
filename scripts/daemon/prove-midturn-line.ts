@@ -17,7 +17,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix by section above: W wrapCommandText in src/utils/messages/text.ts, D buildConcoursePromptRow in src/daemon/concourseDispatch.ts, R2-R4 the runner's boundary delivery of queued lines (getQueuedCommandAttachments in src/services/attachments/queuedCommands.ts) and its transcript rows; the runner's stderr tail and the kept world are printed at the end` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix by section above: W wrapCommandText in src/engine/message-shapes/text.ts, D buildConcoursePromptRow in src/daemon/concourse-workers/concourseDispatch.ts, R2-R4 the runner's boundary delivery of queued lines (getQueuedCommandAttachments in src/engine/attachments/queuedCommands.ts) and its transcript rows; the runner's stderr tail and the kept world are printed at the end` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -54,7 +54,7 @@ const SLASH = '/seats'
 
 section('W the words the model reads (the source)')
 {
-  const text = await import(join(SRC, 'utils/messages/text.ts'))
+  const text = await import(join(SRC, 'engine/message-shapes/text.ts'))
   const human = text.wrapCommandText(LINE1, undefined) as string
   check('the default arm opens with the operator line and the message', human.startsWith(`${OPENING}\n${LINE1}\n\nIMPORTANT: Read this message before taking your next action and respond according to its intent.\n\n`), human.slice(0, 160))
   check('the four cases stand in order, then the objective sentence', BULLETS.every(b => human.includes(b)) && BULLETS.map(b => human.indexOf(b)).every((at, i, all) => i === 0 || at > all[i - 1]!) && human.includes(OBJECTIVE) && human.indexOf(OBJECTIVE) > human.indexOf(BULLETS[3]!))
@@ -66,7 +66,7 @@ section('W the words the model reads (the source)')
 
 section("D the daemon road's clock — the frame and the wiring")
 {
-  const dispatch = await import(join(SRC, 'daemon/concourseDispatch.ts'))
+  const dispatch = await import(join(SRC, 'daemon/concourse-workers/concourseDispatch.ts'))
   const identity = 'aaaabbbb-cccc-4ddd-8eee-ffff00001111'
   const sentAt = '2026-09-12T08:00:05.123Z'
   const stamped = (await dispatch.buildConcoursePromptRow('the words', { identity, sentAt })) as Record<string, unknown>
@@ -311,7 +311,7 @@ if (!existsSync(DIST)) {
     }
     return null
   }
-  const reader = await import(join(SRC, 'utils/sessionStorage/transcriptReader.ts'))
+  const reader = await import(join(SRC, 'sessions/transcripts/transcriptReader.ts'))
   const transcriptPath = findTranscript(join(RUN_HOME, 'projects'))
   const rows: Row[] = transcriptPath === null ? [] : (((await reader.readTranscriptChainSince(transcriptPath, null)) as { rows: Row[] }).rows ?? [])
   check("the runner's transcript is on disk", transcriptPath !== null && rows.length > 0, `${transcriptPath} rows=${rows.length}`)

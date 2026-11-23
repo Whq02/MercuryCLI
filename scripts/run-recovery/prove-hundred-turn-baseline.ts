@@ -15,19 +15,19 @@ for (const k of [
   delete process.env[k]
 }
 
-const { queryEvents } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const qm = await import('../../src/utils/messageQueueManager.ts')
-const plane = await import('../../src/utils/primitives/executionPlane.ts')
-const coordinator = await import('../../src/services/run/runCoordinator.ts')
-const lifecycle = await import('../../src/utils/run/ownerLifecycle.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const qm = await import('../../src/daemon/runner/messageQueueManager.ts')
+const plane = await import('../../src/engine/execution-plane/executionPlane.ts')
+const coordinator = await import('../../src/engine/run/runCoordinator.ts')
+const lifecycle = await import('../../src/engine/run-owner/ownerLifecycle.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 const MODEL = 'claude-opus-4-8'
 let failures = 0
@@ -41,7 +41,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — 100 turns exceeded 120s; a turn of queryEvents in src/query.ts never finished, look at the last turn shape that ran')
+  console.log('\n❌ TIMEOUT — 100 turns exceeded 120s; a turn of queryEvents in src/engine/turnDoor.ts never finished, look at the last turn shape that ran')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -211,13 +211,13 @@ for (let n = 1; n <= 100; n++) {
   const shape = SHAPES[n % SHAPES.length]!
   const evidence = await runTurn(n, shape)
   if (shapeHolds(shape, evidence)) shapeRuns.set(shape, (shapeRuns.get(shape) ?? 0) + 1)
-  else check(`turn ${n}: the ${shape} shape executed as named`, false, JSON.stringify(evidence) + '; the turn did not run the way its shape names (calls, tool run, abort); check queryEvents in src/query.ts')
+  else check(`turn ${n}: the ${shape} shape executed as named`, false, JSON.stringify(evidence) + '; the turn did not run the way its shape names (calls, tool run, abort); check queryEvents in src/engine/turnDoor.ts')
   if (n % 20 === 0) {
     const live = plane
       .listExecutions(owner)
       .filter(rec => !['succeeded', 'failed', 'cancelled', 'indeterminate'].includes(rec.state))
-    check(`turn ${n}: no live executions`, live.length === 0, live.map(l => `${l.id}:${l.state}`).join(',') + '; a turn left an execution record open, check that queryEvents in src/query.ts settles its records in src/utils/primitives/executionPlane.ts')
-    check(`turn ${n}: ONE coordinator owner`, coordinator._runOwnerCountForTesting() === 1, String(coordinator._runOwnerCountForTesting()) + '; turns should share one run owner, check src/services/run/runCoordinator.ts')
+    check(`turn ${n}: no live executions`, live.length === 0, live.map(l => `${l.id}:${l.state}`).join(',') + '; a turn left an execution record open, check that queryEvents in src/engine/turnDoor.ts settles its records in src/engine/execution-plane/executionPlane.ts')
+    check(`turn ${n}: ONE coordinator owner`, coordinator._runOwnerCountForTesting() === 1, String(coordinator._runOwnerCountForTesting()) + '; turns should share one run owner, check src/engine/run/runCoordinator.ts')
   }
 }
 
@@ -225,22 +225,22 @@ await new Promise(r => setTimeout(r, 400))
 
 console.log(`  drove 100 turns (${checks} mid-drive checks so far)`)
 for (const shape of SHAPES) {
-  check(`every ${shape} turn executed as named (20 of 100)`, shapeRuns.get(shape) === 20, `ran=${shapeRuns.get(shape) ?? 0}; the turns of this shape that failed are listed above, check queryEvents in src/query.ts`)
+  check(`every ${shape} turn executed as named (20 of 100)`, shapeRuns.get(shape) === 20, `ran=${shapeRuns.get(shape) ?? 0}; the turns of this shape that failed are listed above, check queryEvents in src/engine/turnDoor.ts`)
 }
 
 {
   const all = plane.listExecutions(owner)
   const live = all.filter(rec => !['succeeded', 'failed', 'cancelled', 'indeterminate'].includes(rec.state))
-  check('execution plane: zero live records after 100 turns', live.length === 0, live.map(l => `${l.id}:${l.state}`).join(',') + '; records left open accumulate across turns, check src/utils/primitives/executionPlane.ts and where queryEvents in src/query.ts finishes them')
+  check('execution plane: zero live records after 100 turns', live.length === 0, live.map(l => `${l.id}:${l.state}`).join(',') + '; records left open accumulate across turns, check src/engine/execution-plane/executionPlane.ts and where queryEvents in src/engine/turnDoor.ts finishes them')
 
-  check('run coordinator: exactly ONE owner accumulated', coordinator._runOwnerCountForTesting() === 1, String(coordinator._runOwnerCountForTesting()) + '; each turn should reuse the process main owner, check src/services/run/runCoordinator.ts')
+  check('run coordinator: exactly ONE owner accumulated', coordinator._runOwnerCountForTesting() === 1, String(coordinator._runOwnerCountForTesting()) + '; each turn should reuse the process main owner, check src/engine/run/runCoordinator.ts')
 
   const queued = qm.getCommandQueue()
-  check('command queue: empty (every steer consumed exactly once)', queued.length === 0, String(queued.length) + '; a steer command was left in the queue, check src/utils/messageQueueManager.ts and where queryEvents in src/query.ts consumes queued commands')
+  check('command queue: empty (every steer consumed exactly once)', queued.length === 0, String(queued.length) + '; a steer command was left in the queue, check src/daemon/runner/messageQueueManager.ts and where queryEvents in src/engine/turnDoor.ts consumes queued commands')
 
   const end = lifecycle.ownerLifecycleCounts()
   const oversized = Object.entries(end.stores).filter(([, n]) => n > 1)
-  check('owner-scoped stores scale with owners (≤1 each), never with turns', oversized.length === 0 && end.adhoc <= 1, JSON.stringify(end) + '; a store grew per turn instead of per owner, check ownerLifecycleCounts in src/utils/run/ownerLifecycle.ts and the store it names above')
+  check('owner-scoped stores scale with owners (≤1 each), never with turns', oversized.length === 0 && end.adhoc <= 1, JSON.stringify(end) + '; a store grew per turn instead of per owner, check ownerLifecycleCounts in src/engine/run-owner/ownerLifecycle.ts and the store it names above')
 }
 
 console.log('')

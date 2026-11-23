@@ -20,13 +20,13 @@ function section(label: string): void {
   console.log(`\n${label}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const truth = await import('../../src/services/localServer/localServerTruth.ts')
-const { fitLocalWindowOn } = await import('../../src/services/localServer/localWindowFit.ts')
-const windows = await import('../../src/services/providers/local/localWindow.ts')
-const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
-const { compatFaultToTypedError } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
+const truth = await import('../../src/models/local-server/localServerTruth.ts')
+const { fitLocalWindowOn } = await import('../../src/models/local-server/localWindowFit.ts')
+const windows = await import('../../src/models/roads/local/localWindow.ts')
+const { localLaneProfileFor } = await import('../../src/models/roads/local/localCallModel.ts')
+const { compatFaultToTypedError } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
 
 const GIB = 1024 ** 3
 const TOTAL = Math.round(15.6 * GIB)
@@ -64,32 +64,32 @@ async function machine(platform: NodeJS.Platform, availableBytes: number, run: (
 try {
   section('1 · available memory, not total RAM')
   const six = await machine('linux', AVAILABLE)
-  check('Linux reads MemAvailable: 15.6 GiB total, 6.0 GiB available', six.machine.usableMemoryBytes === AVAILABLE && six.machine.usableIsAvailable === true, JSON.stringify(six.machine) + ' — see readLocalMachineTruth in src/services/localServer/localServerTruth.ts')
+  check('Linux reads MemAvailable: 15.6 GiB total, 6.0 GiB available', six.machine.usableMemoryBytes === AVAILABLE && six.machine.usableIsAvailable === true, JSON.stringify(six.machine) + ' — see readLocalMachineTruth in src/models/local-server/localServerTruth.ts')
   const auto = windows.chooseLocalWindow(record, 0, undefined, six)
-  check('the 3B on 6 GiB picks 32k (1.9 GiB weights + 3.5 GiB cache), not 64k', auto.window === 32768 && auto.fit?.totalBytes === Math.round(5.4 * GIB), `${auto.window} · ${auto.words} — see chooseLocalWindow in src/services/providers/local/localWindow.ts and fitLocalWindowOn in src/services/localServer/localWindowFit.ts`)
+  check('the 3B on 6 GiB picks 32k (1.9 GiB weights + 3.5 GiB cache), not 64k', auto.window === 32768 && auto.fit?.totalBytes === Math.round(5.4 * GIB), `${auto.window} · ${auto.words} — see chooseLocalWindow in src/models/roads/local/localWindow.ts and fitLocalWindowOn in src/models/local-server/localWindowFit.ts`)
   const decisionLine = windows.localWindowDecisionLine(record, auto)
-  check('[local-window] names the 32k rung and the honest 6.0 GiB figure', decisionLine.includes(`${NAME}: 32768`) && decisionLine.includes('3.5 GiB cache of 6.0 GiB usable (15.6 GiB box)'), decisionLine + ' — see localWindowDecisionLine in src/services/providers/local/localWindow.ts')
+  check('[local-window] names the 32k rung and the honest 6.0 GiB figure', decisionLine.includes(`${NAME}: 32768`) && decisionLine.includes('3.5 GiB cache of 6.0 GiB usable (15.6 GiB box)'), decisionLine + ' — see localWindowDecisionLine in src/models/roads/local/localWindow.ts')
 
   const all = await machine('linux', TOTAL)
-  check('total == available keeps the former 64k answer', windows.chooseLocalWindow(record, 0, undefined, all).window === 65536, 'see chooseLocalWindow in src/services/providers/local/localWindow.ts')
+  check('total == available keeps the former 64k answer', windows.chooseLocalWindow(record, 0, undefined, all).window === 65536, 'see chooseLocalWindow in src/models/roads/local/localWindow.ts')
 
   windows.__resetLocalWindowsForTest()
   const held = windows.decideLocalWindow(record, 0, 65536, six)
   const planned = windows.localPlannedWindow(record, 65536, six)
-  check('a hand-held 64k above the honest figure is honoured, never capped', held.window === 65536 && planned?.tokens === 65536 && planned.source === 'held', JSON.stringify({ held: held.window, planned }) + ' — see decideLocalWindow and localPlannedWindow in src/services/providers/local/localWindow.ts')
+  check('a hand-held 64k above the honest figure is honoured, never capped', held.window === 65536 && planned?.tokens === 65536 && planned.source === 'held', JSON.stringify({ held: held.window, planned }) + ' — see decideLocalWindow and localPlannedWindow in src/models/roads/local/localWindow.ts')
   windows.__resetLocalWindowsForTest()
 
   const residentBytes = auto.fit?.ladder.find(rung => rung.window === 32768)?.totalBytes ?? 0
   const resident = fitLocalWindowOn({ ...six, loaded: [{ name: NAME, sizeBytes: residentBytes, contextLength: 32768 }] }, model)
-  check('the same model already resident adds its weights and cache back to the memory available for a resize', resident.availableBytes === AVAILABLE && resident.usableBytes === AVAILABLE + residentBytes && resident.ladder[0]?.totalBytes === residentBytes, JSON.stringify({ available: resident.availableBytes, usable: resident.usableBytes, residentBytes }) + ' — see fitLocalWindowOn in src/services/localServer/localWindowFit.ts')
+  check('the same model already resident adds its weights and cache back to the memory available for a resize', resident.availableBytes === AVAILABLE && resident.usableBytes === AVAILABLE + residentBytes && resident.ladder[0]?.totalBytes === residentBytes, JSON.stringify({ available: resident.availableBytes, usable: resident.usableBytes, residentBytes }) + ' — see fitLocalWindowOn in src/models/local-server/localWindowFit.ts')
 
   section('2 · the other platform roads')
   const gpu = await machine('linux', AVAILABLE, async file => (file === 'nvidia-smi' ? '16384\n' : undefined))
-  check('an existing GPU reading still wins over MemAvailable', gpu.machine.usableMemoryBytes === 16 * GIB && gpu.machine.usableSource.includes('nvidia-smi'), JSON.stringify(gpu.machine) + ' — see readLocalMachineTruth in src/services/localServer/localServerTruth.ts')
+  check('an existing GPU reading still wins over MemAvailable', gpu.machine.usableMemoryBytes === 16 * GIB && gpu.machine.usableSource.includes('nvidia-smi'), JSON.stringify(gpu.machine) + ' — see readLocalMachineTruth in src/models/local-server/localServerTruth.ts')
   const win = await machine('win32', 7 * GIB)
-  check('Windows without a GPU reading uses available memory, not total RAM', win.machine.usableMemoryBytes === 7 * GIB && win.machine.usableIsAvailable === true, JSON.stringify(win.machine) + ' — see readLocalMachineTruth in src/services/localServer/localServerTruth.ts')
+  check('Windows without a GPU reading uses available memory, not total RAM', win.machine.usableMemoryBytes === 7 * GIB && win.machine.usableIsAvailable === true, JSON.stringify(win.machine) + ' — see readLocalMachineTruth in src/models/local-server/localServerTruth.ts')
   const mac = await machine('darwin', 7 * GIB)
-  check('macOS keeps the Metal unified-memory working set', mac.machine.usableMemoryBytes === Math.round(TOTAL * truth.METAL_DEFAULT_WORKING_SET) && mac.machine.usableIsAvailable !== true, JSON.stringify(mac.machine) + ' — see readLocalMachineTruth and METAL_DEFAULT_WORKING_SET in src/services/localServer/localServerTruth.ts')
+  check('macOS keeps the Metal unified-memory working set', mac.machine.usableMemoryBytes === Math.round(TOTAL * truth.METAL_DEFAULT_WORKING_SET) && mac.machine.usableIsAvailable !== true, JSON.stringify(mac.machine) + ' — see readLocalMachineTruth and METAL_DEFAULT_WORKING_SET in src/models/local-server/localServerTruth.ts')
 
   section('3 · a killed runner names the requested load and free memory')
   windows.__resetLocalWindowsForTest()
@@ -107,8 +107,8 @@ try {
   if (transport) for await (const event of transport.events) events.push(event)
   const fault = events.find(event => event.type === 'stream-fault') as { fault: { code: string; message: string; retryable: boolean; classification?: string } } | undefined
   const sentence = 'the local runner was killed, probably out of memory (needed about 8.9 GiB, 6.0 GiB free) · a smaller window in /model fits'
-  check('the Ollama 500 maps to the local-runner-killed class and the exact sentence', fault?.fault.code === 'local-runner-killed' && fault.fault.classification === 'server_error' && fault.fault.retryable === false && fault.fault.message === sentence, JSON.stringify(fault?.fault) + ' — the killed-runner fault comes from the streamTransport of localLaneProfileFor in src/services/providers/local/localCallModel.ts')
-  check('the plain class remains a server error downstream', fault !== undefined && compatFaultToTypedError(fault.fault as never) === 'server_error', 'see compatFaultToTypedError in src/services/providers/openaicompat/compatChatCallModel.ts')
+  check('the Ollama 500 maps to the local-runner-killed class and the exact sentence', fault?.fault.code === 'local-runner-killed' && fault.fault.classification === 'server_error' && fault.fault.retryable === false && fault.fault.message === sentence, JSON.stringify(fault?.fault) + ' — the killed-runner fault comes from the streamTransport of localLaneProfileFor in src/models/roads/local/localCallModel.ts')
+  check('the plain class remains a server error downstream', fault !== undefined && compatFaultToTypedError(fault.fault as never) === 'server_error', 'see compatFaultToTypedError in src/models/roads/openaicompat/compatChatCallModel.ts')
 } finally {
   windows.__resetLocalWindowsForTest()
   rmSync(HOME, { recursive: true, force: true })

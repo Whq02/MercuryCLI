@@ -6,26 +6,26 @@ import { join } from 'node:path'
 const HOME = mkdtempSync(join(tmpdir(), 'idiom-vnext-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 
-await import('../../src/tasks.js')
+await import('../../src/engine/tasks/tasks.js')
 const {
   recordTranscript,
   settleTranscriptMessage,
   getProject,
   setSessionFileForTesting,
   resetProjectForTesting,
-} = await import('../../src/utils/sessionStorage/writer.js')
+} = await import('../../src/sessions/transcripts/writer.js')
 const { resetTranscriptFormatCacheForTesting } = await import(
-  '../../src/utils/sessionStorage/vnext.js'
+  '../../src/sessions/transcripts/vnext.js'
 )
 const { createAssistantMessage, createUserMessage } = await import(
-  '../../src/utils/messages/factories.js'
+  '../../src/engine/message-shapes/factories.js'
 )
-const { decodeTranscriptBuffer, TRANSCRIPT_FORMAT_REFUSAL } = await import('../../src/fabric/transcriptDecode.js')
-const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.js')
+const { decodeTranscriptBuffer, TRANSCRIPT_FORMAT_REFUSAL } = await import('../../src/sessions/fabric/transcriptDecode.js')
+const { loadTranscriptFile } = await import('../../src/sessions/transcripts/loading.js')
 
 let failures = 0
 const transcriptVnextHint =
-  'fix the transcript writer (recordTranscript, settleTranscriptMessage in src/utils/sessionStorage/writer.ts), the record decoder (decodeTranscriptBuffer in src/fabric/transcriptDecode.ts) or the loader (loadTranscriptFile in src/utils/sessionStorage/loading.ts), whichever owns the line this check names'
+  'fix the transcript writer (recordTranscript, settleTranscriptMessage in src/sessions/transcripts/writer.ts), the record decoder (decodeTranscriptBuffer in src/sessions/fabric/transcriptDecode.ts) or the loader (loadTranscriptFile in src/sessions/transcripts/loading.ts), whichever owns the line this check names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${transcriptVnextHint}` : ''}`)

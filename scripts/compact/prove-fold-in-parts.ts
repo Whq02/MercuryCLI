@@ -8,13 +8,13 @@ import { join } from 'node:path'
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}the overflow recovery and its warning are in src/services/compact/overflowRecovery.ts, the fold-in-parts ladder in src/services/compact/compact/ladder.ts and the part capsule marker in src/services/compact/compact/limits.ts` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}the overflow recovery and its warning are in src/engine/compaction/overflowRecovery.ts, the fold-in-parts ladder in src/engine/compaction/fold/ladder.ts and the part capsule marker in src/engine/compaction/fold/foldLimits.ts` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — fold-in-parts prover exceeded 240s; a drive of query() never settled, so look at the fold ladder in src/services/compact/compact/ladder.ts and the retry in src/services/compact/overflowRecovery.ts')
+  console.log('\nTIMEOUT — fold-in-parts prover exceeded 240s; a drive of query() never settled, so look at the fold ladder in src/engine/compaction/fold/ladder.ts and the retry in src/engine/compaction/overflowRecovery.ts')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()
@@ -37,16 +37,16 @@ type Turn = import('./overflowFixture.ts').Turn
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/query.ts')
-const { productionDeps } = await import('../../src/query/deps.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { ERROR_MESSAGE_PROMPT_TOO_LONG, PROSE_SKIPPED_KEY } = await import('../../src/services/compact/compact.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { ERROR_MESSAGE_PROMPT_TOO_LONG, PROSE_SKIPPED_KEY } = await import('../../src/engine/compaction/foldConversation.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
 const textOf = (m: unknown): string => {
@@ -246,7 +246,7 @@ section('P4 a provider that refuses even the smallest part: the ladder walks dow
 
 section('P5 ONE plain warning when a request fails for a reason the wire did not call an overflow while the conversation is near the window')
 {
-  const { saveGlobalConfig } = await import('../../src/utils/config.ts')
+  const { saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
   saveGlobalConfig(config => ({ ...config, autoCompactWindow: 100_000 }))
   process.env.MERCURY_AUTO_COMPACT = '0'
   process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = '1000000'

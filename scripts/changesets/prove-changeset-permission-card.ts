@@ -20,29 +20,29 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (title: string): void => console.log(`\n── ${title} ──`)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.js')
+const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.js')
 setCwdState(PROJ)
 setOriginalCwd(PROJ)
 setProjectRoot(PROJ)
 
-const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.js')
-const { CHANGESET_BOUNDS } = await import('../../src/services/changeTransaction/changeSetContracts.js')
+const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.js')
+const { CHANGESET_BOUNDS } = await import('../../src/tools/engines/change-transaction/changeSetContracts.js')
 const {
   _resetChangeSetStoreForTesting,
   getChangeSetPlan,
   rememberChangeSetPlan,
-} = await import('../../src/services/changeTransaction/changeSetStore.js')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.js')
-const { PermissionRequest } = await import('../../src/components/permissions/PermissionRequest.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
+} = await import('../../src/tools/engines/change-transaction/changeSetStore.js')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.js')
+const { PermissionRequest } = await import('../../src/permissions/cards/PermissionRequest.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
 
 const owner = processMainOwner()
 

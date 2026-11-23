@@ -11,11 +11,11 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'floor-delivery-'))
 
 let failures = 0
 const sectionHints: Record<string, string> = {
-  '§1': 'restore the owner text of MERCURY_CONSTITUTION in src/prompt/mercuryContract.ts (the digest anchors that text)',
-  '§2': 'change buildEffectiveSystemPrompt in src/utils/systemPrompt.ts',
-  '§3': 'change getMercuryContractSections in src/prompt/mercuryContract.ts',
-  '§4': 'change composeSystemPrompt in src/prompt/composer.ts or buildBehaviourContract and the renderers in src/prompt/behaviourContract.ts',
-  '§5': 'change buildSubagentMercurySections in src/constants/subagentDoctrine.ts',
+  '§1': 'restore the owner text of MERCURY_CONSTITUTION in src/engine/system-prompt/mercuryContract.ts (the digest anchors that text)',
+  '§2': 'change buildEffectiveSystemPrompt in src/engine/system-prompt/systemPrompt.ts',
+  '§3': 'change getMercuryContractSections in src/engine/system-prompt/mercuryContract.ts',
+  '§4': 'change composeSystemPrompt in src/engine/system-prompt/composer.ts or buildBehaviourContract and the renderers in src/engine/system-prompt/behaviourContract.ts',
+  '§5': 'change buildSubagentMercurySections in src/tools/crewmate/subagentDoctrine.ts',
 }
 let currentSectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -31,7 +31,7 @@ console.log('============================================================')
 console.log(' constitution delivery — every conversational seat, mechanism-pinned')
 console.log('============================================================')
 
-const contract = await import('../../src/prompt/mercuryContract.ts')
+const contract = await import('../../src/engine/system-prompt/mercuryContract.ts')
 const TEXT = contract.MERCURY_CONSTITUTION
 
 section('§1 the constant — the owner’s text, byte-anchored')
@@ -63,7 +63,7 @@ section('§1 the constant — the owner’s text, byte-anchored')
 
 section('§2 buildEffectiveSystemPrompt — the constitution FIRST on every replacing path')
 {
-  const { buildEffectiveSystemPrompt } = await import('../../src/utils/systemPrompt.ts')
+  const { buildEffectiveSystemPrompt } = await import('../../src/engine/system-prompt/systemPrompt.ts')
   const ctx = { options: {} } as never
   const DEFAULT = ['default-head', 'default-tail']
 
@@ -134,14 +134,14 @@ section('§3 contract sections — no identity or doctrine section; the constitu
 
 section('§4 composer + renderers — position law, both wires')
 {
-  const { composeSystemPrompt } = await import('../../src/prompt/composer.ts')
+  const { composeSystemPrompt } = await import('../../src/engine/system-prompt/composer.ts')
   const {
     buildBehaviourContract,
     renderAnthropicSections,
     renderOpenaiInstructions,
     resolveBehaviourContract,
     __resetBehaviourContractRegistryForTest,
-  } = await import('../../src/prompt/behaviourContract.ts')
+  } = await import('../../src/engine/system-prompt/behaviourContract.ts')
 
   const parts = {
     staticSections: ['STATIC-HEAD', TEXT],
@@ -168,7 +168,7 @@ section('§4 composer + renderers — position law, both wires')
   const constitutionSection = behaviour.sections.find(s => s.name === 'constitution')
   check('behaviour contract: the constitution section exists in the static group', constitutionSection?.group === 'static' && constitutionSection.text === TEXT)
   check('scope is ALL — no provider may drop it', constitutionSection?.scope === 'all')
-  check('owner is the contract module', constitutionSection?.owner === 'src/prompt/mercuryContract.ts')
+  check('owner is the contract module', constitutionSection?.owner === 'src/engine/system-prompt/mercuryContract.ts')
   check('cache class is stable (paid once per session)', constitutionSection?.cacheClass === 'stable')
 
   const anthropic = renderAnthropicSections(behaviour)
@@ -187,8 +187,8 @@ section('§4 composer + renderers — position law, both wires')
 
 section('§5 subagent doctrine — the constitution LEADS every spawned child')
 {
-  const { buildSubagentMercurySections } = await import('../../src/constants/subagentDoctrine.ts')
-  const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryScoutAgent.ts')
+  const { buildSubagentMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
+  const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryScoutAgent.ts')
 
   const normal = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
   check('normal agent: the constitution is element 0', normal[0] === TEXT)

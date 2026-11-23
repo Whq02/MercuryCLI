@@ -19,8 +19,8 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && text ? ` — ${text}` : ''}`)
 }
 function section(t: string): void {
-  where = t.startsWith('§1') ? 'fix runTextChangeSetCommit in src/services/changeTransaction/changeSetCommit.ts (the repeated-target refusal and the path locks it takes)'
-    : t.startsWith('§2') ? 'fix runMercuryLspOp in src/tools/LSPTool/mercuryOps.ts so an LSP rename that spells one document two ways applies one merged edit set to one target'
+  where = t.startsWith('§1') ? 'fix runTextChangeSetCommit in src/tools/engines/change-transaction/changeSetCommit.ts (the repeated-target refusal and the path locks it takes)'
+    : t.startsWith('§2') ? 'fix runMercuryLspOp in src/tools/lsp/mercuryOps.ts so an LSP rename that spells one document two ways applies one merged edit set to one target'
     : ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -45,9 +45,9 @@ const wedgedDetail = (o: Bounded<unknown>): string =>
   o.wedged ? `still pending after ${OUTER_BOUND_MS}ms` : `${o.elapsedMs}ms${'error' in o && o.error ? ` ${String((o.error as Error).message ?? o.error)}` : ''}`
 
 const { runTextChangeSetCommit, commitPlanDigest } = await import(
-  '../../src/services/changeTransaction/changeSetCommit.ts'
+  '../../src/tools/engines/change-transaction/changeSetCommit.ts'
 )
-const { sha256Hex } = await import('../../src/utils/hash.ts')
+const { sha256Hex } = await import('../../src/platform/primitives/hash.ts')
 
 section('§1 the commit core refuses a repeated target by name — never a wedge')
 {
@@ -111,9 +111,9 @@ section('§1 the commit core refuses a repeated target by name — never a wedge
 
 section('§2 the LSP apply folds two spellings of one document into one target')
 {
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const { runMercuryLspOp } = await import('../../src/tools/LSPTool/mercuryOps.js')
+  const { runMercuryLspOp } = await import('../../src/tools/lsp/mercuryOps.js')
 
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'repeated-target-lsp-')))
   const target = path.join(dir, 'target.ts')

@@ -12,16 +12,16 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — change: the once-per-turn receipt in interruptFocusedTurn (src/hooks/useCancelRequest.ts) or the receipt words and chooser, crewStillRunningLine and interruptReceiptLine, in src/services/engine-connector/crewFacts.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — change: the once-per-turn receipt in interruptFocusedTurn (src/screen/chat/interruptKeys.ts) or the receipt words and chooser, crewStillRunningLine and interruptReceiptLine, in src/engine/connector/crewFacts.ts'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const crew = await import('../../src/services/engine-connector/crewFacts.ts')
-const focusedSlot = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { interruptFocusedTurn } = await import('../../src/hooks/useCancelRequest.ts')
+const crew = await import('../../src/engine/connector/crewFacts.ts')
+const focusedSlot = await import('../../src/engine/connector/focusedConnector.ts')
+const { interruptFocusedTurn } = await import('../../src/screen/chat/interruptKeys.ts')
 
 console.log('============================================================')
 console.log(' esc paints its receipt once per turn: the second and every later esc paint nothing new')

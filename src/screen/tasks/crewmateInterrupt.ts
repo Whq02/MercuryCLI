@@ -1,0 +1,34 @@
+import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
+import type { SetAppState } from '../../engine/tasks/taskBase.js'
+import type { AppState } from '../app-state/AppStateStore.js'
+import { stopOrDismissAgent } from '../../crew/crewmates/crewmateView.js'
+import { AGENT_INTERRUPT_BY_OPERATOR, isLocalAgentTask } from '../../engine/tasks/local-agent/crewmateTask.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+
+type CrewmateInterruptRoad = 'local' | 'hosted' | 'idle'
+
+type CrewmateInterruptOptions = {
+  facts?: { running: boolean } | null
+  onRefused?: (detail: string) => void
+}
+
+export function interruptCrewmate(
+  taskId: string,
+  state: Pick<AppState, 'tasks'>,
+  setAppState: SetAppState,
+  stopAgent: (agentId: string, note?: string) => Promise<unknown> = (agentId, note) => getFocusedSessionConnector().stopAgent(agentId, note),
+  options: CrewmateInterruptOptions = {},
+): CrewmateInterruptRoad {
+  const task = state.tasks[taskId]
+  if (task !== undefined && isLocalAgentTask(task)) {
+    if (task.status !== 'running') return 'idle'
+    stopOrDismissAgent(taskId, setAppState, AGENT_INTERRUPT_BY_OPERATOR)
+    return 'local'
+  }
+  if (options.facts !== undefined && options.facts !== null && !options.facts.running) return 'idle'
+  void stopAgent(taskId, AGENT_INTERRUPT_BY_OPERATOR).then(receipt => {
+    const answer = receipt as { outcome?: string; detail?: string } | undefined
+    if (answer?.outcome === 'refused') options.onRefused?.(answer.detail ?? 'no reason given')
+  }, passedOver)
+  return 'hosted'
+}

@@ -9,12 +9,12 @@ import {
   listCapabilityKills,
   clearAllCapabilityKills,
   reseedCapabilityKillsFromEnv,
-} from '../../src/utils/permissions/capabilityGate.js'
+} from '../../src/permissions/rules/capabilityGate.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const failHint = 'change killCapability, isCapabilityKilled, isToolKilled, reseedCapabilityKillsFromEnv or the MERCURY_AGENT_CAP parse in src/utils/permissions/capabilityGate.ts; the /health kills row is killsCheck in src/services/health/sections/settings/sources.ts'
+  const failHint = 'change killCapability, isCapabilityKilled, isToolKilled, reseedCapabilityKillsFromEnv or the MERCURY_AGENT_CAP parse in src/permissions/rules/capabilityGate.ts; the /health kills row is killsCheck in src/platform/health/sections/settings/sources.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ' — ' + detail : '') : ` — ${detail ? detail + ' | ' : ''}${failHint}`}`)
 }
 function section(t: string): void {
@@ -178,7 +178,7 @@ section('FC-145 — malformed MERCURY_AGENT_CAP: forgive, clamp, name')
 
   let getRejects: (() => string[]) | null = null
   try {
-    const mod = (await import('../../src/utils/permissions/capabilityGate.js')) as {
+    const mod = (await import('../../src/permissions/rules/capabilityGate.js')) as {
       getAgentCapParseRejects?: () => string[]
     }
     getRejects = mod.getAgentCapParseRejects ?? null
@@ -198,8 +198,8 @@ section('FC-145 — malformed MERCURY_AGENT_CAP: forgive, clamp, name')
   {
     const capBefore = process.env.MERCURY_AGENT_CAP
     process.env.MERCURY_AGENT_CAP = 'worker:max-risk=sideways'
-    const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
-    const { getAgentCapParseRejects: rejectsNow } = await import('../../src/utils/permissions/capabilityGate.ts')
+    const { settingsChecks } = await import('../../src/platform/health/sections/settings.ts')
+    const { getAgentCapParseRejects: rejectsNow } = await import('../../src/permissions/rules/capabilityGate.ts')
     const killsSays = await settingsChecks().find(row => row.id === 'kills')?.run()
     const capRejects = rejectsNow()
     if (capBefore === undefined) delete process.env.MERCURY_AGENT_CAP

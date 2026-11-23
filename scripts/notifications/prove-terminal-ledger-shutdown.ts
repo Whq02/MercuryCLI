@@ -5,7 +5,7 @@
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
-const ledger = await import('../../src/ink/root/terminalModeLedger.js')
+const ledger = await import('../../src/screen/renderer/root/terminalModeLedger.js')
 
 t.section('§1 — the derivation answers exactly the open obligations')
 {

@@ -26,8 +26,8 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { createLSPServerInstance } = await import('../../src/services/lsp/LSPServerInstance.js')
-const lspAbort = (await import('../../src/services/lsp/lspAbort.js').catch(() => null)) as
+const { createLSPServerInstance } = await import('../../src/integrations/lsp/LSPServerInstance.js')
+const lspAbort = (await import('../../src/integrations/lsp/lspAbort.js').catch(() => null)) as
   | { runWithLspAbortSignal: <T>(s: AbortSignal | undefined, fn: () => T) => T; currentLspAbortSignal: () => AbortSignal | undefined }
   | null
 
@@ -57,7 +57,7 @@ console.log('prove-lsp-request-deadline — a wedged server can never hang the t
 
 section('§1 a wedged request settles at its budget, typed, and cancels on the wire')
 {
-  fixHintNow = 'sendRequestOf in src/services/lsp/LSPServerInstance/requests.ts must settle a request at its requestTimeout with an LspRequestTimeout error naming the method, the server and the seconds, and send $/cancelRequest'
+  fixHintNow = 'sendRequestOf in src/integrations/lsp/server-instance/requests.ts must settle a request at its requestTimeout with an LspRequestTimeout error naming the method, the server and the seconds, and send $/cancelRequest'
   const server = instance('deadline-proof', 'wedged', { requestTimeout: 700 })
   await server.start()
   const t0 = Date.now()
@@ -82,7 +82,7 @@ section('§1 a wedged request settles at its budget, typed, and cancels on the w
 
 section('§2 the operator\'s abort reaches an in-flight request')
 {
-  fixHintNow = 'sendRequestOf in src/services/lsp/LSPServerInstance/requests.ts must listen to currentLspAbortSignal() (src/services/lsp/lspAbort.ts) and settle an in-flight request with an AbortError naming the method and server, and send $/cancelRequest'
+  fixHintNow = 'sendRequestOf in src/integrations/lsp/server-instance/requests.ts must listen to currentLspAbortSignal() (src/integrations/lsp/lspAbort.ts) and settle an in-flight request with an AbortError naming the method and server, and send $/cancelRequest'
   check('the ambient abort owner exists', lspAbort !== null)
   if (lspAbort) {
     const server = instance('abort-proof', 'wedged', { requestTimeout: 60_000 })
@@ -107,7 +107,7 @@ section('§2 the operator\'s abort reaches an in-flight request')
 
 section('§3 an already-aborted signal never sends the request')
 if (lspAbort) {
-  fixHintNow = 'sendRequestOf in src/services/lsp/LSPServerInstance/requests.ts must refuse at once with an AbortError, without sending, when the ambient signal (src/services/lsp/lspAbort.ts) is already aborted'
+  fixHintNow = 'sendRequestOf in src/integrations/lsp/server-instance/requests.ts must refuse at once with an AbortError, without sending, when the ambient signal (src/integrations/lsp/lspAbort.ts) is already aborted'
   const server = instance('pre-abort-proof', 'wedged', { requestTimeout: 60_000 })
   await server.start()
   const controller = new AbortController()
@@ -124,7 +124,7 @@ if (lspAbort) {
 
 section('§4 a healthy server still answers, and one budget covers the retry ladder')
 {
-  fixHintNow = 'sendRequestOf in src/services/lsp/LSPServerInstance/requests.ts must resolve normal requests and remove its abort listener from the operation signal once each request settles'
+  fixHintNow = 'sendRequestOf in src/integrations/lsp/server-instance/requests.ts must resolve normal requests and remove its abort listener from the operation signal once each request settles'
   const server = instance('healthy-proof', 'normal', { requestTimeout: 5000 })
   await server.start()
   const answer = await server.sendRequest('textDocument/documentSymbol', {})
@@ -139,8 +139,8 @@ section('§4 a healthy server still answers, and one budget covers the retry lad
 
 section('§5 the per-request budget is config-driven and the tool arms the one door')
 {
-  fixHintNow = 'LspServerConfigSchema in src/services/lsp/schema.ts must accept requestTimeout as a positive integer and refuse zero'
-  const { LspServerConfigSchema } = await import('../../src/services/lsp/schema.js')
+  fixHintNow = 'LspServerConfigSchema in src/integrations/lsp/lspServerConfigSchema.ts must accept requestTimeout as a positive integer and refuse zero'
+  const { LspServerConfigSchema } = await import('../../src/integrations/lsp/lspServerConfigSchema.js')
   const parsed = LspServerConfigSchema().safeParse({
     command: '/usr/bin/true',
     extensionToLanguage: { '.x': 'x' },

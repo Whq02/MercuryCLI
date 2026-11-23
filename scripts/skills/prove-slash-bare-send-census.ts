@@ -38,29 +38,29 @@ let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — for a bare-send or hint failure change requiresArgument or bareUsageLine in src/skills/argumentHint.ts, or the bare-send branch in src/services/processUserInput/processSlashCommand.tsx; for a roster failure change the skill's SKILL.md under mercury-skills${detail ? `: ${detail.slice(0, 300)}` : ''}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — for a bare-send or hint failure change requiresArgument or bareUsageLine in src/integrations/skills/argumentHint.ts, or the bare-send branch in src/engine/user-input/processSlashCommand.tsx; for a roster failure change the skill's SKILL.md under mercury-skills${detail ? `: ${detail.slice(0, 300)}` : ''}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the bare-send census exceeded 120s; look for a hang in the Bun.build of the generated skill wrappers or in processSlashCommand (src/services/processUserInput/processSlashCommand.tsx)')
+  console.log('\nTIMEOUT — the bare-send census exceeded 120s; look for a hang in the Bun.build of the generated skill wrappers or in processSlashCommand (src/engine/user-input/processSlashCommand.tsx)')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
 
-const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+const { setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
 setSessionTrustAccepted(true)
-const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
-const { getBundledSkills } = await import('../../src/skills/bundledSkills.ts')
-const { builtinCommands, getCommands, isCommandEnabled, getCommandName } = await import('../../src/commands.ts')
-const { argumentHintOf, bareSendKindOf, bareUsageLine, requiresArgument } = await import('../../src/skills/argumentHint.ts')
-const { processSlashCommand } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { parseFrontmatter } = await import('../../src/utils/frontmatterParser.ts')
+const { initBundledSkills } = await import('../../src/integrations/skills/bundled/index.ts')
+const { getBundledSkills } = await import('../../src/integrations/skills/bundledSkills.ts')
+const { builtinCommands, getCommands, isCommandEnabled, getCommandName } = await import('../../src/commands/catalogue/commands.ts')
+const { argumentHintOf, bareSendKindOf, bareUsageLine, requiresArgument } = await import('../../src/integrations/skills/argumentHint.ts')
+const { processSlashCommand } = await import('../../src/engine/user-input/processSlashCommand.tsx')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { parseFrontmatter } = await import('../../src/platform/text/frontmatterParser.ts')
 const gen = await import('./gen-bundled.ts')
-type Command = import('../../src/types/command.ts').Command
+type Command = import('../../src/commands/catalogue/command.ts').Command
 
 const SOURCE_ROOT = join(ROOT, 'mercury-skills')
-const BUNDLED_DIR = join(ROOT, 'src', 'skills', 'bundled')
+const BUNDLED_DIR = join(ROOT, 'src', 'integrations', 'skills', 'bundled')
 
 async function buildGeneratedWrappers(names: string[]): Promise<Map<string, Command>> {
   const srcDir = join(BUILT, 'src')
@@ -70,7 +70,7 @@ async function buildGeneratedWrappers(names: string[]): Promise<Map<string, Comm
   writeFileSync(
     entry,
     names.map((name, i) => `import * as w${i} from ${JSON.stringify(join(BUNDLED_DIR, `${name}.ts`))}`).join('\n') +
-      `\nexport { getBundledSkills } from ${JSON.stringify(join(ROOT, 'src', 'skills', 'bundledSkills.ts'))}\n` +
+      `\nexport { getBundledSkills } from ${JSON.stringify(join(ROOT, 'src', 'integrations', 'skills', 'bundledSkills.ts'))}\n` +
       `export function registerAll(): void {\n${names.map((_, i) => `  for (const fn of Object.values(w${i})) if (typeof fn === 'function') (fn as () => void)()`).join('\n')}\n}\n`,
   )
   const result = await Bun.build({ entrypoints: [entry], outdir: outDir, target: 'bun', format: 'esm', loader: { ...gen.TEXT_LOADERS }, define: { 'process.env.NODE_ENV': JSON.stringify('test') } })

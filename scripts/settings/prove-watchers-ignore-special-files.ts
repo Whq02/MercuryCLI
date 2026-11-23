@@ -6,12 +6,12 @@ const REPO = join(import.meta.dir, '..', '..')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + 'change ignoringSpecialFiles in src/utils/watchRoot.ts so a fifo, socket or device stat is ignored before the rule is asked and every other stat defers to the rule' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + 'change ignoringSpecialFiles in src/platform/processes/watchRoot.ts so a fifo, socket or device stat is ignored before the rule is asked and every other stat defers to the rule' : ''}`)
   if (!cond) failures++
 }
 
 console.log('§1 the predicate: a stat-known named pipe, socket or device is never watched; everything else is the watcher\'s own rule')
-const { ignoringSpecialFiles } = await import('../../src/utils/watchRoot.ts')
+const { ignoringSpecialFiles } = await import('../../src/platform/processes/watchRoot.ts')
 const statOf = (kind: 'file' | 'dir' | 'fifo' | 'socket' | 'char' | 'block'): Stats =>
   ({
     isFile: () => kind === 'file',

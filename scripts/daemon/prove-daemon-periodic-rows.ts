@@ -61,7 +61,7 @@ globalThis.clearInterval = ((timer: unknown) => {
 try {
   const { periodicArmer } = await import('../../src/daemon/run/periodic.ts')
   const { makeDaemonRunState } = await import('../../src/daemon/run/state.ts')
-  const { DaemonBreaker } = await import('../../src/utils/daemonBreaker.ts')
+  const { DaemonBreaker } = await import('../../src/daemon/control/daemonBreaker.ts')
   type State = ReturnType<typeof makeDaemonRunState>
   type Arm = (name: string, work: () => void, alsoStops?: () => void) => unknown
   const fresh = (): { state: State; arm: Arm } => {

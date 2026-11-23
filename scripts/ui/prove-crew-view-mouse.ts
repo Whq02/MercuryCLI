@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/mercury-ui/screens/CrewView.tsx src/components/ScrollKeybindingHandler.tsx src/components/mercury-ui/InteractiveRow.tsx src/components/mercury-ui/navSemantics.ts src/components/CrewViewSlot.tsx src/utils/cockpit/crewView.ts src/components/CustomSelect/popup-list.tsx
+// gate-watch: src/screen/widgets/faces/CrewView.tsx src/screen/scroll-keys/ScrollKeybindingHandler.tsx src/screen/widgets/InteractiveRow.tsx src/screen/widgets/navSemantics.ts src/screen/fullscreen-layout/CrewViewSlot.tsx src/screen/cockpit/crewView.ts src/screen/select/popup-list.tsx
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -32,29 +32,29 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
 for (const key of ['MERCURY_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'NODE_ENV']) delete process.env[key]
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
-const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
-const { ScrollKeybindingHandler, wheelYieldsToTopOverlay } = await import('../../src/components/ScrollKeybindingHandler.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
+const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
+const { ScrollKeybindingHandler, wheelYieldsToTopOverlay } = await import('../../src/screen/scroll-keys/ScrollKeybindingHandler.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const { default: instances } = await import('../../src/ink/instances.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { openCrewView, closeCrewView, isCrewViewOpen } = await import('../../src/utils/cockpit/crewView.ts')
-const { CREW_OPEN_IN_VIEW_KEY } = await import('../../src/utils/cockpit/crewmateWords.ts')
-const { useAppStateStore } = await import('../../src/state/AppState.tsx')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+const { openCrewView, closeCrewView, isCrewViewOpen } = await import('../../src/screen/cockpit/crewView.ts')
+const { CREW_OPEN_IN_VIEW_KEY } = await import('../../src/screen/cockpit/crewmateWords.ts')
+const { useAppStateStore } = await import('../../src/screen/app-state/AppState.tsx')
 const h = React.createElement
 
 const COMPOSER = 'Type a prompt'
@@ -70,12 +70,12 @@ const wheel = (dir: 'up' | 'down', x: number, y: number): string => `\x1b[<${dir
 const seatName = (n: number): string => `seat${String(n).padStart(2, '0')}`
 const seatId = (n: number): string => `a-${seatName(n)}`
 const SIZES: Array<[number, number]> = [[178, 51], [100, 30]]
-const HINT_ROWS = 'what to change: the crew list rows and cursor, src/components/mercury-ui/screens/CrewView.tsx'
-const HINT_WHEEL = 'what to change: the mouse wheel over the crew list must move the cursor as the arrow keys do, src/components/mercury-ui/screens/CrewView.tsx'
-const HINT_YIELD = 'what to change: the transcript must not scroll while the crew list is open, wheelYieldsToTopOverlay in src/components/ScrollKeybindingHandler.tsx'
-const HINT_PAGE = 'what to change: pgup/pgdn must page the list and the window must follow, usePopupListPaging in src/components/CustomSelect/popup-list.tsx as called from src/components/mercury-ui/screens/CrewView.tsx'
-const HINT_CLICK = 'what to change: a click selects a row and a second click opens it, InteractiveRow onSelect and onActivate in src/components/mercury-ui/screens/CrewView.tsx'
-const HINT_KEYS = 'what to change: the key line text in src/components/mercury-ui/screens/CrewView.tsx, CREW_OPEN_IN_VIEW_KEY in src/utils/cockpit/crewmateWords.ts'
+const HINT_ROWS = 'what to change: the crew list rows and cursor, src/screen/widgets/faces/CrewView.tsx'
+const HINT_WHEEL = 'what to change: the mouse wheel over the crew list must move the cursor as the arrow keys do, src/screen/widgets/faces/CrewView.tsx'
+const HINT_YIELD = 'what to change: the transcript must not scroll while the crew list is open, wheelYieldsToTopOverlay in src/screen/scroll-keys/ScrollKeybindingHandler.tsx'
+const HINT_PAGE = 'what to change: pgup/pgdn must page the list and the window must follow, usePopupListPaging in src/screen/select/popup-list.tsx as called from src/screen/widgets/faces/CrewView.tsx'
+const HINT_CLICK = 'what to change: a click selects a row and a second click opens it, InteractiveRow onSelect and onActivate in src/screen/widgets/faces/CrewView.tsx'
+const HINT_KEYS = 'what to change: the key line text in src/screen/widgets/faces/CrewView.tsx, CREW_OPEN_IN_VIEW_KEY in src/screen/cockpit/crewmateWords.ts'
 
 const arg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)
@@ -298,7 +298,7 @@ for (const [cols, rows] of SIZES) {
   const tag = `${cols}x${rows}`
   const scene = await openScene(cols, rows)
   section(`§1 ${tag}: the wheel over the list moves the selection the way the arrow keys do, and the transcript behind the popup stays where it was`)
-  check(`${tag}: /crewmates lists the ${SEATS} crewmates`, await openList(scene), `${scene.lines().filter(l => l.trim() !== '').slice(0, 8).join(' | ').slice(0, 300)} · ${HINT_ROWS}; openCrewView is in src/utils/cockpit/crewView.ts`)
+  check(`${tag}: /crewmates lists the ${SEATS} crewmates`, await openList(scene), `${scene.lines().filter(l => l.trim() !== '').slice(0, 8).join(' | ').slice(0, 300)} · ${HINT_ROWS}; openCrewView is in src/screen/cockpit/crewView.ts`)
   save(`crew-mouse-${tag}-rest`, scene.lines())
   const transcriptTop = scene.scrollTop()
   check(`${tag}: the transcript behind the popup can scroll (the scroller has rows to take)`, scene.scrollMax() > 0, `max ${scene.scrollMax()} · top ${transcriptTop}`)
@@ -347,7 +347,7 @@ for (const [cols, rows] of SIZES) {
   check(`${tag}: esc leaves the view`, await settle(scene, () => scene.viewing() === undefined), describe(scene))
 
   section(`§4 ${tag}: a double click on a row opens it`)
-  check(`${tag}: the list opens again`, await openList(scene), `${describe(scene)} · ${HINT_ROWS}; openCrewView is in src/utils/cockpit/crewView.ts`)
+  check(`${tag}: the list opens again`, await openList(scene), `${describe(scene)} · ${HINT_ROWS}; openCrewView is in src/screen/cockpit/crewView.ts`)
   const fifth = seatName(5)
   const at = cellAt(scene.lines(), fifth)!
   scene.push(press(at.x, at.y) + release(at.x, at.y))
@@ -358,7 +358,7 @@ for (const [cols, rows] of SIZES) {
   check(`${tag}: esc leaves the view`, await settle(scene, () => scene.viewing() === undefined), describe(scene))
 
   section(`§5 ${tag}: clicks that land off the rows do nothing, and the key line reads as before`)
-  check(`${tag}: the list opens again`, await openList(scene), `${describe(scene)} · ${HINT_ROWS}; openCrewView is in src/utils/cockpit/crewView.ts`)
+  check(`${tag}: the list opens again`, await openList(scene), `${describe(scene)} · ${HINT_ROWS}; openCrewView is in src/screen/cockpit/crewView.ts`)
   const header = headerCell(scene.lines())!
   click(scene, header)
   await sleep(500)
@@ -378,7 +378,7 @@ for (const [cols, rows] of SIZES) {
 
 section('§6 the yield rule reads the crew view store alone')
 {
-  check('closed ⇒ the transcript keeps the wheel', !isCrewViewOpen() && !wheelYieldsToTopOverlay(), `${HINT_YIELD}; the open flag is isCrewViewOpen in src/utils/cockpit/crewView.ts`)
+  check('closed ⇒ the transcript keeps the wheel', !isCrewViewOpen() && !wheelYieldsToTopOverlay(), `${HINT_YIELD}; the open flag is isCrewViewOpen in src/screen/cockpit/crewView.ts`)
   openCrewView()
   check('open ⇒ the transcript yields the wheel', wheelYieldsToTopOverlay(), HINT_YIELD)
   closeCrewView()
@@ -387,7 +387,7 @@ section('§6 the yield rule reads the crew view store alone')
 
 console.error = originalError
 clearTimeout(hardLimit)
-check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), `${faults.join('\n').slice(0, 600)} · fix the component the logged fault names, the crew list is src/components/mercury-ui/screens/CrewView.tsx`)
+check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), `${faults.join('\n').slice(0, 600)} · fix the component the logged fault names, the crew list is src/screen/widgets/faces/CrewView.tsx`)
 rmSync(HOME, { recursive: true, force: true })
 rmSync(CWD, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? '✅' : '❌'} crew-view-mouse — ${checks} checks, ${failures} failed`)

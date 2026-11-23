@@ -1,5 +1,5 @@
-import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
-import type { Command } from '../../commands.js'
+import { getIsNonInteractiveSession } from '../../boot/process-state/processState.js'
+import type { Command } from '../catalogue/commands.js'
 
 
 export const mission: Command = {

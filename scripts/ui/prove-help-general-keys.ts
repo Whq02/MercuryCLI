@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/HelpV2/HelpV2.tsx src/components/design-system/Tabs.tsx
+// gate-watch: src/screen/help/HelpV2.tsx src/screen/theme/Tabs.tsx
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, KEY, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -34,19 +34,19 @@ const PGUP = '\x1b[5~'
 
 const React = await import('react')
 const h = React.createElement
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { HelpV2 } = await import('../../src/components/HelpV2/HelpV2.tsx')
-const { builtinCommands } = await import('../../src/commands.ts')
-const defaultPromptInput = await import('../../src/components/PromptInput/PromptInput.tsx')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { HelpV2 } = await import('../../src/screen/help/HelpV2.tsx')
+const { builtinCommands } = await import('../../src/commands/catalogue/commands.ts')
+const defaultPromptInput = await import('../../src/screen/composer/Composer.tsx')
 const PromptInput = defaultPromptInput.default
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
 enableConfigs()
 saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(c => ({ ...c, prStatusFooterEnabled: false }))
@@ -122,10 +122,10 @@ save('help-general-80x30', lines)
 {
   const shortcutRows = ['for command palette', 'to switch model', 'to edit in $EDITOR', '/keybindings to customize']
   const bodyBottom = lines.findLastIndex(l => shortcutRows.some(s => l.includes(s)))
-  check('80x30: the general tab body fits — every shortcut row paints, no overflow marker', bodyBottom >= 0 && !m.screen().includes('more · /help lists every shortcut'), `fix the row budget in src/components/PromptInput/PromptInputHelpMenu.tsx so every shortcut row paints at 80x30 without the overflow marker; last shortcut row at ${bodyBottom}`)
+  check('80x30: the general tab body fits — every shortcut row paints, no overflow marker', bodyBottom >= 0 && !m.screen().includes('more · /help lists every shortcut'), `fix the row budget in src/screen/composer/ComposerHelpMenu.tsx so every shortcut row paints at 80x30 without the overflow marker; last shortcut row at ${bodyBottom}`)
 
   const footer = footerOf(m)
-  check('80x30: the footer names the keys that work on the general tab', footer.includes('switch tabs') && footer.includes(FOOTER_HINT), `fix the footer prop passed to CommandCenter in src/components/HelpV2/HelpV2.tsx so the general tab footer names the tab-switch keys and esc close; footer = ${footer}`)
+  check('80x30: the footer names the keys that work on the general tab', footer.includes('switch tabs') && footer.includes(FOOTER_HINT), `fix the footer prop passed to CommandCenter in src/screen/help/HelpV2.tsx so the general tab footer names the tab-switch keys and esc close; footer = ${footer}`)
 
   const goGeneral = async (): Promise<boolean> => {
     for (let i = 0; i < 8 && !onGeneral(m); i++) {
@@ -138,26 +138,26 @@ save('help-general-80x30', lines)
   await goGeneral()
   m.push(KEY.up)
   await settle(300)
-  check('80x30: ↑ is not inert — the selection wraps to the shortcuts tab', onShortcuts(m), `fix the useInput in src/components/HelpV2/HelpV2.tsx so up moves the tab selection while the general tab body does not scroll; tabs line = ${tabsLineOf(m)}`)
+  check('80x30: ↑ is not inert — the selection wraps to the shortcuts tab', onShortcuts(m), `fix the useInput in src/screen/help/HelpV2.tsx so up moves the tab selection while the general tab body does not scroll; tabs line = ${tabsLineOf(m)}`)
   save('help-general-80x30-up', m.lines())
 
   await goGeneral()
   m.push(KEY.down)
   await settle(300)
-  check('80x30: ↓ is not inert — the selection moves to the commands tab', onCommands(m), `fix the useInput in src/components/HelpV2/HelpV2.tsx so down moves the tab selection while the general tab body does not scroll; tabs line = ${tabsLineOf(m)}`)
+  check('80x30: ↓ is not inert — the selection moves to the commands tab', onCommands(m), `fix the useInput in src/screen/help/HelpV2.tsx so down moves the tab selection while the general tab body does not scroll; tabs line = ${tabsLineOf(m)}`)
   save('help-general-80x30-down', m.lines())
   const commandsFooter = footerOf(m)
-  check('80x30: on commands the body hint owns the keys (the footer claim is tab-honest)', m.lines().some(l => l.includes('↑↓ move · pgup/pgdn page')) || !commandsFooter.includes('switch tabs'), `on the commands tab either Commands.tsx must paint its key hint row or the HelpV2.tsx footer must drop the switch tabs claim (src/components/HelpV2); footer = ${commandsFooter}`)
+  check('80x30: on commands the body hint owns the keys (the footer claim is tab-honest)', m.lines().some(l => l.includes('↑↓ move · pgup/pgdn page')) || !commandsFooter.includes('switch tabs'), `on the commands tab either Commands.tsx must paint its key hint row or the HelpV2.tsx footer must drop the switch tabs claim (src/screen/help); footer = ${commandsFooter}`)
 
   await goGeneral()
   m.push(PGDN)
   await settle(300)
-  check('80x30: pgdn is not inert — the selection moves to commands', onCommands(m), `fix the useInput in src/components/HelpV2/HelpV2.tsx so pageDown moves the tab selection while the general tab body does not scroll; tabs line = ${tabsLineOf(m)}`)
+  check('80x30: pgdn is not inert — the selection moves to commands', onCommands(m), `fix the useInput in src/screen/help/HelpV2.tsx so pageDown moves the tab selection while the general tab body does not scroll; tabs line = ${tabsLineOf(m)}`)
 
   await goGeneral()
   m.push(PGUP)
   await settle(300)
-  check('80x30: pgup is not inert — the selection wraps back to shortcuts', onShortcuts(m), `fix the useInput in src/components/HelpV2/HelpV2.tsx so pageUp moves the tab selection while the general tab body does not scroll; tabs line = ${tabsLineOf(m)}`)
+  check('80x30: pgup is not inert — the selection wraps back to shortcuts', onShortcuts(m), `fix the useInput in src/screen/help/HelpV2.tsx so pageUp moves the tab selection while the general tab body does not scroll; tabs line = ${tabsLineOf(m)}`)
 }
 await closeHelp(m)
 
@@ -167,11 +167,11 @@ console.log('------------------------------------------------------------')
 {
   const m = await openHelp(80, 24)
   const footer = footerOf(m)
-  check('80x24: the overflowing body keeps the scroll pager footer', footer.includes('pgup/pgdn'), `when the body overflows (bodyScrolls in src/components/HelpV2/HelpV2.tsx) the footer must keep the pgup/pgdn pager text; footer = ${footer}`)
+  check('80x24: the overflowing body keeps the scroll pager footer', footer.includes('pgup/pgdn'), `when the body overflows (bodyScrolls in src/screen/help/HelpV2.tsx) the footer must keep the pgup/pgdn pager text; footer = ${footer}`)
   const before = m.screen()
   m.push(KEY.down)
   await settle(300)
-  check('80x24: ↓ scrolls the overflowing body (not a tab jump)', m.screen() !== before && !tabsLineOf(m).startsWith('                                                                                '), `when the body overflows, down must scroll the body and not switch tabs: check isActive of the useInput in src/components/HelpV2/HelpV2.tsx; tabs line = ${tabsLineOf(m)}`)
+  check('80x24: ↓ scrolls the overflowing body (not a tab jump)', m.screen() !== before && !tabsLineOf(m).startsWith('                                                                                '), `when the body overflows, down must scroll the body and not switch tabs: check isActive of the useInput in src/screen/help/HelpV2.tsx; tabs line = ${tabsLineOf(m)}`)
   await closeHelp(m)
 }
 
@@ -181,19 +181,19 @@ console.log('------------------------------------------------------------')
 {
   const m = await openHelp(120, 40)
   const tabs = tabsLineOf(m)
-  check('120x40: /help opened on the general tab', tabs.includes('general'), `HelpV2 must open on the general tab (useState initial value in src/components/HelpV2/HelpV2.tsx); tabs line = ${tabs}`)
+  check('120x40: /help opened on the general tab', tabs.includes('general'), `HelpV2 must open on the general tab (useState initial value in src/screen/help/HelpV2.tsx); tabs line = ${tabs}`)
   m.push(KEY.right)
   await settle(300)
   const moved = await waitFor(() => m.screen().includes('Browse default commands'), 4000)
-  check('120x40: → switches to the commands tab', moved, `right arrow must change the tab in the Tabs component (src/components/design-system/Tabs.tsx); top lines = ${m.lines().slice(0, 8).join(' | ')}`)
+  check('120x40: → switches to the commands tab', moved, `right arrow must change the tab in the Tabs component (src/screen/theme/Tabs.tsx); top lines = ${m.lines().slice(0, 8).join(' | ')}`)
   const listRow = m.lines().find(l => l.includes('↑↓ move · pgup/pgdn page'))
-  check('120x40: the commands tab keeps its own key hint row', listRow !== undefined, `the commands tab must paint the key hint row (src/components/HelpV2/Commands.tsx); row = ${(listRow ?? '').trim()}`)
+  check('120x40: the commands tab keeps its own key hint row', listRow !== undefined, `the commands tab must paint the key hint row (src/screen/help/Commands.tsx); row = ${(listRow ?? '').trim()}`)
   const before = m.screen()
   m.push(KEY.down)
   await settle(300)
   m.push(KEY.down)
   await settle(300)
-  check('120x40: ↓ still moves the command list, not the tab row', m.screen() !== before && m.screen().includes('Browse default commands'), 'on the commands tab down must reach the command list: the tab-row useInput in src/components/HelpV2/HelpV2.tsx must stay inactive and the useInput in Commands.tsx must handle down')
+  check('120x40: ↓ still moves the command list, not the tab row', m.screen() !== before && m.screen().includes('Browse default commands'), 'on the commands tab down must reach the command list: the tab-row useInput in src/screen/help/HelpV2.tsx must stay inactive and the useInput in Commands.tsx must handle down')
   await closeHelp(m)
 }
 

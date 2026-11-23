@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 const { decodeTranscriptBuffer, TRANSCRIPT_FORMAT_REFUSAL } = await import(
-  '../../src/fabric/transcriptDecode.js'
+  '../../src/sessions/fabric/transcriptDecode.js'
 )
-const { entryToRecord } = await import('../../src/fabric/entryCodec.js')
-const { ordinalOf } = await import('../../src/fabric/ordinal.js')
+const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.js')
+const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.js')
 
 let failures = 0
-const transcriptDecodeFixHint = 'fix: decodeTranscriptBuffer (line classification into entries, malformed, invalid, refusal) in src/fabric/transcriptDecode.ts; the record shape floor is validateRecord in src/fabric/validate.ts'
+const transcriptDecodeFixHint = 'fix: decodeTranscriptBuffer (line classification into entries, malformed, invalid, refusal) in src/sessions/fabric/transcriptDecode.ts; the record shape floor is validateRecord in src/sessions/fabric/validate.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${transcriptDecodeFixHint}` : ''}`)

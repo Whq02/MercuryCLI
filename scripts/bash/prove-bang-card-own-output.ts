@@ -35,22 +35,22 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const clip = (text: string, limit = 300): string => JSON.stringify(text.length > limit ? `${text.slice(0, limit)}…` : text)
 const NOTICE = /session env scrubbed|inherit_session_env|Mercury's own stamps/
 
-const { stampSpawnReceipt } = await import('../../src/substrate/envStamps.ts')
+const { stampSpawnReceipt } = await import('../../src/platform/substrate/envStamps.ts')
 process.env.MERCURY_ENTRYPOINT = 'cli'
 process.env.MERCURY_SEATS = '2'
 stampSpawnReceipt(process.env, ['MERCURY_SEATS'])
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { processBashCommand } = await import('../../src/services/processUserInput/processBashCommand.tsx')
-const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
-const { formatError } = await import('../../src/utils/toolErrors.ts')
-const { extractTag } = await import('../../src/services/messages.ts')
-const { unescapeXml } = await import('../../src/utils/xml.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { processBashCommand } = await import('../../src/engine/user-input/processBashCommand.tsx')
+const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { formatError } = await import('../../src/tools/kit/toolErrors.ts')
+const { extractTag } = await import('../../src/engine/messages/messages.ts')
+const { unescapeXml } = await import('../../src/platform/text/xml.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
 
 let appState = getDefaultAppState()

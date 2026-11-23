@@ -10,36 +10,36 @@ delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const serve = await import('../../src/services/tensorfold/serve.ts')
+const serve = await import('../../src/models/tensorfold/serve.ts')
 const road = await import('../../src/commands/tensorfold/road.ts')
 const scene = await import('../../src/commands/tensorfold/scene.ts')
 const panel = await import('../../src/commands/tensorfold/tensorfold.tsx')
-const engine = await import('../../src/services/tensorfold/engine.ts')
-const receipts = await import('../../src/utils/model/seatReceipts.ts')
+const engine = await import('../../src/models/tensorfold/engine.ts')
+const receipts = await import('../../src/models/facts/seatReceipts.ts')
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
 const W03_FIX_HINTS: Array<[string, string]> = [
-  ['clean start', 'fix startTensorFold in src/services/tensorfold/serve.ts so a start with no side-step failure returns an empty warnings list'],
-  ['clean stop', 'fix stopTensorFold in src/services/tensorfold/serve.ts so a stop with no side-step failure returns an empty warnings list'],
-  ['start side-step failures', 'fix serveTensorFoldRow in src/commands/tensorfold/road.ts and startTensorFold in src/services/tensorfold/serve.ts so a failing rememberPort, rememberWindow or announce is returned as a warning and put in the road notice while the start succeeds'],
-  ['stop side-step failures', 'fix onTensorFoldAct in src/commands/tensorfold/tensorfold.tsx and stopTensorFold in src/services/tensorfold/serve.ts so a failing pairing stop, forgetPort or forgetHost reaches the notice while the stop succeeds'],
+  ['clean start', 'fix startTensorFold in src/models/tensorfold/serve.ts so a start with no side-step failure returns an empty warnings list'],
+  ['clean stop', 'fix stopTensorFold in src/models/tensorfold/serve.ts so a stop with no side-step failure returns an empty warnings list'],
+  ['start side-step failures', 'fix serveTensorFoldRow in src/commands/tensorfold/road.ts and startTensorFold in src/models/tensorfold/serve.ts so a failing rememberPort, rememberWindow or announce is returned as a warning and put in the road notice while the start succeeds'],
+  ['stop side-step failures', 'fix onTensorFoldAct in src/commands/tensorfold/tensorfold.tsx and stopTensorFold in src/models/tensorfold/serve.ts so a failing pairing stop, forgetPort or forgetHost reaches the notice while the stop succeeds'],
   ['share act', 'fix onTensorFoldAct in src/commands/tensorfold/tensorfold.tsx so the share notice keeps the pairing code and the start warnings'],
-  ['stopTensorFold on', 'fix stopTensorFold in src/services/tensorfold/serve.ts so an unreadable or damaged served file resolves with readError and is left as it is, and an absent file has no readError'],
+  ['stopTensorFold on', 'fix stopTensorFold in src/models/tensorfold/serve.ts so an unreadable or damaged served file resolves with readError and is left as it is, and an absent file has no readError'],
   ['stopTensorFoldRow', 'fix stopTensorFoldRow in src/commands/tensorfold/road.ts so a served record that cannot be read answers the read-error sentence and mints no stopped receipt'],
   ['onTensorFoldAct stop', 'fix onTensorFoldAct in src/commands/tensorfold/tensorfold.tsx so the read-error sentence from the stop reaches the panel notice'],
   ['ENOENT cache folder', 'fix readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts so a missing cache folder sets no readNotice'],
   ['unreadable models folder', 'fix readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts so an unreadable cache folder sets a readNotice naming the path and the error'],
   ['unreadable config.json', 'fix readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts so an unreadable config.json sets a readNotice naming that file'],
-  ['helperModelChoices', 'fix helperModelChoices in src/services/providers/local/tensorfoldHelper.ts so an unreadable 2B config gives the could-not-be-read reason, not the not-pulled reason'],
-  ['unreadable file stat', 'fix readHfSnapshot in src/services/tensorfold/inventory.ts (onReadError) and readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts so a file whose stat fails is reported and set in the readNotice'],
+  ['helperModelChoices', 'fix helperModelChoices in src/models/roads/local/tensorfoldHelper.ts so an unreadable 2B config gives the could-not-be-read reason, not the not-pulled reason'],
+  ['unreadable file stat', 'fix readHfSnapshot in src/models/tensorfold/inventory.ts (onReadError) and readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts so a file whose stat fails is reported and set in the readNotice'],
   ['absent hosts store', 'fix readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts so a missing hosts store sets no readNotice'],
-  ['non-object hosts store keeps', 'fix tensorFoldHosts, tensorFoldHostRecords and tensorFoldPorts in src/services/providers/local/tensorfoldHosts.ts so a hosts store that is not an object reads as empty and does not throw'],
-  ['non-object hosts store puts', 'fix readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts and the strict reader in src/services/providers/local/tensorfoldHosts.ts so the not-a-JSON-object message reaches readNotice once'],
+  ['non-object hosts store keeps', 'fix tensorFoldHosts, tensorFoldHostRecords and tensorFoldPorts in src/models/roads/local/tensorfoldHosts.ts so a hosts store that is not an object reads as empty and does not throw'],
+  ['non-object hosts store puts', 'fix readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts and the strict reader in src/models/roads/local/tensorfoldHosts.ts so the not-a-JSON-object message reaches readNotice once'],
   ['TensorFoldPanel renders', 'fix TensorFoldPanel in src/commands/tensorfold/tensorfold.tsx so the hosts store error shows in its notice exactly once'],
   ['torn JSON hosts store', 'fix readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts so a torn hosts store names its path and the read error in readNotice'],
-  ['EACCES hosts store', 'fix readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts and src/services/providers/local/tensorfoldHosts.ts so an unreadable hosts store reads as empty and names its path and the read error in readNotice'],
+  ['EACCES hosts store', 'fix readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts and src/models/roads/local/tensorfoldHosts.ts so an unreadable hosts store reads as empty and names its path and the read error in readNotice'],
 ]
 
 let failures = 0
@@ -248,8 +248,8 @@ console.log('w03-2: stopTensorFold reports an unreadable or damaged served recor
 
 console.log('w03-3: inventory read failures (listDir, readText, sizeOf) surface in scene notice and helper instead of silent absence')
 {
-  const inventory = await import('../../src/services/tensorfold/inventory.ts')
-  const helper = await import('../../src/services/providers/local/tensorfoldHelper.ts')
+  const inventory = await import('../../src/models/tensorfold/inventory.ts')
+  const helper = await import('../../src/models/roads/local/tensorfoldHelper.ts')
   const world = fakeWorld('wider-w03-3')
   const absentCache = join(world.root, 'absent-hf-cache')
   const absentFacts = await scene.readTensorFoldPanelFacts({
@@ -355,8 +355,8 @@ console.log('w03-3: inventory read failures (listDir, readText, sizeOf) surface 
 
 console.log('w03-4: unreadable or damaged tensorfold-hosts.json keeps readers empty and surfaces strict error once in screen notice')
 {
-  const hostsMod = await import('../../src/services/providers/local/tensorfoldHosts.ts')
-  const { getMercuryHome } = await import('../../src/utils/envUtils.js')
+  const hostsMod = await import('../../src/models/roads/local/tensorfoldHosts.ts')
+  const { getMercuryHome } = await import('../../src/platform/environment/envUtils.js')
   const world = fakeWorld('wider-w03-4')
   const storeFile = join(getMercuryHome(), 'local-setup', 'tensorfold-hosts.json')
   mkdirSync(join(getMercuryHome(), 'local-setup'), { recursive: true })
@@ -395,9 +395,9 @@ console.log('w03-4: unreadable or damaged tensorfold-hosts.json keeps readers em
   )
 
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
   const { mountOffscreen, settle, waitFor } = await import('../lib/settingsPopupHarness.ts')
   road.__resetTensorFoldRoadForTest()
   const mounted = await mountOffscreen(

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-const { withSearchTurn, resetSearchPacing, noteRateLimited, coolDownRemainingMs } = await import('../../src/services/search/searchPacing.js')
+const { withSearchTurn, resetSearchPacing, noteRateLimited, coolDownRemainingMs } = await import('../../src/tools/engines/web-search/searchPacing.js')
 resetSearchPacing()
 let now = 0
 const starts: number[] = []
@@ -11,7 +11,7 @@ const gate = new Promise<void>(r => { release = r })
 const first = withSearchTurn('npm', policy, clock, undefined, async wait => { assert.equal(wait, 0); starts.push(now); started(); await gate; return 'first' })
 await entered
 const abort = new AbortController()
-const second = withSearchTurn('npm', policy, clock, abort.signal, async () => { assert.ok(abort.signal.aborted, 'withSearchTurn in src/services/search/searchPacing.js must invoke cancelled waiter only after abort'); return 'cancelled' })
+const second = withSearchTurn('npm', policy, clock, abort.signal, async () => { assert.ok(abort.signal.aborted, 'withSearchTurn in src/tools/engines/web-search/searchPacing.js must invoke cancelled waiter only after abort'); return 'cancelled' })
 const third = withSearchTurn('npm', policy, clock, undefined, async wait => { assert.equal(wait, 0); starts.push(now); return 'third' })
 abort.abort()
 assert.equal(await second, 'cancelled')
@@ -30,8 +30,8 @@ assert.equal(coolDownRemainingMs('npm', now), 86_400_000)
 console.log('PASS serial pacing: cancelled queued caller leaves predecessor lock intact, starts spaced, rolling quota and server minimum preserved')
 
 ;(globalThis as any).MACRO = { VERSION: 'proof' }
-const { braveSearch } = await import('../../src/services/search/brave.js')
-const { tavilySearch } = await import('../../src/services/search/tavily.js')
+const { braveSearch } = await import('../../src/tools/engines/web-search/brave.js')
+const { tavilySearch } = await import('../../src/tools/engines/web-search/tavily.js')
 for (const source of ['brave', 'tavily'] as const) {
   resetSearchPacing(); now = 0
   let calls = 0

@@ -21,19 +21,19 @@ const { pinHermeticCredentialedHome } = await import('./hermeticHome.ts')
 const HOME = pinHermeticCredentialedHome('prefix-usage-home-')
 if (process.env.MERCURY_CONFIG_DIR !== HOME) throw new Error('the scratch config home did not pin')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { assembleToolPool } = await import('../../src/tools.ts')
-const { MCPTool } = await import('../../src/tools/MCPTool/MCPTool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { isDeferredTool, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-type Message = import('../../src/types/message.ts').Message
-type Tool = import('../../src/Tool.ts').Tool
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
+const { MCPTool } = await import('../../src/tools/mcp/MCPTool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { isDeferredTool, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/tool-search/prompt.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type Tool = import('../../src/tools/kit/tool.ts').Tool
 
 if (declaredRouteOf(model) !== route) {
   console.log(`refusing: ${model} declares route ${declaredRouteOf(model) ?? 'none'}, not ${route}`)

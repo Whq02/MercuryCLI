@@ -17,15 +17,15 @@ type ProbeVerdict = { id: string; served: true } | { id: string; served: false; 
 type ListResult = { ids: string[] } | { unreachable: string } | { typedTable: string; ids: string[] } | { probed: ProbeVerdict[] }
 type FamilyCheck = { family: string; source: string; typed: string[]; list: () => Promise<ListResult>; current?: (id: string) => string }
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { getApiFetch, getProxyFetchOptions } = await import('../../src/utils/proxy.js')
-const { fetchWithProviderDeadline } = await import('../../src/services/providers/fetchDeadline.js')
-const { catalogueTrafficVerdict } = await import('../../src/services/providers/catalogueGate.js')
-const { getEssentialTrafficOnlyReason } = await import('../../src/utils/privacyLevel.js')
+const { getApiFetch, getProxyFetchOptions } = await import('../../src/platform/network/proxy.js')
+const { fetchWithProviderDeadline } = await import('../../src/models/roads/fetchDeadline.js')
+const { catalogueTrafficVerdict } = await import('../../src/models/roads/catalogueGate.js')
+const { getEssentialTrafficOnlyReason } = await import('../../src/models/roads/privacyLevel.js')
 const GATED_FAMILIES = new Set(['openai', 'gemini', 'deepseek', 'openrouter', 'huggingface', 'nous'])
-const { getAuthHeaders, getUserAgent } = await import('../../src/utils/http.js')
-const { judgeTypedIds } = await import('../../src/services/providers/typedModelIds.js')
+const { getAuthHeaders, getUserAgent } = await import('../../src/models/roads/requestHeaders.js')
+const { judgeTypedIds } = await import('../../src/models/roads/typedModelIds.js')
 
 async function getJson(provider: string, url: string, headers: Record<string, string>): Promise<{ status: number; body: unknown }> {
   const response = await fetchWithProviderDeadline(getApiFetch(), provider, LIST_TIMEOUT_MS, url, {
@@ -48,7 +48,7 @@ function staleToken(expiresAtMs: number | null | undefined, words: string): stri
 }
 
 async function moonshotList(baseUrl: string, key: string): Promise<ListResult> {
-  const { fetchMoonshotLiveModels } = await import('../../src/services/providers/moonshot/moonshotCatalogue.js')
+  const { fetchMoonshotLiveModels } = await import('../../src/models/roads/moonshot/moonshotCatalogue.js')
   const result = await fetchMoonshotLiveModels({ baseUrl, key })
   return { ids: result.models.map(model => model.id) }
 }
@@ -60,7 +60,7 @@ async function probeByCompletion(ids: readonly string[], probe: (id: string) => 
 }
 
 async function zaiCompletionVerdict(opts: { apiKey: string; requestUrl: string; id: string }): Promise<ProbeVerdict> {
-  const { streamZaiChat } = await import('../../src/services/providers/zai/zaiClient.js')
+  const { streamZaiChat } = await import('../../src/models/roads/zai/zaiClient.js')
   const events = streamZaiChat({ apiKey: opts.apiKey, baseUrl: opts.requestUrl, request: { model: opts.id, messages: [{ role: 'user', content: 'ping' }], max_tokens: 1 } })
   for await (const event of events) {
     if (event.type !== 'stream-fault') return { id: opts.id, served: true }
@@ -78,9 +78,9 @@ const families: FamilyCheck[] = []
 const skipped: string[] = []
 
 {
-  const openai = await import('../../src/services/providers/openai/openaiAccounts.js')
-  const { fetchOpenaiLiveModels } = await import('../../src/services/providers/openai/openaiClient.js')
-  const { GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.js')
+  const openai = await import('../../src/models/roads/openai/openaiAccounts.js')
+  const { fetchOpenaiLiveModels } = await import('../../src/models/roads/openai/openaiClient.js')
+  const { GPT_DISPLAY_PINS } = await import('../../src/models/facts/pins/gptPins.js')
   const typed = GPT_DISPLAY_PINS.map(pin => pin.id)
   const presence = openai.openaiSubscriptionPresence()
   if (presence.state !== 'absent') {
@@ -119,8 +119,8 @@ const skipped: string[] = []
 }
 
 {
-  const auth = await import('../../src/utils/auth.js')
-  const model = await import('../../src/services/model/model.js')
+  const auth = await import('../../src/models/sign-in/credentials/auth.js')
+  const model = await import('../../src/models/catalogue/engineModel.js')
   const typed = [...new Set([model.getDefaultFableModel(), model.getDefaultOpusModel(), model.getDefaultSonnetModel(), model.getDefaultHaikuModel()].map(id => model.normalizeModelStringForAPI(id)))]
   const headers = getAuthHeaders()
   if (headers.error) skipped.push(`anthropic · no credential · ${typed.length} typed ids not judged`)
@@ -155,9 +155,9 @@ const skipped: string[] = []
 }
 
 {
-  const gemini = await import('../../src/services/providers/gemini/geminiAccounts.js')
-  const { fetchGeminiLiveModels } = await import('../../src/services/providers/gemini/geminiCatalogue.js')
-  const { GEMINI_PRICE_PINS } = await import('../../src/utils/model/pins/geminiPins.js')
+  const gemini = await import('../../src/models/roads/gemini/geminiAccounts.js')
+  const { fetchGeminiLiveModels } = await import('../../src/models/roads/gemini/geminiCatalogue.js')
+  const { GEMINI_PRICE_PINS } = await import('../../src/models/facts/pins/geminiPins.js')
   const typed = GEMINI_PRICE_PINS.map(pin => pin.id)
   const key = gemini.resolveGeminiApiKey(env)
   if (key) {
@@ -194,9 +194,9 @@ const skipped: string[] = []
 }
 
 {
-  const accounts = await import('../../src/services/providers/deepseek/deepseekAccounts.js')
-  const { fetchDeepseekLiveModels } = await import('../../src/services/providers/deepseek/deepseekCatalogue.js')
-  const { DEEPSEEK_DISPLAY_PINS, deepseekCurrentModelId } = await import('../../src/utils/model/pins/deepseekPins.js')
+  const accounts = await import('../../src/models/roads/deepseek/deepseekAccounts.js')
+  const { fetchDeepseekLiveModels } = await import('../../src/models/roads/deepseek/deepseekCatalogue.js')
+  const { DEEPSEEK_DISPLAY_PINS, deepseekCurrentModelId } = await import('../../src/models/facts/pins/deepseekPins.js')
   const typed = DEEPSEEK_DISPLAY_PINS.map(pin => pin.id)
   const key = accounts.resolveDeepseekApiKey(env)
   if (key) {
@@ -214,8 +214,8 @@ const skipped: string[] = []
 }
 
 {
-  const accounts = await import('../../src/services/providers/openrouter/openrouterAccounts.js')
-  const { fetchOpenrouterLiveModels } = await import('../../src/services/providers/openrouter/openrouterCatalogue.js')
+  const accounts = await import('../../src/models/roads/openrouter/openrouterAccounts.js')
+  const { fetchOpenrouterLiveModels } = await import('../../src/models/roads/openrouter/openrouterCatalogue.js')
   const auth = accounts.resolveOpenrouterRequestAuth(env)
   if (auth) {
     families.push({
@@ -231,9 +231,9 @@ const skipped: string[] = []
 }
 
 {
-  const accounts = await import('../../src/services/providers/huggingface/huggingfaceAccounts.js')
-  const { fetchHuggingfaceLiveModels } = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.js')
-  const { HUGGINGFACE_DISPLAY_PINS } = await import('../../src/utils/model/pins/huggingfacePins.js')
+  const accounts = await import('../../src/models/roads/huggingface/huggingfaceAccounts.js')
+  const { fetchHuggingfaceLiveModels } = await import('../../src/models/roads/huggingface/huggingfaceCatalogue.js')
+  const { HUGGINGFACE_DISPLAY_PINS } = await import('../../src/models/facts/pins/huggingfacePins.js')
   const typed = HUGGINGFACE_DISPLAY_PINS.map(pin => pin.id)
   const key = accounts.resolveHuggingfaceApiKey(env)
   if (key) {
@@ -254,10 +254,10 @@ const skipped: string[] = []
 }
 
 {
-  const { resolveZaiDispatch } = await import('../../src/services/providers/providerDiscovery.js')
-  const { zaiChatCompletionsUrl } = await import('../../src/services/providers/zai/zaiClient.js')
-  const { keyLanePins } = await import('../../src/services/model/modelOptions.js')
-  const { GLM_PRICE_PINS } = await import('../../src/utils/model/pins/glmPins.js')
+  const { resolveZaiDispatch } = await import('../../src/models/roads/providerDiscovery.js')
+  const { zaiChatCompletionsUrl } = await import('../../src/models/roads/zai/zaiClient.js')
+  const { keyLanePins } = await import('../../src/models/catalogue/modelOptions.js')
+  const { GLM_PRICE_PINS } = await import('../../src/models/facts/pins/glmPins.js')
   const typed = keyLanePins('zai').map(pin => pin.id)
   const table: ListResult = { typedTable: GLM_PRICE_PINS.map(pin => pin.observedAt).sort().at(-1) ?? 'unknown', ids: GLM_PRICE_PINS.map(pin => pin.id) }
   const dispatch = resolveZaiDispatch(env)
@@ -276,8 +276,8 @@ const skipped: string[] = []
 }
 
 {
-  const accounts = await import('../../src/services/providers/moonshot/moonshotAccounts.js')
-  const { KIMI_DISPLAY_PINS } = await import('../../src/utils/model/pins/kimiPins.js')
+  const accounts = await import('../../src/models/roads/moonshot/moonshotAccounts.js')
+  const { KIMI_DISPLAY_PINS } = await import('../../src/models/facts/pins/kimiPins.js')
   const typed = KIMI_DISPLAY_PINS.map(pin => pin.id)
   const key = accounts.resolveMoonshotApiKey(env)
   if (key) {
@@ -305,8 +305,8 @@ const skipped: string[] = []
 }
 
 {
-  const accounts = await import('../../src/services/providers/nous/nousAccounts.js')
-  const { fetchNousLiveModels, NOUS_PORTAL_RECOMMENDED } = await import('../../src/services/providers/nous/nousCatalogue.js')
+  const accounts = await import('../../src/models/roads/nous/nousAccounts.js')
+  const { fetchNousLiveModels, NOUS_PORTAL_RECOMMENDED } = await import('../../src/models/roads/nous/nousCatalogue.js')
   const typed = [...NOUS_PORTAL_RECOMMENDED]
   const key = accounts.resolveNousApiKey(env)
   if (key) {
@@ -323,9 +323,9 @@ const skipped: string[] = []
 }
 
 {
-  const accounts = await import('../../src/services/providers/zen/zenAccounts.js')
-  const { fetchZenLiveModels } = await import('../../src/services/providers/zen/zenCatalogue.js')
-  const { ZEN_DISPLAY_PINS } = await import('../../src/utils/model/pins/zenPins.js')
+  const accounts = await import('../../src/models/roads/zen/zenAccounts.js')
+  const { fetchZenLiveModels } = await import('../../src/models/roads/zen/zenCatalogue.js')
+  const { ZEN_DISPLAY_PINS } = await import('../../src/models/facts/pins/zenPins.js')
   const typed = ZEN_DISPLAY_PINS.map(pin => pin.id)
   const key = accounts.resolveZenApiKey(env)
   families.push({
@@ -385,7 +385,7 @@ const pagesBase = (() => {
   const at = process.argv.indexOf('--signin-pages-base')
   return at >= 0 ? process.argv[at + 1]?.replace(/\/+$/, '') : undefined
 })()
-const { geminiGuidePages } = await import('../../src/components/geminiConnectGuide.js')
+const { geminiGuidePages } = await import('../../src/models/sign-in/gemini-connect/geminiConnectGuide.js')
 const pages = geminiGuidePages()
 let deadPages = 0
 for (const page of pages) {

@@ -2,12 +2,12 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, finish, scratchDir } from './computerProofKit.ts'
 import { allowEverything, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
-import type { DesktopBounds, DesktopTree, DesktopTreeElement } from '../../src/services/desktop/driver.ts'
+import type { DesktopBounds, DesktopTree, DesktopTreeElement } from '../../src/integrations/desktop/driver.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resetDesktopDriverForTest, resolveDesktopDriver } = await import('../../src/services/desktop/resolveDriver.ts')
-const { outlineTree, interactiveRole } = await import('../../src/tools/ComputerTool/screenMap.ts')
-const { WEB_CONTENT_NOTICE } = await import('../../src/tools/BashTool/webContent.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resetDesktopDriverForTest, resolveDesktopDriver } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const { outlineTree, interactiveRole } = await import('../../src/tools/computer/screenMap.ts')
+const { WEB_CONTENT_NOTICE } = await import('../../src/tools/shell/webContent.ts')
 const fixtures: Array<{ name: string; rows: string[]; scope: 'window' | 'app'; truncated: boolean; reason: string | null }> = JSON.parse(readFileSync(new URL('fixtures/outline-trees.json', import.meta.url), 'utf8'))
 function parseRow(line: string): DesktopTreeElement {
   const match = /^( *)(AX\w+(?: \([^)]+\))?)(.*)$/.exec(line)

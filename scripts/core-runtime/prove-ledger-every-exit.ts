@@ -16,7 +16,7 @@ delete process.env.MERCURY_EFFORT_LEVEL
 process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '5000'
 
 let failures = 0
-const LEDGER_EXIT_HINT = 'change the exit paths of queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts so every billed request is recorded in the usage ledger of src/cost-tracker.ts exactly once'
+const LEDGER_EXIT_HINT = 'change the exit paths of queryModelWithStreaming in src/models/roads/anthropic/streamCore.ts so every billed request is recorded in the usage ledger of src/models/usage/sessionCost.ts exactly once'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const failText = [detail, LEDGER_EXIT_HINT].filter(Boolean).join(' — ')
@@ -26,15 +26,15 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const ledger = await import('../../src/cost-tracker.ts')
-const { roughTokenCountEstimation } = await import('../../src/services/tokenEstimation.ts')
+const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const ledger = await import('../../src/models/usage/sessionCost.ts')
+const { roughTokenCountEstimation } = await import('../../src/models/facts/tokenEstimation.ts')
 
 const MODEL = 'claude-fable-5-1'
 type Usage = { input_tokens: number; cache_creation_input_tokens: number; cache_read_input_tokens: number; output_tokens: number }

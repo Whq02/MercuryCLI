@@ -20,37 +20,37 @@ process.env.MERCURY_CONFIG_DIR = configDir
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.chdir(projectDir)
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.ts')
+const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.ts')
 setOriginalCwd(projectDir)
 setProjectRoot(projectDir)
 setCwdState(projectDir)
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getFilePermissionOptions } = await import('../../src/components/permissions/FilePermissionDialog/permissionOptions.tsx')
-const { bashToolUseOptions } = await import('../../src/components/permissions/BashPermissionRequest/bashToolUseOptions.tsx')
-const { powershellToolUseOptions } = await import('../../src/components/permissions/PowerShellPermissionRequest/powershellToolUseOptions.tsx')
-const { FileWritePermissionRequest } = await import('../../src/components/permissions/FileWritePermissionRequest/FileWritePermissionRequest.tsx')
-const { ComputerPermissionRequest } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
-const { BashPermissionRequest } = await import('../../src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { AsksPart } = await import('../../src/services/engine-connector/daemon/asks.ts')
-const { publishSessionAsks } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { render } = await import('../../src/ink.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getFilePermissionOptions } = await import('../../src/permissions/cards/file-dialog/permissionOptions.tsx')
+const { bashToolUseOptions } = await import('../../src/permissions/cards/bash/shellAskOptions.tsx')
+const { powershellToolUseOptions } = await import('../../src/permissions/cards/powershell/powershellAskOptions.tsx')
+const { FileWritePermissionRequest } = await import('../../src/permissions/cards/file-write/FileWritePermissionRequest.tsx')
+const { ComputerPermissionRequest } = await import('../../src/permissions/cards/computer/ComputerPermissionRequest.tsx')
+const { BashPermissionRequest } = await import('../../src/permissions/cards/bash/ShellPermissionRequest.tsx')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { AsksPart } = await import('../../src/engine/connector/daemon/asks.ts')
+const { publishSessionAsks } = await import('../../src/engine/connector/seatProjections.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { render } = await import('../../src/screen/themedRenderer.ts')
 const { default: stripAnsi } = await import('strip-ansi')
 const { waitFor } = await import('../lib/settingsPopupHarness.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { parseForSecurity } = await import('../../src/utils/permissions/decision/commandAnalysis.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { parseForSecurity } = await import('../../src/permissions/rules/decision/commandAnalysis.ts')
 
 let failures = 0
 const HINT =
-  'change getFilePermissionOptions in src/components/permissions/FilePermissionDialog/permissionOptions.tsx, bashToolUseOptions in src/components/permissions/BashPermissionRequest/bashToolUseOptions.tsx, powershellToolUseOptions in src/components/permissions/PowerShellPermissionRequest/powershellToolUseOptions.tsx, shellPermissionHelpers in src/components/permissions/shellPermissionHelpers.tsx, ComputerPermissionRequest in src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx, AsksPart in src/services/engine-connector/daemon/asks.ts, or PermissionDialog / BashPermissionRequest in src/components/permissions/'
+  'change getFilePermissionOptions in src/permissions/cards/file-dialog/permissionOptions.tsx, bashToolUseOptions in src/permissions/cards/bash/shellAskOptions.tsx, powershellToolUseOptions in src/permissions/cards/powershell/powershellAskOptions.tsx, shellPermissionHelpers in src/permissions/cards/shellAskParts.tsx, ComputerPermissionRequest in src/permissions/cards/computer/ComputerPermissionRequest.tsx, AsksPart in src/engine/connector/daemon/asks.ts, or PermissionDialog / BashPermissionRequest in src/permissions/cards/'
 
 function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail} — ` : ''}${HINT}`}`)
@@ -609,8 +609,8 @@ try {
     )
 
     {
-      const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-      const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
+      const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+      const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
       const { mountOffscreen, KEY } = await import('../lib/settingsPopupHarness.ts')
       const savedRules: unknown[][] = []
       for (const [cmd, askResult] of [

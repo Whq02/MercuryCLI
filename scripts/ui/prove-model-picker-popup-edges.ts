@@ -28,30 +28,30 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
 for (const key of ['MERCURY_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'XAI_API_KEY', 'MODEL_API_KEY', 'META_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'NODE_ENV']) delete process.env[key]
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
-const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
+const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const { default: instances } = await import('../../src/ink/instances.ts')
-const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.tsx')
-const { ModelPickerPopupLease, modelPickerPopupGeometry } = await import('../../src/components/ModelPickerPopupSlot.tsx')
-const { claimModelPickerPopup } = await import('../../src/utils/cockpit/modelPickerPopup.ts')
-const { GLYPH } = await import('../../src/utils/glyphs.ts')
-const { truncateToWidth } = await import('../../src/utils/truncate.ts')
-const pure = await import('../../src/utils/model/modelPickerGroups.ts')
-type ModelChoice = import('../../src/components/MercuryModelPicker.tsx').ModelChoice
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.tsx')
+const { ModelPickerPopupLease, modelPickerPopupGeometry } = await import('../../src/screen/overlays/ModelPickerPopupSlot.tsx')
+const { claimModelPickerPopup } = await import('../../src/screen/cockpit/modelPickerPopup.ts')
+const { GLYPH } = await import('../../src/screen/theme/glyphs.ts')
+const { truncateToWidth } = await import('../../src/platform/text/truncate.ts')
+const pure = await import('../../src/models/facts/modelPickerGroups.ts')
+type ModelChoice = import('../../src/commands/model/picker/MercuryModelPicker.tsx').ModelChoice
 const h = React.createElement
 
 const TITLE = 'Mercury · model'
@@ -59,7 +59,7 @@ const DOWN = '\x1b[B'
 const UP = '\x1b[A'
 const ESC = '\x1b'
 const BACKSPACE = '\x7f'
-const EDGES_WHERE = 'see src/components/MercuryModelPicker.tsx (the picker), src/components/ModelPickerPopupSlot.tsx (the pop-up window) and src/utils/model/modelPickerGroups.ts (columns and panel width)'
+const EDGES_WHERE = 'see src/commands/model/picker/MercuryModelPicker.tsx (the picker), src/screen/overlays/ModelPickerPopupSlot.tsx (the pop-up window) and src/models/facts/modelPickerGroups.ts (columns and panel width)'
 
 const arg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)
@@ -111,7 +111,7 @@ class Input extends EventEmitter {
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }
-const hardLimit = setTimeout(() => { console.error('picker-popup-edges exceeded its deadline; a scene never painted or a wait in a scene never finished, look at the last check printed above and at src/components/ModelPickerPopupSlot.tsx'); process.exit(1) }, 240_000)
+const hardLimit = setTimeout(() => { console.error('picker-popup-edges exceeded its deadline; a scene never painted or a wait in a scene never finished, look at the last check printed above and at src/screen/overlays/ModelPickerPopupSlot.tsx'); process.exit(1) }, 240_000)
 hardLimit.unref()
 
 const ANTHROPIC = 'Mercury — Anthropic models'
@@ -282,10 +282,10 @@ for (const [columns, rows] of SIZES) {
     geometry[`${columns}x${rows}`] = { width: window.width, rows: window.height }
     const composer = scene.lines().findIndex(line => line.includes('Type a prompt'))
     check(`${columns}x${rows}: the composer stays on screen under the window`, composer > window.bottom, `the pop-up window must end above the composer, ${EDGES_WHERE}; composer row ${composer} · window bottom ${window.bottom}`)
-    check(`${columns}x${rows}: the window is no wider than the panel cap and at least the panel floor`, window.width <= pure.MODEL_PICKER_PANEL.cap && window.width >= pure.MODEL_PICKER_PANEL.min, `the panel width comes from MODEL_PICKER_PANEL in src/utils/model/modelPickerGroups.ts and the host in src/components/ModelPickerPopupSlot.tsx; width ${window.width}`)
+    check(`${columns}x${rows}: the window is no wider than the panel cap and at least the panel floor`, window.width <= pure.MODEL_PICKER_PANEL.cap && window.width >= pure.MODEL_PICKER_PANEL.min, `the panel width comes from MODEL_PICKER_PANEL in src/models/facts/modelPickerGroups.ts and the host in src/screen/overlays/ModelPickerPopupSlot.tsx; width ${window.width}`)
     const budget = Math.min(Math.max(10, rows - 7), composer - 2 - window.top)
     const overflows = window.rows.some(row => /[↑↓] \d+ more/.test(row))
-    check(`${columns}x${rows}: the window's height is within the pop-up's row budget (${budget}) and fills it when the rows overflow`, window.height <= budget && (!overflows || window.height === budget), `the pop-up row budget is set in src/components/ModelPickerPopupSlot.tsx; height ${window.height} · overflows ${overflows}`)
+    check(`${columns}x${rows}: the window's height is within the pop-up's row budget (${budget}) and fills it when the rows overflow`, window.height <= budget && (!overflows || window.height === budget), `the pop-up row budget is set in src/screen/overlays/ModelPickerPopupSlot.tsx; height ${window.height} · overflows ${overflows}`)
   }
   await scene.close()
 }
@@ -306,11 +306,11 @@ for (const [columns, rows] of SIZES) {
     const cursorOnly = unfocused === '' && landedFocused && modelRows <= 2
     console.log(`  ${columns}x${rows}: panel ${window.width} · ${compactAt(window) ? 'compact' : 'full'} tier · tail cell ${budget} · the line's room for it ${room} · expected "${expected}"`)
     if (cursorOnly) check(`${columns}x${rows}: a two-line window between both markers — the no-alias row stands only as the cursor row (the door line after it is no stop), so its tail is read focused alone`, scene.window()!.rows.filter(row => /[↑↓] \d+ more/.test(row)).length === 2, `${EDGES_WHERE}; ${modelRows} model rows in the window: ${scene.window()!.rows.map(bare).join(' | ')}`)
-    else check(`${columns}x${rows}: the unfocused no-alias row's tail reads "${expected}"${room < budget ? ` (the cell's clip is ${budget} wide, the line's room ${room}: the caret prefix's column)` : ' (the cell budget, the row\'s own ellipsis)'}`, budget === 0 ? !bare(unfocused).includes('new') : tailCell(unfocused) === expected, `the tail cell is sized by pickerColumns in src/utils/model/modelPickerGroups.ts; row painted: ${bare(unfocused)}`)
+    else check(`${columns}x${rows}: the unfocused no-alias row's tail reads "${expected}"${room < budget ? ` (the cell's clip is ${budget} wide, the line's room ${room}: the caret prefix's column)` : ' (the cell budget, the row\'s own ellipsis)'}`, budget === 0 ? !bare(unfocused).includes('new') : tailCell(unfocused) === expected, `the tail cell is sized by pickerColumns in src/models/facts/modelPickerGroups.ts; row painted: ${bare(unfocused)}`)
     if (landedFocused) { scene.push(UP); await sleep(120) }
     for (let step = 0; step < 6 && !cursorRow(scene.window()!).includes(PREVIEW_NEEDLE); step++) { scene.push(DOWN); await sleep(120) }
     const focused = cursorRow(scene.window()!)
-    check(`${columns}x${rows}: the focused no-alias row reads ${cursorOnly ? `"${expected}"` : 'the same tail'}`, budget === 0 ? !focused.includes('new') : lastCellOf(focused) === expected && (cursorOnly || lastCellOf(focused) === tailCell(unfocused)), `the focused and unfocused row must paint the same tail, see pickerColumns in src/utils/model/modelPickerGroups.ts; focused "${focused}" · unfocused "${bare(unfocused)}"`)
+    check(`${columns}x${rows}: the focused no-alias row reads ${cursorOnly ? `"${expected}"` : 'the same tail'}`, budget === 0 ? !focused.includes('new') : lastCellOf(focused) === expected && (cursorOnly || lastCellOf(focused) === tailCell(unfocused)), `the focused and unfocused row must paint the same tail, see pickerColumns in src/models/facts/modelPickerGroups.ts; focused "${focused}" · unfocused "${bare(unfocused)}"`)
   }
   await scene.close()
 }
@@ -355,7 +355,7 @@ section('§5 the floor inside the pop-up: the pop-up never hands fewer than ten 
   const window = scene.window()
   save('popup-q4-floor', 80, 17, scene.lines())
   console.log(`  80x17 window: ${describe(window)}`)
-  check('80x17: the host bounds the aspirational ten-row floor to nine with a gutter', window !== null && window.height === 9, `the pop-up host must bound the floor to nine rows, see modelPickerPopupGeometry in src/components/ModelPickerPopupSlot.tsx; ${describe(window)}`)
+  check('80x17: the host bounds the aspirational ten-row floor to nine with a gutter', window !== null && window.height === 9, `the pop-up host must bound the floor to nine rows, see modelPickerPopupGeometry in src/screen/overlays/ModelPickerPopupSlot.tsx; ${describe(window)}`)
   if (window !== null) {
     const rows = window.rows.map(inner)
     check('80x17: the smaller host preserves the title, filter, close hint, cursor and a named cut; optional effort yields', rows.some(r => r.includes(TITLE)) && rows.some(r => r.includes('/ type to search by name or id')) && rows.some(r => /esc (?:or click outside )?closes/.test(r)) && rows.some(r => /[↑↓] \d+ more/.test(r)) && rows.some(r => r.includes('❯ ')), `the compact picker must keep those rows inside nine rows, ${EDGES_WHERE}; rows: ${rows.join(' | ')}`)
@@ -366,7 +366,7 @@ for (const [columns, rows] of SIZES) {
   const scene = await popupScene(columns, rows)
   save('popup-q4-floor', columns, rows, scene.lines())
   const window = scene.window()
-  check(`${columns}x${rows}: the box stays within the pop-up's budget (${Math.max(10, rows - 7)} rows) and sheds nothing — the effort row stands`, window !== null && window.height <= Math.max(10, rows - 7) && window.rows.some(r => r.includes('e changes it')), `the box must fit the pop-up budget and keep the effort row, see modelPickerPopupGeometry in src/components/ModelPickerPopupSlot.tsx; ${describe(window)}`)
+  check(`${columns}x${rows}: the box stays within the pop-up's budget (${Math.max(10, rows - 7)} rows) and sheds nothing — the effort row stands`, window !== null && window.height <= Math.max(10, rows - 7) && window.rows.some(r => r.includes('e changes it')), `the box must fit the pop-up budget and keep the effort row, see modelPickerPopupGeometry in src/screen/overlays/ModelPickerPopupSlot.tsx; ${describe(window)}`)
   await scene.close()
 }
 

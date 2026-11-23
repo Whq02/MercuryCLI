@@ -17,7 +17,7 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${cond ? '' : ' (fix isModelAllowed and rosterRefusal in src/services/model/modelAllowlist.ts, or parseFirstPartyGeneration and DECLARED_GENERATION_STEMS in src/utils/model/configs.ts; the default roster model comes from src/services/model/model.ts)'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${cond ? '' : ' (fix isModelAllowed and rosterRefusal in src/models/catalogue/modelAllowlist.ts, or parseFirstPartyGeneration and DECLARED_GENERATION_STEMS in src/models/facts/builtInModelTable.ts; the default roster model comes from src/models/catalogue/engineModel.ts)'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -27,15 +27,15 @@ console.log('============================================================')
 console.log(' a roster entry that names one generation admits that one')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const allow = await import('../../src/services/model/modelAllowlist.ts')
-const model = await import('../../src/services/model/model.ts')
-const caps = await import('../../src/utils/model/capabilities.ts')
-const { DECLARED_GENERATION_STEMS, parseFirstPartyGeneration } = await import('../../src/utils/model/configs.ts')
-const { resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
+const allow = await import('../../src/models/catalogue/modelAllowlist.ts')
+const model = await import('../../src/models/catalogue/engineModel.ts')
+const caps = await import('../../src/models/facts/capabilities.ts')
+const { DECLARED_GENERATION_STEMS, parseFirstPartyGeneration } = await import('../../src/models/facts/builtInModelTable.ts')
+const { resetComputedDefaultMemo } = await import('../../src/models/catalogue/computedDefault.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
 recordSignIn('anthropic', 'api-key')
 
 const settingsPath = join(scratch, 'settings.json')

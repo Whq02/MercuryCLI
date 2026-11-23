@@ -122,11 +122,11 @@ section('§7 invalid arguments: the cause, the valid shape, and that the same ar
 
 section('§8 the screen: the collapsed line shows the cause, and a failed result shows its words, not a count')
 {
-  const { enableConfigs } = await import(path.join(import.meta.dir, '../../src/utils/config/globalConfig.ts'))
+  const { enableConfigs } = await import(path.join(import.meta.dir, '../../src/platform/config/globalConfig.ts'))
   enableConfigs()
   const React = (await import('react')).default
-  const { renderToString } = await import(path.join(import.meta.dir, '../../src/utils/staticRender.tsx'))
-  const { renderToolUseErrorMessage, renderToolResultMessage } = await import(path.join(import.meta.dir, '../../src/tools/LSPTool/UI.tsx'))
+  const { renderToString } = await import(path.join(import.meta.dir, '../../src/screen/renderer/staticRender.tsx'))
+  const { renderToolUseErrorMessage, renderToolResultMessage } = await import(path.join(import.meta.dir, '../../src/tools/lsp/rows.tsx'))
   const tagged = '<tool_use_error>diagnostics requires paths (up to 50 files or directories) or filePath for one file; neither was given. Example: {"operation":"diagnostics","paths":["/absolute/path/a.ts","/absolute/path/src"]}. Nothing was sent to a language server.</tool_use_error>'
   const collapsed = await renderToString(React.createElement(React.Fragment, null, renderToolUseErrorMessage(tagged, { verbose: false })), 160)
   check('the collapsed error line names the cause', /LspRead: diagnostics requires paths/.test(collapsed), collapsed)

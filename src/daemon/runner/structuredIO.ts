@@ -1,0 +1,206 @@
+
+import { writeSync } from 'node:fs'
+import { isSessionPersistenceDisabled } from '../../boot/process-state/processState.js'
+import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
+import { createRowStamper, type RowDraft } from '../../engine/rows/project.js'
+import { InputRowSchema, type InputRow, type PromptRow, type Row } from '../../engine/rows/vocabulary.js'
+import { MAX_LINE_BYTES } from '../runner-wire/errors.js'
+import type { ParamsOf } from '../runner-wire/methods.js'
+import type { SESSION_VERBS } from '../runner-wire/sessionVerbs.js'
+import { compileJsonSchema } from '../../platform/json-schema/jsonSchemaEngine.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
+import { logForDiagnosticsNoPII } from '../../platform/logs/diagnosticsLog.js'
+import { stripBOM } from '../../platform/storage/jsonRead.js'
+import { Stream } from '../../platform/async/stream.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+
+function fatalProtocolError(reason: string): never {
+  try {
+    writeSync(2, `${reason}\n`)
+  } catch (error) {
+    passedOver(error)
+  }
+  process.exit(1)
+}
+
+const BROKEN_STDOUT_HEAD = "stdout closed before the run's output was delivered (broken pipe) — the undelivered output is lost"
+export const BROKEN_STDOUT_LINE = `${BROKEN_STDOUT_HEAD}; the session transcript is intact`
+const BROKEN_STDOUT_EPHEMERAL_LINE = `${BROKEN_STDOUT_HEAD}, and --ephemeral kept no transcript of the run`
+
+export function isBrokenPipeError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | null)?.code
+  return code === 'EPIPE' || code === 'ERR_STREAM_DESTROYED' || code === 'ERR_STREAM_WRITE_AFTER_END'
+}
+
+export const INPUT_REFUSED_CODE = 'input_refused'
+
+type OutboundNotificationMethod = typeof SESSION_VERBS.sessionApplied.runner.name | typeof SESSION_VERBS.elicitationComplete.runner.name
+export type OutboundNotification = { [M in OutboundNotificationMethod]: { method: M; params: ParamsOf<M> } }[OutboundNotificationMethod]
+export type OutboundLine = RowDraft | OutboundNotification
+
+export function isRowLine(line: OutboundLine): line is RowDraft {
+  return !('method' in line)
+}
+
+function promptContentBlank(content: PromptRow['content']): boolean {
+  if (typeof content === 'string') return content.trim() === ''
+  return content.every(block => block.type === 'text' && block.text.trim() === '')
+}
+
+export function emptyInputRow(row: InputRow): string | null {
+  if (row.type === 'prompt' && promptContentBlank(row.content)) return 'a prompt row with no content'
+  if (row.type === 'shell' && row.command.trim() === '') return 'a shell row with no command'
+  if (row.type === 'note' && (row.to === '' || row.content === '')) return 'a note row with no agent or no content'
+  if (row.type === 'outside-report' && (!row.sender.trim() || /[\x00-\x1f\x7f]/.test(row.sender) || !row.content.trim())) return 'an outside report needs a sender and content'
+  return null
+}
+
+export function promptSchemaRefusal(row: InputRow): string | null {
+  if (row.type !== 'prompt' || row.schema === undefined) return null
+  const compiled = compileJsonSchema(row.schema)
+  if (compiled.ok) return null
+  return `the prompt row${row.id === undefined ? '' : ` ${row.id}`} carries a schema that is not a JSON schema — ${compiled.error}`
+}
+
+export function schemaFlagRefusal(text: string): string | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch (error) {
+    return `--schema is not JSON — ${error instanceof Error ? error.message : String(error)}`
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return '--schema must be a JSON object: the JSON schema the answer has to satisfy'
+  const compiled = compileJsonSchema(parsed)
+  return compiled.ok ? null : `--schema is not a JSON schema — ${compiled.error}`
+}
+
+export function inputRefusal(parsed: unknown): string | null {
+  const check = InputRowSchema().safeParse(parsed)
+  const type = parsed !== null && typeof parsed === 'object' ? (parsed as { type?: unknown }).type : undefined
+  if (check.success) {
+    const empty = emptyInputRow(check.data)
+    if (empty !== null) return `input refused: ${empty}`
+    const schema = promptSchemaRefusal(check.data)
+    return schema === null ? null : `input refused: ${schema}`
+  }
+  if (typeof type !== 'string') return 'input refused: a row needs a type (prompt, shell or note)'
+  if (type !== 'prompt' && type !== 'shell' && type !== 'note' && type !== 'outside-report') return `input refused: unknown row type '${type}' (prompt, shell or note)`
+  return `input refused: the ${type} row is malformed — ${check.error.issues.map(issue => `${issue.path.join('.') || 'row'}: ${issue.message}`).join('; ')}`
+}
+
+export class StructuredIO {
+  readonly structuredInput: AsyncGenerator<InputRow, void, unknown>
+  readonly outbound: Stream<OutboundLine> = new Stream<OutboundLine>()
+  readonly rows = createRowStamper()
+
+  readonly #prepended: string[] = []
+  readonly #refuse: (text: string) => void
+
+  constructor(input: AsyncIterable<string>, refuse: (text: string) => void = text => logForDebugging(text)) {
+    this.#refuse = refuse
+    this.structuredInput = this.#createInputStream(input)
+  }
+
+
+  prependUserMessage(content: string): void {
+    this.#prepended.push(content)
+  }
+
+  #takePrepended(): InputRow[] {
+    const taken = this.#prepended.splice(0, this.#prepended.length)
+    return taken.map(content => ({ type: 'prompt' as const, content }))
+  }
+
+  async *#createInputStream(input: AsyncIterable<string>): AsyncGenerator<InputRow, void, unknown> {
+    let buffer = ''
+    let bytes = 0
+    let skipping = false
+    yield* this.#takePrepended()
+    for await (const chunk of input) {
+      let start = 0
+      for (;;) {
+        const newlineIndex = chunk.indexOf('\n', start)
+        if (!skipping) {
+          const part = chunk.slice(start, newlineIndex < 0 ? undefined : newlineIndex)
+          bytes += Buffer.byteLength(part, 'utf8')
+          if (bytes > MAX_LINE_BYTES) {
+            this.#refuse(`input refused: a line longer than ${MAX_LINE_BYTES} bytes was skipped`)
+            buffer = ''
+            skipping = true
+          } else {
+            buffer += part
+          }
+        }
+        if (newlineIndex < 0) break
+        if (!skipping && buffer.trim().length > 0) {
+          const row = this.#classifyLine(stripBOM(buffer), true)
+          yield* this.#takePrepended()
+          if (row !== undefined) yield row
+        }
+        buffer = ''
+        bytes = 0
+        skipping = false
+        start = newlineIndex + 1
+      }
+      yield* this.#takePrepended()
+    }
+    if (!skipping && buffer.trim().length > 0) {
+      const row = this.#classifyLine(stripBOM(buffer), false)
+      yield* this.#takePrepended()
+      if (row !== undefined) yield row
+    }
+    yield* this.#takePrepended()
+  }
+
+
+  #classifyLine(line: string, emitDiagnostic: boolean): InputRow | undefined {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(line)
+    } catch (error) {
+      fatalProtocolError(`Error parsing stdin line: ${line}\n${error instanceof Error ? error.message : String(error)}`)
+    }
+    if (emitDiagnostic) {
+      logForDiagnosticsNoPII('debug', 'headless_stdin_message', {
+        type: String((parsed as { type?: unknown } | null)?.type ?? 'unknown'),
+      })
+    }
+    const refusal = inputRefusal(parsed)
+    if (refusal !== null) {
+      this.#refuse(refusal)
+      return undefined
+    }
+    return InputRowSchema().parse(parsed)
+  }
+
+
+  stdoutPipeBroken = false
+
+  markStdoutPipeBroken(): void {
+    if (this.stdoutPipeBroken) return
+    this.stdoutPipeBroken = true
+    process.exitCode = 1
+    try {
+      process.stderr.write(`${isSessionPersistenceDisabled() ? BROKEN_STDOUT_EPHEMERAL_LINE : BROKEN_STDOUT_LINE}\n`)
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+
+  write(message: OutboundLine): Promise<Row | null> {
+    return new Promise((resolve, reject) => {
+      if (this.stdoutPipeBroken || !isRowLine(message)) return resolve(null)
+      const line: Row = this.rows.stamp<Row>(message)
+      process.stdout.write(`${ndjsonSafeStringify(line)}\n`, error => {
+        if (error) {
+          if (isBrokenPipeError(error)) {
+            this.markStdoutPipeBroken()
+            return resolve(null)
+          }
+          return reject(error)
+        }
+        resolve(line)
+      })
+    })
+  }
+}

@@ -6,8 +6,8 @@ import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
 import stringWidth from 'string-width'
-import type { SeatStatusV1, SessionLiveV1 } from '../../src/services/engine-connector/seatLive.ts'
-import type { SampleRowV1, WorkRowV1 } from '../../src/services/engine-connector/types.ts'
+import type { SeatStatusV1, SessionLiveV1 } from '../../src/engine/connector/seatLive.ts'
+import type { SampleRowV1, WorkRowV1 } from '../../src/engine/connector/types.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const argument = (name: string): string | undefined => {
@@ -26,9 +26,9 @@ process.env.ANTHROPIC_API_KEY ??= 'proof-key-ci-gate-not-a-real-key'
 let failures = 0
 let checks = 0
 const statusRowFailureHint = (label: string): string => {
-  if (/daemon/.test(label)) return 'change the daemon-mismatch words in src/daemon/handshake.ts and how the status row paints them in src/components/SwitchboardTagBar.tsx'
-  if (/motion|reduced|slow link/.test(label)) return 'change statusMotionWords in src/components/SwitchboardTagBar.tsx (the posture and trip come from src/utils/cockpit/motionGovernor.ts)'
-  return 'change FocusedSessionStatusRow, statusRowPlan, modelStatusWords or restingStatusWords in src/components/SwitchboardTagBar.tsx'
+  if (/daemon/.test(label)) return 'change the daemon-mismatch words in src/daemon/control/handshake.ts and how the status row paints them in src/screen/chat/SwitchboardTagBar.tsx'
+  if (/motion|reduced|slow link/.test(label)) return 'change statusMotionWords in src/screen/chat/SwitchboardTagBar.tsx (the posture and trip come from src/screen/cockpit/motionGovernor.ts)'
+  return 'change FocusedSessionStatusRow, statusRowPlan, modelStatusWords or restingStatusWords in src/screen/chat/SwitchboardTagBar.tsx'
 }
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
@@ -49,19 +49,19 @@ async function main(): Promise<void> {
   const workspace = join(scratch, FOLDER)
   mkdirSync(join(workspace, '.git'), { recursive: true })
   writeFileSync(join(workspace, '.git', 'HEAD'), `ref: refs/heads/${BRANCH}\n`)
-  const { enableConfigs } = await import(src('utils/config.ts'))
+  const { enableConfigs } = await import(src('platform/settings/config.ts'))
   enableConfigs()
-  const bar = await import(src('components/SwitchboardTagBar.tsx'))
-  const { keyHintLabel } = await import(src('components/mercury-ui/keyHintLabel.ts'))
-  const { renderModelChip } = await import(src('services/model/model.ts'))
-  const { IDLE_LIVE } = await import(src('services/engine-connector/seatLive.ts'))
-  const { noSessionConnector } = await import(src('services/engine-connector/noSessionConnector.ts'))
-  const slot = await import(src('services/engine-connector/focusedConnector.ts'))
-  const ink = await import(src('ink.ts'))
-  const { default: StdinContext } = await import(src('ink/components/StdinContext.ts'))
-  const { AppStoreContext } = await import(src('state/AppState.tsx'))
-  const { createStore } = await import(src('state/store.ts'))
-  const { getDefaultAppState } = await import(src('state/AppStateStore.ts'))
+  const bar = await import(src('screen/chat/SwitchboardTagBar.tsx'))
+  const { keyHintLabel } = await import(src('screen/widgets/keyHintLabel.ts'))
+  const { renderModelChip } = await import(src('models/catalogue/engineModel.ts'))
+  const { IDLE_LIVE } = await import(src('engine/connector/seatLive.ts'))
+  const { noSessionConnector } = await import(src('engine/connector/noSessionConnector.ts'))
+  const slot = await import(src('engine/connector/focusedConnector.ts'))
+  const ink = await import(src('screen/themedRenderer.ts'))
+  const { default: StdinContext } = await import(src('screen/renderer/elements/StdinContext.ts'))
+  const { AppStoreContext } = await import(src('screen/app-state/AppState.tsx'))
+  const { createStore } = await import(src('platform/primitives/store.ts'))
+  const { getDefaultAppState } = await import(src('screen/app-state/AppStateStore.ts'))
   const React = (await import(Bun.resolveSync('react', join(ROOT, 'src')))).default
 
   const MODEL = renderModelChip(MODEL_ID)
@@ -234,7 +234,7 @@ async function main(): Promise<void> {
   }
 
   {
-    const motion = await import(src('utils/cockpit/motionGovernor.ts'))
+    const motion = await import(src('screen/cockpit/motionGovernor.ts'))
     process.env.MERCURY_CRITTER_IDLE = '1'
     process.env.MERCURY_LIVE_GLYPHS = '1'
     seat.setStatus(status)
@@ -288,9 +288,9 @@ async function main(): Promise<void> {
 
   {
     const net = await import('node:net')
-    const hs = await import(src('daemon/handshake.ts'))
-    const socket = await import(src('daemon/controlSocket.ts'))
-    const protocol = await import(src('daemon/protocol.ts'))
+    const hs = await import(src('daemon/control/handshake.ts'))
+    const socket = await import(src('daemon/control/controlSocket.ts'))
+    const protocol = await import(src('daemon/control/protocol.ts'))
     process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
     let buildTree = 'aaaaaaaaaaaa'

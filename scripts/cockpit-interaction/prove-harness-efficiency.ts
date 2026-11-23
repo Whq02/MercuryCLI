@@ -7,12 +7,12 @@ import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getAllBaseTools, getTools } = await import('../../src/tools.ts')
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+const { getAllBaseTools, getTools } = await import('../../src/tools/kit/toolList.ts')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
 
 t.section('row 2 — the request pool is measured, and dead bytes are gone')
 

@@ -20,11 +20,11 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
-const { enableConfigs } = await import('../../src/utils/config.ts')
-const { setOriginalCwd, setCwdState, setProjectRoot, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
+const { setOriginalCwd, setCwdState, setProjectRoot, setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
 setSessionTrustAccepted(true)
 enableConfigs()
 setOriginalCwd(run)
@@ -33,7 +33,7 @@ setProjectRoot(run)
 
 let checks = 0
 let failures = 0
-const insideAWordHint = 'change denyRuleReach (the hide calls for a program Mercury cannot follow), hiddenDenyRuleAsk and hiddenDenyRuleRefusal in src/tools/BashTool/denyRuleReach.ts, which decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts reaches through bashToolHasPermission'
+const insideAWordHint = 'change denyRuleReach (the hide calls for a program Mercury cannot follow), hiddenDenyRuleAsk and hiddenDenyRuleRefusal in src/tools/shell/denyRuleReach.ts, which decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts reaches through bashToolHasPermission'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++

@@ -10,7 +10,7 @@ const at = process.argv.indexOf('--dist')
 const dist = resolve(at < 0 ? join(import.meta.dir, '../../dist/mercury.mjs') : process.argv[at + 1]!)
 if (!existsSync(dist)) { console.error(`FAIL run bundle exists: ${dist}`); process.exit(1) }
 let failures = 0
-const WHERE_TO_LOOK = 'to fix: a startup refusal goes out through failCli in src/main/cli.ts, which prints the refused outcome row from refusedOutcome (src/cli/headless/refusalEnvelope.ts) for rows and json and the plain sentence on stderr for text'
+const WHERE_TO_LOOK = 'to fix: a startup refusal goes out through failCli in src/boot/main/cli.ts, which prints the refused outcome row from refusedOutcome (src/daemon/runner/refusalEnvelope.ts) for rows and json and the plain sentence on stderr for text'
 const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail ? `${detail} · ` : ''}${WHERE_TO_LOOK}`}`); if (!ok) failures++ }
 
 type Capture = { code: number | null; out: string; err: string }

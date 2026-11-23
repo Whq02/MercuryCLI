@@ -10,20 +10,20 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spell
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 let failures = 0
-const FAIL_HINT = 'use last activity (lastDeliveryAt, lastTurnSettledAt, activity.lastTurnAt, else transcript mtime, never spawnedAt) for ageLabel in recordRowOf in src/services/concourse/concourseSnapshot.ts'
+const FAIL_HINT = 'use last activity (lastDeliveryAt, lastTurnSettledAt, activity.lastTurnAt, else transcript mtime, never spawnedAt) for ageLabel in recordRowOf in src/screen/concourse-model/concourseSnapshot.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? detail : [detail, FAIL_HINT].filter(Boolean).join(' — ')
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
-const { buildConcourseSnapshot } = await import('../../src/services/concourse/concourseSnapshot.ts')
-const { projectIdentity } = await import('../../src/utils/bootCardFacts.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
+const { workerTranscriptPath } = await import('../../src/screen/concourse-model/workerTranscript.ts')
+const { buildConcourseSnapshot } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
+const { projectIdentity } = await import('../../src/screen/boot-face/bootCardFacts.ts')
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const NOW = Date.now()

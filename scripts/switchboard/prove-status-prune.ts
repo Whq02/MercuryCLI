@@ -12,16 +12,16 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spell
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}fix the census in src/utils/sessionStorage/logs.ts (transcriptCensus), the sweep in src/services/cleanup.ts (recordingsUnderSweep, retentionWindowDays, cleanupOldSessionFiles) or the offer and the delete door in src/services/switchboard/transcriptPruneDoor.ts (buildPruneOffer, operatorPruneTranscripts)`
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}fix the census in src/sessions/transcripts/sessionListings.ts (transcriptCensus), the sweep in src/sessions/transcripts/retentionSweep.ts (recordingsUnderSweep, retentionWindowDays, cleanupOldSessionFiles) or the offer and the delete door in src/daemon/switchboard/transcriptPruneDoor.ts (buildPruneOffer, operatorPruneTranscripts)`
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { getProjectsDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { transcriptCensus } = await import('../../src/utils/sessionStorage/logs.ts')
-const { cleanupOldSessionFiles, recordingsUnderSweep, retentionWindowDays } = await import('../../src/services/cleanup.ts')
-const { buildPruneOffer, operatorPruneTranscripts } = await import('../../src/services/switchboard/transcriptPruneDoor.ts')
+const { getProjectsDir } = await import('../../src/sessions/transcripts/paths.ts')
+const { transcriptCensus } = await import('../../src/sessions/transcripts/sessionListings.ts')
+const { cleanupOldSessionFiles, recordingsUnderSweep, retentionWindowDays } = await import('../../src/sessions/transcripts/retentionSweep.ts')
+const { buildPruneOffer, operatorPruneTranscripts } = await import('../../src/daemon/switchboard/transcriptPruneDoor.ts')
 
 const NOW = Date.now()
 const DAY = 24 * 60 * 60 * 1000

@@ -1,0 +1,61 @@
+import { existsSync } from 'node:fs'
+import { sep } from 'node:path'
+
+import { getOriginalCwd } from '../../boot/process-state/processState.js'
+import type { SessionListing } from '../../sessions/transcripts/transcriptEntries.js'
+import { quote } from '../../platform/shell/bash/shellQuote.js'
+import { binaryName } from '../../platform/settings/config.js'
+import { normalizePathForComparison } from '../../platform/files/file.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+import { sessionIdOfListing } from '../../sessions/transcripts/sessionStorage.js'
+
+type CrossProjectResumeResult =
+  | { isCrossProject: false }
+  | { isCrossProject: true; isSameRepoWorktree: true; projectPath: string }
+  | { isCrossProject: true; isSameRepoWorktree: false; projectPath: string; command: string }
+
+function normalizeDir(dir: string): string {
+  const normalized = normalizePathForComparison(dir)
+  if (normalized.length > 1 && normalized.endsWith(sep) && !/^[a-zA-Z]:[\\/]$/.test(normalized)) {
+    return normalized.slice(0, -1)
+  }
+  return normalized
+}
+
+export function checkCrossProjectResume(
+  log: SessionListing,
+  showAllProjects: boolean,
+  worktreePaths: string[],
+): CrossProjectResumeResult {
+  if (!showAllProjects || !log.projectPath) {
+    return { isCrossProject: false }
+  }
+  const projectPath = log.projectPath
+  const currentCwd = normalizeDir(getOriginalCwd())
+  const normalizedProject = normalizeDir(projectPath)
+  if (normalizedProject === currentCwd) {
+    return { isCrossProject: false }
+  }
+  try {
+    if (!existsSync(projectPath)) {
+      return { isCrossProject: false }
+    }
+  } catch (error) {
+    passedOver(error)
+    return { isCrossProject: false }
+  }
+  const isSameRepoWorktree = worktreePaths.some(worktreePath => {
+    const normalizedWorktree = normalizeDir(worktreePath)
+    const prefix = normalizedWorktree.endsWith(sep) ? normalizedWorktree : `${normalizedWorktree}${sep}`
+    return normalizedProject === normalizedWorktree || normalizedProject.startsWith(prefix)
+  })
+  if (isSameRepoWorktree) {
+    return { isCrossProject: true, isSameRepoWorktree: true, projectPath }
+  }
+  const sessionId = sessionIdOfListing(log)
+  if (!sessionId) {
+    return { isCrossProject: false }
+  }
+  const command = `cd ${quote([projectPath])} && ${binaryName()} --resume ${sessionId}`
+  return { isCrossProject: true, isSameRepoWorktree: false, projectPath, command }
+}

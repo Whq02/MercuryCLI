@@ -5,14 +5,14 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const failHint = cond ? '' : ' | to fix: the paint-order owner is boardModalOwner in src/components/concourse/boardModalOwner.ts (section 1 and 2); the one-pop-per-event esc law is isTopOverlayNow and popOverlay in src/context/overlayStack.ts (section 4)'
+  const failHint = cond ? '' : ' | to fix: the paint-order owner is boardModalOwner in src/screen/concourse/boardModalOwner.ts (section 1 and 2); the one-pop-per-event esc law is isTopOverlayNow and popOverlay in src/screen/overlays/overlayStack.ts (section 4)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${failHint}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { boardModalOwner } = await import('../../src/components/concourse/boardModalOwner.ts')
+const { boardModalOwner } = await import('../../src/screen/concourse/boardModalOwner.ts')
 
 type Facts = Parameters<typeof boardModalOwner>[0]
 const none: Facts = {
@@ -72,9 +72,9 @@ section('§2 the whole paint-order law, pairwise')
 section('§4 the overlay-stack esc law beside it (one esc, one layer)')
 {
   const { pushOverlay, popOverlay, isTopOverlayNow, resetOverlayStackForTests, overlayStackSnapshot } = await import(
-    '../../src/context/overlayStack.ts'
+    '../../src/screen/overlays/overlayStack.ts'
   )
-  const input = await import('../../src/ink/events/input-event.ts')
+  const input = await import('../../src/screen/renderer/events/input-event.ts')
   resetOverlayStackForTests()
   const below = pushOverlay({ id: 'select', modal: true })
   const top = pushOverlay({ id: 'concourse-ground', modal: true })

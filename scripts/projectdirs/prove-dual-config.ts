@@ -6,13 +6,13 @@ import {
   projectConfigCandidates,
   projectConfigDirs,
   resolveProjectConfigPath,
-} from '../../src/utils/projectConfig.js'
-import { projectLocalPath } from '../../src/utils/projectLocal/paths.js'
-import { getProjectDirsUpToHome } from '../../src/utils/markdownConfigLoader.js'
-import { loadProjectWards } from '../../src/guards/wardsGuard.js'
+} from '../../src/platform/settings/projectConfig.js'
+import { projectLocalPath } from '../../src/platform/project-local/paths.js'
+import { getProjectDirsUpToHome } from '../../src/platform/settings/markdownConfigLoader.js'
+import { loadProjectWards } from '../../src/permissions/guards/wardsGuard.js'
 
 let failures = 0
-const HOME_RESOLVER_FIX = 'change the resolver this check names so only the .mercury home is ever returned, read or listed: projectLocalPath in src/utils/projectLocal/paths.ts, resolveProjectConfigPath / projectConfigCandidates / projectConfigDirs in src/utils/projectConfig.ts, getProjectDirsUpToHome in src/utils/markdownConfigLoader.ts, loadProjectWards in src/guards/wardsGuard.ts'
+const HOME_RESOLVER_FIX = 'change the resolver this check names so only the .mercury home is ever returned, read or listed: projectLocalPath in src/platform/project-local/paths.ts, resolveProjectConfigPath / projectConfigCandidates / projectConfigDirs in src/platform/settings/projectConfig.ts, getProjectDirsUpToHome in src/platform/settings/markdownConfigLoader.ts, loadProjectWards in src/permissions/guards/wardsGuard.ts'
 const check = (cond: boolean, msg: string): void => {
   if (cond) console.log(`  [PASS] ${msg}`)
   else {

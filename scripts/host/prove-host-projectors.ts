@@ -2,10 +2,10 @@ import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { HOST_RECIPES } from '../../src/services/host/recipes.ts'
-import { startHostEngine } from '../../src/services/host/ssh.ts'
-import { weightManifest, weightCheckScript } from '../../src/services/host/keptWeights.ts'
-import { hostRecipeSchema, exportHostRecipesJson } from '../../src/services/host/recipesFile.ts'
+import { HOST_RECIPES } from '../../src/models/hosting/recipes.ts'
+import { startHostEngine } from '../../src/models/hosting/ssh.ts'
+import { weightManifest, weightCheckScript } from '../../src/models/hosting/keptWeights.ts'
+import { hostRecipeSchema, exportHostRecipesJson } from '../../src/models/hosting/recipesFile.ts'
 
 const expected = new Map([
   ['glm53-flash-gguf-b300', { file: 'mmproj-F16.gguf', size: 1128047296 }],

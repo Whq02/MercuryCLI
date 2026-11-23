@@ -10,7 +10,7 @@ const arg = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
   return at < 0 ? undefined : process.argv[at + 1]
 }
-const ROOT = resolve(import.meta.dir, '../..')
+const ROOT = resolve(import.meta.dir, '../../catalogue/commands')
 const DIST = resolve(arg('--dist') ?? join(ROOT, 'dist/mercury.mjs'))
 const FRAMES = arg('--frames')
 const SIZES = (arg('--sizes') ?? '80x21,80x14,82x17,120x40').split(',').map(size => size.split('x').map(Number) as [number, number])

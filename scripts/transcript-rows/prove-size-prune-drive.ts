@@ -24,7 +24,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 const { seedFirstRun } = await import(join(root, 'scripts/lib/firstRunSeed.ts'))
 const { encodeSeedTranscript } = await import(join(root, 'scripts/lib/seedTranscript.ts'))
-const { getProjectDir } = await import(join(root, 'src/utils/sessionStoragePortable.ts'))
+const { getProjectDir } = await import(join(root, 'src/sessions/transcripts/sessionStoragePortable.ts'))
 const { resolveCaptureDriver, captureEngineEntry, vshotBudgetMs } = await import(join(root, 'scripts/lib/captureDriver.ts'))
 const { startOverflowFixture } = await import(join(root, 'scripts/compact/overflowFixture.ts'))
 const driver = resolveCaptureDriver()
@@ -138,5 +138,5 @@ console.log(`[${success ? 'PASS' : 'FAIL'}] the real chat keeps every tool resul
 for (const [name, ok] of checks) if (!ok) console.log(`  [FAIL] ${name}`)
 console.log(JSON.stringify({ exit, requests: fixture.captured.map(request => ({ dialect: request.dialect, path: request.path, input: inputItems(request).length, outputs: outputsOf(request).length })), home, output, marks: captured.marks?.map(mark => mark.label), stderr }))
 if (!success) console.log(`  [frame] ${text.slice(0, 600)}`)
-if (!success) console.log(`  [hint] a failed check here means the turn pruned or cleared tool results before any summary or painted a context-size prune line: look at the pressure prune and microcompact paths in src/services/run/requestContextPlan.ts and src/services/compact/microCompact.ts; if the capture itself failed (exit not 0), read stderr and capture.stderr.txt in ${output}`)
+if (!success) console.log(`  [hint] a failed check here means the turn pruned or cleared tool results before any summary or painted a context-size prune line: look at the pressure prune and microcompact paths in src/engine/run/requestContextPlan.ts and src/engine/compaction/pruneToolResults.ts; if the capture itself failed (exit not 0), read stderr and capture.stderr.txt in ${output}`)
 process.exit(success ? 0 : 1)

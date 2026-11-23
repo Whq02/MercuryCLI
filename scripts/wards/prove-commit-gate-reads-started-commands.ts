@@ -6,7 +6,7 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
-const GATE_FAIL_HINT = 'to fix: a tool that starts a command must declare it in its shellCommandOf (src/tools/ServiceTool, JourneyTool, MonitorTool), which commandOfCall in src/guards/commitGate.ts reads; a refused or passed verdict that differs comes from evaluateCommitGate in the same file'
+const GATE_FAIL_HINT = 'to fix: a tool that starts a command must declare it in its shellCommandOf (src/tools/service, JourneyTool, MonitorTool), which commandOfCall in src/permissions/guards/commitGate.ts reads; a refused or passed verdict that differs comes from evaluateCommitGate in the same file'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -20,15 +20,15 @@ const ROOT = join(import.meta.dir, '..', '..')
 const SRC = join(ROOT, 'src')
 for (const key of ['MERCURY_SPAWNED_BY', 'MERCURY_WARDS', 'MERCURY_COMMIT_GATE', 'MERCURY_SKIP_PERMISSIONS']) delete process.env[key]
 
-const { enableConfigs } = await import(join(SRC, 'utils/config.ts'))
-const { judgeToolCall, guardsEngaged, resetGuardsForTesting } = await import(join(SRC, 'guards/guards.ts'))
-const { COMMIT_GATE_ID, disengageCommitGate, engageCommitGate } = await import(join(SRC, 'guards/commitGate.ts'))
-const { deleteFlagEnv, setFlagEnv } = await import(join(SRC, 'substrate/flagRegistry.ts'))
-const { BashTool } = await import(join(SRC, 'tools/BashTool/BashTool.tsx'))
-const { MonitorTool } = await import(join(SRC, 'tools/MonitorTool/MonitorTool.ts'))
-const { ServiceTool } = await import(join(SRC, 'tools/ServiceTool/ServiceTool.ts'))
-const { JourneyTool } = await import(join(SRC, 'tools/JourneyTool/JourneyTool.ts'))
-const { FileReadTool } = await import(join(SRC, 'tools/FileReadTool/FileReadTool.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/settings/config.ts'))
+const { judgeToolCall, guardsEngaged, resetGuardsForTesting } = await import(join(SRC, 'permissions/guards/guards.ts'))
+const { COMMIT_GATE_ID, disengageCommitGate, engageCommitGate } = await import(join(SRC, 'permissions/guards/commitGate.ts'))
+const { deleteFlagEnv, setFlagEnv } = await import(join(SRC, 'platform/substrate/flagRegistry.ts'))
+const { BashTool } = await import(join(SRC, 'tools/shell/BashTool.tsx'))
+const { MonitorTool } = await import(join(SRC, 'tools/monitor/MonitorTool.ts'))
+const { ServiceTool } = await import(join(SRC, 'tools/service/ServiceTool.ts'))
+const { JourneyTool } = await import(join(SRC, 'tools/journey/JourneyTool.ts'))
+const { FileReadTool } = await import(join(SRC, 'tools/read/ReadTool.ts'))
 enableConfigs()
 
 const SESSION = 'commit-gate-started-commands'

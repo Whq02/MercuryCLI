@@ -135,12 +135,12 @@
     ]
   },
   "resourceLikeStores": {
-    "artifacts": "src/utils/artifacts/store.ts (configHome/artifacts/<scope>/<id> + .meta.json)",
-    "runSidecar": "src/services/run/runSidecar.ts (<transcript-dir>/<sessionId>.run.json)",
-    "taskOutput": "src/utils/task/diskOutput.ts (per-task output files)",
-    "toolResultSpill": "src/utils/toolResultStorage.ts (large tool results)",
-    "transcripts": "src/utils/sessionStorage.ts (project JSONL transcripts)",
-    "verifyEvidence": "src/utils/verification/verificationState.ts (.mercury/verify/)",
+    "artifacts": "src/sessions/artifacts/store.ts (configHome/artifacts/<scope>/<id> + .meta.json)",
+    "runSidecar": "src/engine/run/runSidecar.ts (<transcript-dir>/<sessionId>.run.json)",
+    "taskOutput": "src/engine/task-framework/diskOutput.ts (per-task output files)",
+    "toolResultSpill": "src/engine/tool-dispatch/toolResultStorage.ts (large tool results)",
+    "transcripts": "src/sessions/transcripts/sessionStorage.ts (project JSONL transcripts)",
+    "verifyEvidence": "src/platform/verification/verificationState.ts (.mercury/verify/)",
     "healthCert": "<config home>/projects/<slug>/health/last-cert.json (utils/healthReport.ts; the project folder keeps only a leftover .mercury/health/)",
     "gateVerdict": ".mercury/gate/verdict.json (scripts/run-all-suites.sh)"
   },

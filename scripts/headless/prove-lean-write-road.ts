@@ -46,14 +46,14 @@ try {
   const requests = api.messageRequests()
   const first = requests[0]?.body as Body | undefined
   const names = (first?.tools ?? []).map(tool => tool.name)
-  check('the lean roster offers Bash, Read, Edit and Write', ['Bash', 'Read', 'Edit', 'Write'].every(name => names.includes(name)), `the --lean roster is chosen in settledTools in src/tools.ts; offered tools: ${names.join(',')}`)
-  check('the lean roster stays lean: no Glob, Grep, Crewmate, Web or LSP tools', !names.some(name => ['Glob', 'Grep', 'Crewmate', 'WebFetch', 'WebSearch', 'LspRead'].includes(name)), `the --lean roster is chosen in settledTools in src/tools.ts; offered tools: ${names.join(',')}`)
+  check('the lean roster offers Bash, Read, Edit and Write', ['Bash', 'Read', 'Edit', 'Write'].every(name => names.includes(name)), `the --lean roster is chosen in settledTools in src/tools/kit/toolList.ts; offered tools: ${names.join(',')}`)
+  check('the lean roster stays lean: no Glob, Grep, Crewmate, Web or LSP tools', !names.some(name => ['Glob', 'Grep', 'Crewmate', 'WebFetch', 'WebSearch', 'LspRead'].includes(name)), `the --lean roster is chosen in settledTools in src/tools/kit/toolList.ts; offered tools: ${names.join(',')}`)
   const bash = (first?.tools ?? []).find(tool => tool.name === 'Bash')?.description ?? ''
-  check('the Bash tool names no other tool at all, so the lean roster withholds nothing from it', !/\b(Glob|Grep|Read|Edit|Write)\b/.test(bash), `the Bash prompt comes from getSimplePrompt(offered) in src/tools/BashTool/prompt.ts and must not name tools the roster withholds; prompt starts: ${bash.slice(0, 200)}`)
-  check('the run answered', answer.code === 0 && answer.out.trim() === 'done', `the lean run should exit 0 and print done (the --lean flag is set up in src/main/defaultAction.ts); run result: ${JSON.stringify(answer).slice(0, 300)}`)
-  check('Write created the file with the content the model gave', existsSync(target) && readFileSync(target, 'utf8') === CONTENT, `the Write tool must create the file with the content the model gave under --lean (src/tools/FileWriteTool/write/call.ts); found: ${existsSync(target) ? readFileSync(target, 'utf8') : 'no file'}`)
+  check('the Bash tool names no other tool at all, so the lean roster withholds nothing from it', !/\b(Glob|Grep|Read|Edit|Write)\b/.test(bash), `the Bash prompt comes from getSimplePrompt(offered) in src/tools/shell/prompt.ts and must not name tools the roster withholds; prompt starts: ${bash.slice(0, 200)}`)
+  check('the run answered', answer.code === 0 && answer.out.trim() === 'done', `the lean run should exit 0 and print done (the --lean flag is set up in src/boot/main/defaultAction.ts); run result: ${JSON.stringify(answer).slice(0, 300)}`)
+  check('Write created the file with the content the model gave', existsSync(target) && readFileSync(target, 'utf8') === CONTENT, `the Write tool must create the file with the content the model gave under --lean (src/tools/write/call/call.ts); found: ${existsSync(target) ? readFileSync(target, 'utf8') : 'no file'}`)
   const results = toolResults(requests[1]?.body as Body | undefined)
-  check('the Write call came back to the model as a success, not an unknown tool', results.length === 1 && results[0]!.is_error !== true && !JSON.stringify(results[0]!.content).includes('No such tool'), `the lean roster in settledTools (src/tools.ts) must include Write so the call runs; tool results: ${JSON.stringify(results).slice(0, 300)}`)
+  check('the Write call came back to the model as a success, not an unknown tool', results.length === 1 && results[0]!.is_error !== true && !JSON.stringify(results[0]!.content).includes('No such tool'), `the lean roster in settledTools (src/tools/kit/toolList.ts) must include Write so the call runs; tool results: ${JSON.stringify(results).slice(0, 300)}`)
   check('two requests: the Write turn and the answer, nothing retried', requests.length === 2, `expected the Write turn and the answer only; the run retried or stopped early, see the run output and the Write tool result; requests seen: ${requests.length}`)
 } finally {
   await api.close()

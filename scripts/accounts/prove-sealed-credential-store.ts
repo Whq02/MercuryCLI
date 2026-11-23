@@ -13,12 +13,12 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(join(SRC, 'constants/credentialEnvSpellings.ts'))
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(join(SRC, 'models/sign-in/credentials/credentialEnvSpellings.ts'))
 for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS as readonly string[]) delete process.env[name]
-const { plainTextStorage } = await import(join(SRC, 'utils/secureStorage/plainTextStorage.ts'))
-const { setAuthScope } = await import(join(SRC, 'utils/envUtils.ts'))
-const sealedRecord = await import(join(SRC, 'utils/secureStorage/sealedRecord.ts')).catch(() => null)
-const sealedFile = await import(join(SRC, 'utils/secureStorage/sealedFileStorage.ts')).catch(() => null)
+const { plainTextStorage } = await import(join(SRC, 'platform/secure-storage/plainTextStorage.ts'))
+const { setAuthScope } = await import(join(SRC, 'platform/environment/envUtils.ts'))
+const sealedRecord = await import(join(SRC, 'platform/secure-storage/sealedRecord.ts')).catch(() => null)
+const sealedFile = await import(join(SRC, 'platform/secure-storage/sealedFileStorage.ts')).catch(() => null)
 
 type Answer = { ok: true; bytes: Buffer } | { ok: false; why: string; final: boolean }
 type Store = {
@@ -45,7 +45,7 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   total++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — change createSealedFileStorage in src/utils/secureStorage/sealedFileStorage.ts or createKeyCustody in src/utils/secureStorage/sealedRecord.ts so this holds (if either module failed to import, the run fell back to the plain store)' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — change createSealedFileStorage in src/platform/secure-storage/sealedFileStorage.ts or createKeyCustody in src/platform/secure-storage/sealedRecord.ts so this holds (if either module failed to import, the run fell back to the plain store)' : ''}`)
 }
 const section = (title: string): void => {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
@@ -429,8 +429,8 @@ section('§9 a removal made while the sealed part was closed holds when the part
   session.store.update({ ...signedIn, mcpOAuth: fewer })
   check('the removal leaves a marker beside the sealed part: the field and the key, and no value', same(marksOn(file), [['mcpOAuth', 'x|1']]) && !raw(file).includes('fixture-'), JSON.stringify(onDisk(file)[REMOVED]))
   check('on disk the marker is one text: no name stands in the file as a string of its own', typeof onDisk(file)[REMOVED] === 'string', JSON.stringify(onDisk(file)[REMOVED]))
-  const redaction = await import(join(SRC, 'utils/redactSecrets.ts'))
-  const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
+  const redaction = await import(join(SRC, 'platform/secrets/redactSecrets.ts'))
+  const { enableConfigs } = await import(join(SRC, 'platform/config/globalConfig.ts'))
   enableConfigs()
   const listed = (await redaction.sessionSecretValues()) as string[]
   const SENTENCE = 'the mcpOAuth map has a key x|1'

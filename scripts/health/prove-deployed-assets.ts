@@ -6,11 +6,11 @@ import {
   assessDeployedAssets,
   DEPLOYED_ASSET_PAIRS,
   RETIRED_HOME_ARTIFACTS,
-} from '../../src/utils/healthDeployedAssets.ts'
+} from '../../src/platform/health/healthDeployedAssets.ts'
 
 let failures = 0
 const DEPLOYED_ASSETS_FAIL_HINT =
-  'change assessDeployedAssets or DEPLOYED_ASSET_PAIRS in src/utils/healthDeployedAssets.ts; for the launcher and splash checks, the sources are scripts/ops/launcher-mercury.sh, assets/splash/launcher-action-block.sh and scripts/splash/deploy.sh'
+  'change assessDeployedAssets or DEPLOYED_ASSET_PAIRS in src/platform/health/healthDeployedAssets.ts; for the launcher and splash checks, the sources are scripts/ops/launcher-mercury.sh, assets/splash/launcher-action-block.sh and scripts/splash/deploy.sh'
 function check(name: string, cond: boolean, detail?: string): void {
   if (cond) {
     console.log(`  ✅ ${name}`)
@@ -159,7 +159,7 @@ console.log('\n── empty home ⇒ info (direct-run setup, never a fault) ─�
 
 console.log('\n── the real repo carries every pair source ─────────────────────')
 for (const pair of DEPLOYED_ASSET_PAIRS) {
-  check(`repo canon exists: ${pair.repoRel}`, existsSync(join(repoRoot, pair.repoRel)), `restore ${pair.repoRel} or fix its entry in DEPLOYED_ASSET_PAIRS in src/utils/healthDeployedAssets.ts`)
+  check(`repo canon exists: ${pair.repoRel}`, existsSync(join(repoRoot, pair.repoRel)), `restore ${pair.repoRel} or fix its entry in DEPLOYED_ASSET_PAIRS in src/platform/health/healthDeployedAssets.ts`)
 }
 
 console.log('\n── src-side ratchet: the retired fallbacks stay retired ────────')
@@ -174,7 +174,7 @@ console.log('\n── src-side ratchet: the retired fallbacks stay retired ─�
   check(
     'RETIRED_HOME_ARTIFACTS names exactly the byte-patcher pair',
     RETIRED_HOME_ARTIFACTS.length === 2,
-    `RETIRED_HOME_ARTIFACTS has ${RETIRED_HOME_ARTIFACTS.length} entries; keep exactly patches.d and patches.json in src/utils/healthDeployedAssets.ts`,
+    `RETIRED_HOME_ARTIFACTS has ${RETIRED_HOME_ARTIFACTS.length} entries; keep exactly patches.d and patches.json in src/platform/health/healthDeployedAssets.ts`,
   )
 }
 

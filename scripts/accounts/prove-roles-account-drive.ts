@@ -73,7 +73,7 @@ try {
   if (OUT) writeFileSync(OUT, JSON.stringify(record, null, 2) + '\n')
   const ok = second.rc === 0 && firstResult.rc === 0 && (beforeSwitch as { accountUuid?: string }).accountUuid === 'account-a' && (beforeReply as { accountUuid?: string }).accountUuid === 'account-b' && (beforeReply as { organizationName?: string }).organizationName === 'B' && JSON.stringify(afterReply) === JSON.stringify(beforeReply)
   console.log(`[${ok ? 'PASS' : 'FAIL'}] the late roles response leaves the account that signed in next unchanged`)
-  if (!ok) console.log('hint: fetchAndStoreUserRoles in src/services/oauth/client.ts must drop a roles reply once another account has signed in (both `auth login` runs must exit 0, and afterReply must equal beforeReply); compare beforeSwitch, beforeReply and afterReply in the record above')
+  if (!ok) console.log('hint: fetchAndStoreUserRoles in src/models/sign-in/oauth/client.ts must drop a roles reply once another account has signed in (both `auth login` runs must exit 0, and afterReply must equal beforeReply); compare beforeSwitch, beforeReply and afterReply in the record above')
   process.exitCode = ok ? 0 : 1
 } finally {
   clearTimeout(guard)

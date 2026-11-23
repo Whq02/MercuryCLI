@@ -47,12 +47,12 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_GEMINI_API_BASE = 'http://127.0.0.1:1'
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const catalogue = await import('../../src/services/providers/gemini/geminiCatalogue.js')
+const catalogue = await import('../../src/models/roads/gemini/geminiCatalogue.js')
 const { __resetGeminiCatalogueForTest, getGeminiAvailability, getGeminiModelOptions, refreshGeminiCatalogue, geminiListedModel, geminiContextWindowFor } = catalogue
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.js')
-const { getModelOptions } = await import('../../src/services/model/modelOptions.js')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.js')
+const { getModelOptions } = await import('../../src/models/catalogue/modelOptions.js')
 const { GEMINI_MODEL_GROUP } = catalogue
 
 type LiveIds = (env?: NodeJS.ProcessEnv) => ReadonlySet<string>
@@ -76,9 +76,9 @@ const statusFetch = (status: number): typeof fetch =>
 section('1 · signed out: no account, nothing routes by provenance')
 {
   __resetGeminiCatalogueForTest()
-  check('the catalogue exports cachedLiveIds', typeof liveIds === 'function', 'export cachedLiveIds from src/services/providers/gemini/geminiCatalogue.ts')
+  check('the catalogue exports cachedLiveIds', typeof liveIds === 'function', 'export cachedLiveIds from src/models/roads/gemini/geminiCatalogue.ts')
   check('signed out, cachedLiveIds is empty', ids().length === 0, ids().join(','))
-  check('the availability is no-account', getGeminiAvailability().state === 'disabled' && (getGeminiAvailability() as { why?: string }).why === 'no-account', 'getGeminiAvailability in src/services/providers/gemini/geminiCatalogue.ts must report disabled with why no-account when no Gemini credential is set')
+  check('the availability is no-account', getGeminiAvailability().state === 'disabled' && (getGeminiAvailability() as { why?: string }).why === 'no-account', 'getGeminiAvailability in src/models/roads/gemini/geminiCatalogue.ts must report disabled with why no-account when no Gemini credential is set')
 }
 
 section('2 · signed in with the stub list: the generateContent ids are the live ids, whatever their spelling')
@@ -86,11 +86,11 @@ process.env.GEMINI_API_KEY = 'AIza-PROVER-000000000000000'
 {
   __resetGeminiCatalogueForTest()
   const snapshot = await refreshGeminiCatalogue('api-key', { force: true, fetchImpl: pageFetch(PAGE) })
-  check('three rows land, the models/ prefix stripped', snapshot?.models.length === 3 && snapshot.models.map(m => m.id).join(',') === `${PRO},${OFF},embedding-fixture`, `${JSON.stringify(snapshot?.models.map(m => m.id))} | refreshGeminiCatalogue in src/services/providers/gemini/geminiCatalogue.ts must keep every listed row and strip the models/ prefix`)
-  check(`cachedLiveIds() = {${PRO}, ${OFF}} — the vendor's generateContent statement filters, never the gemini- prefix`, ids().join(',') === `${PRO},${OFF}`, `${ids().join(',')} | cachedLiveIds in src/services/providers/gemini/geminiCatalogue.ts must keep exactly the models whose supportedGenerationMethods include generateContent`)
+  check('three rows land, the models/ prefix stripped', snapshot?.models.length === 3 && snapshot.models.map(m => m.id).join(',') === `${PRO},${OFF},embedding-fixture`, `${JSON.stringify(snapshot?.models.map(m => m.id))} | refreshGeminiCatalogue in src/models/roads/gemini/geminiCatalogue.ts must keep every listed row and strip the models/ prefix`)
+  check(`cachedLiveIds() = {${PRO}, ${OFF}} — the vendor's generateContent statement filters, never the gemini- prefix`, ids().join(',') === `${PRO},${OFF}`, `${ids().join(',')} | cachedLiveIds in src/models/roads/gemini/geminiCatalogue.ts must keep exactly the models whose supportedGenerationMethods include generateContent`)
   check('the set is memoised per snapshot', liveIds !== undefined && liveIds() === liveIds())
   const availability = getGeminiAvailability()
-  check('the availability chain lists both chat ids in the vendor\'s order', availability.state === 'ready' && availability.ids.join(',') === `${PRO},${OFF}`, `${JSON.stringify(availability)} | getGeminiAvailability in src/services/providers/gemini/geminiCatalogue.ts must list the live chat ids in the vendor order`)
+  check('the availability chain lists both chat ids in the vendor\'s order', availability.state === 'ready' && availability.ids.join(',') === `${PRO},${OFF}`, `${JSON.stringify(availability)} | getGeminiAvailability in src/models/roads/gemini/geminiCatalogue.ts must list the live chat ids in the vendor order`)
 }
 
 section('3 · the picker row: painted with the live name; selectable exactly when the routing law routes it')
@@ -99,7 +99,7 @@ section('3 · the picker row: painted with the live name; selectable exactly whe
   console.log(`  (the routing law in this tree ${routed ? 'routes' : 'does not route'} '${OFF}' — the row's selectability follows it)`)
   const rows = getGeminiModelOptions()
   const offRow = rows.find(r => r.value === OFF)
-  check("the off-grammar row is present, under the Gemini group, wearing its live name and its stated window", offRow !== undefined && offRow.group === GEMINI_MODEL_GROUP && offRow.label === 'LearnLM 2.0 Flash Experimental' && offRow.statedContextWindow === 32_768 && offRow.description === '', `${JSON.stringify(offRow)} | getGeminiModelOptions in src/services/providers/gemini/geminiCatalogue.ts must paint every live generateContent row under GEMINI_MODEL_GROUP with its live name and window`)
+  check("the off-grammar row is present, under the Gemini group, wearing its live name and its stated window", offRow !== undefined && offRow.group === GEMINI_MODEL_GROUP && offRow.label === 'LearnLM 2.0 Flash Experimental' && offRow.statedContextWindow === 32_768 && offRow.description === '', `${JSON.stringify(offRow)} | getGeminiModelOptions in src/models/roads/gemini/geminiCatalogue.ts must paint every live generateContent row under GEMINI_MODEL_GROUP with its live name and window`)
   check("its model-facing description names the live list", (offRow?.descriptionForModel ?? '').startsWith(`LearnLM 2.0 Flash Experimental (${OFF}) — live-listed generateContent model`), String(offRow?.descriptionForModel))
   check('its selectability follows declaredRouteOf and nothing else', offRow !== undefined && (offRow.unavailable === undefined) === routed && (routed || (offRow.unavailable ?? '').includes('outside the routable')), JSON.stringify({ routed, unavailable: offRow?.unavailable }))
   const proRow = rows.find(r => r.value === PRO)
@@ -108,7 +108,7 @@ section('3 · the picker row: painted with the live name; selectable exactly whe
   const composed = getModelOptions().filter(o => o.group === GEMINI_MODEL_GROUP)
   check("the composed picker's Gemini section carries the same rows in the same order", composed.map(o => o.value).join(',') === `${PRO},${OFF}` && composed.find(o => o.value === OFF)?.label === 'LearnLM 2.0 Flash Experimental', composed.map(o => o.value).join(','))
   const listed = geminiListedModel(OFF)
-  check('the listed-row reader follows the same law (the row when routed, silence when not)', (listed !== undefined) === routed && (!routed || listed?.inputTokenLimit === 32_768), `${JSON.stringify(listed)} | geminiListedModel in src/services/providers/gemini/geminiCatalogue.ts must answer exactly when declaredRouteOf in src/services/providers/routeLaw.ts routes the id`)
+  check('the listed-row reader follows the same law (the row when routed, silence when not)', (listed !== undefined) === routed && (!routed || listed?.inputTokenLimit === 32_768), `${JSON.stringify(listed)} | geminiListedModel in src/models/roads/gemini/geminiCatalogue.ts must answer exactly when declaredRouteOf in src/models/roads/routeLaw.ts routes the id`)
   check('the context-window reader agrees', (geminiContextWindowFor(OFF) !== undefined) === routed)
   check('the grammar row reads its window either way', geminiContextWindowFor(PRO)?.window === 1_048_576)
 }

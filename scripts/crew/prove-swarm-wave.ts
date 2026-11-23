@@ -37,8 +37,8 @@ try {
   }
   const alpha = posted('alpha-post')
   const beta = posted('beta-post')
-  assert(alpha.seq < beta.seq, `expected alpha.seq (${alpha.seq}) < beta.seq (${beta.seq}) in src/services/crewBoard/store.ts`)
-  assert(toolResultOf(world, 'beta-read')!.text.includes(alpha.eventId), `beta-read tool result omitted alpha eventId ${alpha.eventId} in src/services/crewBoard/store.ts`)
+  assert(alpha.seq < beta.seq, `expected alpha.seq (${alpha.seq}) < beta.seq (${beta.seq}) in src/crew/board/store.ts`)
+  assert(toolResultOf(world, 'beta-read')!.text.includes(alpha.eventId), `beta-read tool result omitted alpha eventId ${alpha.eventId} in src/crew/board/store.ts`)
   assert(toolResultOf(world, 'beta-read')!.text.includes('"team":"parser"'), 'launch team reaches the enrollment and another team can read it')
   const metadata: any[] = []
   function walk(dir: string): void { for (const entry of readdirSync(dir, { withFileTypes: true })) { const path = join(dir, entry.name); if (entry.isDirectory()) walk(path); else if (entry.name.endsWith('.meta.json')) metadata.push(JSON.parse(readFileSync(path, 'utf8'))) } }

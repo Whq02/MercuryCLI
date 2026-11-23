@@ -21,7 +21,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
-  if (!ok) console.log('      hint: row stamps and the delivery clock are set by createAttachmentMessage in src/services/attachments/orchestrator.ts; delivery rows, ordering and the landing test are createNoticeRow, deliveredNoticeRow, placeDeliveredNotices and noticeRowLanded in src/services/engine-connector/queuedNotices.ts; the painted clocks and suffixes come from src/components/messages/AttachmentMessage.tsx')
+  if (!ok) console.log('      hint: row stamps and the delivery clock are set by createAttachmentMessage in src/engine/attachments/turnAttachments.ts; delivery rows, ordering and the landing test are createNoticeRow, deliveredNoticeRow, placeDeliveredNotices and noticeRowLanded in src/engine/connector/queuedNotices.ts; the painted clocks and suffixes come from src/screen/messages/AttachmentMessage.tsx')
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 
@@ -61,8 +61,8 @@ function freezeClock(at: Date): () => void {
   }
 }
 
-const { createAttachmentMessage } = await import(join(ROOT, 'src/services/attachments/orchestrator.ts'))
-const notices = await import(join(ROOT, 'src/services/engine-connector/queuedNotices.ts'))
+const { createAttachmentMessage } = await import(join(ROOT, 'src/engine/attachments/turnAttachments.ts'))
+const notices = await import(join(ROOT, 'src/engine/connector/queuedNotices.ts'))
 type Row = { type: 'attachment'; uuid: string; timestamp: string; queued?: true; attachment: { type: string; prompt: string; commandMode: string; sentAt?: string; deliveredAt?: string } }
 
 section('§1 the record: a drained notice row is stamped where it sits — its completion — and keeps the delivery beside it')
@@ -82,14 +82,14 @@ check('an unparseable send clock never becomes the stamp', (createAttachmentMess
 
 section('§2 the strip: delivered record order stands independently of the shown clocks (178 and 80 columns)')
 const React = (await import('react')).default
-const { render } = await import(join(ROOT, 'src/ink.ts'))
-const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
-const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
-const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+const { render } = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
+const { AppStateProvider } = await import(join(ROOT, 'src/screen/app-state/AppState.tsx'))
+const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/AppStateStore.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
-const { Box } = await import(join(ROOT, 'src/ink.ts'))
-const { AttachmentMessage } = await import(join(ROOT, 'src/components/messages/AttachmentMessage.tsx'))
-const { MessageMetaProvider } = await import(join(ROOT, 'src/components/messages/TranscriptNameplate.tsx'))
+const { Box } = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
+const { AttachmentMessage } = await import(join(ROOT, 'src/screen/messages/AttachmentMessage.tsx'))
+const { MessageMetaProvider } = await import(join(ROOT, 'src/screen/messages/TranscriptNameplate.tsx'))
 const h = React.createElement as (...a: unknown[]) => React.ReactElement
 const strip = (s: string): string => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
 const settle = (ms = 200): Promise<void> => new Promise(r => setTimeout(r, ms))

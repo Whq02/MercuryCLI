@@ -1,14 +1,14 @@
 #!/usr/bin/env bun
-import type { Frame } from '../../src/ink/frame.js'
+import type { Frame } from '../../src/screen/renderer/frame.js'
 import type { SgrState } from '../ink-runtime/ansiEmulator.js'
 import type { ComposeContext, FrameScene, SceneNode } from '../ink-runtime/frameHarness.js'
 process.env.FORCE_COLOR = '3'
-const { FrameWriter } = await import('../../src/ink/frame-writer.js')
-const { optimizePatches: optimize } = await import('../../src/ink/patch-stream.js')
-const { appendChildNode, createNode, createTextNode } = await import('../../src/ink/dom.js')
-const { CellWidth, cellAt, charInCellAt } = await import('../../src/ink/cell-grid.js')
-const { CURSOR_HOME } = await import('../../src/ink/termio/csi.js')
-const { writeDiffToTerminal } = await import('../../src/ink/session/delivery.js')
+const { FrameWriter } = await import('../../src/screen/renderer/frame-writer.js')
+const { optimizePatches: optimize } = await import('../../src/screen/renderer/patch-stream.js')
+const { appendChildNode, createNode, createTextNode } = await import('../../src/screen/renderer/dom.js')
+const { CellWidth, cellAt, charInCellAt } = await import('../../src/screen/renderer/cell-grid.js')
+const { CURSOR_HOME } = await import('../../src/screen/renderer/termio/csi.js')
+const { writeDiffToTerminal } = await import('../../src/screen/renderer/terminal-session/frameDelivery.js')
 const { AnsiEmulator, defaultSgr, sgrStateOfStyleString } = await import('../ink-runtime/ansiEmulator.js')
 const { applySceneStyle, buildDom, composeScene, makeContext } = await import('../ink-runtime/frameHarness.js')
 
@@ -23,9 +23,9 @@ function check(label: string, cond: boolean, detail = ''): void {
   }
 }
 function hintFor(label: string): string {
-  if (/optimizer replay-equivalent|optimize idempotent/.test(label)) return 'optimizePatches in src/ink/patch-stream.ts must not change what the terminal ends up showing, and must give the same patches when run on its own output'
-  if (/zero-dirty|no ED bytes|cursor law|row below park/.test(label)) return 'FrameWriter.render in src/ink/frame-writer.ts decides which bytes a frame diff writes (none when nothing is dirty, no erase-display on the main screen, the cursor parked where the frame says)'
-  return 'FrameWriter.render in src/ink/frame-writer.ts diffs the previous frame to the next; a cell the terminal shows differently from the model means its text, style or link patch is wrong there (or optimizePatches in src/ink/patch-stream.ts / writeDiffToTerminal in src/ink/session/delivery.ts altered it)'
+  if (/optimizer replay-equivalent|optimize idempotent/.test(label)) return 'optimizePatches in src/screen/renderer/patch-stream.ts must not change what the terminal ends up showing, and must give the same patches when run on its own output'
+  if (/zero-dirty|no ED bytes|cursor law|row below park/.test(label)) return 'FrameWriter.render in src/screen/renderer/frame-writer.ts decides which bytes a frame diff writes (none when nothing is dirty, no erase-display on the main screen, the cursor parked where the frame says)'
+  return 'FrameWriter.render in src/screen/renderer/frame-writer.ts diffs the previous frame to the next; a cell the terminal shows differently from the model means its text, style or link patch is wrong there (or optimizePatches in src/screen/renderer/patch-stream.ts / writeDiffToTerminal in src/screen/renderer/terminal-session/frameDelivery.ts altered it)'
 }
 
 function serialize(diff: ReturnType<typeof optimize>, skipSync = true): string {
@@ -159,11 +159,11 @@ function linkScene(ctx: ComposeContext): Frame {
   root.layoutNode!.calculateLayout(ALT_COLS, ALT_ROWS)
   const scene: FrameScene = { name: 'link', cols: ALT_COLS, rows: ALT_ROWS, root: { kind: 'box' } }
   void scene
-  const createRenderer = require('../../src/ink/renderer.js').default as (
+  const createRenderer = require('../../src/screen/renderer/renderer.js').default as (
     r: unknown,
     p: unknown,
   ) => (o: unknown) => Frame
-  const { emptyFrame } = require('../../src/ink/frame.js') as typeof import('../../src/ink/frame.js')
+  const { emptyFrame } = require('../../src/screen/renderer/frame.js') as typeof import('../../src/screen/renderer/frame.js')
   const render = createRenderer(root, ctx.stylePool)
   return render({
     frontFrame: emptyFrame(ALT_ROWS, ALT_COLS, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool),

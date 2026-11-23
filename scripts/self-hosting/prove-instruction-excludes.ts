@@ -23,7 +23,7 @@ const check = (cond: boolean, msg: string, detail = ''): void => {
   if (cond) console.log(`  [PASS] ${msg}`)
   else {
     failures++
-    console.error(`  [FAIL] ${msg}${detail ? ` — ${detail}` : ''} — fix the briefs.exclude handling in matchesInstructionExcludes (src/services/instructions/discovery.ts), isExcluded of mercuryNativeConvention (src/services/instructions/nativeSource.ts) or the briefs.exclude key in src/utils/settings/types.ts`)
+    console.error(`  [FAIL] ${msg}${detail ? ` — ${detail}` : ''} — fix the briefs.exclude handling in matchesInstructionExcludes (src/sessions/instructions/discovery.ts), isExcluded of mercuryNativeConvention (src/sessions/instructions/nativeSource.ts) or the briefs.exclude key in src/platform/settings/settingsSchema.ts`)
   }
 }
 const linked = (made: boolean, cond: boolean, msg: string): void => {
@@ -67,11 +67,11 @@ const spelling = {
 }
 
 const driverSrc = `
-import { enableConfigs } from ${at('src/utils/config/globalConfig.js')}
+import { enableConfigs } from ${at('src/platform/config/globalConfig.js')}
 enableConfigs()
-const { getInstructionFiles } = await import(${at('src/services/instructions/engine.js')})
-const { mercuryNativeConvention } = await import(${at('src/services/instructions/nativeSource.js')})
-const { getSettingsWithErrors } = await import(${at('src/utils/settings/settings.js')})
+const { getInstructionFiles } = await import(${at('src/sessions/instructions/instructionFiles.js')})
+const { mercuryNativeConvention } = await import(${at('src/sessions/instructions/nativeSource.js')})
+const { getSettingsWithErrors } = await import(${at('src/platform/settings/settings.js')})
 const files = await getInstructionFiles()
 const probes = JSON.parse(process.env.EXCL_PROBES ?? '[]')
 console.log(JSON.stringify({
@@ -172,13 +172,13 @@ console.log('instruction excludes — the setting, the symlink law, the immuniti
 }
 
 {
-  const { SettingsSchema } = await import(join(repo, 'src/utils/settings/types.ts'))
+  const { SettingsSchema } = await import(join(repo, 'src/platform/settings/settingsSchema.ts'))
   const good = SettingsSchema().safeParse({ briefs: { exclude: ['**/x.md'] } })
   check(good.success === true && Array.isArray((good as { data?: { briefs?: { exclude?: unknown } } }).data?.briefs?.exclude), 'schema: briefs.exclude is a typed key')
   const stray = SettingsSchema().safeParse({ notAnExcludeKey: ['**/x.md'] })
   check(stray.success === true && (stray as { data?: { briefs?: unknown } }).data?.briefs === undefined, 'schema: an unknown key neither fails the parse nor lands as briefs.exclude')
 
-  const { matchesInstructionExcludes } = await import(join(repo, 'src/services/instructions/discovery.ts'))
+  const { matchesInstructionExcludes } = await import(join(repo, 'src/sessions/instructions/discovery.ts'))
   const home = homedir()
   check(matchesInstructionExcludes(join(home, '.tilde-probe', 'RULES.md'), ['~/.tilde-probe/RULES.md']) === true, 'tilde: a leading ~ means the operator home')
   check(matchesInstructionExcludes(join(home, '.tilde-probe', 'RULES.md'), ['~/.other/RULES.md']) === false, 'tilde: a non-matching ~ pattern stays a miss')

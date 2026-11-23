@@ -11,7 +11,7 @@ delete process.env.MOONSHOT_API_KEY
 delete process.env.DEEPSEEK_API_KEY
 delete process.env.MERCURY_COMPAT_BASE_URL
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 const {
@@ -24,7 +24,7 @@ const {
   MOONSHOT_MODEL_GROUP,
   DEEPSEEK_MODEL_GROUP,
   COMPAT_MODEL_GROUP,
-} = await import('../../src/services/model/modelOptions.ts')
+} = await import('../../src/models/catalogue/modelOptions.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -49,9 +49,9 @@ section('1 · one lane, both credential states (the grammar)')
     keyPresent: true,
     pins,
   })
-  check('credentialed ⇒ every pin selectable', present.length === 2 && present.every(r => r.unavailable === undefined), `rows ${present.length}; with keyPresent true, keyLaneGroupRows in src/services/model/modelOptions.ts must return one selectable row per pin`)
-  check('credentialed ⇒ no action row', !present.some(r => r.value !== null && isProviderActionRow(r.value)), 'with keyPresent true, keyLaneGroupRows in src/services/model/modelOptions.ts must not emit the connect action row')
-  check('model rows carry no description; a stated window rides the typed field (the neutral grammar)', present.every(r => r.description === '') && present[0]?.statedContextWindow === 1_048_576 && present[1]?.statedContextWindow === undefined, JSON.stringify(present.map(r => [r.value, r.description, r.statedContextWindow])) + ' — keyLaneGroupRows in src/services/model/modelOptions.ts must give model rows an empty description and carry a pin contextWindow in statedContextWindow')
+  check('credentialed ⇒ every pin selectable', present.length === 2 && present.every(r => r.unavailable === undefined), `rows ${present.length}; with keyPresent true, keyLaneGroupRows in src/models/catalogue/modelOptions.ts must return one selectable row per pin`)
+  check('credentialed ⇒ no action row', !present.some(r => r.value !== null && isProviderActionRow(r.value)), 'with keyPresent true, keyLaneGroupRows in src/models/catalogue/modelOptions.ts must not emit the connect action row')
+  check('model rows carry no description; a stated window rides the typed field (the neutral grammar)', present.every(r => r.description === '') && present[0]?.statedContextWindow === 1_048_576 && present[1]?.statedContextWindow === undefined, JSON.stringify(present.map(r => [r.value, r.description, r.statedContextWindow])) + ' — keyLaneGroupRows in src/models/catalogue/modelOptions.ts must give model rows an empty description and carry a pin contextWindow in statedContextWindow')
 
   const absent = keyLaneGroupRows({
     group: MOONSHOT_MODEL_GROUP,
@@ -61,13 +61,13 @@ section('1 · one lane, both credential states (the grammar)')
     keyPresent: false,
     pins,
   })
-  check('absent ⇒ the action row rides FIRST', absent[0]?.value === keyConnectValue('moonshot'), `first row ${String(absent[0]?.value)}; with keyPresent false, keyLaneGroupRows in src/services/model/modelOptions.ts must put the connect row (keyConnectValue) first`)
+  check('absent ⇒ the action row rides FIRST', absent[0]?.value === keyConnectValue('moonshot'), `first row ${String(absent[0]?.value)}; with keyPresent false, keyLaneGroupRows in src/models/catalogue/modelOptions.ts must put the connect row (keyConnectValue) first`)
   check(
     'absent ⇒ the whole lineup visible-but-unavailable',
     absent.length === 3 && absent.slice(1).every(r => r.unavailable !== undefined),
-    `rows ${absent.length}; with keyPresent false, keyLaneGroupRows in src/services/model/modelOptions.ts must emit the action row plus every pin marked unavailable`,
+    `rows ${absent.length}; with keyPresent false, keyLaneGroupRows in src/models/catalogue/modelOptions.ts must emit the action row plus every pin marked unavailable`,
   )
-  check('absent ⇒ nothing selectable but the action', absent.filter(r => r.unavailable === undefined).length === 1, 'with keyPresent false, keyLaneGroupRows in src/services/model/modelOptions.ts must leave only the action row without an unavailable marker')
+  check('absent ⇒ nothing selectable but the action', absent.filter(r => r.unavailable === undefined).length === 1, 'with keyPresent false, keyLaneGroupRows in src/models/catalogue/modelOptions.ts must leave only the action row without an unavailable marker')
 }
 
 section('2 · every lane present in the derived row set (never hidden)')
@@ -82,27 +82,27 @@ section('2 · every lane present in the derived row set (never hidden)')
   check(
     'all four groups paint',
     groups.has(ZAI_MODEL_GROUP) && groups.has(MOONSHOT_MODEL_GROUP) && groups.has(DEEPSEEK_MODEL_GROUP) && groups.has(COMPAT_MODEL_GROUP),
-    [...groups].join(' | ') + ' — keyLaneProviderRows in src/services/model/modelOptions.ts must emit a group for every lane whatever its credential state',
+    [...groups].join(' | ') + ' — keyLaneProviderRows in src/models/catalogue/modelOptions.ts must emit a group for every lane whatever its credential state',
   )
   check(
     'zai lineup includes glm-5.3 (the flagship pin)',
     rows.some(r => r.group === ZAI_MODEL_GROUP && r.value === 'glm-5.3'),
-    'keyLaneProviderRows in src/services/model/modelOptions.ts must include glm-5.3 in the ZAI_MODEL_GROUP lineup',
+    'keyLaneProviderRows in src/models/catalogue/modelOptions.ts must include glm-5.3 in the ZAI_MODEL_GROUP lineup',
   )
   check(
     'credentialed moonshot rows selectable',
     rows.filter(r => r.group === MOONSHOT_MODEL_GROUP).every(r => r.unavailable === undefined),
-    'when moonshotCredentialPresent returns true, keyLaneProviderRows in src/services/model/modelOptions.ts must leave the moonshot rows selectable',
+    'when moonshotCredentialPresent returns true, keyLaneProviderRows in src/models/catalogue/modelOptions.ts must leave the moonshot rows selectable',
   )
   check(
     'uncredentialed deepseek lineup visible-but-unavailable',
     rows.some(r => r.group === DEEPSEEK_MODEL_GROUP && r.unavailable !== undefined),
-    'when deepseekKeyPresent returns false, keyLaneProviderRows in src/services/model/modelOptions.ts must still list the deepseek lineup marked unavailable',
+    'when deepseekKeyPresent returns false, keyLaneProviderRows in src/models/catalogue/modelOptions.ts must still list the deepseek lineup marked unavailable',
   )
   check(
     'unconfigured compat ⇒ the configure action row',
     rows.some(r => r.group === COMPAT_MODEL_GROUP && r.value === keyConnectValue('compat')),
-    'when compat returns undefined, keyLaneProviderRows in src/services/model/modelOptions.ts must emit the compat configure action row',
+    'when compat returns undefined, keyLaneProviderRows in src/models/catalogue/modelOptions.ts must emit the compat configure action row',
   )
 }
 
@@ -119,7 +119,7 @@ section('3 · the compat slot states')
     named.length === 2 &&
       named[0]?.value === 'compat/qwen3-32b' &&
       named.every(r => r.unavailable === undefined && r.description === ''),
-    JSON.stringify(named.map(r => [r.value, r.description, r.unavailable])) + ' — keyLaneProviderRows in src/services/model/modelOptions.ts must emit one selectable compat/<id> row per named model, with an empty description',
+    JSON.stringify(named.map(r => [r.value, r.description, r.unavailable])) + ' — keyLaneProviderRows in src/models/catalogue/modelOptions.ts must emit one selectable compat/<id> row per named model, with an empty description',
   )
   const unnamed = keyLaneProviderRows({
     zaiKeyPresent: () => false,
@@ -130,18 +130,18 @@ section('3 · the compat slot states')
   check(
     'configured-but-unnamed ⇒ the name-models action row',
     unnamed.length === 1 && unnamed[0]?.value === keyConnectValue('compat') && unnamed[0].label.includes('corp proxy'),
-    JSON.stringify(unnamed.map(r => [r.value, r.label])) + ' — when compat has no models, keyLaneProviderRows in src/services/model/modelOptions.ts must emit the single name-models action row labelled with the slot label',
+    JSON.stringify(unnamed.map(r => [r.value, r.label])) + ' — when compat has no models, keyLaneProviderRows in src/models/catalogue/modelOptions.ts must emit the single name-models action row labelled with the slot label',
   )
 }
 
 section('4 · sentinel parsing')
 {
   for (const lane of ['zai', 'moonshot', 'deepseek', 'compat'] as const) {
-    check(`connect value round-trips (${lane})`, parseKeyConnectValue(keyConnectValue(lane)) === lane, 'parseKeyConnectValue must invert keyConnectValue (src/services/model/modelOptions.ts)')
-    check(`connect value is an ACTION (${lane})`, isProviderActionRow(keyConnectValue(lane)), 'isProviderActionRow must recognise what keyConnectValue builds (src/services/model/modelOptions.ts)')
+    check(`connect value round-trips (${lane})`, parseKeyConnectValue(keyConnectValue(lane)) === lane, 'parseKeyConnectValue must invert keyConnectValue (src/models/catalogue/modelOptions.ts)')
+    check(`connect value is an ACTION (${lane})`, isProviderActionRow(keyConnectValue(lane)), 'isProviderActionRow must recognise what keyConnectValue builds (src/models/catalogue/modelOptions.ts)')
   }
-  check('a model id is never an action', !isProviderActionRow('kimi-k3'), 'isProviderActionRow in src/services/model/modelOptions.ts must return false for a plain model id')
-  check('junk connect refuses', parseKeyConnectValue('__mercury_connect__:bogus') === undefined, 'parseKeyConnectValue in src/services/model/modelOptions.ts must return undefined for an unknown lane name')
+  check('a model id is never an action', !isProviderActionRow('kimi-k3'), 'isProviderActionRow in src/models/catalogue/modelOptions.ts must return false for a plain model id')
+  check('junk connect refuses', parseKeyConnectValue('__mercury_connect__:bogus') === undefined, 'parseKeyConnectValue in src/models/catalogue/modelOptions.ts must return undefined for an unknown lane name')
 }
 
 console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { selectOperatorMessages } = await import('../../src/utils/compact/operatorMessages.js')
+const { selectOperatorMessages } = await import('../../src/engine/compaction-window/operatorMessages.js')
 const text = 'Keep this operator obligation verbatim.\r\n目標 😀 '.repeat(3000)
 const messages = [{ type: 'user', uuid: 'operator-1', message: { role: 'user', content: text } }] as never
 const selected = selectOperatorMessages(messages)
@@ -8,10 +8,10 @@ assert.equal(selected?.messages[0]?.text, text, 'every operator byte survives, e
 assert.equal(selected?.omitted, 0)
 console.log('PASS complete operator byte equality')
 
-const { buildFoldLedger, renderFoldLedger, foldContentWitness } = await import('../../src/services/compact/foldLedger.js')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
-const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.js')
-const { fitPostCompactUnderThreshold } = await import('../../src/services/compact/compact.js')
+const { buildFoldLedger, renderFoldLedger, foldContentWitness } = await import('../../src/engine/compaction/foldLedger.js')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.js')
+const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.js')
+const { fitPostCompactUnderThreshold } = await import('../../src/engine/compaction/foldConversation.js')
 const owner = makeOwnerKey({ workspace: process.cwd(), sessionId: 'ledger-proof', lane: 'main' })
 const source = [
   ...messages,

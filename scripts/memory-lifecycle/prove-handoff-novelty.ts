@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/handoffNovelty.ts src/mneme/handoffAsk.ts src/mneme/mnemeText.ts src/mneme/mnemeStemmer.ts src/mneme/mnemeContradiction.ts src/mneme/ledger.ts
+// gate-watch: src/sessions/mneme/handoffNovelty.ts src/sessions/mneme/handoffAsk.ts src/sessions/mneme/mnemeText.ts src/sessions/mneme/mnemeStemmer.ts src/sessions/mneme/mnemeContradiction.ts src/sessions/mneme/ledger.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
@@ -25,9 +25,9 @@ delete process.env.ANTHROPIC_BASE_URL
 let failures = 0
 let checks = 0
 function noveltyFixHint(label: string): string {
-  if (/hosted session|unattended|session exits/.test(label)) return 'rebuild dist/mercury.mjs with bun run build.ts, then fix askForHandoff in src/mneme/handoffAsk.ts or the checked path it drives'
-  if (/runner was asked|re-ask rides|re-ask request|second answer|novel note is stored|nothing new. as the second|re-ask that fails/.test(label)) return 'fix askForHandoff in src/mneme/handoffAsk.ts'
-  return 'fix src/mneme/handoffNovelty.ts (noveltyRecord, measureNovelty, handoffReask, repetitionInWords or the NOVELTY_ thresholds)'
+  if (/hosted session|unattended|session exits/.test(label)) return 'rebuild dist/mercury.mjs with bun run build.ts, then fix askForHandoff in src/sessions/mneme/handoffAsk.ts or the checked path it drives'
+  if (/runner was asked|re-ask rides|re-ask request|second answer|novel note is stored|nothing new. as the second|re-ask that fails/.test(label)) return 'fix askForHandoff in src/sessions/mneme/handoffAsk.ts'
+  return 'fix src/sessions/mneme/handoffNovelty.ts (noveltyRecord, measureNovelty, handoffReask, repetitionInWords or the NOVELTY_ thresholds)'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
@@ -39,19 +39,19 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const novelty = await import('../../src/mneme/handoffNovelty.ts')
-const { askForHandoff, HANDOFF_ASK, _resetHandoffAskForTesting } = await import('../../src/mneme/handoffAsk.ts')
-const { noteSessionEngine, _resetLineageSessionForTesting } = await import('../../src/mneme/lineageSession.ts')
-const { ledgerEntryOf, openEntry, closeEntry, readLedger } = await import('../../src/mneme/ledger.ts')
-const { mnemeProjectKey, mnemeProjectKeyFor } = await import('../../src/mneme/paths.ts')
-const { getSessionId, switchSession } = await import('../../src/bootstrap/state.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { appendObservation } = await import('../../src/mneme/mnemeBuffer.ts')
-const { maybeConsolidate, listTopicDocs } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { pinFact } = await import('../../src/mneme/mnemeUsage.ts')
+const novelty = await import('../../src/sessions/mneme/handoffNovelty.ts')
+const { askForHandoff, HANDOFF_ASK, _resetHandoffAskForTesting } = await import('../../src/sessions/mneme/handoffAsk.ts')
+const { noteSessionEngine, _resetLineageSessionForTesting } = await import('../../src/sessions/mneme/lineageSession.ts')
+const { ledgerEntryOf, openEntry, closeEntry, readLedger } = await import('../../src/sessions/mneme/ledger.ts')
+const { mnemeProjectKey, mnemeProjectKeyFor } = await import('../../src/sessions/mneme/paths.ts')
+const { getSessionId, switchSession } = await import('../../src/boot/process-state/processState.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { appendObservation } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { maybeConsolidate, listTopicDocs } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { pinFact } = await import('../../src/sessions/mneme/mnemeUsage.ts')
 
 section('§1 the measure: each sentence\'s nearest neighbour on record; the floor is more than half AND at least two sentences')
 const dir = mnemeLibraryDir()

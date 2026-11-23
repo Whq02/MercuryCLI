@@ -30,12 +30,12 @@ const FIXTURE = 'zz-SECRETBYTES-0f9e8d7c6b5a4321'
 const REAL = 'AIzaSyA0000000000000000000000000000000'
 
 const { guardLoginDriverWrite, configHomeIsReal, defaultConfigHome } = await import('../lib/loginDriverGuard.ts')
-const { looksLikeProofFixtureKey, deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
-const { writeStoredGeminiApiKey, readStoredGeminiApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
+const { looksLikeProofFixtureKey, deriveFamilySlotGroups } = await import('../../src/models/roads/accountSlots.ts')
+const { writeStoredGeminiApiKey, readStoredGeminiApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
 
 const homeHint = 'fix configHomeIsReal in scripts/lib/loginDriverGuard.ts so that only the default config home and paths inside it read as the real store'
 const guardHint = 'fix guardLoginDriverWrite in scripts/lib/loginDriverGuard.ts so that it throws (message naming the real store) only when configHomeIsReal reads true'
-const fixtureHint = 'fix looksLikeProofFixtureKey in src/services/providers/accountSlots/keyLane.ts'
+const fixtureHint = 'fix looksLikeProofFixtureKey in src/models/roads/account-slots/keyLane.ts'
 {
   const { homedir } = await import('node:os')
   check('the real store is the default home under the user directory', defaultConfigHome() === join(homedir(), '.mercury'), 'defaultConfigHome in scripts/lib/loginDriverGuard.ts must return the .mercury folder under the user home')
@@ -76,7 +76,7 @@ const fixtureHint = 'fix looksLikeProofFixtureKey in src/services/providers/acco
 {
   guardLoginDriverWrite('the fixture-key guard proof')
   writeStoredGeminiApiKey(FIXTURE)
-  check('the fixture key landed in the SCRATCH store (never the real one)', readStoredGeminiApiKey() === FIXTURE, 'writeStoredGeminiApiKey and readStoredGeminiApiKey in src/utils/accounts/providerSecrets.ts must round-trip under the pinned MERCURY_CONFIG_DIR')
+  check('the fixture key landed in the SCRATCH store (never the real one)', readStoredGeminiApiKey() === FIXTURE, 'writeStoredGeminiApiKey and readStoredGeminiApiKey in src/models/sign-in/account-ledger/providerSecrets.ts must round-trip under the pinned MERCURY_CONFIG_DIR')
   const groups = deriveFamilySlotGroups(undefined, {
     geminiOauthConnected: () => false,
     geminiActiveAccount: () => ({ provider: 'gemini', kind: 'api-key', label: 'Gemini API key (stored)', keySource: 'stored' }),
@@ -86,8 +86,8 @@ const fixtureHint = 'fix looksLikeProofFixtureKey in src/services/providers/acco
   })
   const gemini = groups.find(g => g.family.id === 'gemini')
   const storedSlot = gemini?.slots.find(s => s.id === 'gemini:stored-key')
-  check('the Gemini stored-key slot exists', storedSlot !== undefined, JSON.stringify(gemini?.slots.map(s => s.id)) + ' — deriveFamilySlotGroups in src/services/providers/accountSlots.ts must yield a gemini:stored-key slot for a stored key')
-  check('its state note says the key is a test key, not a real Gemini API key, and names the removal gesture', (storedSlot?.stateNote ?? '') === 'a test key (zz-SECRE…), not a real Gemini API key — ⌫ removes it', (storedSlot?.stateNote ?? '<none>') + ' — the stored-key note is built in src/services/providers/accountSlots/gemini.ts')
+  check('the Gemini stored-key slot exists', storedSlot !== undefined, JSON.stringify(gemini?.slots.map(s => s.id)) + ' — deriveFamilySlotGroups in src/models/roads/accountSlots.ts must yield a gemini:stored-key slot for a stored key')
+  check('its state note says the key is a test key, not a real Gemini API key, and names the removal gesture', (storedSlot?.stateNote ?? '') === 'a test key (zz-SECRE…), not a real Gemini API key — ⌫ removes it', (storedSlot?.stateNote ?? '<none>') + ' — the stored-key note is built in src/models/roads/account-slots/gemini.ts')
   writeStoredGeminiApiKey(null)
 }
 

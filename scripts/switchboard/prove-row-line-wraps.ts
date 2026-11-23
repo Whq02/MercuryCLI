@@ -25,16 +25,16 @@ mkdirSync(OUT_DIR, { recursive: true })
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const wrapHint = 'fix the row-line wrapping in src/components/concourse/rowLine.ts (rowLineLines, rowLineRows, listColumns, rowNowCellWidth) or the hint text in closeChordHintOf in src/components/concourse/controlManifest.ts; when only the frame checks fail, compare the frame text files in the frames folder printed at the end'
+  const wrapHint = 'fix the row-line wrapping in src/screen/concourse/rowLine.ts (rowLineLines, rowLineRows, listColumns, rowNowCellWidth) or the hint text in closeChordHintOf in src/screen/concourse/controlManifest.ts; when only the frame checks fail, compare the frame text files in the frames folder printed at the end'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${wrapHint}` : ''}`)
 }
 const j = (value: unknown): string => JSON.stringify(value)
 
-const { closeChordHintOf } = await import('../../src/components/concourse/controlManifest.ts')
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-const { GLYPH } = await import('../../src/utils/glyphs.ts')
-const { PARK_REFUSED_NOW_LEAD } = await import('../../src/services/concourse/concourseSnapshot.ts')
-const rowLine = (await import('../../src/components/concourse/rowLine.ts').catch(() => null)) as null | typeof import('../../src/components/concourse/rowLine.ts')
+const { closeChordHintOf } = await import('../../src/screen/concourse/controlManifest.ts')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
+const { GLYPH } = await import('../../src/screen/theme/glyphs.ts')
+const { PARK_REFUSED_NOW_LEAD } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
+const rowLine = (await import('../../src/screen/concourse/rowLine.ts').catch(() => null)) as null | typeof import('../../src/screen/concourse/rowLine.ts')
 
 const hintOf = (rung: string): string => keyHintLabel(closeChordHintOf(rung as never, false) ?? '')
 const ARCHIVES = hintOf('archive')

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/cli/headless/runnerAsks.ts src/cli/structuredIO.ts src/runner/wire/*
+// gate-watch: src/daemon/runner/runnerAsks.ts src/daemon/runner/structuredIO.ts src/daemon/runner-wire/*
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdtempSync } from 'node:fs'
@@ -12,17 +12,17 @@ delete process.env.MERCURY_BARE
 
 import { z } from 'zod/v4'
 
-const { createRunnerAsks, unansweredAskCause, DOOR_CLOSED_CAUSE } = await import('../../src/cli/headless/runnerAsks.ts')
-const { DeadlineExceededError } = await import('../../src/utils/deadline.ts')
-const { UNANSWERED_ASK_REJECT_MESSAGE, isDenialResultText, turnCutOf } = await import('../../src/utils/messages/rejectionText.ts')
-const { createPeer } = await import('../../src/runner/wire/peer.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { addSessionHooks } = await import('../../src/utils/hooks/sessionHooks.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { createRunnerAsks, unansweredAskCause, DOOR_CLOSED_CAUSE } = await import('../../src/daemon/runner/runnerAsks.ts')
+const { DeadlineExceededError } = await import('../../src/platform/async/deadline.ts')
+const { UNANSWERED_ASK_REJECT_MESSAGE, isDenialResultText, turnCutOf } = await import('../../src/engine/message-shapes/rejectionText.ts')
+const { createPeer } = await import('../../src/daemon/runner-wire/peer.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { addSessionHooks } = await import('../../src/integrations/event-hooks/sessionHooks.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 
 let failures = 0
-const ASKS_FAIL_HINT = 'to fix, change createRunnerAsks (createCanUseTool, denyPendingPermissionRequests, recheckPendingPermissionRequests, handleElicitation) or unansweredAskCause in src/cli/headless/runnerAsks.ts; the denial text is built by UNANSWERED_ASK_REJECT_MESSAGE in src/utils/messages/rejectionText.ts'
+const ASKS_FAIL_HINT = 'to fix, change createRunnerAsks (createCanUseTool, denyPendingPermissionRequests, recheckPendingPermissionRequests, handleElicitation) or unansweredAskCause in src/daemon/runner/runnerAsks.ts; the denial text is built by UNANSWERED_ASK_REJECT_MESSAGE in src/engine/message-shapes/rejectionText.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${ASKS_FAIL_HINT}` : ''}`)
@@ -34,7 +34,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 const settle = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — runner asks exceeded 120s; an ask in a section above never settled, look at the last section header printed and at createRunnerAsks in src/cli/headless/runnerAsks.ts')
+  console.log('\n❌ TIMEOUT — runner asks exceeded 120s; an ask in a section above never settled, look at the last section header printed and at createRunnerAsks in src/daemon/runner/runnerAsks.ts')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -371,7 +371,7 @@ for (const winner of ['host', 'abort'] as const) {
 
 section("N1 — the ask has one kind: the wire schema refuses kind: network as any unknown kind, and the ask host carries no network callback")
 {
-  const { PermissionRequestParamsSchema } = await import('../../src/runner/wire/methods.ts')
+  const { PermissionRequestParamsSchema } = await import('../../src/daemon/runner-wire/methods.ts')
   const schema = PermissionRequestParamsSchema()
   const network = schema.safeParse({ kind: 'network', host: 'example.com' })
   const unknown = schema.safeParse({ kind: 'legend', host: 'example.com' })

@@ -15,16 +15,16 @@ for (const pin of ['MERCURY_CRITTER_IDLE', 'MERCURY_CRITTER_GAZE', 'MERCURY_CRIT
 process.env.FORCE_COLOR = '3'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingProvider } = await import('../../src/keybindings/KeybindingContext.tsx')
-const { loadKeybindingsSync } = await import('../../src/keybindings/loadUserBindings.ts')
-const { MessageRow, hasContentAfterIndex } = await import('../../src/components/MessageRow.tsx')
-const { deriveTranscriptRows } = await import('../../src/components/concourse/workerTranscriptFold.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { EMPTY_STRING_SET } = await import('../../src/services/messages.ts')
-const { stringWidth } = await import('../../src/ink/stringWidth.ts')
+const { renderToAnsiString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingProvider } = await import('../../src/screen/keys/KeybindingContext.tsx')
+const { loadKeybindingsSync } = await import('../../src/screen/keys/loadUserBindings.ts')
+const { MessageRow, hasContentAfterIndex } = await import('../../src/screen/messages/MessageRow.tsx')
+const { deriveTranscriptRows } = await import('../../src/screen/concourse/workerTranscriptFold.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { EMPTY_STRING_SET } = await import('../../src/engine/messages/messages.ts')
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -223,7 +223,7 @@ section('§1 the law: a diff row under a 60-column pane on a 120-column render s
   check('the row painted the edit (the diff body is on screen)', text.includes('return a + b') && text.includes('sums.ts'), `${text.slice(0, 400)} — the edit row did not render its diff; check the MessageRow props in PaneRows and the FileEditTool fixture messages in this script`)
   const diffRows = diffRowsOf(lines)
   const numbered = lines.filter(l => /^│\s+\d+\s[-+ ]/.test(l)).length
-  check('the diff painted every hunk line', numbered >= hunk.lines.length, `${numbered} numbered row(s) in:\n${lines.map((l, i) => `      ${String(i).padStart(2)}${diffRows.has(i) ? '*' : ' '} ${l}`).join('\n')}\n      — the diff must paint every hunk line as a numbered row; see how MessageRow (src/components/MessageRow.tsx) renders the FileEditTool result`)
+  check('the diff painted every hunk line', numbered >= hunk.lines.length, `${numbered} numbered row(s) in:\n${lines.map((l, i) => `      ${String(i).padStart(2)}${diffRows.has(i) ? '*' : ' '} ${l}`).join('\n')}\n      — the diff must paint every hunk line as a numbered row; see how MessageRow (src/screen/messages/MessageRow.tsx) renders the FileEditTool result`)
   const out = escapes(frame, PANE_COLUMNS)
   const onDiff = out.filter(o => diffRows.has(o.row))
   const rowText = (r: number): string => JSON.stringify(lines[r] ?? '')
@@ -236,7 +236,7 @@ section('§1 the law: a diff row under a 60-column pane on a 120-column render s
 
 section('§1b the rules: the consent card\'s diff under the same pane frames itself inside it')
 {
-  const { FileEditToolDiff } = await import('../../src/components/FileEditToolDiff.tsx')
+  const { FileEditToolDiff } = await import('../../src/tools/edit/EditDiff.tsx')
   const card = h(FileEditToolDiff as never, { file_path: FILE, edits: [{ old_string: 'a + b + 0', new_string: 'a + b' }] })
   const tree = h(
     AppStateProvider as never,
@@ -246,11 +246,11 @@ section('§1b the rules: the consent card\'s diff under the same pane frames its
   const frame = await renderToAnsiString(tree, TERMINAL_COLUMNS)
   const lines = plain(frame).split('\n')
   const rules = lines.filter(l => l.includes('╌'))
-  check('the card painted its rules', rules.length >= 2, `${rules.length} rule row(s): ${JSON.stringify(lines.slice(0, 6))} — FileEditToolDiff (src/components/FileEditToolDiff.tsx) must paint its two ╌ rules`)
+  check('the card painted its rules', rules.length >= 2, `${rules.length} rule row(s): ${JSON.stringify(lines.slice(0, 6))} — FileEditToolDiff (src/tools/edit/EditDiff.tsx) must paint its two ╌ rules`)
   const widest = rules.reduce((w, l) => Math.max(w, stringWidth(l.replace(/\s+$/, ''))), 0)
-  check('the rules span the pane, never the terminal', widest <= PANE_COLUMNS && widest >= PANE_COLUMNS - 4, `widest rule ${widest} (pane ${PANE_COLUMNS}) — the rules in FileEditToolDiff (src/components/FileEditToolDiff.tsx) take outerWidth from availableWidth or useTerminalSize columns; they must span the pane`)
+  check('the rules span the pane, never the terminal', widest <= PANE_COLUMNS && widest >= PANE_COLUMNS - 4, `widest rule ${widest} (pane ${PANE_COLUMNS}) — the rules in FileEditToolDiff (src/tools/edit/EditDiff.tsx) take outerWidth from availableWidth or useTerminalSize columns; they must span the pane`)
   const out = escapes(frame, PANE_COLUMNS)
-  check('no styled byte and no glyph past column 60 on the card', out.length === 0, `${out.length} escaped cell(s): ${JSON.stringify(out.slice(0, 6))} — FileEditToolDiff (src/components/FileEditToolDiff.tsx) must size its frame from the pane width, not the terminal width`)
+  check('no styled byte and no glyph past column 60 on the card', out.length === 0, `${out.length} escaped cell(s): ${JSON.stringify(out.slice(0, 6))} — FileEditToolDiff (src/tools/edit/EditDiff.tsx) must size its frame from the pane width, not the terminal width`)
 }
 
 section('§2 the control — the trap, documented: a narrowed columns prop under a wide context escapes')

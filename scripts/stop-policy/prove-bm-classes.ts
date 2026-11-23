@@ -24,9 +24,9 @@ function section(t: string): void {
 const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
 
 async function main(): Promise<void> {
-  const ok = await import('../../src/utils/run/ownerKey.js')
-  const kernel = await import('../../src/services/run/runKernel.js')
-  const { evaluateStop } = await import('../../src/services/run/completionEvaluator.js')
+  const ok = await import('../../src/engine/run-owner/ownerKey.js')
+  const kernel = await import('../../src/engine/run/runKernel.js')
+  const { evaluateStop } = await import('../../src/engine/run/completionEvaluator.js')
 
   const owner = ok.makeOwnerKey({ workspace: '/tmp/speedster-bm', sessionId: 'bm', lane: 'main' })
   const base = (objective: string) =>
@@ -67,14 +67,14 @@ async function main(): Promise<void> {
     check(
       'BM-01: a settled print one-shot (effects landed, no verification requested) stops without an evidence continuation',
       d.kind === 'complete',
-      `${d.kind} · evaluateStop in src/services/run/completionEvaluator.ts must return complete for surface print with terminalPolicy one-shot when no verification was requested`,
+      `${d.kind} · evaluateStop in src/engine/run/completionEvaluator.ts must return complete for surface print with terminalPolicy one-shot when no verification was requested`,
     )
     const interactive = evaluateStop({
       ...defaults,
       snapshot: settledWrite,
       verification: { state: 'stale', mutationsSinceEvidence: 1, workspaceVerifiable: true },
     } as never)
-    check('BM-01 floor: the surface-less (interactive) posture still demands evidence', interactive.kind === 'continue', `${interactive.kind} · evaluateStop in src/services/run/completionEvaluator.ts must keep demanding evidence when no surface is given (stale verification after a mutation)`)
+    check('BM-01 floor: the surface-less (interactive) posture still demands evidence', interactive.kind === 'continue', `${interactive.kind} · evaluateStop in src/engine/run/completionEvaluator.ts must keep demanding evidence when no surface is given (stale verification after a mutation)`)
   }
 
   section('BM-02 — an unchanged run continues until the operator budget; no revision gate refuses it')
@@ -84,17 +84,17 @@ async function main(): Promise<void> {
       { type: 'task-transition', at: 3, taskId: 't1', title: 'the work', state: 'open' },
     ] as never[])
     const first = evaluateStop({ ...defaults, snapshot: open })
-    check('BM-02: the FIRST continuation is issued', first.kind === 'continue', `${first.kind} · evaluateStop in src/services/run/completionEvaluator.ts must continue while a task is open and the budget is not spent`)
+    check('BM-02: the FIRST continuation is issued', first.kind === 'continue', `${first.kind} · evaluateStop in src/engine/run/completionEvaluator.ts must continue while a task is open and the budget is not spent`)
     const identical = evaluateStop({ ...defaults, snapshot: open, continuationsThisTurn: 1 })
-    check('BM-02: an UNCHANGED run with the same next action is continued again, never refused', identical.kind === 'continue', `${identical.kind} · evaluateStop in src/services/run/completionEvaluator.ts must not refuse a repeat continuation for an unchanged run; only maxContinuationsPerTurn ends it`)
+    check('BM-02: an UNCHANGED run with the same next action is continued again, never refused', identical.kind === 'continue', `${identical.kind} · evaluateStop in src/engine/run/completionEvaluator.ts must not refuse a repeat continuation for an unchanged run; only maxContinuationsPerTurn ends it`)
     const atBudget = evaluateStop({ ...defaults, snapshot: open, continuationsThisTurn: defaults.maxContinuationsPerTurn })
-    check('BM-02: the operator budget is the one fuse (budget-exhausted, naming the open work)', atBudget.kind === 'budget-exhausted' && atBudget.unfinished.includes('the work'), `${atBudget.kind} · evaluateStop in src/services/run/completionEvaluator.ts must return budget-exhausted at maxContinuationsPerTurn with the open task title listed in unfinished`)
+    check('BM-02: the operator budget is the one fuse (budget-exhausted, naming the open work)', atBudget.kind === 'budget-exhausted' && atBudget.unfinished.includes('the work'), `${atBudget.kind} · evaluateStop in src/engine/run/completionEvaluator.ts must return budget-exhausted at maxContinuationsPerTurn with the open task title listed in unfinished`)
   }
 
   section('BM-03/BM-09 — receipts over read-back; evidence outside the checkout')
   {
-    const v = await import('../../src/utils/verification/verificationState.js')
-    const { observeToolTerminal } = await import('../../src/utils/run/effectObserver.js')
+    const v = await import('../../src/platform/verification/verificationState.js')
+    const { observeToolTerminal } = await import('../../src/engine/run-owner/effectObserver.js')
     v._resetVerificationStateForTesting()
     const cwd = mkdtempSync(join(tmpdir(), 'speedster-bm-proj-'))
     const vOwner = ok.makeOwnerKey({ workspace: cwd, sessionId: 'bm-v', lane: 'main' })
@@ -121,25 +121,25 @@ async function main(): Promise<void> {
     check(
       'BM-09: a Mercury-published Write is dischargeable by receipt — no full-file read-back demand',
       demanded.size === 0,
-      `demanded: ${[...demanded].join(', ') || 'none'} · observeToolTerminal (src/utils/run/effectObserver.js) must record the Write receipt digest and demandedReadBackPaths (src/utils/verification/verificationState.ts) must skip a path with a receipt`,
+      `demanded: ${[...demanded].join(', ') || 'none'} · observeToolTerminal (src/engine/run-owner/effectObserver.js) must record the Write receipt digest and demandedReadBackPaths (src/platform/verification/verificationState.ts) must skip a path with a receipt`,
     )
     v.observeCompletedToolCall('Write', { file_path: join(cwd, 'legacy.py'), content: 'y\n' }, true, cwd, vOwner)
     check(
       'BM-09 contrast: a digest-less legacy mutation KEEPS the read-back debt',
       v.demandedReadBackPaths(cwd, vOwner).size === 1,
-      'observeCompletedToolCall and demandedReadBackPaths in src/utils/verification/verificationState.ts must keep a read-back demand for a Write that has no receipt digest',
+      'observeCompletedToolCall and demandedReadBackPaths in src/platform/verification/verificationState.ts must keep a read-back demand for a Write that has no receipt digest',
     )
     v.observeCompletedToolCall('Bash', { command: 'python -m pytest -q' }, true, cwd, vOwner)
     const bornInside = readdirSync(cwd)
     check(
       'BM-03: runtime verification evidence lands OUTSIDE the checkout by default',
       bornInside.length === 0,
-      bornInside.length > 0 ? `wrote ${bornInside.join(', ')} into the checkout; verification evidence from observeCompletedToolCall (src/utils/verification/verificationState.ts) must go to the config-home verify store by default` : 'checkout clean',
+      bornInside.length > 0 ? `wrote ${bornInside.join(', ')} into the checkout; verification evidence from observeCompletedToolCall (src/platform/verification/verificationState.ts) must go to the config-home verify store by default` : 'checkout clean',
     )
     check(
       'BM-03: the config-home project-keyed store carries it instead',
       existsSync(join(process.env.MERCURY_CONFIG_DIR!, 'verify')),
-      'observeCompletedToolCall in src/utils/verification/verificationState.ts must write the evidence of a verification command under the verify folder of the config home',
+      'observeCompletedToolCall in src/platform/verification/verificationState.ts must write the evidence of a verification command under the verify folder of the config home',
     )
     rmSync(cwd, { recursive: true, force: true })
   }
@@ -147,7 +147,7 @@ async function main(): Promise<void> {
 
   section('BM-16 — clean claim→release leaves zero debris + a truthful receipt')
   {
-    const lock = await import('../../src/substrate/pidLock.js')
+    const lock = await import('../../src/platform/substrate/pidLock.js')
     const dir = mkdtempSync(join(tmpdir(), 'speedster-bm-lock-'))
     const lockPath = join(dir, 'test.lock')
     const got = await lock.acquirePidLock(lockPath, 'bm16-owner', { liveness: 'live' as never })
@@ -156,14 +156,14 @@ async function main(): Promise<void> {
     check(
       'BM-16: a clean claim→release cycle settles a truthful removed receipt and zero debris (floor)',
       got.held === true && receipt.outcome === 'removed' && !debris,
-      `held=${got.held} outcome=${receipt.outcome} debris=${debris} · acquirePidLock and releasePidLock in src/substrate/pidLock.ts must hold the lock, return outcome removed on release and leave no lock file`,
+      `held=${got.held} outcome=${receipt.outcome} debris=${debris} · acquirePidLock and releasePidLock in src/platform/substrate/pidLock.ts must hold the lock, return outcome removed on release and leave no lock file`,
     )
     rmSync(dir, { recursive: true, force: true })
   }
 
   section('BM-08/06 — one cache-domain owner; fresh compatible processes REUSE (E01-E04)')
   {
-    const { mintCacheDomainKey } = await import('../../src/utils/cache/cacheDomain.js')
+    const { mintCacheDomainKey } = await import('../../src/platform/cache-clock/cacheDomain.js')
     const base = {
       providerScope: 'openai:chatgpt-subscription',
       servedModel: 'gpt-5.6-sol',
@@ -173,22 +173,22 @@ async function main(): Promise<void> {
     }
     const k1 = mintCacheDomainKey(base)
     const k2 = mintCacheDomainKey({ ...base })
-    check('E01/E02: two fresh compatible processes mint the SAME key (reuse by construction)', k1 === k2 && k1.startsWith('mercury-domain:'), `k1 ${k1} · k2 ${k2} · mintCacheDomainKey in src/utils/cache/cacheDomain.ts must be a pure function of its inputs and start with mercury-domain:`)
-    check('E03: a model change moves the key', mintCacheDomainKey({ ...base, servedModel: 'gpt-5.6-luna' }) !== k1, 'mintCacheDomainKey in src/utils/cache/cacheDomain.ts must fold servedModel into the key')
-    check('E03: a project change moves the key', mintCacheDomainKey({ ...base, projectPath: '/other' }) !== k1, 'mintCacheDomainKey in src/utils/cache/cacheDomain.ts must fold projectPath into the key')
-    check('E04: a contract/tool change moves the key', mintCacheDomainKey({ ...base, toolSchemaDigest: 'ffffffffffffffff' }) !== k1, 'mintCacheDomainKey in src/utils/cache/cacheDomain.ts must fold toolSchemaDigest (and behaviorContractDigest) into the key')
-    check('the key NEVER carries session/raw-path/raw-account material', !k1.includes('session') && !k1.includes('/Users') && k1.length < 48, `key ${k1} · mintCacheDomainKey in src/utils/cache/cacheDomain.ts must hash its inputs, never embed session ids or raw paths, and stay under 48 characters`)
+    check('E01/E02: two fresh compatible processes mint the SAME key (reuse by construction)', k1 === k2 && k1.startsWith('mercury-domain:'), `k1 ${k1} · k2 ${k2} · mintCacheDomainKey in src/platform/cache-clock/cacheDomain.ts must be a pure function of its inputs and start with mercury-domain:`)
+    check('E03: a model change moves the key', mintCacheDomainKey({ ...base, servedModel: 'gpt-5.6-luna' }) !== k1, 'mintCacheDomainKey in src/platform/cache-clock/cacheDomain.ts must fold servedModel into the key')
+    check('E03: a project change moves the key', mintCacheDomainKey({ ...base, projectPath: '/other' }) !== k1, 'mintCacheDomainKey in src/platform/cache-clock/cacheDomain.ts must fold projectPath into the key')
+    check('E04: a contract/tool change moves the key', mintCacheDomainKey({ ...base, toolSchemaDigest: 'ffffffffffffffff' }) !== k1, 'mintCacheDomainKey in src/platform/cache-clock/cacheDomain.ts must fold toolSchemaDigest (and behaviorContractDigest) into the key')
+    check('the key NEVER carries session/raw-path/raw-account material', !k1.includes('session') && !k1.includes('/Users') && k1.length < 48, `key ${k1} · mintCacheDomainKey in src/platform/cache-clock/cacheDomain.ts must hash its inputs, never embed session ids or raw paths, and stay under 48 characters`)
   }
 
   section('E08-E12 — the cadence prior is cross-process; TTL policy + reporting honest')
   {
-    const core = await import('../../src/utils/cache/cacheClockCore.js')
+    const core = await import('../../src/platform/cache-clock/cacheClockCore.js')
     const gapPrior = { sessions: 5, gapSessions: 3 }
     check(
       'E09: disabled ⇒ null (default path byte-identical); an operator pin wins over eligibility',
       core.decideInitialTtl({ enabled: false, pin: null, eligible: true, cls: 'interactive', prior: gapPrior }) === null &&
         core.decideInitialTtl({ enabled: true, pin: '1h', eligible: false, cls: 'interactive', prior: gapPrior })?.ttl === '1h',
-      'decideInitialTtl in src/utils/cache/cacheClockCore.ts must return null when disabled and honour an operator pin even when not eligible',
+      'decideInitialTtl in src/platform/cache-clock/cacheClockCore.ts must return null when disabled and honour an operator pin even when not eligible',
     )
     check(
       'E09: worker ⇒ upfront 1h; gap-heavy interactive prior ⇒ upfront 1h; thin prior ⇒ 5m+escalation',
@@ -196,7 +196,7 @@ async function main(): Promise<void> {
         core.decideInitialTtl({ enabled: true, pin: null, eligible: true, cls: 'interactive', prior: gapPrior })?.ttl === '1h' &&
         JSON.stringify(core.decideInitialTtl({ enabled: true, pin: null, eligible: true, cls: 'interactive', prior: { sessions: 1, gapSessions: 1 } })) ===
           JSON.stringify({ ttl: '5m', escalation: true }),
-      'decideInitialTtl in src/utils/cache/cacheClockCore.ts must give a worker or a gap-heavy interactive prior 1h upfront and a thin prior 5m with escalation',
+      'decideInitialTtl in src/platform/cache-clock/cacheClockCore.ts must give a worker or a gap-heavy interactive prior 1h upfront and a thin prior 5m with escalation',
     )
     const fiveM = { ttl: '5m', escalation: true } as const
     check(
@@ -205,7 +205,7 @@ async function main(): Promise<void> {
         core.shouldEscalate(fiveM, core.TTL_MS['5m'] + 1) &&
         !core.shouldEscalate(fiveM, core.TTL_MS['1h'] + 1) &&
         !core.shouldEscalate({ ttl: '1h', escalation: false }, core.TTL_MS['5m'] + 1),
-      'shouldEscalate in src/utils/cache/cacheClockCore.ts must be true only for a 5m-with-escalation ttl and a gap above 5m up to 1h',
+      'shouldEscalate in src/platform/cache-clock/cacheClockCore.ts must be true only for a 5m-with-escalation ttl and a gap above 5m up to 1h',
     )
     const verdict = JSON.parse(src('scripts/cache/fixtures/verdict.json'))
     check(
@@ -213,13 +213,13 @@ async function main(): Promise<void> {
       verdict.green === true &&
         verdict.result.savingsPct >= 9 &&
         verdict.result.coldRewrites.clock < verdict.result.coldRewrites.baseline5m,
-      `green=${verdict.green} savings=${verdict.result.savingsPct}% cold=${verdict.result.coldRewrites.baseline5m}→${verdict.result.coldRewrites.clock} · the stored verdict is scripts/cache/fixtures/verdict.json; the clock policy it measures is decideInitialTtl and shouldEscalate in src/utils/cache/cacheClockCore.ts`,
+      `green=${verdict.green} savings=${verdict.result.savingsPct}% cold=${verdict.result.coldRewrites.baseline5m}→${verdict.result.coldRewrites.clock} · the stored verdict is scripts/cache/fixtures/verdict.json; the clock policy it measures is decideInitialTtl and shouldEscalate in src/platform/cache-clock/cacheClockCore.ts`,
     )
   }
 
   section('BM-04 — the SSE fold vs delta-only tool-call arguments')
   {
-    const { ResponsesStreamFold } = await import('../../src/services/providers/openai/openaiWire.js')
+    const { ResponsesStreamFold } = await import('../../src/models/roads/openai/openaiWire.js')
     const fold04 = new ResponsesStreamFold()
     const events = [
       { type: 'response.created', response: { id: 'resp_bm04' } },
@@ -245,20 +245,20 @@ async function main(): Promise<void> {
     check(
       'BM-04: the fold settles tool-call arguments carried ONLY by deltas (done item argument-less)',
       argumentsSurvived,
-      `${toolEvent ? JSON.stringify(toolEvent).slice(0, 200) : `no tool event — ${flat.slice(0, 160)}`} · ResponsesStreamFold.fold in src/services/providers/openai/openaiWire.ts must join response.function_call_arguments.delta text and use it when output_item.done carries no arguments`,
+      `${toolEvent ? JSON.stringify(toolEvent).slice(0, 200) : `no tool event — ${flat.slice(0, 160)}`} · ResponsesStreamFold.fold in src/models/roads/openai/openaiWire.ts must join response.function_call_arguments.delta text and use it when output_item.done carries no arguments`,
     )
   }
 
   section('N-03 — agent terminal notices are NOT Sleep-gated (workflow parity)')
   {
-    const q = await import('../../src/input-core/command-queue.js')
+    const q = await import('../../src/screen/composer/input-core/command-queue.js')
     q.resetCommandQueue()
     q.enqueuePendingNotification({ value: '<task-notification>agent done</task-notification>', mode: 'task-notification', priority: 'next' } as never)
     const midTurn = q.getDrainableCommands(false)
     check(
       "N-03: a 'next'-priority agent notice drains at EVERY mid-turn boundary (no Sleep needed)",
       midTurn.some(c => String(c.value).includes('agent done')),
-      'getDrainableCommands in src/input-core/command-queue.ts must return a next-priority task-notification without the Sleep flag'
+      'getDrainableCommands in src/screen/composer/input-core/command-queue.ts must return a next-priority task-notification without the Sleep flag'
     )
     q.resetCommandQueue()
     q.enqueuePendingNotification({ value: '<task-notification>legacy later</task-notification>', mode: 'task-notification' } as never)
@@ -268,7 +268,7 @@ async function main(): Promise<void> {
       "N-03 contrast: the default 'later' band stays Sleep-gated (the starvation mechanism, pinned)",
       !withoutSleep.some(c => String(c.value).includes('legacy later')) &&
         withSleep.some(c => String(c.value).includes('legacy later')),
-      'getDrainableCommands in src/input-core/command-queue.ts must hold a default-priority task-notification until the Sleep flag is true and then return it',
+      'getDrainableCommands in src/screen/composer/input-core/command-queue.ts must hold a default-priority task-notification until the Sleep flag is true and then return it',
     )
     q.resetCommandQueue()
   }
@@ -276,7 +276,7 @@ async function main(): Promise<void> {
   section('BM-15 — numStartups stays interactive-only; headless activity has its ledger')
   {
     process.env.NODE_ENV = 'test'
-    const { noteHeadlessActivity, getHeadlessActivity } = await import('../../src/utils/activityLedger.js')
+    const { noteHeadlessActivity, getHeadlessActivity } = await import('../../src/platform/logs/activityLedger.js')
     const before = getHeadlessActivity()
     noteHeadlessActivity('print')
     noteHeadlessActivity('sdk')
@@ -285,7 +285,7 @@ async function main(): Promise<void> {
     check(
       'BM-15: print/sdk/verb counters advance with last-activity stamps',
       after.print === before.print + 1 && after.sdk === before.sdk + 1 && (after.verbs['health'] ?? 0) === (before.verbs['health'] ?? 0) + 1 && after.lastAt > 0,
-      `${JSON.stringify(after)} · noteHeadlessActivity and getHeadlessActivity in src/utils/activityLedger.ts must count print, sdk and verb:<name> calls and stamp lastAt`,
+      `${JSON.stringify(after)} · noteHeadlessActivity and getHeadlessActivity in src/platform/logs/activityLedger.ts must count print, sdk and verb:<name> calls and stamp lastAt`,
     )
     const { withLiveRunner } = await import('../lib/builtProduct.ts')
     const entryHome = mkdtempSync(join(tmpdir(), 'speedster-bm-entry-'))
@@ -293,26 +293,26 @@ async function main(): Promise<void> {
     await withLiveRunner(async () => undefined, { env: { MERCURY_CONFIG_DIR: entryHome } })
     const entryStamp = (JSON.parse(readFileSync(join(entryHome, '.config.json'), 'utf8')) as { headlessActivity?: { print: number; sdk: number } }).headlessActivity
     rmSync(entryHome, { recursive: true, force: true })
-    check('BM-15: runHeadless notes its activity at entry (one deferred merge, no hot-path write)', entryStamp?.sdk === 1 && entryStamp.print === 0, `headlessActivity in the config file: ${JSON.stringify(entryStamp)} · runHeadless must call noteHeadlessActivity at entry (src/utils/activityLedger.ts)`)
-    check("BM-15: /health carries the activity row (wedge detection reads BOTH)", (await import('../../src/services/health/sections/crew.ts')).crewChecks().some(row => row.id === 'activity' && row.label === 'Activity counts'), 'crewChecks in src/services/health/sections/crew.ts must return a row with id activity and label Activity counts')
+    check('BM-15: runHeadless notes its activity at entry (one deferred merge, no hot-path write)', entryStamp?.sdk === 1 && entryStamp.print === 0, `headlessActivity in the config file: ${JSON.stringify(entryStamp)} · runHeadless must call noteHeadlessActivity at entry (src/platform/logs/activityLedger.ts)`)
+    check("BM-15: /health carries the activity row (wedge detection reads BOTH)", (await import('../../src/platform/health/sections/crew.ts')).crewChecks().some(row => row.id === 'activity' && row.label === 'Activity counts'), 'crewChecks in src/platform/health/sections/crew.ts must return a row with id activity and label Activity counts')
   }
 
   section('WK — the worktree preflight refuses BEFORE allocation, deterministically')
   {
-    const w = await import('../../src/services/worktree.js')
+    const w = await import('../../src/platform/git/worktree/worktree.js')
     w._resetWorktreeRefusalCountsForTesting()
     const bare = mkdtempSync(join(tmpdir(), 'speedster-wk-'))
     const first = w.preflightWorktreeCapability(bare)
     check(
       'WK-01/02/03: a non-git dir preflights UNAVAILABLE with the exact prerequisite (typed, before any allocation)',
       first.available === false && first.prerequisite === 'git-repository',
-      `available=${first.available} prerequisite=${first.prerequisite} · preflightWorktreeCapability in src/services/worktree.ts must return available false with prerequisite git-repository for a folder that is not a git repository`,
+      `available=${first.available} prerequisite=${first.prerequisite} · preflightWorktreeCapability in src/platform/git/worktree/worktree.ts must return available false with prerequisite git-repository for a folder that is not a git repository`,
     )
-    check('WK-06/07: the receipt names the cwd + the mechanical retry (strip isolation / move to the repo)', first.detail.includes(bare) && first.detail.includes('WITHOUT the isolation parameter'), `detail: ${first.detail} · preflightWorktreeCapability in src/services/worktree.ts must name the folder and the retry WITHOUT the isolation parameter`)
+    check('WK-06/07: the receipt names the cwd + the mechanical retry (strip isolation / move to the repo)', first.detail.includes(bare) && first.detail.includes('WITHOUT the isolation parameter'), `detail: ${first.detail} · preflightWorktreeCapability in src/platform/git/worktree/worktree.ts must name the folder and the retry WITHOUT the isolation parameter`)
     const second = w.preflightWorktreeCapability(bare)
-    check('WK-08: an identical relaunch is SURFACED as a repeat refusal', second.repeatCount === 2 && second.detail.includes('repeat refusal #2'), `repeatCount=${second.repeatCount} detail: ${second.detail} · preflightWorktreeCapability in src/services/worktree.ts must count identical refusals and say repeat refusal #N`)
+    check('WK-08: an identical relaunch is SURFACED as a repeat refusal', second.repeatCount === 2 && second.detail.includes('repeat refusal #2'), `repeatCount=${second.repeatCount} detail: ${second.detail} · preflightWorktreeCapability in src/platform/git/worktree/worktree.ts must count identical refusals and say repeat refusal #N`)
     const repo = w.preflightWorktreeCapability(join(import.meta.dir, '../../'))
-    check('WK floor: a real git repository preflights AVAILABLE', repo.available === true, `available=${repo.available} prerequisite=${repo.prerequisite} · preflightWorktreeCapability in src/services/worktree.ts must report a real git repository as available`)
+    check('WK floor: a real git repository preflights AVAILABLE', repo.available === true, `available=${repo.available} prerequisite=${repo.prerequisite} · preflightWorktreeCapability in src/platform/git/worktree/worktree.ts must report a real git repository as available`)
     rmSync(bare, { recursive: true, force: true })
   }
 

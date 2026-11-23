@@ -7,7 +7,7 @@ const check = (name: string, ok: boolean, detail = ''): void => {
     console.log(`  ok  ${name}`)
   } else {
     failures++
-    console.error(`  RED ${name} — ${detail ? `${detail} — ` : ''}fix caretVerticalOp in src/components/concourse/lineDraft.ts so this case holds`)
+    console.error(`  RED ${name} — ${detail ? `${detail} — ` : ''}fix caretVerticalOp in src/screen/concourse/lineDraft.ts so this case holds`)
   }
 }
 const NL = String.fromCharCode(10)
@@ -16,7 +16,7 @@ const DOWN = { upArrow: false, downArrow: true }
 
 console.log('§1 caretVerticalOp — null on a single line, line-walk on a multiline draft')
 {
-  const { caretVerticalOp } = await import('../../src/components/concourse/lineDraft.ts')
+  const { caretVerticalOp } = await import('../../src/screen/concourse/lineDraft.ts')
   check('a single-line draft yields null for ↑ and ↓ (the surface keeps its own meaning)', caretVerticalOp(UP, { text: 'one line', caret: 3 }) === null && caretVerticalOp(DOWN, { text: 'one line', caret: 3 }) === null)
   check('a non-arrow key yields null', caretVerticalOp({ upArrow: false, downArrow: false }, { text: `a${NL}b`, caret: 0 }) === null)
   const two = { text: `first line${NL}second`, caret: 4 }

@@ -109,8 +109,8 @@ section(`1 · a session on local/${MODEL}, one turn, its engine stopped, then th
   const gone = await session('gone', fixture => fixture.stop())
   const outages = gone.debug.split('\n').filter(line => line.includes('network outage') && line.includes('connection refused'))
   console.log(`  the leave answered ${gone.answer || 'nothing'} after ${gone.ms} ms${gone.interrupted ? `, interrupted at ${WATCH_MS} ms` : ''}`)
-  check(`the leave answers inside ${GONE_CEILING_MS / 1000} s with no note and the session's ledger closed, where it stood on the reconnect ladder until it was interrupted`, !gone.interrupted && gone.ms >= 0 && gone.ms < GONE_CEILING_MS && gone.answer === '{"note":"none","ledger":"closed"}', `${gone.answer || 'no answer'} after ${gone.ms} ms${gone.interrupted ? `, interrupted at ${WATCH_MS} ms` : ''}; the session/leave handler in src/cli/headless/runnerArms.ts (leaveNoteBeforeExit in src/mneme/exitHandoff.ts) must give up on a refused engine connection instead of waiting on the reconnect ladder`)
-  check('the handoff met one refused connection and waited for no reconnect', outages.length === 1 && outages[0]!.includes('before reconnect 1'), (outages.map(line => line.slice(line.indexOf('network outage'))).join(' | ') || gone.debug.split('\n').filter(line => line.includes('handoff')).join(' | ')) + '; the handoff request made by leaveNoteBeforeExit in src/mneme/exitHandoff.ts must stop after the first refused connection')
+  check(`the leave answers inside ${GONE_CEILING_MS / 1000} s with no note and the session's ledger closed, where it stood on the reconnect ladder until it was interrupted`, !gone.interrupted && gone.ms >= 0 && gone.ms < GONE_CEILING_MS && gone.answer === '{"note":"none","ledger":"closed"}', `${gone.answer || 'no answer'} after ${gone.ms} ms${gone.interrupted ? `, interrupted at ${WATCH_MS} ms` : ''}; the session/leave handler in src/daemon/runner/runnerArms.ts (leaveNoteBeforeExit in src/sessions/mneme/exitHandoff.ts) must give up on a refused engine connection instead of waiting on the reconnect ladder`)
+  check('the handoff met one refused connection and waited for no reconnect', outages.length === 1 && outages[0]!.includes('before reconnect 1'), (outages.map(line => line.slice(line.indexOf('network outage'))).join(' | ') || gone.debug.split('\n').filter(line => line.includes('handoff')).join(' | ')) + '; the handoff request made by leaveNoteBeforeExit in src/sessions/mneme/exitHandoff.ts must stop after the first refused connection')
 }
 
 section('2 · the same with its engine there and slow: the leave waits for the note')
@@ -121,7 +121,7 @@ section('2 · the same with its engine there and slow: the leave waits for the n
   })
   const answer = slow.answer === '' ? null : (JSON.parse(slow.answer) as { note?: string; ledger?: string; noteChars?: number })
   console.log(`  the leave answered ${slow.answer || 'nothing'} after ${slow.ms} ms`)
-  check('a reply held three seconds is waited for and the note stored', !slow.interrupted && slow.ms >= 2_900 && answer?.note === 'stored' && answer.ledger === 'closed' && typeof answer.noteChars === 'number' && slow.requests >= 1, `${slow.answer || 'no answer'} after ${slow.ms} ms · ${slow.requests} request(s); the session/leave handler in src/cli/headless/runnerArms.ts must wait for the engine's reply and store the note via leaveNoteBeforeExit in src/mneme/exitHandoff.ts`)
+  check('a reply held three seconds is waited for and the note stored', !slow.interrupted && slow.ms >= 2_900 && answer?.note === 'stored' && answer.ledger === 'closed' && typeof answer.noteChars === 'number' && slow.requests >= 1, `${slow.answer || 'no answer'} after ${slow.ms} ms · ${slow.requests} request(s); the session/leave handler in src/daemon/runner/runnerArms.ts must wait for the engine's reply and store the note via leaveNoteBeforeExit in src/sessions/mneme/exitHandoff.ts`)
 }
 
 if (failures === 0) rmSync(ROOT, { recursive: true, force: true })

@@ -11,11 +11,11 @@ process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 
-const { preserveUntouchedLineEndings } = await import('../../src/utils/file.ts')
-const { detectLineEndingsForString } = await import('../../src/utils/fileRead.ts')
-const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { preserveUntouchedLineEndings } = await import('../../src/platform/files/file.ts')
+const { detectLineEndingsForString } = await import('../../src/platform/files/syncFileRead.ts')
+const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -26,7 +26,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — mixed-endings edited-line proof exceeded 90s; an edit through FileEditTool (src/tools/FileEditTool/edit/call.ts) never returned, rerun the case that printed last')
+  console.log('\nTIMEOUT — mixed-endings edited-line proof exceeded 90s; an edit through FileEditTool (src/tools/edit/call/call.ts) never returned, rerun the case that printed last')
   process.exit(1)
 }, 90_000)
 guard.unref?.()
@@ -76,13 +76,13 @@ async function through(before: string, input: Record<string, unknown>): Promise<
 }
 async function lands(label: string, before: string, input: Record<string, unknown>, after: string): Promise<void> {
   const got = await through(before, input)
-  check(label, got === asBytes(after), `want ${show(asBytes(after))} got ${show(got)} — an edited line must keep its own ending; fix preserveUntouchedLineEndings in src/utils/file.ts (called from src/tools/FileEditTool/edit/call.ts)`)
+  check(label, got === asBytes(after), `want ${show(asBytes(after))} got ${show(got)} — an edited line must keep its own ending; fix preserveUntouchedLineEndings in src/platform/files/file.ts (called from src/tools/edit/call/call.ts)`)
 }
 const preserve = (raw: string, updated: string): string =>
   preserveUntouchedLineEndings(raw, updated, detectLineEndingsForString(raw))
 const unit = (label: string, raw: string, updated: string, want: string): void => {
   const got = preserve(raw, updated)
-  check(label, got === want, `want ${show(want)} got ${show(got)} — fix preserveUntouchedLineEndings in src/utils/file.ts`)
+  check(label, got === want, `want ${show(want)} got ${show(got)} — fix preserveUntouchedLineEndings in src/platform/files/file.ts`)
 }
 
 const TIE = 'a1\r\nb2\nc3\r\nd4\n'
@@ -119,7 +119,7 @@ unit('C1 a two-line block: each new line takes the ending of the line it replace
   check(
     'C2 an insertion and a deletion that cancel out: the new line takes the majority, not the ending of a line that shifted',
     shifted.startsWith('n\n') && shifted.endsWith('q\nz\n'),
-    JSON.stringify(shifted) + ' — a new line must take the majority ending, not that of a shifted line; fix preserveUntouchedLineEndings in src/utils/file.ts',
+    JSON.stringify(shifted) + ' — a new line must take the majority ending, not that of a shifted line; fix preserveUntouchedLineEndings in src/platform/files/file.ts',
   )
 }
 unit('C3 lines added in a CRLF-majority file take the majority', CRLF_MAJORITY, 'k1\nk2\nk3\nK4a\nK4b\nk5\n', 'k1\r\nk2\nk3\r\nK4a\r\nK4b\r\nk5\r\n')
@@ -176,7 +176,7 @@ section('E. a file with one ending: every edit shape comes out in that ending')
       }
     }
   }
-  check(`E1 ${cases} edit shapes on LF and CRLF files: the result is the edited text in the file's own ending`, wrong.length === 0, wrong.join(' | ') + ' — a file with one ending must come out in that ending; fix preserveUntouchedLineEndings in src/utils/file.ts')
+  check(`E1 ${cases} edit shapes on LF and CRLF files: the result is the edited text in the file's own ending`, wrong.length === 0, wrong.join(' | ') + ' — a file with one ending must come out in that ending; fix preserveUntouchedLineEndings in src/platform/files/file.ts')
 }
 
 section('F. a CRLF file whose first line is longer than the ending sniff window')

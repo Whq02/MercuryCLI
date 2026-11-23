@@ -7,28 +7,28 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'mcp-cred-'))
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 const { normalizeOAuthErrorBody, getServerKey } = await import(
-  '../../src/services/mcp/auth.ts'
+  '../../src/integrations/mcp/auth.ts'
 )
 const { filterMcpServersByPolicy, dedupAnthropicConnectors } = await import(
-  '../../src/services/mcp/config.ts'
+  '../../src/integrations/mcp/serverConfigs.ts'
 )
 const { expandEnvVarsInString } = await import(
-  '../../src/services/mcp/envExpansion.ts'
+  '../../src/integrations/mcp/envExpansion.ts'
 )
 
 let failures = 0
 const whereToLook = (label: string): string => {
-  if (/oauth\.clientId/.test(label)) return 'src/services/mcp/config.ts (parseMcpConfig with expandVars) and src/services/mcp/envExpansion.ts (expandEnvVarsInString)'
-  if (/client id/.test(label)) return 'src/services/mcp/auth.ts (MercuryMcpAuthProvider.clientInformation)'
-  if (/env expansion|\$\{|workspaceFolder/.test(label)) return 'src/services/mcp/envExpansion.ts (expandEnvVarsInString)'
-  if (/policy filter/.test(label)) return 'src/services/mcp/config.ts (filterMcpServersByPolicy)'
-  if (/connector|dedup/.test(label)) return 'src/services/mcp/config.ts (dedupAnthropicConnectors)'
-  if (/key|header|url change|name participates|stable/.test(label)) return 'src/services/mcp/auth.ts (getServerKey)'
-  return 'src/services/mcp/auth.ts (normalizeOAuthErrorBody)'
+  if (/oauth\.clientId/.test(label)) return 'src/integrations/mcp/serverConfigs.ts (parseMcpConfig with expandVars) and src/integrations/mcp/envExpansion.ts (expandEnvVarsInString)'
+  if (/client id/.test(label)) return 'src/integrations/mcp/auth.ts (MercuryMcpAuthProvider.clientInformation)'
+  if (/env expansion|\$\{|workspaceFolder/.test(label)) return 'src/integrations/mcp/envExpansion.ts (expandEnvVarsInString)'
+  if (/policy filter/.test(label)) return 'src/integrations/mcp/serverConfigs.ts (filterMcpServersByPolicy)'
+  if (/connector|dedup/.test(label)) return 'src/integrations/mcp/serverConfigs.ts (dedupAnthropicConnectors)'
+  if (/key|header|url change|name participates|stable/.test(label)) return 'src/integrations/mcp/auth.ts (getServerKey)'
+  return 'src/integrations/mcp/auth.ts (normalizeOAuthErrorBody)'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -123,16 +123,16 @@ section('config-plane pure gates — policy filter · claude.ai dedup · env exp
   const unset = expandEnvVarsInString('${env:MCP_CRED_PROOF_TOKEN}')
   check('an unset ${env:VAR} stays literal and is reported missing under its bare name', unset.expanded === '${env:MCP_CRED_PROOF_TOKEN}' && unset.missingVars.join(',') === 'MCP_CRED_PROOF_TOKEN', j(unset))
   check('${env:VAR:-x} takes the default', expandEnvVarsInString('${env:MCP_CRED_PROOF_TOKEN:-fallback}').expanded === 'fallback')
-  const { getCwd } = await import('../../src/utils/cwd.ts')
+  const { getCwd } = await import('../../src/platform/files/cwd.ts')
   const { homedir } = await import('node:os')
   check('${workspaceFolder} is the working directory and ${userHome} the home directory', expandEnvVarsInString('${workspaceFolder}|${userHome}').expanded === `${getCwd()}|${homedir()}` && expandEnvVarsInString('${workspaceFolder}').missingVars.length === 0)
-  const { parseMcpConfig } = await import('../../src/services/mcp/config.ts')
+  const { parseMcpConfig } = await import('../../src/integrations/mcp/serverConfigs.ts')
   process.env.MCP_CRED_PROOF_CLIENT = 'client-123'
   const parsed = parseMcpConfig({ configObject: { mcpServers: { remote: { type: 'http', url: 'https://mcp.example/${env:MCP_CRED_PROOF_TOKEN:-x}', oauth: { clientId: '${env:MCP_CRED_PROOF_CLIENT}', authServerMetadataUrl: 'https://auth.example/${MCP_CRED_PROOF_TENANT:-acme}/.well-known/oauth-authorization-server' } } } }, expandVars: true, scope: 'project' })
   const remoteOauth = (parsed.config?.mcpServers.remote as { oauth?: { clientId?: string; authServerMetadataUrl?: string } } | undefined)?.oauth
   check('oauth.clientId and oauth.authServerMetadataUrl expand like url and headers', remoteOauth?.clientId === 'client-123' && remoteOauth?.authServerMetadataUrl === 'https://auth.example/acme/.well-known/oauth-authorization-server', j(remoteOauth))
   delete process.env.MCP_CRED_PROOF_CLIENT
-  const { MercuryMcpAuthProvider } = await import('../../src/services/mcp/auth.ts')
+  const { MercuryMcpAuthProvider } = await import('../../src/integrations/mcp/auth.ts')
   const unfilled = new MercuryMcpAuthProvider('cred-proof-unfilled', { type: 'http', url: 'https://mcp.example/unfilled', oauth: { clientId: '${MCP_CLIENT_ID}' } } as never)
   check('an unfilled ${VAR} client id is treated as unset (registration runs, the placeholder is never sent)', unfilled.clientInformation() === undefined)
   const envForm = new MercuryMcpAuthProvider('cred-proof-env-form', { type: 'http', url: 'https://mcp.example/env-form', oauth: { clientId: '${env:MCP_CLIENT_ID}' } } as never)

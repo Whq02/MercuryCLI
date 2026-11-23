@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import fc from 'fast-check'
-import { memoizeWithLRU } from '../../src/utils/memoize.ts'
+import { memoizeWithLRU } from '../../src/platform/async/memoize.ts'
 
-const WHERE = 'memoizeWithLRU in src/utils/memoize.ts'
+const WHERE = 'memoizeWithLRU in src/platform/async/memoize.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

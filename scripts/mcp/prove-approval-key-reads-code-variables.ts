@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/mcp/utils.ts src/services/mcp/config.ts src/utils/mcp/types.ts docs/TRUST.md docs/AUTOMATION.md
+// gate-watch: src/integrations/mcp/utils.ts src/integrations/mcp/serverConfigs.ts src/integrations/mcp-shapes/mcpServerRecords.ts docs/TRUST.md docs/AUTOMATION.md
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createHash } from 'node:crypto'
@@ -19,7 +19,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail.slice(0, 500)}${detail ? ' ' : ''}[change projectMcpServerDefinitionDigest or getProjectMcpServerStatus in src/services/mcp/utils.ts, or the written-env copy (unexpanded) built in src/services/mcp/config.ts]` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail.slice(0, 500)}${detail ? ' ' : ''}[change projectMcpServerDefinitionDigest or getProjectMcpServerStatus in src/integrations/mcp/utils.ts, or the written-env copy (unexpanded) built in src/integrations/mcp/serverConfigs.ts]` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 
@@ -43,12 +43,12 @@ process.env.PROBE_PATH = '/usr/bin:/bin'
 process.env.PROBE_TOKEN = 'token-one'
 process.chdir(PROJECT)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
-const { setIsInteractive, setSessionTrustAccepted, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.js')
-const { setCwd } = await import('../../src/utils/Shell.js')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
-const { getProjectMcpConfigsFromCwd } = await import('../../src/services/mcp/config.js')
-const { getProjectMcpServerStatus, projectMcpServerDefinitionDigest, recordProjectMcpServerChoices } = await import('../../src/services/mcp/utils.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
+const { setIsInteractive, setSessionTrustAccepted, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.js')
+const { setCwd } = await import('../../src/platform/shell/shellExec.js')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
+const { getProjectMcpConfigsFromCwd } = await import('../../src/integrations/mcp/serverConfigs.js')
+const { getProjectMcpServerStatus, projectMcpServerDefinitionDigest, recordProjectMcpServerChoices } = await import('../../src/integrations/mcp/utils.js')
 enableConfigs()
 setCwd(PROJECT)
 setOriginalCwd(PROJECT)

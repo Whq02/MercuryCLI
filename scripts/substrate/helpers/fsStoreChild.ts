@@ -20,7 +20,7 @@ if (mode === 'increment-paused') {
   } }))
 }
 
-const { defineStore } = await import('../../../src/substrate/fileStore.ts')
+const { defineStore } = await import('../../../src/platform/substrate/fileStore.ts')
 
 const counter = defineStore<{ n: number; blob?: string }, []>({
   name: 'prove-counter-child',

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/vim/types.ts src/vim/transitions.ts
+// gate-watch: src/screen/composer/vim/vimState.ts src/screen/composer/vim/transitions.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
@@ -7,11 +7,11 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}${ok ? '' : vimFixHint}`)
   if (!ok) failures++
 }
-const vimFixHint = ' | fix: the key tables, key guards and session registers are in src/vim/types.ts; the parser states come from transition in src/vim/transitions.ts'
+const vimFixHint = ' | fix: the key tables, key guards and session registers are in src/screen/composer/vim/vimState.ts; the parser states come from transition in src/screen/composer/vim/transitions.ts'
 const j = (v: unknown): string => JSON.stringify(v)
 
-const vim = await import('../../src/vim/types.ts')
-const { transition } = await import('../../src/vim/transitions.ts')
+const vim = await import('../../src/screen/composer/vim/vimState.ts')
+const { transition } = await import('../../src/screen/composer/vim/transitions.ts')
 
 console.log("vim's key tables, entry for entry")
 check('OPERATORS d/c/y', j(vim.OPERATORS) === j({ d: 'delete', c: 'change', y: 'yank' }), j(vim.OPERATORS))

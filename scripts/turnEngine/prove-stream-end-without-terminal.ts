@@ -13,24 +13,24 @@ delete process.env.MERCURY_EFFORT_LEVEL
 
 import { z } from 'zod/v4'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 const projDir = mkdtempSync(join(tmpdir(), 'stream-end-proj-'))
 bootstrap.setOriginalCwd(projDir)
 bootstrap.setProjectRoot(projDir)
 
-const { ask } = await import('../../src/rows/turn.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-import type { Message } from '../../src/types/message.ts'
+const { ask } = await import('../../src/engine/rows/turn.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${!cond ? ` — to fix: read the close-without-end-event branch after the stream loop in src/services/providers/anthropic/streamCore.ts (settleTypedEnd, the NO_EVENTS_MESSAGE retry) and the receipt sentence in streamEndReceiptLine in src/services/providers/streamIdleBudget.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${!cond ? ` — to fix: read the close-without-end-event branch after the stream loop in src/models/roads/anthropic/streamCore.ts (settleTypedEnd, the NO_EVENTS_MESSAGE retry) and the receipt sentence in streamEndReceiptLine in src/models/roads/streamIdleBudget.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -38,7 +38,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the stream-end proof exceeded 180s; a scene is waiting on a reply that never settles, so read the section printed last above and the close handling in src/services/providers/anthropic/streamCore.ts')
+  console.log('\n❌ TIMEOUT — the stream-end proof exceeded 180s; a scene is waiting on a reply that never settles, so read the section printed last above and the close handling in src/models/roads/anthropic/streamCore.ts')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

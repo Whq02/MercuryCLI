@@ -14,7 +14,7 @@ delete process.env.MERCURY_CHANGE_RECEIPTS
 if (process.argv.includes('--print-read-line-anchors-field')) {
   const gateArg = process.argv.find(a => a.startsWith('--gate='))
   if (gateArg) process.env.MERCURY_LINE_ANCHORS = gateArg.slice('--gate='.length)
-  const { FileReadTool: tool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { FileReadTool: tool } = await import('../../src/tools/read/ReadTool.ts')
   const { z } = await import('zod/v4')
   const properties = (z.toJSONSchema((tool as { inputSchema: never }).inputSchema) as { properties?: Record<string, { description?: string }> }).properties ?? {}
   console.log(JSON.stringify(properties.line_anchors?.description ?? null))
@@ -24,7 +24,7 @@ if (process.argv.includes('--print-read-line-anchors-field')) {
 if (process.argv.includes('--print-read-schema-keys')) {
   const gateArg = process.argv.find(a => a.startsWith('--gate='))
   if (gateArg) process.env.MERCURY_LINE_ANCHORS = gateArg.slice('--gate='.length)
-  const { FileReadTool: tool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { FileReadTool: tool } = await import('../../src/tools/read/ReadTool.ts')
   const shape = (tool as { inputSchema: { shape?: Record<string, unknown> } }).inputSchema.shape ?? {}
   console.log(JSON.stringify(Object.keys(shape)))
   process.exit(0)
@@ -41,12 +41,12 @@ const {
   parseHashedLinesSpelling,
   parseLineRef,
   verifyLineRef,
-} = await import('../../src/services/changeTransaction/lineAnchors.ts')
-const { addLineNumbers, stripLineNumberPrefix } = await import('../../src/utils/file.ts')
-const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileEditTool, APPLIED_NO_REREAD_NOTE } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+} = await import('../../src/tools/engines/change-transaction/lineAnchors.ts')
+const { addLineNumbers, stripLineNumberPrefix } = await import('../../src/platform/files/file.ts')
+const { mintFileAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { FileEditTool, APPLIED_NO_REREAD_NOTE } = await import('../../src/tools/edit/EditTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
 let sectionHint = ''
@@ -57,16 +57,16 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 function section(t: string): void {
   const hints: Record<string, string> = {
-    L: 'change the line-anchor helpers in src/services/changeTransaction/lineAnchors.ts (mintLineHash, parseLineRef, verifyLineRef, neighborhoodRows, findRelocationCandidates, parseHashedLinesSpelling)',
-    R: 'change the line_anchors read mode of src/tools/FileReadTool/FileReadTool.ts and addAnchoredLineNumbers in src/services/changeTransaction/lineAnchors.ts',
-    E: 'change the hash-qualified hunk path of src/tools/FileEditTool/FileEditTool.ts and the anchor checks in src/services/changeTransaction/lineAnchors.ts',
-    N: 'change the success answer built by src/tools/FileEditTool/FileEditTool.ts (APPLIED_NO_REREAD_NOTE and the read-back text)',
+    L: 'change the line-anchor helpers in src/tools/engines/change-transaction/lineAnchors.ts (mintLineHash, parseLineRef, verifyLineRef, neighborhoodRows, findRelocationCandidates, parseHashedLinesSpelling)',
+    R: 'change the line_anchors read mode of src/tools/read/ReadTool.ts and addAnchoredLineNumbers in src/tools/engines/change-transaction/lineAnchors.ts',
+    E: 'change the hash-qualified hunk path of src/tools/edit/EditTool.ts and the anchor checks in src/tools/engines/change-transaction/lineAnchors.ts',
+    N: 'change the success answer built by src/tools/edit/EditTool.ts (APPLIED_NO_REREAD_NOTE and the read-back text)',
   }
   sectionHint = hints[t.charAt(0)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — hashline proof exceeded 90s; the last section printed above names the area that hung (src/tools/FileReadTool/FileReadTool.ts or src/tools/FileEditTool/FileEditTool.ts)')
+  console.log('\nTIMEOUT — hashline proof exceeded 90s; the last section printed above names the area that hung (src/tools/read/ReadTool.ts or src/tools/edit/EditTool.ts)')
   process.exit(1)
 }, 90_000)
 guard.unref?.()

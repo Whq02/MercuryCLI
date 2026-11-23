@@ -35,24 +35,24 @@ function section(t: string): void {
 const near = (a: number, b: number): boolean => Math.abs(a - b) < 1e-9
 const perM = (tokens: number, rate: number): number => (tokens * rate) / 1e6
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 
-const cost = await import('../../src/services/usage/modelCost.ts')
-const state = await import('../../src/bootstrap/state.ts')
-const { glmPricePin } = await import('../../src/utils/model/pins/glmPins.ts')
-const { geminiPricePin, geminiPriceTierFor } = await import('../../src/utils/model/pins/geminiPins.ts')
-const { gptDisplayPin, gptPriceTierFor } = await import('../../src/utils/model/pins/gptPins.ts')
-const { deepseekDisplayPin } = await import('../../src/utils/model/pins/deepseekPins.ts')
-const { kimiDisplayPin } = await import('../../src/utils/model/pins/kimiPins.ts')
-const { QWEN_SHARED_ENDPOINTS, qwenEndpointBase } = await import('../../src/services/providers/qwen/qwenAccounts.ts')
+const cost = await import('../../src/models/usage/modelCost.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const { glmPricePin } = await import('../../src/models/facts/pins/glmPins.ts')
+const { geminiPricePin, geminiPriceTierFor } = await import('../../src/models/facts/pins/geminiPins.ts')
+const { gptDisplayPin, gptPriceTierFor } = await import('../../src/models/facts/pins/gptPins.ts')
+const { deepseekDisplayPin } = await import('../../src/models/facts/pins/deepseekPins.ts')
+const { kimiDisplayPin } = await import('../../src/models/facts/pins/kimiPins.ts')
+const { QWEN_SHARED_ENDPOINTS, qwenEndpointBase } = await import('../../src/models/roads/qwen/qwenAccounts.ts')
 const qwenBoundBaseFor = (id: string): string => qwenEndpointBase(QWEN_SHARED_ENDPOINTS.find(endpoint => endpoint.id === id)!)
-const { huggingfaceDisplayPin } = await import('../../src/utils/model/pins/huggingfacePins.ts')
-const orCatalogue = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
-const owner = await import('../../src/services/providers/providerUsage.ts')
-const tracker = await import('../../src/cost-tracker.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
+const { huggingfaceDisplayPin } = await import('../../src/models/facts/pins/huggingfacePins.ts')
+const orCatalogue = await import('../../src/models/roads/openrouter/openrouterCatalogue.ts')
+const owner = await import('../../src/models/roads/providerUsage.ts')
+const tracker = await import('../../src/models/usage/sessionCost.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
 await refreshLocalDiscovery({ force: true })
 
 type Usage = Parameters<typeof cost.calculateUSDCost>[1]
@@ -259,7 +259,7 @@ section('§2 no owner prices another family\'s turn — unpriced is zero, never 
   cost.getModelCosts('deepseek-flash', { startedAtMs })
   check('DeepSeek with an unknown holiday calendar keeps its own rates and marks the estimate', holidayEstimate.basis === 'family-estimate' && JSON.stringify(holidayEstimate.costs) === JSON.stringify(cost.resolveModelPricing('deepseek-flash').costs) && state.hasUnknownModelCost())
   check('an unknown DeepSeek id stays unpriced even with a timestamp', cost.resolveModelPricing('deepseek-nonesuch', { startedAtMs }).basis === 'unpriced')
-  const strangerRoute = (await import('../../src/services/providers/routeLaw.ts')).declaredRouteOf('no-family-declares-this')
+  const strangerRoute = (await import('../../src/models/roads/routeLaw.ts')).declaredRouteOf('no-family-declares-this')
   check('an id no family declares has no owner (route null) and is unpriced', strangerRoute === null && cost.resolveModelPricing('no-family-declares-this').basis === 'unpriced')
 }
 
@@ -300,7 +300,7 @@ section('§3 the ledger counts the turns it could not price, and every spend vie
   check('the cost summary: the total says "+ 3 unpriced turns" beside its figure', /Total cost:\s+\$[\d.]+ \+ 3 unpriced turns/.test(total), total.split('\n')[0])
   check('the cost summary rows: the unpriced model row reads unpriced', total.includes('(unpriced (2 unpriced turns — no rate on file, tokens counted))'), total)
   check('the cost summary rows: no $0.0000 row for the unpriced model', !/compat[^\n]*\$0\.0000/.test(total), total)
-  const { getSessionId } = await import('../../src/bootstrap/state.ts')
+  const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
   let persisted = false
   try {
     tracker.saveCurrentSessionCosts()
@@ -362,7 +362,7 @@ section('§6 the cost summary names a mirror by its own id, at its counterpart\'
 
 section('nous — the list\'s own long tier: pricing.overrides chosen by prompt size, at and above min_prompt_tokens')
 {
-  const nous = await import('../../src/services/providers/nous/nousCatalogue.ts')
+  const nous = await import('../../src/models/roads/nous/nousCatalogue.ts')
   process.env.NOUS_API_KEY = 'fixture-key-not-real'
   nous.__resetNousCatalogueForTest()
   const headRows = [
@@ -397,9 +397,9 @@ section('nous — the list\'s own long tier: pricing.overrides chosen by prompt 
 
 section('a price that turns on a date is the price of the day the request was made: as it settles, resumed and in /usage')
 {
-  const { readUsageHistory } = await import('../../src/services/usage/usageHistory.ts')
-  const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-  const { streamOneOpenaiAttempt } = await import('../../src/services/providers/openai/openaiCallModel.ts')
+  const { readUsageHistory } = await import('../../src/models/usage/usageHistory.ts')
+  const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+  const { streamOneOpenaiAttempt } = await import('../../src/models/roads/openai/openaiCallModel.ts')
   const RealDate = Date
   let clock = 0
   const on = async <T>(iso: string, read: () => T | Promise<T>): Promise<T> => {
@@ -464,7 +464,7 @@ section('a price that turns on a date is the price of the day the request was ma
   const midnight = '0b7a0c3e-3333-4222-8333-944455556666'
   const readBack = await resumedOn('2026-12-20T12:00:00.000Z', midnight, stored(midnight, '/scratch/dated-price/midnight', minted))
   check('openai: a GPT-5.6 Sol request that starts at 23:59:50 UTC on 30 November and ends at 00:00:20 on 1 December carries its start on the usage it settles and costs $0.666, on the meter as it settles and when the session is resumed on 20 December', settled?.request_started_at_ms === RealDate.parse('2026-11-30T23:59:50.000Z') && near(metered, 0.666) && near(readBack, 0.666), `start ${String(settled?.request_started_at_ms)} · metered ${metered.toFixed(6)} · resumed ${readBack.toFixed(6)}`)
-  const { createAgentLedger, foldResponseIntoLedger } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
+  const { createAgentLedger, foldResponseIntoLedger } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
   const ledger = createAgentLedger()
   await on('2026-12-20T12:00:00.000Z', () => {
     foldResponseIntoLedger(ledger, { type: 'assistant', timestamp: '2026-11-30T23:30:00.000Z', message: { id: 'resp_stored', model: sol, usage: turn } } as never)

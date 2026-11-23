@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 ;(globalThis as any).MACRO = { VERSION: 'proof', PACKAGE_URL: 'https://example.invalid' }
-const { officialSearch, excerptUrl, excerptIdOf, excerptOf, decodeExcerpts, EXCERPT_HITS, HN_COMMENT_LABEL } = await import('../../src/services/search/officialSearch.js')
-const { performWebSearch } = await import('../../src/services/search/searchDoor.js')
-const { MAX_SNIPPET_CHARS } = await import('../../src/services/search/searchContract.js')
-const pacing = await import('../../src/services/search/searchPacing.js')
-const { mapSearchResult } = await import('../../src/tools/WebSearchTool/searchOutput.js')
-const { searchTokenEstimate, SEARCH_PAYLOAD_TOKEN_CEILING } = await import('../../src/services/search/searchPayload.js')
+const { officialSearch, excerptUrl, excerptIdOf, excerptOf, decodeExcerpts, EXCERPT_HITS, HN_COMMENT_LABEL } = await import('../../src/tools/engines/web-search/officialSearch.js')
+const { performWebSearch } = await import('../../src/tools/engines/web-search/searchDoor.js')
+const { MAX_SNIPPET_CHARS } = await import('../../src/tools/engines/web-search/searchContract.js')
+const pacing = await import('../../src/tools/engines/web-search/searchPacing.js')
+const { mapSearchResult } = await import('../../src/tools/web-search/searchOutput.js')
+const { searchTokenEstimate, SEARCH_PAYLOAD_TOKEN_CEILING } = await import('../../src/tools/engines/web-search/searchPayload.js')
 let now = 1_000_000
 const clock = { now: () => now, random: () => 0.5, sleep: async (ms: number) => { now += ms } }
 const long = `<p>${'The body of the accepted question goes on and on. '.repeat(20)}</p>`
@@ -61,7 +61,7 @@ try {
   assert.equal(se.searchParams.get('site'), 'stackoverflow'); assert.equal(se.searchParams.get('filter'), 'withbody')
   const hn = excerptUrl('hackernews', ['2', '3'])
   assert.equal(hn.origin + hn.pathname, 'https://hn.algolia.com/api/v1/search'); assert.equal(hn.searchParams.get('tags'), 'comment,(story_2,story_3)')
-  assert.ok(excerptOf(long).endsWith('…'), 'excerptOf in src/services/search/officialSearch.js must truncate long HTML with ellipsis'); assert.ok(excerptOf(long).length <= MAX_SNIPPET_CHARS, `excerptOf in src/services/search/officialSearch.js must cap length <= ${MAX_SNIPPET_CHARS}`); assert.ok(!excerptOf(long).includes('<'), 'excerptOf in src/services/search/officialSearch.js must strip HTML tags')
+  assert.ok(excerptOf(long).endsWith('…'), 'excerptOf in src/tools/engines/web-search/officialSearch.js must truncate long HTML with ellipsis'); assert.ok(excerptOf(long).length <= MAX_SNIPPET_CHARS, `excerptOf in src/tools/engines/web-search/officialSearch.js must cap length <= ${MAX_SNIPPET_CHARS}`); assert.ok(!excerptOf(long).includes('<'), 'excerptOf in src/tools/engines/web-search/officialSearch.js must strip HTML tags')
   assert.equal(decodeExcerpts('stackexchange', { wrong: [] }), undefined)
   assert.equal(decodeExcerpts('hackernews', { items: [] }), undefined)
   reset()
@@ -70,20 +70,20 @@ try {
   if (first.ok) {
     assert.equal(first.hits.length, 4)
     assert.equal(first.hits[0]!.snippet, 'Call fn() after it is defined — the hoisting rule.')
-    assert.ok(first.hits[1]!.snippet.endsWith('…') && first.hits[1]!.snippet.length <= MAX_SNIPPET_CHARS && !first.hits[1]!.snippet.includes('<p>'), 'Stack Exchange excerpt hit[1] in src/services/search/officialSearch.js must be plain text <= MAX_SNIPPET_CHARS ending with ellipsis')
+    assert.ok(first.hits[1]!.snippet.endsWith('…') && first.hits[1]!.snippet.length <= MAX_SNIPPET_CHARS && !first.hits[1]!.snippet.includes('<p>'), 'Stack Exchange excerpt hit[1] in src/tools/engines/web-search/officialSearch.js must be plain text <= MAX_SNIPPET_CHARS ending with ellipsis')
     assert.equal(first.hits[2]!.snippet, '')
     assert.equal(first.hits[3]!.snippet, '')
     assert.equal(first.hits[0]!.title, 'Question 42 & its TypeError')
     assert.ok(first.notes?.includes('excerpts fetched for 2 hits'), JSON.stringify(first.notes))
   }
   assert.deepEqual(seen.map(s => s.path), ['/2.3/search/advanced', '/2.3/questions/42;43;44'])
-  assert.ok(seen[1]!.search.includes('filter=withbody') && seen[1]!.search.includes('site=stackoverflow'), `Stack Exchange excerpt URL in src/services/search/officialSearch.js must carry filter=withbody and site=stackoverflow (got ${seen[1]!.search})`)
-  assert.ok(seen[1]!.at - seen[0]!.at >= 1000, `Stack Exchange excerpt fetch in src/services/search/officialSearch.js must wait >=1000ms (got ${seen[1]!.at - seen[0]!.at}ms)`)
+  assert.ok(seen[1]!.search.includes('filter=withbody') && seen[1]!.search.includes('site=stackoverflow'), `Stack Exchange excerpt URL in src/tools/engines/web-search/officialSearch.js must carry filter=withbody and site=stackoverflow (got ${seen[1]!.search})`)
+  assert.ok(seen[1]!.at - seen[0]!.at >= 1000, `Stack Exchange excerpt fetch in src/tools/engines/web-search/officialSearch.js must wait >=1000ms (got ${seen[1]!.at - seen[0]!.at}ms)`)
   const cached = await officialSearch('stackexchange', 'TypeError: fn is not a function', { query: 'TypeError: fn is not a function' }, io)
   assert.equal(cached.ok, true); assert.equal(seen.length, 2)
-  if (cached.ok) { assert.equal(cached.hits[0]!.snippet, 'Call fn() after it is defined — the hoisting rule.'); assert.ok(cached.notes?.some(n => n.includes('search cache')), `cached officialSearch in src/services/search/officialSearch.js must include search cache note (got ${JSON.stringify(cached.notes)})`) }
+  if (cached.ok) { assert.equal(cached.hits[0]!.snippet, 'Call fn() after it is defined — the hoisting rule.'); assert.ok(cached.notes?.some(n => n.includes('search cache')), `cached officialSearch in src/tools/engines/web-search/officialSearch.js must include search cache note (got ${JSON.stringify(cached.notes)})`) }
   const payload = mapSearchResult({ query: 'TypeError', results: [{ tool_use_id: 'g', content: cached.ok ? cached.hits : [] }], notes: first.ok ? first.notes : [], via: 'stackexchange', tier: 'keyless', durationSeconds: 0 }, 't').content
-  assert.ok(payload.includes('excerpts fetched for 2 hits'), 'mapSearchResult in src/tools/WebSearchTool/searchOutput.js must preserve excerpt count note'); assert.ok(searchTokenEstimate(payload) < SEARCH_PAYLOAD_TOKEN_CEILING, `searchTokenEstimate in src/services/search/searchPayload.js must stay below ${SEARCH_PAYLOAD_TOKEN_CEILING}`)
+  assert.ok(payload.includes('excerpts fetched for 2 hits'), 'mapSearchResult in src/tools/web-search/searchOutput.js must preserve excerpt count note'); assert.ok(searchTokenEstimate(payload) < SEARCH_PAYLOAD_TOKEN_CEILING, `searchTokenEstimate in src/tools/engines/web-search/searchPayload.js must stay below ${SEARCH_PAYLOAD_TOKEN_CEILING}`)
   reset()
   let calls = 0
   const refusingFetch = (async (url: string | URL, init: RequestInit) => {
@@ -95,11 +95,11 @@ try {
   const refused = await officialSearch('stackexchange', 'TypeError: other', { query: 'TypeError: other' }, { clock, fetchImpl: refusingFetch })
   assert.equal(refused.ok, true)
   if (refused.ok) {
-    assert.equal(refused.hits.length, 4); assert.ok(refused.hits.every(h => h.snippet === ''), 'officialSearch in src/services/search/officialSearch.js must keep hits with empty snippets when excerpt fetch is throttled')
+    assert.equal(refused.hits.length, 4); assert.ok(refused.hits.every(h => h.snippet === ''), 'officialSearch in src/tools/engines/web-search/officialSearch.js must keep hits with empty snippets when excerpt fetch is throttled')
     assert.ok(refused.notes?.some(n => n.startsWith('excerpts not fetched for 3 hits:') && /wait \d+/.test(n)), JSON.stringify(refused.notes))
   }
   assert.equal(calls, 2)
-  assert.ok(pacing.coolDownRemainingMs('stackexchange', now) >= 90_000, `searchPacing in src/services/search/searchPacing.js must record >=90000ms cooldown on excerpt 429 (got ${pacing.coolDownRemainingMs('stackexchange', now)}ms)`)
+  assert.ok(pacing.coolDownRemainingMs('stackexchange', now) >= 90_000, `searchPacing in src/tools/engines/web-search/searchPacing.js must record >=90000ms cooldown on excerpt 429 (got ${pacing.coolDownRemainingMs('stackexchange', now)}ms)`)
   reset()
   const hnRun = await officialSearch('hackernews', 'compiler', { query: 'compiler news' }, io)
   assert.equal(hnRun.ok, true)
@@ -112,9 +112,9 @@ try {
     assert.ok(hnRun.notes?.includes('excerpts fetched for 2 hits'), JSON.stringify(hnRun.notes))
   }
   assert.deepEqual(seen.map(s => s.path), ['/api/v1/search', '/api/v1/search'])
-  assert.ok(seen[0]!.search.includes('tags=story') && seen[0]!.search.includes('query=compiler'), `Hacker News search query in src/services/search/officialSearch.js must include tags=story and query=compiler (got ${seen[0]!.search})`)
+  assert.ok(seen[0]!.search.includes('tags=story') && seen[0]!.search.includes('query=compiler'), `Hacker News search query in src/tools/engines/web-search/officialSearch.js must include tags=story and query=compiler (got ${seen[0]!.search})`)
   assert.equal(new URL(`http://x${seen[1]!.search}`).searchParams.get('tags'), 'comment,(story_2,story_3)')
-  assert.ok(seen[1]!.at - seen[0]!.at >= 1000, `Hacker News comment excerpt fetch in src/services/search/officialSearch.js must wait >=1000ms (got ${seen[1]!.at - seen[0]!.at}ms)`)
+  assert.ok(seen[1]!.at - seen[0]!.at >= 1000, `Hacker News comment excerpt fetch in src/tools/engines/web-search/officialSearch.js must wait >=1000ms (got ${seen[1]!.at - seen[0]!.at}ms)`)
   reset()
   override = { hits: [{ title: 'Ask HN: one', objectID: '1', story_text: 'text one' }, { title: 'Ask HN: two', objectID: '2', story_text: 'text two' }, { title: 'Ask HN: three', objectID: '3', story_text: 'text three' }, { title: 'Link', objectID: '4', url: 'https://example.com/' }] }
   const allText = await officialSearch('hackernews', 'ask', { query: 'ask news' }, io)
@@ -126,9 +126,9 @@ try {
   const run = await performWebSearch({ query: 'TypeError: fn is not a function' }, { context, reads: { keylessAllowed: false }, clock, backends: { official: (s: any, w: string, request: any) => officialSearch(s, w, request, io) } })
   assert.equal(run.via, 'stackexchange'); assert.equal(run.tier, 'keyless')
   assert.equal(run.hits[0]!.snippet, 'Call fn() after it is defined — the hoisting rule.')
-  assert.ok(run.notes.includes('excerpts fetched for 2 hits'), `performWebSearch in src/services/search/searchDoor.js must forward excerpt count note (got ${JSON.stringify(run.notes)})`)
+  assert.ok(run.notes.includes('excerpts fetched for 2 hits'), `performWebSearch in src/tools/engines/web-search/searchDoor.js must forward excerpt count note (got ${JSON.stringify(run.notes)})`)
   const mapped = mapSearchResult({ query: run.queries[0]!, results: [{ tool_use_id: 'g', content: run.hits }], notes: run.notes, via: run.via, tier: run.tier, durationSeconds: 0 }, 't').content
   assert.ok(searchTokenEstimate(mapped) < SEARCH_PAYLOAD_TOKEN_CEILING, `mapped Stack Exchange payload must stay under ${SEARCH_PAYLOAD_TOKEN_CEILING} tokens`)
-  assert.ok(mapped.includes('via Stack Exchange (keyless)') && mapped.includes('excerpts fetched for 2 hits'), 'mapSearchResult in src/tools/WebSearchTool/searchOutput.js must include Stack Exchange via and excerpt notes')
+  assert.ok(mapped.includes('via Stack Exchange (keyless)') && mapped.includes('excerpts fetched for 2 hits'), 'mapSearchResult in src/tools/web-search/searchOutput.js must include Stack Exchange via and excerpt notes')
   console.log('PASS excerpts: Stack Exchange bodies for the top three in one /questions/{ids} call with the body filter, Hacker News story_text kept and the top comment fetched in one search?tags=comment,(story_…) call, plain text cut with an ellipsis, the via note counts the fetched excerpts, a refusal keeps the hits and names the wait, the cache carries the excerpts, the payload stays under the ceiling')
 } finally { await new Promise<void>(r => server.close(() => r())) }

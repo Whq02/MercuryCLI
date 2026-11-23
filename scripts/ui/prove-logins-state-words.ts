@@ -24,18 +24,18 @@ for (const name of Object.keys(process.env)) {
 }
 
 const React = (await import('react')).default
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { renderToString } = await import('../../src/utils/staticRender.tsx')
+const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
 const {
   BootLoginsScreen,
   collectLoginsScreenFacts,
   loginsCatalogue,
   loginsMenuModelOf,
   loginsRowStateOf,
-} = await import('../../src/components/BootLoginsScreen.js')
+} = await import('../../src/screen/boot-face/BootLoginsScreen.js')
 const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
-const { storeZaiApiKeyLogin } = await import('../../src/services/providers/zai/zaiLogin.js')
+const { storeZaiApiKeyLogin } = await import('../../src/models/roads/zai/zaiLogin.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail: string, fix: string): void {
@@ -74,7 +74,7 @@ try {
     'live signed-out states carry product words and never match /^no-[a-z-]+:/',
     badStateCodes.length === 0,
     badStateCodes.map(r => `${r.id}=${r.chip}`).join(', '),
-    'map group.family.reason codes to user-facing words in loginsRowStateOf (src/components/bootLogins/facts.ts)',
+    'map group.family.reason codes to user-facing words in loginsRowStateOf (src/screen/boot-face/logins/facts.ts)',
   )
 
   const syntheticCodes = [
@@ -109,7 +109,7 @@ try {
     'every unavailable reason code translates to product vocabulary',
     codeMismatches.length === 0,
     codeMismatches.join('; '),
-    'translate every ENGINE_UNAVAILABLE_CODES prefix in loginsRowStateOf (src/components/bootLogins/facts.ts)',
+    'translate every ENGINE_UNAVAILABLE_CODES prefix in loginsRowStateOf (src/screen/boot-face/logins/facts.ts)',
   )
 
   const frame120 = stripAnsi(
@@ -123,7 +123,7 @@ try {
     '120-column rendered BootLoginsScreen paints no internal reason code',
     codeHit === null,
     `found ${codeHit?.[0] ?? ''}`,
-    'translate group.family.reason in loginsRowStateOf (src/components/bootLogins/facts.ts)',
+    'translate group.family.reason in loginsRowStateOf (src/screen/boot-face/logins/facts.ts)',
   )
 
   const missingLabels = arms.filter(arm => !frame120.includes(arm.row.label)).map(arm => arm.row.label)
@@ -131,7 +131,7 @@ try {
     '120-column rendered BootLoginsScreen paints every provider label whole',
     missingLabels.length === 0,
     `missing: ${missingLabels.join(' | ')}`,
-    'remove the 40-char clamp in loginsEntryOf (src/components/bootLogins/facts.ts) and widen the left panel in composeBootMenuWide (assets/splash/splash-core.mjs)',
+    'remove the 40-char clamp in loginsEntryOf (src/screen/boot-face/logins/facts.ts) and widen the left panel in composeBootMenuWide (assets/splash/splash-core.mjs)',
   )
 
   const clippedLabelLines = frame120
@@ -141,7 +141,7 @@ try {
     '120-column rendered BootLoginsScreen has no label ending in …',
     clippedLabelLines.length === 0,
     clippedLabelLines.map(l => l.trim()).join(' | '),
-    'keep full labels in loginsEntryOf (src/components/bootLogins/facts.ts) and composeBootMenuWide (assets/splash/splash-core.mjs)',
+    'keep full labels in loginsEntryOf (src/screen/boot-face/logins/facts.ts) and composeBootMenuWide (assets/splash/splash-core.mjs)',
   )
 
   const over120 = frame120.split('\n').filter(line => line.length > 120)
@@ -172,7 +172,7 @@ try {
       .filter(l => l.includes('GLM'))
       .map(l => l.trim())
       .join(' | '),
-    'remove the 26-char chip cut in loginsRowStateOf (src/components/bootLogins/facts.ts) and wrap overflowing row states in composeBootMenuWide (assets/splash/splash-core.mjs)',
+    'remove the 26-char chip cut in loginsRowStateOf (src/screen/boot-face/logins/facts.ts) and wrap overflowing row states in composeBootMenuWide (assets/splash/splash-core.mjs)',
   )
 
   const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' })
@@ -253,7 +253,7 @@ try {
       `${cols}-column Logins screen cuts only between words and fits ${cols} columns`,
       midWordCuts.length === 0 && overCols.length === 0,
       `midWord=[${midWordCuts.join(' | ')}] overCols=${overCols.length}`,
-      'use word-boundary clamping in composeBootMenuClassic (assets/splash/splash-core.mjs) and stop clamping labels mid-word in loginsEntryOf (src/components/bootLogins/facts.ts)',
+      'use word-boundary clamping in composeBootMenuClassic (assets/splash/splash-core.mjs) and stop clamping labels mid-word in loginsEntryOf (src/screen/boot-face/logins/facts.ts)',
     )
   }
 } finally {

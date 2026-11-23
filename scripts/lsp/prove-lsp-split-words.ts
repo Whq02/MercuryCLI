@@ -3,7 +3,7 @@ import { armScratch, check, cleanup, FAKE_SERVER, finish, fixtureServer, openToo
 
 const scratch = armScratch('lsp-split-words')
 const project = writeProject(scratch, 'project', TS_PROBE_FILES)
-const available = await import('../../src/tools/LSPTool/LSPTool.ts')
+const available = await import('../../src/tools/lsp/lspTools.ts')
 if (!('LSP_TOOLS' in available)) {
   check('the harness teaches the seven language-service tool names', false)
   cleanup(scratch)
@@ -12,9 +12,9 @@ if (!('LSP_TOOLS' in available)) {
 process.env.MERCURY_LSP_SERVERS = JSON.stringify(fixtureServer('fixture', FAKE_SERVER, {}, '.fk', 'fake'))
 const door = await openToolDoor(project)
 try {
-  const { computeHarnessMapLines } = await import('../../src/services/cockpit/harnessMap.ts')
-  const { evaluateWards, BUILTIN_WARDS } = await import('../../src/utils/wards/wards.ts')
-  const { remedyForLanguageServer } = await import('../../src/services/lsp/failureWords.ts')
+  const { computeHarnessMapLines } = await import('../../src/screen/cockpit-gauges/harnessMap.ts')
+  const { evaluateWards, BUILTIN_WARDS } = await import('../../src/permissions/wards/wards.ts')
+  const { remedyForLanguageServer } = await import('../../src/integrations/lsp/failureWords.ts')
   const readTool = available.LSP_TOOLS.find(tool => tool.name === 'LspRead')
   const renameTool = available.LSP_TOOLS.find(tool => tool.name === 'LspRename')
   const readText = (await readTool?.prompt?.({} as never)) ?? ''
@@ -41,7 +41,7 @@ try {
   }
   const stopped = await available.LspRenameTool.call({ filePath: join(project, 'lib.ts'), line: 1, character: 14, newName: 'spend' }, door.prover.ctx as never)
   check('the call backstop refuses the disabled bridge before server work', stopped.effect?.outcome === 'failed' && /MERCURY_LSP is off/.test(stopped.data.result))
-  const { getAllBaseTools } = await import('../../src/tools.ts')
+  const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
   check('the master flag withholds all seven tools', !getAllBaseTools().some(tool => available.LSP_TOOLS.some(lsp => lsp.name === tool.name)))
 } finally {
   await door.close()

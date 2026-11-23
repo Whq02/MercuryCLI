@@ -10,8 +10,8 @@ import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { distBuildTree } from '../lib/refDist.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
-import { resolveMercuryTokens } from '../../src/utils/mercuryTokens.ts'
-import { TERRA } from '../../src/components/mercuryPalette.ts'
+import { resolveMercuryTokens } from '../../src/screen/theme/mercuryTokens.ts'
+import { TERRA } from '../../src/screen/theme/mercuryPalette.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -36,8 +36,8 @@ const JOINED = /^joined(?: · team .+)?$/
 
 section('§0 the lifecycle words and the fold: joined · team <team>, parked · waiting on <event>, done, Swarm launched; a crew chat row of any kind never enters the notice fold')
 {
-  const { hasNoticeFold } = await import('../../src/utils/messages/noticeRows.ts')
-  const { isNavigableMessage } = await import('../../src/components/messageActions.tsx')
+  const { hasNoticeFold } = await import('../../src/engine/message-shapes/noticeRows.ts')
+  const { isNavigableMessage } = await import('../../src/screen/messages/messageActions.tsx')
   const row = (kind: string, content: string, lifecycle?: Record<string, unknown>) => ({ type: 'system', subtype: 'crew_chat', uuid: randomUUID(), content, level: 'info', isMeta: false, timestamp: '2026-11-02T02:42:33.000Z', seq: 1, name: 'solo', authorRole: lifecycle ? 'system' : 'peer', kind, mentions: [], addresses: [], ...(lifecycle ? { lifecycle } : {}) })
   const every = [row('result', '@main the list is ready'), row('ask', '@lists-writer ready?'), row('answer', 'nearly'), row('blocker', '@all the disk is full'), row('correction', 'six rows'), row('notice', 'joined · team lists', { kind: 'joined' }), row('notice', 'joined', { kind: 'joined' }), row('notice', 'parked · waiting on verify-proofs-2', { kind: 'parked', event: 'verify-proofs-2' }), row('notice', 'done', { kind: 'done' }), row('notice', 'Swarm launched', { kind: 'launched' })]
   check('no kind, the lifecycle rows included, has a notice fold', every.every(r => !hasNoticeFold(r as never)))
@@ -46,7 +46,7 @@ section('§0 the lifecycle words and the fold: joined · team <team>, parked · 
 
 section('§0 the reader law: system rows recorded one after another after the last reply all survive a cold load')
 {
-  const { transcriptRows } = await import('../../src/utils/sessionStorage/rowGraph.ts')
+  const { transcriptRows } = await import('../../src/sessions/transcripts/rowGraph.ts')
   const base = (uuid: string, parentUuid: string | null, timestamp: string) => ({ uuid, parentUuid, timestamp, isSidechain: false, sessionId: 's', cwd: '/', version: '0', entrypoint: 'cli' })
   const user = (uuid: string, parent: string | null, text: string, t: string) => ({ ...base(uuid, parent, t), type: 'user', message: { role: 'user', content: text } })
   const assistant = (uuid: string, parent: string | null, id: string, text: string, t: string) => ({ ...base(uuid, parent, t), type: 'assistant', message: { id, role: 'assistant', content: [{ type: 'text', text }] }, requestId: id })
@@ -193,7 +193,7 @@ async function director(): Promise<string[]> {
   sessionId = (JSON.parse(readFileSync(transcript!, 'utf8').split('\n')[0]!) as { sessionId: string }).sessionId
   boardPath = join(dirname(transcript!), sessionId, 'boards', 'wave', 'board.sqlite')
   await untilAsync(() => existsSync(boardPath!) && paintedRows(transcript!).some(row => row.text === 'Swarm launched'), vshotBudgetMs(90_000), 200)
-  const { open } = await import('../../src/services/crewBoard/store.ts')
+  const { open } = await import('../../src/crew/board/store.ts')
   const board = open(boardPath!, sessionId!, () => (clock += 20_000))
   const mainExecution = (): string => mainExecutionOf(boardPath!)
   const main = (): Seat => ({ author: { sessionId: sessionId!, agentId: 'main', executionId: mainExecution() }, name: 'main' })

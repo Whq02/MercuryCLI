@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/ide/pythonTests* src/tools/TestTool/*
+// gate-watch: src/integrations/ide/pythonTests.ts src/tools/test/*
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -12,17 +12,17 @@ delete process.env.MERCURY_TESTS
 const SYS_PY = process.platform === 'win32' ? 'python' : '/usr/bin/python3'
 process.env.MERCURY_PYTHON ??= SYS_PY
 
-const pythonTests = await import('../../src/services/ide/pythonTests.ts')
-const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-type TestRunRecord = import('../../src/services/ide/pythonTests.ts').TestRunRecord
+const pythonTests = await import('../../src/integrations/ide/pythonTests.ts')
+const { TestTool } = await import('../../src/tools/test/TestTool.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
+type TestRunRecord = import('../../src/integrations/ide/pythonTests.ts').TestRunRecord
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${cond ? '' : ' | fix runPythonTests, rerunFailedTests and discoverPythonTests in src/services/ide/pythonTests.ts (verdict, counts, notes) or the run op of the Test tool in src/tools/TestTool/TestTool.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${cond ? '' : ' | fix runPythonTests, rerunFailedTests and discoverPythonTests in src/integrations/ide/pythonTests.ts (verdict, counts, notes) or the run op of the Test tool in src/tools/test/TestTool.ts'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

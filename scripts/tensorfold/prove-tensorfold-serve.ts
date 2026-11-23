@@ -12,29 +12,29 @@ delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const serve = await import('../../src/services/tensorfold/serve.ts')
-const pull = await import('../../src/services/tensorfold/pull.ts')
+const serve = await import('../../src/models/tensorfold/serve.ts')
+const pull = await import('../../src/models/tensorfold/pull.ts')
 const road = await import('../../src/commands/tensorfold/road.ts')
 const scene = await import('../../src/commands/tensorfold/scene.ts')
-const inventory = await import('../../src/services/tensorfold/inventory.ts')
-const engine = await import('../../src/services/tensorfold/engine.ts')
-const { startingPointOf } = await import('../../src/services/tensorfold/starting.ts')
-const { adapterCheckpointOf } = await import('../../src/services/tensorfold/adapter/models.ts')
-const { readRecord } = await import('../../src/services/projectServices/serviceManager.ts')
-const receipts = await import('../../src/utils/model/seatReceipts.ts')
-const { cachedLocalModels } = await import('../../src/services/providers/local/localDiscovery.ts')
+const inventory = await import('../../src/models/tensorfold/inventory.ts')
+const engine = await import('../../src/models/tensorfold/engine.ts')
+const { startingPointOf } = await import('../../src/models/tensorfold/starting.ts')
+const { adapterCheckpointOf } = await import('../../src/models/tensorfold/adapter/models.ts')
+const { readRecord } = await import('../../src/tools/engines/project-services/serviceManager.ts')
+const receipts = await import('../../src/models/facts/seatReceipts.ts')
+const { cachedLocalModels } = await import('../../src/models/roads/local/localDiscovery.ts')
 
 let failures = 0
 const SECTION_WHERE: Array<[string, string]> = [
-  ['serve:', 'startTensorFold, stopTensorFold and servedTensorFold in src/services/tensorfold/serve.ts'],
-  ['the port:', 'pickTensorFoldPort and startTensorFold in src/services/tensorfold/serve.ts'],
-  ['refusals:', 'startTensorFold in src/services/tensorfold/serve.ts and readTensorFoldRefusal in src/services/tensorfold/refusal.ts'],
-  ['the roles:', 'the role option of startTensorFold and stopTensorFold in src/services/tensorfold/serve.ts'],
-  ['a second copy', 'detectTensorFoldApp in src/services/providers/local/tensorfoldApp.ts and startTensorFold in src/services/tensorfold/serve.ts'],
-  ['sharing on the network', 'the share option of startTensorFold in src/services/tensorfold/serve.ts, src/services/providers/local/tensorfoldKeyFile.ts and src/services/providers/local/tensorfoldHosts.ts'],
-  ['pull:', 'pullTensorFold in src/services/tensorfold/pull.ts and pullActOf in src/commands/tensorfold/scene.ts'],
+  ['serve:', 'startTensorFold, stopTensorFold and servedTensorFold in src/models/tensorfold/serve.ts'],
+  ['the port:', 'pickTensorFoldPort and startTensorFold in src/models/tensorfold/serve.ts'],
+  ['refusals:', 'startTensorFold in src/models/tensorfold/serve.ts and readTensorFoldRefusal in src/models/tensorfold/refusal.ts'],
+  ['the roles:', 'the role option of startTensorFold and stopTensorFold in src/models/tensorfold/serve.ts'],
+  ['a second copy', 'detectTensorFoldApp in src/models/roads/local/tensorfoldApp.ts and startTensorFold in src/models/tensorfold/serve.ts'],
+  ['sharing on the network', 'the share option of startTensorFold in src/models/tensorfold/serve.ts, src/models/roads/local/tensorfoldKeyFile.ts and src/models/roads/local/tensorfoldHosts.ts'],
+  ['pull:', 'pullTensorFold in src/models/tensorfold/pull.ts and pullActOf in src/commands/tensorfold/scene.ts'],
   ['the road:', 'serveTensorFoldRow and stopTensorFoldRow in src/commands/tensorfold/road.ts and the feed lines in src/commands/tensorfold/scene.ts'],
 ]
 let whereNow = ''
@@ -60,8 +60,8 @@ function freePort(): Promise<number> {
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const binary = `${FAKE_BIN}/tensorfold`
 const noApp = async (): Promise<{ running: boolean }> => ({ running: false })
-const { detectTensorFoldApp, TENSORFOLD_SECOND_COPY_REFUSAL } = await import('../../src/services/providers/local/tensorfoldApp.ts')
-const { forgetTensorFoldHost, tensorFoldHostRecords } = await import('../../src/services/providers/local/tensorfoldHosts.ts')
+const { detectTensorFoldApp, TENSORFOLD_SECOND_COPY_REFUSAL } = await import('../../src/models/roads/local/tensorfoldApp.ts')
+const { forgetTensorFoldHost, tensorFoldHostRecords } = await import('../../src/models/roads/local/tensorfoldHosts.ts')
 const seen: Array<{ text: string; level: string; copyText?: string }> = []
 receipts.subscribeSeatReceipts(r => seen.push(r))
 engine.__pinTensorFoldMachineForTest(MAC_48)
@@ -199,8 +199,8 @@ section('sharing on the network: an explicit step — 0.0.0.0 with the key file,
   const world = fakeWorld('tf-share')
   const servedFile = join(world.home, 'served.json')
   const port = await freePort()
-  const { tensorFoldKeyFilePath, readTensorFoldKeyFile } = await import('../../src/services/providers/local/tensorfoldKeyFile.ts')
-  const { tensorFoldPorts } = await import('../../src/services/providers/local/tensorfoldHosts.ts')
+  const { tensorFoldKeyFilePath, readTensorFoldKeyFile } = await import('../../src/models/roads/local/tensorfoldKeyFile.ts')
+  const { tensorFoldPorts } = await import('../../src/models/roads/local/tensorfoldHosts.ts')
   const own = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 262_144, port, share: true }, { binary, cwd: world.cwd, sessionId: 'proof', env: world.env, serviceEnv: { ...world.serviceEnv, FAKE_TENSORFOLD_BIND_LOOPBACK: '1' }, servedFile, machine: MAC_48, app: noApp, freeMemoryBytes: async () => 40 * GIB })
   const ownKey = readTensorFoldKeyFile(tensorFoldKeyFilePath())
   check("with no seams given, a share writes Mercury's own key file (mercury[inference]: KEY at 0600) and the served record names it", own.keyFile === tensorFoldKeyFilePath() && ownKey !== undefined && ownKey.line === `mercury[inference]: ${ownKey.key}` && (statSync(tensorFoldKeyFilePath()).mode & 0o077) === 0, JSON.stringify({ keyFile: own.keyFile, line: ownKey?.line }))

@@ -19,7 +19,7 @@ let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('      fix: the park and revive road is in the daemon (src/daemon/concourseDispatch.ts holds the delivery side); the daemon log tail printed at the end of the run names what it refused')
+  if (!cond) console.log('      fix: the park and revive road is in the daemon (src/daemon/concourse-workers/concourseDispatch.ts holds the delivery side); the daemon log tail printed at the end of the run names what it refused')
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number, everyMs = 100): Promise<boolean> => {
@@ -52,8 +52,8 @@ git(['add', 'README.md'])
 git(['commit', '-q', '-m', 'the probe commit'])
 seedFirstRun(home, [work])
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 const hits: Array<{ n: number; body: string }> = []
@@ -190,7 +190,7 @@ try {
   check('R2 the park verb answered applied for the runner', park.ok === true && park.outcome === 'applied' && /parked/.test(park.detail ?? ''), JSON.stringify(park))
   const after = recOf(sid)
   check('R2 the durable park intent was on the record while the park was in flight', intentSeen, JSON.stringify(after))
-  check('R3 a delivery during the retirement was HELD typed (session-retiring), never delivered and never failed', heldReply !== undefined && heldReply.ok === false && heldReply.heldReason === 'session-retiring' && heldReply.state !== 'failed', JSON.stringify(heldReply) + ' — a message sent to a retiring session must be held with heldReason session-retiring; see src/daemon/concourseDispatch.ts where heldReason is set')
+  check('R3 a delivery during the retirement was HELD typed (session-retiring), never delivered and never failed', heldReply !== undefined && heldReply.ok === false && heldReply.heldReason === 'session-retiring' && heldReply.state !== 'failed', JSON.stringify(heldReply) + ' — a message sent to a retiring session must be held with heldReason session-retiring; see src/daemon/concourse-workers/concourseDispatch.ts where heldReason is set')
   check('R4 parked landed on the record with the intent cleared and no refusal', after?.parkedAt !== undefined && after.parkedBy === 'operator:retire-drive' && after.parkIntent === undefined && after.parkRefused === undefined && after.endedAt === undefined && after.stoppedAt === undefined, JSON.stringify(after))
   check('R4 the runner had exited before parked was written', after?.parkedAt !== undefined && !pidAlive(pidBefore) && after.parkedAt >= parkStarted, `pid ${pidBefore} alive=${pidAlive(pidBefore)}`)
   const runnerRowId = `${before?.runnerId ?? '?'}@concourse`

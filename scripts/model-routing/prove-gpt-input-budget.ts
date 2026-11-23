@@ -13,20 +13,20 @@ process.env.NODE_ENV = 'test'
 for (const key of ['MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'OPENAI_API_KEY', 'OPENCODE_API_KEY', 'NOUS_API_KEY', 'MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'MERCURY_DISABLE_1M_CONTEXT', 'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_BLOCKING_LIMIT_OVERRIDE']) delete process.env[key]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
-const { gptDisplayPin, GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.js')
-const { ZEN_DISPLAY_PINS, zenDisplayPin } = await import('../../src/utils/model/pins/zenPins.js')
-const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
-const nous = await import('../../src/services/providers/nous/nousCatalogue.js')
-const { getContextWindowForModel } = await import('../../src/utils/context.js')
-const { getModelInputCeiling, resolveContextWindow } = await import('../../src/utils/model/capabilities.js')
-const { getAutoCompactThreshold, getBlockingLimit, calculateTokenWarningState } = await import('../../src/services/compact/autoCompact.js')
-const { contextFillView } = await import('../../src/services/context/contextFill.js')
-const { contextLeftText } = await import('../../src/tools/ContextLeftTool/ContextLeftTool.js')
-const { requestSizeWarning, measureOverflow, overflowMeasuredClause } = await import('../../src/services/compact/overflowRecovery.js')
-const { buildTransitionPlan, transitionPlanSummary } = await import('../../src/services/providers/transitionPreview.js')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
+const { gptDisplayPin, GPT_DISPLAY_PINS } = await import('../../src/models/facts/pins/gptPins.js')
+const { ZEN_DISPLAY_PINS, zenDisplayPin } = await import('../../src/models/facts/pins/zenPins.js')
+const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.js')
+const nous = await import('../../src/models/roads/nous/nousCatalogue.js')
+const { getContextWindowForModel } = await import('../../src/engine/compaction-window/contextFill.js')
+const { getModelInputCeiling, resolveContextWindow } = await import('../../src/models/facts/capabilities.js')
+const { getAutoCompactThreshold, getBlockingLimit, calculateTokenWarningState } = await import('../../src/engine/compaction/autoFold.js')
+const { contextFillView } = await import('../../src/engine/context-window/contextFill.js')
+const { contextLeftText } = await import('../../src/tools/context-left/ContextLeftTool.js')
+const { requestSizeWarning, measureOverflow, overflowMeasuredClause } = await import('../../src/engine/compaction/overflowRecovery.js')
+const { buildTransitionPlan, transitionPlanSummary } = await import('../../src/models/roads/transitionPreview.js')
 
 const stated = ['gpt-6.2-sol', 'gpt-6.2-astra', 'gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']
 const smallStated = ['gpt-5.6-cyber', 'gpt-5.4-mini', 'gpt-5.4-nano']
@@ -200,7 +200,7 @@ try {
     assert.deepEqual(gptDisplayPin(id)?.supportedReasoningEfforts, sixWords)
     assert.equal(gptDisplayPin(id)?.defaultReasoningEffort, 'medium')
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
-    assert.ok(row.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed: ${JSON.stringify(row).slice(0, 140)}`)
+    assert.ok(row.ok, `src/models/roads/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed: ${JSON.stringify(row).slice(0, 140)}`)
     assert.deepEqual(row.candidate.live.supportedReasoningEfforts, sixWords)
     assert.equal(catalogue.resolveGptReasoningProfile(undefined, row.candidate.live).wireEffort, 'medium')
     for (const word of sixWords) {
@@ -215,7 +215,7 @@ try {
     assert.equal(getContextWindowForModel(`${id}[served]`), 272_000)
     assert.equal(getAutoCompactThreshold(`${id}[served]`), 229_000)
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
-    assert.ok(row.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed on codexList: ${JSON.stringify(row).slice(0, 140)}`)
+    assert.ok(row.ok, `src/models/roads/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed on codexList: ${JSON.stringify(row).slice(0, 140)}`)
     assert.deepEqual(row.candidate.live.supportedReasoningEfforts, ['low', 'medium'])
     assert.equal(catalogue.resolveGptReasoningProfile('max', row.candidate.live).wireEffort, 'medium')
   })

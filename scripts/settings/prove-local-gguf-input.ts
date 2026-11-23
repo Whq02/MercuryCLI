@@ -4,13 +4,13 @@ import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, 
 pinSourceRef()
 const home = pinScratchHome('local-gguf-input')
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const React = await import('react')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { LocalSetupDialog } = await import('../../src/components/LocalSetupDialog.tsx')
-type Road = import('../../src/components/LocalSetupDialog.tsx').LocalSetupRoad
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { LocalSetupDialog } = await import('../../src/commands/localsetup/LocalSetupDialog.tsx')
+type Road = import('../../src/commands/localsetup/LocalSetupDialog.tsx').LocalSetupRoad
 let typed = ''
 let aborted = false
 const road: Road = (consent, signal) => (async function* () {
@@ -25,7 +25,7 @@ const road: Road = (consent, signal) => (async function* () {
 })()
 const element = React.createElement(AppStateProvider, null, React.createElement(ThemeProvider, null, React.createElement(LocalSetupDialog, { road, width: 110, rowBudget: 24 })))
 if (process.argv.includes('--pty')) {
-  const { render } = await import('../../src/ink.js')
+  const { render } = await import('../../src/screen/themedRenderer.js')
   render(element)
   await new Promise<void>(() => {})
 }
@@ -43,11 +43,11 @@ try {
   assert.ok(await waitFor(() => typed === 'fixture/Any-GGUF' && mounted.screen().includes('Any-Q6_K.gguf'), 4000), mounted.screen())
   mounted.push(KEY.enter)
   await settle(100)
-  assert.ok(!aborted, 'src/components/LocalSetupDialog.tsx Enter on pre-selection step unexpectedly aborted road')
+  assert.ok(!aborted, 'src/commands/localsetup/LocalSetupDialog.tsx Enter on pre-selection step unexpectedly aborted road')
   mounted.push(KEY.down)
   mounted.push(KEY.enter)
   await settle(100)
   mounted.push(KEY.esc)
-  assert.ok(await waitFor(() => aborted, 2000), 'src/components/LocalSetupDialog.tsx Escape did not abort local setup road within 2000ms')
+  assert.ok(await waitFor(() => aborted, 2000), 'src/commands/localsetup/LocalSetupDialog.tsx Escape did not abort local setup road within 2000ms')
   console.log('PASS repository editing, Enter selection, no preselection and Escape cancellation in rendered dialog')
 } finally { mounted.unmount(); await releaseScratchHome(home) }

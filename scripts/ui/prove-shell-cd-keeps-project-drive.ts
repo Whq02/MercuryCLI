@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/Shell.ts src/utils/shell/engineSession.ts src/tools/BashTool/BashTool.tsx src/tools/BashTool/bashPermissions.ts src/tools/BashTool/readOnlyValidation.ts
-// gate-watch: src/cli/headless/runnerAsks.ts src/daemon/permissionAsks.ts src/services/engine-connector/seatProjections.ts src/services/engine-connector/daemonConnector.ts
-// gate-watch: src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx src/components/permissions/FileEditPermissionRequest/FileEditPermissionRequest.tsx src/components/permissions/PermissionRequest.tsx
+// gate-watch: src/platform/shell/shellExec.ts src/platform/shell/engineSession.ts src/tools/shell/BashTool.tsx src/tools/shell/bashPermissions.ts src/tools/shell/readOnlyValidation.ts
+// gate-watch: src/daemon/runner/runnerAsks.ts src/daemon/session-seat/permissionAsks.ts src/engine/connector/seatProjections.ts src/engine/connector/daemonConnector.ts
+// gate-watch: src/permissions/cards/bash/ShellPermissionRequest.tsx src/permissions/cards/file-edit/FileEditPermissionRequest.tsx src/permissions/cards/PermissionRequest.tsx
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { grabScreens, requireDist, runArtifactArena } from '../streaming/artifactArena.ts'
@@ -59,7 +59,7 @@ const run = await runArtifactArena({
 try {
   const project = basename(run.paths.cwd)
   const sent = run.sendLog.map(s => Buffer.from(s.b64, 'base64').toString('latin1'))
-  check('the drive delivered every send (three cards answered, the turn settled)', sent.length === 6, `not every card was answered and the turn settled; check the Bash and Edit permission cards in src/components/permissions and the arena driver output. ${sent.length} sends: ${JSON.stringify(sent)} · ${run.driverOut.slice(-300)}`)
+  check('the drive delivered every send (three cards answered, the turn settled)', sent.length === 6, `not every card was answered and the turn settled; check the Bash and Edit permission cards in src/permissions/cards and the arena driver output. ${sent.length} sends: ${JSON.stringify(sent)} · ${run.driverOut.slice(-300)}`)
   const editCard = run.sendLog[3]?.screen
   const pwdCard = run.sendLog[4]?.screen
   const settled = run.sendLog[5]?.screen
@@ -70,21 +70,21 @@ try {
     const editText = flat(editCard)
     const titleAt = editCard.findIndex(r => r.includes('Edit file'))
     const pathRow = (editCard[titleAt + 1] ?? '').replace(/│/g, '').trim()
-    check(`after the cd the Edit card names the file from the project — "${FILE}", not a ../ path`, titleAt >= 0 && pathRow === FILE && !editText.includes(`../${FILE}`), `the Edit card must name the file from the project root after a cd; see src/components/permissions/FileEditPermissionRequest/FileEditPermissionRequest.tsx. path row ${JSON.stringify(pathRow)} · ${rowsWith(editCard, FILE)}`)
-    check('the FILES rail still names the project while the shell sits in scratch', editCard.some(r => r.includes('FILES ·') && r.includes(project.slice(0, 12))) && !editCard.some(r => r.includes('FILES · scratch')), 'a cd inside the Bash tool must not move the session folder shown by the FILES rail; see src/utils/Shell.ts. rows: ' + rowsWith(editCard, 'FILES'))
+    check(`after the cd the Edit card names the file from the project — "${FILE}", not a ../ path`, titleAt >= 0 && pathRow === FILE && !editText.includes(`../${FILE}`), `the Edit card must name the file from the project root after a cd; see src/permissions/cards/file-edit/FileEditPermissionRequest.tsx. path row ${JSON.stringify(pathRow)} · ${rowsWith(editCard, FILE)}`)
+    check('the FILES rail still names the project while the shell sits in scratch', editCard.some(r => r.includes('FILES ·') && r.includes(project.slice(0, 12))) && !editCard.some(r => r.includes('FILES · scratch')), 'a cd inside the Bash tool must not move the session folder shown by the FILES rail; see src/platform/shell/shellExec.ts. rows: ' + rowsWith(editCard, 'FILES'))
     const cwdAt = pwdCard.findIndex(row => /^\s*│\s+in /.test(row))
     const cwdEnd = pwdCard.findIndex((row, index) => index > cwdAt && row.includes('Do you want to proceed?'))
     const printedCwd = pwdCard.slice(cwdAt, cwdEnd).map(row => row.replace(/^\s*│\s*|\s*│\s*$/g, '')).join('').replace(/^in /, '')
-    check('the Bash card says where its command runs — the shell\'s folder, scratch', cwdAt >= 0 && cwdEnd > cwdAt && printedCwd === join(run.paths.cwd, 'scratch'), 'the Bash card must print the shell folder it runs in (scratch); see runFolder in src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx and the shell folder in src/utils/Shell.ts. printed: ' + printedCwd)
-    check('the folder chip on the status row keeps the project, not scratch', pwdCard.some(r => /esc interrupts|⇧← back/.test(r) && r.includes(project.slice(0, 12)) && !/\bscratch\b/.test(r)), 'the folder chip on the status row must keep the project folder after a cd; the shell folder must not become the session folder (src/utils/Shell.ts). rows: ' + rowsWith(pwdCard, '⇧← back'))
+    check('the Bash card says where its command runs — the shell\'s folder, scratch', cwdAt >= 0 && cwdEnd > cwdAt && printedCwd === join(run.paths.cwd, 'scratch'), 'the Bash card must print the shell folder it runs in (scratch); see runFolder in src/permissions/cards/bash/ShellPermissionRequest.tsx and the shell folder in src/platform/shell/shellExec.ts. printed: ' + printedCwd)
+    check('the folder chip on the status row keeps the project, not scratch', pwdCard.some(r => /esc interrupts|⇧← back/.test(r) && r.includes(project.slice(0, 12)) && !/\bscratch\b/.test(r)), 'the folder chip on the status row must keep the project folder after a cd; the shell folder must not become the session folder (src/platform/shell/shellExec.ts). rows: ' + rowsWith(pwdCard, '⇧← back'))
     const settledText = flat(settled)
     check('the turn settled (the closing text landed)', settledText.includes(CLOSING), 'the turn did not settle with the closing text; check the arena capture with MERCURY_SHELL_CD_CAPTURE_DIR. rows: ' + rowsWith(settled, 'done'))
-    check('the turn settled with the folder chip on the project', settled.some(r => r.includes('ready') && r.includes(project.slice(0, 12)) && !/\bscratch\b/.test(r)), 'the folder chip must keep the project folder when the turn settles; the shell folder must not become the session folder (src/utils/Shell.ts). rows: ' + rowsWith(settled, 'ready'))
+    check('the turn settled with the folder chip on the project', settled.some(r => r.includes('ready') && r.includes(project.slice(0, 12)) && !/\bscratch\b/.test(r)), 'the folder chip must keep the project folder when the turn settles; the shell folder must not become the session folder (src/platform/shell/shellExec.ts). rows: ' + rowsWith(settled, 'ready'))
   }
-  check('the shell\'s folder persisted between the two commands: the marker landed in scratch, not in the project root', existsSync(join(run.paths.cwd, 'scratch', MARKER)) && !existsSync(join(run.paths.cwd, MARKER)), `the shell folder set by cd must persist to the next Bash command (src/utils/Shell.ts) without moving the session root. ${join(run.paths.cwd, 'scratch', MARKER)} exists=${existsSync(join(run.paths.cwd, 'scratch', MARKER))}`)
+  check('the shell\'s folder persisted between the two commands: the marker landed in scratch, not in the project root', existsSync(join(run.paths.cwd, 'scratch', MARKER)) && !existsSync(join(run.paths.cwd, MARKER)), `the shell folder set by cd must persist to the next Bash command (src/platform/shell/shellExec.ts) without moving the session root. ${join(run.paths.cwd, 'scratch', MARKER)} exists=${existsSync(join(run.paths.cwd, 'scratch', MARKER))}`)
   const [final] = grabScreens(run, 120, 50, [-1])
   dump('final', final!.rows)
-  check('the session root never moved: the FILES rail reads the project at the end', final!.rows.some(r => r.includes('FILES ·') && r.includes(project.slice(0, 12))), 'a cd inside the Bash tool must not move the session folder shown by the FILES rail; see src/utils/Shell.ts. rows: ' + rowsWith(final!.rows, 'FILES'))
+  check('the session root never moved: the FILES rail reads the project at the end', final!.rows.some(r => r.includes('FILES ·') && r.includes(project.slice(0, 12))), 'a cd inside the Bash tool must not move the session folder shown by the FILES rail; see src/platform/shell/shellExec.ts. rows: ' + rowsWith(final!.rows, 'FILES'))
 } finally {
   run.cleanup()
 }

@@ -11,20 +11,20 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'fulcrum-rec-home-')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const where = 'fix runTextChangeSetCommit (compensation) or recoverChangeSetJournal (boot recovery) in src/services/changeTransaction/changeSetCommit.ts'
+  const where = 'fix runTextChangeSetCommit (compensation) or recoverChangeSetJournal (boot recovery) in src/tools/engines/change-transaction/changeSetCommit.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${[detail, where].filter(Boolean).join(' | ')}` : ''}`)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — recovery proof exceeded 180s; a commit or recovery run never returned, look at runTextChangeSetCommit and recoverChangeSetJournal in src/services/changeTransaction/changeSetCommit.ts, or the child driver scripts/changesets/fixtures/commit-driver.ts')
+  console.log('\nTIMEOUT — recovery proof exceeded 180s; a commit or recovery run never returned, look at runTextChangeSetCommit and recoverChangeSetJournal in src/tools/engines/change-transaction/changeSetCommit.ts, or the child driver scripts/changesets/fixtures/commit-driver.ts')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
 
 const { runTextChangeSetCommit, recoverChangeSetJournal, commitPlanDigest } = await import(
-  '../../src/services/changeTransaction/changeSetCommit.ts'
+  '../../src/tools/engines/change-transaction/changeSetCommit.ts'
 )
-const { sha256Hex } = await import('../../src/utils/hash.ts')
-const { listJournalOperations } = await import('../../src/substrate/operationJournal.ts')
+const { sha256Hex } = await import('../../src/platform/primitives/hash.ts')
+const { listJournalOperations } = await import('../../src/platform/substrate/operationJournal.ts')
 
 const bun = process.env.BUN ?? `${process.env.HOME}/.bun/bin/bun`
 const DRIVER = join(import.meta.dir, 'fixtures', 'commit-driver.ts')

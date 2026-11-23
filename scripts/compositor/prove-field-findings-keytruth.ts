@@ -4,9 +4,9 @@ import { formsMissing, rowsBinding, shippedKeyForms } from '../lib/shippedKeyFor
 
 let failures = 0
 const hint = (name: string): string => {
-  if (name.startsWith('cmd+c') || name.startsWith('the running platform') || name.startsWith('ctrl+shift+c')) return '; fix the Scroll rows of DEFAULT_BINDINGS in src/keybindings/defaultBindings.ts'
-  if (name.startsWith('the display walk') || name.startsWith('both chords')) return '; fix getBindingDisplayText in src/keybindings/resolver.ts (or parseBindings in src/keybindings/parser.ts)'
-  return '; fix WINDOWS_RESERVED / reservedShortcutsFor in src/keybindings/reservedShortcuts.ts'
+  if (name.startsWith('cmd+c') || name.startsWith('the running platform') || name.startsWith('ctrl+shift+c')) return '; fix the Scroll rows of DEFAULT_BINDINGS in src/screen/keys/defaultBindings.ts'
+  if (name.startsWith('the display walk') || name.startsWith('both chords')) return '; fix getBindingDisplayText in src/screen/keys/resolver.ts (or parseBindings in src/screen/keys/parser.ts)'
+  return '; fix WINDOWS_RESERVED / reservedShortcutsFor in src/screen/keys/reservedShortcuts.ts'
 }
 const check = (name: string, ok: boolean, detail = ''): void => {
   if (ok) console.log(`  ok  ${name}`)
@@ -18,7 +18,7 @@ const check = (name: string, ok: boolean, detail = ''): void => {
 
 console.log('§1 the reserved tables carry the chords the Windows hosts actually eat')
 {
-  const { WINDOWS_RESERVED, reservedShortcutsFor } = await import('../../src/keybindings/reservedShortcuts.ts')
+  const { WINDOWS_RESERVED, reservedShortcutsFor } = await import('../../src/screen/keys/reservedShortcuts.ts')
   const ctrlV = WINDOWS_RESERVED.find(s => s.key === 'ctrl+v')
   check(
     'ctrl+v has its Windows row (`windows-reserved-omits-ctrl-v`): the chord BOTH hosts eat, as a warning',
@@ -46,7 +46,7 @@ console.log('§4 the Scroll copy chord is platform-forked (no more super+c on Wi
     darwinWithoutCopy.length === 0 && cmdCopyElsewhere.length === 0,
     [...darwinWithoutCopy.map(form => `${form} lacks Scroll cmd+c`), ...cmdCopyElsewhere].join(' · '),
   )
-  const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
+  const { DEFAULT_BINDINGS } = await import('../../src/screen/keys/defaultBindings.ts')
   const scroll = DEFAULT_BINDINGS.find(b => b.context === 'Scroll')?.bindings ?? {}
   check(
     'the running platform sees the truthful row set',
@@ -57,8 +57,8 @@ console.log('§4 the Scroll copy chord is platform-forked (no more super+c on Wi
 
 console.log('§5 the display walk teaches the chord declared last — the portable one when a shift chord and a prefix chord are authored for one action')
 {
-  const { parseBindings } = await import('../../src/keybindings/parser.ts')
-  const { getBindingDisplayText } = await import('../../src/keybindings/resolver.ts')
+  const { parseBindings } = await import('../../src/screen/keys/parser.ts')
+  const { getBindingDisplayText } = await import('../../src/screen/keys/resolver.ts')
   const parsed = parseBindings([{ context: 'Global', bindings: { 'ctrl+shift+o': 'app:toggleTerminal', 'ctrl+x o': 'app:toggleTerminal' } }] as never)
   const display = getBindingDisplayText('app:toggleTerminal', 'Global', parsed, 'windows')
   check(

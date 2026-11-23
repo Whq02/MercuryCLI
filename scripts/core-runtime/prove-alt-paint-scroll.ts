@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-import type { Frame } from '../../src/ink/frame.js'
-import { FrameWriter } from '../../src/ink/frame-writer.js'
-import { optimizePatches as optimize } from '../../src/ink/patch-stream.js'
-import { charInCellAt } from '../../src/ink/cell-grid.js'
-import { CURSOR_HOME } from '../../src/ink/termio/csi.js'
-import { writeDiffToTerminal } from '../../src/ink/session/delivery.js'
+import type { Frame } from '../../src/screen/renderer/frame.js'
+import { FrameWriter } from '../../src/screen/renderer/frame-writer.js'
+import { optimizePatches as optimize } from '../../src/screen/renderer/patch-stream.js'
+import { charInCellAt } from '../../src/screen/renderer/cell-grid.js'
+import { CURSOR_HOME } from '../../src/screen/renderer/termio/csi.js'
+import { writeDiffToTerminal } from '../../src/screen/renderer/terminal-session/frameDelivery.js'
 import { AnsiEmulator } from '../ink-runtime/ansiEmulator.js'
 import { composeScene, makeContext, type SceneNode } from '../ink-runtime/frameHarness.js'
 
@@ -14,7 +14,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    const altPaintHint = 'fix the alt-screen branch of FrameWriter.render in src/ink/frame-writer.ts (a full paint must home the cursor and never emit a bare LF), or the byte writer writeDiffToTerminal in src/ink/session/delivery.ts'
+    const altPaintHint = 'fix the alt-screen branch of FrameWriter.render in src/screen/renderer/frame-writer.ts (a full paint must home the cursor and never emit a bare LF), or the byte writer writeDiffToTerminal in src/screen/renderer/terminal-session/frameDelivery.ts'
     console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — ${altPaintHint}`)
   }
 }

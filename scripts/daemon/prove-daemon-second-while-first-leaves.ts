@@ -52,14 +52,14 @@ for (let run = 1; run <= runs; run++) {
   const unreached = lines.filter(line => line.startsWith('! '))
 
   check('the first daemon is held on its way out with its record still there, marked stopping', text !== '' && held >= 0 && stopping.includes('"state": "stopping"') && stopping.includes('<pid:d1>'), text === '' ? `the harness wrote no recording (exit ${ran.status})` : stopping || 'no record was read')
-  check('a second daemon started by hand meanwhile is refused, exit 1, by the line that names the first', refused >= 0 && second === '= d2 left: code 1 signal null', `${second || 'the second daemon was not seen to leave'} — a daemon started while another serves the home must print the refusal "refusing to start so the live one is not clobbered" and exit 1: see that refusal in src/daemon/main.ts`)
+  check('a second daemon started by hand meanwhile is refused, exit 1, by the line that names the first', refused >= 0 && second === '= d2 left: code 1 signal null', `${second || 'the second daemon was not seen to leave'} — a daemon started while another serves the home must print the refusal "refusing to start so the live one is not clobbered" and exit 1: see that refusal in src/daemon/control/main.ts`)
   check('a window that opens meanwhile asks for its daemon and has started none: the record still names the first', waiting.endsWith('the window asks for its daemon') && stillFirst.includes('<pid:d1>') && stillFirst.includes('"state": "stopping"'), `${waiting} · ${stillFirst}`)
   check('the first daemon leaves, exit 0, once it is held no longer', firstLeft === '= d1 left: code 0 signal null', firstLeft)
   const own = usable.endsWith('the daemon of the window is usable: true') && hello.includes('"ok":true') && hello.includes('"ready":true') && !hello.includes('<pid:d1>') && served.includes('"ownerPid": <pid:window>')
   check(
     'the window then has a daemon of its own: usable, ready, under another pid, owned by the window',
     own,
-    `${usable || 'the window said nothing more'} · ${hello.slice(0, 160)} — a window that opens while a daemon leaves waits for the plane to clear and then starts its own (awaitDeparture in src/services/switchboard/ensureDaemon.ts): if it is left with no daemon, a daemon that finds the home's record marked stopping has to wait for that process to end and then serve`,
+    `${usable || 'the window said nothing more'} · ${hello.slice(0, 160)} — a window that opens while a daemon leaves waits for the plane to clear and then starts its own (awaitDeparture in src/daemon/switchboard/ensureDaemon.ts): if it is left with no daemon, a daemon that finds the home's record marked stopping has to wait for that process to end and then serve`,
   )
   check('every wait of the scenario was reached', unreached.length === 0 && ran.status === 0, unreached.join(' | ') || `the harness exit ${ran.status}`)
   if (own) got++

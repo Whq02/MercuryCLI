@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker, scratchRoot } from '../engine-durability/harness.ts'
-import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
+import type { RunnerChildSpec } from '../../src/daemon/runner-link/headlessRun.ts'
 
 const t = checker()
 const root = scratchRoot('boot-profiles')
@@ -16,7 +16,7 @@ writeFileSync(
   JSON.stringify({ claudeAiOauth: { accessToken: 'sk-ant-oat01-fixture', refreshToken: 'sk-ant-ort01-fixture', expiresAt: Date.now() + 3600_000, scopes: ['user:inference'], subscriptionType: 'max' } }),
 )
 process.env.MERCURY_DAEMON_DIR = join(root, 'daemon')
-const menu = await import('../../src/substrate/startupMenu.js')
+const menu = await import('../../src/platform/substrate/startupMenu.js')
 const profilePath = join(root, 'boot-env.json')
 
 t.section('§1 — the frozen surface (repro, verbatim)')
@@ -65,7 +65,7 @@ t.section('§4 — at the daemon seam: immutable + resume-retained')
 {
   const dir = join(root, 'daemon')
   const { makeConcourseAdmitHandler, readSessionWorkers, settleConcourseWorker } = await import(
-    '../../src/daemon/concourseWorkers.js'
+    '../../src/daemon/concourse-workers/concourseWorkers.js'
   )
   const liveShorts = new Set<string>()
   let nextPid = 51000

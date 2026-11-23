@@ -8,7 +8,7 @@ import { join } from 'node:path'
 
 if (process.argv[2] === '--stamp') {
   process.env.NODE_ENV = 'test'
-  const milestones = await import('../../src/substrate/launchMilestones.js')
+  const milestones = await import('../../src/platform/substrate/launchMilestones.js')
   const graph = await import('../../src/boot/launchGraph.js')
   const begin = (): void => (milestones as { markLaunchBegun?: () => void }).markLaunchBegun?.()
   const stamp = milestones.recordLaunchMilestone
@@ -44,14 +44,14 @@ const FIX = `The rungs must fire ${ORDER}; an inverted spine means a stamp moved
 type Row = { schema: 1; pid: number; atMs: number; milestone: string; boot?: string; beforeLaunch?: unknown }
 type Check = { id: string; status: string; evidence: string; fix?: string }
 let failures = 0
-const WHERE_TO_LOOK = 'to fix: the launch-spine row is judged in src/services/health/sections/crew/boot.ts and the marks are written by recordLaunchMilestone in src/substrate/launchMilestones.ts'
+const WHERE_TO_LOOK = 'to fix: the launch-spine row is judged in src/platform/health/sections/crew/boot.ts and the marks are written by recordLaunchMilestone in src/platform/substrate/launchMilestones.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — ' + WHERE_TO_LOOK}`)
   if (!cond) failures++
 }
 const readRows = (): Row[] => JSON.parse(readFileSync(STORE, 'utf8')).rows as Row[]
 const spineRow = async (): Promise<Check | undefined> => {
-  const { runHealthReport } = await import('../../src/services/health/healthReport.js')
+  const { runHealthReport } = await import('../../src/platform/health/healthReport.js')
   return (await runHealthReport({ depth: 'fast' })).sections.flatMap(section => section.checks).find(row => row.id === 'launch-spine')
 }
 const builtSpineRow = (): Check | undefined => {

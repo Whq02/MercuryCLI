@@ -22,9 +22,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(cwd)
-const history = await import('../../src/history.ts')
+const history = await import('../../src/sessions/promptHistory.ts')
 const quiet = (): boolean => {
   const h = history.getHistoryFlushHealth()
   return h.pending === 0 && !h.inFlight
@@ -50,8 +50,8 @@ section('H1 the up-arrow window parses only the lines it keeps')
   reset()
   const seen: string[] = []
   for await (const entry of history.getHistory()) seen.push(entry.display)
-  check('the window holds 100 rows of this project, newest first', seen.length === 100 && seen[0] === 'prompt 2997' && seen.every(d => Number(d.slice(7)) % 3 === 0), `${seen.length} first=${seen[0]}; fix getHistory in src/history.ts to keep only this project lines, newest first, up to 100`)
-  check(`one whole-file read, exactly 100 lines parsed (was ${L}: every line, eagerly)`, census.reads === 1 && census.parsedLines === 100, `${JSON.stringify(census)}; fix getHistory and diskRecordsReversed in src/history.ts to parse only the lines the window keeps`)
+  check('the window holds 100 rows of this project, newest first', seen.length === 100 && seen[0] === 'prompt 2997' && seen.every(d => Number(d.slice(7)) % 3 === 0), `${seen.length} first=${seen[0]}; fix getHistory in src/sessions/promptHistory.ts to keep only this project lines, newest first, up to 100`)
+  check(`one whole-file read, exactly 100 lines parsed (was ${L}: every line, eagerly)`, census.reads === 1 && census.parsedLines === 100, `${JSON.stringify(census)}; fix getHistory and diskRecordsReversed in src/sessions/promptHistory.ts to parse only the lines the window keeps`)
   console.log(`  BEFORE: ${L} JSON.parse per up-arrow window over a ${L}-line file · AFTER: ${census.parsedLines}`)
 }
 
@@ -59,8 +59,8 @@ section('H2 the search corpus — one read, one parse; readers over it cost noth
 {
   reset()
   const corpus = await history.loadHistoryCorpus()
-  check(`the corpus holds every record newest-first (${L})`, corpus.length === L && corpus[0]!.display === `prompt ${L - 1}` && corpus[L - 1]!.display === 'prompt 0', `${corpus.length}; fix loadHistoryCorpus in src/history.ts to return every record, newest first`)
-  check(`loading it cost one read and ${L} parses`, census.reads === 1 && census.parsedLines === L, `${JSON.stringify(census)}; fix loadHistoryCorpus in src/history.ts to read the file once and parse each line once`)
+  check(`the corpus holds every record newest-first (${L})`, corpus.length === L && corpus[0]!.display === `prompt ${L - 1}` && corpus[L - 1]!.display === 'prompt 0', `${corpus.length}; fix loadHistoryCorpus in src/sessions/promptHistory.ts to return every record, newest first`)
+  check(`loading it cost one read and ${L} parses`, census.reads === 1 && census.parsedLines === L, `${JSON.stringify(census)}; fix loadHistoryCorpus in src/sessions/promptHistory.ts to read the file once and parse each line once`)
   const K = 25
   let matches = 0
   for (let k = 0; k < K; k++) {
@@ -71,7 +71,7 @@ section('H2 the search corpus — one read, one parse; readers over it cost noth
       }
     }
   }
-  check(`${K} keystroke scans over the corpus: 0 further reads, 0 further parses (was ${K} reads + ${K * L} parses)`, matches === K && census.reads === 1 && census.parsedLines === L, `${JSON.stringify(census)}; fix makeHistoryReaderOver in src/history.ts to walk the loaded corpus without reading or parsing the file again`)
+  check(`${K} keystroke scans over the corpus: 0 further reads, 0 further parses (was ${K} reads + ${K * L} parses)`, matches === K && census.reads === 1 && census.parsedLines === L, `${JSON.stringify(census)}; fix makeHistoryReaderOver in src/sessions/promptHistory.ts to walk the loaded corpus without reading or parsing the file again`)
   console.log(`  BEFORE: ${K} keystrokes = ${K} whole-file reads + ${K * L} JSON.parse · AFTER: 1 read + ${L} parses per search session, 0 per keystroke`)
 }
 
@@ -79,10 +79,10 @@ section('H3 the corpus carries the pending buffer first and honours a retraction
 {
   history.addToHistory('typed just now')
   const withPending = await history.loadHistoryCorpus()
-  check('a just-typed entry (still pending or freshly flushed) leads the corpus', withPending[0]?.display === 'typed just now', `${String(withPending[0]?.display)}; fix loadHistoryCorpus in src/history.ts to put the pending buffer before the disk records`)
+  check('a just-typed entry (still pending or freshly flushed) leads the corpus', withPending[0]?.display === 'typed just now', `${String(withPending[0]?.display)}; fix loadHistoryCorpus in src/sessions/promptHistory.ts to put the pending buffer before the disk records`)
   history.removeLastFromHistory()
   const afterRetract = await history.loadHistoryCorpus()
-  check('a retracted entry leaves the corpus whether it reached the disk or not', afterRetract[0]?.display !== 'typed just now', `${String(afterRetract[0]?.display)}; fix removeLastFromHistory and loadHistoryCorpus in src/history.ts so a retracted entry is dropped from the corpus`)
+  check('a retracted entry leaves the corpus whether it reached the disk or not', afterRetract[0]?.display !== 'typed just now', `${String(afterRetract[0]?.display)}; fix removeLastFromHistory and loadHistoryCorpus in src/sessions/promptHistory.ts so a retracted entry is dropped from the corpus`)
   await waitUntil(() => quiet(), { tries: 2000 })
 }
 
@@ -108,26 +108,26 @@ section('H4 compaction — a flush past 8 MiB rewrites the file to its newest 4 
   const sizeAfter = statSync(filePath).size
   const text = readFileSync(filePath, 'utf8')
   const lines = text.split('\n').filter(l => l !== '')
-  check('the flush that crossed the bound compacted the file (once)', compacted && census.compactions === 1, `${JSON.stringify(census)}; fix compactHistoryIfOversized in src/history.ts to compact once when the file passes HISTORY_MAX_BYTES`)
-  check(`the file shrank from ${(sizeBefore / 1024 / 1024).toFixed(1)} MiB to at most 4 MiB`, sizeAfter <= 4 * 1024 * 1024 && sizeAfter > 3 * 1024 * 1024, `${sizeAfter}; fix compactHistoryIfOversized in src/history.ts to keep the newest HISTORY_KEEP_BYTES of the file`)
+  check('the flush that crossed the bound compacted the file (once)', compacted && census.compactions === 1, `${JSON.stringify(census)}; fix compactHistoryIfOversized in src/sessions/promptHistory.ts to compact once when the file passes HISTORY_MAX_BYTES`)
+  check(`the file shrank from ${(sizeBefore / 1024 / 1024).toFixed(1)} MiB to at most 4 MiB`, sizeAfter <= 4 * 1024 * 1024 && sizeAfter > 3 * 1024 * 1024, `${sizeAfter}; fix compactHistoryIfOversized in src/sessions/promptHistory.ts to keep the newest HISTORY_KEEP_BYTES of the file`)
   check('it starts at a line boundary (the first line parses)', (() => {
     try {
       return typeof (JSON.parse(lines[0] ?? '') as { display?: unknown }).display === 'string'
     } catch {
       return false
     }
-  })(), `${(lines[0] ?? '').slice(0, 40)}; fix compactHistoryIfOversized in src/history.ts to cut at the first newline of the kept tail`)
+  })(), `${(lines[0] ?? '').slice(0, 40)}; fix compactHistoryIfOversized in src/sessions/promptHistory.ts to cut at the first newline of the kept tail`)
   const newest = lines[lines.length - 1] ?? ''
-  check('the appended line is the newest line of the compacted file', newest.includes('after the compaction'), `${newest.slice(0, 80)}; fix the flush and compactHistoryIfOversized in src/history.ts so the new line is appended before the file is trimmed`)
-  check('the newest old line survived the rewrite', text.includes(`"big-${lastBig}"`), `looked for "big-${lastBig}" · tail: ${text.slice(-160).replace(/\n/g, ' ↵ ')}; fix compactHistoryIfOversized in src/history.ts to keep the newest lines`)
-  check('the oldest line is gone', !text.includes('"big-0"'), `head: ${text.slice(0, 80)}; fix compactHistoryIfOversized in src/history.ts to drop the oldest lines`)
+  check('the appended line is the newest line of the compacted file', newest.includes('after the compaction'), `${newest.slice(0, 80)}; fix the flush and compactHistoryIfOversized in src/sessions/promptHistory.ts so the new line is appended before the file is trimmed`)
+  check('the newest old line survived the rewrite', text.includes(`"big-${lastBig}"`), `looked for "big-${lastBig}" · tail: ${text.slice(-160).replace(/\n/g, ' ↵ ')}; fix compactHistoryIfOversized in src/sessions/promptHistory.ts to keep the newest lines`)
+  check('the oldest line is gone', !text.includes('"big-0"'), `head: ${text.slice(0, 80)}; fix compactHistoryIfOversized in src/sessions/promptHistory.ts to drop the oldest lines`)
   if (process.platform === 'win32') console.log('  [SKIP] the owner-only mode is kept through the rewrite — win32: NTFS keeps no POSIX mode bits (node reads 0o666 whatever the chmod); the mode on the rewrite rides the POSIX pool')
-  else check('the owner-only mode is kept through the rewrite', (statSync(filePath).mode & 0o777) === 0o600, `${(statSync(filePath).mode & 0o777).toString(8)}; fix compactHistoryIfOversized in src/history.ts to publish with mode 0o600`)
-  check('the flush lock is released', !existsSync(`${filePath}.lock`), `${filePath}.lock is still there; fix the flush in src/history.ts to release its lock after compaction`)
+  else check('the owner-only mode is kept through the rewrite', (statSync(filePath).mode & 0o777) === 0o600, `${(statSync(filePath).mode & 0o777).toString(8)}; fix compactHistoryIfOversized in src/sessions/promptHistory.ts to publish with mode 0o600`)
+  check('the flush lock is released', !existsSync(`${filePath}.lock`), `${filePath}.lock is still there; fix the flush in src/sessions/promptHistory.ts to release its lock after compaction`)
   reset()
   const seen: string[] = []
   for await (const entry of history.getHistory()) seen.push(entry.display)
-  check('the up-arrow window still serves after the compaction (the appended entry leads it)', seen[0] === 'after the compaction', `${String(seen[0])}; fix getHistory in src/history.ts to read the compacted file with the appended entry first`)
+  check('the up-arrow window still serves after the compaction (the appended entry leads it)', seen[0] === 'after the compaction', `${String(seen[0])}; fix getHistory in src/sessions/promptHistory.ts to read the compacted file with the appended entry first`)
   console.log(`  BEFORE: history.jsonl grew forever (the field box: 2-15 MB and every read paid it whole) · AFTER: bounded at 8 MiB, rewritten to 4 MiB of whole lines under the flush lock`)
 }
 

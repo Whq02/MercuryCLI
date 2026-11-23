@@ -37,15 +37,15 @@ const seam = `http://127.0.0.1:${server.port}`
 process.env.MERCURY_QWEN_API_BASE = seam
 process.env.DASHSCOPE_WORKSPACE_ID = 'fixture'
 process.env.DASHSCOPE_API_KEY = oldKey
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { getModelCosts, resolveModelPricing, getModelPricingString, calculateUSDCost } = await import('../../src/services/usage/modelCost.ts')
-const { refreshQwenCatalogue, __resetQwenCatalogueForTest } = await import('../../src/services/providers/qwen/qwenCatalogue.ts')
-const { rememberQwenBoundBase, qwenBoundBase } = await import('../../src/services/providers/qwen/qwenAccounts.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+const { getModelCosts, resolveModelPricing, getModelPricingString, calculateUSDCost } = await import('../../src/models/usage/modelCost.ts')
+const { refreshQwenCatalogue, __resetQwenCatalogueForTest } = await import('../../src/models/roads/qwen/qwenCatalogue.ts')
+const { rememberQwenBoundBase, qwenBoundBase } = await import('../../src/models/roads/qwen/qwenAccounts.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 let failures = 0
 function check(label: string, actual: unknown, expected: unknown): void {
   try { assert.deepEqual(actual, expected); console.log(`PASS ${label}`) }

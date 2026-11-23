@@ -11,9 +11,9 @@ function section(t: string): void {
 }
 const t = await import('../core-runtime/turnScenarios.ts')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { statusOfTerminal, OUTCOME_STATUSES } = await import('../../src/rows/vocabulary.ts')
-const { createUserInterruptionMessage } = await import('../../src/utils/messages/factories.js')
-const { turnCutLine, turnCutOf, turnCutResultText } = await import('../../src/utils/messages/rejectionText.js')
+const { statusOfTerminal, OUTCOME_STATUSES } = await import('../../src/engine/rows/vocabulary.ts')
+const { createUserInterruptionMessage } = await import('../../src/engine/message-shapes/factories.js')
+const { turnCutLine, turnCutOf, turnCutResultText } = await import('../../src/engine/message-shapes/rejectionText.js')
 
 console.log('============================================================')
 console.log(' cancelled turns never settle as phantom completions (HB-0096, runner-homed)')
@@ -47,7 +47,7 @@ const aborts: Abort[] = []
 for (const phase of ['stream', 'tools'] as const) for (const reason of REASONS) aborts.push(await abortIn(phase, reason))
 const ended = (c: Abort): string => (c.run === null ? `threw ${c.threw}` : `${String(c.run.terminal.reason)}${c.run.events.at(-1)?.kind === 'run_terminal' ? '' : ' with no run_terminal event'}`)
 const terminalOf = (phase: Phase): string => (phase === 'stream' ? 'aborted_streaming' : 'aborted_tools')
-const stepOf = (phase: Phase): string => (phase === 'stream' ? 'modelReply (src/run-core/turn/modelReply.ts)' : 'afterTools (src/run-core/turn/afterTools.ts)')
+const stepOf = (phase: Phase): string => (phase === 'stream' ? 'modelReply (src/engine/loop/turn/modelReply.ts)' : 'afterTools (src/engine/loop/turn/afterTools.ts)')
 const told = (bad: Abort[], read: (c: Abort) => string): string => bad.map(c => `${c.phase} abort, ${say(c.reason)}: ${read(c)}`).join(' · ')
 const operatorAbort = (phase: Phase): Abort => aborts.find(c => c.phase === phase && c.reason === undefined)!
 const textOf = (event: Seen | undefined): string => {
@@ -101,7 +101,7 @@ for (const phase of ['stream', 'tools'] as const) {
   check(
     'the streaming abort branch settles every announced tool_use synthetically first, in the typed cut\'s words',
     bad.length === 0,
-    bad.length === 0 ? '' : `modelReply (src/run-core/turn/modelReply.ts) must settle each tool_use the cut reply announced as aborted with turnCutResultText(turnCutOf(reason)) before the interruption event, and start none — ${told(bad, c => `read [${settledRead(c)}] owed [${settledOwed(c)}]`)}`,
+    bad.length === 0 ? '' : `modelReply (src/engine/loop/turn/modelReply.ts) must settle each tool_use the cut reply announced as aborted with turnCutResultText(turnCutOf(reason)) before the interruption event, and start none — ${told(bad, c => `read [${settledRead(c)}] owed [${settledOwed(c)}]`)}`,
   )
 }
 check(

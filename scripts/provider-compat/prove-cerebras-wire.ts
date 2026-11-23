@@ -4,10 +4,10 @@ import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import { z } from 'zod/v4'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'ANTHROPIC_BASE_URL']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_BUSY_RETRY_SCALE = '0.2'
@@ -54,24 +54,24 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
 } })
 process.env.MERCURY_CEREBRAS_API_BASE = `http://127.0.0.1:${server.port}/v1`
 let count = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, `${name} (change the Cerebras road in src/services/providers/cerebras/cerebrasCallModel.ts or cerebrasCatalogue.ts, or the route in src/services/providers/routeLaw.ts, whichever this check names)`); count++; console.log(`[PASS] ${name}`) }
+const check = (name: string, value: unknown): void => { assert.ok(value, `${name} (change the Cerebras road in src/models/roads/cerebras/cerebrasCallModel.ts or cerebrasCatalogue.ts, or the route in src/models/roads/routeLaw.ts, whichever this check names)`); count++; console.log(`[PASS] ${name}`) }
 try {
-  const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
+  const { classifyModelRoute } = await import('../../src/models/roads/routeLaw.ts')
   check('Cerebras qualified ids are declared before any inference request', classifyModelRoute('cerebras/gpt-oss-120b').route === 'cerebras')
-  const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
-  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-  const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
-  const { refreshCerebrasCatalogue, __resetCerebrasCatalogueForTest, cerebrasCatalogueRows, cerebrasCatalogueSourceWords } = await import(new URL('../../src/services/providers/cerebras/cerebrasCatalogue.ts', import.meta.url).href)
-  const { buildCerebrasExtras, cerebrasCallModel } = await import(new URL('../../src/services/providers/cerebras/cerebrasCallModel.ts', import.meta.url).href)
-  const { storeCerebrasApiKeyLogin } = await import(new URL('../../src/services/providers/cerebras/cerebrasLogin.ts', import.meta.url).href)
-  const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
-  const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
-  const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
-  const { keyLaneListState, keyLanePins } = await import('../../src/services/model/modelOptions.ts')
-  const { readStoredCerebrasApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-  const { liveModelsReference, knownModelsReference } = await import('../../src/services/resources/adapters/models.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+  const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+  const { resolvePrimaryAgentBackend } = await import('../../src/models/roads/primaryBackend.ts')
+  const { refreshCerebrasCatalogue, __resetCerebrasCatalogueForTest, cerebrasCatalogueRows, cerebrasCatalogueSourceWords } = await import(new URL('../../src/models/roads/cerebras/cerebrasCatalogue.ts', import.meta.url).href)
+  const { buildCerebrasExtras, cerebrasCallModel } = await import(new URL('../../src/models/roads/cerebras/cerebrasCallModel.ts', import.meta.url).href)
+  const { storeCerebrasApiKeyLogin } = await import(new URL('../../src/models/roads/cerebras/cerebrasLogin.ts', import.meta.url).href)
+  const { usageForProvider } = await import('../../src/models/roads/providerUsage.ts')
+  const { laneBillingState } = await import('../../src/models/roads/laneBillingState.ts')
+  const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
+  const { keyLaneListState, keyLanePins } = await import('../../src/models/catalogue/modelOptions.ts')
+  const { readStoredCerebrasApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const { liveModelsReference, knownModelsReference } = await import('../../src/integrations/resources/adapters/models.ts')
   const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
   function params(model = 'cerebras/gpt-oss-120b', effortValue = 'max', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
     return { messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: thinking ? { type: 'enabled', budgetTokens: 4096 } : { type: 'disabled' }, signal: new AbortController().signal,
@@ -99,7 +99,7 @@ try {
   check('even an override cannot reserve an artificial Cerebras token ceiling', !('max_completion_tokens' in captures.at(-1)!.body) && !('max_tokens' in captures.at(-1)!.body))
   const meter = usageForProvider('cerebras')
   check('the meter states account balance as unreported and counts session spend', meter.credits?.state === 'unreported' && meter.spend.inputTokens > 0 && meter.windows.length === 0)
-  const { calculateUSDCost } = await import('../../src/services/usage/modelCost.ts')
+  const { calculateUSDCost } = await import('../../src/models/usage/modelCost.ts')
   check('cached input costs the same as uncached input', Math.abs(calculateUSDCost('cerebras/gpt-oss-120b', first.at(-1)!.message.usage as never) - (32 * 0.35 + 103 * 0.75) / 1_000_000) < 1e-12)
   mode = 'tools'; const tools = await run()
   check('fragmented tool JSON produces one validated call with the vendor id', tools.flatMap(row => row.message.content).filter(block => block.type === 'tool_use').length === 1)

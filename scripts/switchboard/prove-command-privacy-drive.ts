@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, sta
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
-import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/models/facts/builtInModelTable.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
@@ -30,8 +30,8 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 
 const countingTurn = (n: number) => ({
   kind: 'paced_tool_use' as const,

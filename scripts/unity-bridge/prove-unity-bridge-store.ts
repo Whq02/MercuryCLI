@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — sections 1 and 2 exercise unityRunToRecord in src/services/ide/unityTests.ts and persistTestRun in src/services/ide/pythonTests.ts; section 3 runs the unity tool in src/tools/UnityTool/UnityTool.ts, so fix the one the section names' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — sections 1 and 2 exercise unityRunToRecord in src/integrations/ide/unityTests.ts and persistTestRun in src/integrations/ide/pythonTests.ts; section 3 runs the unity tool in src/tools/unity/UnityTool.ts, so fix the one the section names' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -21,12 +21,12 @@ process.env.MERCURY_UNITY_BRIDGE_TOKEN = 'tok'
 const scratchHome = mkdtempSync(path.join(tmpdir(), 'unity-bridge-home-'))
 process.env.MERCURY_CONFIG_DIR = scratchHome
 
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const { parseUnityTestResults, unityRunToRecord } = await import('../../src/services/ide/unityTests.js')
-const { persistTestRun, testRunsDir } = await import('../../src/services/ide/pythonTests.js')
-const { unityTestResultsPath } = await import('../../src/utils/unity/unityProject.js')
-const { UnityTool } = await import('../../src/tools/UnityTool/UnityTool.js')
-const { resetUnityBridgeClientForTest } = await import('../../src/services/unity/bridgeClient.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
+const { parseUnityTestResults, unityRunToRecord } = await import('../../src/integrations/ide/unityTests.js')
+const { persistTestRun, testRunsDir } = await import('../../src/integrations/ide/pythonTests.js')
+const { unityTestResultsPath } = await import('../../src/integrations/unity-protocol/unityProject.js')
+const { UnityTool } = await import('../../src/tools/unity/UnityTool.js')
+const { resetUnityBridgeClientForTest } = await import('../../src/integrations/unity/bridgeClient.js')
 const { startFakeUnityBridge } = await import('./fake-bridge.js')
 
 const repo = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')

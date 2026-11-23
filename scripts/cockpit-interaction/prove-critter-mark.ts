@@ -11,9 +11,9 @@ import {
   critterDefForKey,
   DEFAULT_CRITTER_KEY,
   isPoolCritterKey,
-} from '../../src/utils/cockpit/critterData.ts'
-import { CRAB_GLYPHS } from '../../src/components/mercury-ui/assets.tsx'
-import { displayWidth } from '../../src/utils/glyphs.ts'
+} from '../../src/screen/cockpit/critterData.ts'
+import { CRAB_GLYPHS } from '../../src/screen/widgets/assets.tsx'
+import { displayWidth } from '../../src/screen/theme/glyphs.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 

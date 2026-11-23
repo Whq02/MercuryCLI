@@ -28,7 +28,7 @@ const heldCopies = (): string[] => {
   if (process.platform === 'linux') return readdirSync('/proc/self/fd').map(fd => { try { return readlinkSync(`/proc/self/fd/${fd}`) } catch { return '' } }).filter(target => target.includes('mercury-sqlite-read-'))
   return execFileSync('lsof', ['-p', String(process.pid)], { encoding: 'utf8' }).split('\n').filter(line => line.includes('mercury-sqlite-read-')).map(line => line.replace(/\s+/g, ' '))
 }
-const sqliteHint = ' | change renderSqliteTarget in src/tools/FileReadTool/readRichFormats.ts (the leftover-log private copy via openPrivateCopy, and the read-only open) so a read leaves the database, its -wal and -shm as they were'
+const sqliteHint = ' | change renderSqliteTarget in src/tools/read/readRichFormats.ts (the leftover-log private copy via openPrivateCopy, and the read-only open) so a read leaves the database, its -wal and -shm as they were'
 const client = await readViewMcp(home)
 try {
   for (const [runtime, file, read] of [['Node', leftover, (path: string) => client.call('Read', { file_path: path })], ['Bun', leftoverBun, bunRead]] as const) {

@@ -86,12 +86,12 @@ const TERMS: Term[] = [
 const INSIDER: RegExp[] = [/plain world/i, /classic feel/, /\breaped\b/, /Cells-tier/, /\bsupervisor\b/i, /\broads\b/, /display help for command/, /(?<!Boot |boot )\bface\b/]
 
 console.log('§0 the walk')
-failHint = 'every page printed by mercury <verb> --help must exit 0 and the walk must reach the 55 pages; command and option help text lives in src/main/rootOptions.ts and src/main/subcommands.ts; rebuild dist after editing'
+failHint = 'every page printed by mercury <verb> --help must exit 0 and the walk must reach the 55 pages; command and option help text lives in src/boot/main/rootOptions.ts and src/boot/main/subcommands.ts; rebuild dist after editing'
 check('every page exits 0', [...exits.values()].every(code => code === 0), [...exits].filter(([, code]) => code !== 0).map(([key, code]) => `${key}=${code}`).join(', '))
 check('folds 46aa and 46au: the walk reaches all 55 pages, including mcp-server, tune and extension-api', pages.size === 55 && ['sessions list', 'sessions delete', 'host', 'mcp-server', 'tune', 'extension-api'].every(page => pages.has(page)), `${pages.size}: ${[...pages.keys()].join(', ')}`)
 
 console.log("§1 a name's first use on a page carries its plain words, once; later uses stand alone")
-failHint = 'edit the help text of the page named in the label (src/main/rootOptions.ts for the root and run options, src/main/subcommands.ts for the other verbs) so the first use of the term is followed by its plain words in brackets and later uses are bare'
+failHint = 'edit the help text of the page named in the label (src/boot/main/rootOptions.ts for the root and run options, src/boot/main/subcommands.ts for the other verbs) so the first use of the term is followed by its plain words in brackets and later uses are bare'
 let taught = 0
 for (const [key, text] of pages) {
   const body = prose(text)
@@ -110,7 +110,7 @@ for (const [key, text] of pages) {
 check('the census found names to teach (the table is not vacuous)', taught >= 20, String(taught))
 
 console.log('§2 no page speaks an insider phrase')
-failHint = 'reword the phrase in the help text of the page named in the label (src/main/rootOptions.ts or src/main/subcommands.ts) in plain words'
+failHint = 'reword the phrase in the help text of the page named in the label (src/boot/main/rootOptions.ts or src/boot/main/subcommands.ts) in plain words'
 for (const [key, text] of pages) {
   const body = prose(text)
   for (const re of INSIDER) {
@@ -120,7 +120,7 @@ for (const [key, text] of pages) {
 }
 
 console.log('§3 the sentences a newcomer stumbled on say what they mean')
-failHint = 'restore the named sentence in the option or command help text in src/main/rootOptions.ts or src/main/subcommands.ts'
+failHint = 'restore the named sentence in the option or command help text in src/boot/main/rootOptions.ts or src/boot/main/subcommands.ts'
 for (const key of ['mercury', 'run', 'runner']) {
   const body = prose(pages.get(key) ?? '')
   const modeAt = body.indexOf('Permission mode')
@@ -140,7 +140,7 @@ for (const key of ['auth', 'mcp', 'extensions']) {
 }
 
 console.log('§4 the daemon page has the shape of every other page')
-failHint = 'the mercury daemon help page (and its help and -h spellings) must print the same Usage, Options and Commands shape as other pages; look in src/main/subcommands.ts'
+failHint = 'the mercury daemon help page (and its help and -h spellings) must print the same Usage, Options and Commands shape as other pages; look in src/boot/main/subcommands.ts'
 const daemon = pages.get('daemon') ?? ''
 check('Usage: mercury daemon …', /^Usage: mercury daemon/.test(daemon), daemon.split('\n')[0] ?? '')
 check('an Options block with -h, --help  Show help', /Options:\n  -h, --help\s+Show help/.test(daemon))
@@ -151,7 +151,7 @@ for (const spelling of ['help', '-h']) {
 }
 
 console.log('§5 the version verb is listed beside help, and the help verb prints the same page as --help')
-failHint = 'the root Commands block must list the version and help verbs with their words, and mercury help must print what mercury --help prints; look in src/main/subcommands.ts and src/main/rootOptions.ts'
+failHint = 'the root Commands block must list the version and help verbs with their words, and mercury help must print what mercury --help prints; look in src/boot/main/subcommands.ts and src/boot/main/rootOptions.ts'
 const root = pages.get('mercury') ?? ''
 check('the Commands block lists version, with its words', /\n  version\s+Print the version \(the same line as --version\)/.test(root), root.split('Commands:')[1]?.slice(0, 200) ?? '')
 check('…and help, so both verbs are visible together', /\n  help \[command\.\.\.\]\s+Show help/.test(root))

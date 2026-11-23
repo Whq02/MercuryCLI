@@ -374,7 +374,7 @@ Kullanılabilir komutlar şunları içerir:
 - **Apollo Mode**, spesifikasyon görüşmesi: bir prototip oluşturmak için kullanacağı spesifikasyonu tamamlamak üzere ajanın sorularını yanıtlayın. Bkz. [docs/APOLLO-MODE.md](../APOLLO-MODE.md).
 - **Kurtarma.** Atomik yayımlama, günlüğe kaydedilmiş işlemler ve başlangıçta uzlaştırma. Bkz. [docs/DURABILITY.md](../DURABILITY.md).
 
-Çalışma zamanı bayrakları `src/substrate/flagRegistry.ts` içinde tanımlanır, `MERCURY_*` ayarları olarak sunulur ve istek üzerine üretilir. Entegrasyon uyumluluğu [docs/COMPATIBILITY.md](../COMPATIBILITY.md) dosyasında belgelenmiştir. Tam belge dizini [docs/README.md](../README.md) dosyasındadır.
+Çalışma zamanı bayrakları `src/platform/substrate/flagRegistry.ts` içinde tanımlanır, `MERCURY_*` ayarları olarak sunulur ve istek üzerine üretilir. Entegrasyon uyumluluğu [docs/COMPATIBILITY.md](../COMPATIBILITY.md) dosyasında belgelenmiştir. Tam belge dizini [docs/README.md](../README.md) dosyasındadır.
 
 ## Slash komutları
 

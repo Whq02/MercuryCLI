@@ -1,4 +1,4 @@
-import type { ConnectedMCPServer, ScopedMcpServerConfig } from '../../src/utils/mcp/types.ts'
+import type { ConnectedMCPServer, ScopedMcpServerConfig } from '../../src/integrations/mcp-shapes/mcpServerRecords.ts'
 
 type ConnectMemo = {
   getServerCacheKey: (name: string, config: ScopedMcpServerConfig) => string

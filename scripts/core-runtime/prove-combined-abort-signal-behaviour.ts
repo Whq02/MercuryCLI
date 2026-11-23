@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
-import { createCombinedAbortSignal } from '../../src/utils/combinedAbortSignal.ts'
+import { createCombinedAbortSignal } from '../../src/platform/async/combinedAbortSignal.ts'
 import { untilAsync } from '../lib/untilAsync.ts'
 
-const WHERE = 'createCombinedAbortSignal in src/utils/combinedAbortSignal.ts'
+const WHERE = 'createCombinedAbortSignal in src/platform/async/combinedAbortSignal.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

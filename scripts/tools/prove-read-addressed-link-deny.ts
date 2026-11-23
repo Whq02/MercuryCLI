@@ -27,7 +27,7 @@ database(join(home, 'inside.db'), 'KEPT')
 for (const name of ['kept.txt', 'kept.db', 'kept.zip', 'open.db']) symlinkSync(join(outside, name), join(home, `link-${name}`))
 symlinkSync(join(home, 'link-kept.db'), join(home, 'chain.db'))
 symlinkSync(join(home, 'inside.db'), join(home, 'link-inside.db'))
-const denyHint = 'make a Read deny rule apply to the file a link names, with or without an address (:range, :table, :row, #read?): change FileReadTool.checkPermissions in src/tools/FileReadTool/FileReadTool.ts and the source check in src/tools/FileReadTool/readViewSource.ts; the Node side runs the built dist/mercury.mjs, so rebuild with bun run build.ts first'
+const denyHint = 'make a Read deny rule apply to the file a link names, with or without an address (:range, :table, :row, #read?): change FileReadTool.checkPermissions in src/tools/read/ReadTool.ts and the source check in src/tools/read/readViewSource.ts; the Node side runs the built dist/mercury.mjs, so rebuild with bun run build.ts first'
 const client = await readViewMcp(home, [...['kept.txt', 'kept.db', 'kept.zip'].map(name => `Read(/${join(outside, name)})`), `Read(/${join(home, 'inside.db')})`])
 try {
   for (const target of ['link-kept.txt', 'link-kept.db', 'link-kept.zip']) {
@@ -45,10 +45,10 @@ try {
 } finally { await client.close() }
 const decision = async (file_path: string): Promise<string> => (await kit.FileReadTool.checkPermissions({ file_path }, kit.context)).behavior
 const direct = await decision(join(outside, 'open.db'))
-kit.check('a database outside the working folder is not read without a decision', direct === 'ask', `${direct} | change FileReadTool.checkPermissions in src/tools/FileReadTool/FileReadTool.ts so a path outside the working folder asks`)
+kit.check('a database outside the working folder is not read without a decision', direct === 'ask', `${direct} | change FileReadTool.checkPermissions in src/tools/read/ReadTool.ts so a path outside the working folder asks`)
 for (const target of ['link-open.db', 'link-open.db:t', 'link-open.db:t/1', 'link-open.db:t#read?limit=1']) {
   const linked = await decision(join(home, target))
-  kit.check(`a link inside the working folder to that database meets the same decision: ${target}`, linked === direct, `${linked} (direct: ${direct}) | change FileReadTool.checkPermissions in src/tools/FileReadTool/FileReadTool.ts so a link and an address resolve to the decision of the file they name`)
+  kit.check(`a link inside the working folder to that database meets the same decision: ${target}`, linked === direct, `${linked} (direct: ${direct}) | change FileReadTool.checkPermissions in src/tools/read/ReadTool.ts so a link and an address resolve to the decision of the file they name`)
 }
-kit.check('a file inside the working folder keeps its decision, with or without an address', await decision(join(home, 'inside.db')) === 'allow' && await decision(`${join(home, 'inside.db')}:t/1`) === 'allow' && await decision(`${join(home, 'plain.txt')}:3-4`) === 'allow', 'change FileReadTool.checkPermissions in src/tools/FileReadTool/FileReadTool.ts so a file inside the working folder is allowed with an address as without')
+kit.check('a file inside the working folder keeps its decision, with or without an address', await decision(join(home, 'inside.db')) === 'allow' && await decision(`${join(home, 'inside.db')}:t/1`) === 'allow' && await decision(`${join(home, 'plain.txt')}:3-4`) === 'allow', 'change FileReadTool.checkPermissions in src/tools/read/ReadTool.ts so a file inside the working folder is allowed with an address as without')
 kit.finish()

@@ -21,9 +21,9 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log(`\n── ${t} ──`)
 const text = (v: unknown): string => JSON.stringify(v)
-const WM_FIX = 'fix: defaultWorkerModelId, validateWorkerModelChoice or neutralSeatDefault in src/services/concourse/workerModels.ts'
-const SEAM_FIX = 'fix: subscribeSeatReceipts, mintImmediateReceipt or recentWarningReceipt in src/utils/model/seatReceipts.ts'
-const FACE_FIX = 'fix: rebuild with bun run build.ts, then the receipt and chat start in src/components/BootSplashScreen.tsx and src/main/interactiveLaunch.ts'
+const WM_FIX = 'fix: defaultWorkerModelId, validateWorkerModelChoice or neutralSeatDefault in src/screen/concourse-model/workerModels.ts'
+const SEAM_FIX = 'fix: subscribeSeatReceipts, mintImmediateReceipt or recentWarningReceipt in src/models/facts/seatReceipts.ts'
+const FACE_FIX = 'fix: rebuild with bun run build.ts, then the receipt and chat start in src/screen/boot-face/BootSplashScreen.tsx and src/boot/main/interactiveLaunch.ts'
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'birth-flips-first-')))
 const home = join(scratch, 'home')
@@ -48,7 +48,7 @@ mkdirSync(join(scratch, 'daemon'), { recursive: true })
 
 section('§2 the seed, pure — a keyless registry seeds the operator’s own row')
 {
-  const { defaultWorkerModelId } = await import('../../src/services/concourse/workerModels.ts')
+  const { defaultWorkerModelId } = await import('../../src/screen/concourse-model/workerModels.ts')
   const refused = { availability: 'refused', refusal: 'no-credential:anthropic' } as const
   const registry = {
     schema: 1 as const,
@@ -63,16 +63,16 @@ section('§2 the seed, pure — a keyless registry seeds the operator’s own ro
 
 section('§3 a live keyless home — the unnamed session admits keyless; the crew seat speaks the two-door sentence')
 {
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const wm = await import('../../src/services/concourse/workerModels.ts')
-  const { NO_SIGN_IN_ROW, resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.ts')
+  const wm = await import('../../src/screen/concourse-model/workerModels.ts')
+  const { NO_SIGN_IN_ROW, resetComputedDefaultMemo } = await import('../../src/models/catalogue/computedDefault.ts')
   resetComputedDefaultMemo()
   check('no neutral default on this home', wm.neutralSeatDefault() === null, WM_FIX + ' (the scratch home must hold no credential)')
   const unnamed = await wm.validateWorkerModelChoice(undefined, 'session')
   check('an UNNAMED session launch admits KEYLESS (no family refused)', unnamed.ok && unnamed.keyless === true, WM_FIX + ' · ' + text(unnamed))
   check('…the row wears the keyless words', unnamed.ok && unnamed.entry.displayName === NO_SIGN_IN_ROW, WM_FIX + ' · ' + text(unnamed))
-  const { getEngineModel } = await import('../../src/services/model/model.ts')
+  const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
   const placeholder = getEngineModel()
   const named = await wm.validateWorkerModelChoice(placeholder, 'session')
   check(`the keyless entry spelled out ('${placeholder}') is the "choose a model" dud — no family to name, so it keeps the two-door sentence (no product door spells it: bornSession drops every model there)`, placeholder === 'choose-a-model' && !named.ok && named.reason === wm.NO_ACCOUNT_REFUSAL && String(named.action).includes('/logins to choose an account'), WM_FIX + ' · ' + text(named))
@@ -84,7 +84,7 @@ section('§3 a live keyless home — the unnamed session admits keyless; the cre
 
 section('§4 the seam’s order — a listener gone before the mint never sees it; a mint with no listener queues for the next')
 {
-  const seam = await import('../../src/utils/model/seatReceipts.ts')
+  const seam = await import('../../src/models/facts/seatReceipts.ts')
   seam.__resetSeatReceiptsForTests()
   const chat: string[] = []
   const stopChat = seam.subscribeSeatReceipts(r => chat.push(r.text))
@@ -221,7 +221,7 @@ if (sendRecs.length === sends.length) {
   const flipped = names.indexOf('chat-flipped')
   const landed = names.indexOf('birth-landed')
   const refused = names.indexOf('birth-refused')
-  check('the milestones record the flip BEFORE the birth landed, then the second birth’s refusal', flipped !== -1 && landed > flipped && refused > landed, 'fix: the chat-flipped, birth-landed and birth-refused milestones in src/substrate/launchMilestones.ts and src/components/BootSplashScreen.tsx · ' + names.join(' → '))
+  check('the milestones record the flip BEFORE the birth landed, then the second birth’s refusal', flipped !== -1 && landed > flipped && refused > landed, 'fix: the chat-flipped, birth-landed and birth-refused milestones in src/platform/substrate/launchMilestones.ts and src/screen/boot-face/BootSplashScreen.tsx · ' + names.join(' → '))
   const records = Object.values(workers)
   const lastOut = recs.filter(r => r.ts !== undefined).map(r => r.ts!).pop() ?? 0
   check('the daemon’s records hold exactly ONE session (a refused birth leaves no ghost on the board; the one record ends with the screen’s own shutdown)', records.length === 1 && new Set(records.map(w => w.sessionId)).size === 1 && records.every(w => w.endedAt === undefined || w.endedAt >= lastOut - 5000), 'a refused birth must leave no extra worker record in the daemon file concourse-workers.json · ' + text(records.map(w => ({ sessionId: w.sessionId, endedAt: w.endedAt, endedAfterTheDrive: w.endedAt === undefined ? null : w.endedAt - lastOut }))))
@@ -247,7 +247,7 @@ section('§6 THE RESUME SIBLING — a resumed session whose retained model has n
   writeFileSync(join(daemonDir2, 'concourse-workers.json'), `${JSON.stringify({ version: 1, workers: workers2 }, null, 1)}\n`)
   const prevCfg = process.env.MERCURY_CONFIG_DIR
   process.env.MERCURY_CONFIG_DIR = configDir2
-  const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
+  const { workerTranscriptPath } = await import('../../src/screen/concourse-model/workerTranscript.ts')
   const file2 = workerTranscriptPath({ sessionId: sessionId2, workspaceId: cwd2 })
   if (prevCfg === undefined) delete process.env.MERCURY_CONFIG_DIR
   else process.env.MERCURY_CONFIG_DIR = prevCfg

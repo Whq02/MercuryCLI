@@ -82,20 +82,20 @@ export async function bootWorkspace(messageId?: string): Promise<Workspace> {
   process.env.MERCURY_CHANGESET_DIR = path.join(scratch, 'changesets')
   delete process.env.MERCURY_LSP
   delete process.env.MERCURY_LSP_SERVERS
-  process.env.MERCURY_LSP_SIDECAR_ENTRY = path.join(repo, 'src/services/lsp/tsSidecar/entry.ts')
+  process.env.MERCURY_LSP_SIDECAR_ENTRY = path.join(repo, 'src/integrations/lsp/ts-sidecar/entry.ts')
   process.chdir(root)
 
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const state = await import('../../src/bootstrap/state.js')
+  const state = await import('../../src/boot/process-state/processState.js')
   state.setIsInteractive(true)
-  const mgrModule = await import('../../src/services/lsp/manager.js')
+  const mgrModule = await import('../../src/integrations/lsp/serverManagerLifecycle.js')
   mgrModule.initializeLspServerManager()
   await mgrModule.waitForInitialization()
   const manager = mgrModule.getLspServerManager()
   if (!manager) throw new Error(`manager init failed: ${JSON.stringify(mgrModule.getInitializationStatus())}`)
-  const { LSP_TOOLS } = await import('../../src/tools/LSPTool/LSPTool.js')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+  const { LSP_TOOLS } = await import('../../src/tools/lsp/lspTools.js')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 
   const readFileState = new Map<string, { content: string; timestamp: number; offset: number | undefined; limit: number | undefined }>()
   let fileHistoryState = {

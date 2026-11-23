@@ -7,21 +7,21 @@ process.chdir(REPO)
 const HOME = pinScratchHome('mercury-config-compact-window-row')
 
 let failures = 0
-const compactRowHint = 'the Auto-compact window row in src/components/Settings/Config.tsx must show and step the autoCompactWindow rung in the global config, and resolveAutoCompactWindow in src/services/compact/autoCompact.ts must read the same setting'
+const compactRowHint = 'the Auto-compact window row in src/screen/settings/Config.tsx must show and step the autoCompactWindow rung in the global config, and resolveAutoCompactWindow in src/engine/compaction/autoFold.ts must read the same setting'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${compactRowHint}`}`)
 }
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
-const { CONFIG_POPUP_HINT, CONFIG_ROW_MARK } = await import('../../src/components/Settings/Config.js')
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.js')
+const { CONFIG_POPUP_HINT, CONFIG_ROW_MARK } = await import('../../src/screen/settings/Config.js')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 const COLS = 178
@@ -95,7 +95,7 @@ console.log('§2 ←/→ walk the ladder auto → 100K → 200K → 500K → 1M,
   for (let step = 0; step < 4; step++) {
     m.push(KEY.right)
     await settle(200)
-    const { getGlobalConfig } = await import('../../src/utils/config/globalConfig.js')
+    const { getGlobalConfig } = await import('../../src/platform/config/globalConfig.js')
     walk.push(String((getGlobalConfig() as { autoCompactWindow?: number }).autoCompactWindow))
   }
   check('four steps save 100000, 200000, 500000 and 1000000', JSON.stringify(walk) === JSON.stringify(['100000', '200000', '500000', '1000000']), JSON.stringify(walk))
@@ -108,7 +108,7 @@ console.log('§2 ←/→ walk the ladder auto → 100K → 200K → 500K → 1M,
   await settle(200)
   m.push(KEY.left)
   await settle(200)
-  const { getGlobalConfig } = await import('../../src/utils/config/globalConfig.js')
+  const { getGlobalConfig } = await import('../../src/platform/config/globalConfig.js')
   check('four steps back clear the override (auto = the absent setting)', (getGlobalConfig() as { autoCompactWindow?: number }).autoCompactWindow === undefined, String((getGlobalConfig() as { autoCompactWindow?: number }).autoCompactWindow))
   check('the row shows auto again', shown(m) === 'auto', firstRow(m))
   await closeAndUnmount(m)
@@ -117,8 +117,8 @@ console.log('§2 ←/→ walk the ladder auto → 100K → 200K → 500K → 1M,
 console.log('§3 the row writes what the auto-compact resolver reads')
 {
   saveGlobalConfig(prev => ({ ...prev, autoCompactWindow: 200_000 }))
-  const { resolveAutoCompactWindow } = await import('../../src/services/compact/autoCompact.js')
-  const { getGlobalConfig } = await import('../../src/utils/config/globalConfig.js')
+  const { resolveAutoCompactWindow } = await import('../../src/engine/compaction/autoFold.js')
+  const { getGlobalConfig } = await import('../../src/platform/config/globalConfig.js')
   const resolved = resolveAutoCompactWindow('claude-sonnet-4-5', (getGlobalConfig() as { autoCompactWindow?: number }).autoCompactWindow)
   check('the resolver reads the row-written 200k as a settings-source window', resolved.source === 'settings' && resolved.configured === 200_000, JSON.stringify(resolved))
   saveGlobalConfig(prev => ({ ...prev, autoCompactWindow: undefined }))

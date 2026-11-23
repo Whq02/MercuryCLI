@@ -2,7 +2,7 @@
 
 let failures = 0
 let checks = 0
-const DOOR_FAIL_HINT = 'change the door plan or its wording in src/services/search/searchDoor.ts (resolveSearchDoorPlan, walkFailureLine, describeSearchDoorPlan, searchDoorFact, parseSearchBackendOverride, nativeSearchFamilyOf); the provider route words live in src/services/providers/routeLaw.ts and the native attribution in src/services/search/nativeSearch.ts'
+const DOOR_FAIL_HINT = 'change the door plan or its wording in src/tools/engines/web-search/searchDoor.ts (resolveSearchDoorPlan, walkFailureLine, describeSearchDoorPlan, searchDoorFact, parseSearchBackendOverride, nativeSearchFamilyOf); the provider route words live in src/models/roads/routeLaw.ts and the native attribution in src/tools/engines/web-search/nativeSearch.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -23,9 +23,9 @@ const {
   parseSearchBackendOverride,
   searchDoorLabel,
   SEARCH_BACKEND_OVERRIDES,
-} = await import('../../src/services/search/searchDoor.js')
-const { searchFailure } = await import('../../src/services/search/searchContract.js')
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.js')
+} = await import('../../src/tools/engines/web-search/searchDoor.js')
+const { searchFailure } = await import('../../src/tools/engines/web-search/searchContract.js')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.js')
 
 type Reads = Parameters<typeof resolveSearchDoorPlan>[0]
 const doorsOf = (reads: Reads): string[] => resolveSearchDoorPlan(reads).doors.map(d => (d.kind === 'keyed' ? `keyed:${d.backend}` : d.kind))
@@ -138,7 +138,7 @@ section('§4 the composed lines')
 
 section('§5 native provider attribution')
 {
-  const { nativeBackendIdFor } = await import('../../src/services/search/nativeSearch.js')
+  const { nativeBackendIdFor } = await import('../../src/tools/engines/web-search/nativeSearch.js')
   check('Anthropic search identifies its provider', nativeBackendIdFor('anthropic') === 'anthropic-native')
   check('OpenAI search identifies its provider', nativeBackendIdFor('openai') === 'openai-native')
 }

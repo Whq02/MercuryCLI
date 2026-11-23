@@ -28,24 +28,24 @@ documented below.
 
 A successful build writes, under `dist/`:
 
-- `mercury.mjs` — the product bundle (entrypoint `src/entrypoints/cli.tsx`;
+- `mercury.mjs` — the product bundle (entrypoint `src/boot/entrypoints/cli.tsx`;
   `target: 'node'`, `format: 'esm'`, minified, no sourcemap).
 - `verify-artifact.mjs` — the shipped provenance verifier, a second bundle
-  from `src/services/privateChannel/verifyArtifactStandalone.ts`. It is the
+  from `src/platform/update-channel/verifyArtifactStandalone.ts`. It is the
   one compiled verification implementation: release archives ship it beside
   the bundle, the packaged launchers run it on interactive boots (warn-only),
   `scripts/release/package.mjs` imports the staged copy as its signing
   library, and `/health` runs the same source in-bundle.
 - `shell-parent-guard.mjs` — the tool-shell parent guard, a small bundle
-  from `src/entrypoints/shellParentGuard.ts`. Every tool shell is spawned
+  from `src/boot/entrypoints/shellParentGuard.ts`. Every tool shell is spawned
   through a guard process that reaps the shell's tree when the product dies;
   the product boots the guard from this bundle when it sits beside
   `mercury.mjs`, and from `mercury.mjs` itself otherwise (the same code, a
   far slower start: the whole product bundle loads for each shell).
 - `crew-board.mjs` — the crew board bundle from
-  `src/services/crewBoard/implementation.ts`.
+  `src/crew/board/implementation.ts`.
 - `tensorfold-adapter.mjs` — the TensorFold adapter bundle from
-  `src/entrypoints/tensorfoldAdapter.ts`.
+  `src/boot/entrypoints/tensorfoldAdapter.ts`.
 - `splash.mjs` and `splash-core.mjs` — the enter-screen pair copied from
   `assets/splash/`.
 - `manifest.json` — the artifact manifest (below). Written only when the
@@ -63,7 +63,7 @@ A successful build writes, under `dist/`:
 | Truth | Value | Owner |
 |---|---|---|
 | Build runtime | Bun 1.4.4 (the CI workflows pin the exact version) | `build.ts`; `.github/workflows/*.yml` |
-| Shipped-bundle runtime | Node, supported range `>=24.20.0 <25` (the one qualified major; the 24.20.0 floor carries the fix for nodejs/node#56645; an open-ended "24 or newer" claim is banned) | `src/utils/runtime/nodePolicy.ts` is the single policy owner; `package.json` `engines.node` is its machine-readable projection, held equal mechanically |
+| Shipped-bundle runtime | Node, supported range `>=24.20.0 <25` (the one qualified major; the 24.20.0 floor carries the fix for nodejs/node#56645; an open-ended "24 or newer" claim is banned) | `src/platform/node-runtime/nodePolicy.ts` is the single policy owner; `package.json` `engines.node` is its machine-readable projection, held equal mechanically |
 | Calibration runtime | the exact patch in `.node-version` (development and CI reproduction; may advance within the major independently) | `.node-version` |
 
 Enforcement: the entrypoint evaluates the runtime policy as its first
@@ -76,7 +76,7 @@ field and the packaged launchers project the range from the one owner.
 
 ## Module resolution (the build plugin)
 
-- **`color-diff-napi`** — the one native-bare alias: `STUB_MAP` (and the matching `tsconfig.json` `paths` entry) resolves it to the pure-TS port at `src/native-ts/color-diff` (a drop-in surface for highlighted diffs).
+- **`color-diff-napi`** — the one native-bare alias: `STUB_MAP` (and the matching `tsconfig.json` `paths` entry) resolves it to the pure-TS port at `src/platform/native/color-diff` (a drop-in surface for highlighted diffs).
 
 - **`src/…` absolute specifiers** — the source mixes relative imports with
   bare `from 'src/foo/bar.js'` specifiers. An `onResolve` maps the `src/`
@@ -168,7 +168,7 @@ prepared by explicit `scripts/vendor/fetch-*.ts` commands and re-verified
 against their checked-in lock files before a byte is consumed.
 
 - **ripgrep** (load-bearing — the build fails without it). The runtime
-  resolver (`src/utils/ripgrep.ts`) expects
+  resolver (`src/platform/shell/ripgrep.ts`) expects
   `dist/vendor/ripgrep/<arch>-<platform>/rg` (`rg.exe` on win32) and spawns
   it for every Glob/Grep. Source priority: `@vscode/ripgrep` (devDependency;
   its postinstall downloads a platform binary), then a system `rg`
@@ -296,7 +296,7 @@ against their checked-in lock files before a byte is consumed.
   `MERCURY_BUILD_NO_VENDOR_TYPESCRIPT=1` forces it.
 - **tree-sitter grammar engine** (optional). `dist/vendor/treesitter/` —
   the WASM loader, runtime, and exactly the grammar files the declarative
-  registry names (`src/utils/structure/grammarRegistry.ts` — the same
+  registry names (`src/platform/grammars/grammarRegistry.ts` — the same
   module the runtime routes with). Two sources: the
   `@vscode/tree-sitter-wasm` devDependency, and a cherry-picked grammar pack
   whose cache is verified per-file by sha256 against
@@ -322,7 +322,7 @@ against their checked-in lock files before a byte is consumed.
 
 ## The NOTICE stamp
 
-Both `mercury.mjs` and `verify-artifact.mjs` receive a composed NOTICE head (`src/constants/legalNotice.ts`):
+Both `mercury.mjs` and `verify-artifact.mjs` receive a composed NOTICE head (`src/platform/product/legalNotice.ts`):
 product identity, the named text slots (absent until written — never
 placeholdered), and the third-party attribution pointer. Stamped
 before the manifest is written so `bundleBytes`/`bundleSha256` describe the
@@ -379,7 +379,7 @@ then reads all three files back from the archive byte for byte.
 changing any licence document.
 
 The build ships for its host unless `bun run build.ts --target <target>` names
-another release target (`src/services/privateChannel/releaseTarget.ts` owns the
+another release target (`src/platform/update-channel/releaseTarget.ts` owns the
 vocabulary); the manifest's `target` record declares the platform, and the
 packager refuses a dist built for another target than its own. The Intel Mac
 archive is cross-packaged this way on the Apple silicon runner: the target's
@@ -407,7 +407,7 @@ for the packaging step alone, fails without it (the dispatch input `unsigned`
 is the one road round), and verifies every archive before publishing.
 Release publication (tag ≡ version, `SHA256SUMS.txt`, the release
 notes extracted from the bundled changelog's `## <version>` section —
-`src/constants/changelog.ts`, by `scripts/release/notesFromChangelog.mjs`) is
+`src/commands/update-notes/changelog.ts`, by `scripts/release/notesFromChangelog.mjs`) is
 the release workflow under `.github/workflows/`.
 
 The repository also carries the source-checkout launcher
@@ -437,5 +437,5 @@ Pins with a reason visible in the source:
 - `zod ~4.6.7` — the source imports the `zod/v4` API surface throughout.
 - `commander ~15.0.0` (+ `@commander-js/extra-typings`) — the pinned major.
   The `-d2e, --debug-to-stderr` debug flag is a raw argv read
-  (`src/utils/debug.ts`), so nothing in the source leans on the parser
+  (`src/platform/logs/debugLog.ts`), so nothing in the source leans on the parser
   beyond the bounded range; an upgrade is a deliberate decision.

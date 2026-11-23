@@ -14,14 +14,14 @@ process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'ptl-capsule-daemon-
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { truncateHeadForPTLRetry } = await import(join(SRC, 'services/compact/compact.ts'))
+const { truncateHeadForPTLRetry } = await import(join(SRC, 'engine/compaction/foldConversation.ts'))
 const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage, createCompactBoundaryMessage, isCompactBoundaryMessage } =
-  await import(join(SRC, 'services/messages.ts'))
-const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import(join(SRC, 'services/api/errors.ts'))
+  await import(join(SRC, 'engine/messages/messages.ts'))
+const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import(join(SRC, 'engine/requests/apiErrorRows.ts'))
 
 let failures = 0
 let checks = 0
-const FIX_HINT = 'fix truncateHeadForPTLRetry in src/services/compact/compact/input.ts (it must shed the head working round, keep the compact boundary and summary rows in front, and seat one fold marker)'
+const FIX_HINT = 'fix truncateHeadForPTLRetry in src/engine/compaction/fold/summariserInput.ts (it must shed the head working round, keep the compact boundary and summary rows in front, and seat one fold marker)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++

@@ -4,18 +4,18 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node
 import { createHash } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { crc32, deflateSync } from 'node:zlib'
-import { Client, StdioClientTransport } from '../../src/utils/mcp/sdk.js'
+import { Client, StdioClientTransport } from '../../src/integrations/mcp-shapes/sdk.js'
 import { installLiveFixture, proofHome, removeProofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
 
 process.chdir(proofHome)
 Object.assign(globalThis, { MACRO: { VERSION: '1.0.0', IS_DEV: false } })
-const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.js')
+const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/boot/process-state/processState.js')
 setCwdState(proofHome)
 setOriginalCwd(proofHome)
 setProjectRoot(proofHome)
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.js')
-const { readMediaCatalogue } = await import('../../src/services/media/catalogue.js')
-const { readMediaGenerationDetails, readMediaWorkflowRequest } = await import('../../src/services/media/generation.js')
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.js')
+const { readMediaCatalogue } = await import('../../src/integrations/media/catalogue.js')
+const { readMediaGenerationDetails, readMediaWorkflowRequest } = await import('../../src/integrations/media/generation.js')
 
 function png(width: number, height: number, channels: number, paint: (x: number, y: number) => number[]): Buffer {
   const raw = Buffer.alloc((width * channels + 1) * height)
@@ -36,7 +36,7 @@ const client = new Client({ name: 'media-workflow-proof', version: '1.0.0' })
 try {
   installLiveFixture({ patch: source => source.replace("['fixture-recipe', 'sd1-checkpoint'", "['qwen-image-21-turbo', 'fixture-recipe', 'sd1-checkpoint'") })
   const dir = join(proofHome, 'workflows')
-  cpSync(new URL('./fixtures/workflows/', import.meta.url), dir, { recursive: true })
+  cpSync(new URL('./fixtures/workflows', import.meta.url), dir, { recursive: true })
   writeFileSync(join(dir, 'style.safetensors'), safetensors({ 'lora_unet_input_blocks_1_1_transformer_blocks_0_attn2_to_k.lora_down.weight': [1, 768], 'lora_unet_input_blocks_1_1_transformer_blocks_0_attn2_to_k.lora_up.weight': [1, 1] }))
   writeFileSync(join(dir, 'easynegative.safetensors'), safetensors({ emb_params: [2, 768] }))
   writeFileSync(join(dir, 'sketch.png'), png(64, 64, 3, (x, y) => [x * 4, y * 4, 128]))

@@ -7,7 +7,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: saveGlobalConfig and getGlobalConfigWriteCount in src/utils/config/globalConfig.ts must keep the projects map in the cache and on disk (locked and fresh-home saves) and skip the write for a same-reference updater; for the trust checks see setPathTrusted and isPathTrusted in src/utils/config/trust.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: saveGlobalConfig and getGlobalConfigWriteCount in src/platform/config/globalConfig.ts must keep the projects map in the cache and on disk (locked and fresh-home saves) and skip the write for a same-reference updater; for the trust checks see setPathTrusted and isPathTrusted in src/platform/config/trust.ts'}`)
 }
 const HERE = import.meta.dir
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
@@ -18,10 +18,10 @@ function runIn(home: string, body: string): Record<string, unknown> {
     delete process.env.MERCURY_HOME
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const env = await import(${JSON.stringify(join(HERE, '../../src/utils/env.ts'))})
-    const g = await import(${JSON.stringify(join(HERE, '../../src/utils/config/globalConfig.ts'))})
-    const trust = await import(${JSON.stringify(join(HERE, '../../src/utils/config/trust.ts'))})
-    const schema = await import(${JSON.stringify(join(HERE, '../../src/utils/config/schema.ts'))})
+    const env = await import(${JSON.stringify(join(HERE, '../../src/platform/environment/env.ts'))})
+    const g = await import(${JSON.stringify(join(HERE, '../../src/platform/config/globalConfig.ts'))})
+    const trust = await import(${JSON.stringify(join(HERE, '../../src/platform/config/trust.ts'))})
+    const schema = await import(${JSON.stringify(join(HERE, '../../src/platform/config/schema.ts'))})
     g.enableConfigs()
     const file = env.getGlobalMercuryFile()
     const readDisk = () => { try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return null } }

@@ -9,7 +9,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — hint: a per-slot sign-out must remove only its own field; change removeSecureStorageField in src/utils/secureStorage/index.ts, or executeSlotRemoval in src/services/providers/accountSlots/removal.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — hint: a per-slot sign-out must remove only its own field; change removeSecureStorageField in src/platform/secure-storage/index.ts, or executeSlotRemoval in src/models/roads/account-slots/removal.ts' : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
@@ -35,7 +35,7 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 
 const credentialsPath = join(home, '.credentials.json')
@@ -62,7 +62,7 @@ const siblingsIntact = (store: Record<string, unknown> | null): boolean =>
 
 section('§1 removeSecureStorageField — exactly one field leaves')
 {
-  const storage = (await import('../../src/utils/secureStorage/index.js')) as Record<string, unknown>
+  const storage = (await import('../../src/platform/secure-storage/index.js')) as Record<string, unknown>
   const door = storage.removeSecureStorageField as
     | ((field: string) => { removed: boolean; kept: number; success: boolean })
     | undefined
@@ -90,7 +90,7 @@ section('§1 removeSecureStorageField — exactly one field leaves')
 section('§2 the /logins slot road — the default sign-out keeps the siblings')
 {
   seed()
-  const { executeSlotRemoval } = await import('../../src/services/providers/accountSlots.js')
+  const { executeSlotRemoval } = await import('../../src/models/roads/accountSlots.js')
   const slot = {
     family: 'anthropic', id: home, name: 'primary', kind: 'oauth' as const,
     kindLabel: 'OAuth', identity: 'a@x.com', active: true, envPinned: false, signedIn: true,

@@ -18,14 +18,14 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 }, nativeFetch)
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
 try {
-  const { currentHostRecipes } = await import('../../src/services/host/recipesFile.ts')
-  const { mirrorToVolume } = await import('../../src/services/host/fastLoad.ts')
-  const { bankModelFolder, rememberBankFolder, sealBank, bankState } = await import('../../src/services/host/bank.ts')
-  const { pinnedWeightManifest } = await import('../../src/services/host/keptWeights.ts')
-  const { RunpodClient } = await import('../../src/services/host/runpod.ts')
-  const { hostRunner } = await import('../../src/services/host/ssh.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-  const { keptVolumes } = await import('../../src/services/host/volumes.ts')
+  const { currentHostRecipes } = await import('../../src/models/hosting/recipesFile.ts')
+  const { mirrorToVolume } = await import('../../src/models/hosting/fastLoad.ts')
+  const { bankModelFolder, rememberBankFolder, sealBank, bankState } = await import('../../src/models/hosting/bank.ts')
+  const { pinnedWeightManifest } = await import('../../src/models/hosting/keptWeights.ts')
+  const { RunpodClient } = await import('../../src/models/hosting/runpod.ts')
+  const { hostRunner } = await import('../../src/models/hosting/ssh.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const { keptVolumes } = await import('../../src/models/hosting/volumes.ts')
   writeStoredRunpodApiKey(rp.key)
   const shipped = currentHostRecipes().filter((row: any) => row.engine === 'tensorfold')
   console.log('SHIPPED', shipped.length, 'WITHOUT_MANIFEST', shipped.filter((row: any) => !pinnedWeightManifest(row)).length)
@@ -65,9 +65,9 @@ try {
   assert.equal(rp.state.volumeCreates, 0, 'a TensorFold bank cannot sell a kept disk that pod setup refuses')
   assert.equal(rp.requests.length, 0, 'the refused mirror makes no vendor request')
   assert.deepEqual(words, ['TensorFold pulls weights from Hugging Face · kept weights disks are not supported. No volume or pod was created.'], 'the refusal names the unsupported source without promising a mirror')
-  const { bankAction, bankDoor } = await import('../../src/services/host/fastLoad.ts')
-  const { writeKeptVolume, readKeptVolume } = await import('../../src/services/host/volumes.ts')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
+  const { bankAction, bankDoor } = await import('../../src/models/hosting/fastLoad.ts')
+  const { writeKeptVolume, readKeptVolume } = await import('../../src/models/hosting/volumes.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
   let connections = 0
   const bankOptions = { ...options, api: () => { connections++; return new RunpodClient(rp.key, rp.baseUrl) }, connect: async () => { connections++; return true } }
   await bankAction(recipe, 'mirror', folder, async () => { throw new Error('The unsupported mirror asks no question') }, () => {}, new AbortController().signal, bankOptions)
@@ -79,9 +79,9 @@ try {
   const volume = { id: 'old-tensorfold-volume', name: 'old-tensorfold-volume', kind: 'network' as const, model: recipe.model, include: '', dataCenter: 'EU-NL-1', size: 80, price: 5.6, state: 'kept' as const, createdAt: new Date().toISOString(), recipeRow: recipe }
   writeKeptVolume(volume)
   rp.state.volumes.set(volume.id, { id: volume.id, name: volume.name, kind: 'network', size: 80, dataCenter: 'EU-NL-1', type: 'STANDARD' })
-  const { chooseWeightsSource } = await import('../../src/services/host/weightsSource.ts')
-  const { volumeFitsOffer } = await import('../../src/services/host/fastLoad.ts')
-  const { bootsFromVolume } = await import('../../src/services/host/bank.ts')
+  const { chooseWeightsSource } = await import('../../src/models/hosting/weightsSource.ts')
+  const { volumeFitsOffer } = await import('../../src/models/hosting/fastLoad.ts')
+  const { bootsFromVolume } = await import('../../src/models/hosting/bank.ts')
   for (const choice of ['bank', 'private-repo', 'volume'] as const) {
     const before = rp.requests.length
     let asks = 0
@@ -91,13 +91,13 @@ try {
   }
   assert.ok(volumeFitsOffer({ recipe, gpuId: 'fixture', price: 1, dataCenter: 'OTHER-DC' }) && !bootsFromVolume(recipe, volume.dataCenter), 'an unusable old disk neither hides other data centres nor promises a fast boot')
   const client = new RunpodClient(rp.key, rp.baseUrl)
-  const { rentalVolume } = await import('../../src/services/host/volumes.ts')
+  const { rentalVolume } = await import('../../src/models/hosting/volumes.ts')
   const beforeVolumeRead = rp.requests.length
   assert.equal(await rentalVolume(client, recipe), undefined, 'the stock-watch rental reader refuses the old TensorFold disk')
   assert.equal(rp.requests.length, beforeVolumeRead, 'the unsupported Runpod disk triggers no rental volume request')
   const offer = (await client.offers(new AbortController().signal)).find(row => row.recipe.engine === 'tensorfold' && row.recipe.model === recipe.model && row.dataCenter === volume.dataCenter)!
   assert.ok(offer, 'the old disk has a matching TensorFold rental in its data centre')
-  const queued: import('../../src/services/host/store.ts').HostRecord[] = []
+  const queued: import('../../src/models/hosting/store.ts').HostRecord[] = []
   const rental = createHostRoad({ ...options, startJob: record => { queued.push(record) } })
   let sourceRow = ''
   await rental(async q => {
@@ -115,11 +115,11 @@ try {
   console.log('LEGACY_DISK_RENTAL', JSON.stringify({ sourceRow, volumeId: bought?.volumeId, source: bought?.weightsSource, mounts: createBody?.mounts }))
   assert.ok(bought && bought.weightsSource?.kind === 'huggingface' && !bought.volumeId && !createBody?.mounts?.network && sourceRow.includes('Hugging Face'), 'a new TensorFold rental ignores the old disk and confirms Hugging Face before creation')
   await client.terminate(bought.id)
-  const { removeHostRecord } = await import('../../src/services/host/store.ts')
+  const { removeHostRecord } = await import('../../src/models/hosting/store.ts')
   removeHostRecord(bought.id)
   const { vastFixture } = await import('./vastFixture.mjs')
-  const { VastClient } = await import('../../src/services/host/vendors/vast.ts')
-  const { vastRentalVolume } = await import('../../src/services/host/vastVolumes.ts')
+  const { VastClient } = await import('../../src/models/hosting/vendors/vast.ts')
+  const { vastRentalVolume } = await import('../../src/models/hosting/vastVolumes.ts')
   const vast = await vastFixture()
   try {
     const old = { ...volume, id: '20118480', kind: 'vast' as const, machineId: 9102 }
@@ -132,7 +132,7 @@ try {
     assert.equal(api.keptMachine(recipe), undefined, 'an old TensorFold disk does not constrain the stock watch to its machine')
     const supported = { ...recipe, engine: 'vllm' as const }
     assert.equal((await vastRentalVolume(api, supported, { ...shape, recipe: supported }))?.id, old.id, 'a supported engine still attaches its same-machine Vast disk')
-    const { saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
+    const { saveVendorKey } = await import('../../src/models/hosting/vendors/client.ts')
     saveVendorKey('vast', vast.key)
     vast.state.customOffers = [{ id: 102, gpu_name: 'RTX 3090', gpu_ram: 24 * 1024, num_gpus: 1, dph_total: 0.5, machine_id: 9102, verification: 'verified', reliability2: 0.999, reliability: 0.999, direct_port_count: 1, rentable: true, rented: false, cuda_max_good: 13, disk_space: 2000 }]
     let shapeWords = ''

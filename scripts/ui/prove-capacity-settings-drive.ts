@@ -7,9 +7,9 @@ import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs, vshotBudgetSca
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { gridToPng } from './gridToPng.ts'
-import { STARTUP_MENU } from '../../src/substrate/startupMenu.ts'
-import { withJevRow } from '../../src/components/BootSettingsScreen.tsx'
-import { settingsEditors } from '../../src/components/bootSettings/menuModel.ts'
+import { STARTUP_MENU } from '../../src/platform/substrate/startupMenu.ts'
+import { withJevRow } from '../../src/screen/boot-face/BootSettingsScreen.tsx'
+import { settingsEditors } from '../../src/screen/boot-face/settings/menuModel.ts'
 
 const root = resolve(import.meta.dir, '..', '..')
 const dist = join(root, 'dist', 'mercury.mjs')
@@ -85,7 +85,7 @@ try {
       check(`${cols}: every input reached its observed state`, capture.sendReceipts?.length === sends.length, 'only ' + String(capture.sendReceipts?.length) + ' of ' + String(sends.length) + ' sends were delivered; the first send whose awaited text never painted names the screen that stopped')
       const before = Number(/(\d+) · this machine's reading/.exec(textOf(marks.get('menu-reading')))?.[1])
       const raised = Number(/(\d+) · set by you/.exec(textOf(marks.get('menu-raised')))?.[1])
-      check(`${cols}: the menu shows a measured reading and increments it`, Number.isFinite(before) && raised === before + 1, 'reading ' + String(before) + ', after the right arrow ' + String(raised) + '; the boot settings seats row commits through commitSeats in src/components/bootSettings/commits.ts')
+      check(`${cols}: the menu shows a measured reading and increments it`, Number.isFinite(before) && raised === before + 1, 'reading ' + String(before) + ', after the right arrow ' + String(raised) + '; the boot settings seats row commits through commitSeats in src/screen/boot-face/settings/commits.ts')
       check(`${cols}: the populated settings view preserves and updates the ceiling`, textOf(marks.get('config-reading')).includes('9 · set by you') && textOf(marks.get('config-raised')).includes('10 · set by you'), 'the Seats row of the /config view must show the ceiling with set by you after each commit; the change is committed by applySeats in src/commands/seats/applySeats.ts')
       check(`${cols}: the value is durable and the command agrees`, JSON.parse(readFileSync(globalFile, 'utf8')).switchboardCapacity?.operatorSeats === 10 && textOf(marks.get('confirmed')).includes('Seats: 10'), 'switchboardCapacity.operatorSeats in the global config must be 10 and /seats must print Seats: 10; see applySeats and seatsStatus in src/commands/seats/applySeats.ts')
       for (const label of ['menu-reading', 'config-raised']) {

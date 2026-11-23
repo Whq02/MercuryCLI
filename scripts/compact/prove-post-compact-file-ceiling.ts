@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/compact/compact.ts src/services/attachments/fileAttachments.ts src/constants/tools/fileRead.ts src/services/tokenEstimation.ts
+// gate-watch: src/engine/compaction/foldConversation.ts src/engine/attachments/fileAttachments.ts src/tools/kit/names/fileRead.ts src/models/facts/tokenEstimation.ts
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -13,17 +13,17 @@ let passed = 0
 let failed = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix: createPostCompactFileAttachments and linesWithinTokenCeiling in src/services/compact/compact/attachments.ts, or the limits POST_COMPACT_MAX_TOKENS_PER_FILE and POST_COMPACT_TOKEN_BUDGET in src/services/compact/compact/limits.ts'}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix: createPostCompactFileAttachments and linesWithinTokenCeiling in src/engine/compaction/fold/foldAttachments.ts, or the limits POST_COMPACT_MAX_TOKENS_PER_FILE and POST_COMPACT_TOKEN_BUDGET in src/engine/compaction/fold/foldLimits.ts'}`)
 }
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const compact = await import('../../src/services/compact/compact.ts')
-const { roughTokenCountEstimation } = await import('../../src/services/tokenEstimation.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const compact = await import('../../src/engine/compaction/foldConversation.ts')
+const { roughTokenCountEstimation } = await import('../../src/models/facts/tokenEstimation.ts')
 
 type FileBody = { attachment: { type: string; truncated?: boolean; filename?: string; content?: { type: string; file?: { content: string; numLines: number; totalLines: number } } } }
 const bodyOf = (message: unknown): FileBody['attachment'] => (message as FileBody).attachment

@@ -1,4 +1,4 @@
-import type { Command } from '../../commands.js'
+import type { Command } from '../catalogue/commands.js'
 
 const rewind: Command = {
   description: 'Wind back to a saved point — the files, the conversation, or both',

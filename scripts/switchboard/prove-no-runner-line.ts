@@ -2,11 +2,11 @@
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}change the wording composeNoRunnerLine returns in src/services/switchboard/hopIntoSession.ts` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}change the wording composeNoRunnerLine returns in src/daemon/switchboard/hopIntoSession.ts` : ''}`)
 }
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { composeNoRunnerLine } = await import('../../src/services/switchboard/hopIntoSession.ts')
+const { composeNoRunnerLine } = await import('../../src/daemon/switchboard/hopIntoSession.ts')
 
 console.log('============================================================')
 console.log(' no-runner line — the ratified lead, the reason, the action')

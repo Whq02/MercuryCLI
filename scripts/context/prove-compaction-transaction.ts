@@ -10,13 +10,13 @@ process.env.ANTHROPIC_API_KEY = 'fixture-key'
 
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix compactConversation in src/services/compact/compact.ts (install, refusal and readFileState clearing) or nextCompactionFailureCount in src/services/compact/compactionPolicy.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix compactConversation in src/engine/compaction/foldConversation.ts (install, refusal and readFileState clearing) or nextCompactionFailureCount in src/engine/compaction/foldPolicy.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -24,7 +24,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — compaction transaction proof exceeded 120s — the scripted fixture API never answered compactConversation (src/services/compact/compact.ts); see the last section printed above')
+  console.log('\n❌ TIMEOUT — compaction transaction proof exceeded 120s — the scripted fixture API never answered compactConversation (src/engine/compaction/foldConversation.ts); see the last section printed above')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -32,7 +32,7 @@ guard.unref?.()
 section('policy — decideCompaction table + the breaker')
 {
   const { decideCompaction, compactionBreakerAllows, nextCompactionFailureCount } =
-    await import('../../src/services/compact/compactionPolicy.ts')
+    await import('../../src/engine/compaction/foldPolicy.ts')
   const d = decideCompaction as (a: Record<string, unknown>) => { kind: string }
   check('decideCompaction is a pure function', typeof decideCompaction === 'function')
   check('compactionBreakerAllows exists', typeof compactionBreakerAllows === 'function')
@@ -44,10 +44,10 @@ section('policy — decideCompaction table + the breaker')
 }
 
 const { compactConversation, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES } = await import(
-  '../../src/services/compact/compact.ts'
+  '../../src/engine/compaction/foldConversation.ts'
 )
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 function makeMessages(): unknown[] {
   const user = createUserMessage({ content: 'please bump the version and run the tests' })

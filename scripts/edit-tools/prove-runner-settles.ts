@@ -11,7 +11,7 @@ process.env.MERCURY_BARE = '1'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const settlesHint = 'to fix, change runRunnerProfile in src/services/ide/projectRunners.ts so the run settles on the leader exit, the deadline or the abort signal, ends the process tree on timeout or abort, and names the timeout in verdictNote'
+  const settlesHint = 'to fix, change runRunnerProfile in src/integrations/ide/projectRunners.ts so the run settles on the leader exit, the deadline or the abort signal, ends the process tree on timeout or abort, and names the timeout in verdictNote'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' | ' : ''}${settlesHint}` : ''}`)
 }
 function section(t: string): void {
@@ -20,7 +20,7 @@ function section(t: string): void {
 
 const ROOT = join(import.meta.dir, '..', '..')
 const FIXTURE = join(ROOT, 'scripts', 'edit-tools', 'fixtures', 'leaky-runner.mjs')
-const { runRunnerProfile } = await import('../../src/services/ide/projectRunners.ts')
+const { runRunnerProfile } = await import('../../src/integrations/ide/projectRunners.ts')
 
 const scratch = mkdtempSync(join(tmpdir(), 'prove-runner-settles-'))
 writeFileSync(join(scratch, 'package.json'), JSON.stringify({ name: 'settles', private: true, type: 'module' }) + '\n')
@@ -74,7 +74,7 @@ async function bounded<T>(label: string, work: Promise<T>, ms: number): Promise<
     }),
   ])
   if (timer) clearTimeout(timer)
-  if (verdict === 'HUNG') console.log(`  (watchdog: ${label} did not settle within ${ms}ms; look at runRunnerProfile in src/services/ide/projectRunners.ts, which must settle on the leader exit, the deadline or the abort)`)
+  if (verdict === 'HUNG') console.log(`  (watchdog: ${label} did not settle within ${ms}ms; look at runRunnerProfile in src/integrations/ide/projectRunners.ts, which must settle on the leader exit, the deadline or the abort)`)
   return verdict
 }
 

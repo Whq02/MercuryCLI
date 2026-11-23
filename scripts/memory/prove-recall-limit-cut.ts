@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/memoryVerbs.ts src/mneme/mnemePointers.ts src/tools/MemoryTools/MemoryTools.ts
+// gate-watch: src/sessions/mneme/memoryVerbs.ts src/sessions/mneme/mnemePointers.ts src/tools/memory/MemoryTools.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0', PACKAGE_URL: 'https://example.invalid/mercury' }
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -17,17 +17,17 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.slice(0, 500)}` : ''} — fix the limit cut in searchPointers and limitCutLine in src/mneme/mnemePointers.ts, the cut counts in recallQuery in src/mneme/memoryVerbs.ts, or the header in RecallTool in src/tools/MemoryTools/MemoryTools.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.slice(0, 500)}` : ''} — fix the limit cut in searchPointers and limitCutLine in src/sessions/mneme/mnemePointers.ts, the cut counts in recallQuery in src/sessions/mneme/memoryVerbs.ts, or the header in RecallTool in src/tools/memory/MemoryTools.ts` : ''}`)
 }
 
 writeFileSync(join(HOME, '.mercury.json'), JSON.stringify({ hasCompletedOnboarding: true, numStartups: 3 }))
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { recallQuery } = await import('../../src/mneme/memoryVerbs.ts')
-const { searchPointers, limitCutLine, POINTER_DEFAULT_LIMIT } = await import('../../src/mneme/mnemePointers.ts')
-const { emptyDoc } = await import('../../src/mneme/mnemeTopicDocs.ts')
-const { writeDoc } = await import('../../src/mneme/mnemeLibrary.ts')
-const { RecallTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
+const { recallQuery } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { searchPointers, limitCutLine, POINTER_DEFAULT_LIMIT } = await import('../../src/sessions/mneme/mnemePointers.ts')
+const { emptyDoc } = await import('../../src/sessions/mneme/mnemeTopicDocs.ts')
+const { writeDoc } = await import('../../src/sessions/mneme/mnemeLibrary.ts')
+const { RecallTool } = await import('../../src/tools/memory/MemoryTools.ts')
 
 const now = new Date('2026-10-14T02:00:00.000Z')
 const fresh = '2026-10-10T00:00:00.000Z'

@@ -8,10 +8,10 @@ import { join } from 'node:path'
 
 let failures = 0
 const keyStoreWhere: Record<string, string> = {
-  '1': 'change readStoredZaiApiKey and writeStoredZaiApiKey in src/utils/accounts/providerSecrets.ts',
-  '2': 'change resolveZaiApiKey and zaiKeySource in src/services/providers/providerDiscovery.ts',
-  '3': 'change zaiProviderAdapter status and describe in src/services/providers/zai/zaiAdapter.ts',
-  '4': 'change the auth-scope path in src/utils/accounts/providerSecrets.ts and zaiProviderAdapter.status in src/services/providers/zai/zaiAdapter.ts',
+  '1': 'change readStoredZaiApiKey and writeStoredZaiApiKey in src/models/sign-in/account-ledger/providerSecrets.ts',
+  '2': 'change resolveZaiApiKey and zaiKeySource in src/models/roads/providerDiscovery.ts',
+  '3': 'change zaiProviderAdapter status and describe in src/models/roads/zai/zaiAdapter.ts',
+  '4': 'change the auth-scope path in src/models/sign-in/account-ledger/providerSecrets.ts and zaiProviderAdapter.status in src/models/roads/zai/zaiAdapter.ts',
 }
 let keyStoreHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -38,13 +38,13 @@ const {
   providerSecretsPathForDisplay,
   readStoredZaiApiKey,
   writeStoredZaiApiKey,
-} = await import('../../src/utils/accounts/providerSecrets.js')
+} = await import('../../src/models/sign-in/account-ledger/providerSecrets.js')
 const {
   __resetProviderDiscoveryForTest,
   resolveZaiApiKey,
   zaiKeySource,
-} = await import('../../src/services/providers/providerDiscovery.js')
-const { zaiProviderAdapter } = await import('../../src/services/providers/zai/zaiAdapter.js')
+} = await import('../../src/models/roads/providerDiscovery.js')
+const { zaiProviderAdapter } = await import('../../src/models/roads/zai/zaiAdapter.js')
 
 __resetProviderDiscoveryForTest()
 

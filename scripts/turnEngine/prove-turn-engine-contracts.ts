@@ -2,9 +2,9 @@
 
 import * as rig from '../core-runtime/turnScenarios.ts'
 
-const { runToolCalls } = await import('../../src/run-core/turn/runToolCalls.ts')
-const { afterTools } = await import('../../src/run-core/turn/afterTools.ts')
-const queue = await import('../../src/utils/messageQueueManager.ts')
+const { runToolCalls } = await import('../../src/engine/loop/turn/runToolCalls.ts')
+const { afterTools } = await import('../../src/engine/loop/turn/afterTools.ts')
+const queue = await import('../../src/daemon/runner/messageQueueManager.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -31,8 +31,8 @@ console.log('\n── the tool-round attachment pass ──')
   const yielded = after.events.filter(event => event.kind === 'attachment').map(event => event.message)
   const carried = ((after.decision as { next?: { messages?: unknown[] } }).next?.messages ?? []) as unknown[]
   const result = carried.findIndex(row => JSON.stringify(row).includes('tu_contract_1') && (row as { type?: string }).type === 'user')
-  check('the turn machine gathers attachments on tool rounds: a line queued while the tools ran comes out as an attachment row', rig.reasonOf(after.decision) === 'hand_over next_turn' && yielded.length >= 1 && JSON.stringify(yielded).includes('a line queued while the tools ran'), `reason ${rig.reasonOf(after.decision)}, ${yielded.length} attachment rows yielded; fix afterTools (the attachment loop that yields kind attachment) in src/run-core/turn/afterTools.ts`)
-  check('tool-round attachments are yielded and then carried: the next round is handed the very rows, after the tool result', yielded.length >= 1 && result >= 0 && yielded.every(row => carried.indexOf(row) > result), `${yielded.length} yielded, tool result at ${result} in ${carried.length} carried rows; afterTools in src/run-core/turn/afterTools.ts must push each yielded attachment into the next round after the tool result`)
+  check('the turn machine gathers attachments on tool rounds: a line queued while the tools ran comes out as an attachment row', rig.reasonOf(after.decision) === 'hand_over next_turn' && yielded.length >= 1 && JSON.stringify(yielded).includes('a line queued while the tools ran'), `reason ${rig.reasonOf(after.decision)}, ${yielded.length} attachment rows yielded; fix afterTools (the attachment loop that yields kind attachment) in src/engine/loop/turn/afterTools.ts`)
+  check('tool-round attachments are yielded and then carried: the next round is handed the very rows, after the tool result', yielded.length >= 1 && result >= 0 && yielded.every(row => carried.indexOf(row) > result), `${yielded.length} yielded, tool result at ${result} in ${carried.length} carried rows; afterTools in src/engine/loop/turn/afterTools.ts must push each yielded attachment into the next round after the tool result`)
   planted.close()
 }
 

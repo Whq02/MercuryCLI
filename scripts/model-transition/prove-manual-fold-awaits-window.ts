@@ -8,7 +8,7 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
-const manualFoldHint = ' | to fix, change the /compact call (src/commands/compact/compact.ts) so it reads the seat window from its own source before sizing, or resolveAutoCompactWindow and getAutoCompactThreshold (src/services/compact/autoCompact.ts), or the local window read (src/services/providers/local/localWindow.ts)'
+const manualFoldHint = ' | to fix, change the /compact call (src/commands/compact/compact.ts) so it reads the seat window from its own source before sizing, or resolveAutoCompactWindow and getAutoCompactThreshold (src/engine/compaction/autoFold.ts), or the local window read (src/models/roads/local/localWindow.ts)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -81,19 +81,19 @@ console.log('============================================================')
 console.log(" the manual fold reads its seat's window from the window's own source before it sizes itself")
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const auto = await import('../../src/services/compact/autoCompact.ts')
-const { buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
-const { estimateContextTokens } = await import('../../src/services/compact/microCompact.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { __resetLocalWindowsForTest } = await import('../../src/services/providers/local/localWindow.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const auto = await import('../../src/engine/compaction/autoFold.ts')
+const { buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { __resetLocalWindowsForTest } = await import('../../src/models/roads/local/localWindow.ts')
 const { call: compactCall } = await import('../../src/commands/compact/compact.ts')
 const fmt = (n: number): string => n.toLocaleString('en-US')
 
@@ -187,9 +187,9 @@ section('2 the outgoing model cannot write the summary: the seated local model w
 {
   const kept = process.env.ANTHROPIC_AUTH_TOKEN
   delete process.env.ANTHROPIC_AUTH_TOKEN
-  const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
+  const { clearOAuthTokenCache } = await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')
   clearOAuthTokenCache()
-  const { usabilityForRoute } = await import('../../src/services/providers/providerUsability.ts')
+  const { usabilityForRoute } = await import('../../src/models/roads/providerUsability.ts')
   const signedOut = usabilityForRoute('anthropic').usable === false
   const chatsBefore = chats.length
   const folded = await foldSeatedOn(TARGET)

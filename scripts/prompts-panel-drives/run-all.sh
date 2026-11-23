@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/prompts-panel/**
-# gate-watch: src/components/prompts-panel/** src/commands/workbench/**
-# gate-watch: src/components/MessageSelector.tsx src/utils/messages/noticeRows.ts
-# gate-watch: src/ink.ts src/components/App.tsx src/state/AppStateStore.ts src/keybindings/KeybindingProviderSetup.tsx src/utils/staticRender.tsx
-# gate-watch: src/components/messages/UserTextMessage.tsx src/components/MessageRow.tsx src/components/concourse/workerTranscriptFold.ts
-# gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/services/messages.ts src/utils/config.ts src/types/message.ts
-# gate-watch: src/components/mercury-ui/NavigablePanes.tsx src/hooks/useSessionConnector.ts
+# gate-watch: src/screen/prompts-panel/** src/commands/workbench/**
+# gate-watch: src/screen/rewind-picker/RewindPicker.tsx src/engine/message-shapes/noticeRows.ts
+# gate-watch: src/screen/themedRenderer.ts src/boot/App.tsx src/screen/app-state/AppStateStore.ts src/screen/keys/KeybindingProviderSetup.tsx src/screen/renderer/staticRender.tsx
+# gate-watch: src/screen/messages/UserTextMessage.tsx src/screen/messages/MessageRow.tsx src/screen/concourse/workerTranscriptFold.ts
+# gate-watch: src/engine/connector/focusedConnector.ts src/engine/connector/noSessionConnector.ts src/engine/messages/messages.ts src/platform/settings/config.ts src/engine/message-shapes/message.ts
+# gate-watch: src/screen/widgets/NavigablePanes.tsx src/screen/focused-session/useSessionConnector.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

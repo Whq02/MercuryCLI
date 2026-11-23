@@ -4,9 +4,9 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { createSplashCore } from '../../assets/splash/splash-core.mjs'
-import { menuRowValueLabel, menuRowWarning, STARTUP_MENU, type MenuRow } from '../../src/substrate/startupMenu.js'
-import { SEATS_MENU_ROW } from '../../src/utils/switchboard/capacityCheck.js'
-import { MOTION_MENU_ROW } from '../../src/utils/cockpit/motionSetting.js'
+import { menuRowValueLabel, menuRowWarning, STARTUP_MENU, type MenuRow } from '../../src/platform/substrate/startupMenu.js'
+import { SEATS_MENU_ROW } from '../../src/daemon/switchboard-capacity/capacityCheck.js'
+import { MOTION_MENU_ROW } from '../../src/screen/cockpit/motionSetting.js'
 
 const STILLS_DIR = join(import.meta.dir, 'fixtures', 'sovereign-menu')
 export const SOVEREIGN_ROW_ENV = 'MERCURY_SKIP_PERMISSIONS'
@@ -105,7 +105,7 @@ const ROW = {
   assets: 'scripts/ui/fixtures/sovereign-menu/*.txt',
   generator: 'bun scripts/ui/sovereign-menu-stills.ts --write',
   check: 'bun scripts/ui/prove-sovereign-menu-warning.ts',
-  sources: 'scripts/ui/sovereign-menu-stills.ts assets/splash/splash-core.mjs src/substrate/startupMenu.ts src/utils/switchboard/capacityCheck.ts src/utils/cockpit/motionSetting.ts',
+  sources: 'scripts/ui/sovereign-menu-stills.ts assets/splash/splash-core.mjs src/platform/substrate/startupMenu.ts src/daemon/switchboard-capacity/capacityCheck.ts src/screen/cockpit/motionSetting.ts',
 }
 if (import.meta.main && registerOnlyRequested(ROW)) process.exit(0)
 if (import.meta.main && process.argv.includes('--write')) {

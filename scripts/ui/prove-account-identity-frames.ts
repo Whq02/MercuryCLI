@@ -11,7 +11,7 @@ const argument = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
   return at < 0 ? undefined : process.argv[at + 1]
 }
-const ROOT = resolve(argument('--root') ?? join(import.meta.dir, '../..'))
+const ROOT = resolve(argument('--root') ?? join(import.meta.dir, '../../catalogue/commands'))
 const framesDir = argument('--frames')
 const compareDir = argument('--compare-shown')
 const surface = argument('--surface')
@@ -59,25 +59,25 @@ json('.credentials.json', { claudeAiOauth: {
 } })
 json('.huggingface-auth.json', { version: 1, tokens: { accessToken: 'fixture-hub-access-token', refreshToken: 'fixture-hub-refresh-token', accessTokenExpiresAtMs: NOW + 86_400_000 }, identity: { username: USERNAME, observedAtMs: NOW } })
 json('settings.json', { engine: { model: MODEL } })
-const config = await import(join(ROOT, 'src/utils/config.ts'))
+const config = await import(join(ROOT, 'src/platform/settings/config.ts'))
 config.enableConfigs()
-const { resetSettingsCache } = await import(join(ROOT, 'src/utils/settings/settingsCache.ts'))
-const { accountIdentityShown } = await import(join(ROOT, 'src/services/wallet/identityWords.ts'))
-const { signInLedgerEpoch } = await import(join(ROOT, 'src/utils/accounts/signInLedger.ts'))
-const { catalogueEpoch } = await import(join(ROOT, 'src/services/providers/catalogueEpoch.ts'))
+const { resetSettingsCache } = await import(join(ROOT, 'src/platform/settings/settingsCache.ts'))
+const { accountIdentityShown } = await import(join(ROOT, 'src/models/wallet/identityWords.ts'))
+const { signInLedgerEpoch } = await import(join(ROOT, 'src/models/sign-in/account-ledger/signInLedger.ts'))
+const { catalogueEpoch } = await import(join(ROOT, 'src/models/roads/catalogueEpoch.ts'))
 async function stub(relative: string, overrides: Record<string, unknown>): Promise<void> {
   const path = join(ROOT, relative)
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...overrides }))
 }
-await stub('src/hooks/useExitOnCtrlCD.ts', { useExitOnCtrlCD: () => undefined })
-await stub('src/keybindings/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
-await stub('src/context/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
-await stub('src/services/providers/anthropic/anthropicCatalogue.ts', { refreshAnthropicCatalogue: async () => [] })
-await stub('src/services/providers/huggingface/huggingfaceCatalogue.ts', { refreshHuggingfaceCatalogue: async () => null })
-const ink = await import(join(ROOT, 'src/ink.ts'))
-const { default: StdinContext } = await import(join(ROOT, 'src/ink/components/StdinContext.ts'))
-const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
+await stub('src/screen/keys/useExitChord.ts', { useExitOnCtrlCD: () => undefined })
+await stub('src/screen/keys/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
+await stub('src/screen/notifications/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
+await stub('src/models/roads/anthropic/anthropicCatalogue.ts', { refreshAnthropicCatalogue: async () => [] })
+await stub('src/models/roads/huggingface/huggingfaceCatalogue.ts', { refreshHuggingfaceCatalogue: async () => null })
+const ink = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
+const { default: StdinContext } = await import(join(ROOT, 'src/screen/renderer/elements/StdinContext.ts'))
+const { AppStateProvider } = await import(join(ROOT, 'src/screen/app-state/AppState.tsx'))
 const picker = await import(join(ROOT, 'src/commands/model/mercuryModel.tsx'))
 type Leg = 'absent' | 'shown' | 'hidden'
 const setting: Record<Leg, boolean | undefined> = { absent: undefined, shown: true, hidden: false }
@@ -85,7 +85,7 @@ let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
   console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
-  if (!pass) console.log('  hint: the view.accountIdentity setting is read by accountIdentityShown in src/services/wallet/identityWords.ts; a surface that shows or hides the signed-in address or username wrongly must gate on it (callers include src/commands/model/picker/headings.ts, src/services/providers/providerIdentityLine.ts and src/components/BootSaturnScreen.tsx)')
+  if (!pass) console.log('  hint: the view.accountIdentity setting is read by accountIdentityShown in src/models/wallet/identityWords.ts; a surface that shows or hides the signed-in address or username wrongly must gate on it (callers include src/commands/model/picker/headings.ts, src/models/roads/providerIdentityLine.ts and src/screen/boot-face/BootSaturnScreen.tsx)')
 }
 function setLeg(leg: Leg): void {
   json('settings.json', { engine: { model: MODEL }, ...(setting[leg] === undefined ? {} : { view: { accountIdentity: setting[leg] } }) })
@@ -148,8 +148,8 @@ try {
     }
   }
   if (surface === undefined || surface === 'submodels') {
-    const { SubModelPicker } = await import(join(ROOT, 'src/components/SubModelPicker.tsx'))
-    const { composeSubModelRegistry } = await import(join(ROOT, 'src/services/model/subModelSlots.ts'))
+    const { SubModelPicker } = await import(join(ROOT, 'src/commands/submodels/SubModelPicker.tsx'))
+    const { composeSubModelRegistry } = await import(join(ROOT, 'src/models/catalogue/subModelSlots.ts'))
     const model = composeSubModelRegistry().entries.find((entry: { source: string; kind: string }) => entry.source === 'huggingface' && entry.kind === 'model')
     check('the real submodel registry has a signed-in Hugging Face model', model !== undefined)
     let absent = ''
@@ -167,8 +167,8 @@ try {
     }
   }
   if (surface === undefined || surface === 'config') {
-    const { Config } = await import(join(ROOT, 'src/components/Settings/Config.tsx'))
-    const { ThemeProvider } = await import(join(ROOT, 'src/components/design-system/ThemeProvider.tsx'))
+    const { Config } = await import(join(ROOT, 'src/screen/settings/Config.tsx'))
+    const { ThemeProvider } = await import(join(ROOT, 'src/screen/theme/ThemeProvider.tsx'))
     let absent = ''
     for (const leg of ['absent', 'shown', 'hidden'] as Leg[]) {
       setLeg(leg)

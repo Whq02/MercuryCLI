@@ -6,14 +6,14 @@ import { join } from 'node:path'
 const scratch = mkdtempSync(join(tmpdir(), 'retain-twice-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const V = await import('../../src/mneme/memoryVerbs.js')
-const { pendingRows } = await import('../../src/mneme/mnemeBuffer.js')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
+const V = await import('../../src/sessions/mneme/memoryVerbs.js')
+const { pendingRows } = await import('../../src/sessions/mneme/mnemeBuffer.js')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.js')
 const dir = mnemeLibraryDir()
 
 let failures = 0
 let checks = 0
-const check = (label: string, ok: boolean, detail = ''): void => { checks++; console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok || !detail ? '' : `: ${detail.slice(0, 500)} · retainItems in src/mneme/memoryVerbs.ts must answer already-staged with the first row id, for single-line and multi-line content, and stage no second row`}`); if (!ok) failures++ }
+const check = (label: string, ok: boolean, detail = ''): void => { checks++; console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok || !detail ? '' : `: ${detail.slice(0, 500)} · retainItems in src/sessions/mneme/memoryVerbs.ts must answer already-staged with the first row id, for single-line and multi-line content, and stage no second row`}`); if (!ok) failures++ }
 
 const ONE_LINE = 'the release notes are written from the fold notes'
 const TWO_LINES = 'the gate runs in Docker on this machine\nand the hosted gate stays off until the owner says so'

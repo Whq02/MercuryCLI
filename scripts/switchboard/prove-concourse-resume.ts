@@ -17,19 +17,19 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
+const { workerTranscriptPath } = await import('../../src/screen/concourse-model/workerTranscript.ts')
 const { buildConcourseSnapshot, parkedBoardRows, markParkedCleared, readParkedCleared, OLDER_CHATS_ROW_PREFIX } = await import(
-  '../../src/services/concourse/concourseSnapshot.ts'
+  '../../src/screen/concourse-model/concourseSnapshot.ts'
 )
-const { parkedSessionsOf, PARKED_CAP, projectIdentity, inProject } = await import('../../src/utils/bootCardFacts.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { switchboardGeometry } = await import('../../src/components/concourse/ConcourseLayout.tsx')
-const { paneWindow } = await import('../../src/components/mercury-ui/paneWindow.ts')
-const state = await import('../../src/bootstrap/state.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
+const { parkedSessionsOf, PARKED_CAP, projectIdentity, inProject } = await import('../../src/screen/boot-face/bootCardFacts.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+const { switchboardGeometry } = await import('../../src/screen/concourse/ConcourseLayout.tsx')
+const { paneWindow } = await import('../../src/screen/widgets/paneWindow.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const NOW = Date.now()
@@ -89,7 +89,7 @@ function seedChat(project: string, sessionId: string, words: string, ageMs: numb
 const sid = (tail: string): string => `00000000-bbbb-4000-8000-${tail.padStart(12, '0')}`
 const buildFor = (projectDir: string): ReturnType<typeof buildConcourseSnapshot> =>
   buildConcourseSnapshot({ recordsDir, crewDir, draftDir, nowMs: NOW, project: projectIdentity(projectDir) })
-const parkedOf = async (projectDir: string): Promise<Array<import('../../src/components/concourse/contracts.ts').ConcourseRowV1>> => {
+const parkedOf = async (projectDir: string): Promise<Array<import('../../src/screen/concourse/contracts.ts').ConcourseRowV1>> => {
   const snap = await buildFor(projectDir)
   return snap.groups.find(g => g.id === 'parked')?.rows ?? []
 }
@@ -103,7 +103,7 @@ const S_B = sid('b2')
 const S_BLANK = sid('00')
 const S_OTHER = sid('ee')
 {
-  failHint = 'the parked group is built by buildConcourseSnapshot, parkedBoardRows, markParkedCleared and readParkedCleared in src/services/concourse/concourseSnapshot.ts, from parkedSessionsOf and inProject in src/utils/bootCardFacts.ts'
+  failHint = 'the parked group is built by buildConcourseSnapshot, parkedBoardRows, markParkedCleared and readParkedCleared in src/screen/concourse-model/concourseSnapshot.ts, from parkedSessionsOf and inProject in src/screen/boot-face/bootCardFacts.ts'
   seedChat(P_CUR, S_LIVE, 'the live one', 10 * 60_000)
   const fileA = seedChat(P_CUR, S_A, 'resume me a', 60 * 60_000)
   seedChat(P_CUR, S_B, 'resume me b', 3 * 60 * 60_000)
@@ -178,7 +178,7 @@ const S_OTHER = sid('ee')
 
 console.log('A2 — capacity: ≤10 per project (one owner); live rows lead; the window never shrinks')
 {
-  failHint = 'the cap is PARKED_CAP in src/utils/bootCardFacts.ts applied by parkedBoardRows in src/services/concourse/concourseSnapshot.ts; the window geometry is switchboardGeometry in src/components/concourse/ConcourseLayout.tsx and paneWindow in src/components/mercury-ui/paneWindow.ts'
+  failHint = 'the cap is PARKED_CAP in src/screen/boot-face/bootCardFacts.ts applied by parkedBoardRows in src/screen/concourse-model/concourseSnapshot.ts; the window geometry is switchboardGeometry in src/screen/concourse/ConcourseLayout.tsx and paneWindow in src/screen/widgets/paneWindow.ts'
   for (let i = 1; i <= 14; i++) seedChat(P_CUR, sid(`c${i}`), `cap ${i}`, (4 + i) * 60 * 60_000)
   seedWorkers([liveRecord('concourse-w1', S_LIVE, P_CUR), liveRecord('concourse-w2', sid('55'), P_CUR), liveRecord('concourse-w3', sid('56'), join(SCRATCH, 'proj-live-3'))])
   const snap = await buildFor(P_CUR)
@@ -214,9 +214,9 @@ console.log('A2 — capacity: ≤10 per project (one owner); live rows lead; the
 
 console.log('A4 — the week tier: rows for this week\'s chats (≤10), one "N older chats · ↵ to browse" line for the rest; nothing removed')
 {
-  failHint = 'the week tier is PARKED_WEEK_MS, PARKED_CAP and projectChatCount in src/utils/bootCardFacts.ts, and the older-chats line is built by parkedBoardRows in src/services/concourse/concourseSnapshot.ts'
-  const { PARKED_WEEK_MS, projectChatCount } = await import('../../src/utils/bootCardFacts.ts')
-  const { OLDER_CHATS_ROW_PREFIX } = await import('../../src/services/concourse/concourseSnapshot.ts')
+  failHint = 'the week tier is PARKED_WEEK_MS, PARKED_CAP and projectChatCount in src/screen/boot-face/bootCardFacts.ts, and the older-chats line is built by parkedBoardRows in src/screen/concourse-model/concourseSnapshot.ts'
+  const { PARKED_WEEK_MS, projectChatCount } = await import('../../src/screen/boot-face/bootCardFacts.ts')
+  const { OLDER_CHATS_ROW_PREFIX } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
   const DAY = 24 * 60 * 60_000
   check('the week is the tier (one owner)', PARKED_WEEK_MS === 7 * DAY)
   const P_WEEK = join(SCRATCH, 'proj-week')
@@ -251,31 +251,31 @@ console.log('A4 — the week tier: rows for this week\'s chats (≤10), one "N o
 
 console.log('B — the New Session tab: declared, keyed, born in the current ground, absent on the reduced stage')
 {
-  failHint = 'the controls, legends and key resolvers are declared in src/components/concourse/controlManifest.ts (CONCOURSE_CONTROLS, CONCOURSE_REGION_KEYS, regionKeysFor, browseKeysFor); the strip hint is stripKeyMapHintOf in src/context/surfaceRoute.ts'
-  const { CONCOURSE_CONTROLS, CONCOURSE_REGION_KEYS, regionKeysFor } = await import('../../src/components/concourse/controlManifest.ts')
+  failHint = 'the controls, legends and key resolvers are declared in src/screen/concourse/controlManifest.ts (CONCOURSE_CONTROLS, CONCOURSE_REGION_KEYS, regionKeysFor, browseKeysFor); the strip hint is stripKeyMapHintOf in src/screen/routes/surfaceRoute.ts'
+  const { CONCOURSE_CONTROLS, CONCOURSE_REGION_KEYS, regionKeysFor } = await import('../../src/screen/concourse/controlManifest.ts')
   const tab = CONCOURSE_CONTROLS.find(c => c.id === 'board:new-session')
   check('B1 the tab is a declared control of the list region — n by keyboard, click by pointer', tab !== undefined && tab.region === 'list' && tab.keys.includes('n') && tab.pointer === 'activate' && tab.action === 'concourse:new-session')
   check('B1 the list legend advertises it (a printed key that fires)', CONCOURSE_REGION_KEYS.list.some(k => k.keys === 'n' && k.label === 'new session'))
   check('B1 ↵ keeps enter-session (the tab sits beside the rows, never instead of them)', CONCOURSE_CONTROLS.find(c => c.id === 'board:open')?.keys.includes('return') === true)
   check('B1 the ONE legend resolver drops n exactly when the door is absent (the reduced stage)', regionKeysFor('list', { newSession: false }).every(k => k.keys !== 'n') && regionKeysFor('list', { newSession: true }).some(k => k.keys === 'n') && regionKeysFor('rail', { newSession: false }).length === CONCOURSE_REGION_KEYS.rail.length)
-  const { stripKeyMapHintOf } = await import('../../src/context/surfaceRoute.ts')
-  const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+  const { stripKeyMapHintOf } = await import('../../src/screen/routes/surfaceRoute.ts')
+  const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
   check('B4 with the concourse off and no chat, the live view offers the boot face to the left and no chat stop to the right', stripKeyMapHintOf('concourse', ['boot-settings']).startsWith(keyHintLabel('⇧← boot face')) && !stripKeyMapHintOf('concourse', ['boot-settings']).includes(keyHintLabel('⇧→ chat')))
   check('B4 with a chat present the live view offers both moves', stripKeyMapHintOf('concourse', ['boot-settings', 'repl']) === keyHintLabel('⇧← boot face · ⇧→ chat'))
-  const { browseKeysFor } = await import('../../src/components/concourse/controlManifest.ts')
+  const { browseKeysFor } = await import('../../src/screen/concourse/controlManifest.ts')
   check("B5 the ONE legend resolver relabels esc by chat presence ('focused chat' ↔ 'boot face'), the other keys untouched", browseKeysFor({ chatPresent: true }).find(k => k.keys === 'esc')?.label === 'focused chat' && browseKeysFor({ chatPresent: false }).find(k => k.keys === 'esc')?.label === 'boot face' && browseKeysFor({ chatPresent: false }).filter(k => k.keys !== 'esc').map(k => k.label).join(',') === browseKeysFor({ chatPresent: true }).filter(k => k.keys !== 'esc').map(k => k.label).join(','))
 }
 
 console.log('C — the renames: the idle knob speaks the session estate; the accent module says the screen; the in-process connector is gone')
 {
-  failHint = 'the knobs are read by concourseIdleRetireMs and concourseNewbornGraceMs in src/daemon/idleRetirement.ts and registered in FLAG_REGISTRY in the flag registry'
+  failHint = 'the knobs are read by concourseIdleRetireMs and concourseNewbornGraceMs in src/daemon/control/idleRetirement.ts and registered in FLAG_REGISTRY in the flag registry'
   const CANON = 'MERCURY_SESSION_IDLE_RETIRE_MINUTES'
   const OLD = 'MERCURY_CONCOURSE_' + 'IDLE_RETIRE_MINUTES'
   const saved = { canon: process.env[CANON], old: process.env[OLD] }
   delete process.env[CANON]
   delete process.env[OLD]
-  const { concourseIdleRetireMs, DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES } = await import('../../src/daemon/idleRetirement.ts')
-  const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
+  const { concourseIdleRetireMs, DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES } = await import('../../src/daemon/control/idleRetirement.ts')
+  const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
   check('C1 unset ⇒ the operator\'s ten minutes', concourseIdleRetireMs() === DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES * 60_000 && DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES === 10)
   process.env[OLD] = '5'
   check('C1 the old concourse spelling alone changes nothing (an unknown name)', concourseIdleRetireMs() === DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES * 60_000, String(concourseIdleRetireMs()))
@@ -293,7 +293,7 @@ console.log('C — the renames: the idle knob speaks the session estate; the acc
   const savedGrace = { canon: process.env[GRACE], old: process.env[GRACE_OLD] }
   delete process.env[GRACE]
   delete process.env[GRACE_OLD]
-  const { concourseNewbornGraceMs } = await import('../../src/daemon/idleRetirement.ts')
+  const { concourseNewbornGraceMs } = await import('../../src/daemon/control/idleRetirement.ts')
   check('C1 grace: unset ⇒ never (0)', concourseNewbornGraceMs() === 0)
   process.env[GRACE_OLD] = '30'
   check('C1 grace: the old concourse spelling alone changes nothing (an unknown name)', concourseNewbornGraceMs() === 0)

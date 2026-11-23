@@ -9,7 +9,7 @@ import { checker, scratchRoot } from '../engine-durability/harness.ts'
 const t = checker()
 const root = scratchRoot('worker-transcript-cursor')
 const { openWorkerTranscript, readAfterCursor, workerTranscriptPath } = await import(
-  '../../src/services/concourse/workerTranscript.js'
+  '../../src/screen/concourse-model/workerTranscript.js'
 )
 
 const dir = join(root, 'transcripts')

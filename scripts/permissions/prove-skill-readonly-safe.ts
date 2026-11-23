@@ -5,13 +5,13 @@ import { join } from 'node:path'
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 
 const { skillHasOnlySafeProperties, READ_ONLY_SKILL_TOOLS } = await import(
-  '../../src/tools/SkillTool/SkillTool.ts'
+  '../../src/tools/skill/SkillTool.ts'
 )
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const hint = 'fix skillHasOnlySafeProperties or READ_ONLY_SKILL_TOOLS in src/tools/SkillTool/SkillTool.ts; for the repo-skill check, delete the allowed-tools line from each SKILL.md named above'
+  const hint = 'fix skillHasOnlySafeProperties or READ_ONLY_SKILL_TOOLS in src/tools/skill/SkillTool.ts; for the repo-skill check, delete the allowed-tools line from each SKILL.md named above'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${hint}`}`)
 }
 

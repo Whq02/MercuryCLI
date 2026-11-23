@@ -1,0 +1,129 @@
+
+import { currentInputEventSeq } from '../renderer/events/input-event.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+
+interface OverlayEntry {
+  readonly token: number
+  readonly id: string
+  readonly modal: boolean
+  readonly inputOwner?: boolean
+  readonly openSeq: number
+  readonly onFocusReturn?: () => void
+  readonly ownsPageKeys?: boolean
+}
+
+let stack: OverlayEntry[] = []
+let version = 0
+let nextToken = 1
+let lastPopEventSeq = -1
+const listeners = new Set<() => void>()
+
+function bump(): void {
+  version += 1
+  for (const cb of listeners) {
+    try {
+      cb()
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+}
+
+export function reserveOverlayToken(): number {
+  return nextToken++
+}
+
+export function pushOverlay(entry: {
+  id: string
+  modal: boolean
+  inputOwner?: boolean
+  token?: number
+  onFocusReturn?: () => void
+  ownsPageKeys?: boolean
+}): number {
+  const token = entry.token ?? nextToken++
+  const withoutDup = stack.filter(e => e.token !== token)
+  stack = [
+    ...withoutDup,
+    {
+      token,
+      id: entry.id,
+      modal: entry.modal,
+      inputOwner: entry.inputOwner,
+      openSeq: currentInputEventSeq(),
+      onFocusReturn: entry.onFocusReturn,
+      ownsPageKeys: entry.ownsPageKeys,
+    },
+  ]
+  bump()
+  return token
+}
+
+export function setOverlayPageKeys(token: number, ownsPageKeys: boolean | undefined): void {
+  const entry = stack.find(e => e.token === token)
+  if (!entry || entry.ownsPageKeys === ownsPageKeys) return
+  stack = stack.map(e => (e.token === token ? { ...e, ownsPageKeys } : e))
+  bump()
+}
+
+export function popOverlay(token: number): void {
+  const idx = stack.findIndex(e => e.token === token)
+  if (idx === -1) return
+  const wasTop = topOverlay()?.token === token
+  const entry = stack[idx]!
+  stack = [...stack.slice(0, idx), ...stack.slice(idx + 1)]
+  if (entry.inputOwner !== false) lastPopEventSeq = currentInputEventSeq()
+  bump()
+  if (wasTop && entry.onFocusReturn) {
+    try {
+      entry.onFocusReturn()
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+}
+
+export function overlayStackVersion(): number {
+  return version
+}
+
+export function subscribeOverlayStack(cb: () => void): () => void {
+  listeners.add(cb)
+  return () => {
+    listeners.delete(cb)
+  }
+}
+
+export function overlayStackSnapshot(): readonly OverlayEntry[] {
+  return stack
+}
+
+export function anyOverlayActive(): boolean {
+  return stack.length > 0
+}
+
+export function anyModalOverlayActive(): boolean {
+  return stack.some(e => e.modal)
+}
+
+export function topOverlay(): OverlayEntry | null {
+  return stack.findLast(entry => entry.inputOwner !== false) ?? null
+}
+
+export function topOverlayOwnsPageKeys(): boolean {
+  return topOverlay()?.ownsPageKeys === true
+}
+
+export function isTopOverlayNow(token: number): boolean {
+  if (lastPopEventSeq === currentInputEventSeq() && lastPopEventSeq !== -1) {
+    return false
+  }
+  const top = topOverlay()
+  return top !== null && top.token === token
+}
+
+export function resetOverlayStackForTests(): void {
+  stack = []
+  lastPopEventSeq = -1
+  bump()
+}

@@ -3,14 +3,14 @@
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change mayArmBoardModal or gitOfferOwnsTheKeys in src/components/concourse/boardModalOwner.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change mayArmBoardModal or gitOfferOwnsTheKeys in src/screen/concourse/boardModalOwner.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const owner = await import('../../src/components/concourse/boardModalOwner.ts')
-type Facts = import('../../src/components/concourse/boardModalOwner.ts').BoardModalFactsV1
+const owner = await import('../../src/screen/concourse/boardModalOwner.ts')
+type Facts = import('../../src/screen/concourse/boardModalOwner.ts').BoardModalFactsV1
 const { boardModalOwner } = owner
 const mayArmBoardModal = (owner as Record<string, unknown>).mayArmBoardModal as ((f: Facts, t: string) => boolean) | undefined
 const gitOfferOwnsTheKeys = (owner as Record<string, unknown>).gitOfferOwnsTheKeys as ((f: Facts) => boolean) | undefined

@@ -7,15 +7,15 @@ const home = join(process.env.MERCURY_CONFIG_DIR, 'home')
 mkdirSync(home, { recursive: true })
 process.env.HOME = home
 let checks = 0
-const vastVolumesWhere = 'fix the Vast.ai client in src/services/host/vendors/vast.ts (VastClient volume and rental methods), the kept-volume records in src/services/host/vastVolumes.ts and src/services/host/volumes.ts, or engineCacheExports in src/services/host/ssh.ts; the fixture is scripts/host/vastFixture.mjs'
+const vastVolumesWhere = 'fix the Vast.ai client in src/models/hosting/vendors/vast.ts (VastClient volume and rental methods), the kept-volume records in src/models/hosting/vastVolumes.ts and src/models/hosting/volumes.ts, or engineCacheExports in src/models/hosting/ssh.ts; the fixture is scripts/host/vastFixture.mjs'
 const check = (name: string, truth: unknown, detail?: string) => { assert.ok(truth, name + ' · ' + (detail ?? vastVolumesWhere)); checks++; console.log('PASS ' + name) }
-const { VastClient, VAST_VOLUME_MOUNT, VAST_VOLUME_NOTICE } = await import('../../src/services/host/vendors/vast.ts')
-const { HostCreateError, HostVendorShapeError } = await import('../../src/services/host/vendors/http.ts')
-const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+const { VastClient, VAST_VOLUME_MOUNT, VAST_VOLUME_NOTICE } = await import('../../src/models/hosting/vendors/vast.ts')
+const { HostCreateError, HostVendorShapeError } = await import('../../src/models/hosting/vendors/http.ts')
+const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
 const { vastFixture } = await import('./vastFixture.mjs')
-const volumes = await import('../../src/services/host/volumes.ts')
-const vastVolumes = await import('../../src/services/host/vastVolumes.ts')
-const { engineCacheExports } = await import('../../src/services/host/ssh.ts')
+const volumes = await import('../../src/models/hosting/volumes.ts')
+const vastVolumes = await import('../../src/models/hosting/vastVolumes.ts')
+const { engineCacheExports } = await import('../../src/models/hosting/ssh.ts')
 const b200 = HOST_RECIPES.find(row => row.id === 'deepseek41-b200')!
 assert.ok(b200 && b200.count === 4 && b200.gpu === 'B200', 'the shipped 4× B200 row is the shape the owner’s private rows copy')
 const fixture = await vastFixture()
@@ -35,8 +35,8 @@ try {
   check('a size no machine sells leaves the list empty instead of a smaller volume', (await client.volumeOffers(3000, undefined, signal())).length === 0)
   const shapes = await client.recipeOffers([b200], signal())
   check('every rental offer carries the machine id Vast lists it on', shapes.length === 1 && shapes[0]!.machineId === 9103 && shapes[0]!.hostingType === 'datacenter')
-  await assert.rejects(client.createVolume(onMachine[0]!, 556, 'mercury-weights-bad'), /letters, digits and underscores/, 'VastClient.createVolume in src/services/host/vendors/vast.ts must refuse a name with a hyphen before any request')
-  await assert.rejects(client.createVolume(onMachine[0]!, 2500, 'mercury_weights_big'), /sells at most 2000 GB/, 'VastClient.createVolume in src/services/host/vendors/vast.ts must refuse a size above the offer disk before any request')
+  await assert.rejects(client.createVolume(onMachine[0]!, 556, 'mercury-weights-bad'), /letters, digits and underscores/, 'VastClient.createVolume in src/models/hosting/vendors/vast.ts must refuse a name with a hyphen before any request')
+  await assert.rejects(client.createVolume(onMachine[0]!, 2500, 'mercury_weights_big'), /sells at most 2000 GB/, 'VastClient.createVolume in src/models/hosting/vendors/vast.ts must refuse a size above the offer disk before any request')
   check('a bad name or an oversize volume is refused before any request', fixture.state.volumeCreates === 0)
   const created = await client.createVolume(onMachine[0]!, 556, 'mercury_weights_abc123', signal())
   const put = fixture.requests.find(row => row.path === '/api/v0/volumes/' && row.method === 'PUT')
@@ -49,16 +49,16 @@ try {
     check('the volume list reads the ' + shape + ' shape', rows.length === 1 && rows[0]!.id === 20118481 && rows[0]!.hourly !== undefined && Math.abs(rows[0]!.hourly * 720 - 111.2) < 0.01 && rows[0]!.instances.length === 0)
   }
   fixture.state.volumeListShape = 'bad'
-  await assert.rejects(client.volumes(signal()), (error: unknown) => error instanceof HostVendorShapeError && /shape Mercury does not read \(an object with volumes\)/.test(String(error)), 'VastClient.volumes in src/services/host/vendors/vast.ts must throw HostVendorShapeError naming the shape it reads')
+  await assert.rejects(client.volumes(signal()), (error: unknown) => error instanceof HostVendorShapeError && /shape Mercury does not read \(an object with volumes\)/.test(String(error)), 'VastClient.volumes in src/models/hosting/vendors/vast.ts must throw HostVendorShapeError naming the shape it reads')
   check('an unreadable volume list names its shape instead of a bare unreadable response', true)
   fixture.state.volumeListShape = 'volumes'
   fixture.state.volumeCreateStatus = 400
-  await assert.rejects(client.createVolume(onMachine[0]!, 556, 'mercury_weights_refused', signal()), (error: unknown) => error instanceof HostCreateError && error.outcome === 'refused', 'VastClient.createVolume in src/services/host/vendors/vast.ts must throw HostCreateError with outcome refused on an HTTP 400')
+  await assert.rejects(client.createVolume(onMachine[0]!, 556, 'mercury_weights_refused', signal()), (error: unknown) => error instanceof HostCreateError && error.outcome === 'refused', 'VastClient.createVolume in src/models/hosting/vendors/vast.ts must throw HostCreateError with outcome refused on an HTTP 400')
   fixture.state.volumeCreateStatus = 0
   fixture.state.ambiguousVolumeCreate = 'disconnect'
-  await assert.rejects(client.createVolume(onMachine[0]!, 556, 'mercury_weights_cut', signal()), (error: unknown) => error instanceof HostCreateError && error.outcome === 'ambiguous', 'VastClient.createVolume in src/services/host/vendors/vast.ts must throw HostCreateError with outcome ambiguous when the connection drops')
+  await assert.rejects(client.createVolume(onMachine[0]!, 556, 'mercury_weights_cut', signal()), (error: unknown) => error instanceof HostCreateError && error.outcome === 'ambiguous', 'VastClient.createVolume in src/models/hosting/vendors/vast.ts must throw HostCreateError with outcome ambiguous when the connection drops')
   fixture.state.ambiguousVolumeCreate = 'unlisted'
-  await assert.rejects(client.createVolume(onMachine[0]!, 556, 'mercury_weights_ghost', signal()), (error: unknown) => error instanceof HostCreateError && error.outcome === 'ambiguous' && /does not list it yet; it may bill/.test(String(error)), 'VastClient.createVolume in src/services/host/vendors/vast.ts must throw an ambiguous HostCreateError saying the list does not show the volume yet and it may bill')
+  await assert.rejects(client.createVolume(onMachine[0]!, 556, 'mercury_weights_ghost', signal()), (error: unknown) => error instanceof HostCreateError && error.outcome === 'ambiguous' && /does not list it yet; it may bill/.test(String(error)), 'VastClient.createVolume in src/models/hosting/vendors/vast.ts must throw an ambiguous HostCreateError saying the list does not show the volume yet and it may bill')
   fixture.state.ambiguousVolumeCreate = false
   check('a refused create says refused; a dropped connection or an accepted-but-unlisted volume is honestly ambiguous (may bill, check Storage), never a second create', fixture.state.volumeCreates === 4 && [...fixture.state.volumes.keys()].length === 2)
   const cut = [...fixture.state.volumes.values()].find(row => row.label === 'mercury_weights_cut')!
@@ -68,19 +68,19 @@ try {
   await client.deleteVolume(cut.id)
   check('deleting an already absent volume is a 404 read as gone, verified by the list', fixture.state.volumeDeletes === 2)
   fixture.state.holdVolumeDelete = true
-  await assert.rejects(client.deleteVolume(created.id), /still lists volume 20118481; the deletion is not verified and it may still bill/, 'VastClient.deleteVolume in src/services/host/vendors/vast.ts must re-list and name the volume it still sees as unverified and billing')
+  await assert.rejects(client.deleteVolume(created.id), /still lists volume 20118481; the deletion is not verified and it may still bill/, 'VastClient.deleteVolume in src/models/hosting/vendors/vast.ts must re-list and name the volume it still sees as unverified and billing')
   fixture.state.holdVolumeDelete = false
   check('a volume Vast keeps listing after the delete is reported unverified and billing, never deleted', fixture.state.volumes.has(created.id))
   const fill = await client.machineOffers(b200, 9103, signal())
   check('the fill instance search asks for that machine only, any GPU count, a 30 GB container disk, cheapest first: a 1× RTX PRO 6000 at $1.35/hr, not the 4× B200 at $9.25/hr', fill.length === 2 && fill[0]!.recipe.count === 1 && fill[0]!.gpuId === 'NVIDIA RTX PRO 6000 Blackwell' && fill[0]!.price < 1.4 && fill[0]!.recipe.diskGb === 30 && fill[0]!.machineId === 9103 && fill[1]!.recipe.count === 4 && fixture.requests.filter(row => row.path === '/api/v0/bundles/').at(-1)!.body.machine_id.eq === 9103 && fixture.requests.filter(row => row.path === '/api/v0/bundles/').at(-1)!.body.num_gpus === undefined)
-  await assert.rejects(client.create(shapes[0]!, key, 'mercury-wrong', { id: String(created.id), kind: 'vast', machineId: 9999 }), /lives on Vast.ai machine 9999/, 'VastClient.create in src/services/host/vendors/vast.ts must refuse a volume that lives on another machine before any request')
-  await assert.rejects(client.create(shapes[0]!, key, 'mercury-wrong', { id: 'net-1', kind: 'network', dataCenter: 'EU-NL-1' }), /Runpod weights disk cannot be attached/, 'VastClient.create in src/services/host/vendors/vast.ts must refuse a network (Runpod) volume before any request')
+  await assert.rejects(client.create(shapes[0]!, key, 'mercury-wrong', { id: String(created.id), kind: 'vast', machineId: 9999 }), /lives on Vast.ai machine 9999/, 'VastClient.create in src/models/hosting/vendors/vast.ts must refuse a volume that lives on another machine before any request')
+  await assert.rejects(client.create(shapes[0]!, key, 'mercury-wrong', { id: 'net-1', kind: 'network', dataCenter: 'EU-NL-1' }), /Runpod weights disk cannot be attached/, 'VastClient.create in src/models/hosting/vendors/vast.ts must refuse a network (Runpod) volume before any request')
   check('an offer on another machine, or a Runpod disk, is refused before any request', fixture.state.creates === 0)
   const pod = await client.create(fill[0]!, key, 'mercury-fill-1', { id: String(created.id), kind: 'vast', machineId: 9103 })
   const body = fixture.state.createBodies[0]
   check('attach-at-create sends the documented volume_info {create_new:false, volume_id, mount_path} and mounts the volume at /workspace/mercury-weights', pod.id === '7001' && body.ask === 106 && body.volume_info.create_new === false && body.volume_info.volume_id === created.id && body.volume_info.mount_path === VAST_VOLUME_MOUNT && VAST_VOLUME_MOUNT === '/workspace/mercury-weights' && fixture.state.pods.get(7001).volume_id === created.id)
   check('the volume list now names the instance using it', (await client.volumes(signal()))[0]!.instances.join(',') === '7001')
-  await assert.rejects(client.deleteVolume(created.id, undefined), /returned HTTP 400/, 'VastClient.deleteVolume in src/services/host/vendors/vast.ts must report the HTTP refusal when an instance still uses the volume')
+  await assert.rejects(client.deleteVolume(created.id, undefined), /returned HTTP 400/, 'VastClient.deleteVolume in src/models/hosting/vendors/vast.ts must report the HTTP refusal when an instance still uses the volume')
   check('Vast refuses to delete a volume an instance still uses; Mercury reports the refusal and the volume still exists', fixture.state.volumes.has(created.id))
   await client.terminate('7001')
   check('terminating the instance frees the volume for deletion', fixture.state.pods.size === 0 && (await client.volumes(signal()))[0]!.instances.length === 0)

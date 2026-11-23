@@ -15,9 +15,9 @@ plugin({
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { daemonSnapshot } from '../../src/services/cockpit/daemonSnapshot.js'
-import { thisMercuryCommand } from '../../src/services/privateChannel/installPath.js'
-import { daemonStatePath } from '../../src/daemon/controlSocket.js'
+import { daemonSnapshot } from '../../src/screen/cockpit-gauges/daemonSnapshot.js'
+import { thisMercuryCommand } from '../../src/platform/update-channel/installPath.js'
+import { daemonStatePath } from '../../src/daemon/control/controlSocket.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = '', hint = ''): void {
@@ -55,25 +55,25 @@ section('no daemon record ⇒ off (opt-in start path)')
 {
   rmSync(recPath, { force: true })
   const s = daemonSnapshot()
-  check('state === off', s.state === 'off', `state='${s.state}'`, 'fix the no-record branch at the end of daemonSnapshot in src/services/cockpit/daemonSnapshot.ts: with no daemon state file it must return state off')
-  check("reason carries the opt-in start path, spelled as this install's own command", (s.reason ?? '').startsWith(`opt-in: run \`${thisMercuryCommand()} daemon\``), s.reason ?? '', 'fix the reason of the off state in daemonSnapshot (src/services/cockpit/daemonSnapshot.ts): it must start with opt-in: run, then the command from thisMercuryCommand, then daemon')
+  check('state === off', s.state === 'off', `state='${s.state}'`, 'fix the no-record branch at the end of daemonSnapshot in src/screen/cockpit-gauges/daemonSnapshot.ts: with no daemon state file it must return state off')
+  check("reason carries the opt-in start path, spelled as this install's own command", (s.reason ?? '').startsWith(`opt-in: run \`${thisMercuryCommand()} daemon\``), s.reason ?? '', 'fix the reason of the off state in daemonSnapshot (src/screen/cockpit-gauges/daemonSnapshot.ts): it must start with opt-in: run, then the command from thisMercuryCommand, then daemon')
 }
 
 section('record present + pid alive ⇒ live')
 {
   writeRec(process.pid)
   const s = daemonSnapshot()
-  check('state === live', s.state === 'live', `state='${s.state}'`, 'fix the alive-pid branch of daemonSnapshot in src/services/cockpit/daemonSnapshot.ts: a record whose pid is alive must return state live')
-  check('reason reports running + pid + version', /running · pid \d+ · v/.test(s.reason ?? ''), '', 'fix the live reason text in daemonSnapshot (src/services/cockpit/daemonSnapshot.ts): it must read running · pid N · vVERSION; the reason was ' + (s.reason ?? ''))
-  check('reason includes an uptime', /up \d+s/.test(s.reason ?? ''), '', 'fix the live reason text in daemonSnapshot (src/services/cockpit/daemonSnapshot.ts): with a startedAt in the record it must add (up Ns); the reason was ' + (s.reason ?? ''))
+  check('state === live', s.state === 'live', `state='${s.state}'`, 'fix the alive-pid branch of daemonSnapshot in src/screen/cockpit-gauges/daemonSnapshot.ts: a record whose pid is alive must return state live')
+  check('reason reports running + pid + version', /running · pid \d+ · v/.test(s.reason ?? ''), '', 'fix the live reason text in daemonSnapshot (src/screen/cockpit-gauges/daemonSnapshot.ts): it must read running · pid N · vVERSION; the reason was ' + (s.reason ?? ''))
+  check('reason includes an uptime', /up \d+s/.test(s.reason ?? ''), '', 'fix the live reason text in daemonSnapshot (src/screen/cockpit-gauges/daemonSnapshot.ts): with a startedAt in the record it must add (up Ns); the reason was ' + (s.reason ?? ''))
 }
 
 section('record present + pid dead ⇒ unavailable (orphaned record)')
 {
   writeRec(2147483646)
   const s = daemonSnapshot()
-  check('state === unavailable', s.state === 'unavailable', `state='${s.state}'`, 'fix the dead-pid branch of daemonSnapshot in src/services/cockpit/daemonSnapshot.ts: a record whose pid is not running must return state unavailable')
-  check('reason flags the stale record', /stale record · pid \d+ not running/.test(s.reason ?? ''), '', 'fix the dead-pid reason in daemonSnapshot (src/services/cockpit/daemonSnapshot.ts): it must read stale record · pid N not running; the reason was ' + (s.reason ?? ''))
+  check('state === unavailable', s.state === 'unavailable', `state='${s.state}'`, 'fix the dead-pid branch of daemonSnapshot in src/screen/cockpit-gauges/daemonSnapshot.ts: a record whose pid is not running must return state unavailable')
+  check('reason flags the stale record', /stale record · pid \d+ not running/.test(s.reason ?? ''), '', 'fix the dead-pid reason in daemonSnapshot (src/screen/cockpit-gauges/daemonSnapshot.ts): it must read stale record · pid N not running; the reason was ' + (s.reason ?? ''))
 }
 
 section('garbage record ⇒ off, never throws (honest-state contract)')
@@ -86,8 +86,8 @@ section('garbage record ⇒ off, never throws (honest-state contract)')
   } catch {
     threw = true
   }
-  check('did not throw', !threw, '', 'daemonSnapshot in src/services/cockpit/daemonSnapshot.ts must catch an unparseable state file and return a state, never throw')
-  check('falls back to off on an unparseable record', s?.state === 'off', `state='${s?.state}'`, 'fix the state-file read in daemonSnapshot (src/services/cockpit/daemonSnapshot.ts): a SyntaxError from JSON.parse must leave the record empty so the state is off')
+  check('did not throw', !threw, '', 'daemonSnapshot in src/screen/cockpit-gauges/daemonSnapshot.ts must catch an unparseable state file and return a state, never throw')
+  check('falls back to off on an unparseable record', s?.state === 'off', `state='${s?.state}'`, 'fix the state-file read in daemonSnapshot (src/screen/cockpit-gauges/daemonSnapshot.ts): a SyntaxError from JSON.parse must leave the record empty so the state is off')
 }
 
 console.log('\n' + '═'.repeat(76))

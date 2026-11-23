@@ -11,7 +11,7 @@ const {
   AGENT_CLI_TOKEN_FD_ENV_VARS,
   classifyHarnessHome,
   recognizeAgentCli,
-} = await import('../../src/utils/knownAgentClis.js')
+} = await import('../../src/platform/environment/knownAgentClis.js')
 
 let failures = 0
 function check(name: string, ok: boolean, detail?: string): void {
@@ -19,7 +19,7 @@ function check(name: string, ok: boolean, detail?: string): void {
     console.log(`  ok  ${name}`)
   } else {
     failures++
-    console.log(`  RED ${name}${detail ? ` — ${detail}` : ''} — change classifyHarnessHome, recognizeAgentCli or the KNOWN_AGENT_CLIS table in src/utils/knownAgentClis.ts`)
+    console.log(`  RED ${name}${detail ? ` — ${detail}` : ''} — change classifyHarnessHome, recognizeAgentCli or the KNOWN_AGENT_CLIS table in src/platform/environment/knownAgentClis.ts`)
   }
 }
 
@@ -154,28 +154,28 @@ try {
     geminiRow !== undefined && geminiRow.sessionEnvVars === undefined && geminiRow.tokenFdEnvVar === undefined,
   )
 
-  const { ALWAYS_STRIP_TOKEN_VARS } = await import('../../src/utils/subprocessEnv.js')
+  const { ALWAYS_STRIP_TOKEN_VARS } = await import('../../src/platform/processes/subprocessEnv.js')
   check(
     'every row session spelling is in the child-env strip list (derived surface)',
     KNOWN_AGENT_CLIS.every(tool =>
       (tool.sessionEnvVars ?? []).every(v => (ALWAYS_STRIP_TOKEN_VARS as readonly string[]).includes(v)),
     ) && AGENT_CLI_SESSION_ENV_VARS.every(v => (ALWAYS_STRIP_TOKEN_VARS as readonly string[]).includes(v)),
-    'add the missing session env name to ALWAYS_STRIP_TOKEN_VARS in src/utils/subprocessEnv.ts, or fix the row in src/utils/knownAgentClis.ts',
+    'add the missing session env name to ALWAYS_STRIP_TOKEN_VARS in src/platform/processes/subprocessEnv.ts, or fix the row in src/platform/environment/knownAgentClis.ts',
   )
   check(
     'every row token-descriptor spelling reaches the daemon scrub surface',
     KNOWN_AGENT_CLIS.every(
       tool => tool.tokenFdEnvVar === undefined || AGENT_CLI_TOKEN_FD_ENV_VARS.includes(tool.tokenFdEnvVar),
     ),
-    'AGENT_CLI_TOKEN_FD_ENV_VARS in src/utils/knownAgentClis.ts must carry every row tokenFdEnvVar',
+    'AGENT_CLI_TOKEN_FD_ENV_VARS in src/platform/environment/knownAgentClis.ts must carry every row tokenFdEnvVar',
   )
 
-  const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
-  const { classifyHarnessHome: classify } = await import('../../src/utils/knownAgentClis.ts')
-  const { getMercuryHome: homeNow } = await import('../../src/utils/envUtils.ts')
+  const { crewChecks } = await import('../../src/platform/health/sections/crew.ts')
+  const { classifyHarnessHome: classify } = await import('../../src/platform/environment/knownAgentClis.ts')
+  const { getMercuryHome: homeNow } = await import('../../src/platform/environment/envUtils.ts')
   const isolationRow = await crewChecks().find(row => row.id === 'isolation')?.run()
   const classified = await classify(homeNow(), { expectedVersion: (globalThis as { MACRO?: { VERSION?: string } }).MACRO?.VERSION })
-  check('the health isolation row says what classifyHarnessHome finds for this home', isolationRow !== undefined && (classified.foreign.length > 0 ? isolationRow.status === 'warn' && classified.foreign.every(a => isolationRow.evidence.includes(a.evidence)) : isolationRow.status === 'ok' && isolationRow.evidence.startsWith(`no foreign-harness artifacts in ${homeNow()}`)), `${JSON.stringify(isolationRow)} — fix isolationCheck in src/services/health/sections/crew/home.ts so its evidence matches classifyHarnessHome`)
+  check('the health isolation row says what classifyHarnessHome finds for this home', isolationRow !== undefined && (classified.foreign.length > 0 ? isolationRow.status === 'warn' && classified.foreign.every(a => isolationRow.evidence.includes(a.evidence)) : isolationRow.status === 'ok' && isolationRow.evidence.startsWith(`no foreign-harness artifacts in ${homeNow()}`)), `${JSON.stringify(isolationRow)} — fix isolationCheck in src/platform/health/sections/crew/home.ts so its evidence matches classifyHarnessHome`)
 
 
   check(

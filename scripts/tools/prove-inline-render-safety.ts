@@ -11,15 +11,15 @@ delete process.env.MERCURY_HOME
 if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { Box } = await import('../../src/ink.js')
-const websearch = await import('../../src/tools/WebSearchTool/UI.tsx')
-const webfetch = await import('../../src/tools/WebFetchTool/UI.tsx')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const websearch = await import('../../src/tools/web-search/rows.tsx')
+const webfetch = await import('../../src/tools/web-fetch/rows.tsx')
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
-  if (!ok) console.log(`    where to look: ${name.startsWith('§1') ? 'the renderToolUseMessage of each tool named above (under src/tools/<Tool>/); it must return a string or Text, never a Box, so the use line stays inline' : 'renderToolUseMessage in src/tools/WebSearchTool/UI.tsx and src/tools/WebFetchTool/UI.tsx; the verbose arm must return a plain string with the query or url, prompt and domain lines, and the quiet arm must stay unchanged'}`)
+  if (!ok) console.log(`    where to look: ${name.startsWith('§1') ? 'the renderToolUseMessage of each tool named above (under src/tools/<Tool>/); it must return a string or Text, never a Box, so the use line stays inline' : 'renderToolUseMessage in src/tools/web-search/rows.tsx and src/tools/web-fetch/rows.tsx; the verbose arm must return a plain string with the query or url, prompt and domain lines, and the quiet arm must stay unchanged'}`)
   if (!ok) failures = 1
 }
 

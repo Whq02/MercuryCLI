@@ -40,11 +40,11 @@ try {
     const path = join(root, name); writeFileSync(path, zip(parts))
     const output = await read(path)
     console.log(`${name}\n${output}`)
-    assert.ok(output.includes(multilingual), `${name} lost RTL or CJK characters; fix the office reader in src/tools/FileReadTool/readRichFormats.ts`)
-    assert.doesNotMatch(output, /iVBOR|89504e47|�/, `${name} printed raw image bytes or a replacement character; the office reader in src/tools/FileReadTool/readRichFormats.ts must name an embedded image as [Image: <path>] and decode text as UTF-8`)
+    assert.ok(output.includes(multilingual), `${name} lost RTL or CJK characters; fix the office reader in src/tools/read/readRichFormats.ts`)
+    assert.doesNotMatch(output, /iVBOR|89504e47|�/, `${name} printed raw image bytes or a replacement character; the office reader in src/tools/read/readRichFormats.ts must name an embedded image as [Image: <path>] and decode text as UTF-8`)
     for (const pattern of expected) if (!pattern.test(output)) missing.push(`${name}: ${pattern}`)
     await healthy()
   }
-  assert.deepEqual(missing, [], 'the office output lacks these patterns (file: pattern); fix the docx, xlsx or pptx reading in src/tools/FileReadTool/readRichFormats.ts')
+  assert.deepEqual(missing, [], 'the office output lacks these patterns (file: pattern); fix the docx, xlsx or pptx reading in src/tools/read/readRichFormats.ts')
   console.log('PASS tracked changes, notes, comments, merged tables, formulas, sheet order, RTL/CJK and named images; session healthy')
 } finally { cleanup(root) }

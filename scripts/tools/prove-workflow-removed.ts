@@ -50,9 +50,9 @@ function check(label: string, cond: boolean, detail = '', fix = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 700 ? `${detail.slice(0, 700)}…` : detail}` : ''}${!cond && fix ? ` — to fix: ${fix}` : ''}`)
 }
-const WF_ROSTER_FIX = 'remove the Workflow tool from the list getAllBaseTools returns in src/tools.ts, and from ALL_AGENT_DISALLOWED_TOOLS in src/constants/tools.ts'
-const WF_COMMAND_FIX = 'remove the workflows command from the lists getCommands and builtinCommands return in src/commands.ts; unknownCommandLine in src/services/processUserInput/processSlashCommand.tsx must treat the name as any unknown command'
-const WF_BOOT_FIX = 'a saved Boot Menu profile that holds MERCURY_SESSION_WORKFLOWS must be set aside as retired by applyBootMenuEnv in src/substrate/startupMenu.ts, and the key must have no row in STARTUP_MENU or flag registry'
+const WF_ROSTER_FIX = 'remove the Workflow tool from the list getAllBaseTools returns in src/tools/kit/toolList.ts, and from ALL_AGENT_DISALLOWED_TOOLS in src/tools/kit/crewmateBarredTools.ts'
+const WF_COMMAND_FIX = 'remove the workflows command from the lists getCommands and builtinCommands return in src/commands/catalogue/commands.ts; unknownCommandLine in src/engine/user-input/processSlashCommand.tsx must treat the name as any unknown command'
+const WF_BOOT_FIX = 'a saved Boot Menu profile that holds MERCURY_SESSION_WORKFLOWS must be set aside as retired by applyBootMenuEnv in src/platform/substrate/startupMenu.ts, and the key must have no row in STARTUP_MENU or flag registry'
 const WF_BUILT_FIX = 'the built product (dist/mercury.mjs) no longer behaves as a home without workflows; rebuild with bun run build.ts if the bundle is old, then read the run output above for the step that differs'
 const section = (title: string): void => console.log(`\n${title}`)
 const watchdog = setTimeout(() => {
@@ -67,19 +67,19 @@ const FLAGS = ['MERCURY_WORKFLOWS', 'MERCURY_SESSION_WORKFLOWS'] as const
 const flagsAt = (value: string): Record<string, string> => Object.fromEntries(FLAGS.map(name => [name, value]))
 const SETTINGS: Array<[string, Record<string, string>]> = [['neither flag set', {}], ['both flags set to 1', flagsAt('1')], ['both flags set to 0', flagsAt('0')]]
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 bootstrap.setOriginalCwd(PROJECT)
 bootstrap.setCwdState(PROJECT)
 process.chdir(PROJECT)
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/constants/tools.ts')
-const { getCommands, builtinCommands } = await import('../../src/commands.ts')
-const { unknownCommandLine } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
-const { parseSettingsFile } = await import('../../src/utils/settings/settings.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/tools/kit/crewmateBarredTools.ts')
+const { getCommands, builtinCommands } = await import('../../src/commands/catalogue/commands.ts')
+const { unknownCommandLine } = await import('../../src/engine/user-input/processSlashCommand.tsx')
+const { parseSettingsFile } = await import('../../src/platform/settings/settings.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
@@ -113,15 +113,15 @@ section('§3 a managed policy that carries disableWorkflows is still read')
   const policy = join(WORLD, 'managed-settings.json')
   writeFileSync(policy, JSON.stringify({ disableWorkflows: true, guardrails: { deny: ['Bash(rm *)'] } }))
   const read = parseSettingsFile(policy) as { settings: { guardrails?: { deny?: string[] } } | null; errors: Array<{ severity?: string; unknownKeys?: string[]; message: string }> }
-  check('its other keys are in force', read.settings?.guardrails?.deny?.[0] === 'Bash(rm *)', JSON.stringify(read.settings), 'parseSettingsFile in src/utils/settings/settings.ts must still read the other keys of a policy file that carries disableWorkflows')
-  check('the key reads as any key the schema does not know: one warning line that names it, no error', read.errors.length === 1 && read.errors[0]!.severity === 'warning' && JSON.stringify(read.errors[0]!.unknownKeys) === JSON.stringify(['disableWorkflows']), JSON.stringify(read.errors), 'parseSettingsFile in src/utils/settings/settings.ts must report disableWorkflows as one unknown-key warning and no error')
+  check('its other keys are in force', read.settings?.guardrails?.deny?.[0] === 'Bash(rm *)', JSON.stringify(read.settings), 'parseSettingsFile in src/platform/settings/settings.ts must still read the other keys of a policy file that carries disableWorkflows')
+  check('the key reads as any key the schema does not know: one warning line that names it, no error', read.errors.length === 1 && read.errors[0]!.severity === 'warning' && JSON.stringify(read.errors[0]!.unknownKeys) === JSON.stringify(['disableWorkflows']), JSON.stringify(read.errors), 'parseSettingsFile in src/platform/settings/settings.ts must report disableWorkflows as one unknown-key warning and no error')
 }
 
 section('§3b a saved Boot Menu profile that still holds the retired Workflows row')
 {
-  const menu = await import('../../src/substrate/startupMenu.ts')
-  const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
-  const { bootNotes } = await import('../../src/substrate/bootNotes.ts')
+  const menu = await import('../../src/platform/substrate/startupMenu.ts')
+  const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
+  const { bootNotes } = await import('../../src/platform/substrate/bootNotes.ts')
   const RETIRED = 'MERCURY_SESSION_WORKFLOWS'
   const profile = join(WORLD, 'boot-env.json')
   writeFileSync(profile, `${JSON.stringify({ version: 1, env: { [RETIRED]: '0', MERCURY_SESSION_SUBAGENTS: '0' } }, null, 2)}\n`)
@@ -131,8 +131,8 @@ section('§3b a saved Boot Menu profile that still holds the retired Workflows r
   check('no row of the menu and no flag of the registry carries the name', !menu.STARTUP_MENU.some(row => row.env === RETIRED) && getFlagSpec(RETIRED) === undefined, '', WF_BOOT_FIX)
   check('the key is set aside: not applied, not refused, the environment untouched by it', applied !== null && applied.retired.includes(RETIRED) && applied.refused.length === 0 && !applied.applied.some(row => row.env === RETIRED) && env[RETIRED] === undefined, JSON.stringify(applied), WF_BOOT_FIX)
   check('the row saved beside it is applied as before', applied?.applied.some(row => row.env === 'MERCURY_SESSION_SUBAGENTS' && row.value === '0') === true && env.MERCURY_SESSION_SUBAGENTS === '0', JSON.stringify(applied), WF_BOOT_FIX)
-  check('no boot note names it', !bootNotes().some(note => note.text.includes(RETIRED)), JSON.stringify(bootNotes()), 'bootNotes in src/substrate/bootNotes.ts must not name the retired MERCURY_SESSION_WORKFLOWS key')
-  check('reading the profile rewrites nothing', createHash('sha256').update(readFileSync(profile)).digest('hex') === before, '', 'applyBootMenuEnv in src/substrate/startupMenu.ts must only read the saved profile, never rewrite it')
+  check('no boot note names it', !bootNotes().some(note => note.text.includes(RETIRED)), JSON.stringify(bootNotes()), 'bootNotes in src/platform/substrate/bootNotes.ts must not name the retired MERCURY_SESSION_WORKFLOWS key')
+  check('reading the profile rewrites nothing', createHash('sha256').update(readFileSync(profile)).digest('hex') === before, '', 'applyBootMenuEnv in src/platform/substrate/startupMenu.ts must only read the saved profile, never rewrite it')
 }
 
 type Captured = { body: { tools?: Array<{ name?: string }>; messages?: Array<{ role: string; content: unknown }> } }

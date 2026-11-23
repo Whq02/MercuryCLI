@@ -18,8 +18,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
-const preview = await import('../../src/services/providers/transitionPreview.ts')
+const seat = await import('../../src/engine/connector/daemonConnector.ts')
+const preview = await import('../../src/models/roads/transitionPreview.ts')
 
 section("§1 the source stamp — the session's own truth, or an honest 'ambient'")
 {
@@ -37,7 +37,7 @@ section("§1 the source stamp — the session's own truth, or an honest 'ambient
     "an admission record's modelKey answers effective='record' — the SESSION's fact",
     withRecord.effective === 'glm-5.3' && withRecord.effectiveSource === 'record',
     JSON.stringify({ effective: withRecord.effective, source: withRecord.effectiveSource }) +
-      ' — change modelFacts in src/services/engine-connector/daemon/facts.ts so the admission record modelKey gives effective and effectiveSource=record',
+      ' — change modelFacts in src/engine/connector/daemon/facts.ts so the admission record modelKey gives effective and effectiveSource=record',
   )
   const bare = seat.daemonSessionConnectorFor({
     sessionId: '00000000-aaaa-bbbb-cccc-00000000m202',
@@ -52,7 +52,7 @@ section("§1 the source stamp — the session's own truth, or an honest 'ambient
     "neither facts nor record resolving says so: effectiveSource='ambient' (the fallback is THIS process's state, not the session's)",
     ambient.effectiveSource === 'ambient',
     JSON.stringify({ effective: ambient.effective, source: ambient.effectiveSource }) +
-      ' — change modelFacts in src/services/engine-connector/daemon/facts.ts so a session with no facts and no record reports ambient',
+      ' — change modelFacts in src/engine/connector/daemon/facts.ts so a session with no facts and no record reports ambient',
   )
 }
 
@@ -82,13 +82,13 @@ section('§2 the gate is sensitive to WHICH history feeds it')
   check(
     "the plan's from is the SESSION's model, not the screen's",
     overSession.from === 'claude-sonnet-4-6',
-    'change previewForSelection in src/services/providers/transitionPreview.ts so from is the model argument given for the history',
+    'change previewForSelection in src/models/roads/transitionPreview.ts so from is the model argument given for the history',
   )
   check(
     'lossy over the session history, lossless over the empty screen history — the disagreement the old wiring collapsed',
     overSession.needsChoice === true && overScreen.needsChoice === false,
     JSON.stringify({ session: overSession.needsChoice, screen: overScreen.needsChoice, counts: overSession.counts }) +
-      ' — change previewForSelection in src/services/providers/transitionPreview.ts so needsChoice follows the history it is given',
+      ' — change previewForSelection in src/models/roads/transitionPreview.ts so needsChoice follows the history it is given',
   )
 }
 
@@ -103,12 +103,12 @@ section('§3 plan-digest determinism (the in-process parity acceptance)')
   ] as never[]
   const a = preview.previewForSelection(history, 'claude-sonnet-4-6', 'gpt-5.6-sol')
   const b = preview.previewForSelection(history, 'claude-sonnet-4-6', 'gpt-5.6-sol')
-  check('identical inputs build byte-identical plan digests', a.planDigest === b.planDigest, `${a.planDigest} vs ${b.planDigest} — change the planDigest computation in src/services/providers/transitionPreview.ts so equal inputs hash equally`)
+  check('identical inputs build byte-identical plan digests', a.planDigest === b.planDigest, `${a.planDigest} vs ${b.planDigest} — change the planDigest computation in src/models/roads/transitionPreview.ts so equal inputs hash equally`)
 }
 
 section('§4 the wiring, structural')
 {
-  const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const { publishSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
   const says = (sessionId: string, atMs: number): void =>
     publishSessionFacts({
       schema: 1,
@@ -145,7 +145,7 @@ section('§4 the wiring, structural')
     'the connector stamps a cold seed as recorded and a runner answer as live beside the fallback chain',
     coldSeed === 'record' && sameSeed === 'record' && answered === 'live' && hosted.modelFacts().effectiveSource === 'live',
     JSON.stringify({ coldSeed, sameSeed, answered, hosted: hosted.modelFacts().effectiveSource }) +
-      ' — change modelFacts in src/services/engine-connector/daemon/facts.ts so a cold seed reads record and a runner answer reads live',
+      ' — change modelFacts in src/engine/connector/daemon/facts.ts so a cold seed reads record and a runner answer reads live',
   )
 }
 

@@ -11,7 +11,7 @@ for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_T
   delete process.env[key]
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 const {
@@ -20,16 +20,16 @@ const {
   resolveSubModel,
   setSubModel,
   subModelConnectHome,
-} = await import('../../src/services/model/subModelSlots.ts')
-const { providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
-const { getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
-const { noteCredentialChange } = await import('../../src/utils/accounts/signInLedger.ts')
+} = await import('../../src/models/catalogue/subModelSlots.ts')
+const { providerDisplayName } = await import('../../src/models/roads/routeLaw.ts')
+const { getGlobalConfig, saveGlobalConfig } = await import('../../src/platform/settings/config.ts')
+const { noteCredentialChange } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
 
-const SLOTS_HINT = 'change composeSubModelRegistry, subModelConnectHome, resolveSubModel or setSubModel in src/services/model/subModelSlots.ts'
+const SLOTS_HINT = 'change composeSubModelRegistry, subModelConnectHome, resolveSubModel or setSubModel in src/models/catalogue/subModelSlots.ts'
 const SECTION_HINTS: Record<string, string> = {
-  '6': 'change the Fable rows in getModelOptions (src/services/model/modelOptions.ts) or how composeSubModelRegistry (src/services/model/subModelSlots.ts) lists them',
-  '7': 'change providerFamilyPresences (src/services/providers/providerUsage.ts), resolveOpenaiAccount (src/services/providers/openai/openaiAccounts.ts) or buildProviderSnapshot (src/services/providers/modelRegistry.ts) so the presence, the registry rows and the dispatch gate read one credential truth',
-  '8': 'change composeSubModelRegistry (src/services/model/subModelSlots.ts) so it lists the rows getModelOptions (src/services/model/modelOptions.ts) offers, carriers included',
+  '6': 'change the Fable rows in getModelOptions (src/models/catalogue/modelOptions.ts) or how composeSubModelRegistry (src/models/catalogue/subModelSlots.ts) lists them',
+  '7': 'change providerFamilyPresences (src/models/roads/providerUsage.ts), resolveOpenaiAccount (src/models/roads/openai/openaiAccounts.ts) or buildProviderSnapshot (src/models/roads/modelRegistry.ts) so the presence, the registry rows and the dispatch gate read one credential truth',
+  '8': 'change composeSubModelRegistry (src/models/catalogue/subModelSlots.ts) so it lists the rows getModelOptions (src/models/catalogue/modelOptions.ts) offers, carriers included',
 }
 let sectionHint = SLOTS_HINT
 let failures = 0
@@ -168,7 +168,7 @@ section('3 · ONE catalogue — no serve law, no tier (ruled)')
 
 section("3b · THE UNSET DEFAULT (the operator's word) — the choice is the operator's")
 {
-  const { SUB_MODEL_UNSET_HINT } = await import('../../src/services/model/subModelSlots.ts')
+  const { SUB_MODEL_UNSET_HINT } = await import('../../src/models/catalogue/subModelSlots.ts')
   check(
     "the hint is the ruling's words, verbatim",
     SUB_MODEL_UNSET_HINT === 'use /submodels to pin one of the available model catalogues',
@@ -283,9 +283,9 @@ section('4 · persistence — env pin > saved pick > UNSET')
         '-e',
         [
           `globalThis.MACRO = { VERSION: '1.0.0' }`,
-          `const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '..', '..', 'src', 'utils', 'config.ts'))})`,
+          `const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '..', '..', 'src', 'platform', 'settings', 'config.ts'))})`,
           `enableConfigs()`,
-          `const { resolveSubModel } = await import(${JSON.stringify(join(import.meta.dir, '..', '..', 'src', 'services', 'model', 'subModelSlots.ts'))})`,
+          `const { resolveSubModel } = await import(${JSON.stringify(join(import.meta.dir, '..', '..', 'src', 'models', 'catalogue', 'subModelSlots.ts'))})`,
           `console.log(JSON.stringify({ advisor: resolveSubModel('advisor') }))`,
         ].join('\n'),
       ],
@@ -315,12 +315,12 @@ section('4 · persistence — env pin > saved pick > UNSET')
 
 section('6 · the frontier row — an ordinary tier row of the SHARED catalog (ruled)')
 {
-  const { getModelOptions, anthropicNotSignedInReason } = await import('../../src/services/model/modelOptions.ts')
-  const { parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
+  const { getModelOptions, anthropicNotSignedInReason } = await import('../../src/models/catalogue/modelOptions.ts')
+  const { parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.ts')
   const real = getModelOptions()
   const fables = real.filter(o => typeof o.value === 'string' && /fable/i.test(o.value))
-  const { ALL_MODEL_CONFIGS, FAMILY_GENERATIONS, previousGenerationKeys } = await import('../../src/utils/model/configs.ts')
-  const { getMarketingNameForModel } = await import('../../src/services/model/model.ts')
+  const { ALL_MODEL_CONFIGS, FAMILY_GENERATIONS, previousGenerationKeys } = await import('../../src/models/facts/builtInModelTable.ts')
+  const { getMarketingNameForModel } = await import('../../src/models/catalogue/engineModel.ts')
   const newestFable = ALL_MODEL_CONFIGS[FAMILY_GENERATIONS.fable[0]].firstParty
   const previousFables = previousGenerationKeys('fable').map(k => ALL_MODEL_CONFIGS[k].firstParty)
   const aliasRows = fables.filter(o => o.value === newestFable)
@@ -399,13 +399,13 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
   const { writeFileSync, rmSync } = await import('node:fs')
   const home = process.env.MERCURY_CONFIG_DIR as string
   const authFile = join(home, '.openai-auth.json')
-  const discovery = await import('../../src/services/providers/providerDiscovery.ts')
+  const discovery = await import('../../src/models/roads/providerDiscovery.ts')
   const { providerFamilyPresences, anthropicCredentialPresence } = await import(
-    '../../src/services/providers/providerUsage.ts'
+    '../../src/models/roads/providerUsage.ts'
   )
-  const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
+  const { buildProviderSnapshot } = await import('../../src/models/roads/modelRegistry.ts')
   const { resolveOpenaiAccount } = await import(
-    '../../src/services/providers/openai/openaiAccounts.ts'
+    '../../src/models/roads/openai/openaiAccounts.ts'
   )
 
   const presenceOf = (id: string) =>
@@ -549,15 +549,15 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
 section("8 · CATALOGUE EQUALITY — both containers list exactly the main picker's rows, carriers included")
 {
   const { getModelOptions, isProviderActionRow } = await import(
-    '../../src/services/model/modelOptions.ts'
+    '../../src/models/catalogue/modelOptions.ts'
   )
   const {
     __resetOpenrouterCatalogueForTest,
     refreshOpenrouterCatalogue,
     getOpenrouterModelOptions,
-  } = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
+  } = await import('../../src/models/roads/openrouter/openrouterCatalogue.ts')
   const { resolveOpenrouterRequestAuth } = await import(
-    '../../src/services/providers/openrouter/openrouterAccounts.ts'
+    '../../src/models/roads/openrouter/openrouterAccounts.ts'
   )
   process.env.OPENROUTER_API_KEY = 'sk-or-fixture-equality'
   process.env.MERCURY_OPENROUTER_API_BASE = 'http://127.0.0.1:1/api/v1'
@@ -663,7 +663,7 @@ section("8 · CATALOGUE EQUALITY — both containers list exactly the main picke
 
 section('10 · THE ADVISOR CONTAINER — the one container, its own pin, its own words')
 {
-  const { SUB_MODEL_CONTAINERS, subModelEnvVar, subModelEffortContext } = await import('../../src/services/model/subModelSlots.ts')
+  const { SUB_MODEL_CONTAINERS, subModelEnvVar, subModelEffortContext } = await import('../../src/models/catalogue/subModelSlots.ts')
   check('one container, the advisor', JSON.stringify(SUB_MODEL_CONTAINERS) === JSON.stringify(['advisor']), JSON.stringify(SUB_MODEL_CONTAINERS))
   check('the container has its own env pin', subModelEnvVar('advisor') === 'MERCURY_ADVISOR_MODEL')
   const wrote = setSubModel('advisor', 'opus', reads)

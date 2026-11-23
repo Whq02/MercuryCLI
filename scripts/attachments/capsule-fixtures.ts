@@ -1,4 +1,4 @@
-import type { Attachment } from '../../src/utils/attachments/types.js'
+import type { Attachment } from '../../src/engine/attachment-shapes/attachmentTypes.js'
 
 export const capsuleFixtures: Record<string, Attachment[]> = {
   files: [

@@ -40,13 +40,13 @@ check('the report line carries a token estimate and names its divisor', /tokens 
 check('the daily-tools law and the fixture-turn law stay', source.includes('daily file and execution tools remain loaded') && source.includes('completes its fixture turn'), 'scripts/prompt/prove-first-call-ceiling.ts must keep the check labels daily file and execution tools remain loaded and completes its fixture turn')
 
 section('§2 the roster builder carries everything asked for in full, whatever the size')
-const { planToolPayload, clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Message = import('../../src/types/message.ts').Message
+const { planToolPayload, clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const WIDE_PARAMS = Array.from({ length: 40 }, (_, i) => `field_${i}`)
 const LONG_TEXT = (name: string): string => `${name}: ${'the whole description rides, byte for byte, however long it is. '.repeat(780)}`
@@ -91,8 +91,8 @@ for (const [label, model] of ROUTES) {
   const missing = GIANTS.filter(tool => !rosterNames.has(tool.name)).map(tool => tool.name)
   const deferred = GIANTS.filter(tool => plan.deferredNames.has(tool.name)).map(tool => tool.name)
   const unadmitted = GIANTS.filter(tool => plan.isDeferredUnadmitted(tool.name)).map(tool => tool.name)
-  check(`${label} (${model}): every tool asked for in full is in the roster`, missing.length === 0, `${missing.length} missing: ${missing.slice(0, 3).join(', ')} — planToolPayload in src/services/providers/toolEconomy.ts must keep every tool asked for in full in plan.roster whatever its size`)
-  check(`${label}: none of them is deferred or held for admission`, deferred.length === 0 && unadmitted.length === 0, `deferred ${deferred.length} · unadmitted ${unadmitted.length} — planToolPayload in src/services/providers/toolEconomy.ts must not add these tools to deferredNames or hold them unadmitted`)
+  check(`${label} (${model}): every tool asked for in full is in the roster`, missing.length === 0, `${missing.length} missing: ${missing.slice(0, 3).join(', ')} — planToolPayload in src/models/roads/toolEconomy.ts must keep every tool asked for in full in plan.roster whatever its size`)
+  check(`${label}: none of them is deferred or held for admission`, deferred.length === 0 && unadmitted.length === 0, `deferred ${deferred.length} · unadmitted ${unadmitted.length} — planToolPayload in src/models/roads/toolEconomy.ts must not add these tools to deferredNames or hold them unadmitted`)
   const first = plan.roster.find(tool => tool.name === GIANTS[0]!.name)
   const last = plan.roster.find(tool => tool.name === GIANTS[GIANTS.length - 1]!.name)
   let intact = first !== undefined && last !== undefined
@@ -102,14 +102,14 @@ for (const [label, model] of ROUTES) {
     if (schema.description !== LONG_TEXT(tool.name)) intact = false
     if (Object.keys(schema.input_schema?.properties ?? {}).length !== WIDE_PARAMS.length) intact = false
   }
-  check(`${label}: the first and the last definition ride byte-for-byte, every field intact`, intact, 'a giant tool is missing from the roster or toolToAPISchema in src/services/messages/api.ts changed its description or its input_schema properties')
+  check(`${label}: the first and the last definition ride byte-for-byte, every field intact`, intact, 'a giant tool is missing from the roster or toolToAPISchema in src/engine/messages/apiSystemAndToolSchema.ts changed its description or its input_schema properties')
 }
 delete process.env.MERCURY_LOCAL_PROMPT_PROFILE
 clearToolRosterLatches()
 {
   const plan = await planToolPayload({ model: 'local/qwen3-32b', tools: POOL, messages, getToolPermissionContext: async () => permissionContext, agents: [], source: 'sizes' })
   const rosterNames = plan.roster.map(tool => tool.name)
-  check('local text form under the local prompt profile: none of the 200 outside the core rides in full and none is dropped — each waits by name behind ToolSearch', GIANTS.every(tool => plan.deferredNames.has(tool.name) && !rosterNames.includes(tool.name)) && rosterNames.join(',') === 'ToolSearch', rosterNames.join(',') + ' — under the local prompt profile planToolPayload in src/services/providers/toolEconomy.ts must defer every giant by name and leave only ToolSearch in plan.roster')
+  check('local text form under the local prompt profile: none of the 200 outside the core rides in full and none is dropped — each waits by name behind ToolSearch', GIANTS.every(tool => plan.deferredNames.has(tool.name) && !rosterNames.includes(tool.name)) && rosterNames.join(',') === 'ToolSearch', rosterNames.join(',') + ' — under the local prompt profile planToolPayload in src/models/roads/toolEconomy.ts must defer every giant by name and leave only ToolSearch in plan.roster')
 }
 clearToolRosterLatches()
 

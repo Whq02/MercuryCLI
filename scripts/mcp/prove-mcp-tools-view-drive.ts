@@ -9,9 +9,9 @@ import { waitForRow } from '../switchboard/lib/waitForRow.ts'
 import { startCrossfamilyFixture } from '../lib/crossfamilyConcourseFixture.ts'
 import { runArtifactArena, grabScreens } from '../streaming/artifactArena.ts'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
-import { daemonControlRpc } from '../../src/daemon/controlSocket.ts'
-import { readSessionWorkers } from '../../src/daemon/concourseWorkers.ts'
-import { readSessionFacts } from '../../src/services/engine-connector/seatProjections.ts'
+import { daemonControlRpc } from '../../src/daemon/control/controlSocket.ts'
+import { readSessionWorkers } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
+import { readSessionFacts } from '../../src/engine/connector/seatProjections.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const HOME = process.env.MERCURY_CONFIG_DIR
@@ -33,7 +33,7 @@ let failures = 0
 function check(label: string, ok: unknown, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix the /mcp popup screens in src/commands/mcp/McpPopup.tsx, or the mcp-tools door payload in src/services/mcp/toolsAnswer.ts'}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix the /mcp popup screens in src/commands/mcp/McpPopup.tsx, or the mcp-tools door payload in src/integrations/mcp/toolsAnswer.ts'}`)
 }
 
 async function until(pred: () => boolean | Promise<boolean>, ms = S(25_000)): Promise<boolean> {

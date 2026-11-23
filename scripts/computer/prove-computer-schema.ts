@@ -4,11 +4,11 @@ import { join } from 'node:path'
 import { check, finish, ROOT, section } from './computerProofKit.ts'
 import { COMPUTER_ACTIONS, COMPUTER_ACTS, COMPUTER_READ_ONLY, toolContext } from './computerToolKit.ts'
 
-const { ComputerTool, COMPUTER_TOOL_NAME, HOLD_CAP_MS, TYPE_TEXT_CAP } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
-const { validateToolCapability } = await import('../../src/utils/capability/contract.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
+const { ComputerTool, COMPUTER_TOOL_NAME, HOLD_CAP_MS, TYPE_TEXT_CAP } = await import('../../src/tools/computer/ComputerTool.ts')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
+const { validateToolCapability } = await import('../../src/permissions/capability/contract.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
 
 const DESCRIPTION_BUDGET = 160
 const PROMPT_BUDGET = 720

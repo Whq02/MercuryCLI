@@ -9,14 +9,14 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { createEditRuleSuggestion, createReadRuleSuggestion } = (await import(
-  '../../src/utils/permissions/PermissionUpdate.ts'
+  '../../src/permissions/rules/permissionUpdate.ts'
 )) as {
   createEditRuleSuggestion?: (dir: string) => unknown
   createReadRuleSuggestion: (dir: string) => unknown
 }
 const { checkParsedPaths: checkPathConstraints } = await import('../bash/floor-proof-helpers.ts')
-const { validatePath } = await import('../../src/utils/permissions/pathValidation.ts')
-type Ctx = import('../../src/utils/permissions/permissions.ts').ToolPermissionContext
+const { validatePath } = await import('../../src/permissions/rules/pathValidation.ts')
+type Ctx = import('../../src/permissions/rules/permissionDoor.ts').ToolPermissionContext
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
@@ -42,26 +42,26 @@ section('§1 THE WRITE-ARM SUGGESTIONS')
     process.cwd(),
     emptyCtx(),
   )) as { behavior: string; suggestions?: Array<{ type: string; rules?: Array<{ toolName: string }> }> }
-  check('an operand write outside the cwd still asks', result.behavior === 'ask', result.behavior, 'fix checkPathConstraints in src/tools/BashTool/pathValidation.ts so a write operand outside the working directory returns ask')
+  check('an operand write outside the cwd still asks', result.behavior === 'ask', result.behavior, 'fix checkPathConstraints in src/tools/shell/pathValidation.ts so a write operand outside the working directory returns ask')
   const suggestions = result.suggestions ?? []
   check(
     'NO setMode rides the directory option (FC-022)',
     !suggestions.some(s => s.type === 'setMode'),
     JSON.stringify(suggestions.map(s => s.type)),
-    'remove the setMode suggestion from the write-arm suggestions that checkPathConstraints in src/tools/BashTool/pathValidation.ts returns'
+    'remove the setMode suggestion from the write-arm suggestions that checkPathConstraints in src/tools/shell/pathValidation.ts returns'
   )
   check(
     'an edit-family allow rule is minted instead',
     suggestions.some(s => s.type === 'addRules' && (s.rules ?? []).some(r => r.toolName === 'Edit')),
     JSON.stringify(suggestions),
-    'make the write-arm suggestions of checkPathConstraints in src/tools/BashTool/pathValidation.ts include an addRules suggestion for the Edit tool, built with createEditRuleSuggestion in src/utils/permissions/PermissionUpdate.ts'
+    'make the write-arm suggestions of checkPathConstraints in src/tools/shell/pathValidation.ts include an addRules suggestion for the Edit tool, built with createEditRuleSuggestion in src/permissions/rules/permissionUpdate.ts'
   )
-  check('no added-root grant rides the permission card', !suggestions.some(s => s.type === 'addDirectories'), '', 'remove the addDirectories suggestion from the write-arm suggestions that checkPathConstraints in src/tools/BashTool/pathValidation.ts returns')
+  check('no added-root grant rides the permission card', !suggestions.some(s => s.type === 'addDirectories'), '', 'remove the addDirectories suggestion from the write-arm suggestions that checkPathConstraints in src/tools/shell/pathValidation.ts returns')
 }
 
 section('§2 THE MINTED RULE UNBLOCKS THE WRITE')
 {
-  check('createEditRuleSuggestion exists beside its read sibling', typeof createEditRuleSuggestion === 'function', '', 'export createEditRuleSuggestion from src/utils/permissions/PermissionUpdate.ts beside createReadRuleSuggestion')
+  check('createEditRuleSuggestion exists beside its read sibling', typeof createEditRuleSuggestion === 'function', '', 'export createEditRuleSuggestion from src/permissions/rules/permissionUpdate.ts beside createReadRuleSuggestion')
   if (typeof createEditRuleSuggestion === 'function') {
     const minted = createEditRuleSuggestion(OUTSIDE) as { rules: Array<{ toolName: string; ruleContent: string }> }
     const ctx = {
@@ -73,17 +73,17 @@ section('§2 THE MINTED RULE UNBLOCKS THE WRITE')
       'a create in the granted directory is ALLOWED by the minted rule',
       (verdict as { allowed: boolean }).allowed === true,
       JSON.stringify(verdict),
-      'make validatePath in src/utils/permissions/pathValidation.ts allow a create under a directory granted by the rule that createEditRuleSuggestion mints'
+      'make validatePath in src/permissions/rules/pathValidation.ts allow a create under a directory granted by the rule that createEditRuleSuggestion mints'
     )
     const elsewhere = validatePath(join(realpathSync(tmpdir()), 'grant-label-elsewhere.txt'), process.cwd(), ctx, 'create') as { allowed: boolean }
-    check('a create OUTSIDE the granted directory stays blocked', elsewhere.allowed !== true, JSON.stringify(elsewhere), 'make validatePath in src/utils/permissions/pathValidation.ts keep blocking a create outside the directory the minted rule names')
+    check('a create OUTSIDE the granted directory stays blocked', elsewhere.allowed !== true, JSON.stringify(elsewhere), 'make validatePath in src/permissions/rules/pathValidation.ts keep blocking a create outside the directory the minted rule names')
   }
 }
 
 section('§3 THE READ ARM')
 {
   const readSuggestion = createReadRuleSuggestion(OUTSIDE) as { rules: Array<{ toolName: string }> }
-  check('the read sibling still mints a Read rule', readSuggestion.rules.some(r => r.toolName === 'Read'), '', 'make createReadRuleSuggestion in src/utils/permissions/PermissionUpdate.ts mint a rule for the Read tool')
+  check('the read sibling still mints a Read rule', readSuggestion.rules.some(r => r.toolName === 'Read'), '', 'make createReadRuleSuggestion in src/permissions/rules/permissionUpdate.ts mint a rule for the Read tool')
 }
 
 rmSync(HOME, { recursive: true, force: true })

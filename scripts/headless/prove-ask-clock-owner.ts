@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/cli/run.ts src/cli/headless/hostAskLiveness.ts src/cli/headless/runnerAsks.ts src/runner/wire/* src/substrate/flagRegistry.ts
+// gate-watch: src/daemon/runner/runHeadless.ts src/daemon/runner/hostAskLiveness.ts src/daemon/runner/runnerAsks.ts src/daemon/runner-wire/* src/platform/substrate/flagRegistry.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, rmSync } from 'node:fs'
@@ -67,14 +67,14 @@ await guarded(async () => {
   const askedAt = Date.now()
   await sleep(LIMIT_MS * 3)
   const outcomeEarly = host.rows.find(row => row.type === 'outcome')
-  check(`${Math.round((Date.now() - askedAt) / 1000)} s past a ${LIMIT_MS / 1000} s limit: the ask is still the host's (no $/cancel_request from the runner)`, !host.withdrawn.has(ask.id), `${j([...host.withdrawn])}; with holds_asks declared the runner must not deny or withdraw the ask: see settleParkedAsks in src/cli/headless/printTurn.ts and keepTurnLiveWhileHostAnswers in src/cli/headless/hostAskLiveness.ts`)
-  check('no tool result and no outcome landed while the host held the ask', !host.rows.some(row => row.type === 'tool_result') && outcomeEarly === undefined, `${j(host.rows.map(row => row.type))}; a held ask must keep the turn parked: see keepTurnLiveWhileHostAnswers in src/cli/headless/hostAskLiveness.ts`)
-  check('the runner is alive', host.child.exitCode === null && host.child.signalCode === null, `exitCode ${String(host.child.exitCode)} signal ${String(host.child.signalCode)}; the runner exited while the host held an ask, read its stderr and src/cli/headless/hostAskLiveness.ts`)
+  check(`${Math.round((Date.now() - askedAt) / 1000)} s past a ${LIMIT_MS / 1000} s limit: the ask is still the host's (no $/cancel_request from the runner)`, !host.withdrawn.has(ask.id), `${j([...host.withdrawn])}; with holds_asks declared the runner must not deny or withdraw the ask: see settleParkedAsks in src/daemon/runner/runnerTurn.ts and keepTurnLiveWhileHostAnswers in src/daemon/runner/hostAskLiveness.ts`)
+  check('no tool result and no outcome landed while the host held the ask', !host.rows.some(row => row.type === 'tool_result') && outcomeEarly === undefined, `${j(host.rows.map(row => row.type))}; a held ask must keep the turn parked: see keepTurnLiveWhileHostAnswers in src/daemon/runner/hostAskLiveness.ts`)
+  check('the runner is alive', host.child.exitCode === null && host.child.signalCode === null, `exitCode ${String(host.child.exitCode)} signal ${String(host.child.signalCode)}; the runner exited while the host held an ask, read its stderr and src/daemon/runner/hostAskLiveness.ts`)
   host.answerAsk(ask.id, { outcome: 'allow' })
   const result = await host.waitFor('the tool result', row => row.type === 'tool_result', 60_000)
-  check('the late allow lands: the tool ran', result.status !== 'error' && existsSync(join(scratch.cwd, 'held.txt')), `${j(result)}; the answer sent after the limit must still reach the parked ask: see src/cli/headless/runnerAsks.ts`)
+  check('the late allow lands: the tool ran', result.status !== 'error' && existsSync(join(scratch.cwd, 'held.txt')), `${j(result)}; the answer sent after the limit must still reach the parked ask: see src/daemon/runner/runnerAsks.ts`)
   const outcome = await host.waitFor('the outcome', row => row.type === 'outcome', 60_000)
-  check('the turn completes with no denial', outcome.status === 'completed' && Array.isArray(outcome.denials) && (outcome.denials as unknown[]).length === 0, `${j(outcome)}; the turn must complete with no denial when the host answered late: see src/cli/headless/runnerAsks.ts and printTurn.ts`)
+  check('the turn completes with no denial', outcome.status === 'completed' && Array.isArray(outcome.denials) && (outcome.denials as unknown[]).length === 0, `${j(outcome)}; the turn must complete with no denial when the host answered late: see src/daemon/runner/runnerAsks.ts and printTurn.ts`)
   await host.stop()
   await api.close()
   rmSync(scratch.home, { recursive: true, force: true })
@@ -95,12 +95,12 @@ await guarded(async () => {
   const askedAt = Date.now()
   const result = await host.waitFor('the tool result', row => row.type === 'tool_result', LIMIT_MS * 10)
   const waited = Date.now() - askedAt
-  check(`the ask is denied by the runner at its limit (${waited} ms after the ask; limit ${LIMIT_MS} ms)`, result.status === 'error' && waited >= LIMIT_MS - 500 && waited < LIMIT_MS * 5, `${j(result)}; a host that does not hold asks gets the runner clock: settleParkedAsks in src/cli/headless/printTurn.ts must deny at MERCURY_HEADLESS_IDLE_MINUTES`)
-  check("the denial names the reason: nobody answered within the turn's no-progress limit", String(result.output).includes('nobody answered within') && String(result.output).includes("no-progress limit"), `${String(result.output).slice(0, 300)}; the denial text comes from unansweredAskCause in src/cli/headless/runnerAsks.ts and unansweredWithinLimitCause in src/cli/headless/hostAskLiveness.ts`)
-  check('the host\'s card is withdrawn ($/cancel_request for the ask)', host.withdrawn.has(ask.id), `${j([...host.withdrawn])}; denying the ask at the limit must also send $/cancel_request: see src/cli/headless/runnerAsks.ts`)
+  check(`the ask is denied by the runner at its limit (${waited} ms after the ask; limit ${LIMIT_MS} ms)`, result.status === 'error' && waited >= LIMIT_MS - 500 && waited < LIMIT_MS * 5, `${j(result)}; a host that does not hold asks gets the runner clock: settleParkedAsks in src/daemon/runner/runnerTurn.ts must deny at MERCURY_HEADLESS_IDLE_MINUTES`)
+  check("the denial names the reason: nobody answered within the turn's no-progress limit", String(result.output).includes('nobody answered within') && String(result.output).includes("no-progress limit"), `${String(result.output).slice(0, 300)}; the denial text comes from unansweredAskCause in src/daemon/runner/runnerAsks.ts and unansweredWithinLimitCause in src/daemon/runner/hostAskLiveness.ts`)
+  check('the host\'s card is withdrawn ($/cancel_request for the ask)', host.withdrawn.has(ask.id), `${j([...host.withdrawn])}; denying the ask at the limit must also send $/cancel_request: see src/daemon/runner/runnerAsks.ts`)
   const outcome = await host.waitFor('the outcome', row => row.type === 'outcome', 60_000)
-  check('the turn ends blocked with the refusal named, the denial listed (the .34 ruling: a refused tool never reports completed)', outcome.status === 'blocked' && Array.isArray(outcome.denials) && (outcome.denials as Array<{ tool?: string }>).some(d => d.tool === 'Write'), `${j(outcome)}; a refused tool must end the turn blocked with the denial listed: see src/cli/headless/printTurn.ts`)
-  check('nothing was written', !existsSync(join(scratch.cwd, 'late.txt')), 'late.txt exists; the Write ran although the ask was denied, see settleParkedAsks in src/cli/headless/printTurn.ts')
+  check('the turn ends blocked with the refusal named, the denial listed (the .34 ruling: a refused tool never reports completed)', outcome.status === 'blocked' && Array.isArray(outcome.denials) && (outcome.denials as Array<{ tool?: string }>).some(d => d.tool === 'Write'), `${j(outcome)}; a refused tool must end the turn blocked with the denial listed: see src/daemon/runner/runnerTurn.ts`)
+  check('nothing was written', !existsSync(join(scratch.cwd, 'late.txt')), 'late.txt exists; the Write ran although the ask was denied, see settleParkedAsks in src/daemon/runner/runnerTurn.ts')
   await host.stop()
   await api.close()
   rmSync(scratch.home, { recursive: true, force: true })

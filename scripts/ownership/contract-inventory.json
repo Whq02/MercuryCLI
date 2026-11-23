@@ -31,7 +31,7 @@
    "src/cli/remoteIO.ts": [
     "«missing»"
    ],
-   "src/cli/structuredIO.ts": [
+   "src/daemon/runner/structuredIO.ts": [
     "BROKEN_STDOUT_LINE",
     "INPUT_REFUSED_CODE",
     "StructuredIO",
@@ -46,7 +46,7 @@
    ]
   },
   "settings": {
-   "src/utils/config.ts": [
+   "src/platform/settings/config.ts": [
     "CONFIG_WRITE_DISPLAY_THRESHOLD",
     "DEFAULT_GLOBAL_CONFIG",
     "EDITOR_MODES",
@@ -97,12 +97,12 @@
     "type:SerializedStructuredHistoryEntry",
     "untrustedWorkspaceHeadless"
    ],
-   "src/utils/settings/snapshot.ts": [
+   "src/platform/settings/snapshot.ts": [
     "_resetSettingsSnapshotForTesting",
     "getSettingsSnapshot",
     "settingsRevision"
    ],
-   "src/utils/settings/settings.ts": [
+   "src/platform/settings/settings.ts": [
     "getApiKeyHelperFromOutsideCheckoutSources",
     "getApolloPreflightQuestions",
     "getEnabledSettingsForSource",
@@ -125,7 +125,7 @@
     "type:SettingsWithSources",
     "updateSettingsForSource"
    ],
-   "src/utils/settings/types.ts": [
+   "src/platform/settings/settingsSchema.ts": [
     "AllowedMcpServerEntrySchema",
     "CUSTOMIZATION_SURFACES",
     "DeniedMcpServerEntrySchema",
@@ -141,7 +141,7 @@
     "type:Settings",
     "type:SettingsJson"
    ],
-   "src/utils/settings/validation.ts": [
+   "src/platform/settings/validation.ts": [
     "filterInvalidPermissionRules",
     "formatZodError",
     "settingsFaultLine",
@@ -150,7 +150,7 @@
     "unknownKeyWarnings",
     "validateSettingsFileContent"
    ],
-   "src/utils/settings/settingsCache.ts": [
+   "src/platform/settings/settingsCache.ts": [
     "forgetLastGoodParsedFile",
     "getCachedParsedFile",
     "getCachedSettingsForSource",
@@ -162,21 +162,21 @@
     "setLastGoodParsedFile",
     "setSessionSettingsCache"
    ],
-   "src/utils/settings/applySettingsChange.ts": [
+   "src/platform/settings/applySettingsChange.ts": [
     "applySettingsChange"
    ],
-   "src/utils/settings/managedPath.ts": [
+   "src/platform/settings/managedPath.ts": [
     "getManagedFilePath",
     "getManagedSettingsDropInDir",
     "managedRootCandidates",
     "resolveManagedRoot"
    ],
-   "src/utils/settings/allErrors.ts": [
+   "src/platform/settings/allErrors.ts": [
     "getSettingsWithAllErrors"
    ]
   },
   "decisions": {
-   "src/utils/permissions/permissions.ts": [
+   "src/permissions/rules/permissionDoor.ts": [
     "addPermissionRulesToSettings",
     "applyPermissionRulesToPermissionContext",
     "checkRuleBasedPermissions",
@@ -196,7 +196,7 @@
     "syncPermissionRulesFromDisk",
     "toolAlwaysAllowedRule"
    ],
-   "src/utils/permissions/permissionSetup.ts": [
+   "src/permissions/rules/permissionSetup.ts": [
     "createSovereignDisabledContext",
     "describeSessionPermissionMode",
     "findDangerousPermissions",
@@ -226,7 +226,7 @@
     "type:SetPermissionModeResult",
     "validateModeEntry"
    ],
-   "src/utils/permissions/permissionsLoader.ts": [
+   "src/permissions/rules/permissionsLoader.ts": [
     "MAX_PERSISTED_ALLOW_RULE_LENGTH",
     "SETTING_SOURCES",
     "addPermissionRulesToSettings",
@@ -236,7 +236,7 @@
     "shouldShowAlwaysAllowOptions",
     "type:PermissionRuleFromEditableSettings"
    ],
-   "src/utils/permissions/PermissionMode.ts": [
+   "src/permissions/rules/permissionMode.ts": [
     "EXTERNAL_PERMISSION_MODES",
     "PERMISSION_MODES",
     "externalPermissionModeSchema",
@@ -250,7 +250,7 @@
     "type:ExternalPermissionMode",
     "type:PermissionMode"
    ],
-   "src/utils/permissions/PermissionResult.ts": [
+   "src/permissions/rules/permissionResult.ts": [
     "getRuleBehaviorDescription",
     "type:PermissionAllowDecision",
     "type:PermissionAskDecision",
@@ -260,13 +260,13 @@
     "type:PermissionMetadata",
     "type:PermissionResult"
    ],
-   "src/utils/permissions/PermissionRule.ts": [
+   "src/permissions/rules/PermissionRule.ts": [
     "type:PermissionBehavior",
     "type:PermissionRule",
     "type:PermissionRuleSource",
     "type:PermissionRuleValue"
    ],
-   "src/utils/permissions/PermissionUpdate.ts": [
+   "src/permissions/rules/permissionUpdate.ts": [
     "applyPermissionUpdate",
     "applyPermissionUpdates",
     "createEditRuleSuggestion",
@@ -275,13 +275,13 @@
     "persistPermissionUpdates",
     "type:PersistVerdict"
    ],
-   "src/services/permissions/permissionExplainer.ts": [
+   "src/permissions/explainer/permissionExplainer.ts": [
     "generatePermissionExplanation",
     "isPermissionExplainerEnabled",
     "type:PermissionExplanation",
     "type:RiskLevel"
    ],
-   "src/types/permissions.ts": [
+   "src/permissions/rules/permissions.ts": [
     "BYPASSED_ASK_ROAD_WORDS",
     "EXTERNAL_PERMISSION_MODES",
     "INTERNAL_PERMISSION_MODES",
@@ -319,7 +319,7 @@
    ]
   },
   "mcp": {
-   "src/services/mcp/auth.ts": [
+   "src/integrations/mcp/auth.ts": [
     "MercuryMcpAuthProvider",
     "clearMcpClientConfig",
     "clearServerTokensFromLocalStorage",
@@ -334,7 +334,7 @@
     "summarizeMcpAuthCurrency",
     "wrapFetchWithStepUpDetection"
    ],
-   "src/services/mcp/config.ts": [
+   "src/integrations/mcp/serverConfigs.ts": [
     "MCP_SERVERS_MAX_PER_DOCUMENT",
     "PROJECT_MCP_FILE",
     "PROJECT_MCP_FILE_SPELLING",
@@ -365,7 +365,7 @@
     "shouldAllowManagedMcpServersOnly",
     "type:McpResolutionNotice"
    ],
-   "src/services/mcp/client.ts": [
+   "src/integrations/mcp/client.ts": [
     "DEFAULT_MCP_CALL_IDLE_MINUTES",
     "DEFAULT_MCP_STDIO_MESSAGE_MB",
     "MCP_LAUNCH_SPAWN_GRACE_MS",
@@ -411,7 +411,7 @@
     "withoutNullToolMetadata",
     "wrapFetchWithTimeout"
    ],
-   "src/utils/mcp/types.ts": [
+   "src/integrations/mcp-shapes/mcpServerRecords.ts": [
     "ConfigScopeSchema",
     "McpJsonConfigSchema",
     "McpServerConfigSchema",
@@ -427,18 +427,18 @@
    ]
   },
   "tools": {
-   "src/services/tools/toolExecution.ts": [
+   "src/engine/tool-dispatch/toolExecution.ts": [
     "buildSchemaNotSentHint",
     "runToolUse",
     "toolUseError",
     "type:MessageUpdateLazy"
    ],
-   "src/services/tools/toolOrchestration.ts": [
+   "src/engine/tool-dispatch/toolOrchestration.ts": [
     "openResultRoomForRound",
     "runTools",
     "windowHoldsNoWholeResult"
    ],
-   "src/utils/run/effectObserver.ts": [
+   "src/engine/run-owner/effectObserver.ts": [
     "_toolTerminalSubscriberCountForTesting",
     "observeToolStart",
     "observeToolTerminal",
@@ -446,12 +446,12 @@
     "subscribeToolTerminal",
     "type:ToolTerminalEvent"
    ],
-   "src/tools/DocumentTool/DocumentTool.ts": [
+   "src/tools/document/DocumentTool.ts": [
     "DOCUMENT_TOOL_NAME",
     "DocumentTool",
     "type:DocumentIO"
    ],
-   "src/tools/DocumentTool/schema.ts": [
+   "src/tools/document/schema.ts": [
     "documentSchema",
     "type:Block",
     "type:DocumentInput",
@@ -460,7 +460,7 @@
    ]
   },
   "compaction": {
-   "src/services/compact/compact.ts": [
+   "src/engine/compaction/foldConversation.ts": [
     "CompactionRefusedForHistoryError",
     "ERROR_MESSAGE_FOLD_TIMEOUT",
     "ERROR_MESSAGE_INCOMPLETE_RESPONSE",
@@ -528,7 +528,7 @@
     "withEngineModel",
     "withFoldStatus"
    ],
-   "src/services/compact/autoCompact.ts": [
+   "src/engine/compaction/autoFold.ts": [
     "AUTOCOMPACT_BUFFER_TOKENS",
     "AUTOCOMPACT_THRASH_MESSAGE",
     "COMPACTION_PAUSED_KEY",
@@ -561,14 +561,14 @@
     "type:FoldModelChoice",
     "type:TokenWarningLevel"
    ],
-   "src/services/compact/compactionPolicy.ts": [
+   "src/engine/compaction/foldPolicy.ts": [
     "compactionBreakerAllows",
     "decideCompaction",
     "nextCompactionFailureCount",
     "percentUsedFromPercentLeft",
     "type:CompactionState"
    ],
-   "src/services/compact/microCompact.ts": [
+   "src/engine/compaction/pruneToolResults.ts": [
     "TIME_BASED_MC_CLEARED_MESSAGE",
     "consumePendingCacheEdits",
     "estimateContextTokens",
@@ -579,7 +579,7 @@
     "projectTimeBasedMicrocompact",
     "resetMicrocompactState"
    ],
-   "src/services/compact/verbatimTail.ts": [
+   "src/engine/compaction/verbatimTail.ts": [
     "DEFAULT_KEEP_ROUNDS",
     "DEFAULT_TAIL_TOKEN_BUDGET",
     "FOLDED_RESULT_KEY",
@@ -594,13 +594,13 @@
     "isMercuryCompactKeepTailEnabled",
     "withFoldedResults"
    ],
-   "src/services/compact/sessionMemoryCompact.ts": [
+   "src/engine/compaction/sessionNotesFold.ts": [
     "shouldUseSessionMemoryCompaction",
     "trySessionMemoryCompaction"
    ]
   },
   "agents": {
-   "src/tools/AgentTool/AgentTool.tsx": [
+   "src/tools/crewmate/CrewmateTool.tsx": [
     "AgentTool",
     "agentCwdQuestion",
     "inputSchema",
@@ -612,12 +612,12 @@
    ]
   },
   "turnEngine": {
-   "src/query.ts": [
+   "src/engine/turnDoor.ts": [
     "query",
     "queryEvents",
     "type:QueryParams"
    ],
-   "src/rows/turn.ts": [
+   "src/engine/rows/turn.ts": [
     "Conversation",
     "ask",
     "closeRowOf",
@@ -626,7 +626,7 @@
     "type:ConversationConfig",
     "type:TurnOptions"
    ],
-   "src/run-core/turn-machine.ts": [
+   "src/engine/loop/turn-machine.ts": [
     "MAX_TURNS_CLOSING_TEXT",
     "PAUSE_TURN_CONTINUATION_LIMIT",
     "decideCutToolCallRecovery",
@@ -640,24 +640,24 @@
     "type:CutToolCallDecision",
     "type:QueryParams"
    ],
-   "src/run-core/events.ts": [
+   "src/engine/loop/events.ts": [
     "createEventMint",
     "type:RunEvent"
    ],
-   "src/run-core/project-legacy.ts": [
+   "src/engine/loop/project-legacy.ts": [
     "legacyYieldsOf",
     "projectLegacyYields",
     "type:LegacyQueryYield"
    ],
-   "src/run-core/model-lane.ts": [
+   "src/engine/loop/model-lane.ts": [
     "backfillCloneForYield",
     "isWithheldMaxOutputTokens",
     "resetForRetry"
    ],
-   "src/run-core/budget-guard.ts": [
+   "src/engine/loop/budget-guard.ts": [
     "BudgetGuard"
    ],
-   "src/run-core/attachment-drain.ts": [
+   "src/engine/loop/attachment-drain.ts": [
     "consumeDrainedCommands",
     "isReplyText",
     "replyMarkOf",
@@ -667,7 +667,7 @@
    ]
   },
   "headless": {
-   "src/cli/run.ts": [
+   "src/daemon/runner/runHeadless.ts": [
     "canBatchWith",
     "joinPromptValues",
     "removeInterruptedMessage",
@@ -675,16 +675,16 @@
    ]
   },
   "bootUi": {
-   "src/main.tsx": [
+   "src/boot/main.tsx": [
     "main",
     "startDeferredPrefetches"
    ],
-   "src/screens/Chat.tsx": [
+   "src/screen/chat/Chat.tsx": [
     "Chat",
     "type:Props",
     "type:Screen"
    ],
-   "src/components/PromptInput/PromptInput.tsx": [
+   "src/screen/composer/Composer.tsx": [
     "default",
     "type:PromptInputProps"
    ]

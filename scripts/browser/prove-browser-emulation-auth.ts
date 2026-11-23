@@ -185,7 +185,7 @@ section('S5 the approval is the origin’s existing one')
 
 section('S6 the card remembers the subject that was checked')
 {
-  const words = await import(join(ROOT, 'src/services/browser/browserWords.ts'))
+  const words = await import(join(ROOT, 'src/integrations/browser/browserWords.ts'))
   const remembered = (words as { checkedRuleContent?: (verdict: unknown, input: unknown) => string | null }).checkedRuleContent
   await visit(`${A.origin}/open`)
   await pageOf().waitForSelector('iframe')

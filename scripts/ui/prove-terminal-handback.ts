@@ -22,9 +22,9 @@ import {
   setTerminalHandbackDescriptorForTest,
   TERMINAL_HANDBACK_FLAG,
   type TtyAddon,
-} from '../../src/utils/terminalHandback.ts'
-import { loadVoiceAddon, resetVoiceAddonForTest, VOICE_ADDON_EXPORTS } from '../../src/utils/voice/voicePack.ts'
-import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
+} from '../../src/platform/shell/terminalHandback.ts'
+import { loadVoiceAddon, resetVoiceAddonForTest, VOICE_ADDON_EXPORTS } from '../../src/integrations/voice-pack/voicePack.ts'
+import { FLAG_REGISTRY } from '../../src/platform/substrate/flagRegistry.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
@@ -33,9 +33,9 @@ const check = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail && !ok ? ` — ${detail}` : ''}`)
   if (!ok) failures++
 }
-const OWNER_FIX = 'change reclaimTerminalAfterChild in src/utils/terminalHandback.ts'
-const HEALTH_FIX = 'change describeTerminalHandback in src/utils/terminalHandback.ts, or the iface-terminal row in src/services/health/sections/interface.ts'
-const JOURNEY_FIX = 'read the grid and samples above, then change reclaimTerminalAfterChild in src/utils/terminalHandback.ts or the driver scripts/ui/jobcontrolReclaimDriver.ts'
+const OWNER_FIX = 'change reclaimTerminalAfterChild in src/platform/shell/terminalHandback.ts'
+const HEALTH_FIX = 'change describeTerminalHandback in src/platform/shell/terminalHandback.ts, or the iface-terminal row in src/platform/health/sections/interface.ts'
+const JOURNEY_FIX = 'read the grid and samples above, then change reclaimTerminalAfterChild in src/platform/shell/terminalHandback.ts or the driver scripts/ui/jobcontrolReclaimDriver.ts'
 const skip = (name: string, why: string): void => {
   console.log(`SKIP  ${name} — ${why}`)
   skips++
@@ -164,7 +164,7 @@ section('U · the owner: compare, reclaim once, never throw; the descriptor; the
   setTerminalHandbackAddonForTest(undefined)
   setTerminalHandbackDescriptorForTest(undefined)
   closeSync(injectedFd)
-  check('the loader requires the tty surface as part of the ONE export list', (['ttyForegroundGroup', 'ownProcessGroup', 'reclaimTerminal'] as const).every(fn => (VOICE_ADDON_EXPORTS as readonly string[]).includes(fn)), 'add the missing tty function to VOICE_ADDON_EXPORTS in src/utils/voice/voicePack.ts')
+  check('the loader requires the tty surface as part of the ONE export list', (['ttyForegroundGroup', 'ownProcessGroup', 'reclaimTerminal'] as const).every(fn => (VOICE_ADDON_EXPORTS as readonly string[]).includes(fn)), 'add the missing tty function to VOICE_ADDON_EXPORTS in src/integrations/voice-pack/voicePack.ts')
 }
 
 resetVoiceAddonForTest()
@@ -191,19 +191,19 @@ if (packPresent) {
 
 section('S · one owner · every hand-off site · the one native spelling · the health row · the registry · the fallback road')
 {
-  const { interfaceChecks } = await import('../../src/services/health/sections/interface.ts')
+  const { interfaceChecks } = await import('../../src/platform/health/sections/interface.ts')
   const terminalSays = await interfaceChecks().find(entry => entry.id === 'iface-terminal')?.run()
   const handbackNow = describeTerminalHandback()
   check("/health's Terminal profile row reads describeTerminalHandback() and carries its line in the detail", terminalSays?.detail?.split('\n').at(-1) === handbackNow.line, `${terminalSays?.detail?.split('\n').at(-1)} · the last detail line of the iface-terminal row must be describeTerminalHandback().line: ${HEALTH_FIX}`)
 
   const spec = FLAG_REGISTRY.find(f => f.env === TERMINAL_HANDBACK_FLAG)
-  check('the gate is registered: default-on, the owner as consumer, this prover as evidence', spec !== undefined && spec.kind === 'default-on' && spec.consumer === 'src/utils/terminalHandback.ts' && spec.evidence === 'scripts/ui/prove-terminal-handback.ts', `${JSON.stringify(spec)} · fix the MERCURY_TERMINAL_HANDBACK entry in FLAG_REGISTRY`)
+  check('the gate is registered: default-on, the owner as consumer, this prover as evidence', spec !== undefined && spec.kind === 'default-on' && spec.consumer === 'src/platform/shell/terminalHandback.ts' && spec.evidence === 'scripts/ui/prove-terminal-handback.ts', `${JSON.stringify(spec)} · fix the MERCURY_TERMINAL_HANDBACK entry in FLAG_REGISTRY`)
 
 }
 
 section('D · /health: the Terminal profile row carries the hand-back fact')
 {
-  const report = await import('../../src/services/health/healthReport.js')
+  const report = await import('../../src/platform/health/healthReport.js')
   const row = async (): Promise<{ status: string; evidence: string; detail: string }> => {
     const cert = await report.runHealthReport({ depth: 'fast' })
     for (const s of cert.sections) {

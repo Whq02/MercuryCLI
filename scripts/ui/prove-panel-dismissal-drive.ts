@@ -5,8 +5,8 @@ import { join } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
-import { MODEL_PICKER_TITLE } from '../../src/utils/model/modelPickerGroups.ts'
-import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
+import { MODEL_PICKER_TITLE } from '../../src/models/facts/modelPickerGroups.ts'
+import { keyHintLabel } from '../../src/screen/widgets/keyHintLabel.ts'
 
 const root = join(import.meta.dir, '..', '..')
 const arg = (flag: string): string | undefined => {
@@ -44,7 +44,7 @@ let failures = 0
 const index: string[] = []
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  const failHint = ' — outside-press dismissal and the recess live in src/ink/recessLayer.ts (dismissByOutsidePress, registerElevatedSurface); rerun with --frames <dir> to read each mark as text, and build dist first if the journey did not reach its marks'
+  const failHint = ' — outside-press dismissal and the recess live in src/screen/renderer/recessLayer.ts (dismissByOutsidePress, registerElevatedSurface); rerun with --frames <dir> to read each mark as text, and build dist first if the journey did not reach its marks'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : failHint}`)
 }
 const deadProviders = Object.fromEntries([

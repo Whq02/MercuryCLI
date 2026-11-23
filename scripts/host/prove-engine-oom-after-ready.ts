@@ -4,7 +4,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture, fakeSshRunner } from './runpodFixture.mjs'
-import type { HostRecord } from '../../src/services/host/store.ts'
+import type { HostRecord } from '../../src/models/hosting/store.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 process.env.MERCURY_RECONNECT_SCALE = '0.01'
@@ -25,7 +25,7 @@ const houseWords = /\b(door|road|seat|fold|lane|ladder|owner|law|pin|prover)s?\b
 const until = async (what: string, test: () => boolean, ms = 15_000): Promise<void> => { const t0 = Date.now(); while (!test()) { if (Date.now() - t0 > ms) throw new Error('timed out waiting for ' + what); await new Promise(resolve => setTimeout(resolve, 20)) } }
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
 try {
-  const sshModule = await import('../../src/services/host/ssh.ts') as Record<string, any>
+  const sshModule = await import('../../src/models/hosting/ssh.ts') as Record<string, any>
   const wordsModule = await import('../../src/commands/llmhost/words.ts') as Record<string, any>
   const { hostRunner, closeHostTunnel } = sshModule
   const engineDeathAfterReadyWords: ((text: string) => { message: string; facts: Record<string, unknown> }) | undefined = sshModule.engineDeathAfterReadyWords
@@ -33,12 +33,12 @@ try {
   const hostEngineDeadChatWords: ((record: Record<string, unknown>) => string) | undefined = wordsModule.hostEngineDeadChatWords
   const hostEngineOomWords: ((facts: Record<string, unknown>) => string) | undefined = wordsModule.hostEngineOomWords
   const { hostMachineName } = wordsModule
-  const { runHostJob } = await import('../../src/services/host/worker.ts')
-  const { queueHostSetup } = await import('../../src/services/host/jobs.ts')
-  const { readHostRecord, hostDirectory, patchHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
-  const { vendorClient, saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
-  const { HOST_IDLE_LIMIT_MS, hostIdleVerdict } = await import('../../src/services/host/idle.ts')
-  const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
+  const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+  const { queueHostSetup } = await import('../../src/models/hosting/jobs.ts')
+  const { readHostRecord, hostDirectory, patchHostRecord, removeHostRecord } = await import('../../src/models/hosting/store.ts')
+  const { vendorClient, saveVendorKey } = await import('../../src/models/hosting/vendors/client.ts')
+  const { HOST_IDLE_LIMIT_MS, hostIdleVerdict } = await import('../../src/models/hosting/idle.ts')
+  const { configuredCompatEndpoints } = await import('../../src/models/roads/openaicompat/compatAccounts.ts')
   saveVendorKey('runpod', rp.key)
   const api = vendorClient('runpod', { key: rp.key, apiBaseUrl: rp.baseUrl })
   ssh = fakeSshRunner(f.baseUrl, hostRunner, f.state)
@@ -176,6 +176,6 @@ try {
   closeHostTunnel(pod.id)
   check('OOM proof makes no public network calls', escaped.length === 0)
   removeHostRecord(pod.id)
-  if (failures.length) throw new Error(failures.length + ' OOM-after-ready cases failed\n' + failures.join('\n') + '\nwhat to change: the engine-death reading in src/services/host/ssh.ts (shortEngineLine, engineDeathAfterReadyWords), the worker that pauses the record in src/services/host/worker.ts (runHostJob), the words in src/commands/llmhost/words.ts (hostEngineOomWords, hostEngineDeadChatWords), the two-hour rule in src/services/host/idle.ts (hostIdleVerdict)')
+  if (failures.length) throw new Error(failures.length + ' OOM-after-ready cases failed\n' + failures.join('\n') + '\nwhat to change: the engine-death reading in src/models/hosting/ssh.ts (shortEngineLine, engineDeathAfterReadyWords), the worker that pauses the record in src/models/hosting/worker.ts (runHostJob), the words in src/commands/llmhost/words.ts (hostEngineOomWords, hostEngineDeadChatWords), the two-hour rule in src/models/hosting/idle.ts (hostIdleVerdict)')
   console.log('ENGINE OOM AFTER READY GREEN · ' + checks + ' checks; the record pauses on the engine’s own words, the chat gets one line and no reconnect ladder, Resume restarts from the weights on the machine; loopback fixtures, zero billable calls')
 } finally { globalThis.fetch = nativeFetch; ssh?.close(); await rp.close(); f.close() }

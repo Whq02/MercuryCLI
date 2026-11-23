@@ -8,15 +8,15 @@ import {
   setStyle,
   markDirty,
   type DOMElement,
-} from '../../src/ink/dom.js'
-import { emptyFrame, type Frame } from '../../src/ink/frame.js'
-import createRenderer from '../../src/ink/renderer.js'
-import { CharPool, charInCellAt, HyperlinkPool, StylePool } from '../../src/ink/cell-grid.js'
-import applyStyles, { type Styles } from '../../src/ink/styles.js'
-import { FrameWriter } from '../../src/ink/frame-writer.js'
-import { optimizePatches as optimize } from '../../src/ink/patch-stream.js'
-import { CURSOR_HOME } from '../../src/ink/termio/csi.js'
-import { writeDiffToTerminal } from '../../src/ink/session/delivery.js'
+} from '../../src/screen/renderer/dom.js'
+import { emptyFrame, type Frame } from '../../src/screen/renderer/frame.js'
+import createRenderer from '../../src/screen/renderer/renderer.js'
+import { CharPool, charInCellAt, HyperlinkPool, StylePool } from '../../src/screen/renderer/cell-grid.js'
+import applyStyles, { type Styles } from '../../src/screen/renderer/styles.js'
+import { FrameWriter } from '../../src/screen/renderer/frame-writer.js'
+import { optimizePatches as optimize } from '../../src/screen/renderer/patch-stream.js'
+import { CURSOR_HOME } from '../../src/screen/renderer/termio/csi.js'
+import { writeDiffToTerminal } from '../../src/screen/renderer/terminal-session/frameDelivery.js'
 import { AnsiEmulator } from './ansiEmulator.js'
 
 const W = 60
@@ -27,7 +27,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (cond) console.log(`  [PASS] ${label}`)
   else {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — fix where the scroll hint is minted only when walk.regionScrollUsable is true (the scroll branch in src/ink/compose-walk.ts) or how FrameWriter.render in src/ink/frame-writer.ts replays it`)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — fix where the scroll hint is minted only when walk.regionScrollUsable is true (the scroll branch in src/screen/renderer/compose-walk.ts) or how FrameWriter.render in src/screen/renderer/frame-writer.ts replays it`)
   }
 }
 function section(title: string): void {

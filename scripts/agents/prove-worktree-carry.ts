@@ -14,7 +14,7 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change carryIgnoredEntries or placeCheckoutFolders in src/services/worktree.ts (what is carried, left behind or linked), or carryEntries and planCloneCalls in src/utils/worktreeClone.ts (how it is cloned)' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change carryIgnoredEntries or placeCheckoutFolders in src/platform/git/worktree/worktree.ts (what is carried, left behind or linked), or carryEntries and planCloneCalls in src/platform/git/worktree/worktreeClone.ts (how it is cloned)' : ''}`)
   if (!cond) failures++
 }
 const skip = (label: string): void => console.log(`  [SKIP] ${label}`)
@@ -23,12 +23,12 @@ const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(re
 
 const scenario = process.argv[2]
 if (scenario !== undefined && process.env.CARRY_SCENARIO_HOME !== undefined) process.env.MERCURY_CONFIG_DIR = process.env.CARRY_SCENARIO_HOME
-const state = await import('../../src/bootstrap/state.ts')
-const config = await import('../../src/utils/config/globalConfig.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const worktree = await import('../../src/services/worktree.ts')
-const instructions = await import('../../src/services/instructions/engine.ts')
-const cloneModule = (await import('../../src/utils/worktreeClone.ts')) as unknown as { planCloneCalls: (source: string, held?: (path: string) => boolean, leaveOut?: boolean) => Promise<{ folders: string[]; clones: string[]; links: string[] }> }
+const state = await import('../../src/boot/process-state/processState.ts')
+const config = await import('../../src/platform/config/globalConfig.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const worktree = await import('../../src/platform/git/worktree/worktree.ts')
+const instructions = await import('../../src/sessions/instructions/instructionFiles.ts')
+const cloneModule = (await import('../../src/platform/git/worktree/worktreeClone.ts')) as unknown as { planCloneCalls: (source: string, held?: (path: string) => boolean, leaveOut?: boolean) => Promise<{ folders: string[]; clones: string[]; links: string[] }> }
 type Made = { worktreePath: string; prepareFailure?: string; ready?: Promise<void> }
 const make = (slug: string, options: Record<string, unknown> = {}): Promise<Made> => (worktree.createAgentWorktree as (slug: string, options: unknown) => Promise<Made>)(slug, options)
 const prepare = worktree.prepareWorktreeFiles as (repo: string, path: string, from?: string, preserve?: boolean, permission?: unknown, carry?: boolean) => Promise<void>
@@ -197,7 +197,7 @@ try {
     check('the checkout is as it was', read(join(fixture, 'dist', 'secret', 'key.txt')) === 'the key\n' && read(join(fixture, '.venv', 'pyvenv.cfg')) === 'home = /somewhere\n' && read(join(fixture, 'other-trees', 'wt', '.git')) === 'gitdir: /nowhere/.git/worktrees/wt\n' && read(join(fixture, 'top-tree', 'file.txt')) === 'another tree at the top\n' && kindOf(join(fixture, 'linked-out')) === 'link')
     const treesPlan = await cloneModule.planCloneCalls(join(fixture, 'other-trees'), undefined, true)
     const cachePlan = await cloneModule.planCloneCalls(join(fixture, 'cache'), undefined, true)
-    check('what stays behind inside a carried folder is left out of the calls, never cloned and then deleted', JSON.stringify(treesPlan) === JSON.stringify({ folders: [''], clones: ['/plain'], links: ['/wt'] }) && JSON.stringify(cachePlan) === JSON.stringify({ folders: [''], clones: ['/keep'], links: ['/cmake-out'] }), `${JSON.stringify(treesPlan)} ${JSON.stringify(cachePlan)} · planCloneCalls in src/utils/worktreeClone.ts must put a folder that is another worktree or a CMake build under links, not clones`)
+    check('what stays behind inside a carried folder is left out of the calls, never cloned and then deleted', JSON.stringify(treesPlan) === JSON.stringify({ folders: [''], clones: ['/plain'], links: ['/wt'] }) && JSON.stringify(cachePlan) === JSON.stringify({ folders: [''], clones: ['/keep'], links: ['/cmake-out'] }), `${JSON.stringify(treesPlan)} ${JSON.stringify(cachePlan)} · planCloneCalls in src/platform/git/worktree/worktreeClone.ts must put a folder that is another worktree or a CMake build under links, not clones`)
 
     section('§2 a copy frozen at a commit, or standing on another, starts with the dependency folders only')
     const frozen = await make('agent-ad200001', { at: 'HEAD' })
@@ -246,14 +246,14 @@ try {
     const linkedFixture = makeFixture('linked', dir => ({ ...denying(dir), workspace: { worktree: { symlinkDirectories: ['dist'] } } }))
     enter(linkedFixture)
     const overridden = await make('agent-ad700001')
-    check('a folder named there is a link to the checkout\'s where it would otherwise be cloned', kindOf(join(overridden.worktreePath, 'dist')) === 'link' && realpathSync(join(overridden.worktreePath, 'dist')) === realpathSync(join(linkedFixture, 'dist')) && !recorded(overridden.worktreePath).includes('dist'), `${kindOf(join(overridden.worktreePath, 'dist'))} · placeCheckoutFolders in src/services/worktree.ts must link a folder named in workspace.worktree.symlinkDirectories and not clone or record it`)
+    check('a folder named there is a link to the checkout\'s where it would otherwise be cloned', kindOf(join(overridden.worktreePath, 'dist')) === 'link' && realpathSync(join(overridden.worktreePath, 'dist')) === realpathSync(join(linkedFixture, 'dist')) && !recorded(overridden.worktreePath).includes('dist'), `${kindOf(join(overridden.worktreePath, 'dist'))} · placeCheckoutFolders in src/platform/git/worktree/worktree.ts must link a folder named in workspace.worktree.symlinkDirectories and not clone or record it`)
     check('…and the rest still comes', read(join(overridden.worktreePath, '.env')) === 'TOKEN=1\n' && read(join(overridden.worktreePath, 'cache', 'keep', 'data.bin')) === 'kept\n')
 
     section('§8 a sparse worktree stays small')
     const sparseFixture = makeFixture('sparse', dir => ({ ...denying(dir), workspace: { worktree: { sparsePaths: ['src'] } } }))
     enter(sparseFixture)
     const sparse = await make('agent-ad750001')
-    check('with workspace.worktree.sparsePaths set the copy starts with the dependency folders only', kindOf(join(sparse.worktreePath, 'node_modules')) === 'folder' && kindOf(join(sparse.worktreePath, 'dist')) === 'absent' && kindOf(join(sparse.worktreePath, '.env')) === 'absent' && kindOf(join(sparse.worktreePath, 'cache')) === 'absent', `${kindOf(join(sparse.worktreePath, 'dist'))}, ${kindOf(join(sparse.worktreePath, '.env'))} · placeCheckoutFolders in src/services/worktree.ts must not carry when workspace.worktree.sparsePaths is set`)
+    check('with workspace.worktree.sparsePaths set the copy starts with the dependency folders only', kindOf(join(sparse.worktreePath, 'node_modules')) === 'folder' && kindOf(join(sparse.worktreePath, 'dist')) === 'absent' && kindOf(join(sparse.worktreePath, '.env')) === 'absent' && kindOf(join(sparse.worktreePath, 'cache')) === 'absent', `${kindOf(join(sparse.worktreePath, 'dist'))}, ${kindOf(join(sparse.worktreePath, '.env'))} · placeCheckoutFolders in src/platform/git/worktree/worktree.ts must not carry when workspace.worktree.sparsePaths is set`)
 
     section('§9 Mercury\'s own home and the user\'s home are never cloned')
     const inChild = (name: string, dir: string, env: Record<string, string>, rels: string[]): Record<string, string> | null => {

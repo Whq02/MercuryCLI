@@ -13,19 +13,19 @@ if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 delete process.env.CI
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const saturn = await import('../../src/daemon/saturn.ts')
-const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
-const { tickSaturnOnce } = await import('../../src/daemon/saturnTicker.ts')
-const { liveFactsForSessionFire } = await import('../../src/daemon/saturnAccount.ts')
-const { pushScheduleRosterForSession } = await import('../../src/daemon/sessionSeat.ts')
-const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
-const { CronListTool, pastDueFireRow, PAST_FIRE_GRACE_MS } = await import('../../src/tools/ScheduleCronTool/CronListTool.ts')
-const { wakeDelaySpelling } = await import('../../src/utils/messages/noticeRows.ts')
+const saturn = await import('../../src/daemon/saturn/saturn.ts')
+const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { tickSaturnOnce } = await import('../../src/daemon/saturn/saturnTicker.ts')
+const { liveFactsForSessionFire } = await import('../../src/daemon/saturn/saturnAccount.ts')
+const { pushScheduleRosterForSession } = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const bridge = await import('../../src/daemon/saturn/sessionScheduleBridge.ts')
+const { CronListTool, pastDueFireRow, PAST_FIRE_GRACE_MS } = await import('../../src/tools/cron/CronListTool.ts')
+const { wakeDelaySpelling } = await import('../../src/engine/message-shapes/noticeRows.ts')
 const listCall = (): Promise<unknown> => (CronListTool as unknown as { call: () => Promise<unknown> }).call()
-type Schedule = import('../../src/daemon/saturn.ts').SaturnScheduleV1
-type FactsRow = import('../../src/daemon/saturn.ts').SaturnFactsRowV1
+type Schedule = import('../../src/daemon/saturn/saturn.ts').SaturnScheduleV1
+type FactsRow = import('../../src/daemon/saturn/saturn.ts').SaturnFactsRowV1
 
 let checks = 0
 let failures = 0
@@ -76,11 +76,11 @@ console.log('§A the interrupt\'s drop and every tick that moves a record push t
 {
   seedRecord({ schedules: [selfWake('fdd8fc42', NOW + 2 * MIN), recurring('a1b2c3d4')] })
   const gone = saturn.dropSaturnSelfWakes(SESSION, 'operator:test', 'interrupted', DAEMON_DIR)
-  check('the interrupt drops the self-paced wake and writes its removal receipt', gone.dropped.length === 1 && gone.dropped[0] === 'fdd8fc42' && scheduleIds().join(',') === 'a1b2c3d4', gone, 'dropSaturnSelfWakes in src/daemon/saturn.ts must remove only the session\'s self-paced wakes from the worker record and report their ids in dropped')
+  check('the interrupt drops the self-paced wake and writes its removal receipt', gone.dropped.length === 1 && gone.dropped[0] === 'fdd8fc42' && scheduleIds().join(',') === 'a1b2c3d4', gone, 'dropSaturnSelfWakes in src/daemon/saturn/saturn.ts must remove only the session\'s self-paced wakes from the worker record and report their ids in dropped')
   const pushed = pushScheduleRosterForSession(SESSION, rosterPort, DAEMON_DIR)
-  check('the session-keyed push finds the live record and sends the post-drop roster down the runner\'s door', pushed && pushes().length === 1 && pushes()[0]!.short === SHORT && pushes()[0]!.schedules.map(row => row.id).join(',') === 'a1b2c3d4', requests, 'pushScheduleRosterForSession and pushScheduleRoster in src/daemon/sessionSeat/facts.ts must send one schedule/roster request, with the post-drop rows, through the live record\'s door')
-  check('…and asks the seat for fresh facts, so the screen follows too', factsAsked().length === 1 && factsAsked()[0] === SHORT, requests, 'pushScheduleRosterForSession in src/daemon/sessionSeat/facts.ts must call requestSessionFacts for the record\'s runner after a push')
-  check('a session with no live record is not pushed', pushScheduleRosterForSession('sess-nobody', rosterPort, DAEMON_DIR) === false && pushes().length === 1, '', 'pushScheduleRosterForSession in src/daemon/sessionSeat/facts.ts must return false and send nothing when liveRecordBySession finds no live record')
+  check('the session-keyed push finds the live record and sends the post-drop roster down the runner\'s door', pushed && pushes().length === 1 && pushes()[0]!.short === SHORT && pushes()[0]!.schedules.map(row => row.id).join(',') === 'a1b2c3d4', requests, 'pushScheduleRosterForSession and pushScheduleRoster in src/daemon/session-seat/facts.ts must send one schedule/roster request, with the post-drop rows, through the live record\'s door')
+  check('…and asks the seat for fresh facts, so the screen follows too', factsAsked().length === 1 && factsAsked()[0] === SHORT, requests, 'pushScheduleRosterForSession in src/daemon/session-seat/facts.ts must call requestSessionFacts for the record\'s runner after a push')
+  check('a session with no live record is not pushed', pushScheduleRosterForSession('sess-nobody', rosterPort, DAEMON_DIR) === false && pushes().length === 1, '', 'pushScheduleRosterForSession in src/daemon/session-seat/facts.ts must return false and send nothing when liveRecordBySession finds no live record')
 
 
   const changed: string[] = []
@@ -98,12 +98,12 @@ console.log('§A the interrupt\'s drop and every tick that moves a record push t
   } as never
   seedRecord({ schedules: [selfWake('eeee5555', NOW - MIN), recurring('a1b2c3d4')] })
   const fired = await tickSaturnOnce(ports)
-  check('a tick that fires a due wake names the session as changed, once, after the delivery', fired.fired === 1 && delivered.length === 1 && changed.join(',') === SESSION && scheduleIds().join(',') === 'a1b2c3d4', { fired, changed }, 'tickSaturnOnce in src/daemon/saturnTicker.ts must call ports.rosterChanged(sessionId) once after a tick that moved a record')
+  check('a tick that fires a due wake names the session as changed, once, after the delivery', fired.fired === 1 && delivered.length === 1 && changed.join(',') === SESSION && scheduleIds().join(',') === 'a1b2c3d4', { fired, changed }, 'tickSaturnOnce in src/daemon/saturn/saturnTicker.ts must call ports.rosterChanged(sessionId) once after a tick that moved a record')
   const quiet = await tickSaturnOnce(ports)
-  check('a tick that moves nothing names no session', quiet.fired === 0 && quiet.dropped === 0 && changed.length === 1, { quiet, changed }, 'tickSaturnOnce in src/daemon/saturnTicker.ts must call ports.rosterChanged only when fired, held, missed, replayed or dropped moved')
+  check('a tick that moves nothing names no session', quiet.fired === 0 && quiet.dropped === 0 && changed.length === 1, { quiet, changed }, 'tickSaturnOnce in src/daemon/saturn/saturnTicker.ts must call ports.rosterChanged only when fired, held, missed, replayed or dropped moved')
   seedRecord({ stoppedAt: NOW - 5 * MIN, stoppedBy: 'operator:test', schedules: [selfWake('dddd4444', NOW + 10 * MIN)] })
   const dropped = await tickSaturnOnce(ports)
-  check('a tick that drops a stopped record\'s wake names the session too', dropped.dropped === 1 && changed.length === 2 && changed[1] === SESSION, { dropped, changed }, 'tickSaturnOnce in src/daemon/saturnTicker.ts must drop a stopped record\'s wake and call ports.rosterChanged for that session')
+  check('a tick that drops a stopped record\'s wake names the session too', dropped.dropped === 1 && changed.length === 2 && changed[1] === SESSION, { dropped, changed }, 'tickSaturnOnce in src/daemon/saturn/saturnTicker.ts must drop a stopped record\'s wake and call ports.rosterChanged for that session')
 }
 
 console.log('§B CronList: a dropped schedule disappears at once, a past-due fire row is not shown, and the result says when the roster was pushed')
@@ -115,28 +115,28 @@ console.log('§B CronList: a dropped schedule disappears at once, a past-due fir
   const justDue: FactsRow = { id: 'c3d4e5f6', when: 'every day 09:00', kind: 'fire', nextFireMs: NOW - 10_000 }
   const paused: FactsRow = { id: 'd4e5f6a7', when: 'every day 09:00', kind: 'fire', nextFireMs: null, paused: true }
   const birth: FactsRow = { id: 'e5f6a7b8', when: 'on \'0 9 * * 1\'', kind: 'birth', nextFireMs: NOW + 60 * MIN, title: 'weekly plan' }
-  check('the past-due law: a fire row past the grace is past due; one within the grace, a paused one, a future one and a birth are not', pastDueFireRow(wake, NOW) && !pastDueFireRow(justDue, NOW) && !pastDueFireRow(paused, NOW) && !pastDueFireRow(standing, NOW) && !pastDueFireRow({ ...birth, nextFireMs: NOW - 2 * PAST_FIRE_GRACE_MS }, NOW), '', 'pastDueFireRow and PAST_FIRE_GRACE_MS in src/tools/ScheduleCronTool/CronListTool.ts must flag only an unpaused fire row whose fire time is more than the grace in the past')
+  check('the past-due law: a fire row past the grace is past due; one within the grace, a paused one, a future one and a birth are not', pastDueFireRow(wake, NOW) && !pastDueFireRow(justDue, NOW) && !pastDueFireRow(paused, NOW) && !pastDueFireRow(standing, NOW) && !pastDueFireRow({ ...birth, nextFireMs: NOW - 2 * PAST_FIRE_GRACE_MS }, NOW), '', 'pastDueFireRow and PAST_FIRE_GRACE_MS in src/tools/cron/CronListTool.ts must flag only an unpaused fire row whose fire time is more than the grace in the past')
   const realNow = Date.now()
   const shift = realNow - NOW
   const row = (r: FactsRow): FactsRow => ({ ...r, ...(r.nextFireMs === null ? {} : { nextFireMs: r.nextFireMs + shift }) })
   bridge.latchSessionScheduleRoster([row(wake), row(standing), row(justDue), row(paused), row(birth)], pushedAt + shift)
   const listed = await listCall()
   const data = (listed as { data: { schedules: Array<{ id: string }>; rosterKnown: boolean; pushedAtMs?: number; pastDueHidden?: number } }).data
-  check('the stale self-paced wake the daemon had already dropped is not listed; the rest stand', data.schedules.map(r => r.id).join(',') === 'b2c3d4e5,c3d4e5f6,d4e5f6a7,e5f6a7b8' && data.rosterKnown, data, 'CronListTool in src/tools/ScheduleCronTool/CronListTool.ts must filter the latched roster (latchSessionScheduleRoster in src/services/saturn/sessionScheduleBridge.ts) through pastDueFireRow')
-  check('the data carries the push time and the hidden count', data.pushedAtMs === pushedAt + shift && data.pastDueHidden === 1, data, 'CronListTool in src/tools/ScheduleCronTool/CronListTool.ts must return pushedAtMs from the bridge and pastDueHidden as the count of rows it filtered out')
+  check('the stale self-paced wake the daemon had already dropped is not listed; the rest stand', data.schedules.map(r => r.id).join(',') === 'b2c3d4e5,c3d4e5f6,d4e5f6a7,e5f6a7b8' && data.rosterKnown, data, 'CronListTool in src/tools/cron/CronListTool.ts must filter the latched roster (latchSessionScheduleRoster in src/daemon/saturn/sessionScheduleBridge.ts) through pastDueFireRow')
+  check('the data carries the push time and the hidden count', data.pushedAtMs === pushedAt + shift && data.pastDueHidden === 1, data, 'CronListTool in src/tools/cron/CronListTool.ts must return pushedAtMs from the bridge and pastDueHidden as the count of rows it filtered out')
   const result = CronListTool.mapToolResultToToolResultBlockParam(data as never, 'toolu_1')
   const content = String(result.content)
-  check('the model\'s result keeps the rows\' words, says when the roster was pushed and that a past-due fire row is not shown', content.startsWith('b2c3d4e5: in ~600s (fire) — next ') && content.includes('d4e5f6a7: every day 09:00 (fire) — paused') && content.includes(`Roster as the daemon pushed it at ${new Date(pushedAt + shift).toISOString()}.`) && content.endsWith(' 1 fire row whose fire time has passed is not shown.'), content, 'mapToolResultToToolResultBlockParam in src/tools/ScheduleCronTool/CronListTool.ts must word the roster push time and the hidden past-due count as this check expects')
+  check('the model\'s result keeps the rows\' words, says when the roster was pushed and that a past-due fire row is not shown', content.startsWith('b2c3d4e5: in ~600s (fire) — next ') && content.includes('d4e5f6a7: every day 09:00 (fire) — paused') && content.includes(`Roster as the daemon pushed it at ${new Date(pushedAt + shift).toISOString()}.`) && content.endsWith(' 1 fire row whose fire time has passed is not shown.'), content, 'mapToolResultToToolResultBlockParam in src/tools/cron/CronListTool.ts must word the roster push time and the hidden past-due count as this check expects')
 
   bridge.latchSessionScheduleRoster([row(standing)], realNow)
   const afterPush = (await listCall()) as { data: { schedules: Array<{ id: string }>; pastDueHidden?: number } }
-  check('the daemon\'s next push lands at once: the dropped and the fired rows are gone, nothing is hidden', afterPush.data.schedules.map(r => r.id).join(',') === 'b2c3d4e5' && afterPush.data.pastDueHidden === undefined, afterPush.data, 'latchSessionScheduleRoster in src/services/saturn/sessionScheduleBridge.ts must replace the previous roster at once, and CronListTool must list only the new rows')
+  check('the daemon\'s next push lands at once: the dropped and the fired rows are gone, nothing is hidden', afterPush.data.schedules.map(r => r.id).join(',') === 'b2c3d4e5' && afterPush.data.pastDueHidden === undefined, afterPush.data, 'latchSessionScheduleRoster in src/daemon/saturn/sessionScheduleBridge.ts must replace the previous roster at once, and CronListTool must list only the new rows')
   bridge.latchSessionScheduleRoster([], realNow)
   const empty = CronListTool.mapToolResultToToolResultBlockParam(((await listCall()) as { data: unknown }).data as never, 'toolu_2')
-  check('an empty roster keeps its words and says when it was pushed', String(empty.content) === `No schedules on this session. Roster as the daemon pushed it at ${new Date(realNow).toISOString()}.`, empty.content, 'the empty-roster words in mapToolResultToToolResultBlockParam in src/tools/ScheduleCronTool/CronListTool.ts must be No schedules on this session. plus the push time')
+  check('an empty roster keeps its words and says when it was pushed', String(empty.content) === `No schedules on this session. Roster as the daemon pushed it at ${new Date(realNow).toISOString()}.`, empty.content, 'the empty-roster words in mapToolResultToToolResultBlockParam in src/tools/cron/CronListTool.ts must be No schedules on this session. plus the push time')
   bridge._resetScheduleBridgeForTesting()
   const never = CronListTool.mapToolResultToToolResultBlockParam(((await listCall()) as { data: unknown }).data as never, 'toolu_3')
-  check('a roster never pushed keeps today\'s words', String(never.content).startsWith('No roster yet — the daemon pushes this session\'s schedules at the facts beat'), never.content, 'the no-roster words in mapToolResultToToolResultBlockParam in src/tools/ScheduleCronTool/CronListTool.ts must still open with No roster yet when nothing was latched')
+  check('a roster never pushed keeps today\'s words', String(never.content).startsWith('No roster yet — the daemon pushes this session\'s schedules at the facts beat'), never.content, 'the no-roster words in mapToolResultToToolResultBlockParam in src/tools/cron/CronListTool.ts must still open with No roster yet when nothing was latched')
 }
 
 console.log(`\n${checks - failures} passed, ${failures} failed`)

@@ -78,7 +78,7 @@ for (const vendor of ['ripgrep', 'debugpy', 'pyright', 'js-debug', 'TypeScript c
   }
 }
 check('Ink attribution recorded', /Ink.*project.*MIT|vadimdemedes\/ink/s.test(notices))
-check('bundled-skills section present', notices.includes('src/skills/bundled'))
+check('bundled-skills section present', notices.includes('src/integrations/skills/bundled'))
 
 const gen = join(ROOT, 'scripts/distribution/generate-third-party-notices.ts')
 check('generator present + names output', existsSync(gen) && readFileSync(gen, 'utf8').includes('THIRD_PARTY_NOTICES.md'))

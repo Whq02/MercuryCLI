@@ -1,5 +1,5 @@
-import type { LocalCommandCall } from '../../types/command.js'
-import { clearFocusedSession } from '../../services/switchboard/hopIntoSession.js'
+import type { LocalCommandCall } from '../catalogue/command.js'
+import { clearFocusedSession } from '../../daemon/switchboard/hopIntoSession.js'
 
 export const call: LocalCommandCall = async () => {
   const outcome = await clearFocusedSession()

@@ -42,15 +42,15 @@ console.log('============================================================')
 console.log(' launch model policy — the operator’s default at the launch door')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const wm = await import('../../src/services/concourse/workerModels.ts')
+const wm = await import('../../src/screen/concourse-model/workerModels.ts')
 
-type Entry = import('../../src/services/concourse/workerModels.ts').WorkerModelEntryV1
+type Entry = import('../../src/screen/concourse-model/workerModels.ts').WorkerModelEntryV1
 
 section('§1 — the seed: the operator’s own row, or a visible one')
 {
-  fixWhere = 'change defaultWorkerModelId in src/services/concourse/workerModels.ts (operator row first, else first available row, never a refused default)'
+  fixWhere = 'change defaultWorkerModelId in src/screen/concourse-model/workerModels.ts (operator row first, else first available row, never a refused default)'
   const reg = (entries: Entry[]) => ({ schema: 1 as const, entries })
   const available = { session: { availability: 'available' }, crew: { availability: 'available' } } as const
   const refusedBothArms = {
@@ -87,8 +87,8 @@ section('§1 — the seed: the operator’s own row, or a visible one')
 
 section('§2 — the live composition marks and seeds the operator’s default')
 {
-  fixWhere = 'change composeWorkerModelRegistry, canonicalWorkerModelId, defaultWorkerModelId or validateWorkerModelChoice in src/services/concourse/workerModels.ts (the registry must mark the engine default as the one isOperatorDefault row)'
-  const { getEngineModel } = await import('../../src/services/model/model.ts')
+  fixWhere = 'change composeWorkerModelRegistry, canonicalWorkerModelId, defaultWorkerModelId or validateWorkerModelChoice in src/screen/concourse-model/workerModels.ts (the registry must mark the engine default as the one isOperatorDefault row)'
+  const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
   const operatorDefault = await wm.canonicalWorkerModelId(getEngineModel())
   const registry = await wm.composeWorkerModelRegistry()
   const marked = registry.entries.filter(e => e.isOperatorDefault === true)

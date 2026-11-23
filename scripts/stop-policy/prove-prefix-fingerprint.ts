@@ -6,13 +6,13 @@ process.env.NODE_ENV = 'test'
 import { join } from 'node:path'
 
 const { fingerprintCacheablePrefix, diffPrefixFingerprints } = await import(
-  '../../src/services/api/prefixFingerprint.ts'
+  '../../src/engine/requests/prefixFingerprint.ts'
 )
-const { buildSystemPromptBlocks } = await import('../../src/services/providers/anthropic/cacheAndUsage.ts')
+const { buildSystemPromptBlocks } = await import('../../src/models/roads/anthropic/cacheAndUsage.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: read fingerprintCacheablePrefix and diffPrefixFingerprints in src/services/api/prefixFingerprint.ts, and buildSystemPromptBlocks in src/services/providers/anthropic/cacheAndUsage.ts, which produces the blocks being fingerprinted' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: read fingerprintCacheablePrefix and diffPrefixFingerprints in src/engine/requests/prefixFingerprint.ts, and buildSystemPromptBlocks in src/models/roads/anthropic/cacheAndUsage.ts, which produces the blocks being fingerprinted' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

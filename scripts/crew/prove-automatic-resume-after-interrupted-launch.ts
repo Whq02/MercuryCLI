@@ -10,24 +10,24 @@ process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 const root = join(proofHome, 'work')
 mkdirSync(root, { recursive: true })
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(root)
 bootstrap.setProjectRoot(root)
 bootstrap.setCwdState(root)
 bootstrap.switchSession('00000000-0000-4000-8000-000000000923' as never, root)
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-await import('../../src/tasks.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { getCommandQueue, resetCommandQueue } = await import('../../src/input-core/command-queue.ts')
-const { registerAsyncAgent, failAgentTask } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { writeAgentMetadata } = await import('../../src/utils/sessionStorage/paths.ts')
-const { recordSidechainTranscript, flushSessionStorage } = await import('../../src/utils/sessionStorage/writer.ts')
-const { readAgentPauseRecord } = await import('../../src/tasks/LocalAgentTask/pauseCarry.ts')
-const { armBudgetCutResume, armOverloadProbe, automaticResumePending, closeOverloadEpisode } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+await import('../../src/engine/tasks/tasks.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { getCommandQueue, resetCommandQueue } = await import('../../src/screen/composer/input-core/command-queue.ts')
+const { registerAsyncAgent, failAgentTask } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { writeAgentMetadata } = await import('../../src/sessions/transcripts/paths.ts')
+const { recordSidechainTranscript, flushSessionStorage } = await import('../../src/sessions/transcripts/writer.ts')
+const { readAgentPauseRecord } = await import('../../src/engine/tasks/local-agent/pauseCarry.ts')
+const { armBudgetCutResume, armOverloadProbe, automaticResumePending, closeOverloadEpisode } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 type AppState = ReturnType<typeof getDefaultAppState>
 
 let checks = 0
@@ -36,7 +36,7 @@ function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
   const arm = /provider answers/.test(label) ? 'armOverloadProbe' : 'armBudgetCutResume'
-  const hint = `${arm} in src/tools/AgentTool/agentToolUtils.ts arms the automatic resume of a paused crewmate; its timer must resume the crewmate from its transcript even when the launching turn was aborted, and lift the row's pause when it cannot`
+  const hint = `${arm} in src/tools/crewmate/crewmateLifecycle.ts arms the automatic resume of a paused crewmate; its timer must resume the crewmate from its transcript even when the launching turn was aborted, and lift the row's pause when it cannot`
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${[typeof detail === 'string' ? detail : JSON.stringify(detail), hint].filter(Boolean).join('; ')}` : ''}`)
 }
 const settle = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))

@@ -59,7 +59,7 @@ console.log('\nSessionManagerView — ownSessionRecord catches malformed worker 
       ...real,
       readSessionWorkers: () => { throw new TypeError('worker-bug') },
     }))
-    const mod = await import(${JSON.stringify(join(SRC, 'components/mercury-ui/screens/SessionManagerView.tsx'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'screen/widgets/faces/SessionManagerView.tsx'))})
     try {
       out.value = mod.ownSessionRecord('sess-1') ?? null
       out.threw = null
@@ -73,7 +73,7 @@ console.log('\nSessionManagerView — ownSessionRecord catches malformed worker 
 console.log('\nFilePermissionDialog — resolveSymlinkTarget resolves dangling symlinks so outside-workspace warning shows')
 {
   const r = runScenario(`
-    const mod = await import(${JSON.stringify(join(SRC, 'components/permissions/FilePermissionDialog/FilePermissionDialog.tsx'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'permissions/cards/file-dialog/FilePermissionDialog.tsx'))})
     const outsideTarget = path.join(SCRATCH, 'outside-new-file.txt')
     const linkPath = path.join(PROJECT, 'dangling-link.txt')
     const plainPath = path.join(PROJECT, 'plain.txt')
@@ -120,7 +120,7 @@ console.log('\nmcp — buildServePermissionContext refuses to drop deny rules wh
       ...real,
       loadAllPermissionRulesFromDisk: () => { throw new Error('EACCES: permission rules unreadable') },
     }))
-    const mod = await import(${JSON.stringify(join(SRC, 'entrypoints/mcp.ts'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'integrations/mcp/mcpServer.ts'))})
     out.hasExport = typeof mod.buildServePermissionContext === 'function'
     try {
       if (out.hasExport) await mod.buildServePermissionContext()
@@ -136,7 +136,7 @@ console.log('\ncontributions — unreadable folders and markdown files report un
 if (!POSIX_MODES) skip('contributions unreadable folder and file', 'chmod 0o000/0o200 needs non-root POSIX')
 else {
   const r = runScenario(`
-    const mod = await import(${JSON.stringify(join(SRC, 'extensions/load/contributions.ts'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'integrations/extensions/load/contributions.ts'))})
     const root = path.join(SCRATCH, 'ext-contrib')
     const skillsDir = path.join(root, 'skills')
     const lockedSkills = path.join(root, 'locked-skills')
@@ -183,7 +183,7 @@ else {
 console.log('\nroster — unreadable project extension entries and directory report in roster.problems')
 {
   const r = runScenario(`
-    const mod = await import(${JSON.stringify(join(SRC, 'extensions/roster.ts'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'integrations/extensions/roster.ts'))})
     const projExt = path.join(PROJECT, '.mercury', 'extensions')
     fs.mkdirSync(projExt, { recursive: true })
     try {
@@ -227,7 +227,7 @@ console.log('\nsources — unreadable local archive reports archive unreadable i
 if (!POSIX_MODES) skip('sources unreadable local archive', 'chmod 0o200 needs non-root POSIX')
 else {
   const r = runScenario(`
-    const mod = await import(${JSON.stringify(join(SRC, 'extensions/sources.ts'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'integrations/extensions/sources.ts'))})
     const locked = path.join(SCRATCH, 'locked.zip')
     const missing = path.join(SCRATCH, 'absent.zip')
     fs.writeFileSync(locked, 'not-a-zip')
@@ -255,7 +255,7 @@ console.log('\nPaletteView — failed command load reports the error instead of 
       ...real,
       getCommands: async () => { throw new Error('EACCES: commands dir unreadable') },
     }))
-    const mod = await import(${JSON.stringify(join(SRC, 'components/mercury-ui/PaletteView.tsx'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'screen/widgets/PaletteView.tsx'))})
     out.hasExport = typeof mod.loadPaletteRows === 'function' && typeof mod.paletteLoadErrorLine === 'function'
     if (out.hasExport) {
       const loaded = await mod.loadPaletteRows(PROJECT)
@@ -270,7 +270,7 @@ console.log('\nFileEditPermissionRequest — unreadable file reports unreadable 
 if (!POSIX_MODES) skip('FileEditPermissionRequest unreadable file', 'chmod 0o200 needs non-root POSIX')
 else {
   const r = runScenario(`
-    const mod = await import(${JSON.stringify(join(SRC, 'components/permissions/FileEditPermissionRequest/FileEditPermissionRequest.tsx'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'permissions/cards/file-edit/FileEditPermissionRequest.tsx'))})
     out.hasExport = typeof mod.previewEditOutcome === 'function'
     if (out.hasExport) {
       const locked = path.join(PROJECT, 'locked.txt')
@@ -294,7 +294,7 @@ else {
 console.log('\nSessionManagerView — failed session switch reports the error instead of silently staying put')
 {
   const r = runScenario(`
-    const mod = await import(${JSON.stringify(join(SRC, 'components/mercury-ui/screens/SessionManagerView.tsx'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'screen/widgets/faces/SessionManagerView.tsx'))})
     out.hasExport = typeof mod.runSessionSwitch === 'function'
     if (out.hasExport) {
       out.failed = await mod.runSessionSwitch(

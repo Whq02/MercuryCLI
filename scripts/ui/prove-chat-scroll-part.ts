@@ -17,19 +17,19 @@ function section(title: string, hint = ''): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 
-const cursorStore = { ...(await import('../../src/components/messageCursorStore.ts')) }
+const cursorStore = { ...(await import('../../src/screen/messages/messageCursorStore.ts')) }
 const cursorWrites: unknown[] = []
-mock.module('../../src/components/messageCursorStore.ts', () => ({
+mock.module('../../src/screen/messages/messageCursorStore.ts', () => ({
   ...cursorStore,
   setMessageCursor: (next: Parameters<typeof cursorStore.setMessageCursor>[0]) => {
     cursorWrites.push(next)
     cursorStore.setMessageCursor(next)
   },
 }))
-const { useChatScroll, useChatScrollFollow, useChatScrollPin } = await import('../../src/screens/chat/useChatScroll.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-type Message = import('../../src/types/message.ts').Message
-type ScrollRestore = import('../../src/screens/chat/useChatScroll.ts').ScrollRestore
+const { useChatScroll, useChatScrollFollow, useChatScrollPin } = await import('../../src/screen/chat/useChatScroll.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type ScrollRestore = import('../../src/screen/chat/useChatScroll.ts').ScrollRestore
 
 const box = { height: 100, viewport: 20, top: 80, sticky: false, calls: [] as string[] }
 const handle = {
@@ -51,7 +51,7 @@ const handle = {
 const user = (text: string): Message => createUserMessage({ content: text }) as Message
 const assistant = (text: string): Message => createAssistantMessage({ content: text }) as Message
 
-section('§1 the pin alone: the handle of the scroll box and the way back to the bottom', 'what to change: useChatScrollPin (repinToBottom, noteUserScroll and the refs) in src/screens/chat/useChatScroll.ts')
+section('§1 the pin alone: the handle of the scroll box and the way back to the bottom', 'what to change: useChatScrollPin (repinToBottom, noteUserScroll and the refs) in src/screen/chat/useChatScroll.ts')
 {
   const pin = await mountPart(() => useChatScrollPin())
   const first = pin.value()
@@ -68,7 +68,7 @@ section('§1 the pin alone: the handle of the scroll box and the way back to the
   pin.unmount()
 }
 
-section('§2 the fold line: what is unseen below a reader who scrolled away', 'what to change: onScroll, onPillClick, unseenDivider and newMessageCount in useChatScroll, src/screens/chat/useChatScroll.ts')
+section('§2 the fold line: what is unseen below a reader who scrolled away', 'what to change: onScroll, onPillClick, unseenDivider and newMessageCount in useChatScroll, src/screen/chat/useChatScroll.ts')
 {
   let rows: Message[] = [user('first question'), assistant('first answer')]
   let fullscreen = true
@@ -108,7 +108,7 @@ section('§2 the fold line: what is unseen below a reader who scrolled away', 'w
   check('and it too leaves the message cursor where it stands', (cursorStore.getMessageCursor() as { uuid?: string } | null)?.uuid === 'u2', JSON.stringify(cursorStore.getMessageCursor()))
   cursorStore.setMessageCursor(null)
 
-  section('§3 the scroll kept across a flip of the view', 'what to change: captureScrollForFlip and the setFlipGeneration restore effect in useChatScroll, src/screens/chat/useChatScroll.ts')
+  section('§3 the scroll kept across a flip of the view', 'what to change: captureScrollForFlip and the setFlipGeneration restore effect in useChatScroll, src/screen/chat/useChatScroll.ts')
   scrollRef.current = null as never
   part.value().captureScrollForFlip()
   check('with no scroll box there is nothing to keep', scrollRestoreRef.current === null)
@@ -145,7 +145,7 @@ section('§2 the fold line: what is unseen below a reader who scrolled away', 'w
   part.unmount()
 }
 
-section('§4 the pin on a human turn', 'what to change: useChatScrollFollow in src/screens/chat/useChatScroll.ts')
+section('§4 the pin on a human turn', 'what to change: useChatScrollFollow in src/screen/chat/useChatScroll.ts')
 {
   let rows: Message[] = [assistant('an answer')]
   let pins = 0

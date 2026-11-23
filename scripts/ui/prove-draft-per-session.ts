@@ -9,7 +9,7 @@ mkdirSync(join(SCRATCH, 'home'), { recursive: true })
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 
 let failures = 0
-const DRAFT_STORE_HINT = 'fix rekeyToSession, flushDrafts or readDraftFor in src/input-core/pending-input.ts so each session keeps its own draft'
+const DRAFT_STORE_HINT = 'fix rekeyToSession, flushDrafts or readDraftFor in src/screen/composer/input-core/pending-input.ts so each session keeps its own draft'
 const check = (label: string, cond: boolean, detail = '', hint = DRAFT_STORE_HINT): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${hint}`}`)
@@ -17,10 +17,10 @@ const check = (label: string, cond: boolean, detail = '', hint = DRAFT_STORE_HIN
 
 
 console.log('\n§2 the six teeth (real store · real per-session disk layer)')
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const p = await import('../../src/input-core/pending-input.ts')
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
+const p = await import('../../src/screen/composer/input-core/pending-input.ts')
+const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
 
 p.resetPendingInputForTests()
 p.initSession('session-A', '')

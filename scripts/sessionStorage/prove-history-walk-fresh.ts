@@ -23,9 +23,9 @@ function section(t: string): void {
 }
 const settle = (ms = 60): Promise<void> => new Promise(r => setTimeout(r, ms))
 
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(cwd)
-const history = await import('../../src/history.ts')
+const history = await import('../../src/sessions/promptHistory.ts')
 const quiet = (): boolean => {
   const h = history.getHistoryFlushHealth()
   return h.pending === 0 && !h.inFlight
@@ -66,26 +66,26 @@ section('§1 the writer: one record per taken line, the cockpit\'s project and s
   for (const line of BEFORE_FOLD) history.addToHistory(line)
   await flushed()
   const rows = onDisk()
-  check('three taken lines are three records, in the order they were taken', rows.map(r => r.display).join(' | ') === BEFORE_FOLD.join(' | '), `${rows.map(r => r.display).join(' | ')}; fix addToHistory and the flush in src/history.ts to write one record per taken line, in order`)
-  check('every record carries the cockpit\'s project', rows.every(r => r.project === project), `${JSON.stringify(rows.map(r => r.project))}; fix addToHistory in src/history.ts to stamp each record with getProjectRoot()`)
-  check('every record carries the cockpit\'s session id', rows.every(r => r.sessionId === session), `${JSON.stringify(rows.map(r => r.sessionId))}; fix addToHistory in src/history.ts to stamp each record with getSessionId()`)
+  check('three taken lines are three records, in the order they were taken', rows.map(r => r.display).join(' | ') === BEFORE_FOLD.join(' | '), `${rows.map(r => r.display).join(' | ')}; fix addToHistory and the flush in src/sessions/promptHistory.ts to write one record per taken line, in order`)
+  check('every record carries the cockpit\'s project', rows.every(r => r.project === project), `${JSON.stringify(rows.map(r => r.project))}; fix addToHistory in src/sessions/promptHistory.ts to stamp each record with getProjectRoot()`)
+  check('every record carries the cockpit\'s session id', rows.every(r => r.sessionId === session), `${JSON.stringify(rows.map(r => r.sessionId))}; fix addToHistory in src/sessions/promptHistory.ts to stamp each record with getSessionId()`)
   const olderCockpit = { display: 'a line from an older cockpit', pastedContents: {}, timestamp: Date.now() + 1, project, sessionId: 'another-cockpit' }
   const otherProject = { display: 'a line from another project', pastedContents: {}, timestamp: Date.now() + 2, project: `${project}-other`, sessionId: session }
   appendFileSync(filePath, `${JSON.stringify(olderCockpit)}\n${JSON.stringify(otherProject)}\n`)
   const walk = await walkOf()
-  check('the up-arrow reader yields this session\'s lines first, newest first, then the older cockpit\'s', walk.join(' | ') === [...BEFORE_FOLD.slice().reverse(), olderCockpit.display].join(' | '), `${walk.join(' | ')}; fix getHistory in src/history.ts to yield this session lines first, then the older cockpit lines`)
-  check('another project\'s line never enters the walk', !walk.includes(otherProject.display), `walk=${walk.join(' | ')}; fix getHistory in src/history.ts to skip records of another project`)
+  check('the up-arrow reader yields this session\'s lines first, newest first, then the older cockpit\'s', walk.join(' | ') === [...BEFORE_FOLD.slice().reverse(), olderCockpit.display].join(' | '), `${walk.join(' | ')}; fix getHistory in src/sessions/promptHistory.ts to yield this session lines first, then the older cockpit lines`)
+  check('another project\'s line never enters the walk', !walk.includes(otherProject.display), `walk=${walk.join(' | ')}; fix getHistory in src/sessions/promptHistory.ts to skip records of another project`)
 }
 
 
 section('§3 the walk (the real hook, headless): after a fold and more lines, ↑ recalls what was typed after the earlier walk')
 {
   const React = await import('react')
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
-  const { render } = await import('../../src/ink.js')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { useArrowKeyHistory } = await import('../../src/hooks/useArrowKeyHistory.js')
+  const { render } = await import('../../src/screen/themedRenderer.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { useArrowKeyHistory } = await import('../../src/screen/composer/useArrowKeyHistory.js')
   type Api = ReturnType<typeof useArrowKeyHistory>
   let api: Api | null = null
   let setHostMode: ((mode: 'prompt' | 'bash') => void) | null = null
@@ -105,7 +105,7 @@ section('§3 the walk (the real hook, headless): after a fold and more lines, �
   const h = React.createElement as (...a: unknown[]) => React.ReactElement
   const instance = await render(h(AppStateProvider as never, {}, h(Host as never, {})), { stdout, stdin, exitOnCtrlC: false, patchConsole: false })
   await settle()
-  check('the hook rendered', api !== null && setHostMode !== null, 'useArrowKeyHistory in src/hooks/useArrowKeyHistory.tsx did not render in the headless host; check that it still mounts under AppStateProvider')
+  check('the hook rendered', api !== null && setHostMode !== null, 'useArrowKeyHistory in src/screen/composer/useArrowKeyHistory.tsx did not render in the headless host; check that it still mounts under AppStateProvider')
   const walk = (): Api => api as Api
   const press = async (key: 'up' | 'down'): Promise<string> => {
     applied.length = 0
@@ -114,25 +114,25 @@ section('§3 the walk (the real hook, headless): after a fold and more lines, �
     await settle()
     return applied.at(-1)?.value ?? '(nothing)'
   }
-  check('the first walk, before the fold: ↑ recalls the newest line', (await press('up')) === LINES.m3, `expected "${LINES.m3}"; fix onHistoryUp in src/hooks/useArrowKeyHistory.tsx and getHistory in src/history.ts`)
-  check('↓ returns to the empty draft', (await press('down')) === '', 'fix onHistoryDown in src/hooks/useArrowKeyHistory.tsx to return to the empty draft')
+  check('the first walk, before the fold: ↑ recalls the newest line', (await press('up')) === LINES.m3, `expected "${LINES.m3}"; fix onHistoryUp in src/screen/composer/useArrowKeyHistory.tsx and getHistory in src/sessions/promptHistory.ts`)
+  check('↓ returns to the empty draft', (await press('down')) === '', 'fix onHistoryDown in src/screen/composer/useArrowKeyHistory.tsx to return to the empty draft')
   for (const line of FROM_FOLD) history.addToHistory(line)
   await flushed()
-  check('the fold and four more lines are on the file (eight records of this cockpit and project)', onDisk().filter(r => r.sessionId === session && r.project === project).map(r => r.display).join(' | ') === [...BEFORE_FOLD, ...FROM_FOLD].join(' | '), 'fix addToHistory and the flush in src/history.ts so every taken line reaches history.jsonl')
+  check('the fold and four more lines are on the file (eight records of this cockpit and project)', onDisk().filter(r => r.sessionId === session && r.project === project).map(r => r.display).join(' | ') === [...BEFORE_FOLD, ...FROM_FOLD].join(' | '), 'fix addToHistory and the flush in src/sessions/promptHistory.ts so every taken line reaches history.jsonl')
   const census = history.historyIoCensus
   census.reads = 0
   const first = await press('up')
   check(`the walk after the fold: ↑ recalls "${LINES.m7}", the newest line`, first === LINES.m7, `the walk recalled "${first}" — the five lines typed after the earlier walk are missing from the arrow, while all eight are in history.jsonl`)
   const seen = [first]
   for (let i = 1; i < 10; i++) seen.push(await press('up'))
-  check('eight presses walk all eight lines newest first; the ninth reaches the older cockpit\'s line; the tenth rests', seen.slice(0, 8).join(' | ') === ALL_NEWEST_FIRST.join(' | ') && seen[8] === 'a line from an older cockpit' && seen[9] === '(nothing)', `${seen.join(' | ')}; fix onHistoryUp in src/hooks/useArrowKeyHistory.tsx and getHistory in src/history.ts so the walk covers every line newest first`)
-  check('the walk cost one whole-file read (batched per walk, not per press)', census.reads === 1, `${census.reads} reads; fix onHistoryUp in src/hooks/useArrowKeyHistory.tsx to load one batch per walk instead of reading per press`)
+  check('eight presses walk all eight lines newest first; the ninth reaches the older cockpit\'s line; the tenth rests', seen.slice(0, 8).join(' | ') === ALL_NEWEST_FIRST.join(' | ') && seen[8] === 'a line from an older cockpit' && seen[9] === '(nothing)', `${seen.join(' | ')}; fix onHistoryUp in src/screen/composer/useArrowKeyHistory.tsx and getHistory in src/sessions/promptHistory.ts so the walk covers every line newest first`)
+  check('the walk cost one whole-file read (batched per walk, not per press)', census.reads === 1, `${census.reads} reads; fix onHistoryUp in src/screen/composer/useArrowKeyHistory.tsx to load one batch per walk instead of reading per press`)
   for (let i = 0; i < 10; i++) await press('down')
   walk().resetHistory()
   history.addToHistory(LINES.m3)
   await flushed()
-  check('a line re-sent from history (↑ then ↵, the take resets the walk) is the newest on the next ↑', (await press('up')) === LINES.m3, 'fix resetHistory in src/hooks/useArrowKeyHistory.tsx to reload the walk so a re-sent line is the newest')
-  check('…and the older copy follows, then the rest', (await press('up')) === LINES.m7, 'fix onHistoryUp in src/hooks/useArrowKeyHistory.tsx to continue to the older copy and the rest after a re-sent line')
+  check('a line re-sent from history (↑ then ↵, the take resets the walk) is the newest on the next ↑', (await press('up')) === LINES.m3, 'fix resetHistory in src/screen/composer/useArrowKeyHistory.tsx to reload the walk so a re-sent line is the newest')
+  check('…and the older copy follows, then the rest', (await press('up')) === LINES.m7, 'fix onHistoryUp in src/screen/composer/useArrowKeyHistory.tsx to continue to the older copy and the rest after a re-sent line')
   for (let i = 0; i < 3; i++) await press('down')
   walk().resetHistory()
   history.addToHistory('!ls -la')
@@ -140,8 +140,8 @@ section('§3 the walk (the real hook, headless): after a fold and more lines, �
   setHostMode!('bash')
   await settle()
   const shell = await press('up')
-  check('a bash-mode walk keeps its filter: the shell line comes back stripped, in bash mode', shell === 'ls -la' && applied.at(-1)?.mode === 'bash', `${JSON.stringify(applied.at(-1))}; fix onHistoryUp in src/hooks/useArrowKeyHistory.tsx to filter by bash mode and strip the shell prefix`)
-  check('…and a prompt line never enters the bash walk', (await press('up')) === '(nothing)', `${JSON.stringify(applied)}; fix onHistoryUp in src/hooks/useArrowKeyHistory.tsx so the bash walk skips prompt lines`)
+  check('a bash-mode walk keeps its filter: the shell line comes back stripped, in bash mode', shell === 'ls -la' && applied.at(-1)?.mode === 'bash', `${JSON.stringify(applied.at(-1))}; fix onHistoryUp in src/screen/composer/useArrowKeyHistory.tsx to filter by bash mode and strip the shell prefix`)
+  check('…and a prompt line never enters the bash walk', (await press('up')) === '(nothing)', `${JSON.stringify(applied)}; fix onHistoryUp in src/screen/composer/useArrowKeyHistory.tsx so the bash walk skips prompt lines`)
   instance.unmount()
 }
 

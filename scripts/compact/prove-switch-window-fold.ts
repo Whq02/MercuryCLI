@@ -10,13 +10,13 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}fix by section: W0 resolveAutoCompactWindow / getBlockingLimit (src/utils/compact/autoCompactWindow.ts), W1 to W3 the fold and its notice in query (src/query.ts) and overflowRecoveryNotice (src/services/compact/overflowRecovery.ts), W3 to W4 foldModelFor (src/services/compact/autoCompact.ts), W3b call in src/commands/compact/compact.ts, W5 measureOverflow and overflowRefusalText (src/services/compact/overflowRecovery.ts), W6 buildTransitionPlan and transitionPlanSummary (src/services/providers/transitionPreview.ts) and windowRowWords (src/components/TransitionPreviewCard.tsx)` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}fix by section: W0 resolveAutoCompactWindow / getBlockingLimit (src/engine/compaction-window/autoFoldWindow.ts), W1 to W3 the fold and its notice in query (src/engine/turnDoor.ts) and overflowRecoveryNotice (src/engine/compaction/overflowRecovery.ts), W3 to W4 foldModelFor (src/engine/compaction/autoFold.ts), W3b call in src/commands/compact/compact.ts, W5 measureOverflow and overflowRefusalText (src/engine/compaction/overflowRecovery.ts), W6 buildTransitionPlan and transitionPlanSummary (src/models/roads/transitionPreview.ts) and windowRowWords (src/commands/model/TransitionPreviewCard.tsx)` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — switch-window fold prover exceeded 240s; a drive of query (src/query.ts) or the manual compact call (src/commands/compact/compact.ts) against the overflow fixture (scripts/compact/overflowFixture.ts) did not finish, read the last section header printed above')
+  console.log('\nTIMEOUT — switch-window fold prover exceeded 240s; a drive of query (src/engine/turnDoor.ts) or the manual compact call (src/commands/compact/compact.ts) against the overflow fixture (scripts/compact/overflowFixture.ts) did not finish, read the last section header printed above')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()
@@ -44,26 +44,26 @@ console.log('============================================================')
 console.log(' the switch and the window — the real fold over the loopback')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/query.ts')
-const { productionDeps } = await import('../../src/query/deps.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { contextFill } = await import('../../src/services/context/tokens.ts')
-const { primeOpenaiCatalogue } = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const autoCompactModule = await import('../../src/services/compact/autoCompact.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { contextFill } = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { primeOpenaiCatalogue } = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const autoCompactModule = await import('../../src/engine/compaction/autoFold.ts')
 const { getBlockingLimit, resolveAutoCompactWindow } = autoCompactModule
 const foldModelFor = (autoCompactModule as Partial<typeof autoCompactModule>).foldModelFor
-const previewModule = await import('../../src/services/providers/transitionPreview.ts')
+const previewModule = await import('../../src/models/roads/transitionPreview.ts')
 const { buildTransitionPlan, transitionPlanSummary, transitionCapabilityEpoch } = previewModule
 const transitionWindowFact = (previewModule as Partial<typeof previewModule>).transitionWindowFact
-const cardModule = await import('../../src/components/TransitionPreviewCard.tsx')
+const cardModule = await import('../../src/commands/model/TransitionPreviewCard.tsx')
 const windowRowWords = (cardModule as Partial<typeof cardModule>).windowRowWords
-const recoveryModule = await import('../../src/services/compact/overflowRecovery.ts')
+const recoveryModule = await import('../../src/engine/compaction/overflowRecovery.ts')
 const { overflowRecoveryNotice, overflowRefusalText } = recoveryModule
 const measureOverflow = (recoveryModule as Partial<typeof recoveryModule>).measureOverflow
 const absent = (name: string): never => {

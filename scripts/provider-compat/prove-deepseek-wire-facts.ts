@@ -1,9 +1,9 @@
 import { proofHome } from '../lib/hermetic.ts'
 import { rmSync } from 'node:fs'
 import { z } from 'zod/v4'
-import type { Message } from '../../src/types/message.ts'
-import type { Tool } from '../../src/Tool.ts'
-import type { CallModelParams } from '../../src/services/providers/callModelContract.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
+import type { Tool } from '../../src/tools/kit/tool.ts'
+import type { CallModelParams } from '../../src/models/roads/callModelContract.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const key of Object.keys(process.env)) {
@@ -35,28 +35,28 @@ const server = Bun.serve({
 })
 process.env.MERCURY_DEEPSEEK_API_BASE = server.url.origin
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { routedCallModel, settleAssistantTurn } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { getContextWindowForModel, getModelMaxOutputTokens, modelReceivesImageBlocks, resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
-const { decodeDeepseekModel, refreshDeepseekCatalogue, deepseekCatalogueRows, __resetDeepseekCatalogueForTest } = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts')
-const { deepseekCatalogueEntry } = await import('../../src/services/providers/deepseek/deepseekAdapter.ts')
-const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
-const { mapMessagesToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
+const { routedCallModel, settleAssistantTurn } = await import('../../src/models/roads/callModelRouter.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { getContextWindowForModel, getModelMaxOutputTokens, modelReceivesImageBlocks, resolveContextWindow } = await import('../../src/models/facts/capabilities.ts')
+const { decodeDeepseekModel, refreshDeepseekCatalogue, deepseekCatalogueRows, __resetDeepseekCatalogueForTest } = await import('../../src/models/roads/deepseek/deepseekCatalogue.ts')
+const { deepseekCatalogueEntry } = await import('../../src/models/roads/deepseek/deepseekAdapter.ts')
+const { deferralWireFormFor } = await import('../../src/models/roads/deferralWire.ts')
+const { mapMessagesToZai } = await import('../../src/models/roads/zai/zaiCodec.ts')
 
 let failures = 0
 let checks = 0
 const wireFactHints: Record<string, string> = {
-  D1: 'change keepsReasoningHistory in deepseekLaneProfile (src/services/providers/deepseek/deepseekCallModel.ts), the reasoning replay the request carries',
-  D2: 'change modelReceivesImageBlocks in src/utils/model/capabilities.ts, or the image mapping of the DeepSeek request',
-  D3: 'change getContextWindowForModel or getModelMaxOutputTokens in src/utils/model/capabilities.ts, or the max_tokens clamp on the request',
-  D4: 'change decodeDeepseekModel or refreshDeepseekCatalogue in src/services/providers/deepseek/deepseekCatalogue.ts, or resolveContextWindow in src/utils/model/capabilities.ts',
-  D5: 'change deferralWireFormFor in src/services/providers/deferralWire.ts, or how admitted deferred tools ride the DeepSeek request',
+  D1: 'change keepsReasoningHistory in deepseekLaneProfile (src/models/roads/deepseek/deepseekCallModel.ts), the reasoning replay the request carries',
+  D2: 'change modelReceivesImageBlocks in src/models/facts/capabilities.ts, or the image mapping of the DeepSeek request',
+  D3: 'change getContextWindowForModel or getModelMaxOutputTokens in src/models/facts/capabilities.ts, or the max_tokens clamp on the request',
+  D4: 'change decodeDeepseekModel or refreshDeepseekCatalogue in src/models/roads/deepseek/deepseekCatalogue.ts, or resolveContextWindow in src/models/facts/capabilities.ts',
+  D5: 'change deferralWireFormFor in src/models/roads/deferralWire.ts, or how admitted deferred tools ride the DeepSeek request',
   D6: 'change how the DeepSeek request maps toolChoice to tool_choice',
 }
 function check(label: string, ok: boolean, detail?: unknown): void {

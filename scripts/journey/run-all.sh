@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: scripts/lib/seedTranscript.ts
-# gate-watch: src/guards/mission* src/utils/mission/missionCard* src/services/resume/sessionRestore*
-# gate-watch: src/services/providers/anthropic/** src/services/providers/toolEconomy.ts src/services/api/dumpPrompts.ts
-# gate-watch: src/components/mercury-ui/parity/AccountView* src/services/providers/accountSlots.ts
-# gate-watch: src/components/mercury-ui/screens/anthropicLoginModel* src/services/oauth/** src/components/BootLoginsScreen*
+# gate-watch: src/permissions/guards/mission.ts src/sessions/mission-card/missionCard.ts src/sessions/resume/sessionRestore.ts
+# gate-watch: src/models/roads/anthropic/anthropicAdapter.ts src/models/roads/anthropic/anthropicCatalogue.ts src/models/roads/anthropic/anthropicClient.ts src/models/roads/anthropic/anthropicLogin.ts src/models/roads/anthropic/anthropicStream.ts src/models/roads/anthropic/anthropicUsageState.ts src/models/roads/anthropic/anthropicWorkspace.ts src/models/roads/anthropic/boundPrefixRecord.ts src/models/roads/anthropic/cacheAndUsage.ts src/models/roads/anthropic/cacheDiagnostics.ts src/models/roads/anthropic/index.ts src/models/roads/anthropic/media.ts src/models/roads/anthropic/messageEffort.ts src/models/roads/anthropic/messageParams.ts src/models/roads/anthropic/modelRefusal.ts src/models/roads/anthropic/prefixLedger.ts src/models/roads/anthropic/prefixRecordStore.ts src/models/roads/anthropic/requestParams.ts src/models/roads/anthropic/stream-core/** src/models/roads/anthropic/streamCore.ts src/models/roads/anthropic/thinkingBinding.ts src/models/roads/anthropic/thinkingDisplay.ts src/models/roads/anthropic/toolIds.ts src/models/roads/toolEconomy.ts src/engine/requests/dumpPrompts.ts
+# gate-watch: src/screen/widgets/parity/AccountView.tsx src/models/roads/accountSlots.ts
+# gate-watch: src/screen/widgets/faces/anthropicLoginModel.ts src/models/sign-in/oauth/auth-code-listener.ts src/models/sign-in/oauth/client.ts src/models/sign-in/oauth/crypto.ts src/models/sign-in/oauth/index.ts src/models/sign-in/oauth/refresh.ts src/screen/boot-face/BootLoginsScreen.tsx
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* scripts/ui/vshot.py
-# gate-watch: src/components/PromptInput/useCrewBanner.ts
-# gate-watch: src/state/AppStateStore.ts
-# gate-watch: src/tools/AgentTool/agentColorManager.ts
-# gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/utils/platform.ts
-# gate-watch: src/services/model/modelTransition.ts src/components/PromptInput/useComposerModelDoors.tsx
-# gate-watch: src/services/health/sections/crew.ts
+# gate-watch: src/screen/composer/useCrewBanner.ts
+# gate-watch: src/screen/app-state/AppStateStore.ts
+# gate-watch: src/tools/crewmate/crewmateColors.ts
+# gate-watch: src/engine/rows/* src/daemon/runner-wire/*
+# gate-watch: src/platform/environment/platform.ts
+# gate-watch: src/models/catalogue/modelTransition.ts src/screen/composer/useComposerModelDoors.tsx
+# gate-watch: src/platform/health/sections/crew.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

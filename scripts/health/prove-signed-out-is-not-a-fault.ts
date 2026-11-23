@@ -11,7 +11,7 @@ let failures = 0
 function check(name: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    what to change: the auth-anthropic row (status, evidence and fix words for a signed-out install) in src/services/health/sections/auth.ts; no row may read fail and the verdict must stay caution with exit 0; this runs dist/mercury.mjs, so rebuild with `bun run build.ts` first')
+  if (!cond) console.log('    what to change: the auth-anthropic row (status, evidence and fix words for a signed-out install) in src/platform/health/sections/auth.ts; no row may read fail and the verdict must stay caution with exit 0; this runs dist/mercury.mjs, so rebuild with `bun run build.ts` first')
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 

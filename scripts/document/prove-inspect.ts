@@ -5,9 +5,9 @@ import { join } from 'node:path'
 import { PDFDocument, PDFName, PDFString } from 'pdf-lib'
 
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
-const { createDocument } = await import('../../src/tools/DocumentTool/create.ts')
-const { inspectDocument } = await import('../../src/tools/DocumentTool/inspect.ts')
-const { digest } = await import('../../src/tools/DocumentTool/files.ts')
+const { createDocument } = await import('../../src/tools/document/create.ts')
+const { inspectDocument } = await import('../../src/tools/document/inspect.ts')
+const { digest } = await import('../../src/tools/document/files.ts')
 const io = { read: async (path: string) => readFileSync(path), signal: new AbortController().signal }
 const pngBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==', 'base64')
 try {
@@ -21,7 +21,7 @@ try {
     assert.equal(result.files.length, 0)
     assert.equal(map.sha256, digest(readFileSync(output)))
     assert.equal(map.format, format)
-    assert.ok(map.wordCount > 0, `src/tools/DocumentTool/inspect.ts ${format} wordCount expected >0, got ${map.wordCount}`)
+    assert.ok(map.wordCount > 0, `src/tools/document/inspect.ts ${format} wordCount expected >0, got ${map.wordCount}`)
     assert.doesNotMatch(JSON.stringify(map), /PRIVATE_BODY_SENTINEL|Private cell/)
     if (format === 'docx') {
       assert.equal(map.outline[0].title, 'Outline title')

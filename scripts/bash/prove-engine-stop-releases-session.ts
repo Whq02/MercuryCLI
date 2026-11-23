@@ -16,7 +16,7 @@ process.env.FAKE_ENGINE_LOG = LOG
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  const failureHint = 'to fix, change the stop, abort and parse-wait paths of runEngineCommand in src/utils/shell/engineSession.ts (the check on the stand-in binary fails before any engine code runs, so read its bun build output instead)'
+  const failureHint = 'to fix, change the stop, abort and parse-wait paths of runEngineCommand in src/platform/shell/engineSession.ts (the check on the stand-in binary fails before any engine code runs, so read its bun build output instead)'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${failureHint}` : ''}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
@@ -74,9 +74,9 @@ const FAKE = join(scratch, process.platform === 'win32' ? 'fake-engine.exe' : 'f
 const built = spawnSync(process.execPath, ['build', '--compile', fakeSource, '--outfile', FAKE], { encoding: 'utf8', windowsHide: true, timeout: 120_000 })
 check('a stand-in engine binary is compiled for this host (the brush pack is not needed)', built.status === 0 && existsSync(FAKE), `${built.status} ${(built.stderr ?? '').slice(0, 300)}`)
 
-const { setCwd } = await import(join(ROOT, 'src/utils/Shell.ts'))
+const { setCwd } = await import(join(ROOT, 'src/platform/shell/shellExec.ts'))
 setCwd(scratch)
-const engine = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+const engine = await import(join(ROOT, 'src/platform/shell/engineSession.ts'))
 
 console.log('\n── a stop that lands on an engine command releases its session and keeps the command from running ──')
 if (existsSync(FAKE)) {

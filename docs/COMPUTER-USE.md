@@ -584,4 +584,4 @@ the first capture or act does.
 A held mouse button or key is released when you interrupt, when the turn
 ends, and when Mercury exits. If Mercury is killed in the middle of a
 press, the platform keeps the button down until your next physical click.
-The environment variables are listed in `src/substrate/flagRegistry.ts`.
+The environment variables are listed in `src/platform/substrate/flagRegistry.ts`.

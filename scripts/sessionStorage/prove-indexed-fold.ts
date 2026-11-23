@@ -3,9 +3,9 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const source = process.argv[2] ? resolve(process.argv[2]) : resolve(import.meta.dir, '../..')
-const { applyTranscriptEntry, emptyFoldState } = await import(pathToFileURL(resolve(source, 'src/utils/sessionStorage/fold.ts')).href)
-const { buildConversationChain, applySnipRemovals, isTranscribable } = await import(pathToFileURL(resolve(source, 'src/utils/sessionStorage/chain.ts')).href)
-const { computeResumeLeaves } = await import(pathToFileURL(resolve(source, 'src/utils/sessionStorage/transcriptReader.ts')).href)
+const { applyTranscriptEntry, emptyFoldState } = await import(pathToFileURL(resolve(source, 'src/sessions/transcripts/fold.ts')).href)
+const { buildConversationChain, applySnipRemovals, isTranscribable } = await import(pathToFileURL(resolve(source, 'src/sessions/transcripts/chain.ts')).href)
+const { computeResumeLeaves } = await import(pathToFileURL(resolve(source, 'src/sessions/transcripts/transcriptReader.ts')).href)
 const sessionId = '00000000-0000-4000-8000-000000000001'
 const id = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const stamp = (n: number, parent: number | null) => ({ uuid: id(n), parentUuid: parent === null ? null : id(parent), timestamp: '2026-01-01T00:00:00.000Z', sessionId, cwd: '/proof', version: 'proof', isSidechain: false })
@@ -22,15 +22,15 @@ const entries = [
   user(7, 4, 'next'),
 ]
 for (const row of entries) applyTranscriptEntry(state, row)
-assert.equal(Object.getPrototypeOf(state.messages), Map.prototype, 'the fold state messages must be a native Map: restore it in emptyFoldState in src/utils/sessionStorage/fold.ts')
+assert.equal(Object.getPrototypeOf(state.messages), Map.prototype, 'the fold state messages must be a native Map: restore it in emptyFoldState in src/sessions/transcripts/fold.ts')
 const iter = state.messages.values
 state.messages.values = () => { throw new Error('the conversation view rescanned the whole message map') }
 try {
   const chain = buildConversationChain(state.messages, state.messages.get(id(7)))
-  assert.deepEqual(chain.map((row: any) => row.uuid), [1, 2, 3, 5, 4, 6, 7].map(id), 'the chain for the last prompt lost or reordered parallel results, attached notes or the receipt: fix buildConversationChain in src/utils/sessionStorage/chain.ts')
-  assert.deepEqual([...computeResumeLeaves(state.messages)], [5, 4, 7].map(id), 'the resume leaves are wrong: fix computeResumeLeaves in src/utils/sessionStorage/transcriptReader.ts, which must not scan the whole message map')
+  assert.deepEqual(chain.map((row: any) => row.uuid), [1, 2, 3, 5, 4, 6, 7].map(id), 'the chain for the last prompt lost or reordered parallel results, attached notes or the receipt: fix buildConversationChain in src/sessions/transcripts/chain.ts')
+  assert.deepEqual([...computeResumeLeaves(state.messages)], [5, 4, 7].map(id), 'the resume leaves are wrong: fix computeResumeLeaves in src/sessions/transcripts/transcriptReader.ts, which must not scan the whole message map')
   applyTranscriptEntry(state, assistant(8, 7, 'final'))
-  assert.equal(buildConversationChain(state.messages, state.messages.get(id(8))).at(-1).uuid, id(8), 'a row added after the fold is missing from the chain: fix applyTranscriptEntry in src/utils/sessionStorage/fold.ts or buildConversationChain in chain.ts')
+  assert.equal(buildConversationChain(state.messages, state.messages.get(id(8))).at(-1).uuid, id(8), 'a row added after the fold is missing from the chain: fix applyTranscriptEntry in src/sessions/transcripts/fold.ts or buildConversationChain in chain.ts')
 } finally {
   state.messages.values = iter
 }
@@ -41,7 +41,7 @@ const removed = new Map([
   [id(4), { ...stamp(4, 3), type: 'system', subtype: 'microcompact_boundary', snipMetadata: { removedUuids: [id(2)] } }],
 ])
 applySnipRemovals(removed)
-assert.equal(removed.has(id(2)), false, 'a snipped message is still in the map: fix applySnipRemovals in src/utils/sessionStorage/chain.ts')
-assert.equal(removed.get(id(3)).parentUuid, id(1), 'the child of a snipped message was not re-parented to the kept parent: fix applySnipRemovals in src/utils/sessionStorage/chain.ts')
-assert.equal(isTranscribable({ ...stamp(9, 8), type: 'attachment', attachment: { type: 'hook_success', content: '', capsuleReceipt: { digest: 'proof' } } }), true, 'an attachment that carries a capsule receipt is no longer transcribable: fix isTranscribable in src/utils/sessionStorage/chain.ts')
+assert.equal(removed.has(id(2)), false, 'a snipped message is still in the map: fix applySnipRemovals in src/sessions/transcripts/chain.ts')
+assert.equal(removed.get(id(3)).parentUuid, id(1), 'the child of a snipped message was not re-parented to the kept parent: fix applySnipRemovals in src/sessions/transcripts/chain.ts')
+assert.equal(isTranscribable({ ...stamp(9, 8), type: 'attachment', attachment: { type: 'hook_success', content: '', capsuleReceipt: { digest: 'proof' } } }), true, 'an attachment that carries a capsule receipt is no longer transcribable: fix isTranscribable in src/sessions/transcripts/chain.ts')
 console.log('PASS indexed fold: native Map shape, no whole-map chain or leaf scan, parallel results, attached notes, growth, snip healing, and receipt persistence')

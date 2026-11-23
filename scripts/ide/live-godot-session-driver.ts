@@ -71,8 +71,8 @@ if ('error' in parsed) {
   process.exit(2)
 }
 
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
-const godot = await import('../../src/services/ide/godotSession.js')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.js')
+const godot = await import('../../src/integrations/ide/godotSession.js')
 
 
 if (parsed.mode === 'plumbing') {
@@ -105,8 +105,8 @@ if (process.env.RUN_LIVE !== '1') {
   process.exit(0)
 }
 
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const { findGodotProjectRoot } = await import('../../src/services/lsp/godotLane.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
+const { findGodotProjectRoot } = await import('../../src/integrations/lsp/godotLane.js')
 const root = findGodotProjectRoot(parsed.project ?? process.cwd())
 if (!root) {
   console.error(
@@ -154,7 +154,7 @@ await runWithCwdOverride(root, async () => {
   if (!gdFile) {
     check('journey: a .gd file exists for the symbol leg', false, 'pass --gd <file.gd>')
   } else {
-    const { createLSPServerManager } = await import('../../src/services/lsp/LSPServerManager.js')
+    const { createLSPServerManager } = await import('../../src/integrations/lsp/LSPServerManager.js')
     const { readFileSync } = await import('node:fs')
     const manager = createLSPServerManager()
     await manager.initialize()
@@ -171,7 +171,7 @@ await runWithCwdOverride(root, async () => {
     await manager.shutdown()
   }
 
-  const { createDapSession, removeDapSession } = await import('../../src/services/dap/dapClient.js')
+  const { createDapSession, removeDapSession } = await import('../../src/integrations/debugger/dapClient.js')
   const breakpoints = gdFile && parsed.breakLine ? new Map([[gdFile, [parsed.breakLine]]]) : undefined
   let launched = false
   try {
@@ -215,7 +215,7 @@ await runWithCwdOverride(root, async () => {
     }
 
     if (before.vulcanLane.state === 'armed' && before.vulcan.state === 'reachable') {
-      const { getVulcanClient } = await import('../../src/services/vulcan/vulcanClient.js')
+      const { getVulcanClient } = await import('../../src/integrations/vulcan/vulcanClient.js')
       const client = getVulcanClient()
       if (client) {
         const tree = await client.request('runtime_tree', undefined, 15_000)
@@ -234,7 +234,7 @@ await runWithCwdOverride(root, async () => {
     JSON.stringify(after.dap.sessions),
   )
 
-  const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.js')
+  const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.js')
   await disposeOwner(owner)
 })
 

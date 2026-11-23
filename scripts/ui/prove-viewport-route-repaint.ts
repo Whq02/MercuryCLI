@@ -6,28 +6,28 @@ if (!process.env.MERCURY_CONFIG_DIR || process.env.MERCURY_CREDENTIAL_STORE !== 
   throw new Error('Run this proof through its isolated Node launcher')
 }
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0' }
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { registerBootDoors } = await import('../../src/services/boot/registerDoors.js')
+const { registerBootDoors } = await import('../../src/boot/doors/registerDoors.js')
 registerBootDoors()
 
 const React = (await import('react')).default
-const { Box, Text } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { AppStoreContext, getDefaultAppState } = await import('../../src/state/AppState.js')
-const { createStore } = await import('../../src/state/store.js')
-const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.js')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.js')
-const { ModalContext } = await import('../../src/context/modalContext.js')
-const route = await import('../../src/context/surfaceRoute.js')
-const { default: instances } = await import('../../src/ink/instances.js')
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { AppStoreContext, getDefaultAppState } = await import('../../src/screen/app-state/AppState.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.js')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.js')
+const { ModalContext } = await import('../../src/screen/overlays/modalContext.js')
+const route = await import('../../src/screen/routes/surfaceRoute.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
 const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
 const { default: stripAnsi } = await import('strip-ansi')
 const { runtime, plain, checks } = await import('./viewportRuntime.ts')
 const { check: recordCheck, finish } = checks()
 const ROUTE_REPAINT_FAIL_HINT =
-  'to fix, make a route change (SurfaceRouter in src/components/SurfaceRouter.tsx) or a modal prop change (FullscreenLayout in src/components/FullscreenLayout.tsx) end in one in-place whole-frame paint with no display erase, scrollback clear or alternate-screen switch'
+  'to fix, make a route change (SurfaceRouter in src/screen/routes/SurfaceRouter.tsx) or a modal prop change (FullscreenLayout in src/screen/fullscreen-layout/FullscreenLayout.tsx) end in one in-place whole-frame paint with no display erase, scrollback clear or alternate-screen switch'
 function check(name: string, condition: boolean, detail = ''): void {
   recordCheck(name, condition, condition ? detail : detail ? `${detail}; ${ROUTE_REPAINT_FAIL_HINT}` : ROUTE_REPAINT_FAIL_HINT)
 }

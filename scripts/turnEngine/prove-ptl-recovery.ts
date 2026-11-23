@@ -27,23 +27,23 @@ const foldRoads = (): string[] =>
 import { z } from 'zod/v4'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 const projDir = mkdtempSync(join(tmpdir(), 'ptl-laws-proj-'))
 bootstrap.setOriginalCwd(projDir)
 bootstrap.setProjectRoot(projDir)
 
-const { query } = await import('../../src/query.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import(
-  '../../src/utils/fileStateCache.ts'
+  '../../src/platform/files/fileStateCache.ts'
 )
-const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { query: startTurn } = await import('../../src/query.ts')
+const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/engine/requests/apiErrorRows.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -210,10 +210,10 @@ async function runQuery(opts: {
   return { messages, terminal, api, roads: foldRoads().slice(roadsBefore) }
 }
 
-const FORK_LANE_NOTE = 'summarizeViaCacheSharingFork (src/services/compact/compact.ts) hands a failure of its nested turn to the direct lane and the round goes on: the context runQuery builds must let that turn start (startTurn) and carry what runForkedAgent reads'
+const FORK_LANE_NOTE = 'summarizeViaCacheSharingFork (src/engine/compaction/foldConversation.ts) hands a failure of its nested turn to the direct lane and the round goes on: the context runQuery builds must let that turn start (startTurn) and carry what runForkedAgent reads'
 
-const WIRE_NOTE = 'compare the requests the fixture API saw with the round the loop ran: the proactive fold is autoCompactIfNeeded (src/services/compact/autoCompact.ts), driven from the loop head in src/run-core/turn/makeRequest.ts'
-const LADDER_NOTE = 'the overflow ladder is decideOverflowRecovery (src/services/compact/overflowRecovery.ts), driven from src/run-core/turn/makeRequest.ts and src/run-core/turn/noToolReply.ts'
+const WIRE_NOTE = 'compare the requests the fixture API saw with the round the loop ran: the proactive fold is autoCompactIfNeeded (src/engine/compaction/autoFold.ts), driven from the loop head in src/engine/loop/turn/makeRequest.ts'
+const LADDER_NOTE = 'the overflow ladder is decideOverflowRecovery (src/engine/compaction/overflowRecovery.ts), driven from src/engine/loop/turn/makeRequest.ts and src/engine/loop/turn/noToolReply.ts'
 
 console.log('============================================================')
 console.log(' query()/queryLoop — the PTL single-shot recovery laws')
@@ -239,13 +239,13 @@ section('§1 — over-threshold history: ONE compact round, the summary installs
   const reqs = r.api.messageRequests()
   check('exactly two model calls (compact + main)', reqs.length === 2, `${reqs.length}`)
   check("…and the fold's road record reads the compact call as the fork lane's own summary: one row, fork:summary", r.roads.join(' · ') === 'fork:summary', `${r.roads.join(' · ') || 'no row'} — ${FORK_LANE_NOTE}`)
-  check('call 1 is the COMPACT request (carries the summary instruction)', !!reqs[0] && isCompactRequest(reqs[0]), `${WIRE_NOTE}; the summary prompt is built in src/services/compact/prompt.ts`)
+  check('call 1 is the COMPACT request (carries the summary instruction)', !!reqs[0] && isCompactRequest(reqs[0]), `${WIRE_NOTE}; the summary prompt is built in src/engine/compaction/summariserPrompt.ts`)
   check('the compact request carries the real history', !!reqs[0] && reqs[0].raw.includes('PTL HISTORY NEEDLE alpha'), WIRE_NOTE)
   check('call 2 is the MAIN request (no compact instruction)', !!reqs[1] && !isCompactRequest(reqs[1]), WIRE_NOTE)
   check('the main request rides the COMPACTED view (summary on the wire)', !!reqs[1] && reqs[1].raw.includes('PTL RECOVERY SUMMARY needle'), `the main call must be built from the compacted messages; ${WIRE_NOTE}`)
   check('the compact summary message yields (isCompactSummary)', r.messages.some(m => (m as { isCompactSummary?: boolean }).isCompactSummary === true), `the fold must yield its summary row from the loop head; ${WIRE_NOTE}`)
   check('the main-turn text yields', r.messages.some(m => m.type === 'assistant' && j(m).includes('P1 MAIN TURN')), `the main call after the fold did not yield its reply; ${WIRE_NOTE}`)
-  check("Terminal reason 'completed'", r.terminal?.reason === 'completed', `${r.terminal?.reason} — the turn must end 'completed' after a compact round that fails or succeeds; see src/run-core/turn/makeRequest.ts for where the loop returns another terminal`)
+  check("Terminal reason 'completed'", r.terminal?.reason === 'completed', `${r.terminal?.reason} — the turn must end 'completed' after a compact round that fails or succeeds; see src/engine/loop/turn/makeRequest.ts for where the loop returns another terminal`)
 }
 
 section('§2 — a FAILED compact round (fork + fallback) does not kill the turn; no retry')
@@ -263,9 +263,9 @@ section('§2 — a FAILED compact round (fork + fallback) does not kill the turn
   check('exactly three model calls (fork compact + fallback compact + main)', reqs.length === 3, `${reqs.length}`)
   check("…and the road record reads the round as the two lanes' own: the fork lane handed over on the answer it got (no usable summary), then the direct lane was refused", r.roads.length === 2 && r.roads[0] === 'fork:handover (no usable summary)' && (r.roads[1] ?? '').startsWith('direct:refused'), `${r.roads.join(' · ') || 'no row'} — ${FORK_LANE_NOTE}`)
   check('calls 1+2 are the ONE compact round (both lanes)', !!reqs[0] && !!reqs[1] && isCompactRequest(reqs[0]) && isCompactRequest(reqs[1]), FORK_LANE_NOTE)
-  check('call 3 is the MAIN request over the ORIGINAL history', !!reqs[2] && !isCompactRequest(reqs[2]) && reqs[2].raw.includes('PTL HISTORY NEEDLE alpha'), 'a failed fold must leave the history untouched and not retry (autoCompactIfNeeded in src/services/compact/autoCompact.ts)')
+  check('call 3 is the MAIN request over the ORIGINAL history', !!reqs[2] && !isCompactRequest(reqs[2]) && reqs[2].raw.includes('PTL HISTORY NEEDLE alpha'), 'a failed fold must leave the history untouched and not retry (autoCompactIfNeeded in src/engine/compaction/autoFold.ts)')
   check('the main-turn text yields', r.messages.some(m => m.type === 'assistant' && j(m).includes('P2 MAIN TURN')), `a failed compact round must not end the turn; ${WIRE_NOTE}`)
-  check("Terminal reason 'completed'", r.terminal?.reason === 'completed', `${r.terminal?.reason} — the turn must end 'completed' after a compact round that fails or succeeds; see src/run-core/turn/makeRequest.ts for where the loop returns another terminal`)
+  check("Terminal reason 'completed'", r.terminal?.reason === 'completed', `${r.terminal?.reason} — the turn must end 'completed' after a compact round that fails or succeeds; see src/engine/loop/turn/makeRequest.ts for where the loop returns another terminal`)
 }
 
 section("§3 — failed compact + blocked level: the preempt surfaces PTL, {reason:'blocking_limit'}, no main call")
@@ -282,12 +282,12 @@ section("§3 — failed compact + blocked level: the preempt surfaces PTL, {reas
     },
   })
   const reqs = r.api.messageRequests()
-  check('exactly two model calls (the failed compact round only — the main call is never made)', reqs.length === 2, `${reqs.length} — the preempt in src/run-core/turn/makeRequest.ts must return before the main call`)
+  check('exactly two model calls (the failed compact round only — the main call is never made)', reqs.length === 2, `${reqs.length} — the preempt in src/engine/loop/turn/makeRequest.ts must return before the main call`)
   const ptlYield = r.messages.find(
     m => m.type === 'assistant' && (m as { isApiErrorMessage?: boolean }).isApiErrorMessage === true && j(m).includes(PROMPT_TOO_LONG_ERROR_MESSAGE),
   )
-  check('the synthetic PTL assistant error yields', !!ptlYield, `${j(r.messages).slice(0, 300)} — the preempt in src/run-core/turn/makeRequest.ts must yield the PROMPT_TOO_LONG_ERROR_MESSAGE row before it returns`)
-  check("Terminal reason 'blocking_limit'", r.terminal?.reason === 'blocking_limit', `${r.terminal?.reason} — the preempt in src/run-core/turn/makeRequest.ts returns blocking_limit when the fold failed and the level is blocked (MERCURY_BLOCKING_LIMIT_OVERRIDE)`)
+  check('the synthetic PTL assistant error yields', !!ptlYield, `${j(r.messages).slice(0, 300)} — the preempt in src/engine/loop/turn/makeRequest.ts must yield the PROMPT_TOO_LONG_ERROR_MESSAGE row before it returns`)
+  check("Terminal reason 'blocking_limit'", r.terminal?.reason === 'blocking_limit', `${r.terminal?.reason} — the preempt in src/engine/loop/turn/makeRequest.ts returns blocking_limit when the fold failed and the level is blocked (MERCURY_BLOCKING_LIMIT_OVERRIDE)`)
 }
 
 section('§4 — autocompact disabled + blocked level: early folding is off, the emergency fold still runs ONE compact round, then the preempt fires')
@@ -301,14 +301,14 @@ section('§4 — autocompact disabled + blocked level: early folding is off, the
     },
   })
   const reqs = r.api.messageRequests()
-  check('exactly two model calls — the emergency fold\'s compact round (fork + fallback); the main call is never made', reqs.length === 2, `${reqs.length} — with MERCURY_AUTO_COMPACT=0 the emergency fold in src/run-core/turn/makeRequest.ts must still run one compact round`)
+  check('exactly two model calls — the emergency fold\'s compact round (fork + fallback); the main call is never made', reqs.length === 2, `${reqs.length} — with MERCURY_AUTO_COMPACT=0 the emergency fold in src/engine/loop/turn/makeRequest.ts must still run one compact round`)
   check('both calls are the compact round (the summary instruction rides each)', reqs.length === 2 && reqs.every(isCompactRequest), `${reqs.filter(isCompactRequest).length} compact — ${FORK_LANE_NOTE}`)
   check(
     'the synthetic PTL assistant error yields',
     r.messages.some(m => m.type === 'assistant' && (m as { isApiErrorMessage?: boolean }).isApiErrorMessage === true && j(m).includes(PROMPT_TOO_LONG_ERROR_MESSAGE)),
-    'the preempt in src/run-core/turn/makeRequest.ts must yield the PROMPT_TOO_LONG_ERROR_MESSAGE row before it returns',
+    'the preempt in src/engine/loop/turn/makeRequest.ts must yield the PROMPT_TOO_LONG_ERROR_MESSAGE row before it returns',
   )
-  check("Terminal reason 'blocking_limit'", r.terminal?.reason === 'blocking_limit', `${r.terminal?.reason} — the preempt in src/run-core/turn/makeRequest.ts returns blocking_limit when the fold failed and the level is blocked (MERCURY_BLOCKING_LIMIT_OVERRIDE)`)
+  check("Terminal reason 'blocking_limit'", r.terminal?.reason === 'blocking_limit', `${r.terminal?.reason} — the preempt in src/engine/loop/turn/makeRequest.ts returns blocking_limit when the fold failed and the level is blocked (MERCURY_BLOCKING_LIMIT_OVERRIDE)`)
 }
 
 section('§5 — a real API PTL: the ladder folds the history at the loop head and retries ONCE over the compacted view')
@@ -347,7 +347,7 @@ section('§5 — a real API PTL: the ladder folds the history at the loop head a
   check('the fold notice yields as a system row naming the overflow', r.messages.some(m => m.type === 'system' && /overflow|too long|fold|compact/i.test(j(m))), j(r.messages.filter(m => m.type === 'system')).slice(0, 300))
   check('no PTL assistant error surfaces (the withheld overflow was recovered)', !r.messages.some(m => m.type === 'assistant' && (m as { isApiErrorMessage?: boolean }).isApiErrorMessage === true && j(m).includes(PROMPT_TOO_LONG_ERROR_MESSAGE)), `a recovered overflow must stay withheld; ${LADDER_NOTE}`)
   check('the retried turn\'s text yields', r.messages.some(m => m.type === 'assistant' && j(m).includes('P5 RETRIED TURN')), `the retry after the overflow fold did not yield its reply; ${LADDER_NOTE}`)
-  check("Terminal reason 'completed'", r.terminal?.reason === 'completed', `${r.terminal?.reason} — the turn must end 'completed' after a compact round that fails or succeeds; see src/run-core/turn/makeRequest.ts for where the loop returns another terminal`)
+  check("Terminal reason 'completed'", r.terminal?.reason === 'completed', `${r.terminal?.reason} — the turn must end 'completed' after a compact round that fails or succeeds; see src/engine/loop/turn/makeRequest.ts for where the loop returns another terminal`)
 }
 
 section('§5b — a real API PTL with no summary to be had: the ladder refuses with the typed prompt-too-long terminal')
@@ -371,7 +371,7 @@ section('§5b — a real API PTL with no summary to be had: the ladder refuses w
   const ptl = r.messages.find(
     m => m.type === 'assistant' && (m as { isApiErrorMessage?: boolean }).isApiErrorMessage === true && j(m).includes(PROMPT_TOO_LONG_ERROR_MESSAGE),
   ) as { errorDetails?: string } | undefined
-  check('the typed PTL assistant refusal yields with the exact generic content', !!ptl, 'no PROMPT_TOO_LONG_ERROR_MESSAGE row yielded; the refusal text is overflowRefusalText in src/services/compact/overflowRecovery.ts')
+  check('the typed PTL assistant refusal yields with the exact generic content', !!ptl, 'no PROMPT_TOO_LONG_ERROR_MESSAGE row yielded; the refusal text is overflowRefusalText in src/engine/compaction/overflowRecovery.ts')
   check(
     'errorDetails carries the RAW API text with token counts',
     !!ptl && typeof ptl.errorDetails === 'string' && ptl.errorDetails.includes('137500'),
@@ -400,14 +400,14 @@ section('§6 — consecutive compact failures accumulate; the FOURTH iteration m
   })
   const reqs = r.api.messageRequests()
   const shapes = reqs.map(q => (isCompactRequest(q) ? 'C' : 'M')).join('')
-  check('exactly ten model calls (3 × (fork+fallback+main) + the suppressed-round main)', reqs.length === 10, `${reqs.length} — each failed round must count toward MAX_CONSECUTIVE_FAILURES (3) in autoCompactIfNeeded, src/services/compact/autoCompact.ts`)
+  check('exactly ten model calls (3 × (fork+fallback+main) + the suppressed-round main)', reqs.length === 10, `${reqs.length} — each failed round must count toward MAX_CONSECUTIVE_FAILURES (3) in autoCompactIfNeeded, src/engine/compaction/autoFold.ts`)
   check(
     'the wire pattern is CCM·CCM·CCM·M — three compact rounds, then the breaker suppresses',
     shapes === 'CCMCCMCCMM',
-    `${shapes} — the breaker is MAX_CONSECUTIVE_FAILURES (3) in autoCompactIfNeeded, src/services/compact/autoCompact.ts`,
+    `${shapes} — the breaker is MAX_CONSECUTIVE_FAILURES (3) in autoCompactIfNeeded, src/engine/compaction/autoFold.ts`,
   )
-  check('the final text yields', r.messages.some(m => m.type === 'assistant' && j(m).includes('P6 FINAL TURN')), 'the turn after the breaker did not yield its reply; see autoCompactIfNeeded in src/services/compact/autoCompact.ts')
-  check("Terminal reason 'completed'", r.terminal?.reason === 'completed', `${r.terminal?.reason} — the turn must end 'completed' after a compact round that fails or succeeds; see src/run-core/turn/makeRequest.ts for where the loop returns another terminal`)
+  check('the final text yields', r.messages.some(m => m.type === 'assistant' && j(m).includes('P6 FINAL TURN')), 'the turn after the breaker did not yield its reply; see autoCompactIfNeeded in src/engine/compaction/autoFold.ts')
+  check("Terminal reason 'completed'", r.terminal?.reason === 'completed', `${r.terminal?.reason} — the turn must end 'completed' after a compact round that fails or succeeds; see src/engine/loop/turn/makeRequest.ts for where the loop returns another terminal`)
 }
 
 section("§7 — the fold's road record: wherever a compact round ran above, the fork lane answered it itself")

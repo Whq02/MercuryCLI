@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
-import { Cursor } from '../../src/utils/Cursor.ts'
-import { executeIndent, executeToggleCase, executeX, type OperatorContext } from '../../src/vim/operators.ts'
+import { Cursor } from '../../src/screen/composer/vim/textCursor.ts'
+import { executeIndent, executeToggleCase, executeX, type OperatorContext } from '../../src/screen/composer/vim/operators.ts'
 
 function context(text: string, offset: number) {
   const state = { text, offset }
@@ -21,10 +21,10 @@ if (row !== 'tui-03') {
   ] as const) {
     const { ctx, state } = context(text, offset)
     executeIndent(dir, 1, ctx)
-    assert.deepEqual(state, { text: expected, offset: cursor }, `indent ${JSON.stringify(text)}; fix executeIndent in src/vim/operators.ts so the text and cursor stay on the current line`)
+    assert.deepEqual(state, { text: expected, offset: cursor }, `indent ${JSON.stringify(text)}; fix executeIndent in src/screen/composer/vim/operators.ts so the text and cursor stay on the current line`)
     if (expected) {
       executeX(1, ctx)
-      assert.notEqual(state.text, expected, 'x after indent acts on a character; fix executeIndent in src/vim/operators.ts so the cursor lands on a character that executeX can delete')
+      assert.notEqual(state.text, expected, 'x after indent acts on a character; fix executeIndent in src/screen/composer/vim/operators.ts so the cursor lands on a character that executeX can delete')
     }
   }
 }
@@ -37,7 +37,7 @@ if (row !== 'tui-04') {
   ] as const) {
     const { ctx, state } = context(text, offset)
     executeToggleCase(count, ctx)
-    assert.deepEqual(state, { text: expected, offset: cursor }, `toggle ${JSON.stringify(text)}; fix executeToggleCase in src/vim/operators.ts so the text and cursor stay on the current line`)
+    assert.deepEqual(state, { text: expected, offset: cursor }, `toggle ${JSON.stringify(text)}; fix executeToggleCase in src/screen/composer/vim/operators.ts so the text and cursor stay on the current line`)
   }
 }
 console.log(`PASS ${row ?? 'tui-03 tui-04'} normal-mode case and indent cursors stay on the current line`)

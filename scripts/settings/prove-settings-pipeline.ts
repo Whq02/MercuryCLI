@@ -11,13 +11,13 @@ const HOME = mkdtempSync(join(tmpdir(), 'settings-proof-home-'))
 const PROJ = mkdtempSync(join(tmpdir(), 'settings-proof-proj-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 
-const state = await import('../../src/bootstrap/state.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
 state.setOriginalCwd(PROJ)
 state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSettings'])
 
-const settingsMod = await import('../../src/utils/settings/settings.ts')
-const cacheMod = await import('../../src/utils/settings/settingsCache.ts')
-const { setMdmSettingsCache, clearMdmSettingsCache } = await import('../../src/utils/settings/mdm/settings.ts')
+const settingsMod = await import('../../src/platform/settings/settings.ts')
+const cacheMod = await import('../../src/platform/settings/settingsCache.ts')
+const { setMdmSettingsCache, clearMdmSettingsCache } = await import('../../src/platform/settings/mdm/settings.ts')
 
 const {
   getInitialSettings,
@@ -34,7 +34,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('         change: by section, (1)-(2) and (6)-(8) the merge and precedence in getInitialSettings, getSettingsWithSources, settingsMergeCustomizer and the parse cache in src/utils/settings/settings.ts; (3)-(4) the settings schema and the held or skipped fault grades in parseSettingsFile (src/utils/settings/settings.ts) with SettingsSchema in src/utils/settings/types.ts; (5) updateSettingsForSource in src/utils/settings/settings.ts; FC-146 lines SettingsSchema (extensions.exclusive) in src/utils/settings/types.ts and settingsChecks in src/services/health/sections/settings.ts; the text after the dash is what was found')
+  if (!cond) console.log('         change: by section, (1)-(2) and (6)-(8) the merge and precedence in getInitialSettings, getSettingsWithSources, settingsMergeCustomizer and the parse cache in src/platform/settings/settings.ts; (3)-(4) the settings schema and the held or skipped fault grades in parseSettingsFile (src/platform/settings/settings.ts) with SettingsSchema in src/platform/settings/settingsSchema.ts; (5) updateSettingsForSource in src/platform/settings/settings.ts; FC-146 lines SettingsSchema (extensions.exclusive) in src/platform/settings/settingsSchema.ts and settingsChecks in src/platform/health/sections/settings.ts; the text after the dash is what was found')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -290,7 +290,7 @@ section('(8) merge customizer unit (the exported seam)')
 
 console.log('\n============================================================')
 {
-  const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
+  const { SettingsSchema } = await import('../../src/platform/settings/settingsSchema.ts')
   const lockOf = (value: unknown): unknown => {
     const parsed = SettingsSchema().safeParse({ extensions: { exclusive: value } })
     return parsed.success ? (parsed.data as { extensions?: { exclusive?: unknown } }).extensions?.exclusive : 'SCHEMA-REFUSED'
@@ -303,7 +303,7 @@ console.log('\n============================================================')
   check('FC-146: a number locks all too (fail closed)', lockOf(1) === true)
   check('FC-146: the clean boolean and array are byte-identical', lockOf(true) === true && JSON.stringify(lockOf(['agents'])) === JSON.stringify(['agents']))
   check('FC-146: absent stays absent (nothing locks by default)', lockOf(undefined) === undefined)
-  const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
+  const { settingsChecks } = await import('../../src/platform/health/sections/settings.ts')
   const settingsRow = settingsChecks().find(row => row.id === 'settings')
   writeAll({})
   setMdmSettingsCache({ settings: { extensions: { exclusive: true } }, errors: [] }, { settings: {}, errors: [] })

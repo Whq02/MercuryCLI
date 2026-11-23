@@ -63,7 +63,7 @@ for (const row of RETIRED) {
     const lines = text.split('\n')
     lines.forEach((line, index) => {
       if (/^\s*(\/\/|\*|\/\*)/.test(line)) return
-      if (path === 'src/constants/changelogArchive.ts') return
+      if (path === 'src/commands/update-notes/changelogArchive.ts') return
       if (row.spelling.test(line)) hits.push(`${path}:${index + 1}`)
     })
   }
@@ -75,27 +75,27 @@ const PROJECT = join(HOME, 'project')
 mkdirSync(PROJECT, { recursive: true })
 process.chdir(PROJECT)
 try {
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const { themeLabel } = await import('../../src/utils/theme.js')
+  const { themeLabel } = await import('../../src/screen/theme/theme.js')
   check(
     'the one theme-label owner names the three appearances a user reads',
     themeLabel('dark') === 'Oasis dark' && themeLabel('true-black') === 'True Black' && themeLabel('mono') === 'Black and white',
-    `${themeLabel('dark')} · ${themeLabel('true-black')} · ${themeLabel('mono')}; fix themeLabel in src/utils/theme.ts`,
+    `${themeLabel('dark')} · ${themeLabel('true-black')} · ${themeLabel('mono')}; fix themeLabel in src/screen/theme/theme.ts`,
   )
 
   const React = await import('react')
   const h = React.createElement
-  const { ThemeProvider } = await import('../../src/ink.js')
-  const { App } = await import('../../src/components/App.tsx')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-  const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-  const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.js')
-  const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.js')
-  const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.js')
+  const { ThemeProvider } = await import('../../src/screen/themedRenderer.js')
+  const { App } = await import('../../src/boot/App.tsx')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+  const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+  const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.js')
+  const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.js')
+  const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.js')
   const appearance = await import('../../src/commands/appearance/appearance.tsx')
-  const { MercuryHome } = await import('../../src/components/MercuryHome.tsx')
-  const { CockpitActiveContext } = await import('../../src/context/cockpitActiveContext.js')
+  const { MercuryHome } = await import('../../src/screen/fullscreen-layout/MercuryHome.tsx')
+  const { CockpitActiveContext } = await import('../../src/screen/cockpit/cockpitActiveContext.js')
   const wrap = (node: React.ReactNode): React.ReactNode =>
     h(ThemeProvider as never, null, h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(KeybindingSetup, null, node)))
 
@@ -124,16 +124,16 @@ try {
     check(
       'the welcome card labels the critter row critter and tells a stranger what the model row is',
       painted && screen.includes('  critter ') && screen.includes('   the model this session runs on · /model changes it'),
-      `fix the critter and model rows in src/components/MercuryHome.tsx; screen: ${mountedHome.lines().filter(l => l.trim()).slice(0, 12).join(' | ')}`,
+      `fix the critter and model rows in src/screen/fullscreen-layout/MercuryHome.tsx; screen: ${mountedHome.lines().filter(l => l.trim()).slice(0, 12).join(' | ')}`,
     )
   } finally {
     mountedHome.unmount()
     resetOverlayStackForTests()
   }
 
-  const { cronToHuman } = await import('../../src/utils/cron.js')
+  const { cronToHuman } = await import('../../src/daemon/saturn/cron.js')
   const wake = cronToHuman('30 9 15 4 *')
-  check('a one-shot wake reads as a time on a date, never as a cron string', wake.includes('on 15 April') && !wake.includes('*'), 'got ' + JSON.stringify(wake) + '; fix cronToHuman in src/utils/cron.ts')
+  check('a one-shot wake reads as a time on a date, never as a cron string', wake.includes('on 15 April') && !wake.includes('*'), 'got ' + JSON.stringify(wake) + '; fix cronToHuman in src/daemon/saturn/cron.ts')
 } finally {
   await releaseScratchHome(HOME)
 }

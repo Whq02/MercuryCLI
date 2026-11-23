@@ -1,19 +1,19 @@
-import type { ProviderUsabilityReads } from '../../src/services/providers/providerUsability.js'
+import type { ProviderUsabilityReads } from '../../src/models/roads/providerUsability.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const key of ['OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'HF_TOKEN', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_HOME', 'MERCURY_MODEL']) delete process.env[key]
 let failures = 0
-const providerDecidesFailureHint = 'change the 429 mapping in mapOpenaiHttpFailure (src/services/providers/openai/openaiWire.ts), mapCompatHttpFailure (src/services/providers/openaicompat/compatChatClient.ts), classifyAnthropicRefusal (src/services/providers/anthropicRefusal.ts), getAssistantMessageFromError (src/services/api/errors.ts) or retryAfterHeaderMs (src/services/api/retryAfter.ts); the dispatch door in src/services/providers/providerUsability.ts; the live facts in src/daemon/saturnAccount.ts; or the pause and automatic retry in src/tools/AgentTool/agentToolUtils.ts and src/tasks/LocalAgentTask/agentPause.ts, whichever this label names'
+const providerDecidesFailureHint = 'change the 429 mapping in mapOpenaiHttpFailure (src/models/roads/openai/openaiWire.ts), mapCompatHttpFailure (src/models/roads/openaicompat/compatChatClient.ts), classifyAnthropicRefusal (src/models/roads/anthropicRefusal.ts), getAssistantMessageFromError (src/engine/requests/apiErrorRows.ts) or retryAfterHeaderMs (src/engine/requests/retryAfter.ts); the dispatch door in src/models/roads/providerUsability.ts; the live facts in src/daemon/saturn/saturnAccount.ts; or the pause and automatic retry in src/tools/crewmate/crewmateLifecycle.ts and src/engine/tasks/local-agent/agentPause.ts, whichever this label names'
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)} — ${providerDecidesFailureHint}`}`)
   if (!ok) failures++
 }
-const { mapOpenaiHttpFailure } = await import('../../src/services/providers/openai/openaiWire.js')
-const { mapCompatHttpFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.js')
-const { classifyAnthropicRefusal } = await import('../../src/services/providers/anthropicRefusal.js')
-const { getAssistantMessageFromError } = await import('../../src/services/api/errors.js')
-const { retryAfterHeaderMs } = await import('../../src/services/api/retryAfter.js')
-const { providerWaitWords } = await import('../../src/services/api/recoveryBudget.js')
+const { mapOpenaiHttpFailure } = await import('../../src/models/roads/openai/openaiWire.js')
+const { mapCompatHttpFailure } = await import('../../src/models/roads/openaicompat/compatChatClient.js')
+const { classifyAnthropicRefusal } = await import('../../src/models/roads/anthropicRefusal.js')
+const { getAssistantMessageFromError } = await import('../../src/engine/requests/apiErrorRows.js')
+const { retryAfterHeaderMs } = await import('../../src/engine/requests/retryAfter.js')
+const { providerWaitWords } = await import('../../src/engine/requests/recoveryBudget.js')
 const SEVEN_DAYS_S = 7 * 24 * 60 * 60
 const httpDate = new Date(Date.now() + 20_000).toUTCString()
 
@@ -65,7 +65,7 @@ const stale = getAssistantMessageFromError(Object.assign(new Error('429 {"error"
 check('Anthropic: a Retry-After date already past is no wait', stale.providerWaitEndsAtMs === undefined, stale.providerWaitEndsAtMs)
 
 console.log('3. the dispatch door: the one refusal left is a dead sign-in; a note beside a live sign-in never refuses')
-const { resolveProviderUsability, delegationDispatchBlocker } = await import('../../src/services/providers/providerUsability.js')
+const { resolveProviderUsability, delegationDispatchBlocker } = await import('../../src/models/roads/providerUsability.js')
 const now = Date.now()
 const reset = now + 6 * 24 * 60 * 60 * 1000
 const baseReads = (over: Partial<ProviderUsabilityReads>): ProviderUsabilityReads => ({
@@ -97,7 +97,7 @@ const keyed = resolveProviderUsability(baseReads({ anthropicApiKey: () => 'sk-fi
 check('an API key beside an expired subscriber sign-in is still dispatched (the key is the credential in use)', delegationDispatchBlocker('anthropic', keyed) === null || keyed.anthropic.signInExpired === true, keyed.anthropic)
 
 console.log('4. the scheduler holds on no note: the production reads carry no window hold')
-const { readLiveAccountFacts, scheduleAccountVerdict } = await import('../../src/daemon/saturnAccount.js')
+const { readLiveAccountFacts, scheduleAccountVerdict } = await import('../../src/daemon/saturn/saturnAccount.js')
 for (const family of ['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface']) {
   const facts = readLiveAccountFacts({ family, source: 'api-key' } as never, { presenceOf: () => ({ credentialed: true, kind: 'api-key' }), strandedNow: () => false, anthropicDetail: () => null })
   check(`${family}: the live facts carry no rate-limit hold without a reader for it`, facts.rateLimitedUntil === undefined && scheduleAccountVerdict({ account: { source: 'api-key' }, nextFireMs: now, nowMs: now, live: facts }).state === 'ready', facts)
@@ -148,23 +148,23 @@ const address = server.address()
 if (address === null || typeof address === 'string') throw new Error('fixture did not bind')
 const base = `http://127.0.0.1:${address.port}`
 Object.assign(process.env, { ANTHROPIC_BASE_URL: base, MERCURY_OPENAI_API_BASE: `${base}/openai/v1`, MERCURY_OPENAI_CHATGPT_BASE: `${base}/openai/subscription`, MERCURY_OPENAI_AUTH_BASE: `${base}/openai/auth`, OPENAI_API_KEY: 'fixture-key', MERCURY_LOCAL_PROBE_TARGETS: 'none' })
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.js')
+const bootstrap = await import('../../src/boot/process-state/processState.js')
 bootstrap.setIsInteractive(false)
-const { runAgent } = await import('../../src/tools/AgentTool/runAgent.js')
-const { resumeAgentBackground } = await import('../../src/tools/AgentTool/resumeAgent.js')
-const { runAsyncAgentLifecycle, automaticResumePending } = await import('../../src/tools/AgentTool/agentToolUtils.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createUserMessage } = await import('../../src/services/messages.js')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.js')
-const { query: startTurn } = await import('../../src/query.ts')
-const { registerAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
-const { pauseStatusWords } = await import('../../src/tasks/LocalAgentTask/agentPause.js')
-const { openaiLimitWindow } = await import('../../src/services/providers/openai/openaiLimitState.js')
-const { generateTaskId } = await import('../../src/Task.js')
-await import('../../src/tasks.js')
-type AppState = import('../../src/state/AppStateStore.js').AppState
+const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.js')
+const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.js')
+const { runAsyncAgentLifecycle, automaticResumePending } = await import('../../src/tools/crewmate/crewmateLifecycle.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createUserMessage } = await import('../../src/engine/messages/messages.js')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.js')
+const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { registerAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.js')
+const { pauseStatusWords } = await import('../../src/engine/tasks/local-agent/agentPause.js')
+const { openaiLimitWindow } = await import('../../src/models/roads/openai/openaiLimitState.js')
+const { generateTaskId } = await import('../../src/engine/tasks/taskBase.js')
+await import('../../src/engine/tasks/tasks.js')
+type AppState = import('../../src/screen/app-state/AppStateStore.js').AppState
 let state: AppState = { ...getDefaultAppState(), effortValue: 'max' } as AppState
 const setState = (update: (previous: AppState) => AppState) => { state = update(state) }
 const ctx = {

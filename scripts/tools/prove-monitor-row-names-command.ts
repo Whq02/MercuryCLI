@@ -11,14 +11,14 @@ delete process.env.MERCURY_HOME
 process.env.FORCE_COLOR = '3'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 const React = (await import('react')).default
-const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
-const { AssistantToolUseMessage } = await import('../../src/components/messages/AssistantToolUseMessage.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { MonitorTool } = await import('../../src/tools/MonitorTool/MonitorTool.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+const { renderToAnsiString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { AssistantToolUseMessage } = await import('../../src/screen/messages/AssistantToolUseMessage.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { MonitorTool } = await import('../../src/tools/monitor/MonitorTool.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
 
 let checks = 0
 let failures = 0
@@ -46,17 +46,17 @@ console.log("the Monitor row in the transcript names the command that ran, as a 
 {
   const row = await rowOf(MonitorTool as never, { command: 'tail -f build.log', description: 'watch the build log', ...WATCH })
   const bashRow = await rowOf(BashTool as never, { command: 'tail -f build.log', description: 'watch the build log' })
-  check('the row holds the command', row.includes('tail -f build.log'), 'renderToolUseMessage in src/tools/MonitorTool/MonitorTool.ts must show the command: ' + row)
-  check('the model\'s description comes after the command', /tail -f build\.log — watch the build log/.test(row), 'renderToolUseMessage in src/tools/MonitorTool/MonitorTool.ts must put the description after the command: ' + row)
-  check('the row no longer reads "Monitor: <description>" in the command\'s place', !row.includes('Monitor: watch the build log'), 'renderToolUseMessage in src/tools/MonitorTool/MonitorTool.ts must not lead with Monitor and the description: ' + row)
-  check('the Bash row for the same command holds the same command text', bashRow.includes('tail -f build.log'), 'the Bash row reference is rendered by AssistantToolUseMessage in src/components/messages/AssistantToolUseMessage.tsx: ' + bashRow)
-  check('a watch with no description names the command alone', said({ command: 'tail -f build.log', ...WATCH }) === 'tail -f build.log', 'renderToolUseMessage in src/tools/MonitorTool/MonitorTool.ts must show the command alone when there is no description: ' + said({ command: 'tail -f build.log', ...WATCH }))
+  check('the row holds the command', row.includes('tail -f build.log'), 'renderToolUseMessage in src/tools/monitor/MonitorTool.ts must show the command: ' + row)
+  check('the model\'s description comes after the command', /tail -f build\.log — watch the build log/.test(row), 'renderToolUseMessage in src/tools/monitor/MonitorTool.ts must put the description after the command: ' + row)
+  check('the row no longer reads "Monitor: <description>" in the command\'s place', !row.includes('Monitor: watch the build log'), 'renderToolUseMessage in src/tools/monitor/MonitorTool.ts must not lead with Monitor and the description: ' + row)
+  check('the Bash row for the same command holds the same command text', bashRow.includes('tail -f build.log'), 'the Bash row reference is rendered by AssistantToolUseMessage in src/screen/messages/AssistantToolUseMessage.tsx: ' + bashRow)
+  check('a watch with no description names the command alone', said({ command: 'tail -f build.log', ...WATCH }) === 'tail -f build.log', 'renderToolUseMessage in src/tools/monitor/MonitorTool.ts must show the command alone when there is no description: ' + said({ command: 'tail -f build.log', ...WATCH }))
   const twoLines = said({ command: 'while true; do\n  date\ndone', description: 'tick', ...WATCH })
-  check('a command of several lines is folded onto one line as a Bash row folds it', twoLines === 'while true; do ↵ date ↵ done — tick', 'renderToolUseMessage in src/tools/MonitorTool/MonitorTool.ts must fold newlines into a return arrow: ' + twoLines)
+  check('a command of several lines is folded onto one line as a Bash row folds it', twoLines === 'while true; do ↵ date ↵ done — tick', 'renderToolUseMessage in src/tools/monitor/MonitorTool.ts must fold newlines into a return arrow: ' + twoLines)
   const long = said({ command: `grep -R ${'needle-'.repeat(60)} .`, ...WATCH })
-  check('a long command is cut at the row\'s length with an ellipsis', long.endsWith('…') && long.length < 200 && long.startsWith('grep -R needle-'), `renderToolUseMessage in src/tools/MonitorTool/MonitorTool.ts must cut a long command with an ellipsis: ${long.length} characters`)
+  check('a long command is cut at the row\'s length with an ellipsis', long.endsWith('…') && long.length < 200 && long.startsWith('grep -R needle-'), `renderToolUseMessage in src/tools/monitor/MonitorTool.ts must cut a long command with an ellipsis: ${long.length} characters`)
   const whole = said({ command: `grep -R ${'needle-'.repeat(60)} .`, ...WATCH }, true)
-  check('the detailed view keeps the whole command', whole === `grep -R ${'needle-'.repeat(60)} .`, `renderToolUseMessage in src/tools/MonitorTool/MonitorTool.ts must not cut the command when verbose: ${whole.length} characters`)
+  check('the detailed view keeps the whole command', whole === `grep -R ${'needle-'.repeat(60)} .`, `renderToolUseMessage in src/tools/monitor/MonitorTool.ts must not cut the command when verbose: ${whole.length} characters`)
 }
 
 console.log(`\nprove-monitor-row-names-command: ${checks} checks, ${failures} failed`)

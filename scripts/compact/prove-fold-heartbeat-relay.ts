@@ -35,15 +35,15 @@ const server = createServer((req, res) => {
 })
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
 process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(server.address() as { port: number }).port}`
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { compactConversation, setFoldBoundsForTests } = await import('../../src/services/compact/compact.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+const { compactConversation, setFoldBoundsForTests } = await import('../../src/engine/compaction/foldConversation.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 let failures = 0
 const check = (label: string, ok: boolean, detail: unknown = ''): void => {
   if (!ok) failures++
@@ -59,11 +59,11 @@ setFoldBoundsForTests({ stallMs: 5_000, ingestMsPer1kTokens: 0 })
 try {
   const start = Date.now()
   const result = await compactConversation(messages, context, cache, false)
-  check('the cache fork survives more than two silence budgets on heartbeats alone', requests === 1 && Date.now() - start >= 11_000, { requests, ms: Date.now() - start, hint: 'the fold stalled or retried despite ping events; armFoldBound in src/services/compact/compact/foldBound.ts must restart its stall timer on each stream activity (bound.touch via onStreamActivity in src/services/compact/compact/summarise.ts)' })
-  check('the whole summary survives', result.summaryMessages.some(row => String(row.message.content).includes(summary)), 'the summary text from the fixture stream is missing from result.summaryMessages; check the fold in src/services/compact/compact/summarise.ts and foldSummary.ts')
-  check('the actual session receives the same raw-byte activity relay', activity.length >= 3 && heartbeats >= 20, { activity: activity.length, heartbeats, hint: 'fewer than 3 streamActivity statuses reached setSDKStatus; the onStreamActivity handler in src/services/compact/compact/summarise.ts must pass each raw-byte activity to context.setSDKStatus' })
+  check('the cache fork survives more than two silence budgets on heartbeats alone', requests === 1 && Date.now() - start >= 11_000, { requests, ms: Date.now() - start, hint: 'the fold stalled or retried despite ping events; armFoldBound in src/engine/compaction/fold/foldBound.ts must restart its stall timer on each stream activity (bound.touch via onStreamActivity in src/engine/compaction/fold/summarise.ts)' })
+  check('the whole summary survives', result.summaryMessages.some(row => String(row.message.content).includes(summary)), 'the summary text from the fixture stream is missing from result.summaryMessages; check the fold in src/engine/compaction/fold/summarise.ts and foldSummary.ts')
+  check('the actual session receives the same raw-byte activity relay', activity.length >= 3 && heartbeats >= 20, { activity: activity.length, heartbeats, hint: 'fewer than 3 streamActivity statuses reached setSDKStatus; the onStreamActivity handler in src/engine/compaction/fold/summarise.ts must pass each raw-byte activity to context.setSDKStatus' })
 } catch (error) {
-  check('the live stream completes', false, `${String(error)} (compactConversation in src/services/compact/compact.ts threw; the fold stall bound in src/services/compact/compact/foldBound.ts may have cut the stream)`)
+  check('the live stream completes', false, `${String(error)} (compactConversation in src/engine/compaction/foldConversation.ts threw; the fold stall bound in src/engine/compaction/fold/foldBound.ts may have cut the stream)`)
 } finally {
   clearTimeout(guard)
   setFoldBoundsForTests(null)

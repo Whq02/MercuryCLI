@@ -13,10 +13,10 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const capsuleSrcHint = 'look in assembleContextCapsule, src/services/projectIntel/capsule.ts'
+const capsuleSrcHint = 'look in assembleContextCapsule, src/sessions/project-intel/capsule.ts'
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — proof exceeded 120s; a capsule assembly or the mercury://project/current context child hung, look in src/services/projectIntel/capsule.ts and src/services/resources/adapters/project.ts')
+  console.log('\n❌ TIMEOUT — proof exceeded 120s; a capsule assembly or the mercury://project/current context child hung, look in src/sessions/project-intel/capsule.ts and src/integrations/resources/adapters/project.ts')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -25,11 +25,11 @@ async function main(): Promise<void> {
   delete process.env.MERCURY_PROJECT_INTEL
   const { materializeFixture } = await import('./fixtures/materialize.js')
   const { assembleContextCapsule, importNeighbours, pathTokens, renderCapsule } = await import(
-    '../../src/services/projectIntel/capsule.js'
+    '../../src/sessions/project-intel/capsule.js'
   )
-  const intel = await import('../../src/services/projectIntel/snapshot.js')
-  const owner = await import('../../src/utils/primitives/owner.js')
-  const registry = await import('../../src/services/resources/registry.js')
+  const intel = await import('../../src/sessions/project-intel/snapshot.js')
+  const owner = await import('../../src/engine/execution-plane/owner.js')
+  const registry = await import('../../src/integrations/resources/registry.js')
 
   const dir = materializeFixture('ts')
   const ctx = {
@@ -49,7 +49,7 @@ async function main(): Promise<void> {
   check(
     'import adjacency finds the fixture edges (types · rules · money)',
     ['src/core/types.ts', 'src/core/rules.ts', 'src/util/money.ts'].every(p => neighbours.includes(p)),
-    neighbours.join(',') + ' (look in importNeighbours, src/services/projectIntel/capsule.ts)',
+    neighbours.join(',') + ' (look in importNeighbours, src/sessions/project-intel/capsule.ts)',
   )
   check('adjacency items land tier 3 with the importing file named', byPath.get('src/core/rules.ts')?.tier === 3 && /imported by src\/core\/pricing\.ts/.test(byPath.get('src/core/rules.ts')?.reason ?? ''), JSON.stringify(byPath.get('src/core/rules.ts')) + ' (an import neighbour must be tier 3 and name the importing file; ' + capsuleSrcHint + ')')
   check(
@@ -61,7 +61,7 @@ async function main(): Promise<void> {
 
   writeFileSync(join(dir, 'src', 'services', 'checkout.ts'), '// touched\n' + (await import('node:fs')).readFileSync(join(dir, 'src', 'services', 'checkout.ts'), 'utf8'))
   const { _resetVerificationStateForTesting } = await import(
-    '../../src/utils/verification/verificationState.js'
+    '../../src/platform/verification/verificationState.js'
   )
   _resetVerificationStateForTesting()
   intel._resetProjectIntelForTesting()
@@ -78,7 +78,7 @@ async function main(): Promise<void> {
   section('(T6) a doc rides on a whole word of its name — never a filler word or a word inside the name')
   const noisy = assembleContextCapsule({ workspace: dir, task: 'read the file and want the tests' })
   const noisyDocs = noisy?.items.filter(i => i.role === 'knowledge').map(i => i.path) ?? []
-  check('filler words and the word read attach no doc (README.md stays out)', noisyDocs.length === 0, noisyDocs.join(',') + ' (the doc-name match must ignore filler words, look in assembleContextCapsule, src/services/projectIntel/capsule.ts)')
+  check('filler words and the word read attach no doc (README.md stays out)', noisyDocs.length === 0, noisyDocs.join(',') + ' (the doc-name match must ignore filler words, look in assembleContextCapsule, src/sessions/project-intel/capsule.ts)')
   const named = assembleContextCapsule({ workspace: dir, task: 'update the readme' })
   check('the whole word readme attaches README.md as knowledge', named?.items.some(i => i.path === 'README.md' && i.role === 'knowledge') === true, 'a whole word of a doc name in the task must attach that doc as knowledge; ' + capsuleSrcHint)
 
@@ -108,18 +108,18 @@ async function main(): Promise<void> {
     `mercury://project/current?child=context&q=${encodeURIComponent(task)}`,
     ctx,
   )
-  check('context child resolves through the registry', viaRef.state === 'ok', viaRef.state + ' (look at the context child in src/services/resources/adapters/project.ts)')
+  check('context child resolves through the registry', viaRef.state === 'ok', viaRef.state + ' (look at the context child in src/integrations/resources/adapters/project.ts)')
   if (viaRef.state === 'ok') {
-    check('explanation text renders roles + reasons', /primary edit; named exactly in the task/.test(viaRef.resource.text ?? ''), (viaRef.resource.text ?? '').slice(0, 200) + ' (look at the context child in src/services/resources/adapters/project.ts and renderCapsule in src/services/projectIntel/capsule.ts)')
-    check('capsule digest rides as version', typeof viaRef.resource.version === 'string' && viaRef.resource.version.length === 16, 'the context child must return the capsule digest as a 16-character version; look in src/services/resources/adapters/project.ts')
+    check('explanation text renders roles + reasons', /primary edit; named exactly in the task/.test(viaRef.resource.text ?? ''), (viaRef.resource.text ?? '').slice(0, 200) + ' (look at the context child in src/integrations/resources/adapters/project.ts and renderCapsule in src/sessions/project-intel/capsule.ts)')
+    check('capsule digest rides as version', typeof viaRef.resource.version === 'string' && viaRef.resource.version.length === 16, 'the context child must return the capsule digest as a 16-character version; look in src/integrations/resources/adapters/project.ts')
   }
   const noQ = await registry.resolveResource('mercury://project/current?child=context', ctx)
-  check('missing q ⇒ absent with the usage note', noQ.state === 'absent', noQ.state + ' (a context child with no q must be absent with a usage note; look in src/services/resources/adapters/project.ts)')
+  check('missing q ⇒ absent with the usage note', noQ.state === 'absent', noQ.state + ' (a context child with no q must be absent with a usage note; look in src/integrations/resources/adapters/project.ts)')
 
   const toks = pathTokens('see "src/core/pricing.ts", ./README.md, and bogus/nope.ts.', dir)
-  check('pathTokens: quotes/punct stripped, nonexistent dropped', JSON.stringify(toks) === JSON.stringify(['README.md', 'src/core/pricing.ts']), JSON.stringify(toks) + ' (look in pathTokens, src/services/projectIntel/capsule.ts)')
+  check('pathTokens: quotes/punct stripped, nonexistent dropped', JSON.stringify(toks) === JSON.stringify(['README.md', 'src/core/pricing.ts']), JSON.stringify(toks) + ' (look in pathTokens, src/sessions/project-intel/capsule.ts)')
 
-  check('renderCapsule names omissions when present', /omitted/.test(renderCapsule(tight!)), 'renderCapsule must print an omitted line when caps.omitted is non-empty; look in renderCapsule, src/services/projectIntel/capsule.ts')
+  check('renderCapsule names omissions when present', /omitted/.test(renderCapsule(tight!)), 'renderCapsule must print an omitted line when caps.omitted is non-empty; look in renderCapsule, src/sessions/project-intel/capsule.ts')
 
   rmSync(dir, { recursive: true, force: true })
 

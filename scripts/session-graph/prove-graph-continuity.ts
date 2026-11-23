@@ -14,13 +14,13 @@ process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 process.env.MERCURY_REVIEW_ARTIFACTS_DIR = join(scratch, 'artifacts')
 mkdirSync(join(scratch, 'home'), { recursive: true })
 
-const descriptor = await import('../../src/services/crew/descriptor.ts')
-const graph = await import('../../src/services/crew/graph.ts')
-const projection = await import('../../src/services/crew/projection.ts')
-const identity = await import('../../src/services/crew/identity.ts')
-const conversations = await import('../../src/services/crew/conversations.ts')
-const activity = await import('../../src/services/crew/activity.ts')
-const reviewStore = await import('../../src/services/artifacts/reviewStore.ts')
+const descriptor = await import('../../src/crew/crewmates/descriptor.ts')
+const graph = await import('../../src/crew/crewmates/graph.ts')
+const projection = await import('../../src/crew/crewmates/projection.ts')
+const identity = await import('../../src/crew/crewmates/identity.ts')
+const conversations = await import('../../src/crew/crewmates/conversations.ts')
+const activity = await import('../../src/crew/crewmates/activity.ts')
+const reviewStore = await import('../../src/sessions/artifact-reviews/reviewStore.ts')
 
 const dir = join(scratch, 'crew-store')
 
@@ -147,7 +147,7 @@ t.section('§4 — the review mirror: folios reach the inbox + the activity feed
     if (!openEvent) await new Promise(r => setTimeout(r, 10))
   }
   t.check('ready-for-review appends ONE unresolved review-request on the main thread', openEvent)
-  const inboxMod = await import('../../src/services/crew/inbox.ts')
+  const inboxMod = await import('../../src/crew/crewmates/inbox.ts')
   const mainConv = await conversations.conversationOf(conversations.MAIN_CONVERSATION_ID)
   t.check(
     'the inbox holds the thread ready-to-review',

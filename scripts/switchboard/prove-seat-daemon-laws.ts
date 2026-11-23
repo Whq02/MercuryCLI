@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/models/facts/builtInModelTable.ts'
 import { startDaemonClientBeat } from '../lib/daemonClientBeat.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
@@ -28,9 +28,9 @@ if (!existsSync(DIST)) {
 
 let failures = 0
 const lawsFailureHint = (label: string): string => {
-  if (/^D\d/.test(label)) return 'change the matching method of DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts (or the daemon op it calls in src/daemon/controlServer.ts)'
-  if (label.startsWith('W ')) return 'change the warm-runner path: the concourseWarm op in src/daemon/controlServer.ts and the pre-spawn log line in src/daemon/main.ts'
-  return 'change the daemon start or the concourseDispatch op in src/daemon/controlServer.ts; the daemon log is daemon.log in the scratch folder (run with SWITCH_KEEP=1 to keep it)'
+  if (/^D\d/.test(label)) return 'change the matching method of DaemonSessionConnector in src/engine/connector/daemonConnector.ts (or the daemon op it calls in src/daemon/control/controlServer.ts)'
+  if (label.startsWith('W ')) return 'change the warm-runner path: the concourseWarm op in src/daemon/control/controlServer.ts and the pre-spawn log line in src/daemon/control/main.ts'
+  return 'change the daemon start or the concourseDispatch op in src/daemon/control/controlServer.ts; the daemon log is daemon.log in the scratch folder (run with SWITCH_KEEP=1 to keep it)'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -86,8 +86,8 @@ const daemon = spawn('node', [DIST, 'daemon', 'run', work], {
 const clientBeat = startDaemonClientBeat()
 
 try {
-  const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-  const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/warmRunner.ts')
+  const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+  const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/runner-link/warmRunner.ts')
   check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
   const d = (await daemonControlRpc(
     {
@@ -103,18 +103,18 @@ try {
   )) as { ok?: boolean; sessionId?: string; runnerId?: string }
   check('the session dispatched', d.ok === true && d.sessionId !== undefined, JSON.stringify(d))
   const sid = d.sessionId ?? ''
-  const paths = await import('../../src/utils/sessionStorage/paths.ts')
+  const paths = await import('../../src/sessions/transcripts/paths.ts')
   const logPath = join(paths.getProjectDir(work), `${sid}.jsonl`)
   const logText = (): string => (existsSync(logPath) ? readFileSync(logPath, 'utf8') : '')
-  const obligations = await import('../../src/services/crew/obligations.ts')
+  const obligations = await import('../../src/crew/crewmates/obligations.ts')
   check(
     'the session raised a REAL permission ask',
     await untilAsync(async () => (await obligations.openObligations({ scope: 'switchboard' })).some(o => o.sessionId === sid && (o.ref ?? '').startsWith('permission:')), 40_000),
   )
 
-  const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
-  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const sup = await import('../../src/daemon/concourseWorkers.ts')
+  const seat = await import('../../src/engine/connector/daemonConnector.ts')
+  const slot = await import('../../src/engine/connector/focusedConnector.ts')
+  const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const recordOf = (): { modelKey?: string; pendingModelKey?: string } | undefined =>
     Object.values(sup.readSessionWorkers(daemonDir)).find(r => r.sessionId === sid)
   const record = {
@@ -333,7 +333,7 @@ try {
 } finally {
   clientBeat.stop()
   try {
-    await (await import('../../src/daemon/controlSocket.ts')).daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
+    await (await import('../../src/daemon/control/controlSocket.ts')).daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
   } catch {
   }
   daemon.kill('SIGTERM')

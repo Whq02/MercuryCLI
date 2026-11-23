@@ -15,10 +15,10 @@ process.env.MERCURY_HUGGINGFACE_API_BASE = 'https://router.fixture.example/v1'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
-const accounts = await import('../../src/services/providers/huggingface/huggingfaceAccounts.ts')
+const accounts = await import('../../src/models/roads/huggingface/huggingfaceAccounts.ts')
 const {
   startHuggingfaceDeviceAuth,
   pollHuggingfaceDeviceToken,
@@ -36,11 +36,11 @@ const {
   huggingfaceKeyTail,
   HF_OAUTH_SCOPE,
 } = accounts
-const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')
-const { activeSourceUsage } = await import('../../src/services/providers/providerUsage.ts')
-const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { HUGGINGFACE_USAGE_ABSENCE_NOTE, decodeHuggingfaceAccountFacts, huggingfaceWhoamiUrl } = await import('../../src/services/providers/huggingface/huggingfaceUsageState.ts')
+const { writeStoredHuggingfaceApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/models/roads/accountSlots.ts')
+const { activeSourceUsage } = await import('../../src/models/roads/providerUsage.ts')
+const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
+const { HUGGINGFACE_USAGE_ABSENCE_NOTE, decodeHuggingfaceAccountFacts, huggingfaceWhoamiUrl } = await import('../../src/models/roads/huggingface/huggingfaceUsageState.ts')
 
 let failures = 0
 let oauthHint = ''
@@ -85,7 +85,7 @@ const WHOAMI_200 = { type: 'user', name: 'fixture-user', fullname: 'Fixture User
 
 section('1 · client id: pin > stored registration > ONE self-registration')
 {
-  oauthHint = 'change resolveHuggingfaceOauthClientId in src/services/providers/huggingface/huggingfaceAccounts.ts (pin, stored registration, one self-registration)'
+  oauthHint = 'change resolveHuggingfaceOauthClientId in src/models/roads/huggingface/huggingfaceAccounts.ts (pin, stored registration, one self-registration)'
   let registrations = 0
   const seen: { url: string; body: string; method: string }[] = []
   const fetchImpl = (async (url: unknown, init?: RequestInit) => {
@@ -133,7 +133,7 @@ section('1 · client id: pin > stored registration > ONE self-registration')
 
 section('2 · the device-code ladder (observed shapes)')
 {
-  oauthHint = 'change startHuggingfaceDeviceAuth, pollHuggingfaceDeviceToken or the token store in src/services/providers/huggingface/huggingfaceAccounts.ts'
+  oauthHint = 'change startHuggingfaceDeviceAuth, pollHuggingfaceDeviceToken or the token store in src/models/roads/huggingface/huggingfaceAccounts.ts'
   const bodies: string[] = []
   const urls: string[] = []
   const ladder = [jsonResponse(400, PENDING_400), jsonResponse(400, { error: 'slow_down' }), jsonResponse(200, TOKEN_200)]
@@ -196,7 +196,7 @@ section('2 · the device-code ladder (observed shapes)')
 
 section('3 · refresh honesty')
 {
-  oauthHint = 'change refreshHuggingfaceTokens in src/services/providers/huggingface/huggingfaceAccounts.ts'
+  oauthHint = 'change refreshHuggingfaceTokens in src/models/roads/huggingface/huggingfaceAccounts.ts'
   let call = 0
   const fetchImpl = (async (url: unknown, init?: RequestInit) => {
     call++
@@ -219,7 +219,7 @@ section('3 · refresh honesty')
 
 section('4 · the credential ladder + the dispatch resolver')
 {
-  oauthHint = 'change resolveHuggingfaceApiKey or resolveHuggingfaceDispatchCredential in src/services/providers/huggingface/huggingfaceAccounts.ts'
+  oauthHint = 'change resolveHuggingfaceApiKey or resolveHuggingfaceDispatchCredential in src/models/roads/huggingface/huggingfaceAccounts.ts'
   check('nothing ⇒ no credential', resolveHuggingfaceApiKey() === undefined && (await resolveHuggingfaceDispatchCredential()) === undefined)
   writeStoredHuggingfaceApiKey('hf_stored_fixture_token_00001')
   writeHuggingfaceTokenIdentity('hf_stored_fixture_token_00001', { username: 'stored-user', observedAtMs: 1 })
@@ -248,7 +248,7 @@ section('4 · the credential ladder + the dispatch resolver')
 
 section('5 · slots · usability · usage shape · routed removal')
 {
-  oauthHint = 'change deriveFamilySlotGroups or executeSlotRemoval in src/services/providers/accountSlots.ts, resolveProviderUsability in providerUsability.ts, activeSourceUsage in providerUsage.ts, or decodeHuggingfaceAccountFacts in huggingface/huggingfaceUsageState.ts (all under src/services/providers)'
+  oauthHint = 'change deriveFamilySlotGroups or executeSlotRemoval in src/models/roads/accountSlots.ts, resolveProviderUsability in providerUsability.ts, activeSourceUsage in providerUsage.ts, or decodeHuggingfaceAccountFacts in huggingface/huggingfaceUsageState.ts (all under src/models/roads)'
   writeHuggingfaceTokens({ accessToken: 'hf_oauth_fixture_access_0000000005' }, { username: 'oauth-user', observedAtMs: 5 })
   const providers = [
     {
@@ -316,7 +316,7 @@ section('5 · slots · usability · usage shape · routed removal')
 
 section('6 · transport honesty: unreachable is typed, never a throw or a refusal')
 {
-  oauthHint = 'change pollHuggingfaceDeviceToken or fetchHuggingfaceIdentity in src/services/providers/huggingface/huggingfaceAccounts.ts'
+  oauthHint = 'change pollHuggingfaceDeviceToken or fetchHuggingfaceIdentity in src/models/roads/huggingface/huggingfaceAccounts.ts'
   const down: typeof fetch = async () => {
     throw new TypeError('fetch failed: ECONNREFUSED 127.0.0.1:443')
   }

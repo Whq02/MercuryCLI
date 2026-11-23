@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts src/services/providers/openaicompat/compatCallModel.ts src/services/providers/local/localCallModel.ts src/services/providers/local/ollamaChatTransport.ts src/services/providers/anthropic/streamCore.ts src/services/api/outputFit.ts
+// gate-watch: src/models/roads/openaicompat/compatChatCallModel.ts src/models/roads/openaicompat/compatCallModel.ts src/models/roads/local/localCallModel.ts src/models/roads/local/ollamaChatTransport.ts src/models/roads/anthropic/streamCore.ts src/engine/requests/outputFit.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
@@ -108,18 +108,18 @@ const vllm = serve((url, body) => {
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = [`ollama=${ollama.root}`, `vllm=${vllm.root}`].join(',')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getMaxOutputTokensForModel } = await import('../../src/services/providers/anthropic/streamCore.ts')
-const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const w = await import('../../src/services/providers/local/localWindow.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getMaxOutputTokensForModel } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { getModelMaxOutputTokens } = await import('../../src/models/facts/capabilities.ts')
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const w = await import('../../src/models/roads/local/localWindow.ts')
 
 let plain: ReturnType<typeof localRecordFor>
 let qwen: ReturnType<typeof localRecordFor>
@@ -128,7 +128,7 @@ do {
   plain = localRecordFor(`local/${PLAIN}`)
   qwen = localRecordFor(`local/${VLLM_MODEL}`)
 } while (plain === undefined || qwen === undefined)
-check('the fixture is discovered: an Ollama model with a 40,960 trained window and a vLLM model', plain?.server === 'ollama' && plain.modelMaxContext === TRAINED_MAX && qwen?.server === 'vllm', JSON.stringify({ plain, qwen }) + ' — the fixture servers were not discovered as expected; check refreshLocalDiscovery in src/services/providers/local/localDiscovery.ts')
+check('the fixture is discovered: an Ollama model with a 40,960 trained window and a vLLM model', plain?.server === 'ollama' && plain.modelMaxContext === TRAINED_MAX && qwen?.server === 'vllm', JSON.stringify({ plain, qwen }) + ' — the fixture servers were not discovered as expected; check refreshLocalDiscovery in src/models/roads/local/localDiscovery.ts')
 
 async function send(model: string, text: string, override?: number): Promise<{ capture: Capture | undefined; errors: string[] }> {
   const before = captures.length
@@ -156,9 +156,9 @@ section('§1 the native road (/api/chat): every request carries the output ceili
   record(`the ceiling the Anthropic road sends as max_tokens for this id: ${ceiling} (model default ${getModelMaxOutputTokens(model).default}, upper limit ${getModelMaxOutputTokens(model).upperLimit})`)
   const sent = await send(model, 'hello')
   record(`the request: num_ctx ${String(sent.capture?.numCtx)} · num_predict ${String(sent.capture?.numPredict)} · errors ${JSON.stringify(sent.errors)}`)
-  check('the request was answered on the native road at the trained window', sent.capture?.road === 'native' && sent.capture.numCtx === TRAINED_MAX && sent.errors.length === 0, JSON.stringify(sent) + ' — the native request must go to /api/chat at the trained window; see src/services/providers/local/ollamaChatTransport.ts')
-  check(`options.num_predict carries the ceiling (${ceiling}) — the figure getMaxOutputTokensForModel gives every road`, sent.capture?.numPredict === ceiling, String(sent.capture?.numPredict) + ' — options.num_predict is set from max_tokens in src/services/providers/local/ollamaChatTransport.ts; the ceiling comes from getMaxOutputTokensForModel in src/services/providers/anthropic/streamCore.ts')
-  check('the window the request carries is the hold the limit reads (one truth, unchanged)', w.heldLocalWindow(plain!)?.window === TRAINED_MAX, 'the held window must equal the trained window; see heldLocalWindow in src/services/providers/local/localWindow.ts')
+  check('the request was answered on the native road at the trained window', sent.capture?.road === 'native' && sent.capture.numCtx === TRAINED_MAX && sent.errors.length === 0, JSON.stringify(sent) + ' — the native request must go to /api/chat at the trained window; see src/models/roads/local/ollamaChatTransport.ts')
+  check(`options.num_predict carries the ceiling (${ceiling}) — the figure getMaxOutputTokensForModel gives every road`, sent.capture?.numPredict === ceiling, String(sent.capture?.numPredict) + ' — options.num_predict is set from max_tokens in src/models/roads/local/ollamaChatTransport.ts; the ceiling comes from getMaxOutputTokensForModel in src/models/roads/anthropic/streamCore.ts')
+  check('the window the request carries is the hold the limit reads (one truth, unchanged)', w.heldLocalWindow(plain!)?.window === TRAINED_MAX, 'the held window must equal the trained window; see heldLocalWindow in src/models/roads/local/localWindow.ts')
 }
 
 section('§2 the user\'s own ceiling: MERCURY_MAX_OUTPUT_TOKENS rides to Ollama exactly, and an explicit per-call override still wins')
@@ -168,22 +168,22 @@ section('§2 the user\'s own ceiling: MERCURY_MAX_OUTPUT_TOKENS rides to Ollama 
   const ceiling = getMaxOutputTokensForModel(model)
   const sent = await send(model, 'hello again')
   record(`MERCURY_MAX_OUTPUT_TOKENS=12000: the ceiling ${ceiling} · num_predict ${String(sent.capture?.numPredict)}`)
-  check('num_predict is the user\'s 12,000 — the same figure, not a smaller one', ceiling === 12_000 && sent.capture?.numPredict === 12_000, String(sent.capture?.numPredict) + ' — MERCURY_MAX_OUTPUT_TOKENS must reach num_predict; see getMaxOutputTokensForModel in src/services/providers/anthropic/streamCore.ts and ollamaChatTransport.ts')
+  check('num_predict is the user\'s 12,000 — the same figure, not a smaller one', ceiling === 12_000 && sent.capture?.numPredict === 12_000, String(sent.capture?.numPredict) + ' — MERCURY_MAX_OUTPUT_TOKENS must reach num_predict; see getMaxOutputTokensForModel in src/models/roads/anthropic/streamCore.ts and ollamaChatTransport.ts')
   const overridden = await send(model, 'and once more', 1_500)
-  check('an explicit per-call override (1,500) is what rides, as on every road', overridden.capture?.numPredict === 1_500, String(overridden.capture?.numPredict) + ' — maxOutputTokensOverride must win over the ceiling; see src/services/providers/local/ollamaChatTransport.ts')
+  check('an explicit per-call override (1,500) is what rides, as on every road', overridden.capture?.numPredict === 1_500, String(overridden.capture?.numPredict) + ' — maxOutputTokensOverride must win over the ceiling; see src/models/roads/local/ollamaChatTransport.ts')
   delete process.env.MERCURY_MAX_OUTPUT_TOKENS
 }
 
 section('§3 the compat road to Ollama (a compat endpoint with the ollama dialect, /v1/chat/completions): max_tokens carries the same ceiling')
 {
   const result = updateSettingsForSource('userSettings', { compatProvider: { box: { baseUrl: `${ollama.root}/v1`, dialect: 'ollama', models: [PLAIN] } } })
-  check('the compat endpoint is configured with the ollama dialect', result.error === null, JSON.stringify(result) + ' — the compatProvider settings entry was rejected; see updateSettingsForSource in src/utils/settings/settings.ts')
+  check('the compat endpoint is configured with the ollama dialect', result.error === null, JSON.stringify(result) + ' — the compatProvider settings entry was rejected; see updateSettingsForSource in src/platform/settings/settings.ts')
   const model = `compat/box/${PLAIN}`
   const ceiling = getMaxOutputTokensForModel(model)
   const sent = await send(model, 'hello from the compat road')
   record(`the compat request: max_tokens ${String(sent.capture?.maxTokens)} · ceiling ${ceiling} · errors ${JSON.stringify(sent.errors)}`)
-  check('the request reached /v1/chat/completions and was answered', sent.capture?.road === 'compat' && sent.capture.model === PLAIN && sent.errors.length === 0, JSON.stringify(sent) + ' — a compat/box/ model must be sent to /v1/chat/completions; see src/services/providers/openaicompat/compatChatCallModel.ts')
-  check(`max_tokens carries the ceiling (${ceiling})`, sent.capture?.maxTokens === ceiling, String(sent.capture?.maxTokens) + ' — the compat road to Ollama must send the same ceiling as max_tokens; see src/services/providers/openaicompat/compatChatCallModel.ts')
+  check('the request reached /v1/chat/completions and was answered', sent.capture?.road === 'compat' && sent.capture.model === PLAIN && sent.errors.length === 0, JSON.stringify(sent) + ' — a compat/box/ model must be sent to /v1/chat/completions; see src/models/roads/openaicompat/compatChatCallModel.ts')
+  check(`max_tokens carries the ceiling (${ceiling})`, sent.capture?.maxTokens === ceiling, String(sent.capture?.maxTokens) + ' — the compat road to Ollama must send the same ceiling as max_tokens; see src/models/roads/openaicompat/compatChatCallModel.ts')
 }
 
 section('§4 a small window: the ceiling is fitted to the window\'s room the way every road fits it (never above the room, never under the 3,000 floor)')
@@ -193,7 +193,7 @@ section('§4 a small window: the ceiling is fitted to the window\'s room the way
   w.writeLocalWindowSetting(plain!, 4_096)
   const sent = await send(model, 'a short question')
   record(`window set to 4,096: num_ctx ${String(sent.capture?.numCtx)} · num_predict ${String(sent.capture?.numPredict)} · errors ${JSON.stringify(sent.errors)}`)
-  check('the request rides at num_ctx 4096 with num_predict fitted below the 32,000 ceiling, inside the window and at or above the 3,000 floor', sent.capture?.numCtx === 4_096 && sent.capture.numPredict !== undefined && sent.capture.numPredict < 32_000 && sent.capture.numPredict <= 4_096 && sent.capture.numPredict >= 3_000 && sent.errors.length === 0, JSON.stringify(sent.capture) + ' — the ceiling must be fitted to the window room; see fitOutputTokens in src/services/api/outputFit.ts')
+  check('the request rides at num_ctx 4096 with num_predict fitted below the 32,000 ceiling, inside the window and at or above the 3,000 floor', sent.capture?.numCtx === 4_096 && sent.capture.numPredict !== undefined && sent.capture.numPredict < 32_000 && sent.capture.numPredict <= 4_096 && sent.capture.numPredict >= 3_000 && sent.errors.length === 0, JSON.stringify(sent.capture) + ' — the ceiling must be fitted to the window room; see fitOutputTokens in src/engine/requests/outputFit.ts')
   w.writeLocalWindowSetting(plain!, undefined)
   w.__resetLocalWindowsForTest()
 }
@@ -203,19 +203,19 @@ section('§5 the other local servers are unchanged: a vLLM request carries no ma
   const model = `local/${VLLM_MODEL}`
   const sent = await send(model, 'hello vllm')
   record(`the vLLM request: max_tokens ${String(sent.capture?.maxTokens)} · errors ${JSON.stringify(sent.errors)}`)
-  check('the vLLM request carries no max_tokens (the server default governs, as before)', sent.capture?.road === 'compat' && sent.capture.maxTokens === undefined && sent.errors.length === 0, JSON.stringify(sent.capture?.body) + ' — a vLLM request must carry no max_tokens unless overridden; see src/services/providers/local/localCallModel.ts')
+  check('the vLLM request carries no max_tokens (the server default governs, as before)', sent.capture?.road === 'compat' && sent.capture.maxTokens === undefined && sent.errors.length === 0, JSON.stringify(sent.capture?.body) + ' — a vLLM request must carry no max_tokens unless overridden; see src/models/roads/local/localCallModel.ts')
   const overridden = await send(model, 'hello vllm', 2_048)
-  check('an explicit override still rides to vLLM as max_tokens', overridden.capture?.maxTokens === 2_048, String(overridden.capture?.maxTokens) + ' — an explicit override must ride to vLLM as max_tokens; see src/services/providers/local/localCallModel.ts')
+  check('an explicit override still rides to vLLM as max_tokens', overridden.capture?.maxTokens === 2_048, String(overridden.capture?.maxTokens) + ' — an explicit override must ride to vLLM as max_tokens; see src/models/roads/local/localCallModel.ts')
 }
 
 section('§6 a stream that never ends is cut at the run\'s time limit: the abort reaches the transport and the turn ends with the existing time-limit outcome within a second of the deadline')
 {
-  const { Conversation } = await import('../../src/rows/turn.ts')
-  const { exitCodeOf, OUTCOME_SENTENCES } = await import('../../src/rows/vocabulary.ts')
-  const { flushDebugLogs } = await import('../../src/utils/debug.ts')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-  const bootstrap = await import('../../src/bootstrap/state.ts')
+  const { Conversation } = await import('../../src/engine/rows/turn.ts')
+  const { exitCodeOf, OUTCOME_SENTENCES } = await import('../../src/engine/rows/vocabulary.ts')
+  const { flushDebugLogs } = await import('../../src/platform/logs/debugLog.ts')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+  const bootstrap = await import('../../src/boot/process-state/processState.ts')
   bootstrap.setIsInteractive(false)
   bootstrap.setAskChannel('none')
   bootstrap.setSessionPersistenceDisabled(true)
@@ -281,11 +281,11 @@ section('§6 a stream that never ends is cut at the run\'s time limit: the abort
   await flushDebugLogs()
   const wireLine = readFileSync(debugLog, 'utf8').split('\n').find(line => line.includes(`/api/chat stream from ${PLAIN}:`) && line.includes('ended cancelled'))
   record(`the request reached the server ${requestsAt.length > 0 ? `${deadline - requestsAt[0]!}ms before the deadline` : 'never'}; the outcome ${JSON.stringify(outcome?.status)} (${JSON.stringify(error?.class)}: ${JSON.stringify(error?.message)}) landed ${outcomeAt - deadline}ms after the deadline; the server saw its socket close ${closes.length > 0 ? `${closes[0]! - deadline}ms after the deadline` : 'never'}`)
-  check('the stream was in flight when the deadline passed (the request reached the server before it, and kept streaming)', requestsAt.length === 1 && requestsAt[0]! < deadline, JSON.stringify(requestsAt.map(at => at - deadline)) + ' — exactly one /api/chat request must reach the fixture before the deadline; the turn path is Conversation.turn in src/rows/turn.ts')
-  check('the turn ends with the existing time-limit outcome (status time_limit, class time_limit, the sentence naming the limit) — exit code 1', outcome?.status === 'time_limit' && error?.class === 'time_limit' && error.message === OUTCOME_SENTENCES.time_limit({ maxTimeMs: LIMIT_MS }) && exitCodeOf(outcome.status as never) === 1, JSON.stringify(outcome) + ' — the outcome must be the time_limit outcome; see OUTCOME_SENTENCES and exitCodeOf in src/rows/vocabulary.ts and Conversation.turn in src/rows/turn.ts')
-  check('the outcome lands within a second of the deadline, not at the stream\'s end (which never comes)', outcomeAt >= deadline - 50 && outcomeAt - deadline < 1_000, `${outcomeAt - deadline}ms — the time limit must abort the stream; see Conversation.turn in src/rows/turn.ts and the abort handling in src/services/providers/local/ollamaChatTransport.ts`)
-  check('the abort reached the transport: the stream\'s own wire record says it ended cancelled (the fetch aborted, the body released)', wireLine !== undefined, wireLine ?? 'no wire record — the transport must log the stream as ended cancelled when the fetch aborts; see src/services/providers/local/ollamaChatTransport.ts')
-  check('the server saw the request socket close within a second of the deadline', closes.length >= 1 && closes[0]! - deadline < 1_000, JSON.stringify(closes.map(at => at - deadline)) + ' — the abort must close the request socket; see the fetch abort in src/services/providers/local/ollamaChatTransport.ts')
+  check('the stream was in flight when the deadline passed (the request reached the server before it, and kept streaming)', requestsAt.length === 1 && requestsAt[0]! < deadline, JSON.stringify(requestsAt.map(at => at - deadline)) + ' — exactly one /api/chat request must reach the fixture before the deadline; the turn path is Conversation.turn in src/engine/rows/turn.ts')
+  check('the turn ends with the existing time-limit outcome (status time_limit, class time_limit, the sentence naming the limit) — exit code 1', outcome?.status === 'time_limit' && error?.class === 'time_limit' && error.message === OUTCOME_SENTENCES.time_limit({ maxTimeMs: LIMIT_MS }) && exitCodeOf(outcome.status as never) === 1, JSON.stringify(outcome) + ' — the outcome must be the time_limit outcome; see OUTCOME_SENTENCES and exitCodeOf in src/engine/rows/vocabulary.ts and Conversation.turn in src/engine/rows/turn.ts')
+  check('the outcome lands within a second of the deadline, not at the stream\'s end (which never comes)', outcomeAt >= deadline - 50 && outcomeAt - deadline < 1_000, `${outcomeAt - deadline}ms — the time limit must abort the stream; see Conversation.turn in src/engine/rows/turn.ts and the abort handling in src/models/roads/local/ollamaChatTransport.ts`)
+  check('the abort reached the transport: the stream\'s own wire record says it ended cancelled (the fetch aborted, the body released)', wireLine !== undefined, wireLine ?? 'no wire record — the transport must log the stream as ended cancelled when the fetch aborts; see src/models/roads/local/ollamaChatTransport.ts')
+  check('the server saw the request socket close within a second of the deadline', closes.length >= 1 && closes[0]! - deadline < 1_000, JSON.stringify(closes.map(at => at - deadline)) + ' — the abort must close the request socket; see the fetch abort in src/models/roads/local/ollamaChatTransport.ts')
 }
 
 ollama.server.stop(true)

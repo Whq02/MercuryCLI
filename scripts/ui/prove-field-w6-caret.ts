@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
-import { Cursor } from '../../src/utils/Cursor.js'
+import { Cursor } from '../../src/screen/composer/vim/textCursor.js'
 
 let failures = 0
 const check = (name: string, ok: boolean, detail?: string): void => {
   if (ok) console.log(`  ok  ${name}`)
   else {
     failures++
-    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''} | fix Cursor.insert in src/utils/Cursor.ts: the caret must land after the inserted text measured in the normalised (composed) document, never at the isolated-insert length`)
+    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''} | fix Cursor.insert in src/screen/composer/vim/textCursor.ts: the caret must land after the inserted text measured in the normalised (composed) document, never at the isolated-insert length`)
   }
 }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/permissions/filesystem.ts src/utils/permissions/pathValidation.ts src/utils/memoryFileDetection.ts
-// gate-watch: src/components/messages/collapseReadSearch.ts src/tools/FileWriteTool/FileWriteTool.ts src/tools/FileEditTool/FileEditTool.ts src/mneme/paths.ts
+// gate-watch: src/permissions/rules/filesystem.ts src/permissions/rules/pathValidation.ts src/sessions/memory-shapes/memoryFileDetection.ts
+// gate-watch: src/screen/messages/collapseReadSearch.ts src/tools/write/WriteTool.ts src/tools/edit/EditTool.ts src/sessions/mneme/paths.ts
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -27,22 +27,22 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setOriginalCwd, setCwdState } = await import('../../src/bootstrap/state.ts')
+const { setOriginalCwd, setCwdState } = await import('../../src/boot/process-state/processState.ts')
 setOriginalCwd(PROJ)
 setCwdState(PROJ)
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { getMnemeHome } = await import('../../src/mneme/paths.ts')
-const { isPathAllowed } = await import('../../src/utils/permissions/pathValidation.ts')
-const { checkEditableInternalPath, checkReadableInternalPath } = await import('../../src/utils/permissions/filesystem.ts')
-const { getToolSearchOrReadInfo } = await import('../../src/components/messages/collapseReadSearch.ts')
-const { memoryWriteRefusal } = await import('../../src/utils/memoryFileDetection.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { RETAIN_TOOL_NAME, CORRECT_TOOL_NAME } = await import('../../src/constants/tools/memory.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { getMnemeHome } = await import('../../src/sessions/mneme/paths.ts')
+const { isPathAllowed } = await import('../../src/permissions/rules/pathValidation.ts')
+const { checkEditableInternalPath, checkReadableInternalPath } = await import('../../src/permissions/rules/filesystem.ts')
+const { getToolSearchOrReadInfo } = await import('../../src/screen/messages/collapseReadSearch.ts')
+const { memoryWriteRefusal } = await import('../../src/sessions/memory-shapes/memoryFileDetection.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { RETAIN_TOOL_NAME, CORRECT_TOOL_NAME } = await import('../../src/tools/kit/names/memory.ts')
 
 const lib = mnemeLibraryDir()
 mkdirSync(lib, { recursive: true })
@@ -72,7 +72,7 @@ const sentence = (path: string): string => `${path} is Mercury's memory: save wi
 
 try {
   section('§1 the write ladder: a write under the memory library is no longer carved out as allowed; the read carve-out stays')
-  whereToLook = 'the write and read carve-outs for the memory library are in isPathAllowed in src/utils/permissions/pathValidation.ts and checkEditableInternalPath and checkReadableInternalPath in src/utils/permissions/filesystem.ts'
+  whereToLook = 'the write and read carve-outs for the memory library are in isPathAllowed in src/permissions/rules/pathValidation.ts and checkEditableInternalPath and checkReadableInternalPath in src/permissions/rules/filesystem.ts'
   const ctx = { ...getEmptyToolPermissionContext(), mode: 'default' as const }
   for (const file of ['pins.json', 'topic-project.md', 'front-page.md', 'current.jsonl']) {
     const target = join(lib, file)
@@ -88,7 +88,7 @@ try {
   check('a write inside the project is untouched by this (default mode falls through to the ladder as before)', (isPathAllowed(inProject, { ...ctx, mode: 'implement' as const }, 'write') as { allowed: boolean }).allowed === true)
 
   section('§2 the call road: Write and Edit refuse a memory-library target with one sentence naming the verbs, whatever the mode')
-  whereToLook = 'the refusal sentence comes from memoryWriteRefusal in src/utils/memoryFileDetection.ts, called by validateInput in src/tools/FileWriteTool/FileWriteTool.ts and src/tools/FileEditTool/FileEditTool.ts'
+  whereToLook = 'the refusal sentence comes from memoryWriteRefusal in src/sessions/memory-shapes/memoryFileDetection.ts, called by validateInput in src/tools/write/WriteTool.ts and src/tools/edit/EditTool.ts'
   const w = await validateWrite(join(lib, 'pins.json'))
   check('Write to library/pins.json is refused before any permission ask', w.result === false, JSON.stringify(w))
   check('the sentence names Retain and Correct and the path', w.message === sentence(join(lib, 'pins.json')), w.message ?? '')
@@ -106,7 +106,7 @@ try {
   check('Edit inside the project passes validation', eProject.result === true, JSON.stringify(eProject))
 
   section('§3 the transcript: a write aimed at the library is never collapsed into a memory-write row')
-  whereToLook = 'getToolSearchOrReadInfo in src/components/messages/collapseReadSearch.ts decides isMemoryWrite and isCollapsible'
+  whereToLook = 'getToolSearchOrReadInfo in src/screen/messages/collapseReadSearch.ts decides isMemoryWrite and isCollapsible'
   const writeInfo = getToolSearchOrReadInfo('Write', { file_path: join(lib, 'pins.json'), content: 'x' }, [] as never) as { isMemoryWrite: boolean; isCollapsible: boolean }
   check('Write to library/pins.json: not a memory write, not collapsible', writeInfo.isMemoryWrite === false && writeInfo.isCollapsible === false, JSON.stringify(writeInfo))
   const editInfo = getToolSearchOrReadInfo('Edit', { file_path: join(lib, 'topic-project.md'), old_string: 'a', new_string: 'b' }, [] as never) as { isMemoryWrite: boolean }
@@ -115,7 +115,7 @@ try {
   check('a session-memory file still collapses as before (the control)', sessionInfo.isMemoryWrite === true, JSON.stringify(sessionInfo))
 
   section('§4 memory off: no refusal sentence — the path is an ordinary file under the home')
-  whereToLook = 'with MERCURY_BARE set, memoryWriteRefusal in src/utils/memoryFileDetection.ts must return null and the Write validateInput in src/tools/FileWriteTool/FileWriteTool.ts must pass'
+  whereToLook = 'with MERCURY_BARE set, memoryWriteRefusal in src/sessions/memory-shapes/memoryFileDetection.ts must return null and the Write validateInput in src/tools/write/WriteTool.ts must pass'
   process.env.MERCURY_BARE = '1'
   check('with memory off the sentence is null', memoryWriteRefusal(join(lib, 'pins.json')) === null)
   const wOff = await validateWrite(join(lib, 'pins.json'))

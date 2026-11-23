@@ -11,7 +11,7 @@ delete process.env.TYPESAFE_API_KEY
 
 let failures = 0
 let checks = 0
-const jevKeyHint = 'fix the key store and resolver in src/services/jev/jevKey.ts (resolveJevApiKey, storeJevApiKey, jevKeyPresence, jevKeySourceWords) or the secrets file in src/utils/accounts/providerSecrets.ts; a stale invalid-key record is cleared in src/services/jev/jevLedger.ts'
+const jevKeyHint = 'fix the key store and resolver in src/models/jev/jevKey.ts (resolveJevApiKey, storeJevApiKey, jevKeyPresence, jevKeySourceWords) or the secrets file in src/models/sign-in/account-ledger/providerSecrets.ts; a stale invalid-key record is cleared in src/models/jev/jevLedger.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -24,9 +24,9 @@ function section(t: string): void {
 const PROOF_KEY = 'proof-key-jev-not-a-real-key-0001'
 const ENV_KEY = 'proof-key-jev-env-pin-not-real-0002'
 
-const secrets = await import('../../src/utils/accounts/providerSecrets.js')
-const key = await import('../../src/services/jev/jevKey.js')
-const ledger = await import('../../src/services/jev/jevLedger.js')
+const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.js')
+const key = await import('../../src/models/jev/jevKey.js')
+const ledger = await import('../../src/models/jev/jevLedger.js')
 const { credentialEnvNames, providerSecretsPathForDisplay, readStoredTypesafeApiKey } = secrets
 const { JEV_KEY_ENV, jevKeyPresence, jevKeySourceWords, resolveJevApiKey, storeJevApiKey } = key
 const { jevLedgerSnapshot, noteJevWireFailure, resetJevLedger } = ledger

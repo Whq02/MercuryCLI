@@ -1,4 +1,4 @@
-import type { Message } from '../../types/message.js'
+import type { Message } from '../../engine/message-shapes/message.js'
 
 const TOOL_RESULT_CHARACTER_LIMIT = 2000
 

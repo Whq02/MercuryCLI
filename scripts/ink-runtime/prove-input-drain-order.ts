@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import React, { useState } from 'react'
-import Ink from '../../src/ink/ink.tsx'
-import Text from '../../src/ink/components/Text.tsx'
-import useInput from '../../src/ink/hooks/use-input.ts'
-import instances from '../../src/ink/instances.ts'
+import Ink from '../../src/screen/renderer/screenInstance.tsx'
+import Text from '../../src/screen/renderer/elements/Text.tsx'
+import useInput from '../../src/screen/renderer/bindings/use-input.ts'
+import instances from '../../src/screen/renderer/instances.ts'
 
 class Output extends EventEmitter {
   isTTY = true
@@ -70,22 +70,22 @@ async function scene(name: string, act: (stdin: Input) => Promise<void>): Promis
 const downs = (stdin: Input, n: number): void => { for (let i = 0; i < n; i++) stdin.push(DOWN) }
 
 const queued = await scene('eight downs queued, then the text, then Enter', async stdin => { downs(stdin, 8); stdin.push(ROW); stdin.push(ENTER) })
-assert.equal(queued.filter(line => line === 'down').length, 8, `every acting key dispatched; got ${JSON.stringify(queued)} (handleInput and drainInput in src/ink/components/AppInputLoop.ts must dispatch every queued acting key)`)
-assert.ok(!queued.includes('close'), `the Enter behind a queued text batch must not run against the state before the text; got ${JSON.stringify(queued)} (drainInput in src/ink/components/AppInputLoop.ts must flush each batch before the next one dispatches)`)
-assert.ok(queued.includes(`select:${ROW}`), `the Enter saw the text batch committed and selected the typed row; got ${JSON.stringify(queued)} (drainInput in src/ink/components/AppInputLoop.ts must commit the text batch before dispatching the Enter)`)
+assert.equal(queued.filter(line => line === 'down').length, 8, `every acting key dispatched; got ${JSON.stringify(queued)} (handleInput and drainInput in src/screen/renderer/elements/AppInputLoop.ts must dispatch every queued acting key)`)
+assert.ok(!queued.includes('close'), `the Enter behind a queued text batch must not run against the state before the text; got ${JSON.stringify(queued)} (drainInput in src/screen/renderer/elements/AppInputLoop.ts must flush each batch before the next one dispatches)`)
+assert.ok(queued.includes(`select:${ROW}`), `the Enter saw the text batch committed and selected the typed row; got ${JSON.stringify(queued)} (drainInput in src/screen/renderer/elements/AppInputLoop.ts must commit the text batch before dispatching the Enter)`)
 console.log('PASS an acting key queued behind a text batch runs against the text batch\'s committed state')
 
 const paused = await scene('the text, a pause, Enter', async stdin => { stdin.push(ROW); await settle(60); stdin.push(ENTER) })
-assert.deepEqual(paused, [`search:${ROW}`, `select:${ROW}`], `the text, a pause and Enter must select the typed row; got ${JSON.stringify(paused)} (check handleInput and drainInput in src/ink/components/AppInputLoop.ts)`)
+assert.deepEqual(paused, [`search:${ROW}`, `select:${ROW}`], `the text, a pause and Enter must select the typed row; got ${JSON.stringify(paused)} (check handleInput and drainInput in src/screen/renderer/elements/AppInputLoop.ts)`)
 console.log('PASS the text, a pause and the Enter select the typed row')
 
 const oneChunk = await scene('the text and Enter in one chunk', async stdin => { stdin.push(ROW + ENTER) })
-assert.deepEqual(oneChunk, [`search:${ROW}`, `select:${ROW}`], `the text and Enter in one chunk must select the typed row; got ${JSON.stringify(oneChunk)} (check handleInput and drainInput in src/ink/components/AppInputLoop.ts)`)
+assert.deepEqual(oneChunk, [`search:${ROW}`, `select:${ROW}`], `the text and Enter in one chunk must select the typed row; got ${JSON.stringify(oneChunk)} (check handleInput and drainInput in src/screen/renderer/elements/AppInputLoop.ts)`)
 console.log('PASS the text and the Enter in one chunk select the typed row')
 
 const twoTexts = await scene('eight downs queued, then the text in two chunks, then Enter', async stdin => { downs(stdin, 8); stdin.push('Crewmate'); stdin.push(' default model'); stdin.push(ENTER) })
-assert.ok(twoTexts.includes('type: default model'), `the second text chunk typed into the search the first one opened; got ${JSON.stringify(twoTexts)} (drainInput in src/ink/components/AppInputLoop.ts must commit each text batch before the next)`)
-assert.ok(twoTexts.includes(`select:${ROW}`), `the query is both chunks, in order; got ${JSON.stringify(twoTexts)} (drainInput in src/ink/components/AppInputLoop.ts must commit each text batch before the next)`)
+assert.ok(twoTexts.includes('type: default model'), `the second text chunk typed into the search the first one opened; got ${JSON.stringify(twoTexts)} (drainInput in src/screen/renderer/elements/AppInputLoop.ts must commit each text batch before the next)`)
+assert.ok(twoTexts.includes(`select:${ROW}`), `the query is both chunks, in order; got ${JSON.stringify(twoTexts)} (drainInput in src/screen/renderer/elements/AppInputLoop.ts must commit each text batch before the next)`)
 console.log('PASS consecutive text batches behind the queue each see the one before them committed')
 
 console.log('INPUT DRAIN ORDER HOLDS')

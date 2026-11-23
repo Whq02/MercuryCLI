@@ -24,14 +24,14 @@ writeFileSync(join(HOME, 'settings.json'), '{}')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail : '') + ' — change composeModelListsRow, modelListFamilyLines, judgeTypedIds or readModelListFacts in src/services/providers/typedModelIds.ts (the row is wired in src/services/health/sections/auth.ts)' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail : '') + ' — change composeModelListsRow, modelListFamilyLines, judgeTypedIds or readModelListFacts in src/models/roads/typedModelIds.ts (the row is wired in src/platform/health/sections/auth.ts)' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const typedModelIds = await import('../../src/services/providers/typedModelIds.ts')
+const typedModelIds = await import('../../src/models/roads/typedModelIds.ts')
 const { composeModelListsRow, judgeTypedIds, modelListFamilyLines, readModelListFacts, MODEL_LISTS_FIX, MODEL_LISTS_UNREAD_EVIDENCE } = typedModelIds
-type Fact = import('../../src/services/providers/typedModelIds.ts').ModelListFact
+type Fact = import('../../src/models/roads/typedModelIds.ts').ModelListFact
 const NOW = Date.parse('2026-09-20T12:00:00Z')
 const fact = (partial: Partial<Fact> & Pick<Fact, 'family' | 'name' | 'typed' | 'list'>): Fact => partial
 
@@ -142,16 +142,16 @@ section('§2b Moonshot over its cached live list: served, lacking, unread, unrea
 }
 
 section('§3 the reader: the facts come from the catalogue caches this process holds, never a fetch')
-const { GPT_DISPLAY_PINS } = await import('../../src/utils/model/pins/gptPins.ts')
-const { GEMINI_PRICE_PINS } = await import('../../src/utils/model/pins/geminiPins.ts')
-const { DEEPSEEK_DISPLAY_PINS } = await import('../../src/utils/model/pins/deepseekPins.ts')
-const { HUGGINGFACE_DISPLAY_PINS } = await import('../../src/utils/model/pins/huggingfacePins.ts')
-const { KIMI_DISPLAY_PINS } = await import('../../src/utils/model/pins/kimiPins.ts')
-const openaiCatalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const moonshotCatalogue = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
-const deepseekCatalogue = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts')
-const geminiCatalogue = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const huggingfaceCatalogue = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.ts')
+const { GPT_DISPLAY_PINS } = await import('../../src/models/facts/pins/gptPins.ts')
+const { GEMINI_PRICE_PINS } = await import('../../src/models/facts/pins/geminiPins.ts')
+const { DEEPSEEK_DISPLAY_PINS } = await import('../../src/models/facts/pins/deepseekPins.ts')
+const { HUGGINGFACE_DISPLAY_PINS } = await import('../../src/models/facts/pins/huggingfacePins.ts')
+const { KIMI_DISPLAY_PINS } = await import('../../src/models/facts/pins/kimiPins.ts')
+const openaiCatalogue = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const moonshotCatalogue = await import('../../src/models/roads/moonshot/moonshotCatalogue.ts')
+const deepseekCatalogue = await import('../../src/models/roads/deepseek/deepseekCatalogue.ts')
+const geminiCatalogue = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const huggingfaceCatalogue = await import('../../src/models/roads/huggingface/huggingfaceCatalogue.ts')
 const GPT_TYPED = GPT_DISPLAY_PINS.map(p => p.id)
 check('the GPT typed table holds at least three ids (two are withheld below)', GPT_TYPED.length >= 3, String(GPT_TYPED.length))
 const OWNER_LIST = GPT_TYPED.slice(0, -2)
@@ -238,7 +238,7 @@ const byFamily = (facts: Fact[], family: Fact['family']): Fact => facts.find(f =
   delete process.env.MOONSHOT_API_KEY
   moonshotCatalogue.__resetMoonshotCatalogueForTest()
 
-  const anthropicCatalogue = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
+  const anthropicCatalogue = await import('../../src/models/roads/anthropic/anthropicCatalogue.ts')
   anthropicCatalogue.__resetAnthropicCatalogueForTest()
   const anthropicPage = (ids: string[]): typeof fetch =>
     (async () => new Response(JSON.stringify({ data: ids.map(id => ({ type: 'model', id, display_name: id })), has_more: false }), { status: 200, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch

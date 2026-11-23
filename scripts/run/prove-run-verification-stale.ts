@@ -4,10 +4,10 @@
 let failures = 0
 let currentSectionNumber = 0
 const sectionWhere: Record<number, string> = {
-  1: 'the tool-effected and evidence handling in reduceRunEvent in src/services/run/runKernel.ts, where a mutation with changed paths turns verified into stale',
-  2: 'the tool-effected handling in reduceRunEvent in src/services/run/runKernel.ts, which must leave reads, failed or no-change edits, unverified and failed states as they are',
-  3: 'the evidence handling in reduceRunEvent in src/services/run/runKernel.ts',
-  4: 'buildRunContinuationCapsule in src/services/run/runContinuationCapsule.ts and buildRunRows in src/commands/run/runInspectorModel.ts, which must print the kernel verification state',
+  1: 'the tool-effected and evidence handling in reduceRunEvent in src/engine/run/runKernel.ts, where a mutation with changed paths turns verified into stale',
+  2: 'the tool-effected handling in reduceRunEvent in src/engine/run/runKernel.ts, which must leave reads, failed or no-change edits, unverified and failed states as they are',
+  3: 'the evidence handling in reduceRunEvent in src/engine/run/runKernel.ts',
+  4: 'buildRunContinuationCapsule in src/engine/run/runContinuationCapsule.ts and buildRunRows in src/commands/run/runInspectorModel.ts, which must print the kernel verification state',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -22,8 +22,8 @@ function section(t: string): void {
 }
 
 async function main(): Promise<void> {
-  const ok = await import('../../src/utils/run/ownerKey.js')
-  const kernel = await import('../../src/services/run/runKernel.js')
+  const ok = await import('../../src/engine/run-owner/ownerKey.js')
+  const kernel = await import('../../src/engine/run/runKernel.js')
   type Ev = Parameters<typeof kernel.reduceRunEvent>[1]
 
   const owner = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'run-stale', lane: 'main' })
@@ -88,8 +88,8 @@ async function main(): Promise<void> {
 
   section('4. the continuation capsule and the inspector read the stale state')
   {
-    const coordinator = await import('../../src/services/run/runCoordinator.js')
-    const { buildRunContinuationCapsule } = await import('../../src/services/run/runContinuationCapsule.js')
+    const coordinator = await import('../../src/engine/run/runCoordinator.js')
+    const { buildRunContinuationCapsule } = await import('../../src/engine/run/runContinuationCapsule.js')
     const { buildRunRows } = await import('../../src/commands/run/runInspectorModel.js')
     const liveOwner = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'run-stale-live', lane: 'agent:stale' })
     coordinator.acceptUserRequest(liveOwner, { objective: 'fix the parser', rootMessageId: 'u1' })

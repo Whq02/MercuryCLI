@@ -2,14 +2,14 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { MnemeTopicDoc } from '../../src/mneme/mnemeTopicDocs.ts'
+import type { MnemeTopicDoc } from '../../src/sessions/mneme/mnemeTopicDocs.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const HOME = mkdtempSync(join(tmpdir(), 'mneme-crlf-home-'))
 const WORK = mkdtempSync(join(tmpdir(), 'mneme-crlf-work-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 
-const { parseTopicDoc, serializeTopicDoc } = await import('../../src/mneme/mnemeTopicDocs.ts')
+const { parseTopicDoc, serializeTopicDoc } = await import('../../src/sessions/mneme/mnemeTopicDocs.ts')
 
 let failures = 0
 let checks = 0
@@ -64,11 +64,11 @@ section('§1 parseTopicDoc reads a CRLF or BOM copy of the topic doc Mercury wri
       want.sections[0]?.entries.length === 2 &&
       want.history[0]?.supersededBy === 3 &&
       want.updateLog.length === 1,
-    `fix parseTopicDoc or serializeTopicDoc in src/mneme/mnemeTopicDocs.ts; got ${JSON.stringify(want)}`,
+    `fix parseTopicDoc or serializeTopicDoc in src/sessions/mneme/mnemeTopicDocs.ts; got ${JSON.stringify(want)}`,
   )
   for (const [label, shape] of copies) {
     const got = parseTopicDoc(shape(lf))
-    check(`${label}: parseTopicDoc returns the LF reading`, got !== null && JSON.stringify(got) === JSON.stringify(want), `make parseTopicDoc in src/mneme/mnemeTopicDocs.ts strip the BOM and read CRLF like LF; got ${got === null ? 'null' : JSON.stringify(got).slice(0, 160)}`)
+    check(`${label}: parseTopicDoc returns the LF reading`, got !== null && JSON.stringify(got) === JSON.stringify(want), `make parseTopicDoc in src/sessions/mneme/mnemeTopicDocs.ts strip the BOM and read CRLF like LF; got ${got === null ? 'null' : JSON.stringify(got).slice(0, 160)}`)
   }
 }
 

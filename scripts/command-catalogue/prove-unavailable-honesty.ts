@@ -6,7 +6,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { isOutcome, outcomeErrorText, parseRow } from '../../src/rows/read.ts'
+import { isOutcome, outcomeErrorText, parseRow } from '../../src/engine/rows/read.ts'
 
 const repo = path.resolve(import.meta.dir, '../..')
 const distArg = process.argv.indexOf('--dist')

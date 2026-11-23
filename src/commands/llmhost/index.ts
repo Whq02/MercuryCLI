@@ -1,4 +1,4 @@
-import type { Command } from '../../commands.js'
+import type { Command } from '../catalogue/commands.js'
 import { LLM_HOST_WORDS } from './words.js'
 
 export default {

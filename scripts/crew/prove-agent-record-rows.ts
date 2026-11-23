@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
-import { decodeTranscriptBuffer } from '../../src/fabric/transcriptDecode.ts'
+import { decodeTranscriptBuffer } from '../../src/sessions/fabric/transcriptDecode.ts'
 import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, record, toolResultOf, treeOf, TURN_MS } from './crew-world.ts'
 
 const PEER_MODEL = 'claude-opus-4-6'
@@ -21,8 +21,8 @@ const script: ScriptedTurn[] = [
   peer({ kind: 'text', text: ANSWER }),
   peer({ kind: 'text', text: 'RESUMED-RECORD-ONCE' }),
 ]
-const WRITER = 'the sub-agent transcript is written by recordSidechainTranscript in src/utils/sessionStorage.ts; a turn must land as one settled row there'
-const RESUME = 'resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts rebuilds the resumed agent\'s messages from its transcript; read what it replays there'
+const WRITER = 'the sub-agent transcript is written by recordSidechainTranscript in src/sessions/transcripts/sessionStorage.ts; a turn must land as one settled row there'
+const RESUME = 'resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts rebuilds the resumed agent\'s messages from its transcript; read what it replays there'
 const tally = makeTally('prove-agent-record-rows')
 const world = await makeWorld('agent-record-rows', script)
 const session = bootLead(world, ['--mode', 'sovereign'], ['Crewmate', 'Bash', 'SendMessage', 'ResumeCrewmate'])

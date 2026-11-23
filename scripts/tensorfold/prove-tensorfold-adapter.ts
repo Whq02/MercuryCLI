@@ -15,26 +15,26 @@ delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const identity = await import('../../src/services/tensorfold/adapter/identity.ts')
-const models = await import('../../src/services/tensorfold/adapter/models.ts')
-const adapterMain = await import('../../src/services/tensorfold/adapter/main.ts')
-const adapterServe = await import('../../src/services/tensorfold/adapter/serve.ts')
-const adapterPull = await import('../../src/services/tensorfold/adapter/pull.ts')
-const adapterLlama = await import('../../src/services/tensorfold/adapter/llama.ts')
-const hfCache = await import('../../src/services/tensorfold/hfCache.ts')
-const engine = await import('../../src/services/tensorfold/engine.ts')
-const serve = await import('../../src/services/tensorfold/serve.ts')
-const refusal = await import('../../src/services/tensorfold/refusal.ts')
-const inventory = await import('../../src/services/tensorfold/inventory.ts')
+const identity = await import('../../src/models/tensorfold/adapter/identity.ts')
+const models = await import('../../src/models/tensorfold/adapter/models.ts')
+const adapterMain = await import('../../src/models/tensorfold/adapter/main.ts')
+const adapterServe = await import('../../src/models/tensorfold/adapter/serve.ts')
+const adapterPull = await import('../../src/models/tensorfold/adapter/pull.ts')
+const adapterLlama = await import('../../src/models/tensorfold/adapter/llama.ts')
+const hfCache = await import('../../src/models/tensorfold/hfCache.ts')
+const engine = await import('../../src/models/tensorfold/engine.ts')
+const serve = await import('../../src/models/tensorfold/serve.ts')
+const refusal = await import('../../src/models/tensorfold/refusal.ts')
+const inventory = await import('../../src/models/tensorfold/inventory.ts')
 const scene = await import('../../src/commands/tensorfold/scene.ts')
-const { probeTensorFold, refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localServerKind } = await import('../../src/constants/localPromptProfile.ts')
-const health = await import('../../src/services/providers/local/tensorfoldHealth.ts')
-const support = await import('../../src/services/providers/local/tensorfoldSupport.ts')
-const { readRecord } = await import('../../src/services/projectServices/serviceManager.ts')
-const { adapterFitsMachine, tensorFoldCapableMachine } = await import('../../src/components/tensorfold/tensorfoldFacts.ts')
+const { probeTensorFold, refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localServerKind } = await import('../../src/models/roads/localPromptProfile.ts')
+const health = await import('../../src/models/roads/local/tensorfoldHealth.ts')
+const support = await import('../../src/models/roads/local/tensorfoldSupport.ts')
+const { readRecord } = await import('../../src/tools/engines/project-services/serviceManager.ts')
+const { adapterFitsMachine, tensorFoldCapableMachine } = await import('../../src/screen/tensorfold/tensorfoldFacts.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -164,7 +164,7 @@ section('the admission and the refusal lines in his grammar, read by refusal.ts'
 {
   const fit = adapterServe.admission(QWEN_4B, 262_144, 1, 16 * GIB)
   check("the 4B at 256k on 16 GiB: 13.6 GiB needed past the 11.2 GiB limit; the line names the KV at the window and what is left under the load limit, and refusal.ts reads it as a memory refusal with 128k as the next window", fit.line === 'qwen3_5: one stream at a 262144-token window takes 8.00 GiB, more than the 5.65 GiB left under the load limit; lower --context' && (fit.needBytes / GIB).toFixed(1) === '13.6', JSON.stringify(fit))
-  const read = refusal.readTensorFoldRefusal(`tensorfold-adapter: ${fit.line}`, { window: 262_144, ladder: (await import('../../src/services/tensorfold/fit.ts')).tensorFoldLadder(QWEN_4B, WIN_16) })
+  const read = refusal.readTensorFoldRefusal(`tensorfold-adapter: ${fit.line}`, { window: 262_144, ladder: (await import('../../src/models/tensorfold/fit.ts')).tensorFoldLadder(QWEN_4B, WIN_16) })
   check('refusal.ts: kind memory, the GiB figures, the next window 128k whose cache fits what is left, the adapter prefix stripped', read.kind === 'memory' && read.needGib === 8 && read.leftGib === 5.65 && read.nextWindow === 131_072 && read.line === fit.line, JSON.stringify(read))
   check('the 4B at 128k fits on 16 GiB (9.6 GiB)', adapterServe.admission(QWEN_4B, 131_072, 1, 16 * GIB).line === undefined && (adapterServe.admission(QWEN_4B, 131_072, 1, 16 * GIB).needBytes / GIB).toFixed(1) === '9.6')
   const port = refusal.readTensorFoldRefusal('tensorfold-adapter: cannot listen on 127.0.0.1:8080 (AddressInUse)', {})
@@ -234,14 +234,14 @@ section('serve against the fake llama-server: 503 while loading, the TensorFold-
   await refreshLocalDiscovery({ force: true, env: { ...process.env, MERCURY_LOCAL_PROBE_TARGETS: `tensorfold=${root}` } })
   check("the prompt profile sees the engine underneath: localServerKind is llamacpp for the adapter's model (one call per message; declared tools only)", localServerKind('local/qwen3.5-2b') === 'llamacpp', String(localServerKind('local/qwen3.5-2b')))
   const snapshot = { probedAtMs: Date.now(), targetCount: 1, servers: [probe!] }
-  const state = await (await import('../../src/services/providers/local/tensorfoldState.ts')).readTensorFoldState({ engine: async () => null, served: () => [], snapshot: async () => snapshot, hosts: () => [], app: async () => ({ running: false }), helper: () => ({ enabled: false }), exited: async () => undefined })
+  const state = await (await import('../../src/models/roads/local/tensorfoldState.ts')).readTensorFoldState({ engine: async () => null, served: () => [], snapshot: async () => snapshot, hosts: () => [], app: async () => ({ running: false }), helper: () => ({ enabled: false }), exited: async () => undefined })
   const row = health.tensorFoldHealthRow(state)
   check("/health's TensorFold row says who serves: the adapter and llama.cpp b12359, CPU, the chip, and ends with the full sentence", row?.status === 'ok' && row.evidence.includes(`TensorFold adapter ${CHILD_VERSION} (Mercury's engine) · llama.cpp b12359 · CPU`) && row.evidence.endsWith(`${identity.ADAPTER_SENTENCE} · started outside Mercury`), JSON.stringify(row))
   const line = await support.readTensorFoldSupportLine({ repo: QWEN_2B.repo, context: 32_768, promptCacheGib: 1 }, undefined, state)
   check("the support line: the adapter's identity, llama.cpp b12359, CPU, the GGUF actually loaded (never the MLX id), the serve flags, Mercury's version, the full sentence last", line !== undefined && line.startsWith(`TensorFold adapter ${CHILD_VERSION} (Mercury's engine) · llama.cpp b12359 · CPU · `) && line.includes(' · unsloth/Qwen3.5-2B-GGUF · Qwen3.5-2B-Q4_K_M.gguf (Q4_K_M) @f6d5376 · --context 32768 --prompt-cache-gib 1 · Mercury 1.0.6 · ') && line.endsWith(identity.ADAPTER_SENTENCE) && !line.includes('MLX'), String(line))
   const adapterEngine = { version: CHILD_VERSION, binary: ENTRY, chip: 'Intel i7-4720HQ', backends: ['cpu'], families: [], servedBy: 'mercury-llamacpp', capabilities: { llamacpp: { found: true, build: '12359' } }, warnings: [] }
   const native = { kind: 'tensorfold' as const, root: 'http://127.0.0.1:8089', baseUrl: 'http://127.0.0.1:8089/v1', label: 'TensorFold 1.2.2', version: '1.2.2', models: [{ id: 'qwen3.5-2b', server: 'tensorfold' as const, baseUrl: 'http://127.0.0.1:8089/v1', contextWindow: { tokens: 32_768, source: 'served' as const }, thinkingDeclared: true, efforts: [], loaded: true }], engine: { keyed: false, backend: 'cpu', device: 'Intel64 Family 6 Model 60', inUseBytes: 2_040_109_465, streams: 8 } }
-  const outsideState = await (await import('../../src/services/providers/local/tensorfoldState.ts')).readTensorFoldState({ engine: async () => adapterEngine as never, served: () => [], snapshot: async () => ({ probedAtMs: Date.now(), targetCount: 1, servers: [native as never] }), hosts: () => [], app: async () => ({ running: false }), helper: () => ({ enabled: false }), exited: async () => undefined })
+  const outsideState = await (await import('../../src/models/roads/local/tensorfoldState.ts')).readTensorFoldState({ engine: async () => adapterEngine as never, served: () => [], snapshot: async () => ({ probedAtMs: Date.now(), targetCount: 1, servers: [native as never] }), hosts: () => [], app: async () => ({ running: false }), helper: () => ({ enabled: false }), exited: async () => undefined })
   const outsideLine = await support.readTensorFoldSupportLine(undefined, undefined, outsideState)
   check("RED on the base — his engine served beside the adapter keeps its own identity on the support line: TensorFold 1.2.2 · CPU, never the adapter's name or llama.cpp's build (FRC2W: the box read 'TensorFold adapter 1.2.2 (Mercury's engine) · llama.cpp b11829' for a server that was TensorFold itself)", outsideLine !== undefined && outsideLine.startsWith('TensorFold 1.2.2 · CPU · ') && !outsideLine.includes('adapter') && !outsideLine.includes('llama.cpp') && outsideLine.includes(' · qwen3.5-2b · --context 32768 · '), outsideLine)
   const outsideRow = health.tensorFoldHealthRow(outsideState)
@@ -396,7 +396,7 @@ section('install: the pinned zip fetched, its sha256 verified, unpacked flat int
   check('llama-server.exe dying with STATUS_DLL_NOT_FOUND after the unpack names the Visual C++ runtime as the fix', dll instanceof adapterLlama.LlamaInstallError && dll.message === adapterLlama.VC_REDIST_WORDS, String(dll))
   const mac = await adapterLlama.installLlamaServer({ platform: 'darwin', arch: 'arm64', home: world.home, fetchImpl, asset }).then(() => undefined, error => error as Error)
   check('the install verb is Windows x64 only; elsewhere it says so', mac instanceof adapterLlama.LlamaInstallError && mac.message.startsWith("the adapter installs llama.cpp's Windows x64 build only"))
-  check('the pinned asset in code is the b12359 win-cpu-x64 zip Mercury measured', identity.LLAMACPP_WINDOWS_CPU_ASSET.name === 'llama-b12359-bin-win-cpu-x64.zip' && identity.LLAMACPP_WINDOWS_CPU_ASSET.bytes === 25_097_509 && identity.LLAMACPP_WINDOWS_CPU_ASSET.sha256 === '837c1655e87df3b66989f4be33a792a1399c785bf259038dc75c900096683e69' && identity.LLAMACPP_RELEASE.commit === (await import('../../src/services/host/recipes.ts')).LLAMACPP_ENGINE_SHA, JSON.stringify(identity.LLAMACPP_WINDOWS_CPU_ASSET))
+  check('the pinned asset in code is the b12359 win-cpu-x64 zip Mercury measured', identity.LLAMACPP_WINDOWS_CPU_ASSET.name === 'llama-b12359-bin-win-cpu-x64.zip' && identity.LLAMACPP_WINDOWS_CPU_ASSET.bytes === 25_097_509 && identity.LLAMACPP_WINDOWS_CPU_ASSET.sha256 === '837c1655e87df3b66989f4be33a792a1399c785bf259038dc75c900096683e69' && identity.LLAMACPP_RELEASE.commit === (await import('../../src/models/hosting/recipes.ts')).LLAMACPP_ENGINE_SHA, JSON.stringify(identity.LLAMACPP_WINDOWS_CPU_ASSET))
 }
 
 section("the road end to end on the adapter: findTensorFoldEngine → the inventory → startTensorFold (a tensorfold project service running the adapter under process.execPath) → the probe → stopTensorFold")

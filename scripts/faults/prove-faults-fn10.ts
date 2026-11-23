@@ -31,9 +31,9 @@ async function rejects(fn: () => Promise<unknown>): Promise<Error | null> {
 }
 
 try {
-  console.log('1. src/services/concourse/projectActivity.ts')
+  console.log('1. src/screen/concourse-model/projectActivity.ts')
   {
-    const { runningByProjectKey } = await import('../../src/services/concourse/projectActivity.ts')
+    const { runningByProjectKey } = await import('../../src/screen/concourse-model/projectActivity.ts')
     const absentDir = join(SCRATCH, 'pa-absent')
     mkdirSync(absentDir, { recursive: true })
     const absentMap = await runningByProjectKey(absentDir)
@@ -57,10 +57,10 @@ try {
     }
   }
 
-  console.log('2. src/services/concourse/sessionTitleMint.ts')
+  console.log('2. src/screen/concourse-model/sessionTitleMint.ts')
   {
-    const { transcriptHeadFacts } = await import('../../src/services/concourse/sessionTitleMint.ts')
-    const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
+    const { transcriptHeadFacts } = await import('../../src/screen/concourse-model/sessionTitleMint.ts')
+    const { workerTranscriptPath } = await import('../../src/screen/concourse-model/workerTranscript.ts')
     const workspaceId = join(SCRATCH, 'ws-title')
     mkdirSync(workspaceId, { recursive: true })
     const absent = transcriptHeadFacts({ sessionId: 'absent-session', workspaceId })
@@ -84,9 +84,9 @@ try {
     }
   }
 
-  console.log('3. src/services/concourse/workerModels.ts')
+  console.log('3. src/screen/concourse-model/workerModels.ts')
   {
-    const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.ts')
+    const { validateWorkerModelChoice } = await import('../../src/screen/concourse-model/workerModels.ts')
     const prevCompatUrl = process.env.MERCURY_COMPAT_BASE_URL
     process.env.MERCURY_COMPAT_BASE_URL = 'not-a-url'
     try {
@@ -102,7 +102,7 @@ try {
     }
   }
 
-  console.log('4. src/services/crew/dispatch.ts')
+  console.log('4. src/crew/crewmates/dispatch.ts')
   {
     const { spawnSync } = await import('node:child_process')
     const dir = join(SCRATCH, 'crew-dispatch')
@@ -113,13 +113,13 @@ try {
       process.env.NODE_ENV = 'test'
       delete process.env.MERCURY_HOME
       globalThis.MACRO = { VERSION: '1.0.0' }
-      mock.module(${JSON.stringify(join(HERE, '../../src/services/crew/conversations.ts'))}, () => ({
+      mock.module(${JSON.stringify(join(HERE, '../../src/crew/crewmates/conversations.ts'))}, () => ({
         appendConversationEvent: async () => { throw new Error('injected conversation store failure') },
         resolveEventByRef: async () => { throw new Error('injected conversation store failure') },
         upsertUnresolvedEvent: async () => { throw new Error('injected conversation store failure') },
       }))
-      const { dispatchToAgent } = await import(${JSON.stringify(join(HERE, '../../src/services/crew/dispatch.ts'))})
-      const { openObligations } = await import(${JSON.stringify(join(HERE, '../../src/services/crew/obligations.ts'))})
+      const { dispatchToAgent } = await import(${JSON.stringify(join(HERE, '../../src/crew/crewmates/dispatch.ts'))})
+      const { openObligations } = await import(${JSON.stringify(join(HERE, '../../src/crew/crewmates/obligations.ts'))})
       const dir = ${JSON.stringify(dir)}
       const receipt = await dispatchToAgent({
         clientMessageId: 'dispatch-iso-1',
@@ -141,7 +141,7 @@ try {
     )
   }
 
-  console.log('5. src/services/crew/graph.ts')
+  console.log('5. src/crew/crewmates/graph.ts')
   {
     const { spawnSync } = await import('node:child_process')
     const runGraphFault = (mockBlock: string): { rejected: boolean; message?: string; error?: string } => {
@@ -152,7 +152,7 @@ try {
         delete process.env.MERCURY_HOME
         globalThis.MACRO = { VERSION: '1.0.0' }
         ${mockBlock}
-        const { assembleSessionGraph } = await import(${JSON.stringify(join(HERE, '../../src/services/crew/graph.ts'))})
+        const { assembleSessionGraph } = await import(${JSON.stringify(join(HERE, '../../src/crew/crewmates/graph.ts'))})
         try {
           await assembleSessionGraph()
           process.stdout.write('\\n' + JSON.stringify({ rejected: false }))
@@ -164,29 +164,29 @@ try {
       return res.status === 0 ? JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') : { rejected: false, error: res.stderr.slice(-400) }
     }
     const sessionsFail = runGraphFault(`
-      mock.module(${JSON.stringify(join(HERE, '../../src/services/crew/projection.ts'))}, () => ({ resolveCrewSnapshot: async () => null }))
-      mock.module(${JSON.stringify(join(HERE, '../../src/services/crew/identity.ts'))}, () => ({ crewStoreRoot: () => ${JSON.stringify(HOME)}, listAgentSessions: async () => { throw new Error('injected sessions read error') } }))
+      mock.module(${JSON.stringify(join(HERE, '../../src/crew/crewmates/projection.ts'))}, () => ({ resolveCrewSnapshot: async () => null }))
+      mock.module(${JSON.stringify(join(HERE, '../../src/crew/crewmates/identity.ts'))}, () => ({ crewStoreRoot: () => ${JSON.stringify(HOME)}, listAgentSessions: async () => { throw new Error('injected sessions read error') } }))
     `)
     check('graph.assembleSessionGraph rejects when listAgentSessions fails', sessionsFail.rejected && (sessionsFail.message ?? '').includes('injected sessions read error'), JSON.stringify(sessionsFail))
 
     const convsFail = runGraphFault(`
-      mock.module(${JSON.stringify(join(HERE, '../../src/services/crew/projection.ts'))}, () => ({ resolveCrewSnapshot: async () => null }))
-      mock.module(${JSON.stringify(join(HERE, '../../src/services/crew/conversations.ts'))}, () => ({ listConversations: async () => { throw new Error('injected conversations read error') } }))
+      mock.module(${JSON.stringify(join(HERE, '../../src/crew/crewmates/projection.ts'))}, () => ({ resolveCrewSnapshot: async () => null }))
+      mock.module(${JSON.stringify(join(HERE, '../../src/crew/crewmates/conversations.ts'))}, () => ({ listConversations: async () => { throw new Error('injected conversations read error') } }))
     `)
     check('graph.assembleSessionGraph rejects when listConversations fails', convsFail.rejected && (convsFail.message ?? '').includes('injected conversations read error'), JSON.stringify(convsFail))
 
     const artifactsFail = runGraphFault(`
-      mock.module(${JSON.stringify(join(HERE, '../../src/services/crew/projection.ts'))}, () => ({ resolveCrewSnapshot: async () => null }))
-      mock.module(${JSON.stringify(join(HERE, '../../src/services/artifacts/reviewStore.ts'))}, () => ({
+      mock.module(${JSON.stringify(join(HERE, '../../src/crew/crewmates/projection.ts'))}, () => ({ resolveCrewSnapshot: async () => null }))
+      mock.module(${JSON.stringify(join(HERE, '../../src/sessions/artifact-reviews/reviewStore.ts'))}, () => ({
         listReviewArtifactHeadsSource: () => ({ state: 'unavailable', reason: 'injected artifacts EACCES', retryable: true }),
       }))
     `)
     check('graph.assembleSessionGraph rejects when review artifacts are unavailable', artifactsFail.rejected && (artifactsFail.message ?? '').includes('injected artifacts EACCES'), JSON.stringify(artifactsFail))
   }
 
-  console.log('6. src/services/crew/obligations.ts')
+  console.log('6. src/crew/crewmates/obligations.ts')
   {
-    const { upsertObligation, openObligations, foldLegacyObligationsIntoSwitchboardScope } = await import('../../src/services/crew/obligations.ts')
+    const { upsertObligation, openObligations, foldLegacyObligationsIntoSwitchboardScope } = await import('../../src/crew/crewmates/obligations.ts')
     const dir = join(SCRATCH, 'crew-obligations')
     mkdirSync(dir, { recursive: true })
     await upsertObligation({ ref: 'legacy-fold-1', sessionId: 's-leg', question: 'still waiting?', owner: 'operator', dir })
@@ -204,7 +204,7 @@ try {
     )
   }
 
-  console.log('7. src/services/crew/seatBridge.ts')
+  console.log('7. src/crew/crewmates/seatBridge.ts')
   {
     const { spawnSync } = await import('node:child_process')
     const dir = join(SCRATCH, 'crew-seatbridge')
@@ -215,13 +215,13 @@ try {
       process.env.NODE_ENV = 'test'
       delete process.env.MERCURY_HOME
       globalThis.MACRO = { VERSION: '1.0.0' }
-      const realIdentity = await import(${JSON.stringify(join(HERE, '../../src/services/crew/identity.ts'))})
-      mock.module(${JSON.stringify(join(HERE, '../../src/services/crew/identity.ts'))}, () => ({
+      const realIdentity = await import(${JSON.stringify(join(HERE, '../../src/crew/crewmates/identity.ts'))})
+      mock.module(${JSON.stringify(join(HERE, '../../src/crew/crewmates/identity.ts'))}, () => ({
         ...realIdentity,
         endAgentSession: async () => { throw new Error('injected session close error') },
       }))
-      const { attachExternalSeat, detachExternalSeat } = await import(${JSON.stringify(join(HERE, '../../src/services/crew/seatBridge.ts'))})
-      const { publishSessionDescriptor, readSessionDescriptor } = await import(${JSON.stringify(join(HERE, '../../src/services/crew/descriptor.ts'))})
+      const { attachExternalSeat, detachExternalSeat } = await import(${JSON.stringify(join(HERE, '../../src/crew/crewmates/seatBridge.ts'))})
+      const { publishSessionDescriptor, readSessionDescriptor } = await import(${JSON.stringify(join(HERE, '../../src/crew/crewmates/descriptor.ts'))})
       const dir = ${JSON.stringify(dir)}
       const seat = await attachExternalSeat({
         adapterKind: 'probe',
@@ -244,11 +244,11 @@ try {
     )
   }
 
-  console.log('8. src/services/dap/dapClient.ts')
+  console.log('8. src/integrations/debugger/dapClient.ts')
   {
-    const { createDapSession, getDapSession } = await import('../../src/services/dap/dapClient.ts')
-    const { getExecution, requestStopExecution } = await import('../../src/utils/primitives/executionPlane.ts')
-    const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+    const { createDapSession, getDapSession } = await import('../../src/integrations/debugger/dapClient.ts')
+    const { getExecution, requestStopExecution } = await import('../../src/engine/execution-plane/executionPlane.ts')
+    const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
     const owner = processMainOwner()
     const mockAdapter = join(HERE, '../dap/mock-dap-adapter.mjs')
     const program = join(SCRATCH, 'dummy.py')
@@ -279,7 +279,7 @@ try {
     }
   }
 
-  console.log('9. src/services/dap/client/adapters.ts')
+  console.log('9. src/integrations/debugger/client/adapters.ts')
   {
     const { spawnSync } = await import('node:child_process')
     const emptyBin = join(SCRATCH, 'dap-empty-bin')
@@ -295,7 +295,7 @@ try {
       process.env.MERCURY_DAP_ADAPTERS_FILE = ${JSON.stringify(join(SCRATCH, 'no-adapters.json'))}
       process.env.MERCURY_DAP_ADAPTERS = '{broken'
       globalThis.MACRO = { VERSION: '1.0.0' }
-      const adapters = await import(${JSON.stringify(join(HERE, '../../src/services/dap/client/adapters.ts'))})
+      const adapters = await import(${JSON.stringify(join(HERE, '../../src/integrations/debugger/client/adapters.ts'))})
       const reachable = adapters.reachableDapAdapterKeys()
       const withheld = adapters.debugToolWithholding()
       delete process.env.MERCURY_DAP_ADAPTERS
@@ -316,10 +316,10 @@ try {
     )
   }
 
-  console.log('10. src/services/dap/dapClient.ts (invalid MERCURY_DAP_ADAPTERS on Debug launch)')
+  console.log('10. src/integrations/debugger/dapClient.ts (invalid MERCURY_DAP_ADAPTERS on Debug launch)')
   {
-    const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
-    const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+    const { DebugTool } = await import('../../src/tools/debug/DebugTool.ts')
+    const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
     const owner = processMainOwner()
     const program = join(SCRATCH, 'dummy.py')
     writeFileSync(program, 'x = 1\n')

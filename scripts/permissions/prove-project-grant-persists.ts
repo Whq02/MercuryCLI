@@ -14,12 +14,12 @@ mkdirSync(join(PROJ, '.mercury'), { recursive: true })
 process.chdir(PROJ)
 
 const { checkParsedPaths: checkPathConstraints } = await import('../bash/floor-proof-helpers.ts')
-const { persistPermissionUpdate, createEditRuleSuggestion } = await import('../../src/utils/permissions/PermissionUpdate.ts')
-type Ctx = import('../../src/utils/permissions/permissions.ts').ToolPermissionContext
+const { persistPermissionUpdate, createEditRuleSuggestion } = await import('../../src/permissions/rules/permissionUpdate.ts')
+type Ctx = import('../../src/permissions/rules/permissionDoor.ts').ToolPermissionContext
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  const failHint = ' — change checkPathConstraints in src/tools/BashTool/pathValidation.ts (the minted suggestion and its destination) or persistPermissionUpdate and createEditRuleSuggestion in src/utils/permissions/PermissionUpdate.ts (the rule written to .mercury/settings.local.json)'
+  const failHint = ' — change checkPathConstraints in src/tools/shell/pathValidation.ts (the minted suggestion and its destination) or persistPermissionUpdate and createEditRuleSuggestion in src/permissions/rules/permissionUpdate.ts (the rule written to .mercury/settings.local.json)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : failHint}`)
   if (!cond) failures++
 }

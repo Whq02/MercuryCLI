@@ -11,19 +11,19 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spell
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const failHint = cond ? '' : ' | to fix: the older-chats count and rows come from olderChatsCensus and parkedBoardRows in src/services/concourse/concourseSnapshot.ts; declared controls and legends from CONCOURSE_CONTROLS and regionKeysFor in src/components/concourse/controlManifest.ts; the live composer lock and paint from liveComposerGateOf and liveComposerPaintOf in src/components/concourse/screen/composerGate.ts(x), whichever the label names'
+  const failHint = cond ? '' : ' | to fix: the older-chats count and rows come from olderChatsCensus and parkedBoardRows in src/screen/concourse-model/concourseSnapshot.ts; declared controls and legends from CONCOURSE_CONTROLS and regionKeysFor in src/screen/concourse/controlManifest.ts; the live composer lock and paint from liveComposerGateOf and liveComposerPaintOf in src/screen/concourse/screen/composerGate.ts(x), whichever the label names'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${failHint}`)
 }
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
+const { workerTranscriptPath } = await import('../../src/screen/concourse-model/workerTranscript.ts')
 const { buildConcourseSnapshot, olderChatsCensus, parkedBoardRows, markParkedCleared, OLDER_CHATS_ROW_PREFIX } = await import(
-  '../../src/services/concourse/concourseSnapshot.ts'
+  '../../src/screen/concourse-model/concourseSnapshot.ts'
 )
-const { projectIdentity } = await import('../../src/utils/bootCardFacts.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
+const { projectIdentity } = await import('../../src/screen/boot-face/bootCardFacts.ts')
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 
 const NOW = Date.now()
 const DAY = 24 * 60 * 60_000
@@ -148,8 +148,8 @@ console.log('§1 — the older-chats census (L20): one enumeration behind the N 
 
 console.log('§2 — the older-chats drop-down: unfolds on the board, ↵ reactivates through the one door, esc folds')
 {
-  const { CONCOURSE_CONTROLS, regionKeysFor } = await import('../../src/components/concourse/controlManifest.ts')
-  const { paneWindow } = await import('../../src/components/mercury-ui/geometry.ts')
+  const { CONCOURSE_CONTROLS, regionKeysFor } = await import('../../src/screen/concourse/controlManifest.ts')
+  const { paneWindow } = await import('../../src/screen/widgets/geometry.ts')
   const ctl = CONCOURSE_CONTROLS.find(c => c.id === 'board:older-browse')
   check('the drop-down is a DECLARED control (return/right unfold · up/down choose · escape folds · rows click)', ctl !== undefined && ctl.region === 'list' && ['return', 'right', 'up', 'down', 'escape'].every(k => ctl.keys.includes(k)) && ctl.pointer === 'select-then-activate')
   check('while it stands the row legend yields to the browse grammar (one resolver)', regionKeysFor('list', { newSession: true, olderBrowse: true }).map(k => `${k.keys} ${k.label}`).join(',') === '↵ bring it back')
@@ -160,20 +160,20 @@ console.log('§2 — the older-chats drop-down: unfolds on the board, ↵ reacti
 
 console.log('§4 — one composer: the live pane owns its box; the strip is retired')
 {
-  const manifest = await import('../../src/components/concourse/controlManifest.ts')
+  const manifest = await import('../../src/screen/concourse/controlManifest.ts')
   check('the live panel key rows exist and the region table holds four panels (one resolver feeds legend + atlas)', manifest.CONCOURSE_REGION_KEYS.live.some(k => k.keys === 'pgup/pgdn') && Object.keys(manifest.CONCOURSE_REGION_KEYS).sort().join(',') === 'chat,list,live,rail')
 }
 
 console.log('§5 — arm-then-enter: the first ↵ arms the row as the live composer\'s target; the second enters')
 {
-  const manifest = await import('../../src/components/concourse/controlManifest.ts')
+  const manifest = await import('../../src/screen/concourse/controlManifest.ts')
   check('the arm is a DECLARED control and the list legend teaches ↵↵', manifest.CONCOURSE_CONTROLS.some(c => c.id === 'board:arm') && manifest.CONCOURSE_REGION_KEYS.list.some(k => k.keys === '↵↵' && k.label === 'enter session'))
 }
 
 console.log('§6 — the lock: an open ask ⇒ the live composer refuses with "needs you · ↵↵ to answer"; settle ⇒ unlocked')
 {
-  const { liveComposerGateOf } = await import('../../src/components/concourse/ConcourseScreen.tsx')
-  type Row = import('../../src/components/concourse/contracts.ts').ConcourseRowV1
+  const { liveComposerGateOf } = await import('../../src/screen/concourse/ConcourseScreen.tsx')
+  type Row = import('../../src/screen/concourse/contracts.ts').ConcourseRowV1
   const row = (over: Partial<Row>): Row =>
     ({ sessionId: sid('99'), title: 'the parser session', state: 'working', projectLabel: 'p', ownerLabel: null, ageLabel: null, seats: null, ...over }) as Row
   const locked = liveComposerGateOf(row({}), true)
@@ -192,14 +192,14 @@ console.log('§6 — the lock: an open ask ⇒ the live composer refuses with "n
     liveComposerGateOf(row({ state: 'stopped' }), false),
   ].every(g => g.ok === false))
   check('a queued row refuses by its TYPED state as well as by the live `dispatch:` id spelling (a fixture’s plain-id queued row takes no words either)', (liveComposerGateOf(row({ state: 'queued' }), false) as { line?: string }).line === 'queued — m stacks a message for its start')
-  const older = (regionArg?: import('../../src/components/concourse/ConcourseLayout.tsx').ConcourseRegion) =>
+  const older = (regionArg?: import('../../src/screen/concourse/ConcourseLayout.tsx').ConcourseRegion) =>
     liveComposerGateOf(row({ sessionId: `${OLDER_CHATS_ROW_PREFIX}/tmp/p` }), false, regionArg) as { ok: false; line: string }
   check('the older line speaks ↵ exactly where ↵ fires: the list region and the live box', older('list').line === 'older chats — ↵ unfolds the list' && older('live').line === 'older chats — ↵ unfolds the list' && older(undefined).line === 'older chats — ↵ unfolds the list')
   check('POISON (a ↵ advertised where it goes to another owner): from the rail or the split pane the note names the move that works from there', (['rail', 'chat'] as const).every(r => older(r).line === 'older chats — tab to the list, ↵ unfolds it'))
 
   console.log('§6b — the single-paint law: bottom hint stays, placeholder empties, one paint per refusal')
   {
-    const { liveComposerPaintOf } = await import('../../src/components/concourse/ConcourseScreen.tsx')
+    const { liveComposerPaintOf } = await import('../../src/screen/concourse/ConcourseScreen.tsx')
     const parkedGate = liveComposerGateOf(row({ state: 'parked' }), false)
     const parkedPaint = liveComposerPaintOf(parkedGate, null)
     check('PARKED: the placeholder EMPTIES and the BOTTOM hint carries the line, standing (no send needed)', parkedGate.ok === false && parkedPaint.restHint === '' && parkedPaint.note?.text === 'parked — ↵ brings it back; a sleeping chat takes no queue')
@@ -220,7 +220,7 @@ console.log('§6 — the lock: an open ask ⇒ the live composer refuses with "n
 
 console.log('§8 — G1/G3: text clips inside its container; every printed key fires on its stage')
 {
-  const { regionKeysFor } = await import('../../src/components/concourse/controlManifest.ts')
+  const { regionKeysFor } = await import('../../src/screen/concourse/controlManifest.ts')
   const reducedList = regionKeysFor('list', { newSession: false })
   check('G3: the reduced stage\'s ↵ enters on ONE press — its legend never teaches ↵↵ (no arm without a composer)', reducedList.some(k => k.keys === '↵' && k.label === 'enter session') && !reducedList.some(k => k.keys === '↵↵'))
   check('G3: the reduced stage prints no newline row (no composer takes one)', !regionKeysFor('live', { newSession: false }).some(k => k.keys === '⇧↵/⌃j') && !reducedList.some(k => k.keys === '⇧↵/⌃j'))

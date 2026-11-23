@@ -1,0 +1,26 @@
+import type { FileStateCache } from '../../platform/files/fileStateCache.js'
+import type { ThemeName } from '../theme/theme.js'
+
+type TipTensorFoldContext = {
+  installed?: boolean
+  serving?: boolean
+  pairedHost?: boolean
+  helperEnabled?: boolean
+}
+
+export type TipContext = {
+  theme: ThemeName
+  readFileState?: FileStateCache
+  bashTools?: Set<string>
+  model?: string
+  localServersCount?: number
+  llmHostConfigured?: boolean
+  tensorfold?: TipTensorFoldContext
+}
+
+export type Tip = {
+  id: string
+  content(ctx: { theme: ThemeName }): Promise<string>
+  cooldownSessions: number
+  isRelevant(context?: TipContext): Promise<boolean>
+}

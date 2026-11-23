@@ -15,16 +15,16 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_CRITTER
 
 const React = (await import('react')).default
-const { render } = await import(join(ROOT, 'src/ink.ts'))
-const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
-const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
-const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+const { render } = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
+const { AppStateProvider } = await import(join(ROOT, 'src/screen/app-state/AppState.tsx'))
+const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/AppStateStore.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
-await import(join(ROOT, 'src/tasks.ts'))
-const { MercuryFrame } = await import(join(ROOT, 'src/components/MercuryFrame.tsx'))
-const { noSessionConnector } = await import(join(ROOT, 'src/services/engine-connector/noSessionConnector.ts'))
-const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import(join(ROOT, 'src/services/engine-connector/focusedConnector.ts'))
-const { statusLine } = await import(join(ROOT, 'src/components/SwitchboardTagBar.tsx'))
+await import(join(ROOT, 'src/engine/tasks/tasks.ts'))
+const { MercuryFrame } = await import(join(ROOT, 'src/screen/frame-chips/MercuryFrame.tsx'))
+const { noSessionConnector } = await import(join(ROOT, 'src/engine/connector/noSessionConnector.ts'))
+const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import(join(ROOT, 'src/engine/connector/focusedConnector.ts'))
+const { statusLine } = await import(join(ROOT, 'src/screen/chat/SwitchboardTagBar.tsx'))
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

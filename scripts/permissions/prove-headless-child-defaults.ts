@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/subprocessEnv.ts src/bootstrap/state.ts src/bootstrap/runtime/posture.ts
+// gate-watch: src/platform/processes/subprocessEnv.ts src/boot/process-state/processState.ts src/boot/process-state/runtime/posture.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
@@ -7,15 +7,15 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  const failHint = ' — change subprocessEnv(), headlessChildDefaultsOwed() or HEADLESS_CHILD_DEFAULTS in src/utils/subprocessEnv.ts'
+  const failHint = ' — change subprocessEnv(), headlessChildDefaultsOwed() or HEADLESS_CHILD_DEFAULTS in src/platform/processes/subprocessEnv.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : failHint}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const state = await import('../../src/bootstrap/state.ts')
-const subEnv = await import('../../src/utils/subprocessEnv.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const subEnv = await import('../../src/platform/processes/subprocessEnv.ts')
 const defaults = (subEnv as { HEADLESS_CHILD_DEFAULTS?: Record<string, string> }).HEADLESS_CHILD_DEFAULTS ?? {}
 const owed = (subEnv as { headlessChildDefaultsOwed?: (env: NodeJS.ProcessEnv) => string[] }).headlessChildDefaultsOwed ?? (() => [] as string[])
 

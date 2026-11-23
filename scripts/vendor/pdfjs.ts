@@ -72,5 +72,5 @@ export function vendorPdfjs(root: string, out: string): void {
   const dest = join(out, 'vendor/pdfjs')
   rmSync(dest, { recursive: true, force: true })
   cpSync(join(root, 'vendor/pdfjs/extracted'), dest, { recursive: true })
-  cpSync(join(root, 'src/utils/pdfTextWorker.mjs'), join(dest, 'pdfTextWorker.mjs'))
+  cpSync(join(root, 'src/tools/kit/pdfTextWorker.mjs'), join(dest, 'pdfTextWorker.mjs'))
 }

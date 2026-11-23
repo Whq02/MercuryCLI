@@ -14,16 +14,16 @@ const {
   startAgentWatch,
   stopAgentWatch,
   subscribeAgentsChanged,
-} = await import('../../src/services/agents/watch.js')
+} = await import('../../src/crew/agents/watch.js')
 const { clearAgentDefinitionsCache, getAgentDefinitionsWithOverrides } =
-  await import('../../src/tools/AgentTool/loadAgentsDir.js')
+  await import('../../src/tools/crewmate/loadAgentsDir.js')
 
 let failures = 0
 function check(name: string, cond: boolean, detail?: string): void {
   if (cond) console.log(`  ✓ ${name}`)
   else {
     failures++
-    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — to fix, change startAgentWatch, noteSelfWrite or the notification path in src/services/agents/watch.ts (a fresh load that misses the agent points at getAgentDefinitionsWithOverrides in src/tools/AgentTool/loadAgentsDir.ts)`)
+    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — to fix, change startAgentWatch, noteSelfWrite or the notification path in src/crew/agents/watch.ts (a fresh load that misses the agent points at getAgentDefinitionsWithOverrides in src/tools/crewmate/loadAgentsDir.ts)`)
   }
 }
 
@@ -58,7 +58,7 @@ async function waitFor(
     if (cond()) return true
     await new Promise(resolve => setTimeout(resolve, 25))
   }
-  console.error(`  (deadline of ${deadlineMs} ms waiting for: ${what}; the agents watcher in src/services/agents/watch.ts never notified subscribers of subscribeAgentsChanged)`)
+  console.error(`  (deadline of ${deadlineMs} ms waiting for: ${what}; the agents watcher in src/crew/agents/watch.ts never notified subscribers of subscribeAgentsChanged)`)
   return cond()
 }
 

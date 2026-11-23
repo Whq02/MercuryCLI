@@ -3,16 +3,16 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { FILE_READ_TOOL_NAME } from '../../src/constants/tools/fileRead.js'
-import { FILE_EDIT_TOOL_NAME } from '../../src/constants/tools/fileEdit.js'
-import { FILE_WRITE_TOOL_NAME } from '../../src/constants/tools/fileWrite.js'
-import { NOTEBOOK_EDIT_TOOL_NAME } from '../../src/tools/NotebookEditTool/constants.js'
+import { FILE_READ_TOOL_NAME } from '../../src/tools/kit/names/fileRead.js'
+import { FILE_EDIT_TOOL_NAME } from '../../src/tools/kit/names/fileEdit.js'
+import { FILE_WRITE_TOOL_NAME } from '../../src/tools/kit/names/fileWrite.js'
+import { NOTEBOOK_EDIT_TOOL_NAME } from '../../src/tools/notebook-edit/constants.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
-  if (!cond) console.log('         fix: this proof carries its own copy of extractKillTarget from src/services/tools/toolExecution.ts; change the two together, and for the dist-grep checks rebuild with bun run build.ts')
+  if (!cond) console.log('         fix: this proof carries its own copy of extractKillTarget from src/engine/tool-dispatch/toolExecution.ts; change the two together, and for the dist-grep checks rebuild with bun run build.ts')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

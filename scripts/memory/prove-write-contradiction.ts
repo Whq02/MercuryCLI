@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/mnemeContradiction.ts src/mneme/mnemeText.ts src/mneme/mnemeStemmer.ts src/mneme/memoryVerbs.ts src/mneme/mnemeHandover.ts
-// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/UI.tsx src/constants/tools/memory.ts src/mneme/mnemeCorrect.ts
+// gate-watch: src/sessions/mneme/mnemeContradiction.ts src/sessions/mneme/mnemeText.ts src/sessions/mneme/mnemeStemmer.ts src/sessions/mneme/memoryVerbs.ts src/sessions/mneme/mnemeHandover.ts
+// gate-watch: src/tools/memory/MemoryTools.ts src/tools/memory/rows.tsx src/tools/kit/names/memory.ts src/sessions/mneme/mnemeCorrect.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0', PACKAGE_URL: 'https://example.invalid/mercury' }
 import { existsSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -15,7 +15,7 @@ for (const key of ['MERCURY_HOME', 'MERCURY_BARE', 'TYPESAFE_API_KEY', 'NODE_ENV
 
 let failures = 0
 let checks = 0
-const WRITE_GUARD_WHERE = 'change the guard in src/mneme/mnemeContradiction.ts (contradictionBetween, contradictionCandidates, conflictReason, jevJudgeOpen) or its callers retainItems, retainItemsJudged and correctMemory in src/mneme/memoryVerbs.ts'
+const WRITE_GUARD_WHERE = 'change the guard in src/sessions/mneme/mnemeContradiction.ts (contradictionBetween, contradictionCandidates, conflictReason, jevJudgeOpen) or its callers retainItems, retainItemsJudged and correctMemory in src/sessions/mneme/memoryVerbs.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -31,22 +31,22 @@ const { startJevStandin } = await import('../jev/lib/jevStandin.ts')
 const standin = await startJevStandin()
 process.env.MERCURY_JEV_BASE = standin.base
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const guard = await import('../../src/mneme/mnemeContradiction.ts')
-const { retainItems, retainItemsJudged, correctMemory, correctMemoryJudged, readMemoryRecord, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
-const { appendObservation, pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
-const { maybeConsolidate, listTopicDocs } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { pinFact, readPins, pinsPath } = await import('../../src/mneme/mnemeUsage.ts')
-const { docFileName } = await import('../../src/mneme/mnemeTopicDocs.ts')
-const { USER_ASKED_RULE_ROAD } = await import('../../src/mneme/mnemeCorrect.ts')
-const { RetainTool, CorrectTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
-const { conflictLines } = await import('../../src/tools/MemoryTools/UI.tsx')
-const { RETAIN_PROMPT } = await import('../../src/constants/tools/memory.ts')
-const { setJevEnabled } = await import('../../src/services/jev/jevSetting.ts')
-const { storeJevApiKey } = await import('../../src/services/jev/jevKey.ts')
-const { jevLedgerSnapshot, resetJevLedger } = await import('../../src/services/jev/jevLedger.ts')
+const guard = await import('../../src/sessions/mneme/mnemeContradiction.ts')
+const { retainItems, retainItemsJudged, correctMemory, correctMemoryJudged, readMemoryRecord, _resetMemoryVerbSessionStateForTesting } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { appendObservation, pendingRows } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { maybeConsolidate, listTopicDocs } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { pinFact, readPins, pinsPath } = await import('../../src/sessions/mneme/mnemeUsage.ts')
+const { docFileName } = await import('../../src/sessions/mneme/mnemeTopicDocs.ts')
+const { USER_ASKED_RULE_ROAD } = await import('../../src/sessions/mneme/mnemeCorrect.ts')
+const { RetainTool, CorrectTool } = await import('../../src/tools/memory/MemoryTools.ts')
+const { conflictLines } = await import('../../src/tools/memory/rows.tsx')
+const { RETAIN_PROMPT } = await import('../../src/tools/kit/names/memory.ts')
+const { setJevEnabled } = await import('../../src/models/jev/jevSetting.ts')
+const { storeJevApiKey } = await import('../../src/models/jev/jevKey.ts')
+const { jevLedgerSnapshot, resetJevLedger } = await import('../../src/models/jev/jevLedger.ts')
 
 const dir = mnemeLibraryDir()
 
@@ -144,12 +144,12 @@ check('the pinned rule is byte-identical on disk and its pin untouched', readFil
 check('the refused words are nowhere on disk', !readFileSync(rulesPath, 'utf8').includes('never use bun') && !pendingRows(dir).some(r => r.text.includes('never use bun') || r.text.includes('60 seconds')))
 const block = RetainTool.mapToolResultToToolResultBlockParam({ outcomes, stored: 2, refused: 3 }, 'tid')
 const content = String(block.content)
-check('the tool result carries each refusal with the fact NOT stored', content.startsWith('2 stored · 3 refused') && content.includes(`REFUSED — conflicts with rule ${bunSeq}:`) && content.includes('(the fact was NOT stored)'), 'the refusal block is built by RetainTool.mapToolResultToToolResultBlockParam in src/tools/MemoryTools/MemoryTools.ts; block text: ' + content.slice(0, 300))
+check('the tool result carries each refusal with the fact NOT stored', content.startsWith('2 stored · 3 refused') && content.includes(`REFUSED — conflicts with rule ${bunSeq}:`) && content.includes('(the fact was NOT stored)'), 'the refusal block is built by RetainTool.mapToolResultToToolResultBlockParam in src/tools/memory/MemoryTools.ts; block text: ' + content.slice(0, 300))
 const lines = conflictLines(outcomes)
 console.log(`  the user's lines:\n    ${lines.join('\n    ')}`)
-check('one line reaches the user per conflict, in plain words', lines.length === 3 && lines[0] === `not stored: it conflicts with rule ${bunSeq}, "always use bun for installs; the lockfile only…" — the rule stands` && lines[1] === `not stored: it conflicts with fact ${suitesSeq}, "run the suites in parallel and batch the…"`, 'conflictLines in src/tools/MemoryTools/UI.tsx must give one plain line per refusal; lines: ' + j(lines))
-check('the user\'s lines carry no code, no id and no percentage', lines.every(line => !/seq:|pending:|%|\d\.\d/.test(line)), 'conflictLines in src/tools/MemoryTools/UI.tsx must print plain words only; lines: ' + j(lines))
-check('Retain names per-item refusals without preloading the contradiction recovery', RETAIN_PROMPT.includes('refusal reason') && !/Correct|contradiction|\/memory/.test(RETAIN_PROMPT), 'RETAIN_PROMPT in src/constants/tools/memory.ts must mention the refusal reason and not the contradiction recovery')
+check('one line reaches the user per conflict, in plain words', lines.length === 3 && lines[0] === `not stored: it conflicts with rule ${bunSeq}, "always use bun for installs; the lockfile only…" — the rule stands` && lines[1] === `not stored: it conflicts with fact ${suitesSeq}, "run the suites in parallel and batch the…"`, 'conflictLines in src/tools/memory/rows.tsx must give one plain line per refusal; lines: ' + j(lines))
+check('the user\'s lines carry no code, no id and no percentage', lines.every(line => !/seq:|pending:|%|\d\.\d/.test(line)), 'conflictLines in src/tools/memory/rows.tsx must print plain words only; lines: ' + j(lines))
+check('Retain names per-item refusals without preloading the contradiction recovery', RETAIN_PROMPT.includes('refusal reason') && !/Correct|contradiction|\/memory/.test(RETAIN_PROMPT), 'RETAIN_PROMPT in src/tools/kit/names/memory.ts must mention the refusal reason and not the contradiction recovery')
 
 section('§3 a pending row is on record too; an item that replaces a rule is judged against everything but that rule')
 _resetMemoryVerbSessionStateForTesting()
@@ -220,7 +220,7 @@ check('an amend that keeps its own meaning is not judged against the row it amen
 const amendJudged = await correctMemoryJudged({ op: 'amend', id: `seq:${suitesSeq}`, content: 'the advisor is off by default', reason: 'proof', session: 'write-guard-proof' }, { dir, judge: async pairs => pairs.map(() => 0.2) })
 check('the judged amend road: Jev unsure means the amend is refused only by the evidence rule, never by the guard', !amendJudged.ok && amendJudged.code === 'unseen-evidence', j(amendJudged))
 const correctBlock = CorrectTool.mapToolResultToToolResultBlockParam(amendConflict, 'tid')
-check('the Correct tool result names the conflict', String(correctBlock.content).includes('amend refused (conflict): amend refused: the new wording conflicts with fact'), 'CorrectTool.mapToolResultToToolResultBlockParam in src/tools/MemoryTools/MemoryTools.ts must name the conflict; block text: ' + String(correctBlock.content))
+check('the Correct tool result names the conflict', String(correctBlock.content).includes('amend refused (conflict): amend refused: the new wording conflicts with fact'), 'CorrectTool.mapToolResultToToolResultBlockParam in src/tools/memory/MemoryTools.ts must name the conflict; block text: ' + String(correctBlock.content))
 _resetMemoryVerbSessionStateForTesting()
 const imported = retainItems([{ content: 'never use bun for installs' }], { session: 'handover', source: 'handover:old-notes', pin: false }, dir, { guard: 'off' })
 check('with the guard off (the hand-over import) the row lands as today', imported[0]?.status === 'stored', j(imported))
@@ -277,8 +277,8 @@ const batchResult = await RetainTool.call({ items: drawerFacts.map(content => ({
 check('one real Retain call stores all twenty exact drawer facts', 'data' in batchResult && batchResult.data.stored === 20 && batchResult.data.refused === 0, j(batchResult))
 check('all twenty drawer facts read back verbatim from pending rows', drawerFacts.every(text => pendingRows(dir).some(row => row.text === text)))
 if ('data' in batchResult) {
-  check('the tool result says twenty stored and has no refusal', String(RetainTool.mapToolResultToToolResultBlockParam(batchResult.data, 'drawers').content).startsWith('20 stored · 0 refused'), 'RetainTool.mapToolResultToToolResultBlockParam in src/tools/MemoryTools/MemoryTools.ts must open with the stored and refused counts')
-  check('no false conflict line reaches the user', conflictLines(batchResult.data.outcomes).length === 0, 'conflictLines in src/tools/MemoryTools/UI.tsx printed a conflict for a batch that stored every fact')
+  check('the tool result says twenty stored and has no refusal', String(RetainTool.mapToolResultToToolResultBlockParam(batchResult.data, 'drawers').content).startsWith('20 stored · 0 refused'), 'RetainTool.mapToolResultToToolResultBlockParam in src/tools/memory/MemoryTools.ts must open with the stored and refused counts')
+  check('no false conflict line reaches the user', conflictLines(batchResult.data.outcomes).length === 0, 'conflictLines in src/tools/memory/rows.tsx printed a conflict for a batch that stored every fact')
 }
 const sequentialDir = mkdtempSync(join(HOME, 'sequential-'))
 for (let n = 1; n <= 12; n++) {

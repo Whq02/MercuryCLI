@@ -15,18 +15,18 @@ import {
   describeAction,
   explainResolution,
   suggestFreeChords,
-} from '../../src/keybindings/atlas.ts'
-import { KEYBINDING_ACTIONS } from '../../src/keybindings/actionGraph.ts'
-import { DEFAULT_BINDINGS } from '../../src/keybindings/defaultBindings.ts'
-import { parseBindings, parseChord } from '../../src/keybindings/parser.ts'
-import { resolveKeyWithChordState, unboundConsumes } from '../../src/keybindings/resolver.ts'
+} from '../../src/screen/keys/atlas.ts'
+import { KEYBINDING_ACTIONS } from '../../src/screen/keys/actionGraph.ts'
+import { DEFAULT_BINDINGS } from '../../src/screen/keys/defaultBindings.ts'
+import { parseBindings, parseChord } from '../../src/screen/keys/parser.ts'
+import { resolveKeyWithChordState, unboundConsumes } from '../../src/screen/keys/resolver.ts'
 import {
   claimKeyCapture,
   currentKeyCapture,
   resetKeyCaptureForTesting,
-} from '../../src/keybindings/keyCapture.ts'
-import { applyBindingEdit } from '../../src/keybindings/writeBindings.ts'
-import type { Key } from '../../src/ink.js'
+} from '../../src/screen/keys/keyCapture.ts'
+import { applyBindingEdit } from '../../src/screen/keys/writeBindings.ts'
+import type { Key } from '../../src/screen/themedRenderer.js'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const t = checker()

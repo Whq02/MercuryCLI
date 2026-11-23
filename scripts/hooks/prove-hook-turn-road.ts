@@ -6,7 +6,7 @@ import { dist, quote, runDoor, savedHookRowsOf, say, sceneRoot, type Row } from 
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 let failures = 0
-const roadHint = 'to fix, change the code that fires the event this label names (src/query/stopHooks.ts, src/services/processUserInput/processUserInput.ts, src/utils/gracefulShutdown.ts, with the hook road in src/utils/hooks/), then rebuild dist with bun run build.ts because this proof runs the built bundle'
+const roadHint = 'to fix, change the code that fires the event this label names (src/engine/turn-entry/stopHooks.ts, src/engine/user-input/processUserInput.ts, src/platform/processes/gracefulShutdown.ts, with the hook road in src/integrations/event-hooks/), then rebuild dist with bun run build.ts because this proof runs the built bundle'
 const check = (label: string, good: boolean, detail = ''): void => {
   if (!good) failures++
   console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good ? ` — ${detail ? `${detail} | ` : ''}${roadHint}` : ''}`)
@@ -19,7 +19,7 @@ const readJson = (path: string): Row | undefined => (existsSync(path) ? (JSON.pa
 const readLines = (path: string): Row[] => (existsSync(path) ? readFileSync(path, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as Row) : [])
 
 {
-  const { handleStopHooks } = await import('../../src/query/stopHooks.ts')
+  const { handleStopHooks } = await import('../../src/engine/turn-entry/stopHooks.ts')
   const unreadable = new Proxy([], { get() { throw new Error('the side question entered the turn stop stage') } })
   let settled = false
   let detail = ''

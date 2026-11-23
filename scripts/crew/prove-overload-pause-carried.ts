@@ -3,7 +3,7 @@ import { proofHome } from '../lib/hermetic.ts'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mock } from 'bun:test'
-import type { Message } from '../../src/types/message.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -11,28 +11,28 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_OVERLOAD_PROBE_SCALE = '0.001'
 const root = join(proofHome, 'work')
 mkdirSync(root, { recursive: true })
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(root)
 bootstrap.setProjectRoot(root)
 bootstrap.setCwdState(root)
 bootstrap.switchSession('00000000-0000-4000-8000-000000000529' as never, root)
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { resetCommandQueue } = await import('../../src/input-core/command-queue.ts')
-const { registerAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { AGENT_OVERLOAD_RESUME_NOTE } = await import('../../src/tasks/LocalAgentTask/agentOverload.ts')
-const { decodeAgentPause } = await import('../../src/tasks/LocalAgentTask/agentPause.ts')
-const { createAssistantAPIErrorMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-const { readAgentPauseRecord, agentPauseRecordPath, carryPausedCrewmatesOnResume, writeAgentPauseRecord } = await import('../../src/tasks/LocalAgentTask/pauseCarry.ts')
-const { TaskStopTool } = await import('../../src/tools/TaskStopTool/TaskStopTool.ts')
-const { writeAgentMetadata } = await import('../../src/utils/sessionStorage/paths.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { resetCommandQueue } = await import('../../src/screen/composer/input-core/command-queue.ts')
+const { registerAsyncAgent } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { AGENT_OVERLOAD_RESUME_NOTE } = await import('../../src/engine/tasks/local-agent/agentOverload.ts')
+const { decodeAgentPause } = await import('../../src/engine/tasks/local-agent/agentPause.ts')
+const { createAssistantAPIErrorMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { readAgentPauseRecord, agentPauseRecordPath, carryPausedCrewmatesOnResume, writeAgentPauseRecord } = await import('../../src/engine/tasks/local-agent/pauseCarry.ts')
+const { TaskStopTool } = await import('../../src/tools/task-stop/TaskStopTool.ts')
+const { writeAgentMetadata } = await import('../../src/sessions/transcripts/paths.ts')
 type AppState = ReturnType<typeof getDefaultAppState>
 
 const resumes: Array<{ agentId: string; prompt: string; automatic?: boolean }> = []
-const resumeModule = await import('../../src/tools/AgentTool/resumeAgent.ts')
-mock.module('../../src/tools/AgentTool/resumeAgent.ts', () => ({
+const resumeModule = await import('../../src/tools/crewmate/resumeCrewmate.ts')
+mock.module('../../src/tools/crewmate/resumeCrewmate.ts', () => ({
   ...resumeModule,
   resumeAgentBackground: async (args: { agentId: string; prompt: string; automatic?: boolean }) => {
     resumes.push(args)
@@ -41,15 +41,15 @@ mock.module('../../src/tools/AgentTool/resumeAgent.ts', () => ({
 }))
 let providerAnswers = false
 const probed: string[] = []
-const routerModule = await import('../../src/services/providers/callModelRouter.ts')
-mock.module('../../src/services/providers/callModelRouter.ts', () => ({
+const routerModule = await import('../../src/models/roads/callModelRouter.ts')
+mock.module('../../src/models/roads/callModelRouter.ts', () => ({
   ...routerModule,
   routedCallModel: async function* (request: { options: { model: string } }) {
     probed.push(request.options.model)
     if (providerAnswers) yield { type: 'stream_event', event: { type: 'message_start' } }
   },
 }))
-const { runAsyncAgentLifecycle, automaticResumePending, armedAutomaticResumeCount, closeOverloadEpisode } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+const { runAsyncAgentLifecycle, automaticResumePending, armedAutomaticResumeCount, closeOverloadEpisode } = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
 
 let checks = 0
 let failures = 0
@@ -62,8 +62,8 @@ const makeStore = () => {
   let state = getDefaultAppState()
   return { get: () => state, set: (update: (before: AppState) => AppState) => { state = update(state) } }
 }
-const life = 'runAsyncAgentLifecycle in src/tools/AgentTool/agentToolUtils.ts'
-const carry = 'src/tasks/LocalAgentTask/pauseCarry.ts'
+const life = 'runAsyncAgentLifecycle in src/tools/crewmate/crewmateLifecycle.ts'
+const carry = 'src/engine/tasks/local-agent/pauseCarry.ts'
 const settle = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 async function until(holds: () => boolean | Promise<boolean>, ms = 10_000): Promise<boolean> {
   const deadline = Date.now() + ms
@@ -144,9 +144,9 @@ console.log('── §C the roads that end the wait leave no record behind ─�
   await until(async () => (await readAgentPauseRecord(id)) !== null, 2_000)
   const output = await TaskStopTool.call({ task_id: id }, { getAppState: store.get, setAppState: store.set } as never)
   const message = (output as { data: { message: string } }).data.message
-  check('a stop on the paused row is a stop', message.startsWith(`Stopped task ${id} (surface pass) while it was paused:`), `${message} — TaskStopTool (src/tools/TaskStopTool/TaskStopTool.ts) must stop a paused row through stopPausedAgent in src/tasks/stopTask.ts and report stoppedWhilePausedWords`)
+  check('a stop on the paused row is a stop', message.startsWith(`Stopped task ${id} (surface pass) while it was paused:`), `${message} — TaskStopTool (src/tools/task-stop/TaskStopTool.ts) must stop a paused row through stopPausedAgent in src/engine/tasks/stopTask.ts and report stoppedWhilePausedWords`)
   const cleared = await until(() => !existsSync(agentPauseRecordPath(id)), 2_000)
-  check('the stop clears the record and disarms the probe', cleared && !automaticResumePending(id), `${JSON.stringify({ armed: automaticResumePending(id) })} — stopPausedAgent in src/tasks/stopTask.ts must clear the pause record (clearAgentPauseRecord in ${carry}) and call cancelAutomaticResume (agentToolUtils.ts)`)
+  check('the stop clears the record and disarms the probe', cleared && !automaticResumePending(id), `${JSON.stringify({ armed: automaticResumePending(id) })} — stopPausedAgent in src/engine/tasks/stopTask.ts must clear the pause record (clearAgentPauseRecord in ${carry}) and call cancelAutomaticResume (agentToolUtils.ts)`)
   closeOverloadEpisode(id)
 
   const spent = makeStore()

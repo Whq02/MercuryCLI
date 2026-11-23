@@ -11,18 +11,18 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const W08_WHERE: Record<string, string> = {
-  'w08-1': 'applySedSubstitution in src/tools/BashTool/sedEditParser.ts and src/components/permissions/SedEditPermissionRequest/SedEditPermissionRequest.tsx',
-  'w08-2': 'src/services/projectServices/serviceManager.ts, src/tools/ServiceTool/ServiceTool.ts and src/services/resources/adapters/service.ts',
-  'w08-3': 'discoverRunnerProfiles in src/services/ide/projectRunners.ts, src/tools/TestTool/TestTool.ts and src/services/health/sections/coding-loop-fast.ts',
-  'w08-4': 'src/services/health/sections/runtime/lsp.ts, src/tools/LSPTool/LSPTool.ts and src/services/lsp/manager.ts',
-  'w08-5': 'workspaceSymbolRequest in src/services/lsp/tsSidecar/sidecar/requests/navigation.ts and src/tools/LSPTool/LSPTool.ts',
-  'w08-6': 'cancelRunWatch in src/services/repoHost/runWatch.ts, src/utils/primitives/executionPlane.ts and src/tools/GitTool/GitTool.ts',
-  'w08-7': 'resolveAstScope in src/services/structure/astPatterns/scope.ts and renderSearchTrailer in src/services/structure/astPatterns/render.ts',
-  'w08-8': 'analyzeContextUsage in src/services/context/analyzeContext.ts and src/components/ContextVisualization.tsx',
-  'w08-9': 'trackGitOperations in src/tools/shared/gitOperationTracking.ts and src/tools/BashTool/BashTool.tsx',
-  'w08-10': 'src/utils/browser.ts, openMemoryFolder in src/components/memory/MemoryFileSelector.tsx and src/components/mcp/ElicitationDialog.tsx',
-  'w08-11': 'videoToolEnabled in src/services/video/registry.ts and src/services/tools/withheldTools.ts',
-  'w08-12': 'resolveAdapter in src/services/dap/client/adapters.ts, src/tools/DebugTool/DebugTool.ts and src/services/tools/withheldTools.ts',
+  'w08-1': 'applySedSubstitution in src/tools/shell/sedEditParser.ts and src/permissions/cards/sed-edit/SedEditPermissionRequest.tsx',
+  'w08-2': 'src/tools/engines/project-services/serviceManager.ts, src/tools/service/ServiceTool.ts and src/integrations/resources/adapters/service.ts',
+  'w08-3': 'discoverRunnerProfiles in src/integrations/ide/projectRunners.ts, src/tools/test/TestTool.ts and src/platform/health/sections/coding-loop-fast.ts',
+  'w08-4': 'src/platform/health/sections/runtime/lsp.ts, src/tools/lsp/lspTools.ts and src/integrations/lsp/serverManagerLifecycle.ts',
+  'w08-5': 'workspaceSymbolRequest in src/integrations/lsp/ts-sidecar/sidecar/requests/navigation.ts and src/tools/lsp/lspTools.ts',
+  'w08-6': 'cancelRunWatch in src/platform/repo-host/runWatch.ts, src/engine/execution-plane/executionPlane.ts and src/tools/git/GitTool.ts',
+  'w08-7': 'resolveAstScope in src/tools/engines/structure/ast-patterns/scope.ts and renderSearchTrailer in src/tools/engines/structure/ast-patterns/render.ts',
+  'w08-8': 'analyzeContextUsage in src/engine/context-window/analyzeContext.ts and src/commands/context/ContextVisualization.tsx',
+  'w08-9': 'trackGitOperations in src/tools/kit/gitOperationTracking.ts and src/tools/shell/BashTool.tsx',
+  'w08-10': 'src/platform/host-os/browser.ts, openMemoryFolder in src/screen/memory/MemoryFileSelector.tsx and src/screen/mcp/ElicitationDialog.tsx',
+  'w08-11': 'videoToolEnabled in src/integrations/media-video/registry.ts and src/engine/tool-dispatch/withheldTools.ts',
+  'w08-12': 'resolveAdapter in src/integrations/debugger/client/adapters.ts, src/tools/debug/DebugTool.ts and src/engine/tool-dispatch/withheldTools.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -37,22 +37,22 @@ async function w08_1_sedUncompilablePatternFallsBackToRealSed(): Promise<void> {
   const filePath = join(dir, 'sample.txt')
   writeFileSync(filePath, 'hello world\n')
   try {
-    const parser = await import(join(SRC, 'tools/BashTool/sedEditParser.ts'))
+    const parser = await import(join(SRC, 'tools/shell/sedEditParser.ts'))
     const badInfo = { filePath, pattern: '[z-a]', replacement: 'x', flags: '', extendedRegex: false }
     const simulated = parser.applySedSubstitution('hello world\n', badInfo)
     check('w08-1: applySedSubstitution returns null when JS RegExp cannot compile the pattern', simulated === null, `got ${JSON.stringify(simulated)}`)
 
-    const { SedEditPermissionRequest } = await import(join(SRC, 'components/permissions/SedEditPermissionRequest/SedEditPermissionRequest.tsx'))
-    const { BashTool } = await import(join(SRC, 'tools/BashTool/BashTool.tsx'))
-    const { getEmptyToolPermissionContext } = await import(join(SRC, 'Tool.ts'))
-    const { noSessionConnector } = await import(join(SRC, 'services/engine-connector/noSessionConnector.ts'))
-    const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import(join(SRC, 'services/engine-connector/focusedConnector.ts'))
-    const { AppStoreContext } = await import(join(SRC, 'state/AppState.tsx'))
-    const { getDefaultAppState } = await import(join(SRC, 'state/AppStateStore.ts'))
-    const { createStore } = await import(join(SRC, 'state/store.ts'))
-    const { TerminalSizeContext } = await import(join(SRC, 'ink/components/TerminalSizeContext.tsx'))
-    const { Box, render, flushPendingSyncWork } = await import(join(SRC, 'ink.ts'))
-    const { KeybindingSetup } = await import(join(SRC, 'keybindings/KeybindingProviderSetup.tsx'))
+    const { SedEditPermissionRequest } = await import(join(SRC, 'permissions/cards/sed-edit/SedEditPermissionRequest.tsx'))
+    const { BashTool } = await import(join(SRC, 'tools/shell/BashTool.tsx'))
+    const { getEmptyToolPermissionContext } = await import(join(SRC, 'tools/kit/tool.ts'))
+    const { noSessionConnector } = await import(join(SRC, 'engine/connector/noSessionConnector.ts'))
+    const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import(join(SRC, 'engine/connector/focusedConnector.ts'))
+    const { AppStoreContext } = await import(join(SRC, 'screen/app-state/AppState.tsx'))
+    const { getDefaultAppState } = await import(join(SRC, 'screen/app-state/AppStateStore.ts'))
+    const { createStore } = await import(join(SRC, 'platform/primitives/store.ts'))
+    const { TerminalSizeContext } = await import(join(SRC, 'screen/renderer/elements/TerminalSizeContext.tsx'))
+    const { Box, render, flushPendingSyncWork } = await import(join(SRC, 'screen/themedRenderer.ts'))
+    const { KeybindingSetup } = await import(join(SRC, 'screen/keys/KeybindingProviderSetup.tsx'))
 
     const resting = noSessionConnector()
     const hosted = new Proxy(resting, {
@@ -155,10 +155,10 @@ async function w08_1_sedUncompilablePatternFallsBackToRealSed(): Promise<void> {
 async function w08_2_serviceListAndStatusReportReadErrors(): Promise<void> {
   const { chmodSync, mkdirSync } = await import('node:fs')
   const dir = mkdtempSync(join(tmpdir(), 'prove-w08-2-'))
-  const mgr = await import(join(SRC, 'services/projectServices/serviceManager.ts'))
-  const { ServiceTool } = await import(join(SRC, 'tools/ServiceTool/ServiceTool.ts'))
-  const { serviceAdapter } = await import(join(SRC, 'services/resources/adapters/service.ts'))
-  const { getOriginalCwd, setOriginalCwd } = await import(join(SRC, 'bootstrap/state.ts'))
+  const mgr = await import(join(SRC, 'tools/engines/project-services/serviceManager.ts'))
+  const { ServiceTool } = await import(join(SRC, 'tools/service/ServiceTool.ts'))
+  const { serviceAdapter } = await import(join(SRC, 'integrations/resources/adapters/service.ts'))
+  const { getOriginalCwd, setOriginalCwd } = await import(join(SRC, 'boot/process-state/processState.ts'))
   const prevCwd = getOriginalCwd()
   setOriginalCwd(dir)
   const svcDir = mgr.servicesDir(dir)
@@ -210,11 +210,11 @@ async function w08_2_serviceListAndStatusReportReadErrors(): Promise<void> {
 async function w08_3_corruptPackageJsonReportedInTestAndHealth(): Promise<void> {
   const dir = mkdtempSync(join(tmpdir(), 'prove-w08-3-'))
   writeFileSync(join(dir, 'package.json'), '{not valid json')
-  const { getCwd } = await import(join(SRC, 'utils/cwd.ts'))
-  const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
-  const runners = await import(join(SRC, 'services/ide/projectRunners.ts'))
-  const { TestTool } = await import(join(SRC, 'tools/TestTool/TestTool.ts'))
-  const { codingLoopFastChecks } = await import(join(SRC, 'services/health/sections/coding-loop-fast.ts'))
+  const { getCwd } = await import(join(SRC, 'platform/files/cwd.ts'))
+  const { setCwd } = await import(join(SRC, 'platform/shell/shellExec.ts'))
+  const runners = await import(join(SRC, 'integrations/ide/projectRunners.ts'))
+  const { TestTool } = await import(join(SRC, 'tools/test/TestTool.ts'))
+  const { codingLoopFastChecks } = await import(join(SRC, 'platform/health/sections/coding-loop-fast.ts'))
   const prev = getCwd()
   setCwd(dir)
   try {
@@ -245,11 +245,11 @@ async function w08_4_invalidMercuryLspServersReportedOnce(): Promise<void> {
   const prevLsp = process.env.MERCURY_LSP
   process.env.MERCURY_LSP = '1'
   process.env.MERCURY_LSP_SERVERS = '{bad json'
-  const { getCwd } = await import(join(SRC, 'utils/cwd.ts'))
-  const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
-  const { lspCheck } = await import(join(SRC, 'services/health/sections/runtime/lsp.ts'))
-  const { LspReadTool } = await import(join(SRC, 'tools/LSPTool/LSPTool.ts'))
-  const { initializeLspServerManager, waitForInitialization, shutdownLspServerManager } = await import(join(SRC, 'services/lsp/manager.ts'))
+  const { getCwd } = await import(join(SRC, 'platform/files/cwd.ts'))
+  const { setCwd } = await import(join(SRC, 'platform/shell/shellExec.ts'))
+  const { lspCheck } = await import(join(SRC, 'platform/health/sections/runtime/lsp.ts'))
+  const { LspReadTool } = await import(join(SRC, 'tools/lsp/lspTools.ts'))
+  const { initializeLspServerManager, waitForInitialization, shutdownLspServerManager } = await import(join(SRC, 'integrations/lsp/serverManagerLifecycle.ts'))
   const prevCwd = getCwd()
   setCwd(dir)
   try {
@@ -278,7 +278,7 @@ async function w08_5_tsSidecarWorkspaceSymbolIncompleteReported(): Promise<void>
   const dir = mkdtempSync(join(tmpdir(), 'prove-w08-5-'))
   const filePath = join(dir, 'sample.w08sym')
   writeFileSync(filePath, 'export const alpha = 1\n')
-  const { workspaceSymbolRequest } = await import(join(SRC, 'services/lsp/tsSidecar/sidecar/requests/navigation.ts'))
+  const { workspaceSymbolRequest } = await import(join(SRC, 'integrations/lsp/ts-sidecar/sidecar/requests/navigation.ts'))
   const goodProject = {
     key: 'good',
     service: {
@@ -335,10 +335,10 @@ async function w08_5_tsSidecarWorkspaceSymbolIncompleteReported(): Promise<void>
   process.env.MERCURY_LSP_SERVERS = JSON.stringify({
     stub: { command: process.execPath, args: [stubScript], extensionToLanguage: { '.w08sym': 'w08sym' } },
   })
-  const { getCwd } = await import(join(SRC, 'utils/cwd.ts'))
-  const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
-  const { LspReadTool } = await import(join(SRC, 'tools/LSPTool/LSPTool.ts'))
-  const { initializeLspServerManager, waitForInitialization, shutdownLspServerManager } = await import(join(SRC, 'services/lsp/manager.ts'))
+  const { getCwd } = await import(join(SRC, 'platform/files/cwd.ts'))
+  const { setCwd } = await import(join(SRC, 'platform/shell/shellExec.ts'))
+  const { LspReadTool } = await import(join(SRC, 'tools/lsp/lspTools.ts'))
+  const { initializeLspServerManager, waitForInitialization, shutdownLspServerManager } = await import(join(SRC, 'integrations/lsp/serverManagerLifecycle.ts'))
   const prevCwd = getCwd()
   setCwd(dir)
   try {
@@ -359,9 +359,9 @@ async function w08_5_tsSidecarWorkspaceSymbolIncompleteReported(): Promise<void>
 }
 
 async function w08_6_executionStopHookFailureSurfaced(): Promise<void> {
-  const plane = await import(join(SRC, 'utils/primitives/executionPlane.ts'))
-  const runWatch = await import(join(SRC, 'services/repoHost/runWatch.ts'))
-  const { makeOwnerKey } = await import(join(SRC, 'utils/primitives/owner.ts'))
+  const plane = await import(join(SRC, 'engine/execution-plane/executionPlane.ts'))
+  const runWatch = await import(join(SRC, 'platform/repo-host/runWatch.ts'))
+  const { makeOwnerKey } = await import(join(SRC, 'engine/execution-plane/owner.ts'))
   const owner = makeOwnerKey('w08-6-owner')
   const id = 'run-watch-9991'
   plane.registerExecutionDomain('host-run-watch', {
@@ -379,8 +379,8 @@ async function w08_6_executionStopHookFailureSurfaced(): Promise<void> {
   })
   plane.transitionExecution(owner, id, 'starting')
   plane.transitionExecution(owner, id, 'running')
-  const { GitTool } = await import(join(SRC, 'tools/GitTool/GitTool.ts'))
-  const { ownerFromToolUseContext } = await import(join(SRC, 'utils/run/resolveOwner.ts'))
+  const { GitTool } = await import(join(SRC, 'tools/git/GitTool.ts'))
+  const { ownerFromToolUseContext } = await import(join(SRC, 'engine/run-owner/resolveOwner.ts'))
   const gitCtx = { abortController: new AbortController(), options: {} } as never
   const gitOwner = ownerFromToolUseContext(gitCtx)
   const gitWatchId = 'run-watch-9992'
@@ -401,9 +401,9 @@ async function w08_6_executionStopHookFailureSurfaced(): Promise<void> {
 }
 
 async function w08_8_contextUnserializableToolAndMessageBlockNoted(): Promise<void> {
-  const { analyzeContextUsage } = await import(join(SRC, 'services/context/analyzeContext.ts'))
-  const { ContextVisualization } = await import(join(SRC, 'components/ContextVisualization.tsx'))
-  const { renderToString } = await import(join(SRC, 'utils/staticRender.tsx'))
+  const { analyzeContextUsage } = await import(join(SRC, 'engine/context-window/analyzeContext.ts'))
+  const { ContextVisualization } = await import(join(SRC, 'commands/context/ContextVisualization.tsx'))
+  const { renderToString } = await import(join(SRC, 'screen/renderer/staticRender.tsx'))
   let schemaReads = 0
   const mcpTool = {
     name: 'mcp__srv__unserializable',
@@ -449,8 +449,8 @@ async function w08_7_polyglotUnreadableDirAndStatNoted(): Promise<void> {
   writeFileSync(join(lockedDir, 'hidden.ts'), 'export const hidden = 2\n')
   symlinkSync(join(dir, 'nonexistent-target.ts'), brokenLink)
   chmodSync(lockedDir, 0o000)
-  const { resolveAstScope } = await import(join(SRC, 'services/structure/astPatterns/scope.ts'))
-  const { renderSearchTrailer } = await import(join(SRC, 'services/structure/astPatterns/render.ts'))
+  const { resolveAstScope } = await import(join(SRC, 'tools/engines/structure/ast-patterns/scope.ts'))
+  const { renderSearchTrailer } = await import(join(SRC, 'tools/engines/structure/ast-patterns/render.ts'))
   try {
     const scope = resolveAstScope({ cwd: dir })
     check('w08-7: resolveAstScope counts unreadable folder and dangling stat entry', !('refused' in scope) && scope.skippedUnreadable?.count === 2 && typeof scope.skippedUnreadable.firstPath === 'string' && typeof scope.skippedUnreadable.firstError === 'string', JSON.stringify(scope))
@@ -478,11 +478,11 @@ async function w08_7_polyglotUnreadableDirAndStatNoted(): Promise<void> {
 
 async function w08_9_gitOperationTrackingPrLinkFailureSurfaced(): Promise<void> {
   const { mkdirSync } = await import('node:fs')
-  const { getTranscriptPathForSession } = await import(join(SRC, 'utils/sessionStorage.ts'))
-  const { getSessionId } = await import(join(SRC, 'bootstrap/state.ts'))
-  const { trackGitOperations } = await import(join(SRC, 'tools/shared/gitOperationTracking.ts'))
-  const { BashTool } = await import(join(SRC, 'tools/BashTool/BashTool.tsx'))
-  const { getDefaultAppState } = await import(join(SRC, 'state/AppStateStore.ts'))
+  const { getTranscriptPathForSession } = await import(join(SRC, 'sessions/transcripts/sessionStorage.ts'))
+  const { getSessionId } = await import(join(SRC, 'boot/process-state/processState.ts'))
+  const { trackGitOperations } = await import(join(SRC, 'tools/kit/gitOperationTracking.ts'))
+  const { BashTool } = await import(join(SRC, 'tools/shell/BashTool.tsx'))
+  const { getDefaultAppState } = await import(join(SRC, 'screen/app-state/AppStateStore.ts'))
   const transcriptPath = getTranscriptPathForSession(String(getSessionId()) as never)
   rmSync(transcriptPath, { recursive: true, force: true })
   mkdirSync(transcriptPath, { recursive: true })
@@ -526,15 +526,15 @@ async function w08_10_browserAndPathOpenFailuresSurfaced(): Promise<void> {
   }
   const prevBrowser = process.env.BROWSER
   process.env.BROWSER = fakeBrowser
-  const browser = await import(join(SRC, 'utils/browser.ts'))
-  const { openMemoryFolder } = await import(join(SRC, 'components/memory/MemoryFileSelector.tsx'))
-  const { ElicitationDialog } = await import(join(SRC, 'components/mcp/ElicitationDialog.tsx'))
-  const { AppStoreContext } = await import(join(SRC, 'state/AppState.tsx'))
-  const { getDefaultAppState } = await import(join(SRC, 'state/AppStateStore.ts'))
-  const { createStore } = await import(join(SRC, 'state/store.ts'))
-  const { TerminalSizeContext } = await import(join(SRC, 'ink/components/TerminalSizeContext.tsx'))
-  const { Box, render, flushPendingSyncWork } = await import(join(SRC, 'ink.ts'))
-  const { KeybindingSetup } = await import(join(SRC, 'keybindings/KeybindingProviderSetup.tsx'))
+  const browser = await import(join(SRC, 'platform/host-os/browser.ts'))
+  const { openMemoryFolder } = await import(join(SRC, 'screen/memory/MemoryFileSelector.tsx'))
+  const { ElicitationDialog } = await import(join(SRC, 'screen/mcp/ElicitationDialog.tsx'))
+  const { AppStoreContext } = await import(join(SRC, 'screen/app-state/AppState.tsx'))
+  const { getDefaultAppState } = await import(join(SRC, 'screen/app-state/AppStateStore.ts'))
+  const { createStore } = await import(join(SRC, 'platform/primitives/store.ts'))
+  const { TerminalSizeContext } = await import(join(SRC, 'screen/renderer/elements/TerminalSizeContext.tsx'))
+  const { Box, render, flushPendingSyncWork } = await import(join(SRC, 'screen/themedRenderer.ts'))
+  const { KeybindingSetup } = await import(join(SRC, 'screen/keys/KeybindingProviderSetup.tsx'))
   try {
     let browserErr: string | null = null
     const bOk = await browser.openBrowser('https://example.test/doc', (err: string) => { browserErr = err })
@@ -600,10 +600,10 @@ async function w08_10_browserAndPathOpenFailuresSurfaced(): Promise<void> {
 }
 
 async function w08_11_videoProviderSettingReadErrorWithheldWhy(): Promise<void> {
-  const { enableConfigs, saveGlobalConfig } = await import(join(SRC, 'utils/config/globalConfig.ts'))
-  const { resetSettingsCache } = await import(join(SRC, 'utils/settings/settingsCache.ts'))
-  const { videoToolEnabled } = await import(join(SRC, 'services/video/registry.ts'))
-  const { withheldTools } = await import(join(SRC, 'services/tools/withheldTools.ts'))
+  const { enableConfigs, saveGlobalConfig } = await import(join(SRC, 'platform/config/globalConfig.ts'))
+  const { resetSettingsCache } = await import(join(SRC, 'platform/settings/settingsCache.ts'))
+  const { videoToolEnabled } = await import(join(SRC, 'integrations/media-video/registry.ts'))
+  const { withheldTools } = await import(join(SRC, 'engine/tool-dispatch/withheldTools.ts'))
   enableConfigs()
   saveGlobalConfig((prev: Record<string, unknown>) => ({ ...prev, videoProvider: { bad: { kind: 'unknown-provider' } } }))
   resetSettingsCache()
@@ -634,9 +634,9 @@ async function w08_12_dapAdapterFileReadErrorSurfaced(): Promise<void> {
   const prevEnv = process.env.MERCURY_DAP_ADAPTERS
   process.env.MERCURY_DAP_ADAPTERS_FILE = lockedFile
   process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ fromEnv: { command: process.execPath, args: [] } })
-  const { DebugTool } = await import(join(SRC, 'tools/DebugTool/DebugTool.ts'))
-  const adapters = await import(join(SRC, 'services/dap/client/adapters.ts'))
-  const { processMainOwner } = await import(join(SRC, 'utils/run/resolveOwner.ts'))
+  const { DebugTool } = await import(join(SRC, 'tools/debug/DebugTool.ts'))
+  const adapters = await import(join(SRC, 'integrations/debugger/client/adapters.ts'))
+  const { processMainOwner } = await import(join(SRC, 'engine/run-owner/resolveOwner.ts'))
   try {
     check('w08-12: launch still resolves adapters from other sources when adapter file is unreadable', adapters.resolveAdapter('fromEnv')?.command === process.execPath)
     const ctx = {
@@ -660,7 +660,7 @@ async function w08_12_dapAdapterFileReadErrorSurfaced(): Promise<void> {
       process.env.MERCURY_JS_DEBUG_DAP = ${JSON.stringify(join(dir, 'no-js-debug.js'))}
       process.env.MERCURY_DAP_ADAPTERS_FILE = ${JSON.stringify(lockedFile)}
       globalThis.MACRO = { VERSION: '1.0.0' }
-      const { withheldTools } = await import(${JSON.stringify(join(SRC, 'services/tools/withheldTools.ts'))})
+      const { withheldTools } = await import(${JSON.stringify(join(SRC, 'engine/tool-dispatch/withheldTools.ts'))})
       const debug = withheldTools().find(w => w.tool === 'Debug')
       process.stdout.write('\\n' + JSON.stringify(debug ?? null))
     `], { encoding: 'utf8' })

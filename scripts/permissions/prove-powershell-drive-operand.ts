@@ -8,14 +8,14 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ps-drive-operand-home-'))
 
 let failures = 0
-const driveOperandHint = 'fix resolveOperandPath (and DRIVE_QUALIFIED) in src/tools/PowerShellTool/pathValidation.ts'
+const driveOperandHint = 'fix resolveOperandPath (and DRIVE_QUALIFIED) in src/tools/powershell/pathValidation.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + driveOperandHint : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { resolveOperandPath } = await import('../../src/tools/PowerShellTool/pathValidation.ts')
+const { resolveOperandPath } = await import('../../src/tools/powershell/pathValidation.ts')
 
 section('§1 resolveOperandPath')
 {

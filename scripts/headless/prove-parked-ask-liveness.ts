@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
-import type { PermissionAnswer, PermissionRequestParams } from '../../src/runner/wire/methods.ts'
+import type { PermissionAnswer, PermissionRequestParams } from '../../src/daemon/runner-wire/methods.ts'
 import { DIST, MODEL, NODE, SCRATCH_ROOT, bound, childEnv, makeTally, sleep, type Frame } from '../daemon/dupline-world.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 import { seedScratchHome, startScriptedFixture, type ScriptedFixture } from '../lib/scriptedTurn.ts'

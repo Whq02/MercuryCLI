@@ -14,7 +14,7 @@ process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
 for (const name of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'MERCURY_MODEL', 'MERCURY_USAGE_SEED', 'MERCURY_MOCK_USAGE_PAYLOAD']) delete process.env[name]
 delete process.env.NODE_ENV
 
-const vitalsFixHint = 'fix glanceLabelsOf (the usage label) in src/services/cockpit/helmLanesModel/sections.ts, or fitRailName in src/components/HelmLanesRail.tsx for the width checks'
+const vitalsFixHint = 'fix glanceLabelsOf (the usage label) in src/screen/cockpit-gauges/helm-lanes-model/sections.ts, or fitRailName in src/screen/fullscreen-layout/HelmLanesRail.tsx for the width checks'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -32,14 +32,14 @@ writeFileSync(
   join(HOME, '.credentials.json'),
   JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-access-token', refreshToken: 'fixture-refresh-token', expiresAt: Date.now() + 7 * 24 * 3600_000, scopes: ['user:inference', 'user:profile'], subscriptionType: 'max' } }),
 )
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const limits = await import('../../src/services/anthropicLimits.ts')
-const usage = await import('../../src/services/providers/providerUsage.ts')
-const { buildLanesModel } = await import('../../src/services/cockpit/helmLanesModel.ts')
-const { fitRailName } = await import('../../src/components/HelmLanesRail.tsx')
-const { displayWidth } = await import('../../src/utils/glyphs.ts')
-const { resolveMercuryTokens } = await import('../../src/utils/mercuryTokens.ts')
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+const usage = await import('../../src/models/roads/providerUsage.ts')
+const { buildLanesModel } = await import('../../src/screen/cockpit-gauges/helmLanesModel.ts')
+const { fitRailName } = await import('../../src/screen/fullscreen-layout/HelmLanesRail.tsx')
+const { displayWidth } = await import('../../src/screen/theme/glyphs.ts')
+const { resolveMercuryTokens } = await import('../../src/screen/theme/mercuryTokens.ts')
 type SourceUsage = ReturnType<typeof usage.activeSourceUsage>
 
 const OWNER = 'anthropic:oauth:primary:00000000-0000-4000-8000-0000000000cv'

@@ -11,7 +11,7 @@ import { lambdaFixture } from './lambdaFixture.mjs'
 import { hfFixture, fixtureRepos } from './hfFixture.mjs'
 import { hfEndpointsFixture } from './hfEndpointsFixture.mjs'
 import { gridToPng } from '../ui/gridToPng.ts'
-import type { LlmHostQuestion, LlmHostRoad } from '../../src/services/llmHost/index.ts'
+import type { LlmHostQuestion, LlmHostRoad } from '../../src/models/llm-host/index.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 pinSourceRef()
@@ -59,20 +59,20 @@ let ssh: ReturnType<typeof fakeSshRunner> | undefined
 let checks = 0
 try {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { hostRunner } = await import('../../src/services/host/ssh.ts')
-  const { runHostJob } = await import('../../src/services/host/worker.ts')
-  const { hostRecords } = await import('../../src/services/host/store.ts')
-  const secrets = await import('../../src/utils/accounts/providerSecrets.ts')
-  const bank = await import('../../src/services/host/bank.ts')
-  const { currentHostRecipes } = await import('../../src/services/host/recipesFile.ts')
-  const volumes = await import('../../src/services/host/volumes.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { hostRunner } = await import('../../src/models/hosting/ssh.ts')
+  const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+  const { hostRecords } = await import('../../src/models/hosting/store.ts')
+  const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const bank = await import('../../src/models/hosting/bank.ts')
+  const { currentHostRecipes } = await import('../../src/models/hosting/recipesFile.ts')
+  const volumes = await import('../../src/models/hosting/volumes.ts')
   secrets.writeStoredRunpodApiKey(rp.key)
   secrets.writeStoredVastApiKey(vast.key)
   secrets.writeStoredLambdaApiKey(lambda.key)
@@ -232,7 +232,7 @@ try {
   }
   await mount(80, 24)
   const derived = currentHostRecipes().find(row => row.model === fixtureRepos.gguf.id)!
-  const { forgetSessionHostRecipes } = await import('../../src/services/host/recipesFile.ts')
+  const { forgetSessionHostRecipes } = await import('../../src/models/hosting/recipesFile.ts')
   forgetSessionHostRecipes()
   await open(); await choose('bank'); await step('door-bank')
   await capture('80-bank-after-session-reset')

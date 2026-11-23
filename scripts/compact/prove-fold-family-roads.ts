@@ -29,7 +29,7 @@ const PACED_PORT = 0
 
 let failures = 0
 let checks = 0
-const FOLD_ROADS_FAILURE_HINT = ' | change the fold in src/services/compact/compact.ts (compactConversation) or the request it sends through routedCallModel in src/services/providers/callModelRouter.ts, not this prover'
+const FOLD_ROADS_FAILURE_HINT = ' | change the fold in src/engine/compaction/foldConversation.ts (compactConversation) or the request it sends through routedCallModel in src/models/roads/callModelRouter.ts, not this prover'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -44,7 +44,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — fold family roads prover exceeded 180s; a fold request or a fixture stream never finished, look at compactConversation in src/services/compact/compact.ts and the section printed last above')
+  console.log('\nTIMEOUT — fold family roads prover exceeded 180s; a fold request or a fixture stream never finished, look at compactConversation in src/engine/compaction/foldConversation.ts and the section printed last above')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -55,18 +55,18 @@ const shared = await startCrossfamilyFixture({ port: SHARED_PORT, gptReasoningLe
 const census = await startFoldFamiliesFixture({ port: CENSUS_PORT })
 Object.assign(process.env, shared.env, census.env)
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const compactModule = await import('../../src/services/compact/compact.ts')
+const compactModule = await import('../../src/engine/compaction/foldConversation.ts')
 const { compactConversation, shouldRideCacheSharingFork, foldFamilyOf, setFoldBoundsForTests, buildPostCompactMessages } = compactModule
-const { classifyModelRoute, laneLabelForVerdict } = await import('../../src/services/providers/routeLaw.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { query: startTurn } = await import('../../src/query.ts')
-const { getModelMaxOutputTokens, resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
+const { classifyModelRoute, laneLabelForVerdict } = await import('../../src/models/roads/routeLaw.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+const { getModelMaxOutputTokens, resolveContextWindow } = await import('../../src/models/facts/capabilities.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
 await refreshLocalDiscovery({ force: true })
 
 const POSTURE_MARK = 'fixture-driven session posture'
@@ -145,8 +145,8 @@ type Run = { result?: Record<string, unknown>; error?: Error; readFileState: { s
 async function runFold(model: string, road: 'direct' | 'fork', messages: unknown[] = makeMessages(), opts?: { thinking?: { type: string } }, parts?: { systemPrompt: unknown; systemContext: Record<string, string> }): Promise<Run> {
   const { ctx, readFileState } = makeContext(model, opts)
   if (parts !== undefined) {
-    const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-    const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
+    const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+    const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
     ;(ctx.options as Record<string, unknown>).tools = [FileReadTool, ToolSearchTool]
   }
   const cacheSafe =
@@ -292,7 +292,7 @@ for (const leg of LEGS) {
   const captured = leg.fixture === 'shared' ? shared.captured : census.captured
   const sessionAt = captured.length
   {
-    const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
+    const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
     const { ctx } = makeContext(leg.model)
     try {
       for await (const _ of routedCallModel({ messages: makeMessages() as never, systemPrompt: asSystemPrompt([`You are a ${POSTURE_MARK}.`]), thinkingConfig: ctx.options.thinkingConfig as never, tools: [], signal: ctx.abortController.signal, options: { model: leg.model, getToolPermissionContext: async () => ctx.getAppState().toolPermissionContext, isNonInteractiveSession: true, hasAppendSystemPrompt: false, maxOutputTokensOverride: undefined, querySource: 'compact' as never, agents: [], mcpTools: [], effortValue: ctx.getAppState().effortValue as never } })) {}
@@ -372,10 +372,10 @@ section("§2d Claude Opus 5 — measured: the row costs it the whole prefix (0 r
 
 section("§8 the OpenAI road: the fold's request IS the session's last request plus the summariser prompt")
 {
-  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-  const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-  const { appendSystemContext } = await import('../../src/services/messages/api.ts')
+  const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+  const { appendSystemContext } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
   const model = 'gpt-5.5'
   const pool = [FileReadTool, ToolSearchTool]
   const { ctx } = makeContext(model)
@@ -421,23 +421,23 @@ section("§8 the OpenAI road: the fold's request IS the session's last request p
   const sessionItems = sessionBody.input ?? []
   const foldItems = foldBody.input ?? []
   const sameHead = j(foldItems.slice(0, sessionItems.length)) === j(sessionItems)
-  const { getCompactPrompt } = await import('../../src/services/compact/prompt.ts')
+  const { getCompactPrompt } = await import('../../src/engine/compaction/summariserPrompt.ts')
   const prompt = foldItems.at(-1) as { role?: string; content?: Array<{ text?: string }> } | undefined
   check("§8: every session item is byte-identical, followed by the complete summariser prompt as its own user item", foldItems.length === sessionItems.length + 1 && sameHead && prompt?.role === 'user' && prompt.content?.some(block => block.text === getCompactPrompt()) === true, `fold ${foldItems.length} items vs session ${sessionItems.length}; head ${sameHead}`)
 }
 
 section("§8b the OpenAI road: the fold re-sends the session's LAST REQUEST's rows — each reminder its own item, the reply's replay items behind them, then the prompt as its own item")
 {
-  const { query } = await import('../../src/query.ts')
-  const { productionDeps } = await import('../../src/query/deps.ts')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-  const { continuationOfSentRequest, lastSentRequestFor, resetSentRequestsForTests } = await import('../../src/services/agents/forkedAgent.ts')
-  const { rosterOwnerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
-  const { getCompactPrompt } = await import('../../src/services/compact/prompt.ts')
-  const bootstrap = await import('../../src/bootstrap/state.ts')
-  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-  const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
+  const { query } = await import('../../src/engine/turnDoor.ts')
+  const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+  const { continuationOfSentRequest, lastSentRequestFor, resetSentRequestsForTests } = await import('../../src/crew/agents/forkedAgent.ts')
+  const { rosterOwnerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.ts')
+  const { getCompactPrompt } = await import('../../src/engine/compaction/summariserPrompt.ts')
+  const bootstrap = await import('../../src/boot/process-state/processState.ts')
+  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
   const model = 'gpt-5.5'
   const pool = [FileReadTool, ToolSearchTool]
   const posture = asSystemPrompt([`You are a ${POSTURE_MARK}.`])
@@ -570,8 +570,8 @@ for (const row of shapes) {
 
 section("§2b the thinking-off word on the wire — a fold on a Gemini thinking row or an OpenRouter reasoning row sends the family's lowest word, never silence")
 {
-  const gemini = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-  const openrouter = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
+  const gemini = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+  const openrouter = await import('../../src/models/roads/openrouter/openrouterCatalogue.ts')
   const jsonFetch = (body: unknown): typeof fetch =>
     (async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch
   gemini.__resetGeminiCatalogueForTest()
@@ -645,11 +645,11 @@ section("§3 the stranger's road — a gateway carries it on the Anthropic diale
 
 section('§4 the threshold is the SERVED window — the GPT ceiling and the [served] default, and the long-context cliff')
 {
-  const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-  const { gptPriceTierFor } = await import('../../src/utils/model/pins/gptPins.ts')
-  const autoCompact = await import('../../src/services/compact/autoCompact.ts')
-  const { contextFillView } = await import('../../src/services/context/contextFill.ts')
-  const tokens = await import('../../src/services/context/tokens.ts')
+  const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+  const { gptPriceTierFor } = await import('../../src/models/facts/pins/gptPins.ts')
+  const autoCompact = await import('../../src/engine/compaction/autoFold.ts')
+  const { contextFillView } = await import('../../src/engine/context-window/contextFill.ts')
+  const tokens = await import('../../src/engine/context-window/contextTokenCount.ts')
   const jsonFetch = (body: unknown): typeof fetch =>
     (async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch
   catalogue.__resetOpenaiCatalogueForTest()
@@ -714,8 +714,8 @@ section('§4 the threshold is the SERVED window — the GPT ceiling and the [ser
 section('§5 the OpenAI road across a fold — the kept tail replays its reasoning items; the folded head\'s never ride')
 {
   process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
-  const { normalizeMessagesForAPI } = await import('../../src/services/messages/apiView.ts')
-  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
+  const { normalizeMessagesForAPI } = await import('../../src/engine/messages/apiView.ts')
+  const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
   const record = (k: string, items: unknown[]): Record<string, unknown> => ({
     apexProviderTurn: { provider: 'openai', responseId: `resp_${k}`, items, contractDigest: 'fixture' },
   })
@@ -950,7 +950,7 @@ section('§9 the home direct lane under thinking disabled: replayed signed think
   check("§9: the history's own text still rides", (body.messages ?? []).some(m => JSON.stringify(m.content).includes('Bumped the version')))
 
   {
-    const { enableDebugLogging, getDebugLogPath } = await import('../../src/utils/debug.ts')
+    const { enableDebugLogging, getDebugLogPath } = await import('../../src/platform/logs/debugLog.ts')
     const { readFileSync: readLog, existsSync: logExists } = await import('node:fs')
     const orphanHistory = makeMessages() as Array<{ type?: string; message?: { content?: unknown[] } }>
     const orphan = assistantRow('', {}, model) as { message: { id: string; content: unknown[] } }

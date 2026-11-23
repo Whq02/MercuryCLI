@@ -73,11 +73,11 @@ function writePatience(recoveryBudgetMinutes: number): void {
   writeFileSync(settingsPath, `${JSON.stringify(current, null, 2)}\n`)
 }
 writePatience(BUDGET_MINUTES)
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/warmRunner.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const { recordToEntry } = await import('../../src/fabric/entryCodec.ts')
-const { recoveryNoticeFacts } = await import('../../src/services/api/recoveryBudget.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/runner-link/warmRunner.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
+const { recordToEntry } = await import('../../src/sessions/fabric/entryCodec.ts')
+const { recoveryNoticeFacts } = await import('../../src/engine/requests/recoveryBudget.ts')
 
 type Capture = { kind: string; at: number; arm?: string; route?: string; status?: number; streaming?: boolean; nth?: number; toolResult?: boolean }
 const captureFile = join(SCRATCH, 'wire-captures.jsonl')
@@ -402,7 +402,7 @@ try {
       check('L1 the row names the budget left', leg.waits.some(w => /of the 6s retry budget left$/.test(w)), leg.waits.join(' | '))
       check('L1 the third refusal spends the budget: the seat stops typed', leg.cut !== null && leg.notices >= 3, `cut=${leg.cut} notices=${leg.notices}`)
       check('L1 the cut fires at the budget, on the harness clock', near(cutAfterMs(leg)), String(cutAfterMs(leg)))
-      check('L1 the receipt names the refusals and the budget', leg.receipt !== null && spent.test(leg.receipt) && /HTTP 429/.test(leg.receipt), (leg.receipt ?? '(none)') + '; the crewmate failure receipt should state the refusal count, HTTP 429 and the spent retry budget; the wording comes from src/services/api/recoveryBudget.ts')
+      check('L1 the receipt names the refusals and the budget', leg.receipt !== null && spent.test(leg.receipt) && /HTTP 429/.test(leg.receipt), (leg.receipt ?? '(none)') + '; the crewmate failure receipt should state the refusal count, HTTP 429 and the spent retry budget; the wording comes from src/engine/requests/recoveryBudget.ts')
       check('L1 the seat row settled failed with the spent line as its reason', leg.seatStatus === 'failed' && leg.seatError !== null && /retry budget is spent/.test(leg.seatError), `${leg.seatStatus} ${leg.seatError}`)
     }
     if (arm === '429-bare') {
@@ -443,7 +443,7 @@ try {
       check('L8 a hung wire: the stream, its reissue, then ONE non-streamed answer — never a ladder of ceilings', seatRequests.filter(c => c.streaming === true).length === 2 && nonStreamed.length === 1, JSON.stringify(seatRequests.map(c => [c.streaming, c.nth])))
       check('L8 the seat is cut with the silence named: the stream\'s budget, the fallback\'s ceiling, the model', leg.receipt !== null && /the stream went quiet for 2 s and one non-streamed answer got nothing in 8 s from /.test(leg.receipt) && /no keep-alive arrived/.test(leg.receipt), leg.receipt ?? '(none)')
       check('L8 the seat row settled failed with the same reason', leg.seatStatus === 'failed' && leg.seatError !== null && /the stream went quiet for 2 s/.test(leg.seatError), `${leg.seatStatus} ${leg.seatError}`)
-      check('L8 the cut came inside the two budgets and the one ceiling, with slack', leg.endedAt !== null && leg.endedAt - t0Of(leg) < IDLE_MS * 2 + FALLBACK_MS + 12_000, String(leg.endedAt !== null ? leg.endedAt - t0Of(leg) : null) + ' ms elapsed; the hung seat ran longer than two idle budgets plus one fallback ceiling, so a ladder of ceilings is back; read the retry and fallback path behind src/services/api/recoveryBudget.ts')
+      check('L8 the cut came inside the two budgets and the one ceiling, with slack', leg.endedAt !== null && leg.endedAt - t0Of(leg) < IDLE_MS * 2 + FALLBACK_MS + 12_000, String(leg.endedAt !== null ? leg.endedAt - t0Of(leg) : null) + ' ms elapsed; the hung seat ran longer than two idle budgets plus one fallback ceiling, so a ladder of ceilings is back; read the retry and fallback path behind src/engine/requests/recoveryBudget.ts')
     }
     if (arm === 'slow') {
       check('L6 a live slow stream raises no notice and no wait words', leg.notices === 0 && leg.waits.length === 0, `notices=${leg.notices} waits=${leg.waits.join(' | ')}`)

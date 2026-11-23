@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import type { LayoutRoots, PruneReport } from '../../src/services/privateChannel/installLayout.ts'
+import type { LayoutRoots, PruneReport } from '../../src/platform/update-channel/installLayout.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'update-prune-live-'))
@@ -15,9 +15,9 @@ delete process.env.MERCURY_DAEMON_DIR
 delete process.env.MERCURY_UPDATE_FAULT
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { pruneSupersededVersions } = await import('../../src/services/privateChannel/installLayout.ts')
-const service = (await import('../../src/services/privateChannel/updateService.ts')) as { livePayloadDirs?: (roots: LayoutRoots) => Promise<string[]> }
-const { getProcessStartTokenAsync, lstartWords } = await import('../../src/utils/ownerWatch.ts')
+const { pruneSupersededVersions } = await import('../../src/platform/update-channel/installLayout.ts')
+const service = (await import('../../src/platform/update-channel/updateService.ts')) as { livePayloadDirs?: (roots: LayoutRoots) => Promise<string[]> }
+const { getProcessStartTokenAsync, lstartWords } = await import('../../src/daemon/control/ownerWatch.ts')
 
 const IS_WINDOWS = process.platform === 'win32'
 const DEAD = 4242421
@@ -27,7 +27,7 @@ let failed = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (ok) passed++
   else failed++
-  const pruneHint = 'fix pruneSupersededVersions in src/services/privateChannel/installLayout.ts, or the live versions livePayloadDirs returns in src/services/privateChannel/updateService.ts'
+  const pruneHint = 'fix pruneSupersededVersions in src/platform/update-channel/installLayout.ts, or the live versions livePayloadDirs returns in src/platform/update-channel/updateService.ts'
   const shown = ok ? detail : detail === '' ? pruneHint : `${detail} — ${pruneHint}`
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown === '' ? '' : ` — ${shown}`}`)
 }

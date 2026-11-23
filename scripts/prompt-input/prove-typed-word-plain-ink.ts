@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/PromptInput/PromptInput.tsx src/components/PromptInput/ShimmeredInput.tsx
-// gate-watch: src/components/messages/HighlightedThinkingText.tsx src/utils/textHighlighting.ts
+// gate-watch: src/screen/composer/Composer.tsx src/screen/composer/ShimmeredInput.tsx
+// gate-watch: src/screen/messages/HighlightedThinkingText.tsx src/screen/composer/textHighlighting.ts
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -199,17 +199,17 @@ if (cap) {
   check('every send became due', cap.receipts === 5, `${cap.receipts}/5 · end ${cap.endReason}`, 'a send in the capture config above never found its awaitText on screen; run with TYPED_WORD_INK_KEEP=1 to dump the frames and see which step stalled (driver: scripts/ui/vshot.py)')
   const composerNeedle = new RegExp(`❯.*${TYPED}`)
   const control = wordInks(cap.marks['composer'], composerNeedle, CONTROL)
-  check(`the composer shows the typed line with "${CONTROL}"`, control !== null, control ? control.row.slice(0, 100) : 'no composer row', 'the typed line never reached the composer row; check how src/components/PromptInput/PromptInput.tsx renders its input line (HighlightedInput in src/components/PromptInput/ShimmeredInput.tsx)')
+  check(`the composer shows the typed line with "${CONTROL}"`, control !== null, control ? control.row.slice(0, 100) : 'no composer row', 'the typed line never reached the composer row; check how src/screen/composer/Composer.tsx renders its input line (HighlightedInput in src/screen/composer/ShimmeredInput.tsx)')
   for (const word of TRIGGERS) {
     const typed = wordInks(cap.marks['composer'], composerNeedle, word)
-    check(`the composer paints "${word}" in the ink of "${CONTROL}", every cell`, typed !== null && control !== null && distinct(typed.inks) === distinct(control.inks), typed && control ? `${word}: ${distinct(typed.inks)} · ${CONTROL}: ${distinct(control.inks)}` : 'no composer row', `the composer must paint a typed trigger word in plain ink; remove the highlight given to it in src/components/PromptInput/PromptInput.tsx and src/components/PromptInput/ShimmeredInput.tsx (segmentTextByHighlights in src/utils/textHighlighting.ts)`)
+    check(`the composer paints "${word}" in the ink of "${CONTROL}", every cell`, typed !== null && control !== null && distinct(typed.inks) === distinct(control.inks), typed && control ? `${word}: ${distinct(typed.inks)} · ${CONTROL}: ${distinct(control.inks)}` : 'no composer row', `the composer must paint a typed trigger word in plain ink; remove the highlight given to it in src/screen/composer/Composer.tsx and src/screen/composer/ShimmeredInput.tsx (segmentTextByHighlights in src/screen/composer/textHighlighting.ts)`)
   }
   const rowNeedle = new RegExp(`\\[sam\\].*${TYPED}`)
   const rowControl = wordInks(cap.marks['row'], rowNeedle, CONTROL)
-  check(`the sent row shows the line with "${CONTROL}"`, rowControl !== null, rowControl ? rowControl.row.slice(0, 100) : 'no user row', 'the sent user row never showed the typed line; run with TYPED_WORD_INK_KEEP=1 to dump the frames, and look at src/components/messages/HighlightedThinkingText.tsx')
+  check(`the sent row shows the line with "${CONTROL}"`, rowControl !== null, rowControl ? rowControl.row.slice(0, 100) : 'no user row', 'the sent user row never showed the typed line; run with TYPED_WORD_INK_KEEP=1 to dump the frames, and look at src/screen/messages/HighlightedThinkingText.tsx')
   for (const word of TRIGGERS) {
     const sent = wordInks(cap.marks['row'], rowNeedle, word)
-    check(`the sent row paints "${word}" in the ink of "${CONTROL}", every cell`, sent !== null && rowControl !== null && distinct(sent.inks) === distinct(rowControl.inks), sent && rowControl ? `${word}: ${distinct(sent.inks)} · ${CONTROL}: ${distinct(rowControl.inks)}` : 'no user row', `the sent row must paint a typed trigger word in plain ink; remove the highlight given to it in HighlightedThinkingText in src/components/messages/HighlightedThinkingText.tsx (segmentTextByHighlights in src/utils/textHighlighting.ts)`)
+    check(`the sent row paints "${word}" in the ink of "${CONTROL}", every cell`, sent !== null && rowControl !== null && distinct(sent.inks) === distinct(rowControl.inks), sent && rowControl ? `${word}: ${distinct(sent.inks)} · ${CONTROL}: ${distinct(rowControl.inks)}` : 'no user row', `the sent row must paint a typed trigger word in plain ink; remove the highlight given to it in HighlightedThinkingText in src/screen/messages/HighlightedThinkingText.tsx (segmentTextByHighlights in src/screen/composer/textHighlighting.ts)`)
   }
   if (failures > 0 && !KEEP) for (const [label, frame] of Object.entries(cap.marks)) dump(label, frame)
 }

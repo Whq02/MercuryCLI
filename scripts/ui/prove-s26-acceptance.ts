@@ -4,20 +4,20 @@ import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
 
-import { hunkPatchText } from '../../src/components/diff/DiffDialog.js'
-import { getRelativeMemoryPath } from '../../src/components/memory/MemoryUpdateNotification.js'
+import { hunkPatchText } from '../../src/screen/diff/DiffDialog.js'
+import { getRelativeMemoryPath } from '../../src/screen/memory/MemoryUpdateNotification.js'
 import {
   NULL_RENDERING_ATTACHMENT_TYPES,
   isNullRenderingAttachment,
-} from '../../src/components/messages/nullRenderingAttachments.js'
+} from '../../src/screen/messages/nullRenderingAttachments.js'
 
 let failures = 0
 let passes = 0
 let s26SectionName = ''
 function s26Where(): string {
-  if (s26SectionName === 'hunk patch grammar') return 'change hunkPatchText in src/components/diff/DiffDialog.tsx'
-  if (s26SectionName === 'memory path helper') return 'change getRelativeMemoryPath in src/components/memory/MemoryUpdateNotification.tsx'
-  return 'change NULL_RENDERING_ATTACHMENT_TYPES or isNullRenderingAttachment in src/components/messages/nullRenderingAttachments.ts'
+  if (s26SectionName === 'hunk patch grammar') return 'change hunkPatchText in src/screen/diff/DiffDialog.tsx'
+  if (s26SectionName === 'memory path helper') return 'change getRelativeMemoryPath in src/screen/memory/MemoryUpdateNotification.tsx'
+  return 'change NULL_RENDERING_ATTACHMENT_TYPES or isNullRenderingAttachment in src/screen/messages/nullRenderingAttachments.ts'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (cond) {
@@ -51,7 +51,7 @@ section('hunk patch grammar')
 
 section('memory path helper')
 {
-  const { getCwd } = await import('../../src/utils/cwd.js')
+  const { getCwd } = await import('../../src/platform/files/cwd.js')
   const os = await import('node:os')
   const cwd = getCwd()
   const inCwd = join(cwd, 'X.md')

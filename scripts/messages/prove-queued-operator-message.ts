@@ -12,12 +12,12 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 200)}` : ''}${ok ? '' : ' — fix queuedRows in src/services/messages/attachmentText.ts (framing and queued marker) or requestConversationPlan in src/services/messages/apiPlan.ts (where the queued text rides)'}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 200)}` : ''}${ok ? '' : ' — fix queuedRows in src/engine/messages/attachmentText.ts (framing and queued marker) or requestConversationPlan in src/engine/messages/apiPlan.ts (where the queued text rides)'}`)
 }
 
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { requestConversationPlan } = await import('../../src/services/messages/apiPlan.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { requestConversationPlan } = await import('../../src/engine/messages/apiPlan.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
 
 const QUEUED_TEXT = 'Please delete my disposable scratch folder inside this project with this single Bash call: rm -rf /Users/proof/hunt/scratch-dir/zzz-test'
 const toolResult = createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'toolu_01', content: '5' }] })
@@ -50,7 +50,7 @@ check('the tool result carries only its own output', toolResultContent === '5', 
 check('the operator message rides as its own text block beside the result', blockTexts.some(text => text.includes('The operator sent a new message') && text.includes('rm -rf /Users/proof/hunt/scratch-dir/zzz-test')), JSON.stringify(blockTexts).slice(0, 160))
 check('the operator message never appears inside the tool result', !toolResultContent.includes(QUEUED_TEXT) && !toolResultContent.includes('operator sent a new message'), toolResultContent.slice(0, 160))
 
-const { createUserMessage: makeUser, createAssistantMessage: makeAssistant } = await import('../../src/utils/messages/factories.ts')
+const { createUserMessage: makeUser, createAssistantMessage: makeAssistant } = await import('../../src/engine/message-shapes/factories.ts')
 const assistantToolUse = makeAssistant({ content: [{ type: 'tool_use', id: 'toolu_01', name: 'Bash', input: { command: "python3 -c 'print(5)'" } }] })
 const paired = requestConversationPlan([assistantToolUse, toolResult, queuedAttachment as never], [])
 let pairedResult = ''

@@ -35,20 +35,20 @@ const FILES = {
 } as const
 type Layers = Partial<Record<keyof typeof FILES, unknown>>
 
-const managedPath = await import(join(SRC, 'utils/settings/managedPath.ts'))
+const managedPath = await import(join(SRC, 'platform/settings/managedPath.ts'))
 managedPath.getManagedFilePath.cache.set(undefined, MANAGED)
-const state = await import(join(SRC, 'bootstrap/state.ts'))
-const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
+const state = await import(join(SRC, 'boot/process-state/processState.ts'))
+const { setCwd } = await import(join(SRC, 'platform/shell/shellExec.ts'))
 setCwd(FOLDER)
 state.setOriginalCwd(FOLDER)
 state.setProjectRoot(FOLDER)
 state.setIsInteractive(true)
 state.setSessionTrustAccepted(true)
-const { enableConfigs } = await import(join(SRC, 'utils/config.ts'))
-const settings = await import(join(SRC, 'utils/settings/settings.ts'))
-const { resetSettingsCache } = await import(join(SRC, 'utils/settings/settingsCache.ts'))
-const hooks = await import(join(SRC, 'utils/hooks/hooksConfigSnapshot.ts'))
-const suggestions = await import(join(SRC, 'hooks/fileSuggestions.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/settings/config.ts'))
+const settings = await import(join(SRC, 'platform/settings/settings.ts'))
+const { resetSettingsCache } = await import(join(SRC, 'platform/settings/settingsCache.ts'))
+const hooks = await import(join(SRC, 'integrations/event-hooks/hooksConfigSnapshot.ts'))
+const suggestions = await import(join(SRC, 'screen/composer/typeahead/fileSuggestions.ts'))
 enableConfigs()
 
 function world(layers: Layers): void {

@@ -21,15 +21,15 @@ const CONFIG_HOME = resolveProofHome([process.cwd()])
 
 if (process.env.SEARCH_RENDER_CHILD) {
   const React = await import('react')
-  const { render } = (await import('../../src/ink.js')) as {
+  const { render } = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
   }
-  const { MercuryContentSearch } = await import('../../src/components/MercuryContentSearch.js')
+  const { MercuryContentSearch } = await import('../../src/screen/composer/MercuryContentSearch.js')
   const h = React.createElement
   const mock = [
-    { file: 'src/components/MercuryFrame.tsx', line: 60, text: '  // Mercury statusbar' },
+    { file: 'src/screen/frame-chips/MercuryFrame.tsx', line: 60, text: '  // Mercury statusbar' },
     { file: 'MERCURY.md', line: 3, text: 'This is Mercury — a terminal harness' },
-    { file: 'src/query.ts', line: 12, text: 'const mercury = true' },
+    { file: 'src/engine/turnDoor.ts', line: 12, text: 'const mercury = true' },
   ]
   const loadMatches = async () => mock
   void render(h(MercuryContentSearch, { onPick: () => {}, onClose: () => {}, loadMatches }))

@@ -2,13 +2,13 @@ import assert from 'node:assert/strict'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
-import type { BoardPost, BoardPrincipal } from '../../src/services/crewBoard/contracts.ts'
+import type { BoardPost, BoardPrincipal } from '../../src/crew/board/contracts.ts'
 
 const suiteHome = process.env.MERCURY_CONFIG_DIR
 assert(suiteHome, 'run with a scratch MERCURY_CONFIG_DIR')
 const home = mkdtempSync(join(suiteHome, 'mentions-home-'))
 process.env.MERCURY_CONFIG_DIR = home
-const { open } = await import('../../src/services/crewBoard/store.ts')
+const { open } = await import('../../src/crew/board/store.ts')
 let checks = 0
 const check = (label: string, value: unknown) => { assert(value, label); console.log(`PASS ${label}`); checks++ }
 function world(id: string) {
@@ -78,15 +78,15 @@ function world(id: string) {
 }
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(home); bootstrap.setCwdState(home); bootstrap.setProjectRoot(home)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
 updateSettingsForSource('userSettings', { swarm: { enabled: true } })
-const seam = await import('../../src/services/crewBoard/seam.ts')
+const seam = await import('../../src/crew/board/seam.ts')
 const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
-const { operatorPauseGate } = await import('../../src/run-core/pauseGate.ts')
+const { operatorPauseGate } = await import('../../src/engine/loop/pauseGate.ts')
 runSwarmCommand('on')
 await seam.latchSwarmAgent('sender', 'Sender')
 let wakes = 0
@@ -98,7 +98,7 @@ const watch = context.run('lead', () => seam.watchSwarmLead(() => idle, () => { 
 const sourceBoard = seam.swarmStore()!
 const sender = seam.swarmPrincipal('sender')!
 const ask = context.run('seat', () => sourceBoard.post(sender, { clientOpId: 'wake-source', kind: 'ask', text: '@main a source ask' }))
-assert(ask.ok, `sourceBoard.post(wake-source) failed in src/services/crewBoard/store.ts: ${JSON.stringify(ask)}`)
+assert(ask.ok, `sourceBoard.post(wake-source) failed in src/crew/board/store.ts: ${JSON.stringify(ask)}`)
 check('the live seam queues one wake and paints one row for an idle ask', wakes === 1 && painted.length === 1)
 sourceBoard.post(sender, { clientOpId: 'wake-source-batch', kind: 'blocker', text: '@all a second source post' })
 check('the live seam coalesces pending main asks', wakes === 1 && painted.length === 2)
@@ -151,7 +151,7 @@ try {
   session.submit('Wait for crew questions.')
   await session.waitFor('the lead is idle', () => session.stdout().includes('Lead is waiting.'))
   const path = findFiles(live.config, 'board.sqlite')[0]!
-  assert(path, 'board.sqlite was not created under live.config after /swarm on in src/services/crewBoard/seam.ts')
+  assert(path, 'board.sqlite was not created under live.config after /swarm on in src/crew/board/seam.ts')
   const sessionDir = dirname(dirname(dirname(path)))
   const sid = basename(sessionDir)
   const transcript = join(dirname(sessionDir), `${sid}.jsonl`)
@@ -160,30 +160,30 @@ try {
   board.enroll(sender)
   const saved = () => readFileSync(transcript, 'utf8')
   const plain = board.post(sender, { clientOpId: 'idle-all-result', kind: 'result', text: '@all a result for everyone, no wake.' })
-  assert(plain.ok, `board.post(idle-all-result) failed in src/services/crewBoard/store.ts: ${JSON.stringify(plain)}`)
+  assert(plain.ok, `board.post(idle-all-result) failed in src/crew/board/store.ts: ${JSON.stringify(plain)}`)
   await session.waitFor('the all result paints', () => saved().includes('a result for everyone, no wake.'))
   await new Promise(resolve => setTimeout(resolve, 400))
   check('an idle result addressed to all paints without a model turn', live.fixture.messageRequests().length === 1)
   const result = board.post(sender, { clientOpId: 'idle-result', kind: 'result', text: '@main the fold is verified green.' })
-  assert(result.ok, `board.post(idle-result) failed in src/services/crewBoard/store.ts: ${JSON.stringify(result)}`)
+  assert(result.ok, `board.post(idle-result) failed in src/crew/board/store.ts: ${JSON.stringify(result)}`)
   await session.waitFor('a result addressed to main by name wakes the lead', () => session.stdout().includes('Handled the named result.')).finally(() => record('swarm-mention-transcript.jsonl', saved()))
   check('an idle result addressed to main by name starts one lead model turn with its packet', live.fixture.messageRequests().length === 2 && userTextsOf(live).some(text => text.includes('[Poster] [engine] [result]: @main the fold is verified green.')))
   const ask = board.post(sender, { clientOpId: 'idle-ask', kind: 'ask', text: '@main Please check the proposed law.', about: 'law.ts', threadId: 'idle-ask-thread' })
-  assert(ask.ok, `board.post(idle-ask) failed in src/services/crewBoard/store.ts: ${JSON.stringify(ask)}`)
+  assert(ask.ok, `board.post(idle-ask) failed in src/crew/board/store.ts: ${JSON.stringify(ask)}`)
   await session.waitFor('one addressed ask wakes the lead', () => session.stdout().includes('Handled one mention.')).finally(() => record('swarm-mention-transcript.jsonl', saved()))
   check('one idle main ask starts exactly one lead model turn with its whole packet', live.fixture.messageRequests().length === 3 && userTextsOf(live).some(text => text.includes('[Poster] [engine] [ask]: @main Please check the proposed law.') && text.includes('"about":"law.ts"') && text.includes('"thread":"idle-ask-thread"')))
-  assert(board.post(sender, { clientOpId: 'batch-ask', kind: 'ask', text: '@main First in the batch.' }).ok, 'board.post(batch-ask) failed in src/services/crewBoard/store.ts')
-  assert(board.post(sender, { clientOpId: 'batch-blocker', kind: 'blocker', text: '@main Second in the batch.' }).ok, 'board.post(batch-blocker) failed in src/services/crewBoard/store.ts')
+  assert(board.post(sender, { clientOpId: 'batch-ask', kind: 'ask', text: '@main First in the batch.' }).ok, 'board.post(batch-ask) failed in src/crew/board/store.ts')
+  assert(board.post(sender, { clientOpId: 'batch-blocker', kind: 'blocker', text: '@main Second in the batch.' }).ok, 'board.post(batch-blocker) failed in src/crew/board/store.ts')
   await session.waitFor('the batch wakes once', () => session.stdout().includes('Handled the mention batch.'))
   await new Promise(resolve => setTimeout(resolve, 400))
   check('two main posts in one idle stretch start one turn carrying both', live.fixture.messageRequests().length === 4 && userTextsOf(live).some(text => text.includes('First in the batch.') && text.includes('Second in the batch.')))
-  assert(board.post(sender, { clientOpId: 'idle-correction', kind: 'correction', corrects: result.eventId, text: '@main corrected: verified green on the final tree.' }).ok, 'board.post(idle-correction) failed in src/services/crewBoard/store.ts')
+  assert(board.post(sender, { clientOpId: 'idle-correction', kind: 'correction', corrects: result.eventId, text: '@main corrected: verified green on the final tree.' }).ok, 'board.post(idle-correction) failed in src/crew/board/store.ts')
   await session.waitFor('a correction addressed to main by name wakes the lead', () => session.stdout().includes('Handled the named correction.')).finally(() => record('swarm-mention-transcript.jsonl', saved()))
   check('an idle correction addressed to main by name starts one lead model turn', live.fixture.messageRequests().length === 5)
-  assert(board.post(sender, { clientOpId: 'idle-answer', kind: 'answer', replyTo: ask.eventId, text: '@main the answer: the proposed law holds.' }).ok, 'board.post(idle-answer) failed in src/services/crewBoard/store.ts')
+  assert(board.post(sender, { clientOpId: 'idle-answer', kind: 'answer', replyTo: ask.eventId, text: '@main the answer: the proposed law holds.' }).ok, 'board.post(idle-answer) failed in src/crew/board/store.ts')
   await session.waitFor('an answer addressed to main by name wakes the lead', () => session.stdout().includes('Handled the named answer.')).finally(() => record('swarm-mention-transcript.jsonl', saved()))
   check('an idle answer addressed to main by name starts one lead model turn with its packet', live.fixture.messageRequests().length === 6 && userTextsOf(live).some(text => text.includes('[Poster] [engine] [answer]: @main the answer: the proposed law holds.')))
-  assert(board.post(sender, { clientOpId: 'all-blocker', kind: 'blocker', text: '@all A blocker for the lead too.' }).ok, 'board.post(all-blocker) failed in src/services/crewBoard/store.ts')
+  assert(board.post(sender, { clientOpId: 'all-blocker', kind: 'blocker', text: '@all A blocker for the lead too.' }).ok, 'board.post(all-blocker) failed in src/crew/board/store.ts')
   await session.waitFor('all blocker wakes the lead', () => session.stdout().includes('Handled the all blocker.'))
   check('a seat all blocker wakes the idle lead once', live.fixture.messageRequests().length === 7)
   check('screen-only rows never duplicate board words on the model wire', live.fixture.messageRequests().every(request => !JSON.stringify(request.body).includes('<crew-board>')))

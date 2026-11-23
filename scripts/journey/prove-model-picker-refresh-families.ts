@@ -24,22 +24,22 @@ process.env.MERCURY_CRITTER_IDLE = '0'
 process.env.BROWSER = '/usr/bin/true'
 const KEYS = ['OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'HF_TOKEN'] as const
 for (const key of ['CI', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', ...KEYS]) delete process.env[key]
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 const React = await import('react')
-const { render } = await import('../../src/ink.ts')
-const { AppStoreContext, getDefaultAppState } = await import('../../src/state/AppState.tsx')
-const { createStore } = await import('../../src/state/store.ts')
+const { render } = await import('../../src/screen/themedRenderer.ts')
+const { AppStoreContext, getDefaultAppState } = await import('../../src/screen/app-state/AppState.tsx')
+const { createStore } = await import('../../src/platform/primitives/store.ts')
 const { call, MercuryModelChoicePicker, MercuryModelDefaultPicker, MercurySessionModelPicker } = await import('../../src/commands/model/mercuryModel.tsx')
-const openrouter = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
-const gemini = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const huggingface = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.ts')
-const local = await import('../../src/services/providers/local/localDiscovery.ts')
-const openai = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const moonshot = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
-const anthropic = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
-const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
-const { getModelOptions, isProviderActionRow } = await import('../../src/services/model/modelOptions.ts')
+const openrouter = await import('../../src/models/roads/openrouter/openrouterCatalogue.ts')
+const gemini = await import('../../src/models/roads/gemini/geminiCatalogue.ts')
+const huggingface = await import('../../src/models/roads/huggingface/huggingfaceCatalogue.ts')
+const local = await import('../../src/models/roads/local/localDiscovery.ts')
+const openai = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const moonshot = await import('../../src/models/roads/moonshot/moonshotCatalogue.ts')
+const anthropic = await import('../../src/models/roads/anthropic/anthropicCatalogue.ts')
+const { catalogueEpoch } = await import('../../src/models/roads/catalogueEpoch.ts')
+const { getModelOptions, isProviderActionRow } = await import('../../src/models/catalogue/modelOptions.ts')
 const stripAnsi = (await import('strip-ansi')).default
 const flush = (ms = 150): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const settle = async (seen: () => string, ok: (frame: string) => boolean, ms = 3000): Promise<void> => {
@@ -51,7 +51,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const where = 'open-time refresh and the changed-list notice: useCatalogueRefreshOnOpen in src/commands/model/picker/roads.ts; each family cache, in-flight sharing and refresh: src/services/providers/<family>/<family>Catalogue.ts (local: src/services/providers/local/localDiscovery.ts); the picker components: src/commands/model/mercuryModel.tsx'
+  const where = 'open-time refresh and the changed-list notice: useCatalogueRefreshOnOpen in src/commands/model/picker/roads.ts; each family cache, in-flight sharing and refresh: src/models/roads/<family>/<family>Catalogue.ts (local: src/models/roads/local/localDiscovery.ts); the picker components: src/commands/model/mercuryModel.tsx'
   const shown = !ok ? (detail ? `${detail} — ${where}` : where) : detail
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }

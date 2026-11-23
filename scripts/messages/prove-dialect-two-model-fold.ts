@@ -17,7 +17,7 @@ delete process.env.MERCURY_MAX_OUTPUT_TOKENS
 delete process.env.MERCURY_MODEL
 
 let failures = 0
-const TWO_MODEL_FIX_HINT = 'the fold request rows built by queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts no longer match the lawful shape for TWO_MODEL_COMPACTION in scripts/messages/dialectFixture.ts; restore the row-building step so the other model\'s thinking is stripped whole and the golden rows come back byte for byte'
+const TWO_MODEL_FIX_HINT = 'the fold request rows built by queryModelWithStreaming in src/models/roads/anthropic/streamCore.ts no longer match the lawful shape for TWO_MODEL_COMPACTION in scripts/messages/dialectFixture.ts; restore the row-building step so the other model\'s thinking is stripped whole and the golden rows come back byte for byte'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${cond ? '' : ` | fix: ${TWO_MODEL_FIX_HINT}`}`)
@@ -26,16 +26,16 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n  ' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 
-const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { queryModelWithStreaming } = await import('../../src/models/roads/anthropic/streamCore.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { TWO_MODEL_COMPACTION, canonicalJson } = await import('./dialectFixture.ts')
-import type { Message } from '../../src/types/message.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 const SENTINEL = new Error('request-captured')
 let captured: Record<string, unknown> | null = null
@@ -73,7 +73,7 @@ async function captureFoldRows(messages: Message[]): Promise<Array<Record<string
   }
   clearTimeout(deadline)
   abortCapture = null
-  if (!captured) throw new Error('no request captured: queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts never called the fetchOverride before the 30 s deadline; check that it still honours options.fetchOverride')
+  if (!captured) throw new Error('no request captured: queryModelWithStreaming in src/models/roads/anthropic/streamCore.ts never called the fetchOverride before the 30 s deadline; check that it still honours options.fetchOverride')
   return (captured.messages as Array<Record<string, unknown>>) ?? []
 }
 

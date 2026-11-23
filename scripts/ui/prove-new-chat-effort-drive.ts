@@ -19,7 +19,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}the effort a new chat is admitted with is set where the daemon admits the worker (coldSpecOf in src/daemon/concourseWorkers/admitCold.ts, the admitted log line in src/daemon/main.ts); read the artifacts under ${SCRATCH} (engine.log, born.txt, records.json with --frames)` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}the effort a new chat is admitted with is set where the daemon admits the worker (coldSpecOf in src/daemon/concourse-workers/admitCold.ts, the admitted log line in src/daemon/control/main.ts); read the artifacts under ${SCRATCH} (engine.log, born.txt, records.json with --frames)` : ''}`)
 }
 
 type Grid = Array<Array<{ c: string }>>

@@ -41,10 +41,10 @@ async function withServer(
 
 try {
   {
-    const { chooseWeightsSource } = await import('../../src/services/host/weightsSource.ts')
-    const { runLocalSetupRoad } = await import('../../src/services/localSetup/ggufRoad.ts')
-    const { runModelDoor } = await import('../../src/services/host/door.ts')
-    const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+    const { chooseWeightsSource } = await import('../../src/models/hosting/weightsSource.ts')
+    const { runLocalSetupRoad } = await import('../../src/models/local-setup/ggufRoad.ts')
+    const { runModelDoor } = await import('../../src/models/hosting/door.ts')
+    const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
     const recipe = HOST_RECIPES.find(row => row.engine === 'llamacpp')!
     const secretsFile = join(home, '.provider-secrets.json')
 
@@ -179,10 +179,10 @@ try {
 
   {
     const { runpodFixture } = await import('../host/runpodFixture.mjs')
-    const { createHostRoad } = await import('../../src/services/host/index.ts')
-    const { sweepHostIdle, HOST_IDLE_LIMIT_MS } = await import('../../src/services/host/idle.ts')
-    const { writeHostRecord, readHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
-    const { saveVendorKey, vendorClient } = await import('../../src/services/host/vendors/client.ts')
+    const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+    const { sweepHostIdle, HOST_IDLE_LIMIT_MS } = await import('../../src/models/hosting/idle.ts')
+    const { writeHostRecord, readHostRecord, removeHostRecord } = await import('../../src/models/hosting/store.ts')
+    const { saveVendorKey, vendorClient } = await import('../../src/models/hosting/vendors/client.ts')
     const rp = await runpodFixture()
     const daemonDir = join(home, 'daemon')
     mkdirSync(daemonDir, { recursive: true, mode: 0o700 })
@@ -265,17 +265,17 @@ try {
 
   {
     const { runpodFixture } = await import('../host/runpodFixture.mjs')
-    const { createHostRoad } = await import('../../src/services/host/index.ts')
-    const { sweepHostIdle, HOST_IDLE_LIMIT_MS } = await import('../../src/services/host/idle.ts')
-    const { terminateTensorFoldPod } = await import('../../src/services/host/tensorfoldPod.ts')
-    const { removeHostEndpoint } = await import('../../src/services/host/door.ts')
-    const { writeHostRecord, readHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
-    const { saveVendorKey, vendorClient } = await import('../../src/services/host/vendors/client.ts')
-    const { HostVendorHttpError } = await import('../../src/services/host/vendors/http.ts')
-    const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
-    const { bumpCatalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
-    const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
-    const { refreshCompatCatalogues } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
+    const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+    const { sweepHostIdle, HOST_IDLE_LIMIT_MS } = await import('../../src/models/hosting/idle.ts')
+    const { terminateTensorFoldPod } = await import('../../src/models/hosting/tensorfoldPod.ts')
+    const { removeHostEndpoint } = await import('../../src/models/hosting/door.ts')
+    const { writeHostRecord, readHostRecord, removeHostRecord } = await import('../../src/models/hosting/store.ts')
+    const { saveVendorKey, vendorClient } = await import('../../src/models/hosting/vendors/client.ts')
+    const { HostVendorHttpError } = await import('../../src/models/hosting/vendors/http.ts')
+    const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
+    const { bumpCatalogueEpoch } = await import('../../src/models/roads/catalogueEpoch.ts')
+    const { configuredCompatEndpoints } = await import('../../src/models/roads/openaicompat/compatAccounts.ts')
+    const { refreshCompatCatalogues } = await import('../../src/models/roads/openaicompat/compatCatalogue.ts')
 
     const localSetupDir = join(home, 'local-setup')
     mkdirSync(localSetupDir, { recursive: true, mode: 0o700 })
@@ -419,13 +419,13 @@ try {
 
   {
     const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
-    const { acceptInput } = await import('../../src/cli/headless/inputDoor.ts')
-    const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
-    const { INPUT_REFUSED_CODE } = await import('../../src/cli/structuredIO.ts')
-    const { getSessionId, setOriginalCwd } = await import('../../src/bootstrap/state.ts')
-    const { getTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
-    const { clearSessionMessagesCache } = await import('../../src/utils/sessionStorage/logs.ts')
-    const { getCommandQueue, remove } = await import('../../src/utils/messageQueueManager.ts')
+    const { acceptInput } = await import('../../src/daemon/runner/inputDoor.ts')
+    const { createRunnerState } = await import('../../src/daemon/runner/runnerPorts.ts')
+    const { INPUT_REFUSED_CODE } = await import('../../src/daemon/runner/structuredIO.ts')
+    const { getSessionId, setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
+    const { getTranscriptPath } = await import('../../src/sessions/transcripts/paths.ts')
+    const { clearSessionMessagesCache } = await import('../../src/sessions/transcripts/sessionListings.ts')
+    const { getCommandQueue, remove } = await import('../../src/daemon/runner/messageQueueManager.ts')
     const { dirname } = await import('node:path')
     const { randomUUID } = await import('node:crypto')
 
@@ -485,13 +485,13 @@ try {
   {
     const { call: localMission } = await import('../../src/commands/mission/mission.ts')
     const { call: jsxMission } = await import('../../src/commands/mission/mission-jsx.tsx')
-    const { answerSessionFacts } = await import('../../src/cli/headless/sessionFactsArm.ts')
-    const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
-    const { sessionFactsFromWire } = await import('../../src/services/engine-connector/seatWire.ts')
-    const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-    const { getSessionId, setOriginalCwd } = await import('../../src/bootstrap/state.ts')
-    const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-    const { createTask, getTaskListId, getTasksDir, listSessionMission } = await import('../../src/utils/tasks.ts')
+    const { answerSessionFacts } = await import('../../src/daemon/runner/sessionFactsArm.ts')
+    const { createRunnerState } = await import('../../src/daemon/runner/runnerPorts.ts')
+    const { sessionFactsFromWire } = await import('../../src/engine/connector/seatWire.ts')
+    const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+    const { getSessionId, setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
+    const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+    const { createTask, getTaskListId, getTasksDir, listSessionMission } = await import('../../src/engine/task-framework/tasks.ts')
 
     const sid = getSessionId()
     const projCwd = join(scratch, 'mission-proj')
@@ -595,10 +595,10 @@ try {
   }
 
   {
-    const { setActiveMission, clearActiveMission, missionCardView } = await import('../../src/guards/mission.ts')
-    const { writeMissionCard } = await import('../../src/utils/mission/missionCard.ts')
-    const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
-    const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+    const { setActiveMission, clearActiveMission, missionCardView } = await import('../../src/permissions/guards/mission.ts')
+    const { writeMissionCard } = await import('../../src/sessions/mission-card/missionCard.ts')
+    const { setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
+    const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
     const { dirname } = await import('node:path')
 
     const projCwd = join(scratch, 'mission-write-fail-proj')
@@ -653,8 +653,8 @@ try {
 
   {
     const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
-    const { createOrAppendSample, listSamples, listSamplesStrict, samplesRoot, setSampleListenerAddress } = await import('../../src/services/samples/store.ts')
-    const { sampleRowsOf } = await import('../../src/services/samples/facts.ts')
+    const { createOrAppendSample, listSamples, listSamplesStrict, samplesRoot, setSampleListenerAddress } = await import('../../src/integrations/samples/store.ts')
+    const { sampleRowsOf } = await import('../../src/integrations/samples/facts.ts')
     const prevSamples = process.env.MERCURY_SAMPLES
     process.env.MERCURY_SAMPLES = '1'
     try {
@@ -699,10 +699,10 @@ try {
   }
 
   {
-    const { armLocalWake: armInputLocalWake } = await import('../../src/cli/headless/inputDoor.ts')
-    const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
-    const { armLocalWake: armBridgeWake, _resetScheduleBridgeForTesting } = await import('../../src/services/saturn/sessionScheduleBridge.ts')
-    const { getCommandQueue, remove } = await import('../../src/utils/messageQueueManager.ts')
+    const { armLocalWake: armInputLocalWake } = await import('../../src/daemon/runner/inputDoor.ts')
+    const { createRunnerState } = await import('../../src/daemon/runner/runnerPorts.ts')
+    const { armLocalWake: armBridgeWake, _resetScheduleBridgeForTesting } = await import('../../src/daemon/saturn/sessionScheduleBridge.ts')
+    const { getCommandQueue, remove } = await import('../../src/daemon/runner/messageQueueManager.ts')
 
     _resetScheduleBridgeForTesting()
     remove([...getCommandQueue()])

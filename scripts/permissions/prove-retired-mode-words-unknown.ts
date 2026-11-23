@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-// gate-watch: src/types/permissions.ts src/utils/permissions/PermissionMode.ts src/utils/permissions/PermissionUpdateSchema.ts
-// gate-watch: src/utils/settings/types.ts src/daemon/headlessRun.ts src/services/agents/codec.ts
-// gate-watch: src/main.tsx src/services/resume/conversationRecovery.ts src/services/acp/acpServer.ts src/tools/AgentTool/AgentTool.tsx
+// gate-watch: src/permissions/rules/permissions.ts src/permissions/rules/permissionMode.ts src/permissions/rules/PermissionUpdateSchema.ts
+// gate-watch: src/platform/settings/settingsSchema.ts src/daemon/runner-link/headlessRun.ts src/crew/agents/codec.ts
+// gate-watch: src/boot/main.tsx src/sessions/resume/conversationRecovery.ts src/integrations/acp/acpServer.ts src/tools/crewmate/CrewmateTool.tsx
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -23,7 +23,7 @@ const WORDS = ['acceptEdits', 'bypassPermissions', 'plan', 'auto'] as const
 const CONTROL = 'frobnicate'
 
 let failures = 0
-const retiredWordsHint = 'a retired mode word must read exactly as an unknown word, with no alias; remove its spelling from PERMISSION_MODES in src/types/permissions.ts, permissionModeFromString and permissionModeSchema in src/utils/permissions/PermissionMode.ts, getHeadlessPermissionMode in src/daemon/headlessRun.ts, decodeAgentDocument in src/services/agents/codec.ts, or the saved-mode handling in src/services/resume/conversationRecovery.ts; for the built-product rows rebuild with bun run build.ts'
+const retiredWordsHint = 'a retired mode word must read exactly as an unknown word, with no alias; remove its spelling from PERMISSION_MODES in src/permissions/rules/permissions.ts, permissionModeFromString and permissionModeSchema in src/permissions/rules/permissionMode.ts, getHeadlessPermissionMode in src/daemon/runner-link/headlessRun.ts, decodeAgentDocument in src/crew/agents/codec.ts, or the saved-mode handling in src/sessions/resume/conversationRecovery.ts; for the built-product rows rebuild with bun run build.ts'
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail} — ` : ''}${retiredWordsHint}` : ''}`)
   if (!ok) failures = 1
@@ -32,12 +32,12 @@ const swap = (text: string, word: string): string => text.split(word).join(CONTR
 const issues = (result: { success: boolean; error?: { issues: unknown[] } }): string =>
   result.success ? 'accepted' : JSON.stringify(result.error?.issues.map(issue => ({ ...(issue as Record<string, unknown>), message: String((issue as { message?: unknown }).message) })))
 
-const vocab = await import('../../src/types/permissions.js')
-const modes = await import('../../src/utils/permissions/PermissionMode.js')
-const updates = await import('../../src/utils/permissions/PermissionUpdateSchema.js')
-const settings = await import('../../src/utils/settings/types.js')
-const daemon = await import('../../src/daemon/headlessRun.js')
-const codec = await import('../../src/services/agents/codec.js')
+const vocab = await import('../../src/permissions/rules/permissions.js')
+const modes = await import('../../src/permissions/rules/permissionMode.js')
+const updates = await import('../../src/permissions/rules/PermissionUpdateSchema.js')
+const settings = await import('../../src/platform/settings/settingsSchema.js')
+const daemon = await import('../../src/daemon/runner-link/headlessRun.js')
+const codec = await import('../../src/crew/agents/codec.js')
 
 console.log('— the vocabulary: one mode list, no second spelling of any mode —')
 t('the vocabulary module exports no spelling table and no decoder', !('RETIRED_PERMISSION_MODE_SPELLINGS' in vocab) && !('decodePermissionModeSpelling' in vocab) && !('RETIRED_PERMISSION_MODE_SPELLINGS' in modes) && !('decodePermissionModeSpelling' in modes))
@@ -73,8 +73,8 @@ if (!existsSync(DIST)) {
   } else {
     const { startFixtureApi } = await import('../lib/fixtureApi.ts')
     const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-    const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.js')
-    const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.js')
+    const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.js')
+    const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.js')
     const fixture = await startFixtureApi(Array.from({ length: 20 }, () => ({ kind: 'text' as const, text: 'seven' })))
     const cwd = mkdtempSync(join(tmpdir(), 'mode-words-cwd-'))
     const home = join(scratch, 'door-home')

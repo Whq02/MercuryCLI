@@ -16,7 +16,7 @@ import {
   checkBashPackDir,
   readBashPackManifest,
   resolveBashPackDir,
-} from '../../src/utils/shell/bashPack.ts'
+} from '../../src/platform/shell/bashPack.ts'
 import { bundledVendorPacks, checkBundledVendorPacks } from '../release/payloadContract.mjs'
 
 const ROOT = resolve(import.meta.dir, '..', '..')

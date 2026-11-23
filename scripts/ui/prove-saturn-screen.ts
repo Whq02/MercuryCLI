@@ -4,9 +4,9 @@
 
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
-import { compileWhenSpelling, parseTimeOfDay, WHEN_SPELLING_EXAMPLES } from '../../src/services/saturn/whenSpelling.js'
-import { validateSaturnSubmission, SATURN_SPELLING_CAP, describeWhen } from '../../src/daemon/saturn.js'
-import { cronToHuman } from '../../src/utils/cron.js'
+import { compileWhenSpelling, parseTimeOfDay, WHEN_SPELLING_EXAMPLES } from '../../src/daemon/saturn/whenSpelling.js'
+import { validateSaturnSubmission, SATURN_SPELLING_CAP, describeWhen } from '../../src/daemon/saturn/saturn.js'
+import { cronToHuman } from '../../src/daemon/saturn/cron.js'
 
 const t = checker()
 
@@ -99,7 +99,7 @@ t.section('§2 — THE BOARD COMPOSERS (the parity floor survives; state is word
     saturnNextFireWords,
     saturnStatusLine,
     saturnSummaryRows,
-  } = await import('../../src/components/BootSaturnScreen.js')
+  } = await import('../../src/screen/boot-face/BootSaturnScreen.js')
 
   t.check('§2 delta words: due now / minutes / hours / days / none', fireDeltaWords(FIXED_NOW - 1, FIXED_NOW) === 'due now' && fireDeltaWords(FIXED_NOW + 20 * 60_000, FIXED_NOW) === 'in 20m' && fireDeltaWords(FIXED_NOW + 2 * 3_600_000, FIXED_NOW) === 'in 2h' && fireDeltaWords(FIXED_NOW + 3 * 86_400_000, FIXED_NOW) === 'in 3d' && fireDeltaWords(null, FIXED_NOW) === 'no future fire')
 
@@ -152,7 +152,7 @@ t.section('§2 — THE BOARD COMPOSERS (the parity floor survives; state is word
     t.check('§2 the soonest owner leads the board', FIXTURE_FACTS.rows[0]!.facts.id === 'aaaa1111')
   }
 
-  const { saturnFactsOf } = await import('../../src/daemon/saturn.js')
+  const { saturnFactsOf } = await import('../../src/daemon/saturn/saturn.js')
   const anyNow = Date.parse('2026-08-29T12:07:00Z')
   const projected = saturnFactsOf({ schedules: [{ ...paused.schedule, paused: undefined, when: { kind: 'every', cron: '*/30 * * * *' } } as never] }, anyNow)
   const nf = projected.schedules?.[0]?.nextFireMs ?? null
@@ -186,11 +186,11 @@ t.section('§4 — THE REAL MOUNT (staticRender, injected facts) + route silence
   process.env['FORCE_COLOR'] = '3'
   process.env['MERCURY_CRITTER_GAZE'] = '0'
   process.env['MERCURY_LIVE_GLYPHS'] = '0'
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { BootSaturnScreen } = await import('../../src/components/BootSaturnScreen.js')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { BootSaturnScreen } = await import('../../src/screen/boot-face/BootSaturnScreen.js')
   const { FIXED_NOW, FIXTURE_FACTS, fixtureReceiptsOf } = await import('./saturn-screen-stills.js')
   const frame = await renderToString(
     React.createElement(BootSaturnScreen, {
@@ -217,9 +217,9 @@ t.section('§5 — THE FORM (six facts · the verdict verbatim · honest preview
     saturnFormLegendOf,
     saturnVerdictSentence,
     SATURN_FORM_ROWS,
-  } = await import('../../src/components/BootSaturnScreen.js')
-  const { compileWhenSpelling } = await import('../../src/services/saturn/whenSpelling.js')
-  const { noCredentialRefusal } = await import('../../src/daemon/saturnAccount.js')
+  } = await import('../../src/screen/boot-face/BootSaturnScreen.js')
+  const { compileWhenSpelling } = await import('../../src/daemon/saturn/whenSpelling.js')
+  const { noCredentialRefusal } = await import('../../src/daemon/saturn/saturnAccount.js')
 
   const fresh = freshSaturnForm({ modelKey: 'claude-opus-5', workspaceDir: '/w' })
   t.check('§5 fresh defaults: headless · born-waiting · no preset', fresh.presence === 'headless' && fresh.opening === null && fresh.kitPreset === null && fresh.when === '')
@@ -256,7 +256,7 @@ t.section('§5 — THE FORM (six facts · the verdict verbatim · honest preview
   t.check('§5 screen-present + born-waiting speak their contracts', present.includes('fires only while Mercury is open') && present.includes('born-waiting: it appears and waits'))
 
   {
-    const { saturnWorkspacePickOptions, SATURN_WORKSPACE_CUSTOM_ROW } = await import('../../src/components/BootSaturnScreen.js')
+    const { saturnWorkspacePickOptions, SATURN_WORKSPACE_CUSTOM_ROW } = await import('../../src/screen/boot-face/BootSaturnScreen.js')
     const opts = saturnWorkspacePickOptions(['/repo/a', '/repo/b', '/repo/a'])
     t.check('§5 OS-2 the workspace picker dedupes the project dirs, order kept', JSON.stringify(opts.slice(0, 2)) === JSON.stringify(['/repo/a', '/repo/b']))
     t.check('§5 OS-2 the custom-path road is always the last row', opts[opts.length - 1] === SATURN_WORKSPACE_CUSTOM_ROW)
@@ -264,7 +264,7 @@ t.section('§5 — THE FORM (six facts · the verdict verbatim · honest preview
   }
 
   {
-    const os3 = await import('../../src/components/BootSaturnScreen.js')
+    const os3 = await import('../../src/screen/boot-face/BootSaturnScreen.js')
     const {
       saturnOpeningPickOptions,
       saturnOpeningFromPick,
@@ -285,7 +285,7 @@ t.section('§5 — THE FORM (six facts · the verdict verbatim · honest preview
   }
 
   t.check('§5 the form legends (the submit verb lives beside its writer)', saturnFormLegendOf({ prompt: false, pick: false }) === '↑↓ move · pgup/pgdn page · ↵ edit · ⌫ clear · s schedule it · esc back' && saturnFormLegendOf({ prompt: true, pick: false }) === 'type · ↵ set · esc cancel' && saturnFormLegendOf({ prompt: false, pick: true }) === '↑↓ move · pgup/pgdn page · ↵ pick · esc back')
-  const { saturnLegendOf } = await import('../../src/components/BootSaturnScreen.js')
+  const { saturnLegendOf } = await import('../../src/screen/boot-face/BootSaturnScreen.js')
   t.check("§5 the board legend teaches 'a schedule birth…'", saturnLegendOf({ busy: false }).includes('a schedule birth…'))
 
   const frame = composeSaturnForm(120, 40).join('\n')
@@ -299,7 +299,7 @@ t.section('§6 — THE BOX WRITERS (stamps daemon-shaped · both presences · ca
   const { tmpdir } = await import('node:os')
   const DIR = mkdtempSync(join(tmpdir(), 'saturn-screen-box-'))
   const { addBoxSchedule, removeBoxSchedule, setBoxSchedulePaused, readBoxSchedules, boxScheduleProblem } = await import(
-    '../../src/daemon/saturnBoxSchedules.js'
+    '../../src/daemon/saturn/saturnBoxSchedules.js'
   )
   const account = { family: 'anthropic', source: 'oauth' as const, identity: 'op@example.com' }
   const deps = {
@@ -360,7 +360,7 @@ t.section('§7 — THE FACE AND THE DOOR (Saturn left the face for /saturn · ha
   t.check('§7 a --chat world carries the face rows minus concourse and no saturn row', JSON.stringify((assembleCardRows({ ...FACTS, concourse: null }) as Row[]).map(r => r.key)) === JSON.stringify(['new', 'logins', 'menu']))
   t.check('§7 Boot Menu stays LAST on the approved boot face', keys[keys.length - 1] === 'menu')
 
-  const { decideSplashReceipt, consumeFaceDoorDeepLink, consumeBootSurfaceIntent } = await import('../../src/substrate/splashHandover.js')
+  const { decideSplashReceipt, consumeFaceDoorDeepLink, consumeBootSurfaceIntent } = await import('../../src/platform/substrate/splashHandover.js')
   const NOW = 1_700_000_000_000
   const receipt = JSON.stringify({ version: 1, ts: NOW, action: 'saturn' })
   const decided = decideSplashReceipt(receipt, NOW, () => true)
@@ -370,7 +370,7 @@ t.section('§7 — THE FACE AND THE DOOR (Saturn left the face for /saturn · ha
 
 t.section('§8 — THE CONCOURSE ROW FACT (smallest honest read from the projection)')
 {
-  const { saturnSoonestFireMs } = await import('../../src/daemon/saturn.js')
+  const { saturnSoonestFireMs } = await import('../../src/daemon/saturn/saturn.js')
   const NOW = Date.parse('2026-08-29T12:00:00Z')
   const sched = (id: string, atMs: number, paused?: true): Record<string, unknown> => ({
     schema: 1,
@@ -394,10 +394,10 @@ t.section('§8 — THE CONCOURSE ROW FACT (smallest honest read from the project
 t.section('§10 — ROUTE SILENCE around the real layer (no transition, no settle) + esc topology')
 {
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { BootSaturnScreen } = await import('../../src/components/BootSaturnScreen.js')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { BootSaturnScreen } = await import('../../src/screen/boot-face/BootSaturnScreen.js')
   const { FIXED_NOW, FIXTURE_FACTS, fixtureReceiptsOf } = await import('./saturn-screen-stills.js')
-  const routeStore = await import('../../src/context/surfaceRoute.js')
+  const routeStore = await import('../../src/screen/routes/surfaceRoute.js')
   routeStore._resetSurfaceRouteForTesting()
   const unregister = routeStore.registerRouteSurface('boot-settings', { render: () => null })
   routeStore.initializeSurfaceRoute({ kind: 'boot-settings' })

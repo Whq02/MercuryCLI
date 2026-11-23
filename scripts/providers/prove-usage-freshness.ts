@@ -32,11 +32,11 @@ seedSubscriber(Date.now() + 7 * 24 * 3600 * 1000)
 let failures = 0
 let sectionHint = ''
 const SECTION_HINTS: Record<string, string> = {
-  '§1': 'fix the age and cadence words in src/services/providers/usageFreshness.ts (usageAgeTail, usageAgeWords, usagePollTtlMs, usageStaleAfterMs) or the fold stamp in src/services/anthropicLimits.ts foldUtilizationFromEndpoint',
-  '§2': 'fix the cadence, backoff and failure notes in src/services/providers/anthropic/anthropicUsageState.ts (refreshAnthropicUsage, anthropicUsageReaderNote, usageReaderRecordWords)',
-  '§3': 'fix the one-owner routing in src/services/providers/providerUsage.ts (refreshProviderUsage, watchProviderUsageWhileShown) or the freshest-wins fold in src/services/anthropicLimits.ts',
-  '§4': 'fix the subscription view in src/services/providers/providerUsage.ts (usageForProvider) or the gate in src/services/providers/anthropic/anthropicUsageState.ts refreshAnthropicUsage',
-  '§5': 'fix the sign-in re-read in src/services/providers/providerUsage.ts (watchProviderUsageWhileShown subscribes to subscribeSignInEpoch) or the reset of the reader in src/services/providers/anthropic/anthropicUsageState.ts',
+  '§1': 'fix the age and cadence words in src/models/roads/usageFreshness.ts (usageAgeTail, usageAgeWords, usagePollTtlMs, usageStaleAfterMs) or the fold stamp in src/models/roads/anthropic/anthropicLimits.ts foldUtilizationFromEndpoint',
+  '§2': 'fix the cadence, backoff and failure notes in src/models/roads/anthropic/anthropicUsageState.ts (refreshAnthropicUsage, anthropicUsageReaderNote, usageReaderRecordWords)',
+  '§3': 'fix the one-owner routing in src/models/roads/providerUsage.ts (refreshProviderUsage, watchProviderUsageWhileShown) or the freshest-wins fold in src/models/roads/anthropic/anthropicLimits.ts',
+  '§4': 'fix the subscription view in src/models/roads/providerUsage.ts (usageForProvider) or the gate in src/models/roads/anthropic/anthropicUsageState.ts refreshAnthropicUsage',
+  '§5': 'fix the sign-in re-read in src/models/roads/providerUsage.ts (watchProviderUsageWhileShown subscribes to subscribeSignInEpoch) or the reset of the reader in src/models/roads/anthropic/anthropicUsageState.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -61,13 +61,13 @@ api.usage.payload = (n: number) => ({
   seven_day_fable: { utilization: 87, resets_at: hoursOn(22) },
 })
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const fresh = await import('../../src/services/providers/usageFreshness.ts')
-const owner = await import('../../src/services/providers/providerUsage.ts')
-const limits = await import('../../src/services/anthropicLimits.ts')
-const reader = await import('../../src/services/providers/anthropic/anthropicUsageState.ts')
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
+const fresh = await import('../../src/models/roads/usageFreshness.ts')
+const owner = await import('../../src/models/roads/providerUsage.ts')
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+const reader = await import('../../src/models/roads/anthropic/anthropicUsageState.ts')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
 
 const MIN = 60_000
 const HOUR = 3_600_000
@@ -323,9 +323,9 @@ section('§4 the subscription window: the OAuth account\'s windows and pools rid
 section('§5 the account behind the family moves: a sign-in or a removal forgets the reader and asks for the account now signed in at once — never the departed figure, never its cadence or backoff')
 {
   const { saveOAuthTokensIfNeeded, clearOAuthTokenCache } = auth
-  const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.ts')
-  const { recordSignIn, noteCredentialChange, signInLedgerEpoch } = await import('../../src/utils/accounts/signInLedger.ts')
-  const { signOutAnthropicSlot } = await import('../../src/services/providers/accountSlots.ts')
+  const { storeOAuthAccountInfo } = await import('../../src/models/sign-in/oauth/client.ts')
+  const { recordSignIn, noteCredentialChange, signInLedgerEpoch } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
+  const { signOutAnthropicSlot } = await import('../../src/models/roads/accountSlots.ts')
   const tokensFor = (name: 'A' | 'B') => ({
     accessToken: `fixture-token-${name}`,
     refreshToken: `fixture-refresh-${name}`,

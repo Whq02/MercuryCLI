@@ -12,7 +12,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const refreshLegHint = 'fix the refresh leg of the section: currentSubscriptionTokens in src/services/providers/openai/openaiAccounts.ts, currentGeminiTokens in src/services/providers/gemini/geminiAccounts.ts, refreshMoonshotTokens in src/services/providers/moonshot/moonshotAccounts.ts, refreshOAuthToken in src/services/oauth/client.ts; its token POST must go to the pinned base and send a mercury/<version> User-Agent'
+  const refreshLegHint = 'fix the refresh leg of the section: currentSubscriptionTokens in src/models/roads/openai/openaiAccounts.ts, currentGeminiTokens in src/models/roads/gemini/geminiAccounts.ts, refreshMoonshotTokens in src/models/roads/moonshot/moonshotAccounts.ts, refreshOAuthToken in src/models/sign-in/oauth/client.ts; its token POST must go to the pinned base and send a mercury/<version> User-Agent'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${refreshLegHint}`}`)
 }
 const section = (t: string): void => {
@@ -60,7 +60,7 @@ const productAgent = (ua: string): boolean => /^mercury\/1\.0\.0/.test(ua) && !/
 
 section('§1 OpenAI subscription refresh presents the product agent')
 {
-  const openai = await import('../../src/services/providers/openai/openaiAccounts.ts')
+  const openai = await import('../../src/models/roads/openai/openaiAccounts.ts')
   const path = openai.openaiAuthPathForDisplay()
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(
@@ -82,7 +82,7 @@ section('§1 OpenAI subscription refresh presents the product agent')
 
 section('§2 Gemini OAuth refresh presents the product agent')
 {
-  const gemini = await import('../../src/services/providers/gemini/geminiAccounts.ts')
+  const gemini = await import('../../src/models/roads/gemini/geminiAccounts.ts')
   const path = gemini.geminiAuthPathForDisplay()
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, JSON.stringify({ version: 1, tokens: { accessToken: 'ga-old', refreshToken: 'grt', accessTokenExpiresAtMs: 1 } }))
@@ -95,7 +95,7 @@ section('§2 Gemini OAuth refresh presents the product agent')
 
 section('§3 Moonshot/Kimi refresh presents the product agent')
 {
-  const moonshot = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
+  const moonshot = await import('../../src/models/roads/moonshot/moonshotAccounts.ts')
   moonshot.writeMoonshotTokens({ accessToken: 'ka-old', refreshToken: 'krt', accessTokenExpiresAtMs: 1 }, 'global')
   const seen: Captured[] = []
   const fresh = await moonshot.refreshMoonshotTokens({ fetchImpl: capturing({ access_token: 'ka-new', refresh_token: 'krt2', expires_in: 3600 }, seen) })
@@ -124,7 +124,7 @@ section('§4 Anthropic OAuth refresh presents the product agent (axios leg)')
     }
     throw new axios.AxiosError('fixture: no profile endpoint', 'ECONNREFUSED', config as never)
   }
-  const { refreshOAuthToken } = await import('../../src/services/oauth/client.ts')
+  const { refreshOAuthToken } = await import('../../src/models/sign-in/oauth/client.ts')
   const tokens = await refreshOAuthToken('rt-anthropic-old')
   check('one token POST to the Anthropic token URL', posts.length === 1 && /\/v1\/oauth\/token$/.test(posts[0]!.url), JSON.stringify(posts))
   check('the POST presents mercury/<version> — never the axios library agent', productAgent(posts[0]?.userAgent ?? ''), posts[0]?.userAgent)

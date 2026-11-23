@@ -32,7 +32,7 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_COMPAT_BASE_URL
 
 let failures = 0
-const WAIT_COUNT_HINT = 'to fix, change the status words and count in statusLine / fitStatusLine / statusRowPlan (src/components/SwitchboardTagBar.tsx), the wait and heartbeat rows in waitRow / heartbeatRow (src/rows/project.ts), or the keep-alive relay in streamCompatChat (src/services/providers/openaicompat/compatChatClient.ts)'
+const WAIT_COUNT_HINT = 'to fix, change the status words and count in statusLine / fitStatusLine / statusRowPlan (src/screen/chat/SwitchboardTagBar.tsx), the wait and heartbeat rows in waitRow / heartbeatRow (src/engine/rows/project.ts), or the keep-alive relay in streamCompatChat (src/models/roads/openaicompat/compatChatClient.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${WAIT_COUNT_HINT}` : ''}`)
@@ -41,20 +41,20 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
-const { onSeatRow } = await import('../../src/daemon/sessionSeat.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const projections = await import('../../src/services/engine-connector/seatProjections.ts')
-const { daemonSessionConnectorFor } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const { fitStatusLine, statusLine, statusRowPlan } = await import('../../src/components/SwitchboardTagBar.tsx')
-const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-const { localStreamLawFor } = await import('../../src/services/providers/localLiveness.ts')
-const { waitRow, heartbeatRow } = await import('../../src/rows/project.ts')
-type Wait = import('../../src/services/providers/streamIdleBudget.ts').RequestWaitV1
-type SeatStatus = import('../../src/services/engine-connector/seatLive.ts').SeatStatusV1
-type SeatLive = import('../../src/services/engine-connector/seatLive.ts').SessionLiveV1
+const { updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
+const { onSeatRow } = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const projections = await import('../../src/engine/connector/seatProjections.ts')
+const { daemonSessionConnectorFor } = await import('../../src/engine/connector/daemonConnector.ts')
+const { fitStatusLine, statusLine, statusRowPlan } = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
+const { streamCompatChat } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+const { localStreamLawFor } = await import('../../src/models/roads/localLiveness.ts')
+const { waitRow, heartbeatRow } = await import('../../src/engine/rows/project.ts')
+type Wait = import('../../src/models/roads/streamIdleBudget.ts').RequestWaitV1
+type SeatStatus = import('../../src/engine/connector/seatLive.ts').SeatStatusV1
+type SeatLive = import('../../src/engine/connector/seatLive.ts').SessionLiveV1
 
 updateSettingsForSource('userSettings', { compatProvider: { lab: { baseUrl: 'http://127.0.0.1:1/lab/v1', dialect: 'llamacpp', models: ['fixture-model'] }, pod: { baseUrl: 'http://127.0.0.1:1/pod/v1', hostPodId: 'pod0fixture', models: ['fixture-model'] }, cloud: { baseUrl: 'http://127.0.0.1:1/cloud/v1', models: ['fixture-model'] } } } as never)
 

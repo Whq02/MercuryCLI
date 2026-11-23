@@ -19,7 +19,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const { createFrameReader } = await import('../../src/services/lsp/sidecarFraming.js')
+const { createFrameReader } = await import('../../src/integrations/lsp/sidecarFraming.js')
 
 console.log('\nsidecarFraming.ts — createFrameReader reports onMessage error verbatim and keeps reading')
 {
@@ -64,8 +64,8 @@ console.log('\nsidecarFraming.ts — createFrameReader reports onMessage error v
   )
 }
 
-const { judgeGoal, JUDGE_UNREACHABLE } = await import('../../src/services/mission/goalJudge.js')
-const { compileGoal } = await import('../../src/services/mission/goal.js')
+const { judgeGoal, JUDGE_UNREACHABLE } = await import('../../src/sessions/mission/goalJudge.js')
+const { compileGoal } = await import('../../src/sessions/mission/goal.js')
 
 console.log('\ngoalJudge.ts — a helper judge that throws does not hold the goal: the claim decides as before')
 {
@@ -92,8 +92,8 @@ console.log('\ngoalJudge.ts — a helper judge that throws does not hold the goa
 }
 
 const { chmodSync, readFileSync, writeFileSync } = await import('node:fs')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.js')
-const { migrateOrphanedMissionCard, readMissionCard, writeMissionCard } = await import('../../src/utils/mission/missionCard.js')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.js')
+const { migrateOrphanedMissionCard, readMissionCard, writeMissionCard } = await import('../../src/sessions/mission-card/missionCard.js')
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
 console.log('\nmissionCard.ts — migrateOrphanedMissionCard never clobbers corrupt/unreadable cards and never reports success on failed write')
@@ -159,7 +159,7 @@ console.log('\nmissionCard.ts — migrateOrphanedMissionCard never clobbers corr
   }
 }
 
-const { mediaCheckpointInstalled, mediaFileInstalled, mediaPartialBytes } = await import('../../src/services/media/catalogue.js')
+const { mediaCheckpointInstalled, mediaFileInstalled, mediaPartialBytes } = await import('../../src/integrations/media/catalogue.js')
 
 console.log('\nmedia/catalogue.ts — path guard and non-absence stat errors propagate instead of reading as absent')
 {
@@ -214,7 +214,7 @@ console.log('\nmedia/catalogue.ts — path guard and non-absence stat errors pro
   }
 }
 
-const { mediaRuntimeInstalled, runMediaSetup } = await import('../../src/services/media/setup.js')
+const { mediaRuntimeInstalled, runMediaSetup } = await import('../../src/integrations/media/setup.js')
 
 console.log('\nmedia/setup.ts — a progress callback that throws does not end the setup, and unreadable runtime.json throws')
 {
@@ -273,7 +273,7 @@ console.log('\nmedia/setup.ts — a progress callback that throws does not end t
   )
 }
 
-const { createLSPClient } = await import('../../src/services/lsp/LSPClient.js')
+const { createLSPClient } = await import('../../src/integrations/lsp/LSPClient.js')
 
 console.log('\nLSPClient.ts — sendNotification propagates write/serialization failures instead of swallowing')
 {
@@ -326,7 +326,7 @@ console.log('\nLSPClient.ts — sendNotification propagates write/serialization 
   )
 }
 
-const { mediaHealth } = await import('../../src/services/media/settings.js')
+const { mediaHealth } = await import('../../src/integrations/media/settings.js')
 
 console.log('\nmedia/settings.ts — mediaHealth distinguishes unreadable or corrupt runtime.json from absent')
 {

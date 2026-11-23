@@ -45,24 +45,24 @@ const check = (label: string, pass: boolean, detail = ''): void => {
   console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
 }
 
-const { MERCURY_DAEMON_PROTO } = (await import(`${root}/src/daemon/protocol.ts`)) as { MERCURY_DAEMON_PROTO: number }
+const { MERCURY_DAEMON_PROTO } = (await import(`${root}/src/daemon/control/protocol.ts`)) as { MERCURY_DAEMON_PROTO: number }
 const { controlKeyPath, daemonStatePath, setBoxReadingForTesting } = (await import(
-  `${root}/src/daemon/controlSocket.ts`
+  `${root}/src/daemon/control/controlSocket.ts`
 )) as {
   controlKeyPath: () => string
   daemonStatePath: () => string
   setBoxReadingForTesting: (r: { load1: number; cores: number } | null) => void
 }
-const { composeSignInView } = (await import(`${root}/src/daemon/signInView.ts`)) as {
+const { composeSignInView } = (await import(`${root}/src/daemon/session-seat/signInView.ts`)) as {
   composeSignInView: (opts?: { refresh?: boolean }) => unknown
 }
-const { daemonSnapshot } = (await import(`${root}/src/services/cockpit/daemonSnapshot.ts`)) as {
+const { daemonSnapshot } = (await import(`${root}/src/screen/cockpit-gauges/daemonSnapshot.ts`)) as {
   daemonSnapshot: () => { state: string; reason?: string }
 }
-const { runWithCwdOverride } = (await import(`${root}/src/utils/cwd.ts`)) as {
+const { runWithCwdOverride } = (await import(`${root}/src/platform/files/cwd.ts`)) as {
   runWithCwdOverride: <T>(cwd: string, fn: () => Promise<T>) => Promise<T>
 }
-const { runHealthReport } = (await import(`${root}/src/services/health/healthReport.ts`)) as {
+const { runHealthReport } = (await import(`${root}/src/platform/health/healthReport.ts`)) as {
   runHealthReport: () => Promise<{ sections: Array<{ checks: Array<{ id: string; status: string; evidence: string }> }> }>
 }
 
@@ -153,7 +153,7 @@ try {
   check(
     'initial read while ping is in flight stays live (verifying rpc)',
     first.state === 'live' && (first.reason ?? '').includes('verifying rpc'),
-    `${JSON.stringify(first)} — change daemonSnapshot in src/services/cockpit/daemonSnapshot.ts so a ping still in flight reports state live with reason verifying rpc`,
+    `${JSON.stringify(first)} — change daemonSnapshot in src/screen/cockpit-gauges/daemonSnapshot.ts so a ping still in flight reports state live with reason verifying rpc`,
   )
 
   await wait(3600)
@@ -162,7 +162,7 @@ try {
   check(
     'a live daemon that pauses 3.3 s under zero loadavg still settles as live rpc ok, not wedged',
     afterSlow.state === 'live' && (afterSlow.reason ?? '').includes('rpc ✓') && !(afterSlow.reason ?? '').includes('wedged'),
-    `${JSON.stringify(afterSlow)} — change daemonSnapshot in src/services/cockpit/daemonSnapshot.ts so a slow ping that answers settles as live with rpc ✓, never wedged`,
+    `${JSON.stringify(afterSlow)} — change daemonSnapshot in src/screen/cockpit-gauges/daemonSnapshot.ts so a slow ping that answers settles as live with rpc ✓, never wedged`,
   )
 
   const cert = await runWithCwdOverride(work, () => runHealthReport())
@@ -172,12 +172,12 @@ try {
   check(
     'mercury health scheduler-daemon row reads ok rather than wedged after the slow ping settles',
     daemonRow?.status === 'ok' && !daemonRow.evidence.includes('wedged'),
-    `${JSON.stringify(daemonRow)} — change the daemon health row (id daemon) in src/services/health/sections/crew/daemon.ts so it reads ok once the ping has settled live`,
+    `${JSON.stringify(daemonRow)} — change the daemon health row (id daemon) in src/platform/health/sections/crew/daemon.ts so it reads ok once the ping has settled live`,
   )
   check(
     'mercury health daemon-sign-ins row compares sign-ins rather than skipping a wedged daemon',
     signInsRow?.status === 'ok' && !signInsRow.evidence.includes('wedged'),
-    `${JSON.stringify(signInsRow)} — change the daemon-sign-ins health row in src/services/health/sections/crew/daemon.ts so it compares sign-ins instead of skipping a daemon that answered`,
+    `${JSON.stringify(signInsRow)} — change the daemon-sign-ins health row in src/platform/health/sections/crew/daemon.ts so it compares sign-ins instead of skipping a daemon that answered`,
   )
 
   writeRecord(1718000001000)
@@ -186,7 +186,7 @@ try {
   check(
     'a new daemon record starts fresh while its own ping is in flight',
     wedgedKick.state === 'live' && (wedgedKick.reason ?? '').includes('verifying rpc'),
-    `${JSON.stringify(wedgedKick)} — change daemonSnapshot in src/services/cockpit/daemonSnapshot.ts so a new record (new pid:startedAt key) starts with reason verifying rpc, not a stale verdict`,
+    `${JSON.stringify(wedgedKick)} — change daemonSnapshot in src/screen/cockpit-gauges/daemonSnapshot.ts so a new record (new pid:startedAt key) starts with reason verifying rpc, not a stale verdict`,
   )
   const deadline = Date.now() + 14_000
   let settledWedged = daemonSnapshot()
@@ -197,7 +197,7 @@ try {
   check(
     'a genuinely unresponsive control socket still downgrades to unavailable (wedged)',
     settledWedged.state === 'unavailable' && (settledWedged.reason ?? '').includes('control socket unresponsive — wedged?'),
-    `${JSON.stringify(settledWedged)} — change daemonSnapshot in src/services/cockpit/daemonSnapshot.ts so a ping that never answers ends as unavailable with control socket unresponsive — wedged?`,
+    `${JSON.stringify(settledWedged)} — change daemonSnapshot in src/screen/cockpit-gauges/daemonSnapshot.ts so a ping that never answers ends as unavailable with control socket unresponsive — wedged?`,
   )
 
   mode = 'fast-live'
@@ -206,7 +206,7 @@ try {
   check(
     'a restarted daemon with a new startedAt drops the prior wedged verdict immediately within the TTL',
     restarted.state === 'live' && !(restarted.reason ?? '').includes('wedged'),
-    `${JSON.stringify(restarted)} — change the ping verdict key (pid and startedAt) in src/services/cockpit/daemonSnapshot.ts so a new startedAt discards the earlier wedged verdict`,
+    `${JSON.stringify(restarted)} — change the ping verdict key (pid and startedAt) in src/screen/cockpit-gauges/daemonSnapshot.ts so a new startedAt discards the earlier wedged verdict`,
   )
   const settleDeadline = Date.now() + 2000
   let restartedSettled = daemonSnapshot()
@@ -217,7 +217,7 @@ try {
   check(
     'the restarted daemon confirms rpc ok',
     restartedSettled.state === 'live' && (restartedSettled.reason ?? '').includes('rpc ✓'),
-    `${JSON.stringify(restartedSettled)} — change daemonSnapshot in src/services/cockpit/daemonSnapshot.ts so the restarted daemon reaches live with rpc ✓ within 2 s`,
+    `${JSON.stringify(restartedSettled)} — change daemonSnapshot in src/screen/cockpit-gauges/daemonSnapshot.ts so the restarted daemon reaches live with rpc ✓ within 2 s`,
   )
 } finally {
   setBoxReadingForTesting(null)

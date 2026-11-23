@@ -14,8 +14,8 @@ process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
 process.chdir(project)
 
-const detector = await import(join(SRC, 'utils/skills/skillChangeDetector.ts'))
-const projectConfig = await import(join(SRC, 'utils/projectConfig.ts'))
+const detector = await import(join(SRC, 'integrations/skill-watch/skillChangeDetector.ts'))
+const projectConfig = await import(join(SRC, 'platform/settings/projectConfig.ts'))
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
@@ -46,7 +46,7 @@ console.log('L1 the total case — no skills dir anywhere, the first skill creat
   mkdirSync(skillDir, { recursive: true })
   writeFileSync(join(skillDir, 'SKILL.md'), '---\nname: my-first-skill\ndescription: first\n---\nbody\n')
   const fired = await waitFor(() => signals > 0, 8_000)
-  t('creating the first skill fires the change signal', fired, `signals=${signals} after 8s` + (fired ? '' : ' — the watcher in src/utils/skills/skillChangeDetector.ts must watch the project skills directory candidate even when it does not exist yet'))
+  t('creating the first skill fires the change signal', fired, `signals=${signals} after 8s` + (fired ? '' : ' — the watcher in src/integrations/skill-watch/skillChangeDetector.ts must watch the project skills directory candidate even when it does not exist yet'))
   unsubscribe()
 }
 
@@ -60,7 +60,7 @@ console.log('L2 control — an existing skills directory still hot-reloads')
   await sleep(400)
   writeFileSync(join(project, '.mercury', 'skills', 'my-first-skill', 'SKILL.md'), '---\nname: my-first-skill\ndescription: edited\n---\nnew body\n')
   const fired = await waitFor(() => signals > 0, 8_000)
-  t('touching an existing SKILL.md fires the change signal', fired, `signals=${signals} after 8s` + (fired ? '' : ' — the watcher in src/utils/skills/skillChangeDetector.ts (initialize, rearmWatchRoots) must signal an edit of an existing SKILL.md'))
+  t('touching an existing SKILL.md fires the change signal', fired, `signals=${signals} after 8s` + (fired ? '' : ' — the watcher in src/integrations/skill-watch/skillChangeDetector.ts (initialize, rearmWatchRoots) must signal an edit of an existing SKILL.md'))
   unsubscribe()
 }
 await detector.dispose()
@@ -70,7 +70,7 @@ console.log('L3 the watch-path derivation sees candidates that do not exist')
   const missingRoot = join(root, 'elsewhere')
   mkdirSync(missingRoot, { recursive: true })
   const paths = projectConfig.projectConfigCandidatePaths?.(missingRoot, 'skills') as string[] | undefined
-  t('projectConfigCandidatePaths exists and derives the missing candidate', Array.isArray(paths) && paths.length > 0 && paths.every((p: string) => p.includes('.mercury')), JSON.stringify(paths ?? null) + ' — projectConfigCandidatePaths in src/utils/projectConfig.ts must export and return .mercury candidate paths for a root where none exist')
+  t('projectConfigCandidatePaths exists and derives the missing candidate', Array.isArray(paths) && paths.length > 0 && paths.every((p: string) => p.includes('.mercury')), JSON.stringify(paths ?? null) + ' — projectConfigCandidatePaths in src/platform/settings/projectConfig.ts must export and return .mercury candidate paths for a root where none exist')
 }
 
 

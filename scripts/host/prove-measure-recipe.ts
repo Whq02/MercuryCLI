@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { HOST_RECIPES } from '../../src/services/host/recipes.ts'
+import { HOST_RECIPES } from '../../src/models/hosting/recipes.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'

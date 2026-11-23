@@ -8,13 +8,13 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(join(import.meta.dir, '..', '..'))
 
-const { ResponsesStreamFold } = await import('../../src/services/providers/openai/openaiWire.ts')
+const { ResponsesStreamFold } = await import('../../src/models/roads/openai/openaiWire.ts')
 const { buildOpenaiResponsesRequest, decodeOpenaiTurnRecord, mapMessagesToOpenaiInput } = await import(
-  '../../src/services/providers/openai/responsesBridge.ts'
+  '../../src/models/roads/openai/responsesBridge.ts'
 )
-const { replayableItems, streamOneOpenaiAttempt } = await import('../../src/services/providers/openai/openaiCallModel.ts')
-import type { OpenaiStreamEvent } from '../../src/services/providers/openai/openaiWire.ts'
-import type { BridgeMessage } from '../../src/services/providers/openai/responsesBridge.ts'
+const { replayableItems, streamOneOpenaiAttempt } = await import('../../src/models/roads/openai/openaiCallModel.ts')
+import type { OpenaiStreamEvent } from '../../src/models/roads/openai/openaiWire.ts'
+import type { BridgeMessage } from '../../src/models/roads/openai/responsesBridge.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

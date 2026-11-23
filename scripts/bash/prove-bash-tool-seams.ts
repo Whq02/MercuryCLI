@@ -25,14 +25,14 @@ if (!(process.env.SHELL ?? '').includes('bash') && existsSync('/bin/bash')) proc
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  const failHint = 'pipe rewriting is rearrangePipeCommand in src/utils/bash/bashPipeCommand.ts; quoting and the stdin redirect are quoteShellCommand and shouldAddStdinRedirect in src/utils/bash/shellQuoting.ts; running, cwd and timeout are exec in src/utils/Shell.ts; the never-background word is firstCommandWord in src/utils/shell/shellToolUtils.ts'
+  const failHint = 'pipe rewriting is rearrangePipeCommand in src/platform/shell/bash/bashPipeCommand.ts; quoting and the stdin redirect are quoteShellCommand and shouldAddStdinRedirect in src/platform/shell/bash/shellQuoting.ts; running, cwd and timeout are exec in src/platform/shell/shellExec.ts; the never-background word is firstCommandWord in src/tools/kit/shellTools.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${failHint}` : ''}`)
   if (!cond) failures++
 }
 const note = (text: string): void => console.log(`        note: ${text}`)
 const shellSpelling = async (native: string): Promise<string> => {
   if (process.platform !== 'win32') return native
-  const { locateGitBash } = await import('../../src/utils/windowsPaths.ts')
+  const { locateGitBash } = await import('../../src/platform/files/windowsPaths.ts')
   const located = locateGitBash()
   if (!('path' in located)) return native
   try {
@@ -51,9 +51,9 @@ const HOME = process.env.MERCURY_CONFIG_DIR as string
 mkdirSync(HOME, { recursive: true })
 writeFileSync(join(HOME, 'settings.json'), '{}\n')
 
-const { exec, setCwd, getShellCwd } = await import('../../src/utils/Shell.ts')
-const { getCwd } = await import('../../src/utils/cwd.ts')
-const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+const { exec, setCwd, getShellCwd } = await import('../../src/platform/shell/shellExec.ts')
+const { getCwd } = await import('../../src/platform/files/cwd.ts')
+const { setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-')))
 const PROJECT = join(SCRATCH, 'project')
@@ -104,7 +104,7 @@ const trimmed = (p: Plain): string => p.out.trimEnd()
 
 section('§2 a pipe keeps the special parameters and ANSI-C quoting')
 {
-  const { rearrangePipeCommand } = await import('../../src/utils/bash/bashPipeCommand.ts')
+  const { rearrangePipeCommand } = await import('../../src/platform/shell/bash/bashPipeCommand.ts')
   const status = await plain('false | true; echo "$?"')
   check('`false | true; echo "$?"` prints the status, not the text $?', status.code === 0 && trimmed(status) === '0', JSON.stringify(status.out.slice(0, 80)))
   const rc = await plain('cat | head -1; echo "rc=$?"')
@@ -129,7 +129,7 @@ section('§2 a pipe keeps the special parameters and ANSI-C quoting')
 
 section('§2b a piped command keeps its quoted glob words')
 {
-  const { rearrangePipeCommand } = await import('../../src/utils/bash/bashPipeCommand.ts')
+  const { rearrangePipeCommand } = await import('../../src/platform/shell/bash/bashPipeCommand.ts')
   const copyForm = rearrangePipeCommand(`cp "/t/a b&c/"*.m4a "/t/out/" && find "/t/out" -name '*.m4a' | wc -l`)
   check('a quoted path holding a space and an ampersand before a glob keeps the model\'s bytes', copyForm.includes('"/t/a b&c/"*.m4a') && copyForm.endsWith("' < /dev/null") && !copyForm.includes('< /dev/null |'), copyForm)
   const listForm = rearrangePipeCommand('ls "/tmp/a b/"*.txt | head -1')
@@ -151,7 +151,7 @@ section('§2b a piped command keeps its quoted glob words')
 
 section('§3 a here-string feeds stdin')
 {
-  const { hasStdinRedirect, shouldAddStdinRedirect } = await import('../../src/utils/bash/shellQuoting.ts')
+  const { hasStdinRedirect, shouldAddStdinRedirect } = await import('../../src/platform/shell/bash/shellQuoting.ts')
   const here = await plain(`cat <<< 'here string'`)
   check("`cat <<< 'here string'` reads the here-string", here.code === 0 && trimmed(here) === 'here string', JSON.stringify(here.out.slice(0, 80)))
   const piped = await plain(`cat <<< 'here' | tr a-z A-Z`)
@@ -170,8 +170,8 @@ section('§3 a here-string feeds stdin')
 
 section('§3b a bang reaches the command exactly as written')
 {
-  const { quoteShellCommand } = await import('../../src/utils/bash/shellQuoting.ts')
-  const { rearrangePipeCommand } = await import('../../src/utils/bash/bashPipeCommand.ts')
+  const { quoteShellCommand } = await import('../../src/platform/shell/bash/shellQuoting.ts')
+  const { rearrangePipeCommand } = await import('../../src/platform/shell/bash/bashPipeCommand.ts')
   const BS = String.fromCharCode(92)
   const bangEscape = `${BS}!`
   const hasPython = (() => {
@@ -252,7 +252,7 @@ section('§5 the timed-out note reaches the result')
 
 section('§7 the never-auto-background list matches the command word')
 {
-  const { firstCommandWord } = await import('../../src/utils/shell/shellToolUtils.ts')
+  const { firstCommandWord } = await import('../../src/tools/kit/shellTools.ts')
   check("'sleep 30' → sleep", firstCommandWord('sleep 30') === 'sleep')
   check("'  sleep ' → sleep", firstCommandWord('  sleep ') === 'sleep')
   check("'sleeper 1' → sleeper (no prefix match)", firstCommandWord('sleeper 1') === 'sleeper')

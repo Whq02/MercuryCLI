@@ -32,9 +32,9 @@ let failures = 0
 let checks = 0
 const sectionPointers: Record<string, string> = {
   '0': 'fix the stand-in engine in this file (engine and answer) or the recorded refusal in scripts/tool-economy/fixtures/llamacpp-qwen35-system-after-first.json',
-  '1': 'change deferralWireFormFor in src/services/providers/deferralWire.ts, or the prompt of ToolSearchTool in src/tools/ToolSearchTool/prompt.ts',
-  '2': 'change routedCallModel in src/services/providers/callModelRouter.ts so the request carries one system row and the loaded tools in the tools term',
-  '3': 'change ToolSearchTool in src/tools/ToolSearchTool/ToolSearchTool.ts, admissionRecordText in src/services/providers/toolEconomy.ts, or routedCallModel in src/services/providers/callModelRouter.ts so the admitted tool joins the tools term and no system row follows the first',
+  '1': 'change deferralWireFormFor in src/models/roads/deferralWire.ts, or the prompt of ToolSearchTool in src/tools/tool-search/prompt.ts',
+  '2': 'change routedCallModel in src/models/roads/callModelRouter.ts so the request carries one system row and the loaded tools in the tools term',
+  '3': 'change ToolSearchTool in src/tools/tool-search/ToolSearchTool.ts, admissionRecordText in src/models/roads/toolEconomy.ts, or routedCallModel in src/models/roads/callModelRouter.ts so the admitted tool joins the tools term and no system row follows the first',
 }
 let pointerSection = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -48,7 +48,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the llama.cpp compat deferral proof exceeded 120s; a drive of routedCallModel (src/services/providers/callModelRouter.ts) against the stand-in engine did not finish, so look at the last section printed above')
+  console.log('\nTIMEOUT — the llama.cpp compat deferral proof exceeded 120s; a drive of routedCallModel (src/models/roads/callModelRouter.ts) against the stand-in engine did not finish, so look at the last section printed above')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -130,27 +130,27 @@ writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ compatProvider: {
 } }) + '\n')
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `llamacpp=${llama.root}`
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 resetSettingsCache()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { assembleToolPool } = await import('../../src/tools.ts')
-const { MCPTool } = await import('../../src/tools/MCPTool/MCPTool.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { getDeferredToolsDeltaAttachment } = await import('../../src/services/attachments/deltas.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
-const { clearToolRosterLatches, admissionRecordText } = await import('../../src/services/providers/toolEconomy.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Tools = import('../../src/Tool.ts').Tools
-type Message = import('../../src/types/message.ts').Message
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { assembleToolPool } = await import('../../src/tools/kit/toolList.ts')
+const { MCPTool } = await import('../../src/tools/mcp/MCPTool.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/tool-search/prompt.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { getDeferredToolsDeltaAttachment } = await import('../../src/engine/attachments/toolAndServerDeltas.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { deferralWireFormFor } = await import('../../src/models/roads/deferralWire.ts')
+const { clearToolRosterLatches, admissionRecordText } = await import('../../src/models/roads/toolEconomy.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Tools = import('../../src/tools/kit/tool.ts').Tools
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 await refreshLocalDiscovery({ force: true })
 const permissionContext = getEmptyToolPermissionContext()

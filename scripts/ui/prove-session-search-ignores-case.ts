@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { randomUUID } from 'node:crypto'
 import { mountOffscreen, settle, waitFor } from '../lib/settingsPopupHarness.ts'
-import type { SessionListing } from '../../src/types/logs.ts'
+import type { SessionListing } from '../../src/sessions/transcripts/transcriptEntries.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -13,13 +13,13 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-;(await import('../../src/utils/config.ts')).enableConfigs()
+;(await import('../../src/platform/settings/config.ts')).enableConfigs()
 const React = await import('react')
-const { Box } = await import('../../src/ink.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { LogSelector } = await import('../../src/components/LogSelector.tsx')
+const { Box } = await import('../../src/screen/themedRenderer.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { LogSelector } = await import('../../src/screen/session-chooser/SessionBrowser.tsx')
 
 const at = (minute: number): string => new Date(Date.UTC(2026, 0, 1, 10, minute)).toISOString()
 const listing = (minute: number, title: string, more: Partial<SessionListing>): SessionListing => ({

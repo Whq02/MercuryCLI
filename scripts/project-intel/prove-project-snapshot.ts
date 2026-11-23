@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-const projectSnapshotWhere = 'fix getProjectSnapshot in src/services/projectIntel/snapshot.ts (sections 1-3 and 6), the gate projectIntelEnabled in src/utils/projectIntel/contracts.ts (section 4), or the mercury://project adapter src/services/resources/adapters/project.ts behind resolveResource in src/services/resources/registry.ts (sections 4-5)'
+const projectSnapshotWhere = 'fix getProjectSnapshot in src/sessions/project-intel/snapshot.ts (sections 1-3 and 6), the gate projectIntelEnabled in src/sessions/project-intel-pins/contracts.ts (section 4), or the mercury://project adapter src/integrations/resources/adapters/project.ts behind resolveResource in src/integrations/resources/registry.ts (sections 4-5)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${projectSnapshotWhere}` : ''}`)
@@ -25,11 +25,11 @@ guard.unref?.()
 async function main(): Promise<void> {
   delete process.env.MERCURY_PROJECT_INTEL
   const { materializeFixture } = await import('./fixtures/materialize.js')
-  const intel = await import('../../src/services/projectIntel/snapshot.js')
-  const verification = await import('../../src/utils/verification/verificationState.js')
-  const contracts = await import('../../src/utils/projectIntel/contracts.js')
-  const owner = await import('../../src/utils/primitives/owner.js')
-  const registry = await import('../../src/services/resources/registry.js')
+  const intel = await import('../../src/sessions/project-intel/snapshot.js')
+  const verification = await import('../../src/platform/verification/verificationState.js')
+  const contracts = await import('../../src/sessions/project-intel-pins/contracts.js')
+  const owner = await import('../../src/engine/execution-plane/owner.js')
+  const registry = await import('../../src/integrations/resources/registry.js')
 
   const cleanup: string[] = []
   const ctxFor = (cwd: string) => ({

@@ -58,7 +58,7 @@ const ollama = await new Promise<{ server: Server; root: string }>(resolve => {
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 async function stub(path: string, fixture: () => Record<string, unknown>): Promise<void> {
   const actual = await import(path)
@@ -69,18 +69,18 @@ const arg = (name: string): string | undefined => {
   return index < 0 ? undefined : process.argv[index + 1]
 }
 const frameDir = arg('--frames')
-await stub('../../src/hooks/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
-await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
-await stub('../../src/services/providers/providerUsage.js', () => ({ activeSourceUsage: () => ({ tier: 'local · no metering' }) }))
-await stub('../../src/utils/settings/settings.js', () => ({ getInitialSettings: () => ({ view: { modelPicker: { centred: false } } }) }))
+await stub('../../src/screen/model-picker/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
+await stub('../../src/screen/keys/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
+await stub('../../src/models/roads/providerUsage.js', () => ({ activeSourceUsage: () => ({ tier: 'local · no metering' }) }))
+await stub('../../src/platform/settings/settings.js', () => ({ getInitialSettings: () => ({ view: { modelPicker: { centred: false } } }) }))
 
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.js')
-const { localRecordFor, LOCAL_MODEL_GROUP } = await import('../../src/services/providers/local/localCatalogue.js')
-const w = await import('../../src/services/providers/local/localWindow.js')
-const { __pinLocalServerTruthForTest } = await import('../../src/services/localServer/localServerTruth.js')
-const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.js')
-const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent } = await import('../../src/ink.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.js')
+const { localRecordFor, LOCAL_MODEL_GROUP } = await import('../../src/models/roads/local/localCatalogue.js')
+const w = await import('../../src/models/roads/local/localWindow.js')
+const { __pinLocalServerTruthForTest } = await import('../../src/models/local-server/localServerTruth.js')
+const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.js')
+const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent } = await import('../../src/screen/themedRenderer.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
 await refreshLocalDiscovery({ force: true })
 const served = localRecordFor(`local/${SERVED_MODEL}`)!
 const unloaded = localRecordFor(`local/${UNLOADED_MODEL}`)!
@@ -88,7 +88,7 @@ __pinLocalServerTruthForTest({ loaded: [], listed: [], runners: [], launchForm: 
 const REFUSED_MAX = '[max — 14.1 GiB does not fit 12.0 GiB usable · 128k fits]'
 
 let failures = 0
-const PICKER_FRAMES_HINT = 'What to change: the window line (localWindowChoiceLine), the ladder (nextLocalWindowSetting) and the refusal (decideLocalWindow, localWindowRefusalSpan) in src/services/providers/local/localWindow.ts, or the ctrl+w handling and painting in src/components/MercuryModelPicker.tsx'
+const PICKER_FRAMES_HINT = 'What to change: the window line (localWindowChoiceLine), the ladder (nextLocalWindowSetting) and the refusal (decideLocalWindow, localWindowRefusalSpan) in src/models/roads/local/localWindow.ts, or the ctrl+w handling and painting in src/commands/model/picker/MercuryModelPicker.tsx'
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
   console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}${pass ? '' : ` — ${PICKER_FRAMES_HINT}`}`)

@@ -40,12 +40,12 @@ if (process.platform === 'win32') {
 process.env.PATH = `${binDir}${delimiter}${prevPath ?? ''}`
 
 try {
-  const { processAtMentionedFiles } = await import(`${root}/src/services/attachments/mentionResolvers.ts`)
-  const { normalizeAttachmentForAPI } = await import(`${root}/src/services/messages/attachmentText.ts`)
-  const { FileReadTool } = await import(`${root}/src/tools/FileReadTool/FileReadTool.ts`)
-  const { getEmptyToolPermissionContext } = await import(`${root}/src/Tool.ts`)
-  const { createFileStateCacheWithSizeLimit } = await import(`${root}/src/utils/fileStateCache.ts`)
-  const { getImageProcessor } = await import(`${root}/src/utils/imageProcessor/imageProcessor.ts`)
+  const { processAtMentionedFiles } = await import(`${root}/src/engine/attachments/mentionResolvers.ts`)
+  const { normalizeAttachmentForAPI } = await import(`${root}/src/engine/messages/attachmentText.ts`)
+  const { FileReadTool } = await import(`${root}/src/tools/read/ReadTool.ts`)
+  const { getEmptyToolPermissionContext } = await import(`${root}/src/tools/kit/tool.ts`)
+  const { createFileStateCacheWithSizeLimit } = await import(`${root}/src/platform/files/fileStateCache.ts`)
+  const { getImageProcessor } = await import(`${root}/src/platform/images/imageProcessor.ts`)
 
   const sharp = await getImageProcessor()
   const makePng = (name: string, b: number): Promise<string> =>

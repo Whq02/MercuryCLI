@@ -16,11 +16,11 @@ let ssh: ReturnType<typeof fakeSshRunner> | undefined
 let checks = 0
 const check = (name: string, truth: unknown = true, detail = '') => { assert.ok(truth, name + (detail ? ': ' + detail : '')); checks++; console.log('PASS ' + name) }
 try {
-  const { hostRunner, closeHostTunnel } = await import('../../src/services/host/ssh.ts')
-  const { runHostJob } = await import('../../src/services/host/worker.ts')
-  const { queueHostSetup } = await import('../../src/services/host/jobs.ts')
-  const { readHostRecord, hostDirectory, patchHostRecord } = await import('../../src/services/host/store.ts')
-  const { vendorClient, saveVendorKey, runpodOnly } = await import('../../src/services/host/vendors/client.ts')
+  const { hostRunner, closeHostTunnel } = await import('../../src/models/hosting/ssh.ts')
+  const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+  const { queueHostSetup } = await import('../../src/models/hosting/jobs.ts')
+  const { readHostRecord, hostDirectory, patchHostRecord } = await import('../../src/models/hosting/store.ts')
+  const { vendorClient, saveVendorKey, runpodOnly } = await import('../../src/models/hosting/vendors/client.ts')
   saveVendorKey('runpod', rp.key)
   const api = vendorClient('runpod', { key: rp.key, apiBaseUrl: rp.baseUrl })
   const raw = runpodOnly(api, 'proof')
@@ -43,13 +43,13 @@ try {
   assert.equal(ready.steps?.filter(row => /Runpod read failed \(HTTP 503\) · retrying in \d+ s · attempt [12]/.test(row.step)).length, 2)
   assert.equal(rp.state.creates, 1, 'read recovery never creates a second pod')
   assert.equal(rp.state.deletes, 0, 'read recovery never terminates the pod')
-  check('two pod-read 503s reach READY with both retry steps and no pause notice', notices().length === 1 && !notices()[0]!.includes('<status>failed'), 'fix runHostJob in src/services/host/worker.ts to retry transient pod reads through hostJobReadOnly in src/services/host/retry.ts and publish no failure notice; notices: ' + JSON.stringify(notices()))
+  check('two pod-read 503s reach READY with both retry steps and no pause notice', notices().length === 1 && !notices()[0]!.includes('<status>failed'), 'fix runHostJob in src/models/hosting/worker.ts to retry transient pod reads through hostJobReadOnly in src/models/hosting/retry.ts and publish no failure notice; notices: ' + JSON.stringify(notices()))
   const times = podReads(pod.id).map(row => row.at)
-  check('backoff doubles from the job poll interval', times[1]! - times[0]! >= 40 && times[2]! - times[1]! >= 80, 'fix the backoff in hostJobReadOnly in src/services/host/retry.ts to double from the poll interval; read times ' + JSON.stringify(times))
+  check('backoff doubles from the job poll interval', times[1]! - times[0]! >= 40 && times[2]! - times[1]! >= 80, 'fix the backoff in hostJobReadOnly in src/models/hosting/retry.ts to double from the poll interval; read times ' + JSON.stringify(times))
 
-  const { hostJobReadOnly, hostReadFailureWords, HostTerminationUnconfirmed } = await import('../../src/services/host/retry.ts')
-  const { RunpodHttpError } = await import('../../src/services/host/runpod.ts')
-  const { terminateVerified, pinnedWeightManifest } = await import('../../src/services/host/keptWeights.ts')
+  const { hostJobReadOnly, hostReadFailureWords, HostTerminationUnconfirmed } = await import('../../src/models/hosting/retry.ts')
+  const { RunpodHttpError } = await import('../../src/models/hosting/runpod.ts')
+  const { terminateVerified, pinnedWeightManifest } = await import('../../src/models/hosting/keptWeights.ts')
   const readSteps: string[] = []
   const readOnly = (timeoutMs = 5000, label = 'Runpod', signal = new AbortController().signal) => hostJobReadOnly({ label, pauseMs: 20, timeoutMs, signal, mark: step => readSteps.push(step) })
   for (const retryAfter of ['1', new Date(Date.now() + 2000).toUTCString()]) {
@@ -58,14 +58,14 @@ try {
     const expected = retryAfter === '1' ? 1000 : Date.parse(retryAfter) - Date.now()
     await readOnly()('pod', signal => api.get(pod.id, signal))
     const requests = podReads(pod.id).slice(before)
-    check('429 honours Retry-After ' + (retryAfter === '1' ? 'seconds' : 'HTTP date'), requests.length === 2 && requests[1]!.at - requests[0]!.at >= expected - 5, 'fix hostJobReadOnly in src/services/host/retry.ts to wait out Retry-After (seconds or HTTP date); reads ' + requests.length)
+    check('429 honours Retry-After ' + (retryAfter === '1' ? 'seconds' : 'HTTP date'), requests.length === 2 && requests[1]!.at - requests[0]!.at >= expected - 5, 'fix hostJobReadOnly in src/models/hosting/retry.ts to wait out Retry-After (seconds or HTTP date); reads ' + requests.length)
   }
   for (const status of [401, 403, 404]) {
     const stopped = await api.create(offer, 'ssh-ed25519 fixture', 'permanent-' + status)
     rp.state.failNext = { route: 'GET /v2/pods/' + stopped.id, status, times: 10 }
     const failed = (await run(queue(stopped)))!
     const pausesUp = status !== 404
-    check(status + (pausesUp ? ' pauses the setup on the first read without retry words or an unavailable Resume, the pod still billable' : ' stops the setup on the first read without retry words'), failed.jobState === (pausesUp ? 'paused' : 'failed') && podReads(stopped.id).length === 1 && !failed.steps?.some(row => row.step.includes('retrying')) && (!pausesUp || failed.status === stopped.status && String(failed.error).includes('/hr still billing') && String(failed.error).includes('Terminate in /llmhost') && !String(failed.error).includes('Resume')) && rp.state.deletes === 0, 'fix runHostJob in src/services/host/worker.ts and hostJobReadOnly in src/services/host/retry.ts: a 401, 403 or 404 pod read must not retry; got jobState ' + failed.jobState + ', reads ' + podReads(stopped.id).length + ', error ' + String(failed.error))
+    check(status + (pausesUp ? ' pauses the setup on the first read without retry words or an unavailable Resume, the pod still billable' : ' stops the setup on the first read without retry words'), failed.jobState === (pausesUp ? 'paused' : 'failed') && podReads(stopped.id).length === 1 && !failed.steps?.some(row => row.step.includes('retrying')) && (!pausesUp || failed.status === stopped.status && String(failed.error).includes('/hr still billing') && String(failed.error).includes('Terminate in /llmhost') && !String(failed.error).includes('Resume')) && rp.state.deletes === 0, 'fix runHostJob in src/models/hosting/worker.ts and hostJobReadOnly in src/models/hosting/retry.ts: a 401, 403 or 404 pod read must not retry; got jobState ' + failed.jobState + ', reads ' + podReads(stopped.id).length + ', error ' + String(failed.error))
   }
   const failing = await api.create(offer, 'ssh-ed25519 fixture', 'budget-reading')
   rp.state.failNext = { route: 'GET /v2/pods/' + failing.id, status: 503, times: 1000 }
@@ -74,29 +74,29 @@ try {
   const count = podReads(failing.id).length
   const counted = 'paused at Runpod read failed (HTTP 503) · retrying in 1 s · attempt ' + count
   const billing = failing.id + ' · $' + paused.price.toFixed(2) + '/hr still billing · Terminate in /llmhost'
-  check('the read spends its budget, then pauses with the exact failed-read count and the last-known state, without an unavailable Resume', Date.now() - beforeBudget >= 350 && count > 1 && paused.jobState === 'paused' && paused.status === failing.status && String(paused.error).startsWith('setup paused · ') && String(paused.error).includes(billing) && !String(paused.error).includes('Resume') && paused.step === counted && paused.price > 0 && rp.state.deletes === 0, 'fix runHostJob in src/services/host/worker.ts to pause with the counted read-failure step and the billing words when the read budget ends; step ' + String(paused.step) + ', error ' + String(paused.error))
-  check('one pause notice, no early stall notice', notices().filter(words => words.includes('budget-reading')).length === 1 && notices().some(words => words.includes(billing)), 'fix the pause notice in src/services/host/worker.ts to publish once with the billing words; notices: ' + JSON.stringify(notices()))
+  check('the read spends its budget, then pauses with the exact failed-read count and the last-known state, without an unavailable Resume', Date.now() - beforeBudget >= 350 && count > 1 && paused.jobState === 'paused' && paused.status === failing.status && String(paused.error).startsWith('setup paused · ') && String(paused.error).includes(billing) && !String(paused.error).includes('Resume') && paused.step === counted && paused.price > 0 && rp.state.deletes === 0, 'fix runHostJob in src/models/hosting/worker.ts to pause with the counted read-failure step and the billing words when the read budget ends; step ' + String(paused.step) + ', error ' + String(paused.error))
+  check('one pause notice, no early stall notice', notices().filter(words => words.includes('budget-reading')).length === 1 && notices().some(words => words.includes(billing)), 'fix the pause notice in src/models/hosting/worker.ts to publish once with the billing words; notices: ' + JSON.stringify(notices()))
   const original = new RunpodHttpError('original vendor error', 503, 'fixture')
   await assert.rejects(readOnly(100)('pod', async () => { throw original }), error => error === original && Boolean(hostReadFailureWords(error)))
   check('exhaustion throws the original error, not an invented replacement')
   for (const error of [new Error('unreadable response'), new SyntaxError('bad JSON')]) {
     let calls = 0
     await assert.rejects(readOnly()('pod', async () => { calls++; throw error }), observed => observed === error)
-    check('non-network ' + error.name + ' is not retried', calls === 1, 'fix hostJobReadOnly in src/services/host/retry.ts to retry only network and HTTP read failures; calls ' + calls)
+    check('non-network ' + error.name + ' is not retried', calls === 1, 'fix hostJobReadOnly in src/models/hosting/retry.ts to retry only network and HTTP read failures; calls ' + calls)
   }
   const abort = new AbortController()
   const abortTimer = setTimeout(() => abort.abort(new Error('cancelled fixture')), 25)
   let calls = 0
   try { await assert.rejects(readOnly(5000, 'Runpod', abort.signal)('pod', async () => { calls++; throw original }), /cancelled fixture/) } finally { clearTimeout(abortTimer) }
-  check('cancellation interrupts backoff without a second read', calls === 1, 'fix hostJobReadOnly in src/services/host/retry.ts to stop its backoff wait on the abort signal; calls ' + calls)
+  check('cancellation interrupts backoff without a second read', calls === 1, 'fix hostJobReadOnly in src/models/hosting/retry.ts to stop its backoff wait on the abort signal; calls ' + calls)
   let hungCalls = 0
   await assert.rejects(readOnly(150)('pod', async signal => { if (++hungCalls === 1) throw original; await new Promise<never>((_, reject) => signal.addEventListener('abort', () => reject(signal.reason ?? new Error('aborted')), { once: true })); return undefined }), error => error === original)
-  check('an in-flight read cannot outlive the budget or lose the original failure', hungCalls === 2, 'fix hostJobReadOnly in src/services/host/retry.ts to abort an in-flight read at the budget and rethrow the original error; calls ' + hungCalls)
+  check('an in-flight read cannot outlive the budget or lose the original failure', hungCalls === 2, 'fix hostJobReadOnly in src/models/hosting/retry.ts to abort an in-flight read at the budget and rethrow the original error; calls ' + hungCalls)
 
   rp.state.failNext = { route: 'GET /v2/pods/' + pod.id, status: 'disconnect', times: 3 }
   const networkBefore = readSteps.length
   await readOnly()('pod', signal => api.get(pod.id, signal))
-  check('network disconnects retry to a real pod answer', readSteps.slice(networkBefore).some(step => step.includes('network error')), 'fix hostJobReadOnly in src/services/host/retry.ts to retry network disconnects')
+  check('network disconnects retry to a real pod answer', readSteps.slice(networkBefore).some(step => step.includes('network error')), 'fix hostJobReadOnly in src/models/hosting/retry.ts to retry network disconnects')
   for (const [operation, route, read] of [
     ['log', 'GET /v2/pods/' + pod.id + '/logs', (signal: AbortSignal) => api.logs(pod.id, signal)],
     ['offer', 'GET /v2/catalog/gpus', (signal: AbortSignal) => api.offers(signal)],
@@ -105,13 +105,13 @@ try {
     rp.state.failNext = { route, status: 503, times: 2 }
     const stepsBefore = readSteps.length
     await readOnly()(operation, read as (signal: AbortSignal) => Promise<unknown>)
-    check(operation + ' reads use the same retry law', readSteps.slice(stepsBefore).filter(step => step.includes('retrying')).length === 2 && rp.state.failNext.times === 0, 'route this read through hostJobReadOnly in src/services/host/retry.ts so it retries twice')
+    check(operation + ' reads use the same retry law', readSteps.slice(stepsBefore).filter(step => step.includes('retrying')).length === 2 && rp.state.failNext.times === 0, 'route this read through hostJobReadOnly in src/models/hosting/retry.ts so it retries twice')
   }
   const exited = await api.create(offer, 'ssh-ed25519 fixture', 'log-reading')
   rp.state.pods.get(exited.id)!.status = 'EXITED'
   rp.state.failNext = { route: 'GET /v2/pods/' + exited.id + '/logs', status: 503, times: 2 }
   const logged = (await run(queue(exited)))!
-  check('setup reads the actual logs after two 503s before reporting the exited pod', logged.error?.includes('Pod is EXITED') && logged.error.includes('fixture image pull pending') && logged.steps?.filter(row => row.step.includes('retrying')).length === 2, 'fix runHostJob in src/services/host/worker.ts to read the pod logs with retry before reporting an exited pod; error ' + String(logged.error))
+  check('setup reads the actual logs after two 503s before reporting the exited pod', logged.error?.includes('Pod is EXITED') && logged.error.includes('fixture image pull pending') && logged.steps?.filter(row => row.step.includes('retrying')).length === 2, 'fix runHostJob in src/models/hosting/worker.ts to read the pod logs with retry before reporting an exited pod; error ' + String(logged.error))
   for (const exhaust of [false, true]) {
     const doomed = await api.create(offer, 'ssh-ed25519 fixture', 'verification-' + exhaust)
     rp.state.failNext = { route: 'GET /v2/pods', status: 503, times: exhaust ? 1000 : 2 }
@@ -121,7 +121,7 @@ try {
     if (exhaust) {
       await assert.rejects(work, error => error instanceof HostTerminationUnconfirmed && error.message === 'termination sent; Runpod did not confirm (HTTP 503 ×' + (rp.requests.filter(row => row.path === '/v2/pods' && row.method === 'GET').length - before) + ') — check Machines I’m paying for')
     } else await work
-    check(exhaust ? 'unanswered termination listing reports the exact count, not a false billing verdict' : 'termination confirms after two failed listings', rp.state.deletes === deletes + 1 && !rp.state.pods.has(doomed.id), 'fix terminateVerified in src/services/host/keptWeights.ts to send one delete and retry the verification listing; deletes sent ' + (rp.state.deletes - deletes))
+    check(exhaust ? 'unanswered termination listing reports the exact count, not a false billing verdict' : 'termination confirms after two failed listings', rp.state.deletes === deletes + 1 && !rp.state.pods.has(doomed.id), 'fix terminateVerified in src/models/hosting/keptWeights.ts to send one delete and retry the verification listing; deletes sent ' + (rp.state.deletes - deletes))
   }
   rp.state.failNext = null
   const failedCleanup = await api.create(offer, 'ssh-ed25519 fixture', 'worker-cleanup')
@@ -131,9 +131,9 @@ try {
   await run(queue(failedCleanup, { prepareWeightsOnly: true }))
   ssh.state.failEngine = false
   rp.state.failNext = null
-  check('a weights preparation whose install fails pauses with the pod up and billing; no terminate is sent', readHostRecord(failedCleanup.id)?.jobState === 'paused' && rp.state.deletes === cleanupDeletes && notices().some(words => words.includes('worker-cleanup') && words.includes(failedCleanup.id + ' · $' + failedCleanup.cost.toFixed(2) + '/hr still billing') && words.includes('Resume or Terminate in /llmhost')), 'fix runHostJob in src/services/host/worker.ts: a failed weights preparation must pause with the pod up and send no terminate; deletes sent ' + (rp.state.deletes - cleanupDeletes))
+  check('a weights preparation whose install fails pauses with the pod up and billing; no terminate is sent', readHostRecord(failedCleanup.id)?.jobState === 'paused' && rp.state.deletes === cleanupDeletes && notices().some(words => words.includes('worker-cleanup') && words.includes(failedCleanup.id + ' · $' + failedCleanup.cost.toFixed(2) + '/hr still billing') && words.includes('Resume or Terminate in /llmhost')), 'fix runHostJob in src/models/hosting/worker.ts: a failed weights preparation must pause with the pod up and send no terminate; deletes sent ' + (rp.state.deletes - cleanupDeletes))
 
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
   const { LLM_HOST_WORDS } = await import('../../src/commands/llmhost/words.ts')
   const manual = async (id: string, action: 'stop' | 'terminate', readyTimeoutMs: number, arm: () => void) => {
     const events: string[] = []
@@ -170,7 +170,7 @@ try {
   const unconfirmed = await manual(unconfirmedPod.id, 'terminate', 350, () => { listingsBefore = rp.requests.filter(row => row.path === '/v2/pods' && row.method === 'GET').length; rp.state.failNext = { route: 'GET /v2/pods', status: 503, times: 1000 } })
   const listings = rp.requests.filter(row => row.path === '/v2/pods' && row.method === 'GET').length - listingsBefore
   const unconfirmedWords = unconfirmedPod.id + ' · termination sent; Runpod did not confirm (HTTP 503 ×' + listings + ') — check Machines I’m paying for · it may still bill; Terminate again once Runpod answers'
-  check('manual terminate whose listing never answers says the termination was sent, counts the failed reads, says it may still bill, sends no second DELETE and keeps the pod on the controls', !unconfirmed.result.ok && unconfirmed.events.includes(unconfirmedWords) && rp.state.deletes === unconfirmedDeletes + 1 && listings > 1 && readHostRecord(unconfirmedPod.id) !== undefined && !unconfirmed.events.some(words => words.includes('Set-up stopped')), 'fix manual terminate in src/services/host/index.ts (createHostRoad) to report the unconfirmed termination with the failed-read count and send no second delete; events ' + JSON.stringify(unconfirmed.events))
+  check('manual terminate whose listing never answers says the termination was sent, counts the failed reads, says it may still bill, sends no second DELETE and keeps the pod on the controls', !unconfirmed.result.ok && unconfirmed.events.includes(unconfirmedWords) && rp.state.deletes === unconfirmedDeletes + 1 && listings > 1 && readHostRecord(unconfirmedPod.id) !== undefined && !unconfirmed.events.some(words => words.includes('Set-up stopped')), 'fix manual terminate in src/models/hosting/index.ts (createHostRoad) to report the unconfirmed termination with the failed-read count and send no second delete; events ' + JSON.stringify(unconfirmed.events))
   rp.state.failNext = null
   closeHostTunnel(unconfirmedPod.id)
 
@@ -187,7 +187,7 @@ try {
   assert.ok(await until(() => liveLog().includes('tunnel reconnected on 127.0.0.1:' + livePort), 10000), 'a dropped tunnel is reopened on the same port: ' + liveLog().slice(-400))
   await until(() => readHostRecord(livePod.id)?.step === 'ready', 2000)
   const live = readHostRecord(livePod.id)!
-  check('a tunnel that drops after READY is reconnected on the same port with words on the row, the job stays READY and nothing is terminated', live.jobState === 'ready' && live.step === 'ready' && live.localPort === livePort && liveLog().includes('tunnel dropped · reconnecting · attempt 1 of 5') && rp.state.deletes === liveDeletes && !notices().some(words => words.includes('tunnel-drop') && words.includes('<status>failed')), 'fix the keep-alive tunnel reconnect in src/services/host/worker.ts; job state ' + live.jobState + ', step ' + String(live.step))
+  check('a tunnel that drops after READY is reconnected on the same port with words on the row, the job stays READY and nothing is terminated', live.jobState === 'ready' && live.step === 'ready' && live.localPort === livePort && liveLog().includes('tunnel dropped · reconnecting · attempt 1 of 5') && rp.state.deletes === liveDeletes && !notices().some(words => words.includes('tunnel-drop') && words.includes('<status>failed')), 'fix the keep-alive tunnel reconnect in src/models/hosting/worker.ts; job state ' + live.jobState + ', step ' + String(live.step))
   const reconnectReads = rp.requests.filter(row => row.method === 'GET' && row.path === '/v2/pods/' + livePod.id).length
   const health = await fetch('http://127.0.0.1:' + livePort + '/v1/models').then(response => response.ok).catch(() => false)
   check('the reconnected tunnel answers and the reconnect read nothing from the vendor', health && rp.requests.filter(row => row.method === 'GET' && row.path === '/v2/pods/' + livePod.id).length === reconnectReads)
@@ -198,7 +198,7 @@ try {
 
   const keptOffer = offers.find(row => pinnedWeightManifest(row.recipe))!
   assert.ok(keptOffer, 'a shipped offered recipe has a pinned weights manifest')
-  const { writeKeptVolume } = await import('../../src/services/host/volumes.ts')
+  const { writeKeptVolume } = await import('../../src/models/hosting/volumes.ts')
   const dataCenter = keptOffer.dataCenter ?? 'EU-NL-1'
   const disk = await raw.createVolume('network', 'hiccups-weights', keptOffer.recipe.diskGb, dataCenter)
   writeKeptVolume({ ...disk, size: keptOffer.recipe.diskGb, dataCenter, model: keptOffer.recipe.model, include: keptOffer.recipe.include ?? '', price: 1, createdAt: new Date().toISOString(), state: 'preparing' })
@@ -207,10 +207,10 @@ try {
   rp.state.failNext = { route: 'GET /v2/pods', status: 503, times: 2 }
   const preparationDeletes = rp.state.deletes
   await run(kept)
-  check('kept-weight preparation retries verification and sends only one termination', !readHostRecord(kept.id) && rp.state.deletes === preparationDeletes + 1 && notices().some(words => words.includes('temporary pod ' + kept.id + ' terminated')), 'fix the kept-weights preparation cleanup in src/services/host/worker.ts and terminateVerified in src/services/host/keptWeights.ts; deletes sent ' + (rp.state.deletes - preparationDeletes))
+  check('kept-weight preparation retries verification and sends only one termination', !readHostRecord(kept.id) && rp.state.deletes === preparationDeletes + 1 && notices().some(words => words.includes('temporary pod ' + kept.id + ' terminated')), 'fix the kept-weights preparation cleanup in src/models/hosting/worker.ts and terminateVerified in src/models/hosting/keptWeights.ts; deletes sent ' + (rp.state.deletes - preparationDeletes))
 
-  const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
-  const { createHostResource, hostClusterRecord } = await import('../../src/services/host/cluster.ts')
+  const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
+  const { createHostResource, hostClusterRecord } = await import('../../src/models/hosting/cluster.ts')
   const clusterRecipe = HOST_RECIPES.find(row => row.id === 'kimi-k3-b200')!
   rp.state.clusterGpus = [{ id: 'NVIDIA B200', name: 'B200', memory: 180, secure: true, price: { secure: 7.99 }, maxCount: { secure: 8 }, availability: 'HIGH', dataCenters: [{ id: 'FIXTURE-DC', availability: 'HIGH' }] }]
   const clusterOffer = (await api.offers(new AbortController().signal)).find(row => row.recipe.id === clusterRecipe.id)!
@@ -232,7 +232,7 @@ try {
     const capped = hostJobReadOnly({ label: 'Runpod', pauseMs: 40000, timeoutMs: 100, signal: new AbortController().signal, mark: step => steps.push(step) })
     let calls = 0
     await assert.rejects(capped('pod', async () => { calls++; throw new RunpodHttpError('backoff proof', 503, '', retryAfter) }))
-    check(retryAfter ? 'Retry-After can exceed the 60-second exponential cap' : 'exponential backoff is capped at 60 seconds', calls === 1 && steps[0]?.includes('retrying in ' + (retryAfter ?? 60) + ' s'), 'fix the backoff cap and Retry-After handling in hostJobReadOnly in src/services/host/retry.ts; first step ' + String(steps[0]))
+    check(retryAfter ? 'Retry-After can exceed the 60-second exponential cap' : 'exponential backoff is capped at 60 seconds', calls === 1 && steps[0]?.includes('retrying in ' + (retryAfter ?? 60) + ' s'), 'fix the backoff cap and Retry-After handling in hostJobReadOnly in src/models/hosting/retry.ts; first step ' + String(steps[0]))
   }
 
   for (const vendor of ['vast', 'lambda'] as const) {
@@ -270,6 +270,6 @@ try {
       check(client.label + ' cleanup retries its internal verification list with the same law', fixture.state.deletes === 1 && readSteps.slice(stepsBefore).filter(step => step.includes('retrying')).length === 2)
     } finally { await fixture.close() }
   }
-  check('fixture credentials never enter job records or retry steps', !JSON.stringify({ ready, paused, readSteps }).includes(rp.key), 'a job record or retry step carries the vendor key; redact it where the step or error is written in src/services/host/retry.ts or src/services/host/worker.ts')
+  check('fixture credentials never enter job records or retry steps', !JSON.stringify({ ready, paused, readSteps }).includes(rp.key), 'a job record or retry step carries the vendor key; redact it where the step or error is written in src/models/hosting/retry.ts or src/models/hosting/worker.ts')
   console.log('HOST HICCUPS GREEN · ' + checks + ' checks; loopback vendor/engine fixtures only, no billable calls')
 } finally { ssh?.close(); await rp.close(); f.close() }

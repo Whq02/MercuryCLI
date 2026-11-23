@@ -80,7 +80,7 @@ let exitCode: number | null = null
 daemon.on('exit', code => {
   exitCode = code
 })
-check('the daemon process started', daemonPid !== undefined && alive(daemonPid), `pid ${daemonPid}, exit ${exitCode}; read the daemon log at ${logPath} and the bundle entry for daemon run in src/daemon/main.ts (daemonRun)`)
+check('the daemon process started', daemonPid !== undefined && alive(daemonPid), `pid ${daemonPid}, exit ${exitCode}; read the daemon log at ${logPath} and the bundle entry for daemon run in src/daemon/control/main.ts (daemonRun)`)
 
 section(`§3 \`daemon status\` reads the running row within ${STATUS_BOUND_MS / 1000}s — the deploy road's check greps exactly this row (\`daemon:\` + \`running\`); whoever renames it renames the check in the same change`)
 const t0 = Date.now()
@@ -97,25 +97,25 @@ while (Date.now() - t0 < STATUS_BOUND_MS && exitCode === null) {
   }
   await sleep(1000)
 }
-check(`the running row answered within the bound${answeredMs !== null ? ` (${answeredMs}ms)` : ''}`, answeredMs !== null, `to fix, make the running daemon answer the status RPC and keep formatMercuryDaemonStatus in src/daemon/status.ts printing the running row; exit ${statusRc}; last answer:\n${statusText}\n--- daemon.log ---\n${readFileSync(logPath, 'utf8')}`)
-check('`daemon status` exits 0 when it answers', statusRc === 0, `exit ${statusRc}; daemonStatusCmd in src/daemon/main.ts must not set a non-zero exit code when the daemon answers`)
+check(`the running row answered within the bound${answeredMs !== null ? ` (${answeredMs}ms)` : ''}`, answeredMs !== null, `to fix, make the running daemon answer the status RPC and keep formatMercuryDaemonStatus in src/daemon/control/status.ts printing the running row; exit ${statusRc}; last answer:\n${statusText}\n--- daemon.log ---\n${readFileSync(logPath, 'utf8')}`)
+check('`daemon status` exits 0 when it answers', statusRc === 0, `exit ${statusRc}; daemonStatusCmd in src/daemon/control/main.ts must not set a non-zero exit code when the daemon answers`)
 const rowPid = Number(RUNNING_ROW.exec(statusText)?.[1] ?? NaN)
-check('the running row names the pid the bundle just started', rowPid === daemonPid, `row pid ${rowPid}, started pid ${daemonPid}; the pid printed by formatMercuryDaemonStatus in src/daemon/status.ts must be the process that daemon run started`)
+check('the running row names the pid the bundle just started', rowPid === daemonPid, `row pid ${rowPid}, started pid ${daemonPid}; the pid printed by formatMercuryDaemonStatus in src/daemon/control/status.ts must be the process that daemon run started`)
 check('the daemon still runs after it answered', exitCode === null && alive(daemonPid), `exit ${exitCode}, pid ${daemonPid}; the daemon quit after answering status, read ${logPath} for why`)
 
 section(`§4 \`daemon stop\` is acknowledged and the daemon leaves within ${STOP_BOUND_MS / 1000}s`)
 const stop = bundle('daemon', 'stop')
-check('`daemon stop` exits 0 and says the shutdown was acknowledged', stop.rc === 0 && stop.text.includes('shutdown acknowledged'), `exit ${stop.rc}: ${firstLine(stop.text)}; daemonStopCmd in src/daemon/main.ts must send the shutdown RPC and print the acknowledgement`)
+check('`daemon stop` exits 0 and says the shutdown was acknowledged', stop.rc === 0 && stop.text.includes('shutdown acknowledged'), `exit ${stop.rc}: ${firstLine(stop.text)}; daemonStopCmd in src/daemon/control/main.ts must send the shutdown RPC and print the acknowledgement`)
 const t1 = Date.now()
 while (Date.now() - t1 < STOP_BOUND_MS && alive(daemonPid)) await sleep(250)
-check('the daemon process left', !alive(daemonPid), `pid ${daemonPid} alive ${STOP_BOUND_MS / 1000}s after the stop; the daemon must exit after the shutdown RPC handled in src/daemon/main.ts`)
+check('the daemon process left', !alive(daemonPid), `pid ${daemonPid} alive ${STOP_BOUND_MS / 1000}s after the stop; the daemon must exit after the shutdown RPC handled in src/daemon/control/main.ts`)
 const after = bundle('daemon', 'status')
-check('after the stop, `daemon status` reads the not-running row', after.rc === 0 && NOT_RUNNING_ROW.test(after.text), `exit ${after.rc}; after a stop formatMercuryDaemonStatus in src/daemon/status.ts must print the not-running row:\n${after.text}`)
+check('after the stop, `daemon status` reads the not-running row', after.rc === 0 && NOT_RUNNING_ROW.test(after.text), `exit ${after.rc}; after a stop formatMercuryDaemonStatus in src/daemon/control/status.ts must print the not-running row:\n${after.text}`)
 
 section('§5 the daemon log carries no refusal of its own start words')
 const log = readFileSync(logPath, 'utf8')
-check('the log carries the control socket coming up', log.includes('control socket up'), `the daemon must log this line once its control socket is listening (src/daemon/main.ts); log tail:\n${log.slice(-600)}`)
-check('no "too many arguments", "unknown option" or "unknown verb"', !REFUSED_START_WORDS.test(log), `the daemon run arguments are refused; fix the daemon verb parsing in src/daemon/main.ts so daemon run accepts a work directory:\n${log.split('\n').filter(l => REFUSED_START_WORDS.test(l)).join('\n')}`)
+check('the log carries the control socket coming up', log.includes('control socket up'), `the daemon must log this line once its control socket is listening (src/daemon/control/main.ts); log tail:\n${log.slice(-600)}`)
+check('no "too many arguments", "unknown option" or "unknown verb"', !REFUSED_START_WORDS.test(log), `the daemon run arguments are refused; fix the daemon verb parsing in src/daemon/control/main.ts so daemon run accepts a work directory:\n${log.split('\n').filter(l => REFUSED_START_WORDS.test(l)).join('\n')}`)
 
 if (alive(daemonPid)) daemon.kill('SIGTERM')
 if (failures === 0) rmSync(SCRATCH, { recursive: true, force: true })

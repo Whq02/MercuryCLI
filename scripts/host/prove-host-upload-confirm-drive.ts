@@ -6,7 +6,7 @@ import { KEY, mountOffscreen, waitFor, type Mounted } from '../lib/settingsPopup
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { vastFixture } from './vastFixture.mjs'
 import { lambdaFixture } from './lambdaFixture.mjs'
-import type { LlmHostQuestion } from '../../src/services/llmHost/index.ts'
+import type { LlmHostQuestion } from '../../src/models/llm-host/index.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const f = await llmhostFixture()
@@ -32,23 +32,23 @@ try {
   writeFileSync(file, JSON.stringify({ version: shipped.version, publishedAt: shipped.publishedAt, recipes: [recipe] }))
   process.env.MERCURY_HOST_RECIPES_FILE = file
   vast.state.customOffers = [{ id: 101, gpu_name: 'H100', gpu_ram: 80 * 1024, num_gpus: 1, dph_total: 1.2, verification: 'verified', reliability2: 0.999, reliability: 0.999, direct_port_count: 1, rentable: true, rented: false, cuda_max_good: 13, disk_space: 2000, machine_id: 9101 }]
-  const bank = await import('../../src/services/host/bank.ts')
-  const safe = await import('../../src/services/host/keepSafe.ts')
+  const bank = await import('../../src/models/hosting/bank.ts')
+  const safe = await import('../../src/models/hosting/keepSafe.ts')
   const folder = bank.rememberBankFolder(join(f.home, 'mercury-model-bank'))
   const path = bank.bankModelFolder(folder, recipe)
   mkdirSync(path)
   writeFileSync(join(path, 'weights.bin'), data)
   writeFileSync(join(path, 'SHA256SUMS'), digest + '  weights.bin\n')
-  const { saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
+  const { saveVendorKey } = await import('../../src/models/hosting/vendors/client.ts')
   saveVendorKey('vast', vast.key); saveVendorKey('lambda', lambda.key)
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
   for (const width of [120, 80]) {
     safe.rememberBankUpload(recipe, undefined)
     let question: LlmHostQuestion | undefined
@@ -87,7 +87,7 @@ try {
       await close(); await open()
     }
     await close()
-    const volumes = await import('../../src/services/host/volumes.ts')
+    const volumes = await import('../../src/models/hosting/volumes.ts')
     for (const [state, machineId, sourceWords] of [['preparing', 9101, 'Weights: Vast.ai volume 20199999 · machine 9101 · downloads first'], ['kept', 9101, 'Weights: Vast.ai volume 20199999 · machine 9101 · ~'], ['kept', 9999, 'Weights: Bank · ' + join('~', 'mercury-model-bank') + ' · upload ']] as const) {
       vast.state.volumes.set(20199999, { id: 20199999, label: 'fixture-kept', machine_id: machineId, disk_space: 20, storage_cost: 0.2, status: 'active', start_date: 1792490400 })
       volumes.writeKeptVolume({ id: '20199999', name: 'fixture-kept', model: recipe.model, include: '', recipeRow: recipe, kind: 'vast', machineId, dataCenter: 'Vast.ai machine ' + machineId, size: 20, price: 4, storageCost: 0.2, createdAt: new Date().toISOString(), state })

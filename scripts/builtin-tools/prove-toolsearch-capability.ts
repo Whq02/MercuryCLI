@@ -7,19 +7,19 @@ import { fileURLToPath } from 'node:url'
 let fail = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) fail = 1
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix: searchToolsWithKeywords and the description cache in src/tools/ToolSearchTool/ToolSearchTool.ts; the card checks read compileToolCapabilityCard in src/utils/capability/manifest.ts' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix: searchToolsWithKeywords and the description cache in src/tools/tool-search/ToolSearchTool.ts; the card checks read compileToolCapabilityCard in src/permissions/capability/manifest.ts' : ''}`)
 }
 
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { isDeferredTool } = await import('../../src/tools/ToolSearchTool/prompt.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { isDeferredTool } = await import('../../src/tools/tool-search/prompt.ts')
 const {
   searchToolsWithKeywords,
   maybeInvalidateCache,
   getToolDescriptionMemoized,
   clearToolSearchDescriptionCache,
-} = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
+} = await import('../../src/tools/tool-search/ToolSearchTool.ts')
 const { compileToolCapabilityCard } = await import(
-  '../../src/utils/capability/manifest.ts'
+  '../../src/permissions/capability/manifest.ts'
 )
 
 type AnyTool = ReturnType<typeof getAllBaseTools>[number]

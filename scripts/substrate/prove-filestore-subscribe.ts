@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { defineStore } from '../../src/substrate/fileStore.ts'
+import { defineStore } from '../../src/platform/substrate/fileStore.ts'
 
 if (process.argv[2] === '--child-write') {
   const dir = process.argv[3]
@@ -88,18 +88,18 @@ try {
     const firesBefore = fires
     const code = await childWrite(dir, 'tiny')
     check('A: child writer exited 0', code === 0, '',
-      'the --child-write branch at the top of this file exited non-zero; its mutate through defineStore in src/substrate/fileStore.ts threw, see the child stderr above')
+      'the --child-write branch at the top of this file exited non-zero; its mutate through defineStore in src/platform/substrate/fileStore.ts threw, see the child stderr above')
     const delivered = await waitFor(() => n >= 1, 5000)
     check('A: subscribe-before-exist DELIVERS a cross-process write', delivered,
       `fires ${firesBefore}→${fires}, n=${n}`,
-      'a subscriber attached before the file exists got no cross-process write; check startWatcherOf (the ENOENT branch calling startPollUntilExists) and subscribeChanges in src/substrate/fileStore.ts')
+      'a subscriber attached before the file exists got no cross-process write; check startWatcherOf (the ENOENT branch calling startPollUntilExists) and subscribeChanges in src/platform/substrate/fileStore.ts')
     const before = fires
     const code2 = await childWrite(dir, 'tiny')
     check('A: second child writer exited 0', code2 === 0, '',
-      'the --child-write branch at the top of this file exited non-zero; its mutate through defineStore in src/substrate/fileStore.ts threw, see the child stderr above')
+      'the --child-write branch at the top of this file exited non-zero; its mutate through defineStore in src/platform/substrate/fileStore.ts threw, see the child stderr above')
     const deliveredAgain = await waitFor(() => fires > before, 5000)
     check('A: post-upgrade watcher still delivers', deliveredAgain, `fires ${before}→${fires}`,
-      'after the poll-until-exists stage the subscriber stopped firing; check that startPollUntilExistsOf in src/substrate/fileStore.ts hands over to a watcher or poll that keeps emitting')
+      'after the poll-until-exists stage the subscriber stopped firing; check that startPollUntilExistsOf in src/platform/substrate/fileStore.ts hands over to a watcher or poll that keeps emitting')
     unsub()
   }
 
@@ -113,11 +113,11 @@ try {
     for (let attempt = 0; attempt < 3 && !delivered; attempt++) {
       const code = await childWrite(dir, 'tiny')
       if (attempt === 0) check('B: child writer exited 0', code === 0, '',
-        'the --child-write branch at the top of this file exited non-zero; its mutate through defineStore in src/substrate/fileStore.ts threw, see the child stderr above')
+        'the --child-write branch at the top of this file exited non-zero; its mutate through defineStore in src/platform/substrate/fileStore.ts threw, see the child stderr above')
       delivered = await waitFor(() => seen >= 1, 5000)
     }
     check('B: pre-existing-file subscription delivers a cross-process write', delivered, `seen=${seen}`,
-      'a subscriber on an existing file got no cross-process write in 3 attempts; check the chokidar watcher in startWatcherOf and scheduleEmit in src/substrate/fileStore.ts')
+      'a subscriber on an existing file got no cross-process write in 3 attempts; check the chokidar watcher in startWatcherOf and scheduleEmit in src/platform/substrate/fileStore.ts')
     unsub()
   }
 
@@ -128,7 +128,7 @@ try {
     await tiny(dir).mutate(s => ({ ...s, n: 7 }))
     const delivered = await waitFor(() => seen === 7, 2000)
     check('C: in-process publish fans out to the subscriber', delivered, `seen=${seen}`,
-      'a mutate in this process did not reach its own subscriber within 2 s; check how the store publishes to rt.listeners after a write in src/substrate/fileStore.ts')
+      'a mutate in this process did not reach its own subscriber within 2 s; check how the store publishes to rt.listeners after a write in src/platform/substrate/fileStore.ts')
     unsub()
   }
 } finally {

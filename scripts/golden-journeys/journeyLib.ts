@@ -5,14 +5,14 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
-import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
 import {
   emptyRunSnapshot,
   reduceRunEvent,
   type RunEvent,
   type RunSnapshot,
-} from '../../src/services/run/runKernel.ts'
-import { makeOwnerKey, type OwnerKey } from '../../src/utils/run/ownerKey.ts'
+} from '../../src/engine/run/runKernel.ts'
+import { makeOwnerKey, type OwnerKey } from '../../src/engine/run-owner/ownerKey.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 

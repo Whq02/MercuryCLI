@@ -12,8 +12,8 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 const { scenario, cleanupScenario, RUNTIME_CWD } = await import('./renderScenarios.ts')
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-const { workspaceFolderOf } = await import('../../src/hooks/useFocusedWorkspaceBranch.ts')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
+const { workspaceFolderOf } = await import('../../src/screen/focused-session/useFocusedWorkspaceBranch.ts')
 const BACK = keyHintLabel('⇧← back')
 const frameIndex = process.argv.indexOf('--frames')
 const frameDir = frameIndex < 0 ? undefined : process.argv[frameIndex + 1]
@@ -63,7 +63,7 @@ try {
     check(`${tag}: the pane's first interior row is the berth card's top edge, never a title`, top >= 0 && /^\s*╭/.test((lines[top + 1] ?? '').slice(left + 1, rightEdge)), `the row under the pane's top border must be the berth card's top edge, not a title — ` + (lines[top + 1] ?? ''))
     check(`${tag}: the view's bottom border sits directly above the status row`, bottom > top && status === bottom + 1, `the view's bottom border must be the row just above the status row that carries the back hint; remove any row painted between them — pane bottom ${bottom}, status row ${status}`)
     const statusRow = lines[status] ?? ''
-    check(`${tag}: the status row rests on the state words · the model · the effort (ready · the model · its effort; or, on a keyless capture, not signed in · /logins · choose a model, which carries no effort) and ends with the folder, the branch and the way back`, new RegExp(`^ (?:ready · [^·]+ · [^·]+|not signed in · /logins · choose a model) {2,}${escaped(right)} {2}${escaped(BACK)}$`).test(statusRow), `the status row must be state words · model · effort, then the folder, the branch and the back hint; change statusRowPlan, statusLine or escBackHint in src/components/SwitchboardTagBar.tsx — ` + statusRow)
+    check(`${tag}: the status row rests on the state words · the model · the effort (ready · the model · its effort; or, on a keyless capture, not signed in · /logins · choose a model, which carries no effort) and ends with the folder, the branch and the way back`, new RegExp(`^ (?:ready · [^·]+ · [^·]+|not signed in · /logins · choose a model) {2,}${escaped(right)} {2}${escaped(BACK)}$`).test(statusRow), `the status row must be state words · model · effort, then the folder, the branch and the back hint; change statusRowPlan, statusLine or escBackHint in src/screen/chat/SwitchboardTagBar.tsx — ` + statusRow)
     const below = lines.slice(bottom + 1).filter(line => (/[│╭╮╰╯]/.test(line.slice(0, left)) || /[│╭╮╰╯]/.test(line.slice(rightEdge + 1))) && !(line.length === cols && /^[╭│╰].*[╮│╯]$/.test(line)))
     check(`${tag}: nothing of the rails paints below the pane's bottom border (the rails end where the view ends)`, below.length === 0, `the rails must end on the row of the view's bottom border; stop painting rail rows below it — ` + (below[0] ?? ''))
   }

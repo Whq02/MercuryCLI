@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/permissions/FileEditPermissionRequest/FileEditPermissionRequest.tsx src/components/permissions/PermissionRequest.tsx
-// gate-watch: src/tools/FileEditTool/sectionEdit.ts src/tools/FileEditTool/UI.tsx src/tools/RecordConventionTool/RecordConventionTool.ts
-// gate-watch: src/components/permissions/GitPermissionRequest/GitPermissionRequest.tsx src/services/gitGraph/plan.ts src/services/gitGraph/observe.ts
+// gate-watch: src/permissions/cards/file-edit/FileEditPermissionRequest.tsx src/permissions/cards/PermissionRequest.tsx
+// gate-watch: src/tools/edit/sectionEdit.ts src/tools/edit/rows.tsx src/tools/record-convention/RecordConventionTool.ts
+// gate-watch: src/permissions/cards/git/GitPermissionRequest.tsx src/platform/git-graph/plan.ts src/platform/git-graph/observe.ts
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -9,8 +9,8 @@ import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import { type ArenaRun, grabScreens, requireDist, runArtifactArena, sendStamp } from '../streaming/artifactArena.ts'
 
 requireDist()
-const { preparePlan, _resetGitPlanStoreForTesting } = await import('../../src/services/gitGraph/plan.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { preparePlan, _resetGitPlanStoreForTesting } = await import('../../src/platform/git-graph/plan.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 const onlyArg = process.argv.find(a => a.startsWith('--only='))
 const ONLY = onlyArg ? new Set(onlyArg.slice('--only='.length).split(',').map(s => s.trim()).filter(Boolean)) : null
@@ -25,12 +25,12 @@ let failures = 0
 let checks = 0
 const fileCardHint = (label: string): string => {
   const where = label.startsWith('convention')
-    ? 'the convention card is src/tools/RecordConventionTool/RecordConventionTool.ts'
+    ? 'the convention card is src/tools/record-convention/RecordConventionTool.ts'
     : label.startsWith('git-apply')
-      ? 'the git card is src/components/permissions/GitPermissionRequest/GitPermissionRequest.tsx (plan from src/services/gitGraph/plan.ts)'
+      ? 'the git card is src/permissions/cards/git/GitPermissionRequest.tsx (plan from src/platform/git-graph/plan.ts)'
       : label.startsWith('error-row')
-        ? 'the refusal reason in the transcript row comes from the Edit tool (src/tools/FileEditTool/UI.tsx and sectionEdit.ts)'
-        : 'the edit and create cards are src/components/permissions/FileEditPermissionRequest/FileEditPermissionRequest.tsx with src/tools/FileEditTool/sectionEdit.ts and UI.tsx'
+        ? 'the refusal reason in the transcript row comes from the Edit tool (src/tools/edit/rows.tsx and sectionEdit.ts)'
+        : 'the edit and create cards are src/permissions/cards/file-edit/FileEditPermissionRequest.tsx with src/tools/edit/sectionEdit.ts and UI.tsx'
   return `${where}; fix the card text or diff rows there, or rerun with --record only if the new frame is the intended one (stored frames live in scripts/ui/fixtures/file-cards); run node dist/mercury.mjs through bun run build.ts first, this drive reads dist`
 }
 function check(label: string, cond: boolean, detail = ''): void {

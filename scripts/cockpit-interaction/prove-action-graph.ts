@@ -3,12 +3,12 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { checker } from '../engine-durability/harness.ts'
-import { ACTION_GRAPH, KEYBINDING_ACTIONS } from '../../src/keybindings/actionGraph.ts'
-import { DEFAULT_BINDINGS } from '../../src/keybindings/defaultBindings.ts'
+import { ACTION_GRAPH, KEYBINDING_ACTIONS } from '../../src/screen/keys/actionGraph.ts'
+import { DEFAULT_BINDINGS } from '../../src/screen/keys/defaultBindings.ts'
 import {
   getReservedShortcuts,
   normalizeKeyForComparison,
-} from '../../src/keybindings/reservedShortcuts.ts'
+} from '../../src/screen/keys/reservedShortcuts.ts'
 
 const t = checker()
 const graph = ACTION_GRAPH as Record<string, { description: string; contexts: readonly string[]; rebindOnly?: string }>

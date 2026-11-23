@@ -2,7 +2,7 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
-import { CURRENT_NOTICE_SLOTS } from '../../src/constants/legalNotice.js'
+import { CURRENT_NOTICE_SLOTS } from '../../src/platform/product/legalNotice.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const ROW = {
@@ -277,21 +277,21 @@ lines.push('')
 lines.push('## Source attributions')
 lines.push('')
 lines.push(
-  '- Parts of the agent runtime (the turn loop in `src/pi/loop/`, `src/run-core/` and `src/services/tools/`, and the undo history of the typing box in `src/hooks/useInputBuffer.ts`) derive from **Pi**, © 2025 Mario Zechner, MIT (https://github.com/earendil-works/pi), forked at v1.6.0 (`faac5858`) and changed by Mercury; the changes are listed in `src/pi/DIVERGENCE.tsv`.',
+  '- Parts of the agent runtime (the turn loop in `src/pi/loop/`, `src/engine/loop/` and `src/engine/tool-dispatch/`, and the undo history of the typing box in `src/screen/composer/useInputUndo.ts`) derive from **Pi**, © 2025 Mario Zechner, MIT (https://github.com/earendil-works/pi), forked at v1.6.0 (`faac5858`) and changed by Mercury; the changes are listed in `src/engine/loop/DIVERGENCE.tsv`.',
 )
 lines.push('')
 lines.push(
-  '- Parts of the terminal runtime (`src/ink/` — reconciler, DOM, styles, component shells) derive from the **Ink** project — © Vadim Demedes and contributors, MIT (https://github.com/vadimdemedes/ink); the parts written again are re-derived from v8.0.0 (`26d2c3f8`). The layout engine, termio tokenizer, input byte layer and frame writer are Mercury-native.',
+  '- Parts of the terminal runtime (`src/screen/renderer/` — reconciler, DOM, styles, component shells) derive from the **Ink** project — © Vadim Demedes and contributors, MIT (https://github.com/vadimdemedes/ink); the parts written again are re-derived from v8.0.0 (`26d2c3f8`). The layout engine, termio tokenizer, input byte layer and frame writer are Mercury-native.',
 )
 lines.push('')
 lines.push(
-  '- The extensions estate: archive sources are decompressed with **fflate** (MIT; a direct dependency) through the hardened reader at `src/utils/archive/zip.ts`; the extensions estate reads no bundle files — an extension declares its servers in its own manifest.',
+  '- The extensions estate: archive sources are decompressed with **fflate** (MIT; a direct dependency) through the hardened reader at `src/platform/archive/zip.ts`; the extensions estate reads no bundle files — an extension declares its servers in its own manifest.',
 )
 lines.push('')
 lines.push('## Bundled skills')
 lines.push('')
 lines.push(
-  '- The skills compiled into the bundle under `src/skills/bundled/` are Mercury\'s own work and ship under the product licence.',
+  '- The skills compiled into the bundle under `src/integrations/skills/bundled/` are Mercury\'s own work and ship under the product licence.',
 )
 lines.push('')
 

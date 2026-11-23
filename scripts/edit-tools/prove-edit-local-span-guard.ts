@@ -19,13 +19,13 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}to fix: Edit must behave the same for a local model and a hosted one; check validateInput, call and prompt in src/tools/FileEditTool/FileEditTool.ts and what they read from the local record in src/services/providers/local/localCatalogue.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}to fix: Edit must behave the same for a local model and a hosted one; check validateInput, call and prompt in src/tools/edit/EditTool.ts and what they read from the local record in src/models/roads/local/localCatalogue.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the local span guard proof exceeded 60s; the local discovery refresh (src/services/providers/local/localDiscovery.ts) or an Edit call (src/tools/FileEditTool/FileEditTool.ts) did not return')
+  console.log('\nTIMEOUT — the local span guard proof exceeded 60s; the local discovery refresh (src/models/roads/local/localDiscovery.ts) or an Edit call (src/tools/edit/EditTool.ts) did not return')
   process.exit(1)
 }, 60_000)
 guard.unref?.()
@@ -64,10 +64,10 @@ const vllm = await serve((req, _body, res) => {
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `vllm=${vllm.root}`
 
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 await refreshLocalDiscovery({ force: true })
 
 const LOCAL_MODEL = `local/${MODEL_ID}`

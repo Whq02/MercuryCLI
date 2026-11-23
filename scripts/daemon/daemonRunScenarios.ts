@@ -258,8 +258,8 @@ class World {
   async call(request: Reply, timeoutMs = 15_000): Promise<Reply> {
     if (this.rpcDoor === null) {
       ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
-      const control = await import('../../src/daemon/controlSocket.ts')
-      this.proto = (await import('../../src/daemon/protocol.ts')).MERCURY_DAEMON_PROTO
+      const control = await import('../../src/daemon/control/controlSocket.ts')
+      this.proto = (await import('../../src/daemon/control/protocol.ts')).MERCURY_DAEMON_PROTO
       this.rpcDoor = control.daemonControlRpc as never
     }
     try {
@@ -364,7 +364,7 @@ class World {
       `process.argv[1] = ${JSON.stringify(join(this.dist, 'mercury.mjs'))}`,
       `try {\n  Object.defineProperty(process, 'execPath', { value: ${JSON.stringify(this.node)}, configurable: true, writable: true })\n} catch {\n  process.execPath = ${JSON.stringify(this.node)}\n}`,
       `if (process.execPath !== ${JSON.stringify(this.node)}) console.log('the window could not take the node of the build: it runs ' + process.execPath)`,
-      `const { ensureOwnedDaemon } = await import(${JSON.stringify(join(ROOT, 'src/services/switchboard/ensureDaemon.ts'))})`,
+      `const { ensureOwnedDaemon } = await import(${JSON.stringify(join(ROOT, 'src/daemon/switchboard/ensureDaemon.ts'))})`,
       "console.log('the window asks for its daemon')",
       'const usable = await ensureOwnedDaemon()',
       "console.log('the daemon of the window is usable: ' + usable)",
@@ -382,7 +382,7 @@ class World {
 
   async direct(label: string, daemon: Daemon, request: Reply, timeoutMs = 10_000): Promise<Reply> {
     ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
-    const { forwardFrame, predecessorSockPath } = await import('../../src/daemon/handover.ts')
+    const { forwardFrame, predecessorSockPath } = await import('../../src/daemon/control/handover.ts')
     let reply: Reply
     try {
       reply = (await forwardFrame(predecessorSockPath(daemon.pid), JSON.stringify(request), timeoutMs)) as Reply
@@ -504,7 +504,7 @@ class World {
 
   async lockHolder(label: string): Promise<ChildProcess> {
     const script = join(this.root, `${label}.ts`)
-    writeFileSync(script, `;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }\nconst { acquireDaemonLock } = await import(${JSON.stringify(join(ROOT, 'src/daemon/controlSocket.ts'))})\nconst lock = await acquireDaemonLock()\nconsole.log(lock === null ? 'refused' : 'held')\nsetInterval(() => {}, 1 << 30)\n`)
+    writeFileSync(script, `;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }\nconst { acquireDaemonLock } = await import(${JSON.stringify(join(ROOT, 'src/daemon/control/controlSocket.ts'))})\nconst lock = await acquireDaemonLock()\nconsole.log(lock === null ? 'refused' : 'held')\nsetInterval(() => {}, 1 << 30)\n`)
     const child = this.holder(label, script)
     let said = ''
     child.stdout?.on('data', data => (said += String(data)))

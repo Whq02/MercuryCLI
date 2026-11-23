@@ -5,7 +5,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const OVERFLOW_FAILURE_HINT = 'change the overflow recovery: decideOverflowRecovery in src/services/compact/overflowRecovery.ts, foldContext in src/run-core/turn/makeRequest.ts and classifyOverflowFault in src/services/api/overflowSignal.ts must read the limit from the vendor refusal and fold once; the row window comes from getContextWindowForModel in src/utils/model/capabilities.ts'
+const OVERFLOW_FAILURE_HINT = 'change the overflow recovery: decideOverflowRecovery in src/engine/compaction/overflowRecovery.ts, foldContext in src/engine/loop/turn/makeRequest.ts and classifyOverflowFault in src/engine/requests/overflowSignal.ts must read the limit from the vendor refusal and fold once; the row window comes from getContextWindowForModel in src/models/facts/capabilities.ts'
 let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -17,7 +17,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the served-window prover exceeded 240s; the query loop did not settle: look at the overflow recovery in src/run-core/turn/makeRequest.ts and src/services/compact/overflowRecovery.ts for a refused request that is resent or a fold that never ends')
+  console.log('\nTIMEOUT — the served-window prover exceeded 240s; the query loop did not settle: look at the overflow recovery in src/engine/loop/turn/makeRequest.ts and src/engine/compaction/overflowRecovery.ts for a refused request that is resent or a fold that never ends')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()
@@ -38,17 +38,17 @@ const { startOverflowFixture } = await import('../compact/overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/query.ts')
-const { productionDeps } = await import('../../src/query/deps.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const caps = await import('../../src/utils/model/capabilities.ts')
-const { getAutoCompactThreshold } = await import('../../src/services/compact/autoCompact.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const caps = await import('../../src/models/facts/capabilities.ts')
+const { getAutoCompactThreshold } = await import('../../src/engine/compaction/autoFold.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
 const textOf = (m: unknown): string => {

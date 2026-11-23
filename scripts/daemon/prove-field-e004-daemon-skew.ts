@@ -14,11 +14,11 @@ if (!existsSync(BUNDLE)) {
 
 let failures = 0
 const hintFor = (label: string): string => {
-  if (label.startsWith('A')) return 'fix the handshake verdict, heal and line words in src/daemon/handshake.ts (decideHandshake, applyHeal, daemonSkewLine, reopenWayOut, daemonBuildBesideScreen) or isScreenHealAsk in src/daemon/verbs.ts'
-  if (label.startsWith('B')) return 'fix the install layout resolution in src/daemon/handover.ts (releaseDeployedRuntime, deployedRuntime)'
-  if (label.startsWith('DI')) return 'fix moveDaemonAfterInstallerUpgrade in src/cli/update.ts or the restart-when-idle ask in src/daemon/handshake.ts'
-  if (label.startsWith('E')) return 'fix the Scheduler daemon health row in src/services/health/sections/crew/daemon.ts or the skew words in src/daemon/handshake.ts (daemonSkewLine, daemonHandshakeEvidence)'
-  return 'fix the heal and handover in src/daemon/handshake.ts (healDaemonVersion, moveDaemonToDeployedBuild) and src/daemon/handover.ts'
+  if (label.startsWith('A')) return 'fix the handshake verdict, heal and line words in src/daemon/control/handshake.ts (decideHandshake, applyHeal, daemonSkewLine, reopenWayOut, daemonBuildBesideScreen) or isScreenHealAsk in src/daemon/control/verbs.ts'
+  if (label.startsWith('B')) return 'fix the install layout resolution in src/daemon/control/handover.ts (releaseDeployedRuntime, deployedRuntime)'
+  if (label.startsWith('DI')) return 'fix moveDaemonAfterInstallerUpgrade in src/commands/verbs/update.ts or the restart-when-idle ask in src/daemon/control/handshake.ts'
+  if (label.startsWith('E')) return 'fix the Scheduler daemon health row in src/platform/health/sections/crew/daemon.ts or the skew words in src/daemon/control/handshake.ts (daemonSkewLine, daemonHandshakeEvidence)'
+  return 'fix the heal and handover in src/daemon/control/handshake.ts (healDaemonVersion, moveDaemonToDeployedBuild) and src/daemon/control/handover.ts'
 }
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
@@ -80,11 +80,11 @@ const newDir = writePayload(NEW_VERSION, NEW_TREE)
 const pointTo = (version: string): void => writeFileSync(join(versionsDir, 'current.txt'), `${version} \r\n`)
 pointTo(NEW_VERSION)
 
-const hsMod = await import(join(ROOT, 'src/daemon/handshake.ts'))
-const handover = await import(join(ROOT, 'src/daemon/handover.ts'))
-const sock = await import(join(ROOT, 'src/daemon/controlSocket.ts'))
-const protocol = await import(join(ROOT, 'src/daemon/protocol.ts'))
-const { isProcessAlive } = await import(join(ROOT, 'src/utils/ownerWatch.ts'))
+const hsMod = await import(join(ROOT, 'src/daemon/control/handshake.ts'))
+const handover = await import(join(ROOT, 'src/daemon/control/handover.ts'))
+const sock = await import(join(ROOT, 'src/daemon/control/controlSocket.ts'))
+const protocol = await import(join(ROOT, 'src/daemon/control/protocol.ts'))
+const { isProcessAlive } = await import(join(ROOT, 'src/daemon/control/ownerWatch.ts'))
 const { MERCURY_DAEMON_PROTO } = protocol
 
 const helloReply = (over: Record<string, unknown>): never =>
@@ -121,7 +121,7 @@ section('§A the pure grammar: a daemon of another build is visible')
   const equalForward = hsMod.applyHeal(hsMod.decideHandshake({ kind: 'hello', reply: helloReply({ version: NEW_VERSION, buildTree: OLD_TREE.slice(0, 12) }) }, screen), { state: 'refused', live: 0, detail: 'another build is installed' })
   check('A13 a refused same-version heal cannot establish build order either', equalForward.line === `daemon (tree a91f96d7a74b) is another build of this Mercury v${NEW_VERSION} (tree 0518549998ad) — build order unknown; new sessions run on its build until it restarts · /daemon shows the builds`, String(equalForward.line))
   check('A14 the health row and the "Mercury build" row carry the reopen words for the reversed arm; the certificate evidence names the older side', hsMod.daemonSkewLine(reversed) === reversed.line && String(hsMod.daemonBuildBesideScreen(reversed)).includes('(the installed build — close this window and open Mercury again)') && hsMod.daemonHandshakeEvidence(reversed).includes('this Mercury is not the installed build — close this window and open Mercury again'), `${hsMod.daemonBuildBesideScreen(reversed)} | ${hsMod.daemonHandshakeEvidence(reversed)}`)
-  const verbs = (await import(join(ROOT, 'src/daemon/verbs.ts'))) as { isScreenHealAsk?: (by: string) => boolean }
+  const verbs = (await import(join(ROOT, 'src/daemon/control/verbs.ts'))) as { isScreenHealAsk?: (by: string) => boolean }
   const heal = verbs.isScreenHealAsk ?? ((): boolean | null => null)
   check('A15 the daemon tells a screen\'s version heal from the operator\'s hand by the ask\'s by-word (the spelling every build\'s heal sends)', heal('screen 4242') === true && heal('operator') === false && heal('mercury daemon restart') === false && heal('mercury update') === false && heal('screen x') === false)
 }
@@ -216,10 +216,10 @@ section('§C the heal moves a release install: a daemon of the old payload is su
     const entryBefore = process.argv[1]
     process.argv[1] = join(newDir, 'mercury.mjs')
     hsMod.resetDaemonHandshakeForTesting()
-    const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
-    const { identityChecks } = await import('../../src/services/health/sections/identity.ts')
-    const { healthContext } = await import('../../src/services/health/healthReport.ts')
-    const { artifactIdentityLine, describeArtifactIdentity } = await import('../../src/utils/artifactIdentity.ts')
+    const { crewChecks } = await import('../../src/platform/health/sections/crew.ts')
+    const { identityChecks } = await import('../../src/platform/health/sections/identity.ts')
+    const { healthContext } = await import('../../src/platform/health/healthReport.ts')
+    const { artifactIdentityLine, describeArtifactIdentity } = await import('../../src/platform/product/artifactIdentity.ts')
     const context = await healthContext()
     const daemonRow = await crewChecks().find(row => row.id === 'daemon')?.run()
     const buildRow = await identityChecks(context).find(row => row.id === 'build-identity')?.run()
@@ -250,7 +250,7 @@ section('§C the heal moves a release install: a daemon of the old payload is su
     const entryBefore = process.argv[1]
     process.argv[1] = join(oldDir, 'mercury.mjs')
     hsMod.resetDaemonHandshakeForTesting()
-    const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
+    const { crewChecks } = await import('../../src/platform/health/sections/crew.ts')
     const reopenRow = await crewChecks().find(row => row.id === 'daemon')?.run()
     const seen = await hsMod.handshakeDaemon({ timeoutMs: 1000 })
     process.argv[1] = entryBefore!
@@ -284,7 +284,7 @@ section('§D `mercury update` ends by moving a daemon of another build, and says
 {
   hsMod.resetDaemonHandshakeForTesting()
   hsMod.resetHandoverAsksForTesting()
-  ;(await import(join(ROOT, 'src/daemon/ownedDaemon.ts'))).resetOwnedDaemonBreakerForTesting()
+  ;(await import(join(ROOT, 'src/daemon/control/ownedDaemon.ts'))).resetOwnedDaemonBreakerForTesting()
   const old = startDaemon(join(oldDir, 'mercury.mjs'))
   spawned.add(old.pid)
   await readyAt(old.pid)
@@ -307,8 +307,8 @@ section('§DI the installer roads (no versions layout for Mercury to point at): 
 {
   hsMod.resetDaemonHandshakeForTesting()
   hsMod.resetHandoverAsksForTesting()
-  ;(await import(join(ROOT, 'src/daemon/ownedDaemon.ts'))).resetOwnedDaemonBreakerForTesting()
-  const updateMod = (await import(join(ROOT, 'src/cli/update.ts'))) as { moveDaemonAfterInstallerUpgrade?: (to: string) => Promise<{ state: string; line: string } | null> }
+  ;(await import(join(ROOT, 'src/daemon/control/ownedDaemon.ts'))).resetOwnedDaemonBreakerForTesting()
+  const updateMod = (await import(join(ROOT, 'src/commands/verbs/update.ts'))) as { moveDaemonAfterInstallerUpgrade?: (to: string) => Promise<{ state: string; line: string } | null> }
   const mover = typeof updateMod.moveDaemonAfterInstallerUpgrade === 'function' ? updateMod.moveDaemonAfterInstallerUpgrade : null
   rmSync(join(versionsDir, 'current.txt'), { force: true })
   check('DI1 with no pointer and no runtime directory nothing is deployed for Mercury to move the daemon onto (the installer owns the layout)', handover.deployedRuntime(home) === null)

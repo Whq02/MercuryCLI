@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
-import * as factories from '../../src/utils/messages/factories.js'
-import * as system from '../../src/utils/messages/systemMessages.js'
-import { normalizeAttachmentForAPI } from '../../src/services/messages/attachmentText.js'
-import { errorDrivenStripTargets } from '../../src/services/messages/apiPlan.js'
-import { getImageTooLargeErrorMessage, getPdfInvalidErrorMessage, getRequestTooLargeErrorMessage } from '../../src/services/api/errors.js'
-import { NO_CONTENT_MESSAGE } from '../../src/constants/messages.js'
+import * as factories from '../../src/engine/message-shapes/factories.js'
+import * as system from '../../src/engine/message-shapes/systemMessages.js'
+import { normalizeAttachmentForAPI } from '../../src/engine/messages/attachmentText.js'
+import { errorDrivenStripTargets } from '../../src/engine/messages/apiPlan.js'
+import { getImageTooLargeErrorMessage, getPdfInvalidErrorMessage, getRequestTooLargeErrorMessage } from '../../src/engine/requests/apiErrorRows.js'
+import { NO_CONTENT_MESSAGE } from '../../src/engine/message-shapes/noContentMessage.js'
 
 let checks = 0
 function test(name: string, body: () => void): void {
@@ -24,9 +24,9 @@ test('user metadata keeps absent keys, ignores extras and retains a nonempty bat
   const row = user({ content: '', batchUuids: batch, extra: 'discard' } as never)
   assert.equal(row.message.content, NO_CONTENT_MESSAGE)
   assert.equal(row.batchUuids, batch)
-  assert(!('extra' in row), 'createUserMessage in src/utils/messages/factories.js must discard unknown extra keys')
+  assert(!('extra' in row), 'createUserMessage in src/engine/message-shapes/factories.js must discard unknown extra keys')
   for (const key of ['origin', 'toolUseResult', 'mcpMeta', 'imagePasteIds', 'permissionMode', 'sourceToolAssistantUUID', 'summarizeMetadata', 'isMeta', 'isVirtual', 'isCompactSummary', 'isVisibleInTranscriptOnly']) assert(Object.hasOwn(row, key), key)
-  assert(!Object.hasOwn(user({ content: [], batchUuids: [] }), 'batchUuids'), 'createUserMessage in src/utils/messages/factories.js must omit empty batchUuids')
+  assert(!Object.hasOwn(user({ content: [], batchUuids: [] }), 'batchUuids'), 'createUserMessage in src/engine/message-shapes/factories.js must omit empty batchUuids')
   const content: never[] = []
   assert.equal(user({ content }).message.content, content)
 })
@@ -37,40 +37,40 @@ test('assistant defaults are independent and supplied content and usage retain i
   assert.notEqual(one.message.usage.server_tool_use, two.message.usage.server_tool_use)
   assert.notEqual(one.message.usage.cache_creation, two.message.usage.cache_creation)
   assert.equal((one.message.content[0] as { text: string }).text, NO_CONTENT_MESSAGE)
-  assert(!Object.hasOwn(one.message.content[0]!, 'citations'), 'createAssistantMessage in src/utils/messages/factories.js must omit default citations key')
+  assert(!Object.hasOwn(one.message.content[0]!, 'citations'), 'createAssistantMessage in src/engine/message-shapes/factories.js must omit default citations key')
   const content = [call('x')]
   const copied = assistant({ content, usage: one.message.usage })
   assert.equal(copied.message.content, content)
   assert.equal(copied.message.usage, one.message.usage)
   const error = factories.createAssistantAPIErrorMessage({ content: '', overflow: null, mediaRefusal: null, busyRefusal: null })
-  assert(!('overflowSignal' in error) && !('mediaRefusal' in error) && !('busyRefusal' in error), 'createAssistantAPIErrorMessage in src/utils/messages/factories.js must omit null overflow/media/busy signals')
-  assert(factories.isSyntheticApiErrorMessage(error), 'isSyntheticApiErrorMessage in src/utils/messages/factories.js must recognize created API error row')
+  assert(!('overflowSignal' in error) && !('mediaRefusal' in error) && !('busyRefusal' in error), 'createAssistantAPIErrorMessage in src/engine/message-shapes/factories.js must omit null overflow/media/busy signals')
+  assert(factories.isSyntheticApiErrorMessage(error), 'isSyntheticApiErrorMessage in src/engine/message-shapes/factories.js must recognize created API error row')
 })
 test('command tags retain their ordering and unescaped data; breadcrumbs each mint a virtual row', () => {
   assert.equal(factories.formatCommandInputTags('test', ''), '<command-message>test</command-message><command-name>/test</command-name>')
   assert.equal(factories.formatCommandInputTags('/test', '<x>'), '<command-message>/test</command-message><command-name>//test</command-name><command-args><x></command-args>')
   const trail = factories.createModelSwitchBreadcrumbs('choice', 'Display')
   assert.equal(new Set(trail.map(row => row.uuid)).size, 3)
-  assert(trail.every(row => row.isVirtual), 'createModelSwitchBreadcrumbs in src/utils/messages/factories.js must mark all breadcrumb rows virtual')
+  assert(trail.every(row => row.isVirtual), 'createModelSwitchBreadcrumbs in src/engine/message-shapes/factories.js must mark all breadcrumb rows virtual')
   assert.equal(trail[0]!.isMeta, true)
   assert.equal(trail[1]!.isMeta, undefined)
   assert.equal(trail[2]!.message.content, '<local-command-stdout>Model now: Display</local-command-stdout>')
 })
 test('system optional fields distinguish absent, empty, zero and false values', () => {
   const minimal = system.createStreamCutMessage({ content: '', count: 0 })
-  assert(!('road' in minimal) && !('sent' in minimal) && !('code' in minimal), 'createStreamCutMessage in src/utils/messages/systemMessages.js must omit absent road/sent/code fields')
+  assert(!('road' in minimal) && !('sent' in minimal) && !('code' in minimal), 'createStreamCutMessage in src/engine/message-shapes/systemMessages.js must omit absent road/sent/code fields')
   assert.equal(system.createStreamCutMessage({ content: '', count: 0, road: '' }).road, '')
   assert.equal(system.createBusyRecoveryMessage({ content: '', provider: '', retries: 0, elapsedMs: 0, status: 0 }).status, 0)
-  assert(!('preventContinuation' in system.createSystemMessage('', 'info', undefined, false)), 'createSystemMessage in src/utils/messages/systemMessages.js must omit preventContinuation when false')
+  assert(!('preventContinuation' in system.createSystemMessage('', 'info', undefined, false)), 'createSystemMessage in src/engine/message-shapes/systemMessages.js must omit preventContinuation when false')
   assert.equal(system.createSystemMessage('', 'info', undefined, true).preventContinuation, true)
-  assert(!('recapMetadata' in system.createAwaySummaryMessage('')), 'createAwaySummaryMessage in src/utils/messages/systemMessages.js must omit recapMetadata when absent')
+  assert(!('recapMetadata' in system.createAwaySummaryMessage('')), 'createAwaySummaryMessage in src/engine/message-shapes/systemMessages.js must omit recapMetadata when absent')
   const duration = system.createTurnDurationMessage(0)
-  for (const field of ['budgetTokens', 'budgetLimit', 'budgetNudges', 'messageCount']) assert(Object.hasOwn(duration, field), `createTurnDurationMessage in src/utils/messages/systemMessages.js must declare own property ${field}`)
+  for (const field of ['budgetTokens', 'budgetLimit', 'budgetNudges', 'messageCount']) assert(Object.hasOwn(duration, field), `createTurnDurationMessage in src/engine/message-shapes/systemMessages.js must declare own property ${field}`)
   const err = new Error('outer', { cause: new Error('inner') })
   const retry = system.createSystemAPIErrorMessage(err, 0, 1, 3, { recoveryTimeoutMs: 0 })
   assert.equal(retry.error, err)
   assert.equal(retry.cause, err.cause)
-  assert(!('isMeta' in retry) && !('recoveryTimeoutMs' in retry), 'createSystemAPIErrorMessage in src/utils/messages/systemMessages.js must omit isMeta and zero recoveryTimeoutMs')
+  assert(!('isMeta' in retry) && !('recoveryTimeoutMs' in retry), 'createSystemAPIErrorMessage in src/engine/message-shapes/systemMessages.js must omit isMeta and zero recoveryTimeoutMs')
   assert.equal(system.createSystemAPIErrorMessage(err, 0, 1, 3, { recoveryTimeoutMs: 1 }).recoveryTimeoutMs, 1)
 })
 test('tool count caps are per row, zero is unlimited, and the cap stops the walk', () => {
@@ -154,11 +154,11 @@ test('non-string assistant content passes through at runtime and prefix holes be
   for (const content of [null, undefined, {}, 0]) assert.equal(assistant({ content } as never).message.content, content)
   const prefix = new Array(1)
   const prepared = factories.prepareUserContent({ inputString: 'tail', precedingInputBlocks: prefix })
-  assert(Array.isArray(prepared), 'prepareUserContent in src/utils/messages/factories.js must return an array when precedingInputBlocks is non-empty')
+  assert(Array.isArray(prepared), 'prepareUserContent in src/engine/message-shapes/factories.js must return an array when precedingInputBlocks is non-empty')
   assert.equal(prepared.length, 2)
-  assert(0 in prepared, 'prepareUserContent in src/utils/messages/factories.js must materialize sparse prefix hole at index 0')
+  assert(0 in prepared, 'prepareUserContent in src/engine/message-shapes/factories.js must materialize sparse prefix hole at index 0')
   assert.equal(prepared[0], undefined)
   assert.deepEqual(prepared[1], { type: 'text', text: 'tail' })
-  assert(!(0 in prefix), 'prepareUserContent in src/utils/messages/factories.js must not mutate caller sparse prefix array')
+  assert(!(0 in prefix), 'prepareUserContent in src/engine/message-shapes/factories.js must not mutate caller sparse prefix array')
 })
 console.log(`PASS render records: ${checks} checks`)

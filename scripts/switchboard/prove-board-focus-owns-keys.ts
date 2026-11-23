@@ -18,13 +18,13 @@ let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('         fix: legend rows and key law live in regionKeysFor, newSessionTabLabel and helpKeyFiresFor (src/components/concourse/controlManifest.ts); the New Session line words in newSessionDoorWords (src/components/concourse/layout/shared.ts); the frame checks read the built bundle, so rebuild with bun run build.ts before judging them')
+  if (!cond) console.log('         fix: legend rows and key law live in regionKeysFor, newSessionTabLabel and helpKeyFiresFor (src/screen/concourse/controlManifest.ts); the New Session line words in newSessionDoorWords (src/screen/concourse/layout/shared.ts); the frame checks read the built bundle, so rebuild with bun run build.ts before judging them')
 }
 const section = (t: string): void => console.log(`\n── ${t} ──`)
 
 section('§1 the pure legend law — one resolver, every list state')
 {
-  const { regionKeysFor, newSessionTabLabel, helpKeyFiresFor, CONCOURSE_REGION_KEYS } = await import('../../src/components/concourse/controlManifest.js')
+  const { regionKeysFor, newSessionTabLabel, helpKeyFiresFor, CONCOURSE_REGION_KEYS } = await import('../../src/screen/concourse/controlManifest.js')
   const classes = ['live', 'paused', 'attached', 'queued', 'parked', 'stopped', 'door', 'none'] as const
   const isLetterVerb = (keys: string): boolean => /^[a-z\/]$/.test(keys) || keys === 'space'
   for (const selection of classes) {
@@ -53,7 +53,7 @@ section('§1 the pure legend law — one resolver, every list state')
   check("the header's n prints exactly where the key fires: the rows, no filter typing", newSessionTabLabel({ region: 'list', filtering: false }) === '+ new session · n')
   check('…and not while the / filter captures', newSessionTabLabel({ region: 'list', filtering: true }) === '+ new session')
   check('…nor while the composer, the rail or the split pane holds focus (n is a letter there, or nothing)', ['live', 'rail', 'chat'].every(r => newSessionTabLabel({ region: r, filtering: false }) === '+ new session'))
-  const { newSessionDoorWords, NEW_SESSION_DOOR_WORDS } = await import('../../src/components/concourse/ConcourseLayout.js')
+  const { newSessionDoorWords, NEW_SESSION_DOOR_WORDS } = await import('../../src/screen/concourse/ConcourseLayout.js')
   check("the New Session line's words say where n fires: on the rows, 'n starts a blank session in this project'", newSessionDoorWords({ region: 'list', filtering: false }) === NEW_SESSION_DOOR_WORDS && NEW_SESSION_DOOR_WORDS === 'n starts a blank session in this project')
   check("…and from a focused composer, the rail, the split pane or under the filter: 'tab to the list, then n …' — never a key that types into a draft (the Air's 7R-05/8R-05)", ['live', 'rail', 'chat'].every(r => newSessionDoorWords({ region: r, filtering: false }) === `tab to the list, then ${NEW_SESSION_DOOR_WORDS}`) && newSessionDoorWords({ region: 'list', filtering: true }) === `tab to the list, then ${NEW_SESSION_DOOR_WORDS}`)
   check('the atlas key fires from the rows, the rail and the split pane whatever the drafts hold', ['list', 'rail', 'chat'].every(r => helpKeyFiresFor(r, false) && helpKeyFiresFor(r, true)))

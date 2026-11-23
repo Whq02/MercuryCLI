@@ -33,23 +33,23 @@ process.env.MERCURY_ENTRYPOINT = 'cli'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? ' | change processBashCommand in src/services/processUserInput/processBashCommand.tsx (the card row and its stderr) or UserBashOutputMessage in src/components/messages/UserBashOutputMessage.tsx (the painted frame)' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? ' | change processBashCommand in src/engine/user-input/processBashCommand.tsx (the card row and its stderr) or UserBashOutputMessage in src/screen/messages/UserBashOutputMessage.tsx (the painted frame)' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const clip = (text: string, limit = 300): string => JSON.stringify(text.length > limit ? `${text.slice(0, limit)}…` : text)
 const NOTICE = /session env scrubbed|inherit_session_env|Mercury's own stamps/
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { processBashCommand } = await import('../../src/services/processUserInput/processBashCommand.tsx')
-const { extractTag } = await import('../../src/services/messages.ts')
-const { unescapeXml } = await import('../../src/utils/xml.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
-const { render, Box, flushPendingSyncWork } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { UserBashOutputMessage } = await import('../../src/components/messages/UserBashOutputMessage.js')
+const { processBashCommand } = await import('../../src/engine/user-input/processBashCommand.tsx')
+const { extractTag } = await import('../../src/engine/messages/messages.ts')
+const { unescapeXml } = await import('../../src/platform/text/xml.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
+const { render, Box, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { UserBashOutputMessage } = await import('../../src/screen/messages/UserBashOutputMessage.js')
 setIsInteractive(false)
 
 let appState = getDefaultAppState()

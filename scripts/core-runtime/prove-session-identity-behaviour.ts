@@ -2,10 +2,10 @@
 import { mkdirSync, mkdtempSync, realpathSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { SessionIdentityOwner } from '../../src/bootstrap/runtime/session-identity.ts'
+import { SessionIdentityOwner } from '../../src/boot/process-state/runtime/session-identity.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
-const WHERE = 'SessionIdentityOwner in src/bootstrap/runtime/session-identity.ts'
+const WHERE = 'SessionIdentityOwner in src/boot/process-state/runtime/session-identity.ts'
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const DECOMPOSED = 'cafe\u0301'
 const COMPOSED = 'caf\u00e9'

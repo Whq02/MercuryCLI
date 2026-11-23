@@ -14,7 +14,7 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 seedFirstRun(home, [cwd])
-const { default: command, verifierPrompt } = await import('../../src/commands/verify.ts')
+const { default: command, verifierPrompt } = await import('../../src/commands/verify/index.ts')
 const focus = 'the parser boundary'
 const brief = verifierPrompt(`Focus the verification on: ${focus}`)
 const expansion = (await command.getPromptForCommand(focus)).map(block => block.text).join('\n')
@@ -26,7 +26,7 @@ const fixture = await startFixtureApi([
 ])
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok ? ` — change the /verify command (verifierPrompt and getPromptForCommand in src/commands/verify.ts) so its expansion and Crewmate brief reach the model${detail ? `: ${detail}` : ''}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok ? ` — change the /verify command (verifierPrompt and getPromptForCommand in src/commands/verify/index.ts) so its expansion and Crewmate brief reach the model${detail ? `: ${detail}` : ''}` : ''}`)
   if (!ok) failures++
 }
 try {

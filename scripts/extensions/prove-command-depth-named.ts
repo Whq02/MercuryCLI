@@ -12,8 +12,8 @@ const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
   if (!cond) failures++
 }
 
-const manifestMod = await import('../../src/extensions/manifest.ts')
-const contributions = await import('../../src/extensions/load/contributions.ts')
+const manifestMod = await import('../../src/integrations/extensions/manifest.ts')
+const contributions = await import('../../src/integrations/extensions/load/contributions.ts')
 
 const MANIFEST = {
   name: 'depthy',
@@ -50,13 +50,13 @@ console.log('§1 the buried file is a NAMED defect')
     'the contract stands: top and one-deep load',
     names.join(',') === 'depthy:sub:mid,depthy:top',
     names.join(','),
-    'resolveContributions in src/extensions/load/contributions.ts must load commands at the top and one folder deep',
+    'resolveContributions in src/integrations/extensions/load/contributions.ts must load commands at the top and one folder deep',
   )
   check(
     'the exclusion is a defect naming the buried subtree and the one-folder contract',
     res.defects.some(d => d.includes('sub/deeper') && d.includes('one folder deep')),
     res.defects.join('; ') || '(no defects)',
-    'resolveContributions in src/extensions/load/contributions.ts must add a defect that names the nested subtree and says the commands namespace is one folder deep',
+    'resolveContributions in src/integrations/extensions/load/contributions.ts must add a defect that names the nested subtree and says the commands namespace is one folder deep',
   )
 }
 
@@ -64,14 +64,14 @@ console.log('\n§2 without the buried file the trees are distinguishable (contro
 {
   const root = buildTree(false, false)
   const res = contributions.resolveContributions(parsed.manifest, root, 'depthy@x', probes)
-  check('no depth defect when nothing is buried', !res.defects.some(d => d.includes('deeper')), res.defects.join('; '), 'resolveContributions in src/extensions/load/contributions.ts must raise a depth defect only when a nested folder holds an .md file')
+  check('no depth defect when nothing is buried', !res.defects.some(d => d.includes('deeper')), res.defects.join('; '), 'resolveContributions in src/integrations/extensions/load/contributions.ts must raise a depth defect only when a nested folder holds an .md file')
 }
 
 console.log('\n§3 an empty deep folder is not a finding')
 {
   const root = buildTree(false, true)
   const res = contributions.resolveContributions(parsed.manifest, root, 'depthy@x', probes)
-  check('an empty nested folder raises nothing', res.defects.length === 0, res.defects.join('; '), 'resolveContributions in src/extensions/load/contributions.ts must not raise a defect for an empty nested folder')
+  check('an empty nested folder raises nothing', res.defects.length === 0, res.defects.join('; '), 'resolveContributions in src/integrations/extensions/load/contributions.ts must not raise a defect for an empty nested folder')
 }
 
 console.log(failures === 0 ? '\nprove-command-depth-named: all green' : `\nprove-command-depth-named: ${failures} FAILURE(S)`)

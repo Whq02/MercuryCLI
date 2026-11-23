@@ -12,7 +12,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
-  if (!cond) console.log('    what to change: make the tool match this label in src/tools/BlenderTool/show.ts (parseShowList, readShown, SHOW_SHAPE_RULE) or src/tools/BlenderTool/BlenderTool.ts (call, checkPermissions, mapToolResultToToolResultBlockParam)')
+  if (!cond) console.log('    what to change: make the tool match this label in src/tools/blender/show.ts (parseShowList, readShown, SHOW_SHAPE_RULE) or src/tools/blender/BlenderTool.ts (call, checkPermissions, mapToolResultToToolResultBlockParam)')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -58,15 +58,15 @@ process.env.MERCURY_BLENDER_BIN = fixture.bin
 process.env.MERCURY_BLENDER_BRIDGE_PORT = String(await freshDeadPort())
 process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR = addonHome
 
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const { BlenderTool } = await import('../../src/tools/BlenderTool/BlenderTool.js')
-const { getBlenderToolDescription } = await import('../../src/tools/BlenderTool/prompt.js')
-const { resetBlenderBridgeClientForTest } = await import('../../src/services/blender/bridgeClient.js')
-const { _resetBlenderBridgeContextCacheForTesting } = await import('../../src/utils/blender/bridgeGates.js')
-const installer = await import('../../src/services/blender/bridgeInstaller.js')
-const { readBlenderBridgeToken } = await import('../../src/services/blender/bridgeToken.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
+const { BlenderTool } = await import('../../src/tools/blender/BlenderTool.js')
+const { getBlenderToolDescription } = await import('../../src/tools/blender/prompt.js')
+const { resetBlenderBridgeClientForTest } = await import('../../src/integrations/blender/bridgeClient.js')
+const { _resetBlenderBridgeContextCacheForTesting } = await import('../../src/integrations/blender-protocol/bridgeGates.js')
+const installer = await import('../../src/integrations/blender/bridgeInstaller.js')
+const { readBlenderBridgeToken } = await import('../../src/integrations/blender/bridgeToken.js')
 const { startFakeBlenderBridge } = await import('./fake-bridge.js')
-const { decodePng } = await import('../../src/utils/imageProcessor/imageProcessorJs.js')
+const { decodePng } = await import('../../src/platform/images/imageProcessorJs.js')
 resetBlenderBridgeClientForTest()
 _resetBlenderBridgeContextCacheForTesting()
 

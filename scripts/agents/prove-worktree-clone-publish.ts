@@ -14,17 +14,17 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change cloneIntoWorktree (the .cloning- staging folder and its publish) in src/utils/worktreeClone.ts, the dependency-folder placement in src/services/worktree.ts, or the janitor cleanupStaleAgentWorktrees there; worker copies: ensureWorkerWorktree and reapWorkerWorktree in src/daemon/concourseWorktrees.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change cloneIntoWorktree (the .cloning- staging folder and its publish) in src/platform/git/worktree/worktreeClone.ts, the dependency-folder placement in src/platform/git/worktree/worktree.ts, or the janitor cleanupStaleAgentWorktrees there; worker copies: ensureWorkerWorktree and reapWorkerWorktree in src/daemon/concourse-workers/concourseWorktrees.ts' : ''}`)
   if (!cond) failures++
 }
 const skip = (label: string): void => console.log(`  [SKIP] ${label}`)
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const state = await import('../../src/bootstrap/state.ts')
-const config = await import('../../src/utils/config/globalConfig.ts')
-const { cleanupStaleAgentWorktrees, createAgentWorktree } = await import('../../src/services/worktree.ts')
-const { ensureWorkerWorktree, reapWorkerWorktree } = await import('../../src/daemon/concourseWorktrees.ts')
-const { crewLeftoverWorktrees } = await import('../../src/services/crew/crewWorktreeReminder.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const config = await import('../../src/platform/config/globalConfig.ts')
+const { cleanupStaleAgentWorktrees, createAgentWorktree } = await import('../../src/platform/git/worktree/worktree.ts')
+const { ensureWorkerWorktree, reapWorkerWorktree } = await import('../../src/daemon/concourse-workers/concourseWorktrees.ts')
+const { crewLeftoverWorktrees } = await import('../../src/crew/crewmates/crewWorktreeReminder.ts')
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-clone-publish-')))
 const links = accountLinks(scratch)
@@ -195,9 +195,9 @@ try {
       [
         ';(globalThis as Record<string, unknown>).MACRO = { VERSION: \'1.0.0\' }',
         'process.env.NODE_ENV = \'test\'',
-        `const state = await import(${JSON.stringify(join(ROOT, 'src/bootstrap/state.ts'))})`,
-        `const config = await import(${JSON.stringify(join(ROOT, 'src/utils/config/globalConfig.ts'))})`,
-        `const { createAgentWorktree } = await import(${JSON.stringify(join(ROOT, 'src/services/worktree.ts'))})`,
+        `const state = await import(${JSON.stringify(join(ROOT, 'src/boot/process-state/processState.ts'))})`,
+        `const config = await import(${JSON.stringify(join(ROOT, 'src/platform/config/globalConfig.ts'))})`,
+        `const { createAgentWorktree } = await import(${JSON.stringify(join(ROOT, 'src/platform/git/worktree/worktree.ts'))})`,
         'const fixture = process.argv[2] as string',
         'process.chdir(fixture)',
         'state.setOriginalCwd(fixture)',

@@ -14,10 +14,10 @@ process.env.BROWSER = '/usr/bin/true'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 
-const { projectTimeBasedMicrocompact, microcompactMessages } = await import('../../src/services/compact/microCompact.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { isClearedOrDigested } = await import('../../src/services/compact/microCompactDigest.ts')
-type Message = import('../../src/types/message.ts').Message
+const { projectTimeBasedMicrocompact, microcompactMessages } = await import('../../src/engine/compaction/pruneToolResults.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { isClearedOrDigested } = await import('../../src/engine/compaction/pruneDigest.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 const big = 'the complete original result remains available until a successful later file operation supersedes it\n'.repeat(800)
 const history: Message[] = [createUserMessage({ content: 'keep the operator instruction verbatim' })]
 function pair(id: string, name: string, input: Record<string, unknown>, content = big, error = false): void {
@@ -55,7 +55,7 @@ const contentOf = (messages: Message[], id: string): string => {
   return ''
 }
 let failures = 0
-const check = (label: string, passed: boolean): void => { if (!passed) failures++; console.log(`[${passed ? 'PASS' : 'FAIL'}] ${label}${passed ? '' : ' \u2014 fix projectTimeBasedMicrocompact in src/services/compact/microCompact.ts (selection of superseded results, protections from src/services/compact/pruneProtections.ts); the notice checks read overflowRecoveryNotice in src/services/compact/overflowRecovery.ts; the plan checks read buildRequestContextPlan in src/services/run/requestContextPlan.ts'}`) }
+const check = (label: string, passed: boolean): void => { if (!passed) failures++; console.log(`[${passed ? 'PASS' : 'FAIL'}] ${label}${passed ? '' : ' \u2014 fix projectTimeBasedMicrocompact in src/engine/compaction/pruneToolResults.ts (selection of superseded results, protections from src/engine/compaction/pruneProtections.ts); the notice checks read overflowRecoveryNotice in src/engine/compaction/overflowRecovery.ts; the plan checks read buildRequestContextPlan in src/engine/run/requestContextPlan.ts'}`) }
 check('a later successful Edit supersedes the old same-path Read', size !== null && isClearedOrDigested(contentOf(size.messages, 'read_old')))
 check('a later successful Read supersedes the old same-path Write', size !== null && isClearedOrDigested(contentOf(size.messages, 'write_old')))
 for (const id of ['edit_later', 'read_later', 'read_unique', 'bash_old', 'grep_old', 'failed_later_old', 'unpaired_old', 'dedup_original']) {
@@ -81,9 +81,9 @@ check('a prune that cannot reach the target does not land', size !== null && pro
 const noInvalidations: string[] = []
 const insufficient = await microcompactMessages(history, undefined, 'sdk', { readFileState: { delete: path => { noInvalidations.push(path); return true } } }, { pressure: true, supersededOnly: true, minimumTokensSaved: Number.MAX_SAFE_INTEGER })
 check('an insufficient prune has no live side effects or replacement receipt', insufficient.messages === history && insufficient.pruned === undefined && noInvalidations.length === 0)
-const { buildRequestContextPlan } = await import('../../src/services/run/requestContextPlan.ts')
-const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { buildRequestContextPlan } = await import('../../src/engine/run/requestContextPlan.ts')
+const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 const ledger = createContentReplacementState()
 const persisted: Array<{ toolUseId: string; replacement: string }> = []
 const planInput = { messages: history, owner: processMainOwner(), querySource: 'sdk' as const, contentReplacementState: ledger, skipToolNames: new Set(['Read', 'Edit', 'Write', 'Bash', 'Grep']), persistReplacements: async (records: Array<{ toolUseId: string; replacement: string }>) => { persisted.push(...records) } }
@@ -106,9 +106,9 @@ const timedHistory = history.map(message => ({ ...message, timestamp: oldTimesta
 const timedPlan = await buildRequestContextPlan({ ...planInput, messages: timedHistory, querySource: 'main_thread', contentReplacementState: createContentReplacementState(), pressurePrune: { minimumTokensSaved: Number.MAX_SAFE_INTEGER } }, 'apply')
 check('a time-gap prune keeps its wider selection and is attributed only to time', timedPlan.reductions.timeBasedCleared > 0 && timedPlan.reductions.pressurePruned === undefined && !timedPlan.reductions.reasons.some(reason => reason.includes('context size')) && isClearedOrDigested(contentOf(timedPlan.messages, 'read_unique')))
 process.env.MERCURY_TIME_BASED_MC = '0'
-const recovery = await import('../../src/services/compact/overflowRecovery.ts') as Record<string, unknown>
-check('the proactive size-prune road is gone: no request, no notice, no threshold flag', !('sizePruneRequest' in recovery) && !('sizePruneNotice' in recovery) && !(await import('../../src/substrate/flagRegistry.ts')).FLAG_REGISTRY.some(row => row.env === 'MERCURY_PRUNE_PCT'))
-const { overflowRecoveryNotice } = await import('../../src/services/compact/overflowRecovery.ts')
+const recovery = await import('../../src/engine/compaction/overflowRecovery.ts') as Record<string, unknown>
+check('the proactive size-prune road is gone: no request, no notice, no threshold flag', !('sizePruneRequest' in recovery) && !('sizePruneNotice' in recovery) && !(await import('../../src/platform/substrate/flagRegistry.ts')).FLAG_REGISTRY.some(row => row.env === 'MERCURY_PRUNE_PCT'))
+const { overflowRecoveryNotice } = await import('../../src/engine/compaction/overflowRecovery.ts')
 const incident = overflowRecoveryNotice({ source: 'estimate', family: 'unknown', shape: 'estimate', actualTokens: 1047974, limitTokens: 1025576 } as never, 'prune', { cleared: 154, tokensSaved: 740942 })
 check('the emergency prune receipt names the bodies, Mercury\'s gross estimate and that no summary or memory move happened', incident.includes('pruned 154 superseded tool-result bodies (about 740,942 tokens by Mercury\'s estimate, net of placeholders; no summary written, nothing moved to memory) and retrying'))
 check('one body reads singular', overflowRecoveryNotice({ source: 'estimate', family: 'unknown', shape: 'estimate', actualTokens: 10, limitTokens: 5 } as never, 'prune', { cleared: 1, tokensSaved: 7 }).includes('pruned 1 superseded tool-result body (about 7 tokens'))

@@ -7,11 +7,11 @@ import {
   reserveOverlayToken,
   resetOverlayStackForTests,
   topOverlay,
-} from '../../src/context/overlayStack.js'
-import { bumpInputEventSeqForMouse } from '../../src/ink/events/input-event.js'
+} from '../../src/screen/overlays/overlayStack.js'
+import { bumpInputEventSeqForMouse } from '../../src/screen/renderer/events/input-event.js'
 
 let failures = 0
-const failureWhere = 'change pushOverlay, popOverlay, isTopOverlayNow or topOverlayOwnsPageKeys in src/context/overlayStack.ts, or the input event sequence in src/ink/events/input-event.ts (bumpInputEventSeqForMouse)'
+const failureWhere = 'change pushOverlay, popOverlay, isTopOverlayNow or topOverlayOwnsPageKeys in src/screen/overlays/overlayStack.ts, or the input event sequence in src/screen/renderer/events/input-event.ts (bumpInputEventSeqForMouse)'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   if (!cond || process.env.COMPASS_PROOF_VERBOSE) {
@@ -54,7 +54,7 @@ console.log('== the overlay stack: order · one-pop-per-event · focus return ==
 
 console.log('== page-key ownership rides the overlay stack (pure) ==')
 {
-  const { topOverlayOwnsPageKeys } = await import('../../src/context/overlayStack.js')
+  const { topOverlayOwnsPageKeys } = await import('../../src/screen/overlays/overlayStack.js')
   resetOverlayStackForTests()
   check('no overlay ⇒ the transcript keeps page keys', !topOverlayOwnsPageKeys())
   const plain = reserveOverlayToken()

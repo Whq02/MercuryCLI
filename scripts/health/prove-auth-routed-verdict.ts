@@ -13,8 +13,8 @@ function check(name: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
-const HEALTH_AUTH_HINT = 'fix the auth rows in authChecks in src/services/health/sections/auth.ts (status, evidence, fix text)'
-const AUTH_STATUS_HINT = 'fix authStatus and routedProviderRows in src/cli/handlers/auth.ts (providers rows, routedProvider, exit code)'
+const HEALTH_AUTH_HINT = 'fix the auth rows in authChecks in src/platform/health/sections/auth.ts (status, evidence, fix text)'
+const AUTH_STATUS_HINT = 'fix authStatus and routedProviderRows in src/commands/verbs/auth.ts (providers rows, routedProvider, exit code)'
 
 const scratchHome = mkdtempSync(join(tmpdir(), 'auth-routed-home-'))
 mkdirSync(join(scratchHome, '.mercury'), { recursive: true })

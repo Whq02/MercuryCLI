@@ -16,17 +16,17 @@ delete process.env.MERCURY_CHANGE_RECEIPTS
 delete process.env.MERCURY_EDIT_STALE_RECOVERY
 delete process.env.NODE_ENV
 
-const { fileGeneration, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/constants/tools/fileEdit.ts')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { fileGeneration, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { FILE_UNEXPECTEDLY_MODIFIED_ERROR } = await import('../../src/tools/kit/names/fileEdit.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
 let checks = 0
-const ownLedgerHint = 'fix the ledger keyed by fileGeneration, seenLinesOf and recordSeenLines in src/services/changeTransaction/seenLines.ts, or the validateInput and call edit path of src/tools/FileEditTool/FileEditTool.ts'
+const ownLedgerHint = 'fix the ledger keyed by fileGeneration, seenLinesOf and recordSeenLines in src/tools/engines/change-transaction/seenLines.ts, or the validateInput and call edit path of src/tools/edit/EditTool.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -36,7 +36,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the own-edit ledger proof exceeded 120s; a Write, Read or Edit call on a fixture file is hanging, so find the last section header printed above and look at that tool in src/tools/FileEditTool/FileEditTool.ts')
+  console.log('\nTIMEOUT — the own-edit ledger proof exceeded 120s; a Write, Read or Edit call on a fixture file is hanging, so find the last section header printed above and look at that tool in src/tools/edit/EditTool.ts')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

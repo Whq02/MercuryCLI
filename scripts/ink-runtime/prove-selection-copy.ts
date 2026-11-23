@@ -6,7 +6,7 @@ import {
   getSelectedText,
   startSelection,
   updateSelection,
-} from '../../src/ink/geometry/selection.js'
+} from '../../src/screen/renderer/geometry/selection.js'
 import {
   composeScene,
   type FrameScene,
@@ -55,13 +55,13 @@ function drag(from: [number, number], to: [number, number]): string {
 check(
   'full first row copies exactly',
   drag([0, 0], [29, 0]) === 'first line of text',
-  `${JSON.stringify(drag([0, 0], [29, 0]))}; check getSelectedText and extractRowText in src/ink/geometry/extract.ts`,
+  `${JSON.stringify(drag([0, 0], [29, 0]))}; check getSelectedText and extractRowText in src/screen/renderer/geometry/selectedText.ts`,
 )
 
 check(
   'partial range copies the visible slice',
   drag([6, 0], [9, 0]) === 'line',
-  `${JSON.stringify(drag([6, 0], [9, 0]))}; check the column bounds getSelectedText applies in src/ink/geometry/extract.ts`,
+  `${JSON.stringify(drag([6, 0], [9, 0]))}; check the column bounds getSelectedText applies in src/screen/renderer/geometry/selectedText.ts`,
 )
 
 {
@@ -69,30 +69,30 @@ check(
   check(
     'multi-row drag copies the screen-linear range',
     text === 'line of text\nあい漢字 wide row\nthird',
-    `${JSON.stringify(text)}; check how getSelectedText in src/ink/geometry/extract.ts joins rows between the start and end cells`,
+    `${JSON.stringify(text)}; check how getSelectedText in src/screen/renderer/geometry/selectedText.ts joins rows between the start and end cells`,
   )
 }
 
 {
   const acrossHead = drag([0, 1], [5, 1])
-  check('drag ending on a wide head keeps the whole glyph', acrossHead === 'あい漢', `${JSON.stringify(acrossHead)}; check wide-cell handling in extractRowText (src/ink/geometry/extract.ts)`)
+  check('drag ending on a wide head keeps the whole glyph', acrossHead === 'あい漢', `${JSON.stringify(acrossHead)}; check wide-cell handling in extractRowText (src/screen/renderer/geometry/selectedText.ts)`)
   const acrossTail = drag([1, 1], [6, 1])
   check(
     'drag from a wide tail still yields whole glyphs',
     acrossTail === 'あい漢字' || acrossTail === 'い漢字',
-    `${JSON.stringify(acrossTail)}; check wide-cell handling in extractRowText (src/ink/geometry/extract.ts)`,
+    `${JSON.stringify(acrossTail)}; check wide-cell handling in extractRowText (src/screen/renderer/geometry/selectedText.ts)`,
   )
   check(
   'no replacement or half glyph in wide copies',
   !/[�]/.test(acrossHead + acrossTail),
-  `${JSON.stringify(acrossHead + acrossTail)}; a wide glyph was split, so check extractRowText in src/ink/geometry/extract.ts`,
+  `${JSON.stringify(acrossHead + acrossTail)}; a wide glyph was split, so check extractRowText in src/screen/renderer/geometry/selectedText.ts`,
 )
 }
 
 check(
   'selection operations never mutate screen cells',
   screenLines(frame.screen).join('\n') === before,
-  'screen cells changed after a drag; selection functions (src/ink/geometry/selection.ts, extract.ts) must only read the screen',
+  'screen cells changed after a drag; selection functions (src/screen/renderer/geometry/selection.ts, extract.ts) must only read the screen',
 )
 
 {
@@ -100,7 +100,7 @@ check(
   startSelection(s, 5, 0)
   updateSelection(s, 5, 0)
   finishSelection(s)
-  check('bare click (no drag) selects nothing', getSelectedText(s, frame.screen) === '', `${JSON.stringify(getSelectedText(s, frame.screen))}; a click with no drag must select nothing, so check getSelectedText in src/ink/geometry/extract.ts`)
+  check('bare click (no drag) selects nothing', getSelectedText(s, frame.screen) === '', `${JSON.stringify(getSelectedText(s, frame.screen))}; a click with no drag must select nothing, so check getSelectedText in src/screen/renderer/geometry/selectedText.ts`)
 }
 
 if (failures > 0) {

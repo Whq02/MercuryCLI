@@ -16,8 +16,8 @@ function section(t: string): void {
 }
 
 async function main(): Promise<void> {
-  const ok = await import('../../src/utils/run/ownerKey.js')
-  const kernel = await import('../../src/services/run/runKernel.js')
+  const ok = await import('../../src/engine/run-owner/ownerKey.js')
+  const kernel = await import('../../src/engine/run/runKernel.js')
   const model = await import('../../src/commands/run/runInspectorModel.js')
 
   const owner = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'ui', lane: 'main' })
@@ -33,7 +33,7 @@ async function main(): Promise<void> {
 
   section('1. the frame capsule line')
   {
-    failWhere = 'fix buildRunCapsuleLine in src/commands/run/runInspectorModel.ts, or the run events it reads in reduceRunEvent in src/services/run/runKernel.ts'
+    failWhere = 'fix buildRunCapsuleLine in src/commands/run/runInspectorModel.ts, or the run events it reads in reduceRunEvent in src/engine/run/runKernel.ts'
     check('no snapshot ⇒ no capsule', model.buildRunCapsuleLine(null, 2_000) === null)
     check(
       'lightweight (non-substantive) turn ⇒ no capsule',
@@ -62,7 +62,7 @@ async function main(): Promise<void> {
 
   section('2. the /run row model')
   {
-    failWhere = 'fix buildRunRows in src/commands/run/runInspectorModel.ts, or the run events it reads in reduceRunEvent in src/services/run/runKernel.ts'
+    failWhere = 'fix buildRunRows in src/commands/run/runInspectorModel.ts, or the run events it reads in reduceRunEvent in src/engine/run/runKernel.ts'
     const snap = fold([
       { type: 'substantive', at: 2, reason: 'edits' },
       { type: 'task-transition', at: 3, taskId: 't1', title: 'parser', state: 'done' },
@@ -97,8 +97,8 @@ async function main(): Promise<void> {
 
   section('3. wiring + lifecycle')
   {
-    failWhere = 'fix subscribeRuns and acceptUserRequest in src/services/run/runCoordinator.ts so a subscriber is notified on accept and drained on unsubscribe'
-    const coordinator = await import('../../src/services/run/runCoordinator.js')
+    failWhere = 'fix subscribeRuns and acceptUserRequest in src/engine/run/runCoordinator.ts so a subscriber is notified on accept and drained on unsubscribe'
+    const coordinator = await import('../../src/engine/run/runCoordinator.js')
     for (let i = 0; i < 100; i++) {
       const unsub = coordinator.subscribeRuns(() => {})
       unsub()

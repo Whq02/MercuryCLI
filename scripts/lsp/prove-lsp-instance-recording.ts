@@ -21,8 +21,8 @@ const RECORDING = path.join(import.meta.dir, 'recordings', 'lsp-instance.txt')
 const RECORDING_NAME = 'scripts/lsp/recordings/lsp-instance.txt'
 const SELF = 'scripts/lsp/prove-lsp-instance-recording.ts'
 const WRITE = process.argv.includes('--write')
-const DOOR = 'src/services/lsp/LSPServerInstance.ts'
-const CLIENT = 'src/services/lsp/LSPClient.ts'
+const DOOR = 'src/integrations/lsp/LSPServerInstance.ts'
+const CLIENT = 'src/integrations/lsp/LSPClient.ts'
 const WORKSPACE = path.join(home, 'workspace')
 const CLOCK_START = 1_700_000_000_000
 
@@ -189,11 +189,11 @@ mock.module(`../../${CLIENT}`, () => ({ ...realClient, createLSPClient: scripted
 replaced.push(CLIENT)
 
 const door = await import(`../../${DOOR}`)
-const { runWithLspAbortSignal, lspRequestFaultCount } = await import('../../src/services/lsp/lspAbort.ts')
-const { _setLspLedgerClockForTesting } = await import('../../src/services/lsp/failureLedger.ts')
-const { getExecution } = await import('../../src/utils/primitives/executionPlane.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
-const { attachErrorLogSink } = await import('../../src/utils/log.ts')
+const { runWithLspAbortSignal, lspRequestFaultCount } = await import('../../src/integrations/lsp/lspAbort.ts')
+const { _setLspLedgerClockForTesting } = await import('../../src/integrations/lsp/failureLedger.ts')
+const { getExecution } = await import('../../src/engine/execution-plane/executionPlane.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { attachErrorLogSink } = await import('../../src/platform/logs/errorLog.ts')
 type Instance = ReturnType<typeof door.createLSPServerInstance>
 type Config = Parameters<typeof door.createLSPServerInstance>[1]
 const instances = new Map<string, Instance>()

@@ -19,21 +19,21 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.chdir(cwd)
 
 {
-  const { getGlobalMercuryFile } = await import('../../src/utils/env.ts')
+  const { getGlobalMercuryFile } = await import('../../src/platform/environment/env.ts')
   writeFileSync(getGlobalMercuryFile(), JSON.stringify({ numStartups: 1, projects: { [otherProject]: {}, [cwd]: {} } }, null, 2))
 }
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const state = await import('../../src/bootstrap/state.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
 void state
-const paths = await import('../../src/extensions/paths.ts')
-const sources = await import('../../src/extensions/sources.ts')
-const install = await import('../../src/extensions/install.ts')
-const options = await import('../../src/extensions/options.ts')
-const reloadMod = await import('../../src/extensions/reload.ts')
-const { bundledPayloads } = await import('../../src/extensions/bundled/content.generated.ts')
-const bootstrapState = await import('../../src/bootstrap/state.ts')
-const { getSecureStorage } = await import('../../src/utils/secureStorage/index.ts')
+const paths = await import('../../src/integrations/extensions/paths.ts')
+const sources = await import('../../src/integrations/extensions/sources.ts')
+const install = await import('../../src/integrations/extensions/install.ts')
+const options = await import('../../src/integrations/extensions/options.ts')
+const reloadMod = await import('../../src/integrations/extensions/reload.ts')
+const { bundledPayloads } = await import('../../src/integrations/extensions/bundled/content.generated.ts')
+const bootstrapState = await import('../../src/boot/process-state/processState.ts')
+const { getSecureStorage } = await import('../../src/platform/secure-storage/index.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -83,24 +83,24 @@ console.log('============================================================')
 console.log(' uninstall — no residue (the before/after home diff)')
 console.log('============================================================')
 
-const EXCLUDE = ['extensions/sources', 'extensions/extensions.log', 'extensions/sources.json']
+const EXCLUDE = ['integrations/extensions/sources', 'extensions/extensions.log', 'extensions/sources.json']
 
 const added = await sources.addSource(FIXTURE, { label: 'fixture-source' })
-check('the fixture source adds', added.ok, 'addSource in src/extensions/sources.ts refused the fixture at scripts/extensions/fixtures/fixture-source')
+check('the fixture source adds', added.ok, 'addSource in src/integrations/extensions/sources.ts refused the fixture at scripts/extensions/fixtures/fixture-source')
 writeFileSync(join(otherProject, '.mercury', 'settings.local.json'), JSON.stringify({ extensions: { enabled: { 'kitchen-sink@fixture-source': true } } }, null, 2))
-const settingsSeed = await import('../../src/utils/settings/settings.ts')
+const settingsSeed = await import('../../src/platform/settings/settings.ts')
 getSecureStorage().update({ trustedDeviceToken: 'seed-token' } as never)
 check('the fresh home has no settings.json before install', !existsSync(join(home, 'settings.json')))
 
 const before = snapshot(EXCLUDE)
 
 const installed = await install.installFromSource('fixture-source', 'kitchen-sink')
-check('install lands', installed.ok, installed.ok ? '' : 'installFromSource in src/extensions/install.ts failed: ' + JSON.stringify(installed))
+check('install lands', installed.ok, installed.ok ? '' : 'installFromSource in src/integrations/extensions/install.ts failed: ' + JSON.stringify(installed))
 const approved = install.approve('kitchen-sink@fixture-source')
-check('approve lands', approved.ok, approved.ok ? '' : 'approve in src/extensions/install.ts failed: ' + JSON.stringify(approved))
+check('approve lands', approved.ok, approved.ok ? '' : 'approve in src/integrations/extensions/install.ts failed: ' + JSON.stringify(approved))
 const manifest = installed.ok ? installed.manifest : null
 const saved = options.saveOptionValues('kitchen-sink@fixture-source', manifest?.needs?.options, { FIXTURE_TOKEN: 'hunter2-secret', FIXTURE_NAME: 'ada' })
-check('a sensitive option lands in the secure store, a plain one in settings', saved.ok, 'saveOptionValues in src/extensions/options.ts refused the values: ' + JSON.stringify(saved))
+check('a sensitive option lands in the secure store, a plain one in settings', saved.ok, 'saveOptionValues in src/integrations/extensions/options.ts refused the values: ' + JSON.stringify(saved))
 {
   const secure = (getSecureStorage().read() ?? {}) as { extensionSecrets?: Record<string, Record<string, string>> }
   check('the secret is in the store under the id', secure.extensionSecrets?.['kitchen-sink@fixture-source']?.['FIXTURE_TOKEN'] === 'hunter2-secret')
@@ -112,7 +112,7 @@ const dataDir = paths.getExtensionDataDir('kitchen-sink@fixture-source')
 mkdirSync(dataDir, { recursive: true })
 writeFileSync(join(dataDir, 'hook.log'), 'ROOT=…\n')
 const preview = install.uninstallPreview('kitchen-sink@fixture-source')
-check('the confirm preview measures the data folder', preview !== null && preview.dataBytes > 0 && preview.label === 'fixture-source', 'uninstallPreview in src/extensions/install.ts must return the label and a positive dataBytes for the data folder written above: ' + JSON.stringify(preview))
+check('the confirm preview measures the data folder', preview !== null && preview.dataBytes > 0 && preview.label === 'fixture-source', 'uninstallPreview in src/integrations/extensions/install.ts must return the label and a positive dataBytes for the data folder written above: ' + JSON.stringify(preview))
 
 const installedSecond = await install.installFromSource('fixture-source', 'partial-one')
 check('the second extension installs', installedSecond.ok)
@@ -130,16 +130,16 @@ check('both extensions registered hooks', hooksBefore().some(h => h.includes('ki
 
 console.log('[2] uninstall with delete: the home diff is empty')
 const done = install.uninstall('kitchen-sink@fixture-source')
-check('uninstall reports its steps', done.ok && done.steps.length >= 5, (done.ok ? done.steps.join('; ') : done.reason) + '; uninstall in src/extensions/install.ts must report at least five steps')
+check('uninstall reports its steps', done.ok && done.steps.length >= 5, (done.ok ? done.steps.join('; ') : done.reason) + '; uninstall in src/integrations/extensions/install.ts must report at least five steps')
 await reloadMod.reloadExtensions({ cwd })
 {
   const hooksAfter = hooksBefore()
   check('its hooks are gone; the other extension\'s hooks survive the swap', !hooksAfter.some(h => h.includes('kitchen-sink@fixture-source')))
   check('the other project\'s local settings file lost the id', !readFileSync(join(otherProject, '.mercury', 'settings.local.json'), 'utf8').includes('kitchen-sink@fixture-source'))
   const secure = (getSecureStorage().read() ?? {}) as { extensionSecrets?: Record<string, Record<string, string>> }
-  check('the secret left the secure store', secure.extensionSecrets?.['kitchen-sink@fixture-source'] === undefined, 'uninstall in src/extensions/install.ts must delete the extensionSecrets entry for the id from the secure store')
+  check('the secret left the secure store', secure.extensionSecrets?.['kitchen-sink@fixture-source'] === undefined, 'uninstall in src/integrations/extensions/install.ts must delete the extensionSecrets entry for the id from the secure store')
   check('the version folders are gone', !existsSync(paths.getInstalledIdDir('kitchen-sink@fixture-source')))
-  check('the data folder is gone', !existsSync(dataDir), 'uninstall in src/extensions/install.ts must remove ' + dataDir + ' unless keepData is set')
+  check('the data folder is gone', !existsSync(dataDir), 'uninstall in src/integrations/extensions/install.ts must remove ' + dataDir + ' unless keepData is set')
 }
 check('the second uninstall lands', install.uninstall('partial-one@fixture-source').ok)
 await reloadMod.reloadExtensions({ cwd })
@@ -158,7 +158,7 @@ await reloadMod.reloadExtensions({ cwd })
     if (shipped && Object.hasOwn(bundledPayloads, shipped[1]!)) return false
     return true
   })
-  check('the home is byte-identical except the source cache and the log', tolerated.length === 0, tolerated.slice(0, 6).join(' · ') + '; each listed path is residue that install, approve, saveOptionValues or uninstall (src/extensions/install.ts, options.ts) left in or removed from the home; make uninstall restore the home to its before-install bytes')
+  check('the home is byte-identical except the source cache and the log', tolerated.length === 0, tolerated.slice(0, 6).join(' · ') + '; each listed path is residue that install, approve, saveOptionValues or uninstall (src/integrations/extensions/install.ts, options.ts) left in or removed from the home; make uninstall restore the home to its before-install bytes')
   check('no settings.json husk remains on the fresh home', !existsSync(join(home, 'settings.json')))
 }
 
@@ -179,7 +179,7 @@ console.log('[3] --keep-data: the data folder alone survives')
 console.log('[4] bundled: x is refused')
 {
   const refused = install.uninstall('anything@mercury')
-  check('a bundled id refuses with the reason', !refused.ok && refused.reason.includes('bundled'), (refused.ok ? 'uninstalled' : refused.reason) + '; uninstall in src/extensions/install.ts must refuse a bundled id and name bundled in the reason')
+  check('a bundled id refuses with the reason', !refused.ok && refused.reason.includes('bundled'), (refused.ok ? 'uninstalled' : refused.reason) + '; uninstall in src/integrations/extensions/install.ts must refuse a bundled id and name bundled in the reason')
 }
 
 console.log('[5] a seeded settings file returns to its prior bytes — never deleted')
@@ -191,7 +191,7 @@ console.log('[5] a seeded settings file returns to its prior bytes — never del
   check('approve lands on the seeded home', install.approve('kitchen-sink@fixture-source').ok)
   check('the switch write shares the seeded file', readFileSync(join(home, 'settings.json'), 'utf8').includes('kitchen-sink@fixture-source'))
   check('the seeded uninstall lands', install.uninstall('kitchen-sink@fixture-source').ok)
-  check('the settings file SURVIVES with its prior bytes', existsSync(join(home, 'settings.json')) && readFileSync(join(home, 'settings.json'), 'utf8') === seededBytes, 'uninstall in src/extensions/install.ts must write back the prior settings.json bytes and never delete a file the user seeded')
+  check('the settings file SURVIVES with its prior bytes', existsSync(join(home, 'settings.json')) && readFileSync(join(home, 'settings.json'), 'utf8') === seededBytes, 'uninstall in src/integrations/extensions/install.ts must write back the prior settings.json bytes and never delete a file the user seeded')
 }
 
 console.log('[6] a $schema-only settings file leaves the disk with the husk')
@@ -202,7 +202,7 @@ console.log('[6] a $schema-only settings file leaves the disk with the husk')
   check('install lands beside the pointer', again.ok)
   check('approve lands beside the pointer', install.approve('kitchen-sink@fixture-source').ok)
   check('the schema-only uninstall lands', install.uninstall('kitchen-sink@fixture-source').ok)
-  check('the $schema-only husk leaves the disk', !existsSync(join(home, 'settings.json')), 'uninstall in src/extensions/install.ts must delete a settings.json that holds only the schema pointer after removing its switch')
+  check('the $schema-only husk leaves the disk', !existsSync(join(home, 'settings.json')), 'uninstall in src/integrations/extensions/install.ts must delete a settings.json that holds only the schema pointer after removing its switch')
 }
 
 console.log('[7] a $schema-only user file the extension never wrote survives a project-scoped uninstall')
@@ -218,7 +218,7 @@ console.log('[7] a $schema-only user file the extension never wrote survives a p
   check('the switch lives in the project-local file; the user file keeps its bytes', existsSync(localFile) && readFileSync(localFile, 'utf8').includes('kitchen-sink@fixture-source') && readFileSync(join(home, 'settings.json'), 'utf8') === pointer)
   check('the project-scoped uninstall lands', install.uninstall('kitchen-sink@fixture-source').ok)
   check('the user file the uninstall never wrote SURVIVES with its bytes', existsSync(join(home, 'settings.json')) && readFileSync(join(home, 'settings.json'), 'utf8') === pointer, existsSync(join(home, 'settings.json')) ? readFileSync(join(home, 'settings.json'), 'utf8') : 'the file is gone')
-  check('the project-local file the switch write created leaves the disk', !existsSync(localFile), 'uninstall in src/extensions/install.ts must delete ' + localFile + ' once the switch it created is removed')
+  check('the project-local file the switch write created leaves the disk', !existsSync(localFile), 'uninstall in src/integrations/extensions/install.ts must delete ' + localFile + ' once the switch it created is removed')
 }
 
 removeScratch(scratch)

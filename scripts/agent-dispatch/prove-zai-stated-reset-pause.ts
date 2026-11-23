@@ -13,10 +13,10 @@ delete process.env.MERCURY_RECOVERY_BUDGET_MINUTES
 let failures = 0
 let checks = 0
 const statedResetWhere: Record<string, string> = {
-  '1': 'change zaiStatedResetWaitMs in src/services/providers/zai/zaiClient.ts',
-  '2': 'change mapZaiHttpFailure in src/services/providers/zai/zaiClient.ts or providerWaitIsWindow in src/services/api/recoveryBudget.ts',
-  '3': 'change usageWindowPauseOf in src/tasks/LocalAgentTask/LocalAgentTask.tsx or pauseResumeWords and pauseStatusWords in src/tasks/LocalAgentTask/agentPause.ts',
-  '4': 'change usageWindowPauseOf in src/tasks/LocalAgentTask/LocalAgentTask.tsx or pauseResumeWords in src/tasks/LocalAgentTask/agentPause.ts',
+  '1': 'change zaiStatedResetWaitMs in src/models/roads/zai/zaiClient.ts',
+  '2': 'change mapZaiHttpFailure in src/models/roads/zai/zaiClient.ts or providerWaitIsWindow in src/engine/requests/recoveryBudget.ts',
+  '3': 'change usageWindowPauseOf in src/engine/tasks/local-agent/crewmateTask.tsx or pauseResumeWords and pauseStatusWords in src/engine/tasks/local-agent/agentPause.ts',
+  '4': 'change usageWindowPauseOf in src/engine/tasks/local-agent/crewmateTask.tsx or pauseResumeWords in src/engine/tasks/local-agent/agentPause.ts',
 }
 let statedResetHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -29,13 +29,13 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const zai = await import('../../src/services/providers/zai/zaiClient.ts')
-const { compatFaultToTypedError } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { providerWaitIsWindow, stampProviderWait } = await import('../../src/services/api/recoveryBudget.ts')
-const pause = await import('../../src/tasks/LocalAgentTask/agentPause.ts')
-const lane = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { createAssistantAPIErrorMessage } = await import('../../src/utils/messages/factories.ts')
-import type { Message } from '../../src/types/message.ts'
+const zai = await import('../../src/models/roads/zai/zaiClient.ts')
+const { compatFaultToTypedError } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { providerWaitIsWindow, stampProviderWait } = await import('../../src/engine/requests/recoveryBudget.ts')
+const pause = await import('../../src/engine/tasks/local-agent/agentPause.ts')
+const lane = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { createAssistantAPIErrorMessage } = await import('../../src/engine/message-shapes/factories.ts')
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 const statedResetWaitMs: (message: string, nowMs: number) => number | undefined =
   (zai as { zaiStatedResetWaitMs?: (message: string, nowMs: number) => number | undefined }).zaiStatedResetWaitMs ?? (() => undefined)

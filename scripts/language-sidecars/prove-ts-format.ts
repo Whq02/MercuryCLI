@@ -5,10 +5,10 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { createFrameReader, createFrameWriter, type JsonRpcMessage } from '../../src/services/lsp/sidecarFraming.ts'
+import { createFrameReader, createFrameWriter, type JsonRpcMessage } from '../../src/integrations/lsp/sidecarFraming.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const ENTRY = join(ROOT, 'src', 'services', 'lsp', 'tsSidecar', 'entry.ts')
+const ENTRY = join(ROOT, 'src', 'integrations', 'lsp', 'ts-sidecar', 'entry.ts')
 const TSPATH = join(ROOT, 'node_modules', 'typescript', 'lib', 'typescript.js')
 
 let failures = 0
@@ -72,8 +72,8 @@ const uri = pathToFileURL(filePath).toString()
     initializationOptions: { typescriptPath: TSPATH },
   })
   const caps = (init.result as { capabilities?: Record<string, unknown> })?.capabilities
-  check('mercury-ts advertises documentFormattingProvider', caps?.documentFormattingProvider === true, 'restore documentFormattingProvider: true in the initialize capabilities in src/services/lsp/tsSidecar/sidecar.ts')
-  check('mercury-ts advertises documentRangeFormattingProvider', caps?.documentRangeFormattingProvider === true, 'restore documentRangeFormattingProvider: true in the initialize capabilities in src/services/lsp/tsSidecar/sidecar.ts')
+  check('mercury-ts advertises documentFormattingProvider', caps?.documentFormattingProvider === true, 'restore documentFormattingProvider: true in the initialize capabilities in src/integrations/lsp/ts-sidecar/sidecar.ts')
+  check('mercury-ts advertises documentRangeFormattingProvider', caps?.documentRangeFormattingProvider === true, 'restore documentRangeFormattingProvider: true in the initialize capabilities in src/integrations/lsp/ts-sidecar/sidecar.ts')
   notify('initialized', {})
 }
 
@@ -84,13 +84,13 @@ const uri = pathToFileURL(filePath).toString()
     options: { tabSize: 2, insertSpaces: true },
   })
   const edits = fmt.result as Array<{ newText: string }> | undefined
-  check('formatting returns edits for messy TS', Array.isArray(edits) && edits.length >= 1, JSON.stringify(fmt.error ?? fmt.result).slice(0, 120) + ' | fix formattingRequest in src/services/lsp/tsSidecar/sidecar/requests/formatting.ts')
+  check('formatting returns edits for messy TS', Array.isArray(edits) && edits.length >= 1, JSON.stringify(fmt.error ?? fmt.result).slice(0, 120) + ' | fix formattingRequest in src/integrations/lsp/ts-sidecar/sidecar/requests/formatting.ts')
   const rf = await request('textDocument/rangeFormatting', {
     textDocument: { uri },
     range: { start: { line: 0, character: 0 }, end: { line: 0, character: 47 } },
     options: { tabSize: 2, insertSpaces: true },
   })
-  check('rangeFormatting returns edits', Array.isArray(rf.result), JSON.stringify(rf.error ?? '').slice(0, 120) + ' | fix rangeFormattingRequest in src/services/lsp/tsSidecar/sidecar/requests/formatting.ts')
+  check('rangeFormatting returns edits', Array.isArray(rf.result), JSON.stringify(rf.error ?? '').slice(0, 120) + ' | fix rangeFormattingRequest in src/integrations/lsp/ts-sidecar/sidecar/requests/formatting.ts')
 }
 
 {

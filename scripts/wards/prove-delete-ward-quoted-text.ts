@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/wards/wards* src/guards/wardsGuard* src/guards/guards* src/utils/cwd*
+// gate-watch: src/permissions/wards/wards.ts src/permissions/wards/wardsRefusals.ts src/permissions/wards/wardsShellRead.ts src/permissions/guards/wardsGuard.ts src/permissions/guards/guards.ts src/engine/cwdMemo.ts src/platform/files/cwd.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -11,15 +11,15 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_SPAWNED_BY = 'proof:ward-quoted-text#1'
 delete process.env.NODE_ENV
 
-type PendingToolCall = import('../../src/utils/wards/wards.js').PendingToolCall
-type WardRule = import('../../src/utils/wards/wards.js').WardRule
-type WardVerdict = import('../../src/utils/wards/wards.js').WardVerdict
-const { AUTONOMOUS_WARDS, REFUSAL_WARDS, buildWardDenial, evaluateWards, setHomeSpellings } = await import('../../src/utils/wards/wards.js')
-const { WARDS_HOOK_ID, registerWardsGuard, resetWardsEngagedSessionsForTest } = await import('../../src/guards/wardsGuard.js')
-const { judgeToolCall } = await import('../../src/guards/guards.js')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+type PendingToolCall = import('../../src/permissions/wards/wards.js').PendingToolCall
+type WardRule = import('../../src/permissions/wards/wards.js').WardRule
+type WardVerdict = import('../../src/permissions/wards/wards.js').WardVerdict
+const { AUTONOMOUS_WARDS, REFUSAL_WARDS, buildWardDenial, evaluateWards, setHomeSpellings } = await import('../../src/permissions/wards/wards.js')
+const { WARDS_HOOK_ID, registerWardsGuard, resetWardsEngagedSessionsForTest } = await import('../../src/permissions/guards/wardsGuard.js')
+const { judgeToolCall } = await import('../../src/permissions/guards/guards.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
 
-const QUOTED_TEXT_FAIL_HINT = 'fix: the delete rules in src/utils/wards/wards.ts (no-root-recursive-delete and no-other-user-delete in REFUSAL_WARDS, no-home-recursive-delete in AUTONOMOUS_WARDS) and how they read quotes, heredocs and inline shells; the hook road is registerWardsGuard in src/guards/wardsGuard.ts'
+const QUOTED_TEXT_FAIL_HINT = 'fix: the delete rules in src/permissions/wards/wards.ts (no-root-recursive-delete and no-other-user-delete in REFUSAL_WARDS, no-home-recursive-delete in AUTONOMOUS_WARDS) and how they read quotes, heredocs and inline shells; the hook road is registerWardsGuard in src/permissions/guards/wardsGuard.ts'
 let failures = 0
 let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {

@@ -23,18 +23,18 @@ process.env.ANTHROPIC_API_KEY = 'fixture-key'
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_EFFORT_LEVEL
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 const loaderCwd = join(scratch, 'loader-cwd')
 mkdirSync(loaderCwd, { recursive: true })
 bootstrap.setOriginalCwd(loaderCwd)
 bootstrap.setProjectRoot(loaderCwd)
-const { loadConversationForResume, getResumePrompt } = await import('../../src/services/resume/conversationRecovery.ts')
-const { loadTranscriptFile } = await import('../../src/utils/sessionStorage.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { historyLines } = await import('../../src/utils/sessionStorage/historyParts.ts')
-import type { Message } from '../../src/types/message.ts'
+const { loadConversationForResume, getResumePrompt } = await import('../../src/sessions/resume/conversationRecovery.ts')
+const { loadTranscriptFile } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+const { historyLines } = await import('../../src/sessions/transcripts/historyParts.ts')
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 let failures = 0
 let checks = 0
@@ -47,9 +47,9 @@ function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
 }
 const j = (value: unknown): string => JSON.stringify(value) ?? ''
-const hintLoader = 'change detectInterruption or deserializeMessagesWithInterruptDetection in src/services/resume/conversationRecovery.ts (how the loader reads the turn-start and turn-end lines of the record). '
-const hintWriter = 'the record must carry the turn-start and turn-end lines; change the turn writer in src/utils/sessionStorage/writer.ts. '
-const hintWire = 'the resume request must say getResumePrompt() from src/services/resume/conversationRecovery.ts exactly once when the loader reads the turn as cut, and not otherwise. '
+const hintLoader = 'change detectInterruption or deserializeMessagesWithInterruptDetection in src/sessions/resume/conversationRecovery.ts (how the loader reads the turn-start and turn-end lines of the record). '
+const hintWriter = 'the record must carry the turn-start and turn-end lines; change the turn writer in src/sessions/transcripts/writer.ts. '
+const hintWire = 'the resume request must say getResumePrompt() from src/sessions/resume/conversationRecovery.ts exactly once when the loader reads the turn as cut, and not otherwise. '
 
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — the proof exceeded 300s')
@@ -209,7 +209,7 @@ try {
       gateTheNextAnswerOnce(arena)
       const second = await run(arena, ['run', 'ANSWERED second prompt.', '--model', MODEL, '--resume', SID, '--format', 'rows'])
       const file = transcriptOf(arena, SID)
-      check('B1 the run asks again, is answered and ends its turn: two turns, two lines, the ask-again in the record', first.exit === 0 && second.exit === 0 && second.stdout.includes('ANSWERED-AFTER-THE-ASK.') && turnEndLines(file) === 2 && readFileSync(file, 'utf8').includes(ASKED_AGAIN_WORDS), 'a run whose turn.answer hook blocks once must ask again, be answered and end its turn with a turn-end line (src/utils/sessionStorage/writer.ts). ' + j({ first: first.exit, second: second.exit, lines: turnEndLines(file), err: second.stderr.slice(-200) }))
+      check('B1 the run asks again, is answered and ends its turn: two turns, two lines, the ask-again in the record', first.exit === 0 && second.exit === 0 && second.stdout.includes('ANSWERED-AFTER-THE-ASK.') && turnEndLines(file) === 2 && readFileSync(file, 'utf8').includes(ASKED_AGAIN_WORDS), 'a run whose turn.answer hook blocks once must ask again, be answered and end its turn with a turn-end line (src/sessions/transcripts/writer.ts). ' + j({ first: first.exit, second: second.exit, lines: turnEndLines(file), err: second.stderr.slice(-200) }))
       const read = await loaderOn(file, SID)
       check('B2 the loader reads a finished turn, no sentence', read.state === 'none' && read.sentence === 0, hintLoader + j(read))
     } finally {
@@ -229,7 +229,7 @@ try {
       const rows = await recordOf(file)
       const kinds = metaKindsOf(file)
       check('C1 the scene: the same cut inside the first turn of a session: no turn ended in this record, and it ends on the row the run asked the model again with', turnEndLines(file) === 0 && isTheAskAgain(lastSpoken(rows)), hintWriter + j({ lines: turnEndLines(file), last: lastSpoken(rows)?.type, meta: lastSpoken(rows)?.isMeta }))
-      check('C2 the turn left one line that says it began, ahead of its first conversation row', kinds.filter(kind => kind === 'meta:turn-start').length === 1 && kinds.indexOf('meta:turn-start') < kinds.findIndex(kind => kind === 'input' || kind === 'output'), 'the first turn must write one turn-start line ahead of its first conversation row (src/utils/sessionStorage/writer.ts). ' + j(kinds))
+      check('C2 the turn left one line that says it began, ahead of its first conversation row', kinds.filter(kind => kind === 'meta:turn-start').length === 1 && kinds.indexOf('meta:turn-start') < kinds.findIndex(kind => kind === 'input' || kind === 'output'), 'the first turn must write one turn-start line ahead of its first conversation row (src/sessions/transcripts/writer.ts). ' + j(kinds))
       const read = await loaderOn(file, SID)
       check('C3 the loader reads the turn as cut, and says so once', read.state === 'interrupted_prompt' && read.sentence === 1, hintLoader + j(read))
       const older = await asAnOlderBuildLeftIt(file, SID)
@@ -244,8 +244,8 @@ try {
 
   section("D — a hosted session at rest: what a screen command leaves in the record is followed by its turn's line, and the session resumes as finished")
   {
-    const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
-    const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.ts')
+    const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+    const { buildRunnerInvocation } = await import('../../src/daemon/runner-link/headlessRun.ts')
     const kindsOf = metaKindsOf
     const endsOnALine = (file: string): boolean => {
       const kinds = kindsOf(file)
@@ -273,7 +273,7 @@ try {
         const file = transcriptOf(arena, SID)
         const rows = await recordOf(file)
         const hiddenLast = rows.findLast(row => row.type === 'user')
-        check(`D ${scene.tag}: ${scene.says}: its turn ends with an outcome (${String(second?.status)}), and the runner ends when the window closes`, second !== null && typeof second.status === 'string' && code !== null, `a hosted runner must end the turn with an outcome row and exit when its window closes (src/daemon/headlessRun.ts, buildRunnerInvocation). outcome=${j(second).slice(0, 160)} exit=${code} ${host.stderr().slice(-200)}`)
+        check(`D ${scene.tag}: ${scene.says}: its turn ends with an outcome (${String(second?.status)}), and the runner ends when the window closes`, second !== null && typeof second.status === 'string' && code !== null, `a hosted runner must end the turn with an outcome row and exit when its window closes (src/daemon/runner-link/headlessRun.ts, buildRunnerInvocation). outcome=${j(second).slice(0, 160)} exit=${code} ${host.stderr().slice(-200)}`)
         check(`D ${scene.tag}: the record ends on a line: one for each of the two turns, the last behind every conversation row`, turnEndLines(file) === 2 && endsOnALine(file), hintWriter + j(kindsOf(file).slice(-6)))
         if (scene.hidden) check(`D ${scene.tag}: the scene: the words stand in the record as a hidden user row that came from a screen command`, hiddenLast !== undefined && hiddenLast.isMeta === true && j(hiddenLast.origin).includes('screen-command'), 'a screen-command prompt must be recorded as a hidden (isMeta) user row with origin screen-command. ' + j({ meta: hiddenLast?.isMeta, origin: hiddenLast?.origin }))
         const read = await loaderOn(file, SID)
@@ -328,8 +328,8 @@ try {
       const boundaryAt = kinds.indexOf('boundary')
       const boundary = JSON.parse(readFileSync(copy, 'utf8').split('\n').find(line => line.includes('"kind":"boundary"')) ?? '{}') as { payload?: { fields?: { compactMetadata?: { preservedSegment?: unknown } } } }
       const startIds = readFileSync(copy, 'utf8').split('\n').filter(line => line.includes('"metaKind":"turn-start"')).map(line => (JSON.parse(line) as { payload: { fields: { turnId: string } } }).payload.fields.turnId)
-      check('E1 the scene: the record is past five mebibytes (a long session, here padded with queue rows of the kind every prompt leaves), its second turn folded the conversation and kept no tail, and it ends on the row the run asked the model again with', first.exit === 0 && statSync(copy).size > 5 * 1024 * 1024 && kinds.filter(kind => kind === 'boundary').length === 1 && !boundary.payload?.fields?.compactMetadata?.preservedSegment && isTheAskAgain(lastSpoken(await recordOf(file))) && turnEndLines(copy) === 1, 'the fixture record did not reach the cut-after-fold scene; check the compaction settings set on arena.env and the turn writer in src/utils/sessionStorage/writer.ts. ' + j({ exit: first.exit, size: statSync(copy).size, boundaries: kinds.filter(kind => kind === 'boundary').length, tail: kinds.slice(boundaryAt), ends: turnEndLines(copy) }))
-      check("E2 the folding turn said that it began ahead of its rows and says it again behind the boundary, under the one turn's id", startIds.length === 3 && startIds[1] === startIds[2] && startIds[0] !== startIds[1] && kinds.indexOf('meta:turn-start', boundaryAt) === boundaryAt + 1, 'a turn that folds the conversation must write turn-start again right behind the boundary under the same turn id (src/utils/sessionStorage/writer.ts, fold.ts). ' + j({ startIds, behind: kinds.slice(boundaryAt, boundaryAt + 3) }))
+      check('E1 the scene: the record is past five mebibytes (a long session, here padded with queue rows of the kind every prompt leaves), its second turn folded the conversation and kept no tail, and it ends on the row the run asked the model again with', first.exit === 0 && statSync(copy).size > 5 * 1024 * 1024 && kinds.filter(kind => kind === 'boundary').length === 1 && !boundary.payload?.fields?.compactMetadata?.preservedSegment && isTheAskAgain(lastSpoken(await recordOf(file))) && turnEndLines(copy) === 1, 'the fixture record did not reach the cut-after-fold scene; check the compaction settings set on arena.env and the turn writer in src/sessions/transcripts/writer.ts. ' + j({ exit: first.exit, size: statSync(copy).size, boundaries: kinds.filter(kind => kind === 'boundary').length, tail: kinds.slice(boundaryAt), ends: turnEndLines(copy) }))
+      check("E2 the folding turn said that it began ahead of its rows and says it again behind the boundary, under the one turn's id", startIds.length === 3 && startIds[1] === startIds[2] && startIds[0] !== startIds[1] && kinds.indexOf('meta:turn-start', boundaryAt) === boundaryAt + 1, 'a turn that folds the conversation must write turn-start again right behind the boundary under the same turn id (src/sessions/transcripts/writer.ts, fold.ts). ' + j({ startIds, behind: kinds.slice(boundaryAt, boundaryAt + 3) }))
       const beside = readdirSync(dirname(copy)).filter(name => name !== `${SID}.jsonl`)
       const alone = await loaderOn(copy, SID)
       check('E3 a copy of the record with nothing beside it (no snapshot of an earlier read) reads as cut, and says so once', beside.length === 0 && alone.state === 'interrupted_prompt' && alone.sentence === 1, hintLoader + j({ beside, alone }))

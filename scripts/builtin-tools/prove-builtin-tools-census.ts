@@ -14,14 +14,14 @@ function check(label: string, ok: boolean, detail = ''): void {
 const repoRoot = resolve(import.meta.dir, '..', '..')
 
 const { toolCensus } = await import('./census-gen.ts')
-const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
+const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
 const { EXECUTION_DOMAIN_CENSUS } = await import(
-  '../../src/services/primitives/executionCensus.ts'
+  '../../src/engine/runtime-kernel/executionCensus.ts'
 )
 const { isMutationOperation } = await import(
-  '../../src/services/changeTransaction/contracts.ts'
+  '../../src/tools/engines/change-transaction/contracts.ts'
 )
-const { resourceAdapterKinds } = await import('../../src/services/resources/registry.ts')
+const { resourceAdapterKinds } = await import('../../src/integrations/resources/registry.ts')
 
 console.log('── arsenal census drift gate ──')
 
@@ -30,7 +30,7 @@ const { census } = toolCensus()
 const missingProofs = census.rows
   .filter(r => r.proof !== null && !existsSync(join(repoRoot, r.proof)))
   .map(r => `${r.name} → ${r.proof}`)
-check('every claimed proof path exists', missingProofs.length === 0, `${missingProofs.join('; ')} — point the tool's declared proof (src/utils/capability/contract.ts) or PROOF_MAP (src/services/capability/census.ts) at a script that exists`)
+check('every claimed proof path exists', missingProofs.length === 0, `${missingProofs.join('; ')} — point the tool's declared proof (src/permissions/capability/contract.ts) or PROOF_MAP (src/permissions/capability-census/census.ts) at a script that exists`)
 
 const flagNames = new Set(FLAG_REGISTRY.map((f: { env: string }) => f.env))
 const executionKinds = new Set(
@@ -60,17 +60,17 @@ check('declared gate flags exist in flagRegistry', badFlags.length === 0, `${bad
 check(
   'declared execution kinds are census-classified',
   badExecution.length === 0,
-  `${badExecution.join('; ')} — fix the tool's declared execution kind, or classify the kind in EXECUTION_DOMAIN_CENSUS (src/services/primitives/executionCensus.ts)`,
+  `${badExecution.join('; ')} — fix the tool's declared execution kind, or classify the kind in EXECUTION_DOMAIN_CENSUS (src/engine/runtime-kernel/executionCensus.ts)`,
 )
 check(
   'declared resource kinds are registered adapters',
   badResources.length === 0,
-  `${badResources.join('; ')} — fix the tool's declared resource kind, or register the adapter in src/services/resources/registry.ts`,
+  `${badResources.join('; ')} — fix the tool's declared resource kind, or register the adapter in src/integrations/resources/registry.ts`,
 )
 check(
   'declared receipt-minting transaction kinds are in the receipt vocabulary',
   badTransactions.length === 0,
-  `${badTransactions.join('; ')} — fix the tool's declared transaction kind, or add it to the mutation operations in src/services/changeTransaction/contracts.ts`,
+  `${badTransactions.join('; ')} — fix the tool's declared transaction kind, or add it to the mutation operations in src/tools/engines/change-transaction/contracts.ts`,
 )
 
 const ACKNOWLEDGED_UNDECLARED: string[] = [
@@ -80,7 +80,7 @@ const newUndeclared = undeclared.filter(n => !ACKNOWLEDGED_UNDECLARED.includes(n
 check(
   'no production tool without a declared capability contract (beyond the ratchet)',
   newUndeclared.length === 0,
-  `undeclared: ${newUndeclared.join(', ')} — give each tool a declared capability (declaredCapability in src/utils/capability/contract.ts)`,
+  `undeclared: ${newUndeclared.join(', ')} — give each tool a declared capability (declaredCapability in src/permissions/capability/contract.ts)`,
 )
 
 type RetiredTool = { name: string; covered: string; aliases: string[]; references: RegExp[] }
@@ -126,7 +126,7 @@ const RETIRED_TOOLS: RetiredTool[] = [
 ]
 const RETIRED_SCAN_ROOTS = ['src', 'docs', 'scripts', 'design-system']
 const RETIRED_SCAN_HISTORY =
-  /^(?:src\/constants\/changelog\.ts|docs\/releases\/|scripts\/edit-tools\/fixtures\/baseline\.json|scripts\/builtin-tools\/prove-builtin-tools-census\.ts|scripts\/identity\/forbidden-file-tool\.ts|scripts\/transcript-rows\/prove-retired-tool-rows\.ts|scripts\/core-runtime\/prove-runloop-contract\.ts)/
+  /^(?:src\/commands\/update-notes\/changelog\.ts|docs\/releases\/|scripts\/edit-tools\/fixtures\/baseline\.json|scripts\/builtin-tools\/prove-builtin-tools-census\.ts|scripts\/identity\/forbidden-file-tool\.ts|scripts\/transcript-rows\/prove-retired-tool-rows\.ts|scripts\/core-runtime\/prove-runloop-contract\.ts)/
 const TEXT_FILE = /\.(ts|tsx|js|mjs|cjs|json|md|txt|sh|ya?ml|tsv|csv)$/
 const trackedFiles = new Set(execFileSync('git', ['-C', repoRoot, 'ls-files'], { encoding: 'utf8' }).split('\n').filter(Boolean).map(rel => join(repoRoot, rel)))
 function walk(dir: string, out: string[]): string[] {
@@ -162,25 +162,25 @@ const retiredNames = new Set(RETIRED_TOOLS.flatMap(t => [t.name, ...t.aliases]))
 check(
   'the live census rows name no retired tool',
   !census.rows.some(r => retiredNames.has(r.name)),
-  `${census.rows.filter(r => retiredNames.has(r.name)).map(r => r.name).join(', ')} — remove the retired tool from getAllBaseTools in src/tools.ts`,
+  `${census.rows.filter(r => retiredNames.has(r.name)).map(r => r.name).join(', ')} — remove the retired tool from getAllBaseTools in src/tools/kit/toolList.ts`,
 )
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { findToolByName } = await import('../../src/Tool.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { findToolByName } = await import('../../src/tools/kit/tool.ts')
 const { ALL_AGENT_DISALLOWED_TOOLS } = await import(
-  '../../src/constants/tools.ts'
+  '../../src/tools/kit/crewmateBarredTools.ts'
 )
 const catalogue = getAllBaseTools()
 const offered = [...retiredNames].filter(n => findToolByName(catalogue, n) !== undefined)
 check(
   'no route offers a retired tool or one of its old spellings: the catalogue resolves none of them',
   offered.length === 0,
-  `resolved: ${offered.join(', ')} — remove the tool from getAllBaseTools in src/tools.ts`,
+  `resolved: ${offered.join(', ')} — remove the tool from getAllBaseTools in src/tools/kit/toolList.ts`,
 )
 const inAgentSets = [...retiredNames].filter(n => ALL_AGENT_DISALLOWED_TOOLS.has(n))
-check('the crewmate barred set names no retired tool', inAgentSets.length === 0, `${inAgentSets.join(', ')} — remove the name from CREWMATE_BARRED_TOOLS in src/constants/tools.ts`)
-const { getTools } = await import('../../src/tools.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getIsInteractive, setIsInteractive } = await import('../../src/bootstrap/state.ts')
+check('the crewmate barred set names no retired tool', inAgentSets.length === 0, `${inAgentSets.join(', ')} — remove the name from CREWMATE_BARRED_TOOLS in src/tools/kit/crewmateBarredTools.ts`)
+const { getTools } = await import('../../src/tools/kit/toolList.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getIsInteractive, setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 const interactiveBefore = getIsInteractive()
 const briefBefore = process.env.MERCURY_BRIEF
 process.env.MERCURY_BRIEF = '1'
@@ -198,12 +198,12 @@ else process.env.MERCURY_BRIEF = briefBefore
 check(
   'the switch that used to force the courier offers nothing: with MERCURY_BRIEF=1 the session pool holds neither SendUserMessage nor Brief in either posture',
   courierUnderSwitch.length === 0,
-  `offered: ${courierUnderSwitch.join(', ')} — stop getTools in src/tools.ts from offering the tool under MERCURY_BRIEF`,
+  `offered: ${courierUnderSwitch.join(', ')} — stop getTools in src/tools/kit/toolList.ts from offering the tool under MERCURY_BRIEF`,
 )
 check(
   'the census counts 71 production tools, including the separate ResumeCrewmate verb, the seven language-service tools, the Journal verb, the Video tool, the Document tool and the CrewBoard behind its swarm switch',
   census.summary.tools === 71,
-  `live census: ${census.summary.tools} tools — if the tool set changed on purpose, update the count in this check, otherwise fix getAllBaseTools in src/tools.ts`,
+  `live census: ${census.summary.tools} tools — if the tool set changed on purpose, update the count in this check, otherwise fix getAllBaseTools in src/tools/kit/toolList.ts`,
 )
 
 console.log(failures === 0 ? 'builtin-tools census: ALL GREEN' : `builtin-tools census: ${failures} FAILURE(S)`)

@@ -18,7 +18,7 @@ delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
 
 let failures = 0
 let checks = 0
-const LATCH_ORDER_FAIL_HINT = 'to fix, change the verdict latch in src/services/anthropicLimits.ts (extractQuotaStatusFromHeaders, extractQuotaStatusFromError, adoptAnthropicWindowFact: a reply or relayed fact older than the standing verdict must not replace it) or the meters read in src/services/cockpit/quota.ts (quotaWindows)'
+const LATCH_ORDER_FAIL_HINT = 'to fix, change the verdict latch in src/models/roads/anthropic/anthropicLimits.ts (extractQuotaStatusFromHeaders, extractQuotaStatusFromError, adoptAnthropicWindowFact: a reply or relayed fact older than the standing verdict must not replace it) or the meters read in src/screen/cockpit-gauges/quota.ts (quotaWindows)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -28,12 +28,12 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
-const limits = await import('../../src/services/anthropicLimits.ts')
-const { quotaWindows } = await import('../../src/services/cockpit/quota.ts')
-const { APIError } = await import('../../src/utils/api/sdkErrors.js')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+const { quotaWindows } = await import('../../src/screen/cockpit-gauges/quota.ts')
+const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
 
 auth.clearOAuthTokenCache()
 writeFileSync(

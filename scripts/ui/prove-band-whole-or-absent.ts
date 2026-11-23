@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/FullscreenLayout.tsx src/components/PopupGutter.tsx src/components/ModelPickerPopupSlot.tsx
+// gate-watch: src/screen/fullscreen-layout/FullscreenLayout.tsx src/screen/overlays/PopupGutter.tsx src/screen/overlays/ModelPickerPopupSlot.tsx
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome } from '../lib/settingsPopupHarness.ts'
@@ -25,7 +25,7 @@ const SIZES: Array<[number, number]> = (arg('--sizes')?.split(',') ?? ['100x30',
 const PANE_ROWS = [4, 5, 6, 7, 9] as const
 const BAND_ROWS = 5
 
-const BAND_FAIL_HINT = 'change the bandFits rule (centreRows - 2 >= statusBandRows) and the status band slot in src/components/FullscreenLayout.tsx so the band paints whole or not at all'
+const BAND_FAIL_HINT = 'change the bandFits rule (centreRows - 2 >= statusBandRows) and the status band slot in src/screen/fullscreen-layout/FullscreenLayout.tsx so the band paints whole or not at all'
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -36,15 +36,15 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 const React = await import('react')
 const h = React.createElement
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))

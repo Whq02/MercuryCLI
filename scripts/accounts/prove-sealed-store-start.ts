@@ -42,16 +42,16 @@ axios.defaults.adapter = async (config: { url?: string }) => {
   throw error
 }
 
-const { plainTextStorage } = await import(join(SRC, 'utils/secureStorage/plainTextStorage.ts'))
-const { setAuthScope, clearAuthScope } = await import(join(SRC, 'utils/envUtils.ts'))
-const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
+const { plainTextStorage } = await import(join(SRC, 'platform/secure-storage/plainTextStorage.ts'))
+const { setAuthScope, clearAuthScope } = await import(join(SRC, 'platform/environment/envUtils.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/config/globalConfig.ts'))
 enableConfigs()
-const auth = { ...(await import(join(SRC, 'utils/auth.ts'))), ...(await import(join(SRC, 'services/auth/oauthLifecycle.ts'))) }
-const sealedRecord = await import(join(SRC, 'utils/secureStorage/sealedRecord.ts'))
-const sealedFile = await import(join(SRC, 'utils/secureStorage/sealedFileStorage.ts'))
-const prefetch = await import(join(SRC, 'utils/secureStorage/keychainPrefetch.ts'))
-const starts = await import(join(SRC, 'utils/secureStorage/sealedStoreStart.ts')).catch(() => null)
-const others = await import(join(SRC, 'daemon/otherBuilds.ts')).catch(() => null)
+const auth = { ...(await import(join(SRC, 'models/sign-in/credentials/auth.ts'))), ...(await import(join(SRC, 'models/sign-in/lifecycle/oauthLifecycle.ts'))) }
+const sealedRecord = await import(join(SRC, 'platform/secure-storage/sealedRecord.ts'))
+const sealedFile = await import(join(SRC, 'platform/secure-storage/sealedFileStorage.ts'))
+const prefetch = await import(join(SRC, 'platform/secure-storage/keychainPrefetch.ts'))
+const starts = await import(join(SRC, 'platform/secure-storage/sealedStoreStart.ts')).catch(() => null)
+const others = await import(join(SRC, 'daemon/control/otherBuilds.ts')).catch(() => null)
 
 type Answer = { ok: true; bytes: Buffer } | { ok: false; why: string; final: boolean }
 type Store = {
@@ -75,7 +75,7 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   total++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — change startSealedStore in src/utils/secureStorage/sealedStoreStart.ts (or src/daemon/otherBuilds.ts, src/utils/secureStorage/keychainPrefetch.ts, or the sealed store in sealedFileStorage.ts / sealedRecord.ts) so this holds' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — change startSealedStore in src/platform/secure-storage/sealedStoreStart.ts (or src/daemon/control/otherBuilds.ts, src/platform/secure-storage/keychainPrefetch.ts, or the sealed store in sealedFileStorage.ts / sealedRecord.ts) so this holds' : ''}`)
 }
 const section = (title: string): void => {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)

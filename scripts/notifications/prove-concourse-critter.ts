@@ -5,7 +5,7 @@
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
-const cd = await import('../../src/utils/cockpit/critterData.js')
+const cd = await import('../../src/screen/cockpit/critterData.js')
 
 t.section('§1 — grid law: widths + alphabet')
 {
@@ -60,11 +60,11 @@ t.section('§9 — the header STILL: the square dock at the header, one surface 
   process.env['FORCE_COLOR'] = '3'
   delete process.env['NO_COLOR']
   process.env['MERCURY_CRITTER_GAZE'] = '0'
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
   const React = (await import('react')).default
-  const { renderToString, renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
-  const { CritterArt } = await import('../../src/components/mercury-ui/CritterArt.js')
+  const { renderToString, renderToAnsiString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { CritterArt } = await import('../../src/screen/widgets/CritterArt.js')
   for (const def of cd.CRITTERS) {
     const headerDef = {
       ...cd.critterDefForKey(def.name),

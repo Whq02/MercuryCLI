@@ -11,8 +11,8 @@ if (!process.argv.includes('--child')) {
 } else {
   if (homedir() !== process.env.GIT_PROOF_HOME) throw new Error('wrong proof home before product imports')
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const { GitTool } = await import('../../src/tools/GitTool/GitTool.ts')
-  const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+  const { GitTool } = await import('../../src/tools/git/GitTool.ts')
+  const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
   const prompt = await GitTool.prompt()
   const schema = zodToJsonSchema(GitTool.inputSchema) as { properties: { op: { enum: string[] } } }
   let checks = 0
@@ -21,10 +21,10 @@ if (!process.argv.includes('--child')) {
     checks++
     if (!ok) failures++
     const hint = label.startsWith('all new typed capabilities')
-      ? 'shorten the prompt or the input schema in src/tools/GitTool/GitTool.ts until prompt plus schema fits 4404 characters'
+      ? 'shorten the prompt or the input schema in src/tools/git/GitTool.ts until prompt plus schema fits 4404 characters'
       : label.startsWith('examples cover')
-        ? 'the op enum in the Git input schema (src/tools/GitTool/GitTool.ts) and the examples list in this file must name the same operations in the same order'
-        : 'the Git input schema and validateInput in src/tools/GitTool/GitTool.ts must accept (or, for the fractional dependency, refuse) this input'
+        ? 'the op enum in the Git input schema (src/tools/git/GitTool.ts) and the examples list in this file must name the same operations in the same order'
+        : 'the Git input schema and validateInput in src/tools/git/GitTool.ts must accept (or, for the fractional dependency, refuse) this input'
     console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` | to fix: ${hint}`}`)
   }
   check(`all new typed capabilities fit the original definition budget: ${prompt.length} + ${JSON.stringify(schema).length} <= 237 + 4167`, prompt.length + JSON.stringify(schema).length <= 4404)

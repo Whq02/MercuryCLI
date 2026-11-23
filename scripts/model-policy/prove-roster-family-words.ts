@@ -17,7 +17,7 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 300)} — ` : ''}to fix, change how getEngineModel in src/services/model/model.ts resolves a family word under a roster, or isModelAllowed in src/services/model/modelAllowlist.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 300)} — ` : ''}to fix, change how getEngineModel in src/models/catalogue/engineModel.ts resolves a family word under a roster, or isModelAllowed in src/models/catalogue/modelAllowlist.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -27,13 +27,13 @@ console.log('============================================================')
 console.log(' under a roster a family word and the fallback stay inside it')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const model = await import('../../src/services/model/model.ts')
-const allow = await import('../../src/services/model/modelAllowlist.ts')
-const { resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
+const model = await import('../../src/models/catalogue/engineModel.ts')
+const allow = await import('../../src/models/catalogue/modelAllowlist.ts')
+const { resetComputedDefaultMemo } = await import('../../src/models/catalogue/computedDefault.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
 recordSignIn('anthropic', 'api-key')
 
 const settingsPath = join(scratch, 'settings.json')

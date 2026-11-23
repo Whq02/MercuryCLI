@@ -7,9 +7,9 @@ import { join } from 'node:path'
 const home = mkdtempSync(join(tmpdir(), 'browser-error-remedies-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_BROWSER_PATH = process.execPath
-const browser = await import('../../src/services/browser/browserSession.ts')
-const { BrowserTool, driverFailureWords } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
-const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
+const browser = await import('../../src/integrations/browser/browserSession.ts')
+const { BrowserTool, driverFailureWords } = await import('../../src/tools/browser/BrowserTool.ts')
+const { processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
 const owner = processOwnerForLane('error-fixture')
 const cdpEvents = new Map<string, (event: any) => void>()
 const cdp = { send: async () => ({}), on: (name: string, fn: (event: any) => void) => { cdpEvents.set(name, fn) } }
@@ -34,12 +34,12 @@ const check = (name: string, ok: boolean, detail: string, hint = '') => { consol
 try {
   await browser.ensureBrowserSession(owner)
   const click = await BrowserTool.call({ op: 'click', selector: '#route-target' }, context)
-  check('unclickable element names scroll and route waiting', click.data.outcome === 'failed' && /scroll/.test(click.data.result) && /waitFor/.test(click.data.result) && !click.data.result.includes('Node is either'), click.data.result, 'make driverFailureWords in src/tools/BrowserTool/browser/failures.ts translate the unclickable-element error into words naming scroll and waitFor, without the raw driver text')
+  check('unclickable element names scroll and route waiting', click.data.outcome === 'failed' && /scroll/.test(click.data.result) && /waitFor/.test(click.data.result) && !click.data.result.includes('Node is either'), click.data.result, 'make driverFailureWords in src/tools/browser/ops/failures.ts translate the unclickable-element error into words naming scroll and waitFor, without the raw driver text')
   fail = 'network'
   const opened = await BrowserTool.call({ op: 'open', url: page.url() }, context)
-  check('blocked request names the reported policy and next step', opened.data.outcome === 'failed' && /mixed-content/.test(opened.data.result) && /console|operator/.test(opened.data.result), opened.data.result, 'make driverFailureWords in src/tools/BrowserTool/browser/failures.ts name the blocked reason the page reported (mixed-content) and say to read the console or ask the operator')
+  check('blocked request names the reported policy and next step', opened.data.outcome === 'failed' && /mixed-content/.test(opened.data.result) && /console|operator/.test(opened.data.result), opened.data.result, 'make driverFailureWords in src/tools/browser/ops/failures.ts name the blocked reason the page reported (mixed-content) and say to read the console or ask the operator')
   const unknown = driverFailureWords('open', 'net::ERR_BLOCKED_BY_CLIENT at https://example.test/')
-  check('unreported policy is not invented', unknown !== null && /not report/.test(unknown), unknown ?? '(no translation)', 'driverFailureWords in src/tools/BrowserTool/browser/failures.ts must return words saying the browser did not report a policy when no blocked reason is passed')
+  check('unreported policy is not invented', unknown !== null && /not report/.test(unknown), unknown ?? '(no translation)', 'driverFailureWords in src/tools/browser/ops/failures.ts must return words saying the browser did not report a policy when no blocked reason is passed')
   assert.equal(failures, 0)
 } finally {
   await browser.closeBrowserSessionDetailed(owner)

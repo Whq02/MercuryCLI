@@ -6,7 +6,7 @@ import { z } from 'zod/v4'
 
 let failures = 0
 let checks = 0
-const WHERE_TO_CHANGE = 'to fix: the plan (roster, marks, admission records) is planToolPayload in src/services/providers/toolEconomy.ts; the refusal of a call to an unsent schema is gateToolCall in src/services/providers/toolCallGate.ts; the hint is buildSchemaNotSentHint in src/services/tools/toolExecution.ts; the announcement is getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts; the route of a model is declaredRouteOf in src/services/providers/routeLaw.ts'
+const WHERE_TO_CHANGE = 'to fix: the plan (roster, marks, admission records) is planToolPayload in src/models/roads/toolEconomy.ts; the refusal of a call to an unsent schema is gateToolCall in src/models/roads/toolCallGate.ts; the hint is buildSchemaNotSentHint in src/engine/tool-dispatch/toolExecution.ts; the announcement is getDeferredToolsDeltaAttachment in src/engine/attachments/toolAndServerDeltas.ts; the route of a model is declaredRouteOf in src/models/roads/routeLaw.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -23,22 +23,22 @@ for (const k of ['ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFE
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'deferral-route-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { planToolPayload, renderAdmissionRecordsAsText, clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
-const { gateToolCall, toolCallRefusalNote, toolCallRefusalCorrection, schemaNotSentSentence } = await import('../../src/services/providers/toolCallGate.ts')
-const { buildSchemaNotSentHint } = await import('../../src/services/tools/toolExecution.ts')
-const { fingerprintCacheablePrefix } = await import('../../src/services/api/prefixFingerprint.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { isToolSearchEnabledOptimistic, extractDiscoveredToolNames } = await import('../../src/services/messages/toolSearch.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { getDeferredToolsDeltaAttachment, SERVER_SEARCH_ANNOUNCEMENT_HEAD } = await import('../../src/services/attachments/deltas.ts')
-const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Message = import('../../src/types/message.ts').Message
+const { planToolPayload, renderAdmissionRecordsAsText, clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.ts')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
+const { gateToolCall, toolCallRefusalNote, toolCallRefusalCorrection, schemaNotSentSentence } = await import('../../src/models/roads/toolCallGate.ts')
+const { buildSchemaNotSentHint } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
+const { fingerprintCacheablePrefix } = await import('../../src/engine/requests/prefixFingerprint.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const { TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/tool-search/prompt.ts')
+const { isToolSearchEnabledOptimistic, extractDiscoveredToolNames } = await import('../../src/engine/messages/toolSearch.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { getDeferredToolsDeltaAttachment, SERVER_SEARCH_ANNOUNCEMENT_HEAD } = await import('../../src/engine/attachments/toolAndServerDeltas.ts')
+const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const ROUTE_MODELS: Record<string, string> = {
   anthropic: 'claude-sonnet-5',

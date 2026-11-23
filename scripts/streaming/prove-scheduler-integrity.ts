@@ -33,7 +33,7 @@ const run = await runArtifactArena({
 check('scene ran (frames painted)', (run.probe?.frames.total ?? 0) > 50, `${run.probe?.frames.total} frames; rebuild dist with bun run build.ts and read the arena output above, the scene in scripts/streaming/artifactArena.ts did not paint`)
 check('scene streamed + painted patches', (run.probe?.counters['patches'] ?? 0) > 0, 'no patches counted; rebuild dist with bun run build.ts and read the arena output above')
 const risk = run.probe?.counters['stale-frame-risk'] ?? 0
-check('GENERATION LAW: zero stale-frame-risk across stream/type/cancel/settle', risk === 0, `${risk} violations; assertBaseDeliverable in src/ink/root/frame-ledger.ts counted a frame whose diff base was never delivered while no contamination was set, so fix the settle and commitFrame calls that feed FrameLedger`)
+check('GENERATION LAW: zero stale-frame-risk across stream/type/cancel/settle', risk === 0, `${risk} violations; assertBaseDeliverable in src/screen/renderer/root/frame-ledger.ts counted a frame whose diff base was never delivered while no contamination was set, so fix the settle and commitFrame calls that feed FrameLedger`)
 
 try {
   const s4 = JSON.parse(

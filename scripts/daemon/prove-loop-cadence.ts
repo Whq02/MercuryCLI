@@ -7,7 +7,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'loop-cadence-'))
 process.env.MERCURY_LOOP_DYNAMIC = '0'
 delete process.env.MERCURY_LOOP_PROMPT
 
-const { cadenceForInterval, loopPromptForInput } = await import('../../src/skills/bundled/loop.ts')
+const { cadenceForInterval, loopPromptForInput } = await import('../../src/integrations/skills/bundled/loop.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

@@ -5,11 +5,11 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { SurfaceReturnToken, SurfaceTransitionVerb } from '../../src/context/surfaceRoute.ts'
-import type { HeldFireV1, SaturnScheduleV1, ScheduleAccountV1 } from '../../src/daemon/saturn.ts'
-import type { LayoutRoots } from '../../src/services/privateChannel/installLayout.ts'
-import type { FoldExit } from '../../src/services/compact/foldStatus.ts'
-import type { SignInKind, SignInLedgerIo } from '../../src/utils/accounts/signInLedger.ts'
+import type { SurfaceReturnToken, SurfaceTransitionVerb } from '../../src/screen/routes/surfaceRoute.ts'
+import type { HeldFireV1, SaturnScheduleV1, ScheduleAccountV1 } from '../../src/daemon/saturn/saturn.ts'
+import type { LayoutRoots } from '../../src/platform/update-channel/installLayout.ts'
+import type { FoldExit } from '../../src/engine/compaction/foldStatus.ts'
+import type { SignInKind, SignInLedgerIo } from '../../src/models/sign-in/account-ledger/signInLedger.ts'
 import { checker, guardWrite, scratchRoot } from '../engine-durability/harness.ts'
 import { runnerLaunches } from '../lib/runnerLaunches.ts'
 
@@ -26,27 +26,27 @@ const TABLE_PATH = join(REPO, 'scripts', 'formal-models', 'major-flows.tsv')
 const SELF_PROOF = 'scripts/formal-models/prove-major-flows.ts'
 const t = checker()
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
-const surface = await import('../../src/context/surfaceRoute.ts')
-const runKernel = await import('../../src/services/run/runKernel.ts')
-const runSidecar = await import('../../src/services/run/runSidecar.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const permAsks = await import('../../src/daemon/permissionAsks.ts')
-const { permissionQueueStatus } = await import('../../src/components/permissions/PermissionQueueContext.ts')
-const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
-const saturn = await import('../../src/daemon/saturn.ts')
-const { saturnDueAtOf } = await import('../../src/daemon/saturnTicker.ts')
-const installLayout = await import('../../src/services/privateChannel/installLayout.ts')
-const foldStatus = await import('../../src/services/compact/foldStatus.ts')
-const completionEvaluator = await import('../../src/services/run/completionEvaluator.ts')
+const surface = await import('../../src/screen/routes/surfaceRoute.ts')
+const runKernel = await import('../../src/engine/run/runKernel.ts')
+const runSidecar = await import('../../src/engine/run/runSidecar.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const permAsks = await import('../../src/daemon/session-seat/permissionAsks.ts')
+const { permissionQueueStatus } = await import('../../src/permissions/cards/PermissionQueueContext.ts')
+const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const saturn = await import('../../src/daemon/saturn/saturn.ts')
+const { saturnDueAtOf } = await import('../../src/daemon/saturn/saturnTicker.ts')
+const installLayout = await import('../../src/platform/update-channel/installLayout.ts')
+const foldStatus = await import('../../src/engine/compaction/foldStatus.ts')
+const completionEvaluator = await import('../../src/engine/run/completionEvaluator.ts')
 const runInspector = await import('../../src/commands/run/runInspectorModel.ts')
-const currentWork = await import('../../src/services/workbench/currentWork.ts')
-const promptDraft = await import('../../src/utils/promptDraft.ts')
-const signInLedger = await import('../../src/utils/accounts/signInLedger.ts')
-const { loginSuccessReceipt } = await import('../../src/utils/accounts/loginReceipt.ts')
-const { AuthCodeListener } = await import('../../src/services/oauth/auth-code-listener.ts')
+const currentWork = await import('../../src/screen/workbench/currentWork.ts')
+const promptDraft = await import('../../src/screen/composer/input-core/promptDraft.ts')
+const signInLedger = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
+const { loginSuccessReceipt } = await import('../../src/models/sign-in/account-ledger/loginReceipt.ts')
+const { AuthCodeListener } = await import('../../src/models/sign-in/oauth/auth-code-listener.ts')
 
 const EXPECTED_HEADERS = [
   'flow',

@@ -47,28 +47,28 @@ const VERIFICATION_CITES: Array<[string, RegExp]> = [
   ['concrete suite runner path', new RegExp(J('scripts/', '[a-z0-9-]+', '/run-all', '\\.sh'))],
 ]
 
-const CONFIG_INDEX_SPELLING = J('src/substrate/', 'flagRegistry.ts')
+const CONFIG_INDEX_SPELLING = J('src/platform/substrate/', 'flagRegistry.ts')
 const SRC_CITE = new RegExp('[(`]' + J('src', '/'))
 
 const QUOTED_PRODUCT_LABELS: ReadonlyArray<{ span: string; reason: string }> = [
   {
     span: '`C/C++ IDE lane (clangd)`',
-    reason: 'Boot Menu row label in src/substrate/startupMenu.ts:168 quoted verbatim in backticks',
+    reason: 'Boot Menu row label in src/platform/substrate/startupMenu.ts:168 quoted verbatim in backticks',
   },
 ]
 
 const CENSUS_EXEMPT_LINES: ReadonlyArray<{ fragment: string; reason: string }> = [
   {
     fragment: '**Yes ' + J('—', ' begin the build**'),
-    reason: 'ApolloReview option label in src/components/permissions/ApolloReviewPermissionRequest/ApolloReviewPermissionRequest.tsx:87',
+    reason: 'ApolloReview option label in src/permissions/cards/apollo-review/ApolloReviewPermissionRequest.tsx:87',
   },
   {
     fragment: '**Yes ' + J('—', ' but ask me before each edit**'),
-    reason: 'ApolloReview option label in src/components/permissions/ApolloReviewPermissionRequest/ApolloReviewPermissionRequest.tsx:88',
+    reason: 'ApolloReview option label in src/permissions/cards/apollo-review/ApolloReviewPermissionRequest.tsx:88',
   },
   {
     fragment: '**No ' + J('—', ' ask me more questions**'),
-    reason: 'ApolloReview option label in src/components/permissions/ApolloReviewPermissionRequest/ApolloReviewPermissionRequest.tsx:89',
+    reason: 'ApolloReview option label in src/permissions/cards/apollo-review/ApolloReviewPermissionRequest.tsx:89',
   },
   {
     fragment: 'go-delve/' + J('del', 've/cmd/dlv@latest'),

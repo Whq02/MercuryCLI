@@ -4,30 +4,30 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import type { Message, RenderableMessage } from '../../src/types/message.ts'
+import type { Message, RenderableMessage } from '../../src/engine/message-shapes/message.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'memory-fold-work-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_TMPDIR = home
 process.env.MERCURY_SM_COMPACT = '1'
 process.env.MERCURY_TURN_RECEIPT = '1'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { getSessionMemoryPath, getMercuryTempDir } = await import('../../src/utils/permissions/filesystem.ts')
+const { getSessionMemoryPath, getMercuryTempDir } = await import('../../src/permissions/rules/filesystem.ts')
 const hookCalls: Array<{ event: string; payload: Record<string, unknown> }> = []
-const hooks = await import('../../src/utils/hooks/fire.js')
+const hooks = await import('../../src/integrations/event-hooks/fire.js')
 const realFireHooks = hooks.fireHooks
-mock.module('../../src/utils/hooks/fire.js', () => ({
+mock.module('../../src/integrations/event-hooks/fire.js', () => ({
   ...hooks,
   fireHooks: async (event: Parameters<typeof hooks.fireHooks>[0], payload: Record<string, unknown>, ...rest: unknown[]) => {
     hookCalls.push({ event, payload })
     return (realFireHooks as (...args: unknown[]) => Promise<unknown>)(event, payload, ...rest)
   },
 }))
-const { trySessionMemoryCompaction } = await import('../../src/services/compact/sessionMemoryCompact.ts')
-const { buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
-const { injectTurnReceipts } = await import('../../src/utils/cockpit/turnReceipt.ts')
-const { buildAwayRecap } = await import('../../src/utils/cockpit/awaySummary.ts')
+const { trySessionMemoryCompaction } = await import('../../src/engine/compaction/sessionNotesFold.ts')
+const { buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { injectTurnReceipts } = await import('../../src/screen/cockpit/turnReceipt.ts')
+const { buildAwayRecap } = await import('../../src/screen/cockpit/awaySummary.ts')
 const timestamp = new Date().toISOString()
 const user = (content: unknown) => ({ type: 'user', uuid: randomUUID(), timestamp, message: { role: 'user', content } }) as Message
 const messages = [user('Check twelve commands.')]
@@ -37,7 +37,7 @@ for (let index = 0; index < 12; index++) {
   messages.push(user([{ type: 'tool_result', tool_use_id: id, content: 'x'.repeat(16_000) }]))
 }
 let failures = 0
-const check = (label: string, ok: boolean) => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — fix: trySessionMemoryCompaction in src/services/compact/sessionMemoryCompact.ts (the work stamp, the trigger and the compaction.after hook), or the readers injectTurnReceipts (src/utils/cockpit/turnReceipt.ts) and buildAwayRecap (src/utils/cockpit/awaySummary.ts)'}`) }
+const check = (label: string, ok: boolean) => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — fix: trySessionMemoryCompaction in src/engine/compaction/sessionNotesFold.ts (the work stamp, the trigger and the compaction.after hook), or the readers injectTurnReceipts (src/screen/cockpit/turnReceipt.ts) and buildAwayRecap (src/screen/cockpit/awaySummary.ts)'}`) }
 const counts = (rows: Message[]) => injectTurnReceipts(rows as RenderableMessage[], getMercuryTempDir()).filter(row => row.type === 'turn_receipt').map(row => row.counts)
 const recap = (rows: Message[]) => { const r = buildAwayRecap(rows, Date.now()); return { turns: r?.turns, topTools: r?.topTools, filesTouched: r?.filesTouched, toolFailures: r?.toolFailures } }
 try {
@@ -56,7 +56,7 @@ try {
     hookCalls.length = 0
     const manual = await trySessionMemoryCompaction(messages, undefined, undefined, undefined, 'manual')
     const afterHook = hookCalls.find(call => call.event === 'compaction.after')
-    const { estimateContextTokens } = await import('../../src/services/compact/microCompact.js')
+    const { estimateContextTokens } = await import('../../src/engine/compaction/pruneToolResults.js')
     check('a manual notes fold records the trigger and the full landing estimate (F43A-C4-05/19)', manual?.boundaryMarker.compactMetadata.trigger === 'manual' && afterHook?.payload.trigger === 'manual' && afterHook.payload.tokens_after === estimateContextTokens(buildPostCompactMessages(manual!)))
     hookCalls.length = 0
     const refused = await trySessionMemoryCompaction(messages, undefined, 1)

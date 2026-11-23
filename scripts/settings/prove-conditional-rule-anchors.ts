@@ -8,12 +8,12 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'rule-anchors-home-'
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}processConditionedRules in src/services/instructions/discovery.ts decides which conditional rules govern a target path` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}processConditionedRules in src/sessions/instructions/discovery.ts decides which conditional rules govern a target path` : ''}`)
 }
 
-const { processConditionedRules } = await import('../../src/services/instructions/discovery.ts')
-const { mercuryNativeConvention } = await import('../../src/services/instructions/nativeSource.ts')
-const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+const { processConditionedRules } = await import('../../src/sessions/instructions/discovery.ts')
+const { mercuryNativeConvention } = await import('../../src/sessions/instructions/nativeSource.ts')
+const { setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'rule-anchors-')))
 const project = join(scratch, 'project')

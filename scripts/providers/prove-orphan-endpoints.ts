@@ -5,8 +5,8 @@ import { KEY, mountOffscreen, pinSourceRef, waitFor, type Mounted } from '../lib
 import { llmhostFixture } from './lib/llmhostFixture.ts'
 import { runpodFixture } from '../host/runpodFixture.mjs'
 import { gridToPng } from '../ui/gridToPng.ts'
-import type { HostRecord } from '../../src/services/host/store.ts'
-import type { LlmHostEvent, LlmHostRoad } from '../../src/services/llmHost/index.ts'
+import type { HostRecord } from '../../src/models/hosting/store.ts'
+import type { LlmHostEvent, LlmHostRoad } from '../../src/models/llm-host/index.ts'
 
 pinSourceRef()
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
@@ -43,22 +43,22 @@ globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
 let stopJob: (() => Promise<void>) | undefined
 try {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStoreContext, getDefaultAppState } = await import('../../src/state/AppState.tsx')
-  const { createStore } = await import('../../src/state/store.ts')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStoreContext, getDefaultAppState } = await import('../../src/screen/app-state/AppState.tsx')
+  const { createStore } = await import('../../src/platform/primitives/store.ts')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
   const { call } = await import('../../src/commands/model/mercuryModel.tsx')
-  const { getSettingsForSource, updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
-  const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
-  const { refreshCompatCatalogues } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
-  const { readStoredCompatApiKey, writeStoredCompatApiKey, writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-  const { loginFamilyRows } = await import('../../src/components/loginFamilyRows.ts')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { hostDirectory, readHostRecord, writeHostRecord } = await import('../../src/services/host/store.ts')
-  const { hostJobRunning } = await import('../../src/services/host/jobs.ts')
-  const { startService, stopService } = await import('../../src/services/projectServices/serviceManager.ts')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const { openSettingsPopup, closeSettingsPopup } = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { getSettingsForSource, updateSettingsForSource } = await import('../../src/platform/settings/settings.ts')
+  const { configuredCompatEndpoints } = await import('../../src/models/roads/openaicompat/compatAccounts.ts')
+  const { refreshCompatCatalogues } = await import('../../src/models/roads/openaicompat/compatCatalogue.ts')
+  const { readStoredCompatApiKey, writeStoredCompatApiKey, writeStoredRunpodApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const { loginFamilyRows } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { hostDirectory, readHostRecord, writeHostRecord } = await import('../../src/models/hosting/store.ts')
+  const { hostJobRunning } = await import('../../src/models/hosting/jobs.ts')
+  const { startService, stopService } = await import('../../src/tools/engines/project-services/serviceManager.ts')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const { openSettingsPopup, closeSettingsPopup } = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
   const mount = async (element: React.ReactNode, cols: number, model?: string) => {
     const store = createStore({ ...getDefaultAppState(), ...(model ? { engineModel: model } : {}) }, () => {})
@@ -124,7 +124,7 @@ try {
   const started = await startService({ sessionId: 'orphan-endpoints-proof', spec: { name: 'host-running-pod', command: process.execPath, args: ['-e', 'setTimeout(() => {}, 120000)'], cwd: hostDirectory(), readiness: [], readinessMode: 'all', restart: 'never', lifecycle: 'session' } })
   assert.ok('record' in started, JSON.stringify(started))
   stopJob = async () => { const stopped = await stopService(hostDirectory(), 'host-running-pod'); assert.ok('record' in stopped, JSON.stringify(stopped)) }
-  assert.ok(hostJobRunning(protectedRecords.at(-1)!), 'src/services/host/jobs.ts hostJobRunning returned false for started host-running-pod fixture')
+  assert.ok(hostJobRunning(protectedRecords.at(-1)!), 'src/models/hosting/jobs.ts hostJobRunning returned false for started host-running-pod fixture')
   writeStoredRunpodApiKey(rp.key)
   const road = createHostRoad({ apiBaseUrl: rp.baseUrl, sessionId: 'orphan-endpoints-proof' })
   const events: LlmHostEvent[] = []

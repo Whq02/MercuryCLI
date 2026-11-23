@@ -4,7 +4,7 @@ import { PYTHON3 } from '../lib/python3.ts'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pinSourceRef } from '../lib/settingsPopupHarness.ts'
-import type { HostRunner } from '../../src/services/host/ssh.ts'
+import type { HostRunner } from '../../src/models/hosting/ssh.ts'
 
 pinSourceRef()
 if (process.platform === 'win32') {
@@ -15,8 +15,8 @@ if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_D
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 const home = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR, 'image-path-'))
 try {
-  const { startHostEngine } = await import('../../src/services/host/ssh.ts')
-  const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+  const { startHostEngine } = await import('../../src/models/hosting/ssh.ts')
+  const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
   const recipe = HOST_RECIPES.find(row => row.id === 'qwen38-27b-rtx-pro-6000')!
   const bin = join(home, 'image-bin')
   mkdirSync(bin)

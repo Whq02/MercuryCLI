@@ -7,7 +7,7 @@ import * as path from 'node:path'
 
 let failures = 0
 const failureHint =
-  'change the function this check exercises in src/utils/unity/unityProject.ts (or, for the registry section, the MERCURY_UNITY and MERCURY_UNITY_EDITOR rows in FLAG_REGISTRY) until it matches the label'
+  'change the function this check exercises in src/integrations/unity-protocol/unityProject.ts (or, for the registry section, the MERCURY_UNITY and MERCURY_UNITY_EDITOR rows in FLAG_REGISTRY) until it matches the label'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? detail : detail ? `${detail}; ${failureHint}` : failureHint
@@ -28,8 +28,8 @@ const {
   locateUnityEditors,
   compareUnityVersionsDesc,
   buildUnityProjectProfile,
-} = await import('../../src/utils/unity/unityProject.js')
-const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
+} = await import('../../src/integrations/unity-protocol/unityProject.js')
+const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.js')
 
 const savedEnv = { ...process.env }
 function restore(): void {
@@ -197,11 +197,11 @@ section('§6 · registry honesty')
     unity !== undefined &&
       unity.kind === 'opt-in' &&
       unity.evidence === 'scripts/ide/prove-unity-project.ts' &&
-      unity.consumer === 'src/utils/unity/unityProject.ts',
+      unity.consumer === 'src/integrations/unity-protocol/unityProject.ts',
   )
   check(
     'MERCURY_UNITY_EDITOR row: value flag, consumer = unityProject',
-    editorPin !== undefined && editorPin.kind === 'value' && editorPin.consumer === 'src/utils/unity/unityProject.ts',
+    editorPin !== undefined && editorPin.kind === 'value' && editorPin.consumer === 'src/integrations/unity-protocol/unityProject.ts',
   )
 }
 

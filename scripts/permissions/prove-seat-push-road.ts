@@ -19,27 +19,27 @@ delete process.env.MERCURY_DAEMON_PERMISSION_MODE
 
 import { z } from 'zod/v4'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-await import('../../src/services/providers/callModelRouter.ts')
-await import('../../src/services/messages.ts')
-await import('../../src/Tool.ts')
-const { decideToolPermissionWithModes, defaultWrapperPorts } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { stripDangerousPermissionsForFlow } = await import('../../src/utils/permissions/permissionSetup.ts')
-const { loadAllPermissionRulesFromDisk } = await import('../../src/utils/permissions/permissionsLoader.ts')
-const { applyPermissionRulesToPermissionContext } = await import('../../src/utils/permissions/permissions.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { setAskChannel } = await import('../../src/bootstrap/state.ts')
-const posture = await import('../../src/utils/cockpit/runtimePosture.ts')
+await import('../../src/models/roads/callModelRouter.ts')
+await import('../../src/engine/messages/messages.ts')
+await import('../../src/tools/kit/tool.ts')
+const { decideToolPermissionWithModes, defaultWrapperPorts } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { stripDangerousPermissionsForFlow } = await import('../../src/permissions/rules/permissionSetup.ts')
+const { loadAllPermissionRulesFromDisk } = await import('../../src/permissions/rules/permissionsLoader.ts')
+const { applyPermissionRulesToPermissionContext } = await import('../../src/permissions/rules/permissionDoor.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { setAskChannel } = await import('../../src/boot/process-state/processState.ts')
+const posture = await import('../../src/screen/cockpit/runtimePosture.ts')
 
 let failures = 0
 const pushRoadWhereBySection: Record<string, string> = {
-  '§1': 'fix the boot posture text in src/utils/cockpit/runtimePosture.ts (getRuntimePostureSection, composeOperatorNeedsLine, markSessionBootRules)',
-  '§2': 'fix the verdict in decideToolPermissionWithModes, src/utils/permissions/decision/wrapper.ts, bashToolHasPermission, src/tools/BashTool/bashPermissions.ts, or stripDangerousPermissionsForFlow, src/utils/permissions/permissionSetup.ts',
-  '§3': 'fix loadAllPermissionRulesFromDisk, src/utils/permissions/permissionsLoader.ts, applyPermissionRulesToPermissionContext, src/utils/permissions/permissions.ts, or the posture text in src/utils/cockpit/runtimePosture.ts',
-  '§4': 'the headless entry must stamp the boot rules with markSessionBootRules (src/utils/cockpit/runtimePosture.ts) before the first system prompt',
+  '§1': 'fix the boot posture text in src/screen/cockpit/runtimePosture.ts (getRuntimePostureSection, composeOperatorNeedsLine, markSessionBootRules)',
+  '§2': 'fix the verdict in decideToolPermissionWithModes, src/permissions/rules/decision/wrapper.ts, bashToolHasPermission, src/tools/shell/bashPermissions.ts, or stripDangerousPermissionsForFlow, src/permissions/rules/permissionSetup.ts',
+  '§3': 'fix loadAllPermissionRulesFromDisk, src/permissions/rules/permissionsLoader.ts, applyPermissionRulesToPermissionContext, src/permissions/rules/permissionDoor.ts, or the posture text in src/screen/cockpit/runtimePosture.ts',
+  '§4': 'the headless entry must stamp the boot rules with markSessionBootRules (src/screen/cockpit/runtimePosture.ts) before the first system prompt',
 }
 let pushRoadWhere = ''
 function check(label: string, cond: boolean, detail = ''): void {

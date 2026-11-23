@@ -45,7 +45,7 @@ const MODEL_FACING: Array<[string, RegExp]> = [
 
 const EXCLUDED_AREAS: Array<[string, string]> = [
   ['docs/releases/', 'published release pages are history'],
-  ['src/constants/changelogArchive.ts', 'past release notes stay as published'],
+  ['src/commands/update-notes/changelogArchive.ts', 'past release notes stay as published'],
   ['scripts/interview/baselines/', 'frozen journey capture records'],
   ['scripts/visual-contract/baselines/', 'frozen capture records of earlier screens'],
   ['scripts/agent-experience/baselines/', 'frozen mechanical baselines of earlier prompts: the tool names a past run offered'],
@@ -63,8 +63,8 @@ const PINS: Array<[string, string]> = [
 ]
 
 const NOT_THE_TOOL: Array<[string, string, string]> = [
-  ['src/utils/hooks/hooksSettings.ts', `return '${OLD_TOOL}'`, "the short word for a hook that came from an agent definition's frontmatter, beside Extension and Skill"],
-  ['src/services/model/agentModelPicker.ts', `group: '${OLD_TOOL}'`, "the agent model picker's group label for the agent definition being edited"],
+  ['src/integrations/event-hooks/hooksSettings.ts', `return '${OLD_TOOL}'`, "the short word for a hook that came from an agent definition's frontmatter, beside Extension and Skill"],
+  ['src/models/catalogue/agentModelPicker.ts', `group: '${OLD_TOOL}'`, "the agent model picker's group label for the agent definition being edited"],
   ['scripts/api/node-transport-lane.mjs', `=== '${OLD_TOOL}'`, "undici's dispatcher class, compared by its constructor name"],
 ]
 
@@ -82,22 +82,22 @@ console.log(` the tool that launches a crewmate is named ${TOOL}: the model sees
 console.log('============================================================')
 
 section('§1 the live roster')
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { findToolByName, getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { AGENT_TOOL_NAME } = await import('../../src/constants/tools/agent.ts')
-const { RESUME_AGENT_TOOL_NAME } = await import('../../src/constants/tools/resumeAgent.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { findToolByName, getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { AGENT_TOOL_NAME } = await import('../../src/tools/kit/names/agent.ts')
+const { RESUME_AGENT_TOOL_NAME } = await import('../../src/tools/kit/names/resumeAgent.ts')
 const tools = getAllBaseTools()
 const names = tools.map(tool => tool.name)
-check(`the launch tool is named ${TOOL} and the resume verb ${RESUME}`, AGENT_TOOL_NAME === TOOL && RESUME_AGENT_TOOL_NAME === RESUME, `${AGENT_TOOL_NAME} · ${RESUME_AGENT_TOOL_NAME} · set AGENT_TOOL_NAME in src/constants/tools/agent.ts and RESUME_AGENT_TOOL_NAME in src/constants/tools/resumeAgent.ts back to ${TOOL} and ${RESUME}`)
-check('both are in the base roster', names.includes(TOOL) && names.includes(RESUME), `${names.join(', ')} · register both tools in getAllBaseTools in src/tools.ts`)
-check('no tool bears an old name', !names.includes(OLD_TOOL) && !names.includes(OLD_RESUME), `rename the tool still named with the old spelling in getAllBaseTools (src/tools.ts) to ${TOOL} or ${RESUME}`)
-check('no tool answers to an old name through an alias', findToolByName(tools, OLD_TOOL) === undefined && findToolByName(tools, OLD_RESUME) === undefined && tools.every(tool => !(tool.aliases ?? []).some(alias => alias === OLD_TOOL || alias === OLD_RESUME)), `remove the old spelling from the aliases of the tool, or from findToolByName in src/Tool.ts, so only ${TOOL} and ${RESUME} resolve`)
+check(`the launch tool is named ${TOOL} and the resume verb ${RESUME}`, AGENT_TOOL_NAME === TOOL && RESUME_AGENT_TOOL_NAME === RESUME, `${AGENT_TOOL_NAME} · ${RESUME_AGENT_TOOL_NAME} · set AGENT_TOOL_NAME in src/tools/kit/names/agent.ts and RESUME_AGENT_TOOL_NAME in src/tools/kit/names/resumeAgent.ts back to ${TOOL} and ${RESUME}`)
+check('both are in the base roster', names.includes(TOOL) && names.includes(RESUME), `${names.join(', ')} · register both tools in getAllBaseTools in src/tools/kit/toolList.ts`)
+check('no tool bears an old name', !names.includes(OLD_TOOL) && !names.includes(OLD_RESUME), `rename the tool still named with the old spelling in getAllBaseTools (src/tools/kit/toolList.ts) to ${TOOL} or ${RESUME}`)
+check('no tool answers to an old name through an alias', findToolByName(tools, OLD_TOOL) === undefined && findToolByName(tools, OLD_RESUME) === undefined && tools.every(tool => !(tool.aliases ?? []).some(alias => alias === OLD_TOOL || alias === OLD_RESUME)), `remove the old spelling from the aliases of the tool, or from findToolByName in src/tools/kit/tool.ts, so only ${TOOL} and ${RESUME} resolve`)
 const launch = tools.find(tool => tool.name === TOOL)
 const permissionContext = getEmptyToolPermissionContext()
 const render = async (tool: (typeof tools)[number]): Promise<string> => JSON.stringify(await toolToAPISchema(tool, { getToolPermissionContext: async () => permissionContext, tools, agents: [], model: 'claude-fable-5-1' }))
 const launchBytes = launch === undefined ? '' : await render(launch)
-check(`the launch tool's schema carries ${FIELD}`, launchBytes.includes(`"${FIELD}"`), launch === undefined ? `no tool named ${TOOL}: register it in getAllBaseTools (src/tools.ts)` : `add ${FIELD} to the launch tool input schema (src/tools/AgentTool/agent/schema.ts)`)
+check(`the launch tool's schema carries ${FIELD}`, launchBytes.includes(`"${FIELD}"`), launch === undefined ? `no tool named ${TOOL}: register it in getAllBaseTools (src/tools/kit/toolList.ts)` : `add ${FIELD} to the launch tool input schema (src/tools/crewmate/call/schema.ts)`)
 check(`the launch tool's description says crewmate and no old gloss`, /crewmate/.test(launchBytes) && !MODEL_FACING.some(([, re]) => re.test(launchBytes)), `reword the launch tool description and schema to say crewmate and drop the old gloss: ${launchBytes.slice(0, 200)}`)
 
 section('§2 every model-facing text of every tool: the name, the description, the prompt, the schema, the search hint')
@@ -110,9 +110,9 @@ for (const tool of tools) {
   }
 }
 check(`no tool's model-facing text names the old tool, the old verb, the old field or the old gloss (${tools.length} tools)`, offenders.length === 0, `reword the model-facing text (description, prompt, schema, searchHint) of each tool listed here: ${offenders.join(' | ')}`)
-const { TOOL_CAPABILITY_DECLARATIONS } = await import('../../src/utils/capability/declarations.ts')
+const { TOOL_CAPABILITY_DECLARATIONS } = await import('../../src/permissions/capability/declarations.ts')
 const declared = TOOL_CAPABILITY_DECLARATIONS as Record<string, { intents?: string[] }>
-check(`the capability declarations are keyed by ${TOOL} and ${RESUME}, and their intents say crewmate without the old gloss`, declared[TOOL] !== undefined && declared[RESUME] !== undefined && declared[OLD_TOOL] === undefined && declared[OLD_RESUME] === undefined && !MODEL_FACING.some(([, re]) => re.test(JSON.stringify(declared[TOOL]))), `key the entries of TOOL_CAPABILITY_DECLARATIONS in src/utils/capability/declarations.ts by ${TOOL} and ${RESUME} and reword their intents: ${JSON.stringify(declared[TOOL])}`)
+check(`the capability declarations are keyed by ${TOOL} and ${RESUME}, and their intents say crewmate without the old gloss`, declared[TOOL] !== undefined && declared[RESUME] !== undefined && declared[OLD_TOOL] === undefined && declared[OLD_RESUME] === undefined && !MODEL_FACING.some(([, re]) => re.test(JSON.stringify(declared[TOOL]))), `key the entries of TOOL_CAPABILITY_DECLARATIONS in src/permissions/capability/declarations.ts by ${TOOL} and ${RESUME} and reword their intents: ${JSON.stringify(declared[TOOL])}`)
 
 section('§3 the tree: no tracked file spells the old tool name, verb or field outside the pins')
 const files = execFileSync('git', ['-C', ROOT, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split('\0').filter(Boolean)

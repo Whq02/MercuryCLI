@@ -72,11 +72,11 @@ process.kill = ((pid: number, signal?: NodeJS.Signals | number) => {
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const root = join(proofHome, 'work')
 fs.mkdirSync(join(root, '.mercury'), { recursive: true })
-const { setOriginalCwd, switchSession } = await import('../../src/bootstrap/state.ts')
+const { setOriginalCwd, switchSession } = await import('../../src/boot/process-state/processState.ts')
 setOriginalCwd(root)
 switchSession('00000000-0000-4000-8000-000000000062' as never, root)
-const ownerWatch = await import('../../src/utils/ownerWatch.ts')
-const leases = await import('../../src/services/vulcan/engine/leases.ts')
+const ownerWatch = await import('../../src/daemon/control/ownerWatch.ts')
+const leases = await import('../../src/integrations/vulcan/engine/leases.ts')
 Object.defineProperty(process, 'platform', { value: platform, configurable: true })
 const holder = (i: number) => ({ sessionId: 'probe-proof', agentId: `holder-${i}`, pid: pids[i]!, procStart: tokens.get(pids[i]!)! })
 function seed(i: number, suffix: string): void {
@@ -94,7 +94,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${platform}: ${label}${ok ? '' : ` — ${JSON.stringify(detail)} [change the holder liveness probe in describeProjectLeases, takeProjectLeases or releaseProjectLeases in src/services/vulcan/engine/leases.ts, or the process start-token cache in src/utils/ownerWatch.ts]`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${platform}: ${label}${ok ? '' : ` — ${JSON.stringify(detail)} [change the holder liveness probe in describeProjectLeases, takeProjectLeases or releaseProjectLeases in src/integrations/vulcan/engine/leases.ts, or the process start-token cache in src/daemon/control/ownerWatch.ts]`}`)
 }
 const resetCalls = (): void => { calls.length = 0; batches.length = 0 }
 const expectedSpawns = platform === 'linux' ? 0 : 1

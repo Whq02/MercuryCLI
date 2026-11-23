@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { bootLead, closeWorld, makeTally, makeWorld, toolResultOf, userTextsOf } from './crew-world.ts'
 
-const { ENDED_RUN_TOOL_RESULT } = await import('../../src/utils/messages/rejectionText.ts')
+const { ENDED_RUN_TOOL_RESULT } = await import('../../src/engine/message-shapes/rejectionText.ts')
 
 const CHILD_PROMPT = 'cut-child-fixture-prompt'
 const CHILD_MODEL = 'claude-opus-5-5'
@@ -52,7 +52,7 @@ try {
   const cut = recordOf()
   const kindOf = (line: string): string => { try { return (JSON.parse(line) as { payload?: { kind?: string } }).payload?.kind ?? '?' } catch { return '!' } }
   const mentions = cut.trim().split('\n').filter(line => line.includes(CALL))
-  tally.check('A2 its record holds the call and nothing that answers it', mentions.length === 1 && kindOf(mentions[0]!) === 'output' && !cut.includes(ENDED_RUN_TOOL_RESULT), `${mentions.length} line(s) name the call; kinds ${cut.trim().split('\n').map(kindOf).join(',')} \u2014 the cut must leave the crewmate's record as it stood, with the call written and no answer; nothing may write ENDED_RUN_TOOL_RESULT into the record (it belongs only in the request, src/services/messages/apiFilters.ts)`)
+  tally.check('A2 its record holds the call and nothing that answers it', mentions.length === 1 && kindOf(mentions[0]!) === 'output' && !cut.includes(ENDED_RUN_TOOL_RESULT), `${mentions.length} line(s) name the call; kinds ${cut.trim().split('\n').map(kindOf).join(',')} \u2014 the cut must leave the crewmate's record as it stood, with the call written and no answer; nothing may write ENDED_RUN_TOOL_RESULT into the record (it belongs only in the request, src/engine/messages/apiFilters.ts)`)
   tally.check('A3 the crewmate had asked its model once', childRequests().length === 1, `${childRequests().length} request(s) \u2014 the fixture crewmate must have reached its Bash call after one request; check the launch in this proof's script`)
 
   tally.section('B — the session is continued and the lead resumes the crewmate')
@@ -61,25 +61,25 @@ try {
   second = bootLead(world, ['--sovereign', '--continue'], TOOLS)
   second.submit('parent-resume-one')
   await second.waitFor('the resumed crewmate asks its model', () => childRequests().length === 2 && toolResultOf(world, 'resume-one') !== null)
-  tally.check('B1 the resume is taken', toolResultOf(world, 'resume-one')?.isError === false, `${toolResultOf(world, 'resume-one')?.text.slice(0, 300) ?? 'no result'} \u2014 ResumeCrewmate in src/tools/ResumeAgentTool/ResumeAgentTool.ts refused or failed to resume the cut crewmate`)
+  tally.check('B1 the resume is taken', toolResultOf(world, 'resume-one')?.isError === false, `${toolResultOf(world, 'resume-one')?.text.slice(0, 300) ?? 'no result'} \u2014 ResumeCrewmate in src/tools/resume-crewmate/ResumeAgentTool.ts refused or failed to resume the cut crewmate`)
   const resumed = childRequests()[1]!.messages
-  tally.check('B2 the request the resumed crewmate sends still holds the call it had made', callsOf(resumed).length === 1, `${shape(resumed)} \u2014 the resume (resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts) must send the recorded transcript with the open tool call kept`)
+  tally.check('B2 the request the resumed crewmate sends still holds the call it had made', callsOf(resumed).length === 1, `${shape(resumed)} \u2014 the resume (resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts) must send the recorded transcript with the open tool call kept`)
   const results = resultsOf(resumed)
-  tally.check('B3 the call is answered once, as a call the ended run left without a result', results.length === 1 && results[0]!.is_error === true && textOf(results[0]!).includes(ENDED_RUN_TOOL_RESULT), `${results.map(textOf).join(' | ') || shape(resumed)} \u2014 settleToolUsesOfEndedRun in src/services/messages/apiFilters.ts must answer a call with no result once, as an error with ENDED_RUN_TOOL_RESULT`)
+  tally.check('B3 the call is answered once, as a call the ended run left without a result', results.length === 1 && results[0]!.is_error === true && textOf(results[0]!).includes(ENDED_RUN_TOOL_RESULT), `${results.map(textOf).join(' | ') || shape(resumed)} \u2014 settleToolUsesOfEndedRun in src/engine/messages/apiFilters.ts must answer a call with no result once, as an error with ENDED_RUN_TOOL_RESULT`)
   const last = resumed.at(-1)!
   const lastText = JSON.stringify(last.content)
-  tally.check("B4 the lead's message closes the request, behind that answer", last.role === 'user' && lastText.includes(resumeOne.message) && (results.length === 0 || JSON.stringify(resumed).indexOf(ENDED_RUN_TOOL_RESULT) < JSON.stringify(resumed).lastIndexOf(resumeOne.message)), `${shape(resumed)} \u2014 the request must end with the lead's message after the settled call; see resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts`)
-  tally.check("B5 the crewmate's first prompt stands once and is not what the request ends on alone", JSON.stringify(resumed).split(CHILD_PROMPT).length - 1 === 1 && resumed.some(row => row.role === 'assistant'), `${shape(resumed)} \u2014 the resumed request must hold the first prompt once, followed by the recorded assistant turn; see resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts`)
-  tally.check('B6 the roles alternate', resumed.every((row, index) => index === 0 || row.role !== resumed[index - 1]!.role), `${shape(resumed)} \u2014 the settled call result and the lead's message must be merged so user and assistant rows alternate; see settleToolUsesOfEndedRun in src/services/messages/apiFilters.ts`)
+  tally.check("B4 the lead's message closes the request, behind that answer", last.role === 'user' && lastText.includes(resumeOne.message) && (results.length === 0 || JSON.stringify(resumed).indexOf(ENDED_RUN_TOOL_RESULT) < JSON.stringify(resumed).lastIndexOf(resumeOne.message)), `${shape(resumed)} \u2014 the request must end with the lead's message after the settled call; see resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts`)
+  tally.check("B5 the crewmate's first prompt stands once and is not what the request ends on alone", JSON.stringify(resumed).split(CHILD_PROMPT).length - 1 === 1 && resumed.some(row => row.role === 'assistant'), `${shape(resumed)} \u2014 the resumed request must hold the first prompt once, followed by the recorded assistant turn; see resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts`)
+  tally.check('B6 the roles alternate', resumed.every((row, index) => index === 0 || row.role !== resumed[index - 1]!.role), `${shape(resumed)} \u2014 the settled call result and the lead's message must be merged so user and assistant rows alternate; see settleToolUsesOfEndedRun in src/engine/messages/apiFilters.ts`)
 
   tally.section('C — a second resume reads the same call answered once')
   await second.waitFor('the resumed crewmate finishes', () => userTextsOf(world).some(text => text.includes('CHILD-RESUMED')))
   second.submit('parent-resume-two')
   await second.waitFor('the crewmate asks its model again', () => childRequests().length === 3 && toolResultOf(world, 'resume-two') !== null)
-  tally.check('C1 the second resume is taken', toolResultOf(world, 'resume-two')?.isError === false, `${toolResultOf(world, 'resume-two')?.text.slice(0, 300) ?? 'no result'} \u2014 ResumeCrewmate in src/tools/ResumeAgentTool/ResumeAgentTool.ts refused or failed the second resume`)
+  tally.check('C1 the second resume is taken', toolResultOf(world, 'resume-two')?.isError === false, `${toolResultOf(world, 'resume-two')?.text.slice(0, 300) ?? 'no result'} \u2014 ResumeCrewmate in src/tools/resume-crewmate/ResumeAgentTool.ts refused or failed the second resume`)
   const again = childRequests()[2]!.messages
-  tally.check('C2 the call and its one answer are still there, and the reply of the first resume behind them', callsOf(again).length === 1 && resultsOf(again).length === 1 && JSON.stringify(again).includes('CHILD-RESUMED') && JSON.stringify(again).indexOf(ENDED_RUN_TOOL_RESULT) < JSON.stringify(again).indexOf('CHILD-RESUMED'), `${shape(again)} \u2014 the second resume must read the same call answered once, with the first resume's reply after it; see settleToolUsesOfEndedRun in src/services/messages/apiFilters.ts`)
-  tally.check('C3 the roles alternate', again.every((row, index) => index === 0 || row.role !== again[index - 1]!.role), `${shape(again)} \u2014 rows of the second resume request must alternate user and assistant; see settleToolUsesOfEndedRun in src/services/messages/apiFilters.ts`)
+  tally.check('C2 the call and its one answer are still there, and the reply of the first resume behind them', callsOf(again).length === 1 && resultsOf(again).length === 1 && JSON.stringify(again).includes('CHILD-RESUMED') && JSON.stringify(again).indexOf(ENDED_RUN_TOOL_RESULT) < JSON.stringify(again).indexOf('CHILD-RESUMED'), `${shape(again)} \u2014 the second resume must read the same call answered once, with the first resume's reply after it; see settleToolUsesOfEndedRun in src/engine/messages/apiFilters.ts`)
+  tally.check('C3 the roles alternate', again.every((row, index) => index === 0 || row.role !== again[index - 1]!.role), `${shape(again)} \u2014 rows of the second resume request must alternate user and assistant; see settleToolUsesOfEndedRun in src/engine/messages/apiFilters.ts`)
   await second.waitFor('the crewmate finishes again', () => userTextsOf(world).some(text => text.includes('CHILD-RESUMED-AGAIN')))
   tally.check('C4 the run ends clean', await second.end() === 0, second.stderr().slice(-400))
 } finally {

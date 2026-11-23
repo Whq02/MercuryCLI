@@ -15,16 +15,16 @@ delete process.env.MERCURY_BROWSER_MAX_SESSIONS
 
 const ROOT = join(import.meta.dirname, '..', '..')
 
-const { renderSampleShell } = await import('../../src/services/samples/shell.ts')
-const { formatMarksMessage, parseMarksBody } = await import('../../src/services/samples/marks.ts')
-const { resolveBrowser } = await import('../../src/services/browser/browserResolver.ts')
-const { ensureBrowserSession, disposeBrowserOwner } = await import('../../src/services/browser/browserSession.ts')
-const { makeOwnerKey, MAIN_LANE } = await import('../../src/utils/run/ownerKey.ts')
-type SampleRecord = import('../../src/utils/samples/contracts.ts').SampleRecordV1
+const { renderSampleShell } = await import('../../src/integrations/samples/shell.ts')
+const { formatMarksMessage, parseMarksBody } = await import('../../src/integrations/samples/marks.ts')
+const { resolveBrowser } = await import('../../src/integrations/browser/browserResolver.ts')
+const { ensureBrowserSession, disposeBrowserOwner } = await import('../../src/integrations/browser/browserSession.ts')
+const { makeOwnerKey, MAIN_LANE } = await import('../../src/engine/run-owner/ownerKey.ts')
+type SampleRecord = import('../../src/integrations/sample-contracts/contracts.ts').SampleRecordV1
 
 let failures = 0
 const samplesShellFailHint =
-  'fix the page markup and its inline script in renderSampleShell (src/services/samples/shell.ts), or the marks body and message in parseMarksBody and formatMarksMessage (src/services/samples/marks.ts); a P check failing means the proof fixture itself changed'
+  'fix the page markup and its inline script in renderSampleShell (src/integrations/samples/shell.ts), or the marks body and message in parseMarksBody and formatMarksMessage (src/integrations/samples/marks.ts); a P check failing means the proof fixture itself changed'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? '' : detail ? `${detail} | ${samplesShellFailHint}` : samplesShellFailHint
@@ -43,7 +43,7 @@ async function until(cond: () => Promise<boolean> | boolean, ms = 6000): Promise
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — samples shell proof exceeded 120s; a driven check waited for a page state that never came, so read the last V or I section printed above and the matching script in renderSampleShell (src/services/samples/shell.ts)')
+  console.log('\n❌ TIMEOUT — samples shell proof exceeded 120s; a driven check waited for a page state that never came, so read the last V or I section printed above and the matching script in renderSampleShell (src/integrations/samples/shell.ts)')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

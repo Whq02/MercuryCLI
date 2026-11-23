@@ -75,11 +75,11 @@ function dumpArtifact(extraEnv: Record<string, string> = {}): DumpSurface[] {
     env: { ...childEnv, MERCURY_SURFACE_DUMP: out, ...extraEnv },
   })
   if (res.status !== 0 || !existsSync(out)) {
-    check('artifact dump runs (MERCURY_SURFACE_DUMP)', false, `status ${res.status}: ${res.stderr?.slice(0, 200)}; the surface dump is written at boot in src/main.tsx (MERCURY_SURFACE_DUMP), rebuild dist/mercury.mjs with bun run build.ts and rerun`)
+    check('artifact dump runs (MERCURY_SURFACE_DUMP)', false, `status ${res.status}: ${res.stderr?.slice(0, 200)}; the surface dump is written at boot in src/boot/main.tsx (MERCURY_SURFACE_DUMP), rebuild dist/mercury.mjs with bun run build.ts and rerun`)
     process.exit(1)
   }
   const doc = JSON.parse(readFileSync(out, 'utf8')) as { generatedBy: string; surfaces: DumpSurface[] }
-  check('dump document is the effectiveCatalogue projection', doc.generatedBy === 'effectiveCatalogue', 'the dump written in src/main.tsx must carry generatedBy effectiveCatalogue')
+  check('dump document is the effectiveCatalogue projection', doc.generatedBy === 'effectiveCatalogue', 'the dump written in src/boot/main.tsx must carry generatedBy effectiveCatalogue')
   return doc.surfaces
 }
 
@@ -89,7 +89,7 @@ const byName = new Map(surfaces.map(s => [s.name, s]))
 {
   const PURGED = ['mode', 'rooms', 'chronicle', 'tree', 'roster', 'queue', 'degraded', 'states', 'tiers', 'hud', 'parity', 'map', 'control', 'orch', 'workflows']
   const revenants = PURGED.filter(n => byName.has(n))
-  check('the purged routes are ABSENT as command names', revenants.length === 0, revenants.join(', ') + ' (remove each purged command from builtinCommands in src/commands.ts)')
+  check('the purged routes are ABSENT as command names', revenants.length === 0, revenants.join(', ') + ' (remove each purged command from builtinCommands in src/commands/catalogue/commands.ts)')
   check("'chronicle' is a /memory alias in the artifact", byName.get('memory')?.aliases.includes('chronicle') === true, 'add chronicle to the aliases of the memory command in src/commands')
   check("'tasks' is a /runs alias in the artifact", byName.get('runs')?.aliases.includes('tasks') === true, 'add tasks to the aliases of the runs command in src/commands')
 
@@ -98,19 +98,19 @@ const byName = new Map(surfaces.map(s => [s.name, s]))
     const s = byName.get(n)
     return !s || !s.enabled || s.visibility !== 'normal'
   })
-  check('the live estate is present + normal + enabled', missing.length === 0, missing.join(', ') + ' (register each as a visible, enabled command in builtinCommands, src/commands.ts)')
+  check('the live estate is present + normal + enabled', missing.length === 0, missing.join(', ') + ' (register each as a visible, enabled command in builtinCommands, src/commands/catalogue/commands.ts)')
   const noSurface = ['party', 'multiplayer', 'rooms', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say', 'doctor'].filter(n => byName.has(n) || surfaces.some(s => s.aliases.includes(n)))
   check('the old multiplayer names and the old health alias are no surface, by name or alias', noSurface.length === 0, noSurface.join(', ') + ' (remove each name or alias from the command definitions under src/commands)')
 
   const unclassified = surfaces.filter(
     s => !s.name || !s.kind || !s.category || !['normal', 'hidden'].includes(s.visibility) || typeof s.enabled !== 'boolean',
   )
-  check('every surface row is fully classified', unclassified.length === 0, unclassified.map(s => s.name).join(', ') + ' (toSurface in src/commands/effectiveCatalogue.ts must give every row a name, kind, category, visibility and enabled flag)')
+  check('every surface row is fully classified', unclassified.length === 0, unclassified.map(s => s.name).join(', ') + ' (toSurface in src/commands/catalogue/effectiveCatalogue.ts must give every row a name, kind, category, visibility and enabled flag)')
 
   console.log(`  ·  artifact surfaces: ${surfaces.length} (${surfaces.filter(s => s.visibility === 'normal' && s.enabled).length} normal+enabled)`)
 }
 
-const scenarios = await import('../../scripts/ui/renderScenarios.js')
+const scenarios = await import('../ui/renderScenarios.js')
 const { writeSyntheticSession, SID, RUNTIME_CWD } = scenarios
 
 {

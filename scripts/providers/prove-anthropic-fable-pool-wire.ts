@@ -17,7 +17,7 @@ delete process.env.NODE_ENV
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 500)} — ` : ''}fix the Fable pool reading: usage and header folding in src/services/anthropicLimits.ts, pool views, the rail and the binding window in src/services/providers/providerUsage.ts, the endpoint read in src/services/api/usage.ts, the refusal sentence in src/services/rateLimitMessages.ts; the recorded replies are under scripts/providers/fixtures` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 500)} — ` : ''}fix the Fable pool reading: usage and header folding in src/models/roads/anthropic/anthropicLimits.ts, pool views, the rail and the binding window in src/models/roads/providerUsage.ts, the endpoint read in src/models/usage/anthropicUsageFetch.ts, the refusal sentence in src/models/roads/anthropic/rateLimitMessages.ts; the recorded replies are under scripts/providers/fixtures` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -33,14 +33,14 @@ writeFileSync(
   join(HOME, '.credentials.json'),
   JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-access-token', refreshToken: 'fixture-refresh-token', expiresAt: Date.now() + 7 * 24 * 3600_000, scopes: ['user:inference', 'user:profile'], subscriptionType: 'max' } }),
 )
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const limits = await import('../../src/services/anthropicLimits.ts')
-const usage = await import('../../src/services/providers/providerUsage.ts')
-const { fetchUtilization } = await import('../../src/services/api/usage.ts')
-const { buildVitalsModel } = await import('../../src/services/cockpit/helmVitalsModel.ts')
-const { healthCertSnapshot } = await import('../../src/services/health/healthCertSnapshot.ts')
-const { resolveMercuryTokens } = await import('../../src/utils/mercuryTokens.ts')
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+const usage = await import('../../src/models/roads/providerUsage.ts')
+const { fetchUtilization } = await import('../../src/models/usage/anthropicUsageFetch.ts')
+const { buildVitalsModel } = await import('../../src/screen/cockpit-gauges/helmVitalsModel.ts')
+const { healthCertSnapshot } = await import('../../src/platform/health/healthCertSnapshot.ts')
+const { resolveMercuryTokens } = await import('../../src/screen/theme/mercuryTokens.ts')
 
 const OWNER = 'anthropic:oauth:primary:00000000-0000-4000-8000-0000000000fb'
 limits.__setAnthropicOwnerResolverForTest(() => OWNER, () => 'ana@example.com')
@@ -175,7 +175,7 @@ function headersOf(shape: Record<string, string>, over: Record<string, string | 
 }
 const POOL_HEADERS = ['anthropic-ratelimit-unified-7d_oi-utilization', 'anthropic-ratelimit-unified-7d_oi-reset', 'anthropic-ratelimit-unified-7d_oi-status']
 const withoutPool = Object.fromEntries(POOL_HEADERS.map(name => [name, null]))
-const { providerLimitWarning } = await import('../../src/services/providers/limitWarning.ts')
+const { providerLimitWarning } = await import('../../src/models/roads/limitWarning.ts')
 
 section(`§6 the reply headers (scripts/providers/fixtures/anthropic-unified-windows-2026-11-09.json, the provider's published client read ${windows.read} — its code, not a documented API): the 7d_oi window is the Fable week`)
 {
@@ -242,9 +242,9 @@ section("§9 the runner's reading reaches the window process: the relay carries 
 
 section("§10 the refusal: the provider's claim for that week is seven_day_overage_included, and it reads as the Fable limit it is")
 {
-  const { APIError } = await import('../../src/utils/api/sdkErrors.js')
-  const { getRateLimitErrorMessage } = await import('../../src/services/rateLimitMessages.ts')
-  const { fullWindowLine } = await import('../../src/components/Settings/Usage.tsx')
+  const { APIError } = await import('../../src/engine/request-parts/sdkErrors.js')
+  const { getRateLimitErrorMessage } = await import('../../src/models/roads/anthropic/rateLimitMessages.ts')
+  const { fullWindowLine } = await import('../../src/screen/settings/Usage.tsx')
   const refused = (shape: Record<string, string>): InstanceType<typeof APIError> =>
     new APIError(429, { type: 'error', error: { type: 'rate_limit_error', message: 'Rate limit exceeded' } }, undefined, headersOf(shape) as never)
   check("the client's claim vocabulary has no seven_day_fable: the week it names 'Fable limit' is claimed as seven_day_overage_included", windows.refusal['anthropic-ratelimit-unified-representative-claim'] === 'seven_day_overage_included' && !JSON.stringify(windows).includes('seven_day_fable'))
@@ -255,7 +255,7 @@ section("§10 the refusal: the provider's claim for that week is seven_day_overa
   check('no raw wire word reaches a window name', !show(limited).includes('overage_included') && !show(limits.currentLimits).includes('overage_included'), `${show(limited)} ${show(limits.currentLimits)}`)
   const wall = getRateLimitErrorMessage(limits.currentLimits, FABLE) ?? ''
   check("the refusal row reads the existing pool sentence: …this account's Fable limit is reached on Fable 5.2 · resets … · the other Claude model pools are separate", wall.startsWith("Anthropic says this account's Fable limit is reached on Fable 5.2 · resets ") && wall.endsWith('the other Claude model pools are separate — /model switches inside this account'), wall)
-  const { getAssistantMessageFromError } = await import('../../src/services/api/errors.ts')
+  const { getAssistantMessageFromError } = await import('../../src/engine/requests/apiErrorRows.ts')
   const row = getAssistantMessageFromError(refused(windows.refusal), FABLE)
   const rowText = (Array.isArray(row.message.content) ? row.message.content : []).map(block => (block.type === 'text' ? block.text : '')).join('')
   check("the transcript's own refusal row, composed from the error's headers, opens with that sentence", rowText.split('\n')[0]!.startsWith("Anthropic says this account's Fable limit is reached on Fable 5.2 · resets ") && rowText.split('\n')[0]!.endsWith('the other Claude model pools are separate — /model switches inside this account') && row.error === 'rate_limit', rowText.slice(0, 300))

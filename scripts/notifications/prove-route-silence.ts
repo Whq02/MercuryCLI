@@ -10,7 +10,7 @@ import { paintsBootFaceReady } from '../lib/bootFace.ts'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 import { grabScreens, requireDist, runArtifactArena, visibleText, type ArenaRun } from '../streaming/artifactArena.ts'
 import { referenceFixtureSnapshot } from './concourseReferenceSeed.ts'
-import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
+import { keyHintLabel } from '../../src/screen/widgets/keyHintLabel.ts'
 
 const t = checker()
 scratchRoot('route-silence')

@@ -9,21 +9,21 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'tool-txn-'))
 
 import { z } from 'zod/v4'
 
-const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
+const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
 const { subscribeToolStart, subscribeToolTerminal } = await import(
-  '../../src/utils/run/effectObserver.ts'
+  '../../src/engine/run-owner/effectObserver.ts'
 )
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { killCapability, clearAllCapabilityKills } = await import(
-  '../../src/utils/permissions/capabilityGate.ts'
+  '../../src/permissions/rules/capabilityGate.ts'
 )
-const { AbortError } = await import('../../src/utils/errors.ts')
-const { CANCEL_MESSAGE } = await import('../../src/services/messages.ts')
+const { AbortError } = await import('../../src/platform/errors/errors.ts')
+const { CANCEL_MESSAGE } = await import('../../src/engine/messages/messages.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — fix runToolUse in src/services/tools/toolExecution.ts (start and terminal observations are published from src/utils/run/effectObserver.ts)` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — fix runToolUse in src/engine/tool-dispatch/toolExecution.ts (start and terminal observations are published from src/engine/run-owner/effectObserver.ts)` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -31,7 +31,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — transaction proof exceeded 60s; a runToolUse call in src/services/tools/toolExecution.ts never finished')
+  console.log('\n❌ TIMEOUT — transaction proof exceeded 60s; a runToolUse call in src/engine/tool-dispatch/toolExecution.ts never finished')
   process.exit(1)
 }, 60_000)
 guard.unref?.()

@@ -20,14 +20,14 @@ if (!given) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   process.env.MERCURY_BARE = '1'
   const src = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-  const { FileReadTool } = await import(`${src}/tools/FileReadTool/FileReadTool.ts`)
-  const { getEmptyToolPermissionContext } = await import(`${src}/Tool.ts`)
-  const { createFileStateCacheWithSizeLimit } = await import(`${src}/utils/fileStateCache.ts`)
-  const { setCwdState, setOriginalCwd } = await import(`${src}/bootstrap/state.ts`)
+  const { FileReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
+  const { getEmptyToolPermissionContext } = await import(`${src}/tools/kit/tool.ts`)
+  const { createFileStateCacheWithSizeLimit } = await import(`${src}/platform/files/fileStateCache.ts`)
+  const { setCwdState, setOriginalCwd } = await import(`${src}/boot/process-state/processState.ts`)
   setCwdState(given)
   setOriginalCwd(given)
   let passed = 0, failed = 0
-  const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ' (fix parseReadQueryTarget or formatReadQueryTarget in src/tools/FileReadTool/readQueryTarget.ts for target checks, and src/tools/FileReadTool/readJson.ts or FileReadTool.ts for Read checks) ' + detail}`) }
+  const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ' (fix parseReadQueryTarget or formatReadQueryTarget in src/tools/read/readQueryTarget.ts for target checks, and src/tools/read/readJson.ts or FileReadTool.ts for Read checks) ' + detail}`) }
   let rules = getEmptyToolPermissionContext()
   const context = {
     readFileState: createFileStateCacheWithSizeLimit(100), userModified: false, updateFileHistoryState: () => {},
@@ -47,7 +47,7 @@ if (!given) {
       return String(FileReadTool.mapToolResultToToolResultBlockParam(reply.data, 'query').content)
     } catch (error) { return String(error) }
   }
-  const routeFile = join(src, 'tools/FileReadTool/readQueryTarget.ts')
+  const routeFile = join(src, 'tools/read/readQueryTarget.ts')
   check('shared query target module exists', existsSync(routeFile))
   if (existsSync(routeFile)) {
     const { parseReadQueryTarget, formatReadQueryTarget } = await import(routeFile)

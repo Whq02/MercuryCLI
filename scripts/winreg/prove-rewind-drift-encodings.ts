@@ -14,14 +14,14 @@ delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 process.chdir(work)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(true)
 bootstrap.setOriginalCwd(work)
-const fileHistory = await import('../../src/services/changeTransaction/fileHistory.ts')
-const fileRead = await import('../../src/utils/fileRead.ts')
-const { readFileInRange } = await import('../../src/utils/readFileInRange.ts')
+const fileHistory = await import('../../src/tools/engines/change-transaction/fileHistory.ts')
+const fileRead = await import('../../src/platform/files/syncFileRead.ts')
+const { readFileInRange } = await import('../../src/platform/files/readFileInRange.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = '', failHint = ''): void => {
@@ -72,12 +72,12 @@ console.log('============================================================')
 for (const [label, encode, eol] of encodings) {
   for (const toucher of ['edit', 'read'] as const) {
     const out = (await restoreAfter(label, encode, eol, toucher, false)) as { ok: boolean; kind?: string }
-    check(`${label}, last touched by ${toucher}: a timestamp-only touch leaves it restorable`, out.ok === true, out.ok ? '' : `refused ${out.kind}`, 'change driftedSinceLastTouch in src/services/changeTransaction/fileHistory.ts so a touch that leaves the content unchanged is not drift for this encoding')
+    check(`${label}, last touched by ${toucher}: a timestamp-only touch leaves it restorable`, out.ok === true, out.ok ? '' : `refused ${out.kind}`, 'change driftedSinceLastTouch in src/tools/engines/change-transaction/fileHistory.ts so a touch that leaves the content unchanged is not drift for this encoding')
   }
 }
 for (const [label, encode, eol] of [encodings[0]!, encodings[1]!, encodings[4]!]) {
   const out = (await restoreAfter(label, encode, eol, 'edit', true)) as { ok: boolean; kind?: string }
-  check(`${label}: a real change made outside the session still refuses as drift`, out.ok === false && out.kind === 'drift', JSON.stringify(out).slice(0, 120), 'fileHistoryRestore in src/services/changeTransaction/fileHistory.ts must refuse with kind drift when the content changed after the last touch; check driftedSinceLastTouch')
+  check(`${label}: a real change made outside the session still refuses as drift`, out.ok === false && out.kind === 'drift', JSON.stringify(out).slice(0, 120), 'fileHistoryRestore in src/tools/engines/change-transaction/fileHistory.ts must refuse with kind drift when the content changed after the last touch; check driftedSinceLastTouch')
 }
 
 process.chdir(launchDir)

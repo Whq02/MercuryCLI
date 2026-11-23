@@ -1,21 +1,21 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { AppState } from '../../src/state/AppState.tsx'
-import type { SetAppState } from '../../src/Task.ts'
-import type { LocalAgentTaskState } from '../../src/tasks/LocalAgentTask/LocalAgentTask.tsx'
+import type { AppState } from '../../src/screen/app-state/AppState.tsx'
+import type { SetAppState } from '../../src/engine/tasks/taskBase.ts'
+import type { LocalAgentTaskState } from '../../src/engine/tasks/local-agent/crewmateTask.tsx'
 
 const home = mkdtempSync(join(tmpdir(), 'agent-notice-clock-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { completeAgentTask, failAgentTask, killAsyncAgent, enqueueAgentNotification } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { getCommandQueue, resetCommandQueue } = await import('../../src/input-core/command-queue.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { completeAgentTask, failAgentTask, killAsyncAgent, enqueueAgentNotification } = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { getCommandQueue, resetCommandQueue } = await import('../../src/screen/composer/input-core/command-queue.ts')
 let state = getDefaultAppState()
 const setState: SetAppState = update => { state = update(state) as AppState }
 let failures = 0
 const check = (label: string, ok: boolean): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ' — change enqueueAgentNotification (its sentAt and notified handling) and the completion end time kept per registration in src/tasks/LocalAgentTask/LocalAgentTask.tsx'}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ' — change enqueueAgentNotification (its sentAt and notified handling) and the completion end time kept per registration in src/engine/tasks/local-agent/crewmateTask.tsx'}`)
   if (!ok) failures++
 }
 const realNow = Date.now

@@ -39,17 +39,17 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 const React = await import('react')
 const h = React.createElement
-const { InkInstanceContext } = await import('../../src/ink/components/InkInstanceContext.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.tsx')
-const { Chat } = await import('../../src/screens/Chat.tsx')
-const route = await import('../../src/context/surfaceRoute.ts')
-const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/hooks/useLayoutTier.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
-const { setCwdState, setIsInteractive } = await import('../../src/bootstrap/state.ts')
-const { getKeybindingsPath } = await import('../../src/keybindings/loadUserBindings.ts')
+const { InkInstanceContext } = await import('../../src/screen/renderer/elements/InkInstanceContext.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.tsx')
+const { Chat } = await import('../../src/screen/chat/Chat.tsx')
+const route = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetChromeModeLatchForTests, layoutChromeLive } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
+const { setCwdState, setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
+const { getKeybindingsPath } = await import('../../src/screen/keys/loadUserBindings.ts')
 setCwdState(PROJECT)
 setIsInteractive(true)
 writeFileSync(
@@ -66,17 +66,17 @@ writeFileSync(
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true, hasTrustDialogAccepted: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false, hasCompletedOnboarding: true, theme: 'dark' }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
-const { createStreamingTailStore } = await import('../../src/utils/messages/streamingTailStore.ts')
-const { getCommands } = await import('../../src/commands.ts')
-const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-type Message = import('../../src/types/message.ts').Message
-type SessionLiveV1 = import('../../src/services/engine-connector/seatLive.ts').SessionLiveV1
-type SeatStatusV1 = import('../../src/services/engine-connector/seatLive.ts').SeatStatusV1
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const slot = await import('../../src/engine/connector/focusedConnector.ts')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
+const { createStreamingTailStore } = await import('../../src/engine/message-shapes/streamingTailStore.ts')
+const { getCommands } = await import('../../src/commands/catalogue/commands.ts')
+const { markDaemonHaltStanddown } = await import('../../src/daemon/control/daemonStanddown.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
+type SessionLiveV1 = import('../../src/engine/connector/seatLive.ts').SessionLiveV1
+type SeatStatusV1 = import('../../src/engine/connector/seatLive.ts').SeatStatusV1
 type InkInstance = NonNullable<React.ContextType<typeof InkInstanceContext>>
 type InkInternal = {
   scheduler?: { state: () => string }

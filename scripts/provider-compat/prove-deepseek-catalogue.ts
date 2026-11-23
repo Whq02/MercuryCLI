@@ -27,7 +27,7 @@ for (const key of [
   delete process.env[key]
 }
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 let failures = 0
@@ -44,21 +44,21 @@ function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 }
 
-const pins = await import('../../src/utils/model/pins/deepseekPins.ts')
+const pins = await import('../../src/models/facts/pins/deepseekPins.ts')
 const { DEEPSEEK_DISPLAY_PINS, deepseekDisplayPin, deepseekDisplayName } = pins
-const catalogue = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts').catch(() => null)
-const router = await import('../../src/services/providers/deepseek/deepseekAdapter.ts')
+const catalogue = await import('../../src/models/roads/deepseek/deepseekCatalogue.ts').catch(() => null)
+const router = await import('../../src/models/roads/deepseek/deepseekAdapter.ts')
 const { DEEPSEEK_STATIC_CATALOGUE, describeDeepseekProvider, listDeepseekModels } = router
-const { keyLanePins, getModelOptions, DEEPSEEK_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
-const { parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
-const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
-const { resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
-const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
-const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
-const { writeStoredDeepseekApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-const { deepseekLaneProfile } = await import('../../src/services/providers/deepseek/deepseekCallModel.ts')
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
-const { catalogueTrafficVerdict } = await import('../../src/services/providers/catalogueGate.ts')
+const { keyLanePins, getModelOptions, DEEPSEEK_MODEL_GROUP } = await import('../../src/models/catalogue/modelOptions.ts')
+const { parseUserSpecifiedModel } = await import('../../src/models/catalogue/engineModel.ts')
+const { resolveModelPricing } = await import('../../src/models/usage/modelCost.ts')
+const { resolveContextWindow } = await import('../../src/models/facts/capabilities.ts')
+const { providerFrontierFact } = await import('../../src/models/catalogue/providerFrontier.ts')
+const { catalogueEpoch } = await import('../../src/models/roads/catalogueEpoch.ts')
+const { writeStoredDeepseekApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { deepseekLaneProfile } = await import('../../src/models/roads/deepseek/deepseekCallModel.ts')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
+const { catalogueTrafficVerdict } = await import('../../src/models/roads/catalogueGate.ts')
 
 const CURRENT_FLASH = 'deepseek-flash'
 const RETIRED_FLASH = 'deepseek-v4-flash'
@@ -94,7 +94,7 @@ const statusFetch = (status: number) => (async () => jsonResponse(status, { erro
 
 section('1 · the pins and the retired alias (no network)')
 {
-  catalogueHint = 'change the pins in src/utils/model/pins/deepseekPins.ts (deepseekCurrentModelId, deepseekDisplayPin), the static catalogue in src/services/providers/deepseek/deepseekAdapter.ts, or the route, pricing and wire-id laws the check names'
+  catalogueHint = 'change the pins in src/models/facts/pins/deepseekPins.ts (deepseekCurrentModelId, deepseekDisplayPin), the static catalogue in src/models/roads/deepseek/deepseekAdapter.ts, or the route, pricing and wire-id laws the check names'
   check('the Flash pin carries the page\'s own id (deepseek-flash) with its label', flashPin?.id === CURRENT_FLASH, String(flashPin?.id))
   check('no pin carries the retired id', DEEPSEEK_DISPLAY_PINS.every(p => p.id !== RETIRED_FLASH))
   check('the retired id folds onto the current id', pins.deepseekCurrentModelId?.(RETIRED_FLASH) === CURRENT_FLASH, String(pins.deepseekCurrentModelId?.(RETIRED_FLASH)))
@@ -120,9 +120,9 @@ section('1 · the pins and the retired alias (no network)')
 
 section('2 · decode and the fetch (the documented page shape, injected fetch)')
 if (!catalogue) {
-  check('the catalogue module exists', false, 'src/services/providers/deepseek/deepseekCatalogue.ts is absent')
+  check('the catalogue module exists', false, 'src/models/roads/deepseek/deepseekCatalogue.ts is absent')
 } else {
-  catalogueHint = 'change decodeDeepseekModel or fetchDeepseekLiveModels in src/services/providers/deepseek/deepseekCatalogue.ts'
+  catalogueHint = 'change decodeDeepseekModel or fetchDeepseekLiveModels in src/models/roads/deepseek/deepseekCatalogue.ts'
   const rows = DOC_PAGE.data.map(catalogue.decodeDeepseekModel)
   check('the documented page decodes to ids with their owner', rows.length === 2 && rows[0]?.id === 'deepseek-flash' && rows[0]?.ownedBy === 'deepseek' && rows[1]?.id === 'deepseek-v4-pro')
   check('a row without an id is skipped; an unstated owner stays absent', catalogue.decodeDeepseekModel({ object: 'model' }) === undefined && catalogue.decodeDeepseekModel({ id: 'deepseek-x' })?.ownedBy === undefined)
@@ -155,7 +155,7 @@ if (!catalogue) {
 
 section('3 · the door and the cache')
 if (catalogue) {
-  catalogueHint = 'change refreshDeepseekCatalogue or kickDeepseekCatalogue in src/services/providers/deepseek/deepseekCatalogue.ts (key door, TTL, retry window, epoch bump)'
+  catalogueHint = 'change refreshDeepseekCatalogue or kickDeepseekCatalogue in src/models/roads/deepseek/deepseekCatalogue.ts (key door, TTL, retry window, epoch bump)'
   catalogue.__resetDeepseekCatalogueForTest()
   const doorCalls = { n: 0, urls: [] as string[], headers: [] as Record<string, string>[] }
   const closed = await catalogue.refreshDeepseekCatalogue({ force: true, fetchImpl: pageFetch(FIXTURE_PAGE, doorCalls) })
@@ -208,7 +208,7 @@ if (catalogue) {
 
 section('4 · the derivations over a live list: the router arm, the picker rows, the frontier line')
 if (catalogue) {
-  catalogueHint = 'change deepseekCatalogueRows in src/services/providers/deepseek/deepseekCatalogue.ts, describeDeepseekProvider or listDeepseekModels in deepseekAdapter.ts, keyLanePins or getModelOptions in src/services/model/modelOptions.ts, or providerFrontierFact in src/services/model/providerFrontier.ts'
+  catalogueHint = 'change deepseekCatalogueRows in src/models/roads/deepseek/deepseekCatalogue.ts, describeDeepseekProvider or listDeepseekModels in deepseekAdapter.ts, keyLanePins or getModelOptions in src/models/catalogue/modelOptions.ts, or providerFrontierFact in src/models/catalogue/providerFrontier.ts'
   catalogue.__resetDeepseekCatalogueForTest()
   const landed = await catalogue.refreshDeepseekCatalogue({ force: true, fetchImpl: pageFetch(FIXTURE_PAGE) })
   const derived = catalogue.deepseekCatalogueRows()
@@ -245,7 +245,7 @@ if (catalogue) {
 
 section('5 · the fallback: no list, the dated pins stand in')
 if (catalogue) {
-  catalogueHint = 'change the pin fallback in deepseekCatalogueRows (src/services/providers/deepseek/deepseekCatalogue.ts), or its readers in deepseekAdapter.ts, src/services/model/modelOptions.ts and src/services/model/providerFrontier.ts'
+  catalogueHint = 'change the pin fallback in deepseekCatalogueRows (src/models/roads/deepseek/deepseekCatalogue.ts), or its readers in deepseekAdapter.ts, src/models/catalogue/modelOptions.ts and src/models/catalogue/providerFrontier.ts'
   catalogue.__resetDeepseekCatalogueForTest()
   const derived = catalogue.deepseekCatalogueRows()
   check('the source is the pin table with its date', derived.source.kind === 'pin' && derived.source.observedAt === PIN_DATE, JSON.stringify(derived.source))

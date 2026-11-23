@@ -7,7 +7,7 @@ type PublishFn = (
   opts?: unknown,
 ) => Promise<void>
 
-const realNamespace = await import('../../src/substrate/durablePublish.ts')
+const realNamespace = await import('../../src/platform/substrate/durablePublish.ts')
 const realExports = { ...realNamespace }
 const realPublish = realNamespace.durableAtomicPublish as PublishFn
 
@@ -79,7 +79,7 @@ export async function microturns(n = 6): Promise<void> {
   for (let i = 0; i < n; i++) await new Promise<void>(res => setImmediate(res))
 }
 
-mock.module('../../src/substrate/durablePublish.ts', () => ({
+mock.module('../../src/platform/substrate/durablePublish.ts', () => ({
   ...realExports,
   durableAtomicPublish: gatedPublish,
 }))

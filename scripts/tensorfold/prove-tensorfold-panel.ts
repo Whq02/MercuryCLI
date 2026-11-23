@@ -20,21 +20,21 @@ delete process.env.MERCURY_LOCAL_BASE_URL
 
 const React = await import('react')
 const h = React.createElement
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { Box } = await import('../../src/ink.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { builtinCommands, commandSeat } = await import('../../src/commands.ts')
+const { Box } = await import('../../src/screen/themedRenderer.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { builtinCommands, commandSeat } = await import('../../src/commands/catalogue/commands.ts')
 const panel = await import('../../src/commands/tensorfold/tensorfold.tsx')
 const road = await import('../../src/commands/tensorfold/road.ts')
-const engine = await import('../../src/services/tensorfold/engine.ts')
-const serve = await import('../../src/services/tensorfold/serve.ts')
-const pull = await import('../../src/services/tensorfold/pull.ts')
-const receipts = await import('../../src/utils/model/seatReceipts.ts')
+const engine = await import('../../src/models/tensorfold/engine.ts')
+const serve = await import('../../src/models/tensorfold/serve.ts')
+const pull = await import('../../src/models/tensorfold/pull.ts')
+const receipts = await import('../../src/models/facts/seatReceipts.ts')
 const scene = await import('../../src/commands/tensorfold/scene.ts')
-const refusal = await import('../../src/services/tensorfold/refusal.ts')
-const fit = await import('../../src/services/tensorfold/fit.ts')
+const refusal = await import('../../src/models/tensorfold/refusal.ts')
+const fit = await import('../../src/models/tensorfold/fit.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -69,7 +69,7 @@ const binary = `${FAKE_BIN}/tensorfold`
 section('the command: /tensorfold is registered as a screen command that opens the picker popup')
 {
   const command = builtinCommands().find(candidate => candidate.name === 'tensorfold')
-  check('registered in src/commands.ts as a local-jsx command on the screen seat', command !== undefined && command.type === 'local-jsx' && commandSeat(command) === 'screen', JSON.stringify(command && { type: command.type, name: command.name }))
+  check('registered in src/commands/catalogue/commands.ts as a local-jsx command on the screen seat', command !== undefined && command.type === 'local-jsx' && commandSeat(command) === 'screen', JSON.stringify(command && { type: command.type, name: command.name }))
   check('its words name the road and take a repository id', command?.description === 'Serve a local model with TensorFold: install, pull, serve, stop, switch' && command.argumentHint === '[repository]')
 }
 
@@ -165,7 +165,7 @@ section('the panel through the harness: the two groups, TENSORFOLD unfolded, the
   road.__resetTensorFoldRoadForTest()
   const refuseIo = { ...io.road, serve: { ...(io.road.serve as object), serviceEnv: { ...world.serviceEnv, FAKE_TENSORFOLD_SERVE: 'refuse-memory' } } }
   const fresh = await scene.readTensorFoldPanelFacts(io.facts, road.tensorFoldRoadState())
-  const handover = await import('../../src/substrate/splashHandover.ts')
+  const handover = await import('../../src/platform/substrate/splashHandover.ts')
   handover.armTensorFoldDeepLink()
   check('the sign-in list\'s TensorFold row arms the ask through the deep link it dispatches; picking another sign-in disarms both', handover.consumeFirstRunServeAsk() === true && (handover.armTensorFoldDeepLink(), handover.disarmTensorFoldDeepLink(), handover.consumeFirstRunServeAsk()) === false)
   handover.armTensorFoldDeepLink()
@@ -176,7 +176,7 @@ section('the panel through the harness: the two groups, TENSORFOLD unfolded, the
   check('the ask is spent by that one ↵: nothing is armed for the next', handover.consumeFirstRunServeAsk() === false)
   handover.armFirstRunServeAsk()
   const big = fresh.rows.find(candidate => candidate.repo === QWEN_27B_REPO)!
-  const { bytesWords } = await import('../../src/services/host/bank.ts')
+  const { bytesWords } = await import('../../src/models/hosting/bank.ts')
   const seenBeforeBig = seen.length
   await panel.onTensorFoldAct({ kind: 'serve', row: big, window: 262_144 }, fresh, refuseIo as never)
   check('a row not yet pulled: the ask names the download the row itself shows (the drafter included) and the memory the weights take, in the row\'s own units', big.state === 'not-pulled' && big.downloadBytes !== undefined && road.tensorFoldRoadState().notice === `first run: ↵ again downloads ${bytesWords(big.downloadBytes)} and loads ${big.label} (${bytesWords(big.checkpoint.weightsBytes)}) into memory · esc leaves this machine as it is` && seen.length === seenBeforeBig, `${String(road.tensorFoldRoadState().notice)} · state ${big.state} · ↓ ${String(big.downloadBytes)}`)
@@ -215,7 +215,7 @@ section('an installed engine older than the supported release: one line names th
   const withBrew = (path: string): boolean => fakeExists(path) || path === brewAt
   const base = { cacheRoot: world.cache, machine: MAC_48, env: world.env, home: world.home, platform: 'darwin' as const, exists: withBrew, servedFile, localModels: () => [], hosts: () => [], app: async () => ({ running: false }), diskFreeBytes: () => 37_578_240_000, keyedAt: async () => false }
   const found = await engine.findTensorFoldEngine({ ...base, exists: fakeExists })
-  const supported = (await import('../../src/services/tensorfold/starting.ts')).TENSORFOLD_RELEASE
+  const supported = (await import('../../src/models/tensorfold/starting.ts')).TENSORFOLD_RELEASE
   const LINE = `TensorFold ${supported} is supported, 1.2.2 is installed · brew upgrade ashhart/tensorfold/tensorfold`
   check('the fixture engine is 1.2.2 and the build supports a newer release', found !== null && found.version === '1.2.2' && supported === '1.3.3', `${found?.version} ${supported}`)
   const older = await scene.readTensorFoldPanelFacts(base)

@@ -9,12 +9,12 @@ assert.ok(process.env.MERCURY_CONFIG_DIR, 'a scratch MERCURY_CONFIG_DIR is requi
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 if (process.argv.includes('--child')) {
   assert.equal(process.env.MERCURY_HOST_RECIPES_FILE, undefined)
-  const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-  const { readHostRecord } = await import('../../src/services/host/store.ts')
-  const { hostRecipeOfRecord } = await import('../../src/services/host/recipesFile.ts')
-  const { RunpodClient } = await import('../../src/services/host/runpod.ts')
-  const { VastClient } = await import('../../src/services/host/vendors/vast.ts')
-  const { LambdaClient } = await import('../../src/services/host/vendors/lambda.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+  const { readHostRecord } = await import('../../src/models/hosting/store.ts')
+  const { hostRecipeOfRecord } = await import('../../src/models/hosting/recipesFile.ts')
+  const { RunpodClient } = await import('../../src/models/hosting/runpod.ts')
+  const { VastClient } = await import('../../src/models/hosting/vendors/vast.ts')
+  const { LambdaClient } = await import('../../src/models/hosting/vendors/lambda.ts')
   const spec = JSON.parse(readFileSync(0, 'utf8')) as { kind: string; key: string; url: string; id: string }
   const recipe = hostRecipeOfRecord(readHostRecord(spec.id)!)!
   const api = spec.kind === 'vast' ? new VastClient(spec.key, spec.url) : spec.kind === 'lambda' ? new LambdaClient(spec.key, spec.url) : new RunpodClient(spec.key, spec.url)
@@ -30,8 +30,8 @@ if (process.argv.includes('--child')) {
   const home = mkdtempSync(join(outer, 'watch-recipes-'))
   process.env.MERCURY_CONFIG_DIR = home
   delete process.env.MERCURY_HOME
-  const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
-  const { writeHostRecord } = await import('../../src/services/host/store.ts')
+  const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
+  const { writeHostRecord } = await import('../../src/models/hosting/store.ts')
   let checks = 0
   let failures = 0
   const check = (name: string, truth: unknown) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name) }
@@ -45,7 +45,7 @@ if (process.argv.includes('--child')) {
   }
   try {
     const source = HOST_RECIPES.find(row => row.gpu === 'B200' && row.count === 4 && !row.nodes)!
-    assert.ok(source, `HOST_RECIPES missing single-node 4x B200 recipe (total=${HOST_RECIPES.length}); check src/services/host/recipes.ts`)
+    assert.ok(source, `HOST_RECIPES missing single-node 4x B200 recipe (total=${HOST_RECIPES.length}); check src/models/hosting/recipes.ts`)
     const recipe = { ...source, flags: [...source.flags, '--saved-watch-marker'], environment: { ...source.environment, SAVED_WATCH_MARKER: 'kept' } }
     fixtures.runpod.state.customGpus = [{ id: 'NVIDIA B200', name: 'B200', memory: 192, secure: true, price: { secure: 2 }, maxCount: { secure: 8 }, availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', availability: 'HIGH' }] }]
     for (const [kind, fixture] of Object.entries(fixtures)) {
@@ -56,7 +56,7 @@ if (process.argv.includes('--child')) {
       check(kind + ' keeps the saved same-id recipe instead of replacing it from its catalogue', isDeepStrictEqual(offer.recipe, recipe))
     }
     const clusterSource = HOST_RECIPES.find(row => (row.nodes ?? 1) > 1)!
-    assert.ok(clusterSource, `HOST_RECIPES missing multi-node cluster recipe (total=${HOST_RECIPES.length}); check src/services/host/recipes.ts`)
+    assert.ok(clusterSource, `HOST_RECIPES missing multi-node cluster recipe (total=${HOST_RECIPES.length}); check src/models/hosting/recipes.ts`)
     const clusterRecipe = { ...clusterSource, flags: [...clusterSource.flags, '--saved-cluster-marker'] }
     fixtures.runpod.state.clusterGpus = [{ id: 'NVIDIA ' + clusterRecipe.gpu, name: clusterRecipe.gpu, memory: clusterRecipe.vramGb, secure: true, price: { secure: 2 }, maxCount: { secure: 64 }, availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', availability: 'HIGH' }] }]
     writeHostRecord({ id: 'saved-cluster', name: clusterRecipe.label, recipe: clusterRecipe.id, recipeRow: clusterRecipe, price: 1000, status: 'WATCHING', startedAt: new Date().toISOString() })

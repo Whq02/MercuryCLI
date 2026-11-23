@@ -35,10 +35,10 @@ const MAX_CREDENTIAL = {
 }
 const MANAGED_KEY = 'proof-managed-key-ci-gate-not-a-real-key'
 writeFileSync(join(home, '.credentials.json'), JSON.stringify(MAX_CREDENTIAL), { mode: 0o600 })
-const { enableConfigs, saveGlobalConfig, getGlobalConfig } = await import('../../src/utils/config.js')
+const { enableConfigs, saveGlobalConfig, getGlobalConfig } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 saveGlobalConfig(config => ({ ...config, primaryApiKey: MANAGED_KEY }))
-const auth = { ...(await import('../../src/utils/auth.js')), ...(await import('../../src/services/auth/oauthLifecycle.js')) }
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.js')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.js')) }
 auth.clearOAuthTokenCache()
 
 let failures = 0
@@ -51,20 +51,20 @@ function section(title: string): void {
 }
 
 const React = (await import('react')).default
-const { render } = await import('../../src/ink.js')
-const { AppStoreContext, getDefaultAppState } = await import('../../src/state/AppState.js')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
-const { createStore } = await import('../../src/state/store.js')
+const { render } = await import('../../src/screen/themedRenderer.js')
+const { AppStoreContext, getDefaultAppState } = await import('../../src/screen/app-state/AppState.js')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
 const { call } = await import('../../src/commands/model/mercuryModel.js')
-const { FAMILY_GENERATIONS } = await import('../../src/utils/model/configs.js')
-const { getModelStrings } = await import('../../src/utils/model/modelStrings.js')
-const { renderModelName } = await import('../../src/services/model/model.js')
-const anthropic = await import('../../src/services/providers/anthropic/anthropicCatalogue.js')
-const { slotSeatView } = await import('../../src/services/providers/slotSwitch.js')
-const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const { readModelUseLedger } = await import('../../src/utils/model/modelUseLedger.js')
-type Message = import('../../src/types/message.js').Message
+const { FAMILY_GENERATIONS } = await import('../../src/models/facts/builtInModelTable.js')
+const { getModelStrings } = await import('../../src/models/facts/pinnedModelIds.js')
+const { renderModelName } = await import('../../src/models/catalogue/engineModel.js')
+const anthropic = await import('../../src/models/roads/anthropic/anthropicCatalogue.js')
+const { slotSeatView } = await import('../../src/models/roads/slotSwitch.js')
+const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.js')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+const { readModelUseLedger } = await import('../../src/models/facts/modelUseLedger.js')
+type Message = import('../../src/engine/message-shapes/message.js').Message
 
 const strings = getModelStrings()
 const OPUS = strings[FAMILY_GENERATIONS.opus[0]!]!
@@ -81,12 +81,12 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
 section('§0 two Anthropic doors signed in: the Max login on the seat, the managed key beside it; the key door lists the opus, the login door lists both')
 {
   const doors = anthropic.anthropicDoors().map(door => door.door)
-  check('both doors are credentialed', doors.includes('subscription') && doors.includes('api-key'), `${doors.join(',')} · see anthropicDoors in src/services/providers/anthropic/anthropicCatalogue.ts`)
+  check('both doors are credentialed', doors.includes('subscription') && doors.includes('api-key'), `${doors.join(',')} · see anthropicDoors in src/models/roads/anthropic/anthropicCatalogue.ts`)
   await anthropic.refreshAnthropicCatalogue({ force: true })
   const listing = anthropic.anthropicListedModel(OPUS)
-  check('the opus is named by both live lists, the sonnet by the login list alone', listing !== undefined && listing.doors.length === 2 && anthropic.anthropicListedModel(SONNET)?.doors.length === 1, `${JSON.stringify(listing)} · see refreshAnthropicCatalogue and anthropicListedModel in src/services/providers/anthropic/anthropicCatalogue.ts`)
+  check('the opus is named by both live lists, the sonnet by the login list alone', listing !== undefined && listing.doors.length === 2 && anthropic.anthropicListedModel(SONNET)?.doors.length === 1, `${JSON.stringify(listing)} · see refreshAnthropicCatalogue and anthropicListedModel in src/models/roads/anthropic/anthropicCatalogue.ts`)
   const seat = slotSeatView('anthropic')
-  check('the seat view: the subscription is active and the key is the other slot', seat.active === 'subscription' && seat.other?.kind === 'api-key', `${JSON.stringify(seat)} · see slotSeatView in src/services/providers/slotSwitch.ts`)
+  check('the seat view: the subscription is active and the key is the other slot', seat.active === 'subscription' && seat.other?.kind === 'api-key', `${JSON.stringify(seat)} · see slotSeatView in src/models/roads/slotSwitch.ts`)
 }
 
 const painted: Message[] = []
@@ -147,13 +147,13 @@ section('§1 ↵ on the opus row under the key door while the daemon refuses the
   seat(async () => ({ state: 'refused', detail: 'the runner is mid-compaction (fixture)' }), SONNET)
   const picker = await mountPicker()
   const frame = picker.frame()
-  check('the heading names both doors and the login door is active', /ANTHROPIC · Claude Max login \+ API key · \d+ live/.test(frame) && /Claude Max login · .* · active/.test(frame), `the Anthropic heading and door rows must name both doors and mark the active one: see src/components/MercuryModelPicker.tsx · ${frame.split('\n').filter(l => l.includes('ANTHROPIC') || l.includes('login ·')).map(inner).join(' | ')}`)
-  check('the opus stands under both doors, the sonnet under the login door alone', doorRowsOf(frame, OPUS).length === 2 && doorRowsOf(frame, SONNET).length === 1, `a model listed by both doors must stand under both door headings in the picker (src/components/MercuryModelPicker.tsx) · ${doorRowsOf(frame, OPUS).join(' || ')} · ${doorRowsOf(frame, SONNET).join(' || ')}`)
-  check('the cursor walks onto the opus row under the key door', await walkToKeyDoorRow(picker, OPUS), `the down key never reached an opus row under the API key door: see the door rows in src/components/MercuryModelPicker.tsx · ${picker.frame().split('\n').filter(line => line.includes('│ │ ') || line.includes('API key · …')).map(inner).join(' | ')}`)
+  check('the heading names both doors and the login door is active', /ANTHROPIC · Claude Max login \+ API key · \d+ live/.test(frame) && /Claude Max login · .* · active/.test(frame), `the Anthropic heading and door rows must name both doors and mark the active one: see src/commands/model/picker/MercuryModelPicker.tsx · ${frame.split('\n').filter(l => l.includes('ANTHROPIC') || l.includes('login ·')).map(inner).join(' | ')}`)
+  check('the opus stands under both doors, the sonnet under the login door alone', doorRowsOf(frame, OPUS).length === 2 && doorRowsOf(frame, SONNET).length === 1, `a model listed by both doors must stand under both door headings in the picker (src/commands/model/picker/MercuryModelPicker.tsx) · ${doorRowsOf(frame, OPUS).join(' || ')} · ${doorRowsOf(frame, SONNET).join(' || ')}`)
+  check('the cursor walks onto the opus row under the key door', await walkToKeyDoorRow(picker, OPUS), `the down key never reached an opus row under the API key door: see the door rows in src/commands/model/picker/MercuryModelPicker.tsx · ${picker.frame().split('\n').filter(line => line.includes('│ │ ') || line.includes('API key · …')).map(inner).join(' | ')}`)
   await picker.press('\r')
   await flush(400)
   check('the receipt is the refusal', receipts.length === 1 && receipts[0]!.startsWith('The model switch was refused: the runner is mid-compaction (fixture)'), `a refused switch must end the pick with the refusal sentence: see src/commands/model/picker/apply.ts · ${receipts.join(' | ')}`)
-  check('the billing door did not flip on a refused switch', slotSeatView('anthropic').active === 'subscription' && getGlobalConfig().anthropicPreferredSource === undefined, `active ${slotSeatView('anthropic').active} · preference ${String(getGlobalConfig().anthropicPreferredSource)} · the door may flip only after the switch applies: see switchActiveSlot in src/services/providers/slotSwitch.ts and src/commands/model/picker/apply.ts`)
+  check('the billing door did not flip on a refused switch', slotSeatView('anthropic').active === 'subscription' && getGlobalConfig().anthropicPreferredSource === undefined, `active ${slotSeatView('anthropic').active} · preference ${String(getGlobalConfig().anthropicPreferredSource)} · the door may flip only after the switch applies: see switchActiveSlot in src/models/roads/slotSwitch.ts and src/commands/model/picker/apply.ts`)
   check('no seat receipt row was painted', painted.length === 0, `${painted.length} · a refused switch must not paint a seat receipt row: see src/commands/model/picker/apply.ts`)
   check('the use ledger recorded nothing', readModelUseLedger().anthropic === undefined, `${JSON.stringify(readModelUseLedger().anthropic)} · a refused switch must not write the model use ledger: see src/commands/model/picker/apply.ts`)
   picker.unmount()
@@ -165,11 +165,11 @@ section('§2 the same pick while the daemon applies it: the door flips, one rece
   receipts.length = 0
   seat(async () => ({ state: 'applied' }), SONNET)
   const picker = await mountPicker()
-  check('the cursor walks onto the opus row under the key door', await walkToKeyDoorRow(picker, OPUS), 'the down key never reached an opus row under the API key door: see the door rows in src/components/MercuryModelPicker.tsx')
+  check('the cursor walks onto the opus row under the key door', await walkToKeyDoorRow(picker, OPUS), 'the down key never reached an opus row under the API key door: see the door rows in src/commands/model/picker/MercuryModelPicker.tsx')
   await picker.press('\r')
   await flush(400)
-  check('the switch sentence names the model and carries the slot receipt', receipts.length === 1 && receipts[0]!.startsWith(`Set model to ${renderModelName(OPUS)}`) && receipts[0]!.includes('active slot switched') && /managed key/.test(receipts[0]!), `the applied pick must say which model was set and which slot switched: see src/commands/model/picker/apply.ts and src/services/providers/slotSwitch.ts · ${receipts.join(' | ')}`)
-  check('the billing door flipped to the key', slotSeatView('anthropic').active === 'api-key' && getGlobalConfig().anthropicPreferredSource === 'api-key', `active ${slotSeatView('anthropic').active} · an applied pick under the key door must call switchActiveSlot in src/services/providers/slotSwitch.ts`)
+  check('the switch sentence names the model and carries the slot receipt', receipts.length === 1 && receipts[0]!.startsWith(`Set model to ${renderModelName(OPUS)}`) && receipts[0]!.includes('active slot switched') && /managed key/.test(receipts[0]!), `the applied pick must say which model was set and which slot switched: see src/commands/model/picker/apply.ts and src/models/roads/slotSwitch.ts · ${receipts.join(' | ')}`)
+  check('the billing door flipped to the key', slotSeatView('anthropic').active === 'api-key' && getGlobalConfig().anthropicPreferredSource === 'api-key', `active ${slotSeatView('anthropic').active} · an applied pick under the key door must call switchActiveSlot in src/models/roads/slotSwitch.ts`)
   check('the seat receipt row was painted once', painted.length === 1, `${painted.length} · an applied pick must paint one seat receipt row through the connector addDisplayRow: see src/commands/model/picker/apply.ts`)
   check('the use ledger names the family, the model and the door', readModelUseLedger().anthropic?.model === OPUS && readModelUseLedger().anthropic?.door === 'API key', `${JSON.stringify(readModelUseLedger().anthropic)} · an applied pick must record family, model and door in the ledger: see src/commands/model/picker/apply.ts`)
   picker.unmount()
@@ -184,14 +184,14 @@ section('§3 the same model under the other door while the switch is a no-op: th
   const picker = await mountPicker()
   const frame = picker.frame()
   const doorLines = frame.split('\n').map(inner).filter(line => line.startsWith('API key · ') || line.startsWith('Claude Max login · '))
-  check('the key door is active now and its rows come first', doorLines.length === 2 && doorLines[0]!.startsWith('API key · ') && doorLines[0]!.endsWith(' · active') && !doorLines[1]!.endsWith(' · active'), `the active door must head the Anthropic rows: see src/components/MercuryModelPicker.tsx · ${doorLines.join(' | ')}`)
+  check('the key door is active now and its rows come first', doorLines.length === 2 && doorLines[0]!.startsWith('API key · ') && doorLines[0]!.endsWith(' · active') && !doorLines[1]!.endsWith(' · active'), `the active door must head the Anthropic rows: see src/commands/model/picker/MercuryModelPicker.tsx · ${doorLines.join(' | ')}`)
   const opusRows = doorRowsOf(frame, OPUS)
-  check('current marks the opus under the active key door only', opusRows.length === 2 && /current/.test(opusRows[0]!) && !/current/.test(opusRows[1]!), `current must mark only the row under the active door: see src/components/MercuryModelPicker.tsx · ${opusRows.join(' || ')}`)
-  check('the cursor walks onto the opus row under the login door (the other door now)', await walkToLoginDoorRow(picker, OPUS), 'the down key never reached an opus row under the Claude Max login door: see the door rows in src/components/MercuryModelPicker.tsx')
+  check('current marks the opus under the active key door only', opusRows.length === 2 && /current/.test(opusRows[0]!) && !/current/.test(opusRows[1]!), `current must mark only the row under the active door: see src/commands/model/picker/MercuryModelPicker.tsx · ${opusRows.join(' || ')}`)
+  check('the cursor walks onto the opus row under the login door (the other door now)', await walkToLoginDoorRow(picker, OPUS), 'the down key never reached an opus row under the Claude Max login door: see the door rows in src/commands/model/picker/MercuryModelPicker.tsx')
   await picker.press('\r')
   await flush(400)
-  check('the no-op sentence carries the door flip instead of "nothing to change"', receipts.length === 1 && receipts[0]!.startsWith(`Already on ${renderModelName(OPUS)}`) && !receipts[0]!.includes('nothing to change') && receipts[0]!.includes('active slot switched'), `a no-op switch under the other door must still flip the door and say so: see src/commands/model/picker/apply.ts and src/services/providers/slotSwitch.ts · ${receipts.join(' | ')}`)
-  check('the billing door flipped back to the login', slotSeatView('anthropic').active === 'subscription', `active ${slotSeatView('anthropic').active} · the pick under the login door must call switchActiveSlot in src/services/providers/slotSwitch.ts`)
+  check('the no-op sentence carries the door flip instead of "nothing to change"', receipts.length === 1 && receipts[0]!.startsWith(`Already on ${renderModelName(OPUS)}`) && !receipts[0]!.includes('nothing to change') && receipts[0]!.includes('active slot switched'), `a no-op switch under the other door must still flip the door and say so: see src/commands/model/picker/apply.ts and src/models/roads/slotSwitch.ts · ${receipts.join(' | ')}`)
+  check('the billing door flipped back to the login', slotSeatView('anthropic').active === 'subscription', `active ${slotSeatView('anthropic').active} · the pick under the login door must call switchActiveSlot in src/models/roads/slotSwitch.ts`)
   picker.unmount()
   await flush()
 }
@@ -207,18 +207,18 @@ section('§4 the daemon session owns the preview, even when the screen already n
     message: { id: 'fixture', type: 'message', role: 'assistant', model: 'gpt-6-astra', content: [{ type: 'thinking', thinking: 'fixture reasoning' }, { type: 'text', text: 'fixture answer' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 10, output_tokens: 10 } },
   } as unknown as Message]
   seat(async () => { switches++; return { state: 'applied' } }, 'gpt-6-astra')
-  const { getFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
+  const { getFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.js')
   Object.assign(getFocusedSessionConnector(), { records: () => history })
   const picker = await mountPicker()
   await picker.press(SONNET)
-  check('the cursor reaches the target while the screen store already names it', picker.frame().includes(SONNET), `typing the model id must move the cursor to its row: see src/components/MercuryModelPicker.tsx · ${picker.frame()}`)
+  check('the cursor reaches the target while the screen store already names it', picker.frame().includes(SONNET), `typing the model id must move the cursor to its row: see src/commands/model/picker/MercuryModelPicker.tsx · ${picker.frame()}`)
   await picker.press('\r')
-  check('the session history holds a lossy pick at the preview instead of switching immediately', picker.frame().includes('Model switch preview') && picker.frame().includes('thinking block stays behind') && switches === 0, `a pick that loses thinking blocks must stop at the preview card: see src/components/TransitionPreviewCard.tsx and src/services/providers/transitionPreview.ts · switches=${switches} · ${picker.frame()}`)
+  check('the session history holds a lossy pick at the preview instead of switching immediately', picker.frame().includes('Model switch preview') && picker.frame().includes('thinking block stays behind') && switches === 0, `a pick that loses thinking blocks must stop at the preview card: see src/commands/model/TransitionPreviewCard.tsx and src/models/roads/transitionPreview.ts · switches=${switches} · ${picker.frame()}`)
   history.push({ ...history[0]!, uuid: '00000000-0000-4000-8000-000000000045' } as Message)
   await picker.press('y')
-  check('confirmation re-reads the daemon history and refreshes a drifted preview without switching', switches === 0 && picker.frame().includes('the conversation changed while this preview was open'), `confirm must re-read the daemon history and refresh a drifted preview: see reconfirmTransitionPlan in src/services/providers/transitionPreview.ts and src/components/TransitionPreviewCard.tsx · ${picker.frame()}`)
+  check('confirmation re-reads the daemon history and refreshes a drifted preview without switching', switches === 0 && picker.frame().includes('the conversation changed while this preview was open'), `confirm must re-read the daemon history and refresh a drifted preview: see reconfirmTransitionPlan in src/models/roads/transitionPreview.ts and src/commands/model/TransitionPreviewCard.tsx · ${picker.frame()}`)
   await picker.press('y')
-  check('confirmation of the unchanged daemon history applies once with its actual loss count', switches === 1 && receipts.length === 1 && receipts[0]!.includes('2 thinking blocks stay behind'), `confirming an unchanged preview must apply once and name the loss count: see src/components/TransitionPreviewCard.tsx · switches=${switches} · ${receipts.join(' | ')}`)
+  check('confirmation of the unchanged daemon history applies once with its actual loss count', switches === 1 && receipts.length === 1 && receipts[0]!.includes('2 thinking blocks stay behind'), `confirming an unchanged preview must apply once and name the loss count: see src/commands/model/TransitionPreviewCard.tsx · switches=${switches} · ${receipts.join(' | ')}`)
   picker.unmount()
   await flush()
 }
@@ -228,10 +228,10 @@ section('§5 missing daemon model facts refuse the pick without applying it')
   receipts.length = 0
   let switches = 0
   seat(async () => { switches++; return { state: 'applied' } }, SONNET)
-  const { getFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
+  const { getFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.js')
   Object.assign(getFocusedSessionConnector(), { modelFacts: () => ({ effective: SONNET, main: SONNET, setting: SONNET, sessionPin: null, pendingSwitch: null, effectiveSource: 'ambient' }) })
   const picker = await mountPicker()
-  check('the cursor reaches the target with ambient-only model facts', await walkToLoginDoorRow(picker, OPUS), 'the down key never reached an opus row under the Claude Max login door: see the door rows in src/components/MercuryModelPicker.tsx')
+  check('the cursor reaches the target with ambient-only model facts', await walkToLoginDoorRow(picker, OPUS), 'the down key never reached an opus row under the Claude Max login door: see the door rows in src/commands/model/picker/MercuryModelPicker.tsx')
   await picker.press('\r')
   check('ambient model facts do not authorize a switch', switches === 0 && receipts.length === 1 && receipts[0]!.includes("the session's own model facts could not be resolved"), `a pick with ambient-only model facts must be refused before any switch: see src/commands/model/model.tsx · switches=${switches} · ${receipts.join(' | ')}`)
   picker.unmount()
@@ -243,7 +243,7 @@ section('§6 a daemon history over the target window asks before compacting')
   receipts.length = 0
   const calls: string[] = []
   seat(async () => { calls.push('switch'); return { state: 'applied' } }, OPUS)
-  const { getFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
+  const { getFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.js')
   Object.assign(getFocusedSessionConnector(), {
     records: () => [{ type: 'assistant', uuid: '00000000-0000-4000-8000-000000000046', message: { role: 'assistant', model: OPUS, content: [{ type: 'text', text: 'a long conversation' }], usage: { input_tokens: 2_000_000, output_tokens: 10 } } }],
     sendWords: async (words: string) => { calls.push(words); return { state: 'sent' } },
@@ -251,9 +251,9 @@ section('§6 a daemon history over the target window asks before compacting')
   const picker = await mountPicker()
   await picker.press(SONNET)
   await picker.press('\r')
-  check('the daemon token count reaches the existing compact confirmation before any action', picker.frame().includes('Model switch preview') && picker.frame().replace(/[│\s]+/g, ' ').includes('confirm folds the conversation') && calls.length === 0, `a daemon history over the target window must open the compact confirmation before any action: see src/components/TransitionPreviewCard.tsx and src/services/providers/transitionPreview.ts · calls=${calls.join(',')} · ${picker.frame()}`)
+  check('the daemon token count reaches the existing compact confirmation before any action', picker.frame().includes('Model switch preview') && picker.frame().replace(/[│\s]+/g, ' ').includes('confirm folds the conversation') && calls.length === 0, `a daemon history over the target window must open the compact confirmation before any action: see src/commands/model/TransitionPreviewCard.tsx and src/models/roads/transitionPreview.ts · calls=${calls.join(',')} · ${picker.frame()}`)
   await picker.press('y')
-  check('confirm sends compact to that daemon before applying the switch', calls.join(',') === '/compact,switch', `${calls.join(',')} · confirm must send /compact to the daemon session and then switch: see src/services/providers/transitionPreview.ts and src/components/TransitionPreviewCard.tsx`)
+  check('confirm sends compact to that daemon before applying the switch', calls.join(',') === '/compact,switch', `${calls.join(',')} · confirm must send /compact to the daemon session and then switch: see src/models/roads/transitionPreview.ts and src/commands/model/TransitionPreviewCard.tsx`)
   picker.unmount()
   await flush()
 }

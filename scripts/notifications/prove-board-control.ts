@@ -12,7 +12,7 @@ function check(label: string, ok: boolean, detail?: string): void {
   if (ok) console.log(`  ✅ ${label}`)
   else {
     failures += 1
-    console.log(`  ❌ ${label}${detail ? ` — ${detail}` : ''} — change executeBoardControl (the receipts and the daemon requests) or noteBoardControl (the activity rows) in src/services/concourse/boardControl.ts; the activity lines come from activityLineOf in src/services/crew/activity.ts`)
+    console.log(`  ❌ ${label}${detail ? ` — ${detail}` : ''} — change executeBoardControl (the receipts and the daemon requests) or noteBoardControl (the activity rows) in src/screen/concourse-model/boardControl.ts; the activity lines come from activityLineOf in src/crew/crewmates/activity.ts`)
   }
 }
 
@@ -23,19 +23,19 @@ mkdirSync(crewDir, { recursive: true })
 type Rpc = Record<string, unknown>
 const sent: Array<{ req: Rpc; opts: unknown }> = []
 let script: Array<Rpc | Error> = []
-const actualSocket = await import('../../src/daemon/controlSocket.ts')
-mock.module(join(ROOT, 'src/daemon/controlSocket.ts'), () => ({
+const actualSocket = await import('../../src/daemon/control/controlSocket.ts')
+mock.module(join(ROOT, 'src/daemon/control/controlSocket.ts'), () => ({
   ...actualSocket,
   daemonControlRpc: async (req: Rpc, opts: unknown) => {
     sent.push({ req, opts })
     const next = script.shift()
-    if (next === undefined) throw new Error('the proof scripted no reply; executeBoardControl in src/services/concourse/boardControl.ts sent more daemon requests than the play call scripted')
+    if (next === undefined) throw new Error('the proof scripted no reply; executeBoardControl in src/screen/concourse-model/boardControl.ts sent more daemon requests than the play call scripted')
     if (next instanceof Error) throw next
     return next
   },
 }))
-const { executeBoardControl } = await import('../../src/services/concourse/boardControl.ts')
-const obligations = await import('../../src/services/crew/obligations.ts')
+const { executeBoardControl } = await import('../../src/screen/concourse-model/boardControl.ts')
+const obligations = await import('../../src/crew/crewmates/obligations.ts')
 
 const play = async (replies: Array<Rpc | Error>, decision: Parameters<typeof executeBoardControl>[0]) => {
   sent.length = 0
@@ -134,8 +134,8 @@ console.log('§3 answer: the reply is delivered to the session first, and only t
 
 console.log("§6 the operator's own act is a row of the activity feed: the line /crew activity prints for it")
 {
-  const control = await import('../../src/services/concourse/boardControl.ts')
-  const activity = await import('../../src/services/crew/activity.ts')
+  const control = await import('../../src/screen/concourse-model/boardControl.ts')
+  const activity = await import('../../src/crew/crewmates/activity.ts')
   activity._resetActivityFeedForTesting()
   const SID = '11111111-1111-4111-8111-111111111111'
   const rows = () => activity.activityRows(activity.cachedActivityFeed())

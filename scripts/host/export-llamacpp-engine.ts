@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
-import { LLAMACPP_ENGINE_IMAGE, LLAMACPP_ENGINE_SHA } from '../../src/services/host/recipes.ts'
+import { LLAMACPP_ENGINE_IMAGE, LLAMACPP_ENGINE_SHA } from '../../src/models/hosting/recipes.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const ASSET = 'assets/host/llamacpp-engine.json'
@@ -16,7 +16,7 @@ const ROW = {
   assets: ASSET,
   generator: 'bun scripts/host/export-llamacpp-engine.ts',
   check: 'bun scripts/host/export-llamacpp-engine.ts --check',
-  sources: 'src/services/host/recipes.ts ' + DOCKERFILE + ' ' + WORKFLOW + ' scripts/host/export-llamacpp-engine.ts',
+  sources: 'src/models/hosting/recipes.ts ' + DOCKERFILE + ' ' + WORKFLOW + ' scripts/host/export-llamacpp-engine.ts',
   build: true,
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
@@ -196,7 +196,7 @@ async function reviewUpstream(ref: string): Promise<void> {
   console.log('llamacpp-engine: architectures +' + added(next.architectures, current.architectures).length + ' −' + added(current.architectures, next.architectures).length + (added(next.architectures, current.architectures).length ? ' (' + added(next.architectures, current.architectures).join(', ') + ')' : ''))
   console.log('llamacpp-engine: tensor names +' + added(next.tensors, current.tensors).length + ' −' + added(current.tensors, next.tensors).length + (added(next.tensors, current.tensors).length ? ' (' + added(next.tensors, current.tensors).join(', ') + ')' : ''))
   console.log('llamacpp-engine: tensor types +' + added(typesOf(next), typesOf(current)).length + ' −' + added(typesOf(current), typesOf(next)).length + (added(typesOf(next), typesOf(current)).length ? ' (' + added(typesOf(next), typesOf(current)).join(', ') + ')' : '') + ' · GGML_TYPE_COUNT ' + current.typeCount + ' → ' + next.typeCount)
-  console.log('llamacpp-engine: to move the pin: bun scripts/host/export-llamacpp-engine.ts --sha ' + commit.sha + ' · set LLAMACPP_ENGINE_SHA in src/services/host/recipes.ts, ARG LLAMA_CPP_SHA in ' + DOCKERFILE + ' and the upstream_sha default/fallback in ' + WORKFLOW + ' · publish the engine image at that commit · set LLAMACPP_ENGINE_IMAGE to its digest · bun scripts/host/export-llamacpp-engine.ts --image · --check')
+  console.log('llamacpp-engine: to move the pin: bun scripts/host/export-llamacpp-engine.ts --sha ' + commit.sha + ' · set LLAMACPP_ENGINE_SHA in src/models/hosting/recipes.ts, ARG LLAMA_CPP_SHA in ' + DOCKERFILE + ' and the upstream_sha default/fallback in ' + WORKFLOW + ' · publish the engine image at that commit · set LLAMACPP_ENGINE_IMAGE to its digest · bun scripts/host/export-llamacpp-engine.ts --image · --check')
 }
 
 if (import.meta.main) {

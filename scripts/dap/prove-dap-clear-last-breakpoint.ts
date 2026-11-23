@@ -13,9 +13,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const keepEmptyHint = ' — keepEmptyInputs in src/tools/DebugTool/DebugTool.ts must list the key so dropEmptyOptionalArgs (src/services/providers/toolCallGate.ts) keeps an empty array'
-const clearSetHint = ' — an empty set must still be sent to every adapter session; see breakpointsOp in src/tools/DebugTool/debug/breakpoints.ts and setBreakpointsTree in src/services/dap/client/start.ts'
-const validateEmptyHint = ' — validateInput in src/tools/DebugTool/DebugTool.ts must accept an empty lines or breakpoints array and refuse only an omitted one'
+const keepEmptyHint = ' — keepEmptyInputs in src/tools/debug/DebugTool.ts must list the key so dropEmptyOptionalArgs (src/models/roads/toolCallGate.ts) keeps an empty array'
+const clearSetHint = ' — an empty set must still be sent to every adapter session; see breakpointsOp in src/tools/debug/ops/breakpoints.ts and setBreakpointsTree in src/integrations/debugger/client/start.ts'
+const validateEmptyHint = ' — validateInput in src/tools/debug/DebugTool.ts must accept an empty lines or breakpoints array and refuse only an omitted one'
 async function waitFor(cond: () => boolean, ms = 5_000): Promise<boolean> {
   const deadline = Date.now() + ms
   while (Date.now() < deadline) {
@@ -41,10 +41,10 @@ async function main(): Promise<void> {
     delete process.env[knob]
   }
 
-  const { getDapSession, _dapSessionCountForTesting } = await import(join(SRC, 'services/dap/dapClient.ts'))
-  const { DebugTool } = await import(join(SRC, 'tools/DebugTool/DebugTool.ts'))
-  const { dropEmptyOptionalArgs } = await import(join(SRC, 'services/providers/toolCallGate.ts'))
-  const { processMainOwner } = await import(join(SRC, 'utils/run/resolveOwner.ts'))
+  const { getDapSession, _dapSessionCountForTesting } = await import(join(SRC, 'integrations/debugger/dapClient.ts'))
+  const { DebugTool } = await import(join(SRC, 'tools/debug/DebugTool.ts'))
+  const { dropEmptyOptionalArgs } = await import(join(SRC, 'models/roads/toolCallGate.ts'))
+  const { processMainOwner } = await import(join(SRC, 'engine/run-owner/resolveOwner.ts'))
   const owner = processMainOwner()
   const call = async (input: Record<string, unknown>): Promise<{ result: string; outcome: string; debuggee?: string }> =>
     ((await DebugTool.call(input as never, { owner } as never)) as { data: { result: string; outcome: string; debuggee?: string } }).data
@@ -75,7 +75,7 @@ async function main(): Promise<void> {
     const early = await call({ op: 'customRequest', method: 'mock/spawnChild', body: JSON.stringify({ name: 'child-early', id: 'target-early' }) })
     check('mock/spawnChild answered', early.outcome === 'succeeded', early.result.slice(0, 120))
     check('the early child came up', await waitFor(() => ring().some(l => l.includes('[mock] child target-early up'))), ring().join(' | '))
-    check('…and received the current set for the file', lastRound('child target-early')?.includes('lines=[3,9]') === true, (lastRound('child target-early') ?? '(no round)') + ' — a child started after a set must be given the stored set; see setBreakpointsTree in src/services/dap/client/start.ts')
+    check('…and received the current set for the file', lastRound('child target-early')?.includes('lines=[3,9]') === true, (lastRound('child target-early') ?? '(no round)') + ' — a child started after a set must be given the stored set; see setBreakpointsTree in src/integrations/debugger/client/start.ts')
 
     section('C1 (continued) the clear')
     const cleared = await call({ op: 'breakpoints', file: FILE, lines: [] })
@@ -105,7 +105,7 @@ async function main(): Promise<void> {
 
     section('C5 omitting both still refuses with the usage words')
     const omitted = await call({ op: 'breakpoints', file: FILE })
-    check('no lines and no breakpoints ⇒ the usage refusal', omitted.outcome === 'failed' && /breakpoints needs file \+ lines \(or the rich breakpoints array\)/.test(omitted.result), `${omitted.outcome}: ${omitted.result} — the breakpoints case of runOp in src/tools/DebugTool/DebugTool.ts owns this refusal`)
+    check('no lines and no breakpoints ⇒ the usage refusal', omitted.outcome === 'failed' && /breakpoints needs file \+ lines \(or the rich breakpoints array\)/.test(omitted.result), `${omitted.outcome}: ${omitted.result} — the breakpoints case of runOp in src/tools/debug/DebugTool.ts owns this refusal`)
     const validEmpty = await DebugTool.validateInput?.({ op: 'breakpoints', file: FILE, lines: [] } as never, {} as never)
     check('validateInput accepts lines: []', validEmpty?.result === true, JSON.stringify(validEmpty) + validateEmptyHint)
     const validRichEmpty = await DebugTool.validateInput?.({ op: 'breakpoints', file: FILE, breakpoints: [] } as never, {} as never)

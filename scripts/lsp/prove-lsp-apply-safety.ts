@@ -8,7 +8,7 @@ import {
   formatEditPreview,
   normalizeWorkspaceEdit,
   offsetAtPosition,
-} from '../../src/services/lsp/workspaceEditApply.js'
+} from '../../src/integrations/lsp/workspaceEditApply.js'
 
 process.env.MERCURY_CHANGESET_DIR = mkdtempSync(path.join(tmpdir(), 'lsp-apply-cs-'))
 
@@ -17,7 +17,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   if (ok) console.log(`  ok  ${name}`)
   else {
     failures++
-    console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''} | fix the edit handling in src/services/lsp/workspaceEditApply.ts (normalizeWorkspaceEdit, applyEditsToText, offsetAtPosition, formatEditPreview) for normalize, apply, offsetAtPosition and preview checks, or runMercuryLspOp in src/tools/LSPTool/mercuryOps.ts for the production apply and permission checks`)
+    console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''} | fix the edit handling in src/integrations/lsp/workspaceEditApply.ts (normalizeWorkspaceEdit, applyEditsToText, offsetAtPosition, formatEditPreview) for normalize, apply, offsetAtPosition and preview checks, or runMercuryLspOp in src/tools/lsp/mercuryOps.ts for the production apply and permission checks`)
   }
 }
 
@@ -148,10 +148,10 @@ for (const newline of ['\n', '\r\n', '\r']) {
 }
 
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 
-const { runMercuryLspOp } = await import('../../src/tools/LSPTool/mercuryOps.js')
+const { runMercuryLspOp } = await import('../../src/tools/lsp/mercuryOps.js')
 
 function fakeEnvFor(dir: string, opts: {
   renameEditFor: (file: string) => { changes: Record<string, { range: ReturnType<typeof r0>; newText: string }[]> }

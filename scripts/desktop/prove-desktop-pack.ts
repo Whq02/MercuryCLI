@@ -22,10 +22,10 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const BUILD_HINT = 'fix scripts/vendor/build-desktop.ts, or run bun run scripts/vendor/build-desktop.ts and read its output'
-const PACK_HINT = 'fix src/services/desktop/pack.ts or rebuild the pack with scripts/vendor/build-desktop.ts'
-const SOURCE_HINT = 'fix the Rust sources under native/desktop/src (export list: DESKTOP_ADDON_EXPORTS in src/services/desktop/pack.ts)'
-const DRIVER_HINT = 'fix src/services/desktop/nativeDriver.ts or the addon under native/desktop/src'
-const HEALTH_HINT = 'fix describeDesktopDriver in src/services/desktop/nativeDriver.ts or the iface-computer-use row in src/services/health/sections/interface.ts'
+const PACK_HINT = 'fix src/integrations/desktop/pack.ts or rebuild the pack with scripts/vendor/build-desktop.ts'
+const SOURCE_HINT = 'fix the Rust sources under native/desktop/src (export list: DESKTOP_ADDON_EXPORTS in src/integrations/desktop/pack.ts)'
+const DRIVER_HINT = 'fix src/integrations/desktop/nativeDriver.ts or the addon under native/desktop/src'
+const HEALTH_HINT = 'fix describeDesktopDriver in src/integrations/desktop/nativeDriver.ts or the iface-computer-use row in src/platform/health/sections/interface.ts'
 const warn = (line: string): void => console.log(`  [WARN] ${line}`)
 const finish = (note: string): never => {
   rmSync(SCRATCH, { recursive: true, force: true })
@@ -33,10 +33,10 @@ const finish = (note: string): never => {
   process.exit(failures > 0 ? 1 : 0)
 }
 
-const pack = await import('../../src/services/desktop/pack.js')
-const native = await import('../../src/services/desktop/nativeDriver.js')
-const driverContract = await import('../../src/services/desktop/driver.js')
-const { voicePackPlatform } = await import('../../src/utils/voice/voicePack.js')
+const pack = await import('../../src/integrations/desktop/pack.js')
+const native = await import('../../src/integrations/desktop/nativeDriver.js')
+const driverContract = await import('../../src/integrations/desktop/driver.js')
+const { voicePackPlatform } = await import('../../src/integrations/voice-pack/voicePack.js')
 
 const PLATFORM = voicePackPlatform()
 const PACK_DIR = pack.desktopPackDirFor(ROOT, PLATFORM)
@@ -50,7 +50,7 @@ const hasCargo = !cargo.error && cargo.status === 0
 console.log(`cargo: ${hasCargo ? cargo.stdout.trim() : 'absent'} · platform ${PLATFORM} · live: ${LIVE || 'off'}`)
 
 async function healthRow(): Promise<{ evidence: string; status: string; section: string } | null> {
-  const report = await import('../../src/services/health/healthReport.js')
+  const report = await import('../../src/platform/health/healthReport.js')
   const cert = await report.runHealthReport({ depth: 'fast' })
   for (const section of cert.sections) {
     const row = section.checks.find(c => c.id === 'iface-computer-use')
@@ -93,7 +93,7 @@ const platformCrate = process.platform === 'linux' ? 'x11rb-' : process.platform
 check(`the licence records ride beside the addon: png, napi and ${platformCrate} among them`, licenses.some(l => l.startsWith('png-')) && licenses.some(l => l.startsWith('napi-')) && licenses.some(l => l.startsWith(platformCrate)), `${BUILD_HINT} (licence records copied into the pack); found ${licenses.join(',')}`)
 const notices = existsSync(join(PACK_DIR, 'NOTICES.json')) ? (JSON.parse(readFileSync(join(PACK_DIR, 'NOTICES.json'), 'utf8')) as { crates?: Array<{ name: string; license: string }> }) : null
 check('NOTICES.json inventories every crate with its licence', notices !== null && (notices.crates ?? []).length === (manifest?.crates.length ?? -1) && (notices.crates ?? []).some(c => c.name === 'png' && /MIT|Apache/.test(c.license)), `${BUILD_HINT} (NOTICES.json written into the pack); ${JSON.stringify(notices?.crates?.slice(0, 3))}`)
-check('a pack of another platform reads as a mismatch, never ok', pack.checkDesktopPackDir(PACK_DIR, { platform: 'fixture-os-fixture-arch' }).state === 'mismatch', 'fix checkDesktopPackDir in src/services/desktop/pack.ts to return mismatch when the manifest platform differs')
+check('a pack of another platform reads as a mismatch, never ok', pack.checkDesktopPackDir(PACK_DIR, { platform: 'fixture-os-fixture-arch' }).state === 'mismatch', 'fix checkDesktopPackDir in src/integrations/desktop/pack.ts to return mismatch when the manifest platform differs')
 
 console.log('\n[2b] the source pins')
 const sourceFiles = readdirSync(join(NATIVE_DIR, 'src')).filter(f => f.endsWith('.rs'))
@@ -103,7 +103,7 @@ check('the addon never writes to the terminal (no println!, eprintln! or dbg!)',
 const lib = sources.get('lib.rs') ?? ''
 check('the held-input state and its release exist', /static HELD/.test(lib) && /pub fn release_all\(/.test(lib), `${SOURCE_HINT}: lib.rs needs static HELD and pub fn release_all`)
 check('capture is an AsyncTask export; the frontmost read is not', /pub fn capture\([^)]*\)\s*->\s*Result<AsyncTask</.test(lib) && /pub fn frontmost_application\(\)\s*->\s*ApplicationAnswer/.test(lib), `${SOURCE_HINT}: lib.rs capture must return Result<AsyncTask<..>> and frontmost_application must return ApplicationAnswer`)
-check('the export list carries twenty-four names', pack.DESKTOP_ADDON_EXPORTS.length === 24, `change DESKTOP_ADDON_EXPORTS in src/services/desktop/pack.ts (or this expected count) so they agree; now ${pack.DESKTOP_ADDON_EXPORTS.length}`)
+check('the export list carries twenty-four names', pack.DESKTOP_ADDON_EXPORTS.length === 24, `change DESKTOP_ADDON_EXPORTS in src/integrations/desktop/pack.ts (or this expected count) so they agree; now ${pack.DESKTOP_ADDON_EXPORTS.length}`)
 const snake = (name: string): string => name.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`)
 const missingExports = pack.DESKTOP_ADDON_EXPORTS.filter(name => !new RegExp(`#\\[napi[^\\n]*\\]\\s*\\n\\s*pub fn ${snake(name)}\\(`).test(lib))
 check('every listed export is a #[napi] function in the source', missingExports.length === 0, `${SOURCE_HINT}; missing a #[napi] pub fn for ${missingExports.join(',')}`)
@@ -229,7 +229,7 @@ if (load.state === 'ok') {
     check(`${label} loads the addon and answers its whole surface`, res.status === 0 && /^LOADED v\d+/.test(line), `${SOURCE_HINT}; ${exe}: ${String(res.status)} ${line}`)
     console.log(`  · ${label}: ${line}`)
   }
-  check('the isDesktopKey table and the addon agree on a named key and refuse a nonsense one', driverContract.isDesktopKey('enter') && !driverContract.isDesktopKey('hyperspace'), 'fix isDesktopKey in src/services/desktop/driver.ts so it accepts enter and refuses hyperspace')
+  check('the isDesktopKey table and the addon agree on a named key and refuse a nonsense one', driverContract.isDesktopKey('enter') && !driverContract.isDesktopKey('hyperspace'), 'fix isDesktopKey in src/integrations/desktop/driver.ts so it accepts enter and refuses hyperspace')
 }
 
 finish(liveReason === '' ? 'live' : `live legs skipped: ${liveReason}`)

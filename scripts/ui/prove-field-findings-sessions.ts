@@ -8,14 +8,14 @@ const check = (name: string, ok: boolean, detail?: string): void => {
   } else {
     failures++
     console.error(`  RED ${name}${detail ? ` — ${detail}` : ''}`)
-    console.error('      to fix: the quoting of the resume argument is resumeHintArgument in src/utils/shutdownRestoration.ts, which calls quoteResumeTitleForShell in src/utils/platform/words.ts')
+    console.error('      to fix: the quoting of the resume argument is resumeHintArgument in src/screen/renderer/terminal-session/shutdownRestoration.ts, which calls quoteResumeTitleForShell in src/platform/host-os/words.ts')
   }
 }
 
 
 console.log('§3 SL-7 — resume-hint quoting: bash on POSIX, PS single-quote on win32')
 {
-  const { resumeHintArgument } = await import('../../src/utils/shutdownRestoration.ts')
+  const { resumeHintArgument } = await import('../../src/screen/renderer/terminal-session/shutdownRestoration.ts')
   const title = `the "big" plan\\refit`
   check('POSIX keeps the exact bash-family escapes (byte-identical)', resumeHintArgument(title, 'sid', 'darwin') === `"the \\"big\\" plan\\\\refit"`)
   check("win32 speaks PowerShell's literal (single quotes, '' doubling)", resumeHintArgument(`it's here`, 'sid', 'win32') === `'it''s here'`)

@@ -9,15 +9,15 @@ const HOME = mkdtempSync(join(tmpdir(), 'mercury-readback-assembly-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 
-const store = await import('../../src/utils/imageStore.ts')
-const messages = await import('../../src/services/messages.ts')
+const store = await import('../../src/platform/images/imageStore.ts')
+const messages = await import('../../src/engine/messages/messages.ts')
 const sharp = (await import('sharp')).default
 
 let failures = 0
-let where = 'to fix, look at storeImage and storedImageRefBlock in src/utils/imageStore.ts'
+let where = 'to fix, look at storeImage and storedImageRefBlock in src/platform/images/imageStore.ts'
 const WHERE_BY_SECTION: Array<[string, string]> = [
-  ['§1', 'to fix, look at readStoredImageRefsForRequest and readStoredImageRef in src/utils/imageStore.ts'],
-  ['§2', 'to fix, look at normalizeMessagesForAPI in src/services/messages/apiView.ts and healWalkableForWire in src/services/messages/pairing.ts, and run readStoredImageRefsForRequest in src/utils/imageStore.ts before them'],
+  ['§1', 'to fix, look at readStoredImageRefsForRequest and readStoredImageRef in src/platform/images/imageStore.ts'],
+  ['§2', 'to fix, look at normalizeMessagesForAPI in src/engine/messages/apiView.ts and healWalkableForWire in src/engine/messages/wirePairing.ts, and run readStoredImageRefsForRequest in src/platform/images/imageStore.ts before them'],
 ]
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++

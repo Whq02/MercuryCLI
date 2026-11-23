@@ -158,16 +158,16 @@ console.log('============================================================')
 console.log(' the responses-state hop — provider state out and back')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { queryEvents } = await import('../../src/query.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-type Message = import('../../src/types/message.ts').Message
+const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 function makeCtx(model: string): Record<string, unknown> {
   let appState: Record<string, unknown> = {
@@ -237,14 +237,14 @@ section('leg 1 · gpt → claude → gpt (reasoning items out and back)')
 {
   let history: Message[] = [createUserMessage({ content: 'H1 run the hop probe' }) as Message]
   const t1 = await driveTurn(history, 'gpt-5.6-sol')
-  check('T1 (gpt) settled clean over a tool round', t1.threw === undefined && t1.terminal.reason === 'completed' && t1.requests.length >= 2, `threw=${String(t1.threw)} rounds=${t1.requests.length} terminal=${JSON.stringify(t1.terminal)} — the gpt turn must finish with a tool round and a second request; look at the Responses request path starting at queryEvents in src/query.ts`)
+  check('T1 (gpt) settled clean over a tool round', t1.threw === undefined && t1.terminal.reason === 'completed' && t1.requests.length >= 2, `threw=${String(t1.threw)} rounds=${t1.requests.length} terminal=${JSON.stringify(t1.terminal)} — the gpt turn must finish with a tool round and a second request; look at the Responses request path starting at queryEvents in src/engine/turnDoor.ts`)
   const round2 = t1.requests.at(-1)
   if (round2) {
     const items = (round2.body.input as Array<Record<string, unknown>> | undefined) ?? []
     const reasoningAt = items.findIndex(i => i.type === 'reasoning')
     const callAt = items.findIndex(i => i.type === 'function_call')
     const outputAt = items.findIndex(i => i.type === 'function_call_output')
-    check('the WITHIN-TURN continuation replays the reasoning item with its encrypted content, in position (before its call)', reasoningAt !== -1 && callAt !== -1 && outputAt === callAt + 1 && reasoningAt < callAt && raw(round2.body).includes(ENC_NEEDLE), `${items.map(i => String(i.type)).join(',')} — the reasoning item must precede its function_call and keep encrypted_content; see mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts`)
+    check('the WITHIN-TURN continuation replays the reasoning item with its encrypted content, in position (before its call)', reasoningAt !== -1 && callAt !== -1 && outputAt === callAt + 1 && reasoningAt < callAt && raw(round2.body).includes(ENC_NEEDLE), `${items.map(i => String(i.type)).join(',')} — the reasoning item must precede its function_call and keep encrypted_content; see mapMessagesToOpenaiInput in src/models/roads/openai/responsesBridge.ts`)
     check('the continuation stays stateless (store:false, no previous_response_id)', round2.body.store === false && !('previous_response_id' in round2.body), `store=${String(round2.body.store)} previous_response_id present=${String('previous_response_id' in round2.body)} — the continuation request must send store:false and no previous_response_id`)
   }
 
@@ -266,15 +266,15 @@ section('leg 1 · gpt → claude → gpt (reasoning items out and back)')
   if (t3main) {
     const items = (t3main.body.input as Array<Record<string, unknown>> | undefined) ?? []
     const KNOWN = new Set(['message', 'function_call', 'function_call_output', 'reasoning'])
-    check('every replayed item is a known Responses type (nothing malformed rides back)', items.every(i => KNOWN.has(String(i.type))), `${items.map(i => String(i.type)).join(',')} — an unknown item type was replayed; see mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts`)
+    check('every replayed item is a known Responses type (nothing malformed rides back)', items.every(i => KNOWN.has(String(i.type))), `${items.map(i => String(i.type)).join(',')} — an unknown item type was replayed; see mapMessagesToOpenaiInput in src/models/roads/openai/responsesBridge.ts`)
     const openCalls = items.filter(i => i.type === 'function_call').map(i => String(i.call_id))
     const answered = items.filter(i => i.type === 'function_call_output').map(i => String(i.call_id))
-    check('every function_call is answered on the return hop (id-paired)', openCalls.length > 0 && openCalls.every(id => answered.includes(id)), `calls=${openCalls.join(',')} answered=${answered.join(',')} — each function_call replayed to gpt needs a function_call_output with the same call_id; see mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts`)
+    check('every function_call is answered on the return hop (id-paired)', openCalls.length > 0 && openCalls.every(id => answered.includes(id)), `calls=${openCalls.join(',')} answered=${answered.join(',')} — each function_call replayed to gpt needs a function_call_output with the same call_id; see mapMessagesToOpenaiInput in src/models/roads/openai/responsesBridge.ts`)
     check('the return hop stays stateless (store:false, no previous_response_id)', t3main.body.store === false && !('previous_response_id' in t3main.body), `store=${String(t3main.body.store)} previous_response_id present=${String('previous_response_id' in t3main.body)} — the return hop request must send store:false and no previous_response_id`)
     const survived = raw(t3main.body).includes(ENC_NEEDLE)
     const reasoningItems = items.filter(i => i.type === 'reasoning').length
     note(`reasoning survival on the return hop: encrypted_content ${survived ? 'REPLAYS' : 'does NOT replay'} · ${reasoningItems} reasoning item(s) in the replay`)
-    check("the claude-served middle turn rides back as plain content (its text present)", raw(t3main.body).includes('settled on the home lane'), 'the claude turn text is missing from the gpt request; the history conversion in mapMessagesToOpenaiInput (src/services/providers/openai/responsesBridge.ts) must carry a claude-served assistant turn as an assistant message')
+    check("the claude-served middle turn rides back as plain content (its text present)", raw(t3main.body).includes('settled on the home lane'), 'the claude turn text is missing from the gpt request; the history conversion in mapMessagesToOpenaiInput (src/models/roads/openai/responsesBridge.ts) must carry a claude-served assistant turn as an assistant message')
   }
 }
 
@@ -282,7 +282,7 @@ section('leg 2 · claude → gpt → claude (signed thinking out and back)')
 {
   let history: Message[] = [createUserMessage({ content: 'H1 run the hop probe' }) as Message]
   const t1 = await driveTurn(history, 'claude-sonnet-5')
-  check('T1 (claude) settled clean over a tool round', t1.threw === undefined && t1.terminal.reason === 'completed' && t1.requests.length >= 2, `threw=${String(t1.threw)} rounds=${t1.requests.length} terminal=${JSON.stringify(t1.terminal)} — the claude turn must finish with a tool round and a second request; look at queryEvents in src/query.ts`)
+  check('T1 (claude) settled clean over a tool round', t1.threw === undefined && t1.terminal.reason === 'completed' && t1.requests.length >= 2, `threw=${String(t1.threw)} rounds=${t1.requests.length} terminal=${JSON.stringify(t1.terminal)} — the claude turn must finish with a tool round and a second request; look at queryEvents in src/engine/turnDoor.ts`)
   const round2 = t1.requests.at(-1)
   if (round2) {
     const b = raw(round2.body)
@@ -297,8 +297,8 @@ section('leg 2 · claude → gpt → claude (signed thinking out and back)')
   check('T2 (gpt) settled clean', t2.threw === undefined && t2.terminal.reason === 'completed' && t2main !== undefined, `threw=${String(t2.threw)} terminal=${JSON.stringify(t2.terminal)} request seen=${String(t2main !== undefined)} — the hop from claude history to the gpt model must complete and send a request carrying H2`)
   if (t2main) {
     const b = raw(t2main.body)
-    check('NO thinking text and NO signature leak onto the Responses wire', !b.includes(THINK_NEEDLE) && !b.includes(SIG_NEEDLE), `${b.slice(0, 300)} — claude thinking text and signature must be dropped when the history is converted to Responses input; see mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts`)
-    check("T1's tool pair rides as function_call/function_call_output with the id preserved", b.includes('"function_call"') && b.includes('"function_call_output"') && b.includes('toolu_hop_'), 'the claude tool pair did not reach the gpt request as function_call and function_call_output with its toolu_ id; see mapDerivedAssistantMessage and mapUserMessage in src/services/providers/openai/responsesBridge.ts')
+    check('NO thinking text and NO signature leak onto the Responses wire', !b.includes(THINK_NEEDLE) && !b.includes(SIG_NEEDLE), `${b.slice(0, 300)} — claude thinking text and signature must be dropped when the history is converted to Responses input; see mapMessagesToOpenaiInput in src/models/roads/openai/responsesBridge.ts`)
+    check("T1's tool pair rides as function_call/function_call_output with the id preserved", b.includes('"function_call"') && b.includes('"function_call_output"') && b.includes('toolu_hop_'), 'the claude tool pair did not reach the gpt request as function_call and function_call_output with its toolu_ id; see mapDerivedAssistantMessage and mapUserMessage in src/models/roads/openai/responsesBridge.ts')
   }
 
   history = [...history, ...t2.settled, createUserMessage({ content: 'H3 hop home again' }) as Message]

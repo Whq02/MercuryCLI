@@ -12,11 +12,11 @@ import {
   setHelmCursorBySig,
   helmRowSig,
   type HelmRow,
-} from '../../src/utils/cockpit/helmFocus.js'
+} from '../../src/screen/cockpit/helmFocus.js'
 
 let failures = 0
 function check(name: string, ok: boolean, detail = ''): void {
-  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}${ok ? '' : ' — fix the cursor anchoring, activation or clamping in src/utils/cockpit/helmFocus.ts (publishHelmRows, setHelmCursor, requestHelmRowActivation, moveHelmCursor)'}`)
+  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}${ok ? '' : ' — fix the cursor anchoring, activation or clamping in src/screen/cockpit/helmFocus.ts (publishHelmRows, setHelmCursor, requestHelmRowActivation, moveHelmCursor)'}`)
   if (!ok) failures++
 }
 

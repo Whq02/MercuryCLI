@@ -73,7 +73,7 @@ const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
   },
 })
 if (res.status !== 0) {
-  check('PTY capture ran', false, `exit=${res.status} ${(res.stderr ?? '').slice(0, 300)} | the vshot capture (scripts/ui/vshot.py) failed or timed out: read its stderr above, and check that dist/mercury.mjs starts and the hammer-breaker script in src/query/scriptedStream.ts still runs`)
+  check('PTY capture ran', false, `exit=${res.status} ${(res.stderr ?? '').slice(0, 300)} | the vshot capture (scripts/ui/vshot.py) failed or timed out: read its stderr above, and check that dist/mercury.mjs starts and the hammer-breaker script in src/engine/turn-entry/scriptedStream.ts still runs`)
   process.exit(1)
 }
 

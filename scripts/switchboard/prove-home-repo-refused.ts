@@ -53,19 +53,19 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
-const boundary = await import('../../src/utils/projectBoundary.js')
-const asks = await import('../../src/daemon/permissionAsks.js')
-const wt = await import('../../src/daemon/concourseWorktrees.js')
-const sup = await import('../../src/daemon/concourseWorkers.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const boundary = await import('../../src/platform/files/projectBoundary.js')
+const asks = await import('../../src/daemon/session-seat/permissionAsks.js')
+const wt = await import('../../src/daemon/concourse-workers/concourseWorktrees.js')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { listObligations } = await import('../../src/services/crew/obligations.js')
+const { listObligations } = await import('../../src/crew/crewmates/obligations.js')
 
 const FS_ROOT = parse(process.cwd()).root
 
 console.log('R1 gitInitRefusal — the boundary owner refuses the wrong folders')
 {
-  fixWhere = 'change gitInitRefusal, projectMarkerOf, countEntriesBounded or entryCountWords in src/utils/projectBoundary.ts'
+  fixWhere = 'change gitInitRefusal, projectMarkerOf, countEntriesBounded or entryCountWords in src/platform/files/projectBoundary.ts'
   const home = boundary.gitInitRefusal(HOME_FX)
   check('the home directory is refused as home', home?.kind === 'home' && home.words === 'this is your home folder', JSON.stringify(home))
   if (homeLink !== null) {
@@ -91,7 +91,7 @@ console.log('R1 gitInitRefusal — the boundary owner refuses the wrong folders'
 
 console.log('\nR2 mintGitInitAsk — no ask for a refused folder; the allowed ask names the folder and the count')
 {
-  fixWhere = 'change mintGitInitAsk in src/daemon/permissionAsks.ts (a refused folder must mint no ask, sidecar row or obligation; the ask text carries the path and entry count)'
+  fixWhere = 'change mintGitInitAsk in src/daemon/session-seat/permissionAsks.ts (a refused folder must mint no ask, sidecar row or obligation; the ask text carries the path and entry count)'
   const sidecar = join(DAEMON_DIR, 'git-init-asks.json')
   for (const [label, folder] of [['the home', HOME_FX], ['Desktop', DESKTOP], ['the bulk folder', BULK]] as const) {
     const r = asks.mintGitInitAsk(folder)
@@ -116,7 +116,7 @@ console.log('\nR2 mintGitInitAsk — no ask for a refused folder; the allowed as
 
 console.log('\nR3 initGitRepository — the refusal at the apply door; the plain project still gets git')
 {
-  fixWhere = 'change initGitRepository in src/daemon/concourseWorktrees.ts (it must refuse with the reason words and the folder, and create no .git for a refused folder)'
+  fixWhere = 'change initGitRepository in src/daemon/concourse-workers/concourseWorktrees.ts (it must refuse with the reason words and the folder, and create no .git for a refused folder)'
   for (const [label, folder, needle] of [
     ['the home', HOME_FX, 'this is your home folder'],
     ['Desktop', DESKTOP, 'Desktop'],
@@ -135,7 +135,7 @@ console.log('\nR3 initGitRepository — the refusal at the apply door; the plain
 
 console.log('\nR4 resolveDefaultedAdmission — a refused plain folder never offers')
 {
-  fixWhere = 'change resolveDefaultedAdmission in src/daemon/concourseWorkers/admission.ts'
+  fixWhere = 'change resolveDefaultedAdmission in src/daemon/concourse-workers/admission.ts'
   const PLAIN = join(SCRATCH, 'plain')
   mkdirSync(PLAIN)
   writeFileSync(join(PLAIN, 'README.md'), '# plain\n')
@@ -161,7 +161,7 @@ console.log('\nR4 resolveDefaultedAdmission — a refused plain folder never off
 
 console.log('\nR5 ensureWorkerWorktree — a refused plain folder refuses terminally')
 {
-  fixWhere = 'change ensureWorkerWorktree in src/daemon/concourseWorktrees.ts (a refused folder must fail terminally with worktree-create-failed and the reason)'
+  fixWhere = 'change ensureWorkerWorktree in src/daemon/concourse-workers/concourseWorktrees.ts (a refused folder must fail terminally with worktree-create-failed and the reason)'
   const r = await wt.ensureWorkerWorktree(HOME_FX, 'concourse-w9', DAEMON_DIR)
   check('the home: terminal (not the held no-repository), with the reason', !r.ok && r.code === 'worktree-create-failed' && r.error.includes('this is your home folder'), JSON.stringify(r))
   const PLAIN2 = join(SCRATCH, 'plain2')
@@ -172,7 +172,7 @@ console.log('\nR5 ensureWorkerWorktree — a refused plain folder refuses termin
 
 console.log('\nR6 mintGitRefusedReceipt — the rail receipt bound to the queued launch')
 {
-  fixWhere = 'change mintGitRefusedReceipt in src/daemon/permissionAsks.ts (the receipt row is ref git-refused:<id>, bound to dispatch:<id>)'
+  fixWhere = 'change mintGitRefusedReceipt in src/daemon/session-seat/permissionAsks.ts (the receipt row is ref git-refused:<id>, bound to dispatch:<id>)'
   const refusal = boundary.gitInitRefusal(HOME_FX)
   asks.mintGitRefusedReceipt('cm-refused-1', HOME_FX, refusal as NonNullable<typeof refusal>)
   const receiptWait = await waitForRow(async () => (await listObligations({ scope: 'switchboard' })).find(o => o.ref === 'git-refused:cm-refused-1'))
@@ -183,7 +183,7 @@ console.log('\nR6 mintGitRefusedReceipt — the rail receipt bound to the queued
 
 console.log('\nR7 non-recreation — a home repository removed by the operator is never made again')
 {
-  fixWhere = 'change the home refusal in gitInitRefusal (src/utils/projectBoundary.ts), which mintGitInitAsk, initGitRepository and resolveDefaultedAdmission all consult'
+  fixWhere = 'change the home refusal in gitInitRefusal (src/platform/files/projectBoundary.ts), which mintGitInitAsk, initGitRepository and resolveDefaultedAdmission all consult'
   const { spawnSync } = await import('node:child_process')
   const g = (...args: string[]): void => {
     spawnSync('git', ['-C', HOME_FX, '-c', 'maintenance.auto=false', '-c', 'gc.auto=0', ...args], { stdio: 'ignore', env: { ...process.env } })

@@ -114,10 +114,10 @@ try {
     const schemas = first?.tools?.map(tool => tool.function.name) ?? []
     const firstText = JSON.stringify(first?.messages ?? [])
     if (!enabled) {
-      check(`${mode}: explicit off or lean keeps LSP absent`, names.every(name => !pool.includes(name) && !schemas.includes(name) && !firstText.includes(`${name} — `)), 'with MERCURY_LSP=0 or --lean no Lsp tool may appear in the pool, the schemas or the first prompt; check the LSP gate in src/tools/LSPTool/LSPTool.ts')
+      check(`${mode}: explicit off or lean keeps LSP absent`, names.every(name => !pool.includes(name) && !schemas.includes(name) && !firstText.includes(`${name} — `)), 'with MERCURY_LSP=0 or --lean no Lsp tool may appear in the pool, the schemas or the first prompt; check the LSP gate in src/tools/lsp/lspTools.ts')
       continue
     }
-    check(`${mode}: the complete LSP family is in the tool pool`, names.every(name => pool.includes(name)), pool.join(', ') + ' | all seven Lsp tools must be in the session tool pool when LSP is enabled; check src/tools/LSPTool/LSPTool.ts')
+    check(`${mode}: the complete LSP family is in the tool pool`, names.every(name => pool.includes(name)), pool.join(', ') + ' | all seven Lsp tools must be in the session tool pool when LSP is enabled; check src/tools/lsp/lspTools.ts')
     check(`${mode}: LspRead is announced but not eagerly sent as a schema`, !schemas.includes('LspRead') && firstText.includes('LspRead — ') && schemas.includes('ToolSearch'), schemas.join(', ') + ' | LspRead must be listed by name in the first prompt as a deferred tool, and only ToolSearch may carry a schema up front')
     const resultOf = (id: string): Frame | undefined => frames.find(frame => frame.type === 'tool_result' && frame.call_id === id)
     const admitted = resultOf('call_1')

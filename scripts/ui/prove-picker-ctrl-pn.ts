@@ -91,7 +91,7 @@ const open = marks.open ?? ''
 const afterN = marks['after-ctrl-n'] ?? ''
 const afterP = marks['after-ctrl-p'] ?? ''
 const afterDown = marks['after-down'] ?? ''
-check('the drive delivered (the picker opened, every mark taken)', res.status === 0 && open.includes('Mercury · model') && afterN !== '' && afterP !== '' && afterDown !== '', `the vshot drive did not open the /model picker or take every mark; check dist/mercury.mjs is built, the picker title MODEL_PICKER_TITLE in src/utils/model/modelPickerGroups.ts, and the stderr below. status=${res.status} end=${endReason} ${(res.stderr ?? '').slice(-300)}\n${open.split('\n').slice(0, 8).join('\n')}`)
+check('the drive delivered (the picker opened, every mark taken)', res.status === 0 && open.includes('Mercury · model') && afterN !== '' && afterP !== '' && afterDown !== '', `the vshot drive did not open the /model picker or take every mark; check dist/mercury.mjs is built, the picker title MODEL_PICKER_TITLE in src/models/facts/modelPickerGroups.ts, and the stderr below. status=${res.status} end=${endReason} ${(res.stderr ?? '').slice(-300)}\n${open.split('\n').slice(0, 8).join('\n')}`)
 const diffRows = (a: string, b: string): number[] => {
   const x = a.split('\n')
   const y = b.split('\n')
@@ -100,9 +100,9 @@ const diffRows = (a: string, b: string): number[] => {
   return out
 }
 const nMoved = diffRows(open, afterN)
-check('ctrl+n reaches the picker: the frame moves', nMoved.length > 0, `ctrl+n did not move the picker; the row-axis handling (moveNext) in src/components/modelPicker/keys.ts and the chord map in src/components/mercury-ui/navSemantics.ts need to accept it. open==after-ctrl-n; the open frame:\n${open}`)
-check('ctrl+p reaches the picker: the frame returns to the open frame', afterP === open, `ctrl+p did not undo ctrl+n; the movePrevious handling in src/components/modelPicker/keys.ts and navSemantics.ts in src/components/mercury-ui need to accept it. rows differing: ${diffRows(open, afterP).join(',')}\n${afterP}`)
-check('the control ↓ moves the frame exactly as ctrl+n did', afterDown === afterN, `ctrl+n and the down arrow must move the picker identically; compare their handling in src/components/modelPicker/keys.ts and src/components/mercury-ui/navSemantics.ts. rows differing from after-ctrl-n: ${diffRows(afterN, afterDown).join(',')}; ↓ moved rows ${diffRows(afterP, afterDown).join(',')}`)
+check('ctrl+n reaches the picker: the frame moves', nMoved.length > 0, `ctrl+n did not move the picker; the row-axis handling (moveNext) in src/screen/model-picker/keys.ts and the chord map in src/screen/widgets/navSemantics.ts need to accept it. open==after-ctrl-n; the open frame:\n${open}`)
+check('ctrl+p reaches the picker: the frame returns to the open frame', afterP === open, `ctrl+p did not undo ctrl+n; the movePrevious handling in src/screen/model-picker/keys.ts and navSemantics.ts in src/screen/widgets need to accept it. rows differing: ${diffRows(open, afterP).join(',')}\n${afterP}`)
+check('the control ↓ moves the frame exactly as ctrl+n did', afterDown === afterN, `ctrl+n and the down arrow must move the picker identically; compare their handling in src/screen/model-picker/keys.ts and src/screen/widgets/navSemantics.ts. rows differing from after-ctrl-n: ${diffRows(afterN, afterDown).join(',')}; ↓ moved rows ${diffRows(afterP, afterDown).join(',')}`)
 
 rmSync(scratch, { recursive: true, force: true })
 if (failures > 0) {

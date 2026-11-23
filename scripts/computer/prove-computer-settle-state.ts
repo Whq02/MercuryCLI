@@ -1,9 +1,9 @@
 import { check, finish, section } from './computerProofKit.ts'
 import { allowEverything, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
-import type { DesktopTreeElement } from '../../src/services/desktop/driver.ts'
+import type { DesktopTreeElement } from '../../src/integrations/desktop/driver.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver } = await import('../../src/services/desktop/resolveDriver.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver } = await import('../../src/integrations/desktop/resolveDriver.ts')
 const resolution = resolveDesktopDriver()
 if (resolution.state !== 'ok') throw new Error(resolution.note)
 const driver = resolution.driver
@@ -82,9 +82,9 @@ check('capture keeps the image but removes old settle prose', captured.outcome =
 
 section('a trailing wait under a session grant still reads the observation (the grant road never approves the application, so the last step alone could not read)')
 {
-  const { writeComputerGrant, timedComputerGrant, clearComputerGrant } = await import('../../src/services/desktop/computerGrant.ts')
-  const { getSessionId } = await import('../../src/bootstrap/state.ts')
-  const session = await import('../../src/services/desktop/desktopSession.ts')
+  const { writeComputerGrant, timedComputerGrant, clearComputerGrant } = await import('../../src/integrations/desktop/computerGrant.ts')
+  const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
+  const session = await import('../../src/integrations/desktop/desktopSession.ts')
   const { ownerOf } = await import('./computerToolKit.ts')
   const owner = ownerOf(context)
   const sessionId = String(getSessionId())
@@ -105,7 +105,7 @@ section('a trailing wait under a session grant still reads the observation (the 
 }
 
 section('a native-shaped fixture exposes focus beyond the shallow walk')
-const { FakeDesktopDriver, FAKE_SCENE_DEFAULT } = await import('../../src/services/desktop/fakeDesktopDriver.ts')
+const { FakeDesktopDriver, FAKE_SCENE_DEFAULT } = await import('../../src/integrations/desktop/fakeDesktopDriver.ts')
 type FakeNode = typeof FAKE_SCENE_DEFAULT.tree[number]
 let content: FakeNode = { role: 'AXRadioButton', title: 'Overview', focused: true }
 for (let depth = 0; depth < 7; depth++) content = { role: 'AXGroup', children: [content] }
@@ -114,7 +114,7 @@ for (let depth = 0; depth < 11; depth++) content = { role: 'AXGroup', children: 
 const fixture = new FakeDesktopDriver({ ...FAKE_SCENE_DEFAULT, frontmost: { ...app, title: 'Automations' }, tree: [{ role: 'AXWindow', title: 'Automations', focused: true, children: [content] }] }, null)
 const before = await fixture.accessibilityTree({ ...app, title: 'Automations' }, { depth: 8, count: 200, scope: 'window' }, context.abortController.signal)
 check('the pre-act tree carries the focused control even when its rows stop above it', before.ok && before.value.truncated && before.value.focused?.title === 'Overview' && !before.value.elements.some(row => row.title === 'Overview'))
-const { readObservation, treeObservation } = await import('../../src/tools/ComputerTool/fastRoad.ts')
+const { readObservation, treeObservation } = await import('../../src/tools/computer/fastRoad.ts')
 const deep = await readObservation(fixture, context.abortController.signal)
 const words = treeObservation(deep)
 check('depth-13 dialog and depth-21 focus survive the depth-3 observation', words === 'now: window "Automations" · dialog "Webhook configuration" · focus AXRadioButton "Overview"', words)

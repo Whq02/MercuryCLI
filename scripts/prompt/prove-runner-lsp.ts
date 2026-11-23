@@ -156,19 +156,19 @@ try {
   process.env.MERCURY_CONFIG_DIR = scratch
   process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
   const { mock } = await import('bun:test')
-  mock.module(join(root, 'src/services/lsp/config.ts'), () => ({ getAllLspServers: async () => ({ servers: {}, errors: [] }) }))
-  const manager = await import('../../src/services/lsp/manager.ts')
+  mock.module(join(root, 'src/integrations/lsp/config.ts'), () => ({ getAllLspServers: async () => ({ servers: {}, errors: [] }) }))
+  const manager = await import('../../src/integrations/lsp/serverManagerLifecycle.ts')
   manager.initializeLspServerManager()
   await manager.waitForInitialization()
   check('discovery with no reachable server leaves LSP absent', manager.getInitializationStatus().status === 'success' && !manager.isLspToolMounted())
   await manager.shutdownLspServerManager()
-  const { defersOnCloudFor, isDeferredTool, isDeferredToolFor, loadsInFullFor } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-  const { LspReadTool } = await import('../../src/tools/LSPTool/LSPTool.ts')
-  const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
-  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const { defersOnCloudFor, isDeferredTool, isDeferredToolFor, loadsInFullFor } = await import('../../src/tools/tool-search/prompt.ts')
+  const { LspReadTool } = await import('../../src/tools/lsp/lspTools.ts')
+  const { TestTool } = await import('../../src/tools/test/TestTool.ts')
+  const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
   const local = 'local/qwen3-32b'
   const hosted = 'claude-sonnet-5'
   const project = join(scratch, 'on', 'project')

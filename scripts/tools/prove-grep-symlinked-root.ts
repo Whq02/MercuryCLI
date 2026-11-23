@@ -7,7 +7,7 @@ import { join } from 'node:path'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' — Hint: realSearchRoot and the search call in src/tools/GrepTool/GrepTool.ts must hand ripgrep the real path of the root and spell the answer under the root as it was given.'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' — Hint: realSearchRoot and the search call in src/tools/grep/GrepTool.ts must hand ripgrep the real path of the root and spell the answer under the root as it was given.'}`)
   if (!cond) failures++
 }
 const j = (v: unknown): string => JSON.stringify(v)
@@ -16,8 +16,8 @@ console.log('============================================================')
 console.log(' Grep — the search root reaches ripgrep as its real path, so an anchored glob matches under a symlinked folder')
 console.log('============================================================')
 
-const { GrepTool, realSearchRoot } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { GrepTool, realSearchRoot } = await import('../../src/tools/grep/GrepTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const base = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'grep-symlink-')))
 const real = join(base, 'real')
 mkdirSync(join(real, 'sub'), { recursive: true })

@@ -10,17 +10,17 @@ process.env.MERCURY_CONFIG_DIR = join(hermeticHome, 'config')
 process.env.MERCURY_DAEMON_DIR = join(hermeticHome, 'daemon')
 delete process.env.MERCURY_ASSISTANT_DISABLE
 
-import * as state from '../../src/bootstrap/state.js'
+import * as state from '../../src/boot/process-state/processState.js'
 import {
   getSessionSettingsCache,
   setSessionSettingsCache,
-} from '../../src/utils/settings/settingsCache.js'
-import type { SessionId } from '../../src/types/ids.js'
-import type { ModelUsage } from '../../src/bootstrap/state.js'
+} from '../../src/platform/settings/settingsCache.js'
+import type { SessionId } from '../../src/sessions/transcripts/ids.js'
+import type { ModelUsage } from '../../src/boot/process-state/processState.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(here, '..', '..')
-const statePath = join(repoRoot, 'src', 'bootstrap', 'state.ts')
+const statePath = join(repoRoot, 'src', 'boot', 'process-state', 'processState.ts')
 const scratch = mkdtempSync(join(tmpdir(), 't17-state-net-'))
 
 let failures = 0
@@ -30,7 +30,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) {
     failures++
     console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
-    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the state function this check calls in src/bootstrap/state.ts so the condition holds`)
+    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the state function this check calls in src/boot/process-state/processState.ts so the condition holds`)
   }
 }
 function section(name: string): void {

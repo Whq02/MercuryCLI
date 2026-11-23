@@ -11,18 +11,18 @@ delete process.env.OPENAI_API_KEY
 delete process.env.ZAI_API_KEY
 delete process.env.ANTHROPIC_API_KEY
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 const { deriveFamilySlotGroups, executeSlotRemoval, maskedKeyTail } = await import(
-  '../../src/services/providers/accountSlots.ts'
+  '../../src/models/roads/accountSlots.ts'
 )
 type Groups = ReturnType<typeof deriveFamilySlotGroups>
 type Slot = Groups[number]['slots'][number]
 
 let failures = 0
 const SLOT_FAILURE_HINT =
-  'fix the slot derivation in src/services/providers/accountSlots.ts (deriveFamilySlotGroups) or the routed removal in src/services/providers/accountSlots/removal.ts (executeSlotRemoval), whichever this check names'
+  'fix the slot derivation in src/models/roads/accountSlots.ts (deriveFamilySlotGroups) or the routed removal in src/models/roads/account-slots/removal.ts (executeSlotRemoval), whichever this check names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = detail ? `${detail}; ${SLOT_FAILURE_HINT}` : SLOT_FAILURE_HINT

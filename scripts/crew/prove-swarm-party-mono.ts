@@ -5,23 +5,23 @@ delete process.env['MERCURY_TRUECOLOR']
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { BoardPrincipal, BoardStore } from '../../src/services/crewBoard/contracts.ts'
-import type { SystemCrewChatMessage } from '../../src/types/message.ts'
+import type { BoardPrincipal, BoardStore } from '../../src/crew/board/contracts.ts'
+import type { SystemCrewChatMessage } from '../../src/engine/message-shapes/message.ts'
 
 const { makeTally } = await import('./crew-world.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 const React = (await import('react')).default
-const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { CrewChatRow } = await import('../../src/components/messages/CrewChatRow.js')
-const { Text, useTheme } = await import('../../src/ink.js')
-const { resolveMercuryTokens } = await import('../../src/utils/mercuryTokens.ts')
-const { TERRA } = await import('../../src/components/mercuryPalette.ts')
-const { chatNameColor } = await import('../../src/services/crewBoard/chat.ts')
-const { open } = await import('../../src/services/crewBoard/store.ts')
-const { partyFeed } = await import('../../src/services/crewBoard/party.ts')
+const { renderToAnsiString } = await import('../../src/screen/renderer/staticRender.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { CrewChatRow } = await import('../../src/screen/messages/CrewChatRow.js')
+const { Text, useTheme } = await import('../../src/screen/themedRenderer.js')
+const { resolveMercuryTokens } = await import('../../src/screen/theme/mercuryTokens.ts')
+const { TERRA } = await import('../../src/screen/theme/mercuryPalette.ts')
+const { chatNameColor } = await import('../../src/crew/board/chat.ts')
+const { open } = await import('../../src/crew/board/store.ts')
+const { partyFeed } = await import('../../src/crew/board/party.ts')
 
 const tally = makeTally('swarm party rows under stripped colour')
 const h = React.createElement
@@ -53,9 +53,9 @@ const paint = (kind: SystemCrewChatMessage['kind'], content: string, theme?: str
 
 const blockerColoured = await paint('blocker', 'MONO-BLOCKER the build is red')
 const askColoured = await paint('ask', 'MONO-ASK which file')
-tally.check('with colour on, the row carries colour codes at all (the render is styled)', blockerColoured.includes('\u001b['), blockerColoured + ' — CrewChatRow in src/components/messages/CrewChatRow.tsx must paint with theme colours when colour is on')
-tally.check('with colour on, a blocker body is not bold', !blockerColoured.includes(BOLD), blockerColoured + ' — CrewChatRow in src/components/messages/CrewChatRow.tsx must bold the body only when colorStripped() is true')
-tally.check('with colour on, an ask body is not bold', !askColoured.includes(BOLD), askColoured + ' — CrewChatRow in src/components/messages/CrewChatRow.tsx must bold only a blocker body, and only when colorStripped() is true')
+tally.check('with colour on, the row carries colour codes at all (the render is styled)', blockerColoured.includes('\u001b['), blockerColoured + ' — CrewChatRow in src/screen/messages/CrewChatRow.tsx must paint with theme colours when colour is on')
+tally.check('with colour on, a blocker body is not bold', !blockerColoured.includes(BOLD), blockerColoured + ' — CrewChatRow in src/screen/messages/CrewChatRow.tsx must bold the body only when colorStripped() is true')
+tally.check('with colour on, an ask body is not bold', !askColoured.includes(BOLD), askColoured + ' — CrewChatRow in src/screen/messages/CrewChatRow.tsx must bold only a blocker body, and only when colorStripped() is true')
 
 tally.section('seat inks: one colour per seat, by join order, the same after a cold resume')
 const fgAfter = (fg: string, params: number[]): string => {
@@ -97,7 +97,7 @@ delete process.env['MERCURY_THEME_PIN']
 const probe = await renderToAnsiString(mounted(h(Probe)), 100)
 const accent = (i: number): string | null => inkOf(probe, `A${i}`)
 const primary = inkOf(probe, 'P0')
-tally.check('the probe paints eight distinct accents and the primary ink', new Set([...Array.from({ length: 8 }, (_, i) => accent(i)), primary]).size === 9 && accent(0) !== null && primary !== null, probe + ' — resolveMercuryTokens in src/utils/mercuryTokens.ts must give eight distinct agentAccents and a textPrimary ink, or this probe reader inkOf is misreading the colour codes')
+tally.check('the probe paints eight distinct accents and the primary ink', new Set([...Array.from({ length: 8 }, (_, i) => accent(i)), primary]).size === 9 && accent(0) !== null && primary !== null, probe + ' — resolveMercuryTokens in src/screen/theme/mercuryTokens.ts must give eight distinct agentAccents and a textPrimary ink, or this probe reader inkOf is misreading the colour codes')
 
 const scratch = mkdtempSync(join(tmpdir(), 'swarm-party-inks-'))
 const boardPath = join(scratch, 'board.sqlite')
@@ -123,7 +123,7 @@ const renamed = ['ink-two', 'ink-second', 'ink-deux', 'ink-zwei', 'ink-dos', 'in
 
 try {
   let board = openBoard()
-  tally.check('a new board starts with the channel on, so the rows paint without a command', JSON.stringify(board.chat()) === JSON.stringify({ on: true, filter: { kind: 'all' } }), JSON.stringify(board.chat()) + ' — a new board must start with chat on and the all filter; see chat() in src/services/crewBoard/store.ts')
+  tally.check('a new board starts with the channel on, so the rows paint without a command', JSON.stringify(board.chat()) === JSON.stringify({ on: true, filter: { kind: 'all' } }), JSON.stringify(board.chat()) + ' — a new board must start with chat on and the all filter; see chat() in src/crew/board/store.ts')
   board.enroll(main)
   board.reserveEnrollment(main, { agent: seats[0]!.author.agentId, name: seats[0]!.name, team: 'inks', captain: true })
   for (const seat of seats) board.enroll(seat)
@@ -133,31 +133,31 @@ try {
   if (!lead.ok) refused.push(lead.reason)
   const owner = board.postOwner(main, { clientOpId: 'ink-owner', text: 'INK-OWNER ship it', channel: 'general' })
   if (!owner.ok) refused.push(owner.reason)
-  tally.check('seven seats of one team joined and posted, the lead and the owner posted', refused.length === 0, refused.join(' | ') + ' — a post was refused; the reasons are listed, see the board post and enroll rules in src/services/crewBoard/store.ts')
+  tally.check('seven seats of one team joined and posted, the lead and the owner posted', refused.length === 0, refused.join(' | ') + ' — a post was refused; the reasons are listed, see the board post and enroll rules in src/crew/board/store.ts')
   const first = await rowsOf(board)
-  tally.check('the feed admitted the launch row, seven Joined rows, seven results, the lead and the owner', first.filter(row => /^joined(?: · team .+)?$/.test(row.content)).length === 7 && seats.every((_, i) => named(first, `INK-${i + 1} `) !== undefined) && named(first, 'INK-LEAD') !== undefined && named(first, 'INK-OWNER') !== undefined && named(first, 'Swarm launched') !== undefined, first.map(row => `[${row.name}] ${row.content}`).join(' | ') + ' — change partyFeed in src/services/crewBoard/party.ts so it admits the launch, joined and post rows')
+  tally.check('the feed admitted the launch row, seven Joined rows, seven results, the lead and the owner', first.filter(row => /^joined(?: · team .+)?$/.test(row.content)).length === 7 && seats.every((_, i) => named(first, `INK-${i + 1} `) !== undefined) && named(first, 'INK-LEAD') !== undefined && named(first, 'INK-OWNER') !== undefined && named(first, 'Swarm launched') !== undefined, first.map(row => `[${row.name}] ${row.content}`).join(' | ') + ' — change partyFeed in src/crew/board/party.ts so it admits the launch, joined and post rows')
   const inks = await Promise.all(seats.map((_, i) => inkOfRow(named(first, `INK-${i + 1} `))))
-  for (const [i, ink] of inks.entries()) tally.check(`seat ${i + 1} (${seats[i]!.name}, joined ${i + 1}${['st', 'nd', 'rd'][i] ?? 'th'}) paints accent ${i + 1}`, ink !== null && ink === accent(i + 1), `${ink} vs ${accent(i + 1)} — seat ink is chatNameColor in src/services/crewBoard/chat.ts by the slot chatSeatSlot gives (join order), carried onto the row by partyFeed in src/services/crewBoard/party.ts`)
-  tally.check('seven seats of one team paint seven distinct inks', new Set(inks).size === 7 && !inks.includes(null), inks.join(' | ') + ' — change chatSeatSlot or chatNameColor in src/services/crewBoard/chat.ts so each slot gives its own accent')
+  for (const [i, ink] of inks.entries()) tally.check(`seat ${i + 1} (${seats[i]!.name}, joined ${i + 1}${['st', 'nd', 'rd'][i] ?? 'th'}) paints accent ${i + 1}`, ink !== null && ink === accent(i + 1), `${ink} vs ${accent(i + 1)} — seat ink is chatNameColor in src/crew/board/chat.ts by the slot chatSeatSlot gives (join order), carried onto the row by partyFeed in src/crew/board/party.ts`)
+  tally.check('seven seats of one team paint seven distinct inks', new Set(inks).size === 7 && !inks.includes(null), inks.join(' | ') + ' — change chatSeatSlot or chatNameColor in src/crew/board/chat.ts so each slot gives its own accent')
   const joinedInks = await Promise.all(seats.map(seat => inkOfRow(joined(first, seat.name))))
-  tally.check("a seat's Joined row wears the same ink as its result", joinedInks.every((ink, i) => ink !== null && ink === inks[i]), joinedInks.join(' | ') + ' — the Joined row must carry the same slot as the post; see partyFeed in src/services/crewBoard/party.ts')
-  tally.check('the captain plate wears its seat ink whole', named(first, 'INK-1 ')?.captain === true && inks[0] === accent(1), `${String(named(first, 'INK-1 ')?.captain)} ${inks[0]} — the captain row must set captain in partyFeed (src/services/crewBoard/party.ts) and CrewChatRow (src/components/messages/CrewChatRow.tsx) must paint the whole plate in the seat ink`)
-  tally.check('the lead keeps accent 0 on its post and on the launch row', (await inkOfRow(named(first, 'INK-LEAD'))) === accent(0) && (await inkOfRow(named(first, 'Swarm launched'))) === accent(0), `${await inkOfRow(named(first, 'INK-LEAD'))} / ${await inkOfRow(named(first, 'Swarm launched'))} vs ${accent(0)} — the lead has no seat slot, so chatNameColor in src/services/crewBoard/chat.ts must give it accent 0`)
-  tally.check('the owner keeps the primary ink', (await inkOfRow(named(first, 'INK-OWNER'))) === primary, `${await inkOfRow(named(first, 'INK-OWNER'))} vs ${primary} — CrewChatRow in src/components/messages/CrewChatRow.tsx must paint an owner name with tokens.textPrimary`)
+  tally.check("a seat's Joined row wears the same ink as its result", joinedInks.every((ink, i) => ink !== null && ink === inks[i]), joinedInks.join(' | ') + ' — the Joined row must carry the same slot as the post; see partyFeed in src/crew/board/party.ts')
+  tally.check('the captain plate wears its seat ink whole', named(first, 'INK-1 ')?.captain === true && inks[0] === accent(1), `${String(named(first, 'INK-1 ')?.captain)} ${inks[0]} — the captain row must set captain in partyFeed (src/crew/board/party.ts) and CrewChatRow (src/screen/messages/CrewChatRow.tsx) must paint the whole plate in the seat ink`)
+  tally.check('the lead keeps accent 0 on its post and on the launch row', (await inkOfRow(named(first, 'INK-LEAD'))) === accent(0) && (await inkOfRow(named(first, 'Swarm launched'))) === accent(0), `${await inkOfRow(named(first, 'INK-LEAD'))} / ${await inkOfRow(named(first, 'Swarm launched'))} vs ${accent(0)} — the lead has no seat slot, so chatNameColor in src/crew/board/chat.ts must give it accent 0`)
+  tally.check('the owner keeps the primary ink', (await inkOfRow(named(first, 'INK-OWNER'))) === primary, `${await inkOfRow(named(first, 'INK-OWNER'))} vs ${primary} — CrewChatRow in src/screen/messages/CrewChatRow.tsx must paint an owner name with tokens.textPrimary`)
 
   board.close()
   board = openBoard()
   const again = board.post(seats[3]!, { clientOpId: 'ink-4-again', kind: 'result', text: 'INK-AGAIN seat 4 after the resume' })
   if (!again.ok) refused.push(again.reason)
   const second = await rowsOf(board)
-  tally.check('after a cold resume of the board the same seat paints the same ink', again.ok && (await inkOfRow(named(second, 'INK-AGAIN'))) === inks[3], `${await inkOfRow(named(second, 'INK-AGAIN'))} vs ${inks[3]} (${second.length} rows admitted) — the slot must survive a board reopen; see chatSeatSlot in src/services/crewBoard/chat.ts and the seats in src/services/crewBoard/store.ts`)
+  tally.check('after a cold resume of the board the same seat paints the same ink', again.ok && (await inkOfRow(named(second, 'INK-AGAIN'))) === inks[3], `${await inkOfRow(named(second, 'INK-AGAIN'))} vs ${inks[3]} (${second.length} rows admitted) — the slot must survive a board reopen; see chatSeatSlot in src/crew/board/chat.ts and the seats in src/crew/board/store.ts`)
   board.enroll(principal(seats[1]!.author.agentId, renamed, 'e-renamed'))
   const rename = board.post(principal(seats[1]!.author.agentId, renamed, 'e-renamed'), { clientOpId: 'ink-2-renamed', kind: 'result', text: 'INK-RENAMED seat 2 under a new name' })
   if (!rename.ok) refused.push(rename.reason)
   const third = await rowsOf(board)
   const renamedRow = named(third, 'INK-RENAMED')
-  tally.check(`a seat re-enrolled under a new name (${renamed}) keeps its slot: accent 2, not the name's hash`, rename.ok && renamedRow?.name === renamed && (await inkOfRow(renamedRow)) === accent(2), `${renamedRow?.name} ${await inkOfRow(renamedRow)} vs ${accent(2)} — chatSeatSlot in src/services/crewBoard/chat.ts must key the slot on the agent id, not the name`)
-  tally.check('a re-enrolled seat does not join again', !third.some(row => /^joined(?: · team .+)?$/.test(row.content)), third.map(row => `[${row.name}] ${row.content}`).join(' | ') + ' — partyFeed in src/services/crewBoard/party.ts must write a Joined row only for a first enrolment')
+  tally.check(`a seat re-enrolled under a new name (${renamed}) keeps its slot: accent 2, not the name's hash`, rename.ok && renamedRow?.name === renamed && (await inkOfRow(renamedRow)) === accent(2), `${renamedRow?.name} ${await inkOfRow(renamedRow)} vs ${accent(2)} — chatSeatSlot in src/crew/board/chat.ts must key the slot on the agent id, not the name`)
+  tally.check('a re-enrolled seat does not join again', !third.some(row => /^joined(?: · team .+)?$/.test(row.content)), third.map(row => `[${row.name}] ${row.content}`).join(' | ') + ' — partyFeed in src/crew/board/party.ts must write a Joined row only for a first enrolment')
   const eighth = principal('a-ink-8', 'ink-8', undefined, 'inks')
   board.enroll(eighth)
   const overflow = board.post(eighth, { clientOpId: 'ink-8', kind: 'result', text: 'INK-8 the palette is exhausted' })
@@ -166,10 +166,10 @@ try {
   if (!seventh.ok) refused.push(seventh.reason)
   const fourth = await rowsOf(board)
   const eighthInk = await inkOfRow(named(fourth, 'INK-8 '))
-  tally.check('an eighth seat falls back to the hash: an accent, with the seventh seat still on accent 7', overflow.ok && eighthInk !== null && Array.from({ length: 7 }, (_, i) => accent(i + 1)).includes(eighthInk) && (await inkOfRow(named(fourth, 'INK-SEVENTH'))) === accent(7), `${eighthInk} / ${await inkOfRow(named(fourth, 'INK-SEVENTH'))} vs ${accent(7)} — chatNameColor in src/services/crewBoard/chat.ts must hash into the accents only for a seat past the palette, and must leave earlier slots alone`)
-  tally.check('no post was refused along the way', refused.length === 0, refused.join(' | ') + ' — a post was refused; the reasons are listed, see the board post and enroll rules in src/services/crewBoard/store.ts')
+  tally.check('an eighth seat falls back to the hash: an accent, with the seventh seat still on accent 7', overflow.ok && eighthInk !== null && Array.from({ length: 7 }, (_, i) => accent(i + 1)).includes(eighthInk) && (await inkOfRow(named(fourth, 'INK-SEVENTH'))) === accent(7), `${eighthInk} / ${await inkOfRow(named(fourth, 'INK-SEVENTH'))} vs ${accent(7)} — chatNameColor in src/crew/board/chat.ts must hash into the accents only for a seat past the palette, and must leave earlier slots alone`)
+  tally.check('no post was refused along the way', refused.length === 0, refused.join(' | ') + ' — a post was refused; the reasons are listed, see the board post and enroll rules in src/crew/board/store.ts')
   const slottedMono = await paintRow(named(first, 'INK-3 ')!, 'mono')
-  tally.check('under the Black and white theme a seat ink paints no colour either', !/\u001b\[(3[0-7]|9[0-7]|38;)/.test(slottedMono) && slottedMono.includes('INK-3 '), slottedMono + ' — under the mono theme CrewChatRow in src/components/messages/CrewChatRow.tsx must paint no colour, so chatNameColor in src/services/crewBoard/chat.ts must return a plain ink there')
+  tally.check('under the Black and white theme a seat ink paints no colour either', !/\u001b\[(3[0-7]|9[0-7]|38;)/.test(slottedMono) && slottedMono.includes('INK-3 '), slottedMono + ' — under the mono theme CrewChatRow in src/screen/messages/CrewChatRow.tsx must paint no colour, so chatNameColor in src/crew/board/chat.ts must return a plain ink there')
   delete process.env['MERCURY_THEME_PIN']
   board.close()
 } finally {
@@ -179,11 +179,11 @@ try {
 tally.section('the Black and white theme')
 const blockerMono = await paint('blocker', 'MONO-BLOCKER the build is red', 'mono')
 const askMono = await paint('ask', 'MONO-ASK which file', 'mono')
-tally.check('the Black and white theme paints no colour on the row', !/\u001b\[(3[0-7]|9[0-7]|38;)/.test(blockerMono), blockerMono + ' — under the mono theme CrewChatRow in src/components/messages/CrewChatRow.tsx must paint no colour on the row')
-tally.check('under stripped colour, the blocker body is bold', blockerMono.includes(BOLD), blockerMono + ' — CrewChatRow in src/components/messages/CrewChatRow.tsx must bold a blocker body when colorStripped() is true')
-tally.check('under stripped colour, the blocker body still carries its words', blockerMono.includes('MONO-BLOCKER the build is red'), blockerMono + ' — CrewChatRow in src/components/messages/CrewChatRow.tsx must still render message.content')
-tally.check('under stripped colour, an ask body is not bold', !askMono.includes(BOLD), askMono + ' — CrewChatRow in src/components/messages/CrewChatRow.tsx must bold only a blocker body')
-tally.check('under stripped colour, no new word is added to the row', blockerMono.replace(/\u001b\[[0-9;]*m/g, '').split(']')[1]?.trim() === 'MONO-BLOCKER the build is red', blockerMono + ' — CrewChatRow in src/components/messages/CrewChatRow.tsx must add nothing but the clock, the plate and the body')
+tally.check('the Black and white theme paints no colour on the row', !/\u001b\[(3[0-7]|9[0-7]|38;)/.test(blockerMono), blockerMono + ' — under the mono theme CrewChatRow in src/screen/messages/CrewChatRow.tsx must paint no colour on the row')
+tally.check('under stripped colour, the blocker body is bold', blockerMono.includes(BOLD), blockerMono + ' — CrewChatRow in src/screen/messages/CrewChatRow.tsx must bold a blocker body when colorStripped() is true')
+tally.check('under stripped colour, the blocker body still carries its words', blockerMono.includes('MONO-BLOCKER the build is red'), blockerMono + ' — CrewChatRow in src/screen/messages/CrewChatRow.tsx must still render message.content')
+tally.check('under stripped colour, an ask body is not bold', !askMono.includes(BOLD), askMono + ' — CrewChatRow in src/screen/messages/CrewChatRow.tsx must bold only a blocker body')
+tally.check('under stripped colour, no new word is added to the row', blockerMono.replace(/\u001b\[[0-9;]*m/g, '').split(']')[1]?.trim() === 'MONO-BLOCKER the build is red', blockerMono + ' — CrewChatRow in src/screen/messages/CrewChatRow.tsx must add nothing but the clock, the plate and the body')
 delete process.env['MERCURY_THEME_PIN']
 
 tally.finish()

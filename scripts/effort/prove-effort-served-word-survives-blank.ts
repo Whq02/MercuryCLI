@@ -9,7 +9,7 @@ import { join } from 'node:path'
 let failures = 0
 let checks = 0
 const WHERE_TO_LOOK =
-  'change resolveEffortTruth in src/utils/effort.ts, gptEffortVocabularyView and modelSupportsMaxEffort in src/utils/model/capabilities.ts, or the served-list cache in src/services/providers/openai/openaiCatalogue.ts, until this holds'
+  'change resolveEffortTruth in src/models/effort/effort.ts, gptEffortVocabularyView and modelSupportsMaxEffort in src/models/facts/capabilities.ts, or the served-list cache in src/models/roads/openai/openaiCatalogue.ts, until this holds'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -60,10 +60,10 @@ globalThis.fetch = (async (url: unknown) => {
   throw new Error(`unexpected fixture URL: ${u}`)
 }) as unknown as typeof fetch
 
-const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
-const capabilities = await import('../../src/utils/model/capabilities.ts')
-const effort = await import('../../src/utils/effort.ts')
-const { effortSentOf } = await import('../../src/services/engine-connector/seatProjections.ts')
+const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.ts')
+const capabilities = await import('../../src/models/facts/capabilities.ts')
+const effort = await import('../../src/models/effort/effort.ts')
+const { effortSentOf } = await import('../../src/engine/connector/seatProjections.ts')
 const truthOf = (model: string, word: string | undefined) => {
   const truth = effort.resolveEffortTruth(model, word as never)
   return { catalogue: truth.catalogue, wire: truth.wire, adjustedFrom: truth.adjustedFrom, supportsEffort: truth.supportsEffort, sent: effortSentOf(truth) }

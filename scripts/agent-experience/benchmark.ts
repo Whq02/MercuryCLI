@@ -134,7 +134,7 @@ interface BrowserProbe {
 }
 
 async function browserLaunches(nodeBin: string, out: string): Promise<BrowserProbe> {
-  const { resolveBrowser } = await import('../../src/services/browser/browserResolver.ts')
+  const { resolveBrowser } = await import('../../src/integrations/browser/browserResolver.ts')
   const resolution = resolveBrowser()
   if (resolution.state === 'unavailable') return { ok: false, note: `no browser to launch — ${resolution.note}` }
   const home = join(out, 'browser-probe', 'home')

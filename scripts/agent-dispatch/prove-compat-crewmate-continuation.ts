@@ -25,22 +25,22 @@ if (childAt !== -1) {
     }
     return originalFetch(input, init)
   }, originalFetch)
-  const config = await import('../../src/utils/config.ts')
+  const config = await import('../../src/platform/settings/config.ts')
   config.enableConfigs()
   config.saveGlobalConfig(current => ({ ...current, agents: { ...current.agents, defaultEffort: mode === 'launch' ? 'max' : 'low' } }))
-  const bootstrap = await import('../../src/bootstrap/state.ts')
+  const bootstrap = await import('../../src/boot/process-state/processState.ts')
   bootstrap.setIsInteractive(false)
   bootstrap.setOriginalCwd(process.cwd())
   bootstrap.setCwdState(process.cwd())
   bootstrap.switchSession('00000000-0000-4000-8000-000000000047' as never)
-  const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
-  const { resumeAgentBackground } = await import('../../src/tools/AgentTool/resumeAgent.ts')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
-  const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-  const { query: startTurn } = await import('../../src/query.ts')
-  const { readAgentMetadata, flushSessionStorage, getAgentTranscript } = await import('../../src/utils/sessionStorage.ts')
-  await import('../../src/tasks.ts')
+  const { runAgent } = await import('../../src/tools/crewmate/runCrewmate.ts')
+  const { resumeAgentBackground } = await import('../../src/tools/crewmate/resumeCrewmate.ts')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+  const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+  const { query: startTurn } = await import('../../src/engine/turnDoor.ts')
+  const { readAgentMetadata, flushSessionStorage, getAgentTranscript } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+  await import('../../src/engine/tasks/tasks.ts')
   let state: any = { ...getDefaultAppState(), effortValue: 'low' }
   const setState = (update: any) => { state = update(state) }
   const context: any = { abortController: new AbortController(), options: { commands: [], tools: [], engineModel: mode === 'launch' ? model : 'compat/other/Wrong/Other', thinkingConfig: mode === 'launch' ? thinking : { type: 'disabled' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } }, getAppState: () => state, setAppState: setState, setAppStateForTasks: setState, messages: [], startTurn, readFileState: createFileStateCacheWithSizeLimit(100), setInProgressToolUseIDs: () => {}, setResponseLength: () => {}, updateFileHistoryState: () => {}, updateAttributionState: () => {} }
@@ -64,7 +64,7 @@ if (childAt !== -1) {
   let checks = 0
   let failures = 0
   let dialect = ''
-  const check = (label: string, truth: unknown, detail?: unknown) => { checks++; if (!truth) failures++; console.log(`${truth ? 'PASS' : 'FAIL'} ${dialect}: ${label}${!truth && detail !== undefined ? ' — ' + JSON.stringify(detail) : ''}${!truth ? ' — hint: a crewmate launched and then resumed in a fresh process must keep its model, thinking, effort and structured-output spec; change runAgent in src/tools/AgentTool/runAgent.ts or resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts' : ''}`) }
+  const check = (label: string, truth: unknown, detail?: unknown) => { checks++; if (!truth) failures++; console.log(`${truth ? 'PASS' : 'FAIL'} ${dialect}: ${label}${!truth && detail !== undefined ? ' — ' + JSON.stringify(detail) : ''}${!truth ? ' — hint: a crewmate launched and then resumed in a fresh process must keep its model, thinking, effort and structured-output spec; change runAgent in src/tools/crewmate/runCrewmate.ts or resumeAgentBackground in src/tools/crewmate/resumeCrewmate.ts' : ''}`) }
   const child = async (mode: string) => {
     const worker = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child', mode, dialect], { cwd: f.home, env: { PATH: process.env.PATH, HOME: f.home, TMPDIR: f.home, MERCURY_CONFIG_DIR: f.home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', MERCURY_LOCAL_PROBE_TARGETS: 'none', ...(process.env.BUN_OPTIONS ? { BUN_OPTIONS: process.env.BUN_OPTIONS } : {}) }, stdio: ['ignore', 'pipe', 'pipe'] })
     let output = ''

@@ -6,7 +6,7 @@ const world = gitFixture('ast-recovered-search-')
 let client: Awaited<ReturnType<typeof gitClient>> | undefined
 let checks = 0
 let failures = 0
-const recoveredHint = 'change renderSearchTrailer in src/services/structure/astPatterns/render.ts (the recovered-tree warning and counts) or the AstSearch tool in src/tools/AstSearchTool'
+const recoveredHint = 'change renderSearchTrailer in src/tools/engines/structure/ast-patterns/render.ts (the recovered-tree warning and counts) or the AstSearch tool in src/tools/ast-search'
 const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' · ' : '') + recoveredHint : ''}`) }
 const cases = [
   { file: 'syntax.ts', code: 'const broken = ;\nconst result = needle(1);\n', pattern: 'needle($X)', language: 'typescript', expected: 'needle(1)' },

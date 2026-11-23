@@ -46,8 +46,8 @@ section('(b) the build vendors no vendor/seccomp and the notices carry no socket
 
 section('(c) /sandbox is not a command: the unknown-command sentence')
 {
-  const { builtinCommands, findCommand } = await import('../../src/commands.ts')
-  const { resolveUnknownSlashName, unknownCommandLine } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
+  const { builtinCommands, findCommand } = await import('../../src/commands/catalogue/commands.ts')
+  const { resolveUnknownSlashName, unknownCommandLine } = await import('../../src/engine/user-input/processSlashCommand.tsx')
   const commands = [...builtinCommands()]
   check('no built-in command is named sandbox', findCommand('sandbox', commands) === undefined)
   check('/sandbox resolves as an unknown slash name', resolveUnknownSlashName('/sandbox', commands) === 'sandbox')
@@ -59,8 +59,8 @@ section('(c) /sandbox is not a command: the unknown-command sentence')
 
 section('(d) a settings file carrying guardrails.sandbox.enabled is answered as an unknown key, the same way as any other unknown key')
 {
-  const { validateSettingsFileContent, unknownKeyWarnings } = await import('../../src/utils/settings/validation.ts')
-  const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
+  const { validateSettingsFileContent, unknownKeyWarnings } = await import('../../src/platform/settings/validation.ts')
+  const { SettingsSchema } = await import('../../src/platform/settings/settingsSchema.ts')
   const retired = { guardrails: { sandbox: { enabled: true } } }
   const arbitrary = { guardrails: { nosuchgroup: { enabled: true } } }
   const shape = (SettingsSchema().shape.guardrails as { unwrap?: () => { shape?: Record<string, unknown> } }).unwrap?.().shape ?? {}
@@ -76,7 +76,7 @@ section('(d) a settings file carrying guardrails.sandbox.enabled is answered as 
   const topArbitrary = validateSettingsFileContent(JSON.stringify({ nosuchgroup: { enabled: true } }))
   check('a top-level sandbox key is refused exactly as any top-level unknown key', !topRetired.isValid && !topArbitrary.isValid && JSON.stringify(topRetired).replaceAll('sandbox', 'KEY') === JSON.stringify(topArbitrary).replaceAll('nosuchgroup', 'KEY'), JSON.stringify([topRetired, topArbitrary]).slice(0, 300))
   writeFileSync(join(HOME, 'settings.json'), JSON.stringify(retired))
-  const { getSettingsWithErrors } = await import('../../src/utils/settings/settings.ts')
+  const { getSettingsWithErrors } = await import('../../src/platform/settings/settings.ts')
   const loaded = getSettingsWithErrors()
   const sandboxWords = loaded.errors.filter(e => /sandbox/i.test(`${e.path} ${e.message}`)).filter(e => !/^Unrecognized field/.test(e.message))
   check('loading that file raises no sandbox-specific line (no alias, no migration, no special refusal)', sandboxWords.length === 0, JSON.stringify(sandboxWords))
@@ -84,7 +84,7 @@ section('(d) a settings file carrying guardrails.sandbox.enabled is answered as 
 
 section("(e) PermissionRequestParamsSchema refuses kind: 'network'")
 {
-  const { PermissionRequestParamsSchema } = await import('../../src/runner/wire/methods.ts')
+  const { PermissionRequestParamsSchema } = await import('../../src/daemon/runner-wire/methods.ts')
   const schema = PermissionRequestParamsSchema()
   const network = schema.safeParse({ kind: 'network', host: 'example.com' })
   check("kind: 'network' is refused", !network.success, JSON.stringify(network.success ? network.data : undefined))

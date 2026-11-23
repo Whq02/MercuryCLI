@@ -22,7 +22,7 @@ function ptyText(run: ArenaRun): string {
 const flat = (x: string): string => x.replace(/\s+/g, '')
 
 let failures = 0
-const CRASH_SURFACE_HINT = 'to fix: the app-root card is drawn by src/ink/components/ErrorOverview.tsx and the exit line by src/main/interactiveLaunch.ts; the per-message line and its report come from src/components/RowErrorBoundary.tsx; the retained report is written by persistCrashReport in src/utils/crashReport.ts; the injected faults are read in src/screens/Chat.tsx and src/components/PromptInput/Notifications.tsx; the proof runs dist, so rebuild it first'
+const CRASH_SURFACE_HINT = 'to fix: the app-root card is drawn by src/screen/renderer/elements/ErrorOverview.tsx and the exit line by src/boot/main/interactiveLaunch.ts; the per-message line and its report come from src/screen/messages/RowErrorBoundary.tsx; the retained report is written by persistCrashReport in src/platform/logs/crashReport.ts; the injected faults are read in src/screen/chat/Chat.tsx and src/screen/composer/Notifications.tsx; the proof runs dist, so rebuild it first'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${CRASH_SURFACE_HINT}`}`)

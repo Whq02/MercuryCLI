@@ -13,9 +13,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const fnSchemaHint = ' — change the functions field of the input schema in src/tools/DebugTool/debug/schema.ts'
-const fnTreeHint = ' — the set must reach every tree session and later children; see setFunctionBreakpointsTree in src/services/dap/client/start.ts and functionBreakpointsOp in src/tools/DebugTool/debug/breakpoints.ts'
-const fnGateHint = ' — the refusal comes from gateCapabilityTree and its callers in src/tools/DebugTool/DebugTool.ts'
+const fnSchemaHint = ' — change the functions field of the input schema in src/tools/debug/ops/schema.ts'
+const fnTreeHint = ' — the set must reach every tree session and later children; see setFunctionBreakpointsTree in src/integrations/debugger/client/start.ts and functionBreakpointsOp in src/tools/debug/ops/breakpoints.ts'
+const fnGateHint = ' — the refusal comes from gateCapabilityTree and its callers in src/tools/debug/DebugTool.ts'
 async function waitFor(cond: () => boolean, ms = 5_000): Promise<boolean> {
   const deadline = Date.now() + ms
   while (Date.now() < deadline) {
@@ -49,10 +49,10 @@ async function main(): Promise<void> {
   delete process.env.MERCURY_DAP
   clearKnobs()
 
-  const { getDapSession, _dapSessionCountForTesting } = await import(join(SRC, 'services/dap/dapClient.ts'))
-  const { DebugTool } = await import(join(SRC, 'tools/DebugTool/DebugTool.ts'))
-  const { getDebugToolDescription } = await import(join(SRC, 'tools/DebugTool/prompt.ts'))
-  const { processMainOwner } = await import(join(SRC, 'utils/run/resolveOwner.ts'))
+  const { getDapSession, _dapSessionCountForTesting } = await import(join(SRC, 'integrations/debugger/dapClient.ts'))
+  const { DebugTool } = await import(join(SRC, 'tools/debug/DebugTool.ts'))
+  const { getDebugToolDescription } = await import(join(SRC, 'tools/debug/prompt.ts'))
+  const { processMainOwner } = await import(join(SRC, 'engine/run-owner/resolveOwner.ts'))
   const owner = processMainOwner()
   const call = async (input: Record<string, unknown>): Promise<Call> =>
     (await DebugTool.call(input as never, { owner } as never)) as Call
@@ -147,7 +147,7 @@ async function main(): Promise<void> {
     clearKnobs()
 
     const omitted = await DebugTool.validateInput?.({ op: 'functionBreakpoints' } as never, {} as never)
-    check('validateInput still refuses a missing functions field', omitted?.result === false, JSON.stringify(omitted) + ' — validateInput in src/tools/DebugTool/DebugTool.ts must refuse functionBreakpoints without functions')
+    check('validateInput still refuses a missing functions field', omitted?.result === false, JSON.stringify(omitted) + ' — validateInput in src/tools/debug/DebugTool.ts must refuse functionBreakpoints without functions')
   }
 
   section('D  the functions field says it once; the manual names the op and nothing twice')

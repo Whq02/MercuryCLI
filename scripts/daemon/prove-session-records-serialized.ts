@@ -65,14 +65,14 @@ type DispatchStore = {
 }
 const loadStore = async (): Promise<Store> => {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  return (await import(pathToFileURL(join(TREE, 'src', 'daemon', 'concourseWorkers.ts')).href)) as Store
+  return (await import(pathToFileURL(join(TREE, 'src', 'daemon', 'concourse-workers', 'concourseWorkers.ts')).href)) as Store
 }
 const loadDispatch = async (): Promise<DispatchStore> => {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  return (await import(pathToFileURL(join(TREE, 'src', 'daemon', 'concourseDispatch.ts')).href)) as DispatchStore
+  return (await import(pathToFileURL(join(TREE, 'src', 'daemon', 'concourse-workers', 'concourseDispatch.ts')).href)) as DispatchStore
 }
 const loadHome = async (): Promise<{ armDaemonHomeWatch: (dir: string, onGone: (where: string) => void) => void }> =>
-  (await import(pathToFileURL(join(TREE, 'src', 'daemon', 'daemonHome.ts')).href)) as never
+  (await import(pathToFileURL(join(TREE, 'src', 'daemon', 'control', 'daemonHome.ts')).href)) as never
 
 if (process.argv[2] === 'child') {
   const [role, world, ...rest] = process.argv.slice(3) as [string, string, ...string[]]
@@ -222,7 +222,7 @@ if (process.argv[2] === 'child') {
 
 let failures = 0
 let checks = 0
-const failureHint = 'fix the update path (updateConcourseWorkers in src/daemon/concourseWorkers.ts; control-ops and dispatches in src/daemon/concourseDispatch.ts), then rerun with --keep to read the scratch folder'
+const failureHint = 'fix the update path (updateConcourseWorkers in src/daemon/concourse-workers/concourseWorkers.ts; control-ops and dispatches in src/daemon/concourse-workers/concourseDispatch.ts), then rerun with --keep to read the scratch folder'
 const check = (label: string, ok: boolean, detail: unknown = ''): void => {
   checks++
   if (!ok) failures++

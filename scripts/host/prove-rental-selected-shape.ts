@@ -3,8 +3,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { fakeSshRunner, liveCatalogue, runpodFixture } from './runpodFixture.mjs'
-import type { LlmHostQuestion } from '../../src/services/llmHost/index.ts'
-import type { HostRecord } from '../../src/services/host/store.ts'
+import type { LlmHostQuestion } from '../../src/models/llm-host/index.ts'
+import type { HostRecord } from '../../src/models/hosting/store.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const f = await llmhostFixture()
@@ -21,14 +21,14 @@ let checks = 0
 let failures = 0
 const check = (name: string, truth: unknown): void => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name) }
 try {
-  const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { hostRunner } = await import('../../src/services/host/ssh.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-  const tune = await import('../../src/services/host/tune.ts')
+  const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { hostRunner } = await import('../../src/models/hosting/ssh.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const tune = await import('../../src/models/hosting/tune.ts')
   const a = HOST_RECIPES.find(row => row.id === 'tensorfold-qwen35-2b-rtx-3090')!
   const b = HOST_RECIPES.find(row => row.id === 'tensorfold-qwen35-2b-rtx-a6000')!
-  assert.ok(a && b, `HOST_RECIPES missing RTX 3090 or RTX A6000 tensorfold-qwen35-2b recipe (a=${Boolean(a)}, b=${Boolean(b)}); check src/services/host/recipes.ts`)
+  assert.ok(a && b, `HOST_RECIPES missing RTX 3090 or RTX A6000 tensorfold-qwen35-2b recipe (a=${Boolean(a)}, b=${Boolean(b)}); check src/models/hosting/recipes.ts`)
   const title = a.label.split(' · ')[0]!
   const prefsPath = join(f.home, 'host/preferences.json')
   const beforePrefs = (): string => existsSync(prefsPath) ? readFileSync(prefsPath, 'utf8') : ''

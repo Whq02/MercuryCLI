@@ -95,9 +95,9 @@ const pointAt = (name: string, target: string): void => {
 pointAt('current', 'X')
 pointAt('dist', 'X')
 
-const { daemonControlRpc, controlSockPath } = await import('../../src/daemon/controlSocket.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const { isProcessAlive } = await import('../../src/utils/ownerWatch.ts')
+const { daemonControlRpc, controlSockPath } = await import('../../src/daemon/control/controlSocket.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
+const { isProcessAlive } = await import('../../src/daemon/control/ownerWatch.ts')
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 const hits: string[] = []
@@ -217,7 +217,7 @@ A.once('exit', () => {
 })
 
 const hello = async (): Promise<{ pid: number; buildTree: string | null } | null> => {
-  const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
+  const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/control/protocol.ts')
   const reply = (await daemonControlRpc({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: '1.0.0', clientBuildTree: null } as never, { timeoutMs: 2000, protoRetry: false })) as { ok?: boolean; op?: string; pid?: number; buildTree?: string | null }
   return reply.ok === true && reply.op === 'hello' && typeof reply.pid === 'number' ? { pid: reply.pid, buildTree: reply.buildTree ?? null } : null
 }
@@ -242,10 +242,10 @@ const cleanup = async (): Promise<void> => {
 try {
   section('§1 the daemon of build X hosts a session')
   check('daemon A came up on build X through the runtime pointer', (await requireLiveDaemon(A, { what: 'one-daemon-per-build: daemon A', timeoutMs: 60_000, log: logA })) === Apid)
-  check('A says its build is X', (await hello())?.buildTree?.slice(0, 12) === TREE_X.slice(0, 12), `${JSON.stringify(await hello())} — daemon A should report the buildTree of the manifest it started from; see the hello reply in src/daemon/controlServer.ts`)
+  check('A says its build is X', (await hello())?.buildTree?.slice(0, 12) === TREE_X.slice(0, 12), `${JSON.stringify(await hello())} — daemon A should report the buildTree of the manifest it started from; see the hello reply in src/daemon/control/controlServer.ts`)
   const s1 = await dispatch('probe-1', 'build-probe-one: answer once')
   const sid1 = s1.sessionId ?? ''
-  check('S1 was born on A', s1.ok === true && sid1 !== '', `${JSON.stringify(s1)} — the concourseDispatch op refused the first session; read daemon-A.log in the kept scratch folder and answerSessionDispatch in src/daemon/controlServer.ts`)
+  check('S1 was born on A', s1.ok === true && sid1 !== '', `${JSON.stringify(s1)} — the concourseDispatch op refused the first session; read daemon-A.log in the kept scratch folder and answerSessionDispatch in src/daemon/control/controlServer.ts`)
   if (s1.ok !== true || sid1 === '') throw new Error(`S1 admission failed: ${JSON.stringify(s1)}`)
   check('S1 answered its first turn', await untilAsync(() => transcriptOf(sid1).includes('build-probe answer one') && facts(sid1)?.busy === false, 60_000), `${transcriptOf(sid1).slice(-300)} — the runner of S1 never wrote the fixture answer; read daemon-A.log in the kept scratch folder`)
   const p1 = requirePositivePid(recOf(sid1)?.pid)
@@ -260,21 +260,21 @@ try {
   section('§3 a newer-version screen moves new sessions to build Y through the product road')
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '9.9.9-beta.1' }
   process.argv[1] = join(Y, 'mercury.mjs')
-  const hs = await import('../../src/daemon/handshake.ts')
+  const hs = await import('../../src/daemon/control/handshake.ts')
   hs.resetDaemonHandshakeForTesting()
   hs.resetHandoverAsksForTesting()
-  const ensure = await import('../../src/services/switchboard/ensureDaemon.ts')
+  const ensure = await import('../../src/daemon/switchboard/ensureDaemon.ts')
   ensure._resetDaemonUsableMemoForProofs()
-  check('the screen reads its own build as Y', hs.clientVersionFacts().buildTree?.slice(0, 12) === TREE_Y.slice(0, 12), `${JSON.stringify(hs.clientVersionFacts())} — clientVersionFacts in src/daemon/handshake.ts should read the buildTree from the manifest beside process.argv[1] (the Y folder)`)
+  check('the screen reads its own build as Y', hs.clientVersionFacts().buildTree?.slice(0, 12) === TREE_Y.slice(0, 12), `${JSON.stringify(hs.clientVersionFacts())} — clientVersionFacts in src/daemon/control/handshake.ts should read the buildTree from the manifest beside process.argv[1] (the Y folder)`)
   const usable = await ensure.ensureOwnedDaemon()
-  check('the screen road answered a usable daemon after the install', usable, 'ensureOwnedDaemon in src/services/switchboard/ensureDaemon.ts returned false; read the daemon logs in the kept scratch folder')
+  check('the screen road answered a usable daemon after the install', usable, 'ensureOwnedDaemon in src/daemon/switchboard/ensureDaemon.ts returned false; read the daemon logs in the kept scratch folder')
   const plane = await hello()
   const Bpid = plane?.pid ?? 0
-  check('the plane is served by a daemon that is not A', plane !== null && Bpid !== Apid && Bpid > 0, `${JSON.stringify(plane)} — after the install ensureOwnedDaemon in src/services/switchboard/ensureDaemon.ts should start a daemon of build Y beside A`)
+  check('the plane is served by a daemon that is not A', plane !== null && Bpid !== Apid && Bpid > 0, `${JSON.stringify(plane)} — after the install ensureOwnedDaemon in src/daemon/switchboard/ensureDaemon.ts should start a daemon of build Y beside A`)
   check('…of build Y', plane?.buildTree?.slice(0, 12) === TREE_Y.slice(0, 12), `${JSON.stringify(plane)} — the plane should be served by the daemon started from build Y, not by A`)
   const bCommand = psCommand(Bpid)
-  check('daemon B runs the bundle of Y', realBuildOf(bCommand) === Y, `${bCommand} — daemon B should be started from the mercury.mjs of the Y folder; see how ensureOwnedDaemon in src/services/switchboard/ensureDaemon.ts picks the script`)
-  if (STANDALONE) check("daemon B runs on Y's own node runtime (one daemon per installed build — bundle and runtime from one folder)", bCommand.startsWith(join(Y, 'vendor', 'node', 'bin', 'node')), `${bCommand} — daemon B should run on the node binary beside its own bundle; see how ensureOwnedDaemon in src/services/switchboard/ensureDaemon.ts picks the runtime`)
+  check('daemon B runs the bundle of Y', realBuildOf(bCommand) === Y, `${bCommand} — daemon B should be started from the mercury.mjs of the Y folder; see how ensureOwnedDaemon in src/daemon/switchboard/ensureDaemon.ts picks the script`)
+  if (STANDALONE) check("daemon B runs on Y's own node runtime (one daemon per installed build — bundle and runtime from one folder)", bCommand.startsWith(join(Y, 'vendor', 'node', 'bin', 'node')), `${bCommand} — daemon B should run on the node binary beside its own bundle; see how ensureOwnedDaemon in src/daemon/switchboard/ensureDaemon.ts picks the runtime`)
   else console.log('  (no vendored node pack beside dist — the own-runtime check is not staged)')
   const s2 = await dispatch('probe-2', 'build-probe-two: answer once')
   const sid2 = s2.sessionId ?? ''
@@ -306,7 +306,7 @@ try {
   section('§6 when the old daemon\'s last session exits, no second daemon of any build starts')
   const before = daemonPids()
   const stopped = (await daemonControlRpc({ op: 'sessionControl', action: 'stop', sessionId: sid1, by: 'operator' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; outcome?: string; detail?: string; error?: string }
-  check('S1 was stopped through the Concourse', stopped.ok === true && stopped.outcome === 'applied', `${JSON.stringify(stopped)} — the stop action on S1 should come back applied from stopConcourseSession in src/daemon/concourseWorkers/stop.ts`)
+  check('S1 was stopped through the Concourse', stopped.ok === true && stopped.outcome === 'applied', `${JSON.stringify(stopped)} — the stop action on S1 should come back applied from stopConcourseSession in src/daemon/concourse-workers/stop.ts`)
   check('S1 reads stopped and its runner is gone', await untilAsync(() => recOf(sid1)?.stoppedAt !== undefined && !isProcessAlive(recOf(sid1)?.pid ?? 0), 20_000), `${JSON.stringify(recOf(sid1))} — the record of S1 should carry stoppedAt and its runner pid should be dead within 20 seconds of the stop`)
   const seen = new Set<number>()
   const t0 = Date.now()

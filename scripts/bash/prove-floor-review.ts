@@ -12,12 +12,12 @@ process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.js')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
-const { checkReadOnlyConstraints } = await import('../../src/tools/BashTool/readOnlyValidation.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.js')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.js')
+const { checkReadOnlyConstraints } = await import('../../src/tools/shell/readOnlyValidation.js')
 const bash = {
   name: 'Bash',
   inputSchema: z.object({ command: z.string() }),
@@ -31,12 +31,12 @@ async function decide(command: string, rules: Rules = {}) {
 }
 let failures = 0
 function whereToLook(label: string): string {
-  if (/^(scoped pipeline deny|heredoc data|subshell deny|wrapped denies|literal or lookup)/.test(label)) return 'change which executed words a deny rule reaches in denyRuleReach (src/tools/BashTool/denyRuleReach.ts)'
-  if (/read-only/.test(label) || /^subshell foreground/.test(label)) return 'change checkReadOnlyConstraints in src/tools/BashTool/readOnlyValidation.ts'
-  if (/^(writers|unrelated variables|unknown environment append|explicit initial value|a declaration|plain declaration|subshell assignments)/.test(label)) return 'change how a variable assignment is tracked, in src/utils/permissions/decision/commandAnalysis/exactCommands.ts (VARIABLE_WRITERS) and the Bash permission check in src/tools/BashTool/bashPermissions.ts'
-  if (/^(both roads|adjacent opening|subshell background)/.test(label)) return 'change the Bash permission check in src/tools/BashTool/bashPermissions.ts, and for the scout road scoutRefusal in src/tools/AgentTool/scoutPolicy.ts'
-  if (/^(sovereign|Flow|default keeps|unwrap never grants|ordinary developer read)/.test(label)) return 'change decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts or the Bash permission check in src/tools/BashTool/bashPermissions.ts'
-  return 'start from decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts'
+  if (/^(scoped pipeline deny|heredoc data|subshell deny|wrapped denies|literal or lookup)/.test(label)) return 'change which executed words a deny rule reaches in denyRuleReach (src/tools/shell/denyRuleReach.ts)'
+  if (/read-only/.test(label) || /^subshell foreground/.test(label)) return 'change checkReadOnlyConstraints in src/tools/shell/readOnlyValidation.ts'
+  if (/^(writers|unrelated variables|unknown environment append|explicit initial value|a declaration|plain declaration|subshell assignments)/.test(label)) return 'change how a variable assignment is tracked, in src/permissions/rules/decision/command-analysis/exactCommands.ts (VARIABLE_WRITERS) and the Bash permission check in src/tools/shell/bashPermissions.ts'
+  if (/^(both roads|adjacent opening|subshell background)/.test(label)) return 'change the Bash permission check in src/tools/shell/bashPermissions.ts, and for the scout road scoutRefusal in src/tools/crewmate/scoutPolicy.ts'
+  if (/^(sovereign|Flow|default keeps|unwrap never grants|ordinary developer read)/.test(label)) return 'change decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts or the Bash permission check in src/tools/shell/bashPermissions.ts'
+  return 'start from decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts'
 }
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   if (!ok) failures++
@@ -155,8 +155,8 @@ if (!group || group === 'declarations') {
   }
 }
 if (!group || group === 'words-and-modes') {
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
-  const { scoutRefusal } = await import('../../src/tools/AgentTool/scoutPolicy.js')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.js')
+  const { scoutRefusal } = await import('../../src/tools/crewmate/scoutPolicy.js')
   for (const command of ['$(cat f)', 'echo $(cat f)', 'cat <(cat f)']) {
     const result = await decide(command)
     const words = await scoutRefusal(BashTool as never, { command })

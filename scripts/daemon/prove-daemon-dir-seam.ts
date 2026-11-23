@@ -17,7 +17,7 @@ section('1. MERCURY_DAEMON_DIR redirects every daemon-home path (live env read)'
 
 const prevEnv = process.env.MERCURY_DAEMON_DIR
 try {
-  const cs = await import(join(ROOT, 'src', 'daemon', 'controlSocket.ts'))
+  const cs = await import(join(ROOT, 'src', 'daemon', 'control', 'controlSocket.ts'))
 
   process.env.MERCURY_DAEMON_DIR = OVERRIDE
   check('daemonDir() honors the override', cs.daemonDir() === OVERRIDE, cs.daemonDir())

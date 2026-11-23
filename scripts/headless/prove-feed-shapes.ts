@@ -11,11 +11,11 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
-const ladderModule = await import('../../src/utils/effortLadder.ts')
-const seatWire = await import('../../src/services/engine-connector/seatWire.ts')
-const rows = await import('../../src/rows/vocabulary.ts')
-const project = await import('../../src/rows/project.ts')
-const fold = await import('../../src/services/compact/foldStatus.ts')
+const ladderModule = await import('../../src/models/effort/effortLadder.ts')
+const seatWire = await import('../../src/engine/connector/seatWire.ts')
+const rows = await import('../../src/engine/rows/vocabulary.ts')
+const project = await import('../../src/engine/rows/project.ts')
+const fold = await import('../../src/engine/compaction/foldStatus.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -82,12 +82,12 @@ section('F1 — the row vocabulary declares the rows the product writes (a run o
     const emitted = [...new Set(parsed.map(row => String(row.type)))]
     const schema = rows.RowSchema()
     const refused = parsed.map(row => ({ row, parsed: schema.safeParse(row) })).filter(entry => !entry.parsed.success)
-    check('the run completed with exit 0', code === 0, `exit=${code} stderr=${err.slice(0, 200)} — the run verb with --format rows failed on the fixture; read the stderr above and the row writer behind src/rows/project.ts`)
+    check('the run completed with exit 0', code === 0, `exit=${code} stderr=${err.slice(0, 200)} — the run verb with --format rows failed on the fixture; read the stderr above and the row writer behind src/engine/rows/project.ts`)
     check('every stdout line is one JSON row', torn === 0 && parsed.length > 0, `${torn} torn of ${lines.length} — stdout must carry only one JSON row per line under --format rows; find the stray print and send it to stderr`)
-    check('every emitted row type is declared in the vocabulary', emitted.every(type => declared.has(type)), `${j(emitted.filter(type => !declared.has(type)))} — add each of these row types to ROW_TYPES or PARTIAL_ROW_TYPES in src/rows/vocabulary.ts, or stop emitting them`)
-    check('every emitted row parses through its declared schema', refused.length === 0, `${j(refused.slice(0, 2).map(entry => ({ type: entry.row.type, issues: entry.parsed.success ? [] : entry.parsed.error.issues.slice(0, 2) })))} — make the row writer and its schema in src/rows/vocabulary.ts (RowSchema) agree on the fields listed`)
+    check('every emitted row type is declared in the vocabulary', emitted.every(type => declared.has(type)), `${j(emitted.filter(type => !declared.has(type)))} — add each of these row types to ROW_TYPES or PARTIAL_ROW_TYPES in src/engine/rows/vocabulary.ts, or stop emitting them`)
+    check('every emitted row parses through its declared schema', refused.length === 0, `${j(refused.slice(0, 2).map(entry => ({ type: entry.row.type, issues: entry.parsed.success ? [] : entry.parsed.error.issues.slice(0, 2) })))} — make the row writer and its schema in src/engine/rows/vocabulary.ts (RowSchema) agree on the fields listed`)
     const coreRows = ['session', 'turn', 'reasoning', 'text', 'tool_call', 'tool_result', 'step', 'outcome', 'block_start', 'text_delta', 'reasoning_delta', 'tool_input_delta']
-    check('a tool turn with partial rows writes the core rows', coreRows.every(type => emitted.includes(type)), `${j({ missing: coreRows.filter(type => !emitted.includes(type)), emitted })} — the run no longer writes the missing row types; look at the row projections in src/rows/project.ts and the --partial flag handling`)
+    check('a tool turn with partial rows writes the core rows', coreRows.every(type => emitted.includes(type)), `${j({ missing: coreRows.filter(type => !emitted.includes(type)), emitted })} — the run no longer writes the missing row types; look at the row projections in src/engine/rows/project.ts and the --partial flag handling`)
     const seqs = parsed.map(row => Number(row.seq))
     check('seq is contiguous from 1', seqs.every((seq, i) => seq === i + 1), `${j(seqs.slice(0, 12))} — rows must be stamped 1, 2, 3 in write order with no gap or repeat; find the writer that skips or reuses seq`)
     check('the session row comes first and the outcome last', parsed[0]?.type === 'session' && parsed.at(-1)?.type === 'outcome', j(parsed.map(row => row.type)) + ' — the session row must be written first and the outcome row last; find which row is written out of order')
@@ -101,7 +101,7 @@ section('F1 — the row vocabulary declares the rows the product writes (a run o
     const steps = parsed.filter(row => row.type === 'step')
     check('one step per model call, and the outcome counts them', steps.length === 2 && outcome?.steps === 2, `${j({ steps: steps.length, counted: outcome?.steps })} — expected one step row per model call (2 here) and outcome.steps equal to that count`)
     check('every in-turn row carries turn 1 and the session id; the session row carries no turn', parsed.slice(1).every(row => row.turn === 1 && row.session_id === parsed[0]?.session_id) && parsed[0]?.turn === undefined, 'rows after the first must carry turn 1 and the session id from the session row, and the session row must carry no turn; find the row that lacks or adds them')
-    check('no row carries a uuid, and no row of this main-thread turn carries a parent_call_id (the sub-agent scope, never a message id)', parsed.every(row => !('uuid' in row) && !('parent_call_id' in row)), 'a row carries uuid or parent_call_id; strip those keys in the row projection in src/rows/project.ts')
+    check('no row carries a uuid, and no row of this main-thread turn carries a parent_call_id (the sub-agent scope, never a message id)', parsed.every(row => !('uuid' in row) && !('parent_call_id' in row)), 'a row carries uuid or parent_call_id; strip those keys in the row projection in src/engine/rows/project.ts')
     rmSync(root, { recursive: true, force: true })
   }
 }
@@ -114,7 +114,7 @@ section('F1b — the runner door speaks the method table: every line a JSON-RPC 
     check('dist/mercury.mjs and node exist (build first — F1b drives the artifact)', false, 'run bun run build.ts to write dist/mercury.mjs and put node on PATH, then rerun')
   } else {
     const { hostRunner, scratchHome } = await import('../lib/runnerHost.ts')
-    const { METHODS } = await import('../../src/runner/wire/methods.ts')
+    const { METHODS } = await import('../../src/daemon/runner-wire/methods.ts')
     const scratch = scratchHome('feed-shapes-door-')
     const written = join(scratch.cwd, 'door.txt')
     const api = await startFixtureApi([
@@ -135,7 +135,7 @@ section('F1b — the runner door speaks the method table: every line a JSON-RPC 
     let failed = ''
     try {
       const init = await host.initialize({ holds_asks: true, elicitation: false, partial_rows: true }, 90_000)
-      check('initialize answers protocol 1, the runner version and pid, and the session id', init.protocol === 1 && typeof init.runner.pid === 'number' && typeof init.session_id === 'string', `${j(init)} — the runner initialize result must carry protocol 1, runner.pid and session_id; its method is declared in src/runner/wire/methods.ts`)
+      check('initialize answers protocol 1, the runner version and pid, and the session id', init.protocol === 1 && typeof init.runner.pid === 'number' && typeof init.session_id === 'string', `${j(init)} — the runner initialize result must carry protocol 1, runner.pid and session_id; its method is declared in src/daemon/runner-wire/methods.ts`)
       const added = await host.prompt('run the command')
       check('queue/add accepts the prompt', added.accepted === true, j(added))
       await host.waitFor('the outcome', row => row.type === 'outcome', 90_000)
@@ -158,12 +158,12 @@ section('F1b — the runner door speaks the method table: every line a JSON-RPC 
     check('every stdout line is one JSON-RPC 2.0 message', torn === 0 && messages.length > 0 && messages.every(m => m.jsonrpc === '2.0'), `${torn} torn of ${lines.length} — the runner door must write only JSON-RPC 2.0 lines on stdout; find the stray print and send it to stderr`)
     const methods = [...new Set(messages.filter(m => typeof m.method === 'string').map(m => String(m.method)))]
     const runnerSends = (name: string): boolean => name in METHODS && (METHODS[name as keyof typeof METHODS].from === 'runner' || METHODS[name as keyof typeof METHODS].from === 'both')
-    check('every method the runner sends is in the table and sent from the runner side', methods.length > 0 && methods.every(runnerSends), `${j(methods.filter(name => !runnerSends(name)))} — declare each of these methods in METHODS in src/runner/wire/methods.ts with from runner or both, or stop the runner sending them`)
+    check('every method the runner sends is in the table and sent from the runner side', methods.length > 0 && methods.every(runnerSends), `${j(methods.filter(name => !runnerSends(name)))} — declare each of these methods in METHODS in src/daemon/runner-wire/methods.ts with from runner or both, or stop the runner sending them`)
     const rowParams = messages.filter(m => m.method === 'row').map(m => m.params as Record<string, unknown>)
     const declared = new Set<string>([...rows.ROW_TYPES, ...rows.PARTIAL_ROW_TYPES])
     const schema = rows.RowSchema()
     const refused = rowParams.filter(row => !schema.safeParse(row).success)
-    check('every row notification carries a declared row that parses', rowParams.length > 0 && rowParams.every(row => declared.has(String(row.type))) && refused.length === 0, `${j(refused.slice(0, 2))} — each row notification must be a row type declared in src/rows/vocabulary.ts that RowSchema accepts`)
+    check('every row notification carries a declared row that parses', rowParams.length > 0 && rowParams.every(row => declared.has(String(row.type))) && refused.length === 0, `${j(refused.slice(0, 2))} — each row notification must be a row type declared in src/engine/rows/vocabulary.ts that RowSchema accepts`)
     check('the partial rows ride once initialize declared partial_rows', ['block_start', 'text_delta'].every(type => rowParams.some(row => row.type === type)), `${j([...new Set(rowParams.map(row => row.type))])} — the runner must send block_start and text_delta rows when initialize declared partial_rows true`)
     check('the ask rode permission/request with kind tool, the tool name and its input', host.asks.length === 1 && host.asks[0]!.params.kind === 'tool' && (host.asks[0]!.params as { tool_name?: string; input?: { file_path?: string } }).tool_name === 'Write' && (host.asks[0]!.params as { input?: { file_path?: string } }).input?.file_path === written, `${j(host.asks.map(ask => ask.params))} — the Write tool must raise exactly one permission/request ask of kind tool carrying tool_name Write and its input file_path`)
     const toolResult = rowParams.find(row => row.type === 'tool_result')
@@ -278,49 +278,49 @@ section('F3 — the seat-wire codecs: snake keys out, deep-equal back')
   const wire = seatWire.sessionFactsToWire(facts as never)
   const paths = keyPaths(wire, '', opaque)
   const camel = paths.filter(p => !SNAKE.test(lastSegment(p)))
-  check('the facts answer encodes to snake_case keys at every depth (outside the name-keyed maps)', camel.length === 0, `${j(camel)} — these key paths stay camelCase; fix the sessionFacts codec in src/services/engine-connector/seatWire.ts`)
-  check('the spawn switch kinds and the name-keyed maps keep their keys', deepEq(Object.keys((wire as { spawn_switches: object }).spawn_switches), ['subagents', 'workflows']) && deepEq(Object.keys(((wire as { kit: { extensions: object } }).kit).extensions), ['ext-a', 'ext-b']), `${j(wire)} — the sessionFacts codec in src/services/engine-connector/seatWire.ts must leave spawn_switches and kit.extensions keys as written`)
+  check('the facts answer encodes to snake_case keys at every depth (outside the name-keyed maps)', camel.length === 0, `${j(camel)} — these key paths stay camelCase; fix the sessionFacts codec in src/engine/connector/seatWire.ts`)
+  check('the spawn switch kinds and the name-keyed maps keep their keys', deepEq(Object.keys((wire as { spawn_switches: object }).spawn_switches), ['subagents', 'workflows']) && deepEq(Object.keys(((wire as { kit: { extensions: object } }).kit).extensions), ['ext-a', 'ext-b']), `${j(wire)} — the sessionFacts codec in src/engine/connector/seatWire.ts must leave spawn_switches and kit.extensions keys as written`)
   const back = seatWire.sessionFactsFromWire(JSON.parse(JSON.stringify(wire)))
-  check('the facts answer decodes back deep-equal', deepEq(back, facts), j(back).slice(0, 400) + ' — sessionFactsFromWire in src/services/engine-connector/seatWire.ts must invert sessionFactsToWire; compare the decoded value above with the facts fixture in this file')
+  check('the facts answer decodes back deep-equal', deepEq(back, facts), j(back).slice(0, 400) + ' — sessionFactsFromWire in src/engine/connector/seatWire.ts must invert sessionFactsToWire; compare the decoded value above with the facts fixture in this file')
   const wireBox = (wire as { box: { at_ms: number; load_per_core: number; lock_note: string; memory: { available_mb: number }; lock: { waiters: Array<{ waited_s: number }> } } }).box
-  check('the box row rides the wire in snake_case at every depth', wireBox.at_ms === 5 && wireBox.load_per_core === 1.25 && wireBox.lock_note === 'a note' && wireBox.memory.available_mb === 2048 && wireBox.lock.waiters[0]!.waited_s === 12, `${j(wireBox)} — the box part of the sessionFacts codec in src/services/engine-connector/seatWire.ts must snake-case every key`)
-  check('a facts answer missing its required fields decodes null', seatWire.sessionFactsFromWire({ model: { effective: 'x' } }) === null && seatWire.sessionFactsFromWire('no') === null, 'sessionFactsFromWire in src/services/engine-connector/seatWire.ts must return null when model, usage or other required fields are missing or the input is not an object')
+  check('the box row rides the wire in snake_case at every depth', wireBox.at_ms === 5 && wireBox.load_per_core === 1.25 && wireBox.lock_note === 'a note' && wireBox.memory.available_mb === 2048 && wireBox.lock.waiters[0]!.waited_s === 12, `${j(wireBox)} — the box part of the sessionFacts codec in src/engine/connector/seatWire.ts must snake-case every key`)
+  check('a facts answer missing its required fields decodes null', seatWire.sessionFactsFromWire({ model: { effective: 'x' } }) === null && seatWire.sessionFactsFromWire('no') === null, 'sessionFactsFromWire in src/engine/connector/seatWire.ts must return null when model, usage or other required fields are missing or the input is not an object')
   const minimal = { model: { effective: 'x', setting: null }, usage: { total_cost_usd: 0 }, skills: [], mcp: [], permission_mode: 'default', workspace: { cwd: '/w' }, queue: [] }
   const minimalBack = seatWire.sessionFactsFromWire(minimal)
-  check('the minimal answer every runner writes decodes', minimalBack !== null && minimalBack.permissionMode === ('default' as never) && (minimalBack.usage as { totalCostUSD: number }).totalCostUSD === 0, `${j(minimalBack)} — sessionFactsFromWire in src/services/engine-connector/seatWire.ts must accept the minimal answer (only the fields in this fixture) without requiring optional ones`)
+  check('the minimal answer every runner writes decodes', minimalBack !== null && minimalBack.permissionMode === ('default' as never) && (minimalBack.usage as { totalCostUSD: number }).totalCostUSD === 0, `${j(minimalBack)} — sessionFactsFromWire in src/engine/connector/seatWire.ts must accept the minimal answer (only the fields in this fixture) without requiring optional ones`)
 
   const rewind = { outcome: 'applied' as const, mode: 'both' as const, dryRun: true, code: { filesChanged: ['a'], insertions: 1, deletions: 2 }, conversation: { turnUuid: 'u', removed: 3 } }
   const rewindWire = seatWire.rewindOutcomeToWire(rewind)
-  check('the rewind receipt encodes to snake keys', keyPaths(rewindWire).every(p => SNAKE.test(lastSegment(p))), `${j(rewindWire)} — rewindOutcomeToWire in src/services/engine-connector/seatWire.ts must snake-case every key`)
-  check('the rewind receipt decodes back deep-equal', deepEq(seatWire.rewindOutcomeFromWire(JSON.parse(JSON.stringify(rewindWire))), rewind), 'rewindOutcomeFromWire in src/services/engine-connector/seatWire.ts must invert rewindOutcomeToWire for the applied receipt')
-  check('a refused receipt round-trips and a non-receipt decodes null', deepEq(seatWire.rewindOutcomeFromWire(seatWire.rewindOutcomeToWire({ outcome: 'refused', mode: 'code', refusal: 'drift', detail: 'alpha' })), { outcome: 'refused', mode: 'code', refusal: 'drift', detail: 'alpha' }) && seatWire.rewindOutcomeFromWire({ outcome: 'weird', mode: 'code' }) === null, 'rewindOutcomeFromWire in src/services/engine-connector/seatWire.ts must round-trip a refused receipt and return null for an unknown outcome word')
+  check('the rewind receipt encodes to snake keys', keyPaths(rewindWire).every(p => SNAKE.test(lastSegment(p))), `${j(rewindWire)} — rewindOutcomeToWire in src/engine/connector/seatWire.ts must snake-case every key`)
+  check('the rewind receipt decodes back deep-equal', deepEq(seatWire.rewindOutcomeFromWire(JSON.parse(JSON.stringify(rewindWire))), rewind), 'rewindOutcomeFromWire in src/engine/connector/seatWire.ts must invert rewindOutcomeToWire for the applied receipt')
+  check('a refused receipt round-trips and a non-receipt decodes null', deepEq(seatWire.rewindOutcomeFromWire(seatWire.rewindOutcomeToWire({ outcome: 'refused', mode: 'code', refusal: 'drift', detail: 'alpha' })), { outcome: 'refused', mode: 'code', refusal: 'drift', detail: 'alpha' }) && seatWire.rewindOutcomeFromWire({ outcome: 'weird', mode: 'code' }) === null, 'rewindOutcomeFromWire in src/engine/connector/seatWire.ts must round-trip a refused receipt and return null for an unknown outcome word')
 
   const kitWire = seatWire.sessionKitToWire(facts.kit)
-  check('the kit encodes to snake keys outside its name-keyed maps', keyPaths(kitWire, '', ['extensions', 'deltas.skill_states']).every(p => SNAKE.test(lastSegment(p))), `${j(kitWire)} — sessionKitToWire in src/services/engine-connector/seatWire.ts must snake-case every key except the name-keyed maps`)
-  check('the kit decodes back deep-equal', deepEq(seatWire.sessionKitFromWire(JSON.parse(JSON.stringify(kitWire))), facts.kit), 'sessionKitFromWire in src/services/engine-connector/seatWire.ts must invert sessionKitToWire')
+  check('the kit encodes to snake keys outside its name-keyed maps', keyPaths(kitWire, '', ['extensions', 'deltas.skill_states']).every(p => SNAKE.test(lastSegment(p))), `${j(kitWire)} — sessionKitToWire in src/engine/connector/seatWire.ts must snake-case every key except the name-keyed maps`)
+  check('the kit decodes back deep-equal', deepEq(seatWire.sessionKitFromWire(JSON.parse(JSON.stringify(kitWire))), facts.kit), 'sessionKitFromWire in src/engine/connector/seatWire.ts must invert sessionKitToWire')
 
   const rows = [{ id: 'abcdef01', when: 'every day', nextFireMs: 5, kind: 'fire' as const, paused: true as const }, { id: 'abcdef02', when: 'at noon', nextFireMs: null, kind: 'birth' as const }]
   const rowsWire = seatWire.scheduleRosterToWire(rows)
-  check('the schedule roster rows encode to snake keys and decode back', keyPaths(rowsWire).every(p => SNAKE.test(lastSegment(p))) && deepEq(seatWire.scheduleRosterFromWire(JSON.parse(JSON.stringify(rowsWire))), rows), `${j(rowsWire)} — scheduleRosterToWire and scheduleRosterFromWire in src/services/engine-connector/seatWire.ts must snake-case the keys and round-trip`)
+  check('the schedule roster rows encode to snake keys and decode back', keyPaths(rowsWire).every(p => SNAKE.test(lastSegment(p))) && deepEq(seatWire.scheduleRosterFromWire(JSON.parse(JSON.stringify(rowsWire))), rows), `${j(rowsWire)} — scheduleRosterToWire and scheduleRosterFromWire in src/engine/connector/seatWire.ts must snake-case the keys and round-trip`)
 
   const catalogue = { sourceKind: 'api-key', models: [{ id: 'gpt-x', ownedBy: 'openai' }], fetchedAtMs: 7 }
   const catalogueWire = seatWire.openaiCatalogueToWire(catalogue)
-  check("the catalogue snapshot encodes its own keys and leaves the provider's rows untouched", deepEq(catalogueWire, { source_kind: 'api-key', models: catalogue.models, fetched_at_ms: 7 }) && deepEq(seatWire.openaiCatalogueFromWire(JSON.parse(JSON.stringify(catalogueWire))), catalogue), `${j(catalogueWire)} — openaiCatalogueToWire and openaiCatalogueFromWire in src/services/engine-connector/seatWire.ts must snake-case only the snapshot keys, leave the models rows alone and round-trip`)
+  check("the catalogue snapshot encodes its own keys and leaves the provider's rows untouched", deepEq(catalogueWire, { source_kind: 'api-key', models: catalogue.models, fetched_at_ms: 7 }) && deepEq(seatWire.openaiCatalogueFromWire(JSON.parse(JSON.stringify(catalogueWire))), catalogue), `${j(catalogueWire)} — openaiCatalogueToWire and openaiCatalogueFromWire in src/engine/connector/seatWire.ts must snake-case only the snapshot keys, leave the models rows alone and round-trip`)
 }
 
 section('F4 — the effort words on the wire are the one ladder')
 {
   const ladder = [...ladderModule.EFFORT_LEVELS]
   const { refusalOf, withLiveRunner } = await import('../lib/builtProduct.ts')
-  const { isEffortLevel } = await import('../../src/utils/effort.ts')
+  const { isEffortLevel } = await import('../../src/models/effort/effort.ts')
   const words = [...ladder, 'banana', 'ultra', 'MAX']
   const verdicts = await withLiveRunner(async runner => {
     const out: Array<[string, string]> = []
     for (const effort of words) out.push([effort, (await refusalOf(runner.request('session/set_effort', { effort })))?.data?.kind ?? 'taken'])
     return out
   })
-  check("the runner's set_effort arm validates against the one ladder (isEffortLevel), no second enum", deepEq(verdicts, words.map(word => [word, isEffortLevel(word) ? 'taken' : 'effort'])) && deepEq(verdicts.filter(([, verdict]) => verdict === 'taken').map(([word]) => word), ladder), `${j(verdicts)} — the runner session/set_effort handler (declared in src/runner/wire/sessionVerbs.ts) must accept exactly the words isEffortLevel in src/utils/effort.ts accepts, the ladder EFFORT_LEVELS in src/utils/effortLadder.ts`)
-  check('the ladder ends at max', ladder.length >= 3 && ladder.every(word => typeof word === 'string') && ladder.at(-1) === 'max', `${j(ladder)} — EFFORT_LEVELS in src/utils/effortLadder.ts must list the effort words in order and end at max`)
+  check("the runner's set_effort arm validates against the one ladder (isEffortLevel), no second enum", deepEq(verdicts, words.map(word => [word, isEffortLevel(word) ? 'taken' : 'effort'])) && deepEq(verdicts.filter(([, verdict]) => verdict === 'taken').map(([word]) => word), ladder), `${j(verdicts)} — the runner session/set_effort handler (declared in src/daemon/runner-wire/sessionVerbs.ts) must accept exactly the words isEffortLevel in src/models/effort/effort.ts accepts, the ladder EFFORT_LEVELS in src/models/effort/effortLadder.ts`)
+  check('the ladder ends at max', ladder.length >= 3 && ladder.every(word => typeof word === 'string') && ladder.at(-1) === 'max', `${j(ladder)} — EFFORT_LEVELS in src/models/effort/effortLadder.ts must list the effort words in order and end at max`)
 }
 
 section('F5 — the wait, fold, usage and context projections spell snake_case')
@@ -328,23 +328,23 @@ section('F5 — the wait, fold, usage and context projections spell snake_case')
   const scope = { session_id: 's', turn: 1 }
   const wait = { kind: 'first-byte' as const, cold: true, promptTokens: 58_000, model: 'Opus 5', budgetMs: 160_000, sinceMs: 5, attempt: 1 }
   const waitRow = project.waitRow(scope, wait)
-  check('the request wait projects to a wait row with snake keys, its prompt figure named as the estimate it is', waitRow.type === 'wait' && waitRow.state === 'first_byte' && keyPaths(waitRow).every(p => SNAKE.test(lastSegment(p))) && waitRow.prompt_tokens_estimate === 58_000 && !('prompt_tokens' in waitRow), `${j(waitRow)} — waitRow in src/rows/project.ts must give state first_byte, snake_case keys and prompt_tokens_estimate (not prompt_tokens)`)
-  check('a wait of null projects to the done state', deepEq(project.waitRow(scope, null), { type: 'wait', state: 'done', session_id: 's', turn: 1 }), 'waitRow in src/rows/project.ts must project a null wait to the done state with only type, state, session_id and turn')
+  check('the request wait projects to a wait row with snake keys, its prompt figure named as the estimate it is', waitRow.type === 'wait' && waitRow.state === 'first_byte' && keyPaths(waitRow).every(p => SNAKE.test(lastSegment(p))) && waitRow.prompt_tokens_estimate === 58_000 && !('prompt_tokens' in waitRow), `${j(waitRow)} — waitRow in src/engine/rows/project.ts must give state first_byte, snake_case keys and prompt_tokens_estimate (not prompt_tokens)`)
+  check('a wait of null projects to the done state', deepEq(project.waitRow(scope, null), { type: 'wait', state: 'done', session_id: 's', turn: 1 }), 'waitRow in src/engine/rows/project.ts must project a null wait to the done state with only type, state, session_id and turn')
   const retry = project.retryWaitRow(scope, { attempt: 2, of: 3, reason: 'a 529', delayMs: 800, httpStatus: 529, sinceMs: 9 })
-  check('the retry wait names its attempt, place, reason and delay', retry.state === 'retry' && retry.attempt === 2 && retry.of === 3 && retry.reason === 'a 529' && retry.delay_ms === 800 && retry.http_status === 529, `${j(retry)} — retryWaitRow in src/rows/project.ts must carry state retry with attempt, of, reason, delay_ms and http_status`)
+  check('the retry wait names its attempt, place, reason and delay', retry.state === 'retry' && retry.attempt === 2 && retry.of === 3 && retry.reason === 'a 529' && retry.delay_ms === 800 && retry.http_status === 529, `${j(retry)} — retryWaitRow in src/engine/rows/project.ts must carry state retry with attempt, of, reason, delay_ms and http_status`)
   const foldRecord = { schema: 1 as const, trigger: 'auto' as const, startedAtMs: 1, stages: ['summarising' as const, 'restoring' as const], stage: 'summarising' as const, fill: 0.5, summaryTokens: 10, summaryCapTokens: 20, attempt: 1 }
   const foldRow = project.compactionRow(scope, foldRecord)
-  check('the fold record projects to a compaction row in progress with snake keys', foldRow.type === 'compaction' && foldRow.state === 'progress' && foldRow.stage === 'summarising' && foldRow.fill === 0.5 && foldRow.summary_cap_tokens === 20 && keyPaths(foldRow).every(p => SNAKE.test(lastSegment(p))), `${j(foldRow)} — compactionRow in src/rows/project.ts must project a fold record in progress with state progress and snake_case keys`)
+  check('the fold record projects to a compaction row in progress with snake keys', foldRow.type === 'compaction' && foldRow.state === 'progress' && foldRow.stage === 'summarising' && foldRow.fill === 0.5 && foldRow.summary_cap_tokens === 20 && keyPaths(foldRow).every(p => SNAKE.test(lastSegment(p))), `${j(foldRow)} — compactionRow in src/engine/rows/project.ts must project a fold record in progress with state progress and snake_case keys`)
   check('a fold with an exit projects to the ended state', project.compactionRow(scope, { ...foldRecord, exit: 'landed' as const, endedAtMs: 9 }).state === 'ended')
   check('the bare word projects to the started state', project.compactionRow(scope, null).state === 'started')
-  check('the fold decoder still reads its own record', deepEq(fold.decodeFoldStatus({ ...foldRecord }), foldRecord), 'decodeFoldStatus in src/services/compact/foldStatus.ts must return a valid fold record unchanged')
+  check('the fold decoder still reads its own record', deepEq(fold.decodeFoldStatus({ ...foldRecord }), foldRecord), 'decodeFoldStatus in src/engine/compaction/foldStatus.ts must return a valid fold record unchanged')
   const usage = project.modelUsageRows({ 'claude-opus-5': { inputTokens: 1, outputTokens: 2, cacheReadInputTokens: 3, cacheCreationInputTokens: 4, webSearchRequests: 0, costUSD: 0.1, contextWindow: 200_000, maxOutputTokens: 64_000 } })
-  check('the per-model usage keeps the model id as its key, counts the whole prompt as input and spells the fields snake_case', deepEq(usage, { 'claude-opus-5': { input_tokens: 8, cached_input_tokens: 3, cache_write_input_tokens: 4, output_tokens: 2, cost_usd: 0.1, web_searches: 0 } }), `${j(usage)} — modelUsageRows in src/rows/project.ts must key by model id, count cache reads and writes into input_tokens and use snake_case field names`)
-  check('an unpriced model carries no cost', !('cost_usd' in (project.modelUsageRows({ m: { inputTokens: 1, outputTokens: 1, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, webSearchRequests: 0, costUSD: 0 } }, () => true).m ?? {})), 'modelUsageRows in src/rows/project.ts must leave out cost_usd when the model is flagged as having an unknown cost')
+  check('the per-model usage keeps the model id as its key, counts the whole prompt as input and spells the fields snake_case', deepEq(usage, { 'claude-opus-5': { input_tokens: 8, cached_input_tokens: 3, cache_write_input_tokens: 4, output_tokens: 2, cost_usd: 0.1, web_searches: 0 } }), `${j(usage)} — modelUsageRows in src/engine/rows/project.ts must key by model id, count cache reads and writes into input_tokens and use snake_case field names`)
+  check('an unpriced model carries no cost', !('cost_usd' in (project.modelUsageRows({ m: { inputTokens: 1, outputTokens: 1, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, webSearchRequests: 0, costUSD: 0 } }, () => true).m ?? {})), 'modelUsageRows in src/engine/rows/project.ts must leave out cost_usd when the model is flagged as having an unknown cost')
 }
 
 section('F6 — the rows carry their schema word')
-check('the rows schema is 1', rows.ROWS_SCHEMA === 1, String(rows.ROWS_SCHEMA) + ' — ROWS_SCHEMA in src/rows/vocabulary.ts changed; bump it only with a rows-contract change and update this proof')
+check('the rows schema is 1', rows.ROWS_SCHEMA === 1, String(rows.ROWS_SCHEMA) + ' — ROWS_SCHEMA in src/engine/rows/vocabulary.ts changed; bump it only with a rows-contract change and update this proof')
 check('the session row and the outcome declare it', rows.SessionRowSchema().shape.schema.value === 1 && rows.OutcomeRowSchema().shape.schema.value === 1)
 
 console.log('\n' + '═'.repeat(76))

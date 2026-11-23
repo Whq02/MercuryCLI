@@ -1,7 +1,7 @@
 {
  "base": "59a987410603024225009f4dd483b0cfe024fe02",
  "exports": {
-  "src/ink.ts:render": {
+  "src/screen/themedRenderer.ts:render": {
    "value": {
     "text": "(node: ReactNode, options?: WriteStream | RenderOptions | undefined) => Promise<Instance>",
     "calls": [
@@ -12,7 +12,7 @@
    },
    "type": null
   },
-  "src/ink.ts:createRoot": {
+  "src/screen/themedRenderer.ts:createRoot": {
    "value": {
     "text": "(options?: RenderOptions | undefined) => Promise<Root>",
     "calls": [
@@ -23,7 +23,7 @@
    },
    "type": null
   },
-  "src/ink.ts:Instance": {
+  "src/screen/themedRenderer.ts:Instance": {
    "value": null,
    "type": {
     "text": "{ rerender: (node: ReactNode) => void; unmount: (error?: number | Error | null | undefined) => void; waitUntilExit: () => Promise<void>; cleanup: () => void; lastFrame: () => string; }",
@@ -58,7 +58,7 @@
     ]
    }
   },
-  "src/ink.ts:RenderOptions": {
+  "src/screen/themedRenderer.ts:RenderOptions": {
    "value": null,
    "type": {
     "text": "{ stdout?: WriteStream | undefined; stdin?: ReadStream | undefined; stderr?: WriteStream | undefined; exitOnCtrlC?: boolean | undefined; patchConsole?: boolean | undefined; onFrame?: ((event: FrameEvent) => void) | undefined; }",
@@ -98,7 +98,7 @@
     ]
    }
   },
-  "src/ink.ts:Root": {
+  "src/screen/themedRenderer.ts:Root": {
    "value": null,
    "type": {
     "text": "{ render: (node: ReactNode) => void; unmount: (error?: number | Error | null | undefined) => void; waitUntilExit: () => Promise<void>; }",
@@ -123,7 +123,7 @@
     ]
    }
   },
-  "src/ink.ts:flushPendingSyncWork": {
+  "src/screen/themedRenderer.ts:flushPendingSyncWork": {
    "value": {
     "text": "() => void",
     "calls": [
@@ -134,7 +134,7 @@
    },
    "type": null
   },
-  "src/ink.ts:color": {
+  "src/screen/themedRenderer.ts:color": {
    "value": {
     "text": "(colorKeyOrValue: keyof Theme | (string & {}) | undefined, themeName: ThemeName, type?: ColorType) => (text: string) => string",
     "calls": [
@@ -145,7 +145,7 @@
    },
    "type": null
   },
-  "src/ink.ts:ThemeProvider": {
+  "src/screen/themedRenderer.ts:ThemeProvider": {
    "value": {
     "text": "({ children, initialState, onThemeSave, }: { children?: ReactNode; initialState?: ThemeSetting | undefined; onThemeSave?: ((setting: ThemeSetting) => void) | undefined; }) => ReactNode",
     "calls": [
@@ -156,7 +156,7 @@
    },
    "type": null
   },
-  "src/ink.ts:usePreviewTheme": {
+  "src/screen/themedRenderer.ts:usePreviewTheme": {
    "value": {
     "text": "() => { setPreviewTheme: (setting: ThemeSetting) => void; savePreview: () => void; cancelPreview: () => void; }",
     "calls": [
@@ -167,7 +167,7 @@
    },
    "type": null
   },
-  "src/ink.ts:useTheme": {
+  "src/screen/themedRenderer.ts:useTheme": {
    "value": {
     "text": "() => readonly [ThemeName, (setting: ThemeSetting) => void]",
     "calls": [
@@ -178,7 +178,7 @@
    },
    "type": null
   },
-  "src/ink.ts:useThemeSetting": {
+  "src/screen/themedRenderer.ts:useThemeSetting": {
    "value": {
     "text": "() => ThemeSetting",
     "calls": [
@@ -189,7 +189,7 @@
    },
    "type": null
   },
-  "src/ink.ts:Box": {
+  "src/screen/themedRenderer.ts:Box": {
    "value": {
     "text": "({ borderColor, borderTopColor, borderBottomColor, borderLeftColor, borderRightColor, backgroundColor, children, ...rest }: PropsWithChildren<Props>) => ReactNode",
     "calls": [
@@ -200,7 +200,7 @@
    },
    "type": null
   },
-  "src/ink.ts:BoxProps": {
+  "src/screen/themedRenderer.ts:BoxProps": {
    "value": null,
    "type": {
     "text": "Omit<Props, ThemedColorProp | \"ref\" | \"tabIndex\" | \"autoFocus\" | \"onClick\" | \"onFocus\" | \"onFocusCapture\" | \"onBlur\" | \"onBlurCapture\" | \"onKeyDown\" | \"onKeyDownCapture\" | \"onMouseEnter\" | \"onMouseLeave\"> & { readonly borderColor?: ThemeColor | undefined; readonly borderTopColor?: ThemeColor | undefined; readonly borderBottomColor?: ThemeColor | undefined; readonly borderLeftColor?: ThemeColor | undefined; readonly borderRightColor?: ThemeColor | undefined; readonly backgroundColor?: ThemeColor | undefined; readonly ref?: Ref<DOMElement> | undefined; readonly tabIndex?: number | undefined; readonly autoFocus?: boolean | undefined; readonly onClick?: ((event: ClickEvent) => void) | undefined; readonly onFocus?: ((event: FocusEvent) => void) | undefined; readonly onFocusCapture?: ((event: FocusEvent) => void) | undefined; readonly onBlur?: ((event: FocusEvent) => void) | undefined; readonly onBlurCapture?: ((event: FocusEvent) => void) | undefined; readonly onKeyDown?: ((event: KeyboardEvent) => void) | undefined; readonly onKeyDownCapture?: ((event: KeyboardEvent) => void) | undefined; readonly onMouseEnter?: (() => void) | undefined; readonly onMouseLeave?: (() => void) | undefined; }",
@@ -580,7 +580,7 @@
     ]
    }
   },
-  "src/ink.ts:Text": {
+  "src/screen/themedRenderer.ts:Text": {
    "value": {
     "text": "({ color, backgroundColor, dimColor, bold, italic, underline, strikethrough, inverse, wrap, children, }: Props) => ReactNode",
     "calls": [
@@ -591,7 +591,7 @@
    },
    "type": null
   },
-  "src/ink.ts:TextProps": {
+  "src/screen/themedRenderer.ts:TextProps": {
    "value": null,
    "type": {
     "text": "{ readonly color?: keyof Theme | (string & {}) | undefined; readonly backgroundColor?: keyof Theme | (string & {}) | undefined; readonly dimColor?: boolean | undefined; readonly bold?: boolean | undefined; readonly italic?: boolean | undefined; readonly underline?: boolean | undefined; readonly strikethrough?: boolean | undefined; readonly inverse?: boolean | undefined; readonly wrap?: NonNullable<\"wrap\" | \"end\" | \"wrap-trim\" | \"middle\" | \"truncate-end\" | \"truncate\" | \"truncate-middle\" | \"truncate-start\" | undefined> | undefined; readonly children?: ReactNode; }",
@@ -651,7 +651,7 @@
     ]
    }
   },
-  "src/ink.ts:Ansi": {
+  "src/screen/themedRenderer.ts:Ansi": {
    "value": {
     "text": "NamedExoticComponent<Props> & { readonly type: ({ children, dimColor, }: Props) => ReactNode; }",
     "calls": [
@@ -678,7 +678,7 @@
    },
    "type": null
   },
-  "src/ink.ts:BaseBox": {
+  "src/screen/themedRenderer.ts:BaseBox": {
    "value": {
     "text": "ForwardRefExoticComponent<Omit<PropsWithChildren<Props>, \"ref\"> & RefAttributes<DOMElement>>",
     "calls": [
@@ -705,7 +705,7 @@
    },
    "type": null
   },
-  "src/ink.ts:BaseBoxProps": {
+  "src/screen/themedRenderer.ts:BaseBoxProps": {
    "value": null,
    "type": {
     "text": "Omit<Styles, \"textWrap\"> & { readonly ref?: Ref<DOMElement> | undefined; readonly tabIndex?: number | undefined; readonly autoFocus?: boolean | undefined; readonly onClick?: ((event: ClickEvent) => void) | undefined; readonly onFocus?: ((event: FocusEvent) => void) | undefined; readonly onFocusCapture?: ((event: FocusEvent) => void) | undefined; readonly onBlur?: ((event: FocusEvent) => void) | undefined; readonly onBlurCapture?: ((event: FocusEvent) => void) | undefined; readonly onKeyDown?: ((event: KeyboardEvent) => void) | undefined; readonly onKeyDownCapture?: ((event: KeyboardEvent) => void) | undefined; readonly onMouseEnter?: (() => void) | undefined; readonly onMouseLeave?: (() => void) | undefined; readonly onTextGesture?: TextGestureHandler | undefined; }",
@@ -1085,7 +1085,7 @@
     ]
    }
   },
-  "src/ink.ts:BaseText": {
+  "src/screen/themedRenderer.ts:BaseText": {
    "value": {
     "text": "({ color, backgroundColor, dim, bold, italic, underline, strikethrough, inverse, wrap, children, }: Props) => ReactNode",
     "calls": [
@@ -1096,7 +1096,7 @@
    },
    "type": null
   },
-  "src/ink.ts:BaseTextProps": {
+  "src/screen/themedRenderer.ts:BaseTextProps": {
    "value": null,
    "type": {
     "text": "(BaseProps & { readonly bold?: boolean | undefined; readonly dim?: undefined; }) | (BaseProps & { readonly dim?: boolean | undefined; readonly bold?: undefined; })",
@@ -1156,7 +1156,7 @@
     ]
    }
   },
-  "src/ink.ts:Button": {
+  "src/screen/themedRenderer.ts:Button": {
    "value": {
     "text": "ForwardRefExoticComponent<Omit<Props, \"ref\"> & RefAttributes<DOMElement>>",
     "calls": [
@@ -1183,7 +1183,7 @@
    },
    "type": null
   },
-  "src/ink.ts:ButtonState": {
+  "src/screen/themedRenderer.ts:ButtonState": {
    "value": null,
    "type": {
     "text": "{ readonly focused: boolean; readonly hovered: boolean; readonly active: boolean; }",
@@ -1208,7 +1208,7 @@
     ]
    }
   },
-  "src/ink.ts:ButtonProps": {
+  "src/screen/themedRenderer.ts:ButtonProps": {
    "value": null,
    "type": {
     "text": "Omit<Styles, \"textWrap\"> & { readonly ref?: Ref<DOMElement> | undefined; readonly onActivate: () => void; readonly tabIndex?: number | undefined; readonly autoFocus?: boolean | undefined; readonly children?: ReactNode | ((state: ButtonState) => ReactNode); }",
@@ -1548,7 +1548,7 @@
     ]
    }
   },
-  "src/ink.ts:Link": {
+  "src/screen/themedRenderer.ts:Link": {
    "value": {
     "text": "({ children, url, fallback }: Props) => ReactNode",
     "calls": [
@@ -1559,7 +1559,7 @@
    },
    "type": null
   },
-  "src/ink.ts:LinkProps": {
+  "src/screen/themedRenderer.ts:LinkProps": {
    "value": null,
    "type": {
     "text": "{ readonly children?: ReactNode; readonly url: string; readonly fallback?: ReactNode; }",
@@ -1584,7 +1584,7 @@
     ]
    }
   },
-  "src/ink.ts:MotionParkContext": {
+  "src/screen/themedRenderer.ts:MotionParkContext": {
    "value": {
     "text": "Context<boolean>",
     "calls": [
@@ -1616,7 +1616,7 @@
    },
    "type": null
   },
-  "src/ink.ts:Newline": {
+  "src/screen/themedRenderer.ts:Newline": {
    "value": {
     "text": "({ count }: Props) => ReactNode",
     "calls": [
@@ -1627,7 +1627,7 @@
    },
    "type": null
   },
-  "src/ink.ts:NewlineProps": {
+  "src/screen/themedRenderer.ts:NewlineProps": {
    "value": null,
    "type": {
     "text": "{ readonly count?: number | undefined; }",
@@ -1642,7 +1642,7 @@
     ]
    }
   },
-  "src/ink.ts:NoSelect": {
+  "src/screen/themedRenderer.ts:NoSelect": {
    "value": {
     "text": "({ children, fromLeftEdge, ...boxProps }: Props) => ReactNode",
     "calls": [
@@ -1653,7 +1653,7 @@
    },
    "type": null
   },
-  "src/ink.ts:RawAnsi": {
+  "src/screen/themedRenderer.ts:RawAnsi": {
    "value": {
     "text": "({ lines, width }: Props) => ReactNode",
     "calls": [
@@ -1664,7 +1664,7 @@
    },
    "type": null
   },
-  "src/ink.ts:Spacer": {
+  "src/screen/themedRenderer.ts:Spacer": {
    "value": {
     "text": "() => ReactNode",
     "calls": [
@@ -1675,7 +1675,7 @@
    },
    "type": null
   },
-  "src/ink.ts:AppProps": {
+  "src/screen/themedRenderer.ts:AppProps": {
    "value": null,
    "type": {
     "text": "{ readonly exit: (error?: Error | undefined) => void; }",
@@ -1690,7 +1690,7 @@
     ]
    }
   },
-  "src/ink.ts:StdinProps": {
+  "src/screen/themedRenderer.ts:StdinProps": {
    "value": null,
    "type": {
     "text": "{ readonly stdin: ReadStream; readonly setRawMode: (value: boolean) => void; readonly isRawModeSupported: boolean; readonly internal_exitOnCtrlC: boolean; readonly internal_eventEmitter: EventEmitter; readonly internal_querier: TerminalQuerier | null; }",
@@ -1730,7 +1730,7 @@
     ]
    }
   },
-  "src/ink.ts:ClickEvent": {
+  "src/screen/themedRenderer.ts:ClickEvent": {
    "value": {
     "text": "typeof ClickEvent",
     "calls": [],
@@ -1793,7 +1793,7 @@
     ]
    }
   },
-  "src/ink.ts:EventEmitter": {
+  "src/screen/themedRenderer.ts:EventEmitter": {
    "value": {
     "text": "typeof EventEmitter",
     "calls": [],
@@ -1961,7 +1961,7 @@
     ]
    }
   },
-  "src/ink.ts:Event": {
+  "src/screen/themedRenderer.ts:Event": {
    "value": {
     "text": "typeof Event",
     "calls": [],
@@ -1999,7 +1999,7 @@
     ]
    }
   },
-  "src/ink.ts:InputEvent": {
+  "src/screen/themedRenderer.ts:InputEvent": {
    "value": {
     "text": "typeof InputEvent",
     "calls": [],
@@ -2057,7 +2057,7 @@
     ]
    }
   },
-  "src/ink.ts:Key": {
+  "src/screen/themedRenderer.ts:Key": {
    "value": null,
    "type": {
     "text": "{ upArrow: boolean; downArrow: boolean; leftArrow: boolean; rightArrow: boolean; pageDown: boolean; pageUp: boolean; wheelUp: boolean; wheelDown: boolean; home: boolean; end: boolean; return: boolean; escape: boolean; ctrl: boolean; shift: boolean; fn: boolean; tab: boolean; backspace: boolean; delete: boolean; meta: boolean; super: boolean; isPasted: boolean; }",
@@ -2172,7 +2172,7 @@
     ]
    }
   },
-  "src/ink.ts:TerminalFocusEvent": {
+  "src/screen/themedRenderer.ts:TerminalFocusEvent": {
    "value": {
     "text": "typeof TerminalFocusEvent",
     "calls": [],
@@ -2215,7 +2215,7 @@
     ]
    }
   },
-  "src/ink.ts:TerminalFocusEventType": {
+  "src/screen/themedRenderer.ts:TerminalFocusEventType": {
    "value": null,
    "type": {
     "text": "\"terminalfocus\" | \"terminalblur\"",
@@ -2485,7 +2485,7 @@
     ]
    }
   },
-  "src/ink.ts:FocusManager": {
+  "src/screen/themedRenderer.ts:FocusManager": {
    "value": {
     "text": "typeof FocusManager",
     "calls": [],
@@ -2583,7 +2583,7 @@
     ]
    }
   },
-  "src/ink.ts:paletteCollapsed": {
+  "src/screen/themedRenderer.ts:paletteCollapsed": {
    "value": {
     "text": "() => boolean",
     "calls": [
@@ -2594,7 +2594,7 @@
    },
    "type": null
   },
-  "src/ink.ts:truecolorActive": {
+  "src/screen/themedRenderer.ts:truecolorActive": {
    "value": {
     "text": "() => boolean",
     "calls": [
@@ -2605,7 +2605,7 @@
    },
    "type": null
   },
-  "src/ink.ts:measureElement": {
+  "src/screen/themedRenderer.ts:measureElement": {
    "value": {
     "text": "(node: DOMElement) => { width: number; height: number; }",
     "calls": [
@@ -2616,7 +2616,7 @@
    },
    "type": null
   },
-  "src/ink.ts:elementScreenLeft": {
+  "src/screen/themedRenderer.ts:elementScreenLeft": {
    "value": {
     "text": "(node: DOMElement) => number",
     "calls": [
@@ -2627,7 +2627,7 @@
    },
    "type": null
   },
-  "src/ink.ts:elementScreenTop": {
+  "src/screen/themedRenderer.ts:elementScreenTop": {
    "value": {
     "text": "(node: DOMElement) => number",
     "calls": [
@@ -2638,7 +2638,7 @@
    },
    "type": null
   },
-  "src/ink.ts:supportsTabStatus": {
+  "src/screen/themedRenderer.ts:supportsTabStatus": {
    "value": {
     "text": "() => boolean",
     "calls": [
@@ -2649,7 +2649,7 @@
    },
    "type": null
   },
-  "src/ink.ts:wrapText": {
+  "src/screen/themedRenderer.ts:wrapText": {
    "value": {
     "text": "(text: string, maxWidth: number, wrapType: string) => string",
     "calls": [
@@ -2660,7 +2660,7 @@
    },
    "type": null
   },
-  "src/ink.ts:DOMElement": {
+  "src/screen/themedRenderer.ts:DOMElement": {
    "value": null,
    "type": {
     "text": "{ nodeName: ElementNames; parentNode: DOMElement | undefined; childNodes: DOMNode[]; attributes: Record<string, DOMNodeAttribute>; style: Styles; textStyles?: TextStyles | undefined; layoutNode?: LayoutNode | undefined; dirty: boolean; isHidden?: boolean | undefined; scroll?: ScrollState | undefined; _eventHandlers?: Record<string, unknown> | undefined; debugOwnerChain?: string[] | undefined; onRender?: (() => void) | undefined; onImmediateRender?: (() => void) | undefined; onComputeLayout?: (() => void) | undefined; focusManager?: FocusManager | undefined; hasRenderedContent?: boolean | undefined; }",
@@ -2755,7 +2755,7 @@
     ]
    }
   },
-  "src/ink.ts:FlickerReason": {
+  "src/screen/themedRenderer.ts:FlickerReason": {
    "value": null,
    "type": {
     "text": "\"resize\" | \"offscreen\" | \"clear\"",
@@ -3025,7 +3025,7 @@
     ]
    }
   },
-  "src/ink.ts:useAnimationFrame": {
+  "src/screen/themedRenderer.ts:useAnimationFrame": {
    "value": {
     "text": "(intervalMs?: number | null) => [ref: (el: DOMElement | null) => void, time: number]",
     "calls": [
@@ -3036,7 +3036,7 @@
    },
    "type": null
   },
-  "src/ink.ts:useAnimationValue": {
+  "src/screen/themedRenderer.ts:useAnimationValue": {
    "value": {
     "text": "<T extends string | number | boolean>(intervalMs: number | null, derive: (timeMs: number) => T) => [ref: (element: DOMElement | null) => void, value: T]",
     "calls": [
@@ -3047,7 +3047,7 @@
    },
    "type": null
   },
-  "src/ink.ts:useApp": {
+  "src/screen/themedRenderer.ts:useApp": {
    "value": {
     "text": "() => Props",
     "calls": [
@@ -3058,7 +3058,7 @@
    },
    "type": null
   },
-  "src/ink.ts:useInput": {
+  "src/screen/themedRenderer.ts:useInput": {
    "value": {
     "text": "(handler: InputHandler, options?: Options) => void",
     "calls": [
@@ -3069,7 +3069,7 @@
    },
    "type": null
   },
-  "src/ink.ts:useAnimationTimer": {
+  "src/screen/themedRenderer.ts:useAnimationTimer": {
    "value": {
     "text": "(intervalMs: number) => number",
     "calls": [
@@ -3080,7 +3080,7 @@
    },
    "type": null
   },
-  "src/ink.ts:useInterval": {
+  "src/screen/themedRenderer.ts:useInterval": {
    "value": {
     "text": "(callback: () => void, intervalMs: number | null) => void",
     "calls": [
@@ -3091,7 +3091,7 @@
    },
    "type": null
   },
-  "src/ink.ts:useSelection": {
+  "src/screen/themedRenderer.ts:useSelection": {
    "value": {
     "text": "() => SelectionApi",
     "calls": [
@@ -3102,7 +3102,7 @@
    },
    "type": null
   },
-  "src/ink.ts:useStdin": {
+  "src/screen/themedRenderer.ts:useStdin": {
    "value": {
     "text": "() => Props",
     "calls": [
@@ -3113,7 +3113,7 @@
    },
    "type": null
   },
-  "src/ink.ts:useTerminalFocus": {
+  "src/screen/themedRenderer.ts:useTerminalFocus": {
    "value": {
     "text": "() => boolean",
     "calls": [
@@ -3124,7 +3124,7 @@
    },
    "type": null
   },
-  "src/ink.ts:useTerminalTitle": {
+  "src/screen/themedRenderer.ts:useTerminalTitle": {
    "value": {
     "text": "(title: string | null) => void",
     "calls": [
@@ -3135,7 +3135,7 @@
    },
    "type": null
   },
-  "src/ink.ts:useTerminalViewport": {
+  "src/screen/themedRenderer.ts:useTerminalViewport": {
    "value": {
     "text": "() => [ref: (el: DOMElement | null) => void, entry: ViewportEntry]",
     "calls": [
@@ -3146,7 +3146,7 @@
    },
    "type": null
   },
-  "src/ink/ink.tsx:renderFaultRecoveryPlan": {
+  "src/screen/renderer/screenInstance.tsx:renderFaultRecoveryPlan": {
    "value": {
     "text": "(streak: number, budget?: number) => \"repaint\" | \"loud\"",
     "calls": [
@@ -3157,7 +3157,7 @@
    },
    "type": null
   },
-  "src/ink/ink.tsx:drainStdin": {
+  "src/screen/renderer/screenInstance.tsx:drainStdin": {
    "value": {
     "text": "(stdin?: ReadStream) => void",
     "calls": [
@@ -3168,7 +3168,7 @@
    },
    "type": null
   },
-  "src/ink/ink.tsx:RENDER_FAULT_RETRY_BUDGET": {
+  "src/screen/renderer/screenInstance.tsx:RENDER_FAULT_RETRY_BUDGET": {
    "value": {
     "text": "3",
     "calls": [],
@@ -3208,7 +3208,7 @@
    },
    "type": null
   },
-  "src/ink/ink.tsx:Options": {
+  "src/screen/renderer/screenInstance.tsx:Options": {
    "value": null,
    "type": {
     "text": "{ stdout: WriteStream; stdin: ReadStream; stderr: WriteStream; exitOnCtrlC: boolean; patchConsole: boolean; waitUntilExit?: (() => Promise<void>) | undefined; onFrame?: ((event: FrameEvent) => void) | undefined; }",
@@ -3253,7 +3253,7 @@
     ]
    }
   },
-  "src/ink/ink.tsx:default": {
+  "src/screen/renderer/screenInstance.tsx:default": {
    "value": {
     "text": "typeof Ink",
     "calls": [],
@@ -4026,7 +4026,7 @@
     ]
    }
   },
-  "src/ink/components/ScrollBox.tsx:ScrollBoxProps": {
+  "src/screen/renderer/elements/ScrollBox.tsx:ScrollBoxProps": {
    "value": null,
    "type": {
     "text": "Omit<Styles, \"textWrap\" | \"overflow\" | \"overflowX\" | \"overflowY\"> & { readonly ref?: Ref<ScrollBoxHandle> | undefined; readonly stickyScroll?: boolean | undefined; } & { children?: ReactNode; }",
@@ -4341,7 +4341,7 @@
     ]
    }
   },
-  "src/ink/components/ScrollBox.tsx:ScrollBoxHandle": {
+  "src/screen/renderer/elements/ScrollBox.tsx:ScrollBoxHandle": {
    "value": null,
    "type": {
     "text": "{ scrollTo: (y: number) => void; scrollToElement: (el: DOMElement, offset?: number | undefined) => void; scrollBy: (dy: number) => void; scrollToBottom: () => void; getScrollTop: () => number; getPendingDelta: () => number; getScrollHeight: () => number; getFreshScrollHeight: () => number; getViewportHeight: () => number; getViewportTop: () => number; isSticky: () => boolean; subscribe: (listener: () => void) => () => void; setClampBounds: (min: number | undefined, max: number | undefined) => void; pinScrollTop: (y: number) => void; }",
@@ -4421,7 +4421,7 @@
     ]
    }
   },
-  "src/ink/components/ScrollBox.tsx:default": {
+  "src/screen/renderer/elements/ScrollBox.tsx:default": {
    "value": {
     "text": "ForwardRefExoticComponent<Omit<ScrollBoxProps, \"ref\"> & RefAttributes<ScrollBoxHandle>>",
     "calls": [

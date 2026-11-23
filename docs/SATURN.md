@@ -162,6 +162,6 @@ resizes the window.
 `MERCURY_SATURN_DISABLE` is the kill switch: a truthy value ends every tick before
 any effect, so nothing fires, holds, or replays; the schedule store is
 untouched, editing still works, and the scheduling tools leave the catalog.
-These rows live in the in-code registry (`src/substrate/flagRegistry.ts`;
+These rows live in the in-code registry (`src/platform/substrate/flagRegistry.ts`;
 rendered on demand to an untracked path).
 

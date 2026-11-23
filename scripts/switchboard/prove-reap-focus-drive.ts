@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { startDaemonClientBeat } from '../lib/daemonClientBeat.ts'
-import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/models/facts/builtInModelTable.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { paintsBootFaceReady } from '../lib/bootFace.ts'
 
@@ -116,7 +116,7 @@ function drive(tag: string, sends: Send[], total: number, ready?: { text: string
   }
   return lines
 }
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.ts')
 const ARCHIVE_LEGEND = keyHintLabel('⌃x ⌃x archive · delete')
 const DELETE_LEGEND = keyHintLabel('⌃x ⌃x delete')
 const TAG = keyHintLabel('⇧← back')
@@ -142,8 +142,8 @@ const enterSelected = (title: string): Send[] => [
 ]
 
 try {
-  const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-  const sup = await import('../../src/daemon/concourseWorkers.ts')
+  const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+  const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   check('the scratch daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), '', 'the scratch daemon did not answer ping within 60 s; read daemon.log in the scratch folder named by the reap-drive- directory under the temp dir, and rebuild with bun run build.ts if dist/mercury.mjs is stale')
   const admit = async (title: string, work: string, cmid: string, modelKey: string): Promise<string> => {
     const d = (await daemonControlRpc({
@@ -155,7 +155,7 @@ try {
       model: modelKey,
       effort: 'high',
     } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; modelId?: string; error?: string; detail?: string }
-    check(`${title} dispatched under the requested model`, d.ok === true && d.sessionId !== undefined && d.modelId === modelKey, JSON.stringify(d), 'the concourseDispatch op of the daemon (served through src/daemon/controlSocket.ts) must start a session under the requested model; the answer is printed above')
+    check(`${title} dispatched under the requested model`, d.ok === true && d.sessionId !== undefined && d.modelId === modelKey, JSON.stringify(d), 'the concourseDispatch op of the daemon (served through src/daemon/control/controlSocket.ts) must start a session under the requested model; the answer is printed above')
     return d.sessionId ?? ''
   }
   const sidA = await admit('alpha probe', ground, 'reap-drive-alpha', DEFAULT_OPUS)
@@ -164,13 +164,13 @@ try {
     Object.values(sup.readSessionWorkers(daemonDir))
       .filter(r => r.endedAt === undefined)
       .map(r => r.sessionId)
-  check('both sessions live on the roster', await untilAsync(() => liveIds().includes(sidA) && liveIds().includes(sidB), 30_000), liveIds().join(','), 'a dispatched session never reached the live roster; read readSessionWorkers in src/daemon/concourseWorkers.ts and daemon.log in the scratch folder')
-  const obligations = await import('../../src/services/crew/obligations.ts')
+  check('both sessions live on the roster', await untilAsync(() => liveIds().includes(sidA) && liveIds().includes(sidB), 30_000), liveIds().join(','), 'a dispatched session never reached the live roster; read readSessionWorkers in src/daemon/concourse-workers/concourseWorkers.ts and daemon.log in the scratch folder')
+  const obligations = await import('../../src/crew/crewmates/obligations.ts')
   const askOpen = (sid: string) => async (): Promise<boolean> =>
     (await obligations.openObligations({ scope: 'switchboard' })).some(o => o.sessionId === sid && (o.ref ?? '').startsWith('permission:'))
   const alphaAskOpen = askOpen(sidA)
-  check('alpha parked a REAL permission ask (its card lives in the parked Chat)', await untilAsync(alphaAskOpen, 40_000), '', 'alpha never recorded an open permission obligation in the switchboard scope; read src/services/crew/obligations.ts and the fixture API requests')
-  check('beta parked one of its own (a mid-turn session drains at the quit, never parks — it stays a live row)', await untilAsync(askOpen(sidB), 40_000), '', 'beta never recorded an open permission obligation in the switchboard scope; read src/services/crew/obligations.ts and the fixture API requests')
+  check('alpha parked a REAL permission ask (its card lives in the parked Chat)', await untilAsync(alphaAskOpen, 40_000), '', 'alpha never recorded an open permission obligation in the switchboard scope; read src/crew/crewmates/obligations.ts and the fixture API requests')
+  check('beta parked one of its own (a mid-turn session drains at the quit, never parks — it stays a live row)', await untilAsync(askOpen(sidB), 40_000), '', 'beta never recorded an open permission obligation in the switchboard scope; read src/crew/crewmates/obligations.ts and the fixture API requests')
   await untilAsync(() => api.requests.length >= 2, 40_000)
   await new Promise(r => setTimeout(r, 2500))
 
@@ -231,7 +231,7 @@ try {
   const rail1 = r1.map(line => line.includes('│') ? line.slice(0, line.indexOf('│')) : '')
   const chat1 = r1.map(line => line.includes('│') ? line.slice(line.indexOf('│') + 1) : line)
   check(`R1 …and it is the SURVIVOR (${otherTitle}) — its own words on the chat, never the reaped ${firstTitle}`, has(chat1, otherTitle) && !has(chat1, firstTitle) && (!has(rail1, firstTitle) || has(rail1, 'RECENT')), r1.filter(l => l.includes('probe')).join(' | '), 'reaping the focused session must leave the other chat in view; open the reap-survivor capture in the captures directory printed at the end')
-  check('R1 the reaped session left the roster', await untilAsync(() => liveIds().length === 1, 15_000), liveIds().join(','), 'the reap chord (three presses of ctrl-x) must remove the focused session from the roster; see readSessionWorkers in src/daemon/concourseWorkers.ts')
+  check('R1 the reaped session left the roster', await untilAsync(() => liveIds().length === 1, 15_000), liveIds().join(','), 'the reap chord (three presses of ctrl-x) must remove the focused session from the roster; see readSessionWorkers in src/daemon/concourse-workers/concourseWorkers.ts')
   const survivorId = liveIds()[0] ?? ''
   check('R1 the roster survivor is the other session', survivorId === (firstTitle === 'alpha probe' ? sidB : sidA), '', 'the reap removed the wrong session; the focused chat must be the one reaped')
 
@@ -255,7 +255,7 @@ try {
   check('R2 ⇧→ from the board is NO MOVEMENT (no chat stop exists after the last reap): still the board', isBoard(r2AfterRight) && tagLine(r2AfterRight) === undefined && !isFace(r2AfterRight), r2AfterRight.filter(l => l.trim()).slice(0, 3).join(' | '))
   check('R2 …and again: the final frame is still the board — never the dead chat, never a bounce back to the menu', isBoard(r2) && tagLine(r2) === undefined && !isFace(r2), r2.filter(l => l.trim()).slice(0, 3).join(' | '))
   check('R2 …and no dead session title anywhere on it', !has(r2, otherTitle) || has(r2, 'SESSIONS'), r2.filter(l => l.includes(otherTitle)).join(' | '))
-  check('R2 the roster is empty', await untilAsync(() => liveIds().length === 0, 15_000), liveIds().join(','), 'the last reap must empty the roster; see readSessionWorkers in src/daemon/concourseWorkers.ts')
+  check('R2 the roster is empty', await untilAsync(() => liveIds().length === 0, 15_000), liveIds().join(','), 'the last reap must empty the roster; see readSessionWorkers in src/daemon/concourse-workers/concourseWorkers.ts')
 
   console.log('R3 the honesty leg — ⇧← from the board')
   const r3 = drive('board-shift-left', [{ atTick: 999, awaitText: 'SESSIONS', minTick: 5, awaitSettleTicks: 3, data: SHIFT_LEFT }], 150, { text: ['New Session'], settle: 5 })
@@ -266,8 +266,8 @@ try {
 } finally {
   clientBeat.stop()
   try {
-    const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-    const sup = await import('../../src/daemon/concourseWorkers.ts')
+    const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+    const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
     for (const rec of Object.values(sup.readSessionWorkers(daemonDir))) {
       if (rec.endedAt === undefined) await daemonControlRpc({ op: 'concourseRelease', workerId: rec.workerId } as never).catch(() => undefined)
     }

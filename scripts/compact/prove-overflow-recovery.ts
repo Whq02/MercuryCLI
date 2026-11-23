@@ -18,26 +18,26 @@ for (const k of [
 }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { queryEvents } = await import('../../src/query.ts')
-const { legacyYieldsOf } = await import('../../src/run-core/project-legacy.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { legacyYieldsOf } = await import('../../src/engine/loop/project-legacy.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 bootstrap.setAskChannel('none')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.ts')
-const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
-const { AUTOCOMPACT_THRASH_MESSAGE } = await import('../../src/services/compact/autoCompact.ts')
-const { ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } = await import('../../src/services/compact/compact.ts')
-const { MC_DIGEST_PREFIX, MC_CLEARED_PLACEHOLDER } = await import('../../src/services/compact/microCompactDigest.ts')
-const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
-const { overflowSignalOf } = await import('../../src/services/api/overflowSignal.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createCompactBoundaryMessage } = await import('../../src/engine/message-shapes/systemMessages.ts')
+const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/engine/requests/apiErrorRows.ts')
+const { AUTOCOMPACT_THRASH_MESSAGE } = await import('../../src/engine/compaction/autoFold.ts')
+const { ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } = await import('../../src/engine/compaction/foldConversation.ts')
+const { MC_DIGEST_PREFIX, MC_CLEARED_PLACEHOLDER } = await import('../../src/engine/compaction/pruneDigest.ts')
+const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { overflowSignalOf } = await import('../../src/engine/requests/overflowSignal.ts')
 
-type Sig = import('../../src/services/api/overflowSignal.ts').OverflowSignal
+type Sig = import('../../src/engine/requests/overflowSignal.ts').OverflowSignal
 type AnyMsg = Record<string, unknown> & { type?: string }
 type AnyEvent = Record<string, unknown> & { kind: string }
 
@@ -47,13 +47,13 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix, read the rung choice and notice text in src/services/compact/overflowRecovery.ts and the recovery loop run by queryEvents in src/query.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix, read the rung choice and notice text in src/engine/compaction/overflowRecovery.ts and the recovery loop run by queryEvents in src/engine/turnDoor.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — overflow recovery prover exceeded 180s — a scripted model or fold never answered; look at the last section printed above and the recovery loop in queryEvents in src/query.ts')
+  console.log('\nTIMEOUT — overflow recovery prover exceeded 180s — a scripted model or fold never answered; look at the last section printed above and the recovery loop in queryEvents in src/engine/turnDoor.ts')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

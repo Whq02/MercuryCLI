@@ -117,9 +117,9 @@ try {
   check('a changed licence byte is refused with the lock\'s message', fromTampered.error !== null && /Document licence differs from its lock/.test(fromTampered.error), fromTampered.error ?? 'resolved')
 
   section('§4 the bundled media payload: every text file its manifest hashes, and the shared .mts the craft payloads hash, check out as their committed bytes under core.autocrlf=true')
-  const mediaServer = 'src/extensions/bundled/mercury-media/server'
+  const mediaServer = 'src/integrations/extensions/bundled/mercury-media/server'
   const mediaManifest = JSON.parse(readFileSync(join(ROOT, mediaServer, 'manifest.json'), 'utf8')) as { files: Record<string, string> }
-  const sharedTyping = 'src/extensions/bundled/shared/install.d.mts'
+  const sharedTyping = 'src/integrations/extensions/bundled/shared/install.d.mts'
   const committedBytes = (rel: string, want?: string): Buffer => {
     const checkout = readFileSync(join(ROOT, rel))
     if (want === undefined) return Buffer.from(checkout.toString('latin1').replaceAll('\r\n', '\n'), 'latin1')

@@ -29,12 +29,12 @@ console.log('entering a provider key has one home: /logins')
 
 {
   console.log('\nthe flags and route-store retirement')
-  const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
+  const { FLAG_REGISTRY } = await import('../../src/platform/substrate/flagRegistry.ts')
   for (const env of RETIRED_ENVS) {
     check(`the flag registry carries no row for ${env}`, !FLAG_REGISTRY.some(row => row.env === env), 'remove the retired flag row from FLAG_REGISTRY')
   }
-  const homeStores = await import('../../src/utils/projectHomeStores.ts')
-  check('the project home stores carry no route-state store (a folder left on disk is never read)', !homeStores.PROJECT_HOME_STORES.some(segments => segments.join('/') === 'router'), 'remove the router store from PROJECT_HOME_STORES in src/utils/projectHomeStores.ts')
+  const homeStores = await import('../../src/platform/storage/projectHomeStores.ts')
+  check('the project home stores carry no route-state store (a folder left on disk is never read)', !homeStores.PROJECT_HOME_STORES.some(segments => segments.join('/') === 'router'), 'remove the router store from PROJECT_HOME_STORES in src/platform/storage/projectHomeStores.ts')
   const storeRepo = realpathSync(mkdtempSync(join(tmpdir(), 'retired-route-store-')))
   try {
     const git = (...args: string[]): string => execFileSync('git', args, { cwd: storeRepo, encoding: 'utf8' })
@@ -46,12 +46,12 @@ console.log('entering a provider key has one home: /logins')
     writeFileSync(join(folderStore, 'outcomes.json'), JSON.stringify({ _v: 1, rows: [{ profileId: 'routed-wide', accepted: true, at: 123 }] }))
     git('add', '.')
     git('-c', 'user.email=p@p', '-c', 'user.name=proof', 'commit', '-q', '-m', 'seed retired store')
-    const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+    const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
     const homeRouterDir = join(getProjectDir(storeRepo), 'router')
     const leftovers = homeStores.projectHomeLeftovers(storeRepo)
     const prevHealthDir = process.env.MERCURY_HEALTH_STATE_DIR
     process.env.MERCURY_HEALTH_STATE_DIR = storeRepo
-    const { projectEstateCheck } = await import('../../src/services/health/healthReport.ts')
+    const { projectEstateCheck } = await import('../../src/platform/health/healthReport.ts')
     const estate = await projectEstateCheck()
     if (prevHealthDir === undefined) delete process.env.MERCURY_HEALTH_STATE_DIR
     else process.env.MERCURY_HEALTH_STATE_DIR = prevHealthDir
@@ -63,16 +63,16 @@ console.log('entering a provider key has one home: /logins')
 
 {
   console.log('\nthe key entry: every family the old board carried has its /logins row, key leg and slot switch')
-  const { reconnectDoorFor } = await import('../../src/services/providers/credentialWall.ts')
-  check('the custom endpoint and the local server name their key variable (no sign-in leg exists for them)', reconnectDoorFor('openai-compat') === 'MERCURY_COMPAT_API_KEY' && reconnectDoorFor('local') === 'MERCURY_LOCAL_API_KEY', 'fix reconnectDoorFor in src/services/providers/credentialWall.ts so openai-compat answers MERCURY_COMPAT_API_KEY and local answers MERCURY_LOCAL_API_KEY')
-  const search = await import('../../src/services/search/searchContract.ts')
-  check('the web-search key door names the two variables', search.KEYED_DOOR_COMMANDS === 'BRAVE_API_KEY · TAVILY_API_KEY', 'set KEYED_DOOR_COMMANDS in src/services/search/searchContract.ts to BRAVE_API_KEY · TAVILY_API_KEY')
+  const { reconnectDoorFor } = await import('../../src/models/roads/credentialWall.ts')
+  check('the custom endpoint and the local server name their key variable (no sign-in leg exists for them)', reconnectDoorFor('openai-compat') === 'MERCURY_COMPAT_API_KEY' && reconnectDoorFor('local') === 'MERCURY_LOCAL_API_KEY', 'fix reconnectDoorFor in src/models/roads/credentialWall.ts so openai-compat answers MERCURY_COMPAT_API_KEY and local answers MERCURY_LOCAL_API_KEY')
+  const search = await import('../../src/tools/engines/web-search/searchContract.ts')
+  check('the web-search key door names the two variables', search.KEYED_DOOR_COMMANDS === 'BRAVE_API_KEY · TAVILY_API_KEY', 'set KEYED_DOOR_COMMANDS in src/tools/engines/web-search/searchContract.ts to BRAVE_API_KEY · TAVILY_API_KEY')
 }
 
 {
   console.log('\nthe move: stored-key byte survival, adapters without posture, and request-bytes control')
-  const movedSecretsPath = join(REPO, 'src/utils/accounts/providerSecrets.ts')
-  const movedRegistryPath = join(REPO, 'src/services/providers/modelRegistry.ts')
+  const movedSecretsPath = join(REPO, 'src/models/sign-in/account-ledger/providerSecrets.ts')
+  const movedRegistryPath = join(REPO, 'src/models/roads/modelRegistry.ts')
   if (existsSync(movedSecretsPath) && existsSync(movedRegistryPath)) {
     const secretsFile = join(proofHome, '.provider-secrets.json')
     const seededPayload = `${JSON.stringify({
@@ -97,10 +97,10 @@ console.log('entering a provider key has one home: /logins')
     writeFileSync(secretsFile, seededPayload, { mode: 0o600 })
     const shaBefore = createHash('sha256').update(readFileSync(secretsFile)).digest('hex')
     const secrets = await import(movedSecretsPath)
-    const { resolveCompatApiKey } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
-    const { resolveLocalApiKey } = await import('../../src/services/providers/local/localAccounts.ts')
-    const { resolveBraveSearchApiKey } = await import('../../src/services/search/brave.ts')
-    const { resolveTavilyApiKey } = await import('../../src/services/search/tavily.ts')
+    const { resolveCompatApiKey } = await import('../../src/models/roads/openaicompat/compatAccounts.ts')
+    const { resolveLocalApiKey } = await import('../../src/models/roads/local/localAccounts.ts')
+    const { resolveBraveSearchApiKey } = await import('../../src/tools/engines/web-search/brave.ts')
+    const { resolveTavilyApiKey } = await import('../../src/tools/engines/web-search/tavily.ts')
     const allMatch =
       secrets.readStoredZaiApiKey() === 'zai-stored-key-0001' &&
       secrets.readStoredZaiKeyPlan() === 'coding' &&
@@ -119,12 +119,12 @@ console.log('entering a provider key has one home: /logins')
       resolveBraveSearchApiKey({} as NodeJS.ProcessEnv)?.key === 'brave-stored-key-0014' &&
       resolveTavilyApiKey({} as NodeJS.ProcessEnv)?.key === 'tavily-stored-key-0015'
     const shaAfter = createHash('sha256').update(readFileSync(secretsFile)).digest('hex')
-    check('a key written in the base store format for every key-leg family and all four env-road FORK lanes is read byte for byte with sha256 unchanged', allMatch && shaBefore === shaAfter && (statSync(secretsFile).mode & 0o777) === 0o600, 'fix the stored-key readers in src/utils/accounts/providerSecrets.ts (or the resolve*ApiKey readers under src/services/providers and src/services/search) so every seeded key reads back unchanged and the file is never rewritten')
+    check('a key written in the base store format for every key-leg family and all four env-road FORK lanes is read byte for byte with sha256 unchanged', allMatch && shaBefore === shaAfter && (statSync(secretsFile).mode & 0o777) === 0o600, 'fix the stored-key readers in src/models/sign-in/account-ledger/providerSecrets.ts (or the resolve*ApiKey readers under src/models/roads and src/tools/engines/web-search) so every seeded key reads back unchanged and the file is never rewritten')
     rmSync(secretsFile, { force: true })
 
     const registry = await import(movedRegistryPath)
-    const anthropicAdapter = await import('../../src/services/providers/anthropic/anthropicAdapter.ts')
-    const zaiAdapter = await import('../../src/services/providers/zai/zaiAdapter.ts')
+    const anthropicAdapter = await import('../../src/models/roads/anthropic/anthropicAdapter.ts')
+    const zaiAdapter = await import('../../src/models/roads/zai/zaiAdapter.ts')
     registry.resetProviderSnapshotMemo()
     const snap = registry.buildProviderSnapshot()
     const opusRef = snap.resolve('opus')
@@ -138,14 +138,14 @@ console.log('entering a provider key has one home: /logins')
     }
     check('buildProviderSnapshot resolves opus (xhigh), sonnet (high) and fable (high) without a posture argument, reaches max on Opus, and non-seat buildLaunchPatch throws seat: …', snap.providers.length === 24 && ['melious', 'orcarouter'].every(id => snap.providers.some(provider => provider.id === id)) && anthropicAdapter.resolveAnthropicModel.length === 1 && opusRef?.effort === 'xhigh' && sonnetRef?.effort === 'high' && fableRef?.effort === 'high' && anthropicAdapter.routeEffortsFor(opusRef.model).includes('max') && zaiThrow.startsWith('seat:'))
   }
-  const { configureEffortParams } = await import('../../src/services/providers/anthropic/requestParams.ts')
-  const { buildOpenaiResponsesRequest } = await import('../../src/services/providers/openai/responsesBridge.ts')
-  const { buildZaiChatRequest } = await import('../../src/services/providers/zai/zaiCodec.ts')
-  const { buildMistralExtras } = await import('../../src/services/providers/mistral/mistralCallModel.ts')
-  const { buildMetaExtras } = await import('../../src/services/providers/meta/metaCallModel.ts')
-  const { nousLaneProfile } = await import('../../src/services/providers/nous/nousCallModel.ts')
-  const { buildZenExtras } = await import('../../src/services/providers/zen/zenCallModel.ts')
-  const { buildMoonshotExtras, buildDeepseekExtras, buildOpenrouterExtras, buildXaiExtras, buildCompatSlotExtras, buildHuggingfaceExtras, buildGeminiExtras, buildLocalExtras } = await import('../../src/services/providers/openaicompat/compatWire.ts')
+  const { configureEffortParams } = await import('../../src/models/roads/anthropic/requestParams.ts')
+  const { buildOpenaiResponsesRequest } = await import('../../src/models/roads/openai/responsesBridge.ts')
+  const { buildZaiChatRequest } = await import('../../src/models/roads/zai/zaiCodec.ts')
+  const { buildMistralExtras } = await import('../../src/models/roads/mistral/mistralCallModel.ts')
+  const { buildMetaExtras } = await import('../../src/models/roads/meta/metaCallModel.ts')
+  const { nousLaneProfile } = await import('../../src/models/roads/nous/nousCallModel.ts')
+  const { buildZenExtras } = await import('../../src/models/roads/zen/zenCallModel.ts')
+  const { buildMoonshotExtras, buildDeepseekExtras, buildOpenrouterExtras, buildXaiExtras, buildCompatSlotExtras, buildHuggingfaceExtras, buildGeminiExtras, buildLocalExtras } = await import('../../src/models/roads/openaicompat/compatWire.ts')
   const args = { wireModel: 'fixture-model', effortValue: 'high', thinkingEnabled: true, maxOutputTokensOverride: 256 }
   const anthropicOut: Record<string, unknown> = {}
   configureEffortParams('high', anthropicOut as never, {}, 'claude-opus-5-5')
@@ -171,7 +171,7 @@ console.log('entering a provider key has one home: /logins')
 
 {
   console.log('\nthe planner: session model law across /run, mercury://mission, the lanes rail and current work')
-  const { composeMissionView, buildMissionRow } = await import('../../src/services/mission/projection.ts')
+  const { composeMissionView, buildMissionRow } = await import('../../src/sessions/mission/projection.ts')
   const view = composeMissionView({
     workspace: '/tmp/proj',
     runObjective: 'ship the retirement',
@@ -204,23 +204,23 @@ console.log('entering a provider key has one home: /logins')
 
 {
   console.log('\nthe health certificate and the refusal law across environment, settings and session files')
-  const report = await import('../../src/services/health/healthReport.ts')
+  const report = await import('../../src/platform/health/healthReport.ts')
   const sectionIds = (cert: Awaited<ReturnType<typeof report.runHealthReport>>): string[] => cert.sections.map(s => s.id)
   const plain = await report.runHealthReport({ depth: 'fast' })
-  check('no section of the certificate is the route section', !sectionIds(plain).includes('router-fast') && !plain.sections.some(s => s.title === 'ROUTER'), 'remove the router section from runHealthReport in src/services/health/healthReport.ts')
-  check('no check id begins with the retired word', !plain.sections.flatMap(s => s.checks).some(c => c.id.startsWith('router-')), 'rename or remove the router- check in the health sections run by runHealthReport in src/services/health/healthReport.ts')
+  check('no section of the certificate is the route section', !sectionIds(plain).includes('router-fast') && !plain.sections.some(s => s.title === 'ROUTER'), 'remove the router section from runHealthReport in src/platform/health/healthReport.ts')
+  check('no check id begins with the retired word', !plain.sections.flatMap(s => s.checks).some(c => c.id.startsWith('router-')), 'rename or remove the router- check in the health sections run by runHealthReport in src/platform/health/healthReport.ts')
   const slots = plain.sections.flatMap(s => s.checks).find(c => c.id === 'provider-slots')
-  check('the provider honesty row lives on under AUTH', slots !== undefined && plain.sections.find(s => s.id === 'auth')?.checks.some(c => c.id === 'provider-slots') === true, 'restore the provider-slots check under the auth section built by runHealthReport in src/services/health/healthReport.ts')
+  check('the provider honesty row lives on under AUTH', slots !== undefined && plain.sections.find(s => s.id === 'auth')?.checks.some(c => c.id === 'provider-slots') === true, 'restore the provider-slots check under the auth section built by runHealthReport in src/platform/health/healthReport.ts')
   for (const env of RETIRED_ENVS) process.env[env] = env === 'MERCURY_ROUTER_POSTURE' ? RETIRED_POSTURES[1]! : env === 'MERCURY_MISSION_POLICY' ? 'specialist-sol' : '0'
   const pinned = await report.runHealthReport({ depth: 'fast' })
   for (const env of RETIRED_ENVS) delete process.env[env]
   check('a retired flag set in the environment is an unknown input: the certificate keeps its sections', sectionIds(pinned).join('|') === sectionIds(plain).join('|'), sectionIds(pinned).join('|'))
   const words = pinned.sections.flatMap(s => s.checks).map(c => `${c.evidence ?? ''} ${c.fix ?? ''}`).join('\n')
-  check('…and no row answers it with a refusal sentence or names it', !RETIRED_ENVS.some(env => words.includes(env)), 'drop every row that names a retired flag from the health sections run by runHealthReport in src/services/health/healthReport.ts')
+  check('…and no row answers it with a refusal sentence or names it', !RETIRED_ENVS.some(env => words.includes(env)), 'drop every row that names a retired flag from the health sections run by runHealthReport in src/platform/health/healthReport.ts')
 
-  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-  const { getSettingsWithAllErrors } = await import('../../src/services/settings/allErrors.ts')
-  const { applyConfigEnvironmentVariables } = await import('../../src/utils/managedEnv.ts')
+  const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+  const { getSettingsWithAllErrors } = await import('../../src/platform/settings-faults/allErrors.ts')
+  const { applyConfigEnvironmentVariables } = await import('../../src/platform/environment/settingsEnv.ts')
   writeFileSync(
     join(proofHome, 'settings.json'),
     JSON.stringify({
@@ -256,10 +256,10 @@ console.log('entering a provider key has one home: /logins')
     JSON.stringify({ errors: envSettings.errors, settingsCheck, flagsCheck }),
   )
 
-  const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-  const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
-  const { loadTranscriptFile, transcriptLoadDegradation, _resetTranscriptLoadDegradationForTesting } = await import('../../src/utils/sessionStorage/loading.ts')
-  const { restoreSessionStateFromLog } = await import('../../src/services/resume/sessionRestore.ts')
+  const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+  const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
+  const { loadTranscriptFile, transcriptLoadDegradation, _resetTranscriptLoadDegradationForTesting } = await import('../../src/sessions/transcripts/loading.ts')
+  const { restoreSessionStateFromLog } = await import('../../src/sessions/resume/sessionRestore.ts')
   const sessionFile = join(proofHome, 'retired-posture-session.jsonl')
   let ord = 0
   const ctx = {

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/mission-runner/**
-# gate-watch: src/services/mission/** src/services/resources/adapters/mission.ts
-# gate-watch: src/services/providers/openai/openaiCatalogue.ts
-# gate-watch: src/services/providers/openai/qualificationStore.ts
+# gate-watch: src/sessions/mission/** src/integrations/resources/adapters/mission.ts
+# gate-watch: src/models/roads/openai/openaiCatalogue.ts
+# gate-watch: src/models/roads/openai/qualificationStore.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

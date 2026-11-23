@@ -11,16 +11,16 @@ process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { connectToServer, callMCPToolWithUrlElicitationRetry, clearServerCache, DEFAULT_MCP_CALL_IDLE_MINUTES } = await import('../../src/services/mcp/client.ts')
+const { connectToServer, callMCPToolWithUrlElicitationRetry, clearServerCache, DEFAULT_MCP_CALL_IDLE_MINUTES } = await import('../../src/integrations/mcp/client.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — change the response-stream-end handling of the tool call in src/services/mcp/client.ts (callMCPToolWithUrlElicitationRetry) so it matches this check${detail ? `; ${detail}` : ''}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — change the response-stream-end handling of the tool call in src/integrations/mcp/client.ts (callMCPToolWithUrlElicitationRetry) so it matches this check${detail ? `; ${detail}` : ''}` : ''}`)
 }
 const watchdog = setTimeout(() => {
   console.log('\nTIMEOUT — stream-end prover exceeded 60s')
-  console.log('a tools/call never settled after its response stream ended; look at the response-stream-end handling in src/services/mcp/client.ts')
+  console.log('a tools/call never settled after its response stream ended; look at the response-stream-end handling in src/integrations/mcp/client.ts')
   process.exit(1)
 }, 60_000)
 watchdog.unref?.()

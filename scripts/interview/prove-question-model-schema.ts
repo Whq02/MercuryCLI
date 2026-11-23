@@ -3,17 +3,17 @@ import assert from 'node:assert/strict'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-const { AskUserQuestionTool } = await import('../../src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { normalizeToolSchemaFor } = await import('../../src/utils/normalizeToolSchema.ts')
-const { compileJsonSchema } = await import('../../src/services/schema/jsonSchemaEngine.ts')
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
-const { mapToolsToOpenai } = await import('../../src/services/providers/openai/responsesBridge.ts')
-const { codeAssistSchema } = await import('../../src/services/providers/gemini/geminiCodec.ts')
-const { mapToolsToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
-const ctl = await import('../../src/services/interview/controller.ts')
-const store = await import('../../src/services/interview/store.ts')
+const { AskUserQuestionTool } = await import('../../src/tools/ask-question/AskUserQuestionTool.tsx')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { normalizeToolSchemaFor } = await import('../../src/integrations/mcp/normalizeToolSchema.ts')
+const { compileJsonSchema } = await import('../../src/platform/json-schema/jsonSchemaEngine.ts')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
+const { mapToolsToOpenai } = await import('../../src/models/roads/openai/responsesBridge.ts')
+const { codeAssistSchema } = await import('../../src/models/roads/gemini/geminiCodec.ts')
+const { mapToolsToZai } = await import('../../src/models/roads/zai/zaiCodec.ts')
+const ctl = await import('../../src/tools/engines/interview/controller.ts')
+const store = await import('../../src/tools/engines/interview/store.ts')
 const input = { questions: [{ id: 'iq_color', decisionId: 'id_color', question: 'Which color?', header: 'Color', options: [{ id: 'io_blue', label: 'Blue', description: 'Blue option', preview: 'Blue preview' }, { id: 'io_green', label: 'Green', description: 'Green option' }] }] }
 const runtime = zodToJsonSchema(AskUserQuestionTool.inputSchema) as any
 const options = { tools: [AskUserQuestionTool], agents: [], getToolPermissionContext: async () => getEmptyToolPermissionContext() }

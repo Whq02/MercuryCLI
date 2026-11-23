@@ -12,28 +12,28 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
-const selectKeysHint = 'to fix, see Select in src/components/CustomSelect/select.tsx and its key handling in src/components/CustomSelect/use-select-input.ts (scrollMovesFocus, the wheel and page keys)'
-const multiKeysHint = 'to fix, see SelectMulti in src/components/CustomSelect/SelectMulti.tsx and its key handling in src/components/CustomSelect/use-multi-select-state.ts (scrollMovesFocus)'
-const cardKeysHint = 'to fix, see src/components/permissions/PermissionPrompt.tsx, which passes scrollMovesFocus={false} to Select (key handling in src/components/CustomSelect/use-select-input.ts)'
-const consentKeysHint = 'to fix, see the dialog source (src/components/MCPServerApprovalDialog.tsx, src/components/SovereignModeDialog.tsx or src/components/TrustDialog/TrustDialog.tsx), which must pass scrollMovesFocus={false} to Select'
+const selectKeysHint = 'to fix, see Select in src/screen/select/Select.tsx and its key handling in src/screen/select/useSelectInput.ts (scrollMovesFocus, the wheel and page keys)'
+const multiKeysHint = 'to fix, see SelectMulti in src/screen/select/SelectMulti.tsx and its key handling in src/screen/select/useMultiSelectState.ts (scrollMovesFocus)'
+const cardKeysHint = 'to fix, see src/permissions/cards/PermissionPrompt.tsx, which passes scrollMovesFocus={false} to Select (key handling in src/screen/select/useSelectInput.ts)'
+const consentKeysHint = 'to fix, see the dialog source (src/screen/mcp/MCPServerApprovalDialog.tsx, src/boot/first-run/SovereignModeDialog.tsx or src/screen/trust-dialog/TrustDialog.tsx), which must pass scrollMovesFocus={false} to Select'
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
 
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { Box, useInput } = await import('../../src/ink.ts')
-const { default: useStdin } = await import('../../src/ink/hooks/use-stdin.ts')
-const { Select } = await import('../../src/components/CustomSelect/select.tsx')
-const { SelectMulti } = await import('../../src/components/CustomSelect/SelectMulti.tsx')
-const { decodeDomNavKey } = await import('../../src/components/mercury-ui/navSemantics.ts')
-const { KeyboardEvent } = await import('../../src/ink/events/keyboard-event.ts')
-const { PermissionPrompt } = await import('../../src/components/permissions/PermissionPrompt.tsx')
-const { InputEvent } = await import('../../src/ink/events/input-event.ts')
-const { INITIAL_STATE, parseMultipleKeypresses } = await import('../../src/ink/input/input-decoder.ts')
-const { resolveAlternateScrollIntent } = await import('../../src/ink/termio/alternateScrollPolicy.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { Box, useInput } = await import('../../src/screen/themedRenderer.ts')
+const { default: useStdin } = await import('../../src/screen/renderer/bindings/use-stdin.ts')
+const { Select } = await import('../../src/screen/select/Select.tsx')
+const { SelectMulti } = await import('../../src/screen/select/SelectMulti.tsx')
+const { decodeDomNavKey } = await import('../../src/screen/widgets/navSemantics.ts')
+const { KeyboardEvent } = await import('../../src/screen/renderer/events/keyboard-event.ts')
+const { PermissionPrompt } = await import('../../src/permissions/cards/PermissionPrompt.tsx')
+const { InputEvent } = await import('../../src/screen/renderer/events/input-event.ts')
+const { INITIAL_STATE, parseMultipleKeypresses } = await import('../../src/screen/renderer/input/input-decoder.ts')
+const { resolveAlternateScrollIntent } = await import('../../src/screen/renderer/termio/alternateScrollPolicy.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 
 const h = React.createElement
@@ -245,8 +245,8 @@ section('where the terminal sends the wheel as arrows, an arrow is read as a whe
 
 section('three consent lists that are no permission card keep their mark under the wheel too')
 {
-  const { MCPServerApprovalDialog } = await import('../../src/components/MCPServerApprovalDialog.tsx')
-  const { SovereignModeDialog } = await import('../../src/components/SovereignModeDialog.tsx')
+  const { MCPServerApprovalDialog } = await import('../../src/screen/mcp/MCPServerApprovalDialog.tsx')
+  const { SovereignModeDialog } = await import('../../src/boot/first-run/SovereignModeDialog.tsx')
   const approvalOf = (): React.ReactNode => h(MCPServerApprovalDialog, { serverName: 'notes', config: { command: 'true' }, onDone: () => {} } as never)
   const approval = await mount(approvalOf())
   try {
@@ -278,7 +278,7 @@ section('three consent lists that are no permission card keep their mark under t
   } finally {
     sovereign.unmount()
   }
-  const { TrustDialog } = await import('../../src/components/TrustDialog/TrustDialog.tsx')
+  const { TrustDialog } = await import('../../src/screen/trust-dialog/TrustDialog.tsx')
   const trust = await mount(h(TrustDialog, { onDone: () => {} } as never))
   try {
     await waitFor(() => markOf(trust).includes('❯ 1.'), 5_000)

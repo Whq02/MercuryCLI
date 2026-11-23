@@ -7,7 +7,7 @@ import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
 import { runpodFixture } from './runpodFixture.mjs'
 import { vastFixture } from './vastFixture.mjs'
 import { lambdaFixture } from './lambdaFixture.mjs'
-import type { HostRunner } from '../../src/services/host/ssh.ts'
+import type { HostRunner } from '../../src/models/hosting/ssh.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 const f = await llmhostFixture()
@@ -21,15 +21,15 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   if (!['127.0.0.1', '[::1]'].includes(new URL(request.url).hostname)) { escaped.push(request.url); throw new Error('Guard proof permits only loopback fixtures') }
   return nativeFetch(request)
 }, nativeFetch)
-const { runHostJob } = await import('../../src/services/host/worker.ts')
-const { queueHostSetup } = await import('../../src/services/host/jobs.ts')
-const { readHostRecord, removeHostRecord } = await import('../../src/services/host/store.ts')
-const { hostRunner, ensureHostKey } = await import('../../src/services/host/ssh.ts')
+const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+const { queueHostSetup } = await import('../../src/models/hosting/jobs.ts')
+const { readHostRecord, removeHostRecord } = await import('../../src/models/hosting/store.ts')
+const { hostRunner, ensureHostKey } = await import('../../src/models/hosting/ssh.ts')
 const sshKey = await ensureHostKey(hostRunner, new AbortController().signal)
 vast.state.keys.push({ id: 501, key: sshKey.publicKey })
-const { saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
-const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
-const { writeKeptVolume, readKeptVolume } = await import('../../src/services/host/volumes.ts')
+const { saveVendorKey } = await import('../../src/models/hosting/vendors/client.ts')
+const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
+const { writeKeptVolume, readKeptVolume } = await import('../../src/models/hosting/volumes.ts')
 const { hostMachineName } = await import('../../src/commands/llmhost/words.ts')
 const pauseWords = (vendor: 'runpod' | 'vast' | 'lambda', id: string, price: number, notice: string): boolean =>
   notice.includes('setup paused · ') && notice.includes(hostMachineName(vendor, id)) && notice.includes('$' + price.toFixed(2) + '/hr still billing') && notice.includes('Resume or Terminate in /llmhost') && !notice.includes('terminated') && !notice.includes('nothing more bills')
@@ -38,7 +38,7 @@ const vllm = HOST_RECIPES.find(row => row.engine === 'vllm')!
 const failures: string[] = []
 let checks = 0
 let serial = 0
-const guardHint = 'A tripped guard must pause the setup with the machine up and send no terminate: fix runHostJob in src/services/host/worker.ts (and the job it was queued by in src/services/host/jobs.ts), then rerun this proof.'
+const guardHint = 'A tripped guard must pause the setup with the machine up and send no terminate: fix runHostJob in src/models/hosting/worker.ts (and the job it was queued by in src/models/hosting/jobs.ts), then rerun this proof.'
 const check = (name: string, truth: unknown) => { assert.ok(truth, name + '\n' + guardHint); checks++; console.log('PASS ' + name) }
 const trial = async (name: string, work: () => Promise<void>) => {
   try { await work() } catch (error) { failures.push(name + ': ' + String(error)); console.error('FAIL ' + name + ': ' + String(error)) }

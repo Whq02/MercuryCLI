@@ -5,13 +5,13 @@ import { mountPart, openAsksPart } from './chatScenarios.ts'
 let failures = 0
 let where = ''
 const WHERE: Record<string, string> = {
-  '§1': 'fix useChatAsks (queue, resolveHeadPermission) in src/screens/chat/useChatAsks.tsx',
-  '§2': 'fix the mode mirror in useChatAsks (setToolPermissionContext) in src/screens/chat/useChatAsks.tsx, or recordModeTransition in src/utils/permissions/modeTransitions.ts',
-  '§3': 'fix refuseGestureWhileModal in src/utils/permissions/permissionFocus.ts',
-  '§4': 'fix respondToElicitation and dismissElicitationWaiting in src/screens/chat/useChatAsks.tsx',
-  '§5': 'fix useChatAsksCard in src/screens/chat/useChatAsks.tsx',
-  '§6': 'fix the mode-change recording in src/utils/permissions/modeTransitions.ts and the AppState relay it is read through',
-  '§7': "fix the mount arm beside adoptRunnerMode in useChatAsks (src/screens/chat/useChatAsks.tsx): the chat's copy takes the focused session's mode at mount only when a live runner holds it (modelFacts().effectiveSource is 'live')",
+  '§1': 'fix useChatAsks (queue, resolveHeadPermission) in src/screen/chat/useChatAsks.tsx',
+  '§2': 'fix the mode mirror in useChatAsks (setToolPermissionContext) in src/screen/chat/useChatAsks.tsx, or recordModeTransition in src/permissions/rules/modeTransitions.ts',
+  '§3': 'fix refuseGestureWhileModal in src/permissions/rules/permissionFocus.ts',
+  '§4': 'fix respondToElicitation and dismissElicitationWaiting in src/screen/chat/useChatAsks.tsx',
+  '§5': 'fix useChatAsksCard in src/screen/chat/useChatAsks.tsx',
+  '§6': 'fix the mode-change recording in src/permissions/rules/modeTransitions.ts and the AppState relay it is read through',
+  '§7': "fix the mount arm beside adoptRunnerMode in useChatAsks (src/screen/chat/useChatAsks.tsx): the chat's copy takes the focused session's mode at mount only when a live runner holds it (modelFacts().effectiveSource is 'live')",
 }
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
@@ -28,8 +28,8 @@ const { part, calls, notices } = t
 const { useChatAsksCard } = t.module
 const React = await import('react')
 const h = React.createElement
-const { modeTransitions, clearModeTransitions } = await import('../../src/utils/permissions/modeTransitions.ts')
-const { armPermissionFocus, refuseGestureWhileModal } = await import('../../src/utils/permissions/permissionFocus.ts')
+const { modeTransitions, clearModeTransitions } = await import('../../src/permissions/rules/modeTransitions.ts')
+const { armPermissionFocus, refuseGestureWhileModal } = await import('../../src/permissions/rules/permissionFocus.ts')
 const act = async (run: () => void): Promise<void> => {
   run()
   await settle(80)
@@ -135,9 +135,9 @@ section('§5 the card alone: when it is drawn and what it tells the scroll')
 section('§6 the relay of the app state: a change of mode is recorded once, under the root of the screen and under a bare provider')
 {
   const { mountOffscreen } = await import('../lib/settingsPopupHarness.ts')
-  const { AppStateProvider, useAppStateStore } = await import('../../src/state/AppState.tsx')
-  const { lastModeTransitionFrom, recordModeTransition } = await import('../../src/utils/permissions/modeTransitions.ts')
-  const { setPermissionModeChangedListener } = await import('../../src/utils/sessionState.ts')
+  const { AppStateProvider, useAppStateStore } = await import('../../src/screen/app-state/AppState.tsx')
+  const { lastModeTransitionFrom, recordModeTransition } = await import('../../src/permissions/rules/modeTransitions.ts')
+  const { setPermissionModeChangedListener } = await import('../../src/permissions/rules/permissionModeListener.ts')
   type ModeStore = ReturnType<typeof useAppStateStore>
   const told: string[] = []
   setPermissionModeChangedListener(mode => void told.push(mode))

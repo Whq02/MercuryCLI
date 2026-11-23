@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
-// gate-watch: src/cli/run.ts src/cli/headless/runnerMethods.ts src/cli/headless/runnerAsks.ts src/runner/wire/* src/main.tsx src/entrypoints/cli.tsx
+// gate-watch: src/daemon/runner/runHeadless.ts src/daemon/runner/runnerMethods.ts src/daemon/runner/runnerAsks.ts src/daemon/runner-wire/* src/boot/main.tsx src/boot/entrypoints/cli.tsx
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { hostRunner, scratchHome } from '../lib/runnerHost.ts'
-import { RPC_INVALID_PARAMS, RPC_METHOD_NOT_FOUND, RPC_NOT_INITIALIZED, RPC_REFUSED } from '../../src/runner/wire/errors.ts'
+import { RPC_INVALID_PARAMS, RPC_METHOD_NOT_FOUND, RPC_NOT_INITIALIZED, RPC_REFUSED } from '../../src/daemon/runner-wire/errors.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const distArg = process.argv.indexOf('--dist')
@@ -60,19 +60,19 @@ await guarded(async () => {
   const host = hostRunner({ dist: DIST, node, cwd: scratch.cwd, home: scratch.home, env: { ...scratch.env, ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: 'fixture-key-000' }, argv: ['--model', 'claude-opus-4-8'] })
   const exitedEarly = host.exited.then(code => `the runner exited ${code} before the handshake: ${host.stderr().slice(0, 300)}`)
   const early = await Promise.race([errorOf(host.request('session/facts', {}, 60_000)), exitedEarly])
-  check('a request before initialize is refused with -32002 (not initialized)', typeof early === 'object' && early !== null && early.code === RPC_NOT_INITIALIZED, j(early) + ' — the -32002 refusal is built in src/runner/wire/errors.ts; a request must not be served before initialize is answered')
+  check('a request before initialize is refused with -32002 (not initialized)', typeof early === 'object' && early !== null && early.code === RPC_NOT_INITIALIZED, j(early) + ' — the -32002 refusal is built in src/daemon/runner-wire/errors.ts; a request must not be served before initialize is answered')
   const mismatch = await Promise.race([errorOf(host.peer.request('initialize', { protocol: 7, host: { name: 'proof', version: '0' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }, { deadlineMs: 90_000 })), exitedEarly])
-  check('a protocol mismatch is refused -32010 with kind protocol and the runner\'s own protocol in the data', typeof mismatch === 'object' && mismatch !== null && mismatch.code === RPC_REFUSED && mismatch.data?.kind === 'protocol' && (mismatch.data as { protocol?: number }).protocol === 1, j(mismatch) + ' — the protocol refusal is raised in src/runner/wire/peer.ts and src/cli/headless/runnerMethods.ts')
+  check('a protocol mismatch is refused -32010 with kind protocol and the runner\'s own protocol in the data', typeof mismatch === 'object' && mismatch !== null && mismatch.code === RPC_REFUSED && mismatch.data?.kind === 'protocol' && (mismatch.data as { protocol?: number }).protocol === 1, j(mismatch) + ' — the protocol refusal is raised in src/daemon/runner-wire/peer.ts and src/daemon/runner/runnerMethods.ts')
   const init = await Promise.race([host.initialize({}, 90_000), exitedEarly])
   check('initialize answers protocol 1, the runner (version, pid) and the session id', typeof init === 'object' && init.protocol === 1 && typeof init.runner.version === 'string' && init.runner.pid === host.child.pid && typeof init.session_id === 'string', j(init))
   const again = await errorOf(host.initialize({}, 10_000))
-  check('a second initialize is refused (already initialized)', again?.code === RPC_REFUSED && again.data?.kind === 'already-initialized', j(again) + ' — a second initialize must be refused with kind already-initialized in src/runner/wire/peer.ts')
+  check('a second initialize is refused (already initialized)', again?.code === RPC_REFUSED && again.data?.kind === 'already-initialized', j(again) + ' — a second initialize must be refused with kind already-initialized in src/daemon/runner-wire/peer.ts')
   const unknown = await errorOf(host.peer.request('session/frobnicate' as never, {} as never, { deadlineMs: 10_000 }))
   check('an unknown method answers -32601, never a sentence to match', unknown?.code === RPC_METHOD_NOT_FOUND, j(unknown))
   const badParams = await errorOf(host.peer.request('turn/interrupt', { hard: 'yes' } as never, { deadlineMs: 10_000 }))
   check("params the method's schema refuses answer -32602 naming the method and the issue", badParams?.code === RPC_INVALID_PARAMS && j(badParams.data).includes('turn/interrupt') && j(badParams.data).includes('hard'), j(badParams))
   const modeWord = await errorOf(host.request('session/set_mode', { mode: 'frobnicate' }, 10_000))
-  check('a mode word off the one list is refused -32010 kind mode in one sentence naming the word and the list', modeWord?.code === RPC_REFUSED && modeWord.data?.kind === 'mode' && modeWord.message.includes("'frobnicate' is not a permission mode") && modeWord.message.includes('default, dontAsk, implement, sovereign, flow, apollo'), j(modeWord) + ' — the sentence is built in src/cli/headless/controlHandlers.ts from PERMISSION_MODES and must name the word and the list')
+  check('a mode word off the one list is refused -32010 kind mode in one sentence naming the word and the list', modeWord?.code === RPC_REFUSED && modeWord.data?.kind === 'mode' && modeWord.message.includes("'frobnicate' is not a permission mode") && modeWord.message.includes('default, dontAsk, implement, sovereign, flow, apollo'), j(modeWord) + ' — the sentence is built in src/daemon/runner/controlHandlers.ts from PERMISSION_MODES and must name the word and the list')
   const mode = await host.request('session/set_mode', { mode: 'implement' }, 10_000)
   check('a lawful mode lands and answers the mode; the mode row follows', mode.mode === 'implement' && (await host.waitFor('the mode row', row => row.type === 'mode' && row.mode === 'implement', 10_000)) !== undefined)
   const code = await host.stop()
@@ -105,7 +105,7 @@ await guarded(async () => {
   const turnAt = host.rows.indexOf(turnRow)
   check('the session row came first and before the turn row', sessionAt !== -1 && turnAt !== -1 && sessionAt < turnAt, j(host.rows.map(r => r.type)))
   const dup = await host.prompt('say one', { id })
-  check('the same id again is refused as a duplicate', dup.accepted === false && dup.reason === 'duplicate', j(dup) + ' — the duplicate check is in src/cli/headless/inputDoor.ts')
+  check('the same id again is refused as a duplicate', dup.accepted === false && dup.reason === 'duplicate', j(dup) + ' — the duplicate check is in src/daemon/runner/inputDoor.ts')
 
   const sentAtPress = api.requests.length
   const back = await host.request('session/set_mode', { mode: 'default' }, 10_000)
@@ -201,7 +201,7 @@ await guarded(async () => {
   check('queue/add before the claim waits (the queue scope is held)', queued === false)
   const sid = '22222222-2222-4222-8222-222222222222'
   const refused = await errorOf(host.request('session/claim', { session_id: 'not-a-uuid' }, 30_000))
-  check('a claim without a UUID is refused -32010 kind claim', refused?.code === RPC_REFUSED && refused.data?.kind === 'claim', j(refused) + ' — claim refusals are raised in src/cli/headless/claimSession.ts')
+  check('a claim without a UUID is refused -32010 kind claim', refused?.code === RPC_REFUSED && refused.data?.kind === 'claim', j(refused) + ' — claim refusals are raised in src/daemon/runner/claimSession.ts')
   const claimed = await host.request('session/claim', { session_id: sid, model: 'claude-opus-4-8' }, 60_000)
   check('the claim answers the session id', claimed.session_id === sid, j(claimed))
   const added = await pending
@@ -209,7 +209,7 @@ await guarded(async () => {
   const outcome = await host.waitFor('the claimed turn outcome', row => row.type === 'outcome', 60_000)
   check('the turn ran under the claimed session', outcome.session_id === sid && outcome.status === 'completed', j({ session: outcome.session_id, status: outcome.status }))
   const second = await errorOf(host.request('session/claim', { session_id: sid }, 10_000))
-  check('a second claim is refused: the runner carries a session identity', second?.code === RPC_REFUSED && second.data?.kind === 'claim', j(second) + ' — claim refusals are raised in src/cli/headless/claimSession.ts; a runner that already carries a session must refuse')
+  check('a second claim is refused: the runner carries a session identity', second?.code === RPC_REFUSED && second.data?.kind === 'claim', j(second) + ' — claim refusals are raised in src/daemon/runner/claimSession.ts; a runner that already carries a session must refuse')
   await host.stop()
   await api.close()
   rmSync(scratch.home, { recursive: true, force: true })

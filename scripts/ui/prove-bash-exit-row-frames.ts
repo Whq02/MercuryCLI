@@ -7,16 +7,16 @@ import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 
-const { render, Box, flushPendingSyncWork } = await import('../../src/ink.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { UserBashInputMessage } = await import('../../src/components/messages/UserBashInputMessage.js')
-const { UserBashOutputMessage } = await import('../../src/components/messages/UserBashOutputMessage.js')
-const { stringWidth } = await import('../../src/ink/stringWidth.js')
-const { escapeXml } = await import('../../src/utils/xml.js')
-const xml = await import('../../src/constants/xml.js')
+const { render, Box, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { UserBashInputMessage } = await import('../../src/screen/messages/UserBashInputMessage.js')
+const { UserBashOutputMessage } = await import('../../src/screen/messages/UserBashOutputMessage.js')
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.js')
+const { escapeXml } = await import('../../src/platform/text/xml.js')
+const xml = await import('../../src/engine/message-shapes/messageTags.js')
 
 let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
@@ -91,10 +91,10 @@ for (const [columns, terminalRows] of [[178, 51], [80, 21]] as const) {
     const stop = next < 0 ? lines.length : next
     const wordLines = lines.slice(head + 1, stop).filter(line => /\bexit \d+/.test(line))
     if (row.words === null) {
-      check(`${label}: a row without the exit pair (an older transcript, a backgrounded shell) paints no exit words`, wordLines.length === 0, JSON.stringify(wordLines) + ' (exit words print only when the exit pair is present; see bashExitWords in src/components/messages/UserBashOutputMessage.tsx)')
+      check(`${label}: a row without the exit pair (an older transcript, a backgrounded shell) paints no exit words`, wordLines.length === 0, JSON.stringify(wordLines) + ' (exit words print only when the exit pair is present; see bashExitWords in src/screen/messages/UserBashOutputMessage.tsx)')
     } else {
       const found = wordLines.findIndex(line => line.trimEnd().endsWith(row.words!))
-      check(`${label}: the row of \`${row.input}\` says "${row.words}" once, after its output`, wordLines.length === 1 && found === 0 && lines.indexOf(wordLines[0]!, body) > body, JSON.stringify(wordLines) + ' (the words come from bashExitWords in src/components/messages/UserBashOutputMessage.tsx; they must print once, last, after the output)')
+      check(`${label}: the row of \`${row.input}\` says "${row.words}" once, after its output`, wordLines.length === 1 && found === 0 && lines.indexOf(wordLines[0]!, body) > body, JSON.stringify(wordLines) + ' (the words come from bashExitWords in src/screen/messages/UserBashOutputMessage.tsx; they must print once, last, after the output)')
       check(`${label}: the words sit in the response gutter like the output lines`, wordLines[0]?.trimStart().startsWith('└') === true, JSON.stringify(wordLines[0] ?? '') + ' (the exit words row must start with the response gutter, as the output lines do in UserBashOutputMessage in src/components/messages)')
     }
     cursor = stop

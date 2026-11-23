@@ -17,21 +17,21 @@ const server = Bun.serve({
 process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${server.port}`
 process.env.MERCURY_USE_BEDROCK = '0'
 process.env.MERCURY_USE_VERTEX = '0'
-const { enableConfigs } = await import(`${root}/src/utils/config.ts`)
+const { enableConfigs } = await import(`${root}/src/platform/settings/config.ts`)
 enableConfigs()
-const { verifyApiKey } = await import(`${root}/src/services/providers/anthropic/requestParams.ts`)
+const { verifyApiKey } = await import(`${root}/src/models/roads/anthropic/requestParams.ts`)
 try {
-  assert.equal(await verifyApiKey('fixture-key', true), true, 'verifyApiKey in src/services/providers/anthropic/requestParams.ts must return true for the headless probe (second argument true)')
-  assert.equal(requests.length, 0, 'verifyApiKey in src/services/providers/anthropic/requestParams.ts must send no request when the second argument is true')
-  assert.equal(await verifyApiKey('fixture-key', false), true, 'verifyApiKey in src/services/providers/anthropic/requestParams.ts must return true when the fixture server accepts the key')
-  assert.equal(requests.length, 1, 'verifyApiKey in src/services/providers/anthropic/requestParams.ts must send exactly one request when the second argument is false')
-  assert.equal(requests[0].max_tokens, 1, 'the probe body built in src/services/providers/anthropic/requestParams.ts must set max_tokens to 1')
-  assert.deepEqual(requests[0].messages, [{ role: 'user', content: 'test' }], 'the probe body built in src/services/providers/anthropic/requestParams.ts must carry the one user message test')
-  assert.equal(typeof requests[0].metadata.user_id, 'string', 'the probe body built in src/services/providers/anthropic/requestParams.ts must carry metadata.user_id as a string')
+  assert.equal(await verifyApiKey('fixture-key', true), true, 'verifyApiKey in src/models/roads/anthropic/requestParams.ts must return true for the headless probe (second argument true)')
+  assert.equal(requests.length, 0, 'verifyApiKey in src/models/roads/anthropic/requestParams.ts must send no request when the second argument is true')
+  assert.equal(await verifyApiKey('fixture-key', false), true, 'verifyApiKey in src/models/roads/anthropic/requestParams.ts must return true when the fixture server accepts the key')
+  assert.equal(requests.length, 1, 'verifyApiKey in src/models/roads/anthropic/requestParams.ts must send exactly one request when the second argument is false')
+  assert.equal(requests[0].max_tokens, 1, 'the probe body built in src/models/roads/anthropic/requestParams.ts must set max_tokens to 1')
+  assert.deepEqual(requests[0].messages, [{ role: 'user', content: 'test' }], 'the probe body built in src/models/roads/anthropic/requestParams.ts must carry the one user message test')
+  assert.equal(typeof requests[0].metadata.user_id, 'string', 'the probe body built in src/models/roads/anthropic/requestParams.ts must carry metadata.user_id as a string')
   mode = 'invalid'
-  assert.equal(await verifyApiKey('fixture-key', false), false, 'verifyApiKey in src/services/providers/anthropic/requestParams.ts must return false on the exact invalid x-api-key authentication error')
+  assert.equal(await verifyApiKey('fixture-key', false), false, 'verifyApiKey in src/models/roads/anthropic/requestParams.ts must return false on the exact invalid x-api-key authentication error')
   mode = 'other'
-  await assert.rejects(() => verifyApiKey('fixture-key', false), /fixture refusal/, 'verifyApiKey in src/services/providers/anthropic/requestParams.ts must rethrow any other API error with its message')
+  await assert.rejects(() => verifyApiKey('fixture-key', false), /fixture refusal/, 'verifyApiKey in src/models/roads/anthropic/requestParams.ts must rethrow any other API error with its message')
   console.log('PASS headless probe stays local; interactive one-token body, exact invalid-key refusal and other-error propagation hold on loopback')
 } finally {
   await server.stop(true)

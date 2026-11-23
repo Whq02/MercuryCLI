@@ -9,9 +9,9 @@ const {
   isMicroCompactDigestEnabled,
   MC_CLEARED_PLACEHOLDER,
   MC_DIGEST_PREFIX,
-} = await import('../../src/services/compact/microCompactDigest.js')
+} = await import('../../src/engine/compaction/pruneDigest.js')
 
-const DIGEST_HINT = 'change isMicroCompactDigestEnabled or digestClearedToolResult in src/services/compact/microCompactDigest.ts so the label is only counts and a content class'
+const DIGEST_HINT = 'change isMicroCompactDigestEnabled or digestClearedToolResult in src/engine/compaction/pruneDigest.ts so the label is only counts and a content class'
 
 let fail = 0
 function check(label: string, cond: boolean, detail = ''): void {

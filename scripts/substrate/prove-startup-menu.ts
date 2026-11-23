@@ -6,7 +6,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const hint = cond ? '' : 'change the row in STARTUP_MENU or COMMAND_SETTINGS_ROWS, or the apply/write/resolve logic (applyBootMenuEnv, writeBootEnvChoice, resolveComputerAccess, resolveEffectiveSettingsSnapshot), in src/substrate/startupMenu.ts; a row missing from the registry is fixed in the flag registry (FLAG_REGISTRY)'
+  const hint = cond ? '' : 'change the row in STARTUP_MENU or COMMAND_SETTINGS_ROWS, or the apply/write/resolve logic (applyBootMenuEnv, writeBootEnvChoice, resolveComputerAccess, resolveEffectiveSettingsSnapshot), in src/platform/substrate/startupMenu.ts; a row missing from the registry is fixed in the flag registry (FLAG_REGISTRY)'
   const shown = [detail, hint].filter(Boolean).join(' · ')
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
@@ -28,8 +28,8 @@ for (const k of ['MERCURY_ENTER_MENU', 'MERCURY_CAP_FAILOVER', 'MERCURY_GODOT'])
   delete process.env[k]
 }
 
-const { STARTUP_MENU, allSettingRows, menuRowChoices, menuRowValueLabel, applyBootMenuEnv, BOOT_ENV_VERSION, resolveComputerAccess, computerAccessDefaultLabel, resolveEffectiveSettingsSnapshot } = await import('../../src/substrate/startupMenu.js')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
+const { STARTUP_MENU, allSettingRows, menuRowChoices, menuRowValueLabel, applyBootMenuEnv, BOOT_ENV_VERSION, resolveComputerAccess, computerAccessDefaultLabel, resolveEffectiveSettingsSnapshot } = await import('../../src/platform/substrate/startupMenu.js')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.js')
 
 console.log('============================================================')
 console.log(' startup menu — registry + boot-env applier proof')
@@ -98,13 +98,13 @@ section('registry floor — rows ⊆ FLAG_REGISTRY, sane choices')
     blender?.summary)
   const enterMenu = getFlagSpec('MERCURY_ENTER_MENU')
   check('MERCURY_ENTER_MENU registered default-on / infra, consumed by the applier',
-    enterMenu?.kind === 'default-on' && enterMenu?.tier === 'infra' && enterMenu?.consumer === 'src/substrate/startupMenu.ts')
+    enterMenu?.kind === 'default-on' && enterMenu?.tier === 'infra' && enterMenu?.consumer === 'src/platform/substrate/startupMenu.ts')
 }
 
 section('command-owned setting rows — the /caching dial law')
 {
   const { COMMAND_SETTINGS_ROWS, allSettingRows, writeBootEnvChoice, readBootEnvChoices } =
-    await import('../../src/substrate/startupMenu.js')
+    await import('../../src/platform/substrate/startupMenu.js')
   check('every command row is a registered flag',
     COMMAND_SETTINGS_ROWS.every(r => getFlagSpec(r.env) !== undefined))
   check('command rows are disjoint from the menu',

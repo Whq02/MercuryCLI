@@ -21,7 +21,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — change the reload fence in the file this label names, among ${RELOAD_FENCE_AT}` : ''}`)
 }
-const RELOAD_FENCE_AT = 'src/services/providers/local/localCallModel.ts (localCallModel), src/services/providers/local/localWindow.ts, src/services/providers/local/localWarm.ts, src/services/providers/local/localDiscovery.ts, src/services/providers/callModelRouter.ts (routedCallModel); the fixture counts a reload when a request asks the Ollama runner for a different num_ctx or num_batch than the resident one'
+const RELOAD_FENCE_AT = 'src/models/roads/local/localCallModel.ts (localCallModel), src/models/roads/local/localWindow.ts, src/models/roads/local/localWarm.ts, src/models/roads/local/localDiscovery.ts, src/models/roads/callModelRouter.ts (routedCallModel); the fixture counts a reload when a request asks the Ollama runner for a different num_ctx or num_batch than the resident one'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
@@ -138,18 +138,18 @@ const state: Fixture = { runner: undefined, cache: '', starts: [], hits: [], rep
 const ollama = await ollamaScheduler(state)
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
-const { refreshLocalDiscovery, __resetLocalDiscoveryForTest, LOCAL_DISCOVERY_TTL_MS } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const windowModule = (await import('../../src/services/providers/local/localWindow.ts')) as typeof import('../../src/services/providers/local/localWindow.ts') & Record<string, ((...args: never[]) => unknown) | undefined>
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
+const { refreshLocalDiscovery, __resetLocalDiscoveryForTest, LOCAL_DISCOVERY_TTL_MS } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const windowModule = (await import('../../src/models/roads/local/localWindow.ts')) as typeof import('../../src/models/roads/local/localWindow.ts') & Record<string, ((...args: never[]) => unknown) | undefined>
 const { writeLocalWindowSetting, __resetLocalWindowsForTest, heldLocalWindow } = windowModule
 const seam = <T>(fn: T | undefined): T | (() => undefined) => (typeof fn === 'function' ? fn : () => undefined)
-const warmModule = await import('../../src/services/providers/local/localWarm.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
+const warmModule = await import('../../src/models/roads/local/localWarm.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 
 type Yielded = { type?: string; isApiErrorMessage?: boolean; message?: { content?: Array<{ text?: string; name?: string; type?: string }> | string; usage?: Record<string, number> } }
 function textOf(m: Yielded | undefined): string {
@@ -349,7 +349,7 @@ section('5 · the served-window load itself: when the model is not resident and 
   const later = hitsSince(again)
   check('a stale read with the model resident: GET /api/ps, then the chat — no load rides', later[0]?.url === '/api/ps' && !later.some(h => h.url === '/api/generate') && later.some(h => h.url === '/api/chat') && state.starts.length === 1, shape(later))
   const base = state.hits.length
-  const discoveryModule = (await import('../../src/services/providers/local/localDiscovery.ts')) as Record<string, ((...args: never[]) => unknown) | undefined>
+  const discoveryModule = (await import('../../src/models/roads/local/localDiscovery.ts')) as Record<string, ((...args: never[]) => unknown) | undefined>
   const loadBody = seam(discoveryModule.ollamaLoadBody as ((id: string, load?: { numCtx?: number; numBatch?: number }) => unknown) | undefined)
   check('pure: the load body carries exactly the knobs it is given, and none when given none', JSON.stringify(loadBody(MODEL, { numCtx: 4096, numBatch: 512 })) === JSON.stringify({ model: MODEL, options: { num_ctx: 4096, num_batch: 512 } }) && JSON.stringify(loadBody(MODEL, { numBatch: 2048 })) === JSON.stringify({ model: MODEL, options: { num_batch: 2048 } }) && JSON.stringify(loadBody(MODEL)) === JSON.stringify({ model: MODEL }), discoveryModule.ollamaLoadBody === undefined ? 'no ollamaLoadBody seam' : '')
   check('nothing else rode the wire for that check', state.hits.length === base)

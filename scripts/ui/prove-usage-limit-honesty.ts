@@ -12,7 +12,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const wallFixHint = 'fix the wording in src/services/rateLimitMessages.ts (getRateLimitErrorMessage, composeAnthropicWallRemedies, getUpsellMessage, isRateLimitErrorMessage), the function the failing label names'
+const wallFixHint = 'fix the wording in src/models/roads/anthropic/rateLimitMessages.ts (getRateLimitErrorMessage, composeAnthropicWallRemedies, getUpsellMessage, isRateLimitErrorMessage), the function the failing label names'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${wallFixHint}` : ''}`)
@@ -25,10 +25,10 @@ console.log('============================================================')
 console.log(' usage limit honesty — which pool, which model, cheapest fix')
 console.log('============================================================')
 
-const msgs = await import('../../src/services/rateLimitMessages.js')
-const upsell = await import('../../src/components/messages/RateLimitMessage.js')
+const msgs = await import('../../src/models/roads/anthropic/rateLimitMessages.js')
+const upsell = await import('../../src/screen/messages/RateLimitMessage.js')
 
-type Limits = import('../../src/services/anthropicLimits.js').AnthropicLimits
+type Limits = import('../../src/models/roads/anthropic/anthropicLimits.js').AnthropicLimits
 const RESETS = Math.floor(Date.now() / 1000) + 3600
 const rejected = (extra: Partial<Limits> = {}): Limits => ({
   status: 'rejected',

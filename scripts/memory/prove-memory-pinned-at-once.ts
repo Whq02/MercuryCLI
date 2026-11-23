@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/mneme/mnemeMaintenance.ts src/mneme/mnemeConsolidate.ts
-// gate-watch: src/mneme/memoryVerbs.ts src/mneme/mnemeFrontPage.ts src/constants/prompts.ts
+// gate-watch: src/tools/memory/MemoryTools.ts src/sessions/mneme/mnemeMaintenance.ts src/sessions/mneme/mnemeConsolidate.ts
+// gate-watch: src/sessions/mneme/memoryVerbs.ts src/sessions/mneme/mnemeFrontPage.ts src/engine/system-prompt/defaultSystemPrompt.ts
 import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

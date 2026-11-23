@@ -8,12 +8,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-let where = 'writeXaiTokens and xaiStoredTokens in src/services/providers/xai/xaiOauth.ts'
+let where = 'writeXaiTokens and xaiStoredTokens in src/models/roads/xai/xaiOauth.ts'
 const WHERES: Record<string, string> = {
-  '§1': 'the writer and reader named in the label: src/utils/accounts/providerSecrets.ts for stored keys, the family\'s *Accounts.ts under src/services/providers/ for sign-ins',
+  '§1': 'the writer and reader named in the label: src/models/sign-in/account-ledger/providerSecrets.ts for stored keys, the family\'s *Accounts.ts under src/models/roads/ for sign-ins',
   '§2': 'performLogout in src/commands/logout/logout.tsx must empty the store named in the label',
-  '§3': 'performLogout in src/commands/logout/logout.tsx, authLogout in src/cli/handlers/auth.ts and call in src/commands/logout/logout.tsx must name the refused store and end 1',
-  '§4': 'providerAuthLogout in src/cli/handlers/providerAuth.ts and executeSlotRemoval in src/services/providers/accountSlots/removal.ts must name the store they could not read or write',
+  '§3': 'performLogout in src/commands/logout/logout.tsx, authLogout in src/commands/verbs/auth.ts and call in src/commands/logout/logout.tsx must name the refused store and end 1',
+  '§4': 'providerAuthLogout in src/commands/verbs/providerAuth.ts and executeSlotRemoval in src/models/roads/account-slots/removal.ts must name the store they could not read or write',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -72,17 +72,17 @@ for (const base of [
   process.env[base] = dead
 }
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 
-const secrets = await import('../../src/utils/accounts/providerSecrets.js')
-const openai = await import('../../src/services/providers/openai/openaiAccounts.js')
-const openrouter = await import('../../src/services/providers/openrouter/openrouterAccounts.js')
-const gemini = await import('../../src/services/providers/gemini/geminiAccounts.js')
-const moonshot = await import('../../src/services/providers/moonshot/moonshotAccounts.js')
-const huggingface = await import('../../src/services/providers/huggingface/huggingfaceAccounts.js')
+const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.js')
+const openai = await import('../../src/models/roads/openai/openaiAccounts.js')
+const openrouter = await import('../../src/models/roads/openrouter/openrouterAccounts.js')
+const gemini = await import('../../src/models/roads/gemini/geminiAccounts.js')
+const moonshot = await import('../../src/models/roads/moonshot/moonshotAccounts.js')
+const huggingface = await import('../../src/models/roads/huggingface/huggingfaceAccounts.js')
 
-const xai = await import('../../src/services/providers/xai/xaiOauth.js')
+const xai = await import('../../src/models/roads/xai/xaiOauth.js')
 xai.writeXaiTokens({ accessToken: 'fixture-xai', refreshToken: 'fixture-xai-refresh', expiresAtMs: Date.now() + 3600_000 })
 check('xai: the Grok subscription is present before logout', Boolean(xai.xaiStoredTokens()))
 
@@ -218,9 +218,9 @@ if (process.platform === 'win32' || (typeof process.getuid === 'function' && pro
   const signOutByTheVerb = () => {
     const ran = spawnSync(process.execPath, ['-e', `
       globalThis.MACRO = { VERSION: '1.0.0' }
-      const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/config.js'))})
+      const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/platform/settings/config.js'))})
       enableConfigs()
-      const { authLogout } = await import(${JSON.stringify(join(import.meta.dir, '../../src/cli/handlers/auth.ts'))})
+      const { authLogout } = await import(${JSON.stringify(join(import.meta.dir, '../../src/commands/verbs/auth.ts'))})
       await authLogout()
     `], { encoding: 'utf8', env: process.env })
     chmodSync(hfPath, 0o600)
@@ -234,7 +234,7 @@ if (process.platform === 'win32' || (typeof process.getuid === 'function' && pro
   seed()
   const command = spawnSync(process.execPath, ['-e', `
     globalThis.MACRO = { VERSION: '1.0.0' }
-    const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/config.js'))})
+    const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/platform/settings/config.js'))})
     enableConfigs()
     const { call } = await import(${JSON.stringify(join(import.meta.dir, '../../src/commands/logout/logout.tsx'))})
     const shown = await call()
@@ -251,7 +251,7 @@ if (process.platform === 'win32' || (typeof process.getuid === 'function' && pro
   check('a stored token of the refused provider itself, signed out by the command, is not another provider', sameProvider.status === 1 && sameProvider.stderr.includes(words) && !sameProvider.stderr.includes(OTHERS) && secrets.readStoredHuggingfaceApiKey() === undefined, `exit ${sameProvider.status} · stderr ${JSON.stringify(sameProvider.stderr.slice(-500))}`)
   if (process.platform !== 'darwin') console.log('  [SKIP] the credential store that cannot be removed — a file that takes no unlink is made here with the immutable flag of macOS')
   else {
-    const store = (await import('../../src/utils/secureStorage/index.js')).credentialsPath()
+    const store = (await import('../../src/platform/secure-storage/index.js')).credentialsPath()
     const storeWords = `Could not sign out: ${store} could not be removed; the sign-ins it holds are still stored here. Close what holds the file, then try again.`
     writeFileSync(store, JSON.stringify({ mcpOAuth: { fixture: { accessToken: 'fixture-mcp-token' } } }), { mode: 0o600 })
     spawnSync('/usr/bin/chflags', ['uchg', store])
@@ -267,7 +267,7 @@ section('§4 the Claude login — a credential store that cannot be read or writ
 if (process.platform !== 'darwin' || (typeof process.getuid === 'function' && process.getuid() === 0)) {
   console.log('  [SKIP] the Claude login — a file that takes no write is made here with the immutable flag of macOS')
 } else {
-  const store = (await import('../../src/utils/secureStorage/index.js')).credentialsPath()
+  const store = (await import('../../src/platform/secure-storage/index.js')).credentialsPath()
   const CLAUDE = JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-claude-access', refreshToken: 'fixture-claude-refresh', expiresAt: far, scopes: ['user:inference'], subscriptionType: 'max' }, mcpOAuth: { other: { accessToken: 'fixture-mcp-token' } } })
   const signOutClaude = (how: 'unreadable' | 'immutable'): { said: { out: string; err: string; exit: number | null }; slot: { note?: string; mutated?: boolean; refused?: boolean; threw?: string }; same: boolean } => {
     writeFileSync(store, CLAUDE, { mode: 0o600 })
@@ -275,10 +275,10 @@ if (process.platform !== 'darwin' || (typeof process.getuid === 'function' && pr
     else spawnSync('/usr/bin/chflags', ['uchg', store])
     const ran = spawnSync(process.execPath, ['-e', `
       globalThis.MACRO = { VERSION: '1.0.0' }
-      const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/config.js'))})
+      const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/platform/settings/config.js'))})
       enableConfigs()
-      const cli = await import(${JSON.stringify(join(import.meta.dir, '../../src/cli/handlers/providerAuth.ts'))})
-      const removal = await import(${JSON.stringify(join(import.meta.dir, '../../src/services/providers/accountSlots/removal.ts'))})
+      const cli = await import(${JSON.stringify(join(import.meta.dir, '../../src/commands/verbs/providerAuth.ts'))})
+      const removal = await import(${JSON.stringify(join(import.meta.dir, '../../src/models/roads/account-slots/removal.ts'))})
       const said = { out: '', err: '', exit: null }
       await cli.providerAuthLogout('anthropic', { writeOut: text => { said.out += text }, writeErr: text => { said.err += text }, exit: code => { said.exit = code } })
       let slot
@@ -317,9 +317,9 @@ if (process.platform !== 'darwin' || (typeof process.getuid === 'function' && pr
     delete env.MERCURY_CREDENTIAL_STORE
     const ran = spawnSync(process.execPath, ['-e', `
       globalThis.MACRO = { VERSION: '1.0.0' }
-      const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/config.js'))})
+      const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/platform/settings/config.js'))})
       enableConfigs()
-      const cli = await import(${JSON.stringify(join(import.meta.dir, '../../src/cli/handlers/providerAuth.ts'))})
+      const cli = await import(${JSON.stringify(join(import.meta.dir, '../../src/commands/verbs/providerAuth.ts'))})
       const said = { out: '', err: '', exit: null }
       await cli.providerAuthLogout('anthropic', { writeOut: text => { said.out += text }, writeErr: text => { said.err += text }, exit: code => { said.exit = code } })
       process.stdout.write('\\n' + JSON.stringify({ said }))

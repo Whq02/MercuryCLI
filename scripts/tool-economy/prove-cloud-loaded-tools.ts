@@ -7,7 +7,7 @@ import { buildFixtureMcpTools } from './fixtureMcpEstate.ts'
 
 let failures = 0
 let checks = 0
-const WHERE_TO_CHANGE = 'to fix: the route predicates (isDeferredToolFor, loadsInFullFor, defersOnCloudFor) are in src/tools/ToolSearchTool/prompt.ts and each tool declares shouldDefer and loadInFullOnCloud; the plan (roster, deferredNames, held tools) is planToolPayload in src/services/providers/toolEconomy.ts; the announcement is getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts; the admission hint is buildSchemaNotSentHint in src/services/tools/toolExecution.ts; the search is ToolSearchTool in src/tools/ToolSearchTool/ToolSearchTool.ts'
+const WHERE_TO_CHANGE = 'to fix: the route predicates (isDeferredToolFor, loadsInFullFor, defersOnCloudFor) are in src/tools/tool-search/prompt.ts and each tool declares shouldDefer and loadInFullOnCloud; the plan (roster, deferredNames, held tools) is planToolPayload in src/models/roads/toolEconomy.ts; the announcement is getDeferredToolsDeltaAttachment in src/engine/attachments/toolAndServerDeltas.ts; the admission hint is buildSchemaNotSentHint in src/engine/tool-dispatch/toolExecution.ts; the search is ToolSearchTool in src/tools/tool-search/ToolSearchTool.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -27,31 +27,31 @@ process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ fixture: { command: 'true', 
 process.env.TYPESAFE_API_KEY = 'proof-key-cloud-loaded-tools-not-a-real-key'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(config => ({ ...config, jev: { ...(config.jev ?? {}), enabled: true } }))
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { planToolPayload, clearToolRosterLatches, armToolRosterRestore, clearToolRosterRestore, conversationRosterKey, heldToolsAtLastPlan } = await import('../../src/services/providers/toolEconomy.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { assembleToolPool, getAllBaseTools } = await import('../../src/tools.ts')
-const { MCPTool } = await import('../../src/tools/MCPTool/MCPTool.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const predicates = await import('../../src/tools/ToolSearchTool/prompt.ts')
+const { planToolPayload, clearToolRosterLatches, armToolRosterRestore, clearToolRosterRestore, conversationRosterKey, heldToolsAtLastPlan } = await import('../../src/models/roads/toolEconomy.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { assembleToolPool, getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { MCPTool } = await import('../../src/tools/mcp/MCPTool.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
+const predicates = await import('../../src/tools/tool-search/prompt.ts')
 const { isDeferredTool, TOOL_SEARCH_TOOL_NAME } = predicates
 type RoutePredicate = (tool: Tool, model: string | undefined, permissionMode?: string, messages?: readonly Message[]) => boolean
 const isDeferredToolFor: RoutePredicate = (predicates as { isDeferredToolFor?: RoutePredicate }).isDeferredToolFor ?? ((tool, _model, permissionMode) => isDeferredTool(tool, permissionMode))
 const loadsInFullFor: RoutePredicate = (predicates as { loadsInFullFor?: RoutePredicate }).loadsInFullFor ?? (() => false)
 const defersOnCloudFor: RoutePredicate = (predicates as { defersOnCloudFor?: RoutePredicate }).defersOnCloudFor ?? (() => false)
-const { getDeferredToolsDeltaAttachment } = await import('../../src/services/attachments/deltas.ts')
-const { buildSchemaNotSentHint } = await import('../../src/services/tools/toolExecution.ts')
-const { openrouterNativeTools } = await import('../../src/services/providers/openrouter/openrouterResponsesTransport.ts')
-const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-type Tool = import('../../src/Tool.ts').Tool
-type Message = import('../../src/types/message.ts').Message
+const { getDeferredToolsDeltaAttachment } = await import('../../src/engine/attachments/toolAndServerDeltas.ts')
+const { buildSchemaNotSentHint } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
+const { openrouterNativeTools } = await import('../../src/models/roads/openrouter/openrouterResponsesTransport.ts')
+const { deferralWireFormFor } = await import('../../src/models/roads/deferralWire.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
+type Tool = import('../../src/tools/kit/tool.ts').Tool
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const FULL_NAMES = ['ChangeSet']
 const EIGHT_NAMES = ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind', 'AstSearch', 'LspRead']

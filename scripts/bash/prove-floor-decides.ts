@@ -13,18 +13,18 @@ process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.js')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.js')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.js')
 const bash = {
   name: 'Bash',
   inputSchema: z.object({ command: z.string() }),
   checkPermissions: (input: { command: string }, context: { getAppState: () => { toolPermissionContext: unknown } }) => bashToolHasPermission(input, context.getAppState().toolPermissionContext as never),
 }
 let failures = 0
-const floorHint = 'change the decision in src/utils/permissions/decision/wrapper.ts (decideToolPermissionWithModes) or src/tools/BashTool/bashPermissions.ts (bashToolHasPermission); for the sed checks change parseSedEditCommand or applySedSubstitution in src/tools/BashTool/sedEditParser.ts'
+const floorHint = 'change the decision in src/permissions/rules/decision/wrapper.ts (decideToolPermissionWithModes) or src/tools/shell/bashPermissions.ts (bashToolHasPermission); for the sed checks change parseSedEditCommand or applySedSubstitution in src/tools/shell/sedEditParser.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + (detail ? detail + ' · ' : '') + floorHint}`)
@@ -95,8 +95,8 @@ for (const command of ['x=cat; if true; then x=rm; $x victim; fi', 'x=rm; false 
   const result = await decide(command, ['Bash(cat *)'], ['Bash(rm *)'])
   check(`branch-dependent assignments never retain an allowed command name: ${command}`, result.behavior !== 'allow', JSON.stringify(result))
 }
-const { parseForSecurity } = await import('../../src/utils/permissions/decision/commandAnalysis.js')
-const { parseSedEditCommand, applySedSubstitution } = await import('../../src/tools/BashTool/sedEditParser.js')
+const { parseForSecurity } = await import('../../src/permissions/rules/decision/commandAnalysis.js')
+const { parseSedEditCommand, applySedSubstitution } = await import('../../src/tools/shell/sedEditParser.js')
 for (const [content, pattern, replacement, flags, expected] of [
   ['a a\na a\n', 'a', 'b', '', 'b a\nb a\n'],
   ['x\nxxa\n', 'x*', '-', 'g', '-\n-a-\n'],
@@ -120,9 +120,9 @@ for (const command of ['exec tail -f log', "echo 'unclosed", 'echo ' + 'x'.repea
   check(`default mode retains its safety ask ahead of a whole-tool grant: ${command.slice(0, 30)}`, granted.behavior === 'ask', JSON.stringify(granted))
 }
 const unavailableProgram = `globalThis.MACRO={VERSION:'1.0.0'};
-const {enableConfigs}=await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/config.ts'))});enableConfigs();
-const {getEmptyToolPermissionContext}=await import(${JSON.stringify(join(import.meta.dir, '../../src/Tool.ts'))});
-const {bashToolHasPermission}=await import(${JSON.stringify(join(import.meta.dir, '../../src/tools/BashTool/bashPermissions.ts'))});
+const {enableConfigs}=await import(${JSON.stringify(join(import.meta.dir, '../../src/platform/settings/config.ts'))});enableConfigs();
+const {getEmptyToolPermissionContext}=await import(${JSON.stringify(join(import.meta.dir, '../../src/tools/kit/tool.ts'))});
+const {bashToolHasPermission}=await import(${JSON.stringify(join(import.meta.dir, '../../src/tools/shell/bashPermissions.ts'))});
 const context={...getEmptyToolPermissionContext(),alwaysAllowRules:{localSettings:['Bash(echo literal)']}};
 const result=await bashToolHasPermission({command:'echo literal'},context);
 console.log(JSON.stringify(result));process.exit(result.behavior==='ask'&&result.decisionReason?.operatorOnly===false&&!('floor' in result.decisionReason)?0:1);`

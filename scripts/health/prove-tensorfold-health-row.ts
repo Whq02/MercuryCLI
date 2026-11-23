@@ -7,11 +7,11 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'tensorfold-health-row-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const health = await import('../../src/services/providers/local/tensorfoldHealth.ts')
-const support = await import('../../src/services/providers/local/tensorfoldSupport.ts')
-const { renderPlainCertificate } = await import('../../src/cli/healthPresentation.ts')
+const health = await import('../../src/models/roads/local/tensorfoldHealth.ts')
+const support = await import('../../src/models/roads/local/tensorfoldSupport.ts')
+const { renderPlainCertificate } = await import('../../src/commands/verbs/healthPresentation.ts')
 type Reads = NonNullable<Parameters<typeof health.readTensorFoldHealth>[0]>
 type Snapshot = Awaited<ReturnType<NonNullable<Reads['snapshot']>>>
 
@@ -111,6 +111,6 @@ assert.equal(focusedHost, `TensorFold 1.2.2 · studio · ${osVersion} · qwen3.8
 console.log('PASS the focus: the framed row\'s repo and window, or the host, stand in the one composed line')
 
 const plain = renderPlainCertificate({ verdict: 'certified', durationMs: 0, sections: [{ id: 'auth', title: 'AUTH', checks: [{ id: 'tensorfold', label: 'TensorFold', status: 'ok', evidence: ok.tensorfold!.evidence, detail: ok.tensorfold!.detail }, { id: 'tensorfold-support', label: 'support', status: 'info', evidence: ok.support! }] }] } as never)
-assert.ok(plain.includes('[OK] TensorFold — qwen3.5-2b on 127.0.0.1:8080'), `renderPlainCertificate missing TensorFold OK row in src/cli/healthPresentation.ts: ${plain.slice(0, 200)}`)
-assert.ok(plain.includes('[INFO] support — TensorFold 1.2.2 · Metal'), `renderPlainCertificate missing TensorFold support row in src/cli/healthPresentation.ts: ${plain.slice(0, 200)}`)
+assert.ok(plain.includes('[OK] TensorFold — qwen3.5-2b on 127.0.0.1:8080'), `renderPlainCertificate missing TensorFold OK row in src/commands/verbs/healthPresentation.ts: ${plain.slice(0, 200)}`)
+assert.ok(plain.includes('[INFO] support — TensorFold 1.2.2 · Metal'), `renderPlainCertificate missing TensorFold support row in src/commands/verbs/healthPresentation.ts: ${plain.slice(0, 200)}`)
 console.log('PASS the plain certificate carries the TensorFold row and the support row')

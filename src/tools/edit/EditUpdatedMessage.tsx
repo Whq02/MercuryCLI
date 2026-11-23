@@ -1,0 +1,107 @@
+import type { StructuredPatchHunk } from 'diff';
+import * as React from 'react';
+import { useTerminalSize } from '../../screen/fullscreen-layout/useTerminalSize.js';
+import { Box, Text } from '../../screen/themedRenderer.js';
+import { count } from '../../platform/primitives/array.js';
+import { MessageResponse } from '../kit/MessageResponse.js';
+import { ToolCardMarker, toolCardCountColor } from '../../screen/widgets/toolCardMeta.js';
+import { StructuredDiffList } from '../../screen/structured-diff/StructuredDiffList.js';
+import { isSqliteRowTarget } from '../write/structuredTargets.js';
+import { basename } from 'node:path';
+
+type Props = {
+  filePath: string
+  structuredPatch: StructuredPatchHunk[]
+  firstLine: string | null
+  fileContent?: string
+  style?: 'condensed' | 'default'
+  verbose: boolean
+}
+
+export function FileEditToolUpdatedMessage({
+  filePath,
+  structuredPatch,
+  firstLine,
+  fileContent,
+  style,
+  verbose,
+}: Props): React.ReactNode {
+  const { columns } = useTerminalSize();
+  const numAdditions = structuredPatch.reduce(
+    (sum, hunk) => sum + count(hunk.lines, line => line.startsWith('+')),
+    0,
+  );
+  const numRemovals = structuredPatch.reduce(
+    (sum, hunk) => sum + count(hunk.lines, line => line.startsWith('-')),
+    0,
+  );
+  const hasChanges = numAdditions > 0 || numRemovals > 0;
+  const countColor = toolCardCountColor();
+  const summary = (
+    <Text>
+      {numAdditions > 0 ? (
+        <>
+          Added <Text bold color={countColor}>{numAdditions}</Text>{' '}
+          {numAdditions > 1 ? 'lines' : 'line'}
+        </>
+      ) : null}
+      {numAdditions > 0 && numRemovals > 0 ? ', ' : null}
+      {numRemovals > 0 ? (
+        <>
+          {numAdditions === 0 ? 'Removed ' : 'removed '}
+          <Text bold color={countColor}>{numRemovals}</Text>{' '}
+          {numRemovals > 1 ? 'lines' : 'line'}
+        </>
+      ) : null}
+      {hasChanges ? null : <Text dimColor>No changes</Text>}
+      {isSqliteRowTarget(filePath) ? ' · not checkpointed' : null}
+    </Text>
+  );
+
+  if (style === 'condensed' && !verbose) {
+    return summary;
+  }
+
+  const railed = columns > 80;
+  const innerWidth = railed ? Math.max(1, columns - 14) : columns - 12;
+  const diff = (
+    <StructuredDiffList
+      hunks={structuredPatch}
+      dim={false}
+      width={innerWidth}
+      filePath={filePath}
+      firstLine={firstLine}
+      fileContent={fileContent}
+    />
+  );
+
+  return (
+    <MessageResponse>
+      <Box flexDirection="column">
+        <Text>
+          <ToolCardMarker />
+          {summary}
+        </Text>
+        {hasChanges ? (
+          railed ? (
+            <Box
+              borderColor="subtle"
+              borderStyle="single"
+              flexDirection="column"
+              borderText={{
+                content: ' diff · ' + basename(filePath) + ' ',
+                position: 'top',
+                align: 'start',
+                offset: 0,
+              }}
+            >
+              {diff}
+            </Box>
+          ) : (
+            diff
+          )
+        ) : null}
+      </Box>
+    </MessageResponse>
+  );
+}

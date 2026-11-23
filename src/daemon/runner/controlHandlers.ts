@@ -1,0 +1,239 @@
+import { errorMessage } from '../../platform/errors/errors.js'
+import { isOneOf } from '../../platform/primitives/isOneOf.js'
+import { type UUID } from 'crypto'
+import { type ToolPermissionContext } from 'src/tools/kit/tool.js'
+import type { ParamsOf } from 'src/daemon/runner-wire/methods.js'
+import type { SESSION_VERBS } from 'src/daemon/runner-wire/sessionVerbs.js'
+import { type RewindRefusalKind, type SessionRewindOutcomeV1 } from 'src/daemon/control/protocol.js'
+import { createOperatorRewindRecordMessage } from 'src/engine/compaction/checkpointRewind.js'
+import { type Message } from 'src/engine/message-shapes/message.js'
+import { findLastCompactBoundaryIndex } from 'src/engine/message-shapes/systemMessages.js'
+import { flushSessionStorage, recordTranscript } from 'src/sessions/transcripts/sessionStorage.js'
+import { type AppState } from 'src/screen/app-state/AppStateStore.js'
+import { PERMISSION_MODES, type PermissionMode as InternalPermissionMode } from 'src/permissions/rules/permissions.js'
+import { fileCheckpointSource, fileHistoryCanRestore, fileHistoryEnabled, fileHistoryRestore, type RestoreDriftOracle } from 'src/tools/engines/change-transaction/fileHistory.js'
+import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from 'src/permissions/rules/modeTransitions.js'
+import { isSovereignDisabled, transitionPermissionMode } from 'src/permissions/rules/permissionSetup.js'
+
+type RewindFilesResult = {
+  can_rewind?: boolean
+  files_changed?: string[]
+  insertions?: number
+  deletions?: number
+  restored_files?: number
+  deleted_files?: number
+  dry_run?: boolean
+  error?: string
+}
+
+export async function handleRewindFiles(
+  userMessageId: UUID,
+  appState: AppState,
+  _setAppState: (updater: (prev: AppState) => AppState) => void,
+  dryRun: boolean,
+  drift?: RestoreDriftOracle,
+): Promise<RewindFilesResult> {
+  if (!fileHistoryEnabled()) {
+    return {
+      can_rewind: false,
+      error: 'File rewinding is not enabled.',
+    }
+  }
+  if (!fileHistoryCanRestore(appState.fileHistory, userMessageId)) {
+    return {
+      can_rewind: false,
+      error: 'No file checkpoint found for this message.',
+    }
+  }
+  try {
+    const result = await fileHistoryRestore(appState.fileHistory, userMessageId, {
+      dryRun,
+      ownerKey: `rewind:${userMessageId}`,
+      ...(drift !== undefined ? { drift } : {}),
+    })
+    if (!result.ok) {
+      return {
+        can_rewind: false,
+        error: `Failed to rewind: ${result.detail}`,
+      }
+    }
+    if (dryRun) {
+      return {
+        can_rewind: true,
+        files_changed: result.changed,
+        insertions: result.insertions,
+        deletions: result.deletions,
+      }
+    }
+    return { can_rewind: true }
+  } catch (error) {
+    return {
+      can_rewind: false,
+      error: `Failed to rewind: ${errorMessage(error)}`,
+    }
+  }
+}
+
+
+type RewindSessionContext = {
+  messages: Message[]
+  getAppState: () => AppState
+  setAppState?: (updater: (prev: AppState) => AppState) => void
+  drift: RestoreDriftOracle
+  turnActive: boolean
+}
+
+function refusedRewind(mode: SessionRewindOutcomeV1['mode'], refusal: RewindRefusalKind, detail: string): SessionRewindOutcomeV1 {
+  return { outcome: 'refused', mode, refusal, detail }
+}
+
+function isOperatorTurn(message: Message, uuid: string): boolean {
+  if (message.type !== 'user' || message.uuid !== uuid) return false
+  if ((message as { isMeta?: boolean }).isMeta === true) return false
+  const content = message.message.content
+  if (Array.isArray(content) && content[0]?.type === 'tool_result') return false
+  return true
+}
+
+export async function handleRewindSession(
+  request: ParamsOf<typeof SESSION_VERBS.rewind.runner.name>,
+  ctx: RewindSessionContext,
+): Promise<SessionRewindOutcomeV1> {
+  const { mode } = request
+  const uuid = request.user_message_id
+  const dryRun = request.dry_run === true
+  if (ctx.turnActive) {
+    return refusedRewind(mode, 'turn-active', 'a turn is running in this session — press esc to stop it, then /rewind again')
+  }
+  const turnIndex = ctx.messages.findIndex(m => isOperatorTurn(m, uuid))
+  if (turnIndex === -1) {
+    return refusedRewind(mode, 'not-found', "that point is not in this session's conversation")
+  }
+  const wantsCode = mode === 'code' || mode === 'both'
+  const wantsConversation = mode === 'conversation' || mode === 'both'
+  if (wantsConversation) {
+    const boundary = findLastCompactBoundaryIndex(ctx.messages)
+    if (boundary !== -1 && turnIndex <= boundary) {
+      return refusedRewind(mode, 'before-compaction', 'that point lies before the last compaction fold — its summary cannot be unpicked; pick a later point or /clear')
+    }
+  }
+  const receipt: SessionRewindOutcomeV1 = { outcome: 'applied', mode, ...(dryRun ? { dryRun: true } : {}) }
+  if (wantsCode) {
+    if (!fileHistoryEnabled()) {
+      const why = fileCheckpointSource() === 'headless' ? 'a hosted run asks for them with file_checkpoints on initialize' : 'Settings › File checkpointing'
+      return refusedRewind(mode, 'capture-off', `file checkpoints are off for this session (${why}) — the conversation can still be restored`)
+    }
+    const state = ctx.getAppState()
+    if (!fileHistoryCanRestore(state.fileHistory, uuid as UUID)) {
+      return refusedRewind(mode, 'no-checkpoint', 'no saved files at this point — the checkpoint store holds nothing for it')
+    }
+    let restored: Awaited<ReturnType<typeof fileHistoryRestore>>
+    try {
+      restored = await fileHistoryRestore(state.fileHistory, uuid as UUID, {
+        dryRun,
+        ownerKey: `rewind:${uuid}`,
+        drift: ctx.drift,
+        ...(ctx.setAppState === undefined ? {} : { updateState: (update: (prev: AppState['fileHistory']) => AppState['fileHistory']) => ctx.setAppState!(prev => ({ ...prev, fileHistory: update(prev.fileHistory) })) }),
+      })
+    } catch (error) {
+      return refusedRewind(mode, 'restore-failed', `the restore threw before any file was written: ${errorMessage(error)}`)
+    }
+    if (!restored.ok) return refusedRewind(mode, restored.kind, restored.detail)
+    receipt.code = { filesChanged: restored.changed, insertions: restored.insertions, deletions: restored.deletions }
+    if (!wantsConversation && restored.changed.length === 0) {
+      return { ...receipt, outcome: 'noop', detail: 'the files already match this point — nothing to restore' }
+    }
+  }
+  if (wantsConversation) {
+    const removed = ctx.messages.length - turnIndex
+    if (dryRun) {
+      receipt.conversation = { turnUuid: uuid, removed }
+      return receipt
+    }
+    const record = createOperatorRewindRecordMessage({ turnUuid: uuid, removed })
+    ctx.messages.push(record)
+    try {
+      await recordTranscript([record], uuid as UUID, ctx.messages)
+      await flushSessionStorage()
+    } catch (error) {
+      const landed = receipt.code !== undefined ? `the files were restored (${receipt.code.filesChanged.length}); ` : ''
+      return { ...receipt, outcome: 'refused', refusal: 'restore-failed', detail: `${landed}the conversation boundary could not be written to the transcript: ${errorMessage(error)}` }
+    }
+    receipt.conversation = { turnUuid: uuid, removed }
+  }
+  return receipt
+}
+
+
+export async function handleFileRestoreSession(request: ParamsOf<typeof SESSION_VERBS.fileRestore.runner.name>, ctx: RewindSessionContext): Promise<SessionRewindOutcomeV1> {
+  if (ctx.turnActive) return refusedRewind('code', 'turn-active', 'a turn is running in this session — press esc to stop it, then /rewind again')
+  if (!fileHistoryEnabled()) return refusedRewind('code', 'capture-off', 'file checkpoints are off for this session')
+  const state = ctx.getAppState().fileHistory
+  const undo = request.action === 'undo'
+  if (undo && state.rewindUndo?.messageId !== request.user_message_id) {
+    return refusedRewind('code', 'no-checkpoint', 'there is no rewind to undo before this prompt')
+  }
+  if (!undo && !ctx.messages.some(message => isOperatorTurn(message, request.user_message_id))) {
+    return refusedRewind('code', 'not-found', "that point is not in this session's conversation")
+  }
+  try {
+    const result = await fileHistoryRestore(state, request.user_message_id as UUID, {
+      dryRun: request.dry_run === true,
+      ownerKey: `rewind:${request.user_message_id}`,
+      drift: ctx.drift,
+      undo,
+      ...(request.action === 'restore' ? { filePath: request.file_path } : {}),
+      ...(ctx.setAppState === undefined ? {} : { updateState: (update: (prev: AppState['fileHistory']) => AppState['fileHistory']) => ctx.setAppState!(prev => ({ ...prev, fileHistory: update(prev.fileHistory) })) }),
+    })
+    if (!result.ok) return refusedRewind('code', result.kind, result.detail)
+    return { outcome: result.changed.length === 0 ? 'noop' : 'applied', mode: 'code', ...(result.dryRun ? { dryRun: true } : {}), code: { filesChanged: result.changed, insertions: result.insertions, deletions: result.deletions } }
+  } catch (error) {
+    return refusedRewind('code', 'restore-failed', `the restore failed: ${errorMessage(error)}`)
+  }
+}
+export function resolvePermissionModeTransition(
+  mode: InternalPermissionMode,
+  toolPermissionContext: ToolPermissionContext,
+  road: ModeTransitionRoad = 'control-door',
+): { ok: true; context: ToolPermissionContext } | { ok: false; error: string } {
+  const verdict = decidePermissionModeTransition(mode, toolPermissionContext)
+  if (toolPermissionContext.mode !== mode) {
+    if (verdict.ok) recordModeTransition({ from: toolPermissionContext.mode, to: mode, road })
+    else holdModeTransition({ from: toolPermissionContext.mode, to: mode, road, detail: verdict.error })
+  }
+  return verdict
+}
+
+function decidePermissionModeTransition(
+  mode: InternalPermissionMode,
+  toolPermissionContext: ToolPermissionContext,
+): { ok: true; context: ToolPermissionContext } | { ok: false; error: string } {
+  if (!isOneOf(PERMISSION_MODES, mode)) {
+    return {
+      ok: false,
+      error: `'${mode}' is not a permission mode; the modes are ${PERMISSION_MODES.join(', ')}`,
+    }
+  }
+  if (mode === 'sovereign') {
+    if (isSovereignDisabled()) {
+      return {
+        ok: false,
+        error: 'Cannot set permission mode to sovereign because it is disabled by settings or configuration',
+      }
+    }
+    if (!toolPermissionContext.isBypassPermissionsModeAvailable) {
+      return {
+        ok: false,
+        error: 'Cannot set permission mode to sovereign because the session was not launched with --sovereign',
+      }
+    }
+  }
+  const transitioned = transitionPermissionMode(toolPermissionContext.mode, mode, toolPermissionContext)
+  return {
+    ok: true,
+    context: {
+      ...transitioned,
+      mode,
+    },
+  }
+}

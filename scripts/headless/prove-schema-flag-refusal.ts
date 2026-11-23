@@ -43,10 +43,10 @@ for (const [label, schema, words] of bad) {
   for (const format of ['rows', 'text'] as const) {
     const cap = await runWith(['hi', '--format', format, '--schema', schema], [{ kind: 'text', text: 'plain prose' }])
     const where = format === 'rows' ? String((firstRow(cap.out)?.error as { message?: string } | undefined)?.message ?? '') : cap.err
-    check(`${label} (${format}): the run is refused as a usage error, exit 2`, cap.code === 2, `exit ${cap.code} out=${cap.out.slice(0, 160)} err=${cap.err.slice(0, 160)} | change refuseSchemaFlag in src/main/bootFlags.ts so a refusal from schemaFlagRefusal (src/cli/structuredIO.ts) ends the run through failCli with exit 2`)
-    check(`${label} (${format}): the refusal names --schema and the fault${format === 'rows' ? ' on the refused outcome row' : ' on stderr'}`, where.startsWith(words), `${JSON.stringify(where.slice(0, 200))} | change schemaFlagRefusal in src/cli/structuredIO.ts so the message starts with ${JSON.stringify(words)}, and make sure failCli in src/main/cli.ts carries it on the refused outcome row (rows) or on stderr (text)`)
-    check(`${label} (${format}): no model request was made`, cap.requests === 0, `${cap.requests} request(s) | change refuseSchemaFlag in src/main/bootFlags.ts to refuse before the first model request is sent`)
-    if (format === 'rows') check(`${label} (rows): the row is a refused outcome and stderr is silent`, firstRow(cap.out)?.type === 'outcome' && firstRow(cap.out)?.status === 'refused' && cap.err === '', `${cap.out.slice(0, 120)} err=${cap.err.slice(0, 120)} | change failCli in src/main/cli.ts so under --format rows it writes one refused outcome row to stdout and nothing to stderr`)
+    check(`${label} (${format}): the run is refused as a usage error, exit 2`, cap.code === 2, `exit ${cap.code} out=${cap.out.slice(0, 160)} err=${cap.err.slice(0, 160)} | change refuseSchemaFlag in src/boot/main/bootFlags.ts so a refusal from schemaFlagRefusal (src/daemon/runner/structuredIO.ts) ends the run through failCli with exit 2`)
+    check(`${label} (${format}): the refusal names --schema and the fault${format === 'rows' ? ' on the refused outcome row' : ' on stderr'}`, where.startsWith(words), `${JSON.stringify(where.slice(0, 200))} | change schemaFlagRefusal in src/daemon/runner/structuredIO.ts so the message starts with ${JSON.stringify(words)}, and make sure failCli in src/boot/main/cli.ts carries it on the refused outcome row (rows) or on stderr (text)`)
+    check(`${label} (${format}): no model request was made`, cap.requests === 0, `${cap.requests} request(s) | change refuseSchemaFlag in src/boot/main/bootFlags.ts to refuse before the first model request is sent`)
+    if (format === 'rows') check(`${label} (rows): the row is a refused outcome and stderr is silent`, firstRow(cap.out)?.type === 'outcome' && firstRow(cap.out)?.status === 'refused' && cap.err === '', `${cap.out.slice(0, 120)} err=${cap.err.slice(0, 120)} | change failCli in src/boot/main/cli.ts so under --format rows it writes one refused outcome row to stdout and nothing to stderr`)
   }
 }
 
@@ -54,6 +54,6 @@ for (const [label, schema, words] of bad) {
   const schema = '{"type":"object","properties":{"a":{"type":"number"}},"required":["a"]}'
   const cap = await runWith(['hi', '--format', 'json', '--schema', schema], [{ kind: 'tool_use', name: 'StructuredOutput', input: { a: 1 } }, { kind: 'text', text: 'done' }])
   const outcome = firstRow(cap.out)
-  check('the control: a schema the engine accepts still runs, the outcome completes and carries the structured answer', cap.code === 0 && outcome?.status === 'completed' && JSON.stringify(outcome?.structured) === '{"a":1}', `exit ${cap.code} out=${cap.out.slice(0, 200)} err=${cap.err.slice(0, 160)} | change schemaFlagRefusal in src/cli/structuredIO.ts so a valid object schema returns null, and check that the run with --schema finishes with a completed outcome carrying the StructuredOutput input as structured`)
+  check('the control: a schema the engine accepts still runs, the outcome completes and carries the structured answer', cap.code === 0 && outcome?.status === 'completed' && JSON.stringify(outcome?.structured) === '{"a":1}', `exit ${cap.code} out=${cap.out.slice(0, 200)} err=${cap.err.slice(0, 160)} | change schemaFlagRefusal in src/daemon/runner/structuredIO.ts so a valid object schema returns null, and check that the run with --schema finishes with a completed outcome carrying the StructuredOutput input as structured`)
 }
 process.exit(failures === 0 ? 0 : 1)

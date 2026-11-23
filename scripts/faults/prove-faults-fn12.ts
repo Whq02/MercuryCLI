@@ -18,15 +18,15 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
 
 let failures = 0
 const faultHints: Array<[string, string]> = [
-  ['conflictRegionStore-', 'change readConflictRegions in src/services/gitGraph/conflictRegionStore.ts to treat only ENOENT as an empty result and rethrow other read errors'],
-  ['observe-config-', 'change commitIdentityLine in src/services/gitGraph/observe.ts to report unset only when git config reads cleanly and let a corrupt config throw'],
-  ['plan-headsha-', 'change applyPlan in src/services/gitGraph/plan.ts to treat only an unborn HEAD (rev-parse exit 1) as empty and refuse with code io on any other rev-parse error'],
-  ['idle-sweep-', 'change sweepHostIdle in src/services/host/idle.ts to emit one unread-use notice per run of failing rounds and never release on an unreadable last use'],
-  ['idle-', 'change hostIdleVerdict in src/services/host/idle.ts to return undefined when the last-turn mark or activity.json cannot be read, and idle only when the mark is absent'],
-  ['repoFolder-', 'change resolveRepoFolder in src/services/gitGraph/repoFolder.ts to refuse with the EACCES note when the folder cannot be statted or listed'],
-  ['reliability-', 'change noteHostLink in src/services/host/reliability.ts to start fresh on corrupt JSON but keep an unreadable history file untouched'],
-  ['bankManifest-', 'change bankManifest in src/services/host/bankManifest.ts to report the bank cannot be read on EACCES and not banked only when the folder is absent'],
-  ['bank-', 'change the matching function in src/services/host/bank.ts (bankFiles, bankFolder, bankModelPath, bankState, verifyBank or sealBank, named in the label) to throw or answer as the label says on a corrupt or unreadable file'],
+  ['conflictRegionStore-', 'change readConflictRegions in src/platform/git-graph/conflictRegionStore.ts to treat only ENOENT as an empty result and rethrow other read errors'],
+  ['observe-config-', 'change commitIdentityLine in src/platform/git-graph/observe.ts to report unset only when git config reads cleanly and let a corrupt config throw'],
+  ['plan-headsha-', 'change applyPlan in src/platform/git-graph/plan.ts to treat only an unborn HEAD (rev-parse exit 1) as empty and refuse with code io on any other rev-parse error'],
+  ['idle-sweep-', 'change sweepHostIdle in src/models/hosting/idle.ts to emit one unread-use notice per run of failing rounds and never release on an unreadable last use'],
+  ['idle-', 'change hostIdleVerdict in src/models/hosting/idle.ts to return undefined when the last-turn mark or activity.json cannot be read, and idle only when the mark is absent'],
+  ['repoFolder-', 'change resolveRepoFolder in src/platform/git-graph/repoFolder.ts to refuse with the EACCES note when the folder cannot be statted or listed'],
+  ['reliability-', 'change noteHostLink in src/models/hosting/reliability.ts to start fresh on corrupt JSON but keep an unreadable history file untouched'],
+  ['bankManifest-', 'change bankManifest in src/models/hosting/bankManifest.ts to report the bank cannot be read on EACCES and not banked only when the folder is absent'],
+  ['bank-', 'change the matching function in src/models/hosting/bank.ts (bankFiles, bankFolder, bankModelPath, bankState, verifyBank or sealBank, named in the label) to throw or answer as the label says on a corrupt or unreadable file'],
 ]
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -40,10 +40,10 @@ function skip(label: string, why: string): void {
 
 async function run(): Promise<void> {
   {
-    const { readConflictRegions } = await import('../../src/services/gitGraph/conflictRegionStore.ts')
+    const { readConflictRegions } = await import('../../src/platform/git-graph/conflictRegionStore.ts')
     const root = join(scratch, 'conflict-regions')
     mkdirSync(root, { recursive: true })
-    const owner = 'session:fn12-conflict' as import('../../src/utils/run/ownerKey.ts').OwnerKey
+    const owner = 'session:fn12-conflict' as import('../../src/engine/run-owner/ownerKey.ts').OwnerKey
     const absent = readConflictRegions(owner, root, 'missing.txt')
     check('conflictRegionStore-enoent: absent file returns empty regions', absent.length === 0)
     if (!POSIX_MODES) skip('conflictRegionStore-eacces', 'needs non-root POSIX')
@@ -59,7 +59,7 @@ async function run(): Promise<void> {
   }
 
   {
-    const { commitIdentityLine } = await import('../../src/services/gitGraph/observe.ts')
+    const { commitIdentityLine } = await import('../../src/platform/git-graph/observe.ts')
     const root = join(scratch, 'observe-config')
     const gitHome = join(scratch, 'observe-git-home')
     mkdirSync(root, { recursive: true })
@@ -101,8 +101,8 @@ async function run(): Promise<void> {
     execFileSync('git', ['config', 'user.email', 'proof@local'], { cwd: unbornRoot, env: gitEnv })
     writeFileSync(join(unbornRoot, 'first.txt'), 'hello\n')
 
-    const { preparePlan, applyPlan } = await import('../../src/services/gitGraph/plan.ts')
-    const owner = 'session:fn12-plan' as import('../../src/utils/run/ownerKey.ts').OwnerKey
+    const { preparePlan, applyPlan } = await import('../../src/platform/git-graph/plan.ts')
+    const owner = 'session:fn12-plan' as import('../../src/engine/run-owner/ownerKey.ts').OwnerKey
     if (process.platform === 'win32') {
       console.log('  not read on Windows: the row plants a shell-script git on PATH, which Windows does not start')
     } else {
@@ -125,10 +125,10 @@ async function run(): Promise<void> {
   }
 
   {
-    const { HOST_IDLE_LIMIT_MS, hostIdleVerdict } = await import('../../src/services/host/idle.ts')
+    const { HOST_IDLE_LIMIT_MS, hostIdleVerdict } = await import('../../src/models/hosting/idle.ts')
     const readyAt = 1_700_000_000_000
     const now = readyAt + HOST_IDLE_LIMIT_MS + 60_000
-    const baseRecord: import('../../src/services/host/store.ts').HostRecord = {
+    const baseRecord: import('../../src/models/hosting/store.ts').HostRecord = {
       id: 'fn12-idle-pod',
       name: 'fn12-idle-pod',
       recipe: 'test',
@@ -169,9 +169,9 @@ async function run(): Promise<void> {
     }
 
     const { existsSync, readdirSync, readFileSync } = await import('node:fs')
-    const { sweepHostIdle } = await import('../../src/services/host/idle.ts')
-    const { hostDirectory, removeHostRecord, writeHostRecord } = await import('../../src/services/host/store.ts')
-    const sweepRecord: import('../../src/services/host/store.ts').HostRecord = {
+    const { sweepHostIdle } = await import('../../src/models/hosting/idle.ts')
+    const { hostDirectory, removeHostRecord, writeHostRecord } = await import('../../src/models/hosting/store.ts')
+    const sweepRecord: import('../../src/models/hosting/store.ts').HostRecord = {
       ...baseRecord,
       id: 'fn12-sweep-unread',
       name: 'fn12-sweep-unread',
@@ -205,7 +205,7 @@ async function run(): Promise<void> {
   }
 
   {
-    const { resolveRepoFolder } = await import('../../src/services/gitGraph/repoFolder.ts')
+    const { resolveRepoFolder } = await import('../../src/platform/git-graph/repoFolder.ts')
     const emptyDir = join(scratch, 'repo-folder-empty')
     mkdirSync(emptyDir, { recursive: true })
     const absent = resolveRepoFolder(emptyDir)
@@ -230,8 +230,8 @@ async function run(): Promise<void> {
 
   {
     const { readFileSync } = await import('node:fs')
-    const { noteHostLink, readHostLinkObservation } = await import('../../src/services/host/reliability.ts')
-    const { hostDirectory } = await import('../../src/services/host/store.ts')
+    const { noteHostLink, readHostLinkObservation } = await import('../../src/models/hosting/reliability.ts')
+    const { hostDirectory } = await import('../../src/models/hosting/store.ts')
     const relDir = join(hostDirectory(), 'reliability')
     mkdirSync(relDir, { recursive: true })
     const corruptPath = join(relDir, 'vast-fn12corrupt.json')
@@ -257,8 +257,8 @@ async function run(): Promise<void> {
   }
 
   {
-    const { bankManifest } = await import('../../src/services/host/bankManifest.ts')
-    const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+    const { bankManifest } = await import('../../src/models/hosting/bankManifest.ts')
+    const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
     const recipe = HOST_RECIPES[0]!
     const missing = bankManifest(recipe, join(scratch, 'no-such-bank-dir'))
     check('bankManifest-enoent: absent bank folder returns not banked', missing.reason === 'not banked · b banks the weights', JSON.stringify(missing))
@@ -294,8 +294,8 @@ async function run(): Promise<void> {
   }
 
   {
-    const { bankFiles, bankFolder, bankModelPath, bankState, sealBank, verifyBank, writeBankRegistry } = await import('../../src/services/host/bank.ts')
-    const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+    const { bankFiles, bankFolder, bankModelPath, bankState, sealBank, verifyBank, writeBankRegistry } = await import('../../src/models/hosting/bank.ts')
+    const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
     const safetensorsRecipe = { ...HOST_RECIPES[0]!, id: 'fn12-st', model: 'fn12/st-model', weightFile: undefined, weightManifest: undefined, include: undefined }
     const stDir = join(scratch, 'bank-st-corrupt')
     mkdirSync(stDir, { recursive: true })

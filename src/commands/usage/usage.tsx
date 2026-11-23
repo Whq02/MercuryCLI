@@ -1,8 +1,8 @@
-import { nextSettingsOpen } from '../../components/Settings/Settings.js'
-import { Usage } from '../../components/Settings/Usage.js'
-import { usagePopupLine } from '../../components/Settings/usageLine.js'
-import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
-import { openSettingsPopup } from '../../utils/cockpit/settingsPopup.js'
+import { nextSettingsOpen } from '../../screen/settings/Settings.js'
+import { Usage } from '../../screen/settings/Usage.js'
+import { usagePopupLine } from '../../screen/settings/usageLine.js'
+import type { LocalCommandResult, LocalJSXCommandContext } from '../catalogue/command.js'
+import { openSettingsPopup } from '../../screen/cockpit/settingsPopup.js'
 
 export const call = async (_args: string, _context: LocalJSXCommandContext): Promise<LocalCommandResult> => {
   const openToken = nextSettingsOpen()

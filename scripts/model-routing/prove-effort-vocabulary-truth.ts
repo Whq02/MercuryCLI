@@ -14,10 +14,10 @@ process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
 let failures = 0
 const EFFORT_VOCAB_FIX_HINT_BY_SECTION: Record<string, string> = {
-  '1': 'change resolveEffortTruth in src/utils/effort.ts, KIMI_EFFORTS in src/utils/model/pins/kimiPins.ts, or buildMoonshotExtras in src/services/providers/openaicompat/compatWire.ts so truth and wire agree',
-  '2': 'change resolveEffortTruth in src/utils/effort.ts, DEEPSEEK_EFFORTS in src/utils/model/pins/deepseekPins.ts, or buildDeepseekExtras in src/services/providers/openaicompat/compatWire.ts so truth and wire agree',
-  '3': 'change resolveEffortTruth in src/utils/effort.ts or glmEffortsFor and glmAcceptsEffort in src/utils/model/pins/glmPins.ts',
-  '4': 'change getDisplayedEffortLevel, resolveAppliedEffort, selectableEffortLevels or resolveWireRequestedEffort in src/utils/effort.ts so they read resolveEffortTruth',
+  '1': 'change resolveEffortTruth in src/models/effort/effort.ts, KIMI_EFFORTS in src/models/facts/pins/kimiPins.ts, or buildMoonshotExtras in src/models/roads/openaicompat/compatWire.ts so truth and wire agree',
+  '2': 'change resolveEffortTruth in src/models/effort/effort.ts, DEEPSEEK_EFFORTS in src/models/facts/pins/deepseekPins.ts, or buildDeepseekExtras in src/models/roads/openaicompat/compatWire.ts so truth and wire agree',
+  '3': 'change resolveEffortTruth in src/models/effort/effort.ts or glmEffortsFor and glmAcceptsEffort in src/models/facts/pins/glmPins.ts',
+  '4': 'change getDisplayedEffortLevel, resolveAppliedEffort, selectableEffortLevels or resolveWireRequestedEffort in src/models/effort/effort.ts so they read resolveEffortTruth',
 }
 let effortVocabFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -29,12 +29,12 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const effort = await import('../../src/utils/effort.ts')
-const wire = await import('../../src/services/providers/openaicompat/compatWire.ts')
-const { glmEffortsFor, glmAcceptsEffort } = await import('../../src/utils/model/pins/glmPins.ts')
-const { nearestSupportedWireEffort } = await import('../../src/utils/model/pins/gptPins.ts')
-const { KIMI_EFFORTS } = await import('../../src/utils/model/pins/kimiPins.ts')
-const { DEEPSEEK_EFFORTS } = await import('../../src/utils/model/pins/deepseekPins.ts')
+const effort = await import('../../src/models/effort/effort.ts')
+const wire = await import('../../src/models/roads/openaicompat/compatWire.ts')
+const { glmEffortsFor, glmAcceptsEffort } = await import('../../src/models/facts/pins/glmPins.ts')
+const { nearestSupportedWireEffort } = await import('../../src/models/facts/pins/gptPins.ts')
+const { KIMI_EFFORTS } = await import('../../src/models/facts/pins/kimiPins.ts')
+const { DEEPSEEK_EFFORTS } = await import('../../src/models/facts/pins/deepseekPins.ts')
 
 type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max']

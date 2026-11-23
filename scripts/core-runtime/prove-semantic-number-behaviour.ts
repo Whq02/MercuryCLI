@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import fc from 'fast-check'
 import { z } from 'zod/v4'
-import { semanticNumber } from '../../src/utils/semanticNumber.ts'
+import { semanticNumber } from '../../src/tools/kit/semanticNumber.ts'
 
-const WHERE = 'semanticNumber in src/utils/semanticNumber.ts'
+const WHERE = 'semanticNumber in src/tools/kit/semanticNumber.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

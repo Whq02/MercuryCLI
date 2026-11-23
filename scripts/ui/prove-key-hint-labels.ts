@@ -5,8 +5,8 @@
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
-const { keyHintLabel, MAC_MODIFIER_GLYPHS } = await import('../../src/components/mercury-ui/keyHintLabel.js')
-const manifest = await import('../../src/components/concourse/controlManifest.js')
+const { keyHintLabel, MAC_MODIFIER_GLYPHS } = await import('../../src/screen/widgets/keyHintLabel.js')
+const manifest = await import('../../src/screen/concourse/controlManifest.js')
 
 type Platform = 'macos' | 'windows' | 'wsl' | 'linux' | 'unknown'
 const OFF_MAC: Platform[] = ['windows', 'wsl', 'linux', 'unknown']

@@ -1,13 +1,13 @@
 import React, { useState } from 'react'
 import { appendFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { renderSync } from '../../src/ink/root.js'
-import Box from '../../src/ink/components/Box.js'
-import Text from '../../src/ink/components/Text.js'
-import { AlternateScreen } from '../../src/ink/components/AlternateScreen.js'
-import useInput from '../../src/ink/hooks/use-input.js'
-import useApp from '../../src/ink/hooks/use-app.js'
-import { readFrameWire, recordFrameTrace } from '../../src/ink/root/frame-trace.js'
+import { renderSync } from '../../src/screen/renderer/root.js'
+import Box from '../../src/screen/renderer/elements/Box.js'
+import Text from '../../src/screen/renderer/elements/Text.js'
+import { AlternateScreen } from '../../src/screen/renderer/elements/AlternateScreen.js'
+import useInput from '../../src/screen/renderer/bindings/use-input.js'
+import useApp from '../../src/screen/renderer/bindings/use-app.js'
+import { readFrameWire, recordFrameTrace } from '../../src/screen/renderer/root/frame-trace.js'
 
 type SceneRun = { text: string; fg?: string | null; bg?: string | null; bold?: boolean; dim?: boolean; inv?: boolean }
 type Scene = { cols: number; rows: number; lines: SceneRun[][] }

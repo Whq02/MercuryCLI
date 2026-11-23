@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/components/tensorfold/** src/services/tensorfold/** src/services/providers/local/tensorfoldHosts.ts
+# gate-watch: src/screen/tensorfold/** src/models/tensorfold/** src/models/roads/local/tensorfoldHosts.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

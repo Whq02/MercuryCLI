@@ -56,12 +56,12 @@ const guard = setTimeout(() => {
 }, 240_000)
 guard.unref?.()
 
-const menu = await import('../../src/substrate/startupMenu.ts')
-const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
-const { GodotTool } = await import('../../src/tools/GodotTool/GodotTool.ts')
-const { UnityTool } = await import('../../src/tools/UnityTool/UnityTool.ts')
-const { BlenderTool } = await import('../../src/tools/BlenderTool/BlenderTool.ts')
-const { AsepriteTool } = await import('../../src/tools/AsepriteTool/AsepriteTool.ts')
+const menu = await import('../../src/platform/substrate/startupMenu.ts')
+const { DebugTool } = await import('../../src/tools/debug/DebugTool.ts')
+const { GodotTool } = await import('../../src/tools/godot/GodotTool.ts')
+const { UnityTool } = await import('../../src/tools/unity/UnityTool.ts')
+const { BlenderTool } = await import('../../src/tools/blender/BlenderTool.ts')
+const { AsepriteTool } = await import('../../src/tools/aseprite/AsepriteTool.ts')
 
 type LiveApplyFn = (
   path?: string,
@@ -361,15 +361,15 @@ section('§3 receipts, evaluateExplicitApply & admitted snapshot revision')
 
 section('§4 tail announcements in-process — harness_map_delta + deferred_tools_delta once on ON and once on OFF, system prompt frozen')
 {
-  const { getHarnessMapDelta, resetHarnessMapForTest } = await import('../../src/services/cockpit/harnessMap.ts')
-  const { resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
-  const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
-  const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
-  const { getTools } = await import('../../src/tools.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { getDeferredToolsDelta } = await import('../../src/services/messages/toolSearch.ts')
-  const { _resetBlenderBridgeContextCacheForTesting } = await import('../../src/utils/blender/bridgeGates.ts')
-  const { settleDapAdapterProbes } = await import('../../src/services/dap/dapClient.ts')
+  const { getHarnessMapDelta, resetHarnessMapForTest } = await import('../../src/screen/cockpit-gauges/harnessMap.ts')
+  const { resetRuntimePostureForTest } = await import('../../src/screen/cockpit/runtimePosture.ts')
+  const { getSystemPrompt } = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+  const { clearSystemPromptSections } = await import('../../src/engine/system-prompt/systemPromptSections.ts')
+  const { getTools } = await import('../../src/tools/kit/toolList.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { getDeferredToolsDelta } = await import('../../src/engine/messages/toolSearch.ts')
+  const { _resetBlenderBridgeContextCacheForTesting } = await import('../../src/integrations/blender-protocol/bridgeGates.ts')
+  const { settleDapAdapterProbes } = await import('../../src/integrations/debugger/dapClient.ts')
   await settleDapAdapterProbes()
 
   const fakeBlender = fakeCommand(SCRATCH, 'fake-blender-inproc', 'Blender 4.3.0\n', SCRATCH)

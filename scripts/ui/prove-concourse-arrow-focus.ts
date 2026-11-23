@@ -19,21 +19,21 @@ const check = (name: string, ok: boolean, detail = ''): void => {
 
 console.log('§1 the resolver — every region of the board keeps the ↑↓ row')
 {
-  const { browseKeysFor } = await import('../../src/components/concourse/controlManifest.ts')
+  const { browseKeysFor } = await import('../../src/screen/concourse/controlManifest.ts')
   const keysOf = (rows: ReadonlyArray<{ keys: string; label: string }>): string[] => rows.map(k => k.keys)
   for (const region of ['list', 'live', 'chat', 'rail'] as const) {
     const rows = browseKeysFor({ chatPresent: true, region })
-    check(`the ${region} legend keeps '↑↓ browse' (the key fires there)`, rows.some(k => k.keys === '↑↓' && k.label === 'browse'), `${keysOf(rows).join(',')} | change browseKeysFor or CONCOURSE_BROWSE_KEYS in src/components/concourse/controlManifest.ts`)
+    check(`the ${region} legend keeps '↑↓ browse' (the key fires there)`, rows.some(k => k.keys === '↑↓' && k.label === 'browse'), `${keysOf(rows).join(',')} | change browseKeysFor or CONCOURSE_BROWSE_KEYS in src/screen/concourse/controlManifest.ts`)
   }
   check(
     'the region-less rows (the atlas) name where the key fires',
     browseKeysFor({ chatPresent: true }).find(k => k.keys === '↑↓')?.label === 'browse (list · live · split)',
-    `got ${JSON.stringify(browseKeysFor({ chatPresent: true }).find(k => k.keys === '↑↓'))} | change browseKeysFor in src/components/concourse/controlManifest.ts`,
+    `got ${JSON.stringify(browseKeysFor({ chatPresent: true }).find(k => k.keys === '↑↓'))} | change browseKeysFor in src/screen/concourse/controlManifest.ts`,
   )
   check(
     'esc is relabelled by chat presence in every region',
     (['list', 'live', 'chat', 'rail'] as const).every(region => browseKeysFor({ chatPresent: false, region }).find(k => k.keys === 'esc')?.label === 'boot face' && browseKeysFor({ chatPresent: true, region }).find(k => k.keys === 'esc')?.label === 'focused chat'),
-    'change the esc relabel in browseKeysFor, src/components/concourse/controlManifest.ts',
+    'change the esc relabel in browseKeysFor, src/screen/concourse/controlManifest.ts',
   )
 }
 
@@ -148,7 +148,7 @@ const scratches: string[] = []
     `before=${rowBefore}:${JSON.stringify(titleOf(before[rowBefore]))} after=${rowAfter}:${JSON.stringify(titleOf(afterDown[rowAfter]))} expected=${JSON.stringify(titleOf(before[nextRow]))} | the drive runs dist/mercury.mjs, so rebuild it (bun run build.ts) after a source change; the frames are in ${OUT_DIR}`,
   )
   const legend = afterEnter.find(l => /enters \(armed\)/.test(l)) ?? ''
-  check('list: ↵ on the rows ARMS the selected row (the legend says enters (armed) — the second ↵ enters)', legend !== '', afterEnter.find(l => l.includes('tab panes'))?.trim().slice(0, 118) ?? `(no legend row) | the legend comes from the armed rows of the list region in src/components/concourse/controlManifest.ts and the live composer rows in src/components/concourse/ConcourseLayout.tsx; frames are in ${OUT_DIR}`)
+  check('list: ↵ on the rows ARMS the selected row (the legend says enters (armed) — the second ↵ enters)', legend !== '', afterEnter.find(l => l.includes('tab panes'))?.trim().slice(0, 118) ?? `(no legend row) | the legend comes from the armed rows of the list region in src/screen/concourse/controlManifest.ts and the live composer rows in src/screen/concourse/ConcourseLayout.tsx; frames are in ${OUT_DIR}`)
 }
 
 for (const s of scratches) rmSync(s, { recursive: true, force: true })

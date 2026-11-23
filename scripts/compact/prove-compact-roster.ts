@@ -25,11 +25,11 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
-const rosterHint = ' | fix getAgentRosterAttachment in src/services/attachments/agentRoster.ts'
-const queueHint = ' | fix queuedNoticeTaskIds in src/services/attachments/agentRoster.ts'
-const projectHint = ' | fix normalizeAttachmentForAPI in src/services/messages/attachmentText.ts'
-const promptHint = ' | fix getCompactPrompt and getPartialCompactPrompt in src/services/compact/prompt.ts'
-const foldHint = ' | fix compactConversation in src/services/compact/compact.ts'
+const rosterHint = ' | fix getAgentRosterAttachment in src/engine/attachments/agentRoster.ts'
+const queueHint = ' | fix queuedNoticeTaskIds in src/engine/attachments/agentRoster.ts'
+const projectHint = ' | fix normalizeAttachmentForAPI in src/engine/messages/attachmentText.ts'
+const promptHint = ' | fix getCompactPrompt and getPartialCompactPrompt in src/engine/compaction/summariserPrompt.ts'
+const foldHint = ' | fix compactConversation in src/engine/compaction/foldConversation.ts'
 
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — compact roster proofs exceeded 120s')
@@ -37,16 +37,16 @@ const guard = setTimeout(() => {
 }, 120_000)
 guard.unref?.()
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { getAgentRosterAttachment, queuedNoticeTaskIds } = await import('../../src/services/attachments/agentRoster.ts')
-const { createTaskStateBase } = await import('../../src/Task.ts')
-const { getTaskOutputPath } = await import('../../src/utils/task/diskOutput.ts')
-const { seatWaitWords } = await import('../../src/services/capacity/seatWords.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { NULL_RENDERING_ATTACHMENT_TYPES, isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
-const { getCompactPrompt, getPartialCompactPrompt } = await import('../../src/services/compact/prompt.ts')
-const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
+const { getAgentRosterAttachment, queuedNoticeTaskIds } = await import('../../src/engine/attachments/agentRoster.ts')
+const { createTaskStateBase } = await import('../../src/engine/tasks/taskBase.ts')
+const { getTaskOutputPath } = await import('../../src/engine/task-framework/diskOutput.ts')
+const { seatWaitWords } = await import('../../src/crew/capacity/seatWords.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { NULL_RENDERING_ATTACHMENT_TYPES, isNullRenderingAttachment } = await import('../../src/screen/messages/nullRenderingAttachments.ts')
+const { getCompactPrompt, getPartialCompactPrompt } = await import('../../src/engine/compaction/summariserPrompt.ts')
+const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
 
 type AnyTask = Record<string, unknown>
 const now = Date.now()
@@ -148,7 +148,7 @@ check('…the waiting row carries the seat sentence beside the word waiting', te
 check('…the shell line names TaskStop as its door', text.includes('local_bash "sleep 20" [bshell001]: running · asked: roster-shell sleeps') && text.includes('reach it: TaskStop by its id'), text.slice(0, 600) + projectHint)
 check('…the two laws close the roster', text.includes('A running agent is never re-spawned') && text.includes('never re-derived'), text.slice(0, 600) + projectHint)
 check('an empty roster projects nothing', normalizeAttachmentForAPI({ type: 'agent_roster', rows: [] } as never).length === 0)
-check('the roster is registered null-rendering (transcript-only, never painted)', (NULL_RENDERING_ATTACHMENT_TYPES as readonly string[]).includes('agent_roster') && isNullRenderingAttachment(createAttachmentMessage(out[0] as never) as never), 'agent_roster must be listed in NULL_RENDERING_ATTACHMENT_TYPES in src/components/messages/nullRenderingAttachments.ts')
+check('the roster is registered null-rendering (transcript-only, never painted)', (NULL_RENDERING_ATTACHMENT_TYPES as readonly string[]).includes('agent_roster') && isNullRenderingAttachment(createAttachmentMessage(out[0] as never) as never), 'agent_roster must be listed in NULL_RENDERING_ATTACHMENT_TYPES in src/screen/messages/nullRenderingAttachments.ts')
 
 section('§4 the summary template carries the tenth section')
 const NINE = [
@@ -179,11 +179,11 @@ section('§6 the direct lane — a real fold on an engine family carries the ros
   const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFixture.ts')
   const fixture = await startCrossfamilyFixture({ port: FIXTURE_PORT })
   Object.assign(process.env, fixture.env)
-  const { compactConversation } = await import('../../src/services/compact/compact.ts')
-  const { createUserMessage } = await import('../../src/services/messages.ts')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+  const { compactConversation } = await import('../../src/engine/compaction/foldConversation.ts')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+  const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
   const appState = {
     toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' as const },
     sessionHooks: new Map(),
@@ -228,7 +228,7 @@ section('§6 the direct lane — a real fold on an engine family carries the ros
   const attachments = ((result?.attachments ?? []) as Array<{ attachment: { type: string; rows?: Array<{ name: string }> } }>)
   const rosters = attachments.filter(a => a.attachment.type === 'agent_roster')
   check("the result's attachments carry ONE roster", rosters.length === 1, j(attachments.map(a => a.attachment.type)) + foldHint + ' (the roster attachment must ride the fold result)')
-  check('…naming the sub-agent and the shell', j(rosters[0]?.attachment.rows?.map(r => r.name).sort()) === j(['plain-survey', 'sleep 20'].sort()), j(rosters[0]?.attachment.rows?.map(r => r.name)) + foldHint + ' and getAgentRosterAttachment in src/services/attachments/agentRoster.ts')
+  check('…naming the sub-agent and the shell', j(rosters[0]?.attachment.rows?.map(r => r.name).sort()) === j(['plain-survey', 'sleep 20'].sort()), j(rosters[0]?.attachment.rows?.map(r => r.name)) + foldHint + ' and getAgentRosterAttachment in src/engine/attachments/agentRoster.ts')
   check('…and no task_status row beside it (one announcer)', !attachments.some(a => a.attachment.type === 'task_status'), j(attachments.map(a => a.attachment.type)) + foldHint + ' (the roster is the one announcer)')
 }
 

@@ -11,7 +11,7 @@ process.env.NODE_ENV = 'test'
 for (const key of ['MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'OPENCODE_API_KEY', 'OPENAI_API_KEY']) delete process.env[key]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { resolveModelPricing, calculateUSDCost } = await import('../../src/services/usage/modelCost.js')
+const { resolveModelPricing, calculateUSDCost } = await import('../../src/models/usage/modelCost.js')
 
 const page = 'https://opencode.ai/docs/console/models/'
 const written: Array<{ id: string; short: [number, number, number, number]; long: [number, number, number, number] }> = [
@@ -36,7 +36,7 @@ const failures: string[] = []
 let checks = 0
 function check(label: string, run: () => void): void {
   checks++
-  try { run(); console.log(`PASS ${label}`) } catch (e) { failures.push(label); console.error(`FAIL ${label}: ${String(e)} | fix: the rows and their longContext tier (threshold, cacheWritePerMtok) are in src/utils/model/pins/zenPins.ts; the tier choice is in resolveModelPricing in src/services/usage/modelCost.ts; prices are those of ${page}`) }
+  try { run(); console.log(`PASS ${label}`) } catch (e) { failures.push(label); console.error(`FAIL ${label}: ${String(e)} | fix: the rows and their longContext tier (threshold, cacheWritePerMtok) are in src/models/facts/pins/zenPins.ts; the tier choice is in resolveModelPricing in src/models/usage/modelCost.ts; prices are those of ${page}`) }
 }
 function rates(id: string, promptTokens: number): [number, number, number, number] {
   const costs = resolveModelPricing(`zen/${id}`, { promptTokens }).costs

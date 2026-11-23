@@ -9,9 +9,9 @@ const effortArgIndex = process.argv.indexOf('--effort')
 const EFFORT = effortArgIndex > 0 ? process.argv[effortArgIndex + 1]! : 'low'
 
 const { openaiCallModel, openaiLiveProofState } = await import(
-  '../../../src/services/providers/openai/openaiCallModel.js'
+  '../../../src/models/roads/openai/openaiCallModel.js'
 )
-const { getEmptyToolPermissionContext } = await import('../../../src/Tool.ts')
+const { getEmptyToolPermissionContext } = await import('../../../src/tools/kit/tool.ts')
 const { latchVerdict, turnAnswerVerdict } = await import('./smokeVerdicts.ts')
 const latchBefore = openaiLiveProofState()
 

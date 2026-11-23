@@ -11,7 +11,7 @@ mkdirSync(DAEMON, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_DAEMON_DIR = DAEMON
 
-const TITLE_HINT = 'change liveTitleDeriverFor in src/services/switchboard/hopIntoSession.ts or headBriefLabel in src/services/concourse/concourseSnapshot.ts so the live title follows the record, the first words, then the stage-1 title'
+const TITLE_HINT = 'change liveTitleDeriverFor in src/daemon/switchboard/hopIntoSession.ts or headBriefLabel in src/screen/concourse-model/concourseSnapshot.ts so the live title follows the record, the first words, then the stage-1 title'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -20,11 +20,11 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
-const workers = await import('../../src/daemon/concourseWorkers.ts')
-const { sessionTitleOf, newSessionTitle } = await import('../../src/services/concourse/sessionNaming.ts')
-const { headBriefLabel } = await import('../../src/services/concourse/concourseSnapshot.ts')
-const { liveTitleDeriverFor } = await import('../../src/services/switchboard/hopIntoSession.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { sessionTitleOf, newSessionTitle } = await import('../../src/screen/concourse-model/sessionNaming.ts')
+const { headBriefLabel } = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
+const { liveTitleDeriverFor } = await import('../../src/daemon/switchboard/hopIntoSession.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 
 const workspace = join(SCRATCH, 'work')
@@ -60,8 +60,8 @@ utimesSync(workersPath, t2, t2)
 check('§1d a rename on the record follows (the record is the one owner)', deriver(record) === 'Renamed by the operator', String(deriver(record)))
 
 
-const { extractFirstPromptFromHead } = await import('../../src/utils/sessionStoragePortable.ts')
-const { formatCommandInputTags, createSyntheticUserCaveatMessage } = await import('../../src/utils/messages/factories.ts')
+const { extractFirstPromptFromHead } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
+const { formatCommandInputTags, createSyntheticUserCaveatMessage } = await import('../../src/engine/message-shapes/factories.ts')
 for (const withPrompt of [false, true]) {
   const id = withPrompt ? 'aaaaaaaa-1111-4222-8333-555555555555' : 'aaaaaaaa-1111-4222-8333-666666666666'
   const commandRows = [
@@ -80,8 +80,8 @@ for (const withPrompt of [false, true]) {
 }
 
 {
-  const { QueuePart } = await import('../../src/utils/sessionStorage/writer/queue.ts')
-  const { historyHead } = await import('../../src/utils/sessionStorage/historyParts.ts')
+  const { QueuePart } = await import('../../src/sessions/transcripts/writer/queue.ts')
+  const { historyHead } = await import('../../src/sessions/transcripts/historyParts.ts')
   const foldedId = 'aaaaaaaa-1111-4222-8333-777777777777'
   const foldedPath = join(paths.getProjectDir(workspace), `${foldedId}.jsonl`)
   const queue = new QueuePart()

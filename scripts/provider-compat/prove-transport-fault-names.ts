@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { describeTransportFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
+const { describeTransportFailure } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  const failHint = cond ? '' : ' (change describeTransportFailure in src/services/providers/openaicompat/compatChatClient.ts so each errno shape names its code, host and port)'
+  const failHint = cond ? '' : ' (change describeTransportFailure in src/models/roads/openaicompat/compatChatClient.ts so each errno shape names its code, host and port)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${failHint}`)
   if (!cond) failures++
 }

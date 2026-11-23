@@ -12,7 +12,7 @@ console.log('signature boundaries — home authority')
   delete process.env.MERCURY_CONFIG_DIR
   delete process.env.MERCURY_HOME
   process.env.MERCURY_HOME = '/tmp/sig-proof-home'
-  const { crashReportDir } = await import('../../src/utils/crashReport.js')
+  const { crashReportDir } = await import('../../src/platform/logs/crashReport.js')
   check(
     'MERCURY_HOME governs the crash dir',
     crashReportDir().startsWith('/tmp/sig-proof-home'),

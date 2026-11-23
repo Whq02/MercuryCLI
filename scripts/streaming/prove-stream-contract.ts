@@ -5,8 +5,8 @@ import {
   isDroppedLateStreamFrame,
   type StreamingToolUse,
   type StreamingToolUseUpdateOpts,
-} from '../../src/utils/messages/streaming.js'
-import { createStreamingTailStore } from '../../src/utils/messages/streamingTailStore.js'
+} from '../../src/screen/messages-list/streamToScreen.js'
+import { createStreamingTailStore } from '../../src/engine/message-shapes/streamingTailStore.js'
 
 let failures = 0
 function check(name: string, ok: boolean, detail?: string): void {
@@ -14,7 +14,7 @@ function check(name: string, ok: boolean, detail?: string): void {
     console.log(`  ✓ ${name}`)
   } else {
     failures++
-    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — fix the behaviour in src/utils/messages/streaming.ts (handleMessageFromStream, isDroppedLateStreamFrame), src/utils/messages/streamingTailStore.ts (createStreamingTailStore) or src/services/tools/chantGuard.ts (StreamChantWatch, detectChant, trimChantedReplyMessages), whichever this check names`)
+    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''} — fix the behaviour in src/screen/messages-list/streamToScreen.ts (handleMessageFromStream, isDroppedLateStreamFrame), src/engine/message-shapes/streamingTailStore.ts (createStreamingTailStore) or src/engine/tool-dispatch/chantGuard.ts (StreamChantWatch, detectChant, trimChantedReplyMessages), whichever this check names`)
   }
 }
 
@@ -187,7 +187,7 @@ console.log('── FLUX S0 stream-contract characterization ──')
 }
 
 {
-  const { StreamChantWatch, trimChantedReplyMessages, detectChant } = await import('../../src/services/tools/chantGuard.ts')
+  const { StreamChantWatch, trimChantedReplyMessages, detectChant } = await import('../../src/engine/tool-dispatch/chantGuard.ts')
   const feed = (watch: InstanceType<typeof StreamChantWatch>, text: string, thinking = false) => watch.feed({ type: 'content_block_delta', index: 0, delta: thinking ? { type: 'thinking_delta', thinking: text } : { type: 'text_delta', text } })
   const loop = 'An exact recurring stretch of output that makes no forward progress. '
   const watch = new StreamChantWatch()
@@ -202,7 +202,7 @@ console.log('── FLUX S0 stream-contract characterization ──')
   const late = new StreamChantWatch()
   check('varied output passes the first stride', feed(late, code) === null)
   check('a loop beginning after varied output trips at the next stride', feed(late, loop.repeat(700), true) !== null)
-  const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
+  const { createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
   const signed = { type: 'thinking' as const, thinking: 'Earlier useful reasoning.', signature: 'unchanged-signature' }
   const prefix = 'A useful prefix.\n```\nnot a repeat\n```\n'
   const text = prefix + loop.repeat(30)

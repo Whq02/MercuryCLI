@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { CRITTERS, critterDefForKey } from '../../src/utils/cockpit/critterData.js'
+import { CRITTERS, critterDefForKey } from '../../src/screen/cockpit/critterData.js'
 
 const root = join(import.meta.dir, '..', '..')
 const read = (path: string): string => readFileSync(join(root, path), 'utf8')
@@ -18,11 +18,11 @@ const snapshot = JSON.parse(read('scripts/critters/fixtures/retained-critter-gri
   dockEyeProofSha256: string
 }
 check('the retained-grid fixture names the verified base', snapshot.base === '5f210214fa7eddf68146fdbdeb9fefdf8ee15e96', 'scripts/critters/fixtures/retained-critter-grids.json carries a different base than this proof expects; the proof and the fixture must name the same commit')
-check('the retained-grid roster is complete', JSON.stringify(CRITTERS.map(d => d.name)) === JSON.stringify(snapshot.critters.map(d => d.name)), 'CRITTERS in src/utils/cockpit/critterData.ts and the critters in scripts/critters/fixtures/retained-critter-grids.json differ in names or order')
+check('the retained-grid roster is complete', JSON.stringify(CRITTERS.map(d => d.name)) === JSON.stringify(snapshot.critters.map(d => d.name)), 'CRITTERS in src/screen/cockpit/critterData.ts and the critters in scripts/critters/fixtures/retained-critter-grids.json differ in names or order')
 for (const before of snapshot.critters) {
   const def = critterDefForKey(before.name)
-  check(`${before.name}: dock unchanged cell for cell`, JSON.stringify(def.squareDock) === JSON.stringify(before.squareDock), `the squareDock grid of ${before.name} in src/utils/cockpit/critterData.ts differs from scripts/critters/fixtures/retained-critter-grids.json; restore the retained cells`)
-  check(`${before.name}: mini and its sleep pose unchanged cell for cell`, JSON.stringify(def.mini) === JSON.stringify(before.mini) && JSON.stringify(def.sleep.mini) === JSON.stringify(before.sleep), `the mini or sleep.mini grid of ${before.name} in src/utils/cockpit/critterData.ts differs from scripts/critters/fixtures/retained-critter-grids.json; restore the retained cells`)
+  check(`${before.name}: dock unchanged cell for cell`, JSON.stringify(def.squareDock) === JSON.stringify(before.squareDock), `the squareDock grid of ${before.name} in src/screen/cockpit/critterData.ts differs from scripts/critters/fixtures/retained-critter-grids.json; restore the retained cells`)
+  check(`${before.name}: mini and its sleep pose unchanged cell for cell`, JSON.stringify(def.mini) === JSON.stringify(before.mini) && JSON.stringify(def.sleep.mini) === JSON.stringify(before.sleep), `the mini or sleep.mini grid of ${before.name} in src/screen/cockpit/critterData.ts differs from scripts/critters/fixtures/retained-critter-grids.json; restore the retained cells`)
 }
 const scratch = mkdtempSync(join(tmpdir(), 'critter-fixture-recording-'))
 try {

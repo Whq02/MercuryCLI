@@ -18,14 +18,14 @@ delete process.env.SSH_CONNECTION
 delete process.env.TERM_PROGRAM
 
 const { call, collectReplies, copyResultLine, COPY_WORDS, fencedCodeBlocks, lastFencedCodeBlock } = await import('../../src/commands/copy/copy.ts')
-const { pbcopyLocaleEnv, SET_CLIPBOARD_SCRIPT, setClipboardWithReceipt, terminalDropsOsc52, windowsClipInput, windowsPowershellEnv, windowsPowershellInput } = await import('../../src/ink/termio/osc.ts')
-const { execFileNoThrow } = await import('../../src/utils/execFileNoThrow.ts')
-const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
-const { findCommand, getCommands } = await import('../../src/commands.ts')
+const { pbcopyLocaleEnv, SET_CLIPBOARD_SCRIPT, setClipboardWithReceipt, terminalDropsOsc52, windowsClipInput, windowsPowershellEnv, windowsPowershellInput } = await import('../../src/screen/renderer/termio/osc.ts')
+const { execFileNoThrow } = await import('../../src/platform/processes/execFileNoThrow.ts')
+const { DEFAULT_BINDINGS } = await import('../../src/screen/keys/defaultBindings.ts')
+const { findCommand, getCommands } = await import('../../src/commands/catalogue/commands.ts')
 
 let failures = 0
 const copyReplyFailHint =
-  'reply assembly, the result row and /copy arguments live in src/commands/copy/copy.ts (collectReplies, copyResultLine, COPY_WORDS, call); the clipboard bytes and locale live in src/ink/termio/osc.ts (setClipboardWithReceipt, pbcopyLocaleEnv, windowsPowershellInput, windowsClipInput); the ctrl+x y chord lives in src/keybindings/defaultBindings.ts'
+  'reply assembly, the result row and /copy arguments live in src/commands/copy/copy.ts (collectReplies, copyResultLine, COPY_WORDS, call); the clipboard bytes and locale live in src/screen/renderer/termio/osc.ts (setClipboardWithReceipt, pbcopyLocaleEnv, windowsPowershellInput, windowsClipInput); the ctrl+x y chord lives in src/screen/keys/defaultBindings.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${copyReplyFailHint}` : ''}`)

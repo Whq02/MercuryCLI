@@ -3,24 +3,24 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import type { Message } from '../../src/types/message.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'memory-fold-readback-'))
 process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
 process.env.MERCURY_EMBED_ENGINE = 'off'
 writeFileSync(join(home, 'settings.json'), JSON.stringify({ memory: { journal: false }, jev: { enabled: false } }))
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { retireFoldToMemory, readBackStoredRow, foldMemoryWitness, foldMemoryStoredText } = await import('../../src/services/compact/foldRetirement.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const { acceptUserRequest, noteRunEvent } = await import('../../src/services/run/runCoordinator.ts')
-const { readMemoryRecord, consolidatedIdOf, retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
-const { memoryPointerForId, renderPointerLine } = await import('../../src/mneme/mnemePointers.ts')
-const { pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
-const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { readPins } = await import('../../src/mneme/mnemeUsage.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
+const { retireFoldToMemory, readBackStoredRow, foldMemoryWitness, foldMemoryStoredText } = await import('../../src/engine/compaction/foldRetirement.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const { acceptUserRequest, noteRunEvent } = await import('../../src/engine/run/runCoordinator.ts')
+const { readMemoryRecord, consolidatedIdOf, retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { memoryPointerForId, renderPointerLine } = await import('../../src/sessions/mneme/mnemePointers.ts')
+const { pendingRows } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { readPins } = await import('../../src/sessions/mneme/mnemeUsage.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
 
 const dir = mnemeLibraryDir()
 mkdirSync(dir, { recursive: true })
@@ -46,7 +46,7 @@ try {
   const committed = retireFoldToMemory({ messages, owner, epoch: 2, records: messages.length, dir, sessions: [] })
   check('a successful write commits: the envelope carries a resolvable pending pointer, its item and the sha256 witness of the stored text', committed.state === 'committed' && 'pointer' in committed && committed.pointer.id.startsWith('pending:') && committed.item !== null && committed.contentWitness.digest === foldMemoryWitness(foldMemoryStoredText(committed.item)), JSON.stringify(committed).slice(0, 300))
   assert.equal(committed.state, 'committed')
-  assert.ok('pointer' in committed && committed.item !== null, 'retireFoldToMemory in src/services/compact/foldRetirement.ts must return committed pointer and item')
+  assert.ok('pointer' in committed && committed.item !== null, 'retireFoldToMemory in src/engine/compaction/foldRetirement.ts must return committed pointer and item')
   const stored = readBackStoredRow(committed.pointer.id, dir)
   check('the stored row read back through the shared read-back is the item byte for byte and its witness is the envelope\'s', stored !== null && stored.text === foldMemoryStoredText(committed.item) && foldMemoryWitness(stored.text) === committed.contentWitness.digest && !stored.pin, JSON.stringify(stored).slice(0, 200))
   const record = readMemoryRecord(committed.pointer.id, dir, { sessions: [] })

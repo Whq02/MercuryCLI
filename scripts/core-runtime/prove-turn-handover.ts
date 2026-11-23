@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import * as t from './turnScenarios.ts'
 
-const queue = await import('../../src/utils/messageQueueManager.ts')
+const queue = await import('../../src/daemon/runner/messageQueueManager.ts')
 
 const f = t.fixtures
 type Row = Record<string, unknown>
@@ -12,12 +12,12 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  const hint = 'change the hand-over the label names in src/run-core/turn/ (noToolReply.ts for the recoveries and nudges, afterTools.ts for next_turn, makeRequest.ts for overflow_recovery); the transition names are listed in src/query/transitions.ts'
+  const hint = 'change the hand-over the label names in src/engine/loop/turn/ (noToolReply.ts for the recoveries and nudges, afterTools.ts for next_turn, makeRequest.ts for overflow_recovery); the transition names are listed in src/engine/turn-entry/transitions.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${hint}` : ''}`)
 }
 const section = (title: string): void => console.log('\n' + '─'.repeat(76) + '\n' + title)
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the turn hand-overs exceeded 180s; a scripted run never reached its terminal, so look for the hand-over that loops or waits in src/run-core/turn/ and the last check printed above')
+  console.log('\nTIMEOUT — the turn hand-overs exceeded 180s; a scripted run never reached its terminal, so look for the hand-over that loops or waits in src/engine/loop/turn/ and the last check printed above')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

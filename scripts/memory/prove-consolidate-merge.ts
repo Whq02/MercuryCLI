@@ -6,9 +6,9 @@ import assert from 'node:assert/strict'
 const home = mkdtempSync(join(tmpdir(), 'memory-merge-'))
 process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
-const { currentBufferPath } = await import('../../src/mneme/mnemeBuffer.ts')
-const { maybeConsolidate, listTopicDocs, listArchiveDocs, validateDraft } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { pinFact, unpinFact } = await import('../../src/mneme/mnemeUsage.ts')
+const { currentBufferPath } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { maybeConsolidate, listTopicDocs, listArchiveDocs, validateDraft } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { pinFact, unpinFact } = await import('../../src/sessions/mneme/mnemeUsage.ts')
 const old = 'The service stores encrypted backup records beside the journal and checks every checksum before restoring the saved workspace.'
 const newer = `${old} Always.`
 const now = new Date('2026-10-13T12:00:00.000Z')
@@ -25,7 +25,7 @@ try {
     const dir = join(home, 'pending')
     seed(dir, newer, 1, { topicHint: 'backup' })
     seed(dir, old, 0, { topicHint: 'journal' })
-    assert(maybeConsolidate({ dir, now, force: true }).consolidated, 'maybeConsolidate in src/mneme/mnemeConsolidate.ts must consolidate two pending restatements')
+    assert(maybeConsolidate({ dir, now, force: true }).consolidated, 'maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts must consolidate two pending restatements')
     assert.equal(rows(dir).length, 1)
     assert.equal(rows(dir)[0]!.text, newer)
     assert.equal(history(dir)[0]!.text, old)
@@ -35,9 +35,9 @@ try {
   check('a restatement replaces a library fact across topics without composing text', () => {
     const dir = join(home, 'library')
     seed(dir, old, 0, { topicHint: 'backup' })
-    assert(maybeConsolidate({ dir, now, force: true }).consolidated, 'maybeConsolidate in src/mneme/mnemeConsolidate.ts must consolidate initial library fact')
+    assert(maybeConsolidate({ dir, now, force: true }).consolidated, 'maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts must consolidate initial library fact')
     seed(dir, newer, 1, { topicHint: 'journal' })
-    assert(maybeConsolidate({ dir, now, force: true }).consolidated, 'maybeConsolidate in src/mneme/mnemeConsolidate.ts must consolidate cross-topic restatement')
+    assert(maybeConsolidate({ dir, now, force: true }).consolidated, 'maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts must consolidate cross-topic restatement')
     assert.equal(rows(dir).length, 1)
     assert.equal(rows(dir)[0]!.text, newer)
     assert.equal(history(dir)[0]!.text, old)
@@ -47,7 +47,7 @@ try {
       const dir = join(home, extra.pin ? 'pin-pending' : 'asked-pending')
       seed(dir, old, 0, extra)
       seed(dir, newer, 1)
-      assert(maybeConsolidate({ dir, now, force: true }).consolidated, `maybeConsolidate in src/mneme/mnemeConsolidate.ts must consolidate ${extra.pin ? 'pinned' : 'asked'} pending rows`)
+      assert(maybeConsolidate({ dir, now, force: true }).consolidated, `maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts must consolidate ${extra.pin ? 'pinned' : 'asked'} pending rows`)
       assert.equal(rows(dir).length, 2)
       assert.equal(history(dir).length, 0)
     }
@@ -57,14 +57,14 @@ try {
   check('a pinned library rule stays current; unpin and restate then keeps one current', () => {
     const dir = join(home, 'pin-library')
     seed(dir, old, 0)
-    assert(maybeConsolidate({ dir, now, force: true }).consolidated, 'maybeConsolidate in src/mneme/mnemeConsolidate.ts must consolidate seed row before pin')
+    assert(maybeConsolidate({ dir, now, force: true }).consolidated, 'maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts must consolidate seed row before pin')
     pinFact(1, dir, now, { asked: true })
     seed(dir, newer, 1)
-    assert(maybeConsolidate({ dir, now, force: true }).consolidated, 'maybeConsolidate in src/mneme/mnemeConsolidate.ts must consolidate restatement beside pinned row')
-    assert(rows(dir).some(e => e.seq === 1 && e.text === old), 'pinned library row seq 1 must remain current with original text in src/mneme/mnemeConsolidate.ts')
+    assert(maybeConsolidate({ dir, now, force: true }).consolidated, 'maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts must consolidate restatement beside pinned row')
+    assert(rows(dir).some(e => e.seq === 1 && e.text === old), 'pinned library row seq 1 must remain current with original text in src/sessions/mneme/mnemeConsolidate.ts')
     unpinFact(1, dir)
     seed(dir, newer, 2)
-    assert(maybeConsolidate({ dir, now, force: true }).consolidated, 'maybeConsolidate in src/mneme/mnemeConsolidate.ts must consolidate restatement after unpin')
+    assert(maybeConsolidate({ dir, now, force: true }).consolidated, 'maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts must consolidate restatement after unpin')
     assert.equal(rows(dir).length, 1)
     assert.equal(history(dir).length, 2)
   })
@@ -73,22 +73,22 @@ try {
       const dir = mkdtempSync(join(home, 'different-'))
       seed(dir, old, 0)
       seed(dir, changed, 1)
-      assert(maybeConsolidate({ dir, now, force: true }).consolidated, 'maybeConsolidate in src/mneme/mnemeConsolidate.ts must consolidate distinct negation/numeric rows')
+      assert(maybeConsolidate({ dir, now, force: true }).consolidated, 'maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts must consolidate distinct negation/numeric rows')
       assert.equal(rows(dir).length, 2)
       assert.equal(history(dir).length, 0)
     }
   })
-  const { shingleSimilarity, CONSOLIDATE_SIMILARITY_THRESHOLD } = await import('../../src/mneme/mnemeSimilarity.ts')
+  const { shingleSimilarity, CONSOLIDATE_SIMILARITY_THRESHOLD } = await import('../../src/sessions/mneme/mnemeSimilarity.ts')
   check('the edge is inclusive at four shared shingles out of five', () => {
     const a = 'amber birch cedar dogwood elm fir'
     const b = `${a} ginkgo`
     assert.equal(shingleSimilarity(a, b), 0.8)
     assert.equal(CONSOLIDATE_SIMILARITY_THRESHOLD, 0.8)
-    assert(shingleSimilarity(a, `${b} hazel`) < CONSOLIDATE_SIMILARITY_THRESHOLD, `shingleSimilarity in src/mneme/mnemeSimilarity.ts for two added words must stay below ${CONSOLIDATE_SIMILARITY_THRESHOLD}`)
+    assert(shingleSimilarity(a, `${b} hazel`) < CONSOLIDATE_SIMILARITY_THRESHOLD, `shingleSimilarity in src/sessions/mneme/mnemeSimilarity.ts for two added words must stay below ${CONSOLIDATE_SIMILARITY_THRESHOLD}`)
     const dir = join(home, 'edge')
     seed(dir, a, 0)
     seed(dir, b, 1)
-    assert(maybeConsolidate({ dir, now, force: true }).consolidated, 'maybeConsolidate in src/mneme/mnemeConsolidate.ts must consolidate threshold edge pair')
+    assert(maybeConsolidate({ dir, now, force: true }).consolidated, 'maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts must consolidate threshold edge pair')
     assert.equal(rows(dir).length, 1)
   })
   console.log(`consolidate merge: ${checks} checks passed`)

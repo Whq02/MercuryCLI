@@ -14,11 +14,11 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 process.env.MERCURY_FULLSCREEN = '1'
 
 const t = checker()
-const route = await import('../../src/context/surfaceRoute.js')
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.js')
-type StripStop = import('../../src/context/surfaceRoute.js').StripStop
-type StripFacts = import('../../src/context/surfaceRoute.js').StripFacts
-type SurfaceKind = import('../../src/context/surfaceRoute.js').SurfaceKind
+const route = await import('../../src/screen/routes/surfaceRoute.js')
+const { keyHintLabel } = await import('../../src/screen/widgets/keyHintLabel.js')
+type StripStop = import('../../src/screen/routes/surfaceRoute.js').StripStop
+type StripFacts = import('../../src/screen/routes/surfaceRoute.js').StripFacts
+type SurfaceKind = import('../../src/screen/routes/surfaceRoute.js').SurfaceKind
 
 const F = (concourseEnabled: boolean, chatBoot: boolean, chatPresent: boolean): StripFacts => ({ concourseEnabled, chatBoot, chatPresent })
 type Answer = StripStop | '—' | 'no chat open'
@@ -146,7 +146,7 @@ t.section('§2 — the key-map grammar paints only present moves')
   t.check('an empty strip (nothing registered) paints an empty row from the menu', route.stripKeyMapHintOf('boot-settings', []) === keyHintLabel('⇧→ no chat open') && route.stripKeyMapHintOf('repl', []) === '')
 }
 
-function presenceSeam(): { set: (v: boolean) => void; seam: import('../../src/context/surfaceRoute.js').ChatPresenceSeam } {
+function presenceSeam(): { set: (v: boolean) => void; seam: import('../../src/screen/routes/surfaceRoute.js').ChatPresenceSeam } {
   let present = false
   const listeners = new Set<() => void>()
   return {
@@ -265,9 +265,9 @@ t.section('§4 — the plain world: --chat and the switch off drop the concourse
   registerBoth()
   const presence2 = presenceSeam()
   route.registerChatPresence(presence2.seam)
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const sw = await import('../../src/services/concourse/concourseEnabled.js')
+  const sw = await import('../../src/screen/concourse-model/concourseEnabled.js')
   t.check('a fresh home boots with the switch on', sw.concourseEnabled() === true)
   sw.setConcourseEnabled(false)
   t.check('the switch off: the plain-world fact holds without --chat', route.chatOnlyBoot() === true && !route.stripFacts().chatBoot)
@@ -291,7 +291,7 @@ t.section('§5 — the policy gate: no concourse stop ⇒ the policy reads off')
     t.check('a --chat boot under the same env lands the chat: the policy reads off (no concourse stop exists in that boot)', chat.effective.kind === 'repl' && chat.policy === 'off' && chat.reason === 'concourse-off', JSON.stringify(chat))
     route._resetSurfaceRouteForTesting()
     route.registerRouteSurface('concourse', { render: () => null })
-    const sw = await import('../../src/services/concourse/concourseEnabled.js')
+    const sw = await import('../../src/screen/concourse-model/concourseEnabled.js')
     sw.setConcourseEnabled(false)
     const off = await route.resolveInitialSurface({ env: { MERCURY_CONCOURSE: 'always' }, recordsDir: dir })
     t.check('the switch off under the same env lands the chat the same way', off.effective.kind === 'repl' && off.policy === 'off', JSON.stringify(off))

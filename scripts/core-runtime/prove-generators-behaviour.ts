@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import fc from 'fast-check'
-import { all, returnValue } from '../../src/utils/generators.ts'
+import { all, returnValue } from '../../src/platform/async/generators.ts'
 
-const WHERE = 'src/utils/generators.ts'
+const WHERE = 'src/platform/async/generators.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

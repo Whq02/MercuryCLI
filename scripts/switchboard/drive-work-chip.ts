@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/models/facts/builtInModelTable.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
@@ -69,7 +69,7 @@ const spawnDaemonWithHome = (configHome: string): void => {
   })
 }
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): Promise<boolean> => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -81,8 +81,8 @@ const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): P
   }
   return false
 }
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const proj = await import('../../src/services/engine-connector/seatProjections.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
+const proj = await import('../../src/engine/connector/seatProjections.ts')
 
 let alphaId = ''
 let betaId = ''
@@ -128,7 +128,7 @@ try {
       const grant = (await daemonControlRpc({ op: 'concourseControl', action: 'grant-workflows', sessionId: alphaId, by: 'operator' } as never)) as { ok?: boolean }
       check('the crewmates-allowed tag grants', grant.ok === true, JSON.stringify(grant))
       check('alpha\'s shell is LIVE in its facts', await untilAsync(() => (proj.readSessionFacts(alphaId)?.work ?? []).some(r => r.kind === 'shell' && r.status === 'running'), 90_000))
-      const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
+      const seat = await import('../../src/engine/connector/daemonConnector.ts')
       const connA = seat.daemonSessionConnectorFor({
         sessionId: alphaId,
         runnerId: a.runnerId ?? 'concourse-w1',
@@ -154,7 +154,7 @@ try {
       } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
       check('beta dispatched', b.ok === true && b.sessionId !== undefined, JSON.stringify(b))
       betaId = b.sessionId ?? ''
-      const sup = await import('../../src/daemon/concourseWorkers.ts')
+      const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
       for (const rec of Object.values(sup.readSessionWorkers(daemonDir))) {
         if (rec.pid !== undefined && rec.endedAt === undefined) workerPids.push(rec.pid)
       }

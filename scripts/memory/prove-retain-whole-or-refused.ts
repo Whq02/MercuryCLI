@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/mnemeBuffer.ts src/mneme/memoryVerbs.ts src/tools/MemoryTools/MemoryTools.ts src/constants/tools/memory.ts
+// gate-watch: src/sessions/mneme/mnemeBuffer.ts src/sessions/mneme/memoryVerbs.ts src/tools/memory/MemoryTools.ts src/tools/kit/names/memory.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -12,17 +12,17 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${cond ? '' : ` — to fix, read retainItems in src/mneme/memoryVerbs.ts (the length limit and refusal), appendObservation in src/mneme/mnemeBuffer.ts (the buffer write), RetainTool in src/tools/MemoryTools/MemoryTools.ts (the answer the model reads) and RETAIN_PROMPT in src/constants/tools/memory.ts`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${cond ? '' : ` — to fix, read retainItems in src/sessions/mneme/memoryVerbs.ts (the length limit and refusal), appendObservation in src/sessions/mneme/mnemeBuffer.ts (the buffer write), RetainTool in src/tools/memory/MemoryTools.ts (the answer the model reads) and RETAIN_PROMPT in src/tools/kit/names/memory.ts`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.js')
-const { appendObservation, pendingRows, currentBufferPath } = await import('../../src/mneme/mnemeBuffer.js')
-const { RetainTool } = await import('../../src/tools/MemoryTools/MemoryTools.js')
-const { RETAIN_PROMPT } = await import('../../src/constants/tools/memory.js')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
+const { retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/sessions/mneme/memoryVerbs.js')
+const { appendObservation, pendingRows, currentBufferPath } = await import('../../src/sessions/mneme/mnemeBuffer.js')
+const { RetainTool } = await import('../../src/tools/memory/MemoryTools.js')
+const { RETAIN_PROMPT } = await import('../../src/tools/kit/names/memory.js')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.js')
 
 const dir = mnemeLibraryDir()
 const diskText = (): string => (existsSync(currentBufferPath(dir)) ? readFileSync(currentBufferPath(dir), 'utf8') : '')

@@ -19,14 +19,14 @@ type CoalescerModule = {
 }
 let coalescer: CoalescerModule | null = null
 try {
-  coalescer = (await import('../../src/services/workbench/serialCoalescer.ts')) as CoalescerModule
+  coalescer = (await import('../../src/screen/workbench/serialCoalescer.ts')) as CoalescerModule
 } catch {
   coalescer = null
 }
 
 t.section('§1 — a serial-coalescing owner exists')
 t.check(
-  'src/services/workbench/serialCoalescer.ts exports serialCoalescer()',
+  'src/screen/workbench/serialCoalescer.ts exports serialCoalescer()',
   typeof coalescer?.serialCoalescer === 'function',
   coalescer === null ? 'module not present' : 'export missing',
 )
@@ -95,12 +95,12 @@ if (typeof coalescer?.serialCoalescer === 'function') {
 
 t.section('§4 — pokeWorkbench (the template) honours a mid-refresh trigger')
 {
-  const bootstrap = await import('../../src/bootstrap/state.ts')
+  const bootstrap = await import('../../src/boot/process-state/processState.ts')
   bootstrap.setIsInteractive(false)
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
 
-  const projection = await import('../../src/services/workbench/projection.ts')
+  const projection = await import('../../src/screen/workbench/projection.ts')
   projection._resetWorkbenchForTesting()
   await projection.gatherWorkbenchInputs({})
   const unsub = projection.subscribeWorkbench(() => {})

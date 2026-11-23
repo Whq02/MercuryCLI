@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import type { Browser as DriverBrowser } from 'puppeteer-core'
 
-const ROOT = process.env.PROOF_SUBJECT_ROOT ?? join(import.meta.dir, '../..')
+const ROOT = process.env.PROOF_SUBJECT_ROOT ?? join(import.meta.dir, '../../kit/toolList')
 const actualSpawn = childProcess.spawnSync
 const scratch = mkdtempSync(join(tmpdir(), 'browser-secrets-'))
 const file = join(scratch, 'browser-secrets.json')
@@ -63,13 +63,13 @@ mock.module('node:child_process', () => ({
 
 try {
   if (posixHost) Object.defineProperty(process, 'platform', { value: 'darwin' })
-  const { resolveBrowserSecret, scrubSecretFromText } = await import(join(ROOT, 'src/services/browser/browserSecrets.ts'))
+  const { resolveBrowserSecret, scrubSecretFromText } = await import(join(ROOT, 'src/integrations/browser/browserSecrets.ts'))
   const resolve = resolveBrowserSecret as (ref: string, opts?: { fileDir?: string; origin?: string }) =>
     | { state: 'ok'; value: string; source: string; origin?: string }
     | { state: 'missing' | 'refused'; note: string }
   const opts = { fileDir: scratch }
   if (posixHost) {
-    hint = 'resolveBrowserSecret and migrateBrowserSecret in src/services/browser/browserSecrets.ts decide this: the file copy is removed only after a verified keychain read-back, other entries and the owner-only file mode stay, and the password goes only on stdin'
+    hint = 'resolveBrowserSecret and migrateBrowserSecret in src/integrations/browser/browserSecrets.ts decide this: the file copy is removed only after a verified keychain read-back, other entries and the owner-only file mode stay, and the password goes only on stdin'
     const password = '  fixture-keychain-password\n'
     save({ LOGIN: password, KEEP: 'other-login' })
     process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -125,7 +125,7 @@ try {
     skip('the 16 checks of a secret’s move to the OS keychain and of the file’s owner-only mode', 'they play darwin with a stand-in security over this host’s files, and a win32 file carries no owner-only mode for the product to read under that name')
   }
 
-  hint = 'resolveBrowserSecret, totpCode and scrubSecretFromText in src/services/browser/browserSecrets.ts decide this: a TOTP seed is bound to its exact origin, never shown in the resolution, and the minted code is scrubbed from text'
+  hint = 'resolveBrowserSecret, totpCode and scrubSecretFromText in src/integrations/browser/browserSecrets.ts decide this: a TOTP seed is bound to its exact origin, never shown in the resolution, and the minted code is scrubbed from text'
   const seed = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ'
   const origin = 'https://login.example'
   save({ OTP: { origin, totp: seed }, KEEP: 'other-login' })
@@ -169,7 +169,7 @@ try {
   } finally {
     Date.now = originalNow
   }
-  hint = 'resolveBrowserSecret in src/services/browser/browserSecrets.ts must keep the file store and spawn no OS keychain command on linux and win32'
+  hint = 'resolveBrowserSecret in src/integrations/browser/browserSecrets.ts must keep the file store and spawn no OS keychain command on linux and win32'
   for (const platform of ['linux', 'win32']) {
     if (!posixHost && platform === 'linux') {
       skip('linux keeps the existing file floor without spawning an OS keychain', 'the product reads the file’s mode under linux, and a win32 file carries none')
@@ -186,9 +186,9 @@ try {
   process.env.MERCURY_BROWSER_PATH = process.execPath
   const originalHome = process.env.MERCURY_CONFIG_DIR
   process.env.MERCURY_CONFIG_DIR = scratch
-  const session = await import(join(ROOT, 'src/services/browser/browserSession.ts'))
-  const { processOwnerForLane } = await import(join(ROOT, 'src/utils/run/resolveOwner.ts'))
-  const { BrowserTool } = await import(join(ROOT, 'src/tools/BrowserTool/BrowserTool.ts'))
+  const session = await import(join(ROOT, 'src/integrations/browser/browserSession.ts'))
+  const { processOwnerForLane } = await import(join(ROOT, 'src/engine/run-owner/resolveOwner.ts'))
+  const { BrowserTool } = await import(join(ROOT, 'src/tools/browser/BrowserTool.ts'))
   const owner = processOwnerForLane('secrets-proof')
   const ctx = { agentId: 'secrets-proof' } as Parameters<typeof BrowserTool.call>[1]
   let liveOrigin = origin
@@ -255,7 +255,7 @@ try {
     off: () => undefined,
     close: async () => undefined,
   }) as unknown as DriverBrowser)
-  hint = 'the type op with secretRef in src/tools/BrowserTool/browser/typeOp.ts (with checkBrowserPermissions in src/tools/BrowserTool/browser/permissions.ts) must resolve the secret for the live focused origin, refuse on origin drift or lost focus, and never put the seed or code in its result'
+  hint = 'the type op with secretRef in src/tools/browser/ops/typeOp.ts (with checkBrowserPermissions in src/tools/browser/ops/permissions.ts) must resolve the secret for the live focused origin, refuse on origin drift or lost focus, and never put the seed or code in its result'
   try {
     save({ BOUND_OTP: { origin, totp: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ' } })
     const opened = await session.ensureBrowserSession(owner)

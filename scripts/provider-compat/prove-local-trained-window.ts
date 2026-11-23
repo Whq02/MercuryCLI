@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/localServer/localWindowFit.ts src/services/context/contextFill.ts src/services/cockpit/modelGauge.ts
+// gate-watch: src/models/local-server/localWindowFit.ts src/engine/context-window/contextFill.ts src/screen/cockpit-gauges/modelGauge.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -30,20 +30,20 @@ const server = Bun.serve({
   },
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=http://127.0.0.1:${server.port}`
-const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { __pinLocalServerTruthForTest } = await import('../../src/services/localServer/localServerTruth.ts')
-const { kvGeometryOf, kvCacheBytes } = await import('../../src/services/localServer/localServerMemory.ts')
-const { localWindowRungs } = await import('../../src/services/localServer/localWindowFit.ts')
-const { chooseWindowFrom } = await import('../../src/services/localSetup/setupWindow.ts')
-const { proveKnobsOf } = await import('../../src/services/localSetup/setupProve.ts')
-const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
-const { resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
-const { contextFillView } = await import('../../src/services/context/contextFill.ts')
-const { writeLocalWindowSetting } = await import('../../src/services/providers/local/localWindow.ts')
-const { modelGauge } = await import('../../src/services/cockpit/modelGauge.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts'); enableConfigs()
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { __pinLocalServerTruthForTest } = await import('../../src/models/local-server/localServerTruth.ts')
+const { kvGeometryOf, kvCacheBytes } = await import('../../src/models/local-server/localServerMemory.ts')
+const { localWindowRungs } = await import('../../src/models/local-server/localWindowFit.ts')
+const { chooseWindowFrom } = await import('../../src/models/local-setup/setupWindow.ts')
+const { proveKnobsOf } = await import('../../src/models/local-setup/setupProve.ts')
+const { localCallModel } = await import('../../src/models/roads/local/localCallModel.ts')
+const { resolveContextWindow } = await import('../../src/models/facts/capabilities.ts')
+const { contextFillView } = await import('../../src/engine/context-window/contextFill.ts')
+const { writeLocalWindowSetting } = await import('../../src/models/roads/local/localWindow.ts')
+const { modelGauge } = await import('../../src/screen/cockpit-gauges/modelGauge.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const tally = makeTally('prove-local-trained-window')
 const geometry = kvGeometryOf(info)!
 const truth = { loaded: [], listed: [], runners: [], launchForm: { kind: 'unknown' as const, note: 'fixture' }, machine: { platform: 'darwin' as const, totalMemoryBytes: 64 * 1024 ** 3, usableMemoryBytes: 48 * 1024 ** 3, usableSource: 'fixture' }, readAtMs: Date.now() }

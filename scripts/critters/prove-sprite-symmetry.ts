@@ -4,7 +4,7 @@ import {
   heroContentBounds,
   miniArtFor,
   sleepPoseFor,
-} from '../../src/utils/cockpit/critterData.js'
+} from '../../src/screen/cockpit/critterData.js'
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -84,20 +84,20 @@ function gridLaw(name: string, art: string[] | null | undefined, kind: AxisKind)
   check(
     `${name}: §1 every row's OUTLINE mirrors (gesture rows exempt: ${exempt.size})`,
     outlineBad.length === 0,
-    `redraw the listed rows of this grid in src/utils/cockpit/critterData.ts so filled and empty cells mirror about the axis · ${outlineBad.map(i => `row ${i}: ${JSON.stringify(art[i])}`).join(' · ')}`,
+    `redraw the listed rows of this grid in src/screen/cockpit/critterData.ts so filled and empty cells mirror about the axis · ${outlineBad.map(i => `row ${i}: ${JSON.stringify(art[i])}`).join(' · ')}`,
   )
   const anatomyBad = verdicts.map((v, i) => (!v.anatomy && !exempt.has(i) ? i : -1)).filter(i => i >= 0)
   check(
     `${name}: §2 every row's ANATOMY (C/D/eye placement) mirrors`,
     anatomyBad.length === 0,
-    `redraw the listed rows of this grid in src/utils/cockpit/critterData.ts so C, D and eye letters sit at mirrored columns · ${anatomyBad.map(i => `row ${i}: ${JSON.stringify(art[i])}`).join(' · ')}`,
+    `redraw the listed rows of this grid in src/screen/cockpit/critterData.ts so C, D and eye letters sit at mirrored columns · ${anatomyBad.map(i => `row ${i}: ${JSON.stringify(art[i])}`).join(' · ')}`,
   )
   if (FULL_MIRROR.has(name)) {
     const fullBad = verdicts.map((v, i) => (!v.full ? i : -1)).filter(i => i >= 0)
     check(
       `${name}: §3 every row mirrors LETTER FOR LETTER (shading included)`,
       fullBad.length === 0,
-      `redraw the listed rows of this grid in src/utils/cockpit/critterData.ts so every letter, shading included, equals its mirror letter · ${fullBad.map(i => `row ${i}: ${JSON.stringify(art[i])}`).join(' · ')}`,
+      `redraw the listed rows of this grid in src/screen/cockpit/critterData.ts so every letter, shading included, equals its mirror letter · ${fullBad.map(i => `row ${i}: ${JSON.stringify(art[i])}`).join(' · ')}`,
     )
   }
   if (gesture) {
@@ -108,7 +108,7 @@ function gridLaw(name: string, art: string[] | null | undefined, kind: AxisKind)
 
 console.log('sprite symmetry — the mirror law over every rest pose, every form')
 
-check('the pool holds the four critters', CRITTERS.length === 4, `${CRITTERS.length} critters; CRITTERS in src/utils/cockpit/critterData.ts must hold crab, octopus, jellyfish and clam`)
+check('the pool holds the four critters', CRITTERS.length === 4, `${CRITTERS.length} critters; CRITTERS in src/screen/cockpit/critterData.ts must hold crab, octopus, jellyfish and clam`)
 for (const def of CRITTERS) {
   const name = def.name
   gridLaw(`${name} · mini awake`, miniArtFor(name), 'grid')
@@ -117,8 +117,8 @@ for (const def of CRITTERS) {
   if (miniSleep) gridLaw(`${name} · mini sleep`, miniSleep.art, 'grid')
 }
 check('every registered gesture names a grid the law walked', Object.keys(GESTURES).every(k => /^(crab|octopus|jellyfish|clam) · (mini awake|mini sleep|square dock)$/.test(k)), `fix the GESTURES keys in this file to name a grid the law walks · ${Object.keys(GESTURES).join(' · ')}`)
-check('the clam registers NO gesture — every form mirrors whole', Object.keys(GESTURES).every(k => !k.startsWith('clam')), 'remove the clam entries from GESTURES in this file and redraw the clam grids in src/utils/cockpit/critterData.ts instead')
-check('the square tier registers NO gesture — the geometric variant mirrors whole (chat-feel item 5)', Object.keys(GESTURES).every(k => !k.includes('square')), 'remove the square dock entries from GESTURES in this file and redraw the square dock grids in src/utils/cockpit/critterData.ts instead')
+check('the clam registers NO gesture — every form mirrors whole', Object.keys(GESTURES).every(k => !k.startsWith('clam')), 'remove the clam entries from GESTURES in this file and redraw the clam grids in src/screen/cockpit/critterData.ts instead')
+check('the square tier registers NO gesture — the geometric variant mirrors whole (chat-feel item 5)', Object.keys(GESTURES).every(k => !k.includes('square')), 'remove the square dock entries from GESTURES in this file and redraw the square dock grids in src/screen/cockpit/critterData.ts instead')
 
 console.log('poison controls')
 {

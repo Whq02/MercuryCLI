@@ -26,7 +26,7 @@ const said = (ran: Ran): string => j({ code: ran.code, status: ran.outcome?.stat
 
 section('§1 the test reads the last sentence of a reply: the model\'s own next action, never a question, an offer or a wait')
 {
-  const evaluator = (await import('../../src/services/run/completionEvaluator.ts')) as { announcesNextStep?: (reply: string) => boolean }
+  const evaluator = (await import('../../src/engine/run/completionEvaluator.ts')) as { announcesNextStep?: (reply: string) => boolean }
   const announces = evaluator.announcesNextStep ?? (() => false)
   const steps = [
     'I looked at the files. Next I will run the tests.',

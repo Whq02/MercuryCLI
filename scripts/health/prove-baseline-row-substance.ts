@@ -8,14 +8,14 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const WHERE_TO_LOOK = 'to fix: the iface-baseline row is built in src/services/health/sections/interface.ts (its run reads design-system/live/manifest.json and grids/); rebuild the baseline with scripts/ui/generate-visual-baseline.ts'
+const WHERE_TO_LOOK = 'to fix: the iface-baseline row is built in src/platform/health/sections/interface.ts (its run reads design-system/live/manifest.json and grids/); rebuild the baseline with scripts/ui/generate-visual-baseline.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — ' + WHERE_TO_LOOK}`)
   if (!cond) failures++
 }
 const ROOT = join(import.meta.dir, '..', '..')
 
-const report = await import('../../src/services/health/healthReport.js')
+const report = await import('../../src/platform/health/healthReport.js')
 const rowAt = async (dir: string): Promise<{ status: string; evidence: string }> => {
   process.chdir(dir)
   const cert = await report.runHealthReport({ depth: 'fast' })

@@ -155,9 +155,9 @@ const RIGHT = '\x1b[C'
 const BACKSPACE = '\x7f'
 const ESC = '\x1b'
 const SHIFT_RIGHT = '\x1b[1;2C'
-const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.ts')
-const { withJevRow } = await import('../../src/components/BootSettingsScreen.tsx')
-const { settingsEditors } = await import('../../src/components/bootSettings/menuModel.ts')
+const { STARTUP_MENU } = await import('../../src/platform/substrate/startupMenu.ts')
+const { withJevRow } = await import('../../src/screen/boot-face/BootSettingsScreen.tsx')
+const { settingsEditors } = await import('../../src/screen/boot-face/settings/menuModel.ts')
 const TO_MOTION = DOWN.repeat(settingsEditors.length + withJevRow(STARTUP_MENU).length + 1)
 let cap: Capture | null = null
 try {
@@ -205,17 +205,17 @@ if (cap !== null) {
   const m = cap.marks
   console.log(`  marks: ${Object.entries(cap.markTicks).map(([k, v]) => `${k}@${v}`).join(' ')} · end: ${cap.endReason} · model calls on the wire: ${fixture.calls}`)
   if (KEEP) for (const label of MARKS) dump(label, m[label])
-  check('every send became due (the frames the sends waited on all painted)', cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`, 'a frame a send waited on never painted; read the final frame dumped below and the wait texts in the sends list of this file, then fix the Motion text in src/utils/cockpit/motionSetting.ts or the screen that paints it')
+  check('every send became due (the frames the sends waited on all painted)', cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`, 'a frame a send waited on never painted; read the final frame dumped below and the wait texts in the sends list of this file, then fix the Motion text in src/screen/cockpit/motionSetting.ts or the screen that paints it')
   if (cap.receipts !== cap.sends) dump('the final frame (a send never became due)', cap.text)
 
   const statusRows = (frame: string | undefined): string[] => rowsWith(frame, folder)
 
   console.log('\n— M1 the Boot Menu row —')
   const menu = m['menu-motion']
-  check('M1 the PERFORMANCE section is on the menu', rowsWith(menu, 'PERFORMANCE').length > 0, rowsWith(menu, /PERFORMANCE|Motion/).map(flat).join(' | ').slice(0, 300), 'add the Motion row under a PERFORMANCE section of the Boot Menu; its settings editors are listed in src/components/bootSettings/menuModel.ts')
+  check('M1 the PERFORMANCE section is on the menu', rowsWith(menu, 'PERFORMANCE').length > 0, rowsWith(menu, /PERFORMANCE|Motion/).map(flat).join(' | ').slice(0, 300), 'add the Motion row under a PERFORMANCE section of the Boot Menu; its settings editors are listed in src/screen/boot-face/settings/menuModel.ts')
   check('M1 the Motion row reads auto · full before any change', rowsWith(menu, /Motion\s+auto · full/).length > 0 || rowsWith(m['config-open'], /auto · full/).length > 0, rowsWith(menu, /Motion/).map(flat).join(' | ').slice(0, 300))
-  check('M1 the detail names the doors and the word', rowsWith(menu, 'doors: /config · Boot Menu').length > 0 && rowsWith(menu, 'the status line says reduced').length > 0, rowsWith(menu, /doors|status line/).map(flat).join(' | ').slice(0, 300), 'the Motion detail text is in src/utils/cockpit/motionSetting.ts; restore the doors line and the status line says reduced line there')
-  check('M1 → sets full and the receipt says so', rowsWith(m['menu-full'], /motion full · set by you — applies now/).length > 0, rowsWith(m['menu-full'], /motion/).map(flat).join(' | ').slice(0, 300), 'the receipt text is in src/utils/cockpit/motionSetting.ts; Right on the Motion row must set full and print motion full · set by you — applies now')
+  check('M1 the detail names the doors and the word', rowsWith(menu, 'doors: /config · Boot Menu').length > 0 && rowsWith(menu, 'the status line says reduced').length > 0, rowsWith(menu, /doors|status line/).map(flat).join(' | ').slice(0, 300), 'the Motion detail text is in src/screen/cockpit/motionSetting.ts; restore the doors line and the status line says reduced line there')
+  check('M1 → sets full and the receipt says so', rowsWith(m['menu-full'], /motion full · set by you — applies now/).length > 0, rowsWith(m['menu-full'], /motion/).map(flat).join(' | ').slice(0, 300), 'the receipt text is in src/screen/cockpit/motionSetting.ts; Right on the Motion row must set full and print motion full · set by you — applies now')
 
   console.log('\n— M2 the /config row —')
   check('M2 the /config row shows the value the Boot Menu set (full)', rowsWith(m['config-open'], /Motion/).some(r => /\bfull\b/.test(r)), rowsWith(m['config-open'], /Motion/).map(flat).join(' | ').slice(0, 300))
@@ -226,9 +226,9 @@ if (cap !== null) {
 
   console.log('\n— M4 the Boot Menu again —')
   check('M4 the Boot Menu shows the value the /config door set (reduced · set by you)', rowsWith(m['menu-reduced'], /now: reduced \(set by you\)/).length > 0 && rowsWith(m['menu-reduced'], /Motion\s+reduced/).length > 0, rowsWith(m['menu-reduced'], /Motion|now:/).map(flat).join(' | ').slice(0, 300))
-  check('M4 ⌫ returns it to auto and the receipt says the machine decides again', rowsWith(m['menu-auto'], /motion follows the machine again \(auto · full\)/).length > 0, rowsWith(m['menu-auto'], /motion/).map(flat).join(' | ').slice(0, 300), 'Backspace on the Motion row must clear the value and print the follows the machine again receipt from src/utils/cockpit/motionSetting.ts')
+  check('M4 ⌫ returns it to auto and the receipt says the machine decides again', rowsWith(m['menu-auto'], /motion follows the machine again \(auto · full\)/).length > 0, rowsWith(m['menu-auto'], /motion/).map(flat).join(' | ').slice(0, 300), 'Backspace on the Motion row must clear the value and print the follows the machine again receipt from src/screen/cockpit/motionSetting.ts')
   check('M4 back in the chat the status row stands again (no motion word on the cockpit row)', statusRows(m['chat-auto']).length > 0 && !statusRows(m['chat-auto']).some(r => /\breduced\b/.test(r)), statusRows(m['chat-auto']).map(flat).join(' | ').slice(0, 300))
-  check('no setting made a model call', fixture.calls === 0, String(fixture.calls), 'something sent a model request while only settings were changed; find the setting door that starts a turn, starting with src/utils/cockpit/motionSetting.ts')
+  check('no setting made a model call', fixture.calls === 0, String(fixture.calls), 'something sent a model request while only settings were changed; find the setting door that starts a turn, starting with src/screen/cockpit/motionSetting.ts')
   if (failures > 0 && !KEEP) for (const label of MARKS) dump(label, m[label])
 }
 

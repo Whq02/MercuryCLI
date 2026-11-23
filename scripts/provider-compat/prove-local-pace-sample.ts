@@ -14,17 +14,17 @@ delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}change the pace memory and stream law in src/services/providers/localLiveness.ts (rememberedLocalPace, localStreamLawFor) or the wait row in src/services/providers/streamIdleBudget.ts (requestWaitLine)` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}change the pace memory and stream law in src/models/roads/localLiveness.ts (rememberedLocalPace, localStreamLawFor) or the wait row in src/models/roads/streamIdleBudget.ts (requestWaitLine)` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-const pace = await import('../../src/services/providers/localLiveness.ts')
-const { requestWaitLine } = await import('../../src/services/providers/streamIdleBudget.ts')
-type Wait = import('../../src/services/providers/streamIdleBudget.ts').RequestWaitV1
-type ServerKind = import('../../src/services/providers/local/localDiscovery.ts').LocalServerKind
+const { streamCompatChat } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
+const pace = await import('../../src/models/roads/localLiveness.ts')
+const { requestWaitLine } = await import('../../src/models/roads/streamIdleBudget.ts')
+type Wait = import('../../src/models/roads/streamIdleBudget.ts').RequestWaitV1
+type ServerKind = import('../../src/models/roads/local/localDiscovery.ts').LocalServerKind
 
 const realNow = Date.now.bind(Date)
 const BASE = realNow()

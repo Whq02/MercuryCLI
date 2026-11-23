@@ -1,12 +1,12 @@
-import { missionEnabled } from '../../src/services/mission/contracts.js'
+import { missionEnabled } from '../../src/sessions/mission/contracts.js'
 import {
   buildMissionRow,
   composeMissionView,
   type MissionInputs,
-} from '../../src/services/mission/projection.js'
+} from '../../src/sessions/mission/projection.js'
 
 let failures = 0
-const missionProjectionHint = 'fix composeMissionView or buildMissionRow in src/services/mission/projection.ts (or missionEnabled in src/services/mission/contracts.ts for the gate check)'
+const missionProjectionHint = 'fix composeMissionView or buildMissionRow in src/sessions/mission/projection.ts (or missionEnabled in src/sessions/mission/contracts.ts for the gate check)'
 function check(label: string, ok: boolean, detail?: string): void {
   if (ok) console.log('  ok  ' + label)
   else {

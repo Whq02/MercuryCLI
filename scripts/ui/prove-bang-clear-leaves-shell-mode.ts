@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/PromptInput/PromptInput.tsx src/components/PromptInput/useComposerRawKeys.ts src/hooks/useTextInput.ts src/input-core/pending-input.ts
+// gate-watch: src/screen/composer/Composer.tsx src/screen/composer/useComposerRawKeys.ts src/screen/composer/text-input/useTextInput.ts src/screen/composer/input-core/pending-input.ts
 import { mock } from 'bun:test'
 import * as childProcess from 'node:child_process'
 import { mkdirSync } from 'node:fs'
@@ -47,7 +47,7 @@ const CTRL_W = '\x17'
 const BACKSPACE = '\x7f'
 
 let failures = 0
-const bangClearFailHint = 'to fix, change how a clear key leaves shell mode in the composer key handling of src/components/PromptInput/useComposerRawKeys.ts (the setMode(\'prompt\') branch) or the mode and text state in src/input-core/pending-input.ts'
+const bangClearFailHint = 'to fix, change how a clear key leaves shell mode in the composer key handling of src/screen/composer/useComposerRawKeys.ts (the setMode(\'prompt\') branch) or the mode and text state in src/screen/composer/input-core/pending-input.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 400)} · ` : ''}${bangClearFailHint}` : ''}`)
@@ -57,22 +57,22 @@ function section(title: string): void {
 }
 
 const React = await import('react')
-const { App } = await import('../../src/components/App.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.js')
-const { Chat } = await import('../../src/screens/Chat.js')
-const route = await import('../../src/context/surfaceRoute.js')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.js')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.js')
+const { App } = await import('../../src/boot/App.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { SurfaceRouter } = await import('../../src/screen/routes/SurfaceRouter.js')
+const { Chat } = await import('../../src/screen/chat/Chat.js')
+const route = await import('../../src/screen/routes/surfaceRoute.js')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.js')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.js')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true, hasTrustDialogAccepted: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false, hasCompletedOnboarding: true, theme: 'dark' }))
-const pending = await import('../../src/input-core/pending-input.js')
-const popup = await import('../../src/utils/cockpit/commandPopup.js')
-const slot = await import('../../src/services/engine-connector/focusedConnector.js')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const { getCommands } = await import('../../src/commands.js')
-const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.js')
+const pending = await import('../../src/screen/composer/input-core/pending-input.js')
+const popup = await import('../../src/screen/cockpit/commandPopup.js')
+const slot = await import('../../src/engine/connector/focusedConnector.js')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.js')
+const { getCommands } = await import('../../src/commands/catalogue/commands.js')
+const { markDaemonHaltStanddown } = await import('../../src/daemon/control/daemonStanddown.js')
 markDaemonHaltStanddown()
 const commands = await getCommands(PROJECT)
 

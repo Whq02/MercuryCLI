@@ -7,10 +7,10 @@ import { fileURLToPath } from 'node:url'
 assert.ok(process.env.MERCURY_CONFIG_DIR, 'a scratch MERCURY_CONFIG_DIR is required')
 const readBack = process.argv.indexOf('--read-bank')
 if (readBack >= 0) {
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const { fastLoadRecipes } = await import('../../src/services/host/fastLoad.ts')
-  const { bankState } = await import('../../src/services/host/bank.ts')
+  const { fastLoadRecipes } = await import('../../src/models/hosting/fastLoad.ts')
+  const { bankState } = await import('../../src/models/hosting/bank.ts')
   const recipe = fastLoadRecipes().find(row => row.id === process.argv[readBack + 1])
   console.log(JSON.stringify({ recipe, state: recipe && bankState(recipe) }))
 } else {
@@ -18,12 +18,12 @@ if (readBack >= 0) {
   const f = await llmhostFixture()
   process.env.HOME = f.home
   let checks = 0
-  const check = (name: string, truth: unknown) => { assert.ok(truth, name + ' — fix bankState, sealBank, readBankRegistry or recordBankFailure in src/services/host/bank.ts, or fastLoadRecipes in src/services/host/fastLoad.ts, so the banked recipe survives a fresh process'); checks++; console.log('PASS ' + name) }
+  const check = (name: string, truth: unknown) => { assert.ok(truth, name + ' — fix bankState, sealBank, readBankRegistry or recordBankFailure in src/models/hosting/bank.ts, or fastLoadRecipes in src/models/hosting/fastLoad.ts, so the banked recipe survives a fresh process'); checks++; console.log('PASS ' + name) }
   try {
-    const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
-    const { rememberSessionHostRecipe, forgetSessionHostRecipes } = await import('../../src/services/host/recipesFile.ts')
-    const { fastLoadRecipes } = await import('../../src/services/host/fastLoad.ts')
-    const { rememberBankFolder, bankModelFolder, bankState, sealBank, readBankRegistry, recordBankFailure } = await import('../../src/services/host/bank.ts')
+    const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
+    const { rememberSessionHostRecipe, forgetSessionHostRecipes } = await import('../../src/models/hosting/recipesFile.ts')
+    const { fastLoadRecipes } = await import('../../src/models/hosting/fastLoad.ts')
+    const { rememberBankFolder, bankModelFolder, bankState, sealBank, readBankRegistry, recordBankFailure } = await import('../../src/models/hosting/bank.ts')
     const shape = HOST_RECIPES.find(row => row.engine === 'llamacpp')!
     const recipe = rememberSessionHostRecipe({ ...shape, id: 'hf-fixture-bank-persistence', model: 'fixture/bank-persistence', label: 'Fixture Bank Persistence', include: 'tiny-Q4_K_M.gguf', weightFile: 'tiny-Q4_K_M.gguf', mmproj: undefined, weightsGb: 12 / 1e9, verified: { by: 'unverified', source: 'https://huggingface.co/fixture/bank-persistence' } })
     const folder = rememberBankFolder(join(f.home, 'mercury-model-bank'))

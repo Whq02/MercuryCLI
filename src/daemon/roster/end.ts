@@ -1,9 +1,9 @@
 import type { ChildProcess } from 'node:child_process'
-import { killProcessGroup } from '../../utils/processGroup.js'
-import { logForDebugging } from '../../utils/debug.js'
+import { killProcessGroup } from '../../platform/processes/processGroup.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
 import type { RosterOptions, WorkerHandle } from './types.js'
-import { startTimeout, stopTimeout } from '../../utils/timers.js'
-import { supportsGracefulSigterm } from '../../utils/platform/processes.js'
+import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
+import { supportsGracefulSigterm } from '../../platform/host-os/processes.js'
 
 export const RUNNER_ASK_BOUND_MS = 5_000
 

@@ -23,7 +23,7 @@ function section(t: string): void {
 }
 
 const buildGateHint = 'fix the ripgrep gate in build.ts (the no-rg failure, the MERCURY_BUILD_ALLOW_NO_RG degraded path and the manifest search entry)'
-const probeHint = 'fix searchToolsAvailability in src/utils/ripgrep.ts'
+const probeHint = 'fix searchToolsAvailability in src/platform/shell/ripgrep.ts'
 
 const root = resolve(import.meta.dir, '..', '..')
 const bun = process.execPath
@@ -79,8 +79,8 @@ section('(C) runtime catalog agreement — source self-sufficiency · the unavai
   process.env.MERCURY_BUILTIN_RIPGREP = '1'
   process.env.PATH = ''
 
-  const { searchToolsAvailability } = await import('../../src/utils/ripgrep.js')
-  const { getAllBaseTools } = await import('../../src/tools.js')
+  const { searchToolsAvailability } = await import('../../src/platform/shell/ripgrep.js')
+  const { getAllBaseTools } = await import('../../src/tools/kit/toolList.js')
 
   const down = searchToolsAvailability()
   check(
@@ -89,8 +89,8 @@ section('(C) runtime catalog agreement — source self-sufficiency · the unavai
     `${JSON.stringify(down)} — ${probeHint}`,
   )
   const names = getAllBaseTools().map(t => t.name)
-  check('catalog offers Glob/Grep on the self-sufficient tree', names.includes('Glob') && names.includes('Grep'), `${probeHint}; the catalog is getAllBaseTools in src/tools.ts`)
-  check('catalog still offers non-search tools', names.includes('Read') && names.includes('Bash'), 'the catalog is getAllBaseTools in src/tools.ts')
+  check('catalog offers Glob/Grep on the self-sufficient tree', names.includes('Glob') && names.includes('Grep'), `${probeHint}; the catalog is getAllBaseTools in src/tools/kit/toolList.ts`)
+  check('catalog still offers non-search tools', names.includes('Read') && names.includes('Bash'), 'the catalog is getAllBaseTools in src/tools/kit/toolList.ts')
 
 
   const distRg = join(root, 'dist', 'vendor', 'ripgrep', `${process.arch}-${process.platform}`, process.platform === 'win32' ? 'rg.exe' : 'rg')
@@ -102,7 +102,7 @@ section('(C) runtime catalog agreement — source self-sufficiency · the unavai
     symlinkSync(distRg, join(bin, 'rg'))
     const probeCode = [
       "(globalThis)['MACRO'] = { VERSION: '0.0.0' };",
-      `const m = await import(${JSON.stringify(join(root, 'src/utils/ripgrep.ts'))});`,
+      `const m = await import(${JSON.stringify(join(root, 'src/platform/shell/ripgrep.ts'))});`,
       'console.log(JSON.stringify(m.searchToolsAvailability()));',
     ].join('\n')
     const res = spawnSync(process.execPath, ['-e', probeCode], {

@@ -2,14 +2,14 @@
 import { join } from 'node:path'
 
 let failures = 0
-const snapshotFailHint = ' · change isPosixSnapshotShell, resolveSnapshotPathValue or deriveVersionedPathParts in src/utils/bash/ShellSnapshot.ts'
+const snapshotFailHint = ' · change isPosixSnapshotShell, resolveSnapshotPathValue or deriveVersionedPathParts in src/platform/shell/bash/shellSnapshot.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : snapshotFailHint}`)
   if (!cond) failures++
 }
 
 const { isPosixSnapshotShell, resolveSnapshotPathValue } = await import(
-  '../../src/utils/bash/ShellSnapshot.ts'
+  '../../src/platform/shell/bash/shellSnapshot.ts'
 )
 
 console.log('— §1 snapshot PATH truth —')
@@ -94,7 +94,7 @@ check('powershell/cmd are NOT (the "sh" substring trap)',
 }
 
 {
-  const { locateGitBash } = await import('../../src/utils/windowsPaths.ts')
+  const { locateGitBash } = await import('../../src/platform/files/windowsPaths.ts')
   const located = process.platform === 'win32' ? locateGitBash() : null
   const realBash = located !== null && 'path' in located ? located.path : '/bin/bash'
   const val = await resolveSnapshotPathValue(realBash, { platform: 'windows' })
@@ -148,7 +148,7 @@ check('powershell/cmd are NOT (the "sh" substring trap)',
 
 console.log('— §3 resilient rg function —')
 {
-  const { deriveVersionedPathParts } = await import('../../src/utils/bash/ShellSnapshot.ts')
+  const { deriveVersionedPathParts } = await import('../../src/platform/shell/bash/shellSnapshot.ts')
   const managed = deriveVersionedPathParts('/opt/mercury/versions/1.0.0-beta.1/vendor/ripgrep/arm64-darwin/rg')
   check('managed layout splits on versions/<v>/',
     managed !== null &&

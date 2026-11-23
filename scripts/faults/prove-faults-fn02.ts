@@ -192,8 +192,8 @@ console.log('\nBootSaturnScreen — model/preset/project listing failures surfac
     mock.module(optsPath, () => ({ ...realOpts, getModelOptions: () => { throw new Error('model options unreadable') } }))
     mock.module(presetPath, () => ({ ...realPresets, listKitPresets: () => { throw new Error('presets config unreadable') } }))
     mock.module(factsPath, () => ({ ...realFacts, workedInProjects: () => { throw new Error('projects dir EACCES') } }))
-    const screen = await import(${JSON.stringify(join(SRC, 'components/BootSaturnScreen.tsx'))})
-    const actions = await import(${JSON.stringify(join(SRC, 'components/bootSaturn/actions.ts'))})
+    const screen = await import(${JSON.stringify(join(SRC, 'screen/boot-face/BootSaturnScreen.tsx'))})
+    const actions = await import(${JSON.stringify(join(SRC, 'screen/boot-face/saturn/actions.ts'))})
     if (typeof screen.runSaturnFormRowEdit !== 'function' || typeof screen.liveModelOptions !== 'function') {
       out.missing = true
     } else {
@@ -234,7 +234,7 @@ console.log('\nBootSaturnScreen — model/preset/project listing failures surfac
 console.log('\nBootSettingsScreen — failed liveCount returns null (not 0) and failed daemonControlRpc settles receipt as refused')
 {
   const r = runCase(`
-    const mod = await import(${JSON.stringify(join(SRC, 'components/BootSettingsScreen.tsx'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'screen/boot-face/BootSettingsScreen.tsx'))})
     if (typeof mod.readLiveSessionCount !== 'function' || typeof mod.deliverSpawnSwitchReceipt !== 'function') {
       out.missing = true
     } else {
@@ -284,7 +284,7 @@ console.log('\nFeedback — failed getIsGit records undefined + error instead of
       getTranscriptPathForSession: () => transcriptFile,
       loadAllSubagentTranscriptsFromDisk: async () => ({}),
     }))
-    const mod = await import(${JSON.stringify(join(SRC, 'components/Feedback.tsx'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'commands/feedback/BugReport.tsx'))})
     if (typeof mod.gatherReport !== 'function') {
       out.missing = true
     } else {
@@ -312,14 +312,14 @@ console.log('\nFeedback — gatherReport reads sealed pre-fold history through t
   const r = runCase(`
     process.env.NODE_ENV = 'development'
     const { randomUUID } = await import('node:crypto')
-    const { enableConfigs } = await import(${JSON.stringify(join(SRC, 'utils/config.ts'))})
+    const { enableConfigs } = await import(${JSON.stringify(join(SRC, 'platform/settings/config.ts'))})
     enableConfigs()
-    const { setOriginalCwd, setProjectRoot, getSessionId } = await import(${JSON.stringify(join(SRC, 'bootstrap/state.ts'))})
+    const { setOriginalCwd, setProjectRoot, getSessionId } = await import(${JSON.stringify(join(SRC, 'boot/process-state/processState.ts'))})
     setOriginalCwd(PROJECT)
     setProjectRoot(PROJECT)
-    const { getTranscriptPathForSession, recordTranscript, flushSessionStorage } = await import(${JSON.stringify(join(SRC, 'utils/sessionStorage.ts'))})
-    const { historyHead, historyLines } = await import(${JSON.stringify(join(SRC, 'utils/sessionStorage/historyParts.ts'))})
-    const { createUserMessage } = await import(${JSON.stringify(join(SRC, 'services/messages.ts'))})
+    const { getTranscriptPathForSession, recordTranscript, flushSessionStorage } = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/sessionStorage.ts'))})
+    const { historyHead, historyLines } = await import(${JSON.stringify(join(SRC, 'sessions/transcripts/historyParts.ts'))})
+    const { createUserMessage } = await import(${JSON.stringify(join(SRC, 'engine/messages/messages.ts'))})
     const beforeMsg = createUserMessage({ content: 'FEEDBACK_BEFORE_FOLD_NEEDLE' })
     const boundaryMsg = {
       type: 'system',
@@ -340,7 +340,7 @@ console.log('\nFeedback — gatherReport reads sealed pre-fold history through t
     const partHead = historyHead(transcriptFile)
     const liveRaw = fs.readFileSync(transcriptFile, 'utf8')
     const logical = Buffer.concat([...historyLines(transcriptFile)]).toString('utf8')
-    const { gatherReport } = await import(${JSON.stringify(join(SRC, 'components/Feedback.tsx'))})
+    const { gatherReport } = await import(${JSON.stringify(join(SRC, 'commands/feedback/BugReport.tsx'))})
     const gathered = await gatherReport('sealed transcript bug', [], {})
     const raw = typeof gathered.report.raw_transcript === 'string' ? gathered.report.raw_transcript : ''
     out.sealedBefore = partHead.before
@@ -357,7 +357,7 @@ console.log('\nFeedback — gatherReport reads sealed pre-fold history through t
 console.log('\nFileEditToolDiff — colliding remote multi-edits fall back to per-edit hunks instead of empty no-visible-change')
 {
   const r = runCase(`
-    const mod = await import(${JSON.stringify(join(SRC, 'components/FileEditToolDiff.tsx'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'tools/edit/EditDiff.tsx'))})
     if (typeof mod.loadDiff !== 'function') {
       out.missing = true
     } else {
@@ -378,7 +378,7 @@ console.log('\nFileEditToolDiff — colliding remote multi-edits fall back to pe
 console.log('\nKitMenuScreen — failed liveCount returns null instead of falsely reporting 0 established sessions')
 {
   const r = runCase(`
-    const mod = await import(${JSON.stringify(join(SRC, 'components/KitMenuScreen.tsx'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'screen/boot-face/KitMenuScreen.tsx'))})
     if (typeof mod.readKitLiveSessionCount !== 'function') {
       out.missing = true
     } else {
@@ -406,7 +406,7 @@ console.log('\npicker/headings — failed slot derivation reports unread account
       }),
     }))
     const { providerHeadingsOf } = await import(${JSON.stringify(join(SRC, 'commands/model/picker/headings.ts'))})
-    const { DEEPSEEK_MODEL_GROUP } = await import(${JSON.stringify(join(SRC, 'services/model/modelOptions.ts'))})
+    const { DEEPSEEK_MODEL_GROUP } = await import(${JSON.stringify(join(SRC, 'models/catalogue/modelOptions.ts'))})
     const headings = providerHeadingsOf(999)
     out.deepseek = headings[DEEPSEEK_MODEL_GROUP]
   `)
@@ -464,7 +464,7 @@ console.log('\nBootSaturnScreen — unreadable receipt file surfaces fire-histor
       ...realReceipts,
       readSessionReceipts: () => { throw new Error('receipts EACCES') },
     }))
-    const screen = await import(${JSON.stringify(join(SRC, 'components/BootSaturnScreen.tsx'))})
+    const screen = await import(${JSON.stringify(join(SRC, 'screen/boot-face/BootSaturnScreen.tsx'))})
     if (typeof screen.liveReceiptsOf !== 'function') {
       out.missing = true
     } else {
@@ -493,7 +493,7 @@ console.log('\nBootSaturnScreen — unreadable receipt file surfaces fire-histor
 console.log('\nSelectInputOption — failed clipboard image paste reports the failure sentence instead of swallowing it')
 {
   const r = runCase(`
-    const mod = await import(${JSON.stringify(join(SRC, 'components/CustomSelect/select-input-option.tsx'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'screen/select/SelectInputOption.tsx'))})
     if (typeof mod.runSelectImagePaste !== 'function') {
       out.missing = true
     } else {
@@ -512,7 +512,7 @@ console.log('\nSelectInputOption — failed clipboard image paste reports the fa
 console.log('\nLogSelector — failed session rename reports the failure sentence instead of closing silently')
 {
   const r = runCase(`
-    const mod = await import(${JSON.stringify(join(SRC, 'components/LogSelector.tsx'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'screen/session-chooser/SessionBrowser.tsx'))})
     if (typeof mod.commitLogRename !== 'function') {
       out.missing = true
     } else {
@@ -537,7 +537,7 @@ console.log('\nLogSelector — failed session rename reports the failure sentenc
 console.log('\nMercuryContentSearch — non-abort search failure returns failure sentence instead of 0 hits')
 {
   const r = runCase(`
-    const mod = await import(${JSON.stringify(join(SRC, 'components/MercuryContentSearch.tsx'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'screen/composer/MercuryContentSearch.tsx'))})
     if (typeof mod.runContentSearch !== 'function') {
       out.missing = true
     } else {
@@ -556,7 +556,7 @@ console.log('\nMercuryContentSearch — non-abort search failure returns failure
 console.log('\nMercuryFileOpen — failed file listing returns failure sentence instead of 0 files')
 {
   const r = runCase(`
-    const mod = await import(${JSON.stringify(join(SRC, 'components/MercuryFileOpen.tsx'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'screen/composer/MercuryFileOpen.tsx'))})
     if (typeof mod.runFileOpenLoad !== 'function') {
       out.missing = true
     } else {
@@ -573,9 +573,9 @@ console.log('\nMercuryFileOpen — failed file listing returns failure sentence 
 console.log('\nMercuryFilesMenu — unreadable folder returns a warning row with advice visible at panel width')
 {
   const r = runCase(`
-    const mod = await import(${JSON.stringify(join(SRC, 'components/MercuryFilesMenu.tsx'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'screen/fullscreen-layout/MercuryFilesMenu.tsx'))})
     const React = await import('react')
-    const { ThemeProvider } = await import(${JSON.stringify(join(SRC, 'components/design-system/ThemeProvider.tsx'))})
+    const { ThemeProvider } = await import(${JSON.stringify(join(SRC, 'screen/theme/ThemeProvider.tsx'))})
     const { mountOffscreen, settle } = await import(${JSON.stringify(join(HERE, '../lib/settingsPopupHarness.ts'))})
     const posix = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
     out.posix = posix
@@ -624,7 +624,7 @@ console.log('\nMercuryFilesMenu — unreadable folder returns a warning row with
 console.log('\nOnboarding — failed terminal setup shows failure sentence instead of advancing silently')
 {
   const r = runCase(`
-    const mod = await import(${JSON.stringify(join(SRC, 'components/Onboarding.tsx'))})
+    const mod = await import(${JSON.stringify(join(SRC, 'boot/first-run/Onboarding.tsx'))})
     if (typeof mod.runOnboardingTerminalSetup !== 'function') {
       out.missing = true
     } else {

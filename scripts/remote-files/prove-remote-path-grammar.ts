@@ -18,7 +18,7 @@ const {
   remoteRulePattern,
   remoteSessionRule,
   RemotePathError,
-} = await import('../../src/utils/remoteFiles/target.ts')
+} = await import('../../src/platform/remote-file-target/target.ts')
 
 let failures = 0
 let checks = 0
@@ -26,7 +26,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
-  if (!ok) console.log('     change: the function this check names in src/utils/remoteFiles/target.ts (parseRemotePath, formatRemotePath, remoteChild, remoteRuleCandidates, remoteRulePattern, remoteRuleAuthority, remoteSessionRule, remoteHostLabel, noteResolvedAuthority), so that its answer matches the label')
+  if (!ok) console.log('     change: the function this check names in src/platform/remote-file-target/target.ts (parseRemotePath, formatRemotePath, remoteChild, remoteRuleCandidates, remoteRulePattern, remoteRuleAuthority, remoteSessionRule, remoteHostLabel, noteResolvedAuthority), so that its answer matches the label')
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 

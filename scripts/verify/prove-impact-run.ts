@@ -85,7 +85,7 @@ for (const mode of ['--staged', '--dirty', 'HEAD^..HEAD']) {
 }
 
 section('§4 the real estate names the suites a change owes')
-const real = spawnSync(bun, [join(ROOT, 'scripts/verify/impact.ts'), '--paths', 'src/utils/settings/types.ts', 'src/ink/launcherAltHold.ts'], { cwd: ROOT, env: process.env, encoding: 'utf8' })
+const real = spawnSync(bun, [join(ROOT, 'scripts/verify/impact.ts'), '--paths', 'src/platform/settings/settingsSchema.ts', 'src/screen/renderer/launcherAltHold.ts'], { cwd: ROOT, env: process.env, encoding: 'utf8' })
 const named = new Set(real.stdout.trim().split('\n'))
 check('a settings type change owes the settings suite', named.has('settings'))
 check('a terminal runtime change owes the ink-runtime suite', named.has('ink-runtime'))

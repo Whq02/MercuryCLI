@@ -4,7 +4,7 @@ import { chmodSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import type { Message } from '../../src/types/message.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'fold-memory-'))
 process.env.MERCURY_CONFIG_DIR = home
@@ -12,27 +12,27 @@ process.env.MERCURY_TMPDIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY ??= 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { compactConversation, buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
-const retirement = await import('../../src/services/compact/foldRetirement.ts').catch(() => null)
+const { compactConversation, buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const retirement = await import('../../src/engine/compaction/foldRetirement.ts').catch(() => null)
 const foldMemoryStoredText = retirement?.foldMemoryStoredText ?? (() => '')
 const foldMemoryWitness = retirement?.foldMemoryWitness ?? (() => '')
 const readBackStoredRow = retirement?.readBackStoredRow ?? (() => null)
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
-const { acceptUserRequest, noteRunEvent } = await import('../../src/services/run/runCoordinator.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { currentBufferPath, pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
-const { readPins } = await import('../../src/mneme/mnemeUsage.ts')
-const { memoryPointerForId, searchPointers } = await import('../../src/mneme/mnemePointers.ts')
-const { recallQuery, readMemoryRecord } = await import('../../src/mneme/memoryVerbs.ts')
-const { strikePendingRow } = await import('../../src/mneme/mnemeCorrect.ts')
-const { APIUserAbortError } = await import('../../src/utils/api/sdkErrors.ts')
-const { groupMessagesByApiRound } = await import('../../src/services/compact/grouping.ts')
-const { foldReceipt, foldReceiptWords } = await import('../../src/services/compact/foldReceipt.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
+const { acceptUserRequest, noteRunEvent } = await import('../../src/engine/run/runCoordinator.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { currentBufferPath, pendingRows } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { readPins } = await import('../../src/sessions/mneme/mnemeUsage.ts')
+const { memoryPointerForId, searchPointers } = await import('../../src/sessions/mneme/mnemePointers.ts')
+const { recallQuery, readMemoryRecord } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { strikePendingRow } = await import('../../src/sessions/mneme/mnemeCorrect.ts')
+const { APIUserAbortError } = await import('../../src/engine/request-parts/sdkErrors.ts')
+const { groupMessagesByApiRound } = await import('../../src/engine/compaction/groupByApiRound.ts')
+const { foldReceipt, foldReceiptWords } = await import('../../src/engine/compaction/foldReceipt.ts')
 
 let checks = 0
 let failures = 0
@@ -72,7 +72,7 @@ const context = (overrides: Record<string, unknown> = {}) => ({
 const fold = (messages: Message[], ctx = context(), recompaction?: Parameters<typeof compactConversation>[6]) =>
   compactConversation(messages, ctx, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: [] }, true, undefined, false, recompaction)
 const MUST_SHRINK = { isRecompaction: false, turnsSincePreviousCompact: -1, mustShrink: true }
-const WITHDRAWN = 'compactConversation in src/services/compact/compact.ts must take back the memory row its own retireFoldToMemory call wrote (src/services/compact/foldRetirement.ts) when the fold does not land, and leave a fact an earlier fold wrote where it is'
+const WITHDRAWN = 'compactConversation in src/engine/compaction/foldConversation.ts must take back the memory row its own retireFoldToMemory call wrote (src/engine/compaction/foldRetirement.ts) when the fold does not land, and leave a fact an earlier fold wrote where it is'
 const envelopeOf = (result: Awaited<ReturnType<typeof fold>>) => result.boundaryMarker.compactMetadata.memory
 const summaryOf = (result: Awaited<ReturnType<typeof fold>>) => String(result.summaryMessages[0]?.message.content)
 
@@ -162,7 +162,7 @@ try {
   acceptUserRequest(owner, { objective: 'Prove the road of a fold whose fact is already kept.', rootMessageId: null })
   const kept = envelopeOf(await fold([user('Prove the road of a fold that lands.'), ...rounds(14)]))
   check('a landed fold of a new run state writes its fact beside the first', kept?.state === 'committed' && 'pointer' in kept && kept.pointer.id !== id && pendingRows(dir).length === 2, `${kept?.state === 'failed' ? kept.reason : kept?.state} rows=${pendingRows(dir).length}`)
-  assert.ok(kept?.state === 'committed', 'the landed fold of this road must commit its fact; see retireFoldToMemory in src/services/compact/foldRetirement.ts')
+  assert.ok(kept?.state === 'committed', 'the landed fold of this road must commit its fact; see retireFoldToMemory in src/engine/compaction/foldRetirement.ts')
   const summariesBefore = api.messageRequests().length
   const heldBefore = JSON.stringify(pendingRows(dir))
   await assert.rejects(fold([user(NOT_LANDING), ...rounds(14)], context(), MUST_SHRINK), /Nothing to compact yet: a summary would not shrink the \S+ tokens\./)

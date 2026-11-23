@@ -11,7 +11,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
-const boundaryFixHint = 'change the run prompt boundary in src/main/runPrompt.ts (the refusal when a list flag swallows the prompt) and rebuild dist/mercury.mjs with bun run build.ts'
+const boundaryFixHint = 'change the run prompt boundary in src/boot/main/runPrompt.ts (the refusal when a list flag swallows the prompt) and rebuild dist/mercury.mjs with bun run build.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${boundaryFixHint}` : ''}`)
@@ -31,7 +31,7 @@ if (!nodeBin) {
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — variadic-boundary proof exceeded 240s; a run of dist/mercury.mjs did not end, look at the section printed last and at src/main/runPrompt.ts')
+  console.log('\n❌ TIMEOUT — variadic-boundary proof exceeded 240s; a run of dist/mercury.mjs did not end, look at the section printed last and at src/boot/main/runPrompt.ts')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

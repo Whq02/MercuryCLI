@@ -1,5 +1,5 @@
-import type { Command } from '../../commands.js'
-import { shouldNavCommandBeImmediate } from '../../utils/immediateCommand.js'
+import type { Command } from '../catalogue/commands.js'
+import { shouldNavCommandBeImmediate } from '../catalogue/immediateCommand.js'
 
 export default {
   type: 'local-jsx',

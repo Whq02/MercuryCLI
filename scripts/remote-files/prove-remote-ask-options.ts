@@ -17,12 +17,12 @@ delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(project)
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
-const { setCwdState, setOriginalCwd } = await import('../../src/bootstrap/state.ts')
-const { getFilePermissionOptions } = await import('../../src/components/permissions/FilePermissionDialog/permissionOptions.tsx')
-const { generateSuggestions } = await import('../../src/utils/permissions/filesystem.ts')
-const { toTildePath } = await import('../../src/utils/path.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
+const { setCwdState, setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
+const { getFilePermissionOptions } = await import('../../src/permissions/cards/file-dialog/permissionOptions.tsx')
+const { generateSuggestions } = await import('../../src/permissions/rules/filesystem.ts')
+const { toTildePath } = await import('../../src/platform/files/path.ts')
 enableConfigs()
 setOriginalCwd(project)
 setCwdState(project)
@@ -32,7 +32,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)} | To fix, change the option labels in getFilePermissionOptions (src/components/permissions/FilePermissionDialog/permissionOptions.tsx) or the session rule in generateSuggestions (src/utils/permissions/filesystem.ts), whichever this check names.` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)} | To fix, change the option labels in getFilePermissionOptions (src/permissions/cards/file-dialog/permissionOptions.tsx) or the session rule in generateSuggestions (src/permissions/rules/filesystem.ts), whichever this check names.` : ''}`)
 }
 const context = getEmptyToolPermissionContext()
 const words = (node: unknown): string => {

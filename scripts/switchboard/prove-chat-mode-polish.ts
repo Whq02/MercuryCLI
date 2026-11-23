@@ -18,7 +18,7 @@ const t = checker()
 
 t.section('§A — the ⚑ badge\'s jump per world')
 {
-  const { needsYouJump } = await import('../../src/components/mercury-ui/needsYouJump.ts')
+  const { needsYouJump } = await import('../../src/screen/widgets/needsYouJump.ts')
   const chord = 'ctrl+x c'
   t.check('the fleet world names the board and its chord', needsYouJump({ plain: false, ownOnly: false, boardChord: chord }) === 'ctrl+x c board')
   t.check('the fleet world names the board even when every ask is the chat\'s own (the board lists it too)', needsYouJump({ plain: false, ownOnly: true, boardChord: chord }) === 'ctrl+x c board')
@@ -31,7 +31,7 @@ t.section('§A — the ⚑ badge\'s jump per world')
 
 t.section('§C — the shortcuts tab: ctrl+x c\'s label per world, the triple untouched')
 {
-  const { EVERYDAY } = await import('../../src/components/HelpV2/ShortcutsTab.tsx')
+  const { EVERYDAY } = await import('../../src/screen/help/ShortcutsTab.tsx')
   const row = EVERYDAY.rows.find(r => r.action === 'app:openSurfaceSwitcher')
   t.check('the row keeps its registry triple (action · context · fallback)', row !== undefined && row.context === 'Global' && row.fallback === 'ctrl+x c')
   t.check('the row carries both labels: the board in the fleet world, the live view (and that the concourse is off) in the plain world', row?.label === 'session concourse — every surface, one board' && row?.plainLabel === 'live view of your sessions — the concourse is off in this boot')
@@ -47,31 +47,31 @@ t.section('§D — the felt path (L15): `--chat` lands on the boot menu, and ↵
 
 t.section('§E — the boot face per twin: no row in --chat; the live-view door in --concourse-off')
 {
-  const { concourseRowCtx } = await import('../../src/components/BootSplashScreen.tsx')
+  const { concourseRowCtx } = await import('../../src/screen/boot-face/BootSplashScreen.tsx')
   t.check('the fleet world names the live board (and its live count)', concourseRowCtx({ live: true, why: null, liveCount: 0 }) === 'the live board' && concourseRowCtx({ live: true, why: null, liveCount: 3 }) === 'the live board · 3 live')
   t.check('the saved switch off: "live view only — concourse off" (the bytes the strip drive\'s S5 and the one-door drive\'s L4b pin)', concourseRowCtx({ live: true, why: 'concourse off', liveCount: 0 }) === 'live view only — concourse off')
   t.check('an unregistered surface dims with its reason', concourseRowCtx({ live: false, why: null, liveCount: 0 }) === 'unregistered in this build' && concourseRowCtx({ live: false, why: 'concourse off', liveCount: 0 }) === 'unregistered in this build')
   t.check('POISON absent: the switch-off world never says "the live board"', !concourseRowCtx({ live: true, why: 'concourse off', liveCount: 2 }).includes('the live board'))
-  const { faceKeyMapHintOf } = await import('../../src/components/BootSplashScreen.tsx')
+  const { faceKeyMapHintOf } = await import('../../src/screen/boot-face/BootSplashScreen.tsx')
   t.check('the m phrase rides beside a strip hint, stands alone when the strip has no move, and is absent with the setting off', faceKeyMapHintOf('⇧→ concourse', true) === '⇧→ concourse · m to select model-default' && faceKeyMapHintOf('', true) === 'm to select model-default' && faceKeyMapHintOf('⇧→ concourse', false) === '⇧→ concourse' && faceKeyMapHintOf('', false) === '')
   const { assembleCardRows } = await import('../../assets/splash/splash-core.mjs')
   const keysOf = (concourse: { ctx: string } | null): string[] => (assembleCardRows({ cwdBase: 'proj', continueTarget: null, menuAvailable: true, concourse, projects: [] }) as Array<{ key: string }>).map(r => r.key)
   t.check('the --chat card carries no concourse key and is exactly one row shorter than the card that does', !keysOf(null).includes('concourse') && keysOf({ ctx: 'the live board' }).includes('concourse') && keysOf({ ctx: 'x' }).length === keysOf(null).length + 1)
-  const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
+  const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
   t.check('the new env read has its flag-registry row (consumer: the splash)', getFlagSpec('MERCURY_SPLASH_CHAT') !== undefined)
 }
 
 
 t.section('§G — the next-session facts (L18): one record, every door, never a running session')
 {
-  const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
+  const facts = await import('../../src/daemon/switchboard/bootBirthFacts.ts')
   facts._resetBootBirthFactsForTesting()
   facts.setNextSessionFacts({ title: 'once', model: 'claude-opus-5', effort: 'max', permissionMode: 'implement', runnerArgv: ['--x'] })
   t.check('the title is ONE-SHOT: the first taker consumes it, the second reads null', facts.takeBootTitle() === 'once' && facts.takeBootTitle() === null)
   t.check('model · effort · permissionMode · runnerArgv are STICKY: two reads, one answer', facts.bootBirthFacts().model === 'claude-opus-5' && facts.bootBirthFacts().model === 'claude-opus-5' && facts.bootBirthFacts().effort === 'max' && facts.bootBirthFacts().permissionMode === 'implement' && facts.bootBirthFacts().runnerArgv.join(',') === '--x')
   t.check("the model precedence: the record (the menu's explicit choice) → a door's inheritance → the screen's main model", facts.birthModelOf({ model: 'a' }, 'b', 'c') === 'a' && facts.birthModelOf({ model: null }, 'b', 'c') === 'b' && facts.birthModelOf({ model: null }, null, 'c') === 'c' && facts.birthModelOf({ model: null }, undefined, 'c') === 'c')
   facts._resetBootBirthFactsForTesting()
-  const menu = await import('../../src/substrate/startupMenu.ts')
+  const menu = await import('../../src/platform/substrate/startupMenu.ts')
   const profPath = join(SCRATCH, 'boot-env.json')
   const a = menu.resolveEffectiveSettingsSnapshot({ sessionId: 's', path: profPath, env: {} })
   const menuRow = (menu.STARTUP_MENU as ReadonlyArray<{ env: string }>).find(r => menu.menuRowChoices(r as never).some(c => c.value !== null))
@@ -80,7 +80,7 @@ t.section('§G — the next-session facts (L18): one record, every door, never a
   const saved = menuRow ? menu.saveBootDefaultsProfile({ [menuRow.env]: choice }, profPath) : { ok: false as const }
   const b = menu.resolveEffectiveSettingsSnapshot({ sessionId: 's', path: profPath, env: {} })
   t.check("a menu row changed AFTER boot changes the next session's snapshot (the profile is read per admission, not once at boot)", menuRow !== undefined && saved.ok === true && a.snapshotId !== b.snapshotId && b.rows.find(r => r.env === menuRow.env)?.source === 'profile')
-  const route = await import('../../src/context/surfaceRoute.ts')
+  const route = await import('../../src/screen/routes/surfaceRoute.ts')
   const plain = { concourseEnabled: true, chatBoot: true, chatPresent: false }
   t.check('--chat before a session: the menu alone; shift+→ moves nothing (the dim hint, no commit)', route.stripStops(plain).join(',') === 'boot-settings' && JSON.stringify(route.stripMove('boot-settings', 'right', route.stripStops(plain))) === JSON.stringify({ to: null, hint: 'no chat open' }))
 }

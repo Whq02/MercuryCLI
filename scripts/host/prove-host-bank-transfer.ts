@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'
-import type { HostRecipe } from '../../src/services/host/recipes.ts'
-import type { HostRunner } from '../../src/services/host/ssh.ts'
+import type { HostRecipe } from '../../src/models/hosting/recipes.ts'
+import type { HostRunner } from '../../src/models/hosting/ssh.ts'
 
 assert.ok(process.env.MERCURY_CONFIG_DIR, 'a scratch MERCURY_CONFIG_DIR is required')
 const f = await llmhostFixture()
@@ -11,8 +11,8 @@ let checks = 0
 let failures = 0
 const check = (name: string, truth: unknown) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name) }
 try {
-  const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
-  const { startHostEngine } = await import('../../src/services/host/ssh.ts')
+  const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
+  const { startHostEngine } = await import('../../src/models/hosting/ssh.ts')
   const gguf = { ...HOST_RECIPES.find(row => row.engine === 'llamacpp')!, id: 'fixture-bank-transfer', model: 'fixture/bank-transfer', weightFile: 'tiny.gguf', include: 'tiny.gguf', mmproj: undefined }
   const tensors = { ...HOST_RECIPES.find(row => !row.engine || row.engine === 'sglang')!, id: 'fixture-bank-tensors', model: 'fixture/bank-transfer', engine: 'sglang' as const, weightFile: undefined, mmproj: undefined }
   const exercise = async (name: string, recipe: HostRecipe, files: Record<string, string>, accepted: boolean) => {

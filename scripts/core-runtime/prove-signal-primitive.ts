@@ -2,7 +2,7 @@
 import { join } from 'node:path'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { createSignal } = await import(join(SRC, 'utils/signal.ts'))
+const { createSignal } = await import(join(SRC, 'platform/async/signal.ts'))
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -17,13 +17,13 @@ const stopFirst = signal.subscribe(first)
 const stopFirstAgain = signal.subscribe(first)
 signal.subscribe(word => heard.push(`second:${word}`))
 signal.emit('one')
-check('a listener subscribed twice is called once, listeners run in subscription order', heard.join(' ') === 'first:one second:one', `createSignal in src/utils/signal.ts must dedupe a repeated subscribe and emit in subscription order; got ${heard.join(' ')}`)
+check('a listener subscribed twice is called once, listeners run in subscription order', heard.join(' ') === 'first:one second:one', `createSignal in src/platform/async/signal.ts must dedupe a repeated subscribe and emit in subscription order; got ${heard.join(' ')}`)
 stopFirstAgain()
 signal.emit('two')
-check('either unsubscribe closure of a doubly subscribed listener removes it', heard.join(' ') === 'first:one second:one second:two', `createSignal in src/utils/signal.ts: each unsubscribe closure of a doubly subscribed listener must remove it; got ${heard.join(' ')}`)
+check('either unsubscribe closure of a doubly subscribed listener removes it', heard.join(' ') === 'first:one second:one second:two', `createSignal in src/platform/async/signal.ts: each unsubscribe closure of a doubly subscribed listener must remove it; got ${heard.join(' ')}`)
 stopFirst()
 signal.emit('three')
-check('an unsubscribe after removal changes nothing', heard.join(' ') === 'first:one second:one second:two second:three', `createSignal in src/utils/signal.ts: an unsubscribe closure called after removal must change nothing; got ${heard.join(' ')}`)
+check('an unsubscribe after removal changes nothing', heard.join(' ') === 'first:one second:one second:two second:three', `createSignal in src/platform/async/signal.ts: an unsubscribe closure called after removal must change nothing; got ${heard.join(' ')}`)
 
 const live = createSignal<[number]>()
 const seen: string[] = []
@@ -43,13 +43,13 @@ live.subscribe(n => {
 })
 live.subscribe(n => seen.push(`d${n}`))
 live.emit(1)
-check('a listener added during an emit is reached in that same emit', seen.join(' ') === 'a1 b1 c1 d1 late1', `createSignal in src/utils/signal.ts: emit must reach a listener added during that emit; got ${seen.join(' ')}`)
+check('a listener added during an emit is reached in that same emit', seen.join(' ') === 'a1 b1 c1 d1 late1', `createSignal in src/platform/async/signal.ts: emit must reach a listener added during that emit; got ${seen.join(' ')}`)
 seen.length = 0
 live.emit(2)
-check('a listener removed before its turn is skipped in that emit', seen.join(' ') === 'a2 b2 c2 d2 late2' , `createSignal in src/utils/signal.ts: emit must skip a listener removed before its turn; got ${seen.join(' ')}`)
+check('a listener removed before its turn is skipped in that emit', seen.join(' ') === 'a2 b2 c2 d2 late2' , `createSignal in src/platform/async/signal.ts: emit must skip a listener removed before its turn; got ${seen.join(' ')}`)
 seen.length = 0
 live.emit(3)
-check('the removed listener stays gone', seen.join(' ') === 'a3 c3 d3 late3', `createSignal in src/utils/signal.ts: an unsubscribed listener must not be called on later emits; got ${seen.join(' ')}`)
+check('the removed listener stays gone', seen.join(' ') === 'a3 c3 d3 late3', `createSignal in src/platform/async/signal.ts: an unsubscribed listener must not be called on later emits; got ${seen.join(' ')}`)
 
 const nested = createSignal<[number]>()
 const order: string[] = []
@@ -63,12 +63,12 @@ nested.subscribe(n => {
   order.push(`leave${n}`)
 })
 nested.emit(1)
-check('a nested emit runs synchronously inside the outer one, with no guard', order.join(' ') === 'enter1 enter11 leave11 leave1', `createSignal in src/utils/signal.ts: a nested emit must run synchronously with no re-entry guard; got ${order.join(' ')}`)
+check('a nested emit runs synchronously inside the outer one, with no guard', order.join(' ') === 'enter1 enter11 leave11 leave1', `createSignal in src/platform/async/signal.ts: a nested emit must run synchronously with no re-entry guard; got ${order.join(' ')}`)
 
 live.clear()
 seen.length = 0
 live.emit(4)
-check('clear drops every listener', seen.length === 0, `clear in src/utils/signal.ts must drop every listener; still heard ${seen.join(' ')}`)
+check('clear drops every listener', seen.length === 0, `clear in src/platform/async/signal.ts must drop every listener; still heard ${seen.join(' ')}`)
 const bare = createSignal()
 bare.emit()
 check('a signal with no listeners emits quietly', true)

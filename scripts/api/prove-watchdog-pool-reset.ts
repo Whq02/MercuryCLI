@@ -24,7 +24,7 @@ const guard = setTimeout(() => {
 }, 90_000)
 guard.unref?.()
 
-const { buildApiAgentOptions } = await import('../../src/utils/proxy.ts')
+const { buildApiAgentOptions } = await import('../../src/platform/network/proxy.ts')
 
 console.log('============================================================')
 console.log(' watchdog pool reset — the poisoned-pool mechanism + wiring')

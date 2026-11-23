@@ -13,7 +13,7 @@ for (const key of ['TYPESAFE_API_KEY', 'NODE_ENV', 'https_proxy', 'HTTPS_PROXY',
 let failures = 0
 let checks = 0
 const jevHonestyFailHint =
-  'the tool call and its gating live in src/tools/JevEvalTool/JevEvalTool.ts (jevEvalCall, jevEvalEnabled), the status words in src/services/jev/jevStatus.ts (jevStatus), the counters in src/services/jev/jevLedger.ts, the switches in src/services/jev/jevSetting.ts'
+  'the tool call and its gating live in src/tools/jev-eval/JevEvalTool.ts (jevEvalCall, jevEvalEnabled), the status words in src/models/jev/jevStatus.ts (jevStatus), the counters in src/models/jev/jevLedger.ts, the switches in src/models/jev/jevSetting.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -30,19 +30,19 @@ const { startJevStandin } = await import('./lib/jevStandin.ts')
 const standin = await startJevStandin()
 process.env.MERCURY_JEV_BASE = standin.base
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setJevAllowanceUsd, setJevEnabled, setJevPacePerMinute, setJevRequestCeiling, setJevSubagents } = await import('../../src/services/jev/jevSetting.ts')
-const { storeJevApiKey } = await import('../../src/services/jev/jevKey.ts')
-const { jevLedgerSnapshot, noteJevAttempt, resetJevLedger } = await import('../../src/services/jev/jevLedger.ts')
-const { JEV_MAX_CALL_USD, JEV_STATUS_KINDS } = await import('../../src/services/jev/jevContract.ts')
-const { JEV_STATUS_HEADWORDS, jevStatus } = await import('../../src/services/jev/jevStatus.ts')
-const { runWithAgentContext } = await import('../../src/utils/agentContext.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
-const { assembleToolPool, getAllBaseTools, getTools } = await import('../../src/tools.ts')
-const { JevEvalTool, jevEvalCall, jevEvalEnabled } = await import('../../src/tools/JevEvalTool/JevEvalTool.ts')
-const { JEV_EVAL_FORBIDDEN_FIELDS } = await import('../../src/tools/JevEvalTool/constants.ts')
+const { setJevAllowanceUsd, setJevEnabled, setJevPacePerMinute, setJevRequestCeiling, setJevSubagents } = await import('../../src/models/jev/jevSetting.ts')
+const { storeJevApiKey } = await import('../../src/models/jev/jevKey.ts')
+const { jevLedgerSnapshot, noteJevAttempt, resetJevLedger } = await import('../../src/models/jev/jevLedger.ts')
+const { JEV_MAX_CALL_USD, JEV_STATUS_KINDS } = await import('../../src/models/jev/jevContract.ts')
+const { JEV_STATUS_HEADWORDS, jevStatus } = await import('../../src/models/jev/jevStatus.ts')
+const { runWithAgentContext } = await import('../../src/crew/agents/agentContext.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
+const { assembleToolPool, getAllBaseTools, getTools } = await import('../../src/tools/kit/toolList.ts')
+const { JevEvalTool, jevEvalCall, jevEvalEnabled } = await import('../../src/tools/jev-eval/JevEvalTool.ts')
+const { JEV_EVAL_FORBIDDEN_FIELDS } = await import('../../src/tools/jev-eval/constants.ts')
 
 const ctx = { ...getEmptyToolPermissionContext(), mode: 'default' } as never
 const rosterNames = (): string[] => getTools(ctx).map(t => t.name)

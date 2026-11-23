@@ -14,7 +14,7 @@ if (!existsSync(dist)) { console.error(`FAIL run bundle exists: ${dist}`); proce
 
 let failures = 0
 let checks = 0
-const WHERE_TO_LOOK = 'to fix: the brief a session keeps, replaces or drops is settled in settleSessionBriefs (src/cli/headless/boot/settleBriefs.ts) and written by saveSessionBrief (src/utils/sessionStorage/logs.ts); flag conflicts are refused in src/main/bootFlags.ts'
+const WHERE_TO_LOOK = 'to fix: the brief a session keeps, replaces or drops is settled in settleSessionBriefs (src/daemon/runner/boot/settleBriefs.ts) and written by saveSessionBrief (src/sessions/transcripts/sessionListings.ts); flag conflicts are refused in src/boot/main/bootFlags.ts'
 const check = (label: string, ok: boolean, detail = ''): void => { checks++; console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail ? `${detail} · ` : ''}${WHERE_TO_LOOK}`}`); if (!ok) failures++ }
 const head = (text: string): string => JSON.stringify(text.slice(0, 120))
 
@@ -157,8 +157,8 @@ try {
 
   console.log("\n§8 the fold's own restamp writes the brief again, so it stands behind the boundary; no other restamp does")
   {
-    const state = await import('../../src/bootstrap/state.ts')
-    const storage = await import('../../src/utils/sessionStorage.ts')
+    const state = await import('../../src/boot/process-state/processState.ts')
+    const storage = await import('../../src/sessions/transcripts/sessionStorage.ts')
     const inProcess = randomUUID()
     state.switchSession(inProcess as never)
     storage.clearSessionMetadata()
@@ -177,7 +177,7 @@ try {
     storage.saveSessionBrief('brief', '')
     storage.reAppendSessionMetadata()
     check('an empty brief is a row like any other, and the fold after it writes it again behind its boundary', stored().join('|') === [BRIEF, BRIEF, '', ''].join('|'), JSON.stringify(stored().map(text => text.slice(0, 24))))
-    const { loadTranscriptFile: reread } = await import('../../src/utils/sessionStorage/loading.ts')
+    const { loadTranscriptFile: reread } = await import('../../src/sessions/transcripts/loading.ts')
     check('the record read back yields the empty brief, not an absent one', (await reread(file)).sessionBriefs.get(inProcess as never) === '')
     storage.clearSessionMetadata()
   }
@@ -271,8 +271,8 @@ try {
 
   console.log("\n§11 a session the switchboard hosts: the daemon's note is the host's, handed by a flag of its own and never recorded; what the window was given is the session's")
   {
-    const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
-    const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.ts')
+    const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+    const { buildRunnerInvocation } = await import('../../src/daemon/runner-link/headlessRun.ts')
     const node = Bun.which('node') ?? 'node'
     const WINDOW_ADD = 'WINDOW_BRIEF_ADD_MARKER: the window was launched with this.'
     const specOf = (session: string | undefined, resume: boolean, windowArgv: string[]): ReturnType<typeof buildConcourseWorkerSpec> => buildConcourseWorkerSpec({ runnerId: 'concourse-w1', workspaceId: cwd, modelKey: 'claude-opus-4-8', ...(session === undefined ? { warm: true } : { sessionId: session, resume }), runnerArgv: windowArgv })
@@ -343,7 +343,7 @@ try {
     const briefedLater = await run(['--resume', briefed, 'BRIEFED_LATER'])
     check('a window launched with a brief: its session records the brief and no addition, and a run that continues it rides the brief without the note', briefedSystem.includes(BRIEF) && briefedSystem.endsWith(NOTE) && briefRows(recordOf(home, briefed)).join('|') === BRIEF && addRows(briefed).length === 0 && completed(briefedLater) && briefedLater.system.includes(BRIEF) && !briefedLater.system.includes(NOTE), `${briefRows(recordOf(home, briefed)).length} brief row(s) · ${addRows(briefed).length} addition row(s) · ${head(briefedLater.system.slice(-160))}`)
 
-    const { runnerArgvFromBoot, refuseRunnerArgv } = await import('../../src/services/switchboard/runnerArgv.ts')
+    const { runnerArgvFromBoot, refuseRunnerArgv } = await import('../../src/daemon/switchboard/runnerArgv.ts')
     const bootArgv = runnerArgvFromBoot(['--resume', briefed, '--default-brief', '--model', 'claude-opus-4-8'])
     check('a window launched with --default-brief hands the flag to its runner', bootArgv.join(' ') === '--default-brief' && refuseRunnerArgv(bootArgv) === null && (specOf(briefed, true, bootArgv).extraArgv ?? []).includes('--default-brief'), JSON.stringify(bootArgv))
     const unbriefed = await hosted(briefed, 'resumed', bootArgv).catch((error: unknown) => `THE WINDOW'S RUNNER DID NOT SERVE: ${error instanceof Error ? error.message : String(error)}`)
@@ -354,7 +354,7 @@ try {
   console.log('\n§12 a record read from its last fold boundary still yields a brief written before it')
   {
     const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-    const { loadTranscriptFile: load } = await import('../../src/utils/sessionStorage/loading.ts')
+    const { loadTranscriptFile: load } = await import('../../src/sessions/transcripts/loading.ts')
     const large = randomUUID()
     const ids = Array.from({ length: 8 }, () => randomUUID())
     const filler = 'A line of an old answer that the fold has already summarised. '.repeat(30_000)
@@ -387,9 +387,9 @@ try {
 
   console.log('\n§13 a resume snapshot an older build left beside the record does not hide the brief')
   {
-    const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
-    const snapshots = await import('../../src/utils/sessionStorage/resumeSnapshot.ts')
-    const { loadTranscriptFile: load } = await import('../../src/utils/sessionStorage/loading.ts')
+    const reader = await import('../../src/sessions/transcripts/transcriptReader.ts')
+    const snapshots = await import('../../src/sessions/transcripts/resumeSnapshot.ts')
+    const { loadTranscriptFile: load } = await import('../../src/sessions/transcripts/loading.ts')
     const file = ((): string => { const found: string[] = []; const visit = (folder: string): void => { for (const entry of readdirSync(folder, { withFileTypes: true })) { const path = join(folder, entry.name); if (entry.isDirectory()) visit(path); else if (entry.name === `${origin}.jsonl`) found.push(path) } }; visit(home); return found[0] ?? '' })()
     const size = readFileSync(file).length
     reader._resetTranscriptReaderForTesting()
@@ -413,7 +413,7 @@ try {
   }
 
   console.log('\n§14 a reader that does not know the two rows skips them and reads the rest')
-  const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
+  const { loadTranscriptFile } = await import('../../src/sessions/transcripts/loading.ts')
   const sourceFile = ((): string => { const found: string[] = []; const visit = (folder: string): void => { for (const entry of readdirSync(folder, { withFileTypes: true })) { const path = join(folder, entry.name); if (entry.isDirectory()) visit(path); else if (entry.name === `${origin}.jsonl`) found.push(path) } }; visit(home); return found[0] ?? '' })()
   const known = await loadTranscriptFile(sourceFile)
   const unknownFile = join(home, 'a-later-build.jsonl')

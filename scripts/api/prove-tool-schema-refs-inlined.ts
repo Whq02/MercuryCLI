@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/inlineSchemaRefs.ts src/services/messages/api.ts src/services/providers/gemini/geminiCodec.ts src/services/providers/openai/responsesBridge.ts
+// gate-watch: src/models/roads/inlineSchemaRefs.ts src/engine/messages/apiSystemAndToolSchema.ts src/models/roads/gemini/geminiCodec.ts src/models/roads/openai/responsesBridge.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
 let failures = 0
 let checks = 0
-const FIX_HINT = 'change inlineLocalSchemaRefs in src/utils/inlineSchemaRefs.ts (called from toolToAPISchema in src/services/messages/api.ts); for the Gemini or OpenAI checks see codeAssistSchema in src/services/providers/gemini/geminiCodec.ts and mapToolsToOpenai in src/services/providers/openai/responsesBridge.ts'
+const FIX_HINT = 'change inlineLocalSchemaRefs in src/models/roads/inlineSchemaRefs.ts (called from toolToAPISchema in src/engine/messages/apiSystemAndToolSchema.ts); for the Gemini or OpenAI checks see codeAssistSchema in src/models/roads/gemini/geminiCodec.ts and mapToolsToOpenai in src/models/roads/openai/responsesBridge.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -15,11 +15,11 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { codeAssistSchema } = await import('../../src/services/providers/gemini/geminiCodec.ts')
-const { mapToolsToOpenai } = await import('../../src/services/providers/openai/responsesBridge.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { clearToolSchemaCache } = await import('../../src/models/roads/toolSchemaCache.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { codeAssistSchema } = await import('../../src/models/roads/gemini/geminiCodec.ts')
+const { mapToolsToOpenai } = await import('../../src/models/roads/openai/responsesBridge.ts')
 
 type Schema = Record<string, unknown>
 
@@ -147,7 +147,7 @@ section('R5 · a schema without refs is the very same object on the wire')
   check('no refs ⇒ identity (nothing changes on a normal day)', wire === plain)
   const { z } = await import('zod/v4')
   const zodTool = { name: 'zod-typed', prompt: async () => 'zod', inputSchema: z.object({ count: z.number(), tags: z.array(z.string()).optional() }) }
-  const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+  const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
   const zodWire = await wireOf(zodTool as never)
   check('a zod-derived schema is byte-identical to its converter\u2019s output', JSON.stringify(zodWire) === JSON.stringify(zodToJsonSchema(zodTool.inputSchema as never)))
 }
@@ -170,7 +170,7 @@ section('R6 · a heavily shared definition tree stays bounded')
 
 section('refusals · what the walker must never do with a schema it does not trust')
 {
-  const { inlineLocalSchemaRefs } = await import('../../src/utils/inlineSchemaRefs.ts')
+  const { inlineLocalSchemaRefs } = await import('../../src/models/roads/inlineSchemaRefs.ts')
   const flat = (schema: Schema): Schema => inlineLocalSchemaRefs(schema)
   const notAString = flat({ type: 'object', properties: { a: { $ref: 42, type: 'string' } } })
   check('a $ref that is not a string is left exactly as it came', JSON.stringify(path(notAString, 'properties', 'a')) === JSON.stringify({ $ref: 42, type: 'string' }))
@@ -193,8 +193,8 @@ section('refusals · what the walker must never do with a schema it does not tru
   check('a 60-deep chain stops at the nesting limit: some refs remain, $defs kept, nothing thrown', refsIn(deep).length > 0 && '$defs' in deep)
   const poisoned = flat(JSON.parse('{"type":"object","properties":{"__proto__":{"type":"string"},"ok":{"$ref":"#/$defs/S"}},"$defs":{"S":{"type":"integer"}}}') as Schema)
   check('a property named __proto__ is never written through assignment: the walked table has the plain prototype and no such key', Object.getPrototypeOf(path(poisoned, 'properties')) === Object.prototype && !Object.prototype.hasOwnProperty.call(path(poisoned, 'properties') as object, '__proto__') && path(poisoned, 'properties', 'ok', 'type') === 'integer')
-  const { getAllBaseTools } = await import('../../src/tools.ts')
-  const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+  const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+  const { zodToJsonSchema } = await import('../../src/platform/primitives/zodToJsonSchema.ts')
   let identical = 0
   let differed: string[] = []
   for (const tool of getAllBaseTools() as unknown as Array<{ name: string; inputSchema?: unknown; inputJSONSchema?: unknown; prompt: unknown }>) {

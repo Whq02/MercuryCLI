@@ -9,7 +9,7 @@ const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  const contentionHint = ' | fix: the user-scope write of mcp add and mcp remove is addMcpConfig and removeMcpConfig in src/services/mcp/config.ts (the command is src/commands/mcp/addCommand.ts), which write through saveGlobalConfig in src/utils/config/globalConfig.ts; a lost or ghost registration means that write is not serialised across processes'
+  const contentionHint = ' | fix: the user-scope write of mcp add and mcp remove is addMcpConfig and removeMcpConfig in src/integrations/mcp/serverConfigs.ts (the command is src/commands/mcp/addCommand.ts), which write through saveGlobalConfig in src/platform/config/globalConfig.ts; a lost or ghost registration means that write is not serialised across processes'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : contentionHint}`)
   if (!cond) failures++
 }

@@ -8,15 +8,15 @@ process.env.MERCURY_CONFIG_DIR = scratchHome
 delete process.env.MERCURY_HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.on('exit', () => rmSync(scratchHome, { recursive: true, force: true }))
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[name]
 const { LLM_HOST_SEARCH_MIN_CHARS, LLM_HOST_SEARCH_SETTLE_MS } = await import('../../src/commands/llmhost/words.ts')
-const { BANK_DOOR } = await import('../../src/services/host/bank.ts')
-const { BANK_KEYS } = await import('../../src/services/host/fastLoad.ts')
-const { HF_GATED_WORDS, HF_NOT_CHAT_WORDS, HF_OFFLINE_WORDS, HF_SEARCH_LIMIT, HF_SEARCH_PLACEHOLDER } = await import('../../src/services/host/hfRecipes.ts')
-const { createHostRoad } = await import('../../src/services/host/index.ts')
-const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
-const { HOST_VENDORS, vendorLabel } = await import('../../src/services/host/vendors/client.ts')
+const { BANK_DOOR } = await import('../../src/models/hosting/bank.ts')
+const { BANK_KEYS } = await import('../../src/models/hosting/fastLoad.ts')
+const { HF_GATED_WORDS, HF_NOT_CHAT_WORDS, HF_OFFLINE_WORDS, HF_SEARCH_LIMIT, HF_SEARCH_PLACEHOLDER } = await import('../../src/models/hosting/hfRecipes.ts')
+const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+const { HOST_RECIPES } = await import('../../src/models/hosting/recipes.ts')
+const { HOST_VENDORS, vendorLabel } = await import('../../src/models/hosting/vendors/client.ts')
 
 const root = resolve(import.meta.dir, '../..')
 const doc = readFileSync(join(root, 'docs/LLM-HOST.md'), 'utf8')
@@ -24,7 +24,7 @@ const norm = (text: string): string => text.replaceAll('’', "'").replace(/\s+/
 let failures = 0, checks = 0
 const llmhostDocFixHint = (name: string): string => name.startsWith('poison')
   ? ' — facts() in this proof no longer notices the changed bank key; fix the Bank keys fact so it compares the doc keys to BANK_KEYS'
-  : ' — to fix, edit the matching line of docs/LLM-HOST.md to the live value from src/commands/llmhost/words.ts or src/services/host/ (index.ts, bank.ts, fastLoad.ts, hfRecipes.ts, recipes.ts, vendors/client.ts)'
+  : ' — to fix, edit the matching line of docs/LLM-HOST.md to the live value from src/commands/llmhost/words.ts or src/models/hosting/ (index.ts, bank.ts, fastLoad.ts, hfRecipes.ts, recipes.ts, vendors/client.ts)'
 const check = (name: string, truth: unknown): void => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name + (truth ? '' : llmhostDocFixHint(name))) }
 let whereRows: string[] = []
 let paidLabel = ''

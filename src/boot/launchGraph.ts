@@ -1,7 +1,7 @@
-import { logForDebugging } from '../utils/debug.js'
-import { withDeadline } from '../utils/deadline.js'
-import { sleep } from '../utils/sleep.js'
-import { passedOver } from '../utils/passedOver.js'
+import { logForDebugging } from '../platform/logs/debugLog.js'
+import { withDeadline } from '../platform/async/deadline.js'
+import { sleep } from '../platform/async/sleep.js'
+import { passedOver } from '../platform/errors/passedOver.js'
 
 
 let inputLive = false
@@ -15,7 +15,7 @@ export function signalInputLive(): void {
   inputLive = true
   resolveInputLive()
   try {
-    const { recordLaunchMilestone } = require('../substrate/launchMilestones.js') as typeof import('../substrate/launchMilestones.js')
+    const { recordLaunchMilestone } = require('../platform/substrate/launchMilestones.js') as typeof import('../platform/substrate/launchMilestones.js')
     recordLaunchMilestone('input-live')
   } catch (error) {
     passedOver(error)

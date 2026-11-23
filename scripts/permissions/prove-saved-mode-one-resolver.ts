@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/permissions/permissionSetup.ts src/daemon/concourseWorkers.ts src/daemon/headlessRun.ts
-// gate-watch: src/daemon/controlSocket.ts src/daemon/protocol.ts src/services/engine-connector/seatProjections.ts
+// gate-watch: src/permissions/rules/permissionSetup.ts src/daemon/concourse-workers/concourseWorkers.ts src/daemon/runner-link/headlessRun.ts
+// gate-watch: src/daemon/control/controlSocket.ts src/daemon/control/protocol.ts src/engine/connector/seatProjections.ts
 // gate-watch: scripts/lib/firstRunSeed.ts
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
@@ -30,7 +30,7 @@ const PROOF_ENV = {
 }
 
 let failures = 0
-const savedModeHint = 'a saved guardrails.mode must resolve to the same posture at every door: fix seatInitialPermissionMode in src/daemon/concourseWorkers.ts, headlessPermissionArgv in src/daemon/headlessRun.ts, or initialPermissionModeFromCLI in src/utils/permissions/permissionSetup.ts so they share one resolver'
+const savedModeHint = 'a saved guardrails.mode must resolve to the same posture at every door: fix seatInitialPermissionMode in src/daemon/concourse-workers/concourseWorkers.ts, headlessPermissionArgv in src/daemon/runner-link/headlessRun.ts, or initialPermissionModeFromCLI in src/permissions/rules/permissionSetup.ts so they share one resolver'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${savedModeHint}` : ''}`)
@@ -64,9 +64,9 @@ type Seam = { seat: string; argv: string[]; direct: { mode: string; notification
 function seamIn(name: string, settings: unknown): Seam | null {
   const home = homeWith(`seam-${name}`, settings)
   const src = `
-    import { seatInitialPermissionMode } from ${JSON.stringify(join(ROOT, 'src/daemon/concourseWorkers.ts'))}
-    import { headlessPermissionArgv } from ${JSON.stringify(join(ROOT, 'src/daemon/headlessRun.ts'))}
-    import { initialPermissionModeFromCLI } from ${JSON.stringify(join(ROOT, 'src/utils/permissions/permissionSetup.ts'))}
+    import { seatInitialPermissionMode } from ${JSON.stringify(join(ROOT, 'src/daemon/concourse-workers/concourseWorkers.ts'))}
+    import { headlessPermissionArgv } from ${JSON.stringify(join(ROOT, 'src/daemon/runner-link/headlessRun.ts'))}
+    import { initialPermissionModeFromCLI } from ${JSON.stringify(join(ROOT, 'src/permissions/rules/permissionSetup.ts'))}
     const seat = seatInitialPermissionMode(undefined)
     const carried = Object.fromEntries(['sovereign', 'apollo', 'implement', 'flow'].map(word => [word, seatInitialPermissionMode(word)]))
     process.stdout.write(JSON.stringify({ seat, argv: headlessPermissionArgv(seat, false), direct: initialPermissionModeFromCLI({ permissionModeCli: undefined, dangerouslySkipPermissions: false }), carried }))
@@ -143,10 +143,10 @@ if (!existsSync(BIN)) {
   }
 
   section('§3 the seat door on the built product: a daemon-admitted session under each saved word')
-  const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-  const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
-  const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-  const { readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+  const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/control/protocol.ts')
+  const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  const { readSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
   const rpc = (request: object, timeoutMs = 10_000) => daemonControlRpc(request as never, { timeoutMs })
   type Seat = { record?: string; consent?: true; runner?: string; spoke: boolean; log: string }
   async function seatUnder(word: string): Promise<Seat> {

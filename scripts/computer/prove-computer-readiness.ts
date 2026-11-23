@@ -3,11 +3,11 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, finish, freshSignal, scratchDir, section } from './computerProofKit.ts'
 
-const { collectReadiness } = await import('../../src/services/health/readiness.ts')
-const { resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const { claimDesktop, releaseDesktopClaim } = await import('../../src/services/desktop/desktopClaim.ts')
-const { desktopSnapshot } = await import('../../src/services/desktop/desktopSession.ts')
-type ReadinessRecord = import('../../src/services/health/readiness.ts').ReadinessRecord
+const { collectReadiness } = await import('../../src/platform/health/readiness.ts')
+const { resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const { claimDesktop, releaseDesktopClaim } = await import('../../src/integrations/desktop/desktopClaim.ts')
+const { desktopSnapshot } = await import('../../src/integrations/desktop/desktopSession.ts')
+type ReadinessRecord = import('../../src/platform/health/readiness.ts').ReadinessRecord
 
 const scratch = scratchDir('readiness')
 const row = (opts?: { includeEnv?: boolean }): ReadinessRecord | undefined => collectReadiness(opts).records.find(r => r.id === 'tool:computer')
@@ -70,7 +70,7 @@ section('§6 the health seam and the health row')
 {
   const record = row({ includeEnv: false })
   check('collectReadiness({ includeEnv: false }) carries the same row', record !== undefined && record.id === 'tool:computer' && record.state === 'configured', JSON.stringify(record))
-  const { interfaceChecks } = await import('../../src/services/health/sections/interface.ts')
+  const { interfaceChecks } = await import('../../src/platform/health/sections/interface.ts')
   const healthRow = interfaceChecks().find(entry => entry.id === 'iface-computer-use')
   check("the health list carries the row id 'iface-computer-use' in its interface section", healthRow !== undefined)
   check("the row is labelled 'Computer use'", healthRow?.label === 'Computer use')
@@ -78,7 +78,7 @@ section('§6 the health seam and the health row')
 
 section('§7 the access words beside the switch: the setting in words, the posture read where the health reads it')
 {
-  const { computerAccessWords } = await import('../../src/services/desktop/computerAccess.ts')
+  const { computerAccessWords } = await import('../../src/integrations/desktop/computerAccess.ts')
   delete process.env.MERCURY_COMPUTER_ACCESS
   delete process.env.MERCURY_SKIP_PERMISSIONS
   check('unset with Sovereign mode off: access asks', computerAccessWords() === 'access asks' && row()?.detail.endsWith('access asks') === true, JSON.stringify(row()))

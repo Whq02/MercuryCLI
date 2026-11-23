@@ -1,7 +1,7 @@
 import type * as React from 'react'
-import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js'
-import { setZenMode, zenModeOn } from '../../utils/cockpit/zenMode.js'
-import { isOneOf } from '../../utils/isOneOf.js'
+import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../catalogue/command.js'
+import { setZenMode, zenModeOn } from '../../screen/cockpit/zenMode.js'
+import { isOneOf } from '../../platform/primitives/isOneOf.js'
 
 export const ZEN_WORDS = ['on', 'off'] as const
 

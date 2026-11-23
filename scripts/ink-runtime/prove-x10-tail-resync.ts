@@ -5,7 +5,7 @@ for (const [head, tail] of [['\x1b[M', 'C)4'], ['\x1b[MC', ')4'], ['\x1b[MC)', '
   expectText(`${JSON.stringify(head)}: dropped X10 head owns exactly its payload`, [head, null, tail + 'ok'], 'ok')
   expectText(`${JSON.stringify(head)}: payload debt crosses further flushes`, [head, null, ...[...tail].flatMap(ch => [ch, null]), 'ok'], 'ok')
   for (const control of ['\x03', '\r', '\x7f', '\x1b[A']) {
-    assert.deepEqual(decode([head, null, control]), decode([control]), `after a dropped X10 mouse head ${JSON.stringify(head)} the control key ${JSON.stringify(control)} must decode as if sent alone; fix the X10 payload debt handling in parseMultipleKeypresses (src/ink/input/input-decoder.ts)`)
+    assert.deepEqual(decode([head, null, control]), decode([control]), `after a dropped X10 mouse head ${JSON.stringify(head)} the control key ${JSON.stringify(control)} must decode as if sent alone; fix the X10 payload debt handling in parseMultipleKeypresses (src/screen/renderer/input/input-decoder.ts)`)
   }
 }
 expectText('the three lost payload characters are the complete debt', ['\x1b[M', null, 'abcde'], 'de')

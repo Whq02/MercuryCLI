@@ -6,9 +6,9 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { isHandoffRequest } from '../lib/fixtureApi.ts'
-import { isOutcome, parseRow, type LooseRow } from '../../src/rows/read.ts'
-import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
-import type { Options } from '../../src/services/providers/anthropic/streamCore.ts'
+import { isOutcome, parseRow, type LooseRow } from '../../src/engine/rows/read.ts'
+import type { CompatCallModelParams } from '../../src/models/roads/openaicompat/compatChatCallModel.ts'
+import type { Options } from '../../src/models/roads/anthropic/streamCore.ts'
 
 const argAfter = (flag: string): string | undefined => {
   const at = process.argv.indexOf(flag)
@@ -97,9 +97,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const DEEPSEEK_WIRE_FIX = 'change buildDeepseekExtras in src/services/providers/openaicompat/compatWire.ts (wired by deepseekLaneProfile in src/services/providers/deepseek/deepseekCallModel.ts)'
-const DEEPSEEK_TRANSPORT_FIX = 'the turn runs through compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts with deepseekLaneProfile in src/services/providers/deepseek/deepseekCallModel.ts; read the request line above for what reached the fixture'
-const DEEPSEEK_CLIENT_FIX = 'the body and the Authorization header are built in src/services/providers/openaicompat/compatChatClient.ts'
+const DEEPSEEK_WIRE_FIX = 'change buildDeepseekExtras in src/models/roads/openaicompat/compatWire.ts (wired by deepseekLaneProfile in src/models/roads/deepseek/deepseekCallModel.ts)'
+const DEEPSEEK_TRANSPORT_FIX = 'the turn runs through compatChatCallModel in src/models/roads/openaicompat/compatChatCallModel.ts with deepseekLaneProfile in src/models/roads/deepseek/deepseekCallModel.ts; read the request line above for what reached the fixture'
+const DEEPSEEK_CLIENT_FIX = 'the body and the Authorization header are built in src/models/roads/openaicompat/compatChatClient.ts'
 const DEEPSEEK_DIST_FIX = 'rebuild with bun run build.ts, then rerun node dist/mercury.mjs run --input=rows --format=rows --model deepseek-v4-pro against this fixture and read the stderr in this detail'
 
 type Capture = {
@@ -195,11 +195,11 @@ process.env.MERCURY_DEEPSEEK_API_BASE = BASE
 
 process.chdir(OWN_CWD)
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
-const { deepseekLaneProfile } = await import('../../src/services/providers/deepseek/deepseekCallModel.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { compatChatCallModel } = await import('../../src/models/roads/openaicompat/compatChatCallModel.ts')
+const { deepseekLaneProfile } = await import('../../src/models/roads/deepseek/deepseekCallModel.ts')
 
 function callParams(
   effortValue: string | undefined,
@@ -281,10 +281,10 @@ section('§1 the DeepSeek transport over a local HTTP fixture: the request body 
   const run = await driveTransport(tag, 'high', true, undefined)
   const c = run.capture
   checkTurn(tag, run)
-  check(`${tag}: POST ${CHAT_PATH} exactly`, c?.method === 'POST' && c?.path === CHAT_PATH, `${c?.method} ${c?.path}; the URL comes from deepseekChatCompletionsUrl in src/services/providers/deepseek/deepseekAccounts.ts`)
-  check(`${tag}: the bearer key rides the header`, c?.bearer === true, `no Bearer header with the fixture key reached the server; check deepseekLaneProfile.resolveCredential in src/services/providers/deepseek/deepseekCallModel.ts and ${DEEPSEEK_CLIENT_FIX}`)
+  check(`${tag}: POST ${CHAT_PATH} exactly`, c?.method === 'POST' && c?.path === CHAT_PATH, `${c?.method} ${c?.path}; the URL comes from deepseekChatCompletionsUrl in src/models/roads/deepseek/deepseekAccounts.ts`)
+  check(`${tag}: the bearer key rides the header`, c?.bearer === true, `no Bearer header with the fixture key reached the server; check deepseekLaneProfile.resolveCredential in src/models/roads/deepseek/deepseekCallModel.ts and ${DEEPSEEK_CLIENT_FIX}`)
   check(`${tag}: the key never rides the body`, c?.keyInBody === false, `the key text appears in the request body; ${DEEPSEEK_CLIENT_FIX}`)
-  check(`${tag}: model is ${WIRE_MODEL}`, c?.body.model === WIRE_MODEL, `${String(c?.body.model)}; deepseekLaneProfile.wireModelId in src/services/providers/deepseek/deepseekCallModel.ts picks the wire model`)
+  check(`${tag}: model is ${WIRE_MODEL}`, c?.body.model === WIRE_MODEL, `${String(c?.body.model)}; deepseekLaneProfile.wireModelId in src/models/roads/deepseek/deepseekCallModel.ts picks the wire model`)
   check(`${tag}: stream:true`, c?.body.stream === true, `stream=${String(c?.body.stream)}; ${DEEPSEEK_CLIENT_FIX}`)
   check(`${tag}: reasoning_effort sits at the TOP LEVEL`, c?.body.reasoning_effort === 'high', `${JSON.stringify({ top: c?.body.reasoning_effort, thinking: thinkingOf(c) })}; ${DEEPSEEK_WIRE_FIX}`)
   checkThinking(tag, c, 'enabled')
@@ -492,9 +492,9 @@ for (const word of ['low', 'high', 'max']) {
 
 section('§3 the whole wire')
 
-check('every capture was an exact POST /chat/completions', captures.every(c => c.method === 'POST' && c.path === CHAT_PATH), captures.map(c => c.method + ' ' + c.path).join(' ') + '; deepseekChatCompletionsUrl in src/services/providers/deepseek/deepseekAccounts.ts builds the URL')
+check('every capture was an exact POST /chat/completions', captures.every(c => c.method === 'POST' && c.path === CHAT_PATH), captures.map(c => c.method + ' ' + c.path).join(' ') + '; deepseekChatCompletionsUrl in src/models/roads/deepseek/deepseekAccounts.ts builds the URL')
 check('no capture ever carried the key in its body', captures.every(c => !c.keyInBody), `tags with the key in the body: ${captures.filter(c => c.keyInBody).map(c => c.tag).join(' ')}; ${DEEPSEEK_CLIENT_FIX}`)
-check('no request missed the chat path by method or spelling', strayRequests.every(r => !r.includes(CHAT_PATH)), `${strayRequests.join(' ')}; deepseekChatCompletionsUrl in src/services/providers/deepseek/deepseekAccounts.ts builds the URL`)
+check('no request missed the chat path by method or spelling', strayRequests.every(r => !r.includes(CHAT_PATH)), `${strayRequests.join(' ')}; deepseekChatCompletionsUrl in src/models/roads/deepseek/deepseekAccounts.ts builds the URL`)
 check('no capture nested an effort inside thinking', captures.every(c => {
   const t = thinkingOf(c)
   return t === undefined || !('reasoning_effort' in t)

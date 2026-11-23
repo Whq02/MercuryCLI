@@ -19,18 +19,18 @@ function section(title: string): void {
 }
 
 const React = await import('react')
-const { Box } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
-const limits = await import('../../src/services/anthropicLimits.js')
-const owner = await import('../../src/services/providers/providerUsage.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.js')
+const owner = await import('../../src/models/roads/providerUsage.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const auth = { ...(await import('../../src/utils/auth.js')), ...(await import('../../src/services/auth/oauthLifecycle.js')) }
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
-const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.js')
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.js')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.js')) }
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.js')
+const { storeOAuthAccountInfo } = await import('../../src/models/sign-in/oauth/client.js')
 storeOAuthAccountInfo({ accountUuid: '00000000-0000-4000-8000-0000000000cc', emailAddress: 'header@example.com' })
 const saved = auth.saveOAuthTokensIfNeeded({
   accessToken: 'fixture-access-token-header',
@@ -43,7 +43,7 @@ const saved = auth.saveOAuthTokensIfNeeded({
 if (!saved.success) throw new Error(`the credential store refused the sign-in: ${saved.warning ?? '?'}`)
 auth.clearOAuthTokenCache()
 recordSignIn('anthropic', 'oauth')
-const lineModule = await import('../../src/components/Settings/usageLine.ts').catch(() => null) as { usagePopupLine: () => string } | null
+const lineModule = await import('../../src/screen/settings/usageLine.ts').catch(() => null) as { usagePopupLine: () => string } | null
 const usagePopupLine = (): string => lineModule?.usagePopupLine() ?? '(no one reader on this tree)'
 const usageCommand = await import('../../src/commands/usage/usage.tsx')
 
@@ -63,11 +63,11 @@ section('§1 one reader: the header line and the block floor the same window')
   limits.resetLimitsForCredentialSwitch()
   fold(56.4, 4.2)
   const first = usagePopupLine()
-  check('the line names the week the record holds (56.4 → 56%)', weekOf(first) === '56' && first.includes('session 4%'), `${first}; usagePopupLine in src/components/Settings/usageLine.ts should read the week the record holds (folded by foldUtilizationFromEndpoint in src/services/anthropicLimits.ts)`)
-  check('the block\'s own reader floors the same window to the same figure', blockWeek() === '56', `block reads ${blockWeek()}; anthropicWindowViews in src/services/providers/providerUsage.ts should floor the 7d window the same way as usagePopupLine`)
+  check('the line names the week the record holds (56.4 → 56%)', weekOf(first) === '56' && first.includes('session 4%'), `${first}; usagePopupLine in src/screen/settings/usageLine.ts should read the week the record holds (folded by foldUtilizationFromEndpoint in src/models/roads/anthropic/anthropicLimits.ts)`)
+  check('the block\'s own reader floors the same window to the same figure', blockWeek() === '56', `block reads ${blockWeek()}; anthropicWindowViews in src/models/roads/providerUsage.ts should floor the 7d window the same way as usagePopupLine`)
   fold(57.2, 4.9)
   const second = usagePopupLine()
-  check('a fresh observation moves both readers together (57.2 → 57%)', weekOf(second) === '57' && blockWeek() === '57', `${second}; usagePopupLine (src/components/Settings/usageLine.ts) and anthropicWindowViews (src/services/providers/providerUsage.ts) should both read the latest folded record`)
+  check('a fresh observation moves both readers together (57.2 → 57%)', weekOf(second) === '57' && blockWeek() === '57', `${second}; usagePopupLine (src/screen/settings/usageLine.ts) and anthropicWindowViews (src/models/roads/providerUsage.ts) should both read the latest folded record`)
 }
 
 section('§2 the open popup: the header follows the body\'s refresh instead of the figure it opened with')
@@ -89,8 +89,8 @@ section('§2 the open popup: the header follows the body\'s refresh instead of t
   fold(57.2, 4.9)
   const moved = await waitFor(() => /(?:week|7d) 57%/.test(m.screen()), 6000)
   const header = m.lines().find(l => /session on ·/.test(l))?.trim() ?? ''
-  check('RED ON THE BASE: the endpoint answers while the popup stands and the header reads the new week (57%) — the figure the block paints', moved && !/56%/.test(header), `${header}; the open popup header (src/components/SettingsPopupSlot.tsx, src/commands/usage/usage.tsx) should re-read usagePopupLine when the body refreshes`)
-  check('the header and the block\'s reader agree', weekOf(header) === blockWeek(), `${weekOf(header)} vs ${blockWeek()}; the header (usagePopupLine in src/components/Settings/usageLine.ts) and the block (anthropicWindowViews in src/services/providers/providerUsage.ts) should floor the same window`)
+  check('RED ON THE BASE: the endpoint answers while the popup stands and the header reads the new week (57%) — the figure the block paints', moved && !/56%/.test(header), `${header}; the open popup header (src/screen/overlays/SettingsPopupSlot.tsx, src/commands/usage/usage.tsx) should re-read usagePopupLine when the body refreshes`)
+  check('the header and the block\'s reader agree', weekOf(header) === blockWeek(), `${weekOf(header)} vs ${blockWeek()}; the header (usagePopupLine in src/screen/settings/usageLine.ts) and the block (anthropicWindowViews in src/models/roads/providerUsage.ts) should floor the same window`)
   store.closeSettingsPopup()
   await settle(60)
   m.unmount()

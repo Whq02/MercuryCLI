@@ -45,7 +45,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver, vshotBudgetMs } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
-const { expandTabs } = await import('../../src/ink/tabstops.ts')
+const { expandTabs } = await import('../../src/screen/renderer/tabstops.ts')
 
 let failures = 0
 let checks = 0
@@ -181,7 +181,7 @@ function readBox(grid: Grid, label: string): void {
   const x0 = top < 0 ? -1 : rows[top]!.indexOf('┌')
   const x1 = top < 0 ? -1 : rows[top]!.indexOf('┐', x0 + 1)
   const bottom = top < 0 ? -1 : rows.findIndex((row, index) => index > top && row[x0] === '└')
-  check(`${label}: the diff box under the Write row is on screen with its top and bottom edges`, top >= 0 && x1 > x0 && bottom > top, `top=${top} x0=${x0} x1=${x1} bottom=${bottom} · the box titled diff · name is drawn in src/components/FileEditToolUpdatedMessage.tsx: it must appear under the Write row with both edges; read the printed final frame above`)
+  check(`${label}: the diff box under the Write row is on screen with its top and bottom edges`, top >= 0 && x1 > x0 && bottom > top, `top=${top} x0=${x0} x1=${x1} bottom=${bottom} · the box titled diff · name is drawn in src/tools/edit/EditUpdatedMessage.tsx: it must appear under the Write row with both edges; read the printed final frame above`)
   if (top < 0 || x1 <= x0 || bottom <= top) return
   const edges: string[] = []
   const bleeds: string[] = []
@@ -220,21 +220,21 @@ function readBox(grid: Grid, label: string): void {
     bandMap.push(Array.from({ length: Math.min(row.length, spareEnd + 1) }, (_, x) => (x === x0 || x === x1 ? '│' : painted(x) ? '#' : row[x] === ' ' ? '.' : row[x]!)).join(''))
     inner.push(gutter ? innerText.slice(gutter[0].length) : innerText)
   }
-  check(`${label}: every row inside the box keeps both border glyphs`, edges.length === 0, `${edges.slice(0, 3).join(' · ')} · a diff row lost a border glyph: keep the row inside the box width in src/components/FileEditToolUpdatedMessage.tsx`)
-  check(`${label}: nothing is painted right of the border`, bleeds.length === 0, `${bleeds.slice(0, 3).join(' · ')} · diff text overflowed the box: wrap it to the box width in src/components/FileEditToolUpdatedMessage.tsx`)
-  check(`${label}: every red or green band ends exactly at the border`, bands.length === 0, `${bands.slice(0, 3).join(' · ')} · the red or green background must end at the border: fix the band width of the diff rows drawn inside src/components/FileEditToolUpdatedMessage.tsx`)
-  check(`${label}: the removed and added rows carry an unbroken band`, bandedRows >= 4 && gaps.length === 0, gaps.length ? gaps.slice(0, 3).join(' · ') : `${bandedRows} banded rows, at least 4 expected: the removed and added rows must each carry a band; the box is drawn in src/components/FileEditToolUpdatedMessage.tsx`)
+  check(`${label}: every row inside the box keeps both border glyphs`, edges.length === 0, `${edges.slice(0, 3).join(' · ')} · a diff row lost a border glyph: keep the row inside the box width in src/tools/edit/EditUpdatedMessage.tsx`)
+  check(`${label}: nothing is painted right of the border`, bleeds.length === 0, `${bleeds.slice(0, 3).join(' · ')} · diff text overflowed the box: wrap it to the box width in src/tools/edit/EditUpdatedMessage.tsx`)
+  check(`${label}: every red or green band ends exactly at the border`, bands.length === 0, `${bands.slice(0, 3).join(' · ')} · the red or green background must end at the border: fix the band width of the diff rows drawn inside src/tools/edit/EditUpdatedMessage.tsx`)
+  check(`${label}: the removed and added rows carry an unbroken band`, bandedRows >= 4 && gaps.length === 0, gaps.length ? gaps.slice(0, 3).join(' · ') : `${bandedRows} banded rows, at least 4 expected: the removed and added rows must each carry a band; the box is drawn in src/tools/edit/EditUpdatedMessage.tsx`)
   const innerJoined = squash(inner.join(''))
   for (const [name, text] of [['the over-long removed line', removedLong], ['the over-long added line', addedLong], ['the long context line', contextLong], ['the short removed line', removedShort], ['the short added line', addedShort]] as const) {
     const expanded = expandTabs(text)
-    check(`${label}: ${name} wraps inside the box with every character kept`, innerJoined.includes(squash(expanded)), `${expanded.slice(0, 40)}… · characters of this line are missing from the box: wrapping must keep every character, look at how the diff rows wrap in the box drawn by src/components/FileEditToolUpdatedMessage.tsx`)
+    check(`${label}: ${name} wraps inside the box with every character kept`, innerJoined.includes(squash(expanded)), `${expanded.slice(0, 40)}… · characters of this line are missing from the box: wrapping must keep every character, look at how the diff rows wrap in the box drawn by src/tools/edit/EditUpdatedMessage.tsx`)
   }
   const headerRow = rows[top + 1]!
   const headerCells = grid[top + 1]!
   const headerGround = headerCells[x1]?.bg ?? 'default'
   const headerGutter = GUTTER.exec(headerRow.slice(x0 + 1, x1))
   check(`${label}: the header line above the removed block paints neutral with no marker`, headerRow.includes('name') && headerCells.slice(x0 + 1, x1).every(cell => cell.bg === headerGround) && headerGutter?.[2] === ' ', `${headerRow.slice(x0, x0 + 20)} · the unchanged first line must paint with the box ground and a blank marker, no band`)
-  check(`${label}: the header columns sit at the line's own tab stops`, headerGutter !== null && headerRow.slice(x0 + 1 + headerGutter[0].length, x1).startsWith(expandTabs(header)), `${JSON.stringify(headerRow.slice(x0 + 1, x0 + 48))} · tabs must expand to 8-column stops as expandTabs in src/ink/tabstops.ts does`)
+  check(`${label}: the header columns sit at the line's own tab stops`, headerGutter !== null && headerRow.slice(x0 + 1 + headerGutter[0].length, x1).startsWith(expandTabs(header)), `${JSON.stringify(headerRow.slice(x0 + 1, x0 + 48))} · tabs must expand to 8-column stops as expandTabs in src/screen/renderer/tabstops.ts does`)
   if (FRAMES) writeFileSync(join(FRAMES, `${COLS}x${ROWS}-${label}-band.txt`), bandMap.join('\n') + '\n')
 }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/tempfile.ts src/utils/promptEditor.ts
+// gate-watch: src/platform/files/tempFilePath.ts src/screen/composer/promptEditor.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { tmpdir } from 'node:os'
@@ -7,7 +7,7 @@ import { basename, dirname } from 'node:path'
 
 let failures = 0
 let checks = 0
-const promptFileHint = 'fix generateTempFilePath in src/utils/tempfile.ts (the editor prompt file name and directory)'
+const promptFileHint = 'fix generateTempFilePath in src/platform/files/tempFilePath.ts (the editor prompt file name and directory)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -17,7 +17,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 console.log('the external editor opens a mercury-prompt file')
 
-const { generateTempFilePath } = await import('../../src/utils/tempfile.ts')
+const { generateTempFilePath } = await import('../../src/platform/files/tempFilePath.ts')
 
 const random = generateTempFilePath()
 check('the default file lives in the temp dir', dirname(random) === tmpdir(), random)

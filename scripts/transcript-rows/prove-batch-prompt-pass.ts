@@ -3,8 +3,8 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync,
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { randomUUID } from 'node:crypto'
-import type { ContentBlockParam } from '../../src/types/wire.js'
-import type { Message, UserMessage } from '../../src/types/message.js'
+import type { ContentBlockParam } from '../../src/engine/message-shapes/wire.js'
+import type { Message, UserMessage } from '../../src/engine/message-shapes/message.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-batch-prompt-')))
@@ -19,7 +19,7 @@ process.chdir(cwd)
 
 let failures = 0
 let checks = 0
-const batchFailureHint = 'to fix, change the batch branch (batchTail) of processUserInput in src/services/processUserInput/processUserInput.ts, or the prompt fold in planApiConversation in src/services/messages/apiPlan.ts'
+const batchFailureHint = 'to fix, change the batch branch (batchTail) of processUserInput in src/engine/user-input/processUserInput.ts, or the prompt fold in planApiConversation in src/engine/messages/apiPlan.ts'
 function check(label: string, condition: boolean, detail = ''): void {
   checks++
   if (!condition) failures++
@@ -28,16 +28,16 @@ function check(label: string, condition: boolean, detail = ''): void {
 }
 
 try {
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const { setOriginalCwd, setCwdState, getSessionId } = await import('../../src/bootstrap/state.ts')
+  const { setOriginalCwd, setCwdState, getSessionId } = await import('../../src/boot/process-state/processState.ts')
   setOriginalCwd(cwd)
   setCwdState(cwd)
-  const { processUserInput } = await import('../../src/services/processUserInput/processUserInput.ts')
-  const { builtinCommands, sessionSeatCommandTable } = await import('../../src/commands.ts')
-  const { planApiConversation } = await import('../../src/services/messages/apiPlan.ts')
-  const { addSessionHooks } = await import('../../src/utils/hooks/sessionHooks.ts')
-  const { storeImage, storedImageRefBlock } = await import('../../src/utils/imageStore.ts')
+  const { processUserInput } = await import('../../src/engine/user-input/processUserInput.ts')
+  const { builtinCommands, sessionSeatCommandTable } = await import('../../src/commands/catalogue/commands.ts')
+  const { planApiConversation } = await import('../../src/engine/messages/apiPlan.ts')
+  const { addSessionHooks } = await import('../../src/integrations/event-hooks/sessionHooks.ts')
+  const { storeImage, storedImageRefBlock } = await import('../../src/platform/images/imageStore.ts')
   const table = sessionSeatCommandTable([...builtinCommands()])
   const appState: Record<string, unknown> = {
     toolPermissionContext: { mode: 'default', additionalWorkingDirectories: new Map(), alwaysAllowRules: {}, alwaysDenyRules: {} },
@@ -134,9 +134,9 @@ try {
   const metaBatch = await run(plain, ids, true)
   check('the batch preserves the meta flag and permission mode on every prompt', users(metaBatch.messages).length === 3 && users(metaBatch.messages).every(row => row.isMeta === true && row.permissionMode === 'default'))
 
-  const { createUserMessage, createCompactBoundaryMessage, getMessagesAfterCompactBoundary } = await import('../../src/services/messages.ts')
-  const { createAttachmentMessage } = await import('../../src/services/attachments.ts')
-  const { cleanForTranscript } = await import('../../src/utils/sessionStorage/chain.ts')
+  const { createUserMessage, createCompactBoundaryMessage, getMessagesAfterCompactBoundary } = await import('../../src/engine/messages/messages.ts')
+  const { createAttachmentMessage } = await import('../../src/engine/attachments/attachments.ts')
+  const { cleanForTranscript } = await import('../../src/sessions/transcripts/chain.ts')
   const foldAttachment = createAttachmentMessage({ type: 'hook', outcome: 'context', event: 'compaction.after', name: 'fold-probe', words: 'FOLD-ATTACHMENT-SENTINEL' })
   table.push({
     type: 'local', name: 'fold-probe', description: 'compact fixture', isEnabled: () => true, supportsNonInteractive: true,
@@ -174,7 +174,7 @@ try {
   const pathBatch = await run([pathHead, 'path follow-up'], ids.slice(0, 2))
   check('a slash-shaped ordinary prompt retains the original batch fold', users(planApiConversation(pathBatch.messages).selected)[0]?.message.content === `${pathHead}\npath follow-up`)
 
-  await (await import('../../src/context.ts')).getUserContext()
+  await (await import('../../src/engine/requestContext.ts')).getUserContext()
   const standingRule = 'STANDING-RULE-SENTINEL'
   const contextLines = ['the first context line', 'the next context line', 'the last context line']
   const contextJoined = await run([contextLines.join('\n')], [ids[0]!], false, standingRule)

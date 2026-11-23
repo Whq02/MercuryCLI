@@ -7,8 +7,8 @@ import {
   STREAM_FAULT_AFTER_PARTIAL_MARKER,
   isContinuableStreamFaultMessage,
   streamFaultAfterPartialText,
-} from '../../src/services/api/errors.js'
-import { createAssistantAPIErrorMessage } from '../../src/services/messages.js'
+} from '../../src/engine/requests/apiErrorRows.js'
+import { createAssistantAPIErrorMessage } from '../../src/engine/messages/messages.js'
 
 
 let failures = 0
@@ -35,7 +35,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 
 {
-  const { decideStreamFaultRecovery } = await import('../../src/run-core/turn-machine.js')
+  const { decideStreamFaultRecovery } = await import('../../src/engine/loop/turn-machine.js')
   const first = decideStreamFaultRecovery({ continuableTail: true, recoveryCount: 0 })
   check('first fault continues (attempt 1)', first.kind === 'continue' && first.attempt === 1)
   const second = decideStreamFaultRecovery({ continuableTail: true, recoveryCount: 1 })
@@ -45,13 +45,13 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 {
-  const { streamFaultRecoveryContent, streamFaultRecoveryTailLine, STREAM_FAULT_RECOVERY_NUDGE, isStreamFaultRecoveryNudgeText } = await import('../../src/services/api/errors.js')
+  const { streamFaultRecoveryContent, streamFaultRecoveryTailLine, STREAM_FAULT_RECOVERY_NUDGE, isStreamFaultRecoveryNudgeText } = await import('../../src/engine/requests/apiErrorRows.js')
   const t = await import('../core-runtime/turnScenarios.ts')
-  const { NO_TOOL_RULES, noToolReply, readReply } = await import('../../src/run-core/turn/noToolReply.ts')
+  const { NO_TOOL_RULES, noToolReply, readReply } = await import('../../src/engine/loop/turn/noToolReply.ts')
   type Row = Record<string, unknown>
   const PARTIAL = 'first the schema swap, then the '
   const cutReply = () => ({ script: [t.fixtures.yields(t.fixtures.says(PARTIAL, 'stop_sequence'), t.fixtures.faulted())] })
-  const RULE = 'the stream_fault_recovery rule (src/run-core/turn/noToolReply.ts)'
+  const RULE = 'the stream_fault_recovery rule (src/engine/loop/turn/noToolReply.ts)'
   const planted = await t.plantReply(cutReply())
   const apiError = NO_TOOL_RULES.find(rule => rule.name === 'api_error')
   const alone = apiError === undefined ? 'no api_error rule' : t.reasonOf((await t.drain(apiError.decide(planted.run as never, planted.iter as never, readReply(planted.iter as never)))).decision)

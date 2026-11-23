@@ -29,11 +29,11 @@ const PROOF_ENV = {
   NO_COLOR: '1',
 }
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
-const workers = await import('../../src/daemon/concourseWorkers.ts')
-const { readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/control/protocol.ts')
+const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { readSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
 
 const watchdog = setTimeout(() => {
   console.log('\nTIMEOUT: prove-explicit-default-mode-reaches-runner exceeded 300s; a daemon or a runner never answered: read the last section header above and the daemon lines under it')
@@ -41,14 +41,14 @@ const watchdog = setTimeout(() => {
 }, 300_000)
 watchdog.unref?.()
 
-const DOOR = 'the door reads the pair in readSessionAdmit (src/daemon/controlServer.ts); the seat spec keeps it in buildConcourseWorkerSpec (src/daemon/concourseWorkers/spec.ts); headlessPermissionArgv (src/daemon/headlessRun.ts) spells --mode default for it'
+const DOOR = 'the door reads the pair in readSessionAdmit (src/daemon/control/controlServer.ts); the seat spec keeps it in buildConcourseWorkerSpec (src/daemon/concourse-workers/spec.ts); headlessPermissionArgv (src/daemon/runner-link/headlessRun.ts) spells --mode default for it'
 const HINTS = {
   birth: `a typed default must reach a cold seat's argv: ${DOOR}`,
-  respawn: 'a respawn starts from the registered seat spec: permissionModeTyped must stay on the spec that buildConcourseWorkerSpec (src/daemon/concourseWorkers/spec.ts) returns, and buildRunnerInvocation (src/daemon/headlessRun.ts) must read it',
-  revive: "a revive starts from the session record: stampSpawnPosture (src/daemon/concourseWorkers/spec.ts) must stamp permissionModeTyped and reviveConcourseWorker (src/daemon/concourseWorkers/revive.ts) must hand the record's word to the seat spec",
-  reactivate: 'a resume of a session with a record goes through reactivateConcourseSession (src/daemon/concourseWorkers/reactivate.ts): it must hand the carried pair to reviveConcourseWorker, and a carried mode nobody typed must clear the word',
-  warm: 'a claimed warm seat respawns from the spec the claim patched: claimWarmRunner (src/daemon/warmRunner.ts) must pass permissionModeTyped to patchSeatClaim (src/daemon/roster/retarget.ts)',
-  asToday: 'only a mode typed for this start may change what a seat boots in: a carried default without permissionModeTyped, or nothing carried, must keep the saved mode (headlessPermissionModeTyped in src/daemon/headlessRun.ts)',
+  respawn: 'a respawn starts from the registered seat spec: permissionModeTyped must stay on the spec that buildConcourseWorkerSpec (src/daemon/concourse-workers/spec.ts) returns, and buildRunnerInvocation (src/daemon/runner-link/headlessRun.ts) must read it',
+  revive: "a revive starts from the session record: stampSpawnPosture (src/daemon/concourse-workers/spec.ts) must stamp permissionModeTyped and reviveConcourseWorker (src/daemon/concourse-workers/revive.ts) must hand the record's word to the seat spec",
+  reactivate: 'a resume of a session with a record goes through reactivateConcourseSession (src/daemon/concourse-workers/reactivate.ts): it must hand the carried pair to reviveConcourseWorker, and a carried mode nobody typed must clear the word',
+  warm: 'a claimed warm seat respawns from the spec the claim patched: claimWarmRunner (src/daemon/runner-link/warmRunner.ts) must pass permissionModeTyped to patchSeatClaim (src/daemon/roster/retarget.ts)',
+  asToday: 'only a mode typed for this start may change what a seat boots in: a carried default without permissionModeTyped, or nothing carried, must keep the saved mode (headlessPermissionModeTyped in src/daemon/runner-link/headlessRun.ts)',
 }
 let failures = 0
 let hint = ''
@@ -135,7 +135,7 @@ async function admit(world: World, extra: Record<string, unknown>): Promise<stri
   const sid = typeof reply.sessionId === 'string' ? reply.sessionId : ''
   if (reply.ok !== true || sid === '') {
     failures++
-    console.log(`  [FAIL] the daemon admits ${JSON.stringify(extra)} (${JSON.stringify(reply).slice(0, 400)}; read makeConcourseAdmitHandler in src/daemon/concourseWorkers/admit.ts)`)
+    console.log(`  [FAIL] the daemon admits ${JSON.stringify(extra)} (${JSON.stringify(reply).slice(0, 400)}; read makeConcourseAdmitHandler in src/daemon/concourse-workers/admit.ts)`)
     return ''
   }
   await until(() => recordOf(world, sid)?.pid !== undefined, 30_000)

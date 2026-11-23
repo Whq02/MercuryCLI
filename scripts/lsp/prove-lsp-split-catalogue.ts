@@ -1,12 +1,12 @@
 import { armScratch, check, cleanup, finish } from './lspProofDoor.ts'
 
 const scratch = armScratch('lsp-split-catalogue')
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getEngineModel } = await import('../../src/services/model/model.js')
-const { isDeferredToolFor } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.js')
+const { isDeferredToolFor } = await import('../../src/tools/tool-search/prompt.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 const names = ['LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest']
 const tools = getAllBaseTools()

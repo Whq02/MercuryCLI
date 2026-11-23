@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/projectStoreIdentity.ts src/utils/directoryIdentity.ts src/utils/sessionStoragePortable.ts
+// gate-watch: src/platform/storage/projectStoreIdentity.ts src/daemon/control/directoryIdentity.ts src/sessions/transcripts/sessionStoragePortable.ts
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
@@ -15,12 +15,12 @@ const HOME = join(ROOT, 'home')
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_HOME
-const PORTABLE = join(import.meta.dir, '..', '..', 'src', 'utils', 'sessionStoragePortable.ts')
+const PORTABLE = join(import.meta.dir, '..', '..', 'src', 'sessions', 'transcripts', 'sessionStoragePortable.ts')
 const portable = await import(PORTABLE)
 const { getProjectDir, findProjectDir, projectSlug, projectSlugMatches, sanitizePath } = portable
-const { listSessionsImpl } = await import('../../src/utils/listSessionsImpl.ts')
-const facts = await import('../../src/utils/bootCardFacts.ts')
-const tests = await import('../../src/services/ide/pythonTests.ts')
+const { listSessionsImpl } = await import('../../src/sessions/transcripts/listSessions.ts')
+const facts = await import('../../src/screen/boot-face/bootCardFacts.ts')
+const tests = await import('../../src/integrations/ide/pythonTests.ts')
 const PROJECTS = join(HOME, 'projects')
 
 let failures = 0
@@ -94,7 +94,7 @@ function childAnswers(...dirs: string[]): string[] {
   return run.stdout.trim().split('\n')
 }
 
-function runRecord(cwd: string, id: string): import('../../src/services/ide/pythonTests.ts').TestRunRecord {
+function runRecord(cwd: string, id: string): import('../../src/integrations/ide/pythonTests.ts').TestRunRecord {
   return { schema: 1, id, framework: 'unittest', selection: 'all', command: ['python3', '-m', 'unittest'], cwd, interpreter: 'python3', startedAt: 1, durationMs: 1, counts: { passed: 1, failed: 0, skipped: 0, errored: 0 }, cases: [], failures: [], outputTail: [], exitCode: 0 }
 }
 
@@ -106,42 +106,42 @@ try {
   check('A0 fixture: the two spellings name one native directory', older !== project && inode(older) === inode(project), `${older} vs ${project}; the fixture's olderSpelling() could not make a second spelling of one directory on this filesystem`)
   const olderStore = join(PROJECTS, projectSlug(older))
   seedStore(olderStore, older)
-  check('A0 fixture: the older store is keyed by the older spelling alone (its name is not the native slug)', basename(olderStore) !== projectSlug(project), 'the fixture store must be keyed by the older spelling; check olderSpelling() and projectSlug in src/utils/sessionStoragePortable.ts')
+  check('A0 fixture: the older store is keyed by the older spelling alone (its name is not the native slug)', basename(olderStore) !== projectSlug(project), 'the fixture store must be keyed by the older spelling; check olderSpelling() and projectSlug in src/sessions/transcripts/sessionStoragePortable.ts')
   const homeBefore = treeHash(HOME)
-  check('A1 the native spelling resolves to the older spelling\'s store', getProjectDir(project) === olderStore, `${getProjectDir(project)}; getProjectDir in src/utils/sessionStoragePortable.ts must adopt the older spelling's store`)
-  check('A1 the older spelling resolves there too', getProjectDir(older) === olderStore, `${getProjectDir(older)}; getProjectDir in src/utils/sessionStoragePortable.ts must adopt the older spelling's store`)
-  check('A1 findProjectDir agrees for both spellings', (await findProjectDir(project)) === olderStore && (await findProjectDir(older)) === olderStore, 'findProjectDir in src/utils/sessionStoragePortable.ts must answer what getProjectDir answers')
+  check('A1 the native spelling resolves to the older spelling\'s store', getProjectDir(project) === olderStore, `${getProjectDir(project)}; getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must adopt the older spelling's store`)
+  check('A1 the older spelling resolves there too', getProjectDir(older) === olderStore, `${getProjectDir(older)}; getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must adopt the older spelling's store`)
+  check('A1 findProjectDir agrees for both spellings', (await findProjectDir(project)) === olderStore && (await findProjectDir(older)) === olderStore, 'findProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must answer what getProjectDir answers')
   const listedNew = await sessionIds(project)
   const listedOld = await sessionIds(older)
-  check('A2 both spellings list the same sessions', listedNew.length === 1 && listedNew[0] === UUID('a111') && JSON.stringify(listedNew) === JSON.stringify(listedOld), `${JSON.stringify({ listedNew, listedOld })}; listSessionsImpl in src/utils/listSessionsImpl.ts must read the store getProjectDir resolves`)
+  check('A2 both spellings list the same sessions', listedNew.length === 1 && listedNew[0] === UUID('a111') && JSON.stringify(listedNew) === JSON.stringify(listedOld), `${JSON.stringify({ listedNew, listedOld })}; listSessionsImpl in src/sessions/transcripts/listSessions.ts must read the store getProjectDir resolves`)
   const identity = facts.projectIdentity(project)
-  check('A2 the boot card reads the project as catalogued with its newest chat, through the same resolver', identity.key === olderStore && identity.catalogued === true && identity.newestChat?.sessionId === UUID('a111'), `${JSON.stringify(identity)}; projectIdentity in src/utils/bootCardFacts.ts must key through the same resolver as getProjectDir`)
+  check('A2 the boot card reads the project as catalogued with its newest chat, through the same resolver', identity.key === olderStore && identity.catalogued === true && identity.newestChat?.sessionId === UUID('a111'), `${JSON.stringify(identity)}; projectIdentity in src/screen/boot-face/bootCardFacts.ts must key through the same resolver as getProjectDir`)
   check('A3 no read wrote a file: the config home is byte-identical after every read door', treeHash(HOME) === homeBefore, 'a read door created or changed a file under the config home; getProjectDir, findProjectDir, listSessionsImpl and projectIdentity must stay read-only')
   check('A3 the projects dir holds the one older store and nothing else', JSON.stringify(readdirSync(PROJECTS)) === JSON.stringify([basename(olderStore)]), `${JSON.stringify(readdirSync(PROJECTS))}; a read created a second store under projects, so getProjectDir must not mint a store on read`)
   const fresh = childAnswers(project, older)
-  check('A4 a fresh process resolves both spellings to the same store', fresh.length === 2 && fresh[0] === olderStore && fresh[1] === olderStore, `${fresh.join(' | ')}; getProjectDir in src/utils/sessionStoragePortable.ts must resolve the same way in a new process`)
-  check('A4 the fresh process wrote nothing either', treeHash(HOME) === homeBefore, 'getProjectDir in src/utils/sessionStoragePortable.ts wrote under the config home while resolving')
+  check('A4 a fresh process resolves both spellings to the same store', fresh.length === 2 && fresh[0] === olderStore && fresh[1] === olderStore, `${fresh.join(' | ')}; getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must resolve the same way in a new process`)
+  check('A4 the fresh process wrote nothing either', treeHash(HOME) === homeBefore, 'getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts wrote under the config home while resolving')
 
   section('B — adoption is the first write landing in the older store, once; a second write from the other spelling lands there too')
   facts.catalogFirstChat(project, UUID('b222'))
   const card = join(olderStore, 'project.json')
-  check('B1 the birth stamp (the first write) put the project card inside the older store', existsSync(card) && (JSON.parse(readFileSync(card, 'utf8')) as { dir: string }).dir === project, `${existsSync(card) ? readFileSync(card, 'utf8') : 'no card'}; catalogFirstChat in src/utils/bootCardFacts.ts must write project.json into the store getProjectDir resolves`)
-  check('B1 no second store appeared under projects', JSON.stringify(readdirSync(PROJECTS)) === JSON.stringify([basename(olderStore)]), `${JSON.stringify(readdirSync(PROJECTS))}; catalogFirstChat in src/utils/bootCardFacts.ts wrote to a new store instead of the older one`)
+  check('B1 the birth stamp (the first write) put the project card inside the older store', existsSync(card) && (JSON.parse(readFileSync(card, 'utf8')) as { dir: string }).dir === project, `${existsSync(card) ? readFileSync(card, 'utf8') : 'no card'}; catalogFirstChat in src/screen/boot-face/bootCardFacts.ts must write project.json into the store getProjectDir resolves`)
+  check('B1 no second store appeared under projects', JSON.stringify(readdirSync(PROJECTS)) === JSON.stringify([basename(olderStore)]), `${JSON.stringify(readdirSync(PROJECTS))}; catalogFirstChat in src/screen/boot-face/bootCardFacts.ts wrote to a new store instead of the older one`)
   const cardBytes = existsSync(card) ? readFileSync(card, 'utf8') : ''
   await tests.persistTestRun(project, runRecord(project, 'run-one'))
-  check('B2 the run-record writer lands in the older store', existsSync(join(olderStore, 'test-runs', 'run-one.json')) && existsSync(join(olderStore, 'test-runs', 'latest.json')), 'persistTestRun in src/services/ide/pythonTests.ts must write through getProjectDir so the run lands in the older store')
-  check('B2 the run-record reader through the other spelling reads it', tests.latestRunAtRoot(older)?.id === 'run-one', `${JSON.stringify(tests.latestRunAtRoot(older))}; latestRunAtRoot in src/services/ide/pythonTests.ts must read through getProjectDir`)
+  check('B2 the run-record writer lands in the older store', existsSync(join(olderStore, 'test-runs', 'run-one.json')) && existsSync(join(olderStore, 'test-runs', 'latest.json')), 'persistTestRun in src/integrations/ide/pythonTests.ts must write through getProjectDir so the run lands in the older store')
+  check('B2 the run-record reader through the other spelling reads it', tests.latestRunAtRoot(older)?.id === 'run-one', `${JSON.stringify(tests.latestRunAtRoot(older))}; latestRunAtRoot in src/integrations/ide/pythonTests.ts must read through getProjectDir`)
   facts.catalogFirstChat(older, UUID('b333'))
-  check('B3 a second birth from the other spelling leaves the card untouched (adoption happened once)', readFileSync(card, 'utf8') === cardBytes, 'catalogFirstChat in src/utils/bootCardFacts.ts rewrote an existing project.json; the second birth must leave it alone')
+  check('B3 a second birth from the other spelling leaves the card untouched (adoption happened once)', readFileSync(card, 'utf8') === cardBytes, 'catalogFirstChat in src/screen/boot-face/bootCardFacts.ts rewrote an existing project.json; the second birth must leave it alone')
   writeFileSync(join(getProjectDir(older), `${UUID('b333')}.jsonl`), transcriptLine(older, 'new words'))
   const after = await sessionIds(project)
-  check('B3 a transcript written through the other spelling is listed from the native spelling', JSON.stringify(after) === JSON.stringify([UUID('a111'), UUID('b333')]), `${JSON.stringify(after)}; listSessionsImpl in src/utils/listSessionsImpl.ts must list from the store getProjectDir resolves for either spelling`)
-  check('B3 still one store under projects', JSON.stringify(readdirSync(PROJECTS)) === JSON.stringify([basename(olderStore)]), `${JSON.stringify(readdirSync(PROJECTS))}; a write through the other spelling made a second store; fix getProjectDir in src/utils/sessionStoragePortable.ts`)
+  check('B3 a transcript written through the other spelling is listed from the native spelling', JSON.stringify(after) === JSON.stringify([UUID('a111'), UUID('b333')]), `${JSON.stringify(after)}; listSessionsImpl in src/sessions/transcripts/listSessions.ts must list from the store getProjectDir resolves for either spelling`)
+  check('B3 still one store under projects', JSON.stringify(readdirSync(PROJECTS)) === JSON.stringify([basename(olderStore)]), `${JSON.stringify(readdirSync(PROJECTS))}; a write through the other spelling made a second store; fix getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts`)
 
   section('C — a symlinked spelling is the same project; older stores keyed by a structurally different spelling are found through their own card or newest transcript')
   const door = join(ROOT, 'door-to-project')
   if (trySymlink(project, door)) {
-    check('C1 a symlinked spelling resolves to the adopted store', getProjectDir(door) === olderStore, `${getProjectDir(door)}; getProjectDir in src/utils/sessionStoragePortable.ts must treat a symlinked spelling as the same directory`)
+    check('C1 a symlinked spelling resolves to the adopted store', getProjectDir(door) === olderStore, `${getProjectDir(door)}; getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must treat a symlinked spelling as the same directory`)
     const linked = join(ROOT, 'LinkedProject')
     mkdirSync(linked)
     const linkDoor = join(ROOT, 'linked-door')
@@ -158,9 +158,9 @@ try {
     utimesSync(foreign, new Date(Date.now() - 60_000), new Date(Date.now() - 60_000))
     seedStore(aliasedStore, aliasDoor, 'alias words', UUID('c333'))
     const before = treeHash(HOME)
-    check('C2 a store keyed by a symlink spelling is adopted through its project card', getProjectDir(linked) === linkedStore && (await findProjectDir(linked)) === linkedStore, `${getProjectDir(linked)}; the card-based adoption in src/utils/sessionStoragePortable.ts (getProjectDir) must find a store whose project.json names this directory`)
-    check('C3 a cardless store keyed by a symlink spelling is adopted through its newest transcript\'s cwd (the older foreign-cwd transcript is not read)', getProjectDir(aliased) === aliasedStore, `${getProjectDir(aliased)}; getProjectDir in src/utils/sessionStoragePortable.ts must adopt a cardless store through its newest transcript's cwd`)
-    check('C4 those reads wrote nothing', treeHash(HOME) === before, 'getProjectDir or findProjectDir in src/utils/sessionStoragePortable.ts wrote under the config home while adopting')
+    check('C2 a store keyed by a symlink spelling is adopted through its project card', getProjectDir(linked) === linkedStore && (await findProjectDir(linked)) === linkedStore, `${getProjectDir(linked)}; the card-based adoption in src/sessions/transcripts/sessionStoragePortable.ts (getProjectDir) must find a store whose project.json names this directory`)
+    check('C3 a cardless store keyed by a symlink spelling is adopted through its newest transcript\'s cwd (the older foreign-cwd transcript is not read)', getProjectDir(aliased) === aliasedStore, `${getProjectDir(aliased)}; getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must adopt a cardless store through its newest transcript's cwd`)
+    check('C4 those reads wrote nothing', treeHash(HOME) === before, 'getProjectDir or findProjectDir in src/sessions/transcripts/sessionStoragePortable.ts wrote under the config home while adopting')
   } else {
     console.log('  [SKIP] C — no symlinks on this platform')
   }
@@ -181,11 +181,11 @@ try {
   mkdirSync(workspace)
   const workspaceStore = join(PROJECTS, projectSlug(workspace))
   seedStore(workspaceStore, sibling, 'hosted worker words', UUID('d444'))
-  check('D1 a hash-less directory is never adopted, a case variant whose hash is not its own is never adopted, a store whose card names another directory is never adopted, a store whose transcript merely visited the directory is never adopted', getProjectDir(sibling) === join(PROJECTS, projectSlug(sibling)), `${getProjectDir(sibling)}; getProjectDir in src/utils/sessionStoragePortable.ts adopted a store it must refuse (hash-less, wrong hash, foreign card, or visited-only transcript)`)
-  check('D1 the sibling reads "no store" (an absent canonical path), as an unknown directory does today', !existsSync(getProjectDir(sibling)) && (await findProjectDir(sibling)) === undefined, 'findProjectDir in src/utils/sessionStoragePortable.ts must return undefined and getProjectDir an absent path when nothing is adoptable')
-  check('D2 the other project keeps its own older store (the card names it)', getProjectDir(other) === otherStore && getProjectDir(workspace) === workspaceStore, `${JSON.stringify({ other: getProjectDir(other), otherStore, workspace: getProjectDir(workspace), workspaceStore })}; getProjectDir in src/utils/sessionStoragePortable.ts must keep a store whose card or slug names the directory`)
+  check('D1 a hash-less directory is never adopted, a case variant whose hash is not its own is never adopted, a store whose card names another directory is never adopted, a store whose transcript merely visited the directory is never adopted', getProjectDir(sibling) === join(PROJECTS, projectSlug(sibling)), `${getProjectDir(sibling)}; getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts adopted a store it must refuse (hash-less, wrong hash, foreign card, or visited-only transcript)`)
+  check('D1 the sibling reads "no store" (an absent canonical path), as an unknown directory does today', !existsSync(getProjectDir(sibling)) && (await findProjectDir(sibling)) === undefined, 'findProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must return undefined and getProjectDir an absent path when nothing is adoptable')
+  check('D2 the other project keeps its own older store (the card names it)', getProjectDir(other) === otherStore && getProjectDir(workspace) === workspaceStore, `${JSON.stringify({ other: getProjectDir(other), otherStore, workspace: getProjectDir(workspace), workspaceStore })}; getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must keep a store whose card or slug names the directory`)
   for (const leaf of ['app.1', 'app_1']) mkdirSync(join(ROOT, leaf))
-  check('D3 punctuation siblings mint distinct stores', getProjectDir(join(ROOT, 'app.1')) !== getProjectDir(join(ROOT, 'app_1')), 'projectSlug in src/utils/sessionStoragePortable.ts must keep a hash so app.1 and app_1 do not share a slug')
+  check('D3 punctuation siblings mint distinct stores', getProjectDir(join(ROOT, 'app.1')) !== getProjectDir(join(ROOT, 'app_1')), 'projectSlug in src/sessions/transcripts/sessionStoragePortable.ts must keep a hash so app.1 and app_1 do not share a slug')
   const brokenHome = join(ROOT, 'broken-home')
   mkdirSync(brokenHome)
   writeFileSync(join(brokenHome, 'projects'), 'a file wearing the store directory name')
@@ -198,8 +198,8 @@ try {
     threw = error
   }
   process.env.MERCURY_CONFIG_DIR = HOME
-  check('D4 a projects path that is a file never throws from the resolver: the writer meets the plain unwritable-store refusal', threw === null && brokenAnswer === join(brokenHome, 'projects', projectSlug(project)), `${threw === null ? brokenAnswer : String(threw)}; getProjectDir in src/utils/sessionStoragePortable.ts must catch an unreadable projects dir and return the canonical path`)
-  check('D5 the resolution is keyed by the config home as well as the spelling', getProjectDir(project) === olderStore, 'the memo in getProjectDir (src/utils/sessionStoragePortable.ts) must include the config home in its key')
+  check('D4 a projects path that is a file never throws from the resolver: the writer meets the plain unwritable-store refusal', threw === null && brokenAnswer === join(brokenHome, 'projects', projectSlug(project)), `${threw === null ? brokenAnswer : String(threw)}; getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must catch an unreadable projects dir and return the canonical path`)
+  check('D5 the resolution is keyed by the config home as well as the spelling', getProjectDir(project) === olderStore, 'the memo in getProjectDir (src/sessions/transcripts/sessionStoragePortable.ts) must include the config home in its key')
 
   section('E — two verified older stores: the newest-modified wins, the choice is taken once per process')
   const twin = join(ROOT, 'TwinProject')
@@ -213,14 +213,14 @@ try {
   const old = new Date(Date.now() - 120_000)
   utimesSync(storeUpper, old, old)
   const chosen = getProjectDir(twin)
-  check('E1 the newest-modified verified store is chosen', chosen === storeLower, `${chosen}; getProjectDir in src/utils/sessionStoragePortable.ts must pick the newest-modified of the verified stores`)
+  check('E1 the newest-modified verified store is chosen', chosen === storeLower, `${chosen}; getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must pick the newest-modified of the verified stores`)
   const freshTwin = childAnswers(twin, twinUpper, twinLower)
-  check('E1 a fresh process makes the same choice for every spelling', freshTwin.length === 3 && freshTwin.every(answer => answer === storeLower), `${freshTwin.join(' | ')}; getProjectDir in src/utils/sessionStoragePortable.ts must choose the same store for every spelling`)
+  check('E1 a fresh process makes the same choice for every spelling', freshTwin.length === 3 && freshTwin.every(answer => answer === storeLower), `${freshTwin.join(' | ')}; getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must choose the same store for every spelling`)
   const now = new Date()
   utimesSync(storeUpper, now, now)
   utimesSync(storeLower, old, old)
-  check('E2 within the process the answer does not flap when the other store becomes newer (the memo holds the one choice)', getProjectDir(twin) === storeLower && getProjectDir(twinUpper) === storeLower && getProjectDir(twinLower) === storeLower, 'getProjectDir in src/utils/sessionStoragePortable.ts must memoise its first choice for the process')
-  check('E2 neither store was copied, renamed or removed', existsSync(join(storeUpper, `${UUID('e111')}.jsonl`)) && existsSync(join(storeLower, `${UUID('e222')}.jsonl`)) && readdirSync(PROJECTS).filter(name => name === basename(storeUpper) || name === basename(storeLower)).length === 2, 'getProjectDir in src/utils/sessionStoragePortable.ts must not copy, rename or remove stores while choosing')
+  check('E2 within the process the answer does not flap when the other store becomes newer (the memo holds the one choice)', getProjectDir(twin) === storeLower && getProjectDir(twinUpper) === storeLower && getProjectDir(twinLower) === storeLower, 'getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must memoise its first choice for the process')
+  check('E2 neither store was copied, renamed or removed', existsSync(join(storeUpper, `${UUID('e111')}.jsonl`)) && existsSync(join(storeLower, `${UUID('e222')}.jsonl`)) && readdirSync(PROJECTS).filter(name => name === basename(storeUpper) || name === basename(storeLower)).length === 2, 'getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must not copy, rename or remove stores while choosing')
 
   section('F — the sibling search is bounded: a few hundred stores, one pass, memoised for the process')
   const crowdHome = join(ROOT, 'crowd-home')
@@ -246,15 +246,15 @@ try {
   const startedAt = performance.now()
   const found = getProjectDir(needle)
   const firstMs = performance.now() - startedAt
-  check(`F1 the older store is found among ${readdirSync(crowdProjects).length} stores in one bounded pass (${firstMs.toFixed(1)} ms)`, found === needleStore && firstMs < 3000, `${found} in ${firstMs.toFixed(1)} ms; the sibling search in getProjectDir (src/utils/sessionStoragePortable.ts) must find the older store in one bounded pass`)
+  check(`F1 the older store is found among ${readdirSync(crowdProjects).length} stores in one bounded pass (${firstMs.toFixed(1)} ms)`, found === needleStore && firstMs < 3000, `${found} in ${firstMs.toFixed(1)} ms; the sibling search in getProjectDir (src/sessions/transcripts/sessionStoragePortable.ts) must find the older store in one bounded pass`)
   const strangerStart = performance.now()
   const stranger = join(ROOT, 'StrangerProject')
   mkdirSync(stranger)
   const strangerAnswer = getProjectDir(stranger)
   const strangerMs = performance.now() - strangerStart
-  check(`F1 a directory with no store anywhere scans once and answers its own absent path (${strangerMs.toFixed(1)} ms)`, strangerAnswer === join(crowdProjects, projectSlug(stranger)) && strangerMs < 3000, `${strangerMs.toFixed(1)} ms; getProjectDir in src/utils/sessionStoragePortable.ts must answer the canonical path after one bounded scan`)
+  check(`F1 a directory with no store anywhere scans once and answers its own absent path (${strangerMs.toFixed(1)} ms)`, strangerAnswer === join(crowdProjects, projectSlug(stranger)) && strangerMs < 3000, `${strangerMs.toFixed(1)} ms; getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must answer the canonical path after one bounded scan`)
   rmSync(crowdProjects, { recursive: true, force: true })
-  check('F2 the answer is memoised for the process: with every store gone the spelling still resolves where it did (no rescan on a listing)', getProjectDir(needle) === needleStore && getProjectDir(olderSpelling(needle)) === needleStore, 'getProjectDir in src/utils/sessionStoragePortable.ts must memoise its answer and not rescan the projects dir')
+  check('F2 the answer is memoised for the process: with every store gone the spelling still resolves where it did (no rescan on a listing)', getProjectDir(needle) === needleStore && getProjectDir(olderSpelling(needle)) === needleStore, 'getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must memoise its answer and not rescan the projects dir')
   process.env.MERCURY_CONFIG_DIR = HOME
 
   section('G — a recreated scratch root never inherits a removed root\'s store (the Linux inode-reuse case)')
@@ -263,24 +263,24 @@ try {
   const inodeA = inode(rootA)
   await tests.persistTestRun(rootA, runRecord(rootA, 'run-a'))
   const storeA = getProjectDir(rootA)
-  check('G0 fixture: root A has a store with a run record', existsSync(join(storeA, 'test-runs', 'run-a.json')), 'persistTestRun in src/services/ide/pythonTests.ts did not write run-a.json into getProjectDir(rootA)')
+  check('G0 fixture: root A has a store with a run record', existsSync(join(storeA, 'test-runs', 'run-a.json')), 'persistTestRun in src/integrations/ide/pythonTests.ts did not write run-a.json into getProjectDir(rootA)')
   rmSync(rootA, { recursive: true, force: true })
   const rootB = join(ROOT, 'RootB')
   mkdirSync(rootB)
   console.log(`  (root B ${inode(rootB) === inodeA ? 'reused' : 'did not reuse'} root A's inode on this filesystem)`)
-  check('G1 root B resolves to its own store, never root A\'s', getProjectDir(rootB) === join(PROJECTS, projectSlug(rootB)) && getProjectDir(rootB) !== storeA, `${getProjectDir(rootB)}; getProjectDir in src/utils/sessionStoragePortable.ts must not key a store by inode alone, or a recreated root inherits a removed root's store`)
-  check('G1 root B has no run record', tests.latestRunAtRoot(rootB) === null, 'latestRunAtRoot in src/services/ide/pythonTests.ts returned root A\'s run for root B; the store key must not be inode-only')
+  check('G1 root B resolves to its own store, never root A\'s', getProjectDir(rootB) === join(PROJECTS, projectSlug(rootB)) && getProjectDir(rootB) !== storeA, `${getProjectDir(rootB)}; getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must not key a store by inode alone, or a recreated root inherits a removed root's store`)
+  check('G1 root B has no run record', tests.latestRunAtRoot(rootB) === null, 'latestRunAtRoot in src/integrations/ide/pythonTests.ts returned root A\'s run for root B; the store key must not be inode-only')
   const freshB = childAnswers(rootB)
-  check('G1 a fresh process agrees', freshB[0] === getProjectDir(rootB), `${freshB.join(' | ')}; getProjectDir in src/utils/sessionStoragePortable.ts must answer the same in a fresh process`)
+  check('G1 a fresh process agrees', freshB[0] === getProjectDir(rootB), `${freshB.join(' | ')}; getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must answer the same in a fresh process`)
   mkdirSync(rootA)
-  check('G2 root A recreated at its own path finds its own store again', childAnswers(rootA)[0] === storeA, 'getProjectDir in src/utils/sessionStoragePortable.ts must resolve a recreated root at its own path to its own store')
+  check('G2 root A recreated at its own path finds its own store again', childAnswers(rootA)[0] === storeA, 'getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must resolve a recreated root at its own path to its own store')
 
   section('H — the slug grammar the older stores were keyed by, Windows shapes included')
   for (const path of ['C:\\Work\\Project', 'c:\\WORK\\PROJECT', '\\\\Server\\Share\\Project', '\\\\?\\C:\\Work\\Project', '/home/someone/Dev/App', 'Z:\\App']) {
-    check(`H1 ${path.replace(/\\/g, '/')}: its own slug matches and a stranger\'s does not`, projectSlugMatches(projectSlug(path), path) && !projectSlugMatches(projectSlug(path), `${path}-other`) && !projectSlugMatches(`${sanitizePath(path)}-deadbeef`, path), 'projectSlugMatches or projectSlug in src/utils/sessionStoragePortable.ts disagrees with the older slug grammar for this path shape')
+    check(`H1 ${path.replace(/\\/g, '/')}: its own slug matches and a stranger\'s does not`, projectSlugMatches(projectSlug(path), path) && !projectSlugMatches(projectSlug(path), `${path}-other`) && !projectSlugMatches(`${sanitizePath(path)}-deadbeef`, path), 'projectSlugMatches or projectSlug in src/sessions/transcripts/sessionStoragePortable.ts disagrees with the older slug grammar for this path shape')
   }
   const long = join(ROOT, ...Array.from({ length: 30 }, () => 'Segment'), 'LongProject')
-  check('H2 an overlong spelling matches its capped slug through the tail hash alone', projectSlugMatches(projectSlug(long), long) && !projectSlugMatches(projectSlug(long), `${long}x`), 'projectSlugMatches in src/utils/sessionStoragePortable.ts must match a capped slug by its tail hash alone')
+  check('H2 an overlong spelling matches its capped slug through the tail hash alone', projectSlugMatches(projectSlug(long), long) && !projectSlugMatches(projectSlug(long), `${long}x`), 'projectSlugMatches in src/sessions/transcripts/sessionStoragePortable.ts must match a capped slug by its tail hash alone')
 
   section('I — a project card names the owner independently of the store spelling')
   const cardProject = join(ROOT, 'CardProject')
@@ -304,10 +304,10 @@ try {
   seedCard(vetoStore, other)
   const cardsBefore = treeHash(HOME)
   const cardAnswers = childAnswers(cardProject, cardDoor, casedProject, vetoProject)
-  check('I1 a fresh process adopts an alias-keyed store whose card names the native directory, despite a foreign transcript cwd', cardAnswers[0] === cardStore && cardAnswers[1] === cardStore, `${cardAnswers.join(' | ')}; getProjectDir in src/utils/sessionStoragePortable.ts must adopt a store whose project.json names the directory, ignoring the transcript cwd`)
-  check('I2 a card adopts a case-variant store even when that spelling is not a live path', cardAnswers[2] === casedStore, `${cardAnswers[2]}; getProjectDir in src/utils/sessionStoragePortable.ts must adopt a case-variant store through its card`)
-  check('I3 a card naming another directory vetoes a live case variant and its transcript', cardAnswers[3] === join(PROJECTS, projectSlug(vetoProject)), `${cardAnswers[3]}; getProjectDir in src/utils/sessionStoragePortable.ts must refuse a store whose card names another directory`)
-  check('I4 card ownership reads wrote nothing', treeHash(HOME) === cardsBefore, 'getProjectDir in src/utils/sessionStoragePortable.ts wrote under the config home while reading cards')
+  check('I1 a fresh process adopts an alias-keyed store whose card names the native directory, despite a foreign transcript cwd', cardAnswers[0] === cardStore && cardAnswers[1] === cardStore, `${cardAnswers.join(' | ')}; getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must adopt a store whose project.json names the directory, ignoring the transcript cwd`)
+  check('I2 a card adopts a case-variant store even when that spelling is not a live path', cardAnswers[2] === casedStore, `${cardAnswers[2]}; getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must adopt a case-variant store through its card`)
+  check('I3 a card naming another directory vetoes a live case variant and its transcript', cardAnswers[3] === join(PROJECTS, projectSlug(vetoProject)), `${cardAnswers[3]}; getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts must refuse a store whose card names another directory`)
+  check('I4 card ownership reads wrote nothing', treeHash(HOME) === cardsBefore, 'getProjectDir in src/sessions/transcripts/sessionStoragePortable.ts wrote under the config home while reading cards')
 
   if (ON_IMAGE) {
     section('J — this run is the one J3 started on the image: it stands there and mounts nothing')

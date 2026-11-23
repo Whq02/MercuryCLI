@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/ide/projectRunners* src/services/ide/pythonTests* src/services/ide/runnerReporters* src/tools/TestTool/* src/services/resources/adapters/test*
+// gate-watch: src/integrations/ide/projectRunners.ts src/integrations/ide/pythonTests.ts src/integrations/ide/runnerReporters.ts src/tools/test/* src/integrations/resources/adapters/test.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -14,15 +14,15 @@ delete process.env.MERCURY_TESTS
 const FIXTURES = path.join(import.meta.dir, 'fixtures', 'runners')
 const FIXTURE_ROOT = '/work/project'
 
-const runners = await import('../../src/services/ide/projectRunners.ts')
-const pythonTests = await import('../../src/services/ide/pythonTests.ts')
-const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-type TestRunRecord = import('../../src/services/ide/pythonTests.ts').TestRunRecord
+const runners = await import('../../src/integrations/ide/projectRunners.ts')
+const pythonTests = await import('../../src/integrations/ide/pythonTests.ts')
+const { TestTool } = await import('../../src/tools/test/TestTool.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
+type TestRunRecord = import('../../src/integrations/ide/pythonTests.ts').TestRunRecord
 
 let failures = 0
 let checks = 0
-const NO_MATCH_FAIL_HINT = 'where to look: the no-match verdict is set in runRunnerProfile in src/services/ide/projectRunners.ts (node runners) and runPythonTests in src/services/ide/pythonTests.ts (python); its wording and the no-change outcome come from src/tools/TestTool/TestTool.ts; go parsing is parseGoTestJson in src/services/ide/runnerReporters.ts'
+const NO_MATCH_FAIL_HINT = 'where to look: the no-match verdict is set in runRunnerProfile in src/integrations/ide/projectRunners.ts (node runners) and runPythonTests in src/integrations/ide/pythonTests.ts (python); its wording and the no-change outcome come from src/tools/test/TestTool.ts; go parsing is parseGoTestJson in src/integrations/ide/runnerReporters.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -32,7 +32,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — runner no-match proof exceeded 300s; a runner run did not return: look at the last section printed above and at runRunnerProfile in src/services/ide/projectRunners.ts')
+  console.log('\nTIMEOUT — runner no-match proof exceeded 300s; a runner run did not return: look at the last section printed above and at runRunnerProfile in src/integrations/ide/projectRunners.ts')
   process.exit(1)
 }, 300_000)
 guard.unref?.()
@@ -119,8 +119,8 @@ section('A. jest — the F37W-2A-01 shape: a describe name sent as a positional 
   check('A4 the second line is the no-match line with the runner\'s words', lines[1] === `jest no test matched nodes:math ops — Pattern: math ops - 0 matches · No tests found, exiting with code 1`, lines[1] ?? '')
   check('A4 the third line carries the zero counts', (lines[2] ?? '').startsWith('counts: 0 passed · 0 failed · 0 skipped · 0 errored'), lines[2] ?? '')
   check('A4 the result never says "1 failed"', !result.data.result.includes('1 failed'), result.data.result)
-  const { resolveResource } = await import('../../src/services/resources/registry.ts')
-  const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
+  const { resolveResource } = await import('../../src/integrations/resources/registry.ts')
+  const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
   const inspected = await runWithCwdOverride(withReport, () => resolveResource(`mercury://test/run/${result.data.record!.id}`, { owner: makeOwnerKey({ workspace: withReport, sessionId: 'no-match-proof', lane: 'main' }), cwd: withReport }))
   check('A4 the Inspect view of the record says no test matched', inspected.state === 'ok' && inspected.resource.summary.includes('no test matched'), JSON.stringify(inspected).slice(0, 200))
   await expectNoMatchRerun('A5 jest', withReport, result.data.record!.id, 'nodes:math ops')
@@ -190,7 +190,7 @@ if (onPath('go')) {
   console.log('  [SKIP — LOUD] no go on PATH — the recorded go-test-no-match.jsonl below is the evidence for this runner')
 }
 {
-  const { parseGoTestJson } = await import('../../src/services/ide/runnerReporters.ts')
+  const { parseGoTestJson } = await import('../../src/integrations/ide/runnerReporters.ts')
   const read = parseGoTestJson(fixture('go-test-no-match.jsonl'), FIXTURE_ROOT)
   check('E2 the recorded go no-match reporter reads 0/0/0/0 with no failure rows', read !== null && zero(read.counts) && read.failures.length === 0, JSON.stringify(read))
 }

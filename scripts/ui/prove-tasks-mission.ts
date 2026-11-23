@@ -42,7 +42,7 @@ console.log(' /tasks MISSION dual-list — #181 LIVESTALE')
 console.log('============================================================')
 
 console.log('\n── A. mission ledger + zero runs (120 cols) ────────────────')
-missionHint = 'change the Mission and runs sections of the /tasks view in src/components/tasks/backgroundTasks/views.tsx'
+missionHint = 'change the Mission and runs sections of the /tasks view in src/screen/tasks/background-tasks/views.tsx'
 {
   const lines = capture('tasks-mission', 120, 40)
   if (lines) {

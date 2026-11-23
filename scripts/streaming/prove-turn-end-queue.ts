@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
-import { firstByteBudgetMs } from '../../src/services/providers/streamIdleBudget.ts'
+import { firstByteBudgetMs } from '../../src/models/roads/streamIdleBudget.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const DIST = path.join(REPO, 'dist/mercury.mjs')

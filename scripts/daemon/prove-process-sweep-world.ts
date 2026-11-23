@@ -50,18 +50,18 @@ const api = await startFixtureApi([
   { kind: 'text', text: 'the runner answers a third time' },
   { kind: 'text', text: 'the runner answers a fourth time' },
 ])
-const { daemonControlRpc, clearControlKeyMemo } = await import('../../src/daemon/controlSocket.ts')
-const { readMercuryProcesses, recordProcessCensusAtBoot, endStaleProcesses, COCKPIT_HEARTBEAT_ALLOWANCE_MS, processSweepCensusPath } = await import('../../src/daemon/processSweepRun.ts')
-const { PROCESS_SWEEP_WORDS, sameSweepIdentity } = await import('../../src/utils/processSweep.ts')
-const { getProcessStartTokenAsync } = await import('../../src/utils/ownerWatch.ts')
-import type { ProcessSweepEntry } from '../../src/utils/processSweep.ts'
+const { daemonControlRpc, clearControlKeyMemo } = await import('../../src/daemon/control/controlSocket.ts')
+const { readMercuryProcesses, recordProcessCensusAtBoot, endStaleProcesses, COCKPIT_HEARTBEAT_ALLOWANCE_MS, processSweepCensusPath } = await import('../../src/daemon/process-sweep/processSweepRun.ts')
+const { PROCESS_SWEEP_WORDS, sameSweepIdentity } = await import('../../src/daemon/process-sweep/processSweep.ts')
+const { getProcessStartTokenAsync } = await import('../../src/daemon/control/ownerWatch.ts')
+import type { ProcessSweepEntry } from '../../src/daemon/process-sweep/processSweep.ts'
 
 let passed = 0
 let failed = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (ok) passed++
   else failed++
-  console.log(`${ok ? '[PASS]' : '[FAIL]'} ${label}${detail === '' ? '' : ` — ${detail}`}${ok ? '' : ' — fix by what the label names: the census, classification and ending ladder in src/daemon/processSweepRun.ts (readMercuryProcesses, recordProcessCensusAtBoot, endStaleProcesses) and the words and identity rules in src/utils/processSweep.ts; daemon and runner output is in orphan-sweep-world.log in the world folder (rerun with --keep)'}`)
+  console.log(`${ok ? '[PASS]' : '[FAIL]'} ${label}${detail === '' ? '' : ` — ${detail}`}${ok ? '' : ' — fix by what the label names: the census, classification and ending ladder in src/daemon/process-sweep/processSweepRun.ts (readMercuryProcesses, recordProcessCensusAtBoot, endStaleProcesses) and the words and identity rules in src/daemon/process-sweep/processSweep.ts; daemon and runner output is in orphan-sweep-world.log in the world folder (rerun with --keep)'}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const spawned: ChildProcess[] = []

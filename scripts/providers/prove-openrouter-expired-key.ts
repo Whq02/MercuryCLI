@@ -58,19 +58,19 @@ async function stub(path: string, overrides: Record<string, unknown>) {
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...overrides }))
 }
-await stub('../../src/utils/proxy.js', { getApiFetch: () => fetchImpl, getProxyFetchOptions: () => ({}) })
-const { enableConfigs } = await import('../../src/utils/config.js')
+await stub('../../src/platform/network/proxy.js', { getApiFetch: () => fetchImpl, getProxyFetchOptions: () => ({}) })
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const accounts = await import('../../src/services/providers/openrouter/openrouterAccounts.js')
-const reader = await import('../../src/services/providers/openrouter/openrouterUsageState.js')
-const secrets = await import('../../src/utils/accounts/providerSecrets.js')
-const slots = await import('../../src/services/providers/accountSlots.js')
-const owner = await import('../../src/services/providers/providerUsage.js')
+const accounts = await import('../../src/models/roads/openrouter/openrouterAccounts.js')
+const reader = await import('../../src/models/roads/openrouter/openrouterUsageState.js')
+const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.js')
+const slots = await import('../../src/models/roads/accountSlots.js')
+const owner = await import('../../src/models/roads/providerUsage.js')
 const seedMint = () => writeFileSync(accounts.openrouterAuthPathForDisplay(), JSON.stringify({ version: 1, retained: true, minted: { key: mintedKey, mintedAtMs: 1, label: 'fixture mint' } }), { mode: 0o600 })
 const family = { id: 'openrouter', available: true, credentialed: true, credentialLabel: 'OpenRouter fixture' }
-await stub('../../src/services/providers/providerUsage.js', { providerFamilyPresences: () => [family] })
+await stub('../../src/models/roads/providerUsage.js', { providerFamilyPresences: () => [family] })
 const readSlots = () => slots.deriveFamilySlotGroups([]).find(group => group.family.id === 'openrouter')!.slots
-const openrouterFixHint = 'fix the key resolution and expiry mark in src/services/providers/openrouter/openrouterAccounts.ts (resolveOpenrouterApiKey), the credit read in openrouterUsageState.ts (refreshOpenrouterKeyUsage), the slot notes in src/services/providers/accountSlots.ts (deriveFamilySlotGroups), or the painting in src/components/Settings/Usage.tsx and src/components/HelmVitalsRail.tsx for the frame checks'
+const openrouterFixHint = 'fix the key resolution and expiry mark in src/models/roads/openrouter/openrouterAccounts.ts (resolveOpenrouterApiKey), the credit read in openrouterUsageState.ts (refreshOpenrouterKeyUsage), the slot notes in src/models/roads/accountSlots.ts (deriveFamilySlotGroups), or the painting in src/screen/settings/Usage.tsx and src/screen/fullscreen-layout/HelmVitalsRail.tsx for the frame checks'
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => {
   if (!ok) failures++
@@ -104,25 +104,25 @@ try {
   check('the expired fact survives usage-state reset', accounts.resolveOpenrouterApiKey()?.source === 'stored')
   await reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
 
-  await stub('../../src/services/model/computedDefault.js', { recentSignIns: () => [{ family: 'openrouter' }] })
-  await stub('../../src/hooks/useProviderUsageOnShow.js', { useProviderUsageOnShow: () => undefined })
-  await stub('../../src/keybindings/useKeybinding.js', { useKeybinding: () => undefined, useKeybindings: () => undefined })
-  await stub('../../src/hooks/useExitOnCtrlCD.js', { useExitOnCtrlCD: () => undefined })
-  await stub('../../src/context/notifications.js', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
+  await stub('../../src/models/catalogue/computedDefault.js', { recentSignIns: () => [{ family: 'openrouter' }] })
+  await stub('../../src/screen/model-picker/useProviderUsageOnShow.js', { useProviderUsageOnShow: () => undefined })
+  await stub('../../src/screen/keys/useKeybinding.js', { useKeybinding: () => undefined, useKeybindings: () => undefined })
+  await stub('../../src/screen/keys/useExitChord.js', { useExitOnCtrlCD: () => undefined })
+  await stub('../../src/screen/notifications/notifications.js', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
   const connector = { modelFacts: () => ({ main: 'openrouter/fixture/model' }), subscribeModel: () => () => {}, usage: () => ({ totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }) }
-  await stub('../../src/services/engine-connector/focusedConnector.js', { getFocusedSessionConnector: () => connector, subscribeThroughFocused: () => () => () => {} })
-  await stub('../../src/components/tasks/useFocusedWork.js', { useFocusedWorkRows: () => [], useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }), focusedSessionIdOrNull: () => null })
-  await stub('../../src/state/vitalsBus.js', { useVitals: () => ({ trace: null }) })
-  await stub('../../src/services/health/healthCertSnapshot.js', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
+  await stub('../../src/engine/connector/focusedConnector.js', { getFocusedSessionConnector: () => connector, subscribeThroughFocused: () => () => () => {} })
+  await stub('../../src/screen/tasks/useFocusedWork.js', { useFocusedWorkRows: () => [], useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }), focusedSessionIdOrNull: () => null })
+  await stub('../../src/screen/app-state/vitalsBus.js', { useVitals: () => ({ trace: null }) })
+  await stub('../../src/platform/health/healthCertSnapshot.js', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
   let columns = 178
   let rows = 51
-  await stub('../../src/hooks/useTerminalSize.js', { useTerminalSize: () => ({ columns, rows }) })
-  await stub('../../src/components/mercury-ui/components.js', { useNowTick: () => Date.now() })
-  const { Usage } = await import('../../src/components/Settings/Usage.js')
-  const { HelmVitalsRail } = await import('../../src/components/HelmVitalsRail.js')
-  const { railPlanAt } = await import('../../src/utils/helmGeometry.js')
-  const ink = await import('../../src/ink.js')
-  const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
+  await stub('../../src/screen/fullscreen-layout/useTerminalSize.js', { useTerminalSize: () => ({ columns, rows }) })
+  await stub('../../src/screen/widgets/components.js', { useNowTick: () => Date.now() })
+  const { Usage } = await import('../../src/screen/settings/Usage.js')
+  const { HelmVitalsRail } = await import('../../src/screen/fullscreen-layout/HelmVitalsRail.js')
+  const { railPlanAt } = await import('../../src/screen/fullscreen-layout/helmGeometry.js')
+  const ink = await import('../../src/screen/themedRenderer.js')
+  const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
   async function renderRefusal(message: string | undefined, tag: string) {
     for (const size of message ? [[178, 51], [80, 21]] : [[120, 51], [80, 51]]) {
       ;[columns, rows] = size as [number, number]
@@ -205,7 +205,7 @@ try {
   check('the newly OAuth-minted key rides the existing key reader once', accounts.resolveOpenrouterApiKey()?.source === 'oauth' && requests.length === countBefore + 1 && requests.at(-1) === 'GET /key minted')
   check('OAuth credits are the same capped-key credits with the same stamp', oauthUsage.credits?.display === '37.50 remaining under the key cap' && oauthUsage.credits.observedAtMs === now && oauthUsage.windows[0]?.observedAtMs === now)
   await renderRefusal(undefined, 'oauth-credits')
-  const fresh = await import('../../src/services/providers/usageFreshness.js')
+  const fresh = await import('../../src/models/roads/usageFreshness.js')
   check('OAuth credits retain the generic stale spelling', owner.usageCreditsLine(oauthUsage.credits, now + fresh.usageStaleAfterMs() + 60_000)?.includes('stale') === true)
   mintedStatus = 503
   mintedBody = { error: { message: 'Fixture credits temporarily unavailable' } }

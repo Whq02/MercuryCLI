@@ -10,16 +10,16 @@ process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 process.env.BROWSER = '/usr/bin/true'
 process.env.MERCURY_SAMPLES = '1'
 
-const store = await import('../../src/services/samples/store.ts')
-const { sampleRowsOf } = await import('../../src/services/samples/facts.ts')
-const listener = await import('../../src/services/samples/listener.ts')
-const { sessionFactsToWire, sessionFactsFromWire } = await import('../../src/services/engine-connector/seatWire.ts')
-const { compactWorkCounts, compactWorkSummaryText } = await import('../../src/components/tasks/useFocusedWork.ts')
-const text = await import('../../src/components/samples/samplesListText.ts')
-const { samplesUpdatedRow, createRowStamper } = await import('../../src/rows/project.ts')
-const { RowSchema } = await import('../../src/rows/vocabulary.ts')
-const { parseRow } = await import('../../src/rows/read.ts')
-const { stringWidth } = await import('../../src/ink/stringWidth.ts')
+const store = await import('../../src/integrations/samples/store.ts')
+const { sampleRowsOf } = await import('../../src/integrations/samples/facts.ts')
+const listener = await import('../../src/integrations/samples/listener.ts')
+const { sessionFactsToWire, sessionFactsFromWire } = await import('../../src/engine/connector/seatWire.ts')
+const { compactWorkCounts, compactWorkSummaryText } = await import('../../src/screen/tasks/useFocusedWork.ts')
+const text = await import('../../src/screen/samples/samplesListText.ts')
+const { samplesUpdatedRow, createRowStamper } = await import('../../src/engine/rows/project.ts')
+const { RowSchema } = await import('../../src/engine/rows/vocabulary.ts')
+const { parseRow } = await import('../../src/engine/rows/read.ts')
+const { stringWidth } = await import('../../src/screen/renderer/stringWidth.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -45,31 +45,31 @@ const unsubscribe = store.subscribeSampleChanges(() => {
 })
 const before = store.sampleChangeRevision()
 const first = store.createOrAppendSample({ sessionId, name: 'pricing table', html: '<h1>Pricing</h1>' })
-check('F1a a new sample moves the revision and calls the listener', store.sampleChangeRevision() > before && notices === 1, String(notices) + ' — createOrAppendSample in src/services/samples/store.ts must call noteSampleChange (revision + listeners)')
+check('F1a a new sample moves the revision and calls the listener', store.sampleChangeRevision() > before && notices === 1, String(notices) + ' — createOrAppendSample in src/integrations/samples/store.ts must call noteSampleChange (revision + listeners)')
 const second = store.createOrAppendSample({ sessionId, name: 'pricing table', html: '<h1>Pricing v2</h1>' })
-check('F1b a new version speaks again, on the same sample', notices === 2 && second.record.id === first.record.id && second.version === 2, 'a second createOrAppendSample with the same name must notify listeners and add version 2 to the same record (src/services/samples/store.ts)')
+check('F1b a new version speaks again, on the same sample', notices === 2 && second.record.id === first.record.id && second.version === 2, 'a second createOrAppendSample with the same name must notify listeners and add version 2 to the same record (src/integrations/samples/store.ts)')
 store.appendMarks(sessionId, first.record.id, { version: 2, pins: [], note: 'looks right', verdict: 'approve' })
-check('F1c marks speak, and the state moved', notices === 3 && store.getSample(sessionId, first.record.id)?.state === 'approved', 'appendMarks in src/services/samples/store.ts must notify listeners and move the sample state to approved')
+check('F1c marks speak, and the state moved', notices === 3 && store.getSample(sessionId, first.record.id)?.state === 'approved', 'appendMarks in src/integrations/samples/store.ts must notify listeners and move the sample state to approved')
 unsubscribe()
 store.createOrAppendSample({ sessionId, name: 'onboarding flow', html: '<h1>Onboarding</h1>' })
-check('F1d an unsubscribed listener hears nothing more', notices === 3, 'the function subscribeSampleChanges returns in src/services/samples/store.ts must remove the listener')
+check('F1d an unsubscribed listener hears nothing more', notices === 3, 'the function subscribeSampleChanges returns in src/integrations/samples/store.ts must remove the listener')
 
 section('F2 the runner projects its samples, each with an address')
 const rows = await sampleRowsOf(sessionId)
-check('F2a the listener started on demand for a session that has samples', listener.sampleListenerAddress() !== null, 'sampleRowsOf in src/services/samples/facts.ts must call ensureSampleListener when the session has samples')
+check('F2a the listener started on demand for a session that has samples', listener.sampleListenerAddress() !== null, 'sampleRowsOf in src/integrations/samples/facts.ts must call ensureSampleListener when the session has samples')
 check('F2b two rows, newest first', rows.length === 2 && rows[0]?.title === 'onboarding flow' && rows[1]?.title === 'pricing table', JSON.stringify(rows.map(r => r.title)))
 const pricing = rows.find(r => r.title === 'pricing table')
-check('F2c the row carries version, state, stamp and glyph', pricing !== undefined && pricing.version === 2 && pricing.state === 'approved' && pricing.glyph === '⧉' && typeof pricing.updatedAt === 'string', JSON.stringify(pricing) + ' — the row map in sampleRowsOf (src/services/samples/facts.ts) must carry version, state, updatedAt and glyph from the record')
+check('F2c the row carries version, state, stamp and glyph', pricing !== undefined && pricing.version === 2 && pricing.state === 'approved' && pricing.glyph === '⧉' && typeof pricing.updatedAt === 'string', JSON.stringify(pricing) + ' — the row map in sampleRowsOf (src/integrations/samples/facts.ts) must carry version, state, updatedAt and glyph from the record')
 const ADDRESS = /^http:\/\/127\.0\.0\.1:\d+\/s\/[a-z0-9]{6,32}\?t=[0-9a-f]{32}$/
-check('F2d every row opens on loopback and carries the token', rows.every(r => r.url !== undefined && ADDRESS.test(r.url)), JSON.stringify(rows.map(r => r.url)) + ' — sampleUrl in src/services/samples/store.ts must return a loopback address with the token')
+check('F2d every row opens on loopback and carries the token', rows.every(r => r.url !== undefined && ADDRESS.test(r.url)), JSON.stringify(rows.map(r => r.url)) + ' — sampleUrl in src/integrations/samples/store.ts must return a loopback address with the token')
 const again = await sampleRowsOf(sessionId)
-check('F2e nothing changed: the same rows come back (no second disk read)', again === rows, 'sampleRowsOf in src/services/samples/facts.ts must return its cached rows while sampleChangeRevision is unchanged')
+check('F2e nothing changed: the same rows come back (no second disk read)', again === rows, 'sampleRowsOf in src/integrations/samples/facts.ts must return its cached rows while sampleChangeRevision is unchanged')
 store.createOrAppendSample({ sessionId, name: 'latency report', html: '<h1>Latency</h1>' })
 const after = await sampleRowsOf(sessionId)
-check('F2f a write refreshes the projection', after !== rows && after.length === 3 && after[0]?.title === 'latency report', JSON.stringify(after.map(r => r.title)) + ' — sampleRowsOf in src/services/samples/facts.ts must re-read when sampleChangeRevision moves')
-check('F2g another session projects its own rows (none)', (await sampleRowsOf('another-session')).length === 0, 'sampleRowsOf in src/services/samples/facts.ts must list only the asked session')
+check('F2f a write refreshes the projection', after !== rows && after.length === 3 && after[0]?.title === 'latency report', JSON.stringify(after.map(r => r.title)) + ' — sampleRowsOf in src/integrations/samples/facts.ts must re-read when sampleChangeRevision moves')
+check('F2g another session projects its own rows (none)', (await sampleRowsOf('another-session')).length === 0, 'sampleRowsOf in src/integrations/samples/facts.ts must list only the asked session')
 process.env.MERCURY_SAMPLES = '0'
-check('F2h MERCURY_SAMPLES=0 projects nothing', (await sampleRowsOf(sessionId)).length === 0, 'sampleRowsOf in src/services/samples/facts.ts must return [] when samplesEnabled() (src/utils/samples/contracts.ts) is false')
+check('F2h MERCURY_SAMPLES=0 projects nothing', (await sampleRowsOf(sessionId)).length === 0, 'sampleRowsOf in src/integrations/samples/facts.ts must return [] when samplesEnabled() (src/integrations/sample-contracts/contracts.ts) is false')
 process.env.MERCURY_SAMPLES = '1'
 
 section('F3 the wire spells the rows snake_case and the seat reads them back')
@@ -85,41 +85,41 @@ const answer = {
   samples: after,
 }
 const wire = sessionFactsToWire(answer as never) as { samples?: Array<Record<string, unknown>> }
-check('F3a updated_at on the wire, never updatedAt', wire.samples !== undefined && wire.samples.length === 3 && wire.samples.every(r => 'updated_at' in r && !('updatedAt' in r)), JSON.stringify(wire.samples?.[0]) + ' — the samples key map in src/services/engine-connector/seatWire.ts must map updatedAt to updated_at')
+check('F3a updated_at on the wire, never updatedAt', wire.samples !== undefined && wire.samples.length === 3 && wire.samples.every(r => 'updated_at' in r && !('updatedAt' in r)), JSON.stringify(wire.samples?.[0]) + ' — the samples key map in src/engine/connector/seatWire.ts must map updatedAt to updated_at')
 const back = sessionFactsFromWire(wire)
-check('F3b the seat reads the rows back whole', back !== null && JSON.stringify(back.samples) === JSON.stringify(after), JSON.stringify(back?.samples) + ' — the samples codec in src/services/engine-connector/seatWire.ts must round-trip every row field')
+check('F3b the seat reads the rows back whole', back !== null && JSON.stringify(back.samples) === JSON.stringify(after), JSON.stringify(back?.samples) + ' — the samples codec in src/engine/connector/seatWire.ts must round-trip every row field')
 const bare = sessionFactsFromWire(sessionFactsToWire({ ...answer, samples: undefined } as never))
-check('F3c an answer without samples stays without them (an older runner)', bare !== null && bare.samples === undefined, 'the samples codec in src/services/engine-connector/seatWire.ts must leave samples absent when the answer has none')
+check('F3c an answer without samples stays without them (an older runner)', bare !== null && bare.samples === undefined, 'the samples codec in src/engine/connector/seatWire.ts must leave samples absent when the answer has none')
 
 section('F4 the compact line counts samples the way it counts the rest')
 const active = { sessionId: 'focused', live: true, paused: false, parked: false, stopped: false }
 const base = { sessions: { state: 'known' as const, rows: [active] }, focusedSessionId: 'focused', carrier: 'daemon' as const, roster: { rows: [], mission: [], reported: true } }
 const none = compactWorkCounts(base as never)
-check('F4a no samples: the line is the line of today', compactWorkSummaryText(none, 120) === '1 session on · 0 monitors here · 0 crewmates here' && none.samples === 0, compactWorkSummaryText(none, 120) + ' — compactWorkCounts / compactWorkSummaryText in src/components/tasks/useFocusedWork.ts must add nothing when there are no samples')
+check('F4a no samples: the line is the line of today', compactWorkSummaryText(none, 120) === '1 session on · 0 monitors here · 0 crewmates here' && none.samples === 0, compactWorkSummaryText(none, 120) + ' — compactWorkCounts / compactWorkSummaryText in src/screen/tasks/useFocusedWork.ts must add nothing when there are no samples')
 const one = compactWorkCounts({ ...base, roster: { ...base.roster, samples: after.slice(0, 1) } } as never)
-check('F4b one sample appends · 1 sample', compactWorkSummaryText(one, 120) === '1 session on · 0 monitors here · 0 crewmates here · 1 sample', compactWorkSummaryText(one, 120) + ' — compactWorkSummaryText in src/components/tasks/useFocusedWork.ts must append the sample count')
+check('F4b one sample appends · 1 sample', compactWorkSummaryText(one, 120) === '1 session on · 0 monitors here · 0 crewmates here · 1 sample', compactWorkSummaryText(one, 120) + ' — compactWorkSummaryText in src/screen/tasks/useFocusedWork.ts must append the sample count')
 const three = compactWorkCounts({ ...base, roster: { ...base.roster, samples: after } } as never)
-check('F4c three samples pluralise', compactWorkSummaryText(three, 120) === '1 session on · 0 monitors here · 0 crewmates here · 3 samples', compactWorkSummaryText(three, 120) + ' — compactWorkSummaryText in src/components/tasks/useFocusedWork.ts must pluralise the sample count')
-check('F4d the short ladder is unchanged by samples', compactWorkSummaryText(three, 20) === compactWorkSummaryText(none, 20) && !compactWorkSummaryText(three, 20).includes('sample'), compactWorkSummaryText(three, 20) + ' — the short ladder in compactWorkSummaryText (src/components/tasks/useFocusedWork.ts) must not print samples')
-check('F4e the blank chat counts none', compactWorkCounts({ ...base, focusedSessionId: null } as never).samples === 0, 'compactWorkCounts in src/components/tasks/useFocusedWork.ts must return samples 0 with no focused session')
+check('F4c three samples pluralise', compactWorkSummaryText(three, 120) === '1 session on · 0 monitors here · 0 crewmates here · 3 samples', compactWorkSummaryText(three, 120) + ' — compactWorkSummaryText in src/screen/tasks/useFocusedWork.ts must pluralise the sample count')
+check('F4d the short ladder is unchanged by samples', compactWorkSummaryText(three, 20) === compactWorkSummaryText(none, 20) && !compactWorkSummaryText(three, 20).includes('sample'), compactWorkSummaryText(three, 20) + ' — the short ladder in compactWorkSummaryText (src/screen/tasks/useFocusedWork.ts) must not print samples')
+check('F4e the blank chat counts none', compactWorkCounts({ ...base, focusedSessionId: null } as never).samples === 0, 'compactWorkCounts in src/screen/tasks/useFocusedWork.ts must return samples 0 with no focused session')
 
 section('F5 the list spells its rows as approved')
 const now = Date.parse(pricing?.updatedAt ?? '') + 2 * 60_000
 const changed = { ...(pricing as NonNullable<typeof pricing>), state: 'changes-needed' as const }
-check('F5a the title line', text.samplesListTitle(3) === 'SAMPLES · this session · 3', 'samplesListTitle in src/components/samples/samplesListText.ts')
-check('F5b a row: the name padded to its column, the version, the state, the age', text.sampleListRow(changed, now) === 'pricing table          v2 · changes needed · 2m ago', JSON.stringify(text.sampleListRow(changed, now)) + ' — sampleListRow in src/components/samples/samplesListText.ts')
+check('F5a the title line', text.samplesListTitle(3) === 'SAMPLES · this session · 3', 'samplesListTitle in src/screen/samples/samplesListText.ts')
+check('F5b a row: the name padded to its column, the version, the state, the age', text.sampleListRow(changed, now) === 'pricing table          v2 · changes needed · 2m ago', JSON.stringify(text.sampleListRow(changed, now)) + ' — sampleListRow in src/screen/samples/samplesListText.ts')
 const long = text.sampleListRow({ ...changed, title: 'a very long sample title that never ends' }, now)
-check('F5c a long name is cut to the column', stringWidth(long.slice(0, long.indexOf(' v2'))) === text.SAMPLES_TITLE_WIDTH, JSON.stringify(long) + ' — sampleListRow in src/components/samples/samplesListText.ts must truncate the title to SAMPLES_TITLE_WIDTH')
-check('F5e a clock behind the row (a stale tick) reads 0s ago, never a future word', text.sampleListRow(changed, now - 10 * 60_000).endsWith('· 0s ago') && !text.sampleListRow(changed, now - 10 * 60_000).includes(' in '), JSON.stringify(text.sampleListRow(changed, now - 10 * 60_000)) + ' — sampleListRow in src/components/samples/samplesListText.ts must clamp now to the row time')
-check('F5d the empty line and the hint are the approved words', text.SAMPLES_EMPTY_LINE === 'no samples in this session — ask the model to show you something' && text.SAMPLES_LIST_HINT === '↵ open · esc back', 'SAMPLES_EMPTY_LINE and SAMPLES_LIST_HINT in src/components/samples/samplesListText.ts')
+check('F5c a long name is cut to the column', stringWidth(long.slice(0, long.indexOf(' v2'))) === text.SAMPLES_TITLE_WIDTH, JSON.stringify(long) + ' — sampleListRow in src/screen/samples/samplesListText.ts must truncate the title to SAMPLES_TITLE_WIDTH')
+check('F5e a clock behind the row (a stale tick) reads 0s ago, never a future word', text.sampleListRow(changed, now - 10 * 60_000).endsWith('· 0s ago') && !text.sampleListRow(changed, now - 10 * 60_000).includes(' in '), JSON.stringify(text.sampleListRow(changed, now - 10 * 60_000)) + ' — sampleListRow in src/screen/samples/samplesListText.ts must clamp now to the row time')
+check('F5d the empty line and the hint are the approved words', text.SAMPLES_EMPTY_LINE === 'no samples in this session — ask the model to show you something' && text.SAMPLES_LIST_HINT === '↵ open · esc back', 'SAMPLES_EMPTY_LINE and SAMPLES_LIST_HINT in src/screen/samples/samplesListText.ts')
 
 section("F6 the runner's row and the roads that read it")
 const frame = createRowStamper(() => '2026-10-02T00:00:00.000Z').stamp(samplesUpdatedRow({ session_id: 'sess-1' }))
-check('F6a the row is a samples_updated row with the session id and its stamp', frame.type === 'samples_updated' && frame.session_id === 'sess-1' && typeof frame.seq === 'number', JSON.stringify(frame) + ' — samplesUpdatedRow in src/rows/project.ts must build a samples_updated row with the session id')
-check('F6b the row schema admits it', RowSchema().safeParse(frame).success, 'SamplesUpdatedRowSchema must be listed in the RowSchema union in src/rows/vocabulary.ts')
-check('F6c the reader parses it as its own type, never the mission row', parseRow(JSON.stringify(frame))?.type === 'samples_updated', 'parseRow in src/rows/read.ts must return the samples_updated row as its own type')
+check('F6a the row is a samples_updated row with the session id and its stamp', frame.type === 'samples_updated' && frame.session_id === 'sess-1' && typeof frame.seq === 'number', JSON.stringify(frame) + ' — samplesUpdatedRow in src/engine/rows/project.ts must build a samples_updated row with the session id')
+check('F6b the row schema admits it', RowSchema().safeParse(frame).success, 'SamplesUpdatedRowSchema must be listed in the RowSchema union in src/engine/rows/vocabulary.ts')
+check('F6c the reader parses it as its own type, never the mission row', parseRow(JSON.stringify(frame))?.type === 'samples_updated', 'parseRow in src/engine/rows/read.ts must return the samples_updated row as its own type')
 {
-  const { WorkPart } = await import('../../src/services/engine-connector/daemon/work.ts')
+  const { WorkPart } = await import('../../src/engine/connector/daemon/work.ts')
   const crew = [{ id: 'agent-1', kind: 'agent', name: 'an errand', status: 'running', startTime: 1 }]
   let seatFacts: Record<string, unknown> = { work: crew, mission: [], missionCard: null, samples: after }
   const roster = new WorkPart({ facts: () => seatFacts as never, carrierGone: () => false })

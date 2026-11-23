@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/ThemePicker.tsx src/commands/appearance/appearance.tsx src/components/Settings/Config.tsx
-// gate-watch: src/components/CustomSelect/use-select-input.ts src/components/design-system/ThemeProvider.tsx
+// gate-watch: src/commands/appearance/ThemePicker.tsx src/commands/appearance/appearance.tsx src/screen/settings/Config.tsx
+// gate-watch: src/screen/select/useSelectInput.ts src/screen/theme/ThemeProvider.tsx
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -13,24 +13,24 @@ const ASSET = {
   sources: [
     'scripts/ui/prove-appearance-digit-and-config-theme.ts',
     'scripts/lib/settingsPopupHarness.ts',
-    'src/components/ThemePicker.tsx',
+    'src/commands/appearance/ThemePicker.tsx',
     'src/commands/appearance/appearance.tsx',
     'src/commands/config/config.tsx',
-    'src/components/Settings/Config.tsx',
-    'src/components/Settings/config/**',
-    'src/components/mercury-ui/components.tsx',
-    'src/components/FullscreenLayout.tsx',
+    'src/screen/settings/Config.tsx',
+    'src/screen/settings/config/**',
+    'src/screen/widgets/components.tsx',
+    'src/screen/fullscreen-layout/FullscreenLayout.tsx',
     'src/components/fullscreenLayout/**',
-    'src/utils/config.ts',
-    'src/ink.ts',
-    'src/components/App.tsx',
-    'src/state/AppStateStore.ts',
-    'src/keybindings/KeybindingProviderSetup.tsx',
-    'src/components/PromptInput/PromptInput.tsx',
-    'src/hooks/useLayoutTier.ts',
-    'src/context/surfaceRoute.ts',
-    'src/context/overlayStack.ts',
-    'src/utils/cockpit/settingsPopup.ts',
+    'src/platform/settings/config.ts',
+    'src/screen/themedRenderer.ts',
+    'src/boot/App.tsx',
+    'src/screen/app-state/AppStateStore.ts',
+    'src/screen/keys/KeybindingProviderSetup.tsx',
+    'src/screen/composer/Composer.tsx',
+    'src/screen/fullscreen-layout/useLayoutTier.ts',
+    'src/screen/routes/surfaceRoute.ts',
+    'src/screen/overlays/overlayStack.ts',
+    'src/screen/cockpit/settingsPopup.ts',
   ],
 }
 if (registerOnlyRequested(ASSET)) process.exit(0)
@@ -55,7 +55,7 @@ if (write) mkdirSync(stills, { recursive: true })
 
 let checks = 0
 let failures = 0
-const appearanceFailHint = 'to fix, change the theme rows and digit keys in src/commands/appearance/appearance.tsx and src/components/ThemePicker.tsx, or the Theme sub-list and its save in src/commands/config/config.tsx and src/components/Settings/Config.tsx'
+const appearanceFailHint = 'to fix, change the theme rows and digit keys in src/commands/appearance/appearance.tsx and src/commands/appearance/ThemePicker.tsx, or the Theme sub-list and its save in src/commands/config/config.tsx and src/screen/settings/Config.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
@@ -73,7 +73,7 @@ const save = (name: string, lines: string[]): void => {
   }
 }
 
-const { enableConfigs, getGlobalConfig, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, getGlobalConfig, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(c => ({ ...c, prStatusFooterEnabled: false }))
@@ -81,16 +81,16 @@ const storedTheme = (): string => String((getGlobalConfig() as { theme?: string 
 
 const React = await import('react')
 const h = React.createElement
-const { Box, Text, ThemeProvider } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const settingsStore = await import('../../src/utils/cockpit/settingsPopup.ts')
+const { Box, Text, ThemeProvider } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const settingsStore = await import('../../src/screen/cockpit/settingsPopup.ts')
 const appearance = await import('../../src/commands/appearance/appearance.tsx')
 const config = await import('../../src/commands/config/config.tsx')
 

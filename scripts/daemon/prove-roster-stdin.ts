@@ -15,14 +15,14 @@ const child = Object.assign(new EventEmitter(), {
   stdout: new PassThrough(),
   stderr: new PassThrough(),
 })
-const childModule = await import('../../src/daemon/headlessRun.ts')
-mock.module('../../src/daemon/headlessRun.ts', () => ({ ...childModule, spawnRunnerChild: () => ({ child, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }) }))
-const { TaskRoster } = await import('../../src/daemon/roster.ts')
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const childModule = await import('../../src/daemon/runner-link/headlessRun.ts')
+mock.module('../../src/daemon/runner-link/headlessRun.ts', () => ({ ...childModule, spawnRunnerChild: () => ({ child, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }) }))
+const { TaskRoster } = await import('../../src/daemon/roster/roster.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 3 } }))
 let failures = 0
-function check(name: string, pass: boolean, hint = 'see TaskRoster in src/daemon/roster.ts (registerLongLived, door, reply) and src/daemon/roster/spawn.ts'): void {
+function check(name: string, pass: boolean, hint = 'see TaskRoster in src/daemon/roster/roster.ts (registerLongLived, door, reply) and src/daemon/roster/spawn.ts'): void {
   console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${pass ? '' : `: ${hint}`}`)
   if (!pass) failures++
 }

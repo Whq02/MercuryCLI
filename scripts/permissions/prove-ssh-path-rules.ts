@@ -18,10 +18,10 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS'])
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(PROJ)
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { enableConfigs } = await import('../../src/utils/config.ts')
-const { setOriginalCwd, setCwdState, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
+const { setOriginalCwd, setCwdState, setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
 const {
   checkReadPermissionForTool,
   checkWritePermissionForTool,
@@ -30,14 +30,14 @@ const {
   matchingRuleForInput,
   pathMatchesRulePattern,
   readDenialFilter,
-} = await import('../../src/utils/permissions/filesystem.ts')
-const { noteResolvedAuthority } = await import('../../src/utils/remoteFiles/target.ts')
+} = await import('../../src/permissions/rules/filesystem.ts')
+const { noteResolvedAuthority } = await import('../../src/platform/remote-file-target/target.ts')
 setSessionTrustAccepted(true)
 enableConfigs()
 setOriginalCwd(PROJ)
 setCwdState(PROJ)
 
-type Ctx = import('../../src/Tool.ts').ToolPermissionContext
+type Ctx = import('../../src/tools/kit/tool.ts').ToolPermissionContext
 type Rules = { deny?: string[]; allow?: string[]; ask?: string[] }
 type Decision = { behavior: string; message?: string; decisionReason?: { type?: string; reason?: string; mode?: string; rule?: { ruleValue?: { toolName?: string; ruleContent?: string } } }; suggestions?: Array<{ type: string; mode?: string; destination?: string; behavior?: string; rules?: Array<{ toolName: string; ruleContent?: string }> }> }
 
@@ -46,7 +46,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const hint = 'fix the ssh:// rule matching and decisions in src/utils/permissions/filesystem.ts (matchingRuleForInput, pathMatchesRulePattern, checkReadPermissionForTool, checkWritePermissionForTool, generateSuggestions) or the mode decision in decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts'
+  const hint = 'fix the ssh:// rule matching and decisions in src/permissions/rules/filesystem.ts (matchingRuleForInput, pathMatchesRulePattern, checkReadPermissionForTool, checkWritePermissionForTool, generateSuggestions) or the mode decision in decideToolPermissionWithModes in src/permissions/rules/decision/wrapper.ts'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail.slice(0, 700) + ' — ' : ''}${hint}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)

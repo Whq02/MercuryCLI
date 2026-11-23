@@ -52,7 +52,7 @@ function runIsolated(body: string): Record<string, unknown> {
   }
 }
 
-console.log('1. src/utils/capability/manifest.ts — throwing isEnabled reads unavailable')
+console.log('1. src/permissions/capability/manifest.ts — throwing isEnabled reads unavailable')
 {
   const r = runIsolated(`
     const { compileToolCapabilityCard } = await import(SRC + '/utils/capability/manifest.ts')
@@ -135,7 +135,7 @@ else {
   )
 }
 
-console.log('3. src/services/cockpit/daemonSnapshot.ts — EPERM on pid probe reads as live')
+console.log('3. src/screen/cockpit-gauges/daemonSnapshot.ts — EPERM on pid probe reads as live')
 {
   const r = runIsolated(`
     const fs = await import('node:fs')
@@ -181,7 +181,7 @@ console.log('3. src/services/cockpit/daemonSnapshot.ts — EPERM on pid probe re
   )
 }
 
-console.log('4. src/services/cockpit/harnessMap.ts — throwing DAP probe does not claim Debug tool is withheld')
+console.log('4. src/screen/cockpit-gauges/harnessMap.ts — throwing DAP probe does not claim Debug tool is withheld')
 {
   const r = runIsolated(`
     const { mock } = await import('bun:test')
@@ -213,7 +213,7 @@ console.log('4. src/services/cockpit/harnessMap.ts — throwing DAP probe does n
   )
 }
 
-console.log('5. src/services/health/healthCertSnapshot.ts — corrupt or unreadable cert reads certificate unreadable')
+console.log('5. src/platform/health/healthCertSnapshot.ts — corrupt or unreadable cert reads certificate unreadable')
 {
   const r = runIsolated(`
     const fs = await import('node:fs')
@@ -259,7 +259,7 @@ console.log('5. src/services/health/healthCertSnapshot.ts — corrupt or unreada
   )
 }
 
-console.log('6. src/services/cockpit/mcpGauge.ts — policy or project MCP read failure reads unavailable')
+console.log('6. src/screen/cockpit-gauges/mcpGauge.ts — policy or project MCP read failure reads unavailable')
 {
   const rPolicy = runIsolated(`
     const { mock } = await import('bun:test')
@@ -307,7 +307,7 @@ console.log('6. src/services/cockpit/mcpGauge.ts — policy or project MCP read 
   )
 }
 
-console.log('7. src/utils/cockpit/traceSnapshot.ts — unreadable trace file does not say no trace file yet')
+console.log('7. src/screen/cockpit/traceSnapshot.ts — unreadable trace file does not say no trace file yet')
 if (!POSIX_MODES) skip('traceSnapshot: unreadable trace file', 'needs POSIX non-root chmod')
 else {
   const r = runIsolated(`
@@ -341,7 +341,7 @@ else {
   )
 }
 
-console.log('8. src/utils/commitAttribution.ts — throwing git deleted-file probe propagates')
+console.log('8. src/screen/app-state/commitAttribution.ts — throwing git deleted-file probe propagates')
 {
   const r = runIsolated(`
     const { mock } = await import('bun:test')
@@ -366,7 +366,7 @@ console.log('8. src/utils/commitAttribution.ts — throwing git deleted-file pro
   )
 }
 
-console.log('9. src/utils/config/globalConfig.ts — failed quarantine copy does not claim bytes were kept')
+console.log('9. src/platform/config/globalConfig.ts — failed quarantine copy does not claim bytes were kept')
 if (!POSIX_MODES) skip('globalConfig: failed quarantine copy', 'needs POSIX non-root chmod')
 else {
   const r = runIsolated(`
@@ -423,7 +423,7 @@ else {
   )
 }
 
-console.log('10. src/services/cockpit/daemonSnapshot.ts — unexpected failure reads daemon state unreadable')
+console.log('10. src/screen/cockpit-gauges/daemonSnapshot.ts — unexpected failure reads daemon state unreadable')
 {
   const r = runIsolated(`
     const { mock } = await import('bun:test')
@@ -443,7 +443,7 @@ console.log('10. src/services/cockpit/daemonSnapshot.ts — unexpected failure r
   )
 }
 
-console.log('11. src/services/cockpit/fleetGauge.ts — worker or execution listing failure reads fleet roster unreadable')
+console.log('11. src/screen/cockpit-gauges/fleetGauge.ts — worker or execution listing failure reads fleet roster unreadable')
 {
   const rConcourse = runIsolated(`
     const { mock } = await import('bun:test')

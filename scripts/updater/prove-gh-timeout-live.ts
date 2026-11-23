@@ -23,7 +23,7 @@ const ghKids = (): number => {
   return out.split('\n').filter(l => l.includes(marker)).length
 }
 
-const { gh } = await import('../../src/services/privateChannel/ghRelease.ts')
+const { gh } = await import('../../src/platform/update-channel/ghRelease.ts')
 
 console.log('§1 a hung gh spawn is killed by its own timeout, live (never a process that lingers for days)')
 {
@@ -34,7 +34,7 @@ console.log('§1 a hung gh spawn is killed by its own timeout, live (never a pro
     new Promise<{ kind: 'overran' }>(resolve => setTimeout(() => resolve({ kind: 'overran' }), TIMEOUT_MS * 4)),
   ])
   const elapsed = Date.now() - started
-  check('the gh call SETTLES (the timeout fired) rather than hanging past 4x its budget', raced.kind === 'settled', `elapsed=${elapsed}ms; the timeoutMs option of gh in src/services/privateChannel/ghRelease.ts must kill the spawned process`)
+  check('the gh call SETTLES (the timeout fired) rather than hanging past 4x its budget', raced.kind === 'settled', `elapsed=${elapsed}ms; the timeoutMs option of gh in src/platform/update-channel/ghRelease.ts must kill the spawned process`)
   if (raced.kind === 'settled') {
     check('…within roughly the timeout budget, not the two-minute default', elapsed < TIMEOUT_MS * 3, `elapsed=${elapsed}ms`)
     check('…and reports an error state (the child was killed, not a clean answer)', raced.res.state === 'error', JSON.stringify(raced.res))

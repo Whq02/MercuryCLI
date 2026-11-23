@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { BLOCK_HEADER, BLOCK_MARK, SUMMARY_HEADER, SUMMARY_MARK, TOOL_RESULT_MARK } from './compaction-hold-fixture-words.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
-import type { Message } from '../../src/types/message.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SRC = join(REPO, 'src')
@@ -35,11 +35,11 @@ mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const connectorModule = await import(join(SRC, 'services/engine-connector/daemonConnector.ts'))
+const connectorModule = await import(join(SRC, 'engine/connector/daemonConnector.ts'))
 const { DaemonSessionConnector, RECALL_UNKNOWN_LINE } = connectorModule
 const lostLine = (words: string): string => (typeof connectorModule.lostLine === 'function' ? connectorModule.lostLine(words) : '(no lost-line road)')
 const lostWithRunnerLine = (lines: string[]): string => (typeof connectorModule.lostWithRunnerLine === 'function' ? connectorModule.lostWithRunnerLine(lines) : '(no lost-line road)')
-const { createUserMessage } = await import(join(SRC, 'utils/messages/factories.ts'))
+const { createUserMessage } = await import(join(SRC, 'engine/message-shapes/factories.ts'))
 
 type Reply = Record<string, unknown>
 type Send = { clientMessageId: string; text: string; sentAtMs: number; state: 'pending' | 'delivered' | 'queued' | 'taken'; heldFor?: 'compaction'; mode: 'prompt' | 'bash'; source?: { text: string; mode: 'prompt' | 'bash'; pastedContents: Record<number, unknown> }; withdrawing?: true }
@@ -71,7 +71,7 @@ connector.subscribeLive(() => liveWakes++)
 const painted = (): string => JSON.stringify(connector.records())
 const queued = (entries: Array<{ uuid: string; value: string }>): Array<{ uuid: string; value: string; mode: string; priority: string }> =>
   entries.map(e => ({ ...e, mode: 'prompt', priority: 'next' }))
-const { publishSessionFacts, publishSessionTail } = await import(join(SRC, 'services/engine-connector/seatProjections.ts'))
+const { publishSessionFacts, publishSessionTail } = await import(join(SRC, 'engine/connector/seatProjections.ts'))
 let factsStamp = Date.now()
 const runnerSays = (busy: boolean): void => {
   publishSessionFacts({ schema: 1, sessionId: 'compaction-hold-proof', atMs: ++factsStamp, busy, queueReady: false, pendingModel: null, model: { effective: 'claude-sonnet-5', setting: null }, usage: {}, queue: [] } as never)
@@ -89,25 +89,25 @@ const foldRunning = (on: boolean): void => {
 
 section('F4 the wiring — the seat, the roster, the daemon, the hint row, the composer')
 {
-  const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
+  const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.ts')
   const dressed = normalizeMessages([
     { type: 'user', uuid: '00000000-0000-4000-8000-0000000000d1', timestamp: '2026-01-01T00:00:00.000Z', queued: true, heldFor: 'compaction', message: { role: 'user', content: [{ type: 'text', text: 'held' }] } },
     { type: 'user', uuid: '00000000-0000-4000-8000-0000000000d2', timestamp: '2026-01-01T00:00:00.000Z', message: { role: 'user', content: [{ type: 'text', text: 'plain' }] } },
   ] as never) as Array<{ queued?: boolean; heldFor?: string }>
-  check('the normalizer carries the held dress beside the queued one onto the row the plate reads', dressed[0]?.queued === true && dressed[0]?.heldFor === 'compaction' && dressed[1]?.queued === undefined && dressed[1]?.heldFor === undefined, 'normalizeMessages in src/utils/messages/normalize.ts must copy heldFor beside queued onto the normalized user row; got ' + j(dressed))
+  check('the normalizer carries the held dress beside the queued one onto the row the plate reads', dressed[0]?.queued === true && dressed[0]?.heldFor === 'compaction' && dressed[1]?.queued === undefined && dressed[1]?.heldFor === undefined, 'normalizeMessages in src/engine/message-shapes/normalize.ts must copy heldFor beside queued onto the normalized user row; got ' + j(dressed))
 }
 
 section("F5 a context block is known by its header and its isMeta mark, never by its words — the fixture's recognisers are the product's own")
 {
-  const { operatorMessagesBlockText } = await import(join(SRC, 'utils/compact/operatorMessages.ts'))
-  const { normalizeAttachmentForAPI } = await import(join(SRC, 'services/messages/attachmentText.ts'))
-  const { getCompactUserSummaryMessage } = await import(join(SRC, 'services/compact/prompt.ts'))
+  const { operatorMessagesBlockText } = await import(join(SRC, 'engine/compaction-window/operatorMessages.ts'))
+  const { normalizeAttachmentForAPI } = await import(join(SRC, 'engine/messages/attachmentText.ts'))
+  const { getCompactUserSummaryMessage } = await import(join(SRC, 'engine/compaction/summariserPrompt.ts'))
   const block = { type: 'compact_operator_messages', messages: [{ ordinal: 2, text: 'second held words' }, { ordinal: 1, text: 'first held words' }], omitted: 0 }
   const projected = normalizeAttachmentForAPI(block as never) as Array<{ isMeta?: boolean; message: { content: unknown } }>
   const projectedText = projected.length === 1 && typeof projected[0]!.message.content === 'string' ? projected[0]!.message.content : ''
-  check("the operator block projects to ONE meta user row headed by the fixture's block header", projected.length === 1 && projected[0]!.isMeta === true && projectedText.startsWith(BLOCK_HEADER) && operatorMessagesBlockText(block as never).startsWith(BLOCK_HEADER), projectedText.slice(0, 120) + ' — normalizeAttachmentForAPI (src/services/messages/attachmentText.ts) and operatorMessagesBlockText (src/utils/compact/operatorMessages.ts) must produce one isMeta user row starting with BLOCK_HEADER; if the header was changed on purpose, update compaction-hold-fixture-words.ts to match')
-  check('…the header stands whatever the entries say (a different block, the same head)', operatorMessagesBlockText({ ...block, messages: [{ ordinal: 1, text: 'other words entirely' }] } as never).startsWith(BLOCK_HEADER), 'operatorMessagesBlockText in src/utils/compact/operatorMessages.ts must start with BLOCK_HEADER whatever the entries say')
-  check("the summary row opens with the fixture's summary header", getCompactUserSummaryMessage('the stretch').startsWith(SUMMARY_HEADER) && !getCompactUserSummaryMessage('the stretch').startsWith(BLOCK_HEADER), 'getCompactUserSummaryMessage in src/services/compact/prompt.ts must open with SUMMARY_HEADER and never with BLOCK_HEADER; if the header was changed on purpose, update compaction-hold-fixture-words.ts to match')
+  check("the operator block projects to ONE meta user row headed by the fixture's block header", projected.length === 1 && projected[0]!.isMeta === true && projectedText.startsWith(BLOCK_HEADER) && operatorMessagesBlockText(block as never).startsWith(BLOCK_HEADER), projectedText.slice(0, 120) + ' — normalizeAttachmentForAPI (src/engine/messages/attachmentText.ts) and operatorMessagesBlockText (src/engine/compaction-window/operatorMessages.ts) must produce one isMeta user row starting with BLOCK_HEADER; if the header was changed on purpose, update compaction-hold-fixture-words.ts to match')
+  check('…the header stands whatever the entries say (a different block, the same head)', operatorMessagesBlockText({ ...block, messages: [{ ordinal: 1, text: 'other words entirely' }] } as never).startsWith(BLOCK_HEADER), 'operatorMessagesBlockText in src/engine/compaction-window/operatorMessages.ts must start with BLOCK_HEADER whatever the entries say')
+  check("the summary row opens with the fixture's summary header", getCompactUserSummaryMessage('the stretch').startsWith(SUMMARY_HEADER) && !getCompactUserSummaryMessage('the stretch').startsWith(BLOCK_HEADER), 'getCompactUserSummaryMessage in src/engine/compaction/summariserPrompt.ts must open with SUMMARY_HEADER and never with BLOCK_HEADER; if the header was changed on purpose, update compaction-hold-fixture-words.ts to match')
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
@@ -262,7 +262,7 @@ if (!existsSync(DIST)) {
   const beforeFold = lines.length
   send('/compact', UC)
   const compacting = await waitFor("the runner's compacting word", isCompactingStatus, 20_000, beforeFold)
-  check("the runner writes a compaction row as the fold begins", compacting !== null, 'the runner never wrote a compaction row (state started or progress) after /compact within 20 s; check the wait line above and the fold start stamp in src/services/compact/compact/status.ts (withFoldStatus)')
+  check("the runner writes a compaction row as the fold begins", compacting !== null, 'the runner never wrote a compaction row (state started or progress) after /compact within 20 s; check the wait line above and the fold start stamp in src/engine/compaction/fold/foldStatusAndRestore.ts (withFoldStatus)')
   send(FIRST, U1)
   send(WITHDRAWN, U2)
   send(SECOND, U3)
@@ -273,7 +273,7 @@ if (!existsSync(DIST)) {
 
   section('R2 a withdraw during the hold pops the line by identity')
   const held = await withdraw('w-hold', U2)
-  check('the withdraw answers withdrawn with the words while the fold runs', held.withdrawn === true && held.text === WITHDRAWN, j(held) + ' — the runner queue/withdraw handler (verb declared in src/runner/wire/sessionVerbs.ts) must pop a queued line by uuid while a fold runs')
+  check('the withdraw answers withdrawn with the words while the fold runs', held.withdrawn === true && held.text === WITHDRAWN, j(held) + ' — the runner queue/withdraw handler (verb declared in src/daemon/runner-wire/sessionVerbs.ts) must pop a queued line by uuid while a fold runs')
   const afterWithdraw = await queueOf('facts-after-withdraw')
   check('the queue keeps the other two, in order', j(afterWithdraw.map(q => q.uuid)) === j([U1, U3]), j(afterWithdraw) + ' — a withdraw must remove only the named uuid and leave the other queued lines in order')
 
@@ -286,7 +286,7 @@ if (!existsSync(DIST)) {
   check('the held turn answered', heldResult !== null, 'no outcome row for the held turn within 30 s; the runner did not run its queued lines after the fold ended')
   check("the runner's queue is empty once it took them", (await queueOf('facts-after-take')).length === 0, 'the runner must empty its queue when it takes the held lines into a turn (session/facts queue)')
   const taken = await withdraw('w-taken', U1)
-  check('a withdraw after the take answers taken', taken.withdrawn === false && taken.reason === 'taken', j(taken) + ' — queue/withdraw (verb declared in src/runner/wire/sessionVerbs.ts) must answer reason taken for a line already taken into a turn')
+  check('a withdraw after the take answers taken', taken.withdrawn === false && taken.reason === 'taken', j(taken) + ' — queue/withdraw (verb declared in src/daemon/runner-wire/sessionVerbs.ts) must answer reason taken for a line already taken into a turn')
 
   section('R3 a later line rides behind the held ones')
   const beforeLater = lines.length
@@ -323,7 +323,7 @@ if (!existsSync(DIST)) {
   check('the manual fold began once (one started row)', manual.started === 1, j(manual) + ' — the runner must write exactly one compaction row with state started per fold; later stamps must be state progress')
   check('the manual fold ended once — exit landed, trigger manual, the size before the fold on the row', manual.ended.length === 1 && manual.ended[0]!.exit === 'landed' && manual.ended[0]!.trigger === 'manual' && typeof manual.ended[0]!.tokens_before === 'number', j(manual.ended) + ' — the manual fold must write exactly one ended compaction row carrying exit, trigger and tokens_before')
   const auto = lifecycleOf(beforeAuto, toolResultAt)
-  check('the automatic fold began once (one started row, the fold\'s repeated stamps write no second)', auto.started === 1, j(auto) + ' — withFoldStatus (src/services/compact/compact/status.ts) stamps must not write a second started row')
+  check('the automatic fold began once (one started row, the fold\'s repeated stamps write no second)', auto.started === 1, j(auto) + ' — withFoldStatus (src/engine/compaction/fold/foldStatusAndRestore.ts) stamps must not write a second started row')
   check('the automatic fold ended once — exit landed, trigger auto, the size before the fold on the row; no second ended row cleared the word', auto.ended.length === 1 && auto.ended[0]!.exit === 'landed' && auto.ended[0]!.trigger === 'auto' && typeof auto.ended[0]!.tokens_before === 'number', j(auto.ended) + ' — the automatic fold must write exactly one ended compaction row carrying exit, trigger auto and tokens_before')
   await reap()
 
@@ -341,13 +341,13 @@ if (!existsSync(DIST)) {
   check('the fold landed twice on the wire (the manual fold, the automatic one)', foldLanded.length === 2, j(foldLanded) + ' — the fixture server (compaction-hold-fixture-server.ts) saw a different number of fold requests than the two the run drives; see the manual and automatic fold sections above')
   const heldRequest = carrying(FIRST)[0]
   check('exactly one request delivers the held lines, after the manual fold landed, first before second (the block that carries them again after the automatic fold is not a delivery)', carrying(FIRST).length === 1 && heldRequest !== undefined && heldRequest.at > foldLanded[0]!.at && j(heldRequest.last) === j([FIRST, SECOND]), j(carrying(FIRST).map(c => [c.n, c.last])) + ' — the runner must send the held lines once, in one request after the fold landed, first before second')
-  check('no request ever delivered the withdrawn words', carrying(WITHDRAWN).length === 0, 'a withdrawn line still reached the model; the runner must drop it from its queue on queue/withdraw (verb declared in src/runner/wire/sessionVerbs.ts)')
+  check('no request ever delivered the withdrawn words', carrying(WITHDRAWN).length === 0, 'a withdrawn line still reached the model; the runner must drop it from its queue on queue/withdraw (verb declared in src/daemon/runner-wire/sessionVerbs.ts)')
   check('the later line rode behind the held ones — its own request, after theirs (its words inside a later block are not a delivery)', carrying(LATER).length === 1 && carrying(LATER)[0]!.n! > heldRequest!.n!, j(carrying(LATER).map(c => c.n)) + ' — a line sent after the held ones must go in its own later request')
   const autoRequest = carrying(AUTO1)[0]
   check('the automatic fold: one request delivers both auto-held lines, in order, after that fold landed', carrying(AUTO1).length === 1 && autoRequest !== undefined && autoRequest.at > foldLanded[1]!.at && j(autoRequest.last) === j([AUTO1, AUTO2]), j(carrying(AUTO1).map(c => [c.n, c.last])) + ' — lines held during an automatic fold must go out once, together, in send order, after that fold landed')
   section("the block's own law: once per request, ahead of the summary, never the last user text; no line twice outside it")
   const firstAfter = foldLanded.map(fold => asks.find(c => c.at > fold.at))
-  check('the first request after each fold carries the block, ahead of the summary', firstAfter.length === 2 && firstAfter.every(c => partsOf(c).indexOf(BLOCK_MARK) >= 0 && partsOf(c).indexOf(BLOCK_MARK) < partsOf(c).indexOf(SUMMARY_MARK)), j(firstAfter.map(c => [c?.n, c?.parts])) + ' — the first request after each fold must carry the operator-messages block (see operatorMessagesBlockText in src/utils/compact/operatorMessages.ts) ahead of the summary')
+  check('the first request after each fold carries the block, ahead of the summary', firstAfter.length === 2 && firstAfter.every(c => partsOf(c).indexOf(BLOCK_MARK) >= 0 && partsOf(c).indexOf(BLOCK_MARK) < partsOf(c).indexOf(SUMMARY_MARK)), j(firstAfter.map(c => [c?.n, c?.parts])) + ' — the first request after each fold must carry the operator-messages block (see operatorMessagesBlockText in src/engine/compaction-window/operatorMessages.ts) ahead of the summary')
   const withBlock = asks.filter(c => partsOf(c).includes(BLOCK_MARK))
   check('every request carrying the block carries it once, and the summary after it', withBlock.length >= 2 && withBlock.every(c => partsOf(c).filter(p => p === BLOCK_MARK).length === 1 && partsOf(c).indexOf(BLOCK_MARK) >= 0 && partsOf(c).indexOf(BLOCK_MARK) < partsOf(c).indexOf(SUMMARY_MARK)), j(withBlock.map(c => [c.n, c.parts])) + ' — a request must carry the operator-messages block once, before the summary')
   check('the block is never the last user text: the delivered lines ride last after it — the held lines as one batched text, the later line, the auto-held lines', withBlock.every(c => partsOf(c).at(-1) !== BLOCK_MARK) && partsOf(heldRequest).at(-1) === `${FIRST}\n${SECOND}` && partsOf(carrying(LATER)[0]).at(-1) === LATER && partsOf(autoRequest).at(-1) === `${AUTO1}\n${AUTO2}`, j(withBlock.map(c => [c.n, partsOf(c).at(-1)])) + ' — the block must never be the last user text; delivered lines ride after it, batched in one text')

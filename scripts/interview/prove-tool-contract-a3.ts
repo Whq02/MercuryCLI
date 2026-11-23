@@ -5,7 +5,7 @@
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
-const { AskUserQuestionTool } = await import('../../src/tools/AskUserQuestionTool/AskUserQuestionTool.js')
+const { AskUserQuestionTool } = await import('../../src/tools/ask-question/AskUserQuestionTool.js')
 
 const wire = (result: unknown): string => {
   const block = AskUserQuestionTool.mapToolResultToToolResultBlockParam!(result as never, 'toolu_a3')

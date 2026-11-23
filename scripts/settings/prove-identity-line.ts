@@ -148,8 +148,8 @@ process.on('unhandledRejection', reason => {
 })
 
 let failures = 0
-const USAGE_POPUP_FIX_HINT = 'fix the identity line and the layout of the /usage popup body in src/components/Settings/Usage.tsx (usageBodyRows, usageColumns), opened by src/commands/usage/usage.tsx'
-const USAGE_RAIL_FIX_HINT = 'fix the identity line and the block labels of the USAGE card in src/components/HelmVitalsRail.tsx'
+const USAGE_POPUP_FIX_HINT = 'fix the identity line and the layout of the /usage popup body in src/screen/settings/Usage.tsx (usageBodyRows, usageColumns), opened by src/commands/usage/usage.tsx'
+const USAGE_RAIL_FIX_HINT = 'fix the identity line and the block labels of the USAGE card in src/screen/fullscreen-layout/HelmVitalsRail.tsx'
 const FIXTURE_REACH_HINT = 'a fixture request was missed or a fetch escaped: the usage and account readers a family calls must reach only the loopback fixture origin; find the reader by the missing request path'
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
@@ -163,7 +163,7 @@ async function stub(relative: string, overrides: Record<string, unknown>): Promi
   const actual = await import(target)
   mock.module(target, () => ({ ...actual, ...overrides }))
 }
-await stub('src/utils/proxy.ts', { getApiFetch: () => globalThis.fetch, getProxyFetchOptions: () => ({}) })
+await stub('src/platform/network/proxy.ts', { getApiFetch: () => globalThis.fetch, getProxyFetchOptions: () => ({}) })
 
 const FILES = {
   credentials: join(HOME, '.credentials.json'),
@@ -212,17 +212,17 @@ function writeStores(leg: Leg): void {
 }
 
 writeStores('accounts')
-const config = await import(join(ROOT, 'src/utils/config.ts'))
+const config = await import(join(ROOT, 'src/platform/settings/config.ts'))
 config.enableConfigs()
-const auth = { ...(await import(join(ROOT, 'src/utils/auth.ts'))), ...(await import(join(ROOT, 'src/services/auth/oauthLifecycle.ts'))) }
-const ledger = await import(join(ROOT, 'src/utils/accounts/signInLedger.ts'))
-const wallet = await import(join(ROOT, 'src/services/wallet/wallet.ts'))
-const limits = await import(join(ROOT, 'src/services/anthropicLimits.ts'))
-const identityCache = await import(join(ROOT, 'src/utils/accounts/accountIdentity.ts'))
-const registry = await import(join(ROOT, 'src/services/providers/modelRegistry.ts'))
-const discovery = await import(join(ROOT, 'src/services/providers/providerDiscovery.ts'))
-const localDiscovery = await import(join(ROOT, 'src/services/providers/local/localDiscovery.ts'))
-const moonshotUsage = await import(join(ROOT, 'src/services/providers/moonshot/moonshotUsageState.ts'))
+const auth = { ...(await import(join(ROOT, 'src/models/sign-in/credentials/auth.ts'))), ...(await import(join(ROOT, 'src/models/sign-in/lifecycle/oauthLifecycle.ts'))) }
+const ledger = await import(join(ROOT, 'src/models/sign-in/account-ledger/signInLedger.ts'))
+const wallet = await import(join(ROOT, 'src/models/wallet/wallet.ts'))
+const limits = await import(join(ROOT, 'src/models/roads/anthropic/anthropicLimits.ts'))
+const identityCache = await import(join(ROOT, 'src/models/sign-in/account-ledger/accountIdentity.ts'))
+const registry = await import(join(ROOT, 'src/models/roads/modelRegistry.ts'))
+const discovery = await import(join(ROOT, 'src/models/roads/providerDiscovery.ts'))
+const localDiscovery = await import(join(ROOT, 'src/models/roads/local/localDiscovery.ts'))
+const moonshotUsage = await import(join(ROOT, 'src/models/roads/moonshot/moonshotUsageState.ts'))
 async function settleLeg(leg: Leg): Promise<void> {
   writeStores(leg)
   config.saveGlobalConfig(current => ({ ...current, hasCompletedOnboarding: true, oauthAccount: undefined }))
@@ -241,7 +241,7 @@ async function settleLeg(leg: Leg): Promise<void> {
   ledger.noteCredentialChange()
 }
 await settleLeg('accounts')
-const { kimiRegionLabel } = await import(join(ROOT, 'src/services/providers/moonshot/moonshotAccounts.ts'))
+const { kimiRegionLabel } = await import(join(ROOT, 'src/models/roads/moonshot/moonshotAccounts.ts'))
 const KIMI_LABEL = `Kimi account (device-code sign-in · ${kimiRegionLabel('global')})`
 
 type Family = {
@@ -268,10 +268,10 @@ const FAMILIES: Family[] = [
 ]
 const popupLine = (family: Family, leg: Leg): string => (family.account[leg] ? `${SIGNED_IN_AS} ${family.line[leg]}` : family.line[leg])
 
-await stub('src/keybindings/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
-await stub('src/hooks/useExitOnCtrlCD.ts', { useExitOnCtrlCD: () => undefined })
-await stub('src/context/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
-await stub('src/services/health/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
+await stub('src/screen/keys/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
+await stub('src/screen/keys/useExitChord.ts', { useExitOnCtrlCD: () => undefined })
+await stub('src/screen/notifications/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
+await stub('src/platform/health/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
 let focusedModel = FAMILIES[0]!.model
 const connector = {
   modelFacts: () => ({ main: focusedModel, effective: focusedModel }),
@@ -280,24 +280,24 @@ const connector = {
   subscribeRecords: () => () => {},
   usage: () => ({ totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }),
 }
-await stub('src/services/engine-connector/focusedConnector.ts', {
+await stub('src/engine/connector/focusedConnector.ts', {
   getFocusedSessionConnector: () => connector,
   subscribeThroughFocused: (subscribe: (connection: typeof connector, listener: () => void) => () => void) => (listener: () => void) => subscribe(connector, listener),
   hasFocusedSession: () => false,
   landingInFlight: () => false,
   subscribeFocusedSessionConnector: () => () => {},
 })
-await stub('src/components/tasks/useFocusedWork.ts', {
+await stub('src/screen/tasks/useFocusedWork.ts', {
   useFocusedWorkRows: () => [],
   useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }),
   focusedSessionIdOrNull: () => null,
 })
-await stub('src/state/vitalsBus.ts', { useVitals: () => ({ trace: null }) })
+await stub('src/screen/app-state/vitalsBus.ts', { useVitals: () => ({ trace: null }) })
 
-const ink = await import(join(ROOT, 'src/ink.ts'))
-const { default: StdinContext } = await import(join(ROOT, 'src/ink/components/StdinContext.ts'))
-const { InputEvent } = await import(join(ROOT, 'src/ink/events/input-event.ts'))
-const { interpretKey } = await import(join(ROOT, 'src/ink/input/interpreter.ts'))
+const ink = await import(join(ROOT, 'src/screen/themedRenderer.ts'))
+const { default: StdinContext } = await import(join(ROOT, 'src/screen/renderer/elements/StdinContext.ts'))
+const { InputEvent } = await import(join(ROOT, 'src/screen/renderer/events/input-event.ts'))
+const { interpretKey } = await import(join(ROOT, 'src/screen/renderer/input/interpreter.ts'))
 const settle = async (): Promise<void> => {
   for (let index = 0; index < 8; index++) {
     ink.flushPendingSyncWork()
@@ -349,12 +349,12 @@ function save(name: string, frame: string): void {
 const inBounds = (frame: string, columns: number, rows: number): boolean =>
   frame.split('\n').length <= rows && frame.split('\n').every(line => stringWidth(line) <= columns)
 
-const { HelmVitalsRail } = await import(join(ROOT, 'src/components/HelmVitalsRail.tsx'))
-const { railPlanAt } = await import(join(ROOT, 'src/utils/helmGeometry.ts'))
-const { railPanelInnerWidth } = await import(join(ROOT, 'src/components/mercury-ui/RailPanel.tsx'))
-const { settingsPopupGeometry } = await import(join(ROOT, 'src/components/SettingsPopupSlot.tsx'))
-const { usageBodyRows, usageColumns } = await import(join(ROOT, 'src/components/Settings/Usage.tsx'))
-const popupStore = await import(join(ROOT, 'src/utils/cockpit/settingsPopup.ts'))
+const { HelmVitalsRail } = await import(join(ROOT, 'src/screen/fullscreen-layout/HelmVitalsRail.tsx'))
+const { railPlanAt } = await import(join(ROOT, 'src/screen/fullscreen-layout/helmGeometry.ts'))
+const { railPanelInnerWidth } = await import(join(ROOT, 'src/screen/widgets/RailPanel.tsx'))
+const { settingsPopupGeometry } = await import(join(ROOT, 'src/screen/overlays/SettingsPopupSlot.tsx'))
+const { usageBodyRows, usageColumns } = await import(join(ROOT, 'src/screen/settings/Usage.tsx'))
+const popupStore = await import(join(ROOT, 'src/screen/cockpit/settingsPopup.ts'))
 const usageCommand = await import(join(ROOT, 'src/commands/usage/usage.tsx'))
 
 type Block = { title: string; under: string; frame: number }

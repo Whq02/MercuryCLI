@@ -16,9 +16,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const cleanup = await import('../../src/services/cleanup.ts')
-const fsOps = await import('../../src/utils/fsOperations.ts')
-const { TOOL_RESULTS_SUBDIR } = await import('../../src/utils/toolResultStorage.ts')
+const cleanup = await import('../../src/sessions/transcripts/retentionSweep.ts')
+const fsOps = await import('../../src/platform/files/fsOperations.ts')
+const { TOOL_RESULTS_SUBDIR } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
 const census = cleanup.blobScanCensus
 const reset = (): void => {
   census.chunkReads = 0
@@ -62,17 +62,17 @@ section('B1 PARITY — the streamed set equals the whole-buffer oracle')
 reset()
 const streamed = await cleanup.collectReferencedBlobDirs(path, cutoff)
 {
-  check(`the oracle found every planted reference (${expected.size} planted, ${oracle.size} found)`, [...expected].every(x => oracle.has(x)) && oracle.size === expected.size, `${oracle.size}; the oracle regex mirrors the pattern in collectReferencedBlobDirs (src/services/cleanup.ts), so check the planting offsets in this file and TOOL_RESULTS_SUBDIR in src/utils/toolResultStorage.ts`)
-  check('the streamed scan equals the oracle, member for member', sameSet(streamed, oracle), `${streamed?.size ?? 'null'} vs ${oracle.size}; fix the chunk and carry handling in collectReferencedBlobDirs in src/services/cleanup.ts (SCAN_CHUNK_BYTES, SCAN_CARRY_BYTES, the match-at-chunk-end skip)`)
+  check(`the oracle found every planted reference (${expected.size} planted, ${oracle.size} found)`, [...expected].every(x => oracle.has(x)) && oracle.size === expected.size, `${oracle.size}; the oracle regex mirrors the pattern in collectReferencedBlobDirs (src/sessions/transcripts/retentionSweep.ts), so check the planting offsets in this file and TOOL_RESULTS_SUBDIR in src/engine/tool-dispatch/toolResultStorage.ts`)
+  check('the streamed scan equals the oracle, member for member', sameSet(streamed, oracle), `${streamed?.size ?? 'null'} vs ${oracle.size}; fix the chunk and carry handling in collectReferencedBlobDirs in src/sessions/transcripts/retentionSweep.ts (SCAN_CHUNK_BYTES, SCAN_CARRY_BYTES, the match-at-chunk-end skip)`)
   for (const name of ['ends-at-edge', 'straddle-token', 'straddle-name', 'inside-carry-zone', 'backslash-sep', 'at-file-end']) {
-    check(`…including the edge case '${name}'`, streamed?.has(name) === true, `the reference ${name} was lost; fix the chunk-boundary carry in collectReferencedBlobDirs in src/services/cleanup.ts`)
+    check(`…including the edge case '${name}'`, streamed?.has(name) === true, `the reference ${name} was lost; fix the chunk-boundary carry in collectReferencedBlobDirs in src/sessions/transcripts/retentionSweep.ts`)
   }
 }
 
 section('B2 THE COUNT — chunks, never the whole file')
 {
-  check('four chunk reads over 13.5 MiB (4 + 4 + 4 + 1.5), no whole-file read', census.chunkReads === 4 && census.wholeReads === 0, `${JSON.stringify(census)}; collectReferencedBlobDirs in src/services/cleanup.ts must read through fs.readFileChunks in 4 MiB chunks and not fall back to readFileBytes`)
-  check('the largest chunk handed to the scan is exactly 4 MiB', census.maxChunkBytes === CHUNK, `${census.maxChunkBytes}; SCAN_CHUNK_BYTES in src/services/cleanup.ts must stay 4 MiB and the chunk reader in src/utils/fsOperations.ts (readFileChunks) must hand over that size`)
+  check('four chunk reads over 13.5 MiB (4 + 4 + 4 + 1.5), no whole-file read', census.chunkReads === 4 && census.wholeReads === 0, `${JSON.stringify(census)}; collectReferencedBlobDirs in src/sessions/transcripts/retentionSweep.ts must read through fs.readFileChunks in 4 MiB chunks and not fall back to readFileBytes`)
+  check('the largest chunk handed to the scan is exactly 4 MiB', census.maxChunkBytes === CHUNK, `${census.maxChunkBytes}; SCAN_CHUNK_BYTES in src/sessions/transcripts/retentionSweep.ts must stay 4 MiB and the chunk reader in src/platform/files/fsOperations.ts (readFileChunks) must hand over that size`)
   console.log(`  BEFORE: peak transient allocation ≈ 2 × ${(TOTAL / 1024 / 1024).toFixed(1)} MiB (the whole Buffer + a whole latin1 string) · AFTER: one ${CHUNK / 1024 / 1024} MiB chunk + a 1 KiB carry (+ that chunk's latin1 string), whatever the transcript's size`)
 }
 
@@ -83,8 +83,8 @@ section('B3 the fallback — a fake fs without the chunk reader takes the whole-
   try {
     reset()
     const viaWhole = await cleanup.collectReferencedBlobDirs(path, cutoff)
-    check('the whole-file road ran once, no chunk reads', census.wholeReads === 1 && census.chunkReads === 0, `${JSON.stringify(census)}; when fs.readFileChunks is undefined, collectReferencedBlobDirs in src/services/cleanup.ts must count one whole read and read no chunk`)
-    check('…and answers the same set', sameSet(viaWhole, oracle), `${viaWhole?.size ?? 'null'} vs ${oracle.size}; the readFileBytes branch of collectReferencedBlobDirs in src/services/cleanup.ts must use the same pattern as the chunked branch`)
+    check('the whole-file road ran once, no chunk reads', census.wholeReads === 1 && census.chunkReads === 0, `${JSON.stringify(census)}; when fs.readFileChunks is undefined, collectReferencedBlobDirs in src/sessions/transcripts/retentionSweep.ts must count one whole read and read no chunk`)
+    check('…and answers the same set', sameSet(viaWhole, oracle), `${viaWhole?.size ?? 'null'} vs ${oracle.size}; the readFileBytes branch of collectReferencedBlobDirs in src/sessions/transcripts/retentionSweep.ts must use the same pattern as the chunked branch`)
   } finally {
     fsOps.setOriginalFsImplementation()
   }
@@ -96,7 +96,7 @@ section('B4 an aged transcript still yields null (the reachability rule kept)')
   utimesSync(path, old, old)
   reset()
   const aged = await cleanup.collectReferencedBlobDirs(path, cutoff)
-  check('an aged transcript answers null before any read', aged === null && census.chunkReads === 0 && census.wholeReads === 0, `${JSON.stringify(census)}; collectReferencedBlobDirs in src/services/cleanup.ts must return null on the mtime-before-cutoff check before it reads any file`)
+  check('an aged transcript answers null before any read', aged === null && census.chunkReads === 0 && census.wholeReads === 0, `${JSON.stringify(census)}; collectReferencedBlobDirs in src/sessions/transcripts/retentionSweep.ts must return null on the mtime-before-cutoff check before it reads any file`)
 }
 
 console.log(failures === 0 ? '\n✅ ALL BLOB-SCAN-STREAM PROOFS PASS' : `\n❌ ${failures} BLOB-SCAN-STREAM PROOF(S) FAILED`)

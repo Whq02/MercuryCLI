@@ -1,4 +1,4 @@
-import { installManagedBrowser, planBrowserInstall } from '../../src/services/browser/browserInstall.ts'
+import { installManagedBrowser, planBrowserInstall } from '../../src/integrations/browser/browserInstall.ts'
 
 type ProvisionOutcome = { ok: true; buildId: string; executablePath: string } | { ok: false; note: string }
 

@@ -11,8 +11,8 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failed++
   const fix = label.startsWith('§A zero') ? 'classify the site in ROLE_BY_FILE in scripts/consistency-census/gen-lockup-census.ts, or remove the lockup site'
     : label.startsWith('§A') ? 'drop or rename the stale entry in ROLE_BY_FILE in scripts/consistency-census/gen-lockup-census.ts'
-    : label.startsWith('§B') ? 'ProductLockup in src/components/mercury-ui/components.tsx must still paint the title; check its use in src/components/MercuryModelPicker.tsx and CommandCenter in src/components/mercury-ui/components.tsx'
-    : label.startsWith('§C') ? 'draw the crab glyph only through src/components/mercury-ui/assets.tsx or src/utils/cockpit/critterData.ts, or add the file to ALLOWED_GLYPH_AUTHORS in this script'
+    : label.startsWith('§B') ? 'ProductLockup in src/screen/widgets/components.tsx must still paint the title; check its use in src/commands/model/picker/MercuryModelPicker.tsx and CommandCenter in src/screen/widgets/components.tsx'
+    : label.startsWith('§C') ? 'draw the crab glyph only through src/screen/widgets/assets.tsx or src/screen/cockpit/critterData.ts, or add the file to ALLOWED_GLYPH_AUTHORS in this script'
     : 'give every role a site in ROLE_BY_FILE in scripts/consistency-census/gen-lockup-census.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ` (${fix})`}`)
 }
@@ -32,11 +32,11 @@ check('§A every file the role table classifies stands in the tree', classified.
   const scratchHome = pinScratchHome('lockup-census')
   process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
   const React = await import('react')
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const { Text } = await import('../../src/ink.js')
-  const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.js')
-  const { CommandCenter } = await import('../../src/components/mercury-ui/components.js')
+  const { Text } = await import('../../src/screen/themedRenderer.js')
+  const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.js')
+  const { CommandCenter } = await import('../../src/screen/widgets/components.js')
   const pickerMounted = await mountOffscreen(
     React.createElement(MercuryModelPicker as never, {
       models: [{ id: 'claude-fable-5-1', name: 'Fable 5.1', tag: '', ctx: '1M ctx', group: 'Anthropic' }],
@@ -77,8 +77,8 @@ check('§A every file the role table classifies stands in the tree', classified.
 }
 
 const ALLOWED_GLYPH_AUTHORS = new Set([
-  'src/components/mercury-ui/assets.tsx',
-  'src/utils/cockpit/critterData.ts',
+  'src/screen/cockpit/critterData.ts',
+  'src/screen/widgets/assets.tsx',
 ])
 const glyphHits = execFileSync('git', ['grep', '-n', '▟▆▙', '--', 'src'], {
   cwd: ROOT,

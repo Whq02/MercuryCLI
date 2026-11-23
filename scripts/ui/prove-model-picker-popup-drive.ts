@@ -25,7 +25,7 @@ const ROWS = 51
 const TITLE = 'Mercury · model'
 const COMPOSER = 'Type a prompt'
 const KEYS = '↑↓ select'
-const PICKER_WHERE = 'the /model picker window is placed by src/components/ModelPickerPopupSlot.tsx and laid out by src/components/MercuryModelPicker.tsx'
+const PICKER_WHERE = 'the /model picker window is placed by src/screen/overlays/ModelPickerPopupSlot.tsx and laid out by src/commands/model/picker/MercuryModelPicker.tsx'
 
 let failures = 0
 let checks = 0
@@ -226,11 +226,11 @@ section(`§1 ${COLS}x${ROWS}: m on the Boot face, then /model in the chat born f
     const viewLeft = Array.from(session[0] ?? '').indexOf('╭')
     const viewBottom = session.findIndex((line, row) => row > 0 && Array.from(line)[viewLeft] === '╰')
     check(`the window ends above the view's bottom border (row ${viewBottom})`, viewBottom > 0 && sessionWindow.bottom < viewBottom, `the picker window must end above the view border, see ${PICKER_WHERE}; window bottom ${sessionWindow.bottom}`)
-    check('the keys and page guide are the window\'s last two inner rows', inner(sessionWindow.rows[sessionWindow.height - 3]!).startsWith(KEYS) && inner(sessionWindow.rows[sessionWindow.height - 2]!) === 'pgup/pgdn page', `the picker must end with the keys row then the pgup/pgdn page row, see src/components/MercuryModelPicker.tsx; rows seen: ${sessionWindow.rows.slice(-3, -1).map(inner).join(' | ')}`)
+    check('the keys and page guide are the window\'s last two inner rows', inner(sessionWindow.rows[sessionWindow.height - 3]!).startsWith(KEYS) && inner(sessionWindow.rows[sessionWindow.height - 2]!) === 'pgup/pgdn page', `the picker must end with the keys row then the pgup/pgdn page row, see src/commands/model/picker/MercuryModelPicker.tsx; rows seen: ${sessionWindow.rows.slice(-3, -1).map(inner).join(' | ')}`)
     const firstRow = inner(sessionWindow.rows[4]!)
     check('↓ past the last visible row keeps the window in place', scrolledWindow !== null && scrolledWindow.top === sessionWindow.top && scrolledWindow.left === sessionWindow.left && scrolledWindow.width === sessionWindow.width && scrolledWindow.height === sessionWindow.height, `the window must keep its place and size while rows scroll, see ${PICKER_WHERE}; ${describe(scrolledWindow)}`)
-    check('the rows scroll inside the window (a ↑ more line leads and the first row changed)', scrolledWindow !== null && scrolledWindow.rows.some(row => /↑ \d+ more/.test(row)) && inner(scrolledWindow.rows[4]!) !== firstRow, `the list must scroll inside the window with an up-more line, see src/components/MercuryModelPicker.tsx; rows seen: ${scrolledWindow === null ? '' : scrolledWindow.rows.slice(1, 5).map(inner).join(' | ')}`)
-    check('the keys and page guide stay the window\'s last two inner rows while the rows scroll', scrolledWindow !== null && inner(scrolledWindow.rows[scrolledWindow.height - 3]!).startsWith(KEYS) && inner(scrolledWindow.rows[scrolledWindow.height - 2]!) === 'pgup/pgdn page', `the keys row and the pgup/pgdn page row must stay last while rows scroll, see src/components/MercuryModelPicker.tsx; rows seen: ${scrolledWindow === null ? '' : scrolledWindow.rows.slice(-3, -1).map(inner).join(' | ')}`)
+    check('the rows scroll inside the window (a ↑ more line leads and the first row changed)', scrolledWindow !== null && scrolledWindow.rows.some(row => /↑ \d+ more/.test(row)) && inner(scrolledWindow.rows[4]!) !== firstRow, `the list must scroll inside the window with an up-more line, see src/commands/model/picker/MercuryModelPicker.tsx; rows seen: ${scrolledWindow === null ? '' : scrolledWindow.rows.slice(1, 5).map(inner).join(' | ')}`)
+    check('the keys and page guide stay the window\'s last two inner rows while the rows scroll', scrolledWindow !== null && inner(scrolledWindow.rows[scrolledWindow.height - 3]!).startsWith(KEYS) && inner(scrolledWindow.rows[scrolledWindow.height - 2]!) === 'pgup/pgdn page', `the keys row and the pgup/pgdn page row must stay last while rows scroll, see src/commands/model/picker/MercuryModelPicker.tsx; rows seen: ${scrolledWindow === null ? '' : scrolledWindow.rows.slice(-3, -1).map(inner).join(' | ')}`)
   }
   check('esc closes the picker and the chat stands as it was', !closed.some(l => l.includes(TITLE)) && closed.some(l => l.includes(COMPOSER)) && trimmedRow(closed, '← back') !== '', `esc must close the picker window (${PICKER_WHERE}); last rows: ${closed.slice(-6).join(' | ')}`)
 }

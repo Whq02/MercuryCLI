@@ -9,12 +9,12 @@ process.env.MERCURY_EVOLUTION_LEDGER = '0'
 process.chdir(mkdtempSync(join(tmpdir(), 'cap-cwd-')))
 
 const repo = join(import.meta.dir, '..', '..')
-const { enableConfigs } = await import(join(repo, 'src/utils/config/globalConfig.js'))
+const { enableConfigs } = await import(join(repo, 'src/platform/config/globalConfig.js'))
 enableConfigs()
-const writer = await import(join(repo, 'src/services/instructions/projectInstructionWriter.js'))
-const { runWithCwdOverride } = await import(join(repo, 'src/utils/cwd.js'))
+const writer = await import(join(repo, 'src/sessions/instructions/projectInstructionWriter.js'))
+const { runWithCwdOverride } = await import(join(repo, 'src/platform/files/cwd.js'))
 const { RecordConventionTool } = await import(
-  join(repo, 'src/tools/RecordConventionTool/RecordConventionTool.js')
+  join(repo, 'src/tools/record-convention/RecordConventionTool.js')
 )
 
 let failures = 0
@@ -22,7 +22,7 @@ const check = (cond: boolean, msg: string, detail = ''): void => {
   if (cond) console.log(`  [PASS] ${msg}`)
   else {
     failures++
-    console.error(`  [FAIL] ${msg}${detail ? ` — ${detail}` : ''} | change captureProjectInstruction in src/services/instructions/projectInstructionWriter.ts (the RecordConvention tool in src/tools/RecordConventionTool/RecordConventionTool.ts calls it; the BOM checks read parseInstructionFileContent in src/services/instructions/sourceText.ts)`)
+    console.error(`  [FAIL] ${msg}${detail ? ` — ${detail}` : ''} | change captureProjectInstruction in src/sessions/instructions/projectInstructionWriter.ts (the RecordConvention tool in src/tools/record-convention/RecordConventionTool.ts calls it; the BOM checks read parseInstructionFileContent in src/sessions/instructions/sourceText.ts)`)
   }
 }
 
@@ -144,7 +144,7 @@ check(existsSync(join(virgin, 'MERCURY.md')), 'fixtures on disk where expected (
 
 console.log('BOM-led instruction files')
 {
-  const { parseInstructionFileContent } = await import(join(repo, 'src/services/instructions/sourceText.js'))
+  const { parseInstructionFileContent } = await import(join(repo, 'src/sessions/instructions/sourceText.js'))
   const body = '---\ntitle: x\n---\nThe rule stands.\n'
   const clean = parseInstructionFileContent(body, join(virgin, 'MERCURY.md'), 'Project')
   const bommed = parseInstructionFileContent(String.fromCharCode(0xfeff) + body, join(virgin, 'MERCURY.md'), 'Project')

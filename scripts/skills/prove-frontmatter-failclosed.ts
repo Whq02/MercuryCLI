@@ -11,17 +11,17 @@ delete process.env.CI
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-;(await import('../../src/bootstrap/state.ts')).setSessionTrustAccepted(true)
-const skillsMod = await import('../../src/skills/loadSkillsDir.ts')
-const agentsMod = await import('../../src/tools/AgentTool/loadAgentsDir.ts')
-const contributionsMod = await import('../../src/extensions/load/contributions.ts')
+;(await import('../../src/boot/process-state/processState.ts')).setSessionTrustAccepted(true)
+const skillsMod = await import('../../src/integrations/skills/loadSkillsDir.ts')
+const agentsMod = await import('../../src/tools/crewmate/loadAgentsDir.ts')
+const contributionsMod = await import('../../src/integrations/extensions/load/contributions.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const loaderHint = ' | change the loader the failing section names: skills in src/skills/loadSkillsDir.ts (getSkillDirCommands, skillFrontmatterProblem), agents in src/tools/AgentTool/loadAgentsDir.ts (getAgentDefinitionsWithOverrides), extensions in src/extensions/load/contributions.ts (resolveContributions)'
+  const loaderHint = ' | change the loader the failing section names: skills in src/integrations/skills/loadSkillsDir.ts (getSkillDirCommands, skillFrontmatterProblem), agents in src/tools/crewmate/loadAgentsDir.ts (getAgentDefinitionsWithOverrides), extensions in src/integrations/extensions/load/contributions.ts (resolveContributions)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail : ' —') + loaderHint : ''}`)
 }
 

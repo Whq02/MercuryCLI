@@ -10,14 +10,14 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const mentionVsImportFailHint = 'fix how an @ token is split into an import or a bare mention in parseInstructionFileContent (src/services/instructions/sourceText.ts), or how the walk composes imports and raises missing-import-target in processInstructionFile (src/services/instructions/discovery.ts)'
+const mentionVsImportFailHint = 'fix how an @ token is split into an import or a bare mention in parseInstructionFileContent (src/sessions/instructions/sourceText.ts), or how the walk composes imports and raises missing-import-target in processInstructionFile (src/sessions/instructions/discovery.ts)'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — ' + mentionVsImportFailHint}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { parseInstructionFileContent } = await import('../../src/services/instructions/sourceText.ts')
+const { parseInstructionFileContent } = await import('../../src/sessions/instructions/sourceText.ts')
 
 section('§1 THE PURE PARSE')
 {
@@ -69,7 +69,7 @@ section('§1 THE PURE PARSE')
 section('§2 THE DRIVEN WALK')
 {
   const { processInstructionFile } = (await import(
-    '../../src/services/instructions/discovery.ts'
+    '../../src/sessions/instructions/discovery.ts'
   )) as unknown as {
     processInstructionFile: (
       convention: { isExcluded: (p: string, t: string) => boolean },

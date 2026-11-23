@@ -2,13 +2,13 @@
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ' — to fix, see isDroppedLateStreamFrame in src/utils/messages/streaming.ts: after an abort it must drop only stream_event and stream_request_start frames'}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ' — to fix, see isDroppedLateStreamFrame in src/screen/messages-list/streamToScreen.ts: after an abort it must drop only stream_event and stream_request_start frames'}`)
   if (!ok) failures = 1
 }
 
 
 console.log('— late stream frames after abort —')
-const streaming = await import('../../src/utils/messages/streaming.ts')
+const streaming = await import('../../src/screen/messages-list/streamToScreen.ts')
 t(
   'isDroppedLateStreamFrame exported',
   typeof streaming.isDroppedLateStreamFrame === 'function',

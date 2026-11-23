@@ -15,25 +15,25 @@ function section(title: string): void {
 }
 
 const sleep: string[] = []
-mock.module('../../src/services/preventSleep.ts', () => ({
+mock.module('../../src/platform/host-os/preventSleep.ts', () => ({
   startPreventSleep: () => void sleep.push('start'),
   stopPreventSleep: () => void sleep.push('stop'),
 }))
 
 const React = await import('react')
-const { AnimatedTitle, useChatTitle } = await import('../../src/screens/chat/useChatTitle.tsx')
-const { getCockpitActivity, resetCockpitActivityForTests } = await import('../../src/utils/cockpit/cockpitActivity.ts')
-const { pushOverlay, popOverlay, resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
-const { restoreSessionMetadata } = await import('../../src/utils/sessionStorage/logs.ts')
-const { ClockContext } = await import('../../src/ink/components/ClockContext.tsx')
+const { AnimatedTitle, useChatTitle } = await import('../../src/screen/chat/useChatTitle.tsx')
+const { getCockpitActivity, resetCockpitActivityForTests } = await import('../../src/screen/cockpit/cockpitActivity.ts')
+const { pushOverlay, popOverlay, resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const { NoSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { getSessionId } = await import('../../src/boot/process-state/processState.ts')
+const { restoreSessionMetadata } = await import('../../src/sessions/transcripts/sessionListings.ts')
+const { ClockContext } = await import('../../src/screen/renderer/elements/ClockContext.tsx')
 type Args = Parameters<typeof useChatTitle>[0]
 
 const other = Object.assign(new NoSessionConnector(), { sessionId: () => 'another-session' })
 const own = Object.assign(new NoSessionConnector(), { sessionId: () => String(getSessionId()) })
 
-const T = 'src/screens/chat/useChatTitle.tsx'
+const T = 'src/screen/chat/useChatTitle.tsx'
 section('§1 the hook alone, with planted arguments: the title it hands on')
 resetCockpitActivityForTests()
 resetOverlayStackForTests()
@@ -97,24 +97,24 @@ function ClockKeeper(): null {
   return null
 }
 const drawn = await mountPart(() => props, { draw: value => React.createElement(React.Fragment, null, React.createElement(ClockKeeper), React.createElement(AnimatedTitle, value)) })
-check('a still title is written with the static mark', titlesOf(drawn.writes).at(-1) === '✻ Mercury', `${JSON.stringify(titlesOf(drawn.writes))} · AnimatedTitle passes "✻ title" to useTerminalTitle when not animating in src/screens/chat/useChatTitle.tsx`)
+check('a still title is written with the static mark', titlesOf(drawn.writes).at(-1) === '✻ Mercury', `${JSON.stringify(titlesOf(drawn.writes))} · AnimatedTitle passes "✻ title" to useTerminalTitle when not animating in src/screen/chat/useChatTitle.tsx`)
 props = { ...props, animating: true }
 await drawn.set(() => props)
-check('an animating title is written with the first frame', titlesOf(drawn.writes).at(-1) === '⠂ Mercury', `${JSON.stringify(titlesOf(drawn.writes))} · AnimatedTitle should use TITLE_FRAMES[0] as the first frame in src/screens/chat/useChatTitle.tsx`)
+check('an animating title is written with the first frame', titlesOf(drawn.writes).at(-1) === '⠂ Mercury', `${JSON.stringify(titlesOf(drawn.writes))} · AnimatedTitle should use TITLE_FRAMES[0] as the first frame in src/screen/chat/useChatTitle.tsx`)
 await settle(1100)
-check('with nothing else on the clock the title does not step by itself', titlesOf(drawn.writes).at(-1) === '⠂ Mercury', `${JSON.stringify(titlesOf(drawn.writes))} · AnimatedTitle's useInterval should step only while the clock is kept running in src/screens/chat/useChatTitle.tsx`)
+check('with nothing else on the clock the title does not step by itself', titlesOf(drawn.writes).at(-1) === '⠂ Mercury', `${JSON.stringify(titlesOf(drawn.writes))} · AnimatedTitle's useInterval should step only while the clock is kept running in src/screen/chat/useChatTitle.tsx`)
 clockKept = true
 await drawn.set(() => props)
 await settle(1200)
-check('with the clock kept running it steps to the second frame', titlesOf(drawn.writes).includes('⠐ Mercury'), `${JSON.stringify(titlesOf(drawn.writes))} · AnimatedTitle's useInterval (TITLE_INTERVAL_MS) should advance the frame in src/screens/chat/useChatTitle.tsx`)
+check('with the clock kept running it steps to the second frame', titlesOf(drawn.writes).includes('⠐ Mercury'), `${JSON.stringify(titlesOf(drawn.writes))} · AnimatedTitle's useInterval (TITLE_INTERVAL_MS) should advance the frame in src/screen/chat/useChatTitle.tsx`)
 clockKept = false
 props = { ...props, animating: false, wantsPrefix: false, title: 'plain' }
 await drawn.set(() => props)
-check('a title that wants no prefix is written bare', titlesOf(drawn.writes).at(-1) === 'plain', `${JSON.stringify(titlesOf(drawn.writes))} · AnimatedTitle should pass the bare title when wantsPrefix is false in src/screens/chat/useChatTitle.tsx`)
+check('a title that wants no prefix is written bare', titlesOf(drawn.writes).at(-1) === 'plain', `${JSON.stringify(titlesOf(drawn.writes))} · AnimatedTitle should pass the bare title when wantsPrefix is false in src/screen/chat/useChatTitle.tsx`)
 const before = titlesOf(drawn.writes).length
 props = { ...props, enabled: false, title: 'never written' }
 await drawn.set(() => props)
-check('a disabled title writes nothing', titlesOf(drawn.writes).length === before, `${JSON.stringify(titlesOf(drawn.writes))} · AnimatedTitle should pass null to useTerminalTitle when enabled is false in src/screens/chat/useChatTitle.tsx`)
+check('a disabled title writes nothing', titlesOf(drawn.writes).length === before, `${JSON.stringify(titlesOf(drawn.writes))} · AnimatedTitle should pass null to useTerminalTitle when enabled is false in src/screen/chat/useChatTitle.tsx`)
 drawn.unmount()
 
 await releaseScratchHome(HOME)

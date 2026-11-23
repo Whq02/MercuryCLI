@@ -35,7 +35,7 @@ export async function buildScene(sourceRoot: string, outdir: string, entry = 'sc
           const found = probe(resolve(src, args.path.replace(/^(src\/|\.\.\/\.\.\/src\/)/, '')))
           return found ? { path: found } : undefined
         })
-        build.onResolve({ filter: /^color-diff-napi$/ }, () => ({ path: resolve(src, 'native-ts/color-diff/index.ts') }))
+        build.onResolve({ filter: /^color-diff-napi$/ }, () => ({ path: resolve(src, 'platform/native/color-diff/index.ts') }))
         build.onResolve({ filter: /^@anthropic-ai\/(?:sdk|sdk\/error|sandbox-runtime)$/ }, args => ({ path: DEPARTED_DEPENDENCIES[args.path]! }))
         build.onResolve({ filter: /\.node$/ }, args => ({ path: args.path, external: true }))
         build.onResolve({ filter: /^jsonc-parser$/ }, () => ({ path: resolve(ROOT, 'node_modules/jsonc-parser/lib/esm/main.js') }))

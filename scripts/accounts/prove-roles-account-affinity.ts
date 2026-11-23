@@ -24,13 +24,13 @@ await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
 const address = server.address()
 if (!address || typeof address === 'string') throw new Error('fixture has no port')
 process.env.MERCURY_ANTHROPIC_OAUTH_BASE = `http://127.0.0.1:${address.port}`
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { getGlobalConfig } = await import('../../src/utils/config.js')
-const { fetchAndStoreUserRoles, storeOAuthAccountInfo } = await import('../../src/services/oauth/client.js')
-const { getAuthScope, setAuthScope, clearAuthScope } = await import('../../src/utils/envUtils.js')
-const { createAnthropicLoginMachine } = await import('../../src/components/mercury-ui/screens/anthropicLoginModel.js')
-const { flushDebugLogs } = await import('../../src/utils/debug.js')
+const { getGlobalConfig } = await import('../../src/platform/settings/config.js')
+const { fetchAndStoreUserRoles, storeOAuthAccountInfo } = await import('../../src/models/sign-in/oauth/client.js')
+const { getAuthScope, setAuthScope, clearAuthScope } = await import('../../src/platform/environment/envUtils.js')
+const { createAnthropicLoginMachine } = await import('../../src/screen/widgets/faces/anthropicLoginModel.js')
+const { flushDebugLogs } = await import('../../src/platform/logs/debugLog.js')
 const A = { accountUuid: 'account-a', emailAddress: 'a@fixture.example', organizationUuid: 'org-a' }
 const B = { accountUuid: 'account-b', emailAddress: 'b@fixture.example', organizationUuid: 'org-b', organizationName: 'B', organizationRole: 'member', workspaceRole: 'member' }
 const roles = { organization_name: 'A', organization_role: 'admin', workspace_role: 'admin' }
@@ -57,7 +57,7 @@ try {
     console.log(`[record] ${kind} before reply: ${before}`)
     release()
     await pending
-    check(`${kind}: roles only enrich the originating account and scope`, kind === 'same' ? account()?.organizationName === 'A' : JSON.stringify(account()) === before, 'fetchAndStoreUserRoles in src/services/oauth/client.ts must write roles only when the stored account and auth scope are still the ones the request started with (its isCurrent check)')
+    check(`${kind}: roles only enrich the originating account and scope`, kind === 'same' ? account()?.organizationName === 'A' : JSON.stringify(account()) === before, 'fetchAndStoreUserRoles in src/models/sign-in/oauth/client.ts must write roles only when the stored account and auth scope are still the ones the request started with (its isCurrent check)')
   }
   clearAuthScope()
   for (const action of ['keep', 'reset', 'dispose', 'switch-before-start']) {
@@ -80,20 +80,20 @@ try {
     machine.start(true)
     await ready
     await settle()
-    check(`${action}: login completed without awaiting roles`, machine.snapshot().flow.name === 'success', 'the roles fetch in createAnthropicLoginMachine (src/components/mercury-ui/screens/anthropicLoginModel.ts) must run detached after the success state, not be awaited before it')
+    check(`${action}: login completed without awaiting roles`, machine.snapshot().flow.name === 'success', 'the roles fetch in createAnthropicLoginMachine (src/screen/widgets/faces/anthropicLoginModel.ts) must run detached after the success state, not be awaited before it')
     await Promise.race([request, pending ?? Promise.resolve()])
     if (action === 'reset') machine.reset()
     if (action === 'dispose') machine.dispose()
     const before = JSON.stringify(account())
     if (reply) release()
     await pending
-    check(`${action}: the detached tail obeys account and generation`, action === 'keep' ? account()?.organizationName === 'A' : JSON.stringify(account()) === before, 'the detached roles fetch started by createAnthropicLoginMachine (src/components/mercury-ui/screens/anthropicLoginModel.ts) must be dropped after reset, dispose or an account switch, and fetchAndStoreUserRoles (src/services/oauth/client.ts) must honor its origin.isCurrent and signal')
+    check(`${action}: the detached tail obeys account and generation`, action === 'keep' ? account()?.organizationName === 'A' : JSON.stringify(account()) === before, 'the detached roles fetch started by createAnthropicLoginMachine (src/screen/widgets/faces/anthropicLoginModel.ts) must be dropped after reset, dispose or an account switch, and fetchAndStoreUserRoles (src/models/sign-in/oauth/client.ts) must honor its origin.isCurrent and signal')
     machine.dispose()
   }
   await flushDebugLogs()
   const debug = existsSync(join(home, 'debug.txt')) ? readFileSync(join(home, 'debug.txt'), 'utf8') : ''
-  check('stale replies are recorded only in the debug channel', debug.includes('OAuth roles response ignored'), 'fetchAndStoreUserRoles in src/services/oauth/client.ts must log "OAuth roles response ignored" through logForDebugging when it drops a stale reply')
-  check('the scope bracket is restored', getAuthScope() === undefined, 'a test step left an auth scope set; check setAuthScope/clearAuthScope use in src/utils/envUtils.ts and in fetchAndStoreUserRoles')
+  check('stale replies are recorded only in the debug channel', debug.includes('OAuth roles response ignored'), 'fetchAndStoreUserRoles in src/models/sign-in/oauth/client.ts must log "OAuth roles response ignored" through logForDebugging when it drops a stale reply')
+  check('the scope bracket is restored', getAuthScope() === undefined, 'a test step left an auth scope set; check setAuthScope/clearAuthScope use in src/platform/environment/envUtils.ts and in fetchAndStoreUserRoles')
 } finally {
   reply?.end('{}')
   await new Promise<void>(resolve => server.close(() => resolve()))

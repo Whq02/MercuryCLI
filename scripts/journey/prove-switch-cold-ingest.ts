@@ -177,11 +177,11 @@ section('L2 — THE WAIT IS SPOKEN while the Opus headers are held')
 {
   const seen = markGrids.get('wait-seen') ?? ''
   const line = seen.split('\n').find(l => l.includes('ingesting a')) ?? ''
-  check("the status row read the cold wait on its await, not its deadline", (receipts[5]?.atTick ?? 999) < 330, `tick ${receipts[5]?.atTick} — the status row never showed ingesting a; look at the wait line text in src/services/providers/streamIdleBudget.ts and whether the fixture held the Opus headers`)
-  check("the words: 'ingesting a Nk-token prompt on Opus 5 — gives up after N s' (minutes at or above sixty: 'gives up after 1m 15s')", /ingesting a \d+k-token prompt on Opus 5 — gives up after (?:\d+ s|\d+m(?: \d+s)?)\b/.test(line), line || seen.split('\n').slice(-8).join('\n') + ' — the cold-wait line must read like the text built in src/services/providers/streamIdleBudget.ts (cold branch with kTokens and seconds); change that text or this pattern together')
+  check("the status row read the cold wait on its await, not its deadline", (receipts[5]?.atTick ?? 999) < 330, `tick ${receipts[5]?.atTick} — the status row never showed ingesting a; look at the wait line text in src/models/roads/streamIdleBudget.ts and whether the fixture held the Opus headers`)
+  check("the words: 'ingesting a Nk-token prompt on Opus 5 — gives up after N s' (minutes at or above sixty: 'gives up after 1m 15s')", /ingesting a \d+k-token prompt on Opus 5 — gives up after (?:\d+ s|\d+m(?: \d+s)?)\b/.test(line), line || seen.split('\n').slice(-8).join('\n') + ' — the cold-wait line must read like the text built in src/models/roads/streamIdleBudget.ts (cold branch with kTokens and seconds); change that text or this pattern together')
   const named = /gives up after (?:(\d+)m(?: (\d+)s)?|(\d+) s)/.exec(line)
   const budget = named === null ? 0 : named[3] !== undefined ? Number(named[3]) * 1000 : (Number(named[1]) * 60 + Number(named[2] ?? 0)) * 1000
-  check(`the named budget outlasts the 5 s hold and the 3 s idle budget (named ${budget} ms)`, budget > HOLD_MS && budget > IDLE_MS, `${line} — the first byte budget named in the wait line must exceed the hold and the idle budget; see the cold-ingest budget in src/services/providers/streamIdleBudget.ts`)
+  check(`the named budget outlasts the 5 s hold and the 3 s idle budget (named ${budget} ms)`, budget > HOLD_MS && budget > IDLE_MS, `${line} — the first byte budget named in the wait line must exceed the hold and the idle budget; see the cold-ingest budget in src/models/roads/streamIdleBudget.ts`)
 }
 
 section('L3 — THE TURN COMPLETES: the hold was waited out, nothing aborted')
@@ -189,7 +189,7 @@ section('L3 — THE TURN COMPLETES: the hold was waited out, nothing aborted')
   const held = wire.find(c => c.kind === 'anthropic-held')
   const sent = wire.find(c => c.kind === 'anthropic-headers-sent')
   check('the fixture held the Opus headers for the whole hold', held !== undefined && sent !== undefined && (sent.heldMs ?? 0) >= HOLD_MS - 50, JSON.stringify({ held, sent }) + ' — the Opus request never reached the held path in scripts/journey/switch-fixture-server.ts; check the ask was sent and the Opus leg used ANTHROPIC_BASE_URL')
-  check('the held request was never dropped (the idle budget did not fire on the cold ingest)', !wire.some(c => c.kind === 'anthropic-dropped-while-held'), JSON.stringify(wire.filter(c => c.kind.startsWith('anthropic-'))) + ' — the client dropped the held request: the stream idle budget (MERCURY_STREAM_IDLE_TIMEOUT_MS) must widen for a cold ingest; see src/services/providers/streamIdleBudget.ts')
+  check('the held request was never dropped (the idle budget did not fire on the cold ingest)', !wire.some(c => c.kind === 'anthropic-dropped-while-held'), JSON.stringify(wire.filter(c => c.kind.startsWith('anthropic-'))) + ' — the client dropped the held request: the stream idle budget (MERCURY_STREAM_IDLE_TIMEOUT_MS) must widen for a cold ingest; see src/models/roads/streamIdleBudget.ts')
   check('the Opus reply painted', gridText.includes(OPUS_REPLY), gridText.split('\n').slice(-12).join('\n') + ' — the Opus reply (OPUS_REPLY) did not paint; the turn did not complete after the hold, see the grid tail above and the forensics debug log tail')
   check("no typed timeout row ('no first byte') and no 'stuck' verdict painted", !/no first byte from/.test(gridText) && !/may be stuck/.test(gridText))
 }

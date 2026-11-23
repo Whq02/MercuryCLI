@@ -3,21 +3,21 @@ import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 
-let m: typeof import('../../src/input-core/composer-document.ts') | null = null
+let m: typeof import('../../src/screen/composer/input-core/composer-document.ts') | null = null
 try {
-  m = await import('../../src/input-core/composer-document.ts')
+  m = await import('../../src/screen/composer/input-core/composer-document.ts')
 } catch {
   m = null
 }
 if (!m) {
-  t.check('src/input-core/composer-document.ts loads', false, 'module absent')
+  t.check('src/screen/composer/input-core/composer-document.ts loads', false, 'module absent')
   t.section('§5 — restart restore: the scoped-docs store round-trip')
 {
   const { mkdtempSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { join } = await import('node:path')
   process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'rv-scoped-'))
-  const { saveScopedDoc, readScopedDocsSync, flushScopedDocSaves } = await import('../../src/utils/promptDraft.ts')
+  const { saveScopedDoc, readScopedDocsSync, flushScopedDocSaves } = await import('../../src/screen/composer/input-core/promptDraft.ts')
   let doc = C.createComposerDocument('dispatch')
   doc = { ...doc, body: 'run the tail checks' }
   doc = C.addShelfItem(doc, { kind: 'artifact', ref: 'mercury://artifact/ra-7', label: 'plan' })
@@ -42,7 +42,7 @@ if (!m) {
 t.finish('prove-composer-document')
 }
 const C = m!
-const { hashPastedText } = await import('../../src/utils/pasteStore.ts')
+const { hashPastedText } = await import('../../src/sessions/pasteStore.ts')
 
 t.section('§1 — single body by id')
 {
@@ -153,7 +153,7 @@ t.section('§5 — restart restore: the scoped-docs store round-trip')
   const { tmpdir } = await import('node:os')
   const { join } = await import('node:path')
   process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'rv-scoped-'))
-  const { saveScopedDoc, readScopedDocsSync, flushScopedDocSaves } = await import('../../src/utils/promptDraft.ts')
+  const { saveScopedDoc, readScopedDocsSync, flushScopedDocSaves } = await import('../../src/screen/composer/input-core/promptDraft.ts')
   let doc = C.createComposerDocument('dispatch')
   doc = { ...doc, body: 'run the tail checks' }
   doc = C.addShelfItem(doc, { kind: 'artifact', ref: 'mercury://artifact/ra-7', label: 'plan' })

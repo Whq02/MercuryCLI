@@ -7,22 +7,22 @@ import { fileURLToPath } from 'node:url'
 const suiteHome = process.env.MERCURY_CONFIG_DIR
 assert(suiteHome, 'run with a scratch MERCURY_CONFIG_DIR')
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(suiteHome, 'mention-row-'))
-const { open } = await import('../../src/services/crewBoard/store.ts')
-const { crewBoardNotice, isMutedNoticeBlock, noticeOfText, noticePlate } = await import('../../src/utils/messages/noticeRows.ts')
+const { open } = await import('../../src/crew/board/store.ts')
+const { crewBoardNotice, isMutedNoticeBlock, noticeOfText, noticePlate } = await import('../../src/engine/message-shapes/noticeRows.ts')
 const { gridToPng } = await import('../ui/gridToPng.ts')
 const { resolveCaptureDriver, vshotBudgetMs } = await import('../lib/captureDriver.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 const text = '@main Please check the proposed law: ' + 'the parser keeps every word. '.repeat(8)
 const block = noticeOfText(crewBoardNotice('Poster', 'result', text), false)![0]!
 assert.equal(block.kind, 'crew-board')
-assert(isMutedNoticeBlock(block), `src/utils/messages/noticeRows.ts isMutedNoticeBlock must classify crew-board notice as muted, got kind=${block.kind}`)
+assert(isMutedNoticeBlock(block), `src/engine/message-shapes/noticeRows.ts isMutedNoticeBlock must classify crew-board notice as muted, got kind=${block.kind}`)
 assert.equal(noticePlate(block), `[Crewboard] Poster · result · ${text.trimEnd()}`)
 assert.equal(noticeOfText('<crew-board>not JSON</crew-board>', false), null)
 const arg = (name: string) => { const i = process.argv.indexOf(name); return i < 0 ? undefined : process.argv[i + 1] }
 const captures = arg('--captures') ?? join(process.env.MERCURY_CONFIG_DIR, 'captures')
 mkdirSync(captures, { recursive: true })
 const { CONFIG_HOME, RUNTIME_CWD, SID, scenario, cleanupScenario } = await import('../ui/renderScenarios.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
 const path = join(getProjectDir(RUNTIME_CWD), SID, 'boards', 'wave', 'board.sqlite')
 writeFileSync(join(CONFIG_HOME, 'settings.json'), JSON.stringify({ swarm: { enabled: true } }))
 const driver = resolveCaptureDriver()
@@ -49,7 +49,7 @@ try {
       try {
         board.enroll(sender)
         const postedRow = board.post(sender, { clientOpId: 'row', kind: 'result', text })
-        assert(postedRow.ok, `src/services/crewBoard/store.ts board.post(row) failed: ${JSON.stringify(postedRow).slice(0, 140)}`)
+        assert(postedRow.ok, `src/crew/board/store.ts board.post(row) failed: ${JSON.stringify(postedRow).slice(0, 140)}`)
       } finally { board.close() }
     }, 100)
     let stderr = ''

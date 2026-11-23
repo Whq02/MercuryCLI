@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/substrate/launchMilestones.ts src/context/surfaceRoute.ts
+// gate-watch: src/platform/substrate/launchMilestones.ts src/screen/routes/surfaceRoute.ts
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -16,8 +16,8 @@ const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
   if (!cond) failures++
 }
 
-const milestones = await import('../../src/substrate/launchMilestones.js')
-const surfaceRoute = await import('../../src/context/surfaceRoute.js')
+const milestones = await import('../../src/platform/substrate/launchMilestones.js')
+const surfaceRoute = await import('../../src/screen/routes/surfaceRoute.js')
 
 const scenarios: Array<{ name: string; env: NodeJS.ProcessEnv; expectReason: string }> = [
   { name: 'the plain world (concourse off, no menu)', env: {}, expectReason: 'concourse-off' },
@@ -39,12 +39,12 @@ for (const scenario of scenarios) {
     `route-ready is on the spine the moment the resolver settles (${scenario.expectReason})`,
     mine.join('→') === 'runtime-entry→route-ready→first-frame→input-live',
     `${resolution.reason}: ${mine.join('→')}`,
-    'every return path of resolveInitialSurface in src/context/surfaceRoute.ts must call stampRouteReady() before the first-frame milestone is recorded (recordLaunchMilestone in src/substrate/launchMilestones.ts)',
+    'every return path of resolveInitialSurface in src/screen/routes/surfaceRoute.ts must call stampRouteReady() before the first-frame milestone is recorded (recordLaunchMilestone in src/platform/substrate/launchMilestones.ts)',
   )
-  check(`the resolution is the expected arm (${scenario.expectReason})`, resolution.reason === scenario.expectReason, resolution.reason, 'resolveInitialSurface in src/context/surfaceRoute.ts returned another reason for this env; check the branch that handles MERCURY_CONCOURSE here')
+  check(`the resolution is the expected arm (${scenario.expectReason})`, resolution.reason === scenario.expectReason, resolution.reason, 'resolveInitialSurface in src/screen/routes/surfaceRoute.ts returned another reason for this env; check the branch that handles MERCURY_CONCOURSE here')
   await new Promise(resolvePromise => setTimeout(resolvePromise, 25))
   const settled = milestones.readLaunchMilestones().slice(baseline).map(r => r.milestone)
-  check('after the microtask queue drains the spine is unchanged (no late append)', settled.join('→') === 'runtime-entry→route-ready→first-frame→input-live', settled.join('→'), 'something in src/context/surfaceRoute.ts records route-ready after the resolver settled; stamp it inside resolveInitialSurface only, never in a deferred callback')
+  check('after the microtask queue drains the spine is unchanged (no late append)', settled.join('→') === 'runtime-entry→route-ready→first-frame→input-live', settled.join('→'), 'something in src/screen/routes/surfaceRoute.ts records route-ready after the resolver settled; stamp it inside resolveInitialSurface only, never in a deferred callback')
 }
 
 {
@@ -52,7 +52,7 @@ for (const scenario of scenarios) {
   const before = milestones.readLaunchMilestones().length
   await new Promise(resolvePromise => setTimeout(resolvePromise, 10))
   const after = milestones.readLaunchMilestones().length
-  check('importing the route owner alone records no milestone', before === after, `${before}→${after}`, 'src/context/surfaceRoute.ts or src/substrate/launchMilestones.ts records a milestone at import time or on a timer; move it into the call that resolves the surface')
+  check('importing the route owner alone records no milestone', before === after, `${before}→${after}`, 'src/screen/routes/surfaceRoute.ts or src/platform/substrate/launchMilestones.ts records a milestone at import time or on a timer; move it into the call that resolves the surface')
 }
 
 const COLD_CHILD = `
@@ -86,8 +86,8 @@ for (const scenario of coldScenarios) {
   const home = join(HOME, `cold-${coldScenarios.indexOf(scenario)}`)
   mkdirSync(home, { recursive: true })
   const plan = {
-    surfaceRoute: join(REPO, 'src', 'context', 'surfaceRoute.ts'),
-    launchMilestones: join(REPO, 'src', 'substrate', 'launchMilestones.ts'),
+    surfaceRoute: join(REPO, 'src', 'screen', 'routes', 'surfaceRoute.ts'),
+    launchMilestones: join(REPO, 'src', 'platform', 'substrate', 'launchMilestones.ts'),
     env: scenario.env,
     registerBootFace: scenario.registerBootFace,
   }
@@ -99,7 +99,7 @@ for (const scenario of coldScenarios) {
   try {
     answer = JSON.parse(out.slice(out.lastIndexOf('{'))) as typeof answer
   } catch {
-    check('the cold boot answered', false, `${out.slice(-200)} ${child.stderr.toString().slice(-300)}`, 'the child process (COLD_CHILD above) did not print its JSON answer; read the stderr tail for the import or runtime error in src/context/surfaceRoute.ts or src/substrate/launchMilestones.ts')
+    check('the cold boot answered', false, `${out.slice(-200)} ${child.stderr.toString().slice(-300)}`, 'the child process (COLD_CHILD above) did not print its JSON answer; read the stderr tail for the import or runtime error in src/screen/routes/surfaceRoute.ts or src/platform/substrate/launchMilestones.ts')
     continue
   }
   const file = join(home, 'launch-milestones.json')
@@ -109,15 +109,15 @@ for (const scenario of coldScenarios) {
   } catch {
     rows = []
   }
-  check(`the resolution is the expected arm (${scenario.expectReason})`, answer.reason === scenario.expectReason, String(answer.reason), 'resolveInitialSurface in src/context/surfaceRoute.ts returned another reason on a cold start for this env and Boot face registration')
+  check(`the resolution is the expected arm (${scenario.expectReason})`, answer.reason === scenario.expectReason, String(answer.reason), 'resolveInitialSurface in src/screen/routes/surfaceRoute.ts returned another reason on a cold start for this env and Boot face registration')
   check(
     'with the milestone store cold, route-ready is on the spine before the first frame and input-live',
     answer.atOnce === 'route-ready→first-frame→input-live',
     String(answer.atOnce),
-    'on a cold store resolveInitialSurface in src/context/surfaceRoute.ts must stamp route-ready through stampRouteReady() (which loads src/substrate/launchMilestones.ts) before the caller records first-frame',
+    'on a cold store resolveInitialSurface in src/screen/routes/surfaceRoute.ts must stamp route-ready through stampRouteReady() (which loads src/platform/substrate/launchMilestones.ts) before the caller records first-frame',
   )
-  check('nothing is appended to the spine after the boot settles (no late route-ready)', answer.settled === answer.atOnce, `${String(answer.atOnce)} then ${String(answer.settled)}`, 'a milestone landed after the boot settled; look for a deferred stampRouteReady() call in src/context/surfaceRoute.ts')
-  check('the store on disk reads the same spine', rows.map(r => r.milestone).join('→') === answer.settled, rows.map(r => r.milestone).join('→'), 'recordLaunchMilestone in src/substrate/launchMilestones.ts must persist each milestone to launch-milestones.json in the config home as it is recorded')
+  check('nothing is appended to the spine after the boot settles (no late route-ready)', answer.settled === answer.atOnce, `${String(answer.atOnce)} then ${String(answer.settled)}`, 'a milestone landed after the boot settled; look for a deferred stampRouteReady() call in src/screen/routes/surfaceRoute.ts')
+  check('the store on disk reads the same spine', rows.map(r => r.milestone).join('→') === answer.settled, rows.map(r => r.milestone).join('→'), 'recordLaunchMilestone in src/platform/substrate/launchMilestones.ts must persist each milestone to launch-milestones.json in the config home as it is recorded')
 }
 
 rmSync(HOME, { recursive: true, force: true })

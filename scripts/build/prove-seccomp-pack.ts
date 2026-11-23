@@ -20,7 +20,7 @@ if (!existsSync(join(DIST, 'mercury.mjs')) || !existsSync(join(DIST, 'manifest.j
   process.exit(1)
 }
 
-const { readBuildTargetRecord } = await import('../../src/services/privateChannel/releaseTarget.ts')
+const { readBuildTargetRecord } = await import('../../src/platform/update-channel/releaseTarget.ts')
 const manifest = JSON.parse(readFileSync(join(DIST, 'manifest.json'), 'utf8')) as Record<string, unknown> & { degraded?: string[] }
 const target = readBuildTargetRecord(manifest)
 const degraded = manifest.degraded ?? []

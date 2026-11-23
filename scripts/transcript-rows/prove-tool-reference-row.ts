@@ -4,14 +4,14 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail}. ` : ''}fix toolResultText or toolResultRowsOf in src/rows/project.ts, or mapToolResultToToolResultBlockParam in src/tools/ToolSearchTool/ToolSearchTool.ts`}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail}. ` : ''}fix toolResultText or toolResultRowsOf in src/engine/rows/project.ts, or mapToolResultToToolResultBlockParam in src/tools/tool-search/ToolSearchTool.ts`}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const project = await import('../../src/rows/project.ts')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
+const project = await import('../../src/engine/rows/project.ts')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.ts')
 
 section('§1 toolResultText renders a tool_reference block by name')
 {

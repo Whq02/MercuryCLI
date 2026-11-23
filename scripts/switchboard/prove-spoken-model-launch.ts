@@ -8,12 +8,12 @@ delete process.env.MERCURY_HOME
 process.env.NODE_ENV = 'test'
 process.env.ANTHROPIC_API_KEY = 'sk-ant-spoken-model-pin'
 
-const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.ts')
+const { validateWorkerModelChoice } = await import('../../src/screen/concourse-model/workerModels.ts')
 
 let failures = 0
 const check = (n: string, c: boolean, detail = ''): void => {
   if (!c) failures++
-  const hint = c ? '' : 'change validateWorkerModelChoice in src/services/concourse/workerModels.ts'
+  const hint = c ? '' : 'change validateWorkerModelChoice in src/screen/concourse-model/workerModels.ts'
   console.log(`  [${c ? 'PASS' : 'FAIL'}] ${n}${detail || hint ? ` — ${[detail, hint].filter(Boolean).join(' | to fix: ')}` : ''}`)
 }
 

@@ -18,19 +18,19 @@ process.env.MERCURY_PROJECT_INTEL = '0'
 delete process.env.MERCURY_BARE
 delete process.env.NODE_ENV
 try {
-  const bootstrap = await import('../../src/bootstrap/state.js')
+  const bootstrap = await import('../../src/boot/process-state/processState.js')
   bootstrap.setOriginalCwd(cwd)
   bootstrap.setProjectRoot(cwd)
   bootstrap.setCwdState(cwd)
   bootstrap.setSessionTrustAccepted(true)
-  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
   enableConfigs()
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-  const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.js')
-  const { getEngineModel } = await import('../../src/services/model/model.js')
-  const { SKILL_TOOL_NAME } = await import('../../src/constants/tools/skill.js')
-  const { getAttachments } = await import('../../src/services/attachments/orchestrator.js')
-  const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.js')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+  const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.js')
+  const { getEngineModel } = await import('../../src/models/catalogue/engineModel.js')
+  const { SKILL_TOOL_NAME } = await import('../../src/tools/kit/names/skill.js')
+  const { getAttachments } = await import('../../src/engine/attachments/turnAttachments.js')
+  const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.js')
   let state = getDefaultAppState()
   const context = {
     abortController: new AbortController(),
@@ -52,9 +52,9 @@ try {
     assert.equal(normalizeAttachmentForAPI(receipt).length, 0)
   }
   const content = normalizeAttachmentForAPI(capsule[0]!).map(message => JSON.stringify(message.message.content)).join('\n')
-  assert(content.includes('a file fact for the collection proof'), `context_capsule omitted attached file text in src/services/attachments/orchestrator.ts: ${content.slice(0, 200)}`)
-  assert(content.includes('capsule-reviewer'), `context_capsule omitted agent mention capsule-reviewer in src/services/attachments/orchestrator.ts: ${content.slice(0, 200)}`)
-  assert(content.includes('capsule-turn-proof'), `context_capsule omitted skill listing capsule-turn-proof in src/services/attachments/orchestrator.ts: ${content.slice(0, 200)}`)
+  assert(content.includes('a file fact for the collection proof'), `context_capsule omitted attached file text in src/engine/attachments/turnAttachments.ts: ${content.slice(0, 200)}`)
+  assert(content.includes('capsule-reviewer'), `context_capsule omitted agent mention capsule-reviewer in src/engine/attachments/turnAttachments.ts: ${content.slice(0, 200)}`)
+  assert(content.includes('capsule-turn-proof'), `context_capsule omitted skill listing capsule-turn-proof in src/engine/attachments/turnAttachments.ts: ${content.slice(0, 200)}`)
   console.log('PASS live collector: current input, file read, agent mention and real skill listing enter one capsule with silent receipts')
 } finally {
   process.chdir(priorCwd)

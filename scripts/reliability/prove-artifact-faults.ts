@@ -71,16 +71,16 @@ function checksOf(cert: unknown, sectionId: string): Check[] {
 console.log('— A. health --json --deep on the artifact —')
 {
   const { status, cert } = runHealth(true)
-  ok(status === 0 && cert !== null, `deep health emitted a certificate with a credential present (exit ${status})`, 'run node dist/mercury.mjs health --json --deep with ANTHROPIC_API_KEY set and a scratch MERCURY_CONFIG_DIR; it must exit 0 and print the JSON certificate on stdout, so fix the first error it prints (the sections live in src/services/health/sections/)')
+  ok(status === 0 && cert !== null, `deep health emitted a certificate with a credential present (exit ${status})`, 'run node dist/mercury.mjs health --json --deep with ANTHROPIC_API_KEY set and a scratch MERCURY_CONFIG_DIR; it must exit 0 and print the JSON certificate on stdout, so fix the first error it prints (the sections live in src/platform/health/sections/)')
   const durability = checksOf(cert, 'durability')
   const txn = durability.find(c => c.id === 'durable-transaction')
-  ok(txn?.status === 'ok', `durable-transaction probe ok in the bundle (${txn?.evidence?.slice(0, 80) ?? 'MISSING'})`, 'the durable-transaction check in src/services/health/sections/durability.ts must report ok from the built bundle; if it is MISSING the section did not run, so rebuild dist with bun run build.ts')
+  ok(txn?.status === 'ok', `durable-transaction probe ok in the bundle (${txn?.evidence?.slice(0, 80) ?? 'MISSING'})`, 'the durable-transaction check in src/platform/health/sections/durability.ts must report ok from the built bundle; if it is MISSING the section did not run, so rebuild dist with bun run build.ts')
   for (const id of ['durable-journals', 'store-quarantines', 'orphan-temps'] as const) {
     const c = durability.find(x => x.id === id)
-    ok(c?.status === 'ok', `${id} ok on a pristine home (${c?.status ?? 'MISSING'})`, 'the check with this id in src/services/health/sections/durability.ts must report ok on an empty config home; if it is MISSING the section did not run, so rebuild dist with bun run build.ts')
+    ok(c?.status === 'ok', `${id} ok on a pristine home (${c?.status ?? 'MISSING'})`, 'the check with this id in src/platform/health/sections/durability.ts must report ok on an empty config home; if it is MISSING the section did not run, so rebuild dist with bun run build.ts')
   }
   const kernel = checksOf(cert, 'run-kernel').find(c => c.id === 'run-kernel-roundtrip')
-  ok(kernel?.status === 'ok', `run-kernel deep probe still ok beside the durability section (${kernel?.status})`, 'the run-kernel-roundtrip check in src/services/health/sections/run-kernel.ts must report ok in the deep health run')
+  ok(kernel?.status === 'ok', `run-kernel deep probe still ok beside the durability section (${kernel?.status})`, 'the run-kernel-roundtrip check in src/platform/health/sections/run-kernel.ts must report ok in the deep health run')
 }
 
 rmSync(tmp, { recursive: true, force: true })

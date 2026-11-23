@@ -28,13 +28,13 @@ const guard = setTimeout(() => {
 }, 120_000)
 guard.unref?.()
 
-const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
-const { getBundledSkills } = await import('../../src/skills/bundledSkills.ts')
-const { builtinCommands, isCommandEnabled } = await import('../../src/commands.ts')
+const { initBundledSkills } = await import('../../src/integrations/skills/bundled/index.ts')
+const { getBundledSkills } = await import('../../src/integrations/skills/bundledSkills.ts')
+const { builtinCommands, isCommandEnabled } = await import('../../src/commands/catalogue/commands.ts')
 const { SAMPLES_OFF_SENTENCE } = await import('../../src/commands/samples/index.ts')
-const { processSlashCommand, resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-type Command = import('../../src/types/command.ts').Command
+const { processSlashCommand, resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } = await import('../../src/engine/user-input/processSlashCommand.tsx')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+type Command = import('../../src/commands/catalogue/command.ts').Command
 
 initBundledSkills()
 const roster: Command[] = [...getBundledSkills(), ...builtinCommands()].filter(command => isCommandEnabled(command))

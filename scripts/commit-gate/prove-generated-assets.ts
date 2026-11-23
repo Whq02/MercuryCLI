@@ -36,11 +36,11 @@ const {
   parseGeneratedAssetsMap,
   repoPathsIn,
   unregisteredGeneratedFiles,
-} = await import('../../src/guards/generatedAssets.ts')
+} = await import('../../src/permissions/guards/generatedAssets.ts')
 const { formatGeneratedAssetRow, registerGeneratedAsset, upsertGeneratedAssetRow } = await import('../lib/generated-assets-map.mjs')
-const { generatedAssetsRefusal, chainedSegmentsBeforeCommit, commitRepositoryRoot, commitPathsOf } = await import('../../src/guards/commitGate.ts')
+const { generatedAssetsRefusal, chainedSegmentsBeforeCommit, commitRepositoryRoot, commitPathsOf } = await import('../../src/permissions/guards/commitGate.ts')
 
-section('§1 the tracked map is real', 'fix the row the check names in the map file GENERATED_ASSETS_MAP points to (src/guards/generatedAssets.ts), or parseGeneratedAssetsMap and repoPathsIn there when the reader is wrong')
+section('§1 the tracked map is real', 'fix the row the check names in the map file GENERATED_ASSETS_MAP points to (src/permissions/guards/generatedAssets.ts), or parseGeneratedAssetsMap and repoPathsIn there when the reader is wrong')
 const mapText = readFileSync(join(ROOT, GENERATED_ASSETS_MAP), 'utf8')
 const map = parseGeneratedAssetsMap(mapText)
 check('the map parses with no errors', map.errors.length === 0, map.errors.join('; '))
@@ -79,13 +79,13 @@ check('every asset is a tracked file (or a glob over tracked files)', untrackedA
 check('every generator and check names a script that exists', deadScripts.length === 0, deadScripts.join(', '))
 check('every files-of source exists', deadSources.length === 0, deadSources.join(', '))
 const settingsRow = map.rows.find(r => r.assets.includes('scripts/settings/settings-schema.json'))
-check('settings types map to the schema snapshot with its generator and check', settingsRow !== undefined && settingsRow.sources.includes('src/utils/settings/**') && settingsRow.generator.includes('gen-settings-schema') && (settingsRow.check ?? '').includes('prove-settings-schema'))
+check('settings types map to the schema snapshot with its generator and check', settingsRow !== undefined && settingsRow.sources.includes('src/platform/settings/**') && settingsRow.generator.includes('gen-settings-schema') && (settingsRow.check ?? '').includes('prove-settings-schema'))
 check('repoPathsIn reads the paths a census names', repoPathsIn('{"sites":[{"file":"src/a/b.ts","line":3},{"file":"scripts/x/y.sh"}]}').join(',') === 'src/a/b.ts,scripts/x/y.sh')
-check('repoPathsIn reads the keys of the contract inventory', repoPathsIn(readFileSync(join(ROOT, 'scripts/ownership/contract-inventory.json'), 'utf8')).includes('src/utils/settings/types.ts'))
+check('repoPathsIn reads the keys of the contract inventory', repoPathsIn(readFileSync(join(ROOT, 'scripts/ownership/contract-inventory.json'), 'utf8')).includes('src/platform/settings/settingsSchema.ts'))
 const badMap = parseGeneratedAssetsMap('# c\na.json\tgen a\n')
 check('a row with fewer than four columns is a parse error', badMap.errors.length === 1 && badMap.rows.length === 0)
 
-section('§2 the pure verdict', 'change generatedAssetsOwed, checkChained or describeOwedAssets in src/guards/generatedAssets.ts')
+section('§2 the pure verdict', 'change generatedAssetsOwed, checkChained or describeOwedAssets in src/permissions/guards/generatedAssets.ts')
 const rows = parseGeneratedAssetsMap(
   [
     'gen/schema.json\tbun gen.ts\tbun scripts/check-schema.ts\tsrc/settings/**',
@@ -98,7 +98,7 @@ const files: Record<string, string> = {
   'gen/census.json': '{"sites":[{"file":"src/lib/spawn.ts"}]}',
   'src/settings/types.ts': 'export type A = 1',
   'src/lib/spawn.ts': 'spawn()',
-  'src/other/x.ts': "import { a } from '../ink/frame.js'",
+  'src/other/x.ts': "import { a } from '../screen/renderer/frame.js'",
   'src/plain.ts': 'nothing',
   'src/two/t.ts': 'two',
 }
@@ -124,17 +124,17 @@ for (const text of ['printf scripts/x/prove-y.ts --strict', 'echo bun scripts/x/
   check('printed, commented and prefix-only checker text cannot discharge an obligation', !checkChained('bun scripts/x/prove-y.ts --strict', [text]))
 }
 check('the actual invocation accepts an equivalent bun run spelling', checkChained('bun scripts/check-schema.ts', ['bun run "scripts/check-schema.ts"']))
-check('a removed content match still owes its generated output', generatedAssetsOwed({ rows, commitPaths: ['src/plain.ts'], contentOf: () => '', previousContentOf: () => "import { x } from '../ink/frame.js'", readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes('gen/imports.json')))
+check('a removed content match still owes its generated output', generatedAssetsOwed({ rows, commitPaths: ['src/plain.ts'], contentOf: () => '', previousContentOf: () => "import { x } from '../screen/renderer/frame.js'", readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes('gen/imports.json')))
 for (const [path, asset] of [
-  ['src/utils/settings/newKey.ts', 'scripts/settings/settings-schema.json'],
-  ['src/components/Message.tsx', 'scripts/ink-runtime/deep-import-inventory.json'],
+  ['src/platform/settings/newKey.ts', 'scripts/settings/settings-schema.json'],
+  ['src/screen/messages/Message.tsx', 'scripts/ink-runtime/deep-import-inventory.json'],
   ['scripts/settings/gen-settings-schema.ts', 'scripts/settings/settings-schema.json'],
 ]) check('the real map covers new inputs, deleted imports and generator changes', generatedAssetsOwed({ rows: map.rows, commitPaths: [path!], contentOf: () => '', readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes(asset!)))
 const rampOwed = (text: string): boolean => generatedAssetsOwed({ rows: map.rows, commitPaths: ['src/anywhere/rows.ts'], contentOf: () => text, readFile: () => null, chainedVerifies: [] }).some(owed => owed.row.generator === 'bun scripts/splash/bake-ramp.mjs')
 check("a changed file that holds the truecolor flag's row owes the splash core, wherever the registry keeps it", rampOwed("{ env: 'MERCURY_TRUECOLOR', kind: 'switch' }") && !rampOwed("{ env: 'MERCURY_OTHER', kind: 'switch' }"))
-check('one completion output cannot stand for all three', generatedAssetsOwed({ rows: map.rows, commitPaths: ['src/main.tsx', 'assets/completions/mercury.bash'], contentOf: () => '', readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes('assets/completions/_mercury')))
+check('one completion output cannot stand for all three', generatedAssetsOwed({ rows: map.rows, commitPaths: ['src/boot/main.tsx', 'assets/completions/mercury.bash'], contentOf: () => '', readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes('assets/completions/_mercury')))
 
-section('§3 a real repository, through the gate reader', 'change generatedAssetsRefusal or commitPathsOf in src/guards/commitGate.ts, or generatedAssetsOwed in src/guards/generatedAssets.ts')
+section('§3 a real repository, through the gate reader', 'change generatedAssetsRefusal or commitPathsOf in src/permissions/guards/commitGate.ts, or generatedAssetsOwed in src/permissions/guards/generatedAssets.ts')
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'generated-assets-')))
 const repo = join(scratch, 'repo with spaces')
 mkdirSync(join(repo, 'scripts', 'gate'), { recursive: true })
@@ -222,7 +222,7 @@ const renamedPaths = commitPathsOf(repo, 'git commit -F m')
 check('a renamed source retains both candidate endpoints', renamedPaths.includes('src/settings/types.ts') && renamedPaths.includes('docs/renamed.txt'), renamedPaths.join(', '))
 check('renaming out of a watched directory still owes its output', (generatedAssetsRefusal('git commit -F m', repo) ?? '').includes('gen/schema.json'))
 const assetCommand = join(repo, 'scripts/gate/generated-assets.ts')
-writeFileSync(assetCommand, readFileSync(join(ROOT, 'scripts/gate/generated-assets.ts'), 'utf8').replace("'../../src/guards/generatedAssets.ts'", JSON.stringify(join(ROOT, 'src/guards/generatedAssets.ts'))))
+writeFileSync(assetCommand, readFileSync(join(ROOT, 'scripts/gate/generated-assets.ts'), 'utf8').replace("'../../src/permissions/guards/generatedAssets.ts'", JSON.stringify(join(ROOT, 'src/permissions/guards/generatedAssets.ts'))))
 const assetListing = execFileSync(process.execPath, [assetCommand, '--staged'], { cwd: repo, env: process.env, encoding: 'utf8' })
 check('the generated-asset command also sees the removed rename input', assetListing.includes('gen/schema.json') && assetListing.includes('src/settings/types.ts'), assetListing)
 g('mv', 'docs/renamed.txt', 'src/settings/types.ts')
@@ -246,7 +246,7 @@ writeFileSync(mapFile, committedMap)
 writeFileSync(join(repo, 'scripts/gate/generated-assets.tsv'), 'broken row\n')
 check('a map that does not parse refuses, naming the map', (generatedAssetsRefusal('git commit -F m', repo) ?? '').includes('does not parse'))
 
-section('§4 a check the gate could not finish does not refuse the commit: git gives no answer, a file cannot be read', 'change generatedAssetsRefusal in src/guards/commitGate.ts (or parseGeneratedAssetsMap in src/guards/generatedAssets.ts) so an unanswered git or unreadable file lets the commit go on')
+section('§4 a check the gate could not finish does not refuse the commit: git gives no answer, a file cannot be read', 'change generatedAssetsRefusal in src/permissions/guards/commitGate.ts (or parseGeneratedAssetsMap in src/permissions/guards/generatedAssets.ts) so an unanswered git or unreadable file lets the commit go on')
 {
   const calm = join(scratch, 'calm')
   for (const dir of ['scripts/gate', 'lists', 'gen']) mkdirSync(join(calm, dir), { recursive: true })
@@ -315,10 +315,10 @@ section('§4 a check the gate could not finish does not refuse the commit: git g
   }
   const unrelated = judged()
   check('a map that holds such a source no longer refuses every commit in its repository', unrelated === 'null', unrelated)
-  const gate = await import('../../src/guards/commitGate.ts')
-  const { judgeToolCall } = await import('../../src/guards/guards.ts')
-  const { setFlagEnv, deleteFlagEnv } = await import('../../src/substrate/flagRegistry.ts')
-  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const gate = await import('../../src/permissions/guards/commitGate.ts')
+  const { judgeToolCall } = await import('../../src/permissions/guards/guards.ts')
+  const { setFlagEnv, deleteFlagEnv } = await import('../../src/platform/substrate/flagRegistry.ts')
+  const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
   setFlagEnv('MERCURY_COMMIT_GATE', '1')
   gate.engageCommitGate('skipped-source')
   const notesOf = async (callId: string): Promise<string[]> => {
@@ -339,7 +339,7 @@ section('§4 a check the gate could not finish does not refuse the commit: git g
 rmSync(scratch, { recursive: true, force: true })
 
 
-section('§5 the generators register themselves; the census names what they missed', 'change generatedFileDeclaration or unregisteredGeneratedFiles in src/guards/generatedAssets.ts, or upsertGeneratedAssetRow or registerGeneratedAsset in scripts/lib/generated-assets-map.mjs; for a real-map failure add the missing generator row to the map')
+section('§5 the generators register themselves; the census names what they missed', 'change generatedFileDeclaration or unregisteredGeneratedFiles in src/permissions/guards/generatedAssets.ts, or upsertGeneratedAssetRow or registerGeneratedAsset in scripts/lib/generated-assets-map.mjs; for a real-map failure add the missing generator row to the map')
 check('a "GENERATED by <script>" head declares its generator', generatedFileDeclaration('assets/x/out.sh', '#!/bin/sh\n# GENERATED by scripts/x/gen-out.ts — do not edit\n') === 'scripts/x/gen-out.ts')
 check('an AUTO-GENERATED by line spelled with bun run declares it', generatedFileDeclaration('src/a.ts', '// AUTO-GENERATED by `bun run scripts/x/gen-a.ts` — DO NOT EDIT BY HAND') === 'scripts/x/gen-a.ts')
 check('a generatedBy key declares it', generatedFileDeclaration('scripts/x/c.json', '{\n  "generatedBy": "scripts/x/gen-c.ts",\n  "sites": []\n}') === 'scripts/x/gen-c.ts')
@@ -351,18 +351,18 @@ check('a script naming itself is not generated', generatedFileDeclaration('scrip
 check('prose about generation with no script path is not a declaration', generatedFileDeclaration('src/x/y.ts', '// DO NOT EDIT without a review; the generated parts live elsewhere') === null)
 check('a source a deploy splices (managed by) is not a generated file', generatedFileDeclaration('scripts/ops/launcher.sh', '#!/bin/bash\n# managed by scripts/x/deploy.sh — do not hand-edit\n') === null)
 check('the map itself is never a generated file', generatedFileDeclaration(GENERATED_ASSETS_MAP, '# rows regenerated by scripts/x/gen.ts') === null)
-const fixtureRows = parseGeneratedAssetsMap('gen/schema.json\tbun gen.ts\t-\tsrc/**\nsrc/skills/bundled/**\tbun gen-bundled.ts\t-\tskills/**\n').rows
+const fixtureRows = parseGeneratedAssetsMap('gen/schema.json\tbun gen.ts\t-\tsrc/**\nsrc/integrations/skills/bundled/**\tbun gen-bundled.ts\t-\tskills/**\n').rows
 const unregistered = unregisteredGeneratedFiles(
   [
     { path: 'gen/schema.json', head: '{"generatedBy": "scripts/x/gen.ts"}' },
-    { path: 'src/skills/bundled/a.ts', head: '// AUTO-GENERATED by scripts/skills/gen-bundled.ts' },
+    { path: 'src/integrations/skills/bundled/a.ts', head: '// AUTO-GENERATED by scripts/skills/gen-bundled.ts' },
     { path: 'assets/out.sh', head: '# GENERATED by scripts/x/gen-out.ts' },
     { path: 'src/plain.ts', head: 'export const a = 1' },
   ],
   fixtureRows,
 )
 check('the census names the declared file with no row and nothing else', unregistered.length === 1 && unregistered[0]!.path === 'assets/out.sh' && unregistered[0]!.declares === 'scripts/x/gen-out.ts', JSON.stringify(unregistered))
-check('a glob row covers the files under it', assetRowFor('src/skills/bundled/a.ts', fixtureRows) !== null)
+check('a glob row covers the files under it', assetRowFor('src/integrations/skills/bundled/a.ts', fixtureRows) !== null)
 check('the red names the file, its generator and the register remedy', (() => {
   const text = describeUnregisteredGeneratedFiles(unregistered)
   return text.includes('assets/out.sh') && text.includes('scripts/x/gen-out.ts') && text.includes('--register')
@@ -424,7 +424,7 @@ check('every tracked file that declares a generator has a row in the real map', 
 check('the real map has one row per generator', new Set(map.rows.map(r => r.generator)).size === map.rows.length)
 for (const [file, generator] of [
   ['scripts/critters/fixtures/zzz-frames.json', 'scripts/critters/gen-zzz-frames.ts'],
-  ['src/utils/vulcan/optable.generated.ts', 'scripts/vulcan/regen-optable.mjs'],
+  ['src/integrations/vulcan-optable/optable.generated.ts', 'scripts/vulcan/regen-optable.mjs'],
   ['assets/vulcan/addon/core/op_classes.gd', 'scripts/vulcan/regen-optable.mjs'],
   ['assets/splash/splash-core.mjs', 'scripts/splash/bake-menu.mjs'],
   ['scripts/builtin-tools/fixtures/RESULTS.md', 'scripts/builtin-tools/bench-builtin-tools.ts'],
@@ -437,7 +437,7 @@ section('§6 the build asks the generator of each file it ships', 'change buildC
   for (const bake of ['bun scripts/splash/bake-menu.mjs', 'bun scripts/splash/bake-ramp.mjs']) {
     check(`the build checks the splash core through ${bake}`, buildRows.some(row => row.assets === 'assets/splash/splash-core.mjs' && row.generator === bake && row.check === `${bake} --check`))
   }
-  for (const asset of ['src/services/blender/bridgeFiles.generated.ts', 'src/services/unity/bridgeFiles.generated.ts', 'assets/host/llamacpp-engine.json', 'src/services/vulcan/addonFiles.generated.ts', 'src/utils/vulcan/optable.generated.ts assets/vulcan/addon/core/op_classes.gd', 'src/extensions/bundled/content.generated.ts', 'src/skills/bundled/**', 'docs/EXTENSIONS.md mercury-skills/extension-maker/references/CONTRACT.md src/skills/bundled/extension-maker/references/CONTRACT.md']) {
+  for (const asset of ['src/integrations/blender/bridgeFiles.generated.ts', 'src/integrations/unity/bridgeFiles.generated.ts', 'assets/host/llamacpp-engine.json', 'src/integrations/vulcan/addonFiles.generated.ts', 'src/integrations/vulcan-optable/optable.generated.ts assets/vulcan/addon/core/op_classes.gd', 'src/integrations/extensions/bundled/content.generated.ts', 'src/integrations/skills/bundled/**', 'docs/EXTENSIONS.md mercury-skills/extension-maker/references/CONTRACT.md src/integrations/skills/bundled/extension-maker/references/CONTRACT.md']) {
     check(`the build checks ${asset}`, buildRows.some(row => row.assets === asset))
   }
   check('every row the build checks asks its own generator with --check', buildRows.every(row => row.check === `${row.generator.split('&&').at(-1)!.trim()} --check`), buildRows.filter(row => row.check !== `${row.generator.split('&&').at(-1)!.trim()} --check`).map(row => row.check).join(' | '))
@@ -470,7 +470,7 @@ section('§6 the build asks the generator of each file it ships', 'change buildC
   check('a payload the index holds as executable is executable, whatever its file says on disk', executableBit({ indexed: true, onDisk: false, committed: false, platform: 'win32' }) === true && executableBit({ indexed: true, onDisk: false, committed: false, platform: 'linux' }) === true)
   check('Windows keeps no such bit: with no index, or an index entry made there without it, the committed record stands', executableBit({ indexed: undefined, onDisk: false, committed: true, platform: 'win32' }) === true && executableBit({ indexed: false, onDisk: false, committed: true, platform: 'win32' }) === true && executableBit({ indexed: undefined, onDisk: false, committed: false, platform: 'win32' }) === false)
   check('where files keep the bit the index decides, and a path it does not hold is read from the file', executableBit({ indexed: false, onDisk: true, committed: true, platform: 'darwin' }) === false && executableBit({ indexed: undefined, onDisk: true, committed: false, platform: 'linux' }) === true && executableBit({ indexed: undefined, onDisk: false, committed: true, platform: 'linux' }) === false)
-  const bundled = join(ROOT, 'src', 'extensions', 'bundled')
+  const bundled = join(ROOT, 'src', 'integrations', 'extensions', 'bundled')
   const executables = [...(indexedExecutables(bundled) as Map<string, boolean>)].filter(([, executable]) => executable).map(([path]) => path)
   if (executables.length === 0) console.log('  [skip] the index holds no executable payload under the bundled extensions: their generator is not run on a copy')
   else {

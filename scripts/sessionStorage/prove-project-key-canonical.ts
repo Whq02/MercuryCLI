@@ -8,7 +8,7 @@ const CONFIG_SCRATCH = mkdtempSync(join(tmpdir(), 'wp4-home-'))
 process.env.MERCURY_CONFIG_DIR = CONFIG_SCRATCH
 
 const ROOT = join(import.meta.dir, '..', '..')
-const { getProjectDir } = await import(join(ROOT, 'src/utils/sessionStoragePortable.ts'))
+const { getProjectDir } = await import(join(ROOT, 'src/sessions/transcripts/sessionStoragePortable.ts'))
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -35,8 +35,8 @@ try {
   mkdirSync(real2)
   const link2 = join(scratch, 'linked-link')
   symlinkSync(real2, link2)
-  const { sanitizePath } = await import(join(ROOT, 'src/utils/sessionStoragePortable.ts'))
-  const { getMercuryHome } = await import(join(ROOT, 'src/utils/envUtils.ts'))
+  const { sanitizePath } = await import(join(ROOT, 'src/sessions/transcripts/sessionStoragePortable.ts'))
+  const { getMercuryHome } = await import(join(ROOT, 'src/platform/environment/envUtils.ts'))
   const projectsDir = join(getMercuryHome(), 'projects')
   const rawHashless = join(projectsDir, sanitizePath(link2))
   mkdirSync(rawHashless, { recursive: true })
@@ -52,7 +52,7 @@ try {
   check('decomposed Unicode spelling keys like the precomposed form', nfd !== nfc && getProjectDir(nfd) === getProjectDir(nfc))
 
   {
-    const { projectSlug, shortProjectHash } = await import(join(ROOT, 'src/utils/sessionStoragePortable.ts'))
+    const { projectSlug, shortProjectHash } = await import(join(ROOT, 'src/sessions/transcripts/sessionStoragePortable.ts'))
     const a = join(scratch, 'mercury-site')
     const b = join(scratch, 'mercury_site')
     check(

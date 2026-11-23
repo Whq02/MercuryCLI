@@ -1,18 +1,18 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/AstEditTool/AstEditTool.ts src/tools/AstSearchTool/AstSearchTool.ts src/utils/permissions/filesystem.ts src/Tool.ts
-// gate-watch: src/tools/ChangeSetTool/ChangeSetTool.ts src/services/changeTransaction/snapshotAnchor.ts
+// gate-watch: src/tools/ast-edit/AstEditTool.ts src/tools/ast-search/AstSearchTool.ts src/permissions/rules/filesystem.ts src/tools/kit/tool.ts
+// gate-watch: src/tools/change-set/ChangeSetTool.ts src/tools/engines/change-transaction/snapshotAnchor.ts
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { armEnvironment, check, drive, enterRoot, finish, makeContext, section, REPO } from './lib/harness.ts'
 
 const environment = armEnvironment()
-const { AstEditTool } = await import(join(REPO, 'src/tools/AstEditTool/AstEditTool.ts'))
-const { AstSearchTool } = await import(join(REPO, 'src/tools/AstSearchTool/AstSearchTool.ts'))
-const { ChangeSetTool } = await import(join(REPO, 'src/tools/ChangeSetTool/ChangeSetTool.ts'))
-const { mintFileAnchor } = await import(join(REPO, 'src/services/changeTransaction/snapshotAnchor.ts'))
-const { getEmptyToolPermissionContext } = await import(join(REPO, 'src/Tool.ts'))
-const { allWorkingDirectories } = await import(join(REPO, 'src/utils/permissions/filesystem.ts'))
+const { AstEditTool } = await import(join(REPO, 'src/tools/ast-edit/AstEditTool.ts'))
+const { AstSearchTool } = await import(join(REPO, 'src/tools/ast-search/AstSearchTool.ts'))
+const { ChangeSetTool } = await import(join(REPO, 'src/tools/change-set/ChangeSetTool.ts'))
+const { mintFileAnchor } = await import(join(REPO, 'src/tools/engines/change-transaction/snapshotAnchor.ts'))
+const { getEmptyToolPermissionContext } = await import(join(REPO, 'src/tools/kit/tool.ts'))
+const { allWorkingDirectories } = await import(join(REPO, 'src/permissions/rules/filesystem.ts'))
 const estate = realpathSync(mkdtempSync(join(tmpdir(), 'starting-folder-structure-')))
 const project = join(estate, 'project')
 const sibling = join(estate, 'sibling')

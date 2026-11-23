@@ -73,8 +73,8 @@ try {
       mkdirSync(dirname(join(system, path)), { recursive: true })
       symlinkSync(join(output, path), join(system, path), 'dir')
     }
-    const { nixInstallRoot } = await import(pathToFileURL(join(root, 'src/services/privateChannel/installProvenance.ts')).href)
-    const { ownCommandWord } = await import(pathToFileURL(join(root, 'src/services/privateChannel/installPath.ts')).href)
+    const { nixInstallRoot } = await import(pathToFileURL(join(root, 'src/platform/update-channel/installProvenance.ts')).href)
+    const { ownCommandWord } = await import(pathToFileURL(join(root, 'src/platform/update-channel/installPath.ts')).href)
     const env = { PATH: '/usr/bin:/bin', HOME: home, USERPROFILE: home, MERCURY_CONFIG_DIR: join(home, '.mercury'), MERCURY_LOCAL_PROBE_TARGETS: 'none', NODE_DISABLE_COMPILE_CACHE: '1', TERM: 'dumb' }
     const start = (command: string): { bundle: string; out: string } => {
       const run = spawnSync(command, ['--version'], { encoding: 'utf8', env, cwd: scratch, timeout: 60_000 })
@@ -90,10 +90,10 @@ try {
     ] as const) {
       const started = start(command)
       check(`${layout}: the payload starts and is handed the path beside the command that can start it again`, started.bundle === expected, `${started.out} (the wrapper text in nix/package.nix must hand the payload the path beside the command that started it)`)
-      check(`${layout}: the payload it is handed belongs to Nix`, started.bundle !== '' && nixInstallRoot(started.bundle, false) === payloadOutput, `${started.bundle} (the wrapper in nix/package.nix must start the payload by a path that nixInstallRoot in src/services/privateChannel/nixInstallRoot.ts maps to the payload output)`)
+      check(`${layout}: the payload it is handed belongs to Nix`, started.bundle !== '' && nixInstallRoot(started.bundle, false) === payloadOutput, `${started.bundle} (the wrapper in nix/package.nix must start the payload by a path that nixInstallRoot in src/platform/update-channel/nixInstallRoot.ts maps to the payload output)`)
       const word = started.bundle === '' ? '' : ownCommandWord({ provenanceKind: 'nix', found: { state: 'absent' }, node, bundle: started.bundle })
       const again = word === '' ? null : spawnSync('/bin/sh', ['-c', `${word} --version`], { encoding: 'utf8', env, cwd: scratch, timeout: 60_000 })
-      check(`${layout}: the command Mercury names for itself exists and starts the same payload`, again !== null && again.status === 0 && again.stdout.includes(`BUNDLE ${started.bundle}`), `${word} · ${again?.status}: ${again?.stdout}${again?.stderr} (ownCommandWord in src/services/privateChannel/installPath.ts must name a command for the nix install that starts the same payload)`)
+      check(`${layout}: the command Mercury names for itself exists and starts the same payload`, again !== null && again.status === 0 && again.stdout.includes(`BUNDLE ${started.bundle}`), `${word} · ${again?.status}: ${again?.stdout}${again?.stderr} (ownCommandWord in src/platform/update-channel/installPath.ts must name a command for the nix install that starts the same payload)`)
     }
     writeFileSync(wrapper, render(true), { mode: 0o755 })
     const direct = start(join(profile, 'bin/mercury'))

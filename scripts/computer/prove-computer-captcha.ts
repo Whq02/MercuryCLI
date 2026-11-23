@@ -3,12 +3,12 @@ import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import { check, finish, ROOT, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, ownerOf, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
-import type { DesktopDriver } from '../../src/services/desktop/driver.ts'
-import type { PermissionDecision } from '../../src/types/permissions.ts'
+import type { DesktopDriver } from '../../src/integrations/desktop/driver.ts'
+import type { PermissionDecision } from '../../src/permissions/rules/permissions.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const session = await import('../../src/services/desktop/desktopSession.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const session = await import('../../src/integrations/desktop/desktopSession.ts')
 const scratch = scratchDir('captcha')
 const bounds = { x: 0, y: 30, width: 1920, height: 956 }
 const chrome = { identity: 'com.example.Browser', name: 'Browser', pid: 4242, windowId: 'careers', title: 'Job application — Example Careers', bounds }
@@ -41,10 +41,10 @@ async function scene(name: string, tree: unknown, title = chrome.title) {
 let serial = 0
 const call = async (context: ReturnType<typeof toolContext>, input: Record<string, unknown>, consent: unknown = allowEverything) => resultOf(await ComputerTool.call(input as never, context, (consent === null ? undefined : consent) as never, toolUseTurn(`captcha-act-${++serial}`, 'Computer', input) as never))
 const firstName = { x: 325, y: 143 }
-const { CAPTCHA_OPERATOR_COMPLETES, treeSight } = await import('../../src/tools/ComputerTool/captcha.ts')
-const { REJECT_MESSAGE_WITH_REASON_PREFIX } = await import('../../src/utils/messages/rejectionText.ts')
-const grants = await import('../../src/services/desktop/computerGrant.ts')
-const { unansweredAskRefusal } = await import('../../src/utils/permissions/askClock.ts')
+const { CAPTCHA_OPERATOR_COMPLETES, treeSight } = await import('../../src/tools/computer/captcha.ts')
+const { REJECT_MESSAGE_WITH_REASON_PREFIX } = await import('../../src/engine/message-shapes/rejectionText.ts')
+const grants = await import('../../src/integrations/desktop/computerGrant.ts')
+const { unansweredAskRefusal } = await import('../../src/permissions/rules/askClock.ts')
 const hostOf = (asks: PermissionDecision[], answer: () => 'allow' | 'deny' | 'expired', onAnswer: () => void = () => undefined) => (async (_tool: unknown, input: unknown, _context: unknown, _parent: unknown, _id: unknown, forced?: PermissionDecision) => {
   if (forced) asks.push(forced)
   onAnswer()
@@ -135,7 +135,7 @@ section("§3 a visible challenge is the operator's question: complete it yoursel
   answer = 'expired'
   const unanswered = await call(context, { action: 'click', ...firstName, capture: false }, host)
   check("the ask clock's own refusal is reported with its cause, the guidance sentence cut, naming the rule for an unattended run", unanswered.outcome === 'failed' && clicks() === before && unanswered.result.includes('nobody answered the permission ask within') && unanswered.result.includes('Computer(captcha)') && !DO_NOT_TRY.test(unanswered.result) && !/wait for the operator/.test(unanswered.result) && !/complete it themselves/.test(unanswered.result), unanswered.result)
-  const { createRuleOnlyAsks } = await import('../../src/cli/headless/runnerAsks.ts')
+  const { createRuleOnlyAsks } = await import('../../src/daemon/runner/runnerAsks.ts')
   const ruleOnly = await call(context, { action: 'click', ...firstName, capture: false }, createRuleOnlyAsks().createCanUseTool())
   check('a run with no permission host hands the question back unanswered: the result says no one answered, never the question itself', ruleOnly.outcome === 'failed' && clicks() === before && ruleOnly.result.includes('no one answered the challenge question') && ruleOnly.result.includes('Computer(captcha)') && !ruleOnly.result.includes('complete it yourself') && !DO_NOT_TRY.test(ruleOnly.result), ruleOnly.result)
   const alone = await call(context, { action: 'click', ...firstName, capture: false }, null)
@@ -179,7 +179,7 @@ section("§4 the pre-given rule, the deny rule and the sovereign posture need no
   const titled = await scene('title', page(badge(true)), 'Verify you are human')
   const byTitle = await call(titled.context, { action: 'click', ...firstName, capture: false }, host)
   check('a challenge phrase in the window title asks', byTitle.outcome === 'succeeded' && asks.length === 2, byTitle.result)
-  grants.grantChallenge?.(String((await import('../../src/bootstrap/state.ts')).getSessionId()), { identity: chrome.identity, windowId: `title-${scenes}`, title: 'Verify you are human' }, true)
+  grants.grantChallenge?.(String((await import('../../src/boot/process-state/processState.ts')).getSessionId()), { identity: chrome.identity, windowId: `title-${scenes}`, title: 'Verify you are human' }, true)
   const outranked = toolContext({ deny: ['Computer(captcha)'], messages: titled.context.messages })
   const lateDeny = await call(outranked, { action: 'click', ...firstName, capture: false }, host)
   check('a deny rule outranks a live grant', lateDeny.outcome === 'failed' && /denied by the rule Computer\(captcha\)/.test(lateDeny.result), lateDeny.result)
@@ -214,11 +214,11 @@ section("§4c the card's answer: the typing check and the targets run again afte
   check('the Enter that answered the card is operator typing: the act waits it out instead of refusing', after.outcome === 'succeeded' && clicks() === 1 && Date.now() - started >= 1_300, `${after.result} after ${Date.now() - started}ms`)
   const kinds = driver.acts.slice(from).map(a => a.act)
   check('the targets are resolved again after the card, before the act', asks.length === 1 && kinds.slice(0, kinds.indexOf('click')).filter(kind => kind === 'accessibilityTree').length >= 2, `${reads.join(',')} · ${kinds.join(',')}`)
-  const { createRunnerAsks } = await import('../../src/cli/headless/runnerAsks.ts')
-  const { createPeer } = await import('../../src/runner/wire/peer.ts')
-  const daemonAsks = await import('../../src/daemon/permissionAsks.ts')
-  const { concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const { createRunnerAsks } = await import('../../src/daemon/runner/runnerAsks.ts')
+  const { createPeer } = await import('../../src/daemon/runner-wire/peer.ts')
+  const daemonAsks = await import('../../src/daemon/session-seat/permissionAsks.ts')
+  const { concourseWorkersPath } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
   const toHost = new PassThrough()
   const toRunner = new PassThrough()
   const runner = createPeer({ input: toRunner, output: toHost, side: 'runner', log() {} })
@@ -290,7 +290,7 @@ section('§4d the challenge is its own permission subject: checkPermissions answ
   session.approveApp(ownerOf(denyRuled), { identity: 'com.example.Browser', name: 'Browser' })
   const byDeny = await ComputerTool.checkPermissions({ action: 'click', ...firstName, captcha: true, capture: false } as never, denyRuled)
   check('a deny rule denies the subject in checkPermissions, naming the rule', byDeny.behavior === 'deny' && /denied by the rule Computer\(captcha\)/.test('message' in byDeny ? byDeny.message : ''), JSON.stringify(byDeny))
-  const { challengeAsk } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
+  const { challengeAsk } = await import('../../src/permissions/cards/computer/ComputerPermissionRequest.tsx')
   check('the card takes its challenge shape from the Computer(captcha) suggestion the harness attaches, never from the input', challengeAsk?.(subject.behavior === 'ask' ? subject.suggestions : undefined) === true && challengeAsk?.(first.behavior === 'ask' ? first.suggestions : undefined) === false && challengeAsk?.(undefined) === false)
 }
 

@@ -9,14 +9,14 @@ const HOME = mkdtempSync(join(tmpdir(), 'extension-only-policy-home-'))
 const PROJECT = mkdtempSync(join(tmpdir(), 'extension-only-policy-project-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 
-const state = await import('../../src/bootstrap/state.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
 state.setOriginalCwd(PROJECT)
-const { CUSTOMIZATION_SURFACES } = await import('../../src/utils/settings/types.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { setMdmSettingsCache, clearMdmSettingsCache } = await import('../../src/utils/settings/mdm/settings.ts')
-const { isRestrictedToExtensionsOnly, isSourceAdminTrusted } = await import('../../src/utils/settings/extensionOnlyPolicy.ts')
+const { CUSTOMIZATION_SURFACES } = await import('../../src/platform/settings/settingsSchema.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { setMdmSettingsCache, clearMdmSettingsCache } = await import('../../src/platform/settings/mdm/settings.ts')
+const { isRestrictedToExtensionsOnly, isSourceAdminTrusted } = await import('../../src/platform/settings/extensionOnlyPolicy.ts')
 
-const WHERE = 'src/utils/settings/extensionOnlyPolicy.ts'
+const WHERE = 'src/platform/settings/extensionOnlyPolicy.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

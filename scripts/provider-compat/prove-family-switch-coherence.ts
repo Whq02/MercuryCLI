@@ -121,15 +121,15 @@ console.log('============================================================')
 console.log(' family switch coherence — one history, every dialect')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { toolCallRefusalCorrection, toolCallRefusalNote } = await import('../../src/services/providers/toolCallGate.ts')
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
-type Message = import('../../src/types/message.ts').Message
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/engine/messages/messages.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { toolCallRefusalCorrection, toolCallRefusalNote } = await import('../../src/models/roads/toolCallGate.ts')
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const SYSTEM = 'fixture system prompt: answer tersely'
 const BASH = BashTool.name
@@ -203,7 +203,7 @@ section('anthropic · Messages API')
   const o = await drive('claude-sonnet-5')
   const body = o.body ?? {}
   check('the turn settled clean on the fixture', o.threw === undefined && o.errors.length === 0 && o.last?.message.stop_reason === 'end_turn' && o.path === '/v1/messages', `threw=${String(o.threw)} errors=${o.errors.length} path=${o.path}`)
-  check('the operator system prompt rides the system field', text(body.system).includes(SYSTEM), 'the Anthropic request lost the system prompt; look at the request build reached through routedCallModel in src/services/providers/callModelRouter.ts')
+  check('the operator system prompt rides the system field', text(body.system).includes(SYSTEM), 'the Anthropic request lost the system prompt; look at the request build reached through routedCallModel in src/models/roads/callModelRouter.ts')
   const tools = (body.tools as Array<Record<string, unknown>> | undefined) ?? []
   check('tools ride as input_schema (the Anthropic spelling)', tools[0]?.name === BASH && typeof tools[0]?.input_schema === 'object', `first tool on the wire: ${text(tools[0]).slice(0, 200)}; the Anthropic request must carry the tool as name plus input_schema`)
   schemas.anthropic = tools[0]?.input_schema
@@ -212,7 +212,7 @@ section('anthropic · Messages API')
   const toolResultMsg = messages.find(m => m.role === 'user' && text(m.content).includes('"tool_use_id":"call_bash_1"'))
   check('the tool_use block and its tool_result keep the id and the input', text(toolUseMsg?.content).includes('"input":{"command":"ls"}') && toolResultMsg !== undefined && messages.indexOf(toolResultMsg) === messages.indexOf(toolUseMsg!) + 1, `${messages.map(m => m.role).join(',')}`)
   check('no unsigned (foreign) thinking reaches the Anthropic wire', !text(body).includes('"signature":""') && !text(body).includes('glm thought'), 'the foreign glm thinking block was replayed to Anthropic; strip unsigned thinking from history before the Anthropic request is built')
-  check('the harness correction reaches the wire', text(body).includes(CORRECTION_HEAD), 'the refusal correction message was dropped from the Anthropic request; its text comes from toolCallRefusalCorrection in src/services/providers/toolCallGate.ts')
+  check('the harness correction reaches the wire', text(body).includes(CORRECTION_HEAD), 'the refusal correction message was dropped from the Anthropic request; its text comes from toolCallRefusalCorrection in src/models/roads/toolCallGate.ts')
   usage.anthropic = { input: o.last?.message.usage?.input_tokens ?? -1, cached: o.last?.message.usage?.cache_read_input_tokens ?? -1 }
 }
 
@@ -221,16 +221,16 @@ section('openai · Responses')
   const o = await drive('gpt-5.6-sol')
   const body = o.body ?? {}
   check('the turn settled clean on the fixture', o.threw === undefined && o.errors.length === 0 && o.last?.message.stop_reason === 'end_turn' && o.path?.endsWith('/responses') === true, `threw=${String(o.threw)} errors=${o.errors.length} path=${o.path}`)
-  check('the operator system prompt rides the instructions string', typeof body.instructions === 'string' && body.instructions.includes(SYSTEM), 'the Responses request has no instructions string holding the system prompt; the Responses wire is built in src/services/providers/openai/openaiWire.ts')
+  check('the operator system prompt rides the instructions string', typeof body.instructions === 'string' && body.instructions.includes(SYSTEM), 'the Responses request has no instructions string holding the system prompt; the Responses wire is built in src/models/roads/openai/openaiWire.ts')
   const tools = (body.tools as Array<Record<string, unknown>> | undefined) ?? []
   check('tools ride FLAT as function/parameters (the Responses spelling)', tools[0]?.type === 'function' && tools[0]?.name === BASH && typeof tools[0]?.parameters === 'object', `first tool on the wire: ${text(tools[0]).slice(0, 200)}; a Responses tool is flat type/name/parameters`)
-  check('the Responses tool explicitly declares strict form', tools[0]?.strict === true, 'the tool lacks strict:true; strict form comes from toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts')
+  check('the Responses tool explicitly declares strict form', tools[0]?.strict === true, 'the tool lacks strict:true; strict form comes from toOpenaiStrictToolSchema in src/engine/message-shapes/toolSchemaDialect.ts')
   schemas.openai = tools[0]?.parameters
   const input = (body.input as Array<Record<string, unknown>> | undefined) ?? []
   const call = input.findIndex(i => i.type === 'function_call' && i.call_id === 'call_bash_1')
   const output = input.findIndex(i => i.type === 'function_call_output' && i.call_id === 'call_bash_1')
   check('function_call carries the arguments JSON and its function_call_output answers it in order', call !== -1 && input[call]?.arguments === '{"command":"ls"}' && output === call + 1 && text(input[output]?.output).includes('a.ts'), input.map(i => `${i.type}:${i.call_id ?? ''}`).join(','))
-  check('a foreign turn derives from content: NO reasoning item replays cross-provider', !input.some(i => i.type === 'reasoning') && !text(body).includes('glm thought'), 'a reasoning item or the glm thought reached the Responses input; foreign reasoning must be dropped when history is replayed (src/services/providers/openai/openaiWire.ts)')
+  check('a foreign turn derives from content: NO reasoning item replays cross-provider', !input.some(i => i.type === 'reasoning') && !text(body).includes('glm thought'), 'a reasoning item or the glm thought reached the Responses input; foreign reasoning must be dropped when history is replayed (src/models/roads/openai/openaiWire.ts)')
   check('the harness correction reaches the wire as a user item', input.some(i => i.type === 'message' && i.role === 'user' && text(i.content).includes(CORRECTION_HEAD)), 'the refusal correction is missing from the Responses input as a user message item')
   check('stateless replay: store:false with the encrypted-reasoning include', body.store === false && text(body.include).includes('reasoning.encrypted_content'), `store=${String(body.store)} include=${text(body.include)}; the Responses request must set store:false and include reasoning.encrypted_content`)
   usage.openai = { input: o.last?.message.usage?.input_tokens ?? -1, cached: o.last?.message.usage?.cache_read_input_tokens ?? -1 }
@@ -258,17 +258,17 @@ for (const { lane, model, preservesThinking } of [
   const tc = ((callMsg?.tool_calls as Array<Record<string, unknown>> | undefined) ?? [])[0]
   check('assistant.tool_calls carries the id + arguments JSON; the role:tool answer follows it', callIdx !== -1 && (tc?.function as Record<string, unknown> | undefined)?.arguments === '{"command":"ls"}' && toolIdx === callIdx + 1 && String(messages[toolIdx]?.content).includes('a.ts'), messages.map(m => m.role).join(','))
   if (preservesThinking) {
-    check('the documented preserved-thinking model gets the historical reasoning back as reasoning_content', callMsg?.reasoning_content === 'glm thought', 'the preserved-thinking model must replay historical reasoning as reasoning_content on the assistant tool-call message (src/services/providers/openaicompat/kimiReplay.ts)')
+    check('the documented preserved-thinking model gets the historical reasoning back as reasoning_content', callMsg?.reasoning_content === 'glm thought', 'the preserved-thinking model must replay historical reasoning as reasoning_content on the assistant tool-call message (src/models/roads/openaicompat/kimiReplay.ts)')
   } else {
     check('reasoning never rides this wire (no reasoning_content key anywhere)', !messages.some(m => 'reasoning_content' in m) && !text(body).includes('glm thought'), 'reasoning_content or the glm thought reached a chat-completions lane that does not preserve thinking; drop reasoning when history is replayed to this lane')
   }
-  check('the harness correction reaches the wire verbatim as a user message', messages.some(m => m.role === 'user' && String(m.content).includes(CORRECTION_HEAD)), 'the refusal correction is missing from the chat-completions messages as a user message; its text comes from toolCallRefusalCorrection in src/services/providers/toolCallGate.ts')
+  check('the harness correction reaches the wire verbatim as a user message', messages.some(m => m.role === 'user' && String(m.content).includes(CORRECTION_HEAD)), 'the refusal correction is missing from the chat-completions messages as a user message; its text comes from toolCallRefusalCorrection in src/models/roads/toolCallGate.ts')
   check("a call-less assistant message never carries null content", messages.filter(m => m.role === 'assistant' && !('tool_calls' in m)).every(m => typeof m.content === 'string'), 'an assistant message without tool_calls was sent with non-string (null) content; the chat-completions message builder must give it a string')
   usage[lane] = { input: o.last?.message.usage?.input_tokens ?? -1, cached: o.last?.message.usage?.cache_read_input_tokens ?? -1 }
 }
 
 section('local · a session with the local prompt profile switched off (MERCURY_LOCAL_PROMPT_PROFILE=0, its control arm)')
-const { clearConversationToolSchemas } = await import('../../src/utils/toolSchemaCache.ts')
+const { clearConversationToolSchemas } = await import('../../src/models/roads/toolSchemaCache.ts')
 clearConversationToolSchemas()
 process.env.MERCURY_LOCAL_PROMPT_PROFILE = '0'
 const localOff = await drive('local/fixture-local')
@@ -281,7 +281,7 @@ section('cross-family coherence')
 {
   const spellings = Object.entries(schemas).filter(([lane]) => lane !== 'local')
   const reference = text(spellings[0]?.[1])
-  const { toOpenaiStrictToolSchema } = await import('../../src/utils/messages/toolSchemaDialect.ts')
+  const { toOpenaiStrictToolSchema } = await import('../../src/engine/message-shapes/toolSchemaDialect.ts')
   const strict = toOpenaiStrictToolSchema(schemas.anthropic)
   check(`all ${spellings.length} cloud dialects and the local lane with the profile off carry the same tool schema in their declared form`, strict.strict && spellings.length === 5 && spellings.every(([lane, schema]) => text(schema) === (lane === 'openai' ? text(strict.schema) : reference)) && text(localOffSchema) === reference, [...spellings.map(([k, s]) => `${k}:${text(s).length}`), `local (profile off):${text(localOffSchema).length}`].join(' '))
   const bare = (schema: unknown): unknown => Array.isArray(schema) ? schema.map(bare) : typeof schema === 'object' && schema !== null ? Object.fromEntries(Object.entries(schema as Record<string, unknown>).filter(([key]) => key !== 'description' && key !== '$schema').map(([key, value]) => [key, bare(value)])) : schema

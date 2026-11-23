@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { digestOf, rewritePlanToken } from '../../../src/services/structure/astPatterns.ts'
+import { digestOf, rewritePlanToken } from '../../../src/tools/engines/structure/astPatterns.ts'
 import type { FixtureHit } from './fixture.ts'
 import type { RunRecord } from './runner.ts'
 import { systemPromptText, userTexts } from './wire.ts'

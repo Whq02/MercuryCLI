@@ -9,11 +9,11 @@ process.env.MERCURY_CONFIG_DIR = join(root, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR)
 const project = join(root, 'project')
 mkdirSync(join(project, '.mercury'), { recursive: true })
-const { SettingsSchema } = await import('../../src/utils/settings/types.js')
-const pipeline = await import('../../src/utils/settings/settings.js')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
-const { setMdmSettingsCache, parseCommandOutputAsSettings } = await import('../../src/utils/settings/mdm/settings.js')
-const state = await import('../../src/bootstrap/state.js')
+const { SettingsSchema } = await import('../../src/platform/settings/settingsSchema.js')
+const pipeline = await import('../../src/platform/settings/settings.js')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
+const { setMdmSettingsCache, parseCommandOutputAsSettings } = await import('../../src/platform/settings/mdm/settings.js')
+const state = await import('../../src/boot/process-state/processState.js')
 state.setOriginalCwd(project)
 state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSettings'])
 const files = [
@@ -95,7 +95,7 @@ function declared(path: string): boolean {
   return true
 }
 let failures = 0
-const GROUPS_FAIL_HINT = 'change the setting named in the label: its schema in SettingsSchema (src/utils/settings/types.ts), its merge, read or write in src/utils/settings/settings.ts (getInitialSettings, getSettingsForSource, updateSettingsForSource, settingsMergeCustomizer), or add the row to the rows table above'
+const GROUPS_FAIL_HINT = 'change the setting named in the label: its schema in SettingsSchema (src/platform/settings/settingsSchema.ts), its merge, read or write in src/platform/settings/settings.ts (getInitialSettings, getSettingsForSource, updateSettingsForSource, settingsMergeCustomizer), or add the row to the rows table above'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(ok ? `PASS ${label}` : `FAIL ${label}${detail ? ` — ${detail}` : ''} — ${GROUPS_FAIL_HINT}`)
@@ -154,8 +154,8 @@ try {
     fixture(sources)
     check(`consent source ${source} respects trust: neither file in the folder grants it`, pipeline.hasSkipSovereignConsentPrompt() === (source !== 1 && source !== 2))
   }
-  const { isMnemeEnabled, getMnemeHome } = await import('../../src/mneme/paths.js')
-  const { getSettingsSnapshot, _resetSettingsSnapshotForTesting } = await import('../../src/utils/settings/snapshot.js')
+  const { isMnemeEnabled, getMnemeHome } = await import('../../src/sessions/mneme/paths.js')
+  const { getSettingsSnapshot, _resetSettingsSnapshotForTesting } = await import('../../src/platform/settings/snapshot.js')
   delete process.env.MERCURY_BARE
   fixture([{ memory: { enabled: false } }])
   check('memory.enabled reaches the memory gate', isMnemeEnabled() === false)
@@ -228,7 +228,7 @@ try {
   check('nested writes delete and add leaves two levels down', isDeepStrictEqual(file().environment, { values: { KEEP: 'one', ADD: 'three' } }))
   write({ environment: { values: { KEEP: undefined, ADD: undefined } } })
   check('emptying a nested map removes it and its emptied parent', !('environment' in file()))
-  const { validateSettingsFileContent } = await import('../../src/utils/settings/validation.js')
+  const { validateSettingsFileContent } = await import('../../src/platform/settings/validation.js')
   const editVerdict = (document: object): string => {
     const verdict = validateSettingsFileContent(JSON.stringify(document))
     return verdict.isValid ? 'valid' : verdict.error.split('\n').slice(1).join(' ').trim()

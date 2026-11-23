@@ -14,26 +14,26 @@ delete process.env.MERCURY_WARM_RUNNER
 delete process.env.MERCURY_DAEMON_NO_SELF_WARM
 delete process.env.MERCURY_CONCOURSE_WORKER
 
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
-const sup = await import('../../src/daemon/concourseWorkers.ts')
-const warm = await import('../../src/daemon/warmRunner.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const warm = await import('../../src/daemon/runner-link/warmRunner.ts')
 const { LEAVE_PENDING, standInRunner } = await import('../lib/seatDoor.ts')
-const { RpcError, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+const { RpcError, RPC_REFUSED } = await import('../../src/daemon/runner-wire/errors.ts')
 type StandInRunner = ReturnType<typeof standInRunner>
-type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
-const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.ts')
-const snapshot = await import('../../src/services/concourse/concourseSnapshot.ts')
-const workers = await import('../../src/daemon/concourseWorkers.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
-import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
+type RunnerDoor = import('../../src/daemon/runner-link/runnerConnection.ts').RunnerDoor
+const { validateWorkerModelChoice } = await import('../../src/screen/concourse-model/workerModels.ts')
+const snapshot = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
+const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
+import type { RunnerChildSpec } from '../../src/daemon/runner-link/headlessRun.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond && !label.startsWith('R6')) console.log('      fix: the reactivate road is makeConcourseAdmitHandler in src/daemon/concourseWorkers.ts (the warm claim is claimWarmRunner in src/daemon/warmRunner.ts); change it until the law in the label holds')
+  if (!cond && !label.startsWith('R6')) console.log('      fix: the reactivate road is makeConcourseAdmitHandler in src/daemon/concourse-workers/concourseWorkers.ts (the warm claim is claimWarmRunner in src/daemon/runner-link/warmRunner.ts); change it until the law in the label holds')
 }
 
 class FakeRoster {

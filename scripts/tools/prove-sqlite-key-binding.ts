@@ -26,15 +26,15 @@ try {
     const expected = `{\n  "k": ${key},\n  "v": "${value}"\n}\n`
     const node = await client.call('Read', { file_path: `${file}:${target}` })
     const bun = await bunRead(`${file}:${target}`)
-    kit.check(`Node: ${target} finds the row whose key is ${key}`, node === expected, `${node} (fix how the row key from the address is bound to the column: sqliteKeyBinding in src/tools/FileReadTool/readRichFormats.ts)`)
-    kit.check(`Bun: ${target} finds the row whose key is ${key}`, bun === expected, `${bun} (fix how the row key from the address is bound to the column: sqliteKeyBinding in src/tools/FileReadTool/readRichFormats.ts)`)
+    kit.check(`Node: ${target} finds the row whose key is ${key}`, node === expected, `${node} (fix how the row key from the address is bound to the column: sqliteKeyBinding in src/tools/read/readRichFormats.ts)`)
+    kit.check(`Bun: ${target} finds the row whose key is ${key}`, bun === expected, `${bun} (fix how the row key from the address is bound to the column: sqliteKeyBinding in src/tools/read/readRichFormats.ts)`)
   }
   const created = await client.call('Write', { file_path: `${file}:textkey/77`, content: '{"v":"made"}' })
-  kit.check('Node: a row made at a TEXT key of digits holds those digits as its key', created.includes('"type":"create"') && stored("SELECT k, typeof(k) AS kind FROM textkey WHERE v = 'made'") === '[{"k":"77","kind":"text"}]', `${stored("SELECT k, typeof(k) AS kind FROM textkey WHERE v = 'made'")} (the key of a created row must keep the column's type: fix the row create path of callStructuredWriteTarget in src/tools/FileWriteTool/structuredTargets.ts)`)
+  kit.check('Node: a row made at a TEXT key of digits holds those digits as its key', created.includes('"type":"create"') && stored("SELECT k, typeof(k) AS kind FROM textkey WHERE v = 'made'") === '[{"k":"77","kind":"text"}]', `${stored("SELECT k, typeof(k) AS kind FROM textkey WHERE v = 'made'")} (the key of a created row must keep the column's type: fix the row create path of callStructuredWriteTarget in src/tools/write/structuredTargets.ts)`)
   const cells = await client.call('Write', { file_path: `${file}:cells/1`, content: '{"t":6,"n":8,"r":2}' })
-  kit.check('Node: a whole number written to TEXT, untyped and REAL columns is stored as SQLite stores an integer there', cells.includes('"type":"create"') && stored('SELECT t, typeof(t) AS tt, n, typeof(n) AS tn, r, typeof(r) AS tr FROM cells') === '[{"t":"6","tt":"text","n":8,"tn":"integer","r":2,"tr":"real"}]', `${stored('SELECT t, typeof(t) AS tt, n, typeof(n) AS tn, r, typeof(r) AS tr FROM cells')} (fix how row Write binds values to column types in src/tools/FileWriteTool/structuredTargets.ts)`)
+  kit.check('Node: a whole number written to TEXT, untyped and REAL columns is stored as SQLite stores an integer there', cells.includes('"type":"create"') && stored('SELECT t, typeof(t) AS tt, n, typeof(n) AS tn, r, typeof(r) AS tr FROM cells') === '[{"t":"6","tt":"text","n":8,"tn":"integer","r":2,"tr":"real"}]', `${stored('SELECT t, typeof(t) AS tt, n, typeof(n) AS tn, r, typeof(r) AS tr FROM cells')} (fix how row Write binds values to column types in src/tools/write/structuredTargets.ts)`)
   await client.call('Read', { file_path: `${file}:textkey/42` })
   const deleted = await client.call('Write', { file_path: `${file}:textkey/42#delete`, content: 'DELETE' })
-  kit.check('Node: deleting the TEXT key 42 removes that row and leaves 042', deleted.includes('"type":"delete"') && stored('SELECT k FROM textkey ORDER BY k') === '[{"k":"042"},{"k":"77"},{"k":"x"}]', `${deleted} ${stored('SELECT k FROM textkey ORDER BY k')} (fix the key lookup of deleteSqliteRow in src/tools/FileWriteTool/structuredTargets.ts)`)
+  kit.check('Node: deleting the TEXT key 42 removes that row and leaves 042', deleted.includes('"type":"delete"') && stored('SELECT k FROM textkey ORDER BY k') === '[{"k":"042"},{"k":"77"},{"k":"x"}]', `${deleted} ${stored('SELECT k FROM textkey ORDER BY k')} (fix the key lookup of deleteSqliteRow in src/tools/write/structuredTargets.ts)`)
 } finally { await client.close() }
 kit.finish()

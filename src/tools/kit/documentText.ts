@@ -1,0 +1,46 @@
+import { createHash, randomUUID } from 'node:crypto'
+import { readFile, rename, stat, writeFile } from 'node:fs/promises'
+import { extname, join } from 'node:path'
+import { renderDocumentBytes } from '../read/readRichFormats.js'
+import { extractPdfText, renderPdfText } from './pdfText.js'
+import { recognisePdfPage, renderOcr } from './ocr.js'
+import { readRegularFile } from '../read/regularFile.js'
+import { ensureToolResultsDir, getToolResultsDir } from '../../engine/tool-dispatch/toolResultStorage.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+import { isOneOf } from '../../platform/primitives/isOneOf.js'
+
+export const SEARCHABLE_DOCUMENT_EXTENSIONS = ['pdf', 'docx', 'pptx', 'xlsx', 'odt', 'ods', 'odp', 'epub', 'rtf'] as const
+export function isSearchableDocument(path: string): boolean {
+  return isOneOf(SEARCHABLE_DOCUMENT_EXTENSIONS, extname(path).slice(1).toLowerCase())
+}
+export async function extractDocumentText(path: string, signal?: AbortSignal): Promise<string> {
+  signal?.throwIfAborted()
+  const ext = extname(path).slice(1).toLowerCase()
+  if (ext === 'pdf') {
+    const document = await extractPdfText(path, { signal })
+    const pages = document.pages.map(page => ({ ...page }))
+    if (pages.some(page => !page.hasTextLayer)) {
+      const bytes = await readRegularFile(path, signal)
+      for (const page of pages) {
+        if (page.hasTextLayer) continue
+        const ocr = await recognisePdfPage(path, bytes, page.pageNumber, signal)
+        if (!ocr.ok) throw new Error(`${path}: page ${page.pageNumber} ${page.hasImages ? 'is image-only' : 'has no text layer'}. ${ocr.message}`)
+        page.text = renderOcr(ocr)
+      }
+    }
+    return renderPdfText({ ...document, pages })
+  }
+  const info = await stat(path)
+  if (!info.isFile()) throw new Error(`${path}: not a regular file.`)
+  if (info.size > 16 * 1024 * 1024) throw new Error(`${path}: document exceeds the 16 MiB container limit. Split the document and read one part at a time.`)
+  const bytes = await readRegularFile(path, signal, info)
+  const digest = createHash('sha256').update(bytes).update(ext).digest('hex')
+  const cached = join(getToolResultsDir(), `document-text-v4-${digest}.txt`)
+  try { return await readFile(cached, 'utf8') } catch (error) { passedOver(error) }
+  const text = renderDocumentBytes(bytes, ext, path)
+  await ensureToolResultsDir()
+  const stage = `${cached}.${randomUUID()}`
+  await writeFile(stage, text, { mode: 0o600 })
+  await rename(stage, cached)
+  return text
+}

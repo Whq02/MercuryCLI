@@ -17,13 +17,13 @@ process.env.MERCURY_GODOT_DAP_PORT = '6106'
 delete process.env.MERCURY_GODOT
 delete process.env.MERCURY_GODOT_TOOLS_LITE
 
-const { VULCAN_ADDON_FILES } = await import('../../src/services/vulcan/addonFiles.generated.js')
+const { VULCAN_ADDON_FILES } = await import('../../src/integrations/vulcan/addonFiles.generated.js')
 const { godotProviderInventory } = await import('./godotProviders.js')
-const { buildGodotIdeSession, discoverGodotLaunchProfiles } = await import('../../src/services/ide/godotSession.js')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const { resetVulcanClientForTest } = await import('../../src/services/vulcan/vulcanClient.js')
-const { vulcanOp } = await import('../../src/utils/vulcan/optable.generated.js')
+const { buildGodotIdeSession, discoverGodotLaunchProfiles } = await import('../../src/integrations/ide/godotSession.js')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
+const { resetVulcanClientForTest } = await import('../../src/integrations/vulcan/vulcanClient.js')
+const { vulcanOp } = await import('../../src/integrations/vulcan-optable/optable.generated.js')
 
 cpSync(join(import.meta.dir, 'fixtures/engine-service'), project, { recursive: true })
 writeFileSync(join(project, 'project.godot'), 'config_version=5\n[application]\nconfig/name="readiness-fixture"\n[editor_plugins]\nenabled=PackedStringArray("res://addons/mercury_vulcan/plugin.cfg")\n')
@@ -33,7 +33,7 @@ for (const file of VULCAN_ADDON_FILES) {
   writeFileSync(target, file.content)
 }
 
-const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
+const { runtimeChecks } = await import('../../src/platform/health/sections/runtime.ts')
 const vulcanSpec = runtimeChecks().find(row => row.id === 'vulcan')
 if (!vulcanSpec) throw new Error('health Godot row was not found')
 const healthRow = vulcanSpec.run as () => Promise<{ status: string; evidence: string; fix?: string }>
@@ -108,45 +108,45 @@ async function collect() {
 
 try {
   const empty = await collect()
-  check('a live loopback listener with no instance descriptor never makes an editor ready', empty.health.status !== 'ok' && empty.provider.state === 'not-answering' && empty.ide.vulcan.state === 'unreachable', empty, 'readiness must come only from a live instance descriptor under .godot/mercury-vulcan; see scanVulcanInstances in src/services/vulcan/instances.ts, vulcanCheck in src/services/health/sections/runtime/services.ts and buildGodotIdeSession in src/services/ide/godotSession.ts')
+  check('a live loopback listener with no instance descriptor never makes an editor ready', empty.health.status !== 'ok' && empty.provider.state === 'not-answering' && empty.ide.vulcan.state === 'unreachable', empty, 'readiness must come only from a live instance descriptor under .godot/mercury-vulcan; see scanVulcanInstances in src/integrations/vulcan/instances.ts, vulcanCheck in src/platform/health/sections/runtime/services.ts and buildGodotIdeSession in src/integrations/ide/godotSession.ts')
   const editor = await instance('agent-editor')
   try {
     const ready = await collect()
     const expected = `project ${project} · addon installed · addon enabled · bridge up :${editor.port} · engine workers 2 (MERCURY_GODOT_WORKERS)`
-    check('health keeps its exact row words and uses the discovered port', ready.health.status === 'ok' && ready.health.evidence === expected, ready.health, 'vulcanCheck in src/services/health/sections/runtime/services.ts must report ok with the evidence words above and the port from the discovered instance')
+    check('health keeps its exact row words and uses the discovered port', ready.health.status === 'ok' && ready.health.evidence === expected, ready.health, 'vulcanCheck in src/platform/health/sections/runtime/services.ts must report ok with the evidence words above and the port from the discovered instance')
     check('provider readiness names the same discovered endpoint', ready.provider.state === 'ready' && ready.provider.endpoint === `127.0.0.1:${editor.port}` && ready.provider.source === 'mercury_vulcan editor addon', ready.provider, 'the vulcan row of godotProviderInventory in scripts/vulcan/godotProviders.ts must report ready with the discovered endpoint')
-    check('IDE readiness keeps its exact words and uses the discovered port', ready.ide.vulcan.state === 'reachable' && ready.ide.vulcan.port === editor.port && ready.ide.vulcan.detail === `editor answering on 127.0.0.1:${editor.port}`, ready.ide.vulcan, 'buildGodotIdeSession in src/services/ide/godotSession.ts must report the vulcan row reachable on the discovered port with these exact words')
-    check('IDE editor truth uses the same discovered client', ready.ide.editor.state === 'ok' && editor.ops.includes('editor_errors') && editor.ops.includes('scene_current') && editor.ops.includes('runtime_status'), ready.ide.editor, 'buildGodotIdeSession in src/services/ide/godotSession.ts must query the editor through the discovered instance client (editor_errors, scene_current, runtime_status)')
-    check('LSP and DAP endpoints remain separate and unchanged', ready.ide.lsp.port === 6105 && ready.ide.dap.port === 6106 && ready.providers.find(row => row.id === 'godot-lsp')?.endpoint === '127.0.0.1:6105' && ready.providers.find(row => row.id === 'godot-dap')?.endpoint === '127.0.0.1:6106', '', 'the LSP and DAP ports come from MERCURY_GODOT_LSP_PORT and MERCURY_GODOT_DAP_PORT; buildGodotIdeSession in src/services/ide/godotSession.ts and godotProviderInventory in scripts/vulcan/godotProviders.ts must keep them apart from the vulcan port')
+    check('IDE readiness keeps its exact words and uses the discovered port', ready.ide.vulcan.state === 'reachable' && ready.ide.vulcan.port === editor.port && ready.ide.vulcan.detail === `editor answering on 127.0.0.1:${editor.port}`, ready.ide.vulcan, 'buildGodotIdeSession in src/integrations/ide/godotSession.ts must report the vulcan row reachable on the discovered port with these exact words')
+    check('IDE editor truth uses the same discovered client', ready.ide.editor.state === 'ok' && editor.ops.includes('editor_errors') && editor.ops.includes('scene_current') && editor.ops.includes('runtime_status'), ready.ide.editor, 'buildGodotIdeSession in src/integrations/ide/godotSession.ts must query the editor through the discovered instance client (editor_errors, scene_current, runtime_status)')
+    check('LSP and DAP endpoints remain separate and unchanged', ready.ide.lsp.port === 6105 && ready.ide.dap.port === 6106 && ready.providers.find(row => row.id === 'godot-lsp')?.endpoint === '127.0.0.1:6105' && ready.providers.find(row => row.id === 'godot-dap')?.endpoint === '127.0.0.1:6106', '', 'the LSP and DAP ports come from MERCURY_GODOT_LSP_PORT and MERCURY_GODOT_DAP_PORT; buildGodotIdeSession in src/integrations/ide/godotSession.ts and godotProviderInventory in scripts/vulcan/godotProviders.ts must keep them apart from the vulcan port')
     const profiles = await runWithCwdOverride(project, () => discoverGodotLaunchProfiles(project))
-    check('current-scene discovery follows the discovered editor port too', profiles.profiles.some(row => row.kind === 'current' && row.scene === 'res://tests/runtime_checks.tscn'), '', 'discoverGodotLaunchProfiles in src/services/ide/godotSession.ts must read the current scene through the discovered editor port')
+    check('current-scene discovery follows the discovered editor port too', profiles.profiles.some(row => row.kind === 'current' && row.scene === 'res://tests/runtime_checks.tscn'), '', 'discoverGodotLaunchProfiles in src/integrations/ide/godotSession.ts must read the current scene through the discovered editor port')
     const second = await instance('agent-editor')
     try {
       const before = editor.ops.length + second.ops.length
       const ambiguous = await collect()
-      check('ambiguous agent editors are not reported ready or queried', ambiguous.health.status !== 'ok' && ambiguous.provider.state === 'not-answering' && ambiguous.ide.vulcan.state === 'unreachable' && editor.ops.length + second.ops.length === before, '', 'with two agent-editor instances selectVulcanInstance in src/services/vulcan/instances.ts returns INSTANCE_AMBIGUOUS; health, provider and IDE rows must report not ready and send no op to either editor')
+      check('ambiguous agent editors are not reported ready or queried', ambiguous.health.status !== 'ok' && ambiguous.provider.state === 'not-answering' && ambiguous.ide.vulcan.state === 'unreachable' && editor.ops.length + second.ops.length === before, '', 'with two agent-editor instances selectVulcanInstance in src/integrations/vulcan/instances.ts returns INSTANCE_AMBIGUOUS; health, provider and IDE rows must report not ready and send no op to either editor')
     } finally { await second.close() }
     resetVulcanClientForTest()
     editor.reject()
     const refused = await collect()
-    check('a TCP listener without a valid handshake is not ready', refused.health.status !== 'ok' && refused.provider.state === 'not-answering' && refused.ide.vulcan.state === 'unreachable', '', 'an instance whose hello handshake is refused must not count as ready; see the vulcan client in src/services/vulcan/vulcanClient.ts and vulcanCheck in src/services/health/sections/runtime/services.ts')
+    check('a TCP listener without a valid handshake is not ready', refused.health.status !== 'ok' && refused.provider.state === 'not-answering' && refused.ide.vulcan.state === 'unreachable', '', 'an instance whose hello handshake is refused must not count as ready; see the vulcan client in src/integrations/vulcan/vulcanClient.ts and vulcanCheck in src/platform/health/sections/runtime/services.ts')
   } finally { resetVulcanClientForTest(); await editor.close() }
   const operator = await instance('operator-editor')
   const worker = await instance('headless-worker')
   try {
     const operatorRows = await collect()
     const expectedOperator = `project ${project} · addon installed · addon enabled · bridge up :${operator.port} · engine workers 2 (MERCURY_GODOT_WORKERS)`
-    check('a hand-started editor that answers when named reads as ready on /health, provider and IDE rows', operatorRows.health.status === 'ok' && operatorRows.health.evidence === expectedOperator && operatorRows.provider.state === 'ready' && operatorRows.provider.endpoint === `127.0.0.1:${operator.port}` && operatorRows.ide.vulcan.state === 'reachable' && operatorRows.ide.vulcan.port === operator.port, operatorRows.health, 'an operator-editor instance that answers must read as ready in vulcanCheck (src/services/health/sections/runtime/services.ts), the provider row and buildGodotIdeSession (src/services/ide/godotSession.ts)')
-    check('the operator editor is reported through read-only calls and never operated on; a runtime worker is never a readiness target', operator.ops.length > 0 && operator.ops.every(op => op === 'ping' || vulcanOp(op)?.cls === 'read') && worker.count() === 0, operator.ops, 'the readiness probes must send only ping and read-class ops (vulcanOp in src/utils/vulcan/optable.generated.js) to the operator editor and never connect to a headless-worker')
+    check('a hand-started editor that answers when named reads as ready on /health, provider and IDE rows', operatorRows.health.status === 'ok' && operatorRows.health.evidence === expectedOperator && operatorRows.provider.state === 'ready' && operatorRows.provider.endpoint === `127.0.0.1:${operator.port}` && operatorRows.ide.vulcan.state === 'reachable' && operatorRows.ide.vulcan.port === operator.port, operatorRows.health, 'an operator-editor instance that answers must read as ready in vulcanCheck (src/platform/health/sections/runtime/services.ts), the provider row and buildGodotIdeSession (src/integrations/ide/godotSession.ts)')
+    check('the operator editor is reported through read-only calls and never operated on; a runtime worker is never a readiness target', operator.ops.length > 0 && operator.ops.every(op => op === 'ping' || vulcanOp(op)?.cls === 'read') && worker.count() === 0, operator.ops, 'the readiness probes must send only ping and read-class ops (vulcanOp in src/integrations/vulcan-optable/optable.generated.js) to the operator editor and never connect to a headless-worker')
     const agent = await instance('agent-editor')
     try {
       const before = operator.ops.length + agent.ops.length
       const ambiguous = await collect()
-      check('an operator editor beside an agent editor is ambiguous: not ready, both named, neither queried', ambiguous.health.status !== 'ok' && ambiguous.provider.state === 'not-answering' && ambiguous.ide.vulcan.state === 'unreachable' && ambiguous.health.evidence.includes(operator.id) && ambiguous.health.evidence.includes(agent.id) && !/unbridged/.test(ambiguous.health.evidence) && operator.ops.length + agent.ops.length === before, ambiguous.health, 'with an operator editor and an agent editor, selection in src/services/vulcan/instances.ts and vulcanCheck in src/services/health/sections/runtime/services.ts must report ambiguous: not ready, both ids named, no op sent')
+      check('an operator editor beside an agent editor is ambiguous: not ready, both named, neither queried', ambiguous.health.status !== 'ok' && ambiguous.provider.state === 'not-answering' && ambiguous.ide.vulcan.state === 'unreachable' && ambiguous.health.evidence.includes(operator.id) && ambiguous.health.evidence.includes(agent.id) && !/unbridged/.test(ambiguous.health.evidence) && operator.ops.length + agent.ops.length === before, ambiguous.health, 'with an operator editor and an agent editor, selection in src/integrations/vulcan/instances.ts and vulcanCheck in src/platform/health/sections/runtime/services.ts must report ambiguous: not ready, both ids named, no op sent')
     } finally { await agent.close() }
     resetVulcanClientForTest()
   } finally { resetVulcanClientForTest(); await operator.close(); await worker.close() }
-  check('the undiscovered listener was never contacted', legacyConnections === 0, legacyConnections, 'readiness must not connect to a listener that has no instance descriptor; find the code that dials the legacy port in src/services/vulcan/vulcanClient.ts or src/services/lsp/godotLane.ts')
+  check('the undiscovered listener was never contacted', legacyConnections === 0, legacyConnections, 'readiness must not connect to a listener that has no instance descriptor; find the code that dials the legacy port in src/integrations/vulcan/vulcanClient.ts or src/integrations/lsp/godotLane.ts')
 } finally {
   resetVulcanClientForTest()
   await new Promise<void>(resolve => legacy.close(() => resolve()))

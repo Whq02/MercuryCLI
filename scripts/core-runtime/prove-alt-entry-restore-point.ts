@@ -26,7 +26,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (cond) console.log(`  [PASS] ${label}`)
   else {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — change how the alternate screen is entered and left in src/ink/components/AlternateScreen.tsx, src/ink/launcherAltHold.ts and src/ink/ink.tsx so the label holds`)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — change how the alternate screen is entered and left in src/screen/renderer/elements/AlternateScreen.tsx, src/screen/renderer/launcherAltHold.ts and src/screen/renderer/screenInstance.tsx so the label holds`)
   }
 }
 function skip(label: string, why: string): void {
@@ -39,10 +39,10 @@ function show(bytes: string): string {
 const JOURNEY = `
 import { EventEmitter } from 'node:events'
 import * as React from 'react'
-import Ink from '${SRC}/src/ink/ink.js'
-import instances from '${SRC}/src/ink/instances.js'
-import { Box, Text } from '${SRC}/src/ink.js'
-import { AlternateScreen } from '${SRC}/src/ink/components/AlternateScreen.js'
+import Ink from '${SRC}/src/screen/renderer/screenInstance.js'
+import instances from '${SRC}/src/screen/renderer/instances.js'
+import { Box, Text } from '${SRC}/src/screen/themedRenderer.js'
+import { AlternateScreen } from '${SRC}/src/screen/renderer/elements/AlternateScreen.js'
 
 class FakeStdout extends EventEmitter {
   isTTY = true

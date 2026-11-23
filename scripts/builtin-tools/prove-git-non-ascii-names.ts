@@ -6,16 +6,16 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
-const gitNamesFixHint = 'change gitStatus or gitDiff in src/services/gitGraph/observe.ts (the path spelling they read from git) or preparePlan or applyPlan in src/services/gitGraph/plan.ts (the file names they match), so a non-ASCII or spaced name stays as git holds it, not octal-escaped or quoted'
+const gitNamesFixHint = 'change gitStatus or gitDiff in src/platform/git-graph/observe.ts (the path spelling they read from git) or preparePlan or applyPlan in src/platform/git-graph/plan.ts (the file names they match), so a non-ASCII or spaced name stays as git holds it, not octal-escaped or quoted'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail + ' | ' : ''}${gitNamesFixHint}` : ''}`)
 }
 
-const { gitStatus, gitDiff } = await import('../../src/services/gitGraph/observe.ts')
-const { preparePlan, applyPlan, _resetGitPlanStoreForTesting } = await import('../../src/services/gitGraph/plan.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
+const { gitStatus, gitDiff } = await import('../../src/platform/git-graph/observe.ts')
+const { preparePlan, applyPlan, _resetGitPlanStoreForTesting } = await import('../../src/platform/git-graph/plan.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 const owner = processMainOwner()
 const env = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@local', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@local' }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/ruleCard.ts src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts
-// gate-watch: src/components/memory/MemoryCentreView.tsx src/utils/permissions/PermissionMode.ts src/cli/run.ts src/cli/headless/runnerAsks.ts
+// gate-watch: src/tools/memory/MemoryTools.ts src/tools/memory/ruleCard.ts src/sessions/mneme/memoryVerbs.ts src/sessions/mneme/mnemeCorrect.ts
+// gate-watch: src/screen/memory/MemoryCentreView.tsx src/permissions/rules/permissionMode.ts src/daemon/runner/runHeadless.ts src/daemon/runner/runnerAsks.ts
 import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -40,24 +40,24 @@ const NEW_D = 'run the memory suite and the identity suite before every commit'
 const RULE_B = 'keep every reply under five lines'
 const RULE_P = 'write commit subjects in the present tense'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 writeFileSync(join(inProcessHome, 'settings.json'), JSON.stringify({ memory: { journal: false } }))
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 resetSettingsCache()
-const { retainItems, _resetMemoryVerbSessionStateForTesting, SOVEREIGN_SOURCE_MARK } = await import('../../src/mneme/memoryVerbs.ts')
-const { maybeConsolidate, listTopicDocs } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
-const { readPins } = await import('../../src/mneme/mnemeUsage.ts')
-const { pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
-const { CorrectTool, RetainTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
-const { RULE_CARD_KEEP } = await import('../../src/tools/MemoryTools/ruleCard.ts')
-const { sourceWords, topicPageLines } = await import('../../src/components/memory/MemoryCentreView.tsx')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { retainItems, _resetMemoryVerbSessionStateForTesting, SOVEREIGN_SOURCE_MARK } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { maybeConsolidate, listTopicDocs } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
+const { readPins } = await import('../../src/sessions/mneme/mnemeUsage.ts')
+const { pendingRows } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { CorrectTool, RetainTool } = await import('../../src/tools/memory/MemoryTools.ts')
+const { RULE_CARD_KEEP } = await import('../../src/tools/memory/ruleCard.ts')
+const { sourceWords, topicPageLines } = await import('../../src/screen/memory/MemoryCentreView.tsx')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 const dir = mnemeLibraryDir()
 const ownerSaid = (text: string) => ({ messageId: `owner-${text.length}`, text })
-failHint = 'change retainItems in src/mneme/memoryVerbs.ts or maybeConsolidate in src/mneme/mnemeConsolidate.ts so a pinned rule the user asked for is stored and consolidated'
+failHint = 'change retainItems in src/sessions/mneme/memoryVerbs.ts or maybeConsolidate in src/sessions/mneme/mnemeConsolidate.ts so a pinned rule the user asked for is stored and consolidated'
 const seeded = retainItems([RULE_A, RULE_B, RULE_C, RULE_D].map(content => ({ content, pin: true, topic: 'user-preferences' })), { session: 'rule-sovereign-seed', pinIntent: ownerSaid(`Remember these as standing rules:\n- ${RULE_A}\n- ${RULE_B}\n- ${RULE_C}\n- ${RULE_D}`) }, dir)
 check('seed: four rules the user asked for are staged pinned and land on the shelf', seeded.every(o => o.status === 'stored') && maybeConsolidate({ force: true, dir }).consolidated === true, j(seeded))
 _resetMemoryVerbSessionStateForTesting()
@@ -91,7 +91,7 @@ const door = (async () => {
 const resultText = (tool: { mapToolResultToToolResultBlockParam: (o: never, id: string) => { content?: unknown } }, data: unknown): string => String(tool.mapToolResultToToolResultBlockParam(data as never, 'toolu_rule_sovereign').content ?? '')
 
 section('§1 under sovereign a retract runs without the card; the receipt and /memory\'s history row both say it was unpinned and struck from the chat under sovereign')
-failHint = 'change the retract road of CorrectTool in src/tools/MemoryTools/MemoryTools.ts and the card verdict in src/tools/MemoryTools/ruleCard.ts (sovereign skips the card), or the history row words in topicPageLines and sourceWords in src/components/memory/MemoryCentreView.tsx'
+failHint = 'change the retract road of CorrectTool in src/tools/memory/MemoryTools.ts and the card verdict in src/tools/memory/ruleCard.ts (sovereign skips the card), or the history row words in topicPageLines and sourceWords in src/screen/memory/MemoryCentreView.tsx'
 {
   const seqA = seqOf(RULE_A)
   doorCalls = 0
@@ -108,7 +108,7 @@ failHint = 'change the retract road of CorrectTool in src/tools/MemoryTools/Memo
 }
 
 section('§2 under sovereign a correction runs without the card; the new words land exactly; /memory\'s row says corrected from the chat under sovereign')
-failHint = 'change the supersede road of CorrectTool in src/tools/MemoryTools/MemoryTools.ts and src/tools/MemoryTools/ruleCard.ts, or the row words in sourceWords in src/components/memory/MemoryCentreView.tsx'
+failHint = 'change the supersede road of CorrectTool in src/tools/memory/MemoryTools.ts and src/tools/memory/ruleCard.ts, or the row words in sourceWords in src/screen/memory/MemoryCentreView.tsx'
 {
   const seqC = seqOf(RULE_C)
   doorCalls = 0
@@ -122,7 +122,7 @@ failHint = 'change the supersede road of CorrectTool in src/tools/MemoryTools/Me
 }
 
 section('§3 under sovereign Retain with replaces runs without the card; /memory\'s row says replaced from the chat under sovereign')
-failHint = 'change the replaces road of RetainTool in src/tools/MemoryTools/MemoryTools.ts and src/tools/MemoryTools/ruleCard.ts, or the row words in sourceWords in src/components/memory/MemoryCentreView.tsx'
+failHint = 'change the replaces road of RetainTool in src/tools/memory/MemoryTools.ts and src/tools/memory/ruleCard.ts, or the row words in sourceWords in src/screen/memory/MemoryCentreView.tsx'
 {
   const seqD = seqOf(RULE_D)
   doorCalls = 0
@@ -135,7 +135,7 @@ failHint = 'change the replaces road of RetainTool in src/tools/MemoryTools/Memo
 }
 
 section('§4 under sovereign a draft the user asked for is struck without the card; the receipt names sovereign and claims no history row (a draft leaves none)')
-failHint = 'change the draft retract road of CorrectTool in src/tools/MemoryTools/MemoryTools.ts and its receipt sentence there'
+failHint = 'change the draft retract road of CorrectTool in src/tools/memory/MemoryTools.ts and its receipt sentence there'
 {
   doorCalls = 0
   const call = await CorrectTool.call({ op: 'retract', id: draftId, reason: 'withdrawn' }, contextOf('sovereign'), door, assistant)
@@ -146,7 +146,7 @@ failHint = 'change the draft retract road of CorrectTool in src/tools/MemoryTool
 }
 
 section('§5 outside sovereign the card road stands: the door is asked; the plain roads read as before')
-failHint = 'change the card road in src/tools/MemoryTools/ruleCard.ts (outside sovereign the door is asked) or sourceWords in src/components/memory/MemoryCentreView.tsx'
+failHint = 'change the card road in src/tools/memory/ruleCard.ts (outside sovereign the door is asked) or sourceWords in src/screen/memory/MemoryCentreView.tsx'
 {
   doorCalls = 0
   const seqB = seqOf(RULE_B)
@@ -156,7 +156,7 @@ failHint = 'change the card road in src/tools/MemoryTools/ruleCard.ts (outside s
 }
 
 section('§6 the built product: a headless run with no host refuses and names /memory; a sovereign run unpins and strikes the rule and says so')
-failHint = 'rebuild with bun run build.ts, then check the Correct and Retain roads in src/tools/MemoryTools/MemoryTools.ts and src/tools/MemoryTools/ruleCard.ts for a headless run (no host) and a sovereign run'
+failHint = 'rebuild with bun run build.ts, then check the Correct and Retain roads in src/tools/memory/MemoryTools.ts and src/tools/memory/ruleCard.ts for a headless run (no host) and a sovereign run'
 type Frame = Record<string, unknown>
 type Body = Record<string, unknown>
 type Run = { frames: Frame[]; stderr: string; exit: number | null; bodies: Body[] }

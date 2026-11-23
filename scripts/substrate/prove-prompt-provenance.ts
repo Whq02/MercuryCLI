@@ -7,15 +7,15 @@ const bad = (l: string, hint = '') => {
   fail = 1
 }
 const assert = (cond: unknown, l: string, hint = '') => (cond ? ok(l) : bad(l, hint))
-const RECORDER = 'recordPromptComposition in src/utils/cockpit/promptProvenance.ts'
+const RECORDER = 'recordPromptComposition in src/screen/cockpit/promptProvenance.ts'
 
 const {
   recordPromptComposition,
   readPromptProvenance,
   __resetPromptProvenanceForTest,
-} = await import('../../src/utils/cockpit/promptProvenance.ts')
-const { buildBehaviourContract } = await import('../../src/prompt/behaviourContract.ts')
-const { renderAnthropicSections } = await import('../../src/prompt/behaviourContract.ts')
+} = await import('../../src/screen/cockpit/promptProvenance.ts')
+const { buildBehaviourContract } = await import('../../src/engine/system-prompt/behaviourContract.ts')
+const { renderAnthropicSections } = await import('../../src/engine/system-prompt/behaviourContract.ts')
 
 console.log('[1] no MACRO: recorder STILL records (stamp-independence)')
 delete (globalThis as Record<string, unknown>).MACRO
@@ -70,17 +70,17 @@ if (p) {
   assert(
     wrapperRecs.map(s => s.name).join(',') === 'response-profile,another',
     'wrapper sections carry semantic names',
-    'buildBehaviourContract in src/prompt/behaviourContract.ts must keep each wrapperSections name, in order, on the wrapper group',
+    'buildBehaviourContract in src/engine/system-prompt/behaviourContract.ts must keep each wrapperSections name, in order, on the wrapper group',
   )
   assert(
-    wrapperRecs.every(s => s.owner === 'src/prompt/mercuryContract.ts'),
+    wrapperRecs.every(s => s.owner === 'src/engine/system-prompt/mercuryContract.ts'),
     'wrapper owner attributed',
-    'the wrapper owner entry in src/prompt/behaviourContract.ts must stay src/prompt/mercuryContract.ts',
+    'the wrapper owner entry in src/engine/system-prompt/behaviourContract.ts must stay src/engine/system-prompt/mercuryContract.ts',
   )
   const mcp = p.sections.find(s => s.name === 'mcp_instructions')
-  assert(mcp?.cacheClass === 'turn', 'cacheBreak dynamic section classed turn', 'buildBehaviourContract in src/prompt/behaviourContract.ts must give a dynamic spec with cacheBreak true the cacheClass turn')
+  assert(mcp?.cacheClass === 'turn', 'cacheBreak dynamic section classed turn', 'buildBehaviourContract in src/engine/system-prompt/behaviourContract.ts must give a dynamic spec with cacheBreak true the cacheClass turn')
   const mem = p.sections.find(s => s.name === 'memory')
-  assert(mem?.cacheClass === 'session' && mem.owner === 'src/mneme/mnemeFrontPage.ts', 'memory owner + session cache class', 'the dynamic:memory owner entry and the session cacheClass for dynamic sections in src/prompt/behaviourContract.ts must be src/mneme/mnemeFrontPage.ts and session')
+  assert(mem?.cacheClass === 'session' && mem.owner === 'src/sessions/mneme/mnemeFrontPage.ts', 'memory owner + session cache class', 'the dynamic:memory owner entry and the session cacheClass for dynamic sections in src/engine/system-prompt/behaviourContract.ts must be src/sessions/mneme/mnemeFrontPage.ts and session')
   assert(p.sections.every(s => /^[0-9a-f]{8}$/.test(s.sha8)), 'every section carries a sha-8 fingerprint', `${RECORDER} must set sha8 to the first 8 hex digits of the sha256 of each section text`)
   assert(p.absent.length === 1 && p.absent[0]?.name === 'language', 'absent section recorded with its reason', `${RECORDER} must carry input.absentDynamic into the absent field`)
   assert(typeof p.openaiChars === 'number' && p.openaiChars > 0, 'openai render size recorded', `${RECORDER} must compute openaiChars from the sections whose scope is not anthropic-only`)

@@ -26,7 +26,7 @@ process.chdir(work)
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 let failures = 0
@@ -34,14 +34,14 @@ const check = (name: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const SIGN_IN_FIX = 'change composeSignInView or compareSignInViews in src/daemon/signInView.ts (the unfetched mark), or the pending words of the model list in src/services/model/modelOptions.ts'
-const EDIT_ROW_FIX = 'change the edit-outcomes row in src/services/health/sections/runtime.ts, or editOutcomes() in src/services/engine-connector/daemonConnector.ts'
+const SIGN_IN_FIX = 'change composeSignInView or compareSignInViews in src/daemon/session-seat/signInView.ts (the unfetched mark), or the pending words of the model list in src/models/catalogue/modelOptions.ts'
+const EDIT_ROW_FIX = 'change the edit-outcomes row in src/platform/health/sections/runtime.ts, or editOutcomes() in src/engine/connector/daemonConnector.ts'
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
 
 section('§1 THE SIGN-IN VIEW — a family whose live catalogue is not fetched yet reads unfetched, so a cockpit that has fetched it and a daemon that has not still agree')
 {
-  const { composeSignInView, compareSignInViews } = await import('../../src/daemon/signInView.ts')
+  const { composeSignInView, compareSignInViews } = await import('../../src/daemon/session-seat/signInView.ts')
   const view = composeSignInView({ refresh: true })
   const openai = view.families.find(f => f.family === 'openai')
   check('the OpenAI credential is present and offers no usable row yet (the catalogue base is a closed port: nothing fetched)', openai?.credentialed === true && openai.usable === false, `${j(openai)} · ${SIGN_IN_FIX}`)
@@ -50,7 +50,7 @@ section('§1 THE SIGN-IN VIEW — a family whose live catalogue is not fetched y
   const cockpit = { ...view, families: view.families.map(f => (f.family === 'openai' ? { family: 'openai', credentialed: true, usable: true, row: 'GPT-6 Astra', why: 'the newest row this sign-in can use' } : f)) } as never
   const gaps = compareSignInViews(cockpit, view)
   check('RED ON THE BASE: a cockpit that has fetched the catalogue and a daemon that has not disagree on nothing (the Air read FAULT: daemon ≠ client — openai)', gaps.length === 0, `${j(gaps)} · ${SIGN_IN_FIX}`)
-  const options = (await import('../../src/services/model/modelOptions.ts')).getModelOptions()
+  const options = (await import('../../src/models/catalogue/modelOptions.ts')).getModelOptions()
   const gptRows = options.filter(o => o.group !== undefined && /gpt|openai/i.test(o.group) && !String(o.value).startsWith('__'))
   check('every pending GPT lineup row carries the typed pending mark beside its words', gptRows.length > 0 && gptRows.every(o => o.unavailable !== undefined && o.cataloguePending === true), `${j(gptRows.map(o => [o.value, o.unavailable, o.cataloguePending]))} · ${SIGN_IN_FIX}`)
 
@@ -72,10 +72,10 @@ section('§1 THE SIGN-IN VIEW — a family whose live catalogue is not fetched y
 
 section('§2 EDIT OUTCOMES — the cockpit\'s /health counts the SESSION\'s edits (the runner\'s ledger through the session facts), not its own process\'s')
 {
-  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-  const { publishSessionFacts, readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
-  const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const { runHealthReport } = await import('../../src/services/health/healthReport.ts')
+  const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
+  const { publishSessionFacts, readSessionFacts } = await import('../../src/engine/connector/seatProjections.ts')
+  const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+  const { runHealthReport } = await import('../../src/platform/health/healthReport.ts')
   const SESSION = '550e8400-e29b-41d4-a716-4466554401e6'
   const record = { sessionId: SESSION, runnerId: 'concourse-w1', title: 'tally', projectLabel: 'project', workspaceId: work, home }
   const base = { schema: 1 as const, sessionId: SESSION, atMs: Date.now(), model: { effective: 'claude-sonnet-5-5', setting: null }, usage: { totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }, identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }, skills: [], mcp: [], permissionMode: 'default' as const, workspace: { cwd: work, originalCwd: work, projectRoot: work, instructionRoots: [] }, queue: [], pendingModel: null, busy: false }
@@ -123,7 +123,7 @@ section('§2 EDIT OUTCOMES — the cockpit\'s /health counts the SESSION\'s edit
       return { before, after: (await liveFactsOf(runner)).editOutcomes ?? [] }
     },
   )
-  check('the runner answers its edit ledger in the session facts', j(edits.before) === '[]' && edits.after.some(row => row.model === FIXTURE_MODEL && row.outcome === 'applied' && row.count === 1) && edits.after.reduce((sum, row) => sum + row.count, 0) === 2, `${j(edits)} · the runner must publish its edit ledger in the session facts: see publishSessionFacts in src/services/engine-connector/seatProjections.ts`)
+  check('the runner answers its edit ledger in the session facts', j(edits.before) === '[]' && edits.after.some(row => row.model === FIXTURE_MODEL && row.outcome === 'applied' && row.count === 1) && edits.after.reduce((sum, row) => sum + row.count, 0) === 2, `${j(edits)} · the runner must publish its edit ledger in the session facts: see publishSessionFacts in src/engine/connector/seatProjections.ts`)
 }
 
 console.log(`\n${'═'.repeat(76)}`)

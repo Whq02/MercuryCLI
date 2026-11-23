@@ -25,21 +25,21 @@ delete process.env.MERCURY_CRITTER
 delete process.env.NODE_ENV
 
 const React = await import('react')
-const { enableConfigs } = await import(`${ROOT}/src/utils/config.js`)
+const { enableConfigs } = await import(`${ROOT}/src/platform/settings/config.js`)
 enableConfigs()
-const { render, Box, Text } = (await import(`${ROOT}/src/ink.js`)) as {
+const { render, Box, Text } = (await import(`${ROOT}/src/screen/themedRenderer.js`)) as {
   render: (node: unknown, opts: Record<string, unknown>) => Promise<{ unmount: () => void }>
   Box: unknown
   Text: unknown
 }
-const { AlternateScreen } = await import(`${ROOT}/src/ink/components/AlternateScreen.js`)
-const { default: useInput } = await import(`${ROOT}/src/ink/hooks/use-input.js`)
-const { AnimatedCritterArt } = await import(`${ROOT}/src/components/mercury-ui/AnimatedCritterArt.js`)
-const { cellColor, critterDefForKey, EYE_BG, SQUARE_DOCK_ART_LINES } = await import(`${ROOT}/src/utils/cockpit/critterData.js`)
-const { composeCritterFrame } = await import(`${ROOT}/src/components/mercury-ui/CritterArt.js`)
-const { BLINK_CYCLE, LID_MS, SECOND_LID_AT } = await import(`${ROOT}/src/utils/cockpit/critterIdle.js`)
-const { heroEyeClusters } = await import(`${ROOT}/src/utils/cockpit/critterGaze.js`)
-const { setMotionPosture } = await import(`${ROOT}/src/utils/cockpit/motionGovernor.js`)
+const { AlternateScreen } = await import(`${ROOT}/src/screen/renderer/elements/AlternateScreen.js`)
+const { default: useInput } = await import(`${ROOT}/src/screen/renderer/bindings/use-input.js`)
+const { AnimatedCritterArt } = await import(`${ROOT}/src/screen/widgets/AnimatedCritterArt.js`)
+const { cellColor, critterDefForKey, EYE_BG, SQUARE_DOCK_ART_LINES } = await import(`${ROOT}/src/screen/cockpit/critterData.js`)
+const { composeCritterFrame } = await import(`${ROOT}/src/screen/widgets/CritterArt.js`)
+const { BLINK_CYCLE, LID_MS, SECOND_LID_AT } = await import(`${ROOT}/src/screen/cockpit/critterIdle.js`)
+const { heroEyeClusters } = await import(`${ROOT}/src/screen/cockpit/critterGaze.js`)
+const { setMotionPosture } = await import(`${ROOT}/src/screen/cockpit/motionGovernor.js`)
 const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
 
 let failures = 0
@@ -219,7 +219,7 @@ await awaitGlass(() => glass.rowText(0).includes('above the critter') && glass.r
 section('§1 the authored rest frame reaches the glass: every pupil in the lower half of its eye cell')
 await awayFromLid()
 const restOk = await awaitGlass(() => pupilsAt('bottom'))
-check('the critter is on the glass with its pupils at rest (lower half)', restOk, `${eyeRow()} fault=${glassFault}`, 'the critter must paint its authored rest frame with pupils in the lower half of the eye cells; see AnimatedCritterArt in src/components/mercury-ui/AnimatedCritterArt.tsx and composeCritterFrame in src/components/mercury-ui/CritterArt.tsx')
+check('the critter is on the glass with its pupils at rest (lower half)', restOk, `${eyeRow()} fault=${glassFault}`, 'the critter must paint its authored rest frame with pupils in the lower half of the eye cells; see AnimatedCritterArt in src/screen/widgets/AnimatedCritterArt.tsx and composeCritterFrame in src/screen/widgets/CritterArt.tsx')
 if (!restOk) {
   console.log(stderr.chunks.join('').slice(0, 1500))
 }
@@ -230,8 +230,8 @@ section('§1b THE FOUR EYES AT REST — a cell\'s background is its UPPER half\'
     const st = glass.styleAt(ART_LEFT + c, eyeLine)
     return { ch: glass.grid[eyeLine]![ART_LEFT + c]!, fg: st?.fg ?? 'default', bg: st?.bg ?? 'default' }
   })
-  check('each pupil cell at rest carries the CREAM (upper half) as its background and the pupil as its foreground glyph ▄', restStyle.every(s => s.ch === '▄' && s.bg === `48;2;${CREAM}` && s.fg === `38;2;${PUPIL}`), restStyle.map(s => `${s.ch} fg=${s.fg} bg=${s.bg}`).join(' | '), 'a pupil cell at rest must be the lower block glyph with the cream as background and the pupil as foreground; see the eye painting in src/components/mercury-ui/CritterArt.tsx and AnimatedCritterArt.tsx')
-  check('no pupil cell at rest has the pupil colour as its background (the sliver above the glyph would be a second pupil)', restStyle.every(s => s.bg !== `48;2;${PUPIL}`), restStyle.map(s => s.bg).join(' '), 'a pupil cell must never take the pupil colour as its background; see the eye painting in src/components/mercury-ui/CritterArt.tsx')
+  check('each pupil cell at rest carries the CREAM (upper half) as its background and the pupil as its foreground glyph ▄', restStyle.every(s => s.ch === '▄' && s.bg === `48;2;${CREAM}` && s.fg === `38;2;${PUPIL}`), restStyle.map(s => `${s.ch} fg=${s.fg} bg=${s.bg}`).join(' | '), 'a pupil cell at rest must be the lower block glyph with the cream as background and the pupil as foreground; see the eye painting in src/screen/widgets/CritterArt.tsx and AnimatedCritterArt.tsx')
+  check('no pupil cell at rest has the pupil colour as its background (the sliver above the glyph would be a second pupil)', restStyle.every(s => s.bg !== `48;2;${PUPIL}`), restStyle.map(s => s.bg).join(' '), 'a pupil cell must never take the pupil colour as its background; see the eye painting in src/screen/widgets/CritterArt.tsx')
   const composed = composeCritterFrame(def, { square: true }).art
   const asRgb = (hex: string | undefined): string | undefined => (hex === undefined ? undefined : rgb(hex))
   const faults: string[] = []
@@ -261,8 +261,8 @@ section('§1b THE FOUR EYES AT REST — a cell\'s background is its UPPER half\'
       if (top !== bot) twoColour++
     }
   }
-  check(`every painted pair with a painted pixel below it goes out as ▄ with fg = the lower half and bg = the upper half — E5's bytes exactly (${twoColour} two-colour cells among them)`, faults.length === 0 && twoColour > 0, faults.slice(0, 6).join('; '), 'each painted pair must go out as the lower block with fg the lower half and bg the upper half; see composeCritterFrame and the cell painting in src/components/mercury-ui/CritterArt.tsx')
-  check(`every bottom-edge pair beneath an eye uses a lower block sealed in its lower colour; all other edge pairs keep upper blocks (${edge} cells)`, edgeFaults.length === 0 && edge > 0, edgeFaults.slice(0, 6).join('; '), 'bottom-edge pairs under an eye must use the sealed lower block and the others the upper block; see the cell painting in src/components/mercury-ui/CritterArt.tsx')
+  check(`every painted pair with a painted pixel below it goes out as ▄ with fg = the lower half and bg = the upper half — E5's bytes exactly (${twoColour} two-colour cells among them)`, faults.length === 0 && twoColour > 0, faults.slice(0, 6).join('; '), 'each painted pair must go out as the lower block with fg the lower half and bg the upper half; see composeCritterFrame and the cell painting in src/screen/widgets/CritterArt.tsx')
+  check(`every bottom-edge pair beneath an eye uses a lower block sealed in its lower colour; all other edge pairs keep upper blocks (${edge} cells)`, edgeFaults.length === 0 && edge > 0, edgeFaults.slice(0, 6).join('; '), 'bottom-edge pairs under an eye must use the sealed lower block and the others the upper block; see the cell painting in src/screen/widgets/CritterArt.tsx')
 }
 const belowCells = restCols.map(c => `${ART_LEFT + c},${eyeLine + 1}`)
 const eyeCells = restCols.map(c => `${ART_LEFT + c},${eyeLine}`)
@@ -275,10 +275,10 @@ await awayFromLid()
 const upMark = stdout.chunks.length
 push(sgrMotion(faceCol, 0))
 const upOk = await awaitGlass(() => pupilsAt('top'))
-check('pointer above ⇒ every pupil in the UPPER half, the lower half cream', upOk, eyeRow(), 'a pointer motion above the critter must move the pupils into the upper half; the gaze comes from heroEyeClusters in src/utils/cockpit/critterGaze.ts and is painted by src/components/mercury-ui/AnimatedCritterArt.tsx')
+check('pointer above ⇒ every pupil in the UPPER half, the lower half cream', upOk, eyeRow(), 'a pointer motion above the critter must move the pupils into the upper half; the gaze comes from heroEyeClusters in src/screen/cockpit/critterGaze.ts and is painted by src/screen/widgets/AnimatedCritterArt.tsx')
 const upTouched = touchedBy(bytesSince(upMark))
-check('the up frame rewrote each pupil cell (a standing half-block cell whose two colours swapped)', eyeCells.every(k => upTouched.has(k)), [...upTouched].sort().join(' '), 'the frame after a gaze change must rewrite every pupil cell; see AnimatedCritterArt in src/components/mercury-ui/AnimatedCritterArt.tsx')
-check('…and repainted the cell BELOW each pupil, where a ▄ bleeds on Apple Terminal, so the old lower-half colour cannot survive there', belowCells.every(k => upTouched.has(k)), [...upTouched].sort().join(' '), 'the frame after a gaze change must also repaint the cell below each pupil; see AnimatedCritterArt in src/components/mercury-ui/AnimatedCritterArt.tsx')
+check('the up frame rewrote each pupil cell (a standing half-block cell whose two colours swapped)', eyeCells.every(k => upTouched.has(k)), [...upTouched].sort().join(' '), 'the frame after a gaze change must rewrite every pupil cell; see AnimatedCritterArt in src/screen/widgets/AnimatedCritterArt.tsx')
+check('…and repainted the cell BELOW each pupil, where a ▄ bleeds on Apple Terminal, so the old lower-half colour cannot survive there', belowCells.every(k => upTouched.has(k)), [...upTouched].sort().join(' '), 'the frame after a gaze change must also repaint the cell below each pupil; see AnimatedCritterArt in src/screen/widgets/AnimatedCritterArt.tsx')
 
 section('§3 THE FOUR EYES IN MOTION — the pointer below the critter: the pupils come back DOWN; the standing ▄ recolours, so the cell it bleeds into (below) must be repainted too')
 await awayFromLid()
@@ -287,11 +287,11 @@ const downMark = stdout.chunks.length
 const belowBefore = belowCells.map(k => { const [x, y] = k.split(',').map(Number) as [number, number]; return glass.grid[y]![x] })
 push(sgrMotion(faceCol, ROWS - 1))
 const downPainted = await awaitGlass(() => frames > framesBefore && restCols.every(c => halves(ART_LEFT + c).bottom === 'pupil'))
-check('pointer below ⇒ a frame painted the pupils back into the lower half', downPainted, `frames ${frames - framesBefore} ${eyeRow()}`, 'a pointer motion below the critter must paint a frame that returns the pupils to the lower half; see AnimatedCritterArt in src/components/mercury-ui/AnimatedCritterArt.tsx')
+check('pointer below ⇒ a frame painted the pupils back into the lower half', downPainted, `frames ${frames - framesBefore} ${eyeRow()}`, 'a pointer motion below the critter must paint a frame that returns the pupils to the lower half; see AnimatedCritterArt in src/screen/widgets/AnimatedCritterArt.tsx')
 const upperCleared = restCols.every(c => halves(ART_LEFT + c).top === 'cream')
-check('the bytes of the down frame carry cream in the upper half of every eye cell (the frame itself is right)', upperCleared, eyeRow(), 'the down frame must leave the upper half of every eye cell cream; see the eye painting in src/components/mercury-ui/CritterArt.tsx')
+check('the bytes of the down frame carry cream in the upper half of every eye cell (the frame itself is right)', upperCleared, eyeRow(), 'the down frame must leave the upper half of every eye cell cream; see the eye painting in src/screen/widgets/CritterArt.tsx')
 const downTouched = touchedBy(bytesSince(downMark))
-check('the down frame REPAINTS the cell below each pupil — the cell a recoloured ▄ bleeds into — so no sliver of the old colour survives beside the eye', belowCells.every(k => downTouched.has(k)), `touched ${[...downTouched].sort().join(' ')}; wanted ${belowCells.join(' ')}`, 'the down frame must repaint the cell below each pupil; see AnimatedCritterArt in src/components/mercury-ui/AnimatedCritterArt.tsx')
+check('the down frame REPAINTS the cell below each pupil — the cell a recoloured ▄ bleeds into — so no sliver of the old colour survives beside the eye', belowCells.every(k => downTouched.has(k)), `touched ${[...downTouched].sort().join(' ')}; wanted ${belowCells.join(' ')}`, 'the down frame must repaint the cell below each pupil; see AnimatedCritterArt in src/screen/widgets/AnimatedCritterArt.tsx')
 check('the repainted cell below keeps its own value (the glyph it had, not a blank)', belowCells.every((k, i) => {
   const [x, y] = k.split(',').map(Number) as [number, number]
   return glass.grid[y]![x] === belowBefore[i] && glass.grid[y]![x] !== ' '

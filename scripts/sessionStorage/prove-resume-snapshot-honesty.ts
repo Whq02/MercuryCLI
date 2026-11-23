@@ -10,12 +10,12 @@ process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
-const loading = await import(join(SRC, 'utils/sessionStorage/loading.ts'))
-const snapshot = await import(join(SRC, 'utils/sessionStorage/resumeSnapshot.ts'))
-const vnext = await import(join(SRC, 'utils/sessionStorage/vnext.ts'))
+const loading = await import(join(SRC, 'sessions/transcripts/loading.ts'))
+const snapshot = await import(join(SRC, 'sessions/transcripts/resumeSnapshot.ts'))
+const vnext = await import(join(SRC, 'sessions/transcripts/vnext.ts'))
 
 let failures = 0
-const resumeSnapshotFailHint = 'fix how the load reads the snapshot tail and advances its byte cursor in src/utils/sessionStorage/loading.ts (loadTranscriptFile) and src/utils/sessionStorage/resumeSnapshot.ts (writeResumeSnapshot)'
+const resumeSnapshotFailHint = 'fix how the load reads the snapshot tail and advances its byte cursor in src/sessions/transcripts/loading.ts (loadTranscriptFile) and src/sessions/transcripts/resumeSnapshot.ts (writeResumeSnapshot)'
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${resumeSnapshotFailHint}`}`)
   if (!ok) failures = 1

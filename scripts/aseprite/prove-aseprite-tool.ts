@@ -6,7 +6,7 @@ import * as path from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const asepriteHint = 'change the Aseprite tool in src/tools/AsepriteTool/AsepriteTool.ts (its call, checkPermissions or capability) or the app resolver in src/utils/aseprite/asepriteApp.ts'
+const asepriteHint = 'change the Aseprite tool in src/tools/aseprite/AsepriteTool.ts (its call, checkPermissions or capability) or the app resolver in src/integrations/aseprite/asepriteApp.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' · ' + asepriteHint}`)
@@ -19,10 +19,10 @@ console.log('============================================================')
 console.log(' Aseprite tool grammar — proof (shim-driven, hermetic)')
 console.log('============================================================')
 
-const { AsepriteTool } = await import('../../src/tools/AsepriteTool/AsepriteTool.ts')
-const { validateToolCapability } = await import('../../src/utils/capability/contract.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
-const { _resetAsepriteVersionProbeForTesting } = await import('../../src/utils/aseprite/asepriteApp.ts')
+const { AsepriteTool } = await import('../../src/tools/aseprite/AsepriteTool.ts')
+const { validateToolCapability } = await import('../../src/permissions/capability/contract.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
+const { _resetAsepriteVersionProbeForTesting } = await import('../../src/integrations/aseprite/asepriteApp.ts')
 
 const savedEnv = { ...process.env }
 function restore(): void {

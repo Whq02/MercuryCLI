@@ -18,7 +18,7 @@ import {
   setCellStyleId,
   shiftRect,
   shiftRows,
-} from '../../src/ink/cell-grid.js'
+} from '../../src/screen/renderer/cell-grid.js'
 import { sgrStateOfStyleString } from '../ink-runtime/ansiEmulator.js'
 
 let failures = 0
@@ -28,7 +28,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) {
     failures++
     console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
-    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the screen function this check calls in src/ink/cell-grid.ts so the condition holds`)
+    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the screen function this check calls in src/screen/renderer/cell-grid.ts so the condition holds`)
   }
 }
 

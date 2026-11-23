@@ -47,8 +47,8 @@ const MANIFEST: ImpactManifest = {
     ui: ['src/components/**'],
     flux: ['src/components/**'],
     pulse: ['src/components/**'],
-    bus: ['src/utils/crew/**'],
-    mission: ['src/utils/hooks/**'],
+    bus: ['src/crew/crew-start/**'],
+    mission: ['src/integrations/event-hooks/**'],
     smoke: ['src/**'],
   },
   ignores: ['docs/**', '*.md'],
@@ -141,7 +141,7 @@ section('§2 the NOT-FASTER refusal law (both directions)')
 {
   const pool = estimatePooledWallS(MANIFEST.suites, EST)
   check('the fixture pool estimate is the pty tail + the exclusive (1300s)', pool === 1300, `${pool}`)
-  const p = planSlice(input({ changedPaths: ['src/utils/crew/bus.ts'] }))
+  const p = planSlice(input({ changedPaths: ['src/crew/crew-start/bus.ts'] }))
   check(
     `a small slice (bus+smoke ≈ 200s vs pool ≈ ${pool}s) RUNS`,
     p.kind === 'run' && p.suites.join(',') === 'bus,smoke'.split(',').sort().join(','),
@@ -150,7 +150,7 @@ section('§2 the NOT-FASTER refusal law (both directions)')
 }
 {
   const p = planSlice(
-    input({ changedPaths: ['src/components/x.tsx', 'src/utils/crew/bus.ts', 'src/utils/hooks/h.ts'] }),
+    input({ changedPaths: ['src/components/x.tsx', 'src/crew/crew-start/bus.ts', 'src/integrations/event-hooks/h.ts'] }),
   )
   check('a near-pool-wall slice REFUSES (not-faster)', p.kind === 'refuse' && p.reason === 'not-faster', p.kind)
   check(
@@ -166,7 +166,7 @@ section('§2 the NOT-FASTER refusal law (both directions)')
 {
   const p = planSlice(
     input({
-      changedPaths: ['src/components/x.tsx', 'src/utils/crew/bus.ts', 'src/utils/hooks/h.ts'],
+      changedPaths: ['src/components/x.tsx', 'src/crew/crew-start/bus.ts', 'src/integrations/event-hooks/h.ts'],
       clearlyUnderRatio: 0.999,
     }),
   )
@@ -228,7 +228,7 @@ section('§4 fail-closed: UNCLASSIFIED escalates (and outranks the hub)')
 
 section('§5 anchor absent ⇒ refuse naming the pool')
 {
-  const p = planSlice(input({ anchor: null, changedPaths: ['src/utils/crew/bus.ts'] }))
+  const p = planSlice(input({ anchor: null, changedPaths: ['src/crew/crew-start/bus.ts'] }))
   check('no anchor refuses', p.kind === 'refuse' && p.reason === 'anchor-absent', p.kind)
   check(
     'the anchor refusal names "run the full pool"',
@@ -238,7 +238,7 @@ section('§5 anchor absent ⇒ refuse naming the pool')
 
 section('§6 the plan hands the selector set (sorted) to the lanes')
 {
-  const p = planSlice(input({ changedPaths: ['src/utils/crew/bus.ts', 'src/utils/hooks/h.ts'] }))
+  const p = planSlice(input({ changedPaths: ['src/crew/crew-start/bus.ts', 'src/integrations/event-hooks/h.ts'] }))
   check(
     'plan.suites is exactly the sorted selection set',
     p.kind === 'run' &&
@@ -258,7 +258,7 @@ section('§7 the plan stays inside what the anchor read')
     JSON.stringify(p.kind === 'run' ? [p.suites, p.ledger.outside] : p.kind),
   )
   check('the pool estimate counts only what the anchor read (300s, not 1300s)', p.ledger.poolEstimateS === 300, `${p.ledger.poolEstimateS}`)
-  const weighed = planSlice(input({ anchor: held, changedPaths: ['src/utils/crew/bus.ts'] }))
+  const weighed = planSlice(input({ anchor: held, changedPaths: ['src/crew/crew-start/bus.ts'] }))
   check(
     'the slice is weighed against that pool (bus and smoke, 200s of 300s, refuses)',
     weighed.kind === 'refuse' && weighed.reason === 'not-faster',
@@ -325,7 +325,7 @@ section('§9 every change owes the whole-tree ratchets the anchor read')
 {
   const estate: ImpactManifest = {
     suites: ['bus', 'gate', 'heavy', 'identity', 'smoke', 'verify'],
-    watches: { bus: ['src/utils/crew/**'], heavy: ['src/heavy/**'], identity: ['docs/**'], smoke: ['src/**'] },
+    watches: { bus: ['src/crew/crew-start/**'], heavy: ['src/heavy/**'], identity: ['docs/**'], smoke: ['src/**'] },
     ignores: ['notes/**'],
   }
   const owing = (over: Partial<SlicePlanInput>): SlicePlanInput =>
@@ -338,7 +338,7 @@ section('§9 every change owes the whole-tree ratchets the anchor read')
     })
   const shown = (p: ReturnType<typeof planSlice>): string =>
     JSON.stringify(p.kind === 'run' ? [p.suites, p.ledger.ratchets, p.ledger.outside] : [p.kind, p.reason])
-  const src = planSlice(owing({ changedPaths: ['src/utils/crew/bus.ts'] }))
+  const src = planSlice(owing({ changedPaths: ['src/crew/crew-start/bus.ts'] }))
   check(
     'a source change runs its watchers and the ratchets, and names the ratchet the anchor did not read',
     src.kind === 'run' && src.suites.join(',') === 'bus,gate,identity,smoke' && src.ledger.ratchets.join(',') === 'gate,identity' && src.ledger.outside.join(',') === 'verify',
@@ -358,9 +358,9 @@ section('§9 every change owes the whole-tree ratchets the anchor read')
   )
   const clean = planSlice(owing({ changedPaths: [] }))
   check('no change owes nothing', clean.kind === 'run' && clean.suites.length === 0 && clean.ledger.ratchets.length === 0, shown(clean))
-  const ceiling = planSlice(owing({ changedPaths: ['src/utils/crew/bus.ts'], hubCeiling: 2 }))
+  const ceiling = planSlice(owing({ changedPaths: ['src/crew/crew-start/bus.ts'], hubCeiling: 2 }))
   check('the ratchets do not count toward the fan-out ceiling (2 watchers under a ceiling of 2 run 4 suites)', ceiling.kind === 'run' && ceiling.suites.length === 4, shown(ceiling))
-  const silent = planSlice(owing({ changedPaths: ['src/utils/crew/bus.ts'], anchor: ANCHOR }))
+  const silent = planSlice(owing({ changedPaths: ['src/crew/crew-start/bus.ts'], anchor: ANCHOR }))
   check(
     'an anchor that does not say what it read owes every ratchet',
     silent.kind === 'run' && silent.suites.join(',') === 'bus,gate,identity,smoke,verify' && silent.ledger.outside.length === 0,
@@ -372,21 +372,21 @@ section('§10 the full run is weighed at its measured time when the anchor carri
 {
   const read = ['smoke', 'bus', 'mission', 'memory', 'bench']
   const held: SliceAnchor = { ...ANCHOR, read, present: Object.keys(CLASSES) }
-  const guessed = planSlice(input({ anchor: held, changedPaths: ['src/utils/crew/bus.ts'] }))
+  const guessed = planSlice(input({ anchor: held, changedPaths: ['src/crew/crew-start/bus.ts'] }))
   check(
     'with no measured time the estimate stands (200s of an estimated 300s refuses)',
     guessed.kind === 'refuse' && guessed.reason === 'not-faster' && guessed.ledger.poolEstimateS === 300 && guessed.ledger.poolMeasured === false,
     JSON.stringify([guessed.kind, guessed.ledger.poolEstimateS, guessed.ledger.poolMeasured]),
   )
-  const measured = planSlice(input({ anchor: { ...held, fullRunS: 1000 }, changedPaths: ['src/utils/crew/bus.ts'] }))
+  const measured = planSlice(input({ anchor: { ...held, fullRunS: 1000 }, changedPaths: ['src/crew/crew-start/bus.ts'] }))
   check(
     'a measured 1000s is the figure the slice is weighed against (200s of 1000s runs)',
     measured.kind === 'run' && measured.ledger.poolEstimateS === 1000 && measured.ledger.poolMeasured === true,
     JSON.stringify([measured.kind, measured.ledger.poolEstimateS, measured.ledger.poolMeasured]),
   )
-  const short = planSlice(input({ anchor: { ...held, fullRunS: 390 }, changedPaths: ['src/utils/crew/bus.ts'] }))
+  const short = planSlice(input({ anchor: { ...held, fullRunS: 390 }, changedPaths: ['src/crew/crew-start/bus.ts'] }))
   check('a measured 390s refuses the same slice (200s is over half)', short.kind === 'refuse' && short.reason === 'not-faster', short.kind)
-  const zero = planSlice(input({ anchor: { ...held, fullRunS: 0 }, changedPaths: ['src/utils/crew/bus.ts'] }))
+  const zero = planSlice(input({ anchor: { ...held, fullRunS: 0 }, changedPaths: ['src/crew/crew-start/bus.ts'] }))
   check('a measured time of zero is no measurement', zero.ledger.poolEstimateS === 300 && zero.ledger.poolMeasured === false, JSON.stringify([zero.ledger.poolEstimateS, zero.ledger.poolMeasured]))
 }
 

@@ -5,16 +5,16 @@ process.env.MERCURY_ZAI_API_BASE = 'https://zai.fixture.invalid/general/v4'
 process.env.MERCURY_ZAI_CODING_API_BASE = 'https://zai.fixture.invalid/coding/v4'
 
 import { z } from 'zod'
-import type { AssistantMessage, Message, StreamEvent } from '../../src/types/message.js'
+import type { AssistantMessage, Message, StreamEvent } from '../../src/engine/message-shapes/message.js'
 
 let failures = 0
 const backendsWhere: Record<string, string> = {
-  '1': 'change declaredRouteOf in src/services/providers/routeLaw.ts',
-  '1b': 'change routedCallModel in src/services/providers/callModelRouter.ts or resolveEngineDispatch in src/services/crew/engineDispatch.ts',
-  '2': 'change zaiCallModel in src/services/providers/zai/zaiCallModel.ts',
-  '3': 'change zaiCallModel in src/services/providers/zai/zaiCallModel.ts',
-  '4': 'change buildAgentLaunchPlan in src/services/crew/agentLaunchPlan.ts',
-  '5': 'change SPECIALIST_ROLES and SPECIALIST_ROLE_ACCESS in src/services/providers/providerAdapter.ts',
+  '1': 'change declaredRouteOf in src/models/roads/routeLaw.ts',
+  '1b': 'change routedCallModel in src/models/roads/callModelRouter.ts or resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts',
+  '2': 'change zaiCallModel in src/models/roads/zai/zaiCallModel.ts',
+  '3': 'change zaiCallModel in src/models/roads/zai/zaiCallModel.ts',
+  '4': 'change buildAgentLaunchPlan in src/crew/crewmates/agentLaunchPlan.ts',
+  '5': 'change SPECIALIST_ROLES and SPECIALIST_ROLE_ACCESS in src/models/roads/providerAdapter.ts',
 }
 let backendsHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -37,15 +37,15 @@ const savedZaiKey = process.env.ZAI_API_KEY
 const savedConfigDir = process.env.MERCURY_CONFIG_DIR
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(joinPath(tmpdir(), 'prove-s5-home-'))
 
-const { classifyModelRoute, declaredRouteOf } = await import('../../src/services/providers/callModelRouter.js')
-const { zaiCallModel } = await import('../../src/services/providers/zai/zaiCallModel.js')
+const { classifyModelRoute, declaredRouteOf } = await import('../../src/models/roads/callModelRouter.js')
+const { zaiCallModel } = await import('../../src/models/roads/zai/zaiCallModel.js')
 const { buildAgentLaunchPlan } = await import(
-  '../../src/services/crew/agentLaunchPlan.js'
+  '../../src/crew/crewmates/agentLaunchPlan.js'
 )
 const { SPECIALIST_ROLES, SPECIALIST_ROLE_ACCESS } = await import(
-  '../../src/services/providers/providerAdapter.js'
+  '../../src/models/roads/providerAdapter.js'
 )
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 section('1 · the callModel routing law')
 {
@@ -68,11 +68,11 @@ section('1 · the callModel routing law')
 
 section('1b · the home-lane admission at the dispatch seam (the neutrality ruling)')
 {
-  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
-  const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.js')
-  const { FIRST_PARTY_MODEL_ENV_PINS } = await import('../../src/services/providers/idSpaces.js')
-  const { createUserMessage } = await import('../../src/services/messages.js')
-  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
+  const { routedCallModel } = await import('../../src/models/roads/callModelRouter.js')
+  const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.js')
+  const { FIRST_PARTY_MODEL_ENV_PINS } = await import('../../src/models/roads/idSpaces.js')
+  const { createUserMessage } = await import('../../src/engine/messages/messages.js')
+  const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.js')
   const savedFacts: Record<string, string | undefined> = {}
   for (const key of ['ANTHROPIC_BASE_URL', ...FIRST_PARTY_MODEL_ENV_PINS]) {
     savedFacts[key] = process.env[key]
@@ -488,7 +488,7 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
   check('no dispatch: engine fields absent', plain.engineBackend === undefined && plain.engineToolDenials === undefined)
 
   {
-    const launchPlanModule = await import('../../src/services/crew/agentLaunchPlan.js')
+    const launchPlanModule = await import('../../src/crew/crewmates/agentLaunchPlan.js')
     check(
       'the launch-plan module exports no specialist-denial table (provider parity)',
       !('ENGINE_SPECIALIST_TOOL_DENIALS' in launchPlanModule),

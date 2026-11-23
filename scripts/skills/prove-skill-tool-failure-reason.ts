@@ -10,12 +10,12 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-const composerWhere = 'fix refusedExpansionError in src/tools/SkillTool/SkillTool.ts'
+const composerWhere = 'fix refusedExpansionError in src/tools/skill/SkillTool.ts'
 
-const skillTool = await import(join(SRC, 'tools/SkillTool/SkillTool.ts'))
-const { INTERRUPT_MESSAGE } = await import(join(SRC, 'utils/messages/rejectionText.ts'))
+const skillTool = await import(join(SRC, 'tools/skill/SkillTool.ts'))
+const { INTERRUPT_MESSAGE } = await import(join(SRC, 'engine/message-shapes/rejectionText.ts'))
 const compose = skillTool.refusedExpansionError as ((name: string, processed: unknown) => Error) | undefined
-check('the composer is exported', typeof compose === 'function', 'export refusedExpansionError from src/tools/SkillTool/SkillTool.ts')
+check('the composer is exported', typeof compose === 'function', 'export refusedExpansionError from src/tools/skill/SkillTool.ts')
 
 const user = (content: string): unknown => ({ type: 'user', message: { content } })
 const echo = user('<command-name>/deploy</command-name>\n<command-args>prod</command-args>')

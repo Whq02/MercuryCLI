@@ -10,7 +10,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-const { commitIdentityLine } = await import('../../src/services/gitGraph/observe.ts')
+const { commitIdentityLine } = await import('../../src/platform/git-graph/observe.ts')
 const root = mkdtempSync(join(tmpdir(), 'builtin-tools-identity-'))
 const home = mkdtempSync(join(tmpdir(), 'builtin-tools-identity-home-'))
 const env = { ...process.env, HOME: home, XDG_CONFIG_HOME: join(home, '.config'), GIT_CONFIG_GLOBAL: join(home, 'gitconfig'), GIT_CONFIG_NOSYSTEM: '1' }
@@ -22,13 +22,13 @@ try {
   sh(['init', '--quiet', '--initial-branch=main'])
   writeFileSync(join(root, 'a.txt'), 'a\n')
   const none = commitIdentityLine(root)
-  check('a repository with no identity gets the line', none !== undefined && none.startsWith('no commit identity here (user.name and user.email unset)'), `${none} | commitIdentityLine in src/services/gitGraph/observe.ts must return the no-identity line when user.name and user.email are both unset`)
-  check('the line tells the model not to invent one and names the operator road', none !== undefined && none.includes('do not invent one') && none.includes('git config'), `${none} | the no-identity line from commitIdentityLine in src/services/gitGraph/observe.ts must say do not invent one and name git config`)
+  check('a repository with no identity gets the line', none !== undefined && none.startsWith('no commit identity here (user.name and user.email unset)'), `${none} | commitIdentityLine in src/platform/git-graph/observe.ts must return the no-identity line when user.name and user.email are both unset`)
+  check('the line tells the model not to invent one and names the operator road', none !== undefined && none.includes('do not invent one') && none.includes('git config'), `${none} | the no-identity line from commitIdentityLine in src/platform/git-graph/observe.ts must say do not invent one and name git config`)
   sh(['config', 'user.name', 'proof'])
   const half = commitIdentityLine(root)
-  check('a half identity names the missing half', half !== undefined && half.includes('(user.email unset)'), `${half} | commitIdentityLine in src/services/gitGraph/observe.ts must name the missing half`)
+  check('a half identity names the missing half', half !== undefined && half.includes('(user.email unset)'), `${half} | commitIdentityLine in src/platform/git-graph/observe.ts must name the missing half`)
   sh(['config', 'user.email', 'proof@local'])
-  check('a full identity gets no line', commitIdentityLine(root) === undefined, `${commitIdentityLine(root)} | commitIdentityLine in src/services/gitGraph/observe.ts must return undefined when both user.name and user.email are set`)
+  check('a full identity gets no line', commitIdentityLine(root) === undefined, `${commitIdentityLine(root)} | commitIdentityLine in src/platform/git-graph/observe.ts must return undefined when both user.name and user.email are set`)
 } finally {
   for (const [key, value] of Object.entries(saved)) {
     if (value === undefined) delete process.env[key]

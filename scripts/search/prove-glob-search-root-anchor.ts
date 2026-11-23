@@ -10,7 +10,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
   if (!cond) {
     failures++
-    console.log('    fix: anchoring a slash-bearing pattern at the search root is done by the call of src/tools/GlobTool/GlobTool.ts and glob in src/utils/glob.ts; the engine door checks (section 6) exercise ripGrepAnswer in src/utils/ripgrep.ts; the section above this line names the behaviour that broke')
+    console.log('    fix: anchoring a slash-bearing pattern at the search root is done by the call of src/tools/glob/GlobTool.ts and glob in src/tools/glob/glob.ts; the engine door checks (section 6) exercise ripGrepAnswer in src/platform/shell/ripgrep.ts; the section above this line names the behaviour that broke')
   }
 }
 const j = (v: unknown): string => JSON.stringify(v)
@@ -52,11 +52,11 @@ writeFileSync(join(root, '.gitignore'), 'ignored.txt\n')
 mkdirSync(elsewhere)
 const at = (...parts: string[]): string => join(root, ...parts)
 
-const { GlobTool } = await import('../../src/tools/GlobTool/GlobTool.ts')
-const { glob } = await import('../../src/utils/glob.ts')
-const { ripGrepAnswer } = await import('../../src/utils/ripgrep.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getCwd, runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
+const { glob } = await import('../../src/tools/glob/glob.ts')
+const { ripGrepAnswer } = await import('../../src/platform/shell/ripgrep.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getCwd, runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
 
 type Answer = { data: { numFiles: number; filenames: string[]; truncated: boolean; incomplete?: string } }
 const ask = async (input: Record<string, unknown>, options: { deny?: string[]; limit?: number } = {}): Promise<Answer> => {
@@ -196,7 +196,7 @@ try {
   check('a Glob call leaves the process folder where it stood', process.cwd() === before && before === elsewhere, process.cwd())
 } catch (error) {
   failures++
-  console.log(`  [FAIL] the proof threw: ${error instanceof Error ? error.message : String(error)}; the throw came from GlobTool.call in src/tools/GlobTool/GlobTool.ts, glob in src/utils/glob.ts or ripGrepAnswer in src/utils/ripgrep.ts, so read the message for the failing call`)
+  console.log(`  [FAIL] the proof threw: ${error instanceof Error ? error.message : String(error)}; the throw came from GlobTool.call in src/tools/glob/GlobTool.ts, glob in src/tools/glob/glob.ts or ripGrepAnswer in src/platform/shell/ripgrep.ts, so read the message for the failing call`)
 } finally {
   process.chdir(previousCwd)
   rmSync(scratch, { recursive: true, force: true })

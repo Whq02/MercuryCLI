@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { getMaxListeners } from 'node:events'
-import { createAbortController, createChildAbortController } from '../../src/utils/abortController.ts'
+import { createAbortController, createChildAbortController } from '../../src/platform/async/abortController.ts'
 
-const WHERE = 'src/utils/abortController.ts'
+const WHERE = 'src/platform/async/abortController.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

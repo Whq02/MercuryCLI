@@ -5,8 +5,8 @@ import type { AddressInfo } from 'node:net'
 import axios from 'axios'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { WebFetchTool } = await import('../../src/tools/WebFetchTool/WebFetchTool.ts')
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.ts')
+const { WebFetchTool } = await import('../../src/tools/web-fetch/WebFetchTool.ts')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.ts')
 let requests = 0
 const server = createServer((req, res) => {
   requests++
@@ -36,10 +36,10 @@ const run = async (path: string, agentId = 'a', sessionId = 'fetch-failures') =>
 }
 let failures = 0
 function failureHint(label: string): string {
-  if (label.startsWith('DNS')) return 'fix networkFailureClass in src/tools/WebFetchTool/fetchErrors.ts'
-  if (label.startsWith('the Bash description')) return 'fix getSimplePrompt in src/tools/BashTool/prompt.ts'
-  if (/curl|marker|command text/.test(label)) return 'fix WEB_CONTENT_NOTICE and shellWebContentNotice in src/tools/BashTool/webContent.ts, and where BashTool.ts applies them'
-  return 'fix the fetch failure words or the WebFetchTool.prompt text under src/tools/WebFetchTool/ (WebFetchTool.ts, fetchErrors.ts)'
+  if (label.startsWith('DNS')) return 'fix networkFailureClass in src/tools/web-fetch/fetchErrors.ts'
+  if (label.startsWith('the Bash description')) return 'fix getSimplePrompt in src/tools/shell/prompt.ts'
+  if (/curl|marker|command text/.test(label)) return 'fix WEB_CONTENT_NOTICE and shellWebContentNotice in src/tools/shell/webContent.ts, and where BashTool.ts applies them'
+  return 'fix the fetch failure words or the WebFetchTool.prompt text under src/tools/web-fetch/ (WebFetchTool.ts, fetchErrors.ts)'
 }
 function check(label: string, ok: boolean, detail: string) { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}: ${detail}${ok ? '' : ` — ${failureHint(label)}`}`); if (!ok) failures++ }
 try {
@@ -61,12 +61,12 @@ try {
   check('robots refusal names the absent maps road', maps.includes('robots.txt disallows') && maps.includes('no geocoding or routing road'), maps)
   const prompt = await WebFetchTool.prompt()
   check('the description keeps reader egress but leaves refusal and retry details to the observed result', prompt.includes('full URL to r.jina.ai') && !/404 or 410|sparse successful HTML|shared by agents|geocoding/.test(prompt), prompt)
-  const { networkFailureClass } = await import('../../src/tools/WebFetchTool/fetchErrors.ts')
+  const { networkFailureClass } = await import('../../src/tools/web-fetch/fetchErrors.ts')
   check('DNS and TLS classes survive nested errors', networkFailureClass({ cause: { code: 'ENOTFOUND' } }).includes('DNS failure') && networkFailureClass({ code: 'CERT_HAS_EXPIRED' }).includes('TLS failure'), 'typed cause codes')
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
   const { readFileSync } = await import('node:fs')
-  const { WEB_CONTENT_NOTICE, shellWebContentNotice } = await import('../../src/tools/BashTool/webContent.ts')
+  const { WEB_CONTENT_NOTICE, shellWebContentNotice } = await import('../../src/tools/shell/webContent.ts')
   let appState = getDefaultAppState()
   const context = { options: { tools: [], commands: [], mcpClients: [], mcpResources: {} }, readFileState: new Map(), getAppState: () => appState, setAppState: (update: (s: typeof appState) => typeof appState) => { appState = update(appState) }, abortController: new AbortController(), toolUseId: 'web-content' } as never
   const local = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -85,7 +85,7 @@ try {
   }
   await new Promise(resolve => setTimeout(resolve, 2800))
   check('printed command text is not a web fetch', await shellWebContentNotice('echo "curl https://example.org"') === '', 'echo remains ordinary output')
-  const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
+  const { getSimplePrompt } = await import('../../src/tools/shell/prompt.ts')
   const bashPrompt = getSimplePrompt(new Set(['WebFetch', 'Browser', 'TaskStop', 'Service', 'ToolSearch']))
   check('the Bash description names neither WebFetch nor an identification rule: the result notice above carries the web-content fact at call time', !bashPrompt.includes('WebFetch') && !bashPrompt.includes('identify Mercury') && !bashPrompt.includes('curl'), 'model-facing prompt')
   console.log(`Bash prompt bytes: ${Buffer.byteLength(bashPrompt)}`)

@@ -21,17 +21,17 @@ const CONFIG_HOME = resolveProofHome([process.cwd()])
 
 if (process.env.CONSENT_RENDER_CHILD) {
   const React = await import('react')
-  const { render } = (await import('../../src/ink.js')) as {
+  const { render } = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
   }
-  const { Box, Text } = await import('../../src/ink.js')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
+  const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
   const { PermissionDialog } = await import(
-    '../../src/components/permissions/PermissionDialog.js'
+    '../../src/permissions/cards/PermissionDialog.js'
   )
   const { PermissionPrompt } = await import(
-    '../../src/components/permissions/PermissionPrompt.js'
+    '../../src/permissions/cards/PermissionPrompt.js'
   )
 
   const mode = process.env.CONSENT_MODE || 'default'

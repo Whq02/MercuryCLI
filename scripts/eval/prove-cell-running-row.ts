@@ -15,10 +15,10 @@ process.env.MERCURY_REDUCED_MOTION = '1'
 process.env.MERCURY_LIVE_GLYPHS = '0'
 const j = (v: unknown): string => JSON.stringify(v)
 const { evalKernelManager } = await loadEval()
-const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.js')
-const { renderEvalProgressMessage } = await import('../../src/tools/EvalTool/UI.js')
-type Progress = import('../../src/types/tools.js').EvalToolProgress
-type ProgressMessage = import('../../src/types/message.js').ProgressMessage
+const { EvalTool } = await import('../../src/tools/eval/EvalTool.js')
+const { renderEvalProgressMessage } = await import('../../src/tools/eval/rows.js')
+type Progress = import('../../src/tools/kit/toolProgress.js').EvalToolProgress
+type ProgressMessage = import('../../src/engine/message-shapes/message.js').ProgressMessage
 
 const SLEEPING_CELL = 'import time\ntime.sleep(2.3)\n'
 
@@ -41,7 +41,7 @@ try {
     )
     const settledAt = Date.now()
     check('the sleeping cell ran clean with no output', outcome.status === 'ok' && outcome.stdout.text === '' && outcome.stderr.text === '', j({ status: outcome.status, out: outcome.stdout.text }))
-    checkWithFix('RED ON THE BASE: the started mark fired exactly once', marks.length === 1, j(marks), 'runCell in src/services/eval/kernelManager.ts must call the onCellStarted callback once, when the kernel has the cell')
+    checkWithFix('RED ON THE BASE: the started mark fired exactly once', marks.length === 1, j(marks), 'runCell in src/tools/engines/eval-kernels/kernelManager.ts must call the onCellStarted callback once, when the kernel has the cell')
     check('…with the cell\'s effective budget (60 s)', marks[0]?.budgetMs === 60_000, j(marks))
     check('…at least two seconds before the cell settled (the kernel had the cell from the start)', marks.length === 1 && settledAt - marks[0]!.atMs >= 2_000 && marks[0]!.atMs - t0 < settledAt - t0, j({ markAfterMs: (marks[0]?.atMs ?? 0) - t0, settledAfterMs: settledAt - t0 }))
     const unbounded = await within(
@@ -83,7 +83,7 @@ try {
     ticks = events.filter((e): e is Extract<Progress, { kind: 'running' }> => e.kind === 'running')
     outputs = events.filter(e => e.kind === 'output').length
     check('the cell ran clean', result.data.status === 'ok', j(result.data.status))
-    checkWithFix('RED ON THE BASE: running ticks arrived while the silent cell ran (two or more over 2.3 s)', ticks.length >= 2, j({ ticks: ticks.length, kinds: events.map(e => e.kind) }), 'call in src/tools/EvalTool/EvalTool.ts must emit an eval_progress running tick every second while a cell runs')
+    checkWithFix('RED ON THE BASE: running ticks arrived while the silent cell ran (two or more over 2.3 s)', ticks.length >= 2, j({ ticks: ticks.length, kinds: events.map(e => e.kind) }), 'call in src/tools/eval/EvalTool.ts must emit an eval_progress running tick every second while a cell runs')
     check('the first tick is the start (0 s elapsed) and the elapsed climbs, never falls', ticks[0]?.elapsedSeconds === 0 && ticks.every((t, i) => i === 0 || t.elapsedSeconds >= ticks[i - 1]!.elapsedSeconds), j(ticks.map(t => t.elapsedSeconds)))
     check('every tick carries the cell\'s budget (180 s) and the cell\'s language and title', ticks.every(t => t.budgetMs === 180_000 && t.language === 'py' && t.title === 'Mutation spot-checks on a scratch copy'), j(ticks[0]))
     check('no output event (the cell printed nothing) — the ticks are the only progress', outputs === 0, String(outputs))
@@ -94,10 +94,10 @@ try {
   {
     const reactModule = (await import('react')) as typeof import('react')
     const React = reactModule.default ?? reactModule
-    const { default: Ink } = await import('../../src/ink/ink.js')
-    const { default: instances } = await import('../../src/ink/instances.js')
-    const { App } = await import('../../src/components/App.js')
-    const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
+    const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+    const { default: instances } = await import('../../src/screen/renderer/instances.js')
+    const { App } = await import('../../src/boot/App.js')
+    const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
     class Output extends EventEmitter {
       isTTY = true
       rows = 40
@@ -142,7 +142,7 @@ try {
     }
     const progress = (data: Progress): ProgressMessage => ({ type: 'progress', uuid: `p-${Math.random()}`, timestamp: new Date().toISOString(), toolUseID: 'toolu_eval_1', parentToolUseID: 'toolu_eval_1', data } as never)
     const starting = await mount(renderEvalProgressMessage([], { verbose: false }))
-    checkWithFix(`no event yet: the row says the kernel is starting (${starting})`, starting.includes('Starting kernel…'), starting, 'renderEvalProgressMessage in src/tools/EvalTool/UI.tsx must read Starting kernel… until a running tick arrives')
+    checkWithFix(`no event yet: the row says the kernel is starting (${starting})`, starting.includes('Starting kernel…'), starting, 'renderEvalProgressMessage in src/tools/eval/rows.tsx must read Starting kernel… until a running tick arrives')
     const running = await mount(renderEvalProgressMessage([progress({ type: 'eval_progress', kind: 'running', elapsedSeconds: 12, budgetMs: 180_000, language: 'py' })], { verbose: false }))
     check(`RED ON THE BASE: a running tick with no output: the row reads running with the elapsed and the timeout (${running})`, running.includes('running…') && running.includes('(12s · timeout 3m)') && !running.includes('Starting kernel'), running)
     const later = await mount(renderEvalProgressMessage([progress({ type: 'eval_progress', kind: 'running', elapsedSeconds: 12, budgetMs: 180_000 }), progress({ type: 'eval_progress', kind: 'running', elapsedSeconds: 119, budgetMs: 180_000 })], { verbose: false }))
@@ -164,12 +164,12 @@ try {
 
   section('§4 THE DAEMON ROAD — the tick rides a tool_update row with source eval; the seat keeps it; the connector hands the cell row its tick')
   {
-    const vocabulary = await import('../../src/rows/vocabulary.js')
+    const vocabulary = await import('../../src/engine/rows/vocabulary.js')
     const update = vocabulary.ToolUpdateRowSchema().safeParse({ type: 'tool_update', seq: 1, timestamp: 't', session_id: 's', call_id: 'toolu_eval_1', tick: 1, source: 'eval', elapsed_s: 12, budget_ms: 180_000 })
     check('RED ON THE BASE: the rows vocabulary admits source eval on a tool_update row', update.success, update.success ? '' : j(update.error.issues[0]))
-    const { onSeatRow } = await import('../../src/daemon/sessionSeat.js')
-    const { readSessionProgress } = await import('../../src/services/engine-connector/seatProjections.js')
-    const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.js')
+    const { onSeatRow } = await import('../../src/daemon/session-seat/sessionSeat.js')
+    const { readSessionProgress } = await import('../../src/engine/connector/seatProjections.js')
+    const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.js')
     const dir = mkdtempSync(join(tmpdir(), 'cell-running-daemon-'))
     const sid = 'aaaaaaaa-bbbb-4ccc-8ddd-evalrunning1'
     const SHORT = 'concourse-ev1'
@@ -181,10 +181,10 @@ try {
     await sleep(400)
     const entries = readSessionProgress(sid, dir)
     const entry = entries?.tools['toolu_eval_1']
-    check('RED ON THE BASE: the seat keeps the eval tick as eval_progress with its elapsed, budget and line', entry?.dataType === 'eval_progress' && entry.elapsedTimeSeconds === 12 && entry.budgetMs === 180_000 && entry.latestLine === 'test_two ok', j(entries) + (entry?.dataType === 'eval_progress' && entry.elapsedTimeSeconds === 12 && entry.budgetMs === 180_000 && entry.latestLine === 'test_two ok' ? '' : ' — onSeatRow in src/daemon/sessionSeat.ts must keep a tool_update row with source eval as eval_progress (elapsed, budget, line)'))
-    const { LivePart } = await import('../../src/services/engine-connector/daemon/live.js')
-    const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.js')
-    const { getEphemeralProgressFrame } = await import('../../src/state/ephemeralProgressStore.js')
+    check('RED ON THE BASE: the seat keeps the eval tick as eval_progress with its elapsed, budget and line', entry?.dataType === 'eval_progress' && entry.elapsedTimeSeconds === 12 && entry.budgetMs === 180_000 && entry.latestLine === 'test_two ok', j(entries) + (entry?.dataType === 'eval_progress' && entry.elapsedTimeSeconds === 12 && entry.budgetMs === 180_000 && entry.latestLine === 'test_two ok' ? '' : ' — onSeatRow in src/daemon/session-seat/sessionSeat.ts must keep a tool_update row with source eval as eval_progress (elapsed, budget, line)'))
+    const { LivePart } = await import('../../src/engine/connector/daemon/live.js')
+    const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.js')
+    const { getEphemeralProgressFrame } = await import('../../src/screen/app-state/ephemeralProgressStore.js')
     const planeBefore = process.env.MERCURY_DAEMON_DIR
     process.env.MERCURY_DAEMON_DIR = dir
     const window = new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, sessionId: () => sid } as never)
@@ -192,7 +192,7 @@ try {
     if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
     else process.env.MERCURY_DAEMON_DIR = planeBefore
     const tick = getEphemeralProgressFrame('toolu_eval_1')
-    check('the connector hands the cell row a running tick rebuilt from the entry (elapsed, budget, tail)', tick?.type === 'progress' && j(tick.data) === j({ type: 'eval_progress', kind: 'running', elapsedSeconds: 12, budgetMs: 180_000, tail: 'test_two ok' }), j(tick) + (tick?.type === 'progress' && j(tick.data) === j({ type: 'eval_progress', kind: 'running', elapsedSeconds: 12, budgetMs: 180_000, tail: 'test_two ok' }) ? '' : ' — readProgress in src/services/engine-connector/daemon/live.ts must rebuild the running tick from the seat entry'))
+    check('the connector hands the cell row a running tick rebuilt from the entry (elapsed, budget, tail)', tick?.type === 'progress' && j(tick.data) === j({ type: 'eval_progress', kind: 'running', elapsedSeconds: 12, budgetMs: 180_000, tail: 'test_two ok' }), j(tick) + (tick?.type === 'progress' && j(tick.data) === j({ type: 'eval_progress', kind: 'running', elapsedSeconds: 12, budgetMs: 180_000, tail: 'test_two ok' }) ? '' : ' — readProgress in src/engine/connector/daemon/live.ts must rebuild the running tick from the seat entry'))
   }
 } finally {
   await evalKernelManager.disposeAll()

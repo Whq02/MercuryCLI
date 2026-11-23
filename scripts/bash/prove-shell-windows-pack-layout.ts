@@ -57,7 +57,7 @@ console.log('── §2 the release windows job ──')
 
 console.log('── §3 the win-x64 layout ──')
 {
-  sectionHint = 'this check reads the win-x64 engine pack layout (vendor/brush.lock.json, src/utils/shell/brushPack.ts, vendor/brush/win-x64), so rebuild the pack with scripts/vendor/build-brush.ts or fix the owner named in the label'
+  sectionHint = 'this check reads the win-x64 engine pack layout (vendor/brush.lock.json, src/platform/shell/brushPack.ts, vendor/brush/win-x64), so rebuild the pack with scripts/vendor/build-brush.ts or fix the owner named in the label'
   const lock = join(ROOT, 'vendor', 'brush.lock.json')
   if (existsSync(lock)) {
     const parsed = JSON.parse(readFileSync(lock, 'utf8')) as { version?: string; platforms?: Record<string, { kind?: string; crate?: string; crateVersion?: string; target?: string; crateSha256?: string | null }> }
@@ -71,7 +71,7 @@ console.log('── §3 the win-x64 layout ──')
   let packPlatform = 'win-x64'
   let binaryName = 'brush.exe'
   let ownerDecode: ((dir: string) => { source?: string } | null) | null = null
-  const ownerPath = join(ROOT, 'src', 'utils', 'shell', 'brushPack.ts')
+  const ownerPath = join(ROOT, 'src', 'platform', 'shell', 'brushPack.ts')
   if (existsSync(ownerPath)) {
     ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '0.0.0' }
     const owner = (await import(ownerPath)) as {
@@ -82,14 +82,14 @@ console.log('── §3 the win-x64 layout ──')
     }
     ownerDecode = owner.readBrushPackManifest ?? null
     const spelled = owner.brushPackPlatform?.('win32', 'x64') ?? null
-    check('the pack owner spells the Windows platform win-x64', spelled === 'win-x64', String(spelled), 'brushPackPlatform in src/utils/shell/brushPack.ts must return win-x64 for win32 on x64')
-    check('the pack root is vendor/brush', owner.BRUSH_PACK_PATH === 'vendor/brush', String(owner.BRUSH_PACK_PATH), 'BRUSH_PACK_PATH in src/utils/shell/brushPack.ts must be vendor/brush')
+    check('the pack owner spells the Windows platform win-x64', spelled === 'win-x64', String(spelled), 'brushPackPlatform in src/platform/shell/brushPack.ts must return win-x64 for win32 on x64')
+    check('the pack root is vendor/brush', owner.BRUSH_PACK_PATH === 'vendor/brush', String(owner.BRUSH_PACK_PATH), 'BRUSH_PACK_PATH in src/platform/shell/brushPack.ts must be vendor/brush')
     if (spelled !== null) packPlatform = spelled
     const named = owner.brushBinaryFor?.(packPlatform)
-    check('the Windows binary is brush.exe', named === 'brush.exe', String(named), 'brushBinaryFor in src/utils/shell/brushPack.ts must return brush.exe for win-x64')
+    check('the Windows binary is brush.exe', named === 'brush.exe', String(named), 'brushBinaryFor in src/platform/shell/brushPack.ts must return brush.exe for win-x64')
     if (named !== undefined) binaryName = named
   } else {
-    console.log('  [SKIP] src/utils/shell/brushPack.ts is not on this tree — the literal win-x64 spelling stands in')
+    console.log('  [SKIP] src/platform/shell/brushPack.ts is not on this tree — the literal win-x64 spelling stands in')
   }
   const pack = join(ROOT, 'vendor', 'brush', packPlatform)
   if (!existsSync(pack)) {
@@ -104,7 +104,7 @@ console.log('── §3 the win-x64 layout ──')
       check(`the manifest names the platform ${packPlatform}`, manifest.platform === packPlatform, String(manifest.platform))
       check('the manifest carries a version', typeof manifest.version === 'string' && /^\d+\.\d+\.\d+/.test(manifest.version), String(manifest.version))
       check('the manifest says the pack was built from the crate (source cargo-build)', manifest.source === 'cargo-build', String(manifest.source))
-      if (ownerDecode !== null) check('the pack owner decodes the built pack', ownerDecode(pack)?.source === 'cargo-build', '', 'readBrushPackManifest in src/utils/shell/brushPack.ts returned null or a source other than cargo-build for this pack, so compare it with the .vendor-manifest.json in the pack')
+      if (ownerDecode !== null) check('the pack owner decodes the built pack', ownerDecode(pack)?.source === 'cargo-build', '', 'readBrushPackManifest in src/platform/shell/brushPack.ts returned null or a source other than cargo-build for this pack, so compare it with the .vendor-manifest.json in the pack')
       const digest = createHash('sha256').update(readFileSync(exe)).digest('hex')
       const strings: string[] = []
       const walk = (v: unknown): void => {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/providers/toolCallGate.ts src/run-core/turn-machine.ts src/tools/MemoryTools/MemoryTools.ts
+// gate-watch: src/models/roads/toolCallGate.ts src/engine/loop/turn-machine.ts src/tools/memory/MemoryTools.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs'
@@ -12,21 +12,21 @@ process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'malformed-reissue-d
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'NODE_ENV']) delete process.env[k]
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const gate = await import('../../src/services/providers/toolCallGate.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const gate = await import('../../src/models/roads/toolCallGate.ts')
 type GateExtras = { refusedFactTexts?: (refusal: RefusedToolCall) => string[]; executedCallAnswersRefusal?: (refusal: RefusedToolCall, call: { name: string; input: unknown }) => boolean }
 const extras = gate as unknown as GateExtras
 const factTexts = (refusal: RefusedToolCall): string[] => (typeof extras.refusedFactTexts === 'function' ? extras.refusedFactTexts(refusal) : [])
 const answers = (refusal: RefusedToolCall, call: { name: string; input: unknown }): boolean => (typeof extras.executedCallAnswersRefusal === 'function' ? extras.executedCallAnswersRefusal(refusal, call) : false)
-const { RetainTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
-type RefusedToolCall = import('../../src/types/message.ts').RefusedToolCall
+const { RetainTool } = await import('../../src/tools/memory/MemoryTools.ts')
+type RefusedToolCall = import('../../src/engine/message-shapes/message.ts').RefusedToolCall
 
 let failures = 0
 let checks = 0
@@ -213,14 +213,14 @@ const stored = (fact: string): boolean => libraryText().includes(fact)
 section('§0 the gate refuses what the box\'s GLM road sent, and the schema-aware strip is not the cause')
 {
   const strict = gate.gateToolCall(tools as never, { id: 'c0', name: 'Retain', argumentsRaw: GLM_BAD_BELL, malformed: false })
-  check('an extra key on a Retain item is a schema refusal naming the key (the box\'s "The parameter … was not expected")', !strict.ok && strict.refusal.code === 'schema' && strict.refusal.reason.includes('`tags` was not expected'), 'fix gateToolCall in src/services/providers/toolCallGate.ts: an extra key on a Retain item must refuse with code schema and name the key — ' + JSON.stringify(strict))
+  check('an extra key on a Retain item is a schema refusal naming the key (the box\'s "The parameter … was not expected")', !strict.ok && strict.refusal.code === 'schema' && strict.refusal.reason.includes('`tags` was not expected'), 'fix gateToolCall in src/models/roads/toolCallGate.ts: an extra key on a Retain item must refuse with code schema and name the key — ' + JSON.stringify(strict))
   const nulled = gate.gateToolCall(tools as never, { id: 'c0n', name: 'Retain', argumentsRaw: `{"items":[{"content":"${FACT_BELL}","context":null,"pin":null}]}`, malformed: false })
-  check('null in optional slots is stripped by the schema-aware strip and the call is admitted (the strip removes, never adds)', nulled.ok && JSON.stringify(nulled.input) === JSON.stringify({ items: [{ content: FACT_BELL }] }), 'fix the schema-aware null strip in gateToolCall in src/services/providers/toolCallGate.ts — ' + JSON.stringify(nulled))
+  check('null in optional slots is stripped by the schema-aware strip and the call is admitted (the strip removes, never adds)', nulled.ok && JSON.stringify(nulled.input) === JSON.stringify({ items: [{ content: FACT_BELL }] }), 'fix the schema-aware null strip in gateToolCall in src/models/roads/toolCallGate.ts — ' + JSON.stringify(nulled))
   const cut = gate.gateToolCall(tools as never, { id: 'c0c', name: 'Retain', argumentsRaw: GLM_CUT_BELL, malformed: true })
-  check('a cut argument stream is an invalid-json refusal that still carries the fact\'s words', !cut.ok && cut.refusal.code === 'invalid-json' && factTexts(cut.refusal).some(t => t.includes('lighthouse bell')), 'fix gateToolCall or refusedFactTexts in src/services/providers/toolCallGate.ts: a malformed argument stream must refuse as invalid-json and keep the fact words — ' + JSON.stringify(cut))
+  check('a cut argument stream is an invalid-json refusal that still carries the fact\'s words', !cut.ok && cut.refusal.code === 'invalid-json' && factTexts(cut.refusal).some(t => t.includes('lighthouse bell')), 'fix gateToolCall or refusedFactTexts in src/models/roads/toolCallGate.ts: a malformed argument stream must refuse as invalid-json and keep the fact words — ' + JSON.stringify(cut))
   const correction = gate.toolCallRefusalCorrection([gatedRefusal('c0', GLM_BAD_BELL)])
-  check('the correction handed to the model says the user asked for the facts to be kept and asks for the Retain re-issue first', correction.includes('re-issue that Retain call now') && correction.includes('the user will not type them again') && correction.includes(FACT_BELL), 'fix toolCallRefusalCorrection in src/services/providers/toolCallGate.ts — ' + correction)
-  check('the refusal and the executed call pair by the fact\'s words, not by the tool\'s name alone', answers(gatedRefusal('c0', GLM_BAD_BELL), { name: 'Retain', input: { items: [{ content: FACT_BELL }] } }) && !answers(gatedRefusal('c0', GLM_BAD_BELL), { name: 'Retain', input: { items: [{ content: FACT_TEA }] } }), 'fix executedCallAnswersRefusal in src/services/providers/toolCallGate.ts: pair a refusal with an executed call by the fact words, not by the tool name alone')
+  check('the correction handed to the model says the user asked for the facts to be kept and asks for the Retain re-issue first', correction.includes('re-issue that Retain call now') && correction.includes('the user will not type them again') && correction.includes(FACT_BELL), 'fix toolCallRefusalCorrection in src/models/roads/toolCallGate.ts — ' + correction)
+  check('the refusal and the executed call pair by the fact\'s words, not by the tool\'s name alone', answers(gatedRefusal('c0', GLM_BAD_BELL), { name: 'Retain', input: { items: [{ content: FACT_BELL }] } }) && !answers(gatedRefusal('c0', GLM_BAD_BELL), { name: 'Retain', input: { items: [{ content: FACT_TEA }] } }), 'fix executedCallAnswersRefusal in src/models/roads/toolCallGate.ts: pair a refusal with an executed call by the fact words, not by the tool name alone')
 }
 
 section('§1 a malformed Retain, then a good one on the correction: the fact is stored in the same turn and one note paints')
@@ -230,12 +230,12 @@ section('§1 a malformed Retain, then a good one on the correction: the fact is 
     [y(toolTurn('tu_retain', 'Retain', { items: [{ content: bell('s1'), context: 'the user asked to remember it' }] }))],
     [y(textTurn('Remembered.'))],
   ])
-  check('three model calls: the refusal, the corrected re-issue, the answer', r.calls.length === 3, 'the turn loop in src/run-core/turn/noToolReply.ts must hand the correction back to the model after a refused step and run the re-issue and the answer; model calls made: ' + String(r.calls.length))
-  check('terminal completed', r.terminal.reason === 'completed', 'the turn must end completed: see src/run-core/turn/noToolReply.ts — ' + JSON.stringify(r.terminal))
-  check('the correction rode the same turn, right after the refused step', corrections(r.calls[1]?.messages ?? []).length === 1 && corrections(r.calls[0]?.messages ?? []).length === 0, 'the correction must be appended right after the refused step, before the next model call: see toolCallRefusalCorrection use in src/run-core/turn/noToolReply.ts')
-  check('the fact is stored (the memory library carries the bell)', stored(bell('s1')), 'the corrected Retain re-issue must run and store the fact: see the Retain tool in src/tools/MemoryTools/MemoryTools.ts and src/run-core/turn/runToolCalls.ts — library: ' + libraryText().slice(0, 400))
-  check('exactly one malformed-call note painted', malformedNotes(r.yields) === 1, 'exactly one refused-call note must paint per refused step: see src/run-core/turn/noToolReply.ts — count: ' + String(malformedNotes(r.yields)))
-  check(`no "${LOST_LINE}" line — the re-issue landed`, !systemNotices(r.yields).some(t => t.includes(LOST_LINE)), 'the lost line must not paint when the matching re-issue ran: fix the pending-write settling in src/run-core/turn-machine.ts — notices: ' + systemNotices(r.yields).join(' | '))
+  check('three model calls: the refusal, the corrected re-issue, the answer', r.calls.length === 3, 'the turn loop in src/engine/loop/turn/noToolReply.ts must hand the correction back to the model after a refused step and run the re-issue and the answer; model calls made: ' + String(r.calls.length))
+  check('terminal completed', r.terminal.reason === 'completed', 'the turn must end completed: see src/engine/loop/turn/noToolReply.ts — ' + JSON.stringify(r.terminal))
+  check('the correction rode the same turn, right after the refused step', corrections(r.calls[1]?.messages ?? []).length === 1 && corrections(r.calls[0]?.messages ?? []).length === 0, 'the correction must be appended right after the refused step, before the next model call: see toolCallRefusalCorrection use in src/engine/loop/turn/noToolReply.ts')
+  check('the fact is stored (the memory library carries the bell)', stored(bell('s1')), 'the corrected Retain re-issue must run and store the fact: see the Retain tool in src/tools/memory/MemoryTools.ts and src/engine/loop/turn/runToolCalls.ts — library: ' + libraryText().slice(0, 400))
+  check('exactly one malformed-call note painted', malformedNotes(r.yields) === 1, 'exactly one refused-call note must paint per refused step: see src/engine/loop/turn/noToolReply.ts — count: ' + String(malformedNotes(r.yields)))
+  check(`no "${LOST_LINE}" line — the re-issue landed`, !systemNotices(r.yields).some(t => t.includes(LOST_LINE)), 'the lost line must not paint when the matching re-issue ran: fix the pending-write settling in src/engine/loop/turn-machine.ts — notices: ' + systemNotices(r.yields).join(' | '))
 }
 
 section('§2 the box\'s shape (F39W-14A-01): the correction is handed back, the model stores a DIFFERENT fact and answers — the chat says the remember did not happen')
@@ -245,18 +245,18 @@ section('§2 the box\'s shape (F39W-14A-01): the correction is handed back, the 
     [y(toolTurn('tu_tea', 'Retain', { items: [{ content: tea('s2') }] }))],
     [y(textTurn('All three answered from memory.'))],
   ])
-  check('terminal completed (the model answered)', r.terminal.reason === 'completed', 'the turn must end completed: see src/run-core/turn/noToolReply.ts — ' + JSON.stringify(r.terminal))
-  check('the other fact was stored, the asked-for one was not', stored(tea('s2')) && !stored(bell('s2')), 'the Retain tool in src/tools/MemoryTools/MemoryTools.ts must store the fact the model sent, and only that one — ' + JSON.stringify({ tea: stored(tea('s2')), bell: stored(bell('s2')) }))
-  check(`the chat says plainly "${LOST_LINE}" at the end of the turn (an error-level notice)`, r.yields.some(m => m.type === 'system' && String((m as { content?: unknown }).content ?? '').includes(LOST_LINE) && (m as { level?: unknown }).level === 'error'), 'fix the end-of-turn notice in src/run-core/turn-machine.ts (memoryWriteLostNotice in src/services/providers/toolCallGate.ts): an unanswered refused Retain must paint an error-level system notice — notices: ' + systemNotices(r.yields).join(' | '))
+  check('terminal completed (the model answered)', r.terminal.reason === 'completed', 'the turn must end completed: see src/engine/loop/turn/noToolReply.ts — ' + JSON.stringify(r.terminal))
+  check('the other fact was stored, the asked-for one was not', stored(tea('s2')) && !stored(bell('s2')), 'the Retain tool in src/tools/memory/MemoryTools.ts must store the fact the model sent, and only that one — ' + JSON.stringify({ tea: stored(tea('s2')), bell: stored(bell('s2')) }))
+  check(`the chat says plainly "${LOST_LINE}" at the end of the turn (an error-level notice)`, r.yields.some(m => m.type === 'system' && String((m as { content?: unknown }).content ?? '').includes(LOST_LINE) && (m as { level?: unknown }).level === 'error'), 'fix the end-of-turn notice in src/engine/loop/turn-machine.ts (memoryWriteLostNotice in src/models/roads/toolCallGate.ts): an unanswered refused Retain must paint an error-level system notice — notices: ' + systemNotices(r.yields).join(' | '))
   const order = r.yields.map(m => (m.type === 'system' && String((m as { content?: unknown }).content ?? '').includes(LOST_LINE) ? 'lost' : m.type === 'assistant' ? 'assistant' : '')).filter(Boolean)
-  check('the line comes after the model\'s own answer, as the turn\'s last word', order.lastIndexOf('lost') > order.lastIndexOf('assistant'), 'the lost line must be emitted after the final assistant message: see src/run-core/turn-machine.ts — order: ' + order.join(','))
+  check('the line comes after the model\'s own answer, as the turn\'s last word', order.lastIndexOf('lost') > order.lastIndexOf('assistant'), 'the lost line must be emitted after the final assistant message: see src/engine/loop/turn-machine.ts — order: ' + order.join(','))
 }
 
 section('§3 the model never re-issues at all and just answers — the line paints; §4 a fixture that stays malformed — the plain sentence paints and no fact is claimed')
 {
   const r3 = await run([[y(refusedTurn(gatedRefusal('c3', glmBad(bell('s3')))))], [y(textTurn('I have no record of that.'))]])
-  check('§3: the chat says the remember did not happen', systemNotices(r3.yields).some(t => t.includes(LOST_LINE)), 'fix the pending-write notice in src/run-core/turn-machine.ts (memoryWriteLostNotice in src/services/providers/toolCallGate.ts) — notices: ' + systemNotices(r3.yields).join(' | '))
-  check('§3: the fact was not stored', !stored(bell('s3')), 'a refused Retain must never reach the memory library: see gateToolCall in src/services/providers/toolCallGate.ts')
+  check('§3: the chat says the remember did not happen', systemNotices(r3.yields).some(t => t.includes(LOST_LINE)), 'fix the pending-write notice in src/engine/loop/turn-machine.ts (memoryWriteLostNotice in src/models/roads/toolCallGate.ts) — notices: ' + systemNotices(r3.yields).join(' | '))
+  check('§3: the fact was not stored', !stored(bell('s3')), 'a refused Retain must never reach the memory library: see gateToolCall in src/models/roads/toolCallGate.ts')
   const r4 = await run([
     [y(refusedTurn(gatedRefusal('c4a', glmBad(bell('s4')))))],
     [y(refusedTurn(gatedRefusal('c4b', glmCut(bell('s4')), true)))],
@@ -264,10 +264,10 @@ section('§3 the model never re-issues at all and just answers — the line pain
     [y(refusedTurn(gatedRefusal('c4d', glmBad(bell('s4')))))],
     [y(textTurn('never reached'))],
   ])
-  check('§4: four calls, then the bounded recovery surfaces (tool_calls_refused)', r4.calls.length === 4 && r4.terminal.reason === 'tool_calls_refused', `bounded recovery lives in src/run-core/turn/noToolReply.ts (toolCallRefusalRecoveryCount); calls and terminal: ${r4.calls.length} · ${JSON.stringify(r4.terminal)}`)
-  check(`§4: the chat says plainly "${LOST_LINE}"`, systemNotices(r4.yields).some(t => t.includes(LOST_LINE)), 'fix the pending-write notice in src/run-core/turn-machine.ts — notices: ' + systemNotices(r4.yields).join(' | '))
-  check('§4: no fact is claimed — the library has no bell', !stored(bell('s4')), 'a refused Retain must never reach the memory library: see gateToolCall in src/services/providers/toolCallGate.ts')
-  check('§4: the sentence is the user\'s, not the provider\'s (no [zai] in it)', systemNotices(r4.yields).filter(t => t.includes(LOST_LINE)).every(t => !t.includes('[zai]') && !t.includes('schema')), 'the lost line must be the user sentence from memoryWriteLostLine in src/services/providers/toolCallGate.ts, with no provider tag or schema words')
+  check('§4: four calls, then the bounded recovery surfaces (tool_calls_refused)', r4.calls.length === 4 && r4.terminal.reason === 'tool_calls_refused', `bounded recovery lives in src/engine/loop/turn/noToolReply.ts (toolCallRefusalRecoveryCount); calls and terminal: ${r4.calls.length} · ${JSON.stringify(r4.terminal)}`)
+  check(`§4: the chat says plainly "${LOST_LINE}"`, systemNotices(r4.yields).some(t => t.includes(LOST_LINE)), 'fix the pending-write notice in src/engine/loop/turn-machine.ts — notices: ' + systemNotices(r4.yields).join(' | '))
+  check('§4: no fact is claimed — the library has no bell', !stored(bell('s4')), 'a refused Retain must never reach the memory library: see gateToolCall in src/models/roads/toolCallGate.ts')
+  check('§4: the sentence is the user\'s, not the provider\'s (no [zai] in it)', systemNotices(r4.yields).filter(t => t.includes(LOST_LINE)).every(t => !t.includes('[zai]') && !t.includes('schema')), 'the lost line must be the user sentence from memoryWriteLostLine in src/models/roads/toolCallGate.ts, with no provider tag or schema words')
 }
 
 section('§5 a refused Retain beside an executed call (the mixed step): held through the turn; a later matching Retain settles it, an answer without one says so')
@@ -277,19 +277,19 @@ section('§5 a refused Retain beside an executed call (the mixed step): held thr
     [y(toolTurn('tu_retain5', 'Retain', { items: [{ content: bell('s5a') }] }))],
     [y(textTurn('done'))],
   ])
-  check('§5a: the re-issue beside the correction stores the fact and no lost line paints', stored(bell('s5a')) && !systemNotices(r5a.yields).some(t => t.includes(LOST_LINE)), 'a refused Retain beside an executed call must be held through the turn and settled by a matching Retain: see src/run-core/turn-machine.ts and executedCallAnswersRefusal in src/services/providers/toolCallGate.ts — notices: ' + systemNotices(r5a.yields).join(' | '))
+  check('§5a: the re-issue beside the correction stores the fact and no lost line paints', stored(bell('s5a')) && !systemNotices(r5a.yields).some(t => t.includes(LOST_LINE)), 'a refused Retain beside an executed call must be held through the turn and settled by a matching Retain: see src/engine/loop/turn-machine.ts and executedCallAnswersRefusal in src/models/roads/toolCallGate.ts — notices: ' + systemNotices(r5a.yields).join(' | '))
   const r5b = await run([
     [y(toolTurn('tu_echo2', 'EchoTool', { text: 'x' })), y(refusedTurn(gatedRefusal('c5b', `{"items":[{"content":"${tea('s5b')}","importance":"high"}]}`)))],
     [y(textTurn('done without it'))],
   ])
-  check('§5b: an answer with the refused Retain never re-issued says the remember did not happen', systemNotices(r5b.yields).some(t => t.includes(LOST_LINE)), 'fix the held pending-write notice in src/run-core/turn-machine.ts — notices: ' + systemNotices(r5b.yields).join(' | '))
-  check('§5b: the correction rode the same user turn as the tool result', corrections(r5b.calls[1]?.messages ?? []).length === 1, 'the correction must ride the same user turn as the tool result: see src/run-core/turn/runToolCalls.ts')
+  check('§5b: an answer with the refused Retain never re-issued says the remember did not happen', systemNotices(r5b.yields).some(t => t.includes(LOST_LINE)), 'fix the held pending-write notice in src/engine/loop/turn-machine.ts — notices: ' + systemNotices(r5b.yields).join(' | '))
+  check('§5b: the correction rode the same user turn as the tool result', corrections(r5b.calls[1]?.messages ?? []).length === 1, 'the correction must ride the same user turn as the tool result: see src/engine/loop/turn/runToolCalls.ts')
 }
 
 section('§6 a turn without a refused memory write says nothing')
 {
   const r = await run([[y(toolTurn('tu_plain', 'EchoTool', { text: 'p' }))], [y(textTurn('ok'))]])
-  check('no lost line, no refusal notice', !systemNotices(r.yields).some(t => t.includes('did not happen') || t.includes('Tool call refused')), 'a turn with no refused call must paint no lost line or refusal notice: see src/run-core/turn-machine.ts — notices: ' + systemNotices(r.yields).join(' | '))
+  check('no lost line, no refusal notice', !systemNotices(r.yields).some(t => t.includes('did not happen') || t.includes('Tool call refused')), 'a turn with no refused call must paint no lost line or refusal notice: see src/engine/loop/turn-machine.ts — notices: ' + systemNotices(r.yields).join(' | '))
 }
 
 console.log(`\n${failures === 0 ? `MALFORMED CALL RE-ISSUE GREEN (${checks} checks)` : `MALFORMED CALL RE-ISSUE RED — ${failures} failure(s) of ${checks}`}`)

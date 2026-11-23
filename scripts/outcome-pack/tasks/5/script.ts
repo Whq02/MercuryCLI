@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { childEnv, MODEL, NODE } from '../../../daemon/dupline-world.ts'
 import { hostRunner } from '../../../lib/runnerHost.ts'
 import { seedScratchHome, startScriptedFixture } from '../../../lib/scriptedTurn.ts'
-import type { PermissionRequestParams } from '../../../../src/runner/wire/methods.ts'
+import type { PermissionRequestParams } from '../../../../src/daemon/runner-wire/methods.ts'
 import { event, execute, patchScript, type Change, type Context } from '../../runtime.ts'
 
 export async function script(ctx: Context, changes: Change[]): Promise<void> {

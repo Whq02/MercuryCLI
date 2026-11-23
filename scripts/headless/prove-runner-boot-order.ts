@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
 const at = (rel: string): string => join(ROOT, rel)
 const SELF = 'scripts/headless/prove-runner-boot-order.ts'
-const LIST = 'src/cli/headless/boot/bootList.ts'
+const LIST = 'src/daemon/runner/boot/bootList.ts'
 
 const ORDER = [
   'markSessionPosture',
@@ -75,13 +75,13 @@ function check(label: string, cond: boolean, detail: string[] = []): void {
 const section = (title: string): void => console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 const j = (value: unknown): string => JSON.stringify(value)
 setTimeout(() => {
-  console.log('  [FAIL] the proof ended within its two minutes — a boot step or the peer never settled; look at runBootSteps in src/cli/headless/boot/bootList.ts and createPeer in src/runner/wire/peer.ts')
+  console.log('  [FAIL] the proof ended within its two minutes — a boot step or the peer never settled; look at runBootSteps in src/daemon/runner/boot/bootList.ts and createPeer in src/daemon/runner-wire/peer.ts')
   process.exit(1)
 }, 120_000).unref()
 
-const realList = (await import(at(LIST))) as typeof import('../../src/cli/headless/boot/bootList.ts')
+const realList = (await import(at(LIST))) as typeof import('../../src/daemon/runner/boot/bootList.ts')
 const { BOOT_STEPS, runBootSteps } = realList
-const { BOOT_ENDS, createRunnerPorts, createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
+const { BOOT_ENDS, createRunnerPorts, createRunnerState } = await import('../../src/daemon/runner/runnerPorts.ts')
 type Ports = Parameters<typeof runBootSteps>[1]
 type Step = (typeof BOOT_STEPS)[number]
 type Given = Parameters<typeof createRunnerPorts>[0]
@@ -130,18 +130,18 @@ section('(2) the ports: a member read before the step that makes it fails by a l
 {
   const driverStep = BOOT_STEPS.find(step => step.makes.includes('driver'))
   const { ports, give } = createRunnerPorts(given(), BOOT_STEPS)
-  check('a member read before its step has run is refused by name: the member and the step that makes it', driverStep !== undefined && thrown(() => ports.driver) === `the runner's port driver is read before the boot step ${driverStep.name} has made it`, ['createRunnerPorts in src/cli/headless/runnerPorts.ts must refuse an early read with this exact sentence', thrown(() => ports.driver)])
+  check('a member read before its step has run is refused by name: the member and the step that makes it', driverStep !== undefined && thrown(() => ports.driver) === `the runner's port driver is read before the boot step ${driverStep.name} has made it`, ['createRunnerPorts in src/daemon/runner/runnerPorts.ts must refuse an early read with this exact sentence', thrown(() => ports.driver)])
   const early = BOOT_STEPS.flatMap(step => step.makes.map(member => [member, step.name] as const)).filter(([member, step]) => thrown(() => ports[member]) !== `the runner's port ${member} is read before the boot step ${step} has made it`)
-  check('…and so is every member the list makes, before the list has run', early.length === 0, ['createRunnerPorts in src/cli/headless/runnerPorts.ts must refuse every member read before its step has run', ...early.map(([member, step]) => `${member} of ${step}: ${thrown(() => ports[member])}`)])
+  check('…and so is every member the list makes, before the list has run', early.length === 0, ['createRunnerPorts in src/daemon/runner/runnerPorts.ts must refuse every member read before its step has run', ...early.map(([member, step]) => `${member} of ${step}: ${thrown(() => ports[member])}`)])
   const driver = { kick: () => {} } as unknown as Ports['driver']
   if (driverStep !== undefined) give(driverStep, { driver })
-  check('what a step makes is read from the ports as the value it made, once the list has given it', ports.driver === driver, ['the give function of createRunnerPorts in src/cli/headless/runnerPorts.ts must store what a step made so the ports return it'])
-  check('a member no step of the list makes is refused by name, never read as undefined', thrown(() => (ports as unknown as Record<string, unknown>).noSuchMember) === "the runner's port noSuchMember is made by no step of the boot", ['createRunnerPorts in src/cli/headless/runnerPorts.ts must refuse an unknown member by name', thrown(() => (ports as unknown as Record<string, unknown>).noSuchMember)])
+  check('what a step makes is read from the ports as the value it made, once the list has given it', ports.driver === driver, ['the give function of createRunnerPorts in src/daemon/runner/runnerPorts.ts must store what a step made so the ports return it'])
+  check('a member no step of the list makes is refused by name, never read as undefined', thrown(() => (ports as unknown as Record<string, unknown>).noSuchMember) === "the runner's port noSuchMember is made by no step of the boot", ['createRunnerPorts in src/daemon/runner/runnerPorts.ts must refuse an unknown member by name', thrown(() => (ports as unknown as Record<string, unknown>).noSuchMember)])
   const first = given()
   const born = createRunnerPorts(first, BOOT_STEPS).ports
-  check('what the runner is handed at its call is on the ports from the start', born.live === first.live && born.options === first.options && born.inputPrompt === 'the prompt' && born.getAppState === first.getAppState && born.hydrateResumedRun === first.hydrateResumedRun, ['createRunnerPorts in src/cli/headless/runnerPorts.ts must put what the runner is handed on the ports from the start'])
+  check('what the runner is handed at its call is on the ports from the start', born.live === first.live && born.options === first.options && born.inputPrompt === 'the prompt' && born.getAppState === first.getAppState && born.hydrateResumedRun === first.hydrateResumedRun, ['createRunnerPorts in src/daemon/runner/runnerPorts.ts must put what the runner is handed on the ports from the start'])
   const short = BOOT_STEPS.find(step => step.makes.length > 0)
-  check('a step that names a member and does not make it is refused by name', short !== undefined && thrown(() => give(short, {})) === `the boot step ${short.name} names ${short.makes[0]} and did not make it`, ['the give function of createRunnerPorts in src/cli/headless/runnerPorts.ts must refuse a step that did not make a member it names', short === undefined ? 'no step makes a member' : thrown(() => give(short, {}))])
+  check('a step that names a member and does not make it is refused by name', short !== undefined && thrown(() => give(short, {})) === `the boot step ${short.name} names ${short.makes[0]} and did not make it`, ['the give function of createRunnerPorts in src/daemon/runner/runnerPorts.ts must refuse a step that did not make a member it names', short === undefined ? 'no step makes a member' : thrown(() => give(short, {}))])
 }
 
 section('(3) the list runs its steps in order, gives what each made before the next starts, and ends where a step ends the boot')
@@ -162,7 +162,7 @@ section('(3) the list runs its steps in order, gives what each made before the n
   check(
     'the steps run in the order of the list; a step that waits for nothing hands on to the next in the same turn; what a step made is on the ports when the next step starts and not before; a step that ends the boot is the last to run',
     j(trace) === j(['first', 'second reads what first made', 'third', 'a turn of the microtask queue', "third after its wait reads the runner's port driver is read before the boot step third has made it", 'fourth reads what third made']),
-    ['runBootSteps in src/cli/headless/boot/bootList.ts must run the steps in list order, give each made member before the next step, and stop at a step that ends the boot', j(trace)],
+    ['runBootSteps in src/daemon/runner/boot/bootList.ts must run the steps in list order, give each made member before the next step, and stop at a step that ends the boot', j(trace)],
   )
 }
 
@@ -176,9 +176,9 @@ section('(4) the runner runs this list: it builds the ports from what it is hand
     },
   }))
   const hydrated: unknown[] = []
-  const realHydration = (await import(at('src/cli/headless/resumeHydration.ts'))) as Record<string, unknown>
-  mock.module(at('src/cli/headless/resumeHydration.ts'), () => ({ ...realHydration, hydrateResumedRun: async (ports: unknown): Promise<void> => void hydrated.push(ports) }))
-  const { runHeadless } = await import('../../src/cli/run.ts')
+  const realHydration = (await import(at('src/daemon/runner/resumeHydration.ts'))) as Record<string, unknown>
+  mock.module(at('src/daemon/runner/resumeHydration.ts'), () => ({ ...realHydration, hydrateResumedRun: async (ports: unknown): Promise<void> => void hydrated.push(ports) }))
+  const { runHeadless } = await import('../../src/daemon/runner/runHeadless.ts')
   const getAppState = (() => ({})) as Given['getAppState']
   const setAppState: Given['setAppState'] = () => {}
   const commands: Given['commands'] = []
@@ -187,22 +187,22 @@ section('(4) the runner runs this list: it builds the ports from what it is hand
   const options: Given['options'] = { door: 'wire' }
   await runHeadless('the words', getAppState, setAppState, commands, tools, agents, options)
   const call = calls[0]
-  check('runHeadless runs BOOT_STEPS itself, once', calls.length === 1 && call?.steps === BOOT_STEPS && typeof call.give === 'function', ['runHeadless in src/cli/run.ts must call runBootSteps once with BOOT_STEPS', `${calls.length} calls`])
+  check('runHeadless runs BOOT_STEPS itself, once', calls.length === 1 && call?.steps === BOOT_STEPS && typeof call.give === 'function', ['runHeadless in src/daemon/runner/runHeadless.ts must call runBootSteps once with BOOT_STEPS', `${calls.length} calls`])
   check(
     'the ports it hands the list carry what it was called with, by identity, and a state of its own',
     call !== undefined && call.ports.inputPrompt === 'the words' && call.ports.getAppState === getAppState && call.ports.setAppState === setAppState && call.ports.commands === commands && call.ports.tools === tools && call.ports.agents === agents && call.ports.options === options && call.ports.live.awaitingSessionClaim === false && call.ports.live.turnsRun === 0,
-    ['runHeadless in src/cli/run.ts must build the ports with createRunnerPorts from the very values it was called with'],
+    ['runHeadless in src/daemon/runner/runHeadless.ts must build the ports with createRunnerPorts from the very values it was called with'],
   )
   await call?.ports.hydrateResumedRun()
-  check('the resume the claim calls is the one closure, handed these ports', hydrated.length === 1 && hydrated[0] === call?.ports, ['runHeadless in src/cli/run.ts must hand the same ports to hydrateResumedRun'])
-  check('before the list has run, the ports refuse a member the list makes', call !== undefined && thrown(() => call.ports.wire).startsWith("the runner's port wire is read before the boot step "), ['createRunnerPorts in src/cli/headless/runnerPorts.ts must refuse a member read before the list has run', call === undefined ? '' : thrown(() => call.ports.wire)])
+  check('the resume the claim calls is the one closure, handed these ports', hydrated.length === 1 && hydrated[0] === call?.ports, ['runHeadless in src/daemon/runner/runHeadless.ts must hand the same ports to hydrateResumedRun'])
+  check('before the list has run, the ports refuse a member the list makes', call !== undefined && thrown(() => call.ports.wire).startsWith("the runner's port wire is read before the boot step "), ['createRunnerPorts in src/daemon/runner/runnerPorts.ts must refuse a member read before the list has run', call === undefined ? '' : thrown(() => call.ports.wire)])
 }
 
 section('(5) what arrives while the runner boots is held behind initialize and handed on after the boot, in the order it arrived')
 {
   const { PassThrough } = await import('node:stream')
-  const { createPeer } = await import('../../src/runner/wire/peer.ts')
-  const { initializeResultOf } = await import('../../src/cli/headless/runnerMethods.ts')
+  const { createPeer } = await import('../../src/daemon/runner-wire/peer.ts')
+  const { initializeResultOf } = await import('../../src/daemon/runner/runnerMethods.ts')
   const turn = (): Promise<void> => new Promise(done => setTimeout(done, 25))
   const line = (frame: Record<string, unknown>): string => `${JSON.stringify({ jsonrpc: '2.0', ...frame })}\n`
   const hello = { protocol: 1, host: { name: 'proof-host', version: '0' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }
@@ -263,12 +263,12 @@ section('(5) what arrives while the runner boots is held behind initialize and h
   check(
     'notifications and a request of no scope held behind initialize reach their arms only after the boot has ended and initialize is answered, each once, in the order they arrived: the whole order, in one write (N, initialize, N, session/send_now, N) and 25 ms apart (N, initialize, N, session/facts, N)',
     quiet(oneWrite) && j(oneWrite.after) === j(['the boot ended', 'credentials/changed 1', 'credentials/changed 2', 'session/send_now', 'credentials/changed 3']) && quiet(apart) && j(apart.after) === j(['the boot ended', 'credentials/changed 1', 'credentials/changed 2', 'session/facts', 'credentials/changed 3']),
-    ['the peer in src/runner/wire/peer.ts must hold notifications and requests behind initialize and hand them on in arrival order after the boot', `one write, after the boot: ${j(oneWrite.after)}`, `25 ms apart, after the boot: ${j(apart.after)}`, `the peer said: ${j([...oneWrite.said, ...apart.said])}`],
+    ['the peer in src/daemon/runner-wire/peer.ts must hold notifications and requests behind initialize and hand them on in arrival order after the boot', `one write, after the boot: ${j(oneWrite.after)}`, `25 ms apart, after the boot: ${j(apart.after)}`, `the peer said: ${j([...oneWrite.said, ...apart.said])}`],
   )
   check(
     "a request of a scope held with them is handed to its scope's queue in its turn and reaches its arm when that queue lets it, which is behind every notification held with it: the whole order (N, initialize, N, queue/add, N, session/set_mode, N)",
     quiet(scoped) && j(scoped.after) === j(['the boot ended', 'credentials/changed 1', 'credentials/changed 2', 'credentials/changed 3', 'credentials/changed 4', 'queue/add', 'session/set_mode']),
-    ['the peer in src/runner/wire/peer.ts must hand a scoped request to its scope queue behind every held notification', `after the boot: ${j(scoped.after)}`, `the peer said: ${j(scoped.said)}`],
+    ['the peer in src/daemon/runner-wire/peer.ts must hand a scoped request to its scope queue behind every held notification', `after the boot: ${j(scoped.after)}`, `the peer said: ${j(scoped.said)}`],
   )
   const refused = world()
   refused.refuseNext()
@@ -288,7 +288,7 @@ section('(5) what arrives while the runner boots is held behind initialize and h
   check(
     'a notification held behind an initialize that is refused is treated as one that arrives just after the refusal: each is kept, none is said to be dropped, and after the next initialize that is answered they reach their arm in the order they arrived (three before the refusal, one after it); the request held behind the refused one is answered -32002',
     j(afterRefusal) === j(['the boot ended']) && keptWaiting.length === 0 && j(afterTheNext) === j(['the boot ended', 'credentials/changed 1', 'credentials/changed 2', 'credentials/changed 3', 'credentials/changed 4']) && !refused.said.some(text => text.includes('dropped')) && refusedRequest?.error?.code === -32002,
-    ['the peer in src/runner/wire/peer.ts must keep notifications held behind a refused initialize and answer the held request -32002', `after the refusal: ${j(afterRefusal)}`, `before the next initialize: ${j(keptWaiting)}`, `after it: ${j(afterTheNext)}`, `the peer said: ${j(refused.said)}`, `the request: ${j(refusedRequest)}`],
+    ['the peer in src/daemon/runner-wire/peer.ts must keep notifications held behind a refused initialize and answer the held request -32002', `after the refusal: ${j(afterRefusal)}`, `before the next initialize: ${j(keptWaiting)}`, `after it: ${j(afterTheNext)}`, `the peer said: ${j(refused.said)}`, `the request: ${j(refusedRequest)}`],
   )
 }
 

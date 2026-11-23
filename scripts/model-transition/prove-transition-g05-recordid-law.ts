@@ -6,17 +6,17 @@ import { join } from 'node:path'
 const HOME = mkdtempSync(join(tmpdir(), 'ctm-g05-law-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 
-await import('../../src/tasks.js')
-const { entryToRecord } = await import('../../src/fabric/entryCodec.js')
-const { asOrdinal } = await import('../../src/fabric/ordinal.js')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.js')
+await import('../../src/engine/tasks/tasks.js')
+const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.js')
+const { asOrdinal } = await import('../../src/sessions/fabric/ordinal.js')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.js')
 const { recordTranscript, settleTranscriptMessage, getProject, setSessionFileForTesting } =
-  await import('../../src/utils/sessionStorage/writer.js')
+  await import('../../src/sessions/transcripts/writer.js')
 const { emptyFoldState, applyTranscriptEntry } = await import(
-  '../../src/utils/sessionStorage/loading.js'
+  '../../src/sessions/transcripts/loading.js'
 )
-const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.js')
-const { createAssistantMessage } = await import('../../src/utils/messages/factories.js')
+const { decodeTranscriptBuffer } = await import('../../src/sessions/fabric/transcriptDecode.js')
+const { createAssistantMessage } = await import('../../src/engine/message-shapes/factories.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -57,11 +57,11 @@ section('§A bridge derivation — recordId is MESSAGE identity (the legacy uuid
     { type: 'user', message: { role: 'user', content: 'law' }, uuid, timestamp: ctx.observedAt },
     ctx,
   )
-  check('a uuid line derives recordId ≡ uuid', String(rec.recordId) === uuid, String(rec.recordId) + ' · entryToRecord in src/fabric/entryCodec.ts must take recordId from the entry uuid')
+  check('a uuid line derives recordId ≡ uuid', String(rec.recordId) === uuid, String(rec.recordId) + ' · entryToRecord in src/sessions/fabric/entryCodec.ts must take recordId from the entry uuid')
   check(
     'a creation record has updateOrdinal == creationOrdinal and no `updates`',
     String(rec.updateOrdinal) === String(rec.creationOrdinal) && rec.updates === undefined,
-    `creation=${String(rec.creationOrdinal)} update=${String(rec.updateOrdinal)} updates=${String(rec.updates)} · entryToRecord in src/fabric/entryCodec.ts must give a creation record equal ordinals and no updates field`,
+    `creation=${String(rec.creationOrdinal)} update=${String(rec.updateOrdinal)} updates=${String(rec.updates)} · entryToRecord in src/sessions/fabric/entryCodec.ts must give a creation record equal ordinals and no updates field`,
   )
   const minted1 = entryToRecord({ type: 'custom-title', customTitle: 'no uuid here' }, ctx)
   const minted2 = entryToRecord({ type: 'custom-title', customTitle: 'still no uuid' }, ctx)
@@ -71,7 +71,7 @@ section('§A bridge derivation — recordId is MESSAGE identity (the legacy uuid
       Boolean(minted2.recordId) &&
       String(minted1.recordId) !== String(minted2.recordId) &&
       String(minted1.recordId) !== uuid,
-    `${String(minted1.recordId)} / ${String(minted2.recordId)} · entryToRecord in src/fabric/entryCodec.ts must mint a new distinct recordId for each uuid-less entry`,
+    `${String(minted1.recordId)} / ${String(minted2.recordId)} · entryToRecord in src/sessions/fabric/entryCodec.ts must mint a new distinct recordId for each uuid-less entry`,
   )
 }
 
@@ -93,14 +93,14 @@ section('§B vnext re-publication — line identity is (recordId, updateOrdinal)
     { settleCreationOrdinal: String(r1.creationOrdinal) },
   )
   const r2 = second.record!
-  check('re-publication REUSES the recordId (message identity held)', String(r1.recordId) === String(r2.recordId), `${String(r1.recordId)} / ${String(r2.recordId)} · encodeTranscriptLine in src/utils/sessionStorage/vnext.ts must keep the recordId when settleCreationOrdinal is passed`)
+  check('re-publication REUSES the recordId (message identity held)', String(r1.recordId) === String(r2.recordId), `${String(r1.recordId)} / ${String(r2.recordId)} · encodeTranscriptLine in src/sessions/transcripts/vnext.ts must keep the recordId when settleCreationOrdinal is passed`)
   check(
     'creationOrdinal preserved, updateOrdinal ADVANCED',
     String(r2.creationOrdinal) === String(r1.creationOrdinal) &&
       Number(r2.updateOrdinal) > Number(r1.updateOrdinal),
-    `r1=(${String(r1.creationOrdinal)},${String(r1.updateOrdinal)}) r2=(${String(r2.creationOrdinal)},${String(r2.updateOrdinal)}) · encodeTranscriptLine in src/utils/sessionStorage/vnext.ts must keep creationOrdinal and advance updateOrdinal on settle`,
+    `r1=(${String(r1.creationOrdinal)},${String(r1.updateOrdinal)}) r2=(${String(r2.creationOrdinal)},${String(r2.updateOrdinal)}) · encodeTranscriptLine in src/sessions/transcripts/vnext.ts must keep creationOrdinal and advance updateOrdinal on settle`,
   )
-  check('`updates` self-points on the superseding line', String(r2.updates) === String(r2.recordId), `updates=${String(r2.updates)} recordId=${String(r2.recordId)} · encodeTranscriptLine in src/utils/sessionStorage/vnext.ts must set updates to the recordId on a settle line`)
+  check('`updates` self-points on the superseding line', String(r2.updates) === String(r2.recordId), `updates=${String(r2.updates)} recordId=${String(r2.recordId)} · encodeTranscriptLine in src/sessions/transcripts/vnext.ts must set updates to the recordId on a settle line`)
   const pairKeys = new Set([
     `${String(r1.recordId)}@${String(r1.updateOrdinal)}`,
     `${String(r2.recordId)}@${String(r2.updateOrdinal)}`,
@@ -109,7 +109,7 @@ section('§B vnext re-publication — line identity is (recordId, updateOrdinal)
   check(
     'pair-keying distinguishes both lines; id-keying collapses them (the law)',
     pairKeys.size === 2 && idKeys.size === 1,
-    `pairs=${pairKeys.size} ids=${idKeys.size} · the two lines must differ in updateOrdinal and share a recordId (encodeTranscriptLine in src/utils/sessionStorage/vnext.ts)`,
+    `pairs=${pairKeys.size} ids=${idKeys.size} · the two lines must differ in updateOrdinal and share a recordId (encodeTranscriptLine in src/sessions/transcripts/vnext.ts)`,
   )
 }
 
@@ -124,20 +124,20 @@ section('§C REAL writer, fast path — settle while queued ⇒ ONE already-sett
   await getProject().flush()
 
   const mine = rawRecords(file).filter(r => r.recordId === msg.uuid)
-  check('exactly ONE durable line for the message', mine.length === 1, `lines=${mine.length} · settleTranscriptMessage in src/utils/sessionStorage/writer.ts must fold a settle of a still-queued message into its one queued write`)
+  check('exactly ONE durable line for the message', mine.length === 1, `lines=${mine.length} · settleTranscriptMessage in src/sessions/transcripts/writer.ts must fold a settle of a still-queued message into its one queued write`)
   const line = mine[0]
   check(
     'the single line is ALREADY SETTLED: preserved creation, advanced update, self-pointing',
     line !== undefined &&
       Number(line.updateOrdinal) > Number(line.creationOrdinal) &&
       line.updates === line.recordId,
-    (line ? `(${line.creationOrdinal},${line.updateOrdinal}) updates=${String(line.updates)}` : 'missing') + ' · settleTranscriptMessage in src/utils/sessionStorage/writer.ts must write the queued line already settled',
+    (line ? `(${line.creationOrdinal},${line.updateOrdinal}) updates=${String(line.updates)}` : 'missing') + ' · settleTranscriptMessage in src/sessions/transcripts/writer.ts must write the queued line already settled',
   )
   const projected = decodeTranscriptBuffer<Record<string, unknown>>(readFileSync(file)).entries
   const view = projected.find(e => e.uuid === msg.uuid) as
     | { message?: { usage?: { output_tokens?: number } } }
     | undefined
-  check('the settled bytes are the durable bytes', view?.message?.usage?.output_tokens === 777, `output_tokens=${String(view?.message?.usage?.output_tokens)} · settleTranscriptMessage in src/utils/sessionStorage/writer.ts must write the settled message bytes`)
+  check('the settled bytes are the durable bytes', view?.message?.usage?.output_tokens === 777, `output_tokens=${String(view?.message?.usage?.output_tokens)} · settleTranscriptMessage in src/sessions/transcripts/writer.ts must write the settled message bytes`)
 }
 
 section('§D REAL writer, re-publication — settle after drain ⇒ TWO lines, one recordId')
@@ -152,12 +152,12 @@ section('§D REAL writer, re-publication — settle after drain ⇒ TWO lines, o
   await getProject().flush()
 
   const mine = rawRecords(file).filter(r => r.recordId === msg.uuid)
-  check('exactly TWO durable lines under the one recordId (never a third)', mine.length === 2, `lines=${mine.length} · settleTranscriptMessage in src/utils/sessionStorage/writer.ts must append exactly one superseding line for a message already written`)
+  check('exactly TWO durable lines under the one recordId (never a third)', mine.length === 2, `lines=${mine.length} · settleTranscriptMessage in src/sessions/transcripts/writer.ts must append exactly one superseding line for a message already written`)
   const [a, b] = mine
   check(
     'line identities are distinct: same recordId, distinct updateOrdinals',
     a !== undefined && b !== undefined && a.recordId === b.recordId && a.updateOrdinal !== b.updateOrdinal,
-    (a && b ? `a@${a.updateOrdinal} b@${b.updateOrdinal}` : 'missing') + ' · the superseding line from settleTranscriptMessage (src/utils/sessionStorage/writer.ts) must reuse the recordId with a new updateOrdinal',
+    (a && b ? `a@${a.updateOrdinal} b@${b.updateOrdinal}` : 'missing') + ' · the superseding line from settleTranscriptMessage (src/sessions/transcripts/writer.ts) must reuse the recordId with a new updateOrdinal',
   )
   check(
     'the superseding line preserves creationOrdinal, advances updateOrdinal, self-points',
@@ -169,13 +169,13 @@ section('§D REAL writer, re-publication — settle after drain ⇒ TWO lines, o
       a.updates === undefined,
     (a && b
       ? `a=(${a.creationOrdinal},${a.updateOrdinal},${String(a.updates)}) b=(${b.creationOrdinal},${b.updateOrdinal},${String(b.updates)})`
-      : 'missing') + ' · the superseding line from settleTranscriptMessage (src/utils/sessionStorage/writer.ts) must keep creationOrdinal, advance updateOrdinal and self-point',
+      : 'missing') + ' · the superseding line from settleTranscriptMessage (src/sessions/transcripts/writer.ts) must keep creationOrdinal, advance updateOrdinal and self-point',
   )
 
   section('§E reader fold — last-wins per recordId (the loading.ts pin)')
   const decoded = decodeTranscriptBuffer<Record<string, unknown>>(readFileSync(file)).entries
   const duplicates = decoded.filter(e => e.uuid === msg.uuid)
-  check('the projecting read seam yields BOTH lines in publication order', duplicates.length === 2, `lines=${duplicates.length} · decodeTranscriptBuffer in src/fabric/transcriptDecode.ts must return every published line in order`)
+  check('the projecting read seam yields BOTH lines in publication order', duplicates.length === 2, `lines=${duplicates.length} · decodeTranscriptBuffer in src/sessions/fabric/transcriptDecode.ts must return every published line in order`)
   const st = emptyFoldState()
   for (const entry of decoded) applyTranscriptEntry(st, entry as never)
   const folded = st.messages.get(msg.uuid as never) as
@@ -184,14 +184,14 @@ section('§D REAL writer, re-publication — settle after drain ⇒ TWO lines, o
   check(
     'the fold keeps ONE message per recordId and it is the SETTLED state',
     st.messages.size === 1 && folded?.message?.usage?.output_tokens === 888,
-    `size=${st.messages.size} tokens=${folded?.message?.usage?.output_tokens} · applyTranscriptEntry in src/utils/sessionStorage/loading.ts must keep the last line per recordId`,
+    `size=${st.messages.size} tokens=${folded?.message?.usage?.output_tokens} · applyTranscriptEntry in src/sessions/transcripts/loading.ts must keep the last line per recordId`,
   )
   const idKeyed = new Map(mine.map(r => [r.recordId, r]))
   const pairKeyed = new Map(mine.map(r => [`${r.recordId}@${r.updateOrdinal}`, r]))
   check(
     'a unique-recordId line map collapses the chain; the PAIR map holds every line',
     idKeyed.size === 1 && pairKeyed.size === 2,
-    `id=${idKeyed.size} pair=${pairKeyed.size} · the file must hold two lines under one recordId with distinct updateOrdinals (settleTranscriptMessage in src/utils/sessionStorage/writer.ts)`,
+    `id=${idKeyed.size} pair=${pairKeyed.size} · the file must hold two lines under one recordId with distinct updateOrdinals (settleTranscriptMessage in src/sessions/transcripts/writer.ts)`,
   )
 }
 

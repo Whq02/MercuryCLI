@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join, relative } from 'node:path'
-import { flowShellAsk } from '../../src/utils/permissions/flowLaw.ts'
-import { refusalOfShellCommand } from '../../src/utils/wards/wardsRefusals.ts'
-import { VastClient } from '../../src/services/host/vendors/vast.ts'
-import { normalizePatternsToPath } from '../../src/utils/permissions/filesystem.ts'
-import { parseRemotePath } from '../../src/utils/remoteFiles/target.ts'
-import { posixRelative } from '../../src/services/structure/scanPaths.ts'
+import { flowShellAsk } from '../../src/permissions/rules/flowLaw.ts'
+import { refusalOfShellCommand } from '../../src/permissions/wards/wardsRefusals.ts'
+import { VastClient } from '../../src/models/hosting/vendors/vast.ts'
+import { normalizePatternsToPath } from '../../src/permissions/rules/filesystem.ts'
+import { parseRemotePath } from '../../src/platform/remote-file-target/target.ts'
+import { posixRelative } from '../../src/tools/engines/structure/scanPaths.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const SRC = join(ROOT, 'src')
@@ -23,77 +23,77 @@ const TELLS: Array<[string, RegExp]> = [
 const PLATFORM_HOME = /^src\/utils\/platform(?:\.ts$|\/)/
 
 const SINGLE: Array<[file: string, checks: number, reason: string]> = [
-  ['src/components/TerminalProfileCard.tsx', 3, 'the Windows host inventory card exists on Windows only'],
-  ['src/components/permissions/shellPermissionHelpers.tsx', 1, 'the label of a folder rule follows the platform'],
-  ['src/daemon/daemonBuild.ts', 1, 'a Nix install exists outside Windows only'],
-  ['src/daemon/ownedDaemon.ts', 1, 'the owner pipe is inherited off Windows only'],
-  ['src/daemon/processSweepWindows.ts', 1, 'the Windows process reader refuses to open elsewhere'],
-  ['src/ink/ink/stdin.ts', 1, 'the tty device is drained without blocking where a tty device exists'],
-  ['src/ink/root/console-read.ts', 1, 'the console read handle of Node is stopped on Windows only'],
-  ['src/ink/session/terminalProfile.ts', 4, 'the terminal profile is resolved from a probe that carries its platform'],
-  ['src/ink/session/windowsHostSetup.ts', 1, 'the Windows host inventory exists on Windows only'],
-  ['src/keybindings/defaultBindings.ts', 1, 'the default chords are a table for each platform'],
-  ['src/keybindings/reservedShortcuts.ts', 1, 'the shortcuts an OS reserves are a table for each platform'],
-  ['src/main/defaultAction.ts', 1, '--multiplex (tmux) does not exist on Windows'],
-  ['src/services/browser/session/launch.ts', 1, 'the identity of the browser follows the host'],
-  ['src/services/browser/session/owners.ts', 1, 'the temp tree of a browser is ended by taskkill on Windows only'],
-  ['src/services/browser/session/stealth.ts', 1, 'the navigator platform of the browser follows the host'],
-  ['src/services/dap/debugpyResolver.ts', 1, 'the Python commands the debugger tries are its own on each platform'],
-  ['src/services/eval/interpreters.ts', 1, 'the Python commands the kernel tries are its own on each platform'],
-  ['src/services/eval/procKernel.ts', 1, 'the Python kernel speaks over loopback on Windows only'],
-  ['src/services/health/sections/proofs.ts', 1, 'the POSIX render pipeline does not run from a Windows source checkout'],
-  ['src/services/host/ssh.ts', 1, 'the OS of a box decides its inspection script'],
-  ['src/services/instructions/sourceText.ts', 1, 'an import line may name a drive or a share on Windows only'],
-  ['src/services/localServer/localServerTruth.ts', 2, 'how a local server is launched and what memory it may use is told for each platform'],
-  ['src/services/mcp/config.ts', 1, 'the npx warning is for Windows, where npx is a batch shim'],
-  ['src/services/mcp/oauthPort.ts', 1, 'the callback port range Windows leaves free differs'],
-  ['src/services/ocr.ts', 2, 'native OCR exists on macOS and Windows only, and a sentence names the place of this platform'],
-  ['src/services/privateChannel/installLayout.ts', 3, 'the install layout of Mercury itself, the script policies of PowerShell and the removal of a binary in use after exit'],
-  ['src/services/privateChannel/installProvenance.ts', 2, 'the install probe carries its platform as a fact, and a public signature takes it as a parameter'],
-  ['src/services/privateChannel/nixInstallRoot.ts', 1, 'a Nix install exists outside Windows only'],
-  ['src/services/privateChannel/vendoredRuntime.ts', 4, 'bundled into the standalone verifier, which may import nothing outside src/services/privateChannel'],
-  ['src/services/remoteFiles/bridge.ts', 1, 'a remote name that Windows cannot hold is mapped on Windows only'],
-  ['src/services/remoteFiles/hosts.ts', 1, 'the ssh_config of the system has its own place on each platform'],
-  ['src/services/tensorfold/adapter/llama.ts', 2, 'the adapter installs the Windows x64 build of llama.cpp only, and names the missing-DLL exit of Windows'],
-  ['src/services/tensorfold/fit.ts', 1, 'the chip of the machine is named in the words of Windows'],
-  ['src/services/tips/tipRegistry.ts', 1, 'a tip about the PowerShell tool, for Windows only'],
-  ['src/services/vcr.ts', 1, 'a recording is dehydrated of both spellings of a path on Windows only'],
-  ['src/services/voice/capture.ts', 3, 'the input format of ffmpeg on each platform, and its install words'],
-  ['src/services/voice/whisperPack.ts', 2, 'Windows keeps no instruction-set list to read'],
-  ['src/services/vulcan/engine/argv.ts', 1, 'the console sibling of the Godot executable exists on Windows only'],
-  ['src/services/vulcan/engine/leases.ts', 2, 'a lease path is probed on disk and may not name a drive off Windows'],
-  ['src/tools/BashTool/pathValidation.ts', 1, 'a rule of a command reader for the commands of one platform'],
-  ['src/tools/BashTool/readOnlyValidation.ts', 2, 'a rule of a command reader for the commands of one platform'],
-  ['src/tools/ComputerTool/computer/act.ts', 1, 'the path field of a file dialog is opened by the keys of each desktop'],
-  ['src/tools/FileReadTool/readQueryTarget.ts', 1, 'a question mark cannot stand in a file name on Windows'],
-  ['src/tools/PowerShellTool/PowerShellTool.tsx', 1, 'the bash of Git is looked for on Windows only'],
-  ['src/tools/PowerShellTool/pathValidation.ts', 1, 'a rule of a command reader for the commands of one platform'],
-  ['src/tools/PowerShellTool/readOnlyValidation.ts', 2, 'a rule of a command reader for the commands of one platform'],
-  ['src/utils/Shell.ts', 4, 'the start refusals, the batch plan and the folder note of Windows exist on Windows only'],
-  ['src/utils/directoryIdentity.ts', 1, 'a folder without an inode is known by its normalized Windows spelling'],
-  ['src/utils/editor.ts', 1, 'Windows falls back to notepad when no editor is named'],
-  ['src/utils/exampleCommands.ts', 1, 'frequent-file examples are not gathered on Windows'],
-  ['src/utils/fileEncoding.ts', 1, 'Windows PowerShell 5.1 needs a byte order mark on its scripts'],
-  ['src/utils/git.ts', 2, 'a Windows path met in a git redirect off Windows is refused'],
-  ['src/utils/gracefulShutdown.ts', 1, 'the orphaned-terminal check runs off Windows only'],
-  ['src/utils/hooks/commandRunner.ts', 2, 'a bash hook runs through the Windows bash road on Windows only'],
-  ['src/utils/imagePaste.ts', 5, 'the clipboard is read and saved by the commands of each desktop'],
-  ['src/utils/permissions/uncPath.ts', 1, 'a UNC path is a risk on Windows only'],
-  ['src/utils/permissions/windowsPath.ts', 2, 'the path patterns of Windows are suspect on Windows and WSL only'],
-  ['src/utils/processGroup.ts', 4, 'the MSYS job table and the taskkill drain exist on Windows only'],
-  ['src/utils/runtime/compileCachePath.ts', 1, 'the compile cache folder has a length limit on Windows only'],
-  ['src/utils/secureStorage/plainTextStorage.ts', 2, 'the read-only attribute of Windows is cleared before the credentials file is replaced'],
-  ['src/utils/secureStorage/systemProtector.ts', 1, 'DPAPI sealing exists on Windows only'],
-  ['src/utils/sessionEnvironment.ts', 1, 'the Windows bash road exists on Windows only'],
-  ['src/utils/settings/mdm/probeMemo.ts', 2, 'managed settings are the registry on Windows and a plist on macOS'],
-  ['src/utils/settings/mdm/rawRead.ts', 1, 'managed settings are the registry on Windows and a plist on macOS'],
-  ['src/utils/settings/settings.ts', 1, 'managed settings are the registry on Windows and a plist on macOS'],
-  ['src/utils/shell/bashProvider.ts', 2, 'the MSYS command frame of a bash on Windows exists on Windows only'],
-  ['src/utils/shell/powershellProvider.ts', 1, 'PowerShell on Windows takes an environment of its own'],
-  ['src/utils/shell/shellRecord.ts', 2, 'the Git Bash probe is asked on Windows only, and a sentence names the place of this platform'],
-  ['src/utils/shell/windowsBatchInvocation.ts', 1, 'a batch file is planned through cmd on Windows only'],
-  ['src/utils/shell/windowsShellRoad.ts', 1, 'the Windows bash road exists on Windows only'],
-  ['src/utils/watchRoot.ts', 3, 'a watched root is resolved natively and guarded against its own removal on Windows only'],
+  ['src/boot/first-run/TerminalProfileCard.tsx', 3, 'the Windows host inventory card exists on Windows only'],
+  ['src/boot/main/defaultAction.ts', 1, '--multiplex (tmux) does not exist on Windows'],
+  ['src/daemon/control/daemonBuild.ts', 1, 'a Nix install exists outside Windows only'],
+  ['src/daemon/control/directoryIdentity.ts', 1, 'a folder without an inode is known by its normalized Windows spelling'],
+  ['src/daemon/control/ownedDaemon.ts', 1, 'the owner pipe is inherited off Windows only'],
+  ['src/daemon/process-sweep/processSweepWindows.ts', 1, 'the Windows process reader refuses to open elsewhere'],
+  ['src/integrations/browser/session/launch.ts', 1, 'the identity of the browser follows the host'],
+  ['src/integrations/browser/session/owners.ts', 1, 'the temp tree of a browser is ended by taskkill on Windows only'],
+  ['src/integrations/browser/session/stealth.ts', 1, 'the navigator platform of the browser follows the host'],
+  ['src/integrations/debugger/debugpyResolver.ts', 1, 'the Python commands the debugger tries are its own on each platform'],
+  ['src/integrations/event-hooks/commandRunner.ts', 2, 'a bash hook runs through the Windows bash road on Windows only'],
+  ['src/integrations/mcp/oauthPort.ts', 1, 'the callback port range Windows leaves free differs'],
+  ['src/integrations/mcp/serverConfigs.ts', 1, 'the npx warning is for Windows, where npx is a batch shim'],
+  ['src/integrations/voice/capture.ts', 3, 'the input format of ffmpeg on each platform, and its install words'],
+  ['src/integrations/voice/whisperPack.ts', 2, 'Windows keeps no instruction-set list to read'],
+  ['src/integrations/vulcan/engine/argv.ts', 1, 'the console sibling of the Godot executable exists on Windows only'],
+  ['src/integrations/vulcan/engine/leases.ts', 2, 'a lease path is probed on disk and may not name a drive off Windows'],
+  ['src/models/hosting/ssh.ts', 1, 'the OS of a box decides its inspection script'],
+  ['src/models/local-server/localServerTruth.ts', 2, 'how a local server is launched and what memory it may use is told for each platform'],
+  ['src/models/roads/anthropic/fixtureReplay.ts', 1, 'a recording is dehydrated of both spellings of a path on Windows only'],
+  ['src/models/tensorfold/adapter/llama.ts', 2, 'the adapter installs the Windows x64 build of llama.cpp only, and names the missing-DLL exit of Windows'],
+  ['src/models/tensorfold/fit.ts', 1, 'the chip of the machine is named in the words of Windows'],
+  ['src/permissions/cards/shellAskParts.tsx', 1, 'the label of a folder rule follows the platform'],
+  ['src/permissions/rules/uncPath.ts', 1, 'a UNC path is a risk on Windows only'],
+  ['src/permissions/rules/windowsPath.ts', 2, 'the path patterns of Windows are suspect on Windows and WSL only'],
+  ['src/platform/editor/externalEditor.ts', 1, 'Windows falls back to notepad when no editor is named'],
+  ['src/platform/environment/sessionEnvironment.ts', 1, 'the Windows bash road exists on Windows only'],
+  ['src/platform/files/fileEncoding.ts', 1, 'Windows PowerShell 5.1 needs a byte order mark on its scripts'],
+  ['src/platform/git/git.ts', 2, 'a Windows path met in a git redirect off Windows is refused'],
+  ['src/platform/health/sections/proofs.ts', 1, 'the POSIX render pipeline does not run from a Windows source checkout'],
+  ['src/platform/node-runtime/compileCachePath.ts', 1, 'the compile cache folder has a length limit on Windows only'],
+  ['src/platform/processes/gracefulShutdown.ts', 1, 'the orphaned-terminal check runs off Windows only'],
+  ['src/platform/processes/processGroup.ts', 4, 'the MSYS job table and the taskkill drain exist on Windows only'],
+  ['src/platform/processes/watchRoot.ts', 3, 'a watched root is resolved natively and guarded against its own removal on Windows only'],
+  ['src/platform/remote-files/bridge.ts', 1, 'a remote name that Windows cannot hold is mapped on Windows only'],
+  ['src/platform/remote-files/hosts.ts', 1, 'the ssh_config of the system has its own place on each platform'],
+  ['src/platform/secure-storage/plainTextStorage.ts', 2, 'the read-only attribute of Windows is cleared before the credentials file is replaced'],
+  ['src/platform/secure-storage/systemProtector.ts', 1, 'DPAPI sealing exists on Windows only'],
+  ['src/platform/settings/mdm/probeMemo.ts', 2, 'managed settings are the registry on Windows and a plist on macOS'],
+  ['src/platform/settings/mdm/rawRead.ts', 1, 'managed settings are the registry on Windows and a plist on macOS'],
+  ['src/platform/settings/settings.ts', 1, 'managed settings are the registry on Windows and a plist on macOS'],
+  ['src/platform/shell/bashProvider.ts', 2, 'the MSYS command frame of a bash on Windows exists on Windows only'],
+  ['src/platform/shell/powershellProvider.ts', 1, 'PowerShell on Windows takes an environment of its own'],
+  ['src/platform/shell/shellExec.ts', 4, 'the start refusals, the batch plan and the folder note of Windows exist on Windows only'],
+  ['src/platform/shell/shellRecord.ts', 2, 'the Git Bash probe is asked on Windows only, and a sentence names the place of this platform'],
+  ['src/platform/shell/windowsBatchInvocation.ts', 1, 'a batch file is planned through cmd on Windows only'],
+  ['src/platform/shell/windowsShellRoad.ts', 1, 'the Windows bash road exists on Windows only'],
+  ['src/platform/update-channel/installLayout.ts', 3, 'the install layout of Mercury itself, the script policies of PowerShell and the removal of a binary in use after exit'],
+  ['src/platform/update-channel/installProvenance.ts', 2, 'the install probe carries its platform as a fact, and a public signature takes it as a parameter'],
+  ['src/platform/update-channel/nixInstallRoot.ts', 1, 'a Nix install exists outside Windows only'],
+  ['src/platform/update-channel/vendoredRuntime.ts', 4, 'bundled into the standalone verifier, which may import nothing outside src/platform/update-channel'],
+  ['src/screen/composer/exampleCommands.ts', 1, 'frequent-file examples are not gathered on Windows'],
+  ['src/screen/composer/imagePaste.ts', 5, 'the clipboard is read and saved by the commands of each desktop'],
+  ['src/screen/keys/defaultBindings.ts', 1, 'the default chords are a table for each platform'],
+  ['src/screen/keys/reservedShortcuts.ts', 1, 'the shortcuts an OS reserves are a table for each platform'],
+  ['src/screen/renderer/instance/stdin.ts', 1, 'the tty device is drained without blocking where a tty device exists'],
+  ['src/screen/renderer/root/console-read.ts', 1, 'the console read handle of Node is stopped on Windows only'],
+  ['src/screen/renderer/terminal-session/terminalProfile.ts', 4, 'the terminal profile is resolved from a probe that carries its platform'],
+  ['src/screen/renderer/terminal-session/windowsHostSetup.ts', 1, 'the Windows host inventory exists on Windows only'],
+  ['src/screen/tips/tipRegistry.ts', 1, 'a tip about the PowerShell tool, for Windows only'],
+  ['src/sessions/instructions/sourceText.ts', 1, 'an import line may name a drive or a share on Windows only'],
+  ['src/tools/computer/call/act.ts', 1, 'the path field of a file dialog is opened by the keys of each desktop'],
+  ['src/tools/engines/eval-kernels/interpreters.ts', 1, 'the Python commands the kernel tries are its own on each platform'],
+  ['src/tools/engines/eval-kernels/procKernel.ts', 1, 'the Python kernel speaks over loopback on Windows only'],
+  ['src/tools/kit/ocr.ts', 2, 'native OCR exists on macOS and Windows only, and a sentence names the place of this platform'],
+  ['src/tools/powershell/PowerShellTool.tsx', 1, 'the bash of Git is looked for on Windows only'],
+  ['src/tools/powershell/pathValidation.ts', 1, 'a rule of a command reader for the commands of one platform'],
+  ['src/tools/powershell/readOnlyValidation.ts', 2, 'a rule of a command reader for the commands of one platform'],
+  ['src/tools/read/readQueryTarget.ts', 1, 'a question mark cannot stand in a file name on Windows'],
+  ['src/tools/shell/pathValidation.ts', 1, 'a rule of a command reader for the commands of one platform'],
+  ['src/tools/shell/readOnlyValidation.ts', 2, 'a rule of a command reader for the commands of one platform'],
   ['src/utils/worktree.ts', 1, 'the tmux worktree road does not exist on Windows'],
 ]
 
@@ -193,7 +193,7 @@ if (grew.length > 0) {
   console.log('  [FAIL] a count ROSE, and the table only falls:')
   for (const g of grew) console.log(`      - ${g}`)
   console.log('         split-slash, kill-signal: use a normalized helper')
-  console.log(`         ${PLATFORM_CHECK}: ask a function under src/utils/platform/, which reads the platform at the call`)
+  console.log(`         ${PLATFORM_CHECK}: ask a function under src/platform/host-os/, which reads the platform at the call`)
 } else {
   console.log(`  [PASS] no file gained a POSIX tell or a platform check (${Object.keys(current).length} tracked)`)
 }
@@ -216,7 +216,7 @@ const total = platformRows.reduce((sum, [, n]) => sum + n, 0)
 const single = SINGLE.reduce((sum, [, checks]) => sum + checks, 0)
 const stale = SINGLE.map(([file, checks]) => ({ file, checks, holds: current[`${movedTo(file, singleFiles, platformFiles) ?? file} :: ${PLATFORM_CHECK}`] ?? 0 })).filter(row => row.holds < row.checks)
 check('every single row names platform checks its file still holds', stale.length === 0, stale.map(row => `${row.file} holds ${row.holds}, its row says ${row.checks}: lower the row in SINGLE or remove it`).join(' · '))
-console.log(`  [INFO] platform checks outside src/utils/platform: ${total} in ${platformRows.length} files · single ${single} · to move ${total - single}`)
+console.log(`  [INFO] platform checks outside src/platform/host-os: ${total} in ${platformRows.length} files · single ${single} · to move ${total - single}`)
 
 const flowAsk = await flowShellAsk('npx @scope/vercel deploy', '/tmp/proj')
 check('flowLaw splits scoped package names on slash grammar on every host', flowAsk?.item === 3 && flowAsk.subject === 'vercel deploy', JSON.stringify(flowAsk))

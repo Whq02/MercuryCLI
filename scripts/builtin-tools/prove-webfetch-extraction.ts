@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import axios from 'axios'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { WebFetchTool } = await import('../../src/tools/WebFetchTool/WebFetchTool.js')
-const { getURLMarkdownContent, clearWebFetchCache } = await import('../../src/tools/WebFetchTool/utils.js')
+const { WebFetchTool } = await import('../../src/tools/web-fetch/WebFetchTool.js')
+const { getURLMarkdownContent, clearWebFetchCache } = await import('../../src/tools/web-fetch/fetchContent.js')
 const html = await Bun.file(new URL('./fixtures/webfetch/article.html', import.meta.url)).text()
 const expected = (await Bun.file(new URL('./fixtures/webfetch/article.md', import.meta.url)).text()).trim()
 const cases = await Bun.file(new URL('./fixtures/webfetch/cases.json', import.meta.url)).json() as { name: string; html: string; markdown: string }[]
@@ -25,7 +25,7 @@ axios.get = ((url: string, options: object) => {
 let failures = 0
 const check = (name: string, ok: boolean, detail = '') => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${detail}${detail ? '; ' : ''}the page-to-markdown path is getURLMarkdownContent in src/tools/WebFetchTool/utils.ts, the size budget and continuation are pageSlice in src/tools/WebFetchTool/pageBudget.ts, the tool is src/tools/WebFetchTool/WebFetchTool.ts, and the stored expectations are in scripts/builtin-tools/fixtures/webfetch/`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${detail}${detail ? '; ' : ''}the page-to-markdown path is getURLMarkdownContent in src/tools/web-fetch/fetchContent.ts, the size budget and continuation are pageSlice in src/tools/web-fetch/pageBudget.ts, the tool is src/tools/web-fetch/WebFetchTool.ts, and the stored expectations are in scripts/builtin-tools/fixtures/webfetch/`}`)
 }
 try {
   clearWebFetchCache()
@@ -55,7 +55,7 @@ try {
     const page = await getURLMarkdownContent(`https://fixture.example/${fixture.name}`, new AbortController())
     check(`stored extraction expectation: ${fixture.name}`, !('type' in page) && page.content === fixture.markdown, JSON.stringify(page))
   }
-  const { pageSlice, MAX_FETCH_PAGE_CHARS } = await import('../../src/tools/WebFetchTool/pageBudget.js')
+  const { pageSlice, MAX_FETCH_PAGE_CHARS } = await import('../../src/tools/web-fetch/pageBudget.js')
   for (const text of ['0123456789'.repeat(11_200), 'A'.repeat(MAX_FETCH_PAGE_CHARS - 1) + '🌍' + 'B'.repeat(50_000), ('paragraph words\n\n').repeat(4000)]) {
     let from = 0
     let rebuilt = ''

@@ -8,7 +8,7 @@ const script = fileURLToPath(import.meta.url)
 const tree = resolve(dirname(script), '../..')
 const root = process.env.PROVE_ROOT ?? tree
 const node = join(tree, 'dist/vendor/node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
-const processScript = join(root, 'src/tools/FileReadTool/jsonQueryProcess.mjs')
+const processScript = join(root, 'src/tools/read/jsonQueryProcess.mjs')
 const pack = join(tree, 'vendor/json-query/extracted')
 const mode = process.argv[2]
 if (mode === '--owner') {

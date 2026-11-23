@@ -67,36 +67,36 @@ for (const base of [
 }
 const FIXTURE_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_API_KEY = FIXTURE_KEY
-;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/platform/settings/config.js')).enableConfigs()
 
 const React = (await import('react')).default
-const { render } = await import('../../src/ink.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { AppStoreContext, getDefaultAppState } = await import('../../src/state/AppState.tsx')
-const { createStore } = await import('../../src/state/store.ts')
+const { render } = await import('../../src/screen/themedRenderer.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { AppStoreContext, getDefaultAppState } = await import('../../src/screen/app-state/AppState.tsx')
+const { createStore } = await import('../../src/platform/primitives/store.ts')
 const { call, MercuryModelChoicePicker, modelChoiceRow } = await import('../../src/commands/model/mercuryModel.tsx')
-const { ModelPicker } = await import('../../src/components/ModelPicker.tsx')
-const { ModelSelector } = await import('../../src/components/agents/ModelSelector.tsx')
-const { SubModelPicker } = await import('../../src/components/SubModelPicker.tsx')
-const { resolveSubModel } = await import('../../src/services/model/subModelSlots.ts')
-const { getAgentModelPickerRows, agentModelPickOutcome } = await import('../../src/services/model/agentModelPicker.ts')
-const { ANTHROPIC_CONNECT_OPTION_VALUE, getModelOptions, isProviderActionRow, stripContext1m } = await import('../../src/services/model/modelOptions.ts')
-type ModelOption = import('../../src/services/model/modelOptions.ts').ModelOption
-const { FAMILY_GENERATIONS, parseFirstPartyGeneration } = await import('../../src/utils/model/configs.ts')
-const { getModelStrings } = await import('../../src/utils/model/modelStrings.ts')
-const { parseUserSpecifiedModel, renderModelName } = await import('../../src/services/model/model.ts')
-const { isClaudeAISubscriber, isMaxSubscriber } = await import('../../src/utils/auth.ts')
-const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
-const anthropicCatalogue = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
+const { ModelPicker } = await import('../../src/screen/model-picker/ModelPicker.tsx')
+const { ModelSelector } = await import('../../src/screen/agents/ModelSelector.tsx')
+const { SubModelPicker } = await import('../../src/commands/submodels/SubModelPicker.tsx')
+const { resolveSubModel } = await import('../../src/models/catalogue/subModelSlots.ts')
+const { getAgentModelPickerRows, agentModelPickOutcome } = await import('../../src/models/catalogue/agentModelPicker.ts')
+const { ANTHROPIC_CONNECT_OPTION_VALUE, getModelOptions, isProviderActionRow, stripContext1m } = await import('../../src/models/catalogue/modelOptions.ts')
+type ModelOption = import('../../src/models/catalogue/modelOptions.ts').ModelOption
+const { FAMILY_GENERATIONS, parseFirstPartyGeneration } = await import('../../src/models/facts/builtInModelTable.ts')
+const { getModelStrings } = await import('../../src/models/facts/pinnedModelIds.ts')
+const { parseUserSpecifiedModel, renderModelName } = await import('../../src/models/catalogue/engineModel.ts')
+const { isClaudeAISubscriber, isMaxSubscriber } = await import('../../src/models/sign-in/credentials/auth.ts')
+const { clearOAuthTokenCache } = await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')
+const anthropicCatalogue = await import('../../src/models/roads/anthropic/anthropicCatalogue.ts')
 
 let failures = 0
 const failureHint = (label: string): string => {
-  if (/staged credential/.test(label)) return 'the staged Max credential must read as a Max subscription: see isMaxSubscriber in src/utils/auth.ts and the MAX_CREDENTIAL fixture in this file'
-  if (/still resolves to/.test(label)) return 'change parseUserSpecifiedModel in src/services/model/model.ts so the saved nickname resolves to the full id'
-  if (/agent and boot agent rows/.test(label)) return 'change getAgentModelPickerRows or agentModelPickOutcome in src/services/model/agentModelPicker.ts so the row value and saved model are the full id'
+  if (/staged credential/.test(label)) return 'the staged Max credential must read as a Max subscription: see isMaxSubscriber in src/models/sign-in/credentials/auth.ts and the MAX_CREDENTIAL fixture in this file'
+  if (/still resolves to/.test(label)) return 'change parseUserSpecifiedModel in src/models/catalogue/engineModel.ts so the saved nickname resolves to the full id'
+  if (/agent and boot agent rows/.test(label)) return 'change getAgentModelPickerRows or agentModelPickOutcome in src/models/catalogue/agentModelPicker.ts so the row value and saved model are the full id'
   if (/config's saved/.test(label)) return 'change modelChoiceRow in src/commands/model/picker/rows.ts so a saved nickname maps to the full-id row'
-  if (/paints the full fable id|selecting the saved nickname|marks the .* row current|80-column|frame fits|Anthropic section is on screen|heading reads|painted|paints inside|current mark|row paints its full id|Home moves|walk stopped|End on the last|first frame has rows|bottom border|box spans|marker paints|walk started|footer keeps|current row is on screen|queued switch reads/.test(label)) return 'the picker painting is in src/components/MercuryModelPicker.tsx (the /model call is in src/commands/model/mercuryModel.tsx); compare the frame the test captured, rerun with --frames <dir> to write it'
-  return 'the Anthropic row order is built in getModelOptions in src/services/model/modelOptions.ts (live rows merge in mergeAnthropicLiveRows) from FAMILY_GENERATIONS in src/utils/model/configs.ts'
+  if (/paints the full fable id|selecting the saved nickname|marks the .* row current|80-column|frame fits|Anthropic section is on screen|heading reads|painted|paints inside|current mark|row paints its full id|Home moves|walk stopped|End on the last|first frame has rows|bottom border|box spans|marker paints|walk started|footer keeps|current row is on screen|queued switch reads/.test(label)) return 'the picker painting is in src/commands/model/picker/MercuryModelPicker.tsx (the /model call is in src/commands/model/mercuryModel.tsx); compare the frame the test captured, rerun with --frames <dir> to write it'
+  return 'the Anthropic row order is built in getModelOptions in src/models/catalogue/modelOptions.ts (live rows merge in mergeAnthropicLiveRows) from FAMILY_GENERATIONS in src/models/facts/builtInModelTable.ts'
 }
 function check(label: string, cond: boolean, detail?: string): void {
   if (!cond) failures++

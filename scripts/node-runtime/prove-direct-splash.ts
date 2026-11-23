@@ -18,7 +18,7 @@ const {
   SPLASH_DRIVER,
   SPLASH_EXIT,
   shellExitCodeOf,
-} = await import('../../src/substrate/directSplash.ts')
+} = await import('../../src/platform/substrate/directSplash.ts')
 
 let failures = 0
 let sectionFailHint = ''
@@ -37,7 +37,7 @@ const BIN = join(ROOT, 'dist', 'mercury.mjs')
 const BLOCK = join(ROOT, 'assets', 'splash', 'launcher-action-block.sh')
 
 section('§1 the takeover gate — the bare line on two TTYs, nothing else')
-sectionFailHint = 'change decideDirectSplash in src/substrate/directSplash.ts so the skip reason matches this line'
+sectionFailHint = 'change decideDirectSplash in src/platform/substrate/directSplash.ts so the skip reason matches this line'
 {
   const tty = { stdinTTY: true, stdoutTTY: true }
   const env = {}
@@ -64,7 +64,7 @@ sectionFailHint = 'change decideDirectSplash in src/substrate/directSplash.ts so
 }
 
 section('§2 asset resolution — payload · home · source, a torn pair never answers')
-sectionFailHint = 'change resolveSplashAsset in src/substrate/directSplash.ts so the rung order and the torn-pair rule match this line'
+sectionFailHint = 'change resolveSplashAsset in src/platform/substrate/directSplash.ts so the rung order and the torn-pair rule match this line'
 {
   const present = new Set<string>()
   const exists = (p: string): boolean => present.has(p)
@@ -99,7 +99,7 @@ sectionFailHint = 'change resolveSplashAsset in src/substrate/directSplash.ts so
 }
 
 section('§3 THE EXIT-CODE TABLE — the launcher block executed vs the in-process table')
-sectionFailHint = 'make the block assets/splash/launcher-action-block.sh and SPLASH_EXIT, applySplashExit and shellExitCodeOf in src/substrate/directSplash.ts agree; the launcher copy is scripts/ops/launcher-mercury.sh and the deploy legs run scripts/splash/deploy.sh'
+sectionFailHint = 'make the block assets/splash/launcher-action-block.sh and SPLASH_EXIT, applySplashExit and shellExitCodeOf in src/platform/substrate/directSplash.ts agree; the launcher copy is scripts/ops/launcher-mercury.sh and the deploy legs run scripts/splash/deploy.sh'
 {
   const block = readFileSync(BLOCK, 'utf8')
   const BEGIN = ': mercury-splash-action-begin'
@@ -263,7 +263,7 @@ if (!existsSync(BIN)) {
 }
 
 section('§6 the road on a real PTY')
-sectionFailHint = 'rerun node dist/mercury.mjs on a TTY and compare with runDirectSplash in src/substrate/directSplash.ts and the driver assets/splash/mercury-splash.mjs'
+sectionFailHint = 'rerun node dist/mercury.mjs on a TTY and compare with runDirectSplash in src/platform/substrate/directSplash.ts and the driver assets/splash/mercury-splash.mjs'
 const PY = '/usr/bin/python3'
 const pyProbe = spawnSync(PY, ['-c', 'import pty, pyte'], { encoding: 'utf8', timeout: 15_000 })
 if (!existsSync(BIN)) {

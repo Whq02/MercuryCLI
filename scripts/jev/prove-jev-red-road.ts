@@ -46,10 +46,10 @@ const router = await startJevStandin('openrouter')
 router.answerWith(fixtureChoiceAnswerer(RED_ROAD_CHOICE_FIXTURES))
 process.env.MERCURY_OPENROUTER_API_BASE = `${router.base}/api/v1`
 process.env.MERCURY_JEV_BASE = 'http://127.0.0.1:1'
-const config = await import('../../src/utils/config.js')
+const config = await import('../../src/platform/settings/config.js')
 config.enableConfigs()
-const setting = await import('../../src/services/jev/jevSetting.ts')
-const secrets = await import('../../src/utils/accounts/providerSecrets.ts')
+const setting = await import('../../src/models/jev/jevSetting.ts')
+const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
 const OR_KEY = 'proof-openrouter-key-not-real'
 secrets.writeStoredOpenrouterApiKey(OR_KEY)
 setting.setJevEnabled(true, 'openrouter')

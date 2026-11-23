@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 (globalThis as unknown as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { emptyFoldState, applyTranscriptEntry } = await import('../../src/utils/sessionStorage/fold.ts')
-const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
+const { emptyFoldState, applyTranscriptEntry } = await import('../../src/sessions/transcripts/fold.ts')
+const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -20,15 +20,15 @@ console.log('── transcript fold row-identity law ──')
   applyTranscriptEntry(state, a1 as never)
   applyTranscriptEntry(state, b as never)
   const before = [...state.messages.values()]
-  check('distinct uuids append in order', before[0] === a1 && before[1] === b, 'rows with distinct uuids must keep arrival order: fix applyTranscriptEntry in src/utils/sessionStorage/fold.ts')
+  check('distinct uuids append in order', before[0] === a1 && before[1] === b, 'rows with distinct uuids must keep arrival order: fix applyTranscriptEntry in src/sessions/transcripts/fold.ts')
   const a2 = row('a', 'settled-late')
   applyTranscriptEntry(state, a2 as never)
   const replaced = [...state.messages.values()]
-  check('a double-emit replaces in place without growth', replaced.length === 2 && replaced[0] === a2 && replaced[1] === b, `size ${replaced.length}; a repeated uuid must replace its row in place: fix applyTranscriptEntry in src/utils/sessionStorage/fold.ts`)
-  check('previous row objects are never mutated', a1.message.content === 'first' && before[0] === a1, 'the fold must store each row object as given and never edit one: fix applyTranscriptEntry in src/utils/sessionStorage/fold.ts')
+  check('a double-emit replaces in place without growth', replaced.length === 2 && replaced[0] === a2 && replaced[1] === b, `size ${replaced.length}; a repeated uuid must replace its row in place: fix applyTranscriptEntry in src/sessions/transcripts/fold.ts`)
+  check('previous row objects are never mutated', a1.message.content === 'first' && before[0] === a1, 'the fold must store each row object as given and never edit one: fix applyTranscriptEntry in src/sessions/transcripts/fold.ts')
   const twin = row('c', 'second')
   applyTranscriptEntry(state, twin as never)
-  check('identical content under a different uuid stays a second row', state.messages.size === 3 && [...state.messages.values()][2] === twin, `size ${state.messages.size}; rows are keyed by uuid, never by content: fix applyTranscriptEntry in src/utils/sessionStorage/fold.ts`)
+  check('identical content under a different uuid stays a second row', state.messages.size === 3 && [...state.messages.values()][2] === twin, `size ${state.messages.size}; rows are keyed by uuid, never by content: fix applyTranscriptEntry in src/sessions/transcripts/fold.ts`)
 }
 
 
@@ -41,7 +41,7 @@ console.log('── transcript fold row-identity law ──')
   applyTranscriptEntry(state, mk('u1') as never)
   applyTranscriptEntry(state, mk('u1') as never)
   const normalized = normalizeMessages([...state.messages.values()] as never)
-  check('a replayed settle normalises to one row', normalized.length === 1 && normalized[0]!.uuid === 'u1', `${normalized.length} rows; a replayed settle must fold to one row: fix applyTranscriptEntry in src/utils/sessionStorage/fold.ts or normalizeMessages in src/utils/messages/normalize.ts`)
+  check('a replayed settle normalises to one row', normalized.length === 1 && normalized[0]!.uuid === 'u1', `${normalized.length} rows; a replayed settle must fold to one row: fix applyTranscriptEntry in src/sessions/transcripts/fold.ts or normalizeMessages in src/engine/message-shapes/normalize.ts`)
 }
 
 console.log(failures === 0 ? 'append-identity GREEN' : `append-identity RED (${failures})`)

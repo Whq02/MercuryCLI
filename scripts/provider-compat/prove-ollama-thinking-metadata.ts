@@ -45,19 +45,19 @@ const server = Bun.serve({
   },
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=http://127.0.0.1:${server.port}`
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const discovery = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+const discovery = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { effortVocabularyFor } = await import('../../src/models/facts/capabilities.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const tool = { name: 'Read', inputSchema: z.object({ file_path: z.string() }), description: async () => 'Read a fixture', prompt: async () => 'Read a fixture', isEnabled: () => true, isReadOnly: () => true, isConcurrencySafe: () => true, maxResultSizeChars: 10000 } as never
 let failures = 0
 function check(label: string, actual: unknown, expected: unknown): void {
   try { assert.deepEqual(actual, expected); console.log(`PASS ${label}`) }
-  catch { failures++; console.error(`FAIL ${label}: ${JSON.stringify(actual)} != ${JSON.stringify(expected)} | to fix: the thinking vocabulary is read from /api/show in src/services/providers/local/localDiscovery.ts, the effort view is effortVocabularyFor in src/utils/model/capabilities.ts, and the think field of the request body is built in src/services/providers/local/ollamaChatTransport.ts`) }
+  catch { failures++; console.error(`FAIL ${label}: ${JSON.stringify(actual)} != ${JSON.stringify(expected)} | to fix: the thinking vocabulary is read from /api/show in src/models/roads/local/localDiscovery.ts, the effort view is effortVocabularyFor in src/models/facts/capabilities.ts, and the think field of the request body is built in src/models/roads/local/ollamaChatTransport.ts`) }
 }
 async function send(name: string, effort: string | undefined, thinking = true, messages: any[] = [createUserMessage({ content: 'Read the fixture.' })]) {
   const rows: any[] = []

@@ -7,9 +7,9 @@ const root = resolve(import.meta.dir, '../..')
 for (const force of ['0', 'false', '4', 'garbage']) {
   for (const noColor of [undefined, '1']) {
     const env = { ...process.env, FORCE_COLOR: force, NO_COLOR: noColor, COLORTERM: 'truecolor' }
-    const child = spawnSync(process.execPath, ['-e', `const m = await import('./src/ink/colorize.ts'); console.log(JSON.stringify({ stripped: m.colorStripped(), ink: m.colorize('word', '#dd4444', 'foreground') }))`], { cwd: root, env, encoding: 'utf8' })
-    assert.equal(child.status, 0, `the colorize probe of src/ink/colorize.ts exited nonzero, fix the import or colorStripped there. ${child.stderr}`)
-    assert.deepEqual(JSON.parse(child.stdout), { stripped: true, ink: 'word' }, `a disabled FORCE_COLOR must strip colour: change the FORCE_COLOR handling in src/ink/colorize.ts (colorStripped, colorize). FORCE_COLOR=${force}, NO_COLOR=${noColor}`)
+    const child = spawnSync(process.execPath, ['-e', `const m = await import('./src/screen/renderer/colorize.ts'); console.log(JSON.stringify({ stripped: m.colorStripped(), ink: m.colorize('word', '#dd4444', 'foreground') }))`], { cwd: root, env, encoding: 'utf8' })
+    assert.equal(child.status, 0, `the colorize probe of src/screen/renderer/colorize.ts exited nonzero, fix the import or colorStripped there. ${child.stderr}`)
+    assert.deepEqual(JSON.parse(child.stdout), { stripped: true, ink: 'word' }, `a disabled FORCE_COLOR must strip colour: change the FORCE_COLOR handling in src/screen/renderer/colorize.ts (colorStripped, colorize). FORCE_COLOR=${force}, NO_COLOR=${noColor}`)
   }
 }
 const source = readFileSync(resolve(root, 'assets/splash/mercury-splash.mjs'), 'utf8')

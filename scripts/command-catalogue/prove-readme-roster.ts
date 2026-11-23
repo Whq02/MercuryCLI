@@ -135,7 +135,7 @@ for (const label of readmeByDomain.keys()) {
 }
 
 {
-  const { COMMAND_DOMAINS } = await import('../../src/components/HelpV2/commandDomains.js')
+  const { COMMAND_DOMAINS } = await import('../../src/screen/help/commandDomains.js')
   const curated = COMMAND_DOMAINS.map(d => d.label).filter(label => readmeByDomain.has(label))
   check(
     'the table rows ride in COMMAND_DOMAINS order',

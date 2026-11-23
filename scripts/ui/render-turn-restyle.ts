@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, writeFileSync, readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { SECOND as SECOND_TOKEN } from '../../src/components/mercuryPalette.ts'
+import { SECOND as SECOND_TOKEN } from '../../src/screen/theme/mercuryPalette.ts'
 import { CONFIG_HOME, scenario, cleanupScenario } from './renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 

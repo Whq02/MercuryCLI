@@ -13,14 +13,14 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) {
     failures++
-    console.log('    what to change: keybindingsCheck in src/services/health/sections/settings/sources.ts (it reads loadKeybindingsSyncWithWarnings in src/keybindings/loadUserBindings.ts, and invalidateKeybindingsCache there resets the cache); the warn row must come from the warnings of the file in the config home')
+    console.log('    what to change: keybindingsCheck in src/platform/health/sections/settings/sources.ts (it reads loadKeybindingsSyncWithWarnings in src/screen/keys/loadUserBindings.ts, and invalidateKeybindingsCache there resets the cache); the warn row must come from the warnings of the file in the config home')
   }
 }
 
 writeFileSync(join(HOME, 'keybindings.json'), '{ "bindings": [ { "key": "ctrl+')
 
 const kbRow = async (): Promise<{ status: string; evidence: string }> => {
-  const report = await import('../../src/services/health/healthReport.js')
+  const report = await import('../../src/platform/health/healthReport.js')
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'keybindings')
   return { status: String(row?.status), evidence: String(row?.evidence) }
@@ -34,7 +34,7 @@ check(
 )
 
 writeFileSync(join(HOME, 'keybindings.json'), JSON.stringify({ bindings: [] }))
-const { invalidateKeybindingsCache } = await import('../../src/keybindings/loadUserBindings.js')
+const { invalidateKeybindingsCache } = await import('../../src/screen/keys/loadUserBindings.js')
 invalidateKeybindingsCache()
 const clean = await kbRow()
 check('a clean file reads ok (control)', clean.status === 'ok', `${clean.status}: ${clean.evidence.slice(0, 80)}`)

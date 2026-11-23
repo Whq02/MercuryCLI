@@ -25,9 +25,9 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 for (const k of ['CI', 'NODE_ENV', 'MERCURY_CACHE_CLOCK', 'MERCURY_CACHE_TTL', 'MERCURY_TANK', 'MERCURY_HEALER', 'MERCURY_DAEMON_PERMISSION_MODE', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_API_KEY_FILE_DESCRIPTOR', 'MERCURY_OAUTH_TOKEN', 'MERCURY_API_UNIX_SOCKET']) delete process.env[k]
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 
-const state = await import('../../src/bootstrap/state.ts')
-const clock = await import('../../src/utils/cache/cacheClock.ts')
-const params = await import('../../src/services/providers/anthropic/requestParams.ts')
+const state = await import('../../src/boot/process-state/processState.ts')
+const clock = await import('../../src/platform/cache-clock/cacheClock.ts')
+const params = await import('../../src/models/roads/anthropic/requestParams.ts')
 const j = (v: unknown): string => JSON.stringify(v)
 const minutes = (n: number): number => n * 60_000
 type Snapshot = ReturnType<typeof clock.cacheClockSnapshot> & { reason?: string | null }
@@ -35,7 +35,7 @@ const snapshot = (): Snapshot => clock.cacheClockSnapshot() as Snapshot
 const control = (): { type: string; ttl?: string } => params.getCacheControl()
 state.setIsInteractive(true)
 
-section('§1 a key-billed seat: the clock stays off and the reading says which gate held (the field row M39-03, 1B-02)', 'change cacheClockSnapshot and cacheClockTtlDecision in src/utils/cache/cacheClock.ts, or promptCache1hEligibility and getCacheControl in src/services/providers/anthropic/requestParams.ts')
+section('§1 a key-billed seat: the clock stays off and the reading says which gate held (the field row M39-03, 1B-02)', 'change cacheClockSnapshot and cacheClockTtlDecision in src/platform/cache-clock/cacheClock.ts, or promptCache1hEligibility and getCacheControl in src/models/roads/anthropic/requestParams.ts')
 {
   clock.resetCacheClockForTesting()
   state.setPromptCache1hEligible(null)
@@ -51,7 +51,7 @@ section('§1 a key-billed seat: the clock stays off and the reading says which g
   check('a 10-minute gap on a key-billed seat still rides the 5m tier (no consent, no premium)', after.ttl === undefined && snapshot().engaged === false, j({ after, snap: snapshot() }))
 }
 
-section('§2 a seat that becomes eligible: the clock engages at a cold boundary, never on a warm prefix', 'change cacheClockTtlDecision in src/utils/cache/cacheClock.ts so the clock engages only at a cold boundary and stays latched')
+section('§2 a seat that becomes eligible: the clock engages at a cold boundary, never on a warm prefix', 'change cacheClockTtlDecision in src/platform/cache-clock/cacheClock.ts so the clock engages only at a cold boundary and stays latched')
 {
   clock.resetCacheClockForTesting()
   state.setPromptCache1hEligible(null)
@@ -66,7 +66,7 @@ section('§2 a seat that becomes eligible: the clock engages at a cold boundary,
   check('once engaged, a later eligibility move never un-engages the clock (the latch holds)', next === '1h' && snapshot().engaged === true, j({ next, snap: snapshot() }))
 }
 
-section('§3 the reading when no request has gone out: the gate of this home is readable in any process (the field rows 2B-06, 2B-07)', 'change cacheClockSnapshot and cacheClockGateWords in src/utils/cache/cacheClock.ts, promptCache1hEligibility in src/services/providers/anthropic/requestParams.ts, or the cache-clock row in src/services/health/sections/crew/appends.ts')
+section('§3 the reading when no request has gone out: the gate of this home is readable in any process (the field rows 2B-06, 2B-07)', 'change cacheClockSnapshot and cacheClockGateWords in src/platform/cache-clock/cacheClock.ts, promptCache1hEligibility in src/models/roads/anthropic/requestParams.ts, or the cache-clock row in src/platform/health/sections/crew/appends.ts')
 {
   clock.resetCacheClockForTesting()
   const fresh = snapshot()
@@ -85,7 +85,7 @@ section('§3 the reading when no request has gone out: the gate of this home is 
   const off = snapshot()
   check('with the clock off the reading names the flag', off.engaged === false && off.reason === 'the clock is off (MERCURY_CACHE_CLOCK=0)', j(off))
   delete process.env.MERCURY_CACHE_CLOCK
-  const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
+  const { crewChecks } = await import('../../src/platform/health/sections/crew.ts')
   const clockRow = crewChecks().find(row => row.id === 'cache-clock')
   const unsent = await clockRow?.run()
   process.env.MERCURY_CACHE_CLOCK = '0'

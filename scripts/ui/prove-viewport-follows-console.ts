@@ -6,15 +6,15 @@ if (!process.env.MERCURY_CONFIG_DIR || process.env.MERCURY_CREDENTIAL_STORE !== 
   throw new Error('Run this proof through its isolated Node launcher')
 }
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0' }
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 const React = (await import('react')).default
-const { Box, Text } = await import('../../src/ink.js')
-const { TerminalSizeContext, LiveTerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { ENABLE_ALTERNATE_SCROLL } = await import('../../src/ink/termio/dec.js')
-const { RESIZE_SETTLE_MS } = await import('../../src/ink/constants.js')
-const { syncOutputCapabilityNow, upgradeSyncOutputSupport } = await import('../../src/ink/session/capabilities.js')
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { TerminalSizeContext, LiveTerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { ENABLE_ALTERNATE_SCROLL } = await import('../../src/screen/renderer/termio/dec.js')
+const { RESIZE_SETTLE_MS } = await import('../../src/screen/renderer/constants.js')
+const { syncOutputCapabilityNow, upgradeSyncOutputSupport } = await import('../../src/screen/renderer/terminal-session/capabilities.js')
 const { default: stripAnsi } = await import('strip-ansi')
 const { runtime, checks } = await import('./viewportRuntime.ts')
 const { check, finish } = checks()
@@ -30,22 +30,22 @@ function WindowRows(): React.ReactNode {
 
 function whole(label: string, frame: string[] | undefined, columns: number, rows: number): void {
   const text = frame ?? []
-  check(`${label}: exactly ${rows} rows`, text.length === rows, `${text.length}; onRender in src/ink/ink/frame-loop.ts must repaint at the live console size through applySize in src/ink/ink/resize.ts`)
-  check(`${label}: scoped and live context agree at the top`, text[0] === `RAIL TOP ${columns}x${rows}/${columns}x${rows}`, `${text[0]}; applySize in src/ink/ink/resize.ts must update cachedColumns and cachedRows so the scoped and live terminal size contexts both read the new size`)
-  check(`${label}: composer reaches the last row`, text[rows - 1] === `COMPOSER ${columns}x${rows}`, `${text[rows - 1]}; the frame painted after a resize must use the live console rows (onRender in src/ink/ink/frame-loop.ts)`)
-  check(`${label}: no blank band`, text.length === rows && text.every(line => line.trim() !== ''), `${text.join('|')}; a blank row means the frame was painted at a stale size, see onRender in src/ink/ink/frame-loop.ts`)
+  check(`${label}: exactly ${rows} rows`, text.length === rows, `${text.length}; onRender in src/screen/renderer/instance/frame-loop.ts must repaint at the live console size through applySize in src/screen/renderer/instance/resize.ts`)
+  check(`${label}: scoped and live context agree at the top`, text[0] === `RAIL TOP ${columns}x${rows}/${columns}x${rows}`, `${text[0]}; applySize in src/screen/renderer/instance/resize.ts must update cachedColumns and cachedRows so the scoped and live terminal size contexts both read the new size`)
+  check(`${label}: composer reaches the last row`, text[rows - 1] === `COMPOSER ${columns}x${rows}`, `${text[rows - 1]}; the frame painted after a resize must use the live console rows (onRender in src/screen/renderer/instance/frame-loop.ts)`)
+  check(`${label}: no blank band`, text.length === rows && text.every(line => line.trim() !== ''), `${text.join('|')}; a blank row means the frame was painted at a stale size, see onRender in src/screen/renderer/instance/frame-loop.ts`)
 }
 
 function settledRoad(label: string, bytes: string, writes: string[], flickers: number, freshBuffer = false, gainedRows = false): void {
   const erases = bytes.match(/\x1b\[[0-3]?J/g) ?? []
   const wholeFrames = writes.filter(write => write.includes('\x1b[H\x1b[0m') && stripAnsi(write).includes('COMPOSER')).length
-  if (freshBuffer && gainedRows) check(`${label}: the settled frame is written whole in place by one write, and the one erase is the hold's, of the rows the window gained under the frame it holds`, erases.length === 1 && /^\x1b\[0?J$/.test(erases[0]!) && wholeFrames === 1 && bytes.indexOf(erases[0]!) < bytes.indexOf('\x1b[?1049h'), `${erases.length} erases (${JSON.stringify(erases)}), ${wholeFrames} whole frames; applySettledResize and applySize in src/ink/ink/resize.ts write the held rows erase once and then one whole frame`)
-  else check(`${label}: the settled frame is written whole in place by one write, and nothing erases the display`, erases.length === 0 && wholeFrames === 1, `${erases.length} erases, ${wholeFrames} whole frames; the settled repaint in src/ink/ink/resize.ts (applySize, applySettledResize) must write one whole frame and no erase`)
-  check(`${label}: no scrollback erase`, !bytes.includes('\x1b[3J'), 'the resize repaint in src/ink/ink/resize.ts must not clear scrollback')
-  if (freshBuffer) check(`${label}: one fresh alternate buffer is taken for the window, and the alternate screen is never left`, (bytes.match(/\x1b\[\?1049h/g) ?? []).length === 1 && !/\x1b\[\?(?:47[hl]|1049l)/.test(bytes), `${(bytes.match(/\x1b\[\?1049h/g) ?? []).length} entries; fitConsoleBufferToWindow in src/ink/ink/resize.ts must enter the alternate screen once and nothing may leave it`)
-  else check(`${label}: no alternate-screen switch`, !/\x1b\[\?(?:47|1049)[hl]/.test(bytes), 'only a classic Windows console (consoleBufferOutlivesWindow in src/ink/ink/resize.ts) may switch the alternate screen on resize')
-  check(`${label}: the modes are re-asserted as after a settled resize`, bytes.includes(ENABLE_ALTERNATE_SCROLL), 'applySize in src/ink/ink/resize.ts must write resizeReassertBytes when the alternate screen is active')
-  check(`${label}: no writer full reset stood in for the settled repaint`, flickers === 0, `${flickers} full resets; the settled repaint must use the whole-frame path (wholeFrameDue in applySize, src/ink/ink/resize.ts), not a writer full reset`)
+  if (freshBuffer && gainedRows) check(`${label}: the settled frame is written whole in place by one write, and the one erase is the hold's, of the rows the window gained under the frame it holds`, erases.length === 1 && /^\x1b\[0?J$/.test(erases[0]!) && wholeFrames === 1 && bytes.indexOf(erases[0]!) < bytes.indexOf('\x1b[?1049h'), `${erases.length} erases (${JSON.stringify(erases)}), ${wholeFrames} whole frames; applySettledResize and applySize in src/screen/renderer/instance/resize.ts write the held rows erase once and then one whole frame`)
+  else check(`${label}: the settled frame is written whole in place by one write, and nothing erases the display`, erases.length === 0 && wholeFrames === 1, `${erases.length} erases, ${wholeFrames} whole frames; the settled repaint in src/screen/renderer/instance/resize.ts (applySize, applySettledResize) must write one whole frame and no erase`)
+  check(`${label}: no scrollback erase`, !bytes.includes('\x1b[3J'), 'the resize repaint in src/screen/renderer/instance/resize.ts must not clear scrollback')
+  if (freshBuffer) check(`${label}: one fresh alternate buffer is taken for the window, and the alternate screen is never left`, (bytes.match(/\x1b\[\?1049h/g) ?? []).length === 1 && !/\x1b\[\?(?:47[hl]|1049l)/.test(bytes), `${(bytes.match(/\x1b\[\?1049h/g) ?? []).length} entries; fitConsoleBufferToWindow in src/screen/renderer/instance/resize.ts must enter the alternate screen once and nothing may leave it`)
+  else check(`${label}: no alternate-screen switch`, !/\x1b\[\?(?:47|1049)[hl]/.test(bytes), 'only a classic Windows console (consoleBufferOutlivesWindow in src/screen/renderer/instance/resize.ts) may switch the alternate screen on resize')
+  check(`${label}: the modes are re-asserted as after a settled resize`, bytes.includes(ENABLE_ALTERNATE_SCROLL), 'applySize in src/screen/renderer/instance/resize.ts must write resizeReassertBytes when the alternate screen is active')
+  check(`${label}: no writer full reset stood in for the settled repaint`, flickers === 0, `${flickers} full resets; the settled repaint must use the whole-frame path (wholeFrameDue in applySize, src/screen/renderer/instance/resize.ts), not a writer full reset`)
 }
 
 async function afterTheSettle(frames: string[][], before: number): Promise<void> {
@@ -62,7 +62,7 @@ const consoles: Array<[platform: string, name: string, classic: boolean]> = [
 ]
 for (const [platform, name, classic] of consoles) {
   if (platform === 'win32' && !classic) upgradeSyncOutputSupport()
-  if (platform === 'win32') check(`${name}: the console ${classic ? 'draws nothing atomically, as the old Windows console' : 'draws atomically, as Windows Terminal'}`, syncOutputCapabilityNow() === !classic, 'syncOutputCapabilityNow and upgradeSyncOutputSupport in src/ink/session/capabilities.ts must report atomic output only after the upgrade')
+  if (platform === 'win32') check(`${name}: the console ${classic ? 'draws nothing atomically, as the old Windows console' : 'draws atomically, as Windows Terminal'}`, syncOutputCapabilityNow() === !classic, 'syncOutputCapabilityNow and upgradeSyncOutputSupport in src/screen/renderer/terminal-session/capabilities.ts must report atomic output only after the upgrade')
   Object.defineProperty(process, 'platform', { ...descriptor, value: platform })
   const run = runtime(120, 40)
   const tree = React.createElement(WindowRows)
@@ -85,9 +85,9 @@ for (const [platform, name, classic] of consoles) {
       if (classic) await afterTheSettle(run.frames, before)
       const painted = run.frames.length
       await Promise.resolve()
-      if (classic) check(`${name} ${columns}x${rows}: nothing is painted at the reported size before the resize settles`, atOnce === 0, `${atOnce} paints; onRender in src/ink/ink/frame-loop.ts must hand a changed size to settleResize in src/ink/ink/resize.ts on a classic console`)
-      check(`${name} ${columns}x${rows}: the next paint occurred`, classic ? painted === before + 1 : painted > before, `${painted - before} paints; onRender in src/ink/ink/frame-loop.ts must paint once after the size changed (after RESIZE_SETTLE_MS on a classic console)`)
-      check(`${name} ${columns}x${rows}: no resize event supplied the size`, run.stdout.resizeEvents === events, 'onRender in src/ink/ink/frame-loop.ts must read the size from the console, not wait for a resize event')
+      if (classic) check(`${name} ${columns}x${rows}: nothing is painted at the reported size before the resize settles`, atOnce === 0, `${atOnce} paints; onRender in src/screen/renderer/instance/frame-loop.ts must hand a changed size to settleResize in src/screen/renderer/instance/resize.ts on a classic console`)
+      check(`${name} ${columns}x${rows}: the next paint occurred`, classic ? painted === before + 1 : painted > before, `${painted - before} paints; onRender in src/screen/renderer/instance/frame-loop.ts must paint once after the size changed (after RESIZE_SETTLE_MS on a classic console)`)
+      check(`${name} ${columns}x${rows}: no resize event supplied the size`, run.stdout.resizeEvents === events, 'onRender in src/screen/renderer/instance/frame-loop.ts must read the size from the console, not wait for a resize event')
       whole(`${name} first silent-size paint`, run.frames[before], columns, rows)
       settledRoad(`${name} ${columns}x${rows} silent-size paint`, run.stdout.bytes.slice(byteStart), run.stdout.writes.slice(writeStart), run.events.slice(eventStart).reduce((n, event) => n + event.flickers.length, 0), classic, rows > rowsBefore)
       rowsBefore = rows
@@ -106,17 +106,17 @@ for (const [platform, name, classic] of consoles) {
         if (classic) await afterTheSettle(run.frames, before)
         const painted = run.frames.length
         await Promise.resolve()
-        if (classic) check(`${name} ${columns}x${rows}: nothing is painted at the console's new size before the resize settles`, atOnce === 0, `${atOnce} paints; onRender in src/ink/ink/frame-loop.ts must hand a changed console size to settleResize in src/ink/ink/resize.ts on a classic console`)
-        check(`${name} ${columns}x${rows}: the frame queried the console`, run.stdout.refreshCalls > calls, 'onRender in src/ink/ink/frame-loop.ts must call refreshConsoleSize (src/ink/root/console-size.ts) when consoleSizeNeedsPolling')
-        check(`${name} ${columns}x${rows}: the seam emitted its synchronous event`, run.stdout.resizeEvents === events + 1, 'refreshConsoleSize in src/ink/root/console-size.ts must call the stream _refreshSize, which emits the resize event')
-        check(`${name} ${columns}x${rows}: refresh caused no nested paint`, painted === before + 1, `${painted - before} paints; the refresh inside onRender (src/ink/ink/frame-loop.ts) must not trigger a second paint`)
+        if (classic) check(`${name} ${columns}x${rows}: nothing is painted at the console's new size before the resize settles`, atOnce === 0, `${atOnce} paints; onRender in src/screen/renderer/instance/frame-loop.ts must hand a changed console size to settleResize in src/screen/renderer/instance/resize.ts on a classic console`)
+        check(`${name} ${columns}x${rows}: the frame queried the console`, run.stdout.refreshCalls > calls, 'onRender in src/screen/renderer/instance/frame-loop.ts must call refreshConsoleSize (src/screen/renderer/root/console-size.ts) when consoleSizeNeedsPolling')
+        check(`${name} ${columns}x${rows}: the seam emitted its synchronous event`, run.stdout.resizeEvents === events + 1, 'refreshConsoleSize in src/screen/renderer/root/console-size.ts must call the stream _refreshSize, which emits the resize event')
+        check(`${name} ${columns}x${rows}: refresh caused no nested paint`, painted === before + 1, `${painted - before} paints; the refresh inside onRender (src/screen/renderer/instance/frame-loop.ts) must not trigger a second paint`)
         whole(`${name} first console-size paint`, run.frames[before], columns, rows)
         settledRoad(`${name} ${columns}x${rows} console-size paint`, run.stdout.bytes.slice(byteStart), run.stdout.writes.slice(writeStart), run.events.slice(eventStart).reduce((n, event) => n + event.flickers.length, 0), classic, rows > rowsBefore)
         rowsBefore = rows
       }
       const before = run.stdout.refreshCalls
       run.ink.onRender()
-      check(`${name} unchanged size is still queried every frame`, run.stdout.refreshCalls === before + 1, 'onRender in src/ink/ink/frame-loop.ts must call refreshConsoleSize on every frame even when the size is unchanged')
+      check(`${name} unchanged size is still queried every frame`, run.stdout.refreshCalls === before + 1, 'onRender in src/screen/renderer/instance/frame-loop.ts must call refreshConsoleSize on every frame even when the size is unchanged')
     }
   } finally {
     run.dispose()

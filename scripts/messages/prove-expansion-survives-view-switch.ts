@@ -18,7 +18,7 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' · the transcript click road and the opened-row memory belong to the Messages component in src/components/Messages.tsx; an opened thinking row must stay open when the view swaps lead to crewmate and back' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' · the transcript click road and the opened-row memory belong to the Messages component in src/screen/messages/Messages.tsx; an opened thinking row must stay open when the view swaps lead to crewmate and back' : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
@@ -27,11 +27,11 @@ const settle = (ms = 60): Promise<void> => new Promise(r => setTimeout(r, ms))
 
 const React = await import('react')
 const h = React.createElement as (...a: unknown[]) => React.ReactElement
-const { Box, Text } = await import('../../src/ink.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
 
 type Clickable = { onItemClick?: (msg: unknown) => void; isItemClickable?: (msg: unknown) => boolean; isItemExpanded?: (msg: unknown) => boolean; messages: unknown[]; renderItem: (msg: unknown, i: number) => React.ReactNode }
 const lists = new Map<string, Clickable>()
-mock.module('../../src/components/VirtualMessageList.tsx', () => ({
+mock.module('../../src/screen/virtual-message-list/VirtualMessageList.tsx', () => ({
   VirtualMessageList: (props: Clickable & { itemKey: (m: unknown) => string }) => {
     const first = props.messages[0] as { uuid?: string } | undefined
     const key = props.itemKey(first ?? {})
@@ -41,16 +41,16 @@ mock.module('../../src/components/VirtualMessageList.tsx', () => ({
   default: () => null,
 }))
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(true)
-const { render } = await import('../../src/ink.ts')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { Messages } = await import('../../src/components/Messages.tsx')
-const { CrewmatePlateContext } = await import('../../src/components/messages/TranscriptNameplate.tsx')
-const { THINKING_LABEL } = await import('../../src/components/messages/thinkingGrammar.tsx')
+const { render } = await import('../../src/screen/themedRenderer.ts')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { Messages } = await import('../../src/screen/messages/Messages.tsx')
+const { CrewmatePlateContext } = await import('../../src/screen/messages/TranscriptNameplate.tsx')
+const { THINKING_LABEL } = await import('../../src/screen/messages/thinkingGrammar.tsx')
 
 const BODY = 'the reasoning body the operator opened by a click'
 const at = (s: number): string => new Date(Date.UTC(2026, 9, 5, 12, 0, s)).toISOString()

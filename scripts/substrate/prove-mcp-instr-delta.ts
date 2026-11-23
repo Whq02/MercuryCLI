@@ -8,9 +8,9 @@ import { join } from 'node:path'
 import {
   getMcpInstructionsDelta,
   isMcpInstructionsDeltaEnabled,
-} from '../../src/utils/mcpInstructionsDelta.ts'
+} from '../../src/integrations/mcp/mcpInstructionsDelta.ts'
 
-const DELTA_HINT = 'change getMcpInstructionsDelta or isMcpInstructionsDeltaEnabled in src/utils/mcpInstructionsDelta.ts (sections 1 and 2); for section 4 also getSystemPrompt in src/constants/prompts.ts (no MCP instructions in the system prompt) and normalizeAttachmentForAPI in src/services/messages/attachmentText.ts (the row text)'
+const DELTA_HINT = 'change getMcpInstructionsDelta or isMcpInstructionsDeltaEnabled in src/integrations/mcp/mcpInstructionsDelta.ts (sections 1 and 2); for section 4 also getSystemPrompt in src/engine/system-prompt/defaultSystemPrompt.ts (no MCP instructions in the system prompt) and normalizeAttachmentForAPI in src/engine/messages/attachmentText.ts (the row text)'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -82,8 +82,8 @@ section('4. ONE CARRIER (FN-020 row 2) — the system prompt is byte-identical w
   process.env.MERCURY_CONFIG_DIR = home
   process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? 'sk-ant-proof-mcp-instr'
   process.chdir(cwd)
-  const prompts = await import('../../src/constants/prompts.ts')
-  const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
+  const prompts = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+  const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
   const tools = ['Bash', 'Read', 'Edit', 'Glob', 'Grep'].map(name => ({ name })) as never
   const alpha = { type: 'connected', name: 'alpha', instructions: 'use tool X first' } as never
   const beta = { type: 'connected', name: 'beta', instructions: 'never call Y twice' } as never

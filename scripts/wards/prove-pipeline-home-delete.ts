@@ -1,10 +1,10 @@
-import { evaluateWards, REFUSAL_WARDS, setHomeSpellings } from '../../src/utils/wards/wards.ts'
+import { evaluateWards, REFUSAL_WARDS, setHomeSpellings } from '../../src/permissions/wards/wards.ts'
 let failed = 0
 const check = (command: string, refused: boolean): void => {
   const verdict = evaluateWards(REFUSAL_WARDS, { toolName: 'PowerShell', input: { command }, shellCommand: command })
   const ok = verdict.allow !== refused && (verdict.allow || verdict.rule.name === 'no-root-recursive-delete')
   const verdictNote = verdict.allow ? 'allowed' : `refused by ${verdict.rule.name}`
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${refused ? 'refuses' : 'allows'} ${command}${ok ? '' : ` -- got ${verdictNote} with platform ${process.platform}; to fix, change the no-root-recursive-delete ward or the home spellings in src/utils/wards/wards.ts (evaluateWards, setHomeSpellings)`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${refused ? 'refuses' : 'allows'} ${command}${ok ? '' : ` -- got ${verdictNote} with platform ${process.platform}; to fix, change the no-root-recursive-delete ward or the home spellings in src/permissions/wards/wards.ts (evaluateWards, setHomeSpellings)`}`)
   if (!ok) failed++
 }
 const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')!

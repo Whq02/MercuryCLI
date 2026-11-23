@@ -30,22 +30,22 @@ delete process.env.MERCURY_HOME
 
 const src = (rel: string): string => join(ROOT, 'src', rel)
 const React = (await import(Bun.resolveSync('react', join(ROOT, 'src')))).default as typeof import('react')
-const { default: Ink } = await import(src('ink/ink.tsx'))
-const { App } = await import(src('components/App.tsx'))
-const { getDefaultAppState } = await import(src('state/AppStateStore.ts'))
-const { KeybindingSetup } = await import(src('keybindings/KeybindingProviderSetup.tsx'))
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import(src('context/surfaceRoute.ts'))
-const { enableConfigs, saveCurrentProjectConfig } = await import(src('utils/config.ts'))
-const { default: instances } = await import(src('ink/instances.ts'))
-const { Messages } = await import(src('components/Messages.tsx'))
-const { areMessageRowPropsEqual } = await import(src('components/MessageRow.tsx'))
-const { applyGrouping } = await import(src('utils/groupToolUses.ts'))
-const { buildMessageLookups } = await import(src('services/messages/lookups.ts'))
-const { normalizeMessages } = await import(src('utils/messages/normalize.ts'))
-const { getTools } = await import(src('tools.ts'))
-const { AgentTool } = await import(src('tools/AgentTool/AgentTool.tsx'))
-const { AGENT_TOOL_NAME } = await import(src('constants/tools/agent.ts'))
-const { BashTool } = await import(src('tools/BashTool/BashTool.tsx'))
+const { default: Ink } = await import(src('screen/renderer/screenInstance.tsx'))
+const { App } = await import(src('boot/App.tsx'))
+const { getDefaultAppState } = await import(src('screen/app-state/AppStateStore.ts'))
+const { KeybindingSetup } = await import(src('screen/keys/KeybindingProviderSetup.tsx'))
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import(src('screen/routes/surfaceRoute.ts'))
+const { enableConfigs, saveCurrentProjectConfig } = await import(src('platform/settings/config.ts'))
+const { default: instances } = await import(src('screen/renderer/instances.ts'))
+const { Messages } = await import(src('screen/messages/Messages.tsx'))
+const { areMessageRowPropsEqual } = await import(src('screen/messages/MessageRow.tsx'))
+const { applyGrouping } = await import(src('screen/messages/groupToolUses.ts'))
+const { buildMessageLookups } = await import(src('engine/messages/lookups.ts'))
+const { normalizeMessages } = await import(src('engine/message-shapes/normalize.ts'))
+const { getTools } = await import(src('tools/kit/toolList.ts'))
+const { AgentTool } = await import(src('tools/crewmate/CrewmateTool.tsx'))
+const { AGENT_TOOL_NAME } = await import(src('tools/kit/names/agent.ts'))
+const { BashTool } = await import(src('tools/shell/BashTool.tsx'))
 
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
@@ -55,7 +55,7 @@ let failures = 0
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
-  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${good ? '' : ' [change renderGroupedAgentToolUse in src/tools/AgentTool/UI.tsx (the launch card), applyGrouping in src/utils/groupToolUses.ts (which launches join it) or areMessageRowPropsEqual in src/components/MessageRow.tsx (when the row repaints)]'}`)
+  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${good ? '' : ' [change renderGroupedAgentToolUse in src/tools/crewmate/rows.tsx (the launch card), applyGrouping in src/screen/messages/groupToolUses.ts (which launches join it) or areMessageRowPropsEqual in src/screen/messages/MessageRow.tsx (when the row repaints)]'}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
@@ -71,7 +71,7 @@ async function until(pred: () => boolean, ms = 6000): Promise<boolean> {
   return pred()
 }
 const hardLimit = setTimeout(() => {
-  console.error('prove-launch-card-late-member exceeded its deadline; a frame never reached the state a section waited for, so read the last frame printed above and the launch card in src/tools/AgentTool/UI.tsx (renderGroupedAgentToolUse)')
+  console.error('prove-launch-card-late-member exceeded its deadline; a frame never reached the state a section waited for, so read the last frame printed above and the launch card in src/tools/crewmate/rows.tsx (renderGroupedAgentToolUse)')
   process.exit(1)
 }, 120_000)
 hardLimit.unref()

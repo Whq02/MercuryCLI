@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/substrate/stateLifecycle.ts src/daemon/spawnLedger.ts src/extensions/paths.ts src/entrypoints/cli.tsx src/extensions/bundled/index.ts
+// gate-watch: src/platform/substrate/stateLifecycle.ts src/daemon/roster/spawnLedger.ts src/integrations/extensions/paths.ts src/boot/entrypoints/cli.tsx src/integrations/extensions/bundled/index.ts
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -13,13 +13,13 @@ delete process.env.MERCURY_VERSIONS_DIR
 delete process.env.MERCURY_EXTENSIONS_DIR
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const lifecycle = await import('../../src/substrate/stateLifecycle.ts')
-const { bashAuditPath } = await import('../../src/daemon/spawnLedger.ts')
-const { getBundledDir } = await import('../../src/extensions/paths.ts')
+const lifecycle = await import('../../src/platform/substrate/stateLifecycle.ts')
+const { bashAuditPath } = await import('../../src/daemon/roster/spawnLedger.ts')
+const { getBundledDir } = await import('../../src/integrations/extensions/paths.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? ' — change the class this section exercises in src/substrate/stateLifecycle.ts (runLifecyclePass runs compile-cache-retired-nodes, bundled-extension-folders and bash-audit-ledger; installedBuildFacts lists the installed builds; bundled folders live under getBundledDir in src/extensions/paths.ts)' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? ' — change the class this section exercises in src/platform/substrate/stateLifecycle.ts (runLifecyclePass runs compile-cache-retired-nodes, bundled-extension-folders and bash-audit-ledger; installedBuildFacts lists the installed builds; bundled folders live under getBundledDir in src/integrations/extensions/paths.ts)' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

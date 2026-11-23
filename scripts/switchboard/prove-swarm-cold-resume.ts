@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
-import { open } from '../../src/services/crewBoard/store.ts'
+import { open } from '../../src/crew/board/store.ts'
 import { DIST, NODE, makeWorld, closeWorld, findFiles, record, toolResultOf } from '../crew/crew-world.ts'
 import { startDaemonClientBeat } from '../lib/daemonClientBeat.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -21,8 +21,8 @@ process.env.MERCURY_CONFIG_DIR = world.config
 process.env.MERCURY_DAEMON_DIR = world.env.MERCURY_DAEMON_DIR
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 const beat = startDaemonClientBeat()
 let daemon: ChildProcess | undefined, stopped: Promise<number | null> | undefined, log = '', sessionId = ''
 let board: ReturnType<typeof open> | undefined
@@ -69,7 +69,7 @@ try {
   const transcript = join(dirname(dirname(dirname(path))), '..', `${sessionId}.jsonl`)
   await until('status answers on without an opt-in', () => existsSync(transcript) && readFileSync(transcript, 'utf8').includes('Swarm on for new crewmates'))
   assert(!readFileSync(transcript, 'utf8').includes('"noticeKind":"crew_chat"'), 'a fresh session paints no swarm row')
-  assert(board.chat().on, 'crewBoard store in src/services/crewBoard/store.ts must default chat.on to true for new session')
+  assert(board.chat().on, 'crewBoard store in src/crew/board/store.ts must default chat.on to true for new session')
   console.log('PASS a new session starts on with chat on and no extra screen row')
   await dispatch('/swarm on')
   await dispatch('/swarmchat all')
@@ -83,7 +83,7 @@ try {
   const prefix = board.screenEvents(0)
   const chat = board.chat()
   const oldPid = owned()?.pid
-  assert(oldPid && oldPid !== process.pid, `owned() runner pid from src/daemon/concourseWorkers.ts must be a live child pid (got ${oldPid})`)
+  assert(oldPid && oldPid !== process.pid, `owned() runner pid from src/daemon/concourse-workers/concourseWorkers.ts must be a live child pid (got ${oldPid})`)
   const metaPath = findFiles(world.config, `agent-${target.agent}.meta.json`)[0]!
   assert(metaPath, `agent-${target.agent}.meta.json must exist under scratch config dir`)
   const metadata = readFileSync(metaPath, 'utf8')
@@ -100,7 +100,7 @@ try {
   const sender = { author: { sessionId, agentId: 'cold-poster', executionId: 'poster' }, name: 'cold-poster' }
   board.enroll(sender)
   const trigger = board.post(sender, { clientOpId: 'cold-trigger', kind: 'result', about: 'cold-trigger', text: 'COLD-WAKE-PACKET' })
-  assert(trigger.ok, `board.post(cold-trigger) in src/services/crewBoard/store.ts must succeed (got ${JSON.stringify(trigger)})`)
+  assert(trigger.ok, `board.post(cold-trigger) in src/crew/board/store.ts must succeed (got ${JSON.stringify(trigger)})`)
   assert.equal(board.pendingWakes().find(wake => wake.agent === target.agent)?.eventId, trigger.eventId)
   await start()
   const resumed = await daemonControlRpc({ op: 'sessionAdmit', workspaceDir: world.project, resumeSessionId: sessionId, isolation: 'shared', by: 'operator' } as never, { timeoutMs: 60_000 }) as { ok: boolean }

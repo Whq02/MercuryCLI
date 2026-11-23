@@ -15,22 +15,22 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' — ' : '') + 'to fix, change the row choice in src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx (kill row, interrupt and rejection sentences, the tool own renderToolUseErrorMessage, then the fallback)' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' — ' : '') + 'to fix, change the row choice in src/screen/messages/user-tool-result/UserToolErrorMessage.tsx (kill row, interrupt and rejection sentences, the tool own renderToolUseErrorMessage, then the fallback)' : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { UserToolErrorMessage } = await import('../../src/components/messages/UserToolResultMessage/UserToolErrorMessage.js')
-const { INTERRUPT_MESSAGE_FOR_TOOL_USE, REJECT_MESSAGE_WITH_REASON_PREFIX } = await import('../../src/services/messages.js')
-const { OUTPUT_CONNECTOR } = await import('../../src/constants/figures.js')
-const { GLYPH } = await import('../../src/utils/glyphs.js')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { Box, EventEmitter, Text, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { UserToolErrorMessage } = await import('../../src/screen/messages/user-tool-result/UserToolErrorMessage.js')
+const { INTERRUPT_MESSAGE_FOR_TOOL_USE, REJECT_MESSAGE_WITH_REASON_PREFIX } = await import('../../src/engine/messages/messages.js')
+const { OUTPUT_CONNECTOR } = await import('../../src/screen/theme/rowGlyphs.js')
+const { GLYPH } = await import('../../src/screen/theme/glyphs.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { Box, EventEmitter, Text, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 
 const settle = async (): Promise<void> => {
   for (let index = 0; index < 6; index++) {

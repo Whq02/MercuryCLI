@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 
-const { channelTargetCandidates, findChannelTargetQuery, generateCommandSuggestions, rankChannelTargets } = await import('../../src/utils/suggestions/commandSuggestions.js')
+const { channelTargetCandidates, findChannelTargetQuery, generateCommandSuggestions, rankChannelTargets } = await import('../../src/screen/suggestions/commandSuggestions.js')
 
 let passed = 0
 function check(label: string, ok: boolean, detail = ''): void {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}sections 1 to 3 exercise findChannelTargetQuery, channelTargetCandidates and rankChannelTargets in src/utils/suggestions/commandSuggestions.ts, section 5 the swarmchat, general, team and whisper commands under src/commands (description, argumentHint, aliases)` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}sections 1 to 3 exercise findChannelTargetQuery, channelTargetCandidates and rankChannelTargets in src/screen/suggestions/commandSuggestions.ts, section 5 the swarmchat, general, team and whisper commands under src/commands (description, argumentHint, aliases)` : ''}`)
   if (!ok) {
     console.log(`\nprove-swarm-channel-completion: FAILED at check ${passed + 1}`)
     process.exit(1)
@@ -59,7 +59,7 @@ check('an item carries what to insert, apart from what it shows', rankChannelTar
 
 
 console.log('§5 the three verbs in the catalogue')
-const { builtinCommands } = await import('../../src/commands.js')
+const { builtinCommands } = await import('../../src/commands/catalogue/commands.js')
 const byName = new Map(builtinCommands().map(command => [command.name, command]))
 const swarmchat = byName.get('swarmchat')!
 check('the swarmchat candidate carries on and off in its argument hint', swarmchat.argumentHint === '[on|off|all|team <name>|main]' && generateCommandSuggestions('/swarmch', [...byName.values()])[0]?.metadata === swarmchat)

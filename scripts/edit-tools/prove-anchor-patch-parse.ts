@@ -8,11 +8,11 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'anchor-patch-parse-'))
 
 const { parseAnchorPatch, ANCHOR_PATCH_BOUNDS } = await import(
-  '../../src/services/changeTransaction/anchorPatch.ts'
+  '../../src/tools/engines/change-transaction/anchorPatch.ts'
 )
 
 let failures = 0
-const parseFailHint = 'fix parseAnchorPatch (grammar, typed rejection codes and repair warnings) in src/services/changeTransaction/anchorPatch.ts'
+const parseFailHint = 'fix parseAnchorPatch (grammar, typed rejection codes and repair warnings) in src/tools/engines/change-transaction/anchorPatch.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${parseFailHint}` : ''}`)

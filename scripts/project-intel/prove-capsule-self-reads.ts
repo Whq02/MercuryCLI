@@ -7,12 +7,12 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const hint = 'fix getContextCapsuleAttachment in src/services/attachments/contextCapsule.ts (which capsule refs re-attach) or assembleContextCapsule in src/services/projectIntel/capsule.ts'
+  const hint = 'fix getContextCapsuleAttachment in src/engine/attachments/contextCapsule.ts (which capsule refs re-attach) or assembleContextCapsule in src/sessions/project-intel/capsule.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' — ' : ''}${hint}` : ''}`)
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — proof exceeded 120s: look at getContextCapsuleAttachment in src/services/attachments/contextCapsule.ts and assembleContextCapsule in src/services/projectIntel/capsule.ts for a hang')
+  console.log('\n❌ TIMEOUT — proof exceeded 120s: look at getContextCapsuleAttachment in src/engine/attachments/contextCapsule.ts and assembleContextCapsule in src/sessions/project-intel/capsule.ts for a hang')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -24,10 +24,10 @@ const attachMsg = (attachment: Record<string, unknown>): AnyMsg => ({ type: 'att
 async function main(): Promise<void> {
   delete process.env.MERCURY_PROJECT_INTEL
   const { materializeFixture } = await import('./fixtures/materialize.js')
-  const producer = await import('../../src/services/attachments/contextCapsule.js')
-  const capsuleModule = await import('../../src/services/projectIntel/capsule.js')
+  const producer = await import('../../src/engine/attachments/contextCapsule.js')
+  const capsuleModule = await import('../../src/sessions/project-intel/capsule.js')
   const dir = materializeFixture('ts')
-  const bootstrap = await import('../../src/bootstrap/state.js')
+  const bootstrap = await import('../../src/boot/process-state/processState.js')
   bootstrap.setOriginalCwd(dir)
 
   const reads = new Map<string, unknown>()
@@ -67,7 +67,7 @@ async function main(): Promise<void> {
   const a2 = next[0] as unknown as Capsule
   check('and it lists the files the model read meanwhile', ['src/services/reporting.ts', 'src/api/handlers.ts'].every(rel => a2.refs.includes(`mercury://file/${rel}`)), a2.refs.join(' '))
 
-  check('the capsule is still not painted', (await import('../../src/components/messages/nullRenderingAttachments.js')).isNullRenderingAttachment({ type: 'attachment', attachment: { type: 'context_capsule' } } as never))
+  check('the capsule is still not painted', (await import('../../src/screen/messages/nullRenderingAttachments.js')).isNullRenderingAttachment({ type: 'attachment', attachment: { type: 'context_capsule' } } as never))
 
   rmSync(dir, { recursive: true, force: true })
 

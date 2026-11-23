@@ -7,8 +7,8 @@ process.env.MERCURY_LSP_SIDECAR_ENTRY = TS_SIDECAR_ENTRY
 const project = writeProject(scratch, 'project', TS_PROBE_FILES)
 symlinkSync(join(REPO, 'node_modules'), join(project, 'node_modules'), 'dir')
 const door = await openToolDoor(project)
-const { LSP_INPUT_JSON_SCHEMAS, readArguments } = await import('../../src/tools/LSPTool/schemas.ts')
-const { LSP_DESCRIPTIONS } = await import('../../src/constants/tools/lsp.ts')
+const { LSP_INPUT_JSON_SCHEMAS, readArguments } = await import('../../src/tools/lsp/schemas.ts')
+const { LSP_DESCRIPTIONS } = await import('../../src/tools/kit/names/lsp.ts')
 const here = join(project, 'lib.ts')
 const samples: Record<string, unknown> = { filePath: here, line: 1, character: 1, query: 'budget', limit: 50, newName: 'spend', newPath: join(project, 'moved.ts'), apply: false, actionId: 'ca-12345678', actionIndex: 0, endLine: 1, endCharacter: 2, paths: [here], plan: 'lsp-0000', kind: 'quickfix', targetPath: join(project, 'target.ts'), method: 'textDocument/hover', params: '{}', organizeImports: false }
 try {

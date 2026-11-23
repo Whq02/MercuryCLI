@@ -34,16 +34,16 @@ if (process.env.DIFF_WIDTH_CHILD) {
   })
 
   const React = await import('react')
-  const { render, Box, Text } = (await import('../../src/ink.js')) as {
+  const { render, Box, Text } = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
     Box: React.ComponentType<Record<string, unknown>>
     Text: React.ComponentType<Record<string, unknown>>
   }
-  const { PermissionDialog } = await import('../../src/components/permissions/PermissionDialog.js')
+  const { PermissionDialog } = await import('../../src/permissions/cards/PermissionDialog.js')
   const { FileWriteToolDiff } = await import(
-    '../../src/components/permissions/FileWritePermissionRequest/FileWriteToolDiff.js'
+    '../../src/permissions/cards/file-write/FileWriteToolDiff.js'
   )
-  const { FileEditToolDiff } = await import('../../src/components/FileEditToolDiff.js')
+  const { FileEditToolDiff } = await import('../../src/tools/edit/EditDiff.js')
 
   const target = '/tmp/hb0200-edit-target.txt'
   const oldContent = 'alpha\nbeta\ngamma\ndelta'

@@ -1,20 +1,20 @@
 #!/usr/bin/env bun
-import { runnerRecordAlive, workChipLine, workCounts, workRowRuns, workWaitingWords } from '../../src/services/engine-connector/workCounts.ts'
-import { rosterRowsOf } from '../../src/components/tasks/BackgroundTasksDialog.tsx'
-import { projectWorkRoster } from '../../src/services/engine-connector/workRoster.ts'
-import { compactWorkCounts, compactWorkSummaryText } from '../../src/components/tasks/useFocusedWork.ts'
-import type { WorkRowV1 } from '../../src/services/engine-connector/types.ts'
+import { runnerRecordAlive, workChipLine, workCounts, workRowRuns, workWaitingWords } from '../../src/engine/connector/workCounts.ts'
+import { rosterRowsOf } from '../../src/screen/tasks/BackgroundTasksDialog.tsx'
+import { projectWorkRoster } from '../../src/engine/connector/workRoster.ts'
+import { compactWorkCounts, compactWorkSummaryText } from '../../src/screen/tasks/useFocusedWork.ts'
+import type { WorkRowV1 } from '../../src/engine/connector/types.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const where = label.startsWith('C8')
-    ? 'compactWorkCounts and compactWorkSummaryText in src/components/tasks/useFocusedWork.ts'
+    ? 'compactWorkCounts and compactWorkSummaryText in src/screen/tasks/useFocusedWork.ts'
     : label.startsWith('C7 the connector')
-      ? 'LivePart in src/services/engine-connector/daemon/live.ts and workCounts in src/services/engine-connector/workCounts.ts'
+      ? 'LivePart in src/engine/connector/daemon/live.ts and workCounts in src/engine/connector/workCounts.ts'
       : label.startsWith('C2') || label.startsWith('C3')
-        ? 'projectWorkRoster in src/services/engine-connector/workRoster.ts, workCounts in src/services/engine-connector/workCounts.ts and rosterRowsOf in src/components/tasks/BackgroundTasksDialog.tsx'
-        : 'workRowRuns, workCounts, workChipLine, workWaitingWords and runnerRecordAlive in src/services/engine-connector/workCounts.ts'
+        ? 'projectWorkRoster in src/engine/connector/workRoster.ts, workCounts in src/engine/connector/workCounts.ts and rosterRowsOf in src/screen/tasks/BackgroundTasksDialog.tsx'
+        : 'workRowRuns, workCounts, workChipLine, workWaitingWords and runnerRecordAlive in src/engine/connector/workCounts.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail}${detail ? ' · ' : ''}change ${where}` : ''}`)
 }
 
@@ -106,8 +106,8 @@ console.log('\nC7 the held turn\'s wait words name the KINDS over the same count
   check('C7 a background shell is a shell', workWaitingWords(counts({ shells: 1 })) === 'waiting on 1 shell')
   check('C7 a parked ask rides the words', workWaitingWords(counts({ agents: 1, asks: 1 })) === 'waiting on 1 crewmate · 1 ask')
   check('C7 nothing running answers null (the count\'s own words stand)', workWaitingWords(counts({})) === null)
-  const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
-  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const { LivePart } = await import('../../src/engine/connector/daemon/live.ts')
+  const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
   const liveWith = (over: Record<string, unknown> = {}): InstanceType<typeof LivePart> => new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, ...over } as never)
   const tailOf = (says: Record<string, unknown>): never => ({ schema: 1, sessionId: 'proof', atMs: 1, text: null, ...says }) as never
   const roster: WorkRowV1[] = [

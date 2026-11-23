@@ -32,14 +32,14 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req: Requ
   return new Response('not found', { status: 404 })
 } })
 process.env.MERCURY_OPENROUTER_API_BASE = `http://127.0.0.1:${server.port}/api/v1`
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const state = await import('../../src/services/providers/openrouter/openrouterUsageState.ts')
-const usageOwner = await import('../../src/services/providers/providerUsage.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { mapCompatHttpFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
+const state = await import('../../src/models/roads/openrouter/openrouterUsageState.ts')
+const usageOwner = await import('../../src/models/roads/providerUsage.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { mapCompatHttpFailure } = await import('../../src/models/roads/openaicompat/compatChatClient.ts')
 let failures = 0
 function check(label: string, actual: unknown, expected: unknown): void {
   try { assert.deepEqual(actual, expected); console.log(`PASS ${label}`) }
@@ -101,14 +101,14 @@ try {
   const painted = view()
   const families = [{ id: 'openrouter' as const, available: true, credentialed: true, credentialLabel: 'fixture key' }]
   const spend = { inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }
-  mock.module('../../src/services/providers/providerUsage.js', () => ({ ...usageOwner, providerFamilyPresences: () => families, usageForProvider: () => painted, refreshProviderUsage: async () => {}, providerSessionSpend: () => spend }))
-  const catalogue = await import('../../src/services/providers/catalogueOnDemand.js')
-  mock.module('../../src/services/providers/catalogueOnDemand.js', () => ({ ...catalogue, readCatalogueIfPending: async () => undefined }))
+  mock.module('../../src/models/roads/providerUsage.js', () => ({ ...usageOwner, providerFamilyPresences: () => families, usageForProvider: () => painted, refreshProviderUsage: async () => {}, providerSessionSpend: () => spend }))
+  const catalogue = await import('../../src/models/roads/catalogueOnDemand.js')
+  mock.module('../../src/models/roads/catalogueOnDemand.js', () => ({ ...catalogue, readCatalogueIfPending: async () => undefined }))
   const React = await import('react')
-  const { Box } = await import('../../src/ink.js')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-  const { Usage } = await import('../../src/components/Settings/Usage.js')
+  const { Box } = await import('../../src/screen/themedRenderer.js')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+  const { Usage } = await import('../../src/screen/settings/Usage.js')
   for (const [cols, rows] of [[180, 50], [80, 25]]) {
     const element = React.createElement(AppStateProvider as never, {}, React.createElement(ThemeProvider as never, {}, React.createElement(Box, { width: cols, height: rows, flexDirection: 'column' }, React.createElement(Usage, { width: cols! - 4, rowBudget: rows! - 4, compact: cols! < 100 }))))
     const mounted = await mountOffscreen(element, cols!, rows!)

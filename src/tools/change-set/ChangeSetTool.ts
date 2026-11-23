@@ -1,0 +1,1381 @@
+import { z } from 'zod/v4'
+import { flagEnv } from '../../platform/substrate/flagRegistry.js'
+import { changeViewSearchText } from '../structure/StructureTool.js'
+import type { UUID } from 'node:crypto'
+import { relative } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { buildTool, type ChangeIntentProjection, type ToolEffectOutcome, type ToolUseContext } from '../kit/tool.js'
+import type { InlineChangeViewData } from '../kit/InlineChangeView.js'
+import {
+  ANCHOR_PATCH_TEACHING,
+  anchorPatchEnabled,
+  parseAnchorPatch,
+} from '../engines/change-transaction/anchorPatch.js'
+import {
+  lowerAnchorPatch,
+  type LoweredPatch,
+} from '../engines/change-transaction/anchorPatchLower.js'
+import {
+  CHANGESET_BOUNDS,
+  type ChangeSetMemberInput,
+  type ChangeSetPlan,
+  type ChangeSetTargetBytes,
+} from '../engines/change-transaction/changeSetContracts.js'
+import { publishPatchRegister } from '../engines/change-transaction/patchRegisters.js'
+import {
+  checkSeenLines,
+  clippedLinesRefusal,
+  dropSeenLines,
+  fileGeneration,
+  moveSeenLines,
+  shiftSeenLinesAfterApply,
+} from '../engines/change-transaction/seenLines.js'
+import { rememberAnchoredSnapshot } from '../engines/change-transaction/snapshotRing.js'
+import {
+  formatChangeSetRefusal,
+  planChangeSet,
+  plannedDiskBytes,
+} from '../engines/change-transaction/changeSetPlan.js'
+import { sha256Hex } from '../../platform/primitives/hash.js'
+import {
+  runTextChangeSetCommit,
+  type CommitOutcome,
+  type CommitTarget,
+} from '../engines/change-transaction/changeSetCommit.js'
+import {
+  changeSetPlanEvicted,
+  changeSetPlanExpired,
+  getChangeSetPlan,
+  rememberChangeSetPlan,
+  setChangeSetPlanState,
+} from '../engines/change-transaction/changeSetStore.js'
+import {
+  recordNoChangeOutcome,
+  type RepetitionVerdict,
+} from '../engines/change-transaction/repetitionPolicy.js'
+import { mintFileAnchor } from '../engines/change-transaction/snapshotAnchor.js'
+import { getLspServerManager } from '../../integrations/lsp/serverManagerLifecycle.js'
+import { ownerFromToolUseContext } from '../../engine/run-owner/resolveOwner.js'
+import {
+  activateConditionalSkillsForPaths,
+  addSkillDirectories,
+  discoverSkillDirsForPaths,
+} from '../../integrations/skills/loadSkillsDir.js'
+import { linesOfHunks, matchExactEdit, readKnowledgeRefusal } from '../edit/EditTool.js'
+import { syncServersAfterWrite } from '../lsp/mercuryOps.js'
+import { getCwd } from '../../platform/files/cwd.js'
+import { isEnvTruthy } from '../../platform/environment/envUtils.js'
+import { getFileModificationTime } from '../../platform/files/file.js'
+import {
+  fileHistoryEnabled,
+  fileHistoryTrackEdit,
+} from '../engines/change-transaction/fileHistory.js'
+import { lazySchema } from '../../platform/primitives/lazySchema.js'
+import { controlCharacterPathRefusal, expandPath } from '../../platform/files/path.js'
+import { semanticBoolean } from '../kit/semanticBoolean.js'
+import { checkWritePermissionForTool, checkUncPathPermission } from '../../permissions/rules/filesystem.js'
+import type { PermissionDecision } from '../../permissions/rules/permissionResult.js'
+import { reasonForRule, refusalWithReason, ruleWords } from '../../permissions/rules/ruleReason.js'
+import {
+  renderToolResultMessage,
+  renderToolUseErrorMessage,
+  renderToolUseMessage,
+  renderToolUseRejectedMessage,
+  userFacingName,
+} from './rows.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+
+export const CHANGESET_TOOL_NAME = 'ChangeSet'
+
+const OPS = ['preview', 'apply', 'status', 'discard'] as const
+
+const baseShape = () => ({
+  op: z.enum(OPS),
+  changes: z
+    .array(
+      z.strictObject({
+        file_path: z.string().describe('Absolute file path'),
+        expected_anchor: z
+          .string()
+          .describe('Bare fa:… or ra:… from this file\'s latest "(anchor: …)"'),
+        hunks: z
+          .array(
+            z.strictObject({
+              lines: z
+                .string()
+                .describe('1-based line ("12") or inclusive range ("12-18")'),
+              replace: z
+                .string()
+                .describe('Replacement text; "" deletes; inserted text with insert'),
+              insert: z
+                .enum(['before', 'after'])
+                .optional()
+                .describe('Insert beside the single line instead of replacing'),
+            }),
+          )
+          .optional()
+          .describe('Disjoint hunks on the anchored snapshot; pass hunks or edits (optional on move, omitted on delete)'),
+        edits: z
+          .array(
+            z.strictObject({
+              old_string: z.string().describe('Exact text to replace; unique unless replace_all'),
+              new_string: z.string().describe('Replacement text; "" deletes'),
+              replace_all: semanticBoolean(z.boolean().optional()).describe('Replace all occurrences'),
+            }),
+          )
+          .optional()
+          .describe('Disjoint exact-string edits instead of hunks'),
+        op: z
+          .enum(['edit', 'delete', 'move'])
+          .optional()
+          .describe('Default "edit"; "move" renames to new_path after any hunks/edits'),
+        new_path: z
+          .string()
+          .optional()
+          .describe('move: absolute destination path (must not exist)'),
+      }),
+    )
+    .optional()
+    .describe('preview/apply: one entry per existing text file'),
+  plan_id: z
+    .string()
+    .optional()
+    .describe('apply/status/discard: plan id (cs-…) from preview'),
+})
+
+const baseSchemaFactory = () => z.strictObject(baseShape())
+
+const widestSchemaFactory = () =>
+  z.strictObject({
+    ...baseShape(),
+    patch: z
+      .string()
+      .optional()
+      .describe('preview/apply: anchored patch string instead of changes'),
+  })
+
+type WidestSchema = ReturnType<typeof widestSchemaFactory>
+type SchemaType = z.ZodType<z.infer<WidestSchema>>
+
+const inputSchema = lazySchema((): SchemaType => {
+  if (!anchorPatchEnabled()) return baseSchemaFactory()
+  return widestSchemaFactory()
+})
+
+export type Input = z.infer<SchemaType>
+export type Output = {
+  op: Input['op']
+  result: string
+  outcome: ToolEffectOutcome
+  planId?: string
+  changeView?: InlineChangeViewData
+  repetitionStop?: boolean
+}
+
+
+const pathShim = {
+  name: CHANGESET_TOOL_NAME,
+  getPath: (i: { file_path: string }) => i.file_path,
+}
+
+function displayPath(abs: string): string {
+  const rel = relative(getCwd(), abs)
+  return rel.startsWith('..') ? abs : rel
+}
+
+function changeViewOf(
+  plan: ChangeSetPlan,
+  state: InlineChangeViewData['state'],
+  opts: { nextAction?: string; refs?: string[]; now?: number } = {},
+): InlineChangeViewData {
+  const now = opts.now ?? Date.now()
+  return {
+    state,
+    action: 'changeset',
+    files: plan.targets
+      .filter(t => t.changed)
+      .map(t => ({
+        file: targetLabel(t),
+        hunks: t.diff.hunks,
+        ...(t.diff.omittedHunks > 0 ? { omittedHunks: t.diff.omittedHunks } : {}),
+        changedLines: t.diff.hunks.reduce((n, h) => n + h.lines.length, 0),
+        added: t.diff.added,
+        removed: t.diff.removed,
+      })),
+    hunkCount: plan.totalHunks,
+    ...(plan.noChangePaths.length > 0 ? { noChangePaths: plan.noChangePaths.map(displayPath) } : {}),
+    planMeta: {
+      id: plan.id,
+      digest12: plan.digest.slice(0, 12),
+      ageMs: Math.max(0, now - plan.createdAt),
+      expiresInMs: plan.expiresAt - now,
+    },
+    refs: opts.refs ?? [],
+    ...(opts.nextAction ? { nextAction: opts.nextAction } : {}),
+  }
+}
+
+function intentOf(plan: ChangeSetPlan): ChangeIntentProjection {
+  return {
+    targetPaths: plan.targets.map(t => t.canonicalPath),
+    targetVersions: plan.targets.map(t => ({ path: t.canonicalPath, version: t.expectedAnchor })),
+  }
+}
+
+interface OpResult {
+  op: Input['op']
+  result: string
+  outcome: ToolEffectOutcome
+  planId?: string
+  changeView?: InlineChangeViewData
+  effectOperation: string
+  changedPaths: string[]
+  details?: Record<string, unknown>
+  intent?: ChangeIntentProjection
+  repetitionStop?: boolean
+}
+
+type LanguageKind = (path: string, firstLine: string) => 'prose' | 'code' | 'unknown'
+
+async function languageKindFor(members: readonly ChangeSetMemberInput[]): Promise<LanguageKind | undefined> {
+  if (!members.some(m => (m.edits?.length ?? 0) > 0)) return undefined
+  const { fileLanguageKind } = await import('../../platform/native/color-diff/index.js')
+  return fileLanguageKind
+}
+
+function planContext(
+  context: ToolUseContext,
+  lowered?: LoweredPatch,
+  languageKind?: LanguageKind,
+): Parameters<typeof planChangeSet>[1] {
+  const owner = ownerFromToolUseContext(context)
+  const permCtx = context.getAppState().toolPermissionContext
+  return {
+    ownerKey: owner,
+    exactEdit: (target, edit) => {
+      const requested = expandPath(target.requestedPath)
+      const expandedPath = context.readFileState.has(requested) ? requested : target.canonicalPath
+      return matchExactEdit(
+        target.content,
+        edit,
+        { context, expandedPath, displayPath: target.requestedPath, expectedAnchor: target.expectedAnchor },
+        languageKind === undefined ? undefined : firstLine => languageKind(target.canonicalPath, firstLine) === 'prose',
+      )
+    },
+    readEvidence: target => {
+      const touched = target.touched !== undefined ? target.touched : linesOfHunks(target.hunks)
+      let refused: string | null = null
+      for (const path of new Set([target.canonicalPath, expandPath(target.requestedPath)])) {
+        const verdict = readKnowledgeRefusal(context, path, target.requestedPath, target.content, target.expectedAnchor, touched)
+        if (verdict === null) return { ok: true as const }
+        refused ??= verdict
+      }
+      return refused === null ? { ok: true as const } : { ok: false as const, message: refused }
+    },
+    scopeCheck: (canonicalPath: string) => {
+      const decision = checkWritePermissionForTool(pathShim, { file_path: canonicalPath }, permCtx)
+      if (decision.behavior === 'deny') return 'denied by a rule'
+      return null
+    },
+    lastRead: (canonicalPath: string, requestedPath: string) => {
+      const entry = context.readFileState.get(canonicalPath) ?? context.readFileState.get(expandPath(requestedPath))
+      const whole = entry !== undefined && !entry.isPartialView && (entry.offset === undefined || (entry.offset === 0 && entry.limit === undefined))
+      return whole ? entry.content : null
+    },
+    seenLinesCheck: (
+      target: { canonicalPath: string; requestedPath: string },
+      spans: Parameters<typeof checkSeenLines>[3],
+    ) => {
+      const meta = lowered?.memberMeta.get(target.requestedPath)
+      if (meta?.recovered) return { ok: true as const }
+      const generation =
+        fileGeneration(target.canonicalPath) ?? fileGeneration(target.requestedPath)
+      if (generation === null) return { ok: true as const }
+      const clipped =
+        clippedLinesRefusal(owner, target.canonicalPath, displayPath(target.canonicalPath), generation, spans) ??
+        clippedLinesRefusal(owner, expandPath(target.requestedPath), displayPath(target.canonicalPath), generation, spans)
+      if (clipped !== null) return { ok: false as const, message: clipped }
+      if (!lowered) return { ok: true as const }
+      const verdict = checkSeenLines(
+        owner,
+        target.canonicalPath,
+        generation,
+        spans,
+        displayPath(target.canonicalPath),
+      )
+      if (verdict.ok) return { ok: true as const }
+      const fallback = checkSeenLines(
+        owner,
+        expandPath(target.requestedPath),
+        generation,
+        spans,
+        displayPath(target.canonicalPath),
+      )
+      if (fallback.ok) return { ok: true as const }
+      return { ok: false as const, message: verdict.hint }
+    },
+  }
+}
+
+
+const loweredByPlanId = new Map<string, LoweredPatch>()
+function stashLowered(planId: string, lowered: LoweredPatch): void {
+  loweredByPlanId.delete(planId)
+  loweredByPlanId.set(planId, lowered)
+  while (loweredByPlanId.size > CHANGESET_BOUNDS.planRing * 2) {
+    const oldest = loweredByPlanId.keys().next().value as string | undefined
+    if (oldest === undefined) break
+    loweredByPlanId.delete(oldest)
+  }
+}
+
+function resolvePatchInput(
+  patchText: string,
+  context: ToolUseContext,
+): { lowered: LoweredPatch } | { error: string } {
+  if (!anchorPatchEnabled()) {
+    return { error: 'the patch dialect is not enabled (MERCURY_ANCHOR_PATCH) — use changes[]' }
+  }
+  const parsed = parseAnchorPatch(patchText)
+  if (!parsed.ok) {
+    return {
+      error: `patch parse failed [${parsed.code}] at line ${parsed.line}: ${parsed.message}`,
+    }
+  }
+  const owner = ownerFromToolUseContext(context)
+  const lowered = lowerAnchorPatch(parsed, owner)
+  if (!lowered.ok) {
+    return { error: `patch rejected [${lowered.code}]: ${lowered.message}` }
+  }
+  return { lowered }
+}
+
+function rederiveBytes(plan: ChangeSetPlan): { bytes: Map<string, ChangeSetTargetBytes> } | { stalePaths: string[] } {
+  const bytes = new Map<string, ChangeSetTargetBytes>()
+  const stalePaths: string[] = []
+  for (const t of plan.targets) {
+    let raw: Buffer | null = null
+    try {
+      raw = readFileSync(t.canonicalPath)
+    } catch {
+      raw = null
+    }
+    if (raw === null || sha256Hex(raw) !== t.originalDigest) {
+      stalePaths.push(t.canonicalPath)
+      continue
+    }
+    if (t.fileOp === 'move' && t.newPath !== undefined && existsSync(t.newPath)) {
+      stalePaths.push(t.newPath)
+      continue
+    }
+    bytes.set(t.canonicalPath, {
+      canonicalPath: t.canonicalPath,
+      originalBytes: raw,
+      plannedBytes:
+        t.fileOp === 'delete'
+          ? Buffer.alloc(0)
+          : plannedDiskBytes(t.plannedContent, t.encoding, t.lineEndings, raw.toString(t.encoding)),
+    })
+  }
+  if (stalePaths.length > 0) return { stalePaths }
+  return { bytes }
+}
+
+function staleRefusalText(plan: ChangeSetPlan, stalePaths: string[]): string {
+  const lines = [
+    `Stale plan ${plan.id} — ${stalePaths.length} file(s) changed since the plan was made. Nothing was written.`,
+  ]
+  for (const p of stalePaths) {
+    lines.push(`  ${displayPath(p)}: changed since the plan — re-read ${p} (full file) to refresh the anchor`)
+  }
+  lines.push('Re-read the drifted files, then re-plan with op:"preview" (plans are immutable).')
+  return lines.join('\n')
+}
+
+
+function targetLabel(t: ChangeSetPlan['targets'][number]): string {
+  if (t.fileOp === 'move' && t.newPath !== undefined) {
+    return `${displayPath(t.canonicalPath)} → ${displayPath(t.newPath)} (move)`
+  }
+  if (t.fileOp === 'delete') return `${displayPath(t.canonicalPath)} (delete)`
+  return displayPath(t.canonicalPath)
+}
+
+function loweredNotes(lowered: LoweredPatch | undefined): string[] {
+  if (!lowered) return []
+  const lines: string[] = []
+  for (const w of lowered.warnings.slice(0, 12)) lines.push(`note: ${w}`)
+  for (const [path, meta] of lowered.memberMeta) {
+    for (const n of meta.blockNotes.slice(0, 8)) lines.push(`note: ${displayPath(path)}: ${n}`)
+  }
+  return lines
+}
+
+function recoveryNotes(plan: ChangeSetPlan): string[] {
+  return plan.targets.flatMap(t => (t.staleRecovery !== undefined ? [`note: ${t.staleRecovery}`] : []))
+}
+
+async function runPreview(input: Input, context: ToolUseContext): Promise<OpResult> {
+  const owner = ownerFromToolUseContext(context)
+  let members = input.changes as ChangeSetMemberInput[]
+  let lowered: LoweredPatch | undefined
+  if (input.patch !== undefined) {
+    const resolved = resolvePatchInput(input.patch, context)
+    if ('error' in resolved) {
+      return {
+        op: 'preview',
+        result: `${resolved.error}\nNothing was written.`,
+        outcome: 'failed',
+        effectOperation: 'changeset.preview',
+        changedPaths: [],
+      }
+    }
+    lowered = resolved.lowered
+    members = lowered.members
+  }
+  const planned = planChangeSet(members, planContext(context, lowered, await languageKindFor(members)))
+  if (!planned.ok) {
+    return {
+      op: 'preview',
+      result: formatChangeSetRefusal(planned),
+      outcome: 'failed',
+      effectOperation: 'changeset.preview',
+      changedPaths: [],
+    }
+  }
+  const { plan } = planned
+  rememberChangeSetPlan(owner, plan)
+  if (lowered) stashLowered(plan.id, lowered)
+  const mins = Math.round(CHANGESET_BOUNDS.planTtlMs / 60_000)
+  const lines = [
+    `Prepared plan ${plan.id} (digest ${plan.digest.slice(0, 12)}) — ${plan.changedPaths.length} file(s) to change, ${plan.totalHunks} hunk(s).`,
+    ...plan.targets.filter(t => t.changed).map(t => `  ${targetLabel(t)}`),
+    ...(plan.noChangePaths.length > 0
+      ? [`already satisfied (will not be written): ${plan.noChangePaths.map(displayPath).join(', ')}`]
+      : []),
+    ...loweredNotes(lowered),
+    ...recoveryNotes(plan),
+    `Nothing was written. Apply with { op: "apply", plan_id: "${plan.id}" } within ${mins} minutes; the plan refuses if any file drifts.`,
+  ]
+  return {
+    op: 'preview',
+    result: lines.join('\n'),
+    outcome: 'no-change',
+    planId: plan.id,
+    changeView: changeViewOf(plan, 'prepared'),
+    effectOperation: 'changeset.preview',
+    changedPaths: [],
+    details: { planId: plan.id, planDigest: plan.digest.slice(0, 12), files: plan.targets.length, hunks: plan.totalHunks },
+  }
+}
+
+async function runApply(
+  input: Input,
+  context: ToolUseContext,
+  parentMessageUuid: UUID,
+): Promise<OpResult> {
+  const owner = ownerFromToolUseContext(context)
+  const permCtx = context.getAppState().toolPermissionContext
+
+  let plan: ChangeSetPlan
+  let bytes: Map<string, ChangeSetTargetBytes>
+  let lowered: LoweredPatch | undefined
+  if (input.changes !== undefined || input.patch !== undefined) {
+    let members = input.changes as ChangeSetMemberInput[]
+    if (input.patch !== undefined) {
+      const resolved = resolvePatchInput(input.patch, context)
+      if ('error' in resolved) {
+        return {
+          op: 'apply',
+          result: `${resolved.error}\nNothing was written.`,
+          outcome: 'failed',
+          effectOperation: 'file.changeSet',
+          changedPaths: [],
+        }
+      }
+      lowered = resolved.lowered
+      members = lowered.members
+    }
+    const planned = planChangeSet(members, planContext(context, lowered, await languageKindFor(members)))
+    if (!planned.ok) {
+      return {
+        op: 'apply',
+        result: formatChangeSetRefusal(planned),
+        outcome: 'failed',
+        effectOperation: 'file.changeSet',
+        changedPaths: [],
+      }
+    }
+    plan = planned.plan
+    bytes = planned.bytes
+    rememberChangeSetPlan(owner, plan)
+    if (lowered) stashLowered(plan.id, lowered)
+  } else {
+    const road = storedPlanRoad(input, owner)
+    if ('op' in road) return road
+    plan = road.plan
+    bytes = road.bytes
+    lowered = road.lowered
+  }
+
+  const changedTargets = plan.targets.filter(t => t.changed)
+
+  if (changedTargets.length === 0) {
+    return noChangeAnswer(owner, plan)
+  }
+
+  const denied: string[] = []
+  for (const t of changedTargets) {
+    const decision = checkWritePermissionForTool(pathShim, { file_path: t.canonicalPath }, permCtx)
+    if (decision.behavior === 'allow') continue
+    if (decision.behavior === 'deny') {
+      denied.push(t.canonicalPath)
+      continue
+    }
+  }
+  if (denied.length > 0) {
+    const lines = denied.map(p => `  ${displayPath(p)} — denied by a rule`)
+    return {
+      op: 'apply',
+      result:
+        `Apply refused (${lines.length} file(s) not writable):\n${lines.join('\n')}\n` +
+        `Nothing was written (a denied path refuses the full set). Adjust permission rules, then re-apply.`,
+      outcome: 'failed',
+      planId: plan.id,
+      effectOperation: 'file.changeSet',
+      changedPaths: [],
+      intent: intentOf(plan),
+    }
+  }
+
+  if (context.abortController?.signal.aborted) {
+    setChangeSetPlanState(owner, plan.id, 'cancelled', { note: 'cancelled before commit' })
+    return {
+      op: 'apply',
+      result: 'Cancelled before commit — nothing was written.',
+      outcome: 'failed',
+      planId: plan.id,
+      effectOperation: 'file.changeSet',
+      changedPaths: [],
+      intent: intentOf(plan),
+    }
+  }
+
+  for (const t of changedTargets) {
+    if (fileHistoryEnabled()) {
+      await fileHistoryTrackEdit(
+        context.updateFileHistoryState,
+        t.canonicalPath,
+        parentMessageUuid,
+      )
+    }
+  }
+
+  const commitTargets: CommitTarget[] = changedTargets.flatMap(t => {
+    const b = bytes.get(t.canonicalPath)!
+    if (t.fileOp === 'delete') {
+      return [
+        {
+          canonicalPath: t.canonicalPath,
+          originalDigest: t.originalDigest,
+          plannedDigest: t.plannedDigest,
+          originalBytes: b.originalBytes,
+          plannedBytes: Buffer.alloc(0),
+          mode: t.mode,
+          kind: 'delete' as const,
+        },
+      ]
+    }
+    if (t.fileOp === 'move' && t.newPath !== undefined) {
+      return [
+        {
+          canonicalPath: t.canonicalPath,
+          originalDigest: t.originalDigest,
+          plannedDigest: sha256Hex(Buffer.alloc(0)),
+          originalBytes: b.originalBytes,
+          plannedBytes: Buffer.alloc(0),
+          mode: t.mode,
+          kind: 'delete' as const,
+        },
+        {
+          canonicalPath: t.newPath,
+          originalDigest: sha256Hex(Buffer.alloc(0)),
+          plannedDigest: t.plannedDigest,
+          originalBytes: Buffer.alloc(0),
+          plannedBytes: b.plannedBytes,
+          mode: t.mode,
+          kind: 'create' as const,
+        },
+      ]
+    }
+    return [
+      {
+        canonicalPath: t.canonicalPath,
+        originalDigest: t.originalDigest,
+        plannedDigest: t.plannedDigest,
+        originalBytes: b.originalBytes,
+        plannedBytes: b.plannedBytes,
+        mode: t.mode,
+      },
+    ]
+  })
+  const outcome = await runTextChangeSetCommit({
+    ownerKey: owner,
+    source: 'changeset',
+    planDigest: plan.digest,
+    targets: commitTargets,
+    signal: context.abortController?.signal,
+  })
+
+  if (outcome.kind !== 'committed') return uncommittedAnswer(owner, plan, outcome)!
+
+  const lspManager = getLspServerManager()
+  const syncFailures: string[] = []
+  const freshAnchors: Array<{ path: string; anchor: string }> = []
+  for (const t of changedTargets) {
+    context.nestedMemoryAttachmentTriggers?.add(t.canonicalPath)
+    if (t.fileOp === 'delete') {
+      context.readFileState.delete(t.canonicalPath)
+      dropSeenLines(owner, t.canonicalPath)
+      if (lspManager) await lspManager.closeFile(t.canonicalPath).catch(passedOver)
+      continue
+    }
+    const landedPath = t.fileOp === 'move' && t.newPath !== undefined ? t.newPath : t.canonicalPath
+    if (t.fileOp === 'move') {
+      context.nestedMemoryAttachmentTriggers?.add(landedPath)
+      context.readFileState.delete(t.canonicalPath)
+      if (lspManager) await lspManager.closeFile(t.canonicalPath).catch(passedOver)
+    }
+    context.readFileState.set(landedPath, {
+      content: t.plannedContent,
+      timestamp: getFileModificationTime(landedPath),
+      offset: undefined,
+      limit: undefined,
+    })
+    if (lspManager) {
+      const before = t.fileOp === 'move' ? null : (bytes.get(t.canonicalPath)?.originalBytes.toString(t.encoding) ?? null)
+      const sync = await syncServersAfterWrite(lspManager, landedPath, t.plannedContent, before, owner)
+      if (!sync.ok) syncFailures.push(`${displayPath(landedPath)}: ${sync.reason}`)
+    }
+    const anchor = mintFileAnchor(t.plannedContent)
+    freshAnchors.push({ path: landedPath, anchor })
+    rememberAnchoredSnapshot(owner, anchor, t.plannedContent, landedPath)
+    const generation = fileGeneration(landedPath)
+    if (generation !== null) {
+      if (t.fileOp === 'move') moveSeenLines(owner, t.canonicalPath, landedPath, generation)
+      shiftSeenLinesAfterApply(owner, landedPath, generation, t.hunkSpans, span =>
+        span.replace === ''
+          ? 0
+          : (span.replace.endsWith('\n') ? span.replace.slice(0, -1) : span.replace).split('\n')
+              .length,
+      )
+    }
+  }
+  const publishedRegisters: string[] = []
+  if (lowered) {
+    for (const [name, reg] of lowered.registerPublications) {
+      const res = publishPatchRegister(owner, name, {
+        content: reg.content,
+        fromPath: reg.fromPath,
+        cutAt: Date.now(),
+      })
+      if (res.ok) publishedRegisters.push(name)
+    }
+  }
+  if (!isEnvTruthy(flagEnv('MERCURY_BARE'))) {
+    const paths = changedTargets.flatMap(t => (t.fileOp === 'move' && t.newPath !== undefined ? [t.canonicalPath, t.newPath] : [t.canonicalPath]))
+    discoverSkillDirsForPaths(paths, getCwd())
+      .then(dirs => (dirs.length > 0 ? addSkillDirectories(dirs) : undefined))
+      .catch(passedOver)
+    activateConditionalSkillsForPaths(paths, getCwd())
+  }
+
+  setChangeSetPlanState(owner, plan.id, 'applied', {
+    appliedAt: Date.now(),
+    operationId: outcome.operationId,
+  })
+  return appliedAnswer(plan, changedTargets, freshAnchors, lowered, publishedRegisters, syncFailures, outcome)
+}
+
+function storedPlanRoad(input: Input, owner: ReturnType<typeof ownerFromToolUseContext>): OpResult | { plan: ChangeSetPlan; bytes: Map<string, ChangeSetTargetBytes>; lowered: LoweredPatch | undefined } {
+  let plan: ChangeSetPlan
+  let bytes: Map<string, ChangeSetTargetBytes>
+  let lowered: LoweredPatch | undefined
+  const id = input.plan_id!
+  const stored = getChangeSetPlan(owner, id)
+  if (!stored) {
+    const wasEvicted = changeSetPlanEvicted(owner, id)
+    return {
+      op: 'apply',
+      result: wasEvicted
+        ? `Plan ${id} expired from the bounded plan ring (${CHANGESET_BOUNDS.planRing} retained) — re-plan with op:"preview". Nothing was written.`
+        : `No plan '${id}' in this conversation — plan ids come from op:"preview". Nothing was written.`,
+      outcome: 'failed',
+      effectOperation: 'file.changeSet',
+      changedPaths: [],
+    }
+  }
+  if (stored.ownerKey !== owner) {
+    return {
+      op: 'apply',
+      result: `Plan ${id} belongs to a different owner — plans never cross conversations. Re-plan with op:"preview". Nothing was written.`,
+      outcome: 'failed',
+      effectOperation: 'file.changeSet',
+      changedPaths: [],
+    }
+  }
+  if (stored.state === 'discarded') {
+    return {
+      op: 'apply',
+      result: `Plan ${id} was discarded — re-plan with op:"preview". Nothing was written.`,
+      outcome: 'failed',
+      effectOperation: 'file.changeSet',
+      changedPaths: [],
+    }
+  }
+  if (changeSetPlanExpired(stored)) {
+    setChangeSetPlanState(owner, id, 'expired')
+    return {
+      op: 'apply',
+      result: `Plan ${id} expired (${Math.round(CHANGESET_BOUNDS.planTtlMs / 60_000)} minute lifetime) — re-read the files and re-plan with op:"preview". Nothing was written.`,
+      outcome: 'failed',
+      planId: id,
+      changeView: changeViewOf(stored, 'expired', {
+        nextAction: 're-read the files, then op:"preview" again (plans are immutable)',
+      }),
+      effectOperation: 'file.changeSet',
+      changedPaths: [],
+    }
+  }
+  if (stored.state === 'applied') {
+    const drifted: string[] = []
+    for (const t of stored.targets.filter(x => x.changed)) {
+      let ok = false
+      try {
+        ok = sha256Hex(readFileSync(t.canonicalPath)) === t.plannedDigest
+      } catch {
+        ok = false
+      }
+      if (!ok) drifted.push(t.canonicalPath)
+    }
+    if (drifted.length > 0) {
+      return {
+        op: 'apply',
+        result:
+          `Plan ${id} was already applied, and ${drifted.length} file(s) have since changed again ` +
+          `(${drifted.map(displayPath).join(', ')}). Nothing was written. Re-read and re-plan with op:"preview".`,
+        outcome: 'failed',
+        planId: id,
+        effectOperation: 'file.changeSet',
+        changedPaths: [],
+        intent: intentOf(stored),
+      }
+    }
+    return {
+      op: 'apply',
+      result: `Plan ${id} was already committed — replayed the prior result without writing twice (files: ${stored.changedPaths.map(displayPath).join(', ')}; still verified on disk).`,
+      outcome: 'no-change',
+      planId: id,
+      changeView: changeViewOf(stored, 'applied'),
+      effectOperation: 'file.changeSet',
+      changedPaths: [],
+      details: {
+        planId: id,
+        ...(stored.operationId !== undefined && { replayedOperationId: stored.operationId }),
+        priorChangedPaths: stored.changedPaths,
+      },
+      intent: intentOf(stored),
+    }
+  }
+  if (stored.state === 'stale' || stored.state === 'failed' || stored.state === 'cancelled' || stored.state === 'indeterminate') {
+    return {
+      op: 'apply',
+      result: `Plan ${id} is '${stored.state}'${stored.note ? ` — ${stored.note}` : ''}. Re-read the files and re-plan with op:"preview". Nothing was written.`,
+      outcome: 'failed',
+      planId: id,
+      effectOperation: 'file.changeSet',
+      changedPaths: [],
+    }
+  }
+  lowered = loweredByPlanId.get(id)
+  const derived = rederiveBytes(stored)
+  if ('stalePaths' in derived) {
+    setChangeSetPlanState(owner, id, 'stale', {
+      note: `drifted since preview: ${derived.stalePaths.map(displayPath).join(', ')}`,
+    })
+    return {
+      op: 'apply',
+      result: staleRefusalText(stored, derived.stalePaths),
+      outcome: 'failed',
+      planId: id,
+      changeView: changeViewOf(stored, 'stale', {
+        nextAction: `re-read ${derived.stalePaths.map(displayPath).join(', ')}, then op:"preview" again`,
+      }),
+      effectOperation: 'file.changeSet',
+      changedPaths: [],
+      intent: intentOf(stored),
+    }
+  }
+  plan = stored
+  bytes = derived.bytes
+  return { plan, bytes, lowered }
+}
+
+function noChangeAnswer(owner: ReturnType<typeof ownerFromToolUseContext>, plan: ChangeSetPlan): OpResult {
+  setChangeSetPlanState(owner, plan.id, 'no-change')
+  let verdict: RepetitionVerdict | null = null
+  for (const t of plan.targets) {
+    const v = recordNoChangeOutcome(owner, {
+      operation: 'file.changeSet',
+      path: t.canonicalPath,
+      revision: t.observedAnchor,
+      intentDigest: plan.digest.slice(0, 16),
+      displayPath: displayPath(t.canonicalPath),
+    })
+    if (verdict === null || v.streak < verdict.streak) verdict = v
+  }
+  const repetitionNote =
+    verdict && verdict.streak >= 2 ? ` ${verdict.guidance}` : ''
+  return {
+    op: 'apply',
+    result: `No changes needed — every member of plan ${plan.id} is already satisfied (${plan.noChangePaths.map(displayPath).join(', ')}). Nothing was written.${repetitionNote}`,
+    outcome: 'no-change',
+    planId: plan.id,
+    changeView: changeViewOf(plan, 'no-change'),
+    effectOperation: 'file.changeSet',
+    changedPaths: [],
+    ...(verdict?.atCeiling ? { repetitionStop: true } : {}),
+    details: {
+      planId: plan.id,
+      planDigest: plan.digest.slice(0, 12),
+      files: plan.targets.length,
+      hunks: plan.totalHunks,
+      noChangePaths: plan.noChangePaths,
+    },
+    intent: intentOf(plan),
+  }
+}
+
+function uncommittedAnswer(owner: ReturnType<typeof ownerFromToolUseContext>, plan: ChangeSetPlan, outcome: CommitOutcome): OpResult | null {
+  switch (outcome.kind) {
+    case 'stale': {
+      setChangeSetPlanState(owner, plan.id, 'stale', {
+        note: `drifted at commit: ${outcome.stalePaths.map(displayPath).join(', ')}`,
+      })
+      return {
+        op: 'apply',
+        result: staleRefusalText(plan, outcome.stalePaths),
+        outcome: 'failed',
+        planId: plan.id,
+        changeView: changeViewOf(plan, 'stale', {
+          nextAction: `re-read ${outcome.stalePaths.map(displayPath).join(', ')}, then op:"preview" again`,
+        }),
+        effectOperation: 'file.changeSet',
+        changedPaths: [],
+        intent: intentOf(plan),
+      }
+    }
+    case 'cancelled': {
+      setChangeSetPlanState(owner, plan.id, 'cancelled', { note: 'cancelled before commit' })
+      return {
+        op: 'apply',
+        result: 'Cancelled before commit — nothing was written.',
+        outcome: 'failed',
+        planId: plan.id,
+        effectOperation: 'file.changeSet',
+        changedPaths: [],
+        intent: intentOf(plan),
+      }
+    }
+    case 'in-flight': {
+      return {
+        op: 'apply',
+        result: `Another live Mercury process is applying this exact plan right now (operation ${outcome.operationId}). Nothing was written here — wait for it to settle, then op:"status".`,
+        outcome: 'failed',
+        planId: plan.id,
+        effectOperation: 'file.changeSet',
+        changedPaths: [],
+        intent: intentOf(plan),
+      }
+    }
+    case 'failed-restored': {
+      setChangeSetPlanState(owner, plan.id, 'failed', { note: outcome.reason })
+      return {
+        op: 'apply',
+        result: `Apply FAILED — ${outcome.reason}. Every written path was restored to its original bytes and verified by reread; the working tree is unchanged.`,
+        outcome: 'failed',
+        planId: plan.id,
+        changeView: changeViewOf(plan, 'failed', { nextAction: 'inspect the failure, then re-apply or re-plan' }),
+        effectOperation: 'file.changeSet',
+        changedPaths: [],
+        intent: intentOf(plan),
+      }
+    }
+    case 'indeterminate': {
+      setChangeSetPlanState(owner, plan.id, 'indeterminate', { note: outcome.reason })
+      return {
+        op: 'apply',
+        result:
+          `Apply INDETERMINATE — ${outcome.reason}.\n` +
+          `Final state differs from both plan and original at: ${outcome.divergedPaths.map(displayPath).join(', ')}.\n` +
+          (outcome.landedPaths.length > 0
+            ? `Landed as planned: ${outcome.landedPaths.map(displayPath).join(', ')}.\n`
+            : '') +
+          'Re-read the named files before relying on their content; the recovery bundle is retained.',
+        outcome: 'indeterminate',
+        planId: plan.id,
+        changeView: changeViewOf(plan, 'indeterminate', {
+          nextAction: `re-read ${outcome.divergedPaths.map(displayPath).join(', ')} and settle by hand`,
+        }),
+        effectOperation: 'file.changeSet',
+        changedPaths: outcome.landedPaths,
+        details: { planId: plan.id, divergedPaths: outcome.divergedPaths },
+        intent: intentOf(plan),
+      }
+    }
+    case 'replayed': {
+      return {
+        op: 'apply',
+        result: `Plan ${plan.id} was already committed — replayed the prior result without writing twice (files: ${outcome.changedPaths.map(displayPath).join(', ')}).`,
+        outcome: 'no-change',
+        planId: plan.id,
+        changeView: changeViewOf(plan, 'applied'),
+        effectOperation: 'file.changeSet',
+        changedPaths: [],
+        details: { planId: plan.id, replayedOperationId: outcome.operationId, priorChangedPaths: outcome.changedPaths },
+        intent: intentOf(plan),
+      }
+    }
+    case 'committed':
+      break
+  }
+  return null
+}
+
+function appliedAnswer(plan: ChangeSetPlan, changedTargets: ChangeSetPlan['targets'][number][], freshAnchors: Array<{ path: string; anchor: string }>, lowered: LoweredPatch | undefined, publishedRegisters: string[], syncFailures: string[], outcome: Extract<CommitOutcome, { kind: 'committed' }>): OpResult {
+  const anchorByPath = new Map(freshAnchors.map(a => [a.path, a.anchor]))
+  const changedList = changedTargets
+    .map(t => {
+      const landed = t.fileOp === 'move' && t.newPath !== undefined ? t.newPath : t.canonicalPath
+      const anchor = anchorByPath.get(landed)
+      return `  ${targetLabel(t)}${anchor !== undefined ? ` (anchor: ${anchor})` : ''}`
+    })
+    .join('\n')
+  const patchNotes = [
+    ...loweredNotes(lowered),
+    ...recoveryNotes(plan),
+    ...(publishedRegisters.length > 0
+      ? [`registers published: ${publishedRegisters.join(', ')}`]
+      : []),
+  ]
+  const patchNoteBlock = patchNotes.length > 0 ? `\n${patchNotes.join('\n')}` : ''
+  const noChangeNote =
+    plan.noChangePaths.length > 0
+      ? `\nalready satisfied (not written): ${plan.noChangePaths.map(displayPath).join(', ')}`
+      : ''
+  const details = {
+    planId: plan.id,
+    planDigest: plan.digest.slice(0, 12),
+    files: changedTargets.length,
+    hunks: plan.totalHunks,
+    noChangePaths: plan.noChangePaths,
+    operationId: outcome.operationId,
+    stabilization: syncFailures.length === 0 ? 'synced' : 'unconfirmed',
+  }
+  if (syncFailures.length > 0) {
+    return {
+      op: 'apply',
+      result:
+        `Applied plan ${plan.id} — ${changedTargets.length} file(s) written and verified by reread, ` +
+        `but editor/language-server sync did not complete:\n${syncFailures.map(f => `  ${f}`).join('\n')}\n` +
+        `The files ARE written; the servers' view is unconfirmed. Verify with a real check.${noChangeNote}`,
+      outcome: 'indeterminate',
+      planId: plan.id,
+      changeView: changeViewOf(plan, 'applied', { nextAction: 'run a real check — server sync unconfirmed' }),
+      effectOperation: 'file.changeSet',
+      changedPaths: outcome.changedPaths,
+      details,
+      intent: intentOf(plan),
+    }
+  }
+  return {
+    op: 'apply',
+    result: `Applied plan ${plan.id} — ${changedTargets.length} file(s), ${plan.totalHunks} hunk(s), verified by reread:\n${changedList}${patchNoteBlock}${noChangeNote}`,
+    outcome: 'succeeded',
+    planId: plan.id,
+    changeView: changeViewOf(plan, 'applied'),
+    effectOperation: 'file.changeSet',
+    changedPaths: outcome.changedPaths,
+    details,
+    intent: intentOf(plan),
+  }
+}
+
+function runStatus(input: Input, context: ToolUseContext): OpResult {
+  const owner = ownerFromToolUseContext(context)
+  const id = input.plan_id!
+  const plan = getChangeSetPlan(owner, id)
+  if (!plan) {
+    const wasEvicted = changeSetPlanEvicted(owner, id)
+    return {
+      op: 'status',
+      result: wasEvicted
+        ? `Plan ${id} expired from the bounded plan ring (${CHANGESET_BOUNDS.planRing} retained).`
+        : `No plan '${id}' in this conversation.`,
+      outcome: 'no-change',
+      effectOperation: 'changeset.status',
+      changedPaths: [],
+    }
+  }
+  const expired = plan.state === 'prepared' && changeSetPlanExpired(plan)
+  if (expired) setChangeSetPlanState(owner, id, 'expired')
+  const freshness = plan.targets.map(t => {
+    let fresh = false
+    try {
+      fresh = sha256Hex(readFileSync(t.canonicalPath)) === t.originalDigest
+    } catch {
+      fresh = false
+    }
+    return `  ${displayPath(t.canonicalPath)}: ${fresh ? 'unchanged since plan' : 'DRIFTED since plan'}${t.changed ? '' : ' · already satisfied'}`
+  })
+  const state = expired ? 'expired' : plan.state
+  const lines = [
+    `Plan ${plan.id} [${state}] — ${plan.changedPaths.length} to change, ${plan.noChangePaths.length} already satisfied, ${plan.totalHunks} hunk(s).`,
+    ...freshness,
+    ...(plan.note ? [`note: ${plan.note}`] : []),
+    ...(plan.operationId ? [`operation: ${plan.operationId}`] : []),
+  ]
+  return {
+    op: 'status',
+    result: lines.join('\n'),
+    outcome: 'no-change',
+    planId: plan.id,
+    changeView: changeViewOf(plan, state as InlineChangeViewData['state'], {
+      nextAction:
+        state === 'prepared'
+          ? `apply with { op: "apply", plan_id: "${plan.id}" }`
+          : state === 'stale' || state === 'expired'
+            ? 're-read the drifted files, then op:"preview" again'
+            : undefined,
+    }),
+    effectOperation: 'changeset.status',
+    changedPaths: [],
+  }
+}
+
+function runDiscard(input: Input, context: ToolUseContext): OpResult {
+  const owner = ownerFromToolUseContext(context)
+  const id = input.plan_id!
+  const plan = getChangeSetPlan(owner, id)
+  if (!plan) {
+    return {
+      op: 'discard',
+      result: `No plan '${id}' in this conversation — nothing to discard.`,
+      outcome: 'no-change',
+      effectOperation: 'changeset.discard',
+      changedPaths: [],
+    }
+  }
+  if (plan.state === 'applied') {
+    return {
+      op: 'discard',
+      result: `Plan ${id} was already applied — discard changes nothing on disk. Use file history to rewind if needed.`,
+      outcome: 'failed',
+      effectOperation: 'changeset.discard',
+      changedPaths: [],
+    }
+  }
+  if (plan.state === 'discarded') {
+    return {
+      op: 'discard',
+      result: `Plan ${id} is already discarded.`,
+      outcome: 'no-change',
+      planId: id,
+      effectOperation: 'changeset.discard',
+      changedPaths: [],
+    }
+  }
+  const updated = setChangeSetPlanState(owner, id, 'discarded', { note: 'discarded by the caller' })!
+  return {
+    op: 'discard',
+    result: `Discarded plan ${id} — it can no longer be applied. Nothing was written.`,
+    outcome: 'no-change',
+    planId: id,
+    changeView: changeViewOf(updated, 'discarded'),
+    effectOperation: 'changeset.discard',
+    changedPaths: [],
+  }
+}
+
+
+export const ChangeSetTool = buildTool({
+  name: CHANGESET_TOOL_NAME,
+  searchHint:
+    'atomic multi-file edit: anchored hunks across several files, one reviewed change set, preview apply refactor',
+  maxResultSizeChars: 60_000,
+  strict: true,
+  shouldDefer: true,
+  loadInFullOnCloud: true,
+  capability: {
+    intents: [
+      'apply one coordinated change across several files',
+      'atomic multi-file edit with one review',
+      'preview a multi-file change set before applying',
+      'coordinated cross-file refactor with drift refusal',
+    ],
+    units: ['text-mutation'],
+    class: 'mutation',
+    transaction: { kind: 'file', receipts: true },
+    evidence: ['change'],
+    resources: ['file', 'receipt'],
+    cancellation: 'cooperative',
+    latency: 'fast',
+    gate: 'MERCURY_CHANGESET',
+    proof: 'scripts/changesets/run-all.sh',
+  },
+  async description() {
+    return 'Prepare, review, and apply one anchored text change across several existing files'
+  },
+  async prompt() {
+    return `Applies edits, moves and deletions across existing text files atomically: every member is checked against its read anchor before writing and one approval covers the set; a drifted or invalid member refuses the whole set and nothing is written. preview builds a plan (cs-…) without writing; apply writes a plan or changes, verified by reread, naming any unsettled path; status and discard manage a plan. Up to ${CHANGESET_BOUNDS.maxFiles} files; plans live ${Math.round(CHANGESET_BOUNDS.planTtlMs / 60_000)} minutes.${
+      anchorPatchEnabled() ? `\n\n${ANCHOR_PATCH_TEACHING}` : ''
+    }`
+  },
+  userFacingName,
+  getToolUseSummary(input?: Partial<Input>) {
+    if (!input?.op) return null
+    if (Array.isArray(input.changes) && input.changes.length > 0) {
+      return `${input.op} · ${input.changes.length} file${input.changes.length === 1 ? '' : 's'}`
+    }
+    if (typeof input.patch === 'string' && input.patch.length > 0) {
+      const files = new Set(
+        [...input.patch.matchAll(/^file\s+(\S+)\s/gm)].map(m => m[1]),
+      ).size
+      return files > 0 ? `${input.op} · patch (${files} file${files === 1 ? '' : 's'})` : `${input.op} · patch`
+    }
+    return input.plan_id ? `${input.op} · ${input.plan_id}` : input.op
+  },
+  getActivityDescription(input?: Partial<Input>) {
+    if (!input?.op) return 'Change set'
+    return input.op === 'apply' ? 'Applying change set' : `Change set ${input.op}`
+  },
+  get inputSchema(): SchemaType {
+    return inputSchema()
+  },
+  isConcurrencySafe() {
+    return false
+  },
+  isReadOnly(input: Input) {
+    return input.op !== 'apply'
+  },
+  async validateInput(input: Input) {
+    for (const change of input.changes ?? []) {
+      const pathRefusal = controlCharacterPathRefusal(change.file_path) ?? controlCharacterPathRefusal(change.new_path)
+      if (pathRefusal !== null) return { result: false as const, message: pathRefusal, errorCode: 1 }
+    }
+    if (input.op === 'preview') {
+      const hasChanges = input.changes != null && input.changes.length > 0
+      const hasPatch = input.patch != null && input.patch.length > 0
+      if (hasChanges === hasPatch) {
+        return { result: false as const, behavior: 'ask' as const, message: 'preview takes one of changes (one member per file) or patch (the dialect string).', errorCode: 1 }
+      }
+      if (input.plan_id !== undefined) {
+        return { result: false as const, behavior: 'ask' as const, message: 'preview takes changes/patch, not plan_id — plans are minted BY preview.', errorCode: 1 }
+      }
+    }
+    if (input.op === 'apply') {
+      const hasChanges = input.changes != null && input.changes.length > 0
+      const hasPatch = typeof input.patch === 'string' && input.patch.length > 0
+      const hasPlan = typeof input.plan_id === 'string' && input.plan_id.trim().length > 0
+      const given = [hasChanges, hasPatch, hasPlan].filter(Boolean).length
+      if (given !== 1) {
+        const present = [hasChanges && 'changes', hasPatch && 'patch', hasPlan && 'plan_id'].filter(Boolean) as string[]
+        const carried =
+          present.length === 0
+            ? 'this call provided none of them (empty values count as absent)'
+            : `this call provided ${present.join(' and ')}`
+        return {
+          result: false as const,
+          behavior: 'ask' as const,
+          message: `apply takes one of changes (the fast path), patch (the dialect string), or plan_id (a previewed plan); got ${carried}.`,
+          errorCode: 1,
+        }
+      }
+    }
+    if ((input.op === 'status' || input.op === 'discard') && input.patch !== undefined) {
+      return { result: false as const, behavior: 'ask' as const, message: `${input.op} takes plan_id only.`, errorCode: 1 }
+    }
+    if ((input.op === 'status' || input.op === 'discard') && !input.plan_id) {
+      return { result: false as const, behavior: 'ask' as const, message: `${input.op} requires plan_id.`, errorCode: 1 }
+    }
+    if ((input.op === 'status' || input.op === 'discard') && input.changes !== undefined) {
+      return { result: false as const, behavior: 'ask' as const, message: `${input.op} takes plan_id only.`, errorCode: 1 }
+    }
+    return { result: true as const }
+  },
+  async checkPermissions(input: Input, context): Promise<PermissionDecision> {
+    const remotePaths = input.changes?.flatMap(change => (change.new_path !== undefined ? [change.file_path, change.new_path] : [change.file_path])) ?? []
+    if (input.patch) {
+      const parsed = parseAnchorPatch(input.patch)
+      if (parsed.ok) for (const section of parsed.sections) {
+        remotePaths.push(section.path)
+        for (const op of section.ops) if (op.kind === 'move-to') remotePaths.push(op.newPath)
+      }
+    }
+    if (input.plan_id) {
+      const plan = getChangeSetPlan(ownerFromToolUseContext(context), input.plan_id)
+      remotePaths.push(...(plan?.changedPaths ?? []))
+    }
+    for (const path of remotePaths) {
+      const remote = checkUncPathPermission(path, context.getAppState().toolPermissionContext, 'edit')
+      if (remote && remote.behavior !== 'allow') return remote
+    }
+    if (input.op !== 'apply') {
+      return { behavior: 'allow', updatedInput: input }
+    }
+    const permCtx = context.getAppState().toolPermissionContext
+    let paths: string[]
+    if (input.patch !== undefined) {
+      const parsed = parseAnchorPatch(input.patch)
+      if (!parsed.ok) {
+        return { behavior: 'allow', updatedInput: input }
+      }
+      const set = new Set<string>()
+      for (const section of parsed.sections) {
+        set.add(expandPath(section.path))
+        for (const op of section.ops) {
+          if (op.kind === 'move-to') set.add(expandPath(op.newPath))
+        }
+      }
+      paths = [...set]
+    } else if (input.changes !== undefined) {
+      paths = [...new Set(input.changes.flatMap(c => (c.new_path !== undefined ? [expandPath(c.file_path), expandPath(c.new_path)] : [expandPath(c.file_path)])))]
+    } else {
+      const owner = ownerFromToolUseContext(context)
+      const plan = input.plan_id ? getChangeSetPlan(owner, input.plan_id) : undefined
+      paths = plan?.changedPaths ?? []
+    }
+    if (paths.length === 0) {
+      return { behavior: 'allow', updatedInput: input }
+    }
+    let needsAsk = false
+    let safetyAsk: Extract<PermissionDecision, { behavior: 'ask' }> | undefined
+    for (const p of new Set([...paths, ...remotePaths])) {
+      const decision = checkWritePermissionForTool(pathShim, { file_path: p }, permCtx)
+      if (decision.behavior === 'deny') {
+        return {
+          ...decision,
+          message: decision.decisionReason.type === 'rule'
+            ? refusalWithReason(`Editing ${p} is denied by ${ruleWords(decision.decisionReason.rule)} — a denied path refuses the whole change set (zero writes).`, reasonForRule(permCtx, decision.decisionReason.rule))
+            : `${decision.message} A denied path refuses the whole change set (zero writes).`,
+        }
+      }
+      if (decision.behavior !== 'allow') needsAsk = true
+      if (decision.behavior === 'ask' && decision.decisionReason?.type === 'safetyCheck') safetyAsk ??= decision
+    }
+    if (needsAsk) {
+      return {
+        behavior: 'ask',
+        ...(safetyAsk ? { decisionReason: safetyAsk.decisionReason } : {}),
+        message: `Apply this change set (${paths.length} file${paths.length === 1 ? '' : 's'})? One decision covers every path; any denied path means zero writes.${safetyAsk ? ' ' + safetyAsk.message : ''}`,
+      }
+    }
+    return { behavior: 'allow', updatedInput: input }
+  },
+  inputsEquivalent(a: Input, b: Input) {
+    return (
+      a.op === b.op &&
+      a.plan_id === b.plan_id &&
+      a.patch === b.patch &&
+      JSON.stringify(a.changes ?? null) === JSON.stringify(b.changes ?? null)
+    )
+  },
+  async call(input: Input, context: ToolUseContext, _canUseTool, parentMessage) {
+    const startedAt = Date.now()
+    let op: OpResult
+    try {
+      switch (input.op) {
+        case 'preview':
+          op = await runPreview(input, context)
+          break
+        case 'apply':
+          op = await runApply(input, context, parentMessage.uuid)
+          break
+        case 'status':
+          op = runStatus(input, context)
+          break
+        case 'discard':
+          op = runDiscard(input, context)
+          break
+      }
+    } catch (err) {
+      op = {
+        op: input.op,
+        result: `${input.op} failed: ${(err as Error).message}`,
+        outcome: 'failed',
+        effectOperation: input.op === 'apply' ? 'file.changeSet' : `changeset.${input.op}`,
+        changedPaths: [],
+      }
+    }
+    if (input.op === 'apply') {
+      try {
+        const { recordEditOutcome } = await import('../engines/change-transaction/editOutcomeLedger.js')
+        const { anchorPatchCodeOfResult, changeSetRefusalCodeOfResult } = await import(
+          '../engines/change-transaction/changeSetPlan.js'
+        )
+        const surface = input.patch !== undefined ? 'anchor-patch' : 'changeset'
+        const outcome =
+          op.outcome === 'succeeded'
+            ? 'applied'
+            : op.outcome === 'no-change'
+              ? 'no-change'
+              : (changeSetRefusalCodeOfResult(op.result) ?? anchorPatchCodeOfResult(op.result) ?? 'failed')
+        recordEditOutcome(
+          ownerFromToolUseContext(context),
+          context.options.engineModel,
+          surface,
+          outcome,
+        )
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+    const output: Output = {
+      op: op.op,
+      result: op.result,
+      outcome: op.outcome,
+      ...(op.planId !== undefined && { planId: op.planId }),
+      ...(op.changeView !== undefined && { changeView: op.changeView }),
+      ...(op.repetitionStop === true && { repetitionStop: true }),
+    }
+    return {
+      data: output,
+      effect: {
+        outcome: op.outcome,
+        operation: op.effectOperation,
+        changedPaths: op.changedPaths,
+        evidence: op.result.split('\n')[0]?.slice(0, 200) ?? '',
+        startedAt,
+        completedAt: Date.now(),
+        ...(op.details !== undefined && { details: op.details }),
+      },
+      ...(op.intent !== undefined && { changeIntent: op.intent }),
+    }
+  },
+  mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
+    return {
+      tool_use_id: toolUseId,
+      type: 'tool_result' as const,
+      content: output.result,
+      ...(output.repetitionStop === true && { is_error: true }),
+    }
+  },
+  renderToolUseMessage,
+  renderToolUseRejectedMessage,
+  renderToolUseErrorMessage,
+  renderToolResultMessage,
+  extractSearchText({ result, changeView }) {
+    return changeView ? `${result ?? ''}\n${changeViewSearchText(changeView)}` : (result ?? '')
+  },
+})
+

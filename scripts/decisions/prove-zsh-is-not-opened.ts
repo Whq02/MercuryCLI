@@ -18,15 +18,15 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
 for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS']) delete process.env[key]
 
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
-const { extractShellCScript, parseForSecurity, shellCCommands } = await import('../../src/utils/permissions/decision/commandAnalysis.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { decideToolPermissionWithModes } = await import('../../src/permissions/rules/decision/wrapper.ts')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
+const { extractShellCScript, parseForSecurity, shellCCommands } = await import('../../src/permissions/rules/decision/commandAnalysis.ts')
 
 let failures = 0
 let checks = 0
-const READER_HINT = 'fix extractShellCScript in src/utils/permissions/decision/commandAnalysis.ts (opens only sh and bash with -c or -lc, never zsh)'
-const DECISION_HINT = 'fix the zsh handling in bashToolHasPermission (src/tools/BashTool/bashPermissions.ts) or decideToolPermissionWithModes (src/utils/permissions/decision/wrapper.ts)'
+const READER_HINT = 'fix extractShellCScript in src/permissions/rules/decision/commandAnalysis.ts (opens only sh and bash with -c or -lc, never zsh)'
+const DECISION_HINT = 'fix the zsh handling in bashToolHasPermission (src/tools/shell/bashPermissions.ts) or decideToolPermissionWithModes (src/permissions/rules/decision/wrapper.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++

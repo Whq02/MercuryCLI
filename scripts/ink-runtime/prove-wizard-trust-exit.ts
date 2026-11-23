@@ -48,11 +48,11 @@ if (childAt >= 0) {
     get readableLength(): number { return this.chunks.reduce((n, value) => n + value.length, 0) }
     push(value: string): void { this.chunks.push(value); this.emit('readable') }
   }
-  const { enableConfigs } = await import('../../src/utils/config.js')
+  const { enableConfigs } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const { createRoot } = await import('../../src/ink/root.js')
-  const { default: instances } = await import('../../src/ink/instances.js')
-  const { showSetupScreens } = await import('../../src/interactiveHelpers.js')
+  const { createRoot } = await import('../../src/screen/renderer/root.js')
+  const { default: instances } = await import('../../src/screen/renderer/instances.js')
+  const { showSetupScreens } = await import('../../src/boot/setupScreens.js')
   const input = new Input()
   const root = await createRoot({ stdin: input as never, stdout: process.stdout, stderr: process.stderr, exitOnCtrlC: false, patchConsole: false })
   let fault: unknown
@@ -107,11 +107,11 @@ if (childAt >= 0) {
       closeSync(fd)
       const bytes = readFileSync(wire, 'utf8')
       const exitAlt = bytes.lastIndexOf('\x1b[?1049l')
-      check(`${key}: the real wizard reached trust at 80x24`, existsSync(join(configHome, 'trust-frame.txt')), `the child never painted the trust step (4/4) with No, exit; check showSetupScreens in src/interactiveHelpers.tsx and src/components/TrustDialog/TrustDialog.tsx. Child output tail: ${bytes.slice(-400)}`)
-      check(`${key}: declining trust still exits 1`, child.status === 1 && child.error === undefined, `${child.status} ${child.error ?? ''}; the exit() in src/components/TrustDialog/TrustDialog.tsx must call gracefulShutdownSync with code 1`)
-      check(`${key}: the proposed line lands once after leaving the alternate screen`, exitAlt >= 0 && bytes.indexOf(proposed) > exitAlt && bytes.split(proposed).length === 2, `the finalMessage in exit() of src/components/TrustDialog/TrustDialog.tsx must print once, after the alternate screen is left. Output tail: ${stripAnsi(bytes.slice(-250))}`)
+      check(`${key}: the real wizard reached trust at 80x24`, existsSync(join(configHome, 'trust-frame.txt')), `the child never painted the trust step (4/4) with No, exit; check showSetupScreens in src/boot/setupScreens.tsx and src/screen/trust-dialog/TrustDialog.tsx. Child output tail: ${bytes.slice(-400)}`)
+      check(`${key}: declining trust still exits 1`, child.status === 1 && child.error === undefined, `${child.status} ${child.error ?? ''}; the exit() in src/screen/trust-dialog/TrustDialog.tsx must call gracefulShutdownSync with code 1`)
+      check(`${key}: the proposed line lands once after leaving the alternate screen`, exitAlt >= 0 && bytes.indexOf(proposed) > exitAlt && bytes.split(proposed).length === 2, `the finalMessage in exit() of src/screen/trust-dialog/TrustDialog.tsx must print once, after the alternate screen is left. Output tail: ${stripAnsi(bytes.slice(-250))}`)
       const config = JSON.parse(readFileSync(join(configHome, '.mercury.json'), 'utf8')) as { projects?: Record<string, { hasTrustDialogAccepted?: boolean }> }
-      check(`${key}: declining trust saves no project grant`, Object.values(config.projects ?? {}).every(project => !project.hasTrustDialogAccepted), 'onChange in src/components/TrustDialog/TrustDialog.tsx must not call saveCurrentProjectConfig when the exit choice is taken')
+      check(`${key}: declining trust saves no project grant`, Object.values(config.projects ?? {}).every(project => !project.hasTrustDialogAccepted), 'onChange in src/screen/trust-dialog/TrustDialog.tsx must not call saveCurrentProjectConfig when the exit choice is taken')
     }
   } finally {
     rmSync(home, { recursive: true, force: true })

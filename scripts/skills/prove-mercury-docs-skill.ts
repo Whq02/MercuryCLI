@@ -23,11 +23,11 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
-const { getBundledSkills, getBundledSkillExtractDir } = await import('../../src/skills/bundledSkills.ts')
-const { formatCommandsWithinBudgetDetailed } = await import('../../src/utils/skillListingFormat.ts')
-const docsSkill = await import('../../src/skills/bundled/mercuryDocs.ts')
-type Command = import('../../src/types/command.ts').Command
+const { initBundledSkills } = await import('../../src/integrations/skills/bundled/index.ts')
+const { getBundledSkills, getBundledSkillExtractDir } = await import('../../src/integrations/skills/bundledSkills.ts')
+const { formatCommandsWithinBudgetDetailed } = await import('../../src/engine/attachments/skillListingFormat.ts')
+const docsSkill = await import('../../src/integrations/skills/bundled/mercuryDocs.ts')
+type Command = import('../../src/commands/catalogue/command.ts').Command
 
 initBundledSkills()
 const skills = getBundledSkills()
@@ -77,7 +77,7 @@ const guideNames = expected.filter(path => path.startsWith('docs/') && path !== 
 check('the catalogue lists each shipped guide exactly once', guideNames.every(name => pageLinks.filter(link => link === name).length === 1), guideNames.filter(name => pageLinks.filter(link => link === name).length !== 1).join(', '))
 check('every local catalogue link names a page on disk', pageLinks.every(link => existsSync(join(ROOT, 'docs', link))), pageLinks.filter(link => !existsSync(join(ROOT, 'docs', link))).join(', '))
 const settingsText = pages['docs/SETTINGS.md'] ?? ''
-const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
+const { SettingsSchema } = await import('../../src/platform/settings/settingsSchema.ts')
 const settingsShape = SettingsSchema().shape
 const coveredKeys = Object.entries(settingsShape).flatMap(([group, schema]) => {
   const object = 'unwrap' in schema ? schema.unwrap() : schema

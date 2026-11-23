@@ -12,15 +12,15 @@ delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
 const ROOT = join(import.meta.dir, '..', '..')
-const vnext = await import('../../src/utils/sessionStorage/vnext.ts')
-const logs = await import('../../src/utils/sessionStorage/logs.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const attachmentText = await import('../../src/services/messages/attachmentText.ts')
-const nullRendering = await import('../../src/components/messages/nullRenderingAttachments.ts')
-const decode = await import('../../src/fabric/transcriptDecode.ts')
+const vnext = await import('../../src/sessions/transcripts/vnext.ts')
+const logs = await import('../../src/sessions/transcripts/sessionListings.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
+const attachmentText = await import('../../src/engine/messages/attachmentText.ts')
+const nullRendering = await import('../../src/screen/messages/nullRenderingAttachments.ts')
+const decode = await import('../../src/sessions/fabric/transcriptDecode.ts')
 
 let failures = 0
-const oldKindsFailHint = 'an old crew spelling is being renamed, dropped or given a meaning; fix the reader this check calls, among src/utils/sessionStorage/logs.ts (loadTranscriptFromFile, enrichSessionListings), src/fabric/transcriptDecode.ts, src/utils/sessionStorage/fold.ts (applyTranscriptEntry), src/utils/sessionStorage/paths.ts (readAgentMetadata), src/services/messages/attachmentText.ts (normalizeAttachmentForAPI), src/tools/AgentTool/AgentTool.tsx (inputSchema), src/keybindings/parser.ts and src/commands/crewmates/index.ts'
+const oldKindsFailHint = 'an old crew spelling is being renamed, dropped or given a meaning; fix the reader this check calls, among src/sessions/transcripts/sessionListings.ts (loadTranscriptFromFile, enrichSessionListings), src/sessions/fabric/transcriptDecode.ts, src/sessions/transcripts/fold.ts (applyTranscriptEntry), src/sessions/transcripts/paths.ts (readAgentMetadata), src/engine/messages/attachmentText.ts (normalizeAttachmentForAPI), src/tools/crewmate/CrewmateTool.tsx (inputSchema), src/screen/keys/parser.ts and src/commands/crewmates/index.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${oldKindsFailHint}`}`)
@@ -167,7 +167,7 @@ const toolNames = messages
   .filter(m => m.type === 'assistant')
   .flatMap(m => ((m.message as { content: Array<{ type: string; name?: string }> }).content ?? []).filter(c => c.type === 'tool_use').map(c => c.name))
 check('the tool names on tool_use rows read as themselves', JSON.stringify(toolNames) === JSON.stringify(['TeamCreate', 'Agent', 'TeamBrief']), JSON.stringify(toolNames))
-const glyphs = await import('../../src/components/mercury-ui/toolGlyphs.ts')
+const glyphs = await import('../../src/screen/widgets/toolGlyphs.ts')
 check('a tool name no build of Mercury ships paints as any unknown tool does — no family remembers it', glyphs.toolFamilyFor('TeamCreate') === glyphs.toolFamilyFor('FrobnicateTool') && glyphs.toolFamilyFor('TeamBrief') === glyphs.toolFamilyFor('FrobnicateTool'), `${glyphs.toolFamilyFor('TeamCreate')} / ${glyphs.toolFamilyFor('FrobnicateTool')}`)
 check('no crew_context row is read from the old context kind', messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'crew_context') === undefined)
 const oldContextRow = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'team_context')?.attachment as Record<string, unknown> | undefined
@@ -222,7 +222,7 @@ console.log('§4 an agent sidecar written under the old keys reads as written �
 
 console.log('§5 a roster saved in the old folder, under the old lead name, is not a crew Mercury knows')
 {
-  const envUtils = await import('../../src/utils/envUtils.ts')
+  const envUtils = await import('../../src/platform/environment/envUtils.ts')
   const oldDir = join(HOME, 'teams', 'oldcrew')
   mkdirSync(oldDir, { recursive: true })
   writeFileSync(join(oldDir, 'config.json'), JSON.stringify({ name: 'oldcrew', createdAt: 1, leadAgentId: 'team-lead@oldcrew', members: [] }, null, 2))
@@ -231,22 +231,22 @@ console.log('§5 a roster saved in the old folder, under the old lead name, is n
 
 console.log('§6 the Agent tool reads its input as declared — an old field name is an unknown field')
 {
-  const agentTool = await import('../../src/tools/AgentTool/AgentTool.tsx')
+  const agentTool = await import('../../src/tools/crewmate/CrewmateTool.tsx')
   const parsed = agentTool.AgentTool.inputSchema.safeParse({ description: 'd', prompt: 'p', name: 'water', team_name: TEAM })
   const data = (parsed.success ? parsed.data : {}) as Record<string, unknown>
   check('an input carrying team_name parses as an input carrying an unknown field', parsed.success === true, parsed.success ? '' : JSON.stringify(parsed.error.issues.slice(0, 2)))
   check('and lands no crew_name', !('crew_name' in data) && !('team_name' in data), JSON.stringify(data))
-  const jsonSchema = JSON.stringify((await import('../../src/utils/zodToJsonSchema.ts')).zodToJsonSchema(agentTool.AgentTool.inputSchema as never))
+  const jsonSchema = JSON.stringify((await import('../../src/platform/primitives/zodToJsonSchema.ts')).zodToJsonSchema(agentTool.AgentTool.inputSchema as never))
   check('the schema the model sees names neither the old field nor a crew name', !jsonSchema.includes('crew_name') && !jsonSchema.includes('team_name'))
   check('the schema keeps its shape for every reader of its words', 'name' in ((agentTool.AgentTool.inputSchema as unknown as { shape: Record<string, unknown> }).shape ?? {}) && 'name' in ((agentTool.inputSchema() as unknown as { shape: Record<string, unknown> }).shape ?? {}))
 }
 
 console.log('§7 a saved keybinding under the old action id binds nothing Mercury knows')
 {
-  const parser = await import('../../src/keybindings/parser.ts')
+  const parser = await import('../../src/screen/keys/parser.ts')
   const bindings = parser.parseBindings([{ context: 'Global', bindings: { 'ctrl+shift+o': 'app:toggleTeammatePreview' } }] as never)
   check('the old id reads as written — no id is rewritten', bindings[0]?.action === 'app:toggleTeammatePreview', String(bindings[0]?.action))
-  const loader = await import('../../src/keybindings/loadUserBindings.ts')
+  const loader = await import('../../src/screen/keys/loadUserBindings.ts')
   writeFileSync(loader.getKeybindingsPath(), JSON.stringify({ bindings: [{ context: 'Global', bindings: { 'ctrl+shift+u': 'app:toggleTeammatePreview' } }] }))
   loader.invalidateKeybindingsCache()
   const loaded = await loader.loadKeybindings()
@@ -270,7 +270,7 @@ console.log('§10 the old command name is not carried: /crewmates has no alias')
 
 console.log('§11 a transcript row under a kind no build of Mercury writes is an unknown entry: the fold reads the kind as written, keeps no row for it and rewrites nothing')
 {
-  const fold = await import('../../src/utils/sessionStorage/fold.ts')
+  const fold = await import('../../src/sessions/transcripts/fold.ts')
   const UNKNOWN_KIND = 'a-kind-no-build-of-mercury-writes'
   const KIND_SID = '00000000-cccc-4000-8000-0000000c0ffee'
   const kindFile = join(dir, `${KIND_SID}.jsonl`)

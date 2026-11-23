@@ -15,16 +15,16 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 
 console.log("crewmate-foreground-throw: a throw inside the foreground consumer's loop body hands the run back, so its teardown finally runs once")
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-await import('../../src/services/providers/callModelRouter.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-await import('../../src/Tool.ts')
-const realRunAgent = await import('../../src/tools/AgentTool/runAgent.ts')
+await import('../../src/models/roads/callModelRouter.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+await import('../../src/tools/kit/tool.ts')
+const realRunAgent = await import('../../src/tools/crewmate/runCrewmate.ts')
 
 let finallyRuns = 0
 let yielded = 0
-mock.module('../../src/tools/AgentTool/runAgent.ts', () => ({
+mock.module('../../src/tools/crewmate/runCrewmate.ts', () => ({
   ...realRunAgent,
   runAgent: async function* () {
     try {
@@ -38,8 +38,8 @@ mock.module('../../src/tools/AgentTool/runAgent.ts', () => ({
   },
 }))
 
-const { runForegroundAgentExecution } = await import('../../src/tools/AgentTool/foregroundExecution.tsx')
-const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryCrewAgent.ts')
+const { runForegroundAgentExecution } = await import('../../src/tools/crewmate/foregroundExecution.tsx')
+const { MERCURY_CREW_AGENT } = await import('../../src/tools/crewmate/built-in/mercuryCrewAgent.ts')
 
 let state: Record<string, unknown> = { tasks: {}, toolPermissionContext: { mode: 'default', alwaysAllowRules: {}, alwaysDenyRules: {}, additionalWorkingDirectories: new Map() } }
 const setAppState = (f: (prev: typeof state) => typeof state): void => {
@@ -79,9 +79,9 @@ try {
   result = { threw: String(error) }
 }
 
-check('the consumer settled a failed result carrying the loop body\'s own words', typeof result === 'object' && result !== null && (result as { data?: { status?: string; error?: string } }).data?.status === 'failed' && String((result as { data?: { error?: string } }).data?.error).includes(thrown), JSON.stringify(result).slice(0, 300) + ' | a throw in the consumer loop body must return a failed result carrying its message; fix runForegroundAgentExecution in src/tools/AgentTool/foregroundExecution.tsx')
-check('the run was handed back: its finally ran exactly once', finallyRuns === 1, `finally ran ${finallyRuns} time(s); the loop must hand the run generator back on a throw so its finally runs once, see runForegroundAgentExecution in src/tools/AgentTool/foregroundExecution.tsx`)
-check('the run was not read on past the throw (one row yielded)', yielded === 1, `yielded ${yielded}; the loop must stop reading the run after a throw, see runForegroundAgentExecution in src/tools/AgentTool/foregroundExecution.tsx`)
+check('the consumer settled a failed result carrying the loop body\'s own words', typeof result === 'object' && result !== null && (result as { data?: { status?: string; error?: string } }).data?.status === 'failed' && String((result as { data?: { error?: string } }).data?.error).includes(thrown), JSON.stringify(result).slice(0, 300) + ' | a throw in the consumer loop body must return a failed result carrying its message; fix runForegroundAgentExecution in src/tools/crewmate/foregroundExecution.tsx')
+check('the run was handed back: its finally ran exactly once', finallyRuns === 1, `finally ran ${finallyRuns} time(s); the loop must hand the run generator back on a throw so its finally runs once, see runForegroundAgentExecution in src/tools/crewmate/foregroundExecution.tsx`)
+check('the run was not read on past the throw (one row yielded)', yielded === 1, `yielded ${yielded}; the loop must stop reading the run after a throw, see runForegroundAgentExecution in src/tools/crewmate/foregroundExecution.tsx`)
 
 console.log(`\ncrewmate-foreground-throw: ${checks} checks, ${failures} failed`)
 process.exit(failures ? 1 : 0)

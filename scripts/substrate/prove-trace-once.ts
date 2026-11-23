@@ -4,7 +4,7 @@ import { mkdtempSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const TRACE_ONCE_HINT = 'change buildInvocationTrace or emitInvocationTrace in src/utils/observability/invocationTrace.ts (record fields killed, durationMs, ok; the MERCURY_TRACE gate) so one call writes one record of this shape'
+const TRACE_ONCE_HINT = 'change buildInvocationTrace or emitInvocationTrace in src/platform/observability/invocationTrace.ts (record fields killed, durationMs, ok; the MERCURY_TRACE gate) so one call writes one record of this shape'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -23,7 +23,7 @@ process.env.MERCURY_CONFIG_DIR = dir
 process.env.MERCURY_TRACE = '1'
 
 const { emitInvocationTrace, getInvocationTracePath } = await import(
-  '../../src/utils/observability/invocationTrace.js'
+  '../../src/platform/observability/invocationTrace.js'
 )
 
 const fakeTool = { name: 'Bash' } as unknown as Parameters<typeof emitInvocationTrace>[0]

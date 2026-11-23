@@ -8,17 +8,17 @@ const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'now-cell-phase-')))
 process.env['MERCURY_CONFIG_DIR'] = join(SCRATCH, 'home')
 mkdirSync(join(SCRATCH, 'home'), { recursive: true })
 
-const { LiveTileStore, liveTilePhase, gateTailFreshness } = await import('../../src/components/concourse/liveTiles.js')
-const { publishSessionTail, readSessionTail, sessionTailDir, sessionTailPath } = await import('../../src/services/engine-connector/seatProjections.js')
-const snapshot = await import('../../src/services/concourse/concourseSnapshot.js')
-const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.js')
-const { entryToRecord } = await import('../../src/fabric/entryCodec.js')
-const { ordinalOf } = await import('../../src/fabric/ordinal.js')
-const words = await import('../../src/components/Spinner/liveCounterWords.js')
-const grammar = await import('../../src/components/messages/thinkingGrammar.js')
+const { LiveTileStore, liveTilePhase, gateTailFreshness } = await import('../../src/screen/concourse/liveTiles.js')
+const { publishSessionTail, readSessionTail, sessionTailDir, sessionTailPath } = await import('../../src/engine/connector/seatProjections.js')
+const snapshot = await import('../../src/screen/concourse-model/concourseSnapshot.js')
+const { workerTranscriptPath } = await import('../../src/screen/concourse-model/workerTranscript.js')
+const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.js')
+const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.js')
+const words = await import('../../src/screen/spinner/liveCounterWords.js')
+const grammar = await import('../../src/screen/messages/thinkingGrammar.js')
 
 let failures = 0
-const nowCellFailHint = 'section 1 reads tailActivity, tailActivityLabel, activityNowLabel and nowWordsAreLive in src/services/concourse/concourseSnapshot.ts; section 2 reads LiveTileStore.readTile and liveTilePhase in src/components/concourse/liveTiles.ts (the phase words come from src/components/Spinner/liveCounterWords.ts)'
+const nowCellFailHint = 'section 1 reads tailActivity, tailActivityLabel, activityNowLabel and nowWordsAreLive in src/screen/concourse-model/concourseSnapshot.ts; section 2 reads LiveTileStore.readTile and liveTilePhase in src/screen/concourse/liveTiles.ts (the phase words come from src/screen/spinner/liveCounterWords.ts)'
 function check(name: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${!ok ? ` — ${detail ? `${detail}; ` : ''}${nowCellFailHint}` : ''}`)

@@ -7,12 +7,12 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'latest-row-rule-'))
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { findLatestMessage } = await import('../../src/utils/sessionStorage/chain.ts')
+const { findLatestMessage } = await import('../../src/sessions/transcripts/chain.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' — ' : '') + 'change findLatestMessage in src/utils/sessionStorage/chain.ts so the latest accepted row wins by parsed stamp, walking the iterable once' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' — ' : '') + 'change findLatestMessage in src/sessions/transcripts/chain.ts so the latest accepted row wins by parsed stamp, walking the iterable once' : ''}`)
 }
 
 type Row = { uuid: string; timestamp: string; kind?: string }

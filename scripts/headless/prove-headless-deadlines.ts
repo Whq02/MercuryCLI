@@ -40,9 +40,9 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 section('§1 — stale-socket classifier · recovery binding · real pool reset')
-failHint = 'isStaleConnectionError in src/services/api/withRetry.ts decides which connection errors count as stale; disableKeepAlive and getApiDispatcher in src/utils/proxy.ts retire the pool'
+failHint = 'isStaleConnectionError in src/engine/requests/withRetry.ts decides which connection errors count as stale; disableKeepAlive and getApiDispatcher in src/platform/network/proxy.ts retire the pool'
 {
-  const { isStaleConnectionError } = await import('../../src/services/api/withRetry.ts')
+  const { isStaleConnectionError } = await import('../../src/engine/requests/withRetry.ts')
   class APIConnectionError extends Error {}
 
   const nodeShape = new APIConnectionError('Connection error.')
@@ -78,7 +78,7 @@ failHint = 'isStaleConnectionError in src/services/api/withRetry.ts decides whic
   )
 
 
-  const proxy = await import('../../src/utils/proxy.ts')
+  const proxy = await import('../../src/platform/network/proxy.ts')
   proxy._resetKeepAliveForTesting()
   proxy._resetApiDispatcherForTesting()
   const before = proxy.getApiDispatcher()
@@ -184,7 +184,7 @@ const resultsOf = (run: DistRun): (Envelope & { answer?: string; status?: string
 const failedOf = (results: ReturnType<typeof resultsOf>) => results.find(r => r.status !== 'completed')
 
 section('§2 — black-holed socket: the belt ends the run typed (real dist)')
-failHint = 'the unattended-turn belt is read from MERCURY_HEADLESS_IDLE_MINUTES (FLAG_REGISTRY) and applied in the headless turn (src/cli/headless/printTurn.ts); the run must end with a failed outcome naming the deadline and that variable; rebuild dist first'
+failHint = 'the unattended-turn belt is read from MERCURY_HEADLESS_IDLE_MINUTES (FLAG_REGISTRY) and applied in the headless turn (src/daemon/runner/runnerTurn.ts); the run must end with a failed outcome naming the deadline and that variable; rebuild dist first'
 {
   const sockets = new Set<Socket>()
   const blackhole: NetServer = createNetServer(socket => {
@@ -217,7 +217,7 @@ failHint = 'the unattended-turn belt is read from MERCURY_HEADLESS_IDLE_MINUTES 
 }
 
 section('§3 — black-holed socket, belt disabled: transport budgets alone end the run')
-failHint = 'with the belt off, MERCURY_API_TIMEOUT_MS and MERCURY_MAX_RETRIES alone must end the run with a failed outcome that names a timeout; look at the API client timeout and retry ladder (src/services/api/withRetry.ts)'
+failHint = 'with the belt off, MERCURY_API_TIMEOUT_MS and MERCURY_MAX_RETRIES alone must end the run with a failed outcome that names a timeout; look at the API client timeout and retry ladder (src/engine/requests/withRetry.ts)'
 {
   const sockets = new Set<Socket>()
   const blackhole: NetServer = createNetServer(socket => {
@@ -250,7 +250,7 @@ failHint = 'with the belt off, MERCURY_API_TIMEOUT_MS and MERCURY_MAX_RETRIES al
 }
 
 section('§4 — mid-stream stall (hang turn): the belt fires; the abort reaches the wire')
-failHint = 'the belt (MERCURY_HEADLESS_IDLE_MINUTES, FLAG_REGISTRY and src/cli/headless/printTurn.ts) must abort a stalled stream once and the aborted turn must not be retried'
+failHint = 'the belt (MERCURY_HEADLESS_IDLE_MINUTES, FLAG_REGISTRY and src/daemon/runner/runnerTurn.ts) must abort a stalled stream once and the aborted turn must not be retried'
 {
   const fixture: FixtureApi = await startFixtureApi([{ kind: 'hang', deltas: ['stall-head…'] }])
   const run = await runDistTurns(
@@ -271,7 +271,7 @@ failHint = 'the belt (MERCURY_HEADLESS_IDLE_MINUTES, FLAG_REGISTRY and src/cli/h
 }
 
 section('§4b — a fold in the middle of a turn: its stream is the turn\'s progress, its silence is not')
-failHint = 'the belt in src/cli/headless/printTurn.ts must count the fold summary stream as turn progress and still cut a fold that goes silent'
+failHint = 'the belt in src/daemon/runner/runnerTurn.ts must count the fold summary stream as turn progress and still cut a fold that goes silent'
 {
   const SUMMARY = ['<summary>', '1. Operator Intent: list the markdown files here and say one line.', '2. Technical Ground: an empty folder.', '3. Files and Code Touched: none.', '4. Errors and Corrections: none.', '5. Problems Worked: none.', '6. Operator Messages: the one ask.', '7. Open Work: the one line.', '8. Where Work Stands: the listing came back.', '9. Next Move (optional): answer.', '10. Agents in flight: none.', '</summary>']
   const LIMIT_MS = 3_000
@@ -304,7 +304,7 @@ failHint = 'the belt in src/cli/headless/printTurn.ts must count the fold summar
 }
 
 section('§5 — mid-stream stall, belt disabled: undici bodyTimeout ends the run')
-failHint = 'with the belt off, the body timeout from MERCURY_API_TIMEOUT_MS (src/utils/proxy.ts dispatcher) and the retry ladder (src/services/api/withRetry.ts) must end a stalled stream'
+failHint = 'with the belt off, the body timeout from MERCURY_API_TIMEOUT_MS (src/platform/network/proxy.ts dispatcher) and the retry ladder (src/engine/requests/withRetry.ts) must end a stalled stream'
 {
   let messagePosts = 0
   const stallServer: HttpServer = createHttpServer((req, res) => {
@@ -351,7 +351,7 @@ failHint = 'with the belt off, the body timeout from MERCURY_API_TIMEOUT_MS (src
 }
 
 section('§6 — server-closed keep-alive replay: the run recovers on a fresh connection')
-failHint = 'a request replayed on a server-closed keep-alive socket must be classified stale (isStaleConnectionError in src/services/api/withRetry.ts) and retried on a fresh pool (disableKeepAlive in src/utils/proxy.ts)'
+failHint = 'a request replayed on a server-closed keep-alive socket must be classified stale (isStaleConnectionError in src/engine/requests/withRetry.ts) and retried on a fresh pool (disableKeepAlive in src/platform/network/proxy.ts)'
 {
   const fixture: FixtureApi = await startFixtureApi(
     [
@@ -469,11 +469,11 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_HOME
 
 section('§7 — MCP stalled tools/call (real streamable HTTP): typed stall + on-wire cancel')
-failHint = 'callMCPToolWithUrlElicitationRetry in src/services/mcp/client.ts must settle a stalled tools/call at MERCURY_MCP_CALL_IDLE_MINUTES (src/services/mcp/client/limits.ts) as an unknown outcome and cancel it on the wire'
+failHint = 'callMCPToolWithUrlElicitationRetry in src/integrations/mcp/client.ts must settle a stalled tools/call at MERCURY_MCP_CALL_IDLE_MINUTES (src/integrations/mcp/client/limits.ts) as an unknown outcome and cancel it on the wire'
 {
   process.env.MERCURY_MCP_CALL_IDLE_MINUTES = '0.003'
   const fixture = await startMcpFixture({ stallCalls: true })
-  const { callMCPToolWithUrlElicitationRetry } = await import('../../src/services/mcp/client.ts')
+  const { callMCPToolWithUrlElicitationRetry } = await import('../../src/integrations/mcp/client.ts')
   const connection = {
     name: 'hd7',
     type: 'failed',
@@ -511,7 +511,7 @@ failHint = 'callMCPToolWithUrlElicitationRetry in src/services/mcp/client.ts mus
 }
 
 section('§8 — MCP lost response: one effect, unknown outcome, safe rejection retry')
-failHint = 'the output above is scripts/mcp/prove-mcp-no-replay.ts; fix the failing check it names, in src/services/mcp/client.ts'
+failHint = 'the output above is scripts/mcp/prove-mcp-no-replay.ts; fix the failing check it names, in src/integrations/mcp/client.ts'
 {
   const { spawnSync } = await import('node:child_process')
   const proof = spawnSync(process.execPath, ['run', join(ROOT, 'scripts/mcp/prove-mcp-no-replay.ts')], {

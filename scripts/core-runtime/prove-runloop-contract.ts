@@ -20,31 +20,31 @@ for (const k of [
   delete process.env[k]
 }
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
 const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } =
-  await import('../../src/services/messages.ts')
-const { FallbackTriggeredError } = await import('../../src/services/api/withRetry.ts')
-const { ImageSizeError } = await import('../../src/services/imageValidation.ts')
-const { AUTOCOMPACT_THRASH_MESSAGE } = await import('../../src/services/compact/autoCompact.ts')
-const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
+  await import('../../src/engine/messages/messages.ts')
+const { FallbackTriggeredError } = await import('../../src/engine/requests/withRetry.ts')
+const { ImageSizeError } = await import('../../src/engine/requests/imageValidation.ts')
+const { AUTOCOMPACT_THRASH_MESSAGE } = await import('../../src/engine/compaction/autoFold.ts')
+const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/engine/requests/apiErrorRows.ts')
 const { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, turnCutResultText } = await import(
-  '../../src/utils/messages/rejectionText.ts'
+  '../../src/engine/message-shapes/rejectionText.ts'
 )
-const { MAX_TURNS_CLOSING_TEXT } = await import('../../src/run-core/turn-machine.ts')
-const qm = await import('../../src/utils/messageQueueManager.ts')
-const lifecycle = await import('../../src/utils/commandLifecycle.ts')
-const sessionHooks = await import('../../src/utils/hooks/sessionHooks.ts')
-const guards = await import('../../src/guards/guards.ts')
+const { MAX_TURNS_CLOSING_TEXT } = await import('../../src/engine/loop/turn-machine.ts')
+const qm = await import('../../src/daemon/runner/messageQueueManager.ts')
+const lifecycle = await import('../../src/daemon/runner/commandLifecycle.ts')
+const sessionHooks = await import('../../src/integrations/event-hooks/sessionHooks.ts')
+const guards = await import('../../src/permissions/guards/guards.ts')
 const rigHooks = (setAppState: unknown, map: Record<string, unknown>): void => {
   sessionHooks.addSessionHooks(setAppState as never, { sessionId: String(bootstrap.getSessionId()) }, map as never, { kind: 'agent', type: 'rig' })
 }
-const effort = await import('../../src/utils/effort.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const effort = await import('../../src/models/effort/effort.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
 
 const MODEL = 'claude-opus-4-8'
 const FALLBACK_MODEL = 'claude-sonnet-5'
@@ -56,7 +56,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) {
     failures++
     console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
-    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the code this section exercises (query in src/query.ts, the turn machine in src/run-core/turn-machine.ts) so the condition holds`)
+    console.log(`    where: ${new Error().stack?.split('\n')[2]?.trim() ?? 'this file'}; change the code this section exercises (query in src/engine/turnDoor.ts, the turn machine in src/engine/loop/turn-machine.ts) so the condition holds`)
   }
 }
 function section(t: string): void {
@@ -557,8 +557,8 @@ section('L3b BACKFILL — a per-block backfill that THROWS leaves that block its
     JSON.stringify(results.map(b => ({ id: b.tool_use_id, e: b.is_error, c: JSON.stringify(b.content).slice(0, 80) }))),
   )
   check('the API-bound assistant is still the original object (prompt-cache byte identity)', r !== null && r.calls.length > 1 && r.calls[1]!.messages.find(m => (m as AnyMsg).type === 'assistant') === original)
-  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-  const { backfillCloneForYield } = await import('../../src/run-core/model-lane.ts')
+  const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+  const { backfillCloneForYield } = await import('../../src/engine/loop/model-lane.ts')
   const readMessage = createAssistantMessage({
     content: [
       { type: 'tool_use', id: 'tu_r1', name: 'Read', input: {} },
@@ -821,7 +821,7 @@ section('L7 ABORT MID-STREAM — synthetic pairing + the interrupt exemption')
 
 section('L7b ABORT under a typed reason — the row names the reason, never the operator')
 {
-  const { DeadlineExceededError } = await import('../../src/utils/deadline.ts')
+  const { DeadlineExceededError } = await import('../../src/platform/async/deadline.ts')
   const mk = (reason: unknown): RunOpts => {
     let controller: AbortController
     return {
@@ -848,7 +848,7 @@ section('L7b ABORT under a typed reason — the row names the reason, never the 
     const rows = userTextMessages(r.yields)
     check(`'${operator}' is the operator's door: the row reads interrupted by user`, rows.filter(t => t === INTERRUPT_MESSAGE).length === 1, rows.join(' | '))
   }
-  const { turnCutOfText } = await import('../../src/utils/messages/rejectionText.ts')
+  const { turnCutOfText } = await import('../../src/engine/message-shapes/rejectionText.ts')
   const readBack = (rows: string[]): string[] => rows.map(t => turnCutOfText(t)?.kind ?? 'none').filter(k => k !== 'none')
   const storedParentStop = '[Request cut off: the workflow that ran this crewmate stopped]'
   check("the rows read back as their reasons: a deadline → idle-timeout (with its seam), an Error → cut, the operator → operator, and a stored row of a parent's stop → parent-stop",

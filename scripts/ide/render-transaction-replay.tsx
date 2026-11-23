@@ -7,11 +7,11 @@ import { join, resolve } from 'node:path'
 const root = resolve(import.meta.dir, '../..')
 if (process.argv[2] === '--child') {
   const sourceRoot = process.argv[3] ?? root
-  const { enableConfigs } = await import(join(sourceRoot, 'src/utils/config.js'))
+  const { enableConfigs } = await import(join(sourceRoot, 'src/platform/settings/config.js'))
   enableConfigs()
   const React = await import('react')
-  const { render, Box, Text } = await import(join(sourceRoot, 'src/ink.js'))
-  const ui = await import(join(sourceRoot, 'src/tools/TransactionTool/UI.tsx'))
+  const { render, Box, Text } = await import(join(sourceRoot, 'src/screen/themedRenderer.js'))
+  const ui = await import(join(sourceRoot, 'src/tools/transaction/rows.tsx'))
   const h = React.createElement
   const opts = { verbose: false }
   const uses = [
@@ -46,11 +46,11 @@ if (process.argv[2] === '--child') {
       console.log(grid)
       check(`T13 @${cols} historical inputs and results render`, grid.includes('begin x') && grid.includes('step apply [failed] tx-1') &&
         grid.includes('resume tx-1') && grid.includes('Noted [ok] apply on tx-1 (1 step(s)).') && grid.includes('TRANSACTION REPLAY END'),
-        'hint: the grid printed above lacks a historical use or result line; fix renderToolUseMessage and renderToolResultMessage in src/tools/TransactionTool/UI.tsx')
+        'hint: the grid printed above lacks a historical use or result line; fix renderToolUseMessage and renderToolResultMessage in src/tools/transaction/rows.tsx')
       check(`@${cols} automatic status is visible`, grid.includes('unsaved record [open]') && grid.includes('test: bun test'),
-        'hint: the grid printed above lacks the automatic status text; fix renderToolResultMessage for op status in src/tools/TransactionTool/UI.tsx')
+        'hint: the grid printed above lacks the automatic status text; fix renderToolResultMessage for op status in src/tools/transaction/rows.tsx')
       if (comparison) check(`@${cols} frames match the base renderer exactly`, capture(comparison, 'base') === grid,
-        'hint: the frame from the base source tree differs from the one printed above; compare src/tools/TransactionTool/UI.tsx between the two trees')
+        'hint: the frame from the base source tree differs from the one printed above; compare src/tools/transaction/rows.tsx between the two trees')
     }
   } finally {
     rmSync(scratch, { recursive: true, force: true })

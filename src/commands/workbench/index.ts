@@ -1,5 +1,5 @@
-import type { Command } from '../../commands.js'
-import { workbenchEnabled } from '../../services/workbench/contracts.js'
+import type { Command } from '../catalogue/commands.js'
+import { workbenchEnabled } from '../../screen/workbench/contracts.js'
 
 
 const workbenchCommand = {

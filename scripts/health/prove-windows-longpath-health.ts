@@ -42,7 +42,7 @@ const savedArgv1 = process.argv[1]
 let checks = 0
 let failures = 0
 const longpathHint =
-  'Strip the \\\\?\\ prefix before it reaches the output: in src/services/privateChannel/installProvenance.ts (gatherInstallProbeFacts, provenanceLine) and src/services/privateChannel/installPath.ts (commandOnPath, ownCommandWord); the health rows are built in src/services/health/sections/identity.ts and src/services/health/sections/crew/daemon.ts.'
+  'Strip the \\\\?\\ prefix before it reaches the output: in src/platform/update-channel/installProvenance.ts (gatherInstallProbeFacts, provenanceLine) and src/platform/update-channel/installPath.ts (commandOnPath, ownCommandWord); the health rows are built in src/platform/health/sections/identity.ts and src/platform/health/sections/crew/daemon.ts.'
 const check = (label: string, pass: boolean, detail = ''): void => {
   checks++
   if (!pass) failures++
@@ -81,12 +81,12 @@ try {
   Object.defineProperty(process, 'execPath', { value: nodeExe, configurable: true })
   process.argv[1] = `\\\\?\\${bundleMjs}`
 
-  const { runWithCwdOverride } = await import(`${root}/src/utils/cwd.ts`)
-  const { runHealthReport } = await import(`${root}/src/services/health/healthReport.ts`)
+  const { runWithCwdOverride } = await import(`${root}/src/platform/files/cwd.ts`)
+  const { runHealthReport } = await import(`${root}/src/platform/health/healthReport.ts`)
   const { classifyInstallProvenance, gatherInstallProbeFacts, provenanceLine } = await import(
-    `${root}/src/services/privateChannel/installProvenance.ts`
+    `${root}/src/platform/update-channel/installProvenance.ts`
   )
-  const { commandOnPath, ownCommandWord } = await import(`${root}/src/services/privateChannel/installPath.ts`)
+  const { commandOnPath, ownCommandWord } = await import(`${root}/src/platform/update-channel/installPath.ts`)
 
   type Row = { id: string; status: string; evidence: string; fix?: string; detail?: string }
   type Cert = { sections: Array<{ checks: Row[] }> }

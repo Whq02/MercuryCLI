@@ -13,14 +13,14 @@ const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
 const RESTORE_HINTS: Record<string, string> = {
-  '1': 'the session/facts file_checkpoints shape is declared in src/runner/wire/sessionVerbs.ts and the restore points come from src/services/changeTransaction/fileHistory.ts',
-  '2': 'the code restore lives in src/services/changeTransaction/fileHistory.ts and the session/rewind verb is declared in src/runner/wire/sessionVerbs.ts',
-  '3': 'the session/rewind verb is declared in src/runner/wire/sessionVerbs.ts and the no-checkpoint refusal comes from src/services/changeTransaction/fileHistory.ts',
-  '4': 'the drift refusal is built in src/services/changeTransaction/fileHistory.ts',
-  '5': 'the conversation record is written by src/services/compact/checkpointRewind.ts and the session/rewind verb is declared in src/runner/wire/sessionVerbs.ts',
-  '6': 'the both-mode receipt joins src/services/changeTransaction/fileHistory.ts and src/services/compact/checkpointRewind.ts behind the session/rewind verb in src/runner/wire/sessionVerbs.ts',
+  '1': 'the session/facts file_checkpoints shape is declared in src/daemon/runner-wire/sessionVerbs.ts and the restore points come from src/tools/engines/change-transaction/fileHistory.ts',
+  '2': 'the code restore lives in src/tools/engines/change-transaction/fileHistory.ts and the session/rewind verb is declared in src/daemon/runner-wire/sessionVerbs.ts',
+  '3': 'the session/rewind verb is declared in src/daemon/runner-wire/sessionVerbs.ts and the no-checkpoint refusal comes from src/tools/engines/change-transaction/fileHistory.ts',
+  '4': 'the drift refusal is built in src/tools/engines/change-transaction/fileHistory.ts',
+  '5': 'the conversation record is written by src/engine/compaction/checkpointRewind.ts and the session/rewind verb is declared in src/daemon/runner-wire/sessionVerbs.ts',
+  '6': 'the both-mode receipt joins src/tools/engines/change-transaction/fileHistory.ts and src/engine/compaction/checkpointRewind.ts behind the session/rewind verb in src/daemon/runner-wire/sessionVerbs.ts',
 }
-let restoreHint = 'the runner start-up and the session/rewind verb (src/runner/wire/sessionVerbs.ts); read the [dbg] lines above for the runner stderr'
+let restoreHint = 'the runner start-up and the session/rewind verb (src/daemon/runner-wire/sessionVerbs.ts); read the [dbg] lines above for the runner stderr'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = !cond ? `${detail}${detail ? ' | ' : ''}${restoreHint}` : detail

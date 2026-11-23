@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 import { EventEmitter } from 'node:events'
 import React from 'react'
-import { InputEvent } from '../../src/ink/events/input-event.ts'
-import { INITIAL_STATE, parseMultipleKeypresses, type KeyParseState, type ParsedInput } from '../../src/ink/input/input-decoder.ts'
-import Text from '../../src/ink/components/Text.tsx'
-import useInput from '../../src/ink/hooks/use-input.ts'
-import Ink from '../../src/ink/ink.tsx'
+import { InputEvent } from '../../src/screen/renderer/events/input-event.ts'
+import { INITIAL_STATE, parseMultipleKeypresses, type KeyParseState, type ParsedInput } from '../../src/screen/renderer/input/input-decoder.ts'
+import Text from '../../src/screen/renderer/elements/Text.tsx'
+import useInput from '../../src/screen/renderer/bindings/use-input.ts'
+import Ink from '../../src/screen/renderer/screenInstance.tsx'
 
 let failures = 0
 let checks = 0
@@ -13,7 +13,7 @@ let decoderSection = true
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  const hint = decoderSection ? 'parseMultipleKeypresses in src/ink/input/input-decoder.ts must hold a solicited string reply (the stringReplyOwed state) to its terminator and never emit it as keys or text' : ''
+  const hint = decoderSection ? 'parseMultipleKeypresses in src/screen/renderer/input/input-decoder.ts must hold a solicited string reply (the stringReplyOwed state) to its terminator and never emit it as keys or text' : ''
   const shown = [detail, hint].filter(Boolean).join('; ')
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }

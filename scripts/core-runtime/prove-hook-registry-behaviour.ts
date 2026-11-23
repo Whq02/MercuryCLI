@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { HookRegistryOwner, type RegisteredHookMatcher } from '../../src/bootstrap/runtime/hook-registry.ts'
+import { HookRegistryOwner, type RegisteredHookMatcher } from '../../src/boot/process-state/runtime/hook-registry.ts'
 
-const WHERE = 'HookRegistryOwner in src/bootstrap/runtime/hook-registry.ts'
+const WHERE = 'HookRegistryOwner in src/boot/process-state/runtime/hook-registry.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

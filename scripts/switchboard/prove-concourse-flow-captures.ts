@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
+import { keyHintLabel } from '../../src/screen/widgets/keyHintLabel.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -107,7 +107,7 @@ const runLeg = (name: string): boolean => ONLY === undefined || ONLY === '' || O
 
 console.log('C1 the git offer card (items 1–3)')
 if (runLeg('git-offer')) {
-  legSource = 'src/components/concourse/GitOfferCard.tsx (the card) or src/components/concourse/ConcourseScreen.tsx (where it overlays)'
+  legSource = 'src/screen/concourse/GitOfferCard.tsx (the card) or src/screen/concourse/ConcourseScreen.tsx (where it overlays)'
   const folder = '/Users/op/play/parser-lab'
   const scratch = newScratch('git-offer')
   const fixture = referenceFixtureSnapshot()
@@ -185,7 +185,7 @@ if (ONLY === 'diag') {
 
 console.log('ARROWS the plain board browses on ↓')
 if (runLeg('arrows')) {
-  legSource = 'src/components/concourse (the session list and its selection)'
+  legSource = 'src/screen/concourse (the session list and its selection)'
   const scratch = newScratch('arrows')
   const fixture = referenceFixtureSnapshot()
   for (const g of fixture.groups) for (const r of g.rows) r.workspaceDir = scratch
@@ -208,7 +208,7 @@ if (runLeg('arrows')) {
 
 console.log('C2/C3 the queued row (item 5)')
 if (runLeg('queued')) {
-  legSource = 'src/components/concourse/ConcourseScreen.tsx, src/components/concourse/screen/useConcourseFaces.tsx or src/components/concourse/SessionWaitingRoom.tsx'
+  legSource = 'src/screen/concourse/ConcourseScreen.tsx, src/screen/concourse/screen/useConcourseFaces.tsx or src/screen/concourse/SessionWaitingRoom.tsx'
   const scratch = newScratch('queued')
   const fixture = referenceFixtureSnapshot()
   for (const g of fixture.groups) for (const r of g.rows) r.workspaceDir = scratch

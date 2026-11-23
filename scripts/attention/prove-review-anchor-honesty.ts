@@ -7,8 +7,8 @@ import { checker } from '../engine-durability/harness.ts'
 const t = checker()
 process.env.MERCURY_REVIEW_ARTIFACTS_DIR = mkdtempSync(join(tmpdir(), 'rv-anchor-honesty-'))
 
-const store = await import('../../src/services/artifacts/reviewStore.ts')
-const { listMdBlocks } = await import('../../src/utils/artifacts/anchors.ts')
+const store = await import('../../src/sessions/artifact-reviews/reviewStore.ts')
+const { listMdBlocks } = await import('../../src/sessions/artifacts/anchors.ts')
 
 const mk = (title: string, md: string): string => {
   const r = store.createReviewArtifact({

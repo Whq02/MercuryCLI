@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { realNdjsonChild, awaitLine } = await import(
-  join(ROOT, 'src/services/crew/adapters/ndjsonChild.ts')
+  join(ROOT, 'src/crew/crewmates/adapters/ndjsonChild.ts')
 )
 
 let failures = 0
@@ -25,8 +25,8 @@ console.log('============================================================')
   const settle = await new Promise<{ code: number | null }>(resolve => {
     child.onExit(code => resolve({ code }))
   })
-  check('trailing line without newline is delivered', lines.some(l => l.includes('no-newline')), `lines=${JSON.stringify(lines)}`, 'realNdjsonChild in src/services/crew/adapters/ndjsonChild.ts must flush the buffered partial line to onLine when stdout closes')
-  check('settlement carries the real exit code', settle.code === 0, `code=${settle.code}`, 'realNdjsonChild in src/services/crew/adapters/ndjsonChild.ts must pass the real process exit code to onExit')
+  check('trailing line without newline is delivered', lines.some(l => l.includes('no-newline')), `lines=${JSON.stringify(lines)}`, 'realNdjsonChild in src/crew/crewmates/adapters/ndjsonChild.ts must flush the buffered partial line to onLine when stdout closes')
+  check('settlement carries the real exit code', settle.code === 0, `code=${settle.code}`, 'realNdjsonChild in src/crew/crewmates/adapters/ndjsonChild.ts must pass the real process exit code to onExit')
 }
 
 if (process.versions.bun) {
@@ -40,8 +40,8 @@ if (process.versions.bun) {
   child.write('{"ping":2}')
   const result = await awaitLine(child, () => false, 2_000)
   const elapsed = Date.now() - t0
-  check('stdin failure fails awaitLine FAST (no timeout idle)', !result.ok && elapsed < 1_500, `elapsed=${elapsed}ms result=${JSON.stringify(result)}`, 'the stdin error handler in realNdjsonChild (src/services/crew/adapters/ndjsonChild.ts) must settle the child as failed so awaitLine returns at once')
-  check('the failure reason names the stdin error', !result.ok && result.reason.includes('stdin error'), JSON.stringify(result), 'the stdin error handler in realNdjsonChild (src/services/crew/adapters/ndjsonChild.ts) must settle with a reason that starts with stdin error')
+  check('stdin failure fails awaitLine FAST (no timeout idle)', !result.ok && elapsed < 1_500, `elapsed=${elapsed}ms result=${JSON.stringify(result)}`, 'the stdin error handler in realNdjsonChild (src/crew/crewmates/adapters/ndjsonChild.ts) must settle the child as failed so awaitLine returns at once')
+  check('the failure reason names the stdin error', !result.ok && result.reason.includes('stdin error'), JSON.stringify(result), 'the stdin error handler in realNdjsonChild (src/crew/crewmates/adapters/ndjsonChild.ts) must settle with a reason that starts with stdin error')
   child.kill()
 }
 
@@ -56,14 +56,14 @@ if (process.versions.bun) {
     p => typeof p === 'object' && p !== null && (p as { after?: string }).after === 'oversize',
     8_000,
   )
-  check('frame AFTER an oversized line still arrives (resync)', got.ok === true, JSON.stringify(got).slice(0, 120), 'the oversized-line handling in realNdjsonChild (src/services/crew/adapters/ndjsonChild.ts) must drop the long line and resync at the next newline')
+  check('frame AFTER an oversized line still arrives (resync)', got.ok === true, JSON.stringify(got).slice(0, 120), 'the oversized-line handling in realNdjsonChild (src/crew/crewmates/adapters/ndjsonChild.ts) must drop the long line and resync at the next newline')
   child.kill()
 }
 
 {
   const child = realNdjsonChild('sh', ['-c', 'printf "not-json\\nalso-not\\n"; sleep 2'], {})
   const result = await awaitLine(child, () => true, 900)
-  check('unparseable frames are named, never silent', !result.ok && /2 unparseable line\(s\) seen/.test(result.reason), JSON.stringify(result), 'awaitLine in src/services/crew/adapters/ndjsonChild.ts must count unparseable frames and name them in its failure reason')
+  check('unparseable frames are named, never silent', !result.ok && /2 unparseable line\(s\) seen/.test(result.reason), JSON.stringify(result), 'awaitLine in src/crew/crewmates/adapters/ndjsonChild.ts must count unparseable frames and name them in its failure reason')
   child.kill()
 }
 
@@ -77,14 +77,14 @@ if (process.versions.bun) {
     new Promise<boolean>(resolve => child.onExit(() => resolve(true))),
     sleep(500).then(() => false),
   ])
-  check('killAndWait resolves bounded against a TERM-trapping child', elapsed < 3_500, `elapsed=${elapsed}ms`, 'killAndWait in realNdjsonChild (src/services/crew/adapters/ndjsonChild.ts) must escalate to SIGKILL after its grace period')
-  check('the child actually settled (SIGKILL landed)', exited === true, '', 'killAndWait in realNdjsonChild (src/services/crew/adapters/ndjsonChild.ts) must escalate to SIGKILL and fire onExit for a child that ignores TERM')
+  check('killAndWait resolves bounded against a TERM-trapping child', elapsed < 3_500, `elapsed=${elapsed}ms`, 'killAndWait in realNdjsonChild (src/crew/crewmates/adapters/ndjsonChild.ts) must escalate to SIGKILL after its grace period')
+  check('the child actually settled (SIGKILL landed)', exited === true, '', 'killAndWait in realNdjsonChild (src/crew/crewmates/adapters/ndjsonChild.ts) must escalate to SIGKILL and fire onExit for a child that ignores TERM')
 }
 
 {
   const child = realNdjsonChild('sh', ['-c', 'echo diag-note >&2; exit 3'], {})
   await new Promise<void>(resolve => child.onExit(() => resolve()))
-  check('stderrTail carries the failure diagnosis', child.stderrTail?.().includes('diag-note') === true, JSON.stringify(child.stderrTail?.()), 'stderrTail in realNdjsonChild (src/services/crew/adapters/ndjsonChild.ts) must return the child stderr text')
+  check('stderrTail carries the failure diagnosis', child.stderrTail?.().includes('diag-note') === true, JSON.stringify(child.stderrTail?.()), 'stderrTail in realNdjsonChild (src/crew/crewmates/adapters/ndjsonChild.ts) must return the child stderr text')
 }
 
 

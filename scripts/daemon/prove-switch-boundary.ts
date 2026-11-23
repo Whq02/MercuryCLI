@@ -7,7 +7,7 @@ import { basename, dirname, join } from 'node:path'
 import { DIST, MODEL, NODE, argAfter, bootRunner, bound, childEnv, makeTally, seedHome, sleep, type Frame } from './dupline-world.ts'
 import { startFixtureApi, type CapturedRequest, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import type { HostVerb } from '../lib/runnerHost.ts'
-import type { ParamsOf } from '../../src/runner/wire/methods.ts'
+import type { ParamsOf } from '../../src/daemon/runner-wire/methods.ts'
 
 const tally = makeTally('prove-switch-boundary')
 if (!existsSync(DIST)) {
@@ -401,10 +401,10 @@ if (ONLY === undefined || ONLY === 'D') {
   if (daemon.pid !== undefined) guardPids.add(daemon.pid)
   const workerPids: number[] = []
   try {
-    const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-    const { clientVersionFacts } = await import('../../src/daemon/handshake.ts')
-    const sup = await import('../../src/daemon/concourseWorkers.ts')
-    const proj = await import('../../src/services/engine-connector/seatProjections.ts')
+    const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+    const { clientVersionFacts } = await import('../../src/daemon/control/handshake.ts')
+    const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+    const proj = await import('../../src/engine/connector/seatProjections.ts')
     const rpc = (req: Record<string, unknown>, opts?: { timeoutMs?: number }): Promise<Record<string, unknown>> => daemonControlRpc(req as never, opts) as Promise<Record<string, unknown>>
     const client = clientVersionFacts()
     tally.check(
@@ -608,8 +608,8 @@ if (ONLY === undefined || ONLY === 'D') {
     tally.check('DI9 the facts read the switch on, in-session, with no parked toggle', await untilAsync(() => facts()?.spawnSwitches?.subagents.on === true && facts()?.spawnSwitches?.subagents.source === 'in-session' && facts()?.pendingSpawnSwitches === undefined, bound(15_000), 50), JSON.stringify(facts()?.spawnSwitches))
 
     tally.section("D·E the connector's facts after the boundary")
-    const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
-    const paths = await import('../../src/utils/sessionStorage/paths.ts')
+    const seat = await import('../../src/engine/connector/daemonConnector.ts')
+    const paths = await import('../../src/sessions/transcripts/paths.ts')
     const conn = seat.daemonSessionConnectorFor({ sessionId, runnerId, title: 'A', projectLabel: basename(work), workspaceId: work, home: paths.getProjectDir(work), modelKey: OLD_SEAT_MODEL })
     await conn.attach()
     tally.check('DE1 the connector reads the applied model with no pending switch and the applied effort', await untilAsync(() => conn.modelFacts().effective === NEW_MODEL && conn.modelFacts().pendingSwitch === null && conn.modelFacts().effort === 'high', bound(15_000), 50), JSON.stringify(conn.modelFacts()))
@@ -617,7 +617,7 @@ if (ONLY === undefined || ONLY === 'D') {
   } finally {
     keepRequests(api, 'daemon-requests.json')
     try {
-      await (await import('../../src/daemon/controlSocket.ts')).daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
+      await (await import('../../src/daemon/control/controlSocket.ts')).daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
     } catch {
     }
     daemon.kill('SIGTERM')

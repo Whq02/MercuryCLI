@@ -30,10 +30,10 @@ const age = (path: string, days: number): void => {
   const then = new Date(Date.now() - days * DAY)
   utimesSync(path, then, then)
 }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const worktree = await import('../../src/services/worktree.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+const worktree = await import('../../src/platform/git/worktree/worktree.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
 
 tally.section('§1 the reminder owner: a leftover worktree is named with its age, what is in it, and the day the seven-day janitor takes it — or that the machine never will')
 const repo = join(scratch, 'repo')
@@ -45,12 +45,12 @@ writeFileSync(join(dirty.worktreePath, 'notes.txt'), 'unsaved work\n')
 const ahead = await cut('agent-a0000003')
 writeFileSync(join(ahead.worktreePath, 'kept.txt'), 'two\n')
 git(ahead.worktreePath, 'commit', '-qam', 'only here')
-type Reminder = typeof import('../../src/services/crew/crewWorktreeReminder.ts')
+type Reminder = typeof import('../../src/crew/crewmates/crewWorktreeReminder.ts')
 let reminder: Reminder | null = null
 try {
-  reminder = await import('../../src/services/crew/crewWorktreeReminder.ts')
+  reminder = await import('../../src/crew/crewmates/crewWorktreeReminder.ts')
 } catch (error) {
-  tally.check('the reminder owner exists (src/services/crew/crewWorktreeReminder.ts)', false, error instanceof Error ? error.message.split('\n')[0] : String(error))
+  tally.check('the reminder owner exists (src/crew/crewmates/crewWorktreeReminder.ts)', false, error instanceof Error ? error.message.split('\n')[0] : String(error))
 }
 const now = Date.now()
 if (reminder !== null) {

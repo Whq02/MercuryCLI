@@ -17,7 +17,7 @@ process.env.BROWSER = '/usr/bin/true'
 
 let failures = 0
 const LATE_FOLDER_FAILURE_HINT =
-  'fix the settings file watching in src/utils/settings/changeDetector.ts (initialize, the watched roots) so a .mercury folder created after boot is watched, or the rule reload in src/utils/settings/settings.ts, whichever this check names'
+  'fix the settings file watching in src/platform/settings/changeDetector.ts (initialize, the watched roots) so a .mercury folder created after boot is watched, or the rule reload in src/platform/settings/settings.ts, whichever this check names'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${LATE_FOLDER_FAILURE_HINT}` : ''}`)
@@ -46,11 +46,11 @@ if (!(await runtimeReportsDotNamedFolders())) {
   const runtime = typeof Bun === 'undefined' ? `node ${process.version}` : `bun ${Bun.version}`
   console.log(`[SKIP] ${runtime} on ${process.platform}: fs.watch never reports a dot-named entry here (bun 1.3.11 on Linux drops them; node 24 on Linux and bun on macOS report them), so no in-process watcher can see a .mercury folder arrive; §1 skipped — §2 drives the built product on its own runtime and is the evidence on this box`)
 } else {
-  const state = await import('../../src/bootstrap/state.ts')
+  const state = await import('../../src/boot/process-state/processState.ts')
   state.setOriginalCwd(PROJ)
   state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSettings'])
-  const { settingsChangeDetector } = await import('../../src/utils/settings/changeDetector.ts')
-  const { getInitialSettings } = await import('../../src/utils/settings/settings.ts')
+  const { settingsChangeDetector } = await import('../../src/platform/settings/changeDetector.ts')
+  const { getInitialSettings } = await import('../../src/platform/settings/settings.ts')
   writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ engine: { model: 'initial' } }))
   const events: Array<{ source: string; allow: unknown }> = []
   await settingsChangeDetector.resetForTesting({ stabilityThresholdMs: 60, pollIntervalMs: 20 })

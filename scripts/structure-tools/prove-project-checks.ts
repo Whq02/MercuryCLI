@@ -10,7 +10,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'lathe-f3-home-'))
 process.env.MERCURY_BARE = '1'
 
 const { parseRunnerCases, changedRunnerSelection, discoverRunnerProfiles, runRunnerProfile } = await import(
-  '../../src/services/ide/projectRunners.ts'
+  '../../src/integrations/ide/projectRunners.ts'
 )
 
 let failures = 0
@@ -25,7 +25,7 @@ function section(name: string): void {
 }
 
 section('P. typed failure rows per runner')
-failHint = 'change parseRunnerCases (the parser for this runner) in src/services/ide/projectRunners.ts so it returns the failing test name, file, line and message'
+failHint = 'change parseRunnerCases (the parser for this runner) in src/integrations/ide/projectRunners.ts so it returns the failing test name, file, line and message'
 {
   const tap = [
     'TAP version 13',
@@ -118,7 +118,7 @@ failHint = 'change parseRunnerCases (the parser for this runner) in src/services
 }
 
 section('C. changed-file-focused selection')
-failHint = 'change changedRunnerSelection (the branch for this runner) in src/services/ide/projectRunners.ts to focus on the changed files or decline with the expected reason'
+failHint = 'change changedRunnerSelection (the branch for this runner) in src/integrations/ide/projectRunners.ts to focus on the changed files or decline with the expected reason'
 function gitRepo(files: Record<string, string>): string {
   const dir = mkdtempSync(join(tmpdir(), 'lathe-f3-repo-'))
   for (const [rel, content] of Object.entries(files)) {
@@ -201,7 +201,7 @@ function gitRepo(files: Record<string, string>): string {
 }
 
 section('E. live node --test run (streamed progress + typed failure)')
-failHint = 'change runRunnerProfile in src/services/ide/projectRunners.ts so the run record carries streamed output, parsed counts, typed failing cases, the command and the artifact ref'
+failHint = 'change runRunnerProfile in src/integrations/ide/projectRunners.ts so the run record carries streamed output, parsed counts, typed failing cases, the command and the artifact ref'
 {
   const dir = gitRepo({
     'package.json': JSON.stringify({ name: 'f', private: true, scripts: { test: 'node --test' } }),
@@ -244,7 +244,7 @@ failHint = 'change runRunnerProfile in src/services/ide/projectRunners.ts so the
 }
 
 section('W. green-run honesty + vitest rerun-by-name')
-failHint = 'change runRunnerProfile (green run keeps no failures or cases) or rerunRunnerFailures (vitest uses -t with the case name) in src/services/ide/projectRunners.ts'
+failHint = 'change runRunnerProfile (green run keeps no failures or cases) or rerunRunnerFailures (vitest uses -t with the case name) in src/integrations/ide/projectRunners.ts'
 {
   const dir = gitRepo({
     'package.json': JSON.stringify({ name: 'f', private: true, scripts: { test: 'node --test' } }),
@@ -267,7 +267,7 @@ failHint = 'change runRunnerProfile (green run keeps no failures or cases) or re
   const shim = join(dir, 'node_modules', '.bin', 'vitest')
   writeFileSync(shim, '#!/bin/bash\necho "shim-args: $*"\nexit 0\n')
   execFileSync('chmod', ['+x', shim])
-  const { rerunRunnerFailures } = await import('../../src/services/ide/projectRunners.ts')
+  const { rerunRunnerFailures } = await import('../../src/integrations/ide/projectRunners.ts')
   const fakeRecord = {
     schema: 1 as const,
     id: 'run-x',
@@ -293,7 +293,7 @@ failHint = 'change runRunnerProfile (green run keeps no failures or cases) or re
 }
 
 section('R. cargo failing → passing (real toolchain when present)')
-failHint = 'change runRunnerProfile or the cargo branch of parseRunnerCases in src/services/ide/projectRunners.ts so a failing cargo test is red with file:line and the fixed one green'
+failHint = 'change runRunnerProfile or the cargo branch of parseRunnerCases in src/integrations/ide/projectRunners.ts so a failing cargo test is red with file:line and the fixed one green'
 {
   const hasCargo = (process.env.PATH ?? '').split(':').some(d => d.length > 0 && existsSync(join(d, 'cargo')))
   if (!hasCargo) {

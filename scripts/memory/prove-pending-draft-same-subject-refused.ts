@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/mnemeContradiction.ts src/mneme/memoryVerbs.ts src/mneme/mnemeText.ts
+// gate-watch: src/sessions/mneme/mnemeContradiction.ts src/sessions/mneme/memoryVerbs.ts src/sessions/mneme/mnemeText.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0', PACKAGE_URL: 'https://example.invalid/mercury' }
 import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -17,20 +17,20 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.slice(0, 600)}` : ''} — fix the same-subject change detection in src/mneme/mnemeContradiction.ts (contradictionBetween, restates) or the refusal in retainItems in src/mneme/memoryVerbs.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.slice(0, 600)}` : ''} — fix the same-subject change detection in src/sessions/mneme/mnemeContradiction.ts (contradictionBetween, restates) or the refusal in retainItems in src/sessions/mneme/memoryVerbs.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
 writeFileSync(join(HOME, '.mercury.json'), JSON.stringify({ hasCompletedOnboarding: true, numStartups: 3 }))
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { contradictionBetween, restates } = await import('../../src/mneme/mnemeContradiction.ts')
-const { retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
-const { pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
-const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
+const { contradictionBetween, restates } = await import('../../src/sessions/mneme/mnemeContradiction.ts')
+const { retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { pendingRows } = await import('../../src/sessions/mneme/mnemeBuffer.ts')
+const { maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
 
 const dir = mnemeLibraryDir()
 type Outcome = ReturnType<typeof retainItems>[number]

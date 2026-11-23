@@ -15,16 +15,16 @@ delete process.env.MERCURY_LOCAL_API_KEY
 
 let failures = 0
 const sectionFixHints: Record<string, string> = {
-  '0': 'the four files under src/services/localServer/ must import cleanly',
-  '1': 'fix the reader readLocalServerTruth in src/services/localServer/localServerTruth.ts',
-  '2': 'fix the reader readLocalServerTruth in src/services/localServer/localServerTruth.ts',
-  '3': 'fix the parser named in the label in src/services/localServer/localServerTruth.ts',
-  '4': 'fix the arithmetic named in the label in src/services/localServer/localServerMemory.ts',
-  '5': 'fix src/services/localServer/localServerKnobs.ts (for the settings registry checks, the local.server setting in src/utils/settings/types.ts and scripts/settings/settings-schema.json)',
-  '6': 'fix planLocalServerApply or applyLocalServerPlan in src/services/localServer/localServerApply.ts',
-  '8': 'fix the app road in src/services/localServer/localServerApply.ts',
-  '9': 'fix the memory-fit refusal in planLocalServerApply (src/services/localServer/localServerApply.ts) or fitVerdict (src/services/localServer/localServerKnobs.ts)',
-  '10': 'fix the snapshot cache (refreshLocalServerTruth, cachedLocalServerTruth, subscribeLocalServerTruth) in src/services/localServer/localServerTruth.ts',
+  '0': 'the four files under src/models/local-server/ must import cleanly',
+  '1': 'fix the reader readLocalServerTruth in src/models/local-server/localServerTruth.ts',
+  '2': 'fix the reader readLocalServerTruth in src/models/local-server/localServerTruth.ts',
+  '3': 'fix the parser named in the label in src/models/local-server/localServerTruth.ts',
+  '4': 'fix the arithmetic named in the label in src/models/local-server/localServerMemory.ts',
+  '5': 'fix src/models/local-server/localServerKnobs.ts (for the settings registry checks, the local.server setting in src/platform/settings/settingsSchema.ts and scripts/settings/settings-schema.json)',
+  '6': 'fix planLocalServerApply or applyLocalServerPlan in src/models/local-server/localServerApply.ts',
+  '8': 'fix the app road in src/models/local-server/localServerApply.ts',
+  '9': 'fix the memory-fit refusal in planLocalServerApply (src/models/local-server/localServerApply.ts) or fitVerdict (src/models/local-server/localServerKnobs.ts)',
+  '10': 'fix the snapshot cache (refreshLocalServerTruth, cachedLocalServerTruth, subscribeLocalServerTruth) in src/models/local-server/localServerTruth.ts',
 }
 let sectionFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
@@ -44,13 +44,13 @@ function finish(): never {
 section('0 · the module exists (red on the base: the folder is absent)')
 const modules = await (async () => {
   try {
-    const truth = await import('../../src/services/localServer/localServerTruth.ts')
-    const memory = await import('../../src/services/localServer/localServerMemory.ts')
-    const knobs = await import('../../src/services/localServer/localServerKnobs.ts')
-    const apply = await import('../../src/services/localServer/localServerApply.ts')
+    const truth = await import('../../src/models/local-server/localServerTruth.ts')
+    const memory = await import('../../src/models/local-server/localServerMemory.ts')
+    const knobs = await import('../../src/models/local-server/localServerKnobs.ts')
+    const apply = await import('../../src/models/local-server/localServerApply.ts')
     return { truth, memory, knobs, apply }
   } catch (error) {
-    check('src/services/localServer/{localServerTruth,localServerMemory,localServerKnobs,localServerApply}.ts import', false, error instanceof Error ? error.message.split('\n')[0] ?? '' : String(error))
+    check('src/models/local-server/{localServerTruth,localServerMemory,localServerKnobs,localServerApply}.ts import', false, error instanceof Error ? error.message.split('\n')[0] ?? '' : String(error))
     return undefined
   }
 })()
@@ -60,8 +60,8 @@ const { readLocalServerTruth, parseRunnerCommand, parseOllamaEnvLine, parseProce
 const { kvGeometryOf, kvBytesPerToken, kvCacheBytes, loadEstimateBytes, projectLoad, gibWords, gbWords, fitWords, tokensWords } = modules.memory
 const { LOCAL_SERVER_KNOBS, localServerSettingsOf, parseKeepAlive, keepAliveWords, nextOnLadder, settingsAsEnv, knobReadings, knobValueWords, memoryFactsOf, knobDetailWords, MAX_LOADED_MODELS_LADDER, KEEP_ALIVE_LADDER, CONTEXT_LENGTH_LADDER, readLocalServerSettings, writeLocalServerSetting } = modules.knobs
 const { planLocalServerApply, applyLocalServerPlan, rewritePlistEnvironment, rewriteSystemdOverride, byHandLines, planWords } = modules.apply
-type Truth = import('../../src/services/localServer/localServerTruth.ts').LocalServerTruth
-type Io = import('../../src/services/localServer/localServerTruth.ts').LocalServerIo
+type Truth = import('../../src/models/local-server/localServerTruth.ts').LocalServerTruth
+type Io = import('../../src/models/local-server/localServerTruth.ts').LocalServerIo
 
 type Route = (req: IncomingMessage, body: string, res: ServerResponse) => boolean
 function serve(route: Route): Promise<{ server: Server; root: string }> {
@@ -324,14 +324,14 @@ section('5 · the four knobs as settings: names, grammar, ladders, words, persis
   const twoSlots = fitVerdict(facts, { window: 262144, slots: 2, maxLoaded: 1 })
   check('two 256k slots on the 27B: 33.2 GiB — fits; three: 41.7 GiB — does not', twoSlots.fits && gibWords(twoSlots.projectedBytes) === '33.2 GiB' && !fitVerdict(facts, { window: 262144, slots: 3, maxLoaded: 1 }).fits)
   check('no geometry: nothing to project, never a refusal', fitVerdict({ ...facts, models: [] }, chosen).fits && fitVerdict({ ...facts, models: [] }, chosen).words === 'no model geometry read — nothing to project')
-  const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
+  const { SettingsSchema } = await import('../../src/platform/settings/settingsSchema.ts')
   const ok = SettingsSchema().safeParse({ local: { server: { maxLoadedModels: 4, parallelSlots: 2, keepAlive: '24h', contextLength: 65536 } } })
   const bad = SettingsSchema().safeParse({ local: { server: { keepAlive: 'soon' } } })
   const tooMany = SettingsSchema().safeParse({ local: { server: { maxLoadedModels: 65 } } })
   check('the settings registry carries local.server: a valid object passes, a bad duration and 65 models are refused', ok.success && !bad.success && !tooMany.success)
   const schema = JSON.parse(readFileSync(join(import.meta.dir, '..', 'settings', 'settings-schema.json'), 'utf8')) as { properties: Record<string, { properties?: Record<string, { properties?: Record<string, unknown> }> }> }
   check('the committed schema snapshot lists the four keys under local.server', Object.keys(schema.properties['local']?.properties?.['server']?.properties ?? {}).join(',') === 'maxLoadedModels,parallelSlots,keepAlive,contextLength')
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
   const wrote = writeLocalServerSetting('maxLoadedModels', 2)
   const wrote2 = writeLocalServerSetting('keepAlive', '-1')

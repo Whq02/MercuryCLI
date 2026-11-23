@@ -10,14 +10,14 @@ process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 
-const utils = (await import('../../src/utils/fileEditUtils.ts')) as unknown as {
+const utils = (await import('../../src/tools/edit/call/editMatching.ts')) as unknown as {
   findActualString: (content: string, search: string) => string | null
   locateActualString?: (content: string, search: string) => Outcome
   preserveQuoteStyleForFile: (path: string, content: string, oldString: string, actual: string, newString: string) => Promise<string>
   FORGIVENESS_CONTENT_DRIFT_LIMIT?: number
 }
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 type Outcome =
   | { kind: 'found'; actual: string; index: number; road: string; startLine: number; endLine: number; feedback: string | null }
@@ -27,8 +27,8 @@ type Outcome =
 let failures = 0
 const forgivingFixHint = (label: string): string =>
   /^[CDEF]/.test(label)
-    ? 'to fix: the edit path of src/tools/FileEditTool/FileEditTool.ts (validateInput, call, mapToolResultToToolResultBlockParam) and the matcher it uses in src/utils/fileEditUtils.ts (locateActualString)'
-    : 'to fix: locateActualString, findActualString, preserveQuoteStyleForFile or FORGIVENESS_CONTENT_DRIFT_LIMIT in src/utils/fileEditUtils.ts (the result mapper is in src/tools/FileEditTool/FileEditTool.ts)'
+    ? 'to fix: the edit path of src/tools/edit/EditTool.ts (validateInput, call, mapToolResultToToolResultBlockParam) and the matcher it uses in src/tools/edit/call/editMatching.ts (locateActualString)'
+    : 'to fix: locateActualString, findActualString, preserveQuoteStyleForFile or FORGIVENESS_CONTENT_DRIFT_LIMIT in src/tools/edit/call/editMatching.ts (the result mapper is in src/tools/edit/EditTool.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` | ${forgivingFixHint(label)}`}`)
@@ -37,7 +37,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — forgiving match proof exceeded 90s; a FileEditTool call or a locateActualString pass (src/tools/FileEditTool/FileEditTool.ts, src/utils/fileEditUtils.ts) is hanging or far too slow')
+  console.log('\nTIMEOUT — forgiving match proof exceeded 90s; a FileEditTool call or a locateActualString pass (src/tools/edit/EditTool.ts, src/tools/edit/call/editMatching.ts) is hanging or far too slow')
   process.exit(1)
 }, 90_000)
 guard.unref?.()

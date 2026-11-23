@@ -8,12 +8,12 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'delta-small-fixes-'
 delete process.env.MERCURY_HOME
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 const pins: Record<string, () => Promise<void>> = {
   '1': async () => {
     const { default: axios } = await import('axios')
-    const { getURLMarkdownContent, clearWebFetchCache } = await import('../../src/tools/WebFetchTool/utils.ts')
+    const { getURLMarkdownContent, clearWebFetchCache } = await import('../../src/tools/web-fetch/fetchContent.ts')
     const html = '<article><h1>Identifiers</h1><p>snake_case DOCX_NEEDLE_1 café_été 文字_数字 a__b _edge_</p><pre><code>code_name</code></pre></article>'
     const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: (req: Request) => new URL(req.url).pathname === '/robots.txt' ? new Response('User-agent: *\nAllow: /') : new Response(html, { headers: { 'content-type': 'text/html' } }) })
     const get = axios.get.bind(axios)
@@ -21,14 +21,14 @@ const pins: Record<string, () => Promise<void>> = {
     try {
       clearWebFetchCache()
       const result = await getURLMarkdownContent('https://fixture.example/identifiers', new AbortController())
-      assert.ok(!('type' in result), `getURLMarkdownContent returned non-markdown result ${JSON.stringify(result).slice(0, 160)} in src/tools/WebFetchTool/utils.ts`)
+      assert.ok(!('type' in result), `getURLMarkdownContent returned non-markdown result ${JSON.stringify(result).slice(0, 160)} in src/tools/web-fetch/fetchContent.ts`)
       for (const word of ['snake_case', 'DOCX_NEEDLE_1', 'café_été', '文字_数字', 'a__b']) assert.ok(result.content.includes(word), result.content)
       assert.ok(result.content.includes('\\_edge\\_'), result.content)
-      assert.ok(result.content.includes('code_name'), `getURLMarkdownContent dropped code_name in src/tools/WebFetchTool/utils.ts: ${result.content.slice(0, 200)}`)
+      assert.ok(result.content.includes('code_name'), `getURLMarkdownContent dropped code_name in src/tools/web-fetch/fetchContent.ts: ${result.content.slice(0, 200)}`)
     } finally { axios.get = get; server.stop(true); clearWebFetchCache() }
   },
   '2': async () => {
-    const { discoverLocalServers } = await import('../../src/services/providers/local/localDiscovery.ts')
+    const { discoverLocalServers } = await import('../../src/models/roads/local/localDiscovery.ts')
     const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: (req: Request) => Response.json(new URL(req.url).pathname === '/v1/models' ? { data: [{ id: 'fixture-llama' }] } : {}) })
     try {
       for (const primary of ['unreachable', 'http-error', 'ok', 'bad-json'] as const) {
@@ -51,8 +51,8 @@ const pins: Record<string, () => Promise<void>> = {
     } finally { server.stop(true) }
   },
   '3': async () => {
-    const { inspectCompatServer } = await import('../../src/services/providers/openaicompat/compatProbe.ts')
-    const { hostModelEfforts } = await import('../../src/services/providers/openaicompat/compatEffort.ts')
+    const { inspectCompatServer } = await import('../../src/models/roads/openaicompat/compatProbe.ts')
+    const { hostModelEfforts } = await import('../../src/models/roads/openaicompat/compatEffort.ts')
     const rows = [
       { id: 'top', supported_reasoning_levels: ['low', 'high', 'max'], default_reasoning_level: 'high', input_modalities: ['text', 'image'] },
       { id: 'nested', metadata: { supported_reasoning_levels: [{ effort: 'minimal' }, { value: 'medium' }, { level: 'xhigh' }], default_reasoning_level: 'medium' } },
@@ -71,9 +71,9 @@ const pins: Record<string, () => Promise<void>> = {
       assert.equal(reading.capabilities?.top?.reasoning, true)
       assert.equal(reading.capabilities?.top?.images, true)
       for (const dialect of ['responses', 'lmstudio'] as const) assert.deepEqual(hostModelEfforts('top', dialect, reading.efforts?.top), ['low', 'high', 'max'])
-      const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
-      const { rememberCompatCatalogue } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
-      const { effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
+      const { configuredCompatEndpoints } = await import('../../src/models/roads/openaicompat/compatAccounts.ts')
+      const { rememberCompatCatalogue } = await import('../../src/models/roads/openaicompat/compatCatalogue.ts')
+      const { effortVocabularyFor } = await import('../../src/models/facts/capabilities.ts')
       const previous = process.env.MERCURY_COMPAT_BASE_URL
       process.env.MERCURY_COMPAT_BASE_URL = `http://127.0.0.1:${server.port}/v1`
       try {
@@ -86,7 +86,7 @@ const pins: Record<string, () => Promise<void>> = {
     } finally { server.stop(true) }
   },
   '4': async () => {
-    const { normalizeToolSchemaFor } = await import('../../src/utils/normalizeToolSchema.ts')
+    const { normalizeToolSchemaFor } = await import('../../src/integrations/mcp/normalizeToolSchema.ts')
     for (const key of ['anyOf', 'oneOf', 'allOf'] as const) {
       const schema = { description: 'MCP object variants', [key]: [
         { type: 'object', properties: { shared: { type: 'string' }, left: { type: 'boolean' } }, required: ['shared', 'left'] },
@@ -108,7 +108,7 @@ const pins: Record<string, () => Promise<void>> = {
   '5': async () => {
     const { default: hyperlinkSupport } = await import('supports-hyperlinks')
     const supported = hyperlinkSupport.stdout
-    const { applyMarkdown } = await import('../../src/utils/markdown.ts')
+    const { applyMarkdown } = await import('../../src/screen/messages/markdownText.ts')
     const { default: stripAnsi } = await import('strip-ansi')
     const source = 'const u = "https://example.com/a_(b))]}", v = "https://example.com/next"'
     hyperlinkSupport.stdout = true
@@ -116,17 +116,17 @@ const pins: Record<string, () => Promise<void>> = {
       for (const highlight of [undefined, { supportsLanguage: () => true, highlight: (text: string) => text.replace('example', '\u001b[32mexample\u001b[39m') }]) {
         const result = applyMarkdown('```js\n' + source + '\n```', 'dark', highlight as never)
         assert.ok(result.includes('\u001b]8;;https://example.com/a_(b)\u0007'), JSON.stringify(result))
-        assert.ok(result.includes('\u001b]8;;https://example.com/next\u0007'), `applyMarkdown omitted OSC-8 link for second URL in src/utils/markdown.ts: ${JSON.stringify(result.slice(0, 200))}`)
+        assert.ok(result.includes('\u001b]8;;https://example.com/next\u0007'), `applyMarkdown omitted OSC-8 link for second URL in src/screen/messages/markdownText.ts: ${JSON.stringify(result.slice(0, 200))}`)
         assert.equal(stripAnsi(result), source)
       }
       const { default: React } = await import('react')
       const { EventEmitter } = await import('node:events')
       const { PassThrough } = await import('node:stream')
-      const { render, Box, flushPendingSyncWork } = await import('../../src/ink.ts')
-      const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-      const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-      const { HighlightedCode } = await import('../../src/components/HighlightedCode.tsx')
-      const { getCliHighlightPromise } = await import('../../src/utils/cliHighlight.ts')
+      const { render, Box, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.ts')
+      const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+      const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+      const { HighlightedCode } = await import('../../src/screen/highlighted-code/HighlightedCode.tsx')
+      const { getCliHighlightPromise } = await import('../../src/screen/highlighted-code/cliHighlight.ts')
       await getCliHighlightPromise()
       const full = process.env.MERCURY_FULLSCREEN
       const term = process.env.TERM
@@ -159,22 +159,22 @@ const pins: Record<string, () => Promise<void>> = {
     } finally { hyperlinkSupport.stdout = supported }
   },
   '6': async () => {
-    const { PATH_EXTRACTORS } = await import('../../src/tools/BashTool/pathValidation.ts')
+    const { PATH_EXTRACTORS } = await import('../../src/tools/shell/pathValidation.ts')
     for (const path of ['/dev/null', '/dev/stdout', '/dev/stderr', '/dev/fd/1', '/dev/fd/2']) assert.deepEqual(PATH_EXTRACTORS.dd(['if=input', `of=${path}`, 'bs=1']), [], path)
     for (const path of ['/dev/sda', '/dev/disk0', '/dev/nullb0', '/dev/fd/10', '/dev/stdout/file', 'output']) assert.deepEqual(PATH_EXTRACTORS.dd([`of=${path}`]), [path], path)
   },
   '7': async () => {
-    const { buildEvalPrompt } = await import('../../src/tools/EvalTool/prompt.ts')
+    const { buildEvalPrompt } = await import('../../src/tools/eval/prompt.ts')
     const prompt = await buildEvalPrompt()
     for (const call of ['tool.<Name>(...)', 'agent(prompt, ...)', 'completion(prompt, ...)']) assert.ok(prompt.includes(`await ${call}`), call)
     assert.match(prompt, /Python[^\n]*(?:synchronous|without await|no await)/)
   },
   '8': async () => {
-    const { ResponsesStreamFold } = await import('../../src/services/providers/openai/openaiWire.ts')
-    const { openaiFaultToTypedError, openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.ts')
-    const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-    const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-    const { takesBusyLadder } = await import('../../src/services/providers/busyRetry.ts')
+    const { ResponsesStreamFold } = await import('../../src/models/roads/openai/openaiWire.ts')
+    const { openaiFaultToTypedError, openaiCallModel } = await import('../../src/models/roads/openai/openaiCallModel.ts')
+    const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+    const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+    const { takesBusyLadder } = await import('../../src/models/roads/busyRetry.ts')
     for (const type of ['error', 'response.error', 'response.failed']) {
       for (const code of ['model_not_found', 'openai-model_not_found']) {
         const error = { code, message: 'Model unavailable; try again later.', retry_after: 1 }
@@ -216,7 +216,7 @@ const pins: Record<string, () => Promise<void>> = {
         assert.equal(errors.length, 1)
         assert.equal(errors[0].error, 'invalid_request', `${type} afterContent=${partial}: ${JSON.stringify(errors)}`)
         assert.ok(!JSON.stringify(errors).includes('The stream ended'), 'not a continuable stream cut')
-        if (partial) assert.ok(items.some(item => item.type === 'assistant' && item.message.content.some((block: any) => block.text === 'partial fixture answer')), `${type} afterContent=true dropped partial fixture answer in src/services/providers/openai/openaiCallModel.ts`)
+        if (partial) assert.ok(items.some(item => item.type === 'assistant' && item.message.content.some((block: any) => block.text === 'partial fixture answer')), `${type} afterContent=true dropped partial fixture answer in src/models/roads/openai/openaiCallModel.ts`)
       }
     } finally {
       if (key === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = key
@@ -225,7 +225,7 @@ const pins: Record<string, () => Promise<void>> = {
     }
   },
   '10': async () => {
-    const { getURLMarkdownContent, isPreapprovedUrl } = await import('../../src/tools/WebFetchTool/utils.ts')
+    const { getURLMarkdownContent, isPreapprovedUrl } = await import('../../src/tools/web-fetch/fetchContent.ts')
     for (const url of ['https://docs.python.org\\@evil.example/path', 'http://fixture.example\\host/path', 'HTTPS://fixture.example\\@evil.example/', 'https:\\fixture.example/path', ' https://fixture.example\\@evil.example/', '\u0000https://docs.python.org\\@evil.example/path', 'https://docs.python.org\t\\@evil.example/path']) {
       assert.equal(isPreapprovedUrl(url), false, url)
       await assert.rejects(getURLMarkdownContent(url, new AbortController()), /^Error: Invalid URL$/, url)

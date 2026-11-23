@@ -13,39 +13,39 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const runAgent = (await import('../../src/tools/AgentTool/runAgent.ts')) as Record<string, unknown>
-const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-const { getAgentTranscript } = await import('../../src/utils/sessionStorage/logs.ts')
-const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.ts')
-type Message = import('../../src/types/message.ts').Message
+const runAgent = (await import('../../src/tools/crewmate/runCrewmate.ts')) as Record<string, unknown>
+const { createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const { createAttachmentMessage } = await import('../../src/engine/attachments/turnAttachments.ts')
+const { getAgentTranscript } = await import('../../src/sessions/transcripts/sessionListings.ts')
+const { isTranscribable } = await import('../../src/sessions/transcripts/chain.ts')
+type Message = import('../../src/engine/message-shapes/message.ts').Message
 
 const land = runAgent.landAgentTranscriptRows as (rows: Message[], agentId: string, parent?: string | null) => Promise<string | undefined>
-const { writtenChainTail } = await import('../../src/utils/sessionStorage/chain.ts')
-const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
+const { writtenChainTail } = await import('../../src/sessions/transcripts/chain.ts')
+const { createAssistantMessage } = await import('../../src/engine/message-shapes/factories.ts')
 
 const agentId = 'agent-chain-proof'
 const seed = createUserMessage({ content: 'the brief' }) as Message
 const seedParent = await land([seed], agentId, null)
-check('landing the brief answers its uuid as the next parent', seedParent === seed.uuid, `got ${seedParent}; landAgentTranscriptRows in src/tools/AgentTool/runAgent.ts must return writtenChainTail of the landed rows (src/utils/sessionStorage/chain.ts)`)
+check('landing the brief answers its uuid as the next parent', seedParent === seed.uuid, `got ${seedParent}; landAgentTranscriptRows in src/tools/crewmate/runCrewmate.ts must return writtenChainTail of the landed rows (src/sessions/transcripts/chain.ts)`)
 const dropped = createAttachmentMessage({ type: 'diagnostics', files: [], isNew: false } as never) as Message
-check('an empty diagnostics attachment is not transcribable (the writer drops it)', !isTranscribable(dropped), 'isTranscribable in src/utils/sessionStorage/chain.ts must return false for a diagnostics attachment with no files')
+check('an empty diagnostics attachment is not transcribable (the writer drops it)', !isTranscribable(dropped), 'isTranscribable in src/sessions/transcripts/chain.ts must return false for a diagnostics attachment with no files')
 const afterDropped = await land([dropped], agentId, seedParent)
-check('a dropped attachment does not become the next parent', afterDropped === seed.uuid, `parent after the dropped row: ${afterDropped}; landAgentTranscriptRows (src/tools/AgentTool/runAgent.ts) must keep the previous parent when writtenChainTail finds no written row`)
+check('a dropped attachment does not become the next parent', afterDropped === seed.uuid, `parent after the dropped row: ${afterDropped}; landAgentTranscriptRows (src/tools/crewmate/runCrewmate.ts) must keep the previous parent when writtenChainTail finds no written row`)
 const empty = createAssistantMessage({ content: [] } as never) as Message
-check('the writer also drops an empty-content assistant row, and so does the tail', writtenChainTail([empty], afterDropped) === seed.uuid, 'writtenChainTail in src/utils/sessionStorage/chain.ts must skip rows that cleanForTranscript drops and fall back to the given parent')
+check('the writer also drops an empty-content assistant row, and so does the tail', writtenChainTail([empty], afterDropped) === seed.uuid, 'writtenChainTail in src/sessions/transcripts/chain.ts must skip rows that cleanForTranscript drops and fall back to the given parent')
 const afterEmpty = await land([empty], agentId, afterDropped)
-check('an empty-content assistant row does not become the next parent', afterEmpty === seed.uuid, `parent after the empty row: ${afterEmpty}; landAgentTranscriptRows (src/tools/AgentTool/runAgent.ts) must keep the previous parent when the batch writes no row`)
+check('an empty-content assistant row does not become the next parent', afterEmpty === seed.uuid, `parent after the empty row: ${afterEmpty}; landAgentTranscriptRows (src/tools/crewmate/runCrewmate.ts) must keep the previous parent when the batch writes no row`)
 const kept = createAttachmentMessage({ type: 'images_left_out', count: 1, images: 1, sidePx: 1024 } as never) as Message
 const afterKept = await land([kept], agentId, afterEmpty)
-check('a written row becomes the next parent', afterKept === kept.uuid, `parent after the kept row: ${afterKept}; writtenChainTail in src/utils/sessionStorage/chain.ts must answer the last written row`)
-check('the seed of a batch is its last written row, not its last row', writtenChainTail([seed, dropped]) === seed.uuid, 'writtenChainTail in src/utils/sessionStorage/chain.ts must take the last row that cleanForTranscript keeps, not messages.at(-1)')
+check('a written row becomes the next parent', afterKept === kept.uuid, `parent after the kept row: ${afterKept}; writtenChainTail in src/sessions/transcripts/chain.ts must answer the last written row`)
+check('the seed of a batch is its last written row, not its last row', writtenChainTail([seed, dropped]) === seed.uuid, 'writtenChainTail in src/sessions/transcripts/chain.ts must take the last row that cleanForTranscript keeps, not messages.at(-1)')
 const answer = createUserMessage({ content: 'the next turn' }) as Message
 await land([answer], agentId, afterKept)
 const transcript = await getAgentTranscript(agentId as never)
 const uuids = transcript?.messages.map(m => m.uuid) ?? []
-check('the chain read back from the leaf reaches the brief (no severed prefix)', uuids.includes(seed.uuid) && uuids.includes(answer.uuid), `chain: ${uuids.length} rows; the parentUuid chain written by landAgentTranscriptRows (src/tools/AgentTool/runAgent.ts) is severed, so getAgentTranscript (src/utils/sessionStorage/logs.ts) cannot walk back to the brief`)
-check('the chain holds the kept attachment and neither dropped row', uuids.includes(kept.uuid) && !uuids.includes(dropped.uuid) && !uuids.includes(empty.uuid), `chain: ${uuids.length} rows; recordSidechainTranscript must write the kept attachment and drop the empty rows (see cleanForTranscript in src/utils/sessionStorage/chain.ts)`)
+check('the chain read back from the leaf reaches the brief (no severed prefix)', uuids.includes(seed.uuid) && uuids.includes(answer.uuid), `chain: ${uuids.length} rows; the parentUuid chain written by landAgentTranscriptRows (src/tools/crewmate/runCrewmate.ts) is severed, so getAgentTranscript (src/sessions/transcripts/sessionListings.ts) cannot walk back to the brief`)
+check('the chain holds the kept attachment and neither dropped row', uuids.includes(kept.uuid) && !uuids.includes(dropped.uuid) && !uuids.includes(empty.uuid), `chain: ${uuids.length} rows; recordSidechainTranscript must write the kept attachment and drop the empty rows (see cleanForTranscript in src/sessions/transcripts/chain.ts)`)
 
 console.log(failures === 0 ? '\nALL AGENT TRANSCRIPT CHAIN PROOFS PASS' : `\n${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

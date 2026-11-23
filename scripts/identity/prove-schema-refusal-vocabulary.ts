@@ -13,5 +13,5 @@ for (const file of files) {
     if (forbidden.some(word => line.includes(word))) hits.push(`${file}:${index + 1}`)
   })
 }
-console.log(`[${hits.length ? 'FAIL' : 'PASS'}] schema refusals have no retired class spelling${hits.length ? ` — ${hits.join(', ')} — remove the retired spelling from those lines; schema refusals are worded by formatZodValidationError in src/utils/toolErrors.ts` : ''}`)
+console.log(`[${hits.length ? 'FAIL' : 'PASS'}] schema refusals have no retired class spelling${hits.length ? ` — ${hits.join(', ')} — remove the retired spelling from those lines; schema refusals are worded by formatZodValidationError in src/tools/kit/toolErrors.ts` : ''}`)
 process.exit(hits.length ? 1 : 0)

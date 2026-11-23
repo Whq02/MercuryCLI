@@ -8,7 +8,7 @@ import { dist, runDoor, sceneRoot, type Row } from './lib/runDoor.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 let failures = 0
 let count = 0
-const waitHint = 'to fix, change the wait line of a slow hook: hookWaitWords, hookWaitSeconds and hookWaitLineOf in src/utils/hooks/wait.ts, and where src/services/tools/toolExecution.ts sends that line; rebuild dist with bun run build.ts because the first sections run the built bundle'
+const waitHint = 'to fix, change the wait line of a slow hook: hookWaitWords, hookWaitSeconds and hookWaitLineOf in src/integrations/event-hooks/wait.ts, and where src/engine/tool-dispatch/toolExecution.ts sends that line; rebuild dist with bun run build.ts because the first sections run the built bundle'
 const check = (label: string, good: boolean, detail = ''): void => {
   count++
   if (!good) failures++
@@ -111,10 +111,10 @@ console.log('\n§2 a hook that holds the call is said from its first whole secon
   check('one row takes the wait of the two back, once, when the last of them ends', withdrawnOnce(many), hookRows(many))
 }
 
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
-const { onSeatRow, onSeatSettled } = await import('../../src/daemon/sessionSeat.ts')
-const { readSessionProgress } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { hookWaitLineOf, hookWaitSeconds, hookWaitWords } = await import('../../src/utils/hooks/wait.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { onSeatRow, onSeatSettled } = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { readSessionProgress } = await import('../../src/engine/connector/seatProjections.ts')
+const { hookWaitLineOf, hookWaitSeconds, hookWaitWords } = await import('../../src/integrations/event-hooks/wait.ts')
 
 console.log('\n§2b the count never stands still and never goes back, whatever the timer and the wall clock do')
 {

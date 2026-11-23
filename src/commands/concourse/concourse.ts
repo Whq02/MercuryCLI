@@ -1,6 +1,6 @@
-import type { LocalCommandCall } from '../../types/command.js'
-import { enterConcourse } from '../../context/surfaceRoute.js'
-import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
+import type { LocalCommandCall } from '../catalogue/command.js'
+import { enterConcourse } from '../../screen/routes/surfaceRoute.js'
+import { isFullscreenEnvEnabled } from '../../screen/fullscreen-layout/fullscreen.js'
 
 export const call: LocalCommandCall = async () => {
   if (!isFullscreenEnvEnabled()) {

@@ -11,7 +11,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+const { DaemonSessionConnector } = await import('../../src/engine/connector/daemonConnector.ts')
 
 const home = mkdtempSync(join(tmpdir(), 'tick-coalesce-ws-'))
 mkdirSync(home, { recursive: true })
@@ -62,7 +62,7 @@ entered = null
 check(
   'a 40-trigger burst costs at most 2 full passes (one in flight + one dirty rerun), not 40 [tickOnce road]',
   passes <= 2,
-  `passes=${passes}; change tick() in src/services/engine-connector/daemon/transcript.ts so a call during a flight sets tickDirty and returns the flight instead of starting a pass`,
+  `passes=${passes}; change tick() in src/engine/connector/daemon/transcript.ts so a call during a flight sets tickDirty and returns the flight instead of starting a pass`,
 )
 check('every burst caller resolved (joiners share the flight)', true)
 
@@ -70,10 +70,10 @@ appendFileSync(transcriptPath, 'appended-after-burst\n')
 await seam.tick()
 const sizeNow = statSync(transcriptPath).size
 const lastSize = (conn as unknown as { transcriptPart: { lastSize: number } }).transcriptPart.lastSize
-check('the pass after an append reads the appended bytes (lastSize = on-disk size)', lastSize === sizeNow, `lastSize=${lastSize} disk=${sizeNow}; tickOnce in src/services/engine-connector/daemon/transcript.ts must set lastSize to the size it read`)
+check('the pass after an append reads the appended bytes (lastSize = on-disk size)', lastSize === sizeNow, `lastSize=${lastSize} disk=${sizeNow}; tickOnce in src/engine/connector/daemon/transcript.ts must set lastSize to the size it read`)
 
 conn.detach()
-check('attach ran its own first read (contract: resolves once the first read completed)', passesAfterAttach >= 1, `attach passes=${passesAfterAttach}; DaemonSessionConnector.attach in src/services/engine-connector/daemonConnector.ts must await a first transcript tick`)
+check('attach ran its own first read (contract: resolves once the first read completed)', passesAfterAttach >= 1, `attach passes=${passesAfterAttach}; DaemonSessionConnector.attach in src/engine/connector/daemonConnector.ts must await a first transcript tick`)
 
 console.log(`\n${failures === 0 ? '✅ TRANSCRIPT TICK COALESCE: green' : `❌ ${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

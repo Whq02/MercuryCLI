@@ -9,7 +9,7 @@ import {
   resetTerminalFocusState,
   setTerminalFocused,
   subscribeTerminalFocus,
-} from '../../src/ink/session/focus-store.ts'
+} from '../../src/screen/renderer/terminal-session/terminalFocusStore.ts'
 
 const t = checker()
 

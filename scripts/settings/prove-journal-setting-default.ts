@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/Settings/Config.tsx src/mneme/journal.ts src/mneme/journalSetting.ts src/components/memory/memoryCentreLayout.ts
+// gate-watch: src/screen/settings/Config.tsx src/sessions/mneme/journal.ts src/sessions/mneme/journalSetting.ts src/screen/memory/memoryCentreLayout.ts
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
-import type { DOMElement } from '../../src/ink.js'
+import type { DOMElement } from '../../src/screen/themedRenderer.js'
 
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
@@ -27,18 +27,18 @@ function section(title: string): void {
 }
 
 const React = await import('react')
-const { Box, Text } = await import('../../src/ink.js')
-const { AppStateProvider } = await import('../../src/state/AppState.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-const slot = await import('../../src/components/SettingsPopupSlot.js')
-const store = await import('../../src/utils/cockpit/settingsPopup.js')
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.js')
+const slot = await import('../../src/screen/overlays/SettingsPopupSlot.js')
+const store = await import('../../src/screen/cockpit/settingsPopup.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
-const { journalEnabled } = await import('../../src/mneme/journal.js')
-const layout = await import('../../src/components/memory/memoryCentreLayout.js')
-const setting = (await import('../../src/mneme/journalSetting.js').catch(() => null)) as { journalSettingOn?: (s: unknown) => boolean } | null
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.js')
+const { journalEnabled } = await import('../../src/sessions/mneme/journal.js')
+const layout = await import('../../src/screen/memory/memoryCentreLayout.js')
+const setting = (await import('../../src/sessions/mneme/journalSetting.js').catch(() => null)) as { journalSettingOn?: (s: unknown) => boolean } | null
 
 section('§1 one reader: the product\'s journalEnabled() and the setting row read the same predicate — off unless memory.journal is true')
 {

@@ -37,9 +37,9 @@ console.log('============================================================')
 console.log(' seat engine identity — no prompt names an engine; the seat reference does')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const prompts = await import('../../src/constants/prompts.ts')
+const prompts = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
 
 const idInPrompt = (text: string): string | null => {
   const m = /the model you run through Mercury is `([^`]+)`/.exec(text)
@@ -53,7 +53,7 @@ section('§1 — the main loop: the env block names no engine (the seat reads me
   check('…and names no model id at all', !env.includes('claude-opus-5'), env)
   const other = await prompts.computeSimpleEnvInfo('gpt-5.6-sol')
   check('a different seat model still names no id (the block is keyed on the model for its catalogue facts only)', idInPrompt(other) === null && !other.includes('gpt-5.6-sol'), other)
-  const { seatReferenceText } = await import('../../src/services/resources/adapters/seat.ts')
+  const { seatReferenceText } = await import('../../src/integrations/resources/adapters/seat.ts')
   const reference = seatReferenceText({ model: 'claude-opus-5', effort: 'high', posture: 'interactive', engines: [] })
   check('the seat reference is where the id lives, verbatim', reference.includes('claude-opus-5'), reference)
 }
@@ -69,7 +69,7 @@ section('§2 — subagents: the child’s env block names no engine either')
 
 section('§3 — workers: the spec boots on the model admission resolved')
 {
-  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
+  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const spec = buildConcourseWorkerSpec({
     runnerId: 'w-seat-1',
     sessionId: 's-seat-1',

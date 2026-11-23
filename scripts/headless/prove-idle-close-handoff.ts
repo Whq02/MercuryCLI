@@ -73,7 +73,7 @@ function ledgerEntriesOf(configDir: string): LedgerEntry[] {
 }
 
 console.log('\n§1 mercury run --input rows: the input closes while the run is idle (the host waited for the answer) — an unattended run leaves no note, so no closing ask runs')
-failHint = 'mercury run must exit 0 after the input closes on an idle run and must not send the closing note ask; the exit path is in src/cli/headless/printDriver.ts (exitNoteDue and leaveNoteBeforeExit from src/mneme/exitHandoff.ts); rebuild dist first'
+failHint = 'mercury run must exit 0 after the input closes on an idle run and must not send the closing note ask; the exit path is in src/daemon/runner/runnerDriver.ts (exitNoteDue and leaveNoteBeforeExit from src/sessions/mneme/exitHandoff.ts); rebuild dist first'
 {
   const { home, cwd, configDir, env } = world('idle-close-run-')
   const fixture = await startFixtureApi([{ kind: 'text' as const, text: 'The run answered.' }, handoffTurn(NOTE)])
@@ -108,7 +108,7 @@ failHint = 'mercury run must exit 0 after the input closes on an idle run and mu
 }
 
 console.log('\n§2 mercury runner: a host that holds the asks waited for the answer, then closed its end — the closing ask runs and the note lands in the ledger')
-failHint = 'mercury runner must run one closing ask after the host closes its input and write the note to the lineage ledger; the exit path is in src/cli/headless/runnerArms.ts (leaveNoteBeforeExit from src/mneme/exitHandoff.ts); rebuild dist first'
+failHint = 'mercury runner must run one closing ask after the host closes its input and write the note to the lineage ledger; the exit path is in src/daemon/runner/runnerArms.ts (leaveNoteBeforeExit from src/sessions/mneme/exitHandoff.ts); rebuild dist first'
 {
   const { home, cwd, configDir, env } = world('idle-close-runner-')
   const fixture = await startFixtureApi([{ kind: 'text' as const, text: 'The run answered.' }, handoffTurn(NOTE)])

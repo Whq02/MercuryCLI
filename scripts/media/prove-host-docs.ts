@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import catalogue from '../../src/extensions/bundled/mercury-media/server/catalog.json' with { type: 'json' }
+import catalogue from '../../src/integrations/extensions/bundled/mercury-media/server/catalog.json' with { type: 'json' }
 
-const root = fileURLToPath(new URL('../../', import.meta.url))
+const root = fileURLToPath(new URL('../..', import.meta.url))
 const media = readFileSync(resolve(root, 'docs/MEDIA.md'), 'utf8')
 const host = readFileSync(resolve(root, 'docs/LLM-HOST.md'), 'utf8')
 const source = catalogue.runtime.platforms['linux-x64'].find((row: { variant: string }) => row.variant === 'cuda12')!.source

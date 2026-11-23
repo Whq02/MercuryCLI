@@ -41,28 +41,28 @@ const { startOverflowFixture } = await import(join(ROOT, 'scripts/compact/overfl
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
 
-const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
+const { enableConfigs } = await import(join(ROOT, 'src/platform/config/globalConfig.ts'))
 enableConfigs()
-const bootstrap = await import(join(ROOT, 'src/bootstrap/state.ts'))
+const bootstrap = await import(join(ROOT, 'src/boot/process-state/processState.ts'))
 bootstrap.setIsInteractive(false)
-const errorsMod = await import(join(ROOT, 'src/services/api/errors.ts'))
-const { APIError } = await import(join(ROOT, 'src/utils/api/sdkErrors.ts'))
-const { routedCallModel } = await import(join(ROOT, 'src/services/providers/callModelRouter.ts'))
-const { asSystemPrompt } = await import(join(ROOT, 'src/utils/systemPromptType.ts'))
-const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/services/messages.ts'))
-const { getEmptyToolPermissionContext } = await import(join(ROOT, 'src/Tool.ts'))
-const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
-const { createFileStateCacheWithSizeLimit } = await import(join(ROOT, 'src/utils/fileStateCache.ts'))
-const { createContentReplacementState } = await import(join(ROOT, 'src/utils/toolResultStorage.ts'))
-const { FileReadTool } = await import(join(ROOT, 'src/tools/FileReadTool/FileReadTool.ts'))
+const errorsMod = await import(join(ROOT, 'src/engine/requests/apiErrorRows.ts'))
+const { APIError } = await import(join(ROOT, 'src/engine/request-parts/sdkErrors.ts'))
+const { routedCallModel } = await import(join(ROOT, 'src/models/roads/callModelRouter.ts'))
+const { asSystemPrompt } = await import(join(ROOT, 'src/engine/system-prompt/systemPromptType.ts'))
+const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/engine/messages/messages.ts'))
+const { getEmptyToolPermissionContext } = await import(join(ROOT, 'src/tools/kit/tool.ts'))
+const { getDefaultAppState } = await import(join(ROOT, 'src/screen/app-state/AppStateStore.ts'))
+const { createFileStateCacheWithSizeLimit } = await import(join(ROOT, 'src/platform/files/fileStateCache.ts'))
+const { createContentReplacementState } = await import(join(ROOT, 'src/engine/tool-dispatch/toolResultStorage.ts'))
+const { FileReadTool } = await import(join(ROOT, 'src/tools/read/ReadTool.ts'))
 const { call: compactCommand } = await import(join(ROOT, 'src/commands/compact/compact.ts'))
-const { recordSentRequest, resetSentRequestsForTests } = await import(join(ROOT, 'src/services/agents/forkedAgent.ts'))
-const { processOwnerForLane, rosterOwnerFromToolUseContext } = await import(join(ROOT, 'src/utils/run/resolveOwner.ts'))
+const { recordSentRequest, resetSentRequestsForTests } = await import(join(ROOT, 'src/crew/agents/forkedAgent.ts'))
+const { processOwnerForLane, rosterOwnerFromToolUseContext } = await import(join(ROOT, 'src/engine/run-owner/resolveOwner.ts'))
 const OWNER = String(processOwnerForLane(null))
-const resizer = await import(join(ROOT, 'src/utils/imageResizer.ts'))
-const limitsMod = await import(join(ROOT, 'src/constants/apiLimits.ts'))
-const { createAttachmentMessage } = await import(join(ROOT, 'src/services/attachments/orchestrator.ts'))
-const { describeImageProcessor, imageProcessorState } = await import(join(ROOT, 'src/utils/imageProcessor/imageProcessor.ts'))
+const resizer = await import(join(ROOT, 'src/platform/images/imageResizer.ts'))
+const limitsMod = await import(join(ROOT, 'src/models/roads/mediaLimits.ts'))
+const { createAttachmentMessage } = await import(join(ROOT, 'src/engine/attachments/turnAttachments.ts'))
+const { describeImageProcessor, imageProcessorState } = await import(join(ROOT, 'src/platform/images/imageProcessor.ts'))
 const sharp = (await import('sharp')).default
 
 type AnyMsg = Record<string, unknown> & { type?: string; uuid?: string }
@@ -72,7 +72,7 @@ const MODEL_B = 'claude-sonnet-5'
 const SINGLE_CAP = 8000
 const MANY_CAP = 3000
 const MANY_THRESHOLD = 20
-const SIZER_FILE = 'src/utils/imageResizer.ts'
+const SIZER_FILE = 'src/platform/images/imageResizer.ts'
 
 function dimsOf(buf: Buffer): { width: number; height: number; mime: string } | null {
   if (buf.length >= 24 && buf[0] === 0x89 && buf[1] === 0x50) return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20), mime: 'png' }
@@ -259,12 +259,12 @@ async function buildArm(name: 'jsjpeg' | 'jspng' | 'jsmany'): Promise<Arm> {
 section('§0 the road: the JavaScript image processor is forced, and the health row says it warns')
 {
   const state = await imageProcessorState()
-  check('the product is on the JavaScript image road (MERCURY_IMAGE_PROCESSOR=javascript)', state.road === 'javascript', 'imageProcessorState in src/utils/imageProcessor/imageProcessor.ts must report the javascript road under MERCURY_IMAGE_PROCESSOR=javascript: ' + j(state))
+  check('the product is on the JavaScript image road (MERCURY_IMAGE_PROCESSOR=javascript)', state.road === 'javascript', 'imageProcessorState in src/platform/images/imageProcessor.ts must report the javascript road under MERCURY_IMAGE_PROCESSOR=javascript: ' + j(state))
   const described = await describeImageProcessor()
-  check('/health\'s words for that road say an image it cannot size is left out of the request', described.ready === false && /left out of the request/.test(described.detail ?? ''), 'describeImageProcessor in src/utils/imageProcessor/imageProcessor.ts must say an unsizable image is left out of the request on the javascript road: ' + j(described))
-  const { interfaceChecks } = await import('../../src/services/health/sections/interface.ts')
+  check('/health\'s words for that road say an image it cannot size is left out of the request', described.ready === false && /left out of the request/.test(described.detail ?? ''), 'describeImageProcessor in src/platform/images/imageProcessor.ts must say an unsizable image is left out of the request on the javascript road: ' + j(described))
+  const { interfaceChecks } = await import('../../src/platform/health/sections/interface.ts')
   const row = await interfaceChecks().find(entry => entry.id === 'iface-image-processor')?.run()
-  check('the "Image processor" row is warn, not info, when the JavaScript road serves', row?.status === 'warn' && row.evidence === described.line, 'the iface-image-processor check in src/services/health/sections/interface.ts must report warn with describeImageProcessor line as evidence: ' + j(row))
+  check('the "Image processor" row is warn, not info, when the JavaScript road serves', row?.status === 'warn' && row.evidence === described.line, 'the iface-image-processor check in src/platform/health/sections/interface.ts must report warn with describeImageProcessor line as evidence: ' + j(row))
 }
 
 section('§1 the refusal sentences say what is true now')
@@ -275,14 +275,14 @@ section('§1 the refusal sentences say what is true now')
   ) as unknown as AnyMsg
   const manyWords = rowText(many)
   note(`many-image refusal: ${manyWords}`)
-  check('the many-image sentence names the 2000 px limit, the next send, the transcript, and the image left out of the request', manyWords.includes('2000') && /at the next send/.test(manyWords) && /nothing is dropped from the transcript/.test(manyWords) && /cannot be sized is left out of the request/.test(manyWords) && !/on retry/.test(manyWords), 'fix the many-image refusal sentence in getAssistantMessageFromError (src/services/api/errors.ts): ' + manyWords)
+  check('the many-image sentence names the 2000 px limit, the next send, the transcript, and the image left out of the request', manyWords.includes('2000') && /at the next send/.test(manyWords) && /nothing is dropped from the transcript/.test(manyWords) && /cannot be sized is left out of the request/.test(manyWords) && !/on retry/.test(manyWords), 'fix the many-image refusal sentence in getAssistantMessageFromError (src/engine/requests/apiErrorRows.ts): ' + manyWords)
   const single = errorsMod.getAssistantMessageFromError(
     new APIError(400, { type: 'error', error: { type: 'invalid_request_error', message: 'messages.3.content.1.content.0.image.source.base64.data: image dimensions exceed max allowed size: 9000 pixels > 8000 pixels' } } as never, undefined, undefined as never),
     MODEL_A,
   ) as unknown as AnyMsg
   const singleWords = rowText(single)
   note(`single-image refusal: ${singleWords}`)
-  check('the single-image sentence names 8000px, the next send, the transcript, and the image left out of the request', singleWords.includes('8000px') && /at the next send/.test(singleWords) && /nothing is dropped from the transcript/.test(singleWords) && /cannot be sized is left out of the request/.test(singleWords) && !/on retry/.test(singleWords), 'fix the single-image refusal sentence in getAssistantMessageFromError (src/services/api/errors.ts): ' + singleWords)
+  check('the single-image sentence names 8000px, the next send, the transcript, and the image left out of the request', singleWords.includes('8000px') && /at the next send/.test(singleWords) && /nothing is dropped from the transcript/.test(singleWords) && /cannot be sized is left out of the request/.test(singleWords) && !/on retry/.test(singleWords), 'fix the single-image refusal sentence in getAssistantMessageFromError (src/engine/requests/apiErrorRows.ts): ' + singleWords)
   check('the stated 2000 px limit is read from the row the refused conversation keeps, and nothing else in the process moves: a fresh request still meets the documented bound', resizer.manyImageLimitStatedIn([many]) === 2000 && resizer.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS, 1) === MANY_CAP && resizer.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS, MANY_THRESHOLD + 1, 2000) === 2000, 'manyImageLimitStatedIn and requestImageSidePx in ' + SIZER_FILE + ' must read the stated limit from the refused row and leave the documented bound for fresh requests')
 }
 
@@ -311,8 +311,8 @@ section('§2 the once-per-session notice: the receipt, the transcript mark, the 
     check('…and the plural form', /^2 images could not be sized to the API's 8000 px limit and were left out/.test(two) && /originals/.test(two), 'fix the plural form of imagesLeftOutNoticeLine in ' + SIZER_FILE + ': ' + two)
 
     const t = await import(join(ROOT, 'scripts/core-runtime/turnScenarios.ts'))
-    const { makeRequest } = await import(join(ROOT, 'src/run-core/turn/makeRequest.ts'))
-    const { modelReply } = await import(join(ROOT, 'src/run-core/turn/modelReply.ts'))
+    const { makeRequest } = await import(join(ROOT, 'src/engine/loop/turn/makeRequest.ts'))
+    const { modelReply } = await import(join(ROOT, 'src/engine/loop/turn/modelReply.ts'))
     type Settled = { order: string; notices: Array<{ level?: unknown; content?: unknown }>; marks: unknown[]; receiptLeft: unknown }
     const small = await flatPng(8, 8)
     const manyImages = userRow([imageBlock(Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xfe, 0x00, 0x10]), Buffer.alloc(4096, 0x5a)]), 'jpeg'), ...Array.from({ length: MANY_THRESHOLD }, () => imageBlock(small, 'png')), { type: 'text', text: 'twenty-one images' }])
@@ -342,11 +342,11 @@ section('§2 the once-per-session notice: the receipt, the transcript mark, the 
       'the turn machine reads the conversation\'s receipt after the stream settles, paints the notice when the transcript carries no mark yet, and writes the mark beside it',
       firstTime.order === 'assistant_settled,notice,attachment' && firstTime.notices[0]?.level === 'warning' && firstTime.notices[0]?.content === leftOutApi.imagesLeftOutNoticeLine(receipt) && j(firstTime.marks) === j([{ type: 'images_left_out', ...receipt }]) && firstTime.receiptLeft === null &&
         alreadyTold.order === 'assistant_settled' && alreadyTold.receiptLeft === null && nothingLeftOut.order === 'assistant_settled',
-      `the model call of src/run-core/turn/streamModel.ts must take the receipt once the stream settles, then yield the notice and the mark; a reply to a request that left one image of 21 out: ${j(firstTime)} (the reply settled, then the warning, then the mark; the receipt taken); the same on a transcript that already carries the mark: ${j(alreadyTold)} (the reply alone; the receipt taken); a request that left nothing out: ${j(nothingLeftOut)} — the model call of src/run-core/turn/streamModel.ts takes the owner's receipt once the stream has settled and, where the transcript has no images_left_out mark, yields the notice of imagesLeftOutNoticeLine and the mark after it`,
+      `the model call of src/engine/loop/turn/streamModel.ts must take the receipt once the stream settles, then yield the notice and the mark; a reply to a request that left one image of 21 out: ${j(firstTime)} (the reply settled, then the warning, then the mark; the receipt taken); the same on a transcript that already carries the mark: ${j(alreadyTold)} (the reply alone; the receipt taken); a request that left nothing out: ${j(nothingLeftOut)} — the model call of src/engine/loop/turn/streamModel.ts takes the owner's receipt once the stream has settled and, where the transcript has no images_left_out mark, yields the notice of imagesLeftOutNoticeLine and the mark after it`,
     )
   }
-  const chain = await import(join(ROOT, 'src/utils/sessionStorage/chain.ts'))
-  const { normalizeAttachmentForAPI } = await import(join(ROOT, 'src/services/messages/attachmentText.ts'))
+  const chain = await import(join(ROOT, 'src/sessions/transcripts/chain.ts'))
+  const { normalizeAttachmentForAPI } = await import(join(ROOT, 'src/engine/messages/attachmentText.ts'))
 }
 
 for (const armName of ['jsjpeg', 'jspng', 'jsmany'] as const) {
@@ -445,15 +445,15 @@ section('§4 an image whose size cannot be read fails closed over the many-image
 
 section('§5 driven: a real run paints the notice and writes its mark once; a real --resume <id> in a new process paints no second notice and writes no second mark (both image roads)')
 {
-  const chainMod = await import(join(ROOT, 'src/utils/sessionStorage/chain.ts'))
+  const chainMod = await import(join(ROOT, 'src/sessions/transcripts/chain.ts'))
   const stamp = '2026-10-02T05:25:14.233Z'
   const tied = [
     { uuid: 'reply', parentUuid: 'prompt', timestamp: '2026-10-02T05:25:14.227Z' },
     { uuid: 'notice', parentUuid: 'reply', timestamp: stamp },
     { uuid: 'mark', parentUuid: 'notice', timestamp: stamp },
   ]
-  check('the leaf rule: a trailing row written in the same millisecond as its parent (the images mark, the dead-thinking marks) is the newer row — file order breaks the tie, so the resume chain starts from the mark', chainMod.findLatestMessage(tied, () => true)?.uuid === 'mark', `picked ${chainMod.findLatestMessage(tied, () => true)?.uuid} — findLatestMessage in src/utils/sessionStorage/chain.ts must break a timestamp tie by file order`)
-  check('the leaf rule: a later stamp still wins whatever the file order', chainMod.findLatestMessage([tied[2]!, tied[1]!, { uuid: 'later', parentUuid: 'mark', timestamp: '2026-10-02T05:25:14.234Z' }, tied[0]!], () => true)?.uuid === 'later', 'findLatestMessage in src/utils/sessionStorage/chain.ts must prefer the later timestamp whatever the file order')
+  check('the leaf rule: a trailing row written in the same millisecond as its parent (the images mark, the dead-thinking marks) is the newer row — file order breaks the tie, so the resume chain starts from the mark', chainMod.findLatestMessage(tied, () => true)?.uuid === 'mark', `picked ${chainMod.findLatestMessage(tied, () => true)?.uuid} — findLatestMessage in src/sessions/transcripts/chain.ts must break a timestamp tie by file order`)
+  check('the leaf rule: a later stamp still wins whatever the file order', chainMod.findLatestMessage([tied[2]!, tied[1]!, { uuid: 'later', parentUuid: 'mark', timestamp: '2026-10-02T05:25:14.234Z' }, tied[0]!], () => true)?.uuid === 'later', 'findLatestMessage in src/sessions/transcripts/chain.ts must prefer the later timestamp whatever the file order')
   const DIST = process.env.MERCURY_PROOF_BUNDLE ?? join(ROOT, 'dist', 'mercury.mjs')
   const nodeBin = Bun.which('node')
   check('the bundle is built and a node binary is on PATH (bun run build.ts; MERCURY_PROOF_BUNDLE points elsewhere)', existsSync(DIST) && nodeBin !== null, DIST + ' — run bun run build.ts and put node on PATH, or point MERCURY_PROOF_BUNDLE at a built bundle')
@@ -520,12 +520,12 @@ section('§5 driven: a real run paints the notice and writes its mark once; a re
     check(`${road}: the first request carries the ${MANY_THRESHOLD} sizable images and not the unreadable one`, mainRequests().length === 1 && wireImages(mainRequests()[0]!).length === MANY_THRESHOLD && !j(mainRequests()[0]).includes(unreadableBase64), `fitImagesToRequestCap in ${SIZER_FILE} must drop only the unreadable image; images=${mainRequests()[0] ? wireImages(mainRequests()[0]!).length : -1}`)
     const transcript = transcriptOf(configDir, sid)
     const before = rowsOf(transcript)
-    check(`${road}: the transcript carries the notice once and the mark once, and keeps the unreadable image`, transcript !== null && noticesIn(before) === 1 && marksIn(before) === 1 && before.some(line => line.includes(unreadableBase64)), `the turn machine (src/run-core/turn/streamModel.ts) must write one notice and one images_left_out mark; transcript=${transcript} notices=${noticesIn(before)} marks=${marksIn(before)}`)
+    check(`${road}: the transcript carries the notice once and the mark once, and keeps the unreadable image`, transcript !== null && noticesIn(before) === 1 && marksIn(before) === 1 && before.some(line => line.includes(unreadableBase64)), `the turn machine (src/engine/loop/turn/streamModel.ts) must write one notice and one images_left_out mark; transcript=${transcript} notices=${noticesIn(before)} marks=${marksIn(before)}`)
     const second = await drive(['--resume', sid], `drive-${road}: and again, in a new process`)
     const after = rowsOf(transcript)
     check(`${road}: a new process resumes the session by id and answers (exit 0, a second main request)`, second.exit === 0 && mainRequests().length === 2, `the stderr tail names why the resumed run failed; exit=${second.exit} requests=${mainRequests().length} stderr=${second.stderr.slice(-400)}`)
     check(`${road}: the resumed request still leaves the unreadable image out and carries the ${MANY_THRESHOLD} others`, mainRequests().length === 2 && wireImages(mainRequests()[1]!).length === MANY_THRESHOLD && !j(mainRequests()[1]).includes(unreadableBase64), `fitImagesToRequestCap in ${SIZER_FILE} must drop the unreadable image again on resume; images=${mainRequests()[1] ? wireImages(mainRequests()[1]!).length : -1}`)
-    check(`${road}: THE ONCE — after the resume the transcript still carries one notice and one mark (the mark written in the notice's millisecond stays on the resume chain, so the resumed process is not told again)`, noticesIn(after) === 1 && marksIn(after) === 1, `imagesLeftOutMarked in ${SIZER_FILE} and findLatestMessage in src/utils/sessionStorage/chain.ts must keep the mark on the resume chain; notices ${noticesIn(before)} → ${noticesIn(after)}, marks ${marksIn(before)} → ${marksIn(after)}`)
+    check(`${road}: THE ONCE — after the resume the transcript still carries one notice and one mark (the mark written in the notice's millisecond stays on the resume chain, so the resumed process is not told again)`, noticesIn(after) === 1 && marksIn(after) === 1, `imagesLeftOutMarked in ${SIZER_FILE} and findLatestMessage in src/sessions/transcripts/chain.ts must keep the mark on the resume chain; notices ${noticesIn(before)} → ${noticesIn(after)}, marks ${marksIn(before)} → ${marksIn(after)}`)
   }
 }
 

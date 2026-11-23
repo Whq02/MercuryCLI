@@ -29,24 +29,24 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const note = (text: string): void => console.log(`        note: ${text}`)
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const FIX = 'change buildExecCommand / getSpawnArgs in src/utils/shell/bashProvider.ts so the script reaches bash byte for byte'
+const FIX = 'change buildExecCommand / getSpawnArgs in src/platform/shell/bashProvider.ts so the script reaches bash byte for byte'
 const show = (text: string, limit = 80): string => JSON.stringify(text.length > limit ? text.slice(0, limit) + '…' : text)
 
 console.log('============================================================')
 console.log(' The Bash tool script — what bash runs is what the model sent')
 console.log('============================================================')
 
-const { locateGitBash } = await import('../../src/utils/windowsPaths.ts')
+const { locateGitBash } = await import('../../src/platform/files/windowsPaths.ts')
 const gitBash = process.platform === 'win32' ? locateGitBash() : null
 if (gitBash !== null && 'path' in gitBash) process.env.SHELL = gitBash.path
 else if (!(process.env.SHELL ?? '').includes('bash') && existsSync('/bin/bash')) process.env.SHELL = '/bin/bash'
 
-const { exec, setCwd, getShellCwd, getShellConfig } = await import('../../src/utils/Shell.ts')
-const { getCwd } = await import('../../src/utils/cwd.ts')
-const { getPlatform } = await import('../../src/utils/platform.ts')
-const { createBashShellProvider } = await import('../../src/utils/shell/bashProvider.ts')
-const { systemShellAt } = await import('../../src/utils/shell/shellRecord.ts')
-const { createPowerShellProvider } = await import('../../src/utils/shell/powershellProvider.ts')
+const { exec, setCwd, getShellCwd, getShellConfig } = await import('../../src/platform/shell/shellExec.ts')
+const { getCwd } = await import('../../src/platform/files/cwd.ts')
+const { getPlatform } = await import('../../src/platform/environment/platform.ts')
+const { createBashShellProvider } = await import('../../src/platform/shell/bashProvider.ts')
+const { systemShellAt } = await import('../../src/platform/shell/shellRecord.ts')
+const { createPowerShellProvider } = await import('../../src/platform/shell/powershellProvider.ts')
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'shell-script-bytes-')))
 setCwd(SCRATCH)
@@ -169,8 +169,8 @@ section('§2 the composed command string — the eval wrapper the tool builds, t
   check('…and for a random subset of 16', randomBuilt.every(row => row.got === row.want), firstMiss(randomBuilt))
   const command = String.raw`printf '%s\n' 'a\\b' 'c\\\\d'`
   const { commandString } = await provider.buildExecCommand(command, { id: 'shape' })
-  check('the model command still sits verbatim inside the eval quotes of the composed string', commandString.includes(`eval '${command.split("'").join(`'\\''`)}'`), `${commandString.slice(0, 200)}; buildExecCommand in src/utils/shell/bashProvider.ts must keep the model command verbatim inside the eval quotes`)
-  check('the working-directory record still ends the composed string', commandString.includes('pwd -P >|') && (getPlatform() !== 'windows' || commandString.trimEnd().endsWith('|| true; }')), `${commandString.slice(-200)}; buildExecCommand in src/utils/shell/bashProvider.ts must end the composed string with the pwd -P record`)
+  check('the model command still sits verbatim inside the eval quotes of the composed string', commandString.includes(`eval '${command.split("'").join(`'\\''`)}'`), `${commandString.slice(0, 200)}; buildExecCommand in src/platform/shell/bashProvider.ts must keep the model command verbatim inside the eval quotes`)
+  check('the working-directory record still ends the composed string', commandString.includes('pwd -P >|') && (getPlatform() !== 'windows' || commandString.trimEnd().endsWith('|| true; }')), `${commandString.slice(-200)}; buildExecCommand in src/platform/shell/bashProvider.ts must end the composed string with the pwd -P record`)
 }
 
 section('§3 through the real exec seam, what the user sees')
@@ -192,12 +192,12 @@ const run = async (command: string): Promise<{ code: number; out: string }> => {
   check('a sed program that names a backslash by a pair finds it', sed.out === String.raw`a-\b` + '\n', `${show(sed.out)}; ${FIX}`)
   const moved = await run(String.raw`mkdir -p sub && cd sub && printf '%s\n' 'p\\q'`)
   check('a command with a pair that changes directory prints it', moved.code === 0 && moved.out === String.raw`p\\q` + '\n', `code ${moved.code} ${show(moved.out)}; ${FIX}`)
-  check('…and the shell directory followed it (the cwd record is intact) while the session directory stayed', getShellCwd() === realpathSync(join(SCRATCH, 'sub')) && getCwd() === realpathSync(SCRATCH), `shell ${getShellCwd()} · session ${getCwd()}; the composed command's pwd -P record (buildExecCommand in src/utils/shell/bashProvider.ts) must still set the shell directory and never the session directory (src/utils/Shell.ts)`)
+  check('…and the shell directory followed it (the cwd record is intact) while the session directory stayed', getShellCwd() === realpathSync(join(SCRATCH, 'sub')) && getCwd() === realpathSync(SCRATCH), `shell ${getShellCwd()} · session ${getCwd()}; the composed command's pwd -P record (buildExecCommand in src/platform/shell/bashProvider.ts) must still set the shell directory and never the session directory (src/platform/shell/shellExec.ts)`)
   setCwd(SCRATCH)
   const exit = await run(String.raw`printf '%s' 'a\\b'; exit 7`)
-  check('its own exit status survives', exit.code === 7 && exit.out === String.raw`a\\b`, `code ${exit.code} ${show(exit.out)}; buildExecCommand in src/utils/shell/bashProvider.ts must keep the command's own exit status`)
+  check('its own exit status survives', exit.code === 7 && exit.out === String.raw`a\\b`, `code ${exit.code} ${show(exit.out)}; buildExecCommand in src/platform/shell/bashProvider.ts must keep the command's own exit status`)
   const missing = await run(String.raw`no_such_command_for_bytes 'x\\y'`)
-  check('a missing command is still 127', missing.code === 127, `code ${missing.code}; buildExecCommand in src/utils/shell/bashProvider.ts must keep the command's own exit status`)
+  check('a missing command is still 127', missing.code === 127, `code ${missing.code}; buildExecCommand in src/platform/shell/bashProvider.ts must keep the command's own exit status`)
 }
 
 section('§4 nothing else changes')
@@ -208,13 +208,13 @@ section('§4 nothing else changes')
   const flagsOf = (provider: Provider): string[] => provider.getSpawnArgs('x').slice(0, -1)
   const sameArgs = (provider: Provider): boolean => untouched.every(text => JSON.stringify(provider.getSpawnArgs(text)) === JSON.stringify([...flagsOf(provider), text]))
   const noSnapshotFlags = process.platform === 'win32' ? '["-c","-l"]' : '["-c"]'
-  check('the flags are -c alone on macOS and Linux, with a snapshot or without: no command is a login shell (on Windows -l stands in for a missing snapshot)', JSON.stringify(flagsOf(loginShell)) === noSnapshotFlags && ['["-c"]', noSnapshotFlags].includes(JSON.stringify(flagsOf(withSnapshot))), `${JSON.stringify([flagsOf(loginShell), flagsOf(withSnapshot)])}; getSpawnArgs in src/utils/shell/bashProvider.ts must pass -c alone (with -l only on Windows without a snapshot)`)
-  check('a script whose runs bash already kept reaches the spawn call unchanged, on the snapshot provider', sameArgs(withSnapshot), 'getSpawnArgs in src/utils/shell/bashProvider.ts must hand these scripts to bash unchanged')
-  check('…and on a provider with no snapshot', sameArgs(loginShell), 'getSpawnArgs in src/utils/shell/bashProvider.ts must hand these scripts to bash unchanged')
+  check('the flags are -c alone on macOS and Linux, with a snapshot or without: no command is a login shell (on Windows -l stands in for a missing snapshot)', JSON.stringify(flagsOf(loginShell)) === noSnapshotFlags && ['["-c"]', noSnapshotFlags].includes(JSON.stringify(flagsOf(withSnapshot))), `${JSON.stringify([flagsOf(loginShell), flagsOf(withSnapshot)])}; getSpawnArgs in src/platform/shell/bashProvider.ts must pass -c alone (with -l only on Windows without a snapshot)`)
+  check('a script whose runs bash already kept reaches the spawn call unchanged, on the snapshot provider', sameArgs(withSnapshot), 'getSpawnArgs in src/platform/shell/bashProvider.ts must hand these scripts to bash unchanged')
+  check('…and on a provider with no snapshot', sameArgs(loginShell), 'getSpawnArgs in src/platform/shell/bashProvider.ts must hand these scripts to bash unchanged')
 
   const powershell = createPowerShellProvider('pwsh')
   const psText = String.raw`Write-Output 'a\\b' "c\\\\d"`
-  check('the PowerShell road hands its script over exactly as before', JSON.stringify(powershell.getSpawnArgs(psText)) === JSON.stringify(['-NoProfile', '-NonInteractive', '-Command', psText]), 'getSpawnArgs in src/utils/shell/powershellProvider.ts must pass the script as -NoProfile -NonInteractive -Command <script>')
+  check('the PowerShell road hands its script over exactly as before', JSON.stringify(powershell.getSpawnArgs(psText)) === JSON.stringify(['-NoProfile', '-NonInteractive', '-Command', psText]), 'getSpawnArgs in src/platform/shell/powershellProvider.ts must pass the script as -NoProfile -NonInteractive -Command <script>')
 
   const inputs: Array<[string, string]> = [
     [String.raw`echo a\b`, String.raw`echo a\b`],
@@ -236,8 +236,8 @@ section('§4 nothing else changes')
       `Object.defineProperty(process, 'platform', { value: process.argv[2] })`,
       `;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }`,
       `const { readFileSync } = await import('node:fs')`,
-      `const { createBashShellProvider } = await import(${JSON.stringify(join(ROOT, 'src', 'utils', 'shell', 'bashProvider.ts'))})`,
-      `const { systemShellAt } = await import(${JSON.stringify(join(ROOT, 'src', 'utils', 'shell', 'shellRecord.ts'))})`,
+      `const { createBashShellProvider } = await import(${JSON.stringify(join(ROOT, 'src', 'platform', 'shell', 'bashProvider.ts'))})`,
+      `const { systemShellAt } = await import(${JSON.stringify(join(ROOT, 'src', 'platform', 'shell', 'shellRecord.ts'))})`,
       `const provider = await createBashShellProvider(systemShellAt('/bin/bash'), { skipSnapshot: true })`,
       `const texts = JSON.parse(readFileSync(process.argv[3] as string, 'utf8')) as string[]`,
       `console.log('ARGS ' + JSON.stringify(texts.map(text => provider.getSpawnArgs(text))))`,
@@ -250,13 +250,13 @@ section('§4 nothing else changes')
   }
   for (const platform of ['linux', 'darwin']) {
     const { answered, detail } = argsOn(platform)
-    check(`on ${platform} the spawn arguments are -c and the command string untouched, with no login flag though no snapshot stands`, answered !== null && answered.every((args, i) => JSON.stringify(args) === JSON.stringify(['-c', inputs[i]![0]])), `${detail}; getSpawnArgs in src/utils/shell/bashProvider.ts must pass -c and the untouched command on this platform`)
+    check(`on ${platform} the spawn arguments are -c and the command string untouched, with no login flag though no snapshot stands`, answered !== null && answered.every((args, i) => JSON.stringify(args) === JSON.stringify(['-c', inputs[i]![0]])), `${detail}; getSpawnArgs in src/platform/shell/bashProvider.ts must pass -c and the untouched command on this platform`)
   }
   const { answered, detail } = argsOn('win32')
   check(
     'on Windows a run of two or more backslashes is doubled, except before a double quote or at the end (the MSYS argument parse halves what it meets)',
     answered !== null && answered.every((args, i) => JSON.stringify(args) === JSON.stringify(['-c', '-l', inputs[i]![1]])),
-    `${detail}; getSpawnArgs in src/utils/shell/bashProvider.ts must double a run of two or more backslashes on win32 (except before a double quote or at the end)`,
+    `${detail}; getSpawnArgs in src/platform/shell/bashProvider.ts must double a run of two or more backslashes on win32 (except before a double quote or at the end)`,
   )
 }
 

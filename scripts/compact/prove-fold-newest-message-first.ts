@@ -12,12 +12,12 @@ const check = (label: string, ok: boolean, detail = '', changeHint = ''): void =
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && (detail || changeHint) ? ` — ${[detail, changeHint].filter(Boolean).join(' | ')}` : ''}`)
 }
-const newestFirstWhere = 'change the fold road that carries the newest operator message around the summary request: query (src/query.ts) and compactConversation (src/services/compact/compact.ts)'
+const newestFirstWhere = 'change the fold road that carries the newest operator message around the summary request: query (src/engine/turnDoor.ts) and compactConversation (src/engine/compaction/foldConversation.ts)'
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the newest-message-first prover exceeded 180s; a request to the overflow fixture (scripts/compact/overflowFixture.ts) got no scripted turn, or query (src/query.ts) did not finish')
+  console.log('\nTIMEOUT — the newest-message-first prover exceeded 180s; a request to the overflow fixture (scripts/compact/overflowFixture.ts) got no scripted turn, or query (src/engine/turnDoor.ts) did not finish')
   process.exit(1)
 }, 180_000)
 watchdog.unref?.()
@@ -41,17 +41,17 @@ type Turn = import('./overflowFixture.ts').Turn
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { query } = await import('../../src/query.ts')
-const { productionDeps } = await import('../../src/query/deps.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
-const prompts = await import('../../src/services/compact/prompt.ts') as Record<string, unknown>
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { productionDeps } = await import('../../src/engine/turn-entry/turnLoopDeps.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
+const prompts = await import('../../src/engine/compaction/summariserPrompt.ts') as Record<string, unknown>
 const FLOOR = (prompts.NEWEST_MESSAGE_HAS_THE_FLOOR as string | undefined) ?? "The operator's newest message follows below"
 const RESUME_WORDS = 'Carry the last task on as if the break never happened.'
 
@@ -156,7 +156,7 @@ section('N1 a fresh operator message on a history over the threshold: the fold c
   const lastBlocks = post !== undefined ? textBlocksOf(rowsOf(post.body).filter(r => r.role === 'user').at(-1)?.content) : []
   check('the post-fold request ENDS on the operator\'s newest message, verbatim: the last text block of the last user message, after the summary and the preserved rounds', (lastBlocks.at(-1) ?? '').trim() === QUESTION && postTexts.findIndex(t => t.includes('The context window turned over')) < postTexts.length - 1, JSON.stringify(lastBlocks.map(t => t.slice(0, 60))), newestFirstWhere + ' so the post-fold request ends on the newest message')
   const summaryRow = postTexts.find(t => t.includes('The context window turned over')) ?? ''
-  check('the summary message says the newest message has the floor: answer it first, the task in flight only afterwards (red on the base: "carry the last task on as if the break never happened")', summaryRow.includes(FLOOR) && !summaryRow.includes(RESUME_WORDS), summaryRow.slice(-400), 'change the summary message wording built by the fold (src/services/compact/compact.ts, src/services/compact/prompt.ts) so the newest message has the floor and the resume words are dropped')
+  check('the summary message says the newest message has the floor: answer it first, the task in flight only afterwards (red on the base: "carry the last task on as if the break never happened")', summaryRow.includes(FLOOR) && !summaryRow.includes(RESUME_WORDS), summaryRow.slice(-400), 'change the summary message wording built by the fold (src/engine/compaction/foldConversation.ts, src/engine/compaction/summariserPrompt.ts) so the newest message has the floor and the resume words are dropped')
   check('the opening message rides whole in the post-fold request (the operator block)', postTexts.some(t => t.includes(FIRST)))
   check('the reply answered the question, not the task', textOfYield(r.yields.filter(y => y.type === 'assistant').at(-1)) === 'Your first message was quoted from the record.', textOfYield(r.yields.filter(y => y.type === 'assistant').at(-1)))
   const boundary = r.yields.find(y => y.type === 'system' && (y as { subtype?: string }).subtype === 'compact_boundary') as { compactMetadata?: { preTokens?: number; postTokens?: number } } | undefined
@@ -171,7 +171,7 @@ section('N3 the decision counts the whole view: a history under the threshold pl
     if (last.includes(BIG_ASK_HEAD)) return { text: 'the big ask was answered after the fold' }
     return { text: 'resumed', usage: { input: 600, output: 10 } }
   })
-  const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
+  const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
   const history = seed(8, 24_000)
   const bigAsk = createUserMessage({ content: `${BIG_ASK_HEAD}\n${'a pasted log line that must ride whole\n'.repeat(2_400)}` })
   const historyTokens = tokenCountWithEstimation(history as never, MODEL)
@@ -193,7 +193,7 @@ section('N4 a lone message with no history behind it: nothing is folded (no summ
     if (isSummariser(request.body)) return { text: 'a summary that must never be asked for' }
     return { text: 'the lone message was answered directly', usage: { input: 600, output: 10 } }
   })
-  const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
+  const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
   const lone = createUserMessage({ content: `${BIG_ASK_HEAD}\n${'a pasted log line that must ride whole\n'.repeat(2_400)}` })
   const loneTokens = tokenCountWithEstimation([lone] as never, MODEL)
   process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = String(loneTokens + 10_000)
@@ -203,7 +203,7 @@ section('N4 a lone message with no history behind it: nothing is folded (no summ
   const over = await drive([lone])
   delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
   const refusals = over.yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage === true).map(textOfYield)
-  check('over the window: no summariser call, the refusal says this message alone is larger than the window', over.wire.length === 0 && over.terminal.reason === 'blocking_limit' && refusals.some(t => t.includes('this message alone is larger than the window')), `wire=${over.wire.length} terminal=${JSON.stringify(over.terminal)} ${JSON.stringify(refusals).slice(0, 300)}`, 'change the blocking_limit refusal text in query (src/query.ts) so it says this message alone is larger than the window, with no summary request')
+  check('over the window: no summariser call, the refusal says this message alone is larger than the window', over.wire.length === 0 && over.terminal.reason === 'blocking_limit' && refusals.some(t => t.includes('this message alone is larger than the window')), `wire=${over.wire.length} terminal=${JSON.stringify(over.terminal)} ${JSON.stringify(refusals).slice(0, 300)}`, 'change the blocking_limit refusal text in query (src/engine/turnDoor.ts) so it says this message alone is larger than the window, with no summary request')
 }
 
 section('N2 a fold with no fresh operator message (the view ends in the model\'s own reply) keeps the resume words')
@@ -218,7 +218,7 @@ section('N2 a fold with no fresh operator message (the view ends in the model\'s
   delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
   const post = r.wire.filter(w => !isSummariser(w.body)).at(-1)
   const summaryRow = post !== undefined ? userTexts(post.body).find(t => t.includes('The context window turned over')) ?? '' : ''
-  check('the fold happened and the summary message carries the resume words, not the floor words', r.wire.some(w => isSummariser(w.body)) && summaryRow.includes(RESUME_WORDS) && !summaryRow.includes(FLOOR), summaryRow.slice(-300), 'change the summary message wording built by the fold (src/services/compact/compact.ts, src/services/compact/prompt.ts) so a view ending in the model reply keeps the resume words')
+  check('the fold happened and the summary message carries the resume words, not the floor words', r.wire.some(w => isSummariser(w.body)) && summaryRow.includes(RESUME_WORDS) && !summaryRow.includes(FLOOR), summaryRow.slice(-300), 'change the summary message wording built by the fold (src/engine/compaction/foldConversation.ts, src/engine/compaction/summariserPrompt.ts) so a view ending in the model reply keeps the resume words')
 }
 
 await fixture.close()

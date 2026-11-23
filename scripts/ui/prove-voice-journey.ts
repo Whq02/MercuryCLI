@@ -8,8 +8,8 @@ import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 import { BOOT_FACE_READY, paintsBootFaceReady } from '../lib/bootFace.ts'
 import { referenceFixtureSnapshot } from '../notifications/concourseReferenceSeed.ts'
-import { synthesizeToneWav } from '../../src/services/voice/wav.ts'
-import { NO_BACKEND_RECEIPT } from '../../src/services/voice/capture.ts'
+import { synthesizeToneWav } from '../../src/integrations/voice/wav.ts'
+import { NO_BACKEND_RECEIPT } from '../../src/integrations/voice/capture.ts'
 import { localFixture } from '../voice/localFixture.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -18,7 +18,7 @@ const VSHOT = join(import.meta.dir, 'vshot.py')
 const TRANSCRIPT = 'the quick brown fox jumps over the lazy dog'
 
 let failures = 0
-const VOICE_FAIL_HINT = ' — this drives dist/mercury.mjs: rebuild with bun run build.ts, then read the failing mark in the grid files (<tag>-grid.json) kept under the scratch folder named on the final RED line; the voice code is src/services/voice (holdToTalk.ts, capture.ts)'
+const VOICE_FAIL_HINT = ' — this drives dist/mercury.mjs: rebuild with bun run build.ts, then read the failing mark in the grid files (<tag>-grid.json) kept under the scratch folder named on the final RED line; the voice code is src/integrations/voice (holdToTalk.ts, capture.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 400) : ''}${cond ? '' : VOICE_FAIL_HINT}`)
@@ -240,7 +240,7 @@ const SCALE = ((): number => {
   const raw = Number(process.env.MERCURY_VSHOT_BUDGET_SCALE ?? '1')
   return Number.isFinite(raw) && raw > 0 ? raw : 1
 })()
-const { FIRST_REPEAT_WINDOW_MS, RELEASE_GAP_CEILING_MS, RELEASE_GAP_FACTOR, releaseGapMs } = await import('../../src/services/voice/holdToTalk.ts')
+const { FIRST_REPEAT_WINDOW_MS, RELEASE_GAP_CEILING_MS, RELEASE_GAP_FACTOR, releaseGapMs } = await import('../../src/integrations/voice/holdToTalk.ts')
 const REPEAT_GAP_TARGET_MS = Math.min(FIRST_REPEAT_WINDOW_MS - 400, RELEASE_GAP_CEILING_MS / RELEASE_GAP_FACTOR + 100)
 const REPEAT_TICKS = Math.max(1, Math.floor(REPEAT_GAP_TARGET_MS / (TICK_MS * SCALE)))
 const REPEAT_GAP_MS = REPEAT_TICKS * TICK_MS * SCALE

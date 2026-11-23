@@ -23,9 +23,9 @@ const {
   blenderDebugListenExpr,
   blenderDebugRecipe,
   BLENDER_DEBUG_DEFAULT_PORT,
-} = await import('../../src/services/ide/blenderDebug.js')
-const { discoverLaunchProfiles } = await import('../../src/services/ide/launchProfiles.js')
-const { resolveAdapter } = await import('../../src/services/dap/dapClient.js')
+} = await import('../../src/integrations/ide/blenderDebug.js')
+const { discoverLaunchProfiles } = await import('../../src/integrations/ide/launchProfiles.js')
+const { resolveAdapter } = await import('../../src/integrations/debugger/dapClient.js')
 
 const savedEnv = { ...process.env }
 function restore(): void {
@@ -43,45 +43,45 @@ section('§1 · the listen expression (both debugpy roads)')
     bundled.startsWith(`import sys; sys.path.insert(0, "/dist/vendor/debugpy"); `) &&
       bundled.includes("debugpy.listen(('127.0.0.1', 5678))"),
     '',
-    'change blenderDebugListenExpr in src/services/ide/blenderDebug.ts so a vendor root adds the JSON-quoted sys.path.insert arm before the listen call',
+    'change blenderDebugListenExpr in src/integrations/ide/blenderDebug.ts so a vendor root adds the JSON-quoted sys.path.insert arm before the listen call',
   )
   const pip = blenderDebugListenExpr(5678, null)
   check(
     'pip road: no path arm — Blender-importable debugpy assumed',
     pip.startsWith('import debugpy; ') && !pip.includes('sys.path'),
     '',
-    'change blenderDebugListenExpr in src/services/ide/blenderDebug.ts so a null vendor root adds no sys.path arm',
+    'change blenderDebugListenExpr in src/integrations/ide/blenderDebug.ts so a null vendor root adds no sys.path arm',
   )
   const other = blenderDebugListenExpr(6001, null)
-  check('the port spells through (listen + the print line)', other.includes("6001))") && other.includes(':6001'), '', 'change blenderDebugListenExpr in src/services/ide/blenderDebug.ts so the port reaches both the listen call and the print line')
-  check('the community default port is 5678', BLENDER_DEBUG_DEFAULT_PORT === 5678, '', 'change BLENDER_DEBUG_DEFAULT_PORT in src/services/ide/blenderDebug.ts back to 5678')
+  check('the port spells through (listen + the print line)', other.includes("6001))") && other.includes(':6001'), '', 'change blenderDebugListenExpr in src/integrations/ide/blenderDebug.ts so the port reaches both the listen call and the print line')
+  check('the community default port is 5678', BLENDER_DEBUG_DEFAULT_PORT === 5678, '', 'change BLENDER_DEBUG_DEFAULT_PORT in src/integrations/ide/blenderDebug.ts back to 5678')
 }
 
 section('§2 · the steps contract')
 {
   const r = blenderDebugRecipe('/Applications/Blender.app/Contents/MacOS/Blender', 5678, null)
   const all = r.steps.join('\n')
-  check('step 1: the operator launch line with --python-expr', all.includes('--python-expr') && all.includes('/Applications/Blender.app'), '', 'change step 1 of blenderDebugRecipe in src/services/ide/blenderDebug.ts so it prints the Blender spelling with --python-expr')
-  check('pip road named when no bundle', r.debugpySource === 'pip' && all.includes('pip install debugpy'), '', 'change blenderDebugRecipe in src/services/ide/blenderDebug.ts so a null vendor root reports debugpySource pip and the pip install line')
+  check('step 1: the operator launch line with --python-expr', all.includes('--python-expr') && all.includes('/Applications/Blender.app'), '', 'change step 1 of blenderDebugRecipe in src/integrations/ide/blenderDebug.ts so it prints the Blender spelling with --python-expr')
+  check('pip road named when no bundle', r.debugpySource === 'pip' && all.includes('pip install debugpy'), '', 'change blenderDebugRecipe in src/integrations/ide/blenderDebug.ts so a null vendor root reports debugpySource pip and the pip install line')
   check(
     'step 2: the Debug attach op naming adapter python + the connect contract',
     all.includes('op:"attach"') && all.includes('adapter:"python"') && all.includes('{connect:{host,port}}'),
     '',
-    'change step 2 of blenderDebugRecipe in src/services/ide/blenderDebug.ts so it names the Debug attach op, the python adapter and the connect shape',
+    'change step 2 of blenderDebugRecipe in src/integrations/ide/blenderDebug.ts so it names the Debug attach op, the python adapter and the connect shape',
   )
-  check('step 3: wait_for_client teaching', all.includes('wait_for_client'), '', 'change step 3 of blenderDebugRecipe in src/services/ide/blenderDebug.ts so it teaches debugpy.wait_for_client')
+  check('step 3: wait_for_client teaching', all.includes('wait_for_client'), '', 'change step 3 of blenderDebugRecipe in src/integrations/ide/blenderDebug.ts so it teaches debugpy.wait_for_client')
   check(
     'no vendor is blamed for the attach road: the steps carry no wedge note (the attach-by-port defect was ours and died with its fix)',
     !all.includes('wedge') && !all.includes('debugpyWaitingForServer') && r.steps.length === 4,
     '',
-    'change the steps array of blenderDebugRecipe in src/services/ide/blenderDebug.ts: four entries, no wedge note, no vendor blamed',
+    'change the steps array of blenderDebugRecipe in src/integrations/ide/blenderDebug.ts: four entries, no wedge note, no vendor blamed',
   )
   const bundled = blenderDebugRecipe('<blender>', 5678, '/v/debugpy')
   check(
     'bundled road named when the vendor tree exists',
     bundled.debugpySource === 'bundled' && bundled.steps.join('\n').includes('/v/debugpy'),
     '',
-    'change blenderDebugRecipe in src/services/ide/blenderDebug.ts so a vendor root reports debugpySource bundled and names the vendor path in its steps',
+    'change blenderDebugRecipe in src/integrations/ide/blenderDebug.ts so a vendor root reports debugpySource bundled and names the vendor path in its steps',
   )
 }
 
@@ -96,14 +96,14 @@ section('§3 · the profile row (armed only)')
   process.env.MERCURY_BLENDER_BIN = shimBin
   const d = await discoverLaunchProfiles(scratch)
   const recipeRows = d.profiles.filter(p => p.source === 'blender' && p.kind === 'debug')
-  check('exactly ONE debug recipe row', recipeRows.length === 1, '', 'change the blender branch of discoverLaunchProfiles in src/services/ide/launchProfiles.ts so it pushes exactly one debug recipe row when MERCURY_BLENDER is armed')
+  check('exactly ONE debug recipe row', recipeRows.length === 1, '', 'change the blender branch of discoverLaunchProfiles in src/integrations/ide/launchProfiles.ts so it pushes exactly one debug recipe row when MERCURY_BLENDER is armed')
   const row = recipeRows[0]
   check(
     'the row carries the pinned shim and its version: no Blender this machine holds answered',
     row?.blenderHeadless?.blenderPath === shimBin &&
       (row?.provenance ?? '').includes(`Blender 5.2.1 located (pin): ${shimBin}`),
     row?.provenance ?? '',
-    'change the blender branch of discoverLaunchProfiles in src/services/ide/launchProfiles.ts so the row carries the located Blender path (MERCURY_BLENDER_BIN) and its version in provenance',
+    'change the blender branch of discoverLaunchProfiles in src/integrations/ide/launchProfiles.ts so the row carries the located Blender path (MERCURY_BLENDER_BIN) and its version in provenance',
   )
   check(
     'the row rides the operator-run payload with --python-expr + the steps note',
@@ -111,11 +111,11 @@ section('§3 · the profile row (armed only)')
       (row?.blenderHeadless?.note ?? '').includes('op:"attach"') &&
       !(row?.blenderHeadless?.note ?? '').includes('wedge'),
     '',
-    'change the debug mkB call in src/services/ide/launchProfiles.ts so the row args start with --python-expr and the note is the steps of blenderDebugRecipe',
+    'change the debug mkB call in src/integrations/ide/launchProfiles.ts so the row args start with --python-expr and the note is the steps of blenderDebugRecipe',
   )
   delete process.env.MERCURY_BLENDER
   const off = await discoverLaunchProfiles(scratch)
-  check('off ⇒ no recipe row', off.profiles.every(p => !(p.source === 'blender' && p.kind === 'debug')), '', 'change the blender branch of discoverLaunchProfiles in src/services/ide/launchProfiles.ts so no recipe row is pushed when MERCURY_BLENDER is unset')
+  check('off ⇒ no recipe row', off.profiles.every(p => !(p.source === 'blender' && p.kind === 'debug')), '', 'change the blender branch of discoverLaunchProfiles in src/integrations/ide/launchProfiles.ts so no recipe row is pushed when MERCURY_BLENDER is unset')
   rmSync(scratch, { recursive: true, force: true })
 }
 
@@ -127,7 +127,7 @@ section('§4 · the attach side exists (the landed contract)')
     "the python adapter resolves with the connect attach shape (the recipe's other half)",
     python !== null && python.attachShape === 'connect',
     '',
-    'change the python entry in src/services/dap/client/builtins.ts so resolveAdapter (src/services/dap/client/adapters.ts) returns it with attachShape connect',
+    'change the python entry in src/integrations/debugger/client/builtins.ts so resolveAdapter (src/integrations/debugger/client/adapters.ts) returns it with attachShape connect',
   )
 }
 

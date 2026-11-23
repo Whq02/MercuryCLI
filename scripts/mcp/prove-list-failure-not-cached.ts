@@ -9,22 +9,22 @@ process.env.NODE_ENV = 'test'
 process.env.MERCURY_MCP_TIMEOUT_MS = '1500'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { connectToServer, fetchResourcesForClient, fetchCommandsForClient, clearServerCache } = await import('../../src/services/mcp/client.ts')
+const { connectToServer, fetchResourcesForClient, fetchCommandsForClient, clearServerCache } = await import('../../src/integrations/mcp/client.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — change fetchResourcesForClient and fetchCommandsForClient in src/services/mcp/client.ts so a failed list is dropped from their cache and asked again, and a good answer is kept${detail ? `; ${detail}` : ''}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — change fetchResourcesForClient and fetchCommandsForClient in src/integrations/mcp/client.ts so a failed list is dropped from their cache and asked again, and a good answer is kept${detail ? `; ${detail}` : ''}` : ''}`)
 }
 const watchdog = setTimeout(() => {
   console.log('\nTIMEOUT — list-failure prover exceeded 60s')
-  console.log('a resources/list or prompts/list call never returned; look at fetchResourcesForClient and fetchCommandsForClient in src/services/mcp/client.ts')
+  console.log('a resources/list or prompts/list call never returned; look at fetchResourcesForClient and fetchCommandsForClient in src/integrations/mcp/client.ts')
   process.exit(1)
 }, 60_000)
 watchdog.unref?.()
 
 console.log('a resources/list or prompts/list that fails once is asked again, never remembered as empty')
-const config: import('../../src/utils/mcp/types.ts').ScopedMcpServerConfig = {
+const config: import('../../src/integrations/mcp-shapes/mcpServerRecords.ts').ScopedMcpServerConfig = {
   type: 'stdio',
   scope: 'dynamic',
   command: process.execPath,

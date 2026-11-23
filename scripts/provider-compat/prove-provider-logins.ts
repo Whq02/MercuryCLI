@@ -178,25 +178,25 @@ console.log('============================================================')
 console.log(' /logins — Kimi · GLM · DeepSeek legs, end to end on loopback')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const moonshotAccounts = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
-const moonshotLogin = await import('../../src/services/providers/moonshot/moonshotLogin.ts')
-const moonshotUsage = await import('../../src/services/providers/moonshot/moonshotUsageState.ts')
-const { storeZaiApiKeyLogin } = await import('../../src/services/providers/zai/zaiLogin.ts')
-const { zaiChatCompletionsUrl } = await import('../../src/services/providers/zai/zaiClient.ts')
-const { storeDeepseekApiKeyLogin } = await import('../../src/services/providers/deepseek/deepseekLogin.ts')
-const secrets = await import('../../src/utils/accounts/providerSecrets.ts')
-const { resolveZaiDispatch } = await import('../../src/services/providers/providerDiscovery.ts')
-const { deriveFamilySlotGroups, executeSlotRemoval, mainLoopIdentity } = await import('../../src/services/providers/accountSlots.ts')
-const { providerFamilyPresences, activeSourceUsage } = await import('../../src/services/providers/providerUsage.ts')
-const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { parseFamilyFocus } = await import('../../src/commands/login/login.tsx')
-type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
-type LoginEvent = import('../../src/services/providers/moonshot/moonshotLogin.ts').KimiDeviceLoginEvent
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const moonshotAccounts = await import('../../src/models/roads/moonshot/moonshotAccounts.ts')
+const moonshotLogin = await import('../../src/models/roads/moonshot/moonshotLogin.ts')
+const moonshotUsage = await import('../../src/models/roads/moonshot/moonshotUsageState.ts')
+const { storeZaiApiKeyLogin } = await import('../../src/models/roads/zai/zaiLogin.ts')
+const { zaiChatCompletionsUrl } = await import('../../src/models/roads/zai/zaiClient.ts')
+const { storeDeepseekApiKeyLogin } = await import('../../src/models/roads/deepseek/deepseekLogin.ts')
+const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+const { resolveZaiDispatch } = await import('../../src/models/roads/providerDiscovery.ts')
+const { deriveFamilySlotGroups, executeSlotRemoval, mainLoopIdentity } = await import('../../src/models/roads/accountSlots.ts')
+const { providerFamilyPresences, activeSourceUsage } = await import('../../src/models/roads/providerUsage.ts')
+const { resolveProviderUsability } = await import('../../src/models/roads/providerUsability.ts')
+const { parseFamilyFocus } = await import('../../src/commands/logins/login.tsx')
+type AssistantMessage = import('../../src/engine/message-shapes/message.ts').AssistantMessage
+type LoginEvent = import('../../src/models/roads/moonshot/moonshotLogin.ts').KimiDeviceLoginEvent
 
 async function drive(model: string): Promise<{ errors: AssistantMessage[]; settled: AssistantMessage[]; text: string; threw: unknown }> {
   hits = []
@@ -237,12 +237,12 @@ const allText = (): string => JSON.stringify(deriveFamilySlotGroups()) + JSON.st
 
 section('§0 · the card and the vocabulary')
 {
-  const { loginFamilyRows } = await import('../../src/components/loginFamilyRows.ts')
+  const { loginFamilyRows } = await import('../../src/models/sign-in/flow-cards/loginFamilyRows.ts')
   const rows = loginFamilyRows({ engineLegs: true })
-  check('the owner carries the Kimi row as a device-code sign-in OR API key', rows.some(r => r.label === 'Kimi (Moonshot) — device-code sign-in or API key' && r.value === 'moonshot'), 'loginFamilyRows in src/components/loginFamilyRows.ts must return the Kimi row with this exact label and value moonshot')
-  check('the owner carries the GLM row as API key only (honest asymmetry)', rows.some(r => r.label === 'GLM (Z.AI) — API key (general or GLM Coding Plan)' && r.value === 'zai'), 'loginFamilyRows in src/components/loginFamilyRows.ts must return the GLM row with this exact label and value zai')
-  check('the owner carries the DeepSeek row as API key only', rows.some(r => r.label === 'DeepSeek — API key' && r.value === 'deepseek'), 'loginFamilyRows in src/components/loginFamilyRows.ts must return the DeepSeek row with this exact label and value deepseek')
-  check('/logins <family> knows the vendors\' names', parseFamilyFocus('kimi') === 'moonshot' && parseFamilyFocus('moonshot') === 'moonshot' && parseFamilyFocus('glm') === 'zai' && parseFamilyFocus('z.ai') === 'zai' && parseFamilyFocus('zai') === 'zai' && parseFamilyFocus('deepseek') === 'deepseek', 'parseFamilyFocus in src/commands/login/login.tsx must map these vendor words to their family ids')
+  check('the owner carries the Kimi row as a device-code sign-in OR API key', rows.some(r => r.label === 'Kimi (Moonshot) — device-code sign-in or API key' && r.value === 'moonshot'), 'loginFamilyRows in src/models/sign-in/flow-cards/loginFamilyRows.ts must return the Kimi row with this exact label and value moonshot')
+  check('the owner carries the GLM row as API key only (honest asymmetry)', rows.some(r => r.label === 'GLM (Z.AI) — API key (general or GLM Coding Plan)' && r.value === 'zai'), 'loginFamilyRows in src/models/sign-in/flow-cards/loginFamilyRows.ts must return the GLM row with this exact label and value zai')
+  check('the owner carries the DeepSeek row as API key only', rows.some(r => r.label === 'DeepSeek — API key' && r.value === 'deepseek'), 'loginFamilyRows in src/models/sign-in/flow-cards/loginFamilyRows.ts must return the DeepSeek row with this exact label and value deepseek')
+  check('/logins <family> knows the vendors\' names', parseFamilyFocus('kimi') === 'moonshot' && parseFamilyFocus('moonshot') === 'moonshot' && parseFamilyFocus('glm') === 'zai' && parseFamilyFocus('z.ai') === 'zai' && parseFamilyFocus('zai') === 'zai' && parseFamilyFocus('deepseek') === 'deepseek', 'parseFamilyFocus in src/commands/logins/login.tsx must map these vendor words to their family ids')
   check(
     '/logins <family> knows the WHOLE household vocabulary',
     parseFamilyFocus('anthropic') === 'anthropic' && parseFamilyFocus('claude') === 'anthropic' &&
@@ -251,7 +251,7 @@ section('§0 · the card and the vocabulary')
       parseFamilyFocus('google') === 'gemini' && parseFamilyFocus('hf') === 'huggingface' &&
       parseFamilyFocus('HuggingFace') === 'huggingface' && parseFamilyFocus(undefined) === undefined &&
       parseFamilyFocus('unknown-word') === undefined,
-    'parseFamilyFocus in src/commands/login/login.tsx must map each household word to its family id and an unknown word to undefined',
+    'parseFamilyFocus in src/commands/logins/login.tsx must map each household word to its family id and an unknown word to undefined',
   )
 }
 
@@ -263,14 +263,14 @@ section('§1 · the Kimi device-code sign-in, end to end')
   hits = []
   tokenPosts = []
   const outcome = await moonshotLogin.runKimiDeviceLogin({ region: 'global', sleep: noSleep, onEvent: e => events.push(e) })
-  check('the sign-in settles ok', outcome.ok === true, outcome.receipt + '; runKimiDeviceLogin in src/services/providers/moonshot/moonshotLogin.ts did not settle ok')
+  check('the sign-in settles ok', outcome.ok === true, outcome.receipt + '; runKimiDeviceLogin in src/models/roads/moonshot/moonshotLogin.ts did not settle ok')
   const startHit = hits.find(h => h.path === '/kimi/oauth/api/oauth/device_authorization')
   check('start hit the pinned OAuth host with the published client id', startHit?.body === `client_id=${moonshotAccounts.KIMI_OAUTH_CLIENT_ID}`, startHit?.body)
   const waiting = events.filter((e): e is Extract<LoginEvent, { phase: 'waiting' }> => e.phase === 'waiting')
   check('the surface saw starting → waiting (the code + URL) → finishing', events[0]?.phase === 'starting' && waiting[0]?.start.userCode === 'KIMI-FIXT' && waiting[0]?.start.verificationUriComplete === `${base}/kimi/activate?user_code=KIMI-FIXT` && events[events.length - 1]?.phase === 'finishing', JSON.stringify(events.map(e => e.phase)))
   check('three device-grant polls walked pending → slow-down → authorized (the surface saw two waits)', tokenPosts.length === 3 && tokenPosts.every(p => new URLSearchParams(p.body).get('grant_type') === 'urn:ietf:params:oauth:grant-type:device_code') && waiting.at(-1)?.polls === 2, `posts=${tokenPosts.length} lastPolls=${waiting.at(-1)?.polls}`)
   const stored = moonshotAccounts.moonshotStoredTokens()
-  check('tokens + region persisted, mode 600', stored?.accessToken === KIMI_ACCESS_1 && stored.refreshToken === KIMI_REFRESH && moonshotAccounts.moonshotStoredRegion() === 'global' && (statSync(moonshotAccounts.moonshotAuthPathForDisplay()).mode & 0o777) === 0o600, 'the device sign-in must store tokens and region through src/services/providers/moonshot/moonshotAccounts.ts with file mode 600')
+  check('tokens + region persisted, mode 600', stored?.accessToken === KIMI_ACCESS_1 && stored.refreshToken === KIMI_REFRESH && moonshotAccounts.moonshotStoredRegion() === 'global' && (statSync(moonshotAccounts.moonshotAuthPathForDisplay()).mode & 0o777) === 0o600, 'the device sign-in must store tokens and region through src/models/roads/moonshot/moonshotAccounts.ts with file mode 600')
   const usagesHit = hits.find(h => h.path === '/kimi/coding/v1/usages')
   check('the fresh bearer was proven on the CODING base through GET /usages', usagesHit?.bearer === KIMI_ACCESS_1, JSON.stringify(usagesHit))
   check('the plan windows decoded (5h · wk · quota)', outcome.ok && outcome.usage?.windows.length === 2 && outcome.usage.quota?.used === 40 && outcome.usage.quota.limit === 1000 && outcome.usage.windows[0]?.windowMinutes === 300 && outcome.usage.windows[1]?.name === 'weekly', JSON.stringify(outcome.ok ? outcome.usage : null))
@@ -278,32 +278,32 @@ section('§1 · the Kimi device-code sign-in, end to end')
 
   const groups = deriveFamilySlotGroups()
   const kimiSlot = groups.find(g => g.family.id === 'moonshot')?.slots.find(s => s.id === 'moonshot:oauth')
-  check('/accounts: the Kimi slot is the active source, named by its kind and region, never a token fragment', kimiSlot?.active === true && kimiSlot.signedIn && kimiSlot.identity === 'Kimi account · device-code, global' && !kimiSlot.identity.includes(KIMI_ACCESS_1.slice(-4)), JSON.stringify(kimiSlot) + '; deriveFamilySlotGroups in src/services/providers/accountSlots.ts builds the moonshot:oauth slot')
+  check('/accounts: the Kimi slot is the active source, named by its kind and region, never a token fragment', kimiSlot?.active === true && kimiSlot.signedIn && kimiSlot.identity === 'Kimi account · device-code, global' && !kimiSlot.identity.includes(KIMI_ACCESS_1.slice(-4)), JSON.stringify(kimiSlot) + '; deriveFamilySlotGroups in src/models/roads/accountSlots.ts builds the moonshot:oauth slot')
   const presences = providerFamilyPresences()
   const moonshotPresence = presences.find(p => (p.id as string) === 'moonshot')
-  check('the presence owner reads the Kimi sign-in (the adapter account)', moonshotPresence?.credentialed === true && moonshotPresence.credentialLabel?.startsWith('Kimi account (device-code sign-in') === true, JSON.stringify(moonshotPresence) + '; providerFamilyPresences in src/services/providers/providerUsage.ts must read the Kimi sign-in')
+  check('the presence owner reads the Kimi sign-in (the adapter account)', moonshotPresence?.credentialed === true && moonshotPresence.credentialLabel?.startsWith('Kimi account (device-code sign-in') === true, JSON.stringify(moonshotPresence) + '; providerFamilyPresences in src/models/roads/providerUsage.ts must read the Kimi sign-in')
   const identity = mainLoopIdentity({ model: 'kimi-k3', presences })
   check('the main-loop identity on a Kimi model names the sign-in', identity.route === 'moonshot' && identity.text.includes('Kimi account (device-code sign-in') && identity.basis === 'credential-present', identity.text)
   const usage = activeSourceUsage({ model: 'kimi-k3', reads: {} })
   check('the usage owner meters the plan windows on the oauth source', usage.shape === 'subscription-windows' && usage.sourceKind === 'oauth' && usage.tier === 'Kimi sign-in' && usage.windows.map(w => w.label).join(',') === '5h,7d,quota' && usage.windows[0]?.usedPct === 1, JSON.stringify(usage))
   check('the same device sign-in usage read includes its Extra Usage balance and stamp', usage.credits?.state === 'reported' && usage.credits.display === 'USD 12.34 Extra Usage balance' && usage.credits.observedAtMs === usage.windows[0]?.observedAtMs, JSON.stringify(usage.credits))
   const usability = resolveProviderUsability().moonshot
-  check('usability reads the sign-in as a usable oauth credential', usability.usable && usability.credential === 'oauth', JSON.stringify(usability) + '; resolveProviderUsability in src/services/providers/providerUsability.ts must count the Kimi sign-in as an oauth credential')
-  check('no secret rides any derived surface', !allText().includes(KIMI_ACCESS_1) && !allText().includes(KIMI_REFRESH), 'a token reached deriveFamilySlotGroups (src/services/providers/accountSlots.ts) or providerFamilyPresences (src/services/providers/providerUsage.ts) output; keep secrets out of both')
+  check('usability reads the sign-in as a usable oauth credential', usability.usable && usability.credential === 'oauth', JSON.stringify(usability) + '; resolveProviderUsability in src/models/roads/providerUsability.ts must count the Kimi sign-in as an oauth credential')
+  check('no secret rides any derived surface', !allText().includes(KIMI_ACCESS_1) && !allText().includes(KIMI_REFRESH), 'a token reached deriveFamilySlotGroups (src/models/roads/accountSlots.ts) or providerFamilyPresences (src/models/roads/providerUsage.ts) output; keep secrets out of both')
 
   chatAnswers = ['ok']
   const turn = await drive('kimi-k3')
-  check('a turn on the sign-in SETTLES', turn.threw === undefined && turn.errors.length === 0 && turn.settled.length > 0, turn.text.slice(0, 200) + '; the kimi-k3 turn must settle on the stored sign-in, see src/services/providers/moonshot/moonshotAccounts.ts')
+  check('a turn on the sign-in SETTLES', turn.threw === undefined && turn.errors.length === 0 && turn.settled.length > 0, turn.text.slice(0, 200) + '; the kimi-k3 turn must settle on the stored sign-in, see src/models/roads/moonshot/moonshotAccounts.ts')
   check('…on the CODING base with the sign-in bearer — never the platform base', chatHits().length === 1 && chatHits()[0]?.path === '/kimi/coding/v1/chat/completions' && chatHits()[0]?.bearer === KIMI_ACCESS_1, JSON.stringify(chatHits()))
   check('the usage line: the profile re-read the meter after the response (TTL-bounded)', moonshotUsage.kimiObservedManagedUsage() !== null)
 
   chatAnswers = [{ status: 401, body: { error: { message: 'Invalid Authentication', type: 'invalid_authentication_error' } } }, 'ok']
   refreshAnswer = { status: 200, body: { access_token: KIMI_ACCESS_2, refresh_token: KIMI_REFRESH, expires_in: 3600 } }
   const recovered = await drive('kimi-k3')
-  check('a rejected bearer earns ONE refresh and the turn settles on the retry', recovered.errors.length === 0 && recovered.settled.length > 0, recovered.text.slice(0, 200) + '; a 401 on the sign-in bearer must refresh the token once and retry, see src/services/providers/moonshot/moonshotAccounts.ts')
+  check('a rejected bearer earns ONE refresh and the turn settles on the retry', recovered.errors.length === 0 && recovered.settled.length > 0, recovered.text.slice(0, 200) + '; a 401 on the sign-in bearer must refresh the token once and retry, see src/models/roads/moonshot/moonshotAccounts.ts')
   check('two wire hits on the coding base, old bearer then new', chatHits().length === 2 && chatHits()[0]?.bearer === KIMI_ACCESS_1 && chatHits()[1]?.bearer === KIMI_ACCESS_2 && chatHits().every(h => h.path === '/kimi/coding/v1/chat/completions'), JSON.stringify(chatHits().map(h => [h.path, h.bearer])))
   check('exactly ONE refresh POST to the pinned OAuth token path', tokenPosts.length === 1 && tokenPosts[0]?.path === '/kimi/oauth/api/oauth/token' && new URLSearchParams(tokenPosts[0].body).get('grant_type') === 'refresh_token', JSON.stringify(tokenPosts))
-  check('the rotated bearer persisted', moonshotAccounts.moonshotStoredTokens()?.accessToken === KIMI_ACCESS_2, 'the refreshed access token must be written back through src/services/providers/moonshot/moonshotAccounts.ts')
+  check('the rotated bearer persisted', moonshotAccounts.moonshotStoredTokens()?.accessToken === KIMI_ACCESS_2, 'the refreshed access token must be written back through src/models/roads/moonshot/moonshotAccounts.ts')
   chatAnswers = [{ status: 401, body: { error: { message: 'Invalid Authentication', type: 'invalid_authentication_error' } } }]
   refreshAnswer = { status: 500, body: {} }
   const failed = await drive('kimi-k3')
@@ -328,7 +328,7 @@ section('§1 · the Kimi device-code sign-in, end to end')
   deviceLadder = ['ok']
   deviceLadderAt = 0
   const again = await moonshotLogin.runKimiDeviceLogin({ region: 'global', sleep: noSleep })
-  check('a fresh sign-in lands again (global)', again.ok === true && moonshotAccounts.moonshotStoredRegion() === 'global', 'runKimiDeviceLogin in src/services/providers/moonshot/moonshotLogin.ts must store a fresh sign-in after a denied one')
+  check('a fresh sign-in lands again (global)', again.ok === true && moonshotAccounts.moonshotStoredRegion() === 'global', 'runKimiDeviceLogin in src/models/roads/moonshot/moonshotLogin.ts must store a fresh sign-in after a denied one')
 }
 
 section('§2 · the Moonshot key leg beside the sign-in')
@@ -336,7 +336,7 @@ section('§2 · the Moonshot key leg beside the sign-in')
   hits = []
   const refused = await moonshotLogin.storeMoonshotApiKeyLogin('sk-moonshot-wrong-key-000000')
   check('a refused key is NEVER stored and the note says so', refused.ok === false && refused.stored === false && refused.receipt.includes('refused this key (HTTP 401)') && secrets.readStoredMoonshotApiKey() === undefined, refused.receipt)
-  check('…after a balance probe on the platform base', hits.some(h => h.path === '/moonshot/v1/users/me/balance' && h.bearer === 'sk-moonshot-wrong-key-000000'), 'storeMoonshotApiKeyLogin in src/services/providers/moonshot/moonshotLogin.ts must probe the balance endpoint with the key before storing it')
+  check('…after a balance probe on the platform base', hits.some(h => h.path === '/moonshot/v1/users/me/balance' && h.bearer === 'sk-moonshot-wrong-key-000000'), 'storeMoonshotApiKeyLogin in src/models/roads/moonshot/moonshotLogin.ts must probe the balance endpoint with the key before storing it')
   const confirmed = await moonshotLogin.storeMoonshotApiKeyLogin(MOON_KEY)
   check('a confirmed key stores with its balance, and says the sign-in outranks it', confirmed.ok && confirmed.stored && confirmed.receipt.includes('balance USD 49.58894') && confirmed.receipt.includes('the Kimi sign-in outranks the stored key') && secrets.readStoredMoonshotApiKey() === MOON_KEY && !confirmed.receipt.includes(MOON_KEY), confirmed.receipt)
   const withBoth = deriveFamilySlotGroups().find(g => g.family.id === 'moonshot')
@@ -368,7 +368,7 @@ section('§3 · the GLM (Z.AI) key leg — the plan travels with the key')
   check('a Coding Plan key stores WITH its plan; the receipt names the Coding Plan base', coding.ok && coding.stored && secrets.readStoredZaiApiKey() === ZAI_KEY && secrets.readStoredZaiKeyPlan() === 'coding' && coding.receipt.includes('GLM Coding Plan key stored') && coding.receipt.includes('api.z.ai/api/coding/paas/v4') && !coding.receipt.includes(ZAI_KEY), coding.receipt)
   const dispatch = resolveZaiDispatch()
   check('the lane resolves key + plan as ONE record', dispatch?.key === ZAI_KEY && dispatch.source === 'stored' && dispatch.plan === 'coding', JSON.stringify({ ...dispatch, key: '…' }))
-  check('the plan picks the production base (coding ≠ general)', zaiChatCompletionsUrl({} as NodeJS.ProcessEnv, 'coding') === 'https://api.z.ai/api/coding/paas/v4/chat/completions' && zaiChatCompletionsUrl({} as NodeJS.ProcessEnv, 'general') === 'https://api.z.ai/api/paas/v4/chat/completions', 'zaiChatCompletionsUrl in src/services/providers/zai/zaiClient.ts must return the coding base for plan coding and the general base for plan general')
+  check('the plan picks the production base (coding ≠ general)', zaiChatCompletionsUrl({} as NodeJS.ProcessEnv, 'coding') === 'https://api.z.ai/api/coding/paas/v4/chat/completions' && zaiChatCompletionsUrl({} as NodeJS.ProcessEnv, 'general') === 'https://api.z.ai/api/paas/v4/chat/completions', 'zaiChatCompletionsUrl in src/models/roads/zai/zaiClient.ts must return the coding base for plan coding and the general base for plan general')
   const zaiSlot = deriveFamilySlotGroups().find(g => g.family.id === 'zai')?.slots.find(s => s.id === 'zai:stored-key')
   check('/accounts names the plan on the slot', zaiSlot?.identity.startsWith('GLM Coding Plan key') === true && zaiSlot.kindLabel === 'Coding Plan key' && zaiSlot.active === true, JSON.stringify(zaiSlot))
   const zaiPresence = providerFamilyPresences().find(p => (p.id as string) === 'zai')
@@ -385,7 +385,7 @@ section('§3 · the GLM (Z.AI) key leg — the plan travels with the key')
   delete process.env.ZAI_API_KEY
   chatAnswers = ['ok']
   secrets.writeStoredZaiApiKey(null)
-  check('clearing the key clears the plan with it', secrets.readStoredZaiApiKey() === undefined && secrets.readStoredZaiKeyPlan() === undefined, 'writeStoredZaiApiKey(null) in src/utils/accounts/providerSecrets.ts must clear the stored Z.AI key plan with the key')
+  check('clearing the key clears the plan with it', secrets.readStoredZaiApiKey() === undefined && secrets.readStoredZaiKeyPlan() === undefined, 'writeStoredZaiApiKey(null) in src/models/sign-in/account-ledger/providerSecrets.ts must clear the stored Z.AI key plan with the key')
 }
 
 section('§4 · the DeepSeek key leg')
@@ -395,7 +395,7 @@ section('§4 · the DeepSeek key leg')
   check('a refused key is NEVER stored', refused.ok === false && refused.stored === false && refused.receipt.includes('refused this key (HTTP 401)') && secrets.readStoredDeepseekApiKey() === undefined, refused.receipt)
   const confirmed = await storeDeepseekApiKeyLogin(DS_KEY)
   check('a confirmed key stores with its balance', confirmed.ok && confirmed.stored && confirmed.receipt.includes('balance USD 42.50') && secrets.readStoredDeepseekApiKey() === DS_KEY && !confirmed.receipt.includes(DS_KEY), confirmed.receipt)
-  check('…after a balance probe with the key', hits.some(h => h.path === '/deepseek/user/balance' && h.bearer === DS_KEY), 'storeDeepseekApiKeyLogin in src/services/providers/deepseek/deepseekLogin.ts must probe the balance endpoint with the key before storing it')
+  check('…after a balance probe with the key', hits.some(h => h.path === '/deepseek/user/balance' && h.bearer === DS_KEY), 'storeDeepseekApiKeyLogin in src/models/roads/deepseek/deepseekLogin.ts must probe the balance endpoint with the key before storing it')
   const slot = deriveFamilySlotGroups().find(g => g.family.id === 'deepseek')?.slots.find(s => s.id === 'deepseek:stored-key')
   check('/accounts: the DeepSeek key is its active slot', slot?.active === true && slot.identity.includes('…0001'), JSON.stringify(slot))
   const turn = await drive('deepseek-v4-pro')
@@ -409,7 +409,7 @@ section('§4 · the DeepSeek key leg')
   check('…and its refusal names DEEPSEEK_API_KEY + /logins deepseek, never a refresh', envTurn.errors.length === 1 && envTurn.text.includes('DEEPSEEK_API_KEY') && envTurn.text.includes('/logins deepseek') && !envTurn.text.includes('refresh was attempted') && !envTurn.text.includes('sk-deepseek-env-key'), envTurn.text.slice(0, 240))
   delete process.env.DEEPSEEK_API_KEY
   chatAnswers = ['ok']
-  check('no secret rides any derived surface', !allText().includes(DS_KEY) && !allText().includes(MOON_KEY), 'a stored key reached deriveFamilySlotGroups (src/services/providers/accountSlots.ts) or providerFamilyPresences (src/services/providers/providerUsage.ts) output; keep secrets out of both')
+  check('no secret rides any derived surface', !allText().includes(DS_KEY) && !allText().includes(MOON_KEY), 'a stored key reached deriveFamilySlotGroups (src/models/roads/accountSlots.ts) or providerFamilyPresences (src/models/roads/providerUsage.ts) output; keep secrets out of both')
 }
 
 server.close()

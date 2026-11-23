@@ -1,17 +1,17 @@
 #!/usr/bin/env bun
-// gate-watch: src/ink/compose-walk.ts src/ink/cell-grid.ts src/ink/renderer.ts
+// gate-watch: src/screen/renderer/compose-walk.ts src/screen/renderer/cell-grid.ts src/screen/renderer/renderer.ts
 process.env.FORCE_COLOR = '3'
 delete process.env.NO_COLOR
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { appendChildNode, createNode, setAttribute, setTextNodeValue } = await import('../../src/ink/dom.js')
-type DOMElement = import('../../src/ink/dom.js').DOMElement
-type TextNode = import('../../src/ink/dom.js').TextNode
-const { cellAt } = await import('../../src/ink/cell-grid.js')
-type Screen = import('../../src/ink/cell-grid.js').Screen
-const { emptyFrame } = await import('../../src/ink/frame.js')
-type Frame = import('../../src/ink/frame.js').Frame
-const { default: createRenderer } = await import('../../src/ink/renderer.js')
+const { appendChildNode, createNode, setAttribute, setTextNodeValue } = await import('../../src/screen/renderer/dom.js')
+type DOMElement = import('../../src/screen/renderer/dom.js').DOMElement
+type TextNode = import('../../src/screen/renderer/dom.js').TextNode
+const { cellAt } = await import('../../src/screen/renderer/cell-grid.js')
+type Screen = import('../../src/screen/renderer/cell-grid.js').Screen
+const { emptyFrame } = await import('../../src/screen/renderer/frame.js')
+type Frame = import('../../src/screen/renderer/frame.js').Frame
+const { default: createRenderer } = await import('../../src/screen/renderer/renderer.js')
 const { applySceneStyle, buildDom, makeContext } = await import('./frameHarness.js')
 type ComposeContext = import('./frameHarness.js').ComposeContext
 
@@ -25,7 +25,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix how composeBox in src/ink/compose-walk.ts fills and refreshes a scroll box's own backgroundColor (ownGround, fillRemoved) when it repaints without scrolling` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix how composeBox in src/screen/renderer/compose-walk.ts fills and refreshes a scroll box's own backgroundColor (ownGround, fillRemoved) when it repaints without scrolling` : ''}`)
 }
 
 type World = {

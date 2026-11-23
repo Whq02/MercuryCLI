@@ -6,7 +6,7 @@ import {
   gazeKeyForPointer,
   heroEyeClusters,
   heroGazeRows,
-} from '../../src/utils/cockpit/critterGaze.js'
+} from '../../src/screen/cockpit/critterGaze.js'
 import {
   clearPointerCell,
   getPointerCell,
@@ -14,11 +14,11 @@ import {
   getPointerVersion,
   setPointerCell,
   subscribePointerCell,
-} from '../../src/utils/cockpit/pointerCell.js'
+} from '../../src/screen/cockpit/pointerCell.js'
 import {
   CRITTERS,
   heroBlinkRows,
-} from '../../src/utils/cockpit/critterData.js'
+} from '../../src/screen/cockpit/critterData.js'
 
 let failures = 0
 let where = ''
@@ -30,7 +30,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 const ALL = [...CRITTERS]
 
 console.log('— pure core: neutral identity + conservation —')
-where = 'change heroGazeRows, applyGazeKey and heroEyeClusters in src/utils/cockpit/critterGaze.ts, or the squareDock pupil (K) cells of the critter named here in src/utils/cockpit/critterData.ts'
+where = 'change heroGazeRows, applyGazeKey and heroEyeClusters in src/screen/cockpit/critterGaze.ts, or the squareDock pupil (K) cells of the critter named here in src/screen/cockpit/critterData.ts'
 for (const def of ALL) {
   const art = def.squareDock
   t(`${def.name}: null pointer ⇒ same array ref`, heroGazeRows(art, null, null) === art)
@@ -69,7 +69,7 @@ for (const def of ALL) {
 }
 
 console.log('— direction correctness (crab) —')
-where = 'change heroGazeRows and heroEyeClusters in src/utils/cockpit/critterGaze.ts (which cell the pupil moves to, and GAZE_DEAD_ZONE)'
+where = 'change heroGazeRows and heroEyeClusters in src/screen/cockpit/critterGaze.ts (which cell the pupil moves to, and GAZE_DEAD_ZONE)'
 const crab = ALL.find(d => d.name === 'crab')!.squareDock
 const crabClusters = heroEyeClusters(crab)
 {
@@ -122,7 +122,7 @@ const crabClusters = heroEyeClusters(crab)
 }
 
 console.log('— hysteresis (refinement): boundary drift never jitters —')
-where = 'change gazeKeyForPointer (its sticky previous-key argument) in src/utils/cockpit/critterGaze.ts'
+where = 'change gazeKeyForPointer (its sticky previous-key argument) in src/screen/cockpit/critterGaze.ts'
 {
   const cl = crabClusters[0]!
   const arc = (deg: number): [number, number] => [
@@ -177,7 +177,7 @@ where = 'change gazeKeyForPointer (its sticky previous-key argument) in src/util
 }
 
 console.log('— blink composes over gaze —')
-where = 'change heroBlinkRows in src/utils/cockpit/critterData.ts so the lid covers every eye row heroGazeRows in src/utils/cockpit/critterGaze.ts moved a pupil to'
+where = 'change heroBlinkRows in src/screen/cockpit/critterData.ts so the lid covers every eye row heroGazeRows in src/screen/cockpit/critterGaze.ts moved a pupil to'
 for (const def of ALL) {
   const art = def.squareDock
   const gazed = heroGazeRows(art, -40, art.length / 2)
@@ -194,7 +194,7 @@ for (const def of ALL) {
 }
 
 console.log('— foreign/stale key refusal —')
-where = 'change applyGazeKey in src/utils/cockpit/critterGaze.ts so a malformed, out-of-bounds or cross-pair key returns the art unchanged'
+where = 'change applyGazeKey in src/screen/cockpit/critterGaze.ts so a malformed, out-of-bounds or cross-pair key returns the art unchanged'
 {
   t('garbage key ⇒ REFUSED', applyGazeKey(crab, 'zz|1') === crab)
   t('out-of-bounds key ⇒ REFUSED', applyGazeKey(crab, '99,99>99,98') === crab)
@@ -202,7 +202,7 @@ where = 'change applyGazeKey in src/utils/cockpit/critterGaze.ts so a malformed,
 }
 
 console.log('— gate honesty —')
-where = 'change critterGazeEnabled in src/utils/cockpit/critterGaze.ts (the MERCURY_CRITTER_GAZE setting)'
+where = 'change critterGazeEnabled in src/screen/cockpit/critterGaze.ts (the MERCURY_CRITTER_GAZE setting)'
 {
   const prev = process.env.MERCURY_CRITTER_GAZE
   process.env.MERCURY_CRITTER_GAZE = '0'
@@ -213,7 +213,7 @@ where = 'change critterGazeEnabled in src/utils/cockpit/critterGaze.ts (the MERC
 }
 
 console.log('— pointer store: dedupe + edges —')
-where = 'change setPointerCell, clearPointerCell and subscribePointerCell in src/utils/cockpit/pointerCell.ts'
+where = 'change setPointerCell, clearPointerCell and subscribePointerCell in src/screen/cockpit/pointerCell.ts'
 {
   clearPointerCell()
   const v0 = getPointerVersion()

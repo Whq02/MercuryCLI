@@ -2,11 +2,11 @@ import assert from 'node:assert/strict'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { default: TurndownService } = await import('turndown')
-const { addTableRule } = await import('../../src/tools/WebFetchTool/tableRule.js')
+const { addTableRule } = await import('../../src/tools/web-fetch/tableRule.js')
 const service = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
 addTableRule(service)
 let failures = 0
-const check = (name: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : `\n${detail}\nfix addTableRule in src/tools/WebFetchTool/tableRule.ts (the table shape it chooses: markdown table or rows joined by " · ")`}`) }
+const check = (name: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : `\n${detail}\nfix addTableRule in src/tools/web-fetch/tableRule.ts (the table shape it chooses: markdown table or rows joined by " · ")`}`) }
 
 const simple = service.turndown(`<p>Before</p>
 <table><caption>Precedence</caption>

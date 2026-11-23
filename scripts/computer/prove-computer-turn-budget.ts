@@ -4,24 +4,24 @@ import { ownerOf, toolContext } from './computerToolKit.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { CARD, CONTROL, CONTROL_BASE, DIALOG, VALUES, controlCalls, installTurnBudgetDesktop, targetCalls, type Call } from './turnBudgetFixture.ts'
-import type { Message } from '../../src/types/message.ts'
-import type { ToolUseContext } from '../../src/Tool.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
+import type { ToolUseContext } from '../../src/tools/kit/tool.ts'
 
 process.env.ANTHROPIC_API_KEY = FIXTURE_API_KEY
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.NODE_ENV
 seedFirstRun(HOME, [process.cwd()])
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const { forgetDesktopOwner } = await import('../../src/services/desktop/desktopSession.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { query } = await import('../../src/query.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const { forgetDesktopOwner } = await import('../../src/integrations/desktop/desktopSession.ts')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { flushSessionStorage } = await import('../../src/sessions/transcripts/sessionStorage.ts')
 
 const fetchBefore = globalThis.fetch
 const network: string[] = []

@@ -12,17 +12,17 @@ process.env.NODE_ENV = 'test'
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
-const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.js')
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/boot/process-state/processState.js')
 trustTheProofFolder(true)
-const { walkMarkdownEstate, loadMarkdownFilesForSubdir, ESTATE_WALK_MAX_ENTRIES, ESTATE_WALK_MAX_DEPTH } = await import('../../src/utils/markdownConfigLoader.js')
-const { bootNotes, _resetBootNotesForTesting } = await import('../../src/substrate/bootNotes.js')
+const { walkMarkdownEstate, loadMarkdownFilesForSubdir, ESTATE_WALK_MAX_ENTRIES, ESTATE_WALK_MAX_DEPTH } = await import('../../src/platform/settings/markdownConfigLoader.js')
+const { bootNotes, _resetBootNotesForTesting } = await import('../../src/platform/substrate/bootNotes.js')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
-const walkFix = ' — fix walkMarkdownEstate and its ESTATE_WALK_MAX_ENTRIES / ESTATE_WALK_MAX_DEPTH caps in src/utils/markdownConfigLoader.ts'
+const walkFix = ' — fix walkMarkdownEstate and its ESTATE_WALK_MAX_ENTRIES / ESTATE_WALK_MAX_DEPTH caps in src/platform/settings/markdownConfigLoader.ts'
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
 section('§1 a small estate is complete, case-folded, sorted, through a symlinked directory')
@@ -100,11 +100,11 @@ section('§5 through the loader: the partial roster loads AND a boot note names 
   _resetBootNotesForTesting()
   const files = await loadMarkdownFilesForSubdir('skills', join(SCRATCH, 'big-project'))
   const project = files.filter(f => f.source === 'projectSettings')
-  check('the partial roster is served (never hidden)', project.length > 0 && project.length <= ESTATE_WALK_MAX_ENTRIES, String(project.length) + ' — fix loadMarkdownFilesForSubdir in src/utils/markdownConfigLoader.ts')
-  check('every kept file loads (the bounded read pool drops none)', project.length === bigKept, `${project.length} of ${bigKept} — fix loadMarkdownFilesForSubdir in src/utils/markdownConfigLoader.ts`)
+  check('the partial roster is served (never hidden)', project.length > 0 && project.length <= ESTATE_WALK_MAX_ENTRIES, String(project.length) + ' — fix loadMarkdownFilesForSubdir in src/platform/settings/markdownConfigLoader.ts')
+  check('every kept file loads (the bounded read pool drops none)', project.length === bigKept, `${project.length} of ${bigKept} — fix loadMarkdownFilesForSubdir in src/platform/settings/markdownConfigLoader.ts`)
   const notes = bootNotes()
   const note = notes.find(n => n.text.includes('configuration walk') && n.text.includes('stopped early'))
-  check('a warn boot note names the stopped walk', note !== undefined && note.kind === 'warn', JSON.stringify(notes) + ' — the boot note is raised where walkMarkdownEstate stops early in src/utils/markdownConfigLoader.ts')
+  check('a warn boot note names the stopped walk', note !== undefined && note.kind === 'warn', JSON.stringify(notes) + ' — the boot note is raised where walkMarkdownEstate stops early in src/platform/settings/markdownConfigLoader.ts')
 }
 
 

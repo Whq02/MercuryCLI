@@ -7,13 +7,13 @@ import { checker } from '../engine-durability/harness.ts'
 const t = checker()
 
 const { AskUserQuestionTool } = await import(
-  '../../src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx'
+  '../../src/tools/ask-question/AskUserQuestionTool.tsx'
 )
-const { adoptQuestions } = await import('../../src/services/interview/controller.ts')
+const { adoptQuestions } = await import('../../src/tools/engines/interview/controller.ts')
 const { emptyInterviewState, foldInterview, rebuildInterview } = await import(
-  '../../src/services/interview/contracts.ts'
+  '../../src/tools/engines/interview/contracts.ts'
 )
-import type { InterviewEvent } from '../../src/services/interview/contracts.ts'
+import type { InterviewEvent } from '../../src/tools/engines/interview/contracts.ts'
 
 const OLD_INPUT = {
   questions: [

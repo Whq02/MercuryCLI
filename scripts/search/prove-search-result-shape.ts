@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 
 ;(globalThis as any).MACRO = { VERSION: 'proof', PACKAGE_URL: 'https://example.invalid' }
-const contract = await import('../../src/services/search/searchContract.js')
-const { decodeBraveWebSearch } = await import('../../src/services/search/brave.js')
-const { decodeTavilySearch } = await import('../../src/services/search/tavily.js')
-const { parseDuckDuckGoHtml, parseDuckDuckGoLite } = await import('../../src/services/search/duckduckgo.js')
-const { WebSearchTool } = await import('../../src/tools/WebSearchTool/WebSearchTool.js')
-const { ProviderSearchTool } = await import('../../src/tools/WebSearchTool/ProviderSearchTool.js')
-const { searchTokenEstimate, SEARCH_PAYLOAD_TOKEN_CEILING } = await import('../../src/services/search/searchPayload.js')
+const contract = await import('../../src/tools/engines/web-search/searchContract.js')
+const { decodeBraveWebSearch } = await import('../../src/tools/engines/web-search/brave.js')
+const { decodeTavilySearch } = await import('../../src/tools/engines/web-search/tavily.js')
+const { parseDuckDuckGoHtml, parseDuckDuckGoLite } = await import('../../src/tools/engines/web-search/duckduckgo.js')
+const { WebSearchTool } = await import('../../src/tools/web-search/WebSearchTool.js')
+const { ProviderSearchTool } = await import('../../src/tools/web-search/ProviderSearchTool.js')
+const { searchTokenEstimate, SEARCH_PAYLOAD_TOKEN_CEILING } = await import('../../src/tools/engines/web-search/searchPayload.js')
 for (const [source, decoded] of [
   ['brave', decodeBraveWebSearch({ web: { results: [{ title: 'B', url: 'https://example.com/b' }] } })],
   ['tavily', decodeTavilySearch({ results: [{ title: 'T', url: 'https://example.com/t' }] })],
@@ -25,8 +25,8 @@ for (const text of ['x', '汉字', '\\"\n', '🧭']) {
   const hits = contract.normaliseHits(Array.from({ length: 100 }, (_, i) => ({
     title: text.repeat(1000), url: `https://example.com/${i}`, snippet: text.repeat(1000), source_type: 'brave' as const,
   })), 100)
-  assert.ok(hits.length <= contract.DEFAULT_MAX_RESULTS, `normaliseHits in src/services/search/searchContract.js must cap hits <= ${contract.DEFAULT_MAX_RESULTS} (got ${hits.length})`)
-  assert.ok(hits.every(h => h.snippet.length <= contract.MAX_SNIPPET_CHARS), `normaliseHits in src/services/search/searchContract.js must cap snippet length <= ${contract.MAX_SNIPPET_CHARS}`)
+  assert.ok(hits.length <= contract.DEFAULT_MAX_RESULTS, `normaliseHits in src/tools/engines/web-search/searchContract.js must cap hits <= ${contract.DEFAULT_MAX_RESULTS} (got ${hits.length})`)
+  assert.ok(hits.every(h => h.snippet.length <= contract.MAX_SNIPPET_CHARS), `normaliseHits in src/tools/engines/web-search/searchContract.js must cap snippet length <= ${contract.MAX_SNIPPET_CHARS}`)
   for (const tool of [WebSearchTool, ProviderSearchTool]) {
     const block = tool.mapToolResultToToolResultBlockParam({ query: text.repeat(20000), results: ['untrusted commentary'.repeat(5000), { tool_use_id: 'g', content: hits }], via: 'brave', tier: 'keyed', notes: [text.repeat(20000)], durationSeconds: 0 }, 'proof')
     const payload = String(block.content)

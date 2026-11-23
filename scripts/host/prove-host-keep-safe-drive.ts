@@ -15,10 +15,10 @@ process.env.HOME = f.home
 if (process.platform === 'win32') process.env.USERPROFILE = f.home
 let mounted: Mounted | undefined
 try {
-  assert.ok(existsSync(f.root + '/src/services/host/keepSafe.ts'), 'Bank needs a keep-safe action with a verified second-drive copy')
-  const safe = await import(f.root + '/src/services/host/keepSafe.ts')
-  const bank = await import(f.root + '/src/services/host/bank.ts')
-  const { HOST_RECIPES } = await import(f.root + '/src/services/host/recipes.ts')
+  assert.ok(existsSync(f.root + '/src/models/hosting/keepSafe.ts'), 'Bank needs a keep-safe action with a verified second-drive copy')
+  const safe = await import(f.root + '/src/models/hosting/keepSafe.ts')
+  const bank = await import(f.root + '/src/models/hosting/bank.ts')
+  const { HOST_RECIPES } = await import(f.root + '/src/models/hosting/recipes.ts')
   const bytes = Buffer.from('a complete fixture model bank')
   const hash = createHash('sha256').update(bytes).digest('hex')
   const config = Buffer.from('{"model_type":"fixture"}')
@@ -34,11 +34,11 @@ try {
   writeFileSync(join(path, 'tokenizer.json'), tokenizer)
   assert.equal(bank.bankFiles(recipe, path).files.length, 3)
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
   let mirrors = 0
   const notices: string[] = []

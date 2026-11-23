@@ -2,9 +2,9 @@ import { proofHome } from '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { Client } from '../../src/utils/mcp/sdk.js'
-import { LazyStdioClientTransport } from '../../src/services/mcp/lazyStdio.js'
-import type { McpBootstrapManifest } from '../../src/utils/mcp/types.js'
+import { Client } from '../../src/integrations/mcp-shapes/sdk.js'
+import { LazyStdioClientTransport } from '../../src/integrations/mcp/lazyStdio.js'
+import type { McpBootstrapManifest } from '../../src/integrations/mcp-shapes/mcpServerRecords.js'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const manifest: McpBootstrapManifest = {

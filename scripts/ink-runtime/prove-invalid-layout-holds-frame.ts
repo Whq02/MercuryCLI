@@ -1,21 +1,21 @@
 #!/usr/bin/env bun
-// gate-watch: src/ink/renderer.ts src/ink/frame-writer.ts src/ink/ink.tsx src/ink/cell-grid.ts
+// gate-watch: src/screen/renderer/renderer.ts src/screen/renderer/frame-writer.ts src/screen/renderer/screenInstance.tsx src/screen/renderer/cell-grid.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { EventEmitter } from 'node:events'
 import React from 'react'
-import { AlternateScreen } from '../../src/ink/components/AlternateScreen.js'
-import Box from '../../src/ink/components/Box.js'
-import Text from '../../src/ink/components/Text.js'
-import { CellWidth, cellAt, setCellAt } from '../../src/ink/cell-grid.js'
-import { appendChildNode, createNode, type DOMElement } from '../../src/ink/dom.js'
-import { emptyFrame, type FlickerRecord, type Frame } from '../../src/ink/frame.js'
-import { FrameWriter } from '../../src/ink/frame-writer.js'
-import useInput from '../../src/ink/hooks/use-input.js'
-import Ink from '../../src/ink/ink.js'
-import instances from '../../src/ink/instances.js'
-import { createLayoutNode } from '../../src/ink/layout/engine.js'
-import createRenderer from '../../src/ink/renderer.js'
+import { AlternateScreen } from '../../src/screen/renderer/elements/AlternateScreen.js'
+import Box from '../../src/screen/renderer/elements/Box.js'
+import Text from '../../src/screen/renderer/elements/Text.js'
+import { CellWidth, cellAt, setCellAt } from '../../src/screen/renderer/cell-grid.js'
+import { appendChildNode, createNode, type DOMElement } from '../../src/screen/renderer/dom.js'
+import { emptyFrame, type FlickerRecord, type Frame } from '../../src/screen/renderer/frame.js'
+import { FrameWriter } from '../../src/screen/renderer/frame-writer.js'
+import useInput from '../../src/screen/renderer/bindings/use-input.js'
+import Ink from '../../src/screen/renderer/screenInstance.js'
+import instances from '../../src/screen/renderer/instances.js'
+import { createLayoutNode } from '../../src/screen/renderer/layout/engine.js'
+import createRenderer from '../../src/screen/renderer/renderer.js'
 import { AnsiEmulator } from './ansiEmulator.js'
 import { buildDom, makeContext, screenLines } from './frameHarness.js'
 
@@ -118,12 +118,12 @@ console.log('§1 Ink on the alternate screen: an uncomputed or missing root layo
   check(
     'before the first tree lays out, onRender writes no bytes and flushes no pending alt-screen entry',
     prepaintBytes.length === 0,
-    `${JSON.stringify(prepaintBytes)} (onRender in src/ink/ink/frame-loop.ts must return before writing while the root has no computed layout)`,
+    `${JSON.stringify(prepaintBytes)} (onRender in src/screen/renderer/instance/frame-loop.ts must return before writing while the root has no computed layout)`,
   )
   check(
     'before the first tree lays out, onRender records no offscreen flicker',
     flickers.length === 0,
-    `${JSON.stringify(flickers)} (onRender in src/ink/ink/frame-loop.ts must not record a flicker for a frame it did not lay out)`,
+    `${JSON.stringify(flickers)} (onRender in src/screen/renderer/instance/frame-loop.ts must not record a flicker for a frame it did not lay out)`,
   )
   ;(ink as unknown as { isTTY: boolean }).isTTY = false
   ink.unmount()
@@ -152,7 +152,7 @@ console.log('§1 Ink on the alternate screen: an uncomputed or missing root layo
   check(
     'control: the alternate screen paints both head and foot rows',
     paintedLines[0] === 'head row one' && paintedLines[ROWS - 1] === 'foot row kept',
-    `${JSON.stringify([paintedLines[0], paintedLines[ROWS - 1]])} (the control frame did not paint; check AltScene and Ink render in src/ink/ink.tsx before the held-frame checks)`,
+    `${JSON.stringify([paintedLines[0], paintedLines[ROWS - 1]])} (the control frame did not paint; check AltScene and Ink render in src/screen/renderer/screenInstance.tsx before the held-frame checks)`,
   )
 
   flickers.length = 0
@@ -166,17 +166,17 @@ console.log('§1 Ink on the alternate screen: an uncomputed or missing root layo
   check(
     'with rootNode.layoutNode absent, onRender emits no erase-in-display and writes nothing',
     (missingBytes.match(ERASE_DISPLAY) ?? []).length === 0 && missingBytes.length === 0,
-    `${JSON.stringify(missingBytes)} (createRenderer in src/ink/renderer.ts must answer invalidFrame, and onRender in src/ink/ink/frame-loop.ts must write nothing, when rootNode.layoutNode is missing)`,
+    `${JSON.stringify(missingBytes)} (createRenderer in src/screen/renderer/renderer.ts must answer invalidFrame, and onRender in src/screen/renderer/instance/frame-loop.ts must write nothing, when rootNode.layoutNode is missing)`,
   )
   check(
     'with rootNode.layoutNode absent, the painted head and foot rows remain on the terminal',
     afterMissing[0] === 'head row one' && afterMissing[ROWS - 1] === 'foot row kept',
-    `${JSON.stringify([afterMissing[0], afterMissing[ROWS - 1]])} (invalidFrame in src/ink/renderer.ts must copy the front frame screen instead of an empty one)`,
+    `${JSON.stringify([afterMissing[0], afterMissing[ROWS - 1]])} (invalidFrame in src/screen/renderer/renderer.ts must copy the front frame screen instead of an empty one)`,
   )
   check(
     'with rootNode.layoutNode absent, no offscreen flicker is recorded',
     flickers.length === 0,
-    `${JSON.stringify(flickers)} (onRender in src/ink/ink/frame-loop.ts must not record a flicker when the root layout is missing)`,
+    `${JSON.stringify(flickers)} (onRender in src/screen/renderer/instance/frame-loop.ts must not record a flicker when the root layout is missing)`,
   )
 
   rootNode.layoutNode = savedLayout
@@ -193,7 +193,7 @@ console.log('§1 Ink on the alternate screen: an uncomputed or missing root layo
   check(
     'with an uncomputed (NaN) root layout, onRender writes nothing and keeps the painted rows',
     nanBytes.length === 0 && afterNaN[0] === 'head row one' && afterNaN[ROWS - 1] === 'foot row kept',
-    `${JSON.stringify({ nanBytes, head: afterNaN[0], foot: afterNaN[ROWS - 1] })} (createRenderer in src/ink/renderer.ts must answer invalidFrame for a root whose computed width or height is not finite)`,
+    `${JSON.stringify({ nanBytes, head: afterNaN[0], foot: afterNaN[ROWS - 1] })} (createRenderer in src/screen/renderer/renderer.ts must answer invalidFrame for a root whose computed width or height is not finite)`,
   )
 
   ink.render(h(AltScene, { head: 'head row two' }))
@@ -202,7 +202,7 @@ console.log('§1 Ink on the alternate screen: an uncomputed or missing root layo
   check(
     'after layout returns, the next frame diffs cleanly against the held frontFrame without aliasing backFrame',
     resumedLines[0] === 'head row two' && resumedLines[ROWS - 1] === 'foot row kept',
-    `${JSON.stringify([resumedLines[0], resumedLines[ROWS - 1]])} (the frame after a held one did not paint; check invalidFrame in src/ink/renderer.ts and onRender in src/ink/ink/frame-loop.ts for a frame that aliases backFrame)`,
+    `${JSON.stringify([resumedLines[0], resumedLines[ROWS - 1]])} (the frame after a held one did not paint; check invalidFrame in src/screen/renderer/renderer.ts and onRender in src/screen/renderer/instance/frame-loop.ts for a frame that aliases backFrame)`,
   )
   ;(ink as unknown as { isTTY: boolean }).isTTY = false
   ink.unmount()
@@ -265,7 +265,7 @@ console.log('\n§2 createRenderer + FrameWriter directly: alternate screen, wide
       linesMissing[0]!.startsWith('alpha line') &&
       linesMissing[ROWS - 1] === 'omega line' &&
       diffMissing.length === 0,
-    `${JSON.stringify({ height: heldMissing.screen.height, patches: diffMissing })} (invalidFrame in src/ink/renderer.ts must build a terminalRows-tall screen blitted from frontFrame, with no damage set)`,
+    `${JSON.stringify({ height: heldMissing.screen.height, patches: diffMissing })} (invalidFrame in src/screen/renderer/renderer.ts must build a terminalRows-tall screen blitted from frontFrame, with no damage set)`,
   )
 
   const negativeLayout = createLayoutNode()
@@ -290,7 +290,7 @@ console.log('\n§2 createRenderer + FrameWriter directly: alternate screen, wide
   check(
     'altScreen negative layout: holds painted rows and emits no clearTerminal patch',
     heldNegative.screen.height === ROWS && diffNegative.length === 0,
-    `${JSON.stringify(diffNegative)} (createRenderer in src/ink/renderer.ts must answer invalidFrame for a root layout with a negative computed size)`,
+    `${JSON.stringify(diffNegative)} (createRenderer in src/screen/renderer/renderer.ts must answer invalidFrame for a root layout with a negative computed size)`,
   )
 
   root.layoutNode = undefined
@@ -307,7 +307,7 @@ console.log('\n§2 createRenderer + FrameWriter directly: alternate screen, wide
   check(
     'altScreen narrower invalid frame mends a wide glyph split at the right edge',
     narrower.screen.width === COLS - 1 && edgeCell?.width === CellWidth.Narrow && edgeCell.char === ' ',
-    `${JSON.stringify(edgeCell)} (invalidFrame in src/ink/renderer.ts must clear a wide cell left in the last column after the screen narrows)`,
+    `${JSON.stringify(edgeCell)} (invalidFrame in src/screen/renderer/renderer.ts must clear a wide cell left in the last column after the screen narrows)`,
   )
 
   root.layoutNode = savedLayout
@@ -347,7 +347,7 @@ console.log('\n§2 createRenderer + FrameWriter directly: alternate screen, wide
       beforeAny.cursor.y === 0 &&
       beforeAny.cursor.visible === true &&
       writer.render(blankA, beforeAny, false).length === 0,
-    `${JSON.stringify({ height: beforeAny.screen.height, cursor: beforeAny.cursor })} (invalidFrame in src/ink/renderer.ts must give an inline screen the height of the front frame, with the cursor visible at home when that height is 0)`,
+    `${JSON.stringify({ height: beforeAny.screen.height, cursor: beforeAny.cursor })} (invalidFrame in src/screen/renderer/renderer.ts must give an inline screen the height of the front frame, with the cursor visible at home when that height is 0)`,
   )
 
   root.layoutNode!.calculateLayout(COLS, undefined)
@@ -378,7 +378,7 @@ console.log('\n§2 createRenderer + FrameWriter directly: alternate screen, wide
       inlineLines[0] === 'inline one' &&
       inlineLines[2] === 'inline three' &&
       inlineDiff.length === 0,
-    `${JSON.stringify({ height: heldInline.screen.height, patches: inlineDiff })} (invalidFrame in src/ink/renderer.ts must keep the front frame rows for an inline screen)`,
+    `${JSON.stringify({ height: heldInline.screen.height, patches: inlineDiff })} (invalidFrame in src/screen/renderer/renderer.ts must keep the front frame rows for an inline screen)`,
   )
 }
 

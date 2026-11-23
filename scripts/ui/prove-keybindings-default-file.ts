@@ -20,12 +20,12 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { generateKeybindingsTemplate } = await import('../../src/keybindings/template.ts')
-const { validateBindings } = await import('../../src/keybindings/validate.ts')
-const { parseBindings } = await import('../../src/keybindings/parser.ts')
-const { getKeybindingsPath, loadKeybindingsSyncWithWarnings, invalidateKeybindingsCache } = await import('../../src/keybindings/loadUserBindings.ts')
-const { resolveExternalEditor } = await import('../../src/utils/editor.ts')
-const { toTildePath } = await import('../../src/utils/path.ts')
+const { generateKeybindingsTemplate } = await import('../../src/screen/keys/template.ts')
+const { validateBindings } = await import('../../src/screen/keys/validate.ts')
+const { parseBindings } = await import('../../src/screen/keys/parser.ts')
+const { getKeybindingsPath, loadKeybindingsSyncWithWarnings, invalidateKeybindingsCache } = await import('../../src/screen/keys/loadUserBindings.ts')
+const { resolveExternalEditor } = await import('../../src/platform/editor/externalEditor.ts')
+const { toTildePath } = await import('../../src/platform/files/path.ts')
 const command = (await import('../../src/commands/keybindings/keybindings.ts')) as { openKeybindings?: (io: { edit?: (path: string) => Promise<{ content: string | null; error?: string }>; editor?: () => ReturnType<typeof resolveExternalEditor> }) => Promise<{ type: string; value: string }> }
 
 try {
@@ -33,15 +33,15 @@ try {
   {
     const template = JSON.parse(generateKeybindingsTemplate()) as { bindings: Array<{ context: string; bindings: Record<string, string | null> }> }
     const warnings = validateBindings(template.bindings, parseBindings(template.bindings))
-    check('the shipped template carries the Global command bindings the product ships (workbench, sessions)', template.bindings.some(block => block.context === 'Global' && Object.values(block.bindings).includes('command:workbench')), `generateKeybindingsTemplate in src/keybindings/template.ts must ship a Global block with a command:workbench binding; contexts: ${j(template.bindings.map(b => b.context))}`)
-    check('the checker raises no warning on the untouched default file', warnings.length === 0, `fix the template in src/keybindings/template.ts or the rule in src/keybindings/validate.ts: ${j(warnings.map(w => w.message))}`)
+    check('the shipped template carries the Global command bindings the product ships (workbench, sessions)', template.bindings.some(block => block.context === 'Global' && Object.values(block.bindings).includes('command:workbench')), `generateKeybindingsTemplate in src/screen/keys/template.ts must ship a Global block with a command:workbench binding; contexts: ${j(template.bindings.map(b => b.context))}`)
+    check('the checker raises no warning on the untouched default file', warnings.length === 0, `fix the template in src/screen/keys/template.ts or the rule in src/screen/keys/validate.ts: ${j(warnings.map(w => w.message))}`)
     const path = getKeybindingsPath()
     writeFileSync(path, generateKeybindingsTemplate())
     invalidateKeybindingsCache()
     const loaded = loadKeybindingsSyncWithWarnings()
-    check('the loader (what health and the footer count) reads the default file with no warnings', loaded.warnings.length === 0, `loadKeybindingsSyncWithWarnings in src/keybindings/loadUserBindings.ts warns on the default file; fix the template or the checker: ${j(loaded.warnings.map(w => w.message))}`)
+    check('the loader (what health and the footer count) reads the default file with no warnings', loaded.warnings.length === 0, `loadKeybindingsSyncWithWarnings in src/screen/keys/loadUserBindings.ts warns on the default file; fix the template or the checker: ${j(loaded.warnings.map(w => w.message))}`)
     const elsewhere = validateBindings([{ context: 'Settings', bindings: { 'ctrl+x w': 'command:workbench' } }], parseBindings([{ context: 'Settings', bindings: { 'ctrl+x w': 'command:workbench' } }]))
-    check('a command binding in a context that never runs commands is still flagged, naming Chat or Global as its home', elsewhere.length === 1 && elsewhere[0]!.message.includes('Settings') && elsewhere[0]!.suggestion === 'Move it into a "Chat" or "Global" block', `validateBindings in src/keybindings/validate.ts must flag a command binding outside Chat and Global with that suggestion: ${j(elsewhere)}`)
+    check('a command binding in a context that never runs commands is still flagged, naming Chat or Global as its home', elsewhere.length === 1 && elsewhere[0]!.message.includes('Settings') && elsewhere[0]!.suggestion === 'Move it into a "Chat" or "Global" block', `validateBindings in src/screen/keys/validate.ts must flag a command binding outside Chat and Global with that suggestion: ${j(elsewhere)}`)
     rmSync(path, { force: true })
   }
 
@@ -55,20 +55,20 @@ try {
     let spawned = 0
     const spy = async (p: string): Promise<{ content: string | null; error?: string }> => { spawned++; return { content: readFileSync(p, 'utf8') } }
     const noOp = await command.openKeybindings?.({ editor: () => resolveExternalEditor('true', 'VISUAL'), edit: spy })
-    check('VISUAL=true (the shell no-op Mercury\'s own tool shell hands to its children) is refused in words before any editor call', noOp !== undefined && noOp.value === 'VISUAL=true is not an editor — set VISUAL to an editor' && spawned === 0, `a no-op VISUAL must be refused before any editor call; see openKeybindings in src/commands/keybindings/keybindings.ts and the refusal words in src/utils/editor.ts: ${j({ noOp, spawned })}`)
+    check('VISUAL=true (the shell no-op Mercury\'s own tool shell hands to its children) is refused in words before any editor call', noOp !== undefined && noOp.value === 'VISUAL=true is not an editor — set VISUAL to an editor' && spawned === 0, `a no-op VISUAL must be refused before any editor call; see openKeybindings in src/commands/keybindings/keybindings.ts and the refusal words in src/platform/editor/externalEditor.ts: ${j({ noOp, spawned })}`)
     const missing = await command.openKeybindings?.({ editor: () => resolveExternalEditor('nosuch-editor-9000', 'EDITOR'), edit: spy })
-    check('an executable that is nowhere on PATH is refused in words before any editor call, the value cut to fit the line', missing !== undefined && missing.value === 'EDITOR=nosuch-edito… is not on PATH — set EDITOR to an editor' && spawned === 0, `a missing editor must be refused before any editor call, the value cut to fit; see the refusal words in src/utils/editor.ts: ${j({ missing, spawned })}`)
+    check('an executable that is nowhere on PATH is refused in words before any editor call, the value cut to fit the line', missing !== undefined && missing.value === 'EDITOR=nosuch-edito… is not on PATH — set EDITOR to an editor' && spawned === 0, `a missing editor must be refused before any editor call, the value cut to fit; see the refusal words in src/platform/editor/externalEditor.ts: ${j({ missing, spawned })}`)
     const win32 = resolveExternalEditor('true', 'VISUAL', { platform: 'win32', path: 'C:\\Windows\\System32' })
-    check('under the win32 spelling of the walk `true` is refused by name, before the shell that answers "not recognized" is ever asked', !win32.ok && win32.reason === 'no-op', `resolveExternalEditor in src/utils/editor.ts must refuse true by name on the win32 walk: ${j(win32)}`)
+    check('under the win32 spelling of the walk `true` is refused by name, before the shell that answers "not recognized" is ever asked', !win32.ok && win32.reason === 'no-op', `resolveExternalEditor in src/platform/editor/externalEditor.ts must refuse true by name on the win32 walk: ${j(win32)}`)
     const binDir = join(home, 'bin')
     mkdirSync(binDir, { recursive: true })
     writeFileSync(join(binDir, 'true.exe'), '')
     writeFileSync(join(binDir, 'notepad.exe'), '')
     const presentNoOp = resolveExternalEditor('true', 'EDITOR', { platform: 'win32', path: binDir })
     const notepad = resolveExternalEditor('notepad', 'default', { platform: 'win32', path: binDir })
-    check('a true.exe that exists is still no editor (the name law outranks presence); notepad.exe on the win32 walk resolves', !presentNoOp.ok && presentNoOp.reason === 'no-op' && notepad.ok && notepad.executable === 'notepad', `resolveExternalEditor in src/utils/editor.ts must keep refusing true.exe by name and resolve notepad on the win32 walk: ${j({ presentNoOp, notepad })}`)
+    check('a true.exe that exists is still no editor (the name law outranks presence); notepad.exe on the win32 walk resolves', !presentNoOp.ok && presentNoOp.reason === 'no-op' && notepad.ok && notepad.executable === 'notepad', `resolveExternalEditor in src/platform/editor/externalEditor.ts must keep refusing true.exe by name and resolve notepad on the win32 walk: ${j({ presentNoOp, notepad })}`)
     for (const line of [noOp?.value ?? '', missing?.value ?? '', 'EDITOR=quick.sh returned at once; set an editor that waits']) {
-      check(`the footer line stands whole at 80 columns (${line.length} ≤ 61): ${line}`, line.length <= 61 && !line.includes('\n'), `${line.length} characters; shorten this footer line in src/commands/keybindings/keybindings.ts or the refusal words in src/utils/editor.ts`)
+      check(`the footer line stands whole at 80 columns (${line.length} ≤ 61): ${line}`, line.length <= 61 && !line.includes('\n'), `${line.length} characters; shorten this footer line in src/commands/keybindings/keybindings.ts or the refusal words in src/platform/editor/externalEditor.ts`)
     }
     const quick = { ok: true as const, editor: 'quick.sh', variable: 'EDITOR' as const, executable: 'quick.sh', args: [] }
     const atOnce = await command.openKeybindings?.({ editor: () => quick, edit: async p => ({ content: readFileSync(p, 'utf8') }) })

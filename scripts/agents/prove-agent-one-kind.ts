@@ -12,12 +12,12 @@ function check(label: string, ok: boolean, detail = '', hint = ''): void {
   const note = ok ? detail : [detail, hint].filter(part => part !== '').join(' | ')
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${note ? ` — ${note}` : ''}`)
 }
-const schemaWhere = 'what to change: inputSchema in src/tools/AgentTool/agent/schema.ts, which must not declare crew_name and must drop unknown keys'
-const wordsWhere = 'what to change: the field descriptions in src/tools/AgentTool/agent/schema.ts and the text built by getPrompt in src/tools/AgentTool/prompt.ts, which must not mention crew_name or crewmate spawning notes'
-const receiptWhere = 'what to change: agentToolResultBlock in src/tools/AgentTool/agent/resultBlock.ts, which must give no special receipt for a crewmate_spawned status'
+const schemaWhere = 'what to change: inputSchema in src/tools/crewmate/call/schema.ts, which must not declare crew_name and must drop unknown keys'
+const wordsWhere = 'what to change: the field descriptions in src/tools/crewmate/call/schema.ts and the text built by getPrompt in src/tools/crewmate/prompt.ts, which must not mention crew_name or crewmate spawning notes'
+const receiptWhere = 'what to change: agentToolResultBlock in src/tools/crewmate/call/resultBlock.ts, which must give no special receipt for a crewmate_spawned status'
 
-const { inputSchema, AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
-const { getPrompt } = await import('../../src/tools/AgentTool/prompt.ts')
+const { inputSchema, AgentTool } = await import('../../src/tools/crewmate/CrewmateTool.tsx')
+const { getPrompt } = await import('../../src/tools/crewmate/prompt.ts')
 
 console.log('── §1 the schema: crew_name is an unknown key like any other ──')
 const schema = inputSchema()

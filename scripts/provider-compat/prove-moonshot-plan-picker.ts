@@ -62,7 +62,7 @@ function check(label: string, cond: boolean, detail?: string): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${PLAN_PICKER_HINT}` : ''}`)
 }
-const PLAN_PICKER_HINT = 'to fix, change the list read and row order in moonshotCatalogueRows / refreshMoonshotCatalogue / qualifyMoonshotModel (src/services/providers/moonshot/moonshotCatalogue.ts), the picker section in getModelOptions / keyLaneGroupRows (src/services/model/modelOptions.ts), the default in computedDefault (src/services/model/computedDefault.ts), or the id resolution in resolveEngineDispatch (src/services/crew/engineDispatch.ts)'
+const PLAN_PICKER_HINT = 'to fix, change the list read and row order in moonshotCatalogueRows / refreshMoonshotCatalogue / qualifyMoonshotModel (src/models/roads/moonshot/moonshotCatalogue.ts), the picker section in getModelOptions / keyLaneGroupRows (src/models/catalogue/modelOptions.ts), the default in computedDefault (src/models/catalogue/computedDefault.ts), or the id resolution in resolveEngineDispatch (src/crew/crewmates/engineDispatch.ts)'
 function section(title: string): void {
   console.log(`\n${title}`)
 }
@@ -118,26 +118,26 @@ globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
   throw new Error(`unexpected request: ${spelled}`)
 }) as typeof fetch
 
-;(await import('../../src/utils/config.ts')).enableConfigs()
-const accounts = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
-const catalogue = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
-const modelOptions = await import('../../src/services/model/modelOptions.ts')
+;(await import('../../src/platform/settings/config.ts')).enableConfigs()
+const accounts = await import('../../src/models/roads/moonshot/moonshotAccounts.ts')
+const catalogue = await import('../../src/models/roads/moonshot/moonshotCatalogue.ts')
+const modelOptions = await import('../../src/models/catalogue/modelOptions.ts')
 const { getModelOptions, keyLanePins, keyLaneGroupRows, keyConnectValue, isProviderActionRow, MOONSHOT_MODEL_GROUP } = modelOptions
-const { KIMI_DISPLAY_PINS } = await import('../../src/utils/model/pins/kimiPins.ts')
-const { computedDefault, resetComputedDefaultMemo, readComputedDefaultCatalogue } = await import('../../src/services/model/computedDefault.ts')
-const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
-const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
-const { moonshotCatalogueEntries, describeMoonshotProvider, listMoonshotModels } = await import('../../src/services/providers/moonshot/moonshotAdapter.ts')
-const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
-const { readCatalogueIfPending } = await import('../../src/services/providers/catalogueOnDemand.ts')
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
-const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
-const engine = await import('../../src/services/crew/engineDispatch.ts')
-const { getContextWindowForModel, effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
-const { moonshotCallModel } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { KIMI_DISPLAY_PINS } = await import('../../src/models/facts/pins/kimiPins.ts')
+const { computedDefault, resetComputedDefaultMemo, readComputedDefaultCatalogue } = await import('../../src/models/catalogue/computedDefault.ts')
+const { providerFrontierFact } = await import('../../src/models/catalogue/providerFrontier.ts')
+const { resolveEngineDispatch } = await import('../../src/crew/crewmates/engineDispatch.ts')
+const { moonshotCatalogueEntries, describeMoonshotProvider, listMoonshotModels } = await import('../../src/models/roads/moonshot/moonshotAdapter.ts')
+const { catalogueEpoch } = await import('../../src/models/roads/catalogueEpoch.ts')
+const { readCatalogueIfPending } = await import('../../src/models/roads/catalogueOnDemand.ts')
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
+const { declaredRouteOf } = await import('../../src/models/roads/routeLaw.ts')
+const engine = await import('../../src/crew/crewmates/engineDispatch.ts')
+const { getContextWindowForModel, effortVocabularyFor } = await import('../../src/models/facts/capabilities.ts')
+const { moonshotCallModel } = await import('../../src/models/roads/moonshot/moonshotCallModel.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 type ListState = { kind: string; reading?: boolean; error?: string; count?: number }
 const listState = (): ListState | undefined => (modelOptions as { keyLaneListState?: (provider: 'moonshot') => ListState }).keyLaneListState?.('moonshot')

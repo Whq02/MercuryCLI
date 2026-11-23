@@ -20,12 +20,12 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) 
   return new Response(`data: ${JSON.stringify({ id: 'mistral-pdf-answer', model, choices: [{ index: 0, delta: { role: 'assistant', content: 'Paper read.' }, finish_reason: 'stop' }], usage: { prompt_tokens: 29, completion_tokens: 4, total_tokens: 33 } })}\n\ndata: [DONE]\n\n`, { headers: { 'content-type': 'text/event-stream' } })
 } })
 process.env.MERCURY_MISTRAL_API_BASE = `${server.url}v1`
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { modelSupportsPDF } = await import('../../src/utils/model/capabilities.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { modelSupportsPDF } = await import('../../src/models/facts/capabilities.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
 const data = pdfFixture([textPage('Mistral PDF fixture')]).toString('base64')
 const user = { type: 'user', uuid: crypto.randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content: [{ type: 'text', text: 'Read this paper.' }, { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data } }] } }
 try {
@@ -37,11 +37,11 @@ try {
   const body = captured[0]
   assert.equal(body.model, model)
   const parts = body.messages.filter((m: any) => m.role === 'user').flatMap((m: any) => m.content)
-  assert.ok(parts.some((p: any) => p.type === 'document_url' && p.document_url === `data:application/pdf;base64,${data}`), 'Mistral native PDF request omitted data:application/pdf document_url part in src/services/providers/')
-  assert.ok(!parts.some((p: any) => p.type === 'file'), 'Mistral native PDF request unexpectedly emitted type=file part in src/services/providers/')
+  assert.ok(parts.some((p: any) => p.type === 'document_url' && p.document_url === `data:application/pdf;base64,${data}`), 'Mistral native PDF request omitted data:application/pdf document_url part in src/models/roads/')
+  assert.ok(!parts.some((p: any) => p.type === 'file'), 'Mistral native PDF request unexpectedly emitted type=file part in src/models/roads/')
   assert.equal(body.reasoning_effort, 'high')
   assert.equal(body.max_tokens, 8192)
-  assert.ok(replies.some(r => r.message.content.some((b: any) => b.type === 'text' && b.text === 'Paper read.')), `routedCallModel(mistral) did not yield expected assistant text in src/services/providers/callModelRouter.ts: ${JSON.stringify(replies).slice(0, 200)}`)
+  assert.ok(replies.some(r => r.message.content.some((b: any) => b.type === 'text' && b.text === 'Paper read.')), `routedCallModel(mistral) did not yield expected assistant text in src/models/roads/callModelRouter.ts: ${JSON.stringify(replies).slice(0, 200)}`)
   assert.equal(replies.at(-1).message.usage.output_tokens, 4)
   console.log('PASS routed Mistral native PDF: account catalogue, chat endpoint, document_url bytes, effort/output budget, completion and usage')
 } finally { server.stop(true); rmSync(home, { recursive: true, force: true }) }

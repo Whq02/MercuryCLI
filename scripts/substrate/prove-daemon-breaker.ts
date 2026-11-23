@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 
-import { DaemonBreaker } from '../../src/utils/daemonBreaker.js'
+import { DaemonBreaker } from '../../src/daemon/control/daemonBreaker.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const shown = cond || detail ? detail : 'fix the state machine in DaemonBreaker (recordResult, shouldSuppressFire, getState, isFailureExit) in src/utils/daemonBreaker.ts'
+  const shown = cond || detail ? detail : 'fix the state machine in DaemonBreaker (recordResult, shouldSuppressFire, getState, isFailureExit) in src/daemon/control/daemonBreaker.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
 }
 function section(t: string): void {

@@ -21,7 +21,7 @@ function section(t: string): void {
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — proof exceeded 240s; a LaunchTool op (run, debug or test) did not finish, so check the op that ran last in src/tools/LaunchTool/LaunchTool.ts and the debug adapter start in src/services/dap/dapClient.ts')
+  console.log('\n❌ TIMEOUT — proof exceeded 240s; a LaunchTool op (run, debug or test) did not finish, so check the op that ran last in src/tools/launch/LaunchTool.ts and the debug adapter start in src/integrations/debugger/dapClient.ts')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -126,10 +126,10 @@ writeFileSync(path.join(proj, 'Main.tscn'), '[gd_scene]\n')
 
 process.env.MERCURY_PYTHON = SYS_PY
 process.chdir(proj)
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const launch = await import('../../src/services/ide/launchProfiles.js')
-const { _resetPythonProjectForTesting } = await import('../../src/services/ide/pythonProject.js')
+const launch = await import('../../src/integrations/ide/launchProfiles.js')
+const { _resetPythonProjectForTesting } = await import('../../src/integrations/ide/pythonProject.js')
 _resetPythonProjectForTesting()
 
 try {
@@ -138,13 +138,13 @@ try {
   {
     const bySource = (s: string) => d.profiles.filter(p => p.source === s)
     const vs = bySource('vscode')
-    check('A1 seven representable launch.json configs profiled: the six launches of every shipped adapter family and the attach configuration', vs.length === 7, `${vs.map(p => p.label).join(', ')}; the .vscode/launch.json reader in discoverLaunchProfiles in src/services/ide/launchProfiles.ts must profile exactly these seven configs`)
+    check('A1 seven representable launch.json configs profiled: the six launches of every shipped adapter family and the attach configuration', vs.length === 7, `${vs.map(p => p.label).join(', ')}; the .vscode/launch.json reader in discoverLaunchProfiles in src/integrations/ide/launchProfiles.ts must profile exactly these seven configs`)
     const attach = vs.find(p => p.label === 'attach to server')
     check('A1b the attach configuration is a Debug attach profile (python, port 5678), not a launch', attach?.attach?.adapter === 'python' && attach?.attach?.port === 5678 && attach?.debug === undefined, JSON.stringify(attach))
     const py = vs.find(p => p.label === 'hello (py)')
     check('A2 python config: adapter+program expanded', py?.debug?.adapter === 'python' && py?.debug?.program === path.join(proj, 'hello.py'), JSON.stringify(py?.debug))
     check('A3 dropped fields listed honestly', (py?.droppedFields ?? []).includes('console') && (py?.droppedFields ?? []).includes('justMyCode'), JSON.stringify(py?.droppedFields))
-    check('A4 native config maps to lldb', vs.some(p => p.debug?.adapter === 'lldb'), 'the launch.json type to adapter mapping in src/services/ide/launchProfiles.ts must map type lldb to the lldb adapter')
+    check('A4 native config maps to lldb', vs.some(p => p.debug?.adapter === 'lldb'), 'the launch.json type to adapter mapping in src/integrations/ide/launchProfiles.ts must map type lldb to the lldb adapter')
     check(
       'A4b the four shipped families route to their adapters with language populated (pwa-node→js, go→go, coreclr→dotnet, rdbg→ruby)',
       vs.find(p => p.label === 'node service')?.debug?.adapter === 'js' &&
@@ -167,7 +167,7 @@ try {
       d.skipped.length === 2 &&
         d.skipped.some(s => s.name === 'macro laden' && s.reason.includes('unexpanded macro') && s.reason.includes('${file}')) &&
         d.skipped.some(s => s.name === 'alien' && s.reason.includes('no Mercury adapter')),
-      `${JSON.stringify(d.skipped)}; the launch.json skip reasons in src/services/ide/launchProfiles.ts must name an unexpanded macro and an unknown adapter type`,
+      `${JSON.stringify(d.skipped)}; the launch.json skip reasons in src/integrations/ide/launchProfiles.ts must name an unexpanded macro and an unknown adapter type`,
     )
     const tests = bySource('python-tests')
     check('A6 the detected test framework profiles (unittest)', tests.length === 1 && tests[0]?.test?.framework === 'unittest', JSON.stringify(tests.map(t => t.test)))
@@ -175,7 +175,7 @@ try {
     check('A7 one build profile per NON-HIDDEN preset', cmake.length === 1 && cmake[0]?.build?.preset === 'dev', JSON.stringify(cmake.map(c => c.build)))
     const godot = bySource('godot')
     check('A8 godot scenes profiled through the slice-6 discovery', godot.length >= 2 && godot.some(g => g.godotScene?.scene === 'res://Main.tscn'), JSON.stringify(godot.map(g => g.godotScene?.scene)))
-    check('A9 zero source errors on the healthy tree', d.sourceErrors.length === 0, `${JSON.stringify(d.sourceErrors)}; a source reader in discoverLaunchProfiles in src/services/ide/launchProfiles.ts reported an error on the healthy fixture tree`)
+    check('A9 zero source errors on the healthy tree', d.sourceErrors.length === 0, `${JSON.stringify(d.sourceErrors)}; a source reader in discoverLaunchProfiles in src/integrations/ide/launchProfiles.ts reported an error on the healthy fixture tree`)
   }
 
   section('(B) content-stable identity')
@@ -199,9 +199,9 @@ try {
     failures++
   } else {
     process.env.MERCURY_DEBUGPY_VENDOR_DIR = DIST_VENDOR
-    const resolver = await import('../../src/services/dap/debugpyResolver.js')
+    const resolver = await import('../../src/integrations/debugger/debugpyResolver.js')
     resolver._resetDebugpyResolverForTesting()
-    const { LaunchTool } = await import('../../src/tools/LaunchTool/LaunchTool.js')
+    const { LaunchTool } = await import('../../src/tools/launch/LaunchTool.js')
     const ctx = { getAppState: () => ({}) } as never
     check('C1 list/inspect/last are read-only; run/debug/test/build are not',
       LaunchTool.isReadOnly({ op: 'list' } as never) === true &&
@@ -223,11 +223,11 @@ try {
 
     const dbg = (await LaunchTool.call({ op: 'debug', profile: pyId, file: path.join(proj, 'hello.py'), lines: [3] } as never, ctx)) as { data: { result: string } }
     check('C6 op:"debug" stops at the real breakpoint', dbg.data.result.includes('stopped — reason breakpoint'), dbg.data.result.split('\n')[0])
-    const dap = await import('../../src/services/dap/dapClient.js')
-    const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
+    const dap = await import('../../src/integrations/debugger/dapClient.js')
+    const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.js')
     void makeOwnerKey
-    const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.js')
-    const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.js')
+    const { disposeOwner } = await import('../../src/engine/run-owner/ownerLifecycle.js')
+    const { ownerFromToolUseContext } = await import('../../src/engine/run-owner/resolveOwner.js')
     await disposeOwner(ownerFromToolUseContext(ctx))
     check('C7 owner disposal reaps the launch session', dap._dapSessionCountForTesting() === 0, String(dap._dapSessionCountForTesting()))
 
@@ -244,7 +244,7 @@ try {
     const last = (await LaunchTool.call({ op: 'last' } as never, ctx)) as { data: { result: string } }
     check('C11 last remembers the newest action', last.data.result.includes('test') || last.data.result.includes('run'), last.data.result)
 
-    const { disposeOwnerProcesses, ownerLifecycleCounts } = await import('../../src/utils/run/ownerLifecycle.js')
+    const { disposeOwnerProcesses, ownerLifecycleCounts } = await import('../../src/engine/run-owner/ownerLifecycle.js')
     const crewCtx = { getAppState: () => ({}), agentId: 'launch-last-crew-a' } as never
     const crewOwner = ownerFromToolUseContext(crewCtx)
     const crewEmpty = (await LaunchTool.call({ op: 'last' } as never, crewCtx)) as { data: { result: string } }
@@ -264,7 +264,7 @@ try {
   {
     writeFileSync(path.join(proj, '.vscode', 'launch.json'), '{ this is not json')
     const broken = await launch.discoverLaunchProfiles(proj)
-    check('D1 typed sourceError for the broken file', broken.sourceErrors.some(e => e.source === 'vscode' && e.error.includes('unparseable')), `${JSON.stringify(broken.sourceErrors)}; the launch.json reader in src/services/ide/launchProfiles.ts must record a sourceError containing unparseable instead of throwing`)
+    check('D1 typed sourceError for the broken file', broken.sourceErrors.some(e => e.source === 'vscode' && e.error.includes('unparseable')), `${JSON.stringify(broken.sourceErrors)}; the launch.json reader in src/integrations/ide/launchProfiles.ts must record a sourceError containing unparseable instead of throwing`)
     check('D2 the other sources still discovered', broken.profiles.some(p => p.source === 'cmake') && broken.profiles.some(p => p.source === 'godot'))
   }
 } finally {

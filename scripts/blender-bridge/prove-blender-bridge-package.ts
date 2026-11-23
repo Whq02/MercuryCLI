@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path'
 import {
   BLENDER_BRIDGE_DIGEST,
   BLENDER_BRIDGE_FILES,
-} from '../../src/services/blender/bridgeFiles.generated.js'
+} from '../../src/integrations/blender/bridgeFiles.generated.js'
 import {
   BLENDER_BRIDGE_PROTOCOL_VERSION,
   BLENDER_BRIDGE_DEFAULT_PORT,
@@ -17,7 +17,7 @@ import {
   BLENDER_BRIDGE_PYTHON_SOURCE_CAP_BYTES,
   BLENDER_BRIDGE_PYTHON_OUTPUT_CAP_BYTES,
   blenderBridgeVerbNames,
-} from '../../src/utils/blender/bridgeProtocol.js'
+} from '../../src/integrations/blender-protocol/bridgeProtocol.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

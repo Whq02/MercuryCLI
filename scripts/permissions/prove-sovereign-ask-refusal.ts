@@ -20,13 +20,13 @@ const WORDS = (tool: string, limit: string) =>
 const FLOOR = "ls //localhost/c$/ may reach the remote host localhost over SMB/WebDAV; a UNC path can leak this machine's login — Mercury does not open it without explicit permission."
 const FLOOR_REASON = { type: 'safetyCheck', reason: FLOOR, operatorOnly: true }
 
-const { createRunnerAsks } = await import('../../src/cli/headless/runnerAsks.ts')
-const { createPeer } = await import('../../src/runner/wire/peer.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { isDenialResultText } = await import('../../src/utils/messages/rejectionText.ts')
-const asks = await import('../../src/daemon/permissionAsks.ts')
-const { concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
-const { RunnerConnection } = await import('../../src/daemon/runnerConnection.ts')
+const { createRunnerAsks } = await import('../../src/daemon/runner/runnerAsks.ts')
+const { createPeer } = await import('../../src/daemon/runner-wire/peer.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { isDenialResultText } = await import('../../src/engine/message-shapes/rejectionText.ts')
+const asks = await import('../../src/daemon/session-seat/permissionAsks.ts')
+const { concourseWorkersPath } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { RunnerConnection } = await import('../../src/daemon/runner-link/runnerConnection.ts')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -66,15 +66,15 @@ try {
     const askedAt = Date.now()
     const decision = runnerAsks.createCanUseTool()(tool as never, { command: 'ls //localhost/c$/' }, context as never, { message: { id: 'floor' } } as never, 'floor', { behavior: 'ask', message: FLOOR, decisionReason: FLOOR_REASON } as never)
     await sleep(50)
-    check('the ask parks on the host and carries the mode', runnerAsks.parkedAsks() === 1 && seen?.mode === 'sovereign', `${JSON.stringify(seen)} — createCanUseTool in src/cli/headless/runnerAsks.ts must park the ask on the host through permission/request with the session mode`)
+    check('the ask parks on the host and carries the mode', runnerAsks.parkedAsks() === 1 && seen?.mode === 'sovereign', `${JSON.stringify(seen)} — createCanUseTool in src/daemon/runner/runnerAsks.ts must park the ask on the host through permission/request with the session mode`)
     await sleep(LIMIT_MS / 2)
-    check('half-way to the clock the ask still stands', runnerAsks.parkedAsks() === 1, `parked asks: ${runnerAsks.parkedAsks()} — the ask left the parked table before its limit; check the clock in src/cli/headless/runnerAsks.ts and askLimitMs in src/utils/permissions/askClock.ts`)
+    check('half-way to the clock the ask still stands', runnerAsks.parkedAsks() === 1, `parked asks: ${runnerAsks.parkedAsks()} — the ask left the parked table before its limit; check the clock in src/daemon/runner/runnerAsks.ts and askLimitMs in src/permissions/rules/askClock.ts`)
     const result = await Promise.race([decision, sleep(LIMIT_MS * 3).then(() => null)])
-    check(`the runner refuses the call at the clock (took ${Date.now() - askedAt} ms)`, result !== null && (result as any).behavior === 'deny', `${JSON.stringify(result)} — the runner clock in src/cli/headless/runnerAsks.ts (askLimitMs in src/utils/permissions/askClock.ts) must refuse the ask at its limit`)
-    check('the refusal is the one sentence, naming the limit and the next move', (result as any)?.message === WORDS('Bash', '3s'), `${String((result as any)?.message)} — unansweredAskRefusal in src/utils/permissions/askClock.ts must return the WORDS sentence at the top of this file`)
-    check('the classifier reads it as a denial (the crimson lead, never the amber failure)', typeof (result as any)?.message === 'string' && isDenialResultText((result as any).message), `${String((result as any)?.message)} — isDenialResultText in src/utils/messages/rejectionText.ts must recognise the refusal sentence from unansweredAskRefusal`)
-    check('the turn is not cut', !ac.signal.aborted, 'the turn abort signal fired when the ask expired; the expiry in src/cli/headless/runnerAsks.ts must deny the one call and leave the turn running')
-    check('the host saw the ask withdrawn with the cause', withdrawn === 'expired unanswered after 3s' && runnerAsks.parkedAsks() === 0, `${JSON.stringify(withdrawn)} (parked ${runnerAsks.parkedAsks()}) — the runner must withdraw the host ask with the cause from askExpiredCause in src/utils/permissions/askClock.ts`)
+    check(`the runner refuses the call at the clock (took ${Date.now() - askedAt} ms)`, result !== null && (result as any).behavior === 'deny', `${JSON.stringify(result)} — the runner clock in src/daemon/runner/runnerAsks.ts (askLimitMs in src/permissions/rules/askClock.ts) must refuse the ask at its limit`)
+    check('the refusal is the one sentence, naming the limit and the next move', (result as any)?.message === WORDS('Bash', '3s'), `${String((result as any)?.message)} — unansweredAskRefusal in src/permissions/rules/askClock.ts must return the WORDS sentence at the top of this file`)
+    check('the classifier reads it as a denial (the crimson lead, never the amber failure)', typeof (result as any)?.message === 'string' && isDenialResultText((result as any).message), `${String((result as any)?.message)} — isDenialResultText in src/engine/message-shapes/rejectionText.ts must recognise the refusal sentence from unansweredAskRefusal`)
+    check('the turn is not cut', !ac.signal.aborted, 'the turn abort signal fired when the ask expired; the expiry in src/daemon/runner/runnerAsks.ts must deny the one call and leave the turn running')
+    check('the host saw the ask withdrawn with the cause', withdrawn === 'expired unanswered after 3s' && runnerAsks.parkedAsks() === 0, `${JSON.stringify(withdrawn)} (parked ${runnerAsks.parkedAsks()}) — the runner must withdraw the host ask with the cause from askExpiredCause in src/permissions/rules/askClock.ts`)
     host.end(); runner.end(); ac.abort()
   }
 
@@ -103,21 +103,21 @@ try {
     const flow = hold('concourse-w1', 'flow', 'flow', 'agent-2')
     const dflt = hold('concourse-w1', 'default', 'default', 'agent-3')
     const noMode = hold('concourse-w2', 'nomode', undefined, 'agent-4')
-    check("a crewmate's ask in Sovereign carries a 3-minute clock", sov.row?.limitMs === 180_000, `${JSON.stringify(sov.row)} — holdWorkerAsk in src/daemon/permissionAsks.ts must take the clock from askLimitMs for the ask mode`)
-    check("a crewmate's ask in Flow carries a 10-minute clock", flow.row?.limitMs === 600_000, `${JSON.stringify(flow.row)} — holdWorkerAsk in src/daemon/permissionAsks.ts must take the clock from askLimitMs for the ask mode`)
-    check("a crewmate's ask in Default carries a 10-minute clock", dflt.row?.limitMs === 600_000, `${JSON.stringify(dflt.row)} — holdWorkerAsk in src/daemon/permissionAsks.ts must take the clock from askLimitMs for the ask mode`)
-    check("an ask without a mode on the wire reads the seat's spawn posture (sovereign → 3 minutes)", noMode.row?.limitMs === 180_000, `${JSON.stringify(noMode.row)} — holdWorkerAsk in src/daemon/permissionAsks.ts must fall back to the seat spawn mode recorded in the concourse workers file when the ask has none`)
+    check("a crewmate's ask in Sovereign carries a 3-minute clock", sov.row?.limitMs === 180_000, `${JSON.stringify(sov.row)} — holdWorkerAsk in src/daemon/session-seat/permissionAsks.ts must take the clock from askLimitMs for the ask mode`)
+    check("a crewmate's ask in Flow carries a 10-minute clock", flow.row?.limitMs === 600_000, `${JSON.stringify(flow.row)} — holdWorkerAsk in src/daemon/session-seat/permissionAsks.ts must take the clock from askLimitMs for the ask mode`)
+    check("a crewmate's ask in Default carries a 10-minute clock", dflt.row?.limitMs === 600_000, `${JSON.stringify(dflt.row)} — holdWorkerAsk in src/daemon/session-seat/permissionAsks.ts must take the clock from askLimitMs for the ask mode`)
+    check("an ask without a mode on the wire reads the seat's spawn posture (sovereign → 3 minutes)", noMode.row?.limitMs === 180_000, `${JSON.stringify(noMode.row)} — holdWorkerAsk in src/daemon/session-seat/permissionAsks.ts must fall back to the seat spawn mode recorded in the concourse workers file when the ask has none`)
     for (const held of [sov, flow, dflt, noMode]) if (held.row) asks.onWorkerAskWithdrawn(held.row.requestId, daemonDir)
     process.env.MERCURY_PERMISSION_ASK_EXPIRY_MINUTES = '0.05'
     const askedAt = Date.now()
     const scaled = hold('concourse-w1', 'scaled', 'sovereign', 'agent-5')
-    check('under the knob the Sovereign crewmate clock is 3 seconds', scaled.row?.limitMs === LIMIT_MS, `${JSON.stringify(scaled.row)} — askLimitMs in src/utils/permissions/askClock.ts must scale by MERCURY_PERMISSION_ASK_EXPIRY_MINUTES`)
+    check('under the knob the Sovereign crewmate clock is 3 seconds', scaled.row?.limitMs === LIMIT_MS, `${JSON.stringify(scaled.row)} — askLimitMs in src/permissions/rules/askClock.ts must scale by MERCURY_PERMISSION_ASK_EXPIRY_MINUTES`)
     let answer: any = null
     void scaled.h.answer.then(a => { answer = a })
     await settled(() => answer !== null, LIMIT_MS * 3)
-    check(`the daemon refuses the parked ask at the clock (took ${Date.now() - askedAt} ms)`, answer?.outcome === 'deny', `${JSON.stringify(answer)} — settleUnanswered in src/daemon/permissionAsks.ts must settle the parked ask with a deny when its timer fires`)
-    check('with the same sentence the card and the runner use', answer?.message === WORDS('Bash', '3s'), `${String(answer?.message)} — expiredAskDenialMessage in src/daemon/permissionAsks.ts must return the unansweredAskRefusal sentence`)
-    check('the ask leaves the parked table', !asks.listPendingPermissionAsks().some(a => a.requestId === scaled.row?.requestId), 'settleUnanswered in src/daemon/permissionAsks.ts must delete the ask from the parked table when it expires')
+    check(`the daemon refuses the parked ask at the clock (took ${Date.now() - askedAt} ms)`, answer?.outcome === 'deny', `${JSON.stringify(answer)} — settleUnanswered in src/daemon/session-seat/permissionAsks.ts must settle the parked ask with a deny when its timer fires`)
+    check('with the same sentence the card and the runner use', answer?.message === WORDS('Bash', '3s'), `${String(answer?.message)} — expiredAskDenialMessage in src/daemon/session-seat/permissionAsks.ts must return the unansweredAskRefusal sentence`)
+    check('the ask leaves the parked table', !asks.listPendingPermissionAsks().some(a => a.requestId === scaled.row?.requestId), 'settleUnanswered in src/daemon/session-seat/permissionAsks.ts must delete the ask from the parked table when it expires')
     const oblPath = join(process.env.MERCURY_CONFIG_DIR!, 'crew', 'obligations-switchboard.json')
     type ObligationRow = { ref: string; status: string; settlement?: { by?: string } }
     const readRow = (ref: string): ObligationRow | undefined => {
@@ -127,7 +127,7 @@ try {
     }
     await settled(() => readRow(`permission:${scaled.row?.requestId}`)?.status === 'withdrawn', 10_000)
     const expiredRow = readRow(`permission:${scaled.row?.requestId}`)
-    check('the needs-you row settles withdrawn, the expiry named', expiredRow?.status === 'withdrawn' && expiredRow.settlement?.by === 'daemon: expired unanswered after 3s', `${JSON.stringify(expiredRow)} — settleUnanswered in src/daemon/permissionAsks.ts must withdraw the needs-you row with the askExpiredCause text`)
+    check('the needs-you row settles withdrawn, the expiry named', expiredRow?.status === 'withdrawn' && expiredRow.settlement?.by === 'daemon: expired unanswered after 3s', `${JSON.stringify(expiredRow)} — settleUnanswered in src/daemon/session-seat/permissionAsks.ts must withdraw the needs-you row with the askExpiredCause text`)
   }
 
   section("§3 the daemon board: when the RUNNER's clock refuses the ask, the cancel carries the cause and the row says expired, not cancelled")
@@ -149,7 +149,7 @@ try {
       onProtocolError() {},
       log() {},
     })
-    check('the daemon door is open', (await connection.initialized) !== null, 'RunnerConnection in src/daemon/runnerConnection.ts did not finish the initialize handshake with the proof runner peer')
+    check('the daemon door is open', (await connection.initialized) !== null, 'RunnerConnection in src/daemon/runner-link/runnerConnection.ts did not finish the initialize handshake with the proof runner peer')
     const runnerAsks = createRunnerAsks(runner, () => ({ holds_asks: true, elicitation: false, partial_rows: false }))
     const ac = new AbortController()
     const state = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'sovereign' }, tasks: {}, sessionHooks: new Map() }
@@ -158,11 +158,11 @@ try {
     const askedAt = Date.now()
     const decision = runnerAsks.createCanUseTool()(tool as never, { command: 'ls //localhost/c$/' }, context as never, { message: { id: 'floor' } } as never, 'floor', { behavior: 'ask', message: FLOOR, decisionReason: FLOOR_REASON } as never)
     await settled(() => heldId !== undefined, 2_000)
-    check("the session's own ask parks on the daemon with no daemon clock (its runner holds the clock)", heldId !== undefined && asks.listPendingPermissionAsks().some(a => a.requestId === heldId && a.agentId === undefined), `${JSON.stringify(asks.listPendingPermissionAsks())} — the runner ask must reach holdWorkerAsk in src/daemon/permissionAsks.ts through onAsk, without an agent clock`)
+    check("the session's own ask parks on the daemon with no daemon clock (its runner holds the clock)", heldId !== undefined && asks.listPendingPermissionAsks().some(a => a.requestId === heldId && a.agentId === undefined), `${JSON.stringify(asks.listPendingPermissionAsks())} — the runner ask must reach holdWorkerAsk in src/daemon/session-seat/permissionAsks.ts through onAsk, without an agent clock`)
     const result = await Promise.race([decision, sleep(LIMIT_MS * 3).then(() => null)])
-    check(`the runner refuses at the clock (took ${Date.now() - askedAt} ms)`, (result as any)?.behavior === 'deny' && (result as any)?.message === WORDS('Bash', '3s'), `${JSON.stringify(result)} — the runner clock in src/cli/headless/runnerAsks.ts must refuse the ask with unansweredAskRefusal from src/utils/permissions/askClock.ts`)
+    check(`the runner refuses at the clock (took ${Date.now() - askedAt} ms)`, (result as any)?.behavior === 'deny' && (result as any)?.message === WORDS('Bash', '3s'), `${JSON.stringify(result)} — the runner clock in src/daemon/runner/runnerAsks.ts must refuse the ask with unansweredAskRefusal from src/permissions/rules/askClock.ts`)
     await settled(() => !asks.listPendingPermissionAsks().some(a => a.requestId === heldId), 2_000)
-    check('the daemon board drops the ask (the card leaves the focused chat)', !asks.listPendingPermissionAsks().some(a => a.requestId === heldId), 'the runner cancel must reach onWorkerAskWithdrawn in src/daemon/permissionAsks.ts and drop the ask from the parked table')
+    check('the daemon board drops the ask (the card leaves the focused chat)', !asks.listPendingPermissionAsks().some(a => a.requestId === heldId), 'the runner cancel must reach onWorkerAskWithdrawn in src/daemon/session-seat/permissionAsks.ts and drop the ask from the parked table')
     const oblPath = join(process.env.MERCURY_CONFIG_DIR!, 'crew', 'obligations-switchboard.json')
     type ObligationRow = { ref: string; status: string; settlement?: { by?: string } }
     const readRow = (): ObligationRow | undefined => {
@@ -172,7 +172,7 @@ try {
     }
     await settled(() => readRow()?.status === 'withdrawn', 10_000)
     const row = readRow()
-    check('the needs-you row says the ask expired unanswered, never that the session moved on', row?.status === 'withdrawn' && row.settlement?.by === 'the session: expired unanswered after 3s', `${JSON.stringify(row)} — onWorkerAskWithdrawn in src/daemon/permissionAsks.ts must settle the row withdrawn with the cause carried by the runner cancel`)
+    check('the needs-you row says the ask expired unanswered, never that the session moved on', row?.status === 'withdrawn' && row.settlement?.by === 'the session: expired unanswered after 3s', `${JSON.stringify(row)} — onWorkerAskWithdrawn in src/daemon/session-seat/permissionAsks.ts must settle the row withdrawn with the cause carried by the runner cancel`)
     connection.close('done'); runner.end(); ac.abort()
   }
 } finally {

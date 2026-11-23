@@ -2,7 +2,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'newborn-grace-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -19,11 +19,11 @@ writeFileSync(
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix by label prefix: N1-N2 sweepIdleEmptyConcourseSessions and concourseNewbornGraceMs in src/daemon/idleRetirement.ts, N3 reconcileConcourseWorkers in src/daemon/concourseWorkers/settle.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix by label prefix: N1-N2 sweepIdleEmptyConcourseSessions and concourseNewbornGraceMs in src/daemon/control/idleRetirement.ts, N3 reconcileConcourseWorkers in src/daemon/concourse-workers/settle.ts'}`)
 }
 
-const sup = await import('../../src/daemon/concourseWorkers.ts')
-const idle = await import('../../src/daemon/idleRetirement.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const idle = await import('../../src/daemon/control/idleRetirement.ts')
 const dir = process.env.MERCURY_DAEMON_DIR!
 
 const DEAD_PID = 2_147_000_000

@@ -17,7 +17,7 @@ process.env.HOME = home
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  const failHint = ok ? '' : ' | to fix: the mixed-upstream fault read, the strip and the one retry live in src/services/providers/openrouter/openrouterResponsesTransport.ts (isMixedUpstreamHistoryFault, withoutEncryptedReasoning, mixedUpstreamRetryWords)'
+  const failHint = ok ? '' : ' | to fix: the mixed-upstream fault read, the strip and the one retry live in src/models/roads/openrouter/openrouterResponsesTransport.ts (isMixedUpstreamHistoryFault, withoutEncryptedReasoning, mixedUpstreamRetryWords)'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${failHint}`)
 }
 type Body = Record<string, unknown>
@@ -64,18 +64,18 @@ const address = server.address()
 if (address === null || typeof address === 'string') throw new Error('fixture did not bind')
 const base = `http://127.0.0.1:${address.port}`
 Object.assign(process.env, { OPENROUTER_API_KEY: 'fixture-openrouter', MERCURY_OPENROUTER_API_BASE: `${base}/openrouter`, MERCURY_OPENROUTER_AUTH_BASE: `${base}/auth` })
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
-const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { createUserMessage } = await import('../../src/services/messages.js')
-const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.js')
-const transport = await import('../../src/services/providers/openrouter/openrouterResponsesTransport.js')
-type Message = import('../../src/types/message.js').Message
-type AssistantMessage = import('../../src/types/message.js').AssistantMessage
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.js')
+const { clearToolRosterLatches } = await import('../../src/models/roads/toolEconomy.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
+const { createUserMessage } = await import('../../src/engine/messages/messages.js')
+const { ToolSearchTool } = await import('../../src/tools/tool-search/ToolSearchTool.js')
+const transport = await import('../../src/models/roads/openrouter/openrouterResponsesTransport.js')
+type Message = import('../../src/engine/message-shapes/message.js').Message
+type AssistantMessage = import('../../src/engine/message-shapes/message.js').AssistantMessage
 type Wait = { kind: string; reason?: string; attempt?: number; of?: number; delayMs?: number }
-type Tool = import('../../src/Tool.js').Tool
+type Tool = import('../../src/tools/kit/tool.js').Tool
 const deferred = { name: 'FixtureRead', shouldDefer: true, prompt: async () => 'Read a fixture', description: async () => 'Read a fixture', inputSchema: z.object({ path: z.string() }), isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, userFacingName: () => 'FixtureRead', call: async () => ({ data: 'fixture' }) } as unknown as Tool
 
 async function turn(messages: Message[]): Promise<{ captures: Capture[]; errors: string[]; settled: AssistantMessage[]; waits: Wait[] }> {

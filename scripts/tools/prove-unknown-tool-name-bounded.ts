@@ -12,12 +12,12 @@ import { seedScratchHome } from '../lib/scriptedTurn.ts'
 delete process.env.MERCURY_TOOL_SEARCH
 delete process.env.MERCURY_TOOL_DEFER
 
-const { displayToolName, TOOL_NAME_DISPLAY_LIMIT } = await import('../../src/utils/toolNameDisplay.ts')
-const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { gateToolCall, toolCallRefusalDiagnostic, toolCallRefusalNote, toolCallRefusalResultText, toolCallRefusalCorrection } = await import('../../src/services/providers/toolCallGate.ts')
-const { itemRowsOf, refusedCallRowsOf } = await import('../../src/rows/project.ts')
-const { findToolForRender } = await import('../../src/tools/MCPTool/absentToolShim.ts')
+const { displayToolName, TOOL_NAME_DISPLAY_LIMIT } = await import('../../src/engine/tool-dispatch/toolNameDisplay.ts')
+const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { gateToolCall, toolCallRefusalDiagnostic, toolCallRefusalNote, toolCallRefusalResultText, toolCallRefusalCorrection } = await import('../../src/models/roads/toolCallGate.ts')
+const { itemRowsOf, refusedCallRowsOf } = await import('../../src/engine/rows/project.ts')
+const { findToolForRender } = await import('../../src/tools/mcp/absentToolShim.ts')
 
 let failures = 0
 let fixHint = ''
@@ -89,7 +89,7 @@ console.log('============================================================')
 
 section('§1 the one display bound')
 {
-  fixHint = 'displayToolName and TOOL_NAME_DISPLAY_LIMIT in src/utils/toolNameDisplay.ts must cut a name to 120 characters plus an ellipsis, whole code points'
+  fixHint = 'displayToolName and TOOL_NAME_DISPLAY_LIMIT in src/engine/tool-dispatch/toolNameDisplay.ts must cut a name to 120 characters plus an ellipsis, whole code points'
   check(`the limit is ${TOOL_NAME_DISPLAY_LIMIT} characters`, TOOL_NAME_DISPLAY_LIMIT === 120)
   check('a 200,000-character name shows as its first 120 characters and an ellipsis', displayToolName(LONG) === HEAD && displayToolName(LONG).length === 121, j(displayToolName(LONG).length))
   check('a 30-character name is unchanged', displayToolName('a'.repeat(30)) === 'a'.repeat(30))
@@ -103,7 +103,7 @@ section('§1 the one display bound')
 
 section('§2 the executor\'s refusal (the tool_result the model reads)')
 {
-  fixHint = 'runToolUse in src/services/tools/toolExecution.ts must echo the unknown tool name through displayToolName in its No such tool available result'
+  fixHint = 'runToolUse in src/engine/tool-dispatch/toolExecution.ts must echo the unknown tool name through displayToolName in its No such tool available result'
   const long = await call(ROSTER(), LONG)
   check('a 200,000-character unknown name answers an error result', long.isError, j(long.isError))
   check('…whose text is under 400 characters', long.text.length < 400, `length ${long.text.length}`)
@@ -118,7 +118,7 @@ section('§2 the executor\'s refusal (the tool_result the model reads)')
 
 section('§3 the transport gate: the refusal\'s reason, note, result text, correction and debug line')
 {
-  fixHint = 'gateToolCall and the toolCallRefusal* functions in src/services/providers/toolCallGate.ts must put the bounded name (displayToolName) in the reason, debug line, note, result text and correction'
+  fixHint = 'gateToolCall and the toolCallRefusal* functions in src/models/roads/toolCallGate.ts must put the bounded name (displayToolName) in the reason, debug line, note, result text and correction'
   const tools = ROSTER() as never
   const verdict = gateToolCall(tools, { id: 'call_0', name: LONG, argumentsRaw: '{}', malformed: false })
   check('the gate refuses the call as unknown-tool', !verdict.ok && verdict.refusal.code === 'unknown-tool', j(verdict.ok))
@@ -142,7 +142,7 @@ section('§3 the transport gate: the refusal\'s reason, note, result text, corre
 
 section('§4 the rows: tool_call rows carry the bounded name')
 {
-  fixHint = 'itemRowsOf and refusedCallRowsOf in src/rows/project.ts and the absent-tool card in src/tools/MCPTool/absentToolShim.ts must show the name through displayToolName'
+  fixHint = 'itemRowsOf and refusedCallRowsOf in src/engine/rows/project.ts and the absent-tool card in src/tools/mcp/absentToolShim.ts must show the name through displayToolName'
   const scope = { session_id: 'sess_bound', turn: 1 }
   const rows = itemRowsOf(scope, 'msg_1', [{ type: 'tool_use', id: 'call_0', name: LONG, input: {} }] as never)
   const callRow = rows.find(row => row.type === 'tool_call') as { tool?: string } | undefined

@@ -29,7 +29,7 @@ function section(t: string): void {
 
 
 section('§2 behaviour — the REAL Write tool under the ladder, by real targets')
-const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
+const { FileWriteTool } = await import('../../src/tools/write/WriteTool.ts')
 const ctxFor = (mode: string) =>
   ({
     getAppState: () => ({
@@ -50,15 +50,15 @@ const decide = async (mode: string, file_path: string) =>
   }
 
 const viaReal = await decide('implement', join(realCwd, 'new.txt'))
-check('implement: a new file under the real cwd spelling is ALLOWED by the mode fast path', viaReal.behavior === 'allow' && viaReal.decisionReason?.type === 'mode' && viaReal.decisionReason?.mode === 'implement', JSON.stringify(viaReal) + ' (check the implement-mode fast path in checkWritePermissionForTool, src/utils/permissions/filesystem.ts)')
+check('implement: a new file under the real cwd spelling is ALLOWED by the mode fast path', viaReal.behavior === 'allow' && viaReal.decisionReason?.type === 'mode' && viaReal.decisionReason?.mode === 'implement', JSON.stringify(viaReal) + ' (check the implement-mode fast path in checkWritePermissionForTool, src/permissions/rules/filesystem.ts)')
 const viaAlias = await decide('implement', join(aliasCwd, 'new.txt'))
-check('implement: the SAME file spelled through a symlinked ancestor is ALLOWED (real target decides)', viaAlias.behavior === 'allow' && viaAlias.decisionReason?.type === 'mode', JSON.stringify(viaAlias) + ' (the path must be resolved to its real target before the fast path decides, in checkWritePermissionForTool, src/utils/permissions/filesystem.ts)')
+check('implement: the SAME file spelled through a symlinked ancestor is ALLOWED (real target decides)', viaAlias.behavior === 'allow' && viaAlias.decisionReason?.type === 'mode', JSON.stringify(viaAlias) + ' (the path must be resolved to its real target before the fast path decides, in checkWritePermissionForTool, src/permissions/rules/filesystem.ts)')
 const escape = await decide('implement', join(realCwd, 'escape.txt'))
-check('implement: a link inside the tree pointing OUT is NOT allowed by the fast path', escape.behavior !== 'allow', JSON.stringify(escape) + ' (a link pointing out of the tree must not take the fast path in checkWritePermissionForTool, src/utils/permissions/filesystem.ts)')
+check('implement: a link inside the tree pointing OUT is NOT allowed by the fast path', escape.behavior !== 'allow', JSON.stringify(escape) + ' (a link pointing out of the tree must not take the fast path in checkWritePermissionForTool, src/permissions/rules/filesystem.ts)')
 const away = await decide('implement', join(outside, 'new.txt'))
-check('implement: a path outside the tree is NOT allowed by the fast path', away.behavior !== 'allow', JSON.stringify(away) + ' (a path outside the working tree must not take the fast path in checkWritePermissionForTool, src/utils/permissions/filesystem.ts)')
+check('implement: a path outside the tree is NOT allowed by the fast path', away.behavior !== 'allow', JSON.stringify(away) + ' (a path outside the working tree must not take the fast path in checkWritePermissionForTool, src/permissions/rules/filesystem.ts)')
 const plain = await decide('default', join(realCwd, 'new.txt'))
-check('default mode: the same in-tree write ASKS (the ladder reached its tail)', plain.behavior === 'ask', JSON.stringify(plain) + ' (default mode must fall through to ask in checkWritePermissionForTool, src/utils/permissions/filesystem.ts)')
+check('default mode: the same in-tree write ASKS (the ladder reached its tail)', plain.behavior === 'ask', JSON.stringify(plain) + ' (default mode must fall through to ask in checkWritePermissionForTool, src/permissions/rules/filesystem.ts)')
 
 rmSync(scratch, { recursive: true, force: true })
 rmSync(HOME, { recursive: true, force: true })

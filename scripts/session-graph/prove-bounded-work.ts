@@ -14,9 +14,9 @@ const scratch = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'crew-boun
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 mkdirSync(join(scratch, 'home'), { recursive: true })
 
-const activity = await import('../../src/services/crew/activity.ts')
-const conversations = await import('../../src/services/crew/conversations.ts')
-const inbox = await import('../../src/services/crew/inbox.ts')
+const activity = await import('../../src/crew/crewmates/activity.ts')
+const conversations = await import('../../src/crew/crewmates/conversations.ts')
+const inbox = await import('../../src/crew/crewmates/inbox.ts')
 
 const SEED = 20260801
 

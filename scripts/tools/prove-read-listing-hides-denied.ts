@@ -41,21 +41,21 @@ for (const [path, text] of Object.entries(TREE)) {
   writeFileSync(join(project, path), text)
 }
 process.chdir(project)
-const { setOriginalCwd } = await import(`${SRC}/bootstrap/state.ts`)
+const { setOriginalCwd } = await import(`${SRC}/boot/process-state/processState.ts`)
 setOriginalCwd(project)
 
 let failures = 0
 let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' — Hint: a folder listing (renderDirectoryTarget in src/tools/FileReadTool/readTarget.ts) must name an entry exactly when its direct Read is not denied (checkReadPermissionForTool in src/utils/permissions/filesystem.ts), and count only what it names.'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' — Hint: a folder listing (renderDirectoryTarget in src/tools/read/readTarget.ts) must name an entry exactly when its direct Read is not denied (checkReadPermissionForTool in src/permissions/rules/filesystem.ts), and count only what it names.'}`)
   if (!cond) failures++
 }
 
-const { FileReadTool } = await import(`${SRC}/tools/FileReadTool/FileReadTool.ts`)
-const { renderDirectoryTarget } = await import(`${SRC}/tools/FileReadTool/readTarget.ts`)
-const { getEmptyToolPermissionContext } = await import(`${SRC}/Tool.ts`)
-const permissions = await import(`${SRC}/utils/permissions/filesystem.ts`)
+const { FileReadTool } = await import(`${SRC}/tools/read/ReadTool.ts`)
+const { renderDirectoryTarget } = await import(`${SRC}/tools/read/readTarget.ts`)
+const { getEmptyToolPermissionContext } = await import(`${SRC}/tools/kit/tool.ts`)
+const permissions = await import(`${SRC}/permissions/rules/filesystem.ts`)
 
 type Permission = ReturnType<typeof getEmptyToolPermissionContext>
 const context = (permission: Permission) =>
@@ -136,8 +136,8 @@ console.log(`  (${red.length} of ${SPELLINGS.length * FOLDERS.length} cells red)
 
 console.log('the same folder spelled eight ways: Grep and Glob, which a search root reaches the one decision through, leave the denied files out too')
 {
-  const { GrepTool } = await import(`${SRC}/tools/GrepTool/GrepTool.ts`)
-  const { GlobTool } = await import(`${SRC}/tools/GlobTool/GlobTool.ts`)
+  const { GrepTool } = await import(`${SRC}/tools/grep/GrepTool.ts`)
+  const { GlobTool } = await import(`${SRC}/tools/glob/GlobTool.ts`)
   const wrong: string[] = []
   for (const [, rule] of SPELLINGS) {
     for (const [how, folder] of EIGHT) {
@@ -232,7 +232,7 @@ console.log('one decision: an entry is named exactly when its direct Read is not
 
 console.log('the same folders by reference: Inspect of mercury://file/<folder>, and Read of it, name what the direct Read does not refuse')
 {
-  const { InspectTool } = await import(`${SRC}/tools/InspectTool/InspectTool.ts`)
+  const { InspectTool } = await import(`${SRC}/tools/inspect/InspectTool.ts`)
   const children = (text: string): string[] => text.split('\n').filter(line => line.includes(' — ') && line.trimStart().startsWith('mercury://file/')).map(line => line.slice(line.indexOf(' — ') + 3).replace(/\/? \((?:file|directory)\)$/, ''))
   const byInspect = async (folder: string, permission: Permission): Promise<{ names: string[]; text: string }> => {
     const text = String(((await (InspectTool as { call: Function }).call({ ref: `mercury://file/${folder}` }, context(permission))) as { data: { result: string } }).data.result)

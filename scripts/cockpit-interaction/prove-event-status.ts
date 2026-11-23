@@ -10,7 +10,7 @@ const t = checker()
 t.section('§2 — feed mechanics')
 {
   const { notifyRoomStatusFeed, subscribeRoomStatusFeed, _roomStatusFeedListenerCountForTesting } =
-    await import('../../src/services/attention/statusFeed.ts')
+    await import('../../src/screen/attention/statusFeed.ts')
 
   let pings = 0
   const unsub = subscribeRoomStatusFeed(() => {

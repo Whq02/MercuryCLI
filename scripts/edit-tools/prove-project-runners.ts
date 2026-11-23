@@ -14,10 +14,10 @@ const {
   runRunnerProfile,
   rerunRunnerFailures,
   parseRunnerCases,
-} = await import('../../src/services/ide/projectRunners.ts')
-const { latestRun } = await import('../../src/services/ide/pythonTests.ts')
-const { discoverLaunchProfiles } = await import('../../src/services/ide/launchProfiles.ts')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+} = await import('../../src/integrations/ide/projectRunners.ts')
+const { latestRun } = await import('../../src/integrations/ide/pythonTests.ts')
+const { discoverLaunchProfiles } = await import('../../src/integrations/ide/launchProfiles.ts')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -28,7 +28,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — runners proof exceeded 300s; a runner child (node --test or cargo) did not finish, see runRunnerProfile in src/services/ide/projectRunners.ts and rerun the section that printed last')
+  console.log('\nTIMEOUT — runners proof exceeded 300s; a runner child (node --test or cargo) did not finish, see runRunnerProfile in src/integrations/ide/projectRunners.ts and rerun the section that printed last')
   process.exit(1)
 }, 300_000)
 guard.unref?.()
@@ -81,36 +81,36 @@ section('D. manifest-driven discovery')
 {
   const ts = discoverRunnerProfiles(tsDir)
   const nodeTest = ts.profiles.find(p => p.runner === 'node-test' && p.kind === 'test')
-  check('D1 node --test discovered from script', !!nodeTest && nodeTest.availability.state === 'ok', 'discoverRunnerProfiles in src/services/ide/projectRunners.ts must list a node-test profile from the package.json test script')
+  check('D1 node --test discovered from script', !!nodeTest && nodeTest.availability.state === 'ok', 'discoverRunnerProfiles in src/integrations/ide/projectRunners.ts must list a node-test profile from the package.json test script')
   const build = ts.profiles.find(p => p.kind === 'build')
-  check('D2 build script rides the lockfile PM (bun)', !!build && build.command[0] === 'bun', 'the build profile must use the package manager chosen from bun.lock; see discoverRunnerProfiles in src/services/ide/projectRunners.ts')
+  check('D2 build script rides the lockfile PM (bun)', !!build && build.command[0] === 'bun', 'the build profile must use the package manager chosen from bun.lock; see discoverRunnerProfiles in src/integrations/ide/projectRunners.ts')
   const vt = discoverRunnerProfiles(vitestDir)
   const vitest = vt.profiles.find(p => p.runner === 'vitest')
   check('D3 declared vitest w/o node_modules ⇒ typed missing-deps',
-    !!vitest && vitest.availability.state === 'unavailable' && vitest.availability.state === 'unavailable' && vitest.availability.remedy.includes('install the project dependencies'), 'a declared vitest with no node_modules must be unavailable with that remedy; fix discoverRunnerProfiles in src/services/ide/projectRunners.ts')
+    !!vitest && vitest.availability.state === 'unavailable' && vitest.availability.state === 'unavailable' && vitest.availability.remedy.includes('install the project dependencies'), 'a declared vitest with no node_modules must be unavailable with that remedy; fix discoverRunnerProfiles in src/integrations/ide/projectRunners.ts')
   const np = discoverRunnerProfiles(noPmDir)
   const npBuild = np.profiles.find(p => p.kind === 'build')
   check('D4 no lockfile/packageManager ⇒ typed unavailable, never a guess',
-    !!npBuild && npBuild.availability.state === 'unavailable' && npBuild.availability.remedy.includes('never guesses'), 'with no lockfile or packageManager the profile must be unavailable and say it never guesses; fix discoverRunnerProfiles in src/services/ide/projectRunners.ts')
+    !!npBuild && npBuild.availability.state === 'unavailable' && npBuild.availability.remedy.includes('never guesses'), 'with no lockfile or packageManager the profile must be unavailable and say it never guesses; fix discoverRunnerProfiles in src/integrations/ide/projectRunners.ts')
   const rs = discoverRunnerProfiles(cargoDir)
-  check('D5 cargo test/check/build discovered', ['test', 'check', 'build'].every(k => rs.profiles.some(p => p.runner === 'cargo' && p.kind === k)), 'a Cargo.toml must yield cargo test, check and build profiles; fix discoverRunnerProfiles in src/services/ide/projectRunners.ts')
+  check('D5 cargo test/check/build discovered', ['test', 'check', 'build'].every(k => rs.profiles.some(p => p.runner === 'cargo' && p.kind === k)), 'a Cargo.toml must yield cargo test, check and build profiles; fix discoverRunnerProfiles in src/integrations/ide/projectRunners.ts')
   const goP = discoverRunnerProfiles(goDir)
   const goTest = goP.profiles.find(p => p.runner === 'go' && p.kind === 'test')
-  check('D6 go profiles discovered from go.mod', !!goTest, 'a go.mod must yield a go test profile; fix discoverRunnerProfiles in src/services/ide/projectRunners.ts')
+  check('D6 go profiles discovered from go.mod', !!goTest, 'a go.mod must yield a go test profile; fix discoverRunnerProfiles in src/integrations/ide/projectRunners.ts')
   const ts2 = discoverRunnerProfiles(tsDir)
-  check('D7 ids content-stable across discoveries', ts.profiles.map(p => p.id).join() === ts2.profiles.map(p => p.id).join(), 'profile ids must derive from content only; see the id built in discoverRunnerProfiles (src/services/ide/projectRunners.ts)')
+  check('D7 ids content-stable across discoveries', ts.profiles.map(p => p.id).join() === ts2.profiles.map(p => p.id).join(), 'profile ids must derive from content only; see the id built in discoverRunnerProfiles (src/integrations/ide/projectRunners.ts)')
 }
 
 section('L. lane routing')
 {
-  check('L1 python signals keep the python lane', resolveTestLane(pyDir).lane === 'python', 'python project signals must keep the python lane; fix resolveTestLane in src/services/ide/projectRunners.ts')
+  check('L1 python signals keep the python lane', resolveTestLane(pyDir).lane === 'python', 'python project signals must keep the python lane; fix resolveTestLane in src/integrations/ide/projectRunners.ts')
   const ts = resolveTestLane(tsDir)
-  check('L2 single runner routes there', ts.lane === 'runner' && ts.lane === 'runner' && ts.profile.runner === 'node-test', 'one runner language must route to that runner; fix resolveTestLane in src/services/ide/projectRunners.ts')
+  check('L2 single runner routes there', ts.lane === 'runner' && ts.lane === 'runner' && ts.profile.runner === 'node-test', 'one runner language must route to that runner; fix resolveTestLane in src/integrations/ide/projectRunners.ts')
   const dual = resolveTestLane(dualDir)
-  check('L3 two runner languages NAME the ambiguity', dual.lane === 'ambiguous' && dual.lane === 'ambiguous' && dual.options.length === 2, 'two runner languages must return an ambiguous lane naming both; fix resolveTestLane in src/services/ide/projectRunners.ts')
+  check('L3 two runner languages NAME the ambiguity', dual.lane === 'ambiguous' && dual.lane === 'ambiguous' && dual.options.length === 2, 'two runner languages must return an ambiguous lane naming both; fix resolveTestLane in src/integrations/ide/projectRunners.ts')
   const explicit = resolveTestLane(dualDir, 'cargo')
-  check('L4 explicit framework wins', explicit.lane === 'runner' && explicit.lane === 'runner' && explicit.profile.runner === 'cargo', 'an explicit framework argument must pick its runner; fix resolveTestLane in src/services/ide/projectRunners.ts')
-  check('L5 explicit pytest stays python even in a runner project', resolveTestLane(tsDir, 'pytest').lane === 'python', 'an explicit pytest must stay on the python lane; fix resolveTestLane in src/services/ide/projectRunners.ts')
+  check('L4 explicit framework wins', explicit.lane === 'runner' && explicit.lane === 'runner' && explicit.profile.runner === 'cargo', 'an explicit framework argument must pick its runner; fix resolveTestLane in src/integrations/ide/projectRunners.ts')
+  check('L5 explicit pytest stays python even in a runner project', resolveTestLane(tsDir, 'pytest').lane === 'python', 'an explicit pytest must stay on the python lane; fix resolveTestLane in src/integrations/ide/projectRunners.ts')
 }
 
 section('R. execution truth (node:test always; cargo when present)')
@@ -118,16 +118,16 @@ section('R. execution truth (node:test always; cargo when present)')
   const ts = discoverRunnerProfiles(tsDir)
   const nodeTest = ts.profiles.find(p => p.runner === 'node-test' && p.kind === 'test')!
   const run1 = await runRunnerProfile(nodeTest, { from: tsDir })
-  check('R1 node:test run records parsed counts', run1.state === 'ok' && run1.record.counts.passed === 1 && run1.record.counts.failed === 1, 'the node:test output must parse to 1 passed and 1 failed; see parseRunnerCases and runRunnerProfile in src/services/ide/projectRunners.ts')
-  check('R2 failing node parsed', run1.state === 'ok' && run1.record.failures.length === 1 && run1.record.failures[0]!.includes('bad'), 'the record must name the failing test bad; see parseRunnerCases in src/services/ide/projectRunners.ts')
-  check('R3 record persisted in the ONE store', runWithCwdOverride(tsDir, () => latestRun(tsDir))?.framework === 'node-test', 'a runner run must be saved where latestRun in src/services/ide/pythonTests.ts reads it; see runRunnerProfile in src/services/ide/projectRunners.ts')
+  check('R1 node:test run records parsed counts', run1.state === 'ok' && run1.record.counts.passed === 1 && run1.record.counts.failed === 1, 'the node:test output must parse to 1 passed and 1 failed; see parseRunnerCases and runRunnerProfile in src/integrations/ide/projectRunners.ts')
+  check('R2 failing node parsed', run1.state === 'ok' && run1.record.failures.length === 1 && run1.record.failures[0]!.includes('bad'), 'the record must name the failing test bad; see parseRunnerCases in src/integrations/ide/projectRunners.ts')
+  check('R3 record persisted in the ONE store', runWithCwdOverride(tsDir, () => latestRun(tsDir))?.framework === 'node-test', 'a runner run must be saved where latestRun in src/integrations/ide/pythonTests.ts reads it; see runRunnerProfile in src/integrations/ide/projectRunners.ts')
   if (run1.state === 'ok') {
     const rerun = await rerunRunnerFailures(run1.record, { from: tsDir })
     check('R4 rerun-failed reruns exactly the failing selection',
-      rerun.state === 'ok' && rerun.record.selection === 'rerun-failed' && rerun.record.counts.failed === 1 && rerun.record.counts.passed === 0, 'the rerun must select only the failing test; fix rerunRunnerFailures in src/services/ide/projectRunners.ts')
+      rerun.state === 'ok' && rerun.record.selection === 'rerun-failed' && rerun.record.counts.failed === 1 && rerun.record.counts.passed === 0, 'the rerun must select only the failing test; fix rerunRunnerFailures in src/integrations/ide/projectRunners.ts')
   }
   const stale = await runRunnerProfile('rp-000000000000', { from: tsDir })
-  check('R5 stale profile id ⇒ typed stale result', stale.state === 'stale-profile', 'an unknown profile id must return state stale-profile; fix runRunnerProfile in src/services/ide/projectRunners.ts')
+  check('R5 stale profile id ⇒ typed stale result', stale.state === 'stale-profile', 'an unknown profile id must return state stale-profile; fix runRunnerProfile in src/integrations/ide/projectRunners.ts')
 
   const lieDir = tempDir('lie')
   writeFileSync(join(lieDir, 'package.json'), JSON.stringify({ name: 'l', private: true, scripts: { test: 'node --test' } }) + '\n')
@@ -136,54 +136,54 @@ section('R. execution truth (node:test always; cargo when present)')
   const lieProfile = { ...lieProfiles.find(p => p.runner === 'node-test')!, command: ['node', join(lieDir, 'liar.mjs')] }
   const lie = await runRunnerProfile(lieProfile, { from: lieDir })
   check('R6 exit 0 + parsed failures ⇒ FAILED verdict, note recorded',
-    lie.state === 'ok' && lie.record.counts.failed === 1 && (lie.record.verdictNote ?? '').includes('disagreed'), 'exit 0 with parsed failures must count as failed with a verdictNote saying the exit code disagreed; fix runRunnerProfile in src/services/ide/projectRunners.ts')
+    lie.state === 'ok' && lie.record.counts.failed === 1 && (lie.record.verdictNote ?? '').includes('disagreed'), 'exit 0 with parsed failures must count as failed with a verdictNote saying the exit code disagreed; fix runRunnerProfile in src/integrations/ide/projectRunners.ts')
 
   const rs = discoverRunnerProfiles(cargoDir)
   const cargoTest = rs.profiles.find(p => p.runner === 'cargo' && p.kind === 'test')!
   if (cargoTest.availability.state === 'ok') {
     const cargoRun = await runRunnerProfile(cargoTest, { from: cargoDir })
-    check('R7 cargo run parses counts + failing test', cargoRun.state === 'ok' && cargoRun.record.counts.failed === 1 && (cargoRun.record.failures[0] ?? '').includes('is_two'), 'cargo output must parse to one failure named is_two; see parseRunnerCases in src/services/ide/projectRunners.ts')
+    check('R7 cargo run parses counts + failing test', cargoRun.state === 'ok' && cargoRun.record.counts.failed === 1 && (cargoRun.record.failures[0] ?? '').includes('is_two'), 'cargo output must parse to one failure named is_two; see parseRunnerCases in src/integrations/ide/projectRunners.ts')
     if (cargoRun.state === 'ok') {
       const cargoRerun = await rerunRunnerFailures(cargoRun.record, { from: cargoDir })
-      check('R8 cargo rerun-failed targets the failure', cargoRerun.state === 'ok' && cargoRerun.record.counts.failed === 1 && cargoRerun.record.counts.passed === 0, 'the cargo rerun must target only the failing test; fix rerunRunnerFailures in src/services/ide/projectRunners.ts')
+      check('R8 cargo rerun-failed targets the failure', cargoRerun.state === 'ok' && cargoRerun.record.counts.failed === 1 && cargoRerun.record.counts.passed === 0, 'the cargo rerun must target only the failing test; fix rerunRunnerFailures in src/integrations/ide/projectRunners.ts')
     }
   } else {
     console.log('  [SKIP] R7/R8 cargo not on PATH — honest unavailable row')
-    check('R7u cargo unavailability carries a remedy', cargoTest.availability.state === 'unavailable' && cargoTest.availability.remedy.length > 0, 'an unavailable runner must carry a remedy; fix discoverRunnerProfiles in src/services/ide/projectRunners.ts')
+    check('R7u cargo unavailability carries a remedy', cargoTest.availability.state === 'unavailable' && cargoTest.availability.remedy.length > 0, 'an unavailable runner must carry a remedy; fix discoverRunnerProfiles in src/integrations/ide/projectRunners.ts')
   }
 
   const goP = discoverRunnerProfiles(goDir)
   const goTest = goP.profiles.find(p => p.runner === 'go' && p.kind === 'test')!
   if (goTest.availability.state === 'unavailable') {
     const goRun = await runRunnerProfile(goTest, { from: goDir })
-    check('R9 missing executable ⇒ exact typed unavailable', goRun.state === 'unavailable' && goRun.remedy.includes('toolchain'), 'a missing go executable must return unavailable with a toolchain remedy; fix runRunnerProfile in src/services/ide/projectRunners.ts')
+    check('R9 missing executable ⇒ exact typed unavailable', goRun.state === 'unavailable' && goRun.remedy.includes('toolchain'), 'a missing go executable must return unavailable with a toolchain remedy; fix runRunnerProfile in src/integrations/ide/projectRunners.ts')
   } else {
     const goRun = await runRunnerProfile(goTest, { from: goDir })
-    check('R9 go run executes (toolchain present)', goRun.state === 'ok' || goRun.state === 'unavailable', 'with go installed the run must be ok or unavailable, got ' + goRun.state + '; see runRunnerProfile in src/services/ide/projectRunners.ts')
+    check('R9 go run executes (toolchain present)', goRun.state === 'ok' || goRun.state === 'unavailable', 'with go installed the run must be ok or unavailable, got ' + goRun.state + '; see runRunnerProfile in src/integrations/ide/projectRunners.ts')
   }
 }
 
 section('S. the node-test debug shim (no scratch program; node\'s own anchored name filter)')
 {
-  const { buildNodeTestDebugShim } = await import('../../src/services/ide/projectRunners.ts')
+  const { buildNodeTestDebugShim } = await import('../../src/integrations/ide/projectRunners.ts')
   const s1 = buildNodeTestDebugShim(`test/calc.test.mjs::bad`, { from: tsDir })
   check('S1 file::name answers the shim whole: absolute program, anchored runtimeArgs, the runner root as cwd',
     !('state' in s1) && s1.framework === 'node-test' && s1.program === join(tsDir, 'test', 'calc.test.mjs') && s1.runtimeArgs.length === 1 && s1.runtimeArgs[0] === '--test-name-pattern=^bad$' && s1.cwd === tsDir,
-    JSON.stringify(s1) + ' — fix buildNodeTestDebugShim in src/services/ide/projectRunners.ts')
+    JSON.stringify(s1) + ' — fix buildNodeTestDebugShim in src/integrations/ide/projectRunners.ts')
   const s2 = buildNodeTestDebugShim(`test/calc.test.mjs::adds (2+2)`, { from: tsDir })
   check('S2 regex metacharacters in the name are ESCAPED inside the anchors',
     !('state' in s2) && s2.runtimeArgs[0] === '--test-name-pattern=^adds \\(2\\+2\\)$',
-    ('state' in s2 ? s2.reason : s2.runtimeArgs[0]) + ' — the name must be regex-escaped; fix buildNodeTestDebugShim in src/services/ide/projectRunners.ts')
+    ('state' in s2 ? s2.reason : s2.runtimeArgs[0]) + ' — the name must be regex-escaped; fix buildNodeTestDebugShim in src/integrations/ide/projectRunners.ts')
   const s3 = runWithCwdOverride(tsDir, () => buildNodeTestDebugShim('bad', { from: tsDir }))
   check('S3 a bare name is placed by the LATEST node-test run\'s case rows (file + root-relative resolution)',
     !('state' in s3) && s3.program === join(tsDir, 'test', 'calc.test.mjs'),
-    JSON.stringify(s3) + ' — a bare name must resolve through the latest node-test run; fix buildNodeTestDebugShim in src/services/ide/projectRunners.ts')
+    JSON.stringify(s3) + ' — a bare name must resolve through the latest node-test run; fix buildNodeTestDebugShim in src/integrations/ide/projectRunners.ts')
   const s4 = runWithCwdOverride(tsDir, () => buildNodeTestDebugShim('no-such-test-anywhere', { from: tsDir }))
   check('S4 a name the record cannot place refuses typed with the file::name remedy',
     'state' in s4 && s4.state === 'unavailable' && s4.remedy.includes('file::name'),
-    JSON.stringify(s4) + ' — an unplaceable name must refuse with the file::name remedy; fix buildNodeTestDebugShim in src/services/ide/projectRunners.ts')
+    JSON.stringify(s4) + ' — an unplaceable name must refuse with the file::name remedy; fix buildNodeTestDebugShim in src/integrations/ide/projectRunners.ts')
   const s5 = buildNodeTestDebugShim('test/absent.test.mjs::x', { from: tsDir })
-  check('S5 a missing test file refuses typed', 'state' in s5 && s5.state === 'unavailable' && s5.reason.includes('not found'), JSON.stringify(s5) + ' — a missing test file must refuse as not found; fix buildNodeTestDebugShim in src/services/ide/projectRunners.ts')
+  check('S5 a missing test file refuses typed', 'state' in s5 && s5.state === 'unavailable' && s5.reason.includes('not found'), JSON.stringify(s5) + ' — a missing test file must refuse as not found; fix buildNodeTestDebugShim in src/integrations/ide/projectRunners.ts')
 }
 
 section('X. abort kills the child promptly')
@@ -199,19 +199,19 @@ section('X. abort kills the child promptly')
   setTimeout(() => controller.abort(), 300)
   const out = await p
   const elapsed = performance.now() - t0
-  check('X1 abort resolves promptly (<10s)', elapsed < 10_000, `${Math.round(elapsed)}ms — aborting the signal must kill the child; fix the abort handling in runRunnerProfile (src/services/ide/projectRunners.ts)`)
-  check('X2 aborted run is NEVER a success', out.state === 'ok' ? out.record.counts.errored > 0 || out.record.exitCode !== 0 : true, 'an aborted run must record an error or a non-zero exit; fix runRunnerProfile in src/services/ide/projectRunners.ts')
+  check('X1 abort resolves promptly (<10s)', elapsed < 10_000, `${Math.round(elapsed)}ms — aborting the signal must kill the child; fix the abort handling in runRunnerProfile (src/integrations/ide/projectRunners.ts)`)
+  check('X2 aborted run is NEVER a success', out.state === 'ok' ? out.record.counts.errored > 0 || out.record.exitCode !== 0 : true, 'an aborted run must record an error or a non-zero exit; fix runRunnerProfile in src/integrations/ide/projectRunners.ts')
 }
 
 section('U. runner profiles join the Launch discovery')
 {
   const d = await runWithCwdOverride(tsDir, () => discoverLaunchProfiles(tsDir))
   const runnerRows = d.profiles.filter(p => p.source === 'runners')
-  check('U1 source runners present', runnerRows.length >= 2, 'discoverLaunchProfiles in src/services/ide/launchProfiles.ts must add runner profiles from discoverRunnerProfiles')
-  check('U2 runnerRef payload carried', runnerRows.every(p => !!p.runnerRef), 'every runners-source launch profile needs a runnerRef; see discoverLaunchProfiles in src/services/ide/launchProfiles.ts')
+  check('U1 source runners present', runnerRows.length >= 2, 'discoverLaunchProfiles in src/integrations/ide/launchProfiles.ts must add runner profiles from discoverRunnerProfiles')
+  check('U2 runnerRef payload carried', runnerRows.every(p => !!p.runnerRef), 'every runners-source launch profile needs a runnerRef; see discoverLaunchProfiles in src/integrations/ide/launchProfiles.ts')
   const dv = await runWithCwdOverride(vitestDir, () => discoverLaunchProfiles(vitestDir))
   const unavailable = dv.profiles.find(p => p.source === 'runners' && p.label.includes('unavailable'))
-  check('U3 availability-honest labels', !!unavailable, 'an unavailable runner profile must have a label containing "unavailable"; see discoverLaunchProfiles in src/services/ide/launchProfiles.ts')
+  check('U3 availability-honest labels', !!unavailable, 'an unavailable runner profile must have a label containing "unavailable"; see discoverLaunchProfiles in src/integrations/ide/launchProfiles.ts')
 }
 
 section('V. assertion values survive runner normalization')
@@ -231,7 +231,7 @@ section('V. assertion values survive runner normalization')
     TestContext.<anonymous> (test/calc.test.mjs:8:10)
   ...`
   const message = parseRunnerCases('node-test', tap, tsDir)[0]?.message ?? ''
-  check('V1 TAP retains the assertion block and both values', message.includes('453.5 !== 107') && message.includes('actual: 453.5') && message.includes('expected: 107'), message + ' — fix the node-test TAP parsing in parseRunnerCases (src/services/ide/projectRunners.ts)')
+  check('V1 TAP retains the assertion block and both values', message.includes('453.5 !== 107') && message.includes('actual: 453.5') && message.includes('expected: 107'), message + ' — fix the node-test TAP parsing in parseRunnerCases (src/integrations/ide/projectRunners.ts)')
   const diff = parseRunnerCases('node-test', `not ok 1 - object
   ---
   error: 'objects differ'
@@ -243,9 +243,9 @@ section('V. assertion values survive runner normalization')
     + rate: 7
     - rate: 0.07
   ...`, tsDir)[0]?.message ?? ''
-  check('V2 TAP retains object values and a separate diff block', diff.includes('actual: rate: 7') && diff.includes('expected: rate: 0.07') && diff.includes('+ rate: 7') && diff.includes('- rate: 0.07'), diff + ' — fix the node-test TAP parsing in parseRunnerCases (src/services/ide/projectRunners.ts)')
+  check('V2 TAP retains object values and a separate diff block', diff.includes('actual: rate: 7') && diff.includes('expected: rate: 0.07') && diff.includes('+ rate: 7') && diff.includes('- rate: 0.07'), diff + ' — fix the node-test TAP parsing in parseRunnerCases (src/integrations/ide/projectRunners.ts)')
   const long = parseRunnerCases('node-test', tap.replace('453.5 !== 107', 'x'.repeat(1000)), tsDir)[0]?.message ?? ''
-  check('V3 TAP messages remain bounded without losing scalar values', long.length <= 300 && long.includes('actual: 453.5') && long.includes('expected: 107'), long + ' — fix the message bounding in parseRunnerCases (src/services/ide/projectRunners.ts)')
+  check('V3 TAP messages remain bounded without losing scalar values', long.length <= 300 && long.includes('actual: 453.5') && long.includes('expected: 107'), long + ' — fix the message bounding in parseRunnerCases (src/integrations/ide/projectRunners.ts)')
   const rust = parseRunnerCases('cargo', `---- invoice stdout ----
 thread 'invoice' panicked at src/lib.rs:6:3:
 assertion \`left == right\` failed
@@ -255,26 +255,26 @@ note: run with RUST_BACKTRACE=1
 
 failures:
     invoice`, cargoDir)[0]?.message ?? ''
-  check('V4 cargo retains left and right, not the backtrace hint', rust.includes('left: 453.5') && rust.includes('right: 107') && !rust.includes('RUST_BACKTRACE'), rust + ' — fix the cargo parsing in parseRunnerCases (src/services/ide/projectRunners.ts)')
+  check('V4 cargo retains left and right, not the backtrace hint', rust.includes('left: 453.5') && rust.includes('right: 107') && !rust.includes('RUST_BACKTRACE'), rust + ' — fix the cargo parsing in parseRunnerCases (src/integrations/ide/projectRunners.ts)')
   const goText = `--- FAIL: TestInvoice (0.00s)
     invoice_test.go:6: values differ
         expected: 107
         actual: 453.5
 FAIL`
   const goMessage = parseRunnerCases('go', goText, goDir)[0]?.message ?? ''
-  check('V5 Go text fallback retains multiline values', goMessage.includes('expected: 107') && goMessage.includes('actual: 453.5'), goMessage + ' — fix the go text parsing in parseRunnerCases (src/services/ide/projectRunners.ts)')
-  const { parseGoTestJson, parseJsonReporter } = await import('../../src/services/ide/runnerReporters.ts')
+  check('V5 Go text fallback retains multiline values', goMessage.includes('expected: 107') && goMessage.includes('actual: 453.5'), goMessage + ' — fix the go text parsing in parseRunnerCases (src/integrations/ide/projectRunners.ts)')
+  const { parseGoTestJson, parseJsonReporter } = await import('../../src/integrations/ide/runnerReporters.ts')
   const events = ['    invoice_test.go:6: values differ\n', '        expected: 107\n', '        actual: 453.5\n'].map(Output => ({ Action: 'output', Package: 'invoice', Test: 'TestInvoice', Output }))
   const goJson = [...events, { Action: 'fail', Package: 'invoice', Test: 'TestInvoice' }].map(e => JSON.stringify(e)).join('\n')
   const goStructured = parseGoTestJson(goJson, goDir)?.cases[0]?.message ?? ''
-  check('V6 Go JSON retains multiline assertion values', goStructured.includes('expected: 107') && goStructured.includes('actual: 453.5'), goStructured + ' — fix parseGoTestJson in src/services/ide/runnerReporters.ts')
+  check('V6 Go JSON retains multiline assertion values', goStructured.includes('expected: 107') && goStructured.includes('actual: 453.5'), goStructured + ' — fix parseGoTestJson in src/integrations/ide/runnerReporters.ts')
   for (const runner of ['vitest', 'jest'] as const) {
     const head = runner === 'vitest' ? ' FAIL test/calc.test.mjs > invoice' : '  ● invoice'
     const body = `${head}\n\n    AssertionError: values differ\n    Expected: 107\n    Received: 453.5\n\n    at Object.<anonymous> (test/calc.test.mjs:6:3)`
     const fallback = parseRunnerCases(runner, body, tsDir)[0]?.message ?? ''
-    check(`V7 ${runner} text fallback retains values`, fallback.includes('Expected: 107') && fallback.includes('Received: 453.5'), fallback + ' — fix the text parsing for this runner in parseRunnerCases (src/services/ide/projectRunners.ts)')
+    check(`V7 ${runner} text fallback retains values`, fallback.includes('Expected: 107') && fallback.includes('Received: 453.5'), fallback + ' — fix the text parsing for this runner in parseRunnerCases (src/integrations/ide/projectRunners.ts)')
     const structured = parseJsonReporter(JSON.stringify({ numTotalTests: 1, testResults: [{ name: 'test/calc.test.mjs', assertionResults: [{ fullName: 'invoice', status: 'failed', failureMessages: [body.split('\n').slice(1).join('\n')] }] }] }), tsDir)?.cases[0]?.message ?? ''
-    check(`V8 ${runner} JSON already retains values`, structured.includes('Expected: 107') && structured.includes('Received: 453.5'), structured + ' — fix parseJsonReporter in src/services/ide/runnerReporters.ts')
+    check(`V8 ${runner} JSON already retains values`, structured.includes('Expected: 107') && structured.includes('Received: 453.5'), structured + ' — fix parseJsonReporter in src/integrations/ide/runnerReporters.ts')
   }
 }
 

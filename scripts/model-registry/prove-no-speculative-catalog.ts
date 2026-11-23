@@ -7,14 +7,14 @@ function check(label: string, cond: boolean, detail?: string): void {
 
 console.log('§1 the model rows live in the ratified owners')
 {
-  const { ALL_MODEL_CONFIGS } = await import('../../src/utils/model/configs.js')
+  const { ALL_MODEL_CONFIGS } = await import('../../src/models/facts/builtInModelTable.js')
   check(
     "configs carries sonnet5/opus5 hand rows ('claude-sonnet-5' / 'claude-opus-5')",
     ALL_MODEL_CONFIGS.sonnet5?.firstParty === 'claude-sonnet-5' &&
       ALL_MODEL_CONFIGS.opus5?.firstParty === 'claude-opus-5',
   )
   const { getDefaultOpusModel, getDefaultSonnetModel, getCanonicalName, getMarketingNameForModel } =
-    await import('../../src/services/model/model.js')
+    await import('../../src/models/catalogue/engineModel.js')
   for (const k of ['MERCURY_DEFAULT_OPUS_MODEL', 'MERCURY_DEFAULT_SONNET_MODEL']) delete process.env[k]
   check("getDefaultOpusModel() = 'claude-opus-5-5'", getDefaultOpusModel() === 'claude-opus-5-5', getDefaultOpusModel())
   check("getDefaultSonnetModel() = 'claude-sonnet-5-5'", getDefaultSonnetModel() === 'claude-sonnet-5-5', getDefaultSonnetModel())

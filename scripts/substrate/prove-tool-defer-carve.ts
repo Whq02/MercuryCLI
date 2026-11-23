@@ -6,7 +6,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) {
     failures++
-    console.log('         fix: gate in toolDeferralEnabled (src/utils/model/capabilities.ts), mode ladder in getToolSearchMode (src/services/messages/toolSearch.ts), wire form in toolReferenceWireAccepted (src/services/providers/deferralWire.ts)')
+    console.log('         fix: gate in toolDeferralEnabled (src/models/facts/capabilities.ts), mode ladder in getToolSearchMode (src/engine/messages/toolSearch.ts), wire form in toolReferenceWireAccepted (src/models/roads/deferralWire.ts)')
   }
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -33,10 +33,10 @@ const restore = (): void => {
 }
 
 const { toolDeferralEnabled } = await import(
-  '../../src/utils/model/capabilities.ts'
+  '../../src/models/facts/capabilities.ts'
 )
-const { getToolSearchMode } = await import('../../src/services/messages/toolSearch.ts')
-const { toolReferenceWireAccepted } = await import('../../src/services/providers/deferralWire.ts')
+const { getToolSearchMode } = await import('../../src/engine/messages/toolSearch.ts')
+const { toolReferenceWireAccepted } = await import('../../src/models/roads/deferralWire.ts')
 
 section('§1 GATE POLARITY — live env re-reads; the base URL selects the wire form, never the gate')
 try {

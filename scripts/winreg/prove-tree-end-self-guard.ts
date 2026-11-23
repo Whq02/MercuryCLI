@@ -11,7 +11,7 @@ function check(label: string, cond: boolean, detail = ''): void {
     console.log(`  [PASS] ${label}`)
   } else {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}; ` : ' — '}to fix: change endProcessTree in src/utils/processGroup.ts so a call on the calling process's own pid ends nothing and returns ended 0 with no survivors`)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}; ` : ' — '}to fix: change endProcessTree in src/platform/processes/processGroup.ts so a call on the calling process's own pid ends nothing and returns ended 0 with no survivors`)
   }
 }
 
@@ -21,7 +21,7 @@ console.log('============================================================')
 
 const root = mkdtempSync(join(tmpdir(), 'tree-self-guard-'))
 const child = join(root, 'child.ts')
-const processGroup = pathToFileURL(resolve(import.meta.dir, '../../src/utils/processGroup.ts')).href
+const processGroup = pathToFileURL(resolve(import.meta.dir, '../../src/platform/processes/processGroup.ts')).href
 writeFileSync(
   child,
   [

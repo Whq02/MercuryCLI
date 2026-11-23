@@ -2,7 +2,7 @@
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
-const OWNER = '../../src/services/crew/identity.ts'
+const OWNER = '../../src/crew/crewmates/identity.ts'
 
 t.section('CS-02 — the canonical identity owner exists at its pinned path')
 let mod: Record<string, unknown> | null = null
@@ -12,7 +12,7 @@ try {
   mod = null
 }
 t.check(
-  'src/services/crew/identity.ts loads',
+  'src/crew/crewmates/identity.ts loads',
   mod !== null,
   mod ? 'loaded' : 'module absent — no canonical agent-identity owner',
 )

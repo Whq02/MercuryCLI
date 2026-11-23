@@ -14,7 +14,7 @@ const line = Number(process.env.SMOKE_LINE ?? '3')
 const frameName = process.env.SMOKE_FRAME ?? 'compute'
 
 const { createDapSession, removeDapSession } = await import(
-  '../../src/services/dap/dapClient.js'
+  '../../src/integrations/debugger/dapClient.js'
 )
 
 let fail = 0
@@ -23,7 +23,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
+const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.js')
 const OWNER = makeOwnerKey({ workspace: '/tmp/w', sessionId: 'dap-live', lane: 'main' })
 const session = await createDapSession({
   owner: OWNER,

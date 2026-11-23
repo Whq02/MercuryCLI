@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/providers/local/tensorfoldUsage.ts src/components/Settings/Usage.tsx src/services/providers/local/localCatalogue.ts
+// gate-watch: src/models/roads/local/tensorfoldUsage.ts src/screen/settings/Usage.tsx src/models/roads/local/localCatalogue.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import React from 'react'
 import { mock } from 'bun:test'
@@ -50,24 +50,24 @@ async function stub(path: string, fixtureExports: () => Record<string, unknown>)
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...fixtureExports() }))
 }
-await stub(`${ROOT}/src/services/providers/openai/openaiCatalogue.js`, () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
-await stub(`${ROOT}/src/services/providers/catalogueOnDemand.js`, () => ({ readCatalogueIfPending: async () => undefined }))
-await stub(`${ROOT}/src/hooks/useCatalogueEpoch.js`, () => ({ useCatalogueEpoch: () => 0 }))
-await stub(`${ROOT}/src/keybindings/useKeybinding.js`, () => ({ useKeybinding: () => undefined }))
-await stub(`${ROOT}/src/components/ConfigurableShortcutHint.js`, () => ({ ConfigurableShortcutHint: () => null }))
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+await stub(`${ROOT}/src/models/roads/openai/openaiCatalogue.js`, () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
+await stub(`${ROOT}/src/models/roads/catalogueOnDemand.js`, () => ({ readCatalogueIfPending: async () => undefined }))
+await stub(`${ROOT}/src/screen/model-picker/useCatalogueEpoch.js`, () => ({ useCatalogueEpoch: () => 0 }))
+await stub(`${ROOT}/src/screen/keys/useKeybinding.js`, () => ({ useKeybinding: () => undefined }))
+await stub(`${ROOT}/src/screen/keys/ConfigurableShortcutHint.js`, () => ({ ConfigurableShortcutHint: () => null }))
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { tensorFoldServing } = await import('../../src/services/providers/local/tensorfoldUsage.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
-const { Usage } = await import('../../src/components/Settings/Usage.js')
-const { Box, render, flushPendingSyncWork, EventEmitter } = await import('../../src/ink.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { default: squashText } = await import('../../src/ink/squash-text-nodes.js')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
+const { tensorFoldServing } = await import('../../src/models/roads/local/tensorfoldUsage.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/engine/connector/focusedConnector.ts')
+const { Usage } = await import('../../src/screen/settings/Usage.js')
+const { Box, render, flushPendingSyncWork, EventEmitter } = await import('../../src/screen/themedRenderer.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { default: squashText } = await import('../../src/screen/renderer/squash-text-nodes.js')
 await refreshLocalDiscovery({ force: true })
 
 async function panel(model: string): Promise<string[]> {
@@ -114,13 +114,13 @@ console.log('[1] two local servers list the same id; the slot follows the server
 for (const model of [`local/llamacpp/${MODEL}`, `local/${MODEL}`]) {
   const record = localRecordFor(model)
   const local = await panel(model)
-  check(`${model}: the session's lane resolves to llama.cpp, so tensorFoldServing stays silent`, record?.server === 'llamacpp' && tensorFoldServing(model) === undefined, `record ${record?.server} · serving ${JSON.stringify(tensorFoldServing(model))} — change the model-to-server lookup in src/services/providers/local/localCatalogue.ts localRecordFor or the silence rule in tensorFoldServing (src/services/providers/local/tensorfoldUsage.ts)`)
-  check(`${model}: the Local block renders without a TensorFold slot or serving row`, local.length > 0 && !local.includes('TensorFold') && !local.some(run => /^(serving|loading|draining) /.test(run) || run.includes('is not served')), local.join(' | ').slice(0, 600) + ' — change the Local block of src/components/Settings/Usage.tsx so the TensorFold slot and serving row show only when localRecordFor says the session uses TensorFold (tensorFoldServing in src/services/providers/local/tensorfoldUsage.ts)')
+  check(`${model}: the session's lane resolves to llama.cpp, so tensorFoldServing stays silent`, record?.server === 'llamacpp' && tensorFoldServing(model) === undefined, `record ${record?.server} · serving ${JSON.stringify(tensorFoldServing(model))} — change the model-to-server lookup in src/models/roads/local/localCatalogue.ts localRecordFor or the silence rule in tensorFoldServing (src/models/roads/local/tensorfoldUsage.ts)`)
+  check(`${model}: the Local block renders without a TensorFold slot or serving row`, local.length > 0 && !local.includes('TensorFold') && !local.some(run => /^(serving|loading|draining) /.test(run) || run.includes('is not served')), local.join(' | ').slice(0, 600) + ' — change the Local block of src/screen/settings/Usage.tsx so the TensorFold slot and serving row show only when localRecordFor says the session uses TensorFold (tensorFoldServing in src/models/roads/local/tensorfoldUsage.ts)')
 }
 {
   const model = `local/tensorfold/${MODEL}`
   const local = await panel(model)
-  check(`${model}: the TensorFold session keeps its slot and serving row`, localRecordFor(model)?.server === 'tensorfold' && local.includes('TensorFold') && local.some(run => run.startsWith(`serving ${MODEL} on 127.0.0.1:${tf.port}`)), local.join(' | ').slice(0, 600) + ' — change the Local block of src/components/Settings/Usage.tsx or tensorFoldServing in src/services/providers/local/tensorfoldUsage.ts so a TensorFold session keeps its slot and its serving row')
+  check(`${model}: the TensorFold session keeps its slot and serving row`, localRecordFor(model)?.server === 'tensorfold' && local.includes('TensorFold') && local.some(run => run.startsWith(`serving ${MODEL} on 127.0.0.1:${tf.port}`)), local.join(' | ').slice(0, 600) + ' — change the Local block of src/screen/settings/Usage.tsx or tensorFoldServing in src/models/roads/local/tensorfoldUsage.ts so a TensorFold session keeps its slot and its serving row')
 }
 
 tf.stop(true)

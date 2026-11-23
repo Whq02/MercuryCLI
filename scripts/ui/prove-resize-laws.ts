@@ -13,8 +13,8 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 console.log('§1 B1 — the width-resize scale preserves recorded zeros')
 {
-  const { scaleHeightForWidth } = await import('../../src/hooks/useVirtualScroll.ts')
-  resizeLawSource = 'scaleHeightForWidth in src/hooks/useVirtualScroll.ts'
+  const { scaleHeightForWidth } = await import('../../src/screen/virtual-message-list/useVirtualScroll.ts')
+  resizeLawSource = 'scaleHeightForWidth in src/screen/virtual-message-list/useVirtualScroll.ts'
   const ratios = [0.25, 0.5, 0.999, 1, 1.5, 2.7, 10]
   check('zero stays zero at every ratio', ratios.every(r => scaleHeightForWidth(0, r) === 0))
   check('a positive height floors at ONE line, never zero', ratios.every(r => scaleHeightForWidth(1, r) >= 1 && scaleHeightForWidth(7, r) >= 1))
@@ -27,9 +27,9 @@ console.log('§1 B1 — the width-resize scale preserves recorded zeros')
 console.log('§2 B2 — the spinner stack decision is a hysteresis band')
 {
   const { spinnerStackDecision, STACK_EXIT_SLACK } = await import(
-    '../../src/components/Spinner/spinnerHud.ts'
+    '../../src/screen/spinner/spinnerHud.ts'
   )
-  resizeLawSource = 'spinnerStackDecision and STACK_EXIT_SLACK in src/components/Spinner/spinnerHud.ts'
+  resizeLawSource = 'spinnerStackDecision and STACK_EXIT_SLACK in src/screen/spinner/spinnerHud.ts'
   const d = (cost: number, wasStacked: boolean, space = 40): boolean =>
     spinnerStackDecision({ eligible: true, cost, space, wasStacked })
   check('over the space it stacks, latched or not', d(41, false) && d(41, true))
@@ -42,8 +42,8 @@ console.log('§2 B2 — the spinner stack decision is a hysteresis band')
 
 console.log('§3 B3 — the shell-progress reserve is monotone; the footer holds the bottom edge')
 {
-  const { reserveShellRows } = await import('../../src/components/shell/ShellProgressMessage.tsx')
-  resizeLawSource = 'reserveShellRows in src/components/shell/ShellProgressMessage.tsx'
+  const { reserveShellRows } = await import('../../src/screen/shell-output/ShellProgressMessage.tsx')
+  resizeLawSource = 'reserveShellRows in src/screen/shell-output/ShellProgressMessage.tsx'
   check('growth latches: 3 shown after 5 keeps the 5-row reserve (2 pads)', reserveShellRows(3, 5).latch === 5 && reserveShellRows(3, 5).pad === 2)
   check('content grows the latch', reserveShellRows(4, 2).latch === 4 && reserveShellRows(4, 2).pad === 0)
   check('an all-blank window after content keeps the frame (never a collapse)', reserveShellRows(0, 5).latch === 5 && reserveShellRows(0, 5).pad === 5)
@@ -54,8 +54,8 @@ console.log('§3 B3 — the shell-progress reserve is monotone; the footer holds
 
 console.log('§6 D2 — the composer viewport holds still inside the band')
 {
-  const { Cursor } = await import('../../src/utils/Cursor.ts')
-  resizeLawSource = 'getViewportStartLine and render in src/utils/Cursor.ts'
+  const { Cursor } = await import('../../src/screen/composer/vim/textCursor.ts')
+  resizeLawSource = 'getViewportStartLine and render in src/screen/composer/vim/textCursor.ts'
   const text = Array.from({ length: 30 }, (_, i) => `line ${i}`).join('\n')
   const at = (line: number): InstanceType<typeof Cursor> => {
     let off = 0
@@ -85,9 +85,9 @@ console.log('§6 D2 — the composer viewport holds still inside the band')
 console.log('§9 D5 — the collapse notice dies when the frame affords again')
 {
   const { collapseSplitForFrame, toggleSplitView, _resetSplitViewForTesting, splitAvailableAt, SPLIT_MIN_ROWS } = await import(
-    '../../src/components/concourse/splitView.ts'
+    '../../src/screen/concourse/splitView.ts'
   )
-  resizeLawSource = 'collapseSplitForFrame and splitAvailableAt in src/components/concourse/splitView.ts'
+  resizeLawSource = 'collapseSplitForFrame and splitAvailableAt in src/screen/concourse/splitView.ts'
   _resetSplitViewForTesting()
   toggleSplitView(200, 50)
   const c = collapseSplitForFrame(130, SPLIT_MIN_ROWS - 1)
@@ -99,8 +99,8 @@ console.log('§9 D5 — the collapse notice dies when the frame affords again')
 
 console.log('§13 D9 — the terminal card reserves its probe block')
 {
-  const { inventoryLines } = await import('../../src/ink/session/windowsHostSetup.ts')
-  resizeLawSource = 'inventoryLines in src/ink/session/windowsHostSetup.ts'
+  const { inventoryLines } = await import('../../src/screen/renderer/terminal-session/windowsHostSetup.ts')
+  resizeLawSource = 'inventoryLines in src/screen/renderer/terminal-session/windowsHostSetup.ts'
   const pending = inventoryLines({ windowsTerminal: 'unknown', pwsh7: 'unknown', winget: 'unknown' })
   const landed = inventoryLines({ windowsTerminal: 'present', pwsh7: 'missing', winget: 'present' })
   check('the roster is FIXED — the probe can only fill rows, never add them', pending.length === landed.length && pending.length === 2)
@@ -110,9 +110,9 @@ console.log('§13 D9 — the terminal card reserves its probe block')
 console.log('§14 CB-05 — the state-word column is reserved; title columns are byte-stable')
 {
   const { STATE_WORD_RESERVE, stateWordCell } = await import(
-    '../../src/components/concourse/ConcourseLayout.tsx'
+    '../../src/screen/concourse/ConcourseLayout.tsx'
   )
-  resizeLawSource = 'STATE_WORD_RESERVE and stateWordCell in src/components/concourse/ConcourseLayout.tsx'
+  resizeLawSource = 'STATE_WORD_RESERVE and stateWordCell in src/screen/concourse/ConcourseLayout.tsx'
   const words = ['ready', 'working', 'NEEDS YOU', 'with you', 'stalled', 'failed', 'queued', 'starting', 'paused', 'stopped', 'done', 'cancelled', 'draft', 'parked', 'a door']
   check('the longest table word sizes the column', STATE_WORD_RESERVE === Math.max(...words.map(w => w.length)))
   const stable = words.every(w => stateWordCell(w).length === stateWordCell(null).length)
@@ -124,9 +124,9 @@ console.log('§14 CB-05 — the state-word column is reserved; title columns are
 
 console.log('§15 — live geometry and a bounded compact frame at every size')
 {
-  const { compactFrameBudget } = await import('../../src/components/mercury-ui/geometry.ts')
-  const { HELM_HOME_MIN_COLS } = await import('../../src/utils/helmGeometry.ts')
-  resizeLawSource = 'compactFrameBudget in src/components/mercury-ui/geometry.ts (HELM_HOME_MIN_COLS lives in src/utils/helmGeometry.ts)'
+  const { compactFrameBudget } = await import('../../src/screen/widgets/geometry.ts')
+  const { HELM_HOME_MIN_COLS } = await import('../../src/screen/fullscreen-layout/helmGeometry.ts')
+  resizeLawSource = 'compactFrameBudget in src/screen/widgets/geometry.ts (HELM_HOME_MIN_COLS lives in src/screen/fullscreen-layout/helmGeometry.ts)'
   check('100 columns remains a full-layout breakpoint, not an application floor', HELM_HOME_MIN_COLS === 100)
   for (const [columns, rows] of [[1, 1], [2, 2], [1, 40], [200, 1], [40, 10], [60, 16], [80, 24], [120, 24]]) {
     for (const activity of [false, true]) {

@@ -15,19 +15,19 @@ const frameDir = arg('--frames')
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 const React = await import('react')
 const h = React.createElement
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.tsx')
-const { ModelPickerPopupLease } = await import('../../src/components/ModelPickerPopupSlot.tsx')
-const { claimModelPickerPopup } = await import('../../src/utils/cockpit/modelPickerPopup.ts')
-const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
-const { pickerColumns, pickerIdSpan, pickerIdText } = await import('../../src/utils/model/modelPickerGroups.ts')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { MercuryModelPicker } = await import('../../src/commands/model/picker/MercuryModelPicker.tsx')
+const { ModelPickerPopupLease } = await import('../../src/screen/overlays/ModelPickerPopupSlot.tsx')
+const { claimModelPickerPopup } = await import('../../src/screen/cockpit/modelPickerPopup.ts')
+const { resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
+const { pickerColumns, pickerIdSpan, pickerIdText } = await import('../../src/models/facts/modelPickerGroups.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
@@ -39,8 +39,8 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 const group = 'Mercury — OpenRouter models'
-const ROOM_HINT = 'the id takes the blank cells of its own row before they stay padding: check pickerIdSpan in src/utils/model/modelPickerGroups.ts and idAndState in src/components/modelPicker/renderLine.tsx'
-const CUT_HINT = 'change pickerIdText in src/utils/model/modelPickerGroups.ts'
+const ROOM_HINT = 'the id takes the blank cells of its own row before they stay padding: check pickerIdSpan in src/models/facts/modelPickerGroups.ts and idAndState in src/screen/model-picker/renderLine.tsx'
+const CUT_HINT = 'change pickerIdText in src/models/facts/modelPickerGroups.ts'
 const models = [
   { id: 'vendor/long-family/model-alpha', name: 'Model A', ctx: '1.31M ctx', tag: '', group },
   { id: 'vendor/long-family/model-beta', name: 'Model B', ctx: '200k ctx', tag: '', group },
@@ -48,7 +48,7 @@ const models = [
   { id: 'vendor/long-family-of-models/second-series/model-delta', name: 'Model D', ctx: '200k ctx', tag: '', group },
 ]
 const columnsFor = (width: number): number => Object.values(pickerColumns(width)).reduce((sum, column) => sum + column, 0)
-for (const width of [49, 50, 55, 56, 64, 80, 92]) check(`the column plan fits ${width} cells`, columnsFor(width) <= width, `${columnsFor(width)}; shrink the column widths pickerColumns returns in src/utils/model/modelPickerGroups.ts so their sum stays within the row width`)
+for (const width of [49, 50, 55, 56, 64, 80, 92]) check(`the column plan fits ${width} cells`, columnsFor(width) <= width, `${columnsFor(width)}; shrink the column widths pickerColumns returns in src/models/facts/modelPickerGroups.ts so their sum stays within the row width`)
 {
   const grid = pickerColumns(84)
   const span = grid.id + grid.state
@@ -82,15 +82,15 @@ for (const [columns, rows] of [[60, 20], [63, 20], [66, 20], [70, 20], [80, 24],
     if (frameDir) writeFileSync(join(frameDir, `${columns}x${rows}.txt`), lines.join('\n') + '\n')
     const first = lines.find(line => line.includes('Model A')) ?? ''
     const second = lines.find(line => line.includes('Model B')) ?? ''
-    check(`${columns}x${rows}: the alias and current state stay whole`, first.includes('Model A') && first.includes('current') && second.includes('Model B'), `${first}; the alias cell or state cell is clipped: check pickerColumns in src/utils/model/modelPickerGroups.ts and the cells in src/components/modelPicker/renderLine.tsx`)
-    check(`${columns}x${rows}: the context cells stay whole`, first.includes('1.31M ctx') && second.includes('200k ctx'), `${first}\n${second}; the ctx cell is clipped: check pickerColumns in src/utils/model/modelPickerGroups.ts`)
+    check(`${columns}x${rows}: the alias and current state stay whole`, first.includes('Model A') && first.includes('current') && second.includes('Model B'), `${first}; the alias cell or state cell is clipped: check pickerColumns in src/models/facts/modelPickerGroups.ts and the cells in src/screen/model-picker/renderLine.tsx`)
+    check(`${columns}x${rows}: the context cells stay whole`, first.includes('1.31M ctx') && second.includes('200k ctx'), `${first}\n${second}; the ctx cell is clipped: check pickerColumns in src/models/facts/modelPickerGroups.ts`)
     const third = lines.find(line => line.includes('gamma')) ?? lines.find(line => line.includes('vendor/long-family-of')) ?? ''
     const fourth = lines.find(line => line.includes('delta')) ?? lines.findLast(line => line.includes('vendor/long-family-of')) ?? ''
     if (columns! >= 177) check(`${columns}x${rows}: the two longest ids read whole in the room their rows have`, third.includes(`${models[2]!.id}  200k ctx`) && fourth.includes(`${models[3]!.id}  200k ctx`), `${third.trim()}\n${fourth.trim()}; ${ROOM_HINT}`)
-    else check(`${columns}x${rows}: an id its row cannot hold keeps its start and its end around one ellipsis, so two ids of one family read apart`, /\svendor\/\S*…\S*gamma\s/.test(third) && /\svendor\/\S*…\S*delta\s/.test(fourth), `${third.trim()}\n${fourth.trim()}; a cut id begins with its own start and keeps the end that tells it from its sibling: check pickerIdText in src/utils/model/modelPickerGroups.ts and idAndState in src/components/modelPicker/renderLine.tsx`)
-    check(`${columns}x${rows}: no id is cut at its start`, [first, second, third, fourth].every(row => !/\s…\S/.test(row)), `${[first, second, third, fourth].map(row => row.trim()).join('\n')}; an id never begins with the ellipsis: check pickerIdText in src/utils/model/modelPickerGroups.ts`)
+    else check(`${columns}x${rows}: an id its row cannot hold keeps its start and its end around one ellipsis, so two ids of one family read apart`, /\svendor\/\S*…\S*gamma\s/.test(third) && /\svendor\/\S*…\S*delta\s/.test(fourth), `${third.trim()}\n${fourth.trim()}; a cut id begins with its own start and keeps the end that tells it from its sibling: check pickerIdText in src/models/facts/modelPickerGroups.ts and idAndState in src/screen/model-picker/renderLine.tsx`)
+    check(`${columns}x${rows}: no id is cut at its start`, [first, second, third, fourth].every(row => !/\s…\S/.test(row)), `${[first, second, third, fourth].map(row => row.trim()).join('\n')}; an id never begins with the ellipsis: check pickerIdText in src/models/facts/modelPickerGroups.ts`)
     if (columns === 60) check('60x20: clipped ids keep distinct model tails', first.includes('…') && first.includes('alpha') && second.includes('…') && second.includes('beta'), `${first}\n${second}; two cut ids of one family keep the ends that tell them apart: ${CUT_HINT}`)
-    if (columns === 63) check('63x20: TensorFold keeps the original alias budget at its rounding boundary', first.includes('Model Alpha') && second.includes('Model Beta'), `${first}\n${second}; the alias width at this width lost its budget: check pickerColumns in src/utils/model/modelPickerGroups.ts and the alias cell in src/components/modelPicker/renderLine.tsx`)
+    if (columns === 63) check('63x20: TensorFold keeps the original alias budget at its rounding boundary', first.includes('Model Alpha') && second.includes('Model Beta'), `${first}\n${second}; the alias width at this width lost its budget: check pickerColumns in src/models/facts/modelPickerGroups.ts and the alias cell in src/screen/model-picker/renderLine.tsx`)
   } finally { scene.unmount() }
 }
 const dated = [

@@ -14,7 +14,7 @@ delete process.env.MERCURY_MOONSHOT_OAUTH_CLIENT_ID
 delete process.env.MERCURY_MOONSHOT_CODING_BASE
 delete process.env.MERCURY_MOONSHOT_API_BASE
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 const {
@@ -38,13 +38,13 @@ const {
   writeMoonshotRegion,
   writeMoonshotTokens,
   disconnectMoonshotOauth,
-} = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
-const { writeStoredMoonshotApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
+} = await import('../../src/models/roads/moonshot/moonshotAccounts.ts')
+const { writeStoredMoonshotApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const failHint = cond ? '' : ' | to fix: change the function this label names in src/services/providers/moonshot/moonshotAccounts.ts (startMoonshotDeviceAuth, pollMoonshotDeviceToken, refreshMoonshotTokens, resolveMoonshotAccount, resolveMoonshotDispatchCredential, the base and url helpers) or the stored key in src/utils/accounts/providerSecrets.ts'
+  const failHint = cond ? '' : ' | to fix: change the function this label names in src/models/roads/moonshot/moonshotAccounts.ts (startMoonshotDeviceAuth, pollMoonshotDeviceToken, refreshMoonshotTokens, resolveMoonshotAccount, resolveMoonshotDispatchCredential, the base and url helpers) or the stored key in src/models/sign-in/account-ledger/providerSecrets.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${failHint}`)
 }
 function section(t: string): void {

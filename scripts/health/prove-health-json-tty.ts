@@ -99,20 +99,20 @@ try {
     const dir = join(scratch, 'piped-vs-tty')
     mkdirSync(dir, { recursive: true })
     const pipedCert = pipedRun(dir, ['health', '--json'], NO_CREDENTIAL)
-    check('the piped run produced a record', pipedCert !== null, 'run node dist/mercury.mjs health --json piped (build first with bun run build.ts) and make src/cli/healthJson.ts print one balanced JSON object on stdout')
+    check('the piped run produced a record', pipedCert !== null, 'run node dist/mercury.mjs health --json piped (build first with bun run build.ts) and make src/commands/verbs/healthJson.ts print one balanced JSON object on stdout')
     if (POSIX_PTY_ONLY) console.log('  [SKIP] the tty legs drive a POSIX python pty (pty.spawn needs fork and termios); on win32 the piped leg runs alone')
     const tty = POSIX_PTY_ONLY ? null : ptyRun(dir, ['health', '--json'], NO_CREDENTIAL)
     const ttyCert = tty === null ? null : firstJsonObject(tty.out)
-    if (tty !== null) check('the tty run produced a record (a python pty)', ttyCert !== null, `no balanced record in the transcript — tail: ${JSON.stringify(tty.out.slice(-300))} — src/cli/healthJson.ts must print the JSON record even when stdout is a TTY, with no interactive view parked first`)
+    if (tty !== null) check('the tty run produced a record (a python pty)', ttyCert !== null, `no balanced record in the transcript — tail: ${JSON.stringify(tty.out.slice(-300))} — src/commands/verbs/healthJson.ts must print the JSON record even when stdout is a TTY, with no interactive view parked first`)
     if (pipedCert !== null && ttyCert !== null) {
       const pipedRow = byId(pipedCert, 'iface-terminal')
       const ttyRow = byId(ttyCert, 'iface-terminal')
-      check("piped: the profile row reads neutral 'info' naming the environmental condition", pipedRow?.status === 'info' && /environmental/.test(String(pipedRow?.evidence)), `${JSON.stringify(pipedRow)} — the not-isTTY branch of the iface-terminal check in src/services/health/sections/interface.ts must return status info with evidence starting environmental`)
-      check('tty: the profile row is NOT the environmental form', !/environmental/.test(String(ttyRow?.evidence)), `${String(ttyRow?.evidence)} — under a pty process.stdout.isTTY must be true so the iface-terminal check in src/services/health/sections/interface.ts takes its TTY branch, not the environmental one`)
+      check("piped: the profile row reads neutral 'info' naming the environmental condition", pipedRow?.status === 'info' && /environmental/.test(String(pipedRow?.evidence)), `${JSON.stringify(pipedRow)} — the not-isTTY branch of the iface-terminal check in src/platform/health/sections/interface.ts must return status info with evidence starting environmental`)
+      check('tty: the profile row is NOT the environmental form', !/environmental/.test(String(ttyRow?.evidence)), `${String(ttyRow?.evidence)} — under a pty process.stdout.isTTY must be true so the iface-terminal check in src/platform/health/sections/interface.ts takes its TTY branch, not the environmental one`)
       check(
         "the piped run's verdict equals the TTY run's (the profile row no longer flips it)",
         pipedCert.verdict === ttyCert.verdict,
-        `piped=${pipedCert.verdict} [${nonPass(pipedCert)}] tty=${ttyCert.verdict} [${nonPass(ttyCert)}] — the rows listed in brackets differ between the runs; the iface-terminal check in src/services/health/sections/interface.ts must not change the verdict on a pipe`,
+        `piped=${pipedCert.verdict} [${nonPass(pipedCert)}] tty=${ttyCert.verdict} [${nonPass(ttyCert)}] — the rows listed in brackets differ between the runs; the iface-terminal check in src/platform/health/sections/interface.ts must not change the verdict on a pipe`,
       )
     }
   }
@@ -125,8 +125,8 @@ try {
     else {
       const r = ptyRun(dir, ['health', '--only', 'build-identity'], {})
       const out = r.out.replace(/\r/g, '')
-      check('PTY --only exits unaided (no parked interactive view)', !r.threw, `threw; tail: ${JSON.stringify(out.slice(-200))} — health --only must print its row and exit without opening an interactive view: see the only handling in src/cli/healthJson.ts`)
-      check('…printing the one check, not the panel', out.includes('Mercury build'), `${out.slice(0, 200)} — health --only build-identity must print the Mercury build row alone: see the only handling in src/cli/healthJson.ts`)
+      check('PTY --only exits unaided (no parked interactive view)', !r.threw, `threw; tail: ${JSON.stringify(out.slice(-200))} — health --only must print its row and exit without opening an interactive view: see the only handling in src/commands/verbs/healthJson.ts`)
+      check('…printing the one check, not the panel', out.includes('Mercury build'), `${out.slice(0, 200)} — health --only build-identity must print the Mercury build row alone: see the only handling in src/commands/verbs/healthJson.ts`)
     }
   }
 } finally {

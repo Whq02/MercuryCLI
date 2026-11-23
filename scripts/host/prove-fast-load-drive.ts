@@ -12,7 +12,7 @@ import { gridToPng } from '../ui/gridToPng.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
-const { currentHostRecipes } = await import('../../src/services/host/recipesFile.ts')
+const { currentHostRecipes } = await import('../../src/models/hosting/recipesFile.ts')
 assert.ok(currentHostRecipes().every(row => Number.isFinite(row.weightsGb) && row.weightsGb > 0), 'every recipe declares its measured weights size')
 let checks = 0
 const check = (name: string, truth: unknown) => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
@@ -36,26 +36,26 @@ let mounted: Mounted | undefined
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
 try {
   const React = await import('react')
-  const { Box } = await import('../../src/ink.ts')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-  const { settingsChangeDetector } = await import('../../src/utils/settings/changeDetector.ts')
+  const { Box } = await import('../../src/screen/themedRenderer.ts')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+  const { settingsChangeDetector } = await import('../../src/platform/settings/changeDetector.ts')
   await settingsChangeDetector.initialize()
-  const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+  const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-  const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { RunpodClient } = await import('../../src/services/host/runpod.ts')
-  const { hostRunner, ensureHostKey } = await import('../../src/services/host/ssh.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
-  const { readHostRecord, hostRecords, removeHostRecord } = await import('../../src/services/host/store.ts')
-  const { queueHostSetup, queueHostWatch } = await import('../../src/services/host/jobs.ts')
-  const { runHostJob } = await import('../../src/services/host/worker.ts')
-  const volumes = await import('../../src/services/host/volumes.ts')
-  const { fastLoadRecipes, fastLoadState, mirrorToVolume, volumeDeleteDoor } = await import('../../src/services/host/fastLoad.ts')
+  const { createHostRoad } = await import('../../src/models/hosting/index.ts')
+  const { RunpodClient } = await import('../../src/models/hosting/runpod.ts')
+  const { hostRunner, ensureHostKey } = await import('../../src/models/hosting/ssh.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/models/sign-in/account-ledger/providerSecrets.ts')
+  const { readHostRecord, hostRecords, removeHostRecord } = await import('../../src/models/hosting/store.ts')
+  const { queueHostSetup, queueHostWatch } = await import('../../src/models/hosting/jobs.ts')
+  const { runHostJob } = await import('../../src/models/hosting/worker.ts')
+  const volumes = await import('../../src/models/hosting/volumes.ts')
+  const { fastLoadRecipes, fastLoadState, mirrorToVolume, volumeDeleteDoor } = await import('../../src/models/hosting/fastLoad.ts')
   const bankHome = join(f.home, 'mercury-model-bank')
-  const { sizeWords } = await import('../../src/services/host/bank.ts')
-  const { weightManifest, weightCheckScript, keptWeightsPath, keptDownloadMinutes } = await import('../../src/services/host/keptWeights.ts')
+  const { sizeWords } = await import('../../src/models/hosting/bank.ts')
+  const { weightManifest, weightCheckScript, keptWeightsPath, keptDownloadMinutes } = await import('../../src/models/hosting/keptWeights.ts')
   writeStoredRunpodApiKey(rp.key)
   const api = new RunpodClient(rp.key, rp.baseUrl)
   const signal = new AbortController().signal
@@ -435,4 +435,4 @@ try {
   check('proof refused all non-loopback traffic and attempted none', external.length === 0)
   check('only opted-in models have records and no preparation pod remains', volumes.keptVolumes().every(row => [qwen.model, nemotron.model, gguf.model].includes(row.model)) && rp.state.pods.size === 0)
   console.log('FAST LOAD DRIVE GREEN — ' + checks + ' checks; catalogue, opt-in, prepare-now, kept rental, disk deletion, reconciliation, corruption, watch and failure cleanup; zero billable calls')
-} finally { mounted?.unmount(); await Promise.all(jobs); ssh?.close(); await (await import('../../src/utils/settings/changeDetector.ts')).settingsChangeDetector.dispose(); globalThis.fetch = originalFetch; await rp.close(); f.close() }
+} finally { mounted?.unmount(); await Promise.all(jobs); ssh?.close(); await (await import('../../src/platform/settings/changeDetector.ts')).settingsChangeDetector.dispose(); globalThis.fetch = originalFetch; await rp.close(); f.close() }

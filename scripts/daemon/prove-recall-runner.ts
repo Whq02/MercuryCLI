@@ -19,7 +19,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}fix: the built runner must answer queue/withdraw as withdrawn: true with the words, else withdrawn: false with reason unknown or taken (the verb contract is in src/runner/wire/sessionVerbs.ts); withdrawn words must never reach the model wire; stderr and the wire capture are in the [forensics] world kept below, and dist/mercury.mjs must be rebuilt with bun run build.ts after a source change`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}fix: the built runner must answer queue/withdraw as withdrawn: true with the words, else withdrawn: false with reason unknown or taken (the verb contract is in src/daemon/runner-wire/sessionVerbs.ts); withdrawn words must never reach the model wire; stderr and the wire capture are in the [forensics] world kept below, and dist/mercury.mjs must be rebuilt with bun run build.ts after a source change`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

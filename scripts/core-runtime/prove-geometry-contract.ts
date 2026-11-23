@@ -6,12 +6,12 @@ import {
   type DOMElement,
   removeChildNode,
   setAttribute,
-} from '../../src/ink/dom.js'
-import { FocusManager } from '../../src/ink/focus.js'
-import { emptyFrame } from '../../src/ink/frame.js'
-import { dispatchClick, dispatchHover, hitTest } from '../../src/ink/geometry/hit.js'
-import { nodeCache } from '../../src/ink/node-cache.js'
-import createRenderer from '../../src/ink/renderer.js'
+} from '../../src/screen/renderer/dom.js'
+import { FocusManager } from '../../src/screen/renderer/focus.js'
+import { emptyFrame } from '../../src/screen/renderer/frame.js'
+import { dispatchClick, dispatchHover, hitTest } from '../../src/screen/renderer/geometry/hitTest.js'
+import { nodeCache } from '../../src/screen/renderer/node-cache.js'
+import createRenderer from '../../src/screen/renderer/renderer.js'
 import {
   type Cell,
   CellWidth,
@@ -23,7 +23,7 @@ import {
   type Screen,
   setCellAt,
   StylePool,
-} from '../../src/ink/cell-grid.js'
+} from '../../src/screen/renderer/cell-grid.js'
 import {
   applySelectionOverlay,
   captureScrolledRows,
@@ -45,7 +45,7 @@ import {
   shiftSelectionForFollow,
   startSelection,
   updateSelection,
-} from '../../src/ink/geometry/selection.js'
+} from '../../src/screen/renderer/geometry/selection.js'
 import {
   applySceneStyle,
   buildDom,
@@ -59,19 +59,19 @@ import {
 let failures = 0
 let checks = 0
 const geometryWhere: Array<[RegExp, string]> = [
-  [/^(dispatch|hit|hover):/, 'fix dispatchClick, dispatchHover or hitTest in src/ink/geometry/hit.ts'],
-  [/^(word|line|extend):/, 'fix selectWordAt, selectLineAt or extendSelection in src/ink/geometry/word-line.ts'],
-  [/^url:/, 'fix findPlainTextUrlAt in src/ink/geometry/url.ts'],
-  [/^overlay:/, 'fix applySelectionOverlay in src/ink/geometry/overlay.ts'],
-  [/^(capture|shift guards|follow clear|f4-4|J\d|ledger)/, 'fix captureScrolledRows, shiftSelection, shiftAnchor or shiftSelectionForFollow in src/ink/geometry/shift.ts'],
-  [/^copy/, 'fix getSelectedText in src/ink/geometry/extract.ts'],
-  [/^(lifecycle|clip band|moveFocus):/, 'fix the selection state functions that src/ink/geometry/selection.ts re-exports'],
+  [/^(dispatch|hit|hover):/, 'fix dispatchClick, dispatchHover or hitTest in src/screen/renderer/geometry/hitTest.ts'],
+  [/^(word|line|extend):/, 'fix selectWordAt, selectLineAt or extendSelection in src/screen/renderer/geometry/wordLineSelection.ts'],
+  [/^url:/, 'fix findPlainTextUrlAt in src/screen/renderer/geometry/urlAtCell.ts'],
+  [/^overlay:/, 'fix applySelectionOverlay in src/screen/renderer/geometry/selectionOverlay.ts'],
+  [/^(capture|shift guards|follow clear|f4-4|J\d|ledger)/, 'fix captureScrolledRows, shiftSelection, shiftAnchor or shiftSelectionForFollow in src/screen/renderer/geometry/selectionShift.ts'],
+  [/^copy/, 'fix getSelectedText in src/screen/renderer/geometry/selectedText.ts'],
+  [/^(lifecycle|clip band|moveFocus):/, 'fix the selection state functions that src/screen/renderer/geometry/selection.ts re-exports'],
 ]
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    const where = geometryWhere.find(([re]) => re.test(label))?.[1] ?? 'fix the selection or hit-test code under src/ink/geometry/'
+    const where = geometryWhere.find(([re]) => re.test(label))?.[1] ?? 'fix the selection or hit-test code under src/screen/renderer/geometry/'
     console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — ${where}`)
   }
 }

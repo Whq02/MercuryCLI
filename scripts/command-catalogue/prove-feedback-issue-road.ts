@@ -44,11 +44,11 @@ function section(title: string): void {
 }
 
 const forms = await import('../../src/commands/feedback/issueForms.ts')
-const ghIssue = await import('../../src/services/repoHost/ghIssue.ts')
+const ghIssue = await import('../../src/platform/repo-host/ghIssue.ts')
 const health = await import('../../src/commands/feedback/healthSection.ts')
-const feedback = await import('../../src/components/Feedback.tsx')
-const { lastCertPath } = await import('../../src/services/health/healthReport.ts')
-const { repoSlugFromUrl } = await import('../../src/services/privateChannel/channelCore.ts')
+const feedback = await import('../../src/commands/feedback/BugReport.tsx')
+const { lastCertPath } = await import('../../src/platform/health/healthReport.ts')
+const { repoSlugFromUrl } = await import('../../src/platform/update-channel/channelCore.ts')
 
 section('B2 the body follows the form: the table equals the yml files')
 hint = 'change ISSUE_FORMS or composeIssueBody in src/commands/feedback/issueForms.ts, or the matching .github/ISSUE_TEMPLATE/*.yml, so the two agree'
@@ -113,7 +113,7 @@ for (const kind of forms.ISSUE_KINDS) {
 }
 
 section('B1 the signed-in road files through the one gh transport')
-hint = 'fix issueRepoSlug, fileIssueArgv or fileIssue in src/services/repoHost/ghIssue.ts'
+hint = 'fix issueRepoSlug, fileIssueArgv or fileIssue in src/platform/repo-host/ghIssue.ts'
 {
   const packaged = repoSlugFromUrl(pkg.repository?.url ?? '')
   check(`the default slug is the packaged repository (${packaged})`, ghIssue.issueRepoSlug() === packaged && packaged === PUBLIC_HOME, ghIssue.issueRepoSlug())
@@ -148,7 +148,7 @@ hint = 'fix issueRepoSlug, fileIssueArgv or fileIssue in src/services/repoHost/g
 }
 
 section('B5 no gh = the honest fallback (three exact arms)')
-hint = 'fix checkIssueAccess in src/services/repoHost/ghIssue.ts, or noGhParagraph, issueFormUrl or healthPointer in src/commands/feedback/issueForms.ts'
+hint = 'fix checkIssueAccess in src/platform/repo-host/ghIssue.ts, or noGhParagraph, issueFormUrl or healthPointer in src/commands/feedback/issueForms.ts'
 {
   const log = join(SCRATCH, 'gh-access.log')
   process.env.GH_SHIM_LOG = log
@@ -194,14 +194,14 @@ hint = 'fix checkIssueAccess in src/services/repoHost/ghIssue.ts, or noGhParagra
 }
 
 section('B6 privacy: the `~` spelling, the bounded health, the gates')
-hint = 'fix redactSensitiveInfo in src/components/Feedback.tsx, runHealthBounded or gatherHealthSection in src/commands/feedback/healthSection.ts, or the /feedback command registration in src/commands/feedback/index.ts'
+hint = 'fix redactSensitiveInfo in src/commands/feedback/BugReport.tsx, runHealthBounded or gatherHealthSection in src/commands/feedback/healthSection.ts, or the /feedback command registration in src/commands/feedback/index.ts'
 {
   const home = homedir()
   const spelled = feedback.redactSensitiveInfo(`at ${home}/.mercury/feedback/bug-1.json and ${home}`)
   check('the home directory reads `~` (a path and the bare home)', spelled === 'at ~/.mercury/feedback/bug-1.json and ~', spelled)
   check('a longer name sharing the prefix is untouched', feedback.redactSensitiveInfo(`${home}xyz/file`) === `${home}xyz/file`)
   check('the secret classes still redact', feedback.redactSensitiveInfo('key sk-ant-abcdefghijklmnop end').includes('[REDACTED_API_KEY]'))
-  const spellings = await import('../../src/constants/credentialEnvSpellings.ts')
+  const spellings = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
   check('the value-shape table covers every family the env-spelling table covers (one key set)', JSON.stringify(Object.keys(spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES).sort()) === JSON.stringify(Object.keys(spellings.PROVIDER_CREDENTIAL_ENV_VARS).sort()))
   const bare: Array<[string, string, string]> = [
     ['openai', 'sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789', '[REDACTED_OPENAI_KEY]'],
@@ -248,9 +248,9 @@ hint = 'fix redactSensitiveInfo in src/components/Feedback.tsx, runHealthBounded
   check('a stale summary is not read: the bounded run (here past its deadline) answers', stale.startsWith('health: not run — '), stale)
   rmSync(certPath, { force: true })
 
-  const { enableConfigs } = await import('../../src/utils/config.ts')
+  const { enableConfigs } = await import('../../src/platform/settings/config.ts')
   enableConfigs()
-  const { builtinCommands } = await import('../../src/commands.ts')
+  const { builtinCommands } = await import('../../src/commands/catalogue/commands.ts')
   const cmd = [...builtinCommands()].find(c => c.name === 'feedback')
   check('/feedback is registered with the bug alias', cmd !== undefined && (cmd.aliases ?? []).includes('bug'))
   check('the description says the road (the GitHub CLI; a local draft without it)', (cmd?.description ?? '').includes('GitHub CLI') && (cmd?.description ?? '').includes('local draft'), cmd?.description)
@@ -269,7 +269,7 @@ hint = 'fix redactSensitiveInfo in src/components/Feedback.tsx, runHealthBounded
 }
 
 section('B3/B4 the real bundle: the chooser, the review frame, the filing')
-hint = 'fix the /feedback dialog in src/components/feedback/feedbackView.tsx or the filing road in src/commands/feedback/ and src/services/repoHost/ghIssue.ts, then rebuild dist with bun run build.ts'
+hint = 'fix the /feedback dialog in src/screen/feedback/feedbackView.tsx or the filing road in src/commands/feedback/ and src/platform/repo-host/ghIssue.ts, then rebuild dist with bun run build.ts'
 const distArg = process.argv.indexOf('--dist')
 if (distArg >= 0 && !process.argv[distArg + 1]) throw new Error('--dist needs a built mercury.mjs path')
 const BIN = distArg < 0 ? join(REPO, 'dist', 'mercury.mjs') : resolve(process.argv[distArg + 1]!)

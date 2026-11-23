@@ -27,7 +27,7 @@ const TOKEN = 'at_signed_out_runner_proof'
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — hint: a process that booted signed out must re-read a credential stored later; change checkAndRefreshOAuthTokenIfNeeded in src/services/auth/oauthLifecycle.ts, or the cached reads getClaudeAIOAuthTokens and getAnthropicApiKeyWithSource in src/utils/auth.ts' : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — hint: a process that booted signed out must re-read a credential stored later; change checkAndRefreshOAuthTokenIfNeeded in src/models/sign-in/lifecycle/oauthLifecycle.ts, or the cached reads getClaudeAIOAuthTokens and getAnthropicApiKeyWithSource in src/models/sign-in/credentials/auth.ts' : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -42,14 +42,14 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.CI
 delete process.env.NODE_ENV
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs, saveGlobalConfig, getGlobalConfig } = await import(${JSON.stringify(join(ROOT, 'src/utils/config/globalConfig.ts'))})
+const { enableConfigs, saveGlobalConfig, getGlobalConfig } = await import(${JSON.stringify(join(ROOT, 'src/platform/config/globalConfig.ts'))})
 enableConfigs()
 if (process.argv[2] === 'key') {
   // What /logins writes off the keychain: the managed key in the config estate.
   saveGlobalConfig(c => ({ ...c, primaryApiKey: ${JSON.stringify(KEY)} }))
   console.log('WROTE ' + (getGlobalConfig().primaryApiKey === ${JSON.stringify(KEY)}))
 } else {
-  const auth = { ...(await import(${JSON.stringify(join(ROOT, 'src/utils/auth.ts'))})), ...(await import(${JSON.stringify(join(ROOT, 'src/services/auth/oauthLifecycle.ts'))})) }
+  const auth = { ...(await import(${JSON.stringify(join(ROOT, 'src/models/sign-in/credentials/auth.ts'))})), ...(await import(${JSON.stringify(join(ROOT, 'src/models/sign-in/lifecycle/oauthLifecycle.ts'))})) }
   const r = auth.saveOAuthTokensIfNeeded({
     accessToken: ${JSON.stringify(TOKEN)},
     refreshToken: 'rt_signed_out_runner_proof',
@@ -74,9 +74,9 @@ const runWriter = (mode: 'key' | 'oauth'): boolean => {
   return ok
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
+const auth = { ...(await import('../../src/models/sign-in/credentials/auth.ts')), ...(await import('../../src/models/sign-in/lifecycle/oauthLifecycle.ts')) }
 
 console.log('============================================================')
 console.log(' a signed-out process adopts the credential stored after it booted')

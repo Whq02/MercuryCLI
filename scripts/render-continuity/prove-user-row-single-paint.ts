@@ -232,7 +232,7 @@ for (const scene of scenes) {
     t.check(
       'no junk raw-prefix execution painted (no Unknown-skill row)',
       !anyFrameHas('Unknown skill'),
-      anyFrameHas('Unknown skill') ? 'an Unknown skill row was painted, so the raw typed prefix was executed as a command; see UNKNOWN_COMMAND_PREFIX in src/services/processUserInput/processSlashCommand.tsx' : '',
+      anyFrameHas('Unknown skill') ? 'an Unknown skill row was painted, so the raw typed prefix was executed as a command; see UNKNOWN_COMMAND_PREFIX in src/engine/user-input/processSlashCommand.tsx' : '',
     )
   }
   let logText = ''
@@ -245,7 +245,7 @@ for (const scene of scenes) {
       }
     }
   }
-  t.check('the session log records no Unknown-skill execution', !logText.includes('Unknown skill'), logText.includes('Unknown skill') ? 'the session jsonl holds an Unknown skill result, so the raw typed prefix was executed as a command; see UNKNOWN_COMMAND_PREFIX in src/services/processUserInput/processSlashCommand.tsx' : '')
+  t.check('the session log records no Unknown-skill execution', !logText.includes('Unknown skill'), logText.includes('Unknown skill') ? 'the session jsonl holds an Unknown skill result, so the raw typed prefix was executed as a command; see UNKNOWN_COMMAND_PREFIX in src/engine/user-input/processSlashCommand.tsx' : '')
   t.check(
     'the session log records no queued duplicate submission',
     !(logText.includes('"operation":"enqueue"') && logText.includes('/model')),

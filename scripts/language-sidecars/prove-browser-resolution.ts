@@ -31,7 +31,7 @@ function withEnv<T>(env: Record<string, string | undefined>, fn: () => T): T {
 }
 
 const { resolveBrowser, detectInstalledBrowsers, listManagedBrowsers, driverNodeGate } = await import(
-  '../../src/services/browser/browserResolver.ts'
+  '../../src/integrations/browser/browserResolver.ts'
 )
 
 import { Browser as CftBrowser, computeExecutablePath, detectBrowserPlatform } from '@puppeteer/browsers'
@@ -99,21 +99,21 @@ function makeCacheFixture(buildId: string): string {
     }
     const r = resolveBrowser({ pin: () => undefined, managed: () => listManagedBrowsers(), installed })
     check('the managed executable wins even with an installed app available', r.state === 'ok' && r.source === 'managed-cache', JSON.stringify(r))
-    check('resolution never consults installed-app discovery', discoveryReads === 0, `discoveryReads=${discoveryReads}; resolveBrowser in src/services/browser/browserResolver.ts must not call the installed option when a managed build exists`)
+    check('resolution never consults installed-app discovery', discoveryReads === 0, `discoveryReads=${discoveryReads}; resolveBrowser in src/integrations/browser/browserResolver.ts must not call the installed option when a managed build exists`)
     const empty = resolveBrowser({ pin: () => undefined, managed: () => [], installed })
     check('an installed app alone is unavailable, with explicit provision and install remedies', empty.state === 'unavailable' && empty.remedies[0]?.includes('op:"provision"') === true && empty.remedies.some(r => r.includes('/browser install')), JSON.stringify(empty))
-    check('the unavailable road never drives or inspects the operator app', discoveryReads === 0, `discoveryReads=${discoveryReads}; resolveBrowser in src/services/browser/browserResolver.ts must not call the installed option on the unavailable road`)
+    check('the unavailable road never drives or inspects the operator app', discoveryReads === 0, `discoveryReads=${discoveryReads}; resolveBrowser in src/integrations/browser/browserResolver.ts must not call the installed option on the unavailable road`)
   })
 }
 
 {
   const cache = makeCacheFixture('141.0.7000.1')
   const rows = withEnv({ MERCURY_BROWSER_CACHE_DIR: cache }, () => listManagedBrowsers())
-  check('managed inventory lists the build with a size', rows.length === 1 && rows[0]!.buildId === '141.0.7000.1' && rows[0]!.sizeBytes > 0, `${rows.length} row(s); listManagedBrowsers in src/services/browser/browserResolver.ts must list each cached build with buildId and sizeBytes`)
+  check('managed inventory lists the build with a size', rows.length === 1 && rows[0]!.buildId === '141.0.7000.1' && rows[0]!.sizeBytes > 0, `${rows.length} row(s); listManagedBrowsers in src/integrations/browser/browserResolver.ts must list each cached build with buildId and sizeBytes`)
 }
 
 {
-  const { compareBuildIdsDesc } = await import('../../src/services/browser/browserResolver.ts')
+  const { compareBuildIdsDesc } = await import('../../src/integrations/browser/browserResolver.ts')
   const sorted = ['140.0.7259.2', '140.0.7259.10', '139.0.9999.99'].sort(compareBuildIdsDesc)
   check('newest-first is NUMERIC, not lexicographic', sorted[0] === '140.0.7259.10' && sorted[2] === '139.0.9999.99', sorted.join(','))
 }

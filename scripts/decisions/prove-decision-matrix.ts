@@ -10,12 +10,12 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'decisions-home-'))
 import { z } from 'zod/v4'
 
 const { hasPermissionsToUseTool, checkRuleBasedPermissions } = await import(
-  '../../src/utils/permissions/permissions.ts'
+  '../../src/permissions/rules/permissionDoor.ts'
 )
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
-const matrixHint = 'change the stage this row names in hasPermissionsToUseTool or checkRuleBasedPermissions in src/utils/permissions/permissions.ts (the stages run in the order the section titles list)'
+const matrixHint = 'change the stage this row names in hasPermissionsToUseTool or checkRuleBasedPermissions in src/permissions/rules/permissionDoor.ts (the stages run in the order the section titles list)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${matrixHint}` : ''}`)

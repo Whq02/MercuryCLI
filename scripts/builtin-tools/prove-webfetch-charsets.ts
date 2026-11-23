@@ -4,7 +4,7 @@ import axios from 'axios'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_FETCH_READER = '0'
-const { getURLMarkdownContent, clearWebFetchCache } = await import('../../src/tools/WebFetchTool/utils.ts')
+const { getURLMarkdownContent, clearWebFetchCache } = await import('../../src/tools/web-fetch/fetchContent.ts')
 const cases = [
   { name: 'latin', type: 'text/plain; charset=iso-8859-1', bytes: Buffer.from([99, 97, 102, 233]), expected: 'café' },
   { name: 'windows', type: 'text/plain; CHARSET = "windows-1252"', bytes: Buffer.from([128, 32, 147, 120, 148]), expected: '€ “x”' },
@@ -32,7 +32,7 @@ try {
   for (const row of cases) {
     try {
       const answer = await getURLMarkdownContent(`https://fixture.example/${row.name}`, new AbortController())
-      assert(!('type' in answer), `getURLMarkdownContent(${row.name}) in src/tools/WebFetchTool/utils.ts must decode content instead of returning redirect/error object`)
+      assert(!('type' in answer), `getURLMarkdownContent(${row.name}) in src/tools/web-fetch/fetchContent.ts must decode content instead of returning redirect/error object`)
       assert(row.name === 'html' ? answer.content.includes(row.expected) : answer.content === row.expected, JSON.stringify(answer.content))
       assert.equal(answer.bytes, row.bytes.length)
       assert.deepEqual(await getURLMarkdownContent(`https://fixture.example/${row.name}`, new AbortController()), answer)

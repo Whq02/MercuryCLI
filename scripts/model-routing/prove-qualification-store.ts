@@ -8,7 +8,7 @@ import { join as joinPath } from 'node:path'
 
 let failures = 0
 const QUALIFICATION_FAIL_HINT =
-  'fix recordLiveQualification, readQualificationReceipts, receiptCurrency or roleCapabilityDigest in src/services/providers/openai/qualificationStore.ts (the digests come from OPENAI_ADAPTER_DIGEST and APEX_ARCHITECTURE_EPOCH in src/services/providers/openai/openaiCatalogue.ts), not this check'
+  'fix recordLiveQualification, readQualificationReceipts, receiptCurrency or roleCapabilityDigest in src/models/roads/openai/qualificationStore.ts (the digests come from OPENAI_ADAPTER_DIGEST and APEX_ARCHITECTURE_EPOCH in src/models/roads/openai/openaiCatalogue.ts), not this check'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(
@@ -32,9 +32,9 @@ const {
   receiptCurrency,
   roleCapabilityDigest,
   __qualificationFilePathForTest,
-} = await import('../../src/services/providers/openai/qualificationStore.js')
+} = await import('../../src/models/roads/openai/qualificationStore.js')
 const { APEX_ARCHITECTURE_EPOCH, OPENAI_ADAPTER_DIGEST } = await import(
-  '../../src/services/providers/openai/openaiCatalogue.js'
+  '../../src/models/roads/openai/openaiCatalogue.js'
 )
 
 section('1 · mint + persist + replace + no secrets')

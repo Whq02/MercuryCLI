@@ -1,19 +1,19 @@
 #!/usr/bin/env bun
-import { getEmptyToolPermissionContext } from '../../src/Tool.js'
-import type { CustomAgentDefinition } from '../../src/types/agent.js'
-import { anthropicProviderAdapter } from '../../src/services/providers/anthropic/anthropicAdapter.js'
-import { openaiProviderAdapter } from '../../src/services/providers/openai/openaiAdapter.js'
-import { zaiProviderAdapter } from '../../src/services/providers/zai/zaiAdapter.js'
+import { getEmptyToolPermissionContext } from '../../src/tools/kit/tool.js'
+import type { CustomAgentDefinition } from '../../src/crew/agents/agentDefinition.js'
+import { anthropicProviderAdapter } from '../../src/models/roads/anthropic/anthropicAdapter.js'
+import { openaiProviderAdapter } from '../../src/models/roads/openai/openaiAdapter.js'
+import { zaiProviderAdapter } from '../../src/models/roads/zai/zaiAdapter.js'
 import {
   buildAgentLaunchPlan,
   type AgentLaunchPlanInput,
-} from '../../src/services/crew/agentLaunchPlan.js'
+} from '../../src/crew/crewmates/agentLaunchPlan.js'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 's1-contracts-'))
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 let failures = 0
@@ -32,7 +32,7 @@ console.log('============================================================')
 
 section('1 · ProviderAdapter — exactly the frozen member set')
 {
-  s1Where = 'change the adapter object so its members match the frozen list in this test: src/services/providers/anthropic/anthropicAdapter.ts, src/services/providers/openai/openaiAdapter.ts or src/services/providers/zai/zaiAdapter.ts (or update the list here if the surface was widened on purpose)'
+  s1Where = 'change the adapter object so its members match the frozen list in this test: src/models/roads/anthropic/anthropicAdapter.ts, src/models/roads/openai/openaiAdapter.ts or src/models/roads/zai/zaiAdapter.ts (or update the list here if the surface was widened on purpose)'
   const FROZEN_MEMBERS = [
     'id',
     'transport',
@@ -54,7 +54,7 @@ section('1 · ProviderAdapter — exactly the frozen member set')
 
 section('2 · buildAgentLaunchPlan — decision laws')
 {
-  s1Where = 'change buildAgentLaunchPlan in src/services/crew/agentLaunchPlan.ts so the plan follows the law this check names'
+  s1Where = 'change buildAgentLaunchPlan in src/crew/crewmates/agentLaunchPlan.ts so the plan follows the law this check names'
   const mkDef = (over: Partial<CustomAgentDefinition> = {}): CustomAgentDefinition => ({
     agentType: 'orbit-probe',
     whenToUse: 'orbit s1 freeze probe',

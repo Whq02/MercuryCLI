@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
-import { permissionRuleValueFromString } from '../../src/utils/permissions/permissionRuleParser.ts'
-import { getDenyRuleForTool } from '../../src/utils/permissions/decision/rules.ts'
-import { validatePermissionRule } from '../../src/utils/settings/permissionValidation.ts'
-import type { ToolPermissionContext } from '../../src/utils/permissions/permissions.ts'
+import { permissionRuleValueFromString } from '../../src/permissions/rules/permissionRuleParser.ts'
+import { getDenyRuleForTool } from '../../src/permissions/rules/decision/rules.ts'
+import { validatePermissionRule } from '../../src/platform/settings/permissionValidation.ts'
+import type { ToolPermissionContext } from '../../src/permissions/rules/permissionDoor.ts'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  const hint = 'fix permissionRuleValueFromString in src/utils/permissions/permissionRuleParser.ts (section 1), getDenyRuleForTool in src/utils/permissions/decision/rules.ts (section 2) or validatePermissionRule in src/utils/settings/permissionValidation.ts (section 3)'
+  const hint = 'fix permissionRuleValueFromString in src/permissions/rules/permissionRuleParser.ts (section 1), getDenyRuleForTool in src/permissions/rules/decision/rules.ts (section 2) or validatePermissionRule in src/platform/settings/permissionValidation.ts (section 3)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : (detail ? ' — ' : ' — ') + hint}`)
   if (!cond) failures++
 }
@@ -75,7 +75,7 @@ section('§3 THE VALIDATOR')
 }
 
 {
-  const { permissionRuleValueFromString } = await import('../../src/utils/permissions/permissionRuleParser.ts')
+  const { permissionRuleValueFromString } = await import('../../src/permissions/rules/permissionRuleParser.ts')
   const parsed = permissionRuleValueFromString('Bash()')
   check("the parser reads Bash() as the tool-wide rule", parsed.toolName === 'Bash' && parsed.ruleContent === undefined, JSON.stringify(parsed))
   const validated = validatePermissionRule('Bash()')

@@ -6,8 +6,8 @@ import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 
-const composer = await import('../../src/input-core/composer-document.ts')
-const picker = await import('../../src/services/crew/targetPicker.ts')
+const composer = await import('../../src/screen/composer/input-core/composer-document.ts')
+const picker = await import('../../src/crew/crewmates/targetPicker.ts')
 
 t.section('§4 — per-conversation draft identity on the ONE document owner')
 {

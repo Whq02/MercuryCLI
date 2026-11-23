@@ -16,18 +16,18 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const inventory = await import('../../src/services/tensorfold/inventory.ts')
-const engine = await import('../../src/services/tensorfold/engine.ts')
-const install = await import('../../src/services/tensorfold/install.ts')
-const llama = await import('../../src/services/tensorfold/adapter/llama.ts')
-const identity = await import('../../src/services/tensorfold/adapter/identity.ts')
-const models = await import('../../src/services/tensorfold/adapter/models.ts')
-const adapterServe = await import('../../src/services/tensorfold/adapter/serve.ts')
+const inventory = await import('../../src/models/tensorfold/inventory.ts')
+const engine = await import('../../src/models/tensorfold/engine.ts')
+const install = await import('../../src/models/tensorfold/install.ts')
+const llama = await import('../../src/models/tensorfold/adapter/llama.ts')
+const identity = await import('../../src/models/tensorfold/adapter/identity.ts')
+const models = await import('../../src/models/tensorfold/adapter/models.ts')
+const adapterServe = await import('../../src/models/tensorfold/adapter/serve.ts')
 const road = await import('../../src/commands/tensorfold/road.ts')
-const serve = await import('../../src/services/tensorfold/serve.ts')
-const receipts = await import('../../src/utils/model/seatReceipts.ts')
+const serve = await import('../../src/models/tensorfold/serve.ts')
+const receipts = await import('../../src/models/facts/seatReceipts.ts')
 
 type World = ReturnType<typeof worldFixture.fakeWorld>
 type Panel = Awaited<ReturnType<typeof panelFixture.openPanelCard>>
@@ -40,10 +40,10 @@ const SCRATCH = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'tf-fixture-pro
 let failures = 0
 let checks = 0
 const sectionPointers: Record<string, string> = {
-  '1': 'fix seedHfCache in scripts/tensorfold/fixtures/world.ts, or readHfSnapshot in src/services/tensorfold/inventory.ts if the product misreads the cache',
-  '2': 'fix openPanelCard in scripts/tensorfold/fixtures/panelCard.ts or the sealed environment in scripts/tensorfold/fixtures/world.ts, or installTensorFoldThen in src/commands/tensorfold/road.ts and adapterEntry in src/services/tensorfold/engine.ts if the product ran an install or a download',
-  '3': 'fix placeStandIn or fakeWorld in scripts/tensorfold/fixtures/world.ts, or resolveLlamaServer in src/services/tensorfold/adapter/llama.ts and findTensorFoldEngine in src/services/tensorfold/engine.ts',
-  '4': 'fix ADAPTER_ENTRY in scripts/tensorfold/fixtures/world.ts, or admission in src/services/tensorfold/adapter/serve.ts if the engine line changed',
+  '1': 'fix seedHfCache in scripts/tensorfold/fixtures/world.ts, or readHfSnapshot in src/models/tensorfold/inventory.ts if the product misreads the cache',
+  '2': 'fix openPanelCard in scripts/tensorfold/fixtures/panelCard.ts or the sealed environment in scripts/tensorfold/fixtures/world.ts, or installTensorFoldThen in src/commands/tensorfold/road.ts and adapterEntry in src/models/tensorfold/engine.ts if the product ran an install or a download',
+  '3': 'fix placeStandIn or fakeWorld in scripts/tensorfold/fixtures/world.ts, or resolveLlamaServer in src/models/tensorfold/adapter/llama.ts and findTensorFoldEngine in src/models/tensorfold/engine.ts',
+  '4': 'fix ADAPTER_ENTRY in scripts/tensorfold/fixtures/world.ts, or admission in src/models/tensorfold/adapter/serve.ts if the engine line changed',
 }
 let pointerSection = ''
 function check(label: string, cond: boolean, detail = ''): void {

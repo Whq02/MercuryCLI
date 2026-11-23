@@ -41,7 +41,7 @@ process.env.MERCURY_DEEPSEEK_API_BASE = 'http://127.0.0.1:1/deepseek'
 process.env.MERCURY_MOONSHOT_API_BASE = 'http://127.0.0.1:1/moonshot/v1'
 
 let failures = 0
-const bareWordsFailureHint = 'the table is src/services/model/bareFamilyWords.ts (BARE_FAMILY_WORDS, bareFamilyWordOf, resolveBareFamilyWord) and its aliases are declared in src/services/providers/idSpaces.ts; the session road is parseUserSpecifiedModel in src/services/model/model.ts, the agent road is resolveEngineDispatch in src/services/crew/engineDispatch.ts, the typing door is src/services/providers/validateModel.ts, and kimi qualifying is src/services/providers/moonshot/moonshotCatalogue.ts'
+const bareWordsFailureHint = 'the table is src/models/catalogue/bareFamilyWords.ts (BARE_FAMILY_WORDS, bareFamilyWordOf, resolveBareFamilyWord) and its aliases are declared in src/models/roads/idSpaces.ts; the session road is parseUserSpecifiedModel in src/models/catalogue/engineModel.ts, the agent road is resolveEngineDispatch in src/crew/crewmates/engineDispatch.ts, the typing door is src/models/roads/validateModel.ts, and kimi qualifying is src/models/roads/moonshot/moonshotCatalogue.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail.slice(0, 400) + ' | ' : ''}${bareWordsFailureHint}` : ''}`)
@@ -72,32 +72,32 @@ console.log('============================================================')
 console.log(' the bare family words: one resolver, two roads, one row')
 console.log('============================================================')
 
-;(await import('../../src/utils/config.ts')).enableConfigs()
-const table = await import('../../src/services/model/bareFamilyWords.ts').catch((error: unknown) => (error instanceof Error ? error.message : String(error)))
-check('the shared bare-family-word table exists (src/utils/model/bareFamilyWords.ts)', typeof table !== 'string', typeof table === 'string' ? table : '')
+;(await import('../../src/platform/settings/config.ts')).enableConfigs()
+const table = await import('../../src/models/catalogue/bareFamilyWords.ts').catch((error: unknown) => (error instanceof Error ? error.message : String(error)))
+check('the shared bare-family-word table exists (src/models/facts/bareFamilyWords.ts)', typeof table !== 'string', typeof table === 'string' ? table : '')
 if (typeof table === 'string') {
   rmSync(scratch, { recursive: true, force: true })
   console.log('\n1 FAIL')
   process.exit(1)
 }
 const words = table
-const { PROVIDER_ID_SPACES } = await import('../../src/services/providers/idSpaces.ts')
-const model = await import('../../src/services/model/model.ts')
-const agent = await import('../../src/services/model/agent.ts')
-const engine = await import('../../src/services/crew/engineDispatch.ts')
-const { keyLanePins, getModelOptions } = await import('../../src/services/model/modelOptions.ts')
-const discovery = await import('../../src/services/providers/providerDiscovery.ts')
-const xai = await import('../../src/services/providers/xai/xaiCatalogue.ts')
-const deepseek = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts')
-const moonshot = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
-const { moonshotCallModel } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
-const { GLM_STATIC_CATALOGUE } = await import('../../src/services/providers/zai/zaiAdapter.ts')
-const { DEEPSEEK_DISPLAY_PINS } = await import('../../src/utils/model/pins/deepseekPins.ts')
-const { KIMI_DISPLAY_PINS } = await import('../../src/utils/model/pins/kimiPins.ts')
-const { validateModel } = await import('../../src/services/providers/validateModel.ts')
+const { PROVIDER_ID_SPACES } = await import('../../src/models/roads/idSpaces.ts')
+const model = await import('../../src/models/catalogue/engineModel.ts')
+const agent = await import('../../src/models/catalogue/agentModel.ts')
+const engine = await import('../../src/crew/crewmates/engineDispatch.ts')
+const { keyLanePins, getModelOptions } = await import('../../src/models/catalogue/modelOptions.ts')
+const discovery = await import('../../src/models/roads/providerDiscovery.ts')
+const xai = await import('../../src/models/roads/xai/xaiCatalogue.ts')
+const deepseek = await import('../../src/models/roads/deepseek/deepseekCatalogue.ts')
+const moonshot = await import('../../src/models/roads/moonshot/moonshotCatalogue.ts')
+const { moonshotCallModel } = await import('../../src/models/roads/moonshot/moonshotCallModel.ts')
+const { GLM_STATIC_CATALOGUE } = await import('../../src/models/roads/zai/zaiAdapter.ts')
+const { DEEPSEEK_DISPLAY_PINS } = await import('../../src/models/facts/pins/deepseekPins.ts')
+const { KIMI_DISPLAY_PINS } = await import('../../src/models/facts/pins/kimiPins.ts')
+const { validateModel } = await import('../../src/models/roads/validateModel.ts')
 const picker = await import('../../src/commands/model/mercuryModel.tsx')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 type Road = { model?: string; backend?: string; displayLabel?: string; note?: string; threw?: string }
 const agentRoad = (word: string): Promise<Road> =>

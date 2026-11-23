@@ -1,10 +1,10 @@
 import './computerProofKit.ts'
-import { getEmptyToolPermissionContext, type ToolPermissionContext, type ToolUseContext } from '../../src/Tool.ts'
-import { createAssistantMessage, createUserMessage } from '../../src/services/messages.ts'
-import { ownerFromToolUseContext } from '../../src/utils/run/resolveOwner.ts'
-import { setIsInteractive } from '../../src/bootstrap/state.ts'
-import type { OwnerKey } from '../../src/utils/run/ownerKey.ts'
-import type { Message } from '../../src/types/message.ts'
+import { getEmptyToolPermissionContext, type ToolPermissionContext, type ToolUseContext } from '../../src/tools/kit/tool.ts'
+import { createAssistantMessage, createUserMessage } from '../../src/engine/messages/messages.ts'
+import { ownerFromToolUseContext } from '../../src/engine/run-owner/resolveOwner.ts'
+import { setIsInteractive } from '../../src/boot/process-state/processState.ts'
+import type { OwnerKey } from '../../src/engine/run-owner/ownerKey.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 setIsInteractive(true)
 

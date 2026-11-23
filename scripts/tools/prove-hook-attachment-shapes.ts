@@ -34,14 +34,14 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   const hookShapeHint = /folds/.test(label)
-    ? 'see decodeTranscriptBuffer in src/fabric/transcriptDecode.ts and the hook row encoding in src/fabric/entryCodec.ts'
+    ? 'see decodeTranscriptBuffer in src/sessions/fabric/transcriptDecode.ts and the hook row encoding in src/sessions/fabric/entryCodec.ts'
     : /validates/.test(label)
-      ? 'the hook attachment row must satisfy its registry row: see validateRecord and bodyShapeIssue in src/fabric/validate.ts'
+      ? 'the hook attachment row must satisfy its registry row: see validateRecord and bodyShapeIssue in src/sessions/fabric/validate.ts'
       : /wire|model reads|reads nothing|empty context/.test(label)
-        ? 'fix the hook case of normalizeAttachmentForAPI (hookRows) in src/services/messages/attachmentText.ts'
+        ? 'fix the hook case of normalizeAttachmentForAPI (hookRows) in src/engine/messages/attachmentText.ts'
         : /persist|stays out of the file/.test(label)
-          ? 'fix the hook case of isTranscribable in src/utils/sessionStorage/chain.ts'
-          : 'fix the hook rows runToolUse yields for tool.before and tool.after in src/services/tools/toolExecution.ts (outcome, event, name, words, callId)'
+          ? 'fix the hook case of isTranscribable in src/sessions/transcripts/chain.ts'
+          : 'fix the hook rows runToolUse yields for tool.before and tool.after in src/engine/tool-dispatch/toolExecution.ts (outcome, event, name, words, callId)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' | ' : ''}${hookShapeHint}` : ''}`)
 }
 function section(t: string): void {
@@ -75,17 +75,17 @@ function writeHooks(phase: 'context' | 'stop' | 'block'): void {
 }
 writeHooks('context')
 
-const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { refreshHooksSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { runToolUse } = await import('../../src/engine/tool-dispatch/toolExecution.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { refreshHooksSnapshot } = await import('../../src/integrations/event-hooks/hooksConfigSnapshot.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
-const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.ts')
-const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
-const { bodyShapeIssue, validateRecord } = await import('../../src/fabric/validate.ts')
-const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')
-const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/engine/messages/attachmentText.ts')
+const { isTranscribable } = await import('../../src/sessions/transcripts/chain.ts')
+const { entryToRecord } = await import('../../src/sessions/fabric/entryCodec.ts')
+const { bodyShapeIssue, validateRecord } = await import('../../src/sessions/fabric/validate.ts')
+const { decodeTranscriptBuffer } = await import('../../src/sessions/fabric/transcriptDecode.ts')
+const { ordinalOf } = await import('../../src/sessions/fabric/ordinal.ts')
 
 type Attachment = Record<string, unknown> & { type: string }
 type AttachmentRow = { type: 'attachment'; uuid: string; timestamp: string; attachment: Attachment }

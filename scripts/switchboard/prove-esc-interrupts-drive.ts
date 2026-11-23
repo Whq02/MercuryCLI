@@ -4,9 +4,9 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs as S } from '../lib/captureDriver.ts'
-import { READING_PHASE_WORD } from '../../src/components/Spinner/liveCounterWords.ts'
-import { adoptSeatTurnStart, anchorSeatClock, anchoredElapsedMs } from '../../src/components/Spinner/seatClock.ts'
-import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { READING_PHASE_WORD } from '../../src/screen/spinner/liveCounterWords.ts'
+import { adoptSeatTurnStart, anchorSeatClock, anchoredElapsedMs } from '../../src/screen/spinner/seatClock.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/models/facts/builtInModelTable.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
@@ -27,8 +27,8 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 const { runArtifactArena, grabScreens, sendStamp } = await import('../streaming/artifactArena.ts')
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): Promise<boolean> => {
   const t0 = Date.now()
@@ -176,7 +176,7 @@ console.log('leg B — the born session, mid-thinking, 120x40')
 
 console.log('leg D — the seat clock ledger: a pause measured against an older turn start never hides the live counter')
 {
-  failHint = 'the ledger arithmetic is adoptSeatTurnStart, anchorSeatClock and anchoredElapsedMs in src/components/Spinner/seatClock.ts'
+  failHint = 'the ledger arithmetic is adoptSeatTurnStart, anchorSeatClock and anchoredElapsedMs in src/screen/spinner/seatClock.ts'
   const paused = adoptSeatTurnStart({ startMs: 1_000, pausedMs: 40_000, pauseStartMs: null }, 50_000, 60_000)
   check('D: a turn start that moved forward drops the pause measured before it', paused.startMs === 50_000 && paused.pausedMs === 0 && paused.pauseStartMs === null, JSON.stringify(paused))
   const open = adoptSeatTurnStart({ startMs: 1_000, pausedMs: 40_000, pauseStartMs: 45_000 }, 50_000, 60_000)

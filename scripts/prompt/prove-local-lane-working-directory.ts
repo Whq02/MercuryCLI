@@ -27,7 +27,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the local-lane working-directory proof exceeded 90s; check that refreshLocalDiscovery (src/services/providers/local/localDiscovery.ts) and getSystemPrompt (src/constants/prompts.ts) return')
+  console.log('\nTIMEOUT — the local-lane working-directory proof exceeded 90s; check that refreshLocalDiscovery (src/models/roads/local/localDiscovery.ts) and getSystemPrompt (src/engine/system-prompt/defaultSystemPrompt.ts) return')
   process.exit(1)
 }, 90_000)
 guard.unref?.()
@@ -66,12 +66,12 @@ const vllm = await serve((req, _body, res) => {
 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `vllm=${vllm.root}`
 
-const { getSystemPrompt, localFirstTurnFacts } = await import('../../src/constants/prompts.ts')
-const { appendSystemContext } = await import('../../src/services/messages/api.ts')
-const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
-const { getOriginalCwd, setOriginalCwd, setCwdState, getSystemPromptSectionCache } = await import('../../src/bootstrap/state.ts')
-const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
-const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
+const { getSystemPrompt, localFirstTurnFacts } = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+const { appendSystemContext } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { clearSystemPromptSections } = await import('../../src/engine/system-prompt/systemPromptSections.ts')
+const { getOriginalCwd, setOriginalCwd, setCwdState, getSystemPromptSectionCache } = await import('../../src/boot/process-state/processState.ts')
+const { refreshLocalDiscovery } = await import('../../src/models/roads/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.ts')
 await refreshLocalDiscovery({ force: true })
 
 const scratch = mkdtempSync(join(tmpdir(), 'local-lane-cwd-'))
@@ -98,42 +98,42 @@ const envBlock = (prompt: string): string => {
 
 try {
   section('0 · the lane: the fixture model is a discovered local record')
-  check('local record present', localRecordFor(LOCAL_MODEL) !== undefined, '', 'refreshLocalDiscovery in src/services/providers/local/localDiscovery.ts did not register the fixture vllm model from MERCURY_LOCAL_PROBE_TARGETS; check the /v1/models probe and localRecordFor in src/services/providers/local/localCatalogue.ts')
+  check('local record present', localRecordFor(LOCAL_MODEL) !== undefined, '', 'refreshLocalDiscovery in src/models/roads/local/localDiscovery.ts did not register the fixture vllm model from MERCURY_LOCAL_PROBE_TARGETS; check the /v1/models probe and localRecordFor in src/models/roads/local/localCatalogue.ts')
 
   section('1 · a first build for a local record: the environment section opens on the working-directory line (the head names the working directory); the memory folder is named above it')
   clearSystemPromptSections()
   const local = await build(LOCAL_MODEL)
   const block = envBlock(local)
-  check('the environment section renders', block.startsWith(ENV_HEADING), block.slice(0, 80), 'getSystemPrompt in src/constants/prompts.ts must include the # Environment section for a local model')
+  check('the environment section renders', block.startsWith(ENV_HEADING), block.slice(0, 80), 'getSystemPrompt in src/engine/system-prompt/defaultSystemPrompt.ts must include the # Environment section for a local model')
   const lines = block.split('\n').map(l => l.trim()).filter(l => l !== '')
-  check('the working-directory line opens the environment section', lines[1] === `- ${LINE}`, j(lines.slice(0, 3)), 'the working-directory line is pushed in computeSimpleEnvInfo in src/constants/prompts.ts and must be the first item after the # Environment heading')
-  check('the memory section (the memory home) is named ABOVE the line', local.includes(MEMORY_WORDS) && local.indexOf(LINE) !== -1 && local.indexOf(MEMORY_WORDS) < local.indexOf(LINE), `memory at ${local.indexOf(MEMORY_WORDS)}, line at ${local.indexOf(LINE)}`, 'in the prompt assembled by getSystemPrompt in src/constants/prompts.ts the memory section must come before the environment section')
-  check('the section cache keys the local profile\'s environment section on the local model', getSystemPromptSectionCache().get('local_env')?.key === LOCAL_MODEL, j(getSystemPromptSectionCache().get('local_env')?.key), 'the local_env section in src/constants/prompts.ts must be keyed on the model id passed to getSystemPrompt')
+  check('the working-directory line opens the environment section', lines[1] === `- ${LINE}`, j(lines.slice(0, 3)), 'the working-directory line is pushed in computeSimpleEnvInfo in src/engine/system-prompt/defaultSystemPrompt.ts and must be the first item after the # Environment heading')
+  check('the memory section (the memory home) is named ABOVE the line', local.includes(MEMORY_WORDS) && local.indexOf(LINE) !== -1 && local.indexOf(MEMORY_WORDS) < local.indexOf(LINE), `memory at ${local.indexOf(MEMORY_WORDS)}, line at ${local.indexOf(LINE)}`, 'in the prompt assembled by getSystemPrompt in src/engine/system-prompt/defaultSystemPrompt.ts the memory section must come before the environment section')
+  check('the section cache keys the local profile\'s environment section on the local model', getSystemPromptSectionCache().get('local_env')?.key === LOCAL_MODEL, j(getSystemPromptSectionCache().get('local_env')?.key), 'the local_env section in src/engine/system-prompt/defaultSystemPrompt.ts must be keyed on the model id passed to getSystemPrompt')
 
   section('2 · a cloud model: no such line, the section bytes are the local section minus the line, the key is the cloud model')
   clearSystemPromptSections()
   const cloud = await build(CLOUD_MODEL)
   const cloudBlock = envBlock(cloud)
-  check('the cloud environment section carries no working-directory line', !cloud.includes('Files you create go in the working directory'), cloudBlock.slice(0, 200), 'computeSimpleEnvInfo in src/constants/prompts.ts must add the working-directory line for a local model only')
+  check('the cloud environment section carries no working-directory line', !cloud.includes('Files you create go in the working directory'), cloudBlock.slice(0, 200), 'computeSimpleEnvInfo in src/engine/system-prompt/defaultSystemPrompt.ts must add the working-directory line for a local model only')
   const localWithoutLine = block.split('\n').filter(l => l.trim() !== `- ${LINE}`).join('\n')
   const cloudWithoutEngine = (text: string): string => text.split('\n').filter(l => !l.includes('In this seat the model you run through Mercury is') && !l.startsWith(' - Knowledge cutoff')).join('\n')
   const scratchpadLine = cloudBlock.split('\n').find(l => l.trim().startsWith('- Scratchpad directory: ')) ?? ''
   const cloudWithoutScratchpad = cloudBlock.split('\n').filter(l => l !== scratchpadLine).join('\n')
-  check('nothing else removed: the local section is the cloud section plus the one line, less the scratchpad line the local route moves to the first user turn (the engine and cutoff lines aside, which name each model)', scratchpadLine !== '' && cloudWithoutEngine(localWithoutLine) === cloudWithoutEngine(cloudWithoutScratchpad), j({ local: localWithoutLine.slice(0, 160), cloud: cloudWithoutScratchpad.slice(0, 160) }), 'the local and cloud environment sections built by computeSimpleEnvInfo in src/constants/prompts.ts must differ only by the working-directory line, the scratchpad line and the engine and cutoff lines')
+  check('nothing else removed: the local section is the cloud section plus the one line, less the scratchpad line the local route moves to the first user turn (the engine and cutoff lines aside, which name each model)', scratchpadLine !== '' && cloudWithoutEngine(localWithoutLine) === cloudWithoutEngine(cloudWithoutScratchpad), j({ local: localWithoutLine.slice(0, 160), cloud: cloudWithoutScratchpad.slice(0, 160) }), 'the local and cloud environment sections built by computeSimpleEnvInfo in src/engine/system-prompt/defaultSystemPrompt.ts must differ only by the working-directory line, the scratchpad line and the engine and cutoff lines')
   const moved = (await localFirstTurnFacts(undefined, undefined)).Scratchpad
   const wire = appendSystemContext(await getSystemPrompt(pool as never, LOCAL_MODEL), {}, LOCAL_MODEL).join('\n\n')
-  check('the moved scratchpad line is the one the local first user turn carries, word for word, and the local system text on the wire has none', moved === scratchpadLine.trim().replace(/^- /, '') && !wire.includes('Scratchpad directory: '), j({ moved, cloud: scratchpadLine }), 'localFirstTurnFacts in src/constants/prompts.ts must return the same Scratchpad line the cloud section carries, and appendSystemContext in src/services/messages/api.ts must not leave it in the local system text')
-  check('the cloud key is the cloud model', getSystemPromptSectionCache().get('env_info_simple')?.key === CLOUD_MODEL, j(getSystemPromptSectionCache().get('env_info_simple')?.key), 'the env_info_simple section in src/constants/prompts.ts must be keyed on the model id passed to getSystemPrompt')
-  check('a second cloud build in the same process is byte-identical (the frozen conversation)', (await build(CLOUD_MODEL)) === cloud, '', 'the sections of getSystemPrompt in src/constants/prompts.ts must be cached per model (src/constants/systemPromptSections.ts) so a second build of the same model gives the same bytes')
+  check('the moved scratchpad line is the one the local first user turn carries, word for word, and the local system text on the wire has none', moved === scratchpadLine.trim().replace(/^- /, '') && !wire.includes('Scratchpad directory: '), j({ moved, cloud: scratchpadLine }), 'localFirstTurnFacts in src/engine/system-prompt/defaultSystemPrompt.ts must return the same Scratchpad line the cloud section carries, and appendSystemContext in src/engine/messages/apiSystemAndToolSchema.ts must not leave it in the local system text')
+  check('the cloud key is the cloud model', getSystemPromptSectionCache().get('env_info_simple')?.key === CLOUD_MODEL, j(getSystemPromptSectionCache().get('env_info_simple')?.key), 'the env_info_simple section in src/engine/system-prompt/defaultSystemPrompt.ts must be keyed on the model id passed to getSystemPrompt')
+  check('a second cloud build in the same process is byte-identical (the frozen conversation)', (await build(CLOUD_MODEL)) === cloud, '', 'the sections of getSystemPrompt in src/engine/system-prompt/defaultSystemPrompt.ts must be cached per model (src/engine/system-prompt/systemPromptSections.ts) so a second build of the same model gives the same bytes')
 
   section('3 · a /model switch mid-conversation: cloud → local adds the line, local → cloud drops it')
   clearSystemPromptSections()
   const first = await build(CLOUD_MODEL)
-  check('the conversation starts on the cloud model without the line', !first.includes(LINE), '', 'computeSimpleEnvInfo in src/constants/prompts.ts must add the working-directory line for a local model only')
+  check('the conversation starts on the cloud model without the line', !first.includes(LINE), '', 'computeSimpleEnvInfo in src/engine/system-prompt/defaultSystemPrompt.ts must add the working-directory line for a local model only')
   const switched = await build(LOCAL_MODEL)
-  check('after the switch the environment section carries the line (recomputed at the model switch, not frozen)', envBlock(switched).includes(LINE), envBlock(switched).slice(0, 200), 'the environment section in src/constants/prompts.ts must be recomputed when the model changes, not served from the cache of the earlier model')
+  check('after the switch the environment section carries the line (recomputed at the model switch, not frozen)', envBlock(switched).includes(LINE), envBlock(switched).slice(0, 200), 'the environment section in src/engine/system-prompt/defaultSystemPrompt.ts must be recomputed when the model changes, not served from the cache of the earlier model')
   const back = await build(CLOUD_MODEL)
-  check('switching back drops the line again', !back.includes(LINE) && envBlock(back) === envBlock(first), '', 'the environment section in src/constants/prompts.ts must be recomputed for the cloud model after a switch back, dropping the line')
+  check('switching back drops the line again', !back.includes(LINE) && envBlock(back) === envBlock(first), '', 'the environment section in src/engine/system-prompt/defaultSystemPrompt.ts must be recomputed for the cloud model after a switch back, dropping the line')
 } finally {
   clearSystemPromptSections()
   process.chdir(cwd)

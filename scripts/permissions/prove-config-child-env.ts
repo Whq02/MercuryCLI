@@ -11,13 +11,13 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_SUBPROCESS_ENV_SCRUB
 delete process.env.MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION
 delete process.env.MERCURY_BARE
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS: keys } = await import('../../src/constants/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS: keys } = await import('../../src/models/sign-in/credentials/credentialEnvSpellings.ts')
 for (const key of keys) process.env[key] = `fixture-${key}`
-const { startCommandHook } = await import('../../src/utils/hooks/commandRunner.ts')
-const { connectToServer, clearServerCache } = await import('../../src/services/mcp/client.ts')
-const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const { startCommandHook } = await import('../../src/integrations/event-hooks/commandRunner.ts')
+const { connectToServer, clearServerCache } = await import('../../src/integrations/mcp/client.ts')
+const { setIsInteractive } = await import('../../src/boot/process-state/processState.ts')
 setIsInteractive(false)
 const script = join(home, 'child.mjs')
 writeFileSync(script, `import { writeFileSync } from 'node:fs'; import { createInterface } from 'node:readline';
@@ -34,13 +34,13 @@ const check = (name: string, passed: boolean, detail = '') => { console.log(`${p
 try {
   const hook = await startCommandHook({ name: 'fixture', command: `"${process.execPath}" "${script}" hook`, shell: 'bash', event: 'tool.before', index: 0, payloadJson: '{}', timeoutMs: 10_000, source: { kind: 'settings' }, cwd: home })
   const ended = await hook.result
-  check('headless hook runs without inherited provider credentials', ended.kind === 'exited' && ended.code === 0 && ended.stdout.trim() === '{}', 'the hook child env in startCommandHook (src/utils/hooks/commandRunner.ts) must come from subprocessEnv({ stripProviderCredentials: true }), which deletes ALL_PROVIDER_CREDENTIAL_ENV_VARS (src/utils/subprocessEnv.ts)')
+  check('headless hook runs without inherited provider credentials', ended.kind === 'exited' && ended.code === 0 && ended.stdout.trim() === '{}', 'the hook child env in startCommandHook (src/integrations/event-hooks/commandRunner.ts) must come from subprocessEnv({ stripProviderCredentials: true }), which deletes ALL_PROVIDER_CREDENTIAL_ENV_VARS (src/platform/processes/subprocessEnv.ts)')
   const server = await connectToServer('env-fixture', config)
   assert.equal(server.type, 'connected', JSON.stringify(server))
-  check('MCP child receives no inherited provider credentials', readFileSync(join(home, 'mcp-env.json'), 'utf8') === '{}', 'the MCP stdio child env in src/services/mcp/client/transports.ts must come from subprocessEnv({ stripProviderCredentials: true }), which deletes ALL_PROVIDER_CREDENTIAL_ENV_VARS (src/utils/subprocessEnv.ts)')
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  check('MCP child receives no inherited provider credentials', readFileSync(join(home, 'mcp-env.json'), 'utf8') === '{}', 'the MCP stdio child env in src/integrations/mcp/client/transports.ts must come from subprocessEnv({ stripProviderCredentials: true }), which deletes ALL_PROVIDER_CREDENTIAL_ENV_VARS (src/platform/processes/subprocessEnv.ts)')
+  const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+  const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+  const { runWithCwdOverride } = await import('../../src/platform/files/cwd.ts')
   const state = { tasks: {}, sessionHooks: new Map(), toolPermissionContext: getEmptyToolPermissionContext() }
   const context = { options: { isNonInteractiveSession: true }, abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, readFileState: new Map(), messages: [] } as never
   const bashPath = join(home, 'bash-env.json')
@@ -49,11 +49,11 @@ try {
   const bashEnv = JSON.parse(readFileSync(bashPath, 'utf8'))
   check('Bash retains the exported provider keys', keys.every(key => bashEnv[key] === `fixture-${key}`), 'the Bash tool child must keep the exported provider keys; only hook and MCP children strip them, so remove the credential strip from the Bash tool env path')
   const React = (await import('react')).default
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { MCPServerApprovalDialog } = await import('../../src/components/MCPServerApprovalDialog.tsx')
+  const { renderToString } = await import('../../src/screen/renderer/staticRender.tsx')
+  const { MCPServerApprovalDialog } = await import('../../src/screen/mcp/MCPServerApprovalDialog.tsx')
   const frame = await renderToString(React.createElement(MCPServerApprovalDialog, { serverName: 'fixture', config, onDone() {} }), 100)
   console.log(frame)
-  check('single-server consent is highlighted, broad consent remains adjacent', /[❯›>]\s*.*Use this MCP server/.test(frame) && frame.includes('Use this and all future MCP servers in this project'), 'MCPServerApprovalDialog (src/components/MCPServerApprovalDialog.tsx) must focus the single-server option first and list the all-servers option next to it')
+  check('single-server consent is highlighted, broad consent remains adjacent', /[❯›>]\s*.*Use this MCP server/.test(frame) && frame.includes('Use this and all future MCP servers in this project'), 'MCPServerApprovalDialog (src/screen/mcp/MCPServerApprovalDialog.tsx) must focus the single-server option first and list the all-servers option next to it')
 } finally {
   await clearServerCache('env-fixture', config)
   rmSync(home, { recursive: true, force: true })

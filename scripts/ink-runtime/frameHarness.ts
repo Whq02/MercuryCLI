@@ -5,17 +5,17 @@ import {
   setStyle,
   setTextStyles,
   type DOMElement,
-} from '../../src/ink/dom.js'
-import { emptyFrame, type Frame } from '../../src/ink/frame.js'
-import createRenderer from '../../src/ink/renderer.js'
+} from '../../src/screen/renderer/dom.js'
+import { emptyFrame, type Frame } from '../../src/screen/renderer/frame.js'
+import createRenderer from '../../src/screen/renderer/renderer.js'
 import {
   CharPool,
   charInCellAt,
   HyperlinkPool,
   type Screen,
   StylePool,
-} from '../../src/ink/cell-grid.js'
-import applyStyles, { type Styles, type TextStyles } from '../../src/ink/styles.js'
+} from '../../src/screen/renderer/cell-grid.js'
+import applyStyles, { type Styles, type TextStyles } from '../../src/screen/renderer/styles.js'
 
 export type SceneNode = {
   kind: 'box' | 'text'

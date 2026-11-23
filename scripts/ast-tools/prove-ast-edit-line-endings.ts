@@ -8,8 +8,8 @@ import { armEnvironment, check, drive, enterRoot, finish, makeContext, section, 
 const accountHome = withProofAccountHome()
 armEnvironment()
 
-const { AstSearchTool } = await import(join(REPO, 'src/tools/AstSearchTool/AstSearchTool.ts'))
-const { AstEditTool } = await import(join(REPO, 'src/tools/AstEditTool/AstEditTool.ts'))
+const { AstSearchTool } = await import(join(REPO, 'src/tools/ast-search/AstSearchTool.ts'))
+const { AstEditTool } = await import(join(REPO, 'src/tools/ast-edit/AstEditTool.ts'))
 
 const root = mkdtempSync(join(tmpdir(), 'ast-edit-line-endings-'))
 await enterRoot(root)

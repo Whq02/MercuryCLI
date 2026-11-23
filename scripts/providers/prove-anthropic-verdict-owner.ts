@@ -12,7 +12,7 @@ delete process.env.MERCURY_HOME
 let failures = 0
 let checks = 0
 const verdictOwnerFixHint =
-  'fix in src/services/anthropicLimits.ts (anthropicLimitVerdict, anthropicWindowObserved, resetLimitsForCredentialSwitch, extractQuotaStatusFromError) for the verdict and its account stamp, or in src/services/providers/providerUsability.ts (resolveProviderUsability, delegationDispatchBlocker) for the lane and refusal text'
+  'fix in src/models/roads/anthropic/anthropicLimits.ts (anthropicLimitVerdict, anthropicWindowObserved, resetLimitsForCredentialSwitch, extractQuotaStatusFromError) for the verdict and its account stamp, or in src/models/roads/providerUsability.ts (resolveProviderUsability, delegationDispatchBlocker) for the lane and refusal text'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
@@ -22,10 +22,10 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const limits = await import('../../src/services/anthropicLimits.ts')
-const mock = await import('../../src/services/mockRateLimits.ts')
-const usability = await import('../../src/services/providers/providerUsability.ts')
-type Reads = import('../../src/services/providers/providerUsability.ts').ProviderUsabilityReads
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+const mock = await import('../../src/models/roads/anthropic/mockRateLimits.ts')
+const usability = await import('../../src/models/roads/providerUsability.ts')
+type Reads = import('../../src/models/roads/providerUsability.ts').ProviderUsabilityReads
 
 const OWNER_A = 'anthropic:oauth:primary:00000000-0000-4000-8000-0000000000aa'
 const OWNER_B = 'anthropic:oauth:primary:00000000-0000-4000-8000-0000000000bb'

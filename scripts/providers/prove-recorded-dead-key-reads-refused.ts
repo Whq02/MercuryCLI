@@ -42,17 +42,17 @@ async function stub(path: string, overrides: Record<string, unknown>) {
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...overrides }))
 }
-await stub('../../src/utils/proxy.js', { getApiFetch: () => fetchImpl, getProxyFetchOptions: () => ({}) })
-const { enableConfigs } = await import('../../src/utils/config.js')
+await stub('../../src/platform/network/proxy.js', { getApiFetch: () => fetchImpl, getProxyFetchOptions: () => ({}) })
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const accounts = await import('../../src/services/providers/openrouter/openrouterAccounts.js')
-const reader = await import('../../src/services/providers/openrouter/openrouterUsageState.js')
-const secrets = await import('../../src/utils/accounts/providerSecrets.js')
-const slots = await import('../../src/services/providers/accountSlots.js')
+const accounts = await import('../../src/models/roads/openrouter/openrouterAccounts.js')
+const reader = await import('../../src/models/roads/openrouter/openrouterUsageState.js')
+const secrets = await import('../../src/models/sign-in/account-ledger/providerSecrets.js')
+const slots = await import('../../src/models/roads/accountSlots.js')
 const family = { id: 'openrouter', available: true, credentialed: true, credentialLabel: 'OpenRouter fixture' }
-await stub('../../src/services/providers/providerUsage.js', { providerFamilyPresences: () => [family] })
-const logins = await import('../../src/components/BootLoginsScreen.js')
-const refusals = await import('../../src/services/providers/signInRefusal.js')
+await stub('../../src/models/roads/providerUsage.js', { providerFamilyPresences: () => [family] })
+const logins = await import('../../src/screen/boot-face/BootLoginsScreen.js')
+const refusals = await import('../../src/models/roads/signInRefusal.js')
 const WORDS_401 = 'key refused (HTTP 401: API key expired) at '
 const RECONNECT = ' · /logins openrouter reconnects'
 const rowState = () => logins.loginsRowStateOf(logins.loginsCatalogue().find(row => row.familyId === 'openrouter')!, logins.collectLoginsScreenFacts())
@@ -61,7 +61,7 @@ const readSlots = () => slots.deriveFamilySlotGroups([]).find(group => group.fam
 const slot = (id: string) => readSlots().find(entry => entry.id === id)
 const signedFamilies = () => logins.loginsFamilyCounts(slots.deriveFamilySlotGroups([])).signed
 const refresh = () => reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
-const deadKeyFixHint = 'fix the recorded refusal in readSignInRefusal in src/services/providers/signInRefusal.ts, the key read and ledger in src/services/providers/openrouter/openrouterUsageState.ts and openrouterAccounts.ts, the slot notes and signedIn flag in deriveFamilySlotGroups in src/services/providers/accountSlots.ts, or the Boot face counts and row in src/components/BootLoginsScreen.tsx'
+const deadKeyFixHint = 'fix the recorded refusal in readSignInRefusal in src/models/roads/signInRefusal.ts, the key read and ledger in src/models/roads/openrouter/openrouterUsageState.ts and openrouterAccounts.ts, the slot notes and signedIn flag in deriveFamilySlotGroups in src/models/roads/accountSlots.ts, or the Boot face counts and row in src/screen/boot-face/BootLoginsScreen.tsx'
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => {
   if (!ok) failures++

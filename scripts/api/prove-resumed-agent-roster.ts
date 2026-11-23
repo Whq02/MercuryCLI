@@ -16,18 +16,18 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix: the roster freeze and restore are planToolPayload and armToolRosterRestore in src/services/providers/toolEconomy.ts, the record write and restore are boundPrefixRecordToEmit and restoreBoundPrefixFromMessages in src/services/providers/anthropic/boundPrefixRecord.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix: the roster freeze and restore are planToolPayload and armToolRosterRestore in src/models/roads/toolEconomy.ts, the record write and restore are boundPrefixRecordToEmit and restoreBoundPrefixFromMessages in src/models/roads/anthropic/boundPrefixRecord.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { planToolPayload, clearToolRosterLatches, clearToolRosterRestore, pendingToolRosterRestore } = await import('../../src/services/providers/toolEconomy.ts')
-const { boundPrefixRecordToEmit, restoreBoundPrefixFromMessages, resetBoundPrefixEmitted } = await import('../../src/services/providers/anthropic/boundPrefixRecord.ts')
-const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
-const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
-const { getSystemPromptSectionCache, setSystemPromptSectionCacheEntry, clearSystemPromptSectionState } = await import('../../src/bootstrap/state.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { planToolPayload, clearToolRosterLatches, clearToolRosterRestore, pendingToolRosterRestore } = await import('../../src/models/roads/toolEconomy.ts')
+const { boundPrefixRecordToEmit, restoreBoundPrefixFromMessages, resetBoundPrefixEmitted } = await import('../../src/models/roads/anthropic/boundPrefixRecord.ts')
+const { toolToAPISchema } = await import('../../src/engine/messages/apiSystemAndToolSchema.ts')
+const { clearToolSchemaCache } = await import('../../src/models/roads/toolSchemaCache.ts')
+const { getSystemPromptSectionCache, setSystemPromptSectionCacheEntry, clearSystemPromptSectionState } = await import('../../src/boot/process-state/processState.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { z } = await import('zod/v4')
 
 const model = 'claude-fable-5-1'
@@ -123,8 +123,8 @@ check('both conversations re-send their rosters from one transcript', names(main
 freshProcess()
 
 section('§5 a request that prepends a context row (an agent thread carries no persisted user-context row) keys the same conversation as its own history')
-const { conversationRosterKey } = await import('../../src/services/providers/toolEconomy.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
+const { conversationRosterKey } = await import('../../src/models/roads/toolEconomy.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
 const contextRow = createUserMessage({ content: 'the user context, prepended per request', isMeta: true })
 const requestMessages = [contextRow, ...agentMessages]
 check('the prepended row (a meta user row with a fresh uuid) never moves the conversation key', conversationRosterKey(agentOwner, requestMessages as never, model) === conversationRosterKey(agentOwner, agentMessages as never, model), `${conversationRosterKey(agentOwner, requestMessages as never, model)} vs ${conversationRosterKey(agentOwner, agentMessages as never, model)}`)

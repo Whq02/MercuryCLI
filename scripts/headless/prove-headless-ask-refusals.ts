@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import type { PermissionAnswer, PermissionRequestParams } from '../../src/runner/wire/methods.ts'
+import type { PermissionAnswer, PermissionRequestParams } from '../../src/daemon/runner-wire/methods.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 

@@ -8,18 +8,18 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
 let failures = 0
 
 const AREA_FIX_HINTS: Record<string, string> = {
-  launchMilestones: 'fix readLaunchMilestones, recordLaunchMilestone or lastBootReachedInputLive in src/substrate/launchMilestones.ts so a torn file heals and an unreadable file is kept',
-  operationJournal: 'fix listJournalOperations or recoverJournalDir in src/substrate/operationJournal.ts so an unreadable op file is reported and ledgered',
-  pidLock: 'fix probePidLock in src/substrate/pidLock.ts so a failed relink restores a live holder or keeps the moved record',
-  storeRecovery: 'fix readStoreRecoveryEvents in src/substrate/storeRecovery.ts so an unreadable ledger throws',
-  recoveryOrchestrator: 'fix runBootRecovery or countOrphanDurableTemps in src/substrate/recoveryOrchestrator.ts so a read failure is reported, not swallowed',
-  splashHandover: 'fix consumeSplashHandover in src/substrate/splashHandover.ts so a failure leaves a warn boot note and keeps the receipt',
-  startupMenu: 'fix applyBootMenuEnv, writeBootEnvChoice or saveBootDefaultsProfile in src/substrate/startupMenu.ts so a corrupt or unreadable boot-env file is refused and left as it was',
-  stateLifecycle: 'fix installedBuildFacts in src/substrate/stateLifecycle.ts so a corrupt build manifest throws',
-  pauseCarry: 'fix readAgentPauseRecord or carryPausedCrewmatesOnResume in src/tasks/LocalAgentTask/pauseCarry.ts',
-  taskLaunchLedger: 'fix recordTaskLaunch or settleTaskLaunch in src/tasks/taskLaunchLedger.ts so a corrupt or unreadable ledger is preserved',
-  taskOutcomeEnvelope: 'fix recordTaskOutcome or loadTaskOutcomes in src/tasks/taskOutcomeEnvelope.ts so a corrupt or unreadable file is preserved',
-  tools: 'fix getTools in src/tools.ts so a tool whose isEnabled throws is logged and left out alone',
+  launchMilestones: 'fix readLaunchMilestones, recordLaunchMilestone or lastBootReachedInputLive in src/platform/substrate/launchMilestones.ts so a torn file heals and an unreadable file is kept',
+  operationJournal: 'fix listJournalOperations or recoverJournalDir in src/platform/substrate/operationJournal.ts so an unreadable op file is reported and ledgered',
+  pidLock: 'fix probePidLock in src/platform/substrate/pidLock.ts so a failed relink restores a live holder or keeps the moved record',
+  storeRecovery: 'fix readStoreRecoveryEvents in src/platform/substrate/storeRecovery.ts so an unreadable ledger throws',
+  recoveryOrchestrator: 'fix runBootRecovery or countOrphanDurableTemps in src/platform/substrate/recoveryOrchestrator.ts so a read failure is reported, not swallowed',
+  splashHandover: 'fix consumeSplashHandover in src/platform/substrate/splashHandover.ts so a failure leaves a warn boot note and keeps the receipt',
+  startupMenu: 'fix applyBootMenuEnv, writeBootEnvChoice or saveBootDefaultsProfile in src/platform/substrate/startupMenu.ts so a corrupt or unreadable boot-env file is refused and left as it was',
+  stateLifecycle: 'fix installedBuildFacts in src/platform/substrate/stateLifecycle.ts so a corrupt build manifest throws',
+  pauseCarry: 'fix readAgentPauseRecord or carryPausedCrewmatesOnResume in src/engine/tasks/local-agent/pauseCarry.ts',
+  taskLaunchLedger: 'fix recordTaskLaunch or settleTaskLaunch in src/engine/tasks/taskLaunchLedger.ts so a corrupt or unreadable ledger is preserved',
+  taskOutcomeEnvelope: 'fix recordTaskOutcome or loadTaskOutcomes in src/engine/tasks/taskOutcomeEnvelope.ts so a corrupt or unreadable file is preserved',
+  tools: 'fix getTools in src/tools/kit/toolList.ts so a tool whose isEnabled throws is logged and left out alone',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -46,7 +46,7 @@ async function withScratchHome(fn: (home: string) => Promise<void> | void): Prom
 }
 
 async function proveLaunchMilestones(): Promise<void> {
-  const m = await import('../../src/substrate/launchMilestones.js')
+  const m = await import('../../src/platform/substrate/launchMilestones.js')
   await withScratchHome(home => {
     m._resetLaunchMilestonesForTesting()
     check('launchMilestones: missing file returns empty rows', m.readLaunchMilestones().length === 0)
@@ -71,8 +71,8 @@ async function proveLaunchMilestones(): Promise<void> {
 }
 
 async function proveOperationJournal(): Promise<void> {
-  const oj = await import('../../src/substrate/operationJournal.js')
-  const sr = await import('../../src/substrate/storeRecovery.js')
+  const oj = await import('../../src/platform/substrate/operationJournal.js')
+  const sr = await import('../../src/platform/substrate/storeRecovery.js')
   await withScratchHome(async home => {
     const missing = join(home, 'no-such-journal')
     check('operationJournal: missing dir lists empty', (await oj.listJournalOperations(missing)).length === 0)
@@ -96,7 +96,7 @@ async function proveOperationJournal(): Promise<void> {
 
 async function provePidLock(): Promise<void> {
   const bun = process.execPath
-  const pidLockPath = realpathSync(join(import.meta.dir, '../../src/substrate/pidLock.ts'))
+  const pidLockPath = realpathSync(join(import.meta.dir, '../../src/platform/substrate/pidLock.ts'))
   await withScratchHome(home => {
     const script = `
       import { mock } from 'bun:test'
@@ -161,7 +161,7 @@ async function provePidLock(): Promise<void> {
 }
 
 async function proveStoreRecovery(): Promise<void> {
-  const sr = await import('../../src/substrate/storeRecovery.js')
+  const sr = await import('../../src/platform/substrate/storeRecovery.js')
   await withScratchHome(async home => {
     check('storeRecovery: missing ledger returns empty', (await sr.readStoreRecoveryEvents()).length === 0)
     if (POSIX_MODES) {
@@ -184,7 +184,7 @@ async function proveStoreRecovery(): Promise<void> {
 }
 
 async function proveRecoveryOrchestrator(): Promise<void> {
-  const orch = await import('../../src/substrate/recoveryOrchestrator.js')
+  const orch = await import('../../src/platform/substrate/recoveryOrchestrator.js')
   await withScratchHome(async home => {
     if (POSIX_MODES) {
       orch._resetBootRecoveryForTests()
@@ -228,8 +228,8 @@ async function proveRecoveryOrchestrator(): Promise<void> {
 }
 
 async function proveSplashHandover(): Promise<void> {
-  const sh = await import('../../src/substrate/splashHandover.js')
-  const bn = await import('../../src/substrate/bootNotes.js')
+  const sh = await import('../../src/platform/substrate/splashHandover.js')
+  const bn = await import('../../src/platform/substrate/bootNotes.js')
   await withScratchHome(home => {
     bn._resetBootNotesForTesting()
     const origChdir = process.chdir
@@ -270,8 +270,8 @@ async function proveSplashHandover(): Promise<void> {
 }
 
 async function proveStartupMenu(): Promise<void> {
-  const sm = await import('../../src/substrate/startupMenu.js')
-  const bn = await import('../../src/substrate/bootNotes.js')
+  const sm = await import('../../src/platform/substrate/startupMenu.js')
+  const bn = await import('../../src/platform/substrate/bootNotes.js')
   await withScratchHome(home => {
     const file = join(home, 'boot-env.json')
     const corrupt = '{not-json'
@@ -299,7 +299,7 @@ async function proveStartupMenu(): Promise<void> {
 }
 
 async function proveStateLifecycle(): Promise<void> {
-  const sl = await import('../../src/substrate/stateLifecycle.js')
+  const sl = await import('../../src/platform/substrate/stateLifecycle.js')
   await withScratchHome(async home => {
     const buildDir = join(home, 'runtime', 'builds', 'broken-build')
     mkdirSync(buildDir, { recursive: true })
@@ -315,10 +315,10 @@ async function proveStateLifecycle(): Promise<void> {
 }
 
 async function provePauseCarry(): Promise<void> {
-  const bootstrap = await import('../../src/bootstrap/state.js')
-  const pc = await import('../../src/tasks/LocalAgentTask/pauseCarry.js')
-  const { getCommandQueue, resetCommandQueue } = await import('../../src/input-core/command-queue.js')
-  const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
+  const bootstrap = await import('../../src/boot/process-state/processState.js')
+  const pc = await import('../../src/engine/tasks/local-agent/pauseCarry.js')
+  const { getCommandQueue, resetCommandQueue } = await import('../../src/screen/composer/input-core/command-queue.js')
+  const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
   await withScratchHome(async home => {
     const project = join(home, 'proj')
     mkdirSync(project, { recursive: true })
@@ -368,9 +368,9 @@ async function provePauseCarry(): Promise<void> {
 }
 
 async function proveTaskLaunchLedger(): Promise<void> {
-  const bootstrap = await import('../../src/bootstrap/state.js')
-  const { getTranscriptPathForSession } = await import('../../src/utils/sessionStorage/paths.js')
-  const tl = await import('../../src/tasks/taskLaunchLedger.js')
+  const bootstrap = await import('../../src/boot/process-state/processState.js')
+  const { getTranscriptPathForSession } = await import('../../src/sessions/transcripts/paths.js')
+  const tl = await import('../../src/engine/tasks/taskLaunchLedger.js')
   await withScratchHome(async home => {
     const project = join(home, 'proj')
     mkdirSync(project, { recursive: true })
@@ -403,8 +403,8 @@ async function proveTaskLaunchLedger(): Promise<void> {
 }
 
 async function proveTaskOutcomeEnvelope(): Promise<void> {
-  const bootstrap = await import('../../src/bootstrap/state.js')
-  const toe = await import('../../src/tasks/taskOutcomeEnvelope.js')
+  const bootstrap = await import('../../src/boot/process-state/processState.js')
+  const toe = await import('../../src/engine/tasks/taskOutcomeEnvelope.js')
   await withScratchHome(async home => {
     const project = join(home, 'proj')
     mkdirSync(project, { recursive: true })
@@ -442,10 +442,10 @@ async function proveTaskOutcomeEnvelope(): Promise<void> {
 
 async function proveTools(): Promise<void> {
   const bun = process.execPath
-  const toolsPath = realpathSync(join(import.meta.dir, '../../src/tools.ts'))
-  const logPath = realpathSync(join(import.meta.dir, '../../src/utils/log.ts'))
-  const bashToolPath = realpathSync(join(import.meta.dir, '../../src/tools/BashTool/BashTool.tsx'))
-  const toolTypePath = realpathSync(join(import.meta.dir, '../../src/Tool.ts'))
+  const toolsPath = realpathSync(join(import.meta.dir, '../../src/tools/kit/toolList.ts'))
+  const logPath = realpathSync(join(import.meta.dir, '../../src/platform/logs/errorLog.ts'))
+  const bashToolPath = realpathSync(join(import.meta.dir, '../../src/tools/shell/BashTool.tsx'))
+  const toolTypePath = realpathSync(join(import.meta.dir, '../../src/tools/kit/tool.ts'))
   await withScratchHome(home => {
     const script = `
       import { mock } from 'bun:test'

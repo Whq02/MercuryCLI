@@ -15,22 +15,22 @@ delete process.env.MERCURY_CHANGE_RECEIPTS
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const hint = 'fix ChangeSetTool.call / mapToolResultToToolResultBlockParam in src/tools/ChangeSetTool/ChangeSetTool.ts and recordNoChangeOutcome in src/services/changeTransaction/repetitionPolicy.ts'
+  const hint = 'fix ChangeSetTool.call / mapToolResultToToolResultBlockParam in src/tools/change-set/ChangeSetTool.ts and recordNoChangeOutcome in src/tools/engines/change-transaction/repetitionPolicy.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${hint}` : ''}`)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — changeset-repetition proof exceeded 120s; a ChangeSetTool apply in this proof never returned, look at ChangeSetTool.call in src/tools/ChangeSetTool/ChangeSetTool.ts')
+  console.log('\nTIMEOUT — changeset-repetition proof exceeded 120s; a ChangeSetTool apply in this proof never returned, look at ChangeSetTool.call in src/tools/change-set/ChangeSetTool.ts')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
 
-const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { mintFileAnchor } = await import(
-  '../../src/services/changeTransaction/snapshotAnchor.ts'
+  '../../src/tools/engines/change-transaction/snapshotAnchor.ts'
 )
 const { _resetRepetitionPolicyForTesting } = await import(
-  '../../src/services/changeTransaction/repetitionPolicy.ts'
+  '../../src/tools/engines/change-transaction/repetitionPolicy.ts'
 )
 
 const fixtures = realpathSync(mkdtempSync(join(tmpdir(), 'stillpoint-cs-fix-')))

@@ -9,9 +9,9 @@ process.argv.push(`--log-file=${DEBUG_LOG}`)
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 
 const { concourseControlOpsPath, readConcourseControlOps, recordConcourseControlOp } = await import(
-  '../../src/daemon/concourseDispatch.js'
+  '../../src/daemon/concourse-workers/concourseDispatch.js'
 )
-const { flushDebugLogs } = await import('../../src/utils/debug.js')
+const { flushDebugLogs } = await import('../../src/platform/logs/debugLog.js')
 
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
@@ -49,7 +49,7 @@ try {
     check(
       'the read answers an empty ledger, never null',
       typeof read === 'object' && read !== null && Object.keys(read as object).length === 0,
-      String(read) + ' — readConcourseControlOps in src/daemon/concourseDispatch.ts must return an empty object when the ledger ops field is null',
+      String(read) + ' — readConcourseControlOps in src/daemon/concourse-workers/concourseDispatch.ts must return an empty object when the ledger ops field is null',
     )
     let recorded = ''
     try {
@@ -58,9 +58,9 @@ try {
     } catch (e) {
       recorded = String(e)
     }
-    check('recording over the null ledger survives', recorded === 'ok', recorded + ' — recordConcourseControlOp in src/daemon/concourseDispatch.ts must tolerate a ledger whose ops is null')
+    check('recording over the null ledger survives', recorded === 'ok', recorded + ' — recordConcourseControlOp in src/daemon/concourse-workers/concourseDispatch.ts must tolerate a ledger whose ops is null')
     const after = readConcourseControlOps(scratch)
-    check('the new row is on the ledger', after['op-1']?.atMs === 10, JSON.stringify(after) + ' — recordConcourseControlOp in src/daemon/concourseDispatch.ts must write the new row into the ledger file')
+    check('the new row is on the ledger', after['op-1']?.atMs === 10, JSON.stringify(after) + ' — recordConcourseControlOp in src/daemon/concourse-workers/concourseDispatch.ts must write the new row into the ledger file')
   }
 
   section('(2) rows that fail their shape are dropped and the file is named once')
@@ -86,7 +86,7 @@ try {
     check(
       'only the two whole rows survive the read',
       keys.length === 2 && keys[0] === 'op-good-a' && keys[1] === 'op-good-b',
-      keys.join(',') + ' — readConcourseControlOps in src/daemon/concourseDispatch.ts must drop rows with no numeric atMs, a key different from clientOpId, an unknown outcome, or a non-object value',
+      keys.join(',') + ' — readConcourseControlOps in src/daemon/concourse-workers/concourseDispatch.ts must drop rows with no numeric atMs, a key different from clientOpId, an unknown outcome, or a non-object value',
     )
     const replay = read['op-good-a']
     check(
@@ -96,7 +96,7 @@ try {
         replay.sessionId === 's-1' &&
         replay.outcome === 'applied' &&
         replay.atMs === 100,
-      JSON.stringify(replay) + ' — readConcourseControlOps in src/daemon/concourseDispatch.ts must return surviving rows with all five fields intact',
+      JSON.stringify(replay) + ' — readConcourseControlOps in src/daemon/concourse-workers/concourseDispatch.ts must return surviving rows with all five fields intact',
     )
     readConcourseControlOps(scratch)
     readConcourseControlOps(scratch)
@@ -104,8 +104,8 @@ try {
     const named = readFileSync(DEBUG_LOG, 'utf8')
       .split('\n')
       .filter(l => l.includes(path) && l.includes('not decodable'))
-    check('the file is named once across three reads', named.length === 1, `${named.length} line(s) — readConcourseControlOps in src/daemon/concourseDispatch.ts must log the not decodable line once per path per process (nameControlOpLedger)`)
-    const { readStoreRecoveryEvents } = await import('../../src/substrate/storeRecovery.ts')
+    check('the file is named once across three reads', named.length === 1, `${named.length} line(s) — readConcourseControlOps in src/daemon/concourse-workers/concourseDispatch.ts must log the not decodable line once per path per process (nameControlOpLedger)`)
+    const { readStoreRecoveryEvents } = await import('../../src/platform/substrate/storeRecovery.ts')
     const refusedRows = async () => (await readStoreRecoveryEvents()).filter(e => e.kind === 'refused' && e.store === 'concourse-control-ops' && e.path === path)
     let refused = await refusedRows()
     for (let i = 0; i < 40 && refused.length < 1; i++) {
@@ -115,7 +115,7 @@ try {
     check(
       'the file is named ONCE on the recovery ledger in this process — the first refusal of (1), and no second row for the dropped rows of (2) on the same path (the per-path latch the debug line already has), bytes left in place',
       refused.length === 1 && refused[0]!.reason === 'not decodable as an applied-ops ledger, read as empty' && refused[0]!.quarantinePath === null,
-      `${refused.length} row(s): ${JSON.stringify(refused.map(e => e.reason))} — nameControlOpLedger in src/daemon/concourseDispatch.ts must record one refused event on the recovery ledger per path, with reason as asserted and no quarantine`,
+      `${refused.length} row(s): ${JSON.stringify(refused.map(e => e.reason))} — nameControlOpLedger in src/daemon/concourse-workers/concourseDispatch.ts must record one refused event on the recovery ledger per path, with reason as asserted and no quarantine`,
     )
   }
 
@@ -131,14 +131,14 @@ try {
     check(
       'the ledger holds exactly the 200 newest whole rows',
       keys.length === 200 && after['op-new'] !== undefined && after['op-0'] === undefined && after['op-1'] !== undefined,
-      `${keys.length} rows; op-0 ${after['op-0'] !== undefined ? 'kept' : 'gone'}; op-new ${after['op-new'] !== undefined ? 'kept' : 'gone'} — the prune in recordConcourseControlOp (src/daemon/concourseDispatch.ts) must sort by numeric atMs and keep the 200 newest whole rows`,
+      `${keys.length} rows; op-0 ${after['op-0'] !== undefined ? 'kept' : 'gone'}; op-new ${after['op-new'] !== undefined ? 'kept' : 'gone'} — the prune in recordConcourseControlOp (src/daemon/concourse-workers/concourseDispatch.ts) must sort by numeric atMs and keep the 200 newest whole rows`,
     )
-    check('the row without a time is not on the ledger', after['op-no-at'] === undefined, 'readConcourseControlOps or the prune in recordConcourseControlOp (src/daemon/concourseDispatch.ts) kept a row with no atMs')
+    check('the row without a time is not on the ledger', after['op-no-at'] === undefined, 'readConcourseControlOps or the prune in recordConcourseControlOp (src/daemon/concourse-workers/concourseDispatch.ts) kept a row with no atMs')
     const onDisk = JSON.parse(readFileSync(path, 'utf8')) as { ops: Record<string, unknown> }
     check(
       'the republished file carries no undecodable row',
       onDisk.ops['op-no-at'] === undefined && Object.keys(onDisk.ops).length === 200,
-      `${Object.keys(onDisk.ops).length} rows on disk — recordConcourseControlOp (src/daemon/concourseDispatch.ts) must republish only the whole rows it kept`,
+      `${Object.keys(onDisk.ops).length} rows on disk — recordConcourseControlOp (src/daemon/concourse-workers/concourseDispatch.ts) must republish only the whole rows it kept`,
     )
   }
 } finally {

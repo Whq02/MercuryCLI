@@ -10,9 +10,9 @@ delete process.env.MERCURY_ANTHROPIC_CONNECTORS
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { anthropicConnectorsArmed, fetchAnthropicConnectorsIfEligible, clearAnthropicConnectorsCache } = await import(
-  '../../src/services/mcp/anthropicConnectors.ts'
+  '../../src/integrations/mcp/anthropicConnectors.ts'
 )
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
@@ -31,7 +31,7 @@ section('§1 THE POLARITY TABLE')
     ['true', true, 'truthy spellings honored'],
   ]
   for (const [canonical, want, label] of rows) {
-    check(label, anthropicConnectorsArmed(canonical) === want, '', 'fix anthropicConnectorsArmed in src/services/mcp/anthropicConnectors.ts so this MERCURY_ANTHROPIC_CONNECTORS value arms or disarms as the row says')
+    check(label, anthropicConnectorsArmed(canonical) === want, '', 'fix anthropicConnectorsArmed in src/integrations/mcp/anthropicConnectors.ts so this MERCURY_ANTHROPIC_CONNECTORS value arms or disarms as the row says')
   }
 }
 
@@ -39,7 +39,7 @@ section('§2 THE LIVE GATE')
 {
   clearAnthropicConnectorsCache()
   const unarmed = await fetchAnthropicConnectorsIfEligible()
-  check('unarmed ⇒ the fetch settles {} (no catalog, no wire)', Object.keys(unarmed).length === 0, '', 'fetchAnthropicConnectorsIfEligible in src/services/mcp/anthropicConnectors.ts must return {} before any fetch when anthropicConnectorsArmed is false')
+  check('unarmed ⇒ the fetch settles {} (no catalog, no wire)', Object.keys(unarmed).length === 0, '', 'fetchAnthropicConnectorsIfEligible in src/integrations/mcp/anthropicConnectors.ts must return {} before any fetch when anthropicConnectorsArmed is false')
 
   clearAnthropicConnectorsCache()
   process.env.MERCURY_ANTHROPIC_CONNECTORS = '1'
@@ -48,7 +48,7 @@ section('§2 THE LIVE GATE')
     'armed without a stored token ⇒ {} for the TOKEN reason (arming honored, nothing invented)',
     Object.keys(armedNoToken).length === 0,
     '',
-    'fetchAnthropicConnectorsIfEligible in src/services/mcp/anthropicConnectors.ts must return {} when armed but no access token is stored',
+    'fetchAnthropicConnectorsIfEligible in src/integrations/mcp/anthropicConnectors.ts must return {} when armed but no access token is stored',
   )
   delete process.env.MERCURY_ANTHROPIC_CONNECTORS
 }

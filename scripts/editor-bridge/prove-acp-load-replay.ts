@@ -31,27 +31,27 @@ delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_EFFORT_LEVEL
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setOriginalCwd(project)
 bootstrap.setProjectRoot(project)
 
-const { ask } = await import('../../src/rows/turn.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
-const { flushSessionStorage, getTranscriptPath, loadTranscriptFile, resetSessionFilePointer } = await import('../../src/utils/sessionStorage.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { replayUpdatesOf, runAcpServer } = await import('../../src/services/acp/acpServer.ts')
-import type { Message } from '../../src/types/message.ts'
+const { ask } = await import('../../src/engine/rows/turn.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/platform/files/fileStateCache.ts')
+const { flushSessionStorage, getTranscriptPath, loadTranscriptFile, resetSessionFilePointer } = await import('../../src/sessions/transcripts/sessionStorage.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+const { replayUpdatesOf, runAcpServer } = await import('../../src/integrations/acp/acpServer.ts')
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 const storage = getProjectDir(project)
 mkdirSync(storage, { recursive: true })
 
 let failures = 0
 let checks = 0
-const REPLAY_FAIL_HINT = 'to fix, change what session/load replays in replayUpdatesOf and sessionLineOf (src/services/acp/acpServer/replay.ts) or the session/load handler (src/services/acp/acpServer/sessionRequests.ts); withdrawn replies are dropped by withoutRetractedReplies (src/services/engine-connector/midTurnText.ts)'
+const REPLAY_FAIL_HINT = 'to fix, change what session/load replays in replayUpdatesOf and sessionLineOf (src/integrations/acp/server/replay.ts) or the session/load handler (src/integrations/acp/server/sessionRequests.ts); withdrawn replies are dropped by withoutRetractedReplies (src/engine/connector/midTurnText.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -65,7 +65,7 @@ const j = (value: unknown): string => JSON.stringify(value) ?? ''
 const servers: ChildProcess[] = []
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — the ACP load replay proof exceeded 420s')
-  console.log('   a session/load or a stand-in run never settled; find which section (L1 to L7) printed last and look at runAcpServer in src/services/acp/acpServer.ts')
+  console.log('   a session/load or a stand-in run never settled; find which section (L1 to L7) printed last and look at runAcpServer in src/integrations/acp/acpServer.ts')
   for (const server of servers) endProcessGroup(server)
   process.exit(1)
 }, 420_000)

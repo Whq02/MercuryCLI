@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/mcp/utils.ts src/services/mcp/config.ts src/services/mcp/client.ts src/services/mcp/envExpansion.ts src/cli/handlers/mcp.tsx src/cli/run.ts
+// gate-watch: src/integrations/mcp/utils.ts src/integrations/mcp/serverConfigs.ts src/integrations/mcp/client.ts src/integrations/mcp/envExpansion.ts src/commands/verbs/mcp.tsx src/daemon/runner/runHeadless.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -205,8 +205,8 @@ try {
     process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'in-process-home')
     mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
     process.env.R3_SECRET = TOKEN
-    const { parseMcpConfig } = await import('../../src/services/mcp/config.js')
-    const { mcpConfigAsWritten, getLoggingSafeMcpBaseUrl, describeMcpConnectFailure } = await import('../../src/services/mcp/utils.js')
+    const { parseMcpConfig } = await import('../../src/integrations/mcp/serverConfigs.js')
+    const { mcpConfigAsWritten, getLoggingSafeMcpBaseUrl, describeMcpConnectFailure } = await import('../../src/integrations/mcp/utils.js')
     const parsed = parseMcpConfig({
       configObject: {
         mcpServers: {

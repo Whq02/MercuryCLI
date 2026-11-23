@@ -7,18 +7,18 @@ delete process.env.MERCURY_HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_WINDOWS_SHELL_ROAD = 'no-bash'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { runEngineCommand, resolveShellEngine, resetEngineSessionForTest } = await import('../../src/utils/shell/engineSession.ts')
-const { exec } = await import('../../src/utils/Shell.ts')
-const { mapResultToBlock } = await import('../../src/tools/BashTool/resultBlock.ts')
-const { TaskOutput } = await import('../../src/utils/task/TaskOutput.ts')
-const { generateTaskId } = await import('../../src/Task.ts')
+const { runEngineCommand, resolveShellEngine, resetEngineSessionForTest } = await import('../../src/platform/shell/engineSession.ts')
+const { exec } = await import('../../src/platform/shell/shellExec.ts')
+const { mapResultToBlock } = await import('../../src/tools/shell/resultBlock.ts')
+const { TaskOutput } = await import('../../src/engine/task-framework/taskOutput.ts')
+const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
 const engine = resolveShellEngine('brush')
 assert.equal(engine.engine, 'brush', 'the proof requires the bundled persistent shell engine')
 if (engine.engine !== 'brush') throw new Error(engine.reason)
 let checks = 0
-const check = (name: string, value: unknown) => { assert.ok(value, name + ' — fix runEngineCommand in src/utils/shell/engineSession.ts (live output, kill, session state) or the mirror and spill in src/utils/task/TaskOutput.ts (mirrorToDisk, writeStdout, flush)'); checks++; console.log('PASS ' + name) }
+const check = (name: string, value: unknown) => { assert.ok(value, name + ' — fix runEngineCommand in src/platform/shell/engineSession.ts (live output, kill, session state) or the mirror and spill in src/engine/task-framework/taskOutput.ts (mirrorToDisk, writeStdout, flush)'); checks++; console.log('PASS ' + name) }
 const outputs: InstanceType<typeof TaskOutput>[] = []
 const controller = new AbortController()
 try {

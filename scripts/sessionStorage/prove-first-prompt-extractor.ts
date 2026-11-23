@@ -2,10 +2,10 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { extractFirstPromptFromChunk } from '../../src/utils/sessionStorage/logs.js'
+import { extractFirstPromptFromChunk } from '../../src/sessions/transcripts/sessionListings.js'
 
 let failures = 0
-const extractorHint = 'change extractFirstPromptFromChunk in src/utils/sessionStorage/logs.ts so this input gives the expected title'
+const extractorHint = 'change extractFirstPromptFromChunk in src/sessions/transcripts/sessionListings.ts so this input gives the expected title'
 function check(label: string, cond: boolean, detail = extractorHint): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)

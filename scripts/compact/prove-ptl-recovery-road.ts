@@ -9,7 +9,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-const { ERROR_MESSAGE_PROMPT_TOO_LONG } = await import(join(SRC, 'services/compact/compact.ts'))
+const { ERROR_MESSAGE_PROMPT_TOO_LONG } = await import(join(SRC, 'engine/compaction/foldConversation.ts'))
 const text = String(ERROR_MESSAGE_PROMPT_TOO_LONG)
 
 console.log('L1 never the refused road')

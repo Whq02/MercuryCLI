@@ -34,23 +34,23 @@ process.env.BROWSER = '/usr/bin/true'
 process.chdir(project)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const load = (file: string) => import(pathToFileURL(join(root, file)).href)
-const { getEmptyToolPermissionContext } = await load('src/Tool.ts')
-const { decideToolPermission } = await load('src/utils/permissions/decision/engine.ts')
-const { FileWriteTool } = await load('src/tools/FileWriteTool/FileWriteTool.ts')
-const { FileEditTool } = await load('src/tools/FileEditTool/FileEditTool.ts')
-const { NotebookEditTool } = await load('src/tools/NotebookEditTool/NotebookEditTool.ts')
-const { ChangeSetTool } = await load('src/tools/ChangeSetTool/ChangeSetTool.ts')
-const { FileReadTool } = await load('src/tools/FileReadTool/FileReadTool.ts')
-const { BashTool } = await load('src/tools/BashTool/BashTool.tsx')
-const { PowerShellTool } = await load('src/tools/PowerShellTool/PowerShellTool.tsx')
-const { runWithCwdOverride } = await load('src/utils/cwd.ts')
-const { getProcessStartTokenAsync } = await load('src/utils/ownerWatch.ts')
+const { getEmptyToolPermissionContext } = await load('src/tools/kit/tool.ts')
+const { decideToolPermission } = await load('src/permissions/rules/decision/engine.ts')
+const { FileWriteTool } = await load('src/tools/write/WriteTool.ts')
+const { FileEditTool } = await load('src/tools/edit/EditTool.ts')
+const { NotebookEditTool } = await load('src/tools/notebook-edit/NotebookEditTool.ts')
+const { ChangeSetTool } = await load('src/tools/change-set/ChangeSetTool.ts')
+const { FileReadTool } = await load('src/tools/read/ReadTool.ts')
+const { BashTool } = await load('src/tools/shell/BashTool.tsx')
+const { PowerShellTool } = await load('src/tools/powershell/PowerShellTool.tsx')
+const { runWithCwdOverride } = await load('src/platform/files/cwd.ts')
+const { getProcessStartTokenAsync } = await load('src/daemon/control/ownerWatch.ts')
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = '') {
   checks++
   if (!ok) failures++
-  const failHint = ' — the permission engine gave the wrong verdict here; change runtimeWritePath or runtimeProcessRefusal in src/utils/permissions/runtimeProtection.ts (write paths, kill and delete commands) or the shell checks in src/utils/permissions/shellProtectedPaths/selfProtection.ts'
+  const failHint = ' — the permission engine gave the wrong verdict here; change runtimeWritePath or runtimeProcessRefusal in src/permissions/rules/runtimeProtection.ts (write paths, kill and delete commands) or the shell checks in src/permissions/rules/shell-protected-paths/selfProtection.ts'
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${ok ? '' : failHint}`)
 }
 function context(mode: string, rules: { allow?: string[]; deny?: string[]; ask?: string[] } = {}) {

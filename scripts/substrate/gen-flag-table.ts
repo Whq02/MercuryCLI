@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { FLAG_REGISTRY, type FlagSpec } from '../../src/substrate/flagRegistry.ts'
+import { FLAG_REGISTRY, type FlagSpec } from '../../src/platform/substrate/flagRegistry.ts'
 
 const OUT_DIR = join(import.meta.dir, '.out')
 const DOC = join(OUT_DIR, 'FLAG-REGISTRY.md')
@@ -42,7 +42,7 @@ const byKind = (k: FlagSpec['kind']) =>
 
 const doc = `# Flag Registry (GENERATED — do not hand-edit)
 
-> Derived from \`src/substrate/flagRegistry.ts\` by \`scripts/substrate/gen-flag-table.ts\`.
+> Derived from \`src/platform/substrate/flagRegistry.ts\` by \`scripts/substrate/gen-flag-table.ts\`.
 > UNTRACKED inspection output — the registry source is the truth
 > (\`prove-flag-registry.ts\` gates the registry against the source's actual env
 > reads). ${FLAG_REGISTRY.length} flags. THIS render is complete and machine-honest.

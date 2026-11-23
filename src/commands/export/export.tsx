@@ -1,16 +1,16 @@
 import * as React from 'react'
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { ExportDialog } from '../../components/ExportDialog.js'
+import { ExportDialog } from './ExportDialog.js'
 import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
-} from '../../types/command.js'
-import type { Message, UserMessage } from '../../types/message.js'
-import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import { errorMessage } from '../../utils/errors.js'
+} from '../catalogue/command.js'
+import type { Message, UserMessage } from '../../engine/message-shapes/message.js'
+import { getFocusedSessionConnector } from '../../engine/connector/focusedConnector.js'
+import { errorMessage } from '../../platform/errors/errors.js'
 import { transcriptExport, transcriptExportText, truncateExportResults } from './transcript.js'
-import { createSecretRedactor, redactSecretValues, sessionSecretValues } from '../../utils/redactSecrets.js'
+import { createSecretRedactor, redactSecretValues, sessionSecretValues } from '../../platform/secrets/redactSecrets.js'
 
 export function extractFirstPrompt(messages: Message[], transform?: (text: string) => string): string {
   const first = messages.find((m): m is UserMessage => m.type === 'user')

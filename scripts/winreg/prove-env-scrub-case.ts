@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { languageServerEnv, subprocessEnv } from '../../src/utils/subprocessEnv.ts'
+import { languageServerEnv, subprocessEnv } from '../../src/platform/processes/subprocessEnv.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -7,7 +7,7 @@ function check(label: string, cond: boolean, detail = ''): void {
     console.log(`  [PASS] ${label}`)
   } else {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — to fix: subprocessEnv and languageServerEnv in src/utils/subprocessEnv.ts must match scrubbed variable names without regard to case on Windows only, match a name exactly otherwise, and keep PATH and longer names that only contain a scrubbed name`)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — to fix: subprocessEnv and languageServerEnv in src/platform/processes/subprocessEnv.ts must match scrubbed variable names without regard to case on Windows only, match a name exactly otherwise, and keep PATH and longer names that only contain a scrubbed name`)
   }
 }
 

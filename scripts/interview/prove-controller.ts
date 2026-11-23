@@ -11,8 +11,8 @@ const scratch = mkdtempSync(join(tmpdir(), 'interview-ctl-'))
 process.env.MERCURY_CONFIG_DIR = scratch
 
 const t = checker()
-const store = await import('../../src/services/interview/store.ts')
-const ctl = await import('../../src/services/interview/controller.ts')
+const store = await import('../../src/tools/engines/interview/store.ts')
+const ctl = await import('../../src/tools/engines/interview/controller.ts')
 
 interface BoundaryLog {
   allows: Record<string, unknown>[]
@@ -122,7 +122,7 @@ try {
     store.appendInterviewEvent({ kind: 'finish-requested', eventId: 'ie_foreign', atMs: 1, retainedDecisionIds: ['id_engine'] } as never)
     const after = store.interviewSnapshot()
     t.check('a finish row in the log folds as a foreign kind — the phase and outcome do not move', after.phase === before.phase && after.outcome === before.outcome && after.phase === 'asking', `${before.phase} → ${after.phase}`)
-    const { AskUserQuestionTool } = await import('../../src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx')
+    const { AskUserQuestionTool } = await import('../../src/tools/ask-question/AskUserQuestionTool.tsx')
     const parsed = AskUserQuestionTool.outputSchema.safeParse({ questions: [], answers: {}, outcome: { kind: 'finish-requested', retainedDecisionIds: [] } })
     t.check('the tool output schema has no finish outcome arm', !parsed.success)
     const accepted = AskUserQuestionTool.outputSchema.safeParse({ questions: [], answers: {}, outcome: { kind: 'discussion-requested', questionId: 'iq_engine' } })

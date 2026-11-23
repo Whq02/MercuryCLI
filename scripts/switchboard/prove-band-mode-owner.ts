@@ -12,16 +12,16 @@ delete process.env.MERCURY_DAEMON_PERMISSION_MODE
 delete process.env.MERCURY_CONCOURSE_WORKER
 delete process.env.MERCURY_SKIP_PERMISSIONS
 
-const concourse = await import('../../src/daemon/concourseWorkers.ts')
-const seat = await import('../../src/daemon/sessionSeat.ts')
-const { permissionModeOf } = await import('../../src/services/engine-connector/daemonConnector.ts')
-const { getNextPermissionMode } = await import('../../src/utils/permissions/getNextPermissionMode.ts')
-const { resolvePermissionModeTransition } = await import('../../src/cli/headless/controlHandlers.ts')
-const { buildRunnerInvocation, getHeadlessPermissionMode } = await import('../../src/daemon/headlessRun.ts')
-import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
-import type { PermissionMode } from '../../src/types/permissions.ts'
-import type { ToolPermissionContext } from '../../src/Tool.ts'
+const concourse = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const seat = await import('../../src/daemon/session-seat/sessionSeat.ts')
+const { permissionModeOf } = await import('../../src/engine/connector/daemonConnector.ts')
+const { getNextPermissionMode } = await import('../../src/permissions/rules/getNextPermissionMode.ts')
+const { resolvePermissionModeTransition } = await import('../../src/daemon/runner/controlHandlers.ts')
+const { buildRunnerInvocation, getHeadlessPermissionMode } = await import('../../src/daemon/runner-link/headlessRun.ts')
+import type { RunnerChildSpec } from '../../src/daemon/runner-link/headlessRun.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
+import type { PermissionMode } from '../../src/permissions/rules/permissions.ts'
+import type { ToolPermissionContext } from '../../src/tools/kit/tool.ts'
 
 let failures = 0
 let passes = 0
@@ -39,7 +39,7 @@ function section(title: string, hint = ''): void {
 const SKIP = '--sovereign'
 const ALLOW = '--allow-sovereign'
 
-section('§1 the record stamps the posture and consent the runner was booted with', 'change spawnPostureOf or stampSpawnPosture in src/daemon/concourseWorkers/spec.ts (the argv comes from buildRunnerInvocation in src/daemon/headlessRun.ts)')
+section('§1 the record stamps the posture and consent the runner was booted with', 'change spawnPostureOf or stampSpawnPosture in src/daemon/concourse-workers/spec.ts (the argv comes from buildRunnerInvocation in src/daemon/runner-link/headlessRun.ts)')
 {
   const spec = (permissionMode: string, allowBypass?: true): Pick<RunnerChildSpec, 'permissionMode' | 'allowBypass'> =>
     ({ permissionMode: permissionMode as RunnerChildSpec['permissionMode'], ...(allowBypass === true ? { allowBypass: true as const } : {}) })
@@ -69,7 +69,7 @@ function baseSpec(short: string): RunnerChildSpec {
   })
 }
 
-section("§2 the seat's skeleton speaks the record's posture and nothing without one", 'change spawnPostureWordOf in src/daemon/sessionSeat/facts.ts')
+section("§2 the seat's skeleton speaks the record's posture and nothing without one", 'change spawnPostureWordOf in src/daemon/session-seat/facts.ts')
 {
   const word = seat.spawnPostureWordOf({ permissionMode: 'sovereign' })
   check("a stamped record's skeleton carries its posture", (word as { permissionMode?: string }).permissionMode === 'sovereign', JSON.stringify(word))
@@ -77,7 +77,7 @@ section("§2 the seat's skeleton speaks the record's posture and nothing without
   check('a record without the stamp yields NO mode word (never flow)', Object.keys(none).length === 0, JSON.stringify(none))
 }
 
-section("§3 the connector's mode read: the facts' word, else the birth posture, else the blank", 'change permissionModeOf in src/services/engine-connector/daemonConnector.ts (the seat mapping is seatInitialPermissionMode in src/daemon/concourseWorkers/spec.ts)')
+section("§3 the connector's mode read: the facts' word, else the birth posture, else the blank", 'change permissionModeOf in src/engine/connector/daemonConnector.ts (the seat mapping is seatInitialPermissionMode in src/daemon/concourse-workers/spec.ts)')
 {
   check("the runner's spoken word wins over any birth record", permissionModeOf({ permissionMode: 'implement' }, { permissionMode: 'sovereign' }) === 'implement')
   check("a skeleton without a word falls to the birth record's posture", permissionModeOf({}, { permissionMode: 'sovereign' }) === 'sovereign')
@@ -89,7 +89,7 @@ section("§3 the connector's mode read: the facts' word, else the birth posture,
   check("a skeleton without a word + no birth posture ⇒ null, never 'flow'", permissionModeOf({}, { permissionMode: null }) === null)
 }
 
-section("§4 every revive road boots the record's posture and consent; the reactivate's word wins", 'change reviveConcourseWorker in src/daemon/concourseWorkers/revive.ts (posture and consent stamping are in src/daemon/concourseWorkers/spec.ts, the argv in buildRunnerInvocation in src/daemon/headlessRun.ts)')
+section("§4 every revive road boots the record's posture and consent; the reactivate's word wins", 'change reviveConcourseWorker in src/daemon/concourse-workers/revive.ts (posture and consent stamping are in src/daemon/concourse-workers/spec.ts, the argv in buildRunnerInvocation in src/daemon/runner-link/headlessRun.ts)')
 {
   const dir = mkdtempSync(join(tmpdir(), 'band-mode-daemon-'))
   const ws = realpathSync(mkdtempSync(join(tmpdir(), 'band-mode-ws-')))
@@ -166,7 +166,7 @@ section("§4 every revive road boots the record's posture and consent; the react
   check('(f) every revive above registered a spec (six spawns, no refusal)', roster.registered.length === 6, String(roster.registered.length))
 }
 
-section("§5 a mode change's receipt is the runner's own word: refused with its sentence, applied, or typed past the deadline", 'change setSessionPermissionMode in src/daemon/sessionSeat/verbs.ts')
+section("§5 a mode change's receipt is the runner's own word: refused with its sentence, applied, or typed past the deadline", 'change setSessionPermissionMode in src/daemon/session-seat/verbs.ts')
 {
   const dir = mkdtempSync(join(tmpdir(), 'band-mode-seat-'))
   const sid = '00000000-0000-4000-8000-0000000000bb'
@@ -186,7 +186,7 @@ section("§5 a mode change's receipt is the runner's own word: refused with its 
     } as ConcourseWorkerRecordV1
   }, dir)
   const { standInRunner } = await import('../lib/seatDoor.ts')
-  const { RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+  const { RPC_REFUSED } = await import('../../src/daemon/runner-wire/errors.ts')
   const stand = standInRunner({ autoAnswer: { 'session/facts': {} } })
   const roster = stand.roster({ list: () => [{ short }] })
   const REFUSAL = 'Cannot set permission mode to sovereign because the session was not launched with --sovereign'
@@ -220,7 +220,7 @@ section("§5 a mode change's receipt is the runner's own word: refused with its 
   stand.close()
 }
 
-section('§6 the carousel lists every station the seat may hold, Sovereign in a consented ring, nothing the runner refuses', 'change getNextPermissionMode in src/utils/permissions/getNextPermissionMode.ts or resolvePermissionModeTransition in src/cli/headless/controlHandlers.ts')
+section('§6 the carousel lists every station the seat may hold, Sovereign in a consented ring, nothing the runner refuses', 'change getNextPermissionMode in src/permissions/rules/getNextPermissionMode.ts or resolvePermissionModeTransition in src/daemon/runner/controlHandlers.ts')
 {
   const ctx = (mode: PermissionMode, consented: boolean): ToolPermissionContext =>
     ({ mode, isBypassPermissionsModeAvailable: consented, additionalWorkingDirectories: new Map(), alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {} }) as unknown as ToolPermissionContext

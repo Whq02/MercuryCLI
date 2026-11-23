@@ -6,19 +6,19 @@ if (!process.env.MERCURY_CONFIG_DIR || process.env.MERCURY_CREDENTIAL_STORE !== 
   throw new Error('Run this proof through its isolated Node launcher')
 }
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0' }
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
 
 const React = (await import('react')).default
-const { Box, Text } = await import('../../src/ink.js')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { createStore } = await import('../../src/state/store.js')
-const { PermissionRuleExplanation } = await import('../../src/components/permissions/PermissionRuleExplanation.js')
-const { PermissionDecisionDebugInfo } = await import('../../src/components/permissions/PermissionDecisionDebugInfo.js')
+const { Box, Text } = await import('../../src/screen/themedRenderer.js')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { PermissionRuleExplanation } = await import('../../src/permissions/cards/PermissionRuleExplanation.js')
+const { PermissionDecisionDebugInfo } = await import('../../src/permissions/cards/PermissionDecisionDebugInfo.js')
 const { composeScene, makeContext, screenLines } = await import('./frameHarness.js')
-const { FrameWriter } = await import('../../src/ink/frame-writer.js')
-const { writeDiffToTerminal } = await import('../../src/ink/session/delivery.js')
-const { optimizePatches } = await import('../../src/ink/patch-stream.js')
+const { FrameWriter } = await import('../../src/screen/renderer/frame-writer.js')
+const { writeDiffToTerminal } = await import('../../src/screen/renderer/terminal-session/frameDelivery.js')
+const { optimizePatches } = await import('../../src/screen/renderer/patch-stream.js')
 const { AnsiEmulator } = await import('./ansiEmulator.js')
 const { runtime, plain, checks } = await import('../ui/viewportRuntime.ts')
 const { check, finish } = checks()
@@ -51,12 +51,12 @@ for (const [cols, rows] of [[120, 40], [80, 24]]) {
         run.ink.onRender()
         const lines = plain(run.ink)
         const label = `${cols}x${rows} ${variant.name} ${long ? 'long' : 'short'}`
-        check(`${label}: the top remains visible`, lines[0] === 'RAIL TOP', `${lines[0]}; the notice must not grow past its row budget: see the Text wrap props in src/components/permissions/PermissionRuleExplanation.tsx and PermissionDecisionDebugInfo.tsx`)
-        check(`${label}: the compositor reports exactly the viewport`, lines.length === rows, `${lines.length} lines for ${rows} rows; the frame must stay within the viewport, so look for a notice in src/components/permissions/PermissionRuleExplanation.tsx or PermissionDecisionDebugInfo.tsx that wraps onto extra rows`)
-        check(`${label}: the notice did not push out the composer`, lines[rows - 1] === 'COMPOSER', `${lines.slice(-5).join('|')}; the notice must truncate (wrap="truncate-middle") rather than wrap: src/components/permissions/PermissionRuleExplanation.tsx and PermissionDecisionDebugInfo.tsx`)
+        check(`${label}: the top remains visible`, lines[0] === 'RAIL TOP', `${lines[0]}; the notice must not grow past its row budget: see the Text wrap props in src/permissions/cards/PermissionRuleExplanation.tsx and PermissionDecisionDebugInfo.tsx`)
+        check(`${label}: the compositor reports exactly the viewport`, lines.length === rows, `${lines.length} lines for ${rows} rows; the frame must stay within the viewport, so look for a notice in src/permissions/cards/PermissionRuleExplanation.tsx or PermissionDecisionDebugInfo.tsx that wraps onto extra rows`)
+        check(`${label}: the notice did not push out the composer`, lines[rows - 1] === 'COMPOSER', `${lines.slice(-5).join('|')}; the notice must truncate (wrap="truncate-middle") rather than wrap: src/permissions/cards/PermissionRuleExplanation.tsx and PermissionDecisionDebugInfo.tsx`)
         const noticeRows = lines.filter(line => line.includes('sensitive file.'))
-        check(`${label}: each message occupies its budgeted row`, noticeRows.length === variant.rowsWithMessage, `${lines.join('|')}; expected ${variant.rowsWithMessage} row(s) with the message, so change the row count of the Text lines in src/components/permissions/PermissionRuleExplanation.tsx or PermissionDecisionDebugInfo.tsx`)
-        check(`${label}: important tail retained and middle shortened only when needed`, noticeRows.length === variant.rowsWithMessage && noticeRows.every(line => long ? line.includes('\u2026') : line.includes(shortNotice) && !line.includes('\u2026')), `${noticeRows.join('|')}; a long message must shorten in the middle with an ellipsis and keep its tail, a short one must stay whole: the wrap="truncate-middle" Text in src/components/permissions/PermissionRuleExplanation.tsx and PermissionDecisionDebugInfo.tsx`)
+        check(`${label}: each message occupies its budgeted row`, noticeRows.length === variant.rowsWithMessage, `${lines.join('|')}; expected ${variant.rowsWithMessage} row(s) with the message, so change the row count of the Text lines in src/permissions/cards/PermissionRuleExplanation.tsx or PermissionDecisionDebugInfo.tsx`)
+        check(`${label}: important tail retained and middle shortened only when needed`, noticeRows.length === variant.rowsWithMessage && noticeRows.every(line => long ? line.includes('\u2026') : line.includes(shortNotice) && !line.includes('\u2026')), `${noticeRows.join('|')}; a long message must shorten in the middle with an ellipsis and keep its tail, a short one must stay whole: the wrap="truncate-middle" Text in src/permissions/cards/PermissionRuleExplanation.tsx and PermissionDecisionDebugInfo.tsx`)
       } finally { run.dispose() }
     }
   }
@@ -99,11 +99,11 @@ for (const [cols, rows] of [[120, 40], [80, 24]]) {
     glass.feed(bytesOf(new FrameWriter({ isTTY: true, stylePool: ctx.stylePool }).render(frame(0, rows), legal, true)))
     glass.feed('\x1b[H' + bytes)
     const addresses = [...bytes.matchAll(/\x1b\[(\d+)(?:;\d+)?[Hf]/g)].map(m => Number(m[1]))
-    check(`${cols}x${rows} ${arm}: every cursor row is in the viewport`, addresses.every(y => y >= 1 && y <= rows), `${addresses.join(',')}; FrameWriter.render in src/ink/frame-writer.ts must address only rows inside the viewport`)
-    check(`${cols}x${rows} ${arm}: no outside row reaches the terminal`, !glass.lines().some(line => line.includes('OUTSIDE')), `${glass.lines().slice(-2).join('|')}; FrameWriter.render in src/ink/frame-writer.ts must not paint rows past the viewport height`)
-    check(`${cols}x${rows} ${arm}: top row remains addressable`, glass.rowText(0) === (arm === 'diff' ? 'RAIL NEW' : 'RAIL TOP'), `${glass.rowText(0)}; FrameWriter.render in src/ink/frame-writer.ts must keep row 1 addressable when the frame exceeds the viewport`)
-    check(`${cols}x${rows} ${arm}: alternate paint never advances by newline`, !bytes.includes('\n'), 'alternate-screen paint in FrameWriter.render (src/ink/frame-writer.ts) must move with cursor addressing, not newlines')
-    check(`${cols}x${rows} ${arm}: no scrollback erase`, !bytes.includes('\x1b[3J'), 'FrameWriter.render in src/ink/frame-writer.ts must not emit the scrollback erase (CSI 3 J)')
+    check(`${cols}x${rows} ${arm}: every cursor row is in the viewport`, addresses.every(y => y >= 1 && y <= rows), `${addresses.join(',')}; FrameWriter.render in src/screen/renderer/frame-writer.ts must address only rows inside the viewport`)
+    check(`${cols}x${rows} ${arm}: no outside row reaches the terminal`, !glass.lines().some(line => line.includes('OUTSIDE')), `${glass.lines().slice(-2).join('|')}; FrameWriter.render in src/screen/renderer/frame-writer.ts must not paint rows past the viewport height`)
+    check(`${cols}x${rows} ${arm}: top row remains addressable`, glass.rowText(0) === (arm === 'diff' ? 'RAIL NEW' : 'RAIL TOP'), `${glass.rowText(0)}; FrameWriter.render in src/screen/renderer/frame-writer.ts must keep row 1 addressable when the frame exceeds the viewport`)
+    check(`${cols}x${rows} ${arm}: alternate paint never advances by newline`, !bytes.includes('\n'), 'alternate-screen paint in FrameWriter.render (src/screen/renderer/frame-writer.ts) must move with cursor addressing, not newlines')
+    check(`${cols}x${rows} ${arm}: no scrollback erase`, !bytes.includes('\x1b[3J'), 'FrameWriter.render in src/screen/renderer/frame-writer.ts must not emit the scrollback erase (CSI 3 J)')
   }
   const writer = new FrameWriter({ isTTY: true, stylePool: ctx.stylePool })
   for (const [beforeRows, afterRows] of [[24, 40], [40, 24], [24, 40]]) {
@@ -114,9 +114,9 @@ for (const [cols, rows] of [[120, 40], [80, 24]]) {
     const glass = new AnsiEmulator(cols, afterRows, true)
     glass.feed(`\x1b[1;${cols}H!`)
     glass.feed(bytes)
-    check(`${cols} ${beforeRows}->${afterRows}: resize uses the contained repaint`, patches.some(p => p.type === 'clearTerminal' && p.reason === 'resize'), 'a viewport height change must produce a clearTerminal patch with reason resize: FrameWriter.renderAlt in src/ink/frame-writer.ts')
-    check(`${cols} ${beforeRows}->${afterRows}: the repaint erases the display only, never the scrollback`, bytes.includes('\x1b[2J') && !bytes.includes('\x1b[3J'), 'the resize repaint (altFullRepaint in src/ink/frame-writer.ts) must erase the display with CSI 2 J and never the scrollback with CSI 3 J')
-    check(`${cols} ${beforeRows}->${afterRows}: no unchanged stale cell survives`, glass.lines().join('\n') === screenLines(after.screen).join('\n'), `the terminal after the resize repaint differs from the new frame; altFullRepaint in src/ink/frame-writer.ts must rewrite every cell. Got: ${glass.lines().join('|')}`)
+    check(`${cols} ${beforeRows}->${afterRows}: resize uses the contained repaint`, patches.some(p => p.type === 'clearTerminal' && p.reason === 'resize'), 'a viewport height change must produce a clearTerminal patch with reason resize: FrameWriter.renderAlt in src/screen/renderer/frame-writer.ts')
+    check(`${cols} ${beforeRows}->${afterRows}: the repaint erases the display only, never the scrollback`, bytes.includes('\x1b[2J') && !bytes.includes('\x1b[3J'), 'the resize repaint (altFullRepaint in src/screen/renderer/frame-writer.ts) must erase the display with CSI 2 J and never the scrollback with CSI 3 J')
+    check(`${cols} ${beforeRows}->${afterRows}: no unchanged stale cell survives`, glass.lines().join('\n') === screenLines(after.screen).join('\n'), `the terminal after the resize repaint differs from the new frame; altFullRepaint in src/screen/renderer/frame-writer.ts must rewrite every cell. Got: ${glass.lines().join('|')}`)
   }
 }
 finish()

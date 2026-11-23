@@ -7,19 +7,19 @@ import { fileURLToPath } from 'node:url'
 
 let failures = 0
 const W10_FIX_AT: Record<string, string> = {
-  '1': 'src/services/privateChannel/installLayout.ts, src/services/privateChannel/updateService.ts (channelStatus) and src/cli/update.ts',
-  '2': 'src/cli/update.ts',
-  '3': 'ensureBinDirOnPath and realPathEntryIo in src/services/privateChannel/installPath.ts, describePathOutcome in src/cli/installVerb.ts',
-  '4': 'registerCockpit and beatCockpitRegistration in src/daemon/processSweepRun.ts',
-  '5': 'getMercuryDaemonStatus and formatMercuryDaemonStatus in src/daemon/status.ts',
-  '6': 'src/substrate/launchMilestones.ts, src/services/health/sections/crew/boot.ts, src/services/health/sections/durability.ts, src/services/health/sections/runtime/host.ts, src/utils/crashReport.ts',
-  '7': 'resolveGitDir in src/utils/git/gitFilesystem.ts',
-  '8': 'createBaselineWorktree in src/services/worktree.ts',
-  '9': 'getSettingsWithAllErrors in src/services/settings/allErrors.ts',
-  '10': 'beforeToolHooks in src/services/tools/toolHooks.ts',
-  '11': 'matchingRuleForInput in src/utils/permissions/filesystem.ts',
-  '12': 'startCommandHook in src/utils/hooks/commandRunner.ts',
-  '13': 'addMcpConfig in src/services/mcp/config.ts, setSwitch in src/extensions/install.ts, the exit flush in src/utils/config.ts and src/utils/file.ts',
+  '1': 'src/platform/update-channel/installLayout.ts, src/platform/update-channel/updateService.ts (channelStatus) and src/commands/verbs/update.ts',
+  '2': 'src/commands/verbs/update.ts',
+  '3': 'ensureBinDirOnPath and realPathEntryIo in src/platform/update-channel/installPath.ts, describePathOutcome in src/commands/verbs/installVerb.ts',
+  '4': 'registerCockpit and beatCockpitRegistration in src/daemon/process-sweep/processSweepRun.ts',
+  '5': 'getMercuryDaemonStatus and formatMercuryDaemonStatus in src/daemon/control/status.ts',
+  '6': 'src/platform/substrate/launchMilestones.ts, src/platform/health/sections/crew/boot.ts, src/platform/health/sections/durability.ts, src/platform/health/sections/runtime/host.ts, src/platform/logs/crashReport.ts',
+  '7': 'resolveGitDir in src/platform/git/gitFilesystem.ts',
+  '8': 'createBaselineWorktree in src/platform/git/worktree/worktree.ts',
+  '9': 'getSettingsWithAllErrors in src/platform/settings-faults/allErrors.ts',
+  '10': 'beforeToolHooks in src/engine/tool-dispatch/toolHooks.ts',
+  '11': 'matchingRuleForInput in src/permissions/rules/filesystem.ts',
+  '12': 'startCommandHook in src/integrations/event-hooks/commandRunner.ts',
+  '13': 'addMcpConfig in src/integrations/mcp/serverConfigs.ts, setSwitch in src/integrations/extensions/install.ts, the exit flush in src/platform/settings/config.ts and src/platform/files/file.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++

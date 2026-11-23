@@ -40,8 +40,8 @@ const MODEL = 'claude-opus-5'
 const FIXTURE_API_KEY = 'fixture-key-000'
 const VERDICT_WORDS = [VERDICT_REASON, 'safety check', 'Permission for this action has been denied. Reason:', 'consent card']
 const HEADLESS_REFUSAL_WORDS = ['auto-denied', '--allowed-tools', '--mode']
-const leftoverAskHint = 'a git push under Flow must ask once with the one-sentence reason from flowAskSentence, and a commit must not ask: see decideUnderFlow in src/utils/permissions/flowPolicy.ts and flowShellAsk in src/utils/permissions/flowLaw.ts · '
-const leftoverWireHint = 'no verdict classifier request or denial text may reach the wire under Flow: see decideUnderFlow in src/utils/permissions/flowPolicy.ts · '
+const leftoverAskHint = 'a git push under Flow must ask once with the one-sentence reason from flowAskSentence, and a commit must not ask: see decideUnderFlow in src/permissions/rules/flowPolicy.ts and flowShellAsk in src/permissions/rules/flowLaw.ts · '
+const leftoverWireHint = 'no verdict classifier request or denial text may reach the wire under Flow: see decideUnderFlow in src/permissions/rules/flowPolicy.ts · '
 
 type Route = 'verdict' | 'parent' | 'parent-ack' | 'seat-1' | 'seat-done' | 'side'
 interface Hit {

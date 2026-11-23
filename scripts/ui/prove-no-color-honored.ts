@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-import { shouldHonorNoColor } from '../../src/ink/colorize.js'
+import { shouldHonorNoColor } from '../../src/screen/renderer/colorize.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const failHint = 'fix shouldHonorNoColor in src/ink/colorize.ts so this environment gives the stated answer'
+  const failHint = 'fix shouldHonorNoColor in src/screen/renderer/colorize.ts so this environment gives the stated answer'
   const shown = cond || detail ? detail : failHint
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }

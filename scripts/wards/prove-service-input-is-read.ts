@@ -11,7 +11,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: shellCommandOf in src/tools/ServiceTool/ServiceTool.ts (the text of an input to a started shell, with the earlier inputs in front), src/utils/permissions/serviceInputHistory.ts (what earlier inputs leave) and the wards guard in src/guards/wardsGuard.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: shellCommandOf in src/tools/service/ServiceTool.ts (the text of an input to a started shell, with the earlier inputs in front), src/permissions/rules/serviceInputHistory.ts (what earlier inputs leave) and the wards guard in src/permissions/guards/wardsGuard.ts'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -24,16 +24,16 @@ const PROJECT = join(SCRATCH, 'project')
 mkdirSync(join(PROJECT, '.git'), { recursive: true })
 for (const key of ['MERCURY_SPAWNED_BY', 'MERCURY_WARDS', 'MERCURY_COMMIT_GATE', 'MERCURY_SKIP_PERMISSIONS']) delete process.env[key]
 
-const { enableConfigs } = await import(join(SRC, 'utils/config.ts'))
-const state = await import(join(SRC, 'bootstrap/state.ts'))
-const { registerWardsGuard, resetWardsEngagedSessionsForTest, WARDS_HOOK_ID } = await import(join(SRC, 'guards/wardsGuard.ts'))
-const { judgeToolCall, resetGuardsForTesting } = await import(join(SRC, 'guards/guards.ts'))
-const { COMMIT_GATE_ID, disengageCommitGate, engageCommitGate } = await import(join(SRC, 'guards/commitGate.ts'))
-const { deleteFlagEnv, setFlagEnv } = await import(join(SRC, 'substrate/flagRegistry.ts'))
-const { runWithCwdOverride } = await import(join(SRC, 'utils/cwd.ts'))
-const { servicesDir } = await import(join(SRC, 'services/projectServices/serviceManager.ts'))
-const { ServiceTool } = await import(join(SRC, 'tools/ServiceTool/ServiceTool.ts'))
-const { noteServiceInput, serviceInputAsSent, serviceInputKey } = await import(join(SRC, 'utils/permissions/serviceInputHistory.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/settings/config.ts'))
+const state = await import(join(SRC, 'boot/process-state/processState.ts'))
+const { registerWardsGuard, resetWardsEngagedSessionsForTest, WARDS_HOOK_ID } = await import(join(SRC, 'permissions/guards/wardsGuard.ts'))
+const { judgeToolCall, resetGuardsForTesting } = await import(join(SRC, 'permissions/guards/guards.ts'))
+const { COMMIT_GATE_ID, disengageCommitGate, engageCommitGate } = await import(join(SRC, 'permissions/guards/commitGate.ts'))
+const { deleteFlagEnv, setFlagEnv } = await import(join(SRC, 'platform/substrate/flagRegistry.ts'))
+const { runWithCwdOverride } = await import(join(SRC, 'platform/files/cwd.ts'))
+const { servicesDir } = await import(join(SRC, 'tools/engines/project-services/serviceManager.ts'))
+const { ServiceTool } = await import(join(SRC, 'tools/service/ServiceTool.ts'))
+const { noteServiceInput, serviceInputAsSent, serviceInputKey } = await import(join(SRC, 'permissions/rules/serviceInputHistory.ts'))
 enableConfigs()
 state.setOriginalCwd(PROJECT)
 
@@ -143,7 +143,7 @@ section('§5 a started shell keeps what earlier inputs left: the inputs sent to 
   check('after cd into a folder of the project, the delete passes', (await sent({ op: 'input', name: 'sixth', text: 'rm -rf *' })) === null)
   started('first', ['bash'], 4242)
   check('a service started again is a new shell: the delete in the project passes', (await sent({ op: 'input', name: 'first', text: 'rm -rf *' })) === null)
-  const { pinnedCommandAnalysis } = await import(join(SRC, 'utils/permissions/decision/commandAnalysis.ts'))
+  const { pinnedCommandAnalysis } = await import(join(SRC, 'permissions/rules/decision/commandAnalysis.ts'))
   const parse = pinnedCommandAnalysis.parseCommandRaw
   started('unpicked', ['bash'])
   pinnedCommandAnalysis.parseCommandRaw = async () => {

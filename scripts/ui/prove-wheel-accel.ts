@@ -2,11 +2,11 @@
 import {
   computeWheelStep,
   initWheelAccel,
-} from '../../src/components/ScrollKeybindingHandler.js'
+} from '../../src/screen/scroll-keys/ScrollKeybindingHandler.js'
 
 let fail = 0
 const WHEEL_ACCEL_FAIL_HINT =
-  'to fix, change the cadence and burst logic of computeWheelStep (state from initWheelAccel) in src/components/ScrollKeybindingHandler.tsx'
+  'to fix, change the cadence and burst logic of computeWheelStep (state from initWheelAccel) in src/screen/scroll-keys/ScrollKeybindingHandler.tsx'
 const check = (label: string, cond: boolean, detail = ''): void => {
   const shown = cond ? detail : detail ? `${detail}; ${WHEEL_ACCEL_FAIL_HINT}` : WHEEL_ACCEL_FAIL_HINT
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)

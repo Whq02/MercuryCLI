@@ -17,16 +17,16 @@ process.on('exit', () => {
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { endProcessTree, win32TaskkillCommand, taskkillActedPids } = await import(
-  join(ROOT, 'src/utils/processGroup.ts')
+  join(ROOT, 'src/platform/processes/processGroup.ts')
 )
-const { generateTaskId } = await import(join(ROOT, 'src/Task.ts'))
-const { TaskOutput } = await import(join(ROOT, 'src/utils/task/TaskOutput.ts'))
-const { wrapSpawn } = await import(join(ROOT, 'src/utils/ShellCommand.ts'))
-const { killTask } = await import(join(ROOT, 'src/tasks/LocalShellTask/killShellTasks.ts'))
-const { spawnShellTask } = await import(join(ROOT, 'src/tasks/LocalShellTask/LocalShellTask.tsx'))
+const { generateTaskId } = await import(join(ROOT, 'src/engine/tasks/taskBase.ts'))
+const { TaskOutput } = await import(join(ROOT, 'src/engine/task-framework/taskOutput.ts'))
+const { wrapSpawn } = await import(join(ROOT, 'src/platform/shell/shellProcess.ts'))
+const { killTask } = await import(join(ROOT, 'src/engine/tasks/local-shell/killShellTasks.ts'))
+const { spawnShellTask } = await import(join(ROOT, 'src/engine/tasks/local-shell/shellTask.tsx'))
 
 let failures = 0
-const treeFailHint = 'change endProcessTree, win32TaskkillCommand or taskkillActedPids in src/utils/processGroup.ts, killTask in src/tasks/LocalShellTask/killShellTasks.ts, or settledStopSentence in src/tools/TaskStopTool/stopSettlement.ts (for the dist literals of section 4, rebuild with bun run build.ts)'
+const treeFailHint = 'change endProcessTree, win32TaskkillCommand or taskkillActedPids in src/platform/processes/processGroup.ts, killTask in src/engine/tasks/local-shell/killShellTasks.ts, or settledStopSentence in src/tools/task-stop/stopSettlement.ts (for the dist literals of section 4, rebuild with bun run build.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : `${detail ? ' · ' : ' — '}${treeFailHint}`}`)
@@ -165,7 +165,7 @@ section('§4 the stop receipt on screen — source + dist pins')
 
 section("§5 F-1.1 — the receipt says INTERRUPTED on win32 and POSIX alike; the code is the platform's detail")
 {
-  const { settledStopSentence } = await import(join(ROOT, 'src/tools/TaskStopTool/stopSettlement.ts'))
+  const { settledStopSentence } = await import(join(ROOT, 'src/tools/task-stop/stopSettlement.ts'))
   if (liveReceipt !== null) {
     const live = settledStopSentence(liveReceipt)
     check('§5 POSIX (live): the sentence reads interrupted, with 137 as the detail', live.includes('interrupted by the stop') && live.includes('(exit code 137)'), live)

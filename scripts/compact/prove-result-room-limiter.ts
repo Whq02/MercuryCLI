@@ -11,29 +11,29 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 
-const { queryEvents } = await import('../../src/query.ts')
-const { legacyYieldsOf } = await import('../../src/run-core/project-legacy.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { queryEvents } = await import('../../src/engine/turnDoor.ts')
+const { legacyYieldsOf } = await import('../../src/engine/loop/project-legacy.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 bootstrap.setAskChannel('none')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { tokenCountWithEstimation } = await import('../../src/services/context/tokens.ts')
-const { getBlockingLimit, getAutoCompactThreshold, resolveAutoCompactWindow } = await import('../../src/services/compact/autoCompact.ts')
-const roomModule = await import('../../src/services/run/resultRoom.ts').catch(() => null)
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createContentReplacementState } = await import('../../src/engine/tool-dispatch/toolResultStorage.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { tokenCountWithEstimation } = await import('../../src/engine/context-window/contextTokenCount.ts')
+const { getBlockingLimit, getAutoCompactThreshold, resolveAutoCompactWindow } = await import('../../src/engine/compaction/autoFold.ts')
+const roomModule = await import('../../src/engine/run/resultRoom.ts').catch(() => null)
 const RESULT_ROOM_WORDS: string = roomModule?.RESULT_ROOM_WORDS ?? 'the context is near its fold'
 const RESULT_ROOM_TURN_CEILING_TOKENS: number = roomModule?.RESULT_ROOM_TURN_CEILING_TOKENS ?? 60_000
 const absent = { awake: false as const, line: -1, gauge: -1 }
 const resultRoomBudget: NonNullable<typeof roomModule>['resultRoomBudget'] = roomModule?.resultRoomBudget ?? (() => absent)
 const createResultRoom: NonNullable<typeof roomModule>['createResultRoom'] = roomModule?.createResultRoom ?? (budget => ({ budget, remaining: () => -1, reserve: () => -1, allowance: () => -1, settle: () => {}, takes: () => [] }))
 if (roomModule === null) console.log('  [record] the result-room module is absent on this tree: every limiter check below reads red by construction')
-const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
+const { FileReadTool } = await import('../../src/tools/read/ReadTool.ts')
+const { BashTool } = await import('../../src/tools/shell/BashTool.tsx')
+const { GrepTool } = await import('../../src/tools/grep/GrepTool.ts')
 type AnyMsg = Record<string, unknown> & { type?: string }
 type AnyEvent = Record<string, unknown> & { kind: string }
 const MODEL = 'claude-fable-5-1'
@@ -61,29 +61,29 @@ section('L1 the arithmetic: the line is the fold threshold or 80% of the window,
 {
   const argon = { window: 1_048_576, blockingLimit: 1_025_576, foldLine: 1_005_576 }
   const under = resultRoomBudget({ ...argon, gauge: 629_145 })
-  check('a 1,048,576 window: 60% used is under the line (838,860) — inert', under.awake === false && under.line === 838_860, JSON.stringify(under) + ' — fix the line arithmetic in resultRoomBudget in src/services/run/resultRoom.ts')
-  check('…and so is 838,859', resultRoomBudget({ ...argon, gauge: 838_859 }).awake === false, 'the limiter woke under its line; fix the line arithmetic in resultRoomBudget in src/services/run/resultRoom.ts')
+  check('a 1,048,576 window: 60% used is under the line (838,860) — inert', under.awake === false && under.line === 838_860, JSON.stringify(under) + ' — fix the line arithmetic in resultRoomBudget in src/engine/run/resultRoom.ts')
+  check('…and so is 838,859', resultRoomBudget({ ...argon, gauge: 838_859 }).awake === false, 'the limiter woke under its line; fix the line arithmetic in resultRoomBudget in src/engine/run/resultRoom.ts')
   const atLine = resultRoomBudget({ ...argon, gauge: 838_860 })
-  check('at the line the round\'s ceiling is the 60,000-token turn ceiling (the room is wider)', atLine.awake === true && atLine.ceiling === RESULT_ROOM_TURN_CEILING_TOKENS && atLine.room === 186_716 && atLine.floor === 4_000, JSON.stringify(atLine) + ' — fix the ceiling, room and floor in resultRoomBudget in src/services/run/resultRoom.ts')
+  check('at the line the round\'s ceiling is the 60,000-token turn ceiling (the room is wider)', atLine.awake === true && atLine.ceiling === RESULT_ROOM_TURN_CEILING_TOKENS && atLine.room === 186_716 && atLine.floor === 4_000, JSON.stringify(atLine) + ' — fix the ceiling, room and floor in resultRoomBudget in src/engine/run/resultRoom.ts')
   const near = resultRoomBudget({ ...argon, gauge: 1_000_000 })
-  check('at 1,000,000 the ceiling is the room to the blocking limit (25,576)', near.awake === true && near.ceiling === 25_576, JSON.stringify(near) + ' — fix the ceiling in resultRoomBudget in src/services/run/resultRoom.ts')
+  check('at 1,000,000 the ceiling is the room to the blocking limit (25,576)', near.awake === true && near.ceiling === 25_576, JSON.stringify(near) + ' — fix the ceiling in resultRoomBudget in src/engine/run/resultRoom.ts')
   const past = resultRoomBudget({ ...argon, gauge: 1_030_000 })
-  check('past the blocking limit the ceiling is the floor (4,000): a result is never cut to nothing', past.awake === true && past.room === 0 && past.ceiling === 4_000, JSON.stringify(past) + ' — fix the floor in resultRoomBudget in src/services/run/resultRoom.ts')
+  check('past the blocking limit the ceiling is the floor (4,000): a result is never cut to nothing', past.awake === true && past.room === 0 && past.ceiling === 4_000, JSON.stringify(past) + ' — fix the floor in resultRoomBudget in src/engine/run/resultRoom.ts')
   const small = { window: 32_768, blockingLimit: 21_576, foldLine: 5_394 }
   const smallUnder = resultRoomBudget({ ...small, gauge: 5_000 })
-  check('a 32,768 window: the fold line (5,394) is lower than 80% (26,214) — the line is the fold line, inert under it', smallUnder.awake === false && smallUnder.line === 5_394, JSON.stringify(smallUnder) + ' — fix the line (lower of fold line and 80% of window) in resultRoomBudget in src/services/run/resultRoom.ts')
+  check('a 32,768 window: the fold line (5,394) is lower than 80% (26,214) — the line is the fold line, inert under it', smallUnder.awake === false && smallUnder.line === 5_394, JSON.stringify(smallUnder) + ' — fix the line (lower of fold line and 80% of window) in resultRoomBudget in src/engine/run/resultRoom.ts')
   const smallOn = resultRoomBudget({ ...small, gauge: 9_000 })
-  check('…past it the ceiling is the room (12,576) and the floor a window-scaled 2,697', smallOn.awake === true && smallOn.ceiling === 12_576 && smallOn.floor === 2_697, JSON.stringify(smallOn) + ' — fix the window-scaled floor in resultRoomBudget in src/services/run/resultRoom.ts')
+  check('…past it the ceiling is the room (12,576) and the floor a window-scaled 2,697', smallOn.awake === true && smallOn.ceiling === 12_576 && smallOn.floor === 2_697, JSON.stringify(smallOn) + ' — fix the window-scaled floor in resultRoomBudget in src/engine/run/resultRoom.ts')
   const two = { window: 200_000, blockingLimit: 177_000, foldLine: 157_000 }
-  check('a 200,000 window: the fold line (157,000) sits under 80% (160,000) — the limiter wakes with the fold line itself', resultRoomBudget({ ...two, gauge: 156_999 }).awake === false && resultRoomBudget({ ...two, gauge: 157_000 }).awake === true && resultRoomBudget({ ...two, gauge: 157_000 }).line === 157_000, 'the line is not the fold line for a 200,000 window; fix the line arithmetic in resultRoomBudget in src/services/run/resultRoom.ts')
+  check('a 200,000 window: the fold line (157,000) sits under 80% (160,000) — the limiter wakes with the fold line itself', resultRoomBudget({ ...two, gauge: 156_999 }).awake === false && resultRoomBudget({ ...two, gauge: 157_000 }).awake === true && resultRoomBudget({ ...two, gauge: 157_000 }).line === 157_000, 'the line is not the fold line for a 200,000 window; fix the line arithmetic in resultRoomBudget in src/engine/run/resultRoom.ts')
   const room = createResultRoom({ awake: true, line: 0, gauge: 0, room: 30_000, ceiling: 30_000, floor: 4_000 })
   const a = room.reserve('a', 25_000)
   const b = room.reserve('b', 25_000)
   const c = room.reserve('c', 25_000)
-  check('parallel reserves share one ceiling: 25,000 then the 5,000 left, then the floor', a === 25_000 && b === 5_000 && c === 4_000, `${a} ${b} ${c} — fix reserve in createResultRoom in src/services/run/resultRoom.ts`)
+  check('parallel reserves share one ceiling: 25,000 then the 5,000 left, then the floor', a === 25_000 && b === 5_000 && c === 4_000, `${a} ${b} ${c} — fix reserve in createResultRoom in src/engine/run/resultRoom.ts`)
   room.settle('a', 10_000)
-  check('a result that landed smaller than its grant gives the difference back', room.remaining() === 15_000, String(room.remaining()) + ' — fix settle in createResultRoom in src/services/run/resultRoom.ts')
-  check('an unreserved call is offered what is left, never under the floor', room.allowance('d') === 15_000 && createResultRoom({ awake: true, line: 0, gauge: 0, room: 0, ceiling: 4_000, floor: 4_000 }).allowance('x') === 4_000, 'fix allowance in createResultRoom in src/services/run/resultRoom.ts')
+  check('a result that landed smaller than its grant gives the difference back', room.remaining() === 15_000, String(room.remaining()) + ' — fix settle in createResultRoom in src/engine/run/resultRoom.ts')
+  check('an unreserved call is offered what is left, never under the floor', room.allowance('d') === 15_000 && createResultRoom({ awake: true, line: 0, gauge: 0, room: 0, ceiling: 4_000, floor: 4_000 }).allowance('x') === 4_000, 'fix allowance in createResultRoom in src/engine/run/resultRoom.ts')
 }
 
 const files = mkdtempSync(join(tmpdir(), 'result-room-files-'))
@@ -217,12 +217,12 @@ section(`L2 past the line (the context at ${fmt(900_000)} of ${fmt(WINDOW)}; fol
   const results = resultsOf(r.yields)
   const total = results.reduce((sum, result) => sum + Math.ceil(result.text.length / 4), 0)
   record(`${results.length} results landed ${fmt(total)} tokens in all (unclamped they would land ${fmt(big.length * Math.ceil(Buffer.byteLength(require('node:fs').readFileSync(big[0]!, 'utf8')) / 4))}); terminal ${JSON.stringify(r.terminal)}`)
-  check('the run completed with the five results and the report', r.terminal.reason === 'completed' && results.length === 5 && textOf(r.yields.filter(y => y.type === 'assistant').at(-1)) === 'the report', JSON.stringify(r.terminal) + ' — the run did not finish with five results; look at how toolOrchestration in src/services/tools/toolOrchestration.ts binds the result room to the round')
-  check(`the round added no more than the turn ceiling plus the floors (${fmt(RESULT_ROOM_TURN_CEILING_TOKENS)} + 3 × 4,000): red on the base, where five reads land 5 × 20k`, total <= RESULT_ROOM_TURN_CEILING_TOKENS + 3 * 4_000 && total < 100_000, fmt(total) + ' — the parallel reads were not clamped to one shared ceiling; fix how the round reserves from createResultRoom (src/services/run/resultRoom.ts) in src/services/tools/toolOrchestration.ts')
+  check('the run completed with the five results and the report', r.terminal.reason === 'completed' && results.length === 5 && textOf(r.yields.filter(y => y.type === 'assistant').at(-1)) === 'the report', JSON.stringify(r.terminal) + ' — the run did not finish with five results; look at how toolOrchestration in src/engine/tool-dispatch/toolOrchestration.ts binds the result room to the round')
+  check(`the round added no more than the turn ceiling plus the floors (${fmt(RESULT_ROOM_TURN_CEILING_TOKENS)} + 3 × 4,000): red on the base, where five reads land 5 × 20k`, total <= RESULT_ROOM_TURN_CEILING_TOKENS + 3 * 4_000 && total < 100_000, fmt(total) + ' — the parallel reads were not clamped to one shared ceiling; fix how the round reserves from createResultRoom (src/engine/run/resultRoom.ts) in src/engine/tool-dispatch/toolOrchestration.ts')
   const clamped = results.filter(result => result.text.includes(`${RESULT_ROOM_WORDS}; read in pieces`))
-  check('the reads that did not fit their share came back as the file\'s first chunk with the paging note naming the fold and the next Read(offset, limit)', clamped.length >= 3 && clamped.every(result => /exceeds the room left in the context \(\d+ tokens — the context is near its fold; read in pieces\): lines 1-\d+ of 900 are below and count as read; Read\(offset: \d+, limit: \d+\) continues from there/.test(result.text) && result.text.includes('export const row0 =')), `${clamped.length} clamped · ${results[4]?.text.slice(0, 300)} — a clamped read must carry the paging note naming RESULT_ROOM_WORDS and the next Read(offset, limit); see src/services/run/resultRoom.ts and src/services/tools/toolOrchestration.ts`)
+  check('the reads that did not fit their share came back as the file\'s first chunk with the paging note naming the fold and the next Read(offset, limit)', clamped.length >= 3 && clamped.every(result => /exceeds the room left in the context \(\d+ tokens — the context is near its fold; read in pieces\): lines 1-\d+ of 900 are below and count as read; Read\(offset: \d+, limit: \d+\) continues from there/.test(result.text) && result.text.includes('export const row0 =')), `${clamped.length} clamped · ${results[4]?.text.slice(0, 300)} — a clamped read must carry the paging note naming RESULT_ROOM_WORDS and the next Read(offset, limit); see src/engine/run/resultRoom.ts and src/engine/tool-dispatch/toolOrchestration.ts`)
   const whole = results.filter(result => !result.text.includes(RESULT_ROOM_WORDS) && result.text.includes('row899'))
-  check('two reads got their whole 25,000-token cap (the 60,000 ceiling had room for two), the third the 10,000 left, the last two the 4,000 floor', whole.length === 2 && clamped.length === 3 && clamped.filter(result => result.text.includes('(10000 tokens')).length === 1 && clamped.filter(result => result.text.includes('(4000 tokens')).length === 2, `${whole.length} whole · ${clamped.map(result => /\((\d+) tokens/.exec(result.text)?.[1]).join(',')} — fix reserve and settle in createResultRoom in src/services/run/resultRoom.ts`)
+  check('two reads got their whole 25,000-token cap (the 60,000 ceiling had room for two), the third the 10,000 left, the last two the 4,000 floor', whole.length === 2 && clamped.length === 3 && clamped.filter(result => result.text.includes('(10000 tokens')).length === 1 && clamped.filter(result => result.text.includes('(4000 tokens')).length === 2, `${whole.length} whole · ${clamped.map(result => /\((\d+) tokens/.exec(result.text)?.[1]).join(',')} — fix reserve and settle in createResultRoom in src/engine/run/resultRoom.ts`)
   check('the next request carried the clamped results, not the whole files', r.calls.length === 2 && JSON.stringify(r.calls[1]!.messages).includes(RESULT_ROOM_WORDS), String(r.calls.length) + ' — the next request must carry the clamped results, not the whole files')
 }
 
@@ -238,11 +238,11 @@ section(`L3 at the floor (the context at ${fmt(974_000)}, 3,000 under the blocki
   const bash = results.find(result => result.id === 'toolu_bash_0')
   const grep = results.find(result => result.id === 'toolu_grep_0')
   record(`bash result ${fmt(bash?.text.length ?? 0)} chars; grep result ${fmt(grep?.text.length ?? 0)} chars from ${grepRows} rows of ≈${grepRowChars} chars (${JSON.stringify(grep?.text.slice(0, 160))}); terminal ${JSON.stringify(r.terminal)}`)
-  check('the run completed', r.terminal.reason === 'completed' && bash !== undefined && grep !== undefined, JSON.stringify(r.terminal) + ' — the Bash and Grep results did not both land; look at the result-room wiring in src/services/tools/toolOrchestration.ts')
-  check('the shell output (24,000 chars, under Bash\'s own 30,000-char cap) was persisted to disk with the cut named: a head, a tail, the path and the fold\'s words', bash !== undefined && bash.text.startsWith('<persisted-output>') && bash.text.includes(`(${RESULT_ROOM_WORDS})`) && bash.text.includes('Full output saved to:') && bash.text.includes('row0 =') && bash.text.includes('skipped — full output persisted'), (bash?.text.slice(0, 400) ?? '') + ' — at the floor a shell output must be persisted with a head, a tail and RESULT_ROOM_WORDS; see src/services/run/resultRoom.ts')
-  check('the search (under Grep\'s own 20,000-char cap) was capped the same way, its rows persisted', grep !== undefined && grep.text.startsWith('<persisted-output>') && grep.text.includes(`(${RESULT_ROOM_WORDS})`), (grep?.text.slice(0, 400) ?? '') + ' — at the floor a search must be persisted the same way; see src/services/run/resultRoom.ts')
+  check('the run completed', r.terminal.reason === 'completed' && bash !== undefined && grep !== undefined, JSON.stringify(r.terminal) + ' — the Bash and Grep results did not both land; look at the result-room wiring in src/engine/tool-dispatch/toolOrchestration.ts')
+  check('the shell output (24,000 chars, under Bash\'s own 30,000-char cap) was persisted to disk with the cut named: a head, a tail, the path and the fold\'s words', bash !== undefined && bash.text.startsWith('<persisted-output>') && bash.text.includes(`(${RESULT_ROOM_WORDS})`) && bash.text.includes('Full output saved to:') && bash.text.includes('row0 =') && bash.text.includes('skipped — full output persisted'), (bash?.text.slice(0, 400) ?? '') + ' — at the floor a shell output must be persisted with a head, a tail and RESULT_ROOM_WORDS; see src/engine/run/resultRoom.ts')
+  check('the search (under Grep\'s own 20,000-char cap) was capped the same way, its rows persisted', grep !== undefined && grep.text.startsWith('<persisted-output>') && grep.text.includes(`(${RESULT_ROOM_WORDS})`), (grep?.text.slice(0, 400) ?? '') + ' — at the floor a search must be persisted the same way; see src/engine/run/resultRoom.ts')
   const total = results.reduce((sum, result) => sum + Math.ceil(result.text.length / 4), 0)
-  check('the round landed within the floors (two results, each a few thousand tokens at most)', total <= 2 * 4_000, fmt(total) + ' — the floor was not applied to both results; fix the floor in resultRoomBudget in src/services/run/resultRoom.ts')
+  check('the round landed within the floors (two results, each a few thousand tokens at most)', total <= 2 * 4_000, fmt(total) + ' — the floor was not applied to both results; fix the floor in resultRoomBudget in src/engine/run/resultRoom.ts')
 }
 
 section(`L4 under the line (the context at ${fmt(600_000)}): nothing is touched — every read lands whole, no note, no paging, the same bytes as a read at 10%`)
@@ -256,11 +256,11 @@ section(`L4 under the line (the context at ${fmt(600_000)}): nothing is touched 
   const lowById = byId(lowResults)
   const withoutReminder = (text: string): string => text.replace(/\n\n<system-reminder>[\s\S]*?<\/system-reminder>\n?/, '')
   const differing = quietResults.filter(result => withoutReminder(result.text) !== withoutReminder(lowById.get(result.id) ?? ''))
-  check('at 60% every result is byte-identical to the 10% run (matched by call id; the one standing cyber-risk reminder rides whichever parallel read lands first, in both runs)', differing.length === 0, differing.map(result => result.id).join(',') + ' — under the line a result was altered; the limiter must stay inert (resultRoomBudget in src/services/run/resultRoom.ts)')
-  check('no result carries the fold\'s words, a paging note or a persisted-output tag', quietResults.every(result => !result.text.includes(RESULT_ROOM_WORDS) && !result.text.includes('continues from there') && !result.text.startsWith('<persisted-output>')), quietResults.map(result => result.text.slice(0, 80)).join(' | ') + ' — under the line no result may carry the fold words; the limiter must stay inert (resultRoomBudget in src/services/run/resultRoom.ts)')
-  check('every read carries the whole file (row 0 to row 899)', quietResults.every(result => result.text.includes('row0 =') && result.text.includes('row899 =')), 'a read under the line lost lines; the limiter must stay inert under the line (resultRoomBudget in src/services/run/resultRoom.ts)')
+  check('at 60% every result is byte-identical to the 10% run (matched by call id; the one standing cyber-risk reminder rides whichever parallel read lands first, in both runs)', differing.length === 0, differing.map(result => result.id).join(',') + ' — under the line a result was altered; the limiter must stay inert (resultRoomBudget in src/engine/run/resultRoom.ts)')
+  check('no result carries the fold\'s words, a paging note or a persisted-output tag', quietResults.every(result => !result.text.includes(RESULT_ROOM_WORDS) && !result.text.includes('continues from there') && !result.text.startsWith('<persisted-output>')), quietResults.map(result => result.text.slice(0, 80)).join(' | ') + ' — under the line no result may carry the fold words; the limiter must stay inert (resultRoomBudget in src/engine/run/resultRoom.ts)')
+  check('every read carries the whole file (row 0 to row 899)', quietResults.every(result => result.text.includes('row0 =') && result.text.includes('row899 =')), 'a read under the line lost lines; the limiter must stay inert under the line (resultRoomBudget in src/engine/run/resultRoom.ts)')
   const gauge = tokenCountWithEstimation([createUserMessage({ content: 'x' }), asstTools(reads, 600_000)] as never, MODEL)
-  check(`the gauge the limiter read was ${fmt(gauge)} — the calibrated figure, under the line at ${fmt(resultRoomBudget({ window: WINDOW, blockingLimit: BLOCKING, foldLine: THRESHOLD, gauge }).line)}`, resultRoomBudget({ window: WINDOW, blockingLimit: BLOCKING, foldLine: THRESHOLD, gauge }).awake === false, 'the gauge from tokenCountWithEstimation (src/services/context/tokens.ts) reached the line; compare it with the line from resultRoomBudget in src/services/run/resultRoom.ts')
+  check(`the gauge the limiter read was ${fmt(gauge)} — the calibrated figure, under the line at ${fmt(resultRoomBudget({ window: WINDOW, blockingLimit: BLOCKING, foldLine: THRESHOLD, gauge }).line)}`, resultRoomBudget({ window: WINDOW, blockingLimit: BLOCKING, foldLine: THRESHOLD, gauge }).awake === false, 'the gauge from tokenCountWithEstimation (src/engine/context-window/contextTokenCount.ts) reached the line; compare it with the line from resultRoomBudget in src/engine/run/resultRoom.ts')
 }
 
 section(`L5 one clamp per result (the context at ${fmt(900_000)}): a room-paged read arrives whole — consecutive numbered lines, nothing cut from the middle — and the lines recorded as read are the lines the model got`)
@@ -288,9 +288,9 @@ section(`L5 one clamp per result (the context at ${fmt(900_000)}): a room-paged 
     if (!consecutive || cut || !same || !noteMatches) faults.push(`${result.id}: consecutive ${consecutive}, cut ${cut}, recorded-equals-shown ${same} (recorded ${entry?.offset}+${entry?.limit} vs shown ${numbers[0]}..${numbers.at(-1)}), note ${noteMatches}`)
   }
   record(`${clamped.length} room-paged reads; shares ${shares.map(share => `${share.id} ${fmt(share.tokens)} of ${fmt(share.granted)}`).join(' · ')}`)
-  check('every room-paged read carries consecutive numbered lines with nothing cut from the middle (red on 41304f7c53: a second clamp at emission cut hundreds of characters out of the middle of the paged window)', clamped.length >= 3 && faults.every(fault => !/consecutive false|cut true/.test(fault)), faults.join(' | ') + ' — a room-paged read must be clamped once; see src/services/tools/toolOrchestration.ts')
-  check('the lines recorded as read, and the paging note\'s span, are exactly the lines the model got', faults.length === 0, faults.join(' | ') + ' — the read-file state and the note must match the lines shown; see src/services/tools/toolOrchestration.ts')
-  check('each paged result lands within its granted share, its wrapper included', shares.every(share => share.tokens <= share.granted), JSON.stringify(shares) + ' — a paged result exceeded its grant; the wrapper must be counted in the reserve (RESULT_ROOM_WRAPPER_TOKENS in src/services/run/resultRoom.ts)')
+  check('every room-paged read carries consecutive numbered lines with nothing cut from the middle (red on 41304f7c53: a second clamp at emission cut hundreds of characters out of the middle of the paged window)', clamped.length >= 3 && faults.every(fault => !/consecutive false|cut true/.test(fault)), faults.join(' | ') + ' — a room-paged read must be clamped once; see src/engine/tool-dispatch/toolOrchestration.ts')
+  check('the lines recorded as read, and the paging note\'s span, are exactly the lines the model got', faults.length === 0, faults.join(' | ') + ' — the read-file state and the note must match the lines shown; see src/engine/tool-dispatch/toolOrchestration.ts')
+  check('each paged result lands within its granted share, its wrapper included', shares.every(share => share.tokens <= share.granted), JSON.stringify(shares) + ' — a paged result exceeded its grant; the wrapper must be counted in the reserve (RESULT_ROOM_WRAPPER_TOKENS in src/engine/run/resultRoom.ts)')
 }
 
 section(`L6 a read that fails takes no share (the context at ${fmt(900_000)}): five parallel reads, one of a file that does not exist — the four that land share the whole ceiling`)
@@ -303,7 +303,7 @@ section(`L6 a read that fails takes no share (the context at ${fmt(900_000)}): f
   const grants = results.filter(result => result.id !== 'toolu_missing').map(result => (result.text.includes(RESULT_ROOM_WORDS) ? Number(/in the context \((\d+) tokens/.exec(result.text)?.[1]) : 25_000)).sort((a, b) => b - a)
   record(`the missing file: ${JSON.stringify(failed?.text.slice(0, 120))}; the four reads were granted ${grants.map(fmt).join(', ')}; terminal ${JSON.stringify(r.terminal)}`)
   check('the missing file came back as its own error result and the run completed with the four others', r.terminal.reason === 'completed' && failed !== undefined && !failed.text.includes('row0 =') && results.length === 5, JSON.stringify(r.terminal) + ' — a failing read must come back as its own error result without stopping the round')
-  check('the four reads that landed shared the whole ceiling — 25,000, 25,000, 10,000, 4,000 (red on 41304f7c53: 25,000, 10,000, 4,000, 4,000 — the failed read held a 25,000 share it never used)', JSON.stringify(grants) === JSON.stringify([25_000, 25_000, 10_000, 4_000]), grants.join(',') + ' — a failed read must give its reservation back; fix settle in createResultRoom in src/services/run/resultRoom.ts')
+  check('the four reads that landed shared the whole ceiling — 25,000, 25,000, 10,000, 4,000 (red on 41304f7c53: 25,000, 10,000, 4,000, 4,000 — the failed read held a 25,000 share it never used)', JSON.stringify(grants) === JSON.stringify([25_000, 25_000, 10_000, 4_000]), grants.join(',') + ' — a failed read must give its reservation back; fix settle in createResultRoom in src/engine/run/resultRoom.ts')
 }
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-result-room-limiter — ${failures === 0 ? 'all checks pass' : `${failures} check(s) failed`}`)

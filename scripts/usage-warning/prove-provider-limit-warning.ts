@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-const limitWarningFixHint = 'fix providerLimitWarning in src/services/providers/limitWarning.ts (the lane signals and the warning text); the weekly and Fable window words come from rateLimitWindowName in src/services/rateLimitMessages.ts, and the fold of the endpoint pools from foldUtilizationFromEndpoint in src/services/anthropicLimits.ts and anthropicPoolWindowViews in src/services/providers/providerUsage.ts'
+const limitWarningFixHint = 'fix providerLimitWarning in src/models/roads/limitWarning.ts (the lane signals and the warning text); the weekly and Fable window words come from rateLimitWindowName in src/models/roads/anthropic/rateLimitMessages.ts, and the fold of the endpoint pools from foldUtilizationFromEndpoint in src/models/roads/anthropic/anthropicLimits.ts and anthropicPoolWindowViews in src/models/roads/providerUsage.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail}; ` : ''}${limitWarningFixHint}`}`)
@@ -42,15 +42,15 @@ console.log('============================================================')
 console.log(' provider limit warning — every lane, its own signals, one grammar')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 
 const { providerLimitWarning, APPROACHING_LIMIT_PCT } = await import(
-  '../../src/services/providers/limitWarning.ts'
+  '../../src/models/roads/limitWarning.ts'
 )
-const { rateLimitWindowName } = await import('../../src/services/rateLimitMessages.ts')
+const { rateLimitWindowName } = await import('../../src/models/roads/anthropic/rateLimitMessages.ts')
 type Reads = NonNullable<Parameters<typeof providerLimitWarning>[0]>['reads']
-type Limits = import('../../src/services/anthropicLimits.ts').AnthropicLimits
+type Limits = import('../../src/models/roads/anthropic/anthropicLimits.ts').AnthropicLimits
 
 const HOUR = 3600
 const nowS = Math.floor(Date.now() / 1000)
@@ -222,8 +222,8 @@ section('§1 — anthropic: the existing meters, per-family claims included')
   const poolCalm = providerLimitWarning({ model: 'claude-fable-5', reads: poolReads(40) })
   check('…and a pool below the threshold stays silent', poolCalm === null, JSON.stringify(poolCalm))
 
-  const limitsMod = await import('../../src/services/anthropicLimits.ts')
-  const usageMod = await import('../../src/services/providers/providerUsage.ts')
+  const limitsMod = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+  const usageMod = await import('../../src/models/roads/providerUsage.ts')
   const isoReset = new Date(resetS * 1000).toISOString()
   limitsMod.foldUtilizationFromEndpoint({
     five_hour: { utilization: 23, resets_at: isoReset },

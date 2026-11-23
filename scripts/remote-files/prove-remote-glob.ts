@@ -22,12 +22,12 @@ for (const key of ['MERCURY_HOME', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_WARDS', 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(project)
 
-const { GlobTool } = await import('../../src/tools/GlobTool/GlobTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
-const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
-const { closeRemoteConnections } = await import('../../src/services/remoteFiles/connection.ts')
+const { GlobTool } = await import('../../src/tools/glob/GlobTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
+const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/boot/process-state/processState.ts')
+const { closeRemoteConnections } = await import('../../src/platform/remote-files/connection.ts')
 setSessionTrustAccepted(true)
 enableConfigs()
 setOriginalCwd(project)
@@ -35,13 +35,13 @@ setCwdState(project)
 
 const PORT = 27067
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 540 seconds — a remote glob never returned; see the last section printed above, then validateInput / call in src/tools/GlobTool/GlobTool.ts, src/services/remoteFiles/connection.ts, or scripts/remote-files/remoteKit.ts')
+  console.log('  [FAIL] the proof did not finish within 540 seconds — a remote glob never returned; see the last section printed above, then validateInput / call in src/tools/glob/GlobTool.ts, src/platform/remote-files/connection.ts, or scripts/remote-files/remoteKit.ts')
   process.exit(1)
 }, 540_000)
 watchdog.unref()
 let failures = 0
 let checks = 0
-const REMOTE_GLOB_FIX_HINT = 'to fix: change checkPermissions / validateInput / call in src/tools/GlobTool/GlobTool.ts and the ssh:// listing in src/services/remoteFiles/ that the label names'
+const REMOTE_GLOB_FIX_HINT = 'to fix: change checkPermissions / validateInput / call in src/tools/glob/GlobTool.ts and the ssh:// listing in src/platform/remote-files/ that the label names'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++

@@ -10,7 +10,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    fix the /defaultprovider command in src/commands/defaultprovider/defaultprovider.tsx (its receipt text), the ledger write in src/utils/model/defaultProviderRung.ts, or computedDefault in src/services/model/computedDefault.ts (the default the boot face shows); rebuild dist first, this drive runs dist/mercury.mjs')
+  if (!cond) console.log('    fix the /defaultprovider command in src/commands/defaultprovider/defaultprovider.tsx (its receipt text), the ledger write in src/models/facts/defaultProviderRung.ts, or computedDefault in src/models/catalogue/computedDefault.ts (the default the boot face shows); rebuild dist first, this drive runs dist/mercury.mjs')
 }
 
 const ROOT = join(import.meta.dir, '..', '..')

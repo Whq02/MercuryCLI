@@ -6,10 +6,10 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
-import { firstRunCardsCentred, setupFrameBodyRows } from '../../src/components/MercurySetupFrame.tsx'
-import { MORE_BELOW_ROW, READINESS_ROWS, signInCardFit, type SignInCardFit } from '../../src/components/ConsoleOAuthFlow.tsx'
-import { SIGN_IN_LATER_ROW, loginFamilyRows } from '../../src/components/loginFamilyRows.ts'
-import { SIGN_IN_WORDS } from '../../src/components/Onboarding.tsx'
+import { firstRunCardsCentred, setupFrameBodyRows } from '../../src/boot/first-run/MercurySetupFrame.tsx'
+import { MORE_BELOW_ROW, READINESS_ROWS, signInCardFit, type SignInCardFit } from '../../src/models/sign-in/flow-cards/SignInFlow.tsx'
+import { SIGN_IN_LATER_ROW, loginFamilyRows } from '../../src/models/sign-in/flow-cards/loginFamilyRows.ts'
+import { SIGN_IN_WORDS } from '../../src/boot/first-run/Onboarding.tsx'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
@@ -51,7 +51,7 @@ let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    to fix: card placement and the view.firstRunCards setting are in firstRunCardsCentred and setupFrameBodyRows in src/components/MercurySetupFrame.tsx, the sign-in roster fit and scroll tail in signInCardFit in src/components/ConsoleOAuthFlow.tsx, the roster rows in src/components/loginFamilyRows.ts; run with --frames <folder> to keep each frame as text')
+  if (!cond) console.log('    to fix: card placement and the view.firstRunCards setting are in firstRunCardsCentred and setupFrameBodyRows in src/boot/first-run/MercurySetupFrame.tsx, the sign-in roster fit and scroll tail in signInCardFit in src/models/sign-in/flow-cards/SignInFlow.tsx, the roster rows in src/models/sign-in/flow-cards/loginFamilyRows.ts; run with --frames <folder> to keep each frame as text')
 }
 
 const DEAD = 'http://127.0.0.1:9'

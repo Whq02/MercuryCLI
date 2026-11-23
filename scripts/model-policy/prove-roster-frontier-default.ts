@@ -15,7 +15,7 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const rosterDefaultHint = ' | to fix, change the default choice in computedDefault (src/services/model/computedDefault.ts), the candidate walk in frontierOperatorDecision (src/services/model/frontierPolicy.ts), or the roster test isModelAllowed (src/services/model/modelAllowlist.ts); getDefaultEngineModelSetting and parseUserSpecifiedModel are in src/services/model/model.ts'
+const rosterDefaultHint = ' | to fix, change the default choice in computedDefault (src/models/catalogue/computedDefault.ts), the candidate walk in frontierOperatorDecision (src/models/catalogue/frontierPolicy.ts), or the roster test isModelAllowed (src/models/catalogue/modelAllowlist.ts); getDefaultEngineModelSetting and parseUserSpecifiedModel are in src/models/catalogue/engineModel.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${cond ? '' : rosterDefaultHint}`)
@@ -28,16 +28,16 @@ console.log('============================================================')
 console.log(' the default under a settings roster is a model the roster permits')
 console.log('============================================================')
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const model = await import('../../src/services/model/model.ts')
-const policy = await import('../../src/services/model/frontierPolicy.ts')
-const allow = await import('../../src/services/model/modelAllowlist.ts')
-const { computedDefault, resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.ts')
-const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
-const { FAMILY_GENERATIONS, ALL_MODEL_CONFIGS } = await import('../../src/utils/model/configs.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
+const model = await import('../../src/models/catalogue/engineModel.ts')
+const policy = await import('../../src/models/catalogue/frontierPolicy.ts')
+const allow = await import('../../src/models/catalogue/modelAllowlist.ts')
+const { computedDefault, resetComputedDefaultMemo } = await import('../../src/models/catalogue/computedDefault.ts')
+const { providerFrontierFact } = await import('../../src/models/catalogue/providerFrontier.ts')
+const { FAMILY_GENERATIONS, ALL_MODEL_CONFIGS } = await import('../../src/models/facts/builtInModelTable.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.ts')
 recordSignIn('anthropic', 'api-key')
 
 const settingsPath = join(scratch, 'settings.json')

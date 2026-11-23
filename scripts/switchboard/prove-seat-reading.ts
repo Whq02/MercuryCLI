@@ -10,14 +10,14 @@ delete process.env.MERCURY_SEATS
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const shown = cond ? detail : [detail, 'the seat reading, the memory samplers (availableFromVmStat, availableFromMeminfo, availableFromCounter), machineSeatReading, heldMachineSeatReading, recommendSeats and probeCapacity are in src/utils/switchboard/capacityCheck.ts'].filter(Boolean).join(' — ')
+  const shown = cond ? detail : [detail, 'the seat reading, the memory samplers (availableFromVmStat, availableFromMeminfo, availableFromCounter), machineSeatReading, heldMachineSeatReading, recommendSeats and probeCapacity are in src/daemon/switchboard-capacity/capacityCheck.ts'].filter(Boolean).join(' — ')
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const wait = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const cap = await import('../../src/utils/switchboard/capacityCheck.ts')
+const cap = await import('../../src/daemon/switchboard-capacity/capacityCheck.ts')
 
 const GB = 2 ** 30
 const MB = 2 ** 20

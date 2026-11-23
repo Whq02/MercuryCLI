@@ -62,7 +62,7 @@ const spawnDaemonWithHome = (configHome: string): void => {
   })
 }
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boolean> => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -74,8 +74,8 @@ const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boo
   }
   return false
 }
-const sup = await import('../../src/daemon/concourseWorkers.ts')
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 let sessionId = ''
 let transcript = ''
 try {
@@ -133,7 +133,7 @@ try {
       check('the session dispatched (working)', dispatched.ok === true && dispatched.sessionId !== undefined, JSON.stringify(dispatched), 'the daemon concourseDispatch op refused or failed the dispatch; the reply above says why')
       sessionId = dispatched.sessionId ?? ''
       transcript = join(paths.getProjectDir(cwd), `${sessionId}.jsonl`)
-      check('the worker transcript was born at the law home', await untilAsync(async () => existsSync(transcript) && statSync(transcript).size > 200, 30_000), transcript, 'the dispatched worker never wrote its transcript under the project dir (getProjectDir in src/utils/sessionStorage/paths.ts); read daemon.log in the scratch folder')
+      check('the worker transcript was born at the law home', await untilAsync(async () => existsSync(transcript) && statSync(transcript).size > 200, 30_000), transcript, 'the dispatched worker never wrote its transcript under the project dir (getProjectDir in src/sessions/transcripts/paths.ts); read daemon.log in the scratch folder')
       check(
         'the runner is mid-thought (the first stage landed; the tool call is unresolved)',
         await untilAsync(async () => readFileSync(transcript, 'utf8').includes('stage-01 live-body'), 30_000),
@@ -141,7 +141,7 @@ try {
         'the worker never streamed stage-01 from the fixture API; check the fixture script at the top of this file and daemon.log in the scratch folder',
       )
       const recBefore = Object.values(sup.readSessionWorkers(daemonDir)).find(r => r.sessionId === sessionId)
-      check('the record is WORKING before the enter (no pausedAt)', recBefore !== undefined && recBefore.pausedAt === undefined && recBefore.attachedAt === undefined, '', 'the worker record in readSessionWorkers (src/daemon/concourseWorkers.ts) was already paused or attached before the enter; nothing should set pausedAt or attachedAt at dispatch')
+      check('the record is WORKING before the enter (no pausedAt)', recBefore !== undefined && recBefore.pausedAt === undefined && recBefore.attachedAt === undefined, '', 'the worker record in readSessionWorkers (src/daemon/concourse-workers/concourseWorkers.ts) was already paused or attached before the enter; nothing should set pausedAt or attachedAt at dispatch')
     },
     extraEnv: {
       MERCURY_CONCOURSE: 'always',
@@ -171,9 +171,9 @@ try {
     const lifted = entered.filter(g => /\b\d+s\b/.test(text(g)) && /esc|interrupt|thinking|✻|✶|responding/i.test(text(g)))
     check('§2 THE ONE THINKING LIFT is up while the followed runner works', lifted.length > 0, `lifted frames: ${lifted.map(g => g.atMs).join(',') || 'none'}`, 'the entered view must show the thinking lift (seconds counter plus interrupt hint) while the followed runner works; rerun with ENTER_LIVE_KEEP=1 to print the frames')
     const recDuring = Object.values(sup.readSessionWorkers(daemonDir)).find(r => r.sessionId === sessionId)
-    const { concourseRecordState } = await import('../../src/daemon/concourseWorkers.ts')
+    const { concourseRecordState } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
     const stateDuring = recDuring ? concourseRecordState(recDuring, { needsYou: false, alive: true }) : 'missing'
-    check("§3 the record never reads PAUSED while the operator watches (enter valve ≠ pause)", stateDuring !== 'paused', `state=${stateDuring} attachRequestedAt=${recDuring?.attachRequestedAt} pausedAt=${recDuring?.pausedAt}`, 'concourseRecordState in src/daemon/concourseWorkers.ts reported paused for a record whose operator is only watching; entering must not set pausedAt')
+    check("§3 the record never reads PAUSED while the operator watches (enter valve ≠ pause)", stateDuring !== 'paused', `state=${stateDuring} attachRequestedAt=${recDuring?.attachRequestedAt} pausedAt=${recDuring?.pausedAt}`, 'concourseRecordState in src/daemon/concourse-workers/concourseWorkers.ts reported paused for a record whose operator is only watching; entering must not set pausedAt')
     const hostHome = paths.getProjectDir(run.paths.cwd)
     const foreignFiles = ((): string[] => {
       try {

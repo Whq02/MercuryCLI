@@ -8,7 +8,7 @@ import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
-const REPO = path.resolve(import.meta.dir, '../..')
+const REPO = path.resolve(import.meta.dir, '../../catalogue/commands')
 const argAfter = (flag: string): string | undefined => {
   const at = process.argv.indexOf(flag)
   return at >= 0 ? process.argv[at + 1] : undefined
@@ -34,7 +34,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' · the drive runs the built dist/mercury.mjs, so rebuild with bun run build.ts after a source change; the /model switch is in src/commands/model/model.tsx and src/commands/model/picker/apply.ts and its preview card in src/components/TransitionPreviewCard.tsx; the session record of the failed arm is kept at the [forensics] path printed at the end'}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ' · the drive runs the built dist/mercury.mjs, so rebuild with bun run build.ts after a source change; the /model switch is in src/commands/model/model.tsx and src/commands/model/picker/apply.ts and its preview card in src/commands/model/TransitionPreviewCard.tsx; the session record of the failed arm is kept at the [forensics] path printed at the end'}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

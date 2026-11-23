@@ -6,20 +6,20 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  const where = 'change the rung words in escRungOf/escRungHint (src/input-core/interruptArity.ts), the latch release in interruptLatchRelease (src/services/engine-connector/interruptLatch.ts), the row words in statusLine/escBackHint (src/components/SwitchboardTagBar.tsx), or the no-seat interrupt in noSessionConnector (src/services/engine-connector/noSessionConnector.ts)'
+  const where = 'change the rung words in escRungOf/escRungHint (src/screen/composer/input-core/interruptArity.ts), the latch release in interruptLatchRelease (src/engine/connector/interruptLatch.ts), the row words in statusLine/escBackHint (src/screen/chat/SwitchboardTagBar.tsx), or the no-seat interrupt in noSessionConnector (src/engine/connector/noSessionConnector.ts)'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${where}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const arity = await import('../../src/input-core/interruptArity.ts')
-const latch = await import('../../src/services/engine-connector/interruptLatch.ts')
-const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
-const bar = await import('../../src/components/SwitchboardTagBar.tsx')
-const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
-type SessionLiveV1 = import('../../src/services/engine-connector/seatLive.ts').SessionLiveV1
-type SeatStatusV1 = import('../../src/services/engine-connector/seatLive.ts').SeatStatusV1
+const arity = await import('../../src/screen/composer/input-core/interruptArity.ts')
+const latch = await import('../../src/engine/connector/interruptLatch.ts')
+const { noSessionConnector } = await import('../../src/engine/connector/noSessionConnector.ts')
+const bar = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
+const { IDLE_LIVE } = await import('../../src/engine/connector/seatLive.ts')
+type SessionLiveV1 = import('../../src/engine/connector/seatLive.ts').SessionLiveV1
+type SeatStatusV1 = import('../../src/engine/connector/seatLive.ts').SeatStatusV1
 
 const escClauses = (frame: string): number => (frame.match(/\besc\b/g) ?? []).length
 

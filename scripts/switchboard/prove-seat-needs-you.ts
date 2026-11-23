@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 import { startDaemonClientBeat, type DaemonClientBeat } from '../lib/daemonClientBeat.ts'
-import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/models/facts/builtInModelTable.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
@@ -32,7 +32,7 @@ if (!existsSync(DIST)) {
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}rerun with SWITCH_KEEP=1 to print every grabbed frame and to keep ${SCRATCH} (daemon.log is the daemon's output); the ask obligations are read through src/services/crew/obligations.ts and the typed words ride the dispatch ledger in src/daemon/concourseDispatch.ts`
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}rerun with SWITCH_KEEP=1 to print every grabbed frame and to keep ${SCRATCH} (daemon.log is the daemon's output); the ask obligations are read through src/crew/crewmates/obligations.ts and the typed words ride the dispatch ledger in src/daemon/concourse-workers/concourseDispatch.ts`
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
@@ -70,7 +70,7 @@ const spawnDaemonWithHome = (configHome: string): void => {
   clientBeat ??= startDaemonClientBeat()
 }
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
 const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boolean> => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -82,8 +82,8 @@ const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boo
   }
   return false
 }
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const obligations = await import('../../src/services/crew/obligations.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
+const obligations = await import('../../src/crew/crewmates/obligations.ts')
 let sid = ''
 let log = ''
 try {
@@ -176,13 +176,13 @@ try {
     check('N3 the child ran the tool and its reply landed in the session\'s file', await untilAsync(async () => logText().includes('Tidied after your allow.'), 20_000))
     const answered = hoppedFrames.filter(g => text(g).includes('Tidied after your allow.'))
     check('N3 the reply painted inside the focused chat', answered.length > 0, `frames: ${answered.map(g => g.atMs).join(',') || 'none'}`)
-    const dispatch = await import('../../src/daemon/concourseDispatch.ts')
+    const dispatch = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
     const rows = Object.values(dispatch.readConcourseDispatches(daemonDir))
     const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     const mine = rows.find(r => r.sessionId === sid && r.promptDigest === dispatch.promptDigestOf(WORDS))
     check('N4 the typed words rode the dispatch ledger to the session — the row keyed by the ONE identity (a bare uuid), carrying the words\' digest and the operator\'s attribution', mine !== undefined && UUID_SHAPE.test(mine.clientMessageId) && mine.by === 'operator' && (mine.state === 'working' || mine.state === 'settled' || mine.state === 'starting'), `row=${mine ? `${mine.clientMessageId} ${mine.state} by=${mine.by ?? ''}` : 'none'}; ids=${rows.map(r => `${r.clientMessageId}:${r.state}`).join(' ')}`)
     check("N4 the session's file gained the operator's row", await untilAsync(async () => logText().includes(WORDS), 20_000))
-    const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
+    const reader = await import('../../src/sessions/transcripts/transcriptReader.ts')
     const userRowUuids = async (): Promise<string[]> => {
       const chain = await reader.readTranscriptChainSince(log, null)
       return chain.rows.flatMap(r => (r.type === 'user' && typeof (r as { uuid?: unknown }).uuid === 'string' ? [(r as { uuid: string }).uuid] : []))

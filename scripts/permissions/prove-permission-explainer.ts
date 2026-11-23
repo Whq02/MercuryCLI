@@ -70,11 +70,11 @@ try {
   })
   process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${port}`
 
-  const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.js')
+  const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/settings/config.js')
   enableConfigs()
-  const { setEngineModelOverride } = await import('../../src/bootstrap/state.js')
+  const { setEngineModelOverride } = await import('../../src/boot/process-state/processState.js')
   setEngineModelOverride('claude-sonnet-4-6')
-  const { generatePermissionExplanation } = await import('../../src/services/permissions/permissionExplainer.js')
+  const { generatePermissionExplanation } = await import('../../src/permissions/explainer/permissionExplainer.js')
 
   const expected = {
     explanation: 'Removes the local build output directory recursively.',

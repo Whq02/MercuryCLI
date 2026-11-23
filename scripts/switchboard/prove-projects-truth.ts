@@ -10,21 +10,21 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const where = label.startsWith('T2 ')
-    ? 'fix getFocusedSessionConnector/emitFocusedSessionConnectorChanged in src/services/engine-connector/focusedConnector.ts or bootBirthFacts in src/services/switchboard/bootBirthFacts.ts'
+    ? 'fix getFocusedSessionConnector/emitFocusedSessionConnectorChanged in src/engine/connector/focusedConnector.ts or bootBirthFacts in src/daemon/switchboard/bootBirthFacts.ts'
     : label.startsWith('T4 ')
-      ? 'fix projectDisplayName in src/utils/bootCardFacts.ts'
+      ? 'fix projectDisplayName in src/screen/boot-face/bootCardFacts.ts'
       : label.startsWith('T7 ')
-        ? 'fix the workspace focusResumedSession resolves from a folded transcript in src/services/switchboard/hopIntoSession.ts'
+        ? 'fix the workspace focusResumedSession resolves from a folded transcript in src/daemon/switchboard/hopIntoSession.ts'
         : label.startsWith('T6 T') || label.startsWith('T6 an invalid')
-          ? 'fix the session scan (scanBootCardFacts, projectIdentity, parkedSessionsOf, projectChatCount) in src/utils/bootCardFacts.ts, or the id check in focusResumedSession in src/services/switchboard/hopIntoSession.ts'
-          : 'fix the session scan (workedInProjects, scanBootCardFacts, isAuthFailureHusk) in src/utils/bootCardFacts.ts'
+          ? 'fix the session scan (scanBootCardFacts, projectIdentity, parkedSessionsOf, projectChatCount) in src/screen/boot-face/bootCardFacts.ts, or the id check in focusResumedSession in src/daemon/switchboard/hopIntoSession.ts'
+          : 'fix the session scan (workedInProjects, scanBootCardFacts, isAuthFailureHusk) in src/screen/boot-face/bootCardFacts.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${where}` : ''}`)
 }
 
 {
-  const state = await import('../../src/bootstrap/state.ts')
-  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
+  const state = await import('../../src/boot/process-state/processState.ts')
+  const slot = await import('../../src/engine/connector/focusedConnector.ts')
+  const facts = await import('../../src/daemon/switchboard/bootBirthFacts.ts')
   facts.setBootBirthFacts({ title: 'boot title', permissionMode: 'sovereign' as never })
   state.setCwdState('/scratch/alpha')
   const before = slot.getFocusedSessionConnector().workspace()
@@ -41,7 +41,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 {
-  const { projectDisplayName } = await import('../../src/utils/bootCardFacts.ts')
+  const { projectDisplayName } = await import('../../src/screen/boot-face/bootCardFacts.ts')
   check('T4 a .mercury project row wears its parent name', projectDisplayName('/x/gamma/.mercury') === 'gamma')
   check('T4 an ordinary row keeps its own name', projectDisplayName('/x/repo-beta') === 'repo-beta')
   check('T4 a rootward .mercury falls back honestly', projectDisplayName('/.mercury') === '.mercury')
@@ -50,8 +50,8 @@ function check(label: string, cond: boolean, detail = ''): void {
 {
   const { mkdirSync, utimesSync, writeFileSync, existsSync } = await import('node:fs')
   const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-  const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
-  const { workedInProjects, scanBootCardFacts } = await import('../../src/utils/bootCardFacts.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
+  const { workedInProjects, scanBootCardFacts } = await import('../../src/screen/boot-face/bootCardFacts.ts')
   const home = process.env.MERCURY_CONFIG_DIR!
   const projReal = join(home, 'repo-real')
   const projGhost = join(home, 'repo-ghost')
@@ -112,8 +112,8 @@ function check(label: string, cond: boolean, detail = ''): void {
 {
   const { mkdirSync, utimesSync, writeFileSync, rmSync } = await import('node:fs')
   const { mock } = await import('bun:test')
-  const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
-  const { scanBootCardFacts, parkedSessionsOf, projectChatCount, projectIdentity, PROJECT_CARD_FILE } = await import('../../src/utils/bootCardFacts.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
+  const { scanBootCardFacts, parkedSessionsOf, projectChatCount, projectIdentity, PROJECT_CARD_FILE } = await import('../../src/screen/boot-face/bootCardFacts.ts')
   const project = join(process.env.MERCURY_CONFIG_DIR!, 'repo-receipts')
   mkdirSync(project)
   const store = getProjectDir(project)
@@ -133,11 +133,11 @@ function check(label: string, cond: boolean, detail = ''): void {
   check('T6 excluding the session does not offer its sidecar', scanBootCardFacts(project, sessionId).cwdProject === null && parkedSessionsOf(project, { excludeSessionId: sessionId }).length === 0 && projectChatCount(project, { excludeSessionId: sessionId }) === 0)
   rmSync(transcript)
   check('T6 a sidecar alone offers no Continue session', scanBootCardFacts(project).cwdProject === null && projectIdentity(project).newestChat === null && parkedSessionsOf(project).length === 0 && projectChatCount(project) === 0)
-  const workers = await import('../../src/daemon/concourseWorkers.ts')
+  const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
   const realWorkers = { ...workers }
   let lookups = 0
-  mock.module('../../src/daemon/concourseWorkers.ts', () => ({ ...realWorkers, sessionOwnedByLiveWorker: () => { lookups++; throw new Error('invalid resume reached the worker registry') } }))
-  const { focusResumedSession } = await import('../../src/services/switchboard/hopIntoSession.ts')
+  mock.module('../../src/daemon/concourse-workers/concourseWorkers.ts', () => ({ ...realWorkers, sessionOwnedByLiveWorker: () => { lookups++; throw new Error('invalid resume reached the worker registry') } }))
+  const { focusResumedSession } = await import('../../src/daemon/switchboard/hopIntoSession.ts')
   for (const id of [`${sessionId}.receipts`, 'not-a-session', '']) {
     try {
       const resumed = await focusResumedSession(id, sidecar)
@@ -147,20 +147,20 @@ function check(label: string, cond: boolean, detail = ''): void {
     }
   }
   check('T6 an invalid resume never consults or launches a runner', lookups === 0)
-  mock.module('../../src/daemon/concourseWorkers.ts', () => realWorkers)
+  mock.module('../../src/daemon/concourse-workers/concourseWorkers.ts', () => realWorkers)
   mock.restore()
 }
 
 {
   const { mock } = await import('bun:test')
   const { mkdirSync, readFileSync, realpathSync } = await import('node:fs')
-  const { QueuePart } = await import('../../src/utils/sessionStorage/writer/queue.ts')
-  const { historyHead } = await import('../../src/utils/sessionStorage/historyParts.ts')
-  const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-  const state = await import('../../src/bootstrap/state.ts')
-  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
-  const ensure = await import('../../src/services/switchboard/ensureDaemon.ts')
+  const { QueuePart } = await import('../../src/sessions/transcripts/writer/queue.ts')
+  const { historyHead } = await import('../../src/sessions/transcripts/historyParts.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+  const state = await import('../../src/boot/process-state/processState.ts')
+  const slot = await import('../../src/engine/connector/focusedConnector.ts')
+  const seat = await import('../../src/engine/connector/daemonConnector.ts')
+  const ensure = await import('../../src/daemon/switchboard/ensureDaemon.ts')
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'projects-truth-folded-')))
   const sessionFolder = join(root, 'folded-target-project')
   const processFolder = join(root, 'other-process-folder')
@@ -192,30 +192,30 @@ function check(label: string, cond: boolean, detail = ''): void {
   let capturedWorkspace = ''
   const realEnsure = { ...ensure }
   const realSeat = { ...seat }
-  mock.module('../../src/services/switchboard/ensureDaemon.ts', () => ({ ...realEnsure, ensureOwnedDaemon: async () => false }))
-  mock.module('../../src/services/engine-connector/daemonConnector.ts', () => ({
+  mock.module('../../src/daemon/switchboard/ensureDaemon.ts', () => ({ ...realEnsure, ensureOwnedDaemon: async () => false }))
+  mock.module('../../src/engine/connector/daemonConnector.ts', () => ({
     ...realSeat,
     daemonSessionConnectorFor: (spec: { workspaceId: string }) => {
       capturedWorkspace = spec.workspaceId
       return realSeat.daemonSessionConnectorFor(spec as never)
     },
   }))
-  const { focusResumedSession } = await import('../../src/services/switchboard/hopIntoSession.ts')
+  const { focusResumedSession } = await import('../../src/daemon/switchboard/hopIntoSession.ts')
   const resumed = await focusResumedSession(foldedSid, foldedFile)
   await resumed.refusal
   slot.releaseFocusedSessionConnector()
-  mock.module('../../src/services/switchboard/ensureDaemon.ts', () => realEnsure)
-  mock.module('../../src/services/engine-connector/daemonConnector.ts', () => realSeat)
+  mock.module('../../src/daemon/switchboard/ensureDaemon.ts', () => realEnsure)
+  mock.module('../../src/engine/connector/daemonConnector.ts', () => realSeat)
   mock.restore()
   check('T7 hopping into a folded session lands in the session folder, not the process folder', resumed.ok && capturedWorkspace === sessionFolder && resumed.title === 'opening prompt in target folder', JSON.stringify({ ok: resumed.ok, title: resumed.ok ? resumed.title : resumed.reason, capturedWorkspace, sessionFolder, processFolder }))
 }
 
 {
   const { mkdirSync, realpathSync, statSync } = await import('node:fs')
-  const { QueuePart } = await import('../../src/utils/sessionStorage/writer/queue.ts')
-  const { historyHead } = await import('../../src/utils/sessionStorage/historyParts.ts')
-  const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-  const { isAuthFailureHusk, scanBootCardFacts } = await import('../../src/utils/bootCardFacts.ts')
+  const { QueuePart } = await import('../../src/sessions/transcripts/writer/queue.ts')
+  const { historyHead } = await import('../../src/sessions/transcripts/historyParts.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+  const { isAuthFailureHusk, scanBootCardFacts } = await import('../../src/screen/boot-face/bootCardFacts.ts')
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'projects-truth-husk-')))
   const projFolded = join(root, 'folded-auth-fail')
   mkdirSync(projFolded, { recursive: true })

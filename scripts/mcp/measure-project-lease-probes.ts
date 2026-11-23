@@ -16,12 +16,12 @@ mock.module('node:child_process', () => ({
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const root = join(proofHome, 'work')
 mkdirSync(join(root, '.mercury'), { recursive: true })
-const { setOriginalCwd, switchSession } = await import('../../src/bootstrap/state.ts')
+const { setOriginalCwd, switchSession } = await import('../../src/boot/process-state/processState.ts')
 setOriginalCwd(root)
 switchSession('00000000-0000-4000-8000-000000000061' as never, root)
-const { procStartToken } = await import('../../src/utils/genericProcessUtils.ts')
-const { getProcessStartTokenAsync } = await import('../../src/utils/ownerWatch.ts')
-const leases = await import('../../src/services/vulcan/engine/leases.ts')
+const { procStartToken } = await import('../../src/platform/processes/processLiveness.ts')
+const { getProcessStartTokenAsync } = await import('../../src/daemon/control/ownerWatch.ts')
+const leases = await import('../../src/integrations/vulcan/engine/leases.ts')
 const holders = 40
 const children: childProcess.ChildProcess[] = []
 const exits: Promise<unknown>[] = []

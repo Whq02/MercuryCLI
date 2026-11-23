@@ -2,26 +2,26 @@
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ToolPermissionContext } from '../../src/Tool.ts'
-import type { PermissionMode } from '../../src/types/permissions.ts'
+import type { ToolPermissionContext } from '../../src/tools/kit/tool.ts'
+import type { PermissionMode } from '../../src/permissions/rules/permissions.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'apollo-carousel-home-'))
 delete process.env.MERCURY_HOME
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { getNextPermissionMode, cyclePermissionMode } = await import('../../src/utils/permissions/getNextPermissionMode.ts')
-const { isFlowGateEnabled } = await import('../../src/utils/permissions/permissionSetup.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { getNextPermissionMode, cyclePermissionMode } = await import('../../src/permissions/rules/getNextPermissionMode.ts')
+const { isFlowGateEnabled } = await import('../../src/permissions/rules/permissionSetup.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 const closeFlow = (closed: boolean): void => {
   writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), JSON.stringify(closed ? { guardrails: { disableFlowMode: true } } : {}))
   resetSettingsCache()
 }
-const { GLYPH, displayWidth } = await import('../../src/utils/glyphs.ts')
-const { permissionModeSymbol, permissionModeTitle, permissionModeFromString, externalPermissionModeSchema, getModeColor } = await import('../../src/utils/permissions/PermissionMode.ts')
+const { GLYPH, displayWidth } = await import('../../src/screen/theme/glyphs.ts')
+const { permissionModeSymbol, permissionModeTitle, permissionModeFromString, externalPermissionModeSchema, getModeColor } = await import('../../src/permissions/rules/permissionMode.ts')
 
 let failures = 0
-const FIX_HINT = 'the Shift+Tab order is getNextPermissionMode and cyclePermissionMode in src/utils/permissions/getNextPermissionMode.ts, the flow gate is isFlowGateEnabled in src/utils/permissions/permissionSetup.ts, the apollo title, symbol and colour are in src/utils/permissions/PermissionMode.ts and src/utils/glyphs.ts'
+const FIX_HINT = 'the Shift+Tab order is getNextPermissionMode and cyclePermissionMode in src/permissions/rules/getNextPermissionMode.ts, the flow gate is isFlowGateEnabled in src/permissions/rules/permissionSetup.ts, the apollo title, symbol and colour are in src/permissions/rules/permissionMode.ts and src/screen/theme/glyphs.ts'
 function check(label: string, passed: boolean, detail = ''): void {
   if (!passed) failures++
   console.log(`[${passed ? 'PASS' : 'FAIL'}] ${label}${detail || !passed ? ` — ${detail}${!passed ? `${detail ? ' · ' : ''}to fix: ${FIX_HINT}` : ''}` : ''}`)

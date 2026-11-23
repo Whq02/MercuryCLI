@@ -49,7 +49,7 @@ section('§2 — the loud exit under node (a bundle of the real shutdown owner)'
   writeFileSync(
     entry,
     [
-      `import { failLoud, setupGracefulShutdown } from '${join(ROOT, 'src/utils/gracefulShutdown.ts')}'`,
+      `import { failLoud, setupGracefulShutdown } from '${join(ROOT, 'src/platform/processes/gracefulShutdown.ts')}'`,
       `const mode = process.env.PROOF_MODE`,
       `const moduleErr = Object.assign(new Error("Cannot find module 'undici'\\nRequire stack:\\n- /x/runtime/dist/mercury.mjs"), { code: 'MODULE_NOT_FOUND' })`,
       `setupGracefulShutdown()`,

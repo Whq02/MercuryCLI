@@ -1,4 +1,4 @@
-import type { EngineConnectorV1, KitDialReceiptV1, McpRosterEntryV1, McpRosterV1 } from '../../services/engine-connector/types.js'
+import type { EngineConnectorV1, KitDialReceiptV1, McpRosterEntryV1, McpRosterV1 } from '../../engine/connector/types.js'
 
 
 type McpRouteArm = 'facts' | 'panel'

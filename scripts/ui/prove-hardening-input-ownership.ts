@@ -9,26 +9,26 @@ process.env.MERCURY_FULLSCREEN = '1'
 process.env.MERCURY_REDUCED_MOTION = '1'
 process.env.MERCURY_LIVE_GLYPHS = '0'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const ink = await import('../../src/ink.js')
-const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const { RowPickModal } = await import('../../src/components/concourse/RowPickModal.js')
-const { CommandCenter } = await import('../../src/components/mercury-ui/components.js')
-const { useInteractiveList } = await import('../../src/components/mercury-ui/useInteractiveList.js')
-const { useFlatList } = await import('../../src/components/mercury-ui/useFlatList.js')
-const { caretVerticalOp, clampCaret } = await import('../../src/components/concourse/lineDraft.js')
-const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.js')
+const ink = await import('../../src/screen/themedRenderer.js')
+const { default: StdinContext } = await import('../../src/screen/renderer/elements/StdinContext.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const { RowPickModal } = await import('../../src/screen/concourse/RowPickModal.js')
+const { CommandCenter } = await import('../../src/screen/widgets/components.js')
+const { useInteractiveList } = await import('../../src/screen/widgets/useInteractiveList.js')
+const { useFlatList } = await import('../../src/screen/widgets/useFlatList.js')
+const { caretVerticalOp, clampCaret } = await import('../../src/screen/concourse/lineDraft.js')
+const { resetOverlayStackForTests } = await import('../../src/screen/overlays/overlayStack.js')
 let failures = 0
 let checks = 0
 const inputOwnershipHint = (label: string): string => {
-  if (label.includes('session manager')) return 'the fallback view is src/components/mercury-ui/screens/SessionManagerView.tsx: it must paint its fallback text and close on Escape'
-  if (label.includes('caret')) return 'caretVerticalOp and clampCaret in src/components/concourse/lineDraft.ts must keep the caret on a grapheme boundary'
-  if (label.startsWith('interactive')) return 'the key handler is useInteractiveList in src/components/mercury-ui/useInteractiveList.ts: ignore ctrl, meta and super chords on plain action keys, keep ctrl+n navigation'
-  if (label.startsWith('flat')) return 'the key handler is useFlatList in src/components/mercury-ui/useFlatList.ts: ignore ctrl, meta and super chords on the primary and reload keys, keep ctrl+n navigation'
-  if (label.includes('left') || label.includes('Escape follows')) return 'the close modes are in CommandCenter in src/components/mercury-ui/components.tsx (closeKeys)'
-  return 'the pick list is RowPickModal in src/components/concourse/RowPickModal.tsx: the cursor must stay visible and Enter must pick the selected option'
+  if (label.includes('session manager')) return 'the fallback view is src/screen/widgets/faces/SessionManagerView.tsx: it must paint its fallback text and close on Escape'
+  if (label.includes('caret')) return 'caretVerticalOp and clampCaret in src/screen/concourse/lineDraft.ts must keep the caret on a grapheme boundary'
+  if (label.startsWith('interactive')) return 'the key handler is useInteractiveList in src/screen/widgets/useInteractiveList.ts: ignore ctrl, meta and super chords on plain action keys, keep ctrl+n navigation'
+  if (label.startsWith('flat')) return 'the key handler is useFlatList in src/screen/widgets/useFlatList.ts: ignore ctrl, meta and super chords on the primary and reload keys, keep ctrl+n navigation'
+  if (label.includes('left') || label.includes('Escape follows')) return 'the close modes are in CommandCenter in src/screen/widgets/components.tsx (closeKeys)'
+  return 'the pick list is RowPickModal in src/screen/concourse/RowPickModal.tsx: the cursor must stay visible and Enter must pick the selected option'
 }
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
@@ -127,7 +127,7 @@ for (const kind of ['interactive', 'flat'] as const) {
 }
 
 {
-  const { SessionManagerView } = await import('../../src/components/mercury-ui/screens/SessionManagerView.js')
+  const { SessionManagerView } = await import('../../src/screen/widgets/faces/SessionManagerView.js')
   let closes = 0
   const scene = await mount(React.createElement(SessionManagerView, { onClose: () => { closes++ } }))
   try {

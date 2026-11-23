@@ -4,7 +4,7 @@ import { checker, count, governs, openWorld } from './instructionWorld.ts'
 
 const world = openWorld('personal-import')
 const { check: checkWorld, section, close } = checker()
-const personalImportWhere = 'fix how @~/ imports and other tools personal files are composed in src/services/instructions/engine.ts (getInstructionFiles, getInstructionBundle) and src/services/instructions/adapters/index.ts, or how scoped rules attach in src/services/attachments/nestedMemory.ts (getNestedMemoryAttachmentsForFile)'
+const personalImportWhere = 'fix how @~/ imports and other tools personal files are composed in src/sessions/instructions/instructionFiles.ts (getInstructionFiles, getInstructionBundle) and src/sessions/instructions/adapters/index.ts, or how scoped rules attach in src/engine/attachments/nestedInstructions.ts (getNestedMemoryAttachmentsForFile)'
 const check = (label: string, ok: boolean, detail = ''): void => checkWorld(label, ok, detail ? `${detail} | ${personalImportWhere}` : personalImportWhere)
 const personal = (path: string, body: string): string => `Contents of ${path} (user's private global instructions for all projects):\n\n${body}`
 

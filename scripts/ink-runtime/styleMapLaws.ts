@@ -1,7 +1,7 @@
 import React from 'react'
-import { enableConfigs } from '../../src/utils/config/globalConfig.js'
-import { Box, Text } from '../../src/ink.js'
-import { renderToAnsiString } from '../../src/utils/staticRender.js'
+import { enableConfigs } from '../../src/platform/config/globalConfig.js'
+import { Box, Text } from '../../src/screen/themedRenderer.js'
+import { renderToAnsiString } from '../../src/screen/renderer/staticRender.js'
 
 type Painted = { ch: string; fg: string | null }
 export function paintedChars(ansi: string): Painted[] {

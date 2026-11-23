@@ -9,7 +9,7 @@ const tally = makeTally('prove-held-notice-wakes-idle')
 
 tally.section('§0 the held set, pure: what wakes an idle main agent')
 {
-  const q = await import('../../src/input-core/command-queue.ts')
+  const q = await import('../../src/screen/composer/input-core/command-queue.ts')
   const notice = (status: string): Parameters<typeof q.isHeldNotice>[0] => ({ value: `<task-notification>\n<task-id>a</task-id>\n<status>${status}</status>\n</task-notification>`, mode: 'task-notification' }) as never
   tally.check('a completed, failed, killed or stopped task notification is a held notice (red on the base: no such classifier)', ['completed', 'failed', 'killed', 'stopped'].every(status => q.isHeldNotice(notice(status))))
   tally.check('a running, resumed or paused notification is not', ['running', 'resumed', 'paused'].every(status => !q.isHeldNotice(notice(status))))

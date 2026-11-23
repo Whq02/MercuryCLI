@@ -25,10 +25,10 @@ export async function readViewKit(home: string) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   process.env.MERCURY_BARE = '1'
   const src = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-  const { FileReadTool } = await import(`${src}/tools/FileReadTool/FileReadTool.ts`)
-  const { getEmptyToolPermissionContext } = await import(`${src}/Tool.ts`)
-  const { createFileStateCacheWithSizeLimit } = await import(`${src}/utils/fileStateCache.ts`)
-  const { setCwdState, setOriginalCwd } = await import(`${src}/bootstrap/state.ts`)
+  const { FileReadTool } = await import(`${src}/tools/read/ReadTool.ts`)
+  const { getEmptyToolPermissionContext } = await import(`${src}/tools/kit/tool.ts`)
+  const { createFileStateCacheWithSizeLimit } = await import(`${src}/platform/files/fileStateCache.ts`)
+  const { setCwdState, setOriginalCwd } = await import(`${src}/boot/process-state/processState.ts`)
   setCwdState(home)
   setOriginalCwd(home)
   let rules = getEmptyToolPermissionContext()

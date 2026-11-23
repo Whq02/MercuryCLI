@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/permissions/** src/tools/BashTool/** src/utils/permissions/**
+// gate-watch: src/permissions/cards/** src/tools/shell/** src/permissions/rules/PermissionRule.ts src/permissions/rules/PermissionUpdateSchema.ts src/permissions/rules/askClock.ts src/permissions/rules/askWords.ts src/permissions/rules/bashRuleVerdict.ts src/permissions/rules/bypassPermissionsKillswitch.ts src/permissions/rules/capabilityGate.ts src/permissions/rules/commandContent.ts src/permissions/rules/dangerousPatterns.ts src/permissions/rules/decision/** src/permissions/rules/decisionReasonWire.ts src/permissions/rules/filesystem.ts src/permissions/rules/flowLaw.ts src/permissions/rules/flowPolicy.ts src/permissions/rules/getNextPermissionMode.ts src/permissions/rules/lateAllowRules.ts src/permissions/rules/modeTransitions.ts src/permissions/rules/ownGround.ts src/permissions/rules/pathValidation.ts src/permissions/rules/permissionDoor.ts src/permissions/rules/permissionFocus.ts src/permissions/rules/permissionMode.ts src/permissions/rules/permissionResult.ts src/permissions/rules/permissionRuleParser.ts src/permissions/rules/permissionSetup.ts src/permissions/rules/permissionUpdate.ts src/permissions/rules/permissionsLoader.ts src/permissions/rules/protectedPaths.ts src/permissions/rules/rootNotice.ts src/permissions/rules/ruleBraces.ts src/permissions/rules/ruleReason.ts src/permissions/rules/runtimeProtection.ts src/permissions/rules/safeWrappers.ts src/permissions/rules/serviceInputHistory.ts src/permissions/rules/shadowedRuleDetection.ts src/permissions/rules/shell-protected-paths/** src/permissions/rules/shellProtectedPaths.ts src/permissions/rules/shellRuleMatching.ts src/permissions/rules/uncPath.ts src/permissions/rules/webFetchRuleMatches.ts src/permissions/rules/windowsPath.ts
 import { mock } from 'bun:test'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
@@ -30,19 +30,19 @@ async function stub(path: string, fixture: () => Record<string, unknown>): Promi
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...fixture() }))
 }
-await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined, useKeybindings: () => undefined }))
+await stub('../../src/screen/keys/useKeybinding.js', () => ({ useKeybinding: () => undefined, useKeybindings: () => undefined }))
 
-const { createEditRuleSuggestion } = await import('../../src/utils/permissions/PermissionUpdate.js')
-const { generateShellSuggestionsLabel } = await import('../../src/components/permissions/shellPermissionHelpers.tsx')
-const { AppStoreContext } = await import('../../src/state/AppState.js')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createStore } = await import('../../src/state/store.js')
-const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-const StdinContext = (await import('../../src/ink/components/StdinContext.js')).default
-const { Box, EventEmitter, Text, render, flushPendingSyncWork } = await import('../../src/ink.js')
+const { createEditRuleSuggestion } = await import('../../src/permissions/rules/permissionUpdate.js')
+const { generateShellSuggestionsLabel } = await import('../../src/permissions/cards/shellAskParts.tsx')
+const { AppStoreContext } = await import('../../src/screen/app-state/AppState.js')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.js')
+const { createStore } = await import('../../src/platform/primitives/store.js')
+const { TerminalSizeContext } = await import('../../src/screen/renderer/elements/TerminalSizeContext.js')
+const StdinContext = (await import('../../src/screen/renderer/elements/StdinContext.js')).default
+const { Box, EventEmitter, Text, render, flushPendingSyncWork } = await import('../../src/screen/themedRenderer.js')
 
 const PROJECT = realpathSync(mkdtempSync(join(tmpdir(), 'card-grant-project-')))
-const { setCwdState } = await import('../../src/bootstrap/state.js')
+const { setCwdState } = await import('../../src/boot/process-state/processState.js')
 setCwdState(PROJECT)
 
 const settle = async (): Promise<void> => {
@@ -97,8 +97,8 @@ section('§1 the words and the rule agree')
 
 section('§2 what the saved rule covers — a second shell touch still asks')
 {
-  const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
-  type Ctx = import('../../src/utils/permissions/permissions.ts').ToolPermissionContext
+  const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.js')
+  type Ctx = import('../../src/permissions/rules/permissionDoor.ts').ToolPermissionContext
   const editRule = createEditRuleSuggestion(PROJECT, 'localSettings')!
   const ctx = {
     mode: 'default',
@@ -123,7 +123,7 @@ section('§3 the label never promises shell coverage')
 
 section('§4 an edit folder beside a read folder: each folder is named under the grant its rule writes')
 {
-  const { createReadRuleSuggestion } = await import('../../src/utils/permissions/PermissionUpdate.js')
+  const { createReadRuleSuggestion } = await import('../../src/permissions/rules/permissionUpdate.js')
   const READ_DIR = realpathSync(mkdtempSync(join(tmpdir(), 'card-grant-read-')))
   const readRule = createReadRuleSuggestion(READ_DIR)!
   check('the read suggestion is a Read rule on the folder', readRule.type === 'addRules' && readRule.rules.every(rule => rule.toolName === 'Read'), JSON.stringify(readRule))

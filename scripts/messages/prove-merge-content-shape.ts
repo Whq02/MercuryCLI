@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { DIALECT_CONVERSATION } from './dialectFixture.ts'
 
 const root = resolve(process.argv[2] ?? fileURLToPath(new URL('../..', import.meta.url)))
-const { mergeAssistantMessages } = await import(`${root}/src/services/messages/merge.ts`)
+const { mergeAssistantMessages } = await import(`${root}/src/engine/messages/merge.ts`)
 const model = DIALECT_CONVERSATION[1] as any
 const left = { ...model, message: { ...model.message, content: 'left text' } }
 const right = { ...model, message: { ...model.message, content: [{ type: 'text', text: 'right text', citations: [] }] } }
@@ -16,6 +16,6 @@ try {
   assert.equal(left.message.content, 'left text')
   console.log('PASS: merging a resumed string-shaped assistant turn keeps whole text blocks, never character strings')
 } catch (error) {
-  console.log('FAIL: merging a resumed string-shaped assistant turn emits character strings instead of content blocks; fix mergeAssistantMessages in src/services/messages/merge.ts so string content becomes whole text blocks and the left uuid, message id and content stay untouched')
+  console.log('FAIL: merging a resumed string-shaped assistant turn emits character strings instead of content blocks; fix mergeAssistantMessages in src/engine/messages/merge.ts so string content becomes whole text blocks and the left uuid, message id and content stay untouched')
   throw error
 }

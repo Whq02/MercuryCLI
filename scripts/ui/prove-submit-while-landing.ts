@@ -11,10 +11,10 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 
 console.log('§4 the resting connector keeps its one honest sentence')
 {
-  const resting = await import(join(ROOT, 'src/services/engine-connector/noSessionConnector.ts'))
-  check('the sentence names the door a chat starts through (unchanged owner)', resting.NO_CHAT_OPEN === 'no chat is open — ↵ New Session on the boot menu starts one', 'NO_CHAT_OPEN in src/services/engine-connector/noSessionConnector.ts changed; restore the sentence or update the places that show it')
+  const resting = await import(join(ROOT, 'src/engine/connector/noSessionConnector.ts'))
+  check('the sentence names the door a chat starts through (unchanged owner)', resting.NO_CHAT_OPEN === 'no chat is open — ↵ New Session on the boot menu starts one', 'NO_CHAT_OPEN in src/engine/connector/noSessionConnector.ts changed; restore the sentence or update the places that show it')
   const refused = await new resting.NoSessionConnector().sendWords()
-  check('the resting connector still refuses a send with it (the arm is what keeps a landing line away from it)', refused.state === 'refused' && refused.detail === resting.NO_CHAT_OPEN, `got ${JSON.stringify(refused)}; NoSessionConnector.sendWords in src/services/engine-connector/noSessionConnector.ts must return state refused with detail NO_CHAT_OPEN`)
+  check('the resting connector still refuses a send with it (the arm is what keeps a landing line away from it)', refused.state === 'refused' && refused.detail === resting.NO_CHAT_OPEN, `got ${JSON.stringify(refused)}; NoSessionConnector.sendWords in src/engine/connector/noSessionConnector.ts must return state refused with detail NO_CHAT_OPEN`)
 }
 
 if (failures > 0) {

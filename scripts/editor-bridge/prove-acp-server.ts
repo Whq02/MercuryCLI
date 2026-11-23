@@ -14,7 +14,7 @@ const WIN = process.platform === 'win32'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — the ACP handler behind the request in the section header above is in src/services/acp/acpServer/ (sessionRequests.ts for session/* requests, attach.ts for what the child sends the editor, toolWire.ts for tool_call updates); the server entry is src/services/acp/acpServer.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — the ACP handler behind the request in the section header above is in src/integrations/acp/server/ (sessionRequests.ts for session/* requests, attach.ts for what the child sends the editor, toolWire.ts for tool_call updates); the server entry is src/integrations/acp/acpServer.ts` : ''}`)
 }
 function section(t: string): void {
   currentPhase = t
@@ -25,7 +25,7 @@ const REQUEST_DEADLINE_MS = 60_000
 const SUITE_DEADLINE_MS = 420_000
 let currentPhase = '(startup)'
 function failHard(why: string): never {
-  console.error(`\n✗ DEADLINE: ${why} — the ACP server (node dist/mercury.mjs acp) stopped answering: see the handler for that request in src/services/acp/acpServer/sessionRequests.ts, or the section's phase below`)
+  console.error(`\n✗ DEADLINE: ${why} — the ACP server (node dist/mercury.mjs acp) stopped answering: see the handler for that request in src/integrations/acp/server/sessionRequests.ts, or the section's phase below`)
   console.error(`  phase: ${currentPhase}`)
   try {
     console.error(`  fixture /v1/messages requests so far: ${api.messageRequests().length}`)
@@ -383,7 +383,7 @@ section('(5b) load honesty — a nonexistent session is refused')
 section('(5c) _mercury/artifacts is PROJECT-scoped (same truth as the TUI)')
 {
   process.env.MERCURY_REVIEW_ARTIFACTS_DIR = join(configHome, 'review-artifacts')
-  const { createReviewArtifact } = await import('../../src/services/artifacts/reviewStore.ts')
+  const { createReviewArtifact } = await import('../../src/sessions/artifact-reviews/reviewStore.ts')
   const foreignRoot = join(configHome, 'elsewhere-project')
   mkdirSync(foreignRoot, { recursive: true })
   const here = createReviewArtifact({
@@ -463,9 +463,9 @@ section('(5d) _mercury/run exposes a coherent run revision to the client')
 
 section('(5e) TRUE cross-process parity — TUI-side durable writes, the ACP process answers for the SAME named owner')
 {
-  const { saveRunSidecar, runRevision } = await import('../../src/services/run/runSidecar.js')
-  const { emptyRunSnapshot } = await import('../../src/services/run/runKernel.js')
-  const { makeOwnerKey } = await import('../../src/utils/run/ownerKey.js')
+  const { saveRunSidecar, runRevision } = await import('../../src/engine/run/runSidecar.js')
+  const { emptyRunSnapshot } = await import('../../src/engine/run/runKernel.js')
+  const { makeOwnerKey } = await import('../../src/engine/run-owner/ownerKey.js')
   const owner = makeOwnerKey({
     workspace: process.cwd(),
     sessionId: `keel-parity-${Date.now().toString(36)}`,

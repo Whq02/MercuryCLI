@@ -17,24 +17,24 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}fix the scenario headers and setters in src/services/mockRateLimits.ts (setMockRateLimitScenario, setMockUsagePercent, getMockHeaders), the decoding in extractQuotaStatusFromHeaders (src/services/anthropicLimits.ts), the tier percents in src/services/providers/usageTiers.ts, observedFamilyWindow (src/services/capFailover.ts) or providerLimitWarningFacts (src/services/providers/limitWarning.ts), whichever this label names` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}fix the scenario headers and setters in src/models/roads/anthropic/mockRateLimits.ts (setMockRateLimitScenario, setMockUsagePercent, getMockHeaders), the decoding in extractQuotaStatusFromHeaders (src/models/roads/anthropic/anthropicLimits.ts), the tier percents in src/models/roads/usageTiers.ts, observedFamilyWindow (src/models/roads/capFailover.ts) or providerLimitWarningFacts (src/models/roads/limitWarning.ts), whichever this label names` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const mock = await import('../../src/services/mockRateLimits.ts')
-const limits = await import('../../src/services/anthropicLimits.ts')
+const mock = await import('../../src/models/roads/anthropic/mockRateLimits.ts')
+const limits = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
 const armScenario = (scenario: Parameters<typeof mock.setMockRateLimitScenario>[0]): void => {
   mock.setMockRateLimitScenario(scenario)
   limits.extractQuotaStatusFromHeaders(new globalThis.Headers())
 }
-const tiers = await import('../../src/services/providers/usageTiers.ts')
-const { observedFamilyWindow, decideCapAction } = await import('../../src/services/capFailover.ts')
-const { providerLimitWarningFacts } = await import('../../src/services/providers/limitWarning.ts')
+const tiers = await import('../../src/models/roads/usageTiers.ts')
+const { observedFamilyWindow, decideCapAction } = await import('../../src/models/roads/capFailover.ts')
+const { providerLimitWarningFacts } = await import('../../src/models/roads/limitWarning.ts')
 type Reads = Parameters<typeof providerLimitWarningFacts>[0] extends { reads?: infer R } | undefined ? R : never
 
 const SCENARIO = 'approaching-weekly-limit'

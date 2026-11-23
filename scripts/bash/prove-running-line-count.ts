@@ -4,21 +4,21 @@ import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { TaskOutput } = await import('../../src/utils/task/TaskOutput.ts')
-const { generateTaskId } = await import('../../src/Task.ts')
+const { TaskOutput } = await import('../../src/engine/task-framework/taskOutput.ts')
+const { generateTaskId } = await import('../../src/engine/tasks/taskBase.ts')
 
 let checks = 0
 let failures = 0
-let where = 'the running line count of TaskOutput in src/utils/task/TaskOutput.ts'
+let where = 'the running line count of TaskOutput in src/engine/task-framework/taskOutput.ts'
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)} — to fix: ${where}` : ''}`)
 }
 function section(title: string): void {
-  where = title.includes('from its file') ? 'TaskOutput.sampleFileProgress in src/utils/task/TaskOutput.ts must report the lines printed (an unended last line still counts) when it samples the output file' : title.includes('arrives in chunks') ? 'TaskOutput.writeStdout and emitLiveView in src/utils/task/TaskOutput.ts must report the same line count as the file road' : where
+  where = title.includes('from its file') ? 'TaskOutput.sampleFileProgress in src/engine/task-framework/taskOutput.ts must report the lines printed (an unended last line still counts) when it samples the output file' : title.includes('arrives in chunks') ? 'TaskOutput.writeStdout and emitLiveView in src/engine/task-framework/taskOutput.ts must report the same line count as the file road' : where
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
 

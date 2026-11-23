@@ -13,17 +13,17 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log('    fix: the episode, probe cadence and wording are in src/tasks/LocalAgentTask/agentOverload.ts; the pause row is src/tasks/LocalAgentTask/agentPause.ts; overloadPauseOf and the pause and eviction of a lane are in src/tasks/LocalAgentTask/LocalAgentTask.tsx; armOverloadProbe and overloadBudgetCutOf are in src/tools/AgentTool/agentToolUtils.ts; sweep eviction is src/utils/task/framework.ts')
+  if (!cond) console.log('    fix: the episode, probe cadence and wording are in src/engine/tasks/local-agent/agentOverload.ts; the pause row is src/engine/tasks/local-agent/agentPause.ts; overloadPauseOf and the pause and eviction of a lane are in src/engine/tasks/local-agent/crewmateTask.tsx; armOverloadProbe and overloadBudgetCutOf are in src/tools/crewmate/crewmateLifecycle.ts; sweep eviction is src/engine/task-framework/taskRegistry.ts')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const overload = await import('../../src/tasks/LocalAgentTask/agentOverload.ts')
-const pause = await import('../../src/tasks/LocalAgentTask/agentPause.ts')
-const lane = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { createAssistantAPIErrorMessage } = await import('../../src/utils/messages/factories.ts')
-import type { Message } from '../../src/types/message.ts'
+const overload = await import('../../src/engine/tasks/local-agent/agentOverload.ts')
+const pause = await import('../../src/engine/tasks/local-agent/agentPause.ts')
+const lane = await import('../../src/engine/tasks/local-agent/crewmateTask.tsx')
+const { createAssistantAPIErrorMessage } = await import('../../src/engine/message-shapes/factories.ts')
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 const OVERLOADED_ROW = 'API Error: 529 {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"},"request_id":"req_011CfHZrdNJLUZnN5a6wrGCM"}'
 const WINDOW = 60 * 60_000
@@ -77,7 +77,7 @@ section('§4 the words: calm, one spelling')
 {
   const words = overload.overloadPauseWords('Fable 5.1', 1)
   const line = overload.overloadNoticeWords('lane', 'Fable 5.1', 1)
-  const row: import('../../src/tasks/LocalAgentTask/agentPause.ts').AgentPauseV1 = { why: 'provider overloaded', words }
+  const row: import('../../src/engine/tasks/local-agent/agentPause.ts').AgentPauseV1 = { why: 'provider overloaded', words }
   check("the row's status cell", pause.pauseStatusWords(row, 0) === 'paused — provider overloaded · resumes by itself when the provider answers', pause.pauseStatusWords(row, 0))
   check('the pause decodes off the wire with its new reason', pause.decodeAgentPause({ why: 'provider overloaded', words }) !== null && pause.decodeAgentPause({ why: 'provider jammed', words }) === null)
   check("the parent's line names the pause, the provider, the kept work and the probing, and shouts no error", line === 'Crewmate "lane" paused — Fable 5.1 is overloaded (HTTP 529); its work so far is kept and rides below; Mercury probes the provider for up to 1h and resumes the crewmate by itself when it answers — a message resumes it sooner; the crew view stops it' && !/error|failed/i.test(line.replace('HTTP 529', '')), line)
@@ -87,7 +87,7 @@ section('§4 the words: calm, one spelling')
 
 section('§6 a typed overload budget cut takes the probe road without reading its words')
 {
-  const utils = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+  const utils = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
   const classify = (utils as Record<string, unknown>).overloadBudgetCutOf as undefined | ((error: unknown, model: string) => { pause: { why: string } } | null)
   const cut = { recoveryBudgetSpent: true, message: 'arbitrary refusal words', lastStatus: 529, lastCause: 'a typed provider refusal', resumeAfterMs: 0, capMs: 1200, waits: 6 }
   check('a thrown 529 cut takes the overload pause independent of its text', classify?.(cut, 'claude-fable-5-1')?.pause.why === 'provider overloaded')
@@ -96,9 +96,9 @@ section('§6 a typed overload budget cut takes the probe road without reading it
 
 section('§7 a paused agent survives eviction until its probe can resume it')
 {
-  const framework = await import('../../src/utils/task/framework.ts')
-  const utils = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-  const { resetCommandQueue } = await import('../../src/utils/messageQueueManager.ts')
+  const framework = await import('../../src/engine/task-framework/taskRegistry.ts')
+  const utils = await import('../../src/tools/crewmate/crewmateLifecycle.ts')
+  const { resetCommandQueue } = await import('../../src/daemon/runner/messageQueueManager.ts')
   const store = { state: { tasks: {} as Record<string, Record<string, unknown>>, speculation: { status: 'idle' }, agentNameRegistry: new Map() } }
   const set = (update: (state: typeof store.state) => typeof store.state) => { store.state = update(store.state) }
   const sweep = async () => {

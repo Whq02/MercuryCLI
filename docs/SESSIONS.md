@@ -1132,7 +1132,7 @@ a message does not end a task.
   [SATURN.md](SATURN.md).
 - Workspace trust and user-private commands: [TRUST.md](TRUST.md).
 - The idle-retirement, newborn-grace, unread-notice deadline and prefix-record
-  retention switches live in `src/substrate/flagRegistry.ts`.
+  retention switches live in `src/platform/substrate/flagRegistry.ts`.
 - Machine load and memory headroom travel in the session facts under `box`:
   the load per core and available memory (from the process's most recent sample
   and timestamp), plus the box lock's slots, holders, and waiting queue (from

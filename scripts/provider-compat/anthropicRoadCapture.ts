@@ -4,7 +4,7 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import assert from 'node:assert/strict'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
-import type { Message, AssistantMessage } from '../../src/types/message.ts'
+import type { Message, AssistantMessage } from '../../src/engine/message-shapes/message.ts'
 
 try {
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -46,17 +46,17 @@ const loopbackFetch: typeof fetch = (input, init) => {
   return nativeFetch(input, init)
 }
 globalThis.fetch = loopbackFetch
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { switchSession } = await import('../../src/bootstrap/state.ts')
-const { asSessionId } = await import('../../src/types/ids.ts')
+const { switchSession } = await import('../../src/boot/process-state/processState.ts')
+const { asSessionId } = await import('../../src/sessions/transcripts/ids.ts')
 switchSession(asSessionId('11111111-1111-4111-8111-111111111111'))
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { getAnthropicClient } = await import('../../src/services/api/client.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { isClaudeAISubscriber } = await import('../../src/utils/auth.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { getAnthropicClient } = await import('../../src/models/roads/anthropic/anthropicClientFactory.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { isClaudeAISubscriber } = await import('../../src/models/sign-in/credentials/auth.ts')
 assert.equal(isClaudeAISubscriber(), arm === 'subscriber')
 const history: Message[] = [createUserMessage({ content: [
   { type: 'text', text: 'Read this image and then look up its value.' },

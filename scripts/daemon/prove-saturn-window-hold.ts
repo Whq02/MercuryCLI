@@ -13,18 +13,18 @@ if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 delete process.env.CI
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { applyConcourseScheduleOp } = await import('../../src/daemon/saturn.ts')
-const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
-const { tickSaturnOnce } = await import('../../src/daemon/saturnTicker.ts')
-const { liveFactsForSessionFire } = await import('../../src/daemon/saturnAccount.ts')
-const { anthropicWindowClosedUntil } = await import('../../src/services/anthropicLimits.ts')
-const { readSessionFacts, sessionFactsDir, sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.ts')
-const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
-const { ScheduleWakeupTool } = await import('../../src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts')
+const { applyConcourseScheduleOp } = await import('../../src/daemon/saturn/saturn.ts')
+const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { tickSaturnOnce } = await import('../../src/daemon/saturn/saturnTicker.ts')
+const { liveFactsForSessionFire } = await import('../../src/daemon/saturn/saturnAccount.ts')
+const { anthropicWindowClosedUntil } = await import('../../src/models/roads/anthropic/anthropicLimits.ts')
+const { readSessionFacts, sessionFactsDir, sessionFactsPath } = await import('../../src/engine/connector/seatProjections.ts')
+const receipts = await import('../../src/daemon/switchboard/sessionReceipts.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+const bridge = await import('../../src/daemon/saturn/sessionScheduleBridge.ts')
+const { ScheduleWakeupTool } = await import('../../src/tools/schedule-wakeup/ScheduleWakeupTool.ts')
 
 let failures = 0
 let where = ''
@@ -115,7 +115,7 @@ const lastHeldReceipt = (): { summary: string; details: Record<string, unknown> 
 const selfWake = (prompt: string): unknown => ({ when: { kind: 'at', atMs: Date.now() - 1000 }, action: { kind: 'fire', prompt, onParked: 'queue' } })
 
 console.log('§W the window fact read')
-where = 'anthropicWindowClosedUntil in src/services/anthropicLimits.ts and liveFactsForSessionFire in src/daemon/saturnAccount.ts'
+where = 'anthropicWindowClosedUntil in src/models/roads/anthropic/anthropicLimits.ts and liveFactsForSessionFire in src/daemon/saturn/saturnAccount.ts'
 {
   const NOW = 1_000_000_000_000
   check('a rejected window with a stated reset reads closed until the reset', anthropicWindowClosedUntil({ status: 'rejected', observedAtMs: NOW - 1000, owner: OWNER, resetsAtMs: NOW + 60_000 }, NOW) === NOW + 60_000)
@@ -139,7 +139,7 @@ where = 'anthropicWindowClosedUntil in src/services/anthropicLimits.ts and liveF
   const openaiFact = { source: 'chatgpt-subscription', resetsAtMs: NOW + 5_000, observedAtMs: NOW - 1_000 }
   const openaiFacts = liveFactsForSessionFire({ family: 'openai', source: 'oauth' }, 'sess-x', { presenceOf: () => ({ credentialed: true, kind: 'oauth' as const }), factsOf: () => ({ usage: { openaiWindow: openaiFact } }) as never, now: () => NOW })
   check("an openai session's fire-time facts keep its window out of the dispatch decision", openaiFacts.credentialed && openaiFacts.rateLimitedUntil === undefined, JSON.stringify(openaiFacts))
-  const wire = await import('../../src/services/engine-connector/seatWire.ts')
+  const wire = await import('../../src/engine/connector/seatWire.ts')
   const onWire = wire.sessionFactsToWire({ model: { effective: 'gpt-fixture', setting: null }, usage: { ...zeros, openaiWindow: openaiFact }, identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }, skills: [], mcp: [], permissionMode: 'default', workspace: {}, queue: [] } as never) as { usage?: Record<string, unknown> }
   const wired = onWire.usage?.openai_window as Record<string, unknown> | undefined
   check("the fact rides the seat's wire as openai_window with its stamps renamed", wired !== undefined && wired.source === 'chatgpt-subscription' && wired.resets_at_ms === NOW + 5_000 && wired.observed_at_ms === NOW - 1_000, JSON.stringify(onWire.usage))
@@ -160,7 +160,7 @@ where = 'anthropicWindowClosedUntil in src/services/anthropicLimits.ts and liveF
 }
 
 console.log('§H a due self-wake dispatches despite the window note, exactly once')
-where = 'tickSaturnOnce in src/daemon/saturnTicker.ts (the window and self-wake handling before delivery)'
+where = 'tickSaturnOnce in src/daemon/saturn/saturnTicker.ts (the window and self-wake handling before delivery)'
 {
   seedRecord()
   publishFacts(rejectedFor(120_000))
@@ -180,7 +180,7 @@ where = 'tickSaturnOnce in src/daemon/saturnTicker.ts (the window and self-wake 
 }
 
 console.log('§P an explicitly queued fire waits for the parked session to resume')
-where = 'tickSaturnOnce in src/daemon/saturnTicker.ts (onParked queue handling) and applyConcourseScheduleOp in src/daemon/saturn.ts'
+where = 'tickSaturnOnce in src/daemon/saturn/saturnTicker.ts (onParked queue handling) and applyConcourseScheduleOp in src/daemon/saturn/saturn.ts'
 {
   delivered.length = 0
   clearSchedules()
@@ -203,7 +203,7 @@ where = 'tickSaturnOnce in src/daemon/saturnTicker.ts (onParked queue handling) 
 }
 
 console.log("§O an operator's own schedule keeps its documented default: parked, it wakes the session at the window's end")
-where = 'tickSaturnOnce in src/daemon/saturnTicker.ts (the default onParked behaviour of an operator schedule)'
+where = 'tickSaturnOnce in src/daemon/saturn/saturnTicker.ts (the default onParked behaviour of an operator schedule)'
 {
   delivered.length = 0
   clearSchedules()
@@ -219,7 +219,7 @@ where = 'tickSaturnOnce in src/daemon/saturnTicker.ts (the default onParked beha
 }
 
 console.log('§N nothing armed, nothing woken')
-where = 'tickSaturnOnce in src/daemon/saturnTicker.ts'
+where = 'tickSaturnOnce in src/daemon/saturn/saturnTicker.ts'
 {
   delivered.length = 0
   clearSchedules()
@@ -230,7 +230,7 @@ where = 'tickSaturnOnce in src/daemon/saturnTicker.ts'
 }
 
 console.log('§T the self-paced wake tool arms the wake arm')
-where = 'ScheduleWakeupTool in src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts and the schedule bridge in src/services/saturn/sessionScheduleBridge.ts'
+where = 'ScheduleWakeupTool in src/tools/schedule-wakeup/ScheduleWakeupTool.ts and the schedule bridge in src/daemon/saturn/sessionScheduleBridge.ts'
 {
   bridge._resetScheduleBridgeForTesting()
   bridge.markScheduleSeatObserved()

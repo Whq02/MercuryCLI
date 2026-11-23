@@ -13,7 +13,7 @@ const check = (name: string, ok: boolean, detail?: string): void => {
 
 console.log('§1 daemon roster — outcome first')
 {
-  const { deriveDaemonRows: deriveDaemonRows } = await import('../../src/services/cockpit/daemonRows.ts')
+  const { deriveDaemonRows: deriveDaemonRows } = await import('../../src/screen/cockpit-gauges/daemonRows.ts')
   const status = {
     daemon: { pid: 4242, version: '0.0.0', uptimeSec: 10, dir: '/tmp/x' },
     controlSock: '/tmp/x/control.sock',
@@ -35,8 +35,8 @@ console.log('§1 daemon roster — outcome first')
     ],
   } as unknown as Parameters<typeof deriveDaemonRows>[0]
   const rows = deriveDaemonRows(status).workers
-  check('the derive carries the wire outcome on the settled seat and none on the live one', rows[0]?.outcome === 'degraded' && rows[1]?.outcome === undefined, `${JSON.stringify(rows.map(r => r.outcome))} — deriveDaemonRows in src/services/cockpit/daemonRows.ts must copy the wire outcome of each worker into its row and leave it off when the worker has none`)
-  check('a settled seat is never busy', rows[0]?.busy === false, `busy ${String(rows[0]?.busy)} — deriveDaemonRows in src/services/cockpit/daemonRows.ts sets busy from the worker busy flag; a crashed seat that reports none must read false`)
+  check('the derive carries the wire outcome on the settled seat and none on the live one', rows[0]?.outcome === 'degraded' && rows[1]?.outcome === undefined, `${JSON.stringify(rows.map(r => r.outcome))} — deriveDaemonRows in src/screen/cockpit-gauges/daemonRows.ts must copy the wire outcome of each worker into its row and leave it off when the worker has none`)
+  check('a settled seat is never busy', rows[0]?.busy === false, `busy ${String(rows[0]?.busy)} — deriveDaemonRows in src/screen/cockpit-gauges/daemonRows.ts sets busy from the worker busy flag; a crashed seat that reports none must read false`)
 }
 
 

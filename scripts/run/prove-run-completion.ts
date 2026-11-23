@@ -2,25 +2,25 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 {
-  const { setIsInteractive } = await import('../../src/bootstrap/state.js')
+  const { setIsInteractive } = await import('../../src/boot/process-state/processState.js')
   setIsInteractive(true)
 }
 
 let failures = 0
 let currentSectionNumber = 0
 const sectionWhere: Record<number, string> = {
-  1: 'evaluateStop in src/services/run/completionEvaluator.ts must continue on an open deliverable whatever the wording says',
-  2: 'evaluateStop in src/services/run/completionEvaluator.ts and reduceRunEvent in src/services/run/runKernel.ts must gate completion on stale verification and on failed or indeterminate effects',
-  3: 'evaluateStop in src/services/run/completionEvaluator.ts must rank blocker, budget, abort and API error as these checks name',
-  4: 'evaluateStop in src/services/run/completionEvaluator.ts must keep its no-run and lightweight-run behaviour',
-  5: 'claimContinuation and continuationsThisTurn in src/services/run/continuationLatch.ts must allow one claim per stop attempt',
-  6: 'syncDeliverablesFromTasks in src/services/run/runCoordinator.ts must open deliverables for live tasks and drop those whose task vanished',
-  7: 'the blocker-over-budget order in evaluateStop (src/services/run/completionEvaluator.ts) and the absence of src/services/run/blockerDeclaration.ts',
-  8: 'evaluateStopAttempt in src/guards/runStopAdapter.ts, the blocked event in src/services/run/runCoordinator.ts and the rows in src/commands/run/runInspectorModel.ts',
-  9: 'the evidence-demand bound in evaluateStop (src/services/run/completionEvaluator.ts) and read-back evidence in src/utils/verification/verificationState.ts',
-  10: 'the one-shot and surface policy in evaluateStop (src/services/run/completionEvaluator.ts)',
-  11: 'reduceRunEvent and reconcileCompletion in src/services/run/runKernel.ts, and evaluateStop in src/services/run/completionEvaluator.ts',
-  12: 'evaluateStopAttempt in src/guards/runStopAdapter.ts and the run record kept by src/services/run/runCoordinator.ts on a non-interactive seat',
+  1: 'evaluateStop in src/engine/run/completionEvaluator.ts must continue on an open deliverable whatever the wording says',
+  2: 'evaluateStop in src/engine/run/completionEvaluator.ts and reduceRunEvent in src/engine/run/runKernel.ts must gate completion on stale verification and on failed or indeterminate effects',
+  3: 'evaluateStop in src/engine/run/completionEvaluator.ts must rank blocker, budget, abort and API error as these checks name',
+  4: 'evaluateStop in src/engine/run/completionEvaluator.ts must keep its no-run and lightweight-run behaviour',
+  5: 'claimContinuation and continuationsThisTurn in src/engine/run/continuationLatch.ts must allow one claim per stop attempt',
+  6: 'syncDeliverablesFromTasks in src/engine/run/runCoordinator.ts must open deliverables for live tasks and drop those whose task vanished',
+  7: 'the blocker-over-budget order in evaluateStop (src/engine/run/completionEvaluator.ts) and the absence of src/engine/run/blockerDeclaration.ts',
+  8: 'evaluateStopAttempt in src/permissions/guards/runStopAdapter.ts, the blocked event in src/engine/run/runCoordinator.ts and the rows in src/commands/run/runInspectorModel.ts',
+  9: 'the evidence-demand bound in evaluateStop (src/engine/run/completionEvaluator.ts) and read-back evidence in src/platform/verification/verificationState.ts',
+  10: 'the one-shot and surface policy in evaluateStop (src/engine/run/completionEvaluator.ts)',
+  11: 'reduceRunEvent and reconcileCompletion in src/engine/run/runKernel.ts, and evaluateStop in src/engine/run/completionEvaluator.ts',
+  12: 'evaluateStopAttempt in src/permissions/guards/runStopAdapter.ts and the run record kept by src/engine/run/runCoordinator.ts on a non-interactive seat',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -35,10 +35,10 @@ function section(t: string): void {
 }
 
 async function main(): Promise<void> {
-  const ok = await import('../../src/utils/run/ownerKey.js')
-  const kernel = await import('../../src/services/run/runKernel.js')
-  const { evaluateStop } = await import('../../src/services/run/completionEvaluator.js')
-  const latch = await import('../../src/services/run/continuationLatch.js')
+  const ok = await import('../../src/engine/run-owner/ownerKey.js')
+  const kernel = await import('../../src/engine/run/runKernel.js')
+  const { evaluateStop } = await import('../../src/engine/run/completionEvaluator.js')
+  const latch = await import('../../src/engine/run/continuationLatch.js')
 
   const owner = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'run-x', lane: 'main' })
   const base = () =>
@@ -209,8 +209,8 @@ async function main(): Promise<void> {
     const prevConfig = process.env.MERCURY_CONFIG_DIR
     process.env.MERCURY_CONFIG_DIR = scratch
     try {
-      const coord = await import('../../src/services/run/runCoordinator.js')
-      const tasksMod = await import('../../src/utils/tasks.js')
+      const coord = await import('../../src/engine/run/runCoordinator.js')
+      const tasksMod = await import('../../src/engine/task-framework/tasks.js')
       const orphanOwner = ok.makeOwnerKey({
         workspace: scratch,
         sessionId: 'run-orphan',
@@ -264,7 +264,7 @@ async function main(): Promise<void> {
     const { join } = await import('node:path')
     check(
       'the fixed-lines grammar module is gone from the tree (the prompt asks for no such lines)',
-      !existsSync(join(import.meta.dir, '..', '..', 'src', 'services', 'run', 'blockerDeclaration.ts')),
+      !existsSync(join(import.meta.dir, '..', '..', 'src', 'engine', 'run', 'blockerDeclaration.ts')),
     )
     const blockedAtBudget = kernel.reduceRunEvent(
       fold([{ type: 'substantive', at: 2, reason: 'x' }]),
@@ -292,9 +292,9 @@ async function main(): Promise<void> {
     const prevConfig = process.env.MERCURY_CONFIG_DIR
     process.env.MERCURY_CONFIG_DIR = scratch
     try {
-      const coord = await import('../../src/services/run/runCoordinator.js')
-      const tasksMod = await import('../../src/utils/tasks.js')
-      const adapter = await import('../../src/guards/runStopAdapter.js')
+      const coord = await import('../../src/engine/run/runCoordinator.js')
+      const tasksMod = await import('../../src/engine/task-framework/tasks.js')
+      const adapter = await import('../../src/permissions/guards/runStopAdapter.js')
       const { buildRunCapsuleLine, buildRunRows } = await import(
         '../../src/commands/run/runInspectorModel.js'
       )
@@ -513,7 +513,7 @@ async function main(): Promise<void> {
     const { mkdtempSync: mkScratch, writeFileSync: writeScratch, mkdirSync: mkdirScratch } = await import('node:fs')
     const { tmpdir: osTmp } = await import('node:os')
     const pathMod = await import('node:path')
-    const vs = await import('../../src/utils/verification/verificationState.js')
+    const vs = await import('../../src/platform/verification/verificationState.js')
 
     const docOwner = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'concord-doc', lane: 'main' })
     const docCwd = mkScratch(pathMod.join(osTmp(), 'concord-docs-'))
@@ -661,15 +661,15 @@ async function main(): Promise<void> {
     const { mkdtempSync, rmSync } = await import('node:fs')
     const { tmpdir } = await import('node:os')
     const { join } = await import('node:path')
-    const { setIsInteractive } = await import('../../src/bootstrap/state.js')
+    const { setIsInteractive } = await import('../../src/boot/process-state/processState.js')
     const scratch = mkdtempSync(join(tmpdir(), 'run-one-shot-proof-'))
     const prevConfig = process.env.MERCURY_CONFIG_DIR
     process.env.MERCURY_CONFIG_DIR = scratch
     setIsInteractive(false)
     try {
-      const coord = await import('../../src/services/run/runCoordinator.js')
-      const tasksMod = await import('../../src/utils/tasks.js')
-      const adapter = await import('../../src/guards/runStopAdapter.js')
+      const coord = await import('../../src/engine/run/runCoordinator.js')
+      const tasksMod = await import('../../src/engine/task-framework/tasks.js')
+      const adapter = await import('../../src/permissions/guards/runStopAdapter.js')
       type Msg = Parameters<typeof adapter.evaluateStopAttempt>[0]
       const messages = [
         { type: 'user', message: { content: 'file the parser task and end the turn' }, isMeta: false },

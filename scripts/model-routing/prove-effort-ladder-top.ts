@@ -10,7 +10,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
 let failures = 0
-const ladderTopHint = ' | to fix, change EFFORT_LEVELS in src/utils/effortLadder.ts, the effort parsers and resolveEffortTruth in src/utils/effort.ts, the wire ranks in src/utils/model/pins/gptPins.ts, the catalogue reads in src/services/providers/openai/openaiCatalogue.ts, or the refusal memory in src/services/providers/openai/qualificationStore.ts, whichever this label names'
+const ladderTopHint = ' | to fix, change EFFORT_LEVELS in src/models/effort/effortLadder.ts, the effort parsers and resolveEffortTruth in src/models/effort/effort.ts, the wire ranks in src/models/facts/pins/gptPins.ts, the catalogue reads in src/models/roads/openai/openaiCatalogue.ts, or the refusal memory in src/models/roads/openai/qualificationStore.ts, whichever this label names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ladderTopHint}`)
@@ -28,14 +28,14 @@ for (const key of ['OPENAI_API_KEY', 'MERCURY_CONFIG_DIR', 'MERCURY_AUTH_SCOPE_D
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-effort-ladder-top-'))
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
-const ladderModule = await import('../../src/utils/effortLadder.js')
-const effort = await import('../../src/utils/effort.js')
-const pins = await import('../../src/utils/model/pins/gptPins.js')
-const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
-const capabilities = await import('../../src/utils/model/capabilities.js')
-const store = await import('../../src/services/providers/openai/qualificationStore.js')
-const figures = await import('../../src/constants/figures.js')
-const indicator = await import('../../src/components/EffortIndicator.js')
+const ladderModule = await import('../../src/models/effort/effortLadder.js')
+const effort = await import('../../src/models/effort/effort.js')
+const pins = await import('../../src/models/facts/pins/gptPins.js')
+const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.js')
+const capabilities = await import('../../src/models/facts/capabilities.js')
+const store = await import('../../src/models/roads/openai/qualificationStore.js')
+const figures = await import('../../src/screen/theme/rowGlyphs.js')
+const indicator = await import('../../src/screen/widgets/effortIndicator.js')
 
 const LADDER = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 const LIST_WORD = 'ultra'
@@ -133,7 +133,7 @@ const LIST_WORD = 'ultra'
   check(
     'the turn machine paints the line from the one owner',
     painted.length === 1 && painted[0] === `warning: ${refused}`,
-    `a reply stamped effortAdjusted must reach the operator as one warning notice whose words are effortAdjustedReceiptLine(stamp), yielded after the model call's stream (streamModel, src/run-core/turn/streamModel.ts); the run yielded ${JSON.stringify(painted)}`,
+    `a reply stamped effortAdjusted must reach the operator as one warning notice whose words are effortAdjustedReceiptLine(stamp), yielded after the model call's stream (streamModel, src/engine/loop/turn/streamModel.ts); the run yielded ${JSON.stringify(painted)}`,
   )
 }
 

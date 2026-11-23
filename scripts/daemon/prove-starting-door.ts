@@ -18,9 +18,9 @@ function check(label: string, cond: boolean, detail = '', hint = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
 
-const sock = await import('../../src/daemon/controlSocket.ts')
-const server = await import('../../src/daemon/controlServer.ts')
-const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
+const sock = await import('../../src/daemon/control/controlSocket.ts')
+const server = await import('../../src/daemon/control/controlServer.ts')
+const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/control/protocol.ts')
 
 function rawRequest(path: string, frame: Record<string, unknown>, timeoutMs = 6000): Promise<Record<string, unknown> & { __ms: number }> {
   const started = Date.now()
@@ -92,8 +92,8 @@ console.log('\n── A · a dispatch issued during adoption is admitted once re
     wake()
   }, 300)
   const reply = await rawRequest(sockPathOf(dir), { ...base, op: 'sessionDispatch', clientMessageId: 'cm-1', prompt: 'hi', workspaceDir: '/ws' })
-  check('A1 the dispatch is ADMITTED (the door answers with its own result, never ESTARTING)', reply.ok === true && reply.replay === 'dispatched' && reply.runnerId === 'w1', JSON.stringify(reply), 'fix startControlServer in src/daemon/controlServer.ts: a work op during adoption must wait for whenReady and then run, not answer ESTARTING')
-  check('A2 …and the answer landed after the readiness flip (held, not raced)', reply.__ms >= 280 && Date.now() >= flipAt, `${reply.__ms}ms`, 'fix the readiness hold in startControlServer (src/daemon/controlServer.ts): the work op must be answered only after isReady flips')
+  check('A1 the dispatch is ADMITTED (the door answers with its own result, never ESTARTING)', reply.ok === true && reply.replay === 'dispatched' && reply.runnerId === 'w1', JSON.stringify(reply), 'fix startControlServer in src/daemon/control/controlServer.ts: a work op during adoption must wait for whenReady and then run, not answer ESTARTING')
+  check('A2 …and the answer landed after the readiness flip (held, not raced)', reply.__ms >= 280 && Date.now() >= flipAt, `${reply.__ms}ms`, 'fix the readiness hold in startControlServer (src/daemon/control/controlServer.ts): the work op must be answered only after isReady flips')
   await handle.close?.()
 }
 
@@ -102,9 +102,9 @@ console.log('\n── B · an adoption that never completes refuses typed within
   const dir = join(home, 'b')
   const handle = await startServer({ dir, ready: () => false, startingHoldMs: 300 })
   const reply = await rawRequest(sockPathOf(dir), { ...base, op: 'sessionDispatch', clientMessageId: 'cm-2', prompt: 'hi', workspaceDir: '/ws' })
-  check('B1 the refusal is the typed ESTARTING', reply.ok === false && reply.code === 'ESTARTING', JSON.stringify(reply), 'fix startControlServer in src/daemon/controlServer.ts: a work op still not ready after startingHoldMs must be refused with code ESTARTING')
-  check('B2 …naming the wait it held', /held 300ms/.test(String(reply.error)), String(reply.error), 'fix the ESTARTING error text in startControlServer (src/daemon/controlServer.ts): it must name the hold as held <startingHoldMs>ms')
-  check('B3 …inside the hold (bounded — never a hang, never a caller-side timeout)', reply.__ms >= 280 && reply.__ms < 1500, `${reply.__ms}ms`, 'fix awaitReadiness in src/daemon/controlServer.ts: the hold must last about startingHoldMs and then refuse')
+  check('B1 the refusal is the typed ESTARTING', reply.ok === false && reply.code === 'ESTARTING', JSON.stringify(reply), 'fix startControlServer in src/daemon/control/controlServer.ts: a work op still not ready after startingHoldMs must be refused with code ESTARTING')
+  check('B2 …naming the wait it held', /held 300ms/.test(String(reply.error)), String(reply.error), 'fix the ESTARTING error text in startControlServer (src/daemon/control/controlServer.ts): it must name the hold as held <startingHoldMs>ms')
+  check('B3 …inside the hold (bounded — never a hang, never a caller-side timeout)', reply.__ms >= 280 && reply.__ms < 1500, `${reply.__ms}ms`, 'fix awaitReadiness in src/daemon/control/controlServer.ts: the hold must last about startingHoldMs and then refuse')
   await handle.close?.()
 }
 
@@ -113,9 +113,9 @@ console.log('\n── C · a poll during adoption refuses at once ──')
   const dir = join(home, 'c')
   const handle = await startServer({ dir, ready: () => false })
   const status = await rawRequest(sockPathOf(dir), { ...base, op: 'status' })
-  check('C1 status answers ESTARTING promptly (a poll asks what is; its caller allows a second)', status.ok === false && status.code === 'ESTARTING' && status.__ms < 500, `${status.__ms}ms ${JSON.stringify(status)}`, 'fix PROMPT_WHILE_STARTING in src/daemon/controlServer.ts: status must answer ESTARTING at once with no hold')
+  check('C1 status answers ESTARTING promptly (a poll asks what is; its caller allows a second)', status.ok === false && status.code === 'ESTARTING' && status.__ms < 500, `${status.__ms}ms ${JSON.stringify(status)}`, 'fix PROMPT_WHILE_STARTING in src/daemon/control/controlServer.ts: status must answer ESTARTING at once with no hold')
   const list = await rawRequest(sockPathOf(dir), { ...base, op: 'sessionList' })
-  check('C2 list answers ESTARTING promptly too', list.ok === false && list.code === 'ESTARTING' && list.__ms < 500, `${list.__ms}ms`, 'fix PROMPT_WHILE_STARTING in src/daemon/controlServer.ts: sessionList must answer ESTARTING at once with no hold')
+  check('C2 list answers ESTARTING promptly too', list.ok === false && list.code === 'ESTARTING' && list.__ms < 500, `${list.__ms}ms`, 'fix PROMPT_WHILE_STARTING in src/daemon/control/controlServer.ts: sessionList must answer ESTARTING at once with no hold')
   await handle.close?.()
 }
 
@@ -124,13 +124,13 @@ console.log('\n── D · hello during adoption still answers at once, ready:fa
   const dir = join(home, 'd')
   const handle = await startServer({ dir, ready: () => false, startingHoldMs: 2000 })
   const hello = await rawRequest(sockPathOf(dir), { op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: '0' })
-  check('D1 hello is not held (ready:false, at once)', hello.ok === true && hello.ready === false && hello.__ms < 500, `${hello.__ms}ms ${JSON.stringify(hello).slice(0, 120)}`, 'fix the hello handling in startControlServer (src/daemon/controlServer.ts): hello must answer ok with ready:false at once while the daemon is starting')
+  check('D1 hello is not held (ready:false, at once)', hello.ok === true && hello.ready === false && hello.__ms < 500, `${hello.__ms}ms ${JSON.stringify(hello).slice(0, 120)}`, 'fix the hello handling in startControlServer (src/daemon/control/controlServer.ts): hello must answer ok with ready:false at once while the daemon is starting')
   await handle.close?.()
 }
 
 console.log('\n── E · the hold sits under the work doors\' deadlines; the host wakes it at its ready flip ──')
 {
-  check('E1 the hold is far under the connector\'s round-trip deadline (15s) and the seat\'s (10s)', server.ESTARTING_HOLD_MS > 0 && server.ESTARTING_HOLD_MS <= 5_000, String(server.ESTARTING_HOLD_MS), 'set ESTARTING_HOLD_MS in src/daemon/controlServer.ts above 0 and at most 5000')
+  check('E1 the hold is far under the connector\'s round-trip deadline (15s) and the seat\'s (10s)', server.ESTARTING_HOLD_MS > 0 && server.ESTARTING_HOLD_MS <= 5_000, String(server.ESTARTING_HOLD_MS), 'set ESTARTING_HOLD_MS in src/daemon/control/controlServer.ts above 0 and at most 5000')
 }
 
 rmSync(home, { recursive: true, force: true })

@@ -34,8 +34,8 @@ function runIn(body: string): Record<string, unknown> {
     process.chdir(${JSON.stringify(project)})
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const keyFile = await import(${JSON.stringify(join(SRC, 'services/providers/local/tensorfoldKeyFile.ts'))})
-    const recovery = await import(${JSON.stringify(join(SRC, 'substrate/storeRecovery.ts'))})
+    const keyFile = await import(${JSON.stringify(join(SRC, 'models/roads/local/tensorfoldKeyFile.ts'))})
+    const recovery = await import(${JSON.stringify(join(SRC, 'platform/substrate/storeRecovery.ts'))})
     const { floorOf } = await import(${JSON.stringify(join(HERE, '../lib/permissionFloor.ts'))})
     const home = ${JSON.stringify(home)}
     const file = keyFile.tensorFoldKeyFilePath()
@@ -73,9 +73,9 @@ else {
   `)
   const share = r.share as Attempt
   const words = `The TensorFold key file at ${String(r.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to mint a new key, then share again.`
-  check('the share refuses and the key file stands byte for byte', share.threw !== undefined && r.same === true, share.threw === undefined ? `a new key was minted over it (${share.answered?.key.slice(0, 8)}…): the clients paired with the old one lose it; writeTensorFoldKeyFile in src/services/providers/local/tensorfoldKeyFile.ts must throw when the existing file cannot be read` : `${JSON.stringify(share.threw)} — the file must stand byte for byte; see writeTensorFoldKeyFile in src/services/providers/local/tensorfoldKeyFile.ts`)
-  check('the refusal says what could not be read, the code, that nothing was written and what to do', share.threw?.message === words && share.threw.code === 'EACCES', `said: ${share.threw?.message ?? '(nothing)'} — wanted: ${words} — change the refusal text and code thrown by writeTensorFoldKeyFile in src/services/providers/local/tensorfoldKeyFile.ts`)
-  check('the refusal holds no key and nothing is kept aside', share.threw !== undefined && !share.threw.message.includes(OLD_KEY) && (r.copies as string[]).length === 0, `threw=${JSON.stringify(share.threw ?? null)} copies=${JSON.stringify(r.copies)} — the refusal must not carry the old key and no copy may be kept aside; see writeTensorFoldKeyFile in src/services/providers/local/tensorfoldKeyFile.ts`)
+  check('the share refuses and the key file stands byte for byte', share.threw !== undefined && r.same === true, share.threw === undefined ? `a new key was minted over it (${share.answered?.key.slice(0, 8)}…): the clients paired with the old one lose it; writeTensorFoldKeyFile in src/models/roads/local/tensorfoldKeyFile.ts must throw when the existing file cannot be read` : `${JSON.stringify(share.threw)} — the file must stand byte for byte; see writeTensorFoldKeyFile in src/models/roads/local/tensorfoldKeyFile.ts`)
+  check('the refusal says what could not be read, the code, that nothing was written and what to do', share.threw?.message === words && share.threw.code === 'EACCES', `said: ${share.threw?.message ?? '(nothing)'} — wanted: ${words} — change the refusal text and code thrown by writeTensorFoldKeyFile in src/models/roads/local/tensorfoldKeyFile.ts`)
+  check('the refusal holds no key and nothing is kept aside', share.threw !== undefined && !share.threw.message.includes(OLD_KEY) && (r.copies as string[]).length === 0, `threw=${JSON.stringify(share.threw ?? null)} copies=${JSON.stringify(r.copies)} — the refusal must not carry the old key and no copy may be kept aside; see writeTensorFoldKeyFile in src/models/roads/local/tensorfoldKeyFile.ts`)
 }
 
 for (const [title, fixture, fixtureMode, reason] of [
@@ -105,10 +105,10 @@ for (const [title, fixture, fixtureMode, reason] of [
   `)
   const share = r.share as Attempt
   const copies = r.copies as string[]
-  check('a new key is minted and written, mode 0600', share.answered !== undefined && share.answered.key !== OLD_KEY && r.fileNow === `${share.answered.line}\n` && (!POSIX_MODES || r.fileMode === 0o600), `${JSON.stringify(share)} file now=${JSON.stringify(r.fileNow)} mode=${String(r.fileMode)} — writeTensorFoldKeyFile in src/services/providers/local/tensorfoldKeyFile.ts must write a fresh key line to the file at mode 0600`)
-  check('one copy of the old file is kept in the Mercury home, under a name the read floors cover, holding its bytes, mode 0600', copies.length === 1 && COPY.test(copies[0]!) && ['/', '\\'].some(separator => copies[0]!.startsWith(`${String(r.home)}${separator}`)) && r.copyHoldsTheBytes === true && (!POSIX_MODES || r.copyMode === 0o600), `${JSON.stringify(copies)} copyHoldsTheBytes=${String(r.copyHoldsTheBytes)} copyMode=${String(r.copyMode)} — the old key is on disk nowhere; the old file must be kept aside once, in the Mercury home, as .tensorfold-key.corrupt.<n>-auth.json at mode 0600 (writeTensorFoldKeyFile in src/services/providers/local/tensorfoldKeyFile.ts, quarantineDamagedStore in src/substrate/storeRecovery.ts)`)
+  check('a new key is minted and written, mode 0600', share.answered !== undefined && share.answered.key !== OLD_KEY && r.fileNow === `${share.answered.line}\n` && (!POSIX_MODES || r.fileMode === 0o600), `${JSON.stringify(share)} file now=${JSON.stringify(r.fileNow)} mode=${String(r.fileMode)} — writeTensorFoldKeyFile in src/models/roads/local/tensorfoldKeyFile.ts must write a fresh key line to the file at mode 0600`)
+  check('one copy of the old file is kept in the Mercury home, under a name the read floors cover, holding its bytes, mode 0600', copies.length === 1 && COPY.test(copies[0]!) && ['/', '\\'].some(separator => copies[0]!.startsWith(`${String(r.home)}${separator}`)) && r.copyHoldsTheBytes === true && (!POSIX_MODES || r.copyMode === 0o600), `${JSON.stringify(copies)} copyHoldsTheBytes=${String(r.copyHoldsTheBytes)} copyMode=${String(r.copyMode)} — the old key is on disk nowhere; the old file must be kept aside once, in the Mercury home, as .tensorfold-key.corrupt.<n>-auth.json at mode 0600 (writeTensorFoldKeyFile in src/models/roads/local/tensorfoldKeyFile.ts, quarantineDamagedStore in src/platform/substrate/storeRecovery.ts)`)
   const last = (r.events as Event[]).at(-1)
-  check('the recovery ledger, which the Health Check prints, names the store, the reason and where the copy is', last !== undefined && last.store === 'tensorfold-key' && last.reason === reason && last.quarantinePath === copies[0] && (last.kind ?? 'quarantine') === 'quarantine', `${JSON.stringify(last ?? null)} — wanted store tensorfold-key, reason ${reason}, quarantinePath ${String(copies[0])}; see quarantineDamagedStore in src/substrate/storeRecovery.ts and its caller in src/services/providers/local/tensorfoldKeyFile.ts`)
+  check('the recovery ledger, which the Health Check prints, names the store, the reason and where the copy is', last !== undefined && last.store === 'tensorfold-key' && last.reason === reason && last.quarantinePath === copies[0] && (last.kind ?? 'quarantine') === 'quarantine', `${JSON.stringify(last ?? null)} — wanted store tensorfold-key, reason ${reason}, quarantinePath ${String(copies[0])}; see quarantineDamagedStore in src/platform/substrate/storeRecovery.ts and its caller in src/models/roads/local/tensorfoldKeyFile.ts`)
   const floor = r.floor as Floor
   for (const mode of ['default', 'sovereign']) check(`${mode}: the read floor refuses the kept-aside copy, by Read and by cat`, floor?.[mode]?.read === 'deny' && floor?.[mode]?.cat === 'deny', `${JSON.stringify(floor?.[mode] ?? null)} — the kept-aside copy name .tensorfold-key.corrupt.<n>-auth.json must fall under the read floor, or the copy must be named differently`)
   console.log(`  [INFO] the key file itself, by the same floor: ${JSON.stringify(r.floorOfTheKeyFile)}`)
@@ -127,8 +127,8 @@ else {
   `)
   const share = r.share as Attempt
   const words = `The TensorFold key file at ${String(r.file)} can be read by other users and could not be kept aside (EACCES); nothing was written. Move it away, then share again.`
-  check('the share refuses and the key file stands', share.threw !== undefined && r.same === true, share.threw === undefined ? 'a new key was minted over it with no copy; writeTensorFoldKeyFile in src/services/providers/local/tensorfoldKeyFile.ts must refuse when the old file cannot be kept aside' : `${JSON.stringify(share.threw)} — the file must stand unchanged at mode 0644; see writeTensorFoldKeyFile in src/services/providers/local/tensorfoldKeyFile.ts`)
-  check('the refusal says why nothing was written and what to do, and carries the code', share.threw?.message === words && share.threw.code === 'EACCES', `said: ${share.threw?.message ?? '(nothing)'} — wanted: ${words} — change the refusal text and code thrown by writeTensorFoldKeyFile in src/services/providers/local/tensorfoldKeyFile.ts`)
+  check('the share refuses and the key file stands', share.threw !== undefined && r.same === true, share.threw === undefined ? 'a new key was minted over it with no copy; writeTensorFoldKeyFile in src/models/roads/local/tensorfoldKeyFile.ts must refuse when the old file cannot be kept aside' : `${JSON.stringify(share.threw)} — the file must stand unchanged at mode 0644; see writeTensorFoldKeyFile in src/models/roads/local/tensorfoldKeyFile.ts`)
+  check('the refusal says why nothing was written and what to do, and carries the code', share.threw?.message === words && share.threw.code === 'EACCES', `said: ${share.threw?.message ?? '(nothing)'} — wanted: ${words} — change the refusal text and code thrown by writeTensorFoldKeyFile in src/models/roads/local/tensorfoldKeyFile.ts`)
 }
 
 console.log('the TensorFold key file — controls: no file mints a key, a private file with a key keeps it, a key handed in is written')
@@ -143,10 +143,10 @@ console.log('the TensorFold key file — controls: no file mints a key, a privat
   `)
   const first = r.first as Attempt
   const again = r.again as Attempt
-  check('with no file a key is minted', first.answered !== undefined && first.answered.key.length >= 32, `${JSON.stringify(first)} — writeTensorFoldKeyFile in src/services/providers/local/tensorfoldKeyFile.ts must mint a key of at least 32 characters when no file exists`)
-  check('a second share keeps that key', again.answered?.key === first.answered?.key && (r.read as { key?: string } | null)?.key === first.answered?.key, `${JSON.stringify(again)} — a private file holding a key must be kept and returned by writeTensorFoldKeyFile in src/services/providers/local/tensorfoldKeyFile.ts`)
-  check('a key handed in is written as it is, and nothing is kept aside', (r.given as Attempt).answered?.key === 'fixture-key-handed-in' && (r.copies as string[]).length === 0, `${JSON.stringify(r.given)} copies=${JSON.stringify(r.copies)} — a key passed in opts.key must be written as it is, with no copy kept aside (writeTensorFoldKeyFile in src/services/providers/local/tensorfoldKeyFile.ts)`)
-  if (POSIX_MODES) check('the key file is mode 0600', r.mode === 0o600, `mode ${(r.mode as number | null)?.toString(8)} — writeTensorFoldKeyFile in src/services/providers/local/tensorfoldKeyFile.ts must write the file at mode 0600`)
+  check('with no file a key is minted', first.answered !== undefined && first.answered.key.length >= 32, `${JSON.stringify(first)} — writeTensorFoldKeyFile in src/models/roads/local/tensorfoldKeyFile.ts must mint a key of at least 32 characters when no file exists`)
+  check('a second share keeps that key', again.answered?.key === first.answered?.key && (r.read as { key?: string } | null)?.key === first.answered?.key, `${JSON.stringify(again)} — a private file holding a key must be kept and returned by writeTensorFoldKeyFile in src/models/roads/local/tensorfoldKeyFile.ts`)
+  check('a key handed in is written as it is, and nothing is kept aside', (r.given as Attempt).answered?.key === 'fixture-key-handed-in' && (r.copies as string[]).length === 0, `${JSON.stringify(r.given)} copies=${JSON.stringify(r.copies)} — a key passed in opts.key must be written as it is, with no copy kept aside (writeTensorFoldKeyFile in src/models/roads/local/tensorfoldKeyFile.ts)`)
+  if (POSIX_MODES) check('the key file is mode 0600', r.mode === 0o600, `mode ${(r.mode as number | null)?.toString(8)} — writeTensorFoldKeyFile in src/models/roads/local/tensorfoldKeyFile.ts must write the file at mode 0600`)
 }
 
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)

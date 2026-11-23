@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 const root = resolve(process.env.PROOF_SUBJECT_ROOT ?? join(import.meta.dir, '../..'))
-const { resolveBrowser } = await import(join(root, 'src/services/browser/browserResolver.ts'))
+const { resolveBrowser } = await import(join(root, 'src/integrations/browser/browserResolver.ts'))
 const first = resolveBrowser()
 if (first.state !== 'ok') {
   const { resolveExecutionProfile } = await import(join(root, 'scripts/lib/executionProfile.ts'))
@@ -30,7 +30,7 @@ let failures = 0
 function check(name: string, ok: boolean, detail = '') {
   if (!ok) failures++
   const where = name.endsWith('launched the product browser')
-    ? 'the fixture needs a resolvable browser and ensureBrowserSession in src/services/browser/browserSession.ts to launch it; read the runner output above'
+    ? 'the fixture needs a resolvable browser and ensureBrowserSession in src/integrations/browser/browserSession.ts to launch it; read the runner output above'
     : 'the teardown run by scripts/gate/run-suite.sh (its cleaner is scripts/lib/proofBrowser.cjs --quiesce) must end the proof browser, its helpers and its profile in every mode and keep the runner result'
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `: ${detail}` : ''}${ok ? '' : ` | to fix: ${where}`}`)
 }
@@ -46,8 +46,8 @@ try {
     const fixture = join(dir, 'fixture.ts')
     writeFileSync(fixture, `import { writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
-const { ensureBrowserSession } = await import(${JSON.stringify(join(root, 'src/services/browser/browserSession.ts'))})
-const { processOwnerForLane } = await import(${JSON.stringify(join(root, 'src/utils/run/resolveOwner.ts'))})
+const { ensureBrowserSession } = await import(${JSON.stringify(join(root, 'src/integrations/browser/browserSession.ts'))})
+const { processOwnerForLane } = await import(${JSON.stringify(join(root, 'src/engine/run-owner/resolveOwner.ts'))})
 const s = await ensureBrowserSession(processOwnerForLane(null))
 if ('state' in s) throw new Error(s.note)
 const child = s.browser.process()!

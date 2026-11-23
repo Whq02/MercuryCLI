@@ -17,7 +17,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  const failHint = ' — change applySettingsChange in src/utils/settings/applySettingsChange.ts, or stripDangerousPermissionsForFlow and transitionPermissionMode in src/utils/permissions/permissionSetup.ts'
+  const failHint = ' — change applySettingsChange in src/platform/settings/applySettingsChange.ts, or stripDangerousPermissionsForFlow and transitionPermissionMode in src/permissions/rules/permissionSetup.ts'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : failHint}`)
 }
 function section(t: string): void {
@@ -31,20 +31,20 @@ const BROAD = 'Bash(*)'
 const NARROW = 'Read(docs/**)'
 writeFileSync(USER_SETTINGS, JSON.stringify({ guardrails: { allow: [BROAD] } }))
 
-const state = await import(join(SRC, 'bootstrap/state.ts'))
-const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
+const state = await import(join(SRC, 'boot/process-state/processState.ts'))
+const { setCwd } = await import(join(SRC, 'platform/shell/shellExec.ts'))
 setCwd(FOLDER)
 state.setOriginalCwd(FOLDER)
 state.setProjectRoot(FOLDER)
 state.setIsInteractive(true)
 state.setSessionTrustAccepted(true)
-const { enableConfigs } = await import(join(SRC, 'utils/config.ts'))
-const { getEmptyToolPermissionContext } = await import(join(SRC, 'Tool.ts'))
-const { applyPermissionRulesToPermissionContext } = await import(join(SRC, 'utils/permissions/permissions.ts'))
-const { loadAllPermissionRulesFromDisk } = await import(join(SRC, 'utils/permissions/permissionsLoader.ts'))
-const setup = await import(join(SRC, 'utils/permissions/permissionSetup.ts'))
-const { applySettingsChange } = await import(join(SRC, 'utils/settings/applySettingsChange.ts'))
-const { resetSettingsCache } = await import(join(SRC, 'utils/settings/settingsCache.ts'))
+const { enableConfigs } = await import(join(SRC, 'platform/settings/config.ts'))
+const { getEmptyToolPermissionContext } = await import(join(SRC, 'tools/kit/tool.ts'))
+const { applyPermissionRulesToPermissionContext } = await import(join(SRC, 'permissions/rules/permissionDoor.ts'))
+const { loadAllPermissionRulesFromDisk } = await import(join(SRC, 'permissions/rules/permissionsLoader.ts'))
+const setup = await import(join(SRC, 'permissions/rules/permissionSetup.ts'))
+const { applySettingsChange } = await import(join(SRC, 'platform/settings/applySettingsChange.ts'))
+const { resetSettingsCache } = await import(join(SRC, 'platform/settings/settingsCache.ts'))
 enableConfigs()
 
 type Context = { mode: string; alwaysAllowRules: Record<string, string[] | undefined>; strippedDangerousRules?: Record<string, string[]> }

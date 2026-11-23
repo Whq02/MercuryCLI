@@ -21,14 +21,14 @@ const guard = setTimeout(() => {
 }, 120_000)
 guard.unref?.()
 
-const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { ChangeSetTool } = await import('../../src/tools/change-set/ChangeSetTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 const { mintFileAnchor } = await import(
-  '../../src/services/changeTransaction/snapshotAnchor.ts'
+  '../../src/tools/engines/change-transaction/snapshotAnchor.ts'
 )
-const { sha256Hex } = await import('../../src/utils/hash.ts')
-const { listJournalOperations } = await import('../../src/substrate/operationJournal.ts')
-const { isDurableTempName } = await import('../../src/substrate/durablePublish.ts')
+const { sha256Hex } = await import('../../src/platform/primitives/hash.ts')
+const { listJournalOperations } = await import('../../src/platform/substrate/operationJournal.ts')
+const { isDurableTempName } = await import('../../src/platform/substrate/durablePublish.ts')
 
 const fixtures = realpathSync(mkdtempSync(join(tmpdir(), 'fulcrum-zw-fix-')))
 const outside = realpathSync(mkdtempSync(join(tmpdir(), 'fulcrum-zw-outside-')))
@@ -118,11 +118,11 @@ console.log('── Z1 preview never writes ──')
     { op: 'preview', changes: [member(aPath, [{ lines: '1', replace: 'A1' }]), member(bPath, [{ lines: '2', replace: 'B2' }])] },
     ctx,
   )
-  check('preview returns a prepared plan', r.data.outcome === 'no-change' && /^cs-/.test(r.data.planId ?? ''), `outcome=${r.data.outcome} planId=${r.data.planId} — the op:"preview" branch of src/tools/ChangeSetTool/ChangeSetTool.ts must answer no-change with a cs- plan id`)
-  check('preview effect is changeset.preview (no receipt vocabulary)', r.effect.operation === 'changeset.preview' && r.effect.changedPaths.length === 0, `operation=${r.effect.operation} changedPaths=${r.effect.changedPaths.length} — the preview effect built in src/tools/ChangeSetTool/ChangeSetTool.ts must be changeset.preview with no changed paths`)
-  check('tree byte-identical after preview', treeDigest() === before, 'a fixture file changed during op:"preview"; the preview branch of src/tools/ChangeSetTool/ChangeSetTool.ts must not write')
-  check('no journal operation from a preview', (await journalOps()).length === 0, 'op:"preview" minted a journal operation; only the apply path of src/tools/ChangeSetTool/ChangeSetTool.ts may open one')
-  check('no staged temps from a preview', strayTemps().length === 0, `stray temps: ${strayTemps().join(', ')} — op:"preview" in src/tools/ChangeSetTool/ChangeSetTool.ts must not stage files`)
+  check('preview returns a prepared plan', r.data.outcome === 'no-change' && /^cs-/.test(r.data.planId ?? ''), `outcome=${r.data.outcome} planId=${r.data.planId} — the op:"preview" branch of src/tools/change-set/ChangeSetTool.ts must answer no-change with a cs- plan id`)
+  check('preview effect is changeset.preview (no receipt vocabulary)', r.effect.operation === 'changeset.preview' && r.effect.changedPaths.length === 0, `operation=${r.effect.operation} changedPaths=${r.effect.changedPaths.length} — the preview effect built in src/tools/change-set/ChangeSetTool.ts must be changeset.preview with no changed paths`)
+  check('tree byte-identical after preview', treeDigest() === before, 'a fixture file changed during op:"preview"; the preview branch of src/tools/change-set/ChangeSetTool.ts must not write')
+  check('no journal operation from a preview', (await journalOps()).length === 0, 'op:"preview" minted a journal operation; only the apply path of src/tools/change-set/ChangeSetTool.ts may open one')
+  check('no staged temps from a preview', strayTemps().length === 0, `stray temps: ${strayTemps().join(', ')} — op:"preview" in src/tools/change-set/ChangeSetTool.ts must not stage files`)
 }
 
 console.log('── Z2 one invalid member ⇒ NO member written (fast apply path) ──')
@@ -141,10 +141,10 @@ console.log('── Z2 one invalid member ⇒ NO member written (fast apply path
     },
     ctx,
   )
-  check('the whole set refuses (failed effect)', r.effect.outcome === 'failed', `outcome=${r.effect.outcome} — op:"apply" in src/tools/ChangeSetTool/ChangeSetTool.ts must refuse the whole set when one member's anchor is stale`)
-  check('the refusal names the stale member + reread', /stale/i.test(r.data.result) && /Nothing was written/.test(r.data.result), `${r.data.result} — the refusal text must say stale and "Nothing was written"; see staleRefusalText in src/tools/ChangeSetTool/ChangeSetTool.ts`)
-  check('NO member was written — tree byte-identical', treeDigest() === before, 'a member was written despite a stale sibling; apply in src/tools/ChangeSetTool/ChangeSetTool.ts must validate every member before any write')
-  check('no journal operation minted', (await journalOps()).length === 0, 'a refused apply opened a journal operation; the refusal must return before the commit in src/tools/ChangeSetTool/ChangeSetTool.ts')
+  check('the whole set refuses (failed effect)', r.effect.outcome === 'failed', `outcome=${r.effect.outcome} — op:"apply" in src/tools/change-set/ChangeSetTool.ts must refuse the whole set when one member's anchor is stale`)
+  check('the refusal names the stale member + reread', /stale/i.test(r.data.result) && /Nothing was written/.test(r.data.result), `${r.data.result} — the refusal text must say stale and "Nothing was written"; see staleRefusalText in src/tools/change-set/ChangeSetTool.ts`)
+  check('NO member was written — tree byte-identical', treeDigest() === before, 'a member was written despite a stale sibling; apply in src/tools/change-set/ChangeSetTool.ts must validate every member before any write')
+  check('no journal operation minted', (await journalOps()).length === 0, 'a refused apply opened a journal operation; the refusal must return before the commit in src/tools/change-set/ChangeSetTool.ts')
 }
 
 console.log('── Z3 an outside member uses ordinary permission ──')
@@ -153,7 +153,7 @@ console.log('── Z3 an outside member uses ordinary permission ──')
   primeRead(ctx, aPath, outsidePath)
   const input = { op: 'apply', changes: [member(aPath, [{ lines: '1', replace: 'A1-scope' }]), member(outsidePath, [{ lines: '1', replace: 'O1-scope' }])] }
   const decision = await ChangeSetTool.checkPermissions(input as never, ctx as never)
-  check('the outside member asks instead of refusing by folder', decision.behavior === 'ask', `behavior=${decision.behavior} — ChangeSetTool.checkPermissions in src/tools/ChangeSetTool/ChangeSetTool.ts must ask for a member outside the working directories`)
+  check('the outside member asks instead of refusing by folder', decision.behavior === 'ask', `behavior=${decision.behavior} — ChangeSetTool.checkPermissions in src/tools/change-set/ChangeSetTool.ts must ask for a member outside the working directories`)
   const r = await callTool(input, ctx)
   check('after approval both members are written', r.effect.outcome === 'succeeded' && r.effect.changedPaths.includes(outsidePath), r.data.result)
   writeFileSync(aPath, A)
@@ -169,8 +169,8 @@ console.log('── Z4 one deny-rule member ⇒ NO member written ──')
     { op: 'apply', changes: [member(aPath, [{ lines: '1', replace: 'A1-deny' }]), member(bPath, [{ lines: '1', replace: 'B1-deny' }])] },
     ctx,
   )
-  check('a denied path refuses the WHOLE set', r.effect.outcome === 'failed' && /den/i.test(r.data.result), `outcome=${r.effect.outcome} result=${r.data.result} — the denied-path check in the apply path of src/tools/ChangeSetTool/ChangeSetTool.ts must refuse the full set`)
-  check('NO member written under a deny rule', treeDigest() === before, 'a member was written although a sibling is denied; the deny check in src/tools/ChangeSetTool/ChangeSetTool.ts must run before any write')
+  check('a denied path refuses the WHOLE set', r.effect.outcome === 'failed' && /den/i.test(r.data.result), `outcome=${r.effect.outcome} result=${r.data.result} — the denied-path check in the apply path of src/tools/change-set/ChangeSetTool.ts must refuse the full set`)
+  check('NO member written under a deny rule', treeDigest() === before, 'a member was written although a sibling is denied; the deny check in src/tools/change-set/ChangeSetTool.ts must run before any write')
 }
 
 console.log('── Z5 drift at first/middle/last of a previewed plan ⇒ zero writes ──')
@@ -197,8 +197,8 @@ for (const [idx, label, drift] of [
   writeFileSync(drift, `drifted-${label}\n`)
   const before = treeDigest()
   const r = await callTool({ op: 'apply', plan_id: pv.data.planId }, ctx)
-  check(`drift at the ${label} target refuses, names the Read to do and hands no anchor value`, r.effect.outcome === 'failed' && /changed since the plan — re-read .*\(full file\) to refresh the anchor/.test(r.data.result) && !/fa:[0-9a-f]{12}/.test(r.data.result), `${r.data.result} — staleRefusalText in src/tools/ChangeSetTool/ChangeSetTool.ts must say "changed since the plan — re-read <path> (full file) to refresh the anchor" and print no fa: anchor`)
-  check(`drift at the ${label} target wrote NOTHING`, treeDigest() === before, 'a drifted plan wrote files; the stale check (rederiveBytes) in src/tools/ChangeSetTool/ChangeSetTool.ts must run before the commit')
+  check(`drift at the ${label} target refuses, names the Read to do and hands no anchor value`, r.effect.outcome === 'failed' && /changed since the plan — re-read .*\(full file\) to refresh the anchor/.test(r.data.result) && !/fa:[0-9a-f]{12}/.test(r.data.result), `${r.data.result} — staleRefusalText in src/tools/change-set/ChangeSetTool.ts must say "changed since the plan — re-read <path> (full file) to refresh the anchor" and print no fa: anchor`)
+  check(`drift at the ${label} target wrote NOTHING`, treeDigest() === before, 'a drifted plan wrote files; the stale check (rederiveBytes) in src/tools/change-set/ChangeSetTool.ts must run before the commit')
   writeFileSync(drift, original)
 }
 
@@ -211,8 +211,8 @@ console.log('── Z6 cancellation before commit ⇒ zero writes ──')
     { op: 'apply', changes: [member(aPath, [{ lines: '1', replace: 'A-cancel' }]), member(bPath, [{ lines: '1', replace: 'B-cancel' }])] },
     ctx,
   )
-  check('cancellation refuses honestly', r.effect.outcome === 'failed' && /[Cc]ancelled/.test(r.data.result), `outcome=${r.effect.outcome} result=${r.data.result} — the abort check before commit in the apply path of src/tools/ChangeSetTool/ChangeSetTool.ts must answer "Cancelled before commit"`)
-  check('cancellation wrote NOTHING', treeDigest() === before, 'an aborted apply still wrote files; the abort check in src/tools/ChangeSetTool/ChangeSetTool.ts must run before the commit')
+  check('cancellation refuses honestly', r.effect.outcome === 'failed' && /[Cc]ancelled/.test(r.data.result), `outcome=${r.effect.outcome} result=${r.data.result} — the abort check before commit in the apply path of src/tools/change-set/ChangeSetTool.ts must answer "Cancelled before commit"`)
+  check('cancellation wrote NOTHING', treeDigest() === before, 'an aborted apply still wrote files; the abort check in src/tools/change-set/ChangeSetTool.ts must run before the commit')
 }
 
 console.log('── Z7 all-no-change ⇒ ONE truthful no-change effect, zero writes ──')
@@ -228,16 +228,16 @@ console.log('── Z7 all-no-change ⇒ ONE truthful no-change effect, zero wri
     { op: 'apply', changes: [member(aPath, [{ lines: '1', replace: 'a1' }]), member(bPath, [{ lines: '2', replace: 'b2' }])] },
     ctx,
   )
-  check('outcome is the truthful no-change', r.effect.outcome === 'no-change' && r.effect.operation === 'file.changeSet', `outcome=${r.effect.outcome} operation=${r.effect.operation} — noChangeAnswer in src/tools/ChangeSetTool/ChangeSetTool.ts must return no-change for file.changeSet when every member is already satisfied`)
-  check('changedPaths is EMPTY', r.effect.changedPaths.length === 0, `changedPaths=${r.effect.changedPaths.join(', ')} — noChangeAnswer in src/tools/ChangeSetTool/ChangeSetTool.ts must list no changed paths`)
-  check('noChangePaths are NAMED in the details', Array.isArray(r.effect.details?.noChangePaths) && (r.effect.details!.noChangePaths as string[]).length === 2, `details=${JSON.stringify(r.effect.details)} — noChangeAnswer in src/tools/ChangeSetTool/ChangeSetTool.ts must put both unchanged paths in details.noChangePaths`)
-  check('zero filesystem writes (bytes + mtime untouched)', treeDigest() === before && statSync(aPath).mtimeMs === mtimeBefore, 'a no-change set rewrote a file; noChangeAnswer in src/tools/ChangeSetTool/ChangeSetTool.ts must return before any write')
-  check('zero journal activity for a no-change set', (await journalOps()).length === journalBefore, 'a no-change set opened a journal operation; noChangeAnswer in src/tools/ChangeSetTool/ChangeSetTool.ts must return before the commit')
+  check('outcome is the truthful no-change', r.effect.outcome === 'no-change' && r.effect.operation === 'file.changeSet', `outcome=${r.effect.outcome} operation=${r.effect.operation} — noChangeAnswer in src/tools/change-set/ChangeSetTool.ts must return no-change for file.changeSet when every member is already satisfied`)
+  check('changedPaths is EMPTY', r.effect.changedPaths.length === 0, `changedPaths=${r.effect.changedPaths.join(', ')} — noChangeAnswer in src/tools/change-set/ChangeSetTool.ts must list no changed paths`)
+  check('noChangePaths are NAMED in the details', Array.isArray(r.effect.details?.noChangePaths) && (r.effect.details!.noChangePaths as string[]).length === 2, `details=${JSON.stringify(r.effect.details)} — noChangeAnswer in src/tools/change-set/ChangeSetTool.ts must put both unchanged paths in details.noChangePaths`)
+  check('zero filesystem writes (bytes + mtime untouched)', treeDigest() === before && statSync(aPath).mtimeMs === mtimeBefore, 'a no-change set rewrote a file; noChangeAnswer in src/tools/change-set/ChangeSetTool.ts must return before any write')
+  check('zero journal activity for a no-change set', (await journalOps()).length === journalBefore, 'a no-change set opened a journal operation; noChangeAnswer in src/tools/change-set/ChangeSetTool.ts must return before the commit')
 }
 
 console.log('── Z8 no refusal path leaves staged temps ──')
 {
-  check('fixture dir holds zero durable temps after every refusal above', strayTemps().length === 0, `stray temps: ${strayTemps().join(', ')} — a refusal path in src/tools/ChangeSetTool/ChangeSetTool.ts staged files before refusing`)
+  check('fixture dir holds zero durable temps after every refusal above', strayTemps().length === 0, `stray temps: ${strayTemps().join(', ')} — a refusal path in src/tools/change-set/ChangeSetTool.ts staged files before refusing`)
 }
 
 console.log(failures === 0 ? '\nprove-changeset-zero-write: GREEN' : `\nprove-changeset-zero-write: ${failures} FAILURE(S)`)

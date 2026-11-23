@@ -44,9 +44,9 @@ const { mock } = await import('bun:test')
 const React = await import('react')
 const h = React.createElement
 
-type SessionListing = import('../../src/types/logs.js').SessionListing
-type SessionPickerFlatRow = import('../../src/components/mercury-ui/screens/sessionPickerModel.js').SessionPickerFlatRow
-type BootProjectFact = import('../../src/utils/bootCardFacts.js').BootProjectFact
+type SessionListing = import('../../src/sessions/transcripts/transcriptEntries.js').SessionListing
+type SessionPickerFlatRow = import('../../src/screen/widgets/faces/sessionPickerModel.js').SessionPickerFlatRow
+type BootProjectFact = import('../../src/screen/boot-face/bootCardFacts.js').BootProjectFact
 
 let resumedCalls: Array<{ sessionId: string; fullPath?: string; title?: string }> = []
 let bornCalls: Array<{ workspaceDir: string }> = []
@@ -55,8 +55,8 @@ let pruneCalls = 0
 let closeCalls = 0
 let faultRewriteId: ((sessionId: string) => string) | null = null
 
-const realHop = await import('../../src/services/switchboard/hopIntoSession.ts')
-mock.module('../../src/services/switchboard/hopIntoSession.ts', () => ({
+const realHop = await import('../../src/daemon/switchboard/hopIntoSession.ts')
+mock.module('../../src/daemon/switchboard/hopIntoSession.ts', () => ({
   ...realHop,
   focusResumedSession: async (
     sessionId: string,
@@ -69,8 +69,8 @@ mock.module('../../src/services/switchboard/hopIntoSession.ts', () => ({
   },
 }))
 
-const realBorn = await import('../../src/services/switchboard/bornSession.ts')
-mock.module('../../src/services/switchboard/bornSession.ts', () => ({
+const realBorn = await import('../../src/daemon/switchboard/bornSession.ts')
+mock.module('../../src/daemon/switchboard/bornSession.ts', () => ({
   ...realBorn,
   bornSession: async (opts: { workspaceDir: string }) => {
     bornCalls.push({ workspaceDir: opts.workspaceDir })
@@ -78,8 +78,8 @@ mock.module('../../src/services/switchboard/bornSession.ts', () => ({
   },
 }))
 
-const realPrune = await import('../../src/services/switchboard/transcriptPruneDoor.ts')
-mock.module('../../src/services/switchboard/transcriptPruneDoor.ts', () => ({
+const realPrune = await import('../../src/daemon/switchboard/transcriptPruneDoor.ts')
+mock.module('../../src/daemon/switchboard/transcriptPruneDoor.ts', () => ({
   ...realPrune,
   operatorPruneTranscripts: async () => {
     pruneCalls++
@@ -87,29 +87,29 @@ mock.module('../../src/services/switchboard/transcriptPruneDoor.ts', () => ({
   },
 }))
 
-const realWorkers = await import('../../src/daemon/concourseWorkers.ts')
-mock.module('../../src/daemon/concourseWorkers.ts', () => ({
+const realWorkers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+mock.module('../../src/daemon/concourse-workers/concourseWorkers.ts', () => ({
   ...realWorkers,
   boardHomedSessionIds: () => new Set<string>(),
 }))
 
-const { registerBootDoors } = await import('../../src/services/boot/registerDoors.ts')
+const { registerBootDoors } = await import('../../src/boot/doors/registerDoors.ts')
 registerBootDoors()
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { setCwdState, setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+const { setCwdState, setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
 setOriginalCwd(fixtureRoot)
 setCwdState(fixtureRoot)
 
-const { default: Ink } = await import('../../src/ink/ink.js')
-const { default: instances } = await import('../../src/ink/instances.js')
-const { default: reconciler } = await import('../../src/ink/reconciler.js')
-const { disposeKeybindingWatcher } = await import('../../src/keybindings/loadUserBindings.js')
-const { Box } = await import('../../src/ink.js')
-const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { BootResumeScreen } = await import('../../src/components/BootResumeScreen.tsx')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.js')
+const { default: instances } = await import('../../src/screen/renderer/instances.js')
+const { default: reconciler } = await import('../../src/screen/renderer/reconciler.js')
+const { disposeKeybindingWatcher } = await import('../../src/screen/keys/loadUserBindings.js')
+const { Box } = await import('../../src/screen/themedRenderer.js')
+const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { BootResumeScreen } = await import('../../src/screen/boot-face/BootResumeScreen.tsx')
 
 class FakeStdout extends EventEmitter {
   isTTY = true

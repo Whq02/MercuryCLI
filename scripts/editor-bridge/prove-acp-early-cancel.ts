@@ -14,7 +14,7 @@ const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'acp-early-cancel-')))
 let failures = 0
 const check = (label: string, yes: boolean, detail: unknown = '') => {
   if (!yes) failures++
-  console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${yes ? '' : ` — ${JSON.stringify(detail)} — look at the session/cancel and session/prompt handlers in src/services/acp/acpServer/sessionRequests.ts, then interrupt() in src/services/acp/childSession.ts`}`)
+  console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${yes ? '' : ` — ${JSON.stringify(detail)} — look at the session/cancel and session/prompt handlers in src/integrations/acp/server/sessionRequests.ts, then interrupt() in src/integrations/acp/childSession.ts`}`)
 }
 const bounded = async <T,>(promise: Promise<T>): Promise<T | null> => {
   let timer: ReturnType<typeof setTimeout>

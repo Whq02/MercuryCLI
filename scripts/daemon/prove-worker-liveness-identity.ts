@@ -4,12 +4,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const workers = await import(join(SRC, 'daemon/concourseWorkers.ts'))
-const ownerWatch = await import(join(SRC, 'utils/ownerWatch.ts'))
+const workers = await import(join(SRC, 'daemon/concourse-workers/concourseWorkers.ts'))
+const ownerWatch = await import(join(SRC, 'daemon/control/ownerWatch.ts'))
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  const hint = 'change: how a worker record\'s pid and procStart token are stamped (markConcourseWorkerRespawn, src/daemon/concourseWorkers/marks.ts) or judged live (pendingParkRequests, src/daemon/concourseWorkers/park.ts; token reading in src/utils/ownerWatch.ts)'
+  const hint = 'change: how a worker record\'s pid and procStart token are stamped (markConcourseWorkerRespawn, src/daemon/concourse-workers/marks.ts) or judged live (pendingParkRequests, src/daemon/concourse-workers/park.ts; token reading in src/daemon/control/ownerWatch.ts)'
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${[detail, hint].filter(Boolean).join(' | ')}` : ''}`)
   if (!ok) failures = 1
 }

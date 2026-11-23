@@ -5,11 +5,11 @@ import { rmSync } from 'node:fs'
 let failures = 0
 let checks = 0
 const WHERE_BY_SECTION: Record<string, string> = {
-  '1': 'change scrubbedSessionEnvNotice in src/tools/shared/sessionEnvNotice.ts',
-  '2': 'change shortScrubbedSessionEnvNotice or sessionEnvNoticeForResult in src/tools/shared/sessionEnvNotice.ts',
-  '3': 'change the per-owner latch in sessionEnvNoticeForResult and resetSessionEnvNoticeOnCompaction in src/tools/shared/sessionEnvNotice.ts, or the owner disposal in src/utils/run/ownerLifecycle.ts',
-  '4': 'change the per-owner latch in sessionEnvNoticeForResult and resetSessionEnvNoticeOnCompaction in src/tools/shared/sessionEnvNotice.ts so a worktree move neither repeats nor loses the full notice',
-  '5': 'change the retain rule of the session-env-notice store (sessionEnvNoticeShown) in src/tools/shared/sessionEnvNotice.ts so active-session lanes are never evicted',
+  '1': 'change scrubbedSessionEnvNotice in src/tools/kit/sessionEnvNotice.ts',
+  '2': 'change shortScrubbedSessionEnvNotice or sessionEnvNoticeForResult in src/tools/kit/sessionEnvNotice.ts',
+  '3': 'change the per-owner latch in sessionEnvNoticeForResult and resetSessionEnvNoticeOnCompaction in src/tools/kit/sessionEnvNotice.ts, or the owner disposal in src/engine/run-owner/ownerLifecycle.ts',
+  '4': 'change the per-owner latch in sessionEnvNoticeForResult and resetSessionEnvNoticeOnCompaction in src/tools/kit/sessionEnvNotice.ts so a worktree move neither repeats nor loses the full notice',
+  '5': 'change the retain rule of the session-env-notice store (sessionEnvNoticeShown) in src/tools/kit/sessionEnvNotice.ts so active-session lanes are never evicted',
 }
 let sectionKey = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -22,11 +22,11 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(72) + '\n' + t)
 }
 
-const { scrubbedSessionEnvNotice, shortScrubbedSessionEnvNotice, sessionEnvNoticeForResult, resetSessionEnvNoticeOnCompaction } = await import('../../src/tools/shared/sessionEnvNotice.ts')
-const { getOriginalCwd, setOriginalCwd } = await import('../../src/bootstrap/state.ts')
-const { runWithAgentContext } = await import('../../src/utils/agentContext.ts')
-const { disposeOwner, disposeOwnerProcesses, ownerLifecycleCounts } = await import('../../src/utils/run/ownerLifecycle.ts')
-const { currentOwner, processMainOwner, processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
+const { scrubbedSessionEnvNotice, shortScrubbedSessionEnvNotice, sessionEnvNoticeForResult, resetSessionEnvNoticeOnCompaction } = await import('../../src/tools/kit/sessionEnvNotice.ts')
+const { getOriginalCwd, setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
+const { runWithAgentContext } = await import('../../src/crew/agents/agentContext.ts')
+const { disposeOwner, disposeOwnerProcesses, ownerLifecycleCounts } = await import('../../src/engine/run-owner/ownerLifecycle.ts')
+const { currentOwner, processMainOwner, processOwnerForLane } = await import('../../src/engine/run-owner/resolveOwner.ts')
 
 const MEASURED = ['MERCURY_BOOT_ENV_APPLIED', 'MERCURY_ENTRYPOINT', 'MERCURY_SAMPLES', 'MERCURY_SKIP_PERMISSIONS', 'NODE_COMPILE_CACHE']
 const EXPECTED = "[session env scrubbed: MERCURY_BOOT_ENV_APPLIED, MERCURY_ENTRYPOINT, MERCURY_SAMPLES, MERCURY_SKIP_PERMISSIONS, NODE_COMPILE_CACHE — Mercury's own stamps, not the operator's; inherit_session_env: true keeps them]"

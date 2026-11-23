@@ -7,7 +7,7 @@ import * as path from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const GODOT_LANE_FAIL_HINT = 'fix the gate, ports, project detection and LSP config in src/services/lsp/godotLane.ts (registered by src/services/lsp/builtinServers.ts), the DAP adapter in src/services/dap/dapClient.ts, the TCP bridge in src/services/tcpBridge/entry.ts, and the MERCURY_GODOT rows in the flag registry (FLAG_REGISTRY)'
+const GODOT_LANE_FAIL_HINT = 'fix the gate, ports, project detection and LSP config in src/integrations/lsp/godotLane.ts (registered by src/integrations/lsp/builtinServers.ts), the DAP adapter in src/integrations/debugger/dapClient.ts, the TCP bridge in src/daemon/tcp-bridge/entry.ts, and the MERCURY_GODOT rows in the flag registry (FLAG_REGISTRY)'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -22,7 +22,7 @@ console.log(' mercury-godot lane (MERCURY_GODOT) — proof')
 console.log('============================================================')
 
 const repo = path.resolve(import.meta.dir, '../..')
-const bridgeEntry = path.join(repo, 'src/services/tcpBridge/entry.ts')
+const bridgeEntry = path.join(repo, 'src/daemon/tcp-bridge/entry.ts')
 
 const {
   mercuryGodotEnabled,
@@ -33,18 +33,18 @@ const {
   probeGodotLane,
   MERCURY_GODOT_SERVER_NAME,
   GODOT_DAP_ADAPTER_KEY,
-} = await import('../../src/services/lsp/godotLane.js')
+} = await import('../../src/integrations/lsp/godotLane.js')
 const { getMercuryLspServerSources } = await import(
-  '../../src/services/lsp/builtinServers.js'
+  '../../src/integrations/lsp/builtinServers.js'
 )
 const { resolveAdapter, knownAdapterKeys } = await import(
-  '../../src/services/dap/dapClient.js'
+  '../../src/integrations/debugger/dapClient.js'
 )
 const { parseBridgeTarget, isLoopbackHost } = await import(
-  '../../src/services/tcpBridge/entry.js'
+  '../../src/daemon/tcp-bridge/entry.js'
 )
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
+const { getFlagSpec } = await import('../../src/platform/substrate/flagRegistry.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'godot-lane-'))
 const proj = path.join(scratch, 'game')

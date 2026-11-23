@@ -12,29 +12,29 @@ function section(t: string): void {
 }
 
 async function main(): Promise<void> {
-  const ok = await import('../../src/utils/run/ownerKey.js')
+  const ok = await import('../../src/engine/run-owner/ownerKey.js')
   const A = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'conv-A', lane: 'main' })
   const B = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'conv-B', lane: 'main' })
 
   section('1. live context usage is owner-addressed')
   {
-    const live = await import('../../src/services/cockpit/contextUsageLive.js')
+    const live = await import('../../src/screen/cockpit-gauges/contextUsageLive.js')
     live.publishContextUsage(40, 200_000, 90, A)
     live.publishContextUsage(42, 200_000, 90, B)
-    check('owner A reads its own 40%', live.getLiveContextUsage(A).usedPct === 40, '', 'publishContextUsage and getLiveContextUsage in src/services/cockpit/contextUsageLive.ts must store and read usage per owner')
-    check('owner B reads its own 42%', live.getLiveContextUsage(B).usedPct === 42, '', 'publishContextUsage and getLiveContextUsage in src/services/cockpit/contextUsageLive.ts must store and read usage per owner')
+    check('owner A reads its own 40%', live.getLiveContextUsage(A).usedPct === 40, '', 'publishContextUsage and getLiveContextUsage in src/screen/cockpit-gauges/contextUsageLive.ts must store and read usage per owner')
+    check('owner B reads its own 42%', live.getLiveContextUsage(B).usedPct === 42, '', 'publishContextUsage and getLiveContextUsage in src/screen/cockpit-gauges/contextUsageLive.ts must store and read usage per owner')
     live.publishContextUsage(55, 200_000, 90)
     check(
       'the default main slot is its own owner',
       live.getLiveContextUsage().usedPct === 55 && live.getLiveContextUsage(A).usedPct === 40,
       '',
-      'publishContextUsage in src/services/cockpit/contextUsageLive.ts must keep the call without an owner in its own main slot, apart from owner A',
+      'publishContextUsage in src/screen/cockpit-gauges/contextUsageLive.ts must keep the call without an owner in its own main slot, apart from owner A',
     )
   }
 
   section('2. forecast growth histories are independent at similar usage')
   {
-    const fc = await import('../../src/services/cockpit/ctxForecast.js')
+    const fc = await import('../../src/screen/cockpit-gauges/ctxForecast.js')
     fc.resetCtxForecastForTest()
     fc.recordCtxSample(40, A)
     fc.noteCtxTurnBoundary(A)
@@ -46,12 +46,12 @@ async function main(): Promise<void> {
     fc.noteCtxTurnBoundary(B)
     const estA = fc.estimateTurnsToCompact(44, 90, A)
     const estB = fc.estimateTurnsToCompact(43, 90, B)
-    check('owner A has a real estimate from its own turns', estA !== null, `A=${estA}`, 'estimateTurnsToCompact in src/services/cockpit/ctxForecast.ts must estimate from the turns recorded for that owner')
+    check('owner A has a real estimate from its own turns', estA !== null, `A=${estA}`, 'estimateTurnsToCompact in src/screen/cockpit-gauges/ctxForecast.ts must estimate from the turns recorded for that owner')
     check(
       'owner B honestly reads null (zero completed turns of its own)',
       estB === null,
       `B=${estB}`,
-      'estimateTurnsToCompact in src/services/cockpit/ctxForecast.ts must return null for an owner with no completed turns of its own, not use another owner history',
+      'estimateTurnsToCompact in src/screen/cockpit-gauges/ctxForecast.ts must return null for an owner with no completed turns of its own, not use another owner history',
     )
     fc.recordCtxSample(80, B)
     fc.noteCtxTurnBoundary(B)
@@ -59,14 +59,14 @@ async function main(): Promise<void> {
       "B's growth does not change A's estimate",
       fc.estimateTurnsToCompact(44, 90, A) === estA,
       '',
-      'recordCtxSample and noteCtxTurnBoundary in src/services/cockpit/ctxForecast.ts must keep a separate growth history per owner',
+      'recordCtxSample and noteCtxTurnBoundary in src/screen/cockpit-gauges/ctxForecast.ts must keep a separate growth history per owner',
     )
     fc.resetCtxForecastForTest()
   }
 
   section('3. owner-scoped context epochs exist and isolate (slice 3)')
   {
-    const epochs = await import('../../src/services/run/contextEpochs.js')
+    const epochs = await import('../../src/engine/run/contextEpochs.js')
     const eA = epochs.advanceContextEpoch(A, {
       kind: 'auto-compact',
       reason: 'proof',
@@ -74,8 +74,8 @@ async function main(): Promise<void> {
       tokensAfter: null,
       preservedTailCount: null,
     })
-    check('A advanced to epoch 1', eA === 1, '', 'advanceContextEpoch in src/services/run/contextEpochs.ts must raise the first epoch of an owner to 1')
-    check("B's epoch stays 0 (owner isolation)", epochs.getContextEpoch(B).epoch === 0, '', 'advanceContextEpoch in src/services/run/contextEpochs.ts must key the epoch by the whole owner, so owner A compacting leaves owner B at 0')
+    check('A advanced to epoch 1', eA === 1, '', 'advanceContextEpoch in src/engine/run/contextEpochs.ts must raise the first epoch of an owner to 1')
+    check("B's epoch stays 0 (owner isolation)", epochs.getContextEpoch(B).epoch === 0, '', 'advanceContextEpoch in src/engine/run/contextEpochs.ts must key the epoch by the whole owner, so owner A compacting leaves owner B at 0')
   }
 
   console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
-import type { Message, RenderableMessage, TurnReceiptMessage } from '../../src/types/message.ts'
+import type { Message, RenderableMessage, TurnReceiptMessage } from '../../src/engine/message-shapes/message.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'fold-work-'))
 process.env.MERCURY_CONFIG_DIR = home
@@ -14,23 +14,23 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY ??= 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
 process.env.MERCURY_TURN_RECEIPT = '1'
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { compactConversation, partialCompactConversation, buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
-const { injectTurnReceipts } = await import('../../src/utils/cockpit/turnReceipt.ts')
-const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
-const { buildAwayRecap } = await import('../../src/utils/cockpit/awaySummary.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getEngineModel } = await import('../../src/services/model/model.ts')
+const { compactConversation, partialCompactConversation, buildPostCompactMessages } = await import('../../src/engine/compaction/foldConversation.ts')
+const { injectTurnReceipts } = await import('../../src/screen/cockpit/turnReceipt.ts')
+const { normalizeMessages } = await import('../../src/engine/message-shapes/normalize.ts')
+const { buildAwayRecap } = await import('../../src/screen/cockpit/awaySummary.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-const { readTranscriptChainSince } = await import('../../src/utils/sessionStorage/transcriptReader.ts')
+const { readTranscriptChainSince } = await import('../../src/sessions/transcripts/transcriptReader.ts')
 
 let failures = 0
 let checks = 0
 const check = (label: string, condition: boolean, detail = '') => {
   checks++
   if (!condition) failures++
-  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition ? '' : `${detail ? `: ${detail}` : ''} — fix: the work stamp on the compact boundary (annotateBoundaryWithWork, foldedWorkOf in src/services/compact/compact/result.ts, buildPostCompactMessages), or its readers injectTurnReceipts (src/utils/cockpit/turnReceipt.ts) and buildAwayRecap (src/utils/cockpit/awaySummary.ts)`}`)
+  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition ? '' : `${detail ? `: ${detail}` : ''} — fix: the work stamp on the compact boundary (annotateBoundaryWithWork, foldedWorkOf in src/engine/compaction/fold/foldResult.ts, buildPostCompactMessages), or its readers injectTurnReceipts (src/screen/cockpit/turnReceipt.ts) and buildAwayRecap (src/screen/cockpit/awaySummary.ts)`}`)
 }
 const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 let clock = Date.UTC(2026, 9, 7)

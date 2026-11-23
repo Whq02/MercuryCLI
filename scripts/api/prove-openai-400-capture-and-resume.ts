@@ -33,7 +33,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0
 let checks = 0
-const OPENAI_400_FAIL_HINT = 'to fix, change the 400 fault row in src/services/providers/openai/openaiWire.ts (mapOpenaiHttpFailure), the capture file and its bound in src/services/api/dumpPrompts.ts (MAX_FAULT_CAPTURES_PER_SESSION), the overflow signal in src/services/api/overflowSignal.ts (classifyOverflowFault), or the resume retry reached through src/services/providers/callModelRouter.ts (the compacted tool result carries the text stale tool result, from src/services/compact/microCompactDigest.ts)'
+const OPENAI_400_FAIL_HINT = 'to fix, change the 400 fault row in src/models/roads/openai/openaiWire.ts (mapOpenaiHttpFailure), the capture file and its bound in src/engine/requests/dumpPrompts.ts (MAX_FAULT_CAPTURES_PER_SESSION), the overflow signal in src/engine/requests/overflowSignal.ts (classifyOverflowFault), or the resume retry reached through src/models/roads/callModelRouter.ts (the compacted tool result carries the text stale tool result, from src/engine/compaction/pruneDigest.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -191,19 +191,19 @@ Object.assign(process.env, {
   OPENAI_API_KEY: SECRET_API_KEY,
 })
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
 const { getOriginalCwd, getSessionId, getSessionProjectDir } = bootstrap
-const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
-const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/services/messages.ts')
-const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { classifyOverflowFault } = await import('../../src/services/api/overflowSignal.ts')
-import type { Tool } from '../../src/Tool.ts'
-import type { AssistantMessage, Message } from '../../src/types/message.ts'
+const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
+const { routedCallModel } = await import('../../src/models/roads/callModelRouter.ts')
+const { createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { asSystemPrompt } = await import('../../src/engine/system-prompt/systemPromptType.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { classifyOverflowFault } = await import('../../src/engine/requests/overflowSignal.ts')
+import type { Tool } from '../../src/tools/kit/tool.ts'
+import type { AssistantMessage, Message } from '../../src/engine/message-shapes/message.ts'
 
 const sessionDir = join(getSessionProjectDir() ?? getProjectDir(getOriginalCwd()), getSessionId())
 
@@ -472,9 +472,9 @@ try {
   )
 
   section('§4 Shared OpenAI-compat Responses transport — explicit capture, wireMessage preservation for bodiless overflow, and retention bound')
-  const { openrouterResponsesTransport } = await import('../../src/services/providers/openrouter/openrouterResponsesTransport.ts')
-  const { mapOpenaiHttpFailure } = await import('../../src/services/providers/openai/openaiWire.ts')
-  const { MAX_FAULT_CAPTURES_PER_SESSION } = await import('../../src/services/api/dumpPrompts.ts')
+  const { openrouterResponsesTransport } = await import('../../src/models/roads/openrouter/openrouterResponsesTransport.ts')
+  const { mapOpenaiHttpFailure } = await import('../../src/models/roads/openai/openaiWire.ts')
+  const { MAX_FAULT_CAPTURES_PER_SESSION } = await import('../../src/engine/requests/dumpPrompts.ts')
   const capturesBeforeCompat = listCaptureFiles().length
   const compatTransport = openrouterResponsesTransport(
     {

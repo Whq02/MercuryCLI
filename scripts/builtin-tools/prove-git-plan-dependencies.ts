@@ -6,7 +6,7 @@ const world = gitFixture('git-dependencies-')
 let client: Awaited<ReturnType<typeof gitClient>> | undefined
 let checks = 0
 let failures = 0
-const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail} — fix: dependsOn ordering, refusals and apply recovery are in preparePlan and applyPlan in src/services/gitGraph/plan.ts, reached through the Git tool in src/tools/GitTool/GitTool.ts; this proof runs dist/mercury.mjs, so rebuild with bun run build.ts after a change` : ''}`) }
+const check = (label: string, ok: boolean, detail = '') => { checks++; if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail} — fix: dependsOn ordering, refusals and apply recovery are in preparePlan and applyPlan in src/platform/git-graph/plan.ts, reached through the Git tool in src/tools/git/GitTool.ts; this proof runs dist/mercury.mjs, so rebuild with bun run build.ts after a change` : ''}`) }
 try {
   for (const f of ['base.txt', 'dependent.txt', 'independent.txt']) world.put(f, 'old\n')
   world.put('hunks.txt', Array.from({ length: 40 }, (_, i) => `line ${i}`).join('\n') + '\n')

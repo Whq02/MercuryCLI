@@ -25,11 +25,11 @@ export async function vmVendorDrive(vendor: string, makeFixture: () => Promise<a
   const signal = new AbortController().signal
   const publicKey = 'ssh-ed25519 Zml4dHVyZS1wdWJsaWM= fixture'
   try {
-    const registry = await import(f.root + '/src/services/host/vendors/client.ts')
+    const registry = await import(f.root + '/src/models/hosting/vendors/client.ts')
     check('registered vendor', registry.HOST_VENDORS.includes(vendor))
-    const info = await import(f.root + '/src/services/host/vendors/vendor.ts')
+    const info = await import(f.root + '/src/models/hosting/vendors/vendor.ts')
     check('the vendor carries no boot stamp', !('booted' in info.HOST_VENDOR_INFO[vendor]) && !('vendorStamp' in info))
-    const module = await import(f.root + '/src/services/host/vendors/' + vendor + '.ts')
+    const module = await import(f.root + '/src/models/hosting/vendors/' + vendor + '.ts')
     const Client = module[{ hyperstack: 'HyperstackClient', verda: 'VerdaClient', digitalocean: 'DigitalOceanClient' }[vendor]!]
     const api = new Client(fixture.key, fixture.baseUrl, { readyTimeoutMs: 10_000, pollMs: 2, requestTimeoutMs: 1000 })
     const impatient = new Client(fixture.key, fixture.baseUrl, { readyTimeoutMs: 80, pollMs: 2, requestTimeoutMs: 1000 })
@@ -126,18 +126,18 @@ export async function vmVendorDrive(vendor: string, makeFixture: () => Promise<a
     } finally { await uncertain.close() }
 
     const React = await import('react')
-    const { Box } = await import('../../src/ink.ts')
-    const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-    const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-    const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-    const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
-    const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+    const { Box } = await import('../../src/screen/themedRenderer.ts')
+    const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+    const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+    const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+    const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
+    const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
     const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
-    const { createHostRoad } = await import(f.root + '/src/services/host/index.ts')
-    const { hostRunner } = await import(f.root + '/src/services/host/ssh.ts')
-    const { runHostJob } = await import(f.root + '/src/services/host/worker.ts')
-    const { hostRecords } = await import(f.root + '/src/services/host/store.ts')
-    const { configuredCompatEndpoints } = await import(f.root + '/src/services/providers/openaicompat/compatAccounts.ts')
+    const { createHostRoad } = await import(f.root + '/src/models/hosting/index.ts')
+    const { hostRunner } = await import(f.root + '/src/models/hosting/ssh.ts')
+    const { runHostJob } = await import(f.root + '/src/models/hosting/worker.ts')
+    const { hostRecords } = await import(f.root + '/src/models/hosting/store.ts')
+    const { configuredCompatEndpoints } = await import(f.root + '/src/models/roads/openaicompat/compatAccounts.ts')
     ssh = fakeSshRunner(f.baseUrl, hostRunner)
     const runner = { ...ssh.runner, run: async (...args: Parameters<typeof hostRunner.run>) => args[0] === 'ssh' && args[1].at(-1)?.includes('nvidia-smi') ? 'NVIDIA H200, 144384\nDOCKER_ENGINE_PRESENT\n' : ssh!.runner.run(...args) }
     const jobs: Promise<void>[] = []
@@ -183,12 +183,12 @@ export async function vmVendorDrive(vendor: string, makeFixture: () => Promise<a
     await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Machine terminated')
     check('popup termination also verifies absence', fixture.state.pods.size === 0 && !hostRecords().some((row: any) => row.id === record.id))
     await Promise.all(jobs)
-    const secrets = await import(f.root + '/src/utils/accounts/providerSecrets.ts')
+    const secrets = await import(f.root + '/src/models/sign-in/account-ledger/providerSecrets.ts')
     check('key is private and independently removable', ownerOnlyFile(secrets.providerSecretsPathForDisplay()) && registry.vendorKey(vendor) === fixture.key)
     registry.saveVendorKey(vendor, null)
     check('removed key is gone', registry.vendorKey(vendor) === undefined)
     console.log(vendor.toUpperCase() + ' DRIVE GREEN — ' + checks + ' checks; fixtures only; no live rental')
   } finally {
-    mounted?.unmount(); (await import('../../src/keybindings/loadUserBindings.ts')).disposeKeybindingWatcher(); ssh?.close(); await fixture.close(); f.close(); globalThis.fetch = originalFetch
+    mounted?.unmount(); (await import('../../src/screen/keys/loadUserBindings.ts')).disposeKeybindingWatcher(); ssh?.close(); await fixture.close(); f.close(); globalThis.fetch = originalFetch
   }
 }

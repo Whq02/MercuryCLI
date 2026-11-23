@@ -1,8 +1,8 @@
 import { armScratch, check, cleanup, finish } from '../lsp/lspProofDoor.ts'
 
 const scratch = armScratch('lsp-callable-name-gone')
-const { getAllBaseTools } = await import('../../src/tools.ts')
-const { findToolByName } = await import('../../src/Tool.ts')
+const { getAllBaseTools } = await import('../../src/tools/kit/toolList.ts')
+const { findToolByName } = await import('../../src/tools/kit/tool.ts')
 const forbiddenCallableNames = ['LSP', 'Contract']
 const tools = getAllBaseTools()
 for (const name of forbiddenCallableNames) {

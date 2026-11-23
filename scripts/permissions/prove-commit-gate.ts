@@ -19,9 +19,9 @@ process.env.MERCURY_HOME = ISOLATED_HOME
 const REPOSITORY = realpathSync(mkdtempSync(join(tmpdir(), 'commit-gate-repository-')))
 execFileSync('git', ['init', '-q', REPOSITORY], { stdio: 'pipe' })
 process.chdir(REPOSITORY)
-const { getMercuryHome } = await import('../../src/utils/envUtils.js')
-const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.js')
-const { getCwd } = await import('../../src/utils/cwd.js')
+const { getMercuryHome } = await import('../../src/platform/environment/envUtils.js')
+const { sanitizePath } = await import('../../src/sessions/transcripts/sessionStoragePortable.js')
+const { getCwd } = await import('../../src/platform/files/cwd.js')
 for (const driveCwd of new Set([getCwd(), process.cwd(), realpathSync(process.cwd())])) {
   const verifyDir = join(getMercuryHome(), 'verify', sanitizePath(driveCwd))
   mkdirSync(verifyDir, { recursive: true })
@@ -41,15 +41,15 @@ console.log('============================================================')
 console.log(' Standalone commit gate (Feature B) — behavior proof')
 console.log('============================================================')
 
-const fh = await import('../../src/guards/commitGate.js')
-const { guardsEngaged, judgeToolCall } = await import('../../src/guards/guards.js')
-const cg = await import('../../src/guards/commitGate.js')
+const fh = await import('../../src/permissions/guards/commitGate.js')
+const { guardsEngaged, judgeToolCall } = await import('../../src/permissions/guards/guards.js')
+const cg = await import('../../src/permissions/guards/commitGate.js')
 
 const sid = 'proof-commit-gate'
-const ENGAGE_HINT = 'check commitGateEnabled, engageCommitGate, isCommitGateEngaged and disengageCommitGate in src/guards/commitGate.ts'
-const JUDGE_HINT = 'check the deny and allow rules of evaluateCommitGate in src/guards/commitGate.ts and how judgeToolCall in src/guards/guards.ts applies the engaged gate'
-const RULE_HINT = 'check the rules of evaluateCommitGate in src/guards/commitGate.ts for this command'
-const SHIP_HINT = 'run bun run build.ts so dist/mercury.mjs carries the wired gate from src/guards/commitGate.ts'
+const ENGAGE_HINT = 'check commitGateEnabled, engageCommitGate, isCommitGateEngaged and disengageCommitGate in src/permissions/guards/commitGate.ts'
+const JUDGE_HINT = 'check the deny and allow rules of evaluateCommitGate in src/permissions/guards/commitGate.ts and how judgeToolCall in src/permissions/guards/guards.ts applies the engaged gate'
+const RULE_HINT = 'check the rules of evaluateCommitGate in src/permissions/guards/commitGate.ts for this command'
+const SHIP_HINT = 'run bun run build.ts so dist/mercury.mjs carries the wired gate from src/permissions/guards/commitGate.ts'
 const gateEngaged = (): boolean => guardsEngaged(sid).tool.includes(cg.COMMIT_GATE_ID)
 const judge = async (tool: string, command: string): Promise<boolean> => {
   const verdict = await judgeToolCall(sid, { tool, input: { command }, callId: 'commit-gate-call', messages: [] })
@@ -97,7 +97,7 @@ section('the installed gate DENIES a non-green commit and ALLOWS a green-gated o
 section("the gate judges in a repository this proof made, whatever is staged in the tree it was started from")
 {
   const read = cg.commitRepositoryRoot('git commit -m "x"', getCwd())
-  check("the session's folder is this proof's own repository, and it is the one a commit there is read in", getCwd() === REPOSITORY && read === REPOSITORY, `folder ${getCwd()} · read ${read}`, 'commitRepositoryRoot in src/guards/commitGate.ts must resolve the repository from the session folder given to it')
+  check("the session's folder is this proof's own repository, and it is the one a commit there is read in", getCwd() === REPOSITORY && read === REPOSITORY, `folder ${getCwd()} · read ${read}`, 'commitRepositoryRoot in src/permissions/guards/commitGate.ts must resolve the repository from the session folder given to it')
   writeFileSync(join(REPOSITORY, 'staged.ts'), 'export const staged = 1\n')
   execFileSync('git', ['add', 'staged.ts'], { cwd: REPOSITORY, stdio: 'pipe' })
   check('with a file staged there a green-gated commit is still ALLOWED and a bare one still DENIED', (await judge('Bash', 'bun run build.ts && git commit -m "done"')) === true && (await judge('Bash', 'git commit -m "wip"')) === false, '', JUDGE_HINT)

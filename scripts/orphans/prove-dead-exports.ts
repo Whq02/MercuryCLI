@@ -8,7 +8,7 @@ import { runCensus, treeOptions } from './exportCensus.ts'
 
 const REPORT = process.argv.includes('--report')
 const UNUSED_CODES = new Set([6133, 6138, 6192, 6196, 6198, 6199, 6205])
-const SCHEMA = 'src/utils/config/schema.ts'
+const SCHEMA = 'src/platform/config/schema.ts'
 
 const ALLOW: Array<{ key: string; reason: string }> = []
 const allowed = new Map(ALLOW.map(a => [a.key, a.reason]))
@@ -23,7 +23,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 function deadExportsFixHint(label: string): string {
   if (label.startsWith('zero unread declarations')) return 'fix: delete each listed unused import, local, function or type from its file under src/ (--report lists them all)'
   if (label.startsWith('zero exports nothing imports')) return 'fix: delete each listed unimported export from its file, or import it where it is used (the census is runCensus in scripts/orphans/exportCensus.ts)'
-  if (label.startsWith('zero schema keys')) return 'fix: delete each listed key from src/utils/config/schema.ts, or read it by name somewhere under src/'
+  if (label.startsWith('zero schema keys')) return 'fix: delete each listed key from src/platform/config/schema.ts, or read it by name somewhere under src/'
   return 'fix: the checker under test is collectUnusedDeclarations, schemaKeys and unreadKeys in scripts/orphans/prove-dead-exports.ts; the allow list ALLOW in the same file takes an entry only with a reason of 40 or more characters and leaves when the name is read'
 }
 function section(title: string): void {

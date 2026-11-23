@@ -19,25 +19,25 @@ delete process.env.MERCURY_SESSION_NEWBORN_GRACE_MINUTES
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix by section above: L1 concourseRecordState in src/daemon/concourseWorkers/recordState.ts, L2 and L2b-L2c3 parkConcourseSession, retireConcourseSession, completeFencedRetirement and parkAllConcourseSessions in src/daemon/concourseWorkers/park.ts (stopConcourseSession in stop.ts, attachYieldConcourseSession in revive.ts), L3 reconcileConcourseWorkers in settle.ts, L4 decideIdleRetirement and sweepIdleEmptyConcourseSessions in src/daemon/idleRetirement.ts, L5 makeConcourseAdmitHandler in admit.ts, L6 buildConcourseSnapshot in src/services/concourse/concourseSnapshot.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix by section above: L1 concourseRecordState in src/daemon/concourse-workers/recordState.ts, L2 and L2b-L2c3 parkConcourseSession, retireConcourseSession, completeFencedRetirement and parkAllConcourseSessions in src/daemon/concourse-workers/park.ts (stopConcourseSession in stop.ts, attachYieldConcourseSession in revive.ts), L3 reconcileConcourseWorkers in settle.ts, L4 decideIdleRetirement and sweepIdleEmptyConcourseSessions in src/daemon/control/idleRetirement.ts, L5 makeConcourseAdmitHandler in admit.ts, L6 buildConcourseSnapshot in src/screen/concourse-model/concourseSnapshot.ts` : ''}`)
 }
 
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
 
-const sup = await import('../../src/daemon/concourseWorkers.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 const { standInRunner } = await import('../lib/seatDoor.ts')
 const { retiringRunners } = await import('./retiring-runners.ts')
 type StandInRunner = ReturnType<typeof standInRunner>
-type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
-const idle = await import('../../src/daemon/idleRetirement.ts')
-const snapshot = await import('../../src/services/concourse/concourseSnapshot.ts')
-const workers = await import('../../src/daemon/concourseWorkers.ts')
-const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
+type RunnerDoor = import('../../src/daemon/runner-link/runnerConnection.ts').RunnerDoor
+const idle = await import('../../src/daemon/control/idleRetirement.ts')
+const snapshot = await import('../../src/screen/concourse-model/concourseSnapshot.ts')
+const workers = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const { workerTranscriptPath } = await import('../../src/screen/concourse-model/workerTranscript.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-const { getCwd } = await import('../../src/utils/cwd.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
+const { getCwd } = await import('../../src/platform/files/cwd.ts')
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 
 const dir = process.env.MERCURY_DAEMON_DIR!
 const DEAD_PID = 2_147_000_000

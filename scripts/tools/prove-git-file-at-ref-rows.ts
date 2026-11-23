@@ -28,13 +28,13 @@ writeFileSync(join(repo, 'long.txt'), Array.from({ length: 75 }, (_, i) => `row 
 g('add', '-A')
 g('commit', '-q', '-m', 'blobs')
 
-const { setCwd } = await import('../../src/utils/Shell.ts')
+const { setCwd } = await import('../../src/platform/shell/shellExec.ts')
 setCwd(repo)
-const { GitTool } = await import('../../src/tools/GitTool/GitTool.ts')
+const { GitTool } = await import('../../src/tools/git/GitTool.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  const whereToChange = 'change the fileAtRef case in src/tools/GitTool/GitTool.ts (its line count, shown rows and more-lines note)'
+  const whereToChange = 'change the fileAtRef case in src/tools/git/GitTool.ts (its line count, shown rows and more-lines note)'
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${whereToChange}${detail ? ` · ${detail}` : ''}` : ''}`)
   if (!ok) failures++
 }

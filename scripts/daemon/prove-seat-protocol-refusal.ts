@@ -25,13 +25,13 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 const refuseRunnerHint = ' — change refuseRunner (the onProtocolError handler) in src/daemon/roster/spawn.ts so a refused runner settles its open turn, marks the record settled and ends the child'
-const connectionHint = ' — change RunnerConnection (the onProtocolError hook and close) in src/daemon/runnerConnection.ts'
+const connectionHint = ' — change RunnerConnection (the onProtocolError hook and close) in src/daemon/runner-link/runnerConnection.ts'
 const tick = (ms = 20): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 const { PassThrough } = await import('node:stream')
 const { EventEmitter } = await import('node:events')
-const { createPeer } = await import('../../src/runner/wire/peer.ts')
-const { RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+const { createPeer } = await import('../../src/daemon/runner-wire/peer.ts')
+const { RPC_REFUSED } = await import('../../src/daemon/runner-wire/errors.ts')
 const { mock } = await import('bun:test')
 
 type StandInChild = EventEmitter & { pid: number; stdin: InstanceType<typeof PassThrough>; stdout: InstanceType<typeof PassThrough>; stderr: InstanceType<typeof PassThrough>; kill: (signal?: NodeJS.Signals) => boolean; killed: NodeJS.Signals[]; alive: boolean; end: () => void }
@@ -51,15 +51,15 @@ function standInChild(pid: number): StandInChild {
   children.push(child)
   return child
 }
-const childModule = await import('../../src/daemon/headlessRun.ts')
-mock.module('../../src/daemon/headlessRun.ts', () => ({ ...childModule, spawnRunnerChild: () => ({ child: standInChild(40_000 + children.length), capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }) }))
-const processGroup = await import('../../src/utils/processGroup.ts')
-mock.module('../../src/utils/processGroup.ts', () => ({ ...processGroup, killProcessGroup: (child: StandInChild, signal: NodeJS.Signals) => child.kill(signal) }))
-const { TaskRoster } = await import('../../src/daemon/roster.ts')
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+const childModule = await import('../../src/daemon/runner-link/headlessRun.ts')
+mock.module('../../src/daemon/runner-link/headlessRun.ts', () => ({ ...childModule, spawnRunnerChild: () => ({ child: standInChild(40_000 + children.length), capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }) }))
+const processGroup = await import('../../src/platform/processes/processGroup.ts')
+mock.module('../../src/platform/processes/processGroup.ts', () => ({ ...processGroup, killProcessGroup: (child: StandInChild, signal: NodeJS.Signals) => child.kill(signal) }))
+const { TaskRoster } = await import('../../src/daemon/roster/roster.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 3 } }))
-const sup = await import('../../src/daemon/concourseWorkers.ts')
+const sup = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
 
 const stamp = (sessionId: string) => ({ timestamp: '2026-10-03T16:00:00.000Z', session_id: sessionId })
 const usage = { input_tokens: 0, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 0 }
@@ -126,7 +126,7 @@ section("§2 a runner that answers initialize with another protocol never opens 
 
 section('§3 the refusal is the peer’s typed -32010, kind protocol — the daemon reads it from the connection, not from an English line')
 {
-  const { RunnerConnection } = await import('../../src/daemon/runnerConnection.ts')
+  const { RunnerConnection } = await import('../../src/daemon/runner-link/runnerConnection.ts')
   const toRunner = new PassThrough()
   const toHost = new PassThrough()
   const refusals: Array<{ code: number; kind: unknown; message: string }> = []
@@ -152,8 +152,8 @@ section('§3 the refusal is the peer’s typed -32010, kind protocol — the dae
 
 section('§4 the handshake and the delivery carry the table’s deadlines; a delivery the runner does not accept is not reported accepted')
 {
-  const { RunnerConnection } = await import('../../src/daemon/runnerConnection.ts')
-  const { deadlineOf } = await import('../../src/runner/wire/methods.ts')
+  const { RunnerConnection } = await import('../../src/daemon/runner-link/runnerConnection.ts')
+  const { deadlineOf } = await import('../../src/daemon/runner-wire/methods.ts')
   const { standInRunner, LEAVE_PENDING } = await import('../lib/seatDoor.ts')
   const capabilities = { holds_asks: true, elicitation: false, partial_rows: false }
   const silentIn = new PassThrough()

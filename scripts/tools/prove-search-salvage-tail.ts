@@ -24,7 +24,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : checkFixHint}`)
   if (!cond) failures++
 }
-const checkFixHint = ' | fix: the salvage of an interrupted walk and the RipgrepTimeoutError throw are in src/utils/ripgrep.ts (ripGrepAnswer and ripGrep); the rg answered here is the PATH script written at the top of this file, so also check MERCURY_BUILTIN_RIPGREP and systemRg() resolution in ripgrep.ts'
+const checkFixHint = ' | fix: the salvage of an interrupted walk and the RipgrepTimeoutError throw are in src/platform/shell/ripgrep.ts (ripGrepAnswer and ripGrep); the rg answered here is the PATH script written at the top of this file, so also check MERCURY_BUILTIN_RIPGREP and systemRg() resolution in ripgrep.ts'
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
 const MODE = join(HOME, 'mode')
@@ -34,7 +34,7 @@ writeFileSync(
 )
 chmodSync(join(BIN, 'rg'), 0o755)
 
-const { ripGrep, ripGrepAnswer, RipgrepTimeoutError } = await import('../../src/utils/ripgrep.js')
+const { ripGrep, ripGrepAnswer, RipgrepTimeoutError } = await import('../../src/platform/shell/ripgrep.js')
 
 const abortedSearch = async (): Promise<{ lines: string[]; complete: boolean; reason?: string }> => {
   const controller = new AbortController()

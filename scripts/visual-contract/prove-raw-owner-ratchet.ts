@@ -11,18 +11,18 @@ const t = checker()
 const SANCTIONED: Record<string, string> = {
   'assets/splash/mercury-splash.mjs':
     'the pre-boot enter screen — user-facing BY DESIGN; its key contract is owned by the CN-03 activation gate + the CN-04 negative corpus in scripts/splash/prove-splash.py',
-  'src/utils/earlyInput.ts':
+  'src/boot/earlyInput.ts':
     'the bounded pre-boot keystroke buffer — captures typed-ahead input before Ink boots, then hands the contract to the Ink stack (it deliberately leaves raw mode for the Chat)',
-  'src/main/runPrompt.ts':
+  'src/boot/main/runPrompt.ts':
     'boot-time piped-stdin intake (non-TTY prompt read with a bounded timeout) — a pipe reader, never a raw-mode UI owner',
-  'src/services/dap/probeAdapter.ts': 'protocol pipe — the DAP wire rides stdio frames',
-  'src/services/mcp/auth.ts':
+  'src/integrations/debugger/probeAdapter.ts': 'protocol pipe — the DAP wire rides stdio frames',
+  'src/integrations/mcp/auth.ts':
     'credential prompt pipe — no-echo OAuth secret entry on a headless CLI path (Enter/Ctrl-C only), not a TUI surface',
-  'src/utils/staticRender.tsx':
+  'src/screen/renderer/staticRender.tsx':
     'a raw-capable STUB stdin for one-frame string captures — a local EventEmitter that says isTTY and swallows setRawMode so the real component owners mount; process.stdin is never touched and no byte ever flows',
 }
 
-const USER_FACING = ['assets/splash/mercury-splash.mjs', 'src/utils/earlyInput.ts']
+const USER_FACING = ['assets/splash/mercury-splash.mjs', 'src/boot/earlyInput.ts']
 
 const PATTERN = /setRawMode(?:\?\.)?\s*\(|stdin\.on\(\s*['"]data['"]/
 const EXTS = new Set(['.ts', '.tsx', '.mjs', '.js', '.jsx'])
@@ -56,14 +56,14 @@ for (const root of ['src', 'assets']) {
     }
     if (!PATTERN.test(src)) continue
     if (
-      file.startsWith('src/skills/bundled/') &&
+      file.startsWith('src/integrations/skills/bundled/') &&
       src.includes('export const SKILL_FILES: Record<string, string> = {')
     )
       continue
-    if (/^src\/extensions\/bundled\/[^/]+\/server\//.test(file) || file === 'src/extensions/bundled/content.generated.ts') continue
+    if (/^src\/integrations\/extensions\/bundled\/[^/]+\/server\//.test(file) || file === 'src/integrations/extensions/bundled/content.generated.ts') continue
     const live = src.split('\n').some(l => PATTERN.test(l) && !isCommentLine(l))
     if (!live) continue
-    if (file.startsWith('src/ink/')) inkHits.push(file)
+    if (file.startsWith('src/screen/renderer/')) inkHits.push(file)
     else hits.push(file)
   }
 }
@@ -76,7 +76,7 @@ t.section('§1 — the census matches the sanctioned set exactly')
   const extra = hits.filter(h => !SANCTIONED[h])
   const missing = want.filter(w => !hits.includes(w))
   t.check(
-    'no NEW raw-stdin owner outside the sanctioned set (route input through the Ink interpreter — src/ink input stack + the interaction-coverage registry; a genuinely new raw owner is a ratified act: add it here WITH its reason and its own key-contract proof)',
+    'no NEW raw-stdin owner outside the sanctioned set (route input through the Ink interpreter — src/screen/renderer input stack + the interaction-coverage registry; a genuinely new raw owner is a ratified act: add it here WITH its reason and its own key-contract proof)',
     extra.length === 0,
     extra.join(', ') || `${hits.length} owners, all sanctioned`,
   )

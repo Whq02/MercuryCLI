@@ -5,8 +5,8 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { CONFIG_HOME, RUNTIME_CWD, SID, cleanupScenario, encodeFixtureTranscript, scenario } from '../ui/renderScenarios.ts'
 import { gridToPng } from '../ui/gridToPng.ts'
-import { getProjectDir, projectSlug } from '../../src/utils/sessionStoragePortable.ts'
-import { readSessionWorkers } from '../../src/daemon/concourseWorkers.ts'
+import { getProjectDir, projectSlug } from '../../src/sessions/transcripts/sessionStoragePortable.ts'
+import { readSessionWorkers } from '../../src/daemon/concourse-workers/concourseWorkers.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 function reapRenderDaemonSessions(): void {
@@ -51,7 +51,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
-  if (!cond) console.log(`         change the panel in src/components/prompts-panel/PromptsPanel.tsx (or CrewChatPanel.tsx for the crew tab) and the /workbench command in src/commands/workbench/workbench.tsx; the capture text is saved as ${CAPTURE_DIR}/<tag>-<cols>x<rows>.txt, so open the file named by the L-number in the label`)
+  if (!cond) console.log(`         change the panel in src/screen/prompts-panel/PromptsPanel.tsx (or CrewChatPanel.tsx for the crew tab) and the /workbench command in src/commands/workbench/workbench.tsx; the capture text is saved as ${CAPTURE_DIR}/<tag>-<cols>x<rows>.txt, so open the file named by the L-number in the label`)
 }
 
 mkdirSync(CAPTURE_DIR, { recursive: true })

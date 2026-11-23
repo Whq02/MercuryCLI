@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/cockpit/zenMode.ts src/hooks/useLayoutTier.ts src/context/layoutChromeContext.tsx src/components/FullscreenLayout.tsx src/utils/helmGeometry.ts src/utils/settings/types.ts
-// gate-watch: src/commands/zen/index.ts src/commands/zen/zen.tsx src/commands.ts src/components/HelpV2/commandDomains.ts src/components/BaseTextInput.tsx src/hooks/useTypeahead.tsx
-// gate-watch: src/components/MercuryFrame.tsx src/components/Settings/Config.tsx src/components/SettingsPopupSlot.tsx src/commands/config/config.tsx src/utils/cockpit/settingsPopup.ts
+// gate-watch: src/screen/cockpit/zenMode.ts src/screen/fullscreen-layout/useLayoutTier.ts src/screen/fullscreen-layout/layoutChromeContext.tsx src/screen/fullscreen-layout/FullscreenLayout.tsx src/screen/fullscreen-layout/helmGeometry.ts src/platform/settings/settingsSchema.ts
+// gate-watch: src/commands/zen/index.ts src/commands/zen/zen.tsx src/commands/catalogue/commands.ts src/screen/help/commandDomains.ts src/screen/composer/text-input/BaseTextInput.tsx src/screen/composer/typeahead/useTypeahead.tsx
+// gate-watch: src/screen/frame-chips/MercuryFrame.tsx src/screen/settings/Config.tsx src/screen/overlays/SettingsPopupSlot.tsx src/commands/config/config.tsx src/screen/cockpit/settingsPopup.ts
 import { EventEmitter } from 'node:events'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -34,39 +34,39 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
 for (const key of ['MERCURY_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'NODE_ENV']) delete process.env[key]
 
 const React = await import('react')
-const { default: Ink } = await import('../../src/ink/ink.tsx')
-const { Box, Text } = await import('../../src/ink.ts')
-const { App } = await import('../../src/components/App.tsx')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
-const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
-const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
-const { LAYOUT_BREAKPOINTS, resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { useLayoutChrome } = await import('../../src/context/layoutChromeContext.tsx')
-const { CockpitBottomStatus } = await import('../../src/context/cockpitActiveContext.tsx')
-const { MercuryFrame } = await import('../../src/components/MercuryFrame.tsx')
-const { FocusedSessionStatusRow } = await import('../../src/components/SwitchboardTagBar.tsx')
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
+const { default: Ink } = await import('../../src/screen/renderer/screenInstance.tsx')
+const { Box, Text } = await import('../../src/screen/themedRenderer.ts')
+const { App } = await import('../../src/boot/App.tsx')
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { KeybindingSetup } = await import('../../src/screen/keys/KeybindingProviderSetup.tsx')
+const { FullscreenLayout } = await import('../../src/screen/fullscreen-layout/FullscreenLayout.tsx')
+const { default: PromptInput } = await import('../../src/screen/composer/Composer.tsx')
+const { useCompactWorkControls } = await import('../../src/screen/tasks/CompactWorkSummary.tsx')
+const { GlobalKeybindingHandlers } = await import('../../src/screen/chat/useGlobalKeybindings.tsx')
+const { LAYOUT_BREAKPOINTS, resetChromeModeLatchForTests } = await import('../../src/screen/fullscreen-layout/useLayoutTier.ts')
+const { useLayoutChrome } = await import('../../src/screen/fullscreen-layout/layoutChromeContext.tsx')
+const { CockpitBottomStatus } = await import('../../src/screen/cockpit/cockpitActiveContext.tsx')
+const { MercuryFrame } = await import('../../src/screen/frame-chips/MercuryFrame.tsx')
+const { FocusedSessionStatusRow } = await import('../../src/screen/chat/SwitchboardTagBar.tsx')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/screen/routes/surfaceRoute.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
-const pending = await import('../../src/input-core/pending-input.ts')
-const { default: instances } = await import('../../src/ink/instances.ts')
-const { getEngineModel } = await import('../../src/services/model/model.ts')
-const { railPlan, resetRailTier } = await import('../../src/utils/helmGeometry.ts')
-const { setZenMode, zenModeOn } = await import('../../src/utils/cockpit/zenMode.ts')
-const { getSettingsFilePathForSource } = await import('../../src/utils/settings/settings.ts')
+const pending = await import('../../src/screen/composer/input-core/pending-input.ts')
+const { default: instances } = await import('../../src/screen/renderer/instances.ts')
+const { getEngineModel } = await import('../../src/models/catalogue/engineModel.ts')
+const { railPlan, resetRailTier } = await import('../../src/screen/fullscreen-layout/helmGeometry.ts')
+const { setZenMode, zenModeOn } = await import('../../src/screen/cockpit/zenMode.ts')
+const { getSettingsFilePathForSource } = await import('../../src/platform/settings/settings.ts')
 const { default: zenCommand } = await import('../../src/commands/zen/index.ts')
 const { call: callZen, executeZen } = await import('../../src/commands/zen/zen.tsx')
-const { builtinCommands } = await import('../../src/commands.ts')
-const { COMMAND_DOMAINS } = await import('../../src/components/HelpV2/commandDomains.ts')
-const { closeSettingsPopup, openSettingsPopup } = await import('../../src/utils/cockpit/settingsPopup.ts')
+const { builtinCommands } = await import('../../src/commands/catalogue/commands.ts')
+const { COMMAND_DOMAINS } = await import('../../src/screen/help/commandDomains.ts')
+const { closeSettingsPopup, openSettingsPopup } = await import('../../src/screen/cockpit/settingsPopup.ts')
 const { configPopupRequest } = await import('../../src/commands/config/config.tsx')
-const { CONFIG_POPUP_HINT } = await import('../../src/components/Settings/Config.tsx')
-const { getVitals } = await import('../../src/state/vitalsBus.ts')
+const { CONFIG_POPUP_HINT } = await import('../../src/screen/settings/Config.tsx')
+const { getVitals } = await import('../../src/screen/app-state/vitalsBus.ts')
 const h = React.createElement
 
 const COMPOSER = 'Type a prompt'
@@ -80,7 +80,7 @@ const frameDir = arg('--frames')
 if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let failures = 0
 let checks = 0
-const ZEN_FIX_HINT = 'the rails and chip layout come from src/utils/helmGeometry.ts (railPlan) and src/utils/cockpit/zenMode.ts; the /zen words from src/commands/zen/zen.tsx (executeZen); the /config row from src/components/Settings/Config.tsx; read the frames with --frames <dir>'
+const ZEN_FIX_HINT = 'the rails and chip layout come from src/screen/fullscreen-layout/helmGeometry.ts (railPlan) and src/screen/cockpit/zenMode.ts; the /zen words from src/commands/zen/zen.tsx (executeZen); the /config row from src/screen/settings/Config.tsx; read the frames with --frames <dir>'
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++

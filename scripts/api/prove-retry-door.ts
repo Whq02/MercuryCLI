@@ -9,14 +9,14 @@ Object.assign(process.env, { MERCURY_CONFIG_DIR: home, MERCURY_HOME: home, MERCU
 delete process.env.MERCURY_MAX_RETRIES
 const realRandom = Math.random
 Math.random = () => 0.5
-const { openTurnRetries } = await import('../../src/services/api/withRetry.ts')
+const { openTurnRetries } = await import('../../src/engine/requests/withRetry.ts')
 
 let checks = 0
 let failures = 0
 function check(label: string, condition: boolean, detail = ''): void {
   checks++
   if (!condition) failures++
-  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail ? ` — ${detail}` : ''}${!condition ? ' — fix: the wait, attempt count and verdict come from openTurnRetries (afterFault) in src/services/api/withRetry.ts' : ''}`)
+  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail ? ` — ${detail}` : ''}${!condition ? ' — fix: the wait, attempt count and verdict come from openTurnRetries (afterFault) in src/engine/requests/withRetry.ts' : ''}`)
 }
 
 type Fault = { kind: string; code: string; message: string; retryable: boolean; status?: number; retryAfterMs?: number; outage?: { code: string; words: string }; silentMs?: number }
@@ -200,5 +200,5 @@ console.log('── a spent reconnect budget')
 Math.random = realRandom
 rmSync(home, { recursive: true, force: true })
 console.log(`\n${checks} checks, ${failures} failures`)
-console.log(failures === 0 ? 'prove-retry-door: the door holds' : `prove-retry-door: ${failures} FAILURE(S) — the retry waits and counters live in src/services/api/withRetry.ts (openTurnRetries)`)
+console.log(failures === 0 ? 'prove-retry-door: the door holds' : `prove-retry-door: ${failures} FAILURE(S) — the retry waits and counters live in src/engine/requests/withRetry.ts (openTurnRetries)`)
 process.exit(failures === 0 ? 0 : 1)

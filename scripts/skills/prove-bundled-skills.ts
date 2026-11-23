@@ -10,14 +10,14 @@ import { pathToFileURL } from 'node:url'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const SOURCE_ROOT = join(ROOT, 'mercury-skills')
-const BUNDLED_DIR = join(ROOT, 'src', 'skills', 'bundled')
-const RUNTIME = join(ROOT, 'src', 'skills', 'bundledSkills.ts')
-const FRONTMATTER = join(ROOT, 'src', 'utils', 'frontmatterParser.ts')
+const BUNDLED_DIR = join(ROOT, 'src', 'integrations', 'skills', 'bundled')
+const RUNTIME = join(ROOT, 'src', 'integrations', 'skills', 'bundledSkills.ts')
+const FRONTMATTER = join(ROOT, 'src', 'platform', 'text', 'frontmatterParser.ts')
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'bundled-skills-proof-')))
 process.on('exit', () => rmSync(SCRATCH, { recursive: true, force: true }))
 const POSIX = process.platform !== 'win32'
 
-type Command = import('../../src/types/command.ts').Command
+type Command = import('../../src/commands/catalogue/command.ts').Command
 type BuiltRegistry = {
   getBundledSkills: () => Command[]
   getBundledSkillExtractDir: (name: string) => string
@@ -26,12 +26,12 @@ type BuiltRegistry = {
 
 let failures = 0
 const bundledSkillsHints: Record<string, string> = {
-  '§1': 'the registered set comes from initBundledSkills in src/skills/bundled/index.ts and the skill folders under mercury-skills/; regenerate the wrappers with bun scripts/skills/gen-bundled.ts',
-  '§2': 'two skills register one name: look at the register calls in src/skills/bundled/index.ts and registerBundledSkill in src/skills/bundledSkills.ts',
-  '§3': 'the extract root comes from getBundledSkillsRoot in src/utils/permissions/filesystem.ts and getBundledSkillExtractDir in src/skills/bundledSkills.ts; it must be a temp dir, never the config home',
-  '§4': 'the generated wrappers under src/skills/bundled/ differ from mercury-skills/<name>/SKILL.md; run bun scripts/skills/gen-bundled.ts, and look at registration in src/skills/bundledSkills.ts',
-  '§5': 'the generator contract is in scripts/skills/gen-bundled.ts (renderSkill, checkSkill, pruneSkill, retiredSkills, runCli) and extraction in src/skills/bundledSkills.ts',
-  '§6': 'the generated modules under src/skills/bundled/ are stale or a SKILL.md is out of budget: run bun scripts/skills/gen-bundled.ts, then rebuild so dist/mercury.mjs inlines mercury-skills/<name>/SKILL.md',
+  '§1': 'the registered set comes from initBundledSkills in src/integrations/skills/bundled/index.ts and the skill folders under mercury-skills/; regenerate the wrappers with bun scripts/skills/gen-bundled.ts',
+  '§2': 'two skills register one name: look at the register calls in src/integrations/skills/bundled/index.ts and registerBundledSkill in src/integrations/skills/bundledSkills.ts',
+  '§3': 'the extract root comes from getBundledSkillsRoot in src/permissions/rules/filesystem.ts and getBundledSkillExtractDir in src/integrations/skills/bundledSkills.ts; it must be a temp dir, never the config home',
+  '§4': 'the generated wrappers under src/integrations/skills/bundled/ differ from mercury-skills/<name>/SKILL.md; run bun scripts/skills/gen-bundled.ts, and look at registration in src/integrations/skills/bundledSkills.ts',
+  '§5': 'the generator contract is in scripts/skills/gen-bundled.ts (renderSkill, checkSkill, pruneSkill, retiredSkills, runCli) and extraction in src/integrations/skills/bundledSkills.ts',
+  '§6': 'the generated modules under src/integrations/skills/bundled/ are stale or a SKILL.md is out of budget: run bun scripts/skills/gen-bundled.ts, then rebuild so dist/mercury.mjs inlines mercury-skills/<name>/SKILL.md',
 }
 let bundledSkillsHint = ''
 function check(ok: boolean, label: string, detail = ''): void {
@@ -65,11 +65,11 @@ const published = (path: string, text: string): string => {
     .filter((line, index) => line.trim() !== '' || (before[index] ?? '').trim() === '')
     .join('\n')
 }
-const { parseFrontmatter } = await import('../../src/utils/frontmatterParser.js')
-const { initBundledSkills } = await import('../../src/skills/bundled/index.js')
-const { getBundledSkills, getBundledSkillExtractDir } = await import('../../src/skills/bundledSkills.js')
-const { getBundledSkillsRoot } = await import('../../src/utils/permissions/filesystem.js')
-const { getMercuryHome } = await import('../../src/utils/envUtils.js')
+const { parseFrontmatter } = await import('../../src/platform/text/frontmatterParser.js')
+const { initBundledSkills } = await import('../../src/integrations/skills/bundled/index.js')
+const { getBundledSkills, getBundledSkillExtractDir } = await import('../../src/integrations/skills/bundledSkills.js')
+const { getBundledSkillsRoot } = await import('../../src/permissions/rules/filesystem.js')
+const { getMercuryHome } = await import('../../src/platform/environment/envUtils.js')
 
 async function buildRegistry(label: string, wrappers: string[]): Promise<BuiltRegistry> {
   const srcDir = join(SCRATCH, 'built', label, 'src')
@@ -400,7 +400,7 @@ section('§6 SOURCE↔MIRROR SYNC + the discovery budget')
     check(gen.isGeneratedModule(join(publishedDest, `${n}Content.ts`)) && gen.isGeneratedModule(join(publishedDest, `${n}.ts`)), `${n}: a published checkout still recognises both modules as generator output (the prune and the overwrite guard hold there too)`)
   }
   const { retired } = gen.checkBundled()
-  check(retired.length === 0, 'no retired generated output lingers under src/skills/bundled/', retired.join(' '))
+  check(retired.length === 0, 'no retired generated output lingers under src/integrations/skills/bundled/', retired.join(' '))
 
   const dist = existsSync(join(ROOT, 'dist', 'mercury.mjs')) ? readFileSync(join(ROOT, 'dist', 'mercury.mjs'), 'utf8') : null
   const descriptions = new Map<string, string>()

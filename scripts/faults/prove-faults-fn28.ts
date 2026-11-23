@@ -17,14 +17,14 @@ const POSIX_MODES =
   process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
 const FN28_FIX_HINTS: Array<[string, string]> = [
-  ['artifactIdentity-', 'fix describeArtifactIdentity in src/utils/artifactIdentity.ts so a manifest that is corrupt or unreadable keeps the distribution the entry location implies'],
-  ['reviewStore-', 'fix the journal read path in src/services/artifacts/reviewStore.ts (setReviewArtifactStatus, listReviewArtifactHeadsSource, readReviewArtifactJournal) so an unreadable journal is reported, never answered as absent or empty'],
-  ['artifacts-', 'fix listArtifacts and getArtifact in src/utils/artifacts/store.ts so only ENOENT means absent and every other read or parse error rejects'],
-  ['astSearch-', 'fix searchAstPattern in src/services/structure/astPatterns/search.ts so an unreadable file is recorded in parseFailures with the word unreadable'],
-  ['fileAttachments-', 'fix generateFileAttachment in src/services/attachments/fileAttachments.ts so a stat failure other than ENOENT returns the refused dropped_image_file row, and a missing file returns null'],
-  ['mentionResolvers-', 'fix processAtMentionedFiles and processMcpResourceAttachments in src/services/attachments/mentionResolvers.ts so an unreadable directory is reported and a lookup bug is thrown'],
-  ['bootCardFacts-', 'fix workspaceRecognizedByGround, parkedSessionsOf and projectChatCount in src/utils/bootCardFacts.ts so an unreadable store fails closed or throws, and an absent store stays empty'],
-  ['boxLock-', 'fix readBoxLockState and boxReading in src/utils/boxLock.ts so an unreadable lock dir, holder or queue throws and is reported as not readable, and an absent dir answers null'],
+  ['artifactIdentity-', 'fix describeArtifactIdentity in src/platform/product/artifactIdentity.ts so a manifest that is corrupt or unreadable keeps the distribution the entry location implies'],
+  ['reviewStore-', 'fix the journal read path in src/sessions/artifact-reviews/reviewStore.ts (setReviewArtifactStatus, listReviewArtifactHeadsSource, readReviewArtifactJournal) so an unreadable journal is reported, never answered as absent or empty'],
+  ['artifacts-', 'fix listArtifacts and getArtifact in src/sessions/artifacts/store.ts so only ENOENT means absent and every other read or parse error rejects'],
+  ['astSearch-', 'fix searchAstPattern in src/tools/engines/structure/ast-patterns/search.ts so an unreadable file is recorded in parseFailures with the word unreadable'],
+  ['fileAttachments-', 'fix generateFileAttachment in src/engine/attachments/fileAttachments.ts so a stat failure other than ENOENT returns the refused dropped_image_file row, and a missing file returns null'],
+  ['mentionResolvers-', 'fix processAtMentionedFiles and processMcpResourceAttachments in src/engine/attachments/mentionResolvers.ts so an unreadable directory is reported and a lookup bug is thrown'],
+  ['bootCardFacts-', 'fix workspaceRecognizedByGround, parkedSessionsOf and projectChatCount in src/screen/boot-face/bootCardFacts.ts so an unreadable store fails closed or throws, and an absent store stays empty'],
+  ['boxLock-', 'fix readBoxLockState and boxReading in src/platform/storage/boxLock.ts so an unreadable lock dir, holder or queue throws and is reported as not readable, and an absent dir answers null'],
 ]
 
 let failures = 0
@@ -40,7 +40,7 @@ function skip(label: string, why: string): void {
 
 {
   console.log('\nartifactIdentity: corrupt or unreadable manifest keeps packaged-install/source-build')
-  const { describeArtifactIdentity } = await import('../../src/utils/artifactIdentity.ts')
+  const { describeArtifactIdentity } = await import('../../src/platform/product/artifactIdentity.ts')
   const pkgDir = join(SCRATCH, 'pkg-dist')
   mkdirSync(pkgDir, { recursive: true })
   const pkgEntry = join(pkgDir, 'mercury.mjs')
@@ -88,7 +88,7 @@ function skip(label: string, why: string): void {
 {
   console.log('\nreviewStore: unreadable journal fails mutators, heads source, and journal reader instead of answering absent/empty')
   const { readFileSync } = await import('node:fs')
-  const store = await import('../../src/services/artifacts/reviewStore.ts')
+  const store = await import('../../src/sessions/artifact-reviews/reviewStore.ts')
   const created = store.createReviewArtifact({
     kind: 'plan',
     title: 'lock-test',
@@ -145,7 +145,7 @@ function skip(label: string, why: string): void {
 
 {
   console.log('\nartifacts/store: listArtifacts and getArtifact reject on non-ENOENT or corrupt meta')
-  const artifacts = await import('../../src/utils/artifacts/store.ts')
+  const artifacts = await import('../../src/sessions/artifacts/store.ts')
   const stored = await artifacts.storeArtifact({ scope: 'fault-scope', name: 'sample', content: 'hello' })
   check('artifacts-setup: stored artifact', stored.id !== null && stored.path !== null, JSON.stringify(stored))
   if (stored.id !== null) {
@@ -223,8 +223,8 @@ function skip(label: string, why: string): void {
 
 {
   console.log('\nastPatterns/search: unreadable files are recorded in parseFailures instead of skipped silently')
-  const { searchAstPattern } = await import('../../src/services/structure/astPatterns/search.ts')
-  const { resolveAstScope, isAstRefusal } = await import('../../src/services/structure/astPatterns/scope.ts')
+  const { searchAstPattern } = await import('../../src/tools/engines/structure/ast-patterns/search.ts')
+  const { resolveAstScope, isAstRefusal } = await import('../../src/tools/engines/structure/ast-patterns/scope.ts')
   const astDir = join(SCRATCH, 'ast-proj')
   mkdirSync(astDir, { recursive: true })
   const secretFile = join(astDir, 'secret.ts')
@@ -261,7 +261,7 @@ function skip(label: string, why: string): void {
 
 {
   console.log('\nfileAttachments: unreadMention reports non-ENOENT stat failure instead of dropping at-mention')
-  const { generateFileAttachment } = await import('../../src/services/attachments/fileAttachments.ts')
+  const { generateFileAttachment } = await import('../../src/engine/attachments/fileAttachments.ts')
   const sealedDir = join(SCRATCH, 'sealed-dir')
   mkdirSync(sealedDir, { recursive: true })
   const sealedFile = join(sealedDir, 'secret.txt')
@@ -304,7 +304,7 @@ function skip(label: string, why: string): void {
 
 {
   console.log('\nmentionResolvers: unreadable directory mention reports failure and readMentionedResource lets bugs throw')
-  const { processAtMentionedFiles, processMcpResourceAttachments } = await import('../../src/services/attachments/mentionResolvers.ts')
+  const { processAtMentionedFiles, processMcpResourceAttachments } = await import('../../src/engine/attachments/mentionResolvers.ts')
   const unreadDir = join(SCRATCH, 'unreadable-mention-dir')
   mkdirSync(unreadDir, { recursive: true })
   const ctx = {
@@ -363,8 +363,8 @@ function skip(label: string, why: string): void {
 
 {
   console.log('\nbootCardFacts: unreadable project store fails closed in workspaceRecognizedByGround and throws in parkedSessionsOf/projectChatCount')
-  const boot = await import('../../src/utils/bootCardFacts.ts')
-  const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+  const boot = await import('../../src/screen/boot-face/bootCardFacts.ts')
+  const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
   boot._resetProjectCatalogForTesting()
   const ground = join(SCRATCH, 'ground-proj')
   const nested = join(ground, 'nested-ws')
@@ -424,7 +424,7 @@ function skip(label: string, why: string): void {
 
 {
   console.log('\nboxLock: unreadable lock dir, holder, or queue throws in readBoxLockState and reports not readable in boxReading')
-  const box = await import('../../src/utils/boxLock.ts')
+  const box = await import('../../src/platform/storage/boxLock.ts')
   const lockDir = join(SCRATCH, 'box-lock')
   mkdirSync(join(lockDir, 'box.lock'), { recursive: true })
   const holderFile = join(lockDir, 'box.lock', 'holder')

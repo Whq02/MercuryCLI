@@ -5,7 +5,7 @@ import { dirname, join, posix, relative, resolve } from 'node:path'
 import ts from 'typescript'
 
 const SELF = 'scripts/ui/prove-chat-parts-law.ts'
-const DOOR = 'src/screens/Chat.tsx'
+const DOOR = 'src/screen/chat/Chat.tsx'
 const PARTS = 'src/screens/chat/'
 const UNIT = 'Chat'
 const DOOR_EXPORTS = ['Chat', 'Props', 'Screen']
@@ -234,12 +234,12 @@ failureHint = `the planted estate is read by readTree and judged by judge in ${S
     mkdirSync(dirname(join(estate, file)), { recursive: true })
     writeFileSync(join(estate, file), lines.join('\n') + '\n')
   }
-  plant('src/screens/Chat.tsx', ["import { useEffect, useState } from 'react'", "import { usePart } from './chat/usePart.js'", 'export type Screen = 1', 'export type Props = {}', 'export function Chat(): null {', '  const [a] = useState(0)', '  usePart()', '  useEffect(() => {', '    const inner = () => useState(1)', '    void inner', '  }, [a])', '  return null', '}'])
+  plant('src/screen/chat/Chat.tsx', ["import { useEffect, useState } from 'react'", "import { usePart } from './chat/usePart.js'", 'export type Screen = 1', 'export type Props = {}', 'export function Chat(): null {', '  const [a] = useState(0)', '  usePart()', '  useEffect(() => {', '    const inner = () => useState(1)', '    void inner', '  }, [a])', '  return null', '}'])
   plant('src/screens/chat/usePart.ts', ["import { useState } from 'react'", "import type { Kind } from './kind.js'", 'export function usePart(): Kind {', '  return useState(0)[0] as Kind', '}'])
   plant('src/screens/chat/kind.ts', ['export type Kind = number'])
   plant('src/components/Elsewhere.tsx', ["import { usePart } from '../screens/chat/usePart.js'", 'export const reach = usePart'])
   plant('src/components/Lazy.ts', ['export async function lazy(): Promise<unknown> {', "  return import('../screens/chat/usePart.js')", '}'])
-  plant('src/screens/chat/back.ts', ["import type { Screen } from '../Chat.js'", 'export type Back = Screen'])
+  plant('src/screens/chat/back.ts', ["import type { Screen } from '../../screen/chat/Chat.js'", 'export type Back = Screen'])
   const read = readTree(estate)
   const held = { useState: 1, useEffect: 1 }
   const whole = judge(read, held)
@@ -249,28 +249,28 @@ failureHint = `the planted estate is read by readTree and judged by judge in ${S
     told(whole.faults, 'one door').filter(line => !line.startsWith('  instead')).join(' | ') === "src/components/Elsewhere.tsx:1 imports '../screens/chat/usePart.js' | src/components/Lazy.ts:2 imports '../screens/chat/usePart.js'",
     told(whole.faults, 'one door'),
   )
-  check('a part that imports the screen is refused with its line', told(whole.faults, 'no way back')[0] === "src/screens/chat/back.ts:1 imports '../Chat.js'", told(whole.faults, 'no way back'))
-  check('a part that imports another part, and the screen that imports its parts, are let through', !whole.faults.some(fault => (fault.law === 'one door' || fault.law === 'no way back') && (fault.where.startsWith('src/screens/chat/usePart.ts') || fault.where.startsWith('src/screens/Chat.tsx:'))))
+  check('a part that imports the screen is refused with its line', told(whole.faults, 'no way back')[0] === "src/screens/chat/back.ts:1 imports '../../screen/chat/Chat.js'", told(whole.faults, 'no way back'))
+  check('a part that imports another part, and the screen that imports its parts, are let through', !whole.faults.some(fault => (fault.law === 'one door' || fault.law === 'no way back') && (fault.where.startsWith('src/screens/chat/usePart.ts') || fault.where.startsWith('src/screen/chat/Chat.tsx:'))))
   const risen = judge(read, { ...held, useState: 0 })
-  check('one hook call more than the law holds is refused with the hook and its line', told(risen.faults, 'the count only falls')[0] === 'src/screens/Chat.tsx: Chat calls useState 1 time (lines 6) and the law holds 0', told(risen.faults, 'the count only falls'))
+  check('one hook call more than the law holds is refused with the hook and its line', told(risen.faults, 'the count only falls')[0] === 'src/screen/chat/Chat.tsx: Chat calls useState 1 time (lines 6) and the law holds 0', told(risen.faults, 'the count only falls'))
   const swapped = judge(read, { useState: 0, useEffect: 2 })
-  check('a row above its count is refused though another row fell by as much and the sum stands (2 found, 2 held)', swapped.total === 2 && told(swapped.faults, 'the count only falls')[0] === 'src/screens/Chat.tsx: Chat calls useState 1 time (lines 6) and the law holds 0', told(swapped.faults, 'the count only falls'))
+  check('a row above its count is refused though another row fell by as much and the sum stands (2 found, 2 held)', swapped.total === 2 && told(swapped.faults, 'the count only falls')[0] === 'src/screen/chat/Chat.tsx: Chat calls useState 1 time (lines 6) and the law holds 0', told(swapped.faults, 'the count only falls'))
   check('a count below the number held passes and is named', judge(read, { ...held, useEffect: 3 }).slack.join() === 'useEffect: 1 in Chat, 3 held' && !judge(read, { ...held, useEffect: 3 }).faults.some(fault => fault.law === 'the count only falls'))
-  check('a hook called inside a nested function of the screen is refused with its line', told(whole.faults, 'every render')[0] === 'src/screens/Chat.tsx:9 calls useState under a nested function', told(whole.faults, 'every render'))
+  check('a hook called inside a nested function of the screen is refused with its line', told(whole.faults, 'every render')[0] === 'src/screen/chat/Chat.tsx:9 calls useState under a nested function', told(whole.faults, 'every render'))
   plant('src/screens/chat/useGuarded.ts', ["import { useState } from 'react'", 'export function useGuarded(on: boolean): number {', '  const a = on ? useState(0)[0] : 0', '  if (on) useState(1)', '  const b = on && useState(2)[0]', '  for (const _ of [on]) useState(3)', '  if (!on) return a', '  return useState(4)[0] + Number(b)', '}'])
   check(
     'a hook a part calls under a condition is refused with its line: a ? :, an if, a &&, a loop, an early return',
     told(judge(readTree(estate), held).faults, 'every render').filter(line => line.startsWith('src/screens/chat/')).join(' | ') === 'src/screens/chat/useGuarded.ts:3 calls useState under a ? : | src/screens/chat/useGuarded.ts:4 calls useState under an if | src/screens/chat/useGuarded.ts:5 calls useState under a && | src/screens/chat/useGuarded.ts:6 calls useState under a loop | src/screens/chat/useGuarded.ts:8 calls useState under an early return',
     told(judge(readTree(estate), held).faults, 'every render'),
   )
-  plant('src/screens/Chat.tsx', ["import { usePart } from './chat/usePart.js'", 'export type Screen = 1', 'export type Props = {}', 'export function Chat(): null {', '  usePart()', '  usePart()', '  return null', '}'])
-  check('a part called twice is refused with both lines', told(judge(readTree(estate), {}).faults, 'one call a part')[0] === 'src/screens/Chat.tsx: Chat calls the part usePart 2 times (lines 5, 6)', told(judge(readTree(estate), {}).faults, 'one call a part'))
-  plant('src/screens/Chat.tsx', ['export function Chat(): null {', '  return null', '}', 'export const leaked = 1'])
-  check('a door that loses an export or gains one is refused', told(judge(readTree(estate), {}).faults, 'the door').filter(line => !line.startsWith('  instead')).join(' | ') === 'src/screens/Chat.tsx exports Chat, leaked | src/screens/Chat.tsx:4 exports leaked', told(judge(readTree(estate), {}).faults, 'the door'))
-  plant('src/screens/Chat.tsx', ['export type Screen = 1', 'export type Props = {}', 'export function Chat(): null {', '  return null', '}', "export { usePart } from './chat/usePart.js'", "export type { Kind } from './chat/kind.js'", "export * from './chat/kind.js'", 'export default Chat'])
+  plant('src/screen/chat/Chat.tsx', ["import { usePart } from './chat/usePart.js'", 'export type Screen = 1', 'export type Props = {}', 'export function Chat(): null {', '  usePart()', '  usePart()', '  return null', '}'])
+  check('a part called twice is refused with both lines', told(judge(readTree(estate), {}).faults, 'one call a part')[0] === 'src/screen/chat/Chat.tsx: Chat calls the part usePart 2 times (lines 5, 6)', told(judge(readTree(estate), {}).faults, 'one call a part'))
+  plant('src/screen/chat/Chat.tsx', ['export function Chat(): null {', '  return null', '}', 'export const leaked = 1'])
+  check('a door that loses an export or gains one is refused', told(judge(readTree(estate), {}).faults, 'the door').filter(line => !line.startsWith('  instead')).join(' | ') === 'src/screen/chat/Chat.tsx exports Chat, leaked | src/screen/chat/Chat.tsx:4 exports leaked', told(judge(readTree(estate), {}).faults, 'the door'))
+  plant('src/screen/chat/Chat.tsx', ['export type Screen = 1', 'export type Props = {}', 'export function Chat(): null {', '  return null', '}', "export { usePart } from './chat/usePart.js'", "export type { Kind } from './chat/kind.js'", "export * from './chat/kind.js'", 'export default Chat'])
   check(
     "a door that hands on a part's value, a part's type, a whole part or a default is refused, each with its line",
-    told(judge(readTree(estate), {}).faults, 'the door').filter(line => !line.startsWith('  instead')).join(' | ') === 'src/screens/Chat.tsx:6 exports usePart | src/screens/Chat.tsx:7 exports Kind | src/screens/Chat.tsx:8 exports * | src/screens/Chat.tsx:9 exports default',
+    told(judge(readTree(estate), {}).faults, 'the door').filter(line => !line.startsWith('  instead')).join(' | ') === 'src/screen/chat/Chat.tsx:6 exports usePart | src/screen/chat/Chat.tsx:7 exports Kind | src/screen/chat/Chat.tsx:8 exports * | src/screen/chat/Chat.tsx:9 exports default',
     told(judge(readTree(estate), {}).faults, 'the door'),
   )
   rmSync(estate, { recursive: true, force: true })
@@ -291,7 +291,7 @@ if (verdict.slack.length > 0) console.log(`  the rows differ from the file: ${ve
 if (at < 0) {
   section('§2 the door as a running module')
   ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
-  const door = (await import('../../src/screens/Chat.tsx')) as Record<string, unknown>
+  const door = (await import('../../src/screen/chat/Chat.tsx')) as Record<string, unknown>
   check(`${DOOR} loads and its one runtime export is the component ${UNIT}`, Object.keys(door).join() === UNIT && typeof door[UNIT] === 'function', [Object.keys(door).join(', '), `change the runtime exports of ${DOOR} so that only ${UNIT} remains`])
 }
 

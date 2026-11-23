@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { join, resolve } from 'node:path'
 import ts from 'typescript'
-import { flagEnv } from '../../src/substrate/flagRegistry.ts'
+import { flagEnv } from '../../src/platform/substrate/flagRegistry.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const NAME = 'MERCURY_SESSION_HOME'

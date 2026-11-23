@@ -64,7 +64,7 @@ for (const variant of variants) {
       ? 'the record validator refuses the malformed record and the session resumes'
       : 'the malformed persisted body is thinned or ignored and the session resumes',
     ok,
-    ok ? 'resumed' : `no success result (exit ${second.exitCode})${errorLine ? ` stderr: ${errorLine.slice(0, 200)}` : ''}; the injected record broke the resume: a record the shape table in src/fabric/validate.ts (ATTACHMENT_BODY_SHAPES, NOTICE_BODY_SHAPES, bodyShapeIssue, validateRecord) should refuse or thin, or a reader of that body that must tolerate the missing field, must not abort it`,
+    ok ? 'resumed' : `no success result (exit ${second.exitCode})${errorLine ? ` stderr: ${errorLine.slice(0, 200)}` : ''}; the injected record broke the resume: a record the shape table in src/sessions/fabric/validate.ts (ATTACHMENT_BODY_SHAPES, NOTICE_BODY_SHAPES, bodyShapeIssue, validateRecord) should refuse or thin, or a reader of that body that must tolerate the missing field, must not abort it`,
   )
   await fixture.close()
 }

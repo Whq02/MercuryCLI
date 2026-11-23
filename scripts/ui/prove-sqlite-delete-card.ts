@@ -31,13 +31,13 @@ for (const [columns, rows, key] of [[120, 40, 1], [80, 24, 9]]) {
       mkdirSync(process.env.SQLITE_CARD_FRAMES, { recursive: true })
       writeFileSync(join(process.env.SQLITE_CARD_FRAMES, `delete-${columns}x${rows}.txt`), frame)
     }
-    check(`${columns}x${rows}: ordinary permission frame names deletion`, !!approval && frame.includes('Delete SQLite row') && frame.includes('Delete this row?'), `no approval card for the delete reached the screen; look at src/tools/FileWriteTool/SqliteDeletePermissionRequest.tsx (title and question) and the FRAME above`)
-    check(`${columns}x${rows}: the row or missing state is shown before approval`, frame.includes(key === 1 ? 'visible before deletion' : 'Row not found; nothing will be deleted.'), `the card must show the row before approval or the not-found line; see src/tools/FileWriteTool/SqliteDeletePermissionRequest.tsx and the FRAME above`)
-    check(`${columns}x${rows}: it never calls the row a new file`, !frame.includes('Create file') && !frame.includes('Overwrite file'), `a row deletion must not render the file create/overwrite card; see src/tools/FileWriteTool/SqliteDeletePermissionRequest.tsx and the FRAME above`)
+    check(`${columns}x${rows}: ordinary permission frame names deletion`, !!approval && frame.includes('Delete SQLite row') && frame.includes('Delete this row?'), `no approval card for the delete reached the screen; look at src/tools/write/SqliteDeletePermissionRequest.tsx (title and question) and the FRAME above`)
+    check(`${columns}x${rows}: the row or missing state is shown before approval`, frame.includes(key === 1 ? 'visible before deletion' : 'Row not found; nothing will be deleted.'), `the card must show the row before approval or the not-found line; see src/tools/write/SqliteDeletePermissionRequest.tsx and the FRAME above`)
+    check(`${columns}x${rows}: it never calls the row a new file`, !frame.includes('Create file') && !frame.includes('Overwrite file'), `a row deletion must not render the file create/overwrite card; see src/tools/write/SqliteDeletePermissionRequest.tsx and the FRAME above`)
     const db = new Database(join(run.paths.cwd, 'data.sqlite'), { readonly: true })
     const count = (db.query('SELECT count(*) AS n FROM items').get() as { n: number }).n
     db.close()
-    check(`${columns}x${rows}: approval applies only its addressed outcome`, count === (key === 1 ? 0 : 1), `rows left in items: ${count}; approving must delete only the addressed row (the sqlite delete branch in src/tools/FileWriteTool/structuredTargets.ts)`)
+    check(`${columns}x${rows}: approval applies only its addressed outcome`, count === (key === 1 ? 0 : 1), `rows left in items: ${count}; approving must delete only the addressed row (the sqlite delete branch in src/tools/write/structuredTargets.ts)`)
   } finally { run.cleanup() }
 }
 console.log(`${passed}/${passed + failed} checks`)

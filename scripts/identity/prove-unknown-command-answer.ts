@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands.ts src/commands/effectiveCatalogue.ts src/components/HelpV2/commandDomains.ts src/services/processUserInput/processSlashCommand.tsx src/constants/querySource.ts README.md
+// gate-watch: src/commands/catalogue/commands.ts src/commands/catalogue/effectiveCatalogue.ts src/screen/help/commandDomains.ts src/engine/user-input/processSlashCommand.tsx src/engine/requests/querySource.ts README.md
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawnSync } from 'node:child_process'
@@ -17,7 +17,7 @@ delete process.env.MERCURY_HOME
 const REPO = resolve(import.meta.dir, '..', '..')
 let failures = 0
 let checks = 0
-const UNKNOWN_COMMAND_FAIL_HINT = 'where to look: the unknown-command sentence is unknownCommandLine in src/services/processUserInput/processSlashCommand.tsx; the roster is builtinCommands and findCommand in src/commands.ts; the catalogue is effectiveCatalogue in src/commands/effectiveCatalogue.ts; help domains are COMMAND_DOMAINS in src/components/HelpV2/commandDomains.ts; a table cell is in README.md; remove the name or alias from the row that still carries it, and rebuild dist/mercury.mjs (bun run build.ts) for the headless door checks'
+const UNKNOWN_COMMAND_FAIL_HINT = 'where to look: the unknown-command sentence is unknownCommandLine in src/engine/user-input/processSlashCommand.tsx; the roster is builtinCommands and findCommand in src/commands/catalogue/commands.ts; the catalogue is effectiveCatalogue in src/commands/catalogue/effectiveCatalogue.ts; help domains are COMMAND_DOMAINS in src/screen/help/commandDomains.ts; a table cell is in README.md; remove the name or alias from the row that still carries it, and rebuild dist/mercury.mjs (bun run build.ts) for the headless door checks'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -26,10 +26,10 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 console.log('a slash name Mercury does not have answers as any unknown command does')
 
-const commands = await import('../../src/commands.ts')
-const slash = await import('../../src/services/processUserInput/processSlashCommand.tsx')
-const catalogue = await import('../../src/commands/effectiveCatalogue.ts')
-const domains = await import('../../src/components/HelpV2/commandDomains.ts')
+const commands = await import('../../src/commands/catalogue/commands.ts')
+const slash = await import('../../src/engine/user-input/processSlashCommand.tsx')
+const catalogue = await import('../../src/commands/catalogue/effectiveCatalogue.ts')
+const domains = await import('../../src/screen/help/commandDomains.ts')
 
 const roster = [...commands.builtinCommands()]
 const RETIRED = 'insights'

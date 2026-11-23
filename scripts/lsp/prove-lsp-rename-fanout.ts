@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const repo = path.resolve(import.meta.dir, '../..')
+const repo = path.resolve(import.meta.dir, '../../kit/toolList')
 const scripted = path.join(repo, 'scripts/lsp/fixtures/scripted-rename-server.mjs')
 
 let failures = 0
@@ -74,16 +74,16 @@ process.env.MERCURY_LSP_SERVERS = JSON.stringify({
   },
 })
 
-const { enableConfigs } = await import('../../src/utils/config.js')
+const { enableConfigs } = await import('../../src/platform/settings/config.js')
 enableConfigs()
-const mgrModule = await import('../../src/services/lsp/manager.js')
+const mgrModule = await import('../../src/integrations/lsp/serverManagerLifecycle.js')
 mgrModule.initializeLspServerManager()
 await mgrModule.waitForInitialization()
 const manager = mgrModule.getLspServerManager()!
-const { runMercuryLspOp } = await import('../../src/tools/LSPTool/mercuryOps.js')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+const { runMercuryLspOp } = await import('../../src/tools/lsp/mercuryOps.js')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.js')
 
-const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+const { setOriginalCwd } = await import('../../src/boot/process-state/processState.ts')
 setOriginalCwd(scratch)
 const permCtx = getEmptyToolPermissionContext()
 const readFileState = new Map<string, { content: string; timestamp: number }>()
@@ -115,12 +115,12 @@ console.log('— P. preview computes the fan-out, writes nothing —')
 {
   const before = readFileSync(importsFile, 'utf8')
   const r = await drive({ operation: 'pathRename', filePath: movingFile, newPath: path.join(scratch, 'moved.zz') }, movingFile)
-  check('preview names both claimants', /serverA \+ .*serverB|env:serverA \+ env:serverB/.test(r.result), `${r.result.slice(0, 240)} — opPathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must list every server that advertises willRename`)
-  check('preview surfaces the overlap yield', /yielded to/.test(r.result), `${r.result.slice(0, 400)} — pathRenameClaimants in src/tools/LSPTool/mercuryOps/pathRenameFanOut.ts must report overlapping edits as yielded to the prior claimant`)
+  check('preview names both claimants', /serverA \+ .*serverB|env:serverA \+ env:serverB/.test(r.result), `${r.result.slice(0, 240)} — opPathRename in src/tools/lsp/mercury-ops/pathRename.ts must list every server that advertises willRename`)
+  check('preview surfaces the overlap yield', /yielded to/.test(r.result), `${r.result.slice(0, 400)} — pathRenameClaimants in src/tools/lsp/mercury-ops/pathRenameFanOut.ts must report overlapping edits as yielded to the prior claimant`)
   check('preview writes nothing, moves nothing', readFileSync(importsFile, 'utf8') === before && existsSync(movingFile),
-    'the preview path of opPathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must not write or move anything unless apply is true')
+    'the preview path of opPathRename in src/tools/lsp/mercury-ops/pathRename.ts must not write or move anything unless apply is true')
   check('both servers were ASKED willRenameFiles', logLines(logA).includes('workspace/willRenameFiles') && logLines(logB).includes('workspace/willRenameFiles'),
-    `a.log: ${logLines(logA).join(',')}; b.log: ${logLines(logB).join(',')} — opPathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must send workspace/willRenameFiles to every claimant`)
+    `a.log: ${logLines(logA).join(',')}; b.log: ${logLines(logB).join(',')} — opPathRename in src/tools/lsp/mercury-ops/pathRename.ts must send workspace/willRenameFiles to every claimant`)
 }
 
 console.log('— F. the applied fan-out, byte-asserted —')
@@ -128,24 +128,24 @@ console.log('— F. the applied fan-out, byte-asserted —')
   const moved = path.join(scratch, 'moved.zz')
   readFileState.set(importsFile, { content: readFileSync(importsFile, 'utf8'), timestamp: Date.now() })
   const r = await drive({ operation: 'pathRename', filePath: movingFile, newPath: moved, apply: true }, movingFile)
-  check('apply succeeded', r.effect.outcome === 'succeeded', `${r.result.slice(0, 300)} — see opPathRename in src/tools/LSPTool/mercuryOps/pathRename.ts`)
-  check('the file moved', !existsSync(movingFile) && existsSync(moved), 'the apply step of opPathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must move the file to newPath')
+  check('apply succeeded', r.effect.outcome === 'succeeded', `${r.result.slice(0, 300)} — see opPathRename in src/tools/lsp/mercury-ops/pathRename.ts`)
+  check('the file moved', !existsSync(movingFile) && existsSync(moved), 'the apply step of opPathRename in src/tools/lsp/mercury-ops/pathRename.ts must move the file to newPath')
   const after = readFileSync(importsFile, 'utf8')
   check(
     'coalescing byte-assert: precedence claimant wins the overlap, the disjoint edit lands',
     after === "import AAA from './moving'\nimport BBBB from './moving'\n",
-    `${JSON.stringify(after)} — pathRenameClaimants in src/tools/LSPTool/mercuryOps/pathRenameFanOut.ts must keep the first claimant on an overlap and still apply the later claimant's disjoint edit`,
+    `${JSON.stringify(after)} — pathRenameClaimants in src/tools/lsp/mercury-ops/pathRenameFanOut.ts must keep the first claimant on an overlap and still apply the later claimant's disjoint edit`,
   )
-  check('the yield note names the loser and the winner', /serverB: 1 overlapping edit\(s\).*yielded/.test(r.result), `${r.result.slice(0, 400)} — the yield note built in src/tools/LSPTool/mercuryOps/pathRenameFanOut.ts must name the losing server and the winner`)
-  check('changedPaths carries the import file + both endpoints', r.effect.changedPaths.length === 3, `${JSON.stringify(r.effect.changedPaths)} — opPathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must report the edited import file and both rename endpoints`)
+  check('the yield note names the loser and the winner', /serverB: 1 overlapping edit\(s\).*yielded/.test(r.result), `${r.result.slice(0, 400)} — the yield note built in src/tools/lsp/mercury-ops/pathRenameFanOut.ts must name the losing server and the winner`)
+  check('changedPaths carries the import file + both endpoints', r.effect.changedPaths.length === 3, `${JSON.stringify(r.effect.changedPaths)} — opPathRename in src/tools/lsp/mercury-ops/pathRename.ts must report the edited import file and both rename endpoints`)
 }
 
 console.log('— D. didRenameFiles fans to every advertising claimant —')
 {
   const a = logLines(logA)
   const b = logLines(logB)
-  check('serverA notified', a.includes('workspace/didRenameFiles'), `${a.join(',')} — opPathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must send workspace/didRenameFiles to every claimant that advertises it`)
-  check('serverB notified', b.includes('workspace/didRenameFiles'), `${b.join(',')} — opPathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must send workspace/didRenameFiles to every claimant that advertises it`)
+  check('serverA notified', a.includes('workspace/didRenameFiles'), `${a.join(',')} — opPathRename in src/tools/lsp/mercury-ops/pathRename.ts must send workspace/didRenameFiles to every claimant that advertises it`)
+  check('serverB notified', b.includes('workspace/didRenameFiles'), `${b.join(',')} — opPathRename in src/tools/lsp/mercury-ops/pathRename.ts must send workspace/didRenameFiles to every claimant that advertises it`)
 }
 
 console.log('— R. directory rename claims through contained extensions —')
@@ -157,16 +157,16 @@ console.log('— R. directory rename claims through contained extensions —')
   readFileState.set(inner, { content: 'y\n', timestamp: Date.now() })
   const dest = path.join(scratch, 'pkg2')
   const r = await drive({ operation: 'pathRename', filePath: dir, newPath: dest, apply: true }, dir)
-  check('directory move succeeded', r.effect.outcome === 'succeeded', `${r.result.slice(0, 300)} — see opPathRename in src/tools/LSPTool/mercuryOps/pathRename.ts`)
-  check('the tree moved', !existsSync(dir) && existsSync(path.join(dest, 'inner.yy')), 'opPathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must move a directory with its contents')
+  check('directory move succeeded', r.effect.outcome === 'succeeded', `${r.result.slice(0, 300)} — see opPathRename in src/tools/lsp/mercury-ops/pathRename.ts`)
+  check('the tree moved', !existsSync(dir) && existsSync(path.join(dest, 'inner.yy')), 'opPathRename in src/tools/lsp/mercury-ops/pathRename.ts must move a directory with its contents')
   let c = logLines(logC)
   for (let i = 0; i < 40 && !c.includes('workspace/didRenameFiles'); i++) {
     await new Promise(r => setTimeout(r, 50))
     c = logLines(logC)
   }
-  check('the contained-extension claimant was asked and notified', c.includes('workspace/willRenameFiles') && c.includes('workspace/didRenameFiles'), `${c.join(',')} — opPathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must claim a directory rename for servers whose extensions occur inside it`)
+  check('the contained-extension claimant was asked and notified', c.includes('workspace/willRenameFiles') && c.includes('workspace/didRenameFiles'), `${c.join(',')} — opPathRename in src/tools/lsp/mercury-ops/pathRename.ts must claim a directory rename for servers whose extensions occur inside it`)
   check('read-state followed the tree', readFileState.has(path.join(dest, 'inner.yy')) && !readFileState.has(inner),
-    'the readFileState follow in opPathRename (src/tools/LSPTool/mercuryOps/pathRename.ts) must re-key entries under the old directory to the new one')
+    'the readFileState follow in opPathRename (src/tools/lsp/mercury-ops/pathRename.ts) must re-key entries under the old directory to the new one')
 }
 
 console.log('— X. a participating failure aborts the whole move —')
@@ -194,22 +194,22 @@ for (const [name, response, reason] of invalidResponses) {
     try {
       r = await drive({ operation: 'pathRename', filePath: source, newPath: destination, apply }, source)
     } catch (error) {
-      check(`${name}/${apply}: returns a typed failure`, false, `${String(error)} — opPathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must return a failed result, not throw`)
+      check(`${name}/${apply}: returns a typed failure`, false, `${String(error)} — opPathRename in src/tools/lsp/mercury-ops/pathRename.ts must return a failed result, not throw`)
     }
     check(`${name}/${apply}: both participants were asked`,
       logLines(logA).filter(line => line === 'workspace/willRenameFiles').length > aRequests &&
       logLines(logB).filter(line => line === 'workspace/willRenameFiles').length > bRequests,
-      'opPathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must send willRenameFiles to both claimants even when one later fails')
+      'opPathRename in src/tools/lsp/mercury-ops/pathRename.ts must send willRenameFiles to both claimants even when one later fails')
     check(`${name}/${apply}: abort names the failed participant and error`,
-      r?.effect.outcome === 'failed' && /serverB/.test(r.result) && reason.test(r.result), `${r?.result} — prepareApplyFanOut in src/tools/LSPTool/mercuryOps/pathRenameFanOut.ts must return a reason that names the failing server and its error`)
-    check(`${name}/${apply}: result promises unchanged files`, /all files (?:are )?unchanged/i.test(r?.result ?? ''), `${r?.result} — opPathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must say all files are unchanged when import-edit preparation fails`)
+      r?.effect.outcome === 'failed' && /serverB/.test(r.result) && reason.test(r.result), `${r?.result} — prepareApplyFanOut in src/tools/lsp/mercury-ops/pathRenameFanOut.ts must return a reason that names the failing server and its error`)
+    check(`${name}/${apply}: result promises unchanged files`, /all files (?:are )?unchanged/i.test(r?.result ?? ''), `${r?.result} — opPathRename in src/tools/lsp/mercury-ops/pathRename.ts must say all files are unchanged when import-edit preparation fails`)
     check(`${name}/${apply}: every file is byte-identical and no destination exists`,
       [...originals].every(([file, bytes]) => existsSync(file) && readFileSync(file).equals(bytes)) && !existsSync(destination),
-      'opPathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must write and move nothing when a participant fails')
+      'opPathRename in src/tools/lsp/mercury-ops/pathRename.ts must write and move nothing when a participant fails')
     check(`${name}/${apply}: no changed paths or rename notifications`,
       r?.effect.changedPaths.length === 0 && [logA, logB].every((log, i) =>
         logLines(log).filter(line => line === 'workspace/didRenameFiles').length === notifications[i]),
-      'opPathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must return no changedPaths and send no didRenameFiles when a participant fails')
+      'opPathRename in src/tools/lsp/mercury-ops/pathRename.ts must return no changedPaths and send no didRenameFiles when a participant fails')
   }
 }
 

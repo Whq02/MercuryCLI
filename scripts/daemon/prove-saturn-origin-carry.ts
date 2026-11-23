@@ -14,22 +14,22 @@ if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 delete process.env.CI
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const saturn = await import('../../src/daemon/saturn.ts')
+const saturn = await import('../../src/daemon/saturn/saturn.ts')
 const { applyConcourseScheduleOp } = saturn
-const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
-const ticker = await import('../../src/daemon/saturnTicker.ts')
-const { liveFactsForSessionFire } = await import('../../src/daemon/saturnAccount.ts')
-const { readSessionFacts, sessionFactsDir, sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.ts')
-const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { buildConcoursePromptRow } = await import('../../src/daemon/concourseDispatch.ts')
-const { processTextPrompt } = await import('../../src/services/processUserInput/processTextPrompt.ts')
-const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
-const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
-const { ScheduleWakeupTool } = await import('../../src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts')
-const rows = await import('../../src/utils/messages/noticeRows.ts')
+const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourse-workers/concourseWorkers.ts')
+const ticker = await import('../../src/daemon/saturn/saturnTicker.ts')
+const { liveFactsForSessionFire } = await import('../../src/daemon/saturn/saturnAccount.ts')
+const { readSessionFacts, sessionFactsDir, sessionFactsPath } = await import('../../src/engine/connector/seatProjections.ts')
+const receipts = await import('../../src/daemon/switchboard/sessionReceipts.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+const { buildConcoursePromptRow } = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
+const { processTextPrompt } = await import('../../src/engine/user-input/processTextPrompt.ts')
+const { createUserMessage } = await import('../../src/engine/message-shapes/factories.ts')
+const bridge = await import('../../src/daemon/saturn/sessionScheduleBridge.ts')
+const { ScheduleWakeupTool } = await import('../../src/tools/schedule-wakeup/ScheduleWakeupTool.ts')
+const rows = await import('../../src/engine/message-shapes/noticeRows.ts')
 
 let failures = 0
 let checks = 0
@@ -131,7 +131,7 @@ const clearSchedules = (): void => {
 }
 
 console.log('§1 THE CARRIER (red on the base: the delivery has no origin): a due fire delivers the schedule\'s own facts beside the prompt')
-where = 'the fire delivery in tickSaturnOnce (src/daemon/saturnTicker.ts), liveFactsForSessionFire (src/daemon/saturnAccount.ts) and buildConcoursePromptRow (src/daemon/concourseDispatch.ts)'
+where = 'the fire delivery in tickSaturnOnce (src/daemon/saturn/saturnTicker.ts), liveFactsForSessionFire (src/daemon/saturn/saturnAccount.ts) and buildConcoursePromptRow (src/daemon/concourse-workers/concourseDispatch.ts)'
 {
   seedRecord()
   publishFacts(openWindow())
@@ -156,7 +156,7 @@ where = 'the fire delivery in tickSaturnOnce (src/daemon/saturnTicker.ts), liveF
 }
 
 console.log("§1b THE TITLE (red on the base: the writer drops it): a cron schedule made with a title keeps it on the record, and its fire's origin carries it beside the id and the spelling")
-where = 'the schedule writer in src/daemon/saturn.ts (the title field) and the fire delivery in tickSaturnOnce in src/daemon/saturnTicker.ts'
+where = 'the schedule writer in src/daemon/saturn/saturn.ts (the title field) and the fire delivery in tickSaturnOnce in src/daemon/saturn/saturnTicker.ts'
 {
   delivered.length = 0
   clearSchedules()
@@ -186,7 +186,7 @@ where = 'the schedule writer in src/daemon/saturn.ts (the title field) and the f
 }
 
 console.log('§2 a wake held for a parked session replays once with the hold named in its origin')
-where = 'the held-fire hold and replay in tickSaturnOnce in src/daemon/saturnTicker.ts'
+where = 'the held-fire hold and replay in tickSaturnOnce in src/daemon/saturn/saturnTicker.ts'
 {
   delivered.length = 0
   updateConcourseWorkers(workers => {
@@ -215,7 +215,7 @@ where = 'the held-fire hold and replay in tickSaturnOnce in src/daemon/saturnTic
 }
 
 console.log('§3 a wake held by a closed usage window replays at the reopen with the window named')
-where = 'the window hold in tickSaturnOnce in src/daemon/saturnTicker.ts and liveFactsForSessionFire in src/daemon/saturnAccount.ts'
+where = 'the window hold in tickSaturnOnce in src/daemon/saturn/saturnTicker.ts and liveFactsForSessionFire in src/daemon/saturn/saturnAccount.ts'
 {
   delivered.length = 0
   updateConcourseWorkers(workers => {
@@ -236,14 +236,14 @@ where = 'the window hold in tickSaturnOnce in src/daemon/saturnTicker.ts and liv
 }
 
 console.log('§4 the prompt row and the turn road carry the origin whole; the words never change')
-where = 'buildConcoursePromptRow in src/daemon/concourseDispatch.ts, InputRowSchema in src/rows/vocabulary.ts and processTextPrompt in src/services/processUserInput/processTextPrompt.ts'
+where = 'buildConcoursePromptRow in src/daemon/concourse-workers/concourseDispatch.ts, InputRowSchema in src/engine/rows/vocabulary.ts and processTextPrompt in src/engine/user-input/processTextPrompt.ts'
 {
   const origin = { kind: 'saturn', fire: 'wake', firedAt: FIRED_AT, scheduleId: 'ab12cd34', spelling: 'in ~900s', reason: REASON }
   const plain = (await buildConcoursePromptRow(WAKE_PROMPT, { priority: 'later', identity: 'saturn-s-ab12cd34-1' })) as Raw
   check('a row without an origin is the shape it was', !('origin' in plain) && plain.priority === 'later' && plain.content === WAKE_PROMPT, j(plain))
   const row = (await buildConcoursePromptRow(WAKE_PROMPT, { priority: 'later', identity: 'saturn-s-ab12cd34-1', origin: origin as never })) as Raw
   check('a row with an origin carries it beside the words, the words untouched — the row the door queues as-is', j(row.origin) === j(origin) && row.content === WAKE_PROMPT && row.priority === 'later', j(row))
-  const { InputRowSchema } = await import('../../src/rows/vocabulary.ts')
+  const { InputRowSchema } = await import('../../src/engine/rows/vocabulary.ts')
   const parsed = InputRowSchema().safeParse(row)
   check("the row vocabulary admits the origin on a prompt row (red on the base: an undeclared key is stripped)", parsed.success && j((parsed.data as Raw).origin) === j(origin), j(parsed.success ? parsed.data : parsed.error.issues))
   const text = `[self-paced wake — why you woke: ${REASON}]\n\n${WAKE_PROMPT}`
@@ -256,7 +256,7 @@ where = 'buildConcoursePromptRow in src/daemon/concourseDispatch.ts, InputRowSch
 }
 
 console.log('§5 the tool mints the spelling the row reads back')
-where = 'ScheduleWakeupTool in src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts and the notice rows in src/utils/messages/noticeRows.ts'
+where = 'ScheduleWakeupTool in src/tools/schedule-wakeup/ScheduleWakeupTool.ts and the notice rows in src/engine/message-shapes/noticeRows.ts'
 {
   bridge._resetScheduleBridgeForTesting()
   bridge.markScheduleSeatObserved()
@@ -268,10 +268,10 @@ where = 'ScheduleWakeupTool in src/tools/ScheduleWakeupTool/ScheduleWakeupTool.t
 }
 
 console.log('§6 the seatless sink: a wake that fires into a closed usage window waits with the wall\'s own delay and says so once, in the row it finally lands as (red on the base: no step planner exists)')
-where = 'localWakeStep in src/tools/ScheduleWakeupTool/localWake.ts and WALL_RECHECK_MS, REOPEN_GRACE_MS in src/tools/MonitorTool/watchMailbox.ts'
+where = 'localWakeStep in src/tools/schedule-wakeup/localWake.ts and WALL_RECHECK_MS, REOPEN_GRACE_MS in src/tools/monitor/watchMailbox.ts'
 try {
-  const { localWakeStep } = await import('../../src/tools/ScheduleWakeupTool/localWake.ts')
-  const { WALL_RECHECK_MS, REOPEN_GRACE_MS } = await import('../../src/tools/MonitorTool/watchMailbox.ts')
+  const { localWakeStep } = await import('../../src/tools/schedule-wakeup/localWake.ts')
+  const { WALL_RECHECK_MS, REOPEN_GRACE_MS } = await import('../../src/tools/monitor/watchMailbox.ts')
   const facts = { spelling: 'in ~900s', reason: REASON }
   const first = localWakeStep({ closed: true, reopensAtMs: T0 + 30_000 }, T0, FIRED_AT, undefined, facts)
   check("a closed window with a known reopen waits until the reopen plus the grace, the wall's own delay", first.step === 'wait' && first.delayMs === 30_000 + REOPEN_GRACE_MS && first.heldSince === FIRED_AT, j(first))
@@ -294,7 +294,7 @@ try {
 }
 
 console.log("§7 the seatless arm hands the wake's facts to the sink (red on the base: the sink receives the prompt alone)")
-where = 'armLocalWake and registerLocalWakeSink in src/services/saturn/sessionScheduleBridge.ts, and the wake arm of ScheduleWakeupTool in src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts'
+where = 'armLocalWake and registerLocalWakeSink in src/daemon/saturn/sessionScheduleBridge.ts, and the wake arm of ScheduleWakeupTool in src/tools/schedule-wakeup/ScheduleWakeupTool.ts'
 {
   bridge._resetScheduleBridgeForTesting()
   const seen: Array<{ prompt: string; facts: unknown }> = []
@@ -309,7 +309,7 @@ where = 'armLocalWake and registerLocalWakeSink in src/services/saturn/sessionSc
 }
 
 console.log("§8 one fire instant: the row's fire time is the tick's own stamp — the instant the record and the receipt name — never the delivery's clock (red on the base: the origin reads the clock at the delivery)")
-where = 'the fire delivery in tickSaturnOnce in src/daemon/saturnTicker.ts (the origin must take the tick stamp, not Date.now at delivery)'
+where = 'the fire delivery in tickSaturnOnce in src/daemon/saturn/saturnTicker.ts (the origin must take the tick stamp, not Date.now at delivery)'
 {
   delivered.length = 0
   updateConcourseWorkers(workers => {

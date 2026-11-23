@@ -13,14 +13,14 @@ const root = sourceArg < 0 ? resolve(import.meta.dir, '../..') : resolve(process
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — change estimateContentTokens in src/services/roughTokenEstimation.ts (PDF page, CJK and emoji estimates), or for the last check detectFixedPrefixOverflow in src/services/compact/autoCompact.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — change estimateContentTokens in src/engine/context-window/roughTokenEstimation.ts (PDF page, CJK and emoji estimates), or for the last check detectFixedPrefixOverflow in src/engine/compaction/autoFold.ts'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const est = await import(`${root}/src/services/tokenEstimation.ts`)
-const autoCompact = await import(`${root}/src/services/compact/autoCompact.ts`)
+const est = await import(`${root}/src/models/facts/tokenEstimation.ts`)
+const autoCompact = await import(`${root}/src/engine/compaction/autoFold.ts`)
 const MODEL = 'claude-sonnet-4-6'
 
 function plainPdf(pages: number): Buffer {

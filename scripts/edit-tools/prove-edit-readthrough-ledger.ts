@@ -22,28 +22,28 @@ delete process.env.MERCURY_CHANGE_RECEIPTS
 delete process.env.MERCURY_EDIT_STALE_RECOVERY
 delete process.env.NODE_ENV
 
-const { fileGeneration, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/services/changeTransaction/seenLines.ts')
-const { checkAnchor, mintRangeAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
-const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { READ_THROUGH_MARGIN, planReadThrough } = await import('../../src/tools/FileEditTool/readThrough.ts')
-const { FileReadTool, MaxFileReadTokenExceededError } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { DEFAULT_MAX_OUTPUT_TOKENS } = await import('../../src/utils/fileReadLimits.ts')
-const { MAX_LINES_TO_READ } = await import('../../src/constants/tools/fileRead.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { fileGeneration, seenLinesOf, _resetSeenLinesForTesting } = await import('../../src/tools/engines/change-transaction/seenLines.ts')
+const { checkAnchor, mintRangeAnchor } = await import('../../src/tools/engines/change-transaction/snapshotAnchor.ts')
+const { processMainOwner } = await import('../../src/engine/run-owner/resolveOwner.ts')
+const { FileEditTool } = await import('../../src/tools/edit/EditTool.ts')
+const { READ_THROUGH_MARGIN, planReadThrough } = await import('../../src/tools/edit/readThrough.ts')
+const { FileReadTool, MaxFileReadTokenExceededError } = await import('../../src/tools/read/ReadTool.ts')
+const { DEFAULT_MAX_OUTPUT_TOKENS } = await import('../../src/tools/read/call/fileReadLimits.ts')
+const { MAX_LINES_TO_READ } = await import('../../src/tools/kit/names/fileRead.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
 
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.length > 300 ? `${detail.slice(0, 300)}…` : detail} · ` : ''}to fix: planReadThrough in src/tools/FileEditTool/readThrough.ts, validateInput in src/tools/FileEditTool/FileEditTool.ts, or the seen-lines record in src/services/changeTransaction/seenLines.ts` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.length > 300 ? `${detail.slice(0, 300)}…` : detail} · ` : ''}to fix: planReadThrough in src/tools/edit/readThrough.ts, validateInput in src/tools/edit/EditTool.ts, or the seen-lines record in src/tools/engines/change-transaction/seenLines.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — read-through ledger proof exceeded 120s; an Edit or Read call (src/tools/FileEditTool/FileEditTool.ts, src/tools/FileReadTool/FileReadTool.ts) did not return, and the last section printed above is where it stopped')
+  console.log('\nTIMEOUT — read-through ledger proof exceeded 120s; an Edit or Read call (src/tools/edit/EditTool.ts, src/tools/read/ReadTool.ts) did not return, and the last section printed above is where it stopped')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

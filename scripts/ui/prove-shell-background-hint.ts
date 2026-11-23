@@ -6,9 +6,9 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { ReactNode } from 'react'
 import stripAnsi from 'strip-ansi'
-import type { SeatStatusV1, SessionLiveV1 } from '../../src/services/engine-connector/seatLive.ts'
-import type { EngineConnectorV1, WorkRowV1 } from '../../src/services/engine-connector/types.ts'
-import type { Message } from '../../src/types/message.ts'
+import type { SeatStatusV1, SessionLiveV1 } from '../../src/engine/connector/seatLive.ts'
+import type { EngineConnectorV1, WorkRowV1 } from '../../src/engine/connector/types.ts'
+import type { Message } from '../../src/engine/message-shapes/message.ts'
 
 const arg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)
@@ -55,46 +55,46 @@ process.env.BROWSER = '/usr/bin/true'
 
 const src = (rel: string): string => join(ROOT, 'src', rel)
 const React = (await import(Bun.resolveSync('react', join(ROOT, 'src')))).default as typeof import('react')
-const { default: Ink } = await import(src('ink/ink.tsx'))
-const { Box } = await import(src('ink.ts'))
-const { App } = await import(src('components/App.tsx'))
-const { getDefaultAppState } = await import(src('state/AppStateStore.ts'))
-const { KeybindingSetup } = await import(src('keybindings/KeybindingProviderSetup.tsx'))
-const { FullscreenLayout } = await import(src('components/FullscreenLayout.tsx'))
-const { default: PromptInput } = await import(src('components/PromptInput/PromptInput.tsx'))
-const { SpinnerWithVerb } = await import(src('components/Spinner.tsx'))
-const { FocusedSessionStatusRow } = await import(src('components/SwitchboardTagBar.tsx'))
-const { CancelRequestHandler, backgroundShellNotice } = await import(src('hooks/useCancelRequest.ts'))
-const { resetChromeModeLatchForTests } = await import(src('hooks/useLayoutTier.ts'))
-const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import(src('context/surfaceRoute.ts'))
-const { enableConfigs, saveCurrentProjectConfig, saveGlobalConfig } = await import(src('utils/config.ts'))
-const pending = await import(src('input-core/pending-input.ts'))
-const { default: instances } = await import(src('ink/instances.ts'))
-const slot = await import(src('services/engine-connector/focusedConnector.ts'))
-const { noSessionConnector } = await import(src('services/engine-connector/noSessionConnector.ts'))
-const { IDLE_LIVE } = await import(src('services/engine-connector/seatLive.ts'))
-const signal = await import(src('services/engine-connector/shellRunning.ts'))
-const helm = await import(src('utils/cockpit/helmFocus.ts'))
-const row = await import(src('components/messages/AssistantToolUseMessage.tsx'))
-const { MessageRow, hasContentAfterIndex } = await import(src('components/MessageRow.tsx'))
-const { isAssistantContinuationRow } = await import(src('components/Messages.tsx'))
-const { NameplateContinuationContext } = await import(src('components/messages/TranscriptNameplate.tsx'))
-const { RowErrorBoundary } = await import(src('components/RowErrorBoundary.tsx'))
-const { deriveTranscriptRows } = await import(src('components/concourse/workerTranscriptFold.ts'))
-const { getTools } = await import(src('tools.ts'))
-const { BashTool } = await import(src('tools/BashTool/BashTool.tsx'))
-const { FileReadTool } = await import(src('tools/FileReadTool/FileReadTool.ts'))
-const { useTerminalSize } = await import(src('hooks/useTerminalSize.ts'))
-const { activeToolVerb } = await import(src('utils/cockpit/toolVerb.ts'))
-const { getBindingDisplayText } = await import(src('keybindings/resolver.ts'))
-const { loadKeybindingsSync, invalidateKeybindingsCache } = await import(src('keybindings/loadUserBindings.ts'))
-const { kitShortcut } = await import(src('components/design-system/KeyboardShortcutHint.tsx'))
-const { getPlatform } = await import(src('utils/platform.ts'))
-const { settingsChangeDetector } = await import(src('utils/settings/changeDetector.ts'))
-const { getSettingsSnapshot, settingsRevision } = await import(src('utils/settings/snapshot.ts'))
-const { getInitialSettings } = await import(src('utils/settings/settings.ts'))
-const { publishEphemeralProgress, clearEphemeralProgress } = await import(src('state/ephemeralProgressStore.ts'))
-const { keyHintLabel } = await import(src('components/mercury-ui/keyHintLabel.ts'))
+const { default: Ink } = await import(src('screen/renderer/screenInstance.tsx'))
+const { Box } = await import(src('screen/themedRenderer.ts'))
+const { App } = await import(src('boot/App.tsx'))
+const { getDefaultAppState } = await import(src('screen/app-state/AppStateStore.ts'))
+const { KeybindingSetup } = await import(src('screen/keys/KeybindingProviderSetup.tsx'))
+const { FullscreenLayout } = await import(src('screen/fullscreen-layout/FullscreenLayout.tsx'))
+const { default: PromptInput } = await import(src('screen/composer/Composer.tsx'))
+const { SpinnerWithVerb } = await import(src('screen/spinner/Spinner.tsx'))
+const { FocusedSessionStatusRow } = await import(src('screen/chat/SwitchboardTagBar.tsx'))
+const { CancelRequestHandler, backgroundShellNotice } = await import(src('screen/chat/interruptKeys.ts'))
+const { resetChromeModeLatchForTests } = await import(src('screen/fullscreen-layout/useLayoutTier.ts'))
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import(src('screen/routes/surfaceRoute.ts'))
+const { enableConfigs, saveCurrentProjectConfig, saveGlobalConfig } = await import(src('platform/settings/config.ts'))
+const pending = await import(src('screen/composer/input-core/pending-input.ts'))
+const { default: instances } = await import(src('screen/renderer/instances.ts'))
+const slot = await import(src('engine/connector/focusedConnector.ts'))
+const { noSessionConnector } = await import(src('engine/connector/noSessionConnector.ts'))
+const { IDLE_LIVE } = await import(src('engine/connector/seatLive.ts'))
+const signal = await import(src('engine/connector/shellRunning.ts'))
+const helm = await import(src('screen/cockpit/helmFocus.ts'))
+const row = await import(src('screen/messages/AssistantToolUseMessage.tsx'))
+const { MessageRow, hasContentAfterIndex } = await import(src('screen/messages/MessageRow.tsx'))
+const { isAssistantContinuationRow } = await import(src('screen/messages/Messages.tsx'))
+const { NameplateContinuationContext } = await import(src('screen/messages/TranscriptNameplate.tsx'))
+const { RowErrorBoundary } = await import(src('screen/messages/RowErrorBoundary.tsx'))
+const { deriveTranscriptRows } = await import(src('screen/concourse/workerTranscriptFold.ts'))
+const { getTools } = await import(src('tools/kit/toolList.ts'))
+const { BashTool } = await import(src('tools/shell/BashTool.tsx'))
+const { FileReadTool } = await import(src('tools/read/ReadTool.ts'))
+const { useTerminalSize } = await import(src('screen/fullscreen-layout/useTerminalSize.ts'))
+const { activeToolVerb } = await import(src('screen/cockpit/toolVerb.ts'))
+const { getBindingDisplayText } = await import(src('screen/keys/resolver.ts'))
+const { loadKeybindingsSync, invalidateKeybindingsCache } = await import(src('screen/keys/loadUserBindings.ts'))
+const { kitShortcut } = await import(src('screen/theme/KeyboardShortcutHint.tsx'))
+const { getPlatform } = await import(src('platform/environment/platform.ts'))
+const { settingsChangeDetector } = await import(src('platform/settings/changeDetector.ts'))
+const { getSettingsSnapshot, settingsRevision } = await import(src('platform/settings/snapshot.ts'))
+const { getInitialSettings } = await import(src('platform/settings/settings.ts'))
+const { publishEphemeralProgress, clearEphemeralProgress } = await import(src('screen/app-state/ephemeralProgressStore.ts'))
+const { keyHintLabel } = await import(src('screen/widgets/keyHintLabel.ts'))
 
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
@@ -102,7 +102,7 @@ saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
 const h = React.createElement
 let failures = 0
 let checks = 0
-const DEFAULT_FIX = 'the hint under a running Bash row (words, 100 s threshold, view.backgroundKey, chord binding, focused seat) is drawn in src/components/messages/AssistantToolUseMessage.tsx and decided in src/services/engine-connector/shellRunning.ts; the chord handler and its notice are in src/hooks/useCancelRequest.ts; read the frame excerpt above to see which row or line differs'
+const DEFAULT_FIX = 'the hint under a running Bash row (words, 100 s threshold, view.backgroundKey, chord binding, focused seat) is drawn in src/screen/messages/AssistantToolUseMessage.tsx and decided in src/engine/connector/shellRunning.ts; the chord handler and its notice are in src/screen/chat/interruptKeys.ts; read the frame excerpt above to see which row or line differs'
 function check(label: string, good: boolean, detail = '', fix = DEFAULT_FIX): void {
   checks++
   if (!good) failures++
@@ -407,12 +407,12 @@ section('§0 the settings snapshot — a change reaches every reader whatever th
   const before = settingsRevision()
   writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ view: { backgroundKey: false } }))
   settingsChangeDetector.notifyChange('userSettings')
-  check('a listener that reloads the pipeline ahead of the snapshot readers does not hide the change from them', settingsRevision() === before + 1 && getSettingsSnapshot().settings.view?.backgroundKey === false, `revision ${before} → ${settingsRevision()}, backgroundKey ${String(getSettingsSnapshot().settings.view?.backgroundKey)}`, 'a settings change must bump settingsRevision and refresh the snapshot even when another listener reloads first; see src/utils/settings/snapshot.ts and src/utils/settings/changeDetector.ts')
+  check('a listener that reloads the pipeline ahead of the snapshot readers does not hide the change from them', settingsRevision() === before + 1 && getSettingsSnapshot().settings.view?.backgroundKey === false, `revision ${before} → ${settingsRevision()}, backgroundKey ${String(getSettingsSnapshot().settings.view?.backgroundKey)}`, 'a settings change must bump settingsRevision and refresh the snapshot even when another listener reloads first; see src/platform/settings/snapshot.ts and src/platform/settings/changeDetector.ts')
   writeFileSync(join(HOME, 'settings.json'), JSON.stringify({}))
   settingsChangeDetector.notifyChange('userSettings')
-  check('…and the change back reaches them too', settingsRevision() === before + 2 && getSettingsSnapshot().settings.view?.backgroundKey === undefined, `revision ${settingsRevision()}`, 'the change back must also bump settingsRevision and refresh the snapshot; see src/utils/settings/snapshot.ts and src/utils/settings/changeDetector.ts')
+  check('…and the change back reaches them too', settingsRevision() === before + 2 && getSettingsSnapshot().settings.view?.backgroundKey === undefined, `revision ${settingsRevision()}`, 'the change back must also bump settingsRevision and refresh the snapshot; see src/platform/settings/snapshot.ts and src/platform/settings/changeDetector.ts')
   const same = settingsRevision()
-  check('a reload with unchanged content keeps the revision (the same snapshot object)', getSettingsSnapshot() === getSettingsSnapshot() && settingsRevision() === same, '', 'a reload with identical content must keep the revision and return the same snapshot object; see src/utils/settings/snapshot.ts')
+  check('a reload with unchanged content keeps the revision (the same snapshot object)', getSettingsSnapshot() === getSettingsSnapshot() && settingsRevision() === same, '', 'a reload with identical content must keep the revision and return the same snapshot object; see src/platform/settings/snapshot.ts')
   early()
 }
 
@@ -420,8 +420,8 @@ section('§1 the seam — one owner for the words and the threshold, two rendere
 {
   const pick = (signal as { firstRunningShellId?: (entries: Array<{ id: string; name: string }>, inProgress: Set<string>) => string | null }).firstRunningShellId
   const moved = (signal as { movedToBackgroundByOperator?: (result: unknown) => boolean }).movedToBackgroundByOperator
-  check('the member picker names the first running Bash member and no other tool', typeof pick === 'function' && pick([{ id: 'r1', name: 'Read' }, { id: 'b1', name: 'Bash' }, { id: 'b2', name: 'Bash' }], new Set(['r1', 'b1', 'b2'])) === 'b1' && pick([{ id: 'r1', name: 'Read' }], new Set(['r1'])) === null && pick([{ id: 'b1', name: 'Bash' }], new Set()) === null, '', 'change firstRunningShellId in src/services/engine-connector/shellRunning.ts (first running Bash member only)')
-  check("the receipt reader keys on the operator's own move, never the model's launch", typeof moved === 'function' && moved({ backgroundTaskId: 'x', backgroundedByUser: true }) && !moved({ backgroundTaskId: 'x' }) && !moved(undefined) && !moved('text'), '', 'change movedToBackgroundByOperator in src/services/engine-connector/shellRunning.ts (backgroundTaskId with backgroundedByUser only)')
+  check('the member picker names the first running Bash member and no other tool', typeof pick === 'function' && pick([{ id: 'r1', name: 'Read' }, { id: 'b1', name: 'Bash' }, { id: 'b2', name: 'Bash' }], new Set(['r1', 'b1', 'b2'])) === 'b1' && pick([{ id: 'r1', name: 'Read' }], new Set(['r1'])) === null && pick([{ id: 'b1', name: 'Bash' }], new Set()) === null, '', 'change firstRunningShellId in src/engine/connector/shellRunning.ts (first running Bash member only)')
+  check("the receipt reader keys on the operator's own move, never the model's launch", typeof moved === 'function' && moved({ backgroundTaskId: 'x', backgroundedByUser: true }) && !moved({ backgroundTaskId: 'x' }) && !moved(undefined) && !moved('text'), '', 'change movedToBackgroundByOperator in src/engine/connector/shellRunning.ts (backgroundTaskId with backgroundedByUser only)')
 }
 
 section('§2 the standalone tool row (the plain chrome) — the hint under a running Bash row past the threshold, and nowhere else')
@@ -591,8 +591,8 @@ async function chromeWorld(name: string, helmHome: '0' | '1'): Promise<void> {
   slot.setFocusedSessionConnector(seat)
   seedStamp(toolId, Date.now() - 110_000)
   publishShellTick(toolId, 110)
-  const scrollRef = React.createRef<import('../../src/ink/components/ScrollBox.tsx').ScrollBoxHandle>()
-  const insertRef = { current: null } as import('../../src/components/PromptInput/PromptInput.tsx').PromptInputProps['insertTextRef']
+  const scrollRef = React.createRef<import('../../src/screen/renderer/elements/ScrollBox.tsx').ScrollBoxHandle>()
+  const insertRef = { current: null } as import('../../src/screen/composer/Composer.tsx').PromptInputProps['insertTextRef']
   const startedAt = { current: Date.now() - 115_000 }
   const paused = { current: 0 }
   const pauseStart = { current: null as number | null }

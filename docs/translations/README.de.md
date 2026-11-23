@@ -374,7 +374,7 @@ Zu den verfügbaren Befehlen gehören:
 - **Apollo Mode**, das Spezifikationsinterview: Beantworten Sie die Fragen des Agenten, um die Spezifikation zu vervollständigen, mit der er einen Prototyp baut. Siehe [docs/APOLLO-MODE.md](../APOLLO-MODE.md).
 - **Wiederherstellung.** Atomare Veröffentlichung, journalisierte Vorgänge und Abgleich beim Start. Siehe [docs/DURABILITY.md](../DURABILITY.md).
 
-Laufzeit-Flags sind in `src/substrate/flagRegistry.ts` definiert, werden als `MERCURY_*`-Einstellungen bereitgestellt und bei Bedarf erzeugt. Die Kompatibilität mit Integrationen ist in [docs/COMPATIBILITY.md](../COMPATIBILITY.md) dokumentiert. Das vollständige Dokumentationsverzeichnis ist [docs/README.md](../README.md).
+Laufzeit-Flags sind in `src/platform/substrate/flagRegistry.ts` definiert, werden als `MERCURY_*`-Einstellungen bereitgestellt und bei Bedarf erzeugt. Die Kompatibilität mit Integrationen ist in [docs/COMPATIBILITY.md](../COMPATIBILITY.md) dokumentiert. Das vollständige Dokumentationsverzeichnis ist [docs/README.md](../README.md).
 
 ## Slash-Befehle
 

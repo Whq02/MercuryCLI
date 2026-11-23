@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { plugin } from 'bun'
 import '../lib/hermetic.ts'
-import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
+import { getFlagSpec } from '../../src/platform/substrate/flagRegistry.ts'
 import { ENGINE_ENV, ROOT, findVendoredBrush } from './shell-engine-parity.ts'
 
 plugin({
@@ -31,10 +31,10 @@ console.log(' Bash permission rules — engine parity')
 console.log('============================================================')
 console.log(`  engine under test: ${engine} (pin ${ENGINE_ENV}=${process.env[ENGINE_ENV] ?? 'unset'}; lane ${laneState})`)
 
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
-const { checkReadOnlyConstraints } = await import('../../src/tools/BashTool/readOnlyValidation.ts')
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { setCwd } = await import('../../src/utils/Shell.ts')
+const { bashToolHasPermission } = await import('../../src/tools/shell/bashPermissions.ts')
+const { checkReadOnlyConstraints } = await import('../../src/tools/shell/readOnlyValidation.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/tools/kit/tool.ts')
+const { setCwd } = await import('../../src/platform/shell/shellExec.ts')
 type Context = ReturnType<typeof getEmptyToolPermissionContext>
 
 setCwd(ROOT)

@@ -24,14 +24,14 @@ delete process.env.CI
 
 let failures = 0
 const kitFailHints: Record<string, string> = {
-  W: 'fix the per-workspace menu store in src/services/mcp/kitStore.ts (kitDeltasForWorkspace and the set...ForWorkspace writers), src/utils/config/projectConfig.ts (projectConfigKeyForWorkspace) or src/services/mcp/disabledRecord.ts',
-  A: 'fix the admission stamp in src/daemon/concourseWorkers.ts (makeConcourseAdmitHandler, updateConcourseWorkers) or kitStampOf in src/daemon/sessionKit.ts',
-  M: 'fix validateSessionKit in src/daemon/sessionKit.ts so the malformed kit refuses with the reason this check names',
-  R: 'fix restampSessionKit in src/daemon/sessionKit.ts or reactivateConcourseSession in src/daemon/concourseWorkers.ts',
-  S: 'fix applyConcourseKitOp in src/daemon/sessionKitOp.ts or applyKitEdit and validateSessionKitEdit in src/daemon/sessionKit.ts',
-  C: 'fix the carrier in src/services/switchboard/bootBirthFacts.ts (bootBirthFacts, setNextSessionFacts, carriedKitOf)',
-  D: 'fix deriveSessionKitForWorkspace in src/daemon/sessionKit.ts, or the admit handler in src/daemon/concourseWorkers.ts for D5',
-  H: 'fix kitMembership in src/services/mcp/membership.ts',
+  W: 'fix the per-workspace menu store in src/integrations/mcp/kitStore.ts (kitDeltasForWorkspace and the set...ForWorkspace writers), src/platform/config/projectConfig.ts (projectConfigKeyForWorkspace) or src/integrations/mcp/disabledRecord.ts',
+  A: 'fix the admission stamp in src/daemon/concourse-workers/concourseWorkers.ts (makeConcourseAdmitHandler, updateConcourseWorkers) or kitStampOf in src/daemon/session-seat/sessionKit.ts',
+  M: 'fix validateSessionKit in src/daemon/session-seat/sessionKit.ts so the malformed kit refuses with the reason this check names',
+  R: 'fix restampSessionKit in src/daemon/session-seat/sessionKit.ts or reactivateConcourseSession in src/daemon/concourse-workers/concourseWorkers.ts',
+  S: 'fix applyConcourseKitOp in src/daemon/session-seat/sessionKitOp.ts or applyKitEdit and validateSessionKitEdit in src/daemon/session-seat/sessionKit.ts',
+  C: 'fix the carrier in src/daemon/switchboard/bootBirthFacts.ts (bootBirthFacts, setNextSessionFacts, carriedKitOf)',
+  D: 'fix deriveSessionKitForWorkspace in src/daemon/session-seat/sessionKit.ts, or the admit handler in src/daemon/concourse-workers/concourseWorkers.ts for D5',
+  H: 'fix kitMembership in src/integrations/mcp/membership.ts',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -42,7 +42,7 @@ function note(label: string): void {
   console.log(`  [NOTE] ${label}`)
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the session-kit prover exceeded 60s: an await never returned; find the last check printed above and read the daemon or store code that section exercises (src/daemon/concourseWorkers.ts, src/daemon/sessionKit.ts, src/services/mcp/kitStore.ts)')
+  console.log('\nTIMEOUT — the session-kit prover exceeded 60s: an await never returned; find the last check printed above and read the daemon or store code that section exercises (src/daemon/concourse-workers/concourseWorkers.ts, src/daemon/session-seat/sessionKit.ts, src/integrations/mcp/kitStore.ts)')
   process.exit(1)
 }, 60_000)
 watchdog.unref?.()
@@ -53,16 +53,16 @@ console.log('============================================================')
 
 console.log('W — the menu store by EXPLICIT workspace (poison: the process-cwd memo)')
 {
-  const { enableConfigs, getGlobalConfigWriteCount } = await import('../../src/utils/config/globalConfig.ts')
+  const { enableConfigs, getGlobalConfigWriteCount } = await import('../../src/platform/config/globalConfig.ts')
   enableConfigs()
   const { getCurrentProjectConfig, getProjectPathForConfig, projectConfigKeyForWorkspace, saveCurrentProjectConfig } = await import(
-    '../../src/utils/config/projectConfig.ts'
+    '../../src/platform/config/projectConfig.ts'
   )
-  const { normalizePathForConfigKey } = await import('../../src/utils/path.ts')
-  const { getGlobalMercuryFile } = await import('../../src/utils/env.ts')
-  const { isMcpServerDisabled, setMcpServerEnabled } = await import('../../src/services/mcp/config.ts')
-  const { disabledMcpServerNamesIn, isMcpServerDisabledIn, withMcpServerEnabled } = await import('../../src/services/mcp/disabledRecord.ts')
-  const kit = await import('../../src/services/mcp/kitStore.ts')
+  const { normalizePathForConfigKey } = await import('../../src/platform/files/path.ts')
+  const { getGlobalMercuryFile } = await import('../../src/platform/environment/env.ts')
+  const { isMcpServerDisabled, setMcpServerEnabled } = await import('../../src/integrations/mcp/serverConfigs.ts')
+  const { disabledMcpServerNamesIn, isMcpServerDisabledIn, withMcpServerEnabled } = await import('../../src/integrations/mcp/disabledRecord.ts')
+  const kit = await import('../../src/integrations/mcp/kitStore.ts')
 
   const keyHere = projectConfigKeyForWorkspace(HERE)
   const keyThere = projectConfigKeyForWorkspace(THERE)
@@ -124,19 +124,19 @@ console.log('W — the menu store by EXPLICIT workspace (poison: the process-cwd
 
 console.log('A — the additive law: absent ≠ empty; the admission stamps the CARRIED kit')
 const { makeConcourseAdmitHandler, readSessionWorkers, updateConcourseWorkers, reactivateConcourseSession, buildConcourseWorkerSpec, concourseTranscriptPath } = await import(
-  '../../src/daemon/concourseWorkers.ts'
+  '../../src/daemon/concourse-workers/concourseWorkers.ts'
 )
-const sessionKit = await import('../../src/daemon/sessionKit.ts')
-const { readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
-const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-type WorkerRecord = import('../../src/daemon/concourseWorkers.ts').ConcourseWorkerRecordV1
-type Kit = import('../../src/daemon/sessionKit.ts').SessionKitV1
+const sessionKit = await import('../../src/daemon/session-seat/sessionKit.ts')
+const { readSessionReceipts } = await import('../../src/daemon/switchboard/sessionReceipts.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/paths.ts')
+type WorkerRecord = import('../../src/daemon/concourse-workers/concourseWorkers.ts').ConcourseWorkerRecordV1
+type Kit = import('../../src/daemon/session-seat/sessionKit.ts').SessionKitV1
 const DAEMON = process.env.MERCURY_DAEMON_DIR!
 const WS = join(SCRATCH, 'ws-kit')
 mkdirSync(WS, { recursive: true })
 const NOW = Date.now()
 process.env.DEEPSEEK_API_KEY = 'fixture-not-a-key'
-const wm = await import('../../src/services/concourse/workerModels.ts')
+const wm = await import('../../src/screen/concourse-model/workerModels.ts')
 const registry = await wm.composeWorkerModelRegistry()
 const AVAILABLE = registry.entries.find(e => e.session.availability === 'available')?.modelId
 const MODEL = AVAILABLE ?? 'claude-opus-5'
@@ -186,7 +186,7 @@ class StubRoster {
   }
 }
 {
-  const { saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+  const { saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
 
   seedRecord('concourse-w1', 'sess-prekit-0001')
@@ -256,7 +256,7 @@ console.log('M — a malformed kit REFUSES TYPED at the wire (poison: a silent d
   check('M13 a boundless list refuses (a hostile frame never stamps a boundless record)', refused(big, 'cap'))
   const withExtra = v({ ...K1, extra: 'field', nested: { x: 1 } })
   check('M14 unknown sibling fields are DROPPED, never carried onto the record (accept whole or refuse whole)', withExtra.ok && !('extra' in withExtra.kit) && !('nested' in withExtra.kit))
-  const { NAME_PATTERN } = await import('../../src/extensions/manifest.ts')
+  const { NAME_PATTERN } = await import('../../src/integrations/extensions/manifest.ts')
   check("M15 the extension-name grammar equals the manifest's NAME_PATTERN (spelled twice, pinned equal)", sessionKit.KIT_EXTENSION_NAME_PATTERN.source === NAME_PATTERN.source)
 }
 
@@ -294,7 +294,7 @@ console.log('R — the re-stamp: a reactivation takes the CURRENT menu, the old 
 
 console.log("S — set-kit, the ONE writer: a pre-kit record MATERIALIZES then edits (poisons: the refusal arm; the silent whole-config arm)")
 {
-  const { applyConcourseKitOp } = await import('../../src/daemon/sessionKitOp.ts')
+  const { applyConcourseKitOp } = await import('../../src/daemon/session-seat/sessionKitOp.ts')
   const UNRESOLVED_EMPTY = { schema: 1, mcp: [], skills: [], invocable: [], resolved: false, deltas: { mcpOff: [], skillStates: {}, extensionsOff: [] } }
   seedRecord('concourse-w10', 'sess-dial-0010')
   const first = applyConcourseKitOp('sess-dial-0010', { mcp: [{ name: 'alpha', on: false }] }, 'operator', DAEMON)
@@ -327,7 +327,7 @@ console.log("S — set-kit, the ONE writer: a pre-kit record MATERIALIZES then e
 
 console.log("C — the L18 carrier: the menu's kit rides the birth and the resume when set; ABSENT on the wire when null (poison: `kit: null`)")
 {
-  const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
+  const facts = await import('../../src/daemon/switchboard/bootBirthFacts.ts')
   facts._resetBootBirthFactsForTesting()
   check('C1 a fresh boot carries NO kit (null): the daemon derives', facts.bootBirthFacts().kit === null)
   check("C2 the carry of a null kit is NOTHING — no `kit` key at all (never `kit: null`, which the server would refuse or, worse, stamp)", !('kit' in facts.carriedKitOf({ kit: null })) && Object.keys(facts.carriedKitOf({ kit: null })).length === 0)
@@ -343,8 +343,8 @@ console.log("C — the L18 carrier: the menu's kit rides the birth and the resum
 
 console.log("D — the daemon-side derivation: a birth the screen never saw stamps the workspace's menu deltas, UNRESOLVED (poison: the memoized cwd; a silent default)")
 {
-  const { saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
-  const store = await import('../../src/services/mcp/kitStore.ts')
+  const { saveGlobalConfig } = await import('../../src/platform/config/globalConfig.ts')
+  const store = await import('../../src/integrations/mcp/kitStore.ts')
   const WS_D = join(SCRATCH, 'ws-derive')
   mkdirSync(WS_D, { recursive: true })
   saveGlobalConfig(c => ({ ...c, mcpServers: { 'srv-off': { type: 'stdio', command: 'x' }, 'srv-on': { type: 'stdio', command: 'y' } } as never }))
@@ -371,7 +371,7 @@ console.log("D — the daemon-side derivation: a birth the screen never saw stam
 
 console.log("H — the membership handoff: kitMembership consulted BY the one owner (KIT-RUNNER's swap, landed) (poison: an unresolved kit's lists read as membership; the live record consulted for a kit-bearing session)")
 {
-  const membership = await import('../../src/services/mcp/membership.ts')
+  const membership = await import('../../src/integrations/mcp/membership.ts')
   check("H1 NO kit ⇒ today's record predicate, unchanged (a pre-kit record, a warm boot before its claim)", membership.kitMembership(undefined, 'srv-here') === false && membership.kitMembership(undefined, 'alpha') === true && membership.isMcpCatalogueMember('srv-here') === false)
   check('H2 a RESOLVED kit ⇒ the listed names ARE the members and nothing else is', membership.kitMembership(K1, 'alpha') === true && membership.kitMembership(K1, 'ext:tools-ext:probe') === true && membership.kitMembership(K1, 'zeta') === false)
   check('H3 an EMPTY resolved kit admits NOTHING (empty ≠ absent — the deadliest confusion, pinned at the predicate)', membership.kitMembership(EMPTY, 'alpha') === false && membership.kitMembership(undefined, 'alpha') === true)

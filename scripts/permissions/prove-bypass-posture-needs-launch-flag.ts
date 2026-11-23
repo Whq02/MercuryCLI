@@ -17,13 +17,13 @@ writeFileSync(
 )
 process.chdir(PROJ)
 
-const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.ts')
+const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/boot/process-state/processState.ts')
 trustTheProofFolder(true)
-const { initialPermissionModeFromCLI } = await import('../../src/utils/permissions/permissionSetup.ts')
+const { initialPermissionModeFromCLI } = await import('../../src/permissions/rules/permissionSetup.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — fix initialPermissionModeFromCLI in src/utils/permissions/permissionSetup.ts: sovereign boots only with the --sovereign launch flag and a refusal carries a notification naming it; a settings-borne mode other than sovereign must still apply'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — fix initialPermissionModeFromCLI in src/permissions/rules/permissionSetup.ts: sovereign boots only with the --sovereign launch flag and a refusal carries a notification naming it; a settings-borne mode other than sovereign must still apply'}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -73,7 +73,7 @@ section('§2 THE SETTINGS ROAD')
     join(PROJ, '.mercury', 'settings.json'),
     JSON.stringify({ guardrails: { mode: 'implement' } }),
   )
-  const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+  const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
   resetSettingsCache()
   const control = initialPermissionModeFromCLI({
     permissionModeCli: undefined,

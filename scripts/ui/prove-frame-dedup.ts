@@ -4,7 +4,7 @@ process.env.MERCURY_SUBSTRATE = '0'
 delete process.env.MERCURY_DECK_PANE
 process.env.MERCURY_FULLSCREEN = '0'
 
-const { isDeckPaneActive, isDeckPaneEnabled } = await import('../../src/utils/fullscreen.ts')
+const { isDeckPaneActive, isDeckPaneEnabled } = await import('../../src/screen/fullscreen-layout/fullscreen.ts')
 
 let fail = 0
 const expect = (label: string, cond: boolean) => { if (!cond) fail++; console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}`) }

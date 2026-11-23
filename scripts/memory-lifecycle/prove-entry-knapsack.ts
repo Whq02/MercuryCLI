@@ -16,7 +16,7 @@ delete process.env.MERCURY_BARE
 
 let failures = 0
 let checks = 0
-const FIX_HINT = 'change the code, not the check: the start allowance and its setting are in src/mneme/mnemeUsage.ts (startTextLimit), the greedy composer and the status words in src/mneme/entryKnapsack.ts (composeStartPage, memoryAtStartRowWords), the facts through src/mneme/memoryVerbs.ts and src/mneme/mnemeConsolidate.ts, the prompt order in src/constants/prompts.ts (getSystemPrompt); the pinned table is scripts/memory-lifecycle/fixtures/entry-knapsack/states.json (ENTRY_KNAPSACK_RECORD=1 reprints it)'
+const FIX_HINT = 'change the code, not the check: the start allowance and its setting are in src/sessions/mneme/mnemeUsage.ts (startTextLimit), the greedy composer and the status words in src/sessions/mneme/entryKnapsack.ts (composeStartPage, memoryAtStartRowWords), the facts through src/sessions/mneme/memoryVerbs.ts and src/sessions/mneme/mnemeConsolidate.ts, the prompt order in src/engine/system-prompt/defaultSystemPrompt.ts (getSystemPrompt); the pinned table is scripts/memory-lifecycle/fixtures/entry-knapsack/states.json (ENTRY_KNAPSACK_RECORD=1 reprints it)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -30,9 +30,9 @@ const ROOT = join(import.meta.dir, '..', '..')
 
 const PROMPT_SIZE_B33 = 7499
 
-const usage = await import('../../src/mneme/mnemeUsage.ts')
-const settings = await import('../../src/utils/settings/settings.ts')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const usage = await import('../../src/sessions/mneme/mnemeUsage.ts')
+const settings = await import('../../src/platform/settings/settings.ts')
+const { resetSettingsCache } = await import('../../src/platform/settings/settingsCache.ts')
 
 section('§1 the allowance for what rides at start beyond the pinned rules: a named constant under the .33 prompt size, a setting beside the pinned limit')
 {
@@ -67,17 +67,17 @@ Date.now = () => frozen
 const DAY = 86_400_000
 const SESSION_NOW = Date.UTC(2026, 9, 13, 9, 0, 0, 0)
 
-const knapsack = await import('../../src/mneme/entryKnapsack.ts')
-const evidence = await import('../../src/mneme/memoryEvidence.ts')
+const knapsack = await import('../../src/sessions/mneme/entryKnapsack.ts')
+const evidence = await import('../../src/sessions/mneme/memoryEvidence.ts')
 const allowanceFor = (configured: number, eligible: number): number => Math.min(configured, 600 * Math.ceil(Math.log2(1 + eligible)))
-const { retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
-const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { listArchiveDocs, listTopicDocs } = await import('../../src/mneme/mnemeLibrary.ts')
-const { pinFact, readPins } = await import('../../src/mneme/mnemeUsage.ts')
-const { readPinnedStatus, readFrontPage } = await import('../../src/mneme/mnemeFrontPage.ts')
-const ledger = await import('../../src/mneme/ledger.ts')
-type ProjectState = import('../../src/mneme/entryState.ts').ProjectState
-type StartCandidate = import('../../src/mneme/entryKnapsack.ts').StartCandidate
+const { retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/sessions/mneme/memoryVerbs.ts')
+const { maybeConsolidate } = await import('../../src/sessions/mneme/mnemeConsolidate.ts')
+const { listArchiveDocs, listTopicDocs } = await import('../../src/sessions/mneme/mnemeLibrary.ts')
+const { pinFact, readPins } = await import('../../src/sessions/mneme/mnemeUsage.ts')
+const { readPinnedStatus, readFrontPage } = await import('../../src/sessions/mneme/mnemeFrontPage.ts')
+const ledger = await import('../../src/sessions/mneme/ledger.ts')
+type ProjectState = import('../../src/sessions/mneme/entryState.ts').ProjectState
+type StartCandidate = import('../../src/sessions/mneme/entryKnapsack.ts').StartCandidate
 
 const seqOf = (dir: string, text: string): number => {
   for (const doc of [...listTopicDocs(dir), ...listArchiveDocs(dir)]) for (const s of doc.sections) for (const e of s.entries) if (e.text === text) return e.seq
@@ -197,13 +197,13 @@ try {
     writeFileSync(join(repo, 'src', 'ledgerView.ts'), 'export const view = 1\n')
     git('add', '.')
     git('commit', '-q', '-m', 'first')
-    const state = await import('../../src/bootstrap/state.ts')
+    const state = await import('../../src/boot/process-state/processState.ts')
     process.chdir(repo)
     state.setOriginalCwd(repo)
     state.setCwdState(repo)
     state.setProjectRoot(repo)
-    const { mnemeProjectKey } = await import('../../src/mneme/paths.ts')
-    const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
+    const { mnemeProjectKey } = await import('../../src/sessions/mneme/paths.ts')
+    const { mnemeLibraryDir } = await import('../../src/sessions/mneme/mnemeGates.ts')
     const dir = mnemeLibraryDir()
     mkdirSync(dir, { recursive: true })
     check('the library of the scratch project lives under the scratch home, never the owner\'s', dir.startsWith(HOME), dir)
@@ -222,10 +222,10 @@ try {
     ledger.recordFile(PK, 'g-1', join(repo, 'src', 'ledgerView.ts'))
     ledger.closeEntry(PK, 'g-1', { outcome: 'closed', handoff: 'The work: the garnet ledger view.' })
     frozen = T
-    const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
-    const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
-    const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
-    const { resetHarnessMapForTest } = await import('../../src/services/cockpit/harnessMap.ts')
+    const { getSystemPrompt } = await import('../../src/engine/system-prompt/defaultSystemPrompt.ts')
+    const { clearSystemPromptSections } = await import('../../src/engine/system-prompt/systemPromptSections.ts')
+    const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/screen/cockpit/runtimePosture.ts')
+    const { resetHarnessMapForTest } = await import('../../src/screen/cockpit-gauges/harnessMap.ts')
     delete process.env.MERCURY_BARE
     delete process.env.MERCURY_PROMPT_LAYERS
     delete process.env.MERCURY_PROMPT_REPLACE_FILE
@@ -267,7 +267,7 @@ try {
     const fixture = JSON.parse(readFileSync(fixturePath, 'utf8')) as Fixture
     const T = Date.parse(fixture.now)
     check('the fixture is twelve states and says it is synthetic', fixture.synthetic === true && fixture.states.length === 12 && Number.isFinite(T))
-    const { lastNoteOf } = await import('../../src/mneme/entryState.ts')
+    const { lastNoteOf } = await import('../../src/sessions/mneme/entryState.ts')
     const dirOf = (s: FixtureState): string => join(HOME, 'states', String(s.id))
     const retains: Array<{ at: number; state: FixtureState; fact: FixtureFact }> = []
     for (const s of fixture.states) {

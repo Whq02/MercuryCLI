@@ -19,17 +19,17 @@ for (const k of [
   delete process.env[k]
 }
 
-const { query } = await import('../../src/query.ts')
-const bootstrap = await import('../../src/bootstrap/state.ts')
+const { query } = await import('../../src/engine/turnDoor.ts')
+const bootstrap = await import('../../src/boot/process-state/processState.ts')
 bootstrap.setIsInteractive(false)
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.ts')
 enableConfigs()
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
-const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const gate = await import('../../src/services/providers/toolCallGate.ts')
-const { decideToolCallRefusalRecovery } = await import('../../src/run-core/turn-machine.ts')
-type RefusedToolCall = import('../../src/types/message.ts').RefusedToolCall
+const { getDefaultAppState } = await import('../../src/screen/app-state/AppStateStore.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/engine/messages/messages.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/platform/files/fileStateCache.ts')
+const gate = await import('../../src/models/roads/toolCallGate.ts')
+const { decideToolCallRefusalRecovery } = await import('../../src/engine/loop/turn-machine.ts')
+type RefusedToolCall = import('../../src/engine/message-shapes/message.ts').RefusedToolCall
 
 let failures = 0
 let checks = 0
@@ -42,7 +42,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — refusal loop prover exceeded 120s; a run never ended, look at the refusal recovery in src/run-core/turn/noToolReply.ts and the last section header above')
+  console.log('\nTIMEOUT — refusal loop prover exceeded 120s; a run never ended, look at the refusal recovery in src/engine/loop/turn/noToolReply.ts and the last section header above')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -216,18 +216,18 @@ const systemNotices = (yields: AnyMsg[]): string[] =>
 section('R1 — a refusal-only turn injects the typed correction and calls the model again')
 {
   const r = await run([[y(refusedTurn(refusal()))], [y(textTurn('fixed: Bash {"command":"ls"}'))]])
-  check('two model calls (the correction continuation)', r.calls.length === 2, String(r.calls.length) + ' | hint: the refusal-only branch in src/run-core/turn/noToolReply.ts must inject the correction and call the model again')
+  check('two model calls (the correction continuation)', r.calls.length === 2, String(r.calls.length) + ' | hint: the refusal-only branch in src/engine/loop/turn/noToolReply.ts must inject the correction and call the model again')
   check('terminal completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
   const injected = corrections(r.calls[1]?.messages ?? [])
-  check('the second call carries exactly ONE meta correction message', injected.length === 1, String(injected.length) + ' | hint: src/run-core/turn/noToolReply.ts must add one meta message built by toolCallRefusalCorrection (src/services/providers/toolCallGate.ts)')
+  check('the second call carries exactly ONE meta correction message', injected.length === 1, String(injected.length) + ' | hint: src/engine/loop/turn/noToolReply.ts must add one meta message built by toolCallRefusalCorrection (src/models/roads/toolCallGate.ts)')
   const text = injected[0] ?? ''
-  check('the correction names the tool, the reason, and the raw bytes', text.includes('malformed arguments for Bash') && text.includes('`command` is missing') && text.includes('{"cmd":"ls"}') && text.includes('call_bad'), text.slice(0, 300) + ' | hint: toolCallRefusalCorrection in src/services/providers/toolCallGate.ts must name the tool, the reason, the raw arguments and the call id')
+  check('the correction names the tool, the reason, and the raw bytes', text.includes('malformed arguments for Bash') && text.includes('`command` is missing') && text.includes('{"cmd":"ls"}') && text.includes('call_bad'), text.slice(0, 300) + ' | hint: toolCallRefusalCorrection in src/models/roads/toolCallGate.ts must name the tool, the reason, the raw arguments and the call id')
   check('the correction is the LAST message before the re-call (after the assistant note)', (() => {
     const msgs = r.calls[1]?.messages as AnyMsg[]
     const last = msgs.at(-1)
     return last?.type === 'user' && last.isMeta === true && corrections([last]).length === 1
-  })(), 'hint: src/run-core/turn/noToolReply.ts must append the correction as the last message before the re-call')
-  check("a 'warning' notice made the continuation visible", systemNotices(r.yields).some(t => t.includes('Tool call refused before execution') && t.includes('Bash')), systemNotices(r.yields).join(' | ') + ' | hint: src/run-core/turn/noToolReply.ts must yield the warning notice when it continues')
+  })(), 'hint: src/engine/loop/turn/noToolReply.ts must append the correction as the last message before the re-call')
+  check("a 'warning' notice made the continuation visible", systemNotices(r.yields).some(t => t.includes('Tool call refused before execution') && t.includes('Bash')), systemNotices(r.yields).join(' | ') + ' | hint: src/engine/loop/turn/noToolReply.ts must yield the warning notice when it continues')
   check('the first call carried no correction (the seed turn is clean)', corrections(r.calls[0]?.messages ?? []).length === 0)
 }
 
@@ -240,9 +240,9 @@ section('R2 — the bound: four consecutive refusal-only turns make 1 + 3 calls,
     [y(refusedTurn(refusal({ id: 'c4' })))],
     [y(textTurn('never reached'))],
   ])
-  check('exactly four calls — three continuations, the fourth refusal surfaces', r.calls.length === 4, String(r.calls.length) + ' | hint: the bound of three corrections is decided by decideToolCallRefusalRecovery in src/run-core/turn/judgements.ts')
-  check('terminal tool_calls_refused naming the tool and the three spent corrections (never completed; no fifth billed call)', r.terminal.reason === 'tool_calls_refused' && JSON.stringify(r.terminal.tools) === '["Bash"]' && r.terminal.corrections === 3, JSON.stringify(r.terminal) + ' | hint: the terminal built in src/run-core/turn/noToolReply.ts must carry reason tool_calls_refused, the tool names and the corrections spent')
-  check("an 'error' notice says the turn ends without an answer", systemNotices(r.yields).some(t => t.includes('Tool call refused before execution (Bash)') && t.includes('ends without an answer')), systemNotices(r.yields).join(' | ') + ' | hint: src/run-core/turn/noToolReply.ts must yield the error notice when the bound is spent')
+  check('exactly four calls — three continuations, the fourth refusal surfaces', r.calls.length === 4, String(r.calls.length) + ' | hint: the bound of three corrections is decided by decideToolCallRefusalRecovery in src/engine/loop/turn/judgements.ts')
+  check('terminal tool_calls_refused naming the tool and the three spent corrections (never completed; no fifth billed call)', r.terminal.reason === 'tool_calls_refused' && JSON.stringify(r.terminal.tools) === '["Bash"]' && r.terminal.corrections === 3, JSON.stringify(r.terminal) + ' | hint: the terminal built in src/engine/loop/turn/noToolReply.ts must carry reason tool_calls_refused, the tool names and the corrections spent')
+  check("an 'error' notice says the turn ends without an answer", systemNotices(r.yields).some(t => t.includes('Tool call refused before execution (Bash)') && t.includes('ends without an answer')), systemNotices(r.yields).join(' | ') + ' | hint: src/engine/loop/turn/noToolReply.ts must yield the error notice when the bound is spent')
   check('the three corrections each name their own call', ['c2', 'c3', 'c4'].every((_, i) => corrections(r.calls[i + 1]?.messages ?? []).some(t => t.includes(`c${i + 1}`))))
   const d1 = decideToolCallRefusalRecovery({ refusals: 1, recoveryCount: 0 })
   const d4 = decideToolCallRefusalRecovery({ refusals: 1, recoveryCount: 3 })
@@ -256,12 +256,12 @@ section('R3 — a mixed turn answers the refusal in the SAME user turn as the to
     [y(toolTurn('tu_ok', 'EchoTool', { text: 'x' })), y(refusedTurn(refusal({ id: 'call_mixed_bad' })))],
     [y(textTurn('done'))],
   ])
-  check('two calls (an ordinary next_turn — no refusal bound spent)', r.calls.length === 2, String(r.calls.length) + ' | hint: a mixed turn is handled by src/run-core/turn/runToolCalls.ts and must go to the next turn without a refusal-only continuation')
+  check('two calls (an ordinary next_turn — no refusal bound spent)', r.calls.length === 2, String(r.calls.length) + ' | hint: a mixed turn is handled by src/engine/loop/turn/runToolCalls.ts and must go to the next turn without a refusal-only continuation')
   const msgs = (r.calls[1]?.messages ?? []) as AnyMsg[]
   const resultIdx = msgs.findIndex(m => m.type === 'user' && JSON.stringify((m.message as { content?: unknown }).content).includes('tu_ok'))
   const correctionIdx = msgs.findIndex(m => m.type === 'user' && corrections([m]).length === 1)
-  check('the tool_result and the correction both ride the next call', resultIdx !== -1 && correctionIdx !== -1, `result=${resultIdx} correction=${correctionIdx} | hint: src/run-core/turn/runToolCalls.ts must add the correction beside the tool_result`)
-  check('the correction follows the tool_result', correctionIdx > resultIdx, `result=${resultIdx} correction=${correctionIdx} | hint: src/run-core/turn/runToolCalls.ts must put the correction after the tool_result`)
+  check('the tool_result and the correction both ride the next call', resultIdx !== -1 && correctionIdx !== -1, `result=${resultIdx} correction=${correctionIdx} | hint: src/engine/loop/turn/runToolCalls.ts must add the correction beside the tool_result`)
+  check('the correction follows the tool_result', correctionIdx > resultIdx, `result=${resultIdx} correction=${correctionIdx} | hint: src/engine/loop/turn/runToolCalls.ts must put the correction after the tool_result`)
   check('the correction names the refused call', corrections(msgs)[0]?.includes('call_mixed_bad') === true)
   check('the tool actually ran (its result is the echo)', JSON.stringify(msgs[resultIdx]).includes('echo:x'))
 }
@@ -278,7 +278,7 @@ section('R4 — the bound resets once a tool runs')
     [y(refusedTurn(refusal({ id: 'b3' })))],
     [y(textTurn('finally'))],
   ])
-  check('eight calls — three continuations, a tool round, three more continuations, the answer', r.calls.length === 8, String(r.calls.length) + ' | hint: the refusal recovery count in src/run-core/turn/noToolReply.ts must reset once a tool runs')
+  check('eight calls — three continuations, a tool round, three more continuations, the answer', r.calls.length === 8, String(r.calls.length) + ' | hint: the refusal recovery count in src/engine/loop/turn/noToolReply.ts must reset once a tool runs')
   check('terminal completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
   check('every refusal was answered by a correction in the following call', ['a1', 'a2', 'a3', 'b1', 'b2', 'b3'].every(id => r.calls.some(c => corrections(c.messages).some(t => t.includes(id)))))
 }

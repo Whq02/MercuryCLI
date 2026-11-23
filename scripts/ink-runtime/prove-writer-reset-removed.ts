@@ -1,19 +1,19 @@
 #!/usr/bin/env bun
-// gate-watch: src/ink/frame-writer.ts src/ink/ink.tsx src/ink/frame.ts
+// gate-watch: src/screen/renderer/frame-writer.ts src/screen/renderer/screenInstance.tsx src/screen/renderer/frame.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { EventEmitter } from 'node:events'
 import { join } from 'node:path'
 import React from 'react'
-import { AlternateScreen } from '../../src/ink/components/AlternateScreen.js'
-import Box from '../../src/ink/components/Box.js'
-import Text from '../../src/ink/components/Text.js'
-import { appendChildNode, createNode } from '../../src/ink/dom.js'
-import { emptyFrame } from '../../src/ink/frame.js'
-import { FrameWriter } from '../../src/ink/frame-writer.js'
-import Ink from '../../src/ink/ink.js'
-import instances from '../../src/ink/instances.js'
-import createRenderer from '../../src/ink/renderer.js'
+import { AlternateScreen } from '../../src/screen/renderer/elements/AlternateScreen.js'
+import Box from '../../src/screen/renderer/elements/Box.js'
+import Text from '../../src/screen/renderer/elements/Text.js'
+import { appendChildNode, createNode } from '../../src/screen/renderer/dom.js'
+import { emptyFrame } from '../../src/screen/renderer/frame.js'
+import { FrameWriter } from '../../src/screen/renderer/frame-writer.js'
+import Ink from '../../src/screen/renderer/screenInstance.js'
+import instances from '../../src/screen/renderer/instances.js'
+import createRenderer from '../../src/screen/renderer/renderer.js'
 import { buildDom, makeContext } from './frameHarness.js'
 
 let checks = 0

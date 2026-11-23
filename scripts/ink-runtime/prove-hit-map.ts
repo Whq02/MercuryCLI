@@ -4,11 +4,11 @@ import {
   createNode,
   createTextNode,
   type DOMElement,
-} from '../../src/ink/dom.js'
-import { emptyFrame } from '../../src/ink/frame.js'
-import { hitTest } from '../../src/ink/geometry/hit.js'
-import { nodeCache } from '../../src/ink/node-cache.js'
-import createRenderer from '../../src/ink/renderer.js'
+} from '../../src/screen/renderer/dom.js'
+import { emptyFrame } from '../../src/screen/renderer/frame.js'
+import { hitTest } from '../../src/screen/renderer/geometry/hitTest.js'
+import { nodeCache } from '../../src/screen/renderer/node-cache.js'
+import createRenderer from '../../src/screen/renderer/renderer.js'
 import { applySceneStyle, buildDom, makeContext, type SceneNode } from './frameHarness.js'
 
 let failures = 0
@@ -81,7 +81,7 @@ console.log('bedrock hit map — committed-generation pointer laws')
       }
     }
   }
-  check('containment sweep: every hit rect contains its probe, inside the screen', violations === 0, `${violations} violations; hitTest in src/ink/geometry/hit.ts must return only a node whose committed rect (nodeCache) contains the probe and lies inside the screen`)
+  check('containment sweep: every hit rect contains its probe, inside the screen', violations === 0, `${violations} violations; hitTest in src/screen/renderer/geometry/hitTest.ts must return only a node whose committed rect (nodeCache) contains the probe and lies inside the screen`)
 }
 
 {
@@ -111,7 +111,7 @@ console.log('bedrock hit map — committed-generation pointer laws')
     }
   }
   if (hit) collect(hit)
-  check('topmost sibling wins the overlap', text.includes('over') && !text.includes('under'), `${JSON.stringify(text)}; hitTest in src/ink/geometry/hit.ts must try later siblings first so the topmost one wins`)
+  check('topmost sibling wins the overlap', text.includes('over') && !text.includes('under'), `${JSON.stringify(text)}; hitTest in src/screen/renderer/geometry/hitTest.ts must try later siblings first so the topmost one wins`)
 }
 
 {
@@ -136,7 +136,7 @@ console.log('bedrock hit map — committed-generation pointer laws')
     }
     collect(hit)
     if (text.includes('ghost')) {
-      check('display:none subtree unreachable', false, `hit ghost at x=${x}; hitTest in src/ink/geometry/hit.ts must not return a node inside a display:none subtree (it has no committed rect)`)
+      check('display:none subtree unreachable', false, `hit ghost at x=${x}; hitTest in src/screen/renderer/geometry/hitTest.ts must not return a node inside a display:none subtree (it has no committed rect)`)
       break
     }
   }
@@ -152,7 +152,7 @@ console.log('bedrock hit map — committed-generation pointer laws')
   const probe = 16
   const before = hitTest(root, probe, 2)
   const beforeRect = before && nodeCache.get(before)
-  check('generation A: probe lands in the center pane', !!beforeRect && beforeRect.x >= 12, `${JSON.stringify(beforeRect)}; hitTest in src/ink/geometry/hit.ts should return the node under the probe from the committed rects`)
+  check('generation A: probe lands in the center pane', !!beforeRect && beforeRect.x >= 12, `${JSON.stringify(beforeRect)}; hitTest in src/screen/renderer/geometry/hitTest.ts should return the node under the probe from the committed rects`)
 
   const railEl = (root.childNodes[0] as DOMElement).childNodes[0] as DOMElement
   applySceneStyle(railEl, { ...railStyle, width: 24 })
@@ -162,7 +162,7 @@ console.log('bedrock hit map — committed-generation pointer laws')
   check(
     'generation B: the SAME probe now lands in the widened rail',
     !!afterRect && afterRect.x < 12 && afterRect.x + afterRect.width >= 24,
-    `${JSON.stringify(afterRect)}; hitTest in src/ink/geometry/hit.ts must read the rects of the latest committed frame, not a stale generation`,
+    `${JSON.stringify(afterRect)}; hitTest in src/screen/renderer/geometry/hitTest.ts must read the rects of the latest committed frame, not a stale generation`,
   )
 }
 

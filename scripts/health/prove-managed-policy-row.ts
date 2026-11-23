@@ -10,18 +10,18 @@ delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const POLICY_ROW_HINT = 'change managedPolicyCheck in src/services/health/sections/settings/sources.ts (the managed-policy row: its status, evidence and fix)'
+const POLICY_ROW_HINT = 'change managedPolicyCheck in src/platform/health/sections/settings/sources.ts (the managed-policy row: its status, evidence and fix)'
 const check = (label: string, cond: boolean, detail = ''): void => {
   const failureText = [detail, POLICY_ROW_HINT].filter(part => part !== '').join(' — ')
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && failureText ? ' — ' + failureText : ''}`)
   if (!cond) failures++
 }
 
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+const { enableConfigs } = await import('../../src/platform/config/globalConfig.js')
 enableConfigs()
-const fsOps = await import('../../src/utils/fsOperations.js')
-const { getManagedFilePath } = await import('../../src/utils/settings/managedPath.js')
-const report = await import('../../src/services/health/healthReport.js')
+const fsOps = await import('../../src/platform/files/fsOperations.js')
+const { getManagedFilePath } = await import('../../src/platform/settings/managedPath.js')
+const report = await import('../../src/platform/health/healthReport.js')
 
 const policyPath = join(getManagedFilePath(), 'managed-settings.json')
 const real = fsOps.getFsImplementation()

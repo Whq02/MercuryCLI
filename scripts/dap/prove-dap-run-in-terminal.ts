@@ -14,15 +14,15 @@ process.env.USERPROFILE = scratch
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ fixture: { command: process.execPath, args: [join(import.meta.dir, 'mock-dap-terminal.mjs')] } })
-const { DebugTool } = await import(join(SRC, 'tools/DebugTool/DebugTool.ts'))
-const { getDapSession, removeDapSession } = await import(join(SRC, 'services/dap/dapClient.ts'))
-const { processMainOwner } = await import(join(SRC, 'utils/run/resolveOwner.ts'))
-const { BashTool } = await import(join(SRC, 'tools/BashTool/BashTool.tsx'))
-const { getEmptyToolPermissionContext } = await import(join(SRC, 'Tool.ts'))
-const { engageToolGuard, clearGuards } = await import(join(SRC, 'guards/guards.ts'))
+const { DebugTool } = await import(join(SRC, 'tools/debug/DebugTool.ts'))
+const { getDapSession, removeDapSession } = await import(join(SRC, 'integrations/debugger/dapClient.ts'))
+const { processMainOwner } = await import(join(SRC, 'engine/run-owner/resolveOwner.ts'))
+const { BashTool } = await import(join(SRC, 'tools/shell/BashTool.tsx'))
+const { getEmptyToolPermissionContext } = await import(join(SRC, 'tools/kit/tool.ts'))
+const { engageToolGuard, clearGuards } = await import(join(SRC, 'permissions/guards/guards.ts'))
 const owner = processMainOwner()
 let failures = 0
-const terminalFailHint = 'change the runInTerminal handling in src/services/dap/dapTerminal.ts (permission, guard, spawn and cleanup of the debuggee process) or its wiring in src/services/dap/dapClient.ts'
+const terminalFailHint = 'change the runInTerminal handling in src/integrations/debugger/dapTerminal.ts (permission, guard, spawn and cleanup of the debuggee process) or its wiring in src/integrations/debugger/dapClient.ts'
 const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' ' + detail + ' | ' + terminalFailHint : ''}`) }
 const alive = (pid: number) => { try { process.kill(pid, 0); return true } catch { return false } }
 const until = async (test: () => boolean) => { const end = Date.now() + 5000; while (!test() && Date.now() < end) await Bun.sleep(10); return test() }

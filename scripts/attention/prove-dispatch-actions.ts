@@ -3,19 +3,19 @@ import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 
-let m: typeof import('../../src/services/attention/actions.ts') | null = null
+let m: typeof import('../../src/screen/attention/actions.ts') | null = null
 try {
-  m = await import('../../src/services/attention/actions.ts')
+  m = await import('../../src/screen/attention/actions.ts')
 } catch {
   m = null
 }
 if (!m) {
-  t.check('src/services/attention/actions.ts loads', false, 'module absent')
+  t.check('src/screen/attention/actions.ts loads', false, 'module absent')
   t.finish('prove-dispatch-actions')
 }
 const A = m!
-const q = await import('../../src/input-core/command-queue.ts')
-const focused = await import('../../src/services/engine-connector/focusedConnector.ts')
+const q = await import('../../src/screen/composer/input-core/command-queue.ts')
+const focused = await import('../../src/engine/connector/focusedConnector.ts')
 
 type SendCall = { kind: 'words' | 'agent-note'; text: string; agentId?: string }
 
@@ -97,7 +97,7 @@ t.section('§5 — the pen census')
 
 t.section('§6 — the addressed row rides the ONE door whole (cpu-pure)')
 {
-  const { buildConcoursePromptRow } = await import('../../src/daemon/concourseDispatch.ts')
+  const { buildConcoursePromptRow } = await import('../../src/daemon/concourse-workers/concourseDispatch.ts')
   const identity = 'aaaabbbb-cccc-4ddd-8eee-ffff00001111'
   const row = (await buildConcoursePromptRow('revise the folio', { mode: 'task-notification', agentId: 'ag-7', identity })) as Record<string, unknown>
   t.check('the row id IS the clientMessageId (one identity, composer to queue entry)', row.id === identity)

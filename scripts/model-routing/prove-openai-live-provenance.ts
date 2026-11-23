@@ -28,24 +28,24 @@ for (const key of [
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
+const catalogue = await import('../../src/models/roads/openai/openaiCatalogue.js')
 const { GPT_DISPLAY_PINS } = catalogue
-const { getModelOptions, OPENAI_MODEL_GROUP } = await import('../../src/services/model/modelOptions.js')
-const { providerFrontierFact, providerLightFact } = await import('../../src/services/model/providerFrontier.js')
-const { utilityCallFor } = await import('../../src/services/model/utilityModel.js')
-const router = await import('../../src/services/providers/openai/openaiAdapter.js')
-const { computedDefault, resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.js')
-const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
+const { getModelOptions, OPENAI_MODEL_GROUP } = await import('../../src/models/catalogue/modelOptions.js')
+const { providerFrontierFact, providerLightFact } = await import('../../src/models/catalogue/providerFrontier.js')
+const { utilityCallFor } = await import('../../src/models/catalogue/utilityModel.js')
+const router = await import('../../src/models/roads/openai/openaiAdapter.js')
+const { computedDefault, resetComputedDefaultMemo } = await import('../../src/models/catalogue/computedDefault.js')
+const { recordSignIn } = await import('../../src/models/sign-in/account-ledger/signInLedger.js')
 
 let failures = 0
 const failureHint = (label: string): string => {
-  if (/picker paints|parsed row stands above|hidden id paints|unserved pins/.test(label)) return 'change the OpenAI rows of getModelOptions in src/services/model/modelOptions.ts'
-  if (/frontier|light fact/.test(label)) return 'change providerFrontierFact or providerLightFact in src/services/model/providerFrontier.ts'
-  if (/utility call/.test(label)) return 'change utilityCallFor in src/services/model/utilityModel.ts'
-  if (/seat listing|router adapter|class resolves/.test(label)) return 'change describeOpenaiProvider, listOpenaiModels or resolveOpenaiModel in src/services/providers/openai/openaiAdapter.ts'
-  if (/sign-in ledger/.test(label)) return 'change recordSignIn in src/utils/accounts/signInLedger.ts'
-  if (/computed default/.test(label)) return 'change computedDefault in src/services/model/computedDefault.ts'
-  return 'change the live-list reads (cachedLiveIds, evaluateGptCandidate, qualifiedGptCandidates, getGptSeatAvailability, refreshOpenaiCatalogue) in src/services/providers/openai/openaiCatalogue.ts'
+  if (/picker paints|parsed row stands above|hidden id paints|unserved pins/.test(label)) return 'change the OpenAI rows of getModelOptions in src/models/catalogue/modelOptions.ts'
+  if (/frontier|light fact/.test(label)) return 'change providerFrontierFact or providerLightFact in src/models/catalogue/providerFrontier.ts'
+  if (/utility call/.test(label)) return 'change utilityCallFor in src/models/catalogue/utilityModel.ts'
+  if (/seat listing|router adapter|class resolves/.test(label)) return 'change describeOpenaiProvider, listOpenaiModels or resolveOpenaiModel in src/models/roads/openai/openaiAdapter.ts'
+  if (/sign-in ledger/.test(label)) return 'change recordSignIn in src/models/sign-in/account-ledger/signInLedger.ts'
+  if (/computed default/.test(label)) return 'change computedDefault in src/models/catalogue/computedDefault.ts'
+  return 'change the live-list reads (cachedLiveIds, evaluateGptCandidate, qualifiedGptCandidates, getGptSeatAvailability, refreshOpenaiCatalogue) in src/models/roads/openai/openaiCatalogue.ts'
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++

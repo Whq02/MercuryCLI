@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/wards/wards* src/guards/wardsGuard* src/utils/cwd* src/substrate/flagRegistry*
+// gate-watch: src/permissions/wards/wards.ts src/permissions/wards/wardsRefusals.ts src/permissions/wards/wardsShellRead.ts src/permissions/guards/wardsGuard.ts src/engine/cwdMemo.ts src/platform/files/cwd.ts src/platform/substrate/flagRegistry.ts
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir, homedir } from 'node:os'
 import { join } from 'node:path'
@@ -26,15 +26,15 @@ function check(label: string, ok: boolean, detail = '', fix = ''): void {
   ok ? passed++ : failed++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!ok && fix ? ` — to fix: ${fix}` : ''}`)
 }
-const FIX_RESOLVE = 'makeTargetResolver in src/guards/wardsGuard.ts must resolve the target to a real path inside the project, and the delete rules of evaluateWards in src/utils/wards/wards.ts must allow a resolved in-project target'
-const FIX_HOLE = 'evaluateWards in src/utils/wards/wards.ts (rule no-home-recursive-delete) must keep refusing a target that resolves outside the project'
-const FIX_HOOK = 'registerWardsGuard in src/guards/wardsGuard.ts must route Bash calls through evaluateWards with the project resolver'
+const FIX_RESOLVE = 'makeTargetResolver in src/permissions/guards/wardsGuard.ts must resolve the target to a real path inside the project, and the delete rules of evaluateWards in src/permissions/wards/wards.ts must allow a resolved in-project target'
+const FIX_HOLE = 'evaluateWards in src/permissions/wards/wards.ts (rule no-home-recursive-delete) must keep refusing a target that resolves outside the project'
+const FIX_HOOK = 'registerWardsGuard in src/permissions/guards/wardsGuard.ts must route Bash calls through evaluateWards with the project resolver'
 
-type PendingToolCall = import('../../src/utils/wards/wards.js').PendingToolCall
-const { AUTONOMOUS_WARDS, evaluateWards } = await import('../../src/utils/wards/wards.js')
-const { deleteWardActive, makeTargetResolver, WARDS_HOOK_ID, registerWardsGuard, resetWardsEngagedSessionsForTest } = await import('../../src/guards/wardsGuard.js')
-const { judgeToolCall } = await import('../../src/guards/guards.js')
-const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+type PendingToolCall = import('../../src/permissions/wards/wards.js').PendingToolCall
+const { AUTONOMOUS_WARDS, evaluateWards } = await import('../../src/permissions/wards/wards.js')
+const { deleteWardActive, makeTargetResolver, WARDS_HOOK_ID, registerWardsGuard, resetWardsEngagedSessionsForTest } = await import('../../src/permissions/guards/wardsGuard.js')
+const { judgeToolCall } = await import('../../src/permissions/guards/guards.js')
+const { runWithCwdOverride } = await import('../../src/platform/files/cwd.js')
 
 const bash = (command: string, resolvePath?: PendingToolCall['resolvePath']): PendingToolCall => ({
   toolName: 'Bash',
@@ -47,7 +47,7 @@ try {
   console.log('delete-ward resolves the path — SH-02')
   check('the account home is the fixture, not the invoking account', homedir() === scratch, '', 'withProofAccountHome in scripts/lib/proofAccountHome.ts must point the account home at the scratch folder')
   process.env.MERCURY_SPAWNED_BY = 'proof:ward-path#1'
-  check('the autonomous delete-ward is armed (MERCURY_SPAWNED_BY set)', deleteWardActive(), '', 'deleteWardActive in src/guards/wardsGuard.ts must be true while MERCURY_SPAWNED_BY is set')
+  check('the autonomous delete-ward is armed (MERCURY_SPAWNED_BY set)', deleteWardActive(), '', 'deleteWardActive in src/permissions/guards/wardsGuard.ts must be true while MERCURY_SPAWNED_BY is set')
 
   const projectReal = realpathSync(project)
   const homeReal = homedir()
@@ -65,7 +65,7 @@ try {
       'BASE (string match only): the in-project absolute delete is warded today — the bug this proof pins',
       !stringOnly.allow && stringOnly.rule.name === 'no-home-recursive-delete',
       stringOnly.allow ? 'unexpectedly allowed' : stringOnly.rule.name,
-      'the rule no-home-recursive-delete in src/utils/wards/wards.ts must refuse a bare absolute delete when no resolver is given',
+      'the rule no-home-recursive-delete in src/permissions/wards/wards.ts must refuse a bare absolute delete when no resolver is given',
     )
     const resolved = evaluateWards(AUTONOMOUS_WARDS, bash(absoluteInside, resolveInProject))
     check(
@@ -105,7 +105,7 @@ try {
     const store = { state: { sessionHooks: new Map() }, set(fn: (p: never) => never) { this.state = fn(this.state) } }
     resetWardsEngagedSessionsForTest()
     const id = await runWithCwdOverride(projectReal, () => registerWardsGuard(store.set as never, 'ward-path-proof'))
-    check('the wards guard registered in the project cwd', id === WARDS_HOOK_ID, '', 'registerWardsGuard in src/guards/wardsGuard.ts must return WARDS_HOOK_ID when called under the project cwd')
+    check('the wards guard registered in the project cwd', id === WARDS_HOOK_ID, '', 'registerWardsGuard in src/permissions/guards/wardsGuard.ts must return WARDS_HOOK_ID when called under the project cwd')
 
     const judge = async (command: string): Promise<string | true> => {
       const verdict = await judgeToolCall('ward-path-proof', {
@@ -146,14 +146,14 @@ try {
       "the refuse-list still refuses rm -rf / on the same hook (no weakening)",
       typeof rootDelete === 'string' && rootDelete.includes("Ward 'no-root-recursive-delete'"),
       typeof rootDelete === 'string' ? rootDelete.slice(0, 80) : 'ALLOWED (hole!)',
-      'the rule no-root-recursive-delete in src/utils/wards/wards.ts must still refuse rm -rf / and be reached by the hook in src/guards/wardsGuard.ts',
+      'the rule no-root-recursive-delete in src/permissions/wards/wards.ts must still refuse rm -rf / and be reached by the hook in src/permissions/guards/wardsGuard.ts',
     )
     const homeTilde = await judge('rm -rf ~')
     check(
       "the refuse-list still refuses rm -rf ~ (no weakening)",
       typeof homeTilde === 'string' && homeTilde.includes("Ward 'no-root-recursive-delete'"),
       typeof homeTilde === 'string' ? homeTilde.slice(0, 80) : 'ALLOWED (hole!)',
-      'the rule no-root-recursive-delete in src/utils/wards/wards.ts must still refuse rm -rf ~ and be reached by the hook in src/guards/wardsGuard.ts',
+      'the rule no-root-recursive-delete in src/permissions/wards/wards.ts must still refuse rm -rf ~ and be reached by the hook in src/permissions/guards/wardsGuard.ts',
     )
   }
 
@@ -168,7 +168,7 @@ try {
       'a ..-escape OUT of the project by absolute path stays warded',
       !escapedVerdict.allow,
       escapedVerdict.allow ? 'ALLOWED (hole!)' : escapedVerdict.rule.name,
-      'makeTargetResolver in src/guards/wardsGuard.ts must normalise .. before it decides the target is inside the project',
+      'makeTargetResolver in src/permissions/guards/wardsGuard.ts must normalise .. before it decides the target is inside the project',
     )
 
     const findInside = `find ${join(projectReal, 'scratch-dir')} -name "*.log" -delete`
@@ -176,14 +176,14 @@ try {
       'find <in-project absolute path> -delete passes',
       evaluateWards(AUTONOMOUS_WARDS, bash(findInside, resolveInProject)).allow,
       '',
-      'the find -delete rule of evaluateWards in src/utils/wards/wards.ts must resolve its path through the project resolver',
+      'the find -delete rule of evaluateWards in src/permissions/wards/wards.ts must resolve its path through the project resolver',
     )
     const findVerdict = evaluateWards(AUTONOMOUS_WARDS, bash(`find ${outsideReal} -name "*.log" -delete`, resolveInProject))
     check(
       'find <outside absolute path> -delete stays warded',
       !findVerdict.allow,
       findVerdict.allow ? 'ALLOWED (hole!)' : findVerdict.rule.name,
-      'the find -delete rule of evaluateWards in src/utils/wards/wards.ts must keep refusing a path outside the project',
+      'the find -delete rule of evaluateWards in src/permissions/wards/wards.ts must keep refusing a path outside the project',
     )
 
     const unresolvable = evaluateWards(AUTONOMOUS_WARDS, bash(`rm -rf ${join(projectReal, 'does-not-exist-yet', 'x')}`, resolveInProject))
@@ -191,7 +191,7 @@ try {
       'an in-project path that does not exist yet still passes (the project prefix is resolvable)',
       unresolvable.allow,
       unresolvable.allow ? '' : `denied by ${unresolvable.rule.name}`,
-      'makeTargetResolver in src/guards/wardsGuard.ts must resolve the existing project prefix of a path whose tail does not exist yet',
+      'makeTargetResolver in src/permissions/guards/wardsGuard.ts must resolve the existing project prefix of a path whose tail does not exist yet',
     )
 
     check(
@@ -206,7 +206,7 @@ try {
     'the canary survived and no decoy was touched — nothing was ever run',
     existsSync(canary) && existsSync(join(outside, '.')) && existsSync(inside),
     '',
-    'something executed a delete: the proof must only evaluate commands, so look at which verdict above allowed a real rm and at src/guards/wardsGuard.ts',
+    'something executed a delete: the proof must only evaluate commands, so look at which verdict above allowed a real rm and at src/permissions/guards/wardsGuard.ts',
   )
   console.log(`ward-path: ${passed} passed, ${failed} failed`)
 } finally {

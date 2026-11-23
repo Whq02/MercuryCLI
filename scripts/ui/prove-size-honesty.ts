@@ -13,8 +13,8 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 console.log('§1 C1 — the footer transient is one row by fold')
 {
-  sectionFix = 'change footerNoticeLine in src/components/PromptInput/Notifications.tsx'
-  const { footerNoticeLine } = await import('../../src/components/PromptInput/Notifications.tsx')
+  sectionFix = 'change footerNoticeLine in src/screen/composer/Notifications.tsx'
+  const { footerNoticeLine } = await import('../../src/screen/composer/Notifications.tsx')
   check('newlines fold to the seam', footerNoticeLine('hook said\nline two\nline three') === 'hook said · line two · line three')
   check('CRLF and blank runs fold clean', footerNoticeLine('a\r\n\r\n  b  \n\nc') === 'a · b · c')
   check('a one-line notice is untouched', footerNoticeLine('plain notice') === 'plain notice')
@@ -23,11 +23,11 @@ console.log('§1 C1 — the footer transient is one row by fold')
 
 console.log('§2 C2 — the footer right cell holds a budget and keeps its tail')
 {
-  sectionFix = 'change the status cell of TranscriptFooter in src/screens/chat/useChatSearch.tsx (its width budget, the floor of 16, and the truncation from the start)'
+  sectionFix = 'change the status cell of TranscriptFooter in src/screen/chat/useChatSearch.tsx (its width budget, the floor of 16, and the truncation from the start)'
   const React = await import('react')
   const { mountPart } = await import('./chatScenarios.ts')
   const { waitFor } = await import('../lib/settingsPopupHarness.ts')
-  const { TranscriptFooter } = await import('../../src/screens/chat/useChatSearch.tsx')
+  const { TranscriptFooter } = await import('../../src/screen/chat/useChatSearch.tsx')
   const status = 'written to /a/long/way/down/the/tree/of/folders/mercury-transcript-1234567890.md — set $EDITOR to open it'
   const props = { toggleChord: 'ctrl+o', expandChord: 'ctrl+e', hasSearchBadge: false, virtualScroll: true, showAllSuppressed: false, showAll: false, status, badge: null }
   const rowAt = async (columns: number): Promise<{ row: string; rows: number }> => {
@@ -53,8 +53,8 @@ console.log('§2 C2 — the footer right cell holds a budget and keeps its tail'
 
 console.log('§5 C6 — the tool header is one row by fold, both shells')
 {
-  sectionFix = 'change oneLineCommandDisplay or TOOL_USE_LINE_MAX_CHARS in src/tools/commandDisplay.ts'
-  const { oneLineCommandDisplay, TOOL_USE_LINE_MAX_CHARS } = await import('../../src/tools/commandDisplay.ts')
+  sectionFix = 'change oneLineCommandDisplay or TOOL_USE_LINE_MAX_CHARS in src/tools/kit/commandDisplay.ts'
+  const { oneLineCommandDisplay, TOOL_USE_LINE_MAX_CHARS } = await import('../../src/tools/kit/commandDisplay.ts')
   check('a two-line command folds to the marker', oneLineCommandDisplay('Get-Item a\nGet-Item b') === 'Get-Item a ↵ Get-Item b')
   check('no output ever carries a newline', !oneLineCommandDisplay('a\nb\nc\nd\ne').includes('\n'))
   check('a one-liner is untouched', oneLineCommandDisplay('echo hello') === 'echo hello')
@@ -65,8 +65,8 @@ console.log('§5 C6 — the tool header is one row by fold, both shells')
 
 console.log('§6 — the consent command is height-bound and names its cut')
 {
-  sectionFix = 'change boundLines, consentBodyBudget or consentContentWidth in src/components/permissions/consentBodyBudget.ts'
-  const { boundLines, consentBodyBudget, consentContentWidth, CONSENT_BODY_MIN_ROWS } = await import('../../src/components/permissions/consentBodyBudget.ts')
+  sectionFix = 'change boundLines, consentBodyBudget or consentContentWidth in src/permissions/cards/consentBodyBudget.ts'
+  const { boundLines, consentBodyBudget, consentContentWidth, CONSENT_BODY_MIN_ROWS } = await import('../../src/permissions/cards/consentBodyBudget.ts')
   check('the budget floors and follows the terminal', consentBodyBudget(12) === CONSENT_BODY_MIN_ROWS && consentBodyBudget(40) > consentBodyBudget(30))
   const width = consentContentWidth(100)
   const short = boundLines('ls -la\npwd'.split('\n'), width, consentBodyBudget(30))
@@ -83,15 +83,15 @@ console.log('§6 — the consent command is height-bound and names its cut')
 
 console.log('§7 C7+C8 — the picker row measures in cells and its metadata line is cut')
 {
-  sectionFix = 'change truncateToWidth in src/utils/truncate.ts (it must count terminal cells, not characters)'
-  const { truncateToWidth } = await import('../../src/utils/truncate.ts')
+  sectionFix = 'change truncateToWidth in src/platform/text/truncate.ts (it must count terminal cells, not characters)'
+  const { truncateToWidth } = await import('../../src/platform/text/truncate.ts')
   check('the owner is width-true on wide glyphs (10 CJK cells cut to ≤8+ellipsis)', truncateToWidth('漢漢漢漢漢', 9).length <= 5 && truncateToWidth('漢漢漢漢漢', 9).endsWith('…'))
 }
 
 console.log('§8 C9 — AGE right-aligns under its header; the filter echo is bounded')
 {
-  sectionFix = 'change padStartTo or padTo in src/utils/glyphs.ts'
-  const { padStartTo, padTo } = await import('../../src/utils/glyphs.ts')
+  sectionFix = 'change padStartTo or padTo in src/screen/theme/glyphs.ts'
+  const { padStartTo, padTo } = await import('../../src/screen/theme/glyphs.ts')
   check('padStartTo fills from the left', padStartTo('3m', 5) === '   3m' && padTo('3m', 5) === '3m   ')
   check('padStartTo truncates width-true past the cell', padStartTo('longest', 5).length <= 5)
   check('a full cell is identity', padStartTo('waits', 5) === 'waits')
@@ -100,8 +100,8 @@ console.log('§8 C9 — AGE right-aligns under its header; the filter echo is bo
 
 console.log('§10 C11 — an over-wide rail token truncates, never vanishes')
 {
-  sectionFix = 'change wrapRailRows in src/components/HelmLanesRail.tsx'
-  const { wrapRailRows } = await import('../../src/components/HelmLanesRail.tsx')
+  sectionFix = 'change wrapRailRows in src/screen/fullscreen-layout/HelmLanesRail.tsx'
+  const { wrapRailRows } = await import('../../src/screen/fullscreen-layout/HelmLanesRail.tsx')
   const path = 'C:\\Users\\OPERATOR\\AppData\\Local\\mercury\\transcripts\\deep\\file.txt'
   const rows = wrapRailRows(`writing ${path} now`, 20, 4)
   check('the over-wide token keeps a truncated row of its own', rows.some(r => r.includes('C:\\Users')), rows.join(' | '))
@@ -115,9 +115,9 @@ console.log('§10 C11 — an over-wide rail token truncates, never vanishes')
 
 console.log('§14 E2 — sliceAnsi never exceeds its bound by the oracle’s measure')
 {
-  sectionFix = 'change sliceAnsi in src/utils/sliceAnsi.ts (a slice must never measure wider than its bound by stringWidth in src/ink/stringWidth.ts)'
-  const sliceAnsi = (await import('../../src/utils/sliceAnsi.ts')).default
-  const { stringWidth } = await import('../../src/ink/stringWidth.ts')
+  sectionFix = 'change sliceAnsi in src/platform/text/sliceAnsi.ts (a slice must never measure wider than its bound by stringWidth in src/screen/renderer/stringWidth.ts)'
+  const sliceAnsi = (await import('../../src/platform/text/sliceAnsi.ts')).default
+  const { stringWidth } = await import('../../src/screen/renderer/stringWidth.ts')
   const samples = ['✳️✳️✳️', 'a👍🏽b👨‍💻c', '\x1b[31m✳️red\x1b[39m tail', '🇺🇸🇺🇸']
   let sound = true
   for (const s of samples) {

@@ -30,7 +30,7 @@ if (!existsSync(DIST)) {
 }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = 'a setup step (daemon start, dispatch or settle) did not finish, or the panel did not follow the focused chat; for the panel change src/components/prompts-panel/PromptsPanel.tsx, whose header names the session its connector reports'): void {
+function check(label: string, cond: boolean, detail = 'a setup step (daemon start, dispatch or settle) did not finish, or the panel did not follow the focused chat; for the panel change src/screen/prompts-panel/PromptsPanel.tsx, whose header names the session its connector reports'): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
@@ -71,8 +71,8 @@ const spawnDaemonWithHome = (configHome: string): void => {
   })
 }
 
-const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/warmRunner.ts')
+const { daemonControlRpc } = await import('../../src/daemon/control/controlSocket.ts')
+const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/runner-link/warmRunner.ts')
 const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boolean> => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -84,7 +84,7 @@ const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boo
   }
   return false
 }
-const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const paths = await import('../../src/sessions/transcripts/paths.ts')
 
 const ALPHA_PROMPT = 'stream the alpha chain'
 const BETA_PROMPT = 'settle the beta turn'

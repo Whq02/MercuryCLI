@@ -21,12 +21,12 @@ const CONFIG_HOME = resolveProofHome([process.cwd()])
 
 if (process.env.A11Y_RENDER_CHILD) {
   const React = await import('react')
-  const { render, Box, Text } = (await import('../../src/ink.js')) as {
+  const { render, Box, Text } = (await import('../../src/screen/themedRenderer.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
     Box: React.ComponentType<Record<string, unknown>>
     Text: React.ComponentType<Record<string, unknown>>
   }
-  const { GLYPH } = (await import('../../src/utils/glyphs.js')) as {
+  const { GLYPH } = (await import('../../src/screen/theme/glyphs.js')) as {
     GLYPH: Record<string, string>
   }
   const h = React.createElement

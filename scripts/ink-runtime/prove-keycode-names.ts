@@ -2,12 +2,12 @@
 import { join } from 'node:path'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { interpretKey } = await import(join(SRC, 'ink/input/interpreter.ts'))
+const { interpretKey } = await import(join(SRC, 'screen/renderer/input/interpreter.ts'))
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}fix the code-to-name mapping in interpretKey in src/ink/input/interpreter.ts` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}fix the code-to-name mapping in interpretKey in src/screen/renderer/input/interpreter.ts` : ''}`)
 }
 const nameOf = (code: number): string | undefined => interpretKey(`\x1b[${code}u`).name
 const table: Array<[number, string]> = [

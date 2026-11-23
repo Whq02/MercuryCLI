@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
-import { InputEvent } from '../../src/ink/events/input-event.ts'
-import { INITIAL_STATE, parseMultipleKeypresses, type ParsedInput } from '../../src/ink/input/input-decoder.ts'
+import { InputEvent } from '../../src/screen/renderer/events/input-event.ts'
+import { INITIAL_STATE, parseMultipleKeypresses, type ParsedInput } from '../../src/screen/renderer/input/input-decoder.ts'
 
 export function decode(feeds: Array<string | null>): ParsedInput[] {
   let state = { ...INITIAL_STATE }

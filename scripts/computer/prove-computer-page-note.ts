@@ -3,12 +3,12 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, ownerOf, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
-import type { DesktopApplication, DesktopDriver, DesktopTree } from '../../src/services/desktop/driver.ts'
+import type { DesktopApplication, DesktopDriver, DesktopTree } from '../../src/integrations/desktop/driver.ts'
 
-const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
-const fastRoad = await import('../../src/tools/ComputerTool/fastRoad.ts')
-const session = await import('../../src/services/desktop/desktopSession.ts')
+const { ComputerTool } = await import('../../src/tools/computer/ComputerTool.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/integrations/desktop/resolveDriver.ts')
+const fastRoad = await import('../../src/tools/computer/fastRoad.ts')
+const session = await import('../../src/integrations/desktop/desktopSession.ts')
 
 const ABSENT = 'this application exposes no page content to the tree — use a screenshot; a missing page element is not a confirmed absence'
 const PENDING = 'web accessibility requested; page content is still starting — wait until the element appears with durationMs:5000, or take a screenshot'

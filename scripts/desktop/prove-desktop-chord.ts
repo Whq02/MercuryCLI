@@ -70,7 +70,7 @@ if (liveReason !== '') {
   warn(`live leg skipped: ${liveReason}`)
   finish(`live leg skipped: ${liveReason}`)
 }
-const native = await import('../../src/services/desktop/nativeDriver.js')
+const native = await import('../../src/integrations/desktop/nativeDriver.js')
 const resolved = native.resolveNativeDesktopDriver()
 if (resolved.state !== 'ok') {
   warn(`live leg skipped: ${resolved.note}`)

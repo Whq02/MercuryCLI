@@ -408,7 +408,7 @@ const CORPUS = JSON.parse(readFileSync(join(import.meta.dir, 'fixtures', 'gramma
 const corpusText = (lang: string, file: string): string => `${CORPUS[lang]![file]!.join('\n')}\n`
 const admitted = Object.keys(ADMITTED)
 
-const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/utils/structure/grammarRegistry.ts')
+const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/platform/grammars/grammarRegistry.ts')
 type Row = (typeof GRAMMAR_REGISTRY)[number]
 const rowOf = (name: string): Row | undefined => GRAMMAR_REGISTRY.find((g: Row) => g.name === name)
 
@@ -448,8 +448,8 @@ section('§1 — an edit\'s parse note and a read\'s outline of an admitted lang
   copyFileSync(join(engineDir, 'tree-sitter.wasm'), join(trapDir, 'tree-sitter.wasm'))
   for (const g of GRAMMAR_REGISTRY) copyFileSync(join(engineDir, g.wasm), join(trapDir, g.wasm))
   process.env.MERCURY_TREESITTER_VENDOR_DIR = trapDir
-  const { checkIntroducedParseError } = await import('../../src/tools/FileWriteTool/parseCheck.ts')
-  const { buildOutlineNumberedWindow } = await import('../../src/tools/FileReadTool/outline.ts')
+  const { checkIntroducedParseError } = await import('../../src/tools/write/parseCheck.ts')
+  const { buildOutlineNumberedWindow } = await import('../../src/tools/read/outline.ts')
   const files = join(scratch, 'pattern-only')
   mkdirSync(files)
   const quiet: string[] = []
@@ -464,16 +464,16 @@ section('§1 — an edit\'s parse note and a read\'s outline of an admitted lang
       else quiet.push(`${name}/${file}`)
     }
   }
-  check(`${quiet.length} corpus files of the ${admitted.length} admitted languages: an edit that breaks the file and a read of it never reached the grammar engine, and the read drew no outline`, loud.length === 0 && quiet.length >= admitted.length, `checkIntroducedParseError (src/tools/FileWriteTool/parseCheck.ts) and buildOutlineNumberedWindow (src/tools/FileReadTool/outline.ts) must skip pattern-only languages, whose rows are in src/utils/structure/grammarRegistry.ts | files that reached the engine: ${loud.join(', ')}`)
+  check(`${quiet.length} corpus files of the ${admitted.length} admitted languages: an edit that breaks the file and a read of it never reached the grammar engine, and the read drew no outline`, loud.length === 0 && quiet.length >= admitted.length, `checkIntroducedParseError (src/tools/write/parseCheck.ts) and buildOutlineNumberedWindow (src/tools/read/outline.ts) must skip pattern-only languages, whose rows are in src/platform/grammars/grammarRegistry.ts | files that reached the engine: ${loud.join(', ')}`)
   const note = await checkIntroducedParseError(join(files, 'control.py'), 'x = 1\n', 'def (:\n', false)
-  check('control: the same edit of a Python file is read by its grammar and named (the trap has teeth)', existsSync(marker) && /^Python parse error at line 1: .+\(the edit introduced it\)$/.test(note ?? ''), `checkIntroducedParseError (src/tools/FileWriteTool/parseCheck.ts) must still parse a Python edit with its grammar | ${existsSync(marker) ? 'engine loaded' : 'engine NOT loaded'} · ${note}`)
+  check('control: the same edit of a Python file is read by its grammar and named (the trap has teeth)', existsSync(marker) && /^Python parse error at line 1: .+\(the edit introduced it\)$/.test(note ?? ''), `checkIntroducedParseError (src/tools/write/parseCheck.ts) must still parse a Python edit with its grammar | ${existsSync(marker) ? 'engine loaded' : 'engine NOT loaded'} · ${note}`)
 }
 
-const facility = await import('../../src/utils/structure/grammarFacility.ts')
+const facility = await import('../../src/platform/grammars/grammarFacility.ts')
 const { languageForFile, patternLanguageForFile, loadGrammarEngine, parsePolyglot } = facility
-const { resolveAstLanguage, resolveAstScope, searchAstPattern, planAstRewrite, isAstRefusal, astLanguageNames, AST_BOUNDS } = await import('../../src/services/structure/astPatterns.ts')
-const { compileFor } = await import('../../src/services/structure/polyglotQuery.ts')
-const { encodePattern } = await import('../../src/services/structure/pattern.ts')
+const { resolveAstLanguage, resolveAstScope, searchAstPattern, planAstRewrite, isAstRefusal, astLanguageNames, AST_BOUNDS } = await import('../../src/tools/engines/structure/astPatterns.ts')
+const { compileFor } = await import('../../src/tools/engines/structure/polyglotQuery.ts')
+const { encodePattern } = await import('../../src/tools/engines/structure/pattern.ts')
 
 section('§2 — a search for code beside files of the admitted languages loads none of their grammars unless one of those files can hold the pattern')
 {
@@ -501,12 +501,12 @@ section('§2 — a search for code beside files of the admitted languages loads 
   const quiet = isAstRefusal(scope) ? scope : await searchAstPattern(scope, { pattern: 'tideHeightOf($X)' })
   const counted = isAstRefusal(quiet) ? '' : quiet.languagesSearched.map(([l, n]) => `${l}=${n}`).sort().join(',')
   const expected = [...admitted.map(n => `${n}=${Object.keys(CORPUS[n]!).length}`), 'typescript=1'].sort().join(',')
-  check(`TypeScript beside ${files} files of the ${admitted.length} admitted languages, every admitted grammar replaced by bytes that fail the audition: the call is found, nothing is refused, and each of those files is counted as unable to hold the pattern`, !isAstRefusal(quiet) && quiet.matches.length === 1 && quiet.patternRefusals.length === 0 && quiet.parseFailures.length === 0 && quiet.filesParsed === 1 && counted === expected, isAstRefusal(quiet) ? quiet.refused : `a pattern search (src/services/structure/astPatterns.ts) must not load the grammar of a file that cannot hold the pattern | ${quiet.matches.length} matches · parsed ${quiet.filesParsed} · ${counted} · ${JSON.stringify(quiet.patternRefusals)}`)
+  check(`TypeScript beside ${files} files of the ${admitted.length} admitted languages, every admitted grammar replaced by bytes that fail the audition: the call is found, nothing is refused, and each of those files is counted as unable to hold the pattern`, !isAstRefusal(quiet) && quiet.matches.length === 1 && quiet.patternRefusals.length === 0 && quiet.parseFailures.length === 0 && quiet.filesParsed === 1 && counted === expected, isAstRefusal(quiet) ? quiet.refused : `a pattern search (src/tools/engines/structure/astPatterns.ts) must not load the grammar of a file that cannot hold the pattern | ${quiet.matches.length} matches · parsed ${quiet.filesParsed} · ${counted} · ${JSON.stringify(quiet.patternRefusals)}`)
   const first = admitted[0]!
   writeFileSync(join(beside, `named-${ADMITTED[first]!.routes[0]!}`), 'tideHeightOf(x) is named here\n')
   const again = resolveAstScope({ cwd: beside })
   const loud = isAstRefusal(again) ? again : await searchAstPattern(again, { pattern: 'tideHeightOf($X)' })
-  check(`control: once a ${first} file names the word its grammar is asked for, and the replaced one is refused by name (the reading has teeth)`, !isAstRefusal(loud) && loud.matches.length === 1 && loud.patternRefusals.some(r => r.lang === first && /quarantined/.test(r.note)), isAstRefusal(loud) ? loud.refused : `a pattern search (src/services/structure/astPatterns.ts) must load the grammar of a file naming the word and refuse a quarantined one by name | ${JSON.stringify(loud.patternRefusals)}`)
+  check(`control: once a ${first} file names the word its grammar is asked for, and the replaced one is refused by name (the reading has teeth)`, !isAstRefusal(loud) && loud.matches.length === 1 && loud.patternRefusals.some(r => r.lang === first && /quarantined/.test(r.note)), isAstRefusal(loud) ? loud.refused : `a pattern search (src/tools/engines/structure/astPatterns.ts) must load the grammar of a file naming the word and refuse a quarantined one by name | ${JSON.stringify(loud.patternRefusals)}`)
   const large = join(scratch, 'beside-large')
   mkdirSync(large)
   writeFileSync(join(large, 'app.ts'), 'export const height = tideHeightOf(1)\n')
@@ -516,7 +516,7 @@ section('§2 — a search for code beside files of the admitted languages loads 
   const largeScope = resolveAstScope({ cwd: large })
   const sized = isAstRefusal(largeScope) ? largeScope : await searchAstPattern(largeScope, { pattern: 'tideHeightOf($X)' })
   chmodSync(dump, 0o644)
-  check('a file of an admitted language far over the size a search reads is counted as skipped by its size and never opened: one that cannot be read is counted all the same, and the call beside it is found', !isAstRefusal(sized) && sized.matches.length === 1 && sized.skippedLarge === 1 && sized.patternRefusals.length === 0 && sized.parseFailures.length === 0, isAstRefusal(sized) ? sized.refused : `a pattern search (src/services/structure/astPatterns.ts, AST_BOUNDS.maxFileBytes) must count an oversized or unreadable file as skipped and never open it | ${sized.matches.length} matches · skipped ${sized.skippedLarge} · ${JSON.stringify(sized.languagesSearched)}`)
+  check('a file of an admitted language far over the size a search reads is counted as skipped by its size and never opened: one that cannot be read is counted all the same, and the call beside it is found', !isAstRefusal(sized) && sized.matches.length === 1 && sized.skippedLarge === 1 && sized.patternRefusals.length === 0 && sized.parseFailures.length === 0, isAstRefusal(sized) ? sized.refused : `a pattern search (src/tools/engines/structure/astPatterns.ts, AST_BOUNDS.maxFileBytes) must count an oversized or unreadable file as skipped and never open it | ${sized.matches.length} matches · skipped ${sized.skippedLarge} · ${JSON.stringify(sized.languagesSearched)}`)
   process.env.MERCURY_TREESITTER_VENDOR_DIR = engineDir
   facility._resetGrammarEngineForTesting()
   facility._resetFragileProbeForTesting()
@@ -525,7 +525,7 @@ section('§2 — a search for code beside files of the admitted languages loads 
   writeFileSync(join(wide, 'notes.yaml'), `note: "${'\u6f6e'.repeat(700_000)}"\nport: 8080\n`)
   const wideScope = resolveAstScope({ cwd: wide })
   const read = isAstRefusal(wideScope) ? wideScope : await searchAstPattern(wideScope, { pattern: 'port: $P' })
-  check('a file whose bytes pass that size while its characters do not is read as before (2.1 MB of three-byte characters: its setting is found)', !isAstRefusal(read) && read.matches.length === 1 && read.skippedLarge === 0 && read.parseFailures.length === 0, isAstRefusal(read) ? read.refused : `the size bound in src/services/structure/astPatterns.ts must count bytes of the file as before, not characters | ${read.matches.length} matches · skipped ${read.skippedLarge} · ${JSON.stringify(read.parseFailures).slice(0, 200)}`)
+  check('a file whose bytes pass that size while its characters do not is read as before (2.1 MB of three-byte characters: its setting is found)', !isAstRefusal(read) && read.matches.length === 1 && read.skippedLarge === 0 && read.parseFailures.length === 0, isAstRefusal(read) ? read.refused : `the size bound in src/tools/engines/structure/astPatterns.ts must count bytes of the file as before, not characters | ${read.matches.length} matches · skipped ${read.skippedLarge} · ${JSON.stringify(read.parseFailures).slice(0, 200)}`)
 }
 
 type LockedText = { file: string; sha256: string; url: string }
@@ -533,12 +533,12 @@ type LockedText = { file: string; sha256: string; url: string }
 section(`§3 — the rows: the twenty-three and the ${admitted.length} admitted, each pinned in the lock`)
 {
   const names = GRAMMAR_REGISTRY.map((g: Row) => g.name)
-  check(`the registry carries ${FIRST_TWENTY_THREE.length + admitted.length} grammars: the twenty-three first, unchanged in order, then the admitted in theirs`, JSON.stringify(names) === JSON.stringify([...FIRST_TWENTY_THREE, ...admitted]), `fix the order of GRAMMAR_REGISTRY in src/utils/structure/grammarRegistry.ts to match FIRST_TWENTY_THREE then the keys of ADMITTED | ${names.join(',')}`)
+  check(`the registry carries ${FIRST_TWENTY_THREE.length + admitted.length} grammars: the twenty-three first, unchanged in order, then the admitted in theirs`, JSON.stringify(names) === JSON.stringify([...FIRST_TWENTY_THREE, ...admitted]), `fix the order of GRAMMAR_REGISTRY in src/platform/grammars/grammarRegistry.ts to match FIRST_TWENTY_THREE then the keys of ADMITTED | ${names.join(',')}`)
   check('none of the twenty-three is pattern-only, and swift alone of them is auditioned', FIRST_TWENTY_THREE.every(n => rowOf(n)?.patternOnly !== true) && FIRST_TWENTY_THREE.filter(n => rowOf(n)?.fragile).join(',') === 'swift')
-  check('every admitted row is pattern-only, auditioned on first use and carried by the grammar cache', admitted.every(n => rowOf(n)?.patternOnly === true && rowOf(n)?.fragile !== undefined && rowOf(n)?.source === 'grammar-pack'), 'rows in GRAMMAR_REGISTRY (src/utils/structure/grammarRegistry.ts) that fail: ' + admitted.filter(n => !(rowOf(n)?.patternOnly === true && rowOf(n)?.fragile !== undefined && rowOf(n)?.source === 'grammar-pack')).join(','))
-  check(`the admitted rows held off the optimising tier are ${HELD.join(', ')}`, admitted.filter(n => rowOf(n)?.baseline === true).join(',') === HELD.join(','), 'set baseline on exactly the HELD rows in src/utils/structure/grammarRegistry.ts | got ' + admitted.filter(n => rowOf(n)?.baseline === true).join(','))
-  check(`the admitted rows handed their text with a final newline are ${NEEDS_FINAL_NEWLINE.join(', ')}`, admitted.filter(n => rowOf(n)?.finalNewline === true).join(',') === NEEDS_FINAL_NEWLINE.join(','), 'set finalNewline on exactly the NEEDS_FINAL_NEWLINE rows in src/utils/structure/grammarRegistry.ts | got ' + admitted.filter(n => rowOf(n)?.finalNewline === true).join(','))
-  check('the build carries every one of them by name', admitted.every(n => (astLanguageNames() as string[]).includes(n)), 'astLanguageNames (src/services/structure/astPatterns.ts) must list every admitted row of src/utils/structure/grammarRegistry.ts')
+  check('every admitted row is pattern-only, auditioned on first use and carried by the grammar cache', admitted.every(n => rowOf(n)?.patternOnly === true && rowOf(n)?.fragile !== undefined && rowOf(n)?.source === 'grammar-pack'), 'rows in GRAMMAR_REGISTRY (src/platform/grammars/grammarRegistry.ts) that fail: ' + admitted.filter(n => !(rowOf(n)?.patternOnly === true && rowOf(n)?.fragile !== undefined && rowOf(n)?.source === 'grammar-pack')).join(','))
+  check(`the admitted rows held off the optimising tier are ${HELD.join(', ')}`, admitted.filter(n => rowOf(n)?.baseline === true).join(',') === HELD.join(','), 'set baseline on exactly the HELD rows in src/platform/grammars/grammarRegistry.ts | got ' + admitted.filter(n => rowOf(n)?.baseline === true).join(','))
+  check(`the admitted rows handed their text with a final newline are ${NEEDS_FINAL_NEWLINE.join(', ')}`, admitted.filter(n => rowOf(n)?.finalNewline === true).join(',') === NEEDS_FINAL_NEWLINE.join(','), 'set finalNewline on exactly the NEEDS_FINAL_NEWLINE rows in src/platform/grammars/grammarRegistry.ts | got ' + admitted.filter(n => rowOf(n)?.finalNewline === true).join(','))
+  check('the build carries every one of them by name', admitted.every(n => (astLanguageNames() as string[]).includes(n)), 'astLanguageNames (src/tools/engines/structure/astPatterns.ts) must list every admitted row of src/platform/grammars/grammarRegistry.ts')
   const lock = JSON.parse(readFileSync(join(ROOT, 'vendor', 'grammars.lock.json'), 'utf8')) as {
     grammars: Array<{ wasm: string; sha256: string; bytes: number; sourceUrl?: string; sourceMember?: string; sourceSha512?: string; licence?: LockedText; notice?: LockedText; upstream: { package?: string; license?: string; repository?: string; commit?: string; copyright?: string; builder?: string } }>
   }
@@ -624,13 +624,13 @@ section('§4 — a file is routed by its name; the edit note and the outline kee
       if (resolveAstLanguage(alias)?.name !== name) wrong.push(`lang ${alias} is not ${name}`)
     }
   }
-  check(`every extension, basename and alias of the ${admitted.length} routes to its language for a pattern and to none for the edit note`, wrong.length === 0, 'fix extensions, names or aliases in src/utils/structure/grammarRegistry.ts (routing in patternLanguageForFile, src/utils/structure/grammarFacility.ts) | ' + wrong.join('; '))
+  check(`every extension, basename and alias of the ${admitted.length} routes to its language for a pattern and to none for the edit note`, wrong.length === 0, 'fix extensions, names or aliases in src/platform/grammars/grammarRegistry.ts (routing in patternLanguageForFile, src/platform/grammars/grammarFacility.ts) | ' + wrong.join('; '))
   const unnamed = admitted.flatMap(n => (rowOf(n)?.extensions ?? []).filter((e: string) => resolveAstLanguage(e.slice(1))?.name !== n).map((e: string) => `${e}→${n}`))
-  check('every extension of an admitted language, without its dot, is a name lang takes', unnamed.length === 0, 'resolveAstLanguage (src/services/structure/astPatterns.ts) must accept every extension in src/utils/structure/grammarRegistry.ts as a lang name | ' + unnamed.join(','))
+  check('every extension of an admitted language, without its dot, is a name lang takes', unnamed.length === 0, 'resolveAstLanguage (src/tools/engines/structure/astPatterns.ts) must accept every extension in src/platform/grammars/grammarRegistry.ts as a lang name | ' + unnamed.join(','))
   const kept = FIRST_TWENTY_THREE.flatMap(n => (rowOf(n)?.extensions ?? []).map((e: string) => [n, e] as const)).filter(([n, e]) => languageForFile(`x${e}`)?.name !== n || patternLanguageForFile(`x${e}`)?.name !== n)
-  check('every extension of the twenty-three routes as before, for both', kept.length === 0, 'an extension of the twenty-three moved: check src/utils/structure/grammarRegistry.ts and languageForFile / patternLanguageForFile in src/utils/structure/grammarFacility.ts | ' + kept.map(([n, e]) => `${e}→${n}`).join(','))
-  check('.h stays C, .json stays JSON, .toml stays TOML', patternLanguageForFile('a.h')?.name === 'c' && patternLanguageForFile('a.json')?.name === 'json' && patternLanguageForFile('a.toml')?.name === 'toml', 'patternLanguageForFile (src/utils/structure/grammarFacility.ts) must route .h to c, .json to json, .toml to toml')
-  check('a name no grammar claims is still none', patternLanguageForFile('notes.txt') === null && patternLanguageForFile('LICENSE') === null, 'patternLanguageForFile (src/utils/structure/grammarFacility.ts) must return null for a name no grammar row claims')
+  check('every extension of the twenty-three routes as before, for both', kept.length === 0, 'an extension of the twenty-three moved: check src/platform/grammars/grammarRegistry.ts and languageForFile / patternLanguageForFile in src/platform/grammars/grammarFacility.ts | ' + kept.map(([n, e]) => `${e}→${n}`).join(','))
+  check('.h stays C, .json stays JSON, .toml stays TOML', patternLanguageForFile('a.h')?.name === 'c' && patternLanguageForFile('a.json')?.name === 'json' && patternLanguageForFile('a.toml')?.name === 'toml', 'patternLanguageForFile (src/platform/grammars/grammarFacility.ts) must route .h to c, .json to json, .toml to toml')
+  check('a name no grammar claims is still none', patternLanguageForFile('notes.txt') === null && patternLanguageForFile('LICENSE') === null, 'patternLanguageForFile (src/platform/grammars/grammarFacility.ts) must return null for a name no grammar row claims')
 }
 
 const engine = await loadGrammarEngine()
@@ -668,7 +668,7 @@ for (const name of admitted) {
       if (errors.length > 0) fails.push(`${file}:${piece.row} ${piece.type} alone: ${errors[0]}`)
     }
   }
-  check(`${name}: ${Object.keys(CORPUS[name] ?? {}).length} corpus file(s) and ${pieces} top-level pieces`, Object.keys(CORPUS[name] ?? {}).length > 0 && pieces > 0 && fails.length === 0, `${name}: fix the corpus in scripts/language-sidecars/fixtures/grammar-corpus.json or the grammar row in src/utils/structure/grammarRegistry.ts | ` + fails.slice(0, 4).join('; '))
+  check(`${name}: ${Object.keys(CORPUS[name] ?? {}).length} corpus file(s) and ${pieces} top-level pieces`, Object.keys(CORPUS[name] ?? {}).length > 0 && pieces > 0 && fails.length === 0, `${name}: fix the corpus in scripts/language-sidecars/fixtures/grammar-corpus.json or the grammar row in src/platform/grammars/grammarRegistry.ts | ` + fails.slice(0, 4).join('; '))
 }
 
 section('§6 — search and rewrite over the corpus, each file found by its name')
@@ -719,7 +719,7 @@ for (const name of admitted) {
       if (ending === 'crlf' && plan.files.some(f => /(^|[^\r])\n/.test(f.after))) fails.push('rewrite: a bare LF entered a CRLF file')
       if (ending === 'lf' && plan.files.some(f => f.after.includes('\r'))) fails.push('rewrite: a CR entered an LF file')
     }
-    check(`${name} (${ending}): ${spec.searches.length} search(es) with their counts and captures, and the rewrite`, fails.length === 0, 'compare searchAstPattern and planAstRewrite (src/services/structure/astPatterns.ts) for this language with its ADMITTED entry in this file | ' + fails.join('; '))
+    check(`${name} (${ending}): ${spec.searches.length} search(es) with their counts and captures, and the rewrite`, fails.length === 0, 'compare searchAstPattern and planAstRewrite (src/tools/engines/structure/astPatterns.ts) for this language with its ADMITTED entry in this file | ' + fails.join('; '))
   }
   if (spec.refuses) {
     const accepted: string[] = []
@@ -729,16 +729,16 @@ for (const name of admitted) {
       compiled.hold.delete()
       accepted.push(pattern)
     }
-    check(`${name}: the shapes the page says it refuses are refused (${spec.refuses.join(' · ')})`, accepted.length === 0, 'compileFor (src/services/structure/polyglotQuery.ts) must refuse these patterns for the language; patterns it accepted: ' + accepted.join(' · '))
+    check(`${name}: the shapes the page says it refuses are refused (${spec.refuses.join(' · ')})`, accepted.length === 0, 'compileFor (src/tools/engines/structure/polyglotQuery.ts) must refuse these patterns for the language; patterns it accepted: ' + accepted.join(' · '))
   }
 }
 {
   const mixed = resolveAstScope({ cwd: join(work, 'mixed') })
   const expected = admitted.flatMap(n => Object.keys(CORPUS[n]!).map(f => `${f}=${n}`)).concat('app.ts=typescript').sort()
-  check('one directory of every corpus file: each is routed to its own language, the .txt is skipped and counted', !isAstRefusal(mixed) && JSON.stringify(mixed.files.map(f => `${f.rel}=${f.lang.name}`).sort()) === JSON.stringify(expected) && JSON.stringify(mixed.skippedNoGrammar) === JSON.stringify([['.txt', 1]]), isAstRefusal(mixed) ? mixed.refused : `resolveAstScope (src/services/structure/astPatterns.ts) must route each file by its name through the registry | ${mixed.files.map(f => `${f.rel}=${f.lang.name}`).sort().join(',')} · ${JSON.stringify(mixed.skippedNoGrammar)}`)
+  check('one directory of every corpus file: each is routed to its own language, the .txt is skipped and counted', !isAstRefusal(mixed) && JSON.stringify(mixed.files.map(f => `${f.rel}=${f.lang.name}`).sort()) === JSON.stringify(expected) && JSON.stringify(mixed.skippedNoGrammar) === JSON.stringify([['.txt', 1]]), isAstRefusal(mixed) ? mixed.refused : `resolveAstScope (src/tools/engines/structure/astPatterns.ts) must route each file by its name through the registry | ${mixed.files.map(f => `${f.rel}=${f.lang.name}`).sort().join(',')} · ${JSON.stringify(mixed.skippedNoGrammar)}`)
   const first = admitted[0]!
   const pinned = resolveAstScope({ cwd: join(work, 'mixed'), lang: ADMITTED[first]!.aliases[0] ?? first })
-  check(`lang given by an alias over that directory keeps the ${first} files alone`, !isAstRefusal(pinned) && pinned.files.length === Object.keys(CORPUS[first]!).length && pinned.files.every(f => f.lang.name === first), isAstRefusal(pinned) ? pinned.refused : 'resolveAstScope (src/services/structure/astPatterns.ts) must keep only files of the lang given | ' + pinned.files.map(f => `${f.rel}=${f.lang.name}`).join(','))
+  check(`lang given by an alias over that directory keeps the ${first} files alone`, !isAstRefusal(pinned) && pinned.files.length === Object.keys(CORPUS[first]!).length && pinned.files.every(f => f.lang.name === first), isAstRefusal(pinned) ? pinned.refused : 'resolveAstScope (src/tools/engines/structure/astPatterns.ts) must keep only files of the lang given | ' + pinned.files.map(f => `${f.rel}=${f.lang.name}`).join(','))
   const forced = resolveAstScope({ cwd: join(work, 'mixed'), path: 'notes.txt', lang: first })
   check('lang given for one file overrides its name', !isAstRefusal(forced) && forced.files.length === 1 && forced.files[0]!.lang.name === first, isAstRefusal(forced) ? forced.refused : '')
 }
@@ -751,7 +751,7 @@ for (const name of NEEDS_FINAL_NEWLINE) {
   const scope = resolveAstScope({ cwd: dir })
   const spec = ADMITTED[name]!
   const plan = isAstRefusal(scope) ? scope : await planAstRewrite(scope, { pattern: spec.rewrite.pattern, rewrite: spec.rewrite.rewrite })
-  check(`${name}: a file without a final newline is searched and rewritten, and is left without one`, !isAstRefusal(plan) && plan.files.length === 1 && spec.rewrite.expect.every(e => plan.files[0]!.after.includes(e)) && !plan.files[0]!.after.endsWith('\n'), isAstRefusal(plan) ? plan.refused : 'planAstRewrite (src/services/structure/astPatterns.ts) must keep the missing final newline | ' + JSON.stringify(plan.files[0]?.after.slice(-60)))
+  check(`${name}: a file without a final newline is searched and rewritten, and is left without one`, !isAstRefusal(plan) && plan.files.length === 1 && spec.rewrite.expect.every(e => plan.files[0]!.after.includes(e)) && !plan.files[0]!.after.endsWith('\n'), isAstRefusal(plan) ? plan.refused : 'planAstRewrite (src/tools/engines/structure/astPatterns.ts) must keep the missing final newline | ' + JSON.stringify(plan.files[0]?.after.slice(-60)))
 }
 
 section('§6b — tag names are captures in Svelte and Astro, including rewrites that use the name')
@@ -838,7 +838,7 @@ console.log = console.warn = console.error = () => {}
         out = {}
       }
       const declaredOk = out.declared === null || out.declared === undefined ? row.declares === undefined : fold(out.declared) === fold(row.declares ?? row.name)
-      check(`${name}: exit 0, clean, ${out.nodes ?? '?'} nodes a pass, ${out.residentMb ?? '?'} MB resident${row.baseline === true ? ' (held)' : ''}`, run.status === 0 && out.clean === true && (out.nodes ?? 0) > 20 && declaredOk, `the grammar wasm of this row in src/utils/structure/grammarRegistry.ts must load, declare its expected name and parse its corpus clean under the product node | exit ${run.status} · ${JSON.stringify(out)} · ${(run.stderr ?? '').slice(-200)}`)
+      check(`${name}: exit 0, clean, ${out.nodes ?? '?'} nodes a pass, ${out.residentMb ?? '?'} MB resident${row.baseline === true ? ' (held)' : ''}`, run.status === 0 && out.clean === true && (out.nodes ?? 0) > 20 && declaredOk, `the grammar wasm of this row in src/platform/grammars/grammarRegistry.ts must load, declare its expected name and parse its corpus clean under the product node | exit ${run.status} · ${JSON.stringify(out)} · ${(run.stderr ?? '').slice(-200)}`)
     }
   }
 }

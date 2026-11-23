@@ -17,7 +17,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — change ${TENSORFOLD_DISCOVERY_AT}` : ''}`)
 }
-const TENSORFOLD_DISCOVERY_AT = 'by section: section 0 the hosts store in src/services/providers/local/tensorfoldHosts.ts; sections 1 to 3 discoverLocalServers, localProbeTargets and readServed in src/services/providers/local/localDiscovery.ts; section 4 resolveLocalApiKeyFor in src/services/providers/local/localAccounts.ts; section 5 localLaneProfileFor in src/services/providers/local/localCallModel.ts and the key file in src/services/providers/local/tensorfoldKeyFile.ts'
+const TENSORFOLD_DISCOVERY_AT = 'by section: section 0 the hosts store in src/models/roads/local/tensorfoldHosts.ts; sections 1 to 3 discoverLocalServers, localProbeTargets and readServed in src/models/roads/local/localDiscovery.ts; section 4 resolveLocalApiKeyFor in src/models/roads/local/localAccounts.ts; section 5 localLaneProfileFor in src/models/roads/local/localCallModel.ts and the key file in src/models/roads/local/tensorfoldKeyFile.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
@@ -108,7 +108,7 @@ process.env.MERCURY_LOCAL_BASE_URL = `${overridden.root}/v1`
 section('§0 the hosts store and the remembered port (red on the base: the seam stubs throw)')
 let stored = false
 try {
-  const hosts = await import('../../src/services/providers/local/tensorfoldHosts.js')
+  const hosts = await import('../../src/models/roads/local/tensorfoldHosts.js')
   hosts.rememberTensorFoldPort(remembered.port)
   await hosts.rememberTensorFoldHost({ name: 'studio', baseUrl: keyed.root, origin: 'typed', key: KEY, version: '1.2.2', chip: 'Apple M3 Ultra' })
   check('the remembered port is listed', hosts.tensorFoldPorts().includes(remembered.port))
@@ -122,7 +122,7 @@ try {
 }
 
 section('§1 every TensorFold fixture reads TensorFold 1.2.2 with its window (red on the base: llama.cpp, LM Studio, vLLM misfilings)')
-const { discoverLocalServers, localProbeTargets, readServed, __resetLocalDiscoveryForTest } = await import('../../src/services/providers/local/localDiscovery.js')
+const { discoverLocalServers, localProbeTargets, readServed, __resetLocalDiscoveryForTest } = await import('../../src/models/roads/local/localDiscovery.js')
 __resetLocalDiscoveryForTest()
 const targets = localProbeTargets()
 check('the remembered port is a tensorfold probe target', targets.some(t => t.kind === 'tensorfold' && t.root === remembered.root), JSON.stringify(targets))
@@ -167,20 +167,20 @@ if (record) {
 } else check('a TensorFold record to re-read', false)
 
 section('§4 the key resolves per host, the generic key stays for the rest')
-const { resolveLocalApiKeyFor, resolveLocalApiKey } = await import('../../src/services/providers/local/localAccounts.js')
+const { resolveLocalApiKeyFor, resolveLocalApiKey } = await import('../../src/models/roads/local/localAccounts.js')
 check('the keyed host resolves its own key', resolveLocalApiKeyFor(keyed.root)?.key === KEY && resolveLocalApiKeyFor(keyed.root)?.source === 'host')
 check('another root resolves no key', resolveLocalApiKeyFor(onLlamaPort.root) === undefined && resolveLocalApiKey() === undefined)
 
 section('§5 a keyed host\'s turn carries its key; this Mac\'s own shared server is found through its key file (red on the fold: the lane profile sent the generic key, the probes sent none)')
 {
-  const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.js')
-  const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.js')
+  const { localLaneProfileFor } = await import('../../src/models/roads/local/localCallModel.js')
+  const { localRecordFor } = await import('../../src/models/roads/local/localCatalogue.js')
   const keyedRecord = localRecordFor('local/tensorfold/qwen3.8-27b') ?? byRoot.get(keyed.root)?.models[0]
   const profile = keyedRecord === undefined ? undefined : localLaneProfileFor({ ...keyedRecord, baseUrl: `${keyed.root}/v1` })
   const credential = await profile?.resolveCredential()
   check('the lane profile resolves the keyed host\'s own key for the turn (Authorization: Bearer <key>)', credential !== undefined && credential !== null && 'apiKey' in credential && credential.apiKey === KEY, JSON.stringify(credential))
   const { mkdirSync, writeFileSync, chmodSync } = await import('node:fs')
-  const { writeTensorFoldKeyFile } = await import('../../src/services/providers/local/tensorfoldKeyFile.js')
+  const { writeTensorFoldKeyFile } = await import('../../src/models/roads/local/tensorfoldKeyFile.js')
   const sharedKey = writeTensorFoldKeyFile({ path: join(HOME, 'local-setup', 'tensorfold', 'api-key') })
   const shared = await serve(tensorFoldRoutes({ model: 'qwen3.5-2b', window: 32768, key: sharedKey.key }))
   mkdirSync(join(HOME, 'tensorfold'), { recursive: true })

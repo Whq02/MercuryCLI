@@ -14,16 +14,16 @@ async function run(language: 'js' | 'py', code: string) {
 }
 try {
   const { z } = await import('zod/v4')
-  const { buildTool } = await import('../../src/Tool.ts')
-  const { makeEvalBridgeServer } = await import('../../src/services/eval/evalBridge.ts')
+  const { buildTool } = await import('../../src/tools/kit/tool.ts')
+  const { makeEvalBridgeServer } = await import('../../src/tools/engines/eval-kernels/evalBridge.ts')
   let dispatched = 0
   const refusedTool = buildTool({ name: 'DeniedFixture', inputSchema: z.object({}), maxResultSizeChars: 1000, async description() { return 'fixture' }, async prompt() { return 'fixture' }, async call() { dispatched++; return { data: 'unexpected' } }, mapToolResultToToolResultBlockParam(data: string, tool_use_id: string) { return { type: 'tool_result' as const, tool_use_id, content: data } } })
   const context = await makeContext({ tools: [refusedTool] })
   const actualBridge = makeEvalBridgeServer({ context, cellAbort: new AbortController(), canUseTool: (async () => ({ behavior: 'deny', message: 'Permission denied by fixture' })) as any })
   const permissionResult = await actualBridge({ t: 'bridge', token: 'fixture', id: 'fixture', bridgeId: 'deny', kind: 'tool', payload: { name: 'DeniedFixture', input: {} } }, { askBegin() {}, askEnd() {} } as any)
-  hinted('the real permission bridge labels a denial without dispatching it', !permissionResult.ok && permissionResult.errorKind === 'permission' && dispatched === 0, JSON.stringify(permissionResult), 'fix makeEvalBridgeServer in src/services/eval/evalBridge.ts so a denied tool call returns errorKind permission and never runs the tool')
+  hinted('the real permission bridge labels a denial without dispatching it', !permissionResult.ok && permissionResult.errorKind === 'permission' && dispatched === 0, JSON.stringify(permissionResult), 'fix makeEvalBridgeServer in src/tools/engines/eval-kernels/evalBridge.ts so a denied tool call returns errorKind permission and never runs the tool')
   for (const language of ['js', 'py'] as const) {
-    const runnerFile = language === 'js' ? 'src/services/eval/jsRunnerSource.ts' : 'src/services/eval/pyRunnerSource.ts'
+    const runnerFile = language === 'js' ? 'src/tools/engines/eval-kernels/jsRunnerSource.ts' : 'src/tools/engines/eval-kernels/pyRunnerSource.ts'
     const source = language === 'js'
       ? 'const items = await parallel([() => 11, () => { throw new Error("item failed") }, () => 33], {settled:true, width:2}); items'
       : 'def fail():\n    raise ValueError("item failed")\nitems = parallel([lambda: 11, fail, lambda: 33], width=2, settled=True)\nitems'

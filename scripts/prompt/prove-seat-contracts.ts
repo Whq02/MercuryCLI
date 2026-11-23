@@ -24,8 +24,8 @@ const untagged = (text: string): string => text.replace(/<\/?[a-z-]+>/g, ' ').re
 const sentencesOf = (text: string): string[] => untagged(text).split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0)
 const retiredIn = (text: string): string[] => RETIRED_WORDS.filter(w => new RegExp(`\\b${w}\\b`, 'i').test(text))
 
-const contract = await import('../../src/prompt/mercuryContract.ts')
-const { buildSubagentMercurySections } = await import('../../src/constants/subagentDoctrine.ts')
+const contract = await import('../../src/engine/system-prompt/mercuryContract.ts')
+const { buildSubagentMercurySections } = await import('../../src/tools/crewmate/subagentDoctrine.ts')
 
 const seats: Array<[string, string | undefined]> = [
   ['sub-agent', contract.MERCURY_SUBAGENT_CONTRACT],

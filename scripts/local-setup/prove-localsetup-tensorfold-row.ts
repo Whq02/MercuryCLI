@@ -9,11 +9,11 @@ if (FRAMES !== undefined) mkdirSync(FRAMES, { recursive: true })
 const home = pinScratchHome('localsetup-tensorfold-row')
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const { enableConfigs } = await import('../../src/utils/config.ts')
+const { enableConfigs } = await import('../../src/platform/settings/config.ts')
 enableConfigs()
-const { runLocalSetupRoad } = await import('../../src/services/localSetup/ggufRoad.ts')
-const helm = await import('../../src/utils/cockpit/helmFocus.ts')
-const popup = await import('../../src/utils/cockpit/settingsPopup.ts')
+const { runLocalSetupRoad } = await import('../../src/models/local-setup/ggufRoad.ts')
+const helm = await import('../../src/screen/cockpit/helmFocus.ts')
+const popup = await import('../../src/screen/cockpit/settingsPopup.ts')
 type Plan = { label: string; rows?: readonly { tag: string; words: string }[] }
 
 let failures = 0
@@ -40,30 +40,30 @@ for (const platform of ['darwin', 'linux', 'win32'] as const) {
   const { plan } = await firstStep(platform, 'stop')
   const tags = plan?.rows?.map(row => row.tag) ?? []
   const want = platform === 'win32' ? ['Hugging Face', 'Bank', 'Ollama / running server'] : ['Hugging Face', 'Bank', 'Ollama / running server', 'TensorFold']
-  check(`${platform}: ${want.length} rows (${want.join(' · ')})`, tags.join('|') === want.join('|'), `${tags.join('|')} — change the step 1 rows in runLocalSetupRoad or tensorFoldSourceRow in src/services/localSetup/ggufRoad.ts`)
+  check(`${platform}: ${want.length} rows (${want.join(' · ')})`, tags.join('|') === want.join('|'), `${tags.join('|')} — change the step 1 rows in runLocalSetupRoad or tensorFoldSourceRow in src/models/local-setup/ggufRoad.ts`)
 }
 {
   const mac = (await firstStep('darwin', 'stop')).plan?.rows?.find(row => row.tag === 'TensorFold')?.words
   const linux = (await firstStep('linux', 'stop')).plan?.rows?.find(row => row.tag === 'TensorFold')?.words
-  check("the pointer's words: this Mac on macOS, the NVIDIA GPU on Linux", mac === 'serve an MLX model on this Mac · /tensorfold' && linux === "serve an MLX model on this machine's NVIDIA GPU · /tensorfold", `${mac} | ${linux} — change the words in tensorFoldSourceRow in src/services/localSetup/ggufRoad.ts`)
+  check("the pointer's words: this Mac on macOS, the NVIDIA GPU on Linux", mac === 'serve an MLX model on this Mac · /tensorfold' && linux === "serve an MLX model on this machine's NVIDIA GPU · /tensorfold", `${mac} | ${linux} — change the words in tensorFoldSourceRow in src/models/local-setup/ggufRoad.ts`)
 }
 
 console.log('§2 picking it opens /tensorfold: the road ends, the popup closes, /tensorfold is the command the chat runs')
 {
   popup.openSettingsPopup({ view: 'localsetup', width: () => 80, rows: 20, line: '', hint: '', body: () => null } as never)
   const picked = await firstStep('darwin', { pick: 'TensorFold' })
-  check('the road ends without a download or a server', picked.reason === 'stopped', `${String(picked.reason)} — the TensorFold branch of runLocalSetupRoad in src/services/localSetup/ggufRoad.ts must yield done with reason stopped`)
-  check('the /localsetup popup is closed', !popup.isSettingsPopupOpen(), 'the TensorFold branch of runLocalSetupRoad in src/services/localSetup/ggufRoad.ts must call closeSettingsPopup')
-  check('/tensorfold is dispatched', helm.consumeCommandDispatch() === '/tensorfold', 'the TensorFold branch of runLocalSetupRoad in src/services/localSetup/ggufRoad.ts must call requestCommandDispatch with /tensorfold')
+  check('the road ends without a download or a server', picked.reason === 'stopped', `${String(picked.reason)} — the TensorFold branch of runLocalSetupRoad in src/models/local-setup/ggufRoad.ts must yield done with reason stopped`)
+  check('the /localsetup popup is closed', !popup.isSettingsPopupOpen(), 'the TensorFold branch of runLocalSetupRoad in src/models/local-setup/ggufRoad.ts must call closeSettingsPopup')
+  check('/tensorfold is dispatched', helm.consumeCommandDispatch() === '/tensorfold', 'the TensorFold branch of runLocalSetupRoad in src/models/local-setup/ggufRoad.ts must call requestCommandDispatch with /tensorfold')
 }
 
 console.log('§3 the frame: the pointer as the last row of step 1 (DESIGN 25)')
 {
   const React = await import('react')
   const h = React.createElement
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
-  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.tsx')
+  const { AppStateProvider } = await import('../../src/screen/app-state/AppState.tsx')
+  const { ThemeProvider } = await import('../../src/screen/theme/ThemeProvider.tsx')
+  const { SettingsPopupSlot } = await import('../../src/screen/overlays/SettingsPopupSlot.tsx')
   const { dialogRoadFrom, localSetupPopupRequest } = await import('../../src/commands/localsetup/localsetup.tsx')
   for (const [columns, rows] of [[160, 48], [110, 34], [96, 30]] as const) {
     const road = dialogRoadFrom((consent, signal) => runLocalSetupRoad(consent as never, { platform: 'darwin', home, configHome: home, ...(signal !== undefined ? { signal } : {}) } as never) as never)

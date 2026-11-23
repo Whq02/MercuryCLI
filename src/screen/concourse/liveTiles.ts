@@ -1,0 +1,432 @@
+import { statSync, watch, type FSWatcher } from 'node:fs'
+import { basename } from 'node:path'
+import { useCallback, useSyncExternalStore } from 'react'
+import { flagEnv } from '../../platform/substrate/flagRegistry.js'
+import {
+  readSessionFacts,
+  readSessionTail,
+  sessionFactsDir,
+  sessionFactsPath,
+  sessionTailDir,
+  sessionTailPath,
+  type SessionTailV1,
+} from '../../engine/connector/seatProjections.js'
+import { withoutMissionMetSentinel } from '../../sessions/mission/sentinel.js'
+import { WORK_UNREPORTED_MARK, workChipLine, workCounts } from '../../engine/connector/workCounts.js'
+import type { WorkRowV1 } from '../../engine/connector/types.js'
+import { MODEL_TURN_NOW_WORD, sanitizeLabel, tailActivity } from '../concourse-model/concourseSnapshot.js'
+import { LOADING_PHASE_WORD, READING_PHASE_WORD, RETRY_PHASE_WORD } from '../spinner/liveCounterWords.js'
+import { workerTranscriptPath } from '../concourse-model/workerTranscript.js'
+import { resolveWatchRoot } from '../../platform/processes/watchRoot.js'
+import { subscribeUiClock } from '../cockpit/uiClock.js'
+import { logForDebugging } from '../../platform/logs/debugLog.js'
+import { passedOver } from '../../platform/errors/passedOver.js'
+import { startTimeout, stopTimeout } from '../../platform/async/timers.js'
+
+
+type LiveTileNow =
+  | { kind: 'streaming'; line: string }
+  | { kind: 'tool'; line: string }
+  | { kind: 'phase'; line: string }
+  | { kind: 'settled'; line: string }
+  | { kind: 'still' }
+
+const STILL: LiveTileNow = { kind: 'still' }
+const noopUnsub = (): void => {}
+
+type LiveTileTail = Pick<SessionTailV1, 'atMs' | 'text'> & Partial<Pick<SessionTailV1, 'streamBlock' | 'stateWord' | 'waitingOnAgents' | 'wait'>>
+
+export function liveTilePhase(tail: LiveTileTail | null): string | null {
+  if (tail === null) return null
+  if (tail.stateWord === 'compacting') return 'compacting'
+  if (tail.stateWord === 'waiting-on-agents') return `waiting on ${tail.waitingOnAgents ?? 1} ${(tail.waitingOnAgents ?? 1) === 1 ? 'crewmate' : 'crewmates'}`
+  if (tail.wait?.kind === 'first-byte') return tail.wait.phase === 'loading' ? LOADING_PHASE_WORD : READING_PHASE_WORD
+  if (tail.wait?.kind === 'retry') return RETRY_PHASE_WORD
+  if (tail.streamBlock === 'thinking') return 'thinking'
+  if (tail.streamBlock === 'text' || tail.streamBlock === 'tool_use') return 'writing'
+  return null
+}
+
+const nowEquals = (a: LiveTileNow, b: LiveTileNow): boolean =>
+  a.kind === b.kind && (a.kind === 'still' || (b.kind !== 'still' && a.line === (b as { line: string }).line))
+
+export function lastLineOf(text: string): string {
+  const lines = withoutMissionMetSentinel(text).split('\n')
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const flat = (lines[i] ?? '').replace(/\s+/g, ' ').trim()
+    if (flat.length > 0) return sanitizeLabel(flat.slice(-56))
+  }
+  return ''
+}
+
+export function askTileCopy(title: string, question: string): string {
+  const lead = `"${title}" asks to `
+  return question.startsWith(lead) ? question.slice(lead.length) : question
+}
+
+const TAIL_FRESH_MS = 10_000
+export function gateTailFreshness(tail: LiveTileTail | null, nowMs: number): LiveTileTail | null {
+  if (tail === null || tail.text === null) return tail
+  return nowMs - tail.atMs < TAIL_FRESH_MS ? tail : { ...tail, text: null }
+}
+const DRAIN_COALESCE_MS = 80
+const HEARTBEAT_MS = 1000
+export const TILE_BUDGET_MS_PER_S = 40
+const DEGRADE_WINDOWS = 2
+const RECOVER_PROBES = 2
+const PROBE_MS = 5000
+
+interface TileEntry {
+  sessionId: string
+  workspaceId: string
+  tailFile: string
+  listeners: Set<() => void>
+  now: LiveTileNow
+  dirty: boolean
+  transcriptStamp: string
+  tailStamp: string
+}
+
+interface LiveTileStoreDeps {
+  tailDir: () => string
+  tailPath: (sessionId: string) => string
+  readTail: (sessionId: string) => LiveTileTail | null
+  activity: (rec: { sessionId: string; workspaceId: string }) => { label: string; kind?: 'tool' | 'text'; settled?: true } | null
+  transcriptPath: (rec: { sessionId: string; workspaceId: string }) => string
+  nowMs: () => number
+  forceDegrade: boolean
+  armMachinery: boolean
+}
+
+const defaultDeps = (): LiveTileStoreDeps => ({
+  tailDir: () => sessionTailDir(),
+  tailPath: (sessionId: string) => sessionTailPath(sessionId),
+  readTail: (sessionId: string) => readSessionTail(sessionId),
+  activity: rec => tailActivity(rec),
+  transcriptPath: rec => workerTranscriptPath(rec),
+  nowMs: () => Date.now(),
+  forceDegrade: flagEnv('MERCURY_TILES_FORCE_DEGRADE') === '1',
+  armMachinery: true,
+})
+
+export class LiveTileStore {
+  private readonly deps: LiveTileStoreDeps
+  private readonly entries = new Map<string, TileEntry>()
+  private readonly byFile = new Map<string, TileEntry>()
+  private watcher: FSWatcher | null = null
+  private heartbeat: (() => void) | null = null
+  private drainTimer: ReturnType<typeof setTimeout> | null = null
+
+  private degraded: boolean
+  private readonly degradeListeners = new Set<() => void>()
+  private windowStartMs = 0
+  private windowCostMs = 0
+  private overStreak = 0
+  private underStreak = 0
+  private lastProbeMs = 0
+
+  constructor(deps: Partial<LiveTileStoreDeps> = {}) {
+    this.deps = { ...defaultDeps(), ...deps }
+    this.degraded = this.deps.forceDegrade
+  }
+
+  register(sessionId: string, workspaceId: string, onChange: () => void): () => void {
+    let e = this.entries.get(sessionId)
+    if (!e) {
+      e = {
+        sessionId,
+        workspaceId,
+        tailFile: basename(this.deps.tailPath(sessionId)),
+        listeners: new Set(),
+        now: STILL,
+        dirty: true,
+        transcriptStamp: '',
+        tailStamp: '',
+      }
+      this.entries.set(sessionId, e)
+      this.byFile.set(e.tailFile, e)
+    }
+    e.workspaceId = workspaceId
+    e.listeners.add(onChange)
+    this.start()
+    this.scheduleDrain()
+    return () => {
+      const entry = this.entries.get(sessionId)
+      if (!entry) return
+      entry.listeners.delete(onChange)
+      if (entry.listeners.size === 0) {
+        this.entries.delete(sessionId)
+        this.byFile.delete(entry.tailFile)
+      }
+      if (this.entries.size === 0) this.stop()
+    }
+  }
+
+  readTile(sessionId: string): LiveTileNow {
+    if (this.degraded) return STILL
+    return this.entries.get(sessionId)?.now ?? STILL
+  }
+
+  isDegraded(): boolean {
+    return this.degraded
+  }
+
+  onDegradeChange(l: () => void): () => void {
+    this.degradeListeners.add(l)
+    return () => this.degradeListeners.delete(l)
+  }
+
+  private start(): void {
+    if (!this.deps.armMachinery) return
+    if (this.heartbeat !== null) return
+    this.heartbeat = subscribeUiClock(HEARTBEAT_MS, () => {
+      for (const e of this.entries.values()) e.dirty = true
+      this.drain()
+    })
+    try {
+      const dir = this.deps.tailDir()
+      const watcher = watch(resolveWatchRoot(dir), (_ev, filename) => {
+        if (filename === undefined || filename === null) {
+          for (const e of this.entries.values()) e.dirty = true
+        } else {
+          const e = this.byFile.get(String(filename))
+          if (e === undefined) return
+          e.dirty = true
+        }
+        this.scheduleDrain()
+      })
+      watcher.on('error', () => {
+        try {
+          watcher.close()
+        } catch (error) {
+          passedOver(error)
+        }
+        if (this.watcher === watcher) this.watcher = null
+      })
+      this.watcher = watcher
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+
+  private stop(): void {
+    if (this.heartbeat !== null) {
+      this.heartbeat()
+      this.heartbeat = null
+    }
+    if (this.drainTimer !== null) {
+      stopTimeout(this.drainTimer)
+      this.drainTimer = null
+    }
+    try {
+      this.watcher?.close()
+    } catch (error) {
+      passedOver(error)
+    }
+    this.watcher = null
+  }
+
+  private scheduleDrain(): void {
+    if (this.drainTimer !== null) return
+    const t = startTimeout(() => {
+      this.drainTimer = null
+      this.drain()
+    }, DRAIN_COALESCE_MS)
+    t.unref?.()
+    this.drainTimer = t
+  }
+
+  private derive(e: TileEntry, tail: LiveTileTail | null): LiveTileNow {
+    if (tail !== null && tail.text !== null && this.deps.nowMs() - tail.atMs < TAIL_FRESH_MS) {
+      const line = lastLineOf(tail.text)
+      if (line.length > 0) return { kind: 'streaming', line }
+    }
+    const phase = liveTilePhase(tail)
+    if (phase !== null) return { kind: 'phase', line: phase }
+    const act = this.deps.activity({ sessionId: e.sessionId, workspaceId: e.workspaceId })
+    if (act !== null && act.label.length > 0) {
+      if (act.kind === 'tool') return act.settled === true ? { kind: 'phase', line: MODEL_TURN_NOW_WORD } : { kind: 'tool', line: act.label }
+      return { kind: 'settled', line: act.label }
+    }
+    return STILL
+  }
+
+  private drain(probe = false): void {
+    const now = this.deps.nowMs()
+    if (this.degraded && !probe) {
+      if (this.deps.forceDegrade) return
+      if (now - this.lastProbeMs >= PROBE_MS) {
+        this.lastProbeMs = now
+        this.drain(true)
+      }
+      return
+    }
+    if (this.windowStartMs === 0) this.windowStartMs = now
+    let cost = 0
+    for (const e of this.entries.values()) {
+      if (!e.dirty) continue
+      e.dirty = false
+      const t0 = this.deps.nowMs()
+      let next: LiveTileNow
+      try {
+        const tailRaw = gateTailFreshness(this.deps.readTail(e.sessionId), this.deps.nowMs())
+        const tailStamp = tailRaw === null ? 'none' : `${tailRaw.atMs}:${tailRaw.text === null ? 0 : tailRaw.text.length}`
+        let transcriptStamp = 'none'
+        try {
+          const st = statSync(this.deps.transcriptPath({ sessionId: e.sessionId, workspaceId: e.workspaceId }))
+          transcriptStamp = `${st.mtimeMs}:${st.size}`
+        } catch (error) {
+          passedOver(error)
+        }
+        if (tailStamp === e.tailStamp && transcriptStamp === e.transcriptStamp) {
+          cost += this.deps.nowMs() - t0
+          continue
+        }
+        e.tailStamp = tailStamp
+        e.transcriptStamp = transcriptStamp
+        next = this.derive(e, tailRaw)
+      } catch (err) {
+        logForDebugging(`[concourse] live-tile derive failed for ${e.sessionId} (kept last): ${err}`)
+        cost += this.deps.nowMs() - t0
+        continue
+      }
+      cost += this.deps.nowMs() - t0
+      if (!nowEquals(next, e.now)) {
+        e.now = next
+        for (const l of [...e.listeners]) {
+          try {
+            l()
+          } catch (err) {
+            logForDebugging(`[concourse] live-tile listener threw (ignored): ${err}`)
+          }
+        }
+      }
+    }
+    if (probe) {
+      if (cost < TILE_BUDGET_MS_PER_S / 2) {
+        this.underStreak += 1
+        if (this.underStreak >= RECOVER_PROBES) this.setDegraded(false)
+      } else {
+        this.underStreak = 0
+      }
+      return
+    }
+    this.windowCostMs += cost
+    if (now - this.windowStartMs >= 1000) {
+      if (this.windowCostMs > TILE_BUDGET_MS_PER_S) {
+        this.overStreak += 1
+        if (this.overStreak >= DEGRADE_WINDOWS) this.setDegraded(true)
+      } else {
+        this.overStreak = 0
+      }
+      this.windowStartMs = now
+      this.windowCostMs = 0
+    }
+  }
+
+  private setDegraded(v: boolean): void {
+    if (this.degraded === v) return
+    this.degraded = v
+    this.overStreak = 0
+    this.underStreak = 0
+    this.lastProbeMs = this.deps.nowMs()
+    for (const l of [...this.degradeListeners]) {
+      try {
+        l()
+      } catch (err) {
+        logForDebugging(`[concourse] live-tile degrade listener threw (ignored): ${err}`)
+      }
+    }
+    for (const e of this.entries.values()) {
+      for (const l of [...e.listeners]) {
+        try {
+          l()
+        } catch (error) {
+          passedOver(error)
+        }
+      }
+    }
+  }
+
+  _drainForTesting(): void {
+    for (const e of this.entries.values()) e.dirty = true
+    this.drain()
+  }
+}
+
+const theStore = new LiveTileStore()
+
+const subscribeDegraded = (onStoreChange: () => void): (() => void) => theStore.onDegradeChange(onStoreChange)
+const readDegraded = (): boolean => theStore.isDegraded()
+
+export function useLiveTile(
+  sessionId: string,
+  workspaceId: string | undefined,
+  live: boolean,
+): { now: LiveTileNow; degraded: boolean } {
+  const active = live && workspaceId !== undefined && !sessionId.startsWith('dispatch:')
+  const subscribeTile = useCallback(
+    (onStoreChange: () => void): (() => void) =>
+      active ? theStore.register(sessionId, workspaceId ?? '', onStoreChange) : noopUnsub,
+    [active, sessionId, workspaceId],
+  )
+  const readTile = useCallback(
+    (): LiveTileNow => (active ? theStore.readTile(sessionId) : STILL),
+    [active, sessionId],
+  )
+  const subscribeActiveDegraded = useCallback(
+    (onStoreChange: () => void): (() => void) =>
+      active ? theStore.onDegradeChange(onStoreChange) : noopUnsub,
+    [active],
+  )
+  const now = useSyncExternalStore(subscribeTile, readTile, readTile)
+  const degraded = useSyncExternalStore(subscribeActiveDegraded, readDegraded, readDegraded)
+  return { now, degraded }
+}
+
+
+export function workChipTextOf(facts: { work?: readonly WorkRowV1[] } | null): string | null {
+  if (facts === null) return null
+  if (facts.work === undefined) return WORK_UNREPORTED_MARK
+  const line = workChipLine(workCounts(facts.work))
+  return line === null ? null : `${line} running`
+}
+
+const CHIP_FRESH_MS = TAIL_FRESH_MS
+
+export function workChipStoreDeps(nowMs: () => number = () => Date.now()): Partial<LiveTileStoreDeps> {
+  return {
+    tailDir: () => sessionFactsDir(),
+    tailPath: (sessionId: string) => sessionFactsPath(sessionId),
+    readTail: (sessionId: string) => {
+      const facts = readSessionFacts(sessionId)
+      if (facts === null) return null
+      const fresh = nowMs() - facts.atMs < CHIP_FRESH_MS
+      return { atMs: facts.atMs, text: fresh ? workChipTextOf(facts) : null }
+    },
+    activity: () => null,
+    transcriptPath: () => '',
+    nowMs,
+  }
+}
+
+const theChipStore = new LiveTileStore(workChipStoreDeps())
+
+export function useWorkChip(sessionId: string, active: boolean): string | null {
+  const on = active && sessionId !== '' && !sessionId.startsWith('dispatch:')
+  const subscribeChip = useCallback(
+    (onStoreChange: () => void): (() => void) =>
+      on ? theChipStore.register(sessionId, '', onStoreChange) : noopUnsub,
+    [on, sessionId],
+  )
+  const readChip = useCallback((): string | null => {
+    if (!on) return null
+    const now = theChipStore.readTile(sessionId)
+    return now.kind === 'still' ? null : now.line
+  }, [on, sessionId])
+  return useSyncExternalStore(subscribeChip, readChip, readChip)
+}
+
+export function useLiveTilesDegraded(): boolean {
+  return useSyncExternalStore(subscribeDegraded, readDegraded, readDegraded)
+}

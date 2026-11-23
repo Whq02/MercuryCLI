@@ -8,14 +8,14 @@ import { join } from 'node:path'
 import { DIST, MODEL, NODE, childEnv } from '../daemon/dupline-world.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 import { seedScratchHome, startScriptedFixture } from '../lib/scriptedTurn.ts'
-import type { Entry } from '../../src/types/logs.ts'
+import type { Entry } from '../../src/sessions/transcripts/transcriptEntries.ts'
 
 const compact = (id: string, sid: string, segment?: { headUuid: string; tailUuid: string; anchorUuid: string }) => ({
   type: 'system', subtype: 'compact_boundary', sessionId: sid, uuid: id, parentUuid: null, timestamp: new Date().toISOString(), content: 'Conversation compacted',
   compactMetadata: { trigger: 'manual', preTokens: 10000, ...(segment ? { preservedSegment: segment } : {}) },
 })
 async function land(path: string, entry: Record<string, unknown>): Promise<void> {
-  const { QueuePart } = await import('../../src/utils/sessionStorage/writer/queue.ts')
+  const { QueuePart } = await import('../../src/sessions/transcripts/writer/queue.ts')
   const queue = new QueuePart()
   const landed = queue.enqueueWrite(path, entry as Entry)
   await queue.flush()
@@ -31,17 +31,17 @@ const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'history-parts-')))
 const cwd = join(scratch, 'work')
 seedScratchHome(scratch, cwd)
 process.env.MERCURY_CONFIG_DIR = scratch
-const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
-const { historyHead, historyLines, sealedFile } = await import('../../src/utils/sessionStorage/historyParts.ts')
-const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { transcriptLineBytes, transcriptReaderCensus } = await import('../../src/utils/sessionStorage/transcriptBytes.ts')
-const { readTranscriptRecordIds } = await import('../../src/utils/sessionStorage/transcriptReader.ts')
-const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
-const { createBranchSession } = await import('../../src/services/branches/branchManifest.ts')
-const { jsonlConciseRows } = await import('../../src/services/resources/adapters/transcript.ts')
-const { openWorkerTranscript } = await import('../../src/services/concourse/workerTranscript.ts')
-const { recordToEntry } = await import('../../src/fabric/entryCodec.ts')
-const { buildSessionDeleteOffer, operatorPruneTranscripts } = await import('../../src/services/switchboard/transcriptPruneDoor.ts')
+const { getProjectDir } = await import('../../src/sessions/transcripts/sessionStoragePortable.ts')
+const { historyHead, historyLines, sealedFile } = await import('../../src/sessions/transcripts/historyParts.ts')
+const { encodeTranscriptLine } = await import('../../src/sessions/transcripts/vnext.ts')
+const { transcriptLineBytes, transcriptReaderCensus } = await import('../../src/sessions/transcripts/transcriptBytes.ts')
+const { readTranscriptRecordIds } = await import('../../src/sessions/transcripts/transcriptReader.ts')
+const { loadTranscriptFile } = await import('../../src/sessions/transcripts/loading.ts')
+const { createBranchSession } = await import('../../src/sessions/branches/branchManifest.ts')
+const { jsonlConciseRows } = await import('../../src/integrations/resources/adapters/transcript.ts')
+const { openWorkerTranscript } = await import('../../src/screen/concourse-model/workerTranscript.ts')
+const { recordToEntry } = await import('../../src/sessions/fabric/entryCodec.ts')
+const { buildSessionDeleteOffer, operatorPruneTranscripts } = await import('../../src/daemon/switchboard/transcriptPruneDoor.ts')
 const stamp = (iter: Iterable<Buffer | string>) => { const hash = createHash('sha256'); for (const row of iter) hash.update(row); return hash.digest('hex') }
 const project = getProjectDir(cwd)
 mkdirSync(project, { recursive: true })
@@ -131,7 +131,7 @@ try {
   append(crossed, user(last, 'Continue from the result.', s2))
   writeFileSync(twin, '', { flag: 'wx' })
   for (const line of historyLines(crossed)) appendFileSync(twin, line)
-  const { buildConversationChain, buildScreenConversation, findLatestMessage } = await import('../../src/utils/sessionStorage/chain.ts')
+  const { buildConversationChain, buildScreenConversation, findLatestMessage } = await import('../../src/sessions/transcripts/chain.ts')
   async function chains(path: string) {
     const loaded = await loadTranscriptFile(path, { throwOnError: true })
     const leaf = findLatestMessage(loaded.messages.values(), row => loaded.leafUuids.has(row.uuid))
